@@ -1819,7 +1819,7 @@ begin
   if (not Terminated) then
     raise Exception.Create('Debug');
 
-  RunExecute.Free();
+  RunExecute.Free(); RunExecute := Pointer(1);
   SynchronizeStarted.Free();
   SQLStmtLengths.Free();
   SQLStmtsInPackets.Free();
@@ -1905,8 +1905,12 @@ function TMySQLConnection.TSynchroThread.GetIsRunning(): Boolean;
 begin
   if (not Terminated) then
   begin
-    if (Debug <> 0) then
-      raise ERangeError.Create('Debug ' + IntToStr(Debug));
+    if (not Assigned(Self)) then
+      raise ERangeError.Create('Debug');
+    if (not Assigned(RunExecute)) then
+      raise ERangeError.Create('Debug');
+    if (Integer(RunExecute) = 1) then
+      raise ERangeError.Create('Debug');
     // in InUse() there is a TerminateCS call. Is this needed?
   end;
 
