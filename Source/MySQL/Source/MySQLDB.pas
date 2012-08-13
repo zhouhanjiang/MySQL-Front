@@ -1255,7 +1255,7 @@ begin
     Result := 0
   else
   begin
-    if (CodePage <> CP_UTF8) then Flags := 0 else Flags := WC_ERR_INVALID_CHARS;
+    if ((CodePage <> CP_UTF8) or not CheckWin32Version(6)) then Flags := 0 else Flags := WC_ERR_INVALID_CHARS;
     Result := WideCharToMultiByte(CodePage, Flags, lpWideCharStr, cchWideChar, lpMultiByteStr, cchMultiByte, nil, nil);
     if (Result = 0) then RaiseLastOSError();
   end;
