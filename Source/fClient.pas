@@ -453,12 +453,14 @@ type
 
   TCTableDataSet = class(TMySQLTable)
   private
+    FFilterSQL: string;
     FQuickSearch: string;
     FTable: TCTable;
   protected
     function SQLSelect(const IgnoreLimit: Boolean = False): string; override;
   public
     constructor Create(const ATable: TCTable); reintroduce; virtual;
+    property FilterSQL: string read FFilterSQL write FFilterSQL;
     property QuickSearch: string read FQuickSearch write FQuickSearch;
     property Table: TCTable read FTable;
   end;
@@ -468,7 +470,7 @@ type
     FFields: TCTableFields;
     function GetDataSet(): TCTableDataSet;
     function GetTables(): TCTables; inline;
-    function GetValidDataSet(): Boolean;
+    function GetValidData(): Boolean;
   protected
     FDataSet: TCTableDataSet;
     FFilterSQL: string;
@@ -495,7 +497,7 @@ type
     property Index: Integer read GetIndex;
     property InServerCache: Boolean read GetInServerCache;
     property Tables: TCTables read GetTables;
-    property ValidDataSet: Boolean read GetValidDataSet;
+    property ValidData: Boolean read GetValidData;
   end;
 
   TCPartition = class(TCItem)
@@ -3175,6 +3177,7 @@ begin
 
   Asynchron := True;
   Connection := ATable.Database.Client;
+  FFilterSQL := '';
 end;
 
 function TCTableDataSet.SQLSelect(const IgnoreLimit: Boolean = False): string;
@@ -3362,7 +3365,7 @@ begin
   Result := TCTables(CItems);
 end;
 
-function TCTable.GetValidDataSet(): Boolean;
+function TCTable.GetValidData(): Boolean;
 begin
   Result := Assigned(FDataSet) and FDataSet.Active;
 end;
@@ -10203,7 +10206,7 @@ begin
           end;
         end;
       end
-      else if (FCurrentUser = '') then
+      else if ((FCurrentUser = '') and (DataHandle.Connection.ErrorCode = 0)) then
       begin
         DataSet.Open(DataHandle);
         Field := 0;

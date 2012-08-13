@@ -1040,7 +1040,7 @@ type
     procedure CMPostMonitor(var Message: TMessage); message CM_POST_MONITOR;
     procedure CMPostShow(var Message: TMessage); message CM_POSTSHOW;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
-    procedure CMWantedSynchronize(var Message: TWMTimer); message CM_WANTED_SYNCHRONIZE;
+    procedure CMWantedSynchronize(var Message: TMessage); message CM_WANTED_SYNCHRONIZE;
     procedure WMNotify(var Message: TWMNotify); message WM_NOTIFY;
     procedure WMParentNotify(var Message: TWMParentNotify); message WM_PARENTNOTIFY;
     procedure WMTimer(var Message: TWMTimer); message WM_TIMER;
@@ -2539,7 +2539,7 @@ if (Client.InOnResult) then
       begin
         Table := TCTable(FNavigator.Selected.Data);
 
-        if (not (Table.DataSet is TMySQLTable) or not Assigned(Table.DataSet) or not Table.DataSet.Active or (TMySQLTable(Table.DataSet).Limit < 1)) then
+        if (not (Table.DataSet is TCTableDataSet) or not Assigned(Table.DataSet) or not Table.DataSet.Active or (TCTableDataSet(Table.DataSet).Limit < 1)) then
         begin
           FUDOffset.Position := 0;
           FUDLimit.Position := Desktop(Table).Limit;
@@ -2547,15 +2547,15 @@ if (Client.InOnResult) then
         end
         else
         begin
-          FUDOffset.Position := TMySQLTable(Table.DataSet).Offset;
-          FUDLimit.Position := TMySQLTable(Table.DataSet).Limit;
-          FLimitEnabled.Down := TMySQLTable(Table.DataSet).Limit > 1;
+          FUDOffset.Position := TCTableDataSet(Table.DataSet).Offset;
+          FUDLimit.Position := TCTableDataSet(Table.DataSet).Limit;
+          FLimitEnabled.Down := TCTableDataSet(Table.DataSet).Limit > 1;
         end;
-        FFilterEnabled.Down := (Table.DataSet is TMySQLTable) and Assigned(Table.DataSet) and Table.DataSet.Active and (Table.DataSet.FilterSQL <> '');
+        FFilterEnabled.Down := (Table.DataSet is TCTableDataSet) and Assigned(Table.DataSet) and Table.DataSet.Active and (Table.DataSet.FilterSQL <> '');
         if (not FFilterEnabled.Down) then
           FFilter.Text := ''
         else
-          FFilter.Text := TMySQLTable(Table.DataSet).FilterSQL;
+          FFilter.Text := TCTableDataSet(Table.DataSet).FilterSQL;
         FilterMRU.Clear();
         for I := 0 to Desktop(Table).FilterCount - 1 do
           FilterMRU.Add(Desktop(Table).Filters[I]);
@@ -3769,7 +3769,7 @@ begin
       begin
         Path := ExtractFilePath(SaveDialog.FileName);
 
-        if (SaveDialog.EncodingIndex < 0) then
+        if ((SaveDialog.EncodingIndex < 0) or (SaveDialog.Encodings.Count = 0)) then
           DExport.CodePage := CP_ACP
         else
           DExport.CodePage := EncodingToCodePage(SaveDialog.Encodings[SaveDialog.EncodingIndex]);
@@ -4787,6 +4787,10 @@ begin
   if (not (tsLoading in FrameState)) then
     ClientUpdate(nil);
 
+  for I := 0 to PListView.ControlCount - 1 do
+    if (PListView.Controls[I] is TListView) then
+      ListViewInitialize(TListView(PListView.Controls[I]));
+
   SQLBuilder.RightMargin := Preferences.Editor.RightEdge;
 
   FOffset.Hint := ReplaceStr(Preferences.LoadStr(846), '&', '') + ' (' + ShortCutToText(aTBOffset.ShortCut) + ')';
@@ -4849,7 +4853,6 @@ begin
   smEEmpty.Caption := Preferences.LoadStr(181);
 
   FNavigatorInitialize(nil);
-  ListViewInitialize(FServerListView);
 
   BINSERT.Font := FSQLEditorSynMemo.Font;
   BINSERT.Font.Style := [fsBold];
@@ -5292,7 +5295,7 @@ begin
   SendMessage(FLog.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
 end;
 
-procedure TFClient.CMWantedSynchronize(var Message: TWMTimer);
+procedure TFClient.CMWantedSynchronize(var Message: TMessage);
 begin
   if (not (csDestroying in ComponentState)) then
     Wanted.Synchronize();
@@ -6423,10 +6426,10 @@ begin
         end
         else
         begin
-          BytesToWrite := WideCharToMultiByte(CodePage, 0, PWideChar(@StreamBuffer), BytesRead div SizeOf(WideChar), nil, 0, nil, nil);
+          BytesToWrite := WideCharToAnsiChar(CodePage, PWideChar(@StreamBuffer), BytesRead div SizeOf(WideChar), nil, 0);
           if (BytesToWrite < 1) or (SizeOf(FileBuffer) < BytesToWrite) then
             raise ERangeError.Create(SRangeError);
-          WideCharToMultiByte(CodePage, 0, PWideChar(@StreamBuffer), BytesRead div SizeOf(WideChar), @FileBuffer, SizeOf(FileBuffer), nil, nil);
+          WideCharToAnsiChar(CodePage, PWideChar(@StreamBuffer), BytesRead div SizeOf(WideChar), @FileBuffer, SizeOf(FileBuffer));
           Success := WriteFile(Handle, FileBuffer, BytesToWrite, BytesWritten, nil);
         end;
       until ((BytesToWrite = 0) or (BytesWritten <> BytesToWrite));
@@ -7319,7 +7322,7 @@ begin
   FFilter.Text := FFilter.Text;
 
   FFilterEnabled.Enabled := SQLSingleStmt(FFilter.Text);
-  FFilterEnabled.Down := FFilterEnabled.Enabled and Assigned(ActiveDBGrid.DataSource.DataSet) and (FFilter.Text = TMySQLTable(ActiveDBGrid.DataSource.DataSet).FilterSQL);
+  FFilterEnabled.Down := FFilterEnabled.Enabled and Assigned(ActiveDBGrid.DataSource.DataSet) and (FFilter.Text = TCTableDataSet(ActiveDBGrid.DataSource.DataSet).FilterSQL);
 end;
 
 procedure TFClient.FFilterDropDown(Sender: TObject);
@@ -7346,9 +7349,9 @@ end;
 
 procedure TFClient.FFilterKeyPress(Sender: TObject; var Key: Char);
 begin
-  if ((Key = Chr(VK_ESCAPE)) and (TMySQLTable(ActiveDBGrid.DataSource.DataSet).FilterSQL <> '')) then
+  if ((Key = Chr(VK_ESCAPE)) and (TCTableDataSet(ActiveDBGrid.DataSource.DataSet).FilterSQL <> '')) then
   begin
-    FFilter.Text := TMySQLTable(ActiveDBGrid.DataSource.DataSet).FilterSQL;
+    FFilter.Text := TCTableDataSet(ActiveDBGrid.DataSource.DataSet).FilterSQL;
     FFilterChange(Sender);
 
     FFilter.SelStart := 0;
@@ -8532,13 +8535,13 @@ begin
     FUDOffset.Position := FUDOffset.Position;
 
     FLimitEnabled.Enabled := FUDLimit.Position > 0;
-    FLimitEnabled.Down := (FUDOffset.Position = TMySQLTable(ActiveDBGrid.DataSource.DataSet).Offset) and (FUDLimit.Position = TMySQLTable(ActiveDBGrid.DataSource.DataSet).Limit);
+    FLimitEnabled.Down := (FUDOffset.Position = TCTableDataSet(ActiveDBGrid.DataSource.DataSet).Offset) and (FUDLimit.Position = TCTableDataSet(ActiveDBGrid.DataSource.DataSet).Limit);
   end;
 end;
 
 procedure TFClient.FOffsetKeyPress(Sender: TObject; var Key: Char);
 begin
-  if ((Key = Chr(VK_ESCAPE)) and (TMySQLTable(ActiveDBGrid.DataSource.DataSet).Limit > 0)) then
+  if ((Key = Chr(VK_ESCAPE)) and (TCTableDataSet(ActiveDBGrid.DataSource.DataSet).Limit > 0)) then
   begin
     FUDOffset.Position := FUDOffset.Position;
     FUDLimit.Position := FUDLimit.Position;
@@ -9261,7 +9264,8 @@ begin
 
   if (Assigned(Result)) then
     for I := 0 to PResult.ControlCount - 1 do
-      PResult.Controls[I].Visible := PResult.Controls[I] = Result.Parent;
+      if (PResult.Controls[I] is TDBGrid) then
+        PResult.Controls[I].Visible := PResult.Controls[I] = Result.Parent;
 end;
 
 function TFClient.GetActiveIDEInputDataSet(): TDataSet;
@@ -9568,7 +9572,7 @@ begin
     ActiveDBGrid.DataSource.DataSet.Filter := '';
     StatusBarRefresh();
   end
-  else if (ActiveDBGrid.DataSource.DataSet is TMySQLTable) then
+  else if (ActiveDBGrid.DataSource.DataSet is TCTableDataSet) then
     FFilterEnabledClick(nil);
 end;
 
@@ -9782,7 +9786,7 @@ begin
             1: Compare := Sign(SysUtils.StrToInt64(String1) - SysUtils.StrToInt64(String2));
             2:
               begin
-                if (String1 = '') then String1 := '0';               if (String2 = '') then String2 := '0';
+                if (String1 = '') then String1 := '0';              if (String2 = '') then String2 := '0';
 
                 String1 := ReplaceStr(String1, '???', '0');         String2 := ReplaceStr(String2, '???', '0');
 
@@ -11008,10 +11012,13 @@ var
   ListView: TListView;
   Msg: TMsg;
 begin
-  if ((not (PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (Msg.wParam = MK_LBUTTON)) or (ActiveListView.SelCount <= 1)) and (Sender is TListView)) then
-  begin
+  if (not (Sender is TListView)) then
+    ListView := nil
+  else
     ListView := TListView(Sender);
 
+  if (Assigned(ListView) and (not (PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (Msg.wParam = MK_LBUTTON)) or (ListView.SelCount <= 1))) then
+  begin
     aPOpenInNewWindow.Enabled := False;
     aPOpenInNewTab.Enabled := False;
     MainAction('aFImportSQL').Enabled := False;
@@ -11595,8 +11602,8 @@ begin
     begin
       gmFilter.Enabled := True;
 
-      if (((ActiveDBGrid.DataSource.DataSet is TMySQLTable) and (TMySQLTable(ActiveDBGrid.DataSource.DataSet).FilterSQL <> ''))
-        or not (ActiveDBGrid.DataSource.DataSet is TMySQLTable) and ActiveDBGrid.DataSource.DataSet.Filtered) then
+      if (((ActiveDBGrid.DataSource.DataSet is TCTableDataSet) and (TCTableDataSet(ActiveDBGrid.DataSource.DataSet).FilterSQL <> ''))
+        or not (ActiveDBGrid.DataSource.DataSet is TCTableDataSet) and ActiveDBGrid.DataSource.DataSet.Filtered) then
       begin
         NewMenuItem := TMenuItem.Create(Self);
         NewMenuItem.Caption := Preferences.LoadStr(28);
@@ -12102,7 +12109,7 @@ begin
     if (Node = FNavigator.Selected) then
     begin
       if (URI.Param['view'] = 'browser') then
-        if (Desktop(TCTable(FNavigator.Selected.Data)).Table.ValidDataSet) then
+        if (Desktop(TCTable(FNavigator.Selected.Data)).Table.ValidData) then
         begin
            if (Desktop(TCTable(FNavigator.Selected.Data)).Table.DataSet.Offset > 0) then
             URI.Param['offset'] := IntToStr(Desktop(TCTable(FNavigator.Selected.Data)).Table.DataSet.Offset);
@@ -13312,18 +13319,15 @@ begin
         case (SQLEditor.FileCodePage) of
           CP_UNICODE: Success := WriteFile(Handle, Text[1], Length(Text), BytesWritten, nil);
           else
-            if (Text <> '') then
             begin
-              Len := WideCharToMultiByte(SQLEditor.FileCodePage, 0, PChar(Text), Length(Text), nil, 0, nil, nil);
+              Len := WideCharToAnsiChar(SQLEditor.FileCodePage, PChar(Text), Length(Text), nil, 0);
               if (Len > 0) then
               begin
                 GetMem(FileBuffer, Len);
-                WideCharToMultiByte(SQLEditor.FileCodePage, 0, PChar(Text), Length(Text), FileBuffer, Len, nil, nil);
+                WideCharToAnsiChar(SQLEditor.FileCodePage, PChar(Text), Length(Text), FileBuffer, Len);
                 Success := WriteFile(Handle, FileBuffer^, Len, BytesWritten, nil);
                 FreeMem(FileBuffer);
-              end
-              else if (GetLastError() <> 0) then
-                RaiseLastOSError();
+              end;
             end;
         end;
 
@@ -14237,7 +14241,7 @@ begin
           begin
             Database := TCDatabase(FNavigator.Selected.Data);
 
-            if (Database.Count < PrefetchObjectCount) then
+            if ((Database.Count < PrefetchObjectCount) or (Database is TCSystemDatabase)) then
             begin
               List := TList.Create();
 
@@ -14261,7 +14265,7 @@ begin
           end;
       end;
     vBrowser:
-      if (not TCTable(FNavigator.Selected.Data).ValidDataSet or not TCTable(FNavigator.Selected.Data).DataSet.Active) then
+      if (not TCTable(FNavigator.Selected.Data).ValidData) then
         TableOpen(nil);
     vDiagram:
       if (not Assigned(ActiveWorkbench)) then

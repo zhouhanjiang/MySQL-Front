@@ -164,6 +164,7 @@ type
       TMode = (smSQL, smDataHandle, smDataSet);
       TState = (ssClose, ssConnecting, ssReady, ssExecutingSQL, ssResult, ssReceivingResult, ssNextResult, ssCancel, ssDisconnecting, ssError);
     private
+      Debug: Integer;
       Done: TEvent;
       FConnection: TMySQLConnection;
       RunExecute: TEvent;
@@ -631,7 +632,6 @@ InOnResult: Boolean; // Should be private, but for debugging...
     FLimitedDataReceived: Boolean;
     FOffset: Integer;
   protected
-    FFilterSQL: string;
     RequestedRecordCount: Integer;
     function GetCanModify(): Boolean; override;
     procedure InternalClose(); override;
@@ -648,7 +648,6 @@ InOnResult: Boolean; // Should be private, but for debugging...
     property LimitedDataReceived: Boolean read FLimitedDataReceived;
   published
     property AutomaticLoadNextRecords: Boolean read FAutomaticLoadNextRecords write FAutomaticLoadNextRecords default False;
-    property FilterSQL: string read FFilterSQL write FFilterSQL;
     property Limit: Integer read FLimit write FLimit default 0;
     property Offset: Integer read FOffset write FOffset default 0;
   end;
@@ -762,6 +761,9 @@ procedure MySQLConnectionSynchronize(const Data: Pointer);
 function StrToDate(const S: string; const FormatSettings: TFormatSettings): TDateTime; overload;
 function StrToDateTime(const S: string; const FormatSettings: TFormatSettings): TDateTime; overload;
 function SQLFormatToDisplayFormat(const SQLFormat: string): string;
+function AnsiCharToWideChar(const CodePage: UINT; const lpMultiByteStr: LPCSTR; const cchMultiByte: Integer; const lpWideCharStr: LPWSTR; const cchWideChar: Integer): Integer;
+function WideCharToAnsiChar(const CodePage: UINT; const lpWideCharStr: LPWSTR; const cchWideChar: Integer; const lpMultiByteStr: LPSTR; const cchMultiByte: Integer): Integer;
+
 
 const
   NotQuotedDataTypes = [ftShortInt, ftByte, ftSmallInt, ftWord, ftInteger, ftLongWord, ftLargeint, ftSingle, ftFloat, ftExtended];
@@ -777,7 +779,6 @@ implementation {***************************************************************}
 uses
   DBConsts, Forms, Variants, DateUtils, Registry, ActiveX,
   RTLConsts, Consts, SysConst, Masks, Controls, Math, StrUtils,
-  UInt64Lib,
   MySQLClient,
   CSVUtils, SQLUtils, HTTPTunnel;
 
@@ -1233,6 +1234,31 @@ begin
   S := IntToStr(T mod 60); if (Length(S) = 1) then S := '0' + S; Result := ReplaceStr(Result, 'ss', S); T := T div 60;
   S := IntToStr(T mod 60); if (Length(S) = 1) then S := '0' + S; Result := ReplaceStr(Result, 'mm', S); T := T div 60;
   S := IntToStr(T       ); if (Length(S) = 1) then S := '0' + S; Result := ReplaceStr(Result, 'hh', S);
+end;
+
+function AnsiCharToWideChar(const CodePage: UINT; const lpMultiByteStr: LPCSTR; const cchMultiByte: Integer; const lpWideCharStr: LPWSTR; const cchWideChar: Integer): Integer;
+begin
+  if (not Assigned(lpMultiByteStr) or (cchMultiByte = 0)) then
+    Result := 0
+  else
+  begin
+    Result := MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, lpMultiByteStr, cchMultiByte, lpWideCharStr, cchWideChar);
+    if (Result = 0) then RaiseLastOSError();
+  end;
+end;
+
+function WideCharToAnsiChar(const CodePage: UINT; const lpWideCharStr: LPWSTR; const cchWideChar: Integer; const lpMultiByteStr: LPSTR; const cchMultiByte: Integer): Integer;
+var
+  Flags: DWord;
+begin
+  if (not Assigned(lpWideCharStr) or (cchWideChar = 0)) then
+    Result := 0
+  else
+  begin
+    if (CodePage <> CP_UTF8) then Flags := 0 else Flags := WC_ERR_INVALID_CHARS;
+    Result := WideCharToMultiByte(CodePage, Flags, lpWideCharStr, cchWideChar, lpMultiByteStr, cchMultiByte, nil, nil);
+    if (Result = 0) then RaiseLastOSError();
+  end;
 end;
 
 { Callback functions **********************************************************}
@@ -1767,7 +1793,11 @@ constructor TMySQLConnection.TSynchroThread.Create(const AConnection: TMySQLConn
 begin
   Assert(Assigned(AConnection));
 
+  Debug := 123456;
+
   inherited Create(False);
+
+  Debug := 654321;
 
   FConnection := AConnection;
 
@@ -1783,6 +1813,9 @@ end;
 
 destructor TMySQLConnection.TSynchroThread.Destroy();
 begin
+  if (Debug <> 0) then
+    raise Exception.Create('Debug: ' + IntToStr(Debug));
+
   if (not Terminated) then
     raise Exception.Create('Debug');
 
@@ -1801,6 +1834,8 @@ var
   WaitResult: TWaitResult;
   SynchronizeRequestSent: Boolean;
 begin
+  Debug := 12344321;
+
   while (not Terminated) do
   begin
     if ((Connection.ServerTimeout = 0) or (Connection.LibraryType = ltHTTP)) then
@@ -1844,6 +1879,11 @@ begin
       end;
   end;
 
+  Debug := 43211234;
+
+  if (not Terminated) then
+    raise Exception.Create('Debug');
+
   if (Assigned(LibHandle)) then
   begin
     if (Assigned(ResultHandle)) then
@@ -1857,6 +1897,8 @@ begin
   end;
 
   Connection.TerminatedThreads.Delete(Self);
+
+  Debug := 0;
 end;
 
 function TMySQLConnection.TSynchroThread.GetIsRunning(): Boolean;
@@ -2381,7 +2423,7 @@ begin
     begin
       if (SetNames or AlterTableAfterCreateTable) then
         PacketComplete := pcExclusiveCurrentStmt
-      else if ((SizeOf(COM_QUERY) + SynchroThread.SQLStmtIndex - 1 + StmtLength > MaxAllowedPacket) and (SizeOf(COM_QUERY) + WideCharToMultiByte(CodePage, 0, PChar(@SynchroThread.SQL[SQLPacketIndex]), SynchroThread.SQLStmtIndex - SQLPacketIndex + StmtLength, nil, 0, nil, nil) > MaxAllowedPacket)) then
+      else if ((SizeOf(COM_QUERY) + SynchroThread.SQLStmtIndex - 1 + StmtLength > MaxAllowedPacket) and (SizeOf(COM_QUERY) + WideCharToAnsiChar(CodePage, PChar(@SynchroThread.SQL[SQLPacketIndex]), SynchroThread.SQLStmtIndex - SQLPacketIndex + StmtLength, nil, 0) > MaxAllowedPacket)) then
         if (SynchroThread.SQLStmt > 0) then
           PacketComplete := pcExclusiveCurrentStmt
         else
@@ -2570,34 +2612,18 @@ begin
     Len := lstrlenA(Data)
   else
     Len := 0;
-  if (Len = 0) then
-    Result := ''
-  else
-  begin
-    SetLength(Result, MultiByteToWideChar(CodePage, 0, Data, Len, nil, 0));
-    if (Len > 0) then
-      SetLength(Result, MultiByteToWideChar(CodePage, 0, Data, Len, PChar(Result), System.Length(Result)))
-    else if (GetLastError() <> 0) then
-      RaiseLastOSError();
-  end;
+  SetLength(Result, AnsiCharToWideChar(CodePage, Data, Len, nil, 0));
+  if (Len > 0) then
+    SetLength(Result, AnsiCharToWideChar(CodePage, Data, Len, PChar(Result), System.Length(Result)));
 end;
 
 function TMySQLConnection.LibEncode(const Value: string): RawByteString;
 var
   Len: Integer;
 begin
-  if (Value = '') then
-    Result := ''
-  else
-  begin
-    Len := WideCharToMultiByte(CodePage, 0, PChar(Value), Length(Value), nil, 0, nil, nil);
-    if ((Len = 0) and (GetLastError() <> 0)) then
-      RaiseLastOSError();
-
-    SetLength(Result, Len);
-    if (Len > 0) then
-      SetLength(Result, WideCharToMultiByte(CodePage, 0, PChar(Value), Length(Value), PAnsiChar(Result), Len, nil, nil));
-  end;
+  Len := WideCharToAnsiChar(CodePage, PChar(Value), Length(Value), nil, 0);
+  SetLength(Result, Len);
+  WideCharToAnsiChar(CodePage, PChar(Value), Length(Value), PAnsiChar(Result), Len);
 end;
 
 function TMySQLConnection.LibPack(const Value: string): RawByteString;
@@ -2654,28 +2680,28 @@ begin
   begin
     SetLength(Result, Len);
     asm
-      PUSH ES
-      PUSH ESI
-      PUSH EDI
+        PUSH ES
+        PUSH ESI
+        PUSH EDI
 
-      PUSH DS                          // string operations uses ES
-      POP ES
-      CLD                              // string operations uses forward direction
+        PUSH DS                          // string operations uses ES
+        POP ES
+        CLD                              // string operations uses forward direction
 
-      MOV ESI,Data                     // Copy characters from Data
-      MOV EAX,Result                   //   to Result
-      MOV EDI,[EAX]
+        MOV ESI,Data                     // Copy characters from Data
+        MOV EAX,Result                   //   to Result
+        MOV EDI,[EAX]
 
-      MOV AH,0                         // Clear AH, since AL will be load but AX stored
-      MOV ECX,Len
-    StringL:
-      LODSB                            // Load AnsiChar from Data
-      STOSW                            // Store WideChar into S
-      LOOP StringL                     // Repeat for all characters
+        MOV AH,0                         // Clear AH, since AL will be load but AX stored
+        MOV ECX,Len
+      StringL:
+        LODSB                            // Load AnsiChar from Data
+        STOSW                            // Store WideChar into S
+        LOOP StringL                     // Repeat for all characters
 
-      POP EDI
-      POP ESI
-      POP ES
+        POP EDI
+        POP ESI
+        POP ES
     end;
   end;
 end;
@@ -2700,7 +2726,7 @@ begin
   Len := FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER or FORMAT_MESSAGE_FROM_SYSTEM or FORMAT_MESSAGE_IGNORE_INSERTS, nil, local_infile^.LastError, 0, @Buffer, 0, nil);
   if (Len > 0) then
   begin
-    Len := WideCharToMultiByte(CodePage, 0, Buffer, Len, error_msg, error_msg_len, nil, nil);
+    Len := WideCharToAnsiChar(CodePage, Buffer, Len, error_msg, error_msg_len);
     error_msg[Len] := #0;
     LocalFree(HLOCAL(Buffer));
   end
@@ -2719,7 +2745,7 @@ begin
   local_infile^.Connection := Self;
   local_infile^.Position := 0;
 
-  if ((MultiByteToWideChar(CodePage, 0, filename, lstrlenA(filename), @local_infile^.Filename, Length(local_infile^.Filename)) = 0) and (GetLastError() <> 0)) then
+  if ((AnsiCharToWideChar(CodePage, filename, lstrlenA(filename), @local_infile^.Filename, Length(local_infile^.Filename)) = 0) and (GetLastError() <> 0)) then
   begin
     local_infile^.LastError := GetLastError();
     local_infile^.ErrorCode := EE_FILENOTFOUND;
@@ -3249,10 +3275,9 @@ begin
       while ((TrimmedPacketLength > 0) and CharInSet(SynchroThread.SQL[SynchroThread.SQLStmtIndex + TrimmedPacketLength - 1], [#9, #10, #13, ' ', ';'])) do
         Dec(TrimmedPacketLength);
 
-    LibLength := WideCharToMultiByte(CodePage, 0, PChar(@SynchroThread.SQL[SynchroThread.SQLStmtIndex]), TrimmedPacketLength, nil, 0, nil, nil);
-    if (LibLength < 0) then RaiseLastOSError();
+    LibLength := WideCharToAnsiChar(CodePage, PChar(@SynchroThread.SQL[SynchroThread.SQLStmtIndex]), TrimmedPacketLength, nil, 0);
     SetLength(LibSQL, LibLength);
-    WideCharToMultiByte(CodePage, 0, PChar(@SynchroThread.SQL[SynchroThread.SQLStmtIndex]), TrimmedPacketLength, PAnsiChar(LibSQL), LibLength, nil, nil);
+    WideCharToAnsiChar(CodePage, PChar(@SynchroThread.SQL[SynchroThread.SQLStmtIndex]), TrimmedPacketLength, PAnsiChar(LibSQL), LibLength);
 
     if (not SynchroThread.Terminated and SynchroThread.Success) then
     begin
@@ -3983,81 +4008,29 @@ end;
 procedure TMySQLQuery.DataConvert(Field: TField; Source, Dest: Pointer; ToNative: Boolean);
 var
   Len: Integer;
-  S: string;
 begin
   case (Field.DataType) of
     ftWideMemo:
       if (ToNative) then
       begin
-        if (not Assigned(TMemoryStream(Source).Memory)) then
-          Len := 0
-        else
-        begin
-          Len := WideCharToMultiByte(Connection.CodePage, 0,
-            TMemoryStream(Source).Memory, TMemoryStream(Source).Size div SizeOf(WideChar),
-            nil, 0, nil, nil);
-          if ((Len = 0) and (GetLastError() <> 0)) then
-            DatabaseErrorFmt(SysErrorMessage(GetLastError()), [Field.DisplayName]);
-        end;
+        Len := WideCharToAnsiChar(Connection.CodePage, TMemoryStream(Source).Memory, TMemoryStream(Source).Size div SizeOf(WideChar), nil, 0);
         SetLength(RawByteString(Dest^), Len);
-        if (Len > 0) then
-          WideCharToMultiByte(Connection.CodePage, 0,
-            TMemoryStream(Source).Memory, TMemoryStream(Source).Size div SizeOf(WideChar),
-            PAnsiChar(RawByteString(Dest^)), Len, nil, nil);
+        WideCharToAnsiChar(Connection.CodePage, TMemoryStream(Source).Memory, TMemoryStream(Source).Size div SizeOf(WideChar), PAnsiChar(RawByteString(Dest^)), Len);
       end
       else
       begin
-        Len := PRecordBufferData(Source)^.LibLengths^[Field.FieldNo - 1];
-        if (Len > 0) then
-        begin
-          Len := MultiByteToWideChar(Connection.CodePage, MB_ERR_INVALID_CHARS,
-            PRecordBufferData(Source)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source)^.LibLengths^[Field.FieldNo - 1],
-            nil, 0);
-          TMemoryStream(Dest).SetSize(Len * SizeOf(WideChar));
-          if (Len > 0) then
-            MultiByteToWideChar(Connection.CodePage, 0,
-              PRecordBufferData(Source)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source)^.LibLengths^[Field.FieldNo - 1],
-              TMemoryStream(Dest).Memory, Len)
-          else if (GetLastError() <> 0) then
-            DatabaseErrorFmt(SysErrorMessage(GetLastError()) + ' (Field: %s)', [Field.Origin]);
-        end;
+        Len := AnsiCharToWideChar(Connection.CodePage, PRecordBufferData(Source)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source)^.LibLengths^[Field.FieldNo - 1], nil, 0);
+        TMemoryStream(Dest).SetSize(Len * SizeOf(WideChar));
+        AnsiCharToWideChar(Connection.CodePage, PRecordBufferData(Source)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source)^.LibLengths^[Field.FieldNo - 1], TMemoryStream(Dest).Memory, Len);
       end;
     ftWideString:
       if (ToNative) then
-      begin
-        if (not Assigned(Source)) then
-          Len := 0
-        else
-        begin
-          Len := WideCharToMultiByte(Connection.CodePage, 0,
-            PChar(Source), -1, nil, 0, nil, nil);
-          if ((Len = 0) and (GetLastError() <> 0)) then
-            DatabaseErrorFmt(SysErrorMessage(GetLastError()), [Field.DisplayName]);
-        end;
-        if (Len > 0) then
-          WideCharToMultiByte(Connection.CodePage, 0,
-            PChar(Source), -1, PAnsiChar(Dest), Field.DataSize, nil, nil);
-      end
+        WideCharToAnsiChar(Connection.CodePage, PChar(Source), -1, PAnsiChar(Dest), Field.DataSize)
       else
       begin
-        Len := PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1];
-        if (Len > 0) then
-        begin
-          Len := MultiByteToWideChar(Connection.CodePage, MB_ERR_INVALID_CHARS,
-            PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1],
-            nil, 0);
-          if (Len > Field.DataSize) then
-            DatabaseErrorFmt(SInvalidFieldSize + ' (%s)', [Field.DisplayName])
-          else if (Len > 0) then
-            MultiByteToWideChar(Connection.CodePage, 0,
-              PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1],
-              PChar(Dest), Field.DataSize)
-          else if (GetLastError() <> 0) then
-          begin
-            S := SQLEscapeBin(PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], False);
-            DatabaseErrorFmt(SysErrorMessage(GetLastError()) + ' (%s - %s)', [IntToStr(Connection.CodePage), S]);
-          end;
-        end;
+        Len := AnsiCharToWideChar(Connection.CodePage, PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], nil, 0);
+        if (Len > Field.DataSize) then DatabaseErrorFmt(SInvalidFieldSize + ' (%s)', [Field.DisplayName]);
+        AnsiCharToWideChar(Connection.CodePage, PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], PChar(Dest), Field.DataSize);
         PChar(Dest)[Len] := #0;
       end;
     else
@@ -6748,7 +6721,6 @@ begin
   SetLength(DeleteBookmarks, 0);
   FCommandType := ctTable;
   FLimitedDataReceived := False;
-  FFilterSQL := '';
 end;
 
 procedure TMySQLTable.InternalClose();
@@ -6848,8 +6820,6 @@ var
   Pos: Integer;
 begin
   Result := inherited SQLSelect();
-  if (FilterSQL <> '') then
-    Result := Result + ' WHERE ' + FilterSQL;
   if (SortDef.Fields <> '') then
   begin
     Result := Result + ' ORDER BY ';

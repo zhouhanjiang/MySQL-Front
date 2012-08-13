@@ -332,9 +332,9 @@ begin
 
       Content := SelText;
 
-      Len := WideCharToMultiByte(GetACP(), 0, PChar(Content), Length(Content), nil, 0, nil, nil);
+      Len := WideCharToAnsiChar(CP_ACP, PChar(Content), Length(Content), nil, 0);
       ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Len + 1));
-      WideCharToMultiByte(GetACP(), 0, PChar(Content), Length(Content), GlobalLock(ClipboardData), Len, nil, nil);
+      WideCharToAnsiChar(CP_ACP, PChar(Content), Length(Content), GlobalLock(ClipboardData), Len);
       PAnsiChar(GlobalLock(ClipboardData))[Len] := #0;
       SetClipboardData(CF_DSPTEXT, ClipboardData);
       GlobalUnlock(ClipboardData);
@@ -872,9 +872,9 @@ begin
         begin
           ClipboardData := GetClipboardData(CF_TEXT);
           Str := PAnsiChar(GlobalLock(ClipboardData));
-          SetLength(S, MultiByteToWideChar(CP_ACP, 0, Str, StrLen(Str), nil, 0));
+          SetLength(S, AnsiCharToWideChar(CP_ACP, Str, StrLen(Str), nil, 0));
           if (Length(S) > 0) then
-            SetLength(S, MultiByteToWideChar(CP_ACP, 0, Str, StrLen(Str), PChar(S), Length(S)));
+            SetLength(S, AnsiCharToWideChar(CP_ACP, Str, StrLen(Str), PChar(S), Length(S)));
           GlobalUnlock(ClipboardData);
         end
         else

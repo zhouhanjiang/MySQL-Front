@@ -42,7 +42,7 @@ type
   end;
 
 function BitStringToInt(const BitString: PChar; const Length: Integer; const Error: PBoolean = nil): UInt64;
-function IntToBitString(const Value: UInt64; const Width: Integer = 1): string;
+function IntToBitString(const Value: UInt64; const MinWidth: Integer = 1): string;
 function SQLCreateParse(out Handle: TSQLParse; const SQL: PChar; const Len: Integer; const Version: Integer; const InCondCode: Boolean = False): Boolean;
 function SQLEscape(const Value: string; const Quoter: Char = ''''): string; overload;
 function SQLEscape(const Value: PChar; const ValueLen: Integer; const Escaped: PChar; const EscapedLen: Integer; const Quoter: Char = ''''): Integer; overload;
@@ -71,6 +71,8 @@ function SQLUnescape(const Value: PAnsiChar): RawByteString; overload;
 function SQLUnescape(const Value: string): string; overload;
 function SQLWrapStmt(const SQL: string; const WrapStrs: array of string; const Indent: Integer): string;
 function SQLUnwrapStmt(const SQL: string): string;
+function StrToUInt64(const S: string): UInt64;
+function UInt64ToStr(const Value: UInt64): string;
 
 implementation {***************************************************************}
 
@@ -79,6 +81,16 @@ uses
 
 resourcestring
   SInvalidSQLText = 'Invalid SQL text near "%s".';
+  SInvalidUInt64 = '"%s" is not a valid UInt64 value';
+
+type
+  UInt64Rec = packed record
+    case Integer of
+      0: (Lo, Hi: Cardinal);
+      1: (Cardinals: array [0..1] of Cardinal);
+      2: (Words: array [0..3] of Word);
+      3: (Bytes: array [0..7] of Byte);
+  end;
 
 const
   KAlgorithm: PChar = 'ALGORITHM';
@@ -231,13 +243,13 @@ asm
         JE EndOfStatement                // Yes!
         CMP ECX,2                        // Are there two characters left in SQL?
         JB Finish                        // No!
-        CMP DWORD PTR [ESI],$002D002D    // End of line comment ("--") in SQL?
+        CMP LongWord PTR [ESI],$002D002D    // End of line comment ("--") in SQL?
         JE LineComment                   // Yes!
-        CMP DWORD PTR [ESI],$002A002F    // Start of "/*" comment in SQL?
+        CMP LongWord PTR [ESI],$002A002F    // Start of "/*" comment in SQL?
         JE EnclosedComment               // Yes!
         TEST EDX,$80000000               // Are we inside cond. MySQL code?
         JZ Finish                        // No!
-        CMP DWORD PTR [ESI],$002F002A    // End of "*/" comment in SQL?
+        CMP LongWord PTR [ESI],$002F002A    // End of "*/" comment in SQL?
         JE CondCodeEnd                    // Yes!
         JMP Finish
 
@@ -333,7 +345,7 @@ asm
       EnclosedCommentL:
         CMP ECX,2                        // Are there two characters left in SQL?
         JB EnclosedCommentLE             // No!
-        CMP DWORD PTR [ESI],$002F002A    // "*/" in SQL?
+        CMP LongWord PTR [ESI],$002F002A    // "*/" in SQL?
         JE EnclosedCommentE              // Yes!
       EnclosedCommentLE:
         CALL MoveString                  // Quoted string?
@@ -434,7 +446,7 @@ asm
         JZ KeywordNotFound               // No!
         CMP ECX,2                        // End of SQL?
         JB KeywordNotFound               // Yes!
-        CMP DWORD PTR [ESI],$002F002A    // End of "*/" comment in SQL?
+        CMP LongWord PTR [ESI],$002F002A    // End of "*/" comment in SQL?
         JE KeywordFound                  // Yes!
 
       // -------------------
@@ -618,9 +630,9 @@ begin
         ADD ESI,ECX
         SUB ESI,2
 
-        MOV DWORD PTR [EDI],0            // Clear Result
+        MOV LongWord PTR [EDI],0         // Clear Result
         ADD EDI,4
-        MOV DWORD PTR [EDI],0
+        MOV LongWord PTR [EDI],0
         SUB EDI,4
 
         MOV EDX,0                        // Bit
@@ -635,7 +647,7 @@ begin
         MOV EBX,1
         SHL EBX,CL                       // Result := Result or 1 shl Bit
         POP ECX
-        OR DWORD PTR [EDI],EBX
+        OR LongWord PTR [EDI],EBX
       StringLE:
         INC DX                           // Inc(Bit)
         CMP EDX,32                       // We're using 32 Bit compiler
@@ -659,78 +671,86 @@ begin
   end;
 end;
 
-function IntToBitString(const Value: UInt64; const Width: Integer = 1): string;
+function IntToBitString(const Value: UInt64; const MinWidth: Integer = 1): string;
 label
   ValueHiL, ValueHiL1, ValueHiL0, ValueHiLE,
   ValueLoL, ValueLoL1, ValueLoL0, ValueLoLE,
+  Calc,
   Finish;
 var
-  Len: Word;
-  ValueRec: Int64Rec;
+  Hi: LongWord;
+  Lo: LongWord;
+  P: PChar;
+  Str: array [0..64] of Char;
 begin
-  SetLength(Result, 64);
+  Hi := UInt64Rec(Value).Hi;
+  Lo := UInt64Rec(Value).Lo;
 
-  Move(Value, ValueRec, SizeOf(Value));
   asm
         PUSH ES
         PUSH EDI
+        PUSH EBX
 
-        MOV EAX,Result                   // Store into Result
-        MOV EDI,[EAX]
+        PUSH DS                          // string operations uses ES
+        POP ES
+        STD                              // string operations uses backward direction
 
-        MOV AX,0                         // First '1' not found!
-        MOV BX,0                         // Characters in Result
+        LEA EDI,Str                      // Store into Str
+        ADD EDI,2 * 64                   // Last char in Str
+        PUSH EDI
+        MOV AX,0                         // Terminating #0
+        STOSW                            //   ... into Str
+        MOV P,EDI                        // P := Str[20]
+        MOV EBX,0                        // Length of used Str
 
-        MOV EDX,ValueRec.Hi              // Handle higher 32 bit
         MOV ECX,32                       // Handle 32 bit
-      ValueHiL:
-        TEST EDX,$80000000               // Highest bit set?
-        JZ ValueHiL0                     // No!
-        MOV WORD PTR [EDI],'1'           // '1' into Result
-        INC BX                           // One character more in Result
-        ADD EDI,2                        // Next character in Result
-        MOV AX,1                         // First '1' found
-        JMP ValueHiLE
-      ValueHiL0:
-        TEST AX,1                        // Already one '1' found?
-        JZ ValueHiLE                     // No!
-        MOV WORD PTR [EDI],'0'           // '0' into Result
-        INC BX                           // One character more in Result
-        ADD EDI,2                        // Next character in Result
-        JMP ValueHiLE
-      ValueHiLE:
-        SHL EDX,1                        // Switch to next bit
-        LOOP ValueHiL                    // Handle next bit
-
-        MOV EDX,ValueRec.Lo              // Handle Lower 32 bit
-        MOV ECX,32                       // Handle 32 bit
+        MOV EDX,Lo                       // Handle lower 32 bit
       ValueLoL:
-        TEST EDX,$80000000               // Loghest bit set?
+        MOV AX,'0'                       // '0' into Str
+        TEST EDX,1                       // Lowest bit set?
         JZ ValueLoL0                     // No!
-        MOV WORD PTR [EDI],'1'           // '1' into Result
-        INC BX                           // One character more in Result
-        ADD EDI,2                        // Next character in Result
-        MOV AX,1                         // First '1' found
-        JMP ValueLoLE
+        MOV AX,'1'                       // '1' into Str
+        MOV P,EDI                        // P := first '1' in Str
       ValueLoL0:
-        TEST AX,1                        // Already one '1' found?
-        JZ ValueLoLE                     // No!
-        MOV WORD PTR [EDI],'0'           // '0' into Result
-        INC BX                           // One character more in Result
-        ADD EDI,2                        // Next character in Result
-        JMP ValueLoLE
-      ValueLoLE:
-        SHL EDX,1                        // Switch to next bit
-        LOOP ValueLoL                    // Handle next bit
+        STOSW                            // Char into Str
+        SHR EDX,1                        // Shift right 1 bit
+        LOOP ValueLoL                    // Handle all bits
+
+        MOV ECX,32                       // Handle 32 bit
+        MOV EDX,Hi                       // Handle lower 32 bit
+      ValueHiL:
+        MOV AX,'0'                       // '0' into Str
+        TEST EDX,1                       // Lowest bit set?
+        JZ ValueHiL0                     // No!
+        MOV AX,'1'                       // '1' into Str
+        MOV P,EDI                        // P := first '1' in Str
+      ValueHiL0:
+        STOSW                            // Char into Str
+        SHR EDX,1                        // Shift right 1 bit
+        LOOP ValueHiL                    // Handle all bits
+
+        POP EDI                          // Calculate used length
+        MOV EBX,Pointer(P)
+        SUB EDI,EBX
+        SHR EDI,1
+
+        CMP MinWidth,EDI                 // MinWidth < used length?
+        JB Finish                        // Yes!
+
+      Calc:
+        MOV EDX,MinWidth
+        SUB EDX,EDI
+        JBE Finish
+        SHL EDX,1
+        SUB P,EDX
 
       Finish:
-        MOV Len,BX
-
+        POP EBX
         POP EDI
         POP ES
   end;
 
-  SetLength(Result, Len);
+  Result := StrPas(P);
 end;
 
 function SQLCreateParse(out Handle: TSQLParse; const SQL: PChar; const Len: Integer; const Version: Integer; const InCondCode: Boolean = False): Boolean;
@@ -755,12 +775,9 @@ begin
     Result := StringOfChar(Quoter, 2)
   else
   begin
-    Len := 1 + 2 * Length(Value) + 1;
-    SetLength(Result, Len); // reserve space
-
-    Len := SQLEscape(PChar(Value), Length(Value), PChar(Result), Len, Quoter);
-
+    Len := SQLEscape(PChar(Value), Length(Value), nil, 0, Quoter);
     SetLength(Result, Len);
+    SQLEscape(PChar(Value), Length(Value), PChar(Result), Len, Quoter);
   end;
 end;
 
@@ -1105,55 +1122,55 @@ var
   Parse: TSQLParse;
 begin
   asm
-      PUSH ES
-      PUSH ESI
-      PUSH EDI
-      PUSH EBX
+        PUSH ES
+        PUSH ESI
+        PUSH EDI
+        PUSH EBX
 
-      PUSH DS                          // string operations uses ES
-      POP ES
+        PUSH DS                          // string operations uses ES
+        POP ES
 
-      MOV ESI,PChar(SQL)               // Scan characters from SQL
-      MOV ECX,Len
+        MOV ESI,PChar(SQL)               // Scan characters from SQL
+        MOV ECX,Len
 
-    // -------------------
+      // -------------------
 
-      MOV BYTE PTR [Result],False
-      MOV EDI,0                        // Don't copy inside MoveString
+        MOV BYTE PTR [Result],False
+        MOV EDI,0                        // Don't copy inside MoveString
 
-      CALL Trim                        // Step over empty characters
-      JECXZ Finish                     // End of SQL!
+        CALL Trim                        // Step over empty characters
+        JECXZ Finish                     // End of SQL!
 
-      MOV EAX,[KCall]
-      CALL CompareKeyword              // 'CALL'?
-      JNE Finish                       // No!
-      CALL Trim                        // Step over empty characters
-      JECXZ Finish                     // End of SQL!
-      JMP Found
+        MOV EAX,[KCall]
+        CALL CompareKeyword              // 'CALL'?
+        JNE Finish                       // No!
+        CALL Trim                        // Step over empty characters
+        JECXZ Finish                     // End of SQL!
+        JMP Found
 
-    // -------------------
+      // -------------------
 
-    Found:
-      MOV BYTE PTR [Result],True       // SQL is CALL!
+      Found:
+        MOV BYTE PTR [Result],True       // SQL is CALL!
 
-    // -------------------
+      // -------------------
 
-    Finish:
-      MOV ECX,ESI
-      SUB ECX,Pointer(SQL)
-      SHR ECX,1                        // 2 Bytes = 1 character
-      MOV Index,ECX
+      Finish:
+        MOV ECX,ESI
+        SUB ECX,Pointer(SQL)
+        SHR ECX,1                        // 2 Bytes = 1 character
+        MOV Index,ECX
 
-      MOV InCondCode,False
-      TEST EDX,$80000000               // Are we inside cond. MySQL code?
-      JZ FinishE                       // No!
-      MOV InCondCode,True
+        MOV InCondCode,False
+        TEST EDX,$80000000               // Are we inside cond. MySQL code?
+        JZ FinishE                       // No!
+        MOV InCondCode,True
 
-    FinishE:
-      POP EBX
-      POP EDI
-      POP ESI
-      POP ES
+      FinishE:
+        POP EBX
+        POP EDI
+        POP ESI
+        POP ES
   end;
 
   if (Result and SQLCreateParse(Parse, PChar(@SQL[Index]), Len - Index, Version, InCondCode)) then
@@ -1322,263 +1339,263 @@ var
   Parse: TSQLParse;
 begin
   asm
-      PUSH ES
-      PUSH ESI
-      PUSH EDI
-      PUSH EBX
+        PUSH ES
+        PUSH ESI
+        PUSH EDI
+        PUSH EBX
 
-      PUSH DS                          // string operations uses ES
-      POP ES
+        PUSH DS                          // string operations uses ES
+        POP ES
 
-      MOV ESI,SQL                      // Scan characters from SQL
-      MOV ECX,Len
+        MOV ESI,SQL                      // Scan characters from SQL
+        MOV ECX,Len
 
-      MOV EBX,DDLStmt
-      MOV EDX,Version
+        MOV EBX,DDLStmt
+        MOV EDX,Version
 
-    // -------------------
+      // -------------------
 
-      MOV BYTE PTR [Result],False
-      MOV EDI,0                        // Don't copy inside MoveString
+        MOV BYTE PTR [Result],False
+        MOV EDI,0                        // Don't copy inside MoveString
 
-      CALL Trim                        // Step over empty characters
-      CMP ECX,0                        // End of SQL?
-      JE Finish                        // Yes!
+        CALL Trim                        // Step over empty characters
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
 
-      MOV EAX,[KAlter]
-      CALL CompareKeyword              // 'ALTER'?
-      JNE Create                       // No!
-      MOV BYTE PTR [EBX + 0],dtAlter
-      JMP Algorithm
-    Create:
-      MOV EAX,[KCreate]
-      CALL CompareKeyword              // 'CREATE'?
-      JNE Drop                         // No!
-      MOV BYTE PTR [EBX + 0],dtCreate
-      MOV EAX,[KOrReplace]
-      CALL CompareKeyword              // Set over 'OR REPLACE'?
-      JNE Algorithm
-      MOV BYTE PTR [EBX + 0],dtAlter
-      JMP Algorithm
-    Drop:
-      MOV EAX,[KDrop]
-      CALL CompareKeyword              // 'DROP'?
-      JNE RenameTable                  // No!
-      MOV BYTE PTR [EBX + 0],dtDrop
-      JMP ObjType
-    RenameTable:
-      MOV EAX,[KRename]
-      CALL CompareKeyword              // 'RENAME'?
-      JNE Finish                       // No!
-      MOV BYTE PTR [EBX + 0],dtRename
-      JMP ObjType
+        MOV EAX,[KAlter]
+        CALL CompareKeyword              // 'ALTER'?
+        JNE Create                       // No!
+        MOV BYTE PTR [EBX + 0],dtAlter
+        JMP Algorithm
+      Create:
+        MOV EAX,[KCreate]
+        CALL CompareKeyword              // 'CREATE'?
+        JNE Drop                         // No!
+        MOV BYTE PTR [EBX + 0],dtCreate
+        MOV EAX,[KOrReplace]
+        CALL CompareKeyword              // Set over 'OR REPLACE'?
+        JNE Algorithm
+        MOV BYTE PTR [EBX + 0],dtAlter
+        JMP Algorithm
+      Drop:
+        MOV EAX,[KDrop]
+        CALL CompareKeyword              // 'DROP'?
+        JNE RenameTable                  // No!
+        MOV BYTE PTR [EBX + 0],dtDrop
+        JMP ObjType
+      RenameTable:
+        MOV EAX,[KRename]
+        CALL CompareKeyword              // 'RENAME'?
+        JNE Finish                       // No!
+        MOV BYTE PTR [EBX + 0],dtRename
+        JMP ObjType
 
-    // -------------------
+      // -------------------
 
-    Algorithm:
-      CALL Trim                        // Step over empty characters
-      CMP ECX,0                        // End of SQL?
-      JE Finish                        // Yes!
-      MOV EAX,[KAlgorithm]
-      CALL CompareKeyword              // 'ALGORITHM'?
-      JNE Definer                      // No!
+      Algorithm:
+        CALL Trim                        // Step over empty characters
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
+        MOV EAX,[KAlgorithm]
+        CALL CompareKeyword              // 'ALGORITHM'?
+        JNE Definer                      // No!
 
-      CALL Trim                        // Step over empty characters
-      CMP ECX,0                        // End of SQL?
-      JE Finish                        // Yes!
-      CMP WORD PTR [ESI],'='           // '=' ?
-      JNE Finish                       // No!
+        CALL Trim                        // Step over empty characters
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
+        CMP WORD PTR [ESI],'='           // '=' ?
+        JNE Finish                       // No!
 
-      ADD ESI,2                        // Next character
-      DEC ECX                          // '=' handled
-    AlgorithmL:
-      CALL Trim                        // Empty character?
-      JZ Definer                       // Yes!
-      CMP ECX,0                        // End of SQL?
-      JE Finish                        // Yes!
-      ADD ESI,2                        // Next character in SQL
-      DEC ECX                          // character handled
-      JMP AlgorithmL
+        ADD ESI,2                        // Next character
+        DEC ECX                          // '=' handled
+      AlgorithmL:
+        CALL Trim                        // Empty character?
+        JZ Definer                       // Yes!
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
+        ADD ESI,2                        // Next character in SQL
+        DEC ECX                          // character handled
+        JMP AlgorithmL
 
-    // -------------------
+      // -------------------
 
-    Definer:
-      CALL Trim                        // Step over empty characters
-      CMP ECX,0                        // End of SQL?
-      JE Finish                        // Yes!
+      Definer:
+        CALL Trim                        // Step over empty characters
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
 
-      MOV EAX,[KDefiner]
-      CALL CompareKeyword              // 'DEFINER'?
-      JNE ObjType                      // No!
+        MOV EAX,[KDefiner]
+        CALL CompareKeyword              // 'DEFINER'?
+        JNE ObjType                      // No!
 
-      CALL Trim                        // Step over empty characters
-      CMP ECX,0                        // End of SQL?
-      JE Finish                        // Yes!
-      CMP WORD PTR [ESI],'='           // '=' ?
-      JNE Finish                       // No!
-      ADD ESI,2                        // Next character
-      DEC ECX                          // One character ('=') handled
-      CMP ECX,0                        // End of SQL?
-      JE Finish                        // Yes!
-      CALL Trim                        // Step over empty characters
-      CMP ECX,0                        // End of SQL?
-      JE Finish                        // Yes!
-      CALL MoveString                  // Quoted identifier?
-      JE Definer2                      // Yes!
-    Definer1:
-      CALL Trim                        // Empty character found?
-      CMP ECX,0                        // End of SQL?
-      JE Finish                        // Yes!
-      JE ObjType                       // Yes!
-      CMP ECX,0                        // End of SQL?
-      JE Finish                        // Yes!
-      CMP WORD PTR [ESI],'@'           // '@'?
-      JE Definer2                      // Yes!
-      CMP WORD PTR [ESI],''''          // Start quotation in SQL?
-      JE ObjType                       // Yes!
-      CMP WORD PTR [ESI],'"'           // Start quotation in SQL?
-      JE ObjType                       // Yes!
-      CMP WORD PTR [ESI],'`'           // Start quotation in SQL?
-      JE ObjType                       // Yes!
-      ADD ESI,2                        // Next character in SQL
-      JMP Definer1
-    Definer2:
-      ADD ESI,2                        // Step over '@'
-      CMP ECX,0                        // End of SQL?
-      JE Finish                        // Yes!
-      CALL MoveString                  // Quoted identifier?
-      JE ObjType                       // Yes!
-    Definer3:
-      CALL Trim                        // Empty character?
-      JE ObjType                       // Yes!
-      CMP ECX,0                        // End of SQL?
-      JE Finish                        // Yes!
-      ADD ESI,2                        // Next character in SQL
-      JMP Definer3
+        CALL Trim                        // Step over empty characters
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
+        CMP WORD PTR [ESI],'='           // '=' ?
+        JNE Finish                       // No!
+        ADD ESI,2                        // Next character
+        DEC ECX                          // One character ('=') handled
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
+        CALL Trim                        // Step over empty characters
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
+        CALL MoveString                  // Quoted identifier?
+        JE Definer2                      // Yes!
+      Definer1:
+        CALL Trim                        // Empty character found?
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
+        JE ObjType                       // Yes!
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
+        CMP WORD PTR [ESI],'@'           // '@'?
+        JE Definer2                      // Yes!
+        CMP WORD PTR [ESI],''''          // Start quotation in SQL?
+        JE ObjType                       // Yes!
+        CMP WORD PTR [ESI],'"'           // Start quotation in SQL?
+        JE ObjType                       // Yes!
+        CMP WORD PTR [ESI],'`'           // Start quotation in SQL?
+        JE ObjType                       // Yes!
+        ADD ESI,2                        // Next character in SQL
+        JMP Definer1
+      Definer2:
+        ADD ESI,2                        // Step over '@'
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
+        CALL MoveString                  // Quoted identifier?
+        JE ObjType                       // Yes!
+      Definer3:
+        CALL Trim                        // Empty character?
+        JE ObjType                       // Yes!
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
+        ADD ESI,2                        // Next character in SQL
+        JMP Definer3
 
-    ObjType:
-      CALL Trim                        // Step over empty characters
-      CMP ECX,0                        // End of SQL?
-      JE Finish                        // Yes!
-      MOV EAX,[KSQLSecurityDefiner]    // Step over
-      CALL CompareKeyword              //   'SQL SECURITY DEFINER'
-      MOV EAX,[KSQLSecurityInvoker]    // Step over
-      CALL CompareKeyword              //   'SQL SECURITY INVOKER'
-      CALL Trim                        // Step over empty characters
-      CMP ECX,0                        // End of SQL?
-      JE Finish                        // Yes!
+      ObjType:
+        CALL Trim                        // Step over empty characters
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
+        MOV EAX,[KSQLSecurityDefiner]    // Step over
+        CALL CompareKeyword              //   'SQL SECURITY DEFINER'
+        MOV EAX,[KSQLSecurityInvoker]    // Step over
+        CALL CompareKeyword              //   'SQL SECURITY INVOKER'
+        CALL Trim                        // Step over empty characters
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
 
-    ODatabase:
-      MOV EAX,[KDatabase]
-      CALL CompareKeyword              // 'DATABASE'?
-      JNE OEvent                       // No!
-      MOV BYTE PTR [EBX + 1],otDatabase
-      JMP Found
-    OEvent:
-      MOV EAX,[KEvent]
-      CALL CompareKeyword              // 'EVENT'?
-      JNE OFunction                    // No!
-      MOV BYTE PTR [EBX + 1],otEvent
-      JMP Found
-    OFunction:
-      MOV EAX,[KFunction]
-      CALL CompareKeyword              // 'FUNCTION'?
-      JNE OProcedure                   // No!
-      MOV BYTE PTR [EBX + 1],otFunction
-      JMP Found
-    OProcedure:
-      MOV EAX,[KProcedure]
-      CALL CompareKeyword              // 'PROCEDURE'?
-      JNE OTable                       // No!
-      MOV BYTE PTR [EBX + 1],otProcedure
-      JMP Found
-    OTable:
-      MOV EAX,[KTable]
-      CALL CompareKeyword              // 'TABLE'?
-      JNE OTrigger                     // No!
-      MOV BYTE PTR [EBX + 1],otTable
-      JMP Found
-    OTrigger:
-      MOV EAX,[KTrigger]
-      CALL CompareKeyword              // 'TRIGGER'?
-      JNE OView                        // No!
-      MOV BYTE PTR [EBX + 1],otTrigger
-      JMP Found
-    OView:
-      MOV EAX,[KView]
-      CALL CompareKeyword              // 'VIEW'?
-      JNE Finish                       // No!
-      MOV BYTE PTR [EBX + 1],otView
-      JMP Found
+      ODatabase:
+        MOV EAX,[KDatabase]
+        CALL CompareKeyword              // 'DATABASE'?
+        JNE OEvent                       // No!
+        MOV BYTE PTR [EBX + 1],otDatabase
+        JMP Found
+      OEvent:
+        MOV EAX,[KEvent]
+        CALL CompareKeyword              // 'EVENT'?
+        JNE OFunction                    // No!
+        MOV BYTE PTR [EBX + 1],otEvent
+        JMP Found
+      OFunction:
+        MOV EAX,[KFunction]
+        CALL CompareKeyword              // 'FUNCTION'?
+        JNE OProcedure                   // No!
+        MOV BYTE PTR [EBX + 1],otFunction
+        JMP Found
+      OProcedure:
+        MOV EAX,[KProcedure]
+        CALL CompareKeyword              // 'PROCEDURE'?
+        JNE OTable                       // No!
+        MOV BYTE PTR [EBX + 1],otProcedure
+        JMP Found
+      OTable:
+        MOV EAX,[KTable]
+        CALL CompareKeyword              // 'TABLE'?
+        JNE OTrigger                     // No!
+        MOV BYTE PTR [EBX + 1],otTable
+        JMP Found
+      OTrigger:
+        MOV EAX,[KTrigger]
+        CALL CompareKeyword              // 'TRIGGER'?
+        JNE OView                        // No!
+        MOV BYTE PTR [EBX + 1],otTrigger
+        JMP Found
+      OView:
+        MOV EAX,[KView]
+        CALL CompareKeyword              // 'VIEW'?
+        JNE Finish                       // No!
+        MOV BYTE PTR [EBX + 1],otView
+        JMP Found
 
-    // -------------------
+      // -------------------
 
-    Found:
-      MOV BYTE PTR [Result],True       // SQL is DDL!
+      Found:
+        MOV BYTE PTR [Result],True       // SQL is DDL!
 
-      CALL Trim                        // Step over empty characters
-      JECXZ Finish                     // End of SQL!
+        CALL Trim                        // Step over empty characters
+        JECXZ Finish                     // End of SQL!
 
-      CMP BYTE PTR [EBX + 0],dtAlter   // Alter statement?
-      JNE Finish                       // No!
-      CMP BYTE PTR [EBX + 1],otTable   // Table object?
-      JE Rename                        // Yes!
-      CMP BYTE PTR [EBX + 1],otEvent   // Event object?
-      JE Rename                        // Yes!
-      JMP Finish
+        CMP BYTE PTR [EBX + 0],dtAlter   // Alter statement?
+        JNE Finish                       // No!
+        CMP BYTE PTR [EBX + 1],otTable   // Table object?
+        JE Rename                        // Yes!
+        CMP BYTE PTR [EBX + 1],otEvent   // Event object?
+        JE Rename                        // Yes!
+        JMP Finish
 
-    Rename:
-      PUSH ESI
+      Rename:
+        PUSH ESI
 
-      MOV EAX,[KRename]
-      MOV EDI,0                        // Don't copy inside MoveString
-    RenameL:
-      CMP WORD PTR [ESI],';'           // End of statement?
-      JE RenameE                       // Yes!
-      CALL Trim                        // Empty characters in SQL?
-      JE RenameL                       // Yes!
-      JECXZ Finish                     // End of SQL!
-      CALL MoveString                  // Quoted string?
-      JE RenameL                       // Yes!
-      CALL CompareKeyword              // 'RENAME'?
-      JNE RenameC                      // No!
-      CALL Trim                        // Empty characters in SQL?
-      JECXZ Finish                     // End of SQL!
-      MOV BYTE PTR [EBX + 0],dtAlterRename
-      PUSH ECX
-      MOV ECX,ESI
-      SUB ECX,Pointer(SQL)
-      SHR ECX,1                        // 2 Bytes = 1 character
-      MOV IndexNewObjectName,ECX
-      POP ECX
-      JMP RenameE
-    RenameC:
-      ADD ESI,2
-    RenameLE:
-      LOOP RenameL
+        MOV EAX,[KRename]
+        MOV EDI,0                        // Don't copy inside MoveString
+      RenameL:
+        CMP WORD PTR [ESI],';'           // End of statement?
+        JE RenameE                       // Yes!
+        CALL Trim                        // Empty characters in SQL?
+        JE RenameL                       // Yes!
+        JECXZ Finish                     // End of SQL!
+        CALL MoveString                  // Quoted string?
+        JE RenameL                       // Yes!
+        CALL CompareKeyword              // 'RENAME'?
+        JNE RenameC                      // No!
+        CALL Trim                        // Empty characters in SQL?
+        JECXZ Finish                     // End of SQL!
+        MOV BYTE PTR [EBX + 0],dtAlterRename
+        PUSH ECX
+        MOV ECX,ESI
+        SUB ECX,Pointer(SQL)
+        SHR ECX,1                        // 2 Bytes = 1 character
+        MOV IndexNewObjectName,ECX
+        POP ECX
+        JMP RenameE
+      RenameC:
+        ADD ESI,2
+      RenameLE:
+        LOOP RenameL
 
-    RenameE:
-      POP ESI
-      JMP Finish
+      RenameE:
+        POP ESI
+        JMP Finish
 
-    // -------------------
+      // -------------------
 
-    Finish:
-      MOV ECX,ESI
-      SUB ECX,Pointer(SQL)
-      SHR ECX,1                        // 2 Bytes = 1 character
-      MOV Index,ECX
+      Finish:
+        MOV ECX,ESI
+        SUB ECX,Pointer(SQL)
+        SHR ECX,1                        // 2 Bytes = 1 character
+        MOV Index,ECX
 
-      MOV InCondCode,False
-      TEST EDX,$80000000               // Are we inside cond. MySQL code?
-      JZ Finish2                       // No!
-      MOV InCondCode,True
+        MOV InCondCode,False
+        TEST EDX,$80000000               // Are we inside cond. MySQL code?
+        JZ Finish2                       // No!
+        MOV InCondCode,True
 
-    Finish2:
-      POP EBX
-      POP EDI
-      POP ESI
-      POP ES
+      Finish2:
+        POP EBX
+        POP EDI
+        POP ESI
+        POP ES
   end;
 
   if (Result and SQLCreateParse(Parse, PChar(@SQL[Index]), Len - Index, Version, InCondCode)) then
@@ -1613,111 +1630,111 @@ var
   TableName: string;
 begin
   asm
-      PUSH ES
-      PUSH ESI
-      PUSH EDI
-      PUSH EBX
+        PUSH ES
+        PUSH ESI
+        PUSH EDI
+        PUSH EBX
 
-      PUSH DS                          // string operations uses ES
-      POP ES
+        PUSH DS                          // string operations uses ES
+        POP ES
 
-      MOV ESI,PChar(SQL)               // Scan characters from SQL
-      MOV ECX,Len
+        MOV ESI,PChar(SQL)               // Scan characters from SQL
+        MOV ECX,Len
 
-      MOV EBX,DMLStmt
+        MOV EBX,DMLStmt
 
-    // -------------------
+      // -------------------
 
-      MOV BYTE PTR [Result],False
-      MOV EDI,0                        // Don't copy inside MoveString
+        MOV BYTE PTR [Result],False
+        MOV EDI,0                        // Don't copy inside MoveString
 
-      CALL Trim                        // Step over empty characters
-      CMP ECX,0                        // End of SQL?
-      JE Finish                        // Yes!
+        CALL Trim                        // Step over empty characters
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
 
-    Insert:
-      MOV EAX,[KInsert]
-      CALL CompareKeyword              // 'INSERT'?
-      JNE Update                       // No!
-      MOV BYTE PTR [EBX + 0],mtInsert
-      JMP Found
-    Update:
-      MOV EAX,[KUpdate]
-      CALL CompareKeyword              // 'UPDATE'?
-      JNE Delete                       // No!
-      MOV BYTE PTR [EBX + 0],mtUpdate
-      JMP Found
-    Delete:
-      MOV EAX,[KDelete]
-      CALL CompareKeyword              // 'DELETE'?
-      JNE Finish                       // No!
-      MOV BYTE PTR [EBX + 0],mtDelete
-      JMP Found
+      Insert:
+        MOV EAX,[KInsert]
+        CALL CompareKeyword              // 'INSERT'?
+        JNE Update                       // No!
+        MOV BYTE PTR [EBX + 0],mtInsert
+        JMP Found
+      Update:
+        MOV EAX,[KUpdate]
+        CALL CompareKeyword              // 'UPDATE'?
+        JNE Delete                       // No!
+        MOV BYTE PTR [EBX + 0],mtUpdate
+        JMP Found
+      Delete:
+        MOV EAX,[KDelete]
+        CALL CompareKeyword              // 'DELETE'?
+        JNE Finish                       // No!
+        MOV BYTE PTR [EBX + 0],mtDelete
+        JMP Found
 
-    // -------------------
+      // -------------------
 
-    Found:
-      CALL Trim                        // Step over empty characters
-      JECXZ Finish                     // End of SQL!
+      Found:
+        CALL Trim                        // Step over empty characters
+        JECXZ Finish                     // End of SQL!
 
-      MOV EAX,[KLowPriority]
-      CALL CompareKeyword              // 'LOW_PRIORITY'?
-      JE Ignore                        // No!
-      MOV EAX,[KQuick]
-      CALL CompareKeyword              // 'QUICK'?
-      JE Ignore                        // No!
-      MOV EAX,[KDelayed]
-      CALL CompareKeyword              // 'DELAYED'?
-      JE Ignore                        // No!
-      MOV EAX,[KHighPriority]
-      CALL CompareKeyword              // 'HIGH_PRIORITY'?
-      JE Ignore                        // No!
+        MOV EAX,[KLowPriority]
+        CALL CompareKeyword              // 'LOW_PRIORITY'?
+        JE Ignore                        // No!
+        MOV EAX,[KQuick]
+        CALL CompareKeyword              // 'QUICK'?
+        JE Ignore                        // No!
+        MOV EAX,[KDelayed]
+        CALL CompareKeyword              // 'DELAYED'?
+        JE Ignore                        // No!
+        MOV EAX,[KHighPriority]
+        CALL CompareKeyword              // 'HIGH_PRIORITY'?
+        JE Ignore                        // No!
 
-    Ignore:
-      CALL Trim                        // Step over empty characters
-      JECXZ Finish                     // End of SQL!
+      Ignore:
+        CALL Trim                        // Step over empty characters
+        JECXZ Finish                     // End of SQL!
 
-      MOV EAX,[KIgnore]
-      CALL CompareKeyword              // 'IGNORE'?
+        MOV EAX,[KIgnore]
+        CALL CompareKeyword              // 'IGNORE'?
 
-      CALL Trim                        // Step over empty characters
-      JECXZ Finish                     // End of SQL!
+        CALL Trim                        // Step over empty characters
+        JECXZ Finish                     // End of SQL!
 
-      CMP BYTE PTR [EBX + 0],mtDelete  // DELETE?
-      JE From
+        CMP BYTE PTR [EBX + 0],mtDelete  // DELETE?
+        JE From
 
-      MOV EAX,[KInto]
-      CALL CompareKeyword              // 'INTO'?
-      JNE Finish                       // No!
-      MOV BYTE PTR [Result],True       // SQL is DML!
-      CALL Trim                        // Step over empty characters
-      JMP Finish
+        MOV EAX,[KInto]
+        CALL CompareKeyword              // 'INTO'?
+        JNE Finish                       // No!
+        MOV BYTE PTR [Result],True       // SQL is DML!
+        CALL Trim                        // Step over empty characters
+        JMP Finish
 
-    From:
-      MOV EAX,[KFrom]
-      CALL CompareKeyword              // 'FROM'?
-      JNE Finish                       // No!
-      MOV BYTE PTR [Result],True       // SQL is DML!
-      CALL Trim                        // Step over empty characters
+      From:
+        MOV EAX,[KFrom]
+        CALL CompareKeyword              // 'FROM'?
+        JNE Finish                       // No!
+        MOV BYTE PTR [Result],True       // SQL is DML!
+        CALL Trim                        // Step over empty characters
 
-    // -------------------
+      // -------------------
 
-    Finish:
-      MOV ECX,ESI
-      SUB ECX,Pointer(SQL)
-      SHR ECX,1                        // 2 Bytes = 1 character
-      MOV Index,ECX
+      Finish:
+        MOV ECX,ESI
+        SUB ECX,Pointer(SQL)
+        SHR ECX,1                        // 2 Bytes = 1 character
+        MOV Index,ECX
 
-      MOV InCondCode,False
-      TEST EDX,$80000000               // Are we inside cond. MySQL code?
-      JZ FinishE                       // No!
-      MOV InCondCode,True
-    FinishE:
+        MOV InCondCode,False
+        TEST EDX,$80000000               // Are we inside cond. MySQL code?
+        JZ FinishE                       // No!
+        MOV InCondCode,True
+      FinishE:
 
-      POP EBX
-      POP EDI
-      POP ESI
-      POP ES
+        POP EBX
+        POP EDI
+        POP ESI
+        POP ES
   end;
 
   if (Result and SQLCreateParse(Parse, PChar(@SQL[Index]), Len - Index, Version, InCondCode)) then
@@ -2130,168 +2147,168 @@ begin
   begin
     Len := Length(SQL) - Index + 1;
     asm
-      PUSH ESI
-      PUSH EDI
-      PUSH EBX
+        PUSH ESI
+        PUSH EDI
+        PUSH EBX
 
-      PUSH DS                          // string operations uses ES
-      POP ES
-      CLD                              // string operations uses forward direction
+        PUSH DS                          // string operations uses ES
+        POP ES
+        CLD                              // string operations uses forward direction
 
-      MOV ESI,PChar(SQL)               // ESI := @SQL[Index]
-      ADD ESI,Index                    // Add Index twice
-      ADD ESI,Index                    //   since character = 2 byte
-      SUB ESI,2                        // Index starts with 1 in string
+        MOV ESI,PChar(SQL)               // ESI := @SQL[Index]
+        ADD ESI,Index                    // Add Index twice
+        ADD ESI,Index                    //   since character = 2 byte
+        SUB ESI,2                        // Index starts with 1 in string
 
-      MOV ECX,Len
+        MOV ECX,Len
 
-      PUSH ESI
+        PUSH ESI
 
-      MOV EDI,0                        // Don't copy inside MoveString
-      MOV EDX,$7FFFFFFF                // Enclose all condional MySQL code
-      MOV CompoundDeep,0               // Compound deep
+        MOV EDI,0                        // Don't copy inside MoveString
+        MOV EDX,$7FFFFFFF                // Enclose all condional MySQL code
+        MOV CompoundDeep,0               // Compound deep
 
-      CMP CompleteStmt,0               // Assigned(CompleteStmt)?
-      JE StringL                       // No!
-      MOV EAX,[CompleteStmt]
-      MOV BYTE PTR [EAX],False         // Uncomplete Statement!
+        CMP CompleteStmt,0               // Assigned(CompleteStmt)?
+        JE StringL                       // No!
+        MOV EAX,[CompleteStmt]
+        MOV BYTE PTR [EAX],False         // Uncomplete Statement!
 
 
-    // -------------------
+      // -------------------
 
-    StringL:
-      CALL MoveString                  // Quoted string?
-      JE StringLE                      // Yes!
+      StringL:
+        CALL MoveString                  // Quoted string?
+        JE StringLE                      // Yes!
 
-      MOV BeforeTrim,ESI
-      CALL Trim                        // Empty character(s)?
-      JE StringLE                      // Yes!
-      CMP ECX,0                        // End of SQL?
-      JE Finish                        // Yes!
+        MOV BeforeTrim,ESI
+        CALL Trim                        // Empty character(s)?
+        JE StringLE                      // Yes!
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
 
-      MOV EAX,[KBegin]
-      CALL CompareKeyword              // 'BEGIN'?
-      JNE String1                      // No!
+        MOV EAX,[KBegin]
+        CALL CompareKeyword              // 'BEGIN'?
+        JNE String1                      // No!
 
-      CMP ECX,0                        // End of SQL?
-      JE Finish                        // Yes!
-      MOV BeforeTrim,ESI
-      CALL Trim                        // Empty character(s)?
-      CMP ECX,0                        // End of SQL?
-      JE UncompleteStmt                // Yes!
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
+        MOV BeforeTrim,ESI
+        CALL Trim                        // Empty character(s)?
+        CMP ECX,0                        // End of SQL?
+        JE UncompleteStmt                // Yes!
 
-      MOV EAX,[KWork]
-      CALL CompareKeyword              // 'WORK'?
-      JE StringLE                      // Yes!
+        MOV EAX,[KWork]
+        CALL CompareKeyword              // 'WORK'?
+        JE StringLE                      // Yes!
 
-      INC CompoundDeep                 // Compound deep
+        INC CompoundDeep                 // Compound deep
 
-    String1:
-      CMP CompoundDeep,0               // Inside a Compound?
-      JE String3                       // No!
+      String1:
+        CMP CompoundDeep,0               // Inside a Compound?
+        JE String3                       // No!
 
-      MOV EAX,[KEnd]
-      CALL CompareKeyword              // 'END'?
-      JNE StringC                      // No!
+        MOV EAX,[KEnd]
+        CALL CompareKeyword              // 'END'?
+        JNE StringC                      // No!
 
-      MOV BeforeTrim,ESI
-      CALL Trim                        // Ignore empty characters
-      CMP ECX,0                        // End of SQL?
-      JE UncompleteStmt                // Yes!
+        MOV BeforeTrim,ESI
+        CALL Trim                        // Ignore empty characters
+        CMP ECX,0                        // End of SQL?
+        JE UncompleteStmt                // Yes!
 
-      CMP WORD PTR [ESI],';'           // End of statement?
-      JNE String2                      // No!
-      DEC CompoundDeep                 // Compound deep
-      JMP StringEOS
+        CMP WORD PTR [ESI],';'           // End of statement?
+        JNE String2                      // No!
+        DEC CompoundDeep                 // Compound deep
+        JMP StringEOS
 
-    String2:
-      MOV EAX,[KIf]
-      CALL CompareKeyword              // 'IF'?
-      JE String3                       // Yes!
-      MOV EAX,[KCase]
-      CALL CompareKeyword              // 'CASE'?
-      JE String3                       // Yes!
-      MOV EAX,[KLoop]
-      CALL CompareKeyword              // 'LOOP'?
-      JE String3                       // Yes!
-      MOV EAX,[KRepeat]
-      CALL CompareKeyword              // 'REPEAT'?
-      JE String3                       // Yes!
-      MOV EAX,[KWhile]
-      CALL CompareKeyword              // 'WHILE'?
-      JE String3                       // Yes!
-      DEC CompoundDeep                 // Compound deep
-      JMP StringC
+      String2:
+        MOV EAX,[KIf]
+        CALL CompareKeyword              // 'IF'?
+        JE String3                       // Yes!
+        MOV EAX,[KCase]
+        CALL CompareKeyword              // 'CASE'?
+        JE String3                       // Yes!
+        MOV EAX,[KLoop]
+        CALL CompareKeyword              // 'LOOP'?
+        JE String3                       // Yes!
+        MOV EAX,[KRepeat]
+        CALL CompareKeyword              // 'REPEAT'?
+        JE String3                       // Yes!
+        MOV EAX,[KWhile]
+        CALL CompareKeyword              // 'WHILE'?
+        JE String3                       // Yes!
+        DEC CompoundDeep                 // Compound deep
+        JMP StringC
 
-    String3:
-      CMP WORD PTR [ESI],';'           // Statement Delimiter?
-      JE StringEOS
+      String3:
+        CMP WORD PTR [ESI],';'           // Statement Delimiter?
+        JE StringEOS
 
-    StringC:
-      ADD ESI,2                        // Next character inside SQL
-      DEC ECX
-      JMP StringLE
+      StringC:
+        ADD ESI,2                        // Next character inside SQL
+        DEC ECX
+        JMP StringLE
 
-    StringEOS:
-      ADD ESI,2                        // Step over Delimiter
-      DEC ECX                          // Ignore Delimiter
-      JZ Complete                      // End of SQL!
-      CMP CompoundDeep,0               // Still in compound?
-      JE Complete                      // No!
+      StringEOS:
+        ADD ESI,2                        // Step over Delimiter
+        DEC ECX                          // Ignore Delimiter
+        JZ Complete                      // End of SQL!
+        CMP CompoundDeep,0               // Still in compound?
+        JE Complete                      // No!
 
-    StringLE:
-      JECXZ Finish                     // End of SQL!
-      JMP StringL
+      StringLE:
+        JECXZ Finish                     // End of SQL!
+        JMP StringL
 
-    // -------------------
+      // -------------------
 
-    Complete:
-      CMP CompleteStmt,0               // Assigned(CompleteStmt)?
-      JE Complete2                     // No!
-      MOV EAX,[CompleteStmt]
-      MOV BYTE PTR [EAX],True          // Complete statement!
+      Complete:
+        CMP CompleteStmt,0               // Assigned(CompleteStmt)?
+        JE Complete2                     // No!
+        MOV EAX,[CompleteStmt]
+        MOV BYTE PTR [EAX],True          // Complete statement!
 
-    Complete2:
-      CMP ECX,2                        // Are there two characters left in SQL?
-      JL Complete3                     // No!
-      MOV EAX,[ESI]
-      CMP EAX,$000A000D                // CarriageReturn + LineFeed?
-      JNE Complete3                    // No!
-      ADD ESI,4                        // Step over CarriageReturn + LineFeed
-      SUB ECX,2                        // Ignore CarriageReturn + LineFeed
-      JMP Finish
+      Complete2:
+        CMP ECX,2                        // Are there two characters left in SQL?
+        JL Complete3                     // No!
+        MOV EAX,[ESI]
+        CMP EAX,$000A000D                // CarriageReturn + LineFeed?
+        JNE Complete3                    // No!
+        ADD ESI,4                        // Step over CarriageReturn + LineFeed
+        SUB ECX,2                        // Ignore CarriageReturn + LineFeed
+        JMP Finish
 
-    Complete3:
-      CMP ECX,1                        // Is there one characters left in SQL?
-      JL Finish                        // No!
-      MOV AX,[ESI]
-      CMP AX,13                        // Ending CarriageReturn?
-      JE Complete4                     // Yes!
-      CMP AX,10                        // Ending LineFeed?
-      JE Complete4                     // Yes!
-      JMP Finish
+      Complete3:
+        CMP ECX,1                        // Is there one characters left in SQL?
+        JL Finish                        // No!
+        MOV AX,[ESI]
+        CMP AX,13                        // Ending CarriageReturn?
+        JE Complete4                     // Yes!
+        CMP AX,10                        // Ending LineFeed?
+        JE Complete4                     // Yes!
+        JMP Finish
 
-    Complete4:
-      ADD ESI,2                        // Step over CarriageReturn / LineFeed
-      DEC ECX                          // Ignore CarriageReturn / LineFeed
-      JMP Finish
+      Complete4:
+        ADD ESI,2                        // Step over CarriageReturn / LineFeed
+        DEC ECX                          // Ignore CarriageReturn / LineFeed
+        JMP Finish
 
-    // -------------------
+      // -------------------
 
-    UncompleteStmt:
-      MOV ESI,BeforeTrim
+      UncompleteStmt:
+        MOV ESI,BeforeTrim
 
-    // -------------------
+      // -------------------
 
-    Finish:
-      POP EBX
-      SUB ESI,EBX
-      SHR ESI,1                        // 2 bytes = 1 character
-      MOV DWORD PTR [Result],ESI
+      Finish:
+        POP EBX
+        SUB ESI,EBX
+        SHR ESI,1                        // 2 bytes = 1 character
+        MOV LongWord PTR [Result],ESI
 
-      POP EBX
-      POP EDI
-      POP ESI
+        POP EBX
+        POP EDI
+        POP ESI
     end;
   end;
 end;
@@ -2649,6 +2666,240 @@ begin
       SetLength(Result, Len);
     Result := SQLTrimStmt(Result);
   end;
+end;
+
+function StrToUInt64(const S: string): UInt64;
+label
+  Select, Select2, Select3,
+  Hex, HexL, HexL1, HexL2, HexL3, HexL4, HexL5,
+  Decimal, DecimalL, DecimalLE,
+  Finish;
+var
+  Error: Boolean;
+  Hi: LongWord;
+  Len: LongWord;
+  Lo: LongWord;
+begin
+  Hi := 0;
+  Lo := 0;
+  Len := Length(S);
+
+  asm
+        PUSH EBX
+        PUSH ESI
+        PUSH EDI
+
+        PUSH DS                          // string operations uses ES
+        POP ES
+        CLD                              // string operations uses forward direction
+
+        MOV Error,True
+
+        MOV ESI,Pointer(S)               // Read bytes from S
+        MOV ECX,Len                      // Length of S
+
+        CMP ECX,0                        // Empty S?
+        JE Finish                        // Yes!
+
+        MOV EDI,ESI
+        MOV AX,' '
+        REPE SCASW                       // Step over spaces at begin of S
+        SUB EDI,2
+        INC ECX
+        MOV ESI,EDI
+
+        CMP ECX,0                        // End of S?
+        JE Finish                        // Yes!
+
+        MOV AX,[ESI]                     // Char in S
+        CMP AX,'-'                       // '-'?
+        JE Finish                        // Yes!
+        CMP AX,'+'                       // '+'?
+        JNE Select                       // No!
+        ADD ESI,2                        // Step over '+'
+        DEC ECX                          // One char handled
+        MOV AX,[ESI]                     // Char in S
+      Select:
+        CMP AX,'$'                       // '$'?
+        JNE Select2                      // Yes!
+        LODSW                            // '$' handled
+        SUB ECX,1                        // One char handled
+        JMP Hex
+      Select2:
+        CMP ECX,2                        // Two characters left?
+        JB Decimal                       // No!
+        CMP AX,'0'                       // '0'?
+        JNE Decimal                      // No!
+        CMP WORD PTR [ESI + 2],'x'       // '0x'?
+        JE Select3                       // Yes!
+        CMP WORD PTR [ESI + 2],'X'       // '0X'?
+        JNE Decimal                      // Yes!
+      Select3:
+        LODSW                            // '0' handled
+        LODSW                            // 'x' handled
+        SUB ECX,2                        // Two chars handled
+        JMP Hex
+
+      // -------------------
+
+      Decimal:
+      DecimalL:
+        MOV EBX,10                       // Base 10 in decimal
+
+        MOV EAX,Lo
+        MUL EBX                          // Lo * 10
+
+        PUSH EAX
+        PUSH EDX                         // Carry
+
+        MOV EAX,Hi                       // EAX := Hi
+        MUL EBX                          // Hi * 10
+
+        POP EDX
+        POP EBX
+
+        JC Finish                        // Result > High(UInt64)?
+        ADD EDX,EAX                      // EDX := EAX + Carry from Lo * 10
+
+        MOV EAX,0                        // Clear hi word of EAX
+        LODSW                            // Get Char
+        CMP AX,'0'                       // Char < '0'?
+        JB Finish                        // Yes!
+        CMP AX,'9'                       // Char > '9'?
+        JA Finish                        // Yes!
+        SUB AX,'0'                       // Digit := Ord(Char)
+
+        ADD EBX,EAX                      // EAX := Lo * 10 + Digit
+        MOV Lo,EBX                       // Lo := EAX
+        JNC DecimalLE
+        INC EDX                          // Carry from Lo * 10 + Digit
+
+      DecimalLE:
+        MOV Hi,EDX                       // Hi := EDX
+        LOOP DecimalL                    // Handle all chars in S
+
+        MOV Error,False
+        JMP Finish
+
+      // -------------------
+
+      Hex:
+        CMP ECX,0                        // More chars left in S?
+        JE Finish                        // No!
+        MOV EBX,Lo
+        MOV EDX,Hi
+
+      HexL:
+        LODSW                            // Get Char
+        CMP AX,'0'                       // Char < '0'?
+        JB HexL2                         // Yes!
+        CMP AX,'9'                       // Char > '9'?
+        JA HexL2                         // Yes!
+        SUB AX,'0'                       // Digit := Ord(Char)
+        JMP HexL4
+      HexL2:
+        CMP AX,'A'                       // Char < 'A'?
+        JB HexL3                         // Yes!
+        CMP AX,'F'                       // Char > 'F'?
+        JA HexL3                         // Yes!
+        SUB AX,'A' - 10                  // Digit := Ord(Char)
+        JMP HexL4
+      HexL3:
+        CMP AX,'a'                       // Char < 'a'?
+        JB Finish                        // Yes!
+        CMP AX,'f'                       // Char > 'f'?
+        JA Finish                        // Yes!
+        SUB AX,'a' - 10                  // Digit := Ord(Char)
+
+      HexL4:
+        SHL EDX,4                        // Shift Hi 4 bits left
+        JC Finish
+
+        PUSH EAX
+        MOV EAX,EBX                      // Hi 4 bites of Lo
+        SHR EAX,32 - 4
+        OR EDX,EAX                       //   ... add to Hi
+        SHL EBX,4                        // Shift Lo 4 bits left
+        POP EAX
+        ADD EBX,EAX                      // Add Digit to Lo
+
+        LOOP HexL                        // Handle all chars in S
+
+        MOV Lo,EBX
+        MOV Hi,EDX
+
+        MOV Error,False
+
+      // -------------------
+
+      Finish:
+        POP EDI
+        POP ESI
+        POP EBX
+  end;
+
+  if (Error) then raise EConvertError.CreateFmt(SInvalidUInt64, [S]);
+
+  UInt64Rec(Result).Hi := Hi;
+  UInt64Rec(Result).Lo := Lo;
+end;
+
+function UInt64ToStr(const Value: UInt64): string;
+label
+  ValueL, ValueS;
+var
+  Hi: LongWord;
+  Lo: LongWord;
+  P: PChar;
+  Str: array[0..20] of Char;
+begin
+  Hi := UInt64Rec(Value).Hi;
+  Lo := UInt64Rec(Value).Lo;
+
+  asm
+        PUSH ES
+        PUSH EBX
+        PUSH EDI
+
+        PUSH DS                          // string operations uses ES
+        POP ES
+        STD                              // string operations uses backward direction
+
+        MOV EBX,10                       // Division thru 10
+        MOV ECX,20                       // Loop for all 64 bits = 20 digits
+        LEA EDI,Str                      // Last char in Str
+        ADD EDI,2 * 20
+        MOV EAX,0                        // Terminating #0
+        STOSW                            //   into Str
+        MOV P,EDI                        // P := Str[19]
+
+      ValueL:
+        MOV EDX,0
+        MOV EAX,Hi
+        DIV EBX                          // EAX := Hi div 10,  EDX := Hi mod 10
+        MOV Hi,EAX                       // Hi := EAX
+
+        MOV EAX,Lo
+        DIV EBX                          // EAX := (EDX shl 32 + Lo) div 10,  EDX := (EDX shl 32 + Lo) mod 10
+        MOV Lo,EAX                       // Lo := EAX
+
+        CMP EDX,0                        // Digit = '0'?
+        JE ValueS                        // Yes!
+        MOV P,EDI                        // First used char
+
+      ValueS:
+        MOV EAX,EDX
+        ADD EAX,'0'                      // EAX := Chr(EAX)
+        STOSW                            // EAX into Str
+
+        LOOP ValueL                      // Handle next digit
+
+        POP EDI
+        POP EBX
+        POP ES
+  end;
+
+  Result := StrPas(P);
 end;
 
 end.

@@ -655,7 +655,6 @@ uses
   ActiveX, SysConst,
   Forms, DBConsts, Registry, DBCommon, StrUtils, Math, Variants,
   PerlRegEx,
-  UInt64Lib,
   fPreferences;
 
 resourcestring
@@ -855,33 +854,6 @@ begin
   Result.ErrorMessage := ErrorMessage;
 end;
 
-function AnsiCharToWideChar(const CodePage: UINT; const lpMultiByteStr: LPCSTR; const cchMultiByte: Integer; const lpWideCharStr: LPWSTR; const cchWideChar: Integer): Integer;
-begin
-  if (cchMultiByte = 0) then
-    Result := 0
-  else
-  begin
-    Result := MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, lpMultiByteStr, cchMultiByte, lpWideCharStr, cchWideChar);
-    if (Result = 0) then
-      RaiseLastOSError();
-  end;
-end;
-
-function WideCharToAnsiChar(const CodePage: UINT; const lpWideCharStr: LPWSTR; const cchWideChar: Integer; const lpMultiByteStr: LPSTR; const cchMultiByte: Integer): Integer;
-var
-  Flags: DWord;
-begin
-  if (cchWideChar = 0) then
-    Result := 0
-  else
-  begin
-    if (CodePage <> CP_UTF8) then Flags := 0 else Flags := WC_ERR_INVALID_CHARS;
-    Result := WideCharToMultiByte(CodePage, Flags, lpWideCharStr, cchWideChar, lpMultiByteStr, cchMultiByte, nil, nil);
-    if (Result = 0) then
-      RaiseLastOSError();
-  end;
-end;
-
 { TTools.TTDataFileBuffer *****************************************************}
 
 procedure TTools.TDataFileBuffer.Clear();
@@ -962,7 +934,7 @@ begin
 
   Resize(Len);
 
-  Write := Buffer.Write; // How can I remove this???
+  Write := Buffer.Write;
   asm
         PUSH ES
         PUSH ESI
@@ -1018,8 +990,6 @@ begin
   Size := MaxCharSize * Len;
   Resize(Size);
   Len := WideCharToAnsiChar(CodePage, PChar(Temp2.Mem), Len, Buffer.Write, Buffer.Size - Self.Size);
-  if (Len = 0) then
-    raise ERangeError.Create(SRangeError);
   Buffer.Write := @Buffer.Write[Len];
 end;
 
@@ -1043,8 +1013,6 @@ begin
       Temp1.Size := Size;
     end;
     Len := AnsiCharToWideChar(CodePage, Text, Length, PChar(Temp1.Mem), Temp1.Size div SizeOf(Char));
-    if (Len = 0) then
-      raise ERangeError.Create(SRangeError);
     WriteText(PChar(Temp1.Mem), Len);
   end;
 end;
@@ -1078,7 +1046,7 @@ begin
 
     Resize(Len);
 
-    Write := Buffer.Write; // How can I remove this???
+    Write := Buffer.Write;
     asm
         PUSH ES
         PUSH ESI
@@ -2023,9 +1991,7 @@ begin
             begin
               SetLength(FileContent.Str, Length(FileContent.Str) + Len);
               AnsiCharToWideChar(CodePage, @FileBuffer.Mem[FileBuffer.Index], BytesPerSector + ReadSize - FileBuffer.Index, @FileContent.Str[Length(FileContent.Str) - Len + 1], Len)
-            end
-            else if (GetLastError() <> 0) then
-              DoError(SysError(), EmptyToolsItem());
+            end;
           end;
 
           if (UTF8Bytes > 0) then
@@ -5740,12 +5706,9 @@ begin
             end;
           end;
         ftWideString:
-          begin
-            Parameter[I].Size := Min(Parameter[I].BufferSize, MultiByteToWideChar(Client.CodePage, 0, DataSet.LibRow^[I], DataSet.LibLengths^[I], nil, 0) * SizeOf(Char));
-            MultiByteToWideChar(Client.CodePage, 0, DataSet.LibRow^[I], DataSet.LibLengths^[I], Parameter[I].Buffer, Parameter[I].Size div SizeOf(Char));
-          end;
+          Parameter[I].Size := AnsiCharToWideChar(Client.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], Parameter[I].Buffer, Parameter[I].BufferSize div SizeOf(Char));
         ftWideMemo:
-          Parameter[I].Size := SQL_LEN_DATA_AT_EXEC(MultiByteToWideChar(Client.CodePage, 0, DataSet.LibRow^[I], DataSet.LibLengths^[I], nil, 0) * SizeOf(Char));
+          Parameter[I].Size := SQL_LEN_DATA_AT_EXEC(AnsiCharToWideChar(Client.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], nil, 0) * SizeOf(Char));
         ftBlob:
           Parameter[I].Size := SQL_LEN_DATA_AT_EXEC(DataSet.LibLengths^[I]);
         else

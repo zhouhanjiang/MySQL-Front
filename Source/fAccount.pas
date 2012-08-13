@@ -1475,6 +1475,7 @@ end;
 
 constructor TAAccounts.Create(const ADBLogin: TDBLogin);
 var
+  Msg: string;
   StringList: TStringList;
 begin
   inherited Create();
@@ -1485,8 +1486,16 @@ begin
 
   // "Sessions" used up to version 5.1 // May 2012
   if (DirectoryExists(Preferences.UserPath + 'Sessions' + PathDelim)
-    and not DirectoryExists(DataPath)) then
-    CopyDir(PChar(Preferences.UserPath + 'Sessions' + PathDelim), PChar(DataPath));
+    and not DirectoryExists(DataPath)
+    and not CopyDir(PChar(Preferences.UserPath + 'Sessions' + PathDelim), PChar(DataPath))) then
+  begin
+    Msg := 'Cannot copy folder'  + #13#10
+      + Preferences.UserPath + 'Sessions' + PathDelim + #13#10
+      + 'to' + #13#10
+      + DataPath + #13#10
+      + '(Error #' + IntToStr(GetLastError()) + ': ' + SysErrorMessage(GetLastError()) + ')';
+    MessageBox(0, PChar(Msg), 'ERROR', MB_OK + MB_ICONERROR);
+  end;
   if (FileExists(DataPath + 'Sessions.xml') and not FileExists(Filename)) then
   begin
     if (CopyFile(PChar(DataPath + 'Sessions.xml'), PChar(Filename), False)) then
