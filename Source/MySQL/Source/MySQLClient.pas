@@ -1183,7 +1183,7 @@ begin
 
   {$IFDEF EurekaLog}
     if (AErrNo = CR_UNKNOWN_ERROR) then
-      raise ERangeError.Create(FError);
+      raise ERangeError.Create(string(FError));
   {$ENDIF}
 end;
 

@@ -690,14 +690,16 @@ begin
       CheckUpdateThread.Execute();
       CheckUpdateThread.Stream.Free();
 
-      if (CheckUpdateThread.UpdateAvailable) then
-        Msg := Msg + #13#10#13#10 + 'An update is available. You can install the update with menu: Help -> Install Update.';
+      UpdateAvailable := CheckUpdateThread.UpdateAvailable;
 
       CheckUpdateThread.Free();
     end;
     {$ENDIF}
 
     MsgBox(Msg, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+
+    if (UpdateAvailable) then
+      PostMessage(Handle, CM_UPDATEAVAILABLE, 0, 0);
 
     DiableApplicationActivate := False;
   end;
@@ -805,7 +807,10 @@ begin
   if (not CAddressBar.Visible) then
     CAddressBar.Top := 0 // Workaround for Wine 1.4. Without this, the CAddressBar is visible
   else
+  begin
     CAddressBar.Top := CToolBar.Height;
+    ActiveControl := FAddress;
+  end;
 
   TabControlResize(nil);
 end;

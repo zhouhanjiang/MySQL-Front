@@ -2231,7 +2231,8 @@ begin
     SynchroThread.FreeOnTerminate := False;
     SynchroThread.Terminate();
     SynchroThread.WaitFor();
-    SynchroThread.Debug := 65433456;
+    if (SynchroThread.Debug <> 0) then
+      raise Exception.Create('Debug: ' + IntToStr(SynchroThread.Debug));
     SynchroThread.Free();
   end;
   TerminatedThreads.Free();
