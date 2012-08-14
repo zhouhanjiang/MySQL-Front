@@ -7135,8 +7135,8 @@ begin
     Modified := False;
     if (Assigned(Table)) then
       for J := 0 to Table.ForeignKeys.Count - 1 do
-        if (not NewTable.ForeignKeys.ForeignKey[I].Created and (lstrcmpi(PChar(NewTable.ForeignKeys.ForeignKey[I].OriginalName), PChar(Table.ForeignKeys.ForeignKey[J].OriginalName)) = 0)) then
-          Modified := not NewTable.ForeignKeys.ForeignKey[I].Equal(Table.ForeignKeys.ForeignKey[J]);
+        if (not NewTable.ForeignKeys[I].Created and (lstrcmpi(PChar(NewTable.ForeignKeys[I].OriginalName), PChar(Table.ForeignKeys[J].OriginalName)) = 0)) then
+          Modified := not NewTable.ForeignKeys[I].Equal(Table.ForeignKeys[J]);
 
     if (not Assigned(Table) or Modified or NewTable.ForeignKeys[I].Created and (NewTable.ForeignKeys[I].Parent.TableName <> '')) then
     begin

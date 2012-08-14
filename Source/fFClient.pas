@@ -1083,7 +1083,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  MMSystem, Math, DBConsts, Clipbrd, DBCommon, ShellAPI, Variants,
+  MMSystem, Math, DBConsts, Clipbrd, DBCommon, ShellAPI, Variants, Types,
   XMLDoc, Themes, StrUtils, UxTheme, FileCtrl, SysConst, RichEdit,
   ShLwApi,
   SynHighlighterSQL,

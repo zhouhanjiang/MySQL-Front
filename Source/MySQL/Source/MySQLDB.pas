@@ -674,6 +674,11 @@ InOnResult: Boolean; // Should be private, but for debugging...
     property MaxValue: UInt64 read FMaxValue write FMaxValue default 0;
   end;
 
+  TMySQLStringField = class(TStringField)
+  protected
+    procedure SetAsString(const Value: string); override;
+  end;
+
   TMySQLWideStringField = class(TWideStringField)
   protected
     function GetAsDateTime(): TDateTime; override;
@@ -3647,6 +3652,19 @@ begin
     SetAsLargeint(StrToUInt64(Value));
 end;
 
+{ TMySQLStringField ***********************************************************}
+
+procedure TMySQLStringField.SetAsString(const Value: string);
+begin
+  if (not (DataSet is TMySQLDataSet)) then
+    DatabaseErrorFmt(SDataSetMissing, [DisplayName])
+  else if (Value <> AsString) then
+  begin
+    TMySQLDataSet(DataSet).SetFieldData(Self, PAnsiChar(RawByteString(Value)), Length(Value));
+    TMySQLDataSet(DataSet).DataEvent(deFieldChange, Longint(Self));
+  end;
+end;
+
 { TMySQLWideStringField *******************************************************}
 
 function TMySQLWideStringField.GetAsDateTime(): TDateTime;
@@ -4382,7 +4400,7 @@ begin
             MYSQL_TYPE_VAR_STRING,
             MYSQL_TYPE_STRING:
               if (Binary) then
-                begin Field := TStringField.Create(Self); if (Connection.ServerVersion < 40100) then Field.Size := Len + 1 else Field.Size := Len; end
+                begin Field := TMySQLStringField.Create(Self); if (Connection.ServerVersion < 40100) then Field.Size := Len + 1 else Field.Size := Len; end
               else if (Len <= 255) then
                 begin Field := TMySQLWideStringField.Create(Self); Field.Size := 255; end
               else if ((Len <= 65535) and (Connection.ServerVersion >= 50000)) then
@@ -4706,7 +4724,7 @@ begin
     Result := 'b''' + IntToBitString(UInt64(Data^.LibRow^[Field.FieldNo - 1]^)) + ''''
   else
     case (Field.DataType) of
-      ftString: Connection.LibDecode(Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]);
+      ftString: Result := SQLEscapeBin(Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1], Connection.ServerVersion <= 40000);
       ftShortInt,
       ftByte,
       ftSmallInt,

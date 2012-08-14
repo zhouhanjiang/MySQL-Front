@@ -4871,8 +4871,6 @@ begin
   Content := Content + #9#9 + '.TableData {border-collapse: collapse; border-color: #000000; font-family: ' + Escape(Font.Name) + '}' + #13#10;
   Content := Content + #9#9 + '.TableHeader {border-color: #000000; text-decoration: bold; background-color: #e0e0e0;}' + #13#10;
   Content := Content + #9#9 + '.ObjectHeader {padding-left: 5px; text-align: left; border-color: #000000; text-decoration: bold;}' + #13#10;
-  Content := Content + #9#9 + '.ObjectOfPrimaryKey {text-align: left; border-color: #aaaaaa; text-decoration: bold; background-color: #e0e0e0;}' + #13#10;
-  Content := Content + #9#9 + '.ObjectOfUniqueKey {text-align: left; border-color: #aaaaaa; background-color: #e0e0e0;}' + #13#10;
   Content := Content + #9#9 + '.Object {text-align: left; border-color: #aaaaaa;}' + #13#10;
   Content := Content + #9#9 + '.odd {}' + #13#10;
   if (RowBackground) then
@@ -4935,28 +4933,37 @@ begin
       Content := Content + '<h3>' + Preferences.LoadStr(458) + ':</h3>' + #13#10;
 
       Content := Content + '<table border="0" cellspacing="0" summary="' + Escape(Table.Name) + '" class="TableObject">' + #13#10;
-      Content := Content + #9 + '<tr class="TableHeader">';
-      Content := Content + '<th class="ObjectHeader">' + Escape(ReplaceStr(Preferences.LoadStr(35), '&', '')) + '</th>';
-      Content := Content + '<th class="ObjectHeader">' + Escape(Preferences.LoadStr(69)) + '</th>';
+      Content := Content + #9 + '<tr class="TableHeader ObjectHeader">';
+      Content := Content + '<th>' + Escape(ReplaceStr(Preferences.LoadStr(35), '&', '')) + '</th>';
+      Content := Content + '<th>' + Escape(Preferences.LoadStr(69)) + '</th>';
+      Content := Content + '<th>' + Escape(ReplaceStr(Preferences.LoadStr(73), '&', '')) + '</th>';
+      if (Client.ServerVersion >= 50503) then
+        Content := Content + '<th>' + Escape(ReplaceStr(Preferences.LoadStr(111), '&', '')) + '</th>';
       Content := Content + '</tr>' + #13#10;
       for I := 0 to TCBaseTable(Table).Keys.Count - 1 do
       begin
         if (TCBaseTable(Table).Keys[I].Primary) then
-          ClassAttr := ' class="ObjectOfPrimaryKey"'
-        else if (TCBaseTable(Table).Keys[I].Unique) then
-          ClassAttr := ' class="ObjectOfUniqueKey"'
+          ClassAttr := ' class="PrimaryKey"'
         else
-          ClassAttr := ' class="Object"';
+          ClassAttr := '';
 
-        Content := Content + #9 + '<tr class="TableHeader">';
-        Content := Content + '<th ' + ClassAttr + '>' + Escape(TCBaseTable(Table).Keys[I].Caption) + '</th>';
+        Content := Content + #9 + '<tr class="Object">';
+        Content := Content + '<td ' + ClassAttr + '>' + Escape(TCBaseTable(Table).Keys[I].Caption) + '</td>';
         S := '';
         for J := 0 to TCBaseTable(Table).Keys[I].Columns.Count - 1 do
           begin
             if (S <> '') then S := S + ', ';
             S := S + TCBaseTable(Table).Keys[I].Columns[J].Field.Name;
           end;
-        Content := Content + '<td' + ClassAttr + '>' + Escape(S) + '</td>';
+        Content := Content + '<td>' + Escape(S) + '</td>';
+        if (TCBaseTable(Table).Keys[I].Unique) then
+          Content := Content + '<td>unique</td>'
+        else if (TCBaseTable(Table).Keys[I].Fulltext) then
+          Content := Content + '<td>fulltext</td>'
+        else
+          Content := Content + '<td>' + Escape(S) + '</td>';
+        if (Client.ServerVersion >= 50503) then
+          Content := Content + '<td>' + Escape(TCBaseTable(Table).Keys[I].Comment) + '</td>';
         Content := Content + '</tr>' + #13#10;
       end;
       Content := Content + '</table><br>' + #13#10;
@@ -4965,44 +4972,42 @@ begin
     Content := Content + '<h3>' + Preferences.LoadStr(253) + ':</h3>' + #13#10;
 
     Content := Content + '<table border="0" cellspacing="0" summary="' + Escape(Table.Name) + '" class="TableObject">' + #13#10;
-    Content := Content + #9 + '<tr class="TableHeader">';
-    Content := Content + '<th class="ObjectHeader">' + Escape(ReplaceStr(Preferences.LoadStr(35), '&', '')) + '</th>';
-    Content := Content + '<th class="ObjectHeader">' + Escape(Preferences.LoadStr(69)) + '</th>';
-    Content := Content + '<th class="ObjectHeader">' + Escape(Preferences.LoadStr(71)) + '</th>';
-    Content := Content + '<th class="ObjectHeader">' + Escape(Preferences.LoadStr(72)) + '</th>';
-    Content := Content + '<th class="ObjectHeader">' + Escape(ReplaceStr(Preferences.LoadStr(73), '&', '')) + '</th>';
+    Content := Content + #9 + '<tr class="TableHeader ObjectHeader">';
+    Content := Content + '<th>' + Escape(ReplaceStr(Preferences.LoadStr(35), '&', '')) + '</th>';
+    Content := Content + '<th>' + Escape(Preferences.LoadStr(69)) + '</th>';
+    Content := Content + '<th>' + Escape(Preferences.LoadStr(71)) + '</th>';
+    Content := Content + '<th>' + Escape(Preferences.LoadStr(72)) + '</th>';
+    Content := Content + '<th>' + Escape(ReplaceStr(Preferences.LoadStr(73), '&', '')) + '</th>';
     if (Client.ServerVersion >= 40100) then
-      Content := Content + '<th class="ObjectHeader">' + Escape(ReplaceStr(Preferences.LoadStr(111), '&', '')) + '</th>';
+      Content := Content + '<th>' + Escape(ReplaceStr(Preferences.LoadStr(111), '&', '')) + '</th>';
     Content := Content + '</tr>' + #13#10;
     for I := 0 to Table.Fields.Count - 1 do
     begin
       if (Table.Fields[I].InPrimaryKey) then
-        ClassAttr := ' class="ObjectOfPrimaryKey"'
-      else if (Table.Fields[I].InUniqueKey) then
-        ClassAttr := ' class="ObjectOfUniqueKey"'
+        ClassAttr := ' class="PrimaryKey"'
       else
-        ClassAttr := ' class="Object"';
+        ClassAttr := '';
 
-      Content := Content + #9 + '<tr>';
-      Content := Content + '<th' + ClassAttr + '>' + Escape(Table.Fields[I].Name) + '</th>';
-      Content := Content + '<td' + ClassAttr + '>' + Escape(Table.Fields[I].DBTypeStr()) + '</td>';
+      Content := Content + #9 + '<tr class="Object">';
+      Content := Content + '<td' + ClassAttr + '>' + Escape(Table.Fields[I].Name) + '</td>';
+      Content := Content + '<td>' + Escape(Table.Fields[I].DBTypeStr()) + '</td>';
       if (Table.Fields[I].NullAllowed) then
-        Content := Content + '<td' + ClassAttr + '>NULL</td>'
+        Content := Content + '<td>NULL</td>'
       else
-        Content := Content + '<td' + ClassAttr + '>&nbsp;</td>';
+        Content := Content + '<td>&nbsp;</td>';
       if (Table.Fields[I].Default <> '') then
-        Content := Content + '<td' + ClassAttr + '>' + Escape(Table.Fields[I].Default) + '</td>'
+        Content := Content + '<td>' + Escape(Table.Fields[I].Default) + '</td>'
       else
-        Content := Content + '<td' + ClassAttr + '>&nbsp;</td>';
+        Content := Content + '<td>&nbsp;</td>';
       if (Table.Fields[I].AutoIncrement) then
-        Content := Content + '<td' + ClassAttr + '>auto_increment</td>'
+        Content := Content + '<td>auto_increment</td>'
       else
-        Content := Content + '<td' + ClassAttr + '>&nbsp;</td>';
+        Content := Content + '<td>&nbsp;</td>';
       if (Client.ServerVersion >= 40100) then
         if (TCBaseTableField(Table.Fields[I]).Comment <> '') then
-          Content := Content + '<td' + ClassAttr + '>' + Escape(TCBaseTableField(Table.Fields[I]).Comment) + '</td>'
+          Content := Content + '<td>' + Escape(TCBaseTableField(Table.Fields[I]).Comment) + '</td>'
         else
-          Content := Content + '<td' + ClassAttr + '>&nbsp;</td>';
+          Content := Content + '<td>&nbsp;</td>';
       Content := Content + #9 + '</tr>' + #13#10;
     end;
     Content := Content + '</table><br>' + #13#10;
@@ -5012,15 +5017,15 @@ begin
       Content := Content + '<h3>' + Preferences.LoadStr(459) + ':</h3>' + #13#10;
 
       Content := Content + '<table border="0" cellspacing="0" summary="' + Escape(Table.Name) + '" class="TableObject">' + #13#10;
-      Content := Content + #9 + '<tr class="TableHeader">';
-      Content := Content + '<th class="ObjectHeader">' + Escape(ReplaceStr(Preferences.LoadStr(35), '&', '')) + '</th>';
-      Content := Content + '<th class="ObjectHeader">' + Escape(Preferences.LoadStr(69)) + '</th>';
+      Content := Content + #9 + '<tr class="TableHeader ObjectHeader">';
+      Content := Content + '<th>' + Escape(ReplaceStr(Preferences.LoadStr(35), '&', '')) + '</th>';
+      Content := Content + '<th>' + Escape(Preferences.LoadStr(69)) + '</th>';
       Content := Content + '</tr>' + #13#10;
       for I := 0 to TCBaseTable(Table).ForeignKeys.Count - 1 do
       begin
         Content := Content + #9 + '<tr>';
-        Content := Content + '<th class="ObjectHeader">' + Escape(TCBaseTable(Table).ForeignKeys.ForeignKey[I].Name) + '</th>';
-        Content := Content + '<td class="ObjectHeader">' + Escape(TCBaseTable(Table).ForeignKeys.ForeignKey[I].DBTypeStr()) + '</td>';
+        Content := Content + '<th>' + Escape(TCBaseTable(Table).ForeignKeys[I].Name) + '</th>';
+        Content := Content + '<td>' + Escape(TCBaseTable(Table).ForeignKeys[I].DBTypeStr()) + '</td>';
         Content := Content + '</tr>' + #13#10;
       end;
       Content := Content + '</table><br>' + #13#10;
