@@ -801,6 +801,11 @@ object WWindow: TWWindow
       HelpContext = 1016
       HelpType = htContext
     end
+    object aFExportPDF: TAction
+      Category = 'File'
+      Caption = 'aFExportPDF'
+      Enabled = False
+    end
     object aFExportBitmap: TAction
       Category = 'File'
       Caption = 'aFExportBitmap'
@@ -1480,6 +1485,9 @@ object WWindow: TWWindow
         end
         object miFExportHTML: TMenuItem
           Action = aFExportHTML
+        end
+        object miFExportPDF: TMenuItem
+          Action = aFExportPDF
         end
         object miFExportBitmap: TMenuItem
           Action = aFExportBitmap

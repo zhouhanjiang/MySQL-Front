@@ -220,6 +220,7 @@ begin
     FStmt.ActiveLineColor := clNone
   else
     FStmt.ActiveLineColor := Preferences.Editor.CurrRowBGColor;
+  FStmt.WordWrap := Preferences.Editor.WordWrap;
 
   TSInformations.Caption := Preferences.LoadStr(121);
   GDefiner.Caption := ReplaceStr(Preferences.LoadStr(561), '&', '');

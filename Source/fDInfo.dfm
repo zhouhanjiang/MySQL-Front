@@ -83,16 +83,7 @@ object DInfo: TDInfo
     Caption = 'FBOk'
     Default = True
     ModalResult = 1
-    TabOrder = 2
-  end
-  object FBHelp: TButton
-    Left = 8
-    Top = 320
-    Width = 75
-    Height = 25
-    Caption = 'FBHelp'
     TabOrder = 1
-    OnClick = FBHelpClick
   end
   object FLine: TPanel_Ext
     Left = 0

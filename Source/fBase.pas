@@ -440,28 +440,30 @@ begin
   FreeAndNil(Reg);
 
   if (Description = '') then
-    if (LowerCase(Ext) = 'sql') then
-      Description := Preferences.LoadStr(184)
+    if (LowerCase(Ext) = '*') then
+      Description := Preferences.LoadStr(190)
+    else if (LowerCase(Ext) = 'bmp') then
+      Description := Preferences.LoadStr(868)
     else if (LowerCase(Ext) = 'html') then
       Description := Preferences.LoadStr(455)
-    else if (LowerCase(Ext) = 'xml') then
-      Description := Preferences.LoadStr(456)
+    else if (LowerCase(Ext) = 'ini') then
+      Description := Preferences.LoadStr(452)
     else if (LowerCase(Ext) = 'mdb') then
       Description := ReplaceStr(Preferences.LoadStr(695), '&', '')
-    else if (LowerCase(Ext) = 'xls') then
-      Description := ReplaceStr(Preferences.LoadStr(801), '&', '')
+    else if (LowerCase(Ext) = 'pdf') then
+      Description := Preferences.LoadStr(890)
+    else if (LowerCase(Ext) = 'sql') then
+      Description := Preferences.LoadStr(184)
     else if (LowerCase(Ext) = 'sqlite') then
       Description := ReplaceStr(Preferences.LoadStr(870), '&', '')
     else if (LowerCase(Ext) = 'txt') then
       Description := Preferences.LoadStr(350)
-    else if (LowerCase(Ext) = 'ini') then
-      Description := Preferences.LoadStr(452)
-    else if (LowerCase(Ext) = 'bmp') then
-      Description := Preferences.LoadStr(868)
+    else if (LowerCase(Ext) = 'xls') then
+      Description := ReplaceStr(Preferences.LoadStr(801), '&', '')
+    else if (LowerCase(Ext) = 'xml') then
+      Description := Preferences.LoadStr(456)
     else if (LowerCase(Ext) = 'zip') then
-      Description := Preferences.LoadStr(886)
-    else if (LowerCase(Ext) = '*') then
-      Description := Preferences.LoadStr(190);
+      Description := Preferences.LoadStr(886);
 
   Result := Description;
 end;

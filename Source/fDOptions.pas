@@ -111,6 +111,8 @@ type
     TSLog: TTabSheet;
     TSUpdates: TTabSheet;
     TSView: TTabSheet;
+    FEditorWordWrap: TCheckBox;
+    FLEditorWordWrap: TLabel;
     procedure FBackgroundClick(Sender: TObject);
     procedure FBackgroundKeyPress(Sender: TObject; var Key: Char);
     procedure FBBackgroundClick(Sender: TObject);
@@ -245,6 +247,8 @@ begin
   FLEditorCompletitionTime.Left := FUDEditorCompletitionTime.Left + FUDEditorCompletitionTime.Width + Canvas.TextWidth('  ');
   FLEditorCurrRowBGColor.Caption := Preferences.LoadStr(784) + ':';
   FLEditorCurrRowBGColor.Caption := Preferences.LoadStr(784) + ':';
+  FLEditorWordWrap.Caption := Preferences.LoadStr(891);
+  FEditorWordWrap.Caption := Preferences.LoadStr(892);
 
   TSHighlighter.Caption := ReplaceStr(Preferences.LoadStr(528), '&', '');
   GColors.Caption := Preferences.LoadStr(474);
@@ -492,7 +496,7 @@ begin
     Preferences.TabsVisible := FTabsVisible.Checked;
 
     Preferences.GridFontName := PGridFont.Font.Name;
-    Preferences.GridFontStyle := PGridFont.Font.Style;
+    Preferences.GridFontStyle := PGridFont.Font.Style - [fsBold];
     Preferences.GridFontColor := PGridFont.Font.Color;
     Preferences.GridFontSize := PGridFont.Font.Size;
     Preferences.GridFontCharset := PGridFont.Font.Charset;
@@ -567,6 +571,7 @@ begin
     Preferences.Editor.LineNumbersForeground := LineNumbersAttri.Foreground;
     Preferences.Editor.LineNumbersBackground := LineNumbersAttri.Background;
     Preferences.Editor.LineNumbersStyle := LineNumbersAttri.Style;
+    Preferences.Editor.WordWrap := FEditorWordWrap.Checked;
     if (FUpdateCheckNever.Checked) then Preferences.UpdateCheck := utNever;
     if (FUpdateCheckDaily.Checked) then Preferences.UpdateCheck := utDaily;
 
@@ -643,6 +648,7 @@ begin
   FUDEditorCompletitionTime.Position := Preferences.Editor.CodeCompletionTime;
   FEditorCurrRowBGColorEnabled.Checked := Preferences.Editor.CurrRowBGColorEnabled;
   PEditorCurrRowBGColor.Color := Preferences.Editor.CurrRowBGColor;
+  FEditorWordWrap.Checked := Preferences.Editor.WordWrap;
 
   FLogFont.Text := Preferences.LogFontName;
   PLogFont.Font.Name := Preferences.LogFontName;

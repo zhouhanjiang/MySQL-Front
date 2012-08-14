@@ -98,6 +98,7 @@ type
     TabWidth: Integer;
     VariableForeground, VariableBackground: TColor;
     VariableStyle: TFontStyles;
+    WordWrap: Boolean;
     constructor Create(const APreferences: TPPreferences); virtual;
   end;
 
@@ -845,6 +846,7 @@ begin
   TabToSpaces := True;
   TabWidth := 4;
   VariableForeground := clGreen; VariableBackground := clNone; VariableStyle := [];
+  WordWrap := False;
 end;
 
 procedure TPEditor.LoadFromXML(const XML: IXMLNode);
@@ -859,6 +861,7 @@ begin
   if (Assigned(XMLNode(XML, 'tabs'))) then TryStrToBool(XMLNode(XML, 'tabs').Attributes['accepted'], TabAccepted);
   if (Assigned(XMLNode(XML, 'tabs'))) then TryStrToBool(XMLNode(XML, 'tabs').Attributes['tospace'], TabToSpaces);
   if (Assigned(XMLNode(XML, 'tabs/size'))) then TryStrToInt(XMLNode(XML, 'tabs/size').Text, TabWidth);
+  if (Assigned(XMLNode(XML, 'wordwrap'))) then TryStrToBool(XMLNode(XML, 'wordwrap').Text, WordWrap);
 end;
 
 procedure TPEditor.SaveToXML(const XML: IXMLNode);
@@ -874,6 +877,7 @@ begin
   XMLNode(XML, 'tabs').Attributes['accepted'] := TabAccepted;
   XMLNode(XML, 'tabs').Attributes['tospace'] := TabToSpaces;
   XMLNode(XML, 'tabs/size').Text := IntToStr(TabWidth);
+  XMLNode(XML, 'wordwrap').Text := BoolToStr(WordWrap, True);
 end;
 
 { TPExport ********************************************************************}

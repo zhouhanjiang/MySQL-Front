@@ -10,7 +10,7 @@ uses
   fClient, fAccount, fBase, fTools, fCWorkbench;
 
 type
-  TExportType = (etSQLFile, etTextFile, etExcelFile, etAccessFile, etSQLiteFile, etODBC, etHTMLFile, etXMLFile, etPrint);
+  TExportType = (etSQLFile, etTextFile, etExcelFile, etAccessFile, etSQLiteFile, etODBC, etHTMLFile, etPDFFile, etXMLFile, etPrint);
 
   TSaveToStream = procedure(Stream: TStream) of object;
 
@@ -45,7 +45,6 @@ type
     FFieldTagFree: TRadioButton;
     FFieldTagName: TRadioButton;
     FHTMLData: TCheckBox;
-    FHTMLIndexBGColorEnabled: TCheckBox;
     FHTMLNullText: TCheckBox;
     FHTMLRowBGColorEnabled: TCheckBox;
     FHTMLShowMemoContent: TCheckBox;
@@ -399,7 +398,6 @@ begin
   FHTMLShowMemoContent.Caption := Preferences.LoadStr(575);
   FLHTMLBGColorEnabled.Caption := Preferences.LoadStr(740) + ':';
   FHTMLRowBGColorEnabled.Caption := Preferences.LoadStr(600);
-  FHTMLIndexBGColorEnabled.Caption := Preferences.LoadStr(458);
 
   GFields.Caption := Preferences.LoadStr(253);
   FLFields.Caption := Preferences.LoadStr(401) + ':';
@@ -603,7 +601,7 @@ begin
   for I := 0 to Length(FDestFields) - 1 do
     if (Sender = FFields[I]) then
     begin
-      FDestFields[I].Enabled := (FFields[I].ItemIndex > 0) and (ExportType in [etTextFile, etExcelFile, etHTMLFile, etXMLFile, etPrint]);
+      FDestFields[I].Enabled := (FFields[I].ItemIndex > 0) and (ExportType in [etTextFile, etExcelFile, etHTMLFile, etPDFFile, etXMLFile, etPrint]);
       FDestFields[I].Text := FFields[I].Text;
     end;
 
@@ -645,7 +643,6 @@ begin
   FHTMLShowMemoContent.Enabled := FHTMLData.Checked;
   FLHTMLBGColorEnabled.Enabled := FHTMLData.Checked;
   FHTMLRowBGColorEnabled.Enabled := FHTMLData.Checked;
-  FHTMLIndexBGColorEnabled.Enabled := FHTMLData.Checked;
 
   TSExecute.Enabled := FHTMLStructure.Checked or FHTMLData.Checked;
   CheckActivePageChange(TSHTMLOptions.PageIndex);
@@ -759,7 +756,6 @@ begin
   FHTMLNullText.Checked := Preferences.GridNullText;
   FHTMLShowMemoContent.Checked := Preferences.GridShowMemoContent;
   FHTMLRowBGColorEnabled.Checked := Preferences.GridRowBGColorEnabled;
-  FHTMLIndexBGColorEnabled.Checked := True;
 
   SendMessage(FErrorMessages.Handle, EM_SETTEXTMODE, TM_PLAINTEXT, 0);
   SendMessage(FErrorMessages.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
@@ -866,7 +862,7 @@ begin
   FCreateDatabase.Checked := (DBObjects.Count > 1) and Preferences.Export.SQLCreateDatabase;
   TSCSVOptions.Enabled := ExportType in [etTextFile];
   TSXMLOptions.Enabled := (ExportType in [etXMLFile]) and not Assigned(DBGrid);
-  TSHTMLOptions.Enabled := ExportType in [etHTMLFile, etPrint];
+  TSHTMLOptions.Enabled := ExportType in [etHTMLFile, etPDFFile, etPrint];
   TSFields.Enabled := (ExportType in [etExcelFile]) and ((DBObjects.Count = 1) or Assigned(DBGrid)) or (ExportType in [etXMLFile]) and Assigned(DBGrid);
   TSExecute.Enabled := not TSODBCSelect.Enabled and not TSSQLOptions.Enabled and not TSCSVOptions.Enabled and not TSHTMLOptions.Enabled and not TSFields.Enabled;
 
@@ -981,7 +977,7 @@ begin
   FLDestFields.Visible :=
     (ExportType = etTextFile) and FCSVHeadline.Checked
     or (ExportType = etExcelFile)
-    or (ExportType in [etXMLFile, etHTMLFile, etPrint]) and not FHTMLStructure.Checked;
+    or (ExportType in [etXMLFile, etHTMLFile, etPDFFile, etPrint]) and not FHTMLStructure.Checked;
 
   if (FLDestFields.Visible) then
   begin
@@ -1027,7 +1023,7 @@ begin
       FDestFields[I].Top := FDestField1.Top + I * (FField2.Top - FField1.Top);
       FDestFields[I].Width := FDestField1.Width;
       FDestFields[I].Height := FDestField1.Height;
-      FDestFields[I].Enabled := ExportType in [etTextFile, etExcelFile, etHTMLFile, etXMLFile, etPrint];
+      FDestFields[I].Enabled := ExportType in [etTextFile, etExcelFile, etHTMLFile, etPDFFile, etXMLFile, etPrint];
       TEdit(FDestFields[I]).Text := FFields[I].Text;
       K := 2;
       for J := 0 to I - 1 do
@@ -1145,6 +1141,7 @@ procedure TDExport.TSExecuteShow(Sender: TObject);
 var
   ExportExcel: TTExportExcel;
   ExportHTML: TTExportHTML;
+  ExportPDF: TTExportPDF;
   ExportSQL: TTExportSQL;
   ExportText: TTExportText;
   ExportXML: TTExportXML;
@@ -1271,13 +1268,25 @@ begin
         try
           ExportHTML := TTExportHTML.Create(Client, Filename, CodePage);
           ExportHTML.Data := FHTMLData.Checked;
-          ExportHTML.IndexBackground := FHTMLIndexBGColorEnabled.Checked;
           ExportHTML.TextContent := FHTMLShowMemoContent.Checked;
           ExportHTML.NULLText := FHTMLNullText.Checked;
           ExportHTML.RowBackground := FHTMLRowBGColorEnabled.Checked;
           ExportHTML.Structure := FHTMLStructure.Checked;
 
           Export := ExportHTML;
+        except
+          MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+        end;
+      etPDFFile:
+        try
+          ExportPDF := TTExportPDF.Create(Client, Filename);
+          ExportPDF.Data := FHTMLData.Checked;
+          ExportPDF.TextContent := FHTMLShowMemoContent.Checked;
+          ExportPDF.NULLText := FHTMLNullText.Checked;
+          ExportPDF.RowBackground := FHTMLRowBGColorEnabled.Checked;
+          ExportPDF.Structure := FHTMLStructure.Checked;
+
+          Export := ExportPDF;
         except
           MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
         end;
@@ -1390,7 +1399,7 @@ begin
         end;
       etSQLiteFile:
         try
-          Export := TTExportSQLite.Create(Client, Filename, CP_ACP);
+          Export := TTExportSQLite.Create(Client, Filename);
           Export.Data := True;
           Export.Structure := True;
           for I := 0 to DBObjects.Count - 1 do
@@ -1458,7 +1467,6 @@ begin
         try
           ExportHTML := TTExportHTML.Create(Client, Filename, CodePage);
           ExportHTML.Data := FHTMLData.Checked;
-          ExportHTML.IndexBackground := FHTMLIndexBGColorEnabled.Checked;
           ExportHTML.TextContent := FHTMLShowMemoContent.Checked;
           ExportHTML.NULLText := FHTMLNullText.Checked;
           ExportHTML.RowBackground := FHTMLRowBGColorEnabled.Checked;
@@ -1467,6 +1475,21 @@ begin
             ExportHTML.Add(TCDBObject(DBObjects[I]));
 
           Export := ExportHTML;
+        except
+          MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+        end;
+      etPDFFile:
+        try
+          ExportPDF := TTExportPDF.Create(Client, Filename);
+          ExportPDF.Data := FHTMLData.Checked;
+          ExportPDF.TextContent := FHTMLShowMemoContent.Checked;
+          ExportPDF.NULLText := FHTMLNullText.Checked;
+          ExportPDF.RowBackground := FHTMLRowBGColorEnabled.Checked;
+          ExportPDF.Structure := FHTMLStructure.Checked;
+          for I := 0 to DBObjects.Count - 1 do
+            ExportPDF.Add(TCDBObject(DBObjects[I]));
+
+          Export := ExportPDF;
         except
           MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
         end;

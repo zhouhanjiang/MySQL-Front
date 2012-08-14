@@ -7,7 +7,7 @@
 	#
 
 	/****************************************************************************/
-
+	
 	$Version = 13;
 
 	$Charsets = array(
@@ -100,7 +100,7 @@
 			$CompressedPacket = "\x00\x00\x00" . $Packet;
 		else
 			$CompressedPacket = substr(pack('V', strlen($Packet) & 0xffffff), 0, 3) . gzcompress($Packet);
-		
+		        
 		echo(substr(pack('V', strlen($CompressedPacket) - 3), 0, 3) . pack('C', $CompPacketNr++) . $CompressedPacket);
 	}
 	
@@ -161,7 +161,7 @@
 				$_SESSION['MBCLen'] = (int) $CharacterSet['Maxlen'];
 			mysql_free_result($CharacterSets);
 		}
-
+		 
 		$Select1 = mysql_query("SELECT '1';", $mysql);
 		$_SESSION['MBCLen'] = (int) ($_SESSION['MBCLen'] / mysql_field_len($Select1, 0));
 		mysql_free_result($Select1);
@@ -678,4 +678,3 @@
 	if ($Connect)
 		$_SESSION['compress'] = ($_SESSION['client_flag'] & 0x0020) && function_exists('gzcompress');
 ?>
-

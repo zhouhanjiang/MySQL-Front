@@ -438,6 +438,7 @@ InOnResult: Boolean; // Should be private, but for debugging...
     function GetFieldData(const Field: TField; const Buffer: Pointer; const Data: PRecordBufferData): Boolean; overload; virtual;
     function GetLibLengths(): MYSQL_LENGTHS; virtual;
     function GetLibRow(): MYSQL_ROW; virtual;
+    function GetIsIndexField(Field: TField): Boolean; override;
     function GetRecNo(): Integer; override;
     function GetRecord(Buffer: TRecordBuffer; GetMode: TGetMode; DoCheck: Boolean): TGetResult; override;
     function GetRecordCount(): Integer; override;
@@ -550,7 +551,6 @@ InOnResult: Boolean; // Should be private, but for debugging...
     procedure GetBookmarkData(Buffer: TRecordBuffer; Data: Pointer); override;
     function GetBookmarkFlag(Buffer: TRecordBuffer): TBookmarkFlag; override;
     function GetCanModify(): Boolean; override;
-    function GetIsIndexField(Field: TField): Boolean; override;
     function GetLibLengths(): MYSQL_LENGTHS; override;
     function GetLibRow(): MYSQL_ROW; override;
     function GetRecNo(): Integer; override;
@@ -769,6 +769,7 @@ const
   NotQuotedDataTypes = [ftShortInt, ftByte, ftSmallInt, ftWord, ftInteger, ftLongWord, ftLargeint, ftSingle, ftFloat, ftExtended];
   BinaryDataTypes = [ftString, ftBlob];
   TextDataTypes = [ftWideString, ftWideMemo];
+  RightAlignedDataTypes = [ftShortInt, ftByte, ftSmallInt, ftWord, ftInteger, ftLongWord, ftLargeint, ftSingle, ftFloat, ftExtended];
 
 var
   LocaleFormatSettings: TFormatSettings;
@@ -1896,6 +1897,8 @@ begin
     LibHandle := nil;
   end;
 
+  Debug := 43344334;
+
   Connection.TerminatedThreads.Delete(Self);
 
   Debug := 0;
@@ -1958,21 +1961,17 @@ begin
         begin
           case (Mode) of
             smSQL:
-              begin
-                repeat
-                  Connection.SyncExecutingSQL(Self);
+              repeat
+                Connection.SyncExecutingSQL(Self);
+                Connection.SyncHandleResult(Self);
+                Connection.SyncHandlingResult(Self);
+                while (State = ssNextResult) do
+                begin
+                  Connection.SyncNextResult(Self);
                   Connection.SyncHandleResult(Self);
                   Connection.SyncHandlingResult(Self);
-                  while (State = ssNextResult) do
-                  begin
-                    Connection.SyncNextResult(Self);
-                    Connection.SyncHandleResult(Self);
-                    Connection.SyncHandlingResult(Self);
-                  end;
-                until (State <> ssExecutingSQL);
-                if (State = ssReady) then
-                  Connection.SyncExecutedSQL(Self);
-              end;
+                end;
+              until (State <> ssExecutingSQL);
             smDataSet:
               begin
                 Connection.SyncExecutingSQL(Self);
@@ -4165,6 +4164,11 @@ begin
   Result := PRecordBufferData(ActiveBuffer())^.LibRow;
 end;
 
+function TMySQLQuery.GetIsIndexField(Field: TField): Boolean;
+begin
+  Result := pfInKey in Field.ProviderFlags;
+end;
+
 function TMySQLQuery.GetRecNo(): Integer;
 begin
   Result := FRecNo;
@@ -5052,15 +5056,6 @@ function TMySQLDataSet.GetFieldData(Field: TField; Buffer: Pointer): Boolean;
 begin
   Result := Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
     and GetFieldData(Field, Buffer, PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData);
-end;
-
-function TMySQLDataSet.GetIsIndexField(Field: TField): Boolean;
-begin
-try
-  Result := pfInKey in Field.ProviderFlags;
-except
-  Result := pfInKey in Field.ProviderFlags;
-end;
 end;
 
 function TMySQLDataSet.GetLibLengths(): MYSQL_LENGTHS;

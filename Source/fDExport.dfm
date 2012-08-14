@@ -39,7 +39,7 @@ object DExport: TDExport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSExecute
+    ActivePage = TSHTMLOptions
     HotTrack = True
     Style = tsFlatButtons
     TabOrder = 1
@@ -48,10 +48,6 @@ object DExport: TDExport
       Caption = 'TSODBCSelect'
       TabVisible = False
       OnShow = TSODBCSelectShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GODBCSelect: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -90,10 +86,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSSQLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GSQLWhat: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -216,10 +208,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSCSVOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GCSVOptions: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -357,10 +345,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSXMLOptionsHide
       OnShow = TSXMLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GXMLHow: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -672,10 +656,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSHTMLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GHTMLWhat: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -716,7 +696,7 @@ object DExport: TDExport
         Left = 4
         Top = 76
         Width = 325
-        Height = 133
+        Height = 109
         Caption = 'GHTMLOptions'
         TabOrder = 1
         object FLHTMLNullValues: TLabel
@@ -765,24 +745,12 @@ object DExport: TDExport
           Caption = 'FHTMLRowBGColorEnabled'
           TabOrder = 2
         end
-        object FHTMLIndexBGColorEnabled: TCheckBox
-          Left = 129
-          Top = 104
-          Width = 193
-          Height = 17
-          Caption = 'FHTMLIndexBGColorEnabled'
-          TabOrder = 3
-        end
       end
     end
     object TSFields: TTabSheet
       Caption = 'TSFields'
       TabVisible = False
       OnShow = TSFieldsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GFields: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -860,10 +828,6 @@ object DExport: TDExport
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GProgress: TGroupBox_Ext
         Left = 4
         Top = 0

@@ -16,8 +16,9 @@ const
   CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR = 2206;
   CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE    = 2207;
   CR_HTTPTUNNEL_HTTP_CONNECTION            = 2208;
-  CR_HTTPTUNNEL_SERVER_ERROR               = 2209;
-  CR_HTTPTUNNEL_REDIRECT                   = 2210;
+  CR_HTTPTUNNEL_UNKNOWN_SID                = 2209;
+  CR_HTTPTUNNEL_SERVER_ERROR               = 2210;
+  CR_HTTPTUNNEL_REDIRECT                   = 2211;
 
   MYSQL_OPT_HTTPTUNNEL_URL   = 240;
   MYSQL_OPT_HTTPTUNNEL_AGENT = 241;
@@ -68,7 +69,7 @@ const
   RequiredTunnelVersion = 8;
 
 const
-  HTTPTTUNNEL_ERRORS: array [0..8] of PChar = (
+  HTTPTTUNNEL_ERRORS: array [0..9] of PChar = (
     'Unknown HTTP Tunnel error (%d)',                                        {0}
     'HTTP Tunnel script (%s) is too old - please update',                    {1}
     'Can''t connect to MySQL server through HTTP Tunnel ''%s'' (%d)',        {2}
@@ -77,7 +78,8 @@ const
     'Unknown HTTP Server Host ''%s'' (%d)',                                  {5}
     'Invalid HTTP content type (''%s'').',                                   {6}
     'The HTTP server response could not be parsed (%s):' + #10#10 + '%s',    {7}
-    '%-.64s via HTTP'                                                        {8}
+    '%-.64s via HTTP',                                                       {8}
+    'Unknown PHP Session ID'                                                 {9}
   );
 
 {******************************************************************************}
@@ -205,7 +207,7 @@ begin
       else
         ObjectName := ObjectName + '&SID=' + SID;
 
-    Flags := INTERNET_FLAG_NO_AUTO_REDIRECT or INTERNET_FLAG_NO_CACHE_WRITE or INTERNET_FLAG_NO_UI or INTERNET_FLAG_KEEP_CONNECTION or INTERNET_FLAG_NO_COOKIES;
+    Flags := INTERNET_FLAG_NO_AUTO_REDIRECT or INTERNET_FLAG_NO_CACHE_WRITE or INTERNET_FLAG_NO_UI or INTERNET_FLAG_KEEP_CONNECTION;
     if (URLComponents.lpszScheme = 'https') then
       Flags := Flags or INTERNET_FLAG_SECURE;
 
@@ -404,8 +406,9 @@ begin
 
               StrPCopy(@Buffer, 'MF-SID'); Size := SizeOf(Buffer); Index := 0;
               if (HttpQueryInfo(Request, HTTP_QUERY_CUSTOM, @Buffer, Size, Index)) then
-                SID := PChar(@Buffer);
-
+                SID := PChar(@Buffer)
+              else
+                Seterror(CR_HTTPTUNNEL_UNKNOWN_SID, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_UNKNOWN_SID - CR_HTTPTUNNEL_UNKNOWN_ERROR], [])));
 
               Direction := idRead;
 

@@ -109,6 +109,7 @@ type
     gmFExportExcel: TMenuItem;
     gmFExportHTML: TMenuItem;
     gmFExportSQL: TMenuItem;
+    gmFExportPDF: TMenuItem;
     gmFExportText: TMenuItem;
     gmFExportXML: TMenuItem;
     gmFilter: TMenuItem;
@@ -169,6 +170,7 @@ type
     miNExportExcel: TMenuItem;
     miNExportHTML: TMenuItem;
     miNExportODBC: TMenuItem;
+    miNExportPDF: TMenuItem;
     miNExportSQL: TMenuItem;
     miNExportSQLite: TMenuItem;
     miNExportText: TMenuItem;
@@ -214,6 +216,7 @@ type
     mlFExportExcel: TMenuItem;
     mlFExportHTML: TMenuItem;
     mlFExportODBC: TMenuItem;
+    mlFExportPDF: TMenuItem;
     mlFExportSQL: TMenuItem;
     mlFExportSQLite: TMenuItem;
     mlFExportText: TMenuItem;
@@ -271,6 +274,7 @@ type
     mwFExportExcel: TMenuItem;
     mwFExportHTML: TMenuItem;
     mwFExportODBC: TMenuItem;
+    mwFExportPDF: TMenuItem;
     mwFExportSQL: TMenuItem;
     mwFExportSQLite: TMenuItem;
     mwFExportText: TMenuItem;
@@ -419,6 +423,7 @@ type
     procedure aFExportExcelExecute(Sender: TObject);
     procedure aFExportHTMLExecute(Sender: TObject);
     procedure aFExportODBCExecute(Sender: TObject);
+    procedure aFExportPDFExecute(Sender: TObject);
     procedure aFExportSQLExecute(Sender: TObject);
     procedure aFExportSQLiteExecute(Sender: TObject);
     procedure aFExportTextExecute(Sender: TObject);
@@ -3017,7 +3022,7 @@ begin
   begin
     SQL := ActiveSynMemo.Text;
     Index := 1; Len := 0;
-    while (Index < aDRunExecuteSelStart + 1) do
+    while (Index < aDRunExecuteSelStart + 2) do
     begin
       Len := SQLStmtLength(SQL, Index);
       Inc(Index, Len);
@@ -3742,6 +3747,12 @@ begin
             SaveDialog.DefaultExt := 'html';
             SaveDialog.Encodings.Text := EncodingCaptions(True);
           end;
+        etPDFFile:
+          begin
+            SaveDialog.Filter := FilterDescription('pdf') + ' (*.pdf)|*.pdf';
+            SaveDialog.DefaultExt := 'pdf';
+            SaveDialog.Encodings.Clear();
+          end;
         etXMLFile:
           begin
             SaveDialog.Filter := FilterDescription('xml') + ' (*.xml)|*.xml';
@@ -3792,6 +3803,13 @@ begin
   Wanted.Clear();
 
   aFExportExecute(Sender, etODBC);
+end;
+
+procedure TFClient.aFExportPDFExecute(Sender: TObject);
+begin
+  Wanted.Clear();
+
+  aFExportExecute(Sender, etPDFFile);
 end;
 
 procedure TFClient.aFExportSQLExecute(Sender: TObject);
@@ -4811,6 +4829,10 @@ begin
 
   FBlobSearch.Hint := ReplaceStr(Preferences.LoadStr(424), '&', '');
 
+  if (not Preferences.Editor.CurrRowBGColorEnabled) then
+    FSQLEditorSynMemo.ActiveLineColor := clNone
+  else
+    FSQLEditorSynMemo.ActiveLineColor := Preferences.Editor.CurrRowBGColor;
   if (Preferences.Editor.LineNumbersBackground = clNone) then
     FSQLEditorSynMemo.Gutter.Color := clBtnFace
   else
@@ -4831,10 +4853,7 @@ begin
   FSQLEditorSynMemo.TabWidth := Preferences.Editor.TabWidth;
   FSQLEditorSynMemo.RightEdge := Preferences.Editor.RightEdge;
   FSQLEditorSynMemo.WantTabs := Preferences.Editor.TabAccepted;
-  if (not Preferences.Editor.CurrRowBGColorEnabled) then
-    FSQLEditorSynMemo.ActiveLineColor := clNone
-  else
-    FSQLEditorSynMemo.ActiveLineColor := Preferences.Editor.CurrRowBGColor;
+  FSQLEditorSynMemo.WordWrap := Preferences.Editor.WordWrap;
 
   for I := 0 to PSynMemo.ControlCount - 1 do
     if (PSynMemo.Controls[I] is TSynMemo) then
@@ -4971,6 +4990,7 @@ begin
     MainAction('aFExportODBC').OnExecute := aFExportODBCExecute;
     MainAction('aFExportXML').OnExecute := aFExportXMLExecute;
     MainAction('aFExportHTML').OnExecute := aFExportHTMLExecute;
+    MainAction('aFExportPDF').OnExecute := aFExportPDFExecute;
     MainAction('aFExportBitmap').OnExecute := aFExportBitmapExecute;
     MainAction('aFPrint').OnExecute := aFPrintExecute;
     MainAction('aERedo').OnExecute := aERedoExecute;
@@ -5432,6 +5452,7 @@ begin
   miNExportODBC.Action := MainAction('aFExportODBC');
   miNExportXML.Action := MainAction('aFExportXML');
   miNExportHTML.Action := MainAction('aFExportHTML');
+  miNExportPDF.Action := MainAction('aFExportPDF');
   miNCopy.Action := MainAction('aECopy');
   miNPaste.Action := MainAction('aEPaste');
   miNRename.Action := MainAction('aERename');
@@ -5470,6 +5491,7 @@ begin
   mlFExportODBC.Action := MainAction('aFExportODBC');
   mlFExportXML.Action := MainAction('aFExportXML');
   mlFExportHTML.Action := MainAction('aFExportHTML');
+  mlFExportPDF.Action := MainAction('aFExportPDF');
   mlECopy.Action := MainAction('aECopy');
   mlEPaste.Action := MainAction('aEPaste');
   mlERename.Action := MainAction('aERename');
@@ -5508,6 +5530,7 @@ begin
   gmFExportExcel.Action := MainAction('aFExportExcel');
   gmFExportXML.Action := MainAction('aFExportXML');
   gmFExportHTML.Action := MainAction('aFExportHTML');
+  gmFExportPDF.Action := MainAction('aFExportPDF');
   gmDInsertRecord.Action := MainAction('aDInsertRecord');
   gmDDeleteRecord.Action := MainAction('aDDeleteRecord');
   gmDEditRecord.Action := MainAction('aDEditRecord');
@@ -5527,6 +5550,7 @@ begin
   mwFExportODBC.Action := MainAction('aFExportODBC');
   mwFExportXML.Action := MainAction('aFExportXML');
   mwFExportHTML.Action := MainAction('aFExportHTML');
+  mwFExportPDF.Action := MainAction('aFExportPDF');
   mwFExportBitmap.Action := MainAction('aFExportBitmap');
   mwECopy.Action := MainAction('aECopy');
   mwDCreateField.Action := MainAction('aDCreateField');
@@ -6081,6 +6105,7 @@ begin
   MainAction('aFExportSQLite').Enabled := False;
   MainAction('aFExportXML').Enabled := False;
   MainAction('aFExportHTML').Enabled := False;
+  MainAction('aFExportPDF').Enabled := False;
 end;
 
 procedure TFClient.DataSetAfterPost(DataSet: TDataSet);
@@ -6524,6 +6549,9 @@ begin
     MainAction('aFExportExcel').Enabled := True;
     MainAction('aFExportXML').Enabled := True;
     MainAction('aFExportHTML').Enabled := True;
+    {$IFDEF Debug}
+    MainAction('aFExportPDF').Enabled := True;
+    {$ENDIF}
     MainAction('aFPrint').Enabled := True;
     MainAction('aECopyToFile').OnExecute := DBGridCopyToExecute;
     MainAction('aEPasteFromFile').OnExecute := aEPasteFromFileExecute;
@@ -6574,6 +6602,7 @@ begin
       MainAction('aFExportExcel').Enabled := False;
       MainAction('aFExportXML').Enabled := False;
       MainAction('aFExportHTML').Enabled := False;
+      MainAction('aFExportPDF').Enabled := False;
       MainAction('aFImportText').Enabled := False;
       MainAction('aFImportExcel').Enabled := False;
       MainAction('aFImportAccess').Enabled := False;
@@ -7824,6 +7853,7 @@ begin
   MainAction('aFExportODBC').Enabled := False;
   MainAction('aFExportXML').Enabled := False;
   MainAction('aFExportHTML').Enabled := False;
+  MainAction('aFExportPDF').Enabled := False;
   MainAction('aFPrint').Enabled := False;
   MainAction('aECopy').Enabled := False;
   MainAction('aEPaste').Enabled := False;
@@ -8441,6 +8471,9 @@ begin
   MainAction('aFExportODBC').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
   MainAction('aFExportXML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView]);
   MainAction('aFExportHTML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView]);
+  {$IFDEF Debug}
+  MainAction('aFExportPDF').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView]);
+  {$ENDIF}
   MainAction('aFPrint').Enabled := Assigned(Node) and ((View = vDiagram) or (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView]));
   MainAction('aECopy').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiField, iiSystemViewField, iiViewField, iiHost, iiUser]);
   MainAction('aEPaste').Enabled := Assigned(Node) and ((Node.ImageIndex = iiServer) and Clipboard.HasFormat(CF_MYSQLSERVER) or (Node.ImageIndex = iiDatabase) and Clipboard.HasFormat(CF_MYSQLDATABASE) or (Node.ImageIndex = iiBaseTable) and Clipboard.HasFormat(CF_MYSQLTABLE) or (Node.ImageIndex = iiHosts) and Clipboard.HasFormat(CF_MYSQLHOSTS) or (Node.ImageIndex = iiUsers) and Clipboard.HasFormat(CF_MYSQLUSERS));
@@ -9264,7 +9297,7 @@ begin
 
   if (Assigned(Result)) then
     for I := 0 to PResult.ControlCount - 1 do
-      if (PResult.Controls[I] is TDBGrid) then
+      if (PResult.Controls[I] <> PResultHeader) then
         PResult.Controls[I].Visible := PResult.Controls[I] = Result.Parent;
 end;
 
@@ -10301,6 +10334,7 @@ begin
   MainAction('aFExportODBC').Enabled := False;
   MainAction('aFExportXML').Enabled := False;
   MainAction('aFExportHTML').Enabled := False;
+  MainAction('aFExportPDF').Enabled := False;
   MainAction('aFPrint').Enabled := False;
   MainAction('aERename').Enabled := False;
   MainAction('aDCreateDatabase').Enabled := False;
@@ -11036,6 +11070,7 @@ begin
     MainAction('aFExportODBC').Enabled := False;
     MainAction('aFExportXML').Enabled := False;
     MainAction('aFExportHTML').Enabled := False;
+    MainAction('aFExportPDF').Enabled := False;
     MainAction('aFPrint').Enabled := False;
     MainAction('aECopy').Enabled := False;
     MainAction('aEPaste').Enabled := False;
@@ -11098,6 +11133,9 @@ begin
             MainAction('aFExportODBC').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFExportXML').Enabled := (ListView.SelCount = 0) or Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFExportHTML').Enabled := (ListView.SelCount = 0) or Assigned(Item) and (Item.ImageIndex = iiDatabase);
+            {$IFDEF Debug}
+            MainAction('aFExportPDF').Enabled := (ListView.SelCount = 0) or Assigned(Item) and (Item.ImageIndex = iiDatabase);
+            {$ENDIF}
             MainAction('aFPrint').Enabled := (ListView.SelCount = 0) or Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aECopy').Enabled := ListView.SelCount >= 1;
             MainAction('aEPaste').Enabled := (not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLSERVER) or Assigned(Item) and (Item.ImageIndex = iiDatabase) and Clipboard.HasFormat(CF_MYSQLDATABASE));
@@ -11126,6 +11164,9 @@ begin
                 MainAction('aFExportODBC').Enabled := MainAction('aFExportODBC').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
                 MainAction('aFExportXML').Enabled := MainAction('aFExportXML').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
                 MainAction('aFExportHTML').Enabled := MainAction('aFExportHTML').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
+                {$IFDEF Debug}
+                MainAction('aFExportPDF').Enabled := MainAction('aFExportPDF').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
+                {$ENDIF}
                 MainAction('aFPrint').Enabled := MainAction('aFPrint').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
                 MainAction('aECopy').Enabled := MainAction('aECopy').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
                 MainAction('aDDeleteDatabase').Enabled := MainAction('aDDeleteDatabase').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
@@ -11162,6 +11203,9 @@ begin
             MainAction('aFExportODBC').Enabled := ((ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable])) and (SelectedImageIndex = iiDatabase);
             MainAction('aFExportXML').Enabled := ((ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiView])) and (SelectedImageIndex = iiDatabase);
             MainAction('aFExportHTML').Enabled := SelectedImageIndex = iiDatabase;
+            {$IFDEF Debug}
+            MainAction('aFExportPDF').Enabled := SelectedImageIndex = iiDatabase;
+            {$ENDIF}
             MainAction('aFPrint').Enabled := SelectedImageIndex = iiDatabase;
             MainAction('aECopy').Enabled := ListView.SelCount >= 1;
             MainAction('aEPaste').Enabled := (not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLDATABASE) or Assigned(Item) and ((Item.ImageIndex = iiBaseTable) and Clipboard.HasFormat(CF_MYSQLTABLE) or (Item.ImageIndex = iiView) and Clipboard.HasFormat(CF_MYSQLVIEW)));
@@ -11198,6 +11242,9 @@ begin
                 MainAction('aFExportODBC').Enabled := MainAction('aFExportODBC').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
                 MainAction('aFExportXML').Enabled := MainAction('aFExportXML').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView]);
                 MainAction('aFExportHTML').Enabled := MainAction('aFExportHTML').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView]);
+                {$IFDEF Debug}
+                MainAction('aFExportPDF').Enabled := MainAction('aFExportPDF').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView]);
+                {$ENDIF}
                 MainAction('aFPrint').Enabled := MainAction('aFPrint').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView]);
                 MainAction('aECopy').Enabled := MainAction('aECopy').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent]);
                 MainAction('aDDeleteTable').Enabled := MainAction('aDDeleteTable').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
@@ -11246,6 +11293,9 @@ begin
             MainAction('aFExportODBC').Enabled := (ListView.SelCount = 0);
             MainAction('aFExportXML').Enabled := (ListView.SelCount = 0);
             MainAction('aFExportHTML').Enabled := (ListView.SelCount = 0);
+            {$IFDEF Debug}
+            MainAction('aFExportPDF').Enabled := (ListView.SelCount = 0);
+            {$ENDIF}
             MainAction('aECopy').Enabled := (ListView.SelCount >= 1);
             MainAction('aEPaste').Enabled := not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLTABLE);
             MainAction('aERename').Enabled := Assigned(Item) and (ListView.SelCount = 1) and ((Item.ImageIndex in [iiField, iiTrigger]) or (Item.ImageIndex = iiForeignKey) and (Client.ServerVersion >= 40013));
@@ -11302,6 +11352,9 @@ begin
             MainAction('aFExportExcel').Enabled := (ListView.SelCount = 0);
             MainAction('aFExportXML').Enabled := (ListView.SelCount = 0);
             MainAction('aFExportHTML').Enabled := (ListView.SelCount = 0);
+            {$IFDEF Debug}
+            MainAction('aFExportPDF').Enabled := (ListView.SelCount = 0);
+            {$ENDIF}
             MainAction('aFExportSQLite').Enabled := (ListView.SelCount = 0);
             MainAction('aECopy').Enabled := (ListView.SelCount >= 1);
             MainAction('aEPaste').Enabled := not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLVIEW);
@@ -13789,6 +13842,7 @@ procedure TFClient.SynMemoApllyPreferences(const SynMemo: TSynMemo);
 begin
   if (SynMemo <> FSQLEditorSynMemo) then
   begin
+    SynMemo.ActiveLineColor := FSQLEditorSynMemo.ActiveLineColor;
     SynMemo.Font.Name := FSQLEditorSynMemo.Font.Name;
     SynMemo.Font.Style := FSQLEditorSynMemo.Font.Style;
     SynMemo.Font.Color := FSQLEditorSynMemo.Font.Color;
@@ -13800,12 +13854,12 @@ begin
     SynMemo.Gutter.Font.Size := FSQLEditorSynMemo.Gutter.Font.Size;
     SynMemo.Gutter.Font.Charset := FSQLEditorSynMemo.Gutter.Font.Charset;
     SynMemo.Gutter.Visible := FSQLEditorSynMemo.Gutter.Visible;
-    SynMemo.Options := FSQLEditorSynMemo.Options;
-    SynMemo.TabWidth := FSQLEditorSynMemo.TabWidth;
-    SynMemo.RightEdge := FSQLEditorSynMemo.RightEdge;
-    SynMemo.WantTabs := FSQLEditorSynMemo.WantTabs;
-    SynMemo.ActiveLineColor := FSQLEditorSynMemo.ActiveLineColor;
     SynMemo.Highlighter := FSQLEditorSynMemo.Highlighter;
+    SynMemo.Options := FSQLEditorSynMemo.Options;
+    SynMemo.RightEdge := FSQLEditorSynMemo.RightEdge;
+    SynMemo.TabWidth := FSQLEditorSynMemo.TabWidth;
+    SynMemo.WantTabs := FSQLEditorSynMemo.WantTabs;
+    SynMemo.WordWrap := FSQLEditorSynMemo.WordWrap;
   end;
 end;
 
@@ -14430,6 +14484,9 @@ begin
   MainAction('aFExportODBC').Enabled := not Assigned(Control) or (Control is TWTable);
   MainAction('aFExportXML').Enabled := not Assigned(Control) or (Control is TWTable);
   MainAction('aFExportHTML').Enabled := not Assigned(Control) or (Control is TWTable);
+  {$IFDEF Debug}
+  MainAction('aFExportPDF').Enabled := not Assigned(Control) or (Control is TWTable);
+  {$ENDIF}
   MainAction('aFExportBitmap').Enabled := not Assigned(Control) and Assigned(ActiveWorkbench) and (ActiveWorkbench.ControlCount > 0);
   MainAction('aFPrint').Enabled := Assigned(ActiveWorkbench) and (ActiveWorkbench.ControlCount > 0);
   MainAction('aECopy').Enabled := Assigned(Control) and (not (Control is TWLink) or (Control is TWForeignKey));
@@ -14513,6 +14570,7 @@ begin
   MainAction('aFExportODBC').Enabled := False;
   MainAction('aFExportXML').Enabled := False;
   MainAction('aFExportHTML').Enabled := False;
+  MainAction('aFExportPDF').Enabled := False;
   MainAction('aFExportBitmap').Enabled := False;
   MainAction('aFPrint').Enabled := False;
   MainAction('aECopy').Enabled := False;

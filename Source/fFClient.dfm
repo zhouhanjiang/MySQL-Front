@@ -1326,6 +1326,9 @@ object FClient: TFClient
       object mlFExportHTML: TMenuItem
         Caption = 'aFExportHTML'
       end
+      object mlFExportPDF: TMenuItem
+        Caption = 'aFExportPDF'
+      end
     end
     object N02: TMenuItem
       Caption = '-'
@@ -1618,6 +1621,9 @@ object FClient: TFClient
       object miNExportHTML: TMenuItem
         Caption = 'aFExportHTML'
       end
+      object miNExportPDF: TMenuItem
+        Caption = 'aFExportPDF'
+      end
     end
     object N07: TMenuItem
       Caption = '-'
@@ -1780,6 +1786,9 @@ object FClient: TFClient
       end
       object gmFExportHTML: TMenuItem
         Caption = 'aFExportHTML'
+      end
+      object gmFExportPDF: TMenuItem
+        Caption = 'aFExportPDF'
       end
     end
     object N15: TMenuItem
@@ -2193,6 +2202,9 @@ object FClient: TFClient
       end
       object mwFExportHTML: TMenuItem
         Caption = 'aFExportHTML'
+      end
+      object mwFExportPDF: TMenuItem
+        Caption = 'aFExportPDF'
       end
       object mwFExportBitmap: TMenuItem
         Caption = 'aFExportBitmap'

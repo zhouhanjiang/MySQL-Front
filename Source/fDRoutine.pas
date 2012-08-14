@@ -149,6 +149,10 @@ begin
   FLSize.Caption := Preferences.LoadStr(67) + ':';
 
   TSSource.Caption := Preferences.LoadStr(198);
+  if (not Preferences.Editor.CurrRowBGColorEnabled) then
+    FSource.ActiveLineColor := clNone
+  else
+    FSource.ActiveLineColor := Preferences.Editor.CurrRowBGColor;
   FSource.Font.Name := Preferences.SQLFontName;
   FSource.Font.Style := Preferences.SQLFontStyle;
   FSource.Font.Color := Preferences.SQLFontColor;
@@ -175,10 +179,7 @@ begin
   FSource.TabWidth := Preferences.Editor.TabWidth;
   FSource.RightEdge := Preferences.Editor.RightEdge;
   FSource.WantTabs := Preferences.Editor.TabAccepted;
-  if (not Preferences.Editor.CurrRowBGColorEnabled) then
-    FSource.ActiveLineColor := clNone
-  else
-    FSource.ActiveLineColor := Preferences.Editor.CurrRowBGColor;
+  FSource.WordWrap := Preferences.Editor.WordWrap;
 
   msUndo.Action := MainAction('aEUndo'); msCut.ShortCut := 0;
   msCut.Action := MainAction('aECut'); msCut.ShortCut := 0;

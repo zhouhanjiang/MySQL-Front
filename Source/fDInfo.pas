@@ -10,14 +10,12 @@ uses
 
 type
   TDInfo = class(TForm)
-    FBHelp: TButton;
     FBOk: TButton;
     FBuild: TLabel;
     FLine: TPanel_Ext;
     FURI: TLabel;
     FVersion: TLabel;
     Image: TImage;
-    procedure FBHelpClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormShow(Sender: TObject);
@@ -66,7 +64,6 @@ begin
 
   FURI.Caption := SysUtils.LoadStr(1004);
 
-  FBHelp.Caption := Preferences.LoadStr(167);
   FBOk.Caption := Preferences.LoadStr(231);
 end;
 
@@ -74,11 +71,6 @@ function TDInfo.Execute(): Boolean;
 begin
   ShowModal();
   Result := ModalResult = mrOk;
-end;
-
-procedure TDInfo.FBHelpClick(Sender: TObject);
-begin
-  Application.HelpContext(HelpContext);
 end;
 
 procedure TDInfo.FormCreate(Sender: TObject);

@@ -125,6 +125,7 @@ type
     aFExportHTML: TAction;
     aFExportODBC: TAction;
     aFExportODBC1: TMenuItem;
+    aFExportPDF: TAction;
     aFExportSQL: TAction;
     aFExportSQLite: TAction;
     aFExportText: TAction;
@@ -255,6 +256,7 @@ type
     miFExportBitmap: TMenuItem;
     miFExportExcel: TMenuItem;
     miFExportHTML: TMenuItem;
+    miFExportPDF: TMenuItem;
     miFExportSQL: TMenuItem;
     miFExportText: TMenuItem;
     miFExportXML: TMenuItem;
@@ -1028,6 +1030,7 @@ begin
   aFExportODBC.Caption := Preferences.LoadStr(607) + '...';
   aFExportXML.Caption := Preferences.LoadStr(454) + '...';
   aFExportHTML.Caption := Preferences.LoadStr(453) + '...';
+  aFExportPDF.Caption := Preferences.LoadStr(890) + '...';
   aFExportBitmap.Caption := Preferences.LoadStr(868) + '...';
   aFPrint.Caption := Preferences.LoadStr(577) + '...';
   aFClose.Caption := Preferences.LoadStr(7);
