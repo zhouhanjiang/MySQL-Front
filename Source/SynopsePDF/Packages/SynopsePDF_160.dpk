@@ -1,4 +1,4 @@
-package SynPDF_160;
+package SynopsePDF_160;
 
 {$ALIGN 8}
 {$ASSERTIONS ON}

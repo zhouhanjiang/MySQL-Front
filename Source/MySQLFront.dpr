@@ -112,4 +112,3 @@ begin
 
   Preferences.Free();
 end.
-
