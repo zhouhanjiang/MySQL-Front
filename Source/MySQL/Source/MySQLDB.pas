@@ -164,7 +164,6 @@ type
       TMode = (smSQL, smDataHandle, smDataSet);
       TState = (ssClose, ssConnecting, ssReady, ssExecutingSQL, ssResult, ssReceivingResult, ssNextResult, ssCancel, ssDisconnecting, ssError);
     private
-      Debug: Integer;
       Done: TEvent;
       FConnection: TMySQLConnection;
       RunExecute: TEvent;
@@ -1799,11 +1798,7 @@ constructor TMySQLConnection.TSynchroThread.Create(const AConnection: TMySQLConn
 begin
   Assert(Assigned(AConnection));
 
-  Debug := 123456;
-
   inherited Create(False);
-
-  Debug := 654321;
 
   FConnection := AConnection;
 
@@ -1819,13 +1814,7 @@ end;
 
 destructor TMySQLConnection.TSynchroThread.Destroy();
 begin
-  if (Debug <> 0) then
-    raise Exception.Create('Debug: ' + IntToStr(Debug));
-
-  if (not Terminated) then
-    raise Exception.Create('Debug');
-
-  RunExecute.Free(); RunExecute := Pointer(1);
+  RunExecute.Free();
   SynchronizeStarted.Free();
   SQLStmtLengths.Free();
   SQLStmtsInPackets.Free();
@@ -1840,8 +1829,6 @@ var
   WaitResult: TWaitResult;
   SynchronizeRequestSent: Boolean;
 begin
-  Debug := 12344321;
-
   while (not Terminated) do
   begin
     if ((Connection.ServerTimeout = 0) or (Connection.LibraryType = ltHTTP)) then
@@ -1885,11 +1872,6 @@ begin
       end;
   end;
 
-  Debug := 43211234;
-
-  if (not Terminated) then
-    raise Exception.Create('Debug');
-
   if (Assigned(LibHandle)) then
   begin
     if (Assigned(ResultHandle)) then
@@ -1902,26 +1884,11 @@ begin
     LibHandle := nil;
   end;
 
-  Debug := 43344334;
-
   Connection.TerminatedThreads.Delete(Self);
-
-  Debug := 0;
 end;
 
 function TMySQLConnection.TSynchroThread.GetIsRunning(): Boolean;
 begin
-  if (not Terminated) then
-  begin
-    if (not Assigned(Self)) then
-      raise ERangeError.Create('Debug');
-    if (not Assigned(RunExecute)) then
-      raise ERangeError.Create('Debug');
-    if (Integer(RunExecute) = 1) then
-      raise ERangeError.Create('Debug');
-    // in InUse() there is a TerminateCS call. Is this needed?
-  end;
-
   Result := not Terminated and ((RunExecute.WaitFor(IGNORE) = wrSignaled) or not (State in [ssClose, ssReady]));
 end;
 
@@ -2235,8 +2202,6 @@ begin
     SynchroThread.FreeOnTerminate := False;
     SynchroThread.Terminate();
     SynchroThread.WaitFor();
-    if (SynchroThread.Debug <> 0) then
-      raise Exception.Create('Debug: ' + IntToStr(SynchroThread.Debug));
     SynchroThread.Free();
   end;
   TerminatedThreads.Free();

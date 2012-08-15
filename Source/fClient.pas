@@ -4169,9 +4169,6 @@ begin
         Database.Client.IdentifierQuoter := SQLParseChar(Parse, False);
     end;
 
-S := 'Debug: ' + SQL;
-Client.WriteMonitor(PChar(S), Length(S), ttDebug);
-
     Index := 0;
     while (Database.Client.IdentifierQuoted and SQLParseChar(Parse, Database.Client.IdentifierQuoter, False))
       or (not SQLParseChar(Parse, ')', False)
