@@ -2273,10 +2273,7 @@ begin
     or (AErrorCode = CR_SERVER_GONE_ERROR)
     or (AErrorCode = CR_SERVER_HANDSHAKE_ERR)
     or (AErrorCode = CR_SERVER_LOST)) then
-    if (not Assigned(SynchroThread)) then
-      SyncDisconncted(nil)
-    else
-      SynchroThread.RunAction(ssDisconnecting, not UseSynchroThread());
+    SyncDisconncted(nil);
 
   FErrorCode := AErrorCode; FErrorMessage := AErrorMessage;
 
@@ -3553,10 +3550,7 @@ end;
 
 function TMySQLBitField.GetAsString(): string;
 begin
-  if (not Assigned(TMySQLQuery(DataSet).LibRow^[FieldNo - 1])) then
-    Result := ''
-  else
-    Result := IntToBitString(UInt64(TMySQLQuery(DataSet).LibRow^[FieldNo - 1]^));
+  GetText(Result, False);
 end;
 
 procedure TMySQLBitField.GetText(var Text: string; DisplayText: Boolean);
@@ -4072,6 +4066,8 @@ end;
 function TMySQLQuery.GetFieldData(const Field: TField; const Buffer: Pointer; const Data: PRecordBufferData): Boolean;
 var
   DT: TDateTime;
+  Len: Integer;
+  P: Pointer;
   S: string;
 begin
   Result := Assigned(Data) and (Field.FieldNo > 0) and Assigned(Data^.LibRow^[Field.FieldNo - 1]);
@@ -4080,7 +4076,24 @@ begin
       if (BitField(Field)) then
         begin
           ZeroMemory(Buffer, Field.DataSize);
-          MoveMemory(Buffer, Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]);
+          Len := Data^.LibLengths^[Field.FieldNo - 1];
+          if (Len > 0) then
+          begin
+            P := @Data^.LibRow^[Field.FieldNo - 1][Data^.LibLengths^[Field.FieldNo - 1] - 1];
+            asm
+                PUSH EBX
+                MOV ECX,Len
+                MOV EBX,P
+                MOV EDX,Buffer
+              @L:
+                MOV AL,BYTE PTR [EBX]
+                DEC EBX
+                MOV BYTE PTR [EDX],AL
+                INC EDX
+                LOOP @L
+                POP EBX
+            end;
+          end;
         end
       else
         case (Field.DataType) of
@@ -4686,7 +4699,7 @@ begin
       else raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%d)', [Field.Name, Integer(Field.DataType)]);
     end
   else if (BitField(Field)) then
-    Result := 'b''' + IntToBitString(UInt64(Data^.LibRow^[Field.FieldNo - 1]^)) + ''''
+    Result := 'b''' + Field.AsString + ''''
   else
     case (Field.DataType) of
       ftString: Result := SQLEscapeBin(Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1], Connection.ServerVersion <= 40000);
@@ -5896,10 +5909,6 @@ var
       Result := +1
     else if ((A^.NewData^.LibLengths[Field.FieldNo - 1] = 0) and (B^.NewData^.LibLengths[Field.FieldNo - 1] = 0)) then
       Result := 0
-    else if (BitField(Fields[Field.FieldNo - 1])) then
-    begin
-      Result := Sign(UInt64(B^.NewData^.LibRow^[Field.FieldNo - 1]^) - UInt64(A^.NewData^.LibRow^[Field.FieldNo - 1]^));
-    end
     else
     begin
       case (Field.DataType) of
@@ -6347,7 +6356,7 @@ function TMySQLDataSet.VisibleInFilter(const InternRecordBuffer: PInternRecordBu
             if (not Assigned(InternRecordBuffer^.NewData^.LibRow^[Node^.Field2.FieldNo - 1])) then
               Result := Null
             else if (BitField(Fields[Node^.Field2.FieldNo - 1])) then
-              Result := UInt64(InternRecordBuffer^.NewData^.LibRow^[Node^.Field2.FieldNo - 1]^)
+              Result := Fields[Node^.Field2.FieldNo - 1].AsLargeInt
             else if (Fields[Node^.Field2.FieldNo - 1].DataType in [ftWideString, ftWideMemo]) then
               Result := Connection.LibDecode(InternRecordBuffer^.NewData^.LibRow^[Node^.Field2.FieldNo - 1], InternRecordBuffer^.NewData^.LibLengths^[Node^.Field2.FieldNo - 1])
             else

@@ -614,6 +614,7 @@ begin
 
         PUSH DS                          // string operations uses ES
         POP ES
+        STD                              // string operation uses backward direction
 
         MOV EDI,Error                    // Error = nil?
         TEST EDI,-1
@@ -625,7 +626,6 @@ begin
         MOV EDI,P
         MOV ECX,Length
 
-        STD                              // string operation uses backward direction
         ADD ESI,ECX                      // End of BitString
         ADD ESI,ECX
         SUB ESI,2
@@ -664,6 +664,7 @@ begin
         MOV BYTE PTR [EDI],True
 
       Finish:
+        CLD                              // Why is this needed??? Without this, Delphi XE2 crash the program
         POP EDI
         POP ESI
         POP EBX
@@ -745,6 +746,7 @@ begin
         SUB P,EDX
 
       Finish:
+        CLD                              // Why is this needed??? Without this, Delphi XE2 crash the program
         POP EBX
         POP EDI
         POP ES
@@ -2894,6 +2896,7 @@ begin
 
         LOOP ValueL                      // Handle next digit
 
+        CLD                              // Why is this needed??? Without this, Delphi XE2 crash the program
         POP EDI
         POP EBX
         POP ES

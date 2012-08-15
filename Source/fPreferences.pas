@@ -1278,14 +1278,28 @@ end;
 constructor TPPreferences.Create();
 var
   MaxIconIndex: Integer;
+  Font: TFont;
+  FontSize: Integer;
   Foldername: array [0..MAX_PATH] of Char;
   I: Integer;
+  NonClientMetrics: TNonClientMetrics;
   Path: string;
   StringList: TStringList;
 begin
   inherited Create(KEY_ALL_ACCESS);
 
   FXMLDocument := nil;
+
+  NonClientMetrics.cbSize := SizeOf(NonClientMetrics);
+  if (not SystemParametersInfo(SPI_GETNONCLIENTMETRICS, SizeOf(NonClientMetrics), @NonClientMetrics, 0)) then
+    FontSize := 9
+  else
+  begin
+    Font := TFont.Create();
+    Font.Handle := CreateFontIndirect(NonClientMetrics.lfMessageFont);
+    FontSize := Font.Size;
+    Font.Free();
+  end;
 
   WindowState := wsNormal;
   Top := 0;
@@ -1296,7 +1310,7 @@ begin
   GridFontName := 'Microsoft Sans Serif';
   GridFontColor := clWindowText;
   GridFontStyle := [];
-  GridFontSize := 10;
+  GridFontSize := FontSize;
   GridFontCharset := DEFAULT_CHARSET;
   GridMaxColumnWidth := 100;
   GridRowBGColorEnabled := True;
@@ -1310,7 +1324,7 @@ begin
   SQLFontName := 'Courier New';
   SQLFontColor := clWindowText;
   SQLFontStyle := [];
-  SQLFontSize := 10;
+  SQLFontSize := FontSize + 1;
   SQLFontCharset := DEFAULT_CHARSET;
   LogFontName := 'Courier New';
   LogFontColor := clWindowText;

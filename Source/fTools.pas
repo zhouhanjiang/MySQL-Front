@@ -2238,7 +2238,7 @@ begin
   begin
     NewField := TCBaseTableField.Create(NewTable.Fields);
 
-    NewField.Name := HeadlineNames[I];
+    NewField.Name := Client.ApplyIdentifierName(HeadlineNames[I]);
 
     if (SQL_INTEGER in FileFields[I].FieldTypes) then
       NewField.FieldType := mfInt
@@ -2256,7 +2256,7 @@ begin
     NewField.Free();
   end;
 
-  NewTable.Name := Item.TableName;
+  NewTable.Name := Client.ApplyIdentifierName(Item.TableName);
 
   while ((Success = daSuccess) and not Database.AddTable(NewTable)) do
     DoError(DatabaseError(Client), ToolsItem(Item));
@@ -2942,7 +2942,7 @@ begin
 
 
         NewField := TCBaseTableField.Create(NewTable.Fields);
-        NewField.Name := ColumnName;
+        NewField.Name := Client.ApplyIdentifierName(ColumnName);
         if (NewTable.Fields.Count > 0) then
           NewField.FieldBefore := NewTable.Fields[NewTable.Fields.Count - 1];
         if (SQLDataType <> SQL_UNKNOWN_TYPE) then
@@ -3035,7 +3035,7 @@ begin
         if (not Assigned(Key)) then
         begin
           Key := TCKey.Create(NewTable.Keys);
-          Key.Name := IndexName;
+          Key.Name := Client.ApplyIdentifierName(IndexName);
           Key.Unique := NonUnique = SQL_FALSE;
           NewTable.Keys.AddKey(Key);
           Key.Free();
@@ -3113,7 +3113,7 @@ begin
       Found := Found or (NewTable.Fields[I].Default = 'CURRENT_TIMESTAMP');
     end;
 
-    NewTable.Name := Item.TableName;
+    NewTable.Name := Client.ApplyIdentifierName(Item.TableName);
 
     while ((Success = daSuccess) and not Database.AddTable(NewTable)) do
       DoError(DatabaseError(Client), ToolsItem(Item));
@@ -3306,12 +3306,12 @@ begin
 
       if (not SQLParseKeyword(Parse, 'CREATE TABLE')) then raise EConvertError.CreateFmt(SSourceParseError, [Item.TableName, 1, SQL]);
 
-      NewTable.Name := Database.Tables.ApplyMySQLTableName(SQLParseValue(Parse));
+      NewTable.Name := Client.ApplyIdentifierName(SQLParseValue(Parse));
 
       if (not SQLParseChar(Parse, '(')) then raise EConvertError.CreateFmt(SSourceParseError, [Item.TableName, 2, SQL]);
 
       repeat
-        Name := SQLParseValue(Parse);
+        Name := Client.ApplyIdentifierName(SQLParseValue(Parse));
         Primary := False;
 
         SetLength(SourceFields, Length(SourceFields) + 1);
@@ -3395,7 +3395,7 @@ begin
       if (SQLParseValue(Parse) = NewTable.Name) then
       begin
         NewKey := TCKey.Create(NewTable.Keys);
-        NewKey.Name := Name;
+        NewKey.Name := Client.ApplyIdentifierName(Name);
         NewKey.Unique := Unique;
 
         NewKeyColumn := TCKeyColumn.Create(NewKey.Columns);
@@ -3420,7 +3420,7 @@ begin
 
   if (Success = daSuccess) then
   begin
-    Table := Database.BaseTableByName(Database.Tables.ApplyMySQLTableName(Item.TableName));
+    Table := Database.BaseTableByName(Client.ApplyIdentifierName(Item.TableName));
     if (Assigned(Table)) then
     begin
       SetLength(Fields, Table.Fields.Count);
@@ -4599,7 +4599,6 @@ procedure TTExportText.ExecuteTableRecord(const Table: TCTable; const Fields: ar
 var
   Content: string;
   I: Integer;
-  Value: UInt64;
 begin
   Content := '';
   for I := 0 to Length(Fields) - 1 do
@@ -4608,15 +4607,11 @@ begin
     if (not Assigned(DataSet.LibRow^[Fields[I].FieldNo - 1])) then
       // NULL values are empty in MS Text files
     else if (BitField(Fields[I])) then
-    begin
-      ZeroMemory(@Value, SizeOf(Value));
-      MoveMemory(@Value, DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1]);
-      Content := Content + CSVEscape(UInt64ToStr(Value), Quoter, QuoteValues)
-    end
+      Content := Content + CSVEscape(UInt64ToStr(Fields[I].AsLargeInt), Quoter, QuoteValues)
     else if (Fields[I].DataType in BinaryDataTypes) then
       Content := Content + CSVEscape(DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], Quoter, QuoteStringValues)
     else
-      Content := Content + CSVEscape(DataSet.GetAsString(Fields[I].FieldNo), Quoter, (BitField(Fields[I]) or (Fields[I].DataType in NotQuotedDataTypes)) and QuoteValues or not (Fields[I].DataType in NotQuotedDataTypes) and QuoteStringValues);
+      Content := Content + CSVEscape(DataSet.GetAsString(Fields[I].FieldNo), Quoter, ((Fields[I].DataType in NotQuotedDataTypes)) and QuoteValues or not (Fields[I].DataType in NotQuotedDataTypes) and QuoteStringValues);
   end;
   WriteContent(Content + #13#10);
 end;
@@ -5580,7 +5575,7 @@ begin
       begin
         ValueType := SQL_C_BIT;
         ParameterType := SQL_BIT;
-        ColumnSize := Fields[I].DataSize;
+        ColumnSize := SizeOf(LargeInt);
         Parameter[I].BufferSize := Fields[I].DataSize;
         GetMem(Parameter[I].Buffer, Parameter[I].BufferSize);
       end
@@ -5696,6 +5691,7 @@ var
   Field: SQLPOINTER;
   I: Integer;
   Index: Integer;
+  L: LargeInt;
   ReturnCode: SQLRETURN;
   S: string;
   Size: Integer;
@@ -5705,8 +5701,9 @@ begin
       Parameter[I].Size := SQL_NULL_DATA
     else if (BitField(Fields[I])) then
       begin
-        Parameter[I].Size := Min(Parameter[I].BufferSize, DataSet.LibLengths^[I]);
-        MoveMemory(Parameter[I].Buffer, DataSet.LibRow^[I], Parameter[I].Size);
+        L := Fields[I].AsLargeInt;
+        Parameter[I].Size := SizeOf(L);
+        MoveMemory(Parameter[I].Buffer, @L, Parameter[I].Size);
       end
     else
       case (Fields[I].DataType) of
@@ -6060,12 +6057,16 @@ end;
 procedure TTExportSQLite.ExecuteTableRecord(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
   I: Integer;
+  L: LargeInt;
 begin
   for I := 0 to Length(Fields) - 1 do
     if (not Assigned(DataSet.LibRow^[I])) then
       sqlite3_bind_null(Stmt, 1 + I)
     else if (BitField(Fields[I])) then
-      sqlite3_bind_blob(Stmt, 1 + I, DataSet.LibRow^[I], DataSet.LibLengths^[I], SQLITE_STATIC)
+    begin
+      L := Fields[I].AsLargeInt;
+      sqlite3_bind_blob(Stmt, 1 + I, @L, SizeOf(L), SQLITE_STATIC)
+    end
     else
       case (Fields[I].DataType) of
         ftString:
@@ -6235,6 +6236,8 @@ begin
         if (J > 0) then SQL := SQL + ',';
         if (TCTable(ExportObjects[I].DBObject).Fields[J].FieldType in LOBFieldTypes) then
           SQL := SQL + '0'
+        else if (TCTable(ExportObjects[I].DBObject).Fields[J].FieldType = mfBit) then
+          SQL := SQL + IntToStr(TCTable(ExportObjects[I].DBObject).Fields[J].Size)
         else
           SQL := SQL + 'MAX(CHAR_LENGTH(' + Client.EscapeIdentifier(TCTable(ExportObjects[I].DBObject).Fields[J].Name) + '))';
         SQL := SQL + ' AS ' + Client.EscapeIdentifier(TCTable(ExportObjects[I].DBObject).Fields[J].Name);
@@ -7400,7 +7403,7 @@ begin
                 if (not Assigned(LibRow^[I])) then
                   DataFileBuffer.Write(PAnsiChar('NULL'), 4)
                 else if (BitField(SourceDataSet.Fields[I])) then
-                  begin S := UInt64ToStr(UInt64(LibRow^[I]^)); DataFileBuffer.WriteData(PChar(S), Length(S)); end
+                  begin S := UInt64ToStr(SourceDataSet.Fields[I].AsLargeInt); DataFileBuffer.WriteData(PChar(S), Length(S)); end
                 else if (DestinationTable.Fields[I].FieldType in BinaryFieldTypes) then
                   DataFileBuffer.WriteBinary(LibRow^[I], LibLengths^[I])
                 else if (DestinationField.FieldType in TextFieldTypes) then
@@ -7632,9 +7635,17 @@ begin
   if (not Assigned(DestinationTable)) then
   begin
     NewDestinationTable.Assign(SourceTable);
+    NewDestinationTable.Name := Destination.Client.ApplyIdentifierName(NewDestinationTable.Name);
+
+    for I := 0 to NewDestinationTable.Keys.Count - 1 do
+      NewDestinationTable.Keys[I].Name := Destination.Client.ApplyIdentifierName(NewDestinationTable.Keys[I].Name);
+    for I := 0 to NewDestinationTable.Fields.Count - 1 do
+      NewDestinationTable.Fields[I].Name := Destination.Client.ApplyIdentifierName(NewDestinationTable.Fields[I].Name);
 
     for I := NewDestinationTable.ForeignKeys.Count - 1 downto 0 do
     begin
+      NewDestinationTable.ForeignKeys[I].Name := Destination.Client.ApplyIdentifierName(NewDestinationTable.ForeignKeys[I].Name);
+
       DeleteForeignKey := (Destination.Client.TableNameCmp(NewDestinationTable.ForeignKeys[I].Parent.DatabaseName, SourceTable.Database.Name) <> 0)
         or not Assigned(DestinationDatabase.BaseTableByName(NewDestinationTable.ForeignKeys[I].Parent.TableName));
 

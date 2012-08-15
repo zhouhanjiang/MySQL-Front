@@ -1221,7 +1221,7 @@ begin
         Answer := IDYES;
         TableName := ExtractFileName(Filename);
         TableName := Copy(TableName, 1, Length(TableName) - Length(ExtractFileExt(TableName)));
-        TableName := Database.Tables.ApplyMySQLTableName(TableName);
+        TableName := Client.ApplyIdentifierName(TableName);
         if (not Assigned(Database.TableByName(TableName))) then
           Answer := IDYES
         else if (Answer <> IDYESALL) then
@@ -1275,7 +1275,7 @@ begin
         for I := 0 to FTables.Items.Count - 1 do
           if (Assigned(ImportODBC) and (FTables.Items[I].Selected)) then
           begin
-            TableName := Database.Tables.ApplyMySQLTableName(GetTableName(FTables.Items[I]));
+            TableName := Client.ApplyIdentifierName(GetTableName(FTables.Items[I]));
             if (not Assigned(Database.TableByName(TableName))) then
               Answer := IDYES
             else if (Answer <> IDYESALL) then
@@ -1329,7 +1329,7 @@ begin
         for I := 0 to FTables.Items.Count - 1 do
           if (Assigned(ImportSQLite) and (FTables.Items.Item[I].Selected)) then
           begin
-            TableName := Database.Tables.ApplyMySQLTableName(GetTableName(FTables.Items[I]));
+            TableName := Client.ApplyIdentifierName(GetTableName(FTables.Items[I]));
             if (not Assigned(Database.TableByName(TableName))) then
               Answer := IDYES
             else if (Answer <> IDYESALL) then

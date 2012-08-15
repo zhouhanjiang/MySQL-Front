@@ -701,7 +701,6 @@ type
     property ValidStatus: Boolean read GetValidStatus;
   public
     procedure AddTable(const NewTable: TCTable); virtual;
-    function ApplyMySQLTableName(const ATableName: string): string; virtual;
     function NameCmp(const Name1, Name2: string): Integer; override;
     property Table[Index: Integer]: TCTable read GetTable; default;
   end;
@@ -1433,6 +1432,7 @@ type
     function AddDatabase(const NewDatabase: TCDatabase): Boolean; virtual;
     function AddHost(const NewHost: TCHost): Boolean; virtual;
     function AddUser(const ANewUser: TCUser): Boolean; virtual;
+    function ApplyIdentifierName(const AIdentifierName: string): string; virtual;
     procedure GridCanEditShow(Sender: TObject); virtual;
     function CharsetByName(const CharsetName: string): TCCharset; virtual;
     function CharsetByCollation(const Collation: string): TCCharset; virtual;
@@ -4865,19 +4865,6 @@ begin
     Insert(Index, TCView.Create(Self));
     Table[Index].Assign(TCView(NewTable));
   end;
-end;
-
-function TCTables.ApplyMySQLTableName(const ATableName: string): string;
-begin
-  Result := ATableName;
-
-  Result := ReplaceStr(Result, #0, '_');
-  Result := ReplaceStr(Result, '/', '_');
-  Result := ReplaceStr(Result, '\', '_');
-  Result := ReplaceStr(Result, '.', '_');
-
-  if (Database.Client.LowerCaseTableNames = 1) then
-    Result := LowerCase(Result);
 end;
 
 function TCTables.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
@@ -9868,6 +9855,19 @@ begin
   Result := UpdateUser(nil, ANewUser);
 end;
 
+function TCClient.ApplyIdentifierName(const AIdentifierName: string): string;
+begin
+  Result := AIdentifierName;
+
+  Result := ReplaceStr(Result, #0, '_');
+  if (ServerVersion < 50106) then
+  begin
+    Result := ReplaceStr(Result, '/', '_');
+    Result := ReplaceStr(Result, '\', '_');
+    Result := ReplaceStr(Result, '.', '_');
+  end;
+end;
+
 procedure TCClient.DoAfterExecuteSQL();
 begin
   inherited;
@@ -9890,35 +9890,34 @@ var
 begin
   Source :='';
   if (not DataSet.IsEmpty()) then
-  begin
     repeat
       Source := Source + DataSet.Fields[0].AsString + ';' + #13#10;
     until (not DataSet.FindNext());
 
-    FUser := TCUser.Create(Users);
+  FUser := TCUser.Create(Users);
+  if (Source <> '') then
     FUser.SetSource(Source);
 
-    if (FUser.Name <> '') then
-      Name := FUser.Name
-    else if (FCurrentUser <> '') then
-      Name := FCurrentUser
-    else
-      Name := Username;
+  if (FUser.Name <> '') then
+    Name := FUser.Name
+  else if (FCurrentUser <> '') then
+    Name := FCurrentUser
+  else
+    Name := Username;
 
-    if (not Users.InsertIndex(Name, Index)) then
-    begin
-      Users[Index].Free();
-      Users.Items[Index] := FUser;
-    end
-    else
-      Users.Add(FUser);
+  if (not Users.InsertIndex(Name, Index)) then
+  begin
+    Users[Index].Free();
+    Users.Items[Index] := FUser;
+  end
+  else
+    Users.Add(FUser);
 
-    if (not Assigned(Processes) and ((ServerVersion < 50000) or not Assigned(UserRights) or UserRights.RProcess)) then
-      FProcesses := TCProcesses.Create(Self);
+  if (not Assigned(Processes) and ((ServerVersion < 50000) or not Assigned(UserRights) or UserRights.RProcess)) then
+    FProcesses := TCProcesses.Create(Self);
 
-    if (Valid) then
-      ExecuteEvent(ceItemValid, Self, Users, User);
-  end;
+  if (Valid) then
+    ExecuteEvent(ceItemValid, Self, Users, User);
 end;
 
 procedure TCClient.ConnectChange(Sender: TObject; Connecting: Boolean);
@@ -10208,21 +10207,22 @@ begin
       begin
         DataSet.Open(DataHandle);
         Field := 0;
-        repeat
-          FunctionName := SQLParseValue(Parse);
-          if (SQLParseChar(Parse, '(', False)) then
-            FunctionName := FunctionName + SQLParseValue(Parse);
-          if (lstrcmpi(PChar(FunctionName), 'CURRENT_USER()') = 0) then
-            FCurrentUser := DataSet.Fields[Field].AsString
-          else if (lstrcmpi(PChar(FunctionName), 'SYSDATE()') = 0) then
-          begin
-            if (TryStrToDateTime(DataSet.Fields[0].AsString, TimeDiff, FormatSettings)) then
-              TimeDiff := TimeDiff - Now();
-          end
-          else if (lstrcmpi(PChar(FunctionName), 'USER()') = 0) then
-            FCurrentUser := DataSet.Fields[Field].AsString;
-          Inc(Field);
-        until (not SQLParseChar(Parse, ','));
+        if (not DataSet.IsEmpty) then
+          repeat
+            FunctionName := SQLParseValue(Parse);
+            if (SQLParseChar(Parse, '(', False)) then
+              FunctionName := FunctionName + SQLParseValue(Parse);
+            if (lstrcmpi(PChar(FunctionName), 'CURRENT_USER()') = 0) then
+              FCurrentUser := DataSet.Fields[Field].AsString
+            else if (lstrcmpi(PChar(FunctionName), 'SYSDATE()') = 0) then
+            begin
+              if (TryStrToDateTime(DataSet.Fields[0].AsString, TimeDiff, FormatSettings)) then
+                TimeDiff := TimeDiff - Now();
+            end
+            else if (lstrcmpi(PChar(FunctionName), 'USER()') = 0) then
+              FCurrentUser := DataSet.Fields[Field].AsString;
+            Inc(Field);
+          until (not SQLParseChar(Parse, ','));
       end;
     end
     else if (SQLParseKeyword(Parse, 'SHOW')) then
