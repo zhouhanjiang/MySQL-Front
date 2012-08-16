@@ -846,8 +846,9 @@ begin
     etExcelFile: HelpContext := 1107;
     etAccessFile: HelpContext := 1129;
     etSQLiteFile: HelpContext := 1128;
-    etHTMLFile: HelpContext := 1016;
     etXMLFile: HelpContext := 1017;
+    etHTMLFile: HelpContext := 1016;
+    etPDFFile: HelpContext := 1137;
     etPrint: HelpContext := 1018;
     else HelpContext := -1;
   end;
@@ -1281,9 +1282,7 @@ begin
         try
           ExportPDF := TTExportPDF.Create(Client, Filename);
           ExportPDF.Data := FHTMLData.Checked;
-          ExportPDF.TextContent := FHTMLShowMemoContent.Checked;
           ExportPDF.NULLText := FHTMLNullText.Checked;
-          ExportPDF.RowBackground := FHTMLRowBGColorEnabled.Checked;
           ExportPDF.Structure := FHTMLStructure.Checked;
 
           Export := ExportPDF;
@@ -1482,9 +1481,7 @@ begin
         try
           ExportPDF := TTExportPDF.Create(Client, Filename);
           ExportPDF.Data := FHTMLData.Checked;
-          ExportPDF.TextContent := FHTMLShowMemoContent.Checked;
           ExportPDF.NULLText := FHTMLNullText.Checked;
-          ExportPDF.RowBackground := FHTMLRowBGColorEnabled.Checked;
           ExportPDF.Structure := FHTMLStructure.Checked;
           for I := 0 to DBObjects.Count - 1 do
             ExportPDF.Add(TCDBObject(DBObjects[I]));
@@ -1532,6 +1529,9 @@ begin
   FHTMLStructure.Checked := FHTMLStructure.Checked and FHTMLStructure.Enabled;
   FHTMLStructureClick(Sender);
   FHTMLDataClick(Sender);
+
+  FHTMLShowMemoContent.Visible := ExportType <> etPDFFile; FLHTMLViewDatas.Visible := FHTMLShowMemoContent.Visible;
+  FHTMLRowBGColorEnabled.Visible := ExportType <> etPDFFile; FLHTMLBGColorEnabled.Visible := FHTMLRowBGColorEnabled.Visible;
 end;
 
 procedure TDExport.TSODBCSelectShow(Sender: TObject);

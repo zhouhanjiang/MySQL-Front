@@ -1324,7 +1324,7 @@ begin
   SQLFontName := 'Courier New';
   SQLFontColor := clWindowText;
   SQLFontStyle := [];
-  SQLFontSize := FontSize + 1;
+  SQLFontSize := FontSize;
   SQLFontCharset := DEFAULT_CHARSET;
   LogFontName := 'Courier New';
   LogFontColor := clWindowText;

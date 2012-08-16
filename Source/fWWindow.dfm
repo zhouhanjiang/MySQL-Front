@@ -805,6 +805,8 @@ object WWindow: TWWindow
       Category = 'File'
       Caption = 'aFExportPDF'
       Enabled = False
+      HelpContext = 1137
+      HelpType = htContext
     end
     object aFExportBitmap: TAction
       Category = 'File'

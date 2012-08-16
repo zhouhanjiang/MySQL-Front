@@ -1257,7 +1257,7 @@ begin
     else
       XML.Attributes['type'] := 'query';
     XML.AddChild('database').Text := DataHandle.Connection.DatabaseName;
-    XML.AddChild('datetime').Text := FloatToStr(DataHandle.Connection.DateTime, FileFormatSettings);
+    XML.AddChild('datetime').Text := FloatToStr(DataHandle.Connection.ServerDateTime, FileFormatSettings);
     if (not Data and (DataHandle.Connection.RowsAffected >= 0)) then
       XML.AddChild('rows_affected').Text := IntToStr(DataHandle.Connection.RowsAffected);
     XML.AddChild('sql').Text := DataHandle.Connection.CommandText;
@@ -2910,7 +2910,7 @@ begin
       Process := Client.ProcessById(SysUtils.StrToInt(ActiveListView.Selected.Caption));
 
       DStatement.DatabaseName := Process.DatabaseName;
-      DStatement.DateTime := Client.DateTime - Process.Time;
+      DStatement.DateTime := Client.ServerDateTime - Process.Time;
       DStatement.Host := Process.Host;
       DStatement.Id := Process.Id;
       DStatement.StatementTime := Process.Time;

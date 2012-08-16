@@ -786,7 +786,7 @@ end;
 function SQLEscape(const Value: PChar; const ValueLen: Integer; const Escaped: PChar; const EscapedLen: Integer; const Quoter: Char = ''''): Integer; overload;
 label
   StartL,
-  String_, StringL, String2, String3,
+  String_, StringL, String2, String3, String4,
   PosL, PosE,
   FindPos, FindPos2,
   Error,
@@ -859,7 +859,7 @@ begin
         POP ECX
 
         SUB ECX,EAX                      // Copy normal characters from Value
-        JZ String2                       // End of Value!
+        JZ String3                       // End of Value!
         ADD @Result,ECX                  // Characters to copy
         CMP Escaped,0                    // Calculate length only?
         JE String2                       // Yes!
@@ -867,8 +867,12 @@ begin
         JB Error                         // No!
         SUB Len,ECX                      // Calc new len space in Escaped
         REPNE MOVSW                      // Copy normal characters to Result
-
+        JMP String3
       String2:
+        SHL ECX,1
+        ADD ESI,ECX
+
+      String3:
         MOV ECX,EAX
         JECXZ Finish                     // End of Value!
 
@@ -877,13 +881,13 @@ begin
         MOV EAX,[EDX + EBX * 4]
         ADD @Result,2                    // Characters to copy
         CMP Escaped,0                    // Calculate length only?
-        JE String3                       // Yes!
+        JE String4                       // Yes!
         CMP Len,ECX                      // Enough character left in Escaped?
         JB Error                         // No!
         SUB Len,2                        // Calc new len space in Escaped
         STOSD
 
-      String3:
+      String4:
         DEC ECX                          // Ignore Search character
         JZ Finish                        // All character in Value handled!
         CALL FindPos                     // Find Search character
@@ -2905,5 +2909,10 @@ begin
   Result := StrPas(P);
 end;
 
+var
+  Value: string;
+begin
+  Value := 'a"b';
+  SQLEscape(Value);
 end.
 

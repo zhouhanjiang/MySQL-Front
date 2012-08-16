@@ -3728,7 +3728,7 @@ begin
   Result := Database.Client.ExecuteSQL('CHECK TABLE ' + Database.Client.EscapeIdentifier(Database.Name) + '.' + Database.Client.EscapeIdentifier(Name) + ';');
 
   if (Result) then
-    FChecked := Database.Client.DateTime;
+    FChecked := Database.Client.ServerDateTime;
 end;
 
 function TCBaseTable.CountRecords(): Integer;

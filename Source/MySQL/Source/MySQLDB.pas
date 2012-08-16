@@ -256,7 +256,7 @@ type
     local_infile: Plocal_infile;
     function GetCommandText(): string;
     function UseCompression(): Boolean;
-    function GetDateTime(): TDateTime;
+    function GetServerDateTime(): TDateTime;
     function GetHandle(): MySQLConsts.MYSQL;
     function GetInfo(): string;
     procedure SetDatabaseName(const ADatabaseName: string);
@@ -357,7 +357,6 @@ InOnResult: Boolean; // Should be private, but for debugging...
     property BugMonitor: TMySQLMonitor read FBugMonitor;
     property CodePage: Cardinal read FCodePage;
     property CommandText: string read GetCommandText;
-    property DateTime: TDateTime read GetDateTime;
     property HostInfo: string read FHostInfo;
     property HTTPAgent: string read FHTTPAgent write FHTTPAgent;
     property ErrorCode: Integer read FErrorCode;
@@ -374,6 +373,7 @@ InOnResult: Boolean; // Should be private, but for debugging...
     property MultiStatements: Boolean read FMultiStatements;
     property ResultCount: Integer read FResultCount;
     property RowsAffected: Integer read FRowsAffected;
+    property ServerDateTime: TDateTime read GetServerDateTime;
     property ServerVersion: Integer read FServerVersion;
     property ServerVersionStr: string read FServerVersionStr;
     property ThreadId: my_uint read FThreadId;
@@ -2497,6 +2497,11 @@ begin
   Result := FAutoCommit;
 end;
 
+function TMySQLConnection.GetConnected(): Boolean;
+begin
+  Result := FConnected;
+end;
+
 function TMySQLConnection.GetCommandText(): string;
 var
   EndingCommentLength: Integer;
@@ -2516,7 +2521,7 @@ begin
   end
 end;
 
-function TMySQLConnection.GetDateTime(): TDateTime;
+function TMySQLConnection.GetServerDateTime(): TDateTime;
 begin
   Result := Now() + TimeDiff;
 end;
@@ -2535,11 +2540,6 @@ begin
     Result := ''
   else
     Result := LibDecode(Lib.mysql_info(Handle));
-end;
-
-function TMySQLConnection.GetConnected(): Boolean;
-begin
-  Result := FConnected;
 end;
 
 function TMySQLConnection.GetInsertId(): my_ulonglong;
@@ -4219,7 +4219,7 @@ begin
   if (Assigned(SynchroThread)) then
   begin
     if (SynchroThread.ClassType <> TMySQLConnection.TSynchroThread) then
-      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['ClassType']);
+      raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %s', ['ClassType', TMySQLConnection.TSynchroThread.ClassName]);
     SynchroThread.ReleaseDataSet();
     SynchroThread := nil;
   end;

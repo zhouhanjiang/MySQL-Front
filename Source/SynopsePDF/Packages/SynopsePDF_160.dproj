@@ -28,6 +28,9 @@
 			<DCC_DcpOutput>..\Bin</DCC_DcpOutput>
 			<DCC_DcuOutput>..\Bin</DCC_DcuOutput>
 			<DCC_IOChecking>false</DCC_IOChecking>
+			<DCC_DebugInformation>false</DCC_DebugInformation>
+			<DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
+			<DCC_AssertionsAtRuntime>false</DCC_AssertionsAtRuntime>
 		</PropertyGroup>
 		<ProjectExtensions>
 			<Borland.Personality>Delphi.Personality.12</Borland.Personality>
