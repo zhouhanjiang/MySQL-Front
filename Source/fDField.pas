@@ -916,7 +916,7 @@ begin
     FDefaultExit(Sender);
   FFlagNullAllowedClick(Sender);
 
-  if ((Sender = FRDefault) and FDefault.Visible and FDefault.Enabled and (Sender = FRDefault)) then
+  if (GBasics.Visible and FDefault.Visible and FDefault.Enabled and (Sender = FRDefault)) then
     ActiveControl := FDefault;
 
   FBOkCheckEnabled(Sender);
@@ -930,7 +930,8 @@ end;
 
 procedure TDField.FUDClick(Sender: TObject; Button: TUDBtnType);
 begin
-  ActiveControl := TUpDown(Sender).Associate;
+  if (GBasics.Visible) then
+    ActiveControl := TUpDown(Sender).Associate;
 end;
 
 function TDField.GetDefault(): string;
