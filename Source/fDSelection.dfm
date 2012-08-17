@@ -31,7 +31,7 @@ object DSelection: TDSelection
     Caption = 'FBOk'
     Default = True
     ModalResult = 1
-    TabOrder = 1
+    TabOrder = 2
   end
   object FBCancel: TButton
     Left = 168
@@ -42,7 +42,7 @@ object DSelection: TDSelection
     Cancel = True
     Caption = 'FBCancel'
     ModalResult = 2
-    TabOrder = 2
+    TabOrder = 3
   end
   object FSelection: TListView
     Left = 8
@@ -69,7 +69,7 @@ object DSelection: TDSelection
     Top = 240
     Width = 233
     Height = 21
-    TabOrder = 3
+    TabOrder = 1
     Text = 'FManual'
   end
 end

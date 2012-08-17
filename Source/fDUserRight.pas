@@ -384,8 +384,8 @@ begin
     NewUserRight.RAlter := FAlter.Checked and (FAll.Checked or FDatabase.Checked);
     NewUserRight.RAlterRoutine := FAlterRoutine.Checked and (FAll.Checked or FDatabase.Checked or FProcedure.Checked or FFunction.Checked);
     NewUserRight.RCreate := FCreate.Checked and (FAll.Checked or FDatabase.Checked);
-    NewUserRight.RCreateTempTable := FCreateTempTable.Checked and (FAll.Checked or FDatabase.Checked);
     NewUserRight.RCreateRoutine := FCreateRoutine.Checked and (FAll.Checked or FDatabase.Checked);
+    NewUserRight.RCreateTempTable := FCreateTempTable.Checked and (FAll.Checked or FDatabase.Checked);
     NewUserRight.RCreateUser := FCreateUser.Checked and FAll.Checked;
     NewUserRight.RCreateView := FCreateView.Checked and (FAll.Checked or FDatabase.Checked);
     NewUserRight.RDelete := FDelete.Checked and (FAll.Checked or FDatabase.Checked or FTable.Checked);
@@ -399,9 +399,9 @@ begin
     NewUserRight.RLockTables := FLockTable.Checked and (FAll.Checked or FDatabase.Checked);
     NewUserRight.RProcess := FProcess.Checked and FAll.Checked;
     NewUserRight.RReferences := FReferences.Checked;
+    NewUserRight.RReload := FReload.Checked and FAll.Checked;
     NewUserRight.RReplClient := FReplClient.Checked and FAll.Checked;
     NewUserRight.RReplSlave := FReplSlave.Checked and FAll.Checked;
-    NewUserRight.RReload := FReload.Checked and FAll.Checked;
     NewUserRight.RSelect := FSelect.Checked;
     NewUserRight.RShowDatabases := FShowDatabase.Checked and FAll.Checked;
     NewUserRight.RShowView := FShowView.Checked and (FAll.Checked or FDatabase.Checked);

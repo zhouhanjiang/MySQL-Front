@@ -4040,7 +4040,7 @@ end;
 
 function TMySQLQuery.GetAsString(const FieldNo: Integer): string;
 begin
-  if (not Assigned(LibRow^[FieldNo - 1])) then
+  if (not Assigned(LibRow^[FieldNo - 1]) or (LibLengths^[FieldNo - 1] = 0)) then
     Result := ''
   else if (BitField(Fields[FieldNo - 1])) then
     Result := Fields[FieldNo - 1].AsString
@@ -6069,7 +6069,7 @@ begin
           Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + ' IS NULL'
         else
           Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + '=' + SQLFieldValue(Fields[I], InternRecordBuffer^.OldData);
-        ValueHandled := False;
+        ValueHandled := True;
       end;
   end
   else
@@ -6094,17 +6094,21 @@ begin
       Result := Result + ')';
     end
     else
+    begin
+      ValueHandled := False;
       for I := 0 to Length(DeleteBookmarks) - 1 do
         for J := 0 to FieldCount - 1 do
           if (pfInWhere in Fields[I].ProviderFlags) then
           begin
             InternRecordBuffer := InternRecordBuffers[BookmarkToInternBufferIndex(TBookmark(DeleteBookmarks[I]))];
-            if (I > 0) then Result := Result + ' OR ';
+            if (ValueHandled) then Result := Result + ' OR ';
             if (not Assigned(InternRecordBuffer^.OldData^.LibRow^[I])) then
               Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + ' IS NULL'
             else
               Result := Result + '(' + Connection.EscapeIdentifier(Fields[I].FieldName) + '=' + SQLFieldValue(WhereField, InternRecordBuffer^.OldData) + ')';
+            ValueHandled := True;
           end;
+    end;
   end;
   Result := Result + ';' + #13#10;
 end;

@@ -145,6 +145,8 @@ procedure TDUser.CMChangePreferences(var Message: TMessage);
 begin
   Preferences.SmallImages.GetIcon(iiUser, Icon);
 
+  PSQLWait.Caption := Preferences.LoadStr(882);
+
   TSBasics.Caption := ReplaceStr(Preferences.LoadStr(108), '&', '');
   GBasics.Caption := Preferences.LoadStr(85);
   FLUser.Caption := Preferences.LoadStr(561) + ':';

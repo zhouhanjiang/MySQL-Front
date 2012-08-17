@@ -1249,7 +1249,7 @@ type
     function GetHost(): string;
     function GetLogin(): string;
     function GetRight(Index: Integer): TCUserRight; inline;
-    function GetRightCount(): Integer; inline;
+    function GetRightCount(): Integer;
     function GetSlowSQLLog(): string; inline;
     function GetSQLLog(): string; inline;
     function GetUsers(): TCUsers; inline;
@@ -9214,6 +9214,8 @@ var
   RawPassword: string;
   TableName: string;
 begin
+  FRights.Clear();
+
   if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Users.Client.ServerVersion)) then
   begin
     while (not SQLParseEnd(Parse)) do
@@ -9466,9 +9468,11 @@ begin
 
   Result := inherited or (Client.ErrorCode = ER_DBACCESS_DENIED_ERROR) or (Client.ErrorCode = ER_TABLEACCESS_DENIED_ERROR);
 
-  if (not Filtered) then
+  if (Result and not Filtered) then
     while (DeleteList.Count > 0) do
     begin
+      if (Items[0] = Client.User) then
+        Client.FUser := nil;
       Index := IndexOf(DeleteList.Items[0]);
       Item[Index].Free();
       Delete(Index);
@@ -10271,8 +10275,10 @@ begin
           ObjectName := SQLParseValue(Parse);
           if (Users.NameCmp(ObjectName, FCurrentUser) = 0) then
             BuildUser(DataSet)
+          else if (Assigned(UserByName(ObjectName))) then
+            UserByName(ObjectName).SetSource(DataSet)
           else
-            UserByName(ObjectName).SetSource(DataSet);
+            Users.Invalidate();
         end
       else if (SQLParseKeyword(Parse, 'PLUGINS')) then
         Result := Plugins.Build(DataSet, False, not SQLParseEnd(Parse))
@@ -11102,7 +11108,9 @@ end;
 
 function TCClient.GetUserRights(): TCUserRight;
 begin
-  if (not Assigned(User) or (User.RightCount = 0)) then
+  if (not Assigned(User)) then
+    Result := nil
+  else if (User.RightCount = 0) then
     Result := nil
   else
     Result := User.Right[0];
@@ -11573,7 +11581,10 @@ begin
             ObjectName := SQLParseValue(Parse);
             User := UserByName(ObjectName);
             if (Assigned(User)) then
+            begin
+              User.Invalidate();
               ExecuteEvent(ceItemAltered, Self, Users, User);
+            end;
             while (not SQLParseChar(Parse, ';') and not SQLParseEnd(Parse) and not SQLParseKeyword(Parse, 'REQUIRE', False) and not SQLParseKeyword(Parse, 'WITH', False) and not SQLParseChar(Parse, ',', False)) do
               SQLParseValue(Parse);
           until (not SQLParseChar(Parse, ','));
@@ -11587,7 +11598,10 @@ begin
             ObjectName := SQLParseValue(Parse);
             User := UserByName(ObjectName);
             if (Assigned(User)) then
+            begin
+              User.Invalidate();
               ExecuteEvent(ceItemAltered, Self, Users, User);
+            end;
           until (not SQLParseChar(Parse, ','));
       end
     else if (SQLParseKeyword(Parse, 'DROP USER')) then
@@ -12198,39 +12212,55 @@ begin
 end;
 
 function TCClient.UpdateUser(const User, NewUser: TCUser): Boolean;
+type
+  TRightType = (rtAll, rtDatabase, rtTable, rtRoutine, rtField);
 
-  function GetPrivileges(const Grant: Boolean; const OldRight, NewRight: TCUserRight): string;
+  function GetRightType(const Right: TCUserRight): TRightType;
+  begin
+    if (Right.FieldName <> '') then
+      Result := rtField
+    else if ((Right.FunctionName <> '') or (Right.ProcedureName <> '')) then
+      Result := rtRoutine
+    else if (Right.TableName <> '') then
+      Result := rtTable
+    else if (Right.DatabaseName <> '') then
+      Result := rtDatabase
+    else
+      Result := rtAll;
+  end;
+
+  function GetPrivileges(const Grant: Boolean; const OldRight, NewRight: TCUserRight; const RightType: TRightType): string;
   begin
     Result := '';
 
-    if ((not Grant xor NewRight.RAlter          ) and (Grant xor (Assigned(OldRight) and OldRight.RAlter          ))                       ) then       Result := Result + ',ALTER';
-    if ((not Grant xor NewRight.RAlterRoutine   ) and (Grant xor (Assigned(OldRight) and OldRight.RAlterRoutine   )) and (ServerVersion >= 50003)) then       Result := Result + ',ALTER ROUTINE';
-    if ((not Grant xor NewRight.RCreate         ) and (Grant xor (Assigned(OldRight) and OldRight.RCreate         ))                       ) then       Result := Result + ',CREATE';
-    if ((not Grant xor NewRight.RCreateRoutine  ) and (Grant xor (Assigned(OldRight) and OldRight.RCreateRoutine  )) and (ServerVersion >= 50003)) then       Result := Result + ',CREATE ROUTINE';
-    if ((not Grant xor NewRight.RCreateTempTable) and (Grant xor (Assigned(OldRight) and OldRight.RCreateTempTable)) and (ServerVersion >= 40002)) then       Result := Result + ',CREATE TEMPORARY TABLES';
-    if ((not Grant xor NewRight.RCreateUser     ) and (Grant xor (Assigned(OldRight) and OldRight.RCreateUser     )) and (ServerVersion >= 50003)) then       Result := Result + ',CREATE USER';
-    if ((not Grant xor NewRight.RCreateView     ) and (Grant xor (Assigned(OldRight) and OldRight.RCreateView     )) and (ServerVersion >= 50001)) then       Result := Result + ',CREATE VIEW';
-    if ((not Grant xor NewRight.RDelete         ) and (Grant xor (Assigned(OldRight) and OldRight.RDelete         ))                       ) then       Result := Result + ',DELETE';
-    if ((not Grant xor NewRight.RDrop           ) and (Grant xor (Assigned(OldRight) and OldRight.RDrop           ))                       ) then       Result := Result + ',DROP';
-    if ((not Grant xor NewRight.REvent          ) and (Grant xor (Assigned(OldRight) and OldRight.REvent          )) and (ServerVersion >= 50106)) then       Result := Result + ',EVENT';
-    if ((not Grant xor NewRight.RExecute        ) and (Grant xor (Assigned(OldRight) and OldRight.RExecute        )) and (ServerVersion >= 50003)) then       Result := Result + ',EXECUTE';
-    if ((not Grant xor NewRight.RFile           ) and (Grant xor (Assigned(OldRight) and OldRight.RFile           ))                       ) then       Result := Result + ',FILE';
-    if ((not Grant xor NewRight.RGrant          ) and (Grant xor (Assigned(OldRight) and OldRight.RGrant          ))                       ) then       Result := Result + ',GRANT OPTION';
-    if ((not Grant xor NewRight.RIndex          ) and (Grant xor (Assigned(OldRight) and OldRight.RIndex          ))                       ) then       Result := Result + ',INDEX';
-    if ((not Grant xor NewRight.RInsert         ) and (Grant xor (Assigned(OldRight) and OldRight.RInsert         ))                       ) then begin Result := Result + ',INSERT';                  if (not Grant and (OldRight.FieldName <> '')) then Result := Result + '(' + EscapeIdentifier(OldRight.FieldName) + ')' else if (Grant and (NewRight.FieldName <> '')) then Result := Result + '(' + EscapeIdentifier(NewRight.FieldName) + ')'; end;
-    if ((not Grant xor NewRight.RLockTables     ) and (Grant xor (Assigned(OldRight) and OldRight.RLockTables     )) and (ServerVersion >= 40002)) then       Result := Result + ',LOCK TABLES';
-    if ((not Grant xor NewRight.RProcess        ) and (Grant xor (Assigned(OldRight) and OldRight.RProcess        ))                       ) then       Result := Result + ',PROCESS';
-    if ((not Grant xor NewRight.RReferences     ) and (Grant xor (Assigned(OldRight) and OldRight.RReferences     ))                       ) then begin Result := Result + ',REFERENCES';              if (not Grant and (OldRight.FieldName <> '')) then Result := Result + '(' + EscapeIdentifier(OldRight.FieldName) + ')' else if (Grant and (NewRight.FieldName <> '')) then Result := Result + '(' + EscapeIdentifier(NewRight.FieldName) + ')'; end;
-    if ((not Grant xor NewRight.RReload         ) and (Grant xor (Assigned(OldRight) and OldRight.RReload         ))                       ) then       Result := Result + ',RELOAD';
-    if ((not Grant xor NewRight.RReplClient     ) and (Grant xor (Assigned(OldRight) and OldRight.RReplClient     )) and (ServerVersion >= 40002)) then       Result := Result + ',REPLICATION CLIENT';
-    if ((not Grant xor NewRight.RReplSlave      ) and (Grant xor (Assigned(OldRight) and OldRight.RReplSlave      )) and (ServerVersion >= 40002)) then       Result := Result + ',REPLICATION SLAVE';
-    if ((not Grant xor NewRight.RSelect         ) and (Grant xor (Assigned(OldRight) and OldRight.RSelect         ))                       ) then begin Result := Result + ',SELECT';                  if (not Grant and (OldRight.FieldName <> '')) then Result := Result + '(' + EscapeIdentifier(OldRight.FieldName) + ')' else if (Grant and (NewRight.FieldName <> '')) then Result := Result + '(' + EscapeIdentifier(NewRight.FieldName) + ')'; end;
-    if ((not Grant xor NewRight.RShowDatabases  ) and (Grant xor (Assigned(OldRight) and OldRight.RShowDatabases  )) and (ServerVersion >= 40002)) then       Result := Result + ',SHOW DATABASES';
-    if ((not Grant xor NewRight.RShowView       ) and (Grant xor (Assigned(OldRight) and OldRight.RShowView       )) and (ServerVersion >= 50001)) then       Result := Result + ',SHOW VIEW';
-    if ((not Grant xor NewRight.RShutdown       ) and (Grant xor (Assigned(OldRight) and OldRight.RShutdown       ))                       ) then       Result := Result + ',SHUTDOWN';
-    if ((not Grant xor NewRight.RSuper          ) and (Grant xor (Assigned(OldRight) and OldRight.RSuper          )) and (ServerVersion >= 40002)) then       Result := Result + ',SUPER';
-    if ((not Grant xor NewRight.RTrigger        ) and (Grant xor (Assigned(OldRight) and OldRight.RTrigger        )) and (ServerVersion >= 50106)) then       Result := Result + ',TRIGGER';
-    if ((not Grant xor NewRight.RUpdate         ) and (Grant xor (Assigned(OldRight) and OldRight.RUpdate         ))                       ) then begin Result := Result + ',UPDATE';                  if (not Grant and (OldRight.FieldName <> '')) then Result := Result + '(' + EscapeIdentifier(OldRight.FieldName) + ')' else if (Grant and (NewRight.FieldName <> '')) then Result := Result + '(' + EscapeIdentifier(NewRight.FieldName) + ')'; end;
+    if ((not Grant xor NewRight.RAlter          ) and (Grant xor (Assigned(OldRight) and OldRight.RAlter          )) and (RightType in [rtAll, rtDatabase])                                        ) then       Result := Result + ',ALTER';
+    if ((not Grant xor NewRight.RAlterRoutine   ) and (Grant xor (Assigned(OldRight) and OldRight.RAlterRoutine   )) and (RightType in [rtAll, rtDatabase, rtRoutine]) and (ServerVersion >= 50003)) then       Result := Result + ',ALTER ROUTINE';
+    if ((not Grant xor NewRight.RCreate         ) and (Grant xor (Assigned(OldRight) and OldRight.RCreate         )) and (RightType in [rtAll, rtDatabase])                                        ) then       Result := Result + ',CREATE';
+    if ((not Grant xor NewRight.RCreateRoutine  ) and (Grant xor (Assigned(OldRight) and OldRight.RCreateRoutine  )) and (RightType in [rtAll, rtDatabase])            and (ServerVersion >= 50003)) then       Result := Result + ',CREATE ROUTINE';
+    if ((not Grant xor NewRight.RCreateTempTable) and (Grant xor (Assigned(OldRight) and OldRight.RCreateTempTable)) and (RightType in [rtAll, rtDatabase])            and (ServerVersion >= 40002)) then       Result := Result + ',CREATE TEMPORARY TABLES';
+    if ((not Grant xor NewRight.RCreateUser     ) and (Grant xor (Assigned(OldRight) and OldRight.RCreateUser     )) and (RightType in [rtAll, rtDatabase])            and (ServerVersion >= 50003)) then       Result := Result + ',CREATE USER';
+    if ((not Grant xor NewRight.RCreateView     ) and (Grant xor (Assigned(OldRight) and OldRight.RCreateView     )) and (RightType in [rtAll, rtDatabase])            and (ServerVersion >= 50001)) then       Result := Result + ',CREATE VIEW';
+    if ((not Grant xor NewRight.RDelete         ) and (Grant xor (Assigned(OldRight) and OldRight.RDelete         )) and (RightType in [rtAll, rtDatabase, rtTable])                               ) then       Result := Result + ',DELETE';
+    if ((not Grant xor NewRight.RDrop           ) and (Grant xor (Assigned(OldRight) and OldRight.RDrop           )) and (RightType in [rtAll, rtDatabase])                                        ) then       Result := Result + ',DROP';
+    if ((not Grant xor NewRight.REvent          ) and (Grant xor (Assigned(OldRight) and OldRight.REvent          )) and (RightType in [rtAll, rtDatabase])            and (ServerVersion >= 50106)) then       Result := Result + ',EVENT';
+    if ((not Grant xor NewRight.RExecute        ) and (Grant xor (Assigned(OldRight) and OldRight.RExecute        )) and (RightType in [rtAll, rtDatabase, rtRoutine]) and (ServerVersion >= 50003)) then       Result := Result + ',EXECUTE';
+    if ((not Grant xor NewRight.RFile           ) and (Grant xor (Assigned(OldRight) and OldRight.RFile           )) and (RightType in [rtAll])                                                    ) then       Result := Result + ',FILE';
+    if ((not Grant xor NewRight.RGrant          ) and (Grant xor (Assigned(OldRight) and OldRight.RGrant          )) and (RightType in [rtAll, rtDatabase, rtRoutine])                             ) then       Result := Result + ',GRANT OPTION';
+    if ((not Grant xor NewRight.RIndex          ) and (Grant xor (Assigned(OldRight) and OldRight.RIndex          )) and (RightType in [rtAll, rtDatabase])                                        ) then       Result := Result + ',INDEX';
+    if ((not Grant xor NewRight.RInsert         ) and (Grant xor (Assigned(OldRight) and OldRight.RInsert         ))                                                                               ) then begin Result := Result + ',INSERT';                  if (not Grant and (OldRight.FieldName <> '')) then Result := Result + '(' + EscapeIdentifier(OldRight.FieldName) + ')' else if (Grant and (NewRight.FieldName <> '')) then Result := Result + '(' + EscapeIdentifier(NewRight.FieldName) + ')'; end;
+    if ((not Grant xor NewRight.RLockTables     ) and (Grant xor (Assigned(OldRight) and OldRight.RLockTables     )) and (RightType in [rtAll, rtDatabase])            and (ServerVersion >= 40002)) then       Result := Result + ',LOCK TABLES';
+    if ((not Grant xor NewRight.RProcess        ) and (Grant xor (Assigned(OldRight) and OldRight.RProcess        )) and (RightType in [rtAll])                                                    ) then       Result := Result + ',PROCESS';
+    if ((not Grant xor NewRight.RReferences     ) and (Grant xor (Assigned(OldRight) and OldRight.RReferences     ))                                                                               ) then begin Result := Result + ',REFERENCES';              if (not Grant and (OldRight.FieldName <> '')) then Result := Result + '(' + EscapeIdentifier(OldRight.FieldName) + ')' else if (Grant and (NewRight.FieldName <> '')) then Result := Result + '(' + EscapeIdentifier(NewRight.FieldName) + ')'; end;
+    if ((not Grant xor NewRight.RReload         ) and (Grant xor (Assigned(OldRight) and OldRight.RReload         )) and (RightType in [rtAll])                                                    ) then       Result := Result + ',RELOAD';
+    if ((not Grant xor NewRight.RReplClient     ) and (Grant xor (Assigned(OldRight) and OldRight.RReplClient     )) and (RightType in [rtAll]) and (ServerVersion >= 40002)                       ) then       Result := Result + ',REPLICATION CLIENT';
+    if ((not Grant xor NewRight.RReplSlave      ) and (Grant xor (Assigned(OldRight) and OldRight.RReplSlave      )) and (RightType in [rtAll]) and (ServerVersion >= 40002)                       ) then       Result := Result + ',REPLICATION SLAVE';
+    if ((not Grant xor NewRight.RSelect         ) and (Grant xor (Assigned(OldRight) and OldRight.RSelect         ))                                                                               ) then begin Result := Result + ',SELECT';                  if (not Grant and (OldRight.FieldName <> '')) then Result := Result + '(' + EscapeIdentifier(OldRight.FieldName) + ')' else if (Grant and (NewRight.FieldName <> '')) then Result := Result + '(' + EscapeIdentifier(NewRight.FieldName) + ')'; end;
+    if ((not Grant xor NewRight.RShowDatabases  ) and (Grant xor (Assigned(OldRight) and OldRight.RShowDatabases  )) and (RightType in [rtAll]) and (ServerVersion >= 40002)                       ) then       Result := Result + ',SHOW DATABASES';
+    if ((not Grant xor NewRight.RShowView       ) and (Grant xor (Assigned(OldRight) and OldRight.RShowView       )) and (RightType in [rtAll, rtDatabase]) and (ServerVersion >= 50001)           ) then       Result := Result + ',SHOW VIEW';
+    if ((not Grant xor NewRight.RShutdown       ) and (Grant xor (Assigned(OldRight) and OldRight.RShutdown       )) and (RightType in [rtAll])                                                    ) then       Result := Result + ',SHUTDOWN';
+    if ((not Grant xor NewRight.RSuper          ) and (Grant xor (Assigned(OldRight) and OldRight.RSuper          )) and (RightType in [rtAll]) and (ServerVersion >= 40002)                       ) then       Result := Result + ',SUPER';
+    if ((not Grant xor NewRight.RTrigger        ) and (Grant xor (Assigned(OldRight) and OldRight.RTrigger        )) and (RightType in [rtAll, rtDatabase]) and (ServerVersion >= 50106)           ) then       Result := Result + ',TRIGGER';
+    if ((not Grant xor NewRight.RUpdate         ) and (Grant xor (Assigned(OldRight) and OldRight.RUpdate         ))                                                                               ) then begin Result := Result + ',UPDATE';                  if (not Grant and (OldRight.FieldName <> '')) then Result := Result + '(' + EscapeIdentifier(OldRight.FieldName) + ')' else if (Grant and (NewRight.FieldName <> '')) then Result := Result + '(' + EscapeIdentifier(NewRight.FieldName) + ')'; end;
 
     Delete(Result, 1, 1);
   end;
@@ -12275,6 +12305,7 @@ begin
   for I := 0 to NewUser.RightCount - 1 do
   begin
     NewRight := NewUser.Right[I];
+
     OldRight := nil;
     if (Assigned(User)) then
       for J := 0 to User.RightCount - 1 do
@@ -12288,7 +12319,7 @@ begin
 
     if (Assigned(OldRight)) then
     begin
-      Privileges := GetPrivileges(False, OldRight, NewRight);
+      Privileges := GetPrivileges(False, OldRight, NewRight, GetRightType(NewRight));
 
       if (Privileges <> '') then
       begin
@@ -12308,7 +12339,7 @@ begin
       end;
     end;
 
-    Privileges := GetPrivileges(True, OldRight, NewRight);
+    Privileges := GetPrivileges(True, OldRight, NewRight, GetRightType(NewRight));
 
     Options := '';
     if (NewRight.RGrant and not (Assigned(OldRight) and OldRight.RGrant)) then Options := Options + ' GRANT OPTION';
@@ -12371,7 +12402,7 @@ begin
         RemovedUserRights[User.IndexOf(OldRight)] := True;
 
         EmptyRight := TCUserRight.Create();
-        Privileges := GetPrivileges(False, OldRight, EmptyRight);
+        Privileges := GetPrivileges(False, OldRight, EmptyRight, GetRightType(NewRight));
         EmptyRight.Free();
 
         if (Privileges <> '') then
