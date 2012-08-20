@@ -5855,7 +5855,7 @@ begin
           end;
         ftWideString:
           if (Fields[I].Size < 256) then
-            Parameter[I].Size := AnsiCharToWideChar(Client.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], Parameter[I].Buffer, Parameter[I].BufferSize div SizeOf(Char))
+            Parameter[I].Size := AnsiCharToWideChar(Client.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], Parameter[I].Buffer, Parameter[I].BufferSize div SizeOf(Char)) * SizeOf(Char)
           else
             Parameter[I].Size := SQL_LEN_DATA_AT_EXEC(AnsiCharToWideChar(Client.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], nil, 0) * SizeOf(Char));
         ftWideMemo:
