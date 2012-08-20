@@ -1872,18 +1872,6 @@ begin
       end;
   end;
 
-  if (Assigned(LibHandle)) then
-  begin
-    if (Assigned(ResultHandle)) then
-    begin
-      while ((Connection.Lib.mysql_errno(LibHandle) = 0) and Assigned(Connection.Lib.mysql_fetch_row(ResultHandle))) do ;
-      Connection.Lib.mysql_free_result(ResultHandle);
-      ResultHandle := nil;
-    end;
-    Connection.Lib.mysql_close(LibHandle);
-    LibHandle := nil;
-  end;
-
   Connection.TerminatedThreads.Delete(Self);
 end;
 
@@ -4218,8 +4206,6 @@ procedure TMySQLQuery.InternalClose();
 begin
   if (Assigned(SynchroThread)) then
   begin
-    if (SynchroThread.ClassType <> TMySQLConnection.TSynchroThread) then
-      raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %s', ['ClassType', TMySQLConnection.TSynchroThread.ClassName]);
     SynchroThread.ReleaseDataSet();
     SynchroThread := nil;
   end;

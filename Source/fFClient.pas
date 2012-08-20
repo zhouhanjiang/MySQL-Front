@@ -3683,12 +3683,7 @@ begin
     else
       CodePage := Client.CodePage;
 
-    if (ExportType = etPrint) then
-    begin
-      DExport.ExportType := etPrint;
-      DExport.Execute();
-    end
-    else if (ExportType = etODBC) then
+    if (ExportType = etODBC) then
     begin
       DExport.Execute();
     end
@@ -3697,11 +3692,12 @@ begin
       SaveDialog.Title := ReplaceStr(Preferences.LoadStr(582), '&', '');
       SaveDialog.InitialDir := Path;
       SaveDialog.Filter := '';
+      SaveDialog.DefaultExt := '';
       case (ExportType) of
         etSQLFile:
           begin
             SaveDialog.Filter := FilterDescription('sql') + ' (*.sql)|*.sql';
-            SaveDialog.DefaultExt := 'sql';
+            SaveDialog.DefaultExt := '.sql';
             SaveDialog.Encodings.Text := EncodingCaptions();
           end;
         etTextFile:
@@ -3709,70 +3705,70 @@ begin
             if (DExport.DBObjects.Count <= 1) then
             begin
               SaveDialog.Filter := FilterDescription('txt') + ' (*.txt;*.csv;*.tab;*.asc)|*.txt;*.csv;*.tab;*.asc';
-              SaveDialog.DefaultExt := 'csv';
+              SaveDialog.DefaultExt := '.csv';
               SaveDialog.Encodings.Text := EncodingCaptions();
             end
             else
             begin
               SaveDialog.Filter := FilterDescription('zip') + ' (*.zip)|*.zip';
-              SaveDialog.DefaultExt := 'zip';
+              SaveDialog.DefaultExt := '.zip';
               SaveDialog.Encodings.Clear();
             end;
           end;
         etExcelFile:
           begin
             SaveDialog.Filter := FilterDescription('xls') + ' (*.xls)|*.xls';
-            SaveDialog.DefaultExt := 'xls';
+            SaveDialog.DefaultExt := '.xls';
             SaveDialog.Encodings.Clear();
           end;
         etAccessFile:
           begin
             SaveDialog.Filter := FilterDescription('mdb') + ' (*.mdb)|*.mdb';
-            SaveDialog.DefaultExt := 'mdb';
+            SaveDialog.DefaultExt := '.mdb';
             SaveDialog.Encodings.Clear();
           end;
         etSQLiteFile:
           begin
             SaveDialog.Filter := FilterDescription('sqlite') + ' (*.db3;*.sqlite)|*.db3;*.sqlite';
-            SaveDialog.DefaultExt := 'db3';
+            SaveDialog.DefaultExt := '.db3';
             SaveDialog.Encodings.Clear();
           end;
         etHTMLFile:
           begin
             SaveDialog.Filter := FilterDescription('html') + ' (*.html;*.htm)|*.html;*.htm';
-            SaveDialog.DefaultExt := 'html';
+            SaveDialog.DefaultExt := '.html';
             SaveDialog.Encodings.Text := EncodingCaptions(True);
           end;
         etPDFFile:
           begin
             SaveDialog.Filter := FilterDescription('pdf') + ' (*.pdf)|*.pdf';
-            SaveDialog.DefaultExt := 'pdf';
+            SaveDialog.DefaultExt := '.pdf';
             SaveDialog.Encodings.Clear();
           end;
         etXMLFile:
           begin
             SaveDialog.Filter := FilterDescription('xml') + ' (*.xml)|*.xml';
-            SaveDialog.DefaultExt := 'xml';
+            SaveDialog.DefaultExt := '.xml';
             SaveDialog.Encodings.Text := EncodingCaptions(True);
           end;
       end;
       SaveDialog.Filter := SaveDialog.Filter + '|' + FilterDescription('*') + ' (*.*)|*.*';
 
       if (Assigned(DExport.DBGrid)) then
-        SaveDialog.FileName := Preferences.LoadStr(362) + '.' + SaveDialog.DefaultExt
+        SaveDialog.FileName := Preferences.LoadStr(362) + SaveDialog.DefaultExt
       else if (not Assigned(Database)) then
-        SaveDialog.FileName := TCDBObject(DExport.DBObjects[0]).Database.Client.Account.Name + '.' + SaveDialog.DefaultExt
+        SaveDialog.FileName := TCDBObject(DExport.DBObjects[0]).Database.Client.Account.Name + SaveDialog.DefaultExt
       else if (DExport.DBObjects.Count = 1) then
-        SaveDialog.FileName := TCDBObject(DExport.DBObjects[0]).Name + '.' + SaveDialog.DefaultExt
+        SaveDialog.FileName := TCDBObject(DExport.DBObjects[0]).Name + SaveDialog.DefaultExt
       else
-        SaveDialog.FileName := Database.Name + '.' + SaveDialog.DefaultExt;
+        SaveDialog.FileName := Database.Name + SaveDialog.DefaultExt;
 
       if (SaveDialog.Encodings.Count = 0) then
         SaveDialog.EncodingIndex := -1
       else
         SaveDialog.EncodingIndex := SaveDialog.Encodings.IndexOf(CodePageToEncoding(CodePage));
 
-      if (SaveDialog.Execute()) then
+      if ((ExportType = etPrint) or SaveDialog.Execute()) then
       begin
         Path := ExtractFilePath(SaveDialog.FileName);
 

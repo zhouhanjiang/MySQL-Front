@@ -4,13 +4,13 @@ interface {********************************************************************}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, ComCtrls, ExtCtrls, StdCtrls, DB, ShDocVw, DBGrids,
+  Dialogs, ComCtrls, ExtCtrls, StdCtrls, DB, DBGrids,
   ODBCAPI,
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext, Dialogs_Ext,
   fClient, fAccount, fBase, fTools, fCWorkbench;
 
 type
-  TExportType = (etSQLFile, etTextFile, etExcelFile, etAccessFile, etSQLiteFile, etODBC, etHTMLFile, etPDFFile, etXMLFile, etPrint);
+  TExportType = (etSQLFile, etTextFile, etExcelFile, etAccessFile, etSQLiteFile, etODBC, etHTMLFile, etPrint, etPDFFile, etXMLFile);
 
   TSaveToStream = procedure(Stream: TStream) of object;
 
@@ -412,32 +412,11 @@ end;
 procedure TDExport.CMExecutionDone(var Message: TMessage);
 var
   Success: Boolean;
-  vaIn: OleVariant;
-  vaOut: OleVariant;
-  WebBrowser: TWebBrowser;
 begin
   Success := Boolean(Message.WParam);
 
   if (Assigned(Export)) then
     FreeAndNil(Export);
-
-  if (ExportType = etPrint) then
-  begin
-    WebBrowser := TWebBrowser.Create(Self);
-    WebBrowser.Navigate(Filename);
-
-    WebBrowser.Left := 0; WebBrowser.Top := 0; WebBrowser.Width := 0; WebBrowser.Height := 0;
-    WebBrowser.Visible := False;
-    InsertControl(WebBrowser);
-    while (WebBrowser.QueryStatusWB(OLECMDID_PRINT) and (OLECMDF_SUPPORTED + OLECMDF_ENABLED) <> OLECMDF_SUPPORTED + OLECMDF_ENABLED) do
-      Application.ProcessMessages();
-    if (ModalResult = mrNone) then
-      WebBrowser.ControlInterface.ExecWB(OLECMDID_PRINT, OLECMDEXECOPT_DODEFAULT, vaIn, vaOut);
-    RemoveControl(WebBrowser);
-    FreeAndNil(WebBrowser);
-
-    DeleteFile(Filename);
-  end;
 
   FBBack.Enabled := ExportType <> etSQLiteFile;
   FBCancel.Caption := Preferences.LoadStr(231);
@@ -501,22 +480,10 @@ begin
 end;
 
 function TDExport.Execute(): Boolean;
-var
-  FilenameP: array [0 .. MAX_PATH] of Char;
 begin
   PageControl.ActivePageIndex := -1;
 
-  if (ExportType <> etPrint) then
-    Result := True
-  else
-  begin
-    Result := (GetTempPath(MAX_PATH, @FilenameP) > 0) and (GetTempFileName(FilenameP, '~MF', 0, FilenameP) <> 0);
-    if (Result) then
-      Filename := FilenameP;
-  end;
-
-  if (Result) then
-    Result := ShowModal() = mrOk;
+  Result := ShowModal() = mrOk;
 end;
 
 procedure TDExport.FBBackClick(Sender: TObject);
@@ -863,7 +830,7 @@ begin
   FCreateDatabase.Checked := (DBObjects.Count > 1) and Preferences.Export.SQLCreateDatabase;
   TSCSVOptions.Enabled := ExportType in [etTextFile];
   TSXMLOptions.Enabled := (ExportType in [etXMLFile]) and not Assigned(DBGrid);
-  TSHTMLOptions.Enabled := ExportType in [etHTMLFile, etPDFFile, etPrint];
+  TSHTMLOptions.Enabled := ExportType in [etHTMLFile, etPrint, etPDFFile];
   TSFields.Enabled := (ExportType in [etExcelFile]) and ((DBObjects.Count = 1) or Assigned(DBGrid)) or (ExportType in [etXMLFile]) and Assigned(DBGrid);
   TSExecute.Enabled := not TSODBCSelect.Enabled and not TSSQLOptions.Enabled and not TSCSVOptions.Enabled and not TSHTMLOptions.Enabled and not TSFields.Enabled;
 
@@ -978,7 +945,7 @@ begin
   FLDestFields.Visible :=
     (ExportType = etTextFile) and FCSVHeadline.Checked
     or (ExportType = etExcelFile)
-    or (ExportType in [etXMLFile, etHTMLFile, etPDFFile, etPrint]) and not FHTMLStructure.Checked;
+    or (ExportType in [etXMLFile, etHTMLFile, etPrint, etPDFFile]) and not FHTMLStructure.Checked;
 
   if (FLDestFields.Visible) then
   begin
@@ -1024,7 +991,7 @@ begin
       FDestFields[I].Top := FDestField1.Top + I * (FField2.Top - FField1.Top);
       FDestFields[I].Width := FDestField1.Width;
       FDestFields[I].Height := FDestField1.Height;
-      FDestFields[I].Enabled := ExportType in [etTextFile, etExcelFile, etHTMLFile, etPDFFile, etXMLFile, etPrint];
+      FDestFields[I].Enabled := ExportType in [etTextFile, etExcelFile, etHTMLFile, etPrint, etPDFFile, etXMLFile];
       TEdit(FDestFields[I]).Text := FFields[I].Text;
       K := 2;
       for J := 0 to I - 1 do
@@ -1142,7 +1109,7 @@ procedure TDExport.TSExecuteShow(Sender: TObject);
 var
   ExportExcel: TTExportExcel;
   ExportHTML: TTExportHTML;
-  ExportPDF: TTExportPDF;
+  ExportPDF: TTExportCanvas;
   ExportSQL: TTExportSQL;
   ExportText: TTExportText;
   ExportXML: TTExportXML;
@@ -1264,8 +1231,7 @@ begin
         except
           MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
         end;
-      etHTMLFile,
-      etPrint:
+      etHTMLFile:
         try
           ExportHTML := TTExportHTML.Create(Client, Filename, CodePage);
           ExportHTML.Data := FHTMLData.Checked;
@@ -1278,9 +1244,13 @@ begin
         except
           MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
         end;
+      etPrint,
       etPDFFile:
         try
-          ExportPDF := TTExportPDF.Create(Client, Filename);
+          if (ExportType = etPrint) then
+            ExportPDF := TTExportPrint.Create(Client, Filename)
+          else
+            ExportPDF := TTExportPDF.Create(Client, Filename);
           ExportPDF.Data := FHTMLData.Checked;
           ExportPDF.NULLText := FHTMLNullText.Checked;
           ExportPDF.Structure := FHTMLStructure.Checked;
@@ -1461,8 +1431,7 @@ begin
         except
           MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
         end;
-      etHTMLFile,
-      etPrint:
+      etHTMLFile:
         try
           ExportHTML := TTExportHTML.Create(Client, Filename, CodePage);
           ExportHTML.Data := FHTMLData.Checked;
@@ -1477,9 +1446,13 @@ begin
         except
           MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
         end;
+      etPrint,
       etPDFFile:
         try
-          ExportPDF := TTExportPDF.Create(Client, Filename);
+          if (ExportType = etPrint) then
+            ExportPDF := TTExportPrint.Create(Client, Filename)
+          else
+            ExportPDF := TTExportPDF.Create(Client, Filename);
           ExportPDF.Data := FHTMLData.Checked;
           ExportPDF.NULLText := FHTMLNullText.Checked;
           ExportPDF.Structure := FHTMLStructure.Checked;
@@ -1530,8 +1503,8 @@ begin
   FHTMLStructureClick(Sender);
   FHTMLDataClick(Sender);
 
-  FHTMLShowMemoContent.Visible := ExportType <> etPDFFile; FLHTMLViewDatas.Visible := FHTMLShowMemoContent.Visible;
-  FHTMLRowBGColorEnabled.Visible := ExportType <> etPDFFile; FLHTMLBGColorEnabled.Visible := FHTMLRowBGColorEnabled.Visible;
+  FHTMLShowMemoContent.Visible := not (ExportType in [etPrint, etPDFFile]); FLHTMLViewDatas.Visible := FHTMLShowMemoContent.Visible;
+  FHTMLRowBGColorEnabled.Visible := not (ExportType in [etPrint, etPDFFile]); FLHTMLBGColorEnabled.Visible := FHTMLRowBGColorEnabled.Visible;
 end;
 
 procedure TDExport.TSODBCSelectShow(Sender: TObject);

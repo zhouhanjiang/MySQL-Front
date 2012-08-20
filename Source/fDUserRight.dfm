@@ -221,7 +221,7 @@ object DUserRight: TDUserRight
       Width = 97
       Height = 17
       Caption = 'FReload'
-      TabOrder = 20
+      TabOrder = 21
       OnClick = FBOkCheckEnabled
     end
     object FUpdate: TCheckBox
@@ -248,7 +248,7 @@ object DUserRight: TDUserRight
       Width = 97
       Height = 17
       Caption = 'FShutdown'
-      TabOrder = 26
+      TabOrder = 27
       OnClick = FBOkCheckEnabled
     end
     object FProcess: TCheckBox
@@ -266,7 +266,7 @@ object DUserRight: TDUserRight
       Width = 97
       Height = 17
       Caption = 'FFile'
-      TabOrder = 21
+      TabOrder = 22
       OnClick = FBOkCheckEnabled
     end
     object FCreateTempTable: TCheckBox
@@ -302,7 +302,7 @@ object DUserRight: TDUserRight
       Width = 97
       Height = 17
       Caption = 'FReplClient'
-      TabOrder = 22
+      TabOrder = 23
       OnClick = FBOkCheckEnabled
     end
     object FReplSlave: TCheckBox
@@ -311,7 +311,7 @@ object DUserRight: TDUserRight
       Width = 97
       Height = 17
       Caption = 'FReplSlave'
-      TabOrder = 23
+      TabOrder = 24
       OnClick = FBOkCheckEnabled
     end
     object FSuper: TCheckBox
@@ -320,7 +320,7 @@ object DUserRight: TDUserRight
       Width = 97
       Height = 17
       Caption = 'FSuper'
-      TabOrder = 27
+      TabOrder = 28
       OnClick = FBOkCheckEnabled
     end
     object FShowDatabase: TCheckBox
@@ -338,7 +338,7 @@ object DUserRight: TDUserRight
       Width = 97
       Height = 17
       Caption = 'FGrant'
-      TabOrder = 24
+      TabOrder = 25
       OnClick = FBOkCheckEnabled
     end
     object FCreateView: TCheckBox
@@ -383,7 +383,7 @@ object DUserRight: TDUserRight
       Width = 97
       Height = 17
       Caption = 'FCreateUser'
-      TabOrder = 25
+      TabOrder = 26
       OnClick = FBOkCheckEnabled
     end
     object FEvent: TCheckBox
@@ -403,6 +403,22 @@ object DUserRight: TDUserRight
       Caption = 'FTrigger'
       TabOrder = 15
       OnClick = FBOkCheckEnabled
+    end
+    object FProxy: TCheckBox
+      Left = 216
+      Top = 360
+      Width = 97
+      Height = 17
+      Caption = 'FProxy'
+      TabOrder = 29
+    end
+    object FCreateTableSpace: TCheckBox
+      Left = 216
+      Top = 264
+      Width = 97
+      Height = 17
+      Caption = 'FCreateTableSpace'
+      TabOrder = 20
     end
   end
 end

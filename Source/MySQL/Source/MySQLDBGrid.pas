@@ -12,9 +12,9 @@ type
   type
     TSearchNotFoundEvent = procedure(Sender: TObject; FindText: string) of object;
     TFilterChange = procedure(Sender: TObject; Index: Integer) of object;
-    TDBMySQLInplaceEdit = class(TInplaceEditList) // ToDo: TInplaceEditList
+    TDBMySQLInplaceEdit = class(TInplaceEditList)
     private
-      Test: Integer; // Why is this needed??? Without this, there is Access Violation while freeing TMySQLDBGrid, if the InplaceEditor has been used
+      DoNotRemove: Integer; // Why is this needed??? Without this, there is Access Violation while freeing TMySQLDBGrid, if the InplaceEditor has been used in Delphi XE2
     protected
       procedure CloseUp(Accept: Boolean); override;
       procedure DoEditButtonClick(); override;
@@ -138,7 +138,7 @@ constructor TMySQLDBGrid.TDBMySQLInplaceEdit.Create(Owner: TComponent);
 begin
   inherited;
 
-  Test := 0; // This avoids compiler warning only
+  DoNotRemove := 0; // This avoids compiler warning only
 end;
 
 procedure TMySQLDBGrid.TDBMySQLInplaceEdit.DoEditButtonClick();

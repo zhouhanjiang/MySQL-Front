@@ -4,7 +4,7 @@ interface {********************************************************************}
 
 uses
   Windows, XMLDoc, XMLIntf, DBGrids, msxml, Zip,
-  SysUtils, DB, Classes, Graphics, SyncObjs,
+  SysUtils, DB, Classes, Graphics, SyncObjs, Printers,
   ODBCAPI,
   DISQLite3Api,
   SynPDF,
@@ -24,7 +24,7 @@ type
       DatabaseName: string;
       TableName: string;
     end;
-    TErrorType = (TE_Database, TE_NoPrimaryIndex, TE_DifferentPrimaryIndex, TE_File, TE_ODBC, TE_SQLite, TE_XML, TE_Warning);
+    TErrorType = (TE_Database, TE_NoPrimaryIndex, TE_DifferentPrimaryIndex, TE_File, TE_ODBC, TE_SQLite, TE_XML, TE_Warning, TE_Printer);
     TError = record
       ErrorType: TErrorType;
       ErrorCode: Integer;
@@ -555,52 +555,90 @@ type
     constructor Create(const AClient: TCClient; const AFilename: TFileName); reintroduce; virtual;
   end;
 
-  TTExportPDF = class(TTExport)
+  TTExportCanvas = class(TTExport)
   type
     TColumn = record
-      Alignment: TLeftRight;
       Canvas: TCanvas;
-      Field: TField;
+      HeaderBold: Boolean;
+      HeaderText: string;
       Left: Integer;
       Width: Integer;
     end;
+    TGridData = array of array of record
+      Bold: Boolean;
+      Gray: Boolean;
+      Text: string;
+    end;
   const
-    LineWidth = 1;
-    Padding = 2;
-    Margins: TRect = (Left: 72; Top: 36; Right: 36; Bottom: 36);
+    PaddingMilliInch = 20;
+    LineHeightMilliInch = 10;
+    LineWidthMilliInch = 10;
+    MarginsMilliInch: TRect = (Left: 1000; Top: 500; Right: 500; Bottom: 500);
   private
-    Canvas: TCanvas;
     Columns: array of TColumn;
     ContentArea: TRect;
+    ContentFont: TFont;
     DateTime: TDateTime;
-    DefaultFont: TFont;
-    Filename: TFileName;
     GridFont: TFont;
-    GridRowHeight: Integer;
     GridTop: Integer;
-    MaxCharLengths: array of array of Integer;
+    MaxFieldsCharLengths: array of array of Integer;
     PageFont: TFont;
-    PageHeight: Integer;
-    PageWidth: Integer;
-    PDF: TPDFDocumentGDI;
+    PageNumber: record Row, Column: Integer; end;
     SQLFont: TFont;
     Y: Integer;
     function AllocateHeight(const Height: Integer): Boolean;
+    procedure ContentTextOut(Text: string; const ExtraPadding: Integer = 0);
+    procedure GridDrawHorzLine(const Y: Integer);
     procedure GridDrawVertLines();
-    procedure GridHeader(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
-    procedure GridHorzLine(const Y: Integer);
-    procedure PageBreak();
+    procedure GridHeader();
+    procedure GridOut(var GridData: TGridData);
+    function GridTextOut(const Column: Integer; Text: string; const TextFormat: TTextFormat; const Bold, Gray: Boolean): Integer;
+    procedure PageBreak(const NewPageRow: Boolean);
     procedure PageFooter();
-    procedure TextOut(const X, Y: Integer; Text: string; const ExtraBottomPadding: Integer = 0);
   protected
+    Canvas: TCanvas;
+    LineHeight: Integer;
+    LineWidth: Integer;
+    Margins: TRect;
+    Padding: Integer;
+    PageHeight: Integer;
+    PageWidth: Integer;
+    procedure AddPage(const NewPageRow: Boolean); virtual; abstract;
     procedure ExecuteDatabaseHeader(const Database: TCDatabase); override;
     procedure ExecuteFooter(); override;
     procedure ExecuteHeader(); override;
+    procedure ExecuteTableFooter(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableHeader(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableRecord(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
   public
     IndexBackground: Boolean;
     NULLText: Boolean;
+    constructor Create(const AClient: TCClient); override;
+    destructor Destroy(); override;
+  end;
+
+  TTExportPrint = class(TTExportCanvas)
+  private
+    Pages: array of TCanvas;
+    Printer: TPrinter;
+  protected
+    procedure AddPage(const NewPageRow: Boolean); override;
+    procedure ExecuteHeader(); override;
+    procedure ExecuteFooter(); override;
+  public
+    constructor Create(const AClient: TCClient; const ATitle: string); reintroduce; virtual;
+    destructor Destroy(); override;
+  end;
+
+  TTExportPDF = class(TTExportCanvas)
+  private
+    PDF: TPDFDocumentGDI;
+    Filename: TFileName;
+  protected
+    procedure AddPage(const NewPageRow: Boolean); override;
+    procedure ExecuteHeader(); override;
+    procedure ExecuteFooter(); override;
+  public
     constructor Create(const AClient: TCClient; const AFilename: TFileName); reintroduce; virtual;
     destructor Destroy(); override;
   end;
@@ -3981,7 +4019,7 @@ begin
     end;
   end;
 
-  if (Success <> daSuccess) then
+  if ((Success <> daSuccess) or not Data) then
     SetLength(Fields, 0)
   else
   begin
@@ -5010,9 +5048,9 @@ begin
         if (Table.Fields[I].AutoIncrement) then
           Content := Content + '<td>&lt;auto_increment&gt;</td>'
         else if (Table.Fields[I].Default = 'NULL') then
-          Content := Content + '&lt;' + Preferences.LoadStr(71) + '&gt;'
+          Content := Content + '<td class="DataNull">&lt;' + Preferences.LoadStr(71) + '&gt;</td>'
         else if (Table.Fields[I].Default = 'CURRENT_TIMESTAMP') then
-          Content := Content + '&lt;INSERT-TimeStamp&gt;'
+          Content := Content + '<td>&lt;INSERT-TimeStamp&gt;</td>'
         else if (Table.Fields[I].Default <> '') then
           Content := Content + '<td>' + Escape(Table.Fields[I].UnescapeValue(Table.Fields[I].Default)) + '</td>'
         else
@@ -5025,7 +5063,7 @@ begin
           if ((Table.Fields[I].Collation <> '') and (Table.Fields[I].Collation <> TCBaseTable(Table).Collation)) then
           begin
             if (S <> '') then S := S + ', ';
-            S := S + TCBaseTableField(Data).Collation;
+            S := S + Table.Fields[I].Collation;
           end;
         end;
         if (S <> '') then
@@ -5057,15 +5095,15 @@ begin
           Content := Content + '<th>' + Escape(TCBaseTable(Table).ForeignKeys[I].Name) + '</th>';
           Content := Content + '<td>' + Escape(TCBaseTable(Table).ForeignKeys[I].DBTypeStr()) + '</td>';
           S := '';
-          if (TCForeignKey(Data).OnDelete = dtCascade) then S := 'cascade on delete';
-          if (TCForeignKey(Data).OnDelete = dtSetNull) then S := 'set NULL on delete';
-          if (TCForeignKey(Data).OnDelete = dtSetDefault) then S := 'set default on delete';
-          if (TCForeignKey(Data).OnDelete = dtNoAction) then S := 'no action on delete';
+          if (TCBaseTable(Table).ForeignKeys[I].OnDelete = dtCascade) then S := 'cascade on delete';
+          if (TCBaseTable(Table).ForeignKeys[I].OnDelete = dtSetNull) then S := 'set NULL on delete';
+          if (TCBaseTable(Table).ForeignKeys[I].OnDelete = dtSetDefault) then S := 'set default on delete';
+          if (TCBaseTable(Table).ForeignKeys[I].OnDelete = dtNoAction) then S := 'no action on delete';
           S2 := '';
-          if (TCForeignKey(Data).OnUpdate = utCascade) then S2 := 'cascade on update';
-          if (TCForeignKey(Data).OnUpdate = utSetNull) then S2 := 'set NULL on update';
-          if (TCForeignKey(Data).OnUpdate = utSetDefault) then S2 := 'set default on update';
-          if (TCForeignKey(Data).OnUpdate = utNoAction) then S2 := 'no action on update';
+          if (TCBaseTable(Table).ForeignKeys[I].OnUpdate = utCascade) then S2 := 'cascade on update';
+          if (TCBaseTable(Table).ForeignKeys[I].OnUpdate = utSetNull) then S2 := 'set NULL on update';
+          if (TCBaseTable(Table).ForeignKeys[I].OnUpdate = utSetDefault) then S2 := 'set default on update';
+          if (TCBaseTable(Table).ForeignKeys[I].OnUpdate = utNoAction) then S2 := 'no action on update';
           if (S <> '') and (S2 <> '') then S := S + ', ';
           S := S + S2;
           Content := Content + '<td>' + Escape(S) + '</td>';
@@ -5137,9 +5175,9 @@ begin
   for I := 0 to Length(Fields) - 1 do
     if (Fields[I].IsNull) then
       if (NULLText) then
-        Content := Content + '<td class="DataNull">&lt;NULL&gt;</td>'
+        Content := Content + '<td class="Null">&lt;NULL&gt;</td>'
       else
-        Content := Content + '<td class="DataNull">&nbsp;</td>'
+        Content := Content + '<td class="Null">&nbsp;</td>'
     else
     begin
       if (DataSet.LibLengths^[I] = 0) then
@@ -5478,9 +5516,11 @@ begin
       ftDate,
       ftDateTime,
       ftTimestamp,
-      ftTime,
-      ftWideString:
+      ftTime:
         FreeMem(Parameter[I].Buffer);
+      ftWideString:
+        if (Fields[I].Size < 256) then
+          FreeMem(Parameter[I].Buffer);
     end;
   SetLength(Parameter, 0);
 end;
@@ -5681,11 +5721,22 @@ begin
           end;
         ftWideString:
           begin
-            ValueType := SQL_C_WCHAR;
-            ParameterType := SQL_WCHAR;
-            ColumnSize := Fields[I].Size;
-            Parameter[I].BufferSize := ColumnSize * SizeOf(Char);
-            GetMem(Parameter[I].Buffer, Parameter[I].BufferSize);
+            if (Fields[I].Size < 256) then
+            begin
+              ValueType := SQL_C_WCHAR;
+              ParameterType := SQL_WCHAR;
+              ColumnSize := Fields[I].Size;
+              Parameter[I].BufferSize := ColumnSize * SizeOf(Char);
+              GetMem(Parameter[I].Buffer, Parameter[I].BufferSize);
+            end
+            else
+            begin
+              ValueType := SQL_C_WCHAR;
+              ParameterType := SQL_WLONGVARCHAR;
+              ColumnSize := Fields[I].Size;
+              Parameter[I].BufferSize := ODBCDataSize;
+              Parameter[I].Buffer := SQLPOINTER(I);
+            end;
           end;
         ftWideMemo:
           begin
@@ -5789,7 +5840,10 @@ begin
             end;
           end;
         ftWideString:
-          Parameter[I].Size := AnsiCharToWideChar(Client.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], Parameter[I].Buffer, Parameter[I].BufferSize div SizeOf(Char));
+          if (Fields[I].Size < 256) then
+            Parameter[I].Size := AnsiCharToWideChar(Client.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], Parameter[I].Buffer, Parameter[I].BufferSize div SizeOf(Char))
+          else
+            Parameter[I].Size := SQL_LEN_DATA_AT_EXEC(AnsiCharToWideChar(Client.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], nil, 0) * SizeOf(Char));
         ftWideMemo:
           Parameter[I].Size := SQL_LEN_DATA_AT_EXEC(AnsiCharToWideChar(Client.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], nil, 0) * SizeOf(Char));
         ftBlob:
@@ -5805,6 +5859,7 @@ begin
       I := SQLINTEGER(Field);
       if (ReturnCode = SQL_NEED_DATA) then
         case (Fields[I].DataType) of
+          ftWideString,
           ftWideMemo:
             begin
               Size := -(Parameter[I].Size - SQL_LEN_DATA_AT_EXEC_OFFSET);
@@ -6161,43 +6216,58 @@ begin
   SQLiteException(Handle, sqlite3_reset(Stmt));
 end;
 
-{ TTExportPDF *****************************************************************}
+{ TTExportCanvas **************************************************************}
 
-function TTExportPDF.AllocateHeight(const Height: Integer): Boolean;
+function TTExportCanvas.AllocateHeight(const Height: Integer): Boolean;
 begin
   Result := Y + Height > ContentArea.Bottom;
   if (Result) then
-    PageBreak();
+  begin
+    if (Length(Columns) > 0) then
+      GridDrawVertLines();
+
+    PageBreak(True);
+  end;
 end;
 
-constructor TTExportPDF.Create(const AClient: TCClient; const AFilename: TFileName);
+procedure TTExportCanvas.ContentTextOut(Text: string; const ExtraPadding: Integer = 0);
+var
+  R: TRect;
+begin
+  R := Rect(ContentArea.Left, Y, ContentArea.Right, ContentArea.Bottom);
+  Canvas.TextRect(R, Text, [tfCalcRect, tfWordBreak]);
+
+  AllocateHeight(ExtraPadding + R.Bottom - R.Top + Padding + ExtraPadding);
+
+  if (Y > ContentArea.Top) then
+    Inc(Y, ExtraPadding);
+  R := Rect(ContentArea.Left, Y, ContentArea.Right, Y + R.Bottom - R.Top);
+  Canvas.TextRect(R, Text, [tfWordBreak]);
+
+  Inc(Y, R.Bottom - R.Top + Padding + ExtraPadding);
+end;
+
+constructor TTExportCanvas.Create(const AClient: TCClient);
 var
   NonClientMetrics: TNonClientMetrics;
 begin
   inherited Create(AClient);
 
-  Filename := AFilename;
-
   DateTime := Client.ServerDateTime;
-  DefaultFont := TFont.Create();
+  ContentFont := TFont.Create();
   GridFont := TFont.Create();
   IndexBackground := False;
   NULLText := True;
   PageFont := TFont.Create();
+  PageNumber.Row := 1;
   SQLFont := TFont.Create();
-
-  PDF := TPDFDocumentGDI.Create(False, CP_UTF8, False);
-  PDF.DefaultPaperSize := CurrentPrinterPaperSize();
-  PDF.Info.Data.AddItemTextString('Producer', SysUtils.LoadStr(1000));
-
-  PageBreak();
 
   NonClientMetrics.cbSize := SizeOf(NonClientMetrics);
   if (SystemParametersInfo(SPI_GETNONCLIENTMETRICS, SizeOf(NonClientMetrics), @NonClientMetrics, 0)) then
-    DefaultFont.Handle := CreateFontIndirect(NonClientMetrics.lfMessageFont)
+    ContentFont.Handle := CreateFontIndirect(NonClientMetrics.lfMessageFont)
   else
-    DefaultFont.Assign(Canvas.Font);
-  DefaultFont.Color := clBlack;
+    ContentFont.Assign(Canvas.Font);
+  ContentFont.Color := clBlack;
 
   GridFont.Name := Preferences.GridFontName;
   GridFont.Style := Preferences.GridFontStyle;
@@ -6211,26 +6281,23 @@ begin
   SQLFont.Color := clBlack;
   SQLFont.Size := Preferences.SQLFontSize;
 
-  PageFont.Assign(DefaultFont); PageFont.Size := PageFont.Size - 2;
+  PageFont.Assign(ContentFont);
+  PageFont.Size := PageFont.Size - 2;
 
-  PageWidth := Trunc(Integer(PDF.DefaultPageWidth) * GetDeviceCaps(Canvas.Handle, LOGPIXELSX) / 72); // PDF expect 72 pixels per inch
-  PageHeight := Trunc(Integer(PDF.DefaultPageHeight) * GetDeviceCaps(Canvas.Handle, LOGPIXELSY) / 72); // PDF expect 72 pixels per inch
-
+  Canvas.Font.Assign(PageFont);
   ContentArea.Left := Margins.Left;
   ContentArea.Top := Margins.Top;
   ContentArea.Right := PageWidth - Margins.Right;
-  ContentArea.Bottom := PageHeight - (Margins.Bottom + -PageFont.Height + Padding + LineWidth + 10);
-
-  GridRowHeight := Padding + -GridFont.Height + Padding + LineWidth;
+  ContentArea.Bottom := PageHeight - (Margins.Bottom + -Canvas.Font.Height + Padding + LineHeight + 10);
 
   Y := ContentArea.Top;
+
+  Canvas.Font.Assign(ContentFont);
 end;
 
-destructor TTExportPDF.Destroy();
+destructor TTExportCanvas.Destroy();
 begin
-  PDF.Free();
-
-  DefaultFont.Free();
+  ContentFont.Free();
   GridFont.Free();
   PageFont.Free();
   SQLFont.Free();
@@ -6238,29 +6305,26 @@ begin
   inherited;
 end;
 
-procedure TTExportPDF.ExecuteDatabaseHeader(const Database: TCDatabase);
+procedure TTExportCanvas.ExecuteDatabaseHeader(const Database: TCDatabase);
 begin
   if (Assigned(Database)) then
   begin
-    Canvas.Font.Assign(DefaultFont);
+    Canvas.Font.Assign(ContentFont);
     Canvas.Font.Size := Canvas.Font.Size + 6;
     Canvas.Font.Style := Canvas.Font.Style + [fsBold];
 
-    TextOut(ContentArea.Left, Y, ReplaceStr(Preferences.LoadStr(38), '&', '') + ': ' + Database.Name, 6);
+    ContentTextOut(ReplaceStr(Preferences.LoadStr(38), '&', '') + ': ' + Database.Name, 3 * Padding);
   end;
 end;
 
-procedure TTExportPDF.ExecuteFooter();
+procedure TTExportCanvas.ExecuteFooter();
 begin
   PageFooter();
 
   inherited;
-
-  while ((Success = daSuccess) and not PDF.SaveToFile(Filename)) do
-    DoError(SysError(), EmptyToolsItem());
 end;
 
-procedure TTExportPDF.ExecuteHeader();
+procedure TTExportCanvas.ExecuteHeader();
 var
   DataHandle: TMySQLConnection.TDataResult;
   DataSet: TMySQLQuery;
@@ -6270,12 +6334,9 @@ var
   SQL: string;
   Tables: TList;
 begin
-  while (FileExists(Filename) and not DeleteFile(Filename)) do
-    DoError(SysError(), EmptyToolsItem());
-
   if (Success = daSuccess) then
   begin
-    SetLength(MaxCharLengths, 0);
+    SetLength(MaxFieldsCharLengths, 0);
 
     Tables := TList.Create();
 
@@ -6285,14 +6346,14 @@ begin
       begin
         Tables.Add(ExportObjects[I].DBObject);
 
-        SQL := 'SELECT ';
+        SQL := SQL + 'SELECT ';
         for J := 0 to TCTable(ExportObjects[I].DBObject).Fields.Count - 1 do
         begin
           if (J > 0) then SQL := SQL + ',';
           if (TCTable(ExportObjects[I].DBObject).Fields[J].FieldType in LOBFieldTypes) then
             SQL := SQL + '0'
           else if (TCTable(ExportObjects[I].DBObject).Fields[J].FieldType = mfBit) then
-            SQL := SQL + 'MAX(' + Client.EscapeIdentifier(TCTable(ExportObjects[I].DBObject).Fields[J].Name) + ')+0' // MySQL 5.5.22 reports without the "+0" a wrong field_type for bit fields
+            SQL := SQL + 'MAX(' + Client.EscapeIdentifier(TCTable(ExportObjects[I].DBObject).Fields[J].Name) + ')+0' // MySQL 5.5.22 reports without the "+0" the MYSQL_TYPE_BIT field_type, but a char result
           else
             SQL := SQL + 'MAX(CHAR_LENGTH(' + Client.EscapeIdentifier(TCTable(ExportObjects[I].DBObject).Fields[J].Name) + '))';
           SQL := SQL + ' AS ' + Client.EscapeIdentifier(TCTable(ExportObjects[I].DBObject).Fields[J].Name);
@@ -6300,29 +6361,33 @@ begin
         SQL := SQL + ' FROM ' + Client.EscapeIdentifier(ExportObjects[I].DBObject.Database.Name) + '.' + Client.EscapeIdentifier(ExportObjects[I].DBObject.Name) + ';' + #13#10;
       end;
 
-    for J := 0 to Tables.Count - 1 do
-      if (Success = daSuccess) then
-      begin
-        if (J = 0) then
-          while ((Success = daSuccess) and not Client.FirstResult(DataHandle, SQL)) do
-            DoError(DatabaseError(Client), EmptyToolsItem(), SQL)
-        else
-          if ((Success = daSuccess) and not Client.NextResult(DataHandle)) then
-            DoError(DatabaseError(Client), EmptyToolsItem());
+    if (Success = daSuccess) then
+    begin
+      for J := 0 to Tables.Count - 1 do
         if (Success = daSuccess) then
-          for I := 0 to Length(ExportObjects) - 1 do
-            if (Tables[J] = ExportObjects[I].DBObject) then
-            begin
-              SetLength(MaxCharLengths, Length(MaxCharLengths) + 1);
-              SetLength(MaxCharLengths[Length(MaxCharLengths) - 1], TCTable(Tables[J]).Fields.Count);
-              DataSet := TMySQLQuery.Create(nil);
-              DataSet.Open(DataHandle);
-              if (not DataSet.IsEmpty) then
-                for K := 0 to DataSet.FieldCount - 1 do
-                  MaxCharLengths[Length(MaxCharLengths) - 1][K] := DataSet.Fields[K].AsInteger;
-              DataSet.Free();
-            end;
-      end;
+        begin
+          if (J = 0) then
+            while ((Success = daSuccess) and not Client.FirstResult(DataHandle, SQL)) do
+              DoError(DatabaseError(Client), EmptyToolsItem(), SQL)
+          else
+            if ((Success = daSuccess) and not Client.NextResult(DataHandle)) then
+              DoError(DatabaseError(Client), EmptyToolsItem());
+          if (Success = daSuccess) then
+            for I := 0 to Length(ExportObjects) - 1 do
+              if (Tables[J] = ExportObjects[I].DBObject) then
+              begin
+                SetLength(MaxFieldsCharLengths, Length(MaxFieldsCharLengths) + 1);
+                SetLength(MaxFieldsCharLengths[Length(MaxFieldsCharLengths) - 1], TCTable(Tables[J]).Fields.Count);
+                DataSet := TMySQLQuery.Create(nil);
+                DataSet.Open(DataHandle);
+                if (not DataSet.IsEmpty) then
+                  for K := 0 to DataSet.FieldCount - 1 do
+                    MaxFieldsCharLengths[Length(MaxFieldsCharLengths) - 1][K] := DataSet.Fields[K].AsInteger;
+                DataSet.Free();
+              end;
+        end;
+      Client.CloseResult(DataHandle);
+    end;
 
     Tables.Free();
   end;
@@ -6330,65 +6395,225 @@ begin
   inherited;
 end;
 
-procedure TTExportPDF.ExecuteTableHeader(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportCanvas.ExecuteTableFooter(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+begin
+  if (Length(Columns) > 0) then
+  begin
+    GridDrawVertLines();
+    SetLength(Columns, 0);
+  end;
+
+  Inc(Y, -Canvas.Font.Height);
+end;
+
+procedure TTExportCanvas.ExecuteTableHeader(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
   I: Integer;
   J: Integer;
+  K: Integer;
+  GridData: TGridData;
+  MaxTextWidth: Integer;
+  S: string;
+  S2: string;
   StringList: TStringList;
 begin
-  Canvas.Font.Assign(DefaultFont);
+  Canvas.Font.Assign(ContentFont);
   Canvas.Font.Size := Canvas.Font.Size + 4;
   Canvas.Font.Style := Canvas.Font.Style + [fsBold];
 
   if (Length(DBGrids) = 0) then
     if (Table is TCBaseTable) then
     begin
-      TextOut(ContentArea.Left, Y, ReplaceStr(Preferences.LoadStr(302), '&', '') + ': ' + Table.Name, 4);
+      ContentTextOut(ReplaceStr(Preferences.LoadStr(302), '&', '') + ': ' + Table.Name, 2 * Padding);
       if (TCBaseTable(Table).Comment <> '') then
-        TextOut(ContentArea.Left, Y, ReplaceStr(Preferences.LoadStr(111), '&', '') + ': ' + TCBaseTable(Table).Comment, 4);
+        ContentTextOut(ReplaceStr(Preferences.LoadStr(111), '&', '') + ': ' + TCBaseTable(Table).Comment, 2 * Padding);
     end
     else if (Table is TCView) then
-      TextOut(ContentArea.Left, Y, ReplaceStr(Preferences.LoadStr(738), '&', '') + ': ' + Table.Name, 4)
+      ContentTextOut(ReplaceStr(Preferences.LoadStr(738), '&', '') + ': ' + Table.Name, 2 * Padding)
     else if (Structure) then
-      TextOut(ContentArea.Left, Y, ReplaceStr(Preferences.LoadStr(216), '&', ''), 4);
+      ContentTextOut(ReplaceStr(Preferences.LoadStr(216), '&', ''), 2 * Padding);
 
   if (Structure) then
     if (Length(DBGrids) > 0) then
     begin
-      Canvas.Font.Assign(DefaultFont);
+      Canvas.Font.Assign(ContentFont);
       Canvas.Font.Size := Canvas.Font.Size + 2;
       Canvas.Font.Style := Canvas.Font.Style + [fsBold];
-      TextOut(ContentArea.Left, Y, ReplaceStr(Preferences.LoadStr(794), '&', '') + ':', 2);
+      ContentTextOut(ReplaceStr(Preferences.LoadStr(794), '&', '') + ':', Padding);
 
       Canvas.Font.Assign(SQLFont);
 
       StringList := TStringList.Create();
       StringList.Text := DataSet.CommandText + ';';
       for I := 0 to StringList.Count - 1 do
-        TextOut(ContentArea.Left, Y, StringList[I]);
+        ContentTextOut(StringList[I]);
       StringList.Free();
     end
     else
     begin
       if ((Table is TCBaseTable) and (TCBaseTable(Table).Keys.Count > 0)) then
       begin
-        Canvas.Font.Assign(DefaultFont);
+        Canvas.Font.Assign(ContentFont);
         Canvas.Font.Size := Canvas.Font.Size + 2;
         Canvas.Font.Style := Canvas.Font.Style + [fsBold];
-        TextOut(ContentArea.Left, Y, Preferences.LoadStr(458) + ':');
+        ContentTextOut(Preferences.LoadStr(458) + ':', Padding);
+
+        if (Client.ServerVersion < 50503) then
+          SetLength(Columns, 3)
+        else
+          SetLength(Columns, 4);
+        Columns[0].HeaderText := ReplaceStr(Preferences.LoadStr(35), '&', '');
+        Columns[1].HeaderText := Preferences.LoadStr(69);
+        Columns[2].HeaderText := ReplaceStr(Preferences.LoadStr(73), '&', '');
+        if (Client.ServerVersion >= 50503) then
+          Columns[3].HeaderText := ReplaceStr(Preferences.LoadStr(111), '&', '');
+
+        SetLength(GridData, TCBaseTable(Table).Keys.Count);
+        for I := 0 to TCBaseTable(Table).Keys.Count - 1 do
+        begin
+          SetLength(GridData[I], Length(Columns));
+
+          for J := 0 to Length(Columns) - 1 do
+          begin
+            GridData[I][J].Bold := False;
+            GridData[I][J].Gray := False;
+          end;
+
+          GridData[I][0].Bold := TCBaseTable(Table).Keys[I].Primary;
+          GridData[I][0].Text := TCBaseTable(Table).Keys[I].Caption;
+          S := '';
+          for K := 0 to TCBaseTable(Table).Keys[I].Columns.Count - 1 do
+            begin
+              if (S <> '') then S := S + ', ';
+              S := S + TCBaseTable(Table).Keys[I].Columns[K].Field.Name;
+            end;
+          GridData[I][1].Text := S;
+          if (TCBaseTable(Table).Keys[I].Unique) then
+            GridData[I][2].Text := 'unique'
+          else if (TCBaseTable(Table).Keys[I].Fulltext) then
+            GridData[I][2].Text := 'fulltext'
+          else
+            GridData[I][2].Text := '';
+          if (Client.ServerVersion >= 50503) then
+            GridData[I][3].Text := TCBaseTable(Table).Keys[I].Comment;
+        end;
+
+        GridOut(GridData);
       end;
 
-      Canvas.Font.Assign(DefaultFont);
+      {------------------------------------------------------------------------}
+
+      Canvas.Font.Assign(ContentFont);
       Canvas.Font.Size := Canvas.Font.Size + 2;
       Canvas.Font.Style := Canvas.Font.Style + [fsBold];
-      TextOut(ContentArea.Left, Y, Preferences.LoadStr(253) + ':');
+      ContentTextOut(Preferences.LoadStr(253) + ':', Padding);
+
+      if (Client.ServerVersion < 40100) then
+        SetLength(Columns, 5)
+      else
+        SetLength(Columns, 6);
+      Columns[0].HeaderText := ReplaceStr(Preferences.LoadStr(35), '&', '');
+      Columns[1].HeaderText := Preferences.LoadStr(69);
+      Columns[2].HeaderText := Preferences.LoadStr(71);
+      Columns[3].HeaderText := Preferences.LoadStr(72);
+      Columns[4].HeaderText := ReplaceStr(Preferences.LoadStr(73), '&', '');
+      if (Client.ServerVersion >= 40100) then
+        Columns[5].HeaderText := ReplaceStr(Preferences.LoadStr(111), '&', '');
+
+
+      SetLength(GridData, Table.Fields.Count);
+      for I := 0 to Table.Fields.Count - 1 do
+      begin
+        SetLength(GridData[I], Length(Columns));
+
+        for J := 0 to Length(Columns) - 1 do
+        begin
+          GridData[I][J].Bold := False;
+          GridData[I][J].Gray := False;
+        end;
+
+        GridData[I][0].Bold := Table.Fields[I].InPrimaryKey;
+        GridData[I][0].Text := Table.Fields[I].Name;
+        GridData[I][1].Text := Table.Fields[I].DBTypeStr();
+        if (Table.Fields[I].NullAllowed) then
+          GridData[I][2].Text := Preferences.LoadStr(74)
+        else
+          GridData[I][2].Text := Preferences.LoadStr(75);
+        if (Table.Fields[I].AutoIncrement) then
+          GridData[I][3].Text := '<auto_increment>'
+        else if (Table.Fields[I].Default = 'NULL') then
+        begin
+          GridData[I][3].Gray := True;
+          GridData[I][3].Text := '<' + Preferences.LoadStr(71) + '>';
+        end
+        else if (Table.Fields[I].Default = 'CURRENT_TIMESTAMP') then
+          GridData[I][3].Text := '<INSERT-TimeStamp>'
+        else if (Table.Fields[I].Default <> '') then
+          GridData[I][3].Text := Table.Fields[I].UnescapeValue(Table.Fields[I].Default)
+        else
+          GridData[I][3].Text := '';
+        S := '';
+        if ((Table is TCBaseTable) and (Table.Fields[I].FieldType in TextFieldTypes)) then
+        begin
+          if ((Table.Fields[I].Charset <> '') and (Table.Fields[I].Charset <> TCBaseTable(Table).DefaultCharset)) then
+            S := S + Table.Fields[I].Charset;
+          if ((Table.Fields[I].Collation <> '') and (Table.Fields[I].Collation <> TCBaseTable(Table).Collation)) then
+          begin
+            if (S <> '') then S := S + ', ';
+            S := S + Table.Fields[I].Collation;
+          end;
+        end;
+        GridData[I][4].Text := S;
+        if (Client.ServerVersion >= 40100) then
+          GridData[I][5].Text := TCBaseTableField(Table.Fields[I]).Comment;
+      end;
+
+      GridOut(GridData);
+
+      {------------------------------------------------------------------------}
 
       if ((Table is TCBaseTable) and (TCBaseTable(Table).ForeignKeys.Count > 0)) then
       begin
-        Canvas.Font.Assign(DefaultFont);
+        Canvas.Font.Assign(ContentFont);
         Canvas.Font.Size := Canvas.Font.Size + 2;
         Canvas.Font.Style := Canvas.Font.Style + [fsBold];
-        TextOut(ContentArea.Left, Y, Preferences.LoadStr(459) + ':');
+        ContentTextOut(Preferences.LoadStr(459) + ':', Padding);
+
+
+        SetLength(Columns, 3);
+        Columns[0].HeaderText := ReplaceStr(Preferences.LoadStr(35), '&', '');
+        Columns[1].HeaderText := Preferences.LoadStr(69);
+        Columns[2].HeaderText := Preferences.LoadStr(73);
+
+        SetLength(GridData, TCBaseTable(Table).ForeignKeys.Count);
+        for I := 0 to TCBaseTable(Table).ForeignKeys.Count - 1 do
+        begin
+          SetLength(GridData[I], Length(Columns));
+
+          for J := 0 to Length(Columns) - 1 do
+          begin
+            GridData[I][J].Bold := False;
+            GridData[I][J].Gray := False;
+          end;
+
+          GridData[I][0].Text := TCBaseTable(Table).ForeignKeys[I].Name;
+          GridData[I][1].Text := TCBaseTable(Table).ForeignKeys[I].DBTypeStr();
+          S := '';
+          if (TCBaseTable(Table).ForeignKeys[I].OnDelete = dtCascade) then S := 'cascade on delete';
+          if (TCBaseTable(Table).ForeignKeys[I].OnDelete = dtSetNull) then S := 'set NULL on delete';
+          if (TCBaseTable(Table).ForeignKeys[I].OnDelete = dtSetDefault) then S := 'set default on delete';
+          if (TCBaseTable(Table).ForeignKeys[I].OnDelete = dtNoAction) then S := 'no action on delete';
+          S2 := '';
+          if (TCBaseTable(Table).ForeignKeys[I].OnUpdate = utCascade) then S2 := 'cascade on update';
+          if (TCBaseTable(Table).ForeignKeys[I].OnUpdate = utSetNull) then S2 := 'set NULL on update';
+          if (TCBaseTable(Table).ForeignKeys[I].OnUpdate = utSetDefault) then S2 := 'set default on update';
+          if (TCBaseTable(Table).ForeignKeys[I].OnUpdate = utNoAction) then S2 := 'no action on update';
+          if (S <> '') and (S2 <> '') then S := S + ', ';
+          S := S + S2;
+          GridData[I][2].Text := S;
+        end;
+
+        GridOut(GridData);
       end;
     end;
 
@@ -6396,14 +6621,15 @@ begin
   begin
     if (Structure) then
     begin
-      Canvas.Font.Assign(DefaultFont);
+      Canvas.Font.Assign(ContentFont);
       Canvas.Font.Size := Canvas.Font.Size + 2;
       Canvas.Font.Style := Canvas.Font.Style + [fsBold];
 
-      TextOut(ContentArea.Left, Y, Preferences.LoadStr(580) + ':', 2);
+      ContentTextOut(Preferences.LoadStr(580) + ':', Padding);
     end;
 
     Canvas.Font.Assign(GridFont);
+
     if (Length(DBGrids) > 0) then
     begin
       for I := 0 to Length(DBGrids) - 1 do
@@ -6413,14 +6639,14 @@ begin
 
           for J := 0 to Length(Fields) - 1 do
           begin
-            Columns[J].Field := Fields[J];
-
-            if (Fields[J].IsIndexField) then Canvas.Font.Style := Canvas.Font.Style + [fsBold];
-
-            if (not (Fields[J].DataType in RightAlignedDataTypes)) then
-              Columns[J].Alignment := taLeftJustify
+            Columns[J].HeaderBold := Fields[J].IsIndexField;
+            if (J < Length(DestinationFields)) then
+              Columns[J].HeaderText := DestinationFields[J].Name
             else
-              Columns[J].Alignment := taRightJustify;
+              Columns[J].HeaderText := Fields[J].DisplayName;
+
+
+            if (Columns[J].HeaderBold) then Canvas.Font.Style := Canvas.Font.Style + [fsBold];
 
             if (GeometryField(Fields[J])) then
               Columns[J].Width := Canvas.TextWidth('<GEO>')
@@ -6432,15 +6658,12 @@ begin
               Columns[J].Width := Canvas.TextWidth('<BLOB>')
             else
               Columns[J].Width := TMySQLDataSet(DBGrids[I].DBGrid.DataSource.DataSet).GetMaxTextWidth(Fields[J], Canvas.TextWidth);
+            Columns[J].Width := Max(Columns[J].Width, Canvas.TextWidth(Columns[J].HeaderText));
             if (NullText and not Fields[J].Required) then
               Columns[J].Width := Max(Columns[J].Width, Canvas.TextWidth('<NULL>'));
-            if (J < Length(DestinationFields)) then
-              Columns[J].Width := Max(Columns[J].Width, Canvas.TextWidth(DestinationFields[J].Name))
-            else
-              Columns[J].Width := Max(Columns[J].Width, Canvas.TextWidth(Fields[J].DisplayName));
             Columns[J].Width := Min(Columns[J].Width, ContentArea.Right - ContentArea.Left - 2 * Padding - 2 * LineWidth);
 
-            if (Fields[J].IsIndexField) then Canvas.Font.Style := Canvas.Font.Style - [fsBold];
+            if (Columns[J].HeaderBold) then Canvas.Font.Style := Canvas.Font.Style - [fsBold];
           end;
         end;
     end
@@ -6453,210 +6676,133 @@ begin
 
           for J := 0 to Length(Fields) - 1 do
           begin
-            Columns[J].Field := Fields[J];
-
-            if (Fields[J].IsIndexField) then Canvas.Font.Style := Canvas.Font.Style + [fsBold];
-
-            if (not (Fields[J].DataType in RightAlignedDataTypes)) then
-              Columns[J].Alignment := taLeftJustify
+            Columns[J].HeaderBold := Fields[J].IsIndexField;
+            if (J < Length(DestinationFields)) then
+              Columns[J].HeaderText := DestinationFields[J].Name
             else
-              Columns[J].Alignment := taRightJustify;
+              Columns[J].HeaderText := Fields[J].DisplayName;
 
-            Columns[J].Width := Canvas.TextWidth(StringOfChar('e', MaxCharLengths[I][J]));
+
+            if (Columns[J].HeaderBold) then Canvas.Font.Style := Canvas.Font.Style + [fsBold];
+
+            Columns[J].Width := Canvas.TextWidth(StringOfChar('e', MaxFieldsCharLengths[I][J]));
+            Columns[J].Width := Max(Columns[J].Width, Canvas.TextWidth(Columns[J].HeaderText));
             if (NullText and not Fields[J].Required) then
               Columns[J].Width := Max(Columns[J].Width, Canvas.TextWidth('<NULL>'));
-            if (J < Length(DestinationFields)) then
-              Columns[J].Width := Max(Columns[J].Width, Canvas.TextWidth(DestinationFields[J].Name))
-            else
-              Columns[J].Width := Max(Columns[J].Width, Canvas.TextWidth(Fields[J].DisplayName));
             Columns[J].Width := Min(Columns[J].Width, ContentArea.Right - ContentArea.Left - 2 * Padding - 2 * LineWidth);
 
-            if (Fields[J].IsIndexField) then Canvas.Font.Style := Canvas.Font.Style - [fsBold];
+            if (Columns[J].HeaderBold) then Canvas.Font.Style := Canvas.Font.Style - [fsBold];
           end;
         end;
     end;
 
-    GridHeader(Table, Fields, DataSet);
+    GridHeader();
   end;
 end;
 
-procedure TTExportPDF.ExecuteTableRecord(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportCanvas.ExecuteTableRecord(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 
-  function TextOut(const Column: Integer; const Calculate: Boolean): Integer;
-  var
-    CalcR: TRect;
-    J: Integer;
-    R: TRect;
-    StringList: TStringList;
-    Text: string;
-    TextFormat: TTextFormat;
+  function FieldText(const Field: TField): string;
   begin
-    if (Columns[Column].Field.IsIndexField) then Columns[Column].Canvas.Font.Style := Columns[Column].Canvas.Font.Style + [fsBold];
-
-    if (GeometryField(Columns[Column].Field)) then
-      Text := '<GEO>'
-    else if (Columns[Column].Field.DataType = ftWideMemo) then
-      Text := '<MEMO>'
-    else if (Columns[Column].Field.DataType = ftBytes) then
-      Text := '<BINARY>'
-    else if (Columns[Column].Field.DataType = ftBlob) then
-      Text := '<BLOB>'
-    else if (Columns[Column].Field.IsNull and NULLText) then
-      Text := '<NULL>'
+    if (GeometryField(Field)) then
+      Result := '<GEO>'
+    else if (Field.DataType = ftWideMemo) then
+      Result := '<MEMO>'
+    else if (Field.DataType = ftBytes) then
+      Result := '<BINARY>'
+    else if (Field.DataType = ftBlob) then
+      Result := '<BLOB>'
+    else if (Field.IsNull and NULLText) then
+      Result := '<NULL>'
     else
-      Text := DataSet.GetAsString(Columns[Column].Field.FieldNo);
-    if (Text = '') then
-      Result := Padding + -GridFont.Height + Padding
-    else
-    begin
-      if (Columns[Column].Alignment = taLeftJustify) then
-        TextFormat := []
-      else
-        TextFormat := [tfRight];
-      if (Calculate) then
-        TextFormat := TextFormat + [tfCalcRect];
-
-      R := Rect(Columns[Column].Left + Padding, Y + Padding - 1, Columns[Column].Left + Padding + Columns[Column].Width + Padding - 1, Y + Padding + -GridFont.Height + Padding);
-      CalcR := R;
-      Columns[Column].Canvas.TextRect(CalcR, Text, [tfCalcRect, tfWordBreak] + TextFormat);
-      R.Bottom := CalcR.Bottom;
-      if (Calculate) then
-        if ((CalcR.Right <= R.Right) and (CalcR.Bottom <= R.Bottom)) then
-          Result := Padding + -GridFont.Height + Padding
-        else
-        begin
-          StringList := TStringList.Create();
-          StringList.Text := Text;
-          Result := Padding + StringList.Count * (-GridFont.Height + Padding);
-          StringList.Free();
-        end
-      else
-      begin
-        if (Columns[Column].Field.IsNull) then Columns[Column].Canvas.Font.Color := clGray;
-
-        if ((CalcR.Right <= R.Right) and (CalcR.Bottom <= R.Bottom)) then
-          Columns[Column].Canvas.TextRect(R, Text, TextFormat)
-        else
-        begin
-          StringList := TStringList.Create();
-          StringList.Text := Text;
-          for J := 0 to StringList.Count - 1 do
-          begin
-            if (J > 0) then
-            begin
-              Inc(R.Top, -Columns[Column].Canvas.Font.Height + Padding);
-              Inc(R.Bottom, -Columns[Column].Canvas.Font.Height + Padding);
-            end;
-            Columns[Column].Canvas.TextRect(R, R.Left, R.Top - 1, StringList[J]);
-          end;
-          StringList.Free();
-        end;
-
-        if (Columns[Column].Field.IsNull) then Columns[Column].Canvas.Font.Color := clBlack;
-
-        Result := R.Bottom + Padding - Y;
-      end;
-    end;
-
-    if (Columns[Column].Field.IsIndexField) then Columns[Column].Canvas.Font.Style := Columns[Column].Canvas.Font.Style - [fsBold];
+      Result := DataSet.GetAsString(Field.FieldNo);
   end;
 
 var
   I: Integer;
-  J: Integer;
-  LeftColumn: Integer;
-  MaxLines: Integer;
   MaxRowHeight: Integer;
+  Text: string;
+  TextFormat: TTextFormat;
 begin
   MaxRowHeight := 0;
-  for I := 0 to Length(Columns) - 1 do
-    MaxRowHeight := Max(MaxRowHeight, TextOut(I, True));
-
-  if (AllocateHeight(MaxRowHeight + LineWidth)) then
-    GridHeader(Table, Fields, DataSet);
-
-  Canvas := Columns[0].Canvas;
-
-  MaxLines := 1;
-
-  LeftColumn := 0;
-  for I := 0 to Length(Columns) - 1 do
+  for I := 0 to Length(Fields) - 1 do
   begin
-    if (Columns[I].Canvas <> Canvas) then
-    begin
-      // Left vertical line
-      Canvas.MoveTo(ContentArea.Left, GridTop);
-      Canvas.LineTo(Canvas.PenPos.X, Y + GridRowHeight - LineWidth);
-      for J := LeftColumn to I - 1 do
-      begin
-        // Right column vertical line
-        Canvas.MoveTo(Columns[J].Left + Padding + Columns[J].Width + Padding + LineWidth, GridTop);
-        Canvas.LineTo(Canvas.PenPos.X, Y + Padding + -GridFont.Height + Padding);
-      end;
-
-      Canvas := Columns[I].Canvas;
-      Canvas.Font.Assign(GridFont);
-
-      LeftColumn := I;
-    end;
-
-    TextOut(I, False);
+    Text := FieldText(Fields[I]);
+    if (not (Fields[I].DataType in RightAlignedDataTypes)) then
+      TextFormat := []
+    else
+      TextFormat := [tfRight];
+    MaxRowHeight := Max(MaxRowHeight, GridTextOut(I, Text, TextFormat + [tfCalcRect], Fields[I].IsIndexField, Fields[I].IsNull));
   end;
 
-  // Left vertical line
-  Canvas.MoveTo(ContentArea.Left, GridTop);
-  Canvas.LineTo(Canvas.PenPos.X, Y + GridRowHeight - LineWidth);
-  for J := LeftColumn to Length(Fields) - 1 do
+  if (AllocateHeight(MaxRowHeight + LineHeight)) then
+    GridHeader();
+
+  for I := 0 to Length(Fields) - 1 do
   begin
-    // Right column vertical line
-    Canvas.MoveTo(Columns[J].Left + Padding + Columns[J].Width + Padding + LineWidth, GridTop);
-    Canvas.LineTo(Canvas.PenPos.X, Y + Padding + -GridFont.Height + Padding);
+    Text := FieldText(Fields[I]);
+    if (not (Fields[I].DataType in RightAlignedDataTypes)) then
+      TextFormat := []
+    else
+      TextFormat := [tfRight];
+    GridTextOut(I, Text, TextFormat, Fields[I].IsIndexField, Fields[I].IsNull);
   end;
 
-  Inc(Y, Padding + MaxLines * (-GridFont.Height + Padding) + LineWidth);
-  GridHorzLine(Y);
+  Inc(Y, MaxRowHeight);
+  GridDrawHorzLine(Y);
 end;
 
-procedure TTExportPDF.GridDrawVertLines();
+procedure TTExportCanvas.GridDrawHorzLine(const Y: Integer);
 var
   I: Integer;
-  J: Integer;
-  LeftColumn: Integer;
+  X: Integer;
 begin
-  LeftColumn := 0;
-  for I := 0 to Length(Columns) - 1 do
+  Canvas.Pen.Width := LineHeight;
+
+  X := Columns[0].Left - LineWidth;
+  Canvas := Columns[0].Canvas;
+  for I := 0 to Length(Columns) do
   begin
-    if (Columns[I].Canvas <> Canvas) then
+    if ((I = Length(Columns)) or (Columns[I].Left < X)) then
     begin
-      // Left vertical line
-      Canvas.MoveTo(ContentArea.Left, GridTop);
-      Canvas.LineTo(Canvas.PenPos.X, Y + GridRowHeight - LineWidth);
-      for J := LeftColumn to I - 1 do
-      begin
-        // Right column vertical line
-        Canvas.MoveTo(Columns[J].Left + Padding + Columns[J].Width + Padding + LineWidth, GridTop);
-        Canvas.LineTo(Canvas.PenPos.X, Y + Padding + -GridFont.Height + Padding);
-      end;
+      Canvas.MoveTo(ContentArea.Left, Y);
+      Canvas.LineTo(X + LineWidth, Canvas.PenPos.Y);
 
-      Canvas := Columns[I].Canvas;
-      Canvas.Font.Assign(GridFont);
-
-      LeftColumn := I;
+      if (I < Length(Columns)) then
+        X := Columns[I].Left - LineWidth;
     end;
-  end;
 
-  // Left vertical line
-  Canvas.MoveTo(ContentArea.Left, GridTop);
-  Canvas.LineTo(Canvas.PenPos.X, Y + GridRowHeight - LineWidth);
-  for J := LeftColumn to Length(Fields) - 1 do
-  begin
-    // Right column vertical line
-    Canvas.MoveTo(Columns[J].Left + Padding + Columns[J].Width + Padding + LineWidth, GridTop);
-    Canvas.LineTo(Canvas.PenPos.X, Y + Padding + -GridFont.Height + Padding);
+    if (I < Length(Columns)) then
+    begin
+      Inc(X, Padding + Columns[I].Width + Padding + LineWidth);
+      Canvas := Columns[I].Canvas;
+    end;
   end;
 end;
 
-procedure TTExportPDF.GridHeader(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportCanvas.GridDrawVertLines();
+var
+  I: Integer;
+begin
+  Canvas.Pen.Width := LineWidth;
+  for I := 0 to Length(Columns) - 1 do
+  begin
+    if ((I = 0) or (Columns[I].Canvas <> Canvas)) then
+    begin
+      Canvas := Columns[I].Canvas;
+
+      // Left vertical line
+      Canvas.MoveTo(ContentArea.Left, GridTop);
+      Canvas.LineTo(Canvas.PenPos.X, Y);
+    end;
+
+    // Right column vertical line
+    Canvas.MoveTo(Columns[I].Left + Padding + Columns[I].Width + Padding + LineHeight, GridTop);
+    Canvas.LineTo(Canvas.PenPos.X, Y);
+  end;
+end;
+
+procedure TTExportCanvas.GridHeader();
 var
   I: Integer;
   R: TRect;
@@ -6668,11 +6814,11 @@ begin
   Canvas.Font.Assign(GridFont);
   X := ContentArea.Left + LineWidth; Y := GridTop + LineWidth;
 
-  for I := 0 to Length(Fields) - 1 do
+  for I := 0 to Length(Columns) - 1 do
   begin
     if (X + Columns[I].Width > ContentArea.Right) then
     begin
-      PageBreak();
+      PageBreak(False);
 
       Canvas.Font.Assign(GridFont);
       X := ContentArea.Left + LineWidth; Y := GridTop + LineWidth;
@@ -6681,121 +6827,383 @@ begin
     Columns[I].Canvas := Canvas;
     Columns[I].Left := X;
 
-    if (Fields[I].IsIndexField) then Canvas.Font.Style := Canvas.Font.Style + [fsBold];
+    if (Columns[I].HeaderBold) then Canvas.Font.Style := Canvas.Font.Style + [fsBold];
 
-    if (I < Length(DestinationFields)) then
-      Text := DestinationFields[I].Name
-    else
-      Text := Fields[I].DisplayName;
-    R := Rect(Columns[I].Left + Padding, Y + Padding - 1, Columns[I].Left + Padding + Columns[I].Width + Padding - 1, Y + Padding + -GridFont.Height + Padding);
+    Text := Columns[I].HeaderText;
+    R := Rect(Columns[I].Left + Padding, Y + Padding - 1, Columns[I].Left + Padding + Columns[I].Width + Padding - 1, Y + Padding + -Canvas.Font.Height + Padding);
     Canvas.TextRect(R, Text, []);
 
-    if (Fields[I].IsIndexField) then Canvas.Font.Style := Canvas.Font.Style - [fsBold];
+    if (Columns[I].HeaderBold) then Canvas.Font.Style := Canvas.Font.Style - [fsBold];
 
     Inc(X, Padding + Columns[I].Width + Padding + LineWidth);
   end;
 
-  GridHorzLine(GridTop);
+  for I := 0 to Length(Columns) - 1 do
+    Columns[I].Canvas.Font.Assign(GridFont);
+
+  GridDrawHorzLine(GridTop);
   Inc(Y, R.Bottom - R.Top + Padding);
-  GridHorzLine(Y);
+  GridDrawHorzLine(Y);
 end;
 
-procedure TTExportPDF.GridHorzLine(const Y: Integer);
+procedure TTExportCanvas.GridOut(var GridData: TGridData);
 var
   I: Integer;
-  X: Integer;
+  J: Integer;
+  MaxRowHeight: Integer;
+  Text: string;
 begin
-  X := ContentArea.Left;
-  Canvas := Columns[0].Canvas;
-  for I := 0 to Length(Columns) do
+  Canvas.Font.Assign(GridFont);
+
+  SetLength(Columns, Length(GridData[0]));
+  for J := 0 to Length(Columns) - 1 do
   begin
-    if ((I = Length(Columns)) or (Columns[I].Canvas <> Canvas)) then
+    Columns[J].Width := Canvas.TextWidth(Columns[J].HeaderText);
+    for I := 0 to Length(GridData) - 1 do
     begin
-      Canvas.MoveTo(ContentArea.Left, Y); Canvas.LineTo(X + LineWidth, Canvas.PenPos.Y);
-
-      X := ContentArea.Left;
+      if (GridData[I][J].Bold) then Canvas.Font.Style := Canvas.Font.Style + [fsBold];
+      Columns[J].Width := Max(Columns[J].Width, Canvas.TextWidth(GridData[I][J].Text));
+      if (GridData[I][J].Bold) then Canvas.Font.Style := Canvas.Font.Style - [fsBold];
     end;
-
-    if (I < Length(Columns)) then
-    begin
-      Inc(X, Padding + Columns[I].Width + Padding + LineWidth);
-      Canvas := Columns[I].Canvas;
-    end;
+    Columns[J].Width := Min(Columns[J].Width, ContentArea.Right - ContentArea.Left - 2 * Padding - 2 * LineWidth);
   end;
+
+  GridHeader();
+
+  for I := 0 to Length(GridData) - 1 do
+  begin
+    MaxRowHeight := 0;
+    for J := 0 to Length(GridData[I]) - 1 do
+    begin
+      if (GridData[I][J].Bold) then Canvas.Font.Style := Canvas.Font.Style + [fsBold];
+      Text := GridData[I][J].Text;
+      MaxRowHeight := Max(MaxRowHeight, GridTextOut(J, Text, [tfCalcRect], False, False));
+      if (GridData[I][J].Bold) then Canvas.Font.Style := Canvas.Font.Style - [fsBold];
+    end;
+
+    if (AllocateHeight(MaxRowHeight + LineHeight)) then
+      GridHeader();
+
+    for J := 0 to Length(GridData[I]) - 1 do
+    begin
+      if (GridData[I][J].Bold) then Canvas.Font.Style := Canvas.Font.Style + [fsBold];
+      if (GridData[I][J].Gray) then Canvas.Font.Color := clGray;
+      Text := GridData[I][J].Text;
+      GridTextOut(J, Text, [], False, False);
+      if (GridData[I][J].Gray) then Canvas.Font.Color := clBlack;
+      if (GridData[I][J].Bold) then Canvas.Font.Style := Canvas.Font.Style - [fsBold];
+    end;
+
+    Inc(Y, MaxRowHeight);
+    GridDrawHorzLine(Y);
+  end;
+
+  GridDrawVertLines();
+
+  Inc(Y, -Canvas.Font.Height);
+
+  for J := 0 to Length(GridData) - 1 do
+    SetLength(GridData[J], 0);
+  SetLength(GridData, 0);
+  SetLength(Columns, 0);
 end;
 
-procedure TTExportPDF.PageBreak();
+function TTExportCanvas.GridTextOut(const Column: Integer; Text: string; const TextFormat: TTextFormat; const Bold, Gray: Boolean): Integer;
+var
+  CalcR: TRect;
+  J: Integer;
+  R: TRect;
+  StringList: TStringList;
+begin
+  if (Bold) then Columns[Column].Canvas.Font.Style := Columns[Column].Canvas.Font.Style + [fsBold];
+
+  if (Text = '') then
+    Result := Padding + -Canvas.Font.Height + Padding
+  else
+  begin
+    R := Rect(Columns[Column].Left + Padding, Y + Padding - 1, Columns[Column].Left + Padding + Columns[Column].Width + Padding - 1, Y + Padding + -Canvas.Font.Height + Padding);
+    CalcR := R;
+    Columns[Column].Canvas.TextRect(CalcR, Text, [tfCalcRect, tfWordBreak] + TextFormat);
+    R.Bottom := CalcR.Bottom;
+    if (tfCalcRect in TextFormat) then
+      if ((CalcR.Right <= R.Right) and (CalcR.Bottom <= R.Bottom)) then
+        Result := Padding + -Canvas.Font.Height + Padding
+      else
+      begin
+        StringList := TStringList.Create();
+        StringList.Text := Text;
+        Result := Padding + StringList.Count * (-Canvas.Font.Height + Padding);
+        StringList.Free();
+      end
+    else
+    begin
+      if (Gray) then Columns[Column].Canvas.Font.Color := clGray;
+
+      if ((CalcR.Right <= R.Right) and (CalcR.Bottom <= R.Bottom)) then
+      begin
+        if (tfRight in TextFormat) then
+          Windows.DrawTextEx(Columns[Column].Canvas.Handle, PChar(Text), 0, R, TTextFormatFlags(TextFormat), nil)
+        else
+          Windows.ExtTextOut(Columns[Column].Canvas.Handle, R.Left, R.Top - 1, ETO_CLIPPED, R, Text, Length(Text), nil);
+      end
+      else
+      begin
+        StringList := TStringList.Create();
+        StringList.Text := Text;
+        for J := 0 to StringList.Count - 1 do
+        begin
+          if (J > 0) then
+          begin
+            Inc(R.Top, -Columns[Column].Canvas.Font.Height + Padding);
+            Inc(R.Bottom, -Columns[Column].Canvas.Font.Height + Padding);
+          end;
+          Columns[Column].Canvas.TextRect(R, R.Left, R.Top - 1, StringList[J]);
+        end;
+        StringList.Free();
+      end;
+
+      if (Gray) then Columns[Column].Canvas.Font.Color := clBlack;
+
+      Result := R.Bottom - Y;
+    end;
+  end;
+
+  if (Bold) then Columns[Column].Canvas.Font.Style := Columns[Column].Canvas.Font.Style - [fsBold];
+end;
+
+procedure TTExportCanvas.PageBreak(const NewPageRow: Boolean);
 var
   Font: TFont;
 begin
-  Font := TFont.Create();
-  if (PDF.RawPages.Count > 0) then
+  if (not Assigned(Canvas)) then
+    Font := nil
+  else
   begin
+    Font := TFont.Create();
     Font.Assign(Canvas.Font);
     PageFooter();
   end;
 
-  PDF.AddPage();
+  if (not NewPageRow) then
+    Inc(PageNumber.Column)
+  else
+  begin
+    Inc(PageNumber.Row);
+    PageNumber.Column := 0;
+  end;
 
-  Canvas := PDF.VCLCanvas;
+  AddPage(NewPageRow);
 
-  if (PDF.RawPages.Count > 1) then
+  if (Assigned(Font)) then
+  begin
     Canvas.Font.Assign(Font);
-  Canvas.Pen.Width := LineWidth;
+    Font.Free();
+  end;
 
   Y := ContentArea.Top;
-
-  Font.Free();
 end;
 
-procedure TTExportPDF.PageFooter();
+procedure TTExportCanvas.PageFooter();
 var
   R: TRect;
   Text: string;
 begin
-  Canvas.Font.Assign(PageFont);
+  Y := ContentArea.Bottom + 5 * Padding;
 
-  Y := ContentArea.Bottom + 10;
-
+  Canvas.Pen.Width := LineHeight;
   // Horizontal line
   Canvas.MoveTo(ContentArea.Left, Y);
   Canvas.LineTo(ContentArea.Right, Canvas.PenPos.Y);
 
-  Inc (Y, LineWidth + Padding);
+  Inc (Y, LineHeight + Padding);
 
-  R := Rect(ContentArea.Left, Y, ContentArea.Right, ContentArea.Bottom);
+
+  Canvas.Font.Assign(PageFont);
+
+  R := Rect(ContentArea.Left, Y, ContentArea.Right, PageHeight);
   Text := SysUtils.DateTimeToStr(DateTime, LocaleFormatSettings);
-  Canvas.TextRect(R, Text, [tfLeft]);
+  Canvas.TextRect(R, Text, []);
 
-
-  R := Rect(ContentArea.Left, Y, ContentArea.Right, ContentArea.Bottom);
-  Text := SysUtils.DateTimeToStr(DateTime, LocaleFormatSettings);
-  Canvas.TextRect(R, Text, [tfLeft]);
-
-  R := Rect(ContentArea.Left, Y, ContentArea.Right, ContentArea.Bottom);
+  R := Rect(ContentArea.Left, Y, ContentArea.Right, PageHeight);
   Text := Client.Account.Connection.Host;
   if (Client.Account.Connection.Port <> MYSQL_PORT) then
     Text := Text + ':' + IntToStr(Client.Account.Connection.Port);
   Text := Text + '  (MySQL: ' + Client.ServerVersionStr + ')';
   Canvas.TextRect(R, Text, [tfCenter]);
 
-  R := Rect(ContentArea.Left, Y, ContentArea.Right, ContentArea.Bottom);
-  Text := IntToStr(PDF.RawPages.Count);
+  R := Rect(ContentArea.Left, Y, ContentArea.Right, PageHeight);
+  Text := IntToStr(PageNumber.Row);
+  if (PageNumber.Column > 0) then
+    Text := Text + Chr(Ord('a') - 1 + PageNumber.Column);
   Canvas.TextRect(R, Text, [tfRight]);
 end;
 
-procedure TTExportPDF.TextOut(const X, Y: Integer; Text: string; const ExtraBottomPadding: Integer);
+{ TTExportPrint ***************************************************************}
+
+procedure TTExportPrint.AddPage(const NewPageRow: Boolean);
 var
-  R: TRect;
+  C: TCanvas;
+  I: Integer;
 begin
-  R := Rect(X, Y, ContentArea.Right, Y);
-  Canvas.TextRect(R, Text, [tfCalcRect, tfWordBreak]);
+  if (NewPageRow) then
+  begin
+    for I := 0 to Length(Pages) - 1 do
+    begin
+      C := TCanvas.Create();
+      C.Handle := CreateCompatibleDC(Printer.Canvas.Handle);
+      CreateCompatibleBitmap(C.Handle, Printer.PageWidth, Printer.PageHeight);
 
-  AllocateHeight(R.Bottom + ExtraBottomPadding - R.Top);
+      if (not BitBlt(C.Handle, 0, 0, Printer.PageWidth, Printer.PageHeight,
+        Printer.Canvas.Handle, 0, 0, SRCCOPY)) then
+        GetLastError();
 
-  Canvas.TextRect(R, Text, [tfWordBreak]);
+      Printer.NewPage();
 
-  Self.Y := R.Bottom + Padding;
+      if (not BitBlt(Printer.Canvas.Handle, 0, 0, Printer.PageWidth, Printer.PageHeight,
+        C.Handle, 0, 0, SRCCOPY)) then
+        GetLastError();
+
+      C.Free();
+
+      Pages[I].Free();
+    end;
+    SetLength(Pages, 0);
+
+    Printer.NewPage();
+
+    Canvas := Printer.Canvas;
+  end
+  else
+  begin
+    SetLength(Pages, Length(Pages) + 1);
+    Pages[Length(Pages) - 1] := TCanvas.Create();
+    Pages[Length(Pages) - 1].Handle := CreateCompatibleDC(Printer.Handle);
+    Pages[Length(Pages) - 1].Font.PixelsPerInch := Printer.Canvas.Font.PixelsPerInch;
+    Pages[Length(Pages) - 1].Font.Size := Printer.Canvas.Font.Size;
+//                                             CreateCompatibleBitmap
+    Canvas := Pages[Length(Pages) - 1];
+  end;
+end;
+
+constructor TTExportPrint.Create(const AClient: TCClient; const ATitle: string);
+begin
+  Printer := TPrinter.Create();
+  Printer.Title := ATitle;
+
+  PageWidth := Printer.PageWidth;
+  PageHeight := Printer.PageHeight;
+
+  Margins.Left := GetDeviceCaps(Printer.Handle, LOGPIXELSX) * MarginsMilliInch.Left div 1000;
+  Margins.Top := GetDeviceCaps(Printer.Handle, LOGPIXELSY) * MarginsMilliInch.Top div 1000;
+  Margins.Right := GetDeviceCaps(Printer.Handle, LOGPIXELSX) * MarginsMilliInch.Right div 1000;
+  Margins.Bottom := GetDeviceCaps(Printer.Handle, LOGPIXELSY) * MarginsMilliInch.Bottom div 1000;
+
+  Padding := GetDeviceCaps(Printer.Handle, LOGPIXELSY) * PaddingMilliInch div 1000;
+
+  LineWidth := GetDeviceCaps(Printer.Handle, LOGPIXELSX) * LineWidthMilliInch div 1000;
+  LineHeight := GetDeviceCaps(Printer.Handle, LOGPIXELSY) * LineHeightMilliInch div 1000;
+
+  Canvas := Printer.Canvas;
+
+  inherited Create(AClient);
+
+  SetLength(Pages, 0);
+end;
+
+destructor TTExportPrint.Destroy();
+begin
+  Printer.EndDoc();
+
+  inherited;
+
+  Printer.Free();
+end;
+
+procedure TTExportPrint.ExecuteFooter();
+begin
+  inherited;
+end;
+
+procedure TTExportPrint.ExecuteHeader();
+var
+  Error: TError;
+begin
+  while ((Success = daSuccess) and not Printer.Printing) do
+  begin
+    try
+      Printer.BeginDoc();
+      if (GetLastError() > 0) then
+        DoError(SysError(), EmptyToolsItem());
+      Canvas := Printer.Canvas;
+    except
+      on E: EPrinter do
+        begin
+          Error.ErrorType := TE_Printer;
+          Error.ErrorCode := 1;
+          Error.ErrorMessage := E.Message;
+          DoError(Error, EmptyToolsItem());
+        end;
+    end;
+  end;
+
+  inherited;
+end;
+
+{ TTExportPDF *****************************************************************}
+
+procedure TTExportPDF.AddPage(const NewPageRow: Boolean);
+begin
+  PDF.AddPage();
+
+  Canvas := PDF.VCLCanvas;
+end;
+
+constructor TTExportPDF.Create(const AClient: TCClient; const AFilename: TFileName);
+begin
+  PDF := TPDFDocumentGDI.Create(False, CP_UTF8, False);
+  PDF.DefaultPaperSize := CurrentPrinterPaperSize();
+  PDF.Info.Data.AddItemTextString('Producer', SysUtils.LoadStr(1000));
+  AddPage(True);
+
+  PageWidth := Trunc(Integer(PDF.DefaultPageWidth) * GetDeviceCaps(Canvas.Handle, LOGPIXELSX) / 72); // PDF expect 72 pixels per inch
+  PageHeight := Trunc(Integer(PDF.DefaultPageHeight) * GetDeviceCaps(Canvas.Handle, LOGPIXELSY) / 72); // PDF expect 72 pixels per inch
+
+  Margins.Left := GetDeviceCaps(Canvas.Handle, LOGPIXELSX) * MarginsMilliInch.Left div 1000;
+  Margins.Top := GetDeviceCaps(Canvas.Handle, LOGPIXELSY) * MarginsMilliInch.Top div 1000;
+  Margins.Right := GetDeviceCaps(Canvas.Handle, LOGPIXELSX) * MarginsMilliInch.Right div 1000;
+  Margins.Bottom := GetDeviceCaps(Canvas.Handle, LOGPIXELSY) * MarginsMilliInch.Bottom div 1000;
+
+  Padding := Round(GetDeviceCaps(Canvas.Handle, LOGPIXELSY) * PaddingMilliInch / 1000);
+
+  LineWidth := Round(GetDeviceCaps(Canvas.Handle, LOGPIXELSX) * LineWidthMilliInch / 1000);
+  LineHeight := Round(GetDeviceCaps(Canvas.Handle, LOGPIXELSY) * LineHeightMilliInch / 1000);
+
+  inherited Create(AClient);
+
+  Filename := AFilename;
+end;
+
+destructor TTExportPDF.Destroy();
+begin
+  inherited;
+
+  PDF.Free();
+end;
+
+procedure TTExportPDF.ExecuteFooter();
+begin
+  inherited;
+
+  while ((Success = daSuccess) and not PDF.SaveToFile(Filename)) do
+    DoError(SysError(), EmptyToolsItem());
+end;
+
+procedure TTExportPDF.ExecuteHeader();
+begin
+  while (FileExists(Filename) and not DeleteFile(Filename)) do
+    DoError(SysError(), EmptyToolsItem());
+
+  inherited;
 end;
 
 { TTFind **********************************************************************}

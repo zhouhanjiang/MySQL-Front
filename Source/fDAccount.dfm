@@ -65,12 +65,12 @@ object DAccount: TDAccount
       OnChange = FEditChange
     end
   end
-  object GServer: TGroupBox_Ext
+  object GConnection: TGroupBox_Ext
     Left = 8
     Top = 55
     Width = 297
     Height = 163
-    Caption = 'GServer'
+    Caption = 'GConnection'
     TabOrder = 5
     object FLHost: TLabel
       Left = 8

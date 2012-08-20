@@ -40,7 +40,7 @@ type
     FUser: TEdit;
     GBasics: TGroupBox_Ext;
     GLogin: TGroupBox_Ext;
-    GServer: TGroupBox_Ext;
+    GConnection: TGroupBox_Ext;
     msCopy: TMenuItem;
     msCut: TMenuItem;
     msDelete: TMenuItem;
@@ -123,7 +123,7 @@ begin
   GBasics.Caption := Preferences.LoadStr(85);
   FLName.Caption := Preferences.LoadStr(35) + ':';
 
-  GServer.Caption := ReplaceStr(Preferences.LoadStr(37), '&', '');
+  GConnection.Caption := Preferences.LoadStr(486);
   FLHost.Caption := Preferences.LoadStr(37) + ':';
   FLPort.Caption := Preferences.LoadStr(436) + ':';
   FLConnectionType.Caption := Preferences.LoadStr(648) + ':';

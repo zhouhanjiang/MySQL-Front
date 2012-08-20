@@ -17,6 +17,7 @@ type
     FBOk: TButton;
     FCreate: TCheckBox;
     FCreateRoutine: TCheckBox;
+    FCreateTableSpace: TCheckBox;
     FCreateTempTable: TCheckBox;
     FCreateUser: TCheckBox;
     FCreateView: TCheckBox;
@@ -38,6 +39,7 @@ type
     FProcedure: TRadioButton;
     FProcedures: TComboBox;
     FProcess: TCheckBox;
+    FProxy: TCheckBox;
     FReferences: TCheckBox;
     FReload: TCheckBox;
     FReplClient: TCheckBox;
@@ -125,6 +127,7 @@ begin
   FAlterRoutine.Caption := Preferences.LoadStr(766);
   FCreate.Caption := Preferences.LoadStr(311);
   FCreateRoutine.Caption := Preferences.LoadStr(765);
+  FCreateTableSpace.Caption := Preferences.LoadStr(893);
   FCreateTempTable.Caption := Preferences.LoadStr(318);
   FCreateUser.Caption := Preferences.LoadStr(767);
   FCreateView.Caption := Preferences.LoadStr(763);
@@ -138,6 +141,7 @@ begin
   FInsert.Caption := ReplaceStr(Preferences.LoadStr(308), '&', '');
   FLockTable.Caption := Preferences.LoadStr(316);
   FProcess.Caption := Preferences.LoadStr(320);
+  FProxy.Caption := Preferences.LoadStr(894);
   FReferences.Caption := Preferences.LoadStr(315);
   FReload.Caption := Preferences.LoadStr(321);
   FReplClient.Caption := Preferences.LoadStr(325);
@@ -156,34 +160,36 @@ end;
 
 procedure TDUserRight.EnableElements(Sender: TObject);
 begin
-  FAlter.Enabled           := FAlter.Visible           and (FAll.Checked or FDatabase.Checked);
-  FAlterRoutine.Enabled    := FAlterRoutine.Visible    and (FAll.Checked or FDatabase.Checked or FProcedure.Checked or FFunction.Checked);
-  FCreate.Enabled          := FCreate.Visible          and (FAll.Checked or FDatabase.Checked);
-  FCreateRoutine.Enabled   := FCreateRoutine.Visible   and (FAll.Checked or FDatabase.Checked);
-  FCreateTempTable.Enabled := FCreateTempTable.Visible and (FAll.Checked or FDatabase.Checked);
-  FCreateUser.Enabled      := FCreateUser.Visible      and (FAll.Checked);
-  FCreateView.Enabled      := FCreateView.Visible      and (FAll.Checked or FDatabase.Checked);
-  FDelete.Enabled          := FDelete.Visible          and (FAll.Checked or FDatabase.Checked or FTable.Checked);
-  FDrop.Enabled            := FDrop.Visible            and (FAll.Checked or FDatabase.Checked);
-  FEvent.Enabled           := FEvent.Visible           and (FAll.Checked or FDatabase.Checked);
-  FExecute.Enabled         := FExecute.Visible         and (FAll.Checked or FDatabase.Checked or FProcedure.Checked or FFunction.Checked);
-  FFile.Enabled            := FFile.Visible            and  FAll.Checked;
-  FIndex.Enabled           := FIndex.Visible           and  FAll.Checked or FDatabase.Checked;
-  FInsert.Enabled          := FInsert.Visible          and  not FProcedure.Checked and not FFunction.Checked;
-  FGrant.Enabled           := FGrant.Visible           and  FAll.Checked or FDatabase.Checked or FProcedure.Checked or FFunction.Checked;
-  FLockTable.Enabled       := FLockTable.Visible       and (FAll.Checked or FDatabase.Checked);
-  FProcess.Enabled         := FProcess.Visible         and  FAll.Checked;
-  FReferences.Enabled      := FReferences.Visible      and  not FProcedure.Checked and not FFunction.Checked;
-  FReload.Enabled          := FReload.Visible          and  FAll.Checked;
-  FReplClient.Enabled      := FReplClient.Visible      and  FAll.Checked;
-  FReplSlave.Enabled       := FReplSlave.Visible       and  FAll.Checked;
-  FSelect.Enabled          := FSelect.Visible          and  not FProcedure.Checked and not FFunction.Checked;
-  FShowDatabase.Enabled    := FShowDatabase.Visible    and  FAll.Checked;
-  FShowView.Enabled        := FShowView.Visible        and (FAll.Checked or FDatabase.Checked);
-  FShutdown.Enabled        := FShutdown.Visible        and  FAll.Checked;
-  FSuper.Enabled           := FSuper.Visible           and  FAll.Checked;
-  FTrigger.Enabled         := FTrigger.Visible         and (FAll.Checked or FDatabase.Checked);
-  FUpdate.Enabled          := FUpdate.Visible          and  not FProcedure.Checked and not FFunction.Checked;
+  FAlter.Enabled            := FAlter.Visible            and (FAll.Checked or FDatabase.Checked);
+  FAlterRoutine.Enabled     := FAlterRoutine.Visible     and (FAll.Checked or FDatabase.Checked or FProcedure.Checked or FFunction.Checked);
+  FCreate.Enabled           := FCreate.Visible           and (FAll.Checked or FDatabase.Checked);
+  FCreateRoutine.Enabled    := FCreateRoutine.Visible    and (FAll.Checked or FDatabase.Checked);
+  FCreateTableSpace.Enabled := FCreateTableSpace.Visible and (FAll.Checked);
+  FCreateTempTable.Enabled  := FCreateTempTable.Visible  and (FAll.Checked or FDatabase.Checked);
+  FCreateUser.Enabled       := FCreateUser.Visible       and (FAll.Checked);
+  FCreateView.Enabled       := FCreateView.Visible       and (FAll.Checked or FDatabase.Checked);
+  FDelete.Enabled           := FDelete.Visible           and (FAll.Checked or FDatabase.Checked or FTable.Checked);
+  FDrop.Enabled             := FDrop.Visible             and (FAll.Checked or FDatabase.Checked);
+  FEvent.Enabled            := FEvent.Visible            and (FAll.Checked or FDatabase.Checked);
+  FExecute.Enabled          := FExecute.Visible          and (FAll.Checked or FDatabase.Checked or FProcedure.Checked or FFunction.Checked);
+  FFile.Enabled             := FFile.Visible             and  FAll.Checked;
+  FIndex.Enabled            := FIndex.Visible            and  FAll.Checked or FDatabase.Checked;
+  FInsert.Enabled           := FInsert.Visible           and  not FProcedure.Checked and not FFunction.Checked;
+  FGrant.Enabled            := FGrant.Visible            and  FAll.Checked or FDatabase.Checked or FProcedure.Checked or FFunction.Checked;
+  FLockTable.Enabled        := FLockTable.Visible        and (FAll.Checked or FDatabase.Checked);
+  FProcess.Enabled          := FProcess.Visible          and  FAll.Checked;
+  FProxy.Enabled            := FProxy.Visible            and  FAll.Checked;
+  FReferences.Enabled       := FReferences.Visible       and  not FProcedure.Checked and not FFunction.Checked;
+  FReload.Enabled           := FReload.Visible           and  FAll.Checked;
+  FReplClient.Enabled       := FReplClient.Visible       and  FAll.Checked;
+  FReplSlave.Enabled        := FReplSlave.Visible        and  FAll.Checked;
+  FSelect.Enabled           := FSelect.Visible           and  not FProcedure.Checked and not FFunction.Checked;
+  FShowDatabase.Enabled     := FShowDatabase.Visible     and  FAll.Checked;
+  FShowView.Enabled         := FShowView.Visible         and (FAll.Checked or FDatabase.Checked);
+  FShutdown.Enabled         := FShutdown.Visible         and  FAll.Checked;
+  FSuper.Enabled            := FSuper.Visible            and  FAll.Checked;
+  FTrigger.Enabled          := FTrigger.Visible          and (FAll.Checked or FDatabase.Checked);
+  FUpdate.Enabled           := FUpdate.Visible           and  not FProcedure.Checked and not FFunction.Checked;
 end;
 
 function TDUserRight.Execute(): Boolean;
@@ -237,6 +243,7 @@ begin
     and not FAlterRoutine.Checked
     and not FCreate.Checked
     and not FCreateRoutine.Checked
+    and not FCreateTableSpace.Checked
     and not FCreateTempTable.Checked
     and not FCreateUser.Checked
     and not FCreateView.Checked
@@ -250,6 +257,7 @@ begin
     and not FGrant.Checked
     and not FLockTable.Checked
     and not FProcess.Checked
+    and not FProxy.Checked
     and not FReferences.Checked
     and not FReload.Checked
     and not FReplClient.Checked
@@ -381,34 +389,36 @@ begin
     NewUserRight.FieldName := FFields.Text;
 
 
-    NewUserRight.RAlter := FAlter.Checked and (FAll.Checked or FDatabase.Checked);
-    NewUserRight.RAlterRoutine := FAlterRoutine.Checked and (FAll.Checked or FDatabase.Checked or FProcedure.Checked or FFunction.Checked);
-    NewUserRight.RCreate := FCreate.Checked and (FAll.Checked or FDatabase.Checked);
-    NewUserRight.RCreateRoutine := FCreateRoutine.Checked and (FAll.Checked or FDatabase.Checked);
-    NewUserRight.RCreateTempTable := FCreateTempTable.Checked and (FAll.Checked or FDatabase.Checked);
-    NewUserRight.RCreateUser := FCreateUser.Checked and FAll.Checked;
-    NewUserRight.RCreateView := FCreateView.Checked and (FAll.Checked or FDatabase.Checked);
-    NewUserRight.RDelete := FDelete.Checked and (FAll.Checked or FDatabase.Checked or FTable.Checked);
-    NewUserRight.RDrop := FDrop.Checked and (FAll.Checked or FDatabase.Checked);
-    NewUserRight.REvent := FEvent.Checked and (FAll.Checked or FDatabase.Checked);
-    NewUserRight.RExecute := FExecute.Checked and (FAll.Checked or FDatabase.Checked or FProcedure.Checked or FFunction.Checked);
-    NewUserRight.RFile := FFile.Checked and FAll.Checked;
-    NewUserRight.RGrant := FGrant.Checked and (FAll.Checked or FDatabase.Checked or FProcedure.Checked or FFunction.Checked);
-    NewUserRight.RIndex := FIndex.Checked and (FAll.Checked or FDatabase.Checked);
-    NewUserRight.RInsert := FInsert.Checked;
-    NewUserRight.RLockTables := FLockTable.Checked and (FAll.Checked or FDatabase.Checked);
-    NewUserRight.RProcess := FProcess.Checked and FAll.Checked;
-    NewUserRight.RReferences := FReferences.Checked;
-    NewUserRight.RReload := FReload.Checked and FAll.Checked;
-    NewUserRight.RReplClient := FReplClient.Checked and FAll.Checked;
-    NewUserRight.RReplSlave := FReplSlave.Checked and FAll.Checked;
-    NewUserRight.RSelect := FSelect.Checked;
-    NewUserRight.RShowDatabases := FShowDatabase.Checked and FAll.Checked;
-    NewUserRight.RShowView := FShowView.Checked and (FAll.Checked or FDatabase.Checked);
-    NewUserRight.RShutdown := FShutdown.Checked and FAll.Checked;
-    NewUserRight.RSuper := FSuper.Checked and FAll.Checked;
-    NewUserRight.RTrigger := FTrigger.Checked and (FAll.Checked or FDatabase.Checked);
-    NewUserRight.RUpdate := FUpdate.Checked;
+    NewUserRight.RAlter            := FAlter.Checked            and (FAll.Checked or FDatabase.Checked);
+    NewUserRight.RAlterRoutine     := FAlterRoutine.Checked     and (FAll.Checked or FDatabase.Checked or FProcedure.Checked or FFunction.Checked);
+    NewUserRight.RCreate           := FCreate.Checked           and (FAll.Checked or FDatabase.Checked);
+    NewUserRight.RCreateRoutine    := FCreateRoutine.Checked    and (FAll.Checked or FDatabase.Checked);
+    NewUserRight.RCreateTableSpace := FCreateTableSpace.Checked and (FAll.Checked or FDatabase.Checked);
+    NewUserRight.RCreateTempTable  := FCreateTempTable.Checked  and (FAll.Checked or FDatabase.Checked);
+    NewUserRight.RCreateUser       := FCreateUser.Checked       and  FAll.Checked;
+    NewUserRight.RCreateView       := FCreateView.Checked       and (FAll.Checked or FDatabase.Checked);
+    NewUserRight.RDelete           := FDelete.Checked           and (FAll.Checked or FDatabase.Checked or FTable.Checked);
+    NewUserRight.RDrop             := FDrop.Checked             and (FAll.Checked or FDatabase.Checked);
+    NewUserRight.REvent            := FEvent.Checked            and (FAll.Checked or FDatabase.Checked);
+    NewUserRight.RExecute          := FExecute.Checked          and (FAll.Checked or FDatabase.Checked or FProcedure.Checked or FFunction.Checked);
+    NewUserRight.RFile             := FFile.Checked             and  FAll.Checked;
+    NewUserRight.RGrant            := FGrant.Checked            and (FAll.Checked or FDatabase.Checked or FProcedure.Checked or FFunction.Checked);
+    NewUserRight.RIndex            := FIndex.Checked            and (FAll.Checked or FDatabase.Checked);
+    NewUserRight.RInsert           := FInsert.Checked;
+    NewUserRight.RLockTables       := FLockTable.Checked        and (FAll.Checked or FDatabase.Checked);
+    NewUserRight.RProcess          := FProcess.Checked          and  FAll.Checked;
+    NewUserRight.RProxy            := FProxy.Checked            and  FAll.Checked;
+    NewUserRight.RReferences       := FReferences.Checked;
+    NewUserRight.RReload           := FReload.Checked           and  FAll.Checked;
+    NewUserRight.RReplClient       := FReplClient.Checked       and  FAll.Checked;
+    NewUserRight.RReplSlave        := FReplSlave.Checked        and  FAll.Checked;
+    NewUserRight.RSelect           := FSelect.Checked;
+    NewUserRight.RShowDatabases    := FShowDatabase.Checked     and  FAll.Checked;
+    NewUserRight.RShowView         := FShowView.Checked         and (FAll.Checked or FDatabase.Checked);
+    NewUserRight.RShutdown         := FShutdown.Checked         and  FAll.Checked;
+    NewUserRight.RSuper            := FSuper.Checked            and  FAll.Checked;
+    NewUserRight.RTrigger          := FTrigger.Checked          and (FAll.Checked or FDatabase.Checked);
+    NewUserRight.RUpdate           := FUpdate.Checked;
 
     if (not Assigned(UserRight)) then
       User.AddRight(NewUserRight)
@@ -498,34 +508,36 @@ begin
     FFunctionsChange(Sender);
   end;
 
-  FAlter.Checked := Assigned(UserRight) and UserRight.RAlter and FAlter.Enabled;
-  FAlterRoutine.Checked := Assigned(UserRight) and UserRight.RAlterRoutine and FAlterRoutine.Enabled;
-  FCreate.Checked := Assigned(UserRight) and UserRight.RCreate and FCreate.Enabled;
-  FCreateRoutine.Checked := Assigned(UserRight) and UserRight.RCreateRoutine and FCreateRoutine.Enabled;
-  FCreateTempTable.Checked := Assigned(UserRight) and UserRight.RCreateTempTable and FCreateTempTable.Enabled;
-  FCreateUser.Checked := Assigned(UserRight) and UserRight.RCreateUser and FCreateUser.Enabled;
-  FCreateView.Checked := Assigned(UserRight) and UserRight.RCreateView and FCreateView.Enabled;
-  FDelete.Checked := Assigned(UserRight) and UserRight.RDelete and FDelete.Enabled;
-  FDrop.Checked := Assigned(UserRight) and UserRight.RDrop and FDrop.Enabled;
-  FEvent.Checked := Assigned(UserRight) and UserRight.REvent and FEvent.Enabled;
-  FExecute.Checked := Assigned(UserRight) and UserRight.RExecute and FExecute.Enabled;
-  FFile.Checked := Assigned(UserRight) and UserRight.RFile and FFile.Enabled;
-  FGrant.Checked := Assigned(UserRight) and UserRight.RGrant and FGrant.Enabled;
-  FIndex.Checked := Assigned(UserRight) and UserRight.RIndex and FIndex.Enabled;
-  FInsert.Checked := Assigned(UserRight) and UserRight.RInsert and FInsert.Enabled;
-  FLockTable.Checked := Assigned(UserRight) and UserRight.RLockTables and FLockTable.Enabled;
-  FProcess.Checked := Assigned(UserRight) and UserRight.RProcess and FProcess.Enabled;
-  FReferences.Checked := Assigned(UserRight) and UserRight.RReferences and FReferences.Enabled;
-  FReload.Checked := Assigned(UserRight) and UserRight.RReload and FReload.Enabled;
-  FReplClient.Checked := Assigned(UserRight) and UserRight.RReplClient and FReplClient.Enabled;
-  FReplSlave.Checked := Assigned(UserRight) and UserRight.RReplSlave and FReplSlave.Enabled;
-  FSelect.Checked := Assigned(UserRight) and UserRight.RSelect and FSelect.Enabled;
-  FShowDatabase.Checked := Assigned(UserRight) and UserRight.RShowDatabases and FShowDatabase.Enabled;
-  FShowView.Checked := Assigned(UserRight) and UserRight.RShowView and FShowView.Enabled;
-  FShutdown.Checked := Assigned(UserRight) and UserRight.RShutdown and FShutdown.Enabled;
-  FSuper.Checked := Assigned(UserRight) and UserRight.RSuper and FSuper.Enabled;
-  FTrigger.Checked := Assigned(UserRight) and UserRight.RTrigger and FTrigger.Enabled;
-  FUpdate.Checked := Assigned(UserRight) and UserRight.RUpdate and FUpdate.Enabled;
+  FAlter.Checked            := Assigned(UserRight) and UserRight.RAlter            and FAlter.Enabled;
+  FAlterRoutine.Checked     := Assigned(UserRight) and UserRight.RAlterRoutine     and FAlterRoutine.Enabled;
+  FCreate.Checked           := Assigned(UserRight) and UserRight.RCreate           and FCreate.Enabled;
+  FCreateRoutine.Checked    := Assigned(UserRight) and UserRight.RCreateRoutine    and FCreateRoutine.Enabled;
+  FCreateTableSpace.Checked := Assigned(UserRight) and UserRight.RCreateTableSpace and FCreateTempTable.Enabled;
+  FCreateTempTable.Checked  := Assigned(UserRight) and UserRight.RCreateTempTable  and FCreateTempTable.Enabled;
+  FCreateUser.Checked       := Assigned(UserRight) and UserRight.RCreateUser       and FCreateUser.Enabled;
+  FCreateView.Checked       := Assigned(UserRight) and UserRight.RCreateView       and FCreateView.Enabled;
+  FDelete.Checked           := Assigned(UserRight) and UserRight.RDelete           and FDelete.Enabled;
+  FDrop.Checked             := Assigned(UserRight) and UserRight.RDrop             and FDrop.Enabled;
+  FEvent.Checked            := Assigned(UserRight) and UserRight.REvent            and FEvent.Enabled;
+  FExecute.Checked          := Assigned(UserRight) and UserRight.RExecute          and FExecute.Enabled;
+  FFile.Checked             := Assigned(UserRight) and UserRight.RFile             and FFile.Enabled;
+  FGrant.Checked            := Assigned(UserRight) and UserRight.RGrant            and FGrant.Enabled;
+  FIndex.Checked            := Assigned(UserRight) and UserRight.RIndex            and FIndex.Enabled;
+  FInsert.Checked           := Assigned(UserRight) and UserRight.RInsert           and FInsert.Enabled;
+  FLockTable.Checked        := Assigned(UserRight) and UserRight.RLockTables       and FLockTable.Enabled;
+  FProcess.Checked          := Assigned(UserRight) and UserRight.RProcess          and FProcess.Enabled;
+  FProxy.Checked            := Assigned(UserRight) and UserRight.RProxy            and FProxy.Enabled;
+  FReferences.Checked       := Assigned(UserRight) and UserRight.RReferences       and FReferences.Enabled;
+  FReload.Checked           := Assigned(UserRight) and UserRight.RReload           and FReload.Enabled;
+  FReplClient.Checked       := Assigned(UserRight) and UserRight.RReplClient       and FReplClient.Enabled;
+  FReplSlave.Checked        := Assigned(UserRight) and UserRight.RReplSlave        and FReplSlave.Enabled;
+  FSelect.Checked           := Assigned(UserRight) and UserRight.RSelect           and FSelect.Enabled;
+  FShowDatabase.Checked     := Assigned(UserRight) and UserRight.RShowDatabases    and FShowDatabase.Enabled;
+  FShowView.Checked         := Assigned(UserRight) and UserRight.RShowView         and FShowView.Enabled;
+  FShutdown.Checked         := Assigned(UserRight) and UserRight.RShutdown         and FShutdown.Enabled;
+  FSuper.Checked            := Assigned(UserRight) and UserRight.RSuper            and FSuper.Enabled;
+  FTrigger.Checked          := Assigned(UserRight) and UserRight.RTrigger          and FTrigger.Enabled;
+  FUpdate.Checked           := Assigned(UserRight) and UserRight.RUpdate           and FUpdate.Enabled;
 
   ActiveControl := FBCancel;
   if (FAll.Checked) then ActiveControl := FAll

@@ -1226,10 +1226,30 @@ type
     NewPassword: string;
     ProcedureName: string;
     TableName: string;
-    RAlter, RAlterRoutine, RCreate, RCreateTempTable, RCreateRoutine: Boolean;
-    RCreateUser, RCreateView, RDelete, RDrop, REvent, RExecute, RFile: Boolean;
-    RGrant, RIndex, RInsert, RLockTables, RProcess, RReferences: Boolean;
-    RReload, RReplClient, RReplSlave, RSelect: Boolean;
+    RAlter: Boolean;
+    RAlterRoutine: Boolean;
+    RCreate: Boolean;
+RCreateTableSpace: Boolean;
+    RCreateTempTable: Boolean;
+    RCreateRoutine: Boolean;
+    RCreateUser: Boolean;
+    RCreateView: Boolean;
+    RDelete: Boolean;
+    RDrop: Boolean;
+    REvent: Boolean;
+    RExecute: Boolean;
+    RFile: Boolean;
+    RGrant: Boolean;
+    RIndex: Boolean;
+    RInsert: Boolean;
+    RLockTables: Boolean;
+    RProcess: Boolean;
+RProxy: Boolean;
+    RReferences: Boolean;
+    RReload: Boolean;
+    RReplClient: Boolean;
+    RReplSlave: Boolean;
+    RSelect: Boolean;
     RShowDatabases, RShowView, RShutdown, RSuper, RTrigger, RUpdate: Boolean;
     constructor Create(); virtual;
     procedure Assign(const Source: TCUserRight);
@@ -8919,6 +8939,7 @@ begin
   RAlter := Source.RAlter;
   RAlterRoutine := Source.RAlterRoutine;
   RCreate := Source.RCreate;
+  RCreateTableSpace := Source.RCreateTableSpace;
   RCreateTempTable := Source.RCreateTempTable;
   RCreateRoutine := Source.RCreateRoutine;
   RCreateUser := Source.RCreateUser;
@@ -8933,6 +8954,7 @@ begin
   RInsert := Source.RInsert;
   RLockTables := Source.RLockTables;
   RProcess := Source.RProcess;
+  RProxy := Source.RProxy;
   RReferences := Source.RReferences;
   RReload := Source.RReload;
   RReplClient := Source.RReplClient;
@@ -8959,6 +8981,7 @@ begin
   RAlter := False;
   RAlterRoutine := False;
   RCreate := False;
+  RCreateTableSpace := False;
   RCreateTempTable := False;
   RCreateRoutine := False;
   RCreateUser := False;
@@ -8973,6 +8996,7 @@ begin
   RInsert := False;
   RLockTables := False;
   RProcess := False;
+  RProxy := False;
   RReferences := False;
   RReload := False;
   RReplClient := False;
@@ -9172,6 +9196,7 @@ procedure TCUser.ParseGrant(const SQL: string);
         RAlterRoutine    := (RAlterRoutine    or (Privileg = 'ALTER ROUTINE')           or (Privileg = 'ALL PRIVILEGES')) and (Users.Client.ServerVersion >= 50003);
         RCreate          := (RCreate          or (Privileg = 'CREATE')                  or (Privileg = 'ALL PRIVILEGES'));
         RCreateRoutine   := (RCreateRoutine   or (Privileg = 'CREATE ROUTINE')          or (Privileg = 'ALL PRIVILEGES')) and (Users.Client.ServerVersion >= 50003);
+        RCreateTableSpace:= (RCreateTableSpace or(Privileg = 'CREATE TABLESPACE')       or (Privileg = 'ALL PRIVILEGES')) and (Users.Client.ServerVersion >= 50500);
         RCreateTempTable := (RCreateTempTable or (Privileg = 'CREATE TEMPORARY TABLES') or (Privileg = 'ALL PRIVILEGES')) and (Users.Client.ServerVersion >= 40002);
         RCreateUser      := (RCreateUser      or (Privileg = 'CREATE USER')             or (Privileg = 'ALL PRIVILEGES')) and (Users.Client.ServerVersion >= 50003);
         RCreateView      := (RCreateView      or (Privileg = 'CREATE VIEW')             or (Privileg = 'ALL PRIVILEGES')) and (Users.Client.ServerVersion >= 50001);
@@ -9185,6 +9210,7 @@ procedure TCUser.ParseGrant(const SQL: string);
         RInsert          := (RInsert          or (Privileg = 'INSERT')                  or (Privileg = 'ALL PRIVILEGES'));
         RLockTables      := (RLockTables      or (Privileg = 'LOCK TABLES')             or (Privileg = 'ALL PRIVILEGES')) and (Users.Client.ServerVersion >= 40002);
         RProcess         := (RProcess         or (Privileg = 'PROCESS')                 or (Privileg = 'ALL PRIVILEGES'));
+        RProxy           := (RProxy           or (Privileg = 'PROXY')                   or (Privileg = 'ALL PRIVILEGES')) and (Users.Client.ServerVersion >= 50507);
         RReferences      := (RReferences      or (Privileg = 'REFERENCES')              or (Privileg = 'ALL PRIVILEGES'));
         RReload          := (RReload          or (Privileg = 'RELOAD')                  or (Privileg = 'ALL PRIVILEGES'));
         RReplClient      := (RReplClient      or (Privileg = 'REPLICATION CLIENT')      or (Privileg = 'ALL PRIVILEGES')) and (Users.Client.ServerVersion >= 40002);
@@ -11108,9 +11134,7 @@ end;
 
 function TCClient.GetUserRights(): TCUserRight;
 begin
-  if (not Assigned(User)) then
-    Result := nil
-  else if (User.RightCount = 0) then
+  if (not Assigned(User) or (User.RightCount = 0)) then
     Result := nil
   else
     Result := User.Right[0];
@@ -12237,6 +12261,7 @@ type
     if ((not Grant xor NewRight.RAlterRoutine   ) and (Grant xor (Assigned(OldRight) and OldRight.RAlterRoutine   )) and (RightType in [rtAll, rtDatabase, rtRoutine]) and (ServerVersion >= 50003)) then       Result := Result + ',ALTER ROUTINE';
     if ((not Grant xor NewRight.RCreate         ) and (Grant xor (Assigned(OldRight) and OldRight.RCreate         )) and (RightType in [rtAll, rtDatabase])                                        ) then       Result := Result + ',CREATE';
     if ((not Grant xor NewRight.RCreateRoutine  ) and (Grant xor (Assigned(OldRight) and OldRight.RCreateRoutine  )) and (RightType in [rtAll, rtDatabase])            and (ServerVersion >= 50003)) then       Result := Result + ',CREATE ROUTINE';
+    if ((not Grant xor NewRight.RCreateTableSpace)and (Grant xor (Assigned(OldRight) and OldRight.RCreateTableSpace))and (RightType in [rtAll])                        and (ServerVersion >= 50500)) then       Result := Result + ',CREATE TABLESPACE';
     if ((not Grant xor NewRight.RCreateTempTable) and (Grant xor (Assigned(OldRight) and OldRight.RCreateTempTable)) and (RightType in [rtAll, rtDatabase])            and (ServerVersion >= 40002)) then       Result := Result + ',CREATE TEMPORARY TABLES';
     if ((not Grant xor NewRight.RCreateUser     ) and (Grant xor (Assigned(OldRight) and OldRight.RCreateUser     )) and (RightType in [rtAll, rtDatabase])            and (ServerVersion >= 50003)) then       Result := Result + ',CREATE USER';
     if ((not Grant xor NewRight.RCreateView     ) and (Grant xor (Assigned(OldRight) and OldRight.RCreateView     )) and (RightType in [rtAll, rtDatabase])            and (ServerVersion >= 50001)) then       Result := Result + ',CREATE VIEW';
@@ -12250,6 +12275,7 @@ type
     if ((not Grant xor NewRight.RInsert         ) and (Grant xor (Assigned(OldRight) and OldRight.RInsert         ))                                                                               ) then begin Result := Result + ',INSERT';                  if (not Grant and (OldRight.FieldName <> '')) then Result := Result + '(' + EscapeIdentifier(OldRight.FieldName) + ')' else if (Grant and (NewRight.FieldName <> '')) then Result := Result + '(' + EscapeIdentifier(NewRight.FieldName) + ')'; end;
     if ((not Grant xor NewRight.RLockTables     ) and (Grant xor (Assigned(OldRight) and OldRight.RLockTables     )) and (RightType in [rtAll, rtDatabase])            and (ServerVersion >= 40002)) then       Result := Result + ',LOCK TABLES';
     if ((not Grant xor NewRight.RProcess        ) and (Grant xor (Assigned(OldRight) and OldRight.RProcess        )) and (RightType in [rtAll])                                                    ) then       Result := Result + ',PROCESS';
+    if ((not Grant xor NewRight.RProxy          ) and (Grant xor (Assigned(OldRight) and OldRight.RProxy          )) and (RightType in [rtAll])                        and (ServerVersion >= 50507)) then       Result := Result + ',PROXY';
     if ((not Grant xor NewRight.RReferences     ) and (Grant xor (Assigned(OldRight) and OldRight.RReferences     ))                                                                               ) then begin Result := Result + ',REFERENCES';              if (not Grant and (OldRight.FieldName <> '')) then Result := Result + '(' + EscapeIdentifier(OldRight.FieldName) + ')' else if (Grant and (NewRight.FieldName <> '')) then Result := Result + '(' + EscapeIdentifier(NewRight.FieldName) + ')'; end;
     if ((not Grant xor NewRight.RReload         ) and (Grant xor (Assigned(OldRight) and OldRight.RReload         )) and (RightType in [rtAll])                                                    ) then       Result := Result + ',RELOAD';
     if ((not Grant xor NewRight.RReplClient     ) and (Grant xor (Assigned(OldRight) and OldRight.RReplClient     )) and (RightType in [rtAll]) and (ServerVersion >= 40002)                       ) then       Result := Result + ',REPLICATION CLIENT';
