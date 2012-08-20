@@ -5683,10 +5683,24 @@ begin
         ftWord,
         ftInteger,
         ftLongWord,
-        ftLargeint,
+        ftLargeint:
+          begin
+            ValueType := SQL_C_CHAR;
+            ParameterType := SQL_CHAR;
+            ColumnSize := 100;
+            Parameter[I].BufferSize := ColumnSize;
+            GetMem(Parameter[I].Buffer, Parameter[I].BufferSize);
+          end;
         ftSingle,
         ftFloat,
-        ftExtended,
+        ftExtended:
+          begin
+            ValueType := SQL_C_CHAR;
+            ParameterType := SQL_C_DOUBLE;
+            ColumnSize := 100;
+            Parameter[I].BufferSize := ColumnSize;
+            GetMem(Parameter[I].Buffer, Parameter[I].BufferSize);
+          end;
         ftTimestamp:
           begin
             ValueType := SQL_C_CHAR;
