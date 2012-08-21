@@ -6630,6 +6630,8 @@ end;
 
 destructor TCDatabase.Destroy();
 begin
+  FreeDesktop();
+
   FTables.Free();
   if (Assigned(FRoutines)) then FRoutines.Free();
   if (Assigned(FTriggers)) then FTriggers.Free();

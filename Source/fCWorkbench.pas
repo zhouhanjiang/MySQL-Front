@@ -943,8 +943,9 @@ begin
       PaintTo(DoubleBuffer.Canvas, 0, 0);
     end;
 
-    BitBlt(Canvas.Handle, 0, 0, ClientWidth, ClientHeight,
-      DoubleBuffer.Canvas.Handle, 0, 0, SRCCOPY);
+    if (not BitBlt(Canvas.Handle, 0, 0, ClientWidth, ClientHeight,
+      DoubleBuffer.Canvas.Handle, 0, 0, SRCCOPY)) then
+      RaiseLastOSError()
   end;
 end;
 

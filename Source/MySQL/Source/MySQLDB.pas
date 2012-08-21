@@ -1266,6 +1266,16 @@ begin
   end;
 end;
 
+function SwapUInt64(I: UInt64): UInt64; register; // swap byte order
+asm
+  mov eax, dword [i]
+  bswap eax
+  mov dword [Result+4], eax
+  mov eax, dword [i+4]
+  bswap eax
+  mov dword [Result], eax
+end;
+
 { Callback functions **********************************************************}
 
 procedure local_infile_end(local_infile: TMySQLConnection.Plocal_infile); cdecl;
@@ -4054,8 +4064,6 @@ end;
 function TMySQLQuery.GetFieldData(const Field: TField; const Buffer: Pointer; const Data: PRecordBufferData): Boolean;
 var
   DT: TDateTime;
-  Len: Integer;
-  P: Pointer;
   S: string;
 begin
   Result := Assigned(Data) and (Field.FieldNo > 0) and Assigned(Data^.LibRow^[Field.FieldNo - 1]);
@@ -4064,24 +4072,8 @@ begin
       if (BitField(Field)) then
         begin
           ZeroMemory(Buffer, Field.DataSize);
-          Len := Data^.LibLengths^[Field.FieldNo - 1];
-          if (Len > 0) then
-          begin
-            P := @Data^.LibRow^[Field.FieldNo - 1][Data^.LibLengths^[Field.FieldNo - 1] - 1];
-            asm
-                PUSH EBX
-                MOV ECX,Len
-                MOV EBX,P
-                MOV EDX,Buffer
-              @L:
-                MOV AL,BYTE PTR [EBX]
-                DEC EBX
-                MOV BYTE PTR [EDX],AL
-                INC EDX
-                LOOP @L
-                POP EBX
-            end;
-          end;
+          MoveMemory(@PAnsiChar(Buffer)[Field.DataSize - Data^.LibLengths^[Field.FieldNo - 1]], Data^.LibRow^[Field.FieldNo - 1], Data^.LibLengths^[Field.FieldNo - 1]);
+          UInt64(Buffer^) := SwapUInt64(UInt64(Buffer^));
         end
       else
         case (Field.DataType) of
@@ -5677,12 +5669,21 @@ end;
 procedure TMySQLDataSet.SetFieldData(Field: TField; Buffer: Pointer);
 var
   DT: TDateTime;
+  Len: Integer;
   RBS: RawByteString;
+  U: UInt64;
 begin
   if (not Assigned(Buffer)) then
     SetFieldData(Field, nil, 0)
   else if (BitField(Field)) then
-    SetFieldData(Field, Buffer, Field.DataSize)
+  begin
+    ZeroMemory(@U, SizeOf(U));
+    MoveMemory(@U, Buffer, Field.DataSize);
+    U := SwapUInt64(U);
+    Len := SizeOf(U);
+    while ((Len > 0) and (PAnsiChar(@U)[SizeOf(U) - Len] = #0)) do Dec(Len);
+    SetFieldData(Field, @PAnsiChar(@U)[SizeOf(U) - Len], Len)
+  end
   else
   begin
     case (Field.DataType) of

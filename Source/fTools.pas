@@ -3,8 +3,8 @@ unit fTools;
 interface {********************************************************************}
 
 uses
-  Windows, XMLDoc, XMLIntf, DBGrids, msxml, Zip,
-  SysUtils, DB, Classes, Graphics, SyncObjs, Printers,
+  Windows, XMLDoc, XMLIntf, DBGrids, msxml, Zip, Printers,
+  SysUtils, DB, Classes, Graphics, SyncObjs,
   ODBCAPI,
   DISQLite3Api,
   SynPDF,
@@ -2949,6 +2949,7 @@ var
   IndexName: array [0 .. STR_LEN] of SQLTCHAR;
   IndexType: SQLSMALLINT;
   J: Integer;
+  Len: SQLINTEGER;
   NewKeyColumn: TCKeyColumn;
   NewField: TCBaseTableField;
   NewTable: TCBaseTable;
@@ -5661,9 +5662,9 @@ begin
   begin
     if (BitField(Fields[I])) then
       begin
-        ValueType := SQL_C_BIT;
-        ParameterType := SQL_BIT;
-        ColumnSize := SizeOf(LargeInt);
+        ValueType := SQL_C_ULONG;
+        ParameterType := SQL_INTEGER;
+        ColumnSize := 8;
         Parameter[I].BufferSize := Fields[I].DataSize;
         GetMem(Parameter[I].Buffer, Parameter[I].BufferSize);
       end
@@ -6031,7 +6032,10 @@ begin
       SQL := SQL + '"' + Fields[I].DisplayName + '" ';
 
     if (BitField(Fields[I])) then
-      SQL := SQL + 'BIT'
+      if (Table.Fields[I].Size = 1) then
+        SQL := SQL + 'BIT'
+      else
+        SQL := SQL + 'NUMERIC'
     else
     case (Fields[I].DataType) of
       ftString:
@@ -7056,28 +7060,17 @@ end;
 
 procedure TTExportPrint.AddPage(const NewPageRow: Boolean);
 var
-  C: TCanvas;
   I: Integer;
 begin
   if (NewPageRow) then
   begin
     for I := 0 to Length(Pages) - 1 do
     begin
-      C := TCanvas.Create();
-      C.Handle := CreateCompatibleDC(Printer.Canvas.Handle);
-      CreateCompatibleBitmap(C.Handle, Printer.PageWidth, Printer.PageHeight);
-
-      if (not BitBlt(C.Handle, 0, 0, Printer.PageWidth, Printer.PageHeight,
-        Printer.Canvas.Handle, 0, 0, SRCCOPY)) then
-        GetLastError();
-
       Printer.NewPage();
 
-      if (not BitBlt(Printer.Canvas.Handle, 0, 0, Printer.PageWidth, Printer.PageHeight,
-        C.Handle, 0, 0, SRCCOPY)) then
-        GetLastError();
-
-      C.Free();
+      if (not BitBlt(Printer.Canvas.Handle, 0, 0, 1000, 1000,
+        Pages[I].Handle, 0, 0, SRCCOPY)) then
+        RaiseLastOSError();
 
       Pages[I].Free();
     end;
@@ -7089,13 +7082,7 @@ begin
   end
   else
   begin
-    SetLength(Pages, Length(Pages) + 1);
-    Pages[Length(Pages) - 1] := TCanvas.Create();
-    Pages[Length(Pages) - 1].Handle := CreateCompatibleDC(Printer.Handle);
-    Pages[Length(Pages) - 1].Font.PixelsPerInch := Printer.Canvas.Font.PixelsPerInch;
-    Pages[Length(Pages) - 1].Font.Size := Printer.Canvas.Font.Size;
-//                                             CreateCompatibleBitmap
-    Canvas := Pages[Length(Pages) - 1];
+
   end;
 end;
 
