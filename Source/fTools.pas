@@ -619,7 +619,6 @@ type
 
   TTExportPrint = class(TTExportCanvas)
   private
-    Pages: array of TCanvas;
     Printer: TPrinter;
   protected
     procedure AddPage(const NewPageRow: Boolean); override;
@@ -6960,7 +6959,7 @@ begin
       if ((CalcR.Right <= R.Right) and (CalcR.Bottom <= R.Bottom)) then
       begin
         if (tfRight in TextFormat) then
-          Windows.DrawTextEx(Columns[Column].Canvas.Handle, PChar(Text), 0, R, TTextFormatFlags(TextFormat), nil)
+          Windows.DrawTextEx(Columns[Column].Canvas.Handle, PChar(Text), Length(Text), R, TTextFormatFlags(TextFormat), nil)
         else
           Windows.ExtTextOut(Columns[Column].Canvas.Handle, R.Left, R.Top - 1, ETO_CLIPPED, R, Text, Length(Text), nil);
       end
@@ -7059,30 +7058,11 @@ end;
 { TTExportPrint ***************************************************************}
 
 procedure TTExportPrint.AddPage(const NewPageRow: Boolean);
-var
-  I: Integer;
 begin
   if (NewPageRow) then
   begin
-    for I := 0 to Length(Pages) - 1 do
-    begin
-      Printer.NewPage();
-
-      if (not BitBlt(Printer.Canvas.Handle, 0, 0, 1000, 1000,
-        Pages[I].Handle, 0, 0, SRCCOPY)) then
-        RaiseLastOSError();
-
-      Pages[I].Free();
-    end;
-    SetLength(Pages, 0);
-
     Printer.NewPage();
-
     Canvas := Printer.Canvas;
-  end
-  else
-  begin
-
   end;
 end;
 
@@ -7107,8 +7087,6 @@ begin
   Canvas := Printer.Canvas;
 
   inherited Create(AClient);
-
-  SetLength(Pages, 0);
 end;
 
 destructor TTExportPrint.Destroy();

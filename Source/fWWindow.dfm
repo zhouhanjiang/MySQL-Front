@@ -37,6 +37,42 @@ object WWindow: TWWindow
     Color = clAppWorkSpace
     ParentBackground = False
     TabOrder = 5
+    OnResize = PWorkSpaceResize
+    DesignSize = (
+      683
+      326)
+    object FLDonation: TLabel
+      Left = 20
+      Top = 20
+      Width = 643
+      Height = 14
+      Alignment = taCenter
+      Anchors = [akLeft, akTop, akRight]
+      AutoSize = False
+      Caption = 'FLDonation'
+      Transparent = True
+    end
+    object FBDonation: TButton
+      Left = 233
+      Top = 64
+      Width = 75
+      Height = 25
+      Action = aHDonation
+      ParentShowHint = False
+      ShowHint = True
+      TabOrder = 0
+    end
+    object FBHideDonation: TButton
+      Left = 377
+      Top = 64
+      Width = 75
+      Height = 25
+      Caption = 'FBHideDonation'
+      ParentShowHint = False
+      ShowHint = False
+      TabOrder = 1
+      OnClick = FBHideDonationClick
+    end
   end
   object TabControl: TTabControl
     Left = 0
@@ -524,6 +560,20 @@ object WWindow: TWWindow
       ImageIndex = 1
       ShortCut = 117
     end
+    object aHManual: TAction
+      Category = 'Help'
+      Caption = 'aHManual'
+      Enabled = False
+      HelpContext = 1119
+      HelpType = htContext
+    end
+    object aHUpdate: TAction
+      Category = 'Help'
+      Caption = 'aHUpdate'
+      HelpContext = 1073
+      HelpType = htContext
+      OnExecute = aHUpdateExecute
+    end
     object aHSQL: TAction
       Category = 'Help'
       Caption = 'aHSQL'
@@ -548,6 +598,12 @@ object WWindow: TWWindow
       HelpContext = 1121
       HelpType = htContext
       ImageIndex = 98
+    end
+    object aHDonation: TAction
+      Category = 'Help'
+      Caption = 'aHDonation'
+      Visible = False
+      OnExecute = aHDonationExecute
     end
     object aVQueryBuilder: TAction
       Category = 'View'
@@ -1347,20 +1403,6 @@ object WWindow: TWWindow
       ShortCut = 32883
       OnExecute = aFExitExecute
     end
-    object aHManual: TAction
-      Category = 'Help'
-      Caption = 'aHManual'
-      Enabled = False
-      HelpContext = 1119
-      HelpType = htContext
-    end
-    object aHUpdate: TAction
-      Category = 'Help'
-      Caption = 'aHUpdate'
-      HelpContext = 1073
-      HelpType = htContext
-      OnExecute = aHUpdateExecute
-    end
     object aHInfo: TAction
       Category = 'Help'
       Caption = 'aHInfo'
@@ -1888,6 +1930,9 @@ object WWindow: TWWindow
       end
       object miHUpdate: TMenuItem
         Action = aHUpdate
+      end
+      object miHDonation: TMenuItem
+        Action = aHDonation
       end
       object N19: TMenuItem
         Caption = '-'

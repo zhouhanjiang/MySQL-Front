@@ -361,6 +361,7 @@ type
     GridNullText: Boolean;
     GridShowMemoContent: Boolean;
     GridDefaultSorting: Boolean;
+    InformationCounter: Integer;
     SQLFontName: TFontName;
     SQLFontStyle: TFontStyles;
     SQLFontColor: TColor;
@@ -1321,6 +1322,7 @@ begin
   GridNullText := True;
   GridShowMemoContent := False;
   GridDefaultSorting := True;
+  InformationCounter := 1;
   SQLFontName := 'Courier New';
   SQLFontColor := clWindowText;
   SQLFontStyle := [];
@@ -1671,6 +1673,7 @@ begin
   if (Assigned(XMLNode(XML, 'grid/maxcolumnwidth'))) then TryStrToInt(XMLNode(XML, 'grid/maxcolumnwidth').Text, GridMaxColumnWidth);
   if (Assigned(XMLNode(XML, 'grid/row/background'))) then TryStrToBool(XMLNode(XML, 'grid/row/background').Attributes['visible'], GridRowBGColorEnabled);
   if (Assigned(XMLNode(XML, 'height'))) then TryStrToInt(XMLNode(XML, 'height').Text, Height);
+//  if (Assigned(XMLNode(XML, 'information'))) then TryStrToInt(XMLNode(XML, 'information').Text, InformationCounter);
   if (Assigned(XMLNode(XML, 'language/file'))) then LanguageFilename := ExtractFileName(XMLNode(XML, 'language/file').Text);
   if (Assigned(XMLNode(XML, 'left'))) then TryStrToInt(XMLNode(XML, 'left').Text, Left);
   if (Assigned(XMLNode(XML, 'log/font/charset'))) then TryStrToInt(XMLNode(XML, 'log/font/charset').Text, LogFontCharset);
@@ -1871,6 +1874,7 @@ begin
   XMLNode(XML, 'grid/maxcolumnwidth').Text := IntToStr(GridMaxColumnWidth);
   XMLNode(XML, 'grid/row/background').Attributes['visible'] := GridRowBGColorEnabled;
   XMLNode(XML, 'height').Text := IntToStr(Height);
+//  XMLNode(XML, 'information').Text := IntToStr(InformationCounter);
   XMLNode(XML, 'language/file').Text := ExtractFileName(LanguageFilename);
   XMLNode(XML, 'left').Text := IntToStr(Left);
   XMLNode(XML, 'log/font/charset').Text := IntToStr(LogFontCharset);

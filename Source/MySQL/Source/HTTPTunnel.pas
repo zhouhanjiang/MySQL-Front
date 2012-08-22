@@ -328,7 +328,7 @@ end;
 function MYSQL.get_host_info(): my_char;
 begin
   if (fhost_info = '') then
-    fhost_info := AnsiString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_HTTP_CONNECTION - CR_HTTPTUNNEL_UNKNOWN_ERROR], [fhost]));
+    fhost_info := EncodeString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_HTTP_CONNECTION - CR_HTTPTUNNEL_UNKNOWN_ERROR], [fhost]));
 
   Result := my_char(fhost_info);
 end;
