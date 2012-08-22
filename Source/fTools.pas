@@ -5866,8 +5866,17 @@ begin
           raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Fields[I].DisplayName, Ord(Fields[I].DataType)]);
       end;
 
-  ReturnCode := SQLExecute(Stmt);
-  if (ReturnCode = SQL_NEED_DATA) then
+  repeat
+    ReturnCode := SQLExecute(Stmt);
+    if (not SQL_SUCCEEDED(ReturnCode) and (ReturnCode <> SQL_NEED_DATA)) then
+    begin
+      Error := ODBCError(SQL_HANDLE_STMT, Stmt);
+      Error.ErrorMessage := Error.ErrorMessage;
+      DoError(Error, EmptyToolsItem());
+    end;
+  until ((Success <> daSuccess) or SQL_SUCCEEDED(ReturnCode) or (ReturnCode = SQL_NEED_DATA));
+
+  if ((Success = daSuccess) and (ReturnCode = SQL_NEED_DATA)) then
     repeat
       ReturnCode := SQLParamData(Stmt, @Field);
       I := SQLINTEGER(Field);
@@ -5879,31 +5888,26 @@ begin
               Size := -(Parameter[I].Size - SQL_LEN_DATA_AT_EXEC_OFFSET);
               S := DataSet.GetAsString(Fields[I].FieldNo);
               Index := 0;
-              repeat
-                ODBCException(Stmt, SQLPutData(Stmt, @S[1 + Index div 2], Min(ODBCDataSize, Size - Index)));
-                Inc(Index, Min(ODBCDataSize, Size - Index));
-              until (Index = Size);
+              if (Size > 0) then
+                repeat
+                  ODBCException(Stmt, SQLPutData(Stmt, @S[1 + Index div 2], Min(ODBCDataSize, Size - Index)));
+                  Inc(Index, Min(ODBCDataSize, Size - Index));
+                until (Index = Size);
             end;
           ftBlob:
             begin
               Size := DataSet.LibLengths^[I];
               Index := 0;
-              repeat
-                ODBCException(Stmt, SQLPutData(Stmt, @DataSet.LibRow^[Fields[I].FieldNo - 1][Index], Min(ODBCDataSize, Size - Index)));
-                Inc(Index, Min(ODBCDataSize, Size - Index));
-              until (Index = Size);
+              if (Size > 0) then
+                repeat
+                  ODBCException(Stmt, SQLPutData(Stmt, @DataSet.LibRow^[Fields[I].FieldNo - 1][Index], Min(ODBCDataSize, Size - Index)));
+                  Inc(Index, Min(ODBCDataSize, Size - Index));
+                until (Index = Size);
             end;
           else
             raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Fields[I].DisplayName, Ord(Fields[I].DataType)]);
         end;
     until (ReturnCode <> SQL_NEED_DATA);
-
-  while ((Success = daSuccess) and not SQL_SUCCEEDED(ReturnCode)) do
-  begin
-    Error := ODBCError(SQL_HANDLE_STMT, Stmt);
-    Error.ErrorMessage := Error.ErrorMessage;
-    DoError(Error, EmptyToolsItem());
-  end;
 end;
 
 { TTExportAccess **************************************************************}
