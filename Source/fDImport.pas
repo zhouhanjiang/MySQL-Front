@@ -153,7 +153,7 @@ type
     function GetSourceTableName(const Item: TListItem): string;
     function GetTableName(const Item: TListItem): string;
     procedure InitTSFields(Sender: TObject);
-    procedure OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; var Success: TDataAction);
+    procedure OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure OnExecuted(const ASuccess: Boolean);
     procedure OnUpdate(const AProgressInfos: TTools.TProgressInfos);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
@@ -1034,7 +1034,7 @@ begin
   end;
 end;
 
-procedure TDImport.OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; var Success: TDataAction);
+procedure TDImport.OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean;  var Success: TDataAction);
 var
   ErrorMsg: string;
   Flags: Integer;
@@ -1056,11 +1056,19 @@ begin
         Msg := Error.ErrorMessage + ' (#' + IntToStr(Error.ErrorCode) + ')';
         ErrorMsg := Msg;
       end;
+    TE_ODBC:
+      begin
+        if (Error.ErrorCode = 0) then
+          Msg := Error.ErrorMessage
+        else
+          Msg := Error.ErrorMessage + ' (#' + IntToStr(Error.ErrorCode) + ')';
+        ErrorMsg := Msg;
+      end;
     TE_Warning:
-    begin
-      Msg := '';
-      ErrorMsg := Error.ErrorMessage;
-    end;
+      begin
+        Msg := '';
+        ErrorMsg := Error.ErrorMessage;
+      end;
     else
       begin
         Msg := Error.ErrorMessage;
@@ -1072,7 +1080,10 @@ begin
     Success := daFail
   else
   begin
-    Flags := MB_CANCELTRYCONTINUE + MB_ICONERROR;
+    if (not ShowRetry) then
+      Flags := MB_OK + MB_ICONERROR
+    else
+      Flags := MB_CANCELTRYCONTINUE + MB_ICONERROR;
     case (MsgBox(Msg, Preferences.LoadStr(45), Flags, Handle)) of
       IDCANCEL,
       IDABORT: Success := daAbort;

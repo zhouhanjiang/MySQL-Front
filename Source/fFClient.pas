@@ -996,7 +996,7 @@ type
     procedure gmFilterClearClick(Sender: TObject);
     procedure gmFilterIntoFilterClick(Sender: TObject);
     function ImageIndexByData(const Data: TObject): Integer;
-    procedure ImportError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; var Success: TDataAction);
+    procedure ImportError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure ListViewEmpty(Sender: TObject);
     procedure ListViewInitialize(const ListView: TListView);
     procedure ListViewUpdate(const ClientEvent: TCClient.TEvent; const ListView: TListView; const Data: TCustomData = nil);
@@ -3448,6 +3448,7 @@ begin
   DSearch.SearchOnly := False;
   DSearch.Frame := Self;
   DSearch.Execute();
+  Client.Update();
 end;
 
 procedure TFClient.aETransferExecute(Sender: TObject);
@@ -9690,7 +9691,7 @@ begin
     raise ERangeError.Create(SRangeError);
 end;
 
-procedure TFClient.ImportError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; var Success: TDataAction);
+procedure TFClient.ImportError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
 begin
   MsgBox(Error.ErrorMessage, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
 

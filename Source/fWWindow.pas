@@ -460,6 +460,8 @@ type
     procedure PWorkSpaceResize(Sender: TObject);
     procedure FBHideDonationClick(Sender: TObject);
     procedure aHDonationExecute(Sender: TObject);
+  const
+    tiDeactivate = 1;
   type
     PTabControlRepaint = ^TTabControlRepaint;
     TTabControlRepaint = record
@@ -485,9 +487,12 @@ type
     FClients: TList;
     UniqueTabNameCounter: Integer;
     UpdateAvailable: Boolean;
+    procedure ApplicationActivate(Sender: TObject);
+    procedure ApplicationDeactivate(Sender: TObject);
     procedure ApplicationMessage(var Msg: TMsg; var Handled: Boolean);
     procedure ApplicationModalBegin(Sender: TObject);
     procedure ApplicationModalEnd(Sender: TObject);
+    procedure EmptyWorkingMem();
     {$IFDEF EurekaLog}
     procedure EurekaLogCustomDataRequest(
       EurekaExceptionRecord: TEurekaExceptionRecord; DataFields: TStrings);
@@ -520,6 +525,7 @@ type
     procedure WMCopyData(var Message: TWMCopyData); message WM_COPYDATA;
     procedure WMDrawItem(var Message: TWMDrawItem); message WM_DRAWITEM;
     procedure WMHelp(var Message: TWMHelp); message WM_HELP;
+    procedure WMTimer(var Message: TWMTimer); message WM_TIMER;
     property ActiveTab: TFClient read GetActiveTab write SetActiveTab;
   protected
     procedure ApplicationException(Sender: TObject; E: Exception);
@@ -664,11 +670,21 @@ begin
   end;
 end;
 
+procedure TWWindow.ApplicationActivate(Sender: TObject);
+begin
+  KillTimer(Handle, tiDeactivate);
+end;
+
 procedure TWWindow.aOAccountsExecute(Sender: TObject);
 begin
   DAccounts.Account := nil;
   DAccounts.Open := False;
   DAccounts.Execute();
+end;
+
+procedure TWWindow.ApplicationDeactivate(Sender: TObject);
+begin
+  SetTimer(Handle, tiDeactivate, 60000, nil);
 end;
 
 procedure TWWindow.ApplicationException(Sender: TObject; E: Exception);
@@ -1773,6 +1789,18 @@ begin
   inherited;
 end;
 
+procedure TWWindow.EmptyWorkingMem();
+var
+  Process: THandle;
+begin
+  Process := 0; // OpenProcess(PROCESS_ALL_ACCESS, FALSE, GetCurrentProcessId());
+  if (Process <> 0) then
+  begin
+    SetProcessWorkingSetSize(Process, Size_T(-1), Size_T(-1));
+    CloseHandle(Process);
+  end;
+end;
+
 {$IFDEF EurekaLog}
 procedure TWWindow.EurekaLogCustomDataRequest(
   EurekaExceptionRecord: TEurekaExceptionRecord; DataFields: TStrings);
@@ -1905,6 +1933,8 @@ begin
   Application.OnMessage := ApplicationMessage;
   Application.OnModalBegin := ApplicationModalBegin;
   Application.OnModalEnd := ApplicationModalEnd;
+  Application.OnActivate := ApplicationActivate;
+  Application.OnDeactivate := ApplicationDeactivate;
 
   {$IFDEF EurekaLog}
     EurekaLog := TEurekaLog.Create(Self);
@@ -2608,6 +2638,14 @@ procedure TWWindow.WMHelp(var Message: TWMHelp);
 begin
   if (Message.HelpInfo.iContextType = HELPINFO_MENUITEM) then
     inherited;
+end;
+
+procedure TWWindow.WMTimer(var Message: TWMTimer);
+begin
+  case (Message.TimerID) of
+    tiDeactivate:
+      EmptyWorkingMem();
+  end;
 end;
 
 end.

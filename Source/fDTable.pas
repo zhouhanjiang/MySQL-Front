@@ -274,7 +274,7 @@ end;
 
 procedure TDTable.aPCreateForeignKeyExecute(Sender: TObject);
 begin
-  DForeignKey.Database := nil;
+  DForeignKey.Database := Database;
   DForeignKey.Table := NewTable;
   DForeignKey.ForeignKey := nil;
   if (DForeignKey.Execute()) then

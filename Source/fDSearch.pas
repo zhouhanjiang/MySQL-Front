@@ -106,7 +106,7 @@ type
     WantedNodeExpand: TTreeNode;
     procedure FormClientEvent(const Event: TCClient.TEvent);
     function GetClient(const Index: Integer): TCClient;
-    procedure OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; var Success: TDataAction);
+    procedure OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure OnExecuted(const ASuccess: Boolean);
     procedure OnUpdate(const AProgressInfos: TTools.TProgressInfos);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
@@ -563,7 +563,7 @@ begin
     end
     else if (SelectedNodes.Count > 1) then
       FSelect.Select(SelectedNodes)
-    else if (Assigned(AccountNode)) then
+    else if (not Assigned(FSelect.Selected) and Assigned(AccountNode)) then
       AccountNode.Selected := True;
 
     SelectedNodes.Free();
@@ -581,7 +581,7 @@ begin
 
   PageControl.ActivePage := TSSelect;
 
-  FBForward.Cursor := crDefault;
+  FBForward.Default := True;
 
   FBCancel.Caption := Preferences.LoadStr(30);
   FBCancel.ModalResult := mrCancel;
@@ -783,7 +783,7 @@ begin
   end;
 end;
 
-procedure TDSearch.OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; var Success: TDataAction);
+procedure TDSearch.OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
 var
   ErrorMsg: string;
   Flags: Integer;
@@ -811,7 +811,10 @@ begin
       Msg := Error.ErrorMessage;
   end;
 
-  Flags := MB_CANCELTRYCONTINUE + MB_ICONERROR;
+  if (not ShowRetry) then
+    Flags := MB_OK + MB_ICONERROR
+  else
+    Flags := MB_CANCELTRYCONTINUE + MB_ICONERROR;
   case (MsgBox(Msg, Preferences.LoadStr(45), Flags, Handle)) of
     IDCANCEL,
     IDABORT: Success := daAbort;
@@ -921,6 +924,7 @@ var
   I: Integer;
   J: Integer;
   K: Integer;
+  List: TList;
   Node: TTreeNode;
   ProgressInfos: TTools.TProgressInfos;
   Table: TCBaseTable;
@@ -1012,6 +1016,7 @@ begin
     Find.OnExecuted := OnExecuted;
     Find.OnUpdate := OnUpdate;
 
+    List := TList.Create();
     for I := 0 to FSelect.Items.Count - 1 do
       if (FSelect.Items[I].Selected) then
       begin
@@ -1019,19 +1024,26 @@ begin
         begin
           Database := ExecuteClient.DatabaseByName(FSelect.Items[I].Parent.Parent.Text);
           Table := Database.BaseTableByName(FSelect.Items[I].Parent.Text);
+          List.Add(Table);
           Find.Add(Table, Table.FieldByName(FSelect.Items[I].Text));
         end
         else if (FSelect.Items[I].ImageIndex = iiBaseTable) then
         begin
           Database := ExecuteClient.DatabaseByName(FSelect.Items[I].Parent.Text);
-          Find.Add(Database.BaseTableByName(FSelect.Items[I].Text), nil);
+          Table := Database.BaseTableByName(FSelect.Items[I].Text);
+          List.Add(Table);
+          Find.Add(Table, nil);
         end
         else if (FSelect.Items[I].ImageIndex = iiDatabase) then
         begin
           Database := ExecuteClient.DatabaseByName(FSelect.Items[I].Text);
           for J := 0 to Database.Tables.Count - 1 do
             if ((Database.Tables[J] is TCBaseTable)  and (RightStr(Database.Tables[J].Name, Length(BackupExtension)) <> BackupExtension)) then
-              Find.Add(TCBaseTable(Database.Tables[J]), nil);
+            begin
+              Table := TCBaseTable(Database.Tables[J]);
+              List.Add(Table);
+              Find.Add(Table, nil);
+            end;
         end
         else // iiConnection
         begin
@@ -1041,10 +1053,18 @@ begin
             if (not (Database is TCSystemDatabase)) then
               for J := 0 to Database.Tables.Count - 1 do
                 if ((Database.Tables[J] is TCBaseTable)  and (RightStr(Database.Tables[J].Name, Length(BackupExtension)) <> BackupExtension)) then
-                  Find.Add(TCBaseTable(Database.Tables[J]), nil);
+                begin
+                  Table := TCBaseTable(Database.Tables[J]);
+                  List.Add(Table);
+                  Find.Add(Table, nil);
+                end;
           end;
         end;
       end;
+    if (not SearchOnly) then
+      for I := 0 to List.Count - 1 do
+        TCTable(List[I]).InvalidateData();
+    List.Free();
 
     if (ExecuteClient.Asynchron) then
       Find.Start()

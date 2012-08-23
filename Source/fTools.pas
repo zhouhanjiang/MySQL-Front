@@ -30,7 +30,7 @@ type
       ErrorCode: Integer;
       ErrorMessage: string;
     end;
-    TErrorEvent = procedure(const Sender: TObject; const Error: TError; const Item: TItem; var Success: TDataAction) of object;
+    TErrorEvent = procedure(const Sender: TObject; const Error: TError; const Item: TItem; const ShowRetry: Boolean; var Success: TDataAction) of object;
     TOnExecuted = procedure(const Success: Boolean) of object;
     PProgressInfos = ^TProgressInfos;
     TProgressInfos = record
@@ -110,8 +110,8 @@ type
     procedure BackupTable(const Item: TItem; const Rename: Boolean = False); virtual;
     procedure BeforeExecute(); virtual;
     function DatabaseError(const Client: TCClient): TError; virtual;
-    procedure DoError(const Error: TError; const Item: TItem); overload; virtual;
-    procedure DoError(const Error: TError; const Item: TItem; var SQL: string); overload; virtual;
+    procedure DoError(const Error: TError; const Item: TItem; const ShowRetry: Boolean); overload; virtual;
+    procedure DoError(const Error: TError; const Item: TItem; const ShowRetry: Boolean; var SQL: string); overload; virtual;
     procedure DoUpdateGUI(); virtual; abstract;
     function EmptyToolsItem(): TItem; virtual;
     function NoPrimaryIndexError(): TError; virtual;
@@ -880,14 +880,20 @@ var
 begin
   Result.ErrorType := TE_ODBC;
   Result.ErrorCode := 0;
-  if (not SQL_SUCCEEDED(SQLGetDiagRec(HandleType, Handle, 1, @SQLState, nil, nil, 0, @cbMessageText))) then
-    Result.ErrorMessage := 'Unknown ODBC Error.'
-  else
-  begin
-    GetMem(MessageText, (cbMessageText + 1) * SizeOf(SQLTCHAR));
-    SQLGetDiagRec(HandleType, Handle, 1, nil, nil, MessageText, cbMessageText + 1, nil);
-    Result.ErrorMessage := PChar(MessageText) + ' (' + SQLState + ')';
-    FreeMem(MessageText);
+  case (SQLGetDiagRec(HandleType, Handle, 1, @SQLState, nil, nil, 0, @cbMessageText)) of
+    SQL_SUCCESS,
+    SQL_SUCCESS_WITH_INFO:
+      begin
+        GetMem(MessageText, (cbMessageText + 1) * SizeOf(SQLTCHAR));
+        SQLGetDiagRec(HandleType, Handle, 1, nil, nil, MessageText, cbMessageText + 1, nil);
+        Result.ErrorMessage := PChar(MessageText) + ' (' + SQLState + ')';
+        FreeMem(MessageText);
+      end;
+    SQL_INVALID_HANDLE:
+      Result.ErrorMessage := 'Invalid ODBC Handle.';
+    SQL_ERROR,
+    SQL_NO_DATA:
+      Result.ErrorMessage := 'Unknown ODBC Error.';
   end;
 end;
 
@@ -1263,7 +1269,7 @@ end;
 
 function TTools.TStringBuffer.Read(): string;
 begin
-  SetString(Result, PChar(Buffer.Mem), Size * SizeOf(Result[1]));
+  SetString(Result, PChar(Buffer.Mem), Size div SizeOf(Result[1]));
   Clear();
 end;
 
@@ -1327,19 +1333,19 @@ begin
       NewTableName := Item.TableName + BackupExtension;
 
       if (Assigned(Database.BaseTableByName(NewTableName))) then
-        while ((Success = daSuccess) and not Database.DeleteObject(Database.BaseTableByName(NewTableName))) do
-          DoError(DatabaseError(Item.Client), Item);
+        while ((Success <> daAbort) and not Database.DeleteObject(Database.BaseTableByName(NewTableName))) do
+          DoError(DatabaseError(Item.Client), Item, True);
 
       if (Rename) then
-        while (Success = daSuccess) do
+        while (Success <> daAbort) do
         begin
           Database.RenameTable(Table, NewTableName);
           if (Item.Client.ErrorCode <> 0) then
-            DoError(DatabaseError(Item.Client), Item);
+            DoError(DatabaseError(Item.Client), Item, True)
         end
       else
-        while ((Success = daSuccess) and not Database.CloneTable(Table, NewTableName, True)) do
-          DoError(DatabaseError(Item.Client), Item);
+        while ((Success <> daAbort) and not Database.CloneTable(Table, NewTableName, True)) do
+          DoError(DatabaseError(Item.Client), Item, True);
     end;
   end;
 end;
@@ -1379,7 +1385,7 @@ begin
   inherited;
 end;
 
-procedure TTools.DoError(const Error: TTools.TError; const Item: TTools.TItem);
+procedure TTools.DoError(const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean);
 var
   ErrorTime: TDateTime;
 begin
@@ -1390,14 +1396,14 @@ begin
     else
     begin
       ErrorTime := Now();
-      OnError(Self, Error, Item, Success);
+      OnError(Self, Error, Item, ShowRetry, Success);
       StartTime := StartTime + ErrorTime - Now();
     end;
 end;
 
-procedure TTools.DoError(const Error: TTools.TError; const Item: TTools.TItem; var SQL: string);
+procedure TTools.DoError(const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var SQL: string);
 begin
-  DoError(Error, Item);
+  DoError(Error, Item, ShowRetry);
   if (Success = daFail) then
   begin
     Delete(SQL, 1, SQLStmtLength(SQL));
@@ -1476,7 +1482,7 @@ begin
   begin
     Delete(SQL, 1, Client.ExecutedSQLLength);
     SQL := SysUtils.Trim(SQL);
-    DoError(DatabaseError(Client), ToolsItem(Item), SQL);
+    DoError(DatabaseError(Client), ToolsItem(Item), True, SQL);
   end
   else
     SQL := '';
@@ -1559,11 +1565,11 @@ begin
       DataSet.Connection := Client;
       DataSet.CommandText := 'SELECT @@UNIQUE_CHECKS,@@FOREIGN_KEY_CHECKS';
 
-      while ((Success = daSuccess) and not DataSet.Active) do
+      while ((Success <> daAbort) and not DataSet.Active) do
       begin
         DataSet.Open();
         if (Client.ErrorCode > 0) then
-          DoError(DatabaseError(Client), ToolsItem(Items[0]), SQL);
+          DoError(DatabaseError(Client), ToolsItem(Items[0]), True, SQL);
       end;
 
       if (DataSet.Active) then
@@ -1577,8 +1583,8 @@ begin
     end;
 
     SQL := 'SET UNIQUE_CHECKS=0,FOREIGN_KEY_CHECKS=0;';
-    while ((Success = daSuccess) and not Client.ExecuteSQL(SQL)) do
-      DoError(DatabaseError(Client), ToolsItem(Items[0]), SQL);
+    while ((Success <> daAbort) and not Client.ExecuteSQL(SQL)) do
+      DoError(DatabaseError(Client), ToolsItem(Items[0]), True, SQL);
   end;
 
   for I := 0 to Length(Items) - 1 do
@@ -1589,8 +1595,8 @@ begin
       if (Structure) then
       begin
         if (Assigned(Database.TableByName(Items[I].TableName))) then
-          while ((Success = daSuccess) and not Database.DeleteObject(Database.TableByName(Items[I].TableName))) do
-            DoError(DatabaseError(Client), ToolsItem(Items[I]));
+          while ((Success <> daAbort) and not Database.DeleteObject(Database.TableByName(Items[I].TableName))) do
+            DoError(DatabaseError(Client), ToolsItem(Items[I]), True);
         if (Success = daSuccess) then
           ExecuteStructure(Items[I]);
       end;
@@ -1609,7 +1615,7 @@ begin
   begin
     SQL := 'SET UNIQUE_CHECKS=' + OLD_UNIQUE_CHECKS + ',FOREIGN_KEY_CHECKS=' + OLD_FOREIGN_KEY_CHECKS + ';' + #13#10;
     while (not Client.ExecuteSQL(SQL) and (Success = daSuccess)) do
-      DoError(DatabaseError(Client), ToolsItem(Items[0]), SQL);
+      DoError(DatabaseError(Client), ToolsItem(Items[0]), True, SQL);
   end;
 
   AfterExecute();
@@ -1665,7 +1671,7 @@ begin
                               PIPE_ACCESS_OUTBOUND, PIPE_TYPE_MESSAGE or PIPE_READMODE_BYTE or PIPE_WAIT,
                               1, 2 * NET_BUFFER_LENGTH, 0, 0, nil);
       if (Pipe = INVALID_HANDLE_VALUE) then
-        DoError(SysError(), ToolsItem(Item))
+        DoError(SysError(), ToolsItem(Item), False)
       else
       begin
         SQL := SQL + SQLLoadDataInfile(Database, ImportType = itReplace, Pipename, Client.Charset, Database.Name, Table.Name, EscapedFieldNames);
@@ -1683,7 +1689,7 @@ begin
 
             if (DataFileBuffer.Size > NET_BUFFER_LENGTH) then
               if (not WriteFile(Pipe, DataFileBuffer.Data^, DataFileBuffer.Size, BytesWritten, nil)) then
-                DoError(SysError(), ToolsItem(Item))
+                DoError(SysError(), ToolsItem(Item), False)
               else
                 DataFileBuffer.Clear();
 
@@ -1696,7 +1702,7 @@ begin
 
           if (DataFileBuffer.Size > 0) then
             if (not WriteFile(Pipe, DataFileBuffer.Data^, DataFileBuffer.Size, BytesWritten, nil)) then
-              DoError(SysError(), ToolsItem(Item))
+              DoError(SysError(), ToolsItem(Item), False)
             else
               DataFileBuffer.Clear();
 
@@ -1718,13 +1724,13 @@ begin
               repeat
                 Error.ErrorMessage := Error.ErrorMessage + SysUtils.Trim(DataSet.FieldByName('Message').AsString) + #13#10;
               until (not DataSet.FindNext());
-              DoError(Error, ToolsItem(Item));
+              DoError(Error, ToolsItem(Item), False);
             end;
             DataSet.Free();
           end;
 
           if (Client.ErrorCode <> 0) then
-            DoError(DatabaseError(Client), ToolsItem(Item), SQL);
+            DoError(DatabaseError(Client), ToolsItem(Item), False, SQL);
 
           SQL := '';
           if (Structure) then
@@ -1810,7 +1816,7 @@ begin
             Delete(SQL, 1, Client.ExecutedSQLLength);
             SQLExecuteLength := 0;
             if (Client.ErrorCode <> 0) then
-              DoError(DatabaseError(Client), ToolsItem(Item), SQL);
+              DoError(DatabaseError(Client), ToolsItem(Item), False, SQL);
           end;
 
           if (SQL <> '') then
@@ -1837,7 +1843,7 @@ begin
         SQLExecuted.WaitFor(INFINITE);
         Delete(SQL, 1, Client.ExecutedSQLLength);
         if (Client.ErrorCode <> 0) then
-          DoError(DatabaseError(Client), ToolsItem(Item), SQL);
+          DoError(DatabaseError(Client), ToolsItem(Item), False, SQL);
       end;
 
       if (InsertStmtInSQL) then
@@ -1851,8 +1857,8 @@ begin
       if (Client.Lib.LibraryType <> ltHTTP) then
         SQL := SQL + 'COMMIT;' + #13#10;
 
-      while ((Success = daSuccess) and not DoExecuteSQL(Item, SQL)) do
-        DoError(DatabaseError(Client), ToolsItem(Item), SQL);
+      while ((Success <> daAbort) and not DoExecuteSQL(Item, SQL)) do
+        DoError(DatabaseError(Client), ToolsItem(Item), True, SQL);
     end;
 
     SQLExecuted.Free();
@@ -1977,7 +1983,7 @@ begin
                          OPEN_EXISTING, FILE_FLAG_NO_BUFFERING, 0);
 
     if (Handle = INVALID_HANDLE_VALUE) then
-      DoError(SysError(), EmptyToolsItem())
+      DoError(SysError(), EmptyToolsItem(), False)
     else
     begin
       FFileSize := GetFileSize(Handle, nil);
@@ -2019,7 +2025,7 @@ begin
 
     DistanceToMove := NewFilePos - NewFilePos mod BytesPerSector;
     if ((SetFilePointer(Handle, LARGE_INTEGER(DistanceToMove).LowPart, @LARGE_INTEGER(DistanceToMove).HighPart, FILE_BEGIN) = INVALID_FILE_SIZE) and (GetLastError() <> 0)) then
-      DoError(SysError(), EmptyToolsItem());
+      DoError(SysError(), EmptyToolsItem(), False);
     FileBuffer.Index := BytesPerSector + NewFilePos mod BytesPerSector;
 
     FilePos := NewFilePos;
@@ -2098,8 +2104,8 @@ var
 begin
   FilePos := 0;
 
-  while ((Success = daSuccess) and not DoOpenFile(FFilename, Handle, Error)) do
-    DoError(Error, EmptyToolsItem());
+  while ((Success <> daAbort) and not DoOpenFile(FFilename, Handle, Error)) do
+    DoError(Error, EmptyToolsItem(), True);
 end;
 
 { TTImportSQL *************************************************************}
@@ -2139,8 +2145,8 @@ begin
   else if ((Success = daSuccess) and Assigned(Database) and (Client.DatabaseName <> Database.Name)) then
   begin
     SQL := Database.SQLUse();
-    while ((Success = daSuccess) and not DoExecuteSQL(Items[0], SQL)) do
-      DoError(DatabaseError(Client), ToolsItem(Items[0]), SQL);
+    while ((Success <> daAbort) and not DoExecuteSQL(Items[0], SQL)) do
+      DoError(DatabaseError(Client), ToolsItem(Items[0]), True, SQL);
   end;
 
   Index := 1; Eof := False; SQLFilePos := BOMLength;
@@ -2175,8 +2181,8 @@ begin
       else
       begin
         SQL := Copy(FileContent.Str, 1, Index - 1);
-        while ((Success = daSuccess) and not DoExecuteSQL(Items[0], SQL)) do
-          DoError(DatabaseError(Client), ToolsItem(Items[0]), SQL);
+        while ((Success <> daAbort) and not DoExecuteSQL(Items[0], SQL)) do
+          DoError(DatabaseError(Client), ToolsItem(Items[0]), True, SQL);
       end;
       Delete(FileContent.Str, 1, Index - 1); Index := 1;
 
@@ -2207,8 +2213,8 @@ begin
     else
     begin
       SQL := FileContent.Str;
-      while ((Success = daSuccess) and not DoExecuteSQL(Items[0], SQL)) do
-        DoError(DatabaseError(Client), ToolsItem(Items[0]), SQL);
+      while ((Success <> daAbort) and not DoExecuteSQL(Items[0], SQL)) do
+        DoError(DatabaseError(Client), ToolsItem(Items[0]), True, SQL);
     end;
 
   Close();
@@ -2311,16 +2317,16 @@ begin
 
   NewTable.Name := Client.ApplyIdentifierName(Item.TableName);
 
-  while ((Success = daSuccess) and not Database.AddTable(NewTable)) do
-    DoError(DatabaseError(Client), ToolsItem(Item));
+  while ((Success <> daAbort) and not Database.AddTable(NewTable)) do
+    DoError(DatabaseError(Client), ToolsItem(Item), True);
 
   NewTable.Free();
 
   if (Success = daSuccess) then
   begin
     NewTable := Database.BaseTableByName(Item.TableName);
-    while ((Success = daSuccess) and not NewTable.Update()) do
-      DoError(DatabaseError(Client), ToolsItem(Item));
+    while ((Success <> daAbort) and not NewTable.Update()) do
+      DoError(DatabaseError(Client), ToolsItem(Item), True);
 
     SetLength(Fields, NewTable.Fields.Count);
     for I := 0 to NewTable.Fields.Count - 1 do
@@ -2636,7 +2642,7 @@ begin
   if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, FHandle, @Stmt))) then
   begin
     Error := ODBCError(SQL_HANDLE_DBC, FHandle);
-    DoError(Error, ToolsItem(Item));
+    DoError(Error, ToolsItem(Item), False);
     Stmt := SQL_NULL_HANDLE;
     ODBCData := nil;
     SetLength(ColumnDesc, 0);
@@ -2656,8 +2662,8 @@ begin
       SQL := '*';
     SQL := 'SELECT ' + SQL + ' FROM "' + Item.SourceTableName + '"';
 
-    while ((Success = daSuccess) and not SQL_SUCCEEDED(SQLExecDirect(Stmt, PSQLTCHAR(SQL), SQL_NTS))) do
-      DoError(ODBCError(SQL_HANDLE_STMT, Stmt), ToolsItem(Item));
+    while ((Success <> daAbort) and not SQL_SUCCEEDED(SQLExecDirect(Stmt, PSQLTCHAR(SQL), SQL_NTS))) do
+      DoError(ODBCError(SQL_HANDLE_STMT, Stmt), ToolsItem(Item), True);
 
     if (Success = daSuccess) then
     begin
@@ -3169,8 +3175,8 @@ begin
 
     NewTable.Name := Client.ApplyIdentifierName(Item.TableName);
 
-    while ((Success = daSuccess) and not Database.AddTable(NewTable)) do
-      DoError(DatabaseError(Client), ToolsItem(Item));
+    while ((Success <> daAbort) and not Database.AddTable(NewTable)) do
+      DoError(DatabaseError(Client), ToolsItem(Item), True);
   end;
 
   NewTable.Free();
@@ -3346,7 +3352,7 @@ begin
       Error.ErrorType := TE_SQLite;
       Error.ErrorCode := 0;
       Error.ErrorMessage := 'Empty Result';
-      DoError(Error, EmptyToolsItem());
+      DoError(Error, EmptyToolsItem(), False);
     end
     else
     begin
@@ -3466,8 +3472,8 @@ begin
     end;
     SQLiteException(Handle, sqlite3_finalize(Stmt));
 
-    while ((Success = daSuccess) and not Database.AddTable(NewTable)) do
-      DoError(DatabaseError(Client), ToolsItem(Item));
+    while ((Success <> daAbort) and not Database.AddTable(NewTable)) do
+      DoError(DatabaseError(Client), ToolsItem(Item), True);
 
     NewTable.Free();
   end;
@@ -3509,7 +3515,7 @@ begin
     Error.ErrorType := TE_XML;
     Error.ErrorCode := 0;
     Error.ErrorMessage := 'Node not found.';
-    DoError(Error, EmptyToolsItem());
+    DoError(Error, EmptyToolsItem(), False);
   end;
 end;
 
@@ -3844,10 +3850,10 @@ begin
           if (Index >= 0) then
             if (Index = 0) then
               while ((Success = daSuccess) and not Client.FirstResult(DataHandle, SQL)) do
-                DoError(DatabaseError(Client), EmptyToolsItem(), SQL)
+                DoError(DatabaseError(Client), EmptyToolsItem(), True, SQL)
             else
               if ((Success = daSuccess) and not Client.NextResult(DataHandle)) then
-                DoError(DatabaseError(Client), EmptyToolsItem());
+                DoError(DatabaseError(Client), EmptyToolsItem(), False);
         end;
 
         if ((Success <> daAbort) and ((I = 0) or (ExportObjects[I - 1].DBObject.Database <> ExportObjects[I].DBObject.Database))) then
@@ -4011,11 +4017,11 @@ begin
   else
   begin
     DataSet := TMySQLQuery.Create(nil);
-    while ((Success = daSuccess) and not DataSet.Active) do
+    while ((Success <> daAbort) and not DataSet.Active) do
     begin
       DataSet.Open(DataHandle);
       if (not DataSet.Active) then
-        DoError(DatabaseError(Client), ToolsItem(ExportObject), SQL);
+        DoError(DatabaseError(Client), ToolsItem(ExportObject), False, SQL);
     end;
   end;
 
@@ -4135,8 +4141,8 @@ procedure TTExportFile.DoFileCreate(const Filename: TFileName);
 var
   Error: TTools.TError;
 begin
-  while ((Success = daSuccess) and not FileCreate(Filename, Error)) do
-    DoError(Error, EmptyToolsItem());
+  while ((Success <> daAbort) and not FileCreate(Filename, Error)) do
+    DoError(Error, EmptyToolsItem(), True);
 end;
 
 function TTExportFile.FileCreate(const Filename: TFileName; out Error: TTools.TError): Boolean;
@@ -4188,7 +4194,7 @@ begin
   BytesWritten := 0;
   while ((Success = daSuccess) and (BytesWritten < BytesToWrite)) do
     if (not WriteFile(Handle, Buffer[BytesWritten], BytesToWrite - BytesWritten, Size, nil)) then
-      DoError(SysError(), EmptyToolsItem())
+      DoError(SysError(), EmptyToolsItem(), False)
     else
       Inc(BytesWritten, Size);
 
@@ -4561,15 +4567,13 @@ begin
   begin
     Zip := TZipFile.Create();
 
-    while ((Success = daSuccess) and (Zip.Mode <> zmWrite)) do
-    begin
+    while ((Success <> daAbort) and (Zip.Mode <> zmWrite)) do
       try
         Zip.Open(Filename, zmWrite);
       except
         on E: EZipException do
-          DoError(ZipError(Zip, E.Message), EmptyToolsItem());
+          DoError(ZipError(Zip, E.Message), EmptyToolsItem(), True);
       end;
-    end;
   end;
 end;
 
@@ -4604,7 +4608,7 @@ begin
         Zip.Add(TempFilename, Table.Name + '.csv');
       except
         on E: EZipException do
-          DoError(ZipError(Zip, E.Message), EmptyToolsItem());
+          DoError(ZipError(Zip, E.Message), EmptyToolsItem(), False);
       end;
     DeleteFile(TempFilename);
   end;
@@ -5486,7 +5490,7 @@ begin
   begin
     SQLSetConnectAttr(Handle, SQL_ATTR_AUTOCOMMIT, SQLPOINTER(SQL_AUTOCOMMIT_OFF), 1);
     if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, Handle, @Stmt))) then
-      DoError(ODBCError(SQL_HANDLE_DBC, Handle), EmptyToolsItem());
+      DoError(ODBCError(SQL_HANDLE_DBC, Handle), EmptyToolsItem(), False);
   end;
 
   inherited;
@@ -5625,12 +5629,13 @@ begin
     end;
     SQL := SQL + ')';
 
-    while ((Success = daSuccess) and not SQL_SUCCEEDED(SQLExecDirect(Stmt, PSQLTCHAR(SQL), SQL_NTS))) do
+    while ((Success <> daAbort) and not SQL_SUCCEEDED(SQLExecDirect(Stmt, PSQLTCHAR(SQL), SQL_NTS))) do
     begin
       Error := ODBCError(SQL_HANDLE_STMT, Stmt);
       Error.ErrorMessage := Error.ErrorMessage + ' - ' + SQL;
-      DoError(Error, EmptyToolsItem());
+      DoError(Error, EmptyToolsItem(), True);
     end;
+
 
     if (Table is TCBaseTable) then
       for I := 0 to TCBaseTable(Table).Keys.Count - 1 do
@@ -5772,12 +5777,12 @@ begin
           raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Fields[I].DisplayName, Ord(Fields[I].DataType)]);
       end;
 
-    while ((Success = daSuccess) and not SQL_SUCCEEDED(SQLBindParameter(Stmt, 1 + I, SQL_PARAM_INPUT, ValueType, ParameterType,
-      ColumnSize, 0, Parameter[I].Buffer, Parameter[I].BufferSize, @Parameter[I].Size))) do
+    if ((Success = daSuccess) and not SQL_SUCCEEDED(SQLBindParameter(Stmt, 1 + I, SQL_PARAM_INPUT, ValueType, ParameterType,
+      ColumnSize, 0, Parameter[I].Buffer, Parameter[I].BufferSize, @Parameter[I].Size))) then
     begin
       Error := ODBCError(SQL_HANDLE_STMT, Stmt);
       Error.ErrorMessage := Error.ErrorMessage;
-      DoError(Error, EmptyToolsItem());
+      DoError(Error, EmptyToolsItem(), False);
     end;
   end;
 
@@ -5789,11 +5794,11 @@ begin
   end;
   SQL := SQL + ')';
 
-  while ((Success = daSuccess) and not SQL_SUCCEEDED(SQLPrepare(Stmt, PSQLTCHAR(SQL), SQL_NTS))) do
+  if ((Success = daSuccess) and not SQL_SUCCEEDED(SQLPrepare(Stmt, PSQLTCHAR(SQL), SQL_NTS))) then
   begin
     Error := ODBCError(SQL_HANDLE_STMT, Stmt);
     Error.ErrorMessage := Error.ErrorMessage + ' - ' + SQL;
-    DoError(Error, EmptyToolsItem());
+    DoError(Error, EmptyToolsItem(), False);
   end;
 end;
 
@@ -5872,42 +5877,42 @@ begin
     begin
       Error := ODBCError(SQL_HANDLE_STMT, Stmt);
       Error.ErrorMessage := Error.ErrorMessage;
-      DoError(Error, EmptyToolsItem());
+      DoError(Error, EmptyToolsItem(), True);
     end;
-  until ((Success <> daSuccess) or SQL_SUCCEEDED(ReturnCode) or (ReturnCode = SQL_NEED_DATA));
+  until ((Success = daAbort) or SQL_SUCCEEDED(ReturnCode) or (ReturnCode = SQL_NEED_DATA));
 
-  if ((Success = daSuccess) and (ReturnCode = SQL_NEED_DATA)) then
-    repeat
-      ReturnCode := SQLParamData(Stmt, @Field);
-      I := SQLINTEGER(Field);
-      if (ReturnCode = SQL_NEED_DATA) then
-        case (Fields[I].DataType) of
-          ftWideString,
-          ftWideMemo:
-            begin
-              Size := -(Parameter[I].Size - SQL_LEN_DATA_AT_EXEC_OFFSET);
-              S := DataSet.GetAsString(Fields[I].FieldNo);
-              Index := 0;
-              if (Size > 0) then
-                repeat
-                  ODBCException(Stmt, SQLPutData(Stmt, @S[1 + Index div 2], Min(ODBCDataSize, Size - Index)));
-                  Inc(Index, Min(ODBCDataSize, Size - Index));
-                until (Index = Size);
-            end;
-          ftBlob:
-            begin
-              Size := DataSet.LibLengths^[I];
-              Index := 0;
-              if (Size > 0) then
-                repeat
-                  ODBCException(Stmt, SQLPutData(Stmt, @DataSet.LibRow^[Fields[I].FieldNo - 1][Index], Min(ODBCDataSize, Size - Index)));
-                  Inc(Index, Min(ODBCDataSize, Size - Index));
-                until (Index = Size);
-            end;
-          else
-            raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Fields[I].DisplayName, Ord(Fields[I].DataType)]);
-        end;
-    until (ReturnCode <> SQL_NEED_DATA);
+  while ((Success = daSuccess) and (ReturnCode = SQL_NEED_DATA)) do
+  begin
+    ReturnCode := SQLParamData(Stmt, @Field);
+    I := SQLINTEGER(Field);
+    if (ReturnCode = SQL_NEED_DATA) then
+      case (Fields[I].DataType) of
+        ftWideString,
+        ftWideMemo:
+          begin
+            Size := -(Parameter[I].Size - SQL_LEN_DATA_AT_EXEC_OFFSET);
+            S := DataSet.GetAsString(Fields[I].FieldNo);
+            Index := 0;
+            if (Size > 0) then
+              repeat
+                ODBCException(Stmt, SQLPutData(Stmt, @S[1 + Index div 2], Min(ODBCDataSize, Size - Index)));
+                Inc(Index, Min(ODBCDataSize, Size - Index));
+              until (Index = Size);
+          end;
+        ftBlob:
+          begin
+            Size := DataSet.LibLengths^[I];
+            Index := 0;
+            if (Size > 0) then
+              repeat
+                ODBCException(Stmt, SQLPutData(Stmt, @DataSet.LibRow^[Fields[I].FieldNo - 1][Index], Min(ODBCDataSize, Size - Index)));
+                Inc(Index, Min(ODBCDataSize, Size - Index));
+              until (Index = Size);
+          end;
+        else
+          raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Fields[I].DisplayName, Ord(Fields[I].DataType)]);
+      end;
+  end;
 end;
 
 { TTExportAccess **************************************************************}
@@ -5930,14 +5935,14 @@ begin
   ConnStrIn := 'Driver={Microsoft Access Driver (*.mdb)};' + 'DBQ=' + Filename + ';' + 'READONLY=FALSE';
 
   while (FileExists(Filename) and not DeleteFile(Filename)) do
-    DoError(SysError(), EmptyToolsItem());
+    DoError(SysError(), EmptyToolsItem(), True);
 
   if (Success = daSuccess) then
   begin
     if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, @ODBC))) then
-      DoError(ODBCError(0, SQL_NULL_HANDLE), EmptyToolsItem())
+      DoError(ODBCError(0, SQL_NULL_HANDLE), EmptyToolsItem(), False)
     else if (not SQL_SUCCEEDED(SQLSetEnvAttr(ODBC, SQL_ATTR_ODBC_VERSION, SQLPOINTER(SQL_OV_ODBC3), SQL_IS_UINTEGER))) then
-      DoError(ODBCError(SQL_HANDLE_ENV, ODBC), EmptyToolsItem())
+      DoError(ODBCError(SQL_HANDLE_ENV, ODBC), EmptyToolsItem(), False)
     else if (not SQLConfigDataSource(Application.Handle, ODBC_ADD_DSN, 'Microsoft Access Driver (*.mdb)', PChar('CREATE_DB=' + Filename + ' General'))) then
     begin
       Error.ErrorType := TE_ODBC;
@@ -5947,13 +5952,13 @@ begin
       SetString(Error.ErrorMessage, ErrorMsg, Size);
       Error.ErrorMessage := Error.ErrorMessage + '  (' + ConnStrIn + ')';
       FreeMem(ErrorMsg);
-      DoError(Error, EmptyToolsItem());
+      DoError(Error, EmptyToolsItem(), False);
     end
     else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBC, @Handle))) then
-      DoError(ODBCError(SQL_HANDLE_ENV, ODBC), EmptyToolsItem())
+      DoError(ODBCError(SQL_HANDLE_ENV, ODBC), EmptyToolsItem(), False)
     else if (not SQL_SUCCEEDED(SQLDriverConnect(Handle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE))
       or not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, Handle, @Stmt))) then
-      DoError(ODBCError(SQL_HANDLE_DBC, Handle), EmptyToolsItem());
+      DoError(ODBCError(SQL_HANDLE_DBC, Handle), EmptyToolsItem(), False);
   end;
 
   inherited;
@@ -5985,18 +5990,18 @@ begin
   ConnStrIn := 'Driver={Microsoft Excel Driver (*.xls)};DBQ=' + Filename + ';DriverID=790;READONLY=FALSE';
 
   while (FileExists(Filename) and not DeleteFile(Filename)) do
-    DoError(SysError(), EmptyToolsItem());
+    DoError(SysError(), EmptyToolsItem(), True);
 
   if (Success = daSuccess) then
   begin
     if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, @ODBC))
       or not SQL_SUCCEEDED(SQLSetEnvAttr(ODBC, SQL_ATTR_ODBC_VERSION, SQLPOINTER(SQL_OV_ODBC3), SQL_IS_UINTEGER))) then
-      DoError(ODBCError(0, SQL_NULL_HANDLE), EmptyToolsItem())
+      DoError(ODBCError(0, SQL_NULL_HANDLE), EmptyToolsItem(), False)
     else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBC, @Handle))
       or not SQL_SUCCEEDED(SQLDriverConnect(Handle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE))) then
-      DoError(ODBCError(SQL_HANDLE_ENV, ODBC), EmptyToolsItem())
+      DoError(ODBCError(SQL_HANDLE_ENV, ODBC), EmptyToolsItem(), False)
     else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, Handle, @Stmt))) then
-      DoError(ODBCError(SQL_HANDLE_DBC, Handle), EmptyToolsItem());
+      DoError(ODBCError(SQL_HANDLE_DBC, Handle), EmptyToolsItem(), False);
   end;
 
   inherited;
@@ -6069,11 +6074,11 @@ begin
   end;
   SQL := SQL + ')';
 
-  while ((Success = daSuccess) and not SQL_SUCCEEDED(SQLExecDirect(Stmt, PSQLTCHAR(SQL), SQL_NTS))) do
+  while ((Success <> daAbort) and not SQL_SUCCEEDED(SQLExecDirect(Stmt, PSQLTCHAR(SQL), SQL_NTS))) do
   begin
     Error := ODBCError(SQL_HANDLE_STMT, Stmt);
     Error.ErrorMessage := Error.ErrorMessage + ' - ' + SQL;
-    DoError(Error, EmptyToolsItem());
+    DoError(Error, EmptyToolsItem(), True);
   end;
 
   if (Success = daSuccess) then
@@ -6094,14 +6099,14 @@ var
   Error: TTools.TError;
 begin
   if (FileExists(Filename) and not DeleteFile(Filename)) then
-    DoError(SysError(), EmptyToolsItem())
+    DoError(SysError(), EmptyToolsItem(), False)
   else if ((sqlite3_open_v2(PAnsiChar(UTF8Encode(Filename)), @Handle, SQLITE_OPEN_READWRITE or SQLITE_OPEN_CREATE, nil) <> SQLITE_OK)
     or (sqlite3_exec(Handle, PAnsiChar(UTF8Encode('BEGIN TRANSACTION;')), nil, nil, nil) <> SQLITE_OK)) then
   begin
     Error.ErrorType := TE_SQLite;
     Error.ErrorCode := sqlite3_errcode(Handle);
     Error.ErrorMessage := UTF8ToString(sqlite3_errmsg(Handle));
-    DoError(Error, EmptyToolsItem());
+    DoError(Error, EmptyToolsItem(), False);
   end;
 
   inherited;
@@ -6388,11 +6393,11 @@ begin
         if (Success = daSuccess) then
         begin
           if (J = 0) then
-            while ((Success = daSuccess) and not Client.FirstResult(DataHandle, SQL)) do
-              DoError(DatabaseError(Client), EmptyToolsItem(), SQL)
+            while ((Success <> daAbort) and not Client.FirstResult(DataHandle, SQL)) do
+              DoError(DatabaseError(Client), EmptyToolsItem(), True, SQL)
           else
             if ((Success = daSuccess) and not Client.NextResult(DataHandle)) then
-              DoError(DatabaseError(Client), EmptyToolsItem());
+              DoError(DatabaseError(Client), EmptyToolsItem(), False);
           if (Success = daSuccess) then
             for I := 0 to Length(ExportObjects) - 1 do
               if (Tables[J] = ExportObjects[I].DBObject) then
@@ -7111,12 +7116,11 @@ procedure TTExportPrint.ExecuteHeader();
 var
   Error: TError;
 begin
-  while ((Success = daSuccess) and not Printer.Printing) do
-  begin
+  while ((Success <> daAbort) and not Printer.Printing) do
     try
       Printer.BeginDoc();
       if (GetLastError() > 0) then
-        DoError(SysError(), EmptyToolsItem());
+        DoError(SysError(), EmptyToolsItem(), False);
       Canvas := Printer.Canvas;
     except
       on E: EPrinter do
@@ -7124,10 +7128,9 @@ begin
           Error.ErrorType := TE_Printer;
           Error.ErrorCode := 1;
           Error.ErrorMessage := E.Message;
-          DoError(Error, EmptyToolsItem());
+          DoError(Error, EmptyToolsItem(), False);
         end;
     end;
-  end;
 
   inherited;
 end;
@@ -7177,14 +7180,14 @@ procedure TTExportPDF.ExecuteFooter();
 begin
   inherited;
 
-  while ((Success = daSuccess) and not PDF.SaveToFile(Filename)) do
-    DoError(SysError(), EmptyToolsItem());
+  while ((Success <> daAbort) and not PDF.SaveToFile(Filename)) do
+    DoError(SysError(), EmptyToolsItem(), True);
 end;
 
 procedure TTExportPDF.ExecuteHeader();
 begin
   while (FileExists(Filename) and not DeleteFile(Filename)) do
-    DoError(SysError(), EmptyToolsItem());
+    DoError(SysError(), EmptyToolsItem(), True);
 
   inherited;
 end;
@@ -7321,9 +7324,6 @@ begin
           ExecuteWholeValue(Items[I], Table)
         else
           ExecuteMatchCase(Items[I], Table);
-
-        if (Self is TTReplace) then
-          Table.InvalidateData();
       end;
 
       Items[I].Done := Success <> daAbort;
@@ -7352,6 +7352,7 @@ var
   SQL: string;
   Value: string;
   WhereClausel: string;
+  UseIndexFields: Boolean;
 begin
   if (Success = daSuccess) then
   begin
@@ -7392,16 +7393,16 @@ begin
     DataSet.Connection := Client;
     DataSet.CommandText := SQL;
 
-    while ((Success = daSuccess) and not DataSet.Active) do
+    while ((Success <> daAbort) and not DataSet.Active) do
     begin
       DataSet.Open();
       if (not DataSet.Active) then
-        DoError(DatabaseError(Client), ToolsItem(Item), SQL);
+        DoError(DatabaseError(Client), ToolsItem(Item), True, SQL);
     end;
 
     if (Success = daSuccess) then
     begin
-      if (DataSet.IsEmpty()) then
+     if (DataSet.IsEmpty()) then
         Item.RecordsFound := 0
       else if (not (Self is TTReplace) and not RegExpr) then
         Item.RecordsFound := DataSet.Fields[0].AsInteger
@@ -7430,6 +7431,7 @@ begin
             PerlRegEx.Replacement := UTF8Encode(TTReplace(Self).ReplaceText);
         end;
 
+        UseIndexFields := False;
         if (not (Self is TTReplace)) then
           Buffer := nil
         else
@@ -7440,6 +7442,9 @@ begin
 
           if (Item.DatabaseName <> TTReplace(Self).ReplaceConnection.DatabaseName) then
             Buffer.Write(TTReplace(Self).ReplaceConnection.SQLUse(Item.DatabaseName));
+
+          for I := 0 to DataSet.FieldCount - 1 do
+            UseIndexFields := UseIndexFields or Fields[I].IsIndexField;
         end;
 
         repeat
@@ -7475,14 +7480,18 @@ begin
                 end;
 
                 if (Found) then
+                begin
                   if (SQL <> '') then SQL := SQL + ',';
                   SQL := SQL + Client.EscapeIdentifier(Fields[I].FieldName) + '=';
                   if (BitField(Fields[I])) then
-                    SQL := SQL + 'b''' + Fields[I].AsString + ''''
-                  else if (Fields[I].DataType in NotQuotedDataTypes) then
                     SQL := SQL + NewValue
+                  else if (Fields[I].DataType in NotQuotedDataTypes + [ftTimestamp]) then
+                    SQL := SQL + NewValue
+                  else if (Fields[I].DataType in [ftDate, ftDateTime, ftTime]) then
+                    SQL := SQL + '''' + NewValue + ''''
                   else
                     SQL := SQL + SQLEscape(NewValue);
+                end;
               end;
             end;
 
@@ -7499,6 +7508,7 @@ begin
               SQL := 'UPDATE ' + Client.EscapeIdentifier(Item.TableName) + ' SET ' + SQL + ' WHERE ';
               Found := False;
               for I := 0 to Length(Fields) - 1 do
+                if (not UseIndexFields or Fields[I].IsIndexField) then
                 begin
                   if (Found) then SQL := SQL + ' AND ';
                   SQL := SQL + Client.EscapeIdentifier(Fields[I].FieldName) + '=';
@@ -7575,11 +7585,11 @@ begin
   DataSet := TMySQLQuery.Create(nil);
   DataSet.Connection := Client;
   DataSet.CommandText := SQL;
-  while ((Success = daSuccess) and not DataSet.Active) do
+  while ((Success <> daAbort) and not DataSet.Active) do
   begin
     DataSet.Open();
     if (Client.ErrorCode > 0) then
-      DoError(DatabaseError(Client), ToolsItem(Item), SQL);
+      DoError(DatabaseError(Client), ToolsItem(Item), True, SQL);
   end;
 
   if ((Success = daSuccess) and not DataSet.IsEmpty()) then
@@ -7609,11 +7619,11 @@ begin
   DataSet.Connection := Client;
   DataSet.CommandText := SQL;
 
-  while ((Success = daSuccess) and not DataSet.Active) do
+  while ((Success <> daAbort) and not DataSet.Active) do
   begin
     DataSet.Open();
     if (Client.ErrorCode > 0) then
-      DoError(DatabaseError(Client), ToolsItem(Item), SQL);
+      DoError(DatabaseError(Client), ToolsItem(Item), True, SQL);
   end;
 
   if ((Success = daSuccess) and not DataSet.IsEmpty()) then
@@ -7638,14 +7648,14 @@ begin
       SQL := SQL + ';' + #13#10;
     end;
 
-    while ((Success = daSuccess) and not DoExecuteSQL(TTReplace(Self).ReplaceConnection, Item, SQL)) do
+    while ((Success <> daAbort) and not DoExecuteSQL(TTReplace(Self).ReplaceConnection, Item, SQL)) do
       if (Client.ErrorCode = ER_TRUNCATED_WRONG_VALUE) then
       begin
         Delete(SQL, 1, Length(Client.CommandText));
         Success := daSuccess;
       end
       else
-        DoError(DatabaseError(Client), ToolsItem(Item), SQL);
+        DoError(DatabaseError(Client), ToolsItem(Item), True, SQL);
 
     Item.RecordsDone := Item.RecordsSum;
   end;
@@ -7730,8 +7740,8 @@ begin
   end;
   SQL := 'UPDATE ' + Client.EscapeIdentifier(Item.DatabaseName) + '.' + Client.EscapeIdentifier(Item.TableName) + ' SET ' + SQL + ';';
 
-  while ((Success = daSuccess) and not Client.ExecuteSQL(SQL)) do
-    DoError(DatabaseError(Client), ToolsItem(Item), SQL);
+  while ((Success <> daAbort) and not Client.ExecuteSQL(SQL)) do
+    DoError(DatabaseError(Client), ToolsItem(Item), True, SQL);
 
   Item.RecordsDone := Client.RowsAffected;
   Item.RecordsSum := Item.RecordsDone;
@@ -7795,8 +7805,8 @@ begin
 
   SourceTable := SourceDatabase.BaseTableByName(Source.TableName);
 
-  while ((Success = daSuccess) and not DestinationDatabase.CloneTable(SourceTable, Destination.TableName, Data)) do
-    DoError(DatabaseError(Source.Client), ToolsItem(Destination));
+  while ((Success <> daAbort) and not DestinationDatabase.CloneTable(SourceTable, Destination.TableName, Data)) do
+    DoError(DatabaseError(Source.Client), ToolsItem(Destination), True);
 
   if (Success = daSuccess) then
   begin
@@ -7945,11 +7955,11 @@ begin
       DataSet.Connection := DestinationClient;
       DataSet.CommandText := 'SELECT @@UNIQUE_CHECKS, @@FOREIGN_KEY_CHECKS';
 
-      while ((Success = daSuccess) and not DataSet.Active) do
+      while ((Success <> daAbort) and not DataSet.Active) do
       begin
         DataSet.Open();
         if (DestinationClient.ErrorCode > 0) then
-          DoError(DatabaseError(DestinationClient), ToolsItem(TElement(Elements[0]^).Destination), SQL);
+          DoError(DatabaseError(DestinationClient), ToolsItem(TElement(Elements[0]^).Destination), True, SQL);
       end;
 
       if (DataSet.Active) then
@@ -7963,8 +7973,8 @@ begin
     end;
 
     SQL := 'SET UNIQUE_CHECKS=0, FOREIGN_KEY_CHECKS=0;';
-    while ((Success = daSuccess) and not DestinationClient.ExecuteSQL(SQL)) do
-      DoError(DatabaseError(DestinationClient), ToolsItem(TElement(Elements[0]^).Destination), SQL);
+    while ((Success <> daAbort) and not DestinationClient.ExecuteSQL(SQL)) do
+      DoError(DatabaseError(DestinationClient), ToolsItem(TElement(Elements[0]^).Destination), True, SQL);
   end;
 
   if (SourceClient = DestinationClient) then
@@ -8007,11 +8017,11 @@ begin
 
           if (Data) then
             if (I = 0) then
-              while ((Success = daSuccess) and not SourceClient.FirstResult(DataHandle, SQL)) do
-                DoError(DatabaseError(SourceClient), ToolsItem(TElement(Elements[I]^).Source), SQL)
+              while ((Success <> daAbort) and not SourceClient.FirstResult(DataHandle, SQL)) do
+                DoError(DatabaseError(SourceClient), ToolsItem(TElement(Elements[I]^).Source), True, SQL)
             else
-              while ((Success = daSuccess) and not SourceClient.NextResult(DataHandle)) do
-                DoError(DatabaseError(SourceClient), ToolsItem(TElement(Elements[I]^).Source));
+              if ((Success = daSuccess) and not SourceClient.NextResult(DataHandle)) then
+                DoError(DatabaseError(SourceClient), ToolsItem(TElement(Elements[I]^).Source), False);
 
           ExecuteTable(TElement(Elements[I]^).Source, TElement(Elements[I]^).Destination);
         end;
@@ -8034,8 +8044,8 @@ begin
   if (Data and (DestinationClient.ServerVersion >= 40014)) then
   begin
     SQL := 'SET UNIQUE_CHECKS=' + OLD_UNIQUE_CHECKS + ', FOREIGN_KEY_CHECKS=' + OLD_FOREIGN_KEY_CHECKS + ';' + #13#10;
-    while ((Success = daSuccess) and not DestinationClient.ExecuteSQL(SQL)) do
-      DoError(DatabaseError(DestinationClient), ToolsItem(TElement(Elements[0]^).Destination), SQL);
+    while ((Success <> daRetry) and not DestinationClient.ExecuteSQL(SQL)) do
+      DoError(DatabaseError(DestinationClient), ToolsItem(TElement(Elements[0]^).Destination), True, SQL);
   end;
 
   AfterExecute();
@@ -8087,11 +8097,11 @@ begin
   begin
     SourceDataSet := TMySQLQuery.Create(nil);
     SourceDataSet.Open(DataHandle);
-    while ((Success = daSuccess) and not SourceDataSet.Active) do
+    while ((Success <> daRetry) and not SourceDataSet.Active) do
     begin
       SourceDataSet.Open();
       if (Source.Client.ErrorCode > 0) then
-        DoError(DatabaseError(Source.Client), ToolsItem(TElement(Elements[0]^).Source), SQL);
+        DoError(DatabaseError(Source.Client), ToolsItem(TElement(Elements[0]^).Source), True, SQL);
     end;
 
     if ((Success = daSuccess) and not SourceDataSet.IsEmpty()) then
@@ -8105,7 +8115,7 @@ begin
                                 PIPE_ACCESS_OUTBOUND, PIPE_TYPE_MESSAGE or PIPE_READMODE_BYTE or PIPE_WAIT,
                                 1, 2 * NET_BUFFER_LENGTH, 0, 0, nil);
         if (Pipe = INVALID_HANDLE_VALUE) then
-          DoError(SysError(), ToolsItem(Destination))
+          DoError(SysError(), ToolsItem(Destination), False)
         else
         begin
           SQL := '';
@@ -8154,7 +8164,7 @@ begin
 
               if (DataFileBuffer.Size > NET_BUFFER_LENGTH) then
                 if (not WriteFile(Pipe, DataFileBuffer.Data^, DataFileBuffer.Size, WrittenSize, nil) or (Abs(WrittenSize) < DataFileBuffer.Size)) then
-                  DoError(SysError(), ToolsItem(Destination))
+                  DoError(SysError(), ToolsItem(Destination), False)
                 else
                  DataFileBuffer.Clear();
 
@@ -8168,12 +8178,12 @@ begin
 
             if (DataFileBuffer.Size > 0) then
               if (not WriteFile(Pipe, DataFileBuffer.Data^, DataFileBuffer.Size, WrittenSize, nil) or (Abs(WrittenSize) < DataFileBuffer.Size)) then
-                DoError(SysError(), ToolsItem(Destination))
+                DoError(SysError(), ToolsItem(Destination), False)
               else
                 DataFileBuffer.Clear();
 
             if (not FlushFileBuffers(Pipe) or not WriteFile(Pipe, DataFileBuffer.Data^, 0, WrittenSize, nil) or not FlushFileBuffers(Pipe)) then
-              DoError(SysError(), ToolsItem(Destination))
+              DoError(SysError(), ToolsItem(Destination), False)
             else
             begin
               DoUpdateGUI();
@@ -8183,7 +8193,7 @@ begin
             DisconnectNamedPipe(Pipe);
 
             if (Destination.Client.ErrorCode <> 0) then
-              DoError(DatabaseError(Destination.Client), ToolsItem(Destination), SQL);
+              DoError(DatabaseError(Destination.Client), ToolsItem(Destination), False, SQL);
 
             DataFileBuffer.Free();
           end;
@@ -8245,7 +8255,7 @@ begin
               Delete(SQL, 1, Destination.Client.ExecutedSQLLength);
               SQLExecuteLength := 0;
               if (Destination.Client.ErrorCode <> 0) then
-                DoError(DatabaseError(Destination.Client), ToolsItem(Destination), SQL);
+                DoError(DatabaseError(Destination.Client), ToolsItem(Destination), False, SQL);
             end;
 
             if (SQL <> '') then
@@ -8271,7 +8281,7 @@ begin
           SQLExecuted.WaitFor(INFINITE);
           Delete(SQL, 1, Destination.Client.ExecutedSQLLength);
           if (Destination.Client.ErrorCode <> 0) then
-            DoError(DatabaseError(Destination.Client), ToolsItem(Destination), SQL);
+            DoError(DatabaseError(Destination.Client), ToolsItem(Destination), False, SQL);
         end;
 
         if (InsertStmtInSQL) then
@@ -8282,8 +8292,8 @@ begin
         if (Destination.Client.Lib.LibraryType <> ltHTTP) then
           SQL := SQL + 'COMMIT;' + #13#10;
 
-        while ((Success = daSuccess) and not DoExecuteSQL(TElement(Elements[0]^).Destination, Destination.Client, SQL)) do
-          DoError(DatabaseError(Destination.Client), ToolsItem(Destination), SQL);
+        while ((Success <> daAbort) and not DoExecuteSQL(TElement(Elements[0]^).Destination, Destination.Client, SQL)) do
+          DoError(DatabaseError(Destination.Client), ToolsItem(Destination), True, SQL);
       end;
 
       if (Success <> daSuccess) then
@@ -8338,9 +8348,9 @@ begin
 
   if (Assigned(NewTable)) then
   begin
-    while ((Success = daSuccess) and not DestinationDatabase.UpdateTable(DestinationTable, NewTable)) do
-      DoError(DatabaseError(Destination.Client), ToolsItem(Destination));
-    FreeAndNil(NewTable);
+    while ((Success <> daAbort) and not DestinationDatabase.UpdateTable(DestinationTable, NewTable)) do
+      DoError(DatabaseError(Destination.Client), ToolsItem(Destination), True);
+    NewTable.Free();
   end;
 end;
 
@@ -8364,8 +8374,8 @@ begin
 
   if (Assigned(DestinationTable)) then
   begin
-    while ((Success = daSuccess) and not DestinationDatabase.DeleteObject(DestinationTable)) do
-      DoError(DatabaseError(Destination.Client), ToolsItem(Destination));
+    while ((Success <> daAbort) and not DestinationDatabase.DeleteObject(DestinationTable)) do
+      DoError(DatabaseError(Destination.Client), ToolsItem(Destination), True);
     DestinationTable := nil;
   end;
 
@@ -8406,8 +8416,8 @@ begin
     end;
 
     NewDestinationTable.AutoIncrement := 0;
-    while ((Success = daSuccess) and not DestinationDatabase.AddTable(NewDestinationTable)) do
-      DoError(DatabaseError(Destination.Client), ToolsItem(Destination));
+    while ((Success <> daAbort) and not DestinationDatabase.AddTable(NewDestinationTable)) do
+      DoError(DatabaseError(Destination.Client), ToolsItem(Destination), True);
   end;
 
   NewDestinationTable.Free();
@@ -8427,8 +8437,8 @@ begin
   if ((Success = daSuccess) and Structure and not Assigned(DestinationDatabase)) then
   begin
     DestinationDatabase := TCDatabase.Create(Destination.Client, Destination.DatabaseName);
-    while ((Success = daSuccess) and not Destination.Client.AddDatabase(DestinationDatabase)) do
-      DoError(DatabaseError(Destination.Client), ToolsItem(Destination));
+    while ((Success <> daAbort) and not Destination.Client.AddDatabase(DestinationDatabase)) do
+      DoError(DatabaseError(Destination.Client), ToolsItem(Destination), True);
     DestinationDatabase.Free();
 
     DestinationDatabase := Destination.Client.DatabaseByName(Destination.DatabaseName);
@@ -8440,8 +8450,8 @@ begin
 
     if (Structure and Data and not Assigned(DestinationTable) and (Source.Client = Destination.Client) and (Source.Client.DatabaseByName(Source.DatabaseName).BaseTableByName(Source.TableName).ForeignKeys.Count = 0)) then
     begin
-      while ((Success = daSuccess) and not DestinationDatabase.CloneTable(Source.Client.DatabaseByName(Source.DatabaseName).BaseTableByName(Source.TableName), Destination.TableName, True)) do
-        DoError(DatabaseError(Destination.Client), ToolsItem(Destination));
+      while ((Success <> daAbort) and not DestinationDatabase.CloneTable(Source.Client.DatabaseByName(Source.DatabaseName).BaseTableByName(Source.TableName), Destination.TableName, True)) do
+        DoError(DatabaseError(Destination.Client), ToolsItem(Destination), True);
 
       if (Success = daSuccess) then
       begin
@@ -8476,11 +8486,11 @@ begin
         begin
           NewTrigger := TCTrigger.Create(DestinationDatabase.Tables);
           NewTrigger.Assign(SourceDatabase.Triggers[I]);
-          while (Success = daSuccess) do
+          while (Success <> daAbort) do
           begin
             DestinationDatabase.AddTrigger(NewTrigger);
             if (Destination.Client.ErrorCode <> 0) then
-              DoError(DatabaseError(Destination.Client), ToolsItem(Destination));
+              DoError(DatabaseError(Destination.Client), ToolsItem(Destination), True);
           end;
           NewTrigger.Free();
         end;

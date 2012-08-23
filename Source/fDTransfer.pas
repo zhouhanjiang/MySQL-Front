@@ -70,7 +70,7 @@ type
     procedure FormClientEvent(const Event: TCClient.TEvent);
     function GetClient(const Index: Integer): TCClient;
     procedure InitTSSelect(Sender: TObject);
-    procedure OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; var Success: TDataAction);
+    procedure OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure OnExecuted(const ASuccess: Boolean);
     procedure OnUpdate(const AProgressInfos: TTools.TProgressInfos);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
@@ -434,7 +434,7 @@ begin
     end
     else if (SelectedNodes.Count > 1) then
       FSource.Select(SelectedNodes)
-    else if (Assigned(AccountNode)) then
+    else if (not Assigned(FSource.Selected) and Assigned(AccountNode)) then
       AccountNode.Selected := True;
 
     SelectedNodes.Free();
@@ -508,7 +508,7 @@ begin
   ShowEnabledItems(MSource.Items);
 end;
 
-procedure TDTransfer.OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; var Success: TDataAction);
+procedure TDTransfer.OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
 var
   ErrorMsg: string;
   Flags: Integer;
@@ -538,7 +538,10 @@ begin
       Msg := Error.ErrorMessage;
   end;
 
-  Flags := MB_CANCELTRYCONTINUE + MB_ICONERROR;
+  if (not ShowRetry) then
+    Flags := MB_OK + MB_ICONERROR
+  else
+    Flags := MB_CANCELTRYCONTINUE + MB_ICONERROR;
   case (MsgBox(Msg, Preferences.LoadStr(45), Flags, Handle)) of
     IDCANCEL,
     IDABORT: Success := daAbort;
