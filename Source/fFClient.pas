@@ -903,14 +903,10 @@ type
     Wanted: TWanted;
     procedure aBookmarkExecute(Sender: TObject);
     function ViewToParam(const AView: TView): Variant;
-    procedure aDAutoCommitExecute(Sender: TObject);
     procedure aDCancelExecute(Sender: TObject);
-    procedure aDCommitExecute(Sender: TObject);
-    procedure aDCommitRefresh(Sender: TObject);
     procedure AddressChanged(Sender: TObject);
     procedure AddressChanging(const Sender: TObject; const NewAddress: String; var AllowChange: Boolean);
     procedure aDPostObjectExecute(Sender: TObject);
-    procedure aDRollbackExecute(Sender: TObject);
     procedure aDRunExecute(Sender: TObject);
     procedure aDRunSelectionExecute(Sender: TObject);
     procedure aECopyExecute(Sender: TObject);
@@ -2079,17 +2075,6 @@ begin
   end;
 end;
 
-procedure TFClient.aDAutoCommitExecute(Sender: TObject);
-begin
-  Wanted.Clear();
-
-  Client.AutoCommit := not Client.AutoCommit;
-
-  MainAction('aDAutoCommit').Checked := Client.AutoCommit;
-
-  aDCommitRefresh(Sender);
-end;
-
 procedure TFClient.aDCancelExecute(Sender: TObject);
 begin
   Wanted.Clear();
@@ -2100,23 +2085,6 @@ begin
 
   StatusBar.Panels[sbMessage].Text := '';
   StatusBarRefresh();
-end;
-
-procedure TFClient.aDCommitExecute(Sender: TObject);
-begin
-  Wanted.Clear();
-
-  Client.CommitTransaction();
-
-  aDCommitRefresh(Sender);
-end;
-
-procedure TFClient.aDCommitRefresh(Sender: TObject);
-begin
-  MainAction('aDAutoCommit').Enabled := (Client.ServerVersion >= 40002) and (Client.Lib.LibraryType <> ltHTTP);
-  MainAction('aDAutoCommit').Checked := Client.AutoCommit;
-  MainAction('aDCommit').Enabled := not MainAction('aDAutoCommit').Checked and (Client.ServerVersion >= 40002) and (Client.Lib.LibraryType <> ltHTTP);
-  MainAction('aDRollback').Enabled := not MainAction('aDAutoCommit').Checked and (Client.ServerVersion >= 40002) and (Client.Lib.LibraryType <> ltHTTP);
 end;
 
 procedure TFClient.aDCreateDatabaseExecute(Sender: TObject);
@@ -2941,15 +2909,6 @@ begin
     if (Assigned(Execute) and Execute()) then
       Client.Update();
   end;
-end;
-
-procedure TFClient.aDRollbackExecute(Sender: TObject);
-begin
-  Wanted.Clear();
-
-  Client.RollbackTransaction();
-
-  aDCommitRefresh(Sender);
 end;
 
 procedure TFClient.aDRunExecute(Sender: TObject);
@@ -4039,8 +3998,6 @@ var
 begin
   MainAction('aDCancel').Enabled := False;
 
-  aDCommitRefresh(Client);     // Maybe we're still in a database transaction...
-
   if (Client.RowsAffected < 0) then
     Msg := Preferences.LoadStr(382)
   else
@@ -5049,9 +5006,6 @@ begin
     MainAction('aDRun').OnExecute := aDRunExecute;
     MainAction('aDRunSelection').OnExecute := aDRunSelectionExecute;
     MainAction('aDPostObject').OnExecute := aDPostObjectExecute;
-    MainAction('aDAutoCommit').OnExecute := aDAutoCommitExecute;
-    MainAction('aDCommit').OnExecute := aDCommitExecute;
-    MainAction('aDRollback').OnExecute := aDRollbackExecute;
     MainAction('aHSQL').OnExecute := aHSQLExecute;
     MainAction('aHManual').OnExecute := aHManualExecute;
 
@@ -5071,7 +5025,6 @@ begin
     MainAction('aVRefreshAll').Enabled := True;
     MainAction('aBAdd').Enabled := True;
     MainAction('aDCancel').Enabled := Client.InUse();
-    aDCommitRefresh(nil);
     MainAction('aHSQL').Enabled := Client.ServerVersion >= 40100;
     MainAction('aHManual').Enabled := Client.Account.ManualURL <> '';
 
@@ -5116,9 +5069,6 @@ begin
   MainAction('aVRefreshAll').Enabled := False;
   MainAction('aBAdd').Enabled := False;
   MainAction('aDCancel').Enabled := False;
-  MainAction('aDAutoCommit').Enabled := False;
-  MainAction('aDCommit').Enabled := False;
-  MainAction('aDRollback').Enabled := False;
   MainAction('aHSQL').Enabled := False;
   MainAction('aHManual').Enabled := False;
 

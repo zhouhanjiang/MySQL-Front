@@ -37,42 +37,6 @@ object WWindow: TWWindow
     Color = clAppWorkSpace
     ParentBackground = False
     TabOrder = 5
-    OnResize = PWorkSpaceResize
-    DesignSize = (
-      683
-      326)
-    object FLDonation: TLabel
-      Left = 20
-      Top = 20
-      Width = 643
-      Height = 14
-      Alignment = taCenter
-      Anchors = [akLeft, akTop, akRight]
-      AutoSize = False
-      Caption = 'FLDonation'
-      Transparent = True
-    end
-    object FBDonation: TButton
-      Left = 233
-      Top = 64
-      Width = 75
-      Height = 25
-      Action = aHDonation
-      ParentShowHint = False
-      ShowHint = True
-      TabOrder = 0
-    end
-    object FBHideDonation: TButton
-      Left = 377
-      Top = 64
-      Width = 75
-      Height = 25
-      Caption = 'FBHideDonation'
-      ParentShowHint = False
-      ShowHint = False
-      TabOrder = 1
-      OnClick = FBHideDonationClick
-    end
   end
   object TabControl: TTabControl
     Left = 0
@@ -598,12 +562,6 @@ object WWindow: TWWindow
       HelpContext = 1121
       HelpType = htContext
       ImageIndex = 98
-    end
-    object aHDonation: TAction
-      Category = 'Help'
-      Caption = 'aHDonation'
-      Visible = False
-      OnExecute = aHDonationExecute
     end
     object aVQueryBuilder: TAction
       Category = 'View'
@@ -1284,21 +1242,6 @@ object WWindow: TWWindow
       HelpType = htContext
       ImageIndex = 17
     end
-    object aDAutoCommit: TAction
-      Category = 'Database'
-      Caption = 'aDAutoCommit'
-      Enabled = False
-    end
-    object aDCommit: TAction
-      Category = 'Database'
-      Caption = 'aDCommit'
-      Enabled = False
-    end
-    object aDRollback: TAction
-      Category = 'Database'
-      Caption = 'aDRollback'
-      Enabled = False
-    end
     object aOGlobals: TAction
       Category = 'Options'
       Caption = 'aOGlobalSettings'
@@ -1874,18 +1817,6 @@ object WWindow: TWWindow
       object miDEmpty: TMenuItem
         Action = aDEmpty
       end
-      object N20: TMenuItem
-        Caption = '-'
-      end
-      object miDAutoCommit: TMenuItem
-        Action = aDAutoCommit
-      end
-      object miDCommit: TMenuItem
-        Action = aDCommit
-      end
-      object miDRollback: TMenuItem
-        Action = aDRollback
-      end
     end
     object miExtras: TMenuItem
       Caption = 'miExtras'
@@ -1930,9 +1861,6 @@ object WWindow: TWWindow
       end
       object miHUpdate: TMenuItem
         Action = aHUpdate
-      end
-      object miHDonation: TMenuItem
-        Action = aHDonation
       end
       object N19: TMenuItem
         Caption = '-'

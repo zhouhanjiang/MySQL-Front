@@ -361,8 +361,6 @@ type
     GridNullText: Boolean;
     GridShowMemoContent: Boolean;
     GridDefaultSorting: Boolean;
-    InstallDate: TDateTime;
-    DonationVisible: Boolean;
     SQLFontName: TFontName;
     SQLFontStyle: TFontStyles;
     SQLFontColor: TColor;
@@ -1323,8 +1321,6 @@ begin
   GridNullText := True;
   GridShowMemoContent := False;
   GridDefaultSorting := True;
-  InstallDate := 0;
-  DonationVisible := False;
   SQLFontName := 'Courier New';
   SQLFontColor := clWindowText;
   SQLFontStyle := [];
@@ -1612,8 +1608,6 @@ begin
       FXMLDocument := NewXMLDocument();
       FXMLDocument.Encoding := 'utf-8';
       FXMLDocument.Node.AddChild('desktop').Attributes['version'] := '1.1.1';
-
-      XMLNode(FXMLDocument.DocumentElement, 'installdate').Text := DateToStr(InstallDate, FileFormatSettings);
     end;
 
     FXMLDocument.Options := FXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
@@ -1677,7 +1671,6 @@ begin
   if (Assigned(XMLNode(XML, 'grid/maxcolumnwidth'))) then TryStrToInt(XMLNode(XML, 'grid/maxcolumnwidth').Text, GridMaxColumnWidth);
   if (Assigned(XMLNode(XML, 'grid/row/background'))) then TryStrToBool(XMLNode(XML, 'grid/row/background').Attributes['visible'], GridRowBGColorEnabled);
   if (Assigned(XMLNode(XML, 'height'))) then TryStrToInt(XMLNode(XML, 'height').Text, Height);
-  if (Assigned(XMLNode(XML, 'installdate'))) then TryStrToDate(XMLNode(XML, 'installdate').Text, InstallDate, FileFormatSettings);
   if (Assigned(XMLNode(XML, 'language/file'))) then LanguageFilename := ExtractFileName(XMLNode(XML, 'language/file').Text);
   if (Assigned(XMLNode(XML, 'left'))) then TryStrToInt(XMLNode(XML, 'left').Text, Left);
   if (Assigned(XMLNode(XML, 'log/font/charset'))) then TryStrToInt(XMLNode(XML, 'log/font/charset').Text, LogFontCharset);
@@ -1689,7 +1682,6 @@ begin
   if (Assigned(XMLNode(XML, 'log/size'))) then TryStrToInt(XMLNode(XML, 'log/size').Text, LogSize);
   if (Assigned(XMLNode(XML, 'log/dbresult'))) then TryStrToBool(XMLNode(XML, 'log/dbresult').Attributes['visible'], LogResult);
   if (Assigned(XMLNode(XML, 'log/time'))) then TryStrToBool(XMLNode(XML, 'log/time').Attributes['visible'], LogTime);
-//  if (Assigned(XMLNode(XML, 'donation'))) then TryStrToBool(XMLNode(XML, 'donation').Attributes['visible'], DonationVisible);
   if (Assigned(XMLNode(XML, 'toolbar/objects')) and TryStrToBool(XMLNode(XML, 'toolbar/objects').Attributes['visible'], Visible)) then
     if (Visible) then ToolbarTabs := ToolbarTabs + [ttObjects] else ToolbarTabs := ToolbarTabs - [ttObjects];
   if (Assigned(XMLNode(XML, 'toolbar/browser')) and TryStrToBool(XMLNode(XML, 'toolbar/browser').Attributes['visible'], Visible)) then
@@ -1878,7 +1870,6 @@ begin
   XMLNode(XML, 'grid/maxcolumnwidth').Text := IntToStr(GridMaxColumnWidth);
   XMLNode(XML, 'grid/row/background').Attributes['visible'] := GridRowBGColorEnabled;
   XMLNode(XML, 'height').Text := IntToStr(Height);
-//  XMLNode(XML, 'donation').Attributes['visible'] := DonationVisible;
   XMLNode(XML, 'language/file').Text := ExtractFileName(LanguageFilename);
   XMLNode(XML, 'left').Text := IntToStr(Left);
   XMLNode(XML, 'log/font/charset').Text := IntToStr(LogFontCharset);

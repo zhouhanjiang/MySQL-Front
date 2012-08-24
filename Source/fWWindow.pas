@@ -48,10 +48,8 @@ type
     aBEdit: TAction;
     aBookmark: TAction;
     ActionList: TActionList;
-    aDAutoCommit: TAction;
     aDCancel: TAction;
     aDCancelRecord: TDataSetCancel;
-    aDCommit: TAction;
     aDCreateDatabase: TAction;
     aDCreateEvent: TAction;
     aDCreateField: TAction;
@@ -98,7 +96,6 @@ type
     aDPostObject: TAction;
     aDPostObject1: TMenuItem;
     aDPostRecord: TDataSetPost;
-    aDRollback: TAction;
     aDRun: TAction;
     aDRunSelection: TAction;
     aECopy: TEditCopy;
@@ -142,7 +139,6 @@ type
     aFPrint: TAction;
     aFSave: TAction;
     aFSaveAs: TAction;
-    aHDonation: TAction;
     aHIndex: TAction;
     aHInfo: TAction;
     aHManual: TAction;
@@ -184,9 +180,7 @@ type
     miBookmarks: TMenuItem;
     miBSeparator: TMenuItem;
     miDatabase: TMenuItem;
-    miDAutoCommit: TMenuItem;
     miDCancelRecord: TMenuItem;
-    miDCommit: TMenuItem;
     miDCreate: TMenuItem;
     miDCreateDatabase: TMenuItem;
     miDCreateEvent: TMenuItem;
@@ -232,7 +226,6 @@ type
     miDInsertRecord: TMenuItem;
     miDPostRecord: TMenuItem;
     miDProperties: TMenuItem;
-    miDRollback: TMenuItem;
     miDRun: TMenuItem;
     miDRunSelection: TMenuItem;
     miECopy: TMenuItem;
@@ -275,7 +268,6 @@ type
     miFReopen: TMenuItem;
     miFSave: TMenuItem;
     miFSaveAs: TMenuItem;
-    miHDonation: TMenuItem;
     miHelp: TMenuItem;
     miHIndex: TMenuItem;
     miHInfo: TMenuItem;
@@ -324,7 +316,6 @@ type
     N18: TMenuItem;
     N19: TMenuItem;
     N2: TMenuItem;
-    N20: TMenuItem;
     N21: TMenuItem;
     N22: TMenuItem;
     N24: TMenuItem;
@@ -396,9 +387,6 @@ type
     ToolButton4: TToolButton;
     ToolButton5: TToolButton;
     ToolButton7: TToolButton;
-    FLDonation: TLabel;
-    FBDonation: TButton;
-    FBHideDonation: TButton;
     procedure aDCreateParentExecute(Sender: TObject);
     procedure aEFindExecute(Sender: TObject);
     procedure aEReplaceExecute(Sender: TObject);
@@ -457,9 +445,6 @@ type
     procedure tbPropertiesClick(Sender: TObject);
     procedure CAddressBarResize(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure PWorkSpaceResize(Sender: TObject);
-    procedure FBHideDonationClick(Sender: TObject);
-    procedure aHDonationExecute(Sender: TObject);
   const
     tiDeactivate = 1;
   type
@@ -626,11 +611,6 @@ end;
 procedure TWWindow.aFOpenAccountExecute(Sender: TObject);
 begin
   Perform(CM_ADDTAB, 0, 0);
-end;
-
-procedure TWWindow.aHDonationExecute(Sender: TObject);
-begin
-  ShellExecute(Application.Handle, 'open', PChar(SysUtils.LoadStr(1006)), '', '', SW_SHOW)
 end;
 
 procedure TWWindow.aHIndexExecute(Sender: TObject);
@@ -871,31 +851,6 @@ end;
 procedure TWWindow.MySQLConnectionSynchronize(const Data: Pointer);
 begin
   PostMessage(Handle, CM_MYSQLCONNECTION_SYNCHRONIZE, 0, LPARAM(Data));
-end;
-
-procedure TWWindow.PWorkSpaceResize(Sender: TObject);
-var
-  R: TRect;
-  Text: string;
-begin
-  R := FLDonation.ClientRect;
-  R.Right := 10000;
-  Text := FLDonation.Caption;
-
-  FLDonation.Left := 20;
-  FLDonation.Width := PWorkSpace.ClientWidth - 40;
-  FLDonation.Canvas.TextRect(R, Text, [tfCalcRect]);
-  FLDonation.Top := 20;
-  FLDonation.Height := R.Bottom - R.Top;
-
-  FBDonation.Width := 2 * (FBDonation.Height - FLDonation.Canvas.TextHeight(FBDonation.Caption)) + FLDonation.Canvas.TextWidth(FBDonation.Caption);
-  FBHideDonation.Width := 2 * (FBHideDonation.Height - FLDonation.Canvas.TextHeight(FBHideDonation.Caption)) + FLDonation.Canvas.TextWidth(FBHideDonation.Caption);
-
-  FBDonation.Left := (PWorkSpace.ClientWidth - (FBDonation.Width + FBHideDonation.Width + 40)) div 2;
-  FBHideDonation.Left := (PWorkSpace.ClientWidth + 40) div 2;
-
-  FBDonation.Top := FLDonation.Top + FLDonation.Height + 40;
-  FBHideDonation.Top := FBDonation.Top;
 end;
 
 procedure TWWindow.CAddressBarResize(Sender: TObject);
@@ -1167,9 +1122,6 @@ begin
   aDRunSelection.Caption := Preferences.LoadStr(175);
   aDPostObject.Caption := Preferences.LoadStr(582);
   aDEmpty.Caption := Preferences.LoadStr(181);
-  aDAutoCommit.Caption := Preferences.LoadStr(802);
-  aDCommit.Caption := Preferences.LoadStr(803);
-  aDRollback.Caption := Preferences.LoadStr(804);
 
   miOptions.Caption := Preferences.LoadStr(13);
   aOGlobals.Caption := Preferences.LoadStr(52) + '...';
@@ -1185,7 +1137,6 @@ begin
   aHSQL.Caption := Preferences.LoadStr(883) + '...';
   aHManual.Caption := Preferences.LoadStr(573);
   aHUpdate.Caption := Preferences.LoadStr(666) + '...';
-  aHDonation.Caption := Preferences.LoadStr(895) + '...';
   aHInfo.Caption := Preferences.LoadStr(168) + '...';
 
   for I := 0 to ActionList.ActionCount - 1 do
@@ -1215,23 +1166,6 @@ begin
   tbNext.Hint := Preferences.LoadStr(513);
   FAddress.Hint := ReplaceStr(Preferences.LoadStr(730), '&', '');
   FAddressApply.Hint := ReplaceStr(Preferences.LoadStr(676), '&', '');
-
-
-  FLDonation.Caption := 'Hi,' + #13#10 + #13#10;
-  FLDonation.Caption := FLDonation.Caption + 'I''m Nils, the developer of this software. I''m happy to develop this software and I''m happy if you like it.' + #13#10 + #13#10;
-  FLDonation.Caption := FLDonation.Caption + 'Since 12 years, I offer this program and support it. A long time I sold licenses to get money. Today, please' + #13#10;
-  FLDonation.Caption := FLDonation.Caption + 'decide you, if you give money to me to support me and my work.' + #13#10 + #13#10;
-  FLDonation.Caption := FLDonation.Caption + 'I need money, to buy food an more. I would be very happy, if you would support with your donation' + #13#10;
-  FLDonation.Caption := FLDonation.Caption + '- maybe, since you never paid for this software, maybe since you used it for a long time without update fees,' + #13#10;
-  FLDonation.Caption := FLDonation.Caption + 'maybe you just want to support me and my decision not to bother other people with a license key and the' + #13#10;
-  FLDonation.Caption := FLDonation.Caption + 'requirement to pay.' + #13#10 + #13#10;
-  FLDonation.Caption := FLDonation.Caption + 'Sorry, to bother you on this way.' + #13#10 + #13#10;
-  FLDonation.Caption := FLDonation.Caption + 'I love and support you further more - even if you send a donation, or not.' + #13#10;
-
-  FBDonation.Hint := SysUtils.LoadStr(1006);
-  FBHideDonation.Caption := Preferences.LoadStr(30);
-
-  PWorkSpaceResize(nil);
 
 
   SetToolBarHints(TBTabControl);
@@ -1348,11 +1282,6 @@ begin
     while (miBookmarks.Count > Index) do
       miBookmarks.Items[Index].Free();
 
-    miDAutoCommit.Action := nil;
-    miDCommit.Action := nil;
-    miDRollback.Action := nil;
-    miDAutoCommit.Checked := False;
-
     aVObjectBrowser.Checked := False;
     aVDataBrowser.Checked := False;
     aVObjectIDE.Checked := False;
@@ -1391,9 +1320,6 @@ begin
 
     miVRefresh.Enabled := False;
     miVRefreshAll.Enabled := False;
-    miDAutoCommit.Enabled := False;
-    miDCommit.Enabled := False;
-    miDRollback.Enabled := False;
 
     tbPrev.Enabled := False;
     tbNext.Enabled := False;
@@ -1476,9 +1402,6 @@ begin
 
   for I := 0 to TabControl.Tabs.Count - 1 do
     TabControl.Tabs[I] := TabCaption(Trim(TabControl.Tabs[I]));
-
-  FLDonation.Font.Handle := PWorkSpace.Font.Handle;
-  FLDonation.Font.Color := clWindow;
 
   StatusBar.ClientHeight := StatusBar.Canvas.TextHeight('I') + 5;
 end;
@@ -1900,14 +1823,6 @@ begin
   FAddressDroppedDown := False;
 end;
 
-procedure TWWindow.FBHideDonationClick(Sender: TObject);
-begin
-  Preferences.DonationVisible := False;
-
-  FLDonation.Visible := False;
-  FBDonation.Visible := FLDonation.Visible; FBHideDonation.Visible := FLDonation.Visible;
-end;
-
 procedure TWWindow.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   aFCloseAllExecute(Sender);
@@ -2061,9 +1976,6 @@ end;
 
 procedure TWWindow.FormShow(Sender: TObject);
 begin
-  FLDonation.Visible := Preferences.DonationVisible;
-  FBDonation.Visible := FLDonation.Visible; FBHideDonation.Visible := FLDonation.Visible;
-
   if (IsConnectedToInternet() and ((Preferences.UpdateCheck = utDaily) and (Trunc(Preferences.UpdateChecked) < Date()))) then
   begin
     CheckUpdateThread := TCheckUpdateThread.Create(True);
