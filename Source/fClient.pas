@@ -1211,6 +1211,7 @@ type
     function GetValid(): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
+    procedure Delete(const AEntity: TCEntity); override;
     function NameCmp(const Name1, Name2: string): Integer; override;
     property Process[Index: Integer]: TCProcess read GetProcess; default;
   end;
@@ -6548,6 +6549,10 @@ begin
 
   if (Result) then
   begin
+    Client.BeginSynchron();
+    Table.Update();
+    Client.EndSynchron();
+
     NewTable := TCBaseTable.Create(Tables);
     NewTable.Assign(Table);
     NewTable.Name := NewTableName;
@@ -8900,6 +8905,13 @@ begin
 
   if ((OldCount > 0) or (Count > 0)) then
     Client.ExecuteEvent(ceItemsValid, Client, Self);
+end;
+
+procedure TCProcesses.Delete(const AEntity: TCEntity);
+begin
+  inherited;
+
+  Client.ExecuteEvent(ceItemDropped, Client, Self, AEntity);
 end;
 
 function TCProcesses.GetProcess(Index: Integer): TCProcess;

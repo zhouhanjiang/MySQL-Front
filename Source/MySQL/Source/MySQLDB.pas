@@ -302,7 +302,7 @@ type
     procedure SyncCancel(const SynchroThread: TSynchroThread); virtual;
     procedure SyncConnecting(const SynchroThread: TSynchroThread); virtual;
     procedure SyncConnected(const SynchroThread: TSynchroThread); virtual;
-    procedure SyncDisconncting(const SynchroThread: TSynchroThread); virtual;
+    procedure SyncDisconnecting(const SynchroThread: TSynchroThread); virtual;
     procedure SyncDisconncted(const SynchroThread: TSynchroThread); virtual;
     procedure SyncExecutedSQL(const SynchroThread: TSynchroThread); virtual;
     procedure SyncExecutingSQL(const SynchroThread: TSynchroThread); virtual;
@@ -503,7 +503,7 @@ InOnResult: Boolean; // Should be private, but for debugging...
     PExternRecordBuffer = ^TExternRecordBuffer;
     TExternRecordBuffer = record
       InternRecordBuffer: PInternRecordBuffer;
-      RecNo: Integer;
+      Index: Integer;
       BookmarkFlag: TBookmarkFlag;
     end;
     TInternRecordBuffers = class(TList)
@@ -598,6 +598,7 @@ InOnResult: Boolean; // Should be private, but for debugging...
     function GetMaxTextWidth(const Field: TField; const TextWidth: TTextWidth): Integer; virtual;
     function Locate(const KeyFields: string; const KeyValues: Variant;
       Options: TLocateOptions): Boolean; override;
+    procedure Resync(Mode: TResyncMode); override;
     procedure Sort(const ASortDef: TIndexDef); virtual;
     function SQLDelete(): string; virtual;
     function SQLInsert(): string; virtual;
@@ -1863,7 +1864,7 @@ begin
           ssCancel:
             Connection.SyncCancel(Self);
           ssDisconnecting:
-            Connection.SyncDisconncting(Self);
+            Connection.SyncDisconnecting(Self);
         end;
 
         Connection.TerminateCS.Enter();
@@ -1960,7 +1961,7 @@ begin
         end;
       ssDisconnecting:
         begin
-          Connection.SyncDisconncting(Self);
+          Connection.SyncDisconnecting(Self);
           Connection.SyncDisconncted(Self);
         end;
     end
@@ -3152,7 +3153,7 @@ begin
   if Assigned(AfterConnect) then AfterConnect(Self);
 end;
 
-procedure TMySQLConnection.SyncDisconncting(const SynchroThread: TSynchroThread);
+procedure TMySQLConnection.SyncDisconnecting(const SynchroThread: TSynchroThread);
 begin
   if (not Assigned(SynchroThread.LibHandle)) then
   begin
@@ -3206,7 +3207,7 @@ begin
   DoAfterExecuteSQL();
 
   if ((FErrorCode = CR_SERVER_HANDSHAKE_ERR)) then
-    SyncDisconncting(SynchroThread);
+    SyncDisconnecting(SynchroThread);
 
   if (Assigned(SynchroThread.Done)) then
     SynchroThread.Done.SetEvent();
@@ -3217,6 +3218,7 @@ var
   I: Integer;
   LibLength: Integer;
   LibSQL: AnsiString;
+  NeedReconnect: Boolean;
   PacketLength: Integer;
   Retry: Integer;
   StartTime: TDateTime;
@@ -3247,9 +3249,26 @@ begin
 
     if (not SynchroThread.Terminated and SynchroThread.Success) then
     begin
-      StartTime := Now();
-      SynchroThread.Success := Lib.mysql_real_query(SynchroThread.LibHandle, my_char(LibSQL), LibLength) = 0;
-      SynchroThread.Time := SynchroThread.Time + Now() - StartTime;
+      Retry := 0; NeedReconnect := False;
+      repeat
+        if (NeedReconnect) then
+          SyncConnecting(SynchroThread);
+
+        StartTime := Now();
+        SynchroThread.Success := Lib.mysql_real_query(SynchroThread.LibHandle, my_char(LibSQL), LibLength) = 0;
+        SynchroThread.Time := SynchroThread.Time + Now() - StartTime;
+
+        NeedReconnect := (Lib.mysql_errno(SynchroThread.LibHandle) = CR_SERVER_GONE_ERROR) or (Lib.mysql_errno(SynchroThread.LibHandle) = CR_SERVER_LOST);
+        if (NeedReconnect) then
+        begin
+          {$IFDEF Debug}
+            MessageBox(Application.Handle, 'Reconnect needed!', 'Debug', MB_OK);
+          {$ENDIF}
+          SyncDisconnecting(SynchroThread);
+        end;
+
+        Inc(Retry);
+      until (not NeedReconnect or (Retry = RETRY_COUNT));
     end;
 
     if (SynchroThread.Success and not SynchroThread.Terminated) then
@@ -4846,7 +4865,7 @@ begin
   New(PExternRecordBuffer(Result));
 
   PExternRecordBuffer(Result)^.InternRecordBuffer := nil;
-  PExternRecordBuffer(Result)^.RecNo := -1;
+  PExternRecordBuffer(Result)^.Index := -1;
   PExternRecordBuffer(Result)^.BookmarkFlag := bfInserted;
 end;
 
@@ -5071,7 +5090,7 @@ begin
   if (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag <> bfCurrent) then
     Result := -1
   else
-    Result := PExternRecordBuffer(ActiveBuffer())^.RecNo;
+    Result := PExternRecordBuffer(ActiveBuffer())^.Index;
 end;
 
 function TMySQLDataSet.GetRecord(Buffer: TRecordBuffer; GetMode: TGetMode; DoCheck: Boolean): TGetResult;
@@ -5159,7 +5178,7 @@ begin
       InternRecordBuffers.Index := NewIndex;
 
       PExternRecordBuffer(Buffer)^.InternRecordBuffer := InternRecordBuffers[InternRecordBuffers.Index];
-      PExternRecordBuffer(Buffer)^.RecNo := InternRecordBuffers.Index;
+      PExternRecordBuffer(Buffer)^.Index := InternRecordBuffers.Index;
       PExternRecordBuffer(Buffer)^.BookmarkFlag := bfCurrent;
 
       InternRecordBuffers.CriticalSection.Leave();
@@ -5303,7 +5322,7 @@ begin
       FreeInternRecordBuffer(InternRecordBuffers[InternRecordBuffers.Index]);
       InternRecordBuffers.Delete(InternRecordBuffers.Index);
         for J := ActiveRecord + 1 to BufferCount - 1 do
-          Dec(PExternRecordBuffer(Buffers[J])^.RecNo);
+          Dec(PExternRecordBuffer(Buffers[J])^.Index);
       if (Filtered) then
         Dec(InternRecordBuffers.FilteredRecordCount);
     end
@@ -5320,7 +5339,7 @@ begin
         FreeInternRecordBuffer(InternRecordBuffers[Index]);
         InternRecordBuffers.Delete(Index);
         for J := ActiveRecord + 1 to BufferCount - 1 do
-          Dec(PExternRecordBuffer(Buffers[J])^.RecNo);
+          Dec(PExternRecordBuffer(Buffers[J])^.Index);
         if (Filtered) then
           Dec(InternRecordBuffers.FilteredRecordCount);
       end;
@@ -5358,7 +5377,7 @@ end;
 procedure TMySQLDataSet.InternalInitRecord(Buffer: TRecordBuffer);
 begin
   PExternRecordBuffer(Buffer)^.InternRecordBuffer := nil;
-  PExternRecordBuffer(Buffer)^.RecNo := -1;
+  PExternRecordBuffer(Buffer)^.Index := -1;
   PExternRecordBuffer(Buffer)^.BookmarkFlag := bfCurrent;
 end;
 
@@ -5494,7 +5513,6 @@ end;
 
 procedure TMySQLDataSet.InternalSetToRecord(Buffer: TRecordBuffer);
 var
-  Direction: Integer;
   MaxIndex: Integer;
   NewIndex: Integer;
   NewInternBuffersIndex: Integer;
@@ -5506,13 +5524,14 @@ begin
   while ((NewInternBuffersIndex = InternRecordBuffers.Index) and (NewIndex < MaxIndex)) do
   begin
     if (PExternRecordBuffer(Buffer)^.InternRecordBuffer = InternRecordBuffers[NewIndex]) then
+    begin
       NewInternBuffersIndex := NewIndex;
+      break;
+    end;
     Inc(NewIndex);
   end;
 
-  Direction := Sign(NewInternBuffersIndex - InternRecordBuffers.Index);
-  while (InternRecordBuffers.Index <> NewInternBuffersIndex) do
-    Inc(InternRecordBuffers.Index, Direction);
+  InternRecordBuffers.Index := NewInternBuffersIndex;
 end;
 
 function TMySQLDataSet.IsCursorOpen(): Boolean;
@@ -5643,6 +5662,14 @@ begin
       MoveMemory(DestData^.LibRow^[I], SourceData^.LibRow^[I], DestData^.LibLengths^[I]);
       Inc(Index, DestData^.LibLengths^[I]);
     end;
+end;
+
+procedure TMySQLDataSet.Resync(Mode: TResyncMode);
+begin
+  // Why is this needed in Delphi XE2? Without this, Buffers are not reinitialized well.
+  InternRecordBuffers.Index :=  PExternRecordBuffer(ActiveBuffer())^.Index;
+
+  inherited;
 end;
 
 procedure TMySQLDataSet.SetActive(Value: Boolean);
