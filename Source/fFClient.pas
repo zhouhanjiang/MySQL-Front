@@ -3240,7 +3240,7 @@ begin
     ActiveDBGrid.DataSource.DataSet.Edit();
     ActiveDBGrid.InplaceEditor.PasteFromClipboard()
   end
-  else if (Assigned(ActiveListView) and (Window.ActiveControl = FNavigator) or (Window.ActiveControl = ActiveListView)) then
+  else if ((Window.ActiveControl = FNavigator) or Assigned(ActiveListView) and (Window.ActiveControl = ActiveListView)) then
   begin
     if (Window.ActiveControl = FNavigator) then
       Node := FNavigatorMenuNode

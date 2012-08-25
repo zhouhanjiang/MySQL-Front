@@ -5667,7 +5667,8 @@ end;
 procedure TMySQLDataSet.Resync(Mode: TResyncMode);
 begin
   // Why is this needed in Delphi XE2? Without this, Buffers are not reinitialized well.
-//  InternRecordBuffers.Index :=  PExternRecordBuffer(ActiveBuffer())^.Index;
+  if (InternRecordBuffers.Index < InternRecordBuffers.Count) then
+    InternRecordBuffers.Index := PExternRecordBuffer(ActiveBuffer())^.Index;
 
   inherited;
 end;
