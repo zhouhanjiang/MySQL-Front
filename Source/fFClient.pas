@@ -1284,7 +1284,7 @@ begin
     begin
       URI := TUURI.Create(FClient.Address);
       URI.Database := DataHandle.Connection.DatabaseName;
-      FClient.Address := URI.Address;
+      FClient.Wanted.Address := URI.Address;
       URI.Free();
     end;
   end

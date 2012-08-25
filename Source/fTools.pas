@@ -6244,6 +6244,52 @@ end;
 
 { TTExportCanvas **************************************************************}
 
+function WordBreak(const Canvas: TCanvas; const Text: string; const Width: Integer): String;
+var
+  I: Integer;
+  Index: Integer;
+  OldIndex: Integer;
+  S: string;
+  Size: TSize;
+  StringList: TStringList;
+begin
+  StringList := TStringList.Create();
+  StringList.Text := Text;
+
+  I := 0;
+  while (I < StringList.Count) do
+  begin
+    S := StringList[I];
+    repeat
+      Index := 1;
+      repeat
+        OldIndex := Index;
+        while ((Index <= Length(S)) and CharInSet(S[Index], [#9, ' '])) do Inc(Index);
+        while ((Index <= Length(S)) and not CharInSet(S[Index], [#9, ' '])) do Inc(Index);
+        if (not GetTextExtentPoint32(Canvas.Handle, PChar(S), Index - 1, Size)) then
+          RaiseLastOSError();
+      until ((Size.cx > Width) or (Index >= Length(S)));
+      if (Size.cx <= Width) then
+        S := ''
+      else
+      begin
+        StringList[I] := Copy(S, 1, OldIndex - 1);
+        while ((OldIndex <= Length(S)) and CharInSet(S[OldIndex], [#9, ' '])) do Inc(OldIndex);
+        Delete(S, 1, OldIndex - 1);
+        if (S <> '') then
+        begin
+          Inc(I);
+          StringList.Insert(I, S);
+        end;
+      end;
+    until (S = '');
+    Inc(I);
+  end;
+
+  Result := StringList.Text;
+  StringList.Free();
+end;
+
 function TTExportCanvas.AllocateHeight(const Height: Integer): Boolean;
 begin
   Result := Y + Height > ContentArea.Bottom;
@@ -6754,11 +6800,13 @@ begin
   for I := 0 to Length(Fields) - 1 do
   begin
     Text := FieldText(Fields[I]);
-    if (not (Fields[I].DataType in RightAlignedDataTypes)) then
+    if (Fields[I].DataType in RightAlignedDataTypes) then
+      TextFormat := [tfRight]
+    else if (Fields[I].DataType in NotQuotedDataTypes) then
       TextFormat := []
     else
-      TextFormat := [tfRight];
-    MaxRowHeight := Max(MaxRowHeight, GridTextOut(I, Text, TextFormat + [tfCalcRect], Fields[I].IsIndexField, Fields[I].IsNull));
+      TextFormat := [tfWordBreak];
+    MaxRowHeight := Max(MaxRowHeight, GridTextOut(I, Text, [tfCalcRect] + TextFormat, Fields[I].IsIndexField, Fields[I].IsNull));
   end;
 
   if (AllocateHeight(MaxRowHeight + LineHeight)) then
@@ -6767,10 +6815,12 @@ begin
   for I := 0 to Length(Fields) - 1 do
   begin
     Text := FieldText(Fields[I]);
-    if (not (Fields[I].DataType in RightAlignedDataTypes)) then
+    if (Fields[I].DataType in RightAlignedDataTypes) then
+      TextFormat := [tfRight]
+    else if (Fields[I].DataType in NotQuotedDataTypes) then
       TextFormat := []
     else
-      TextFormat := [tfRight];
+      TextFormat := [tfWordBreak];
     GridTextOut(I, Text, TextFormat, Fields[I].IsIndexField, Fields[I].IsNull);
   end;
 
@@ -6937,62 +6987,28 @@ end;
 function TTExportCanvas.GridTextOut(const Column: Integer; Text: string; const TextFormat: TTextFormat; const Bold, Gray: Boolean): Integer;
 var
   CalcR: TRect;
-  J: Integer;
   R: TRect;
-  StringList: TStringList;
 begin
   if (Bold) then Columns[Column].Canvas.Font.Style := Columns[Column].Canvas.Font.Style + [fsBold];
 
-  if (Text = '') then
-    Result := Padding + -Canvas.Font.Height + Padding
-  else
+  R := Rect(Columns[Column].Left + Padding, Y + Padding - 1, Columns[Column].Left + Padding + Columns[Column].Width + Padding - 1, Y + Padding + -Canvas.Font.Height + Padding);
+  CalcR := R;
+  Windows.DrawText(Columns[Column].Canvas.Handle, PChar(Text), Length(Text), CalcR, TTextFormatFlags([tfCalcRect] + TextFormat));
+  R.Bottom := CalcR.Bottom;
+
+  if (Text <> '') then
   begin
-    R := Rect(Columns[Column].Left + Padding, Y + Padding - 1, Columns[Column].Left + Padding + Columns[Column].Width + Padding - 1, Y + Padding + -Canvas.Font.Height + Padding);
-    CalcR := R;
-    Columns[Column].Canvas.TextRect(CalcR, Text, [tfCalcRect, tfWordBreak] + TextFormat);
-    R.Bottom := CalcR.Bottom;
-    if (tfCalcRect in TextFormat) then
-      if ((CalcR.Right <= R.Right) and (CalcR.Bottom <= R.Bottom)) then
-        Result := Padding + -Canvas.Font.Height + Padding
-      else
-      begin
-        StringList := TStringList.Create();
-        StringList.Text := Text;
-        Result := Padding + StringList.Count * (-Canvas.Font.Height + Padding);
-        StringList.Free();
-      end
+    if (Gray) then Columns[Column].Canvas.Font.Color := clGray;
+
+    if ((CalcR.Right > R.Right) or (CalcR.Bottom > R.Bottom) or (tfRight in TextFormat)) then
+      Windows.DrawText(Columns[Column].Canvas.Handle, PChar(Text), Length(Text), R, TTextFormatFlags(TextFormat))
     else
-    begin
-      if (Gray) then Columns[Column].Canvas.Font.Color := clGray;
+      Windows.ExtTextOut(Columns[Column].Canvas.Handle, R.Left, R.Top, ETO_CLIPPED, R, Text, Length(Text), nil);
 
-      if ((CalcR.Right <= R.Right) and (CalcR.Bottom <= R.Bottom)) then
-      begin
-        if (tfRight in TextFormat) then
-          Windows.DrawTextEx(Columns[Column].Canvas.Handle, PChar(Text), Length(Text), R, TTextFormatFlags(TextFormat), nil)
-        else
-          Windows.ExtTextOut(Columns[Column].Canvas.Handle, R.Left, R.Top - 1, ETO_CLIPPED, R, Text, Length(Text), nil);
-      end
-      else
-      begin
-        StringList := TStringList.Create();
-        StringList.Text := Text;
-        for J := 0 to StringList.Count - 1 do
-        begin
-          if (J > 0) then
-          begin
-            Inc(R.Top, -Columns[Column].Canvas.Font.Height + Padding);
-            Inc(R.Bottom, -Columns[Column].Canvas.Font.Height + Padding);
-          end;
-          Columns[Column].Canvas.TextRect(R, R.Left, R.Top - 1, StringList[J]);
-        end;
-        StringList.Free();
-      end;
-
-      if (Gray) then Columns[Column].Canvas.Font.Color := clBlack;
-
-      Result := R.Bottom - Y;
-    end;
+    if (Gray) then Columns[Column].Canvas.Font.Color := clBlack;
   end;
+
+  Result := R.Bottom - Y;
 
   if (Bold) then Columns[Column].Canvas.Font.Style := Columns[Column].Canvas.Font.Style - [fsBold];
 end;
