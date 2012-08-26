@@ -5668,7 +5668,8 @@ end;
 procedure TMySQLDataSet.Resync(Mode: TResyncMode);
 begin
   // Why is this needed in Delphi XE2? Without this, Buffers are not reinitialized well.
-  if ((InternRecordBuffers.Index >= 0) and (PExternRecordBuffer(ActiveBuffer())^.Index >= 0)) then
+  if ((InternRecordBuffers.Index >= 0) and (PExternRecordBuffer(ActiveBuffer())^.Index >= 0)
+    and Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
     InternRecordBuffers.Index := PExternRecordBuffer(ActiveBuffer())^.Index;
 
   inherited;
@@ -6111,19 +6112,24 @@ begin
     end
     else
     begin
-      ValueHandled := False;
       for I := 0 to Length(DeleteBookmarks) - 1 do
+      begin
+        if (I > 0) then Result := Result + ' OR ';
+        Result := Result + '(';
+        ValueHandled := False;
         for J := 0 to FieldCount - 1 do
           if (pfInWhere in Fields[J].ProviderFlags) then
           begin
             InternRecordBuffer := InternRecordBuffers[BookmarkToInternBufferIndex(TBookmark(DeleteBookmarks[I]))];
-            if (ValueHandled) then Result := Result + ' OR ';
+            if (ValueHandled) then Result := Result + ' AND ';
             if (not Assigned(InternRecordBuffer^.OldData^.LibRow^[J])) then
               Result := Result + Connection.EscapeIdentifier(Fields[J].FieldName) + ' IS NULL'
             else
-              Result := Result + '(' + Connection.EscapeIdentifier(Fields[J].FieldName) + '=' + SQLFieldValue(WhereField, InternRecordBuffer^.OldData) + ')';
+              Result := Result + '(' + Connection.EscapeIdentifier(Fields[J].FieldName) + '=' + SQLFieldValue(Fields[J], InternRecordBuffer^.OldData) + ')';
             ValueHandled := True;
           end;
+        Result := Result + ')';
+      end;
     end;
   end;
   Result := Result + ';' + #13#10;

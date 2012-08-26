@@ -620,6 +620,7 @@ type
 
   TTExportPrint = class(TTExportCanvas)
   private
+    Pages: array of TBitmap;
     Printer: TPrinter;
   protected
     procedure AddPage(const NewPageRow: Boolean); override;
@@ -7084,11 +7085,29 @@ end;
 { TTExportPrint ***************************************************************}
 
 procedure TTExportPrint.AddPage(const NewPageRow: Boolean);
+var
+  I: Integer;
 begin
   if (NewPageRow) then
   begin
+//    for I := 0 to Length(Pages) - 1 do
+//    begin
+//      Printer.NewPage();
+//      Printer.Canvas.Draw(0, 0, Pages[I]);
+//      Pages[I].Free();
+//    end;
+//    SetLength(Pages, 0);
+
     Printer.NewPage();
     Canvas := Printer.Canvas;
+  end
+  else
+  begin
+    SetLength(Pages, Length(Pages) + 1);
+    Pages[Length(Pages) - 1] := TBitmap.Create();
+    Pages[Length(Pages) - 1].SetSize(Printer.PageWidth, Printer.PageHeight);
+
+    Canvas := Pages[Length(Pages) - 1].Canvas;
   end;
 end;
 
@@ -7110,7 +7129,10 @@ begin
   LineWidth := Round(GetDeviceCaps(Printer.Handle, LOGPIXELSX) * LineWidthMilliInch / 1000);
   LineHeight := Round(GetDeviceCaps(Printer.Handle, LOGPIXELSY) * LineHeightMilliInch / 1000);
 
-  Canvas := Printer.Canvas;
+  SetLength(Pages, 1);
+  Pages[0] := TBitmap.Create();
+  Pages[0].SetSize(Printer.PageWidth, Printer.PageHeight);
+  Canvas := Pages[0].Canvas;
 
   inherited Create(AClient);
 end;
