@@ -562,6 +562,7 @@ type
       HeaderBold: Boolean;
       HeaderText: string;
       Left: Integer;
+      Rect: TRect;
       Width: Integer;
     end;
     TGridData = array of array of record
@@ -592,7 +593,7 @@ type
     procedure GridDrawVertLines();
     procedure GridHeader();
     procedure GridOut(var GridData: TGridData);
-    function GridTextOut(const Column: Integer; Text: string; const TextFormat: TTextFormat; const Bold, Gray: Boolean): Integer;
+    function GridTextOut(var Column: TColumn; const Text: string; const TextFormat: TTextFormat; const Bold, Gray: Boolean): Integer;
     procedure PageBreak(const NewPageRow: Boolean);
     procedure PageFooter();
   protected
@@ -6425,7 +6426,7 @@ begin
           if (TCTable(ExportObjects[I].DBObject).Fields[J].FieldType in LOBFieldTypes) then
             SQL := SQL + '0'
           else if (TCTable(ExportObjects[I].DBObject).Fields[J].FieldType = mfBit) then
-            SQL := SQL + 'MAX(' + Client.EscapeIdentifier(TCTable(ExportObjects[I].DBObject).Fields[J].Name) + ')+0' // MySQL 5.5.22 reports without the "+0" the MYSQL_TYPE_BIT field_type, but a char result
+            SQL := SQL + 'CHAR_LENGTH(CONV(MAX(' + Client.EscapeIdentifier(TCTable(ExportObjects[I].DBObject).Fields[J].Name) + ')+0,8,2))'
           else
             SQL := SQL + 'MAX(CHAR_LENGTH(' + Client.EscapeIdentifier(TCTable(ExportObjects[I].DBObject).Fields[J].Name) + '))';
           SQL := SQL + ' AS ' + Client.EscapeIdentifier(TCTable(ExportObjects[I].DBObject).Fields[J].Name);
@@ -6806,7 +6807,7 @@ begin
       TextFormat := []
     else
       TextFormat := [tfWordBreak];
-    MaxRowHeight := Max(MaxRowHeight, GridTextOut(I, Text, [tfCalcRect] + TextFormat, Fields[I].IsIndexField, Fields[I].IsNull));
+    MaxRowHeight := Max(MaxRowHeight, GridTextOut(Columns[I], Text, [tfCalcRect] + TextFormat, Fields[I].IsIndexField, Fields[I].IsNull));
   end;
 
   if (AllocateHeight(MaxRowHeight + LineHeight)) then
@@ -6821,7 +6822,7 @@ begin
       TextFormat := []
     else
       TextFormat := [tfWordBreak];
-    GridTextOut(I, Text, TextFormat, Fields[I].IsIndexField, Fields[I].IsNull);
+    GridTextOut(Columns[I], Text, TextFormat, Fields[I].IsIndexField, Fields[I].IsNull);
   end;
 
   Inc(Y, MaxRowHeight);
@@ -6881,14 +6882,14 @@ end;
 procedure TTExportCanvas.GridHeader();
 var
   I: Integer;
-  R: TRect;
+  RowHeight: Integer;
   Text: string;
   X: Integer;
 begin
-  GridTop := Y;
+  GridTop := Y; RowHeight := 0;
 
   Canvas.Font.Assign(GridFont);
-  X := ContentArea.Left + LineWidth; Y := GridTop + LineWidth;
+  X := ContentArea.Left + LineWidth; Y := GridTop;
 
   for I := 0 to Length(Columns) - 1 do
   begin
@@ -6897,19 +6898,15 @@ begin
       PageBreak(False);
 
       Canvas.Font.Assign(GridFont);
-      X := ContentArea.Left + LineWidth; Y := GridTop + LineWidth;
+      X := ContentArea.Left + LineWidth; Y := GridTop;
     end;
 
     Columns[I].Canvas := Canvas;
     Columns[I].Left := X;
 
-    if (Columns[I].HeaderBold) then Canvas.Font.Style := Canvas.Font.Style + [fsBold];
-
     Text := Columns[I].HeaderText;
-    R := Rect(Columns[I].Left + Padding, Y + Padding - 1, Columns[I].Left + Padding + Columns[I].Width + Padding - 1, Y + Padding + -Canvas.Font.Height + Padding);
-    Canvas.TextRect(R, Text, []);
-
-    if (Columns[I].HeaderBold) then Canvas.Font.Style := Canvas.Font.Style - [fsBold];
+    RowHeight := GridTextOut(Columns[I], Columns[I].HeaderText, [tfCalcRect], Columns[I].HeaderBold, False);
+    GridTextOut(Columns[I], Columns[I].HeaderText, [], Columns[I].HeaderBold, False);
 
     Inc(X, Padding + Columns[I].Width + Padding + LineWidth);
   end;
@@ -6918,7 +6915,7 @@ begin
     Columns[I].Canvas.Font.Assign(GridFont);
 
   GridDrawHorzLine(GridTop);
-  Inc(Y, R.Bottom - R.Top + Padding);
+  Inc(Y, RowHeight);
   GridDrawHorzLine(Y);
 end;
 
@@ -6953,7 +6950,7 @@ begin
     begin
       if (GridData[I][J].Bold) then Canvas.Font.Style := Canvas.Font.Style + [fsBold];
       Text := GridData[I][J].Text;
-      MaxRowHeight := Max(MaxRowHeight, GridTextOut(J, Text, [tfCalcRect], False, False));
+      MaxRowHeight := Max(MaxRowHeight, GridTextOut(Columns[J], Text, [tfCalcRect], False, False));
       if (GridData[I][J].Bold) then Canvas.Font.Style := Canvas.Font.Style - [fsBold];
     end;
 
@@ -6965,7 +6962,7 @@ begin
       if (GridData[I][J].Bold) then Canvas.Font.Style := Canvas.Font.Style + [fsBold];
       if (GridData[I][J].Gray) then Canvas.Font.Color := clGray;
       Text := GridData[I][J].Text;
-      GridTextOut(J, Text, [], False, False);
+      GridTextOut(Columns[J], Text, [], False, False);
       if (GridData[I][J].Gray) then Canvas.Font.Color := clBlack;
       if (GridData[I][J].Bold) then Canvas.Font.Style := Canvas.Font.Style - [fsBold];
     end;
@@ -6984,33 +6981,37 @@ begin
   SetLength(Columns, 0);
 end;
 
-function TTExportCanvas.GridTextOut(const Column: Integer; Text: string; const TextFormat: TTextFormat; const Bold, Gray: Boolean): Integer;
+function TTExportCanvas.GridTextOut(var Column: TColumn; const Text: string; const TextFormat: TTextFormat; const Bold, Gray: Boolean): Integer;
 var
-  CalcR: TRect;
   R: TRect;
 begin
-  if (Bold) then Columns[Column].Canvas.Font.Style := Columns[Column].Canvas.Font.Style + [fsBold];
+  if (Bold) then Column.Canvas.Font.Style := Column.Canvas.Font.Style + [fsBold];
 
-  R := Rect(Columns[Column].Left + Padding, Y + Padding - 1, Columns[Column].Left + Padding + Columns[Column].Width + Padding - 1, Y + Padding + -Canvas.Font.Height + Padding);
-  CalcR := R;
-  Windows.DrawText(Columns[Column].Canvas.Handle, PChar(Text), Length(Text), CalcR, TTextFormatFlags([tfCalcRect] + TextFormat));
-  R.Bottom := CalcR.Bottom;
-
-  if (Text <> '') then
+  R := Rect(Column.Left + Padding, Y + Padding - 1, Column.Left + Padding + Column.Width + Padding - 1, Y + Padding + -Canvas.Font.Height + Padding);
+  if (tfCalcRect in TextFormat) then
   begin
-    if (Gray) then Columns[Column].Canvas.Font.Color := clGray;
+    Column.Rect := R;
+    Windows.DrawText(Column.Canvas.Handle, PChar(Text), Length(Text), R, TTextFormatFlags([tfCalcRect] + TextFormat));
+    Column.Rect.Bottom := R.Bottom;
+  end
+  else if (Text <> '') then
+  begin
+    if (Gray) then Column.Canvas.Font.Color := clGray;
 
-    if ((CalcR.Right > R.Right) or (CalcR.Bottom > R.Bottom) or (tfRight in TextFormat)) then
-      Windows.DrawText(Columns[Column].Canvas.Handle, PChar(Text), Length(Text), R, TTextFormatFlags(TextFormat))
+    if ((Column.Rect.Right < R.Right) or (Column.Rect.Bottom < R.Bottom) or (tfRight in TextFormat)) then
+      Windows.DrawText(Column.Canvas.Handle, PChar(Text), Length(Text), Column.Rect, TTextFormatFlags(TextFormat))
     else
-      Windows.ExtTextOut(Columns[Column].Canvas.Handle, R.Left, R.Top, ETO_CLIPPED, R, Text, Length(Text), nil);
+      Windows.ExtTextOut(Column.Canvas.Handle, R.Left, R.Top, ETO_CLIPPED, R, Text, Length(Text), nil);
 
-    if (Gray) then Columns[Column].Canvas.Font.Color := clBlack;
+    if (Gray) then Column.Canvas.Font.Color := clBlack;
   end;
 
-  Result := R.Bottom - Y;
+  if (Self is TTExportPDF) then
+    Result := Column.Rect.Bottom - Y
+  else
+    Result := Column.Rect.Bottom - Y + Padding;
 
-  if (Bold) then Columns[Column].Canvas.Font.Style := Columns[Column].Canvas.Font.Style - [fsBold];
+  if (Bold) then Column.Canvas.Font.Style := Column.Canvas.Font.Style - [fsBold];
 end;
 
 procedure TTExportCanvas.PageBreak(const NewPageRow: Boolean);
@@ -7099,15 +7100,15 @@ begin
   PageWidth := Printer.PageWidth;
   PageHeight := Printer.PageHeight;
 
-  Margins.Left := GetDeviceCaps(Printer.Handle, LOGPIXELSX) * MarginsMilliInch.Left div 1000;
-  Margins.Top := GetDeviceCaps(Printer.Handle, LOGPIXELSY) * MarginsMilliInch.Top div 1000;
-  Margins.Right := GetDeviceCaps(Printer.Handle, LOGPIXELSX) * MarginsMilliInch.Right div 1000;
-  Margins.Bottom := GetDeviceCaps(Printer.Handle, LOGPIXELSY) * MarginsMilliInch.Bottom div 1000;
+  Margins.Left := Round(GetDeviceCaps(Printer.Handle, LOGPIXELSX) * MarginsMilliInch.Left / 1000);
+  Margins.Top := Round(GetDeviceCaps(Printer.Handle, LOGPIXELSY) * MarginsMilliInch.Top / 1000);
+  Margins.Right := Round(GetDeviceCaps(Printer.Handle, LOGPIXELSX) * MarginsMilliInch.Right / 1000);
+  Margins.Bottom := Round(GetDeviceCaps(Printer.Handle, LOGPIXELSY) * MarginsMilliInch.Bottom / 1000);
 
-  Padding := GetDeviceCaps(Printer.Handle, LOGPIXELSY) * PaddingMilliInch div 1000;
+  Padding := Round(GetDeviceCaps(Printer.Handle, LOGPIXELSY) * PaddingMilliInch / 1000);
 
-  LineWidth := GetDeviceCaps(Printer.Handle, LOGPIXELSX) * LineWidthMilliInch div 1000;
-  LineHeight := GetDeviceCaps(Printer.Handle, LOGPIXELSY) * LineHeightMilliInch div 1000;
+  LineWidth := Round(GetDeviceCaps(Printer.Handle, LOGPIXELSX) * LineWidthMilliInch / 1000);
+  LineHeight := Round(GetDeviceCaps(Printer.Handle, LOGPIXELSY) * LineHeightMilliInch / 1000);
 
   Canvas := Printer.Canvas;
 
@@ -7170,10 +7171,10 @@ begin
   PageWidth := Trunc(Integer(PDF.DefaultPageWidth) * GetDeviceCaps(Canvas.Handle, LOGPIXELSX) / 72); // PDF expect 72 pixels per inch
   PageHeight := Trunc(Integer(PDF.DefaultPageHeight) * GetDeviceCaps(Canvas.Handle, LOGPIXELSY) / 72); // PDF expect 72 pixels per inch
 
-  Margins.Left := GetDeviceCaps(Canvas.Handle, LOGPIXELSX) * MarginsMilliInch.Left div 1000;
-  Margins.Top := GetDeviceCaps(Canvas.Handle, LOGPIXELSY) * MarginsMilliInch.Top div 1000;
-  Margins.Right := GetDeviceCaps(Canvas.Handle, LOGPIXELSX) * MarginsMilliInch.Right div 1000;
-  Margins.Bottom := GetDeviceCaps(Canvas.Handle, LOGPIXELSY) * MarginsMilliInch.Bottom div 1000;
+  Margins.Left := Round(GetDeviceCaps(Canvas.Handle, LOGPIXELSX) * MarginsMilliInch.Left / 1000);
+  Margins.Top := Round(GetDeviceCaps(Canvas.Handle, LOGPIXELSY) * MarginsMilliInch.Top / 1000);
+  Margins.Right := Round(GetDeviceCaps(Canvas.Handle, LOGPIXELSX) * MarginsMilliInch.Right / 1000);
+  Margins.Bottom := Round(GetDeviceCaps(Canvas.Handle, LOGPIXELSY) * MarginsMilliInch.Bottom / 1000);
 
   Padding := Round(GetDeviceCaps(Canvas.Handle, LOGPIXELSY) * PaddingMilliInch / 1000);
 

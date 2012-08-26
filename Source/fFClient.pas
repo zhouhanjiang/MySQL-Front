@@ -8211,7 +8211,7 @@ procedure TFClient.FNavigatorUpdate(const ClientEvent: TCClient.TEvent);
               Child := Child.getNextSibling()
             else
             begin
-              if (Child = FNavigatorNodeToExpand) then
+              if ((Child = FNavigatorNodeToExpand) or (Child.Parent = FNavigatorNodeToExpand)) then
                 FNavigatorNodeToExpand := nil;
               DeleteChild := Child;
               Child := Child.getNextSibling();
@@ -8253,7 +8253,7 @@ procedure TFClient.FNavigatorUpdate(const ClientEvent: TCClient.TEvent);
               Child := Child.getNextSibling()
             else
             begin
-              if (Child = FNavigatorNodeToExpand) then
+              if ((Child = FNavigatorNodeToExpand) or (Child.Parent = FNavigatorNodeToExpand)) then
                 FNavigatorNodeToExpand := nil;
               DeleteChild := FNavigator.Selected;
               while (Assigned(DeleteChild)) do

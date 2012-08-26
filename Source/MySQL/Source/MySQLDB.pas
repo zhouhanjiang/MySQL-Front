@@ -5394,7 +5394,8 @@ begin
     Inc(InternRecordBuffers.FilteredRecordCount);
 
   for I := 0 to FieldCount - 1 do
-    if (Fields[I].DefaultExpression <> '') then
+    if (Fields[I].AutoGenerateValue = arAutoInc) then
+    else if (Fields[I].DefaultExpression <> '') then
     begin
       RBS := Connection.LibEncode(SQLUnescape(Fields[I].DefaultExpression));
       SetFieldData(Fields[I], @RBS[1], Length(RBS));
@@ -5667,7 +5668,7 @@ end;
 procedure TMySQLDataSet.Resync(Mode: TResyncMode);
 begin
   // Why is this needed in Delphi XE2? Without this, Buffers are not reinitialized well.
-  if (InternRecordBuffers.Index < InternRecordBuffers.Count) then
+  if ((InternRecordBuffers.Index >= 0) and (PExternRecordBuffer(ActiveBuffer())^.Index >= 0)) then
     InternRecordBuffers.Index := PExternRecordBuffer(ActiveBuffer())^.Index;
 
   inherited;
@@ -6113,14 +6114,14 @@ begin
       ValueHandled := False;
       for I := 0 to Length(DeleteBookmarks) - 1 do
         for J := 0 to FieldCount - 1 do
-          if (pfInWhere in Fields[I].ProviderFlags) then
+          if (pfInWhere in Fields[J].ProviderFlags) then
           begin
             InternRecordBuffer := InternRecordBuffers[BookmarkToInternBufferIndex(TBookmark(DeleteBookmarks[I]))];
             if (ValueHandled) then Result := Result + ' OR ';
-            if (not Assigned(InternRecordBuffer^.OldData^.LibRow^[I])) then
-              Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + ' IS NULL'
+            if (not Assigned(InternRecordBuffer^.OldData^.LibRow^[J])) then
+              Result := Result + Connection.EscapeIdentifier(Fields[J].FieldName) + ' IS NULL'
             else
-              Result := Result + '(' + Connection.EscapeIdentifier(Fields[I].FieldName) + '=' + SQLFieldValue(WhereField, InternRecordBuffer^.OldData) + ')';
+              Result := Result + '(' + Connection.EscapeIdentifier(Fields[J].FieldName) + '=' + SQLFieldValue(WhereField, InternRecordBuffer^.OldData) + ')';
             ValueHandled := True;
           end;
     end;
