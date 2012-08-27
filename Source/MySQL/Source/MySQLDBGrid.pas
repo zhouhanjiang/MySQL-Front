@@ -706,7 +706,10 @@ begin
   else if ((Key = VK_DOWN) and (Shift = [ssAlt]) and (Columns[SelectedIndex].ButtonStyle = cbsEllipsis)) then
     EditButtonClick()
   else
+  begin
+    SelectedField.Text;
     inherited;
+  end;
 end;
 
 procedure TMySQLDBGrid.KeyPress(var Key: Char);

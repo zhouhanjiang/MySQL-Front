@@ -1644,7 +1644,6 @@ begin
     if (ValueExists('Path') and DirectoryExists(ReadString('Path'))) then Path := IncludeTrailingPathDelimiter(ReadString('Path'));
     if (ValueExists('SetupProgram') and FileExists(ReadString('SetupProgram'))) then SetupProgram := ReadString('SetupProgram');
     if (ValueExists('SetupProgramInstalled')) then SetupProgramInstalled := ReadBool('SetupProgramInstalled');
-    if (ValueExists('UserPath')) then UserPath := IncludeTrailingPathDelimiter(ReadString('UserPath'));
 
     CloseKey();
   end;

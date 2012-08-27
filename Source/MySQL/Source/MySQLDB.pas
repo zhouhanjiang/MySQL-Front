@@ -5334,8 +5334,8 @@ begin
         if (Index < InternRecordBuffers.Index) then
           Dec(InternRecordBuffers.Index);
         for J := 0 to BufferCount - 1 do
-          if (Assigned(PExternRecordBuffer(Buffers[I])) and (PExternRecordBuffer(Buffers[I])^.InternRecordBuffer = InternRecordBuffers[Index])) then
-            PExternRecordBuffer(Buffers[I])^.InternRecordBuffer := nil;
+          if (Assigned(PExternRecordBuffer(Buffers[J])) and (PExternRecordBuffer(Buffers[J])^.InternRecordBuffer = InternRecordBuffers[Index])) then
+            PExternRecordBuffer(Buffers[J])^.InternRecordBuffer := nil;
         FreeInternRecordBuffer(InternRecordBuffers[Index]);
         InternRecordBuffers.Delete(Index);
         for J := ActiveRecord + 1 to BufferCount - 1 do

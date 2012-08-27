@@ -1502,15 +1502,15 @@ begin
 
     if (ODBC <> SQL_NULL_HANDLE) then
     begin
-      ODBCException(ODBC, SQLGetInfo(ODBC, SQL_MAX_TABLE_NAME_LEN, @MaxLen, SizeOf(MaxLen), nil));
-      GetMem(TABLE_NAME, (MaxLen + 1) * SizeOf(SQLWCHAR));
-      GetMem(TABLE_TYPE, (MaxLen + 1) * SizeOf(SQLWCHAR));
-      SQLAllocHandle(SQL_HANDLE_STMT, ODBC, @Handle);
-
       DatabaseName := DDatabases.SelectedDatabases;
       if ((Copy(DatabaseName, 1, 1) = '"') and (Copy(DatabaseName, Length(DatabaseName), 1) = '"')) then
         DatabaseName := Copy(DatabaseName, 2, Length(DatabaseName) - 2);
 
+      ODBCException(ODBC, SQLGetInfo(ODBC, SQL_MAX_TABLE_NAME_LEN, @MaxLen, SizeOf(MaxLen), nil));
+      GetMem(TABLE_NAME, (MaxLen + 1) * SizeOf(SQLWCHAR));
+      GetMem(TABLE_TYPE, (MaxLen + 1) * SizeOf(SQLWCHAR));
+
+      SQLAllocHandle(SQL_HANDLE_STMT, ODBC, @Handle);
       ODBCException(Handle, SQLTables(Handle, nil, 0, nil, 0, nil, 0, nil, SQL_NTS));
       ODBCException(Handle, SQLBindCol(Handle, 3, SQL_C_WCHAR, TABLE_NAME, (MaxLen + 1) * SizeOf(SQLWCHAR), @cbTABLE_NAME));
       ODBCException(Handle, SQLBindCol(Handle, 4, SQL_C_WCHAR, TABLE_TYPE, (MaxLen + 1) * SizeOf(SQLWCHAR), @cbTABLE_TYPE));
@@ -1524,6 +1524,7 @@ begin
 
       if ((ImportType = itExcelFile) and (TableNames.Count = 0)) then
       begin
+        SQLAllocHandle(SQL_HANDLE_STMT, ODBC, @Handle);
         ODBCException(Handle, SQLTables(Handle, nil, 0, nil, 0, nil, 0, nil, SQL_NTS));
         ODBCException(Handle, SQLBindCol(Handle, 3, SQL_C_WCHAR, TABLE_NAME, (MaxLen + 1) * SizeOf(SQLWCHAR), @cbTABLE_NAME));
         ODBCException(Handle, SQLBindCol(Handle, 4, SQL_C_WCHAR, TABLE_TYPE, (MaxLen + 1) * SizeOf(SQLWCHAR), @cbTABLE_TYPE));

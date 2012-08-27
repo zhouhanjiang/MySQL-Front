@@ -457,14 +457,16 @@ type
     Font: TFont;
     SQLFont: TFont;
     RowOdd: Boolean;
-    function Escape(const Str: string): string;
   protected
     procedure ExecuteDatabaseHeader(const Database: TCDatabase); override;
+    procedure ExecuteEvent(const Event: TCEvent); override;
     procedure ExecuteFooter(); override;
     procedure ExecuteHeader(); override;
+    procedure ExecuteRoutine(const Routine: TCRoutine); override;
     procedure ExecuteTableFooter(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableHeader(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableRecord(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
+    procedure ExecuteTrigger(const Trigger: TCTrigger); override;
   public
     TextContent: Boolean;
     NULLText: Boolean;
@@ -606,11 +608,14 @@ type
     PageWidth: Integer;
     procedure AddPage(const NewPageRow: Boolean); virtual; abstract;
     procedure ExecuteDatabaseHeader(const Database: TCDatabase); override;
+    procedure ExecuteEvent(const Event: TCEvent); override;
     procedure ExecuteFooter(); override;
     procedure ExecuteHeader(); override;
+    procedure ExecuteRoutine(const Routine: TCRoutine); override;
     procedure ExecuteTableFooter(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableHeader(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableRecord(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
+    procedure ExecuteTrigger(const Trigger: TCTrigger); override;
   public
     IndexBackground: Boolean;
     NULLText: Boolean;
@@ -621,14 +626,12 @@ type
   TTExportPrint = class(TTExportCanvas)
   private
     Pages: array of TBitmap;
-    Printer: TPrinter;
   protected
     procedure AddPage(const NewPageRow: Boolean); override;
     procedure ExecuteHeader(); override;
     procedure ExecuteFooter(); override;
   public
     constructor Create(const AClient: TCClient; const ATitle: string); reintroduce; virtual;
-    destructor Destroy(); override;
   end;
 
   TTExportPDF = class(TTExportCanvas)
@@ -3844,6 +3847,9 @@ begin
         end;
 
     if (Success = daSuccess) then
+    begin
+      DataHandle := nil;
+
       for I := 0 to Length(ExportObjects) - 1 do
       begin
         if ((Success <> daAbort) and Data) then
@@ -3890,6 +3896,10 @@ begin
         end;
       end;
 
+      if (Assigned(DataHandle)) then
+        Client.CloseResult(DataHandle);
+    end;
+
     if (Success <> daAbort) then
       Success := daSuccess;
     ExecuteFooter();
@@ -3898,10 +3908,7 @@ begin
   AfterExecute();
 
   if (Data and (Length(ExportObjects) > 0)) then
-  begin
-    Client.CloseResult(DataHandle);
     DataTables.Free();
-  end;
 end;
 
 procedure TTExport.ExecuteDatabaseFooter(const Database: TCDatabase);
@@ -4703,6 +4710,158 @@ end;
 
 { TTExportHTML ****************************************************************}
 
+function HTMLEscape(const Value: PChar; const ValueLen: Integer; const Escaped: PChar; const EscapedLen: Integer): Integer; overload;
+label
+  StartL,
+  StringL, String2, String3, String4,
+  MoveReplace, MoveReplaceL, MoveReplaceE,
+  PosL, PosE,
+  FindPos, FindPos2,
+  Error,
+  Finish;
+const
+  SearchLen = 6;
+  Search: array [0 .. SearchLen - 1] of Char = (#0, #10, #13, '"', '<', '>');
+  Replace: array [0 .. SearchLen - 1] of PChar = ('', '<br>' + #13#10, '', '&quot;', '&lt;', '&gt;');
+var
+  Len: Integer;
+  Poss: packed array [0 .. SearchLen - 1] of Cardinal;
+begin
+  Result := 0;
+  Len := EscapedLen;
+
+  asm
+        PUSH ES
+        PUSH ESI
+        PUSH EDI
+        PUSH EBX
+
+        PUSH DS                          // string operations uses ES
+        POP ES
+        CLD                              // string operations uses forward direction
+
+        MOV ESI,PChar(Value)             // Copy characters from Value
+        MOV EDI,Escaped                  //   to Escaped
+        MOV ECX,ValueLen                 // Length of Value string
+
+      // -------------------
+
+        MOV EBX,0                        // Numbers of characters in Search
+      StartL:
+        CALL FindPos                     // Find Search character Pos
+        INC EBX                          // Next character in Search
+        CMP EBX,SearchLen                // All Search characters handled?
+        JNE StartL                       // No!
+
+      // -------------------
+
+        CMP ECX,0                        // Empty string?
+        JE Finish                        // Yes!
+      StringL:
+        PUSH ECX
+
+        MOV ECX,0                        // Numbers of characters in Search
+        MOV EBX,-1                       // Index of first Pos
+        MOV EAX,0                        // Last character
+        LEA EDX,Poss
+      PosL:
+        CMP [EDX + ECX * 4],EAX          // Pos before other Poss?
+        JB PosE                          // No!
+        MOV EBX,ECX                      // Index of first Pos
+        MOV EAX,[EDX + EBX * 4]          // Value of first Pos
+      PosE:
+        INC ECX                          // Next Pos
+        CMP ECX,SearchLen                // All Poss compared?
+        JNE PosL                         // No!
+
+        POP ECX
+
+        SUB ECX,EAX                      // Copy normal characters from Value
+        JZ String3                       // End of Value!
+        ADD @Result,ECX                  // Characters to copy
+        CMP Escaped,0                    // Calculate length only?
+        JE String2                       // Yes!
+        CMP Len,ECX                      // Enough character left in Escaped?
+        JB Error                         // No!
+        SUB Len,ECX                      // Calc new len space in Escaped
+        REPNE MOVSW                      // Copy normal characters to Result
+        JMP String3
+      String2:
+        SHL ECX,1
+        ADD ESI,ECX
+
+      String3:
+        MOV ECX,EAX
+        JECXZ Finish                     // End of Value!
+
+        ADD ESI,2                        // Step of Search character
+
+
+      MoveReplace:
+        PUSH ESI
+        LEA EDX,Replace                  // Insert Replace string
+        MOV ESI,[EDX + EBX * 4]
+      MoveReplaceL:
+        LODSW                            // Get Replace character
+        CMP AX,0                         // End of Replace?
+        JE MoveReplaceE                  // Yes!
+        INC @Result                      // One characters in replace
+        CMP Escaped,0                    // Calculate length only?
+        JE MoveReplaceL                  // Yes!
+        CMP Len,ECX                      // Enough character left in Escaped?
+        JB Error                         // No!
+        STOSW                            // Put character in Result
+        JMP MoveReplaceL
+      MoveReplaceE:
+        POP ESI
+
+
+      String4:
+        DEC ECX                          // Ignore Search character
+        JZ Finish                        // All character in Value handled!
+        CALL FindPos                     // Find Search character
+        JMP StringL
+
+      // -------------------
+
+      FindPos:
+        PUSH ECX
+        PUSH EDI
+        LEA EDI,Search                   // Character to Search
+        MOV AX,[EDI + EBX * 2]
+        MOV EDI,ESI                      // Search in Value
+        REPNE SCASW                      // Find Search character
+        JNE FindPos2                     // Search character not found!
+        INC ECX
+      FindPos2:
+        LEA EDI,Poss
+        MOV [EDI + EBX * 4],ECX          // Store found Position
+        POP EDI
+        POP ECX
+        RET
+
+      // -------------------
+
+      Error:
+        MOV @Result,0                    // Too few space in Escaped
+
+      Finish:
+        POP EBX
+        POP EDI
+        POP ESI
+        POP ES
+  end;
+end;
+
+function HTMLEscape(const Value: string): string; overload;
+var
+  Len: Integer;
+begin
+  Len := HTMLEscape(PChar(Value), Length(Value), nil, 0);
+  SetLength(Result, Len);
+  HTMLEscape(PChar(Value), Length(Value), PChar(Result), Len);
+end;
+
 constructor TTExportHTML.Create(const AClient: TCClient; const AFilename: TFileName; const ACodePage: Cardinal);
 begin
   inherited;
@@ -4734,147 +4893,21 @@ begin
   inherited;
 end;
 
-function TTExportHTML.Escape(const Str: string): string;
-label
-  StartL,
-  StringL, String2,
-  PositionL, PositionE,
-  MoveReplaceL, MoveReplaceE,
-  FindPos, FindPos2,
-  Finish;
-const
-  SearchLen = 6;
-  Search: array [0 .. SearchLen - 1] of Char = (#0, #10, #13, '"', '<', '>');
-  Replace: array [0 .. SearchLen - 1] of PChar = ('', '<br>' + #13#10, '', '&quot;', '&lt;', '&gt;');
-var
-  Len: Integer;
-  Positions: packed array [0 .. SearchLen - 1] of Cardinal;
-begin
-  Len := Length(Str);
-
-  if (Len = 0) then
-    Result := ''
-  else
-  begin
-    SetLength(Result, 6 * Len); // reserve space
-
-    asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-        PUSH EBX
-
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
-
-        MOV ESI,PChar(Str)               // Copy characters from Str
-        MOV EAX,Result                   //   to Result
-        MOV EDI,[EAX]
-        MOV ECX,Len                      // Length of Str string
-
-      // -------------------
-
-        MOV EBX,0                        // Numbers of characters in Search
-      StartL:
-        CALL FindPos                     // Find Search character position
-        INC EBX                          // Next character in Search
-        CMP EBX,SearchLen                // All Search characters handled?
-        JNE StartL                       // No!
-
-      // -------------------
-
-      StringL:
-        PUSH ECX
-
-        MOV ECX,0                        // Numbers of characters in Search
-        MOV EBX,-1                       // Index of first position
-        MOV EAX,0                        // Last character
-        LEA EDX,Positions
-      PositionL:
-        CMP [EDX + ECX * 4],EAX          // Position before other positions?
-        JB PositionE                     // No!
-        MOV EBX,ECX                      // Index of first position
-        MOV EAX,[EDX + EBX * 4]          // Value of first position
-      PositionE:
-        INC ECX                          // Next Position
-        CMP ECX,SearchLen                // All Positions compared?
-        JNE PositionL                    // No!
-
-        POP ECX
-
-        SUB ECX,EAX                      // Copy normal characters from Str
-        CMP ECX,0                        // Is there something to copy?
-        JE String2                       // No!
-        REPNE MOVSW                      //   to Result
-
-        MOV ECX,EAX
-
-      String2:
-        CMP ECX,0                        // Is there an character to replace?
-        JE Finish                        // No!
-
-        ADD ESI,2                        // Step of Search character
-
-        PUSH ESI
-        LEA EDX,Replace                  // Insert Replace string
-        MOV ESI,[EDX + EBX * 4]
-      MoveReplaceL:
-        LODSW                            // Get Replace character
-        CMP AX,0                         // End of Replace?
-        JE MoveReplaceE                  // Yes!
-        STOSW                            // Put character in Result
-        JMP MoveReplaceL
-      MoveReplaceE:
-        POP ESI
-
-        DEC ECX                          // Ignore Search character
-        JZ Finish                        // All character in Value handled!
-
-        CALL FindPos                     // Find Search character
-        JMP StringL
-
-      // -------------------
-
-      FindPos:
-        PUSH ECX
-        PUSH EDI
-        LEA EDI,Search                   // Character to Search
-        MOV AX,[EDI + EBX * 2]
-        MOV EDI,ESI                      // Search in Value
-        REPNE SCASW                      // Find Search character
-        JNE FindPos2                     // Search character not found!
-        INC ECX
-      FindPos2:
-        LEA EDI,Positions
-        MOV [EDI + EBX * 4],ECX          // Store found position
-        POP EDI
-        POP ECX
-        RET
-
-      // -------------------
-
-      Finish:
-        MOV EAX,Result                   // Calculate new length of Result
-        MOV EAX,[EAX]
-        SUB EDI,EAX
-        SHR EDI,1                        // 2 Bytes = 1 character
-        MOV Len,EDI
-
-        POP EBX
-        POP EDI
-        POP ESI
-        POP ES
-    end;
-
-    SetLength(Result, Len);
-  end;
-end;
-
 procedure TTExportHTML.ExecuteDatabaseHeader(const Database: TCDatabase);
 begin
   if (Assigned(Database)) then
-    WriteContent('<h1 class="DatabaseTitle">' + ReplaceStr(Preferences.LoadStr(38), '&', '') + ': ' + Escape(Database.Name) + '</h1>' + #13#10);
+    WriteContent('<h1 class="DatabaseTitle">' + ReplaceStr(Preferences.LoadStr(38), '&', '') + ': ' + HTMLEscape(Database.Name) + '</h1>' + #13#10);
+end;
+
+procedure TTExportHTML.ExecuteEvent(const Event: TCEvent);
+var
+  Content: string;
+begin
+  Content := '<h2>' + Preferences.LoadStr(812) + ': ' + HTMLEscape(Event.Name) + '</h2>' + #13#10;
+
+  Content := Content + '<code>' + HTMLEscape(Event.Source) + '</code>' + #13#10;
+
+  WriteContent(Content);
 end;
 
 procedure TTExportHTML.ExecuteFooter();
@@ -4909,7 +4942,7 @@ begin
   Content := Content + ' "http://www.w3.org/TR/html4/strict.dtd">' + #13#10;
   Content := Content + '<html>' + #13#10;
   Content := Content + '<head>' + #13#10;
-  Content := Content + #9 + '<title>' + Escape(Title) + '</title>' + #13#10;
+  Content := Content + #9 + '<title>' + HTMLEscape(Title) + '</title>' + #13#10;
   if (UMLEncoding(CodePage) <> '') then
     Content := Content + #9 + '<meta http-equiv="Content-Type" content="text/html; charset=' + UMLEncoding(CodePage) + '">' + #13#10;
   Content := Content + #9 + '<meta name="date" content="' + GetUTCDateTime(Now()) + '">' + #13#10;
@@ -4921,9 +4954,9 @@ begin
   Content := Content + #9#9 + 'h3 {font-size: ' + IntToStr(-Font.Height + 2) + 'px; text-decoration: bold;}' + #13#10;
   Content := Content + #9#9 + 'th,' + #13#10;
   Content := Content + #9#9 + 'td {font-size: ' + IntToStr(-Font.Height) + 'px; border-style: solid; border-width: 1px; padding: 1px; font-weight: normal;}' + #13#10;
-  Content := Content + #9#9 + 'code {font-size: ' + IntToStr(-SQLFont.Height) + 'px; white-space: pre;}' + #13#10;
-  Content := Content + #9#9 + '.TableObject {border-collapse: collapse; border-color: #000000; font-family: ' + Escape(Font.Name) + '}' + #13#10;
-  Content := Content + #9#9 + '.TableData {border-collapse: collapse; border-color: #000000; font-family: ' + Escape(Font.Name) + '}' + #13#10;
+  Content := Content + #9#9 + 'code {font-size: ' + IntToStr(-SQLFont.Height) + 'px;}' + #13#10;
+  Content := Content + #9#9 + '.TableObject {border-collapse: collapse; border-color: #000000; font-family: ' + HTMLEscape(Font.Name) + '}' + #13#10;
+  Content := Content + #9#9 + '.TableData {border-collapse: collapse; border-color: #000000; font-family: ' + HTMLEscape(Font.Name) + '}' + #13#10;
   Content := Content + #9#9 + '.TableHeader {border-color: #000000; text-decoration: bold; background-color: #e0e0e0;}' + #13#10;
   Content := Content + #9#9 + '.ObjectHeader {padding-left: 5px; text-align: left; border-color: #000000; text-decoration: bold;}' + #13#10;
   Content := Content + #9#9 + '.Object {text-align: left; border-color: #aaaaaa;}' + #13#10;
@@ -4940,6 +4973,20 @@ begin
   Content := Content + #9 + '--></style>' + #13#10;
   Content := Content + '</head>' + #13#10;
   Content := Content + '<body>' + #13#10;
+
+  WriteContent(Content);
+end;
+
+procedure TTExportHTML.ExecuteRoutine(const Routine: TCRoutine);
+var
+  Content: string;
+begin
+  if (Routine is TCProcedure) then
+    Content := '<h2>' + Preferences.LoadStr(768) + ': ' + HTMLEscape(Routine.Name) + '</h2>' + #13#10
+  else
+    Content := '<h2>' + Preferences.LoadStr(769) + ': ' + HTMLEscape(Routine.Name) + '</h2>' + #13#10;
+
+  Content := Content + '<code>' + HTMLEscape(Routine.Source) + '</code>' + #13#10;
 
   WriteContent(Content);
 end;
@@ -4967,14 +5014,14 @@ begin
 
   if (Table is TCBaseTable) then
   begin
-    Content := '<h2 class="TableTitle">' + ReplaceStr(Preferences.LoadStr(302), '&', '') + ': ' + Escape(Table.Name) + '</h2>' + #13#10;
+    Content := '<h2>' + ReplaceStr(Preferences.LoadStr(302), '&', '') + ': ' + HTMLEscape(Table.Name) + '</h2>' + #13#10;
     if (TCBaseTable(Table).Comment <> '') then
-      Content := Content + '<p>' + ReplaceStr(Preferences.LoadStr(111), '&', '') + ': ' + Escape(TCBaseTable(Table).Comment) + '</p>' + #13#10;
+      Content := Content + '<p>' + ReplaceStr(Preferences.LoadStr(111), '&', '') + ': ' + HTMLEscape(TCBaseTable(Table).Comment) + '</p>' + #13#10;
   end
   else if (Table is TCView) then
-    Content := '<h2 class="TableTitle">' + ReplaceStr(Preferences.LoadStr(738), '&', '') + ': ' + Escape(Table.Name) + '</h2>' + #13#10
+    Content := '<h2>' + ReplaceStr(Preferences.LoadStr(738), '&', '') + ': ' + HTMLEscape(Table.Name) + '</h2>' + #13#10
   else if (Structure) then
-    Content := Content + '<h2 class="TableTitle">' + ReplaceStr(Preferences.LoadStr(216), '&', '') + ':</h2>' + #13#10;
+    Content := Content + '<h2>' + ReplaceStr(Preferences.LoadStr(216), '&', '') + ':</h2>' + #13#10;
 
   if (Structure) then
     if (Length(DBGrids) > 0) then
@@ -4988,13 +5035,13 @@ begin
       begin
         Content := Content + '<h3>' + Preferences.LoadStr(458) + ':</h3>' + #13#10;
 
-        Content := Content + '<table border="0" cellspacing="0" summary="' + Escape(Table.Name) + '" class="TableObject">' + #13#10;
+        Content := Content + '<table border="0" cellspacing="0" summary="' + HTMLEscape(Table.Name) + '" class="TableObject">' + #13#10;
         Content := Content + #9 + '<tr class="TableHeader ObjectHeader">';
-        Content := Content + '<th>' + Escape(ReplaceStr(Preferences.LoadStr(35), '&', '')) + '</th>';
-        Content := Content + '<th>' + Escape(Preferences.LoadStr(69)) + '</th>';
-        Content := Content + '<th>' + Escape(ReplaceStr(Preferences.LoadStr(73), '&', '')) + '</th>';
+        Content := Content + '<th>' + HTMLEscape(ReplaceStr(Preferences.LoadStr(35), '&', '')) + '</th>';
+        Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(69)) + '</th>';
+        Content := Content + '<th>' + HTMLEscape(ReplaceStr(Preferences.LoadStr(73), '&', '')) + '</th>';
         if (Client.ServerVersion >= 50503) then
-          Content := Content + '<th>' + Escape(ReplaceStr(Preferences.LoadStr(111), '&', '')) + '</th>';
+          Content := Content + '<th>' + HTMLEscape(ReplaceStr(Preferences.LoadStr(111), '&', '')) + '</th>';
         Content := Content + '</tr>' + #13#10;
         for I := 0 to TCBaseTable(Table).Keys.Count - 1 do
         begin
@@ -5004,14 +5051,14 @@ begin
             ClassAttr := '';
 
           Content := Content + #9 + '<tr class="Object">';
-          Content := Content + '<td ' + ClassAttr + '>' + Escape(TCBaseTable(Table).Keys[I].Caption) + '</td>';
+          Content := Content + '<td ' + ClassAttr + '>' + HTMLEscape(TCBaseTable(Table).Keys[I].Caption) + '</td>';
           S := '';
           for J := 0 to TCBaseTable(Table).Keys[I].Columns.Count - 1 do
             begin
               if (S <> '') then S := S + ', ';
               S := S + TCBaseTable(Table).Keys[I].Columns[J].Field.Name;
             end;
-          Content := Content + '<td>' + Escape(S) + '</td>';
+          Content := Content + '<td>' + HTMLEscape(S) + '</td>';
           if (TCBaseTable(Table).Keys[I].Unique) then
             Content := Content + '<td>unique</td>'
           else if (TCBaseTable(Table).Keys[I].Fulltext) then
@@ -5019,7 +5066,7 @@ begin
           else
             Content := Content + '<td>&nbsp;</td>';
           if (Client.ServerVersion >= 50503) then
-            Content := Content + '<td>' + Escape(TCBaseTable(Table).Keys[I].Comment) + '</td>';
+            Content := Content + '<td>' + HTMLEscape(TCBaseTable(Table).Keys[I].Comment) + '</td>';
           Content := Content + '</tr>' + #13#10;
         end;
         Content := Content + '</table><br>' + #13#10;
@@ -5027,15 +5074,15 @@ begin
 
       Content := Content + '<h3>' + Preferences.LoadStr(253) + ':</h3>' + #13#10;
 
-      Content := Content + '<table border="0" cellspacing="0" summary="' + Escape(Table.Name) + '" class="TableObject">' + #13#10;
+      Content := Content + '<table border="0" cellspacing="0" summary="' + HTMLEscape(Table.Name) + '" class="TableObject">' + #13#10;
       Content := Content + #9 + '<tr class="TableHeader ObjectHeader">';
-      Content := Content + '<th>' + Escape(ReplaceStr(Preferences.LoadStr(35), '&', '')) + '</th>';
-      Content := Content + '<th>' + Escape(Preferences.LoadStr(69)) + '</th>';
-      Content := Content + '<th>' + Escape(Preferences.LoadStr(71)) + '</th>';
-      Content := Content + '<th>' + Escape(Preferences.LoadStr(72)) + '</th>';
-      Content := Content + '<th>' + Escape(ReplaceStr(Preferences.LoadStr(73), '&', '')) + '</th>';
+      Content := Content + '<th>' + HTMLEscape(ReplaceStr(Preferences.LoadStr(35), '&', '')) + '</th>';
+      Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(69)) + '</th>';
+      Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(71)) + '</th>';
+      Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(72)) + '</th>';
+      Content := Content + '<th>' + HTMLEscape(ReplaceStr(Preferences.LoadStr(73), '&', '')) + '</th>';
       if (Client.ServerVersion >= 40100) then
-        Content := Content + '<th>' + Escape(ReplaceStr(Preferences.LoadStr(111), '&', '')) + '</th>';
+        Content := Content + '<th>' + HTMLEscape(ReplaceStr(Preferences.LoadStr(111), '&', '')) + '</th>';
       Content := Content + '</tr>' + #13#10;
       for I := 0 to Table.Fields.Count - 1 do
       begin
@@ -5045,12 +5092,12 @@ begin
           ClassAttr := '';
 
         Content := Content + #9 + '<tr class="Object">';
-        Content := Content + '<td' + ClassAttr + '>' + Escape(Table.Fields[I].Name) + '</td>';
-        Content := Content + '<td>' + Escape(Table.Fields[I].DBTypeStr()) + '</td>';
+        Content := Content + '<td' + ClassAttr + '>' + HTMLEscape(Table.Fields[I].Name) + '</td>';
+        Content := Content + '<td>' + HTMLEscape(Table.Fields[I].DBTypeStr()) + '</td>';
         if (Table.Fields[I].NullAllowed) then
-          Content := Content + '<td>' + Escape(Preferences.LoadStr(74)) + '</td>'
+          Content := Content + '<td>' + HTMLEscape(Preferences.LoadStr(74)) + '</td>'
         else
-          Content := Content + '<td>' + Escape(Preferences.LoadStr(75)) + '</td>';
+          Content := Content + '<td>' + HTMLEscape(Preferences.LoadStr(75)) + '</td>';
         if (Table.Fields[I].AutoIncrement) then
           Content := Content + '<td>&lt;auto_increment&gt;</td>'
         else if (Table.Fields[I].Default = 'NULL') then
@@ -5058,7 +5105,7 @@ begin
         else if (Table.Fields[I].Default = 'CURRENT_TIMESTAMP') then
           Content := Content + '<td>&lt;INSERT-TimeStamp&gt;</td>'
         else if (Table.Fields[I].Default <> '') then
-          Content := Content + '<td>' + Escape(Table.Fields[I].UnescapeValue(Table.Fields[I].Default)) + '</td>'
+          Content := Content + '<td>' + HTMLEscape(Table.Fields[I].UnescapeValue(Table.Fields[I].Default)) + '</td>'
         else
           Content := Content + '<td>&nbsp;</td>';
         S := '';
@@ -5073,12 +5120,12 @@ begin
           end;
         end;
         if (S <> '') then
-          Content := Content + '<td>' + Escape(S) + '</td>'
+          Content := Content + '<td>' + HTMLEscape(S) + '</td>'
         else
           Content := Content + '<td>&nbsp;</td>';
         if (Client.ServerVersion >= 40100) then
           if (TCBaseTableField(Table.Fields[I]).Comment <> '') then
-            Content := Content + '<td>' + Escape(TCBaseTableField(Table.Fields[I]).Comment) + '</td>'
+            Content := Content + '<td>' + HTMLEscape(TCBaseTableField(Table.Fields[I]).Comment) + '</td>'
           else
             Content := Content + '<td>&nbsp;</td>';
         Content := Content + #9 + '</tr>' + #13#10;
@@ -5089,17 +5136,17 @@ begin
       begin
         Content := Content + '<h3>' + Preferences.LoadStr(459) + ':</h3>' + #13#10;
 
-        Content := Content + '<table border="0" cellspacing="0" summary="' + Escape(Table.Name) + '" class="TableObject">' + #13#10;
+        Content := Content + '<table border="0" cellspacing="0" summary="' + HTMLEscape(Table.Name) + '" class="TableObject">' + #13#10;
         Content := Content + #9 + '<tr class="TableHeader ObjectHeader">';
-        Content := Content + '<th>' + Escape(ReplaceStr(Preferences.LoadStr(35), '&', '')) + '</th>';
-        Content := Content + '<th>' + Escape(Preferences.LoadStr(69)) + '</th>';
-        Content := Content + '<th>' + Escape(Preferences.LoadStr(73)) + '</th>';
+        Content := Content + '<th>' + HTMLEscape(ReplaceStr(Preferences.LoadStr(35), '&', '')) + '</th>';
+        Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(69)) + '</th>';
+        Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(73)) + '</th>';
         Content := Content + '</tr>' + #13#10;
         for I := 0 to TCBaseTable(Table).ForeignKeys.Count - 1 do
         begin
           Content := Content + #9 + '<tr>';
-          Content := Content + '<th>' + Escape(TCBaseTable(Table).ForeignKeys[I].Name) + '</th>';
-          Content := Content + '<td>' + Escape(TCBaseTable(Table).ForeignKeys[I].DBTypeStr()) + '</td>';
+          Content := Content + '<th>' + HTMLEscape(TCBaseTable(Table).ForeignKeys[I].Name) + '</th>';
+          Content := Content + '<td>' + HTMLEscape(TCBaseTable(Table).ForeignKeys[I].DBTypeStr()) + '</td>';
           S := '';
           if (TCBaseTable(Table).ForeignKeys[I].OnDelete = dtCascade) then S := 'cascade on delete';
           if (TCBaseTable(Table).ForeignKeys[I].OnDelete = dtSetNull) then S := 'set NULL on delete';
@@ -5112,7 +5159,7 @@ begin
           if (TCBaseTable(Table).ForeignKeys[I].OnUpdate = utNoAction) then S2 := 'no action on update';
           if (S <> '') and (S2 <> '') then S := S + ', ';
           S := S + S2;
-          Content := Content + '<td>' + Escape(S) + '</td>';
+          Content := Content + '<td>' + HTMLEscape(S) + '</td>';
           Content := Content + '</tr>' + #13#10;
         end;
         Content := Content + '</table><br>' + #13#10;
@@ -5125,7 +5172,7 @@ begin
       Content := Content + '<h3>' + Preferences.LoadStr(580) + ':</h3>' + #13#10;
 
     if (Assigned(Table)) then
-      Content := Content + '<table border="0" cellspacing="0" summary="' + Escape(Table.Name) + '" class="TableData">' + #13#10
+      Content := Content + '<table border="0" cellspacing="0" summary="' + HTMLEscape(Table.Name) + '" class="TableData">' + #13#10
     else
       Content := Content + '<table border="0" cellspacing="0" class="TableData">' + #13#10;
     Content := Content + #9 + '<tr class="TableHeader">';
@@ -5141,9 +5188,9 @@ begin
         Content := Content + '<th class="DataHeader">';
 
       if (I < Length(DestinationFields)) then
-        Content := Content + Escape(DestinationFields[I].Name) + '</th>'
+        Content := Content + HTMLEscape(DestinationFields[I].Name) + '</th>'
       else
-        Content := Content + Escape(Fields[I].DisplayName) + '</th>';
+        Content := Content + HTMLEscape(Fields[I].DisplayName) + '</th>';
     end;
     Content := Content + '</tr>' + #13#10;
 
@@ -5197,7 +5244,7 @@ begin
       else if (Fields[I].DataType = ftBlob) then
         Value := '&lt;BLOB&gt;'
       else if (Fields[I].DataType in TextDataTypes) then
-        Value := Escape(DataSet.GetAsString(Fields[I].FieldNo))
+        Value := HTMLEscape(DataSet.GetAsString(Fields[I].FieldNo))
       else
         Value := DataSet.GetAsString(Fields[I].FieldNo);
 
@@ -5208,6 +5255,17 @@ begin
     end;
 
   Content := Content + '</tr>' + #13#10;
+
+  WriteContent(Content);
+end;
+
+procedure TTExportHTML.ExecuteTrigger(const Trigger: TCTrigger);
+var
+  Content: string;
+begin
+  Content := '<h2>' + Preferences.LoadStr(788) + ': ' + HTMLEscape(Trigger.Name) + '</h2>' + #13#10;
+
+  Content := Content + '<code>' + HTMLEscape(Trigger.Source) + '</code>' + #13#10;
 
   WriteContent(Content);
 end;
@@ -6306,19 +6364,32 @@ end;
 
 procedure TTExportCanvas.ContentTextOut(Text: string; const ExtraPadding: Integer = 0);
 var
+  I: Integer;
   R: TRect;
+  S: string;
+  StringList: TStringList;
 begin
-  R := Rect(ContentArea.Left, Y, ContentArea.Right, ContentArea.Bottom);
-  Canvas.TextRect(R, Text, [tfCalcRect, tfWordBreak]);
+  StringList := TStringList.Create();
+  StringList.Text := Text;
 
-  AllocateHeight(ExtraPadding + R.Bottom - R.Top + Padding + ExtraPadding);
+  for I := 0 to StringList.Count - 1 do
+  begin
+    S := StringList[I];
 
-  if (Y > ContentArea.Top) then
-    Inc(Y, ExtraPadding);
-  R := Rect(ContentArea.Left, Y, ContentArea.Right, Y + R.Bottom - R.Top);
-  Canvas.TextRect(R, Text, [tfWordBreak]);
+    R := Rect(ContentArea.Left, Y, ContentArea.Right, ContentArea.Bottom);
+    Canvas.TextRect(R, S, [tfCalcRect, tfWordBreak]);
 
-  Inc(Y, R.Bottom - R.Top + Padding + ExtraPadding);
+    AllocateHeight(ExtraPadding + R.Bottom - R.Top + Padding + ExtraPadding);
+
+    if (Y > ContentArea.Top) then
+      Inc(Y, ExtraPadding);
+    R := Rect(ContentArea.Left, Y, ContentArea.Right, Y + R.Bottom - R.Top);
+    Canvas.TextRect(R, S, [tfWordBreak]);
+
+    Inc(Y, R.Bottom - R.Top + Padding + ExtraPadding);
+  end;
+
+  StringList.Free();
 end;
 
 constructor TTExportCanvas.Create(const AClient: TCClient);
@@ -6358,11 +6429,10 @@ begin
   PageFont.Assign(ContentFont);
   PageFont.Size := PageFont.Size - 2;
 
-  Canvas.Font.Assign(PageFont);
   ContentArea.Left := Margins.Left;
   ContentArea.Top := Margins.Top;
   ContentArea.Right := PageWidth - Margins.Right;
-  ContentArea.Bottom := PageHeight - (Margins.Bottom + -Canvas.Font.Height + Padding + LineHeight + 10);
+  ContentArea.Bottom := PageHeight - (Margins.Bottom + -PageFont.Height + Padding + LineHeight + 10);
 
   Y := ContentArea.Top;
 
@@ -6389,6 +6459,19 @@ begin
 
     ContentTextOut(ReplaceStr(Preferences.LoadStr(38), '&', '') + ': ' + Database.Name, 3 * Padding);
   end;
+end;
+
+procedure TTExportCanvas.ExecuteEvent(const Event: TCEvent);
+begin
+  Canvas.Font.Assign(ContentFont);
+  Canvas.Font.Size := Canvas.Font.Size + 4;
+  Canvas.Font.Style := Canvas.Font.Style + [fsBold];
+
+  ContentTextOut(Preferences.LoadStr(812) + ': ' + Event.Name, 2 * Padding);
+
+
+  Canvas.Font.Assign(SQLFont);
+  ContentTextOut(Event.Source);
 end;
 
 procedure TTExportCanvas.ExecuteFooter();
@@ -6435,7 +6518,7 @@ begin
         SQL := SQL + ' FROM ' + Client.EscapeIdentifier(ExportObjects[I].DBObject.Database.Name) + '.' + Client.EscapeIdentifier(ExportObjects[I].DBObject.Name) + ';' + #13#10;
       end;
 
-    if (Success = daSuccess) then
+    if ((Success = daSuccess) and (Tables.Count > 0)) then
     begin
       for J := 0 to Tables.Count - 1 do
         if (Success = daSuccess) then
@@ -6467,6 +6550,22 @@ begin
   end;
 
   inherited;
+end;
+
+procedure TTExportCanvas.ExecuteRoutine(const Routine: TCRoutine);
+begin
+  Canvas.Font.Assign(ContentFont);
+  Canvas.Font.Size := Canvas.Font.Size + 4;
+  Canvas.Font.Style := Canvas.Font.Style + [fsBold];
+
+  if (Routine is TCProcedure) then
+    ContentTextOut(Preferences.LoadStr(768) + ': ' + Routine.Name, 2 * Padding)
+  else
+    ContentTextOut(Preferences.LoadStr(769) + ': ' + Routine.Name, 2 * Padding);
+
+
+  Canvas.Font.Assign(SQLFont);
+  ContentTextOut(Routine.Source);
 end;
 
 procedure TTExportCanvas.ExecuteTableFooter(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
@@ -6793,6 +6892,7 @@ procedure TTExportCanvas.ExecuteTableRecord(const Table: TCTable; const Fields: 
   end;
 
 var
+  HeaderHeight: Integer;
   I: Integer;
   MaxRowHeight: Integer;
   Text: string;
@@ -6812,7 +6912,13 @@ begin
   end;
 
   if (AllocateHeight(MaxRowHeight + LineHeight)) then
+  begin
+    HeaderHeight := Y;
     GridHeader();
+    HeaderHeight := Y - HeaderHeight;
+    for I := 0 to Length(Columns) - 1 do
+      Columns[I].Rect.Offset(0, HeaderHeight);
+  end;
 
   for I := 0 to Length(Fields) - 1 do
   begin
@@ -6828,6 +6934,19 @@ begin
 
   Inc(Y, MaxRowHeight);
   GridDrawHorzLine(Y);
+end;
+
+procedure TTExportCanvas.ExecuteTrigger(const Trigger: TCTrigger);
+begin
+  Canvas.Font.Assign(ContentFont);
+  Canvas.Font.Size := Canvas.Font.Size + 4;
+  Canvas.Font.Style := Canvas.Font.Style + [fsBold];
+
+  ContentTextOut(Preferences.LoadStr(788) + ': ' + Trigger.Name, 2 * Padding);
+
+
+  Canvas.Font.Assign(SQLFont);
+  ContentTextOut(Trigger.Source);
 end;
 
 procedure TTExportCanvas.GridDrawHorzLine(const Y: Integer);
@@ -6906,7 +7025,7 @@ begin
     Columns[I].Left := X;
 
     Text := Columns[I].HeaderText;
-    RowHeight := GridTextOut(Columns[I], Columns[I].HeaderText, [tfCalcRect], Columns[I].HeaderBold, False);
+    RowHeight := Max(RowHeight, GridTextOut(Columns[I], Columns[I].HeaderText, [tfCalcRect], Columns[I].HeaderBold, False));
     GridTextOut(Columns[I], Columns[I].HeaderText, [], Columns[I].HeaderBold, False);
 
     Inc(X, Padding + Columns[I].Width + Padding + LineWidth);
@@ -6927,8 +7046,6 @@ var
   MaxRowHeight: Integer;
   Text: string;
 begin
-  Canvas.Font.Assign(GridFont);
-
   SetLength(Columns, Length(GridData[0]));
   for J := 0 to Length(Columns) - 1 do
   begin
@@ -7090,30 +7207,31 @@ var
 begin
   if (NewPageRow) then
   begin
-//    for I := 0 to Length(Pages) - 1 do
-//    begin
-//      Printer.NewPage();
-//      Printer.Canvas.Draw(0, 0, Pages[I]);
-//      Pages[I].Free();
-//    end;
-//    SetLength(Pages, 0);
+    for I := 0 to Length(Pages) - 1 do
+    begin
+      Printer.Canvas.Draw(0, 0, Pages[I]);
+      Pages[I].Free();
 
-    Printer.NewPage();
-    Canvas := Printer.Canvas;
-  end
-  else
+      Printer.NewPage();
+    end;
+    SetLength(Pages, 0);
+  end;
+
+  SetLength(Pages, Length(Pages) + 1);
+  Pages[Length(Pages) - 1] := TBitmap.Create();
+  Pages[Length(Pages) - 1].Monochrome := True;
+  Pages[Length(Pages) - 1].SetSize(PageWidth, PageHeight);
+  Canvas := Pages[Length(Pages) - 1].Canvas;
+
+  if (GetDeviceCaps(Printer.Handle, LOGPIXELSY) <> Canvas.Font.PixelsPerInch) then
   begin
-    SetLength(Pages, Length(Pages) + 1);
-    Pages[Length(Pages) - 1] := TBitmap.Create();
-    Pages[Length(Pages) - 1].SetSize(Printer.PageWidth, Printer.PageHeight);
-
-    Canvas := Pages[Length(Pages) - 1].Canvas;
+    Canvas.Font.PixelsPerInch := GetDeviceCaps(Printer.Handle, LOGPIXELSY);
+    Canvas.Font.Size := Printer.Canvas.Font.Size;
   end;
 end;
 
 constructor TTExportPrint.Create(const AClient: TCClient; const ATitle: string);
 begin
-  Printer := TPrinter.Create();
   Printer.Title := ATitle;
 
   PageWidth := Printer.PageWidth;
@@ -7129,26 +7247,44 @@ begin
   LineWidth := Round(GetDeviceCaps(Printer.Handle, LOGPIXELSX) * LineWidthMilliInch / 1000);
   LineHeight := Round(GetDeviceCaps(Printer.Handle, LOGPIXELSY) * LineHeightMilliInch / 1000);
 
-  SetLength(Pages, 1);
-  Pages[0] := TBitmap.Create();
-  Pages[0].SetSize(Printer.PageWidth, Printer.PageHeight);
-  Canvas := Pages[0].Canvas;
+  SetLength(Pages, 0);
+  AddPage(False);
 
   inherited Create(AClient);
 end;
 
-destructor TTExportPrint.Destroy();
-begin
-  Printer.EndDoc();
-
-  inherited;
-
-  Printer.Free();
-end;
-
 procedure TTExportPrint.ExecuteFooter();
+var
+  Error: TError;
+  I: Integer;
 begin
   inherited;
+
+  for I := 0 to Length(Pages) - 1 do
+  begin
+    if (Success = daSuccess) then
+      Printer.Canvas.Draw(0, 0, Pages[I]);
+    Pages[I].Free();
+
+    if ((Success = daSuccess) and (I < Length(Pages) - 1)) then
+      Printer.NewPage();
+  end;
+  SetLength(Pages, 0);
+
+  try
+    Printer.EndDoc();
+    if (GetLastError() > 0) then
+      DoError(SysError(), EmptyToolsItem(), False);
+  except
+    on E: EPrinter do
+      if (Success = daSuccess) then
+      begin
+        Error.ErrorType := TE_Printer;
+        Error.ErrorCode := 1;
+        Error.ErrorMessage := E.Message;
+        DoError(Error, EmptyToolsItem(), False);
+      end;
+  end;
 end;
 
 procedure TTExportPrint.ExecuteHeader();
@@ -7160,9 +7296,9 @@ begin
       Printer.BeginDoc();
       if (GetLastError() > 0) then
         DoError(SysError(), EmptyToolsItem(), False);
-      Canvas := Printer.Canvas;
     except
       on E: EPrinter do
+        if (Success = daSuccess) then
         begin
           Error.ErrorType := TE_Printer;
           Error.ErrorCode := 1;
@@ -8547,5 +8683,7 @@ begin
   Result.TableName := Item.TableName;
 end;
 
+begin
+  HTMLEscape('Hallo' + #13#10 + 'Nils');
 end.
 
