@@ -4533,6 +4533,9 @@ begin
               Field.Name := 'Field' + '_' + IntToStr(FieldDefs.Count);
             if (Field.FieldName = '') then
               Field.FieldName := Field.Name;
+            while (Assigned(FieldDefs.Find(Field.FieldName))) do
+              Field.FieldName := Field.FieldName + '_';
+
 
             if (Connection.Lib.Field(LibField).flags and PRI_KEY_FLAG = 0) then
               Field.ProviderFlags := Field.ProviderFlags - [pfInKey]

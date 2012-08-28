@@ -4281,8 +4281,8 @@ begin
 
       if (Moved) then
       begin
-        Client.ExecuteEvent(ceItemDropped, Self, FFields, FFields[Index]);
-        Client.ExecuteEvent(ceItemCreated, Self, FFields, FFields[Index]);
+        Client.ExecuteEvent(ceItemDropped, Self, FFields, NewField);
+        Client.ExecuteEvent(ceItemCreated, Self, FFields, NewField);
       end;
 
       Inc(Index);
@@ -4516,7 +4516,7 @@ begin
       else if (SQLParseKeyword(Parse, 'INSERT_METHOD')) then
       begin
         SQLParseChar(Parse, '=');
-        S := SQLParseValue(Parse);
+        S := Uppercase(SQLParseValue(Parse));
         if (S = 'FIRST') then
           FInsertMethod := imFirst
         else if (S = 'LAST') then
