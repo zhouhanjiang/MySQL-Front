@@ -1592,8 +1592,6 @@ begin
   FClient.gmFilter.Clear();
 
   FClient.FQuickSearchEnabled.Down := Table.DataSet.QuickSearch <> '';
-
-  FClient.AddressChanged(nil);
 end;
 
 destructor TFClient.TTableDesktop.Destroy();
