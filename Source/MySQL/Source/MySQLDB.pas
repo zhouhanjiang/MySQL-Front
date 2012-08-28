@@ -4531,10 +4531,6 @@ begin
               Field.Name := ReplaceStr(ReplaceStr(Field.FieldName, ' ', '_'), '.', '_');
             if (Field.Name = '') then
               Field.Name := 'Field' + '_' + IntToStr(FieldDefs.Count);
-            if (Field.FieldName = '') then
-              Field.FieldName := Field.Name;
-            while (Assigned(FieldDefs.Find(Field.FieldName))) do
-              Field.FieldName := Field.FieldName + '_';
 
 
             if (Connection.Lib.Field(LibField).flags and PRI_KEY_FLAG = 0) then
@@ -4545,6 +4541,18 @@ begin
             if (Assigned(Handle)) then
               Field.DataSet := Self;
 
+            if (Field.FieldName = '') then
+              Field.FieldName := Field.Name;
+            I := 0;
+            while (I < FieldDefs.Count) do
+            begin
+              if (lstrcmpi(PChar(FieldDefs[I].Name), PChar(Field.FieldName)) = 0)  then
+              begin
+                Field.FieldName := Field.FieldName + '_';
+                I := -1;
+              end;
+              Inc(I);
+            end;
             FieldDefs.Add(Field.FieldName, Field.DataType, Field.Size, Field.Required);
 
             if (not Assigned(Handle)) then
