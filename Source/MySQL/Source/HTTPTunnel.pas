@@ -70,12 +70,12 @@ const
 
 const
   HTTPTTUNNEL_ERRORS: array [0..9] of PChar = (
-    'Unknown HTTP Tunnel error (%d)',                                        {0}
+    'Unknown HTTP Tunnel error (# %d)',                                      {0}
     'HTTP Tunnel script (%s) is too old - please update',                    {1}
-    'Can''t connect to MySQL server through HTTP Tunnel ''%s'' (%d)',        {2}
+    'Can''t connect to MySQL server through HTTP Tunnel ''%s'' (# %d)',      {2}
     'Access denied (403)',                                                   {3}
     'File Not Found (404):  ''%s''',                                         {4}
-    'Unknown HTTP Server Host ''%s'' (%d)',                                  {5}
+    'Unknown HTTP Server Host ''%s'' (# %d)',                                {5}
     'Invalid HTTP content type (''%s'').',                                   {6}
     'The HTTP server response could not be parsed (%s):' + #10#10 + '%s',    {7}
     '%-.64s via HTTP',                                                       {8}
@@ -255,52 +255,49 @@ begin
               Size := SizeOf(StatusCode); Index := 0;
             until (HttpQueryInfo(Request, HTTP_QUERY_STATUS_CODE, @StatusCode, Size, Index) or (Size = 0) or (SysUtils.StrToInt(StatusCode) <> 0));
 
-            if (HttpRequestError <> NOERROR) then
-              Seterror(CR_HTTPTUNNEL_UNKNOWN_ERROR, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_UNKNOWN_ERROR - CR_HTTPTUNNEL_UNKNOWN_ERROR], [GetLastError()])))
-            else
-              case (SysUtils.StrToInt(StatusCode)) of
-                HTTP_STATUS_FORBIDDEN:
+            case (SysUtils.StrToInt(StatusCode)) of
+              HTTP_STATUS_FORBIDDEN:
+                begin
+                  Seterror(CR_HTTPTUNNEL_ACCESS_DENIED_ERROR, RawByteString(StatusCode));
+                  Size := SizeOf(Buffer); Index := 0;
+                  if (HttpQueryInfo(Request, HTTP_QUERY_STATUS_TEXT, @Buffer, Size, Index)) then
+                    Seterror(CR_HTTPTUNNEL_ACCESS_DENIED_ERROR, error() + ' ' + RawByteString(Buffer));
+                end;
+              HTTP_STATUS_REDIRECT,
+              HTTP_STATUS_REDIRECT_METHOD:
+                begin
+                  Size := SizeOf(Buffer); Index := 0;
+                  if (HttpQueryInfo(Request, HTTP_QUERY_LOCATION, @Buffer, Size, Index)) then
                   begin
-                    Seterror(CR_HTTPTUNNEL_ACCESS_DENIED_ERROR, RawByteString(StatusCode));
-                    Size := SizeOf(Buffer); Index := 0;
-                    if (HttpQueryInfo(Request, HTTP_QUERY_STATUS_TEXT, @Buffer, Size, Index)) then
-                      Seterror(CR_HTTPTUNNEL_ACCESS_DENIED_ERROR, error() + ' ' + RawByteString(Buffer));
+                    SetString(ObjectName, PChar(@Buffer), Size);
+                    SetString(S, URLComponents.lpszExtraInfo, URLComponents.dwExtraInfoLength);
+                    if (S <> '') then
+                      ObjectName := ObjectName + S;
+                    Seterror(CR_HTTPTUNNEL_REDIRECT);
                   end;
-                HTTP_STATUS_REDIRECT,
-                HTTP_STATUS_REDIRECT_METHOD:
-                  begin
-                    Size := SizeOf(Buffer); Index := 0;
-                    if (HttpQueryInfo(Request, HTTP_QUERY_LOCATION, @Buffer, Size, Index)) then
+                end;
+              HTTP_STATUS_NOT_FOUND:
+                Seterror(CR_HTTPTUNNEL_NOT_FOUND, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_NOT_FOUND - CR_HTTPTUNNEL_UNKNOWN_ERROR], [ObjectName])));
+              HTTP_STATUS_OK:
+                begin
+                  Size := SizeOf(Buffer);
+                  if (HttpQueryInfo(Request, HTTP_QUERY_CONTENT_TYPE, @Buffer, Size, Index) and (LowerCase(Buffer) <> 'application/mysql-front')) then
+                    if (not Receive(Buffer, SizeOf(Buffer), Size) or (Size = 0)) then
+                      Seterror(CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR - CR_HTTPTUNNEL_UNKNOWN_ERROR], [Buffer])))
+                    else
                     begin
-                      SetString(ObjectName, PChar(@Buffer), Size);
-                      SetString(S, URLComponents.lpszExtraInfo, URLComponents.dwExtraInfoLength);
-                      if (S <> '') then
-                        ObjectName := ObjectName + S;
-                      Seterror(CR_HTTPTUNNEL_REDIRECT);
+                      SetString(S, PChar(@Buffer), Size);
+                      Seterror(CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE - CR_HTTPTUNNEL_UNKNOWN_ERROR], [ObjectName, S])));
                     end;
-                  end;
-                HTTP_STATUS_NOT_FOUND:
-                  Seterror(CR_HTTPTUNNEL_NOT_FOUND, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_NOT_FOUND - CR_HTTPTUNNEL_UNKNOWN_ERROR], [ObjectName])));
-                HTTP_STATUS_OK:
-                  begin
-                    Size := SizeOf(Buffer);
-                    if (HttpQueryInfo(Request, HTTP_QUERY_CONTENT_TYPE, @Buffer, Size, Index) and (LowerCase(Buffer) <> 'application/mysql-front')) then
-                      if (not Receive(Buffer, SizeOf(Buffer), Size) or (Size = 0)) then
-                        Seterror(CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR - CR_HTTPTUNNEL_UNKNOWN_ERROR], [Buffer])))
-                      else
-                      begin
-                        SetString(S, PChar(@Buffer), Size);
-                        Seterror(CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE - CR_HTTPTUNNEL_UNKNOWN_ERROR], [ObjectName, S])));
-                      end;
-                  end;
-                else
-                  begin
-                    Seterror(CR_HTTPTUNNEL_SERVER_ERROR, RawByteString(StatusCode));
-                    Size := SizeOf(Buffer); Index := 0;
-                    if (HttpQueryInfo(Request, HTTP_QUERY_STATUS_TEXT, @Buffer, Size, Index)) then
-                      Seterror(CR_HTTPTUNNEL_SERVER_ERROR, error() + ' ' + RawByteString(Buffer));
-                  end;
-              end;
+                end;
+              else
+                begin
+                  Seterror(CR_HTTPTUNNEL_SERVER_ERROR, RawByteString(StatusCode));
+                  Size := SizeOf(Buffer); Index := 0;
+                  if (HttpQueryInfo(Request, HTTP_QUERY_STATUS_TEXT, @Buffer, Size, Index)) then
+                    Seterror(CR_HTTPTUNNEL_SERVER_ERROR, error() + ' ' + RawByteString(Buffer));
+                end;
+            end;
           end;
         ERROR_IO_PENDING: ResponseReceived.WaitFor(NET_WAIT_TIMEOUT * 1000);
         ERROR_INTERNET_CANNOT_CONNECT,

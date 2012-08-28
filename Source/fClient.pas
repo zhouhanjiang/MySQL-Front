@@ -1433,7 +1433,7 @@ RProxy: Boolean;
     procedure BuildUser(const DataSet: TMySQLQuery); virtual;
     function ClientResult(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean; virtual;
     procedure ExecuteEvent(const EventType: TEventType); overload; virtual;
-    procedure ExecuteEvent(const EventType: TEventType; const Sender: TObject; const CItems: TCItems = nil; const CItem: TCEntity = nil); overload; virtual;
+    procedure ExecuteEvent(const EventType: TEventType; const Sender: TObject; const CItems: TCItems = nil; const CItem: TCItem = nil); overload; virtual;
     function GetAutoCommit(): Boolean; override;
     function GetHosts(): TCHosts; virtual;
     function GetDataFileAllowed(): Boolean; override;
@@ -4153,6 +4153,7 @@ var
   J: Integer;
   K: Integer;
   L: Largeint;
+  Moved: Boolean;
   Name: string;
   NewField: TCBaseTableField;
   NewForeignKey: TCForeignKey;
@@ -4206,14 +4207,15 @@ begin
 
       Name := SQLParseValue(Parse);
 
+      Moved := False;
       if (Index = FFields.Count) then
         Index := FFields.Add(TCBaseTableField.Create(TCBaseTableFields(FFields), Name))
       else if (Index < FFields.IndexByName(Name)) then
       begin
-        I := FFields.IndexByName(Name);
-        FFields[I].Free();
-        FFields.Delete(I);
-        FFields.Insert(Index, TCBaseTableField.Create(TCBaseTableFields(FFields), Name));
+        FFields.Move(FFields.IndexByName(Name), Index);
+        TCBaseTableField(FFields[Index]).Clear();
+        TCBaseTableField(FFields[Index]).FName := Name;
+        Moved := True;
       end
       else if (Name <> FFields[Index].Name) then
         FFields.Insert(Index, TCBaseTableField.Create(TCBaseTableFields(FFields), Name))
@@ -4275,6 +4277,12 @@ begin
           NewField.Format := StrToMySQLRowType(SQLParseValue(Parse))
         else
           SQLParseValue(Parse);
+      end;
+
+      if (Moved) then
+      begin
+        Client.ExecuteEvent(ceItemDropped, Self, FFields, FFields[Index]);
+        Client.ExecuteEvent(ceItemCreated, Self, FFields, FFields[Index]);
       end;
 
       Inc(Index);
@@ -10882,7 +10890,7 @@ begin
   Event.Free();
 end;
 
-procedure TCClient.ExecuteEvent(const EventType: TEventType; const Sender: TObject; const CItems: TCItems = nil; const CItem: TCEntity = nil);
+procedure TCClient.ExecuteEvent(const EventType: TEventType; const Sender: TObject; const CItems: TCItems = nil; const CItem: TCItem = nil);
 var
   Event: TEvent;
 begin
