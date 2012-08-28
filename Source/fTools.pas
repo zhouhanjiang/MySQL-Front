@@ -1773,17 +1773,17 @@ begin
           if (ImportType <> itUpdate) then
           begin
             if (Values <> '') then Values := Values + ',';
-            Values := Values + SQLValues[I];
+            Values := Values + Fields[I].EscapeValue(SQLValues[I]);
           end
           else if (not Fields[I].InPrimaryKey) then
           begin
             if (Values <> '') then Values := Values + ',';
-            Values := Values + EscapedFieldName[I] + '=' + SQLValues[I];
+            Values := Values + EscapedFieldName[I] + '=' + Fields[I].EscapeValue(SQLValues[I]);
           end
           else
           begin
             if (WhereClausel <> '') then WhereClausel := WhereClausel + ' AND ';
-            WhereClausel := WhereClausel + EscapedFieldName[I] + '=' + SQLValues[I];
+            WhereClausel := WhereClausel + EscapedFieldName[I] + '=' + Fields[I].EscapeValue(SQLValues[I]);
           end;
 
         if (ImportType = itUpdate) then
@@ -2438,7 +2438,6 @@ var
   Eof: Boolean;
   I: Integer;
   RecordComplete: Boolean;
-  S: string;
 begin
   RecordComplete := False; Eof := False;
   while ((Success = daSuccess) and not RecordComplete and not Eof) do
@@ -2453,17 +2452,8 @@ begin
     for I := 0 to Length(Fields) - 1 do
       if ((I >= Length(CSVValues)) or (CSVValues[CSVColumns[I]].Length = 0)) then
         Values[I] := 'NULL'
-      else if (Fields[I].FieldType = mfBit) then
-      begin
-        S := CSVUnescape(CSVValues[CSVColumns[I]].Text, CSVValues[CSVColumns[I]].Length, Quoter);
-        Values[I] := IntToStr(BitStringToInt(PChar(S), Length(S)));
-      end
-      else if (Fields[I].FieldType in NotQuotedFieldTypes) then
-        Values[I] := CSVUnescape(CSVValues[CSVColumns[I]].Text, CSVValues[CSVColumns[I]].Length, Quoter)
-      else if (Fields[I].FieldType in BinaryFieldTypes) then
-        Values[I] := SQLEscapeBin(CSVUnescape(CSVValues[CSVColumns[I]].Text, CSVValues[CSVColumns[I]].Length, Quoter), Client.ServerVersion <= 40000)
       else
-        Values[I] := SQLEscape(CSVUnescape(CSVValues[CSVColumns[I]].Text, CSVValues[CSVColumns[I]].Length, Quoter));
+        Values[I] := CSVUnescape(CSVValues[CSVColumns[I]].Text, CSVValues[CSVColumns[I]].Length, Quoter);
 end;
 
 procedure TTImportText.Open();
@@ -2874,11 +2864,11 @@ begin
           else
             with (Timestamp) do
               if (ColumnDesc[I].SQLDataType = SQL_TYPE_TIME) then
-                Values[I] := SQLEscape(TimeToStr(EncodeTime(hour, minute, second, 0), Client.FormatSettings))
+                Values[I] := TimeToStr(EncodeTime(hour, minute, second, 0), Client.FormatSettings)
               else if (ColumnDesc[I].SQLDataType = SQL_TYPE_TIMESTAMP) then
-                Values[I] := SQLEscape(MySQLDB.DateTimeToStr(EncodeDate(year, month, day) + EncodeTime(hour, minute, second, 0), Client.FormatSettings))
+                Values[I] := MySQLDB.DateTimeToStr(EncodeDate(year, month, day) + EncodeTime(hour, minute, second, 0), Client.FormatSettings)
               else if (ColumnDesc[I].SQLDataType = SQL_TYPE_DATE) then
-                Values[I] := SQLEscape(MySQLDB.DateToStr(EncodeDate(year, month, day) + EncodeTime(hour, minute, second, 0), Client.FormatSettings));
+                Values[I] := MySQLDB.DateToStr(EncodeDate(year, month, day) + EncodeTime(hour, minute, second, 0), Client.FormatSettings);
         SQL_CHAR,
         SQL_VARCHAR,
         SQL_LONGVARCHAR,
@@ -2901,7 +2891,7 @@ begin
             else if (cbData = SQL_NULL_DATA) then
               Values[I] := 'NULL'
             else
-              Values[I] := Fields[I].EscapeValue(S);
+              Values[I] := S;
           end;
         SQL_BINARY,
         SQL_VARBINARY,
@@ -2921,10 +2911,8 @@ begin
               ODBCException(Stmt, ReturnCode)
             else if (cbData = SQL_NULL_DATA) then
               Values[I] := 'NULL'
-            else if (Length(Bytes) = 0) then
-              Values[I] := SQLEscapeBin(nil, 0, Client.ServerVersion <= 40000)
             else
-              Values[I] := SQLEscapeBin(@Bytes[0], Length(Bytes), Client.ServerVersion <= 40000);
+              SetString(Values[I], PChar(@Bytes[0]), Length(Bytes));
           end;
         else
           raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Fields[I].Name, Ord(Fields[I].FieldType)]);
@@ -3316,10 +3304,10 @@ begin
         SQLITE3_TEXT:
           begin
             SetString(RBS, sqlite3_column_text(Stmt, I), sqlite3_column_bytes(Stmt, I));
-            Values[I] := SQLEscape(UTF8ToString(RBS));
+            Values[I] := UTF8ToString(RBS);
           end;
         SQLITE_BLOB:
-          Values[I] := SQLEscapeBin(sqlite3_column_blob(Stmt, I), sqlite3_column_bytes(Stmt, I), Client.ServerVersion <= 40000);
+          SetString(Values[I], PChar(sqlite3_column_blob(Stmt, I)), sqlite3_column_bytes(Stmt, I));
         else
           raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [SourceFields[I].Name, Integer(sqlite3_column_type(Stmt, I))]);
       end;
@@ -3616,7 +3604,7 @@ begin
       if (not Assigned(XMLValueNode) or (XMLValueNode.text = '') and Assigned(XMLValueNode.selectSingleNode('@xsi:nil')) and (XMLValueNode.selectSingleNode('@xsi:nil').text = 'true')) then
         Values[I] := 'NULL'
       else
-        Values[I] := Fields[I].EscapeValue(XMLValueNode.text);
+        Values[I] := XMLValueNode.text;
     end;
 
     repeat

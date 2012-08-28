@@ -1484,7 +1484,6 @@ procedure TDImport.TSTablesShow(Sender: TObject);
 var
   cbTABLE_NAME: SQLINTEGER;
   cbTABLE_TYPE: SQLINTEGER;
-  DatabaseName: string;
   Handle: SQLHSTMT;
   I: Integer;
   Index: Integer;
@@ -1502,10 +1501,6 @@ begin
 
     if (ODBC <> SQL_NULL_HANDLE) then
     begin
-      DatabaseName := DDatabases.SelectedDatabases;
-      if ((Copy(DatabaseName, 1, 1) = '"') and (Copy(DatabaseName, Length(DatabaseName), 1) = '"')) then
-        DatabaseName := Copy(DatabaseName, 2, Length(DatabaseName) - 2);
-
       ODBCException(ODBC, SQLGetInfo(ODBC, SQL_MAX_TABLE_NAME_LEN, @MaxLen, SizeOf(MaxLen), nil));
       GetMem(TABLE_NAME, (MaxLen + 1) * SizeOf(SQLWCHAR));
       GetMem(TABLE_TYPE, (MaxLen + 1) * SizeOf(SQLWCHAR));
