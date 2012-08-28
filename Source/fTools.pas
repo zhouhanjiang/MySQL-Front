@@ -1788,7 +1788,7 @@ begin
 
         if (ImportType = itUpdate) then
         begin
-          if (not InsertStmtInSQL) then
+          if (InsertStmtInSQL) then
             SQL := SQL + ';' + #13#10;
           SQL := SQL + 'UPDATE ' + EscapedTableName + ' SET ' + Values + ' WHERE ' + WhereClausel + ';' + #13#10;
           InsertStmtInSQL := False;

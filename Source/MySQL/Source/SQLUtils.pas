@@ -348,8 +348,6 @@ asm
         CMP LongWord PTR [ESI],$002F002A    // "*/" in SQL?
         JE EnclosedCommentE              // Yes!
       EnclosedCommentLE:
-        CALL MoveString                  // Quoted string?
-        JZ EnclosedCommentL              // Yes!
         ADD ESI,2                        // Step over commenct character in SQL
         LOOP EnclosedCommentL            // There are more characters left in SQL!
         JMP Finish
@@ -2909,10 +2907,5 @@ begin
   Result := StrPas(P);
 end;
 
-var
-  Value: string;
-begin
-  Value := 'a"b';
-  SQLEscape(Value);
 end.
 
