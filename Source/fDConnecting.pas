@@ -16,7 +16,7 @@ type
     procedure FBCancelClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
-    procedure CMPostShow(var Message: TMessage); message CM_POSTSHOW;
+    procedure CMPostShow(var Message: TMessage); message CM_POST_SHOW;
     procedure FormHide(Sender: TObject);
   public
     Client: TCClient;
@@ -55,7 +55,7 @@ begin
   if (Client.Connected) then
     ModalResult := mrOk
   else if (((Client.ErrorCode = ER_ACCESS_DENIED_ERROR) or (Client.ErrorCode = ER_DBACCESS_DENIED_ERROR)) and Accounts.DBLogin(Client.Account)) then
-    PostMessage(Handle, CM_POSTSHOW, 0, 0)
+    PostMessage(Handle, CM_POST_SHOW, 0, 0)
   else
     ModalResult := mrCancel;
 end;
@@ -99,7 +99,7 @@ begin
 
   Client.AfterConnect := AfterConnect;
 
-  PostMessage(Handle, CM_POSTSHOW, 0, 0);
+  PostMessage(Handle, CM_POST_SHOW, 0, 0);
 end;
 
 initialization

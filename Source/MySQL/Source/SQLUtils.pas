@@ -67,8 +67,8 @@ function SQLStmtLength(const SQL: string; const Index: Integer = 1; const Comple
 function SQLStmtToCaption(const SQL: string; const Len: Integer = 50): string;
 function SQLTrimStmt(const SQL: string): string; overload;
 function SQLTrimStmt(const SQL: string; const Index, Length: Integer; var StartingCommentLength, EndingCommentLength: Integer): Integer; overload;
-function SQLUnescape(const Value: PAnsiChar): RawByteString; overload;
-function SQLUnescape(const Value: string): string; overload;
+function SQLUnescape(const Value: PAnsiChar; const RemoveQuoter: Boolean = True): RawByteString; overload;
+function SQLUnescape(const Value: string; const RemoveQuoter: Boolean = True): string; overload;
 function SQLWrapStmt(const SQL: string; const WrapStrs: array of string; const Indent: Integer): string;
 function SQLUnwrapStmt(const SQL: string): string;
 function StrToUInt64(const S: string): UInt64;
@@ -473,13 +473,14 @@ asm
 end;
 
 procedure UnescapeString();
+// BL: Remove Quoter
 // ECX: Length of quoted SQL
 // ESI: Pointer to quoted SQL
 // EDI: Pointer to unquoted Result
 // ESI will be moved to the next usable character inside SQL
 // ECX will be decremened of the quoted string length
 label
-  Start, StringL, String1, String2, String3, String4, String5, StringLE,
+  StringL, String1, String2, String3, String4, String5, StringLE, StringE,
   Hex, Hex1S, Hex1E, Hex2, Hex2C, Hex2S, HexE,
   Finish;
 const
@@ -493,19 +494,18 @@ asm
 
       // -------------------
 
-      Start:
-        ADD ESI,2                        // Step over starting Quoter
-        DEC ECX                          // Ignore starting Quoter
+        LODSW                            // Load Quoter from ESI
+        DEC ECX                          // Starting Quoter handled
         JZ Finish                        // End of SQL!
+        PUSH EBX
+        CMP BL,True                      // Remove Quoter?
+        JE StringL                       // Yes!
+        STOSW                            // Store quoter in EDI
+
       StringL:
         LODSW                            // Load character from ESI
         CMP AX,DX                        // End of quoted string?
-        JNE String1                      // No!
-        DEC ECX                          // Ignore Quoter
-        JZ Finish                        // End of SQL!
-        CMP [ESI],DX                     // Restart of quoted string?
-        JE Start                         // Yes!
-        JMP Finish
+        JE StringE                       // Yes!
       String1:
         CMP AX,'\'                       // Escaped character?
         JNE StringLE                     // No!
@@ -538,7 +538,15 @@ asm
         JMP Hex
       StringLE:
         STOSW                            // Store character in EDI
-        LOOP StringL
+        LOOP StringL                     // Loop for every character in SQL
+      StringE:
+        POP EBX
+        CMP ECX,0                        // All characters handled?
+        JE Finish                        // Yes!
+        DEC ECX                          // Ending Quoter handled
+        CMP BL,True                      // Remove Quoter?
+        JE Finish                        // No!
+        STOSW                            // Store character in EDI
         JMP Finish
 
       // -------------------
@@ -1926,6 +1934,7 @@ begin
       // -------------------
 
       Quoted:
+        MOV BL,True
         CALL UnescapeString              // Unquote and unescape string
         JECXZ Finish                     // End of SQL!
         CMP WORD PTR [ESI],'@'           // '@' in SQL?
@@ -2414,7 +2423,7 @@ begin
   end;
 end;
 
-function SQLUnescape(const Value: string): string;
+function SQLUnescape(const Value: string; const RemoveQuoter: Boolean = True): string;
 label
   StringL, Quoted, StringLE,
   Finish;
@@ -2460,6 +2469,7 @@ begin
         JMP Finish
 
       Quoted:
+        MOV BL,RemoveQuoter
         CALL UnescapeString              // Copy and unescape quoted string?
         JECXZ Finish                     // End of SQL!
         JMP StringL
@@ -2484,7 +2494,7 @@ begin
   end;
 end;
 
-function SQLUnescape(const Value: PAnsiChar): RawByteString;
+function SQLUnescape(const Value: PAnsiChar; const RemoveQuoter: Boolean = True): RawByteString;
 label
   StringL, StringL2;
 var
@@ -2522,7 +2532,7 @@ begin
         POP ES
     end;
 
-    S := SQLUnescape(S);
+    S := SQLUnescape(S, RemoveQuoter);
 
     Len := Length(S);
     SetLength(Result, Len);

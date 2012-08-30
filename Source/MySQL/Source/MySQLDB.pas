@@ -164,6 +164,7 @@ type
       TMode = (smSQL, smDataHandle, smDataSet);
       TState = (ssClose, ssConnecting, ssReady, ssExecutingSQL, ssResult, ssReceivingResult, ssNextResult, ssCancel, ssDisconnecting, ssError);
     private
+      Destroyed: Boolean;
       Done: TEvent;
       FConnection: TMySQLConnection;
       RunExecute: TEvent;
@@ -253,6 +254,7 @@ type
     FThreadId: my_uint;
     FUsername: string;
     InMonitor: Boolean;
+    InOnResult: Boolean; // Should be private, but for debugging...
     local_infile: Plocal_infile;
     function GetCommandText(): string;
     function UseCompression(): Boolean;
@@ -322,7 +324,6 @@ type
     property TerminateCS: TCriticalSection read FTerminateCS;
     property TerminatedThreads: TTerminatedThreads read FTerminatedThreads;
   public
-InOnResult: Boolean; // Should be private, but for debugging...
     procedure BeginSilent(); virtual;
     procedure BeginSynchron(); virtual;
     function CanShutdown(): Boolean; virtual;
@@ -1814,6 +1815,7 @@ begin
 
   FConnection := AConnection;
 
+  Destroyed := False;
   RunExecute := TEvent.Create(nil, True, False, '');
   SynchronizeStarted := TEvent.Create(nil, False, False, '');
   SQLStmtLengths := TList.Create();
@@ -1826,7 +1828,8 @@ end;
 
 destructor TMySQLConnection.TSynchroThread.Destroy();
 begin
-  RunExecute.Free();
+  Destroyed := True;
+  RunExecute.Free(); RunExecute := nil;
   SynchronizeStarted.Free();
   SQLStmtLengths.Free();
   SQLStmtsInPackets.Free();
@@ -1889,6 +1892,10 @@ end;
 
 function TMySQLConnection.TSynchroThread.GetIsRunning(): Boolean;
 begin
+  if (not Terminated and Destroyed) then
+    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Destroyed']);
+  if (not Terminated and not Assigned(RunExecute)) then
+    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['RunExecute']);
   Result := not Terminated and ((RunExecute.WaitFor(IGNORE) = wrSignaled) or not (State in [ssClose, ssReady]));
 end;
 
@@ -2298,7 +2305,7 @@ end;
 
 function TMySQLConnection.ErrorMsg(const AHandle: MySQLConsts.MYSQL): string;
 begin
-  Result := LibDecode(my_char(SQLUnescape(Lib.mysql_error(AHandle))));
+  Result := LibDecode(my_char(SQLUnescape(Lib.mysql_error(AHandle), False)));
 end;
 
 function TMySQLConnection.EscapeIdentifier(const Identifier: string): string;
@@ -2505,6 +2512,7 @@ end;
 function TMySQLConnection.GetCommandText(): string;
 var
   EndingCommentLength: Integer;
+  Index: Integer;
   Len: Integer;
   StartingCommentLength: Integer;
   StmtLength: Integer;
@@ -2515,7 +2523,8 @@ begin
   begin
     StmtLength := Integer(SynchroThread.SQLStmtLengths[SynchroThread.SQLStmt]);
     Len := SQLTrimStmt(SynchroThread.SQL, SynchroThread.SQLStmtIndex, StmtLength, StartingCommentLength, EndingCommentLength);
-    if (SynchroThread.SQL[SynchroThread.SQLStmtIndex + StartingCommentLength + Len - 1] = ';') then
+    Index := SynchroThread.SQLStmtIndex + StartingCommentLength + Len - 1;
+    if ((1 <= Index) and (SynchroThread.SQL[Index] = ';')) then
       Dec(Len);
     Result := copy(SynchroThread.SQL, SynchroThread.SQLStmtIndex + StartingCommentLength, Len);
   end
@@ -4221,6 +4230,8 @@ procedure TMySQLQuery.InternalClose();
 begin
   if (Assigned(SynchroThread)) then
   begin
+    if (not Assigned(SynchroThread)) then
+      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['SynchroThread']);
     SynchroThread.ReleaseDataSet();
     SynchroThread := nil;
   end;
@@ -5498,11 +5509,14 @@ begin
   if (Assigned(SynchroThread)) then
   begin
     Connection.Terminate();
+    if (not Assigned(SynchroThread)) then
+      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['SynchroThread']);
     SynchroThread.ReleaseDataSet();
     SynchroThread := nil;
   end;
 
   InternRecordBuffers.Clear();
+  ActivateBuffers();
 
   RecordsReceived.ResetEvent();
 

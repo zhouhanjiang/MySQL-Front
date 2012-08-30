@@ -1039,7 +1039,7 @@ type
     procedure CMFrameDeactivate(var Message: TMessage); message CM_DEACTIVATEFRAME;
     procedure CMPostBuilderQueryChange(var Message: TMessage); message CM_POST_BUILDER_QUERY_CHANGE;
     procedure CMPostMonitor(var Message: TMessage); message CM_POST_MONITOR;
-    procedure CMPostShow(var Message: TMessage); message CM_POSTSHOW;
+    procedure CMPostShow(var Message: TMessage); message CM_POST_SHOW;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure CMWantedSynchronize(var Message: TMessage); message CM_WANTED_SYNCHRONIZE;
     procedure WMNotify(var Message: TWMNotify); message WM_NOTIFY;
@@ -3462,17 +3462,14 @@ procedure TFClient.aFExportExecute(const Sender: TObject; const ExportType: TExp
 var
   CodePage: Cardinal;
   Database: TCDatabase;
-  FolderName: string;
   I: Integer;
-  Updated: Boolean;
-  J: Integer;
   Table: TCBaseTable;
   TableNames: array of string;
 begin
   Database := nil;
   DExport.Client := Client;
   DExport.DBGrid := nil;
-  DExport.DBObjects.Clear();
+  DExport.Objects.Clear();
   DExport.ExportType := ExportType;
   DExport.Window := Window;
 
@@ -3486,7 +3483,7 @@ begin
     else
       for I := 0 to ActiveWorkbench.Tables.Count - 1 do
         if (not Assigned(ActiveWorkbench.Selected) or ActiveWorkbench.Tables[I].Selected) then
-          DExport.DBObjects.Add(ActiveWorkbench.Tables[I].BaseTable);
+          DExport.Objects.Add(ActiveWorkbench.Tables[I].BaseTable);
   end
   else if ((Window.ActiveControl = ActiveListView) and (ActiveListView.SelCount > 0)) then
   begin
@@ -3499,16 +3496,7 @@ begin
             if (not Database.Update()) then
               Wanted.Action := TAction(Sender)
             else if ((Client.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TCSystemDatabase)) then
-            begin
-              for J := 0 to Database.Tables.Count - 1 do
-                DExport.DBObjects.Add(Database.Tables[J]);
-              if (Assigned(Database.Routines)) then
-                for J := 0 to Database.Routines.Count - 1 do
-                  DExport.DBObjects.Add(Database.Routines[J]);
-              if (Assigned(Database.Triggers)) then
-                for J := 0 to Database.Triggers.Count - 1 do
-                  DExport.DBObjects.Add(Database.Triggers[J]);
-            end;
+              DExport.Objects.Add(Database);
           end;
 
       iiDatabase:
@@ -3532,15 +3520,9 @@ begin
               for I := 0 to ActiveListView.Items.Count - 1 do
                 if (ActiveListView.Items[I].Selected) then
                   if (ActiveListView.Items[I].ImageIndex in [iiBaseTable, iiView]) then
-                  begin
-                    DExport.DBObjects.Add(TCTable(ActiveListView.Items[I].Data));
-
-                    if (Assigned(Database.Triggers)) then
-                      for J := 0 to Database.Triggers.Count - 1 do
-                        DExport.DBObjects.Add(Database.Triggers[J]);
-                  end
+                    DExport.Objects.Add(TCTable(ActiveListView.Items[I].Data))
                   else if (ActiveListView.Items[I].ImageIndex in [iiProcedure, iiFunction, iiEvent, iiTrigger]) then
-                    DExport.DBObjects.Add(TCDBObject(ActiveListView.Items[I].Data));
+                    DExport.Objects.Add(TCDBObject(ActiveListView.Items[I].Data));
 
             SetLength(TableNames, 0);
           end;
@@ -3553,7 +3535,7 @@ begin
           else if ((Client.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TCSystemDatabase)) then
             for I := 0 to ActiveListView.Items.Count - 1 do
               if (ActiveListView.Items[I].Selected and (ActiveListView.Items[I].ImageIndex = iiTrigger)) then
-                DExport.DBObjects.Add(TCDBObject(ActiveListView.Items[I].Data));
+                DExport.Objects.Add(TCDBObject(ActiveListView.Items[I].Data));
         end;
     end
   end
@@ -3564,16 +3546,7 @@ begin
       if (not Database.Update()) then
         Wanted.Action := TAction(Sender)
       else
-      begin
-        for J := 0 to Database.Tables.Count - 1 do
-          DExport.DBObjects.Add(Database.Tables[J]);
-        if (Assigned(Database.Routines)) then
-          for J := 0 to Database.Routines.Count - 1 do
-            DExport.DBObjects.Add(Database.Routines[J]);
-        if (Assigned(Database.Triggers)) then
-          for J := 0 to Database.Triggers.Count - 1 do
-            DExport.DBObjects.Add(Database.Triggers[J]);
-      end;
+        DExport.Objects.Add(Database);
   end
   else if (FocusedCItem is TCBaseTable) then
   begin
@@ -3582,14 +3555,7 @@ begin
     if (not Table.Update() or Assigned(Database.Triggers) and not Database.Triggers.Update()) then
       Wanted.Action := TAction(Sender)
     else
-    begin
-      DExport.DBObjects.Add(Table);
-
-      if (Assigned(Database.Triggers)) then
-        for J := 0 to Database.Triggers.Count - 1 do
-          if (Database.Triggers[J].Table = Table) then
-            DExport.DBObjects.Add(Database.Triggers[J]);
-    end;
+      DExport.Objects.Add(Table);
   end
   else if (FocusedCItem is TCDBObject) then
   begin
@@ -3597,45 +3563,28 @@ begin
     if (not Database.Update()) then
       Wanted.Action := TAction(Sender)
     else
-      DExport.DBObjects.Add(FocusedCItem);
+      DExport.Objects.Add(FocusedCItem);
   end
   else if (Assigned(FocusedCItem) and (FocusedCItem is TCDBObject)) then
   begin
     if (not TCDBObject(FocusedCItem).Update()) then
       Wanted.Action := TAction(Sender)
     else
-      DExport.DBObjects.Add(FocusedCItem);
+      DExport.Objects.Add(FocusedCItem);
   end
   else
   begin
-    Updated := False;
     for I := 0 to DExport.Client.Databases.Count - 1 do
       if ((Client.TableNameCmp(Client.Databases[I].Name, 'mysql') <> 0) and not (Client.Databases[I] is TCSystemDatabase)) then
-        Updated := Updated or not Client.Databases[I].Update();
-
-    if (Updated and (Sender is TAction)) then
-      Wanted.Action := TAction(Sender)
-    else
-      for I := 0 to DExport.Client.Databases.Count - 1 do
-        if ((Client.TableNameCmp(Client.Databases[I].Name, 'mysql') <> 0) and not (Client.Databases[I] is TCSystemDatabase)) then
-        begin
-          for J := 0 to Client.Databases[I].Tables.Count - 1 do
-            DExport.DBObjects.Add(Client.Databases[I].Tables[J]);
-          if (Assigned(Client.Databases[I].Routines)) then
-            for J := 0 to Client.Databases[I].Routines.Count - 1 do
-              DExport.DBObjects.Add(Client.Databases[I].Routines[J]);
-          if (Assigned(Client.Databases[I].Triggers)) then
-            for J := 0 to Client.Databases[I].Triggers.Count - 1 do
-              DExport.DBObjects.Add(Client.Databases[I].Triggers[J]);
-        end;
+        DExport.Objects.Add(Client.Databases[I]);
   end;
 
-  if (Assigned(DExport.DBGrid) or (DExport.DBObjects.Count >= 1)) then
+  if (Assigned(DExport.DBGrid) or (DExport.Objects.Count >= 1)) then
   begin
     if (Assigned(Client) and (Client.Account.Connection.Charset <> '')) then
       CodePage := Client.CharsetToCodePage(Client.Account.Connection.Charset)
-    else if ((DExport.DBObjects.Count = 1) and (TObject(DExport.DBObjects[0]) is TCBaseTable)) then
-      CodePage := Client.CharsetToCodePage(TCBaseTable(DExport.DBObjects[0]).DefaultCharset)
+    else if ((DExport.Objects.Count = 1) and (TObject(DExport.Objects[0]) is TCBaseTable)) then
+      CodePage := Client.CharsetToCodePage(TCBaseTable(DExport.Objects[0]).DefaultCharset)
     else if (Assigned(Database)) then
       CodePage := Client.CharsetToCodePage(Database.DefaultCharset)
     else
@@ -3660,7 +3609,7 @@ begin
           end;
         etTextFile:
           begin
-            if (DExport.DBObjects.Count <= 1) then
+            if (DExport.Objects.Count <= 1) then
             begin
               SaveDialog.Filter := FilterDescription('txt') + ' (*.txt;*.csv;*.tab;*.asc)|*.txt;*.csv;*.tab;*.asc';
               SaveDialog.DefaultExt := '.csv';
@@ -3715,9 +3664,9 @@ begin
       if (Assigned(DExport.DBGrid)) then
         SaveDialog.FileName := Preferences.LoadStr(362) + SaveDialog.DefaultExt
       else if (not Assigned(Database)) then
-        SaveDialog.FileName := TCDBObject(DExport.DBObjects[0]).Database.Client.Account.Name + SaveDialog.DefaultExt
-      else if (DExport.DBObjects.Count = 1) then
-        SaveDialog.FileName := TCDBObject(DExport.DBObjects[0]).Name + SaveDialog.DefaultExt
+        SaveDialog.FileName := TCDBObject(DExport.Objects[0]).Database.Client.Account.Name + SaveDialog.DefaultExt
+      else if (DExport.Objects.Count = 1) then
+        SaveDialog.FileName := TCDBObject(DExport.Objects[0]).Name + SaveDialog.DefaultExt
       else
         SaveDialog.FileName := Database.Name + SaveDialog.DefaultExt;
 
@@ -5621,7 +5570,7 @@ begin
     Window.ApplyWinAPIUpdates(Self, NonClientMetrics.lfStatusFont);
 
 
-  PostMessage(Handle, CM_POSTSHOW, 0, 0);
+  PostMessage(Handle, CM_POST_SHOW, 0, 0);
 end;
 
 function TFClient.CreateDesktop(const CObject: TCObject): TCObject.TDesktop;

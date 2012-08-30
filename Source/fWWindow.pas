@@ -502,7 +502,7 @@ type
     procedure CMClientSynchronize(var Message: TMessage); message CM_MYSQLCONNECTION_SYNCHRONIZE;
     procedure CMCloseTab(var Message: TCMCloseTab); message CM_CLOSE_TAB;
     procedure CMDeactivateTab(var Message: TMessage); message CM_DEACTIVATETAB;
-    procedure CMPostShow(var Message: TMessage); message CM_POSTSHOW;
+    procedure CMPostShow(var Message: TMessage); message CM_POST_SHOW;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure CMTabControlRepaint(var Message: TMessage); message CM_TABCONTROL_REPAINT;
     procedure CMUpdateAvailable(var Message: TMessage); message CM_UPDATEAVAILABLE;
@@ -1986,7 +1986,7 @@ begin
     CheckUpdateThread.Start();
   end;
 
-  PostMessage(Handle, CM_POSTSHOW, 0, 0);
+  PostMessage(Handle, CM_POST_SHOW, 0, 0);
 end;
 
 function TWWindow.GetActiveTab(): TFClient;

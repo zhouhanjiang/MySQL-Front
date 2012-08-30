@@ -21,7 +21,7 @@ type
     procedure FormCreate(Sender: TObject);
   private
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
-    procedure CMPostShow(var Message: TMessage); message CM_POSTSHOW;
+    procedure CMPostShow(var Message: TMessage); message CM_POST_SHOW;
   public
     Database: TCDatabase;
     ServiceMode: TDTableServiceMode;
@@ -145,7 +145,7 @@ begin
     end;
   end;
 
-  PostMessage(Self.Handle, CM_POSTSHOW, 0, 0);
+  PostMessage(Self.Handle, CM_POST_SHOW, 0, 0);
 end;
 
 initialization

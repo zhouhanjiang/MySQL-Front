@@ -175,7 +175,7 @@ type
     procedure TSXMLOptionsShow(Sender: TObject);
   private
     Export: TTExport;
-    FDBObjects: TList;
+    FObjects: TList;
     FDestFields: array of TEdit;
     FFields: array of TComboBox_Ext;
     FLReferrers: array of TLabel;
@@ -192,6 +192,7 @@ type
     procedure OnUpdate(const AProgressInfos: TTools.TProgressInfos);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
     procedure CMExecutionDone(var Message: TMessage); message CM_EXECUTIONDONE;
+    procedure CMPostAfterExecuteSQL(var Message: TMessage); message CM_POST_AFTEREXECUTESQL;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure CMUpdateProgressInfo(var Message: TMessage); message CM_UPDATEPROGRESSINFO;
   public
@@ -202,7 +203,7 @@ type
     Filename: TFileName;
     Window: TForm;
     function Execute(): Boolean;
-    property DBObjects: TList read FDBObjects;
+    property Objects: TList read FObjects;
   end;
 
 function DExport(): TDExport;
@@ -427,6 +428,57 @@ begin
     FBCancel.ModalResult := mrCancel;
 
   ActiveControl := FBCancel;
+end;
+
+procedure TDExport.CMPostAfterExecuteSQL(var Message: TMessage);
+var
+  Database: TCDatabase;
+  I: Integer;
+  J: Integer;
+begin
+  I := 0;
+  while (I < Objects.Count) do
+    if (TObject(Objects[I]) is TCDatabase) then
+    begin
+      Database := TCDatabase(Objects[I]);
+      if (Database.Valid) then
+      begin
+        for J := 0 to Database.Tables.Count - 1 do
+          if (Objects.IndexOf(Database.Tables[J]) < 0) then
+            Objects.Add(Database.Tables[J]);
+        if (Assigned(Database.Routines)) then
+          for J := 0 to Database.Routines.Count - 1 do
+            if (Objects.IndexOf(Database.Routines[J]) < 0) then
+              Objects.Add(Database.Routines[J]);
+        if (Assigned(Database.Triggers)) then
+          for J := 0 to Database.Triggers.Count - 1 do
+            if (Objects.IndexOf(Database.Triggers[J]) < 0) then
+              Objects.Add(Database.Triggers[J]);
+        Objects.Delete(I);
+      end;
+    end
+    else if (TObject(Objects[I]) is TCBaseTable) then
+    begin
+      Database := TCBaseTable(Objects[I]).Database;
+      if (Database.Valid and Assigned(Database.Triggers)) then
+        for J := 0 to TCBaseTable(Objects[I]).TriggerCount - 1 do
+          if (Objects.IndexOf(TCBaseTable(Objects[I]).Triggers[J]) < 0) then
+            Objects.Add(TCBaseTable(Objects[I]).Triggers[J]);
+      Inc(I);
+    end
+    else
+      Inc(I);
+
+  Message.Result := LRESULT(Client.Update(Objects));
+  if (Boolean(Message.Result)) then
+  begin
+    PageControl.Visible := True;
+    PSQLWait.Visible := not PageControl.Visible;
+
+    if (TSFields.Enabled) then
+      InitTSFields();
+    CheckActivePageChange(PageControl.ActivePageIndex);
+  end;
 end;
 
 procedure TDExport.CMSysFontChanged(var Message: TMessage);
@@ -683,21 +735,14 @@ end;
 procedure TDExport.FormClientEvent(const Event: TCClient.TEvent);
 begin
   if (Event.EventType = ceAfterExecuteSQL) then
-  begin
-    PageControl.Visible := True;
-    PSQLWait.Visible := not PageControl.Visible;
-
-    if (TSFields.Enabled) then
-      InitTSFields();
-    CheckActivePageChange(PageControl.ActivePageIndex);
-  end;
+    PostMessage(Handle, CM_POST_AFTEREXECUTESQL, 0, 0);
 end;
 
 procedure TDExport.FormCreate(Sender: TObject);
 begin
   Export := nil;
 
-  FDBObjects := TList.Create();
+  FObjects := TList.Create();
   FODBCSelect.SmallImages := Preferences.SmallImages;
 
   FCSVHeadline.Checked := Preferences.Export.CSVHeadline;
@@ -734,7 +779,7 @@ end;
 
 procedure TDExport.FormDestroy(Sender: TObject);
 begin
-  FDBObjects.Free();
+  FObjects.Free();
 end;
 
 procedure TDExport.FormHide(Sender: TObject);
@@ -768,7 +813,7 @@ begin
     Preferences.Export.SQLDropBeforeCreate := FDrop.Checked;
     Preferences.Export.SQLReplaceData := FReplaceData.Checked;
     Preferences.Export.SQLDisableKeys := FDisableKeys.Checked;
-    if (DBObjects.Count > 1) then
+    if (Objects.Count > 1) then
       Preferences.Export.SQLCreateDatabase := FCreateDatabase.Checked;
     Preferences.Export.SQLUseDatabase := FUseDatabase.Checked;
 
@@ -827,11 +872,11 @@ begin
 
   TSODBCSelect.Enabled := ExportType in [etODBC];
   TSSQLOptions.Enabled := ExportType in [etSQLFile];
-  FCreateDatabase.Checked := (DBObjects.Count > 1) and Preferences.Export.SQLCreateDatabase;
+  FCreateDatabase.Checked := (Objects.Count > 1) and Preferences.Export.SQLCreateDatabase;
   TSCSVOptions.Enabled := ExportType in [etTextFile];
   TSXMLOptions.Enabled := (ExportType in [etXMLFile]) and not Assigned(DBGrid);
   TSHTMLOptions.Enabled := ExportType in [etHTMLFile, etPrint, etPDFFile];
-  TSFields.Enabled := (ExportType in [etExcelFile]) and ((DBObjects.Count = 1) or Assigned(DBGrid)) or (ExportType in [etXMLFile]) and Assigned(DBGrid);
+  TSFields.Enabled := (ExportType in [etExcelFile]) and ((Objects.Count = 1) or Assigned(DBGrid)) or (ExportType in [etXMLFile]) and Assigned(DBGrid);
   TSExecute.Enabled := not TSODBCSelect.Enabled and not TSSQLOptions.Enabled and not TSCSVOptions.Enabled and not TSHTMLOptions.Enabled and not TSFields.Enabled;
 
   for I := 0 to PageControl.PageCount - 1 do
@@ -843,15 +888,8 @@ begin
   if (Assigned(DBGrid)) then
     DBGrid.DataSource.DataSet.DisableControls();
 
-  PageControl.Visible := Client.Update(DBObjects);
+  PageControl.Visible := Boolean(Perform(CM_POST_AFTEREXECUTESQL, 0, 0));
   PSQLWait.Visible := not PageControl.Visible;
-
-  if (PageControl.Visible) then
-  begin
-    if (TSFields.Enabled) then
-      InitTSFields();
-    CheckActivePageChange(PageControl.ActivePageIndex);
-  end;
 
   FBBack.Visible := TSODBCSelect.Enabled or TSSQLOptions.Enabled or TSCSVOptions.Enabled or TSXMLOptions.Enabled or TSHTMLOptions.Enabled or TSFields.Enabled;
   FBForward.Visible := FBBack.Visible;
@@ -937,8 +975,8 @@ var
 begin
   ClearTSFields();
 
-  if ((DBObjects.Count > 0) and (TCDBObject(DBObjects[0]) is TCTable)) then
-    SetLength(FFields, TCTable(DBObjects[0]).Fields.Count)
+  if ((Objects.Count > 0) and (TCDBObject(Objects[0]) is TCTable)) then
+    SetLength(FFields, TCTable(Objects[0]).Fields.Count)
   else if (Assigned(DBGrid)) then
     SetLength(FFields, DBGrid.FieldCount);
 
@@ -965,9 +1003,9 @@ begin
     FFields[I].Height := FField1.Height;
     FFields[I].Style := FField1.Style;
     FFields[I].Items.Add('');
-    if ((DBObjects.Count > 0) and (TCDBObject(DBObjects[0]) is TCTable)) then
-      for J := 0 to TCTable(DBObjects[0]).Fields.Count - 1 do
-        FFields[I].Items.Add(TCTable(DBObjects[0]).Fields[J].Name)
+    if ((Objects.Count > 0) and (TCDBObject(Objects[0]) is TCTable)) then
+      for J := 0 to TCTable(Objects[0]).Fields.Count - 1 do
+        FFields[I].Items.Add(TCTable(Objects[0]).Fields[J].Name)
     else if (Assigned(DBGrid)) then
       for J := 0 to DBGrid.FieldCount - 1 do
         FFields[I].Items.Add(DBGrid.Fields[J].DisplayName);
@@ -1111,7 +1149,7 @@ begin
   FBCancel.ModalResult := mrCancel;
   FBCancel.Default := False;
 
-  TSFields.Enabled := (DBObjects.Count = 1) or Assigned(DBGrid);
+  TSFields.Enabled := (Objects.Count = 1) or Assigned(DBGrid);
   TSExecute.Enabled := not TSFields.Enabled;
   CheckActivePageChange(TSCSVOptions.PageIndex);
 end;
@@ -1308,7 +1346,7 @@ begin
   end
   else
   begin
-    DBObjects.Sort(DBObjectsSortItem);
+    Objects.Sort(DBObjectsSortItem);
 
     case (ExportType) of
       etSQLFile:
@@ -1321,8 +1359,8 @@ begin
           ExportSQL.ReplaceData := FReplaceData.Checked;
           ExportSQL.Structure := FSQLStructure.Checked;
           ExportSQL.UseDatabaseStmts := FUseDatabase.Checked;
-          for I := 0 to DBObjects.Count - 1 do
-            ExportSQL.Add(TCDBObject(DBObjects[I]));
+          for I := 0 to Objects.Count - 1 do
+            ExportSQL.Add(TCDBObject(Objects[I]));
 
           Export := ExportSQL;
         except
@@ -1340,8 +1378,8 @@ begin
           ExportText.QuoteValues := FAllQuote.Checked;
           ExportText.Quoter := FQuoteChar.Text[1];
           ExportText.Structure := FCSVHeadline.Checked;
-          for I := 0 to DBObjects.Count - 1 do
-            ExportText.Add(TCDBObject(DBObjects[I]));
+          for I := 0 to Objects.Count - 1 do
+            ExportText.Add(TCDBObject(Objects[I]));
 
           Export := ExportText;
         except
@@ -1352,8 +1390,8 @@ begin
           Export := TTExportExcel.Create(Client, Filename);
           Export.Data := True;
           Export.Structure := True;
-          for I := 0 to DBObjects.Count - 1 do
-            Export.Add(TCDBObject(DBObjects[I]));
+          for I := 0 to Objects.Count - 1 do
+            Export.Add(TCDBObject(Objects[I]));
         except
           MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
         end;
@@ -1362,9 +1400,9 @@ begin
           Export := TTExportAccess.Create(Client, Filename);
           Export.Structure := True;
           Export.Data := True;
-          for I := 0 to DBObjects.Count - 1 do
-            if (TCDBObject(DBObjects[I]) is TCBaseTable) then
-              Export.Add(TCDBObject(DBObjects[I]));
+          for I := 0 to Objects.Count - 1 do
+            if (TCDBObject(Objects[I]) is TCBaseTable) then
+              Export.Add(TCDBObject(Objects[I]));
         except
           MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
         end;
@@ -1373,18 +1411,18 @@ begin
           Export := TTExportODBC.Create(Client, ODBCEnv, ODBC);
           Export.Data := True;
           Export.Structure := True;
-          for I := 0 to DBObjects.Count - 1 do
-            if (TCDBObject(DBObjects[I]) is TCBaseTable) then
-              Export.Add(TCDBObject(DBObjects[I]));
+          for I := 0 to Objects.Count - 1 do
+            if (TCDBObject(Objects[I]) is TCBaseTable) then
+              Export.Add(TCDBObject(Objects[I]));
         end;
       etSQLiteFile:
         try
           Export := TTExportSQLite.Create(Client, Filename);
           Export.Data := True;
           Export.Structure := True;
-          for I := 0 to DBObjects.Count - 1 do
-            if (TCDBObject(DBObjects[I]) is TCBaseTable) then
-              Export.Add(TCDBObject(DBObjects[I]));
+          for I := 0 to Objects.Count - 1 do
+            if (TCDBObject(Objects[I]) is TCBaseTable) then
+              Export.Add(TCDBObject(Objects[I]));
         except
           MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
         end;
@@ -1435,8 +1473,8 @@ begin
             ExportXML.FieldTag := FFieldTag.Text;
             ExportXML.FieldAttribute := FFieldAttribute.Text;
           end;
-          for I := 0 to DBObjects.Count - 1 do
-            ExportXML.Add(TCDBObject(DBObjects[I]));
+          for I := 0 to Objects.Count - 1 do
+            ExportXML.Add(TCDBObject(Objects[I]));
 
           Export := ExportXML;
         except
@@ -1450,8 +1488,8 @@ begin
           ExportHTML.NULLText := FHTMLNullText.Checked;
           ExportHTML.RowBackground := FHTMLRowBGColorEnabled.Checked;
           ExportHTML.Structure := FHTMLStructure.Checked;
-          for I := 0 to DBObjects.Count - 1 do
-            ExportHTML.Add(TCDBObject(DBObjects[I]));
+          for I := 0 to Objects.Count - 1 do
+            ExportHTML.Add(TCDBObject(Objects[I]));
 
           Export := ExportHTML;
         except
@@ -1467,8 +1505,8 @@ begin
           ExportPDF.Data := FHTMLData.Checked;
           ExportPDF.NULLText := FHTMLNullText.Checked;
           ExportPDF.Structure := FHTMLStructure.Checked;
-          for I := 0 to DBObjects.Count - 1 do
-            ExportPDF.Add(TCDBObject(DBObjects[I]));
+          for I := 0 to Objects.Count - 1 do
+            ExportPDF.Add(TCDBObject(Objects[I]));
 
           Export := ExportPDF;
         except
@@ -1478,12 +1516,12 @@ begin
 
     if (Assigned(Export)) then
     begin
-      if ((DBObjects.Count = 1) and (TCDBObject(DBObjects[0]) is TCTable)) then
+      if ((Objects.Count = 1) and (TCDBObject(Objects[0]) is TCTable)) then
         for I := 0 to Length(FFields) - 1 do
           if (FFields[I].ItemIndex > 0) then
           begin
             SetLength(Export.TableFields, Length(Export.TableFields) + 1);
-            Export.TableFields[Length(Export.TableFields) - 1] := TCTable(DBObjects[0]).Fields[FFields[I].ItemIndex - 1];
+            Export.TableFields[Length(Export.TableFields) - 1] := TCTable(Objects[0]).Fields[FFields[I].ItemIndex - 1];
             SetLength(Export.DestinationFields, Length(Export.DestinationFields) + 1);
             Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := FDestFields[I].Text;
           end;
@@ -1603,22 +1641,22 @@ var
 begin
   DatabaseCount := 0;
   OldDatabase := nil;
-  for I := 0 to DBObjects.Count - 1 do
+  for I := 0 to Objects.Count - 1 do
   begin
-    if (TCDBObject(DBObjects[I]).Database <> OldDatabase) then
+    if (TCDBObject(Objects[I]).Database <> OldDatabase) then
       Inc(DatabaseCount);
-    OldDatabase := TCDBObject(DBObjects[I]).Database;
+    OldDatabase := TCDBObject(Objects[I]).Database;
   end;
 
   FDatabaseTagDisabled.Enabled := DatabaseCount <= 1;
   if (FDatabaseTagDisabled.Checked and not FDatabaseTagDisabled.Enabled) then
     FDatabaseTagFree.Checked := True;
 
-  FTableTagDisabled.Enabled := DBObjects.Count <= 1;
+  FTableTagDisabled.Enabled := Objects.Count <= 1;
   if (FTableTagDisabled.Checked and not FTableTagDisabled.Enabled) then
     FTableTagFree.Checked := True;
 
-  TSFields.Enabled := (DBObjects.Count = 1) or Assigned(DBGrid);
+  TSFields.Enabled := (Objects.Count = 1) or Assigned(DBGrid);
   CheckActivePageChange(TSXMLOptions.PageIndex);
   TSXMLOptionChange(Sender);
 end;

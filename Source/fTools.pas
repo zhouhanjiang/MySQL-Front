@@ -1821,7 +1821,7 @@ begin
             Delete(SQL, 1, Client.ExecutedSQLLength);
             SQLExecuteLength := 0;
             if (Client.ErrorCode <> 0) then
-              DoError(DatabaseError(Client), ToolsItem(Item), False, SQL);
+              DoError(DatabaseError(Client), ToolsItem(Item), True, SQL);
           end;
 
           if (SQL <> '') then

@@ -454,7 +454,7 @@ begin
   if (PageControl.Visible) then
     ActiveControl := FName;
 
-  PostMessage(Self.Handle, CM_POSTSHOW, 0, 0);
+  PostMessage(Self.Handle, CM_POST_SHOW, 0, 0);
 end;
 
 procedure TDUser.FRightsDblClick(Sender: TObject);

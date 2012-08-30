@@ -587,6 +587,8 @@ type
     function GetKeys(): TCKeys;
     function GetPartitions(): TCPartitions;
     function GetPrimaryKey(): TCKey;
+    function GetTriggers(Index: Integer): TCTrigger;
+    function GetTriggerCount(): Integer;
     procedure SetDefaultCharset(const ADefaultCharset: string);
   protected
     FValidStatus: Boolean;
@@ -647,6 +649,8 @@ type
     property Rows: Int64 read FRows;
     property RowType: TMySQLRowType read FRowType write FRowType;
     property Temporary: Boolean read FTemporary write FTemporary;
+    property TriggerCount: Integer read GetTriggerCount;
+    property Triggers[Index: Integer]: TCTrigger read GetTriggers;
     property UnusedSize: Int64 read FUnusedSize write FUnusedSize;
     property Updated: TDateTime read FUpdated;
     property ValidStatus: Boolean read FValidStatus;
@@ -4046,6 +4050,36 @@ begin
       if (DropBeforeCreate) then
         Result := 'DROP TABLE IF EXISTS ' + Database.Client.EscapeIdentifier(Name) + ';' + #13#10 + Result;
     end;
+end;
+
+function TCBaseTable.GetTriggers(Index: Integer): TCTrigger;
+var
+  I: Integer;
+  Counter: Integer;
+begin
+  Result := nil;
+  if (Assigned(Database.Triggers)) then
+  begin
+    Counter := 0;
+    for I := 0 to Database.Triggers.Count - 1 do
+      if (Database.Triggers[I].Table = Self) then
+      begin
+        if (Counter = Index) then
+          Result := Database.Triggers[I];
+        Inc(Counter);
+      end;
+  end;
+end;
+
+function TCBaseTable.GetTriggerCount(): Integer;
+var
+  I: Integer;
+begin
+  Result := 0;
+  if (Assigned(Database.Triggers)) then
+    for I := 0 to Database.Triggers.Count - 1 do
+      if (Database.Triggers[I].Table = Self) then
+        Inc(Result);
 end;
 
 function TCBaseTable.KeyByCaption(const Caption: string): TCKey;
