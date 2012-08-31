@@ -9788,7 +9788,11 @@ begin
     if (Compare = 0) then
       Compare := Sign(lstrcmpi(PChar(String1), PChar(String2)));
     if (Compare = 0) then
+      Compare := Sign(lstrcmp(PChar(String1), PChar(String2)));
+    if (Compare = 0) then
       Compare := Sign(lstrcmpi(PChar(Item1.Caption), PChar(Item2.Caption)));
+    if (Compare = 0) then
+      Compare := Sign(lstrcmp(PChar(Item1.Caption), PChar(Item2.Caption)));
 
     Compare := ListViewSortData[SortRec^.Kind].Order * Compare;
   end;
@@ -10666,7 +10670,7 @@ procedure TFClient.ListViewUpdate(const ClientEvent: TCClient.TEvent; const List
         Mid := (Right - Left) div 2 + Left;
         case (Compare(Kind, ListView.Items[Mid], Item)) of
           -1: begin Left := Mid + 1; Index := Mid + 1; end;
-          0: raise ERangeError.Create(SRangeError);
+          0: raise ERangeError.CreateFmt(SRangeError + ': %s /%s', [TCItem(Data).Name, TCItem(Data).ClassName]);
           1: begin Right := Mid - 1; Index := Mid; end;
         end;
       end;
