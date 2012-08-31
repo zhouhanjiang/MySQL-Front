@@ -577,15 +577,7 @@ type
     FUpdated: TDateTime;
     function GetAutoIncrementField(): TCBaseTableField;
     function GetBaseTableFields(): TCBaseTableFields; inline;
-    function GetCollation(): string;
-    function GetComment(): string;
-    function GetDefaultCharset(): string;
-    function GetDefaultCodePage(): Cardinal;
     function GetEngine(): TCEngine;
-    function GetForeignKeys(): TCForeignKeys;
-    function GetIndexSize(): Int64;
-    function GetKeys(): TCKeys;
-    function GetPartitions(): TCPartitions;
     function GetPrimaryKey(): TCKey;
     function GetTriggers(Index: Integer): TCTrigger;
     function GetTriggerCount(): Integer;
@@ -593,7 +585,6 @@ type
   protected
     FValidStatus: Boolean;
     procedure BuildStatus(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean); virtual;
-    function GetFields(): TCTableFields; override;
     function GetInServerCache(): Boolean; override;
     function GetValid(): Boolean; override;
     procedure ParseCreateTable(const SQL: string); virtual;
@@ -627,24 +618,24 @@ type
     property BlockSize: Integer read FBlockSize write FBlockSize;
     property Checked: TDateTime read FChecked write FChecked;
     property Checksum: Boolean read FChecksum write FChecksum;
-    property Collation: string read GetCollation write FCollation;
-    property Comment: string read GetComment write FComment;
+    property Collation: string read FCollation write FCollation;
+    property Comment: string read FComment write FComment;
     property Created: TDateTime read FCreated;
     property DataSize: Int64 read FDataSize;
-    property DefaultCharset: string read GetDefaultCharset write SetDefaultCharset;
-    property DefaultCodePage: Cardinal read GetDefaultCodePage;
+    property DefaultCharset: string read FDefaultCharset write SetDefaultCharset;
+    property DefaultCodePage: Cardinal read FDefaultCodePage;
     property DelayKeyWrite: Boolean read FDelayKeyWrite write FDelayKeyWrite;
     property Engine: TCEngine read GetEngine write FEngine;
     property Fields: TCBaseTableFields read GetBaseTableFields;
-    property IndexSize: Int64 read GetIndexSize;
+    property IndexSize: Int64 read FIndexSize;
     property InsertMethod: TInsertMethod read FInsertMethod write FInsertMethod;
-    property ForeignKeys: TCForeignKeys read GetForeignKeys;
-    property Keys: TCKeys read GetKeys;
+    property ForeignKeys: TCForeignKeys read FForeignKeys;
+    property Keys: TCKeys read FKeys;
     property MaxDataSize: Int64 read FMaxDataSize;
     property MaxRows: Int64 read FMaxRows;
     property MinRows: Int64 read FMinRows;
     property PackKeys: TPackKeys read FPackKeys write FPackKeys;
-    property Partitions: TCPartitions read GetPartitions;
+    property Partitions: TCPartitions read FPartitions;
     property PrimaryKey: TCKey read GetPrimaryKey;
     property Rows: Int64 read FRows;
     property RowType: TMySQLRowType read FRowType write FRowType;
@@ -3902,83 +3893,16 @@ begin
   Result := TCBaseTableFields(GetFields());
 end;
 
-function TCBaseTable.GetCollation(): string;
-begin
-  if (not SourceParsed and (Source <> '')) then
-    ParseCreateTable(Source);
-
-  Result := FCollation;
-end;
-
-function TCBaseTable.GetComment(): string;
-begin
-  if (not SourceParsed and (Source <> '')) then
-    ParseCreateTable(Source);
-
-  Result := FComment;
-end;
-
-function TCBaseTable.GetDefaultCharset(): string;
-begin
-  if (not SourceParsed and (FDefaultCharset = '') and (Source <> '')) then
-    ParseCreateTable(Source);
-
-  Result := FDefaultCharset;
-end;
-
-function TCBaseTable.GetDefaultCodePage(): Cardinal;
-begin
-  if (FDefaultCodePage = CP_ACP) then
-    GetDefaultCharset();
-
-  Result := FDefaultCodePage;
-end;
-
 function TCBaseTable.GetEngine(): TCEngine;
 begin
-  if (not Assigned(FEngine)) then
+  if (not Assigned(FEngine) and not Client.InUse) then
   begin
-    if (ValidSource and (Source <> '')) then
-      ParseCreateTable(Source);
-
-    if (not Assigned(FEngine) and not Client.InUse) then
-    begin
-      Client.BeginSynchron();
-      Update();
-      Client.EndSynchron();
-    end;
+    Client.BeginSynchron();
+    Update();
+    Client.EndSynchron();
   end;
 
   Result := FEngine;
-end;
-
-function TCBaseTable.GetForeignKeys(): TCForeignKeys;
-begin
-  if (not SourceParsed and (Source <> '')) then
-    ParseCreateTable(Source);
-
-  Result := FForeignKeys;
-end;
-
-function TCBaseTable.GetFields(): TCTableFields;
-begin
-  if (not SourceParsed and (Source <> '')) then
-    ParseCreateTable(Source);
-
-  Result := inherited GetFields();
-end;
-
-function TCBaseTable.GetIndexSize(): Int64;
-begin
-  Result := FIndexSize;
-end;
-
-function TCBaseTable.GetKeys(): TCKeys;
-begin
-  if (not SourceParsed and (Source <> '')) then
-    ParseCreateTable(Source);
-
-  Result := FKeys;
 end;
 
 function TCBaseTable.GetInServerCache(): Boolean;
@@ -3989,14 +3913,6 @@ end;
 function TCBaseTable.GetValid(): Boolean;
 begin
   Result := inherited and ValidStatus;
-end;
-
-function TCBaseTable.GetPartitions(): TCPartitions;
-begin
-  if (not SourceParsed and (Source <> '')) then
-    ParseCreateTable(Source);
-
-  Result := FPartitions;
 end;
 
 function TCBaseTable.GetPrimaryKey(): TCKey;
@@ -4181,6 +4097,7 @@ procedure TCBaseTable.ParseCreateTable(const SQL: string);
 var
   DeleteList: TList;
   FieldName: string;
+  FirstParse: Boolean;
   Fulltext: Boolean;
   I: Integer;
   Index: Integer;
@@ -4201,6 +4118,8 @@ var
 begin
   if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Client.ServerVersion)) then
   begin
+    FirstParse := FFields.Count = 0;
+
     if (not SQLParseKeyword(Parse, 'CREATE')) then
       raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 6, SQL]);
 
@@ -4313,7 +4232,7 @@ begin
           SQLParseValue(Parse);
       end;
 
-      if (Moved) then
+      if (Moved and not FirstParse) then
       begin
         Client.ExecuteEvent(ceItemDropped, Self, FFields, NewField);
         Client.ExecuteEvent(ceItemCreated, Self, FFields, NewField);
@@ -4726,6 +4645,9 @@ end;
 procedure TCBaseTable.SetSource(const ADataSet: TMySQLQuery);
 begin
   SetSource(ADataSet.FieldByName('Create Table'));
+
+  if (Source <> '') then
+    ParseCreateTable(Source);
 end;
 
 function TCBaseTable.SQLGetSource(): string;
