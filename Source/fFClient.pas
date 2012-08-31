@@ -677,6 +677,7 @@ type
     procedure TreeViewMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure ToolBarResize(Sender: TObject);
+    procedure FSQLEditorCompletionChange(Sender: TObject; AIndex: Integer);
   type
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
     TTabState = set of (tsLoading, tsActive);
@@ -866,6 +867,7 @@ type
     FHTML: TWebBrowser;
     FilterMRU: TMRUList;
     FNavigatorMenuNode: TTreeNode;
+    FNavigatorNodeAfterActivate: TTreeNode;
     FNavigatorNodeToExpand: TTreeNode;
     FrameState: TTabState;
     FSQLEditorCompletionTimerCounter: Integer;
@@ -4986,6 +4988,9 @@ begin
     else if (Window.ActiveControl is TSynMemo) then SynMemoEnter(nil)
     else if (Window.ActiveControl = ActiveDBGrid) then DBGridEnter(ActiveDBGrid);
 
+    if (Assigned(FNavigatorNodeAfterActivate)) then
+      FNavigatorChange2(FNavigator, FNavigatorNodeAfterActivate);
+
     if (Assigned(FFolders) and (Path <> FFolders.SelectedFolder)) then
       FFolders.SelectedFolder := Path;
   end;
@@ -5289,6 +5294,7 @@ begin
     else
       ListViewSortData[Kind].Order := 1;
   end;
+  FNavigatorNodeAfterActivate := nil;
   FNavigatorNodeToExpand := nil;
   PanelMouseDownPoint := Point(-1, -1);
 
@@ -6472,7 +6478,8 @@ begin
     DBGrid := TMySQLDBGrid(Sender);
 
     try
-      DBGrid.DataSource.DataSet.CheckBrowseMode();
+      if (Assigned(Window.ActiveControl) and (Window.ActiveControl.Parent <> PBlob)) then
+        DBGrid.DataSource.DataSet.CheckBrowseMode();
       Cancel := False;
     except
       Cancel := True;
@@ -7542,6 +7549,7 @@ end;
 procedure TFClient.FNavigatorChange2(Sender: TObject; Node: TTreeNode);
 begin
   KillTimer(Handle, tiNavigator);
+  FNavigatorNodeAfterActivate := nil;
 
   if (Assigned(Node)) then
     Address := NavigatorNodeToAddress(Node)
@@ -8645,6 +8653,11 @@ begin
   FRTF.SelectAll();
 
   FRTF.OnChange := TempFRTFOnChange;
+end;
+
+procedure TFClient.FSQLEditorCompletionChange(Sender: TObject; AIndex: Integer);
+begin
+  FSQLEditorCompletionTimerCounter := 0;
 end;
 
 procedure TFClient.FSQLEditorCompletionClose(Sender: TObject);
@@ -14247,15 +14260,23 @@ end;
 
 procedure TFClient.WMTimer(var Message: TWMTimer);
 begin
-  KillTimer(Handle, Message.TimerID);
   case (Message.TimerID) of
     tiNavigator:
-      FNavigatorChange2(FNavigator, FNavigator.Selected);
+      begin
+        KillTimer(Handle, Message.TimerID);
+        if (Window.Active) then
+          FNavigatorChange2(FNavigator, FNavigator.Selected)
+        else
+          FNavigatorNodeAfterActivate := FNavigator.Selected;
+      end;
     tiStatusBar:
       begin
+        KillTimer(Handle, Message.TimerID);
         StatusBar.Panels[sbMessage].Text := '';
         StatusBarRefresh();
       end;
+    tiCodeCompletion:
+      FSQLEditorCompletionTimerTimer(Self);
   end;
 end;
 

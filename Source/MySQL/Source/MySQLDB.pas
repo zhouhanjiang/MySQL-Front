@@ -2204,6 +2204,7 @@ begin
   while (DataSetCount > 0) do
     DataSets[0].Free();
 
+  TerminateCS.Enter();
   if (Assigned(SynchroThread)) then
   begin
     SynchroThread.FreeOnTerminate := False;
@@ -2212,6 +2213,7 @@ begin
     SynchroThread.Free();
   end;
   TerminatedThreads.Free();
+  TerminateCS.Leave();
 
   ExecuteSQLDone.Free();
   TerminateCS.Free();
@@ -3521,6 +3523,8 @@ begin
 
   if (Assigned(SynchroThread)) then
   begin
+    if (SynchroThread.Terminated) then
+      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['SynchroThread.Terminated']);
     if (SynchroThread.IsRunning) then
     begin
       S := '----> Connection Terminated <----';

@@ -1917,14 +1917,15 @@ object FClient: TFClient
     TitleFont.Name = 'MS Sans Serif'
     TitleFont.Style = [fsBold]
     Columns = <>
+    OnChange = FSQLEditorCompletionChange
     OnClose = FSQLEditorCompletionClose
     OnExecute = FSQLEditorCompletionExecute
     OnPaintItem = FSQLEditorCompletionPaintItem
     OnShow = FSQLEditorCompletionShow
     ShortCut = 16416
     Editor = FSQLEditorSynMemo
-    Left = 337
-    Top = 256
+    Left = 257
+    Top = 208
   end
   object MGridHeader: TPopupMenu
     OnPopup = MGridHeaderPopup
