@@ -164,6 +164,7 @@ type
       TMode = (smSQL, smDataHandle, smDataSet);
       TState = (ssClose, ssConnecting, ssReady, ssExecutingSQL, ssResult, ssReceivingResult, ssNextResult, ssCancel, ssDisconnecting, ssError);
     private
+      Nils: Integer;
       Destroyed: Boolean;
       Done: TEvent;
       FConnection: TMySQLConnection;
@@ -1809,9 +1810,12 @@ end;
 
 constructor TMySQLConnection.TSynchroThread.Create(const AConnection: TMySQLConnection);
 begin
+  Nils := 1;
   Assert(Assigned(AConnection));
 
+  Nils := 2;
   inherited Create(False);
+  Nils := 3;
 
   FConnection := AConnection;
 
@@ -1824,6 +1828,7 @@ begin
   State := ssClose;
 
   FreeOnTerminate := True;
+  Nils := 4;
 end;
 
 destructor TMySQLConnection.TSynchroThread.Destroy();
@@ -1844,8 +1849,10 @@ var
   WaitResult: TWaitResult;
   SynchronizeRequestSent: Boolean;
 begin
+  Nils := 5;
   while (not Terminated) do
   begin
+    Nils := 6;
     if ((Connection.ServerTimeout = 0) or (Connection.LibraryType = ltHTTP)) then
       Timeout := INFINITE
     else
@@ -1887,13 +1894,14 @@ begin
       end;
   end;
 
+  Nils := 7;
   Connection.TerminatedThreads.Delete(Self);
 end;
 
 function TMySQLConnection.TSynchroThread.GetIsRunning(): Boolean;
 begin
   if (not Terminated and Destroyed) then
-    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Destroyed']);
+    raise ERangeError.CreateFmt(SPropertyOutOfRange + ' (Nils: %d)', ['Destroyed', Nils]);
   if (not Terminated and not Assigned(RunExecute)) then
     raise ERangeError.CreateFmt(SPropertyOutOfRange, ['RunExecute']);
   Result := not Terminated and ((RunExecute.WaitFor(IGNORE) = wrSignaled) or not (State in [ssClose, ssReady]));
