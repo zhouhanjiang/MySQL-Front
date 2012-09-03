@@ -164,8 +164,6 @@ type
       TMode = (smSQL, smDataHandle, smDataSet);
       TState = (ssClose, ssConnecting, ssReady, ssExecutingSQL, ssResult, ssReceivingResult, ssNextResult, ssCancel, ssDisconnecting, ssError);
     private
-      Nils: Integer;
-      Destroyed: Boolean;
       Done: TEvent;
       FConnection: TMySQLConnection;
       RunExecute: TEvent;
@@ -787,6 +785,9 @@ implementation {***************************************************************}
 uses
   DBConsts, Forms, Variants, DateUtils, Registry, ActiveX,
   RTLConsts, Consts, SysConst, Masks, Controls, Math, StrUtils,
+  {$IFDEF EurekaLog}
+  ExceptionLog,
+  {$ENDIF}
   MySQLClient,
   CSVUtils, SQLUtils, HTTPTunnel;
 
@@ -1810,16 +1811,12 @@ end;
 
 constructor TMySQLConnection.TSynchroThread.Create(const AConnection: TMySQLConnection);
 begin
-  Nils := 1;
   Assert(Assigned(AConnection));
 
-  Nils := 2;
   inherited Create(False);
-  Nils := 3;
 
   FConnection := AConnection;
 
-  Destroyed := False;
   RunExecute := TEvent.Create(nil, True, False, '');
   SynchronizeStarted := TEvent.Create(nil, False, False, '');
   SQLStmtLengths := TList.Create();
@@ -1828,14 +1825,10 @@ begin
   State := ssClose;
 
   FreeOnTerminate := True;
-  Nils := 4;
 end;
 
 destructor TMySQLConnection.TSynchroThread.Destroy();
 begin
-  if (Nils <> 7) then
-    raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %d', ['Nils', Nils]);
-  Destroyed := True;
   RunExecute.Free(); RunExecute := nil;
   SynchronizeStarted.Free();
   SQLStmtLengths.Free();
@@ -1851,12 +1844,13 @@ var
   WaitResult: TWaitResult;
   SynchronizeRequestSent: Boolean;
 begin
-  if (Destroyed) then
-    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Destroyed']);
-  Nils := 5;
+  {$IFDEF EurekaLog}
+  // SetEurekaLogInThread(ThreadId, True); Does not work in EurekaLog 6.1.05
+  try
+  {$ENDIF}
+
   while (not Terminated) do
   begin
-    Nils := 6;
     if ((Connection.ServerTimeout = 0) or (Connection.LibraryType = ltHTTP)) then
       Timeout := INFINITE
     else
@@ -1898,19 +1892,17 @@ begin
       end;
   end;
 
-  Nils := 7;
   Connection.TerminatedThreads.Delete(Self);
 
-  if (not Terminated) then
-    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Terminated']);
+  {$IFDEF EurekaLog}
+  except
+    StandardEurekaNotify(GetLastExceptionObject(), GetLastExceptionAddress());
+  end;
+  {$ENDIF}
 end;
 
 function TMySQLConnection.TSynchroThread.GetIsRunning(): Boolean;
 begin
-  if (not Terminated and Destroyed) then
-    raise ERangeError.CreateFmt(SPropertyOutOfRange + ' (Nils: %d)', ['Destroyed', Nils]);
-  if (not Terminated and not Assigned(RunExecute)) then
-    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['RunExecute']);
   Result := not Terminated and ((RunExecute.WaitFor(IGNORE) = wrSignaled) or not (State in [ssClose, ssReady]));
 end;
 
@@ -2035,9 +2027,6 @@ procedure TMySQLConnection.TSynchroThread.Terminate();
 var
   Index: Integer;
 begin
-  if (Terminated) then
-    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Terminated']);
-
   SynchronizingThreadsCS.Enter();
   Index := SynchronizingThreads.IndexOf(Self);
   if (Index >= 0) then
@@ -3538,8 +3527,6 @@ begin
 
   if (Assigned(SynchroThread)) then
   begin
-    if (SynchroThread.Terminated) then
-      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['SynchroThread.Terminated']);
     if (SynchroThread.IsRunning) then
     begin
       S := '----> Connection Terminated <----';
@@ -4249,8 +4236,6 @@ procedure TMySQLQuery.InternalClose();
 begin
   if (Assigned(SynchroThread)) then
   begin
-    if (not Assigned(SynchroThread)) then
-      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['SynchroThread']);
     SynchroThread.ReleaseDataSet();
     SynchroThread := nil;
   end;
@@ -5528,8 +5513,6 @@ begin
   if (Assigned(SynchroThread)) then
   begin
     Connection.Terminate();
-    if (not Assigned(SynchroThread)) then
-      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['SynchroThread']);
     SynchroThread.ReleaseDataSet();
     SynchroThread := nil;
   end;
