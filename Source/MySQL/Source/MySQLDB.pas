@@ -1896,6 +1896,9 @@ begin
 
   Nils := 7;
   Connection.TerminatedThreads.Delete(Self);
+
+  if (not Terminated) then
+    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Terminated']);
 end;
 
 function TMySQLConnection.TSynchroThread.GetIsRunning(): Boolean;

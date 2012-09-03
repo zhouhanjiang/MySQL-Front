@@ -1156,7 +1156,7 @@ begin
       if (Action is TEditCut) then
         TEditCut(Action).Enabled := Assigned(SelectedField) and not SelectedField.IsNull and not SelectedField.Required and SelectedField.CanModify and (not EditorMode or Assigned(InplaceEditor) and (InplaceEditor.SelText <> ''))
       else if (Action is TEditCopy) then
-        TEditCopy(Action).Enabled := EditorMode and Assigned(InplaceEditor) and (InplaceEditor.SelText <> '') or not EditorMode and (not SelectedRows.CurrentRowSelected and Assigned(SelectedField) and not SelectedField.IsNull or SelectedRows.CurrentRowSelected and (DataLink.DataSet is TMySQLDataSet) and (DataLink.DataSet.State <> dsInsert))
+        TEditCopy(Action).Enabled := EditorMode and Assigned(InplaceEditor) and (InplaceEditor.SelText <> '') or not EditorMode and (not SelectedRows.CurrentRowSelected and Assigned(SelectedField) and not SelectedField.IsNull or SelectedRows.CurrentRowSelected and (DataSource.DataSet is TMySQLDataSet) and (DataSource.DataSet.State <> dsInsert))
       else if (Action is TEditPaste) then
         TEditPaste(Action).Enabled := Assigned(SelectedField) and not ReadOnly and SelectedField.CanModify and (EditorMode and Clipboard.HasFormat(CF_UNICODETEXT) or not EditorMode and Clipboard.HasFormat(CF_UNICODETEXT))
       else if (Action is TEditDelete) then
@@ -1260,7 +1260,9 @@ begin
             CDDS_PREPAINT:
               Message.Result := CDRF_NOTIFYITEMDRAW;
             CDDS_ITEMPREPAINT:
-              if (Columns[HDCustomDraw^.dwItemSpec].Field.IsIndexField
+              if (Integer(HDCustomDraw^.dwItemSpec) >= Columns.Count) then
+                inherited
+              else if (Columns[HDCustomDraw^.dwItemSpec].Field.IsIndexField
                 and (Assigned(TitleBoldFont) or (GetObject(TitleFont.Handle, SizeOf(LogFont), @LogFont) <> 0))) then
               begin
                 if (not Assigned(TitleBoldFont)) then

@@ -1559,17 +1559,17 @@ begin
 
   DBGrid.ReadOnly := Table is TCSystemView;
 
+  DBGrid.Columns.BeginUpdate();
   for I := 0 to DBGrid.Columns.Count - 1 do
     if (GetFieldInfo(DBGrid.Columns[I].Field.Origin, FieldInfo)) then
     begin
       Child := XMLNode(GridXML[FieldInfo.OriginalFieldName], 'width');
       if (Assigned(Child) and TryStrToInt(Child.Text, Width) and (Width > 10)) then
-      begin
-        if ((Width > Preferences.GridMaxColumnWidth) and not (DBGrid.Columns[I].Field.DataType in [ftSmallint, ftInteger, ftLargeint, ftWord, ftFloat, ftDate, ftDateTime, ftTime, ftCurrency])) then
-          Width := Preferences.GridMaxColumnWidth;
         DBGrid.Columns[I].Width := Width;
-      end;
+      if ((DBGrid.Columns[I].Width > Preferences.GridMaxColumnWidth) and not (DBGrid.Columns[I].Field.DataType in [ftSmallint, ftInteger, ftLargeint, ftWord, ftFloat, ftDate, ftDateTime, ftTime, ftCurrency])) then
+        DBGrid.Columns[I].Width := Preferences.GridMaxColumnWidth;
     end;
+  DBGrid.Columns.EndUpdate();
 
   if (Table.DataSet.FilterSQL <> '') then
     AddFilter(Table.DataSet.FilterSQL);
@@ -6736,7 +6736,7 @@ begin
   for I := 0 to DBGrid.Columns.Count - 1 do
     if (Assigned(DBGrid.Columns[I].Field)) then
     begin
-      if (DBGrid.Columns[I].Width > Preferences.GridMaxColumnWidth) then
+      if ((DBGrid.Columns[I].Width > Preferences.GridMaxColumnWidth) and not (DBGrid.Columns[I].Field.DataType in [ftSmallint, ftInteger, ftLargeint, ftWord, ftFloat, ftDate, ftDateTime, ftTime, ftCurrency])) then
         DBGrid.Columns[I].Width := Preferences.GridMaxColumnWidth;
 
       DBGrid.Columns[I].Field.OnSetText := FieldSetText;
@@ -9225,9 +9225,13 @@ begin
     FObjectIDEGrid.DataSource.Enabled := True;
 
   if (Assigned(FObjectIDEGrid.DataSource.DataSet)) then
-    for I := 0 to FObjectIDEGrid.DataSource.DataSet.FieldCount - 1 do
+  begin
+    FObjectIDEGrid.Columns.BeginUpdate();
+    for I := 0 to FObjectIDEGrid.Columns.Count - 1 do
       if ((FObjectIDEGrid.Columns[I].Width > Preferences.GridMaxColumnWidth) and not (FObjectIDEGrid.Columns[I].Field.DataType in [ftSmallint, ftInteger, ftLargeint, ftWord, ftFloat, ftDate, ftDateTime, ftTime, ftCurrency])) then
         FObjectIDEGrid.Columns[I].Width := Preferences.GridMaxColumnWidth;
+    FObjectIDEGrid.Columns.EndUpdate();
+  end;
 
   if (Assigned(FObjectIDEGrid.DataSource.DataSet) and not FObjectIDEGrid.DataSource.Enabled) then
     DBGridColEnter(FObjectIDEGrid);

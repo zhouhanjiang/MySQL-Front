@@ -1773,7 +1773,9 @@ begin
 
   FBaseTable := ABaseTable;
 
-  Hint := BaseTable.Comment;
+  if (Assigned(BaseTable)) then
+
+    Hint := BaseTable.Comment;
 
   FDoubleBuffered := True;
   SetLength(FLinkPoints, 0);

@@ -7197,24 +7197,36 @@ begin
   begin
     for I := 0 to Length(Pages) - 1 do
     begin
-      Printer.Canvas.Draw(0, 0, Pages[I]);
+{$IFDEF Debug}
+      DeleteFile('C:\Debug_' + IntToStr(Printer.PageNumber) + '.bmp');
+      Pages[I].SaveToFile('C:\Debug_' + IntToStr(Printer.PageNumber) + '.bmp');
+{$ENDIF}
+
+      if (Success = daSuccess) then
+        Printer.Canvas.Draw(0, 0, Pages[I]);
       Pages[I].Free();
 
-      Printer.NewPage();
+      if (Success = daSuccess) then
+        Printer.NewPage();
     end;
     SetLength(Pages, 0);
   end;
 
-  SetLength(Pages, Length(Pages) + 1);
-  Pages[Length(Pages) - 1] := TBitmap.Create();
-  Pages[Length(Pages) - 1].Monochrome := True;
-  Pages[Length(Pages) - 1].SetSize(PageWidth, PageHeight);
-  Canvas := Pages[Length(Pages) - 1].Canvas;
-
-  if (GetDeviceCaps(Printer.Handle, LOGPIXELSY) <> Canvas.Font.PixelsPerInch) then
+  if (Success <> daSuccess) then
+    Canvas := nil
+  else
   begin
-    Canvas.Font.PixelsPerInch := GetDeviceCaps(Printer.Handle, LOGPIXELSY);
-    Canvas.Font.Size := Printer.Canvas.Font.Size;
+    SetLength(Pages, Length(Pages) + 1);
+    Pages[Length(Pages) - 1] := TBitmap.Create();
+    Pages[Length(Pages) - 1].Monochrome := True;
+    Pages[Length(Pages) - 1].SetSize(PageWidth, PageHeight);
+    Canvas := Pages[Length(Pages) - 1].Canvas;
+
+    if (GetDeviceCaps(Printer.Handle, LOGPIXELSY) <> Canvas.Font.PixelsPerInch) then
+    begin
+      Canvas.Font.PixelsPerInch := GetDeviceCaps(Printer.Handle, LOGPIXELSY);
+      Canvas.Font.Size := Printer.Canvas.Font.Size;
+    end;
   end;
 end;
 
@@ -7236,6 +7248,7 @@ begin
   LineHeight := Round(GetDeviceCaps(Printer.Handle, LOGPIXELSY) * LineHeightMilliInch / 1000);
 
   SetLength(Pages, 0);
+  Success := daSuccess;
   AddPage(False);
 
   inherited Create(AClient);
@@ -7250,6 +7263,10 @@ begin
 
   for I := 0 to Length(Pages) - 1 do
   begin
+{$IFDEF Debug}
+    DeleteFile('C:\Debug_' + IntToStr(Printer.PageNumber) + '.bmp');
+    Pages[I].SaveToFile('C:\Debug_' + IntToStr(Printer.PageNumber) + '.bmp');
+{$ENDIF}
     if (Success = daSuccess) then
       Printer.Canvas.Draw(0, 0, Pages[I]);
     Pages[I].Free();
