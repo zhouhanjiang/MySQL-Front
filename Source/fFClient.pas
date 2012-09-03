@@ -1687,7 +1687,7 @@ end;
 
 function TFClient.TTableDesktop.GetLimit(): Integer;
 begin
-  if ((Table is TCBaseTable) and (TCBaseTable(Table).AvgRowLength > 0)) then
+  if ((Table is TCBaseTable) and TCBaseTable(Table).ValidStatus and (TCBaseTable(Table).AvgRowLength > 0)) then
   begin
     Result := DefaultLimitSize div TCBaseTable(Table).AvgRowLength;
     if (Result < 2 * DefaultLimit) then
@@ -1708,7 +1708,7 @@ function TFClient.TTableDesktop.GetLimited(): Boolean;
 begin
   Result := True;
   if ((Table is TCBaseTable) and TCBaseTable(Table).ValidStatus) then
-    Result := (TCBaseTable(Table).Rows > 2 * DefaultLimit) and (DefaultLimitSize div TCBaseTable(Table).AvgRowLength < 2 * DefaultLimit)
+    Result := TCBaseTable(Table).Rows >= Limit
   else if (Assigned(XML) and Assigned(XMLNode(XML, 'limit'))) then
     TryStrToBool(XMLNode(XML, 'limit').Attributes['used'], Result);
 end;

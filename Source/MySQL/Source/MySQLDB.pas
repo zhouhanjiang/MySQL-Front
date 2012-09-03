@@ -1833,6 +1833,8 @@ end;
 
 destructor TMySQLConnection.TSynchroThread.Destroy();
 begin
+  if (Nils <> 7) then
+    raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %d', ['Nils', Nils]);
   Destroyed := True;
   RunExecute.Free(); RunExecute := nil;
   SynchronizeStarted.Free();
@@ -1849,6 +1851,8 @@ var
   WaitResult: TWaitResult;
   SynchronizeRequestSent: Boolean;
 begin
+  if (Destroyed) then
+    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Destroyed']);
   Nils := 5;
   while (not Terminated) do
   begin

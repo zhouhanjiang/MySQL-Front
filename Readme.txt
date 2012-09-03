@@ -17,6 +17,9 @@ http://www.regular-expressions.info/delphi.html
 DISQLite3:
 http://www.yunqa.de/delphi/doku.php/products/sqlite3/
 
+Synopse PDF:
+http://synopse.info/fossil/wiki?name=PDF+Engine
+
 Unicode SynEdit:
 http://synedit.svn.sourceforge.net/viewvc/synedit/
 
