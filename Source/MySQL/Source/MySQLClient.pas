@@ -2073,7 +2073,10 @@ begin
       if ((Direction = idRead) and (fserver_status and SERVER_MORE_RESULTS_EXISTS = 0) or (inherited next_result() <> 0) or (SetFilePointer(1, PACKET_CURRENT) < 0)) then
       begin
         if (errno() = 0) then
-          Seterror(CR_UNKNOWN_ERROR);
+          if ((Direction = idRead) and (fserver_status and SERVER_MORE_RESULTS_EXISTS = 0)) then
+            Seterror(CR_UNKNOWN_ERROR)
+          else
+            Seterror(CR_UNKNOWN_ERROR);
         Result := 1;
       end
       else if (GetFileSize() = 0) then

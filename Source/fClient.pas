@@ -8098,6 +8098,12 @@ begin
         Client.ServerTimeout := Client.VariableByName('wait_timeout').AsInteger - 3
       else if (Client.VariableByName('wait_timeout').AsInteger >= 2) then
         Client.ServerTimeout := Client.VariableByName('wait_timeout').AsInteger - 1;
+
+    if (Client.ServerVersion >= 40105) then // Debug for AnsiCharToWideChar LastError=1113 problem
+      if ((Client.Account.Connection.Charset = '') and (UpperCase(Client.VariableByName('character_set_client').Value) <> 'UTF8')) then
+        raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %s', ['character_set_client', Client.VariableByName('character_set_client').Value])
+      else if ((Client.Account.Connection.Charset = '') and (UpperCase(Client.VariableByName('character_set_connection').Value) <> 'UTF8')) then
+        raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %s', ['character_set_connection', Client.VariableByName('character_set_connection').Value]);
   end;
 
   Result := inherited;

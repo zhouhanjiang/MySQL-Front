@@ -1253,7 +1253,8 @@ begin
   else
   begin
     Result := MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, lpMultiByteStr, cchMultiByte, lpWideCharStr, cchWideChar);
-    if (Result = 0) then RaiseLastOSError();
+    if (Result = 0) then
+      raise EOSError.CreateFmt(SOSError + ' (CodePage: %d)', [GetLastError(), SysErrorMessage(GetLastError()), CodePage]);
   end;
 end;
 
@@ -4042,7 +4043,12 @@ begin
         WideCharToAnsiChar(Connection.CodePage, PChar(Source), -1, PAnsiChar(Dest), Field.DataSize)
       else
       begin
-        Len := AnsiCharToWideChar(Connection.CodePage, PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], nil, 0);
+        try
+          Len := AnsiCharToWideChar(Connection.CodePage, PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], nil, 0);
+        except
+          on E: Exception do
+            raise Exception.Create(E.Message + ' (Charset: ' + Connection.Charset + ')');
+        end;
         if (Len > Field.DataSize) then DatabaseErrorFmt(SInvalidFieldSize + ' (%s)', [Field.DisplayName]);
         AnsiCharToWideChar(Connection.CodePage, PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], PChar(Dest), Field.DataSize);
         PChar(Dest)[Len] := #0;
