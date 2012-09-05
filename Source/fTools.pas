@@ -5907,10 +5907,13 @@ begin
             end;
           end;
         ftWideString:
-          if (Fields[I].Size < 256) then
-            Parameter[I].Size := AnsiCharToWideChar(Client.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], Parameter[I].Buffer, Parameter[I].BufferSize div SizeOf(Char)) * SizeOf(Char)
-          else
-            Parameter[I].Size := SQL_LEN_DATA_AT_EXEC(AnsiCharToWideChar(Client.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], nil, 0) * SizeOf(Char));
+          begin
+            Size := AnsiCharToWideChar(Client.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], nil, 0) * SizeOf(Char);
+            if (Size <= Parameter[I].BufferSize) then
+              Parameter[I].Size := AnsiCharToWideChar(Client.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], Parameter[I].Buffer, Parameter[I].BufferSize div SizeOf(Char)) * SizeOf(Char)
+            else
+              Parameter[I].Size := SQL_LEN_DATA_AT_EXEC(Size * SizeOf(Char));
+          end;
         ftWideMemo:
           Parameter[I].Size := SQL_LEN_DATA_AT_EXEC(AnsiCharToWideChar(Client.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], nil, 0) * SizeOf(Char));
         ftBlob:
@@ -5941,7 +5944,9 @@ begin
             Size := -(Parameter[I].Size - SQL_LEN_DATA_AT_EXEC_OFFSET);
             S := DataSet.GetAsString(Fields[I].FieldNo);
             Index := 0;
-            if (Size > 0) then
+            if (Size = 0) then
+              ODBCException(Stmt, SQLPutData(Stmt, nil, 0))
+            else
               repeat
                 ODBCException(Stmt, SQLPutData(Stmt, @S[1 + Index div 2], Min(ODBCDataSize, Size - Index)));
                 Inc(Index, Min(ODBCDataSize, Size - Index));
@@ -5951,7 +5956,9 @@ begin
           begin
             Size := DataSet.LibLengths^[I];
             Index := 0;
-            if (Size > 0) then
+            if (Size = 0) then
+              ODBCException(Stmt, SQLPutData(Stmt, nil, 0))
+            else
               repeat
                 ODBCException(Stmt, SQLPutData(Stmt, @DataSet.LibRow^[Fields[I].FieldNo - 1][Index], Min(ODBCDataSize, Size - Index)));
                 Inc(Index, Min(ODBCDataSize, Size - Index));
