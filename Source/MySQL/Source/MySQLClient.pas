@@ -1703,18 +1703,15 @@ begin
       if ((DistanceToMove < 1) or ((errno() <> 0) and (errno() <> CR_SERVER_GONE_ERROR))) then
         Result := -1
       else
+      begin
         Result := 0;
-      for I := 0 to DistanceToMove - 1 do
-        if (Result = 0) then
-          if (not ReceivePacket()) then
-            Result := -1
-          else if (FReadFileBuffer.Size = 0) then
+        for I := 0 to DistanceToMove - 1 do
+          if ((Result = 0) and (not ReceivePacket() or (FReadFileBuffer.Size = 0))) then
           begin
             Seterror(CR_SERVER_LOST);
             Result := -1;
-          end
-          else
-            Result := 0;
+          end;
+      end;
     end
     else if ((errno() <> 0) and (errno() <> CR_SERVER_GONE_ERROR)) then
       Result := -1

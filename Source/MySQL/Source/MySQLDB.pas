@@ -164,6 +164,7 @@ type
       TMode = (smSQL, smDataHandle, smDataSet);
       TState = (ssClose, ssConnecting, ssReady, ssExecutingSQL, ssResult, ssReceivingResult, ssNextResult, ssCancel, ssDisconnecting, ssError);
     private
+      Destroyed: Boolean;
       Done: TEvent;
       FConnection: TMySQLConnection;
       RunExecute: TEvent;
@@ -1812,6 +1813,8 @@ end;
 
 constructor TMySQLConnection.TSynchroThread.Create(const AConnection: TMySQLConnection);
 begin
+  Destroyed := False;
+
   Assert(Assigned(AConnection));
 
   inherited Create(False);
@@ -1830,6 +1833,8 @@ end;
 
 destructor TMySQLConnection.TSynchroThread.Destroy();
 begin
+  Destroyed := False;
+
   RunExecute.Free(); RunExecute := nil;
   SynchronizeStarted.Free();
   SQLStmtLengths.Free();
@@ -2028,6 +2033,11 @@ procedure TMySQLConnection.TSynchroThread.Terminate();
 var
   Index: Integer;
 begin
+  if (Terminated) then
+    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Terminated']);
+  if (Destroyed) then
+    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Destroyed']);
+
   SynchronizingThreadsCS.Enter();
   Index := SynchronizingThreads.IndexOf(Self);
   if (Index >= 0) then
@@ -2312,7 +2322,11 @@ end;
 
 function TMySQLConnection.ErrorMsg(const AHandle: MySQLConsts.MYSQL): string;
 begin
+try
   Result := LibDecode(my_char(SQLUnescape(Lib.mysql_error(AHandle), False)));
+except
+  raise EDatabaseError.Create(string(Lib.mysql_error(AHandle)));
+end;
 end;
 
 function TMySQLConnection.EscapeIdentifier(const Identifier: string): string;
