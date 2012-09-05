@@ -5294,6 +5294,7 @@ begin
     else
       ListViewSortData[Kind].Order := 1;
   end;
+  ListViewSortData[lkProcesses].Index := 6;
   FNavigatorNodeAfterActivate := nil;
   FNavigatorNodeToExpand := nil;
   PanelMouseDownPoint := Point(-1, -1);
@@ -9695,6 +9696,8 @@ begin
     Compare := Sign(Pos(Chr(Item1.ImageIndex), ImageIndexSort) - Pos(Chr(Item2.ImageIndex), ImageIndexSort))
   else if (SortRec^.Order = 0) then
     Compare := Sign(TCItem(Item1.Data).Index - TCItem(Item2.Data).Index)
+  else if ((TObject(Item1.Data) is TCProcess) and (SortRec^.Index = 6)) then
+    Compare := Sign(Double(TCProcess(Item1.Data).Time) - Double(TCProcess(Item2.Data).Time))
   else
   begin
     if ((SortRec^.Index = 0) or (SortRec^.Index > Item1.SubItems.Count) or (SortRec^.Index > Item2.SubItems.Count)) then
@@ -9797,9 +9800,10 @@ begin
       Compare := Sign(lstrcmpi(PChar(Item1.Caption), PChar(Item2.Caption)));
     if (Compare = 0) then
       Compare := Sign(lstrcmp(PChar(Item1.Caption), PChar(Item2.Caption)));
-
-    Compare := ListViewSortData[SortRec^.Kind].Order * Compare;
   end;
+
+  if (ListViewSortData[SortRec^.Kind].Order <> 0) then
+    Compare := ListViewSortData[SortRec^.Kind].Order * Compare;
 end;
 
 procedure TFClient.ListViewDblClick(Sender: TObject);
@@ -10596,7 +10600,7 @@ procedure TFClient.ListViewUpdate(const ClientEvent: TCClient.TEvent; const List
       Item.SubItems.Add(TCProcess(Data).Command);
       Item.SubItems.Add(SQLStmtToCaption(TCProcess(Data).SQL, 30));
       if (TCProcess(Data).Time = 0) then
-        Item.SubItems.Add('???')
+        Item.SubItems.Add('')
       else
         Item.SubItems.Add(ExecutionTimeToStr(TCProcess(Data).Time));
       Item.SubItems.Add(TCProcess(Data).State);
@@ -10749,7 +10753,7 @@ procedure TFClient.ListViewUpdate(const ClientEvent: TCClient.TEvent; const List
             if ((ListView.Items[I].GroupID = GroupID) and (CItems.IndexOf(ListView.Items[I].Data) < 0)) then
               ListView.Items.Delete(I);
 
-          Add := ListView.Items.Count = 0;
+          Add := (ListView.Items.Count = 0) and (ListViewSortData[Kind].Index = 0) and (ListViewSortData[Kind].Order = 1);
           for I := 0 to CItems.Count - 1 do
             if (not (CItems is TCTriggers) or (TCTriggers(CItems)[I].Table = ClientEvent.Sender)) then
               if (not Add) then

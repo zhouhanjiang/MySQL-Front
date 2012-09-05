@@ -5383,21 +5383,12 @@ end;
 
 procedure TMySQLDataSet.InternalGotoBookmark(Bookmark: Pointer);
 var
-  I: Integer;
-  NewInternBuffersIndex: Integer;
+  Index: Integer;
 begin
-  NewInternBuffersIndex := -1;
+  Index := InternRecordBuffers.IndexOf(PPointer(@TBookmark(Bookmark)[0])^);
 
-  I := 0;
-  while ((NewInternBuffersIndex < 0) and (I < InternRecordBuffers.Count)) do
-  begin
-    if (PPointer(@TBookmark(Bookmark)[0])^ = InternRecordBuffers[I]) then
-      NewInternBuffersIndex := I;
-    Inc(I);
-  end;
-
-  if (NewInternBuffersIndex >= 0) then
-    InternRecordBuffers.Index := NewInternBuffersIndex;
+  if (Index >= 0) then
+    InternRecordBuffers.Index := Index;
 end;
 
 procedure TMySQLDataSet.InternalInitRecord(Buffer: TRecordBuffer);
@@ -5696,7 +5687,8 @@ procedure TMySQLDataSet.Resync(Mode: TResyncMode);
 begin
   // Why is this needed in Delphi XE2? Without this, Buffers are not reinitialized well.
   if ((InternRecordBuffers.Index >= 0) and (PExternRecordBuffer(ActiveBuffer())^.Index >= 0)
-    and Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
+    and Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
+    and (Mode = [])) then
     InternRecordBuffers.Index := PExternRecordBuffer(ActiveBuffer())^.Index;
 
   inherited;
