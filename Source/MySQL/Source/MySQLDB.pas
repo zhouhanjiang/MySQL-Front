@@ -164,6 +164,7 @@ type
       TMode = (smSQL, smDataHandle, smDataSet);
       TState = (ssClose, ssConnecting, ssReady, ssExecutingSQL, ssResult, ssReceivingResult, ssNextResult, ssCancel, ssDisconnecting, ssError);
     private
+      Nils: Integer;
       Destroyed: Boolean;
       Done: TEvent;
       FConnection: TMySQLConnection;
@@ -1813,6 +1814,7 @@ end;
 
 constructor TMySQLConnection.TSynchroThread.Create(const AConnection: TMySQLConnection);
 begin
+  Nils := 0;
   Destroyed := False;
 
   Assert(Assigned(AConnection));
@@ -1829,6 +1831,7 @@ begin
   State := ssClose;
 
   FreeOnTerminate := True;
+  Nils := 1;
 end;
 
 destructor TMySQLConnection.TSynchroThread.Destroy();
@@ -1850,13 +1853,16 @@ var
   WaitResult: TWaitResult;
   SynchronizeRequestSent: Boolean;
 begin
+  Nils := 2;
   {$IFDEF EurekaLog}
   // SetEurekaLogInThread(ThreadId, True); Does not work in EurekaLog 6.1.05
   try
   {$ENDIF}
 
+  Nils := 3;
   while (not Terminated) do
   begin
+    Nils := 4;
     if ((Connection.ServerTimeout = 0) or (Connection.LibraryType = ltHTTP)) then
       Timeout := INFINITE
     else
@@ -1896,7 +1902,9 @@ begin
         if (SynchronizeRequestSent) then
           SynchronizeStarted.WaitFor(INFINITE);
       end;
+    Nils := 5;
   end;
+  Nils := 6;
 
   Connection.TerminatedThreads.Delete(Self);
 
@@ -1905,6 +1913,7 @@ begin
     StandardEurekaNotify(GetLastExceptionObject(), GetLastExceptionAddress());
   end;
   {$ENDIF}
+  Nils := 7;
 end;
 
 function TMySQLConnection.TSynchroThread.GetIsRunning(): Boolean;
@@ -2034,9 +2043,9 @@ var
   Index: Integer;
 begin
   if (Terminated) then
-    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Terminated']);
+    raise ERangeError.CreateFmt(SPropertyOutOfRange + '(Nils: %d)', ['Terminated', Nils]);
   if (Destroyed) then
-    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Destroyed']);
+    raise ERangeError.CreateFmt(SPropertyOutOfRange + '(Nils: %d)', ['Destroyed', Nils]);
 
   SynchronizingThreadsCS.Enter();
   Index := SynchronizingThreads.IndexOf(Self);

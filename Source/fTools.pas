@@ -5906,7 +5906,8 @@ begin
               MoveMemory(Parameter[I].Buffer, DataSet.LibRow^[I], Parameter[I].Size);
             end;
           end;
-        ftWideString:
+        ftWideString,
+        ftWideMemo:
           begin
             Size := AnsiCharToWideChar(Client.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], nil, 0) * SizeOf(Char);
             if (Size <= Parameter[I].BufferSize) then
@@ -5914,10 +5915,14 @@ begin
             else
               Parameter[I].Size := SQL_LEN_DATA_AT_EXEC(Size * SizeOf(Char));
           end;
-        ftWideMemo:
-          Parameter[I].Size := SQL_LEN_DATA_AT_EXEC(AnsiCharToWideChar(Client.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], nil, 0) * SizeOf(Char));
         ftBlob:
-          Parameter[I].Size := SQL_LEN_DATA_AT_EXEC(DataSet.LibLengths^[I]);
+          if (DataSet.LibLengths^[I] <= Parameter[I].BufferSize) then
+          begin
+            Parameter[I].Size := DataSet.LibLengths^[I];
+            MoveMemory(Parameter[I].Buffer, DataSet.LibRow^[I], Parameter[I].Size);
+          end
+          else
+            Parameter[I].Size := SQL_LEN_DATA_AT_EXEC(DataSet.LibLengths^[I]);
         else
           raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Fields[I].DisplayName, Ord(Fields[I].DataType)]);
       end;
@@ -5944,25 +5949,19 @@ begin
             Size := -(Parameter[I].Size - SQL_LEN_DATA_AT_EXEC_OFFSET);
             S := DataSet.GetAsString(Fields[I].FieldNo);
             Index := 0;
-            if (Size = 0) then
-              ODBCException(Stmt, SQLPutData(Stmt, nil, 0))
-            else
-              repeat
-                ODBCException(Stmt, SQLPutData(Stmt, @S[1 + Index div 2], Min(ODBCDataSize, Size - Index)));
-                Inc(Index, Min(ODBCDataSize, Size - Index));
-              until (Index = Size);
+            repeat
+              ODBCException(Stmt, SQLPutData(Stmt, @S[1 + Index div SizeOf(Char)], Min(ODBCDataSize, Size - Index)));
+              Inc(Index, Min(ODBCDataSize, Size - Index));
+            until (Index = Size);
           end;
         ftBlob:
           begin
             Size := DataSet.LibLengths^[I];
             Index := 0;
-            if (Size = 0) then
-              ODBCException(Stmt, SQLPutData(Stmt, nil, 0))
-            else
-              repeat
-                ODBCException(Stmt, SQLPutData(Stmt, @DataSet.LibRow^[Fields[I].FieldNo - 1][Index], Min(ODBCDataSize, Size - Index)));
-                Inc(Index, Min(ODBCDataSize, Size - Index));
-              until (Index = Size);
+            repeat
+              ODBCException(Stmt, SQLPutData(Stmt, @DataSet.LibRow^[Fields[I].FieldNo - 1][Index], Min(ODBCDataSize, Size - Index)));
+              Inc(Index, Min(ODBCDataSize, Size - Index));
+            until (Index = Size);
           end;
         else
           raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Fields[I].DisplayName, Ord(Fields[I].DataType)]);

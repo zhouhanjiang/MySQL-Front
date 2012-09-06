@@ -1628,7 +1628,7 @@ begin
   Result := IOType <> itNone;
 
   if (not Result) then
-    Seterror(CR_SERVER_LOST)
+    Seterror(CR_UNKNOWN_ERROR)
   else
   begin
     FillChar(FReadFileBuffer, SizeOf(FReadFileBuffer), #0);
@@ -1646,7 +1646,9 @@ begin
         Offset := PacketBuffer.Offset; if (Index > 0) then Inc(Offset,  NET_HEADER_SIZE + my_uint(Index) * MAX_PACKET_LENGTH);
       end;
 
-      if (Result) then
+      if (not Result) then
+        Seterror(CR_SERVER_LOST)
+      else
         if (Offset + NET_HEADER_SIZE > PacketBuffer.Size) then
           Size := 0
         else
