@@ -1817,6 +1817,7 @@ begin
 
   if (not Handled) then
   begin
+    Exception.BugReportHeader['date/time'];
     Exception.BugReportHeader['computer name'] := '';
     Exception.BugReportHeader['user name'] := '';
     Exception.BugReportHeader['registered owner'] := '';
@@ -1829,6 +1830,7 @@ begin
     Exception.BugReportHeader['compiled with'] := '';
     Exception.BugReportHeader['callstack crc'] := '';
     Exception.BugReportHeader['version'] := '';
+    Exception.BugReportHeader['madExcept version'];
 
     Exception.BugReportHeader['Version'] := SysUtils.LoadStr(1000) + ' ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor)
       + ' (' + Preferences.LoadStr(737) + ': ' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + ')';

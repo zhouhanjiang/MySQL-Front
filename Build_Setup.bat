@@ -9,7 +9,6 @@ SET BuildName=MySQL-Front
 SET BuildAWK=%ProgramFiles(x86)%\gawk\bin\gawk.exe
 SET BuildBRCC=%ProgramFiles(x86)%\Embarcadero\RAD Studio\9.0\bin\brcc32.exe
 SET BuildCompiler=%ProgramFiles(x86)%\Embarcadero\RAD Studio\9.0\bin\dcc32.exe
-SET BuildEurekaLog=%ProgramFiles(x86)%\Embarcadero\RAD Studio\9.0\bin\_ecc32.exe
 SET BuildmadExcept=%ProgramFiles(x86)%\madCollection\madExcept\Tools\madExceptPatch.exe
 SET BuildHelpMan=%ProgramFiles(x86)%\HelpandManual4\HelpMan.exe
 SET BuildInnoSetup=%ProgramFiles(x86)%\Inno Setup 5\iscc.exe
@@ -55,10 +54,8 @@ if Errorlevel 1 goto Error
 if Errorlevel 1 goto Error
 
 CD %BuildSourcePath%
-if exist "%BuildEurekaLog%" (
-  "%BuildEurekaLog%" /B --el_config"MySQLFront.eof" "MySQLFront.dpr"
-) else (
-  "%BuildCompiler%" /B "MySQLFront.dpr"
+"%BuildCompiler%" /B "MySQLFront.dpr"
+if exist "%BuildmadExcept%" (
   "%BuildmadExcept%" "%BuildTempPath%\MySQLFront.exe" "%BuildSourcePath%\MySQLFront.mes" "%BuildTempPath%\MySQLFront.map"
 )
 if Errorlevel 1 goto Error
