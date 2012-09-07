@@ -6,9 +6,6 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, ActnList, ComCtrls, DBActns, ExtCtrls, ImgList, Menus, StdActns,
   ActnCtrls, StdCtrls, ToolWin, HtmlHelpViewer,
-  {$IFDEF EurekaLog}
-  ExceptionLog,
-  {$ENDIF}
   {$IFDEF madExcept}
   madExcept,
   {$ENDIF}
@@ -460,9 +457,6 @@ type
     CaptureTabIndex: Integer;
     CloseButton: TPicture;
     CloseButtonRects: array of TRect;
-    {$IFDEF EurekaLog}
-    EurekaLog: TEurekaLog;
-    {$ENDIF}
     FAddressDroppedDown: Boolean;
     FirstOpen: Boolean;
     MouseDownPoint: TPoint;
@@ -481,12 +475,6 @@ type
     procedure ApplicationModalBegin(Sender: TObject);
     procedure ApplicationModalEnd(Sender: TObject);
     procedure EmptyWorkingMem();
-    {$IFDEF EurekaLog}
-    procedure EurekaLogCustomDataRequest(
-      EurekaExceptionRecord: TEurekaExceptionRecord; DataFields: TStrings);
-    procedure EurekaLogExceptionNotify(
-      EurekaExceptionRecord: TEurekaExceptionRecord; var Handled: Boolean);
-    {$ENDIF}
     {$IFDEF madExcept}
     procedure ExceptEvent(const Exception: IMEException; var Handled: Boolean);
     {$ENDIF}
@@ -679,11 +667,11 @@ var
 begin
   if (E.Message <> SRecordChanged) then
   begin
-    DiableApplicationActivate := True;
+    DisableApplicationActivate := True;
 
     Msg := 'Internal Program Bug:' + #13#10 + E.Message;
 
-    {$IFNDEF EurekaLog}{$IFNDEF madExcept}
+    {$IFNDEF madExcept}
     if (IsConnectedToInternet()) then
     begin
       CheckUpdateThread := TCheckUpdateThread.Create(True);
@@ -695,14 +683,14 @@ begin
 
       CheckUpdateThread.Free();
     end;
-    {$ENDIF}{$ENDIF}
+    {$ENDIF}
 
     MsgBox(Msg, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
 
     if (UpdateAvailable) then
       PostMessage(Handle, CM_UPDATEAVAILABLE, 0, 0);
 
-    DiableApplicationActivate := False;
+    DisableApplicationActivate := False;
   end;
 end;
 
@@ -1711,10 +1699,6 @@ begin
   FreeAndNil(FClients);
   FreeAndNil(Accounts);
 
-  {$IFDEF EurekaLog}
-    EurekaLog.Free();
-  {$ENDIF}
-
   inherited;
 end;
 
@@ -1729,64 +1713,6 @@ begin
     CloseHandle(Process);
   end;
 end;
-
-{$IFDEF EurekaLog}
-procedure TWWindow.EurekaLogCustomDataRequest(
-  EurekaExceptionRecord: TEurekaExceptionRecord; DataFields: TStrings);
-var
-  I: Integer;
-  Log: TStringList;
-  Start: Integer;
-begin
-  DataFields.Add('System CodePage=' + IntToStr(GetACP()));
-
-  for I := 0 to Clients.Count - 1 do
-    if (Clients[I].Connected) then
-      DataFields.Add('MySQL Version=' + Clients[I].ServerVersionStr);
-
-  if (Assigned(ActiveTab)) then
-  begin
-    Log := TStringList.Create();
-    Log.Text := ActiveTab.Client.BugMonitor.CacheText;
-    if (Log.Count < 10) then Start := 0 else Start := Log.Count - 10;
-    for I := Start to Log.Count - 1 do
-      DataFields.Add('Log_' + IntToStr(I - Start + 1) + '=' + Log[I]);
-    Log.Free();
-  end;
-
-  EurekaExceptionRecord.CurrentModuleOptions.EMailSubject
-    := AnsiString(SysUtils.LoadStr(1000) + ' ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor)
-    + ' (' + Preferences.LoadStr(737) + ': ' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + ')')
-    + ' - Bug Report';
-end;
-
-procedure TWWindow.EurekaLogExceptionNotify(
-  EurekaExceptionRecord: TEurekaExceptionRecord; var Handled: Boolean);
-var
-  CheckUpdateThread: TCheckUpdateThread;
-  I: Integer;
-begin
-  for I := 0 to FClients.Count - 1 do
-    try TFClient(FClients[I]).CrashRescue(); except end;
-
-  try Accounts.SaveToXML(); except end;
-
-  if (not IsConnectedToInternet()) then
-    Handled := False
-  else
-  begin
-    CheckUpdateThread := TCheckUpdateThread.Create(True);
-    CheckUpdateThread.Stream := TStringStream.Create('');
-    CheckUpdateThread.Execute();
-    CheckUpdateThread.Stream.Free();
-
-    UpdateAvailable := CheckUpdateThread.UpdateAvailable;
-    Handled := not UpdateAvailable;
-
-    CheckUpdateThread.Free();
-  end;
-end;
-{$ENDIF}
 
 {$IFDEF madExcept}
 procedure TWWindow.ExceptEvent(const Exception: IMEException; var Handled: Boolean);
@@ -1912,7 +1838,7 @@ procedure TWWindow.FormCreate(Sender: TObject);
 var
   I: Integer;
 begin
-  DiableApplicationActivate := False;
+  DisableApplicationActivate := False;
   FirstOpen := True;
   MouseDownPoint := Point(-1, -1);
   QuitAfterShow := False;
@@ -1929,11 +1855,6 @@ begin
   Application.OnActivate := ApplicationActivate;
   Application.OnDeactivate := ApplicationDeactivate;
 
-  {$IFDEF EurekaLog}
-    EurekaLog := TEurekaLog.Create(Self);
-    EurekaLog.OnExceptionNotify := EurekaLogExceptionNotify;
-    EurekaLog.OnCustomDataRequest := EurekaLogCustomDataRequest;
-  {$ENDIF}
   {$IFDEF madExcept}
     RegisterExceptionHandler(ExceptEvent, stTrySyncCallAlways);
   {$ENDIF}
@@ -2228,9 +2149,9 @@ begin
 
   if (Msg <> '') then
   begin
-    DiableApplicationActivate := True;
+    DisableApplicationActivate := True;
     MsgBox(Msg, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-    DiableApplicationActivate := False;
+    DisableApplicationActivate := False;
   end;
 
   if ((ErrorCode = CR_SERVER_GONE_ERROR) and (Connection is TCClient)) then

@@ -787,9 +787,6 @@ implementation {***************************************************************}
 uses
   DBConsts, Forms, Variants, DateUtils, Registry, ActiveX,
   RTLConsts, Consts, SysConst, Masks, Controls, Math, StrUtils,
-  {$IFDEF EurekaLog}
-  ExceptionLog,
-  {$ENDIF}
   MySQLClient,
   CSVUtils, SQLUtils, HTTPTunnel;
 
@@ -1854,10 +1851,6 @@ var
   SynchronizeRequestSent: Boolean;
 begin
   Nils := 2;
-  {$IFDEF EurekaLog}
-  // SetEurekaLogInThread(ThreadId, True); Does not work in EurekaLog 6.1.05
-  try
-  {$ENDIF}
 
   Nils := 3;
   while (not Terminated) do
@@ -1908,11 +1901,6 @@ begin
 
   Connection.TerminatedThreads.Delete(Self);
 
-  {$IFDEF EurekaLog}
-  except
-    StandardEurekaNotify(GetLastExceptionObject(), GetLastExceptionAddress());
-  end;
-  {$ENDIF}
   Nils := 7;
 end;
 

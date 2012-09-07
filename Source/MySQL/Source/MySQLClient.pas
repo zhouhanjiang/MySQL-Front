@@ -1181,7 +1181,7 @@ begin
   else
     FError := '';
 
-  {$IFDEF EurekaLog}
+  {$IFDEF madExcept}
     if (AErrNo = CR_UNKNOWN_ERROR) then
       raise ERangeError.Create(string(FError));
   {$ENDIF}
@@ -2742,7 +2742,7 @@ begin
 
   FillChar(FSQLState, SizeOf(FSQLState), #0);
 
-  {$IFDEF EurekaLog}
+  {$IFDEF madExcept}
     if (AErrNo = CR_COMMANDS_OUT_OF_SYNC) then
       raise Exception.Create(DecodeString(error()) + ' (' + IntToStr(Byte(fclient_status)) + ')')
     else if (AErrNo = CR_OUT_OF_MEMORY) then

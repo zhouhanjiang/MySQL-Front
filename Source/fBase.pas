@@ -92,7 +92,7 @@ function StrToInt(const S: string): Integer;
 function TryStrToInt(const S: string; out Value: Integer): Boolean;
 
 var
-  DiableApplicationActivate: Boolean;
+  DisableApplicationActivate: Boolean;
   DurationFormatSettings: TFormatSettings;
   LocaleFormatSettings: TFormatSettings;
   MainActionList: TActionList;
@@ -169,9 +169,9 @@ begin
 
   if ((Sender is TField) and (not TField(Sender).DataSet.Active or (TField(Sender).DataSet.State in [dsBrowse, dsEdit, dsInsert, dsInactive])) or (Sender is TCBaseTableField)) then
   begin
-    DiableApplicationActivate := True;
+    DisableApplicationActivate := True;
     MsgBox(Msg + ' ' + Preferences.LoadStr(657), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-    DiableApplicationActivate := False;
+    DisableApplicationActivate := False;
   end
   else
     raise EConvertError.Create(Msg);
