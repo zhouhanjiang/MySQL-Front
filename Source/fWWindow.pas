@@ -6,8 +6,8 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, ActnList, ComCtrls, DBActns, ExtCtrls, ImgList, Menus, StdActns,
   ActnCtrls, StdCtrls, ToolWin, HtmlHelpViewer,
-  {$IFDEF madExcept}
-  madExcept,
+  {$IFDEF EurekaLog}
+  ExceptionLog,
   {$ENDIF}
   SynEditHighlighter, SynHighlighterSQL,
   ExtCtrls_Ext, Forms_Ext, StdCtrls_Ext, ComCtrls_Ext, Dialogs_Ext, StdActns_Ext,
@@ -457,6 +457,9 @@ type
     CaptureTabIndex: Integer;
     CloseButton: TPicture;
     CloseButtonRects: array of TRect;
+    {$IFDEF EurekaLog}
+    EurekaLog: TEurekaLog;
+    {$ENDIF}
     FAddressDroppedDown: Boolean;
     FirstOpen: Boolean;
     MouseDownPoint: TPoint;
@@ -475,8 +478,11 @@ type
     procedure ApplicationModalBegin(Sender: TObject);
     procedure ApplicationModalEnd(Sender: TObject);
     procedure EmptyWorkingMem();
-    {$IFDEF madExcept}
-    procedure ExceptEvent(const Exception: IMEException; var Handled: Boolean);
+    {$IFDEF EurekaLog}
+    procedure EurekaLogCustomDataRequest(
+      EurekaExceptionRecord: TEurekaExceptionRecord; DataFields: TStrings);
+    procedure EurekaLogExceptionNotify(
+      EurekaExceptionRecord: TEurekaExceptionRecord; var Handled: Boolean);
     {$ENDIF}
     function GetActiveTab(): TFClient;
     function GetNewTabIndex(Sender: TObject; X, Y: Integer): Integer;
@@ -671,7 +677,7 @@ begin
 
     Msg := 'Internal Program Bug:' + #13#10 + E.Message;
 
-    {$IFNDEF madExcept}
+    {$IFNDEF EurekaLog}
     if (IsConnectedToInternet()) then
     begin
       CheckUpdateThread := TCheckUpdateThread.Create(True);
@@ -1699,6 +1705,10 @@ begin
   FreeAndNil(FClients);
   FreeAndNil(Accounts);
 
+  {$IFDEF EurekaLog}
+    EurekaLog.Free();
+  {$ENDIF}
+
   inherited;
 end;
 
@@ -1714,20 +1724,49 @@ begin
   end;
 end;
 
-{$IFDEF madExcept}
-procedure TWWindow.ExceptEvent(const Exception: IMEException; var Handled: Boolean);
+{$IFDEF EurekaLog}
+procedure TWWindow.EurekaLogCustomDataRequest(
+  EurekaExceptionRecord: TEurekaExceptionRecord; DataFields: TStrings);
 var
   I: Integer;
   Log: TStringList;
+  Start: Integer;
+begin
+  DataFields.Add('System CodePage=' + IntToStr(GetACP()));
+
+  for I := 0 to Clients.Count - 1 do
+    if (Clients[I].Connected) then
+      DataFields.Add('MySQL Version=' + Clients[I].ServerVersionStr);
+
+  if (Assigned(ActiveTab)) then
+  begin
+    Log := TStringList.Create();
+    Log.Text := ActiveTab.Client.BugMonitor.CacheText;
+    if (Log.Count < 10) then Start := 0 else Start := Log.Count - 10;
+    for I := Start to Log.Count - 1 do
+      DataFields.Add('Log_' + IntToStr(I - Start + 1) + '=' + Log[I]);
+    Log.Free();
+  end;
+
+  EurekaExceptionRecord.CurrentModuleOptions.EMailSubject
+    := AnsiString(SysUtils.LoadStr(1000) + ' ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor)
+    + ' (' + Preferences.LoadStr(737) + ': ' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + ')')
+    + ' - Bug Report';
+end;
+
+procedure TWWindow.EurekaLogExceptionNotify(
+  EurekaExceptionRecord: TEurekaExceptionRecord; var Handled: Boolean);
+var
+  CheckUpdateThread: TCheckUpdateThread;
+  I: Integer;
 begin
   for I := 0 to FClients.Count - 1 do
     try TFClient(FClients[I]).CrashRescue(); except end;
 
   try Accounts.SaveToXML(); except end;
 
-
   if (not IsConnectedToInternet()) then
-    Handled := True
+    Handled := False
   else
   begin
     CheckUpdateThread := TCheckUpdateThread.Create(True);
@@ -1736,52 +1775,9 @@ begin
     CheckUpdateThread.Stream.Free();
 
     UpdateAvailable := CheckUpdateThread.UpdateAvailable;
-    Handled := UpdateAvailable;
+    Handled := not UpdateAvailable;
 
     CheckUpdateThread.Free();
-  end;
-
-  if (not Handled) then
-  begin
-    Exception.BugReportHeader['date/time'];
-    Exception.BugReportHeader['computer name'] := '';
-    Exception.BugReportHeader['user name'] := '';
-    Exception.BugReportHeader['registered owner'] := '';
-    Exception.BugReportHeader['processors'] := '';
-    Exception.BugReportHeader['physical memory'] := '';
-    Exception.BugReportHeader['free disk space'] := '';
-    Exception.BugReportHeader['display mode'] := '';
-    Exception.BugReportHeader['process id'] := '';
-    Exception.BugReportHeader['allocated memory'] := '';
-    Exception.BugReportHeader['compiled with'] := '';
-    Exception.BugReportHeader['callstack crc'] := '';
-    Exception.BugReportHeader['version'] := '';
-    Exception.BugReportHeader['madExcept version'];
-
-    Exception.BugReportHeader['Version'] := SysUtils.LoadStr(1000) + ' ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor)
-      + ' (' + Preferences.LoadStr(737) + ': ' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + ')';
-    Exception.BugReportHeader['System CodePage'] := IntToStr(GetACP());
-
-    for I := 0 to Clients.Count - 1 do
-      if (Clients[I].Connected) then
-        if (not Assigned(ActiveTab) or (Clients[I] <> ActiveTab.Client)) then
-          Exception.BugReportHeader['MySQL Version'] := Clients[I].ServerVersionStr
-        else
-          Exception.BugReportHeader['MySQL Version *'] := Clients[I].ServerVersionStr;
-
-    if (Assigned(ActiveTab)) then
-    begin
-      Log := TStringList.Create();
-      Log.Text := ActiveTab.Client.BugMonitor.CacheText;
-      while (Log.Count > 20) do Log.Delete(0);
-      Exception.BugReportSections.Add('SQL Log', Log.Text);
-      Log.Free();
-    end;
-
-    Exception.MailSubject
-      := SysUtils.LoadStr(1000) + ' ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor)
-      + ' (' + Preferences.LoadStr(737) + ': ' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + ')'
-      + ' - Bug Report';
   end;
 end;
 {$ENDIF}
@@ -1855,8 +1851,10 @@ begin
   Application.OnActivate := ApplicationActivate;
   Application.OnDeactivate := ApplicationDeactivate;
 
-  {$IFDEF madExcept}
-    RegisterExceptionHandler(ExceptEvent, stTrySyncCallAlways);
+  {$IFDEF EurekaLog}
+    EurekaLog := TEurekaLog.Create(Self);
+    EurekaLog.OnExceptionNotify := EurekaLogExceptionNotify;
+    EurekaLog.OnCustomDataRequest := EurekaLogCustomDataRequest;
   {$ENDIF}
 
   Accounts := TAAccounts.Create(DBLogin);
@@ -1918,10 +1916,6 @@ end;
 
 procedure TWWindow.FormDestroy(Sender: TObject);
 begin
-  {$IFDEF madExcept}
-    UnRegisterExceptionHandler(ExceptEvent);
-  {$ENDIF}
-
   while (TabControlRepaint.Count > 0) do
   begin
     FreeMem(TabControlRepaint[0]);
