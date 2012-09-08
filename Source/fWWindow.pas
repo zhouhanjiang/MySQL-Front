@@ -24,24 +24,6 @@ const
   CM_UPDATEAVAILABLE = WM_USER + 603;
 
 type
-  TCMAddTab = packed record
-    Msg: Cardinal;
-    WParam: WPARAM;
-    Param: PChar;
-    Result: LRESULT;
-  end;
-
-  TCMActivateTab = packed record
-    Msg: Cardinal;
-    WParam: WPARAM;
-    Tab: TFClient;
-    Result: LRESULT;
-  end;
-
-  TCMCloseTab = TCMActivateTab;
-
-  TCMUpdateToolBar = TCMActivateTab;
-
   TWWindow = class (TForm_Ext)
     aBAdd: TAction;
     aBDelete: TAction;
@@ -495,18 +477,18 @@ type
     procedure SetActiveTab(const FClient: TFClient);
     procedure SQLError(const Connection: TMySQLConnection; const ErrorCode: Integer; const ErrorMessage: string);
     function TabCaption(const ACaption: string): string;
-    procedure CMActivateTab(var Message: TCMActivateTab); message CM_ACTIVATETAB;
-    procedure CMAddTab(var Message: TCMAddTab); message CM_ADDTAB;
+    procedure CMActivateTab(var Message: TMessage); message CM_ACTIVATETAB;
+    procedure CMAddTab(var Message: TMessage); message CM_ADDTAB;
     procedure CMBookmarkChanged(var Message: TMessage); message CM_BOOKMARKCHANGED;
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
     procedure CMClientSynchronize(var Message: TMessage); message CM_MYSQLCONNECTION_SYNCHRONIZE;
-    procedure CMCloseTab(var Message: TCMCloseTab); message CM_CLOSE_TAB;
+    procedure CMCloseTab(var Message: TMessage); message CM_CLOSE_TAB;
     procedure CMDeactivateTab(var Message: TMessage); message CM_DEACTIVATETAB;
     procedure CMPostShow(var Message: TMessage); message CM_POST_SHOW;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure CMTabControlRepaint(var Message: TMessage); message CM_TABCONTROL_REPAINT;
     procedure CMUpdateAvailable(var Message: TMessage); message CM_UPDATEAVAILABLE;
-    procedure CMUpdateToolbar(var Message: TCMUpdateToolBar); message CM_UPDATETOOLBAR;
+    procedure CMUpdateToolbar(var Message: TMessage); message CM_UPDATETOOLBAR;
     procedure WMCopyData(var Message: TWMCopyData); message WM_COPYDATA;
     procedure WMDrawItem(var Message: TWMDrawItem); message WM_DRAWITEM;
     procedure WMHelp(var Message: TWMHelp); message WM_HELP;
@@ -861,44 +843,44 @@ begin
   TBAddressBar.ClientHeight := FAddress.Height;
 end;
 
-procedure TWWindow.CMActivateTab(var Message: TCMActivateTab);
+procedure TWWindow.CMActivateTab(var Message: TMessage);
 begin
-  ActiveTab := Message.Tab;
+  ActiveTab := TFClient(Message.LParam);
 
   Color := clBtnFace;
 
-  if (Message.Tab.Visible) then
-    SendMessage(Message.Tab.Handle, CM_ACTIVATEFRAME, 0, 0);
+  if (ActiveTab.Visible) then
+    SendMessage(ActiveTab.Handle, CM_ACTIVATEFRAME, 0, 0);
 
   Perform(CM_BOOKMARKCHANGED, 0, 0);
 
-  tbDBPrev.Action := Message.Tab.aDPrev;
-  tbDBFirst.Action := Message.Tab.DataSetFirst;
-  tbDBLast.Action := Message.Tab.DataSetLast;
-  tbDBNext.Action := Message.Tab.aDNext;
-  tbPostRecord.Action := Message.Tab.DataSetPost;
-  tbCancelRecord.Action := Message.Tab.DataSetCancel;
+  tbDBPrev.Action := ActiveTab.aDPrev;
+  tbDBFirst.Action := ActiveTab.DataSetFirst;
+  tbDBLast.Action := ActiveTab.DataSetLast;
+  tbDBNext.Action := ActiveTab.aDNext;
+  tbPostRecord.Action := ActiveTab.DataSetPost;
+  tbCancelRecord.Action := ActiveTab.DataSetCancel;
 
   aFClose.Enabled := True;
 
   MPrev.Items.Clear();
   MNext.Items.Clear();
 
-  Perform(CM_UPDATETOOLBAR, 0, LPARAM(Message.Tab));
+  Perform(CM_UPDATETOOLBAR, 0, Message.LParam);
 
   Message.Result := 1;
 end;
 
-procedure TWWindow.CMAddTab(var Message: TCMAddTab);
+procedure TWWindow.CMAddTab(var Message: TMessage);
 var
   FClient: TFClient;
 begin
   DAccounts.Open := True;
   DAccounts.Account := nil;
   DAccounts.Client := nil;
-  if (FirstOpen and (Copy(StrPas(Message.Param), 1, 8) = 'mysql://')) then
+  if (FirstOpen and (Copy(StrPas(PChar(Message.LParam)), 1, 8) = 'mysql://')) then
   begin
-    DAccounts.Account := Accounts.AccountByURI(Message.Param);
+    DAccounts.Account := Accounts.AccountByURI(PChar(Message.LParam));
     if (Assigned(DAccounts.Account)) then
     begin
       DAccounts.Client := TCClient.Create(Clients, DAccounts.Account);
@@ -933,7 +915,7 @@ begin
       end;
     end;
 
-    FClient := TFClient.Create(Self, PWorkSpace, DAccounts.Client, Message.Param);
+    FClient := TFClient.Create(Self, PWorkSpace, DAccounts.Client, PChar(Message.LParam));
     FClient.Visible := True;
 
     Inc(UniqueTabNameCounter);
@@ -1224,19 +1206,19 @@ begin
   MySQLDB.MySQLConnectionSynchronize(Pointer(Message.LParam));
 end;
 
-procedure TWWindow.CMCloseTab(var Message: TCMCloseTab);
+procedure TWWindow.CMCloseTab(var Message: TMessage);
 var
   Client: TCClient;
   NewTabIndex: Integer;
 begin
   Perform(CM_DEACTIVATETAB, 0, 0);
 
-  NewTabIndex := FClients.IndexOf(Message.Tab);
+  NewTabIndex := FClients.IndexOf(TFClient(Message.LParam));
 
   if (0 <= NewTabIndex) and (NewTabIndex < TabControl.Tabs.Count) then
   begin
     TabControl.Tabs.Delete(NewTabIndex);
-    FClients.Delete(FClients.IndexOf(Message.Tab));
+    FClients.Delete(FClients.IndexOf(TFClient(Message.LParam)));
     if (TabControl.TabIndex < 0) then
       TabControl.TabIndex := FClients.Count - 1;
 
@@ -1246,10 +1228,10 @@ begin
     if (NewTabIndex >= 0) then
       Perform(CM_ACTIVATETAB, 0, LPARAM(FClients[NewTabIndex]));
 
-    Client := Message.Tab.Client;
+    Client := TFClient(Message.LParam).Client;
 
-    Message.Tab.Visible := False;
-    Message.Tab.Free();
+    TFClient(Message.LParam).Visible := False;
+    TFClient(Message.LParam).Free();
 
     Client.Free();
 
@@ -1518,7 +1500,7 @@ begin
     InformUpdateAvailable();
 end;
 
-procedure TWWindow.CMUpdateToolbar(var Message: TCMUpdateToolBar);
+procedure TWWindow.CMUpdateToolbar(var Message: TMessage);
 var
   Found: Boolean;
   I: Integer;
@@ -1526,7 +1508,7 @@ var
   S: string;
   Tab: TFClient;
 begin
-  Tab := Message.Tab;
+  Tab := TFClient(Message.LParam);
 
   for I := ToolBar.ButtonCount - 1 downto ToolButton11.Index do
     ToolBar.Buttons[I].Visible := False;

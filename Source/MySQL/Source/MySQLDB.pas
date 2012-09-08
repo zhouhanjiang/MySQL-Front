@@ -1836,7 +1836,7 @@ end;
 
 destructor TMySQLConnection.TSynchroThread.Destroy();
 begin
-  Destroyed := False;
+  Destroyed := True;
 
   RunExecute.Free(); RunExecute := nil;
   SynchronizeStarted.Free();
@@ -1856,7 +1856,6 @@ begin
   Nils := 2;
 
   {$IFDEF EurekaLog}
-  // SetEurekaLogInThread(ThreadId, True); Does not work in EurekaLog 6.1.05
   try
   {$ENDIF}
 
