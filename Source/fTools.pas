@@ -2016,6 +2016,7 @@ end;
 function TTImportFile.ReadContent(const NewFilePos: TLargeInteger = -1): Boolean;
 var
   DistanceToMove: TLargeInteger;
+  Error: TTools.TError;
   Index: Integer;
   Len: Integer;
   ReadSize: DWord;
@@ -2085,7 +2086,15 @@ begin
 
           if (BytesPerSector + ReadSize - FileBuffer.Index > 0) then
           begin
-            Len := AnsiCharToWideChar(CodePage, @FileBuffer.Mem[FileBuffer.Index], BytesPerSector + ReadSize - FileBuffer.Index, nil, 0);
+            try
+              Len := AnsiCharToWideChar(CodePage, @FileBuffer.Mem[FileBuffer.Index], BytesPerSector + ReadSize - FileBuffer.Index, nil, 0);
+            except
+              Len := 0;
+              Error.ErrorType := TE_File;
+              Error.ErrorCode := GetLastError();
+              Error.ErrorMessage := Preferences.LoadStr(895, Filename);
+              DoError(Error, EmptyToolsItem(), False);
+            end;
             if (Len > 0) then
             begin
               SetLength(FileContent.Str, Length(FileContent.Str) + Len);

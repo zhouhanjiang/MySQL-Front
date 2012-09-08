@@ -12712,7 +12712,7 @@ begin
 
     EnableAligns(PContent);
 
-    if (View in [vObjects]) then ActiveListView := GetActiveListView() else ActiveListView := nil;
+    ActiveListView := nil; if (View in [vObjects]) then ActiveListView := GetActiveListView();
     if (View in [vIDE]) then ActiveIDEInputDataSet := GetActiveIDEInputDataSet() else ActiveIDEInputDataSet := nil;
     if (View in [vIDE, vBuilder, vEditor]) then ActiveSynMemo := GetActiveSynMemo() else ActiveSynMemo := nil;
     if (View in [vBrowser, vIDE, vBuilder, vEditor]) then ActiveDBGrid := GetActiveDBGrid() else ActiveDBGrid := nil;

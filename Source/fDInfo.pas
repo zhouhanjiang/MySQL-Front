@@ -5,11 +5,11 @@ interface {********************************************************************}
 uses
   Windows, Messages, SysUtils, Graphics, Forms, Dialogs, Jpeg, StdCtrls,
   Controls, Classes, ExtCtrls,
-  ComCtrls_Ext, ExtCtrls_Ext, StdCtrls_Ext,
+  ComCtrls_Ext, ExtCtrls_Ext, StdCtrls_Ext, Forms_Ext,
   fBase;
 
 type
-  TDInfo = class(TForm)
+  TDInfo = class(TForm_Ext)
     FBOk: TButton;
     FBuild: TLabel;
     FLine: TPanel_Ext;

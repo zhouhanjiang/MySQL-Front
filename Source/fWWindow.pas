@@ -5,7 +5,7 @@ interface {********************************************************************}
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, ActnList, ComCtrls, DBActns, ExtCtrls, ImgList, Menus, StdActns,
-  ActnCtrls, StdCtrls, ToolWin, HtmlHelpViewer,
+  ActnCtrls, StdCtrls, ToolWin,
   {$IFDEF EurekaLog}
   ExceptionLog,
   {$ENDIF}
