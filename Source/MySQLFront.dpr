@@ -41,7 +41,6 @@ uses
   fDExport in 'fDExport.pas' {DExport},
   fDField in 'fDField.pas' {DField},
   fDForeignKey in 'fDForeignKey.pas' {DForeignKey},
-  fDGoto in 'fDGoto.pas' {DGoto},
   fDHost in 'fDHost.pas' {DHost},
   fDHostDatabase in 'fDHostDatabase.pas' {DHostDatabase},
   fDImport in 'fDImport.pas' {DImport},
