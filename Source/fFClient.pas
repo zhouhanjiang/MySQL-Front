@@ -6110,6 +6110,10 @@ begin
       FText.OnChange := FTextChange;
     end;
 
+    // Debug
+    if (not Assigned(DBGrid.SelectedField)) then
+      raise ERangeError.CreateFmt(SRangeError + ' (SelectedField) - %s', [TMySQLQuery(DBGrid.DataSource.DataSet).CommandText]);
+
     DBGrid.UpdateAction(MainAction('aEPaste'));
     MainAction('aECopyToFile').Enabled := (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) and (not DBGrid.SelectedField.IsNull) and (DBGrid.SelectedRows.Count <= 1);
     MainAction('aEPasteFromFile').Enabled := (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) and not DBGrid.SelectedField.ReadOnly and (DBGrid.SelectedRows.Count <= 1);
