@@ -9,6 +9,7 @@ uses
 type
   TABookmarks = class;
   TAFiles = class;
+  TAJobs = class;
   TADesktop = class;
   TAConnection = class;
   TAAccount = class;
@@ -17,7 +18,6 @@ type
   TABookmark = class
   private
     FBookmarks: TABookmarks;
-    FURI: string;
     FXML: IXMLNode;
     function GetXML(): IXMLNode;
   protected
@@ -25,11 +25,11 @@ type
     property XML: IXMLNode read GetXML;
   public
     Caption: string;
+    URI: string;
     procedure Assign(const Source: TABookmark); virtual;
-    constructor Create(const ABookmarks: TABookmarks; const AXML: IXMLNode = nil); virtual;
+    constructor Create(const ABookmarks: TABookmarks; const AXML: IXMLNode = nil);
     procedure LoadFromXML(); virtual;
     procedure SaveToXML(); virtual;
-    property URI: string read FURI write FURI;
   end;
 
   TABookmarks = class
@@ -60,7 +60,7 @@ type
     property DataPath: TFileName read GetDataPath;
   end;
 
-  TAFile = class(TList)
+  TAFile = class
   private
     FFiles: TAFiles;
   protected
@@ -93,6 +93,31 @@ type
     procedure Clear(); override;
     constructor Create(const ADesktop: TADesktop; const AMaxCount: Integer);
     property Files[Index: Integer]: TAFile read Get; default;
+  end;
+
+  TAJob = class
+  private
+    FJobs: TAJobs;
+    FXML: IXMLNode;
+    function GetXML(): IXMLNode;
+  protected
+    property Jobs: TAJobs read FJobs;
+    property XML: IXMLNode read GetXML;
+  public
+    Name: string;
+    constructor Create(const AJobs: TAJobs; const AXML: IXMLNode = nil);
+  end;
+
+  TAJobs = class(TList)
+  private
+    FAccount: TAAccount;
+    FXMLDocument: IXMLDocument;
+    function GetXML(): IXMLNode;
+  protected
+    property Account: TAAccount read FAccount;
+    property XML: IXMLNode read GetXML;
+  public
+    constructor Create(const AAccount: TAAccount);
   end;
 
   TADesktop = class
@@ -187,6 +212,7 @@ type
     function GetHistoryFilename(): TFileName;
     function GetHistoryXML(): IXMLNode;
     function GetIconFilename(): TFileName;
+    function GetJobsFilename(): TFileName;
     function GetName(): string;
     function GetXML(): IXMLNode;
     procedure SetLastLogin(const ALastLogin: TDateTime);
@@ -204,6 +230,7 @@ type
     property DesktopXMLDocument: IXMLDocument read FDesktopXMLDocument;
     property HistoryFilename: TFileName read GetHistoryFilename;
     property HistoryXMLDocument: IXMLDocument read FHistoryXMLDocument;
+    property JobsFilename: TFileName read GetJobsFilename;
     property XML: IXMLNode read GetXML;
   public
     Connection: TAConnection;
@@ -348,7 +375,7 @@ begin
   FXML := AXML;
 
   Caption := '';
-  FURI := '';
+  URI := '';
 end;
 
 function TABookmark.GetXML(): IXMLNode;
@@ -368,7 +395,7 @@ begin
   if (Assigned(XML)) then
   begin
     Caption := XML.Attributes['name'];
-    if (Assigned(XMLNode(XML, 'uri'))) then FURI := Bookmarks.Desktop.Account.ExpandAddress(XMLNode(XML, 'uri').Text);
+    if (Assigned(XMLNode(XML, 'uri'))) then URI := Bookmarks.Desktop.Account.ExpandAddress(XMLNode(XML, 'uri').Text);
   end;
 end;
 
@@ -704,6 +731,63 @@ begin
     Node := XML.AddChild('file');
     Files[I].SaveToXML(Node);
   end;
+end;
+
+{ TAJob ***********************************************************************}
+
+constructor TAJob.Create(const AJobs: TAJobs; const AXML: IXMLNode = nil);
+begin
+  inherited Create();
+
+  FJobs := AJobs;
+end;
+
+function TAJob.GetXML(): IXMLNode;
+var
+  I: Integer;
+begin
+  if (not Assigned(FXML)) then
+    for I := 0 to Jobs.XML.ChildNodes.Count - 1 do
+      if ((Jobs.XML.ChildNodes[I].NodeName = 'job') and (lstrcmpi(PChar(string(Jobs.XML.ChildNodes[I].Attributes['name'])), PChar(Name)) = 0)) then
+        FXML := Jobs.XML.ChildNodes[I];
+
+  Result := FXML;
+end;
+
+{ TAJobs **********************************************************************}
+
+constructor TAJobs.Create(const AAccount: TAAccount);
+begin
+  inherited Create();
+
+  FAccount := AAccount;
+end;
+
+function TAJobs.GetXML(): IXMLNode;
+begin
+  if (not Assigned(FXMLDocument)) then
+  begin
+    if (FileExists(Account.JobsFilename)) then
+      try
+        FXMLDocument := LoadXMLDocument(Account.JobsFilename);
+      except
+        FXMLDocument := nil;
+      end;
+
+    if (not Assigned(FXMLDocument)) then
+    begin
+      FXMLDocument := NewXMLDocument();
+      FXMLDocument.Encoding := 'utf-8';
+      FXMLDocument.Node.AddChild('jobs').Attributes['version'] := '1.0.0';
+    end;
+
+    FXMLDocument.Options := FXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
+  end;
+
+  if (not Assigned(FXMLDocument)) then
+    Result := nil
+  else
+    Result := FXMLDocument.DocumentElement;
 end;
 
 { TADesktop *******************************************************************}
@@ -1275,6 +1359,14 @@ end;
 function TAAccount.GetIndex(): Integer;
 begin
   Result := Accounts.IndexOf(Self);
+end;
+
+function TAAccount.GetJobsFilename(): TFileName;
+begin
+  if (not DirectoryExists(DataPath)) then
+    Result := ''
+  else
+    Result := DataPath + 'Jobs.xml'
 end;
 
 function TAAccount.GetName(): string;

@@ -1862,6 +1862,9 @@ begin
   Nils := 3;
   while (not Terminated) do
   begin
+    if ((Nils < 3) or (5 < Nils)) then
+      raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %d', ['Nils', Nils]);
+
     Nils := 4;
     if ((Connection.ServerTimeout = 0) or (Connection.LibraryType = ltHTTP)) then
       Timeout := INFINITE
@@ -1948,6 +1951,9 @@ begin
   Assert(RunExecute.WaitFor(IGNORE) <> wrSignaled);
 
   State := AState;
+
+  if ((Nils < 1) or (5 < Nils)) then
+    raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %d', ['Nils', Nils]);
 
   if (Synchron) then
     case (State) of

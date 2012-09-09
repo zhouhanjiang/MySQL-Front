@@ -944,7 +944,6 @@ type
     function CreateSynMemo(): TSynMemo;
     function CreateTCResult(const PDBGrid: TPanel_Ext): TTabControl;
     function CreateWorkbench(const ADatabase: TCDatabase): TWWorkbench;
-    procedure DBGridGotoExecute(Sender: TObject);
     procedure DBGridInitialize(const DBGrid: TMySQLDBGrid);
     function Desktop(const Database: TCDatabase): TDatabaseDesktop; overload; inline;
     function Desktop(const Event: TCEvent): TEventDesktop; overload; inline;
@@ -1018,7 +1017,6 @@ type
     procedure SynMemoApllyPreferences(const SynMemo: TSynMemo);
     procedure SynMemoPrintExecute(Sender: TObject);
     procedure TableOpen(Sender: TObject);
-    procedure TSymMemoGotoExecute(Sender: TObject);
     function UpdateAfterAddressChanged(): Boolean; virtual;
     procedure WorkbenchAddTable(Sender: TObject);
     procedure WorkbenchChange(Sender: TObject; Control: TWControl);
@@ -1089,7 +1087,7 @@ uses
   CommCtrl_Ext, StdActns_Ext,
   MySQLConsts, SQLUtils,
   fDField, fDKey, fDTable, fDVariable, fDDatabase, fDForeignKey, fDHost, fDUser,
-  fDQuickFilter, fDGoto, fDSQLHelp, fDTransfer, fDSearch, fDServer, fDBookmark,
+  fDQuickFilter, fDSQLHelp, fDTransfer, fDSearch, fDServer, fDBookmark,
   fURI, fDView, fDRoutine, fDTrigger, fDStatement, fDEvent, fDPaste, fDSegment,
   fDConnecting;
 
@@ -6432,7 +6430,6 @@ var
   Found: Boolean;
   I: Integer;
   SQL: string;
-  Table: TCBaseTable;
 begin
   if (Sender is TMySQLDBGrid) then
   begin
@@ -6452,22 +6449,12 @@ begin
     MainAction('aFPrint').Enabled := True;
     MainAction('aECopyToFile').OnExecute := DBGridCopyToExecute;
     MainAction('aEPasteFromFile').OnExecute := aEPasteFromFileExecute;
-    MainAction('aSGoto').OnExecute := DBGridGotoExecute;
     MainAction('aDEditRecord').OnExecute := DBGridEditExecute;
     MainAction('aDEmpty').OnExecute := DBGridEmptyExecute;
 
     MainAction('aERename').ShortCut := 0;
 
     MainAction('aDEditRecord').ShortCut := VK_F2;
-
-    MainAction('aSGoto').Enabled := False;
-    if ((View = vBrowser) and (SelectedImageIndex in [iiBaseTable, iiSystemView])) then
-    begin
-      Table := TCBaseTable(FNavigator.Selected.Data);
-      for I := 0 to Table.Keys.Count - 1 do
-        if (Table.Keys[I].Unique) then
-          MainAction('aSGoto').Enabled := True;
-    end;
 
     DataSetAfterScroll(DBGrid.DataSource.DataSet);
   end;
@@ -6510,7 +6497,6 @@ begin
       MainAction('aFPrint').Enabled := False;
       MainAction('aECopyToFile').Enabled := False;
       MainAction('aEPasteFromFile').Enabled := False;
-      MainAction('aSGoto').Enabled := False;
       MainAction('aDInsertRecord').Enabled := False;
       MainAction('aDDeleteRecord').Enabled := False;
       MainAction('aDEditRecord').Enabled := False;
@@ -6521,49 +6507,6 @@ begin
 
       MainAction('aERename').ShortCut := VK_F2;
     end;
-  end;
-end;
-
-procedure TFClient.DBGridGotoExecute(Sender: TObject);
-var
-  I: Integer;
-  Key: TCKey;
-  Line: Integer;
-  Table: TCBaseTable;
-begin
-  Wanted.Clear();
-
-  Table := TCBaseTable(FNavigator.Selected.Data);
-  Key := nil;
-  if (Assigned(Table) and (ActiveDBGrid.DataSource.DataSet = Table.DataSet) and (Table.Keys.Count >= 0)) then
-    Key := Table.Keys[0];
-
-  if (Assigned(Key) and Key.Unique) then
-  begin
-    DGoto.Captions := '';
-    for I := 0 to Key.Columns.Count - 1 do
-    begin
-      if (DGoto.Captions <> '') then DGoto.Captions := DGoto.Captions + ';';
-      DGoto.Captions := DGoto.Captions + Key.Columns.Column[I].Field.Name;
-    end;
-    if (DGoto.Execute()) then
-      if (not ActiveDBGrid.DataSource.DataSet.Locate(DGoto.Captions, DGoto.Values, [loCaseInsensitive])) then
-        MsgBox(Preferences.LoadStr(677), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION)
-      else
-        for I := ActiveDBGrid.Columns.Count - 1 downto 0 do
-          if (ActiveDBGrid.Columns[I].Field.FieldName = Key.Columns.Column[0].Field.Name) then
-            ActiveDBGrid.SelectedField := ActiveDBGrid.Columns[I].Field;
-  end
-  else
-  begin
-    DGoto.Captions := Preferences.LoadStr(678);
-    if (DGoto.Execute()) then
-      if (not TryStrToInt(DGoto.Values[0], Line)) then
-        MessageBeep(MB_ICONERROR)
-      else if (not (Line in [1 .. ActiveDBGrid.DataSource.DataSet.RecordCount])) then
-        MessageBeep(MB_ICONERROR)
-      else
-        ActiveDBGrid.DataSource.DataSet.RecNo := Line - 1;
   end;
 end;
 
@@ -7492,11 +7435,9 @@ end;
 procedure TFClient.FLogEnter(Sender: TObject);
 begin
   MainAction('aECopyToFile').OnExecute := SaveSQLFile;
-  MainAction('aSGoto').OnExecute := TSymMemoGotoExecute;
 
   MainAction('aFPrint').Enabled := True;
   MainAction('aSSearchReplace').Enabled := False;
-  MainAction('aSGoto').Enabled := True;
 
   MainAction('aHIndex').ShortCut := 0;
   MainAction('aHSQL').ShortCut := ShortCut(VK_F1, []);
@@ -7509,7 +7450,6 @@ procedure TFClient.FLogExit(Sender: TObject);
 begin
   MainAction('aFPrint').Enabled := False;
   MainAction('aECopyToFile').Enabled := False;
-  MainAction('aSGoto').Enabled := False;
 
   MainAction('aHIndex').ShortCut := ShortCut(VK_F1, []);
   MainAction('aHSQL').ShortCut := 0;
@@ -13849,7 +13789,6 @@ procedure TFClient.SynMemoEnter(Sender: TObject);
 begin
   MainAction('aECopyToFile').OnExecute := SaveSQLFile;
   MainAction('aEPasteFromFile').OnExecute := aEPasteFromExecute;
-  MainAction('aSGoto').OnExecute := TSymMemoGotoExecute;
 
   MainAction('aHIndex').ShortCut := 0;
   MainAction('aHSQL').ShortCut := ShortCut(VK_F1, []);
@@ -13866,7 +13805,6 @@ begin
   MainAction('aERedo').Enabled := False;
   MainAction('aECopyToFile').Enabled := False;
   MainAction('aEPasteFromFile').Enabled := False;
-  MainAction('aSGoto').Enabled := False;
 
   MainAction('aHIndex').ShortCut := ShortCut(VK_F1, []);
   MainAction('aHSQL').ShortCut := 0;
@@ -13955,7 +13893,6 @@ begin
       MainAction('aERedo').Enabled := ActiveSynMemo.CanRedo;
       MainAction('aECopyToFile').Enabled := (SelSQL <> '');
       MainAction('aEPasteFromFile').Enabled := (ActiveSynMemo = FSQLEditorSynMemo);
-      MainAction('aSGoto').Enabled := (Sender = FSQLEditorSynMemo) and not Empty;
       MainAction('aDRun').Enabled :=
         ((View = vEditor)
         or ((View  = vBuilder) and FBuilder.Visible)
@@ -14147,23 +14084,6 @@ procedure TFClient.TreeViewMouseUp(Sender: TObject;
   Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
   LeftMousePressed := False;
-end;
-
-procedure TFClient.TSymMemoGotoExecute(Sender: TObject);
-var
-  Line: Integer;
-begin
-  Wanted.Clear();
-
-  if (Window.ActiveControl is TSynMemo) then
-  begin
-    DGoto.Captions := Preferences.LoadStr(678);
-    if (DGoto.Execute()) then
-      if (not TryStrToInt(DGoto.Values[0], Line) or (Line < 1) or (TSynMemo(Window.ActiveControl).Lines.Count < Line)) then
-        MessageBeep(MB_ICONERROR)
-      else
-        TSynMemo(Window.ActiveControl).GotoLineAndCenter(Line);
-  end;
 end;
 
 function TFClient.UpdateAfterAddressChanged(): Boolean;

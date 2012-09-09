@@ -3704,7 +3704,7 @@ begin
   end
   else
   begin
-    Engine := Database.Client.EngineByName(DataSet.FieldByName('ENGINE').AsString);
+    FEngine := Database.Client.EngineByName(DataSet.FieldByName('ENGINE').AsString);
     RowType := StrToMySQLRowType(DataSet.FieldByName('ROW_FORMAT').AsString);
     if (Self is TCSystemView) then
       FRows := -1
@@ -4127,12 +4127,12 @@ begin
 
     if (not SQLParseKeyword(Parse, 'TABLE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 7, SQL]);
 
-    FName := SQLParseValue(Parse);
+    Name := SQLParseValue(Parse);
     if (SQLParseChar(Parse, '.')) then
     begin
-      if (Database.Client.TableNameCmp(Database.Name, FName) <> 0) then
-        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + FName, 8, SQL]);
-      FName := SQLParseValue(Parse);
+      if (Database.Client.TableNameCmp(Database.Name, Name) <> 0) then
+        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 8, SQL]);
+      Name := SQLParseValue(Parse);
     end;
 
     if (not SQLParseChar(Parse, '(')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 9, SQL]);

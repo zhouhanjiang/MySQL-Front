@@ -128,7 +128,6 @@ type
     aHUpdate: TAction;
     aOGlobals: TAction;
     aOAccounts: TAction;
-    aSGoto: TAction;
     aSSearchFind: TSearchFind_Ext;
     aSSearchNext: TSearchFindNext;
     aSSearchReplace: TSearchReplace_Ext;
@@ -260,7 +259,6 @@ type
     miOptions: TMenuItem;
     miOAccounts: TMenuItem;
     miSearch: TMenuItem;
-    miSGoto: TMenuItem;
     miSSearchFind: TMenuItem;
     miSSearchNext: TMenuItem;
     miSSearchReplace: TMenuItem;
@@ -300,7 +298,6 @@ type
     N2: TMenuItem;
     N21: TMenuItem;
     N22: TMenuItem;
-    N24: TMenuItem;
     N25: TMenuItem;
     N27: TMenuItem;
     N30: TMenuItem;
@@ -1028,7 +1025,6 @@ begin
   aSSearchFind.Caption := Preferences.LoadStr(187) + '...';
   aSSearchReplace.Caption := Preferences.LoadStr(416) + '...';
   aSSearchNext.Caption := Preferences.LoadStr(188);
-  aSGoto.Caption := Preferences.LoadStr(676) + '...';
 
   miView.Caption := Preferences.LoadStr(9);
   aVObjectBrowser.Caption := Preferences.LoadStr(4);
