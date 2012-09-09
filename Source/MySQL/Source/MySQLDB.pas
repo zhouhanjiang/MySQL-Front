@@ -2063,6 +2063,8 @@ begin
   inherited Terminate();
 
   SynchronizeStarted.SetEvent();
+  if (Destroyed) then
+    raise ERangeError.CreateFmt(SPropertyOutOfRange + '(Nils: %d)', ['Destroyed', Nils]);
   if (RunExecute.WaitFor(IGNORE) = wrSignaled) then
     Connection.TerminatedThreads.Add(Self)
   else

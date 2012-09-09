@@ -4975,6 +4975,8 @@ begin
       Client.ExecuteEvent(ceItemsValid, Client, Client.Databases);
       Client.ExecuteEvent(ceItemsValid, Database, Self);
     end;
+    if (Database.Valid) then
+      Client.ExecuteEvent(ceItemValid, Client, Client.Databases, Database);
 
     Result := False;
   end;
@@ -5772,6 +5774,8 @@ begin
     Client.ExecuteEvent(ceItemsValid, Client, Client.Databases);
     Client.ExecuteEvent(ceItemsValid, Database, Self);
   end;
+  if (Database.Valid) then
+    Client.ExecuteEvent(ceItemValid, Client, Client.Databases, Database);
 end;
 
 function TCRoutines.GetRoutine(Index: Integer): TCRoutine;
@@ -6065,6 +6069,8 @@ begin
     Client.ExecuteEvent(ceItemsValid, Client, Client.Databases);
     Client.ExecuteEvent(ceItemsValid, Database, Self);
   end;
+  if (Database.Valid) then
+    Client.ExecuteEvent(ceItemValid, Client, Client.Databases, Database);
 end;
 
 procedure TCTriggers.Delete(const AEntity: TCEntity);
@@ -6362,6 +6368,8 @@ begin
     Client.ExecuteEvent(ceItemsValid, Client, Client.Databases);
     Client.ExecuteEvent(ceItemsValid, Database, Self);
   end;
+  if (Database.Valid) then
+    Client.ExecuteEvent(ceItemValid, Client, Client.Databases, Database);
 end;
 
 constructor TCEvents.Create(const ADatabase: TCDatabase);
@@ -6958,6 +6966,9 @@ end;
 procedure TCDatabase.SetSource(const ADataSet: TMySQLQuery);
 begin
   SetSource(ADataSet.FieldByName('Create Database'));
+
+  if (Valid) then
+    Client.ExecuteEvent(ceItemValid, Client, Databases, Self);
 end;
 
 function TCDatabase.SQLAlterTable(const Table, NewTable: TCBaseTable; const EncloseFields: Boolean): string;

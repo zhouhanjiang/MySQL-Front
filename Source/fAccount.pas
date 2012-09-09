@@ -106,6 +106,8 @@ type
   public
     Name: string;
     constructor Create(const AJobs: TAJobs; const AXML: IXMLNode = nil);
+    procedure LoadFromXML(); virtual;
+    procedure SaveToXML(); virtual;
   end;
 
   TAJobs = class(TList)
@@ -117,7 +119,11 @@ type
     property Account: TAAccount read FAccount;
     property XML: IXMLNode read GetXML;
   public
+    procedure Clear(); override;
     constructor Create(const AAccount: TAAccount);
+    destructor Destroy(); override;
+    procedure LoadFromXML(); virtual;
+    procedure SaveToXML(); virtual;
   end;
 
   TADesktop = class
@@ -754,13 +760,40 @@ begin
   Result := FXML;
 end;
 
+procedure TAJob.LoadFromXML();
+begin
+
+end;
+
+procedure TAJob.SaveToXML();
+begin
+
+end;
+
 { TAJobs **********************************************************************}
+
+procedure TAJobs.Clear();
+var
+  I: Integer;
+begin
+  for I := 0 to Count - 1 do
+    TAJob(Items[I]).Free();
+
+  inherited;
+end;
 
 constructor TAJobs.Create(const AAccount: TAAccount);
 begin
   inherited Create();
 
   FAccount := AAccount;
+end;
+
+destructor TAJobs.Destroy();
+begin
+  Clear();
+
+  inherited;
 end;
 
 function TAJobs.GetXML(): IXMLNode;
@@ -788,6 +821,39 @@ begin
     Result := nil
   else
     Result := FXMLDocument.DocumentElement;
+end;
+
+procedure TAJobs.LoadFromXML();
+var
+  Child: IXMLNode;
+  Job: TAJob;
+begin
+  Clear();
+
+  if (FileExists(Account.JobsFilename) and Assigned(XML)) then
+  begin
+    Child := XML.ChildNodes.First();
+    while (Assigned(Child)) do
+    begin
+      if ((Child.Text = 'job') and (Child.Attributes['name'] <> '')) then
+      begin
+        Job := TAJob.Create(Self, Child);
+        Job.LoadFromXML();
+        Add(Job);
+      end;
+      Child := Child.NextSibling();
+    end;
+  end;
+end;
+
+procedure TAJobs.SaveToXML();
+begin
+  if (Count > 0) then
+  begin
+
+  end
+  else if (FileExists(Account.JobsFilename)) then
+    DeleteFile(PChar(Account.JobsFilename));
 end;
 
 { TADesktop *******************************************************************}
