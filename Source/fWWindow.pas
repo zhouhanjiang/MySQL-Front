@@ -1708,7 +1708,6 @@ procedure TWWindow.EurekaLogCustomDataRequest(
 var
   I: Integer;
   Log: TStringList;
-  S: string;
   Start: Integer;
 begin
   DataFields.Add('System CodePage=' + IntToStr(GetACP()));
