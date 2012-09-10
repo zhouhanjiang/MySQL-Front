@@ -6002,7 +6002,11 @@ begin
         raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Name']);
 
       if (not InsertIndex(Name, Index)) then
-        DeleteList.Delete(DeleteList.IndexOf(Items[Index]))
+        try
+          DeleteList.Delete(DeleteList.IndexOf(Items[Index]))
+        except
+          raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %s - %d - %d', ['Name', Name, DeleteList.Count, Count]);
+        end
       else if (Index < Count) then
         Insert(Index, TCTrigger.Create(Self, Name))
       else
