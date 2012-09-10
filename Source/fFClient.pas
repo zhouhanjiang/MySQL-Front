@@ -1527,6 +1527,7 @@ begin
     end;
     DataSource.DataSet := Table.DataSet;
     DBGrid := FClient.CreateDBGrid(PDBGrid, DataSource);
+    DBGrid.Tag := Integer(Self);
   end;
 
   Result := DBGrid;
@@ -1551,8 +1552,6 @@ var
   I: Integer;
   Width: Integer;
 begin
-  DBGrid.DataSource.DataSet := DataSet;
-
   FClient.DataSetAfterOpen(DataSet);
 
   DBGrid.ReadOnly := Table is TCSystemView;
@@ -6112,7 +6111,7 @@ begin
     if (not DBGrid.DataSource.DataSet.Active) then
       raise ERangeError.Create(SRangeError + ' (DBGrid.DataSource.DataSet.Active)');
     if (not Assigned(DBGrid.SelectedField)) then
-      raise ERangeError.CreateFmt(SRangeError + ' (SelectedField) - %s - %d - %d - d', [TMySQLQuery(DBGrid.DataSource.DataSet).CommandText, DBGrid.DataSource.DataSet.FieldCount, DBGrid.Columns.Count, DBGrid.SelectedIndex]);
+      raise ERangeError.CreateFmt(SRangeError + ' (SelectedField) - %s - %d - %d - %d', [TMySQLQuery(DBGrid.DataSource.DataSet).CommandText, DBGrid.DataSource.DataSet.FieldCount, DBGrid.Columns.Count, DBGrid.SelectedIndex]);
 
     DBGrid.UpdateAction(MainAction('aEPaste'));
     MainAction('aECopyToFile').Enabled := (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) and (not DBGrid.SelectedField.IsNull) and (DBGrid.SelectedRows.Count <= 1);
@@ -13648,7 +13647,7 @@ begin
     if (((View = vBrowser) or (Window.ActiveControl = ActiveDBGrid)) and Assigned(ActiveDBGrid)) then
       if (SelCount > 0) then
         StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(888, IntToStr(SelCount))
-      else if ((View = vBrowser) and (SelectedImageIndex in [iiBaseTable, iiSystemView]) and not Client.InUse() and TCBaseTable(FNavigator.Selected.Data).DataSet.LimitedDataReceived and (TCBaseTable(FNavigator.Selected.Data).Rows >= 0)) then
+      else if ((View = vBrowser) and (SelectedImageIndex in [iiBaseTable, iiSystemView]) and not Client.InUse() and TCBaseTable(FNavigator.Selected.Data).ValidData and TCBaseTable(FNavigator.Selected.Data).DataSet.LimitedDataReceived and (TCBaseTable(FNavigator.Selected.Data).Rows >= 0)) then
         if (Assigned(TCBaseTable(FNavigator.Selected.Data).Engine) and TCBaseTable(FNavigator.Selected.Data).Engine.IsInnoDB) then
           StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(889, IntToStr(Count), IntToStr(TCBaseTable(FNavigator.Selected.Data).Rows))
         else

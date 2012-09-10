@@ -1928,9 +1928,6 @@ procedure TMySQLConnection.TSynchroThread.ReleaseDataSet();
 var
   RecordsReceived: TEvent;
 begin
-if (not Assigned(DataSet)) then
-  Write;
-
   Assert(Assigned(DataSet));
 
   if (not (DataSet is TMySQLDataSet)) then
