@@ -1991,8 +1991,11 @@ begin
                 Connection.SyncExecutingSQL(Self);
                 Connection.SyncHandleResult(Self);
                 Connection.SyncHandlingResult(Self);
-                Connection.SyncReceivingResult(Self);
-                Synchronize();
+                if (DataSet is TMySQLDataSet) then
+                begin
+                  Connection.SyncReceivingResult(Self);
+                  Synchronize();
+                end;
               end;
           end;
         end;
