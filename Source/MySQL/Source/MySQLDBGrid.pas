@@ -1150,17 +1150,17 @@ function TMySQLDBGrid.UpdateAction(Action: TBasicAction): Boolean;
 begin
   if (Action is TEditAction) then
   begin
-    Result := Focused() and Assigned(DataLink.DataSet) and DataLink.DataSet.Active;
+    Result := Focused() and Assigned(DataLink.DataSet) and DataLink.DataSet.Active and Assigned(SelectedField);
 
     if (Result) then
       if (Action is TEditCut) then
-        TEditCut(Action).Enabled := Assigned(SelectedField) and not SelectedField.IsNull and not SelectedField.Required and SelectedField.CanModify and (not EditorMode or Assigned(InplaceEditor) and (InplaceEditor.SelText <> ''))
+        TEditCut(Action).Enabled := not SelectedField.IsNull and not SelectedField.Required and SelectedField.CanModify and (not EditorMode or Assigned(InplaceEditor) and (InplaceEditor.SelText <> ''))
       else if (Action is TEditCopy) then
-        TEditCopy(Action).Enabled := EditorMode and Assigned(InplaceEditor) and (InplaceEditor.SelText <> '') or not EditorMode and (not SelectedRows.CurrentRowSelected and Assigned(SelectedField) and not SelectedField.IsNull or SelectedRows.CurrentRowSelected and (DataSource.DataSet is TMySQLDataSet) and (DataSource.DataSet.State <> dsInsert))
+        TEditCopy(Action).Enabled := EditorMode and Assigned(InplaceEditor) and (InplaceEditor.SelText <> '') or not EditorMode and (not SelectedRows.CurrentRowSelected and not SelectedField.IsNull or SelectedRows.CurrentRowSelected and (DataSource.DataSet is TMySQLDataSet) and (DataSource.DataSet.State <> dsInsert))
       else if (Action is TEditPaste) then
-        TEditPaste(Action).Enabled := Assigned(SelectedField) and not ReadOnly and SelectedField.CanModify and (EditorMode and Clipboard.HasFormat(CF_UNICODETEXT) or not EditorMode and Clipboard.HasFormat(CF_UNICODETEXT))
+        TEditPaste(Action).Enabled := not ReadOnly and SelectedField.CanModify and (EditorMode and Clipboard.HasFormat(CF_UNICODETEXT) or not EditorMode and Clipboard.HasFormat(CF_UNICODETEXT))
       else if (Action is TEditDelete) then
-        TEditDelete(Action).Enabled := (SelectedRows.Count = 0) and Assigned(SelectedField) and not SelectedField.IsNull and not SelectedField.Required and SelectedField.CanModify and (not EditorMode or Assigned(InplaceEditor) and (InplaceEditor.SelText <> ''))
+        TEditDelete(Action).Enabled := (SelectedRows.Count = 0) and not SelectedField.IsNull and not SelectedField.Required and SelectedField.CanModify and (not EditorMode or Assigned(InplaceEditor) and (InplaceEditor.SelText <> ''))
       else if (Action is TEditSelectAll) then
         TEditSelectAll(Action).Enabled := (DataLink.DataSet.RecordCount > 0)
       else

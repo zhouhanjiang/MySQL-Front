@@ -6005,6 +6005,7 @@ begin
         try
           DeleteList.Delete(DeleteList.IndexOf(Items[Index]))
         except
+          // Debug
           raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %s - %d - %d', ['Name', Name, DeleteList.Count, Count]);
         end
       else if (Index < Count) then
