@@ -5843,6 +5843,7 @@ begin
   begin
     FInputDataSet := TMySQLDataSet.Create(nil);
     FInputDataSet.Connection := Database.Client;
+    FInputDataSet.Asynchron := False;
     FInputDataSet.CommandText := 'SELECT * FROM ' + Database.Client.EscapeIdentifier(Database.Name) + '.' + Database.Client.EscapeIdentifier(FTableName) + ' LIMIT 0';
     FInputDataSet.Open();
     if (not FInputDataSet.Active) then

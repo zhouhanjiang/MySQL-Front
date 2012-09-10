@@ -574,7 +574,6 @@ type
     procedure InternalSetToRecord(Buffer: TRecordBuffer); override;
     function IsCursorOpen(): Boolean; override;
     procedure MoveRecordBufferData(var DestData: TMySQLQuery.PRecordBufferData; const SourceData: TMySQLQuery.PRecordBufferData);
-    procedure SetActive(Value: Boolean); override;
     procedure SetBookmarkData(Buffer: TRecordBuffer; Data: Pointer); override;
     procedure SetBookmarkFlag(Buffer: TRecordBuffer; Value: TBookmarkFlag); override;
     procedure SetFieldData(Field: TField; Buffer: Pointer); override;
@@ -1929,6 +1928,9 @@ procedure TMySQLConnection.TSynchroThread.ReleaseDataSet();
 var
   RecordsReceived: TEvent;
 begin
+if (not Assigned(DataSet)) then
+  Write;
+
   Assert(Assigned(DataSet));
 
   if (not (DataSet is TMySQLDataSet)) then
@@ -1969,25 +1971,30 @@ begin
         begin
           case (Mode) of
             smSQL:
-              repeat
-                Connection.SyncExecutingSQL(Self);
-                Connection.SyncHandleResult(Self);
-                Connection.SyncHandlingResult(Self);
-                while (State = ssNextResult) do
-                begin
-                  Connection.SyncNextResult(Self);
+              begin
+                repeat
+                  Connection.SyncExecutingSQL(Self);
                   Connection.SyncHandleResult(Self);
                   Connection.SyncHandlingResult(Self);
-                end;
-              until (State <> ssExecutingSQL);
+                  while (State = ssNextResult) do
+                  begin
+                    Connection.SyncNextResult(Self);
+                    Connection.SyncHandleResult(Self);
+                    Connection.SyncHandlingResult(Self);
+                  end;
+                until (State <> ssExecutingSQL);
+                if (State = ssReady) then
+                  Connection.SyncExecutedSQL(Self);
+              end;
             smDataSet:
               begin
                 Connection.SyncExecutingSQL(Self);
                 Connection.SyncHandleResult(Self);
+                Connection.SyncHandlingResult(Self);
+                Connection.SyncReceivingResult(Self);
+                Synchronize();
               end;
           end;
-          if (State = ssReady) then
-            Connection.SyncExecutedSQL(Self);
         end;
       ssReceivingResult:
         raise Exception.Create(SOutOfSync);
@@ -4660,12 +4667,6 @@ var
 begin
   if (not Value) then
     inherited
-  else if ((Self is TMySQLDataSet) and TMySQLDataSet(Self).CachedUpdates) then
-  begin
-    DoBeforeOpen();
-    SetState(dsOpening);
-    OpenCursorComplete();
-  end
   else if (not Active) then
   begin
     Synchron := not Asynchron or not Connection.UseSynchroThread();
@@ -4676,10 +4677,7 @@ begin
     if (not Synchron) then
       SetState(dsOpening);
 
-    if (not Synchron) then
-      Connection.ExecuteSQL(smDataSet, Synchron, SQL, SetActiveEvent)
-    else if (Connection.ExecuteSQL(smDataSet, Synchron, SQL)) then
-      inherited;
+    Connection.ExecuteSQL(smDataSet, Synchron, SQL, SetActiveEvent);
   end;
 end;
 
@@ -5155,92 +5153,88 @@ function TMySQLDataSet.GetRecord(Buffer: TRecordBuffer; GetMode: TGetMode; DoChe
 var
   NewIndex: Integer;
 begin
-  if (CachedUpdates) then
-    Result := grBOF
-  else
-  begin
-    NewIndex := InternRecordBuffers.Index;
-    case (GetMode) of
-      gmPrior:
-        begin
-          Result := grError;
-          while (Result = grError) do
-            if (NewIndex < 0) then
-              Result := grBOF
-            else
-            begin
-              Dec(NewIndex);
-              if ((NewIndex >= 0) and (not Filtered or InternRecordBuffers[NewIndex]^.VisibleInFilter)) then
-                Result := grOk;
-            end;
-        end;
-      gmNext:
-        begin
-          Result := grError;
-          while (Result = grError) do
+  NewIndex := InternRecordBuffers.Index;
+  case (GetMode) of
+    gmPrior:
+      begin
+        Result := grError;
+        while (Result = grError) do
+          if (NewIndex < 0) then
+            Result := grBOF
+          else
           begin
-            if ((NewIndex + 1 = InternRecordBuffers.Count) and not Filtered
-              and ((RecordsReceived.WaitFor(IGNORE) <> wrSignaled) or (Self is TMySQLTable) and TMySQLTable(Self).LimitedDataReceived and TMySQLTable(Self).AutomaticLoadNextRecords and TMySQLTable(Self).LoadNextRecords())) then
-              InternRecordBuffers.RecordReceived.WaitFor(NET_WAIT_TIMEOUT * 1000);
+            Dec(NewIndex);
+            if ((NewIndex >= 0) and (not Filtered or InternRecordBuffers[NewIndex]^.VisibleInFilter)) then
+              Result := grOk;
+          end;
+      end;
+    gmNext:
+      begin
+        Result := grError;
+        while (Result = grError) do
+        begin
+          if (Asynchron
+            and (NewIndex + 1 = InternRecordBuffers.Count) and not Filtered
+            and ((RecordsReceived.WaitFor(IGNORE) <> wrSignaled) or (Self is TMySQLTable) and TMySQLTable(Self).LimitedDataReceived and TMySQLTable(Self).AutomaticLoadNextRecords and TMySQLTable(Self).LoadNextRecords())) then
+            InternRecordBuffers.RecordReceived.WaitFor(NET_WAIT_TIMEOUT * 1000);
 
-            if (NewIndex >= InternRecordBuffers.Count - 1) then
+          if (NewIndex >= InternRecordBuffers.Count - 1) then
+            Result := grEOF
+          else
+          begin
+            Inc(NewIndex);
+            if (not Filtered or InternRecordBuffers[NewIndex]^.VisibleInFilter) then
+              Result := grOk;
+          end;
+        end;
+
+        if (Result <> grEOF) then
+          InternRecordBuffers.RecordReceived.ResetEvent();
+      end;
+    else // gmCurrent
+      if (Filtered) then
+      begin
+        if (NewIndex < 0) then
+          Result := grBOF
+        else if (NewIndex < InternRecordBuffers.Count) then
+          repeat
+            if (not Filtered or InternRecordBuffers[NewIndex]^.VisibleInFilter) then
+              Result := grOk
+            else if (NewIndex + 1 = InternRecordBuffers.Count) then
               Result := grEOF
             else
             begin
+              Result := grError;
               Inc(NewIndex);
-              if (not Filtered or InternRecordBuffers[NewIndex]^.VisibleInFilter) then
-                Result := grOk;
             end;
-          end;
-
-          if (Result <> grEOF) then
-            InternRecordBuffers.RecordReceived.ResetEvent();
-        end;
-      else // gmCurrent
-        if (Filtered) then
-        begin
-          if (NewIndex < 0) then
-            Result := grBOF
-          else if (NewIndex < InternRecordBuffers.Count) then
-            repeat
-              if (not Filtered or InternRecordBuffers[NewIndex]^.VisibleInFilter) then
-                Result := grOk
-              else if (NewIndex + 1 = InternRecordBuffers.Count) then
-                Result := grEOF
-              else
-              begin
-                Result := grError;
-                Inc(NewIndex);
-              end;
-            until (Result <> grError)
-          else
-          begin
-            Result := grEOF;
-            NewIndex := InternRecordBuffers.Count - 1;
-          end;
-          while ((Result = grEOF) and (NewIndex > 0)) do
-            if (not Filtered or InternRecordBuffers[NewIndex]^.VisibleInFilter) then
-              Result := grOk
-            else
-              Dec(NewIndex);
-        end
-        else if ((0 <= InternRecordBuffers.Index) and (InternRecordBuffers.Index < InternRecordBuffers.Count)) then
-          Result := grOk
+          until (Result <> grError)
         else
+        begin
           Result := grEOF;
-    end;
+          NewIndex := InternRecordBuffers.Count - 1;
+        end;
+        while ((Result = grEOF) and (NewIndex > 0)) do
+          if (not Filtered or InternRecordBuffers[NewIndex]^.VisibleInFilter) then
+            Result := grOk
+          else
+            Dec(NewIndex);
+      end
+      else if ((0 <= InternRecordBuffers.Index) and (InternRecordBuffers.Index < InternRecordBuffers.Count)) then
+        Result := grOk
+      else
+        Result := grEOF;
+  end;
 
-    if (Result = grOk) then
-    begin
-      InternRecordBuffers.CriticalSection.Enter();
-      InternRecordBuffers.Index := NewIndex;
+  if (Result = grOk) then
+  begin
+    InternRecordBuffers.CriticalSection.Enter();
+    InternRecordBuffers.Index := NewIndex;
 
-      PExternRecordBuffer(Buffer)^.InternRecordBuffer := InternRecordBuffers[InternRecordBuffers.Index];
-      PExternRecordBuffer(Buffer)^.Index := InternRecordBuffers.Index;
-      PExternRecordBuffer(Buffer)^.BookmarkFlag := bfCurrent;
+    PExternRecordBuffer(Buffer)^.InternRecordBuffer := InternRecordBuffers[InternRecordBuffers.Index];
+    PExternRecordBuffer(Buffer)^.Index := InternRecordBuffers.Index;
+    PExternRecordBuffer(Buffer)^.BookmarkFlag := bfCurrent;
 
-      InternRecordBuffers.CriticalSection.Leave();
-    end;
+    InternRecordBuffers.CriticalSection.Leave();
   end;
 end;
 
@@ -5464,22 +5458,11 @@ begin
 
   FCursorOpen := True;
 
-  if (not CachedUpdates) then
-  begin
-    RecordsReceived.ResetEvent();
+  RecordsReceived.ResetEvent();
 
-    inherited;
+  inherited;
 
-    SetFieldsSortTag();
-  end
-  else
-  begin
-    InternalInitFieldDefs();
-    BindFields(True);
-    UpdateBufferCount();
-
-    InternRecordBuffers.Index := -1;
-  end;
+  SetFieldsSortTag();
 end;
 
 procedure TMySQLDataSet.InternalPost();
@@ -5489,12 +5472,12 @@ var
   Success: Boolean;
   Update: Boolean;
 begin
-  Update := PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag = bfCurrent;
-
   if (CachedUpdates) then
     Success := True
   else
   begin
+    Update := PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag = bfCurrent;
+
     if (Update) then
       SQL := SQLUpdate()
     else
@@ -5524,7 +5507,7 @@ begin
         InternRecordBuffers.Index := InternRecordBuffers.Add(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
     end;
 
-    if (not CachedUpdates and Connection.Connected) then
+    if (Connection.Connected) then
       for I := 0 to Fields.Count - 1 do
         if ((Fields[I].AutoGenerateValue = arAutoInc) and (Fields[I].IsNull or (Fields[I].AsInteger = 0))) then
           Fields[I].AsInteger := Connection.Lib.mysql_insert_id(Connection.Handle);
@@ -5722,17 +5705,6 @@ begin
     and Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
     and (Mode = [])) then
     InternRecordBuffers.Index := PExternRecordBuffer(ActiveBuffer())^.Index;
-
-  inherited;
-end;
-
-procedure TMySQLDataSet.SetActive(Value: Boolean);
-begin
-  if (CachedUpdates and not Active and Value) then
-  begin
-    InternalInitFieldDefs();
-    BindFields(True);
-  end;
 
   inherited;
 end;

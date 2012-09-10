@@ -6110,7 +6110,7 @@ begin
 
     // Debug
     if (not Assigned(DBGrid.SelectedField)) then
-      raise ERangeError.CreateFmt(SRangeError + ' (SelectedField) - %s', [TMySQLQuery(DBGrid.DataSource.DataSet).CommandText]);
+      raise ERangeError.CreateFmt(SRangeError + ' (SelectedField) - %s - %d', [TMySQLQuery(DBGrid.DataSource.DataSet).CommandText, DBGrid.DataSource.DataSet.FieldCount]);
 
     DBGrid.UpdateAction(MainAction('aEPaste'));
     MainAction('aECopyToFile').Enabled := (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) and (not DBGrid.SelectedField.IsNull) and (DBGrid.SelectedRows.Count <= 1);
@@ -6136,8 +6136,6 @@ begin
   if ((Sender = FObjectIDEGrid) and (SelectedImageIndex = iiTrigger) and (TMySQLDBGrid(Sender).DataSource.DataSet is TMySQLDataSet)) then
   begin
     Trigger := TCTrigger(FNavigator.Selected.Data);
-
-    FObjectIDEGrid.DataSource.DataSet.CheckBrowseMode();
 
     BINSERT.Enabled := Trigger.SQLInsert() <> '';
     BREPLACE.Enabled := Trigger.SQLReplace() <> '';
@@ -7869,7 +7867,7 @@ begin
             TableNode := Child
           else
             Child := Child.getNextSibling();
-        if ((URI.Param['objecttype'] <> 'trigger') or (URI.Param['object'] = Null)) then
+        if ((URI.Param['view'] <> 'ide') or (URI.Param['objecttype'] <> 'trigger') or (URI.Param['object'] = Null)) then
           Result := TableNode
         else
         begin
@@ -8899,10 +8897,10 @@ end;
 procedure TFClient.FSQLHistoryHint(Sender: TObject; const Node: TTreeNode;
   var Hint: string);
 begin
-  if (Node.ImageIndex in [iiQuery, iiStatement]) then
-    Hint := XMLNode(IXMLNode(Node.Data), 'sql').Text
+  if (not Assigned(Node.Data) or not (Node.ImageIndex in [iiQuery, iiStatement])) then
+    Hint := ''
   else
-    Hint := '';
+    Hint := XMLNode(IXMLNode(Node.Data), 'sql').Text;
 end;
 
 procedure TFClient.FSQLHistoryKeyDown(Sender: TObject; var Key: Word;

@@ -1591,7 +1591,7 @@ function TMySQL_File.ReceivePacket(): Boolean;
 
             try
               DecompressBuffer.Mem := nil;
-              ZDecompress(@PacketBuffer.Mem[PacketOffset + NET_HEADER_SIZE + COMP_HEADER_SIZE], MAX_ALLOWED_PACKET, DecompressBuffer.Mem, DecompressBuffer.Size);
+              ZDecompress(@PacketBuffer.Mem[PacketOffset + NET_HEADER_SIZE + COMP_HEADER_SIZE], Size, DecompressBuffer.Mem, DecompressBuffer.Size);
               MoveMemory(@PacketBuffer.Mem[PacketOffset], DecompressBuffer.Mem, DecompressBuffer.Size);
               FreeMem(DecompressBuffer.Mem);
             except
