@@ -1527,7 +1527,6 @@ begin
     end;
     DataSource.DataSet := Table.DataSet;
     DBGrid := FClient.CreateDBGrid(PDBGrid, DataSource);
-    DBGrid.Tag := Integer(Self);
   end;
 
   Result := DBGrid;

@@ -599,6 +599,7 @@ type
     function GetMaxTextWidth(const Field: TField; const TextWidth: TTextWidth): Integer; virtual;
     function Locate(const KeyFields: string; const KeyValues: Variant;
       Options: TLocateOptions): Boolean; override;
+    procedure Open(const DataHandle: TMySQLConnection.TDataResult); overload; override;
     procedure Resync(Mode: TResyncMode); override;
     procedure Sort(const ASortDef: TIndexDef); virtual;
     function SQLDelete(): string; virtual;
@@ -1928,6 +1929,9 @@ procedure TMySQLConnection.TSynchroThread.ReleaseDataSet();
 var
   RecordsReceived: TEvent;
 begin
+  if (not Assigned(DataSet)) then
+    Write;
+
   Assert(Assigned(DataSet));
 
   if (not (DataSet is TMySQLDataSet)) then
@@ -1968,33 +1972,25 @@ begin
         begin
           case (Mode) of
             smSQL:
-              begin
-                repeat
-                  Connection.SyncExecutingSQL(Self);
+              repeat
+                Connection.SyncExecutingSQL(Self);
+                Connection.SyncHandleResult(Self);
+                Connection.SyncHandlingResult(Self);
+                while (State = ssNextResult) do
+                begin
+                  Connection.SyncNextResult(Self);
                   Connection.SyncHandleResult(Self);
                   Connection.SyncHandlingResult(Self);
-                  while (State = ssNextResult) do
-                  begin
-                    Connection.SyncNextResult(Self);
-                    Connection.SyncHandleResult(Self);
-                    Connection.SyncHandlingResult(Self);
-                  end;
-                until (State <> ssExecutingSQL);
-                if (State = ssReady) then
-                  Connection.SyncExecutedSQL(Self);
-              end;
+                end;
+              until (State <> ssExecutingSQL);
             smDataSet:
               begin
                 Connection.SyncExecutingSQL(Self);
                 Connection.SyncHandleResult(Self);
-                Connection.SyncHandlingResult(Self);
-                if (DataSet is TMySQLDataSet) then
-                begin
-                  Connection.SyncReceivingResult(Self);
-                  Synchronize();
-                end;
               end;
           end;
+          if (State = ssReady) then
+            Connection.SyncExecutedSQL(Self);
         end;
       ssReceivingResult:
         raise Exception.Create(SOutOfSync);
@@ -2539,8 +2535,7 @@ end;
 
 function TMySQLConnection.FirstResult(out DataHandle: TMySQLConnection.TDataResult; const SQL: string): Boolean;
 begin
-  Result := ExecuteSQL(smDataHandle, False, SQL);
-  SyncHandleResult(SynchroThread);
+  Result := ExecuteSQL(smDataHandle, True, SQL);
 
   DataHandle := SynchroThread;
 end;
@@ -4677,7 +4672,13 @@ begin
     if (not Synchron) then
       SetState(dsOpening);
 
-    Connection.ExecuteSQL(smDataSet, Synchron, SQL, SetActiveEvent);
+    if (Connection.ExecuteSQL(smDataSet, Synchron, SQL, SetActiveEvent) and Synchron and (Self is TMySQLDataSet)) then
+    begin
+      Connection.SyncHandlingResult(Connection.SynchroThread);
+      Connection.SyncReceivingResult(Connection.SynchroThread);
+      Connection.SyncHandledResult(Connection.SynchroThread);
+      Connection.SyncExecutedSQL(Connection.SynchroThread);
+    end;
   end;
 end;
 
@@ -4973,8 +4974,6 @@ begin
   FRecordsReceived := TEvent.Create(nil, True, False, '');
   FSortDef := TIndexDef.Create(nil, 'SortDef', '', []);
   FInternRecordBuffers := TInternRecordBuffers.Create(Self);
-
-  Asynchron := True;
 
   BookmarkSize := SizeOf(BookmarkCounter);
 
@@ -5698,6 +5697,13 @@ begin
     end;
 end;
 
+procedure TMySQLDataSet.Open(const DataHandle: TMySQLConnection.TDataResult);
+begin
+  Asynchron := True;
+
+  inherited;
+end;
+
 procedure TMySQLDataSet.Resync(Mode: TResyncMode);
 begin
   // Why is this needed in Delphi XE2? Without this, Buffers are not reinitialized well.
@@ -6042,7 +6048,8 @@ var
   OldBookmark: TBookmark;
   Pos: Integer;
 begin
-  Connection.Terminate();
+  if (Assigned(SynchroThread)) then
+    Connection.Terminate();
 
   if ((ASortDef.Fields <> '') and (InternRecordBuffers.Count > 0)) then
   begin
