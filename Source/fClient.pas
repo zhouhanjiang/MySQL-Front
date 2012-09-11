@@ -6597,7 +6597,7 @@ begin
   if ((Client.ServerVersion < 50004) or (Self is TCSystemDatabase)) then FRoutines := nil else FRoutines := TCRoutines.Create(Self);
   FTables := TCTables.Create(Self);
   if ((Client.ServerVersion < 50010) or (Self is TCSystemDatabase)) then FTriggers := nil else FTriggers := TCTriggers.Create(Self);
-  if ((Client.ServerVersion < 50106) or (Self is TCSystemDatabase) or not Assigned(Client.VariableByName('event_scheduler')) or not Client.VariableByName('event_scheduler').AsBoolean) then FEvents := nil else FEvents := TCEvents.Create(Self);
+  if ((Client.ServerVersion < 50106) or (Self is TCSystemDatabase)) then FEvents := nil else FEvents := TCEvents.Create(Self);
 end;
 
 function TCDatabase.DeleteObject(const DBObject: TCDBObject): Boolean;
