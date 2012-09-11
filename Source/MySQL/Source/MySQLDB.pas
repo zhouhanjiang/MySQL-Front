@@ -423,7 +423,6 @@ type
     FWarningCount: Integer;
     function GetHandle(): MySQLConsts.MYSQL_RES;
   protected
-    FAsynchron: Boolean;
     FCommandText: string;
     FCommandType: TCommandType;
     FDatabaseName: string;
@@ -471,7 +470,6 @@ type
     property UniDirectional: Boolean read GetUniDirectional;
     property Warnings: Integer read FWarningCount;
   published
-    property Asynchron: Boolean read FAsynchron write FAsynchron default False;
     property CommandText: string read FCommandText write SetCommandText;
     property CommandType: TCommandType read FCommandType;
     property Connection: TMySQLConnection read FConnection write SetConnection;
@@ -597,7 +595,6 @@ type
     function GetMaxTextWidth(const Field: TField; const TextWidth: TTextWidth): Integer; virtual;
     function Locate(const KeyFields: string; const KeyValues: Variant;
       Options: TLocateOptions): Boolean; override;
-    procedure Open(const DataHandle: TMySQLConnection.TDataResult); overload; override;
     procedure Resync(Mode: TResyncMode); override;
     procedure Sort(const ASortDef: TIndexDef); virtual;
     function SQLDelete(): string; virtual;
@@ -3463,12 +3460,12 @@ begin
       and (ErrorCode > 0)) then
       DoError(ErrorCode, ErrorMessage);
     InOnResult := False;
+  end;
 
-    if (SynchroThread.State = ssResult) then
-    begin
-      SynchroThread.State := ssReceivingResult;
-      SyncHandledResult(SynchroThread);
-    end;
+  if ((Assigned(SynchroThread.OnResult) or not Assigned(SynchroThread.ResultHandle)) and (SynchroThread.State = ssResult)) then
+  begin
+    SynchroThread.State := ssReceivingResult;
+    SyncHandledResult(SynchroThread);
   end;
 end;
 
@@ -4006,7 +4003,6 @@ begin
   Name := 'TMySQLQuery' + IntToStr(DataSetNumber);
   Inc(DataSetNumber);
 
-  FAsynchron := False;
   FCommandText := '';
   FCommandType := ctQuery;
   FConnection := nil;
@@ -4207,8 +4203,6 @@ function TMySQLQuery.GetRecord(Buffer: TRecordBuffer; GetMode: TGetMode; DoCheck
 begin
   if (GetMode <> gmNext) then
     Result := grError
-  else if (Asynchron) then
-    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Asynchron'])
   else if (not Assigned(SynchroThread.ResultHandle)) then
     Result := grEOF
   else
@@ -4633,21 +4627,17 @@ end;
 procedure TMySQLQuery.SetActive(Value: Boolean);
 var
   SQL: string;
-  Synchron: Boolean;
 begin
   if (not Value) then
     inherited
   else if (not Active) then
   begin
-    Synchron := not Asynchron or not Connection.UseSynchroThread();
     if (CommandType <> ctTable) then
       SQL := CommandText
     else
       SQL := SQLSelect();
-    if (not Synchron) then
-      SetState(dsOpening);
 
-    Connection.ExecuteSQL(smDataSet, Synchron, SQL, SetActiveEvent);
+    Connection.ExecuteSQL(smDataSet, True, SQL, SetActiveEvent);
   end;
 end;
 
@@ -5141,8 +5131,7 @@ begin
         Result := grError;
         while (Result = grError) do
         begin
-          if (Asynchron
-            and (NewIndex + 1 = InternRecordBuffers.Count) and not Filtered
+          if ((NewIndex + 1 = InternRecordBuffers.Count) and not Filtered
             and ((RecordsReceived.WaitFor(IGNORE) <> wrSignaled) or (Self is TMySQLTable) and TMySQLTable(Self).LimitedDataReceived and TMySQLTable(Self).AutomaticLoadNextRecords and TMySQLTable(Self).LoadNextRecords())) then
             InternRecordBuffers.RecordReceived.WaitFor(NET_WAIT_TIMEOUT * 1000);
 
@@ -5664,13 +5653,6 @@ begin
       MoveMemory(DestData^.LibRow^[I], SourceData^.LibRow^[I], DestData^.LibLengths^[I]);
       Inc(Index, DestData^.LibLengths^[I]);
     end;
-end;
-
-procedure TMySQLDataSet.Open(const DataHandle: TMySQLConnection.TDataResult);
-begin
-  Asynchron := True;
-
-  inherited;
 end;
 
 procedure TMySQLDataSet.Resync(Mode: TResyncMode);

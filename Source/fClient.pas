@@ -472,6 +472,7 @@ type
     function GetDataSet(): TCTableDataSet;
     function GetTables(): TCTables; inline;
     function GetValidData(): Boolean;
+    function OpenEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
   protected
     FDataSet: TCTableDataSet;
     FFilterSQL: string;
@@ -3192,7 +3193,6 @@ begin
 
   FTable := ATable;
 
-  Asynchron := True;
   Connection := ATable.Database.Client;
   FFilterSQL := '';
 end;
@@ -3423,9 +3423,14 @@ begin
   DataSet.QuickSearch := QuickSearch;
   DataSet.SortDef.Assign(ASortDef);
 
-  DataSet.Connection := Database.Client;
-  DataSet.CommandText := Name;
-  DataSet.Open();
+  Client.SendSQL(DataSet.SQLSelect(), OpenEvent);
+end;
+
+function TCTable.OpenEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+begin
+  DataSet.Open(DataHandle);
+
+  Result := False;
 end;
 
 procedure TCTable.SetName(const AName: string);
@@ -10118,7 +10123,6 @@ var
   DataSet: TMySQLQuery;
   Field: Integer;
   FunctionName: string;
-  I: Integer;
   ObjectName: string;
   Parse: TSQLParse;
   Table: TCTable;
@@ -10144,60 +10148,24 @@ begin
             DatabaseByName(SQLParseValue(Parse)).Tables.BuildViewFields(DataSet, True)
           else if (TableNameCmp(ObjectName, 'ENGINES') = 0) then
             Result := Engines.Build(DataSet, True, not SQLParseEnd(Parse))
-          else if (TableNameCmp(ObjectName, 'EVENTS') = 0) then
-          begin
-            if (SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'EVENT_SCHEMA') and SQLParseChar(Parse, '=')) then
-            begin
-              DatabaseName := SQLParseValue(Parse);
-              Result := DatabaseByName(DatabaseName).Events.Build(DataSet, True, not SQLParseEnd(Parse))
-            end
-            else
-              for I := 0 to Databases.Count - 1 do
-                Result := Databases[I].Events.Build(DataSet, True, not SQLParseEnd(Parse));
-          end
+          else if ((TableNameCmp(ObjectName, 'EVENTS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'EVENT_SCHEMA') and SQLParseChar(Parse, '=')) then
+            Result := DatabaseByName(SQLParseValue(Parse)).Events.Build(DataSet, True, not SQLParseEnd(Parse))
           else if (TableNameCmp(ObjectName, 'PLUGINS') = 0) then
             Result := Plugins.Build(DataSet, True, not SQLParseEnd(Parse))
           else if (TableNameCmp(ObjectName, 'PROCESSLIST') = 0) then
             Result := Processes.Build(DataSet, True, not SQLParseEnd(Parse))
-          else if (TableNameCmp(ObjectName, 'ROUTINES') = 0) then
-          begin
-            if (SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'ROUTINE_SCHEMA') and SQLParseChar(Parse, '=')) then
-            begin
-              DatabaseName := SQLParseValue(Parse);
-              Result := DatabaseByName(DatabaseName).Routines.Build(DataSet, True, not SQLParseEnd(Parse));
-            end
-            else
-              for I := 0 to Databases.Count - 1 do
-                Result := Databases[I].Routines.Build(DataSet, True, not SQLParseEnd(Parse));
-          end
+          else if ((TableNameCmp(ObjectName, 'ROUTINES') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'ROUTINE_SCHEMA') and SQLParseChar(Parse, '=')) then
+            Result := DatabaseByName(SQLParseValue(Parse)).Routines.Build(DataSet, True, not SQLParseEnd(Parse))
           else if (TableNameCmp(ObjectName, 'SESSION_STATUS') = 0) then
             Result := Stati.Build(DataSet, True, not SQLParseEnd(Parse))
           else if (TableNameCmp(ObjectName, 'SESSION_VARIABLES') = 0) then
             Result := Variables.Build(DataSet, True, not SQLParseEnd(Parse))
           else if (TableNameCmp(ObjectName, 'SCHEMATA') = 0) then
             Result := Databases.Build(DataSet, True, not SQLParseEnd(Parse))
-          else if (TableNameCmp(ObjectName, 'TABLES') = 0) then
-          begin
-            if (SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'TABLE_SCHEMA') and SQLParseChar(Parse, '=')) then
-            begin
-              DatabaseName := SQLParseValue(Parse);
-              Result := DatabaseByName(DatabaseName).Tables.Build(DataSet, True, not SQLParseEnd(Parse))
-            end
-            else
-              for I := 0 to Databases.Count - 1 do
-                Result := Databases[I].Tables.Build(DataSet, True, not SQLParseEnd(Parse));
-          end
-          else if (TableNameCmp(ObjectName, 'TRIGGERS') = 0) then
-          begin
-            if (SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'EVENT_OBJECT_SCHEMA') and SQLParseChar(Parse, '=')) then
-            begin
-              DatabaseName := SQLParseValue(Parse);
-              Result := DatabaseByName(DatabaseName).Triggers.Build(DataSet, True, not SQLParseEnd(Parse));
-            end
-            else
-              for I := 0 to Databases.Count - 1 do
-                Result := Databases[I].Triggers.Build(DataSet, True, not SQLParseEnd(Parse));
-          end
+          else if ((TableNameCmp(ObjectName, 'TABLES') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'TABLE_SCHEMA') and SQLParseChar(Parse, '=')) then
+            Result := DatabaseByName(SQLParseValue(Parse)).Tables.Build(DataSet, True, not SQLParseEnd(Parse))
+          else if ((TableNameCmp(ObjectName, 'TRIGGERS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'EVENT_OBJECT_SCHEMA') and SQLParseChar(Parse, '=')) then
+            Result := DatabaseByName(SQLParseValue(Parse)).Triggers.Build(DataSet, True, not SQLParseEnd(Parse))
           else if ((TableNameCmp(ObjectName, 'USER_PRIVILEGES') = 0)) then
             Result := Users.Build(DataSet, True, not SQLParseKeyword(Parse, 'GROUP BY') and not SQLParseEnd(Parse))
           else

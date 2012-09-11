@@ -6104,12 +6104,16 @@ begin
       FText.OnChange := FTextChange;
     end;
 
+    // Debug
+    if (not Assigned(DBGrid.SelectedField)) then
+      raise ERangeError.CreateFmt(SRangeError + ' (SelectedField) - %s - %d', [TMySQLQuery(DBGrid.DataSource.DataSet).CommandText, DBGrid.DataSource.DataSet.FieldCount]);
+
     DBGrid.UpdateAction(MainAction('aEPaste'));
     MainAction('aECopyToFile').Enabled := (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) and (not DBGrid.SelectedField.IsNull) and (DBGrid.SelectedRows.Count <= 1);
     MainAction('aEPasteFromFile').Enabled := (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) and not DBGrid.SelectedField.ReadOnly and (DBGrid.SelectedRows.Count <= 1);
     MainAction('aDCreateField').Enabled := Assigned(DBGrid.SelectedField) and (View = vBrowser);
     MainAction('aDEditRecord').Enabled := Assigned(DBGrid.SelectedField) and (View <> vIDE);
-    MainAction('aDEmpty').Enabled := (Assigned(DBGrid.DataSource.DataSet) and DBGrid.DataSource.DataSet.CanModify and Assigned(DBGrid.SelectedField) and not DBGrid.SelectedField.IsNull and not DBGrid.SelectedField.Required and (DBGrid.SelectedRows.Count <= 1));
+    MainAction('aDEmpty').Enabled := (Assigned(DBGrid.DataSource.DataSet) and DBGrid.DataSource.DataSet.CanModify and not DBGrid.SelectedField.IsNull and not DBGrid.SelectedField.Required and (DBGrid.SelectedRows.Count <= 1));
   end;
 
   StatusBarRefresh();
