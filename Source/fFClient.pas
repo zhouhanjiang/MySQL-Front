@@ -1299,7 +1299,6 @@ begin
 
     GetMem(Item, SizeOf(TResult));
     TResult(Item^).DataSet := TMySQLDataSet.Create(FClient.Owner);
-    TResult(Item^).DataSet.Asynchron := True;
     TResult(Item^).DataSet.AfterOpen := FClient.DataSetAfterOpen;
     TResult(Item^).DataSource := TDataSource.Create(FClient.Owner);
     TResult(Item^).DataSource.Enabled := False;
@@ -1349,7 +1348,6 @@ begin
   if (Data) then
   begin
     DataSet := TMySQLDataSet.Create(FClient.Owner);
-    DataSet.Asynchron := True;
     DataSet.AfterOpen := FClient.DataSetAfterOpen;
 
     if (not Assigned(PDBGrid)) then
@@ -1860,7 +1858,6 @@ begin
 
     GetMem(Item, SizeOf(TResult));
     TResult(Item^).DataSet := TMySQLDataSet.Create(FClient.Owner);
-    TResult(Item^).DataSet.Asynchron := True;
     TResult(Item^).DataSet.AfterOpen := FClient.DataSetAfterOpen;
     TResult(Item^).DataSource := TDataSource.Create(FClient.Owner);
     TResult(Item^).DataSource.Enabled := False;
@@ -5292,7 +5289,6 @@ begin
     else
       ListViewSortData[Kind].Order := 1;
   end;
-  ListViewSortData[lkProcesses].Index := 6;
   FNavigatorNodeAfterActivate := nil;
   FNavigatorNodeToExpand := nil;
   PanelMouseDownPoint := Point(-1, -1);
@@ -10602,7 +10598,7 @@ procedure TFClient.ListViewUpdate(const ClientEvent: TCClient.TEvent; const List
         Mid := (Right - Left) div 2 + Left;
         case (Compare(Kind, ListView.Items[Mid], Item)) of
           -1: begin Left := Mid + 1; Index := Mid + 1; end;
-          0: raise ERangeError.CreateFmt(SRangeError + ': %s /%s', [TCItem(Data).Name, TCItem(Data).ClassName]);
+          0: raise ERangeError.CreateFmt(SRangeError + ': %s / %s', [TCItem(Data).Name, TCItem(Data).ClassName]);
           1: begin Right := Mid - 1; Index := Mid; end;
         end;
       end;
