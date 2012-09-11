@@ -1806,7 +1806,7 @@ begin
 
   State := ssReceivingResult;
 
-  if (DataSet.Asynchron) then
+  if (DataSet is TMySQLDataSet) then
     RunAction(ssReceivingResult, False);
 end;
 
@@ -1910,9 +1910,6 @@ procedure TMySQLConnection.TSynchroThread.ReleaseDataSet();
 var
   RecordsReceived: TEvent;
 begin
-  if (not Assigned(DataSet)) then
-    Write;
-
   Assert(Assigned(DataSet));
 
   if (not (DataSet is TMySQLDataSet)) then
@@ -1949,7 +1946,8 @@ begin
       ssExecutingSQL:
         begin
           case (Mode) of
-            smSQL:
+            smSQL,
+            smDataSet:
               repeat
                 Connection.SyncExecutingSQL(Self);
                 Connection.SyncHandleResult(Self);
@@ -1961,11 +1959,6 @@ begin
                   Connection.SyncHandlingResult(Self);
                 end;
               until (State <> ssExecutingSQL);
-            smDataSet:
-              begin
-                Connection.SyncExecutingSQL(Self);
-                Connection.SyncHandleResult(Self);
-              end;
           end;
           if (State = ssReady) then
             Connection.SyncExecutedSQL(Self);
@@ -3288,7 +3281,7 @@ begin
         if (NeedReconnect) then
         begin
           {$IFDEF Debug}
-            MessageBox(Application.Handle, 'Reconnect needed!', 'Debug', MB_OK);
+            MessageBox(Application.Handle, 'Reconnect required!', 'Debug', MB_OK);
           {$ENDIF}
           SyncDisconnecting(SynchroThread);
         end;
@@ -3463,16 +3456,19 @@ end;
 
 procedure TMySQLConnection.SyncHandlingResult(const SynchroThread: TSynchroThread);
 begin
-  InOnResult := True;
-  if ((not Assigned(SynchroThread.OnResult) or not SynchroThread.OnResult(SynchroThread, Assigned(SynchroThread.ResultHandle)))
-    and (ErrorCode > 0)) then
-    DoError(ErrorCode, ErrorMessage);
-  InOnResult := False;
-
-  if (SynchroThread.State = ssResult) then
+  if (Assigned(SynchroThread.OnResult)) then
   begin
-    SynchroThread.State := ssReceivingResult;
-    SyncHandledResult(SynchroThread);
+    InOnResult := True;
+    if (not SynchroThread.OnResult(SynchroThread, Assigned(SynchroThread.ResultHandle))
+      and (ErrorCode > 0)) then
+      DoError(ErrorCode, ErrorMessage);
+    InOnResult := False;
+
+    if (SynchroThread.State = ssResult) then
+    begin
+      SynchroThread.State := ssReceivingResult;
+      SyncHandledResult(SynchroThread);
+    end;
   end;
 end;
 
@@ -3537,6 +3533,10 @@ begin
 
   if (Assigned(SynchroThread)) then
   begin
+    {$IFDEF Debug}
+      MessageBox(Application.Handle, 'Terminate required!', 'Debug', MB_OK);
+    {$ENDIF}
+
     if (SynchroThread.IsRunning) then
     begin
       S := '----> Connection Terminated <----';
@@ -4647,13 +4647,7 @@ begin
     if (not Synchron) then
       SetState(dsOpening);
 
-    if (Connection.ExecuteSQL(smDataSet, Synchron, SQL, SetActiveEvent) and Synchron and (Self is TMySQLDataSet)) then
-    begin
-      Connection.SyncHandlingResult(Connection.SynchroThread);
-      Connection.SyncReceivingResult(Connection.SynchroThread);
-      Connection.SyncHandledResult(Connection.SynchroThread);
-      Connection.SyncExecutedSQL(Connection.SynchroThread);
-    end;
+    Connection.ExecuteSQL(smDataSet, Synchron, SQL, SetActiveEvent);
   end;
 end;
 

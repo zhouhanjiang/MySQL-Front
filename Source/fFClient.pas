@@ -8938,10 +8938,8 @@ procedure TFClient.FSQLHistoryRefresh(Sender: TObject);
 var
   Date: TDateTime;
   DateNode: TTreeNode;
-  I: Integer;
-  NewNode: TTreeNode;
+  Node: TTreeNode;
   OldNode: TTreeNode;
-  TimeNode: TTreeNode;
   XML: IXMLNode;
 begin
   if (PSQLHistory.Visible) then
@@ -8950,10 +8948,14 @@ begin
 
     FSQLHistory.Items.BeginUpdate();
 
-    if (FSQLHistory.Items.Count > 0) then
-      XML := IXMLNode(FSQLHistory.Items[FSQLHistory.Items.Count - 1].Data)
+    if (FSQLHistory.Items.Count = 0) then
+      OldNode := nil
+    else
+      OldNode := FSQLHistory.Items[FSQLHistory.Items.Count - 1];
+    if (Assigned(OldNode)) then
+      XML := IXMLNode(OldNode.Data)
     else if (Client.Account.HistoryXML.ChildNodes.Count > 0) then
-      XML := Client.Account.HistoryXML.ChildNodes[0]
+      XML := Client.Account.HistoryXML.ChildNodes.First()
     else
       XML := nil;
 
@@ -8962,10 +8964,15 @@ begin
       if (XML.NodeName = 'sql') then
       begin
         Date := SysUtils.StrToFloat(XMLNode(XML, 'datetime').Text, FileFormatSettings);
+
         DateNode := nil;
-        for I := 0 to FSQLHistory.Items.Count - 1 do
-          if (FSQLHistory.Items[I].Text = SysUtils.DateToStr(Date, LocaleFormatSettings)) then
-            DateNode := FSQLHistory.Items[I];
+        Node := FSQLHistory.Items.GetFirstNode();
+        while (Assigned(Node) and not Assigned(DateNode)) do
+        begin
+          if (Node.Text = SysUtils.DateToStr(Date, LocaleFormatSettings)) then
+            DateNode := Node;
+          Node := Node.getNextSibling();
+        end;
         if (not Assigned(DateNode)) then
         begin
           DateNode := FSQLHistory.Items.Add(nil, SysUtils.DateToStr(Date, LocaleFormatSettings));
@@ -8973,33 +8980,12 @@ begin
           DateNode.ImageIndex := iiCalendar;
         end;
 
-        OldNode := FSQLHistory.Items[FSQLHistory.Items.Count - 1];
-        case (OldNode.ImageIndex) of
-          iiCalendar: OldNode := nil;
-          iiClock: OldNode := OldNode.Parent;
-        end;
-        if (not Assigned(OldNode) or (OldNode.Parent <> DateNode) or (XMLNode(IXMLNode(OldNode.Data), 'sql').Text <> XMLNode(XML, 'sql').Text)) then
-        begin
-          NewNode := FSQLHistory.Items.AddChild(DateNode, SQLStmtToCaption(XMLNode(XML, 'sql').Text));
-          if (XML.Attributes['type'] <> 'query') then
-            NewNode.ImageIndex := iiStatement
-          else
-            NewNode.ImageIndex := iiQuery;
-          NewNode.Data := Pointer(XML);
-        end
+        Node := FSQLHistory.Items.AddChild(DateNode, SQLStmtToCaption(XMLNode(XML, 'sql').Text));
+        if (XML.Attributes['type'] <> 'query') then
+          Node.ImageIndex := iiStatement
         else
-        begin
-          if (not OldNode.HasChildren) then
-          begin
-            TimeNode := FSQLHistory.Items.AddChild(OldNode, TimeToStr(StrToFloat(XMLNode(IXMLNode(OldNode.Data), 'datetime').Text, FileFormatSettings), LocaleFormatSettings));
-            TimeNode.ImageIndex := iiClock;
-            TimeNode.Data := OldNode.Data;
-          end;
-
-          TimeNode := FSQLHistory.Items.AddChild(OldNode, TimeToStr(StrToFloat(XMLNode(XML, 'datetime').Text, FileFormatSettings), LocaleFormatSettings));
-          TimeNode.ImageIndex := iiClock;
-          TimeNode.Data := Pointer(XML);
-        end;
+          Node.ImageIndex := iiQuery;
+        Node.Data := Pointer(XML);
       end;
 
       XML := XML.NextSibling();

@@ -602,8 +602,7 @@ begin
     FAutoIncrement.Visible := NewTable.AutoIncrement > 0; FLAutoIncrement.Visible := FAutoIncrement.Visible;
     FAutoIncrement.Text := IntToStr(NewTable.AutoIncrement);
 
-    PageControl.Visible := True;
-    PSQLWait.Visible := not PageControl.Visible;
+    PageControl.ActivePage := TSTable;
   end
   else
   begin
@@ -643,7 +642,12 @@ begin
       if (FTablesRowType.Items.IndexOf(TCBaseTable(Tables[I]).DBRowTypeStr()) <> Index) then
         Index := 0;
     FTablesRowType.ItemIndex := Index;
+
+    PageControl.ActivePage := TSTable;
   end;
+
+  PageControl.Visible := True;
+  PSQLWait.Visible := not PageControl.Visible;
 
   TSInformation.TabVisible := Assigned(Table) and (Table.DataSize >= 0) or Assigned(Tables);
   TSFields.TabVisible := not Assigned(Tables);
