@@ -164,8 +164,6 @@ type
       TMode = (smSQL, smDataHandle, smDataSet);
       TState = (ssClose, ssConnecting, ssReady, ssExecutingSQL, ssResult, ssReceivingResult, ssNextResult, ssCancel, ssDisconnecting, ssError);
     private
-      Nils: Integer;
-      Destroyed: Boolean;
       Done: TEvent;
       FConnection: TMySQLConnection;
       RunExecute: TEvent;
@@ -1814,9 +1812,6 @@ end;
 
 constructor TMySQLConnection.TSynchroThread.Create(const AConnection: TMySQLConnection);
 begin
-  Nils := 0;
-  Destroyed := False;
-
   Assert(Assigned(AConnection));
 
   inherited Create(False);
@@ -1831,13 +1826,10 @@ begin
   State := ssClose;
 
   FreeOnTerminate := True;
-  Nils := 1;
 end;
 
 destructor TMySQLConnection.TSynchroThread.Destroy();
 begin
-  Destroyed := True;
-
   RunExecute.Free(); RunExecute := nil;
   SynchronizeStarted.Free();
   SQLStmtLengths.Free();
@@ -1853,19 +1845,12 @@ var
   WaitResult: TWaitResult;
   SynchronizeRequestSent: Boolean;
 begin
-  Nils := 2;
-
   {$IFDEF EurekaLog}
   try
   {$ENDIF}
 
-  Nils := 3;
   while (not Terminated) do
   begin
-    if ((Nils < 3) or (5 < Nils)) then
-      raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %d', ['Nils', Nils]);
-
-    Nils := 4;
     if ((Connection.ServerTimeout = 0) or (Connection.LibraryType = ltHTTP)) then
       Timeout := INFINITE
     else
@@ -1905,9 +1890,7 @@ begin
         if (SynchronizeRequestSent) then
           SynchronizeStarted.WaitFor(INFINITE);
       end;
-    Nils := 5;
   end;
-  Nils := 6;
 
   Connection.TerminatedThreads.Delete(Self);
 
@@ -1916,8 +1899,6 @@ begin
     StandardEurekaNotify(GetLastExceptionObject(), GetLastExceptionAddress());
   end;
   {$ENDIF}
-
-  Nils := 7;
 end;
 
 function TMySQLConnection.TSynchroThread.GetIsRunning(): Boolean;
@@ -1954,9 +1935,6 @@ begin
   Assert(RunExecute.WaitFor(IGNORE) <> wrSignaled);
 
   State := AState;
-
-  if ((Nils < 1) or (5 < Nils)) then
-    raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %d', ['Nils', Nils]);
 
   if (Synchron) then
     case (State) of
@@ -2052,26 +2030,23 @@ procedure TMySQLConnection.TSynchroThread.Terminate();
 var
   Index: Integer;
 begin
-  if (Terminated) then
-    raise ERangeError.CreateFmt(SPropertyOutOfRange + '(Nils: %d)', ['Terminated', Nils]);
-  if (Destroyed) then
-    raise ERangeError.CreateFmt(SPropertyOutOfRange + '(Nils: %d)', ['Destroyed', Nils]);
-
   SynchronizingThreadsCS.Enter();
   Index := SynchronizingThreads.IndexOf(Self);
   if (Index >= 0) then
     SynchronizingThreads.Delete(Index);
   SynchronizingThreadsCS.Leave();
 
-  inherited Terminate();
-
-  SynchronizeStarted.SetEvent();
-  if (Destroyed) then
-    raise ERangeError.CreateFmt(SPropertyOutOfRange + '(Nils: %d)', ['Destroyed', Nils]);
-  if (RunExecute.WaitFor(IGNORE) = wrSignaled) then
-    Connection.TerminatedThreads.Add(Self)
-  else
+  if (RunExecute.WaitFor(IGNORE) <> wrSignaled) then
+  begin
+    inherited Terminate();
     RunExecute.SetEvent();
+  end
+  else
+  begin
+    Connection.TerminatedThreads.Add(Self);
+    inherited Terminate();
+    SynchronizeStarted.SetEvent();
+  end;
 end;
 
 { TMySQLConnection ************************************************************}
