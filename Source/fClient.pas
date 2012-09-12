@@ -8104,7 +8104,15 @@ begin
     begin
       if (Assigned(Client.Account) and (Client.Account.Connection.Charset = '')) then
         Client.Charset := Client.VariableByName('character_set').Value;
-    end;
+    end
+
+    // Debug only:
+    else if (UpperCase(Client.VariableByName('character_set_client').Value) <> UpperCase(Client.Charset)) then
+      raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %s <> %s', ['character_set_client', Client.VariableByName('character_set_client').Value, Client.Charset])
+    else if (UpperCase(Client.VariableByName('character_set_results').Value) <> UpperCase(Client.Charset)) then
+      raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %s <> %s', ['character_set_results', Client.VariableByName('character_set_results').Value, Client.Charset])
+    else if (UpperCase(Client.VariableByName('character_set_connection').Value) <> UpperCase(Client.Charset)) then
+      raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %s <> %s', ['character_set_connection', Client.VariableByName('character_set_connection').Value, Client.Charset]);
 
     if (Assigned(Client.VariableByName('max_allowed_packet'))) then
       Client.FMaxAllowedPacket := Client.VariableByName('max_allowed_packet').AsInteger - 1; // 1 Byte for COM_QUERY

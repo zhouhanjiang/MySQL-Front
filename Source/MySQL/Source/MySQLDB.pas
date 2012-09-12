@@ -4028,6 +4028,7 @@ end;
 procedure TMySQLQuery.DataConvert(Field: TField; Source, Dest: Pointer; ToNative: Boolean);
 var
   Len: Integer;
+  LibField: MYSQL_FIELD;
 begin
   case (Field.DataType) of
     ftWideMemo:
@@ -4052,7 +4053,10 @@ begin
           Len := AnsiCharToWideChar(Connection.CodePage, PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], nil, 0);
         except
           on E: Exception do
-            raise Exception.Create(E.Message + ' (Charset: ' + Connection.Charset + ')');
+            begin
+              LibField := MYSQL_FIELD(Connection.Lib.mysql_fetch_field_direct(Handle, Field.FieldNo - 1));
+              raise Exception.CreateFmt(E.Message + ' (Charset: %s, name: %s, field_type: %d, charsetnr: %d, length: %d, flags: %d, SQL: %s)', [Connection.Charset, Connection.Lib.Field(LibField).name, Ord(Connection.Lib.Field(LibField).field_type), Connection.Lib.Field(LibField).charsetnr, Connection.Lib.Field(LibField).length, Connection.Lib.Field(LibField).flags, CommandText]);
+            end;
         end;
         if (Len > Field.DataSize) then DatabaseErrorFmt(SInvalidFieldSize + ' (%s)', [Field.DisplayName]);
         AnsiCharToWideChar(Connection.CodePage, PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], PChar(Dest), Field.DataSize);
