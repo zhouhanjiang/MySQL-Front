@@ -8310,9 +8310,9 @@ begin
   MainAction('aDCreateDatabase').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer]) and (not Assigned(Client.UserRights) or Client.UserRights.RCreate);
   MainAction('aDCreateTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
   MainAction('aDCreateView').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and (Client.ServerVersion >= 50001);
-  MainAction('aDCreateProcedure').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and (Client.ServerVersion >= 50004);
+  MainAction('aDCreateProcedure').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and Assigned(TCDatabase(Node.Data).Routines);
   MainAction('aDCreateFunction').Enabled := MainAction('aDCreateProcedure').Enabled;
-  MainAction('aDCreateEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and (Client.ServerVersion >= 50106) and Assigned(TCDatabase(Node.Data).Events);
+  MainAction('aDCreateEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and Assigned(TCDatabase(Node.Data).Events);
   MainAction('aDCreateTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable) and Assigned(TCDatabase(Node.Parent.Data).Triggers);
   MainAction('aDCreateKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
   MainAction('aDCreateField').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
@@ -10971,9 +10971,9 @@ begin
             MainAction('aDCreateDatabase').Enabled := (ListView.SelCount = 0) and (not Assigned(Client.UserRights) or Client.UserRights.RCreate);
             MainAction('aDCreateTable').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aDCreateView').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and (Client.ServerVersion >= 50001);
-            MainAction('aDCreateProcedure').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and (Client.ServerVersion >= 50004);
+            MainAction('aDCreateProcedure').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and Assigned(TCDatabase(Item.Data).Routines);
             MainAction('aDCreateFunction').Enabled := MainAction('aDCreateProcedure').Enabled;
-            MainAction('aDCreateEvent').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and (Client.ServerVersion >= 50106) and Assigned(TCDatabase(Item.Data).Events);
+            MainAction('aDCreateEvent').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and Assigned(TCDatabase(Item.Data).Events);
             MainAction('aDCreateHost').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiHosts);
             MainAction('aDCreateUser').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiUsers);
             MainAction('aDDeleteDatabase').Enabled := (ListView.SelCount >= 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
@@ -11037,9 +11037,9 @@ begin
             MainAction('aERename').Enabled := Assigned(Item) and (ListView.SelCount = 1) and (Item.ImageIndex in [iiBaseTable, iiView, iiEvent]);
             MainAction('aDCreateTable').Enabled := (ListView.SelCount = 0) and (SelectedImageIndex = iiDatabase);
             MainAction('aDCreateView').Enabled := (ListView.SelCount = 0) and (Client.ServerVersion >= 50001) and (SelectedImageIndex = iiDatabase);
-            MainAction('aDCreateProcedure').Enabled := (ListView.SelCount = 0) and (Client.ServerVersion >= 50004) and (SelectedImageIndex = iiDatabase);
+            MainAction('aDCreateProcedure').Enabled := (ListView.SelCount = 0) and (SelectedImageIndex = iiDatabase) and Assigned(Database.Events);
             MainAction('aDCreateFunction').Enabled := MainAction('aDCreateProcedure').Enabled;
-            MainAction('aDCreateEvent').Enabled := (ListView.SelCount = 0) and (Client.ServerVersion >= 50106) and (SelectedImageIndex = iiDatabase) and Assigned(MenuDatabase.Events);
+            MainAction('aDCreateEvent').Enabled := (ListView.SelCount = 0) and (SelectedImageIndex = iiDatabase) and Assigned(Database.Events);
             MainAction('aDCreateKey').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable);
             MainAction('aDCreateField').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable);
             MainAction('aDCreateForeignKey').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable) and Assigned(TCBaseTable(Item.Data).Engine) and TCBaseTable(Item.Data).Engine.ForeignKeyAllowed;
