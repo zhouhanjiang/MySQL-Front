@@ -4590,6 +4590,8 @@ begin
 end;
 
 procedure TMySQLQuery.InternalOpen();
+var
+  OpenFromSQL: Boolean;
 begin
   Assert(Assigned(Connection) and Assigned(Connection.Lib) and not Assigned(SynchroThread));
 
@@ -4598,12 +4600,16 @@ begin
   FRowsAffected := -1;
   FRecNo := -1;
 
-  SynchroThread := Connection.SynchroThread;
+  OpenFromSQL := (FieldCount = 0) and (CommandText <> '');
+
+  if (OpenFromSQL) then
+    SynchroThread := Connection.SynchroThread;
 
   InitFieldDefs();
   BindFields(True);
 
-  SynchroThread.BindDataSet(Self);
+  if (OpenFromSQL) then
+    SynchroThread.BindDataSet(Self);
 end;
 
 function TMySQLQuery.IsCursorOpen(): Boolean;
@@ -4628,17 +4634,20 @@ procedure TMySQLQuery.SetActive(Value: Boolean);
 var
   SQL: string;
 begin
-  if (not Value) then
-    inherited
-  else if (not Active) then
-  begin
-    if (CommandType <> ctTable) then
-      SQL := CommandText
+  if (Value <> Active) then
+    if (not Value) then
+      inherited
+    else if (FieldCount > 0) then
+      inherited
     else
-      SQL := SQLSelect();
+    begin
+      if (CommandType <> ctTable) then
+        SQL := CommandText
+      else
+        SQL := SQLSelect();
 
-    Connection.ExecuteSQL(smDataSet, True, SQL, SetActiveEvent);
-  end;
+      Connection.ExecuteSQL(smDataSet, True, SQL, SetActiveEvent);
+    end;
 end;
 
 function TMySQLQuery.SetActiveEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
@@ -5131,7 +5140,8 @@ begin
         Result := grError;
         while (Result = grError) do
         begin
-          if ((NewIndex + 1 = InternRecordBuffers.Count) and not Filtered
+          if (Assigned(SynchroThread)
+            and (NewIndex + 1 = InternRecordBuffers.Count) and not Filtered
             and ((RecordsReceived.WaitFor(IGNORE) <> wrSignaled) or (Self is TMySQLTable) and TMySQLTable(Self).LimitedDataReceived and TMySQLTable(Self).AutomaticLoadNextRecords and TMySQLTable(Self).LoadNextRecords())) then
             InternRecordBuffers.RecordReceived.WaitFor(NET_WAIT_TIMEOUT * 1000);
 

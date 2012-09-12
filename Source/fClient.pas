@@ -5377,15 +5377,21 @@ begin
     end;
 
     FInputDataSet.Open();
-    FInputDataSet.Append();
-    for I := 0 to ParameterCount - 1 do
-      if (not (Parameter[I].ParameterType in [ptIn, ptInOut])) then
-      begin
-        FInputDataSet.Fields[I].AsString := OutParameterCaption;
-        FInputDataSet.Fields[I].ReadOnly := True;
-      end;
-    FInputDataSet.Post();
-    FInputDataSet.Edit();
+    if (not FInputDataSet.Active) then
+      FreeAndNil(FInputDataSet)
+    else
+    begin
+      FInputDataSet.CachedUpdates := True;
+      FInputDataSet.Append();
+      for I := 0 to ParameterCount - 1 do
+        if (not (Parameter[I].ParameterType in [ptIn, ptInOut])) then
+        begin
+          FInputDataSet.Fields[I].AsString := OutParameterCaption;
+          FInputDataSet.Fields[I].ReadOnly := True;
+        end;
+      FInputDataSet.Post();
+      FInputDataSet.Edit();
+    end;
   end;
 
   Result := FInputDataSet;
