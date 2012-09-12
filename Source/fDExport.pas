@@ -719,12 +719,30 @@ end;
 
 procedure TDExport.FJobOptionChange(Sender: TObject);
 begin
-  FFilename.Visible := FSQLFile.Checked or FTextFile.Checked
-    or FExcelFile.Checked or FAccessFile.Checked or FSQLiteFile.Checked
-    or FHTMLFile.Checked or FXMLFile.Checked or FPDFFile.Checked;
+  FFilename.Visible := True;
+  if (FSQLFile.Checked) then
+    ExportType := etSQLFile
+  else if (FTextFile.Checked) then
+    ExportType := etTextFile
+  else if (FExcelFile.Checked) then
+    ExportType := etExcelFile
+  else if (FAccessFile.Checked) then
+    ExportType := etAccessFile
+  else if (FSQLiteFile.Checked) then
+    ExportType := etSQLiteFile
+  else if (FHTMLFile.Checked) then
+    ExportType := etHTMLFile
+  else if (FXMLFile.Checked) then
+    ExportType := etXMLFile
+  else if (FPDFFile.Checked) then
+    ExportType := etPDFFile
+  else
+    FFilename.Visible := False;
   FLFilename.Visible := FFilename.Visible; FBFilename.Visible := FFilename.Visible;
 
   FBForward.Enabled := (FName.Text <> '') and (FFilename.Visible or FODBC.Checked);
+
+  CheckActivePageChange(TSJob.PageIndex);
 end;
 
 procedure TDExport.FODBCSelectChange(Sender: TObject; Item: TListItem;
@@ -933,13 +951,13 @@ begin
   FCreateDatabase.Checked := (Objects.Count > 1) and Preferences.Export.SQLCreateDatabase;
 
   TSJob.Enabled := CreateJob;
-  TSODBCSelect.Enabled := ExportType in [etODBC];
-  TSSQLOptions.Enabled := ExportType in [etSQLFile];
-  TSCSVOptions.Enabled := ExportType in [etTextFile];
-  TSXMLOptions.Enabled := (ExportType in [etXMLFile]) and not Assigned(DBGrid);
-  TSHTMLOptions.Enabled := ExportType in [etHTMLFile, etPrint, etPDFFile];
-  TSFields.Enabled := (ExportType in [etTextFile, etExcelFile, etXMLFile]) and ((Objects.Count = 1) or Assigned(DBGrid)) or (ExportType in [etXMLFile]) and Assigned(DBGrid);
-  TSExecute.Enabled := not TSODBCSelect.Enabled and not TSSQLOptions.Enabled and not TSCSVOptions.Enabled and not TSHTMLOptions.Enabled and not TSFields.Enabled;
+  TSODBCSelect.Enabled := not CreateJob and (ExportType in [etODBC]);
+  TSSQLOptions.Enabled := not CreateJob and (ExportType in [etSQLFile]);
+  TSCSVOptions.Enabled := not CreateJob and (ExportType in [etTextFile]);
+  TSXMLOptions.Enabled := not CreateJob and (ExportType in [etXMLFile]) and not Assigned(DBGrid);
+  TSHTMLOptions.Enabled := not CreateJob and (ExportType in [etHTMLFile, etPrint, etPDFFile]);
+  TSFields.Enabled := not CreateJob and (ExportType in [etExcelFile]) and ((Objects.Count = 1) or Assigned(DBGrid)) or (ExportType in [etXMLFile]) and Assigned(DBGrid);
+  TSExecute.Enabled := not CreateJob and not TSODBCSelect.Enabled and not TSSQLOptions.Enabled and not TSCSVOptions.Enabled and not TSHTMLOptions.Enabled and not TSFields.Enabled;
 
   for I := 0 to PageControl.PageCount - 1 do
     if ((PageControl.ActivePageIndex < 0) and PageControl.Pages[I].Enabled) then
@@ -953,7 +971,7 @@ begin
   PageControl.Visible := Boolean(Perform(CM_POST_AFTEREXECUTESQL, 0, 0));
   PSQLWait.Visible := not PageControl.Visible;
 
-  FBBack.Visible := TSODBCSelect.Enabled or TSSQLOptions.Enabled or TSCSVOptions.Enabled or TSXMLOptions.Enabled or TSHTMLOptions.Enabled or TSFields.Enabled;
+  FBBack.Visible := TSJob.Enabled or TSODBCSelect.Enabled or TSSQLOptions.Enabled or TSCSVOptions.Enabled or TSXMLOptions.Enabled or TSHTMLOptions.Enabled or TSFields.Enabled;
   FBForward.Visible := FBBack.Visible;
 
   if (not FBForward.Enabled) then

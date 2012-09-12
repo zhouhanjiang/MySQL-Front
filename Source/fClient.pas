@@ -3686,18 +3686,21 @@ end;
 procedure TCBaseTable.BuildStatus(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean);
 
   procedure CheckEngine(const Field: TField);
+  // Debug
   var
     I: Integer;
     S: string;
   begin
-    S := '';
-    for I := 0 to Client.Engines.Count - 1 do
-    begin
-      if (I > 0) then S := S + ',';
-      S := S + Client.Engines[I].Name;
-    end;
     if (not Assigned(FEngine)) then
+    begin
+      S := '';
+      for I := 0 to Client.Engines.Count - 1 do
+      begin
+        if (I > 0) then S := S + ',';
+        S := S + Client.Engines[I].Name;
+      end;
       raise ERangeError.CreateFmt(SPropertyOutOfRange + ', Field.Name: %s, Field.AsString: %s, Engines: %s', ['FEngine', Field.Name, Field.AsString, S]);
+    end;
   end;
 
 begin
