@@ -191,6 +191,7 @@ type
     procedure TSXMLOptionsHide(Sender: TObject);
     procedure TSXMLOptionsShow(Sender: TObject);
     procedure FJobOptionChange(Sender: TObject);
+    procedure TSJobShow(Sender: TObject);
   private
     Export: TTExport;
     FObjects: TList;
@@ -954,7 +955,6 @@ begin
 
   FBBack.Visible := TSODBCSelect.Enabled or TSSQLOptions.Enabled or TSCSVOptions.Enabled or TSXMLOptions.Enabled or TSHTMLOptions.Enabled or TSFields.Enabled;
   FBForward.Visible := FBBack.Visible;
-  FBForward.Enabled := PageControl.Visible and FBForward.Visible and (not TSODBCSelect.Enabled or Assigned(FODBCSelect.Selected));
 
   if (not FBForward.Enabled) then
     if (TSJob.Visible) then
@@ -1617,6 +1617,11 @@ begin
 
   FHTMLShowMemoContent.Visible := not (ExportType in [etPrint, etPDFFile]); FLHTMLViewDatas.Visible := FHTMLShowMemoContent.Visible;
   FHTMLRowBGColorEnabled.Visible := not (ExportType in [etPrint, etPDFFile]); FLHTMLBGColorEnabled.Visible := FHTMLRowBGColorEnabled.Visible;
+end;
+
+procedure TDExport.TSJobShow(Sender: TObject);
+begin
+  FJobOptionChange(Sender);
 end;
 
 procedure TDExport.TSODBCSelectShow(Sender: TObject);

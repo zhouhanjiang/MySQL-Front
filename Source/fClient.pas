@@ -3684,13 +3684,35 @@ begin
 end;
 
 procedure TCBaseTable.BuildStatus(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean);
+
+  procedure CheckEngine(const Field: TField);
+  var
+    I: Integer;
+    S: string;
+  begin
+    S := '';
+    for I := 0 to Client.Engines.Count - 1 do
+    begin
+      if (I > 0) then S := S + ',';
+      S := S + Client.Engines[I].Name;
+    end;
+    if (not Assigned(FEngine)) then
+      raise ERangeError.CreateFmt(SPropertyOutOfRange + ', Field.Name: %s, Field.AsString: %s, Engines: %s', ['FEngine', Field.Name, Field.AsString, S]);
+  end;
+
 begin
   if (not UseInformationSchema) then
   begin
     if (Assigned(DataSet.FindField('Type'))) then // MySQL < 4.1.2 and 5.0.0???
-      FEngine := Database.Client.EngineByName(DataSet.FieldByName('Type').AsString)
+    begin
+      FEngine := Database.Client.EngineByName(DataSet.FieldByName('Type').AsString);
+      CheckEngine(DataSet.FieldByName('Type'));
+    end
     else
+    begin
       FEngine := Database.Client.EngineByName(DataSet.FieldByName('Engine').AsString);
+      CheckEngine(DataSet.FieldByName('Engine'));
+    end;
     FRowType := StrToMySQLRowType(DataSet.FieldByName('Row_format').AsString);
     if (Self is TCSystemView) then
       FRows := -1
@@ -3710,6 +3732,7 @@ begin
   else
   begin
     FEngine := Database.Client.EngineByName(DataSet.FieldByName('ENGINE').AsString);
+    CheckEngine(DataSet.FieldByName('ENGINE'));
     RowType := StrToMySQLRowType(DataSet.FieldByName('ROW_FORMAT').AsString);
     if (Self is TCSystemView) then
       FRows := -1

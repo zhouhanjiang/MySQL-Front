@@ -48,6 +48,7 @@ object DExport: TDExport
       Caption = 'TSJob'
       ImageIndex = 7
       TabVisible = False
+      OnShow = TSJobShow
       object GBasics: TGroupBox_Ext
         Left = 4
         Top = 0
