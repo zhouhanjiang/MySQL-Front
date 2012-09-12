@@ -78,6 +78,7 @@ type
     FGridDataSource: TDataSource;
     FHexEditor: TMPHexEditorEx;
     FImage: TImage;
+    FJobs: TListView;
     FLimit: TEdit;
     FLimitEnabled: TToolButton;
     FServerListView: TListView_Ext;
@@ -190,6 +191,7 @@ type
     miNRename: TMenuItem;
     miSBookmarks: TMenuItem;
     miSExplorer: TMenuItem;
+    miSJobs: TMenuItem;
     miSNavigator: TMenuItem;
     miSSQLHistory: TMenuItem;
     mlDCreate: TMenuItem;
@@ -337,6 +339,7 @@ type
     PExplorer: TPanel_Ext;
     PFiles: TPanel_Ext;
     PFolders: TPanel_Ext;
+    PJobs: TPanel_Ext;
     PView: TPanel_Ext;
     PListView: TPanel_Ext;
     PLog: TPanel_Ext;
@@ -395,6 +398,7 @@ type
     tmEPaste: TMenuItem;
     tmESelectAll: TMenuItem;
     ToolBar: TToolBar;
+    tbJobs: TToolButton;
     procedure aBAddExecute(Sender: TObject);
     procedure aBDeleteExecute(Sender: TObject);
     procedure aBEditExecute(Sender: TObject);
@@ -437,6 +441,7 @@ type
     procedure aFImportXMLExecute(Sender: TObject);
     procedure aHRunClick(Sender: TObject);
     procedure aHRunExecute(Sender: TObject);
+    procedure aJAddExportExecute(Sender: TObject);
     procedure aPCollapseExecute(Sender: TObject);
     procedure aPExpandExecute(Sender: TObject);
     procedure aPObjectBrowserTableExecute(Sender: TObject);
@@ -3465,6 +3470,7 @@ var
 begin
   Database := nil;
   DExport.Client := Client;
+  DExport.CreateJob := False;
   DExport.DBGrid := nil;
   DExport.Objects.Clear();
   DExport.ExportType := ExportType;
@@ -4051,6 +4057,16 @@ begin
   DSQLHelp.Execute();
 end;
 
+procedure TFClient.aJAddExportExecute(Sender: TObject);
+begin
+  DExport.Client := Client;
+  DExport.CreateJob := True;
+  DExport.DBGrid := nil;
+  DExport.Objects.Clear();
+  DExport.Window := Window;
+  DExport.Execute();
+end;
+
 procedure TFClient.aPCollapseExecute(Sender: TObject);
 begin
   if (Window.ActiveControl = FNavigator) then
@@ -4338,17 +4354,19 @@ begin
   MainAction('aVNavigator').Checked := (Sender = MainAction('aVNavigator')) and MainAction('aVNavigator').Checked;
   MainAction('aVBookmarks').Checked := (Sender = MainAction('aVBookmarks')) and MainAction('aVBookmarks').Checked;
   MainAction('aVExplorer').Checked := (Sender = MainAction('aVExplorer')) and MainAction('aVExplorer').Checked;
+  MainAction('aVJobs').Checked := (Sender = MainAction('aVJobs')) and MainAction('aVJobs').Checked;
   MainAction('aVSQLHistory').Checked := (Sender = MainAction('aVSQLHistory')) and MainAction('aVSQLHistory').Checked;
 
   PNavigator.Visible := MainAction('aVNavigator').Checked;
   PBookmarks.Visible := MainAction('aVBookmarks').Checked;
   PExplorer.Visible := MainAction('aVExplorer').Checked;
+  PJobs.Visible := MainAction('aVJobs').Checked;
   PSQLHistory.Visible := MainAction('aVSQLHistory').Checked;
 
   if (PExplorer.Visible and not Assigned(FFolders)) then
     CreateExplorer();
 
-  SSideBar.Visible := PNavigator.Visible or PBookmarks.Visible or PExplorer.Visible or PSQLHistory.Visible;
+  SSideBar.Visible := PNavigator.Visible or PBookmarks.Visible or PExplorer.Visible or PJobs.Visible or PSQLHistory.Visible;
   if (SSideBar.Visible) then
   begin
     SSideBar.Left := PNavigator.Width;
@@ -4368,6 +4386,8 @@ begin
     Window.ActiveControl := FBookmarks
   else if (MainAction('aVExplorer').Checked and FFolders.Visible) then
     Window.ActiveControl := FFolders
+  else if (MainAction('aVJobs').Checked) then
+    Window.ActiveControl := FJobs
   else if (MainAction('aVSQLHistory').Checked) then
   begin
     FSQLHistoryRefresh(Sender);
@@ -4861,6 +4881,7 @@ begin
     MainAction('aVNavigator').Checked := PNavigator.Visible;
     MainAction('aVBookmarks').Checked := PBookmarks.Visible;
     MainAction('aVExplorer').Checked := PExplorer.Visible;
+    MainAction('aVJobs').Checked := PJobs.Visible;
     MainAction('aVSQLHistory').Checked := PSQLHistory.Visible;
     MainAction('aVSQLLog').Checked := PLog.Visible;
 
@@ -4898,6 +4919,7 @@ begin
     MainAction('aVNavigator').OnExecute := aVSideBarExecute;
     MainAction('aVBookmarks').OnExecute := aVSideBarExecute;
     MainAction('aVExplorer').OnExecute := aVSideBarExecute;
+    MainAction('aVJobs').OnExecute := aVSideBarExecute;
     MainAction('aVSQLHistory').OnExecute := aVSideBarExecute;
     MainAction('aVSQLLog').OnExecute := aVSQLLogExecute;
     MainAction('aVRefresh').OnExecute := aVRefreshExecute;
@@ -4950,6 +4972,7 @@ begin
     MainAction('aDRun').OnExecute := aDRunExecute;
     MainAction('aDRunSelection').OnExecute := aDRunSelectionExecute;
     MainAction('aDPostObject').OnExecute := aDPostObjectExecute;
+    MainAction('aJAddExport').OnExecute := aJAddExportExecute;
     MainAction('aHSQL').OnExecute := aHSQLExecute;
     MainAction('aHManual').OnExecute := aHManualExecute;
 
@@ -4963,6 +4986,7 @@ begin
     MainAction('aVNavigator').Enabled := True;
     MainAction('aVBookmarks').Enabled := True;
     MainAction('aVExplorer').Enabled := True;
+    MainAction('aVJobs').Enabled := True;
     MainAction('aVSQLHistory').Enabled := True;
     MainAction('aVSQLLog').Enabled := True;
     MainAction('aVRefresh').Enabled := True;
@@ -4971,6 +4995,7 @@ begin
     MainAction('aDCancel').Enabled := Client.InUse();
     MainAction('aHSQL').Enabled := Client.ServerVersion >= 40100;
     MainAction('aHManual').Enabled := Client.Account.ManualURL <> '';
+    MainAction('aJAddExport').Enabled := True;
 
     aPResult.ShortCut := ShortCut(VK_F8, [ssAlt]);
 
@@ -5010,6 +5035,7 @@ begin
   MainAction('aVNavigator').Enabled := False;
   MainAction('aVBookmarks').Enabled := False;
   MainAction('aVExplorer').Enabled := False;
+  MainAction('aVJobs').Enabled := False;
   MainAction('aVSQLHistory').Enabled := False;
   MainAction('aVSQLLog').Enabled := False;
   MainAction('aVRefresh').Enabled := False;
@@ -5018,6 +5044,7 @@ begin
   MainAction('aDCancel').Enabled := False;
   MainAction('aHSQL').Enabled := False;
   MainAction('aHManual').Enabled := False;
+  MainAction('aJAddExport').Enabled := False;
 
   MainAction('aECopy').OnExecute := nil;
   MainAction('aEPaste').OnExecute := nil;
@@ -5058,8 +5085,9 @@ begin
   PNavigator.Visible := Client.Account.Desktop.NavigatorVisible;
   PBookmarks.Visible := Client.Account.Desktop.BookmarksVisible;
   PExplorer.Visible := Client.Account.Desktop.ExplorerVisible;
+  PJobs.Visible := Client.Account.Desktop.JobsVisible;
   PSQLHistory.Visible := Client.Account.Desktop.SQLHistoryVisible; if (PSQLHistory.Visible) then FSQLHistoryRefresh(nil);
-  PSideBar.Visible := PNavigator.Visible or PBookmarks.Visible or PExplorer.Visible or PSQLHistory.Visible; SSideBar.Visible := PSideBar.Visible;
+  PSideBar.Visible := PNavigator.Visible or PBookmarks.Visible or PExplorer.Visible or PJobs.Visible or PSQLHistory.Visible; SSideBar.Visible := PSideBar.Visible;
 
   if (PExplorer.Visible) then
     CreateExplorer();
@@ -5312,6 +5340,7 @@ begin
   tbNavigator.Action := MainAction('aVNavigator');
   tbBookmarks.Action := MainAction('aVBookmarks');
   tbExplorer.Action := MainAction('aVExplorer');
+  tbJobs.Action := MainAction('aVJobs');
   tbSQLHistory.Action := MainAction('aVSQLHistory');
 
   tbObjects.Action := MainAction('aVObjectBrowser'); tbObjects.Caption := ReplaceStr(tbObjects.Caption, '&', '');
@@ -5324,6 +5353,7 @@ begin
   miSNavigator.Action := MainAction('aVNavigator');
   miSBookmarks.Action := MainAction('aVBookmarks');
   miSExplorer.Action := MainAction('aVExplorer');
+  miSJobs.Action := MainAction('aVJobs');
   miSSQLHistory.Action := MainAction('aVSQLHistory');
 
   miNImportSQL.Action := MainAction('aFImportSQL');
@@ -5462,6 +5492,7 @@ begin
     PNavigator.BevelInner := bvRaised; PNavigator.BevelOuter := bvLowered;
     PBookmarks.BevelInner := bvRaised; PBookmarks.BevelOuter := bvLowered;
     PExplorer.BevelInner := bvRaised; PExplorer.BevelOuter := bvLowered;
+    PJobs.BevelInner := bvRaised; PJobs.BevelOuter := bvLowered;
     PSQLHistory.BevelInner := bvRaised; PSQLHistory.BevelOuter := bvLowered;
     PFolders.BevelInner := bvRaised; PFolders.BevelOuter := bvLowered;
     PFiles.BevelInner := bvRaised; PFiles.BevelOuter := bvLowered;
@@ -5478,6 +5509,7 @@ begin
     PNavigator.BevelInner := bvNone; PNavigator.BevelOuter := bvNone;
     PBookmarks.BevelInner := bvNone; PBookmarks.BevelOuter := bvNone;
     PExplorer.BevelInner := bvNone; PExplorer.BevelOuter := bvNone;
+    PJobs.BevelInner := bvNone; PJobs.BevelOuter := bvNone;
     PFolders.BevelInner := bvNone; PNavigator.BevelOuter := bvNone;
     PFiles.BevelInner := bvNone; PFiles.BevelOuter := bvNone;
     PSQLHistory.BevelInner := bvNone; PSQLHistory.BevelOuter := bvNone;
@@ -6724,11 +6756,12 @@ begin
     try
       Client.Account.Desktop.FilesFilter := FFiles.Filter;
     except
-      // There is a bug inside ShellBrowser.pas ver. 7.3 - but it's not interested to get informed
+      // There is a bug inside ShellBrowser.pas ver. 7.3 - but it's not interested to be informed
     end;
   Client.Account.Desktop.NavigatorVisible := PNavigator.Visible;
   Client.Account.Desktop.BookmarksVisible := PBookmarks.Visible;
   Client.Account.Desktop.ExplorerVisible := PExplorer.Visible;
+  Client.Account.Desktop.JobsVisible := PJobs.Visible;
   Client.Account.Desktop.SQLHistoryVisible := PSQLHistory.Visible;
   Client.Account.Desktop.SelectorWitdth := PSideBar.Width;
   Client.Account.Desktop.LogVisible := PLog.Visible;

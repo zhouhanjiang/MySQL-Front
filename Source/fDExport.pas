@@ -10,7 +10,7 @@ uses
   fClient, fAccount, fBase, fTools, fCWorkbench;
 
 type
-  TExportType = (etSQLFile, etTextFile, etExcelFile, etAccessFile, etSQLiteFile, etODBC, etHTMLFile, etPrint, etPDFFile, etXMLFile);
+  TExportType = (etSQLFile, etTextFile, etExcelFile, etAccessFile, etSQLiteFile, etODBC, etHTMLFile, etXMLFile, etPDFFile, etPrint);
 
   TSaveToStream = procedure(Stream: TStream) of object;
 
@@ -109,6 +109,7 @@ type
     GFields: TGroupBox_Ext;
     GHTMLOptions: TGroupBox_Ext;
     GHTMLWhat: TGroupBox_Ext;
+    GBasics: TGroupBox_Ext;
     GODBCSelect: TGroupBox_Ext;
     GProgress: TGroupBox_Ext;
     GSQLOptions: TGroupBox_Ext;
@@ -131,6 +132,22 @@ type
     TSODBCSelect: TTabSheet;
     TSSQLOptions: TTabSheet;
     TSXMLOptions: TTabSheet;
+    TSJob: TTabSheet;
+    FLName: TLabel;
+    FName: TEdit;
+    FLExportType: TLabel;
+    FSQLFile: TRadioButton;
+    FTextFile: TRadioButton;
+    FExcelFile: TRadioButton;
+    FAccessFile: TRadioButton;
+    FSQLiteFile: TRadioButton;
+    FODBC: TRadioButton;
+    FHTMLFile: TRadioButton;
+    FXMLFile: TRadioButton;
+    FPDFFile: TRadioButton;
+    FLFilename: TLabel;
+    FFilename: TEdit;
+    FBFilename: TButton;
     procedure FBBackClick(Sender: TObject);
     procedure FBCancelClick(Sender: TObject);
     procedure FBForwardClick(Sender: TObject);
@@ -173,6 +190,7 @@ type
     procedure TSXMLOptionChange(Sender: TObject);
     procedure TSXMLOptionsHide(Sender: TObject);
     procedure TSXMLOptionsShow(Sender: TObject);
+    procedure FJobOptionChange(Sender: TObject);
   private
     Export: TTExport;
     FObjects: TList;
@@ -198,6 +216,7 @@ type
   public
     Client: TCClient;
     CodePage: Cardinal;
+    CreateJob: Boolean;
     DBGrid: TDBGrid;
     ExportType: TExportType;
     Filename: TFileName;
@@ -340,6 +359,20 @@ end;
 
 procedure TDExport.CMChangePreferences(var Message: TMessage);
 begin
+  GBasics.Caption := Preferences.LoadStr(85);
+  FLName.Caption := Preferences.LoadStr(35) + ':';
+  FLExportType.Caption := Preferences.LoadStr(200) + ':';
+  FSQLFile.Caption := Preferences.LoadStr(409);
+  FTextFile.Caption := Preferences.LoadStr(410);
+  FExcelFile.Caption := Preferences.LoadStr(801);
+  FAccessFile.Caption := Preferences.LoadStr(695);
+  FSQLiteFile.Caption := Preferences.LoadStr(870);
+  FODBC.Caption := Preferences.LoadStr(607);
+  FHTMLFile.Caption := Preferences.LoadStr(453);
+  FXMLFile.Caption := Preferences.LoadStr(454);
+  FPDFFile.Caption := Preferences.LoadStr(890);
+  FLFilename.Caption := Preferences.LoadStr(348) + ':';
+
   GODBCSelect.Caption := Preferences.LoadStr(265) + ':';
 
   PSQLWait.Caption := Preferences.LoadStr(882);
@@ -683,6 +716,16 @@ begin
   FHTMLStructureClick(Sender);
 end;
 
+procedure TDExport.FJobOptionChange(Sender: TObject);
+begin
+  FFilename.Visible := FSQLFile.Checked or FTextFile.Checked
+    or FExcelFile.Checked or FAccessFile.Checked or FSQLiteFile.Checked
+    or FHTMLFile.Checked or FXMLFile.Checked or FPDFFile.Checked;
+  FLFilename.Visible := FFilename.Visible; FBFilename.Visible := FFilename.Visible;
+
+  FBForward.Enabled := (FName.Text <> '') and (FFilename.Visible or FODBC.Checked);
+end;
+
 procedure TDExport.FODBCSelectChange(Sender: TObject; Item: TListItem;
   Change: TItemChange);
 var
@@ -865,18 +908,36 @@ begin
     else HelpContext := -1;
   end;
 
+  if (CreateJob) then
+  begin
+    FName.Text := '';
+    FSQLFile.Checked := False;
+    FTextFile.Checked := False;
+    FExcelFile.Checked := False;
+    FAccessFile.Checked := False;
+    FSQLiteFile.Checked := False;
+    FODBC.Checked := False;
+    FHTMLFile.Checked := False;
+    FXMLFile.Checked := False;
+    FPDFFile.Checked := False;
+    FFilename.Visible := False; FLFilename.Visible := FFilename.Visible; FBFilename.Visible := FFilename.Visible;
+    FFilename.Text := '';
+  end;
+
   if (Assigned(DBGrid)) then
     FHTMLStructure.Caption := Preferences.LoadStr(794)
   else
     FHTMLStructure.Caption := Preferences.LoadStr(215);
 
+  FCreateDatabase.Checked := (Objects.Count > 1) and Preferences.Export.SQLCreateDatabase;
+
+  TSJob.Enabled := CreateJob;
   TSODBCSelect.Enabled := ExportType in [etODBC];
   TSSQLOptions.Enabled := ExportType in [etSQLFile];
-  FCreateDatabase.Checked := (Objects.Count > 1) and Preferences.Export.SQLCreateDatabase;
   TSCSVOptions.Enabled := ExportType in [etTextFile];
   TSXMLOptions.Enabled := (ExportType in [etXMLFile]) and not Assigned(DBGrid);
   TSHTMLOptions.Enabled := ExportType in [etHTMLFile, etPrint, etPDFFile];
-  TSFields.Enabled := (ExportType in [etExcelFile]) and ((Objects.Count = 1) or Assigned(DBGrid)) or (ExportType in [etXMLFile]) and Assigned(DBGrid);
+  TSFields.Enabled := (ExportType in [etTextFile, etExcelFile, etXMLFile]) and ((Objects.Count = 1) or Assigned(DBGrid)) or (ExportType in [etXMLFile]) and Assigned(DBGrid);
   TSExecute.Enabled := not TSODBCSelect.Enabled and not TSSQLOptions.Enabled and not TSCSVOptions.Enabled and not TSHTMLOptions.Enabled and not TSFields.Enabled;
 
   for I := 0 to PageControl.PageCount - 1 do
@@ -896,7 +957,10 @@ begin
   FBForward.Enabled := PageControl.Visible and FBForward.Visible and (not TSODBCSelect.Enabled or Assigned(FODBCSelect.Selected));
 
   if (not FBForward.Enabled) then
-    ActiveControl := FBCancel;
+    if (TSJob.Visible) then
+      ActiveControl := FName
+    else
+      ActiveControl := FBCancel;
 end;
 
 procedure TDExport.FQuoteCharExit(Sender: TObject);
@@ -1149,7 +1213,6 @@ begin
   FBCancel.ModalResult := mrCancel;
   FBCancel.Default := False;
 
-  TSFields.Enabled := (Objects.Count = 1) or Assigned(DBGrid);
   TSExecute.Enabled := not TSFields.Enabled;
   CheckActivePageChange(TSCSVOptions.PageIndex);
 end;
@@ -1656,7 +1719,6 @@ begin
   if (FTableTagDisabled.Checked and not FTableTagDisabled.Enabled) then
     FTableTagFree.Checked := True;
 
-  TSFields.Enabled := (Objects.Count = 1) or Assigned(DBGrid);
   CheckActivePageChange(TSXMLOptions.PageIndex);
   TSXMLOptionChange(Sender);
 end;

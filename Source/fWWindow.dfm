@@ -507,14 +507,6 @@ object WWindow: TWWindow
   object ActionList: TActionList
     Left = 80
     Top = 240
-    object aHIndex: TAction
-      Category = 'Help'
-      Caption = 'aHIndex'
-      HelpContext = 1069
-      HelpType = htContext
-      ShortCut = 112
-      OnExecute = aHIndexExecute
-    end
     object aVObjectBrowser: TAction
       Category = 'View'
       Caption = 'aVObjectBrowser'
@@ -523,28 +515,6 @@ object WWindow: TWWindow
       HelpType = htContext
       ImageIndex = 1
       ShortCut = 117
-    end
-    object aHManual: TAction
-      Category = 'Help'
-      Caption = 'aHManual'
-      Enabled = False
-      HelpContext = 1119
-      HelpType = htContext
-    end
-    object aHUpdate: TAction
-      Category = 'Help'
-      Caption = 'aHUpdate'
-      HelpContext = 1073
-      HelpType = htContext
-      OnExecute = aHUpdateExecute
-    end
-    object aHSQL: TAction
-      Category = 'Help'
-      Caption = 'aHSQL'
-      Enabled = False
-      HelpContext = 1135
-      HelpType = htContext
-      ImageIndex = 14
     end
     object aVDataBrowser: TAction
       Category = 'View'
@@ -555,6 +525,14 @@ object WWindow: TWWindow
       ImageIndex = 2
       ShortCut = 118
     end
+    object aHIndex: TAction
+      Category = 'Help'
+      Caption = 'aHIndex'
+      HelpContext = 1069
+      HelpType = htContext
+      ShortCut = 112
+      OnExecute = aHIndexExecute
+    end
     object aVObjectIDE: TAction
       Category = 'View'
       Caption = 'aVObjectIDE'
@@ -562,6 +540,13 @@ object WWindow: TWWindow
       HelpContext = 1121
       HelpType = htContext
       ImageIndex = 98
+    end
+    object aHManual: TAction
+      Category = 'Help'
+      Caption = 'aHManual'
+      Enabled = False
+      HelpContext = 1119
+      HelpType = htContext
     end
     object aVQueryBuilder: TAction
       Category = 'View'
@@ -572,6 +557,28 @@ object WWindow: TWWindow
       ImageIndex = 100
       ShortCut = 16503
     end
+    object aHUpdate: TAction
+      Category = 'Help'
+      Caption = 'aHUpdate'
+      HelpContext = 1073
+      HelpType = htContext
+      OnExecute = aHUpdateExecute
+    end
+    object aVDiagram: TAction
+      Category = 'View'
+      Caption = 'aVDiagram'
+      Enabled = False
+      HelpContext = 1125
+      ImageIndex = 99
+    end
+    object aHSQL: TAction
+      Category = 'Help'
+      Caption = 'aHSQL'
+      Enabled = False
+      HelpContext = 1135
+      HelpType = htContext
+      ImageIndex = 14
+    end
     object aVSQLEditor: TAction
       Category = 'View'
       Caption = 'aVPlainSQL'
@@ -580,13 +587,6 @@ object WWindow: TWWindow
       HelpType = htContext
       ImageIndex = 3
       ShortCut = 119
-    end
-    object aVDiagram: TAction
-      Category = 'View'
-      Caption = 'aVDiagram'
-      Enabled = False
-      HelpContext = 1125
-      ImageIndex = 99
     end
     object aVAddressBar: TAction
       Category = 'View'
@@ -625,6 +625,14 @@ object WWindow: TWWindow
       HelpContext = 1108
       HelpType = htContext
       ImageIndex = 96
+    end
+    object aVJobs: TAction
+      Category = 'View'
+      AutoCheck = True
+      Caption = 'aVJobs'
+      Enabled = False
+      HelpType = htContext
+      ImageIndex = 84
     end
     object aVSQLHistory: TAction
       Category = 'View'
@@ -1364,6 +1372,31 @@ object WWindow: TWWindow
       Category = 'Bookmark'
       Caption = 'aBookmark'
     end
+    object aJAddExport: TAction
+      Category = 'Jobs'
+      Caption = 'aJExport'
+      Enabled = False
+      HelpContext = 1138
+      HelpType = htContext
+    end
+    object aJDelete: TAction
+      Category = 'Jobs'
+      Caption = 'aJDelete'
+      Enabled = False
+      HelpKeyword = '1139'
+      HelpType = htContext
+    end
+    object aJEdit: TAction
+      Category = 'Jobs'
+      Caption = 'aJEdit'
+      Enabled = False
+      HelpContext = 1140
+      HelpType = htContext
+    end
+    object aJExecute: TAction
+      Category = 'Jobs'
+      Caption = 'aJExecute'
+    end
   end
   object OpenDialog: TOpenDialog_Ext
     Options = [ofReadOnly, ofHideReadOnly, ofPathMustExist, ofFileMustExist, ofEnableSizing]
@@ -1606,6 +1639,10 @@ object WWindow: TWWindow
           Action = aVExplorer
           AutoCheck = True
         end
+        object miVJobs: TMenuItem
+          Action = aVJobs
+          AutoCheck = True
+        end
         object aVSQLHistory1: TMenuItem
           Action = aVSQLHistory
           AutoCheck = True
@@ -1820,6 +1857,25 @@ object WWindow: TWWindow
       end
       object miETransfer: TMenuItem
         Action = aETransfer
+      end
+    end
+    object miJobs: TMenuItem
+      Caption = 'miJobs'
+      GroupIndex = 3
+      object miJAdd: TMenuItem
+        Caption = 'miJAdd'
+        object miJNewExport: TMenuItem
+          Action = aJAddExport
+        end
+      end
+      object miJDelete: TMenuItem
+        Action = aJDelete
+      end
+      object miJEdit: TMenuItem
+        Action = aJEdit
+      end
+      object N3: TMenuItem
+        Caption = '-'
       end
     end
     object miOptions: TMenuItem

@@ -153,6 +153,7 @@ type
     ExplorerVisible: Boolean;
     FilesFilter: string;
     FoldersHeight: Integer;
+    JobsVisible: Boolean;
     LogHeight: Integer;
     LogVisible: Boolean;
     NavigatorVisible: Boolean;
@@ -203,6 +204,7 @@ type
     FDesktop: TADesktop;
     FDesktopXMLDocument: IXMLDocument;
     FHistoryXMLDocument: IXMLDocument;
+    FJobs: TAJobs;
     FLastLogin: TDateTime;
     FName: string;
     FDesktops: array of TDesktop;
@@ -218,6 +220,7 @@ type
     function GetHistoryFilename(): TFileName;
     function GetHistoryXML(): IXMLNode;
     function GetIconFilename(): TFileName;
+    function GetJobs(): TAJobs;
     function GetJobsFilename(): TFileName;
     function GetName(): string;
     function GetXML(): IXMLNode;
@@ -261,6 +264,7 @@ type
     property IconFilename: TFileName read GetIconFilename;
     property ImageIndex: Integer read FImageIndex write FImageIndex;
     property Index: Integer read GetIndex;
+    property Jobs: TAJobs read GetJobs;
     property LastLogin: TDateTime read FLastLogin write SetLastLogin;
     property Name: string read GetName write SetName;
   end;
@@ -874,6 +878,7 @@ begin
   ExplorerVisible := Source.ExplorerVisible;
   FilesFilter := Source.FilesFilter;
   FoldersHeight := Source.FoldersHeight;
+  JobsVisible := Source.JobsVisible;
   LogHeight := Source.LogHeight;
   LogVisible := Source.LogVisible;
   NavigatorVisible := Source.NavigatorVisible;
@@ -902,6 +907,7 @@ begin
   ExplorerVisible := False;
   FilesFilter := '*.sql';
   FoldersHeight := 100;
+  JobsVisible := False;
   NavigatorVisible := True;
   LogHeight := 80;
   LogVisible := False;
@@ -986,8 +992,9 @@ begin
     begin
       NavigatorVisible := UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'NAVIGATOR';
       BookmarksVisible := not NavigatorVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'BOOKMARKS');
-      SQLHistoryVisible := not NavigatorVisible and not BookmarksVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'SQL HISTORY');
-      ExplorerVisible := not ExplorerVisible and not BookmarksVisible and not SQLHistoryVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'EXPLORER');
+      ExplorerVisible := not NavigatorVisible and not BookmarksVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'EXPLORER');
+      JobsVisible := not NavigatorVisible and not BookmarksVisible and not ExplorerVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'JOBS');
+      SQLHistoryVisible := not NavigatorVisible and not BookmarksVisible and not ExplorerVisible and not JobsVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'SQL HISTORY');
     end;
 
     Bookmarks.LoadFromXML();
@@ -1052,10 +1059,12 @@ begin
     XMLNode(XML, 'sidebar/visible').Text := 'Navigator'
   else if (BookmarksVisible) then
     XMLNode(XML, 'sidebar/visible').Text := 'Bookmarks'
-  else if (SQLHistoryVisible) then
-    XMLNode(XML, 'sidebar/visible').Text := 'SQL History'
   else if (ExplorerVisible) then
     XMLNode(XML, 'sidebar/visible').Text := 'Explorer'
+  else if (JobsVisible) then
+    XMLNode(XML, 'sidebar/visible').Text := 'Jobs'
+  else if (SQLHistoryVisible) then
+    XMLNode(XML, 'sidebar/visible').Text := 'SQL History'
   else
     XMLNode(XML, 'sidebar/visible').Text := BoolToStr(False, True);
 
@@ -1198,11 +1207,13 @@ begin
 
   Connection := TAConnection.Create(Self);
   FDesktop := nil;
+  FJobs := nil;
 end;
 
 destructor TAAccount.Destroy();
 begin
   if (Assigned(FDesktop)) then FDesktop.Free();
+  if (Assigned(FJobs)) then FJobs.Free();
   Connection.Free();
 
   inherited;
@@ -1425,6 +1436,14 @@ end;
 function TAAccount.GetIndex(): Integer;
 begin
   Result := Accounts.IndexOf(Self);
+end;
+
+function TAAccount.GetJobs(): TAJobs;
+begin
+  if (not Assigned(FJobs)) then
+    FJobs := TAJobs.Create(Self);
+
+  Result := FJobs;
 end;
 
 function TAAccount.GetJobsFilename(): TFileName;

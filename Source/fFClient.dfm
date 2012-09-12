@@ -104,6 +104,41 @@ object FClient: TFClient
         TabOrder = 1
       end
     end
+    object PJobs: TPanel_Ext
+      Left = 0
+      Top = 0
+      Width = 120
+      Height = 234
+      Align = alClient
+      BevelInner = bvRaised
+      BevelOuter = bvLowered
+      Caption = 'PJobs'
+      ParentBackground = False
+      TabOrder = 4
+      Visible = False
+      OnResize = PanelResize
+      object FJobs: TListView
+        Left = 2
+        Top = 2
+        Width = 116
+        Height = 230
+        HelpContext = 1082
+        Align = alClient
+        BorderStyle = bsNone
+        Columns = <
+          item
+            AutoSize = True
+          end>
+        ColumnClick = False
+        DragMode = dmAutomatic
+        ReadOnly = True
+        RowSelect = True
+        ShowColumnHeaders = False
+        TabOrder = 0
+        ViewStyle = vsReport
+        OnDblClick = ListViewDblClick
+      end
+    end
     object PSQLHistory: TPanel_Ext
       Left = 0
       Top = 0
@@ -1152,7 +1187,7 @@ object FClient: TFClient
     object TBSideBar: TToolBar
       Left = 2
       Top = 0
-      Width = 92
+      Width = 115
       Height = 22
       Align = alNone
       AutoSize = True
@@ -1181,8 +1216,16 @@ object FClient: TFClient
         Grouped = True
         Style = tbsCheck
       end
-      object tbSQLHistory: TToolButton
+      object tbJobs: TToolButton
         Left = 69
+        Top = 0
+        Caption = 'tbJobs'
+        Grouped = True
+        ImageIndex = 84
+        Style = tbsCheck
+      end
+      object tbSQLHistory: TToolButton
+        Left = 92
         Top = 0
         Caption = 'tbSQLHistory'
         Grouped = True
@@ -1968,6 +2011,9 @@ object FClient: TFClient
     end
     object miSBookmarks: TMenuItem
       Caption = 'miSBookmarks'
+    end
+    object miSJobs: TMenuItem
+      Caption = 'miSJobs'
     end
     object miSSQLHistory: TMenuItem
       Caption = 'miSSQLHistory'

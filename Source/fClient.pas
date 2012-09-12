@@ -12318,7 +12318,7 @@ begin
 
     if (Assigned(OldRight)) then
     begin
-      Privileges := GetPrivileges(False, OldRight, NewRight, GetRightType(NewRight));
+      Privileges := GetPrivileges(False, OldRight, NewRight, GetRightType(OldRight));
 
       if (Privileges <> '') then
       begin
@@ -12401,7 +12401,7 @@ begin
         RemovedUserRights[User.IndexOf(OldRight)] := True;
 
         EmptyRight := TCUserRight.Create();
-        Privileges := GetPrivileges(False, OldRight, EmptyRight, GetRightType(NewRight));
+        Privileges := GetPrivileges(False, OldRight, EmptyRight, GetRightType(OldRight));
         EmptyRight.Free();
 
         if (Privileges <> '') then

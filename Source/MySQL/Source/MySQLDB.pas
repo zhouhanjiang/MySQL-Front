@@ -4055,7 +4055,7 @@ begin
           on E: Exception do
             begin
               LibField := MYSQL_FIELD(Connection.Lib.mysql_fetch_field_direct(Handle, Field.FieldNo - 1));
-              raise Exception.CreateFmt(E.Message + ' (Charset: %s, name: %s, field_type: %d, charsetnr: %d, length: %d, flags: %d, SQL: %s)', [Connection.Charset, Connection.Lib.Field(LibField).name, Ord(Connection.Lib.Field(LibField).field_type), Connection.Lib.Field(LibField).charsetnr, Connection.Lib.Field(LibField).length, Connection.Lib.Field(LibField).flags, CommandText]);
+              raise Exception.CreateFmt(E.Message + ' (Charset: %s, name: %s, field_type: %d, charsetnr: %d, length: %d, flags: %d, Value: %s, SQL: %s)', [Connection.Charset, Connection.Lib.Field(LibField).name, Ord(Connection.Lib.Field(LibField).field_type), Connection.Lib.Field(LibField).charsetnr, Connection.Lib.Field(LibField).length, Connection.Lib.Field(LibField).flags, SQLEscapeBin(PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], True), CommandText]);
             end;
         end;
         if (Len > Field.DataSize) then DatabaseErrorFmt(SInvalidFieldSize + ' (%s)', [Field.DisplayName]);

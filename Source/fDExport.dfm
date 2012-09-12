@@ -39,19 +39,164 @@ object DExport: TDExport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSHTMLOptions
+    ActivePage = TSJob
     HotTrack = True
     Style = tsFlatButtons
     TabOrder = 1
     TabStop = False
+    object TSJob: TTabSheet
+      Caption = 'TSJob'
+      ImageIndex = 7
+      TabVisible = False
+      object GBasics: TGroupBox_Ext
+        Left = 4
+        Top = 0
+        Width = 325
+        Height = 265
+        Caption = 'GBasics'
+        TabOrder = 0
+        object FLName: TLabel
+          Left = 8
+          Top = 17
+          Width = 40
+          Height = 13
+          Caption = 'FLName'
+        end
+        object FLExportType: TLabel
+          Left = 8
+          Top = 48
+          Width = 66
+          Height = 13
+          Caption = 'FLExportType'
+        end
+        object FLFilename: TLabel
+          Left = 8
+          Top = 234
+          Width = 54
+          Height = 13
+          Caption = 'FLFilename'
+        end
+        object FName: TEdit
+          Left = 128
+          Top = 16
+          Width = 121
+          Height = 21
+          TabOrder = 0
+          Text = 'FName'
+          OnChange = FJobOptionChange
+        end
+        object FSQLFile: TRadioButton
+          Left = 128
+          Top = 47
+          Width = 185
+          Height = 17
+          Caption = 'FSQLFile'
+          TabOrder = 1
+          TabStop = True
+          OnClick = FJobOptionChange
+        end
+        object FTextFile: TRadioButton
+          Left = 128
+          Top = 67
+          Width = 185
+          Height = 17
+          Caption = 'FTextFile'
+          TabOrder = 2
+          TabStop = True
+          OnClick = FJobOptionChange
+        end
+        object FExcelFile: TRadioButton
+          Left = 128
+          Top = 87
+          Width = 185
+          Height = 17
+          Caption = 'FExcelFile'
+          TabOrder = 3
+          TabStop = True
+          OnClick = FJobOptionChange
+        end
+        object FAccessFile: TRadioButton
+          Left = 128
+          Top = 107
+          Width = 185
+          Height = 17
+          Caption = 'FAccessFile'
+          TabOrder = 4
+          TabStop = True
+          OnClick = FJobOptionChange
+        end
+        object FSQLiteFile: TRadioButton
+          Left = 128
+          Top = 127
+          Width = 185
+          Height = 17
+          Caption = 'FSQLiteFile'
+          TabOrder = 5
+          TabStop = True
+          OnClick = FJobOptionChange
+        end
+        object FODBC: TRadioButton
+          Left = 128
+          Top = 147
+          Width = 185
+          Height = 17
+          Caption = 'FODBC'
+          TabOrder = 6
+          TabStop = True
+          OnClick = FJobOptionChange
+        end
+        object FHTMLFile: TRadioButton
+          Left = 128
+          Top = 167
+          Width = 185
+          Height = 17
+          Caption = 'FHTMLFile'
+          TabOrder = 7
+          TabStop = True
+          OnClick = FJobOptionChange
+        end
+        object FXMLFile: TRadioButton
+          Left = 128
+          Top = 187
+          Width = 185
+          Height = 17
+          Caption = 'FXMLFile'
+          TabOrder = 8
+          TabStop = True
+          OnClick = FJobOptionChange
+        end
+        object FPDFFile: TRadioButton
+          Left = 128
+          Top = 207
+          Width = 185
+          Height = 17
+          Caption = 'FPDFFile'
+          TabOrder = 9
+          TabStop = True
+          OnClick = FJobOptionChange
+        end
+        object FFilename: TEdit
+          Left = 128
+          Top = 233
+          Width = 164
+          Height = 21
+          TabOrder = 10
+          Text = 'FFilename'
+        end
+        object FBFilename: TButton
+          Left = 292
+          Top = 233
+          Width = 21
+          Height = 21
+          Caption = #183#183#183
+          TabOrder = 11
+        end
+      end
+    end
     object TSODBCSelect: TTabSheet
       Caption = 'TSODBCSelect'
       TabVisible = False
       OnShow = TSODBCSelectShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GODBCSelect: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -90,10 +235,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSSQLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GSQLWhat: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -216,10 +357,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSCSVOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GCSVOptions: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -357,10 +494,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSXMLOptionsHide
       OnShow = TSXMLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GXMLHow: TGroupBox_Ext
         Left = 4
         Top = 0

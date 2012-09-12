@@ -126,6 +126,10 @@ type
     aHManual: TAction;
     aHSQL: TAction;
     aHUpdate: TAction;
+    aJDelete: TAction;
+    aJEdit: TAction;
+    aJExecute: TAction;
+    aJAddExport: TAction;
     aOGlobals: TAction;
     aOAccounts: TAction;
     aSSearchFind: TSearchFind_Ext;
@@ -137,6 +141,7 @@ type
     aVDataBrowser: TAction;
     aVDiagram: TAction;
     aVExplorer: TAction;
+    aVJobs: TAction;
     aVNavigator: TAction;
     aVNext: TAction;
     aVObjectBrowser: TAction;
@@ -255,6 +260,11 @@ type
     miHManual: TMenuItem;
     miHSQL: TMenuItem;
     miHUpdate: TMenuItem;
+    miJDelete: TMenuItem;
+    miJEdit: TMenuItem;
+    miJAdd: TMenuItem;
+    miJNewExport: TMenuItem;
+    miJobs: TMenuItem;
     miOGlobals: TMenuItem;
     miOptions: TMenuItem;
     miOAccounts: TMenuItem;
@@ -268,6 +278,7 @@ type
     miVDiagram: TMenuItem;
     miVExplorer: TMenuItem;
     miView: TMenuItem;
+    miVJobs: TMenuItem;
     miVNavigator: TMenuItem;
     miVObjectBrowser: TMenuItem;
     miVObjectIDE: TMenuItem;
@@ -300,6 +311,7 @@ type
     N22: TMenuItem;
     N25: TMenuItem;
     N27: TMenuItem;
+    N3: TMenuItem;
     N30: TMenuItem;
     N31: TMenuItem;
     N32: TMenuItem;
@@ -1000,8 +1012,8 @@ begin
   aFExportAccess.Caption := Preferences.LoadStr(695) + '...';
   aFExportSQLite.Caption := Preferences.LoadStr(870) + '...';
   aFExportODBC.Caption := Preferences.LoadStr(607) + '...';
-  aFExportXML.Caption := Preferences.LoadStr(454) + '...';
   aFExportHTML.Caption := Preferences.LoadStr(453) + '...';
+  aFExportXML.Caption := Preferences.LoadStr(454) + '...';
   aFExportPDF.Caption := Preferences.LoadStr(890) + '...';
   aFExportBitmap.Caption := Preferences.LoadStr(868) + '...';
   aFPrint.Caption := Preferences.LoadStr(577) + '...';
@@ -1038,12 +1050,19 @@ begin
   aVNavigator.Caption := Preferences.LoadStr(10);
   aVBookmarks.Caption := Preferences.LoadStr(727);
   aVExplorer.Caption := Preferences.LoadStr(435);
+  aVJobs.Caption := Preferences.LoadStr(896);
   aVSQLHistory.Caption := Preferences.LoadStr(807);
   aVSQLLog.Caption := Preferences.LoadStr(11);
   aVRefresh.Caption := Preferences.LoadStr(41);
   aVRefreshAll.Caption := Preferences.LoadStr(623);
 
   miBookmarks.Caption := Preferences.LoadStr(727);
+  miJAdd.Caption := Preferences.LoadStr(26);
+  aJAddExport.Caption := Preferences.LoadStr(200) + '...';
+  aJDelete.Caption := Preferences.LoadStr(28);
+  aJEdit.Caption := Preferences.LoadStr(97) + '...';
+
+  miJobs.Caption := Preferences.LoadStr(896);
   aBAdd.Caption := Preferences.LoadStr(728) + '...';
   aBDelete.Caption := Preferences.LoadStr(28);
   aBEdit.Caption := Preferences.LoadStr(97) + '...';
@@ -1268,6 +1287,7 @@ begin
     aVNavigator.Checked := False;
     aVBookmarks.Checked := False;
     aVExplorer.Checked := False;
+    aVJobs.Checked := False;
     aVSQLHistory.Checked := False;
     aVSQLLog.Checked := False;
     tbVRefresh.Enabled := False;
@@ -1286,6 +1306,7 @@ begin
     aVNavigator.Enabled := False;
     aVBookmarks.Enabled := False;
     aVExplorer.Enabled := False;
+    aVJobs.Enabled := False;
     aVSQLHistory.Enabled := False;
     aVSQLLog.Enabled := False;
     aBAdd.Enabled := False;
@@ -1862,6 +1883,10 @@ begin
   TBTabControl.Visible := Preferences.TabsVisible;
   TabControlRepaint := TList.Create();
 
+  {$IFNDEF Debug}
+  miJobs.Visible := False;
+  aVJobs.Visible := False;
+  {$ENDIF}
   aHIndex.Enabled := FileExists(Application.HelpFile);
   aHUpdate.Enabled := IsConnectedToInternet() and (Preferences.SetupProgram = '');
 

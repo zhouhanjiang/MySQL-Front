@@ -983,6 +983,7 @@ begin
         STOSW
         MOV AX,'x'
         STOSW
+        JMP BinL
       Start2:
         MOV AX,'X'
         STOSW
