@@ -11,6 +11,7 @@ uses
   ShellAPI,
   SysUtils,
   Forms,
+  HTMLHelpViewer,
   MySQLClient in 'MySQL\Source\MySQLClient.pas',
   MySQLConsts in 'MySQL\Source\MySQLConsts.pas',
   MySQLDB in 'MySQL\Source\MySQLDB.pas',
