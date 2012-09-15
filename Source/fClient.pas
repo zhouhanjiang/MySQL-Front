@@ -3688,38 +3688,13 @@ begin
 end;
 
 procedure TCBaseTable.BuildStatus(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean);
-
-  procedure CheckEngine(const Field: TField);
-  // Debug
-  var
-    I: Integer;
-    S: string;
-  begin
-    if (not Assigned(FEngine)) then
-    begin
-      S := '';
-      for I := 0 to Client.Engines.Count - 1 do
-      begin
-        if (I > 0) then S := S + ',';
-        S := S + Client.Engines[I].Name;
-      end;
-      raise ERangeError.CreateFmt(SPropertyOutOfRange + ', Field.Name: %s, Field.AsString: %s, Engines: %s', ['FEngine', Field.Name, Field.AsString, S]);
-    end;
-  end;
-
 begin
   if (not UseInformationSchema) then
   begin
     if (Assigned(DataSet.FindField('Type'))) then // MySQL < 4.1.2 and 5.0.0???
-    begin
-      FEngine := Database.Client.EngineByName(DataSet.FieldByName('Type').AsString);
-      CheckEngine(DataSet.FieldByName('Type'));
-    end
+      FEngine := Database.Client.EngineByName(DataSet.FieldByName('Type').AsString)
     else
-    begin
       FEngine := Database.Client.EngineByName(DataSet.FieldByName('Engine').AsString);
-      CheckEngine(DataSet.FieldByName('Engine'));
-    end;
     FRowType := StrToMySQLRowType(DataSet.FieldByName('Row_format').AsString);
     if (Self is TCSystemView) then
       FRows := -1
@@ -3739,7 +3714,6 @@ begin
   else
   begin
     FEngine := Database.Client.EngineByName(DataSet.FieldByName('ENGINE').AsString);
-    CheckEngine(DataSet.FieldByName('ENGINE'));
     RowType := StrToMySQLRowType(DataSet.FieldByName('ROW_FORMAT').AsString);
     if (Self is TCSystemView) then
       FRows := -1
@@ -8415,7 +8389,7 @@ function TCEngines.GetValid(): Boolean;
 var
   I: Integer;
 begin
-  if ((TList(Self).Count = 0) and (Client.ServerVersion < 40102)) then
+  if ((TList(Self).Count = 0) and (Client.ServerVersion < 40102) and Client.Variables.Valid) then
   begin
     if ((Client.ServerVersion >= 32334) and Assigned(Client.VariableByName('have_bdb')) and Client.VariableByName('have_bdb').AsBoolean) then
       Add(TCEngine.Create(Self, 'BDB'));
@@ -8451,7 +8425,9 @@ end;
 
 function TCEngines.SQLGetItems(const Name: string = ''): string;
 begin
-  if (not Client.UseInformationSchema or (Client.ServerVersion < 50105)) then
+  if (Client.ServerVersion < 40102) then
+    Result := ''
+  else if (not Client.UseInformationSchema or (Client.ServerVersion < 50105)) then
     Result := 'SHOW ENGINES;' + #13#10
   else
     Result := 'SELECT * FROM ' + Client.EscapeIdentifier(information_schema) + '.' + Client.EscapeIdentifier('ENGINES') + ';' + #13#10;

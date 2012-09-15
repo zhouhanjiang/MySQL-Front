@@ -224,7 +224,7 @@ begin
     if (NextActivePageIndex < TSExecute.PageIndex) then
       FBForward.Caption := Preferences.LoadStr(229) + ' >'
     else
-      FBForward.Caption := Preferences.LoadStr(230);
+      FBForward.Caption := Preferences.LoadStr(899);
 
   FBForward.Enabled := (NextActivePageIndex >= 0) and ((NextActivePageIndex < TSExecute.PageIndex) or True);
   FBForward.Default := True;

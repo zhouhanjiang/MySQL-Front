@@ -39,7 +39,7 @@ object DExport: TDExport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSJob
+    ActivePage = TSTask
     HotTrack = True
     Style = tsFlatButtons
     TabOrder = 1
@@ -94,6 +94,10 @@ object DExport: TDExport
       Caption = 'TSJob'
       TabVisible = False
       OnShow = TSJobShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GBasics: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -126,7 +130,7 @@ object DExport: TDExport
         object FName: TEdit
           Left = 128
           Top = 16
-          Width = 121
+          Width = 187
           Height = 21
           TabOrder = 0
           Text = 'FName'
@@ -225,11 +229,20 @@ object DExport: TDExport
         object FFilename: TEdit
           Left = 128
           Top = 233
-          Width = 187
+          Width = 166
           Height = 21
-          ReadOnly = True
           TabOrder = 10
           Text = 'FFilename'
+          OnChange = FJobOptionChange
+        end
+        object FBFilename: TButton
+          Left = 294
+          Top = 233
+          Width = 21
+          Height = 21
+          Caption = #183#183#183
+          TabOrder = 11
+          OnClick = FBFilenameClick
         end
       end
     end
@@ -1035,6 +1048,21 @@ object DExport: TDExport
             OnChange = FDestField1Change
           end
         end
+      end
+    end
+    object TSTask: TTabSheet
+      Caption = 'TSTask'
+      ImageIndex = 9
+      TabVisible = False
+      OnShow = TSTaskShow
+      object GTask: TGroupBox_Ext
+        Left = 4
+        Top = 0
+        Width = 325
+        Height = 265
+        Caption = 'GTask'
+        TabOrder = 0
+        Visible = False
       end
     end
     object TSExecute: TTabSheet
