@@ -6,7 +6,9 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Menus,
   Dialogs, StdCtrls, ComCtrls, DB, ExtCtrls,
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext,
-  fBase, fClient, MySQLDB, fAccount, fTools, fFClient;
+  MySQLDB,
+  fClient, fAccount, fTools,
+  fBase, fFClient;
 
 type
   TDSTableItem = record
@@ -97,7 +99,7 @@ type
   private
     Clients: array of TCClient;
     ExecuteClient: TCClient;
-    Find: TTFind;
+    Search: TTSearch;
     ProgressInfos: TTools.TProgressInfos;
     ReplaceClient: TCClient;
     SQLWait: Boolean;
@@ -195,9 +197,9 @@ end;
 procedure TDSearch.CMExecutedDone(var Message: TMessage);
 begin
   if (SearchOnly and (FTables.Items.Count = 0)) then
-    MsgBox(Preferences.LoadStr(533, Find.FindText), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
+    MsgBox(Preferences.LoadStr(533, Search.FindText), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
 
-  FreeAndNil(Find);
+  FreeAndNil(Search);
   if (Assigned(ExecuteClient)) then
     ExecuteClient := nil;
   if (Assigned(ReplaceClient)) then
@@ -213,13 +215,13 @@ end;
 
 procedure TDSearch.CMUpdateProgressInfo(var Message: TMessage);
 var
-  CurrentItem: TTFind.PItem;
+  CurrentItem: TTSearch.PItem;
   Found: Boolean;
   I: Integer;
   Infos: TTools.PProgressInfos;
   Item: TListItem;
 begin
-  CurrentItem := TTFind.PItem(Message.WParam);
+  CurrentItem := TTSearch.PItem(Message.WParam);
   Infos := TTools.PProgressInfos(Message.LParam);
 
   if (Infos.TablesSum < 0) then
@@ -268,7 +270,7 @@ begin
     end;
   end;
 
-  if (Assigned(Find) and Find.Suspended) then
+  if (Assigned(Search) and Search.Suspended) then
     Application.ProcessMessages();
 end;
 
@@ -290,11 +292,11 @@ end;
 
 procedure TDSearch.FBCancelClick(Sender: TObject);
 begin
-  if (Assigned(Find)) then
+  if (Assigned(Search)) then
   begin
-    Find.UserAbort.SetEvent();
-    if (not Find.Suspended) then
-      Find.WaitFor();
+    Search.UserAbort.SetEvent();
+    if (not Search.Suspended) then
+      Search.WaitFor();
   end;
 end;
 
@@ -349,7 +351,7 @@ begin
 
   BorderStyle := bsSizeable;
 
-  Find := nil;
+  Search := nil;
 
   FSelect.Images := Preferences.SmallImages;
 
@@ -844,7 +846,7 @@ end;
 
 procedure TDSearch.OnExecuted(const ASuccess: Boolean);
 begin
-  if (not Find.Suspended) then
+  if (not Search.Suspended) then
     PostMessage(Handle, CM_EXECUTIONDONE, WPARAM(ASuccess), 0)
   else
   begin
@@ -857,7 +859,7 @@ procedure TDSearch.OnUpdate(const AProgressInfos: TTools.TProgressInfos);
 begin
   MoveMemory(@ProgressInfos, @AProgressInfos, SizeOf(AProgressInfos));
 
-  if (not Find.Suspended) then
+  if (not Search.Suspended) then
     PostMessage(Handle, CM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos))
   else
   begin
@@ -985,13 +987,13 @@ begin
     begin
       SetLength(Tables, 0);
 
-      Find := TTFind.Create(ExecuteClient);
+      Search := TTSearch.Create(ExecuteClient);
 
-      Find.Wnd := Self.Handle;
-      Find.FindText := FFFindText.Text;
-      Find.MatchCase := FFMatchCase.Checked;
-      Find.WholeValue := FFWholeValue.Checked;
-      Find.RegExpr := FFRegExpr.Checked;
+      Search.Wnd := Self.Handle;
+      Search.FindText := FFFindText.Text;
+      Search.MatchCase := FFMatchCase.Checked;
+      Search.WholeValue := FFWholeValue.Checked;
+      Search.RegExpr := FFRegExpr.Checked;
     end
     else
     begin
@@ -1001,20 +1003,20 @@ begin
         FreeAndNil(ReplaceClient)
       else
       begin
-        Find := TTReplace.Create(ExecuteClient, ReplaceClient);
+        Search := TTReplace.Create(ExecuteClient, ReplaceClient);
 
-        TTReplace(Find).Wnd := Self.Handle;
-        TTReplace(Find).OnError := OnError;
-        TTReplace(Find).FindText := FRFindText.Text;
-        TTReplace(Find).ReplaceText := FReplaceText.Text;
-        TTReplace(Find).MatchCase := FRMatchCase.Checked;
-        TTReplace(Find).WholeValue := FRWholeValue.Checked;
-        TTReplace(Find).RegExpr := FRRegExpr.Checked;
-        TTReplace(Find).Backup := FBackup.Checked;
+        TTReplace(Search).Wnd := Self.Handle;
+        TTReplace(Search).OnError := OnError;
+        TTReplace(Search).FindText := FRFindText.Text;
+        TTReplace(Search).ReplaceText := FReplaceText.Text;
+        TTReplace(Search).MatchCase := FRMatchCase.Checked;
+        TTReplace(Search).WholeValue := FRWholeValue.Checked;
+        TTReplace(Search).RegExpr := FRRegExpr.Checked;
+        TTReplace(Search).Backup := FBackup.Checked;
       end;
     end;
-    Find.OnExecuted := OnExecuted;
-    Find.OnUpdate := OnUpdate;
+    Search.OnExecuted := OnExecuted;
+    Search.OnUpdate := OnUpdate;
 
     List := TList.Create();
     for I := 0 to FSelect.Items.Count - 1 do
@@ -1025,14 +1027,14 @@ begin
           Database := ExecuteClient.DatabaseByName(FSelect.Items[I].Parent.Parent.Text);
           Table := Database.BaseTableByName(FSelect.Items[I].Parent.Text);
           List.Add(Table);
-          Find.Add(Table, Table.FieldByName(FSelect.Items[I].Text));
+          Search.Add(Table, Table.FieldByName(FSelect.Items[I].Text));
         end
         else if (FSelect.Items[I].ImageIndex = iiBaseTable) then
         begin
           Database := ExecuteClient.DatabaseByName(FSelect.Items[I].Parent.Text);
           Table := Database.BaseTableByName(FSelect.Items[I].Text);
           List.Add(Table);
-          Find.Add(Table, nil);
+          Search.Add(Table, nil);
         end
         else if (FSelect.Items[I].ImageIndex = iiDatabase) then
         begin
@@ -1042,7 +1044,7 @@ begin
             begin
               Table := TCBaseTable(Database.Tables[J]);
               List.Add(Table);
-              Find.Add(Table, nil);
+              Search.Add(Table, nil);
             end;
         end
         else // iiConnection
@@ -1056,7 +1058,7 @@ begin
                 begin
                   Table := TCBaseTable(Database.Tables[J]);
                   List.Add(Table);
-                  Find.Add(Table, nil);
+                  Search.Add(Table, nil);
                 end;
           end;
         end;
@@ -1067,9 +1069,9 @@ begin
     List.Free();
 
     if (ExecuteClient.Asynchron) then
-      Find.Start()
+      Search.Start()
     else
-      Find.Execute();
+      Search.Execute();
   end;
 end;
 

@@ -647,7 +647,7 @@ type
     destructor Destroy(); override;
   end;
 
-  TTFind = class(TTools)
+  TTSearch = class(TTools)
   type
     PItem = ^TItem;
     TItem = record
@@ -682,11 +682,11 @@ type
     procedure Execute(); override;
   end;
 
-  TTReplace = class(TTFind)
+  TTReplace = class(TTSearch)
   private
     FReplaceClient: TCClient;
   protected
-    procedure ExecuteMatchCase(var Item: TTFind.TItem; const Table: TCBaseTable); override;
+    procedure ExecuteMatchCase(var Item: TTSearch.TItem; const Table: TCBaseTable); override;
     property ReplaceConnection: TCClient read FReplaceClient;
   public
     ReplaceText: string;
@@ -4061,6 +4061,7 @@ begin
 
     if (Success <> daAbort) then
       Success := daSuccess;
+
     ExecuteTableFooter(Table, Fields, DataSet);
   end;
 
@@ -4069,6 +4070,11 @@ begin
 
   if (Assigned(DataSet) and (Success <> daAbort)) then
     DataSet.Free();
+
+  if (Table is TCBaseTable) then
+    for I := 0 to TCBaseTable(Table).TriggerCount - 1 do
+      if (Success = daSuccess) then
+        ExecuteTrigger(TCBaseTable(Table).Triggers[I]);
 end;
 
 procedure TTExport.ExecuteTableFooter(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
@@ -7387,9 +7393,9 @@ begin
   inherited;
 end;
 
-{ TTFind **********************************************************************}
+{ TTSearch ********************************************************************}
 
-procedure TTFind.Add(const Table: TCBaseTable; const Field: TCTableField = nil);
+procedure TTSearch.Add(const Table: TCBaseTable; const Field: TCTableField = nil);
 var
   Found: Boolean;
   I: Integer;
@@ -7417,7 +7423,7 @@ begin
   end;
 end;
 
-procedure TTFind.AfterExecute();
+procedure TTSearch.AfterExecute();
 begin
   Client.EndSilent();
   Client.EndSynchron();
@@ -7425,7 +7431,7 @@ begin
   inherited;
 end;
 
-procedure TTFind.BeforeExecute();
+procedure TTSearch.BeforeExecute();
 begin
   inherited;
 
@@ -7433,7 +7439,7 @@ begin
   Client.BeginSynchron(); // We're still in a thread
 end;
 
-constructor TTFind.Create(const AClient: TCClient);
+constructor TTSearch.Create(const AClient: TCClient);
 begin
   inherited Create();
 
@@ -7443,7 +7449,7 @@ begin
   FItem := nil;
 end;
 
-destructor TTFind.Destroy();
+destructor TTSearch.Destroy();
 var
   I: Integer;
 begin
@@ -7454,14 +7460,14 @@ begin
   inherited;
 end;
 
-function TTFind.DoExecuteSQL(const Client: TCClient; var Item: TItem; var SQL: string): Boolean;
+function TTSearch.DoExecuteSQL(const Client: TCClient; var Item: TItem; var SQL: string): Boolean;
 begin
   Result := (Success = daSuccess) and Client.ExecuteSQL(SQL);
   Delete(SQL, 1, Client.ExecutedSQLLength);
   SQL := SysUtils.Trim(SQL);
 end;
 
-procedure TTFind.Execute();
+procedure TTSearch.Execute();
 var
   Database: TCDatabase;
   I: Integer;
@@ -7534,7 +7540,7 @@ begin
   AfterExecute();
 end;
 
-procedure TTFind.ExecuteDefault(var Item: TItem; const Table: TCBaseTable);
+procedure TTSearch.ExecuteDefault(var Item: TItem; const Table: TCBaseTable);
 var
   Buffer: TStringBuffer;
   DataSet: TMySQLQuery;
@@ -7763,7 +7769,7 @@ begin
   end;
 end;
 
-procedure TTFind.ExecuteMatchCase(var Item: TItem; const Table: TCBaseTable);
+procedure TTSearch.ExecuteMatchCase(var Item: TItem; const Table: TCBaseTable);
 var
   DataSet: TMySQLQuery;
   I: Integer;
@@ -7793,7 +7799,7 @@ begin
   DataSet.Free();
 end;
 
-procedure TTFind.ExecuteWholeValue(var Item: TItem; const Table: TCBaseTable);
+procedure TTSearch.ExecuteWholeValue(var Item: TItem; const Table: TCBaseTable);
 var
   DataSet: TMySQLQuery;
   I: Integer;
@@ -7856,14 +7862,14 @@ begin
   end;
 end;
 
-function TTFind.ToolsItem(const Item: TItem): TTools.TItem;
+function TTSearch.ToolsItem(const Item: TItem): TTools.TItem;
 begin
   Result.Client := Client;
   Result.DatabaseName := Item.DatabaseName;
   Result.TableName := Item.TableName;
 end;
 
-procedure TTFind.DoUpdateGUI();
+procedure TTSearch.DoUpdateGUI();
 var
   I: Integer;
 begin
@@ -7922,7 +7928,7 @@ begin
   FReplaceClient := AReplaceClient;
 end;
 
-procedure TTReplace.ExecuteMatchCase(var Item: TTFind.TItem; const Table: TCBaseTable);
+procedure TTReplace.ExecuteMatchCase(var Item: TTSearch.TItem; const Table: TCBaseTable);
 var
   I: Integer;
   SQL: string;

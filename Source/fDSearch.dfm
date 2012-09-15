@@ -69,6 +69,10 @@ object DSearch: TDSearch
       Caption = 'TSROptions'
       TabVisible = False
       OnShow = TSROptionsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         279)
@@ -206,6 +210,10 @@ object DSearch: TDSearch
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         279)
@@ -411,6 +419,10 @@ object DSearch: TDSearch
       Caption = 'TSSelect'
       TabVisible = False
       OnShow = TSSelectShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         279)
@@ -462,6 +474,10 @@ object DSearch: TDSearch
       Caption = 'TSFOptions'
       TabVisible = False
       OnShow = TSFOptionsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         279)

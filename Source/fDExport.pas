@@ -7,14 +7,13 @@ uses
   Dialogs, ComCtrls, ExtCtrls, StdCtrls, DB, DBGrids,
   ODBCAPI,
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext, Dialogs_Ext,
-  fClient, fAccount, fBase, fTools, fCWorkbench;
+  fClient, fAccount, fBase, fTools;
 
 type
   TExportType = (etSQLFile, etTextFile, etExcelFile, etAccessFile, etSQLiteFile, etODBC, etHTMLFile, etXMLFile, etPDFFile, etPrint);
 
-  TSaveToStream = procedure(Stream: TStream) of object;
-
   TDExport = class (TForm_Ext)
+    FAccessFile: TRadioButton;
     FAllQuote: TRadioButton;
     FBBack: TButton;
     FBCancel: TButton;
@@ -38,6 +37,7 @@ type
     FDoneTime: TLabel;
     FErrorMessages: TRichEdit;
     FErrors: TLabel;
+    FExcelFile: TRadioButton;
     FField1: TComboBox_Ext;
     FField2: TComboBox_Ext;
     FFieldAttribute: TEdit;
@@ -45,10 +45,12 @@ type
     FFieldTagFree: TRadioButton;
     FFieldTagName: TRadioButton;
     FHTMLData: TCheckBox;
+    FHTMLFile: TRadioButton;
     FHTMLNullText: TCheckBox;
     FHTMLRowBGColorEnabled: TCheckBox;
     FHTMLShowMemoContent: TCheckBox;
     FHTMLStructure: TCheckBox;
+    FFilename: TEdit;
     FL1DatabaseTagFree: TLabel;
     FL1FieldTagFree: TLabel;
     FL1TableTagFree: TLabel;
@@ -67,13 +69,16 @@ type
     FLDrop: TLabel;
     FLDone: TLabel;
     FLErrors: TLabel;
+    FLExportType: TLabel;
     FLFields: TLabel;
     FLFieldTag: TLabel;
     FLGeneral: TLabel;
+    FLFilename: TLabel;
     FLHTMLBGColorEnabled: TLabel;
     FLHTMLNullValues: TLabel;
     FLHTMLViewDatas: TLabel;
     FLHTMLWhat: TLabel;
+    FLName: TLabel;
     FLProgressRecords: TLabel;
     FLProgressTables: TLabel;
     FLProgressTime: TLabel;
@@ -85,17 +90,23 @@ type
     FLSeparator: TLabel;
     FLSQLWhat: TLabel;
     FLTableTag: TLabel;
+    FName: TEdit;
     FNoQuote: TRadioButton;
+    FODBC: TRadioButton;
     FODBCSelect: TListView_Ext;
+    FPDFFile: TRadioButton;
     FProgressBar: TProgressBar;
     FQuoteChar: TEdit;
     FRecordTag: TEdit;
     FReplaceData: TCheckBox;
     FRootTag: TEdit;
+    FSelect: TTreeView_Ext;
     FSeparator: TEdit;
     FSeparatorChar: TRadioButton;
     FSeparatorTab: TRadioButton;
     FSQLData: TCheckBox;
+    FSQLFile: TRadioButton;
+    FSQLiteFile: TRadioButton;
     FSQLStructure: TCheckBox;
     FStringQuote: TRadioButton;
     FTableAttribute: TEdit;
@@ -103,7 +114,9 @@ type
     FTableTagDisabled: TRadioButton;
     FTableTagFree: TRadioButton;
     FTableTagName: TRadioButton;
+    FTextFile: TRadioButton;
     FUseDatabase: TCheckBox;
+    FXMLFile: TRadioButton;
     GCSVOptions: TGroupBox_Ext;
     GErrors: TGroupBox_Ext;
     GFields: TGroupBox_Ext;
@@ -112,6 +125,7 @@ type
     GBasics: TGroupBox_Ext;
     GODBCSelect: TGroupBox_Ext;
     GProgress: TGroupBox_Ext;
+    GSelect: TGroupBox_Ext;
     GSQLOptions: TGroupBox_Ext;
     GSQLWhat: TGroupBox_Ext;
     GXMLHow: TGroupBox_Ext;
@@ -121,6 +135,7 @@ type
     PFieldTag: TPanel_Ext;
     PODBCSelect: TPanel_Ext;
     PQuote: TPanel_Ext;
+    PSelect: TPanel_Ext;
     PSeparator: TPanel_Ext;
     PSQLWait: TPanel;
     PTableTag: TPanel_Ext;
@@ -130,24 +145,10 @@ type
     TSFields: TTabSheet;
     TSHTMLOptions: TTabSheet;
     TSODBCSelect: TTabSheet;
+    TSSelect: TTabSheet;
     TSSQLOptions: TTabSheet;
     TSXMLOptions: TTabSheet;
     TSJob: TTabSheet;
-    FLName: TLabel;
-    FName: TEdit;
-    FLExportType: TLabel;
-    FSQLFile: TRadioButton;
-    FTextFile: TRadioButton;
-    FExcelFile: TRadioButton;
-    FAccessFile: TRadioButton;
-    FSQLiteFile: TRadioButton;
-    FODBC: TRadioButton;
-    FHTMLFile: TRadioButton;
-    FXMLFile: TRadioButton;
-    FPDFFile: TRadioButton;
-    FLFilename: TLabel;
-    FFilename: TEdit;
-    FBFilename: TButton;
     procedure FBBackClick(Sender: TObject);
     procedure FBCancelClick(Sender: TObject);
     procedure FBForwardClick(Sender: TObject);
@@ -192,6 +193,11 @@ type
     procedure TSXMLOptionsShow(Sender: TObject);
     procedure FJobOptionChange(Sender: TObject);
     procedure TSJobShow(Sender: TObject);
+    procedure FSelectGetImageIndex(Sender: TObject; Node: TTreeNode);
+    procedure FSelectExpanding(Sender: TObject; Node: TTreeNode;
+      var AllowExpansion: Boolean);
+    procedure FSelectChange(Sender: TObject; Node: TTreeNode);
+    procedure TSSelectShow(Sender: TObject);
   private
     Export: TTExport;
     FObjects: TList;
@@ -202,10 +208,12 @@ type
     ODBCEnv: SQLHENV;
     ProgressInfos: TTools.TProgressInfos;
     SQLWait: Boolean;
+    WantedNodeExpand: TTreeNode;
     procedure CheckActivePageChange(const ActivePageIndex: Integer);
     procedure ClearTSFields();
     procedure FormClientEvent(const Event: TCClient.TEvent);
     procedure InitTSFields();
+    procedure InitTSJob();
     procedure OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure OnExecuted(const ASuccess: Boolean);
     procedure OnUpdate(const AProgressInfos: TTools.TProgressInfos);
@@ -360,6 +368,8 @@ end;
 
 procedure TDExport.CMChangePreferences(var Message: TMessage);
 begin
+  GSelect.Caption := Preferences.LoadStr(721);
+
   GBasics.Caption := Preferences.LoadStr(85);
   FLName.Caption := Preferences.LoadStr(35) + ':';
   FLExportType.Caption := Preferences.LoadStr(200) + ':';
@@ -475,7 +485,9 @@ begin
     if (TObject(Objects[I]) is TCDatabase) then
     begin
       Database := TCDatabase(Objects[I]);
-      if (Database.Valid) then
+      if (not Database.Valid) then
+        Inc(I)
+      else
       begin
         for J := 0 to Database.Tables.Count - 1 do
           if (Objects.IndexOf(Database.Tables[J]) < 0) then
@@ -491,28 +503,28 @@ begin
         Objects.Delete(I);
       end;
     end
-    else if (TObject(Objects[I]) is TCBaseTable) then
-    begin
-      Database := TCBaseTable(Objects[I]).Database;
-      if (Database.Valid and Assigned(Database.Triggers)) then
-        for J := 0 to TCBaseTable(Objects[I]).TriggerCount - 1 do
-          if (Objects.IndexOf(TCBaseTable(Objects[I]).Triggers[J]) < 0) then
-            Objects.Add(TCBaseTable(Objects[I]).Triggers[J]);
-      Inc(I);
-    end
     else
       Inc(I);
 
+
   Message.Result := LRESULT(Client.Update(Objects));
   if (Boolean(Message.Result)) then
-  begin
-    PageControl.Visible := True;
-    PSQLWait.Visible := not PageControl.Visible;
+    if (Assigned(WantedNodeExpand)) then
+      WantedNodeExpand.Expand(False)
+    else
+    begin
+      if (not PageControl.Visible) then
+      begin
+        PageControl.Visible := True;
+        PSQLWait.Visible := not PageControl.Visible;
 
-    if (TSFields.Enabled) then
-      InitTSFields();
-    CheckActivePageChange(PageControl.ActivePageIndex);
-  end;
+        if (TSFields.Enabled) then
+          InitTSFields();
+        CheckActivePageChange(PageControl.ActivePageIndex);
+      end;
+      if (TSJob.Enabled) then
+        InitTSJob();
+    end;
 end;
 
 procedure TDExport.CMSysFontChanged(var Message: TMessage);
@@ -738,9 +750,14 @@ begin
     ExportType := etPDFFile
   else
     FFilename.Visible := False;
-  FLFilename.Visible := FFilename.Visible; FBFilename.Visible := FFilename.Visible;
+  FLFilename.Visible := FFilename.Visible;
 
-  FBForward.Enabled := (FName.Text <> '') and (FFilename.Visible or FODBC.Checked);
+  TSODBCSelect.Enabled := (ExportType in [etODBC]);
+  TSSQLOptions.Enabled := (ExportType in [etSQLFile]) and (FFilename.Text <> '');
+  TSCSVOptions.Enabled := (ExportType in [etTextFile]) and (FFilename.Text <> '');
+  TSXMLOptions.Enabled := (ExportType in [etXMLFile]) and (FFilename.Text <> '');
+  TSHTMLOptions.Enabled := (ExportType in [etHTMLFile, etPDFFile]) and (FFilename.Text <> '');
+  TSFields.Enabled := (ExportType in [etExcelFile]) and (Objects.Count = 1);
 
   CheckActivePageChange(TSJob.PageIndex);
 end;
@@ -803,6 +820,8 @@ end;
 procedure TDExport.FormCreate(Sender: TObject);
 begin
   Export := nil;
+
+  FSelect.Images := Preferences.SmallImages;
 
   FObjects := TList.Create();
   FODBCSelect.SmallImages := Preferences.SmallImages;
@@ -883,6 +902,11 @@ begin
     Preferences.Export.HTMLData := FHTMLData.Checked;
   end;
 
+  FSelect.Selected := nil; // Make sure, not to call FSelectedChange with a selcted node
+  FSelect.Items.BeginUpdate();
+  FSelect.Items.Clear();
+  FSelect.Items.EndUpdate();
+
   FODBCSelect.Items.BeginUpdate();
   FODBCSelect.Items.Clear();
   FODBCSelect.Items.EndUpdate();
@@ -903,6 +927,7 @@ end;
 procedure TDExport.FormShow(Sender: TObject);
 var
   I: Integer;
+  Node: TTreeNode;
 begin
   Client.RegisterEventProc(FormClientEvent);
 
@@ -914,32 +939,30 @@ begin
   else
     Caption := Preferences.LoadStr(210) + ' ' + ExtractFileName(Filename);
 
-  case (ExportType) of
-    etSQLFile: HelpContext := 1014;
-    etTextFile: HelpContext := 1134;
-    etExcelFile: HelpContext := 1107;
-    etAccessFile: HelpContext := 1129;
-    etSQLiteFile: HelpContext := 1128;
-    etXMLFile: HelpContext := 1017;
-    etHTMLFile: HelpContext := 1016;
-    etPDFFile: HelpContext := 1137;
-    etPrint: HelpContext := 1018;
-    else HelpContext := -1;
-  end;
+  if (CreateJob) then
+    HelpContext := 1138
+  else
+    case (ExportType) of
+      etSQLFile: HelpContext := 1014;
+      etTextFile: HelpContext := 1134;
+      etExcelFile: HelpContext := 1107;
+      etAccessFile: HelpContext := 1129;
+      etSQLiteFile: HelpContext := 1128;
+      etXMLFile: HelpContext := 1017;
+      etHTMLFile: HelpContext := 1016;
+      etPDFFile: HelpContext := 1137;
+      etPrint: HelpContext := 1018;
+      else HelpContext := -1;
+    end;
 
   if (CreateJob) then
   begin
+    Node := FSelect.Items.Add(nil, Client.Caption);
+    Node.ImageIndex := iiServer;
+    Node.HasChildren := True;
+
     FName.Text := '';
-    FSQLFile.Checked := False;
-    FTextFile.Checked := False;
-    FExcelFile.Checked := False;
-    FAccessFile.Checked := False;
-    FSQLiteFile.Checked := False;
-    FODBC.Checked := False;
-    FHTMLFile.Checked := False;
-    FXMLFile.Checked := False;
-    FPDFFile.Checked := False;
-    FFilename.Visible := False; FLFilename.Visible := FFilename.Visible; FBFilename.Visible := FFilename.Visible;
+    FFilename.Visible := False; FLFilename.Visible := FFilename.Visible;
     FFilename.Text := '';
   end;
 
@@ -968,10 +991,19 @@ begin
   if (Assigned(DBGrid)) then
     DBGrid.DataSource.DataSet.DisableControls();
 
-  PageControl.Visible := Boolean(Perform(CM_POST_AFTEREXECUTESQL, 0, 0));
+  if (CreateJob) then
+  begin
+    PageControl.Visible := Client.Databases.Update();
+    if (PageControl.Visible) then
+      FSelect.Items.GetFirstNode().Expand(False)
+    else
+      WantedNodeExpand := FSelect.Items.GetFirstNode();
+  end
+  else
+    PageControl.Visible := Boolean(Perform(CM_POST_AFTEREXECUTESQL, 0, 0));
   PSQLWait.Visible := not PageControl.Visible;
 
-  FBBack.Visible := TSJob.Enabled or TSODBCSelect.Enabled or TSSQLOptions.Enabled or TSCSVOptions.Enabled or TSXMLOptions.Enabled or TSHTMLOptions.Enabled or TSFields.Enabled;
+  FBBack.Visible := TSSelect.Enabled or TSODBCSelect.Enabled or TSSQLOptions.Enabled or TSCSVOptions.Enabled or TSXMLOptions.Enabled or TSHTMLOptions.Enabled or TSFields.Enabled;
   FBForward.Visible := FBBack.Visible;
 
   if (not FBForward.Enabled) then
@@ -999,6 +1031,111 @@ end;
 procedure TDExport.FQuoteKeyPress(Sender: TObject; var Key: Char);
 begin
   FQuoteClick(Sender);
+end;
+
+procedure TDExport.FSelectChange(Sender: TObject; Node: TTreeNode);
+begin
+  TSJob.Enabled := Assigned(FSelect.Selected);
+  CheckActivePageChange(TSSelect.PageIndex);
+end;
+
+procedure TDExport.FSelectExpanding(Sender: TObject; Node: TTreeNode;
+  var AllowExpansion: Boolean);
+var
+  Database: TCDatabase;
+  I: Integer;
+  NewNode: TTreeNode;
+  Table: TCBaseTable;
+  TreeView: TTreeView_Ext;
+begin
+  TreeView := TTreeView_Ext(Sender);
+
+  if (Assigned(WantedNodeExpand)) then
+    WantedNodeExpand := nil;
+
+  if (Assigned(Node)) then
+    if (Node.HasChildren and not Assigned(Node.getFirstChild())) then
+    begin
+      case (Node.ImageIndex) of
+        iiServer:
+          begin
+            if (not Client.Update() and Client.Asynchron) then
+              WantedNodeExpand := Node
+            else
+            begin
+              for I := 0 to Client.Databases.Count - 1 do
+                if ((Client.Databases.NameCmp(Client.Databases[I].Name, 'mysql') <> 0) and not (Client.Databases[I] is TCSystemDatabase)) then
+                begin
+                  NewNode := TreeView.Items.AddChild(Node, Client.Databases[I].Name);
+                  NewNode.ImageIndex := iiDatabase;
+                  NewNode.Data := Client.Databases[I];
+                  NewNode.HasChildren := True;
+                end;
+              Node.HasChildren := Assigned(Node.getFirstChild());
+            end;
+          end;
+        iiDatabase:
+          begin
+            Database := Client.DatabaseByName(Node.Text);
+            if ((not Database.Tables.Update() or not Client.Update(Database.Tables)) and Client.Asynchron) then
+              WantedNodeExpand := Node
+            else
+            begin
+              for I := 0 to Database.Tables.Count - 1 do
+              begin
+                NewNode := TreeView.Items.AddChild(Node, Database.Tables[I].Name);
+                if (Database.Tables[I] is TCBaseTable) then
+                  NewNode.ImageIndex := iiBaseTable
+                else
+                  NewNode.ImageIndex := iiView;
+                NewNode.Data := Database.Tables[I];
+                NewNode.HasChildren := Database.Tables[I] is TCBaseTable;
+              end;
+              if (Assigned(Database.Routines)) then
+                for I := 0 to Database.Routines.Count - 1 do
+                begin
+                  NewNode := TreeView.Items.AddChild(Node, Database.Routines[I].Name);
+                  if (Database.Routines[I] is TCProcedure) then
+                    NewNode.ImageIndex := iiProcedure
+                  else
+                    NewNode.ImageIndex := iiFunction;
+                  NewNode.Data := Database.Routines[I];
+                end;
+              if (Assigned(Database.Events)) then
+                for I := 0 to Database.Events.Count - 1 do
+                begin
+                  NewNode := TreeView.Items.AddChild(Node, Database.Events[I].Name);
+                  NewNode.ImageIndex := iiEvent;
+                  NewNode.Data := Database.Events[I];
+                end;
+              Node.HasChildren := Assigned(Node.getFirstChild());
+            end;
+          end;
+        iiBaseTable:
+          begin
+            Database := Client.DatabaseByName(Node.Parent.Text);
+            Table := Database.BaseTableByName(Node.Text);
+            if (not Database.Triggers.Update()) then
+              WantedNodeExpand := Node
+            else
+            begin
+              for I := 0 to Table.TriggerCount - 1 do
+              begin
+                NewNode := TreeView.Items.AddChild(Node, Table.Triggers[I].Name);
+                NewNode.ImageIndex := iiTrigger;
+                NewNode.Data := Table.Triggers[I];
+              end;
+              Node.HasChildren := Assigned(Node.getFirstChild());
+            end;
+          end;
+      end;
+    end;
+
+end;
+
+procedure TDExport.FSelectGetImageIndex(Sender: TObject; Node: TTreeNode);
+begin
+  Node.SelectedIndex := Node.ImageIndex;
 end;
 
 procedure TDExport.FSeparatorClick(Sender: TObject);
@@ -1125,6 +1262,34 @@ begin
   end;
 
   ScrollBox.EnableAlign();
+end;
+
+procedure TDExport.InitTSJob();
+var
+  I: Integer;
+begin
+  FSQLFile.Enabled := True;
+  FTextFile.Enabled := False;
+  FExcelFile.Enabled := False;
+  FAccessFile.Enabled := False;
+  FSQLiteFile.Enabled := False;
+  FODBC.Enabled := False;
+  FHTMLFile.Enabled := True;
+  FXMLFile.Enabled := False;
+  FPDFFile.Enabled := True;
+
+  for I := 0 to Objects.Count - 1 do
+    if (TObject(Objects[I]) is TCTable) then
+    begin
+      FTextFile.Enabled := True;
+      FExcelFile.Enabled := True;
+      FAccessFile.Enabled := True;
+      FSQLiteFile.Enabled := True;
+      FODBC.Enabled := True;
+      FXMLFile.Enabled := True;
+    end;
+  FSQLFile.Checked := True;
+
 end;
 
 procedure TDExport.OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
@@ -1638,7 +1803,17 @@ begin
 end;
 
 procedure TDExport.TSJobShow(Sender: TObject);
+var
+  I: Integer;
 begin
+  Objects.Clear();
+  for I := 0 to FSelect.Items.Count - 1 do
+    if (FSelect.Items[I].Selected) then
+      Objects.Add(FSelect.Items[I].Data);
+
+  PageControl.Visible := Boolean(Perform(CM_POST_AFTEREXECUTESQL, 0, 0));
+  PSQLWait.Visible := not PageControl.Visible;
+
   FJobOptionChange(Sender);
 end;
 
@@ -1673,6 +1848,11 @@ procedure TDExport.TSOptionsHide(Sender: TObject);
 begin
   if (TSFields.Enabled) then
     InitTSFields();
+end;
+
+procedure TDExport.TSSelectShow(Sender: TObject);
+begin
+  FSelectChange(nil, FSelect.Selected);
 end;
 
 procedure TDExport.TSSQLOptionsShow(Sender: TObject);

@@ -2530,6 +2530,10 @@ begin
   else if (FieldType in [mfTinyText, mfText, mfMediumText, mfLongText, mfTinyBlob, mfBlob, mfMediumBlob, mfLongBlob]) then
   else if (FieldType in [mfGeometry, mfPoint, mfLineString, mfPolygon, mfMultiPoint,  mfMultiLineString, mfMultiPolygon, mfGeometryCollection]) then
   else if (FieldType in [mfDate, mfDateTime, mfTime]) then
+  else if (FieldType in [mfTimeStamp]) then
+    if (FieldTypes.Client.ServerVersion < 40100) then
+      Result := Result + '(' + IntToStr(Size) + ')'
+    else
   else
     if (Size > 0)then Result := Result + '(' + IntToStr(Size) + ')';
 

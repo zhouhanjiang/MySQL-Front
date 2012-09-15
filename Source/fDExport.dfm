@@ -24,7 +24,7 @@ object DExport: TDExport
   TextHeight = 13
   object PSQLWait: TPanel
     Left = 8
-    Top = 8
+    Top = 0
     Width = 341
     Height = 281
     Cursor = crHourGlass
@@ -44,15 +44,52 @@ object DExport: TDExport
     Style = tsFlatButtons
     TabOrder = 1
     TabStop = False
+    object TSSelect: TTabSheet
+      Caption = 'TSSelect'
+      TabVisible = False
+      OnShow = TSSelectShow
+      object GSelect: TGroupBox_Ext
+        Left = 4
+        Top = 0
+        Width = 325
+        Height = 265
+        Caption = 'GSelect'
+        TabOrder = 0
+        object PSelect: TPanel_Ext
+          Left = 8
+          Top = 16
+          Width = 310
+          Height = 241
+          BevelInner = bvRaised
+          BevelOuter = bvLowered
+          ParentBackground = False
+          TabOrder = 0
+          object FSelect: TTreeView_Ext
+            Left = 2
+            Top = 2
+            Width = 306
+            Height = 237
+            Align = alClient
+            BorderStyle = bsNone
+            HideSelection = False
+            Indent = 19
+            MultiSelect = True
+            MultiSelectStyle = [msControlSelect, msShiftSelect, msSiblingOnly]
+            ReadOnly = True
+            ShowLines = False
+            ShowRoot = False
+            TabOrder = 0
+            OnChange = FSelectChange
+            OnExpanding = FSelectExpanding
+            OnGetImageIndex = FSelectGetImageIndex
+          end
+        end
+      end
+    end
     object TSJob: TTabSheet
       Caption = 'TSJob'
-      ImageIndex = 7
       TabVisible = False
       OnShow = TSJobShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GBasics: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -60,6 +97,7 @@ object DExport: TDExport
         Height = 265
         Caption = 'GBasics'
         TabOrder = 0
+        TabStop = True
         object FLName: TLabel
           Left = 8
           Top = 17
@@ -183,18 +221,11 @@ object DExport: TDExport
         object FFilename: TEdit
           Left = 128
           Top = 233
-          Width = 164
+          Width = 187
           Height = 21
+          ReadOnly = True
           TabOrder = 10
           Text = 'FFilename'
-        end
-        object FBFilename: TButton
-          Left = 292
-          Top = 233
-          Width = 21
-          Height = 21
-          Caption = #183#183#183
-          TabOrder = 11
         end
       end
     end
@@ -202,10 +233,6 @@ object DExport: TDExport
       Caption = 'TSODBCSelect'
       TabVisible = False
       OnShow = TSODBCSelectShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GODBCSelect: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -244,10 +271,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSSQLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GSQLWhat: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -370,10 +393,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSCSVOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GCSVOptions: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -511,10 +530,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSXMLOptionsHide
       OnShow = TSXMLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GXMLHow: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -826,10 +841,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSHTMLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GHTMLWhat: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -925,10 +936,6 @@ object DExport: TDExport
       Caption = 'TSFields'
       TabVisible = False
       OnShow = TSFieldsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GFields: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -1006,10 +1013,6 @@ object DExport: TDExport
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GProgress: TGroupBox_Ext
         Left = 4
         Top = 0

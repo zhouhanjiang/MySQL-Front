@@ -29,15 +29,19 @@
 			<DCC_BplOutput>$(BDS)\Projects\Bpl</DCC_BplOutput>
 			<DCC_Platform>x86</DCC_Platform>
 			<DCC_UnitSearchPath>..\Source;..\API;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+			<DCC_DcpOutput>..\Bin</DCC_DcpOutput>
+			<DCC_DcuOutput>..\Bin</DCC_DcuOutput>
 			<DCC_Description>The Delphi Inspiration -- DISQLite3 Personal</DCC_Description>
 			<DCC_S>false</DCC_S>
 			<DCC_N>true</DCC_N>
-			<DCC_DcpOutput>..\Bin</DCC_DcpOutput>
 			<DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>
-			<DCC_DcuOutput>..\Bin</DCC_DcuOutput>
 			<DCC_E>false</DCC_E>
 			<DCC_K>false</DCC_K>
 			<DCC_F>false</DCC_F>
+			<DCC_IOChecking>false</DCC_IOChecking>
+			<DCC_DebugInformation>false</DCC_DebugInformation>
+			<DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
+			<DCC_AssertionsAtRuntime>false</DCC_AssertionsAtRuntime>
 		</PropertyGroup>
 		<ProjectExtensions>
 			<Borland.Personality>Delphi.Personality.12</Borland.Personality>

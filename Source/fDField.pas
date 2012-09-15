@@ -384,7 +384,7 @@ end;
 procedure TDField.FFieldTypeExit(Sender: TObject);
 begin
   FUDFormatSize.Max := GetMaxLength();
-  if (FUDFormatSize.Position = 0) then
+  if ((FUDFormatSize.Position = 0) or (GetDefaultSize() < FUDFormatSize.Position)) then
     FUDFormatSize.Position := GetDefaultSize();
 
   if (FRDefault.Checked and (Trim(FDefault.Text) = '')

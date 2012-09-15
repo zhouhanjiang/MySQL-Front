@@ -225,7 +225,11 @@ begin
     FFulltext.Enabled := not Assigned(Table.Engine) or (UpperCase(Table.Engine.Name) = 'MYISAM') and (FIndexedFields.Items.Count > 0) and (Table.Database.Client.ServerVersion >= 32323);
   end
   else
+  begin
     FLength.Enabled := False;
+    FUnique.Enabled := False;
+    FFulltext.Enabled := False;
+  end;
 
   for I := 0 to FIndexedFields.Items.Count - 1 do
     FFulltext.Enabled := FFulltext.Enabled and Assigned(Table) and (Table.FieldByName(FIndexedFields.Items[I].Caption).FieldType in [mfChar, mfVarChar, mfTinyText, mfText, mfMediumText, mfLongText]);
