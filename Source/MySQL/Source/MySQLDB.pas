@@ -2485,6 +2485,8 @@ begin
       FErrorCode := SynchroThread.ErrorCode;
       FErrorMessage := SynchroThread.ErrorMessage;
       Result := ErrorCode = 0;
+      if (Result) then
+        SyncHandleResult(SynchroThread);
     end
     else
     begin

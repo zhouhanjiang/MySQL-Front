@@ -149,6 +149,7 @@ type
     TSSQLOptions: TTabSheet;
     TSXMLOptions: TTabSheet;
     TSJob: TTabSheet;
+    SaveDialog: TSaveDialog_Ext;
     procedure FBBackClick(Sender: TObject);
     procedure FBCancelClick(Sender: TObject);
     procedure FBForwardClick(Sender: TObject);
@@ -202,12 +203,14 @@ type
     Export: TTExport;
     FObjects: TList;
     FDestFields: array of TEdit;
+    Filename: TFileName;
     FFields: array of TComboBox_Ext;
     FLReferrers: array of TLabel;
     ODBC: SQLHDBC;
     ODBCEnv: SQLHENV;
     ProgressInfos: TTools.TProgressInfos;
     SQLWait: Boolean;
+    Title: string;
     WantedNodeExpand: TTreeNode;
     procedure CheckActivePageChange(const ActivePageIndex: Integer);
     procedure ClearTSFields();
@@ -228,7 +231,6 @@ type
     CreateJob: Boolean;
     DBGrid: TDBGrid;
     ExportType: TExportType;
-    Filename: TFileName;
     Window: TForm;
     function Execute(): Boolean;
     property Objects: TList read FObjects;
@@ -578,10 +580,127 @@ begin
 end;
 
 function TDExport.Execute(): Boolean;
+var
+  Database: TCDatabase;
+  I: Integer;
 begin
   PageControl.ActivePageIndex := -1;
+  ModalResult := mrNone;
 
-  Result := ShowModal() = mrOk;
+  Database := nil;
+  for I := 0 to Objects.Count - 1 do
+    if (TObject(Objects[I]) is TCDatabase) then
+      Database := TCDatabase(Objects[I])
+    else if (TObject(Objects[I]) is TCDBObject) then
+      Database := TCDBObject(Objects[I]).Database;
+
+  if (Assigned(DBGrid)) then
+    Title := Preferences.LoadStr(362)
+  else if (Objects.Count = 1) then
+    Title := TCObject(Objects[0]).Name
+  else if (Assigned(Database)) then
+    Title := Database.Name
+  else
+    Title := Client.Caption;
+
+  if ((Assigned(DBGrid) or (Objects.Count >= 1)) and not (ExportType in [etODBC, etPrint])) then
+  begin
+    if (Assigned(Client) and (Client.Account.Connection.Charset <> '')) then
+      CodePage := Client.CharsetToCodePage(Client.Account.Connection.Charset)
+    else if ((DExport.Objects.Count = 1) and (TObject(DExport.Objects[0]) is TCBaseTable)) then
+      CodePage := Client.CharsetToCodePage(TCBaseTable(DExport.Objects[0]).DefaultCharset)
+    else if (Assigned(Database)) then
+      CodePage := Client.CharsetToCodePage(Database.DefaultCharset)
+    else
+      CodePage := Client.CodePage;
+
+    SaveDialog.Title := ReplaceStr(Preferences.LoadStr(582), '&', '');
+    SaveDialog.InitialDir := Preferences.Path;
+    SaveDialog.Filter := '';
+    SaveDialog.DefaultExt := '';
+    case (ExportType) of
+      etSQLFile:
+        begin
+          SaveDialog.Filter := FilterDescription('sql') + ' (*.sql)|*.sql';
+          SaveDialog.DefaultExt := '.sql';
+          SaveDialog.Encodings.Text := EncodingCaptions();
+        end;
+      etTextFile:
+        begin
+          if (Objects.Count <= 1) then
+          begin
+            SaveDialog.Filter := FilterDescription('txt') + ' (*.txt;*.csv;*.tab;*.asc)|*.txt;*.csv;*.tab;*.asc';
+            SaveDialog.DefaultExt := '.csv';
+            SaveDialog.Encodings.Text := EncodingCaptions();
+          end
+          else
+          begin
+            SaveDialog.Filter := FilterDescription('zip') + ' (*.zip)|*.zip';
+            SaveDialog.DefaultExt := '.zip';
+            SaveDialog.Encodings.Clear();
+          end;
+        end;
+      etExcelFile:
+        begin
+          SaveDialog.Filter := FilterDescription('xls') + ' (*.xls)|*.xls';
+          SaveDialog.DefaultExt := '.xls';
+          SaveDialog.Encodings.Clear();
+        end;
+      etAccessFile:
+        begin
+          SaveDialog.Filter := FilterDescription('mdb') + ' (*.mdb)|*.mdb';
+          SaveDialog.DefaultExt := '.mdb';
+          SaveDialog.Encodings.Clear();
+        end;
+      etSQLiteFile:
+        begin
+          SaveDialog.Filter := FilterDescription('sqlite') + ' (*.db3;*.sqlite)|*.db3;*.sqlite';
+          SaveDialog.DefaultExt := '.db3';
+          SaveDialog.Encodings.Clear();
+        end;
+      etHTMLFile:
+        begin
+          SaveDialog.Filter := FilterDescription('html') + ' (*.html;*.htm)|*.html;*.htm';
+          SaveDialog.DefaultExt := '.html';
+          SaveDialog.Encodings.Text := EncodingCaptions(True);
+        end;
+      etPDFFile:
+        begin
+          SaveDialog.Filter := FilterDescription('pdf') + ' (*.pdf)|*.pdf';
+          SaveDialog.DefaultExt := '.pdf';
+          SaveDialog.Encodings.Clear();
+        end;
+      etXMLFile:
+        begin
+          SaveDialog.Filter := FilterDescription('xml') + ' (*.xml)|*.xml';
+          SaveDialog.DefaultExt := '.xml';
+          SaveDialog.Encodings.Text := EncodingCaptions(True);
+        end;
+    end;
+    SaveDialog.Filter := SaveDialog.Filter + '|' + FilterDescription('*') + ' (*.*)|*.*';
+
+    SaveDialog.FileName := Title + SaveDialog.DefaultExt;
+
+    if (SaveDialog.Encodings.Count = 0) then
+      SaveDialog.EncodingIndex := -1
+    else
+      SaveDialog.EncodingIndex := SaveDialog.Encodings.IndexOf(CodePageToEncoding(CodePage));
+
+    if (not SaveDialog.Execute()) then
+      ModalResult := mrCancel
+    else
+    begin
+      Preferences.Path := ExtractFilePath(SaveDialog.FileName);
+
+      if ((SaveDialog.EncodingIndex < 0) or (SaveDialog.Encodings.Count = 0)) then
+        CodePage := CP_ACP
+      else
+        CodePage := EncodingToCodePage(SaveDialog.Encodings[SaveDialog.EncodingIndex]);
+      Filename := SaveDialog.FileName;
+    end;
+  end;
+
+  Result := (ModalResult = mrNone) and (ShowModal() = mrOk);
 end;
 
 procedure TDExport.FBBackClick(Sender: TObject);
@@ -973,7 +1092,8 @@ begin
 
   FCreateDatabase.Checked := (Objects.Count > 1) and Preferences.Export.SQLCreateDatabase;
 
-  TSJob.Enabled := CreateJob;
+  TSSelect.Enabled := CreateJob;
+  TSJob.Enabled := False;
   TSODBCSelect.Enabled := not CreateJob and (ExportType in [etODBC]);
   TSSQLOptions.Enabled := not CreateJob and (ExportType in [etSQLFile]);
   TSCSVOptions.Enabled := not CreateJob and (ExportType in [etTextFile]);
@@ -1007,8 +1127,8 @@ begin
   FBForward.Visible := FBBack.Visible;
 
   if (not FBForward.Enabled) then
-    if (TSJob.Visible) then
-      ActiveControl := FName
+    if (TSSelect.Visible) then
+      ActiveControl := FSelect
     else
       ActiveControl := FBCancel;
 end;
@@ -1543,7 +1663,7 @@ begin
       etPDFFile:
         try
           if (ExportType = etPrint) then
-            ExportPDF := TTExportPrint.Create(Client, Filename)
+            ExportPDF := TTExportPrint.Create(Client, Title)
           else
             ExportPDF := TTExportPDF.Create(Client, Filename);
           ExportPDF.Data := FHTMLData.Checked;
@@ -1745,7 +1865,7 @@ begin
       etPDFFile:
         try
           if (ExportType = etPrint) then
-            ExportPDF := TTExportPrint.Create(Client, Filename)
+            ExportPDF := TTExportPrint.Create(Client, Title)
           else
             ExportPDF := TTExportPDF.Create(Client, Filename);
           ExportPDF.Data := FHTMLData.Checked;
