@@ -3,7 +3,7 @@ object DLogin: TDLogin
   Top = 306
   BorderStyle = bsDialog
   Caption = 'DLogin'
-  ClientHeight = 169
+  ClientHeight = 137
   ClientWidth = 290
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -19,8 +19,8 @@ object DLogin: TDLogin
   PixelsPerInch = 106
   TextHeight = 13
   object FBOk: TButton
-    Left = 120
-    Top = 136
+    Left = 118
+    Top = 104
     Width = 75
     Height = 25
     Caption = 'FBOk'
@@ -29,8 +29,8 @@ object DLogin: TDLogin
     TabOrder = 2
   end
   object FBCancel: TButton
-    Left = 208
-    Top = 136
+    Left = 206
+    Top = 104
     Width = 75
     Height = 25
     Cancel = True
@@ -42,7 +42,7 @@ object DLogin: TDLogin
     Left = 8
     Top = 8
     Width = 273
-    Height = 105
+    Height = 79
     Caption = 'GAccount'
     TabOrder = 0
     object FLUsername: TLabel
@@ -77,18 +77,10 @@ object DLogin: TDLogin
       TabOrder = 1
       Text = 'FPassword'
     end
-    object FSavePassword: TCheckBox
-      Left = 8
-      Top = 80
-      Width = 257
-      Height = 17
-      Caption = 'FSavePassword'
-      TabOrder = 2
-    end
   end
   object FBSettings: TButton
-    Left = 8
-    Top = 136
+    Left = 6
+    Top = 104
     Width = 81
     Height = 25
     Caption = 'FBSettings'

@@ -136,8 +136,10 @@ object WWindow: TWWindow
       object FAddressApply: TToolButton
         Left = 541
         Top = 0
-        Action = aVAddress
+        Caption = 'aVAddress'
         ImageIndex = 21
+        Visible = False
+        OnClick = aVAddressExecute
       end
     end
   end
@@ -651,12 +653,6 @@ object WWindow: TWWindow
       HelpContext = 1039
       HelpType = htContext
       ShortCut = 16506
-    end
-    object aVAddress: TAction
-      Category = 'View'
-      Caption = 'aVAddress'
-      ShortCut = 16460
-      OnExecute = aVAddressExecute
     end
     object aVRefresh: TAction
       Category = 'View'

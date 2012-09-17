@@ -7,7 +7,7 @@ uses
   Dialogs, StdCtrls, ComCtrls, DB, ExtCtrls,
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext,
   MySQLDB,
-  fClient, fAccount, fTools,
+  fClient, fPreferences, fTools,
   fBase, fFClient;
 
 type
@@ -133,7 +133,7 @@ implementation {***************************************************************}
 uses
   Consts, StrUtils, CommCtrl, RichEdit,
   SQLUtils,
-  fPreferences, fURI,
+  fURI,
   fDConnecting;
 
 var

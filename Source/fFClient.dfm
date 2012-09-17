@@ -1187,7 +1187,7 @@ object FClient: TFClient
     object TBSideBar: TToolBar
       Left = 2
       Top = 0
-      Width = 115
+      Width = 92
       Height = 22
       Align = alNone
       AutoSize = True

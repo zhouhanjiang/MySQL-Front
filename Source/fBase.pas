@@ -6,7 +6,7 @@ uses
   ComCtrls, Forms, Menus, ActnList, Classes, Controls, Windows, ExtCtrls,
   SysUtils, Messages, Dialogs, Graphics,
   SynEditHighlighter, SynHighlighterSQL,
-  fPreferences, fClient, fAccount, MySQLDB;
+  fPreferences, fClient, MySQLDB;
 
 const
   iiLocalhost = 13;

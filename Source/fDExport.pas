@@ -7,7 +7,7 @@ uses
   Dialogs, ComCtrls, ExtCtrls, StdCtrls, DB, DBGrids,
   ODBCAPI,
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext, Dialogs_Ext,
-  fClient, fAccount, fBase, fTools;
+  fClient, fPreferences, fBase, fTools;
 
 type
   TExportType = (etSQLFile, etTextFile, etExcelFile, etAccessFile, etSQLiteFile, etODBC, etHTMLFile, etXMLFile, etPDFFile, etPrint);
@@ -251,8 +251,7 @@ implementation {***************************************************************}
 uses
   Registry, Math, StrUtils, RichEdit, DBCommon,
   MySQLDB, SQLUtils,
-  fDLogin,
-  fPreferences;
+  fDLogin;
 
 var
   FExport: TDExport;
@@ -657,10 +656,7 @@ var
   ActivePageIndex: Integer;
 begin
   if (PageControl.ActivePageIndex = TSTask.PageIndex) then
-  begin
-//    SaveJob();
-    ModalResult := mrOk;
-  end
+    ModalResult := mrOk
   else
     for ActivePageIndex := PageControl.ActivePageIndex + 1 to PageControl.PageCount - 1 do
       if (PageControl.Pages[ActivePageIndex].Enabled) then
@@ -834,6 +830,8 @@ begin
 
   CheckActivePageChange(TSJob.PageIndex);
 
+  if (Client.Account.Jobs.IndexByName(FName.Text) >= 0) then
+    FBForward.Enabled := False;
   if (FFilename.Visible and not DirectoryExists(ExtractFilePath(FFilename.Text))) then
     FBForward.Enabled := False;
 end;
@@ -946,6 +944,8 @@ begin
 end;
 
 procedure TDExport.FormHide(Sender: TObject);
+var
+  Export: TPExport;
 begin
   Client.UnRegisterEventProc(FormClientEvent);
 
@@ -954,34 +954,46 @@ begin
 
   if (ModalResult = mrOk) then
   begin
-    Preferences.Export.CSVHeadline := FCSVHeadline.Checked;
+    if (CreateJob) then
+      Export := TAJobExport.Create(Client.Account.Jobs, FName.Text)
+    else
+      Export := Preferences.Export;
+
+    Export.CSVHeadline := FCSVHeadline.Checked;
     if (ExportType = etTextFile) then
     begin
       if (FSeparatorTab.Checked) then
-        Preferences.Export.CSVSeparatorType := stTab
+        Export.CSVSeparatorType := stTab
       else if (FSeparatorChar.Checked) then
-        Preferences.Export.CSVSeparatorType := stChar;
-      Preferences.Export.CSVSeparator := FSeparator.Text;
+        Export.CSVSeparatorType := stChar;
+      Export.CSVSeparator := FSeparator.Text;
       if (FNoQuote.Checked) then
-        Preferences.Export.CSVQuote := 0
+        Export.CSVQuote := 0
       else if (FAllQuote.Checked) then
-        Preferences.Export.CSVQuote := 0
+        Export.CSVQuote := 0
       else
-        Preferences.Export.CSVQuote := 1;
-      Preferences.Export.CSVQuoteChar := FQuoteChar.Text;
+        Export.CSVQuote := 1;
+      Export.CSVQuoteChar := FQuoteChar.Text;
     end;
 
-    Preferences.Export.SQLStructure := FSQLStructure.Checked;
-    Preferences.Export.SQLData := FSQLData.Checked;
-    Preferences.Export.SQLDropBeforeCreate := FDrop.Checked;
-    Preferences.Export.SQLReplaceData := FReplaceData.Checked;
-    Preferences.Export.SQLDisableKeys := FDisableKeys.Checked;
+    Export.SQLStructure := FSQLStructure.Checked;
+    Export.SQLData := FSQLData.Checked;
+    Export.SQLDropBeforeCreate := FDrop.Checked;
+    Export.SQLReplaceData := FReplaceData.Checked;
+    Export.SQLDisableKeys := FDisableKeys.Checked;
     if (Objects.Count > 1) then
-      Preferences.Export.SQLCreateDatabase := FCreateDatabase.Checked;
-    Preferences.Export.SQLUseDatabase := FUseDatabase.Checked;
+      Export.SQLCreateDatabase := FCreateDatabase.Checked;
+    Export.SQLUseDatabase := FUseDatabase.Checked;
 
-    Preferences.Export.HTMLStructure := FHTMLStructure.Checked;
-    Preferences.Export.HTMLData := FHTMLData.Checked;
+    Export.HTMLStructure := FHTMLStructure.Checked;
+    Export.HTMLData := FHTMLData.Checked;
+
+    if (CreateJob) then
+    begin
+      TAJobExport(Export).Filename := FFilename.Text;
+      Client.Account.Jobs.AddJob(Export);
+      Export.Free();
+    end;
   end;
 
   FSelect.Selected := nil; // Make sure, not to call FSelectedChange with a selcted node
@@ -1462,8 +1474,17 @@ end;
 procedure TDExport.InitTSJob();
 var
   I: Integer;
+  JobName: string;
 begin
   FName.Text := Title;
+  while (Assigned(Client.DatabaseByName(FName.Text))) do
+  begin
+    JobName := FName.Text;
+    Delete(JobName, 1, Length(Title));
+    if (JobName = '') then JobName := '1';
+    JobName := Title + IntToStr(StrToInt(JobName) + 1);
+    FName.Text := JobName;
+  end;
 
   FSQLFile.Enabled := True;
   FTextFile.Enabled := False;
@@ -2014,11 +2035,21 @@ end;
 
 procedure TDExport.TSJobShow(Sender: TObject);
 var
+  Child: TTreeNode;
   I: Integer;
 begin
   Objects.Clear();
   for I := 0 to FSelect.Items.Count - 1 do
-    if (FSelect.Items[I].Selected) then
+    if (FSelect.Items[I].ImageIndex = iiServer) then
+    begin
+      Child := FSelect.Items[I].getFirstChild();
+      while (Assigned(Child)) do
+      begin
+        Objects.Add(Child.Data);
+        Child := Child.getNextSibling();
+      end;
+    end
+    else if (FSelect.Items[I].Selected) then
       Objects.Add(FSelect.Items[I].Data);
 
   PageControl.Visible := Boolean(Perform(CM_POST_AFTEREXECUTESQL, 0, 0));

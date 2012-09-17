@@ -6,7 +6,7 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls,
   Forms_Ext, StdCtrls_Ext,
-  fBase, fAccount;
+  fBase, fPreferences;
 
 type
   TDBookmark = class(TForm_Ext)
@@ -39,8 +39,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  StrUtils,
-  fPreferences;
+  StrUtils;
 
 var
   FBookmark: TDBookmark;

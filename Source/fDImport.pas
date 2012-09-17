@@ -8,7 +8,7 @@ uses
   ODBCAPI,
   DISQLite3Api,
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext, Dialogs_Ext,
-  fClient, fAccount, fBase, MySQLDB, fTools;
+  fClient, fBase, MySQLDB, fTools;
 
 const
   LargeSQLScriptSize = 100 * 1024;

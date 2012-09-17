@@ -4,9 +4,9 @@ interface {********************************************************************}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, ComCtrls, ExtCtrls, StdCtrls, DB,
+  Dialogs, ComCtrls, ExtCtrls, StdCtrls, DB, Menus,
   ComCtrls_Ext, Forms_Ext, ExtCtrls_Ext,
-  fClient, fBase, MySQLDB, fAccount, fTools, Menus,
+  fClient, fBase, MySQLDB, fTools,
   StdCtrls_Ext;
 
 type

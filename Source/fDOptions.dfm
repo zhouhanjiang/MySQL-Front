@@ -275,6 +275,10 @@ object DOptions: TDOptions
     end
     object TSEditor: TTabSheet
       Caption = 'TSEditor'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GEditor: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -484,7 +488,7 @@ object DOptions: TDOptions
           Width = 41
           Height = 21
           TabOrder = 11
-          Text = '1.000'
+          Text = '1000'
         end
         object FUDEditorCompletitionTime: TUpDown
           Left = 203

@@ -6,7 +6,7 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, ComCtrls, ExtCtrls, Menus, ActnList, 
   StdCtrls_Ext, ComCtrls_Ext, ExtCtrls_Ext, Forms_Ext,
-  fClient, fAccount, fBase, ImgList, ToolWin;
+  fClient, fPreferences, fBase, ImgList, ToolWin;
 
 type
   TDAccounts = class (TForm_Ext)
@@ -68,7 +68,7 @@ uses
   CommCtrl, Math, StrUtils,
   CommCtrl_Ext,
   MySQLConsts,
-  fDAccount, fPreferences, fDConnecting;
+  fDAccount, fDConnecting;
 
 var
   FAccounts: TDAccounts;

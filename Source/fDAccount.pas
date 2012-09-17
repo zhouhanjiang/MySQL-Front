@@ -6,7 +6,7 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, ComCtrls, ExtCtrls,
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext, Dialogs_Ext,
-  fAccount, fBase, fClient, SynEdit, SynMemo, Menus;
+  fPreferences, fBase, fClient, SynEdit, SynMemo, Menus;
 
 type
   TDAccountShowType = (stDefault, stLogin);
@@ -64,8 +64,8 @@ type
     function GetAccountName(): string;
   private
     function CheckConnectInfos(): Boolean;
-  protected
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
   public
     Password: string;
     Account: TAAccount;
@@ -86,7 +86,7 @@ uses
   StrUtils,
   MySQLConsts,
   MySQLDB,
-  fDDatabases, fPreferences;
+  fDDatabases;
 
 var
   FAccount: TDAccount;
@@ -143,6 +143,13 @@ begin
   FBCancel.Caption := Preferences.LoadStr(30);
 
   OpenDialog.Title := ReplaceStr(Preferences.LoadStr(581), '&', '');
+end;
+
+procedure TDAccount.CMSysFontChanged(var Message: TMessage);
+begin
+  inherited;
+
+  FBDatabase.Height := FDatabase.Height;
 end;
 
 function TDAccount.Execute(): Boolean;
@@ -321,7 +328,6 @@ begin
 
       NewAccount.Connection.User := Trim(FUser.Text);
       NewAccount.Connection.Password := Trim(FPassword.Text);
-      NewAccount.Connection.SavePassword := (NewAccount.Connection.User <> '') and ((NewAccount.Connection.Password <> '') or Assigned(Account) and (Account.Connection.User = NewAccount.Connection.User) and (Account.Connection.Password = ''));
       NewAccount.Connection.Database := ReplaceStr(Trim(FDatabase.Text), ';', ',');
 
       Username := NewAccount.Connection.User;

@@ -6,7 +6,7 @@ uses
   Windows, Messages, SysUtils, Classes, Controls, Forms, WinCred,
   Dialogs, StdCtrls,
   Forms_Ext,
-  fClient, fBase, fAccount, ExtCtrls, StdCtrls_Ext;
+  fClient, fBase, fPreferences, ExtCtrls, StdCtrls_Ext;
 
 const
   CREDUI_MAX_MESSAGE_LENGTH        = 32767;
@@ -30,7 +30,6 @@ type
     FLPassword: TLabel;
     FLUsername: TLabel;
     FPassword: TEdit;
-    FSavePassword: TCheckBox;
     FUsername: TEdit;
     GAccount: TGroupBox_Ext;
     procedure FBSettingsClick(Sender: TObject);
@@ -58,7 +57,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  fDAccount, fPreferences;
+  fDAccount;
 
 var
   FLogin: TDLogin;
@@ -89,7 +88,6 @@ begin
   GAccount.Caption := Preferences.LoadStr(34);
   FLUsername.Caption := Preferences.LoadStr(561) + ':';
   FLPassword.Caption := Preferences.LoadStr(40) + ':';
-  FSavePassword.Caption := Preferences.LoadStr(50);
   FBSettings.Caption := Preferences.LoadStr(27) + '...';
 
   FBOk.Caption := Preferences.LoadStr(29);
@@ -171,7 +169,6 @@ begin
   begin
     if (Assigned(Account)) then
     begin
-      Account.Connection.SavePassword := FSavePassword.Checked;
       Account.Connection.User := Trim(FUsername.Text);
       Account.Connection.Password := Trim(FPassword.Text);
     end;
@@ -186,15 +183,12 @@ begin
   begin
     FUsername.Text := 'Admin';
     FPassword.Text := '';
-    FSavePassword.Checked := False;
   end
   else
   begin
     FUsername.Text := Account.Connection.User;
     FPassword.Text := Account.Connection.Password;
-    FSavePassword.Checked := Account.Connection.SavePassword;
   end;
-  FSavePassword.Visible := Assigned(Account);
   FBSettings.Visible := Assigned(Account);
 
   ActiveControl := FBCancel;

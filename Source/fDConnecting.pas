@@ -32,7 +32,7 @@ implementation {***************************************************************}
 uses
   Windows, SysUtils, 
   MySQLDB, MySQLConsts,
-  fPreferences, fAccount, fDAccount;
+  fPreferences, fDAccount;
 
 var
   FConnecting: TDConnecting;
@@ -69,10 +69,7 @@ end;
 
 procedure TDConnecting.CMPostShow(var Message: TMessage);
 begin
-  if (not Client.Account.Connection.SavePassword and (Client.Account.Connection.Password = '') and not Accounts.DBLogin(Client.Account)) then
-    ModalResult := mrCancel
-  else
-    Client.FirstConnect();
+  Client.FirstConnect();
 end;
 
 procedure TDConnecting.FBCancelClick(Sender: TObject);

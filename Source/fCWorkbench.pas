@@ -1787,7 +1787,8 @@ end;
 destructor TWTable.Destroy();
 begin
   while (Length(FLinkPoints) > 0) do
-    Workbench.Links.Delete(Workbench.Links.IndexOf(FLinkPoints[0].Link));
+    if (Workbench.Links.IndexOf(FLinkPoints[0].Link) >= 0) then // Why is this needed? Without this, a user got a "List index out of bounds (-1)." in the following line
+      Workbench.Links.Delete(Workbench.Links.IndexOf(FLinkPoints[0].Link));
 
   inherited;
 end;
@@ -3822,7 +3823,7 @@ begin
   Links.SaveToXML(XMLDocument.DocumentElement);
   Sections.SaveToXML(XMLDocument.DocumentElement);
 
-  if ((ExtractFilePath(FileName) = '') or ForceDirectories(ExtractFilePath(FileName))) then
+  if (ForceDirectories(ExtractFilePath(FileName))) then
     XMLDocument.SaveToFile(FileName);
 
   FModified := False;

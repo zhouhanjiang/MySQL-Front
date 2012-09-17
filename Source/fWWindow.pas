@@ -12,7 +12,7 @@ uses
   SynEditHighlighter, SynHighlighterSQL,
   ExtCtrls_Ext, Forms_Ext, StdCtrls_Ext, ComCtrls_Ext, Dialogs_Ext, StdActns_Ext,
   MySQLDB,
-  fClient, fPreferences, fFClient, fAccount, fBase;
+  fClient, fPreferences, fFClient, fBase;
 
 const
   cWindowClassName = 'MySQL-Front.Application';
@@ -135,7 +135,6 @@ type
     aSSearchFind: TSearchFind_Ext;
     aSSearchNext: TSearchFindNext;
     aSSearchReplace: TSearchReplace_Ext;
-    aVAddress: TAction;
     aVAddressBar: TAction;
     aVBookmarks: TAction;
     aVDataBrowser: TAction;
@@ -839,11 +838,6 @@ begin
   if (MPrev.Items.Count > 0) then MPrev.Items[0].Click();
 end;
 
-procedure TWWindow.MySQLConnectionSynchronize(const Data: Pointer);
-begin
-  PostMessage(Handle, CM_MYSQLCONNECTION_SYNCHRONIZE, 0, LPARAM(Data));
-end;
-
 procedure TWWindow.CAddressBarResize(Sender: TObject);
 begin
   FAddress.Width := CAddressBar.ClientWidth - FAddress.Left - FAddressApply.Width - 4;
@@ -959,8 +953,8 @@ begin
     for I := 0 to ActiveTab.Client.Account.Desktop.Bookmarks.Count - 1 do
     begin
       NewMenuItem := TMenuItem.Create(Self);
-      NewMenuItem.Action := aBookmark;
       NewMenuItem.Caption := ActiveTab.Client.Account.Desktop.Bookmarks[I].Caption;
+      NewMenuItem.OnClick := ActiveTab.miBookmarkClick;
       miBookmarks.Add(NewMenuItem);
     end;
 end;
@@ -1735,10 +1729,14 @@ begin
 
   for I := 0 to Clients.Count - 1 do
     if (Clients[I].Connected) then
-      DataFields.Add('MySQL Version=' + Clients[I].ServerVersionStr);
+      if (Assigned(ActiveTab) and (Clients[I] = ActiveTab.Client)) then
+        DataFields.Add('MySQL Version *=' + Clients[I].ServerVersionStr)
+      else
+        DataFields.Add('MySQL Version=' + Clients[I].ServerVersionStr);
 
   if (Assigned(ActiveTab)) then
   begin
+    DataFields.Add('ConnectionType=' + IntToStr(Ord(ActiveTab.Client.Account.Connection.LibraryType)));
     Log := TStringList.Create();
     Log.Text := ActiveTab.Client.BugMonitor.CacheText;
     if (Log.Count < 10) then Start := 0 else Start := Log.Count - 10;
@@ -2097,6 +2095,11 @@ begin
       Perform(CM_DEACTIVATETAB, 0, 0);
     Perform(CM_ACTIVATETAB, 0, LPARAM(TFClient(FClients[TMenuItem(Sender).Parent.IndexOf(TMenuItem(Sender))])));
   end;
+end;
+
+procedure TWWindow.MySQLConnectionSynchronize(const Data: Pointer);
+begin
+  PostMessage(Handle, CM_MYSQLCONNECTION_SYNCHRONIZE, 0, LPARAM(Data));
 end;
 
 procedure TWWindow.SetActiveTab(const FClient: TFClient);

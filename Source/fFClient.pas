@@ -14,7 +14,7 @@ uses
   ShellControls, JAMControls, ShellLink,
   ComCtrls_Ext, StdCtrls_Ext, Dialogs_Ext, Forms_Ext, ExtCtrls_Ext,
   MySQLDB, MySQLDBGrid,
-  fDExport, fDImport, fClient, fAccount, fBase, fPreferences, fTools,
+  fDExport, fDImport, fClient, fBase, fPreferences, fTools,
   fCWorkbench;
 
 const
@@ -908,7 +908,6 @@ type
     UsersListView: TListView;
     VariablesListView: TListView;
     Wanted: TWanted;
-    procedure aBookmarkExecute(Sender: TObject);
     function ViewToParam(const AView: TView): Variant;
     procedure aDCancelExecute(Sender: TObject);
     procedure AddressChanged(Sender: TObject);
@@ -1069,6 +1068,7 @@ type
     procedure aEReplaceExecute(Sender: TObject);
     procedure aETransferExecute(Sender: TObject);
     procedure CrashRescue();
+    procedure miBookmarkClick(Sender: TObject);
     procedure MoveToAddress(const ADiff: Integer);
     procedure OpenSQLFile(const AFilename: TFileName; const CodePage: Cardinal = 0; const Insert: Boolean = False);
     procedure StatusBarRefresh(const Immediately: Boolean = False);
@@ -1385,12 +1385,11 @@ procedure TFClient.TDatabaseDesktop.CloseQuery(Sender: TObject; var CanClose: Bo
 begin
   if (Assigned(Workbench) and Workbench.Modified) then
     if (Workbench.ObjectCount > 0) then
-      try
-        SysUtils.ForceDirectories(ExtractFilePath(FClient.Client.Account.DataPath + Database.Name));
-        FWorkbench.SaveToFile(FClient.Client.Account.DataPath + Database.Name + PathDelim + 'Diagram.xml');
-      except
-        raise EInOutError.Create(SysErrorMessage(GetLastError()) + '  (' + FClient.Client.Account.DataPath + Database.Name + ')');
-      end
+    begin
+      if (not SysUtils.ForceDirectories(ExtractFilePath(FClient.Client.Account.DataPath + Database.Name + PathDelim))) then
+        RaiseLastOSError();
+      FWorkbench.SaveToFile(FClient.Client.Account.DataPath + Database.Name + PathDelim + 'Diagram.xml');
+    end
     else if (FileExists(FClient.Client.Account.DataPath + Database.Name + PathDelim + 'Diagram.xml')) then
       DeleteFile(FClient.Client.Account.DataPath + Database.Name + PathDelim + 'Diagram.xml');
 end;
@@ -2062,13 +2061,6 @@ begin
   DBookmark.Bookmarks := Client.Account.Desktop.Bookmarks;
   DBookmark.Bookmark := Client.Account.Desktop.Bookmarks.ByCaption(FBookmarks.Selected.Caption);
   DBookmark.Execute();
-end;
-
-procedure TFClient.aBookmarkExecute(Sender: TObject);
-begin
-  Wanted.Clear();
-
-  Address := Client.Account.Desktop.Bookmarks.ByCaption(TMenuItem(Sender).Caption).URI;
 end;
 
 function TFClient.ViewToParam(const AView: TView): Variant;
@@ -4775,7 +4767,6 @@ begin
     MainAction('aBAdd').OnExecute := aBAddExecute;
     MainAction('aBDelete').OnExecute := aBDeleteExecute;
     MainAction('aBEdit').OnExecute := aBEditExecute;
-    MainAction('aBookmark').OnExecute := aBookmarkExecute;
     MainAction('aDCancel').OnExecute := aDCancelExecute;
     MainAction('aDCreateDatabase').OnExecute := aDCreateDatabaseExecute;
     MainAction('aDCreateTable').OnExecute := aDCreateTableExecute;
@@ -11413,6 +11404,13 @@ begin
     gmFilter.Visible := gmFilter.Visible and not ActiveDBGrid.EditorMode;
     gmDEditRecord.Visible := gmDEditRecord.Visible and not ActiveDBGrid.EditorMode;
   end;
+end;
+
+procedure TFClient.miBookmarkClick(Sender: TObject);
+begin
+  Wanted.Clear();
+
+  Address := Client.Account.Desktop.Bookmarks.ByCaption(ReplaceStr(TMenuItem(Sender).Caption, '&', '')).URI;
 end;
 
 procedure TFClient.miHOpenClick(Sender: TObject);
