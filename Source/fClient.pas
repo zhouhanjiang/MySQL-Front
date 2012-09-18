@@ -1067,9 +1067,10 @@ type
     function GetEngine(Index: Integer): TCEngine; inline;
   protected
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean; override;
-    function GetValid(): Boolean; override;
+    function GetCount(): Integer; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
+    function Update(): Boolean; override;
     property DefaultEngine: TCEngine read GetDefaultEngine;
     property Engine[Index: Integer]: TCEngine read GetEngine; default;
   end;
@@ -1142,9 +1143,10 @@ type
     function GetCharset(Index: Integer): TCCharset;
   protected
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean; override;
-    function GetValid(): Boolean; override;
+    function GetCount(): Integer; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
+    function Update(): Boolean; override;
     property Charset[Index: Integer]: TCCharset read GetCharset; default;
   end;
 
@@ -1826,12 +1828,12 @@ begin
   else
     strcmp := lstrcmpi;
 
-  if ((Count = 0) or (strcmp(PChar(Item[Count - 1].Name), PChar(Name)) < 0)) then
-    Index := Count
+  if ((TList(Self).Count = 0) or (strcmp(PChar(Item[Count - 1].Name), PChar(Name)) < 0)) then
+    Index := TList(Self).Count
   else
   begin
     Left := 0;
-    Right := Count - 1;
+    Right := TList(Self).Count - 1;
     while (Left <= Right) do
     begin
       Mid := (Right - Left) div 2 + Left;
@@ -8104,12 +8106,11 @@ begin
 
   if (Count > 0) then
   begin
-    if (Client.ServerVersion < 40101) then
-      Client.Charset := Client.VariableByName('character_set').Value
-    else if (UpperCase(Client.VariableByName('character_set_client').Value) <> UpperCase(Client.VariableByName('character_set_results').Value)) then
-      raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %s (%s) <> %s (%s)', ['character_set_client', Client.VariableByName('character_set_client').Value, Client.Charset, 'character_set_results', Client.VariableByName('character_set_results').Value, Client.Charset])
-    else
-      Client.Charset := Client.VariableByName('character_set_client').Value;
+    if (Client.ServerVersion >= 40101) then
+      if (UpperCase(Client.VariableByName('character_set_client').Value) <> UpperCase(Client.VariableByName('character_set_results').Value)) then
+        raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %s (%s) <> %s (%s)', ['Charset', 'character_set_client', Client.VariableByName('character_set_client').Value, Client.Charset, 'character_set_results', Client.VariableByName('character_set_results').Value])
+      else if (UpperCase(Client.Charset) <> (UpperCase(Client.VariableByName('character_set_client').Value))) then
+        raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %s (%s) <> %s (%s)', ['Charset', 'Client.Charset', Client.Charset, Client.Charset, 'character_set_client', Client.VariableByName('character_set_client').Value]);
 
     if (Assigned(Client.VariableByName('max_allowed_packet'))) then
       Client.FMaxAllowedPacket := Client.VariableByName('max_allowed_packet').AsInteger - 1; // 1 Byte for COM_QUERY
@@ -8378,7 +8379,7 @@ begin
   Result := TCEngine(Items[Index]);
 end;
 
-function TCEngines.GetValid(): Boolean;
+function TCEngines.GetCount(): Integer;
 var
   I: Integer;
 begin
@@ -8424,6 +8425,14 @@ begin
     Result := 'SHOW ENGINES;' + #13#10
   else
     Result := 'SELECT * FROM ' + Client.EscapeIdentifier(information_schema) + '.' + Client.EscapeIdentifier('ENGINES') + ';' + #13#10;
+end;
+
+function TCEngines.Update(): Boolean;
+begin
+  if (Client.ServerVersion < 40102) then
+    Result := Client.Variables.Update()
+  else
+    Result := inherited;
 end;
 
 { TCPlugin ********************************************************************}
@@ -8679,14 +8688,14 @@ begin
   Result := TCCharset(Items[Index]);
 end;
 
-function TCCharsets.GetValid(): Boolean;
+function TCCharsets.GetCount(): Integer;
 var
   I: Integer;
   Index: Integer;
   Value: string;
   Values: string;
 begin
-  if ((TList(Self).Count = 0) and (Client.ServerVersion < 40100)) then
+  if ((TList(Self).Count = 0) and (Client.ServerVersion < 40100) and Client.Variables.Valid) then
   begin
     if (Assigned(Client.VariableByName('character_sets'))) then
     begin
@@ -8720,10 +8729,20 @@ end;
 
 function TCCharsets.SQLGetItems(const Name: string = ''): string;
 begin
-  if (not Client.UseInformationSchema or (Client.ServerVersion < 50006)) then
+  if (Client.ServerVersion < 40100) then
+    Result := ''
+  else if (not Client.UseInformationSchema or (Client.ServerVersion < 50006)) then
     Result := 'SHOW CHARACTER SET;' + #13#10
   else
     Result := 'SELECT * FROM ' + Client.EscapeIdentifier(information_schema) + '.' + Client.EscapeIdentifier('CHARACTER_SETS') + ';' + #13#10;
+end;
+
+function TCCharsets.Update(): Boolean;
+begin
+  if (Client.ServerVersion < 40100) then
+    Result := Client.Variables.Update()
+  else
+    Result := inherited;
 end;
 
 { TCCollation *****************************************************************}

@@ -2976,8 +2976,8 @@ begin
   if (ActiveSynMemo.SelText = '') then
   begin
     SQL := ActiveSynMemo.Text;
-    Index := 1; Len := 0;
-    while (Index < aDRunExecuteSelStart + 2) do
+    Index := 1; Len := 1;
+    while ((Index < aDRunExecuteSelStart + 2) and (Len > 0)) do
     begin
       Len := SQLStmtLength(SQL, Index);
       Inc(Index, Len);

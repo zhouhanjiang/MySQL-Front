@@ -1180,11 +1180,6 @@ begin
     FError := EncodeString(CLIENT_ERRORS[FErrNo - CR_MIN_ERROR])
   else
     FError := '';
-
-  {$IFDEF EurekaLog}
-    if (AErrNo = CR_UNKNOWN_ERROR) then
-      raise ERangeError.Create(string(FError));
-  {$ENDIF}
 end;
 
 procedure TMySQL_IO.SetDirection(ADirection: TMySQL_IO.TDirection);
@@ -2072,10 +2067,7 @@ begin
       if ((Direction = idRead) and (fserver_status and SERVER_MORE_RESULTS_EXISTS = 0) or (inherited next_result() <> 0) or (SetFilePointer(1, PACKET_CURRENT) < 0)) then
       begin
         if (errno() = 0) then
-          if ((Direction = idRead) and (fserver_status and SERVER_MORE_RESULTS_EXISTS = 0)) then
-            Seterror(CR_UNKNOWN_ERROR)
-          else
-            Seterror(CR_UNKNOWN_ERROR);
+          Seterror(CR_UNKNOWN_ERROR);
         Result := 1;
       end
       else if (GetFileSize() = 0) then
@@ -2337,7 +2329,6 @@ function MYSQL.real_connect(host, user, passwd, db: my_char; port: my_uint; unix
 var
   CharsetNr: my_uint;
   I: my_int;
-  NewCharsetNr: my_uint;
   ProtocolVersion: my_int;
   RBS: RawByteString;
   S: string;
@@ -2424,19 +2415,16 @@ begin
         end
         else if (fclient_flag and CLIENT_PROTOCOL_41 <> 0) then
         begin
-          NewCharsetNr := 0;
+          CharsetNr := 0;
           for I := 0 to Length(MySQL_Collations) - 1 do
             if ((lstrcmpiA(MySQL_Collations[I].CharsetName, PAnsiChar(fcharacter_set_name)) = 0) and MySQL_Collations[I].Default) then
-              NewCharsetNr := MySQL_Collations[I].CharsetNr;
-          if (NewCharsetNr = 0) then
+              CharsetNr := MySQL_Collations[I].CharsetNr;
+          if (CharsetNr = 0) then
             Seterror(CR_CANT_READ_CHARSET, EncodeString(Format(CLIENT_ERRORS[CR_CANT_READ_CHARSET - CR_MIN_ERROR], [fcharacter_set_name])))
           else
-          begin
-            CharsetNr := NewCharsetNr;
             for I := 0 to Length(MySQL_Collations) - 1 do
               if (MySQL_Collations[I].CharsetNr = CharsetNr) then
                 fcharacter_set_name := MySQL_Collations[I].CharsetName;
-          end;
         end;
 
         Direction := idWrite;

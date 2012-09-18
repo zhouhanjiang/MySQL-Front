@@ -164,6 +164,7 @@ type
       TMode = (smSQL, smDataHandle, smDataSet);
       TState = (ssClose, ssConnecting, ssReady, ssExecutingSQL, ssResult, ssReceivingResult, ssNextResult, ssCancel, ssDisconnecting, ssError);
     private
+      Nils: Integer;
       Done: TEvent;
       FConnection: TMySQLConnection;
       RunExecute: TEvent;
@@ -221,6 +222,7 @@ type
     FBeforeExecuteSQL: TNotifyEvent;
     FBugMonitor: TMySQLMonitor;
     FCharset: string;
+    FCharsetNr: Byte;
     FCodePage: Cardinal;
     FConnected: Boolean;
     FErrorCode: Integer;
@@ -315,6 +317,7 @@ type
     procedure SyncReceivingResult(SynchroThread: TSynchroThread); virtual;
     procedure UnRegisterSQLMonitor(const AMySQLMonitor: TMySQLMonitor); virtual;
     procedure WriteMonitor(const AText: PChar; const Length: Integer; const ATraceType: TMySQLMonitor.TTraceType); virtual;
+    property CharsetNr: Byte read FCharsetNr;
     property Handle: MySQLConsts.MYSQL read GetHandle;
     property IdentifierQuoter: Char read FIdentifierQuoter write SetIdentifierQuoter;
     property IdentifierQuoted: Boolean read FIdentifierQuoted write FIdentifierQuoted;
@@ -326,8 +329,8 @@ type
     procedure BeginSilent(); virtual;
     procedure BeginSynchron(); virtual;
     function CanShutdown(): Boolean; virtual;
+    function CharsetToCharsetNr(const Charset: string): Byte; virtual;
     function CharsetToCodePage(const Charset: string): Cardinal; overload; virtual;
-    function CharsetToCodePage(const Charset: Byte): Cardinal; overload; virtual;
     procedure CloseResult(const DataHandle: TDataResult); virtual;
     function CodePageToCharset(const CodePage: Cardinal): string; virtual;
     procedure CommitTransaction(); virtual;
@@ -1271,12 +1274,12 @@ end;
 
 function SwapUInt64(I: UInt64): UInt64; register; // swap byte order
 asm
-  mov eax, dword [i]
-  bswap eax
-  mov dword [Result+4], eax
-  mov eax, dword [i+4]
-  bswap eax
-  mov dword [Result], eax
+  MOV   EAX,DWORD [I]
+  BSWAP EAX
+  MOV   DWORD [Result + 4],EAX
+  MOV   EAX,DWORD [I + 4]
+  BSWAP EAX
+  MOV   DWORD [Result],EAX
 end;
 
 { Callback functions **********************************************************}
@@ -1811,7 +1814,11 @@ constructor TMySQLConnection.TSynchroThread.Create(const AConnection: TMySQLConn
 begin
   Assert(Assigned(AConnection));
 
+  Nils := 1;
+
   inherited Create(False);
+
+  Nils := 2;
 
   FConnection := AConnection;
 
@@ -1823,17 +1830,25 @@ begin
   State := ssClose;
 
   FreeOnTerminate := True;
+
+  Nils := 3;
 end;
 
 destructor TMySQLConnection.TSynchroThread.Destroy();
 begin
+  Nils := 11;
+
   RunExecute.Free(); RunExecute := nil;
   SynchronizeStarted.Free();
   SQLStmtLengths.Free();
   SQLStmtsInPackets.Free();
   SQLUseStmts.Free();
 
+  Nils := 12;
+
   inherited;
+
+  Nils := 13;
 end;
 
 procedure TMySQLConnection.TSynchroThread.Execute();
@@ -1846,8 +1861,12 @@ begin
   try
   {$ENDIF}
 
+  Nils := 4;
+
   while (not Terminated) do
   begin
+    Nils := 5;
+
     if ((Connection.ServerTimeout = 0) or (Connection.LibraryType = ltHTTP)) then
       Timeout := INFINITE
     else
@@ -1858,6 +1877,8 @@ begin
         Connection.SyncPing(Self)
       else
       begin
+        Nils := 6;
+
         case (State) of
           ssConnecting:
             Connection.SyncConnecting(Self);
@@ -1873,6 +1894,8 @@ begin
             Connection.SyncDisconnecting(Self);
         end;
 
+        Nils := 7;
+
         Connection.TerminateCS.Enter();
         RunExecute.ResetEvent();
         if (Terminated or (Mode in [smDataHandle]) and (State = ssReceivingResult)) then
@@ -1884,12 +1907,18 @@ begin
         end;
         Connection.TerminateCS.Leave();
 
+        Nils := 8;
+
         if (SynchronizeRequestSent) then
           SynchronizeStarted.WaitFor(INFINITE);
       end;
   end;
 
+  Nils := 9;
+
   Connection.TerminatedThreads.Delete(Self);
+
+  Nils := 10;
 
   {$IFDEF EurekaLog}
   except
@@ -1900,7 +1929,15 @@ end;
 
 function TMySQLConnection.TSynchroThread.GetIsRunning(): Boolean;
 begin
-  Result := not Terminated and ((RunExecute.WaitFor(IGNORE) = wrSignaled) or not (State in [ssClose, ssReady]));
+  try
+    Result := not Terminated and ((RunExecute.WaitFor(IGNORE) = wrSignaled) or not (State in [ssClose, ssReady]));
+  except
+    on E: Exception do
+      begin
+        E.Message := E.Message + ' - Nils: ' + IntToStr(Nils);
+        raise E;
+      end;
+  end;
 end;
 
 procedure TMySQLConnection.TSynchroThread.ReleaseDataSet();
@@ -2056,11 +2093,31 @@ begin
   Result := Assigned(Lib.mysql_shutdown) and not InUse();
 end;
 
+function TMySQLConnection.CharsetToCharsetNr(const Charset: string): Byte;
+var
+  I: Integer;
+begin
+  Result := 0;
+
+  if (ServerVersion < 40101) then
+  begin
+    for I := 0 to Length(MySQL_Character_Sets) - 1 do
+      if (lstrcmpiA(PAnsiChar(AnsiString(Charset)), MySQL_Character_Sets[I].CharsetName) = 0) then
+        Result := I;
+  end
+  else
+  begin
+    for I := 0 to Length(MySQL_Collations) - 1 do
+      if (MySQL_Collations[I].Default and (lstrcmpiA(PAnsiChar(AnsiString(Charset)), MySQL_Collations[I].CharsetName) = 0)) then
+        Result := MySQL_Collations[I].CharsetNr;
+  end;
+end;
+
 function TMySQLConnection.CharsetToCodePage(const Charset: string): Cardinal;
 var
   I: Integer;
 begin
-  Result := GetACP();
+  Result := CP_ACP;
 
   if (ServerVersion < 40101) then
   begin
@@ -2071,33 +2128,8 @@ begin
   else
   begin
     for I := 0 to Length(MySQL_Collations) - 1 do
-      if (lstrcmpiA(PAnsiChar(AnsiString(Charset)), MySQL_Collations[I].CharsetName) = 0) then
+      if (MySQL_Collations[I].Default and (lstrcmpiA(PAnsiChar(AnsiString(Charset)), MySQL_Collations[I].CharsetName) = 0)) then
         Result := MySQL_Collations[I].CodePage;
-  end;
-end;
-
-function TMySQLConnection.CharsetToCodePage(const Charset: Byte): Cardinal;
-var
-  Found: Boolean;
-  I: Integer;
-begin
-  if (ServerVersion < 40101) then
-    if (Charset < Length(MySQL_Character_Sets)) then
-      Result := MySQL_Character_Sets[Charset].CodePage
-    else
-      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['CodePage'])
-  else
-  begin
-    Found := False;
-    Result := 0;
-    for I := 0 to Length(MySQL_Collations) - 1 do
-      if (MySQL_Collations[I].CharsetNr = Charset) then
-      begin
-        Result := MySQL_Collations[I].CodePage;
-        Found := True;
-      end;
-    if (not Found) then
-      raise ERangeError.CreateFmt(SInvalidCodePage + ' (%d)', [Charset]);
   end;
 end;
 
@@ -2160,6 +2192,7 @@ begin
   FAutoCommit := True;
   FBeforeExecuteSQL := nil;
   FCharset := 'utf8';
+  FCharsetNr := 33;
   FCodePage := CP_UTF8;
   FConnected := False;
   FDatabaseName := '';
@@ -2844,6 +2877,7 @@ begin
   if ((ACharset <> '') and (ACharset <> Charset)) then
   begin
     FCharset := LowerCase(ACharset);
+    FCharsetNr := CharsetToCharsetNr(FCharset);
     FCodePage := CharsetToCodePage(FCharset);
 
     if (Connected and Assigned(Lib.mysql_options) and Assigned(SynchroThread)) then
@@ -3141,14 +3175,10 @@ begin
         DoError(CR_SERVER_OLD, CR_SERVER_OLD_MSG)
       else
       begin
-        if ((ServerVersion < 40101) or not Assigned(Lib.mysql_character_set_name)) then
-        begin
-          FCharset := '';
-          FCodePage := CP_ACP;
-        end
-        else
+        if ((ServerVersion >= 40101) and Assigned(Lib.mysql_character_set_name)) then
         begin
           FCharset := string(Lib.mysql_character_set_name(SynchroThread.LibHandle));
+          FCharsetNr := CharsetToCharsetNr(FCharset);
           FCodePage := CharsetToCodePage(FCharset);
         end;
 
@@ -4313,13 +4343,10 @@ begin
               Len := Connection.Lib.Field(LibField).length
             else
             begin
-              Len := Connection.Lib.Field(LibField).length;
-              for I := 0 to Length(MySQL_Character_Sets) - 1 do
-                if (lstrcmpiA(MySQL_Character_Sets[I].CharsetName, PAnsiChar(AnsiString(Connection.Charset))) = 0) then
-                  if (MySQL_Character_Sets[I].MaxLen = 0) then
-                    raise ERangeError.CreateFmt(SPropertyOutOfRange + ' - Charset: %s', ['MaxLen', MySQL_Character_Sets[I].CharsetName])
-                  else
-                    Len := Connection.Lib.Field(LibField).length div MySQL_Character_Sets[I].MaxLen;
+              if (MySQL_Character_Sets[Connection.CharsetNr].MaxLen = 0) then
+                raise ERangeError.CreateFmt(SPropertyOutOfRange + ' - Charset: %s', ['MaxLen', MySQL_Character_Sets[Connection.CharsetNr].CharsetName])
+              else
+                Len := Connection.Lib.Field(LibField).length div MySQL_Character_Sets[Connection.CharsetNr].MaxLen;
             end;
           end
           else
@@ -4327,17 +4354,22 @@ begin
             Binary := Connection.Lib.Field(LibField).charsetnr = 63;
             if (Binary) then
               Len := Connection.Lib.Field(LibField).length
-            else if (Connection.ServerVersion <= 40109) then // In 40109 this is needed. In 40122 and higher the problem is fixed. What is the exact ServerVersion?
-              Len := Connection.Lib.Field(LibField).length
             else
             begin
-              Len := Connection.Lib.Field(LibField).length;
-              for I := 0 to Length(MySQL_Collations) - 1 do
-                if (MySQL_Collations[I].CharsetNr = Connection.Lib.Field(LibField).charsetnr) then
-                  if (MySQL_Collations[I].MaxLen = 0) then
-                    raise ERangeError.CreateFmt(SPropertyOutOfRange + ' - CharsetNr: %d', ['MaxLen', MySQL_Collations[I].CharsetNr])
-                  else
-                    Len := Connection.Lib.Field(LibField).length div MySQL_Collations[I].MaxLen;
+              if (Connection.Lib.Field(LibField).charsetnr <> Connection.CharsetNr) then
+                raise ERangeError.CreateFmt(SPropertyOutOfRange, ['charsetnr']);
+              if (Connection.ServerVersion <= 40109) then // In 40109 this is needed. In 40122 and higher the problem is fixed. What is the exact ServerVersion?
+                Len := Connection.Lib.Field(LibField).length
+              else
+              begin
+                Len := Connection.Lib.Field(LibField).length;
+                for I := 0 to Length(MySQL_Collations) - 1 do
+                  if (MySQL_Collations[I].CharsetNr = Connection.Lib.Field(LibField).charsetnr) then
+                    if (MySQL_Collations[I].MaxLen = 0) then
+                      raise ERangeError.CreateFmt(SPropertyOutOfRange + ' - CharsetNr: %d', ['MaxLen', MySQL_Collations[I].CharsetNr])
+                    else
+                      Len := Connection.Lib.Field(LibField).length div MySQL_Collations[I].MaxLen;
+              end;
             end;
           end;
           Len := Len and $7FFFFFFF;
