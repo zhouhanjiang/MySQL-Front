@@ -3175,12 +3175,17 @@ begin
         DoError(CR_SERVER_OLD, CR_SERVER_OLD_MSG)
       else
       begin
-        if ((ServerVersion >= 40101) and Assigned(Lib.mysql_character_set_name)) then
+        if ((ServerVersion < 40101) or not Assigned(Lib.mysql_character_set_name)) then
+        begin
+          FCharset := 'latin1';
+          FCharsetNr := 0;
+        end
+        else
         begin
           FCharset := string(Lib.mysql_character_set_name(SynchroThread.LibHandle));
           FCharsetNr := CharsetToCharsetNr(FCharset);
-          FCodePage := CharsetToCodePage(FCharset);
         end;
+        FCodePage := CharsetToCodePage(FCharset);
 
         FHostInfo := LibDecode(Lib.mysql_get_host_info(SynchroThread.LibHandle));
         FMultiStatements := FMultiStatements and Assigned(Lib.mysql_more_results) and Assigned(Lib.mysql_next_result) and ((ServerVersion > 40100) or (Lib.FLibraryType = ltHTTP)) and not ((50000 <= ServerVersion) and (ServerVersion < 50007));

@@ -1015,7 +1015,7 @@ type
 
   TCVariables = class(TCEntities)
   private
-    function GetVariable(Index: Integer): TCVariable;
+    function GetVariable(Index: Integer): TCVariable; inline;
   protected
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
@@ -1067,7 +1067,6 @@ type
     function GetEngine(Index: Integer): TCEngine; inline;
   protected
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean; override;
-    function GetCount(): Integer; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     function Update(): Boolean; override;
@@ -1143,7 +1142,6 @@ type
     function GetCharset(Index: Integer): TCCharset;
   protected
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean; override;
-    function GetCount(): Integer; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     function Update(): Boolean; override;
@@ -8104,13 +8102,20 @@ begin
         Client.ExecuteEvent(ceItemValid, Client, Self, Variable[Index]);
     until (not DataSet.FindNext());
 
+  Result := inherited;
+
   if (Count > 0) then
   begin
-    if (Client.ServerVersion >= 40101) then
+    if (Client.ServerVersion < 40101) then
+      Client.Charsets.Build(nil, False)
+    else
       if (UpperCase(Client.VariableByName('character_set_client').Value) <> UpperCase(Client.VariableByName('character_set_results').Value)) then
         raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %s (%s) <> %s (%s)', ['Charset', 'character_set_client', Client.VariableByName('character_set_client').Value, Client.Charset, 'character_set_results', Client.VariableByName('character_set_results').Value])
       else if (UpperCase(Client.Charset) <> (UpperCase(Client.VariableByName('character_set_client').Value))) then
         raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %s (%s) <> %s (%s)', ['Charset', 'Client.Charset', Client.Charset, Client.Charset, 'character_set_client', Client.VariableByName('character_set_client').Value]);
+
+    if (Client.ServerVersion < 40102) then
+      Client.Engines.Build(nil, False);
 
     if (Assigned(Client.VariableByName('max_allowed_packet'))) then
       Client.FMaxAllowedPacket := Client.VariableByName('max_allowed_packet').AsInteger - 1; // 1 Byte for COM_QUERY
@@ -8129,8 +8134,6 @@ begin
       else if (Client.VariableByName('wait_timeout').AsInteger >= 2) then
         Client.ServerTimeout := Client.VariableByName('wait_timeout').AsInteger - 1;
   end;
-
-  Result := inherited;
 
   if (not Filtered) then
     while (DeleteList.Count > 0) do
@@ -8305,6 +8308,7 @@ end;
 function TCEngines.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
 var
   DeleteList: TList;
+  I: Integer;
   Index: Integer;
   Name: string;
   NewEngine: TCEngine;
@@ -8312,7 +8316,35 @@ begin
   DeleteList := TList.Create();
   DeleteList.Assign(Self);
 
-  if (not DataSet.IsEmpty()) then
+  if (not Assigned(DataSet) and Client.Variables.Valid) then
+  begin
+    if ((Client.ServerVersion >= 32334) and Assigned(Client.VariableByName('have_bdb')) and Client.VariableByName('have_bdb').AsBoolean) then
+      Add(TCEngine.Create(Self, 'BDB'));
+
+    Add(TCEngine.Create(Self, 'HEAP'));
+
+    if (Assigned(Client.VariableByName('have_innodb')) and Client.VariableByName('have_innodb').AsBoolean) then
+      Add(TCEngine.Create(Self, 'InnoDB'));
+
+    if (Assigned(Client.VariableByName('have_isam')) and Client.VariableByName('have_isam').AsBoolean) then
+      Add(TCEngine.Create(Self, 'ISAM'));
+
+    if (Client.ServerVersion >= 32325) then
+      Add(TCEngine.Create(Self, 'MERGE'));
+
+    Add(TCEngine.Create(Self, 'MyISAM'));
+    Engine[Count - 1].FDefault := not Assigned(Client.VariableByName('table_type'));
+
+    Add(TCEngine.Create(Self, 'MRG_MyISAM'));
+
+    if (Assigned(Client.VariableByName('table_type'))) then
+      for I := 0 to TList(Self).Count - 1 do
+        Engine[I].FDefault := UpperCase(Engine[I].Name) = UpperCase(Client.VariableByName('table_type').Value);
+    if (Assigned(Client.VariableByName('storage_engine'))) then
+      for I := 0 to TList(Self).Count - 1 do
+        Engine[I].FDefault := UpperCase(Engine[I].Name) = UpperCase(Client.VariableByName('storage_engine').Value);
+  end
+  else if (not DataSet.IsEmpty()) then
     repeat
       if ((not UseInformationSchema and (UpperCase(DataSet.FieldByName('Support').AsString) <> 'NO') and (UpperCase(DataSet.FieldByName('Support').AsString) <> 'DISABLED'))
         or (UseInformationSchema and (UpperCase(DataSet.FieldByName('SUPPORT').AsString) <> 'NO') and (UpperCase(DataSet.FieldByName('SUPPORT').AsString) <> 'DISABLED'))) then
@@ -8377,44 +8409,6 @@ end;
 function TCEngines.GetEngine(Index: Integer): TCEngine;
 begin
   Result := TCEngine(Items[Index]);
-end;
-
-function TCEngines.GetCount(): Integer;
-var
-  I: Integer;
-begin
-  if ((TList(Self).Count = 0) and (Client.ServerVersion < 40102) and Client.Variables.Valid) then
-  begin
-    if ((Client.ServerVersion >= 32334) and Assigned(Client.VariableByName('have_bdb')) and Client.VariableByName('have_bdb').AsBoolean) then
-      Add(TCEngine.Create(Self, 'BDB'));
-
-    Add(TCEngine.Create(Self, 'HEAP'));
-
-    if (Assigned(Client.VariableByName('have_innodb')) and Client.VariableByName('have_innodb').AsBoolean) then
-      Add(TCEngine.Create(Self, 'InnoDB'));
-
-    if (Assigned(Client.VariableByName('have_isam')) and Client.VariableByName('have_isam').AsBoolean) then
-      Add(TCEngine.Create(Self, 'ISAM'));
-
-    if (Client.ServerVersion >= 32325) then
-      Add(TCEngine.Create(Self, 'MERGE'));
-
-    Add(TCEngine.Create(Self, 'MyISAM'));
-    Engine[Count - 1].FDefault := not Assigned(Client.VariableByName('table_type'));
-
-    Add(TCEngine.Create(Self, 'MRG_MyISAM'));
-
-    if (Assigned(Client.VariableByName('table_type'))) then
-      for I := 0 to TList(Self).Count - 1 do
-        Engine[I].FDefault := UpperCase(Engine[I].Name) = UpperCase(Client.VariableByName('table_type').Value);
-    if (Assigned(Client.VariableByName('storage_engine'))) then
-      for I := 0 to TList(Self).Count - 1 do
-        Engine[I].FDefault := UpperCase(Engine[I].Name) = UpperCase(Client.VariableByName('storage_engine').Value);
-
-    FValid := True;
-  end;
-
-  Result := inherited;
 end;
 
 function TCEngines.SQLGetItems(const Name: string = ''): string;
@@ -8638,11 +8632,40 @@ var
   DeleteList: TList;
   Index: Integer;
   Name: string;
+  Names: string;
 begin
   DeleteList := TList.Create();
   DeleteList.Assign(Self);
 
-  if (not DataSet.IsEmpty()) then
+  if (not Assigned(DataSet) and Client.Variables.Valid) then
+  begin
+    if (Assigned(Client.VariableByName('character_sets'))) then
+    begin
+      Names := Client.VariableByName('character_sets').Value;
+
+      while (Names <> '') do
+      begin
+        if (Pos(' ', Names) > 0) then
+        begin
+          Name := Copy(Names, 1, Pos(' ', Names) - 1);
+          System.Delete(Names, 1, Pos(' ', Names));
+        end
+        else
+        begin
+          Name := Names;
+          Names := '';
+        end;
+
+        if (not InsertIndex(Name, Index)) then
+          DeleteList.Delete(DeleteList.IndexOf(Items[Index]))
+        else if (Index < Count) then
+          Insert(Index, TCCharset.Create(Self, Name))
+        else
+          Add(TCCharset.Create(Self, Name));
+      end;
+    end;
+  end
+  else if (not DataSet.IsEmpty()) then
     repeat
       if (not UseInformationSchema) then
         Name := DataSet.FieldByName('Charset').AsString
@@ -8686,45 +8709,6 @@ end;
 function TCCharsets.GetCharset(Index: Integer): TCCharset;
 begin
   Result := TCCharset(Items[Index]);
-end;
-
-function TCCharsets.GetCount(): Integer;
-var
-  I: Integer;
-  Index: Integer;
-  Value: string;
-  Values: string;
-begin
-  if ((TList(Self).Count = 0) and (Client.ServerVersion < 40100) and Client.Variables.Valid) then
-  begin
-    if (Assigned(Client.VariableByName('character_sets'))) then
-    begin
-      Values := Client.VariableByName('character_sets').Value;
-
-      while (Values <> '') do
-      begin
-        if (Pos(' ', Values) > 0) then
-          Value := Copy(Values, 1, Pos(' ', Values) - 1)
-        else
-          Value := Values;
-
-        Index := 0;
-        for I := 0 to TList(Self).Count - 1 do
-          if (lstrcmpi(PChar(Value), PChar(Charset[I].Name)) > 0) then
-            Index := I + 1;
-
-        Insert(Index, TCCharset.Create(Self));
-
-        Charset[Index].FName := Value;
-
-        System.Delete(Values, 1, Length(Value)); Values := Trim(Values);
-      end;
-    end;
-
-    FValid := True;
-  end;
-
-  Result := inherited;
 end;
 
 function TCCharsets.SQLGetItems(const Name: string = ''): string;
