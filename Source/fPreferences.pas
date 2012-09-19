@@ -9,6 +9,8 @@ uses
   MySQLDB;
 
 type
+  TPExportType = (etSQLFile, etTextFile, etExcelFile, etAccessFile, etSQLiteFile, etODBC, etHTMLFile, etXMLFile, etPDFFile, etPrinter);
+
   TPItems = class;
   TPPreferences = class;
   TABookmarks = class;
@@ -150,7 +152,14 @@ type
   TPEvent = class(TPWindow)
   end;
 
-  TPExport = class(TPItem)
+  TAJob = class(TPItem)
+  private
+    function GetJobs(): TAJobs; inline;
+  protected
+    property Jobs: TAJobs read GetJobs;
+  end;
+
+  TPExport = class(TAJob)
   protected
     procedure LoadFromXML(const XML: IXMLNode); override;
     procedure SaveToXML(const XML: IXMLNode); override;
@@ -170,6 +179,7 @@ type
     SQLReplaceData: Boolean;
     SQLStructure: Boolean;
     SQLUseDatabase: Boolean;
+    procedure Assign(const Source: TPItem); override;
     constructor Create(const AAItems: TPItems = nil; const AName: string = ''); override;
   end;
 
@@ -527,16 +537,23 @@ type
   TAJobExport = class(TPExport)
   protected
     function GetXML(): IXMLNode; override;
-  public
-    Filename: TFileName;
     procedure LoadFromXML(const XML: IXMLNode); override;
     procedure SaveToXML(const XML: IXMLNode); override;
+  public
+    CodePage: Integer;
+    ExportType: TPExportType;
+    Filename: TFileName;
+    Objects: TStringList;
+    procedure Assign(const Source: TPItem); override;
+    constructor Create(const AAItems: TPItems = nil; const AName: string = ''); override;
+    destructor Destroy(); override;
   end;
 
   TAJobs = class(TPItems)
   private
     FAccount: TAAccount;
     FXMLDocument: IXMLDocument;
+    function GetJob(Index: Integer): TAJob; inline;
   protected
     function GetXML(): IXMLNode; override;
     property Account: TAAccount read FAccount;
@@ -544,9 +561,11 @@ type
   public
     function AddJob(const NewJob: TPItem): Boolean; virtual;
     constructor Create(const AAccount: TAAccount);
+    procedure Delete(const Job: TPItem); overload; virtual;
     destructor Destroy(); override;
     procedure LoadFromXML(); virtual;
     procedure SaveToXML(); virtual;
+    property Job[Index: Integer]: TAJob read GetJob; default;
   end;
 
   TADesktop = class
@@ -675,6 +694,7 @@ type
     function ExpandAddress(const APath: string): string; virtual;
     function Frame(): Pointer; virtual;
     function GetDefaultDatabase(): string; virtual;
+    function JobByName(const Name: string): TAJob; virtual;
     procedure RegisterDesktop(const AControl: Pointer; const AEventProc: TEventProc); virtual;
     procedure UnRegisterDesktop(const AControl: Pointer); virtual;
     property Accounts: TAAccounts read FAccounts;
@@ -950,6 +970,39 @@ begin
   if (roMatchCase in Options) then begin if (Result <> '') then Result := Result + ','; Result := Result + 'MatchCase'; end;
   if (roWholeValue in Options) then begin if (Result <> '') then Result := Result + ','; Result := Result + 'WholeValue'; end;
   if (roRegExpr in Options) then begin if (Result <> '') then Result := Result + ','; Result := Result + 'RegExpr'; end;
+end;
+
+function TryStrToExportType(const Str: string; var ExportType: TPExportType): Boolean;
+begin
+  Result := True;
+  if (UpperCase(Str) = 'SQLFILE') then ExportType := etSQLFile
+  else if (UpperCase(Str) = 'TEXTFILE') then ExportType := etTextFile
+  else if (UpperCase(Str) = 'EXCELFILE') then ExportType := etExcelFile
+  else if (UpperCase(Str) = 'ACCESSFILE') then ExportType := etAccessFile
+  else if (UpperCase(Str) = 'SQLITEFILE') then ExportType := etSQLiteFile
+  else if (UpperCase(Str) = 'ODBC') then ExportType := etODBC
+  else if (UpperCase(Str) = 'HTMLFILE') then ExportType := etHTMLFile
+  else if (UpperCase(Str) = 'XMLFILE') then ExportType := etXMLFile
+  else if (UpperCase(Str) = 'PDFFILE') then ExportType := etPDFFile
+  else if (UpperCase(Str) = 'PRINTER') then ExportType := etPrinter
+  else Result := False;
+end;
+
+function ExportTypeToStr(const ExportType: TPExportType): string;
+begin
+  case (ExportType) of
+    etSQLFile: Result := 'SQLFile';
+    etTextFile: Result := 'TextFile';
+    etExcelFile: Result := 'ExcelFile';
+    etAccessFile: Result := 'AccessFile';
+    etSQLiteFile: Result := 'SQLiteFile';
+    etODBC: Result := 'ODBC';
+    etHTMLFile: Result := 'HTMLFile';
+    etXMLFile: Result := 'XMLFile';
+    etPDFFile: Result := 'PDFFile';
+    etPrinter: Result := 'Printer';
+    else raise ERangeError.CreateFmt(SPropertyOutOfRange, ['ExportType']);
+  end;
 end;
 
 function ReplaceEnviromentVariables(const AStr: string): string;
@@ -1374,6 +1427,29 @@ begin
 end;
 
 { TPExport ********************************************************************}
+
+procedure TPExport.Assign(const Source: TPItem);
+begin
+  Assert(Source is TPExport);
+
+  inherited Assign(Source);
+
+  CSVHeadline := TPExport(Source).CSVHeadline;
+  CSVQuote := TPExport(Source).CSVQuote;
+  CSVQuoteChar := TPExport(Source).CSVQuoteChar;
+  CSVSeparator := TPExport(Source).CSVSeparator;
+  CSVSeparatorType := TPExport(Source).CSVSeparatorType;
+  ExcelHeadline := TPExport(Source).ExcelHeadline;
+  HTMLData := TPExport(Source).HTMLData;
+  HTMLStructure := TPExport(Source).HTMLStructure;
+  SQLCreateDatabase := TPExport(Source).SQLCreateDatabase;
+  SQLData := TPExport(Source).SQLData;
+  SQLDisableKeys := TPExport(Source).SQLDisableKeys;
+  SQLDropBeforeCreate := TPExport(Source).SQLDropBeforeCreate;
+  SQLReplaceData := TPExport(Source).SQLReplaceData;
+  SQLStructure := TPExport(Source).SQLStructure;
+  SQLUseDatabase := TPExport(Source).SQLUseDatabase;
+end;
 
 constructor TPExport.Create(const AAItems: TPItems = nil; const AName: string = '');
 begin
@@ -2832,7 +2908,42 @@ begin
   end;
 end;
 
-{ TAJobExpor ******************************************************************}
+{ TAJob ***********************************************************************}
+
+function TAJob.GetJobs(): TAJobs;
+begin
+  Assert(AItems is TAJobs);
+
+  Result := TAJobs(AItems);
+end;
+
+{ TAJobExport *****************************************************************}
+
+procedure TAJobExport.Assign(const Source: TPItem);
+begin
+  Assert(Source is TAJobExport);
+
+  inherited Assign(Source);
+
+  CodePage := TAJobExport(Source).CodePage;
+  Filename := TAJobExport(Source).Filename;
+end;
+
+constructor TAJobExport.Create(const AAItems: TPItems = nil; const AName: string = '');
+begin
+  inherited;
+
+  CodePage := CP_ACP;
+  Filename := '';
+  Objects := TStringList.Create();
+end;
+
+destructor TAJobExport.Destroy();
+begin
+  Objects.Free();
+
+  inherited;
+end;
 
 function TAJobExport.GetXML(): IXMLNode;
 var
@@ -2855,15 +2966,59 @@ begin
 end;
 
 procedure TAJobExport.LoadFromXML(const XML: IXMLNode);
+var
+  Child: IXMLNode;
 begin
   inherited;
+
+  if (Assigned(XMLNode(XML, 'filename'))) then Filename := XMLNode(XML, 'filename').Text;
+  if (Assigned(XMLNode(XML, 'filename')) and (XMLNode(XML, 'filename').Attributes['codepage'] <> Null)) then TryStrToInt(XMLNode(XML, 'filename').Attributes['codepage'], CodePage);
+  if (Assigned(XMLNode(XML, 'type'))) then TryStrToExportType(XMLNode(XML, 'type').Text, ExportType);
+
+  if (Assigned(XMLNode(XML, 'objects'))) then
+  begin
+    Objects.Clear();
+    Child := XMLNode(XML, 'objects').ChildNodes.First();
+    while (Assigned(Child)) do
+    begin
+      if (Child.NodeName = 'object') then
+        Objects.Add(Jobs.Account.ExpandAddress(Child.Text));
+      Child := Child.NextSibling();
+    end;
+  end;
 end;
 
 procedure TAJobExport.SaveToXML(const XML: IXMLNode);
+var
+  Child: IXMLNode;
+  RemoveChild: IXMLNode;
+  I: Integer;
 begin
   inherited;
 
   XML.Attributes['type'] := 'export';
+
+  XMLNode(XML, 'filename').Text := Filename;
+  if (CodePage = CP_ACP) then XMLNode(XML, 'filename').Attributes['codepage'] := Null else XMLNode(XML, 'filename').Attributes['codepage'] := IntToStr(CodePage);
+  XMLNode(XML, 'type').Text := ExportTypeToStr(ExportType);
+
+  if (Assigned(XMLNode(XML, 'objects'))) then
+  begin
+    Child := XMLNode(XML, 'objects').ChildNodes.First();
+    while (Assigned(Child)) do
+    begin
+      if (Child.NodeName <> 'object') then
+        RemoveChild := nil
+      else
+        RemoveChild := Child;
+      Child := Child.NextSibling();
+      if (Assigned(RemoveChild)) then
+        XMLNode(XML, 'objects').ChildNodes.Remove(RemoveChild);
+    end;
+
+    for I := 0 to Objects.Count - 1 do
+      XMLNode(XML, 'objects').AddChild('object').Text := Jobs.Account.ExtractPath(Objects[I]);
+  end;
 end;
 
 { TAJobs **********************************************************************}
@@ -2883,9 +3038,11 @@ begin
       Job := nil;
     Job.Assign(NewJob);
     Add(Job);
-  end;
 
-  SaveToXML();
+    Account.AccountEvent(ClassType);
+
+    SaveToXML();
+  end;
 end;
 
 constructor TAJobs.Create(const AAccount: TAAccount);
@@ -2895,11 +3052,32 @@ begin
   FAccount := AAccount;
 end;
 
+procedure TAJobs.Delete(const Job: TPItem);
+var
+  Index: Integer;
+begin
+  Index := IndexOf(Job);
+
+  XML.ChildNodes.Delete(XML.ChildNodes.IndexOf(Job.XML));
+
+  Job.Free();
+  Delete(Index);
+
+  Account.AccountEvent(ClassType);
+end;
+
 destructor TAJobs.Destroy();
 begin
   Clear();
 
   inherited;
+end;
+
+function TAJobs.GetJob(Index: Integer): TAJob;
+begin
+  Assert(Item[Index] is TAJob);
+
+  Result := TAJob(Item[Index]);
 end;
 
 function TAJobs.GetXML(): IXMLNode;
@@ -2941,7 +3119,7 @@ begin
     Child := XML.ChildNodes.First();
     while (Assigned(Child)) do
     begin
-      if ((Child.Text = 'job') and (Child.Attributes['name'] <> '')) then
+      if ((Child.NodeName = 'job') and (Child.Attributes['name'] <> '')) then
       begin
         if (Child.Attributes['type'] = 'export') then
           Job := TAJobExport.Create(Self, Child.Attributes['name'])
@@ -3287,6 +3465,15 @@ end;
 
 { TAAccount *******************************************************************}
 
+procedure TAAccount.AccountEvent(const ClassType: TClass);
+var
+  I: Integer;
+begin
+  for I := 0 to Length(FDesktops) - 1 do
+    if (Assigned(FDesktops[I].AccountEventProc)) then
+      FDesktops[I].AccountEventProc(ClassType);
+end;
+
 procedure TAAccount.Assign(const Source: TAAccount);
 begin
   if (not Assigned(Accounts)) then FAccounts := Source.Accounts;
@@ -3342,14 +3529,6 @@ begin
   URI.Free();
 end;
 
-function TAAccount.Frame(): Pointer;
-begin
-  if (Length(FDesktops) = 0) then
-    Result := nil
-  else
-    Result := FDesktops[0].Control;
-end;
-
 function TAAccount.ExpandAddress(const APath: string): string;
 var
   Len: Cardinal;
@@ -3370,6 +3549,14 @@ begin
     RaiseLastOSError()
   else
     SetString(Result, PChar(@URL), Len);
+end;
+
+function TAAccount.Frame(): Pointer;
+begin
+  if (Length(FDesktops) = 0) then
+    Result := nil
+  else
+    Result := FDesktops[0].Control;
 end;
 
 function TAAccount.GetBookmarksFilename(): TFileName;
@@ -3595,6 +3782,17 @@ begin
   Result := FXML;
 end;
 
+function TAAccount.JobByName(const Name: string): TAJob;
+var
+  Index: Integer;
+begin
+  Index := Jobs.IndexByName(Name);
+  if (Index < 0) then
+    Result := nil
+  else
+    Result := Jobs[Index];
+end;
+
 procedure TAAccount.LoadFromXML();
 begin
   if (Assigned(XML)) then
@@ -3610,6 +3808,7 @@ begin
     Connection.LoadFromXML();
     if (Assigned(Desktop)) then
       Desktop.LoadFromXML(); // Client muss geladen sein, damit FullAddress funktioniert
+    Jobs.LoadFromXML();
   end;
 end;
 
@@ -3646,15 +3845,6 @@ begin
 
     Modified := False;
  end;
-end;
-
-procedure TAAccount.AccountEvent(const ClassType: TClass);
-var
-  I: Integer;
-begin
-  for I := 0 to Length(FDesktops) - 1 do
-    if (Assigned(FDesktops[I].AccountEventProc)) then
-      FDesktops[I].AccountEventProc(ClassType);
 end;
 
 procedure TAAccount.SetLastLogin(const ALastLogin: TDateTime);

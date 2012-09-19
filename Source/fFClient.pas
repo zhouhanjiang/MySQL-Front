@@ -114,12 +114,12 @@ type
     gmFExportText: TMenuItem;
     gmFExportXML: TMenuItem;
     gmFilter: TMenuItem;
-    mbBAdd: TMenuItem;
-    mbBDelete: TMenuItem;
-    mbBEdit: TMenuItem;
-    mbBOpen: TMenuItem;
-    mbBOpenInNewTab: TMenuItem;
-    mbBOpenInNewWindow: TMenuItem;
+    mbAdd: TMenuItem;
+    mbDelete: TMenuItem;
+    mbEdit: TMenuItem;
+    mbOpen: TMenuItem;
+    mbOpenInNewTab: TMenuItem;
+    mbOpenInNewWindow: TMenuItem;
     MBookmarks: TPopupMenu;
     MetadataProvider: TacEventMetadataProvider;
     MFiles: TPopupMenu;
@@ -194,6 +194,10 @@ type
     miSJobs: TMenuItem;
     miSNavigator: TMenuItem;
     miSSQLHistory: TMenuItem;
+    mjAdd: TMenuItem;
+    mjDelete: TMenuItem;
+    mjEdit: TMenuItem;
+    MJobs: TPopupMenu;
     mlDCreate: TMenuItem;
     mlDCreateDatabase: TMenuItem;
     mlDCreateEvent: TMenuItem;
@@ -391,6 +395,7 @@ type
     TBQuickSearchEnabled: TToolBar;
     TBSideBar: TToolBar;
     tbEditor: TToolButton;
+    tbJobs: TToolButton;
     tbSQLHistory: TToolButton;
     tmECopy: TMenuItem;
     tmECut: TMenuItem;
@@ -398,7 +403,9 @@ type
     tmEPaste: TMenuItem;
     tmESelectAll: TMenuItem;
     ToolBar: TToolBar;
-    tbJobs: TToolButton;
+    mjAddExport: TMenuItem;
+    N1: TMenuItem;
+    mjExecute: TMenuItem;
     procedure aBAddExecute(Sender: TObject);
     procedure aBDeleteExecute(Sender: TObject);
     procedure aBEditExecute(Sender: TObject);
@@ -442,6 +449,8 @@ type
     procedure aHRunClick(Sender: TObject);
     procedure aHRunExecute(Sender: TObject);
     procedure aJAddExportExecute(Sender: TObject);
+    procedure aJDeleteExecute(Sender: TObject);
+    procedure aJEditExecute(Sender: TObject);
     procedure aPCollapseExecute(Sender: TObject);
     procedure aPExpandExecute(Sender: TObject);
     procedure aPObjectBrowserTableExecute(Sender: TObject);
@@ -600,7 +609,7 @@ type
       Shift: TShiftState);
     procedure ListViewSelectItem(Sender: TObject; Item: TListItem;
       Selected: Boolean);
-    procedure mbBOpenClick(Sender: TObject);
+    procedure mbOpenClick(Sender: TObject);
     procedure MBookmarksPopup(Sender: TObject);
     procedure MetadataProviderGetSQLFieldNames(Sender: TacBaseMetadataProvider;
       const ASQL: WideString; AFields: TacFieldsList);
@@ -683,6 +692,12 @@ type
       Shift: TShiftState; X, Y: Integer);
     procedure ToolBarResize(Sender: TObject);
     procedure FSQLEditorCompletionChange(Sender: TObject; AIndex: Integer);
+    procedure FJobsChange(Sender: TObject; Item: TListItem;
+      Change: TItemChange);
+    procedure mjExecuteClick(Sender: TObject);
+    procedure MJobsPopup(Sender: TObject);
+    procedure FJobsEnter(Sender: TObject);
+    procedure FJobsExit(Sender: TObject);
   type
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
     TTabState = set of (tsLoading, tsActive);
@@ -920,7 +935,7 @@ type
     procedure aEPasteFromExecute(Sender: TObject);
     procedure aERedoExecute(Sender: TObject);
     procedure aERenameExecute(Sender: TObject);
-    procedure aFExportExecute(const Sender: TObject; const ExportType: TExportType);
+    procedure aFExportExecute(const Sender: TObject; const ExportType: TPExportType);
     procedure aFImportExecute(const Sender: TObject; const ImportType: TImportType);
     procedure aFOpenExecute(Sender: TObject);
     procedure aFPrintExecute(Sender: TObject);
@@ -3460,16 +3475,17 @@ begin
   aFExportExecute(Sender, etExcelFile);
 end;
 
-procedure TFClient.aFExportExecute(const Sender: TObject; const ExportType: TExportType);
+procedure TFClient.aFExportExecute(const Sender: TObject; const ExportType: TPExportType);
 var
   Database: TCDatabase;
   I: Integer;
 begin
   DExport.Client := Client;
-  DExport.CreateJob := False;
   DExport.DBGrid := nil;
-  DExport.Objects.Clear();
+  DExport.DialogType := edtNormal;
   DExport.ExportType := ExportType;
+  DExport.Job := nil;
+  DExport.Objects.Clear();
   DExport.Window := Window;
 
   if (Window.ActiveControl = ActiveDBGrid) then
@@ -3753,7 +3769,7 @@ begin
   else if (Window.ActiveControl = ActiveWorkbench) then
     WorkbenchPrintExecute(Sender)
   else
-    aFExportExecute(Sender, etPrint);
+    aFExportExecute(Sender, etPrinter);
 end;
 
 procedure TFClient.aFSaveAsExecute(Sender: TObject);
@@ -3900,8 +3916,25 @@ end;
 procedure TFClient.aJAddExportExecute(Sender: TObject);
 begin
   DExport.Client := Client;
-  DExport.CreateJob := True;
   DExport.DBGrid := nil;
+  DExport.DialogType := edtCreateJob;
+  DExport.Job := nil;
+  DExport.Objects.Clear();
+  DExport.Window := Window;
+  DExport.Execute();
+end;
+
+procedure TFClient.aJDeleteExecute(Sender: TObject);
+begin
+  Client.Account.Jobs.Delete(Client.Account.JobByName(FJobs.Selected.Caption));
+end;
+
+procedure TFClient.aJEditExecute(Sender: TObject);
+begin
+  DExport.Client := Client;
+  DExport.DBGrid := nil;
+  DExport.DialogType := edtEditJob;
+  DExport.Job := TAJobExport(Client.Account.JobByName(FJobs.Selected.Caption));
   DExport.Objects.Clear();
   DExport.Window := Window;
   DExport.Execute();
@@ -4515,7 +4548,10 @@ begin
   miNCreate.Caption := Preferences.LoadStr(26);
   miNDelete.Caption := Preferences.LoadStr(28);
 
-  mbBOpen.Caption := Preferences.LoadStr(581);
+  mbOpen.Caption := Preferences.LoadStr(581);
+
+  mjExecute.Caption := Preferences.LoadStr(899);
+  mjAdd.Caption := Preferences.LoadStr(26);
 
   miHOpen.Caption := Preferences.LoadStr(581);
   miHSaveAs.Caption := MainAction('aFSaveAs').Caption;
@@ -4812,6 +4848,8 @@ begin
     MainAction('aDRunSelection').OnExecute := aDRunSelectionExecute;
     MainAction('aDPostObject').OnExecute := aDPostObjectExecute;
     MainAction('aJAddExport').OnExecute := aJAddExportExecute;
+    MainAction('aJDelete').OnExecute := aJDeleteExecute;
+    MainAction('aJEdit').OnExecute := aJEditExecute;
     MainAction('aHSQL').OnExecute := aHSQLExecute;
     MainAction('aHManual').OnExecute := aHManualExecute;
 
@@ -4832,9 +4870,9 @@ begin
     MainAction('aVRefreshAll').Enabled := True;
     MainAction('aBAdd').Enabled := True;
     MainAction('aDCancel').Enabled := Client.InUse();
+    MainAction('aJAddExport').Enabled := True;
     MainAction('aHSQL').Enabled := Client.ServerVersion >= 40100;
     MainAction('aHManual').Enabled := Client.Account.ManualURL <> '';
-    MainAction('aJAddExport').Enabled := True;
 
     aPResult.ShortCut := ShortCut(VK_F8, [ssAlt]);
 
@@ -4884,6 +4922,8 @@ begin
   MainAction('aHSQL').Enabled := False;
   MainAction('aHManual').Enabled := False;
   MainAction('aJAddExport').Enabled := False;
+  MainAction('aJDelete').Enabled := False;
+  MainAction('aJEdit').Enabled := False;
 
   MainAction('aECopy').OnExecute := nil;
   MainAction('aEPaste').OnExecute := nil;
@@ -5228,9 +5268,13 @@ begin
   miNCreateHost.Action := MainAction('aDCreateHost');
   miNEmpty.Action := MainAction('aDEmpty');
 
-  mbBAdd.Action := MainAction('aBAdd');
-  mbBDelete.Action := MainAction('aBDelete');
-  mbBEdit.Action := MainAction('aBEdit');
+  mbAdd.Action := MainAction('aBAdd');
+  mbDelete.Action := MainAction('aBDelete');
+  mbEdit.Action := MainAction('aBEdit');
+
+  mjAddExport.Action := MainAction('aJAddExport');
+  mjDelete.Action := MainAction('aJDelete');
+  mjEdit.Action := MainAction('aJEdit');
 
   miHCopy.Action := MainAction('aECopy');
 
@@ -5423,6 +5467,7 @@ begin
     SyntaxProvider.IdentCaseSens := icsNonSensitive;
 
   FormAccountEvent(Client.Account.Desktop.Bookmarks.ClassType);
+  FormAccountEvent(Client.Account.Jobs.ClassType);
 
 
   CloseButton := TPicture.Create();
@@ -6691,13 +6736,13 @@ end;
 procedure TFClient.FBookmarksChange(Sender: TObject; Item: TListItem;
   Change: TItemChange);
 begin
-  mbBOpen.Enabled := Assigned(Item) and Item.Selected;
+  mbOpen.Enabled := Assigned(Item) and Item.Selected;
   aPOpenInNewWindow.Enabled := Assigned(Item) and Item.Selected;
   aPOpenInNewTab.Enabled := Assigned(Item) and Item.Selected;
   MainAction('aBDelete').Enabled := Assigned(Item) and Item.Selected;
   MainAction('aBEdit').Enabled := Assigned(Item) and Item.Selected;
 
-  mbBOpen.Default := mbBOpen.Enabled;
+  mbOpen.Default := mbOpen.Enabled;
 end;
 
 procedure TFClient.FBookmarksDragDrop(Sender, Source: TObject; X,
@@ -6722,7 +6767,7 @@ end;
 
 procedure TFClient.FBookmarksEnter(Sender: TObject);
 begin
-  mbBOpen.ShortCut := VK_RETURN;
+  mbOpen.ShortCut := VK_RETURN;
   MainAction('aBDelete').ShortCut := VK_DELETE;
   MainAction('aBEdit').ShortCut := ShortCut(VK_RETURN, [ssAlt]);
 
@@ -6731,7 +6776,7 @@ end;
 
 procedure TFClient.FBookmarksExit(Sender: TObject);
 begin
-  mbBOpen.ShortCut := 0;
+  mbOpen.ShortCut := 0;
   MainAction('aBDelete').ShortCut := 0;
   MainAction('aBEdit').ShortCut := 0;
 
@@ -7276,6 +7321,25 @@ begin
   end;
   if (Assigned(Stream)) then
     Stream.Free();
+end;
+
+procedure TFClient.FJobsChange(Sender: TObject; Item: TListItem;
+  Change: TItemChange);
+begin
+  mjExecute.Enabled := Assigned(Item) and Item.Selected;
+  MainAction('aJAddExport').Enabled := not Assigned(Item) or not Item.Selected;
+  MainAction('aJDelete').Enabled := Assigned(Item) and Item.Selected;
+  MainAction('aJEdit').Enabled := Assigned(Item) and Item.Selected;
+end;
+
+procedure TFClient.FJobsEnter(Sender: TObject);
+begin
+  FJobsChange(Sender, FJobs.Selected, ctState);
+end;
+
+procedure TFClient.FJobsExit(Sender: TObject);
+begin
+  MainAction('aJAddExport').Enabled := True;
 end;
 
 procedure TFClient.FLimitChange(Sender: TObject);
@@ -7958,12 +8022,19 @@ procedure TFClient.FNavigatorUpdate(const ClientEvent: TCClient.TEvent);
       Child.HasChildren := True;
   end;
 
-  procedure DeleteNode(const Child: TTreeNode);
+  procedure DeleteNode(const Node: TTreeNode);
+  var
+    N: TTreeNode;
   begin
-    if (Child = FNavigatorNodeToExpand) then
-      FNavigatorNodeToExpand := nil;
-    Child.Data := nil;
-    Child.Delete();
+    N := FNavigatorNodeToExpand;
+    while (Assigned(N)) do
+    begin
+      if (Node = N) then
+        FNavigatorNodeToExpand := nil;
+      N := N.Parent;
+    end;
+    Node.Data := nil;
+    Node.Delete();
   end;
 
   procedure UpdateGroup(const Node: TTreeNode; const GroupID: Integer; const CItems: TCItems);
@@ -8308,6 +8379,37 @@ begin
   end;
 end;
 
+procedure TFClient.FormAccountEvent(const ClassType: TClass);
+var
+  I: Integer;
+  NewListItem: TListItem;
+begin
+  if (ClassType = Client.Account.Desktop.Bookmarks.ClassType) then
+  begin
+    FBookmarks.Items.Clear();
+    for I := 0 to Client.Account.Desktop.Bookmarks.Count - 1 do
+    begin
+      NewListItem := FBookmarks.Items.Add();
+      NewListItem.Caption := Client.Account.Desktop.Bookmarks[I].Caption;
+      NewListItem.ImageIndex := 73;
+    end;
+
+    Window.Perform(CM_BOOKMARKCHANGED, 0, 0);
+  end
+  else if (ClassType = Client.Account.Jobs.ClassType) then
+  begin
+    FJobs.Items.Clear();
+    for I := 0 to Client.Account.Jobs.Count - 1 do
+    begin
+      NewListItem := FJobs.Items.Add();
+      NewListItem.Caption := Client.Account.Jobs[I].Name;
+      NewListItem.ImageIndex := iiClock;
+    end;
+
+    Window.Perform(CM_BOOKMARKCHANGED, 0, 0);
+  end;
+end;
+
 procedure TFClient.FormClientEvent(const Event: TCClient.TEvent);
 begin
   if (not (csDestroying in ComponentState)) then
@@ -8348,25 +8450,6 @@ begin
   begin
     PLog.Constraints.MaxHeight := ClientHeight - PView.Height - PContent.Constraints.MinHeight - SLog.Height;
     PLogResize(Sender);
-  end;
-end;
-
-procedure TFClient.FormAccountEvent(const ClassType: TClass);
-var
-  I: Integer;
-  NewListItem: TListItem;
-begin
-  if (ClassType = Client.Account.Desktop.Bookmarks.ClassType) then
-  begin
-    FBookmarks.Items.Clear();
-    for I := 0 to Client.Account.Desktop.Bookmarks.Count - 1 do
-    begin
-      NewListItem := FBookmarks.Items.Add();
-      NewListItem.Caption := Client.Account.Desktop.Bookmarks[I].Caption;
-      NewListItem.ImageIndex := 73;
-    end;
-
-    Window.Perform(CM_BOOKMARKCHANGED, 0, 0);
   end;
 end;
 
@@ -11109,7 +11192,7 @@ begin
   end;
 end;
 
-procedure TFClient.mbBOpenClick(Sender: TObject);
+procedure TFClient.mbOpenClick(Sender: TObject);
 begin
   Wanted.Clear();
 
@@ -11495,6 +11578,16 @@ begin
       Window.ActiveControl := FSQLEditorSynMemo;
     end;
   end;
+end;
+
+procedure TFClient.mjExecuteClick(Sender: TObject);
+begin
+  Write;
+end;
+
+procedure TFClient.MJobsPopup(Sender: TObject);
+begin
+  ShowEnabledItems(MJobs.Items);
 end;
 
 procedure TFClient.MListPopup(Sender: TObject);

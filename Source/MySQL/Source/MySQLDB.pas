@@ -207,8 +207,11 @@ type
     TTerminatedThreads = class(TList)
     private
       CriticalSection: TCriticalSection;
+      FConnection: TMySQLConnection;
+    protected
+      property Connection: TMySQLConnection read FConnection;
     public
-      constructor Create(); overload;
+      constructor Create(const AConnection: TMySQLConnection); reintroduce; virtual;
       destructor Destroy(); override;
       function Add(const Item: Pointer): Integer; reintroduce;
       procedure Delete(const Item: Pointer); overload;
@@ -1010,20 +1013,20 @@ end;
 procedure MySQLConnectionSynchronize(const Data: Pointer);
 var
   Index: Integer;
-  SynchroThread: TMySQLConnection.TSynchroThread;
+  SyncThread: TMySQLConnection.TSynchroThread;
 begin
-  SynchroThread := TMySQLConnection.TSynchroThread(Data);
+  SyncThread := TMySQLConnection.TSynchroThread(Data);
 
   SynchronizingThreadsCS.Enter();
-  Index := SynchronizingThreads.IndexOf(SynchroThread);
+  Index := SynchronizingThreads.IndexOf(SyncThread);
   if (Index < 0) then
-    SynchroThread := nil
+    SyncThread := nil
   else
     SynchronizingThreads.Delete(Index);
   SynchronizingThreadsCS.Leave();
 
-  if (Assigned(SynchroThread)) then
-    SynchroThread.Synchronize();
+  if (Assigned(SyncThread)) then
+    SyncThread.Synchronize();
 end;
 
 procedure MySQLConnectionSynchronizeRequest(const SynchroThread: TMySQLConnection.TSynchroThread);
@@ -1754,13 +1757,17 @@ end;
 function TMySQLConnection.TTerminatedThreads.Add(const Item: Pointer): Integer;
 begin
   CriticalSection.Enter();
+
   Result := inherited Add(Item);
+
   CriticalSection.Leave();
 end;
 
-constructor TMySQLConnection.TTerminatedThreads.Create();
+constructor TMySQLConnection.TTerminatedThreads.Create(const AConnection: TMySQLConnection);
 begin
-  inherited;
+  inherited Create();
+
+  FConnection := AConnection;
 
   CriticalSection := TCriticalSection.Create();
 end;
@@ -2037,6 +2044,10 @@ begin
         begin
           if (Assigned(DataSet.SynchroThread)) then
           begin
+            // Debug 19.09.2012
+            if (GetCurrentThreadId() <> MainThreadID) then
+              raise ERangeError.CreateFmt(SPropertyOutOfRange, ['ThreadId']);
+
             DataSet.SynchroThread := nil;
             ReleaseDataSet();
           end;
@@ -2214,7 +2225,7 @@ begin
   FPort := MYSQL_PORT;
   FSilentCount := 0;
   FTerminateCS := TCriticalSection.Create();
-  FTerminatedThreads := TTerminatedThreads.Create();
+  FTerminatedThreads := TTerminatedThreads.Create(Self);
   FThreadDeep := 0;
   FThreadId := 0;
   FUserName := '';
@@ -2246,7 +2257,7 @@ begin
     SynchroThread.WaitFor();
     SynchroThread.Free();
   end;
-  TerminatedThreads.Free();
+  TerminatedThreads.Free(); FTerminatedThreads := nil;
   TerminateCS.Leave();
 
   ExecuteSQLDone.Free();
@@ -4266,6 +4277,10 @@ begin
     begin
       Result := grEOF;
 
+      // Debug 19.09.2012
+      if (GetCurrentThreadId() <> MainThreadID) then
+        raise ERangeError.CreateFmt(SPropertyOutOfRange, ['ThreadId']);
+
       SynchroThread.ReleaseDataSet();
       SynchroThread := nil;
     end;
@@ -4286,6 +4301,13 @@ procedure TMySQLQuery.InternalClose();
 begin
   if (Assigned(SynchroThread)) then
   begin
+    // Debug 19.09.20012
+    Sleep(1);
+    if (not Assigned(SynchroThread)) then
+      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['SynchroThread']);
+    if (GetCurrentThreadId() <> MainThreadID) then
+      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['ThreadId']);
+
     SynchroThread.ReleaseDataSet();
     SynchroThread := nil;
   end;
@@ -4359,22 +4381,17 @@ begin
             Binary := Connection.Lib.Field(LibField).charsetnr = 63;
             if (Binary) then
               Len := Connection.Lib.Field(LibField).length
+            else if (Connection.ServerVersion <= 40109) then // In 40109 this is needed. In 40122 and higher the problem is fixed. What is the exact ServerVersion?
+              Len := Connection.Lib.Field(LibField).length
             else
             begin
-              if (Connection.Lib.Field(LibField).charsetnr <> Connection.CharsetNr) then
-                raise ERangeError.CreateFmt(SPropertyOutOfRange, ['charsetnr']);
-              if (Connection.ServerVersion <= 40109) then // In 40109 this is needed. In 40122 and higher the problem is fixed. What is the exact ServerVersion?
-                Len := Connection.Lib.Field(LibField).length
-              else
-              begin
-                Len := Connection.Lib.Field(LibField).length;
-                for I := 0 to Length(MySQL_Collations) - 1 do
-                  if (MySQL_Collations[I].CharsetNr = Connection.Lib.Field(LibField).charsetnr) then
-                    if (MySQL_Collations[I].MaxLen = 0) then
-                      raise ERangeError.CreateFmt(SPropertyOutOfRange + ' - CharsetNr: %d', ['MaxLen', MySQL_Collations[I].CharsetNr])
-                    else
-                      Len := Connection.Lib.Field(LibField).length div MySQL_Collations[I].MaxLen;
-              end;
+              Len := Connection.Lib.Field(LibField).length;
+              for I := 0 to Length(MySQL_Collations) - 1 do
+                if (MySQL_Collations[I].CharsetNr = Connection.Lib.Field(LibField).charsetnr) then
+                  if (MySQL_Collations[I].MaxLen = 0) then
+                    raise ERangeError.CreateFmt(SPropertyOutOfRange + ' - CharsetNr: %d', ['MaxLen', MySQL_Collations[I].CharsetNr])
+                  else
+                    Len := Connection.Lib.Field(LibField).length div MySQL_Collations[I].MaxLen;
             end;
           end;
           Len := Len and $7FFFFFFF;
@@ -4447,12 +4464,18 @@ begin
             MYSQL_TYPE_STRING:
               if (Binary) then
                 begin Field := TMySQLStringField.Create(Self); if (Connection.ServerVersion < 40100) then Field.Size := Len + 1 else Field.Size := Len; end
-              else if (Len <= 255) then
-                begin Field := TMySQLWideStringField.Create(Self); Field.Size := 255; end
-              else if ((Len <= 65535) and (Connection.ServerVersion >= 50000)) then
-                begin Field := TMySQLWideStringField.Create(Self); Field.Size := 65535; end
               else
-                begin Field := TMySQLWideMemoField.Create(Self); Field.Size := Len; end;
+              begin
+                if ((Connection.ServerVersion >= 40101) and (Connection.Lib.Version >= 40101)
+                  and (Connection.Lib.Field(LibField).charsetnr <> Connection.CharsetNr)) then
+                  raise ERangeError.CreateFmt(SPropertyOutOfRange, ['charsetnr']);
+                if (Len <= 255) then
+                  begin Field := TMySQLWideStringField.Create(Self); Field.Size := 255; end
+                else if ((Len <= 65535) and (Connection.ServerVersion >= 50000)) then
+                  begin Field := TMySQLWideStringField.Create(Self); Field.Size := 65535; end
+                else
+                  begin Field := TMySQLWideMemoField.Create(Self); Field.Size := Len; end;
+              end;
             MYSQL_TYPE_GEOMETRY:
               begin Field := TMySQLBlobField.Create(Self); Field.Size := Len; Field.Tag := ftGeometryField; end;
             else

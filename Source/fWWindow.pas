@@ -1051,12 +1051,6 @@ begin
   aVRefreshAll.Caption := Preferences.LoadStr(623);
 
   miBookmarks.Caption := Preferences.LoadStr(727);
-  miJAdd.Caption := Preferences.LoadStr(26);
-  aJAddExport.Caption := Preferences.LoadStr(200) + '...';
-  aJDelete.Caption := Preferences.LoadStr(28);
-  aJEdit.Caption := Preferences.LoadStr(97) + '...';
-
-  miJobs.Caption := Preferences.LoadStr(896);
   aBAdd.Caption := Preferences.LoadStr(728) + '...';
   aBDelete.Caption := Preferences.LoadStr(28);
   aBEdit.Caption := Preferences.LoadStr(97) + '...';
@@ -1122,6 +1116,12 @@ begin
   aEFind.Caption := Preferences.LoadStr(187) + '...';
   aEReplace.Caption := Preferences.LoadStr(416) + '...';
   aETransfer.Caption := Preferences.LoadStr(753) + '...';
+
+  miJobs.Caption := Preferences.LoadStr(896);
+  miJAdd.Caption := Preferences.LoadStr(26);
+  aJAddExport.Caption := Preferences.LoadStr(200) + '...';
+  aJDelete.Caption := Preferences.LoadStr(28);
+  aJEdit.Caption := Preferences.LoadStr(97) + '...';
 
   miHelp.Caption := Preferences.LoadStr(167);
   aHIndex.Caption := Preferences.LoadStr(653) + '...';

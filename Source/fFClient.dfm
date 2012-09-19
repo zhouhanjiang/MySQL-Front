@@ -133,10 +133,14 @@ object FClient: TFClient
         DragMode = dmAutomatic
         ReadOnly = True
         RowSelect = True
+        PopupMenu = MJobs
         ShowColumnHeaders = False
         TabOrder = 0
         ViewStyle = vsReport
+        OnChange = FJobsChange
         OnDblClick = ListViewDblClick
+        OnEnter = FJobsEnter
+        OnExit = FJobsExit
       end
     end
     object PSQLHistory: TPanel_Ext
@@ -1187,7 +1191,7 @@ object FClient: TFClient
     object TBSideBar: TToolBar
       Left = 2
       Top = 0
-      Width = 92
+      Width = 115
       Height = 22
       Align = alNone
       AutoSize = True
@@ -1978,28 +1982,28 @@ object FClient: TFClient
   object MBookmarks: TPopupMenu
     OnPopup = MBookmarksPopup
     Left = 8
-    Top = 182
-    object mbBOpen: TMenuItem
+    Top = 212
+    object mbOpen: TMenuItem
       Caption = 'miBOpen'
       Default = True
-      OnClick = mbBOpenClick
+      OnClick = mbOpenClick
     end
-    object mbBOpenInNewWindow: TMenuItem
+    object mbOpenInNewWindow: TMenuItem
       Action = aPOpenInNewWindow
     end
-    object mbBOpenInNewTab: TMenuItem
+    object mbOpenInNewTab: TMenuItem
       Action = aPOpenInNewTab
     end
     object N20: TMenuItem
       Caption = '-'
     end
-    object mbBAdd: TMenuItem
+    object mbAdd: TMenuItem
       Caption = 'aBAdd'
     end
-    object mbBDelete: TMenuItem
+    object mbDelete: TMenuItem
       Caption = 'aBDelete'
     end
-    object mbBEdit: TMenuItem
+    object mbEdit: TMenuItem
       Caption = 'aBEdit'
     end
   end
@@ -2033,7 +2037,7 @@ object FClient: TFClient
   object MFiles: TPopupMenu
     OnPopup = MFilesPopup
     Left = 8
-    Top = 212
+    Top = 182
     object mfOpen: TMenuItem
       Caption = 'mfOpen'
       Default = True
@@ -2113,10 +2117,35 @@ object FClient: TFClient
       OnClick = mfPropertiesClick
     end
   end
+  object MJobs: TPopupMenu
+    OnPopup = MJobsPopup
+    Left = 8
+    Top = 242
+    object mjExecute: TMenuItem
+      Caption = 'mjExecute'
+      Default = True
+      OnClick = mjExecuteClick
+    end
+    object N1: TMenuItem
+      Caption = '-'
+    end
+    object mjAdd: TMenuItem
+      Caption = 'mjAdd'
+      object mjAddExport: TMenuItem
+        Caption = 'aJAddExport'
+      end
+    end
+    object mjDelete: TMenuItem
+      Caption = 'aJDelete'
+    end
+    object mjEdit: TMenuItem
+      Caption = 'aJEdit'
+    end
+  end
   object MSQLHistory: TPopupMenu
     OnPopup = MSQLHistoryPopup
     Left = 8
-    Top = 244
+    Top = 272
     object miHStatementIntoSQLEditor: TMenuItem
       Caption = 'miHStatementIntoSQLEditor'
       OnClick = miHStatementIntoSQLEditorClick

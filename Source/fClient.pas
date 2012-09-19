@@ -2202,11 +2202,7 @@ end;
 
 procedure TCKeyColumn.Assign(const Source: TCKeyColumn);
 begin
-try
   Field := IndexColumns.Key.Table.FieldByName(Source.Field.Name);
-except
-  Field := IndexColumns.Key.Table.FieldByName(Source.Field.Name);
-end;
   Length := Source.Length;
 end;
 

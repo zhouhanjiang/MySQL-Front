@@ -10,8 +10,6 @@ uses
   fClient, fPreferences, fBase, fTools;
 
 type
-  TExportType = (etSQLFile, etTextFile, etExcelFile, etAccessFile, etSQLiteFile, etODBC, etHTMLFile, etXMLFile, etPDFFile, etPrint);
-
   TDExport = class (TForm_Ext)
     FAccessFile: TRadioButton;
     FAllQuote: TRadioButton;
@@ -234,9 +232,10 @@ type
   public
     Client: TCClient;
     CodePage: Cardinal;
-    CreateJob: Boolean;
     DBGrid: TDBGrid;
-    ExportType: TExportType;
+    DialogType: (edtNormal, edtCreateJob, edtEditJob, edtExecuteJob);
+    ExportType: TPExportType;
+    Job: TAJobExport;
     Window: TForm;
     function Execute(): Boolean;
     property Objects: TList read FObjects;
@@ -615,7 +614,7 @@ begin
   PageControl.ActivePageIndex := -1;
   ModalResult := mrNone;
 
-  if ((Assigned(DBGrid) or (Objects.Count >= 1)) and not CreateJob and not (ExportType in [etODBC, etPrint])) then
+  if ((Assigned(DBGrid) or (Objects.Count >= 1)) and (DialogType = edtNormal) and not (ExportType in [etODBC, etPrinter])) then
     if (not GetFilename()) then
       ModalResult := mrCancel;
 
@@ -695,7 +694,7 @@ var
   J: Integer;
   TabSheet: TTabSheet;
 begin
-  if (CreateJob) then
+  if (DialogType in [edtCreateJob, edtEditJob]) then
     TabSheet := TSTask
   else
     TabSheet := TSExecute;
@@ -719,7 +718,7 @@ begin
   for I := 0 to Length(FDestFields) - 1 do
     if (Sender = FFields[I]) then
     begin
-      FDestFields[I].Enabled := (FFields[I].ItemIndex > 0) and (ExportType in [etTextFile, etExcelFile, etHTMLFile, etPDFFile, etXMLFile, etPrint]);
+      FDestFields[I].Enabled := (FFields[I].ItemIndex > 0) and (ExportType in [etTextFile, etExcelFile, etHTMLFile, etPDFFile, etXMLFile, etPrinter]);
       FDestFields[I].Text := FFields[I].Text;
     end;
 
@@ -757,7 +756,7 @@ procedure TDExport.FHTMLDataClick(Sender: TObject);
 var
   TabSheet: TTabSheet;
 begin
-  if (CreateJob) then
+  if (DialogType in [edtCreateJob, edtEditJob]) then
     TabSheet := TSTask
   else
     TabSheet := TSExecute;
@@ -782,7 +781,7 @@ procedure TDExport.FHTMLStructureClick(Sender: TObject);
 var
   TabSheet: TTabSheet;
 begin
-  if (CreateJob) then
+  if (DialogType in [edtCreateJob, edtEditJob]) then
     TabSheet := TSTask
   else
     TabSheet := TSExecute;
@@ -830,7 +829,7 @@ begin
 
   CheckActivePageChange(TSJob.PageIndex);
 
-  if (Client.Account.Jobs.IndexByName(FName.Text) >= 0) then
+  if ((DialogType in [edtCreateJob]) and Assigned(Client.Account.JobByName(FName.Text)) or (DialogType in [edtEditJob]) and (Client.Account.JobByName(FName.Text) <> Job)) then
     FBForward.Enabled := False;
   if (FFilename.Visible and not DirectoryExists(ExtractFilePath(FFilename.Text))) then
     FBForward.Enabled := False;
@@ -846,7 +845,7 @@ var
   Success: Boolean;
   TabSheet: TTabSheet;
 begin
-  if (CreateJob) then
+  if (DialogType in [edtCreateJob, edtEditJob]) then
     TabSheet := TSTask
   else
     TabSheet := TSExecute;
@@ -954,7 +953,7 @@ begin
 
   if (ModalResult = mrOk) then
   begin
-    if (CreateJob) then
+    if (DialogType in [edtCreateJob, edtEditJob]) then
       Export := TAJobExport.Create(Client.Account.Jobs, FName.Text)
     else
       Export := Preferences.Export;
@@ -988,10 +987,15 @@ begin
     Export.HTMLStructure := FHTMLStructure.Checked;
     Export.HTMLData := FHTMLData.Checked;
 
-    if (CreateJob) then
+    if (DialogType in [edtCreateJob, edtEditJob]) then
     begin
+      TAJobExport(Export).CodePage := CodePage;
+      TAJobExport(Export).ExportType := ExportType;
       TAJobExport(Export).Filename := FFilename.Text;
-      Client.Account.Jobs.AddJob(Export);
+      if (DialogType = edtCreateJob) then
+        Client.Account.Jobs.AddJob(Export)
+      else
+        Job.Assign(Export);
       Export.Free();
     end;
   end;
@@ -1026,17 +1030,21 @@ begin
   Client.RegisterEventProc(FormClientEvent);
 
   ModalResult := mrNone;
-  if (CreateJob) then
+  if (DialogType = edtCreateJob) then
     Caption := Preferences.LoadStr(897)
-  else if (ExportType = etPrint) then
+  else if (DialogType = edtEditJob) then
+    Caption := Preferences.LoadStr(842, Job.Name)
+  else if (ExportType = etPrinter) then
     Caption := Preferences.LoadStr(577)
   else if (ExtractFileName(Filename) = '') then
     Caption := Preferences.LoadStr(210)
   else
     Caption := Preferences.LoadStr(210) + ' ' + ExtractFileName(Filename);
 
-  if (CreateJob) then
+  if (DialogType = edtCreateJob) then
     HelpContext := 1138
+  else if (DialogType = edtEditJob) then
+    HelpContext := 1140
   else
     case (ExportType) of
       etSQLFile: HelpContext := 1014;
@@ -1047,11 +1055,11 @@ begin
       etXMLFile: HelpContext := 1017;
       etHTMLFile: HelpContext := 1016;
       etPDFFile: HelpContext := 1137;
-      etPrint: HelpContext := 1018;
+      etPrinter: HelpContext := 1018;
       else HelpContext := -1;
     end;
 
-  if (CreateJob) then
+  if (DialogType = edtCreateJob) then
   begin
     Node := FSelect.Items.Add(nil, Client.Caption);
     Node.ImageIndex := iiServer;
@@ -1060,6 +1068,28 @@ begin
     FName.Text := Title;
     FFilename.Visible := False; FLFilename.Visible := FFilename.Visible;
     FFilename.Text := '';
+  end
+  else
+  begin
+    Node := FSelect.Items.Add(nil, Client.Caption);
+    Node.ImageIndex := iiServer;
+    Node.HasChildren := True;
+
+    FName.Text := Job.Name;
+    case (Job.ExportType) of
+      etSQLFile: FSQLFile.Checked := True;
+      etTextFile: FTextFile.Checked := True;
+      etExcelFile: FExcelFile.Checked := True;
+      etAccessFile: FAccessFile.Checked := True;
+      etSQLiteFile: FSQLiteFile.Checked := True;
+      etODBC: FODBC.Checked := True;
+      etHTMLFile: FHTMLFile.Checked := True;
+      etXMLFile: FXMLFile.Checked := True;
+      etPDFFile: FPDFFile.Checked := True;
+    end;
+    FFilename.Visible := False; FLFilename.Visible := FFilename.Visible;
+    CodePage := Job.CodePage;
+    FFilename.Text := Job.Filename;
   end;
 
   if (Assigned(DBGrid)) then
@@ -1069,15 +1099,15 @@ begin
 
   FCreateDatabase.Checked := (Objects.Count > 1) and Preferences.Export.SQLCreateDatabase;
 
-  TSSelect.Enabled := CreateJob;
+  TSSelect.Enabled := DialogType in [edtCreateJob, edtEditJob];
   TSJob.Enabled := False;
-  TSODBCSelect.Enabled := not CreateJob and (ExportType in [etODBC]);
-  TSSQLOptions.Enabled := not CreateJob and (ExportType in [etSQLFile]);
-  TSCSVOptions.Enabled := not CreateJob and (ExportType in [etTextFile]);
-  TSXMLOptions.Enabled := not CreateJob and (ExportType in [etXMLFile]) and not Assigned(DBGrid);
-  TSHTMLOptions.Enabled := not CreateJob and (ExportType in [etHTMLFile, etPrint, etPDFFile]);
-  TSFields.Enabled := not CreateJob and (ExportType in [etExcelFile]) and ((Objects.Count = 1) or Assigned(DBGrid)) or (ExportType in [etXMLFile]) and Assigned(DBGrid);
-  TSExecute.Enabled := not CreateJob and not TSODBCSelect.Enabled and not TSSQLOptions.Enabled and not TSCSVOptions.Enabled and not TSHTMLOptions.Enabled and not TSFields.Enabled;
+  TSODBCSelect.Enabled := not TSSelect.Enabled and (ExportType in [etODBC]);
+  TSSQLOptions.Enabled := not TSSelect.Enabled and (ExportType in [etSQLFile]);
+  TSCSVOptions.Enabled := not TSSelect.Enabled and (ExportType in [etTextFile]);
+  TSXMLOptions.Enabled := not TSSelect.Enabled and (ExportType in [etXMLFile]) and not Assigned(DBGrid);
+  TSHTMLOptions.Enabled := not TSSelect.Enabled and (ExportType in [etHTMLFile, etPrinter, etPDFFile]);
+  TSFields.Enabled := not TSSelect.Enabled and (ExportType in [etExcelFile]) and ((Objects.Count = 1) or Assigned(DBGrid)) or (ExportType in [etXMLFile]) and Assigned(DBGrid);
+  TSExecute.Enabled := not TSSelect.Enabled and not TSODBCSelect.Enabled and not TSSQLOptions.Enabled and not TSCSVOptions.Enabled and not TSHTMLOptions.Enabled and not TSFields.Enabled;
 
   for I := 0 to PageControl.PageCount - 1 do
     if ((PageControl.ActivePageIndex < 0) and PageControl.Pages[I].Enabled) then
@@ -1088,7 +1118,7 @@ begin
   if (Assigned(DBGrid)) then
     DBGrid.DataSource.DataSet.DisableControls();
 
-  if (CreateJob) then
+  if (DialogType in [edtCreateJob, edtEditJob]) then
   begin
     PageControl.Visible := Client.Databases.Update();
     if (PageControl.Visible) then
@@ -1250,7 +1280,7 @@ procedure TDExport.FSQLOptionClick(Sender: TObject);
 var
   TabSheet: TTabSheet;
 begin
-  if (CreateJob) then
+  if (DialogType in [edtCreateJob, edtEditJob]) then
     TabSheet := TSTask
   else
     TabSheet := TSExecute;
@@ -1409,7 +1439,7 @@ begin
   FLDestFields.Visible :=
     (ExportType = etTextFile) and FCSVHeadline.Checked
     or (ExportType = etExcelFile)
-    or (ExportType in [etXMLFile, etHTMLFile, etPrint, etPDFFile]) and not FHTMLStructure.Checked;
+    or (ExportType in [etXMLFile, etHTMLFile, etPrinter, etPDFFile]) and not FHTMLStructure.Checked;
 
   if (FLDestFields.Visible) then
   begin
@@ -1455,7 +1485,7 @@ begin
       FDestFields[I].Top := FDestField1.Top + I * (FField2.Top - FField1.Top);
       FDestFields[I].Width := FDestField1.Width;
       FDestFields[I].Height := FDestField1.Height;
-      FDestFields[I].Enabled := ExportType in [etTextFile, etExcelFile, etHTMLFile, etPrint, etPDFFile, etXMLFile];
+      FDestFields[I].Enabled := ExportType in [etTextFile, etExcelFile, etHTMLFile, etPrinter, etPDFFile, etXMLFile];
       TEdit(FDestFields[I]).Text := FFields[I].Text;
       K := 2;
       for J := 0 to I - 1 do
@@ -1476,14 +1506,17 @@ var
   I: Integer;
   JobName: string;
 begin
-  FName.Text := Title;
-  while (Assigned(Client.DatabaseByName(FName.Text))) do
+  if (DialogType in [edtCreateJob]) then
   begin
-    JobName := FName.Text;
-    Delete(JobName, 1, Length(Title));
-    if (JobName = '') then JobName := '1';
-    JobName := Title + IntToStr(StrToInt(JobName) + 1);
-    FName.Text := JobName;
+    FName.Text := Title;
+    while (Assigned(Client.Account.JobByName(FName.Text))) do
+    begin
+      JobName := FName.Text;
+      Delete(JobName, 1, Length(Title));
+      if (JobName = '') then JobName := '1';
+      JobName := Title + IntToStr(StrToInt(JobName) + 1);
+      FName.Text := JobName;
+    end;
   end;
 
   FSQLFile.Enabled := True;
@@ -1605,7 +1638,7 @@ procedure TDExport.TSCSVOptionsShow(Sender: TObject);
 var
   TabSheet: TTabSheet;
 begin
-  if (CreateJob) then
+  if (DialogType in [edtCreateJob, edtEditJob]) then
     TabSheet := TSTask
   else
     TabSheet := TSExecute;
@@ -1763,10 +1796,10 @@ begin
         except
           MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
         end;
-      etPrint,
+      etPrinter,
       etPDFFile:
         try
-          if (ExportType = etPrint) then
+          if (ExportType = etPrinter) then
             ExportPDF := TTExportPrint.Create(Client, Title)
           else
             ExportPDF := TTExportPDF.Create(Client, Filename);
@@ -1965,10 +1998,10 @@ begin
         except
           MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
         end;
-      etPrint,
+      etPrinter,
       etPDFFile:
         try
-          if (ExportType = etPrint) then
+          if (ExportType = etPrinter) then
             ExportPDF := TTExportPrint.Create(Client, Title)
           else
             ExportPDF := TTExportPDF.Create(Client, Filename);
@@ -2013,7 +2046,7 @@ procedure TDExport.TSFieldsShow(Sender: TObject);
 var
   TabSheet: TTabSheet;
 begin
-  if (CreateJob) then
+  if (DialogType in [edtCreateJob, edtEditJob]) then
     TabSheet := TSTask
   else
     TabSheet := TSExecute;
@@ -2029,8 +2062,8 @@ begin
   FHTMLStructureClick(Sender);
   FHTMLDataClick(Sender);
 
-  FHTMLShowMemoContent.Visible := not (ExportType in [etPrint, etPDFFile]); FLHTMLViewDatas.Visible := FHTMLShowMemoContent.Visible;
-  FHTMLRowBGColorEnabled.Visible := not (ExportType in [etPrint, etPDFFile]); FLHTMLBGColorEnabled.Visible := FHTMLRowBGColorEnabled.Visible;
+  FHTMLShowMemoContent.Visible := not (ExportType in [etPrinter, etPDFFile]); FLHTMLViewDatas.Visible := FHTMLShowMemoContent.Visible;
+  FHTMLRowBGColorEnabled.Visible := not (ExportType in [etPrinter, etPDFFile]); FLHTMLBGColorEnabled.Visible := FHTMLRowBGColorEnabled.Visible;
 end;
 
 procedure TDExport.TSJobShow(Sender: TObject);
@@ -2040,17 +2073,18 @@ var
 begin
   Objects.Clear();
   for I := 0 to FSelect.Items.Count - 1 do
-    if (FSelect.Items[I].ImageIndex = iiServer) then
-    begin
-      Child := FSelect.Items[I].getFirstChild();
-      while (Assigned(Child)) do
+    if (FSelect.Items[I].Selected) then
+      if (FSelect.Items[I].ImageIndex = iiServer) then
       begin
-        Objects.Add(Child.Data);
-        Child := Child.getNextSibling();
-      end;
-    end
-    else if (FSelect.Items[I].Selected) then
-      Objects.Add(FSelect.Items[I].Data);
+        Child := FSelect.Items[I].getFirstChild();
+        while (Assigned(Child)) do
+        begin
+          Objects.Add(Child.Data);
+          Child := Child.getNextSibling();
+        end;
+      end
+      else
+        Objects.Add(FSelect.Items[I].Data);
 
   PageControl.Visible := Boolean(Perform(CM_POST_AFTEREXECUTESQL, 0, 0));
   PSQLWait.Visible := not PageControl.Visible;
