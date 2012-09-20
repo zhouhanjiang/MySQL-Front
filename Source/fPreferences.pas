@@ -535,6 +535,12 @@ type
   end;
 
   TAJobExport = class(TPExport)
+  type
+    TObject = record
+      DatabaseName: string;
+      ObjectName: string;
+//      ObjectType: (otDatabase, otTable, otProcedure, otFunction, otTrigger, otEvent);
+    end;
   protected
     function GetXML(): IXMLNode; override;
     procedure LoadFromXML(const XML: IXMLNode); override;

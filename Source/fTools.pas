@@ -2981,78 +2981,81 @@ begin
 
   if (SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, FHandle, @Stmt))) then
   begin
-    ODBCException(Stmt, SQLColumns(Stmt, nil, 0, nil, 0, PSQLTCHAR(Item.SourceTableName), SQL_NTS, nil, 0));
+    if ((Success <> daAbort) and (SQLColumns(Stmt, nil, 0, nil, 0, PSQLTCHAR(Item.SourceTableName), SQL_NTS, nil, 0) <> SQL_SUCCESS)) then
+      DoError(ODBCError(SQL_HANDLE_STMT, Stmt), ToolsItem(Item), False);
 
-    ODBCException(Stmt, SQLBindCol(Stmt, 4, SQL_C_WCHAR, @ColumnName, SizeOf(ColumnName), @cbColumnName));
+    if (Success = daSuccess) then
+    begin
+      ODBCException(Stmt, SQLBindCol(Stmt, 4, SQL_C_WCHAR, @ColumnName, SizeOf(ColumnName), @cbColumnName));
+      ODBCException(Stmt, SQLBindCol(Stmt, 5, SQL_C_SSHORT, @SQLDataType, SizeOf(SQLDataType), @cbSQLDataType));
+      ODBCException(Stmt, SQLBindCol(Stmt, 7, SQL_C_SLONG, @ColumnSize, SizeOf(ColumnSize), @cbColumnSize));
+      ODBCException(Stmt, SQLBindCol(Stmt, 9, SQL_C_SSHORT, @DecimalDigits, SizeOf(DecimalDigits), @cbDecimalDigits));
+      ODBCException(Stmt, SQLBindCol(Stmt, 11, SQL_C_SSHORT, @Nullable, SizeOf(Nullable), @cbNullable));
+      if (not SQL_SUCCEEDED(SQLBindCol(Stmt, 12, SQL_C_WCHAR, @Remarks, SizeOf(Remarks), @cbRemarks))) then
+        begin ZeroMemory(@Remarks, SizeOf(Remarks)); cbRemarks := 0; end;
+      if (not SQL_SUCCEEDED(SQLBindCol(Stmt, 13, SQL_C_WCHAR, @ColumnDef, SizeOf(ColumnDef), @cbColumnDef))) then
+        begin ZeroMemory(@ColumnDef, SizeOf(ColumnDef)); cbColumnDef := 0; end;
+      if (not SQL_SUCCEEDED(SQLBindCol(Stmt, 14, SQL_C_SSHORT, @SQLDataType2, SizeOf(SQLDataType2), @cbSQLDataType2))) then
+        begin ZeroMemory(@SQLDataType2, SizeOf(SQLDataType2)); cbSQLDataType2 := 0; end;
 
-    ODBCException(Stmt, SQLBindCol(Stmt, 5, SQL_C_SSHORT, @SQLDataType, SizeOf(SQLDataType), @cbSQLDataType));
-    ODBCException(Stmt, SQLBindCol(Stmt, 7, SQL_C_SLONG, @ColumnSize, SizeOf(ColumnSize), @cbColumnSize));
-    ODBCException(Stmt, SQLBindCol(Stmt, 9, SQL_C_SSHORT, @DecimalDigits, SizeOf(DecimalDigits), @cbDecimalDigits));
-    ODBCException(Stmt, SQLBindCol(Stmt, 11, SQL_C_SSHORT, @Nullable, SizeOf(Nullable), @cbNullable));
-    if (not SQL_SUCCEEDED(SQLBindCol(Stmt, 12, SQL_C_WCHAR, @Remarks, SizeOf(Remarks), @cbRemarks))) then
-      begin ZeroMemory(@Remarks, SizeOf(Remarks)); cbRemarks := 0; end;
-    if (not SQL_SUCCEEDED(SQLBindCol(Stmt, 13, SQL_C_WCHAR, @ColumnDef, SizeOf(ColumnDef), @cbColumnDef))) then
-      begin ZeroMemory(@ColumnDef, SizeOf(ColumnDef)); cbColumnDef := 0; end;
-    if (not SQL_SUCCEEDED(SQLBindCol(Stmt, 14, SQL_C_SSHORT, @SQLDataType2, SizeOf(SQLDataType2), @cbSQLDataType2))) then
-      begin ZeroMemory(@SQLDataType2, SizeOf(SQLDataType2)); cbSQLDataType2 := 0; end;
-
-    while (SQL_SUCCEEDED(ODBCException(Stmt, SQLFetch(Stmt)))) do
-      if (not Assigned(NewTable.FieldByName(ColumnName))) then
-      begin
-        SetLength(SourceFields, Length(SourceFields) + 1);
-        SourceFields[Length(SourceFields) - 1].Name := ColumnName;
-
-
-        NewField := TCBaseTableField.Create(NewTable.Fields);
-        NewField.Name := Client.ApplyIdentifierName(ColumnName);
-        if (NewTable.Fields.Count > 0) then
-          NewField.FieldBefore := NewTable.Fields[NewTable.Fields.Count - 1];
-        if (SQLDataType <> SQL_UNKNOWN_TYPE) then
-          NewField.FieldType := SQLDataTypeToMySQLType(SQLDataType, ColumnSize, NewField.Name)
-        else if (cbSQLDataType2 > 0) then
-          NewField.FieldType := SQLDataTypeToMySQLType(SQLDataType2, ColumnSize, NewField.Name)
-        else
-          raise EODBCError.CreateFMT(SUnknownFieldType + ' (%d)', [ColumnName, SQLDataType]);
-        if (not (NewField.FieldType in [mfFloat, mfDouble, mfDecimal]) or (DecimalDigits > 0)) then
+      while (SQL_SUCCEEDED(ODBCException(Stmt, SQLFetch(Stmt)))) do
+        if (not Assigned(NewTable.FieldByName(ColumnName))) then
         begin
-          NewField.Size := ColumnSize;
-          NewField.Decimals := DecimalDigits;
-        end;
-        if (cbColumnDef > 0) then
-        begin
-          SetString(S, ColumnDef, cbColumnDef);
-          while ((Length(S) > 0) and (S[Length(S)] = #0)) do
-            Delete(S, Length(S), 1);
-          if (SysUtils.UpperCase(S) = 'NULL') then
-            NewField.Default := 'NULL'
-          else if ((NewField.FieldType in [mfTinyInt, mfSmallInt, mfMediumInt, mfInt, mfBigInt]) and (SysUtils.LowerCase(S) = '(newid())')) then
-            NewField.AutoIncrement := True
-          else if (SysUtils.LowerCase(S) = '(getdate())') then
-          begin
-            NewField.FieldType := mfTimestamp;
-            NewField.Default := 'CURRENT_TIMESTAMP';
-          end
-          else if (NewField.FieldType in NotQuotedFieldTypes) then
-          begin
-            S := NewField.UnescapeValue(S);
-            if ((LeftStr(S, 1) = '(') and (RightStr(S, 1) = ')')) then
-              S := Copy(S, 2, Length(S) - 2);
-            NewField.Default := S;
-          end
-          else if ((LeftStr(S, 1) <> '(') or (RightStr(S, 1) <> ')')) then
-            NewField.Default := NewField.EscapeValue(NewField.UnescapeValue(S));
-        end;
-        NewField.NullAllowed := (Nullable <> SQL_NO_NULLS) or (NewField.Default = 'NULL');
-        NewField.Comment := Remarks;
+          SetLength(SourceFields, Length(SourceFields) + 1);
+          SourceFields[Length(SourceFields) - 1].Name := ColumnName;
 
-        NewTable.Fields.AddField(NewField);
-        FreeAndNil(NewField);
-      end;
+
+          NewField := TCBaseTableField.Create(NewTable.Fields);
+          NewField.Name := Client.ApplyIdentifierName(ColumnName);
+          if (NewTable.Fields.Count > 0) then
+            NewField.FieldBefore := NewTable.Fields[NewTable.Fields.Count - 1];
+          if (SQLDataType <> SQL_UNKNOWN_TYPE) then
+            NewField.FieldType := SQLDataTypeToMySQLType(SQLDataType, ColumnSize, NewField.Name)
+          else if (cbSQLDataType2 > 0) then
+            NewField.FieldType := SQLDataTypeToMySQLType(SQLDataType2, ColumnSize, NewField.Name)
+          else
+            raise EODBCError.CreateFMT(SUnknownFieldType + ' (%d)', [ColumnName, SQLDataType]);
+          if (not (NewField.FieldType in [mfFloat, mfDouble, mfDecimal]) or (DecimalDigits > 0)) then
+          begin
+            NewField.Size := ColumnSize;
+            NewField.Decimals := DecimalDigits;
+          end;
+          if (cbColumnDef > 0) then
+          begin
+            SetString(S, ColumnDef, cbColumnDef);
+            while ((Length(S) > 0) and (S[Length(S)] = #0)) do
+              Delete(S, Length(S), 1);
+            if (SysUtils.UpperCase(S) = 'NULL') then
+              NewField.Default := 'NULL'
+            else if ((NewField.FieldType in [mfTinyInt, mfSmallInt, mfMediumInt, mfInt, mfBigInt]) and (SysUtils.LowerCase(S) = '(newid())')) then
+              NewField.AutoIncrement := True
+            else if (SysUtils.LowerCase(S) = '(getdate())') then
+            begin
+              NewField.FieldType := mfTimestamp;
+              NewField.Default := 'CURRENT_TIMESTAMP';
+            end
+            else if (NewField.FieldType in NotQuotedFieldTypes) then
+            begin
+              S := NewField.UnescapeValue(S);
+              if ((LeftStr(S, 1) = '(') and (RightStr(S, 1) = ')')) then
+                S := Copy(S, 2, Length(S) - 2);
+              NewField.Default := S;
+            end
+            else if ((LeftStr(S, 1) <> '(') or (RightStr(S, 1) <> ')')) then
+              NewField.Default := NewField.EscapeValue(NewField.UnescapeValue(S));
+          end;
+          NewField.NullAllowed := (Nullable <> SQL_NO_NULLS) or (NewField.Default = 'NULL');
+          NewField.Comment := Remarks;
+
+          NewTable.Fields.AddField(NewField);
+          FreeAndNil(NewField);
+        end;
+    end;
 
     SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
 
 
-    if (SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, FHandle, @Stmt))) then
+    if ((Success = daSuccess) and SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, FHandle, @Stmt))) then
     begin
       if (SQL_SUCCEEDED(SQLExecDirect(Stmt, PSQLTCHAR(string('SELECT * FROM "' + Item.SourceTableName + '" WHERE 0<>0')), SQL_NTS))) then
       begin
@@ -3075,10 +3078,7 @@ begin
     end;
   end;
 
-  if (NewTable.Fields.Count = 0) then
-    raise Exception.CreateFMT('Can''t read column definition from NewTable "%s"!', [Item.SourceTableName]);
-
-  if (Success = daSuccess) and SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, FHandle, @Stmt)) then
+  if ((Success = daSuccess) and SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, FHandle, @Stmt))) then
   begin
     ODBCException(Stmt, SQLStatistics(Stmt, nil, 0, nil, 0, PSQLTCHAR(Item.SourceTableName), SQL_NTS, SQL_INDEX_UNIQUE, SQL_QUICK));
 

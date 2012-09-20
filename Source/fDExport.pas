@@ -1584,6 +1584,7 @@ begin
   else
     Flags := MB_CANCELTRYCONTINUE + MB_ICONERROR;
   case (MsgBox(Msg, Preferences.LoadStr(45), Flags, Handle)) of
+    IDOK,
     IDCANCEL,
     IDABORT: Success := daAbort;
     IDRETRY,

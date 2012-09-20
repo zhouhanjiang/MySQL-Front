@@ -8108,7 +8108,7 @@ begin
       if (UpperCase(Client.VariableByName('character_set_client').Value) <> UpperCase(Client.VariableByName('character_set_results').Value)) then
         raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %s (%s) <> %s (%s)', ['Charset', 'character_set_client', Client.VariableByName('character_set_client').Value, Client.Charset, 'character_set_results', Client.VariableByName('character_set_results').Value])
       else if (UpperCase(Client.Charset) <> (UpperCase(Client.VariableByName('character_set_client').Value))) then
-        raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %s (%s) <> %s (%s)', ['Charset', 'Client.Charset', Client.Charset, Client.Charset, 'character_set_client', Client.VariableByName('character_set_client').Value]);
+        raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %s (%s) <> %s (%s)', ['Charset', 'Client.Charset', Client.Charset, 'character_set_client', Client.VariableByName('character_set_client').Value]);
 
     if (Client.ServerVersion < 40102) then
       Client.Engines.Build(nil, False);

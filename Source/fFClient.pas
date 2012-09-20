@@ -1568,6 +1568,10 @@ var
   I: Integer;
   Width: Integer;
 begin
+  // Debug 19.09.2012
+  if (not Assigned(DBGrid.DataSource)) then
+    raise ERangeError.Create(SRangeError + ' (DataSource not Assigned)');
+
   // Debug 13.09.2012
   if (DBGrid.DataSource.DataSet <> DataSet) then
     raise ERangeError.CreateFmt(SRangeError + ': SQL1: %s, SQL2: %s', [TMySQLQuery(DBGrid.DataSource.DataSet).CommandText, TMySQLQuery(DataSet).CommandText]);
@@ -1581,6 +1585,10 @@ begin
   // Debug 13.09.2012
   if (DBGrid.Columns.Count <> DBGrid.DataSource.DataSet.FieldCount) then
     raise ERangeError.CreateFmt(SRangeError + ': %d <> %d, SQL: %s', [DBGrid.Columns.Count, DBGrid.DataSource.DataSet.FieldCount, TMySQLQuery(DBGrid.DataSource.DataSet).CommandText]);
+
+  // Debug 19.09.2012
+  if (not Assigned(DBGrid.SelectedField)) then
+    raise ERangeError.CreateFmt(SRangeError + ' (SelectedField not assigned, %d, SQL: %s)', [DBGrid.DataSource.DataSet.FieldCount, TMySQLQuery(DBGrid.DataSource.DataSet).CommandText]);
 
   DBGrid.Columns.BeginUpdate();
   for I := 0 to DBGrid.Columns.Count - 1 do
@@ -13557,7 +13565,7 @@ begin
         StatusBar.Panels[sbNavigation].Text := IntToStr(ActiveSynMemo.CaretXY.Line) + ':' + IntToStr(ActiveSynMemo.CaretXY.Char)
       else if ((Window.ActiveControl = ActiveListView) and Assigned(ActiveListView.ItemFocused) and (TObject(ActiveListView.ItemFocused.Data) is TCKey)) then
         StatusBar.Panels[sbNavigation].Text := Preferences.LoadStr(377) + ': ' + IntToStr(TCKey(ActiveListView.ItemFocused.Data).Index + 1)
-      else if ((Window.ActiveControl = ActiveListView) and (SelectedImageIndex in [iiBaseTable, iiSystemView, iiView]) and Assigned(ActiveListView.ItemFocused) and Assigned(ActiveListView.Selected) and (ActiveListView.ItemFocused.ImageIndex = iiField)) then
+      else if ((Window.ActiveControl = ActiveListView) and Assigned(ActiveListView.ItemFocused) and (TObject(ActiveListView.ItemFocused.Data) is TCTableField)) then
        StatusBar.Panels[sbNavigation].Text := ReplaceStr(Preferences.LoadStr(164), '&', '') + ': ' + IntToStr(TCTableField(ActiveListView.ItemFocused.Data).Index)
       else if ((Window.ActiveControl = ActiveDBGrid) and Assigned(ActiveDBGrid.SelectedField) and (ActiveDBGrid.DataSource.DataSet.RecNo >= 0)) then
         StatusBar.Panels[sbNavigation].Text := IntToStr(ActiveDBGrid.DataSource.DataSet.RecNo + 1) + ':' + IntToStr(ActiveDBGrid.SelectedField.FieldNo)
