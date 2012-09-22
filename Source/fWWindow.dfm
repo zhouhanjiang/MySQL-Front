@@ -974,13 +974,6 @@ object WWindow: TWWindow
       HelpType = htContext
       ImageIndex = 67
     end
-    object aDCreateHost: TAction
-      Category = 'Database'
-      Caption = 'aDCreateHost'
-      Enabled = False
-      HelpContext = 1076
-      HelpType = htContext
-    end
     object aDCreateUser: TAction
       Category = 'Database'
       Caption = 'aDCreateUser'
@@ -1053,13 +1046,6 @@ object WWindow: TWWindow
       HelpContext = 1053
       HelpType = htContext
       ImageIndex = 72
-    end
-    object aDDeleteHost: TAction
-      Category = 'Database'
-      Caption = 'aDDeleteHost'
-      Enabled = False
-      HelpContext = 1079
-      HelpType = htContext
     end
     object aDDeleteProcess: TAction
       Category = 'Database'
@@ -1139,13 +1125,6 @@ object WWindow: TWWindow
       Caption = 'aDEditForeignKey'
       Enabled = False
       HelpContext = 1057
-      HelpType = htContext
-    end
-    object aDEditHost: TAction
-      Category = 'Database'
-      Caption = 'aDEditHost'
-      Enabled = False
-      HelpContext = 1058
       HelpType = htContext
     end
     object aDEditProcess: TAction
@@ -1711,9 +1690,6 @@ object WWindow: TWWindow
         object miDCreateTrigger: TMenuItem
           Action = aDCreateTrigger
         end
-        object miDCreateHost: TMenuItem
-          Action = aDCreateHost
-        end
         object miDCreateUser: TMenuItem
           Action = aDCreateUser
         end
@@ -1746,9 +1722,6 @@ object WWindow: TWWindow
         end
         object miDDeleteTrigger: TMenuItem
           Action = aDDeleteTrigger
-        end
-        object miDDeleteHost: TMenuItem
-          Action = aDDeleteHost
         end
         object miDDeleteProcess: TMenuItem
           Action = aDDeleteProcess
@@ -1788,9 +1761,6 @@ object WWindow: TWWindow
         end
         object miDEditTrigger: TMenuItem
           Action = aDEditTrigger
-        end
-        object miDEditHost: TMenuItem
-          Action = aDEditHost
         end
         object miDEditProcess: TMenuItem
           Action = aDEditProcess

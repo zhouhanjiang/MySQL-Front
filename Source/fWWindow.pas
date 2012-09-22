@@ -38,7 +38,6 @@ type
     aDCreateForeignKey: TAction;
     aDCreateFunction: TAction;
     aDCreateFunction1: TMenuItem;
-    aDCreateHost: TAction;
     aDCreateKey: TAction;
     aDCreateProcedure: TAction;
     aDCreateTable: TAction;
@@ -49,7 +48,6 @@ type
     aDDeleteEvent: TAction;
     aDDeleteField: TAction;
     aDDeleteForeignKey: TAction;
-    aDDeleteHost: TAction;
     aDDeleteKey: TAction;
     aDDeleteProcess: TAction;
     aDDeleteRecord: TAction;
@@ -62,7 +60,6 @@ type
     aDEditEvent: TAction;
     aDEditField: TAction;
     aDEditForeignKey: TAction;
-    aDEditHost: TAction;
     aDEditKey: TAction;
     aDEditProcess: TAction;
     aDEditRecord: TAction;
@@ -171,7 +168,6 @@ type
     miDCreateEvent: TMenuItem;
     miDCreateField: TMenuItem;
     miDCreateForeignKey: TMenuItem;
-    miDCreateHost: TMenuItem;
     miDCreateIndex: TMenuItem;
     miDCreateRoutine: TMenuItem;
     miDCreateTable: TMenuItem;
@@ -183,7 +179,6 @@ type
     miDDeleteEvent: TMenuItem;
     miDDeleteField: TMenuItem;
     miDDeleteForeignKey: TMenuItem;
-    miDDeleteHost: TMenuItem;
     miDDeleteIndex: TMenuItem;
     miDDeleteProcess: TMenuItem;
     miDDeleteRecord: TMenuItem;
@@ -196,7 +191,6 @@ type
     miDEditEvent: TMenuItem;
     miDEditField: TMenuItem;
     miDEditForeignKey: TMenuItem;
-    miDEditHost: TMenuItem;
     miDEditIndex: TMenuItem;
     miDEditProcess: TMenuItem;
     miDEditRecord: TMenuItem;
@@ -1067,7 +1061,6 @@ begin
   aDCreateKey.Caption := Preferences.LoadStr(163) + '...';
   aDCreateField.Caption := Preferences.LoadStr(164) + '...';
   aDCreateForeignKey.Caption := Preferences.LoadStr(248) + '...';
-  aDCreateHost.Caption := Preferences.LoadStr(560) + '...';
   aDCreateUser.Caption := Preferences.LoadStr(561) + '...';
   miDDelete.Caption := Preferences.LoadStr(28);
   aDDeleteDatabase.Caption := Preferences.LoadStr(38);
@@ -1079,7 +1072,6 @@ begin
   aDDeleteForeignKey.Caption := Preferences.LoadStr(248);
   aDDeleteTrigger.Caption := Preferences.LoadStr(788);
   aDDeleteEvent.Caption := Preferences.LoadStr(812);
-  aDDeleteHost.Caption := Preferences.LoadStr(560);
   aDDeleteUser.Caption := Preferences.LoadStr(561);
   aDDeleteProcess.Caption := Preferences.LoadStr(562);
   miDProperties.Caption := Preferences.LoadStr(97);
@@ -1093,7 +1085,6 @@ begin
   aDEditForeignKey.Caption := Preferences.LoadStr(248) + '...';
   aDEditTrigger.Caption := Preferences.LoadStr(788) + '...';
   aDEditEvent.Caption := Preferences.LoadStr(812) + '...';
-  aDEditHost.Caption := Preferences.LoadStr(560) + '...';
   aDEditProcess.Caption := Preferences.LoadStr(562) + '...';
   aDEditUser.Caption := Preferences.LoadStr(561) + '...';
   aDEditVariable.Caption := Preferences.LoadStr(267) + '...';
@@ -1725,8 +1716,6 @@ var
   Log: TStringList;
   Start: Integer;
 begin
-  DataFields.Add('System CodePage=' + IntToStr(GetACP()));
-
   for I := 0 to Clients.Count - 1 do
     if (Clients[I].Connected) then
       if (Assigned(ActiveTab) and (Clients[I] = ActiveTab.Client)) then
@@ -1736,7 +1725,6 @@ begin
 
   if (Assigned(ActiveTab)) then
   begin
-    DataFields.Add('ConnectionType=' + IntToStr(Ord(ActiveTab.Client.Account.Connection.LibraryType)));
     Log := TStringList.Create();
     Log.Text := ActiveTab.Client.BugMonitor.CacheText;
     if (Log.Count < 10) then Start := 0 else Start := Log.Count - 10;

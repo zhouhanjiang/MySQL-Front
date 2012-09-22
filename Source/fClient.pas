@@ -64,10 +64,6 @@ type
   TCUserRight = class;
   TCUser = class;
   TCUsers = class;
-  TCHostDatabase = class;
-  TCHostDatabases = class;
-  TCHost = class;
-  TCHosts = class;
   TCPlugin = class;
   TCPlugins = class;
   TCEngine = class;
@@ -1314,61 +1310,6 @@ RProxy: Boolean;
     property User[Index: Integer]: TCUser read GetUser; default;
   end;
 
-  TCHostDatabase = class(TCItem)
-  protected
-    OriginalName: string;
-  public
-    RAlter, RCreate, RCreateTempTable, RCreateView, RDelete, RDrop, RGrant, RIndex, RInsert: Boolean;
-    RLockTables, RReferences, RSelect, RShowView, RUpdate: Boolean;
-    procedure Assign(const Source: TCHostDatabase); reintroduce; virtual;
-    procedure Clear(); virtual;
-  end;
-
-  TCHostDatabases = class(TCItems)
-  private
-    FHost: TCHost;
-    function GetDatabase(Index: Integer): TCHostDatabase; inline;
-  protected
-    procedure Assign(const Source: TCHostDatabases); virtual;
-  public
-    function AddDatabase(const NewDatabase: TCHostDatabase): Boolean; virtual;
-    constructor Create(const AHost: TCHost); reintroduce; virtual;
-    procedure DeleteDatabase(const Database: TCHostDatabase); virtual;
-    function NameCmp(const Name1, Name2: string): Integer; override;
-    function UpdateDatabase(const Database, NewDatabase: TCHostDatabase): Boolean; virtual;
-    property Database[Index: Integer]: TCHostDatabase read GetDatabase; default;
-    property Host: TCHost read FHost;
-  end;
-
-  TCHost = class(TCObject)
-  private
-    FDatabases: TCHostDatabases;
-    function GetHosts(): TCHosts; inline;
-  protected
-    OriginalHost: string;
-    function GetCaption(): string; override;
-    function GetSource(): string; override;
-  public
-    procedure Assign(const Source: TCHost); reintroduce; virtual;
-    constructor Create(const ACItems: TCItems; const AHost: string = ''); reintroduce; virtual;
-    function DatabaseByName(const DatabaseName: string): TCHostDatabase; virtual;
-    destructor Destroy(); override;
-    function Update(): Boolean; override;
-    property Databases: TCHostDatabases read FDatabases;
-    property Hosts: TCHosts read GetHosts;
-  end;
-
-  TCHosts = class(TCObjects)
-  private
-    function GetHost(Index: Integer): TCHost;
-  protected
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean; override;
-    function GetValid(): Boolean; override;
-    function SQLGetItems(const Name: string = ''): string; override;
-  public
-    property Host[Index: Integer]: TCHost read GetHost; default;
-  end;
-
   TCClient = class(TMySQLConnection)
   type
     TEventType = (ceItemsValid, ceItemValid, ceItemCreated, ceItemDropped, ceItemAltered, ceBeforeExecuteSQL, ceAfterExecuteSQL, ceMonitor, ceError);
@@ -1397,7 +1338,6 @@ RProxy: Boolean;
     FDatabases: TCDatabases;
     FEngines: TCEngines;
     FFieldTypes: TCFieldTypes;
-    FHosts: TCHosts;
     FInformationSchema: TCDatabase;
     FInvalidObjects: TList;
     FPerformanceSchema: TCDatabase;
@@ -1431,7 +1371,6 @@ RProxy: Boolean;
     procedure ExecuteEvent(const EventType: TEventType); overload; virtual;
     procedure ExecuteEvent(const EventType: TEventType; const Sender: TObject; const CItems: TCItems = nil; const CItem: TCItem = nil); overload; virtual;
     function GetAutoCommit(): Boolean; override;
-    function GetHosts(): TCHosts; virtual;
     function GetDataFileAllowed(): Boolean; override;
     function GetLog(): string; virtual;
     function GetMaxAllowedPacket(): Integer; override;
@@ -1447,14 +1386,12 @@ RProxy: Boolean;
     property UseInformationSchema: Boolean read GetUseInformationSchema;
   public
     function AddDatabase(const NewDatabase: TCDatabase): Boolean; virtual;
-    function AddHost(const NewHost: TCHost): Boolean; virtual;
     function AddUser(const ANewUser: TCUser): Boolean; virtual;
     function ApplyIdentifierName(const AIdentifierName: string): string; virtual;
     procedure GridCanEditShow(Sender: TObject); virtual;
     function CharsetByName(const CharsetName: string): TCCharset; virtual;
     function CharsetByCollation(const Collation: string): TCCharset; virtual;
     function CloneDatabase(const SourceDatabase, TargetDatabase: TCDatabase; const Data: Boolean): Boolean; virtual;
-    function CloneHost(const Host: TCHost; const NewHostHost: string): Boolean; virtual;
     function CloneUser(const User: TCUser; const NewUserName: string): Boolean; virtual;
     function CollationByName(const CollationName: string): TCCollation; virtual;
     procedure CommitTransaction(); override;
@@ -1465,7 +1402,6 @@ RProxy: Boolean;
     procedure DecodeInterval(const Value: string; const IntervalType: TMySQLIntervalType; var Year, Month, Day, Quarter, Week, Hour, Minute, Second, MSec: Word); virtual;
     function DeleteDatabase(const Database: TCDatabase): Boolean; virtual;
     function DeleteEntities(const List: TList): Boolean; virtual;
-    function DeleteHost(const Host: TCHost): Boolean; virtual;
     function DeleteProcess(const Process: TCProcess): Boolean; virtual;
     function DeleteUser(const User: TCUser): Boolean; virtual;
     function DeleteUsers(const List: TList): Boolean; virtual;
@@ -1479,8 +1415,6 @@ RProxy: Boolean;
     function FieldTypeByMySQLFieldType(const MySQLFieldType: TMySQLFieldType): TCFieldType; virtual;
     function FlushHosts(): Boolean; virtual;
     procedure UpdateIndexDefs(const DataSet: TMySQLQuery; const IndexDefs: TIndexDefs); virtual;
-    function HostByCaption(const Caption: string): TCHost; virtual;
-    function HostByName(const HostName: string): TCHost; virtual;
     procedure Invalidate(); virtual;
     function PluginByName(const PluginName: string): TCPlugin; virtual;
     function ProcessById(const ProcessId: Integer): TCProcess; virtual;
@@ -1495,7 +1429,6 @@ RProxy: Boolean;
     function Update(): Boolean; overload; virtual;
     function Update(const List: TList; const Status: Boolean = False): Boolean; overload; virtual;
     function UpdateDatabase(const Database, NewDatabase: TCDatabase): Boolean; virtual;
-    function UpdateHost(const Host, NewHost: TCHost): Boolean; virtual;
     function UpdateUser(const User, NewUser: TCUser): Boolean; virtual;
     function UpdateVariable(const Variable, NewVariable: TCVariable; const UpdateModes: TCVariable.TUpdateModes): Boolean; virtual;
     procedure UnRegisterEventProc(const AEventProc: TEventProc); virtual;
@@ -1513,7 +1446,6 @@ RProxy: Boolean;
     property DefaultCharset: string read GetDefaultCharset;
     property Engines: TCEngines read FEngines;
     property FieldTypes: TCFieldTypes read FFieldTypes;
-    property Hosts: TCHosts read GetHosts;
     property InformationSchema: TCDatabase read FInformationSchema;
     property Log: string read GetLog;
     property LogActive: Boolean read GetLogActive;
@@ -6012,12 +5944,7 @@ begin
         raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Name']);
 
       if (not InsertIndex(Name, Index)) then
-        try
-          DeleteList.Delete(DeleteList.IndexOf(Items[Index]))
-        except
-          // Debug
-          raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %s - %d - %d', ['Name', Name, DeleteList.Count, Count]);
-        end
+        DeleteList.Delete(DeleteList.IndexOf(Items[Index]))
       else if (Index < Count) then
         Insert(Index, TCTrigger.Create(Self, Name))
       else
@@ -8103,12 +8030,14 @@ begin
   if (Count > 0) then
   begin
     if (Client.ServerVersion < 40101) then
-      Client.Charsets.Build(nil, False)
+    begin
+      Client.Charsets.Build(nil, False);
+      Client.Charset := Client.VariableByName('character_set').Value;
+    end
+    else if (UpperCase(Client.VariableByName('character_set_client').Value) <> UpperCase(Client.VariableByName('character_set_results').Value)) then
+      raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %s (%s) <> %s (%s)', ['Charset', 'character_set_client', Client.VariableByName('character_set_client').Value, Client.Charset, 'character_set_results', Client.VariableByName('character_set_results').Value])
     else
-      if (UpperCase(Client.VariableByName('character_set_client').Value) <> UpperCase(Client.VariableByName('character_set_results').Value)) then
-        raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %s (%s) <> %s (%s)', ['Charset', 'character_set_client', Client.VariableByName('character_set_client').Value, Client.Charset, 'character_set_results', Client.VariableByName('character_set_results').Value])
-      else if (UpperCase(Client.Charset) <> (UpperCase(Client.VariableByName('character_set_client').Value))) then
-        raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %s (%s) <> %s (%s)', ['Charset', 'Client.Charset', Client.Charset, 'character_set_client', Client.VariableByName('character_set_client').Value]);
+      Client.Charset := Client.VariableByName('character_set_client').Value;
 
     if (Client.ServerVersion < 40102) then
       Client.Engines.Build(nil, False);
@@ -9536,292 +9465,6 @@ begin
     Result := 'SELECT * FROM ' + Client.EscapeIdentifier(information_schema) + '.' + Client.EscapeIdentifier('USER_PRIVILEGES') + ' GROUP BY ' + Client.EscapeIdentifier('GRANTEE') + ';' + #13#10;
 end;
 
-{ TCHostDatabase **************************************************************}
-
-procedure TCHostDatabase.Assign(const Source: TCHostDatabase);
-begin
-  inherited Assign(Source);
-
-  OriginalName := Source.OriginalName;
-  RAlter := Source.RAlter;
-  RCreate := Source.RCreate;
-  RCreateTempTable := Source.RCreateTempTable;
-  RCreateView := Source.RCreateView;
-  RDelete := Source.RDelete;
-  RDrop := Source.RDrop;
-  RGrant := Source.RGrant;
-  RIndex := Source.RIndex;
-  RInsert := Source.RInsert;
-  RLockTables := Source.RLockTables;
-  RReferences := Source.RReferences;
-  RSelect := Source.RSelect;
-  RShowView := Source.RShowView;
-  RUpdate := Source.RUpdate;
-end;
-
-procedure TCHostDatabase.Clear();
-begin
-  Name := '';
-  RAlter := False;
-  RCreate := False;
-  RCreateTempTable := False;
-  RCreateView := False;
-  RDelete := False;
-  RDrop := False;
-  RGrant := False;
-  RIndex := False;
-  RInsert := False;
-  RLockTables := False;
-  RReferences := False;
-  RSelect := False;
-  RShowView := False;
-  RUpdate := False;
-end;
-
-{ TCHostDatabases *************************************************************}
-
-function TCHostDatabases.AddDatabase(const NewDatabase: TCHostDatabase): Boolean;
-var
-  I: Integer;
-  Index: Integer;
-begin
-  Result := not Assigned(Host.DatabaseByName(NewDatabase.Name));
-
-  if (Result) then
-  begin
-    Index := TList(Self).Count;
-    for I := TList(Self).Count - 1 downto 0 do
-      if (Host.Hosts.Client.TableNameCmp(NewDatabase.Name, Database[I].Name) < 0) then
-        Index := I;
-
-    Insert(Index, TCHostDatabase.Create(Self));
-    Database[Index].Assign(NewDatabase);
-    Database[Index].OriginalName := Database[Index].Name;
-  end;
-end;
-
-procedure TCHostDatabases.Assign(const Source: TCHostDatabases);
-var
-  I: Integer;
-begin
-  if (not Assigned(FHost)) then FHost := Source.Host;
-
-  Clear();
-  for I := 0 to Source.Count - 1 do
-  begin
-    inherited Add(TCHostDatabase.Create(Self));
-    Database[I].Assign(Source.Database[I]);
-  end;
-end;
-
-constructor TCHostDatabases.Create(const AHost: TCHost);
-begin
-  inherited Create(AHost.Client);
-
-  FHost := AHost;
-end;
-
-procedure TCHostDatabases.DeleteDatabase(const Database: TCHostDatabase);
-var
-  Index: Integer;
-begin
-  Index := IndexOf(Database);
-
-  Self.Database[Index].Free();
-  Delete(Index);
-end;
-
-function TCHostDatabases.GetDatabase(Index: Integer): TCHostDatabase;
-begin
-  Result := TCHostDatabase(Items[Index]);
-end;
-
-function TCHostDatabases.NameCmp(const Name1, Name2: string): Integer;
-begin
-  Result := Client.Databases.NameCmp(Name1, Name2);
-end;
-
-function TCHostDatabases.UpdateDatabase(const Database, NewDatabase: TCHostDatabase): Boolean;
-begin
-  Result := Assigned(Database) and not Assigned(Host.DatabaseByName(NewDatabase.Name)) or (Host.DatabaseByName(NewDatabase.Name) = Database);
-
-  if (Result) then
-    Database.Assign(NewDatabase);
-end;
-
-{ TCHost **********************************************************************}
-
-procedure TCHost.Assign(const Source: TCHost);
-begin
-  inherited Assign(Source);
-
-  OriginalHost := Source.OriginalHost;
-
-  Databases.Assign(Source.Databases);
-end;
-
-constructor TCHost.Create(const ACItems: TCItems; const AHost: string = '');
-begin
-  inherited;
-
-  FDatabases := TCHostDatabases.Create(Self);
-end;
-
-function TCHost.DatabaseByName(const DatabaseName: string): TCHostDatabase;
-var
-  Index: Integer;
-begin
-  Index := Databases.IndexByName(DatabaseName);
-  if (Index < 0) then
-    Result := nil
-  else
-    Result := Databases[Index];
-end;
-
-destructor TCHost.Destroy();
-begin
-  FDatabases.Free();
-
-  inherited;
-end;
-
-function TCHost.GetCaption(): string;
-begin
-  if (Name = '') then
-    Result := '<' + Preferences.LoadStr(327) + '>'
-  else
-    Result := Name;
-end;
-
-function TCHost.GetHosts(): TCHosts;
-begin
-  Assert(CItems is TCHosts);
-
-  Result := TCHosts(CItems);
-end;
-
-function TCHost.GetSource(): string;
-var
-  DataSet: TMySQLQuery;
-  I: Integer;
-begin
-  if (FSource = '') then
-  begin
-    DataSet := TMySQLQuery.Create(nil);
-    DataSet.Connection := Hosts.Client;
-    DataSet.CommandText := 'SELECT * FROM ' + Hosts.Client.EscapeIdentifier('mysql') + '.' + Hosts.Client.EscapeIdentifier('host') + ' WHERE ' + Hosts.Client.EscapeIdentifier('Host') + '=' + SQLEscape(Name);
-    DataSet.Open();
-    if (DataSet.Active and not DataSet.IsEmpty()) then
-      repeat
-        FSource := FSource + 'INSERT INTO ' + Hosts.Client.EscapeIdentifier('mysql') + '.' + Hosts.Client.EscapeIdentifier('host') + ' SET ';
-        for I := 0 to DataSet.FieldCount - 1 do
-        begin
-          if (I > 0) then FSource := FSource + ',';
-          FSource := FSource + Hosts.Client.EscapeIdentifier(DataSet.Fields[I].FieldName) + '=' + SQLEscape(DataSet.Fields[I].AsString);
-        end;
-        FSource := FSource + ';' + #13#10;
-      until (not DataSet.FindNext());
-    DataSet.Free();
-  end;
-
-  Result := inherited GetSource();
-end;
-
-function TCHost.Update(): Boolean;
-var
-  List: TList;
-begin
-  List := TList.Create();
-  List.Add(Self);
-  Result := Client.Update(List);
-  List.Free();
-end;
-
-{ TCHosts *********************************************************************}
-
-function TCHosts.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
-var
-  DeleteList: TList;
-  Index: Integer;
-  Name: string;
-  NewHostDatabase: TCHostDatabase;
-  OldCount: Integer;
-begin
-  OldCount := Count;
-
-  DeleteList := TList.Create();
-  DeleteList.Assign(Self);
-
-  if (not DataSet.IsEmpty()) then
-    repeat
-      Name := DataSet.FieldByName('Host').AsString;
-
-      if (not InsertIndex(Name, Index)) then
-        DeleteList.Delete(DeleteList.IndexOf(Items[Index]))
-      else if (Index < Count) then
-        Insert(Index, TCHost.Create(Self, Name))
-      else
-        Add(TCHost.Create(Self, Name));
-
-      Host[Index].OriginalHost := Host[Index].Name;
-
-      NewHostDatabase := TCHostDatabase.Create(Host[Index].Databases);
-      NewHostDatabase.Name := DataSet.FieldByName('Db').AsString;
-      NewHostDatabase.RAlter := DataSet.FieldByName('Alter_priv').AsBoolean;
-      NewHostDatabase.RCreate := DataSet.FieldByName('Create_priv').AsBoolean;
-      if (Assigned(DataSet.FindField('Create_tmp_table_priv'))) then
-        NewHostDatabase.RCreateTempTable := DataSet.FieldByName('Create_tmp_table_priv').AsBoolean;
-      if (Assigned(DataSet.FindField('Create_view_priv'))) then
-        NewHostDatabase.RCreateView := DataSet.FieldByName('Create_view_priv').AsBoolean;
-      NewHostDatabase.RDelete := DataSet.FieldByName('Delete_priv').AsBoolean;
-      NewHostDatabase.RDrop := DataSet.FieldByName('Drop_priv').AsBoolean;
-      NewHostDatabase.RGrant := DataSet.FieldByName('Grant_priv').AsBoolean;
-      NewHostDatabase.RIndex := DataSet.FieldByName('Index_priv').AsBoolean;
-      NewHostDatabase.RInsert := DataSet.FieldByName('Insert_priv').AsBoolean;
-      if (Assigned(DataSet.FindField('Lock_tables_priv'))) then
-        NewHostDatabase.RLockTables := DataSet.FieldByName('Lock_tables_priv').AsBoolean;
-      NewHostDatabase.RReferences := DataSet.FieldByName('References_priv').AsBoolean;
-      NewHostDatabase.RSelect := DataSet.FieldByName('Select_priv').AsBoolean;
-      if (Assigned(DataSet.FindField('Show_view_priv'))) then
-        NewHostDatabase.RShowView := DataSet.FieldByName('Show_view_priv').AsBoolean;
-      NewHostDatabase.RUpdate := DataSet.FieldByName('Update_priv').AsBoolean;
-
-      Host[Index].Databases.AddDatabase(NewHostDatabase);
-
-      NewHostDatabase.Free();
-    until (not DataSet.FindNext());
-
-  Result := inherited or (Client.ErrorCode = ER_DBACCESS_DENIED_ERROR) or (Client.ErrorCode = ER_TABLEACCESS_DENIED_ERROR);
-
-  if (not Filtered) then
-    while (DeleteList.Count > 0) do
-    begin
-      Index := IndexOf(DeleteList.Items[0]);
-      Item[Index].Free();
-      Delete(Index);
-      DeleteList.Delete(0);
-    end;
-  DeleteList.Free();
-
-  if ((OldCount > 0) or (Count > 0)) then
-    Client.ExecuteEvent(ceItemsValid, Client, Self);
-end;
-
-function TCHosts.GetHost(Index: Integer): TCHost;
-begin
-  Result := TCHost(Items[Index]);
-end;
-
-function TCHosts.GetValid(): Boolean;
-begin
-  Result := (Assigned(Client.UserRights) and not Client.UserRights.RGrant) or inherited;
-end;
-
-function TCHosts.SQLGetItems(const Name: string = ''): string;
-begin
-  Result := 'SELECT * FROM ' + Client.EscapeIdentifier('mysql') + '.' + Client.EscapeIdentifier('host') + ';' + #13#10;
-end;
-
 { TCClient.TEvent *************************************************************}
 
 constructor TCClient.TEvent.Create(const AClient: TCClient);
@@ -9849,22 +9492,20 @@ function Compare(Item1, Item2: Pointer): Integer;
     else if (Item is TCDatabases) then Result := 5
     else if (Item is TCPlugins) then Result := 6
     else if (Item is TCUsers) then Result := 7
-    else if (Item is TCHosts) then Result := 8
-    else if (Item is TCTable) then Result := 9
-    else if (Item is TCProcedure) then Result := 10
-    else if (Item is TCFunction) then Result := 11
-    else if (Item is TCTrigger) then Result := 12
-    else if (Item is TCEvent) then Result := 13
-    else if (Item is TCDatabase) then Result := 14
-    else if (Item is TCVariable) then Result := 15
-    else if (Item is TCStatus) then Result := 16
-    else if (Item is TCEngine) then Result := 17
-    else if (Item is TCCharset) then Result := 18
-    else if (Item is TCCollation) then Result := 19
-    else if (Item is TCPlugin) then Result := 20
-    else if (Item is TCProcess) then Result := 21
-    else if (Item is TCUser) then Result := 22
-    else if (Item is TCHost) then Result := 23
+    else if (Item is TCTable) then Result := 8
+    else if (Item is TCProcedure) then Result := 9
+    else if (Item is TCFunction) then Result := 10
+    else if (Item is TCTrigger) then Result := 11
+    else if (Item is TCEvent) then Result := 12
+    else if (Item is TCDatabase) then Result := 13
+    else if (Item is TCVariable) then Result := 14
+    else if (Item is TCStatus) then Result := 15
+    else if (Item is TCEngine) then Result := 16
+    else if (Item is TCCharset) then Result := 17
+    else if (Item is TCCollation) then Result := 18
+    else if (Item is TCPlugin) then Result := 19
+    else if (Item is TCProcess) then Result := 20
+    else if (Item is TCUser) then Result := 21
     else ERangeError.Create(SRangeError);
   end;
 begin
@@ -9881,11 +9522,6 @@ begin
 
   if (Result and (Account.Connection.Database <> '')) then
     Account.Connection.Database := Account.Connection.Database + ',' + CSVEscape(NewDatabase.Name);
-end;
-
-function TCClient.AddHost(const NewHost: TCHost): Boolean;
-begin
-  Result := UpdateHost(nil, NewHost);
 end;
 
 function TCClient.AddUser(const ANewUser: TCUser): Boolean;
@@ -9983,7 +9619,6 @@ begin
     if (not Assigned(FCollations) and (ServerVersion >= 40100)) then FCollations := TCCollations.Create(Self);
     if (not Assigned(FFieldTypes)) then FFieldTypes := TCFieldTypes.Create(Self);
     if (not Assigned(FEngines)) then FEngines := TCEngines.Create(Self);
-    if (not Assigned(FHosts)) then FHosts := TCHosts.Create(Self);
     if (not Assigned(FPlugins) and (ServerVersion >= 50105)) then FPlugins := TCPlugins.Create(Self);
     if (not Assigned(FStati)) then FStati := TCStati.Create(Self);
     if (not Assigned(FUsers)) then FUsers := TCUsers.Create(Self);
@@ -10198,9 +9833,7 @@ begin
         else if (Databases.NameCmp(DatabaseName, 'mysql') = 0) then
         begin
           DataSet.Open(DataHandle);
-          if (TableNameCmp(ObjectName, 'host') = 0) then
-            Result := FHosts.Build(DataSet, False, not SQLParseEnd(Parse))
-          else if (TableNameCmp(ObjectName, 'user') = 0) then
+          if (TableNameCmp(ObjectName, 'user') = 0) then
             Result := Users.Build(DataSet, False, not SQLParseEnd(Parse));
         end
         else if (DataHandle.Connection.ErrorCode = 0) then
@@ -10354,26 +9987,6 @@ begin
         Result := TargetDatabase.CloneTable(TCBaseTable(SourceDatabase.Tables[I]), SourceDatabase.Tables[I].Name, Data);
 end;
 
-function TCClient.CloneHost(const Host: TCHost; const NewHostHost: string): Boolean;
-var
-  Index: Integer;
-  SQL: string;
-begin
-  SQL := Host.Source;
-
-  while (Pos(SQLEscape(Host.Name), SQL) > 0) do
-  begin
-    Index := Pos(SQLEscape(Host.Name), SQL);
-    Delete(SQL, Index, Length(SQLEscape(Host.Name)));
-    Insert(SQLEscape(NewHostHost), SQL, Index);
-  end;
-
-  Result := ExecuteSQL(SQL);
-
-  if (Result) then
-    ExecuteSQL('FLUSH PRIVILEGES;');
-end;
-
 function TCClient.CloneUser(const User: TCUser; const NewUserName: string): Boolean;
 var
   Index: Integer;
@@ -10436,7 +10049,6 @@ begin
     FDatabases :=  TCDatabases.Create(Self);
     FFieldTypes := nil;
     FEngines := nil;
-    FHosts := nil;
     FInvalidObjects := nil;
     FPlugins := nil;
     FProcesses := nil;
@@ -10465,7 +10077,6 @@ begin
     FDatabases :=  TCDatabases.Create(Self);
     FFieldTypes := nil;
     FEngines := nil;
-    FHosts := nil;
     FInvalidObjects := TList.Create();
     FPlugins := nil;
     FProcesses := nil;
@@ -10623,27 +10234,10 @@ begin
       else
         SQL := SQL + 'KILL CONNECTION ' + IntToStr(TCProcess(List[I]).Id) + ';' + #13#10;
 
-  for I := 0 to List.Count - 1 do
-    if (TObject(List[I]) is TCHost) then
-    begin
-      SQL := SQL + 'DELETE FROM ' + EscapeIdentifier('mysql') + '.' + EscapeIdentifier('host') + ' WHERE ' + EscapeIdentifier('Host') + '=' + SQLEscape(TCHost(List[I]).Name) + ';' + #13#10;
-      FlushPrivileges := True;
-    end;
-
   if (FlushPrivileges) then
     SQL := SQL + 'FLUSH PRIVILEGES;' + #13#10;
 
   Result := ExecuteSQL(SQL);
-end;
-
-function TCClient.DeleteHost(const Host: TCHost): Boolean;
-var
-  List: TList;
-begin
-  List := TList.Create();
-  List.Add(Host);
-  Result := DeleteEntities(List);
-  List.Free();
 end;
 
 function TCClient.DeleteProcess(const Process: TCProcess): Boolean;
@@ -10707,7 +10301,6 @@ begin
   if (Assigned(FDatabases)) then FDatabases.Free();
   if (Assigned(FEngines)) then FEngines.Free();
   if (Assigned(FFieldTypes)) then FFieldTypes.Free();
-  if (Assigned(FHosts)) then FHosts.Free();
   if (Assigned(FInvalidObjects)) then FInvalidObjects.Free();
   if (Assigned(FPlugins)) then FPlugins.Free();
   if (Assigned(FProcesses)) then FProcesses.Free();
@@ -10904,8 +10497,6 @@ begin
   Connected := False;
 
   Asynchron := True;
-  if (Account.Connection.Charset <> '') then
-    Charset := Account.Connection.Charset;
   FDatabaseName := Account.GetDefaultDatabase();
   case (Account.Connection.LibraryType) of
     ltBuiltIn: LibraryName := '';
@@ -10987,14 +10578,6 @@ begin
     Result := VariableByName('character_set').Value
   else
     Result := VariableByName('character_set_server').Value;
-end;
-
-function TCClient.GetHosts(): TCHosts;
-begin
-  if (Assigned(UserRights) and not UserRights.RGrant) then
-    Result := nil
-  else
-    Result := FHosts;
 end;
 
 function TCClient.GetDataFileAllowed(): Boolean;
@@ -11169,28 +10752,6 @@ begin
   end;
 end;
 
-function TCClient.HostByCaption(const Caption: string): TCHost;
-begin
-  if (Caption = '<' + Preferences.LoadStr(327) + '>') then
-    Result := HostByName('')
-  else
-    Result := HostByName(Caption);
-end;
-
-function TCClient.HostByName(const HostName: string): TCHost;
-var
-  I: Integer;
-begin
-  Result := nil;
-
-  if (Hosts.Count = 1) and (HostName = '') then
-    Result := Hosts[0]
-  else
-    for I := 0 to Hosts.Count - 1 do
-      if (lstrcmpi(PChar(Hosts[I].Name), PChar(HostName)) = 0) then
-        Result := Hosts[I];
-end;
-
 procedure TCClient.Invalidate();
 begin
   if (Assigned(Variables)) then Variables.Invalidate();
@@ -11201,7 +10762,6 @@ begin
   if (Assigned(Databases)) then Databases.Invalidate();
   if (Assigned(Plugins)) then Plugins.Invalidate();
   if (Assigned(Users)) then Users.Invalidate();
-  if (Assigned(FHosts)) then FHosts.Invalidate();
 end;
 
 procedure TCClient.MonitorLog(const Sender: TObject; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
@@ -11480,9 +11040,7 @@ begin
     begin
       if ((Length(DMLStmt.DatabaseNames) = 1) and (Length(DMLStmt.TableNames) = 1)
         and (TableNameCmp(DMLStmt.DatabaseNames[0], 'mysql') = 0)) then
-        if (TableNameCmp(DMLStmt.TableNames[0], 'host') = 0) then
-          Hosts.Invalidate()
-        else if (TableNameCmp(DMLStmt.TableNames[0], 'user') = 0) then
+        if (TableNameCmp(DMLStmt.TableNames[0], 'user') = 0) then
           Users.Invalidate();
     end
     else if (SQLParseKeyword(Parse, 'SET')) then
@@ -11880,7 +11438,6 @@ begin
   if (Assigned(Collations) and not Collations.Valid) then List.Add(Collations);
   if (Assigned(Databases) and not Databases.Valid) then List.Add(Databases);
   if (Assigned(Users) and not Users.Valid) then List.Add(Users);
-  if (Assigned(Hosts) and not Hosts.Valid) then List.Add(Hosts);
 
   Result := Update(List);
 
@@ -12029,87 +11586,6 @@ begin
       SQL := 'ALTER DATABASE ' + EscapeIdentifier(Database.Name) + SQL + ';' + #13#10;
 
   Result := (SQL = '') or SendSQL(SQL);
-end;
-
-function TCClient.UpdateHost(const Host, NewHost: TCHost): Boolean;
-
-  function GetRightString(const Right: Boolean): string;
-  begin
-    if (Right) then
-      Result := SQLEscape('Y')
-    else
-      Result := SQLEscape('N');
-  end;
-
-var
-  Found: Boolean;
-  I: Integer;
-  J: Integer;
-  OldDatabase: TCHostDatabase;
-  SQL: string;
-  Updates: string;
-begin
-  SQL := '';
-
-  if (Assigned(Host)) then
-  begin
-    for I := 0 to Host.Databases.Count - 1 do
-    begin
-      Found := False;
-      for J := 0 to NewHost.Databases.Count - 1 do
-        if (NewHost.Databases[J].OriginalName = Host.Databases[I].OriginalName) then
-          Found := True;
-
-      if (not Found) then
-        SQL := SQL + 'DELETE FROM ' + EscapeIdentifier('mysql') + '.' + EscapeIdentifier('host') + ' WHERE ' + EscapeIdentifier('Host') + '=' + SQLEscape(Host.Name) + ' AND ' + EscapeIdentifier('Db') + '=' + SQLEscape(Host.Databases[I].Name) + ';' + #13#10;
-    end;
-  end;
-
-  for I := 0 to NewHost.Databases.Count - 1 do
-  begin
-    OldDatabase := nil;
-    if (Assigned(Host)) then
-      for J := 0 to Host.Databases.Count - 1 do
-        if (Host.Databases[J].OriginalName = NewHost.Databases[I].OriginalName) then
-          OldDatabase := Host.Databases[J];
-
-    Updates := '';
-    if (not Assigned(Host) or not Assigned(OldDatabase) or (NewHost.Name                          <> Host.Name                   )                       ) then Updates := Updates + ',' + EscapeIdentifier('Host') + '='                  + SQLEscape(NewHost.Name);
-    if (not Assigned(Host) or not Assigned(OldDatabase) or (NewHost.Databases[I].Name             <> OldDatabase.Name            )                       ) then Updates := Updates + ',' + EscapeIdentifier('Db') + '='                    + SQLEscape(NewHost.Databases[I].Name);
-
-    if (not Assigned(Host) or not Assigned(OldDatabase) or (NewHost.Databases[I].RAlter           <> OldDatabase.RAlter          )                       ) then Updates := Updates + ',' + EscapeIdentifier('Alter_priv') + '='            + GetRightString(NewHost.Databases[I].RAlter          );
-    if (not Assigned(Host) or not Assigned(OldDatabase) or (NewHost.Databases[I].RCreate          <> OldDatabase.RCreate         )                       ) then Updates := Updates + ',' + EscapeIdentifier('Create_priv') + '='           + GetRightString(NewHost.Databases[I].RCreate         );
-    if (not Assigned(Host) or not Assigned(OldDatabase) or (NewHost.Databases[I].RCreateTempTable <> OldDatabase.RCreateTempTable)                       ) then Updates := Updates + ',' + EscapeIdentifier('Create_tmp_table_priv') + '=' + GetRightString(NewHost.Databases[I].RCreateTempTable);
-    if (not Assigned(Host) or not Assigned(OldDatabase) or (NewHost.Databases[I].RCreateView      <> OldDatabase.RCreateView     ) and (ServerVersion >= 50001)) then Updates := Updates + ',' + EscapeIdentifier('Create_view_priv') + '='      + GetRightString(NewHost.Databases[I].RCreateView     );
-    if (not Assigned(Host) or not Assigned(OldDatabase) or (NewHost.Databases[I].RDelete          <> OldDatabase.RDelete         )                       ) then Updates := Updates + ',' + EscapeIdentifier('Delete_priv') + '='           + GetRightString(NewHost.Databases[I].RDelete         );
-    if (not Assigned(Host) or not Assigned(OldDatabase) or (NewHost.Databases[I].RDrop            <> OldDatabase.RDrop           )                       ) then Updates := Updates + ',' + EscapeIdentifier('Drop_priv') + '='             + GetRightString(NewHost.Databases[I].RDrop           );
-    if (not Assigned(Host) or not Assigned(OldDatabase) or (NewHost.Databases[I].RGrant           <> OldDatabase.RGrant          )                       ) then Updates := Updates + ',' + EscapeIdentifier('Grant_priv') + '='            + GetRightString(NewHost.Databases[I].RGrant          );
-    if (not Assigned(Host) or not Assigned(OldDatabase) or (NewHost.Databases[I].RIndex           <> OldDatabase.RIndex          )                       ) then Updates := Updates + ',' + EscapeIdentifier('Index_priv') + '='            + GetRightString(NewHost.Databases[I].RIndex          );
-    if (not Assigned(Host) or not Assigned(OldDatabase) or (NewHost.Databases[I].RInsert          <> OldDatabase.RInsert         )                       ) then Updates := Updates + ',' + EscapeIdentifier('Insert_priv') + '='           + GetRightString(NewHost.Databases[I].RInsert         );
-    if (not Assigned(Host) or not Assigned(OldDatabase) or (NewHost.Databases[I].RLockTables      <> OldDatabase.RLockTables     )                       ) then Updates := Updates + ',' + EscapeIdentifier('Lock_tables_priv') + '='      + GetRightString(NewHost.Databases[I].RLockTables     );
-    if (not Assigned(Host) or not Assigned(OldDatabase) or (NewHost.Databases[I].RReferences      <> OldDatabase.RReferences     )                       ) then Updates := Updates + ',' + EscapeIdentifier('References_priv') + '='       + GetRightString(NewHost.Databases[I].RReferences     );
-    if (not Assigned(Host) or not Assigned(OldDatabase) or (NewHost.Databases[I].RSelect          <> OldDatabase.RSelect         )                       ) then Updates := Updates + ',' + EscapeIdentifier('Select_priv') + '='           + GetRightString(NewHost.Databases[I].RSelect         );
-    if (not Assigned(Host) or not Assigned(OldDatabase) or (NewHost.Databases[I].RShowView        <> OldDatabase.RShowView       ) and (ServerVersion >= 50001)) then Updates := Updates + ',' + EscapeIdentifier('Show_view_priv') + '='        + GetRightString(NewHost.Databases[I].RShowView       );
-    if (not Assigned(Host) or not Assigned(OldDatabase) or (NewHost.Databases[I].RUpdate          <> OldDatabase.RUpdate         )                       ) then Updates := Updates + ',' + EscapeIdentifier('Update_priv') + '='           + GetRightString(NewHost.Databases[I].RUpdate         );
-    if (Copy(Updates, 1, 1) = ',') then Delete(Updates, 1, 1);
-
-    if (not Assigned(Host) or not Assigned(OldDatabase)) then
-      SQL := SQL + 'INSERT INTO ' + EscapeIdentifier('mysql') + '.' + EscapeIdentifier('host') + ' SET ' + Updates + ';' + #13#10
-    else if (Updates <> '') then
-      SQL := SQL + 'UPDATE ' + EscapeIdentifier('mysql') + '.' + EscapeIdentifier('host') + ' SET ' + Updates + ' WHERE ' + EscapeIdentifier('Host') + '=' + SQLEscape(Host.Name) + ' AND ' + EscapeIdentifier('Db') + '=' + SQLEscape(OldDatabase.Name) + ';' + #13#10;
-  end;
-
-  if (SQL = '') then
-    Result := True
-  else
-  begin
-    if (DatabaseName <> 'mysql') then
-      SQL := SQLUse('mysql') + SQL;
-
-    SQL := SQL + 'FLUSH PRIVILEGES;' + #13#10;
-
-    Result := SendSQL(SQL);
-  end;
 end;
 
 procedure TCClient.UpdateIndexDefs(const DataSet: TMySQLQuery; const IndexDefs: TIndexDefs);

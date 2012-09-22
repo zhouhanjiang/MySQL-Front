@@ -1069,7 +1069,7 @@ begin
     FFilename.Visible := False; FLFilename.Visible := FFilename.Visible;
     FFilename.Text := '';
   end
-  else
+  else if (DialogType = edtEditJob) then
   begin
     Node := FSelect.Items.Add(nil, Client.Caption);
     Node.ImageIndex := iiServer;
@@ -1326,8 +1326,8 @@ var
 begin
   Database := BuildTitle();
 
-  if (Assigned(Client) and (Client.Account.Connection.Charset <> '')) then
-    CodePage := Client.CharsetToCodePage(Client.Account.Connection.Charset)
+  if (Assigned(Client) and (Client.Charset <> '')) then
+    CodePage := Client.CharsetToCodePage(Client.Charset)
   else if ((DExport.Objects.Count = 1) and (TObject(DExport.Objects[0]) is TCBaseTable)) then
     CodePage := Client.CharsetToCodePage(TCBaseTable(DExport.Objects[0]).DefaultCharset)
   else if (Assigned(Database)) then

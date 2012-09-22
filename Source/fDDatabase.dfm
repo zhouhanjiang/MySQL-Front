@@ -5,7 +5,7 @@ object DDatabase: TDDatabase
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'DDatabase'
-  ClientHeight = 248
+  ClientHeight = 252
   ClientWidth = 337
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -21,24 +21,25 @@ object DDatabase: TDDatabase
   OnShow = FormShow
   DesignSize = (
     337
-    248)
+    252)
   PixelsPerInch = 106
   TextHeight = 13
   object PSQLWait: TPanel
     Left = 8
     Top = 8
     Width = 321
-    Height = 196
+    Height = 200
     Cursor = crHourGlass
     Anchors = [akLeft, akTop, akRight, akBottom]
     BevelOuter = bvNone
     Caption = 'PSQLWait'
     TabOrder = 0
     Visible = False
+    ExplicitHeight = 196
   end
   object FBOk: TButton
     Left = 167
-    Top = 215
+    Top = 219
     Width = 75
     Height = 25
     Anchors = [akRight, akBottom]
@@ -46,10 +47,11 @@ object DDatabase: TDDatabase
     Default = True
     ModalResult = 1
     TabOrder = 2
+    ExplicitTop = 215
   end
   object FBCancel: TButton
     Left = 255
-    Top = 215
+    Top = 219
     Width = 75
     Height = 25
     Anchors = [akRight, akBottom]
@@ -57,16 +59,18 @@ object DDatabase: TDDatabase
     Caption = 'FBCancel'
     ModalResult = 2
     TabOrder = 4
+    ExplicitTop = 215
   end
   object FBHelp: TButton
     Left = 8
-    Top = 215
+    Top = 219
     Width = 75
     Height = 25
     Anchors = [akLeft, akBottom]
     Caption = 'FBHelp'
     TabOrder = 1
     OnClick = FBHelpClick
+    ExplicitTop = 215
   end
   object PageControl: TPageControl
     Left = 8
@@ -153,6 +157,10 @@ object DDatabase: TDDatabase
     object TSInformations: TTabSheet
       Caption = 'TSInformations'
       OnShow = TSInformationsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         168)
@@ -232,6 +240,10 @@ object DDatabase: TDDatabase
     object TSSource: TTabSheet
       Caption = 'TSSource'
       OnShow = TSSourceShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         168)

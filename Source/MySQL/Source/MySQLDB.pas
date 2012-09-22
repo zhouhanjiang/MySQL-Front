@@ -1940,10 +1940,7 @@ begin
     Result := not Terminated and ((RunExecute.WaitFor(IGNORE) = wrSignaled) or not (State in [ssClose, ssReady]));
   except
     on E: Exception do
-      begin
-        E.Message := E.Message + ' - Nils: ' + IntToStr(Nils);
-        raise E;
-      end;
+      raise Exception.Create(E.Message + ' - Nils: ' + IntToStr(Nils));
   end;
 end;
 
@@ -2433,7 +2430,7 @@ begin
       case (CLStmt.CommandType) of
         ctSetNames,
         ctSetCharacterSet:
-          SetNames := True;
+          SetNames := CLStmt.ObjectName <> Charset;
         ctUse:
           SynchroThread.SQLUseStmts.Add(Pointer(SynchroThread.SQLStmt));
       end;
@@ -4464,18 +4461,12 @@ begin
             MYSQL_TYPE_STRING:
               if (Binary) then
                 begin Field := TMySQLStringField.Create(Self); if (Connection.ServerVersion < 40100) then Field.Size := Len + 1 else Field.Size := Len; end
+              else if (Len <= 255) then
+                begin Field := TMySQLWideStringField.Create(Self); Field.Size := 255; end
+              else if ((Len <= 65535) and (Connection.ServerVersion >= 50000)) then
+                begin Field := TMySQLWideStringField.Create(Self); Field.Size := 65535; end
               else
-              begin
-                if ((Connection.ServerVersion >= 40101) and (Connection.Lib.Version >= 40101)
-                  and (Connection.Lib.Field(LibField).charsetnr <> Connection.CharsetNr)) then
-                  raise ERangeError.CreateFmt(SPropertyOutOfRange, ['charsetnr']);
-                if (Len <= 255) then
-                  begin Field := TMySQLWideStringField.Create(Self); Field.Size := 255; end
-                else if ((Len <= 65535) and (Connection.ServerVersion >= 50000)) then
-                  begin Field := TMySQLWideStringField.Create(Self); Field.Size := 65535; end
-                else
-                  begin Field := TMySQLWideMemoField.Create(Self); Field.Size := Len; end;
-              end;
+                begin Field := TMySQLWideMemoField.Create(Self); Field.Size := Len; end;
             MYSQL_TYPE_GEOMETRY:
               begin Field := TMySQLBlobField.Create(Self); Field.Size := Len; Field.Tag := ftGeometryField; end;
             else

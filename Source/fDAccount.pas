@@ -17,12 +17,10 @@ type
     FBDatabase: TButton;
     FBHelp: TButton;
     FBOk: TButton;
-    FCharset: TComboBox_Ext;
     FConnectionType: TComboBox_Ext;
     FDatabase: TEdit;
     FHost: TEdit;
     FHTTPTunnelURI: TEdit;
-    FLCharset: TLabel;
     FLConnectionType: TLabel;
     FLDatabase: TLabel;
     FLHost: TLabel;
@@ -52,7 +50,6 @@ type
     OpenDialog: TOpenDialog_Ext;
     procedure FBDatabaseClick(Sender: TObject);
     procedure FBHelpClick(Sender: TObject);
-    procedure FCharsetDropDown(Sender: TObject);
     procedure FConnectionTypeChange(Sender: TObject);
     procedure FEditChange(Sender: TObject);
     procedure FHostExit(Sender: TObject);
@@ -131,7 +128,6 @@ begin
   FConnectionTypeChange(nil);
   FLLibraryFilename.Caption := Preferences.LoadStr(568) + ':';
   FLHTTPTunnelURI.Caption := Preferences.LoadStr(652) + ':';
-  FLCharset.Caption := Preferences.LoadStr(682) + ':';
 
   GLogin.Caption := Preferences.LoadStr(34);
   FLUser.Caption := Preferences.LoadStr(561) + ':';
@@ -197,41 +193,6 @@ end;
 procedure TDAccount.FBHelpClick(Sender: TObject);
 begin
   Application.HelpContext(HelpContext)
-end;
-
-procedure TDAccount.FCharsetDropDown(Sender: TObject);
-var
-  Client: TCClient;
-  I: Integer;
-  LibraryName: string;
-begin
-  if ((FCharset.Items.Count = 0) and CheckConnectInfos()) then
-  begin
-    Client := TCClient.Create(Clients);
-    if (Assigned(Client)) then
-    begin
-      case (FConnectionType.ItemIndex) of
-        0: LibraryName := '';
-        1: LibraryName := FLibraryFilename.Text;
-        2: LibraryName := FHTTPTunnelURI.Text;
-      end;
-
-      Client.BeginSilent();
-      Client.FirstConnect(FConnectionType.ItemIndex, LibraryName, FHost.Text, FUser.Text, FPassword.Text, '', FUDPort.Position, False);
-      if (Client.ErrorCode <> 0) then
-        Client.OnSQLError(Client, Client.ErrorCode, Client.ErrorMessage)
-      else if (Client.Connected) then
-      begin
-        if (Client.Charsets.Update()) then
-          for I := 0 to Client.Charsets.Count - 1 do
-            FCharset.Items.Add(Client.Charsets.Charset[I].Name);
-        FCharset.ItemIndex := FCharset.Items.IndexOf(Client.Charset);
-      end;
-      Client.EndSilent();
-
-      Client.Free();
-    end;
-  end;
 end;
 
 procedure TDAccount.FConnectionTypeChange(Sender: TObject);
@@ -324,7 +285,6 @@ begin
       end;
       NewAccount.Connection.LibraryFilename := Trim(FLibraryFilename.Text);
       NewAccount.Connection.HTTPTunnelURI := Trim(FHTTPTunnelURI.Text);
-      NewAccount.Connection.Charset := Trim(FCharset.Text);
 
       NewAccount.Connection.User := Trim(FUser.Text);
       NewAccount.Connection.Password := Trim(FPassword.Text);
@@ -368,8 +328,6 @@ begin
   else
     Caption := Preferences.LoadStr(842, Account.Name);
 
-  FCharset.Items.Clear();
-
   FConnectionType.Items.Text := Preferences.LoadStr(649) + #13#10 + Preferences.LoadStr(650) + #13#10 + Preferences.LoadStr(651);
 
   if (not Assigned(Account)) then
@@ -381,7 +339,6 @@ begin
     FConnectionType.ItemIndex := 0;
     FLibraryFilename.Text := 'libMySQL.dll';
     FHTTPTunnelURI.Text := '';
-    FCharset.Text := '';
 
     FUser.Text := 'root';
     FPassword.Text := '';
@@ -407,7 +364,6 @@ begin
     end;
     FLibraryFilename.Text := Account.Connection.LibraryFilename;
     FHTTPTunnelURI.Text := Account.Connection.HTTPTunnelURI;
-    FCharset.Text := Account.Connection.Charset;
 
     FUser.Text := Username;
     FPassword.Text := Password;

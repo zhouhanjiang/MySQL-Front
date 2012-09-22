@@ -5,7 +5,7 @@ object DAccount: TDAccount
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'DAccount'
-  ClientHeight = 401
+  ClientHeight = 370
   ClientWidth = 313
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -22,7 +22,7 @@ object DAccount: TDAccount
   TextHeight = 13
   object FBOk: TButton
     Left = 142
-    Top = 368
+    Top = 336
     Width = 75
     Height = 25
     Caption = 'FBOk'
@@ -32,7 +32,7 @@ object DAccount: TDAccount
   end
   object FBCancel: TButton
     Left = 230
-    Top = 368
+    Top = 336
     Width = 75
     Height = 25
     Cancel = True
@@ -69,7 +69,7 @@ object DAccount: TDAccount
     Left = 8
     Top = 55
     Width = 297
-    Height = 163
+    Height = 130
     Caption = 'GConnection'
     TabOrder = 5
     object FLHost: TLabel
@@ -113,14 +113,6 @@ object DAccount: TDAccount
       Caption = 'FLLibraryFilename'
       FocusControl = FLibraryFilename
       Visible = False
-    end
-    object FLCharset: TLabel
-      Left = 8
-      Top = 135
-      Width = 48
-      Height = 13
-      Caption = 'FLCharset'
-      FocusControl = FCharset
     end
     object FHTTPTunnelURI: TEdit
       Left = 128
@@ -181,18 +173,10 @@ object DAccount: TDAccount
       TabOrder = 2
       Thousands = False
     end
-    object FCharset: TComboBox_Ext
-      Left = 128
-      Top = 132
-      Width = 97
-      Height = 21
-      TabOrder = 6
-      OnDropDown = FCharsetDropDown
-    end
   end
   object GLogin: TGroupBox_Ext
     Left = 8
-    Top = 223
+    Top = 191
     Width = 297
     Height = 125
     Caption = 'GLogin'
@@ -262,7 +246,7 @@ object DAccount: TDAccount
   end
   object FBHelp: TButton
     Left = 8
-    Top = 368
+    Top = 336
     Width = 75
     Height = 25
     Caption = 'FBHelp'
@@ -274,11 +258,11 @@ object DAccount: TDAccount
     EncodingIndex = -1
     EncodingLabel = '&Encoding:'
     Left = 80
-    Top = 368
+    Top = 336
   end
   object MSource: TPopupMenu
     Left = 112
-    Top = 368
+    Top = 336
     object msUndo: TMenuItem
       Caption = 'aEUndo'
     end

@@ -576,7 +576,7 @@ type
 
   TADesktop = class
   type
-    TListViewKind = (lkServer, lkDatabase, lkTable, lkHosts, lkProcesses, lkStati, lkUsers, lkVariables);
+    TListViewKind = (lkServer, lkDatabase, lkTable, lkProcesses, lkStati, lkUsers, lkVariables);
   private
     FAccount: TAAccount;
     FBookmarks: TABookmarks;
@@ -625,7 +625,6 @@ type
     procedure SaveToXML(); virtual;
     property XML: IXMLNode read GetXML;
   public
-    Charset: string;
     Database: string;
     Host: string;
     HTTPTunnelURI: string;
@@ -3270,7 +3269,6 @@ begin
     if (Assigned(XMLNode(XML, 'objects/table/widths/default'))) then TryStrToInt(XMLNode(XML, 'objects/table/widths/default').Text, ColumnWidths[lkTable][3]);
     if (Assigned(XMLNode(XML, 'objects/table/widths/extras'))) then TryStrToInt(XMLNode(XML, 'objects/table/widths/extras').Text, ColumnWidths[lkTable][4]);
     if (Assigned(XMLNode(XML, 'objects/table/widths/comment'))) then TryStrToInt(XMLNode(XML, 'objects/table/widths/comment').Text, ColumnWidths[lkTable][5]);
-    if (Assigned(XMLNode(XML, 'objects/hosts/widths/host'))) then TryStrToInt(XMLNode(XML, 'objects/hosts/widths/host').Text, ColumnWidths[lkHosts][0]);
     if (Assigned(XMLNode(XML, 'objects/processes/widths/id'))) then TryStrToInt(XMLNode(XML, 'objects/processes/widths/id').Text, ColumnWidths[lkProcesses][0]);
     if (Assigned(XMLNode(XML, 'objects/processes/widths/user'))) then TryStrToInt(XMLNode(XML, 'objects/processes/widths/user').Text, ColumnWidths[lkProcesses][1]);
     if (Assigned(XMLNode(XML, 'objects/processes/widths/host'))) then TryStrToInt(XMLNode(XML, 'objects/processes/widths/host').Text, ColumnWidths[lkProcesses][2]);
@@ -3335,7 +3333,6 @@ begin
   XMLNode(XML, 'objects/table/widths/default').Text := IntToStr(ColumnWidths[lkTable][3]);
   XMLNode(XML, 'objects/table/widths/extras').Text := IntToStr(ColumnWidths[lkTable][4]);
   XMLNode(XML, 'objects/table/widths/comment').Text := IntToStr(ColumnWidths[lkTable][5]);
-  XMLNode(XML, 'objects/hosts/widths/host').Text := IntToStr(ColumnWidths[lkHosts][0]);
   XMLNode(XML, 'objects/processes/widths/id').Text := IntToStr(ColumnWidths[lkProcesses][0]);
   XMLNode(XML, 'objects/processes/widths/user').Text := IntToStr(ColumnWidths[lkProcesses][1]);
   XMLNode(XML, 'objects/processes/widths/host').Text := IntToStr(ColumnWidths[lkProcesses][2]);
@@ -3388,7 +3385,6 @@ end;
 
 procedure TAConnection.Assign(const Source: TAConnection);
 begin
-  Charset := Source.Charset;
   Database := Source.Database;
   Host := Source.Host;
   HTTPTunnelURI := Source.HTTPTunnelURI;
@@ -3407,7 +3403,6 @@ begin
   FAccount := AAccount;
   FXML := nil;
 
-  Charset := '';
   Database := '';
   Host := '';
   HTTPTunnelURI := '';
@@ -3431,7 +3426,6 @@ procedure TAConnection.LoadFromXML();
 begin
   if (Assigned(XML)) then
   begin
-    if (Assigned(XMLNode(XML, 'character_set'))) then Charset := XMLNode(XML, 'character_set').Text;
     if (Assigned(XMLNode(XML, 'database'))) then Database := XMLNode(XML, 'database').Text;
     if (Assigned(XMLNode(XML, 'host'))) then Host := XMLNode(XML, 'host').Text;
     if (Assigned(XMLNode(XML, 'library/type'))) then
@@ -3451,7 +3445,6 @@ end;
 
 procedure TAConnection.SaveToXML();
 begin
-  XMLNode(XML, 'character_set').Text := Charset;
   XMLNode(XML, 'database').Text := Database;
   XMLNode(XML, 'host').Text := Host;
   case (LibraryType) of

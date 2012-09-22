@@ -93,7 +93,7 @@ uses
   MySQLConsts,
   CommCtrl_Ext,
   MySQLDB, SQLUtils,
-  fPreferences, fDVariable, fDUser, fDHost, fDStatement;
+  fPreferences;
 
 var
   FServer: TDServer;

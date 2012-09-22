@@ -156,7 +156,6 @@ type
     miNCreateField: TMenuItem;
     miNCreateForeignKey: TMenuItem;
     miNCreateFunction: TMenuItem;
-    miNCreateHost: TMenuItem;
     miNCreateIndex: TMenuItem;
     miNCreateProcedure: TMenuItem;
     miNCreateTable: TMenuItem;
@@ -204,7 +203,6 @@ type
     mlDCreateField: TMenuItem;
     mlDCreateForeignKey: TMenuItem;
     mlDCreateFunction: TMenuItem;
-    mlDCreateHost: TMenuItem;
     mlDCreateIndex: TMenuItem;
     mlDCreateProcedure: TMenuItem;
     mlDCreateTable: TMenuItem;
@@ -414,7 +412,6 @@ type
     procedure aDCreateExecute(Sender: TObject);
     procedure aDCreateFieldExecute(Sender: TObject);
     procedure aDCreateForeignKeyExecute(Sender: TObject);
-    procedure aDCreateHostExecute(Sender: TObject);
     procedure aDCreateIndexExecute(Sender: TObject);
     procedure aDCreateRoutineExecute(Sender: TObject);
     procedure aDCreateTableExecute(Sender: TObject);
@@ -893,7 +890,6 @@ type
     FSQLEditorCompletionTimerCounter: Integer;
     FSQLHistoryMenuNode: TTreeNode;
     GIFImage: TGIFImage;
-    HostsListView: TListView;
     IgnoreFGridTitleClick: Boolean;
     JPEGImage: TJPEGImage;
     LastFNavigatorSelected: TTreeNode;
@@ -1106,7 +1102,7 @@ uses
   acQBLocalizer, acQBStrings,
   CommCtrl_Ext, StdActns_Ext,
   MySQLConsts, SQLUtils,
-  fDField, fDKey, fDTable, fDVariable, fDDatabase, fDForeignKey, fDHost, fDUser,
+  fDField, fDKey, fDTable, fDVariable, fDDatabase, fDForeignKey, fDUser,
   fDQuickFilter, fDSQLHelp, fDTransfer, fDSearch, fDServer, fDBookmark,
   fURI, fDView, fDRoutine, fDTrigger, fDStatement, fDEvent, fDPaste, fDSegment,
   fDConnecting;
@@ -1131,11 +1127,10 @@ const
   giFields = 7;
   giForeignKeys = 8;
   giTriggers = 9;
-  giHosts = 10;
-  giProcesses = 11;
-  giStati = 12;
-  giUsers = 13;
-  giVariables = 14;
+  giProcesses = 10;
+  giStati = 11;
+  giUsers = 12;
+  giVariables = 13;
 
 const
   Filters: array[0 .. 12 - 1] of
@@ -2143,7 +2138,6 @@ begin
     else if (MainAction('aDCreateDatabase').Enabled) then MainAction('aDCreateDatabase').Execute()
     else if (MainAction('aDCreateTable').Enabled) then MainAction('aDCreateTable').Execute()
     else if (MainAction('aDCreateField').Enabled) then MainAction('aDCreateField').Execute()
-    else if (MainAction('aDCreateHost').Enabled) then MainAction('aDCreateHost').Execute()
     else if (MainAction('aDCreateUser').Enabled) then MainAction('aDCreateUser').Execute();
   end
   else if (Window.ActiveControl = FSQLEditorSynMemo) then
@@ -2181,16 +2175,6 @@ begin
     if (DForeignKey.Execute()) then
       Wanted.Update := Client.Update;
   end;
-end;
-
-procedure TFClient.aDCreateHostExecute(Sender: TObject);
-begin
-  Wanted.Clear();
-
-  DHost.Client := Client;
-  DHost.Host := nil;
-  if (DHost.Execute()) then
-    Wanted.Update := Client.Update;
 end;
 
 procedure TFClient.aDCreateIndexExecute(Sender: TObject);
@@ -2322,7 +2306,6 @@ begin
     else if (TCItem(CItems[0]) is TCKey) then Msg := Preferences.LoadStr(162, TCItem(CItems[0]).Caption)
     else if (TCItem(CItems[0]) is TCField) then Msg := Preferences.LoadStr(100, TCItem(CItems[0]).Caption)
     else if (TCItem(CItems[0]) is TCForeignKey) then Msg := Preferences.LoadStr(692, TCItem(CItems[0]).Caption)
-    else if (TCItem(CItems[0]) is TCHost) then Msg := Preferences.LoadStr(429, TCItem(CItems[0]).Caption)
     else if (TCItem(CItems[0]) is TCUser) then Msg := Preferences.LoadStr(428, TCItem(CItems[0]).Caption)
     else if (TCItem(CItems[0]) is TCProcess) then Msg := Preferences.LoadStr(534, TCItem(CItems[0]).Caption);
   end
@@ -2337,7 +2320,7 @@ begin
 
     List.Clear();
     for I := 0 to CItems.Count - 1 do
-      if ((TCItem(CItems[I]) is TCDatabase) or (TCItem(CItems[I]) is TCDBObject) or (TCItem(CItems[I]) is TCHost) or (TCItem(CItems[I]) is TCProcess)) then
+      if ((TCItem(CItems[I]) is TCDatabase) or (TCItem(CItems[I]) is TCDBObject) or (TCItem(CItems[I]) is TCProcess)) then
       begin
         List.Add(TCEntity(CItems[I]));
         CItems[I] := nil;
@@ -2664,8 +2647,6 @@ begin
   begin
     if (not Client.Update() and ((URI.Database <> '') or (URI.Param['system'] <> Null))) then
       AllowChange := False
-    else if (URI.Param['system'] = 'hosts') then
-      Client.Hosts.Update()
     else if (URI.Param['system'] = 'processes') then
       Client.Processes.Update()
     else if (URI.Param['system'] = 'stati') then
@@ -2890,12 +2871,6 @@ begin
       DForeignKey.ForeignKey := TCForeignKey(CItem);
       Execute := DForeignKey.Execute;
     end
-    else if (CItem is TCHost) then
-    begin
-      DHost.Client := Client;
-      DHost.Host := TCHost(CItem);
-      Execute := DHost.Execute;
-    end
     else if (CItem is TCProcess) then
     begin
       Process := Client.ProcessById(SysUtils.StrToInt(ActiveListView.Selected.Caption));
@@ -3064,7 +3039,6 @@ begin
         iiViewField:  Data := Data + 'Field='       + FNavigatorMenuNode.Text + #13#10;
         iiForeignKey: Data := Data + 'ForeignKey='  + FNavigatorMenuNode.Text + #13#10;
         iiTrigger:    Data := Data + 'Trigger='     + FNavigatorMenuNode.Text + #13#10;
-        iiHost:       Data := Data + 'Host='        + FNavigatorMenuNode.Text + #13#10;
         iiUser:       Data := Data + 'User='        + FNavigatorMenuNode.Text + #13#10;
       end;
       if (Data <> '') then
@@ -3089,7 +3063,6 @@ begin
           iiViewField:  Data := Data + 'Field='      + ActiveListView.Items[I].Caption + #13#10;
           iiForeignKey: Data := Data + 'ForeignKey=' + ActiveListView.Items[I].Caption + #13#10;
           iiTrigger:    Data := Data + 'Trigger='    + ActiveListView.Items[I].Caption + #13#10;
-          iiHost:       Data := Data + 'Host='       + TCHost(ActiveListView.Items[I].Data).Name + #13#10;
           iiUser:       Data := Data + 'User='       + ActiveListView.Items[I].Caption + #13#10;
         end;
     if (Data <> '') then
@@ -3176,7 +3149,6 @@ begin
       iiSystemView: SetClipboardData(CF_MYSQLTABLE, ClipboardData);
       iiView: SetClipboardData(CF_MYSQLVIEW, ClipboardData);
       iiUsers: SetClipboardData(CF_MYSQLUSERS, ClipboardData);
-      iiHosts: SetClipboardData(CF_MYSQLHOSTS, ClipboardData);
     end;
     GlobalUnlock(ClipboardData);
 
@@ -3288,7 +3260,6 @@ begin
         iiDatabase: ClipboardData := GetClipboardData(CF_MYSQLDATABASE);
         iiBaseTable: ClipboardData := GetClipboardData(CF_MYSQLTABLE);
         iiView: ClipboardData := GetClipboardData(CF_MYSQLVIEW);
-        iiHosts: ClipboardData := GetClipboardData(CF_MYSQLHOSTS);
         iiUsers: ClipboardData := GetClipboardData(CF_MYSQLUSERS);
         else ClipboardData := 0;
       end;
@@ -4182,7 +4153,6 @@ begin
             iiFunction: TCFunction(FNavigator.Selected.Data).Invalidate();
             iiEvent: TCEvent(FNavigator.Selected.Data).Invalidate();
             iiTrigger: TCTrigger(FNavigator.Selected.Data).Invalidate();
-            iiHosts: Client.Hosts.Invalidate();
             iiProcesses: Client.Processes.Invalidate();
             iiStati: Client.Stati.Invalidate();
             iiUsers: Client.Users.Invalidate();
@@ -4417,8 +4387,6 @@ begin
         if ((Event.Sender is TCBaseTable) and Assigned(Desktop(TCBaseTable(Event.Sender).Database).Workbench)) then
           Desktop(TCBaseTable(Event.Sender).Database).Workbench.ClientUpdate(Event);
       end
-      else if (Event.CItems is TCHosts) then
-        ListViewUpdate(Event, HostsListView)
       else if (Event.CItems is TCProcesses) then
         ListViewUpdate(Event, ProcessesListView)
       else if (Event.CItems is TCStati) then
@@ -4822,7 +4790,6 @@ begin
     MainAction('aDCreateForeignKey').OnExecute := aDCreateForeignKeyExecute;
     MainAction('aDCreateTrigger').OnExecute := aDCreateTriggerExecute;
     MainAction('aDCreateEvent').OnExecute := aDCreateEventExecute;
-    MainAction('aDCreateHost').OnExecute := aDCreateHostExecute;
     MainAction('aDCreateUser').OnExecute := aDCreateUserExecute;
     MainAction('aDEditServer').OnExecute := PropertiesServerExecute;
     MainAction('aDEditDatabase').OnExecute := aDPropertiesExecute;
@@ -4834,7 +4801,6 @@ begin
     MainAction('aDEditKey').OnExecute := aDPropertiesExecute;
     MainAction('aDEditField').OnExecute := aDPropertiesExecute;
     MainAction('aDEditForeignKey').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditHost').OnExecute := aDPropertiesExecute;
     MainAction('aDEditProcess').OnExecute := aDPropertiesExecute;
     MainAction('aDEditUser').OnExecute := aDPropertiesExecute;
     MainAction('aDEditVariable').OnExecute := aDPropertiesExecute;
@@ -4847,7 +4813,6 @@ begin
     MainAction('aDDeleteForeignKey').OnExecute := aDDeleteExecute;
     MainAction('aDDeleteTrigger').OnExecute := aDDeleteExecute;
     MainAction('aDDeleteEvent').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteHost').OnExecute := aDDeleteExecute;
     MainAction('aDDeleteUser').OnExecute := aDDeleteExecute;
     MainAction('aDDeleteProcess').OnExecute := aDDeleteExecute;
     MainAction('aDInsertRecord').OnExecute := aDInsertRecordExecute;
@@ -5133,7 +5098,6 @@ begin
     iiBaseTable,
     iiSystemView,
     iiView: Result := lkTable;
-    iiHosts: Result := lkHosts;
     iiProcesses: Result := lkProcesses;
     iiUsers: Result := lkUsers;
     iiStati: Result := lkStati;
@@ -5190,7 +5154,6 @@ begin
   ActiveListView := FServerListView;
   ActiveSynMemo := nil;
   ActiveWorkbench := nil;
-  HostsListView := nil;
   ProcessesListView := nil;
   StatiListView := nil;
   UsersListView := nil;
@@ -5273,7 +5236,6 @@ begin
   miNCreateTrigger.Action := MainAction('aDCreateTrigger');
   miNCreateEvent.Action := MainAction('aDCreateEvent');
   miNCreateUser.Action := MainAction('aDCreateUser');
-  miNCreateHost.Action := MainAction('aDCreateHost');
   miNEmpty.Action := MainAction('aDEmpty');
 
   mbAdd.Action := MainAction('aBAdd');
@@ -5316,7 +5278,6 @@ begin
   mlDCreateTrigger.Action := MainAction('aDCreateTrigger');
   mlDCreateEvent.Action := MainAction('aDCreateEvent');
   mlDCreateUser.Action := MainAction('aDCreateUser');
-  mlDCreateHost.Action := MainAction('aDCreateHost');
   mlDEmpty.Action := MainAction('aDEmpty');
 
   mpDRun.Action := MainAction('aDRun');
@@ -6677,7 +6638,6 @@ begin
   FServerListView.Items.BeginUpdate();
   FServerListView.Items.Clear();
   FServerListView.Items.EndUpdate();
-  if (Assigned(HostsListView)) then FreeListView(HostsListView);
   if (Assigned(ProcessesListView)) then FreeListView(ProcessesListView);
   if (Assigned(StatiListView)) then FreeListView(StatiListView);
   if (Assigned(UsersListView)) then FreeListView(UsersListView);
@@ -7487,7 +7447,6 @@ begin
       iiViewField:  Objects := Objects + 'Field='       + SourceNode.Text + #13#10;
       iiForeignKey: Objects := Objects + 'ForeignKey='  + SourceNode.Text + #13#10;
       iiTrigger:    Objects := Objects + 'Trigger='     + SourceNode.Text + #13#10;
-      iiHost:       Objects := Objects + 'Host='        + SourceNode.Text + #13#10;
       iiUser:       Objects := Objects + 'User='        + SourceNode.Text + #13#10;
     end;
     if (Objects <> '') then
@@ -7512,7 +7471,6 @@ begin
           iiViewField:  Objects := Objects + 'Field='      + TListView(Source).Items[I].Caption + #13#10;
           iiForeignKey: Objects := Objects + 'ForeignKey=' + TListView(Source).Items[I].Caption + #13#10;
           iiTrigger:    Objects := Objects + 'Trigger='    + TListView(Source).Items[I].Caption + #13#10;
-          iiHost:       Objects := Objects + 'Host='       + TCHost(TListView(Source).Items[I].Data).Name + #13#10;
           iiUser:       Objects := Objects + 'User='       + TListView(Source).Items[I].Caption + #13#10;
         end;
     if (Objects <> '') then
@@ -7643,7 +7601,6 @@ begin
   MainAction('aDCreateKey').Enabled := False;
   MainAction('aDCreateField').Enabled := False;
   MainAction('aDCreateForeignKey').Enabled := False;
-  MainAction('aDCreateHost').Enabled := False;
   MainAction('aDCreateUser').Enabled := False;
   MainAction('aDDeleteDatabase').Enabled := False;
   MainAction('aDDeleteTable').Enabled := False;
@@ -7664,7 +7621,6 @@ begin
   MainAction('aDEditKey').Enabled := False;
   MainAction('aDEditField').Enabled := False;
   MainAction('aDEditForeignKey').Enabled := False;
-  MainAction('aDEditHost').Enabled := False;
   MainAction('aDEditProcess').Enabled := False;
   MainAction('aDEditUser').Enabled := False;
   MainAction('aDEditVariable').Enabled := False;
@@ -7720,7 +7676,6 @@ begin
   while (Assigned(Node)) do
   begin
     case (Node.ImageIndex) of
-      iiHosts: Node.Text := Preferences.LoadStr(335);
       iiProcesses: Node.Text := Preferences.LoadStr(24);
       iiStati: Node.Text := Preferences.LoadStr(23);
       iiUsers: Node.Text := ReplaceStr(Preferences.LoadStr(561), '&', '');
@@ -7764,8 +7719,7 @@ begin
   begin
     Child := FNavigator.Items.getFirstNode().getFirstChild();
     while (Assigned(Child) and not Assigned(Result)) do
-      if ((URI.Param['system'] = 'hosts') and (Child.ImageIndex = iiHosts)
-        or (URI.Param['system'] = 'processes') and (Child.ImageIndex = iiProcesses)
+      if ((URI.Param['system'] = 'processes') and (Child.ImageIndex = iiProcesses)
         or (URI.Param['system'] = 'stati') and (Child.ImageIndex = iiStati)
         or (URI.Param['system'] = 'users') and (Child.ImageIndex = iiUsers)
         or (URI.Param['system'] = 'variables') and (Child.ImageIndex = iiVariables)) then
@@ -7876,14 +7830,11 @@ procedure TFClient.FNavigatorUpdate(const ClientEvent: TCClient.TEvent);
         Result := giForeignKeys;
       iiTrigger:
         Result := giTriggers;
-      iiHosts,
       iiProcesses,
       iiStati,
       iiUsers,
       iiVariables:
         Result := giSystemTools;
-      iiHost:
-        Result := giHosts;
       iiProcess:
         Result := giProcesses;
       iiStatus:
@@ -7899,7 +7850,7 @@ procedure TFClient.FNavigatorUpdate(const ClientEvent: TCClient.TEvent);
 
   function Compare(const ImageIndex: Integer; const Item1, Item2: TTreeNode): Integer;
   const
-    ImageIndexSort = Chr(iiHosts) + Chr(iiProcesses) + Chr(iiStati) + Chr(iiUsers) + Chr(iiVariables);
+    ImageIndexSort = Chr(iiProcesses) + Chr(iiStati) + Chr(iiUsers) + Chr(iiVariables);
   begin
     if (GroupIDByImageIndex(Item1.ImageIndex) <> GroupIDByImageIndex(Item2.ImageIndex)) then
       Result := Sign(GroupIDByImageIndex(Item1.ImageIndex) - GroupIDByImageIndex(Item2.ImageIndex))
@@ -7970,8 +7921,6 @@ procedure TFClient.FNavigatorUpdate(const ClientEvent: TCClient.TEvent);
 
     if (TObject(Data) is TCItem) then
       Text := TCItem(Data).Caption
-    else if (TObject(Data) is TCHosts) then
-      Text := Preferences.LoadStr(335)
     else if (TObject(Data) is TCProcesses) then
       Text := Preferences.LoadStr(24)
     else if (TObject(Data) is TCStati) then
@@ -8009,8 +7958,6 @@ procedure TFClient.FNavigatorUpdate(const ClientEvent: TCClient.TEvent);
   begin
     if (TObject(Data) is TCItem) then
       Text := TCItem(Data).Caption
-    else if (TObject(Data) is TCHosts) then
-      Text := Preferences.LoadStr(335)
     else if (TObject(Data) is TCProcesses) then
       Text := Preferences.LoadStr(24)
     else if (TObject(Data) is TCStati) then
@@ -8146,8 +8093,6 @@ begin
 
     if (Node.Count = 0) then
     begin
-      if (Assigned(Client.Hosts)) then
-        InsertChild(Node, Client.Hosts);
       if (Assigned(Client.Processes)) then
         InsertChild(Node, Client.Processes);
       InsertChild(Node, Client.Stati);
@@ -8261,8 +8206,8 @@ begin
   MainAction('aFExportHTML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
   MainAction('aFExportPDF').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
   MainAction('aFPrint').Enabled := Assigned(Node) and ((View = vDiagram) or (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView]));
-  MainAction('aECopy').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiField, iiSystemViewField, iiViewField, iiHost, iiUser]);
-  MainAction('aEPaste').Enabled := Assigned(Node) and ((Node.ImageIndex = iiServer) and Clipboard.HasFormat(CF_MYSQLSERVER) or (Node.ImageIndex = iiDatabase) and Clipboard.HasFormat(CF_MYSQLDATABASE) or (Node.ImageIndex = iiBaseTable) and Clipboard.HasFormat(CF_MYSQLTABLE) or (Node.ImageIndex = iiHosts) and Clipboard.HasFormat(CF_MYSQLHOSTS) or (Node.ImageIndex = iiUsers) and Clipboard.HasFormat(CF_MYSQLUSERS));
+  MainAction('aECopy').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiField, iiSystemViewField, iiViewField, iiUser]);
+  MainAction('aEPaste').Enabled := Assigned(Node) and ((Node.ImageIndex = iiServer) and Clipboard.HasFormat(CF_MYSQLSERVER) or (Node.ImageIndex = iiDatabase) and Clipboard.HasFormat(CF_MYSQLDATABASE) or (Node.ImageIndex = iiBaseTable) and Clipboard.HasFormat(CF_MYSQLTABLE) or (Node.ImageIndex = iiUsers) and Clipboard.HasFormat(CF_MYSQLUSERS));
   MainAction('aERename').Enabled := Assigned(Node) and ((Node.ImageIndex = iiForeignKey) and (Client.ServerVersion >= 40013) or (Node.ImageIndex in [iiBaseTable, iiView, iiEvent, iiTrigger, iiField]));
   MainAction('aDCreateDatabase').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer]) and (not Assigned(Client.UserRights) or Client.UserRights.RCreate);
   MainAction('aDCreateTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
@@ -8274,7 +8219,6 @@ begin
   MainAction('aDCreateKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
   MainAction('aDCreateField').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
   MainAction('aDCreateForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseTable]) and Assigned(TCBaseTable(Node.Data).Engine) and TCBaseTable(Node.Data).Engine.ForeignKeyAllowed;
-  MainAction('aDCreateHost').Enabled := Assigned(Node) and (Node.ImageIndex = iiHosts);
   MainAction('aDCreateUser').Enabled := Assigned(Node) and (Node.ImageIndex = iiUsers);
   MainAction('aDDeleteDatabase').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
   MainAction('aDDeleteTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
@@ -8285,8 +8229,6 @@ begin
   MainAction('aDDeleteField').Enabled := Assigned(Node) and (Node.ImageIndex = iiField) and (TCTableField(Node.Data).Fields.Count > 1);
   MainAction('aDDeleteForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiForeignKey) and (Client.ServerVersion >= 40013);
   MainAction('aDDeleteTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiTrigger);
-  MainAction('aDDeleteHost').Enabled := False;
-  MainAction('aDDeleteUser').Enabled := False;
   MainAction('aDDeleteProcess').Enabled := False;
   MainAction('aDEditServer').Enabled := Assigned(Node) and (Node.ImageIndex = iiServer);
   MainAction('aDEditDatabase').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
@@ -8326,9 +8268,7 @@ begin
       iiKey: miNProperties.Action := MainAction('aDEditKey');
       iiField: miNProperties.Action := MainAction('aDEditField');
       iiForeignKey: miNProperties.Action := MainAction('aDEditForeignKey');
-      iiHost: miNProperties.Action := MainAction('aDEditHost');
       iiProcess: miNProperties.Action := MainAction('aDEditProcess');
-      iiUser: miNProperties.Action := MainAction('aDEditUser');
       iiVariable: miNProperties.Action := MainAction('aDEditVariable');
       else miNProperties.Action := nil;
     end;
@@ -9155,15 +9095,6 @@ begin
       iiSystemView,
       iiView:
         Result := Desktop(TCTable(FNavigator.Selected.Data)).CreateListView();
-      iiHosts:
-        begin
-          if (not Assigned(HostsListView)) then
-          begin
-            HostsListView := CreateListView(Client.Hosts);
-            Client.Hosts.PushBuildEvent(Client.Hosts);
-          end;
-          Result := HostsListView;
-        end;
       iiProcesses:
         begin
           if (not Assigned(ProcessesListView)) then
@@ -9485,8 +9416,6 @@ begin
     Result := iiForeignKey
   else if (TObject(Data) is TCTrigger) then
     Result := iiTrigger
-  else if (TObject(Data) is TCHosts) then
-    Result := iiHosts
   else if (TObject(Data) is TCProcesses) then
     Result := iiProcesses
   else if (TObject(Data) is TCStati) then
@@ -9574,7 +9503,7 @@ end;
 procedure TFClient.ListViewCompare(Sender: TObject; Item1: TListItem;
   Item2: TListItem; Data: Integer; var Compare: Integer);
 const
-  ImageIndexSort = Chr(iiHosts) + Chr(iiProcesses) + Chr(iiStati) + Chr(iiUsers) + Chr(iiVariables);
+  ImageIndexSort = Chr(iiProcesses) + Chr(iiStati) + Chr(iiUsers) + Chr(iiVariables);
 var
   String1: string;
   String2: string;
@@ -9785,7 +9714,8 @@ end;
 procedure TFClient.ListViewEditing(Sender: TObject; Item: TListItem;
   var AllowEdit: Boolean);
 begin
-  AllowEdit := (Item.ImageIndex = iiDatabase) and (Client.ServerVersion >= 50107) or (Item.ImageIndex = iiForeignKey) and (Client.ServerVersion >= 40013) or (Item.ImageIndex in [iiBaseTable, iiView, iiEvent, iiField, iiTrigger, iiHost, iiUser]);
+  AllowEdit := (Item.ImageIndex = iiDatabase) and (Client.ServerVersion >= 50107) or (Item.ImageIndex = iiForeignKey) and (Client.ServerVersion >= 40013) or (Item.ImageIndex in [iiBaseTable, iiView, iiEvent, iiField, iiTrigger,
+  iiUser]);
 end;
 
 procedure TFClient.ListViewInitialize(const ListView: TListView);
@@ -9881,14 +9811,6 @@ begin
 
       ListView.Groups.Add().GroupID := giFields;
     end
-    else if (TObject(ListView.Tag) is TCHosts) then
-    begin
-      ListView.Columns.Add();
-      ListView.Columns.EndUpdate();
-      SetColumnWidths(ListView, lkHosts);
-
-      ListView.Groups.Add().GroupID := giHosts;
-    end
     else if (TObject(ListView.Tag) is TCProcesses) then
     begin
       ListView.Columns.Add();
@@ -9943,7 +9865,6 @@ begin
     Count := ListView.Items.Count;
     for I := 0 to ListView.Items.Count - 1 do
       case (ListView.Items[I].ImageIndex) of
-        iiHosts: ListView.Items[I].Caption := Preferences.LoadStr(335);
         iiProcesses: ListView.Items[I].Caption := Preferences.LoadStr(24);
         iiStati: ListView.Items[I].Caption := Preferences.LoadStr(23);
         iiUsers: ListView.Items[I].Caption := ReplaceStr(Preferences.LoadStr(561), '&', '');
@@ -9980,10 +9901,6 @@ begin
     ListView.Columns[2].Caption := Preferences.LoadStr(71);
     ListView.Columns[3].Caption := Preferences.LoadStr(72);
     ListView.Columns[4].Caption := ReplaceStr(Preferences.LoadStr(73), '&', '');
-  end
-  else if (TObject(ListView.Tag) is TCHosts) then
-  begin
-    ListView.Columns[0].Caption := Preferences.LoadStr(335);
   end
   else if (TObject(ListView.Tag) is TCProcesses) then
   begin
@@ -10142,7 +10059,6 @@ begin
   MainAction('aDCreateKey').Enabled := False;
   MainAction('aDCreateField').Enabled := False;
   MainAction('aDCreateForeignKey').Enabled := False;
-  MainAction('aDCreateHost').Enabled := False;
   MainAction('aDCreateUser').Enabled := False;
   MainAction('aDDeleteDatabase').Enabled := False;
   MainAction('aDDeleteTable').Enabled := False;
@@ -10153,9 +10069,7 @@ begin
   MainAction('aDDeleteField').Enabled := False;
   MainAction('aDDeleteForeignKey').Enabled := False;
   MainAction('aDDeleteTrigger').Enabled := False;
-  MainAction('aDDeleteHost').Enabled := False;
   MainAction('aDDeleteUser').Enabled := False;
-  MainAction('aDEditServer').Enabled := False;
   MainAction('aDEditDatabase').Enabled := False;
   MainAction('aDEditTable').Enabled := False;
   MainAction('aDEditView').Enabled := False;
@@ -10165,8 +10079,6 @@ begin
   MainAction('aDEditField').Enabled := False;
   MainAction('aDEditForeignKey').Enabled := False;
   MainAction('aDEditTrigger').Enabled := False;
-  MainAction('aDEditHost').Enabled := False;
-  MainAction('aDEditProcess').Enabled := False;
   MainAction('aDEditUser').Enabled := False;
   MainAction('aDEditVariable').Enabled := False;
   MainAction('aDEmpty').Enabled := False;
@@ -10458,18 +10370,6 @@ procedure TFClient.ListViewUpdate(const ClientEvent: TCClient.TEvent; const List
           Item.SubItems.Add(TCViewField(Data).Charset);
       end;
     end
-    else if (Data is TCHosts) then
-    begin
-      Item.GroupID := giSystemTools;
-      Item.ImageIndex := iiHosts;
-      Item.SubItems.Add(FormatFloat('#,##0', TCHosts(Data).Count, LocaleFormatSettings));
-    end
-    else if (Data is TCHost) then
-    begin
-      Item.GroupID := giHosts;
-      Item.ImageIndex := iiHost;
-      Item.Caption := TCHost(Data).Caption;
-    end
     else if (Data is TCProcesses) then
     begin
       Item.GroupID := giSystemTools;
@@ -10732,8 +10632,6 @@ procedure TFClient.ListViewUpdate(const ClientEvent: TCClient.TEvent; const List
               end;
             GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(797), '&', '') + ' (' + IntToStr(Count) + ')';
           end;
-        giHosts:
-          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(335), '&', '') + ' (' + IntToStr(Client.Hosts.Count) + ')';
         giProcesses:
           GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(24), '&', '') + ' (' + IntToStr(Client.Processes.Count) + ')';
         giStati:
@@ -10765,8 +10663,6 @@ begin
         begin
           if (ListView.Items.Count = 0) then
           begin
-            if (Assigned(Client.Hosts)) then
-              InsertItem(Kind, Client.Hosts);
             if (Assigned(Client.Processes)) then
               InsertItem(Kind, Client.Processes);
             if (Assigned(Client.Stati)) then
@@ -10780,7 +10676,7 @@ begin
 
           if (ClientEvent.CItems is TCDatabases) then
             UpdateGroup(Kind, giDatabases, ClientEvent.CItems)
-          else if ((ClientEvent.CItems is TCHosts) or (ClientEvent.CItems is TCProcesses) or (ClientEvent.CItems is TCStati) or (ClientEvent.CItems is TCUsers) or (ClientEvent.CItems is TCVariables)) then
+          else if ((ClientEvent.CItems is TCProcesses) or (ClientEvent.CItems is TCStati) or (ClientEvent.CItems is TCUsers) or (ClientEvent.CItems is TCVariables)) then
           begin
             for I := 0 to ListView.Items.Count - 1 do
               if (ListView.Items[I].Data = ClientEvent.CItems) then
@@ -10811,8 +10707,6 @@ begin
         end
         else if ((ClientEvent.Sender is TCDatabase) and (ClientEvent.CItem is TCTrigger)) then
           UpdateGroup(Kind, giTriggers, ClientEvent.CItems);
-      lkHosts:
-        UpdateGroup(Kind, giHosts, ClientEvent.CItems);
       lkProcesses:
         UpdateGroup(Kind, giProcesses, ClientEvent.CItems);
       lkStati:
@@ -10880,7 +10774,6 @@ begin
     MainAction('aDCreateKey').Enabled := False;
     MainAction('aDCreateField').Enabled := False;
     MainAction('aDCreateForeignKey').Enabled := False;
-    MainAction('aDCreateHost').Enabled := False;
     MainAction('aDCreateUser').Enabled := False;
     MainAction('aDDeleteDatabase').Enabled := False;
     MainAction('aDDeleteTable').Enabled := False;
@@ -10891,10 +10784,8 @@ begin
     MainAction('aDDeleteForeignKey').Enabled := False;
     MainAction('aDDeleteTrigger').Enabled := False;
     MainAction('aDDeleteEvent').Enabled := False;
-    MainAction('aDDeleteHost').Enabled := False;
     MainAction('aDDeleteUser').Enabled := False;
     MainAction('aDEditServer').Enabled := False;
-    MainAction('aDEditDatabase').Enabled := False;
     MainAction('aDEditTable').Enabled := False;
     MainAction('aDEditView').Enabled := False;
     MainAction('aDEditRoutine').Enabled := False;
@@ -10938,7 +10829,6 @@ begin
             MainAction('aDCreateProcedure').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and Assigned(TCDatabase(Item.Data).Routines);
             MainAction('aDCreateFunction').Enabled := MainAction('aDCreateProcedure').Enabled;
             MainAction('aDCreateEvent').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and Assigned(TCDatabase(Item.Data).Events);
-            MainAction('aDCreateHost').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiHosts);
             MainAction('aDCreateUser').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiUsers);
             MainAction('aDDeleteDatabase').Enabled := (ListView.SelCount >= 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aDEditServer').Enabled := (ListView.SelCount = 0);
@@ -11146,17 +11036,6 @@ begin
             MainAction('aDEditView').Enabled := (ListView.SelCount = 0);
 
             mlEProperties.Action := MainAction('aDEditView');
-          end;
-        iiHosts:
-          begin
-            MainAction('aECopy').Enabled := (ListView.SelCount >= 1);
-            MainAction('aEPaste').Enabled := not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLHOSTS);
-            MainAction('aDCreateHost').Enabled := (ListView.SelCount = 0);
-            MainAction('aDDeleteHost').Enabled := (ListView.SelCount >= 1);
-            MainAction('aDEditHost').Enabled := (ListView.SelCount = 1);
-            aDDelete.Enabled := (ListView.SelCount >= 1);
-
-            mlEProperties.Action := MainAction('aDEditHost');
           end;
         iiProcesses:
           begin
@@ -11893,7 +11772,7 @@ begin
 
   if (Assigned(Node)) then
   begin
-    if (not (Node.ImageIndex in [iiHosts, iiProcesses, iiStati, iiUsers, iiVariables])) then
+    if (not (Node.ImageIndex in [iiProcesses, iiStati, iiUsers, iiVariables])) then
       URI.Param['view'] := ViewToParam(View);
 
     case (Node.ImageIndex) of
@@ -11947,8 +11826,6 @@ begin
           URI.Param['objecttype'] := 'trigger';
           URI.Param['object'] := Node.Text;
         end;
-      iiHosts:
-        URI.Param['system'] := 'hosts';
       iiProcesses:
         URI.Param['system'] := 'processes';
       iiStati:
@@ -12255,7 +12132,6 @@ var
   NewTable: TCBaseTable;
   SourceClient: TCClient;
   SourceDatabase: TCDatabase;
-  SourceHost: TCHost;
   SourceRoutine: TCRoutine;
   SourceTable: TCBaseTable;
   SourceURI: TUURI;
@@ -12518,21 +12394,6 @@ begin
               NewTable.Free();
             end;
           end;
-        iiHosts:
-          for I := 1 to StringList.Count - 1 do
-            if (Success and (StringList.Names[I] = 'Host')) then
-            begin
-              SourceHost := SourceClient.HostByName(StringList.ValueFromIndex[I]);
-
-              if (not Assigned(SourceHost)) then
-                MessageBeep(MB_ICONERROR)
-              else
-              begin
-                Name := CopyName(SourceHost.Name, Client.Hosts);
-
-                Success := Client.CloneHost(SourceHost, Name);
-              end;
-            end;
         iiUsers:
           for I := 1 to StringList.Count - 1 do
             if (Success and (StringList.Names[I] = 'User')) then
@@ -12993,10 +12854,8 @@ function TFClient.RenameCItem(const CItem: TCItem; const NewName: string): Boole
 var
   BaseTable: TCBaseTable;
   Event: TCEvent;
-  Host: TCHost;
   NewBaseTable: TCBaseTable;
   NewEvent: TCEvent;
-  NewHost: TCHost;
   NewTrigger: TCTrigger;
   NewUser: TCUser;
   Table: TCTable;
@@ -13060,19 +12919,6 @@ begin
     NewBaseTable.FieldByName(CItem.Name).Name := NewName;
     Result := BaseTable.Database.UpdateTable(BaseTable, NewBaseTable);
     NewBaseTable.Free();
-  end
-  else if (CItem is TCHost) then
-  begin
-    Host := TCHost(CItem);
-
-    NewHost := TCHost.Create(Client.Hosts);
-    NewHost.Assign(Host);
-    if (NewName = '<' + Preferences.LoadStr(327) + '>') then
-      NewHost.Name := ''
-    else
-      NewHost.Name := NewName;
-    Result := Client.UpdateHost(Host, NewHost);
-    NewHost.Free();
   end
   else if (CItem is TCUser) then
   begin

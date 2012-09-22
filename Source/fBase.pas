@@ -23,8 +23,6 @@ const
   iiViewField = 75;
   iiForeignKey = 28;
   iiProcesses = 31;
-  iiHosts = 36;
-  iiHost = 71;
   iiStati = 32;
   iiUsers = 33;
   iiUser = 41;
@@ -67,7 +65,6 @@ const
   CF_MYSQLDATABASE = CF_PRIVATEFIRST + 2;
   CF_MYSQLTABLE = CF_PRIVATEFIRST + 3;
   CF_MYSQLVIEW = CF_PRIVATEFIRST + 4;
-  CF_MYSQLHOSTS = CF_PRIVATEFIRST + 5;
   CF_MYSQLUSERS = CF_PRIVATEFIRST + 6;
 
   MB_CANCELTRYCONTINUE = $00000006;

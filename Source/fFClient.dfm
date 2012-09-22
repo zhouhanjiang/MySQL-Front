@@ -1421,9 +1421,6 @@ object FClient: TFClient
       object mlDCreateTrigger: TMenuItem
         Caption = 'aDCreateTrigger'
       end
-      object mlDCreateHost: TMenuItem
-        Caption = 'aDCreateHost'
-      end
       object mlDCreateUser: TMenuItem
         Caption = 'aDCreateUser'
       end
@@ -1715,9 +1712,6 @@ object FClient: TFClient
       end
       object miNCreateTrigger: TMenuItem
         Caption = 'aDCreateTrigger'
-      end
-      object miNCreateHost: TMenuItem
-        Caption = 'aDCreateHost'
       end
       object miNCreateUser: TMenuItem
         Caption = 'aDCreateUser'
