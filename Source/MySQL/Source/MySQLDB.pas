@@ -2041,10 +2041,6 @@ begin
         begin
           if (Assigned(DataSet.SynchroThread)) then
           begin
-            // Debug 19.09.2012
-            if (GetCurrentThreadId() <> MainThreadID) then
-              raise ERangeError.CreateFmt(SPropertyOutOfRange, ['ThreadId']);
-
             DataSet.SynchroThread := nil;
             ReleaseDataSet();
           end;
@@ -2069,6 +2065,8 @@ begin
   Index := SynchronizingThreads.IndexOf(Self);
   if (Index >= 0) then
     SynchronizingThreads.Delete(Index);
+  if (Assigned(DataSet)) then
+    DataSet.SynchroThread := nil;
   SynchronizingThreadsCS.Leave();
 
   if (RunExecute.WaitFor(IGNORE) <> wrSignaled) then
@@ -4274,10 +4272,6 @@ begin
     begin
       Result := grEOF;
 
-      // Debug 19.09.2012
-      if (GetCurrentThreadId() <> MainThreadID) then
-        raise ERangeError.CreateFmt(SPropertyOutOfRange, ['ThreadId']);
-
       SynchroThread.ReleaseDataSet();
       SynchroThread := nil;
     end;
@@ -4298,13 +4292,6 @@ procedure TMySQLQuery.InternalClose();
 begin
   if (Assigned(SynchroThread)) then
   begin
-    // Debug 19.09.20012
-    Sleep(1);
-    if (not Assigned(SynchroThread)) then
-      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['SynchroThread']);
-    if (GetCurrentThreadId() <> MainThreadID) then
-      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['ThreadId']);
-
     SynchroThread.ReleaseDataSet();
     SynchroThread := nil;
   end;
@@ -4997,7 +4984,7 @@ begin
   FilterParser := nil;
   FLocateNext := False;
   FRecordsReceived := TEvent.Create(nil, True, False, '');
-  FSortDef := TIndexDef.Create(nil, 'SortDef', '', []);
+  FSortDef := TIndexDef.Create(nil, '', '', []);
   FInternRecordBuffers := TInternRecordBuffers.Create(Self);
 
   BookmarkSize := SizeOf(BookmarkCounter);
@@ -6852,13 +6839,13 @@ begin
       StringFieldsEnclosed := StringFieldsEnclosed or (FieldByName(FieldName).DataType in [ftWideMemo, ftWideString]);
   until (FieldName = '');
 
-  if (Active and (ASortDef.Fields <> FSortDef.Fields) or (ASortDef.DescFields <> FSortDef.DescFields)) then
+  if (Active and ((ASortDef.Fields <> SortDef.Fields) or (ASortDef.DescFields <> SortDef.DescFields))) then
   begin
     if ((ASortDef.Fields <> '') and (RecordsReceived.WaitFor(IGNORE) = wrSignaled) and not LimitedDataReceived and (InternRecordBuffers.Count < 1000) and not StringFieldsEnclosed) then
       inherited
     else
     begin
-      FSortDef.Assign(ASortDef);
+      SortDef.Assign(ASortDef);
       FOffset := 0;
 
       Refresh();

@@ -59,10 +59,6 @@ object DServer: TDServer
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         275)
@@ -112,13 +108,13 @@ object DServer: TDServer
         Left = 8
         Top = 84
         Width = 297
-        Height = 117
+        Height = 141
         Anchors = [akLeft, akTop, akRight]
         Caption = 'GConnection'
         TabOrder = 1
         DesignSize = (
           297
-          117)
+          141)
         object FLUser: TLabel
           Left = 8
           Top = 68
@@ -178,6 +174,20 @@ object DServer: TDServer
           Height = 13
           Anchors = [akLeft, akTop, akRight]
           Caption = 'FCharacterSet'
+        end
+        object FLThreadId: TLabel
+          Left = 8
+          Top = 116
+          Width = 55
+          Height = 13
+          Caption = 'FLThreadId'
+        end
+        object FThreadId: TLabel
+          Left = 120
+          Top = 116
+          Width = 49
+          Height = 13
+          Caption = 'FThreadId'
         end
       end
     end

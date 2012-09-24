@@ -54,6 +54,8 @@ type
     TSSQLLog: TTabSheet;
     TSStartup: TTabSheet;
     PSQLWait: TPanel_Ext;
+    FLThreadId: TLabel;
+    FThreadId: TLabel;
     procedure FBFlushHostsClick(Sender: TObject);
     procedure FBHelpClick(Sender: TObject);
     procedure FBShutdownClick(Sender: TObject);
@@ -119,6 +121,8 @@ end;
 
 procedure TDServer.CMChangePreferences(var Message: TMessage);
 begin
+  PSQLWait.Caption := Preferences.LoadStr(882);
+
   TSBasics.Caption := Preferences.LoadStr(108);
   GServer.Caption := ReplaceStr(Preferences.LoadStr(37), '&', '');
   FLVersion.Caption := Preferences.LoadStr(169) + ':';
@@ -128,6 +132,7 @@ begin
   FLLibVersion.Caption := ReplaceStr(Preferences.LoadStr(568), '&', '') + ':';
   FLUser.Caption := ReplaceStr(Preferences.LoadStr(561), '&', '') + ':';
   FLCharacterSet.Caption := ReplaceStr(Preferences.LoadStr(682), '&', '') + ':';
+  FLThreadId.Caption := Preferences.LoadStr(269) + ':';
 
   TSSQLLog.Caption := ReplaceStr(Preferences.LoadStr(11), '&', '');
   FSQLLog.Font.Name := Preferences.SQLFontName;
@@ -307,6 +312,9 @@ begin
   else
     FUser.Caption := Client.CurrentUser;
   FCharacterSet.Caption := Client.Charset;
+  FThreadId.Visible := Client.ThreadId > 0;
+  FLThreadId.Visible := FThreadId.Visible;
+  FThreadId.Caption := IntToStr(Client.ThreadId);
   FUptime.Caption := '???';
 
   FStartup.Lines.Clear();

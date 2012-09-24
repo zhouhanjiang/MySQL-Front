@@ -4252,7 +4252,7 @@ var
 begin
   Wanted.Clear();
 
-  SortDef := TIndexDef.Create(nil, 'SortDef', ActiveDBGrid.SelectedField.FieldName, []);
+  SortDef := TIndexDef.Create(nil, '', ActiveDBGrid.SelectedField.FieldName, []);
 
   TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).Sort(SortDef);
   ActiveDBGrid.UpdateHeader();
@@ -4266,7 +4266,7 @@ var
 begin
   Wanted.Clear();
 
-  SortDef := TIndexDef.Create(nil, 'SortDef', ActiveDBGrid.SelectedField.FieldName, []);
+  SortDef := TIndexDef.Create(nil, '', ActiveDBGrid.SelectedField.FieldName, []);
   SortDef.DescFields := ActiveDBGrid.SelectedField.FieldName;
 
   TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).Sort(SortDef);
@@ -6457,7 +6457,7 @@ begin
   if (not IgnoreFGridTitleClick
     and not (ActiveDBGrid.Fields[Column.Index].DataType in [ftUnknown, ftWideMemo, ftBlob])) then
   begin
-    SortDef := TIndexDef.Create(nil, 'SortDef', '', []);
+    SortDef := TIndexDef.Create(nil, '', '', []);
 
     OldDescending := True;
 
@@ -6509,6 +6509,8 @@ begin
     end
     else
     begin
+      SortDef.Fields := '';
+      SortDef.DescFields := '';
       SortDef.Fields := ActiveDBGrid.Fields[Column.Index].FieldName;
       if (not OldDescending) then
         SortDef.DescFields := ActiveDBGrid.Fields[Column.Index].FieldName;
@@ -13734,52 +13736,49 @@ var
 begin
   Table := TCTable(FNavigator.Selected.Data);
 
-  if (Assigned(Table) and Assigned(Table.Fields) and (Table.Fields.Count > 0)) then  // Terminate in Table.Fields.GetCount erkennen und Struktur vor SELECT ermitteln, damit bei UPDATE Charset bekannt ist
+  if (not FLimitEnabled.Down) then
   begin
-    if (not FLimitEnabled.Down) then
-    begin
-      Offset := 0;
-      Limit := 0;
-    end
-    else
-    begin
-      Offset := FUDOffset.Position;
-      Limit := FUDLimit.Position;
-    end;
-
-    if (not FFilterEnabled.Down) then
-      FilterSQL := ''
-    else
-      FilterSQL := FFilter.Text;
-
-    if (not FQuickSearchEnabled.Down) then
-      QuickSearch := ''
-    else
-      QuickSearch := FQuickSearch.Text;
-
-    SortDef := TIndexDef.Create(nil, '', '', []);
-    if (Table.DataSet.Active) then
-      SortDef.Assign(Table.DataSet.SortDef)
-    else if ((Table is TCBaseTable) and (TCBaseTable(Table).Keys.Count > 0) and (TCBaseTable(Table).Keys[0].Name = '')) then
-      TCBaseTable(Table).Keys[0].GetSortDef(SortDef);
-
-    if (not Table.DataSet.Active) then
-    begin
-      Table.DataSet.AfterOpen := Desktop(Table).DataSetAfterOpen;
-      Table.Open(FilterSQL, QuickSearch, SortDef, Offset, Limit);
-    end
-    else
-    begin
-      Table.DataSet.FilterSQL := FilterSQL;
-      Table.DataSet.QuickSearch := QuickSearch;
-      Table.DataSet.SortDef.Assign(SortDef);
-      Table.DataSet.Offset := Offset;
-      Table.DataSet.Limit := Limit;
-      Table.DataSet.Refresh();
-    end;
-
-    SortDef.Free();
+    Offset := 0;
+    Limit := 0;
+  end
+  else
+  begin
+    Offset := FUDOffset.Position;
+    Limit := FUDLimit.Position;
   end;
+
+  if (not FFilterEnabled.Down) then
+    FilterSQL := ''
+  else
+    FilterSQL := FFilter.Text;
+
+  if (not FQuickSearchEnabled.Down) then
+    QuickSearch := ''
+  else
+    QuickSearch := FQuickSearch.Text;
+
+  SortDef := TIndexDef.Create(nil, '', '', []);
+  if (Table.DataSet.Active) then
+    SortDef.Assign(Table.DataSet.SortDef)
+  else if ((Table is TCBaseTable) and Assigned(TCBaseTable(Table).PrimaryKey)) then
+    TCBaseTable(Table).PrimaryKey.GetSortDef(SortDef);
+
+  if (not Table.DataSet.Active) then
+  begin
+    Table.DataSet.AfterOpen := Desktop(Table).DataSetAfterOpen;
+    Table.Open(FilterSQL, QuickSearch, SortDef, Offset, Limit);
+  end
+  else
+  begin
+    Table.DataSet.FilterSQL := FilterSQL;
+    Table.DataSet.QuickSearch := QuickSearch;
+    Table.DataSet.SortDef.Assign(SortDef);
+    Table.DataSet.Offset := Offset;
+    Table.DataSet.Limit := Limit;
+    Table.DataSet.Refresh();
+  end;
+
+  SortDef.Free();
 end;
 
 procedure TFClient.ToolBarResize(Sender: TObject);

@@ -10,6 +10,7 @@ uses
 
 type
   TPExportType = (etSQLFile, etTextFile, etExcelFile, etAccessFile, etSQLiteFile, etODBC, etHTMLFile, etXMLFile, etPDFFile, etPrinter);
+  TAJobObjectType = (jotDatabase, jotTable, jotProcedure, jotFunction, jotTrigger, jotEvent);
 
   TPItems = class;
   TPPreferences = class;
@@ -153,6 +154,12 @@ type
   end;
 
   TAJob = class(TPItem)
+  type
+    TObject = record
+      DatabaseName: string;
+      Name: string;
+      ObjectType: TAJobObjectType;
+    end;
   private
     function GetJobs(): TAJobs; inline;
   protected
@@ -535,12 +542,6 @@ type
   end;
 
   TAJobExport = class(TPExport)
-  type
-    TObject = record
-      DatabaseName: string;
-      ObjectName: string;
-//      ObjectType: (otDatabase, otTable, otProcedure, otFunction, otTrigger, otEvent);
-    end;
   protected
     function GetXML(): IXMLNode; override;
     procedure LoadFromXML(const XML: IXMLNode); override;
@@ -549,7 +550,7 @@ type
     CodePage: Integer;
     ExportType: TPExportType;
     Filename: TFileName;
-    Objects: TStringList;
+    Objects: array of TAJob.TObject;
     procedure Assign(const Source: TPItem); override;
     constructor Create(const AAItems: TPItems = nil; const AName: string = ''); override;
     destructor Destroy(); override;
@@ -2940,12 +2941,19 @@ begin
 
   CodePage := CP_ACP;
   Filename := '';
-  Objects := TStringList.Create();
+  SetLength(Objects, 0);
 end;
 
 destructor TAJobExport.Destroy();
+var
+  I: Integer;
 begin
-  Objects.Free();
+  for I := 0 to Length(Objects) - 1 do
+  begin
+    Objects[I].DatabaseName := '';
+    Objects[I].Name := '';
+  end;
+  SetLength(Objects, 0);
 
   inherited;
 end;
@@ -2982,12 +2990,16 @@ begin
 
   if (Assigned(XMLNode(XML, 'objects'))) then
   begin
-    Objects.Clear();
     Child := XMLNode(XML, 'objects').ChildNodes.First();
     while (Assigned(Child)) do
     begin
-      if (Child.NodeName = 'object') then
-        Objects.Add(Jobs.Account.ExpandAddress(Child.Text));
+//      if ((Child.NodeName = 'object') and TryStrToObjectType(Child.Attributes['type'], ObjectType) then
+//      begin
+//        SetLength(Objects, Length(Objects) + 1);
+//        Objects[Length(Objects) - 1].DatabaseName := Child.Attributes['database'];
+//        Objects[Length(Objects) - 1].Name := Child.Attributes['name'];
+//        Objects[Length(Objects) - 1].ObjectType := ObjectType;
+//      end;
       Child := Child.NextSibling();
     end;
   end;
@@ -3021,8 +3033,8 @@ begin
         XMLNode(XML, 'objects').ChildNodes.Remove(RemoveChild);
     end;
 
-    for I := 0 to Objects.Count - 1 do
-      XMLNode(XML, 'objects').AddChild('object').Text := Jobs.Account.ExtractPath(Objects[I]);
+//    for I := 0 to Objects.Count - 1 do
+//      XMLNode(XML, 'objects').AddChild('object').Text := Jobs.Account.ExtractPath(Objects[I]);
   end;
 end;
 
