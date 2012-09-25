@@ -8008,9 +8008,9 @@ begin
 
       if (not InsertIndex(Name, Index)) then
       begin
-        if (DeleteList.IndexOf(Items[Index]) < 0) then
-          raise ERangeError.CreateFmt(SPropertyOutOfRange + ' (%s)', ['IndexOf', TObject(Items[Index]).ClassName]);
-        DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
+        if (DeleteList.IndexOf(Items[Index]) >= 0) then
+//          raise ERangeError.CreateFmt(SPropertyOutOfRange + ' (%s)', ['IndexOf', TObject(Items[Index]).ClassName]);
+          DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
       end
       else if (Index < Count) then
         Insert(Index, TCVariable.Create(Self, Name))
