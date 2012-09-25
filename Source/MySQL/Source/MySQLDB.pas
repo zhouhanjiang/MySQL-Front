@@ -164,7 +164,6 @@ type
       TMode = (smSQL, smDataHandle, smDataSet);
       TState = (ssClose, ssConnecting, ssReady, ssExecutingSQL, ssResult, ssReceivingResult, ssNextResult, ssCancel, ssDisconnecting, ssError);
     private
-      Nils: Integer;
       Done: TEvent;
       FConnection: TMySQLConnection;
       RunExecute: TEvent;
@@ -1821,11 +1820,7 @@ constructor TMySQLConnection.TSynchroThread.Create(const AConnection: TMySQLConn
 begin
   Assert(Assigned(AConnection));
 
-  Nils := 1;
-
   inherited Create(False);
-
-  Nils := 2;
 
   FConnection := AConnection;
 
@@ -1837,25 +1832,17 @@ begin
   State := ssClose;
 
   FreeOnTerminate := True;
-
-  Nils := 3;
 end;
 
 destructor TMySQLConnection.TSynchroThread.Destroy();
 begin
-  Nils := 11;
-
   RunExecute.Free(); RunExecute := nil;
   SynchronizeStarted.Free();
   SQLStmtLengths.Free();
   SQLStmtsInPackets.Free();
   SQLUseStmts.Free();
 
-  Nils := 12;
-
   inherited;
-
-  Nils := 13;
 end;
 
 procedure TMySQLConnection.TSynchroThread.Execute();
@@ -1868,12 +1855,8 @@ begin
   try
   {$ENDIF}
 
-  Nils := 4;
-
   while (not Terminated) do
   begin
-    Nils := 5;
-
     if ((Connection.ServerTimeout = 0) or (Connection.LibraryType = ltHTTP)) then
       Timeout := INFINITE
     else
@@ -1884,8 +1867,6 @@ begin
         Connection.SyncPing(Self)
       else
       begin
-        Nils := 6;
-
         case (State) of
           ssConnecting:
             Connection.SyncConnecting(Self);
@@ -1901,8 +1882,6 @@ begin
             Connection.SyncDisconnecting(Self);
         end;
 
-        Nils := 7;
-
         Connection.TerminateCS.Enter();
         RunExecute.ResetEvent();
         if (Terminated or (Mode in [smDataHandle]) and (State = ssReceivingResult)) then
@@ -1914,18 +1893,12 @@ begin
         end;
         Connection.TerminateCS.Leave();
 
-        Nils := 8;
-
         if (SynchronizeRequestSent) then
           SynchronizeStarted.WaitFor(INFINITE);
       end;
   end;
 
-  Nils := 9;
-
   Connection.TerminatedThreads.Delete(Self);
-
-  Nils := 10;
 
   {$IFDEF EurekaLog}
   except
@@ -1936,12 +1909,7 @@ end;
 
 function TMySQLConnection.TSynchroThread.GetIsRunning(): Boolean;
 begin
-  try
-    Result := not Terminated and ((RunExecute.WaitFor(IGNORE) = wrSignaled) or not (State in [ssClose, ssReady]));
-  except
-    on E: Exception do
-      raise Exception.Create(E.Message + ' - Nils: ' + IntToStr(Nils));
-  end;
+  Result := not Terminated and ((RunExecute.WaitFor(IGNORE) = wrSignaled) or not (State in [ssClose, ssReady]));
 end;
 
 procedure TMySQLConnection.TSynchroThread.ReleaseDataSet();
@@ -6055,15 +6023,15 @@ begin
   if (Assigned(SynchroThread)) then
     Connection.Terminate();
 
+  CheckBrowseMode();
+  DoBeforeScroll();
+
+  SortDef.Assign(ASortDef);
+
+  OldBookmark := Bookmark;
+
   if ((ASortDef.Fields <> '') and (InternRecordBuffers.Count > 0)) then
   begin
-    SortDef.Assign(ASortDef);
-
-    CheckBrowseMode();
-    DoBeforeScroll();
-
-    OldBookmark := Bookmark;
-
     SetLength(SortFields, 0);
     SetLength(Ascending, 0);
     Pos := 1;
@@ -6087,13 +6055,13 @@ begin
     until (FieldName = '');
 
     QuickSort(0, InternRecordBuffers.Count - 1);
-
-    SetFieldsSortTag();
-
-    Bookmark := OldBookmark;
-
-    DoAfterScroll();
   end;
+
+  SetFieldsSortTag();
+
+  Bookmark := OldBookmark;
+
+  DoAfterScroll();
 end;
 
 function TMySQLDataSet.SQLDelete(): string;

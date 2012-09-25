@@ -147,6 +147,7 @@ label
 asm
         PUSH EAX
         PUSH EBX
+        PUSH EDX
 
         CMP WORD PTR [ESI],''''          // Start quotation in SQL?
         JE Quoted                        // Yes!
@@ -196,6 +197,7 @@ asm
 
       Finish:
         CMP EBX,True
+        POP EDX
         POP EBX
         POP EAX
 end;
@@ -1368,7 +1370,7 @@ begin
 
       // -------------------
 
-        MOV BYTE PTR [Result],False
+        MOV @Result,False
         MOV EDI,0                        // Don't copy inside MoveString
 
         CALL Trim                        // Step over empty characters
@@ -1544,7 +1546,7 @@ begin
       // -------------------
 
       Found:
-        MOV BYTE PTR [Result],True       // SQL is DDL!
+        MOV @Result,True                 // SQL is DDL!
 
         CALL Trim                        // Step over empty characters
         JECXZ Finish                     // End of SQL!
@@ -1563,6 +1565,8 @@ begin
         MOV EAX,[KRename]
         MOV EDI,0                        // Don't copy inside MoveString
       RenameL:
+        CMP ECX,0                        // End of SQL?
+        JE RenameE                       // Yes!
         CMP WORD PTR [ESI],';'           // End of statement?
         JE RenameE                       // Yes!
         CALL Trim                        // Empty characters in SQL?

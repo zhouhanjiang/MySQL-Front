@@ -284,14 +284,10 @@ type
     MNext: TPopupMenu;
     MPrev: TPopupMenu;
     MTabControl: TPopupMenu;
-    mtDCommit: TMenuItem;
-    mtDRollback: TMenuItem;
     mtFClose: TMenuItem;
     mtFCloseAll: TMenuItem;
     mtFOpenAccount: TMenuItem;
     mtTabs: TMenuItem;
-    mtVRefresh: TMenuItem;
-    mtVRefreshAll: TMenuItem;
     N10: TMenuItem;
     N12: TMenuItem;
     N15: TMenuItem;
@@ -306,8 +302,6 @@ type
     N27: TMenuItem;
     N3: TMenuItem;
     N30: TMenuItem;
-    N31: TMenuItem;
-    N32: TMenuItem;
     N5: TMenuItem;
     N7: TMenuItem;
     N8: TMenuItem;
@@ -411,17 +405,9 @@ type
     procedure TabControlDragDrop(Sender, Source: TObject; X, Y: Integer);
     procedure TabControlDragOver(Sender, Source: TObject; X, Y: Integer;
       State: TDragState; var Accept: Boolean);
-    procedure TabControlDrawTab(Control: TCustomTabControl;
-      TabIndex: Integer; const Rect: TRect; Active: Boolean);
     procedure TabControlEndDrag(Sender, Target: TObject; X, Y: Integer);
     procedure TabControlGetImageIndex(Sender: TObject; TabIndex: Integer;
       var ImageIndex: Integer);
-    procedure TabControlMouseDown(Sender: TObject; Button: TMouseButton;
-      Shift: TShiftState; X, Y: Integer);
-    procedure TabControlMouseMove(Sender: TObject; Shift: TShiftState; X,
-      Y: Integer);
-    procedure TabControlMouseUp(Sender: TObject; Button: TMouseButton;
-      Shift: TShiftState; X, Y: Integer);
     procedure TabControlResize(Sender: TObject);
     procedure TabControlStartDrag(Sender: TObject;
       var DragObject: TDragObject);
@@ -438,9 +424,7 @@ type
       Rect: TRect;
     end;
   private
-    CaptureTabIndex: Integer;
     CloseButton: TPicture;
-    CloseButtonRects: array of TRect;
     {$IFDEF EurekaLog}
     EurekaLog: TEurekaLog;
     {$ENDIF}
@@ -478,7 +462,6 @@ type
     procedure MySQLConnectionSynchronize(const Data: Pointer); inline;
     procedure SetActiveTab(const FClient: TFClient);
     procedure SQLError(const Connection: TMySQLConnection; const ErrorCode: Integer; const ErrorMessage: string);
-    function TabCaption(const ACaption: string): string;
     procedure CMActivateTab(var Message: TMessage); message CM_ACTIVATETAB;
     procedure CMAddTab(var Message: TMessage); message CM_ADDTAB;
     procedure CMBookmarkChanged(var Message: TMessage); message CM_BOOKMARKCHANGED;
@@ -894,14 +877,14 @@ begin
 
     if (FClients.Count = 0) then
     begin
-      TabControl.Tabs.Add(TabCaption(DAccounts.Client.Account.Name));
+      TabControl.Tabs.Add(DAccounts.Client.Account.Name);
       TabControl.Visible := Preferences.TabsVisible;
       if (TabControl.Visible) then
         TabControlResize(nil);
     end
     else
     begin
-      TabControl.Tabs.Add(TabCaption(DAccounts.Client.Account.Name));
+      TabControl.Tabs.Add(DAccounts.Client.Account.Name);
       if (TabControl.Tabs.Count < 0) then
         raise ERangeError.Create(SRangeError);
       TabControl.TabIndex := TabControl.Tabs.Count - 1;
@@ -1340,8 +1323,6 @@ begin
 end;
 
 procedure TWWindow.CMSysFontChanged(var Message: TMessage);
-var
-  I: Integer;
 begin
   inherited;
 
@@ -1383,9 +1364,6 @@ begin
     TabControl.Height := TabControl.TabHeight + 1
   else
     TabControl.Height := TabControl.TabHeight + 2;
-
-  for I := 0 to TabControl.Tabs.Count - 1 do
-    TabControl.Tabs[I] := TabCaption(Trim(TabControl.Tabs[I]));
 
   StatusBar.ClientHeight := StatusBar.Canvas.TextHeight('I') + 5;
 end;
@@ -1442,6 +1420,7 @@ begin
     TabControl.Canvas.Font.Style := TabControl.Canvas.Font.Style - [fsBold];
   end;
 
+  TabControl.Canvas.Font.Color := clRed;
   if (TabIndex < TabControl.Tabs.Count) then
   begin
     BackgroundRect.Left := Rect.Left;
@@ -1468,7 +1447,6 @@ begin
         StyleServices.DrawIcon(TabControl.Canvas.Handle, StyleServices.GetElementDetails(ttTabItemSelected), IconRect, TabControl.Images.Handle, ImageIndex);
       end;
       StyleServices.DrawText(TabControl.Canvas.Handle, StyleServices.GetElementDetails(ttTabItemSelected), TTabControl(TabControl).Tabs[TabIndex], TextRect, TTextFormat(TabControl.Canvas.TextFlags), 0);
-      StyleServices.DrawElement(TabControl.Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonNormal), CloseButtonRects[TabIndex]);
     end
     else
     begin
@@ -1489,7 +1467,6 @@ begin
         StyleServices.DrawIcon(TabControl.Canvas.Handle, StyleServices.GetElementDetails(ttTabItemNormal), IconRect, TabControl.Images.Handle, ImageIndex);
       end;
       StyleServices.DrawText(TabControl.Canvas.Handle, StyleServices.GetElementDetails(ttTabItemNormal), TTabControl(TabControl).Tabs[TabIndex], TextRect, TTextFormat(TabControl.Canvas.TextFlags), 0);
-      StyleServices.DrawElement(TabControl.Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonDisabled), CloseButtonRects[TabIndex]);
     end;
   end;
 end;
@@ -2150,11 +2127,6 @@ begin
   end;
 end;
 
-function TWWindow.TabCaption(const ACaption: string): string;
-begin
-  Result := ACaption + StringOfChar(' ', (CloseButton.Bitmap.Width + 7) div TabControl.Canvas.TextWidth(' '));
-end;
-
 procedure TWWindow.TabControlChange(Sender: TObject);
 var
   Tab: TFClient;
@@ -2207,7 +2179,7 @@ begin
 
   TabControl.Tabs.Clear();
   for I := 0 to FClients.Count - 1 do
-    TabControl.Tabs.Add(TabCaption(TFClient(FClients[I]).Client.Account.Name));
+    TabControl.Tabs.Add(TFClient(FClients[I]).Client.Account.Name);
 
   TabControl.TabIndex := NewTabIndex;
 end;
@@ -2230,85 +2202,6 @@ begin
     else
       TabControl.Canvas.FillRect(Rect(TabControl.TabRect(NewTabIndex).Right - 2, 0, TabControl.TabRect(NewTabIndex).Right + 2, TabControl.Height));
     TabControlDragMarkedTabIndex := NewTabIndex;
-  end;
-end;
-
-procedure TWWindow.TabControlDrawTab(Control: TCustomTabControl;
-  TabIndex: Integer; const Rect: TRect; Active: Boolean);
-var
-  IconRect: TRect;
-  ImageIndex: Integer;
-  Item: PTabControlRepaint;
-  S: string;
-  TextRect: TRect;
-begin
-  if (Active) then
-  begin
-    IconRect.Left := Rect.Left + 4;
-    IconRect.Top := Rect.Top + 4;
-    IconRect.Right := IconRect.Left + TabControl.Images.Width;
-    IconRect.Bottom := IconRect.Top + TabControl.Images.Height;
-
-    TextRect.Left := IconRect.Right + 4;
-    TextRect.Top := Rect.Top + 5;
-    TextRect.Bottom := Rect.Bottom - 2;
-
-    Control.Canvas.Font.Style := Control.Canvas.Font.Style + [fsBold]
-  end
-  else
-  begin
-    IconRect.Left := Rect.Left + 4;
-    IconRect.Top := Rect.Top + 4;
-    IconRect.Right := IconRect.Left + TabControl.Images.Width;
-    IconRect.Bottom := IconRect.Top + TabControl.Images.Height;
-
-    TextRect.Left := IconRect.Right + 4;
-    TextRect.Top := Rect.Top + 4;
-    TextRect.Bottom := Rect.Bottom - 2;
-
-    Control.Canvas.Font.Style := Control.Canvas.Font.Style - [fsBold];
-  end;
-
-  if (Length(CloseButtonRects) < TabIndex + 1) then
-    SetLength(CloseButtonRects, TabIndex + 1);
-  CloseButtonRects[TabIndex].Left := Rect.Right - CloseButton.Bitmap.Width - (IconRect.Left - Rect.Left) - 2;
-  CloseButtonRects[TabIndex].Top := TextRect.Top + 1;
-  CloseButtonRects[TabIndex].Right := CloseButtonRects[TabIndex].Left + CloseButton.Bitmap.Width;
-  CloseButtonRects[TabIndex].Bottom := CloseButtonRects[TabIndex].Top + CloseButton.Bitmap.Height;
-
-  TextRect.Right := CloseButtonRects[TabIndex].Left - 2;
-
-  if (StyleServices.Enabled) then
-  begin
-    while (TabIndex + 1 > TabControlRepaint.Count) do
-    begin
-      GetMem(Item, SizeOf(Item^));
-      TabControlRepaint.Add(Item);
-    end;
-    PTabControlRepaint(TabControlRepaint[TabIndex])^.Active := Active;
-    PTabControlRepaint(TabControlRepaint[TabIndex])^.Rect := Rect;
-    PostMessage(Handle, CM_TABCONTROL_REPAINT, 0, TabIndex);
-  end
-  else
-  begin
-    Control.Canvas.FillRect(Rect);
-
-    if (Assigned(TabControl.OnGetImageIndex)) then
-    begin
-      TabControl.OnGetImageIndex(TabControl, TabIndex, ImageIndex);
-      Preferences.SmallImages.Draw(Control.Canvas, IconRect.Left, IconRect.Top, ImageIndex);
-    end;
-
-    S := Trim(TabControl.Tabs[TabIndex]);
-    if (Control.Canvas.TextWidth(S) > TextRect.Right - TextRect.Left) then
-    begin
-      while ((Length(S) > 0) and (Control.Canvas.TextWidth(S + '...') > TextRect.Right - TextRect.Left)) do
-        Delete(S, Length(S), 1);
-      S := S + '...';
-    end;
-    Control.Canvas.TextOut(TextRect.Left, TextRect.Top, S);
-
-    Control.Canvas.Draw(CloseButtonRects[TabIndex].Left, CloseButtonRects[TabIndex].Top, CloseButton.Bitmap);
   end;
 end;
 
@@ -2335,129 +2228,6 @@ begin
 
   if (ImageIndex < 0) then
     ImageIndex := iiServer;
-end;
-
-procedure TWWindow.TabControlMouseDown(Sender: TObject;
-  Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
-var
-  TabIndex: Integer;
-begin
-  if (Button = mbLeft) then
-  begin
-    TabIndex := TabControl.IndexOfTabAt(X, Y);
-
-    if ((TabIndex >= 0) and PtInRect(CloseButtonRects[TabIndex], Point(X, Y))) then
-    begin
-      MouseDownPoint := Point(X, Y);
-      TabControlMouseMove(Sender, Shift, X, Y);
-    end
-    else
-    begin
-      TabControl.TabIndex := TabIndex;
-      TabControl.BeginDrag(False, 10);
-    end;
-  end;
-end;
-
-procedure TWWindow.TabControlMouseMove(Sender: TObject; Shift: TShiftState;
-  X, Y: Integer);
-var
-  Hint: string;
-  TabControl: TTabControl;
-  TabIndex: Integer;
-begin
-  if (Sender is TTabControl) then
-  begin
-    TabControl := TTabControl(Sender);
-    TabIndex := TabControl.IndexOfTabAt(X, Y);
-
-    if ((TabIndex < 0) or (FClients.Count <= TabIndex)) then
-      TabControl.Hint := ''
-    else
-    begin
-      if (StyleServices.Enabled) then
-      begin
-        if (PtInRect(CloseButtonRects[TabIndex], Point(X, Y))) then
-        begin
-          SetCapture(TabControl.Handle);
-          CaptureTabIndex := TabIndex;
-
-          if (PtInRect(CloseButtonRects[TabIndex], MouseDownPoint)) then
-            StyleServices.DrawElement(TabControl.Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonPushed), CloseButtonRects[CaptureTabIndex])
-          else
-            StyleServices.DrawElement(TabControl.Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonHot), CloseButtonRects[CaptureTabIndex]);
-        end
-        else
-        begin
-          ReleaseCapture();
-
-          if (CaptureTabIndex <> TabControl.TabIndex) then
-            StyleServices.DrawElement(TabControl.Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonDisabled), CloseButtonRects[CaptureTabIndex])
-          else
-            StyleServices.DrawElement(TabControl.Canvas.Handle, StyleServices.GetElementDetails(twSmallCloseButtonNormal), CloseButtonRects[CaptureTabIndex]);
-        end
-      end
-      else
-      begin
-        if (PtInRect(CloseButtonRects[TabIndex], Point(X, Y))) then
-        begin
-          SetCapture(TabControl.Handle);
-          CaptureTabIndex := TabIndex;
-
-          Dec(CloseButtonRects[CaptureTabIndex].Left);
-          Dec(CloseButtonRects[CaptureTabIndex].Top);
-          Inc(CloseButtonRects[CaptureTabIndex].Right);
-          Inc(CloseButtonRects[CaptureTabIndex].Bottom);
-          if (PtInRect(CloseButtonRects[TabIndex], MouseDownPoint)) then
-            Frame3D(TabControl.Canvas, CloseButtonRects[CaptureTabIndex], clDkGray, clWhite, 1)
-          else
-            Frame3D(TabControl.Canvas, CloseButtonRects[CaptureTabIndex], clWhite, clDkGray, 1);
-        end
-        else if (0 <= CaptureTabIndex) and (CaptureTabIndex < Length(CloseButtonRects)) then
-        begin
-          Dec(CloseButtonRects[CaptureTabIndex].Left);
-          Dec(CloseButtonRects[CaptureTabIndex].Top);
-          Inc(CloseButtonRects[CaptureTabIndex].Right);
-          Inc(CloseButtonRects[CaptureTabIndex].Bottom);
-          Frame3D(TabControl.Canvas, CloseButtonRects[CaptureTabIndex], TabControl.Canvas.Brush.Color, TabControl.Canvas.Brush.Color, 1);
-
-          ReleaseCapture();
-          CaptureTabIndex := -1;
-        end;
-      end;
-
-      if (PtInRect(CloseButtonRects[TabIndex], Point(X, Y))) then
-        Hint := ReplaceStr(aFClose.Caption, '&', '')
-      else
-      begin
-        Hint := TFClient(FClients[TabIndex]).Client.Account.Name;
-
-        if (TabIndex < 9) then
-          Hint := Hint + ' (' + ShortCutToText(ShortCut(Ord('1') + TabIndex, [ssCtrl])) + ')';
-      end;
-
-      if (Hint <> TabControl.Hint) then
-        Application.CancelHint();
-      TabControl.Hint := Hint;
-    end;
-  end;
-end;
-
-procedure TWWindow.TabControlMouseUp(Sender: TObject; Button: TMouseButton;
-  Shift: TShiftState; X, Y: Integer);
-var
-  TabIndex: Integer;
-begin
-  if (Button = mbLeft) then
-  begin
-    TabIndex := TabControl.IndexOfTabAt(X, Y);
-
-    if ((TabIndex >= 0) and PtInRect(CloseButtonRects[TabIndex], Point(X, Y)) and PtInRect(CloseButtonRects[TabIndex], MouseDownPoint)) then
-      aFClose.Execute();
-
-    MouseDownPoint := Point(-1, -1);
-    TabControlMouseMove(Sender, Shift, X, Y);
-  end;
 end;
 
 procedure TWWindow.TabControlResize(Sender: TObject);

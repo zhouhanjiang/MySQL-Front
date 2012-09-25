@@ -44,24 +44,15 @@ object WWindow: TWWindow
     Width = 683
     Height = 28
     Align = alTop
-    MultiLine = True
-    OwnerDraw = True
     PopupMenu = MTabControl
-    TabHeight = 23
     TabOrder = 1
-    TabStop = False
-    Visible = False
     OnChange = TabControlChange
     OnChanging = TabControlChanging
     OnContextPopup = TabControlContextPopup
     OnDragDrop = TabControlDragDrop
     OnDragOver = TabControlDragOver
-    OnDrawTab = TabControlDrawTab
     OnEndDrag = TabControlEndDrag
     OnGetImageIndex = TabControlGetImageIndex
-    OnMouseDown = TabControlMouseDown
-    OnMouseMove = TabControlMouseMove
-    OnMouseUp = TabControlMouseUp
     OnResize = TabControlResize
     OnStartDrag = TabControlStartDrag
   end
@@ -1889,30 +1880,12 @@ object WWindow: TWWindow
     Left = 113
     Top = 112
     object mtFClose: TMenuItem
-      Caption = 'mtFClose'
+      Action = aFClose
     end
     object mtFCloseAll: TMenuItem
       Action = aFCloseAll
     end
     object N30: TMenuItem
-      Caption = '-'
-    end
-    object mtVRefresh: TMenuItem
-      Caption = 'mtVRefresh'
-    end
-    object mtVRefreshAll: TMenuItem
-      Caption = 'mtVRefreshAll'
-    end
-    object N31: TMenuItem
-      Caption = '-'
-    end
-    object mtDCommit: TMenuItem
-      Caption = 'mtDCommit'
-    end
-    object mtDRollback: TMenuItem
-      Caption = 'mtDRollback'
-    end
-    object N32: TMenuItem
       Caption = '-'
     end
     object mtFOpenAccount: TMenuItem

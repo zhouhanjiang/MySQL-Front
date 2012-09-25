@@ -5991,7 +5991,7 @@ begin
 
     // Debug
     if (not Assigned(DBGrid.SelectedField)) then
-      raise ERangeError.CreateFmt(SRangeError + ' (SelectedField) - %s - %d', [TMySQLQuery(DBGrid.DataSource.DataSet).CommandText, DBGrid.DataSource.DataSet.FieldCount]);
+      raise ERangeError.CreateFmt(SRangeError + ' (SelectedField) - %s - %d - %s', [TMySQLQuery(DBGrid.DataSource.DataSet).CommandText, DBGrid.DataSource.DataSet.FieldCount, FNavigator.Selected.Text]);
 
     DBGrid.UpdateAction(MainAction('aEPaste'));
     MainAction('aECopyToFile').Enabled := (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) and (not DBGrid.SelectedField.IsNull) and (DBGrid.SelectedRows.Count <= 1);

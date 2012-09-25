@@ -10,7 +10,7 @@ uses
 
 type
   TPExportType = (etSQLFile, etTextFile, etExcelFile, etAccessFile, etSQLiteFile, etODBC, etHTMLFile, etXMLFile, etPDFFile, etPrinter);
-  TAJobObjectType = (jotDatabase, jotTable, jotProcedure, jotFunction, jotTrigger, jotEvent);
+  TAJobObjectType = (jotServer, jotDatabase, jotTable, jotProcedure, jotFunction, jotTrigger, jotEvent);
 
   TPItems = class;
   TPPreferences = class;
@@ -552,6 +552,7 @@ type
     Filename: TFileName;
     Objects: array of TAJob.TObject;
     procedure Assign(const Source: TPItem); override;
+    procedure ClearObjects(); virtual;
     constructor Create(const AAItems: TPItems = nil; const AName: string = ''); override;
     destructor Destroy(); override;
   end;
@@ -976,6 +977,31 @@ begin
   if (roMatchCase in Options) then begin if (Result <> '') then Result := Result + ','; Result := Result + 'MatchCase'; end;
   if (roWholeValue in Options) then begin if (Result <> '') then Result := Result + ','; Result := Result + 'WholeValue'; end;
   if (roRegExpr in Options) then begin if (Result <> '') then Result := Result + ','; Result := Result + 'RegExpr'; end;
+end;
+
+function TryStrToObjectType(const Str: string; var ObjectType: TAJobObjectType): Boolean;
+begin
+  Result := True;
+  if (UpperCase(Str) = 'DATABASE') then ObjectType := jotDatabase
+  else if (UpperCase(Str) = 'TABLE') then ObjectType := jotTable
+  else if (UpperCase(Str) = 'PROCEDURE') then ObjectType := jotProcedure
+  else if (UpperCase(Str) = 'FUNCTION') then ObjectType := jotFunction
+  else if (UpperCase(Str) = 'TRIGGER') then ObjectType := jotTrigger
+  else if (UpperCase(Str) = 'EVENT') then ObjectType := jotEvent
+  else Result := False;
+end;
+
+function ObjectTypeToStr(const ObjectType: TAJobObjectType): string;
+begin
+  case (ObjectType) of
+    jotDatabase: Result := 'Database';
+    jotTable: Result := 'Table';
+    jotProcedure: Result := 'Procedure';
+    jotFunction: Result := 'Function';
+    jotTrigger: Result := 'Trigger';
+    jotEvent: Result := 'Event';
+    else raise ERangeError.CreateFmt(SPropertyOutOfRange, ['ObjectType']);
+  end;
 end;
 
 function TryStrToExportType(const Str: string; var ExportType: TPExportType): Boolean;
@@ -2926,6 +2952,8 @@ end;
 { TAJobExport *****************************************************************}
 
 procedure TAJobExport.Assign(const Source: TPItem);
+var
+  I: Integer;
 begin
   Assert(Source is TAJobExport);
 
@@ -2933,6 +2961,26 @@ begin
 
   CodePage := TAJobExport(Source).CodePage;
   Filename := TAJobExport(Source).Filename;
+  ClearObjects();
+  SetLength(Objects, Length(TAJobExport(Source).Objects));
+  for I := 0 to Length(Objects) - 1 do
+  begin
+    Objects[I].ObjectType := TAJobExport(Source).Objects[I].ObjectType;
+    Objects[I].Name := TAJobExport(Source).Objects[I].Name;
+    Objects[I].DatabaseName := TAJobExport(Source).Objects[I].DatabaseName;
+  end;
+end;
+
+procedure TAJobExport.ClearObjects();
+var
+  I: Integer;
+begin
+  for I := 0 to Length(Objects) - 1 do
+  begin
+    Objects[I].DatabaseName := '';
+    Objects[I].Name := '';
+  end;
+  SetLength(Objects, 0);
 end;
 
 constructor TAJobExport.Create(const AAItems: TPItems = nil; const AName: string = '');
@@ -2945,15 +2993,8 @@ begin
 end;
 
 destructor TAJobExport.Destroy();
-var
-  I: Integer;
 begin
-  for I := 0 to Length(Objects) - 1 do
-  begin
-    Objects[I].DatabaseName := '';
-    Objects[I].Name := '';
-  end;
-  SetLength(Objects, 0);
+  ClearObjects();
 
   inherited;
 end;
@@ -2981,6 +3022,7 @@ end;
 procedure TAJobExport.LoadFromXML(const XML: IXMLNode);
 var
   Child: IXMLNode;
+  ObjectType: TAJobObjectType;
 begin
   inherited;
 
@@ -2993,13 +3035,13 @@ begin
     Child := XMLNode(XML, 'objects').ChildNodes.First();
     while (Assigned(Child)) do
     begin
-//      if ((Child.NodeName = 'object') and TryStrToObjectType(Child.Attributes['type'], ObjectType) then
-//      begin
-//        SetLength(Objects, Length(Objects) + 1);
-//        Objects[Length(Objects) - 1].DatabaseName := Child.Attributes['database'];
-//        Objects[Length(Objects) - 1].Name := Child.Attributes['name'];
-//        Objects[Length(Objects) - 1].ObjectType := ObjectType;
-//      end;
+      if ((Child.NodeName = 'object') and TryStrToObjectType(Child.Attributes['type'], ObjectType)) then
+      begin
+        SetLength(Objects, Length(Objects) + 1);
+        Objects[Length(Objects) - 1].DatabaseName := Child.Attributes['database'];
+        Objects[Length(Objects) - 1].Name := Child.Attributes['name'];
+        Objects[Length(Objects) - 1].ObjectType := ObjectType;
+      end;
       Child := Child.NextSibling();
     end;
   end;
@@ -3033,8 +3075,14 @@ begin
         XMLNode(XML, 'objects').ChildNodes.Remove(RemoveChild);
     end;
 
-//    for I := 0 to Objects.Count - 1 do
-//      XMLNode(XML, 'objects').AddChild('object').Text := Jobs.Account.ExtractPath(Objects[I]);
+    for I := 0 to Length(Objects) - 1 do
+    begin
+      Child := XMLNode(XML, 'objects').AddChild('object');
+      Child.Attributes['name'] := Objects[I].Name;
+      if (Objects[I].ObjectType in [jotTable, jotProcedure, jotFunction, jotTrigger, jotEvent]) then
+        Child.Attributes['databasename'] := Objects[I].DatabaseName;
+      Child.Attributes['type'] := ObjectTypeToStr(Objects[I].ObjectType);
+    end;
   end;
 end;
 
