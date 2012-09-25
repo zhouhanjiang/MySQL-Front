@@ -44,8 +44,12 @@ object WWindow: TWWindow
     Width = 683
     Height = 28
     Align = alTop
+    MultiLine = True
     PopupMenu = MTabControl
+    TabHeight = 23
     TabOrder = 1
+    TabStop = False
+    Visible = False
     OnChange = TabControlChange
     OnChanging = TabControlChanging
     OnContextPopup = TabControlContextPopup
