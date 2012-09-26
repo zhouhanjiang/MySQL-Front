@@ -257,7 +257,7 @@ type
     FThreadId: my_uint;
     FUsername: string;
     InMonitor: Boolean;
-    InOnResult: Boolean; // Should be private, but for debugging...
+    InOnResult: Boolean;
     local_infile: Plocal_infile;
     function GetCommandText(): string;
     function UseCompression(): Boolean;
@@ -3467,10 +3467,13 @@ begin
   if (Assigned(SynchroThread.OnResult)) then
   begin
     InOnResult := True;
-    if (not SynchroThread.OnResult(SynchroThread, Assigned(SynchroThread.ResultHandle))
-      and (ErrorCode > 0)) then
-      DoError(ErrorCode, ErrorMessage);
-    InOnResult := False;
+    try
+      if (not SynchroThread.OnResult(SynchroThread, Assigned(SynchroThread.ResultHandle))
+        and (ErrorCode > 0)) then
+        DoError(ErrorCode, ErrorMessage);
+    finally
+      InOnResult := False;
+    end;
   end;
 
   if ((Assigned(SynchroThread.OnResult) or not Assigned(SynchroThread.ResultHandle)) and (SynchroThread.State = ssResult)) then

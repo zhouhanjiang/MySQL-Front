@@ -2,6 +2,8 @@ unit fTools;
 
 interface {********************************************************************}
 
+// ODBC Driver: http://www.microsoft.com/en-us/download/details.aspx?id=13255
+
 uses
   Windows, XMLDoc, XMLIntf, DBGrids, msxml, Zip, Printers,
   SysUtils, DB, Classes, Graphics, SyncObjs,

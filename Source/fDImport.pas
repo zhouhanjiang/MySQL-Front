@@ -377,7 +377,6 @@ var
   ConnStrIn: string;
   DatabaseName: string;
   MessageText: PSQLTCHAR;
-  S: string;
   SQLState: array [0 .. SQL_SQLSTATE_SIZE] of SQLWCHAR;
   Success: Boolean;
 begin
@@ -454,11 +453,8 @@ begin
                   if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, nil, nil, nil, 0, @cbMessageText))) then
                   begin
                     GetMem(MessageText, (cbMessageText + 1) * SizeOf(SQLTCHAR));
-                    if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, @SQLState, nil, @MessageText, cbMessageText + 1, nil))) then
-                    begin
-                      SetString(S, PChar(MessageText), cbMessageText);
-                      MsgBox(S + ' (' + PChar(@SQLState) + ')', Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-                    end;
+                    if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, @SQLState, nil, MessageText, cbMessageText + 1, nil))) then
+                      MsgBox(PChar(MessageText) + ' (' + SQLState + ')', Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
                     FreeMem(MessageText);
                   end;
                   SQLFreeHandle(SQL_HANDLE_DBC, ODBC); ODBC := SQL_NULL_HANDLE;
