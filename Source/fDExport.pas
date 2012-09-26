@@ -607,13 +607,13 @@ begin
       begin
         PageControl.Visible := True;
         PSQLWait.Visible := not PageControl.Visible;
-
-        if (TSFields.Enabled) then
-          InitTSFields();
-        CheckActivePageChange(PageControl.ActivePageIndex);
       end;
+
+      if (TSFields.Enabled) then
+        InitTSFields();
       if (TSJob.Enabled) then
         InitTSJob();
+      CheckActivePageChange(PageControl.ActivePageIndex);
     end;
 end;
 
@@ -673,6 +673,9 @@ function TDExport.Execute(): Boolean;
 begin
   PageControl.ActivePageIndex := -1;
   ModalResult := mrNone;
+
+  Filename := '';
+  Title := '';
 
   if ((Assigned(DBGrid) or (Objects.Count >= 1)) and (DialogType = edtNormal) and not (ExportType in [etODBC, etPrinter])) then
     if (not GetFilename()) then
