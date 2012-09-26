@@ -393,15 +393,21 @@ begin
       begin
         if (ImportType = itExcelFile) then
           ConnStrIn := 'Driver={Microsoft Excel Driver (*.xls)};' + 'DBQ=' + Filename + ';' + 'READONLY=TRUE'
-        else if (LowerCase(ExtractFileExt(Filename)) = '.accdb') then
-          ConnStrIn := 'Driver={Microsoft Access Driver (*.mdb, *.accdb)};' + 'DBQ=' + Filename + ';' + 'READONLY=TRUE'
         else
-          ConnStrIn := 'Driver={Microsoft Access Driver (*.mdb)};' + 'DBQ=' + Filename + ';' + 'READONLY=TRUE';
+          ConnStrIn := 'Driver={Microsoft Access Driver (*.mdb, *.accdb)};' + 'DBQ=' + Filename + ';' + 'READONLY=TRUE';
 
         Success := SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, @ODBCEnv));
         Success := Success and SQL_SUCCEEDED(SQLSetEnvAttr(ODBCEnv, SQL_ATTR_ODBC_VERSION, SQLPOINTER(SQL_OV_ODBC3), SQL_IS_UINTEGER));
         Success := Success and SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @ODBC));
-        Success := Success and SQL_SUCCEEDED(SQLDriverConnect(ODBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
+        if (Success) then
+        begin
+          Success := SQL_SUCCEEDED(SQLDriverConnect(ODBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
+          if (not Success) then
+          begin
+            ConnStrIn := 'Driver={Microsoft Access Driver (*.mdb)};' + 'DBQ=' + Filename + ';' + 'READONLY=TRUE';
+            Success := SQL_SUCCEEDED(SQLDriverConnect(ODBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
+          end;
+        end;
         if (not Success) then
           if ((ODBCEnv <> SQL_NULL_HANDLE) and SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_ENV, ODBCEnv, 1, nil, nil, nil, 0, @cbMessageText))
             or (ODBC <> SQL_NULL_HANDLE) and SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, nil, nil, nil, 0, @cbMessageText))) then

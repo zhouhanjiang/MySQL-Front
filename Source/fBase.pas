@@ -448,6 +448,8 @@ begin
       Description := Preferences.LoadStr(452)
     else if (LowerCase(Ext) = 'mdb') then
       Description := ReplaceStr(Preferences.LoadStr(695), '&', '')
+    else if (LowerCase(Ext) = 'accdb') then
+      Description := ReplaceStr(Preferences.LoadStr(900), '&', '')
     else if (LowerCase(Ext) = 'pdf') then
       Description := Preferences.LoadStr(890)
     else if (LowerCase(Ext) = 'sql') then

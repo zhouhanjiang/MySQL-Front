@@ -1461,7 +1461,7 @@ begin
       end;
     etAccessFile:
       begin
-        SaveDialog.Filter := FilterDescription('mdb') + ' (*.mdb;*.accdb)|*.mdb;*.accdb';
+        SaveDialog.Filter := FilterDescription('mdb') + ' (*.mdb)|*.mdb|' + FilterDescription('accdb') + ' (*.accdb)|*.accdb';
         SaveDialog.DefaultExt := '.mdb';
         SaveDialog.Encodings.Clear();
       end;

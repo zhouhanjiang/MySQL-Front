@@ -6003,10 +6003,10 @@ var
   ErrorMsg: PChar;
   Size: Word;
 begin
-  if (SysUtils.LowerCase(ExtractFileExt(Filename)) = '.accdb') then
-    ConnStrIn := 'Driver={Microsoft Access Driver (*.mdb, *.accdb)};' + 'DBQ=' + Filename + ';' + 'READONLY=FALSE'
+  if (SysUtils.LowerCase(ExtractFileExt(Filename)) <> '.accdb') then
+    ConnStrIn := 'Driver={Microsoft Access Driver (*.mdb)};DBQ=' + Filename + ';READONLY=FALSE'
   else
-    ConnStrIn := 'Driver={Microsoft Access Driver (*.mdb)};' + 'DBQ=' + Filename + ';' + 'READONLY=FALSE';
+    ConnStrIn := 'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=' + Filename + ';READONLY=FALSE';
 
   while (FileExists(Filename) and not DeleteFile(Filename)) do
     DoError(SysError(), EmptyToolsItem(), True);
@@ -6017,7 +6017,8 @@ begin
       DoError(ODBCError(0, SQL_NULL_HANDLE), EmptyToolsItem(), False)
     else if (not SQL_SUCCEEDED(SQLSetEnvAttr(ODBC, SQL_ATTR_ODBC_VERSION, SQLPOINTER(SQL_OV_ODBC3), SQL_IS_UINTEGER))) then
       DoError(ODBCError(SQL_HANDLE_ENV, ODBC), EmptyToolsItem(), False)
-    else if (not SQLConfigDataSource(Application.Handle, ODBC_ADD_DSN, 'Microsoft Access Driver (*.mdb)', PChar('CREATE_DB=' + Filename + ' General'))) then
+    else if ((SysUtils.LowerCase(ExtractFileExt(Filename)) <> '.accdb') and not SQLConfigDataSource(Application.Handle, ODBC_ADD_DSN, 'Microsoft Access Driver (*.mdb)', PChar('CREATE_DB=' + Filename + ' General'))
+      or (SysUtils.LowerCase(ExtractFileExt(Filename)) = '.accdb') and not SQLConfigDataSource(Application.Handle, ODBC_ADD_DSN, 'Microsoft Access Driver (*.mdb, *.accdb)', PChar('CREATE_DBV12=' + Filename + ' General'))) then
     begin
       Error.ErrorType := TE_ODBC;
       GetMem(ErrorMsg, SQL_MAX_MESSAGE_LENGTH * SizeOf(Char));

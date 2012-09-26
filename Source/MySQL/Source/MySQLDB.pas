@@ -3594,10 +3594,13 @@ var
   I: Integer;
 begin
   InMonitor := True;
-  for I := 0 to System.Length(FSQLMonitors) - 1 do
-    if (ATraceType in FSQLMonitors[I].TraceTypes) then
-      FSQLMonitors[I].DoMonitor(Self, AText, Length, ATraceType);
-  InMonitor := False;
+  try
+    for I := 0 to System.Length(FSQLMonitors) - 1 do
+      if (ATraceType in FSQLMonitors[I].TraceTypes) then
+        FSQLMonitors[I].DoMonitor(Self, AText, Length, ATraceType);
+  finally
+    InMonitor := False;
+  end;
 end;
 
 { TMySQLBitField **************************************************************}
@@ -5155,8 +5158,7 @@ begin
         Result := grError;
         while (Result = grError) do
         begin
-          if (Assigned(SynchroThread)
-            and (NewIndex + 1 = InternRecordBuffers.Count) and not Filtered
+          if ((NewIndex + 1 = InternRecordBuffers.Count) and not Filtered
             and ((RecordsReceived.WaitFor(IGNORE) <> wrSignaled) or (Self is TMySQLTable) and TMySQLTable(Self).LimitedDataReceived and TMySQLTable(Self).AutomaticLoadNextRecords and TMySQLTable(Self).LoadNextRecords())) then
             InternRecordBuffers.RecordReceived.WaitFor(NET_WAIT_TIMEOUT * 1000);
 
