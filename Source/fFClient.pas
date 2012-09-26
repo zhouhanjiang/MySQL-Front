@@ -3494,7 +3494,8 @@ begin
           Database := TCDatabase(FNavigator.Selected.Data);
           if ((Client.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TCSystemDatabase)) then
             for I := 0 to ActiveListView.Items.Count - 1 do
-              DExport.Objects.Add(TCDBObject(ActiveListView.Items[I].Data));
+              if (ActiveListView.Items[I].Selected) then
+                DExport.Objects.Add(TCDBObject(ActiveListView.Items[I].Data));
         end;
       iiBaseTable:
         begin
@@ -3636,7 +3637,7 @@ begin
         end;
       itAccessFile:
         begin
-          OpenDialog.Filter := FilterDescription('mdb') + ' (*.mdb)|*.mdb';
+          OpenDialog.Filter := FilterDescription('mdb') + ' (*.mdb;*.accdb)|*.mdb;*.accdb';
           OpenDialog.DefaultExt := 'mdb';
           OpenDialog.Encodings.Clear();
         end;
@@ -4513,7 +4514,7 @@ begin
   mfFilterText.Caption := FilterDescription('txt') + ' (*.txt,*.csv)';
   mfFilterHTML.Caption := FilterDescription('html') + ' (*.html,*.hmt)';
   mfFilterXML.Caption := FilterDescription('xml') + ' (*.xml)';
-  mfFilterAccess.Caption := FilterDescription('mdb') + ' (*.mdb)';
+  mfFilterAccess.Caption := FilterDescription('mdb') + ' (*.mdb;*.accdb)';
   mfFilterExcel.Caption := FilterDescription('xls') + ' (*.xls)';
   mfDelete.Caption := Preferences.LoadStr(28);
   mfRename.Caption := Preferences.LoadStr(98);
@@ -11140,7 +11141,7 @@ end;
 
 procedure TFClient.mfFilterAccessClick(Sender: TObject);
 begin
-  FFiles.Filter := '*.mdb';
+  FFiles.Filter := '*.mdb;*.accdb';
 end;
 
 procedure TFClient.mfFilterClearClick(Sender: TObject);
@@ -11185,7 +11186,7 @@ begin
   mfFilterClear.Checked := FFiles.Filter = '*';
   mfFilterSQL.Checked := FFiles.Filter = '*.sql';
   mfFilterText.Checked := FFiles.Filter = '*.txt;*.csv';
-  mfFilterAccess.Checked := FFiles.Filter = '*.mdb';
+  mfFilterAccess.Checked := FFiles.Filter = '*.mdb;*.accdb';
   mfFilterExcel.Checked := FFiles.Filter = '*.xls';
   mfFilterSQLite.Checked := FFiles.Filter = '*.sqlite';
   mfFilterHTML.Checked := FFiles.Filter = '*.html;*.htm';

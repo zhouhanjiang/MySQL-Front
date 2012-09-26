@@ -4812,9 +4812,7 @@ begin
       repeat
         Name := DataSet.Fields[0].AsString;
 
-        if (not InsertIndex(Name, Index)) then
-          DeleteList.Delete(DeleteList.IndexOf(Items[Index]))
-        else
+        if (InsertIndex(Name, Index)) then
         begin
           if (Database = Database.Client.PerformanceSchema) then
             NewTable := TCSystemView.Create(Self, Name, True)
@@ -4831,7 +4829,9 @@ begin
             Insert(Index, NewTable)
           else
             Add(NewTable);
-        end;
+        end
+        else if (DeleteList.IndexOf(Items[Index]) >= 0) then
+          DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
       until (not DataSet.FindNext());
     FValid := True;
 
@@ -5655,13 +5655,7 @@ begin
 
       if (RoutineType <> rtUnknown) then
       begin
-        if (not InsertIndex(Name, Index)) then
-        begin
-          if (DeleteList.IndexOf(Items[Index]) < 0) then
-            raise ERangeError.CreateFmt(SPropertyOutOfRange + ' (%s)', ['IndexOf', TObject(Items[Index]).ClassName]);
-          DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
-        end
-        else
+        if (InsertIndex(Name, Index)) then
         begin
           if (RoutineType = rtProcedure) then
             NewRoutine := TCProcedure.Create(Self, Name)
@@ -5671,7 +5665,9 @@ begin
             Insert(Index, NewRoutine)
           else
             Index := Add(NewRoutine);
-        end;
+        end
+        else if (DeleteList.IndexOf(Items[Index]) >= 0) then
+          DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
 
         if (not UseInformationSchema) then
         begin
@@ -5943,12 +5939,13 @@ begin
       else
         raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Name']);
 
-      if (not InsertIndex(Name, Index)) then
-        DeleteList.Delete(DeleteList.IndexOf(Items[Index]))
-      else if (Index < Count) then
-        Insert(Index, TCTrigger.Create(Self, Name))
-      else
-        Add(TCTrigger.Create(Self, Name));
+      if (InsertIndex(Name, Index)) then
+        if (Index < Count) then
+          Insert(Index, TCTrigger.Create(Self, Name))
+        else
+          Add(TCTrigger.Create(Self, Name))
+      else if (DeleteList.IndexOf(Items[Index]) >= 0) then
+        DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
 
       if (not UseInformationSchema) then
       begin
@@ -6250,12 +6247,13 @@ begin
         else
           Name := DataSet.FieldByName('EVENT_NAME').AsString;
 
-        if (not InsertIndex(Name, Index)) then
-          DeleteList.Delete(DeleteList.IndexOf(Items[Index]))
-        else if (Index < Count) then
-          Insert(Index, TCEvent.Create(Self, Name))
-        else
-          Add(TCEvent.Create(Self, Name));
+        if (InsertIndex(Name, Index)) then
+          if (Index < Count) then
+            Insert(Index, TCEvent.Create(Self, Name))
+          else
+            Add(TCEvent.Create(Self, Name))
+        else if (DeleteList.IndexOf(Items[Index]) >= 0) then
+          DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
 
         if (not UseInformationSchema) then
         begin
@@ -7773,9 +7771,7 @@ begin
 
       if (Found or (Length(DatabaseNames) = 0)) then
       begin
-        if (not InsertIndex(Name, Index)) then
-          DeleteList.Delete(DeleteList.IndexOf(Items[Index]))
-        else
+        if (InsertIndex(Name, Index)) then
         begin
           if (NameCmp(Name, information_schema) = 0) then
           begin
@@ -7794,7 +7790,9 @@ begin
             Insert(Index, NewDatabase)
           else
             Index := Add(NewDatabase);
-        end;
+        end
+        else if (DeleteList.IndexOf(Items[Index]) >= 0) then
+          DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
 
         if (UseInformationSchema) then
         begin
@@ -8006,16 +8004,13 @@ begin
       else
         Name := DataSet.FieldByName('VARIABLE_NAME').AsString;
 
-      if (not InsertIndex(Name, Index)) then
-      begin
-        if (DeleteList.IndexOf(Items[Index]) >= 0) then
-//          raise ERangeError.CreateFmt(SPropertyOutOfRange + ' (%s)', ['IndexOf', TObject(Items[Index]).ClassName]);
-          DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
-      end
-      else if (Index < Count) then
-        Insert(Index, TCVariable.Create(Self, Name))
-      else
-        Index := Add(TCVariable.Create(Self, Name));
+      if (InsertIndex(Name, Index)) then
+        if (Index < Count) then
+          Insert(Index, TCVariable.Create(Self, Name))
+        else
+          Index := Add(TCVariable.Create(Self, Name))
+      else if (DeleteList.IndexOf(Items[Index]) >= 0) then
+        DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
 
       if (not UseInformationSchema) then
         Variable[Index].Value := DataSet.FieldByName('Value').AsString
@@ -8122,12 +8117,13 @@ begin
       else
         Name := DataSet.FieldByName('VARIABLE_NAME').AsString;
 
-      if (not InsertIndex(Name, Index)) then
-        DeleteList.Delete(DeleteList.IndexOf(Items[Index]))
-      else if (Index < Count) then
-        Insert(Index, TCStatus.Create(Self, Name))
-      else
-        Add(TCStatus.Create(Self, Name));
+      if (InsertIndex(Name, Index)) then
+        if (Index < Count) then
+          Insert(Index, TCStatus.Create(Self, Name))
+        else
+          Add(TCStatus.Create(Self, Name))
+      else if (DeleteList.IndexOf(Items[Index]) >= 0) then
+        DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
 
       if (not UseInformationSchema) then
         Status[Index].Value := DataSet.FieldByName('Value').AsString
@@ -8279,9 +8275,7 @@ begin
         else
           Name := DataSet.FieldByName('ENGINE').AsString;
 
-        if (not InsertIndex(Name, Index)) then
-          DeleteList.Delete(DeleteList.IndexOf(Items[Index]))
-        else
+        if (InsertIndex(Name, Index)) then
         begin
           if (UpperCase(Name) = 'PERFORMANCE_SCHEMA') then
             NewEngine := TCSystemEngine.Create(Self, Name)
@@ -8292,7 +8286,9 @@ begin
             Insert(Index, NewEngine)
           else
             Add(NewEngine);
-        end;
+        end
+        else if (DeleteList.IndexOf(Items[Index]) >= 0) then
+          DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
 
         if (not UseInformationSchema) then
         begin
@@ -8385,7 +8381,9 @@ begin
         if (Index < Count) then
           Insert(Index, TCPlugin.Create(Self, Name))
         else
-          Add(TCPlugin.Create(Self, Name));
+          Add(TCPlugin.Create(Self, Name))
+      else if (DeleteList.IndexOf(Items[Index]) >= 0) then
+        DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
 
       if (UseInformationSchema) then
         Plugin[Index].FComment := DataSet.FieldByName('PLUGIN_DESCRIPTION').AsString;
@@ -8581,12 +8579,13 @@ begin
           Names := '';
         end;
 
-        if (not InsertIndex(Name, Index)) then
-          DeleteList.Delete(DeleteList.IndexOf(Items[Index]))
-        else if (Index < Count) then
-          Insert(Index, TCCharset.Create(Self, Name))
-        else
-          Add(TCCharset.Create(Self, Name));
+        if (InsertIndex(Name, Index)) then
+          if (Index < Count) then
+            Insert(Index, TCCharset.Create(Self, Name))
+          else
+            Add(TCCharset.Create(Self, Name))
+        else if (DeleteList.IndexOf(Items[Index]) >= 0) then
+          DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
       end;
     end;
   end
@@ -8597,12 +8596,13 @@ begin
       else
         Name := DataSet.FieldByName('CHARACTER_SET_NAME').AsString;
 
-      if (not InsertIndex(Name, Index)) then
-        DeleteList.Delete(DeleteList.IndexOf(Items[Index]))
-      else if (Index < Count) then
-        Insert(Index, TCCharset.Create(Self, Name))
-      else
-        Add(TCCharset.Create(Self, Name));
+      if (InsertIndex(Name, Index)) then
+        if (Index < Count) then
+          Insert(Index, TCCharset.Create(Self, Name))
+        else
+          Add(TCCharset.Create(Self, Name))
+      else if (DeleteList.IndexOf(Items[Index]) >= 0) then
+        DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
 
       if (not UseInformationSchema) then
       begin
@@ -8681,12 +8681,13 @@ begin
       else
         Name := DataSet.FieldByName('COLLATION_NAME').AsString;
 
-      if (not InsertIndex(Name, Index)) then
-        DeleteList.Delete(DeleteList.IndexOf(Items[Index]))
-      else if (Index < Count) then
-        Insert(Index, TCCollation.Create(Self, Name))
-      else
-        Add(TCCollation.Create(Self, Name));
+      if (InsertIndex(Name, Index)) then
+        if (Index < Count) then
+          Insert(Index, TCCollation.Create(Self, Name))
+        else
+          Add(TCCollation.Create(Self, Name))
+      else if (DeleteList.IndexOf(Items[Index]) >= 0) then
+        DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
 
       if (not UseInformationSchema) then
       begin
@@ -8769,12 +8770,13 @@ begin
       else
         Name := DataSet.FieldByName('ID').AsString;
 
-      if (not InsertIndex(Name, Index)) then
-        DeleteList.Delete(DeleteList.IndexOf(Items[Index]))
-      else if (Index < Count) then
-        Insert(Index, TCProcess.Create(Self, Name))
-      else
-        Add(TCProcess.Create(Self, Name));
+      if (InsertIndex(Name, Index)) then
+        if (Index < Count) then
+          Insert(Index, TCProcess.Create(Self, Name))
+        else
+          Add(TCProcess.Create(Self, Name))
+      else if (DeleteList.IndexOf(Items[Index]) >= 0) then
+        DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
 
       if (not UseInformationSchema) then
       begin
@@ -9421,12 +9423,13 @@ begin
       else
         raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Name']);
 
-      if (not InsertIndex(Name, Index)) then
-        DeleteList.Delete(DeleteList.IndexOf(Items[Index]))
-      else if (Index < Count) then
-        Insert(Index, TCUser.Create(Self, Name))
-      else
-        Add(TCUser.Create(Self, Name));
+      if (InsertIndex(Name, Index)) then
+        if (Index < Count) then
+          Insert(Index, TCUser.Create(Self, Name))
+        else
+          Add(TCUser.Create(Self, Name))
+      else if (DeleteList.IndexOf(Items[Index]) >= 0) then
+        DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
     until (not DataSet.FindNext());
 
   Result := inherited or (Client.ErrorCode = ER_DBACCESS_DENIED_ERROR) or (Client.ErrorCode = ER_TABLEACCESS_DENIED_ERROR);

@@ -567,12 +567,13 @@ type
     property Account: TAAccount read FAccount;
     property XML: IXMLNode read GetXML;
   public
-    function AddJob(const NewJob: TPItem): Boolean; virtual;
+    function AddJob(const NewJob: TAJob): Boolean; virtual;
     constructor Create(const AAccount: TAAccount);
     procedure Delete(const Job: TPItem); overload; virtual;
     destructor Destroy(); override;
     procedure LoadFromXML(); virtual;
     procedure SaveToXML(); virtual;
+    function UpdateJob(const Job, NewJob: TAJob): Boolean; virtual;
     property Job[Index: Integer]: TAJob read GetJob; default;
   end;
 
@@ -3088,7 +3089,7 @@ end;
 
 { TAJobs **********************************************************************}
 
-function TAJobs.AddJob(const NewJob: TPItem): Boolean;
+function TAJobs.AddJob(const NewJob: TAJob): Boolean;
 var
   Job: TPItem;
 begin
@@ -3218,6 +3219,21 @@ begin
 
     if (XML.OwnerDocument.Modified) then
       XML.OwnerDocument.SaveToFile(Account.JobsFilename);
+  end;
+end;
+
+function TAJobs.UpdateJob(const Job, NewJob: TAJob): Boolean;
+begin
+  Assert(NewJob is TAJobExport);
+
+  Result := (IndexOf(Job) >= 0) and ((IndexByName(NewJob.Name) = IndexOf(Job)) or (IndexByName(NewJob.Name) < 0));
+  if (Result) then
+  begin
+    Job.Assign(NewJob);
+
+    Account.AccountEvent(ClassType);
+
+    SaveToXML();
   end;
 end;
 

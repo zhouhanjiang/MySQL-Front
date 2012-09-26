@@ -414,6 +414,8 @@ type
     procedure tbPropertiesClick(Sender: TObject);
     procedure CAddressBarResize(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
+    procedure TabControlMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
   const
     tiDeactivate = 1;
   type
@@ -2123,6 +2125,26 @@ begin
 
   if (ImageIndex < 0) then
     ImageIndex := iiServer;
+end;
+
+procedure TWWindow.TabControlMouseDown(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+var
+  AllowChange: Boolean;
+  I: Integer;
+begin
+  if (Button = mbRight) then
+    for I := 0 to TabControl.Tabs.Count - 1 do
+      if ((TabControl.TabRect(I).Left <= X) and (X <= TabControl.TabRect(I).Right)) then
+      begin
+        AllowChange := True;
+        TabControlChanging(Sender, AllowChange);
+        if (AllowChange) then
+        begin
+          TabControl.TabIndex := I;
+          TabControlChange(Sender);
+        end;
+      end;
 end;
 
 procedure TWWindow.TabControlResize(Sender: TObject);

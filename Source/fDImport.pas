@@ -394,6 +394,8 @@ begin
       begin
         if (ImportType = itExcelFile) then
           ConnStrIn := 'Driver={Microsoft Excel Driver (*.xls)};' + 'DBQ=' + Filename + ';' + 'READONLY=TRUE'
+        else if (LowerCase(ExtractFileExt(Filename)) = '.accdb') then
+          ConnStrIn := 'Driver={Microsoft Access Driver (*.mdb, *.accdb)};' + 'DBQ=' + Filename + ';' + 'READONLY=TRUE'
         else
           ConnStrIn := 'Driver={Microsoft Access Driver (*.mdb)};' + 'DBQ=' + Filename + ';' + 'READONLY=TRUE';
 

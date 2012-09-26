@@ -509,45 +509,61 @@ var
   J: Integer;
   K: Integer;
   L: Integer;
+  Nodes: TList;
 begin
   if (DialogType = edtEditJob) then
   begin
-    FSelect.Selected := nil;
-    if (Client.Update()) then
-      for I := 0 to Length(Job.Objects) - 1 do
-        if (Job.Objects[I].ObjectType = jotServer) then
-          FSelect.Items[0].Selected := True
-        else if (Client.Databases.Update()) then
-          if (Job.Objects[I].ObjectType = jotDatabase) then
+    if (FSelect.Items[0].Count = 0) then
+    begin
+      Nodes := TList.Create();
+      if (Client.Update()) then
+        for I := 0 to Length(Job.Objects) - 1 do
+          if (Job.Objects[I].ObjectType = jotServer) then
+            Nodes.Add(FSelect.Items[0])
+          else if (Client.Databases.Update()) then
           begin
             FSelect.Items[0].Expand(False);
-            for J := 0 to FSelect.Items[0].Count - 1 do
-              if (Client.Databases.NameCmp(FSelect.Items[0].Item[J].Text, Job.Objects[I].Name) = 0) then
-                FSelect.Items[0].Item[J].Selected := True
-          end
-          else
-          begin
-            for J := 0 to FSelect.Items[0].Count - 1 do
-              if ((Job.Objects[I].ObjectType in [jotTable, jotProcedure, jotFunction, jotEvent]) and (Client.Databases.NameCmp(FSelect.Items[0].Item[J].Text, Job.Objects[I].DatabaseName) = 0) and Client.DatabaseByName(Job.Objects[I].DatabaseName).Update()) then
+            if (Job.Objects[I].ObjectType = jotDatabase) then
+            begin
+              for J := 0 to FSelect.Items[0].Count - 1 do
+                if (Client.Databases.NameCmp(FSelect.Items[0].Item[J].Text, Job.Objects[I].Name) = 0) then
+                  Nodes.Add(FSelect.Items[0].Item[J]);
+            end
+            else
+            begin
+              for J := 0 to FSelect.Items[0].Count - 1 do
+                if (Client.Databases.NameCmp(FSelect.Items[0].Item[J].Text, Job.Objects[I].DatabaseName) = 0) then
                 begin
-                  if (Client.Databases.NameCmp(FSelect.Items[0].Item[J].Text, Job.Objects[I].DatabaseName) = 0) then
+                  Database := Client.DatabaseByName(Job.Objects[I].DatabaseName);
+                  if (Database.Update()) then
+                  begin
+                    FSelect.Items[0].Item[J].Expand(False);
                     for K := 0 to FSelect.Items[0].Item[J].Count - 1 do
-                      if ((Job.Objects[I].ObjectType = jotTable) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) is TCTable) and (Client.DatabaseByName(Job.Objects[I].DatabaseName).Tables.NameCmp(TCTable(FSelect.Items[0].Item[J].Item[K].Data).Name, Job.Objects[I].Name) = 0)
-                        or (Job.Objects[I].ObjectType = jotProcedure) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) is TCProcedure) and (Client.DatabaseByName(Job.Objects[I].DatabaseName).Routines.NameCmp(TCProcedure(FSelect.Items[0].Item[J].Item[K].Data).Name, Job.Objects[I].Name) = 0)
-                        or (Job.Objects[I].ObjectType = jotFunction) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) is TCFunction) and (Client.DatabaseByName(Job.Objects[I].DatabaseName).Routines.NameCmp(TCFunction(FSelect.Items[0].Item[J].Item[K].Data).Name, Job.Objects[I].Name) = 0)
-                        or (Job.Objects[I].ObjectType = jotEvent) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) is TCEvent) and (Client.DatabaseByName(Job.Objects[I].DatabaseName).Events.NameCmp(TCEvent(FSelect.Items[0].Item[J].Item[K].Data).Name, Job.Objects[I].Name) = 0)) then
-                        FSelect.Items[0].Item[J].Item[K].Selected := True;
-                end
-                else if ((Job.Objects[I].ObjectType = jotTrigger) and Assigned(Client.DatabaseByName(Job.Objects[I].DatabaseName)) and Client.DatabaseByName(Job.Objects[I].DatabaseName).Update() and Assigned(Client.DatabaseByName(Job.Objects[I].DatabaseName).TriggerByName(Job.Objects[I].Name)) and Client.DatabaseByName(Job.Objects[I].DatabaseName).TriggerByName(Job.Objects[I].Name).Update()) then
-                begin
-                  if (Client.Databases.NameCmp(FSelect.Items[0].Item[J].Text, Job.Objects[I].DatabaseName) = 0) then
-                    for K := 0 to FSelect.Items[0].Item[J].Count - 1 do
-                      if ((Job.Objects[I].ObjectType = jotTable) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) = Client.DatabaseByName(Job.Objects[I].DatabaseName).TriggerByName(Job.Objects[I].Name).Table)) then
-                        for L := 0 to FSelect.Items[0].Item[J].Item[K].Count - 1 do
-                          if ((TObject(FSelect.Items[0].Item[J].Item[K].Data) is TCTrigger) and (Client.DatabaseByName(Job.Objects[I].DatabaseName).Triggers.NameCmp(TCTrigger(FSelect.Items[0].Item[J].Item[K].Item[L].Data).Name, Job.Objects[I].Name) = 0)) then
-                            FSelect.Items[0].Item[J].Item[K].Item[L].Selected := True;
+                      if (Job.Objects[I].ObjectType in [jotTable, jotProcedure, jotFunction, jotEvent]) then
+                      begin
+                        if ((Job.Objects[I].ObjectType = jotTable) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) is TCTable) and (Database.Tables.NameCmp(TCTable(FSelect.Items[0].Item[J].Item[K].Data).Name, Job.Objects[I].Name) = 0)
+                          or (Job.Objects[I].ObjectType = jotProcedure) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) is TCProcedure) and (Database.Routines.NameCmp(TCProcedure(FSelect.Items[0].Item[J].Item[K].Data).Name, Job.Objects[I].Name) = 0)
+                          or (Job.Objects[I].ObjectType = jotFunction) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) is TCFunction) and (Database.Routines.NameCmp(TCFunction(FSelect.Items[0].Item[J].Item[K].Data).Name, Job.Objects[I].Name) = 0)
+                          or (Job.Objects[I].ObjectType = jotEvent) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) is TCEvent) and (Database.Events.NameCmp(TCEvent(FSelect.Items[0].Item[J].Item[K].Data).Name, Job.Objects[I].Name) = 0)) then
+                          Nodes.Add(FSelect.Items[0].Item[J].Item[K]);
+                      end
+                      else if (Job.Objects[I].ObjectType = jotTrigger) then
+                      begin
+                        if ((Job.Objects[I].ObjectType = jotTable) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) = Database.TriggerByName(Job.Objects[I].Name).Table)) then
+                        begin
+                          FSelect.Items[0].Item[J].Item[K].Expand(False);
+                          for L := 0 to FSelect.Items[0].Item[J].Item[K].Count - 1 do
+                            if ((TObject(FSelect.Items[0].Item[J].Item[K].Data) is TCTrigger) and (Database.Triggers.NameCmp(TCTrigger(FSelect.Items[0].Item[J].Item[K].Item[L].Data).Name, Job.Objects[I].Name) = 0)) then
+                              Nodes.Add(FSelect.Items[0].Item[J].Item[K].Item[L]);
+                        end;
+                      end;
+                  end;
                 end;
+            end;
           end;
+      FSelect.Select(Nodes);
+      Nodes.Free();
+    end;
   end
   else if (DialogType = edtNormal) then
   begin
@@ -1067,8 +1083,8 @@ begin
         end;
       if (DialogType = edtCreateJob) then
         Client.Account.Jobs.AddJob(Export)
-      else
-        Job.Assign(Export);
+      else if (DialogType = edtEditJob) then
+        Client.Account.Jobs.UpdateJob(Job, Export);
       Export.Free();
     end;
   end;
@@ -1442,7 +1458,7 @@ begin
       end;
     etAccessFile:
       begin
-        SaveDialog.Filter := FilterDescription('mdb') + ' (*.mdb)|*.mdb';
+        SaveDialog.Filter := FilterDescription('mdb') + ' (*.mdb;*.accdb)|*.mdb;*.accdb';
         SaveDialog.DefaultExt := '.mdb';
         SaveDialog.Encodings.Clear();
       end;

@@ -39,7 +39,7 @@ object DExport: TDExport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSJob
+    ActivePage = TSSelect
     HotTrack = True
     Style = tsFlatButtons
     TabOrder = 1
@@ -48,6 +48,10 @@ object DExport: TDExport
       Caption = 'TSSelect'
       TabVisible = False
       OnShow = TSSelectShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GSelect: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -969,6 +973,10 @@ object DExport: TDExport
       Caption = 'TSFields'
       TabVisible = False
       OnShow = TSFieldsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GFields: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -1065,6 +1073,10 @@ object DExport: TDExport
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GProgress: TGroupBox_Ext
         Left = 4
         Top = 0

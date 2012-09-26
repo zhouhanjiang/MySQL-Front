@@ -6001,7 +6001,10 @@ var
   ErrorMsg: PChar;
   Size: Word;
 begin
-  ConnStrIn := 'Driver={Microsoft Access Driver (*.mdb)};' + 'DBQ=' + Filename + ';' + 'READONLY=FALSE';
+  if (SysUtils.LowerCase(ExtractFileExt(Filename)) = '.accdb') then
+    ConnStrIn := 'Driver={Microsoft Access Driver (*.mdb, *.accdb)};' + 'DBQ=' + Filename + ';' + 'READONLY=FALSE'
+  else
+    ConnStrIn := 'Driver={Microsoft Access Driver (*.mdb)};' + 'DBQ=' + Filename + ';' + 'READONLY=FALSE';
 
   while (FileExists(Filename) and not DeleteFile(Filename)) do
     DoError(SysError(), EmptyToolsItem(), True);

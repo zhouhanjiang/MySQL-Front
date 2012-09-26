@@ -57,6 +57,7 @@ object WWindow: TWWindow
     OnDragOver = TabControlDragOver
     OnEndDrag = TabControlEndDrag
     OnGetImageIndex = TabControlGetImageIndex
+    OnMouseDown = TabControlMouseDown
     OnResize = TabControlResize
     OnStartDrag = TabControlStartDrag
   end
