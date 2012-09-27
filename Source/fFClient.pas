@@ -8998,26 +8998,21 @@ function TFClient.GetActiveDBGrid(): TMySQLDBGrid;
 var
   I: Integer;
 begin
-  if (not Assigned(FNavigator.Selected)) then
-    Result := nil
-  else
+  Result := nil;
+
+  if (Assigned(FNavigator.Selected)) then
     case (View) of
       vBrowser:
-        Result := Desktop(TCTable(FNavigator.Selected.Data)).CreateDBGrid();
+        if (TObject(FNavigator.Selected.Data) is TCTable) then
+          Result := Desktop(TCTable(FNavigator.Selected.Data)).CreateDBGrid();
       vIDE:
-        case (FNavigator.Selected.ImageIndex) of
-          iiProcedure,
-          iiFunction:
-            Result := Desktop(TCRoutine(FNavigator.Selected.Data)).ActiveDBGrid;
-          else
-            Result := nil;
-        end;
+        if (TObject(FNavigator.Selected.Data) is TCRoutine) then
+          Result := Desktop(TCRoutine(FNavigator.Selected.Data)).ActiveDBGrid;
       vBuilder:
-        Result := Desktop(TCDatabase(FNavigator.Selected.Data)).DBGrid;
+        if (TObject(FNavigator.Selected.Data) is TCDatabase) then
+          Result := Desktop(TCDatabase(FNavigator.Selected.Data)).DBGrid;
       vEditor:
         Result := SQLEditor.ActiveDBGrid;
-      else
-        Result := nil;
     end;
 
   if (Assigned(Result)) then

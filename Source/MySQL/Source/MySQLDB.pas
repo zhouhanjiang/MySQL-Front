@@ -137,8 +137,8 @@ type
 
   TMySQLConnection = class(TCustomConnection)
   type
-    TSynchroThread = class;
-    TDataResult = TSynchroThread;
+    TLibraryThread = class;
+    TDataResult = TLibraryThread;
 
     TConvertErrorNotifyEvent = procedure (Sender: TObject; Text: string) of object;
     TErrorEvent = procedure (const Connection: TMySQLConnection; const ErrorCode: Integer; const ErrorMessage: string) of object;
@@ -159,7 +159,7 @@ type
       Position: DWord;
     end;
 
-    TSynchroThread = class(TThread)
+    TLibraryThread = class(TThread)
     type
       TMode = (smSQL, smDataHandle, smDataSet);
       TState = (ssClose, ssConnecting, ssReady, ssExecutingSQL, ssResult, ssReceivingResult, ssNextResult, ssCancel, ssDisconnecting, ssError);
@@ -250,7 +250,7 @@ type
     FSilentCount: Integer;
     FSynchronCount: Integer;
     FSQLMonitors: array of TMySQLMonitor;
-    FSynchroThread: TSynchroThread;
+    FLibraryThread: TLibraryThread;
     FTerminateCS: TCriticalSection;
     FTerminatedThreads: TTerminatedThreads;
     FThreadDeep: Integer;
@@ -272,7 +272,7 @@ type
     procedure SetPassword(const APassword: string);
     procedure SetPort(const APort: Word);
     procedure SetUsername(const AUsername: string);
-    function UseSynchroThread(): Boolean;
+    function UseLibraryThread(): Boolean;
   protected
     FDatabaseName: string;
     FExecutedSQLLength: Integer;
@@ -291,7 +291,7 @@ type
     procedure DoDisconnect(); override;
     procedure DoError(const AErrorCode: Integer; const AErrorMessage: string); virtual;
     function ErrorMsg(const AHandle: MySQLConsts.MYSQL): string; virtual;
-    function ExecuteSQL(const Mode: TSynchroThread.TMode; const Synchron: Boolean; const SQL: string; const OnResult: TResultEvent = nil; const Done: TEvent = nil): Boolean; overload; virtual;
+    function ExecuteSQL(const Mode: TLibraryThread.TMode; const Synchron: Boolean; const SQL: string; const OnResult: TResultEvent = nil; const Done: TEvent = nil): Boolean; overload; virtual;
     function GetAutoCommit(): Boolean; virtual;
     function GetConnected(): Boolean; override;
     function GetInsertId(): my_ulonglong; virtual;
@@ -304,26 +304,26 @@ type
     procedure SetAutoCommit(const AAutoCommit: Boolean); virtual;
     procedure SetCharset(const ACharset: string); virtual;
     procedure SetConnected(Value: Boolean); override;
-    procedure SyncCancel(const SynchroThread: TSynchroThread); virtual;
-    procedure SyncConnecting(const SynchroThread: TSynchroThread); virtual;
-    procedure SyncConnected(const SynchroThread: TSynchroThread); virtual;
-    procedure SyncDisconnecting(const SynchroThread: TSynchroThread); virtual;
-    procedure SyncDisconncted(const SynchroThread: TSynchroThread); virtual;
-    procedure SyncExecutedSQL(const SynchroThread: TSynchroThread); virtual;
-    procedure SyncExecutingSQL(const SynchroThread: TSynchroThread); virtual;
-    procedure SyncHandleResult(const SynchroThread: TSynchroThread); virtual;
-    procedure SyncHandledResult(const SynchroThread: TSynchroThread); virtual;
-    procedure SyncHandlingResult(const SynchroThread: TSynchroThread); virtual;
-    procedure SyncNextResult(const SynchroThread: TSynchroThread); virtual;
-    procedure SyncPing(const SynchroThread: TSynchroThread); virtual;
-    procedure SyncReceivingResult(SynchroThread: TSynchroThread); virtual;
+    procedure SyncCancel(const LibraryThread: TLibraryThread); virtual;
+    procedure SyncConnecting(const LibraryThread: TLibraryThread); virtual;
+    procedure SyncConnected(const LibraryThread: TLibraryThread); virtual;
+    procedure SyncDisconnecting(const LibraryThread: TLibraryThread); virtual;
+    procedure SyncDisconncted(const LibraryThread: TLibraryThread); virtual;
+    procedure SyncExecutedSQL(const LibraryThread: TLibraryThread); virtual;
+    procedure SyncExecutingSQL(const LibraryThread: TLibraryThread); virtual;
+    procedure SyncHandleResult(const LibraryThread: TLibraryThread); virtual;
+    procedure SyncHandledResult(const LibraryThread: TLibraryThread); virtual;
+    procedure SyncHandlingResult(const LibraryThread: TLibraryThread); virtual;
+    procedure SyncNextResult(const LibraryThread: TLibraryThread); virtual;
+    procedure SyncPing(const LibraryThread: TLibraryThread); virtual;
+    procedure SyncReceivingResult(LibraryThread: TLibraryThread); virtual;
     procedure UnRegisterSQLMonitor(const AMySQLMonitor: TMySQLMonitor); virtual;
     procedure WriteMonitor(const AText: PChar; const Length: Integer; const ATraceType: TMySQLMonitor.TTraceType); virtual;
     property CharsetNr: Byte read FCharsetNr;
     property Handle: MySQLConsts.MYSQL read GetHandle;
     property IdentifierQuoter: Char read FIdentifierQuoter write SetIdentifierQuoter;
     property IdentifierQuoted: Boolean read FIdentifierQuoted write FIdentifierQuoted;
-    property SynchroThread: TSynchroThread read FSynchroThread;
+    property LibraryThread: TLibraryThread read FLibraryThread;
     property SilentCount: Integer read FSilentCount;
     property TerminateCS: TCriticalSection read FTerminateCS;
     property TerminatedThreads: TTerminatedThreads read FTerminatedThreads;
@@ -432,7 +432,7 @@ type
     FCommandType: TCommandType;
     FDatabaseName: string;
     FTableName: string;
-    SynchroThread: TMySQLConnection.TSynchroThread;
+    LibraryThread: TMySQLConnection.TLibraryThread;
     function AllocRecordBuffer(): TRecordBuffer; override;
     procedure DataConvert(Field: TField; Source, Dest: Pointer; ToNative: Boolean); override;
     function FindRecord(Restart, GoForward: Boolean): Boolean; override;
@@ -1012,9 +1012,9 @@ end;
 procedure MySQLConnectionSynchronize(const Data: Pointer);
 var
   Index: Integer;
-  SyncThread: TMySQLConnection.TSynchroThread;
+  SyncThread: TMySQLConnection.TLibraryThread;
 begin
-  SyncThread := TMySQLConnection.TSynchroThread(Data);
+  SyncThread := TMySQLConnection.TLibraryThread(Data);
 
   SynchronizingThreadsCS.Enter();
   Index := SynchronizingThreads.IndexOf(SyncThread);
@@ -1028,15 +1028,15 @@ begin
     SyncThread.Synchronize();
 end;
 
-procedure MySQLConnectionSynchronizeRequest(const SynchroThread: TMySQLConnection.TSynchroThread);
+procedure MySQLConnectionSynchronizeRequest(const LibraryThread: TMySQLConnection.TLibraryThread);
 begin
   if (not Assigned(MySQLConnectionOnSynchronize)) then
-    SynchroThread.Terminate()
+    LibraryThread.Terminate()
   else
   begin
     SynchronizingThreadsCS.Enter();
-    SynchronizingThreads.Add(SynchroThread);
-    MySQLConnectionOnSynchronize(SynchroThread);
+    SynchronizingThreads.Add(LibraryThread);
+    MySQLConnectionOnSynchronize(LibraryThread);
     SynchronizingThreadsCS.Leave();
   end;
 end;
@@ -1801,9 +1801,9 @@ begin
   inherited;
 end;
 
-{ TMySQLConnection.TSynchroThread *********************************************}
+{ TMySQLConnection.TLibraryThread *********************************************}
 
-procedure TMySQLConnection.TSynchroThread.BindDataSet(const ADataSet: TMySQLQuery);
+procedure TMySQLConnection.TLibraryThread.BindDataSet(const ADataSet: TMySQLQuery);
 begin
   Assert(State = ssResult);
   Assert(not Assigned(DataSet));
@@ -1816,7 +1816,7 @@ begin
     RunAction(ssReceivingResult, False);
 end;
 
-constructor TMySQLConnection.TSynchroThread.Create(const AConnection: TMySQLConnection);
+constructor TMySQLConnection.TLibraryThread.Create(const AConnection: TMySQLConnection);
 begin
   Assert(Assigned(AConnection));
 
@@ -1834,7 +1834,7 @@ begin
   FreeOnTerminate := True;
 end;
 
-destructor TMySQLConnection.TSynchroThread.Destroy();
+destructor TMySQLConnection.TLibraryThread.Destroy();
 begin
   RunExecute.Free(); RunExecute := nil;
   SynchronizeStarted.Free();
@@ -1845,7 +1845,7 @@ begin
   inherited;
 end;
 
-procedure TMySQLConnection.TSynchroThread.Execute();
+procedure TMySQLConnection.TLibraryThread.Execute();
 var
   Timeout: LongWord;
   WaitResult: TWaitResult;
@@ -1907,12 +1907,12 @@ begin
   {$ENDIF}
 end;
 
-function TMySQLConnection.TSynchroThread.GetIsRunning(): Boolean;
+function TMySQLConnection.TLibraryThread.GetIsRunning(): Boolean;
 begin
   Result := not Terminated and ((RunExecute.WaitFor(IGNORE) = wrSignaled) or not (State in [ssClose, ssReady]));
 end;
 
-procedure TMySQLConnection.TSynchroThread.ReleaseDataSet();
+procedure TMySQLConnection.TLibraryThread.ReleaseDataSet();
 var
   RecordsReceived: TEvent;
 begin
@@ -1933,7 +1933,7 @@ begin
   Connection.TerminateCS.Leave();
 end;
 
-procedure TMySQLConnection.TSynchroThread.RunAction(const AState: TState; const Synchron: Boolean);
+procedure TMySQLConnection.TLibraryThread.RunAction(const AState: TState; const Synchron: Boolean);
 begin
   Assert(RunExecute.WaitFor(IGNORE) <> wrSignaled);
 
@@ -1986,7 +1986,7 @@ begin
     RunExecute.SetEvent();
 end;
 
-procedure TMySQLConnection.TSynchroThread.Synchronize();
+procedure TMySQLConnection.TLibraryThread.Synchronize();
 begin
   SynchronizeStarted.SetEvent();
 
@@ -2007,9 +2007,9 @@ begin
         end;
 	    ssReceivingResult:
         begin
-          if (Assigned(DataSet.SynchroThread)) then
+          if (Assigned(DataSet.LibraryThread)) then
           begin
-            DataSet.SynchroThread := nil;
+            DataSet.LibraryThread := nil;
             ReleaseDataSet();
           end;
           if (Mode in [smSQL, smDataSet]) then
@@ -2025,7 +2025,7 @@ begin
     end;
 end;
 
-procedure TMySQLConnection.TSynchroThread.Terminate();
+procedure TMySQLConnection.TLibraryThread.Terminate();
 var
   Index: Integer;
 begin
@@ -2034,7 +2034,7 @@ begin
   if (Index >= 0) then
     SynchronizingThreads.Delete(Index);
   if (Assigned(DataSet)) then
-    DataSet.SynchroThread := nil;
+    DataSet.LibraryThread := nil;
   SynchronizingThreadsCS.Leave();
 
   if (RunExecute.WaitFor(IGNORE) <> wrSignaled) then
@@ -2178,7 +2178,7 @@ begin
   FInTransaction := False;
   FLatestConnect := 0;
   FLib := nil;
-  FSynchroThread := nil;
+  FLibraryThread := nil;
   FLibraryType := ltBuiltIn;
   FMultiStatements := True;
   FOnConvertError := nil;
@@ -2213,12 +2213,12 @@ begin
     DataSets[0].Free();
 
   TerminateCS.Enter();
-  if (Assigned(SynchroThread)) then
+  if (Assigned(LibraryThread)) then
   begin
-    SynchroThread.FreeOnTerminate := False;
-    SynchroThread.Terminate();
-    SynchroThread.WaitFor();
-    SynchroThread.Free();
+    LibraryThread.FreeOnTerminate := False;
+    LibraryThread.Terminate();
+    LibraryThread.WaitFor();
+    LibraryThread.Free();
   end;
   TerminatedThreads.Free(); FTerminatedThreads := nil;
   TerminateCS.Leave();
@@ -2247,12 +2247,12 @@ begin
   FExecutionTime := 0;
   FErrorCode := CR_ASYNCHRON; FErrorMessage := '';
 
-  if (Assigned(SynchroThread) and (SynchroThread.State <> ssClose)) then
+  if (Assigned(LibraryThread) and (LibraryThread.State <> ssClose)) then
     Terminate();
-  if (not Assigned(FSynchroThread)) then
-    FSynchroThread := TSynchroThread.Create(Self);
+  if (not Assigned(FLibraryThread)) then
+    FLibraryThread := TLibraryThread.Create(Self);
 
-  SynchroThread.RunAction(ssConnecting, not UseSynchroThread());
+  LibraryThread.RunAction(ssConnecting, not UseLibraryThread());
 end;
 
 procedure TMySQLConnection.DoConvertError(const Sender: TObject; const Text: string; const Error: EConvertError);
@@ -2269,15 +2269,15 @@ begin
 
   SendConnectEvent(False);
 
-  if (Assigned(SynchroThread) and (SynchroThread.State <> ssReady)) then
+  if (Assigned(LibraryThread) and (LibraryThread.State <> ssReady)) then
     Terminate();
 
   FErrorCode := CR_ASYNCHRON; FErrorMessage := '';
 
-  if (not Assigned(SynchroThread)) then
+  if (not Assigned(LibraryThread)) then
     SyncDisconncted(nil)
   else
-    SynchroThread.RunAction(ssDisconnecting, not UseSynchroThread());
+    LibraryThread.RunAction(ssDisconnecting, not UseLibraryThread());
 end;
 
 procedure TMySQLConnection.DoError(const AErrorCode: Integer; const AErrorMessage: string);
@@ -2318,7 +2318,8 @@ begin
 try
   Result := LibDecode(my_char(SQLUnescape(Lib.mysql_error(AHandle), False)));
 except
-  raise EDatabaseError.Create(string(Lib.mysql_error(AHandle)));
+  on E: Exception do
+    raise EDatabaseError.Create(string(Lib.mysql_error(AHandle)));
 end;
 end;
 
@@ -2332,7 +2333,7 @@ begin
   Result := ExecuteSQL(smSQL, True, SQL, OnResult);
 end;
 
-function TMySQLConnection.ExecuteSQL(const Mode: TSynchroThread.TMode; const Synchron: Boolean;
+function TMySQLConnection.ExecuteSQL(const Mode: TLibraryThread.TMode; const Synchron: Boolean;
   const SQL: string; const OnResult: TResultEvent = nil; const Done: TEvent = nil): Boolean;
 var
   AlterTableAfterCreateTable: Boolean;
@@ -2357,105 +2358,105 @@ begin
   if (InMonitor) then
     raise Exception.Create(SOutOfSync + ' (in Monitor): ' + CommandText);
 
-  if (Assigned(SynchroThread) and not (SynchroThread.State in [ssClose, ssReady])) then
+  if (Assigned(LibraryThread) and not (LibraryThread.State in [ssClose, ssReady])) then
     Terminate();
-  if (not Assigned(SynchroThread)) then
-    FSynchroThread := TSynchroThread.Create(Self);
+  if (not Assigned(LibraryThread)) then
+    FLibraryThread := TLibraryThread.Create(Self);
 
-  SynchroThread.DataSet := nil;
-  SynchroThread.Mode := Mode;
-  SynchroThread.OnResult := OnResult;
-  SynchroThread.Done := Done;
-  SynchroThread.SQL := SQL;
-  SynchroThread.SQLStmtLengths.Clear();
-  SynchroThread.SQLStmtsInPackets.Clear();
-  SynchroThread.SQLUseStmts.Clear();
-  SynchroThread.Time := 0;
+  LibraryThread.DataSet := nil;
+  LibraryThread.Mode := Mode;
+  LibraryThread.OnResult := OnResult;
+  LibraryThread.Done := Done;
+  LibraryThread.SQL := SQL;
+  LibraryThread.SQLStmtLengths.Clear();
+  LibraryThread.SQLStmtsInPackets.Clear();
+  LibraryThread.SQLUseStmts.Clear();
+  LibraryThread.Time := 0;
 
   FErrorCode := CR_ASYNCHRON; FErrorMessage := '';
   FExecutedSQLLength := 0; FExecutedStmts := 0; FResultCount := 0;
   FRowsAffected := -1; FWarningCount := -1; FExecutionTime := 0;
 
-  SynchroThread.SQLStmtIndex := 1;
-  while (SynchroThread.SQLStmtIndex < Length(SynchroThread.SQL)) do
+  LibraryThread.SQLStmtIndex := 1;
+  while (LibraryThread.SQLStmtIndex < Length(LibraryThread.SQL)) do
   begin
-    StmtLength := SQLStmtLength(SynchroThread.SQL, SynchroThread.SQLStmtIndex);
-    SynchroThread.SQLStmtLengths.Add(Pointer(StmtLength));
-    Inc(SynchroThread.SQLStmtIndex, StmtLength);
+    StmtLength := SQLStmtLength(LibraryThread.SQL, LibraryThread.SQLStmtIndex);
+    LibraryThread.SQLStmtLengths.Add(Pointer(StmtLength));
+    Inc(LibraryThread.SQLStmtIndex, StmtLength);
   end;
 
   SQLPacketIndex := 1;
   SetNames := False; CreateTableInPacket := False; AlterTableAfterCreateTable := False;
   AlterTableAfterCreateTableFix := 50100 <= ServerVersion;
   PacketComplete := pcNo;
-  SynchroThread.SQLStmt := 0; OldStmt := 0; SynchroThread.SQLStmtIndex := 1;
-  while ((SynchroThread.SQLStmt < SynchroThread.SQLStmtLengths.Count) and not SetNames and (PacketComplete <> pcStmtTooLarge)) do
+  LibraryThread.SQLStmt := 0; OldStmt := 0; LibraryThread.SQLStmtIndex := 1;
+  while ((LibraryThread.SQLStmt < LibraryThread.SQLStmtLengths.Count) and not SetNames and (PacketComplete <> pcStmtTooLarge)) do
   begin
     SetNames := False;
-    if (SQLParseCLStmt(CLStmt, @SynchroThread.SQL[SynchroThread.SQLStmtIndex], Integer(SynchroThread.SQLStmtLengths[SynchroThread.SQLStmt]), ServerVersion)) then
+    if (SQLParseCLStmt(CLStmt, @LibraryThread.SQL[LibraryThread.SQLStmtIndex], Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]), ServerVersion)) then
       case (CLStmt.CommandType) of
         ctSetNames,
         ctSetCharacterSet:
           SetNames := CLStmt.ObjectName <> Charset;
         ctUse:
-          SynchroThread.SQLUseStmts.Add(Pointer(SynchroThread.SQLStmt));
+          LibraryThread.SQLUseStmts.Add(Pointer(LibraryThread.SQLStmt));
       end;
     if (AlterTableAfterCreateTableFix) then
       if (not CreateTableInPacket) then
-        CreateTableInPacket := SQLParseDDLStmt(DDLStmt, @SynchroThread.SQL[SynchroThread.SQLStmtIndex], Integer(SynchroThread.SQLStmtLengths[SynchroThread.SQLStmt]), ServerVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType = otTable)
+        CreateTableInPacket := SQLParseDDLStmt(DDLStmt, @LibraryThread.SQL[LibraryThread.SQLStmtIndex], Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]), ServerVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType = otTable)
       else
-        AlterTableAfterCreateTable := SQLParseDDLStmt(DDLStmt, @SynchroThread.SQL[SynchroThread.SQLStmtIndex], Integer(SynchroThread.SQLStmtLengths[SynchroThread.SQLStmt]), ServerVersion) and (DDLStmt.DefinitionType = dtAlter) and (DDLStmt.ObjectType = otTable);
+        AlterTableAfterCreateTable := SQLParseDDLStmt(DDLStmt, @LibraryThread.SQL[LibraryThread.SQLStmtIndex], Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]), ServerVersion) and (DDLStmt.DefinitionType = dtAlter) and (DDLStmt.ObjectType = otTable);
 
-    StmtLength := Integer(SynchroThread.SQLStmtLengths[SynchroThread.SQLStmt]);
+    StmtLength := Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]);
 
-    if ((SynchroThread.SQLStmtIndex > 0) and not SetNames) then
+    if ((LibraryThread.SQLStmtIndex > 0) and not SetNames) then
     begin
       if (SetNames or AlterTableAfterCreateTable) then
         PacketComplete := pcExclusiveCurrentStmt
-      else if ((SizeOf(COM_QUERY) + SynchroThread.SQLStmtIndex - 1 + StmtLength > MaxAllowedPacket) and (SizeOf(COM_QUERY) + WideCharToAnsiChar(CodePage, PChar(@SynchroThread.SQL[SQLPacketIndex]), SynchroThread.SQLStmtIndex - SQLPacketIndex + StmtLength, nil, 0) > MaxAllowedPacket)) then
-        if (SynchroThread.SQLStmt > 0) then
+      else if ((SizeOf(COM_QUERY) + LibraryThread.SQLStmtIndex - 1 + StmtLength > MaxAllowedPacket) and (SizeOf(COM_QUERY) + WideCharToAnsiChar(CodePage, PChar(@LibraryThread.SQL[SQLPacketIndex]), LibraryThread.SQLStmtIndex - SQLPacketIndex + StmtLength, nil, 0) > MaxAllowedPacket)) then
+        if (LibraryThread.SQLStmt > 0) then
           PacketComplete := pcExclusiveCurrentStmt
         else
           PacketComplete := pcStmtTooLarge
-      else if (not MultiStatements or (SynchroThread.SQLStmtIndex - 1 + StmtLength = Length(SynchroThread.SQL))) then
+      else if (not MultiStatements or (LibraryThread.SQLStmtIndex - 1 + StmtLength = Length(LibraryThread.SQL))) then
         PacketComplete := pcInclusiveCurrentStmt
       else
         PacketComplete := pcNo;
-      if ((PacketComplete = pcNo) and SQLParseCallStmt(@SynchroThread.SQL[SynchroThread.SQLStmtIndex], Integer(SynchroThread.SQLStmtLengths[SynchroThread.SQLStmt]), ProcedureName, ServerVersion) and (ProcedureName <> '')) then
+      if ((PacketComplete = pcNo) and SQLParseCallStmt(@LibraryThread.SQL[LibraryThread.SQLStmtIndex], Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]), ProcedureName, ServerVersion) and (ProcedureName <> '')) then
         PacketComplete := pcInclusiveCurrentStmt;
     end;
 
     case (PacketComplete) of
       pcNo:
         begin
-          Inc(SynchroThread.SQLStmt);
-          Inc(SynchroThread.SQLStmtIndex, StmtLength);
+          Inc(LibraryThread.SQLStmt);
+          Inc(LibraryThread.SQLStmtIndex, StmtLength);
         end;
       pcExclusiveCurrentStmt:
         begin
-          if (SynchroThread.SQLStmt > OldStmt) then
-            SynchroThread.SQLStmtsInPackets.Add(Pointer(SynchroThread.SQLStmt - OldStmt));
-          OldStmt := SynchroThread.SQLStmt;
-          SQLPacketIndex := SynchroThread.SQLStmtIndex;
+          if (LibraryThread.SQLStmt > OldStmt) then
+            LibraryThread.SQLStmtsInPackets.Add(Pointer(LibraryThread.SQLStmt - OldStmt));
+          OldStmt := LibraryThread.SQLStmt;
+          SQLPacketIndex := LibraryThread.SQLStmtIndex;
           CreateTableInPacket := False;
           AlterTableAfterCreateTable := False;
         end;
       pcInclusiveCurrentStmt:
         begin
-          Inc(SynchroThread.SQLStmt);
-          Inc(SynchroThread.SQLStmtIndex, StmtLength);
-          SynchroThread.SQLStmtsInPackets.Add(Pointer(SynchroThread.SQLStmt - OldStmt));
-          OldStmt := SynchroThread.SQLStmt;
-          SQLPacketIndex := SynchroThread.SQLStmtIndex;
+          Inc(LibraryThread.SQLStmt);
+          Inc(LibraryThread.SQLStmtIndex, StmtLength);
+          LibraryThread.SQLStmtsInPackets.Add(Pointer(LibraryThread.SQLStmt - OldStmt));
+          OldStmt := LibraryThread.SQLStmt;
+          SQLPacketIndex := LibraryThread.SQLStmtIndex;
           CreateTableInPacket := False;
           AlterTableAfterCreateTable := False;
         end;
     end;
   end;
   if (PacketComplete in [pcNo, pcExclusiveCurrentStmt]) then
-    SynchroThread.SQLStmtsInPackets.Add(Pointer(SynchroThread.SQLStmt > OldStmt));
+    LibraryThread.SQLStmtsInPackets.Add(Pointer(LibraryThread.SQLStmt > OldStmt));
 
-  if (SynchroThread.SQLStmtLengths.Count = 0) then
+  if (LibraryThread.SQLStmtLengths.Count = 0) then
   begin
     DoError(ER_EMPTY_QUERY, ER_EMPTY_QUERY_MSG);
     Result := False;
@@ -2474,32 +2475,32 @@ begin
   begin
     DoBeforeExecuteSQL();
 
-    SynchroThread.SQLStmt := 0;
-    SynchroThread.SQLStmtIndex := 1;
-    SynchroThread.SQLPacket := 0;
-    SynchroThread.SQLStmtInPacket := 0;
-    SynchroThread.SQLLastStmtInPacket := Integer(SynchroThread.SQLStmtsInPackets[SynchroThread.SQLPacket]) - 1;
+    LibraryThread.SQLStmt := 0;
+    LibraryThread.SQLStmtIndex := 1;
+    LibraryThread.SQLPacket := 0;
+    LibraryThread.SQLStmtInPacket := 0;
+    LibraryThread.SQLLastStmtInPacket := Integer(LibraryThread.SQLStmtsInPackets[LibraryThread.SQLPacket]) - 1;
 
     S := '# ' + SysUtils.DateTimeToStr(Now() + TimeDiff, FormatSettings);
     WriteMonitor(PChar(S), Length(S), ttTime);
 
-    StmtLength := Integer(SynchroThread.SQLStmtLengths[SynchroThread.SQLStmt]);
-    WriteMonitor(@SynchroThread.SQL[SynchroThread.SQLStmtIndex], StmtLength, ttRequest);
+    StmtLength := Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]);
+    WriteMonitor(@LibraryThread.SQL[LibraryThread.SQLStmtIndex], StmtLength, ttRequest);
 
     if (Mode = smDataHandle) then
     begin
-      SyncExecutingSQL(SynchroThread);
-      FErrorCode := SynchroThread.ErrorCode;
-      FErrorMessage := SynchroThread.ErrorMessage;
+      SyncExecutingSQL(LibraryThread);
+      FErrorCode := LibraryThread.ErrorCode;
+      FErrorMessage := LibraryThread.ErrorMessage;
       Result := ErrorCode = 0;
       if (Result) then
-        SyncHandleResult(SynchroThread);
+        SyncHandleResult(LibraryThread);
     end
     else
     begin
-      RunSynchron := Synchron or not UseSynchroThread() and not Assigned(Done);
-      SynchroThread.RunAction(ssExecutingSQL, RunSynchron);
-      if (not RunSynchron or not Assigned(SynchroThread.LibHandle)) then
+      RunSynchron := Synchron or not UseLibraryThread() and not Assigned(Done);
+      LibraryThread.RunAction(ssExecutingSQL, RunSynchron);
+      if (not RunSynchron or not Assigned(LibraryThread.LibHandle)) then
         Result := False
       else
         Result := ErrorCode = 0;
@@ -2511,7 +2512,7 @@ function TMySQLConnection.FirstResult(out DataHandle: TMySQLConnection.TDataResu
 begin
   Result := ExecuteSQL(smDataHandle, True, SQL);
 
-  DataHandle := SynchroThread;
+  DataHandle := LibraryThread;
 end;
 
 function TMySQLConnection.GetAutoCommit(): Boolean;
@@ -2532,16 +2533,16 @@ var
   StartingCommentLength: Integer;
   StmtLength: Integer;
 begin
-  if ((SynchroThread.SQL = '') or (SynchroThread.SQLStmt > SynchroThread.SQLLastStmtInPacket)) then
+  if ((LibraryThread.SQL = '') or (LibraryThread.SQLStmt > LibraryThread.SQLLastStmtInPacket)) then
     Result := ''
   else
   begin
-    StmtLength := Integer(SynchroThread.SQLStmtLengths[SynchroThread.SQLStmt]);
-    Len := SQLTrimStmt(SynchroThread.SQL, SynchroThread.SQLStmtIndex, StmtLength, StartingCommentLength, EndingCommentLength);
-    Index := SynchroThread.SQLStmtIndex + StartingCommentLength + Len - 1;
-    if ((1 <= Index) and (SynchroThread.SQL[Index] = ';')) then
+    StmtLength := Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]);
+    Len := SQLTrimStmt(LibraryThread.SQL, LibraryThread.SQLStmtIndex, StmtLength, StartingCommentLength, EndingCommentLength);
+    Index := LibraryThread.SQLStmtIndex + StartingCommentLength + Len - 1;
+    if ((1 <= Index) and (LibraryThread.SQL[Index] = ';')) then
       Dec(Len);
-    Result := copy(SynchroThread.SQL, SynchroThread.SQLStmtIndex + StartingCommentLength, Len);
+    Result := copy(LibraryThread.SQL, LibraryThread.SQLStmtIndex + StartingCommentLength, Len);
   end
 end;
 
@@ -2552,10 +2553,10 @@ end;
 
 function TMySQLConnection.GetHandle(): MySQLConsts.MYSQL;
 begin
-  if (not Assigned(SynchroThread)) then
+  if (not Assigned(LibraryThread)) then
     Result := nil
   else
-    Result := SynchroThread.LibHandle;
+    Result := LibraryThread.LibHandle;
 end;
 
 function TMySQLConnection.GetInfo(): string;
@@ -2568,7 +2569,7 @@ end;
 
 function TMySQLConnection.GetInsertId(): my_ulonglong;
 begin
-  if (not Assigned(SynchroThread)) then
+  if (not Assigned(LibraryThread)) then
     Result := 0
   else
     Result := Lib.mysql_insert_id(Handle);
@@ -2588,7 +2589,7 @@ end;
 function TMySQLConnection.InUse(): Boolean;
 begin
   TerminateCS.Enter(); // Why is this needed here?
-  Result := Assigned(SynchroThread) and SynchroThread.IsRunning;
+  Result := Assigned(LibraryThread) and LibraryThread.IsRunning;
   TerminateCS.Leave(); // Why is this needed here?
 end;
 
@@ -2804,13 +2805,13 @@ var
   StartingCommentLength: Integer;
   StmtLength: Integer;
 begin
-  if (not InUse() or not Assigned(SynchroThread) or (SynchroThread.SQLStmt = SynchroThread.SQLLastStmtInPacket)) then
+  if (not InUse() or not Assigned(LibraryThread) or (LibraryThread.SQLStmt = LibraryThread.SQLLastStmtInPacket)) then
     Result := ''
   else
   begin
-    StmtLength := Integer(SynchroThread.SQLStmtLengths[SynchroThread.SQLStmt + 1]);
-    Len := SQLTrimStmt(SynchroThread.SQL, SynchroThread.SQLStmtIndex, StmtLength, StartingCommentLength, EndingCommentLength);
-    Result := copy(SynchroThread.SQL, SynchroThread.SQLStmtIndex + Integer(SynchroThread.SQLStmtLengths[SynchroThread.SQLStmt]) + StartingCommentLength, Len);
+    StmtLength := Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt + 1]);
+    Len := SQLTrimStmt(LibraryThread.SQL, LibraryThread.SQLStmtIndex, StmtLength, StartingCommentLength, EndingCommentLength);
+    Result := copy(LibraryThread.SQL, LibraryThread.SQLStmtIndex + Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]) + StartingCommentLength, Len);
   end;
 end;
 
@@ -2854,7 +2855,7 @@ begin
     FCharsetNr := CharsetToCharsetNr(FCharset);
     FCodePage := CharsetToCodePage(FCharset);
 
-    if (Connected and Assigned(Lib.mysql_options) and Assigned(SynchroThread)) then
+    if (Connected and Assigned(Lib.mysql_options) and Assigned(LibraryThread)) then
       Lib.mysql_options(Handle, MYSQL_SET_CHARSET_NAME, my_char(RawByteString(FCharset)));
   end;
 end;
@@ -2930,12 +2931,12 @@ end;
 
 function TMySQLConnection.SendSQL(const SQL: string; const Done: TEvent): Boolean;
 begin
-  Result := ExecuteSQL(smSQL, False, SQL, TResultEvent(nil), Done) and not UseSynchroThread();
+  Result := ExecuteSQL(smSQL, False, SQL, TResultEvent(nil), Done) and not UseLibraryThread();
 end;
 
 function TMySQLConnection.SendSQL(const SQL: string; const OnResult: TResultEvent = nil): Boolean;
 begin
-  Result := ExecuteSQL(smSQL, False, SQL, OnResult) and not UseSynchroThread();
+  Result := ExecuteSQL(smSQL, False, SQL, OnResult) and not UseLibraryThread();
 end;
 
 procedure TMySQLConnection.SetPassword(const APassword: string);
@@ -2973,27 +2974,27 @@ begin
   if (InMonitor) then
     raise Exception.Create(SOutOfSync);
 
-  if (Assigned(SynchroThread) and (SynchroThread.State <> ssReady)) then
+  if (Assigned(LibraryThread) and (LibraryThread.State <> ssReady)) then
     Terminate();
 
-  if (not Assigned(SynchroThread)) then
-    FSynchroThread := TSynchroThread.Create(Self);
+  if (not Assigned(LibraryThread)) then
+    FLibraryThread := TLibraryThread.Create(Self);
 
   Retry := 0;
-  while (not Assigned(SynchroThread.LibHandle) and (Retry < RETRY_COUNT)) do
+  while (not Assigned(LibraryThread.LibHandle) and (Retry < RETRY_COUNT)) do
   begin
-    SyncConnecting(SynchroThread);
+    SyncConnecting(LibraryThread);
     Inc(Retry);
   end;
 
   SendConnectEvent(False);
 
-  if (not Assigned(SynchroThread.LibHandle)) then
+  if (not Assigned(LibraryThread.LibHandle)) then
     Result := False
-  else if (Lib.mysql_shutdown(SynchroThread.LibHandle, SHUTDOWN_DEFAULT) <> 0) then
+  else if (Lib.mysql_shutdown(LibraryThread.LibHandle, SHUTDOWN_DEFAULT) <> 0) then
   begin
-    FErrorCode := Lib.mysql_errno(SynchroThread.LibHandle);
-    FErrorMessage := ErrorMsg(SynchroThread.LibHandle);
+    FErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);
+    FErrorMessage := ErrorMsg(LibraryThread.LibHandle);
     DoError(FErrorCode, FErrorMessage);
     Result := False;
   end
@@ -3024,44 +3025,44 @@ begin
   end;
 end;
 
-procedure TMySQLConnection.SyncCancel(const SynchroThread: TSynchroThread);
+procedure TMySQLConnection.SyncCancel(const LibraryThread: TLibraryThread);
 begin
   repeat
-    if (not SynchroThread.Terminated and not Assigned(SynchroThread.ResultHandle)) then
-      SynchroThread.ResultHandle := Lib.mysql_use_result(SynchroThread.LibHandle);
-    if (Assigned(SynchroThread.ResultHandle)) then
+    if (not LibraryThread.Terminated and not Assigned(LibraryThread.ResultHandle)) then
+      LibraryThread.ResultHandle := Lib.mysql_use_result(LibraryThread.LibHandle);
+    if (Assigned(LibraryThread.ResultHandle)) then
     begin
-      while (not SynchroThread.Terminated and Assigned(Lib.mysql_fetch_row(SynchroThread.ResultHandle))) do ;
-      if (not SynchroThread.Terminated) then
-        begin Lib.mysql_free_result(SynchroThread.ResultHandle); SynchroThread.ResultHandle := nil; end;
+      while (not LibraryThread.Terminated and Assigned(Lib.mysql_fetch_row(LibraryThread.ResultHandle))) do ;
+      if (not LibraryThread.Terminated) then
+        begin Lib.mysql_free_result(LibraryThread.ResultHandle); LibraryThread.ResultHandle := nil; end;
     end;
-  until (SynchroThread.Terminated or not MultiStatements or (Lib.mysql_next_result(SynchroThread.LibHandle) > 0));
+  until (LibraryThread.Terminated or not MultiStatements or (Lib.mysql_next_result(LibraryThread.LibHandle) > 0));
 end;
 
-procedure TMySQLConnection.SyncConnecting(const SynchroThread: TSynchroThread);
+procedure TMySQLConnection.SyncConnecting(const LibraryThread: TLibraryThread);
 var
   ClientFlag: my_uint;
   SQL: string;
 begin
-  if (not Assigned(SynchroThread.LibHandle)) then
+  if (not Assigned(LibraryThread.LibHandle)) then
   begin
     if (Assigned(Lib.my_init)) then
       Lib.my_init();
-    SynchroThread.LibHandle := Lib.mysql_init(nil);
+    LibraryThread.LibHandle := Lib.mysql_init(nil);
     if (Assigned(Lib.mysql_set_local_infile_handler)) then
-      Lib.mysql_set_local_infile_handler(SynchroThread.LibHandle, @MySQLDB.local_infile_init, @MySQLDB.local_infile_read, @MySQLDB.local_infile_end, @MySQLDB.local_infile_error, Self);
+      Lib.mysql_set_local_infile_handler(LibraryThread.LibHandle, @MySQLDB.local_infile_init, @MySQLDB.local_infile_read, @MySQLDB.local_infile_end, @MySQLDB.local_infile_error, Self);
   end;
 
-  Lib.mysql_options(SynchroThread.LibHandle, MYSQL_OPT_READ_TIMEOUT, my_char(RawByteString(IntToStr(NET_WAIT_TIMEOUT))));
-  Lib.mysql_options(SynchroThread.LibHandle, MYSQL_OPT_WRITE_TIMEOUT, my_char(RawByteString(IntToStr(NET_WAIT_TIMEOUT))));
-  Lib.mysql_options(SynchroThread.LibHandle, MYSQL_SET_CHARSET_NAME, my_char(RawByteString(FCharset)));
+  Lib.mysql_options(LibraryThread.LibHandle, MYSQL_OPT_READ_TIMEOUT, my_char(RawByteString(IntToStr(NET_WAIT_TIMEOUT))));
+  Lib.mysql_options(LibraryThread.LibHandle, MYSQL_OPT_WRITE_TIMEOUT, my_char(RawByteString(IntToStr(NET_WAIT_TIMEOUT))));
+  Lib.mysql_options(LibraryThread.LibHandle, MYSQL_SET_CHARSET_NAME, my_char(RawByteString(FCharset)));
   if (UseCompression()) then
-    Lib.mysql_options(SynchroThread.LibHandle, MYSQL_OPT_COMPRESS, nil);
+    Lib.mysql_options(LibraryThread.LibHandle, MYSQL_OPT_COMPRESS, nil);
   if (LibraryType = ltHTTP) then
   begin
-    Lib.mysql_options(SynchroThread.LibHandle, enum_mysql_option(MYSQL_OPT_HTTPTUNNEL_URL), my_char(LibEncode(LibraryName)));
+    Lib.mysql_options(LibraryThread.LibHandle, enum_mysql_option(MYSQL_OPT_HTTPTUNNEL_URL), my_char(LibEncode(LibraryName)));
     if (HTTPAgent <> '') then
-      Lib.mysql_options(SynchroThread.LibHandle, enum_mysql_option(MYSQL_OPT_HTTPTUNNEL_AGENT), my_char(LibEncode(HTTPAgent)));
+      Lib.mysql_options(LibraryThread.LibHandle, enum_mysql_option(MYSQL_OPT_HTTPTUNNEL_AGENT), my_char(LibEncode(HTTPAgent)));
   end;
 
   ClientFlag := CLIENT_INTERACTIVE or CLIENT_LOCAL_FILES;
@@ -3073,25 +3074,25 @@ begin
     ClientFlag := ClientFlag or CLIENT_COMPRESS;
 
   if (LibraryType <> ltNamedPipe) then
-    SynchroThread.Success := Assigned(Lib.mysql_real_connect(SynchroThread.LibHandle,
+    LibraryThread.Success := Assigned(Lib.mysql_real_connect(LibraryThread.LibHandle,
       my_char(LibEncode(Host)),
       my_char(LibEncode(Username)), my_char(LibEncode(Password)),
       my_char(LibEncode(DatabaseName)), Port, '', ClientFlag))
   else
   begin
-    Lib.mysql_options(SynchroThread.LibHandle, enum_mysql_option(MYSQL_OPT_NAMED_PIPE), nil);
-    SynchroThread.Success := Assigned(Lib.mysql_real_connect(SynchroThread.LibHandle,
+    Lib.mysql_options(LibraryThread.LibHandle, enum_mysql_option(MYSQL_OPT_NAMED_PIPE), nil);
+    LibraryThread.Success := Assigned(Lib.mysql_real_connect(LibraryThread.LibHandle,
       my_char(LibEncode(LOCAL_HOST_NAMEDPIPE)),
       my_char(LibEncode(Username)), my_char(LibEncode(Password)),
       my_char(LibEncode(DatabaseName)), Port, '', ClientFlag));
   end;
-  if ((Lib.mysql_errno(SynchroThread.LibHandle) <> 0) or (Lib.LibraryType = ltHTTP)) then
-    SynchroThread.LibThreadId := 0
+  if ((Lib.mysql_errno(LibraryThread.LibHandle) <> 0) or (Lib.LibraryType = ltHTTP)) then
+    LibraryThread.LibThreadId := 0
   else
-    SynchroThread.LibThreadId := Lib.mysql_thread_id(SynchroThread.LibHandle);
+    LibraryThread.LibThreadId := Lib.mysql_thread_id(LibraryThread.LibHandle);
 
-  SynchroThread.ErrorCode := Lib.mysql_errno(SynchroThread.LibHandle);
-  SynchroThread.ErrorMessage := ErrorMsg(SynchroThread.LibHandle);
+  LibraryThread.ErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);
+  LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
 
   if (ThreadId > 0) then
   begin
@@ -3100,28 +3101,28 @@ begin
     else
       SQL := 'KILL CONNECTION ' + IntToStr(ThreadId);
 
-    if (Lib.mysql_real_query(SynchroThread.LibHandle, my_char(AnsiString(SQL)), Length(SQL)) = 0) then
-      Lib.mysql_use_result(SynchroThread.LibHandle);
+    if (Lib.mysql_real_query(LibraryThread.LibHandle, my_char(AnsiString(SQL)), Length(SQL)) = 0) then
+      Lib.mysql_use_result(LibraryThread.LibHandle);
   end;
 end;
 
-procedure TMySQLConnection.SyncConnected(const SynchroThread: TSynchroThread);
+procedure TMySQLConnection.SyncConnected(const LibraryThread: TLibraryThread);
 var
   I: Integer;
   S: string;
 begin
-  FConnected := SynchroThread.Success;
-  FErrorCode := SynchroThread.ErrorCode;
-  FErrorMessage := SynchroThread.ErrorMessage;
-  FThreadId := SynchroThread.LibThreadId;
+  FConnected := LibraryThread.Success;
+  FErrorCode := LibraryThread.ErrorCode;
+  FErrorMessage := LibraryThread.ErrorMessage;
+  FThreadId := LibraryThread.LibThreadId;
 
-  if (Assigned(SynchroThread.LibHandle)) then
+  if (Assigned(LibraryThread.LibHandle)) then
   begin
     if (FErrorCode > 0) then
     begin
       DoError(FErrorCode, FErrorMessage);
-      mysql_close(SynchroThread.LibHandle);
-      SynchroThread.LibHandle := nil;
+      mysql_close(LibraryThread.LibHandle);
+      LibraryThread.LibHandle := nil;
     end
     else
     begin
@@ -3129,9 +3130,9 @@ begin
 
       if (ServerVersionStr = '') then
       begin
-        FServerVersionStr := string(Lib.mysql_get_server_info(SynchroThread.LibHandle));
+        FServerVersionStr := string(Lib.mysql_get_server_info(LibraryThread.LibHandle));
         if (Assigned(Lib.mysql_get_server_version)) then
-          FServerVersion := Lib.mysql_get_server_version(SynchroThread.LibHandle)
+          FServerVersion := Lib.mysql_get_server_version(LibraryThread.LibHandle)
         else
         begin
           S := FServerVersionStr;
@@ -3156,12 +3157,12 @@ begin
         end
         else
         begin
-          FCharset := string(Lib.mysql_character_set_name(SynchroThread.LibHandle));
+          FCharset := string(Lib.mysql_character_set_name(LibraryThread.LibHandle));
           FCharsetNr := CharsetToCharsetNr(FCharset);
         end;
         FCodePage := CharsetToCodePage(FCharset);
 
-        FHostInfo := LibDecode(Lib.mysql_get_host_info(SynchroThread.LibHandle));
+        FHostInfo := LibDecode(Lib.mysql_get_host_info(LibraryThread.LibHandle));
         FMultiStatements := FMultiStatements and Assigned(Lib.mysql_more_results) and Assigned(Lib.mysql_next_result) and ((ServerVersion > 40100) or (Lib.FLibraryType = ltHTTP)) and not ((50000 <= ServerVersion) and (ServerVersion < 50007));
 
         if (ThreadId = 0) then
@@ -3173,40 +3174,40 @@ begin
     end;
   end;
 
-  SynchroThread.State := ssReady;
+  LibraryThread.State := ssReady;
 
   if (Connected) then
     SendConnectEvent(True);
   if Assigned(AfterConnect) then AfterConnect(Self);
 end;
 
-procedure TMySQLConnection.SyncDisconnecting(const SynchroThread: TSynchroThread);
+procedure TMySQLConnection.SyncDisconnecting(const LibraryThread: TLibraryThread);
 begin
-  if (not Assigned(SynchroThread.LibHandle)) then
+  if (not Assigned(LibraryThread.LibHandle)) then
   begin
-    SynchroThread.ErrorCode := 0;
-    SynchroThread.ErrorMessage := '';
+    LibraryThread.ErrorCode := 0;
+    LibraryThread.ErrorMessage := '';
   end
   else
   begin
-    SynchroThread.ErrorCode := Lib.mysql_errno(SynchroThread.LibHandle);
-    SynchroThread.ErrorMessage := ErrorMsg(SynchroThread.LibHandle);
+    LibraryThread.ErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);
+    LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
 
-    Lib.mysql_close(SynchroThread.LibHandle);
-    SynchroThread.LibHandle := nil;
+    Lib.mysql_close(LibraryThread.LibHandle);
+    LibraryThread.LibHandle := nil;
   end;
 end;
 
-procedure TMySQLConnection.SyncDisconncted(const SynchroThread: TSynchroThread);
+procedure TMySQLConnection.SyncDisconncted(const LibraryThread: TLibraryThread);
 begin
   FThreadId := 0;
   FConnected := False;
 
-  if (Assigned(SynchroThread)) then
+  if (Assigned(LibraryThread)) then
   begin
-    FErrorCode := SynchroThread.ErrorCode;
-    FErrorMessage := SynchroThread.ErrorMessage;
-    SynchroThread.State := ssClose;
+    FErrorCode := LibraryThread.ErrorCode;
+    FErrorMessage := LibraryThread.ErrorMessage;
+    LibraryThread.State := ssClose;
   end
   else
   begin
@@ -3217,30 +3218,30 @@ begin
   if Assigned(AfterDisconnect) then AfterDisconnect(Self);
 end;
 
-procedure TMySQLConnection.SyncExecutedSQL(const SynchroThread: TSynchroThread);
+procedure TMySQLConnection.SyncExecutedSQL(const LibraryThread: TLibraryThread);
 begin
-  FErrorCode := SynchroThread.ErrorCode;
-  FErrorMessage := SynchroThread.ErrorMessage;
-  FExecutionTime := SynchroThread.Time;
+  FErrorCode := LibraryThread.ErrorCode;
+  FErrorMessage := LibraryThread.ErrorMessage;
+  FExecutionTime := LibraryThread.Time;
 
   if (Assigned(Lib.mysql_get_server_status)) then
-    FAutoCommit := Lib.mysql_get_server_status(SynchroThread.LibHandle) and SERVER_STATUS_AUTOCOMMIT <> 0;
+    FAutoCommit := Lib.mysql_get_server_status(LibraryThread.LibHandle) and SERVER_STATUS_AUTOCOMMIT <> 0;
 
   if (FErrorCode = 0) then
-    SynchroThread.SQL := '';
+    LibraryThread.SQL := '';
 
-  SynchroThread.State := ssReady;
+  LibraryThread.State := ssReady;
 
   DoAfterExecuteSQL();
 
   if ((FErrorCode = CR_SERVER_HANDSHAKE_ERR)) then
-    SyncDisconnecting(SynchroThread);
+    SyncDisconnecting(LibraryThread);
 
-  if (Assigned(SynchroThread.Done)) then
-    SynchroThread.Done.SetEvent();
+  if (Assigned(LibraryThread.Done)) then
+    LibraryThread.Done.SetEvent();
 end;
 
-procedure TMySQLConnection.SyncExecutingSQL(const SynchroThread: TSynchroThread);
+procedure TMySQLConnection.SyncExecutingSQL(const LibraryThread: TLibraryThread);
 var
   I: Integer;
   LibLength: Integer;
@@ -3251,70 +3252,70 @@ var
   StartTime: TDateTime;
   TrimmedPacketLength: Integer;
 begin
-  SynchroThread.Success := True;
+  LibraryThread.Success := True;
 
   Retry := 0;
-  while (not Assigned(SynchroThread.LibHandle) and (Retry < RETRY_COUNT)) do
+  while (not Assigned(LibraryThread.LibHandle) and (Retry < RETRY_COUNT)) do
   begin
-    SyncConnecting(SynchroThread);
+    SyncConnecting(LibraryThread);
     Inc(Retry);
   end;
 
-  if (SynchroThread.Success) then
+  if (LibraryThread.Success) then
   begin
     PacketLength := 0;
-    for I := 0 to Integer(SynchroThread.SQLStmtsInPackets[SynchroThread.SQLPacket]) - 1 do
-      Inc(PacketLength, Integer(SynchroThread.SQLStmtLengths[SynchroThread.SQLStmt + I]));
+    for I := 0 to Integer(LibraryThread.SQLStmtsInPackets[LibraryThread.SQLPacket]) - 1 do
+      Inc(PacketLength, Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt + I]));
     TrimmedPacketLength := PacketLength;
     if (not MultiStatements) then
-      while ((TrimmedPacketLength > 0) and CharInSet(SynchroThread.SQL[SynchroThread.SQLStmtIndex + TrimmedPacketLength - 1], [#9, #10, #13, ' ', ';'])) do
+      while ((TrimmedPacketLength > 0) and CharInSet(LibraryThread.SQL[LibraryThread.SQLStmtIndex + TrimmedPacketLength - 1], [#9, #10, #13, ' ', ';'])) do
         Dec(TrimmedPacketLength);
 
-    LibLength := WideCharToAnsiChar(CodePage, PChar(@SynchroThread.SQL[SynchroThread.SQLStmtIndex]), TrimmedPacketLength, nil, 0);
+    LibLength := WideCharToAnsiChar(CodePage, PChar(@LibraryThread.SQL[LibraryThread.SQLStmtIndex]), TrimmedPacketLength, nil, 0);
     SetLength(LibSQL, LibLength);
-    WideCharToAnsiChar(CodePage, PChar(@SynchroThread.SQL[SynchroThread.SQLStmtIndex]), TrimmedPacketLength, PAnsiChar(LibSQL), LibLength);
+    WideCharToAnsiChar(CodePage, PChar(@LibraryThread.SQL[LibraryThread.SQLStmtIndex]), TrimmedPacketLength, PAnsiChar(LibSQL), LibLength);
 
-    if (not SynchroThread.Terminated and SynchroThread.Success) then
+    if (not LibraryThread.Terminated and LibraryThread.Success) then
     begin
       Retry := 0; NeedReconnect := False;
       repeat
         if (NeedReconnect) then
-          SyncConnecting(SynchroThread);
+          SyncConnecting(LibraryThread);
 
         StartTime := Now();
-        SynchroThread.Success := Lib.mysql_real_query(SynchroThread.LibHandle, my_char(LibSQL), LibLength) = 0;
-        SynchroThread.Time := SynchroThread.Time + Now() - StartTime;
+        LibraryThread.Success := Lib.mysql_real_query(LibraryThread.LibHandle, my_char(LibSQL), LibLength) = 0;
+        LibraryThread.Time := LibraryThread.Time + Now() - StartTime;
 
-        NeedReconnect := (Lib.mysql_errno(SynchroThread.LibHandle) = CR_SERVER_GONE_ERROR) or (Lib.mysql_errno(SynchroThread.LibHandle) = CR_SERVER_LOST);
+        NeedReconnect := (Lib.mysql_errno(LibraryThread.LibHandle) = CR_SERVER_GONE_ERROR) or (Lib.mysql_errno(LibraryThread.LibHandle) = CR_SERVER_LOST);
         if (NeedReconnect) then
         begin
           {$IFDEF Debug}
             MessageBox(Application.Handle, 'Reconnect required!', 'Debug', MB_OK);
           {$ENDIF}
-          SyncDisconnecting(SynchroThread);
+          SyncDisconnecting(LibraryThread);
         end;
 
         Inc(Retry);
       until (not NeedReconnect or (Retry = RETRY_COUNT));
     end;
 
-    if (SynchroThread.Success and not SynchroThread.Terminated) then
-      SynchroThread.ResultHandle := Lib.mysql_use_result(SynchroThread.LibHandle);
+    if (LibraryThread.Success and not LibraryThread.Terminated) then
+      LibraryThread.ResultHandle := Lib.mysql_use_result(LibraryThread.LibHandle);
   end;
 
-  SynchroThread.ErrorCode := Lib.mysql_errno(SynchroThread.LibHandle);
-  SynchroThread.ErrorMessage := ErrorMsg(SynchroThread.LibHandle);
+  LibraryThread.ErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);
+  LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
 end;
 
-procedure TMySQLConnection.SyncHandleResult(const SynchroThread: TSynchroThread);
+procedure TMySQLConnection.SyncHandleResult(const LibraryThread: TLibraryThread);
 var
   CLStmt: TSQLCLStmt;
   S: String;
   StmtLength: Integer;
 begin
-  FErrorCode := SynchroThread.ErrorCode;
-  FErrorMessage := SynchroThread.ErrorMessage;
-  FThreadId := SynchroThread.LibThreadId;
+  FErrorCode := LibraryThread.ErrorCode;
+  FErrorMessage := LibraryThread.ErrorMessage;
+  FThreadId := LibraryThread.LibThreadId;
 
   if (FErrorCode > 0) then
   begin
@@ -3325,14 +3326,14 @@ begin
   begin
     Inc(FResultCount);
 
-    StmtLength := Integer(SynchroThread.SQLStmtLengths[SynchroThread.SQLStmt]);
+    StmtLength := Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]);
 
-    if (not Assigned(SynchroThread.ResultHandle)) then
-      WriteMonitor(@SynchroThread.SQL[SynchroThread.SQLStmtIndex], StmtLength, ttResult);
+    if (not Assigned(LibraryThread.ResultHandle)) then
+      WriteMonitor(@LibraryThread.SQL[LibraryThread.SQLStmtIndex], StmtLength, ttResult);
 
-    if (SynchroThread.SQLUseStmts.IndexOf(Pointer(SynchroThread.SQLStmt)) >= 0) then
+    if (LibraryThread.SQLUseStmts.IndexOf(Pointer(LibraryThread.SQLStmt)) >= 0) then
     begin
-      SQLParseCLStmt(CLStmt, @SynchroThread.SQL[SynchroThread.SQLStmtIndex], StmtLength, ServerVersion);
+      SQLParseCLStmt(CLStmt, @LibraryThread.SQL[LibraryThread.SQLStmtIndex], StmtLength, ServerVersion);
       if (CLStmt.ObjectName <> FDatabaseName) then
       begin
         FDatabaseName := CLStmt.ObjectName;
@@ -3340,22 +3341,22 @@ begin
         WriteMonitor(PChar(S), Length(S), ttInfo);
       end;
     end
-    else if (not Assigned(SynchroThread.ResultHandle)) then
+    else if (not Assigned(LibraryThread.ResultHandle)) then
     begin
-      if (Lib.mysql_affected_rows(SynchroThread.LibHandle) >= 0) then
+      if (Lib.mysql_affected_rows(LibraryThread.LibHandle) >= 0) then
       begin
         if (FRowsAffected < 0) then FRowsAffected := 0;
-        Inc(FRowsAffected, Lib.mysql_affected_rows(SynchroThread.LibHandle));
+        Inc(FRowsAffected, Lib.mysql_affected_rows(LibraryThread.LibHandle));
       end;
 
-      if (Assigned(Lib.mysql_info) and Assigned(Lib.mysql_info(SynchroThread.LibHandle))) then
+      if (Assigned(Lib.mysql_info) and Assigned(Lib.mysql_info(LibraryThread.LibHandle))) then
       begin
-        S := '--> ' + LibDecode(Lib.mysql_info(SynchroThread.LibHandle));
+        S := '--> ' + LibDecode(Lib.mysql_info(LibraryThread.LibHandle));
         WriteMonitor(PChar(S), Length(S), ttInfo);
       end
-      else if (Lib.mysql_affected_rows(SynchroThread.LibHandle) > 0) then
+      else if (Lib.mysql_affected_rows(LibraryThread.LibHandle) > 0) then
       begin
-        S := '--> ' + IntToStr(Lib.mysql_affected_rows(SynchroThread.LibHandle)) + ' Record(s) affected';
+        S := '--> ' + IntToStr(Lib.mysql_affected_rows(LibraryThread.LibHandle)) + ' Record(s) affected';
         WriteMonitor(PChar(S), Length(S), ttInfo);
       end
       else
@@ -3367,11 +3368,11 @@ begin
       if ((ServerVersion > 40100) and Assigned(Lib.mysql_warning_count)) then
       begin
         if (FWarningCount < 0) then FWarningCount := 0;
-        Inc(FWarningCount, Lib.mysql_warning_count(SynchroThread.LibHandle));
+        Inc(FWarningCount, Lib.mysql_warning_count(LibraryThread.LibHandle));
 
-        if (Lib.mysql_warning_count(SynchroThread.LibHandle) > 0) then
+        if (Lib.mysql_warning_count(LibraryThread.LibHandle) > 0) then
         begin
-          S := '--> ' + IntToStr(Lib.mysql_warning_count(SynchroThread.LibHandle)) + ' warning(s) available';
+          S := '--> ' + IntToStr(Lib.mysql_warning_count(LibraryThread.LibHandle)) + ' warning(s) available';
           WriteMonitor(PChar(S), Length(S), ttInfo);
         end;
       end;
@@ -3379,96 +3380,96 @@ begin
   end;
 
   if (FErrorCode > 0) then
-    SynchroThread.State := ssReady
+    LibraryThread.State := ssReady
   else
-    SynchroThread.State := ssResult;
+    LibraryThread.State := ssResult;
 end;
 
-procedure TMySQLConnection.SyncHandledResult(const SynchroThread: TSynchroThread);
+procedure TMySQLConnection.SyncHandledResult(const LibraryThread: TLibraryThread);
 var
   S: String;
   StmtLength: Integer;
 begin
-  FErrorCode := SynchroThread.ErrorCode;
-  FErrorMessage := SynchroThread.ErrorMessage;
+  FErrorCode := LibraryThread.ErrorCode;
+  FErrorMessage := LibraryThread.ErrorMessage;
 
-  if (not SynchroThread.Terminated and (SynchroThread.State = ssResult)) then
+  if (not LibraryThread.Terminated and (LibraryThread.State = ssResult)) then
   begin
-    if (Assigned(SynchroThread.ResultHandle)) then
-      while (Assigned(Lib.mysql_fetch_row(SynchroThread.ResultHandle))) do ;
+    if (Assigned(LibraryThread.ResultHandle)) then
+      while (Assigned(Lib.mysql_fetch_row(LibraryThread.ResultHandle))) do ;
   end;
 
-  if (not SynchroThread.Terminated) then
+  if (not LibraryThread.Terminated) then
     if (FErrorCode > 0) then
     begin
       S := '--> Error #' + IntToStr(FErrorCode) + ': ' + FErrorMessage + ' while receiving Record(s)';
       WriteMonitor(PChar(S), Length(S), ttInfo);
 
-      SynchroThread.State := ssReady;
+      LibraryThread.State := ssReady;
     end
     else
     begin
-      if (Assigned(SynchroThread.ResultHandle)) then
+      if (Assigned(LibraryThread.ResultHandle)) then
       begin
-        S := '--> ' + IntToStr(Lib.mysql_num_rows(SynchroThread.ResultHandle)) + ' Record(s) received';
+        S := '--> ' + IntToStr(Lib.mysql_num_rows(LibraryThread.ResultHandle)) + ' Record(s) received';
         WriteMonitor(PChar(S), Length(S), ttInfo);
 
-        Lib.mysql_free_result(SynchroThread.ResultHandle);
-        SynchroThread.ResultHandle := nil;
+        Lib.mysql_free_result(LibraryThread.ResultHandle);
+        LibraryThread.ResultHandle := nil;
       end;
 
-      if (MultiStatements and Assigned(SynchroThread.LibHandle) and (Lib.mysql_more_results(SynchroThread.LibHandle) <> 0)) then
+      if (MultiStatements and Assigned(LibraryThread.LibHandle) and (Lib.mysql_more_results(LibraryThread.LibHandle) <> 0)) then
       begin
-        if (SynchroThread.SQLStmtInPacket + 1 < Integer(SynchroThread.SQLStmtsInPackets[SynchroThread.SQLPacket])) then
+        if (LibraryThread.SQLStmtInPacket + 1 < Integer(LibraryThread.SQLStmtsInPackets[LibraryThread.SQLPacket])) then
         begin
-          Inc(FExecutedSQLLength, Integer(SynchroThread.SQLStmtLengths[SynchroThread.SQLStmt]));
+          Inc(FExecutedSQLLength, Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]));
           Inc(FExecutedStmts);
 
-          Inc(SynchroThread.SQLStmtIndex, Integer(SynchroThread.SQLStmtLengths[SynchroThread.SQLStmt]));
-          Inc(SynchroThread.SQLStmt);
-          Inc(SynchroThread.SQLStmtInPacket);
+          Inc(LibraryThread.SQLStmtIndex, Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]));
+          Inc(LibraryThread.SQLStmt);
+          Inc(LibraryThread.SQLStmtInPacket);
 
-          StmtLength := Integer(SynchroThread.SQLStmtLengths[SynchroThread.SQLStmt]);
-          WriteMonitor(@SynchroThread.SQL[SynchroThread.SQLStmtIndex], StmtLength, ttRequest);
+          StmtLength := Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]);
+          WriteMonitor(@LibraryThread.SQL[LibraryThread.SQLStmtIndex], StmtLength, ttRequest);
         end;
 
-        SynchroThread.State := ssNextResult;
+        LibraryThread.State := ssNextResult;
       end
       else
       begin
-        Inc(FExecutedSQLLength, Integer(SynchroThread.SQLStmtLengths[SynchroThread.SQLStmt]));
+        Inc(FExecutedSQLLength, Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]));
         Inc(FExecutedStmts);
 
-        Inc(SynchroThread.SQLStmtIndex, Integer(SynchroThread.SQLStmtLengths[SynchroThread.SQLStmt]));
-        Inc(SynchroThread.SQLStmt);
-        Inc(SynchroThread.SQLPacket);
-        SynchroThread.SQLStmtInPacket := 0;
+        Inc(LibraryThread.SQLStmtIndex, Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]));
+        Inc(LibraryThread.SQLStmt);
+        Inc(LibraryThread.SQLPacket);
+        LibraryThread.SQLStmtInPacket := 0;
 
-        if (SynchroThread.SQLPacket < SynchroThread.SQLStmtsInPackets.Count) then
+        if (LibraryThread.SQLPacket < LibraryThread.SQLStmtsInPackets.Count) then
         begin
-          SynchroThread.SQLLastStmtInPacket := SynchroThread.SQLStmt + Integer(SynchroThread.SQLStmtsInPackets[SynchroThread.SQLPacket]) - 1;
+          LibraryThread.SQLLastStmtInPacket := LibraryThread.SQLStmt + Integer(LibraryThread.SQLStmtsInPackets[LibraryThread.SQLPacket]) - 1;
 
           S := '# ' + SysUtils.DateTimeToStr(Now() + TimeDiff, FormatSettings);
           WriteMonitor(PChar(S), Length(S), ttTime);
 
-          StmtLength := Integer(SynchroThread.SQLStmtLengths[SynchroThread.SQLStmt]);
-          WriteMonitor(@SynchroThread.SQL[SynchroThread.SQLStmtIndex], StmtLength, ttRequest);
+          StmtLength := Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]);
+          WriteMonitor(@LibraryThread.SQL[LibraryThread.SQLStmtIndex], StmtLength, ttRequest);
 
-          SynchroThread.State := ssExecutingSQL;
+          LibraryThread.State := ssExecutingSQL;
         end
         else
-          SynchroThread.State := ssReady;
+          LibraryThread.State := ssReady;
       end;
     end;
 end;
 
-procedure TMySQLConnection.SyncHandlingResult(const SynchroThread: TSynchroThread);
+procedure TMySQLConnection.SyncHandlingResult(const LibraryThread: TLibraryThread);
 begin
-  if (Assigned(SynchroThread.OnResult)) then
+  if (Assigned(LibraryThread.OnResult)) then
   begin
     InOnResult := True;
     try
-      if (not SynchroThread.OnResult(SynchroThread, Assigned(SynchroThread.ResultHandle))
+      if (not LibraryThread.OnResult(LibraryThread, Assigned(LibraryThread.ResultHandle))
         and (ErrorCode > 0)) then
         DoError(ErrorCode, ErrorMessage);
     finally
@@ -3476,64 +3477,64 @@ begin
     end;
   end;
 
-  if ((Assigned(SynchroThread.OnResult) or not Assigned(SynchroThread.ResultHandle)) and (SynchroThread.State = ssResult)) then
+  if ((Assigned(LibraryThread.OnResult) or not Assigned(LibraryThread.ResultHandle)) and (LibraryThread.State = ssResult)) then
   begin
-    SynchroThread.State := ssReceivingResult;
-    SyncHandledResult(SynchroThread);
+    LibraryThread.State := ssReceivingResult;
+    SyncHandledResult(LibraryThread);
   end;
 end;
 
-procedure TMySQLConnection.SyncNextResult(const SynchroThread: TSynchroThread);
+procedure TMySQLConnection.SyncNextResult(const LibraryThread: TLibraryThread);
 var
   Time: TDateTime;
 begin
-  Assert(SynchroThread.State = ssNextResult);
+  Assert(LibraryThread.State = ssNextResult);
 
   Time := Now();
-  SynchroThread.Success := MultiStatements and (Lib.mysql_next_result(SynchroThread.LibHandle) <= 0);
-  SynchroThread.Time := SynchroThread.Time + Now() - Time;
-  if (SynchroThread.Success) then
+  LibraryThread.Success := MultiStatements and (Lib.mysql_next_result(LibraryThread.LibHandle) <= 0);
+  LibraryThread.Time := LibraryThread.Time + Now() - Time;
+  if (LibraryThread.Success) then
   begin
-    SynchroThread.ResultHandle := Lib.mysql_use_result(SynchroThread.LibHandle);
-    SynchroThread.Success := Assigned(SynchroThread.ResultHandle);
+    LibraryThread.ResultHandle := Lib.mysql_use_result(LibraryThread.LibHandle);
+    LibraryThread.Success := Assigned(LibraryThread.ResultHandle);
   end;
 
-  SynchroThread.ErrorCode := Lib.mysql_errno(SynchroThread.LibHandle);
-  SynchroThread.ErrorMessage := ErrorMsg(SynchroThread.LibHandle);
+  LibraryThread.ErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);
+  LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
 end;
 
-procedure TMySQLConnection.SyncPing(const SynchroThread: TSynchroThread);
+procedure TMySQLConnection.SyncPing(const LibraryThread: TLibraryThread);
 begin
   if (Assigned(Lib.mysql_ping)) then
-    Lib.mysql_ping(SynchroThread.LibHandle);
+    Lib.mysql_ping(LibraryThread.LibHandle);
 end;
 
-procedure TMySQLConnection.SyncReceivingResult(SynchroThread: TSynchroThread);
+procedure TMySQLConnection.SyncReceivingResult(LibraryThread: TLibraryThread);
 var
   DataSet: TMySQLDataSet;
   LibRow: MYSQL_ROW;
 begin
   TerminateCS.Enter();
-  Assert(SynchroThread.State = ssReceivingResult);
-  Assert(SynchroThread.DataSet is TMySQLDataSet);
-  DataSet := TMySQLDataSet(SynchroThread.DataSet);
+  Assert(LibraryThread.State = ssReceivingResult);
+  Assert(LibraryThread.DataSet is TMySQLDataSet);
+  DataSet := TMySQLDataSet(LibraryThread.DataSet);
   TerminateCS.Leave();
 
   repeat
-    if ((SynchroThread.Terminated) or not Assigned(SynchroThread.DataSet)) then
+    if ((LibraryThread.Terminated) or not Assigned(LibraryThread.DataSet)) then
       LibRow := nil
     else
-      LibRow := Lib.mysql_fetch_row(SynchroThread.ResultHandle);
+      LibRow := Lib.mysql_fetch_row(LibraryThread.ResultHandle);
 
     TerminateCS.Enter();
-    DataSet.InternAddRecord(LibRow, Lib.mysql_fetch_lengths(SynchroThread.ResultHandle));
+    DataSet.InternAddRecord(LibRow, Lib.mysql_fetch_lengths(LibraryThread.ResultHandle));
     TerminateCS.Leave();
   until (not Assigned(LibRow));
 
-  SynchroThread.Success := Lib.mysql_errno(SynchroThread.LibHandle) = 0;
+  LibraryThread.Success := Lib.mysql_errno(LibraryThread.LibHandle) = 0;
 
-  SynchroThread.ErrorCode := Lib.mysql_errno(SynchroThread.LibHandle);
-  SynchroThread.ErrorMessage := ErrorMsg(SynchroThread.LibHandle);
+  LibraryThread.ErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);
+  LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
 end;
 
 procedure TMySQLConnection.Terminate();
@@ -3542,19 +3543,19 @@ var
 begin
   TerminateCS.Enter();
 
-  if (Assigned(SynchroThread)) then
+  if (Assigned(LibraryThread)) then
   begin
     {$IFDEF Debug}
       MessageBox(Application.Handle, 'Terminate required!', 'Debug', MB_OK);
     {$ENDIF}
 
-    if (SynchroThread.IsRunning) then
+    if (LibraryThread.IsRunning) then
     begin
       S := '----> Connection Terminated <----';
       WriteMonitor(PChar(S), Length(S), ttInfo);
     end;
-    SynchroThread.Terminate();
-    FSynchroThread := nil;
+    LibraryThread.Terminate();
+    FLibraryThread := nil;
   end;
 
   TerminateCS.Leave();
@@ -3584,7 +3585,7 @@ begin
   Result := True or (LibraryType = ltHTTP) or not ((lstrcmpi(PChar(Host), LOCAL_HOST) = 0) or (Host = '127.0.0.1') or (Host = '::1'));
 end;
 
-function TMySQLConnection.UseSynchroThread(): Boolean;
+function TMySQLConnection.UseLibraryThread(): Boolean;
 begin
   Result := Asynchron and Assigned(MySQLConnectionOnSynchronize) and (FSynchronCount = 0);
 end;
@@ -4025,7 +4026,7 @@ begin
   FConnection := nil;
   FDatabaseName := '';
   FTableName := '';
-  SynchroThread := nil;
+  LibraryThread := nil;
 
   FIndexDefs := TIndexDefs.Create(Self);
   FRecNo := -1;
@@ -4075,7 +4076,11 @@ begin
               raise Exception.CreateFmt(E.Message + ' (Charset: %s, name: %s = %s, field_type: %d, charsetnr: %d, length: %d, flags: %d, Value: %s, SQL: %s)', [Connection.Charset, Field.Name, Connection.Lib.Field(LibField).name, Ord(Connection.Lib.Field(LibField).field_type), Connection.Lib.Field(LibField).charsetnr, Connection.Lib.Field(LibField).length, Connection.Lib.Field(LibField).flags, SQLEscapeBin(PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], True), CommandText]);
             end;
         end;
-        if (Len > Field.DataSize) then DatabaseErrorFmt(SInvalidFieldSize + ' (%s)', [Field.DisplayName]);
+        if (Len > Field.DataSize) then
+        begin
+          LibField := MYSQL_FIELD(Connection.Lib.mysql_fetch_field_direct(Handle, Field.FieldNo - 1));
+          DatabaseErrorFmt(SInvalidFieldSize + ' (Fieldname: %s, Len: %d, Field.DataSize: %d, field_type: %d, charsetnr: %d, length: %d, Value: %s)', [Field.DisplayName, Len, Field.DataSize, Ord(Connection.Lib.Field(LibField).field_type), Connection.Lib.Field(LibField).charsetnr, Connection.Lib.Field(LibField).length, SQLEscapeBin(PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], True)]);
+        end;
         AnsiCharToWideChar(Connection.CodePage, PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], PChar(Dest), Field.DataSize);
         PChar(Dest)[Len] := #0;
       end;
@@ -4192,10 +4197,10 @@ begin
   else
   begin
     Connection.TerminateCS.Enter();
-    if (not Assigned(SynchroThread)) then
+    if (not Assigned(LibraryThread)) then
       Result := nil
     else
-      Result := SynchroThread.ResultHandle;
+      Result := LibraryThread.ResultHandle;
     Connection.TerminateCS.Leave();
   end;
 end;
@@ -4224,30 +4229,30 @@ function TMySQLQuery.GetRecord(Buffer: TRecordBuffer; GetMode: TGetMode; DoCheck
 begin
   if (GetMode <> gmNext) then
     Result := grError
-  else if (not Assigned(SynchroThread.ResultHandle)) then
+  else if (not Assigned(LibraryThread.ResultHandle)) then
     Result := grEOF
   else
   begin
-    PRecordBufferData(ActiveBuffer())^.LibRow := Connection.Lib.mysql_fetch_row(SynchroThread.ResultHandle);
+    PRecordBufferData(ActiveBuffer())^.LibRow := Connection.Lib.mysql_fetch_row(LibraryThread.ResultHandle);
     if (Assigned(PRecordBufferData(ActiveBuffer())^.LibRow)) then
     begin
-      PRecordBufferData(ActiveBuffer())^.LibLengths := Connection.Lib.mysql_fetch_lengths(SynchroThread.ResultHandle);
+      PRecordBufferData(ActiveBuffer())^.LibLengths := Connection.Lib.mysql_fetch_lengths(LibraryThread.ResultHandle);
 
       Inc(FRecNo);
       Result := grOk;
     end
-    else if (Connection.Lib.mysql_errno(Connection.SynchroThread.LibHandle) <> 0) then
+    else if (Connection.Lib.mysql_errno(Connection.LibraryThread.LibHandle) <> 0) then
     begin
-      SynchroThread.ErrorCode := Connection.Lib.mysql_errno(Connection.SynchroThread.LibHandle);
-      SynchroThread.ErrorMessage := Connection.ErrorMsg(Connection.SynchroThread.LibHandle);
+      LibraryThread.ErrorCode := Connection.Lib.mysql_errno(Connection.LibraryThread.LibHandle);
+      LibraryThread.ErrorMessage := Connection.ErrorMsg(Connection.LibraryThread.LibHandle);
       Result := grError;
     end
     else
     begin
       Result := grEOF;
 
-      SynchroThread.ReleaseDataSet();
-      SynchroThread := nil;
+      LibraryThread.ReleaseDataSet();
+      LibraryThread := nil;
     end;
   end;
 end;
@@ -4264,10 +4269,10 @@ end;
 
 procedure TMySQLQuery.InternalClose();
 begin
-  if (Assigned(SynchroThread)) then
+  if (Assigned(LibraryThread)) then
   begin
-    SynchroThread.ReleaseDataSet();
-    SynchroThread := nil;
+    LibraryThread.ReleaseDataSet();
+    LibraryThread := nil;
   end;
 
   FIndexDefs.Clear();
@@ -4611,7 +4616,7 @@ procedure TMySQLQuery.InternalOpen();
 var
   OpenFromSQL: Boolean;
 begin
-  Assert(Assigned(Connection) and Assigned(Connection.Lib) and not Assigned(SynchroThread));
+  Assert(Assigned(Connection) and Assigned(Connection.Lib) and not Assigned(LibraryThread));
 
 
   FInformConvertError := True;
@@ -4621,18 +4626,18 @@ begin
   OpenFromSQL := (FieldCount = 0) and (CommandText <> '');
 
   if (OpenFromSQL) then
-    SynchroThread := Connection.SynchroThread;
+    LibraryThread := Connection.LibraryThread;
 
   InitFieldDefs();
   BindFields(True);
 
   if (OpenFromSQL) then
-    SynchroThread.BindDataSet(Self);
+    LibraryThread.BindDataSet(Self);
 end;
 
 function TMySQLQuery.IsCursorOpen(): Boolean;
 begin
-  Result := Assigned(SynchroThread);
+  Result := Assigned(LibraryThread);
 end;
 
 procedure TMySQLQuery.Open(const DataHandle: TMySQLConnection.TDataResult);
@@ -4670,8 +4675,8 @@ end;
 
 function TMySQLQuery.SetActiveEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
 begin
-  Assert(not Assigned(SynchroThread));
-  Assert(DataHandle = Connection.SynchroThread);
+  Assert(not Assigned(LibraryThread));
+  Assert(DataHandle = Connection.LibraryThread);
 
   if (not Data) then
     SetState(dsInactive)
@@ -5159,7 +5164,8 @@ begin
         while (Result = grError) do
         begin
           if ((NewIndex + 1 = InternRecordBuffers.Count) and not Filtered
-            and ((RecordsReceived.WaitFor(IGNORE) <> wrSignaled) or (Self is TMySQLTable) and TMySQLTable(Self).LimitedDataReceived and TMySQLTable(Self).AutomaticLoadNextRecords and TMySQLTable(Self).LoadNextRecords())) then
+            and ((RecordsReceived.WaitFor(IGNORE) <> wrSignaled) or (Self is TMySQLTable) and TMySQLTable(Self).LimitedDataReceived and TMySQLTable(Self).AutomaticLoadNextRecords and TMySQLTable(Self).LoadNextRecords())
+            and Assigned(LibraryThread)) then
             InternRecordBuffers.RecordReceived.WaitFor(NET_WAIT_TIMEOUT * 1000);
 
           if (NewIndex >= InternRecordBuffers.Count - 1) then
@@ -5288,10 +5294,10 @@ begin
   end
   else
   begin
-    if ((Self is TMySQLTable) and Assigned(SynchroThread)) then
+    if ((Self is TMySQLTable) and Assigned(LibraryThread)) then
       TMySQLTable(Self).FLimitedDataReceived :=
-        not SynchroThread.Success or not Assigned(SynchroThread.DataSet)
-        or (Connection.Lib.mysql_num_rows(SynchroThread.ResultHandle) = TMySQLTable(Self).RequestedRecordCount);
+        not LibraryThread.Success or not Assigned(LibraryThread.DataSet)
+        or (Connection.Lib.mysql_num_rows(LibraryThread.ResultHandle) = TMySQLTable(Self).RequestedRecordCount);
 
     RecordsReceived.SetEvent();
   end;
@@ -5506,10 +5512,10 @@ procedure TMySQLDataSet.InternalRefresh();
 var
   SQL: string;
 begin
-  if (Assigned(SynchroThread)) then
+  if (Assigned(LibraryThread)) then
   begin
     Connection.Terminate();
-    SynchroThread := nil;
+    LibraryThread := nil;
   end;
 
   InternRecordBuffers.Clear();
@@ -5523,8 +5529,8 @@ begin
     SQL := SQLSelect();
   if (Connection.ExecuteSQL(smDataSet, True, SQL)) then
   begin
-    SynchroThread := Connection.SynchroThread;
-    SynchroThread.BindDataSet(Self);
+    LibraryThread := Connection.LibraryThread;
+    LibraryThread.BindDataSet(Self);
   end;
 end;
 
@@ -6025,7 +6031,7 @@ var
   OldBookmark: TBookmark;
   Pos: Integer;
 begin
-  if (Assigned(SynchroThread)) then
+  if (Assigned(LibraryThread)) then
     Connection.Terminate();
 
   CheckBrowseMode();
@@ -6778,8 +6784,8 @@ begin
   Result := Connection.ExecuteSQL(smDataSet, True, SQLSelect(AllRecords));
   if (Result) then
   begin
-    SynchroThread := Connection.SynchroThread;
-    SynchroThread.BindDataSet(Self);
+    LibraryThread := Connection.LibraryThread;
+    LibraryThread.BindDataSet(Self);
     InternRecordBuffers.RecordReceived.WaitFor(INFINITE);
   end;
 end;

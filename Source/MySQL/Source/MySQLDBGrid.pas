@@ -829,12 +829,14 @@ begin
     if (((FMouseMoveCell.X >= 0) or (FMouseMoveCell.Y >= 1)) and ((Cell.X <> FMouseMoveCell.X) or (Cell.Y <> FMouseMoveCell.Y))) then
     begin
       FMouseMoveCell.X := -1; FMouseMoveCell.Y := -1;
+      ReleaseCapture();
       if (Assigned(FHintWindow)) then
         FreeAndNil(FHintWindow);
     end
     else if ((Cell.X >= 0) and (Cell.Y >= 1) and ((Cell.X <> FMouseMoveCell.X) or (Cell.Y <> FMouseMoveCell.Y))) then
     begin
       FMouseMoveCell := Cell;
+      SetCapture(Handle);
       SetTimer(Handle, tiShowHint, Application.HintPause, nil);
     end;
 end;
