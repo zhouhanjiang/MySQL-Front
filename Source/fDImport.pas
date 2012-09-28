@@ -919,14 +919,11 @@ end;
 procedure TDImport.InitTSFields(Sender: TObject);
 var
   cbCOLUMN_NAME: SQLINTEGER;
-  cbMessageText: SQLSMALLINT;
   COLUMN_NAME: array [0 .. STR_LEN] of SQLWCHAR;
   FieldNames: TStringList;
   Handle: SQLHSTMT;
   I: Integer;
   J: Integer;
-  MessageText: PSQLTCHAR;
-  SQLState: array [0 .. SQL_SQLSTATE_SIZE] of SQLWCHAR;
   Stmt: sqlite3_stmt_ptr;
 begin
   if (TSFields.Enabled) then
@@ -951,21 +948,10 @@ begin
 
       SQLAllocHandle(SQL_HANDLE_STMT, ODBC, @Handle);
 
-      if (SQLColumns(Stmt, nil, 0, nil, 0, PSQLTCHAR(GetSourceTableName(FTables.Selected)), SQL_NTS, nil, 0) = SQL_SUCCESS) then
-      begin
-        ODBCException(Handle, SQLBindCol(Handle, 4, SQL_C_WCHAR, @COLUMN_NAME, SizeOf(COLUMN_NAME), @cbCOLUMN_NAME));
-        while (SQL_SUCCEEDED(ODBCException(Handle, SQLFetch(Handle)))) do
-          FieldNames.Add(COLUMN_NAME);
-      end
-      else if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_STMT, Stmt, 1, nil, nil, nil, 0, @cbMessageText))) then
-      begin
-        GetMem(MessageText, (cbMessageText + 1) * SizeOf(SQLTCHAR));
-        if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, @SQLState, nil, MessageText, cbMessageText + 1, nil))) then
-          MsgBox(PChar(MessageText) + ' (' + SQLState + ')', Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-        FreeMem(MessageText);
-      end
-      else
-        MsgBox('Unknown ODBC Error.', Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+      ODBCException(Handle, SQLColumns(Handle, nil, 0, nil, 0, PSQLTCHAR(GetSourceTableName(FTables.Selected)), SQL_NTS, nil, 0));
+      ODBCException(Handle, SQLBindCol(Handle, 4, SQL_C_WCHAR, @COLUMN_NAME, SizeOf(COLUMN_NAME), @cbCOLUMN_NAME));
+      while (SQL_SUCCEEDED(ODBCException(Handle, SQLFetch(Handle)))) do
+        FieldNames.Add(COLUMN_NAME);
 
       SQLFreeHandle(SQL_HANDLE_STMT, Handle);
     end
