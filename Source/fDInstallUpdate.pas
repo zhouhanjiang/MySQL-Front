@@ -463,7 +463,7 @@ var
   FilenameP: array [0 .. MAX_PATH] of Char;
   I: Integer;
 begin
-  if (GetTempPath(MAX_PATH, FilenameP) > 0) then
+  if (MainAction('aFCloseAll').Execute and (GetTempPath(MAX_PATH, FilenameP) > 0)) then
   begin
     SetupPrgFilename := EXE_URI;
     while (Pos('/', SetupPrgFilename) > 0) do Delete(SetupPrgFilename, 1, Pos('/', SetupPrgFilename));
