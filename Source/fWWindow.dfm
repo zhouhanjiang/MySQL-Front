@@ -630,7 +630,7 @@ object WWindow: TWWindow
       Caption = 'aVJobs'
       Enabled = False
       HelpType = htContext
-      ImageIndex = 84
+      ImageIndex = 102
     end
     object aVSQLHistory: TAction
       Category = 'View'

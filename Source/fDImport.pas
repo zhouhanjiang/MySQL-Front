@@ -906,12 +906,12 @@ end;
 
 function TDImport.GetSourceTableName(const Item: TListItem): string;
 begin
-  Result := TableNames[Item.Index];
+  Result := TableNames[Integer(Item.Data)];
 end;
 
 function TDImport.GetTableName(const Item: TListItem): string;
 begin
-  Result := TableNames[Item.Index];
+  Result := TableNames[Integer(Item.Data)];
   if (RightStr(Result, 1) = '$') then
     Delete(Result, Length(Result), 1);
 end;
@@ -1583,6 +1583,7 @@ begin
         ListItem := FTables.Items.Add();
       ListItem.Caption := TableName;
       ListItem.ImageIndex := iiTable;
+      ListItem.Data := TCustomData(I);
     end;
     FTables.Column[0].AutoSize := False;
     FTables.Column[0].Width := ColumnTextWidth;

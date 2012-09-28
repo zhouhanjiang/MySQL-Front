@@ -152,6 +152,8 @@ MAINICON ICON "{BuildImagesPath}\\MySQLFront.ico"
 10098 ICON "{BuildImagesPath}\\wrench.ico"
 10099 ICON "{BuildImagesPath}\\branch.ico"
 10100 ICON "{BuildImagesPath}\\magic_wand.ico"
+10101 ICON "{BuildImagesPath}\\application.ico"
+10102 ICON "{BuildImagesPath}\\applications.ico"
 
 STRINGTABLE
 BEGIN

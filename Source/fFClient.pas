@@ -1563,27 +1563,11 @@ var
   I: Integer;
   Width: Integer;
 begin
-  // Debug 19.09.2012
-  if (not Assigned(DBGrid.DataSource)) then
-    raise ERangeError.Create(SRangeError + ' (DataSource not Assigned)');
-
-  // Debug 13.09.2012
-  if (DBGrid.DataSource.DataSet <> DataSet) then
-    raise ERangeError.CreateFmt(SRangeError + ': SQL1: %s, SQL2: %s', [TMySQLQuery(DBGrid.DataSource.DataSet).CommandText, TMySQLQuery(DataSet).CommandText]);
-
   DBGrid.DataSource.DataSet := DataSet;
 
   FClient.DataSetAfterOpen(DataSet);
 
   DBGrid.ReadOnly := Table is TCSystemView;
-
-  // Debug 13.09.2012
-  if (DBGrid.Columns.Count <> DBGrid.DataSource.DataSet.FieldCount) then
-    raise ERangeError.CreateFmt(SRangeError + ': %d <> %d, SQL: %s', [DBGrid.Columns.Count, DBGrid.DataSource.DataSet.FieldCount, TMySQLQuery(DBGrid.DataSource.DataSet).CommandText]);
-
-  // Debug 19.09.2012
-  if (not Assigned(DBGrid.SelectedField)) then
-    raise ERangeError.CreateFmt(SRangeError + ' (SelectedField not assigned, %d, SQL: %s)', [DBGrid.DataSource.DataSet.FieldCount, TMySQLQuery(DBGrid.DataSource.DataSet).CommandText]);
 
   DBGrid.Columns.BeginUpdate();
   for I := 0 to DBGrid.Columns.Count - 1 do
@@ -1591,8 +1575,8 @@ begin
     begin
       Child := XMLNode(GridXML[FieldInfo.OriginalFieldName], 'width');
       if (Assigned(Child) and TryStrToInt(Child.Text, Width) and (Width > 10)) then
-        DBGrid.Columns[I].Width := Width;
-      if ((DBGrid.Columns[I].Width > Preferences.GridMaxColumnWidth) and not (DBGrid.Columns[I].Field.DataType in [ftSmallint, ftInteger, ftLargeint, ftWord, ftFloat, ftDate, ftDateTime, ftTime, ftCurrency])) then
+        DBGrid.Columns[I].Width := Width
+      else if ((DBGrid.Columns[I].Width > Preferences.GridMaxColumnWidth) and not (DBGrid.Columns[I].Field.DataType in [ftSmallint, ftInteger, ftLargeint, ftWord, ftFloat, ftDate, ftDateTime, ftTime, ftCurrency])) then
         DBGrid.Columns[I].Width := Preferences.GridMaxColumnWidth;
     end;
   DBGrid.Columns.EndUpdate();
@@ -4857,7 +4841,9 @@ begin
     else if (Window.ActiveControl = ActiveListView) then ListViewEnter(nil)
     else if (Window.ActiveControl = FLog) then FLogEnter(nil)
     else if (Window.ActiveControl is TSynMemo) then SynMemoEnter(nil)
-    else if (Window.ActiveControl = ActiveDBGrid) then DBGridEnter(ActiveDBGrid);
+    else if (Window.ActiveControl = ActiveDBGrid) then DBGridEnter(ActiveDBGrid)
+    else if (Window.ActiveControl = FBookmarks) then FBookmarksEnter(nil)
+    else if (Window.ActiveControl = FJobs) then FJobsEnter(nil);
 
     if (Assigned(FNavigatorNodeAfterActivate)) then
       FNavigatorChange2(FNavigator, FNavigatorNodeAfterActivate);
@@ -5177,6 +5163,7 @@ begin
   ToolBar.Images := Preferences.SmallImages;
   FNavigator.Images := Preferences.SmallImages;
   FBookmarks.SmallImages := Preferences.SmallImages;
+  FJobs.SmallImages := Preferences.SmallImages;
   FSQLHistory.Images := Preferences.SmallImages;
   TBLimitEnabled.Images := Preferences.SmallImages;
   TBQuickSearchEnabled.Images := Preferences.SmallImages;
@@ -5989,10 +5976,6 @@ begin
 
       FText.OnChange := FTextChange;
     end;
-
-    // Debug
-    if (not Assigned(DBGrid.SelectedField)) then
-      raise ERangeError.CreateFmt(SRangeError + ' (SelectedField) - %s - %d - %s', [TMySQLQuery(DBGrid.DataSource.DataSet).CommandText, DBGrid.DataSource.DataSet.FieldCount, FNavigator.Selected.Text]);
 
     DBGrid.UpdateAction(MainAction('aEPaste'));
     MainAction('aECopyToFile').Enabled := (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) and (not DBGrid.SelectedField.IsNull) and (DBGrid.SelectedRows.Count <= 1);
@@ -8354,7 +8337,7 @@ begin
     begin
       NewListItem := FJobs.Items.Add();
       NewListItem.Caption := Client.Account.Jobs[I].Name;
-      NewListItem.ImageIndex := iiClock;
+      NewListItem.ImageIndex := iiJob;
     end;
 
     Window.Perform(CM_BOOKMARKCHANGED, 0, 0);
@@ -11467,7 +11450,13 @@ end;
 
 procedure TFClient.mjExecuteClick(Sender: TObject);
 begin
-  Write;
+  DExport.Client := Client;
+  DExport.DBGrid := nil;
+  DExport.DialogType := edtExecuteJob;
+  DExport.Job := TAJobExport(Client.Account.JobByName(FJobs.Selected.Caption));
+  DExport.Objects.Clear();
+  DExport.Window := Window;
+  DExport.Execute();
 end;
 
 procedure TFClient.MJobsPopup(Sender: TObject);

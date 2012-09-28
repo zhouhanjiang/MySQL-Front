@@ -131,6 +131,7 @@ object FClient: TFClient
           end>
         ColumnClick = False
         DragMode = dmAutomatic
+        HideSelection = False
         ReadOnly = True
         RowSelect = True
         PopupMenu = MJobs
@@ -1225,7 +1226,6 @@ object FClient: TFClient
         Top = 0
         Caption = 'tbJobs'
         Grouped = True
-        ImageIndex = 84
         Style = tbsCheck
       end
       object tbSQLHistory: TToolButton

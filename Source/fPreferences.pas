@@ -6,6 +6,7 @@ uses
   Controls, Forms, Graphics, Windows, XMLDoc, XMLIntf,
   ExtCtrls, Classes, SysUtils, Registry, IniFiles,
   ComCtrls,
+  MSTask,
   MySQLDB;
 
 type
@@ -163,7 +164,13 @@ type
   private
     function GetJobs(): TAJobs; inline;
   protected
+    procedure LoadFromXML(const XML: IXMLNode); override;
+    procedure SaveToXML(const XML: IXMLNode); override;
     property Jobs: TAJobs read GetJobs;
+  public
+    Active: Boolean;
+    procedure Assign(const Source: TPItem); override;
+    constructor Create(const AAItems: TPItems; const AName: string = ''); override;
   end;
 
   TPExport = class(TAJob)
@@ -766,6 +773,7 @@ var
   Accounts: TAAccounts;
   FileFormatSettings: TFormatSettings;
   Preferences: TPPreferences;
+  TaskScheduler: ITaskScheduler;
 
 implementation {***************************************************************}
 
@@ -1507,6 +1515,8 @@ end;
 
 procedure TPExport.LoadFromXML(const XML: IXMLNode);
 begin
+  inherited;
+
   if (Assigned(XMLNode(XML, 'csv/headline'))) then TryStrToBool(XMLNode(XML, 'csv/headline').Attributes['enabled'], CSVHeadline);
   if (Assigned(XMLNode(XML, 'csv/quote/string'))) then CSVQuoteChar := XMLNode(XML, 'csv/quote/string').Text;
   if (Assigned(XMLNode(XML, 'csv/quote/type'))) then TryStrToQuote(XMLNode(XML, 'csv/quote/type').Text, CSVQuote);
@@ -1526,6 +1536,8 @@ end;
 
 procedure TPExport.SaveToXML(const XML: IXMLNode);
 begin
+  inherited;
+
   XMLNode(XML, 'csv/headline').Attributes['enabled'] := CSVHeadline;
   XMLNode(XML, 'csv/quote/string').Text := CSVQuoteChar;
   XMLNode(XML, 'csv/quote/type').Text := QuoteToStr(CSVQuote);
@@ -2943,11 +2955,43 @@ end;
 
 { TAJob ***********************************************************************}
 
+procedure TAJob.Assign(const Source: TPItem);
+begin
+  Assert(Assigned(Source) and (Source.ClassType = ClassType));
+
+
+  inherited;
+
+  Active := TAJob(Source).Active;
+end;
+
+constructor TAJob.Create(const AAItems: TPItems; const AName: string = '');
+begin
+  inherited;
+
+  Active := False;
+end;
+
 function TAJob.GetJobs(): TAJobs;
 begin
   Assert(AItems is TAJobs);
 
   Result := TAJobs(AItems);
+end;
+
+procedure TAJob.LoadFromXML(const XML: IXMLNode);
+begin
+  inherited;
+end;
+
+procedure TAJob.SaveToXML(const XML: IXMLNode);
+begin
+  inherited;
+
+  if (Active) then
+  begin
+    Write;
+  end;
 end;
 
 { TAJobExport *****************************************************************}
@@ -3105,9 +3149,9 @@ begin
     Job.Assign(NewJob);
     Add(Job);
 
-    Account.AccountEvent(ClassType);
-
     SaveToXML();
+
+    Account.AccountEvent(ClassType);
   end;
 end;
 
@@ -3231,9 +3275,9 @@ begin
   begin
     Job.Assign(NewJob);
 
-    Account.AccountEvent(ClassType);
-
     SaveToXML();
+
+    Account.AccountEvent(ClassType);
   end;
 end;
 
@@ -3777,8 +3821,6 @@ function TAAccount.GetHistoryXML(): IXMLNode;
 begin
   if (not Assigned(FHistoryXMLDocument)) then
   begin
-    CoInitialize(nil);
-
     if (FileExists(HistoryFilename)) then
       try
         FHistoryXMLDocument := LoadXMLDocument(HistoryFilename);
@@ -3794,8 +3836,6 @@ begin
     end;
 
     FHistoryXMLDocument.Options := FHistoryXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
-
-    CoUninitialize();
   end;
 
   Result := FHistoryXMLDocument.DocumentElement;
@@ -3915,7 +3955,6 @@ begin
       if (Assigned(HistoryXMLDocument) and HistoryXMLDocument.Modified) then
         if (ForceDirectories(ExtractFilePath(HistoryFilename))) then
           HistoryXMLDocument.SaveToFile(HistoryFilename);
-      Jobs.SaveToXML();
     end;
 
     Modified := False;
@@ -4325,6 +4364,12 @@ end;
 initialization
   Preferences := nil;
 
+  if (not Succeeded(CoInitialize(nil))) then
+    TaskScheduler := nil
+  else if (Failed(CoCreateInstance(TCLSID(CLSID_CTaskScheduler), nil, CLSCTX_INPROC_SERVER,
+    TIID(IID_ITaskScheduler), TaskScheduler))) then
+    TaskScheduler := nil;
+
   FileFormatSettings := TFormatSettings.Create(LOCALE_SYSTEM_DEFAULT);
   FileFormatSettings.ThousandSeparator := ',';
   FileFormatSettings.DecimalSeparator := '.';
@@ -4337,5 +4382,8 @@ initialization
   FileFormatSettings.TimePMString := '';
   FileFormatSettings.ShortTimeFormat := 'hh:mm';
   FileFormatSettings.LongTimeFormat := 'hh:mm:ss';
+finalization
+  if (Assigned(TaskScheduler)) then
+    CoUninitialize();
 end.
 

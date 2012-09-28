@@ -150,6 +150,8 @@ type
     SaveDialog: TSaveDialog_Ext;
     FBFilename: TButton;
     TSTask: TTabSheet;
+    FLTaskActive: TLabel;
+    FTaskActive: TCheckBox;
     procedure FBBackClick(Sender: TObject);
     procedure FBCancelClick(Sender: TObject);
     procedure FBForwardClick(Sender: TObject);
@@ -201,6 +203,7 @@ type
     procedure TSSelectShow(Sender: TObject);
     procedure FBFilenameClick(Sender: TObject);
     procedure TSTaskShow(Sender: TObject);
+    procedure FExportTypeChange(Sender: TObject);
   private
     Export: TTExport;
     FDestFields: array of TEdit;
@@ -221,6 +224,8 @@ type
     function GetFilename(): Boolean;
     procedure InitTSFields();
     procedure InitTSJob();
+    function InitTSSelect(): Boolean;
+    function ObjectsFromFSelect(): Boolean;
     procedure OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure OnExecuted(const ASuccess: Boolean);
     procedure OnUpdate(const AProgressInfos: TTools.TProgressInfos);
@@ -328,9 +333,21 @@ begin
   Result := nil;
   for I := 0 to Objects.Count - 1 do
     if (TObject(Objects[I]) is TCDatabase) then
-      Result := TCDatabase(Objects[I])
+      if (not Assigned(Result) or (Objects[I] = Result)) then
+        Result := TCDatabase(Objects[I])
+      else
+      begin
+        Result := nil;
+        break;
+      end
     else if (TObject(Objects[I]) is TCDBObject) then
-      Result := TCDBObject(Objects[I]).Database;
+      if (not Assigned(Result) or (TCDBObject(Objects[I]).Database = Result)) then
+        Result := TCDBObject(Objects[I]).Database
+      else
+      begin
+        Result := nil;
+        break;
+      end;
 
   if (Assigned(DBGrid)) then
     Title := Preferences.LoadStr(362)
@@ -507,65 +524,9 @@ var
   Database: TCDatabase;
   I: Integer;
   J: Integer;
-  K: Integer;
-  L: Integer;
-  Nodes: TList;
 begin
-  if (DialogType = edtEditJob) then
-  begin
-    if (FSelect.Items[0].Count = 0) then
-    begin
-      Nodes := TList.Create();
-      if (Client.Update()) then
-        for I := 0 to Length(Job.Objects) - 1 do
-          if (Job.Objects[I].ObjectType = jotServer) then
-            Nodes.Add(FSelect.Items[0])
-          else if (Client.Databases.Update()) then
-          begin
-            FSelect.Items[0].Expand(False);
-            if (Job.Objects[I].ObjectType = jotDatabase) then
-            begin
-              for J := 0 to FSelect.Items[0].Count - 1 do
-                if (Client.Databases.NameCmp(FSelect.Items[0].Item[J].Text, Job.Objects[I].Name) = 0) then
-                  Nodes.Add(FSelect.Items[0].Item[J]);
-            end
-            else
-            begin
-              for J := 0 to FSelect.Items[0].Count - 1 do
-                if (Client.Databases.NameCmp(FSelect.Items[0].Item[J].Text, Job.Objects[I].DatabaseName) = 0) then
-                begin
-                  Database := Client.DatabaseByName(Job.Objects[I].DatabaseName);
-                  if (Database.Update()) then
-                  begin
-                    FSelect.Items[0].Item[J].Expand(False);
-                    for K := 0 to FSelect.Items[0].Item[J].Count - 1 do
-                      if (Job.Objects[I].ObjectType in [jotTable, jotProcedure, jotFunction, jotEvent]) then
-                      begin
-                        if ((Job.Objects[I].ObjectType = jotTable) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) is TCTable) and (Database.Tables.NameCmp(TCTable(FSelect.Items[0].Item[J].Item[K].Data).Name, Job.Objects[I].Name) = 0)
-                          or (Job.Objects[I].ObjectType = jotProcedure) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) is TCProcedure) and (Database.Routines.NameCmp(TCProcedure(FSelect.Items[0].Item[J].Item[K].Data).Name, Job.Objects[I].Name) = 0)
-                          or (Job.Objects[I].ObjectType = jotFunction) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) is TCFunction) and (Database.Routines.NameCmp(TCFunction(FSelect.Items[0].Item[J].Item[K].Data).Name, Job.Objects[I].Name) = 0)
-                          or (Job.Objects[I].ObjectType = jotEvent) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) is TCEvent) and (Database.Events.NameCmp(TCEvent(FSelect.Items[0].Item[J].Item[K].Data).Name, Job.Objects[I].Name) = 0)) then
-                          Nodes.Add(FSelect.Items[0].Item[J].Item[K]);
-                      end
-                      else if (Job.Objects[I].ObjectType = jotTrigger) then
-                      begin
-                        if ((Job.Objects[I].ObjectType = jotTable) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) = Database.TriggerByName(Job.Objects[I].Name).Table)) then
-                        begin
-                          FSelect.Items[0].Item[J].Item[K].Expand(False);
-                          for L := 0 to FSelect.Items[0].Item[J].Item[K].Count - 1 do
-                            if ((TObject(FSelect.Items[0].Item[J].Item[K].Data) is TCTrigger) and (Database.Triggers.NameCmp(TCTrigger(FSelect.Items[0].Item[J].Item[K].Item[L].Data).Name, Job.Objects[I].Name) = 0)) then
-                              Nodes.Add(FSelect.Items[0].Item[J].Item[K].Item[L]);
-                        end;
-                      end;
-                  end;
-                end;
-            end;
-          end;
-      FSelect.Select(Nodes);
-      Nodes.Free();
-    end;
-  end
-  else if (DialogType = edtNormal) then
+  if ((DialogType in [edtEditJob, edtExecuteJob]) and InitTSSelect() and (DialogType in [edtExecuteJob]) and ObjectsFromFSelect()
+    or (DialogType = edtNormal)) then
   begin
     I := 0;
     while (I < Objects.Count) do
@@ -772,6 +733,13 @@ begin
         TabSheet.Enabled := False;
 
   CheckActivePageChange(TSFields.PageIndex);
+end;
+
+procedure TDExport.FExportTypeChange(Sender: TObject);
+begin
+  FFilename.Text := '';
+
+  FJobOptionChange(Sender);
 end;
 
 procedure TDExport.FField1Change(Sender: TObject);
@@ -1084,6 +1052,8 @@ begin
             TAJobExport(Export).Objects[Length(TAJobExport(Export).Objects) - 1].DatabaseName := TCDBObject(FSelect.Items[I].Data).Database.Name;
           end;
         end;
+      TAJobExport(Export).Active := FTaskActive.Checked;
+
       if (DialogType = edtCreateJob) then
         Client.Account.Jobs.AddJob(Export)
       else if (DialogType = edtEditJob) then
@@ -1126,6 +1096,8 @@ begin
     Caption := Preferences.LoadStr(897)
   else if (DialogType = edtEditJob) then
     Caption := Preferences.LoadStr(842, Job.Name)
+  else if (DialogType = edtExecuteJob) then
+    Caption := Preferences.LoadStr(210) + ' ' + ExtractFileName(Job.Filename)
   else if (ExportType = etPrinter) then
     Caption := Preferences.LoadStr(577)
   else if (ExtractFileName(Filename) = '') then
@@ -1137,6 +1109,8 @@ begin
     HelpContext := 1138
   else if (DialogType = edtEditJob) then
     HelpContext := 1140
+  else if (DialogType = edtExecuteJob) then
+    HelpContext := -1
   else
     case (ExportType) of
       etSQLFile: HelpContext := 1014;
@@ -1150,6 +1124,7 @@ begin
       etPrinter: HelpContext := 1018;
       else HelpContext := -1;
     end;
+  FBHelp.Visible := HelpContext >= 0;
 
   if (DialogType = edtCreateJob) then
   begin
@@ -1161,7 +1136,7 @@ begin
     FFilename.Visible := False; FLFilename.Visible := FFilename.Visible;
     FFilename.Text := '';
   end
-  else if (DialogType = edtEditJob) then
+  else if (DialogType in [edtEditJob, edtExecuteJob]) then
   begin
     Node := FSelect.Items.Add(nil, Client.Caption);
     Node.ImageIndex := iiServer;
@@ -1181,7 +1156,10 @@ begin
     end;
     FFilename.Visible := False; FLFilename.Visible := FFilename.Visible;
     CodePage := Job.CodePage;
+    Filename := Job.Filename;
     FFilename.Text := Job.Filename;
+
+    FTaskActive.Checked := Job.Active;
   end;
 
   if (Assigned(DBGrid)) then
@@ -1193,19 +1171,17 @@ begin
 
   TSSelect.Enabled := DialogType in [edtCreateJob, edtEditJob];
   TSJob.Enabled := False;
-  TSODBCSelect.Enabled := not TSSelect.Enabled and (ExportType in [etODBC]);
-  TSSQLOptions.Enabled := not TSSelect.Enabled and (ExportType in [etSQLFile]);
-  TSCSVOptions.Enabled := not TSSelect.Enabled and (ExportType in [etTextFile]);
-  TSXMLOptions.Enabled := not TSSelect.Enabled and (ExportType in [etXMLFile]) and not Assigned(DBGrid);
-  TSHTMLOptions.Enabled := not TSSelect.Enabled and (ExportType in [etHTMLFile, etPrinter, etPDFFile]);
-  TSFields.Enabled := not TSSelect.Enabled and (ExportType in [etExcelFile]) and ((Objects.Count = 1) or Assigned(DBGrid)) or (ExportType in [etXMLFile]) and Assigned(DBGrid);
-  TSExecute.Enabled := not TSSelect.Enabled and not TSODBCSelect.Enabled and not TSSQLOptions.Enabled and not TSCSVOptions.Enabled and not TSHTMLOptions.Enabled and not TSFields.Enabled;
+  TSODBCSelect.Enabled := (DialogType in [edtNormal]) and (ExportType in [etODBC]);
+  TSSQLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etSQLFile]);
+  TSCSVOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etTextFile]);
+  TSXMLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etXMLFile]) and not Assigned(DBGrid);
+  TSHTMLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etHTMLFile, etPrinter, etPDFFile]);
+  TSFields.Enabled := (DialogType in [edtNormal]) and (ExportType in [etExcelFile]) and ((Objects.Count = 1) or Assigned(DBGrid)) or (ExportType in [etXMLFile]) and Assigned(DBGrid);
+  TSTask.Enabled := False;
+  TSExecute.Enabled := not TSODBCSelect.Enabled and not TSSQLOptions.Enabled and not TSCSVOptions.Enabled and not TSHTMLOptions.Enabled and not TSFields.Enabled;
 
-  for I := 0 to PageControl.PageCount - 1 do
-    if ((PageControl.ActivePageIndex < 0) and PageControl.Pages[I].Enabled) then
-      PageControl.ActivePageIndex := I;
-
-  FBCancel.ModalResult := mrCancel;
+  FBBack.Visible := TSSelect.Enabled or TSODBCSelect.Enabled or TSSQLOptions.Enabled or TSCSVOptions.Enabled or TSXMLOptions.Enabled or TSHTMLOptions.Enabled or TSFields.Enabled;
+  FBForward.Visible := FBBack.Visible;
 
   if (Assigned(DBGrid)) then
     DBGrid.DataSource.DataSet.DisableControls();
@@ -1222,14 +1198,18 @@ begin
     PageControl.Visible := Boolean(Perform(CM_POST_AFTEREXECUTESQL, 0, 0));
   PSQLWait.Visible := not PageControl.Visible;
 
-  FBBack.Visible := TSSelect.Enabled or TSODBCSelect.Enabled or TSSQLOptions.Enabled or TSCSVOptions.Enabled or TSXMLOptions.Enabled or TSHTMLOptions.Enabled or TSFields.Enabled;
-  FBForward.Visible := FBBack.Visible;
+  for I := 0 to PageControl.PageCount - 1 do
+    if ((PageControl.ActivePageIndex < 0) and PageControl.Pages[I].Enabled) then
+      PageControl.ActivePageIndex := I;
 
-  if (not FBForward.Enabled) then
-    if (TSSelect.Visible) then
-      ActiveControl := FSelect
-    else
-      ActiveControl := FBCancel;
+  FBCancel.ModalResult := mrCancel;
+
+  if (PageControl.Visible and TSSelect.Visible) then
+    ActiveControl := FSelect
+  else if (FBForward.Visible and FBForward.Enabled) then
+    ActiveControl := FBForward
+  else
+    ActiveControl := FBCancel;
 end;
 
 procedure TDExport.FQuoteCharExit(Sender: TObject);
@@ -1254,7 +1234,7 @@ end;
 
 procedure TDExport.FSelectChange(Sender: TObject; Node: TTreeNode);
 begin
-  TSJob.Enabled := Assigned(FSelect.Selected);
+  TSJob.Enabled := Assigned(FSelect.Selected) and (DialogType in [edtCreateJob, edtEditJob]);
   CheckActivePageChange(TSSelect.PageIndex);
 end;
 
@@ -1618,7 +1598,7 @@ begin
   FSQLiteFile.Enabled := False;
   FODBC.Enabled := False;
   FHTMLFile.Enabled := True;
-  FXMLFile.Enabled := False;
+  FXMLFile.Enabled := True;
   FPDFFile.Enabled := True;
 
   for I := 0 to Objects.Count - 1 do
@@ -1632,6 +1612,98 @@ begin
       FXMLFile.Enabled := True;
     end;
   FSQLFile.Checked := True;
+end;
+
+function TDExport.InitTSSelect(): Boolean;
+var
+  Database: TCDatabase;
+  I: Integer;
+  J: Integer;
+  K: Integer;
+  L: Integer;
+  Nodes: TList;
+begin
+  Result := True;
+  if (FSelect.Items[0].Count = 0) then
+  begin
+    Nodes := TList.Create();
+    if (not Client.Update()) then
+      Result := False
+    else
+      for I := 0 to Length(Job.Objects) - 1 do
+        if (Job.Objects[I].ObjectType = jotServer) then
+          Nodes.Add(FSelect.Items[0])
+        else if (not Client.Databases.Update()) then
+          Result := False
+        else
+        begin
+          FSelect.Items[0].Expand(False);
+          if (Job.Objects[I].ObjectType = jotDatabase) then
+          begin
+            for J := 0 to FSelect.Items[0].Count - 1 do
+              if (Client.Databases.NameCmp(FSelect.Items[0].Item[J].Text, Job.Objects[I].Name) = 0) then
+                Nodes.Add(FSelect.Items[0].Item[J]);
+          end
+          else
+          begin
+            for J := 0 to FSelect.Items[0].Count - 1 do
+              if (Client.Databases.NameCmp(FSelect.Items[0].Item[J].Text, Job.Objects[I].DatabaseName) = 0) then
+              begin
+                Database := Client.DatabaseByName(Job.Objects[I].DatabaseName);
+                if (not Database.Update()) then
+                  Result := False
+                else
+                begin
+                  FSelect.Items[0].Item[J].Expand(False);
+                  for K := 0 to FSelect.Items[0].Item[J].Count - 1 do
+                    if (Job.Objects[I].ObjectType in [jotTable, jotProcedure, jotFunction, jotEvent]) then
+                    begin
+                      if ((Job.Objects[I].ObjectType = jotTable) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) is TCTable) and (Database.Tables.NameCmp(TCTable(FSelect.Items[0].Item[J].Item[K].Data).Name, Job.Objects[I].Name) = 0)
+                        or (Job.Objects[I].ObjectType = jotProcedure) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) is TCProcedure) and (Database.Routines.NameCmp(TCProcedure(FSelect.Items[0].Item[J].Item[K].Data).Name, Job.Objects[I].Name) = 0)
+                        or (Job.Objects[I].ObjectType = jotFunction) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) is TCFunction) and (Database.Routines.NameCmp(TCFunction(FSelect.Items[0].Item[J].Item[K].Data).Name, Job.Objects[I].Name) = 0)
+                        or (Job.Objects[I].ObjectType = jotEvent) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) is TCEvent) and (Database.Events.NameCmp(TCEvent(FSelect.Items[0].Item[J].Item[K].Data).Name, Job.Objects[I].Name) = 0)) then
+                        Nodes.Add(FSelect.Items[0].Item[J].Item[K]);
+                    end
+                    else if (Job.Objects[I].ObjectType = jotTrigger) then
+                    begin
+                      if ((Job.Objects[I].ObjectType = jotTable) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) = Database.TriggerByName(Job.Objects[I].Name).Table)) then
+                      begin
+                        FSelect.Items[0].Item[J].Item[K].Expand(False);
+                        for L := 0 to FSelect.Items[0].Item[J].Item[K].Count - 1 do
+                          if ((TObject(FSelect.Items[0].Item[J].Item[K].Data) is TCTrigger) and (Database.Triggers.NameCmp(TCTrigger(FSelect.Items[0].Item[J].Item[K].Item[L].Data).Name, Job.Objects[I].Name) = 0)) then
+                            Nodes.Add(FSelect.Items[0].Item[J].Item[K].Item[L]);
+                      end;
+                    end;
+                end;
+              end;
+          end;
+        end;
+    FSelect.Select(Nodes);
+    Nodes.Free();
+  end;
+end;
+
+function TDExport.ObjectsFromFSelect(): Boolean;
+var
+  Child: TTreeNode;
+  I: Integer;
+begin
+  Result := True;
+
+  Objects.Clear();
+  for I := 0 to FSelect.Items.Count - 1 do
+    if (FSelect.Items[I].Selected) then
+      if (FSelect.Items[I].ImageIndex = iiServer) then
+      begin
+        Child := FSelect.Items[I].getFirstChild();
+        while (Assigned(Child)) do
+        begin
+          Objects.Add(Child.Data);
+          Child := Child.getNextSibling();
+        end;
+      end
+      else
+        Objects.Add(FSelect.Items[I].Data);
 end;
 
 procedure TDExport.OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
@@ -2160,24 +2232,8 @@ begin
 end;
 
 procedure TDExport.TSJobShow(Sender: TObject);
-var
-  Child: TTreeNode;
-  I: Integer;
 begin
-  Objects.Clear();
-  for I := 0 to FSelect.Items.Count - 1 do
-    if (FSelect.Items[I].Selected) then
-      if (FSelect.Items[I].ImageIndex = iiServer) then
-      begin
-        Child := FSelect.Items[I].getFirstChild();
-        while (Assigned(Child)) do
-        begin
-          Objects.Add(Child.Data);
-          Child := Child.getNextSibling();
-        end;
-      end
-      else
-        Objects.Add(FSelect.Items[I].Data);
+  ObjectsFromFSelect();
 
   PageControl.Visible := Boolean(Perform(CM_POST_AFTEREXECUTESQL, 0, 0));
   PSQLWait.Visible := not PageControl.Visible;

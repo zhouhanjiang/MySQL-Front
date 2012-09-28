@@ -7,6 +7,9 @@ interface {********************************************************************}
 uses
   Windows, XMLDoc, XMLIntf, DBGrids, msxml, Zip, Printers,
   SysUtils, DB, Classes, Graphics, SyncObjs,
+  {$IFDEF EurekaLog}
+  ExceptionLog,
+  {$ENDIF}
   ODBCAPI,
   DISQLite3Api,
   SynPDF,
@@ -8127,6 +8130,10 @@ var
   SourceTable: TCBaseTable;
   SQL: string;
 begin
+  {$IFDEF EurekaLog}
+  try
+  {$ENDIF}
+
   SourceClient := TElement(Elements[0]^).Source.Client;
   DestinationClient := TElement(Elements[0]^).Destination.Client;
 
@@ -8256,6 +8263,12 @@ begin
   end;
 
   AfterExecute();
+
+  {$IFDEF EurekaLog}
+  except
+    StandardEurekaNotify(GetLastExceptionObject(), GetLastExceptionAddress());
+  end;
+  {$ENDIF}
 end;
 
 procedure TTTransfer.ExecuteData(var Source, Destination: TItem);

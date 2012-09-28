@@ -40,6 +40,7 @@ const
   iiClock = 84;
   iiPartition = iiBaseTable;
   iiPlugin = 86;
+  iiJob = 101;
 
   crClone = 33;
 
