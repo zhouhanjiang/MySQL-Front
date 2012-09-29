@@ -1419,19 +1419,17 @@ begin
         SaveDialog.Encodings.Text := EncodingCaptions();
       end;
     etTextFile:
+      if (Objects.Count <= 1) then
       begin
-        if (Objects.Count <= 1) then
-        begin
-          SaveDialog.Filter := FilterDescription('txt') + ' (*.txt;*.csv;*.tab;*.asc)|*.txt;*.csv;*.tab;*.asc';
-          SaveDialog.DefaultExt := '.csv';
-          SaveDialog.Encodings.Text := EncodingCaptions();
-        end
-        else
-        begin
-          SaveDialog.Filter := FilterDescription('zip') + ' (*.zip)|*.zip';
-          SaveDialog.DefaultExt := '.zip';
-          SaveDialog.Encodings.Clear();
-        end;
+        SaveDialog.Filter := FilterDescription('txt') + ' (*.txt;*.csv;*.tab;*.asc)|*.txt;*.csv;*.tab;*.asc';
+        SaveDialog.DefaultExt := '.csv';
+        SaveDialog.Encodings.Text := EncodingCaptions();
+      end
+      else
+      begin
+        SaveDialog.Filter := FilterDescription('zip') + ' (*.zip)|*.zip';
+        SaveDialog.DefaultExt := '.zip';
+        SaveDialog.Encodings.Clear();
       end;
     etExcelFile:
       begin

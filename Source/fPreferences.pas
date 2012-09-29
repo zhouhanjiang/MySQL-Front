@@ -1857,7 +1857,7 @@ begin
 
     MaxItem := 0;
     for I := 0 to Strings.Count - 1 do
-      if (TryStrToInt(Strings.Names[I], Item)) then
+      if (TryStrToInt(Strings.Names[I], Item) and (Item > MaxItem)) then
         MaxItem := Item;
 
     SetLength(FStrs, MaxItem + 1);

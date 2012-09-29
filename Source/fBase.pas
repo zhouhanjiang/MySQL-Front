@@ -445,8 +445,6 @@ begin
       Description := Preferences.LoadStr(868)
     else if (LowerCase(Ext) = 'html') then
       Description := Preferences.LoadStr(455)
-    else if (LowerCase(Ext) = 'ini') then
-      Description := Preferences.LoadStr(452)
     else if (LowerCase(Ext) = 'mdb') then
       Description := ReplaceStr(Preferences.LoadStr(695), '&', '')
     else if (LowerCase(Ext) = 'accdb') then
@@ -462,7 +460,7 @@ begin
     else if (LowerCase(Ext) = 'xls') then
       Description := ReplaceStr(Preferences.LoadStr(801), '&', '')
     else if (LowerCase(Ext) = 'xlsx') then
-      Description := ReplaceStr(Preferences.LoadStr(801), '&', '')
+      Description := ReplaceStr(Preferences.LoadStr(901), '&', '')
     else if (LowerCase(Ext) = 'xml') then
       Description := Preferences.LoadStr(456)
     else if (LowerCase(Ext) = 'zip') then
