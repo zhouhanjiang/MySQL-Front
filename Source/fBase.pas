@@ -461,6 +461,8 @@ begin
       Description := Preferences.LoadStr(350)
     else if (LowerCase(Ext) = 'xls') then
       Description := ReplaceStr(Preferences.LoadStr(801), '&', '')
+    else if (LowerCase(Ext) = 'xlsx') then
+      Description := ReplaceStr(Preferences.LoadStr(801), '&', '')
     else if (LowerCase(Ext) = 'xml') then
       Description := Preferences.LoadStr(456)
     else if (LowerCase(Ext) = 'zip') then

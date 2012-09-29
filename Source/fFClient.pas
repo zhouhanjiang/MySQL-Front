@@ -3615,7 +3615,7 @@ begin
         end;
       itExcelFile:
         begin
-          OpenDialog.Filter := FilterDescription('xls') + ' (*.xls)|*.xls';
+          OpenDialog.Filter := FilterDescription('xls') + ' (*.xls;*.xlsx)|*.xls;*.xlsx';
           OpenDialog.DefaultExt := 'xls';
           OpenDialog.Encodings.Clear();
         end;
@@ -4499,7 +4499,7 @@ begin
   mfFilterHTML.Caption := FilterDescription('html') + ' (*.html,*.hmt)';
   mfFilterXML.Caption := FilterDescription('xml') + ' (*.xml)';
   mfFilterAccess.Caption := FilterDescription('mdb') + ' (*.mdb;*.accdb)';
-  mfFilterExcel.Caption := FilterDescription('xls') + ' (*.xls)';
+  mfFilterExcel.Caption := FilterDescription('xls') + ' (*.xls;*.xlsx)';
   mfDelete.Caption := Preferences.LoadStr(28);
   mfRename.Caption := Preferences.LoadStr(98);
   mfProperties.Caption := Preferences.LoadStr(97) + '...';
@@ -11131,7 +11131,7 @@ end;
 
 procedure TFClient.mfFilterExcelClick(Sender: TObject);
 begin
-  FFiles.Filter := '*.xls';
+  FFiles.Filter := '*.xls;*.xlsx';
 end;
 
 procedure TFClient.mfFilterHTMLClick(Sender: TObject);
@@ -11165,7 +11165,7 @@ begin
   mfFilterSQL.Checked := FFiles.Filter = '*.sql';
   mfFilterText.Checked := FFiles.Filter = '*.txt;*.csv';
   mfFilterAccess.Checked := FFiles.Filter = '*.mdb;*.accdb';
-  mfFilterExcel.Checked := FFiles.Filter = '*.xls';
+  mfFilterExcel.Checked := FFiles.Filter = '*.xls;*.xlsx';
   mfFilterSQLite.Checked := FFiles.Filter = '*.sqlite';
   mfFilterHTML.Checked := FFiles.Filter = '*.html;*.htm';
   mfFilterXML.Checked := FFiles.Filter = '*.xml';

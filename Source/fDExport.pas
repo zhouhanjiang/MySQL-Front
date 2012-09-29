@@ -1435,7 +1435,7 @@ begin
       end;
     etExcelFile:
       begin
-        SaveDialog.Filter := FilterDescription('xls') + ' (*.xls)|*.xls';
+        SaveDialog.Filter := FilterDescription('xls') + ' (*.xls)|*.xls|' + FilterDescription('xlsx') + ' (*.xlsx)|*.xlsx';
         SaveDialog.DefaultExt := '.xls';
         SaveDialog.Encodings.Clear();
       end;
