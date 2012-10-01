@@ -2857,12 +2857,12 @@ begin
     end
     else if (CItem is TCProcess) then
     begin
-      Process := Client.ProcessById(SysUtils.StrToInt(ActiveListView.Selected.Caption));
+      Process := Client.ProcessByThreadId(SysUtils.StrToInt(ActiveListView.Selected.Caption));
 
       DStatement.DatabaseName := Process.DatabaseName;
       DStatement.DateTime := Client.ServerDateTime - Process.Time;
       DStatement.Host := Process.Host;
-      DStatement.Id := Process.Id;
+      DStatement.Id := Process.ThreadId;
       DStatement.StatementTime := Process.Time;
       if (UpperCase(Process.Command) <> 'QUERY') then
         DStatement.SQL := ''
@@ -4828,7 +4828,7 @@ begin
     MainAction('aVRefreshAll').Enabled := True;
     MainAction('aBAdd').Enabled := True;
     MainAction('aDCancel').Enabled := Client.InUse();
-    MainAction('aJAddExport').Enabled := True;
+    MainAction('aJAddExport').Enabled := CheckWin32Version(6);
     MainAction('aHSQL').Enabled := Client.ServerVersion >= 40100;
     MainAction('aHManual').Enabled := Client.Account.ManualURL <> '';
 
@@ -7281,7 +7281,7 @@ procedure TFClient.FJobsChange(Sender: TObject; Item: TListItem;
   Change: TItemChange);
 begin
   mjExecute.Enabled := Assigned(Item) and Item.Selected;
-  MainAction('aJAddExport').Enabled := not Assigned(Item) or not Item.Selected;
+  MainAction('aJAddExport').Enabled := CheckWin32Version(6) and (not Assigned(Item) or not Item.Selected);
   MainAction('aJDelete').Enabled := Assigned(Item) and Item.Selected;
   MainAction('aJEdit').Enabled := Assigned(Item) and Item.Selected;
 end;
@@ -7293,7 +7293,7 @@ end;
 
 procedure TFClient.FJobsExit(Sender: TObject);
 begin
-  MainAction('aJAddExport').Enabled := True;
+  MainAction('aJAddExport').Enabled := CheckWin32Version(6);
 end;
 
 procedure TFClient.FLimitChange(Sender: TObject);
@@ -10362,7 +10362,7 @@ procedure TFClient.ListViewUpdate(const ClientEvent: TCClient.TEvent; const List
     begin
       Item.GroupID := giProcesses;
       Item.ImageIndex := iiProcess;
-      Item.Caption := IntToStr(TCProcess(Data).Id);
+      Item.Caption := IntToStr(TCProcess(Data).ThreadId);
       Item.SubItems.Add(TCProcess(Data).UserName);
       Item.SubItems.Add(TCProcess(Data).Host);
       Item.SubItems.Add(TCProcess(Data).DatabaseName);
@@ -11020,7 +11020,7 @@ begin
           end;
         iiProcesses:
           begin
-            MainAction('aDDeleteProcess').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Trunc(SysUtils.StrToInt(Item.Caption)) <> Client.ThreadId);
+            MainAction('aDDeleteProcess').Enabled := (ListView.SelCount >= 1) and Selected and (TObject(Item.Data) is TCProcess) and (TCProcess(Item.Data).ThreadId <> Client.ThreadId);
             MainAction('aDEditProcess').Enabled := (ListView.SelCount = 1);
             aDDelete.Enabled := (ListView.SelCount >= 1);
 

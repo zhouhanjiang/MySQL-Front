@@ -164,6 +164,7 @@ type
       TMode = (smSQL, smDataHandle, smDataSet);
       TState = (ssClose, ssConnecting, ssReady, ssExecutingSQL, ssResult, ssReceivingResult, ssNextResult, ssCancel, ssDisconnecting, ssError);
     private
+      Nils: Integer;
       Done: TEvent;
       FConnection: TMySQLConnection;
       RunExecute: TEvent;
@@ -1012,20 +1013,20 @@ end;
 procedure MySQLConnectionSynchronize(const Data: Pointer);
 var
   Index: Integer;
-  SyncThread: TMySQLConnection.TLibraryThread;
+  LibThread: TMySQLConnection.TLibraryThread;
 begin
-  SyncThread := TMySQLConnection.TLibraryThread(Data);
+  LibThread := TMySQLConnection.TLibraryThread(Data);
 
   SynchronizingThreadsCS.Enter();
-  Index := SynchronizingThreads.IndexOf(SyncThread);
+  Index := SynchronizingThreads.IndexOf(LibThread);
   if (Index < 0) then
-    SyncThread := nil
+    LibThread := nil
   else
     SynchronizingThreads.Delete(Index);
   SynchronizingThreadsCS.Leave();
 
-  if (Assigned(SyncThread)) then
-    SyncThread.Synchronize();
+  if (Assigned(LibThread)) then
+    LibThread.Synchronize();
 end;
 
 procedure MySQLConnectionSynchronizeRequest(const LibraryThread: TMySQLConnection.TLibraryThread);
@@ -1820,7 +1821,11 @@ constructor TMySQLConnection.TLibraryThread.Create(const AConnection: TMySQLConn
 begin
   Assert(Assigned(AConnection));
 
+  Nils := 1;
+
   inherited Create(False);
+
+  Nils := 2;
 
   FConnection := AConnection;
 
@@ -1832,17 +1837,25 @@ begin
   State := ssClose;
 
   FreeOnTerminate := True;
+
+  Nils := 3;
 end;
 
 destructor TMySQLConnection.TLibraryThread.Destroy();
 begin
+  Nils := 13;
+
   RunExecute.Free(); RunExecute := nil;
   SynchronizeStarted.Free();
   SQLStmtLengths.Free();
   SQLStmtsInPackets.Free();
   SQLUseStmts.Free();
 
+  Nils := 14;
+
   inherited;
+
+  Nils := 15;
 end;
 
 procedure TMySQLConnection.TLibraryThread.Execute();
@@ -1855,18 +1868,27 @@ begin
   try
   {$ENDIF}
 
+  Nils := 4;
+
   while (not Terminated) do
   begin
+    Nils := 5;
+
     if ((Connection.ServerTimeout = 0) or (Connection.LibraryType = ltHTTP)) then
       Timeout := INFINITE
     else
       Timeout := Connection.ServerTimeout * 1000;
     WaitResult := RunExecute.WaitFor(Timeout);
+
+    Nils := 6;
+
     if (not Terminated) then
       if (WaitResult = wrTimeout) then
         Connection.SyncPing(Self)
       else
       begin
+        Nils := 7;
+
         case (State) of
           ssConnecting:
             Connection.SyncConnecting(Self);
@@ -1882,6 +1904,8 @@ begin
             Connection.SyncDisconnecting(Self);
         end;
 
+        Nils := 8;
+
         Connection.TerminateCS.Enter();
         RunExecute.ResetEvent();
         if (Terminated or (Mode in [smDataHandle]) and (State = ssReceivingResult)) then
@@ -1893,10 +1917,16 @@ begin
         end;
         Connection.TerminateCS.Leave();
 
+        Nils := 9;
+
         if (SynchronizeRequestSent) then
           SynchronizeStarted.WaitFor(INFINITE);
+
+        Nils := 10;
       end;
   end;
+
+  Nils := 11;
 
   Connection.TerminatedThreads.Delete(Self);
 
@@ -1905,11 +1935,18 @@ begin
     StandardEurekaNotify(GetLastExceptionObject(), GetLastExceptionAddress());
   end;
   {$ENDIF}
+
+  Nils := 12;
 end;
 
 function TMySQLConnection.TLibraryThread.GetIsRunning(): Boolean;
 begin
-  Result := not Terminated and ((RunExecute.WaitFor(IGNORE) = wrSignaled) or not (State in [ssClose, ssReady]));
+  try
+    Result := not Terminated and ((RunExecute.WaitFor(IGNORE) = wrSignaled) or not (State in [ssClose, ssReady]));
+  except
+    on E: Exception do
+      raise Exception.Create(E.Message + ' (Nils: ' + IntToStr(Nils) + ')');
+  end;
 end;
 
 procedure TMySQLConnection.TLibraryThread.ReleaseDataSet();
@@ -4046,7 +4083,6 @@ end;
 procedure TMySQLQuery.DataConvert(Field: TField; Source, Dest: Pointer; ToNative: Boolean);
 var
   Len: Integer;
-  LibField: MYSQL_FIELD;
 begin
   case (Field.DataType) of
     ftWideMemo:
@@ -4072,15 +4108,11 @@ begin
         except
           on E: Exception do
             begin // Debug
-              LibField := MYSQL_FIELD(Connection.Lib.mysql_fetch_field_direct(Handle, Field.FieldNo - 1));
-              raise Exception.CreateFmt(E.Message + ' (Charset: %s, name: %s = %s, field_type: %d, charsetnr: %d, length: %d, flags: %d, Value: %s, SQL: %s)', [Connection.Charset, Field.Name, Connection.Lib.Field(LibField).name, Ord(Connection.Lib.Field(LibField).field_type), Connection.Lib.Field(LibField).charsetnr, Connection.Lib.Field(LibField).length, Connection.Lib.Field(LibField).flags, SQLEscapeBin(PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], True), CommandText]);
+              raise Exception.CreateFmt(E.Message + ' (Charset: %s, Value: %s, SQL: %s)', [Connection.Charset, Field.Name, SQLEscapeBin(PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], True), CommandText]);
             end;
         end;
         if (Len > Field.DataSize) then
-        begin
-          LibField := MYSQL_FIELD(Connection.Lib.mysql_fetch_field_direct(Handle, Field.FieldNo - 1));
-          DatabaseErrorFmt(SInvalidFieldSize + ' (Fieldname: %s, Len: %d, Field.DataSize: %d, field_type: %d, charsetnr: %d, length: %d, Value: %s)', [Field.DisplayName, Len, Field.DataSize, Ord(Connection.Lib.Field(LibField).field_type), Connection.Lib.Field(LibField).charsetnr, Connection.Lib.Field(LibField).length, SQLEscapeBin(PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], True)]);
-        end;
+          DatabaseErrorFmt(SInvalidFieldSize + ' (Fieldname: %s, Len: %d, Field.DataSize: %d, Value: %s)', [Field.DisplayName, Len, Field.DataSize, SQLEscapeBin(PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], True)]);
         AnsiCharToWideChar(Connection.CodePage, PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], PChar(Dest), Field.DataSize);
         PChar(Dest)[Len] := #0;
       end;

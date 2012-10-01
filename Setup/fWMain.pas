@@ -157,6 +157,7 @@ begin
       AwkFile.Add('  gsub("{BuildProgramFiles}", "' + StringReplace(Ini.ReadString('Global', 'ProgramFiles', ''), '\', '\\', [rfReplaceAll]) + '", $0)');
       AwkFile.Add('  gsub("{BuildAppData}", "' + StringReplace(Ini.ReadString('Global', 'AppData', ''), '\', '\\', [rfReplaceAll]) + '", $0)');
       AwkFile.Add('  gsub("{BuildRegistry}", "' + StringReplace(Ini.ReadString('Global', 'Registry', ''), '\', '\\', [rfReplaceAll]) + '", $0)');
+      AwkFile.Add('  gsub("{BuildTaskschd}", "' + StringReplace(Ini.ReadString('Global', 'Taskschd', ''), '\', '\\', [rfReplaceAll]) + '", $0)');
       AwkFile.Add('  gsub("{BuildVerMajor}", "' + IntToStr(MakeVerMajor) + '", $0)');
       AwkFile.Add('  gsub("{BuildVerMinor}", "' + IntToStr(MakeVerMinor) + '", $0)');
       AwkFile.Add('  gsub("{BuildVerPatch}", "' + IntToStr(MakeVerPatch) + '", $0)');

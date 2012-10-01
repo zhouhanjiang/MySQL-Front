@@ -1182,8 +1182,8 @@ type
     FTime: TDateTime;
     FState: string;
     FSQL: string;
-    function GetId(): Integer;
-    procedure SetId(AId: Integer);
+    function GetThreadId(): Longword;
+    procedure SetThreadId(AThreadId: Longword);
   public
     property Command: string read FCommand;
     property DatabaseName: string read FDatabaseName;
@@ -1192,7 +1192,7 @@ type
     property Time: TDateTime read FTime;
     property State: string read FState;
     property SQL: string read FSQL;
-    property Id: Integer read GetId write SetId;
+    property ThreadId: Longword read GetThreadId write SetThreadId;
   end;
 
   TCProcesses = class(TCEntities)
@@ -1417,7 +1417,7 @@ RProxy: Boolean;
     procedure UpdateIndexDefs(const DataSet: TMySQLQuery; const IndexDefs: TIndexDefs); virtual;
     procedure Invalidate(); virtual;
     function PluginByName(const PluginName: string): TCPlugin; virtual;
-    function ProcessById(const ProcessId: Integer): TCProcess; virtual;
+    function ProcessByThreadId(const ThreadId: Longword): TCProcess; virtual;
     procedure RegisterEventProc(const AEventProc: TEventProc); virtual;
     procedure RollbackTransaction(); override;
     procedure StartTransaction(); override;
@@ -8735,14 +8735,14 @@ end;
 
 { TCProcesse ******************************************************************}
 
-function TCProcess.GetId(): Integer;
+function TCProcess.GetThreadId(): Longword;
 begin
   Result := StrToInt(Name);
 end;
 
-procedure TCProcess.SetId(AId: Integer);
+procedure TCProcess.SetThreadId(AThreadId: Longword);
 begin
-  Name := IntToStr(AId);
+  Name := IntToStr(AThreadId);
 end;
 
 { TCProcesses *****************************************************************}
@@ -10233,9 +10233,9 @@ begin
   for I := 0 to List.Count - 1 do
     if (TObject(List[I]) is TCProcess) then
       if (ServerVersion < 50000) then
-        SQL := SQL + 'KILL ' + IntToStr(TCProcess(List[I]).Id) + ';' + #13#10
+        SQL := SQL + 'KILL ' + IntToStr(TCProcess(List[I]).ThreadId) + ';' + #13#10
       else
-        SQL := SQL + 'KILL CONNECTION ' + IntToStr(TCProcess(List[I]).Id) + ';' + #13#10;
+        SQL := SQL + 'KILL CONNECTION ' + IntToStr(TCProcess(List[I]).ThreadId) + ';' + #13#10;
 
   if (FlushPrivileges) then
     SQL := SQL + 'FLUSH PRIVILEGES;' + #13#10;
@@ -11182,7 +11182,7 @@ begin
     else if (SQLParseKeyword(Parse, 'KILL') and (SQLParseKeyword(Parse, 'CONNECTION') or not SQLParseKeyword(Parse, 'QUERY'))) then
     begin
       ObjectName := SQLParseValue(Parse);
-      Process := ProcessById(StrToInt(ObjectName));
+      Process := ProcessByThreadId(StrToInt(ObjectName));
       if (Assigned(Process)) then
         Processes.Delete(Process);
     end;
@@ -11199,14 +11199,14 @@ begin
     Result := Plugins[Index];
 end;
 
-function TCClient.ProcessById(const ProcessId: Integer): TCProcess;
+function TCClient.ProcessByThreadId(const ThreadId: Longword): TCProcess;
 var
   I: Integer;
 begin
   Result := nil;
 
   for I := 0 to Processes.Count - 1 do
-    if (Processes[I].Id = ProcessId) then
+    if (Processes[I].ThreadId = ThreadId) then
       Result := Processes[I];
 end;
 

@@ -6,7 +6,7 @@ uses
   Controls, Forms, Graphics, Windows, XMLDoc, XMLIntf,
   ExtCtrls, Classes, SysUtils, Registry, IniFiles,
   ComCtrls,
-  MSTask,
+  TaskSchd,
   MySQLDB;
 
 type
@@ -46,14 +46,12 @@ type
   private
     function GetItem(Index: Integer): TPItem; inline;
   protected
-    function GetXML(): IXMLNode; virtual; abstract;
+    function GetXML(): IXMLNode; virtual;
     function InsertIndex(const Name: string; out Index: Integer): Boolean; virtual;
     property XML: IXMLNode read GetXML;
   public
     function Add(const AItem: TPItem): Integer; overload; virtual;
     procedure Clear(); override;
-    constructor Create();
-    destructor Destroy(); override;
     function IndexByName(const Name: string): Integer; virtual;
     property Item[Index: Integer]: TPItem read GetItem; default;
   end;
@@ -165,7 +163,6 @@ type
     function GetJobs(): TAJobs; inline;
   protected
     procedure LoadFromXML(const XML: IXMLNode); override;
-    procedure SaveToXML(const XML: IXMLNode); override;
     property Jobs: TAJobs read GetJobs;
   public
     Active: Boolean;
@@ -369,6 +366,7 @@ type
     FLanguage: TPLanguage;
     FLargeImages: TImageList;
     FSmallImages: TImageList;
+    FTaskService: ITaskService;
     FVerMajor, FVerMinor, FVerPatch, FVerBuild: Integer;
     FXMLDocument: IXMLDocument;
     OldAssociateSQL: Boolean;
@@ -376,6 +374,7 @@ type
     function GetFilename(): TFileName;
     function GetLanguage(): TPLanguage;
     function GetLanguagePath(): TFileName;
+    function GetTaskService(): ITaskService;
     function GetVersion(var VerMajor, VerMinor, VerPatch, VerBuild: Integer): Boolean;
     function GetVersionInfo(): Integer;
     function GetVersionStr(): string;
@@ -383,6 +382,7 @@ type
   protected
     KeyBase: string;
     property Filename: TFileName read GetFilename;
+    property TaskService: ITaskService read GetTaskService;
     property XML: IXMLNode read GetXML;
   public
     Database: TPDatabase;
@@ -567,19 +567,22 @@ type
   TAJobs = class(TPItems)
   private
     FAccount: TAAccount;
-    FXMLDocument: IXMLDocument;
+    FAccountFolder: ITaskFolder;
     function GetJob(Index: Integer): TAJob; inline;
+    function GetTaskService(): ITaskService; inline;
   protected
-    function GetXML(): IXMLNode; override;
+    function GetAccountFolder(const AutoCreate: Boolean = False): ITaskFolder;
     property Account: TAAccount read FAccount;
+    property AccountFolder: ITaskFolder read FAccountFolder;
+    property TaskService: ITaskService read GetTaskService;
     property XML: IXMLNode read GetXML;
   public
     function AddJob(const NewJob: TAJob): Boolean; virtual;
     constructor Create(const AAccount: TAAccount);
     procedure Delete(const Job: TPItem); overload; virtual;
     destructor Destroy(); override;
-    procedure LoadFromXML(); virtual;
-    procedure SaveToXML(); virtual;
+    procedure Load(); virtual;
+    procedure Save(); virtual;
     function UpdateJob(const Job, NewJob: TAJob): Boolean; virtual;
     property Job[Index: Integer]: TAJob read GetJob; default;
   end;
@@ -677,7 +680,6 @@ type
     function GetHistoryXML(): IXMLNode;
     function GetIconFilename(): TFileName;
     function GetJobs(): TAJobs;
-    function GetJobsFilename(): TFileName;
     function GetName(): string;
     function GetXML(): IXMLNode;
     procedure SetLastLogin(const ALastLogin: TDateTime);
@@ -695,7 +697,6 @@ type
     property DesktopXMLDocument: IXMLDocument read FDesktopXMLDocument;
     property HistoryFilename: TFileName read GetHistoryFilename;
     property HistoryXMLDocument: IXMLDocument read FHistoryXMLDocument;
-    property JobsFilename: TFileName read GetJobsFilename;
     property XML: IXMLNode read GetXML;
   public
     Connection: TAConnection;
@@ -773,7 +774,6 @@ var
   Accounts: TAAccounts;
   FileFormatSettings: TFormatSettings;
   Preferences: TPPreferences;
-  TaskScheduler: ITaskScheduler;
 
 implementation {***************************************************************}
 
@@ -1196,19 +1196,14 @@ begin
   inherited;
 end;
 
-constructor TPItems.Create();
-begin
-  inherited;
-end;
-
-destructor TPItems.Destroy();
-begin
-
-end;
-
 function TPItems.GetItem(Index: Integer): TPItem;
 begin
   Result := TPItem(Items[Index]);
+end;
+
+function TPItems.GetXML(): IXMLNode;
+begin
+  Result := nil;
 end;
 
 function TPItems.IndexByName(const Name: string): Integer;
@@ -1903,6 +1898,7 @@ begin
   inherited Create(KEY_ALL_ACCESS);
 
   FXMLDocument := nil;
+  FTaskService := nil;
 
   NonClientMetrics.cbSize := SizeOf(NonClientMetrics);
   if (not SystemParametersInfo(SPI_GETNONCLIENTMETRICS, SizeOf(NonClientMetrics), @NonClientMetrics, 0)) then
@@ -2095,6 +2091,9 @@ begin
   if (Assigned(FLanguage)) then
     FLanguage.Free();
 
+  if (Assigned(FTaskService) or Assigned(FTaskService)) then
+    CoUninitialize();
+
   inherited;
 end;
 
@@ -2119,6 +2118,19 @@ begin
     if (not FileExists(Result)) then
       Result := IncludeTrailingPathDelimiter('..\Languages\');
   {$ENDIF}
+end;
+
+function TPPreferences.GetTaskService(): ITaskService;
+begin
+  if (not Assigned(FTaskService) and Succeeded(CoInitialize(nil))) then
+    if (Failed(CoCreateInstance(CLSID_TaskScheduler, nil, CLSCTX_INPROC_SERVER, IID_ITaskService, FTaskService))
+      or (Failed(FTaskService.Connect(Null, Null, Null, Null)))) then
+    begin
+      CoUninitialize();
+      FTaskService := nil;
+    end;
+
+  Result := FTaskService;
 end;
 
 function TPPreferences.GetVersion(var VerMajor, VerMinor, VerPatch, VerBuild: Integer): Boolean;
@@ -2984,16 +2996,6 @@ begin
   inherited;
 end;
 
-procedure TAJob.SaveToXML(const XML: IXMLNode);
-begin
-  inherited;
-
-  if (Active) then
-  begin
-    Write;
-  end;
-end;
-
 { TAJobExport *****************************************************************}
 
 procedure TAJobExport.Assign(const Source: TPItem);
@@ -3083,7 +3085,10 @@ begin
       if ((Child.NodeName = 'object') and TryStrToObjectType(Child.Attributes['type'], ObjectType)) then
       begin
         SetLength(Objects, Length(Objects) + 1);
-        Objects[Length(Objects) - 1].DatabaseName := Child.Attributes['database'];
+        if (Child.Attributes['database'] = Null) then
+          Objects[Length(Objects) - 1].DatabaseName := ''
+        else
+          Objects[Length(Objects) - 1].DatabaseName := Child.Attributes['database'];
         Objects[Length(Objects) - 1].Name := Child.Attributes['name'];
         Objects[Length(Objects) - 1].ObjectType := ObjectType;
       end;
@@ -3149,7 +3154,7 @@ begin
     Job.Assign(NewJob);
     Add(Job);
 
-    SaveToXML();
+    Save();
 
     Account.AccountEvent(ClassType);
   end;
@@ -3160,6 +3165,7 @@ begin
   inherited Create();
 
   FAccount := AAccount;
+  FAccountFolder := nil;
 end;
 
 procedure TAJobs.Delete(const Job: TPItem);
@@ -3190,79 +3196,92 @@ begin
   Result := TAJob(Item[Index]);
 end;
 
-function TAJobs.GetXML(): IXMLNode;
+function TAJobs.GetAccountFolder(const AutoCreate: Boolean = False): ITaskFolder;
+var
+  AppFolder: ITaskFolder;
+  RootFolder: ITaskFolder;
 begin
-  if (not Assigned(FXMLDocument)) then
-  begin
-    if (FileExists(Account.JobsFilename)) then
-      try
-        FXMLDocument := LoadXMLDocument(Account.JobsFilename);
-      except
-        FXMLDocument := nil;
-      end;
-
-    if (not Assigned(FXMLDocument)) then
-    begin
-      FXMLDocument := NewXMLDocument();
-      FXMLDocument.Encoding := 'utf-8';
-      FXMLDocument.Node.AddChild('jobs').Attributes['version'] := '1.0.0';
-    end;
-
-    FXMLDocument.Options := FXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
-  end;
-
-  if (not Assigned(FXMLDocument)) then
+  if (not Assigned(TaskService)) then
     Result := nil
-  else
-    Result := FXMLDocument.DocumentElement;
+  else if (Failed(TaskService.GetFolder(TBStr('\' + SysUtils.LoadStr(1006) + '\Accounts\' + Account.Name), Result))) then
+    if (not AutoCreate
+      or Failed(TaskService.GetFolder('\', RootFolder)))
+      or Failed(RootFolder.GetFolder(TBStr(SysUtils.LoadStr(1006) + '\Accounts'), AppFolder)) and Failed(RootFolder.CreateFolder(TBStr(SysUtils.LoadStr(1006) + '\Accounts'), Null, AppFolder))
+      or Failed(AppFolder.GetFolder(TBStr(Account.Name), Result)) and Failed(AppFolder.CreateFolder(TBStr(Account.Name), Null, Result)) then
+      Result := nil;
 end;
 
-procedure TAJobs.LoadFromXML();
+function TAJobs.GetTaskService(): ITaskService;
+begin
+  Result := Preferences.TaskService;
+end;
+
+procedure TAJobs.Load();
 var
-  Child: IXMLNode;
   Job: TPItem;
+  I: Integer;
+  RegisteredTask: IRegisteredTask;
+  Tasks: IRegisteredTaskCollection;
+  XMLDocument: IXMLDocument;
 begin
   Clear();
+  FAccountFolder := GetAccountFolder(False);
 
-  if (FileExists(Account.JobsFilename) and Assigned(XML)) then
+  if (Assigned(AccountFolder) and Succeeded(AccountFolder.GetTasks(0, Tasks))) then
   begin
-    Child := XML.ChildNodes.First();
-    while (Assigned(Child)) do
+    XMLDocument := NewXMLDocument();
+    for I := 0 to Tasks.Count - 1 do
     begin
-      if ((Child.NodeName = 'job') and (Child.Attributes['name'] <> '')) then
-      begin
-        if (Child.Attributes['type'] = 'export') then
-          Job := TAJobExport.Create(Self, Child.Attributes['name'])
-        else
-          Job := nil;
-        Job.LoadFromXML(Child);
-        Add(Job);
-      end;
-      Child := Child.NextSibling();
+      RegisteredTask := Tasks.Item[1 + I];
+      XMLDocument.LoadFromXML(StrPas(RegisteredTask.Definition.Data));
+      if (XMLDocument.DocumentElement.Attributes['type'] = 'export') then
+        Job := TAJobExport.Create(Self, StrPas(RegisteredTask.Name))
+      else
+        Job := nil;
+      Job.LoadFromXML(XMLDocument.DocumentElement);
+      Add(Job);
     end;
   end;
 end;
 
-procedure TAJobs.SaveToXML();
+procedure TAJobs.Save();
 var
+  Action: IAction;
+  CleanXML: string;
+  ExecAction: IExecAction;
   I: Integer;
+  RegisteredTask: IRegisteredTask;
+  TaskDefinition: ITaskDefinition;
+  XMLDocument: IXMLDocument;
 begin
-  if (Count = 0) then
+  FAccountFolder := GetAccountFolder(True);
+
+  if (Assigned(AccountFolder)) then
   begin
-    if (FileExists(Account.JobsFilename)) then
-      DeleteFile(PChar(Account.JobsFilename));
-  end
-  else
-  begin
-    XML.OwnerDocument.Options := XML.OwnerDocument.Options + [doNodeAutoCreate];
+    XMLDocument := NewXMLDocument();
+    XMLDocument.Encoding := 'utf-8';
+    XMLDocument.Node.AddChild('job').Attributes['version'] := '1.0.0';
+    CleanXML := XMLDocument.XML.Text;
 
     for I := 0 to Count - 1 do
-      Item[I].SaveToXML(Item[I].XML);
+    begin
+      XMLDocument.LoadFromXML(CleanXML);
+      Job[I].SaveToXML(XMLDocument.DocumentElement);
 
-    XML.OwnerDocument.Options := XML.OwnerDocument.Options - [doNodeAutoCreate];
+      if (Failed(AccountFolder.GetTask(TBStr(Job[I].Name), RegisteredTask))
+        and Succeeded(TaskService.NewTask(0, TaskDefinition))
+        and Succeeded(TaskDefinition.Actions.Create(TASK_ACTION_EXEC, Action))
+        and Succeeded(Action.QueryInterface(IID_IExecAction, ExecAction))) then
+      begin
+        ExecAction.Path := TBStr(ParamStr(0));
+        ExecAction.Arguments := TBStr('/Account="' + Account.Name + '" /Job="' + Job[I].Name + '"');
 
-    if (XML.OwnerDocument.Modified) then
-      XML.OwnerDocument.SaveToFile(Account.JobsFilename);
+        if (Failed(AccountFolder.RegisterTaskDefinition(TBStr(Job[I].Name), TaskDefinition, LONG(TASK_CREATE), Null, Null, TASK_LOGON_NONE, Null, RegisteredTask))) then
+          RegisteredTask := nil;
+      end;
+
+      RegisteredTask.Definition.Data := TBStr(XMLDocument.XML.Text);
+    end;
   end;
 end;
 
@@ -3275,7 +3294,7 @@ begin
   begin
     Job.Assign(NewJob);
 
-    SaveToXML();
+    Save();
 
     Account.AccountEvent(ClassType);
   end;
@@ -3862,14 +3881,6 @@ begin
   Result := FJobs;
 end;
 
-function TAAccount.GetJobsFilename(): TFileName;
-begin
-  if (not DirectoryExists(DataPath)) then
-    Result := ''
-  else
-    Result := DataPath + 'Jobs.xml'
-end;
-
 function TAAccount.GetName(): string;
 begin
   if (FName = '') and (Assigned(XML)) then
@@ -3923,7 +3934,7 @@ begin
     Connection.LoadFromXML();
     if (Assigned(Desktop)) then
       Desktop.LoadFromXML(); // Client muss geladen sein, damit FullAddress funktioniert
-    Jobs.LoadFromXML();
+    Jobs.Load();
   end;
 end;
 
@@ -4364,12 +4375,6 @@ end;
 initialization
   Preferences := nil;
 
-  if (not Succeeded(CoInitialize(nil))) then
-    TaskScheduler := nil
-  else if (Failed(CoCreateInstance(TCLSID(CLSID_CTaskScheduler), nil, CLSCTX_INPROC_SERVER,
-    TIID(IID_ITaskScheduler), TaskScheduler))) then
-    TaskScheduler := nil;
-
   FileFormatSettings := TFormatSettings.Create(LOCALE_SYSTEM_DEFAULT);
   FileFormatSettings.ThousandSeparator := ',';
   FileFormatSettings.DecimalSeparator := '.';
@@ -4382,8 +4387,5 @@ initialization
   FileFormatSettings.TimePMString := '';
   FileFormatSettings.ShortTimeFormat := 'hh:mm';
   FileFormatSettings.LongTimeFormat := 'hh:mm:ss';
-finalization
-  if (Assigned(TaskScheduler)) then
-    CoUninitialize();
 end.
 
