@@ -300,14 +300,14 @@ begin
   FExecuteDate.Enabled := FSingleExecution.Checked;
   FExecuteTime.Enabled := FSingleExecution.Checked;
 
-  FIntervalYear.Enabled := FMultipleExecution.Checked;
-  FIntervalMonth.Enabled := FMultipleExecution.Checked;
-  FIntervalDay.Enabled := FMultipleExecution.Checked;
-  FIntervalQuarter.Enabled := FMultipleExecution.Checked;
-  FIntervalWeek.Enabled := FMultipleExecution.Checked;
-  FIntervalHour.Enabled := FMultipleExecution.Checked;
-  FIntervalMinute.Enabled := FMultipleExecution.Checked;
-  FIntervalSecond.Enabled := FMultipleExecution.Checked;
+  FIntervalYear.Enabled := FMultipleExecution.Checked; FUDIntervalYear.Enabled := FIntervalYear.Enabled;
+  FIntervalMonth.Enabled := FMultipleExecution.Checked; FUDIntervalMonth.Enabled := FIntervalYear.Enabled;
+  FIntervalDay.Enabled := FMultipleExecution.Checked; FUDIntervalDay.Enabled := FIntervalDay.Enabled;
+  FIntervalQuarter.Enabled := FMultipleExecution.Checked; FUDIntervalQuarter.Enabled := FIntervalQuarter.Enabled;
+  FIntervalWeek.Enabled := FMultipleExecution.Checked; FUDIntervalWeek.Enabled := FIntervalWeek.Enabled;
+  FIntervalHour.Enabled := FMultipleExecution.Checked; FUDIntervalHour.Enabled := FIntervalHour.Enabled;
+  FIntervalMinute.Enabled := FMultipleExecution.Checked; FUDIntervalMinute.Enabled := FIntervalMinute.Enabled;
+  FIntervalSecond.Enabled := FMultipleExecution.Checked; FUDIntervalSecond.Enabled := FIntervalSecond.Enabled;
   FStartEnabled.Enabled := FMultipleExecution.Checked; FStartEnabledClick(Sender);
   FEndEnabled.Enabled := FMultipleExecution.Checked; FEndEnabledClick(Sender);
 

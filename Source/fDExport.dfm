@@ -40,6 +40,7 @@ object DExport: TDExport
     Width = 341
     Height = 281
     ActivePage = TSTask
+    Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     Style = tsFlatButtons
     TabOrder = 1
@@ -48,10 +49,6 @@ object DExport: TDExport
       Caption = 'TSSelect'
       TabVisible = False
       OnShow = TSSelectShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GSelect: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -59,11 +56,15 @@ object DExport: TDExport
         Height = 265
         Caption = 'GSelect'
         TabOrder = 0
+        DesignSize = (
+          325
+          265)
         object PSelect: TPanel_Ext
           Left = 8
           Top = 16
           Width = 310
           Height = 241
+          Anchors = [akLeft, akTop, akRight, akBottom]
           BevelInner = bvRaised
           BevelOuter = bvLowered
           ParentBackground = False
@@ -94,15 +95,15 @@ object DExport: TDExport
       Caption = 'TSJob'
       TabVisible = False
       OnShow = TSJobShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+      DesignSize = (
+        333
+        271)
       object GBasics: TGroupBox_Ext
         Left = 4
         Top = 0
         Width = 325
         Height = 265
+        Anchors = [akLeft, akTop, akRight]
         Caption = 'GBasics'
         TabOrder = 0
         TabStop = True
@@ -250,22 +251,26 @@ object DExport: TDExport
       Caption = 'TSODBCSelect'
       TabVisible = False
       OnShow = TSODBCSelectShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+      DesignSize = (
+        333
+        271)
       object GODBCSelect: TGroupBox_Ext
         Left = 4
         Top = 0
         Width = 325
         Height = 265
+        Anchors = [akLeft, akTop, akRight, akBottom]
         Caption = 'GODBCSelect'
         TabOrder = 0
+        DesignSize = (
+          325
+          265)
         object PODBCSelect: TPanel_Ext
           Left = 8
           Top = 16
           Width = 310
           Height = 241
+          Anchors = [akLeft, akTop, akRight, akBottom]
           BevelInner = bvRaised
           BevelOuter = bvLowered
           ParentBackground = False
@@ -292,15 +297,15 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSSQLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+      DesignSize = (
+        333
+        271)
       object GSQLWhat: TGroupBox_Ext
         Left = 4
         Top = 0
         Width = 325
         Height = 63
+        Anchors = [akLeft, akTop, akRight]
         Caption = 'GSQLWhat'
         TabOrder = 0
         object FLSQLWhat: TLabel
@@ -336,6 +341,7 @@ object DExport: TDExport
         Top = 70
         Width = 325
         Height = 143
+        Anchors = [akLeft, akTop, akRight]
         Caption = 'GSQLOptions'
         TabOrder = 1
         object FLGeneral: TLabel
@@ -418,15 +424,15 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSCSVOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+      DesignSize = (
+        333
+        271)
       object GCSVOptions: TGroupBox_Ext
         Left = 4
         Top = 0
         Width = 325
         Height = 197
+        Anchors = [akLeft, akTop, akRight]
         Caption = 'GCSVOptions'
         TabOrder = 0
         object FLCSVHeadline: TLabel
@@ -559,15 +565,15 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSXMLOptionsHide
       OnShow = TSXMLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+      DesignSize = (
+        333
+        271)
       object GXMLHow: TGroupBox_Ext
         Left = 4
         Top = 0
         Width = 325
         Height = 265
+        Anchors = [akLeft, akTop, akRight]
         Caption = 'GXMLHow'
         TabOrder = 0
         object FLRootTag: TLabel
@@ -874,15 +880,15 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSHTMLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+      DesignSize = (
+        333
+        271)
       object GHTMLWhat: TGroupBox_Ext
         Left = 4
         Top = 0
         Width = 325
         Height = 69
+        Anchors = [akLeft, akTop, akRight]
         Caption = 'GHTMLWhat'
         TabOrder = 0
         object FLHTMLWhat: TLabel
@@ -919,6 +925,7 @@ object DExport: TDExport
         Top = 76
         Width = 325
         Height = 109
+        Anchors = [akLeft, akTop, akRight]
         Caption = 'GHTMLOptions'
         TabOrder = 1
         object FLHTMLNullValues: TLabel
@@ -973,17 +980,20 @@ object DExport: TDExport
       Caption = 'TSFields'
       TabVisible = False
       OnShow = TSFieldsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+      DesignSize = (
+        333
+        271)
       object GFields: TGroupBox_Ext
         Left = 4
         Top = 0
         Width = 325
         Height = 265
+        Anchors = [akLeft, akTop, akRight, akBottom]
         Caption = 'GFields'
         TabOrder = 0
+        DesignSize = (
+          325
+          265)
         object FLFields: TLabel
           Left = 8
           Top = 24
@@ -1003,6 +1013,7 @@ object DExport: TDExport
           Top = 40
           Width = 309
           Height = 217
+          Anchors = [akLeft, akTop, akRight, akBottom]
           BevelInner = bvNone
           BorderStyle = bsNone
           TabOrder = 0
@@ -1055,31 +1066,97 @@ object DExport: TDExport
       ImageIndex = 9
       TabVisible = False
       OnShow = TSTaskShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+      DesignSize = (
+        333
+        271)
       object GTask: TGroupBox_Ext
         Left = 4
         Top = 0
         Width = 325
-        Height = 265
+        Height = 173
+        Anchors = [akLeft, akTop, akRight]
         Caption = 'GTask'
         TabOrder = 0
-        object FLTaskActive: TLabel
+        object FLEnabled: TLabel
           Left = 8
-          Top = 17
-          Width = 66
+          Top = 143
+          Width = 51
           Height = 13
-          Caption = 'FLTaskActive'
+          Caption = 'FLEnabled'
         end
-        object FTaskActive: TCheckBox
+        object FLExecution: TLabel
+          Left = 7
+          Top = 55
+          Width = 59
+          Height = 13
+          Caption = 'FLExecution'
+        end
+        object FLStart: TLabel
+          Left = 7
+          Top = 23
+          Width = 34
+          Height = 13
+          Caption = 'FLStart'
+          FocusControl = FStartDate
+        end
+        object FEnabled: TCheckBox
           Left = 128
-          Top = 17
-          Width = 97
+          Top = 142
+          Width = 193
           Height = 17
-          Caption = 'FTaskActive'
+          Caption = 'FEnabled'
+          TabOrder = 6
+        end
+        object FSingle: TRadioButton
+          Left = 128
+          Top = 54
+          Width = 193
+          Height = 17
+          Caption = 'FSingle'
+          TabOrder = 2
+        end
+        object FStartDate: TDateTimePicker
+          Left = 128
+          Top = 19
+          Width = 81
+          Height = 21
+          Date = 2.500000000000000000
+          Time = 2.500000000000000000
           TabOrder = 0
+        end
+        object FStartTime: TDateTimePicker
+          Left = 214
+          Top = 19
+          Width = 69
+          Height = 21
+          Date = 1.000000000000000000
+          Time = 1.000000000000000000
+          Kind = dtkTime
+          TabOrder = 1
+        end
+        object FDaily: TRadioButton
+          Left = 128
+          Top = 74
+          Width = 193
+          Height = 17
+          Caption = 'FDaily'
+          TabOrder = 3
+        end
+        object FWeekly: TRadioButton
+          Left = 128
+          Top = 94
+          Width = 193
+          Height = 17
+          Caption = 'FWeekly'
+          TabOrder = 4
+        end
+        object FMonthly: TRadioButton
+          Left = 128
+          Top = 114
+          Width = 193
+          Height = 17
+          Caption = 'FMonthly'
+          TabOrder = 5
         end
       end
     end
@@ -1087,10 +1164,9 @@ object DExport: TDExport
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+      DesignSize = (
+        333
+        271)
       object GProgress: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -1098,6 +1174,9 @@ object DExport: TDExport
         Height = 169
         Caption = 'GProgress'
         TabOrder = 0
+        DesignSize = (
+          325
+          169)
         object FLProgressTables: TLabel
           Left = 8
           Top = 40
@@ -1118,6 +1197,7 @@ object DExport: TDExport
           Width = 64
           Height = 13
           Alignment = taRightJustify
+          Anchors = [akTop, akRight]
           Caption = 'FDoneTables'
         end
         object FDoneRecords: TLabel
@@ -1126,6 +1206,7 @@ object DExport: TDExport
           Width = 72
           Height = 13
           Alignment = taRightJustify
+          Anchors = [akTop, akRight]
           Caption = 'FDoneRecords'
         end
         object FLProgressTime: TLabel
@@ -1149,6 +1230,7 @@ object DExport: TDExport
           Width = 38
           Height = 13
           Alignment = taRightJustify
+          Anchors = [akTop, akRight]
           Caption = 'FLDone'
         end
         object FLEntiered: TLabel
@@ -1157,6 +1239,7 @@ object DExport: TDExport
           Width = 51
           Height = 13
           Alignment = taRightJustify
+          Anchors = [akTop, akRight]
           Caption = 'FLEntiered'
         end
         object FEntieredTables: TLabel
@@ -1165,6 +1248,7 @@ object DExport: TDExport
           Width = 77
           Height = 13
           Alignment = taRightJustify
+          Anchors = [akTop, akRight]
           Caption = 'FEntieredTables'
         end
         object FEntieredRecords: TLabel
@@ -1173,6 +1257,7 @@ object DExport: TDExport
           Width = 85
           Height = 13
           Alignment = taRightJustify
+          Anchors = [akTop, akRight]
           Caption = 'FEntieredRecords'
         end
         object FEntieredTime: TLabel
@@ -1181,6 +1266,7 @@ object DExport: TDExport
           Width = 68
           Height = 13
           Alignment = taRightJustify
+          Anchors = [akTop, akRight]
           Caption = 'FEntieredTime'
         end
         object FLErrors: TLabel
@@ -1196,6 +1282,7 @@ object DExport: TDExport
           Width = 33
           Height = 13
           Alignment = taRightJustify
+          Anchors = [akTop, akRight]
           Caption = 'FErrors'
         end
         object FProgressBar: TProgressBar
@@ -1203,6 +1290,7 @@ object DExport: TDExport
           Top = 120
           Width = 308
           Height = 16
+          Anchors = [akLeft, akTop, akRight]
           TabOrder = 0
         end
       end
@@ -1211,13 +1299,18 @@ object DExport: TDExport
         Top = 176
         Width = 325
         Height = 89
+        Anchors = [akLeft, akTop, akRight, akBottom]
         Caption = 'GErrors'
         TabOrder = 1
+        DesignSize = (
+          325
+          89)
         object PErrorMessages: TPanel_Ext
           Left = 8
           Top = 16
           Width = 308
           Height = 65
+          Anchors = [akLeft, akTop, akRight, akBottom]
           BevelInner = bvRaised
           BevelOuter = bvLowered
           ParentBackground = False
@@ -1254,6 +1347,7 @@ object DExport: TDExport
     Top = 296
     Width = 75
     Height = 25
+    Anchors = [akRight, akBottom]
     Caption = 'FBForward'
     Default = True
     TabOrder = 4
@@ -1264,6 +1358,7 @@ object DExport: TDExport
     Top = 296
     Width = 75
     Height = 25
+    Anchors = [akRight, akBottom]
     Cancel = True
     Caption = 'FBCancel'
     ModalResult = 2
@@ -1275,6 +1370,7 @@ object DExport: TDExport
     Top = 296
     Width = 75
     Height = 25
+    Anchors = [akRight, akBottom]
     Caption = 'FBBack'
     TabOrder = 3
     OnClick = FBBackClick
@@ -1284,6 +1380,7 @@ object DExport: TDExport
     Top = 296
     Width = 75
     Height = 25
+    Anchors = [akLeft, akBottom]
     Caption = 'FBHelp'
     TabOrder = 2
     OnClick = FBHelpClick

@@ -3890,7 +3890,7 @@ end;
 
 procedure TFClient.aJDeleteExecute(Sender: TObject);
 begin
-  Client.Account.Jobs.Delete(Client.Account.JobByName(FJobs.Selected.Caption));
+  Client.Account.Jobs.DeleteJob(Client.Account.JobByName(FJobs.Selected.Caption));
 end;
 
 procedure TFClient.aJEditExecute(Sender: TObject);
@@ -4511,7 +4511,7 @@ begin
 
   mbOpen.Caption := Preferences.LoadStr(581);
 
-  mjExecute.Caption := Preferences.LoadStr(899);
+  mjExecute.Caption := Preferences.LoadStr(174);
   mjAdd.Caption := Preferences.LoadStr(26);
 
   miHOpen.Caption := Preferences.LoadStr(581);
@@ -4837,13 +4837,14 @@ begin
     if (Assigned(ActiveControlOnDeactivate) and ActiveControlOnDeactivate.Visible) then
       try Window.FocusControl(ActiveControlOnDeactivate); except end;
 
-    if (Window.ActiveControl = FNavigator) then FNavigatorEnter(nil)
-    else if (Window.ActiveControl = ActiveListView) then ListViewEnter(nil)
-    else if (Window.ActiveControl = FLog) then FLogEnter(nil)
-    else if (Window.ActiveControl is TSynMemo) then SynMemoEnter(nil)
-    else if (Window.ActiveControl = ActiveDBGrid) then DBGridEnter(ActiveDBGrid)
-    else if (Window.ActiveControl = FBookmarks) then FBookmarksEnter(nil)
-    else if (Window.ActiveControl = FJobs) then FJobsEnter(nil);
+    if (Assigned(Window.ActiveControl)) then
+      if (Window.ActiveControl = FNavigator) then FNavigatorEnter(FNavigator)
+      else if (Window.ActiveControl = ActiveListView) then ListViewEnter(ActiveListView)
+      else if (Window.ActiveControl = FLog) then FLogEnter(FLog)
+      else if (Window.ActiveControl is TSynMemo) then SynMemoEnter(Window.ActiveControl)
+      else if (Window.ActiveControl = ActiveDBGrid) then DBGridEnter(ActiveDBGrid)
+      else if (Window.ActiveControl = FBookmarks) then FBookmarksEnter(FBookmarks)
+      else if (Window.ActiveControl = FJobs) then FJobsEnter(FJobs);
 
     if (Assigned(FNavigatorNodeAfterActivate)) then
       FNavigatorChange2(FNavigator, FNavigatorNodeAfterActivate);
@@ -8109,12 +8110,12 @@ begin
           or (Assigned(Database.Routines) and ((Database.Routines.Count > 0) or not Database.Routines.Valid))
           or (Assigned(Database.Events) and ((Database.Events.Count > 0) or not Database.Events.Valid));
       end
-      else
+      else if (ClientEvent.CItem is TCTrigger) then
       begin
         Child := Node.getFirstChild();
         while (Assigned(Child)) do
         begin
-          if (Child.ImageIndex = iiBaseTable) then
+          if (TObject(Child.Data) = TCTrigger(ClientEvent.CItem).Table) then
             UpdateGroup(Child, giTables, ClientEvent.CItems);
           Child := Child.getNextSibling();
         end;

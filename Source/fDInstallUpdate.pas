@@ -367,7 +367,7 @@ begin
 
   GroupBox.Caption := ReplaceStr(Preferences.LoadStr(224), '&', '');
 
-  FBOk.Caption := Preferences.LoadStr(899);
+  FBOk.Caption := Preferences.LoadStr(174);
   FBCancel.Caption := Preferences.LoadStr(30);
 end;
 

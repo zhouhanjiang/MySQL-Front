@@ -1081,7 +1081,7 @@ begin
   FFFindTextChange(Sender);
 
   FBBack.Enabled := True;
-  FBForward.Caption := Preferences.LoadStr(899);
+  FBForward.Caption := Preferences.LoadStr(174);
   FBForward.Default := True;
   FBCancel.Caption := Preferences.LoadStr(30);
   FBCancel.ModalResult := mrCancel;
@@ -1093,7 +1093,7 @@ end;
 procedure TDSearch.TSROptionsShow(Sender: TObject);
 begin
   FBBack.Enabled := True;
-  FBForward.Caption := Preferences.LoadStr(899);
+  FBForward.Caption := Preferences.LoadStr(174);
   FBForward.Default := True;
   FBCancel.Caption := Preferences.LoadStr(30);
   FBCancel.ModalResult := mrCancel;

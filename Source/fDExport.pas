@@ -15,6 +15,7 @@ type
     FAllQuote: TRadioButton;
     FBBack: TButton;
     FBCancel: TButton;
+    FBFilename: TButton;
     FBForward: TButton;
     FBHelp: TButton;
     FCreateDatabase: TCheckBox;
@@ -26,29 +27,32 @@ type
     FDatabaseTagName: TRadioButton;
     FDestField1: TEdit;
     FDisableKeys: TCheckBox;
-    FEntieredRecords: TLabel;
-    FEntieredTables: TLabel;
-    FEntieredTime: TLabel;
-    FDrop: TCheckBox;
     FDoneRecords: TLabel;
     FDoneTables: TLabel;
     FDoneTime: TLabel;
+    FDrop: TCheckBox;
+    FEnabled: TCheckBox;
+    FEntieredRecords: TLabel;
+    FEntieredTables: TLabel;
+    FEntieredTime: TLabel;
     FErrorMessages: TRichEdit;
     FErrors: TLabel;
     FExcelFile: TRadioButton;
+    FStartDate: TDateTimePicker;
+    FStartTime: TDateTimePicker;
     FField1: TComboBox_Ext;
     FField2: TComboBox_Ext;
     FFieldAttribute: TEdit;
     FFieldTag: TEdit;
     FFieldTagFree: TRadioButton;
     FFieldTagName: TRadioButton;
+    FFilename: TEdit;
     FHTMLData: TCheckBox;
     FHTMLFile: TRadioButton;
     FHTMLNullText: TCheckBox;
     FHTMLRowBGColorEnabled: TCheckBox;
     FHTMLShowMemoContent: TCheckBox;
     FHTMLStructure: TCheckBox;
-    FFilename: TEdit;
     FL1DatabaseTagFree: TLabel;
     FL1FieldTagFree: TLabel;
     FL1TableTagFree: TLabel;
@@ -63,15 +67,17 @@ type
     FLDatabaseHandling: TLabel;
     FLDatabaseTag: TLabel;
     FLDestFields: TLabel;
-    FLEntiered: TLabel;
-    FLDrop: TLabel;
     FLDone: TLabel;
+    FLDrop: TLabel;
+    FLEnabled: TLabel;
+    FLEntiered: TLabel;
     FLErrors: TLabel;
+    FLStart: TLabel;
     FLExportType: TLabel;
     FLFields: TLabel;
     FLFieldTag: TLabel;
-    FLGeneral: TLabel;
     FLFilename: TLabel;
+    FLGeneral: TLabel;
     FLHTMLBGColorEnabled: TLabel;
     FLHTMLNullValues: TLabel;
     FLHTMLViewDatas: TLabel;
@@ -86,8 +92,10 @@ type
     FLReferrer1: TLabel;
     FLRootTag: TLabel;
     FLSeparator: TLabel;
+    FLExecution: TLabel;
     FLSQLWhat: TLabel;
     FLTableTag: TLabel;
+    FDaily: TRadioButton;
     FName: TEdit;
     FNoQuote: TRadioButton;
     FODBC: TRadioButton;
@@ -102,6 +110,7 @@ type
     FSeparator: TEdit;
     FSeparatorChar: TRadioButton;
     FSeparatorTab: TRadioButton;
+    FSingle: TRadioButton;
     FSQLData: TCheckBox;
     FSQLFile: TRadioButton;
     FSQLiteFile: TRadioButton;
@@ -115,17 +124,18 @@ type
     FTextFile: TRadioButton;
     FUseDatabase: TCheckBox;
     FXMLFile: TRadioButton;
+    GBasics: TGroupBox_Ext;
     GCSVOptions: TGroupBox_Ext;
     GErrors: TGroupBox_Ext;
     GFields: TGroupBox_Ext;
     GHTMLOptions: TGroupBox_Ext;
     GHTMLWhat: TGroupBox_Ext;
-    GBasics: TGroupBox_Ext;
     GODBCSelect: TGroupBox_Ext;
     GProgress: TGroupBox_Ext;
     GSelect: TGroupBox_Ext;
     GSQLOptions: TGroupBox_Ext;
     GSQLWhat: TGroupBox_Ext;
+    GTask: TGroupBox_Ext;
     GXMLHow: TGroupBox_Ext;
     PageControl: TPageControl;
     PDatabaseTag: TPanel_Ext;
@@ -137,21 +147,20 @@ type
     PSeparator: TPanel_Ext;
     PSQLWait: TPanel;
     PTableTag: TPanel_Ext;
+    SaveDialog: TSaveDialog_Ext;
     ScrollBox: TScrollBox;
     TSCSVOptions: TTabSheet;
     TSExecute: TTabSheet;
     TSFields: TTabSheet;
     TSHTMLOptions: TTabSheet;
+    TSJob: TTabSheet;
     TSODBCSelect: TTabSheet;
     TSSelect: TTabSheet;
     TSSQLOptions: TTabSheet;
-    TSXMLOptions: TTabSheet;
-    TSJob: TTabSheet;
-    SaveDialog: TSaveDialog_Ext;
-    FBFilename: TButton;
     TSTask: TTabSheet;
-    FLTaskActive: TLabel;
-    FTaskActive: TCheckBox;
+    TSXMLOptions: TTabSheet;
+    FWeekly: TRadioButton;
+    FMonthly: TRadioButton;
     procedure FBBackClick(Sender: TObject);
     procedure FBCancelClick(Sender: TObject);
     procedure FBForwardClick(Sender: TObject);
@@ -380,7 +389,7 @@ begin
   if (ActivePageIndex = TSTask.PageIndex) then
     FBForward.Caption := Preferences.LoadStr(230)
   else if (NextActivePageIndex = TSExecute.PageIndex) then
-    FBForward.Caption := Preferences.LoadStr(899)
+    FBForward.Caption := Preferences.LoadStr(174)
   else
     FBForward.Caption := Preferences.LoadStr(229) + ' >';
 
@@ -494,6 +503,16 @@ begin
   FLDestFields.Caption := Preferences.LoadStr(400) + ':';
 
   GErrors.Caption := Preferences.LoadStr(392);
+
+  GTask.Caption := Preferences.LoadStr(661);
+  FLStart.Caption := Preferences.LoadStr(817) + ':';
+  FLExecution.Caption := Preferences.LoadStr(174) + ':';
+  FSingle.Caption := Preferences.LoadStr(902);
+  FDaily.Caption := Preferences.LoadStr(903);
+  FWeekly.Caption := Preferences.LoadStr(904);
+  FMonthly.Caption := Preferences.LoadStr(905);
+  FLEnabled.Caption := Preferences.LoadStr(812) + ':';
+  FEnabled.Caption := Preferences.LoadStr(529);
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBBack.Caption := '< ' + Preferences.LoadStr(228);
@@ -860,7 +879,7 @@ begin
 
   CheckActivePageChange(TSJob.PageIndex);
 
-  if ((DialogType in [edtCreateJob]) and Assigned(Client.Account.JobByName(FName.Text)) or (DialogType in [edtEditJob]) and (Client.Account.JobByName(FName.Text) <> Job)) then
+  if (not ValidJobName(Trim(FName.Text)) or (DialogType in [edtCreateJob]) and Assigned(Client.Account.JobByName(Trim(FName.Text))) or (DialogType in [edtEditJob]) and (Client.Account.JobByName(Trim(FName.Text)) <> Job)) then
     FBForward.Enabled := False;
   if (FFilename.Visible and not DirectoryExists(ExtractFilePath(FFilename.Text))) then
     FBForward.Enabled := False;
@@ -986,7 +1005,7 @@ begin
   if (ModalResult = mrOk) then
   begin
     if (DialogType in [edtCreateJob, edtEditJob]) then
-      Export := TAJobExport.Create(Client.Account.Jobs, FName.Text)
+      Export := TAJobExport.Create(Client.Account.Jobs, Trim(FName.Text))
     else
       Export := Preferences.Export;
 
@@ -1021,10 +1040,6 @@ begin
 
     if (DialogType in [edtCreateJob, edtEditJob]) then
     begin
-      TAJobExport(Export).CodePage := CodePage;
-      TAJobExport(Export).ExportType := ExportType;
-      TAJobExport(Export).Filename := FFilename.Text;
-      TAJobExport(Export).ClearObjects();
       for I := 0 to FSelect.Items.Count - 1 do
         if (FSelect.Items[I].Selected) then
         begin
@@ -1052,7 +1067,20 @@ begin
             TAJobExport(Export).Objects[Length(TAJobExport(Export).Objects) - 1].DatabaseName := TCDBObject(FSelect.Items[I].Data).Database.Name;
           end;
         end;
-      TAJobExport(Export).Active := FTaskActive.Checked;
+      TAJobExport(Export).CodePage := CodePage;
+      TAJobExport(Export).ExportType := ExportType;
+      TAJobExport(Export).Filename := FFilename.Text;
+      TAJobExport(Export).ClearObjects();
+      TAJobExport(Export).Start := FStartDate.Date + FStartTime.Time;
+      if (FDaily.Checked) then
+        TAJobExport(Export).TriggerType := ttDaily
+      else if (FWeekly.Checked) then
+        TAJobExport(Export).TriggerType := ttWeekly
+      else if (FMonthly.Checked) then
+        TAJobExport(Export).TriggerType := ttMonthly
+      else
+        TAJobExport(Export).TriggerType := ttSingle;
+      TAJobExport(Export).Active := FEnabled.Checked;
 
       if (DialogType = edtCreateJob) then
         Client.Account.Jobs.AddJob(Export)
@@ -1135,6 +1163,10 @@ begin
     FName.Text := Title;
     FFilename.Visible := False; FLFilename.Visible := FFilename.Visible;
     FFilename.Text := '';
+
+    FStartDate.Date := Now() + 1; FStartTime.Time := 0;
+    FSingle.Checked := True;
+    FEnabled.Checked := True;
   end
   else if (DialogType in [edtEditJob, edtExecuteJob]) then
   begin
@@ -1159,7 +1191,14 @@ begin
     Filename := Job.Filename;
     FFilename.Text := Job.Filename;
 
-    FTaskActive.Checked := Job.Active;
+    FStartDate.Date := Job.Start; FStartTime.Time := Job.Start;
+    case (Job.TriggerType) of
+      ttDaily: FDaily.Checked := True;
+      ttWeekly: FWeekly.Checked := True;
+      ttMonthly: FMonthly.Checked := True;
+      else FSingle.Checked := True;
+    end;
+    FEnabled.Checked := Job.Active;
   end;
 
   if (Assigned(DBGrid)) then

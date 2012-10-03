@@ -324,7 +324,7 @@ begin
   else
     ActiveControl := FBCancel;
 
-  FBForward.Caption := Preferences.LoadStr(899);
+  FBForward.Caption := Preferences.LoadStr(174);
   FBCancel.Caption := Preferences.LoadStr(30);
   FBCancel.ModalResult := mrCancel;
   FBCancel.Default := False;

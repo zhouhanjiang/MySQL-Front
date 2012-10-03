@@ -159,13 +159,17 @@ type
       Name: string;
       ObjectType: TAJobObjectType;
     end;
+    TTriggerType = (ttSingle, ttDaily, ttWeekly, ttMonthly);
   private
     function GetJobs(): TAJobs; inline;
   protected
     procedure LoadFromXML(const XML: IXMLNode); override;
+    function Save(): Boolean; virtual;
     property Jobs: TAJobs read GetJobs;
   public
     Active: Boolean;
+    Start: TDateTime;
+    TriggerType: TTriggerType;
     procedure Assign(const Source: TPItem); override;
     constructor Create(const AAItems: TPItems; const AName: string = ''); override;
   end;
@@ -567,22 +571,18 @@ type
   TAJobs = class(TPItems)
   private
     FAccount: TAAccount;
-    FAccountFolder: ITaskFolder;
     function GetJob(Index: Integer): TAJob; inline;
+    function GetTaskFolder(const AutoCreate: Boolean = False): ITaskFolder;
     function GetTaskService(): ITaskService; inline;
   protected
-    function GetAccountFolder(const AutoCreate: Boolean = False): ITaskFolder;
     property Account: TAAccount read FAccount;
-    property AccountFolder: ITaskFolder read FAccountFolder;
     property TaskService: ITaskService read GetTaskService;
-    property XML: IXMLNode read GetXML;
   public
     function AddJob(const NewJob: TAJob): Boolean; virtual;
     constructor Create(const AAccount: TAAccount);
-    procedure Delete(const Job: TPItem); overload; virtual;
+    procedure DeleteJob(const Job: TAJob); overload; virtual;
     destructor Destroy(); override;
     procedure Load(); virtual;
-    procedure Save(); virtual;
     function UpdateJob(const Job, NewJob: TAJob): Boolean; virtual;
     property Job[Index: Integer]: TAJob read GetJob; default;
   end;
@@ -769,6 +769,7 @@ function IsConnectedToInternet(): Boolean;
 function VersionStrToVersion(VersionStr: string): Integer;
 function CopyDir(const fromDir, toDir: string): Boolean;
 function HostIsLocalhost(const Host: string): Boolean;
+function ValidJobName(const Name: string): Boolean;
 
 var
   Accounts: TAAccounts;
@@ -1145,6 +1146,11 @@ end;
 function HostIsLocalhost(const Host: string): Boolean;
 begin
   Result := (lstrcmpi(PChar(Host), PChar(LOCAL_HOST)) = 0) or (Host = '127.0.0.1') or (Host = '::1');
+end;
+
+function ValidJobName(const Name: string): Boolean;
+begin
+  Result := (Name <> '') and (Pos('.', Name) = 0) and (Pos('\', Name) = 0);
 end;
 
 { TPItem **********************************************************************}
@@ -2981,7 +2987,9 @@ constructor TAJob.Create(const AAItems: TPItems; const AName: string = '');
 begin
   inherited;
 
-  Active := False;
+  Active := True;
+  Start := Date() + 1;
+  TriggerType := ttSingle;
 end;
 
 function TAJob.GetJobs(): TAJobs;
@@ -2994,6 +3002,48 @@ end;
 procedure TAJob.LoadFromXML(const XML: IXMLNode);
 begin
   inherited;
+end;
+
+function TAJob.Save(): Boolean;
+var
+  Action: IAction;
+  ExecAction: IExecAction;
+  RegisteredTask: IRegisteredTask;
+  TaskDefinition: ITaskDefinition;
+  TaskFolder: ITaskFolder;
+  Trigger: ITrigger;
+  XMLDocument: IXMLDocument;
+begin
+  Result := False;
+
+  TaskFolder := Jobs.GetTaskFolder(True);
+  if (Assigned(TaskFolder)) then
+  begin
+    TaskFolder.DeleteTask(TBStr(Name), 0);
+    if (Succeeded(Jobs.TaskService.NewTask(0, TaskDefinition))
+      and Succeeded(TaskDefinition.Actions.Create(TASK_ACTION_EXEC, Action))
+      and Succeeded(Action.QueryInterface(IID_IExecAction, ExecAction))) then
+    begin
+      ExecAction.Path := TBStr(ParamStr(0));
+      ExecAction.Arguments := TBStr('/Account="' + Jobs.Account.Name + '" /Job="' + Name + '"');
+
+      XMLDocument := NewXMLDocument();
+      XMLDocument.Encoding := 'utf-8';
+      XMLDocument.Node.AddChild('job').Attributes['version'] := '1.0.0';
+      SaveToXML(XMLDocument.DocumentElement);
+      TaskDefinition.Data := TBStr(XMLDocument.XML.Text);
+
+      case (TriggerType) of
+        ttSingle: TaskDefinition.Triggers.Create(TASK_TRIGGER_TIME, Trigger);
+        ttDaily: TaskDefinition.Triggers.Create(TASK_TRIGGER_DAILY, Trigger);
+        ttWeekly: TaskDefinition.Triggers.Create(TASK_TRIGGER_WEEKLY, Trigger);
+        ttMonthly: TaskDefinition.Triggers.Create(TASK_TRIGGER_MONTHLY, Trigger);
+        else raise ERangeError.CreateFmt(SPropertyOutOfRange, ['TriggerType']);
+      end;
+
+      Result := Succeeded(TaskFolder.RegisterTaskDefinition(TBStr(Name), TaskDefinition, LONG(TASK_CREATE), Null, Null, TASK_LOGON_NONE, Null, RegisteredTask));
+    end;
+  end;
 end;
 
 { TAJobExport *****************************************************************}
@@ -3140,7 +3190,7 @@ end;
 
 function TAJobs.AddJob(const NewJob: TAJob): Boolean;
 var
-  Job: TPItem;
+  Job: TAJob;
 begin
   Assert(NewJob is TAJobExport);
 
@@ -3154,9 +3204,10 @@ begin
     Job.Assign(NewJob);
     Add(Job);
 
-    Save();
+    Result := Job.Save();
 
-    Account.AccountEvent(ClassType);
+    if (Result) then
+      Account.AccountEvent(ClassType);
   end;
 end;
 
@@ -3165,19 +3216,22 @@ begin
   inherited Create();
 
   FAccount := AAccount;
-  FAccountFolder := nil;
 end;
 
-procedure TAJobs.Delete(const Job: TPItem);
+procedure TAJobs.DeleteJob(const Job: TAJob);
 var
   Index: Integer;
+  TaskFolder: ITaskFolder;
 begin
+  TaskFolder := GetTaskFolder(True);
+
+  if (Assigned(TaskFolder)) then
+    TaskFolder.DeleteTask(TBStr(Job.Name), 0);
+
   Index := IndexOf(Job);
-
-  XML.ChildNodes.Delete(XML.ChildNodes.IndexOf(Job.XML));
-
+  if (Index >= 0) then
+    Delete(Index);
   Job.Free();
-  Delete(Index);
 
   Account.AccountEvent(ClassType);
 end;
@@ -3196,7 +3250,7 @@ begin
   Result := TAJob(Item[Index]);
 end;
 
-function TAJobs.GetAccountFolder(const AutoCreate: Boolean = False): ITaskFolder;
+function TAJobs.GetTaskFolder(const AutoCreate: Boolean = False): ITaskFolder;
 var
   AppFolder: ITaskFolder;
   RootFolder: ITaskFolder;
@@ -3218,16 +3272,17 @@ end;
 
 procedure TAJobs.Load();
 var
-  Job: TPItem;
   I: Integer;
+  Job: TPItem;
   RegisteredTask: IRegisteredTask;
+  TaskFolder: ITaskFolder;
   Tasks: IRegisteredTaskCollection;
   XMLDocument: IXMLDocument;
 begin
   Clear();
-  FAccountFolder := GetAccountFolder(False);
 
-  if (Assigned(AccountFolder) and Succeeded(AccountFolder.GetTasks(0, Tasks))) then
+  TaskFolder := GetTaskFolder(False);
+  if (Assigned(TaskFolder) and Succeeded(TaskFolder.GetTasks(0, Tasks))) then
   begin
     XMLDocument := NewXMLDocument();
     for I := 0 to Tasks.Count - 1 do
@@ -3238,49 +3293,11 @@ begin
         Job := TAJobExport.Create(Self, StrPas(RegisteredTask.Name))
       else
         Job := nil;
-      Job.LoadFromXML(XMLDocument.DocumentElement);
-      Add(Job);
-    end;
-  end;
-end;
-
-procedure TAJobs.Save();
-var
-  Action: IAction;
-  CleanXML: string;
-  ExecAction: IExecAction;
-  I: Integer;
-  RegisteredTask: IRegisteredTask;
-  TaskDefinition: ITaskDefinition;
-  XMLDocument: IXMLDocument;
-begin
-  FAccountFolder := GetAccountFolder(True);
-
-  if (Assigned(AccountFolder)) then
-  begin
-    XMLDocument := NewXMLDocument();
-    XMLDocument.Encoding := 'utf-8';
-    XMLDocument.Node.AddChild('job').Attributes['version'] := '1.0.0';
-    CleanXML := XMLDocument.XML.Text;
-
-    for I := 0 to Count - 1 do
-    begin
-      XMLDocument.LoadFromXML(CleanXML);
-      Job[I].SaveToXML(XMLDocument.DocumentElement);
-
-      if (Failed(AccountFolder.GetTask(TBStr(Job[I].Name), RegisteredTask))
-        and Succeeded(TaskService.NewTask(0, TaskDefinition))
-        and Succeeded(TaskDefinition.Actions.Create(TASK_ACTION_EXEC, Action))
-        and Succeeded(Action.QueryInterface(IID_IExecAction, ExecAction))) then
+      if (Assigned(Job)) then
       begin
-        ExecAction.Path := TBStr(ParamStr(0));
-        ExecAction.Arguments := TBStr('/Account="' + Account.Name + '" /Job="' + Job[I].Name + '"');
-
-        if (Failed(AccountFolder.RegisterTaskDefinition(TBStr(Job[I].Name), TaskDefinition, LONG(TASK_CREATE), Null, Null, TASK_LOGON_NONE, Null, RegisteredTask))) then
-          RegisteredTask := nil;
+        Job.LoadFromXML(XMLDocument.DocumentElement);
+        Add(Job);
       end;
-
-      RegisteredTask.Definition.Data := TBStr(XMLDocument.XML.Text);
     end;
   end;
 end;
@@ -3294,9 +3311,10 @@ begin
   begin
     Job.Assign(NewJob);
 
-    Save();
+    Result := Job.Save();
 
-    Account.AccountEvent(ClassType);
+    if (Result) then
+      Account.AccountEvent(ClassType);
   end;
 end;
 
@@ -4125,6 +4143,8 @@ function TAAccounts.DeleteAccount(const AAccount: TAAccount): Boolean;
 var
   I: Integer;
   Index: Integer;
+  TaskFolder: ITaskFolder;
+  Tasks: IRegisteredTaskCollection;
 begin
   if (FileExists(AAccount.DesktopFilename)) then
     DeleteFile(PChar(AAccount.DesktopFilename));
@@ -4134,6 +4154,16 @@ begin
     DeleteFile(PChar(AAccount.IconFilename));
   if (DirectoryExists(AAccount.DataPath)) then
     RemoveDirectory(PChar(AAccount.DataPath));
+
+  if (Assigned(Preferences.TaskService)
+    and Succeeded(Preferences.TaskService.GetFolder(TBStr('\' + SysUtils.LoadStr(1006) + '\Accounts\' + AAccount.Name), TaskFolder))
+    and Succeeded(TaskFolder.GetTasks(0, Tasks))) then
+  begin
+    for I := 0 to Tasks.Count - 1 do
+      TaskFolder.DeleteTask(TBStr(Tasks.Item[1 + I].Name), 0);
+    if (Succeeded(Preferences.TaskService.GetFolder(TBStr('\' + SysUtils.LoadStr(1006) + '\Accounts'), TaskFolder))) then
+      TaskFolder.DeleteFolder(TBStr(AAccount.Name), 0);
+  end;
 
   for I := XML.ChildNodes.Count - 1 downto 0 do
     if ((XML.ChildNodes[I].NodeName = 'account') and (lstrcmpi(PChar(string(XML.ChildNodes[I].Attributes['name'])), PChar(AAccount.Name)) = 0)) then
@@ -4352,15 +4382,36 @@ begin
 end;
 
 procedure TAAccounts.UpdateAccount(const Account, NewAccount: TAAccount);
+var
+  I: Integer;
+  NewJob: TAJob;
+  TaskFolder: ITaskFolder;
 begin
   if (Assigned(Account) and Assigned(NewAccount) and (not Assigned(AccountByName(NewAccount.Name)) or (NewAccount.Name = Account.Name))) then
   begin
-    if (Assigned(Account.XML)) then
-      Account.XML.Attributes['name'] := NewAccount.Name;
-
     if (NewAccount.Name <> Account.Name) then
+    begin
+      if (Assigned(Account.XML)) then
+        Account.XML.Attributes['name'] := NewAccount.Name;
+
       if (DirectoryExists(Account.DataPath)) then
         RenameFile(Account.DataPath, NewAccount.DataPath);
+
+      for I := Account.Jobs.Count - 1 downto 0 do
+      begin
+        if (Account.Jobs[I] is TAJobExport) then
+          NewJob := TAJobExport.Create(NewAccount.Jobs, Account.Jobs[I].Name)
+        else
+          NewJob := nil;
+        NewJob.Assign(Account.Jobs[I]);
+        NewAccount.Jobs.AddJob(NewJob);
+        NewJob.Free();
+        Account.Jobs.DeleteJob(Account.Jobs[I]);
+      end;
+      if (Assigned(Preferences.TaskService)
+        and Succeeded(Preferences.TaskService.GetFolder(TBStr('\' + SysUtils.LoadStr(1006) + '\Accounts'), TaskFolder))) then
+        TaskFolder.DeleteFolder(TBStr(Account.Name), 0);
+    end;
 
     Account.Assign(NewAccount);
 
