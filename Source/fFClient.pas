@@ -6236,11 +6236,7 @@ end;
 
 procedure TFClient.DBGridDataSourceDataChange(Sender: TObject; Field: TField);
 begin
-  // Debug 03.10.2012
-  if (not Assigned(ActiveDBGrid.SelectedField)) then
-    raise ERangeError.Create(SRangeError);
-
-  if (Assigned(Window.ActiveControl) and (Window.ActiveControl = ActiveDBGrid) and (Field = ActiveDBGrid.SelectedField) and (ActiveDBGrid.SelectedField.DataType in [ftWideMemo, ftBlob])) then
+  if (Assigned(Window.ActiveControl) and (Window.ActiveControl = ActiveDBGrid) and Assigned(ActiveDBGrid.SelectedField) and (Field = ActiveDBGrid.SelectedField) and (ActiveDBGrid.SelectedField.DataType in [ftWideMemo, ftBlob])) then
     aVBlobExecute(nil);
 end;
 

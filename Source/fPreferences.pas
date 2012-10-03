@@ -3030,6 +3030,10 @@ begin
       and Succeeded(TaskDefinition.Actions.Create(TASK_ACTION_EXEC, Action))
       and Succeeded(Action.QueryInterface(IID_IExecAction, ExecAction))) then
     begin
+      TaskDefinition.Settings.StartWhenAvailable := True;
+//      TaskDefinition.Settings.ExecutionTimeLimit := 'P3H';
+      TaskDefinition.Settings.MultipleInstances := TASK_INSTANCES_PARALLEL;
+
       ExecAction.Path := TBStr(ParamStr(0));
       ExecAction.Arguments := TBStr('/Account="' + Jobs.Account.Name + '" /Job="' + Name + '"');
 
