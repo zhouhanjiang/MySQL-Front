@@ -4200,7 +4200,11 @@ begin
   PSQLHistory.Visible := MainAction('aVSQLHistory').Checked;
 
   if (PExplorer.Visible and not Assigned(FFolders)) then
-    CreateExplorer();
+    CreateExplorer()
+  else if (PJobs.Visible and (FJobs.Items.Count = 0)) then
+    FormAccountEvent(Client.Account.Jobs.ClassType)
+  else if (PSQLHistory.Visible) then
+    FSQLHistoryRefresh(Sender);
 
   SSideBar.Visible := PNavigator.Visible or PBookmarks.Visible or PExplorer.Visible or PJobs.Visible or PSQLHistory.Visible;
   if (SSideBar.Visible) then
@@ -4225,10 +4229,7 @@ begin
   else if (MainAction('aVJobs').Checked) then
     Window.ActiveControl := FJobs
   else if (MainAction('aVSQLHistory').Checked) then
-  begin
-    FSQLHistoryRefresh(Sender);
     Window.ActiveControl := FSQLHistory;
-  end;
 end;
 
 procedure TFClient.aVSortAscExecute(Sender: TObject);
@@ -4926,11 +4927,15 @@ begin
   PBookmarks.Visible := Client.Account.Desktop.BookmarksVisible;
   PExplorer.Visible := Client.Account.Desktop.ExplorerVisible;
   PJobs.Visible := Client.Account.Desktop.JobsVisible;
-  PSQLHistory.Visible := Client.Account.Desktop.SQLHistoryVisible; if (PSQLHistory.Visible) then FSQLHistoryRefresh(nil);
+  PSQLHistory.Visible := Client.Account.Desktop.SQLHistoryVisible;
   PSideBar.Visible := PNavigator.Visible or PBookmarks.Visible or PExplorer.Visible or PJobs.Visible or PSQLHistory.Visible; SSideBar.Visible := PSideBar.Visible;
 
   if (PExplorer.Visible) then
-    CreateExplorer();
+    CreateExplorer()
+  else if (PJobs.Visible and (FJobs.Items.Count = 0)) then
+    FormAccountEvent(Client.Account.Jobs.ClassType)
+  else if (PSQLHistory.Visible) then
+    FSQLHistoryRefresh(nil);
 
   PSideBar.Width := Client.Account.Desktop.SelectorWitdth;
   PFiles.Height := PSideBar.ClientHeight - Client.Account.Desktop.FoldersHeight - SExplorer.Height;
@@ -5425,7 +5430,6 @@ begin
     SyntaxProvider.IdentCaseSens := icsNonSensitive;
 
   FormAccountEvent(Client.Account.Desktop.Bookmarks.ClassType);
-  FormAccountEvent(Client.Account.Jobs.ClassType);
 
 
   CloseButton := TPicture.Create();
@@ -6232,7 +6236,11 @@ end;
 
 procedure TFClient.DBGridDataSourceDataChange(Sender: TObject; Field: TField);
 begin
-  if ((Window.ActiveControl = ActiveDBGrid) and (Field = ActiveDBGrid.SelectedField) and (ActiveDBGrid.SelectedField.DataType in [ftWideMemo, ftBlob])) then
+  // Debug 03.10.2012
+  if (not Assigned(ActiveDBGrid.SelectedField)) then
+    raise ERangeError.Create(SRangeError);
+
+  if (Assigned(Window.ActiveControl) and (Window.ActiveControl = ActiveDBGrid) and (Field = ActiveDBGrid.SelectedField) and (ActiveDBGrid.SelectedField.DataType in [ftWideMemo, ftBlob])) then
     aVBlobExecute(nil);
 end;
 
@@ -8340,8 +8348,6 @@ begin
       NewListItem.Caption := Client.Account.Jobs[I].Name;
       NewListItem.ImageIndex := iiJob;
     end;
-
-    Window.Perform(CM_BOOKMARKCHANGED, 0, 0);
   end;
 end;
 

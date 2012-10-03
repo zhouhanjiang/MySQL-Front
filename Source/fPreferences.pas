@@ -167,7 +167,7 @@ type
     function Save(): Boolean; virtual;
     property Jobs: TAJobs read GetJobs;
   public
-    Active: Boolean;
+    Enabled: Boolean;
     Start: TDateTime;
     TriggerType: TTriggerType;
     procedure Assign(const Source: TPItem); override;
@@ -2980,14 +2980,16 @@ begin
 
   inherited;
 
-  Active := TAJob(Source).Active;
+  Enabled := TAJob(Source).Enabled;
+  Start := TAJob(Source).Start;
+  TriggerType := TAJob(Source).TriggerType;
 end;
 
 constructor TAJob.Create(const AAItems: TPItems; const AName: string = '');
 begin
   inherited;
 
-  Active := True;
+  Enabled := True;
   Start := Date() + 1;
   TriggerType := ttSingle;
 end;
@@ -3007,19 +3009,23 @@ end;
 function TAJob.Save(): Boolean;
 var
   Action: IAction;
+  DailyTrigger: IDailyTrigger;
   ExecAction: IExecAction;
+  Hour, Minute, Sec, MSec: Word;
+  MonthlyTrigger: IMonthlyTrigger;
   RegisteredTask: IRegisteredTask;
   TaskDefinition: ITaskDefinition;
   TaskFolder: ITaskFolder;
   Trigger: ITrigger;
   XMLDocument: IXMLDocument;
+  WeeklyTrigger: IWeeklyTrigger;
+  Year, Month, Day: Word;
 begin
   Result := False;
 
   TaskFolder := Jobs.GetTaskFolder(True);
   if (Assigned(TaskFolder)) then
   begin
-    TaskFolder.DeleteTask(TBStr(Name), 0);
     if (Succeeded(Jobs.TaskService.NewTask(0, TaskDefinition))
       and Succeeded(TaskDefinition.Actions.Create(TASK_ACTION_EXEC, Action))
       and Succeeded(Action.QueryInterface(IID_IExecAction, ExecAction))) then
@@ -3033,14 +3039,34 @@ begin
       SaveToXML(XMLDocument.DocumentElement);
       TaskDefinition.Data := TBStr(XMLDocument.XML.Text);
 
+      DecodeDate(Start, Year, Month, Day);
+      DecodeTime(Start, Hour, Minute, Sec, MSec);
       case (TriggerType) of
         ttSingle: TaskDefinition.Triggers.Create(TASK_TRIGGER_TIME, Trigger);
-        ttDaily: TaskDefinition.Triggers.Create(TASK_TRIGGER_DAILY, Trigger);
-        ttWeekly: TaskDefinition.Triggers.Create(TASK_TRIGGER_WEEKLY, Trigger);
-        ttMonthly: TaskDefinition.Triggers.Create(TASK_TRIGGER_MONTHLY, Trigger);
+        ttDaily:
+          if (Succeeded(TaskDefinition.Triggers.Create(TASK_TRIGGER_DAILY, Trigger))
+            and Succeeded(Trigger.QueryInterface(IID_IDailyTrigger, DailyTrigger))) then
+            DailyTrigger.DaysInterval := 1;
+        ttWeekly:
+          if (Succeeded(TaskDefinition.Triggers.Create(TASK_TRIGGER_WEEKLY, Trigger))
+            and Succeeded(Trigger.QueryInterface(IID_IWeeklyTrigger, WeeklyTrigger))) then
+          begin
+            WeeklyTrigger.DaysOfWeek := 1 shl (DayOfWeek(Start) - 1);
+            WeeklyTrigger.WeeksInterval := 1;
+          end;
+        ttMonthly:
+          if (Succeeded(TaskDefinition.Triggers.Create(TASK_TRIGGER_MONTHLY, Trigger))
+            and Succeeded(Trigger.QueryInterface(IID_IMonthlyTrigger, MonthlyTrigger))) then
+          begin
+            MonthlyTrigger.DaysOfMonth := 1 shl (Day - 1);
+            MonthlyTrigger.MonthsOfYear := $FFF; // Every month
+          end;
         else raise ERangeError.CreateFmt(SPropertyOutOfRange, ['TriggerType']);
       end;
+      Trigger.StartBoundary := TBStr(FormatDateTime('yyyy-mm-dd"T"hh:nn:ss', Start));
+      Trigger.Enabled := Enabled;
 
+      TaskFolder.DeleteTask(TBStr(Name), 0);
       Result := Succeeded(TaskFolder.RegisterTaskDefinition(TBStr(Name), TaskDefinition, LONG(TASK_CREATE), Null, Null, TASK_LOGON_NONE, Null, RegisteredTask));
     end;
   end;
@@ -3202,12 +3228,14 @@ begin
     else
       Job := nil;
     Job.Assign(NewJob);
-    Add(Job);
 
     Result := Job.Save();
 
     if (Result) then
+    begin
+      Add(Job);
       Account.AccountEvent(ClassType);
+    end;
   end;
 end;
 
@@ -3273,7 +3301,8 @@ end;
 procedure TAJobs.Load();
 var
   I: Integer;
-  Job: TPItem;
+  Job: TAJob;
+  S: string;
   RegisteredTask: IRegisteredTask;
   TaskFolder: ITaskFolder;
   Tasks: IRegisteredTaskCollection;
@@ -3296,6 +3325,24 @@ begin
       if (Assigned(Job)) then
       begin
         Job.LoadFromXML(XMLDocument.DocumentElement);
+        if (RegisteredTask.Definition.Triggers.Count >= 1) then
+        begin
+          Job.Enabled := RegisteredTask.Definition.Triggers.Item[1].Enabled;
+          S := StrPas(RegisteredTask.Definition.Triggers[1].StartBoundary);
+          if ((Length(S) >= 19) and (UpCase(S[11]) = 'T')) then
+          begin
+            Job.Start := EncodeDate(StrToInt(Copy(S, 1, 4)), StrToInt(Copy(S, 6, 2)), StrToInt(Copy(S, 9, 2)))
+              + EncodeTime(StrToInt(Copy(S, 12, 2)), StrToInt(Copy(S, 15, 2)), StrToInt(Copy(S, 18, 2)), 0);
+          end;
+          case (RegisteredTask.Definition.Triggers.Item[1].TriggerType) of
+            TASK_TRIGGER_TIME: Job.TriggerType := ttSingle;
+            TASK_TRIGGER_DAILY: Job.TriggerType := ttDaily;
+            TASK_TRIGGER_WEEKLY: Job.TriggerType := ttWeekly;
+            TASK_TRIGGER_MONTHLY: Job.TriggerType := ttMonthly;
+            else Job.TriggerType := ttSingle;
+          end;
+        end;
+
         Add(Job);
       end;
     end;
@@ -3893,8 +3940,11 @@ end;
 
 function TAAccount.GetJobs(): TAJobs;
 begin
-  if (not Assigned(FJobs)) then
+  if (not Assigned(FJobs) and CheckWin32Version(6)) then
+  begin
     FJobs := TAJobs.Create(Self);
+    FJobs.Load();
+  end;
 
   Result := FJobs;
 end;
@@ -3952,7 +4002,6 @@ begin
     Connection.LoadFromXML();
     if (Assigned(Desktop)) then
       Desktop.LoadFromXML(); // Client muss geladen sein, damit FullAddress funktioniert
-    Jobs.Load();
   end;
 end;
 

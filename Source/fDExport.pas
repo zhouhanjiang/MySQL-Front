@@ -996,6 +996,8 @@ procedure TDExport.FormHide(Sender: TObject);
 var
   Export: TPExport;
   I: Integer;
+  Hour, Min, Sec, MSec: Word;
+  Year, Month, Day: Word;
 begin
   Client.UnRegisterEventProc(FormClientEvent);
 
@@ -1040,6 +1042,7 @@ begin
 
     if (DialogType in [edtCreateJob, edtEditJob]) then
     begin
+      TAJobExport(Export).ClearObjects();
       for I := 0 to FSelect.Items.Count - 1 do
         if (FSelect.Items[I].Selected) then
         begin
@@ -1070,8 +1073,9 @@ begin
       TAJobExport(Export).CodePage := CodePage;
       TAJobExport(Export).ExportType := ExportType;
       TAJobExport(Export).Filename := FFilename.Text;
-      TAJobExport(Export).ClearObjects();
-      TAJobExport(Export).Start := FStartDate.Date + FStartTime.Time;
+      DecodeDate(FStartDate.Date, Year, Month, Day);
+      DecodeTime(FStartTime.Time, Hour, Min, Sec, MSec);
+      TAJobExport(Export).Start := EncodeDate(Year, Month, Day) + EncodeTime(Hour, Min, Sec, MSec);
       if (FDaily.Checked) then
         TAJobExport(Export).TriggerType := ttDaily
       else if (FWeekly.Checked) then
@@ -1080,7 +1084,7 @@ begin
         TAJobExport(Export).TriggerType := ttMonthly
       else
         TAJobExport(Export).TriggerType := ttSingle;
-      TAJobExport(Export).Active := FEnabled.Checked;
+      TAJobExport(Export).Enabled := FEnabled.Checked;
 
       if (DialogType = edtCreateJob) then
         Client.Account.Jobs.AddJob(Export)
@@ -1154,6 +1158,7 @@ begin
     end;
   FBHelp.Visible := HelpContext >= 0;
 
+  FStartDate.Time := 0;
   if (DialogType = edtCreateJob) then
   begin
     Node := FSelect.Items.Add(nil, Client.Caption);
@@ -1198,7 +1203,7 @@ begin
       ttMonthly: FMonthly.Checked := True;
       else FSingle.Checked := True;
     end;
-    FEnabled.Checked := Job.Active;
+    FEnabled.Checked := Job.Enabled;
   end;
 
   if (Assigned(DBGrid)) then
