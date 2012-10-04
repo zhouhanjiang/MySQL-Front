@@ -164,7 +164,7 @@ type
     function GetJobs(): TAJobs; inline;
   protected
     procedure LoadFromXML(const XML: IXMLNode); override;
-    function Save(): Boolean; virtual;
+    function Save(const Update: Boolean): Boolean; virtual;
     property Jobs: TAJobs read GetJobs;
   public
     Enabled: Boolean;
@@ -770,6 +770,7 @@ function VersionStrToVersion(VersionStr: string): Integer;
 function CopyDir(const fromDir, toDir: string): Boolean;
 function HostIsLocalhost(const Host: string): Boolean;
 function ValidJobName(const Name: string): Boolean;
+function TrySplitParam(const Param: string; out Name, Value: string): Boolean;
 
 var
   Accounts: TAAccounts;
@@ -1151,6 +1152,16 @@ end;
 function ValidJobName(const Name: string): Boolean;
 begin
   Result := (Name <> '') and (Pos('.', Name) = 0) and (Pos('\', Name) = 0);
+end;
+
+function TrySplitParam(const Param: string; out Name, Value: string): Boolean;
+begin
+  Result := (Copy(Param, 1, 1) = '/') and (Pos('=', Param) > 2);
+  if (True) then
+  begin
+    Name := Trim(Copy(Param, 2, Pos('=', Param) - 2));
+    Value := Trim(Copy(Param, Pos('=', Param) + 1, Length(Param) - Pos('=', Param)));
+  end;
 end;
 
 { TPItem **********************************************************************}
@@ -3006,7 +3017,7 @@ begin
   inherited;
 end;
 
-function TAJob.Save(): Boolean;
+function TAJob.Save(const Update: Boolean): Boolean;
 var
   Action: IAction;
   DailyTrigger: IDailyTrigger;
@@ -3030,9 +3041,15 @@ begin
       and Succeeded(TaskDefinition.Actions.Create(TASK_ACTION_EXEC, Action))
       and Succeeded(Action.QueryInterface(IID_IExecAction, ExecAction))) then
     begin
-      TaskDefinition.Settings.StartWhenAvailable := True;
-//      TaskDefinition.Settings.ExecutionTimeLimit := 'P3H';
+      TaskDefinition.Settings.DisallowStartIfOnBatteries := FALSE;
+      TaskDefinition.Settings.ExecutionTimeLimit := 'PT12H';
       TaskDefinition.Settings.MultipleInstances := TASK_INSTANCES_PARALLEL;
+      TaskDefinition.Settings.RunOnlyIfNetworkAvailable := not HostIsLocalhost(Jobs.Account.Connection.Host);
+      TaskDefinition.Settings.StartWhenAvailable := TRUE;
+      TaskDefinition.Settings.StopIfGoingOnBatteries := FALSE;
+      TaskDefinition.Settings.IdleSettings.IdleDuration := nil;
+      TaskDefinition.Settings.IdleSettings.StopOnIdleEnd := FALSE;
+      TaskDefinition.Settings.IdleSettings.WaitTimeout := nil;
 
       ExecAction.Path := TBStr(ParamStr(0));
       ExecAction.Arguments := TBStr('/Account="' + Jobs.Account.Name + '" /Job="' + Name + '"');
@@ -3070,8 +3087,7 @@ begin
       Trigger.StartBoundary := TBStr(FormatDateTime('yyyy-mm-dd"T"hh:nn:ss', Start));
       Trigger.Enabled := Enabled;
 
-      TaskFolder.DeleteTask(TBStr(Name), 0);
-      Result := Succeeded(TaskFolder.RegisterTaskDefinition(TBStr(Name), TaskDefinition, LONG(TASK_CREATE), Null, Null, TASK_LOGON_NONE, Null, RegisteredTask));
+      Result := Succeeded(TaskFolder.RegisterTaskDefinition(TBStr(Name), TaskDefinition, LONG(TASK_CREATE_OR_UPDATE), Null, Null, TASK_LOGON_S4U, Null, RegisteredTask));
     end;
   end;
 end;
@@ -3233,7 +3249,7 @@ begin
       Job := nil;
     Job.Assign(NewJob);
 
-    Result := Job.Save();
+    Result := Job.Save(False);
 
     if (Result) then
     begin
@@ -3362,7 +3378,7 @@ begin
   begin
     Job.Assign(NewJob);
 
-    Result := Job.Save();
+    Result := Job.Save(True);
 
     if (Result) then
       Account.AccountEvent(ClassType);

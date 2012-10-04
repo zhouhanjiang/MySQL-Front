@@ -1305,18 +1305,11 @@ var
 begin
   ExecutePostShow := False;
 
-  for I := 1 to ParamCount() do
-    if (UpperCase(ParamStr(I)) = '/EXECUTE') then
-    begin
-      ExecutePostShow := True;
-      QuitAfterShow := True;
-    end;
-
-  if (ParamCount() > 0) then
-    for I := 1 to ParamCount() do
-      HandleParam(ParamStr(I))
+  if (ParamCount() = 0) then
+    Perform(CM_ADDTAB, 0, 0)
   else
-    Perform(CM_ADDTAB, 0, 0);
+    for I := 1 to ParamCount() do
+      HandleParam(ParamStr(I));
 
   if (ExecutePostShow and (FClients.Count = 1)) then
     PostMessage(TFClient(FClients[0]).Handle, CM_EXECUTE, 0, 0);

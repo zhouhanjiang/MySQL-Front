@@ -12474,7 +12474,7 @@ begin
     if (View in [vBrowser, vIDE, vBuilder, vEditor]) then ActiveDBGrid := GetActiveDBGrid() else ActiveDBGrid := nil;
     if (View in [vDiagram]) then ActiveWorkbench := GetActiveWorkbench() else ActiveWorkbench := nil;
 
-    if ((View = vBrowser) and Assigned(FNavigator.Selected)) then
+    if ((View = vBrowser) and (TObject(FNavigator.Selected.Data) is TCTable)) then
     begin
       FUDOffset.Position := 0;
       FUDLimit.Position := Desktop(TCTable(FNavigator.Selected.Data)).Limit;

@@ -2733,7 +2733,7 @@ begin
   {$IFDEF EurekaLog}
     if (AErrNo = CR_COMMANDS_OUT_OF_SYNC) then
       raise Exception.Create(DecodeString(error()) + ' (' + IntToStr(Byte(fclient_status)) + ')')
-    else if (AErrNo = CR_OUT_OF_MEMORY) then
+    else if ((AErrNo = CR_OUT_OF_MEMORY) or (AErrNo = CR_SERVER_LOST)) then
       raise Exception.Create(DecodeString(error()));
   {$ENDIF}
 end;

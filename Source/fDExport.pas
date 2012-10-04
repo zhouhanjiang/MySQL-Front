@@ -299,30 +299,34 @@ begin
       Index1 := 0
     else if (TCDBObject(Item1) is TCBaseTable) then
       Index1 := 1
-    else if (TCDBObject(Item1) is TCView) then
+    else if (TCDBObject(Item1) is TCFunction) then
       Index1 := 2
-    else if (TCDBObject(Item1) is TCTrigger) then
+    else if (TCDBObject(Item1) is TCView) then
       Index1 := 3
-    else if (TCDBObject(Item1) is TCRoutine) then
+    else if (TCDBObject(Item1) is TCProcedure) then
       Index1 := 4
-    else if (TCDBObject(Item1) is TCEvent) then
+    else if (TCDBObject(Item1) is TCTrigger) then
       Index1 := 5
+    else if (TCDBObject(Item1) is TCEvent) then
+      Index1 := 6
     else
-      Index1 := 6;
+      Index1 := 7;
     if ((TCDBObject(Item2) is TCBaseTable) and Assigned(TCBaseTable(Item2).Engine) and not TCBaseTable(Item2).Engine.IsMerge) then
       Index2 := 0
     else if (TCDBObject(Item2) is TCBaseTable) then
       Index2 := 1
-    else if (TCDBObject(Item2) is TCView) then
+    else if (TCDBObject(Item2) is TCFunction) then
       Index2 := 2
-    else if (TCDBObject(Item2) is TCTrigger) then
+    else if (TCDBObject(Item2) is TCView) then
       Index2 := 3
-    else if (TCDBObject(Item2) is TCRoutine) then
+    else if (TCDBObject(Item2) is TCProcedure) then
       Index2 := 4
-    else if (TCDBObject(Item2) is TCEvent) then
+    else if (TCDBObject(Item2) is TCTrigger) then
       Index2 := 5
+    else if (TCDBObject(Item2) is TCEvent) then
+      Index2 := 6
     else
-      Index2 := 6;
+      Index2 := 7;
     Result := Sign(Index1 - Index2);
   end;
 
@@ -978,6 +982,8 @@ begin
   FHTMLNullText.Checked := Preferences.GridNullText;
   FHTMLShowMemoContent.Checked := Preferences.GridShowMemoContent;
   FHTMLRowBGColorEnabled.Checked := Preferences.GridRowBGColorEnabled;
+
+  FMonthly.Visible := CheckWin32Version(6, 1);
 
   SendMessage(FErrorMessages.Handle, EM_SETTEXTMODE, TM_PLAINTEXT, 0);
   SendMessage(FErrorMessages.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));

@@ -231,59 +231,6 @@ type
   IActionCollection = interface;
   ITaskFolderCollection = interface;
 
-  IPrincipal = interface(IDispatch)
-    ['{D98D51E5-C9B4-496A-A9C1-18980261CF0F}']
-    function get_Id: TBStr; safecall;
-    procedure set_Id(pId: TBStr); safecall;
-    function get_DisplayName: TBStr; safecall;
-    procedure set_DisplayName(pName: TBStr); safecall;
-    function get_UserId: TBStr; safecall;
-    procedure set_UserId(pUser: TBStr); safecall;
-    function get_LogonType: TASK_LOGON_TYPE; safecall;
-    procedure set_LogonType(pLogon: TASK_LOGON_TYPE); safecall;
-    function get_GroupId: TBStr; safecall;
-    procedure set_GroupId(pGroup: TBStr); safecall;
-    function get_RunLevel: TASK_RUNLEVEL_TYPE; safecall;
-    procedure set_RunLevel(pRunLevel: TASK_RUNLEVEL_TYPE); safecall;
-    property Id: TBStr read get_Id write set_Id;
-    property DisplayName: TBStr read get_DisplayName write set_DisplayName;
-    property UserId: TBStr read get_UserId write set_UserId;
-    property LogonType: TASK_LOGON_TYPE read get_LogonType write set_LogonType;
-    property GroupId: TBStr read get_GroupId write set_GroupId;
-    property RunLevel: TASK_RUNLEVEL_TYPE read get_RunLevel write set_RunLevel;
-  end;
-
-  IRegistrationInfo = interface(IDispatch)
-    ['{416D8B73-CB41-4EA1-805C-9BE9A5AC4A74}']
-    function get_Description: TBStr; safecall;
-    procedure set_Description(pDescription: TBStr); safecall;
-    function get_Author: TBStr; safecall;
-    procedure set_Author(pAuthor: TBStr); safecall;
-    function get_Version: TBStr; safecall;
-    procedure set_Version(pVersion: TBStr); safecall;
-    function get_Date: TBStr; safecall;
-    procedure set_Date(pDate: TBStr); safecall;
-    function get_Documentation: TBStr; safecall;
-    procedure set_Documentation(pDocumentation: TBStr); safecall;
-    function get_XmlText: TBStr; safecall;
-    procedure set_XmlText(pText: TBStr); safecall;
-    function get_URI: TBStr; safecall;
-    procedure set_URI(pUri: TBStr); safecall;
-    function get_SecurityDescriptor: OleVariant; safecall;
-    procedure set_SecurityDescriptor(pSddl: OleVariant); safecall;
-    function get_Source: TBStr; safecall;
-    procedure set_Source(pSource: TBStr); safecall;
-    property Description: TBStr read get_Description write set_Description;
-    property Author: TBStr read get_Author write set_Author;
-    property Version: TBStr read get_Version write set_Version;
-    property Date: TBStr read get_Date write set_Date;
-    property Documentation: TBStr read get_Documentation write set_Documentation;
-    property XmlText: TBStr read get_XmlText write set_XmlText;
-    property URI: TBStr read get_URI write set_URI;
-    property SecurityDescriptor: OleVariant read get_SecurityDescriptor write set_SecurityDescriptor;
-    property Source: TBStr read get_Source write set_Source;
-  end;
-
   IRepetitionPattern = interface(IDispatch)
     ['{7FB9ACF1-26BE-400E-85B5-294B9C75DFD6}']
     function get_Interval: TBStr; safecall;
@@ -318,6 +265,37 @@ type
     property Count: Integer read get_Count;
     property Item[index: Integer]: ITaskNamedValuePair read get_Item; default;
     property _NewEnum: IUnknown read get__NewEnum;
+  end;
+
+  IRegistrationInfo = interface(IDispatch)
+    ['{416D8B73-CB41-4EA1-805C-9BE9A5AC4A74}']
+    function get_Description: TBStr; safecall;
+    procedure set_Description(pDescription: TBStr); safecall;
+    function get_Author: TBStr; safecall;
+    procedure set_Author(pAuthor: TBStr); safecall;
+    function get_Version: TBStr; safecall;
+    procedure set_Version(pVersion: TBStr); safecall;
+    function get_Date: TBStr; safecall;
+    procedure set_Date(pDate: TBStr); safecall;
+    function get_Documentation: TBStr; safecall;
+    procedure set_Documentation(pDocumentation: TBStr); safecall;
+    function get_XmlText: TBStr; safecall;
+    procedure set_XmlText(pText: TBStr); safecall;
+    function get_URI: TBStr; safecall;
+    procedure set_URI(pUri: TBStr); safecall;
+    function get_SecurityDescriptor: OleVariant; safecall;
+    procedure set_SecurityDescriptor(pSddl: OleVariant); safecall;
+    function get_Source: TBStr; safecall;
+    procedure set_Source(pSource: TBStr); safecall;
+    property Description: TBStr read get_Description write set_Description;
+    property Author: TBStr read get_Author write set_Author;
+    property Version: TBStr read get_Version write set_Version;
+    property Date: TBStr read get_Date write set_Date;
+    property Documentation: TBStr read get_Documentation write set_Documentation;
+    property XmlText: TBStr read get_XmlText write set_XmlText;
+    property URI: TBStr read get_URI write set_URI;
+    property SecurityDescriptor: OleVariant read get_SecurityDescriptor write set_SecurityDescriptor;
+    property Source: TBStr read get_Source write set_Source;
   end;
 
   ITrigger = interface(IDispatch)
@@ -476,101 +454,6 @@ type
     property _NewEnum: IUnknown read get__NewEnum;
   end;
 
-  IAction = interface(IDispatch)
-    ['{BAE54997-48B1-4CBE-9965-D6BE263EBEA4}']
-    function get_Id: TBStr; safecall;
-    procedure set_Id(pId: TBStr); safecall;
-    function get_type: TASK_ACTION_TYPE; safecall;
-    property Id: TBStr read get_Id write set_Id;
-    property ActionType: TASK_ACTION_TYPE read get_type;
-  end;
-
-  IComHandlerAction = interface(IAction)
-    ['{6D2FD252-75C5-4F66-90BA-2A7D8CC3039F}']
-    function get_ClassId: TBStr; safecall;
-    procedure set_ClassId(pClsid: TBStr); safecall;
-    function get_Data: TBStr; safecall;
-    procedure set_Data(pData: TBStr); safecall;
-    property ClassId: TBStr read get_ClassId write set_ClassId;
-    property Data: TBStr read get_Data write set_Data;
-  end;
-
-  IEmailAction = interface(IAction)
-    ['{10F62C64-7E16-4314-A0C2-0C3683F99D40}']
-    function get_Server: TBStr; safecall;
-    procedure set_Server(pServer: TBStr); safecall;
-    function get_Subject: TBStr; safecall;
-    procedure set_Subject(pSubject: TBStr); safecall;
-    function get_To_: TBStr; safecall;
-    procedure set_To_(pTo: TBStr); safecall;
-    function get_Cc: TBStr; safecall;
-    procedure set_Cc(pCc: TBStr); safecall;
-    function get_Bcc: TBStr; safecall;
-    procedure set_Bcc(pBcc: TBStr); safecall;
-    function get_ReplyTo: TBStr; safecall;
-    procedure set_ReplyTo(pReplyTo: TBStr); safecall;
-    function get_From: TBStr; safecall;
-    procedure set_From(pFrom: TBStr); safecall;
-    function get_HeaderFields: ITaskNamedValueCollection; safecall;
-    procedure set_HeaderFields(ppHeaderFields: ITaskNamedValueCollection); safecall;
-    function get_Body: TBStr; safecall;
-    procedure set_Body(pBody: TBStr); safecall;
-    function get_Attachments: PSafeArray; safecall;
-    procedure set_Attachments(pAttachements: PSafeArray); safecall;
-    property Server: TBStr read get_Server write set_Server;
-    property Subject: TBStr read get_Subject write set_Subject;
-    property To_: TBStr read get_To_ write set_To_;
-    property Cc: TBStr read get_Cc write set_Cc;
-    property Bcc: TBStr read get_Bcc write set_Bcc;
-    property ReplyTo: TBStr read get_ReplyTo write set_ReplyTo;
-    property From: TBStr read get_From write set_From;
-    property HeaderFields: ITaskNamedValueCollection read get_HeaderFields write set_HeaderFields;
-    property Body: TBStr read get_Body write set_Body;
-    property Attachments: PSafeArray read get_Attachments write set_Attachments;
-  end;
-
-  IExecAction = interface(IAction)
-    ['{4C3D624D-FD6B-49A3-B9B7-09CB3CD3F047}']
-    function get_Path: TBStr; safecall;
-    procedure set_Path(pPath: TBStr); safecall;
-    function get_Arguments: TBStr; safecall;
-    procedure set_Arguments(pArgument: TBStr); safecall;
-    function get_WorkingDirectory: TBStr; safecall;
-    procedure set_WorkingDirectory(pWorkingDirectory: TBStr); safecall;
-    property Path: TBStr read get_Path write set_Path;
-    property Arguments: TBStr read get_Arguments write set_Arguments;
-    property WorkingDirectory: TBStr read get_WorkingDirectory write set_WorkingDirectory;
-  end;
-
-  IShowMessageAction = interface(IAction)
-    ['{505E9E68-AF89-46B8-A30F-56162A83D537}']
-    function get_Title: TBStr; safecall;
-    procedure set_Title(pTitle: TBStr); safecall;
-    function get_MessageBody: TBStr; safecall;
-    procedure set_MessageBody(pMessageBody: TBStr); safecall;
-    property Title: TBStr read get_Title write set_Title;
-    property MessageBody: TBStr read get_MessageBody write set_MessageBody;
-  end;
-
-  IActionCollection = interface(IDispatch)
-    ['{02820E19-7B98-4ED2-B2E8-FDCCCEFF619B}']
-    function get_Count: Integer; safecall;
-    function get_Item(index: Integer): IAction; safecall;
-    function get__NewEnum: IUnknown; safecall;
-    function get_XmlText: TBStr; safecall;
-    procedure set_XmlText(pText: TBStr); safecall;
-    function Create(ActionType: TASK_ACTION_TYPE; out ppAction: IAction): HRESULT; stdcall;
-    function Remove(index: OleVariant): HRESULT; stdcall;
-    function Clear: HRESULT; stdcall;
-    function get_Context: TBStr; safecall;
-    procedure set_Context(pContext: TBStr); safecall;
-    property Count: Integer read get_Count;
-    property Item[index: Integer]: IAction read get_Item; default;
-    property _NewEnum: IUnknown read get__NewEnum;
-    property XmlText: TBStr read get_XmlText write set_XmlText;
-    property Context: TBStr read get_Context write set_Context;
-  end;
-
   IIdleSettings = interface(IDispatch)
     ['{84594461-0053-4342-A8FD-088FABF11F32}']
     function get_IdleDuration: TBStr; safecall;
@@ -671,6 +554,123 @@ type
     property UseUnifiedSchedulingEngine: WordBool read get_UseUnifiedSchedulingEngine write set_UseUnifiedSchedulingEngine;
   end;
 
+  IPrincipal = interface(IDispatch)
+    ['{D98D51E5-C9B4-496A-A9C1-18980261CF0F}']
+    function get_Id: TBStr; safecall;
+    procedure set_Id(pId: TBStr); safecall;
+    function get_DisplayName: TBStr; safecall;
+    procedure set_DisplayName(pName: TBStr); safecall;
+    function get_UserId: TBStr; safecall;
+    procedure set_UserId(pUser: TBStr); safecall;
+    function get_LogonType: TASK_LOGON_TYPE; safecall;
+    procedure set_LogonType(pLogon: TASK_LOGON_TYPE); safecall;
+    function get_GroupId: TBStr; safecall;
+    procedure set_GroupId(pGroup: TBStr); safecall;
+    function get_RunLevel: TASK_RUNLEVEL_TYPE; safecall;
+    procedure set_RunLevel(pRunLevel: TASK_RUNLEVEL_TYPE); safecall;
+    property Id: TBStr read get_Id write set_Id;
+    property DisplayName: TBStr read get_DisplayName write set_DisplayName;
+    property UserId: TBStr read get_UserId write set_UserId;
+    property LogonType: TASK_LOGON_TYPE read get_LogonType write set_LogonType;
+    property GroupId: TBStr read get_GroupId write set_GroupId;
+    property RunLevel: TASK_RUNLEVEL_TYPE read get_RunLevel write set_RunLevel;
+  end;
+
+  IAction = interface(IDispatch)
+    ['{BAE54997-48B1-4CBE-9965-D6BE263EBEA4}']
+    function get_Id: TBStr; safecall;
+    procedure set_Id(pId: TBStr); safecall;
+    function get_type: TASK_ACTION_TYPE; safecall;
+    property Id: TBStr read get_Id write set_Id;
+    property ActionType: TASK_ACTION_TYPE read get_type;
+  end;
+
+  IComHandlerAction = interface(IAction)
+    ['{6D2FD252-75C5-4F66-90BA-2A7D8CC3039F}']
+    function get_ClassId: TBStr; safecall;
+    procedure set_ClassId(pClsid: TBStr); safecall;
+    function get_Data: TBStr; safecall;
+    procedure set_Data(pData: TBStr); safecall;
+    property ClassId: TBStr read get_ClassId write set_ClassId;
+    property Data: TBStr read get_Data write set_Data;
+  end;
+
+  IEmailAction = interface(IAction)
+    ['{10F62C64-7E16-4314-A0C2-0C3683F99D40}']
+    function get_Server: TBStr; safecall;
+    procedure set_Server(pServer: TBStr); safecall;
+    function get_Subject: TBStr; safecall;
+    procedure set_Subject(pSubject: TBStr); safecall;
+    function get_To_: TBStr; safecall;
+    procedure set_To_(pTo: TBStr); safecall;
+    function get_Cc: TBStr; safecall;
+    procedure set_Cc(pCc: TBStr); safecall;
+    function get_Bcc: TBStr; safecall;
+    procedure set_Bcc(pBcc: TBStr); safecall;
+    function get_ReplyTo: TBStr; safecall;
+    procedure set_ReplyTo(pReplyTo: TBStr); safecall;
+    function get_From: TBStr; safecall;
+    procedure set_From(pFrom: TBStr); safecall;
+    function get_HeaderFields: ITaskNamedValueCollection; safecall;
+    procedure set_HeaderFields(ppHeaderFields: ITaskNamedValueCollection); safecall;
+    function get_Body: TBStr; safecall;
+    procedure set_Body(pBody: TBStr); safecall;
+    function get_Attachments: PSafeArray; safecall;
+    procedure set_Attachments(pAttachements: PSafeArray); safecall;
+    property Server: TBStr read get_Server write set_Server;
+    property Subject: TBStr read get_Subject write set_Subject;
+    property To_: TBStr read get_To_ write set_To_;
+    property Cc: TBStr read get_Cc write set_Cc;
+    property Bcc: TBStr read get_Bcc write set_Bcc;
+    property ReplyTo: TBStr read get_ReplyTo write set_ReplyTo;
+    property From: TBStr read get_From write set_From;
+    property HeaderFields: ITaskNamedValueCollection read get_HeaderFields write set_HeaderFields;
+    property Body: TBStr read get_Body write set_Body;
+    property Attachments: PSafeArray read get_Attachments write set_Attachments;
+  end;
+
+  IExecAction = interface(IAction)
+    ['{4C3D624D-FD6B-49A3-B9B7-09CB3CD3F047}']
+    function get_Path: TBStr; safecall;
+    procedure set_Path(pPath: TBStr); safecall;
+    function get_Arguments: TBStr; safecall;
+    procedure set_Arguments(pArgument: TBStr); safecall;
+    function get_WorkingDirectory: TBStr; safecall;
+    procedure set_WorkingDirectory(pWorkingDirectory: TBStr); safecall;
+    property Path: TBStr read get_Path write set_Path;
+    property Arguments: TBStr read get_Arguments write set_Arguments;
+    property WorkingDirectory: TBStr read get_WorkingDirectory write set_WorkingDirectory;
+  end;
+
+  IShowMessageAction = interface(IAction)
+    ['{505E9E68-AF89-46B8-A30F-56162A83D537}']
+    function get_Title: TBStr; safecall;
+    procedure set_Title(pTitle: TBStr); safecall;
+    function get_MessageBody: TBStr; safecall;
+    procedure set_MessageBody(pMessageBody: TBStr); safecall;
+    property Title: TBStr read get_Title write set_Title;
+    property MessageBody: TBStr read get_MessageBody write set_MessageBody;
+  end;
+
+  IActionCollection = interface(IDispatch)
+    ['{02820E19-7B98-4ED2-B2E8-FDCCCEFF619B}']
+    function get_Count: Integer; safecall;
+    function get_Item(index: Integer): IAction; safecall;
+    function get__NewEnum: IUnknown; safecall;
+    function get_XmlText: TBStr; safecall;
+    procedure set_XmlText(pText: TBStr); safecall;
+    function Create(ActionType: TASK_ACTION_TYPE; out ppAction: IAction): HRESULT; stdcall;
+    function Remove(index: OleVariant): HRESULT; stdcall;
+    function Clear: HRESULT; stdcall;
+    function get_Context: TBStr; safecall;
+    procedure set_Context(pContext: TBStr); safecall;
+    property Count: Integer read get_Count;
+    property Item[index: Integer]: IAction read get_Item; default;
+    property _NewEnum: IUnknown read get__NewEnum;
+    property XmlText: TBStr read get_XmlText write set_XmlText;
+    property Context: TBStr read get_Context write set_Context;
+  end;
+
   ITaskVariables = interface(IUnknown)
     ['{3E4C9351-D966-4B8B-BB87-CEBA68BB0107}']
     function GetInput(out pInput: TBStr): HRESULT; stdcall;
@@ -701,20 +701,6 @@ type
     property Principal: IPrincipal read get_Principal write set_Principal;
     property Actions: IActionCollection read get_Actions write set_Actions;
     property XmlText: TBStr read get_XmlText write set_XmlText;
-  end;
-
-  ITaskHandler = interface(IUnknown)
-    ['{839D7762-5121-4009-9234-4F0D19394F04}']
-    function Start(pHandlerServices: IUnknown; data: TBStr): HRESULT; stdcall;
-    function Stop(out pRetCode: HRESULT): HRESULT; stdcall;
-    function Pause: HRESULT; stdcall;
-    function Resume: HRESULT; stdcall;
-  end;
-
-  ITaskHandlerStatus = interface(IUnknown)
-    ['{EAEC7A8F-27A0-4DDC-8675-14726A01A38A}']
-    function UpdateStatus(percentComplete: SHORT; statusMessage: TBStr): HRESULT; stdcall;
-    function TaskCompleted(taskErrCode: HRESULT): HRESULT; stdcall;
   end;
 
   IRunningTask = interface(IDispatch)
@@ -791,6 +777,20 @@ type
     property _NewEnum: IUnknown read get__NewEnum;
   end;
 
+  ITaskHandler = interface(IUnknown)
+    ['{839D7762-5121-4009-9234-4F0D19394F04}']
+    function Start(pHandlerServices: IUnknown; data: TBStr): HRESULT; stdcall;
+    function Stop(out pRetCode: HRESULT): HRESULT; stdcall;
+    function Pause: HRESULT; stdcall;
+    function Resume: HRESULT; stdcall;
+  end;
+
+  ITaskHandlerStatus = interface(IUnknown)
+    ['{EAEC7A8F-27A0-4DDC-8675-14726A01A38A}']
+    function UpdateStatus(percentComplete: SHORT; statusMessage: TBStr): HRESULT; stdcall;
+    function TaskCompleted(taskErrCode: HRESULT): HRESULT; stdcall;
+  end;
+
   ITaskFolder = interface(IDispatch)
     ['{8CFAC062-A080-4C15-9A88-AA7C2AF80DFC}']
     function get_Name: TBStr; safecall;
@@ -809,7 +809,6 @@ type
       sddl: OleVariant; out ppTask: IRegisteredTask): HRESULT; stdcall;
     function GetSecurityDescriptor(securityInformation: Integer; out pSddl: TBStr): HRESULT; stdcall;
     function SetSecurityDescriptor(sddl: TBStr; flags: LONG): HRESULT; stdcall;
-
     property Name: TBStr read get_Name;
     property Path: TBStr read get_Path;
   end;
