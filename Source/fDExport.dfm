@@ -1098,6 +1098,10 @@ object DExport: TDExport
       ImageIndex = 9
       TabVisible = False
       OnShow = TSTaskShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)

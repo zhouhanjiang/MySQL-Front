@@ -1901,133 +1901,135 @@ begin
   ProgressInfos.Progress := 0;
   SendMessage(Handle, CM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos));
 
-  if (Assigned(DBGrid)) then
+  case (ExportType) of
+    etSQLFile:
+      try
+        ExportSQL := TTExportSQL.Create(Client, Filename, CodePage);
+        ExportSQL.CreateDatabaseStmts := FCreateDatabase.Checked;
+        ExportSQL.Data := FHTMLData.Checked;
+        ExportSQL.DisableKeys := FDisableKeys.Checked;
+        ExportSQL.IncludeDropStmts := FDrop.Checked;
+        ExportSQL.ReplaceData := FReplaceData.Checked;
+        ExportSQL.Structure := FSQLStructure.Checked;
+        ExportSQL.UseDatabaseStmts := FUseDatabase.Checked;
+
+        Export := ExportSQL;
+      except
+        MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+      end;
+    etTextFile:
+      try
+        ExportText := TTExportText.Create(Client, Filename, CodePage);
+        ExportText.Data := True;
+        if (FSeparatorTab.Checked) then
+          ExportText.Delimiter := #9;
+        if (FSeparatorChar.Checked) then
+          ExportText.Delimiter := FSeparator.Text;
+        ExportText.QuoteStringValues := FStringQuote.Checked;
+        ExportText.QuoteValues := FAllQuote.Checked;
+        ExportText.Quoter := FQuoteChar.Text[1];
+        ExportText.Structure := FCSVHeadline.Checked;
+
+        Export := ExportText;
+      except
+        MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+      end;
+    etExcelFile:
+      try
+        ExportExcel := TTExportExcel.Create(Client, Filename);
+        ExportExcel.Structure := True;
+
+        Export := ExportExcel;
+      except
+        MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+      end;
+    etXMLFile:
+      try
+        ExportXML := TTExportXML.Create(Client, Filename, CodePage);
+        if (FDatabaseTagName.Checked) then
+        begin
+          ExportXML.DatabaseTag := 'database';
+          ExportXML.DatabaseAttribute := '';
+        end
+        else if (FDatabaseTagFree.Checked) then
+        begin
+          ExportXML.DatabaseTag := FDatabaseTag.Text;
+          ExportXML.DatabaseAttribute := FDatabaseAttribute.Text;
+        end
+        else
+        begin
+          ExportXML.DatabaseTag := '';
+          ExportXML.DatabaseAttribute := '';
+        end;
+        ExportXML.RootTag := FRootTag.Text;
+        ExportXML.Structure := True;
+        if (FTableTagName.Checked) then
+        begin
+          ExportXML.TableTag := 'Table';
+          ExportXML.TableAttribute := '';
+        end
+        else if (FTableTagFree.Checked) then
+        begin
+          ExportXML.TableTag := FTableTag.Text;
+          ExportXML.TableAttribute := FTableAttribute.Text;
+        end
+        else
+        begin
+          ExportXML.TableTag := '';
+          ExportXML.TableAttribute := '';
+        end;
+        ExportXML.RecordTag := FRecordTag.Text;
+        if (FFieldTagName.Checked) then
+        begin
+          ExportXML.FieldTag := 'database';
+          ExportXML.FieldAttribute := '';
+        end
+        else
+        begin
+          ExportXML.FieldTag := FFieldTag.Text;
+          ExportXML.FieldAttribute := FFieldAttribute.Text;
+        end;
+
+        Export := ExportXML;
+      except
+        MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+      end;
+    etHTMLFile:
+      try
+        ExportHTML := TTExportHTML.Create(Client, Filename, CodePage);
+        ExportHTML.Data := FHTMLData.Checked;
+        ExportHTML.TextContent := FHTMLShowMemoContent.Checked;
+        ExportHTML.NULLText := FHTMLNullText.Checked;
+        ExportHTML.RowBackground := FHTMLRowBGColorEnabled.Checked;
+        ExportHTML.Structure := FHTMLStructure.Checked;
+
+        Export := ExportHTML;
+      except
+        MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+      end;
+    etPrinter,
+    etPDFFile:
+      try
+        if (ExportType = etPrinter) then
+          ExportPDF := TTExportPrint.Create(Client, Title)
+        else
+          ExportPDF := TTExportPDF.Create(Client, Filename);
+        ExportPDF.Data := FHTMLData.Checked;
+        ExportPDF.NULLText := FHTMLNullText.Checked;
+        ExportPDF.Structure := FHTMLStructure.Checked;
+
+        Export := ExportPDF;
+      except
+        MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+      end;
+  end;
+
+  if (Assigned(Export)) then
   begin
-    case (ExportType) of
-      etSQLFile:
-        try
-          ExportSQL := TTExportSQL.Create(Client, Filename, CodePage);
-          ExportSQL.CreateDatabaseStmts := FCreateDatabase.Checked;
-          ExportSQL.Data := FHTMLData.Checked;
-          ExportSQL.DisableKeys := FDisableKeys.Checked;
-          ExportSQL.IncludeDropStmts := FDrop.Checked;
-          ExportSQL.ReplaceData := FReplaceData.Checked;
-          ExportSQL.Structure := FSQLStructure.Checked;
-          ExportSQL.UseDatabaseStmts := FUseDatabase.Checked;
-
-          Export := ExportSQL;
-        except
-          MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-        end;
-      etTextFile:
-        try
-          ExportText := TTExportText.Create(Client, Filename, CodePage);
-          ExportText.Data := True;
-          if (FSeparatorTab.Checked) then
-            ExportText.Delimiter := #9;
-          if (FSeparatorChar.Checked) then
-            ExportText.Delimiter := FSeparator.Text;
-          ExportText.QuoteStringValues := FStringQuote.Checked;
-          ExportText.QuoteValues := FAllQuote.Checked;
-          ExportText.Quoter := FQuoteChar.Text[1];
-          ExportText.Structure := FCSVHeadline.Checked;
-
-          Export := ExportText;
-        except
-          MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-        end;
-      etExcelFile:
-        try
-          ExportExcel := TTExportExcel.Create(Client, Filename);
-          ExportExcel.Structure := True;
-
-          Export := ExportExcel;
-        except
-          MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-        end;
-      etXMLFile:
-        try
-          ExportXML := TTExportXML.Create(Client, Filename, CodePage);
-          if (FDatabaseTagName.Checked) then
-          begin
-            ExportXML.DatabaseTag := 'database';
-            ExportXML.DatabaseAttribute := '';
-          end
-          else if (FDatabaseTagFree.Checked) then
-          begin
-            ExportXML.DatabaseTag := FDatabaseTag.Text;
-            ExportXML.DatabaseAttribute := FDatabaseAttribute.Text;
-          end
-          else
-          begin
-            ExportXML.DatabaseTag := '';
-            ExportXML.DatabaseAttribute := '';
-          end;
-          ExportXML.RootTag := FRootTag.Text;
-          ExportXML.Structure := True;
-          if (FTableTagName.Checked) then
-          begin
-            ExportXML.TableTag := 'Table';
-            ExportXML.TableAttribute := '';
-          end
-          else if (FTableTagFree.Checked) then
-          begin
-            ExportXML.TableTag := FTableTag.Text;
-            ExportXML.TableAttribute := FTableAttribute.Text;
-          end
-          else
-          begin
-            ExportXML.TableTag := '';
-            ExportXML.TableAttribute := '';
-          end;
-          ExportXML.RecordTag := FRecordTag.Text;
-          if (FFieldTagName.Checked) then
-          begin
-            ExportXML.FieldTag := 'database';
-            ExportXML.FieldAttribute := '';
-          end
-          else
-          begin
-            ExportXML.FieldTag := FFieldTag.Text;
-            ExportXML.FieldAttribute := FFieldAttribute.Text;
-          end;
-
-          Export := ExportXML;
-        except
-          MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-        end;
-      etHTMLFile:
-        try
-          ExportHTML := TTExportHTML.Create(Client, Filename, CodePage);
-          ExportHTML.Data := FHTMLData.Checked;
-          ExportHTML.TextContent := FHTMLShowMemoContent.Checked;
-          ExportHTML.NULLText := FHTMLNullText.Checked;
-          ExportHTML.RowBackground := FHTMLRowBGColorEnabled.Checked;
-          ExportHTML.Structure := FHTMLStructure.Checked;
-
-          Export := ExportHTML;
-        except
-          MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-        end;
-      etPrinter,
-      etPDFFile:
-        try
-          if (ExportType = etPrinter) then
-            ExportPDF := TTExportPrint.Create(Client, Title)
-          else
-            ExportPDF := TTExportPDF.Create(Client, Filename);
-          ExportPDF.Data := FHTMLData.Checked;
-          ExportPDF.NULLText := FHTMLNullText.Checked;
-          ExportPDF.Structure := FHTMLStructure.Checked;
-
-          Export := ExportPDF;
-        except
-          MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-        end;
-    end;
-
-    if (Assigned(Export)) then
+    if (Assigned(DBGrid)) then
     begin
+      Export.Add(DBGrid);
+
       if (Length(FFields) = 0) then
       begin
         for I := 0 to DBGrid.Columns.Count - 1 do
@@ -2048,190 +2050,13 @@ begin
             SetLength(Export.DestinationFields, Length(Export.DestinationFields) + 1);
             Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := FDestFields[I].Text;
           end;
-
-      Export.Wnd := Handle;
-      Export.OnUpdate := OnUpdate;
-      Export.OnExecuted := OnExecuted;
-      Export.OnError := OnError;
-      Export.Add(DBGrid);
-      if (Export.Client.Asynchron) then
-        Export.Start()
-      else
-        Export.Execute();
-    end;
-  end
-  else
-  begin
-    Objects.Sort(DBObjectsSortItem);
-
-    case (ExportType) of
-      etSQLFile:
-        try
-          ExportSQL := TTExportSQL.Create(Client, Filename, CodePage);
-          ExportSQL.CreateDatabaseStmts := FCreateDatabase.Checked;
-          ExportSQL.Data := FSQLData.Checked;
-          ExportSQL.DisableKeys := FDisableKeys.Checked;
-          ExportSQL.IncludeDropStmts := FDrop.Checked;
-          ExportSQL.ReplaceData := FReplaceData.Checked;
-          ExportSQL.Structure := FSQLStructure.Checked;
-          ExportSQL.UseDatabaseStmts := FUseDatabase.Checked;
-          for I := 0 to Objects.Count - 1 do
-            ExportSQL.Add(TCDBObject(Objects[I]));
-
-          Export := ExportSQL;
-        except
-          MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-        end;
-      etTextFile:
-        try
-          ExportText := TTExportText.Create(Client, Filename, CodePage);
-          ExportText.Data := True;
-          if (FSeparatorTab.Checked) then
-            ExportText.Delimiter := #9;
-          if (FSeparatorChar.Checked) then
-            ExportText.Delimiter := FSeparator.Text;
-          ExportText.QuoteStringValues := FStringQuote.Checked;
-          ExportText.QuoteValues := FAllQuote.Checked;
-          ExportText.Quoter := FQuoteChar.Text[1];
-          ExportText.Structure := FCSVHeadline.Checked;
-          for I := 0 to Objects.Count - 1 do
-            ExportText.Add(TCDBObject(Objects[I]));
-
-          Export := ExportText;
-        except
-          MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-        end;
-      etExcelFile:
-        try
-          Export := TTExportExcel.Create(Client, Filename);
-          Export.Data := True;
-          Export.Structure := True;
-          for I := 0 to Objects.Count - 1 do
-            Export.Add(TCDBObject(Objects[I]));
-        except
-          MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-        end;
-      etAccessFile:
-        try
-          Export := TTExportAccess.Create(Client, Filename);
-          Export.Structure := True;
-          Export.Data := True;
-          for I := 0 to Objects.Count - 1 do
-            if (TCDBObject(Objects[I]) is TCBaseTable) then
-              Export.Add(TCDBObject(Objects[I]));
-        except
-          MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-        end;
-      etODBC:
-        begin
-          Export := TTExportODBC.Create(Client, ODBCEnv, ODBC);
-          Export.Data := True;
-          Export.Structure := True;
-          for I := 0 to Objects.Count - 1 do
-            if (TCDBObject(Objects[I]) is TCBaseTable) then
-              Export.Add(TCDBObject(Objects[I]));
-        end;
-      etSQLiteFile:
-        try
-          Export := TTExportSQLite.Create(Client, Filename);
-          Export.Data := True;
-          Export.Structure := True;
-          for I := 0 to Objects.Count - 1 do
-            if (TCDBObject(Objects[I]) is TCBaseTable) then
-              Export.Add(TCDBObject(Objects[I]));
-        except
-          MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-        end;
-      etXMLFile:
-        try
-          ExportXML := TTExportXML.Create(Client, Filename, CodePage);
-          ExportXML.Data := True;
-          if (FDatabaseTagName.Checked) then
-          begin
-            ExportXML.DatabaseTag := 'database';
-            ExportXML.DatabaseAttribute := '';
-          end
-          else if (FDatabaseTagFree.Checked) then
-          begin
-            ExportXML.DatabaseTag := FDatabaseTag.Text;
-            ExportXML.DatabaseAttribute := FDatabaseAttribute.Text;
-          end
-          else
-          begin
-            ExportXML.DatabaseTag := '';
-            ExportXML.DatabaseAttribute := '';
-          end;
-          ExportXML.RootTag := FRootTag.Text;
-          ExportXML.Structure := True;
-          if (FTableTagName.Checked) then
-          begin
-            ExportXML.TableTag := 'Table';
-            ExportXML.TableAttribute := '';
-          end
-          else if (FTableTagFree.Checked) then
-          begin
-            ExportXML.TableTag := FTableTag.Text;
-            ExportXML.TableAttribute := FTableAttribute.Text;
-          end
-          else
-          begin
-            ExportXML.TableTag := '';
-            ExportXML.TableAttribute := '';
-          end;
-          ExportXML.RecordTag := FRecordTag.Text;
-          if (FFieldTagName.Checked) then
-          begin
-            ExportXML.FieldTag := 'database';
-            ExportXML.FieldAttribute := '';
-          end
-          else
-          begin
-            ExportXML.FieldTag := FFieldTag.Text;
-            ExportXML.FieldAttribute := FFieldAttribute.Text;
-          end;
-          for I := 0 to Objects.Count - 1 do
-            ExportXML.Add(TCDBObject(Objects[I]));
-
-          Export := ExportXML;
-        except
-          MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-        end;
-      etHTMLFile:
-        try
-          ExportHTML := TTExportHTML.Create(Client, Filename, CodePage);
-          ExportHTML.Data := FHTMLData.Checked;
-          ExportHTML.TextContent := FHTMLShowMemoContent.Checked;
-          ExportHTML.NULLText := FHTMLNullText.Checked;
-          ExportHTML.RowBackground := FHTMLRowBGColorEnabled.Checked;
-          ExportHTML.Structure := FHTMLStructure.Checked;
-          for I := 0 to Objects.Count - 1 do
-            ExportHTML.Add(TCDBObject(Objects[I]));
-
-          Export := ExportHTML;
-        except
-          MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-        end;
-      etPrinter,
-      etPDFFile:
-        try
-          if (ExportType = etPrinter) then
-            ExportPDF := TTExportPrint.Create(Client, Title)
-          else
-            ExportPDF := TTExportPDF.Create(Client, Filename);
-          ExportPDF.Data := FHTMLData.Checked;
-          ExportPDF.NULLText := FHTMLNullText.Checked;
-          ExportPDF.Structure := FHTMLStructure.Checked;
-          for I := 0 to Objects.Count - 1 do
-            ExportPDF.Add(TCDBObject(Objects[I]));
-
-          Export := ExportPDF;
-        except
-          MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-        end;
-    end;
-
-    if (Assigned(Export)) then
+    end
+    else
     begin
+      Objects.Sort(DBObjectsSortItem);
+      for I := 0 to Objects.Count - 1 do
+        Export.Add(TCDBObject(Objects[I]));
+
       if ((Objects.Count = 1) and (TCDBObject(Objects[0]) is TCTable)) then
         for I := 0 to Length(FFields) - 1 do
           if (FFields[I].ItemIndex > 0) then
@@ -2241,17 +2066,17 @@ begin
             SetLength(Export.DestinationFields, Length(Export.DestinationFields) + 1);
             Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := FDestFields[I].Text;
           end;
-
-      Export.Wnd := Handle;
-      Export.OnUpdate := OnUpdate;
-      Export.OnExecuted := OnExecuted;
-      Export.OnError := OnError;
-
-      if (Export.Client.Asynchron) then
-        Export.Start()
-      else
-        Export.Execute();
     end;
+
+    Export.Wnd := Handle;
+    Export.OnUpdate := OnUpdate;
+    Export.OnExecuted := OnExecuted;
+    Export.OnError := OnError;
+
+    if (Export.Client.Asynchron) then
+      Export.Start()
+    else
+      Export.Execute();
   end;
 end;
 
