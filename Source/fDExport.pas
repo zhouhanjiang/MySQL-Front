@@ -1951,6 +1951,7 @@ begin
     etExcelFile:
       try
         ExportExcel := TTExportExcel.Create(Client, Filename);
+        ExportExcel.Data := True;
         ExportExcel.Structure := True;
 
         Export := ExportExcel;

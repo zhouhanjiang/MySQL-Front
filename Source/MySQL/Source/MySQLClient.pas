@@ -1083,12 +1083,14 @@ var
 begin
   BytesRead := 0;
   repeat
+Len := -1; // Debug 04.10.2012
     case (IOType) of
       itNamedPipe:
         begin
           Result := ReadFile(Pipe, PAnsiChar(@AnsiChar(Buffer))[BytesRead], BytesToRead - BytesRead, Size, nil);
           if (not Result) then
-            Len := -1
+//            Len := -1
+            RaiseLastOSError()
           else
             Len := Size;
        end;
@@ -1103,18 +1105,22 @@ begin
 
           Result := Size > 0;
           if (not Result) then
-            Len := -1
+            raise Exception.Create('Size <= 0')
+//            Len := -1
           else
           begin
             FD_ZERO(ReadFDS); FD_SET(Socket, ReadFDS);
             Time.tv_sec := NET_WAIT_TIMEOUT; Time.tv_usec := Time.tv_sec * 1000;
             Result := select(0, @ReadFDS, nil, nil, @Time) > 0;
             if (not Result) then
-              Len := -1
+                raise Exception.Create('select error: ' + IntToStr(WSAGetLastError()))
+//              Len := -1
             else
             begin
               Len := recv(Socket, PAnsiChar(@AnsiChar(Buffer))[BytesRead], BytesToRead - BytesRead, 0);
               Result := Len <> SOCKET_ERROR;
+              if (not Result) then
+                raise Exception.Create('recv error: ' + IntToStr(WSAGetLastError()));
             end;
           end;
         end;
