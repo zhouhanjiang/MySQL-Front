@@ -6070,10 +6070,10 @@ begin
 
   if (Success = daSuccess) then
   begin
-//    if (SysUtils.LowerCase(ExtractFileExt(Filename)) = '.xls') then
-      ConnStrIn := 'Driver=Driver={Microsoft Excel Driver (*.xls)};DBQ=' + Filename + ';READONLY=FALSE'
-//    else
-;//      ConnStrIn := 'Driver={Microsoft Excel Driver (*.xls, *.xlsx, *.xlsm, *.xlsb)};DBQ=' + Filename + ';READONLY=FALSE';
+    if (SysUtils.LowerCase(ExtractFileExt(Filename)) = '.xls') then
+      ConnStrIn := 'Driver={Microsoft Excel Driver (*.xls)};DBQ=' + Filename + ';READONLY=FALSE'
+    else
+      ConnStrIn := 'Driver={Microsoft Excel Driver (*.xls, *.xlsx, *.xlsm, *.xlsb)};DBQ=' + Filename + ';READONLY=FALSE';
 
     if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, @ODBC))
       or not SQL_SUCCEEDED(SQLSetEnvAttr(ODBC, SQL_ATTR_ODBC_VERSION, SQLPOINTER(SQL_OV_ODBC3), SQL_IS_UINTEGER))) then
