@@ -1,4 +1,4 @@
-program MySQLFront;
+﻿program MySQLFront;
 
 uses
   {$IFDEF Debug}
@@ -26,9 +26,9 @@ uses
   ComCtrls_Ext in 'VCL\Source\ComCtrls_Ext.pas',
   CommCtrl_Ext in 'VCL\Source\CommCtrl_Ext.pas',
   Forms_Ext in 'VCL\Source\Forms_Ext.pas',
-  fAccount in 'fAccount.pas',
-  fClient in 'fClient.pas',
+  fJob in 'fJob.pas',
   fPreferences in 'fPreferences.pas',
+  fSession in 'fSession.pas',
   fTools in 'fTools.pas',
   fURI in 'fURI.pas',
   fBase in 'fBase.pas',
@@ -42,8 +42,6 @@ uses
   fDExport in 'fDExport.pas' {DExport},
   fDField in 'fDField.pas' {DField},
   fDForeignKey in 'fDForeignKey.pas' {DForeignKey},
-  fDHost in 'fDHost.pas' {DHost},
-  fDHostDatabase in 'fDHostDatabase.pas' {DHostDatabase},
   fDImport in 'fDImport.pas' {DImport},
   fDInfo in 'fDInfo.pas' {DInfo},
   fDInstallUpdate in 'fDInstallUpdate.pas' {DInstallUpdate},
@@ -74,10 +72,22 @@ uses
 
 {$R *.res}
 
+var
+  JobExecution: TJobExecution;
+  Name1: string;
+  Name2: string;
+  Value1: string;
+  Value2: string;
 begin
   Preferences := TPPreferences.Create();
 
-  if ((Preferences.SetupProgram <> '') and not Preferences.SetupProgramInstalled and (FindWindow(cWindowClassName + '.UnicodeClass', nil) = 0)) then
+  if ((ParamCount() = 2) and TrySplitParam(ParamStr(1), Name1, Value1) and TrySplitParam(ParamStr(2), Name2, Value2) and (UpperCase(Name1) = 'ACCOUNT') and (UpperCase(Name2) = 'JOB')) then
+  begin
+    JobExecution := TJobExecution.Create(Value1, Value2);
+    ExitCode := JobExecution.Execute();
+    JobExecution.Free();
+  end
+  else if ((Preferences.SetupProgram <> '') and not Preferences.SetupProgramInstalled and (FindWindow(cWindowClassName + '.UnicodeClass', nil) = 0)) then
     Preferences.SetupProgramInstalled := ShellExecute(0, 'open', PChar(Preferences.SetupProgram), '/SILENT /NOICONS /TASKS=""', nil, SW_SHOW) >= 32
   else
   begin
