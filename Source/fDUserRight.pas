@@ -6,7 +6,8 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls,
   StdCtrls_Ext, Forms_Ext,
-  fClient, fBase;
+  fSession,
+  fBase;
 
 type
   TDUserRight = class (TForm_Ext)
@@ -79,9 +80,9 @@ type
   protected
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
-    Client: TCClient;
-    User: TCUser;
-    UserRight: TCUserRight;
+    Client: TSSession;
+    User: TSUser;
+    UserRight: TSUserRight;
     function Execute(): Boolean;
   end;
 
@@ -305,7 +306,7 @@ begin
   begin
     FDatabases.Items.BeginUpdate();
     for I := 0 to Client.Databases.Count - 1 do
-      if (not (Client.Databases[I] is TCSystemDatabase)) then
+      if (not (Client.Databases[I] is TSSystemDatabase)) then
         FDatabases.Items.Add(Client.Databases[I].Name);
     FDatabases.Items.EndUpdate();
   end;
@@ -325,9 +326,9 @@ end;
 
 procedure TDUserRight.FFieldsDropDown(Sender: TObject);
 var
-  Database: TCDatabase;
+  Database: TSDatabase;
   I: Integer;
-  Table: TCBaseTable;
+  Table: TSBaseTable;
 begin
   if (FFields.Items.Count = 0) then
   begin
@@ -354,7 +355,7 @@ end;
 
 procedure TDUserRight.FFunctionsDropDown(Sender: TObject);
 var
-  Database: TCDatabase;
+  Database: TSDatabase;
   I: Integer;
 begin
   if (FFunctions.Items.Count = 0) then
@@ -374,11 +375,11 @@ end;
 procedure TDUserRight.FormCloseQuery(Sender: TObject;
   var CanClose: Boolean);
 var
-  NewUserRight: TCUserRight;
+  NewUserRight: TSUserRight;
 begin
   if (ModalResult = mrOk) then
   begin
-    NewUserRight := TCUserRight.Create();
+    NewUserRight := TSUserRight.Create();
     if (Assigned(UserRight)) then
       NewUserRight.Assign(UserRight);
 
@@ -558,7 +559,7 @@ end;
 
 procedure TDUserRight.FProceduresDropDown(Sender: TObject);
 var
-  Database: TCDatabase;
+  Database: TSDatabase;
   I: Integer;
 begin
   if (FProcedures.Items.Count = 0) then
@@ -599,7 +600,7 @@ end;
 
 procedure TDUserRight.FTablesDropDown(Sender: TObject);
 var
-  Database: TCDatabase;
+  Database: TSDatabase;
   I: Integer;
 begin
   if (FTables.Items.Count = 0) then

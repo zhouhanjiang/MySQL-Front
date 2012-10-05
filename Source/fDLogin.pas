@@ -4,9 +4,10 @@ interface {********************************************************************}
 
 uses
   Windows, Messages, SysUtils, Classes, Controls, Forms, WinCred,
-  Dialogs, StdCtrls,
-  Forms_Ext,
-  fClient, fBase, fPreferences, ExtCtrls, StdCtrls_Ext;
+  Dialogs, StdCtrls, ExtCtrls,
+  Forms_Ext, StdCtrls_Ext,
+  fSession, fPreferences,
+  fBase;
 
 const
   CREDUI_MAX_MESSAGE_LENGTH        = 32767;

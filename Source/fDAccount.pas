@@ -6,7 +6,7 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, ComCtrls, ExtCtrls,
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext, Dialogs_Ext,
-  fPreferences, fBase, fClient, SynEdit, SynMemo, Menus;
+  fPreferences, fBase, fSession, SynEdit, SynMemo, Menus;
 
 type
   TDAccountShowType = (stDefault, stLogin);
@@ -156,12 +156,12 @@ end;
 
 procedure TDAccount.FBDatabaseClick(Sender: TObject);
 var
-  Client: TCClient;
+  Client: TSSession;
   LibraryName: string;
 begin
   if (CheckConnectInfos()) then
   begin
-    Client := TCClient.Create(Clients);
+    Client := TSSession.Create(Clients);
     if (Assigned(Client)) then
     begin
       case (FConnectionType.ItemIndex) of

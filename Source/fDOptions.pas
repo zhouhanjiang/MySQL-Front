@@ -7,7 +7,8 @@ uses
   Dialogs, ExtCtrls, ComCtrls, StdCtrls,
   SynEdit, SynEditHighlighter, SynHighlighterSQL, SynMemo,
   ExtCtrls_Ext, StdCtrls_Ext, ComCtrls_Ext, Forms_Ext,
-  fPreferences, fClient, fBase;
+  fPreferences, fSession,
+  fBase;
 
 type
   TIniFileRecord = record

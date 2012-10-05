@@ -4,10 +4,10 @@ interface {********************************************************************}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ComCtrls,
+  Dialogs, StdCtrls, ComCtrls, ExtCtrls,
   ODBCAPI,
-  Forms_Ext,
-  fBase, fClient, StdCtrls_Ext, Vcl.ExtCtrls;
+  Forms_Ext, StdCtrls_Ext,
+  fBase, fSession;
 
 type
   TDDatabases = class (TForm_Ext)
@@ -25,11 +25,11 @@ type
   private
     procedure Built();
     procedure FBOkCheckEnabled(Sender: TObject);
-    procedure FormClientEvent(const Event: TCClient.TEvent);
+    procedure FormClientEvent(const Event: TSSession.TEvent);
   protected
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
-    Client: TCClient;
+    Client: TSSession;
     ODBCEnv: SQLHENV;
     SelectedDatabases: string;
     function Execute(): Boolean;
@@ -72,7 +72,7 @@ var
 begin
   for I := 0 to Client.Databases.Count - 1 do
   begin
-    if (not (Client.Databases[I] is TCSystemDatabase)) then
+    if (not (Client.Databases[I] is TSSystemDatabase)) then
     begin
       Item := FDatabases.Items.Add();
       Item.Caption := Client.Databases[I].Name;
@@ -141,7 +141,7 @@ begin
   FBOk.Click();
 end;
 
-procedure TDDatabases.FormClientEvent(const Event: TCClient.TEvent);
+procedure TDDatabases.FormClientEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType in [ceItemsValid]) and (Event.CItems = Client.Databases)) then
     Built();

@@ -7,7 +7,7 @@ uses
   Dialogs, StdCtrls, Menus, ComCtrls,
   SynEdit, SynMemo,
   Forms_Ext, StdCtrls_Ext,
-  fClient, fBase, Vcl.ExtCtrls;
+  fSession, fBase, Vcl.ExtCtrls;
                                                              
 type
   TDDatabase = class (TForm_Ext)
@@ -55,12 +55,12 @@ type
     procedure TSSourceShow(Sender: TObject);
   private
     procedure Built();
-    procedure FormClientEvent(const Event: TCClient.TEvent);
+    procedure FormClientEvent(const Event: TSSession.TEvent);
     function GetName(): string;
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
-    Client: TCClient;
-    Database: TCDatabase;
+    Client: TSSession;
+    Database: TSDatabase;
     function Execute(): Boolean;
     property Name: string read GetName;
   end;
@@ -193,7 +193,7 @@ end;
 
 procedure TDDatabase.FDefaultCharsetChange(Sender: TObject);
 var
-  Charset: TCCharset;
+  Charset: TSCharset;
   I: Integer;
 begin
   Charset := Client.CharsetByName(FDefaultCharset.Text);
@@ -223,11 +223,11 @@ begin
   TSSource.TabVisible := False;
 end;
 
-procedure TDDatabase.FormClientEvent(const Event: TCClient.TEvent);
+procedure TDDatabase.FormClientEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = ceItemValid) and (Event.CItem = Database)) then
     Built()
-  else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.CItem is TCDatabase)) then
+  else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.CItem is TSDatabase)) then
     ModalResult := mrOk
   else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Client.ErrorCode <> 0)) then
   begin
@@ -239,11 +239,11 @@ end;
 procedure TDDatabase.FormCloseQuery(Sender: TObject;
   var CanClose: Boolean);
 var
-  NewDatabase: TCDatabase;
+  NewDatabase: TSDatabase;
 begin
   if ((ModalResult = mrOk) and PageControl.Visible) then
   begin
-    NewDatabase := TCDatabase.Create(Client);
+    NewDatabase := TSDatabase.Create(Client);
     if (Assigned(Database)) then
       NewDatabase.Assign(Database);
 

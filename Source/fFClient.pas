@@ -10,12 +10,12 @@ uses
   MPHexEditor, MPHexEditorEx,
   SynEdit, SynEditHighlighter, SynMemo, SynEditMiscClasses, SynEditSearch,
   SynCompletionProposal, SynEditPrint,
-  acSQL92SynProvider, acQBBase, acAST, acQBEventMetaProvider, acMYSQLSynProvider, acSQLBuilderPlainText,
+  acQBBase, acAST, acQBEventMetaProvider, acMYSQLSynProvider, acSQLBuilderPlainText,
   ShellControls, JAMControls, ShellLink,
   ComCtrls_Ext, StdCtrls_Ext, Dialogs_Ext, Forms_Ext, ExtCtrls_Ext,
   MySQLDB, MySQLDBGrid,
-  fDExport, fDImport, fClient, fBase, fPreferences, fTools,
-  fCWorkbench;
+  fSession, fPreferences, fTools,
+  fDExport, fDImport, fCWorkbench, fBase;
 
 const
   CM_ACTIVATE_DBGRID = WM_USER + 500;
@@ -732,13 +732,13 @@ type
       property ActiveDBGrid: TMySQLDBGrid read GetActiveDBGrid;
     end;
 
-    TCObjectDesktop = class(TCObject.TDesktop)
+    TCObjectDesktop = class(TSObject.TDesktop)
     private
       FFClient: TFClient;
     protected
       property FClient: TFClient read FFClient;
     public
-      constructor Create(const AFClient: TFClient; const ACObject: TCObject);
+      constructor Create(const AFClient: TFClient; const ACObject: TSObject);
     end;
 
     TDatabaseDesktop = class(TCObjectDesktop)
@@ -748,7 +748,7 @@ type
       FDBGrid: TMySQLDBGrid;
       PDBGrid: TPanel_Ext;
       FXML: IXMLNode;
-      function GetDatabase(): TCDatabase; inline;
+      function GetDatabase(): TSDatabase; inline;
       function GetXML(): IXMLNode;
     protected
       FWorkbench: TWWorkbench;
@@ -757,12 +757,12 @@ type
       function BuilderResultEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
       procedure CloseBuilderResult();
       procedure CloseQuery(Sender: TObject; var CanClose: Boolean);
-      constructor Create(const AFClient: TFClient; const ADatabase: TCDatabase);
+      constructor Create(const AFClient: TFClient; const ADatabase: TSDatabase);
       function CreateListView(): TListView; virtual;
       function CreateWorkbench(): TWWorkbench; virtual;
       destructor Destroy(); override;
       property DBGrid: TMySQLDBGrid read FDBGrid;
-      property Database: TCDatabase read GetDatabase;
+      property Database: TSDatabase read GetDatabase;
       property Workbench: TWWorkbench read FWorkbench;
       property XML: IXMLNode read GetXML;
     end;
@@ -777,7 +777,7 @@ type
       function GetGridXML(FieldName: string): IXMLNode;
       function GetLimit(): Integer;
       function GetLimited(): Boolean;
-      function GetTable(): TCTable; inline;
+      function GetTable(): TSTable; inline;
       function GetXML(): IXMLNode;
       procedure SetLimit(const Limit: Integer);
       procedure SetLimited(const ALimited: Boolean);
@@ -787,7 +787,7 @@ type
       DBGrid: TMySQLDBGrid;
       ListView: TListView;
       procedure AddFilter(const AFilter: string);
-      constructor Create(const AFClient: TFClient; const ATable: TCTable);
+      constructor Create(const AFClient: TFClient; const ATable: TSTable);
       function CreateDBGrid(): TMySQLDBGrid; virtual;
       function CreateListView(): TListView; virtual;
       procedure DataSetAfterOpen(DataSet: TDataSet);
@@ -796,14 +796,14 @@ type
       property FilterCount: Integer read GetFilterCount;
       property Limit: Integer read GetLimit write SetLimit;
       property Limited: Boolean read GetLimited write SetLimited;
-      property Table: TCTable read GetTable;
+      property Table: TSTable read GetTable;
       property XML: IXMLNode read GetXML;
     end;
 
     TViewDesktop = class(TTableDesktop)
     public
       SynMemo: TSynMemo;
-      constructor Create(const AFClient: TFClient; const AView: TCView);
+      constructor Create(const AFClient: TFClient; const AView: TSView);
       function CreateSynMemo(): TSynMemo; virtual;
       destructor Destroy(); override;
     end;
@@ -824,7 +824,7 @@ type
     public
       SynMemo: TSynMemo;
       procedure CloseIDEResult();
-      constructor Create(const AFClient: TFClient; const ARoutine: TCRoutine);
+      constructor Create(const AFClient: TFClient; const ARoutine: TSRoutine);
       function CreateSynMemo(): TSynMemo; virtual;
       destructor Destroy(); override;
       function IDEResultEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
@@ -834,7 +834,7 @@ type
     TEventDesktop = class(TCObjectDesktop)
     public
       SynMemo: TSynMemo;
-      constructor Create(const AFClient: TFClient; const AEvent: TCEvent);
+      constructor Create(const AFClient: TFClient; const AEvent: TSEvent);
       function CreateSynMemo(): TSynMemo; virtual;
       destructor Destroy(); override;
     end;
@@ -842,7 +842,7 @@ type
     TTriggerDesktop = class(TCObjectDesktop)
     public
       SynMemo: TSynMemo;
-      constructor Create(const AFClient: TFClient; const ATrigger: TCTrigger);
+      constructor Create(const AFClient: TFClient; const ATrigger: TSTrigger);
       function CreateSynMemo(): TSynMemo; virtual;
       destructor Destroy(); override;
     end;
@@ -852,12 +852,12 @@ type
       FAction: TAction;
       FAddress: string;
       FClient: TFClient;
-      FUpdate: TCClient.TUpdate;
+      FUpdate: TSSession.TUpdate;
       procedure Clear();
       function GetNothing(): Boolean;
       procedure SetAction(const AAction: TAction);
       procedure SetAddress(const AAddress: string);
-      procedure SetUpdate(const AUpdate: TCClient.TUpdate);
+      procedure SetUpdate(const AUpdate: TSSession.TUpdate);
     protected
       procedure Synchronize();
     public
@@ -865,7 +865,7 @@ type
       procedure Execute();
       property Action: TAction read FAction write SetAction;
       property Address: string read FAddress write SetAddress;
-      property Update: TCClient.TUpdate read FUpdate write SetUpdate;
+      property Update: TSSession.TUpdate read FUpdate write SetUpdate;
       property Nothing: Boolean read GetNothing;
     end;
 
@@ -949,23 +949,23 @@ type
     procedure BeforeConnect(Sender: TObject);
     procedure BeforeExecuteSQL(Sender: TObject);
     procedure BeginEditLabel(Sender: TObject);
-    procedure ClientUpdate(const Event: TCClient.TEvent);
+    procedure ClientUpdate(const Event: TSSession.TEvent);
     function ColumnWidthKindFromImageIndex(const AImageIndex: Integer): TADesktop.TListViewKind;
-    function CreateDesktop(const CObject: TCObject): TCObject.TDesktop;
+    function CreateDesktop(const CObject: TSObject): TSObject.TDesktop;
     procedure CreateExplorer();
     function CreateDBGrid(const PDBGrid: TPanel_Ext; const DataSource: TDataSource): TMySQLDBGrid;
     function CreateListView(const Data: TCustomData): TListView;
     function CreatePDBGrid(): TPanel_Ext;
     function CreateSynMemo(): TSynMemo;
     function CreateTCResult(const PDBGrid: TPanel_Ext): TTabControl;
-    function CreateWorkbench(const ADatabase: TCDatabase): TWWorkbench;
+    function CreateWorkbench(const ADatabase: TSDatabase): TWWorkbench;
     procedure DBGridInitialize(const DBGrid: TMySQLDBGrid);
-    function Desktop(const Database: TCDatabase): TDatabaseDesktop; overload; inline;
-    function Desktop(const Event: TCEvent): TEventDesktop; overload; inline;
-    function Desktop(const Routine: TCRoutine): TRoutineDesktop; overload; inline;
-    function Desktop(const Table: TCTable): TTableDesktop; overload; inline;
-    function Desktop(const Trigger: TCTrigger): TTriggerDesktop; overload; inline;
-    function Desktop(const View: TCView): TViewDesktop; overload; inline;
+    function Desktop(const Database: TSDatabase): TDatabaseDesktop; overload; inline;
+    function Desktop(const Event: TSEvent): TEventDesktop; overload; inline;
+    function Desktop(const Routine: TSRoutine): TRoutineDesktop; overload; inline;
+    function Desktop(const Table: TSTable): TTableDesktop; overload; inline;
+    function Desktop(const Trigger: TSTrigger): TTriggerDesktop; overload; inline;
+    function Desktop(const View: TSView): TViewDesktop; overload; inline;
     function Dragging(const Sender: TObject): Boolean;
     procedure EndEditLabel(Sender: TObject);
     function FBuilderActiveSelectList(): TacQueryBuilderSelectListControl;
@@ -983,8 +983,8 @@ type
     procedure FNavigatorEmptyExecute(Sender: TObject);
     procedure FNavigatorInitialize(Sender: TObject);
     function FNavigatorNodeByAddress(const Address: string): TTreeNode;
-    procedure FNavigatorUpdate(const ClientEvent: TCClient.TEvent);
-    procedure FormClientEvent(const Event: TCClient.TEvent);
+    procedure FNavigatorUpdate(const ClientEvent: TSSession.TEvent);
+    procedure FormClientEvent(const Event: TSSession.TEvent);
     procedure FormAccountEvent(const ClassType: TClass);
     procedure FreeDBGrid(const DBGrid: TMySQLDBGrid);
     procedure FreeListView(const ListView: TListView);
@@ -996,11 +996,11 @@ type
     function GetActiveListView(): TListView;
     function GetActiveSynMemo(): TSynMemo;
     function GetActiveWorkbench(): TWWorkbench;
-    function GetFocusedCItem(): TCItem;
+    function GetFocusedCItem(): TSItem;
     function GetFocusedDatabaseNames(): string;
     function GetFocusedTableName(): string;
     function GetPath(): TFileName; inline;
-    function GetMenuDatabase(): TCDatabase;
+    function GetMenuDatabase(): TSDatabase;
     function GetSelectedDatabase(): string;
     function GetSelectedImageIndex(): Integer;
     function GetView(): TView;
@@ -1011,7 +1011,7 @@ type
     procedure ImportError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure ListViewEmpty(Sender: TObject);
     procedure ListViewInitialize(const ListView: TListView);
-    procedure ListViewUpdate(const ClientEvent: TCClient.TEvent; const ListView: TListView; const Data: TCustomData = nil);
+    procedure ListViewUpdate(const ClientEvent: TSSession.TEvent; const ListView: TListView; const Data: TCustomData = nil);
     procedure MGridHeaderMenuOrderClick(Sender: TObject);
     function NavigatorNodeToAddress(const Node: TTreeNode): string;
     procedure OnConvertError(Sender: TObject; Text: string);
@@ -1021,7 +1021,7 @@ type
     function PostObject(Sender: TObject): Boolean;
     procedure PropertiesServerExecute(Sender: TObject);
     procedure PSQLEditorUpdate();
-    function RenameCItem(const CItem: TCItem; const NewName: string): Boolean;
+    function RenameCItem(const CItem: TSItem; const NewName: string): Boolean;
     procedure SaveSQLFile(Sender: TObject);
     procedure SBResultRefresh(const DataSet: TMySQLDataSet);
     procedure SendQuery(Sender: TObject; const SQL: string);
@@ -1060,19 +1060,19 @@ type
     procedure WMNotify(var Message: TWMNotify); message WM_NOTIFY;
     procedure WMParentNotify(var Message: TWMParentNotify); message WM_PARENTNOTIFY;
     procedure WMTimer(var Message: TWMTimer); message WM_TIMER;
-    property FocusedCItem: TCItem read GetFocusedCItem;
+    property FocusedCItem: TSItem read GetFocusedCItem;
     property FocusedDatabaseNames: string read GetFocusedDatabaseNames;
     property FocusedTableNames: string read GetFocusedTableName;
-    property MenuDatabase: TCDatabase read GetMenuDatabase;
+    property MenuDatabase: TSDatabase read GetMenuDatabase;
     property SelectedImageIndex: Integer read GetSelectedImageIndex;
   protected
     procedure CreateParams(var Params: TCreateParams); override;
   public
     ActiveDBGrid: TMySQLDBGrid;
-    Client: TCClient;
+    Client: TSSession;
     StatusBar: TStatusBar;
     ToolBarData: TToolBarData;
-    constructor Create(const AOwner: TComponent; const AParent: TWinControl; const AClient: TCClient; const AParam: string); reintroduce;
+    constructor Create(const AOwner: TComponent; const AParent: TWinControl; const AClient: TSSession; const AParam: string); reintroduce;
     destructor Destroy(); override;
     function AddressToCaption(const AAddress: string): string;
     procedure aEFindExecute(Sender: TObject);
@@ -1178,7 +1178,7 @@ begin
           Result := FindChildByClassType(TWinControl(Control.Controls[I]), ClassType);
 end;
 
-function CopyName(const Name: string; const Items: TCItems): string;
+function CopyName(const Name: string; const Items: TSItems): string;
 var
   I: Integer;
 begin
@@ -1349,7 +1349,7 @@ end;
 
 { TFClient.TCObjectDesktop ****************************************************}
 
-constructor TFClient.TCObjectDesktop.Create(const AFClient: TFClient; const ACObject: TCObject);
+constructor TFClient.TCObjectDesktop.Create(const AFClient: TFClient; const ACObject: TSObject);
 begin
   FFClient := AFClient;
 
@@ -1404,7 +1404,7 @@ begin
       DeleteFile(FClient.Client.Account.DataPath + Database.Name + PathDelim + 'Diagram.xml');
 end;
 
-constructor TFClient.TDatabaseDesktop.Create(const AFClient: TFClient; const ADatabase: TCDatabase);
+constructor TFClient.TDatabaseDesktop.Create(const AFClient: TFClient; const ADatabase: TSDatabase);
 begin
   inherited Create(AFClient, ADatabase);
 
@@ -1460,9 +1460,9 @@ begin
   inherited;
 end;
 
-function TFClient.TDatabaseDesktop.GetDatabase(): TCDatabase;
+function TFClient.TDatabaseDesktop.GetDatabase(): TSDatabase;
 begin
-  Result := TCDatabase(CObject);
+  Result := TSDatabase(CObject);
 end;
 
 function TFClient.TDatabaseDesktop.GetXML(): IXMLNode;
@@ -1518,7 +1518,7 @@ begin
     FiltersXML.ChildNodes.Delete(0);
 end;
 
-constructor TFClient.TTableDesktop.Create(const AFClient: TFClient; const ATable: TCTable);
+constructor TFClient.TTableDesktop.Create(const AFClient: TFClient; const ATable: TSTable);
 begin
   inherited Create(AFClient, ATable);
 
@@ -1567,7 +1567,7 @@ begin
 
   FClient.DataSetAfterOpen(DataSet);
 
-  DBGrid.ReadOnly := Table is TCSystemView;
+  DBGrid.ReadOnly := Table is TSSystemView;
 
   DBGrid.Columns.BeginUpdate();
   for I := 0 to DBGrid.Columns.Count - 1 do
@@ -1697,9 +1697,9 @@ end;
 
 function TFClient.TTableDesktop.GetLimit(): Integer;
 begin
-  if ((Table is TCBaseTable) and TCBaseTable(Table).ValidStatus and (TCBaseTable(Table).AvgRowLength > 0)) then
+  if ((Table is TSBaseTable) and TSBaseTable(Table).ValidStatus and (TSBaseTable(Table).AvgRowLength > 0)) then
   begin
-    Result := DefaultLimitSize div TCBaseTable(Table).AvgRowLength;
+    Result := DefaultLimitSize div TSBaseTable(Table).AvgRowLength;
     if (Result < 2 * DefaultLimit) then
       Result := DefaultLimit
     else
@@ -1717,8 +1717,8 @@ end;
 function TFClient.TTableDesktop.GetLimited(): Boolean;
 begin
   Result := True;
-  if ((Table is TCBaseTable) and TCBaseTable(Table).ValidStatus) then
-    Result := TCBaseTable(Table).Rows >= Limit
+  if ((Table is TSBaseTable) and TSBaseTable(Table).ValidStatus) then
+    Result := TSBaseTable(Table).Rows >= Limit
   else if (Assigned(XML) and Assigned(XMLNode(XML, 'limit'))) then
     TryStrToBool(XMLNode(XML, 'limit').Attributes['used'], Result);
 end;
@@ -1746,9 +1746,9 @@ begin
   Result := FXML;
 end;
 
-function TFClient.TTableDesktop.GetTable(): TCTable;
+function TFClient.TTableDesktop.GetTable(): TSTable;
 begin
-  Result := TCTable(CObject);
+  Result := TSTable(CObject);
 end;
 
 procedure TFClient.TTableDesktop.SetLimit(const Limit: Integer);
@@ -1764,7 +1764,7 @@ end;
 
 { TFClient.TViewDesktop *******************************************************}
 
-constructor TFClient.TViewDesktop.Create(const AFClient: TFClient; const AView: TCView);
+constructor TFClient.TViewDesktop.Create(const AFClient: TFClient; const AView: TSView);
 begin
   inherited Create(AFClient, AView);
 
@@ -1813,7 +1813,7 @@ begin
   end;
 end;
 
-constructor TFClient.TRoutineDesktop.Create(const AFClient: TFClient; const ARoutine: TCRoutine);
+constructor TFClient.TRoutineDesktop.Create(const AFClient: TFClient; const ARoutine: TSRoutine);
 begin
   inherited Create(AFClient, ARoutine);
 
@@ -1905,7 +1905,7 @@ end;
 
 { TFClient.TEventDesktop ******************************************************}
 
-constructor TFClient.TEventDesktop.Create(const AFClient: TFClient; const AEvent: TCEvent);
+constructor TFClient.TEventDesktop.Create(const AFClient: TFClient; const AEvent: TSEvent);
 begin
   SynMemo := nil;
 
@@ -1930,7 +1930,7 @@ end;
 
 { TFClient.TTriggerDesktop *******************************************************}
 
-constructor TFClient.TTriggerDesktop.Create(const AFClient: TFClient; const ATrigger: TCTrigger);
+constructor TFClient.TTriggerDesktop.Create(const AFClient: TFClient; const ATrigger: TSTrigger);
 begin
   SynMemo := nil;
 
@@ -2000,7 +2000,7 @@ begin
   end;
 end;
 
-procedure TFClient.TWanted.SetUpdate(const AUpdate: TCClient.TUpdate);
+procedure TFClient.TWanted.SetUpdate(const AUpdate: TSSession.TUpdate);
 begin
   Clear();
   if (not FClient.Client.InUse) then
@@ -2013,7 +2013,7 @@ procedure TFClient.TWanted.Synchronize();
 var
   TempAction: TAction;
   TempAddress: string;
-  TempUpdate: TCClient.TUpdate;
+  TempUpdate: TSSession.TUpdate;
 begin
   if (Assigned(Action)) then
   begin
@@ -2103,9 +2103,9 @@ procedure TFClient.aDCreateEventExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  if (FocusedCItem is TCDatabase) then
+  if (FocusedCItem is TSDatabase) then
   begin
-    DEvent.Database := TCDatabase(FocusedCItem);
+    DEvent.Database := TSDatabase(FocusedCItem);
     DEvent.Event := nil;
     if (DEvent.Execute()) then
       Wanted.Update := Client.Update;
@@ -2136,9 +2136,9 @@ procedure TFClient.aDCreateFieldExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  if (FocusedCItem is TCBaseTable) then
+  if (FocusedCItem is TSBaseTable) then
   begin
-    DField.Table := TCBaseTable(FocusedCItem);
+    DField.Table := TSBaseTable(FocusedCItem);
     DField.Database := DField.Table.Database;
     DField.Field := nil;
     if (DField.Execute()) then
@@ -2150,9 +2150,9 @@ procedure TFClient.aDCreateForeignKeyExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  if (FocusedCItem is TCBaseTable) then
+  if (FocusedCItem is TSBaseTable) then
   begin
-    DForeignKey.Table := TCBaseTable(FocusedCItem);
+    DForeignKey.Table := TSBaseTable(FocusedCItem);
     DForeignKey.Database := DForeignKey.Table.Database;
     DForeignKey.ParentTable := nil;
     DForeignKey.ForeignKey := nil;
@@ -2165,9 +2165,9 @@ procedure TFClient.aDCreateIndexExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  if (FocusedCItem is TCBaseTable) then
+  if (FocusedCItem is TSBaseTable) then
   begin
-    DIndex.Table := TCBaseTable(FocusedCItem);
+    DIndex.Table := TSBaseTable(FocusedCItem);
     DIndex.Database := DIndex.Table.Database;
     DIndex.Key := nil;
     if (DIndex.Execute()) then
@@ -2179,9 +2179,9 @@ procedure TFClient.aDCreateRoutineExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  if (FocusedCItem is TCDatabase) then
+  if (FocusedCItem is TSDatabase) then
   begin
-    DRoutine.Database := TCDatabase(FocusedCItem);
+    DRoutine.Database := TSDatabase(FocusedCItem);
     if (Sender = MainAction('aDCreateProcedure')) then
       DRoutine.RoutineType := rtProcedure
     else if (Sender = MainAction('aDCreateFunction')) then
@@ -2200,9 +2200,9 @@ begin
 
   if ((Window.ActiveControl = ActiveWorkbench) and Assigned(ActiveWorkbench) and (FNavigator.Selected.ImageIndex = iiDatabase) and (View = vDiagram)) then
     ActiveWorkbench.CreateNewTable(0, 0)
-  else if (FocusedCItem is TCDatabase) then
+  else if (FocusedCItem is TSDatabase) then
   begin
-    DTable.Database := TCDatabase(FocusedCItem);
+    DTable.Database := TSDatabase(FocusedCItem);
     DTable.Table := nil;
     if (DTable.Execute()) then
       Wanted.Update := Client.Update;
@@ -2213,9 +2213,9 @@ procedure TFClient.aDCreateTriggerExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  if (FocusedCItem is TCBaseTable) then
+  if (FocusedCItem is TSBaseTable) then
   begin
-    DTrigger.Table := TCBaseTable(FocusedCItem);
+    DTrigger.Table := TSBaseTable(FocusedCItem);
     DTrigger.Trigger := nil;
     if (DTrigger.Execute()) then
       Wanted.Update := Client.Update;
@@ -2236,9 +2236,9 @@ procedure TFClient.aDCreateViewExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  if (FocusedCItem is TCDatabase) then
+  if (FocusedCItem is TSDatabase) then
   begin
-    DView.Database := TCDatabase(FocusedCItem);
+    DView.Database := TSDatabase(FocusedCItem);
     DView.View := nil;
     if (DView.Execute()) then
       Wanted.Update := Client.Update;
@@ -2251,9 +2251,9 @@ var
   I: Integer;
   List: TList;
   Msg: string;
-  NewTable: TCBaseTable;
+  NewTable: TSBaseTable;
   Success: Boolean;
-  Table: TCBaseTable;
+  Table: TSBaseTable;
 begin
   Wanted.Clear();
 
@@ -2280,18 +2280,18 @@ begin
     Msg := Preferences.LoadStr(413)
   else if (CItems.Count = 1) then
   begin
-    if (TCItem(CItems[0]) is TCDatabase) then Msg := Preferences.LoadStr(146, TCItem(CItems[0]).Caption)
-    else if (TCItem(CItems[0]) is TCBaseTable) then Msg := Preferences.LoadStr(113, TCItem(CItems[0]).Caption)
-    else if (TCItem(CItems[0]) is TCView) then Msg := Preferences.LoadStr(748, TCItem(CItems[0]).Caption)
-    else if (TCItem(CItems[0]) is TCProcedure) then Msg := Preferences.LoadStr(772, TCItem(CItems[0]).Caption)
-    else if (TCItem(CItems[0]) is TCFunction) then Msg := Preferences.LoadStr(773, TCItem(CItems[0]).Caption)
-    else if (TCItem(CItems[0]) is TCEvent) then Msg := Preferences.LoadStr(813, TCItem(CItems[0]).Caption)
-    else if (TCItem(CItems[0]) is TCTrigger) then Msg := Preferences.LoadStr(787, TCItem(CItems[0]).Caption)
-    else if (TCItem(CItems[0]) is TCKey) then Msg := Preferences.LoadStr(162, TCItem(CItems[0]).Caption)
-    else if (TCItem(CItems[0]) is TCField) then Msg := Preferences.LoadStr(100, TCItem(CItems[0]).Caption)
-    else if (TCItem(CItems[0]) is TCForeignKey) then Msg := Preferences.LoadStr(692, TCItem(CItems[0]).Caption)
-    else if (TCItem(CItems[0]) is TCUser) then Msg := Preferences.LoadStr(428, TCItem(CItems[0]).Caption)
-    else if (TCItem(CItems[0]) is TCProcess) then Msg := Preferences.LoadStr(534, TCItem(CItems[0]).Caption);
+    if (TSItem(CItems[0]) is TSDatabase) then Msg := Preferences.LoadStr(146, TSItem(CItems[0]).Caption)
+    else if (TSItem(CItems[0]) is TSBaseTable) then Msg := Preferences.LoadStr(113, TSItem(CItems[0]).Caption)
+    else if (TSItem(CItems[0]) is TSView) then Msg := Preferences.LoadStr(748, TSItem(CItems[0]).Caption)
+    else if (TSItem(CItems[0]) is TSProcedure) then Msg := Preferences.LoadStr(772, TSItem(CItems[0]).Caption)
+    else if (TSItem(CItems[0]) is TSFunction) then Msg := Preferences.LoadStr(773, TSItem(CItems[0]).Caption)
+    else if (TSItem(CItems[0]) is TSEvent) then Msg := Preferences.LoadStr(813, TSItem(CItems[0]).Caption)
+    else if (TSItem(CItems[0]) is TSTrigger) then Msg := Preferences.LoadStr(787, TSItem(CItems[0]).Caption)
+    else if (TSItem(CItems[0]) is TSKey) then Msg := Preferences.LoadStr(162, TSItem(CItems[0]).Caption)
+    else if (TSItem(CItems[0]) is TSField) then Msg := Preferences.LoadStr(100, TSItem(CItems[0]).Caption)
+    else if (TSItem(CItems[0]) is TSForeignKey) then Msg := Preferences.LoadStr(692, TSItem(CItems[0]).Caption)
+    else if (TSItem(CItems[0]) is TSUser) then Msg := Preferences.LoadStr(428, TSItem(CItems[0]).Caption)
+    else if (TSItem(CItems[0]) is TSProcess) then Msg := Preferences.LoadStr(534, TSItem(CItems[0]).Caption);
   end
   else
     Msg := '';
@@ -2304,9 +2304,9 @@ begin
 
     List.Clear();
     for I := 0 to CItems.Count - 1 do
-      if ((TCItem(CItems[I]) is TCDatabase) or (TCItem(CItems[I]) is TCDBObject) or (TCItem(CItems[I]) is TCProcess)) then
+      if ((TSItem(CItems[I]) is TSDatabase) or (TSItem(CItems[I]) is TSDBObject) or (TSItem(CItems[I]) is TSProcess)) then
       begin
-        List.Add(TCEntity(CItems[I]));
+        List.Add(TSEntity(CItems[I]));
         CItems[I] := nil;
       end;
     if (Success and (List.Count > 0)) then
@@ -2314,31 +2314,31 @@ begin
 
     Table := nil;
     for I := 0 to CItems.Count - 1 do
-      if (TCItem(CItems[I]) is TCKey) then
-        Table := TCKey(CItems[I]).Table
-      else if (TCItem(CItems[I]) is TCBaseTableField) then
-        Table := TCBaseTableField(CItems[I]).Table
-      else if (TCItem(CItems[I]) is TCForeignKey) then
-        Table := TCForeignKey(CItems[I]).Table;
+      if (TSItem(CItems[I]) is TSKey) then
+        Table := TSKey(CItems[I]).Table
+      else if (TSItem(CItems[I]) is TSBaseTableField) then
+        Table := TSBaseTableField(CItems[I]).Table
+      else if (TSItem(CItems[I]) is TSForeignKey) then
+        Table := TSForeignKey(CItems[I]).Table;
     if (Success and Assigned(Table)) then
     begin
-      NewTable := TCBaseTable.Create(Table.Database.Tables);
+      NewTable := TSBaseTable.Create(Table.Database.Tables);
       NewTable.Assign(Table);
 
       for I := CItems.Count - 1 downto 0 do
-        if ((TCItem(CItems[I]) is TCKey) and (TCKey(CItems[I]).Table = Table)) then
+        if ((TSItem(CItems[I]) is TSKey) and (TSKey(CItems[I]).Table = Table)) then
         begin
-          NewTable.Keys.DeleteKey(NewTable.Keys[TCKey(CItems[I]).Index]);
+          NewTable.Keys.DeleteKey(NewTable.Keys[TSKey(CItems[I]).Index]);
           CItems[I] := nil;
         end
-        else if ((TCItem(CItems[I]) is TCBaseTableField) and (TCBaseTableField(CItems[I]).Table = Table)) then
+        else if ((TSItem(CItems[I]) is TSBaseTableField) and (TSBaseTableField(CItems[I]).Table = Table)) then
         begin
-          NewTable.Fields.DeleteField(NewTable.Fields[TCBaseTableField(CItems[I]).Index]);
+          NewTable.Fields.DeleteField(NewTable.Fields[TSBaseTableField(CItems[I]).Index]);
           CItems[I] := nil;
         end
-        else if ((TCItem(CItems[I]) is TCForeignKey) and (TCForeignKey(CItems[I]).Table = Table)) then
+        else if ((TSItem(CItems[I]) is TSForeignKey) and (TSForeignKey(CItems[I]).Table = Table)) then
         begin
-          NewTable.ForeignKeys.DeleteForeignKey(NewTable.ForeignKeys[TCForeignKey(CItems[I]).Index]);
+          NewTable.ForeignKeys.DeleteForeignKey(NewTable.ForeignKeys[TSForeignKey(CItems[I]).Index]);
           CItems[I] := nil;
         end;
 
@@ -2352,9 +2352,9 @@ begin
 
     List.Clear();
     for I := 0 to CItems.Count - 1 do
-      if (TCItem(CItems[I]) is TCUser) then
+      if (TSItem(CItems[I]) is TSUser) then
       begin
-        List.Add(TCUser(CItems[I]));
+        List.Add(TSUser(CItems[I]));
         CItems[I] := nil;
       end;
     if (Success and (List.Count > 0)) then
@@ -2400,7 +2400,7 @@ var
   Parse: TSQLParse;
   Sibling: TTreeNode;
   SQL: string;
-  Table: TCTable;
+  Table: TSTable;
 begin
   if (not (csDestroying in ComponentState)) then
   begin
@@ -2496,9 +2496,9 @@ begin
 
       if ((View = vBrowser) and (FNavigator.Selected.ImageIndex in [iiBaseTable, iiSystemView, iiView])) then
       begin
-        Table := TCTable(FNavigator.Selected.Data);
+        Table := TSTable(FNavigator.Selected.Data);
 
-        if (not (Table.DataSet is TCTableDataSet) or not Assigned(Table.DataSet) or not Table.DataSet.Active or (TCTableDataSet(Table.DataSet).Limit < 1)) then
+        if (not (Table.DataSet is TSTableDataSet) or not Assigned(Table.DataSet) or not Table.DataSet.Active or (TSTableDataSet(Table.DataSet).Limit < 1)) then
         begin
           FUDOffset.Position := 0;
           FUDLimit.Position := Desktop(Table).Limit;
@@ -2506,15 +2506,15 @@ begin
         end
         else
         begin
-          FUDOffset.Position := TCTableDataSet(Table.DataSet).Offset;
-          FUDLimit.Position := TCTableDataSet(Table.DataSet).Limit;
-          FLimitEnabled.Down := TCTableDataSet(Table.DataSet).Limit > 1;
+          FUDOffset.Position := TSTableDataSet(Table.DataSet).Offset;
+          FUDLimit.Position := TSTableDataSet(Table.DataSet).Limit;
+          FLimitEnabled.Down := TSTableDataSet(Table.DataSet).Limit > 1;
         end;
-        FFilterEnabled.Down := (Table.DataSet is TCTableDataSet) and Assigned(Table.DataSet) and Table.DataSet.Active and (Table.DataSet.FilterSQL <> '');
+        FFilterEnabled.Down := (Table.DataSet is TSTableDataSet) and Assigned(Table.DataSet) and Table.DataSet.Active and (Table.DataSet.FilterSQL <> '');
         if (not FFilterEnabled.Down) then
           FFilter.Text := ''
         else
-          FFilter.Text := TCTableDataSet(Table.DataSet).FilterSQL;
+          FFilter.Text := TSTableDataSet(Table.DataSet).FilterSQL;
         FilterMRU.Clear();
         for I := 0 to Desktop(Table).FilterCount - 1 do
           FilterMRU.Add(Desktop(Table).Filters[I]);
@@ -2599,8 +2599,8 @@ end;
 procedure TFClient.AddressChanging(const Sender: TObject; const NewAddress: String; var AllowChange: Boolean);
 var
   NotFound: Boolean;
-  Database: TCDatabase;
-  DBObject: TCDBObject;
+  Database: TSDatabase;
+  DBObject: TSDBObject;
   S: string;
   URI: TUURI;
 begin
@@ -2762,10 +2762,10 @@ procedure TFClient.aDPropertiesExecute(Sender: TObject);
 type
   TExecute = function(): Boolean of Object;
 var
-  CItem: TCItem;
+  CItem: TSItem;
   Execute: TExecute;
   I: Integer;
-  Process: TCProcess;
+  Process: TSProcess;
 begin
   Wanted.Clear();
 
@@ -2776,7 +2776,7 @@ begin
       if (ActiveListView.Items[I].Selected and (ActiveListView.Items[I].ImageIndex = iiBaseTable)) then
         DTable.Tables.Add(ActiveListView.Items[I].Data);
 
-    DTable.Database := TCDatabase(FNavigator.Selected.Data);
+    DTable.Database := TSDatabase(FNavigator.Selected.Data);
     DTable.Table := nil;
     if (DTable.Execute()) then
       Wanted.Update := Client.Update;
@@ -2791,71 +2791,71 @@ begin
   begin
     CItem := FocusedCItem;
 
-    if (CItem is TCDatabase) then
+    if (CItem is TSDatabase) then
     begin
       DDatabase.Client := Client;
-      DDatabase.Database := TCDatabase(CItem);
+      DDatabase.Database := TSDatabase(CItem);
       Execute := DDatabase.Execute;
     end
-    else if (CItem is TCBaseTable) then
+    else if (CItem is TSBaseTable) then
     begin
-      DTable.Database := TCBaseTable(CItem).Database;
-      DTable.Table := TCBaseTable(CItem);
+      DTable.Database := TSBaseTable(CItem).Database;
+      DTable.Table := TSBaseTable(CItem);
       Execute := DTable.Execute;
     end
-    else if (CItem is TCView) then
+    else if (CItem is TSView) then
     begin
-      DView.Database := TCView(CItem).Database;
-      DView.View := TCView(CItem);
+      DView.Database := TSView(CItem).Database;
+      DView.View := TSView(CItem);
       Execute := DView.Execute;
     end
-    else if (CItem is TCProcedure) then
+    else if (CItem is TSProcedure) then
     begin
-      DRoutine.Database := TCRoutine(CItem).Database;
-      DRoutine.Routine := TCRoutine(CItem);
+      DRoutine.Database := TSRoutine(CItem).Database;
+      DRoutine.Routine := TSRoutine(CItem);
       Execute := DRoutine.Execute;
     end
-    else if (CItem is TCFunction) then
+    else if (CItem is TSFunction) then
     begin
-      DRoutine.Database := TCRoutine(CItem).Database;
-      DRoutine.Routine := TCRoutine(CItem);
+      DRoutine.Database := TSRoutine(CItem).Database;
+      DRoutine.Routine := TSRoutine(CItem);
       Execute := DRoutine.Execute;
     end
-    else if (CItem is TCTrigger) then
+    else if (CItem is TSTrigger) then
     begin
-      DTrigger.Table := TCTrigger(CItem).Table;
-      DTrigger.Trigger := TCTrigger(CItem);
+      DTrigger.Table := TSTrigger(CItem).Table;
+      DTrigger.Trigger := TSTrigger(CItem);
       Execute := DTrigger.Execute;
     end
-    else if (CItem is TCEvent) then
+    else if (CItem is TSEvent) then
     begin
-      DEvent.Database := TCEvent(CItem).Database;
-      DEvent.Event := TCEvent(CItem);
+      DEvent.Database := TSEvent(CItem).Database;
+      DEvent.Event := TSEvent(CItem);
       Execute := DEvent.Execute;
     end
-    else if (CItem is TCKey) then
+    else if (CItem is TSKey) then
     begin
-      DIndex.Database := TCKey(CItem).Table.Database;
-      DIndex.Table := TCKey(CItem).Table;
-      DIndex.Key := TCKey(CItem);
+      DIndex.Database := TSKey(CItem).Table.Database;
+      DIndex.Table := TSKey(CItem).Table;
+      DIndex.Key := TSKey(CItem);
       Execute := DIndex.Execute;
     end
-    else if (CItem is TCBaseTableField) then
+    else if (CItem is TSBaseTableField) then
     begin
-      DField.Database := TCBaseTableField(CItem).Table.Database;
-      DField.Table := TCBaseTable(TCBaseTableField(CItem).Table);
-      DField.Field := TCBaseTableField(CItem);
+      DField.Database := TSBaseTableField(CItem).Table.Database;
+      DField.Table := TSBaseTable(TSBaseTableField(CItem).Table);
+      DField.Field := TSBaseTableField(CItem);
       Execute := DField.Execute;
     end
-    else if (CItem is TCForeignKey) then
+    else if (CItem is TSForeignKey) then
     begin
-      DForeignKey.Database := TCForeignKey(CItem).Table.Database;
-      DForeignKey.Table := TCForeignKey(CItem).Table;
+      DForeignKey.Database := TSForeignKey(CItem).Table.Database;
+      DForeignKey.Table := TSForeignKey(CItem).Table;
       DForeignKey.ParentTable := nil;
-      DForeignKey.ForeignKey := TCForeignKey(CItem);
+      DForeignKey.ForeignKey := TSForeignKey(CItem);
       Execute := DForeignKey.Execute;
     end
-    else if (CItem is TCProcess) then
+    else if (CItem is TSProcess) then
     begin
       Process := Client.ProcessByThreadId(SysUtils.StrToInt(ActiveListView.Selected.Caption));
 
@@ -2873,16 +2873,16 @@ begin
 
       Execute := DStatement.Execute;
     end
-    else if (CItem is TCUser) then
+    else if (CItem is TSUser) then
     begin
       DUser.Client := Client;
-      DUser.User := TCUser(CItem);
+      DUser.User := TSUser(CItem);
       Execute := DUser.Execute;
     end
-    else if (CItem is TCVariable) then
+    else if (CItem is TSVariable) then
     begin
       DVariable.Client := Client;
-      DVariable.Variable := TCVariable(CItem);
+      DVariable.Variable := TSVariable(CItem);
       Execute := DVariable.Execute;
     end
     else
@@ -2919,19 +2919,19 @@ begin
     if (Assigned(FObjectIDEGrid.DataSource.DataSet)) then
       FObjectIDEGrid.DataSource.DataSet.CheckBrowseMode();
     if (not ActiveSynMemo.Modified or PostObject(Sender)) then
-      SQL := TCProcedure(FNavigator.Selected.Data).SQLRun();
+      SQL := TSProcedure(FNavigator.Selected.Data).SQLRun();
   end
   else if ((View = vIDE) and (SelectedImageIndex = iiFunction)) then
   begin
     if (Assigned(FObjectIDEGrid.DataSource.DataSet)) then
       FObjectIDEGrid.DataSource.DataSet.CheckBrowseMode();
     if (not ActiveSynMemo.Modified or PostObject(Sender)) then
-      SQL := TCFunction(FNavigator.Selected.Data).SQLRun();
+      SQL := TSFunction(FNavigator.Selected.Data).SQLRun();
   end
   else if ((View = vIDE) and (SelectedImageIndex = iiEvent)) then
   begin
     if (not ActiveSynMemo.Modified or PostObject(Sender)) then
-      SQL := TCEvent(FNavigator.Selected.Data).SQLRun();
+      SQL := TSEvent(FNavigator.Selected.Data).SQLRun();
   end;
 
   if (SQL <> '') then
@@ -3042,7 +3042,7 @@ begin
           iiProcedure:  Data := Data + 'Procedure='  + ActiveListView.Items[I].Caption + #13#10;
           iiFunction:   Data := Data + 'Function='   + ActiveListView.Items[I].Caption + #13#10;
           iiEvent:      Data := Data + 'Event='      + ActiveListView.Items[I].Caption + #13#10;
-          iiKey:        Data := Data + 'Key='      + TCKey(ActiveListView.Items[I].Data).Name + #13#10;
+          iiKey:        Data := Data + 'Key='      + TSKey(ActiveListView.Items[I].Data).Name + #13#10;
           iiField,
           iiViewField:  Data := Data + 'Field='      + ActiveListView.Items[I].Caption + #13#10;
           iiForeignKey: Data := Data + 'ForeignKey=' + ActiveListView.Items[I].Caption + #13#10;
@@ -3440,7 +3440,7 @@ end;
 
 procedure TFClient.aFExportExecute(const Sender: TObject; const ExportType: TPExportType);
 var
-  Database: TCDatabase;
+  Database: TSDatabase;
   I: Integer;
 begin
   DExport.Client := Client;
@@ -3455,8 +3455,8 @@ begin
     DExport.DBGrid := ActiveDBGrid
   else if (Window.ActiveControl = ActiveWorkbench) then
   begin
-    Database := TCDatabase(FNavigator.Selected.Data);
-    if ((Client.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TCSystemDatabase)) then
+    Database := TSDatabase(FNavigator.Selected.Data);
+    if ((Client.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
       for I := 0 to ActiveWorkbench.Tables.Count - 1 do
         if (not Assigned(ActiveWorkbench.Selected) or ActiveWorkbench.Tables[I].Selected) then
           DExport.Objects.Add(ActiveWorkbench.Tables[I].BaseTable);
@@ -3468,45 +3468,45 @@ begin
         for I := 0 to ActiveListView.Items.Count - 1 do
           if (ActiveListView.Items[I].Selected) then
           begin
-            Database := TCDatabase(ActiveListView.Items[I].Data);
-            if ((Client.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TCSystemDatabase)) then
+            Database := TSDatabase(ActiveListView.Items[I].Data);
+            if ((Client.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
               DExport.Objects.Add(Database);
           end;
 
       iiDatabase:
         begin
-          Database := TCDatabase(FNavigator.Selected.Data);
-          if ((Client.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TCSystemDatabase)) then
+          Database := TSDatabase(FNavigator.Selected.Data);
+          if ((Client.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
             for I := 0 to ActiveListView.Items.Count - 1 do
               if (ActiveListView.Items[I].Selected) then
-                DExport.Objects.Add(TCDBObject(ActiveListView.Items[I].Data));
+                DExport.Objects.Add(TSDBObject(ActiveListView.Items[I].Data));
         end;
       iiBaseTable:
         begin
-          Database := TCDatabase(FNavigator.Selected.Parent.Data);
-          if ((Client.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TCSystemDatabase)) then
+          Database := TSDatabase(FNavigator.Selected.Parent.Data);
+          if ((Client.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
             for I := 0 to ActiveListView.Items.Count - 1 do
               if (ActiveListView.Items[I].Selected and (ActiveListView.Items[I].ImageIndex = iiTrigger)) then
-                DExport.Objects.Add(TCDBObject(ActiveListView.Items[I].Data));
+                DExport.Objects.Add(TSDBObject(ActiveListView.Items[I].Data));
         end;
     end
   end
-  else if (FocusedCItem is TCDatabase) then
+  else if (FocusedCItem is TSDatabase) then
   begin
-    Database := TCDatabase(FocusedCItem);
-    if ((Client.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TCSystemDatabase)) then
+    Database := TSDatabase(FocusedCItem);
+    if ((Client.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
       DExport.Objects.Add(Database);
   end
-  else if (FocusedCItem is TCDBObject) then
+  else if (FocusedCItem is TSDBObject) then
   begin
-    Database := TCDBObject(FocusedCItem).Database;
-    if ((Client.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TCSystemDatabase)) then
+    Database := TSDBObject(FocusedCItem).Database;
+    if ((Client.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
       DExport.Objects.Add(FocusedCItem);
   end
   else
   begin
     for I := 0 to DExport.Client.Databases.Count - 1 do
-      if ((Client.TableNameCmp(Client.Databases[I].Name, 'mysql') <> 0) and not (Client.Databases[I] is TCSystemDatabase)) then
+      if ((Client.TableNameCmp(Client.Databases[I].Name, 'mysql') <> 0) and not (Client.Databases[I] is TSSystemDatabase)) then
         DExport.Objects.Add(Client.Databases[I]);
   end;
 
@@ -3578,23 +3578,23 @@ end;
 
 procedure TFClient.aFImportExecute(const Sender: TObject; const ImportType: TImportType);
 var
-  CItem: TCItem;
+  CItem: TSItem;
 begin
   CItem := FocusedCItem;
 
-  if ((Sender is TAction) and ((CItem is TCDatabase) and not TCDatabase(CItem).Update()) or ((CItem is TCTable) and not TCTable(CItem).Update())) then
+  if ((Sender is TAction) and ((CItem is TSDatabase) and not TSDatabase(CItem).Update()) or ((CItem is TSTable) and not TSTable(CItem).Update())) then
     Wanted.Action := TAction(Sender)
   else
   begin
     DImport.Client := Client;
     DImport.Database := nil;
     DImport.Table := nil;
-    if (CItem is TCDatabase) then
-      DImport.Database := TCDatabase(CItem)
-    else if (CItem is TCBaseTable) then
+    if (CItem is TSDatabase) then
+      DImport.Database := TSDatabase(CItem)
+    else if (CItem is TSBaseTable) then
     begin
-      DImport.Database := TCBaseTable(CItem).Database;
-      DImport.Table := TCBaseTable(CItem);
+      DImport.Database := TSBaseTable(CItem).Database;
+      DImport.Table := TSBaseTable(CItem);
     end;
 
     OpenDialog.Title := ReplaceStr(Preferences.LoadStr(581), '&', '');
@@ -3666,14 +3666,14 @@ begin
 
   DImport.Window := Window;
   DImport.Client := Client;
-  if (FocusedCItem is TCDatabase) then
+  if (FocusedCItem is TSDatabase) then
   begin
-    DImport.Database := TCDatabase(FocusedCItem);
+    DImport.Database := TSDatabase(FocusedCItem);
     DImport.Table := nil;
   end
-  else if (FocusedCItem is TCBaseTable) then
+  else if (FocusedCItem is TSBaseTable) then
   begin
-    DImport.Table := TCBaseTable(FocusedCItem);
+    DImport.Table := TSBaseTable(FocusedCItem);
     DImport.Database := DImport.Table.Database;
   end
   else
@@ -3936,10 +3936,10 @@ end;
 
 procedure TFClient.aPOpenInNewTabExecute(Sender: TObject);
 begin
-  if (FocusedCItem is TCDatabase) then
-    OpenInNewTabExecute(TCDatabase(FocusedCItem).Name, '')
-  else if (FocusedCItem is TCTable) then
-    OpenInNewTabExecute(TCTable(FocusedCItem).Database.Name, TCTable(FocusedCItem).Name)
+  if (FocusedCItem is TSDatabase) then
+    OpenInNewTabExecute(TSDatabase(FocusedCItem).Name, '')
+  else if (FocusedCItem is TSTable) then
+    OpenInNewTabExecute(TSTable(FocusedCItem).Database.Name, TSTable(FocusedCItem).Name)
   else if (Window.ActiveControl = FBookmarks) then
   begin
     if (Assigned(FBookmarks.Selected)) then
@@ -3952,10 +3952,10 @@ end;
 
 procedure TFClient.aPOpenInNewWindowExecute(Sender: TObject);
 begin
-  if (FocusedCItem is TCDatabase) then
-    OpenInNewTabExecute(TCDatabase(FocusedCItem).Name, '', True)
-  else if (FocusedCItem is TCTable) then
-    OpenInNewTabExecute(TCTable(FocusedCItem).Database.Name, TCTable(FocusedCItem).Name, True)
+  if (FocusedCItem is TSDatabase) then
+    OpenInNewTabExecute(TSDatabase(FocusedCItem).Name, '', True)
+  else if (FocusedCItem is TSTable) then
+    OpenInNewTabExecute(TSTable(FocusedCItem).Database.Name, TSTable(FocusedCItem).Name, True)
   else if (Window.ActiveControl = FBookmarks) then
   begin
     if (Assigned(FBookmarks.Selected)) then
@@ -4125,19 +4125,19 @@ begin
           case (SelectedImageIndex) of
             iiServer: Client.Invalidate();
             iiDatabase,
-            iiSystemDatabase: TCDatabase(FNavigator.Selected.Data).Invalidate();
+            iiSystemDatabase: TSDatabase(FNavigator.Selected.Data).Invalidate();
             iiBaseTable,
             iiSystemView:
               begin
-                TCTable(FNavigator.Selected.Data).Invalidate();
-                if (Assigned(TCDatabase(FNavigator.Selected.Parent.Data).Triggers)) then
-                  TCDatabase(FNavigator.Selected.Parent.Data).Triggers.Invalidate();
+                TSTable(FNavigator.Selected.Data).Invalidate();
+                if (Assigned(TSDatabase(FNavigator.Selected.Parent.Data).Triggers)) then
+                  TSDatabase(FNavigator.Selected.Parent.Data).Triggers.Invalidate();
               end;
-            iiView: TCView(FNavigator.Selected.Data).Invalidate();
-            iiProcedure: TCProcedure(FNavigator.Selected.Data).Invalidate();
-            iiFunction: TCFunction(FNavigator.Selected.Data).Invalidate();
-            iiEvent: TCEvent(FNavigator.Selected.Data).Invalidate();
-            iiTrigger: TCTrigger(FNavigator.Selected.Data).Invalidate();
+            iiView: TSView(FNavigator.Selected.Data).Invalidate();
+            iiProcedure: TSProcedure(FNavigator.Selected.Data).Invalidate();
+            iiFunction: TSFunction(FNavigator.Selected.Data).Invalidate();
+            iiEvent: TSEvent(FNavigator.Selected.Data).Invalidate();
+            iiTrigger: TSTrigger(FNavigator.Selected.Data).Invalidate();
             iiProcesses: Client.Processes.Invalidate();
             iiStati: Client.Stati.Invalidate();
             iiUsers: Client.Users.Invalidate();
@@ -4163,7 +4163,7 @@ begin
           end;
 
           if (AllowRefresh) then
-            if ((View = vBrowser) and (FNavigator.Selected.ImageIndex in [iiBaseTable, iiSystemView, iiView]) and not TCTable(FNavigator.Selected.Data).Valid) then
+            if ((View = vBrowser) and (FNavigator.Selected.ImageIndex in [iiBaseTable, iiSystemView, iiView]) and not TSTable(FNavigator.Selected.Data).Valid) then
             begin
               ActiveDBGrid.DataSource.DataSet.Close();
               Client.Update();
@@ -4173,9 +4173,9 @@ begin
         end;
       vDiagram:
         begin
-          TCDatabase(FNavigator.Selected.Data).Tables.Invalidate();
+          TSDatabase(FNavigator.Selected.Data).Tables.Invalidate();
           List := TList.Create();
-          List.Add(TCDatabase(FNavigator.Selected.Data).Tables);
+          List.Add(TSDatabase(FNavigator.Selected.Data).Tables);
           Client.Update(List);
           List.Free();
         end;
@@ -4306,13 +4306,13 @@ end;
 procedure TFClient.BObjectIDEClick(Sender: TObject);
 var
   SQL: string;
-  Trigger: TCTrigger;
+  Trigger: TSTrigger;
 begin
   Wanted.Clear();
 
   Trigger := nil;
-  if (TObject(FNavigator.Selected.Data) is TCTrigger) then
-    Trigger := TCTrigger(FNavigator.Selected.Data);
+  if (TObject(FNavigator.Selected.Data) is TSTrigger) then
+    Trigger := TSTrigger(FNavigator.Selected.Data);
 
   if (Assigned(Trigger) and (not ActiveSynMemo.Modified or PostObject(Sender))) then
   begin
@@ -4333,7 +4333,7 @@ begin
   end;
 end;
 
-procedure TFClient.ClientUpdate(const Event: TCClient.TEvent);
+procedure TFClient.ClientUpdate(const Event: TSSession.TEvent);
 var
   Control: TWinControl;
   I: Integer;
@@ -4350,51 +4350,51 @@ begin
 
     if (Event.EventType in [ceItemsValid, ceItemValid, ceItemCreated, ceItemAltered, ceItemDropped]) then
     begin
-      if (Event.Sender is TCClient) then
+      if (Event.Sender is TSSession) then
         ListViewUpdate(Event, FServerListView);
 
-      if (Event.Sender is TCDatabase) then
+      if (Event.Sender is TSDatabase) then
       begin
         ListViewUpdate(Event, FServerListView);
-        if (not (Event.CItems is TCTriggers)) then
-          ListViewUpdate(Event, Desktop(TCDatabase(Event.Sender)).ListView)
+        if (not (Event.CItems is TSTriggers)) then
+          ListViewUpdate(Event, Desktop(TSDatabase(Event.Sender)).ListView)
         else if (Event.EventType = ceItemDropped) then
-          ListViewUpdate(Event, Desktop(TCTrigger(Event.CItem).Table).ListView)
+          ListViewUpdate(Event, Desktop(TSTrigger(Event.CItem).Table).ListView)
         else
-          for I := 0 to TCTriggers(Event.CItems).Count - 1 do
-            ListViewUpdate(Event, Desktop(TCTriggers(Event.CItems)[I].Table).ListView);
-        if (Assigned(Desktop(TCDatabase(Event.Sender)).Workbench)) then
-          Desktop(TCDatabase(Event.Sender)).Workbench.ClientUpdate(Event);
+          for I := 0 to TSTriggers(Event.CItems).Count - 1 do
+            ListViewUpdate(Event, Desktop(TSTriggers(Event.CItems)[I].Table).ListView);
+        if (Assigned(Desktop(TSDatabase(Event.Sender)).Workbench)) then
+          Desktop(TSDatabase(Event.Sender)).Workbench.ClientUpdate(Event);
       end
-      else if (Event.Sender is TCTable) then
+      else if (Event.Sender is TSTable) then
       begin
-        ListViewUpdate(Event, Desktop(TCTable(Event.Sender).Database).ListView);
-        ListViewUpdate(Event, Desktop(TCTable(Event.Sender)).ListView);
-        if ((Event.Sender is TCBaseTable) and Assigned(Desktop(TCBaseTable(Event.Sender).Database).Workbench)) then
-          Desktop(TCBaseTable(Event.Sender).Database).Workbench.ClientUpdate(Event);
+        ListViewUpdate(Event, Desktop(TSTable(Event.Sender).Database).ListView);
+        ListViewUpdate(Event, Desktop(TSTable(Event.Sender)).ListView);
+        if ((Event.Sender is TSBaseTable) and Assigned(Desktop(TSBaseTable(Event.Sender).Database).Workbench)) then
+          Desktop(TSBaseTable(Event.Sender).Database).Workbench.ClientUpdate(Event);
       end
-      else if (Event.CItems is TCProcesses) then
+      else if (Event.CItems is TSProcesses) then
         ListViewUpdate(Event, ProcessesListView)
-      else if (Event.CItems is TCStati) then
+      else if (Event.CItems is TSStati) then
         ListViewUpdate(Event, StatiListView)
-      else if (Event.CItems is TCUsers) then
+      else if (Event.CItems is TSUsers) then
         ListViewUpdate(Event, UsersListView)
-      else if (Event.CItems is TCVariables) then
+      else if (Event.CItems is TSVariables) then
         ListViewUpdate(Event, VariablesListView);
     end;
 
     if (Event.EventType in [ceItemValid]) then
-      if ((Event.CItem is TCView) and Assigned(Desktop(TCView(Event.CItem)).SynMemo)) then
-        Desktop(TCView(Event.CItem)).SynMemo.Text := Trim(SQLWrapStmt(TCView(Event.CItem).Stmt, ['from', 'where', 'group by', 'having', 'order by', 'limit', 'procedure'], 0)) + #13#10
-      else if ((Event.CItem is TCRoutine) and Assigned(Desktop(TCRoutine(Event.CItem)).SynMemo)) then
+      if ((Event.CItem is TSView) and Assigned(Desktop(TSView(Event.CItem)).SynMemo)) then
+        Desktop(TSView(Event.CItem)).SynMemo.Text := Trim(SQLWrapStmt(TSView(Event.CItem).Stmt, ['from', 'where', 'group by', 'having', 'order by', 'limit', 'procedure'], 0)) + #13#10
+      else if ((Event.CItem is TSRoutine) and Assigned(Desktop(TSRoutine(Event.CItem)).SynMemo)) then
       begin
-        Desktop(TCRoutine(Event.CItem)).SynMemo.Text := TCRoutine(Event.CItem).Source + #13#10;
+        Desktop(TSRoutine(Event.CItem)).SynMemo.Text := TSRoutine(Event.CItem).Source + #13#10;
         PContentChange(nil);
       end;
 
-    if ((Event.EventType = ceItemAltered) and (Event.CItem is TCTable)
-      and Assigned(Desktop(TCTable(Event.CItem)).DBGrid)) then
-      Desktop(TCTable(Event.CItem)).DBGrid.DataSource.DataSet.Close();
+    if ((Event.EventType = ceItemAltered) and (Event.CItem is TSTable)
+      and Assigned(Desktop(TSTable(Event.CItem)).DBGrid)) then
+      Desktop(TSTable(Event.CItem)).DBGrid.DataSource.DataSet.Close();
   end;
 
   if (PContent.Visible and Assigned(TempActiveControl) and TempActiveControl.Visible) then
@@ -4407,7 +4407,7 @@ begin
 
   StatusBarRefresh();
 
-  if (Assigned(Event) and ((Event.EventType in [ceItemCreated, ceItemAltered]) or ((Event.EventType in [ceItemValid]) and (Event.CItem is TCObject) and not TCObject(Event.CItem).Valid)) and (Screen.ActiveForm = Window) and Wanted.Nothing) then
+  if (Assigned(Event) and ((Event.EventType in [ceItemCreated, ceItemAltered]) or ((Event.EventType in [ceItemValid]) and (Event.CItem is TSObject) and not TSObject(Event.CItem).Valid)) and (Screen.ActiveForm = Window) and Wanted.Nothing) then
     Wanted.Update := Client.Update;
 end;
 
@@ -4681,7 +4681,7 @@ begin
   if (Assigned(ServerNode)) then
     for I := 0 to ServerNode.Count - 1 do
       if (CanClose and (ServerNode.Item[I].ImageIndex = iiDatabase)) then
-        Desktop(TCDatabase(ServerNode.Item[I].Data)).CloseQuery(nil, CanClose);
+        Desktop(TSDatabase(ServerNode.Item[I].Data)).CloseQuery(nil, CanClose);
 
   if (not CanClose) then
     Message.Result := 0
@@ -5121,7 +5121,7 @@ begin
     and not (WS_THICKFRAME or WS_SYSMENU or WS_DLGFRAME or WS_BORDER);
 end;
 
-constructor TFClient.Create(const AOwner: TComponent; const AParent: TWinControl; const AClient: TCClient; const AParam: string);
+constructor TFClient.Create(const AOwner: TComponent; const AParent: TWinControl; const AClient: TSSession; const AParam: string);
 var
   Kind: TADesktop.TListViewKind;
   Node: TTreeNode;
@@ -5452,20 +5452,20 @@ begin
   PostMessage(Handle, CM_POST_SHOW, 0, 0);
 end;
 
-function TFClient.CreateDesktop(const CObject: TCObject): TCObject.TDesktop;
+function TFClient.CreateDesktop(const CObject: TSObject): TSObject.TDesktop;
 begin
-  if (CObject is TCDatabase) then
-    Result := TDatabaseDesktop.Create(Self, TCDatabase(CObject))
-  else if (CObject is TCBaseTable) then
-    Result := TTableDesktop.Create(Self, TCBaseTable(CObject))
-  else if (CObject is TCView) then
-    Result := TViewDesktop.Create(Self, TCView(CObject))
-  else if (CObject is TCRoutine) then
-    Result := TRoutineDesktop.Create(Self, TCRoutine(CObject))
-  else if (CObject is TCEvent) then
-    Result := TEventDesktop.Create(Self, TCEvent(CObject))
-  else if (CObject is TCTrigger) then
-    Result := TTriggerDesktop.Create(Self, TCTrigger(CObject))
+  if (CObject is TSDatabase) then
+    Result := TDatabaseDesktop.Create(Self, TSDatabase(CObject))
+  else if (CObject is TSBaseTable) then
+    Result := TTableDesktop.Create(Self, TSBaseTable(CObject))
+  else if (CObject is TSView) then
+    Result := TViewDesktop.Create(Self, TSView(CObject))
+  else if (CObject is TSRoutine) then
+    Result := TRoutineDesktop.Create(Self, TSRoutine(CObject))
+  else if (CObject is TSEvent) then
+    Result := TEventDesktop.Create(Self, TSEvent(CObject))
+  else if (CObject is TSTrigger) then
+    Result := TTriggerDesktop.Create(Self, TSTrigger(CObject))
   else
     Result := nil;
 end;
@@ -5619,7 +5619,7 @@ begin
   Result.Parent := FServerListView.Parent;
   Result.ViewStyle := FServerListView.ViewStyle;
   Result.Visible := False;
-  if (TObject(Data) is TCTable) then
+  if (TObject(Data) is TSTable) then
   begin
     Result.OnAdvancedCustomDrawItem := ListViewAdvancedCustomDrawItem;
     Result.OnAdvancedCustomDrawSubItem := ListViewAdvancedCustomDrawSubItem;
@@ -5767,7 +5767,7 @@ begin
     Window.ApplyWinAPIUpdates(Result, NonClientMetrics.lfStatusFont);
 end;
 
-function TFClient.CreateWorkbench(const ADatabase: TCDatabase): TWWorkbench;
+function TFClient.CreateWorkbench(const ADatabase: TSDatabase): TWWorkbench;
 begin
   Result := TWWorkbench.Create(Owner, ADatabase);
 
@@ -5803,32 +5803,32 @@ begin
   Result.Perform(CM_PARENTTABLETOPTIONSCHANGED, 0, 0);
 end;
 
-function TFClient.Desktop(const Database: TCDatabase): TDatabaseDesktop;
+function TFClient.Desktop(const Database: TSDatabase): TDatabaseDesktop;
 begin
   Result := TDatabaseDesktop(Database.Desktop);
 end;
 
-function TFClient.Desktop(const Event: TCEvent): TEventDesktop;
+function TFClient.Desktop(const Event: TSEvent): TEventDesktop;
 begin
   Result := TEventDesktop(Event.Desktop);
 end;
 
-function TFClient.Desktop(const Routine: TCRoutine): TRoutineDesktop;
+function TFClient.Desktop(const Routine: TSRoutine): TRoutineDesktop;
 begin
   Result := TRoutineDesktop(Routine.Desktop);
 end;
 
-function TFClient.Desktop(const Table: TCTable): TTableDesktop;
+function TFClient.Desktop(const Table: TSTable): TTableDesktop;
 begin
   Result := TTableDesktop(Table.Desktop);
 end;
 
-function TFClient.Desktop(const Trigger: TCTrigger): TTriggerDesktop;
+function TFClient.Desktop(const Trigger: TSTrigger): TTriggerDesktop;
 begin
   Result := TTriggerDesktop(Trigger.Desktop);
 end;
 
-function TFClient.Desktop(const View: TCView): TViewDesktop;
+function TFClient.Desktop(const View: TSView): TViewDesktop;
 begin
   Result := TViewDesktop(View.Desktop);
 end;
@@ -5995,7 +5995,7 @@ end;
 
 procedure TFClient.DBGridColExit(Sender: TObject);
 var
-  Trigger: TCTrigger;
+  Trigger: TSTrigger;
 begin
   MainAction('aECopyToFile').Enabled := False;
   MainAction('aEPasteFromFile').Enabled := False;
@@ -6005,7 +6005,7 @@ begin
 
   if ((Sender = FObjectIDEGrid) and (SelectedImageIndex = iiTrigger) and (TMySQLDBGrid(Sender).DataSource.DataSet is TMySQLDataSet)) then
   begin
-    Trigger := TCTrigger(FNavigator.Selected.Data);
+    Trigger := TSTrigger(FNavigator.Selected.Data);
 
     BINSERT.Enabled := Trigger.SQLInsert() <> '';
     BREPLACE.Enabled := Trigger.SQLReplace() <> '';
@@ -6518,7 +6518,7 @@ procedure TFClient.DBGridInitialize(const DBGrid: TMySQLDBGrid);
 var
   I: Integer;
   MenuItem: TMenuItem;
-  Table: TCBaseTable;
+  Table: TSBaseTable;
 begin
   DBGrid.DataSource.DataSet.AfterClose := DataSetAfterClose;
   DBGrid.DataSource.DataSet.AfterScroll := DataSetAfterScroll;
@@ -6534,13 +6534,13 @@ begin
 
   if ((View = vBrowser) and (SelectedImageIndex in [iiBaseTable, iiSystemView])) then
   begin
-    Table := TCBaseTable(FNavigator.Selected.Data);
+    Table := TSBaseTable(FNavigator.Selected.Data);
 
     for I := 0 to Table.Keys.Count - 1 do
     begin
       MenuItem := TMenuItem.Create(Self);
-      MenuItem.Caption := TCBaseTable(Table).Keys[I].Caption;
-      MenuItem.Default := TCBaseTable(Table).Keys[I].Primary;
+      MenuItem.Caption := TSBaseTable(Table).Keys[I].Caption;
+      MenuItem.Default := TSBaseTable(Table).Keys[I].Primary;
       MenuItem.Tag := I;
       MenuItem.RadioItem := True;
       MenuItem.OnClick := MGridHeaderMenuOrderClick;
@@ -6786,15 +6786,15 @@ procedure TFClient.FBuilderAddTable(Sender: TObject);
 var
   MenuItem: TMenuItem;
   SQLQualifiedName: TSQLQualifiedName;
-  Table: TCTable;
+  Table: TSTable;
 begin
   if (Sender is TMenuItem) then
   begin
     MenuItem := TMenuItem(Sender);
 
-    if ((MenuItem.GetParentMenu() is TPopupMenu) and (TObject(MenuItem.Tag) is TCTable)) then
+    if ((MenuItem.GetParentMenu() is TPopupMenu) and (TObject(MenuItem.Tag) is TSTable)) then
     begin
-      Table := TCTable(TMenuItem(Sender).Tag);
+      Table := TSTable(TMenuItem(Sender).Tag);
 
       SQLQualifiedName := TSQLQualifiedName.Create(FBuilder.MetadataContainer.SQLContext);
 
@@ -6809,7 +6809,7 @@ end;
 procedure TFClient.FBuilderDragDrop(Sender, Source: TObject; X,
   Y: Integer);
 var
-  Database: TCDatabase;
+  Database: TSDatabase;
   Node: TTreeNode;
   SQLQualifiedName: TSQLQualifiedName;
 begin
@@ -6817,13 +6817,13 @@ begin
   begin
     Node := MouseDownNode;
 
-    Database := TCDatabase(Node.Parent.Data);
+    Database := TSDatabase(Node.Parent.Data);
 
     SQLQualifiedName := TSQLQualifiedName.Create(FBuilder.MetadataContainer.SQLContext);
-    if (Database <> TCDatabase(FNavigator.Selected.Data)) then
+    if (Database <> TSDatabase(FNavigator.Selected.Data)) then
       SQLQualifiedName.AddPrefix(Database.Name);
 
-    SQLQualifiedName.AddName(TCTable(Node.Data).Name);
+    SQLQualifiedName.AddName(TSTable(Node.Data).Name);
     FBuilder.ActiveSubQuery.ActiveUnionSubquery.AddObjectAt(SQLQualifiedName, Point(X, Y));
 
     SQLQualifiedName.Free();
@@ -7038,12 +7038,12 @@ begin
         APopupMenu.Items[I].Caption := Preferences.LoadStr(383);
         APopupMenu.Items[I].OnClick := nil;
 
-        for J := 0 to TCDatabase(FNavigator.Selected.Data).Tables.Count - 1 do
+        for J := 0 to TSDatabase(FNavigator.Selected.Data).Tables.Count - 1 do
         begin
           MenuItem := TMenuItem.Create(Self);
-          MenuItem.Caption := TCDatabase(FNavigator.Selected.Data).Tables[J].Name;
+          MenuItem.Caption := TSDatabase(FNavigator.Selected.Data).Tables[J].Name;
           MenuItem.OnClick := FBuilderAddTable;
-          MenuItem.Tag := Integer(TCDatabase(FNavigator.Selected.Data).Tables[J]);
+          MenuItem.Tag := Integer(TSDatabase(FNavigator.Selected.Data).Tables[J]);
           APopupMenu.Items[I].Add(MenuItem);
         end;
       end;
@@ -7060,7 +7060,7 @@ begin
   FFilter.Text := FFilter.Text;
 
   FFilterEnabled.Enabled := SQLSingleStmt(FFilter.Text);
-  FFilterEnabled.Down := FFilterEnabled.Enabled and Assigned(ActiveDBGrid.DataSource.DataSet) and (FFilter.Text = TCTableDataSet(ActiveDBGrid.DataSource.DataSet).FilterSQL);
+  FFilterEnabled.Down := FFilterEnabled.Enabled and Assigned(ActiveDBGrid.DataSource.DataSet) and (FFilter.Text = TSTableDataSet(ActiveDBGrid.DataSource.DataSet).FilterSQL);
 end;
 
 procedure TFClient.FFilterDropDown(Sender: TObject);
@@ -7087,9 +7087,9 @@ end;
 
 procedure TFClient.FFilterKeyPress(Sender: TObject; var Key: Char);
 begin
-  if ((Key = Chr(VK_ESCAPE)) and (TCTableDataSet(ActiveDBGrid.DataSource.DataSet).FilterSQL <> '')) then
+  if ((Key = Chr(VK_ESCAPE)) and (TSTableDataSet(ActiveDBGrid.DataSource.DataSet).FilterSQL <> '')) then
   begin
-    FFilter.Text := TCTableDataSet(ActiveDBGrid.DataSource.DataSet).FilterSQL;
+    FFilter.Text := TSTableDataSet(ActiveDBGrid.DataSource.DataSet).FilterSQL;
     FFilterChange(Sender);
 
     FFilter.SelStart := 0;
@@ -7355,7 +7355,7 @@ procedure TFClient.FNavigatorAdvancedCustomDrawItem(Sender: TCustomTreeView;
   var PaintImages, DefaultDraw: Boolean);
 begin
   if ((Stage = cdPrePaint) and Assigned(Node)
-    and ((Node.ImageIndex = iiKey) and TCKey(Node.Data).Primary or (Node.ImageIndex = iiField) and TCTableField(Node.Data).InPrimaryKey)) then
+    and ((Node.ImageIndex = iiKey) and TSKey(Node.Data).Primary or (Node.ImageIndex = iiField) and TSTableField(Node.Data).InPrimaryKey)) then
     Sender.Canvas.Font.Style := Sender.Canvas.Font.Style + [fsBold]
   else
     Sender.Canvas.Font.Style := Sender.Canvas.Font.Style - [fsBold];
@@ -7457,7 +7457,7 @@ begin
           iiProcedure:  Objects := Objects + 'Procedure='  + TListView(Source).Items[I].Caption + #13#10;
           iiFunction:   Objects := Objects + 'Function='   + TListView(Source).Items[I].Caption + #13#10;
           iiEvent:      Objects := Objects + 'Event='      + TListView(Source).Items[I].Caption + #13#10;
-          iiKey:        Objects := Objects + 'Key='      + TCKey(TListView(Source).Items[I].Data).Name + #13#10;
+          iiKey:        Objects := Objects + 'Key='      + TSKey(TListView(Source).Items[I].Data).Name + #13#10;
           iiField,
           iiViewField:  Objects := Objects + 'Field='      + TListView(Source).Items[I].Caption + #13#10;
           iiForeignKey: Objects := Objects + 'ForeignKey=' + TListView(Source).Items[I].Caption + #13#10;
@@ -7515,30 +7515,30 @@ end;
 
 procedure TFClient.FNavigatorEmptyExecute(Sender: TObject);
 var
-  Database: TCDatabase;
-  Field: TCBaseTableField;
+  Database: TSDatabase;
+  Field: TSBaseTableField;
   List: TList;
-  Table: TCBaseTable;
+  Table: TSBaseTable;
 begin
   Wanted.Clear();
 
-  if ((FocusedCItem is TCDatabase) and (Sender is TAction)) then
+  if ((FocusedCItem is TSDatabase) and (Sender is TAction)) then
   begin
-    Database := TCDatabase(FocusedCItem);
+    Database := TSDatabase(FocusedCItem);
     if (not Database.Update()) then
       Wanted.Action := TAction(Sender)
     else if (MsgBox(Preferences.LoadStr(374, Database.Name), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES) then
       Database.EmptyTables();
   end
-  else if (FocusedCItem is TCBaseTable) then
+  else if (FocusedCItem is TSBaseTable) then
   begin
-    Table := TCBaseTable(FocusedCItem);
+    Table := TSBaseTable(FocusedCItem);
     if (MsgBox(Preferences.LoadStr(375, Table.Name), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES) then
       Table.Empty();
   end
-  else if (FocusedCItem is TCBaseTableField) then
+  else if (FocusedCItem is TSBaseTableField) then
   begin
-    Field := TCBaseTableField(FocusedCItem);
+    Field := TSBaseTableField(FocusedCItem);
     Table := Field.Table;
     if (Assigned(Field) and (MsgBox(Preferences.LoadStr(376, Field.Name), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES)) then
     begin
@@ -7623,8 +7623,8 @@ end;
 procedure TFClient.FNavigatorExpanding(Sender: TObject; Node: TTreeNode;
   var AllowExpansion: Boolean);
 var
-  Database: TCDatabase;
-  Table: TCTable;
+  Database: TSDatabase;
+  Table: TSTable;
 begin
   if (Node.HasChildren) then
   begin
@@ -7634,14 +7634,14 @@ begin
       iiDatabase,
       iiSystemDatabase:
         begin
-          Database := TCDatabase(Node.Data);
+          Database := TSDatabase(Node.Data);
           AllowExpansion := AllowExpansion and Database.Update();
         end;
       iiBaseTable,
       iiSystemView,
       iiView:
         begin
-          Table := TCTable(Node.Data);
+          Table := TSTable(Node.Data);
           AllowExpansion := AllowExpansion and Table.Update();
         end;
     end;
@@ -7743,10 +7743,10 @@ begin
         if (URI.Table <> '') then
           TableName := URI.Table
         else
-          TableName := TCDatabase(DatabaseNode.Data).TriggerByName(URI.Param['object']).TableName;
+          TableName := TSDatabase(DatabaseNode.Data).TriggerByName(URI.Param['object']).TableName;
         TableNode := nil;
         while (Assigned(Child) and not Assigned(TableNode)) do
-          if ((Child.ImageIndex in [iiBaseTable, iiSystemView, iiView]) and (TCDatabase(DatabaseNode.Data).Tables.NameCmp(TableName, Child.Text) = 0)) then
+          if ((Child.ImageIndex in [iiBaseTable, iiSystemView, iiView]) and (TSDatabase(DatabaseNode.Data).Tables.NameCmp(TableName, Child.Text) = 0)) then
             TableNode := Child
           else
             Child := Child.getNextSibling();
@@ -7761,7 +7761,7 @@ begin
           end;
           Child := TableNode.getFirstChild();
           while (Assigned(Child) and not Assigned(Result)) do
-            if ((Child.ImageIndex in [iiTrigger]) and (TCDatabase(DatabaseNode.Data).Triggers.NameCmp(URI.Param['object'], Child.Text) = 0)) then
+            if ((Child.ImageIndex in [iiTrigger]) and (TSDatabase(DatabaseNode.Data).Triggers.NameCmp(URI.Param['object'], Child.Text) = 0)) then
               Result := Child
             else
               Child := Child.getNextSibling();
@@ -7769,19 +7769,19 @@ begin
       end
       else if (URI.Param['objecttype'] = 'procedure') then
         while (Assigned(Child) and not Assigned(Result)) do
-          if ((Child.ImageIndex = iiProcedure) and (TCDatabase(DatabaseNode.Data).Routines.NameCmp(Child.Text, URI.Param['object']) = 0)) then
+          if ((Child.ImageIndex = iiProcedure) and (TSDatabase(DatabaseNode.Data).Routines.NameCmp(Child.Text, URI.Param['object']) = 0)) then
             Result := Child
           else
             Child := Child.getNextSibling()
       else if (URI.Param['objecttype'] = 'function') then
         while (Assigned(Child) and not Assigned(Result)) do
-          if ((Child.ImageIndex = iiFunction) and (TCDatabase(DatabaseNode.Data).Routines.NameCmp(Child.Text, URI.Param['object']) = 0)) then
+          if ((Child.ImageIndex = iiFunction) and (TSDatabase(DatabaseNode.Data).Routines.NameCmp(Child.Text, URI.Param['object']) = 0)) then
             Result := Child
           else
             Child := Child.getNextSibling()
       else if (URI.Param['objecttype'] = 'event') then
         while (Assigned(Child) and not Assigned(Result)) do
-          if ((Child.ImageIndex = iiEvent) and (TCDatabase(DatabaseNode.Data).Events.NameCmp(Child.Text, URI.Param['object']) = 0)) then
+          if ((Child.ImageIndex = iiEvent) and (TSDatabase(DatabaseNode.Data).Events.NameCmp(Child.Text, URI.Param['object']) = 0)) then
             Result := Child
           else
             Child := Child.getNextSibling()
@@ -7793,7 +7793,7 @@ begin
   URI.Free();
 end;
 
-procedure TFClient.FNavigatorUpdate(const ClientEvent: TCClient.TEvent);
+procedure TFClient.FNavigatorUpdate(const ClientEvent: TSSession.TEvent);
 
   function GroupIDByImageIndex(const ImageIndex: Integer): Integer;
   begin
@@ -7847,8 +7847,8 @@ procedure TFClient.FNavigatorUpdate(const ClientEvent: TCClient.TEvent);
       Result := Sign(GroupIDByImageIndex(Item1.ImageIndex) - GroupIDByImageIndex(Item2.ImageIndex))
     else if (GroupIDByImageIndex(Item1.ImageIndex) = giSystemTools) then
       Result := Sign(Pos(Chr(Item1.ImageIndex), ImageIndexSort) - Pos(Chr(Item2.ImageIndex), ImageIndexSort))
-    else if ((TObject(Item1.Data) is TCItem) and (TObject(Item2.Data) is TCItem)) then
-      Result := Sign(TCItem(Item1.Data).Index - TCItem(Item2.Data).Index)
+    else if ((TObject(Item1.Data) is TSItem) and (TObject(Item2.Data) is TSItem)) then
+      Result := Sign(TSItem(Item1.Data).Index - TSItem(Item2.Data).Index)
     else
       raise ERangeError.Create(SRangeError);
   end;
@@ -7881,7 +7881,7 @@ procedure TFClient.FNavigatorUpdate(const ClientEvent: TCClient.TEvent);
       VirtualChild := TTreeNode.Create(Node.Owner);
       VirtualChild.Data := Data;
       VirtualChild.ImageIndex := ImageIndexByData(Data);
-      VirtualChild.Text := TCItem(Data).Caption;
+      VirtualChild.Text := TSItem(Data).Caption;
 
       Left := 0; C := 0; OldMid := 0; MidChild := Node.getFirstChild();
       Right := Node.Count - 1;
@@ -7910,15 +7910,15 @@ procedure TFClient.FNavigatorUpdate(const ClientEvent: TCClient.TEvent);
       VirtualChild.Free();
     end;
 
-    if (TObject(Data) is TCItem) then
-      Text := TCItem(Data).Caption
-    else if (TObject(Data) is TCProcesses) then
+    if (TObject(Data) is TSItem) then
+      Text := TSItem(Data).Caption
+    else if (TObject(Data) is TSProcesses) then
       Text := Preferences.LoadStr(24)
-    else if (TObject(Data) is TCStati) then
+    else if (TObject(Data) is TSStati) then
       Text := Preferences.LoadStr(23)
-    else if (TObject(Data) is TCUsers) then
+    else if (TObject(Data) is TSUsers) then
       Text := ReplaceStr(Preferences.LoadStr(561), '&', '')
-    else if (TObject(Data) is TCVariables) then
+    else if (TObject(Data) is TSVariables) then
       Text := Preferences.LoadStr(22)
     else
       raise ERangeError.Create(SRangeError);
@@ -7947,15 +7947,15 @@ procedure TFClient.FNavigatorUpdate(const ClientEvent: TCClient.TEvent);
     Child: TTreeNode;
     Text: string;
   begin
-    if (TObject(Data) is TCItem) then
-      Text := TCItem(Data).Caption
-    else if (TObject(Data) is TCProcesses) then
+    if (TObject(Data) is TSItem) then
+      Text := TSItem(Data).Caption
+    else if (TObject(Data) is TSProcesses) then
       Text := Preferences.LoadStr(24)
-    else if (TObject(Data) is TCStati) then
+    else if (TObject(Data) is TSStati) then
       Text := Preferences.LoadStr(23)
-    else if (TObject(Data) is TCUsers) then
+    else if (TObject(Data) is TSUsers) then
       Text := ReplaceStr(Preferences.LoadStr(561), '&', '')
-    else if (TObject(Data) is TCVariables) then
+    else if (TObject(Data) is TSVariables) then
       Text := Preferences.LoadStr(22)
     else
       raise ERangeError.Create(SRangeError);
@@ -7983,7 +7983,7 @@ procedure TFClient.FNavigatorUpdate(const ClientEvent: TCClient.TEvent);
     Node.Delete();
   end;
 
-  procedure UpdateGroup(const Node: TTreeNode; const GroupID: Integer; const CItems: TCItems);
+  procedure UpdateGroup(const Node: TTreeNode; const GroupID: Integer; const CItems: TSItems);
   var
     Add: Boolean;
     Child: TTreeNode;
@@ -8009,7 +8009,7 @@ procedure TFClient.FNavigatorUpdate(const ClientEvent: TCClient.TEvent);
 
           Add := Node.Count = 0;
           for I := 0 to CItems.Count - 1 do
-            if (not (CItems is TCTriggers) or (TCTriggers(CItems)[I].Table = ClientEvent.Sender)) then
+            if (not (CItems is TSTriggers) or (TSTriggers(CItems)[I].Table = ClientEvent.Sender)) then
               if (not Add) then
                 InsertChild(Node, CItems[I])
               else
@@ -8065,12 +8065,12 @@ var
   Child: TTreeNode;
   ChangeEvent: TTVChangedEvent;
   ChangingEvent: TTVChangingEvent;
-  Database: TCDatabase;
+  Database: TSDatabase;
   Expanded: Boolean;
   ExpandingEvent: TTVExpandingEvent;
   Node: TTreeNode;
   OldSelected: TTreeNode;
-  Table: TCTable;
+  Table: TSTable;
 begin
   OldSelected := FNavigator.Selected;
 
@@ -8078,7 +8078,7 @@ begin
   ChangeEvent := FNavigator.OnChange; FNavigator.OnChange := nil;
   FNavigator.Items.BeginUpdate();
 
-  if (ClientEvent.Sender is TCClient) then
+  if (ClientEvent.Sender is TSSession) then
   begin
     Node := FNavigator.Items.getFirstNode();
 
@@ -8093,19 +8093,19 @@ begin
       Node.Expand(False);
     end;
 
-    if (ClientEvent.CItems is TCDatabases) then
+    if (ClientEvent.CItems is TSDatabases) then
       UpdateGroup(Node, giDatabases, ClientEvent.CItems);
   end
-  else if (ClientEvent.Sender is TCDatabase) then
+  else if (ClientEvent.Sender is TSDatabase) then
   begin
-    Database := TCDatabase(ClientEvent.Sender);
+    Database := TSDatabase(ClientEvent.Sender);
 
     Node := FNavigator.Items.getFirstNode().getFirstChild();
     while (Assigned(Node) and (Node.Data <> Database)) do Node := Node.getNextSibling();
 
     if (Assigned(Node) and (not Node.HasChildren or (Node.Count > 0) or (Node = FNavigatorNodeToExpand))) then
     begin
-      if (not (ClientEvent.CItems is TCTriggers)) then
+      if (not (ClientEvent.CItems is TSTriggers)) then
       begin
         UpdateGroup(Node, giTriggers, ClientEvent.CItems);
 
@@ -8114,21 +8114,21 @@ begin
           or (Assigned(Database.Routines) and ((Database.Routines.Count > 0) or not Database.Routines.Valid))
           or (Assigned(Database.Events) and ((Database.Events.Count > 0) or not Database.Events.Valid));
       end
-      else if (ClientEvent.CItem is TCTrigger) then
+      else if (ClientEvent.CItem is TSTrigger) then
       begin
         Child := Node.getFirstChild();
         while (Assigned(Child)) do
         begin
-          if (TObject(Child.Data) = TCTrigger(ClientEvent.CItem).Table) then
+          if (TObject(Child.Data) = TSTrigger(ClientEvent.CItem).Table) then
             UpdateGroup(Child, giTables, ClientEvent.CItems);
           Child := Child.getNextSibling();
         end;
       end;
     end;
   end
-  else if (ClientEvent.Sender is TCTable) then
+  else if (ClientEvent.Sender is TSTable) then
   begin
-    Table := TCTable(ClientEvent.Sender);
+    Table := TSTable(ClientEvent.Sender);
 
     Node := FNavigator.Items.getFirstNode().getFirstChild();
     while (Assigned(Node) and (Node.Data <> Table.Database)) do Node := Node.getNextSibling();
@@ -8142,12 +8142,12 @@ begin
       begin
         Expanded := Node.Expanded;
 
-        if (Table is TCBaseTable) then
-          UpdateGroup(Node, giKeys, TCBaseTable(Table).Keys);
+        if (Table is TSBaseTable) then
+          UpdateGroup(Node, giKeys, TSBaseTable(Table).Keys);
         UpdateGroup(Node, giFields, Table.Fields);
-        if ((Table is TCBaseTable) and Assigned(TCBaseTable(Table).ForeignKeys)) then
-          UpdateGroup(Node, giForeignKeys, TCBaseTable(Table).ForeignKeys);
-        if ((Table is TCBaseTable) and Assigned(Table.Database.Triggers)) then
+        if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).ForeignKeys)) then
+          UpdateGroup(Node, giForeignKeys, TSBaseTable(Table).ForeignKeys);
+        if ((Table is TSBaseTable) and Assigned(Table.Database.Triggers)) then
           UpdateGroup(Node, giTriggers, Table.Database.Triggers);
 
         Node.HasChildren := Node.Count > 0;
@@ -8203,13 +8203,13 @@ begin
   MainAction('aDCreateDatabase').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer]) and (not Assigned(Client.UserRights) or Client.UserRights.RCreate);
   MainAction('aDCreateTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
   MainAction('aDCreateView').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and (Client.ServerVersion >= 50001);
-  MainAction('aDCreateProcedure').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and Assigned(TCDatabase(Node.Data).Routines);
+  MainAction('aDCreateProcedure').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and Assigned(TSDatabase(Node.Data).Routines);
   MainAction('aDCreateFunction').Enabled := MainAction('aDCreateProcedure').Enabled;
-  MainAction('aDCreateEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and Assigned(TCDatabase(Node.Data).Events);
-  MainAction('aDCreateTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable) and Assigned(TCDatabase(Node.Parent.Data).Triggers);
+  MainAction('aDCreateEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and Assigned(TSDatabase(Node.Data).Events);
+  MainAction('aDCreateTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable) and Assigned(TSDatabase(Node.Parent.Data).Triggers);
   MainAction('aDCreateKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
   MainAction('aDCreateField').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
-  MainAction('aDCreateForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseTable]) and Assigned(TCBaseTable(Node.Data).Engine) and TCBaseTable(Node.Data).Engine.ForeignKeyAllowed;
+  MainAction('aDCreateForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseTable]) and Assigned(TSBaseTable(Node.Data).Engine) and TSBaseTable(Node.Data).Engine.ForeignKeyAllowed;
   MainAction('aDCreateUser').Enabled := Assigned(Node) and (Node.ImageIndex = iiUsers);
   MainAction('aDDeleteDatabase').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
   MainAction('aDDeleteTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
@@ -8217,7 +8217,7 @@ begin
   MainAction('aDDeleteRoutine').Enabled := Assigned(Node) and (Node.ImageIndex in [iiProcedure, iiFunction]);
   MainAction('aDDeleteEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiEvent);
   MainAction('aDDeleteKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiKey);
-  MainAction('aDDeleteField').Enabled := Assigned(Node) and (Node.ImageIndex = iiField) and (TCTableField(Node.Data).Fields.Count > 1);
+  MainAction('aDDeleteField').Enabled := Assigned(Node) and (Node.ImageIndex = iiField) and (TSTableField(Node.Data).Fields.Count > 1);
   MainAction('aDDeleteForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiForeignKey) and (Client.ServerVersion >= 40013);
   MainAction('aDDeleteTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiTrigger);
   MainAction('aDDeleteProcess').Enabled := False;
@@ -8231,7 +8231,7 @@ begin
   MainAction('aDEditField').Enabled := Assigned(Node) and (Node.ImageIndex = iiField);
   MainAction('aDEditForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiForeignKey);
   MainAction('aDEditTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiTrigger);
-  MainAction('aDEmpty').Enabled := Assigned(Node) and ((Node.ImageIndex = iiDatabase) or (Node.ImageIndex = iiBaseTable) or ((Node.ImageIndex = iiField) and TCTableField(Node.Data).NullAllowed));
+  MainAction('aDEmpty').Enabled := Assigned(Node) and ((Node.ImageIndex = iiDatabase) or (Node.ImageIndex = iiBaseTable) or ((Node.ImageIndex = iiField) and TSTableField(Node.Data).NullAllowed));
 
   miNExpand.Default := aPExpand.Enabled;
   miNCollapse.Default := aPCollapse.Enabled;
@@ -8285,13 +8285,13 @@ begin
     FUDOffset.Position := FUDOffset.Position;
 
     FLimitEnabled.Enabled := FUDLimit.Position > 0;
-    FLimitEnabled.Down := (FUDOffset.Position = TCTableDataSet(ActiveDBGrid.DataSource.DataSet).Offset) and (FUDLimit.Position = TCTableDataSet(ActiveDBGrid.DataSource.DataSet).Limit);
+    FLimitEnabled.Down := (FUDOffset.Position = TSTableDataSet(ActiveDBGrid.DataSource.DataSet).Offset) and (FUDLimit.Position = TSTableDataSet(ActiveDBGrid.DataSource.DataSet).Limit);
   end;
 end;
 
 procedure TFClient.FOffsetKeyPress(Sender: TObject; var Key: Char);
 begin
-  if ((Key = Chr(VK_ESCAPE)) and (TCTableDataSet(ActiveDBGrid.DataSource.DataSet).Limit > 0)) then
+  if ((Key = Chr(VK_ESCAPE)) and (TSTableDataSet(ActiveDBGrid.DataSource.DataSet).Limit > 0)) then
   begin
     FUDOffset.Position := FUDOffset.Position;
     FUDLimit.Position := FUDLimit.Position;
@@ -8347,7 +8347,7 @@ begin
   end;
 end;
 
-procedure TFClient.FormClientEvent(const Event: TCClient.TEvent);
+procedure TFClient.FormClientEvent(const Event: TSSession.TEvent);
 begin
   if (not (csDestroying in ComponentState)) then
     case (Event.EventType) of
@@ -8393,7 +8393,7 @@ end;
 procedure TFClient.FQuickSearchChange(Sender: TObject);
 begin
   FQuickSearchEnabled.Enabled := FQuickSearch.Text <> '';
-  FQuickSearchEnabled.Down := (FQuickSearch.Text <> '') and (ActiveDBGrid.DataSource.DataSet is TCTableDataSet) and (FQuickSearch.Text = TCTableDataSet(ActiveDBGrid.DataSource.DataSet).QuickSearch);
+  FQuickSearchEnabled.Down := (FQuickSearch.Text <> '') and (ActiveDBGrid.DataSource.DataSet is TSTableDataSet) and (FQuickSearch.Text = TSTableDataSet(ActiveDBGrid.DataSource.DataSet).QuickSearch);
 end;
 
 procedure TFClient.FQuickSearchEnabledClick(Sender: TObject);
@@ -8409,7 +8409,7 @@ begin
   if (Key = Chr(VK_ESCAPE)) then
   begin
     FQuickSearch.Text := '';
-    if ((ActiveDBGrid.DataSource.DataSet is TCTableDataSet) and (TCTableDataSet(ActiveDBGrid.DataSource.DataSet).QuickSearch <> '')) then
+    if ((ActiveDBGrid.DataSource.DataSet is TSTableDataSet) and (TSTableDataSet(ActiveDBGrid.DataSource.DataSet).QuickSearch <> '')) then
       FQuickSearchEnabled.Click();
 
     Key := #0;
@@ -8507,7 +8507,7 @@ procedure TFClient.FSQLEditorCompletionExecute(Kind: SynCompletionType;
   var CanExecute: Boolean);
 var
   Attri: TSynHighlighterAttributes;
-  Database: TCDatabase;
+  Database: TSDatabase;
   DMLStmt: TSQLDMLStmt;
   I: Integer;
   Identifier: string;
@@ -8520,8 +8520,8 @@ var
   S: string;
   SQL: string;
   StringList: TStringList;
-  Table: TCTable;
-  Tables: array of TCTable;
+  Table: TSTable;
+  Tables: array of TSTable;
   Token: string;
 begin
   SetLength(Tables, 0);
@@ -8689,15 +8689,15 @@ begin
       for I := 0 to Length(Tables) - 1 do
         if (Tables[I].Fields.Count > 0) then
         begin
-          if (Tables[I] is TCBaseTable) then
-            for J := 0 to TCBaseTable(Tables[I]).Keys.Count - 1 do
-              if (not TCBaseTable(Tables[I]).Keys[J].Primary) then
-                StringList.Add(TCBaseTable(Tables[I]).Keys[J].Caption);
+          if (Tables[I] is TSBaseTable) then
+            for J := 0 to TSBaseTable(Tables[I]).Keys.Count - 1 do
+              if (not TSBaseTable(Tables[I]).Keys[J].Primary) then
+                StringList.Add(TSBaseTable(Tables[I]).Keys[J].Caption);
           for J := 0 to Tables[I].Fields.Count - 1 do
             StringList.Add(Tables[I].Fields[J].Name);
-          if (Tables[I] is TCBaseTable) then
-            for J := 0 to TCBaseTable(Tables[I]).ForeignKeys.Count - 1 do
-              StringList.Add(TCBaseTable(Tables[I]).ForeignKeys[J].Name);
+          if (Tables[I] is TSBaseTable) then
+            for J := 0 to TSBaseTable(Tables[I]).ForeignKeys.Count - 1 do
+              StringList.Add(TSBaseTable(Tables[I]).ForeignKeys[J].Name);
         end;
     except
     end;
@@ -8989,14 +8989,14 @@ begin
   if (Assigned(FNavigator.Selected)) then
     case (View) of
       vBrowser:
-        if (TObject(FNavigator.Selected.Data) is TCTable) then
-          Result := Desktop(TCTable(FNavigator.Selected.Data)).CreateDBGrid();
+        if (TObject(FNavigator.Selected.Data) is TSTable) then
+          Result := Desktop(TSTable(FNavigator.Selected.Data)).CreateDBGrid();
       vIDE:
-        if (TObject(FNavigator.Selected.Data) is TCRoutine) then
-          Result := Desktop(TCRoutine(FNavigator.Selected.Data)).ActiveDBGrid;
+        if (TObject(FNavigator.Selected.Data) is TSRoutine) then
+          Result := Desktop(TSRoutine(FNavigator.Selected.Data)).ActiveDBGrid;
       vBuilder:
-        if (TObject(FNavigator.Selected.Data) is TCDatabase) then
-          Result := Desktop(TCDatabase(FNavigator.Selected.Data)).DBGrid;
+        if (TObject(FNavigator.Selected.Data) is TSDatabase) then
+          Result := Desktop(TSDatabase(FNavigator.Selected.Data)).DBGrid;
       vEditor:
         Result := SQLEditor.ActiveDBGrid;
     end;
@@ -9018,13 +9018,13 @@ function TFClient.GetActiveIDEInputDataSet(): TDataSet;
 var
   I: Integer;
   J: Integer;
-  Routine: TCRoutine;
+  Routine: TSRoutine;
 begin
   case (SelectedImageIndex) of
     iiProcedure,
     iiFunction:
       begin
-        Routine := TCRoutine(FNavigator.Selected.Data);
+        Routine := TSRoutine(FNavigator.Selected.Data);
 
         FObjectIDEGrid.DataSource.DataSet := Routine.InputDataSet;
 
@@ -9034,7 +9034,7 @@ begin
               FObjectIDEGrid.Columns[I].PickList.Add(Routine.Parameter[I].Items[J]);
       end;
     iiTrigger:
-      FObjectIDEGrid.DataSource.DataSet := TCTrigger(FNavigator.Selected.Data).InputDataSet;
+      FObjectIDEGrid.DataSource.DataSet := TSTrigger(FNavigator.Selected.Data).InputDataSet;
     else
       FObjectIDEGrid.DataSource.DataSet := nil;
   end;
@@ -9074,11 +9074,11 @@ begin
       iiServer: Result := FServerListView;
       iiDatabase,
       iiSystemDatabase:
-        Result := Desktop(TCDatabase(FNavigator.Selected.Data)).CreateListView();
+        Result := Desktop(TSDatabase(FNavigator.Selected.Data)).CreateListView();
       iiBaseTable,
       iiSystemView,
       iiView:
-        Result := Desktop(TCTable(FNavigator.Selected.Data)).CreateListView();
+        Result := Desktop(TSTable(FNavigator.Selected.Data)).CreateListView();
       iiProcesses:
         begin
           if (not Assigned(ProcessesListView)) then
@@ -9131,11 +9131,11 @@ begin
   case (View) of
     vIDE:
       case (SelectedImageIndex) of
-        iiView: Result := Desktop(TCView(FNavigator.Selected.Data)).CreateSynMemo();
+        iiView: Result := Desktop(TSView(FNavigator.Selected.Data)).CreateSynMemo();
         iiProcedure,
-        iiFunction: Result := Desktop(TCRoutine(FNavigator.Selected.Data)).CreateSynMemo();
-        iiEvent: Result := Desktop(TCEvent(FNavigator.Selected.Data)).CreateSynMemo();
-        iiTrigger: Result := Desktop(TCTrigger(FNavigator.Selected.Data)).CreateSynMemo();
+        iiFunction: Result := Desktop(TSRoutine(FNavigator.Selected.Data)).CreateSynMemo();
+        iiEvent: Result := Desktop(TSEvent(FNavigator.Selected.Data)).CreateSynMemo();
+        iiTrigger: Result := Desktop(TSTrigger(FNavigator.Selected.Data)).CreateSynMemo();
         else Result := nil;
       end;
     vBuilder:
@@ -9157,7 +9157,7 @@ var
 begin
   case (View) of
     vDiagram:
-      Result := Desktop(TCDatabase(FNavigator.Selected.Data)).Workbench;
+      Result := Desktop(TSDatabase(FNavigator.Selected.Data)).Workbench;
     else
       Result := nil;
   end;
@@ -9167,26 +9167,26 @@ begin
       PWorkbench.Controls[I].Visible := PWorkbench.Controls[I] = Result;
 end;
 
-function TFClient.GetFocusedCItem(): TCItem;
+function TFClient.GetFocusedCItem(): TSItem;
 begin
   if ((Window.ActiveControl = ActiveListView) and Assigned(ActiveListView.Selected)) then
-    if ((ActiveListView.SelCount > 1) or not (TCObject(ActiveListView.Selected.Data) is TCItem)) then
+    if ((ActiveListView.SelCount > 1) or not (TSObject(ActiveListView.Selected.Data) is TSItem)) then
       Result := nil
     else
-      Result := TCItem(ActiveListView.Selected.Data)
+      Result := TSItem(ActiveListView.Selected.Data)
   else if ((Window.ActiveControl = ActiveWorkbench) and Assigned(ActiveWorkbench) and Assigned(ActiveWorkbench.Selected)) then
     if (ActiveWorkbench.Selected is TWTable) then
       Result := TWTable(ActiveWorkbench.Selected).BaseTable
     else if (ActiveWorkbench.Selected is TWForeignKey) then
       Result := TWForeignKey(ActiveWorkbench.Selected).BaseForeignKey
     else
-      Result := TCDatabase(FNavigator.Selected.Data)
+      Result := TSDatabase(FNavigator.Selected.Data)
   else if ((Window.ActiveControl = ActiveListView) and not Assigned(ActiveListView.Selected) or (Window.ActiveControl = ActiveWorkbench) and (not Assigned(ActiveWorkbench) or not Assigned(ActiveWorkbench.Selected))) then
-    Result := TCItem(FNavigator.Selected.Data)
+    Result := TSItem(FNavigator.Selected.Data)
   else if (Assigned(FNavigatorMenuNode)) then
-    Result := TCItem(FNavigatorMenuNode.Data)
+    Result := TSItem(FNavigatorMenuNode.Data)
   else if ((Window.ActiveControl = FNavigator) and Assigned(FNavigator.Selected)) then
-    Result := TCItem(FNavigator.Selected.Data)
+    Result := TSItem(FNavigator.Selected.Data)
   else
     Result := nil;
 end;
@@ -9240,7 +9240,7 @@ begin
   Result := ExcludeTrailingPathDelimiter(Preferences.Path);
 end;
 
-function TFClient.GetMenuDatabase(): TCDatabase;
+function TFClient.GetMenuDatabase(): TSDatabase;
 var
   Node: TTreeNode;
 begin
@@ -9253,7 +9253,7 @@ begin
     Node := Node.Parent;
 
   if (Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiSystemDatabase])) then
-    Result := TCDatabase(Node.Data)
+    Result := TSDatabase(Node.Data)
   else
     Result := nil;
 end;
@@ -9313,7 +9313,7 @@ begin
     ActiveDBGrid.DataSource.DataSet.Filter := '';
     StatusBarRefresh();
   end
-  else if (ActiveDBGrid.DataSource.DataSet is TCTableDataSet) then
+  else if (ActiveDBGrid.DataSource.DataSet is TSTableDataSet) then
     FFilterEnabledClick(nil);
 end;
 
@@ -9371,42 +9371,42 @@ function TFClient.ImageIndexByData(const Data: TObject): Integer;
 begin
   if (not Assigned(Data)) then
     Result := iiServer
-  else if (TObject(Data) is TCSystemDatabase) then
+  else if (TObject(Data) is TSSystemDatabase) then
     Result := iiSystemDatabase
-  else if (TObject(Data) is TCDatabase) then
+  else if (TObject(Data) is TSDatabase) then
     Result := iiDatabase
-  else if (TObject(Data) is TCSystemView) then
+  else if (TObject(Data) is TSSystemView) then
     Result := iiSystemView
-  else if (TObject(Data) is TCBaseTable) then
+  else if (TObject(Data) is TSBaseTable) then
     Result := iiBaseTable
-  else if (TObject(Data) is TCView) then
+  else if (TObject(Data) is TSView) then
     Result := iiView
-  else if (TObject(Data) is TCProcedure) then
+  else if (TObject(Data) is TSProcedure) then
     Result := iiProcedure
-  else if (TObject(Data) is TCFunction) then
+  else if (TObject(Data) is TSFunction) then
     Result := iiFunction
-  else if (TObject(Data) is TCEvent) then
+  else if (TObject(Data) is TSEvent) then
     Result := iiEvent
-  else if (TObject(Data) is TCKey) then
+  else if (TObject(Data) is TSKey) then
     Result := iiKey
-  else if (TObject(Data) is TCTableField) then
-    if (TCTableField(Data).Table is TCSystemView) then
+  else if (TObject(Data) is TSTableField) then
+    if (TSTableField(Data).Table is TSSystemView) then
       Result := iiSystemViewField
-    else if (TCTableField(Data).Table is TCBaseTable) then
+    else if (TSTableField(Data).Table is TSBaseTable) then
       Result := iiField
     else
       Result := iiViewField
-  else if (TObject(Data) is TCForeignKey) then
+  else if (TObject(Data) is TSForeignKey) then
     Result := iiForeignKey
-  else if (TObject(Data) is TCTrigger) then
+  else if (TObject(Data) is TSTrigger) then
     Result := iiTrigger
-  else if (TObject(Data) is TCProcesses) then
+  else if (TObject(Data) is TSProcesses) then
     Result := iiProcesses
-  else if (TObject(Data) is TCStati) then
+  else if (TObject(Data) is TSStati) then
     Result := iiStati
-  else if (TObject(Data) is TCUsers) then
+  else if (TObject(Data) is TSUsers) then
     Result := iiUsers
-  else if (TObject(Data) is TCVariables) then
+  else if (TObject(Data) is TSVariables) then
     Result := iiVariables
   else
     raise ERangeError.Create(SRangeError);
@@ -9424,7 +9424,7 @@ procedure TFClient.ListViewAdvancedCustomDrawItem(
   Stage: TCustomDrawStage; var DefaultDraw: Boolean);
 begin
   if ((Stage = cdPrePaint) and Assigned(Item)
-    and ((Item.ImageIndex = iiKey) and TCKey(Item.Data).Primary or (Item.ImageIndex = iiField) and TCTableField(Item.Data).InPrimaryKey)) then
+    and ((Item.ImageIndex = iiKey) and TSKey(Item.Data).Primary or (Item.ImageIndex = iiField) and TSTableField(Item.Data).InPrimaryKey)) then
     Sender.Canvas.Font.Style := [fsBold]
   else
     Sender.Canvas.Font.Style := [];
@@ -9501,7 +9501,7 @@ begin
   else if (Item1.GroupID = giSystemTools) then
     Compare := Sign(Pos(Chr(Item1.ImageIndex), ImageIndexSort) - Pos(Chr(Item2.ImageIndex), ImageIndexSort))
   else if (SortRec^.Index = 0) then
-    Compare := Sign(TCItem(Item1.Data).Index - TCItem(Item2.Data).Index)
+    Compare := Sign(TSItem(Item1.Data).Index - TSItem(Item2.Data).Index)
   else
   begin
     if ((SortRec^.Index > Item1.SubItems.Count) or (SortRec^.Index > Item2.SubItems.Count)) then
@@ -9588,7 +9588,7 @@ begin
         iiProcesses:
           case (SortRec^.Index) of
             6:
-              Compare := Sign(Double(TCProcess(Item1.Data).Time) - Double(TCProcess(Item2.Data).Time))
+              Compare := Sign(Double(TSProcess(Item1.Data).Time) - Double(TSProcess(Item2.Data).Time))
           end;
       end;
     end;
@@ -9638,8 +9638,8 @@ end;
 procedure TFClient.ListViewDragOver(Sender, Source: TObject; X, Y: Integer;
   State: TDragState; var Accept: Boolean);
 var
-  SourceClient: TCClient;
-  SourceDatabase: TCDatabase;
+  SourceClient: TSSession;
+  SourceDatabase: TSDatabase;
   SourceItem: TListItem;
   SourceNode: TTreeNode;
   TargetItem: TListItem;
@@ -9742,7 +9742,7 @@ begin
       ListView.Groups.Add().GroupID := giDatabases;
       ListView.Groups.Add().GroupID := giSystemTools;
     end
-    else if (TObject(ListView.Tag) is TCDatabase) then
+    else if (TObject(ListView.Tag) is TSDatabase) then
     begin
       ListView.Columns.Add();
       ListView.Columns.Add();
@@ -9762,7 +9762,7 @@ begin
       ListView.Groups.Add().GroupID := giRoutines;
       ListView.Groups.Add().GroupID := giEvents;
     end
-    else if (TObject(ListView.Tag) is TCBaseTable) then
+    else if (TObject(ListView.Tag) is TSBaseTable) then
     begin
       ListView.Columns.Add();
       ListView.Columns.Add();
@@ -9781,7 +9781,7 @@ begin
       ListView.Groups.Add().GroupID := giForeignKeys;
       ListView.Groups.Add().GroupID := giTriggers;
     end
-    else if (TObject(ListView.Tag) is TCView) then
+    else if (TObject(ListView.Tag) is TSView) then
     begin
       ListView.Columns.Add();
       ListView.Columns.Add();
@@ -9795,7 +9795,7 @@ begin
 
       ListView.Groups.Add().GroupID := giFields;
     end
-    else if (TObject(ListView.Tag) is TCProcesses) then
+    else if (TObject(ListView.Tag) is TSProcesses) then
     begin
       ListView.Columns.Add();
       ListView.Columns.Add();
@@ -9810,7 +9810,7 @@ begin
 
       ListView.Groups.Add().GroupID := giProcesses;
     end
-    else if (TObject(ListView.Tag) is TCStati) then
+    else if (TObject(ListView.Tag) is TSStati) then
     begin
       ListView.Columns.Add();
       ListView.Columns.Add();
@@ -9819,7 +9819,7 @@ begin
 
       ListView.Groups.Add().GroupID := giStati;
     end
-    else if (TObject(ListView.Tag) is TCUsers) then
+    else if (TObject(ListView.Tag) is TSUsers) then
     begin
       ListView.Columns.Add();
       ListView.Columns.EndUpdate();
@@ -9827,7 +9827,7 @@ begin
 
       ListView.Groups.Add().GroupID := giUsers;
     end
-    else if (TObject(ListView.Tag) is TCVariables) then
+    else if (TObject(ListView.Tag) is TSVariables) then
     begin
       ListView.Columns.Add();
       ListView.Columns.Add();
@@ -9858,7 +9858,7 @@ begin
 
     ListView.Groups[1].Header := ReplaceStr(Preferences.LoadStr(12), '&', '') + ' (' + IntToStr(Count) + ')';
   end
-  else if (TObject(ListView.Tag) is TCDatabase) then
+  else if (TObject(ListView.Tag) is TSDatabase) then
   begin
     ListView.Columns[0].Caption := ReplaceStr(Preferences.LoadStr(35), '&', '');
     ListView.Columns[1].Caption := Preferences.LoadStr(69);
@@ -9868,7 +9868,7 @@ begin
     ListView.Columns[5].Caption := ReplaceStr(Preferences.LoadStr(73), '&', '');
     ListView.Columns[6].Caption := ReplaceStr(Preferences.LoadStr(111), '&', '');
   end
-  else if (TObject(ListView.Tag) is TCBaseTable) then
+  else if (TObject(ListView.Tag) is TSBaseTable) then
   begin
     ListView.Columns[0].Caption := ReplaceStr(Preferences.LoadStr(35), '&', '');
     ListView.Columns[1].Caption := Preferences.LoadStr(69);
@@ -9878,7 +9878,7 @@ begin
     if (Client.ServerVersion >= 40100) then
       ListView.Columns[5].Caption := ReplaceStr(Preferences.LoadStr(111), '&', '');
   end
-  else if (TObject(ListView.Tag) is TCView) then
+  else if (TObject(ListView.Tag) is TSView) then
   begin
     ListView.Columns[0].Caption := ReplaceStr(Preferences.LoadStr(35), '&', '');
     ListView.Columns[1].Caption := Preferences.LoadStr(69);
@@ -9886,7 +9886,7 @@ begin
     ListView.Columns[3].Caption := Preferences.LoadStr(72);
     ListView.Columns[4].Caption := ReplaceStr(Preferences.LoadStr(73), '&', '');
   end
-  else if (TObject(ListView.Tag) is TCProcesses) then
+  else if (TObject(ListView.Tag) is TSProcesses) then
   begin
     ListView.Columns[0].Caption := Preferences.LoadStr(269);
     ListView.Columns[1].Caption := ReplaceStr(Preferences.LoadStr(561), '&', '');
@@ -9897,16 +9897,16 @@ begin
     ListView.Columns[6].Caption := ReplaceStr(Preferences.LoadStr(661), '&', '');
     ListView.Columns[7].Caption := Preferences.LoadStr(276);
   end
-  else if (TObject(ListView.Tag) is TCStati) then
+  else if (TObject(ListView.Tag) is TSStati) then
   begin
     ListView.Columns[0].Caption := Preferences.LoadStr(267);
     ListView.Columns[1].Caption := Preferences.LoadStr(268);
   end
-  else if (TObject(ListView.Tag) is TCUsers) then
+  else if (TObject(ListView.Tag) is TSUsers) then
   begin
     ListView.Columns[0].Caption := ReplaceStr(Preferences.LoadStr(561), '&', '');
   end
-  else if (TObject(ListView.Tag) is TCVariables) then
+  else if (TObject(ListView.Tag) is TSVariables) then
   begin
     ListView.Columns[0].Caption := Preferences.LoadStr(267);
     ListView.Columns[1].Caption := Preferences.LoadStr(268);
@@ -9981,7 +9981,7 @@ begin
           for I := 0 to ActiveListView.Items.Count - 1 do
             if (ActiveListView.Items[I].Selected and (ActiveListView.Items[I].ImageIndex = iiField)) then
               List.Add(ActiveListView.Items[I].Data);
-          TCBaseTable(FNavigator.Selected.Data).EmptyFields(List);
+          TSBaseTable(FNavigator.Selected.Data).EmptyFields(List);
         end;
     end;
     List.Free();
@@ -10072,7 +10072,7 @@ begin
   mlEProperties.ShortCut := 0;
 end;
 
-procedure TFClient.ListViewUpdate(const ClientEvent: TCClient.TEvent; const ListView: TListView; const Data: TCustomData = nil);
+procedure TFClient.ListViewUpdate(const ClientEvent: TSSession.TEvent; const ListView: TListView; const Data: TCustomData = nil);
 
   function Compare(const Kind: TADesktop.TListViewKind; const Item1, Item2: TListItem): Integer;
   begin
@@ -10101,296 +10101,296 @@ procedure TFClient.ListViewUpdate(const ClientEvent: TCClient.TEvent; const List
     Item.SubItems.BeginUpdate();
     Item.SubItems.Clear();
 
-    if (Data is TCDatabase) then
+    if (Data is TSDatabase) then
     begin
       Item.GroupID := giDatabases;
-      if (Data is TCSystemDatabase) then
+      if (Data is TSSystemDatabase) then
         Item.ImageIndex := iiSystemDatabase
       else
         Item.ImageIndex := iiDatabase;
-      Item.Caption := TCDatabase(Data).Caption;
+      Item.Caption := TSDatabase(Data).Caption;
       Item.SubItems.Clear();
-      if (TCDatabase(Data).Count < 0) then
+      if (TSDatabase(Data).Count < 0) then
         Item.SubItems.Add('')
       else
-        Item.SubItems.Add(FormatFloat('#,##0', TCDatabase(Data).Count, LocaleFormatSettings));
-      if ((TCDatabase(Data) is TCSystemDatabase) or (TCDatabase(Data).Size < 0)) then
+        Item.SubItems.Add(FormatFloat('#,##0', TSDatabase(Data).Count, LocaleFormatSettings));
+      if ((TSDatabase(Data) is TSSystemDatabase) or (TSDatabase(Data).Size < 0)) then
         Item.SubItems.Add('')
       else
-        Item.SubItems.Add(SizeToStr(TCDatabase(Data).Size));
-      if (TCDatabase(Data) is TCSystemDatabase) then
+        Item.SubItems.Add(SizeToStr(TSDatabase(Data).Size));
+      if (TSDatabase(Data) is TSSystemDatabase) then
         Item.SubItems.Add(SysUtils.DateToStr(Client.StartTime, LocaleFormatSettings))
-      else if (TCDatabase(Data).Created = 0) then
+      else if (TSDatabase(Data).Created = 0) then
         Item.SubItems.Add('')
       else
-        Item.SubItems.Add(SysUtils.DateToStr(TCDatabase(Data).Created, LocaleFormatSettings));
-      if (TCDatabase(Data).DefaultCharset = Client.DefaultCharset) then
+        Item.SubItems.Add(SysUtils.DateToStr(TSDatabase(Data).Created, LocaleFormatSettings));
+      if (TSDatabase(Data).DefaultCharset = Client.DefaultCharset) then
         S := ''
       else
-        S := TCDatabase(Data).DefaultCharset;
-      if ((TCDatabase(Data).Collation <> '') and (TCDatabase(Data).Collation <> Client.Collation)) then
+        S := TSDatabase(Data).DefaultCharset;
+      if ((TSDatabase(Data).Collation <> '') and (TSDatabase(Data).Collation <> Client.Collation)) then
       begin
         if (S <> '') then S := S + ', ';
-        S := S + TCDatabase(Data).Collation;
+        S := S + TSDatabase(Data).Collation;
       end;
-      if (TCDatabase(Data) is TCSystemDatabase) then
+      if (TSDatabase(Data) is TSSystemDatabase) then
         Item.SubItems.Add('')
       else
         Item.SubItems.Add(S);
     end
-    else if (Data is TCTable) then
+    else if (Data is TSTable) then
     begin
       Item.GroupID := giTables;
-      if (Data is TCSystemView) then
+      if (Data is TSSystemView) then
         Item.ImageIndex := iiSystemView
-      else if (Data is TCBaseTable) then
+      else if (Data is TSBaseTable) then
         Item.ImageIndex := iiBaseTable
       else
         Item.ImageIndex := iiView;
-      Item.Caption := TCTable(Data).Caption;
-      if ((TCTable(Data) is TCBaseTable) and TCBaseTable(Data).ValidStatus and Assigned(TCBaseTable(Data).Engine)) then
-        Item.SubItems.Add(TCBaseTable(Data).Engine.Name)
-      else if ((TCTable(Data) is TCView)) then
+      Item.Caption := TSTable(Data).Caption;
+      if ((TSTable(Data) is TSBaseTable) and TSBaseTable(Data).ValidStatus and Assigned(TSBaseTable(Data).Engine)) then
+        Item.SubItems.Add(TSBaseTable(Data).Engine.Name)
+      else if ((TSTable(Data) is TSView)) then
         Item.SubItems.Add(ReplaceStr(Preferences.LoadStr(738), '&', ''))
       else
         Item.SubItems.Add('');
-      if ((TCTable(Data) is TCBaseTable) and not TCBaseTable(Data).ValidStatus) then
+      if ((TSTable(Data) is TSBaseTable) and not TSBaseTable(Data).ValidStatus) then
         Item.SubItems.Add('')
-      else if ((TCTable(Data) is TCBaseTable) and (TCBaseTable(Data).Rows < 0)) then
+      else if ((TSTable(Data) is TSBaseTable) and (TSBaseTable(Data).Rows < 0)) then
         Item.SubItems.Add('')
-      else if ((TCTable(Data) is TCBaseTable) and Assigned(TCBaseTable(Data).Engine) and TCBaseTable(Data).Engine.IsInnoDB) then
-        Item.SubItems.Add('~' + FormatFloat('#,##0', TCBaseTable(Data).Rows, LocaleFormatSettings))
-      else if ((TCTable(Data) is TCBaseTable)) then
-        Item.SubItems.Add(FormatFloat('#,##0', TCBaseTable(Data).Rows, LocaleFormatSettings))
+      else if ((TSTable(Data) is TSBaseTable) and Assigned(TSBaseTable(Data).Engine) and TSBaseTable(Data).Engine.IsInnoDB) then
+        Item.SubItems.Add('~' + FormatFloat('#,##0', TSBaseTable(Data).Rows, LocaleFormatSettings))
+      else if ((TSTable(Data) is TSBaseTable)) then
+        Item.SubItems.Add(FormatFloat('#,##0', TSBaseTable(Data).Rows, LocaleFormatSettings))
       else
         Item.SubItems.Add('');
-      if ((TCTable(Data) is TCBaseTable) and not TCBaseTable(Data).ValidStatus) then
+      if ((TSTable(Data) is TSBaseTable) and not TSBaseTable(Data).ValidStatus) then
         Item.SubItems.Add('')
-      else if (TCTable(Data) is TCBaseTable) then
-        if ((TCBaseTable(Data).DataSize + TCBaseTable(Data).IndexSize < 0)) then
+      else if (TSTable(Data) is TSBaseTable) then
+        if ((TSBaseTable(Data).DataSize + TSBaseTable(Data).IndexSize < 0)) then
           Item.SubItems.Add('')
         else
-          Item.SubItems.Add(SizeToStr(TCBaseTable(Data).DataSize + TCBaseTable(Data).IndexSize + 1))
+          Item.SubItems.Add(SizeToStr(TSBaseTable(Data).DataSize + TSBaseTable(Data).IndexSize + 1))
       else
-        Item.SubItems.Add(SizeToStr(Length(TCView(TCTable(Data)).Source)));
-      if (not (TCTable(Data) is TCBaseTable) or not TCBaseTable(Data).ValidStatus or (TCBaseTable(Data).Updated <= 0)) then
+        Item.SubItems.Add(SizeToStr(Length(TSView(TSTable(Data)).Source)));
+      if (not (TSTable(Data) is TSBaseTable) or not TSBaseTable(Data).ValidStatus or (TSBaseTable(Data).Updated <= 0)) then
         Item.SubItems.Add('')
       else
-        Item.SubItems.Add(SysUtils.DateTimeToStr(TCBaseTable(Data).Updated, LocaleFormatSettings));
+        Item.SubItems.Add(SysUtils.DateTimeToStr(TSBaseTable(Data).Updated, LocaleFormatSettings));
       S := '';
-      if ((TCTable(Data) is TCBaseTable) and (TCBaseTable(Data).DefaultCharset <> '') and (TCBaseTable(Data).DefaultCharset <> TCBaseTable(Data).Database.DefaultCharset)) then
-        S := S + TCBaseTable(Data).DefaultCharset;
-      if ((TCTable(Data) is TCBaseTable) and (TCBaseTable(Data).Collation <> '') and (TCBaseTable(Data).Collation <> TCBaseTable(Data).Database.Collation)) then
+      if ((TSTable(Data) is TSBaseTable) and (TSBaseTable(Data).DefaultCharset <> '') and (TSBaseTable(Data).DefaultCharset <> TSBaseTable(Data).Database.DefaultCharset)) then
+        S := S + TSBaseTable(Data).DefaultCharset;
+      if ((TSTable(Data) is TSBaseTable) and (TSBaseTable(Data).Collation <> '') and (TSBaseTable(Data).Collation <> TSBaseTable(Data).Database.Collation)) then
       begin
         if (S <> '') then S := S + ', ';
-        S := S + TCBaseTable(Data).Collation;
+        S := S + TSBaseTable(Data).Collation;
       end;
       Item.SubItems.Add(S);
-      if (Data is TCBaseTable) then
-        Item.SubItems.Add(TCBaseTable(Data).Comment);
+      if (Data is TSBaseTable) then
+        Item.SubItems.Add(TSBaseTable(Data).Comment);
     end
-    else if (Data is TCRoutine) then
+    else if (Data is TSRoutine) then
     begin
       Item.GroupID := giRoutines;
-      if (Data is TCProcedure) then
+      if (Data is TSProcedure) then
         Item.ImageIndex := iiProcedure
       else
         Item.ImageIndex := iiFunction;
-      Item.Caption := TCRoutine(Data).Caption;
-      case (TCRoutine(Data).RoutineType) of
+      Item.Caption := TSRoutine(Data).Caption;
+      case (TSRoutine(Data).RoutineType) of
         rtProcedure: Item.SubItems.Add('Procedure');
         rtFunction: Item.SubItems.Add('Function');
       end;
       Item.SubItems.Add('');
-      if (not TCRoutine(Data).Valid) then
+      if (not TSRoutine(Data).Valid) then
         Item.SubItems.Add('')
       else
-        Item.SubItems.Add(SizeToStr(Length(TCRoutine(Data).Source)));
-      if (TCRoutine(Data).Modified = 0) then
+        Item.SubItems.Add(SizeToStr(Length(TSRoutine(Data).Source)));
+      if (TSRoutine(Data).Modified = 0) then
         Item.SubItems.Add('')
       else
-        Item.SubItems.Add(SysUtils.DateTimeToStr(TCRoutine(Data).Modified, LocaleFormatSettings));
-      if (not Assigned(TCRoutine(Data).FunctionResult) or (TCRoutine(Data).FunctionResult.Charset = '') or (TCRoutine(Data).FunctionResult.Charset = TCRoutine(Data).Database.DefaultCharset)) then
+        Item.SubItems.Add(SysUtils.DateTimeToStr(TSRoutine(Data).Modified, LocaleFormatSettings));
+      if (not Assigned(TSRoutine(Data).FunctionResult) or (TSRoutine(Data).FunctionResult.Charset = '') or (TSRoutine(Data).FunctionResult.Charset = TSRoutine(Data).Database.DefaultCharset)) then
         Item.SubItems.Add('')
       else
-        Item.SubItems.Add(TCRoutine(Data).FunctionResult.Charset);
-      Item.SubItems.Add(TCRoutine(Data).Comment);
+        Item.SubItems.Add(TSRoutine(Data).FunctionResult.Charset);
+      Item.SubItems.Add(TSRoutine(Data).Comment);
     end
-    else if (Data is TCEvent) then
+    else if (Data is TSEvent) then
     begin
       Item.GroupID := giEvents;
       Item.ImageIndex := iiEvent;
-      Item.Caption := TCEvent(Data).Caption;
+      Item.Caption := TSEvent(Data).Caption;
       Item.SubItems.Add('TCEvent(Data)');
       Item.SubItems.Add('');
-      if (not TCEvent(Data).Valid) then
+      if (not TSEvent(Data).Valid) then
         Item.SubItems.Add('')
       else
-        Item.SubItems.Add(SizeToStr(Length(TCEvent(Data).Source)));
-      if (TCEvent(Data).Updated = 0) then
+        Item.SubItems.Add(SizeToStr(Length(TSEvent(Data).Source)));
+      if (TSEvent(Data).Updated = 0) then
         Item.SubItems.Add('')
       else
-        Item.SubItems.Add(SysUtils.DateTimeToStr(TCEvent(Data).Updated, LocaleFormatSettings));
+        Item.SubItems.Add(SysUtils.DateTimeToStr(TSEvent(Data).Updated, LocaleFormatSettings));
       Item.SubItems.Add('');
-      Item.SubItems.Add(TCEvent(Data).Comment);
+      Item.SubItems.Add(TSEvent(Data).Comment);
     end
-    else if (Data is TCKey) then
+    else if (Data is TSKey) then
     begin
       Item.GroupID := giKeys;
       Item.ImageIndex := iiKey;
-      Item.Caption := TCKey(Data).Caption;
+      Item.Caption := TSKey(Data).Caption;
       S := '';
-      for I := 0 to TCKey(Data).Columns.Count - 1 do
+      for I := 0 to TSKey(Data).Columns.Count - 1 do
       begin
         if (S <> '') then S := S + ',';
-        S := S + TCKey(Data).Columns[I].Field.Name;
-        if (TCKey(Data).Columns.Column[I].Length > 0) then
-          S := S + '(' + IntToStr(TCKey(Data).Columns[I].Length) + ')';
+        S := S + TSKey(Data).Columns[I].Field.Name;
+        if (TSKey(Data).Columns.Column[I].Length > 0) then
+          S := S + '(' + IntToStr(TSKey(Data).Columns[I].Length) + ')';
       end;
       Item.SubItems.Add(S);
       Item.SubItems.Add('');
       Item.SubItems.Add('');
-      if (TCKey(Data).Unique) then
+      if (TSKey(Data).Unique) then
         Item.SubItems.Add('unique')
-      else if (TCKey(Data).Fulltext) then
+      else if (TSKey(Data).Fulltext) then
         Item.SubItems.Add('fulltext')
       else
         Item.SubItems.Add('');
       if (Client.ServerVersion >= 50503) then
-        Item.SubItems.Add(TCKey(Data).Comment);
+        Item.SubItems.Add(TSKey(Data).Comment);
     end
-    else if (Data is TCBaseTableField) then
+    else if (Data is TSBaseTableField) then
     begin
       Item.GroupID := giFields;
-      if (TCBaseTableField(Data).Table is TCSystemView) then
+      if (TSBaseTableField(Data).Table is TSSystemView) then
         Item.ImageIndex := iiSystemViewField
       else
         Item.ImageIndex := iiField;
-      Item.Caption := TCBaseTableField(Data).Caption;
-      Item.SubItems.Add(TCBaseTableField(Data).DBTypeStr());
-      if (TCBaseTableField(Data).NullAllowed) then
+      Item.Caption := TSBaseTableField(Data).Caption;
+      Item.SubItems.Add(TSBaseTableField(Data).DBTypeStr());
+      if (TSBaseTableField(Data).NullAllowed) then
         Item.SubItems.Add(Preferences.LoadStr(74))
       else
         Item.SubItems.Add(Preferences.LoadStr(75));
-      if (TCBaseTableField(Data).AutoIncrement) then
+      if (TSBaseTableField(Data).AutoIncrement) then
         Item.SubItems.Add('<auto_increment>')
-      else if (TCBaseTableField(Data).Default = 'NULL') then
+      else if (TSBaseTableField(Data).Default = 'NULL') then
         Item.SubItems.Add('<' + Preferences.LoadStr(71) + '>')
-      else if (TCBaseTableField(Data).Default = 'CURRENT_TIMESTAMP') then
+      else if (TSBaseTableField(Data).Default = 'CURRENT_TIMESTAMP') then
         Item.SubItems.Add('<INSERT-TimeStamp>')
       else
-        Item.SubItems.Add(TCBaseTableField(Data).UnescapeValue(TCBaseTableField(Data).Default));
+        Item.SubItems.Add(TSBaseTableField(Data).UnescapeValue(TSBaseTableField(Data).Default));
       S := '';
-      if (TCBaseTableField(Data).FieldType in TextFieldTypes) then
+      if (TSBaseTableField(Data).FieldType in TextFieldTypes) then
       begin
-        if ((TCBaseTableField(Data).Charset <> '') and (TCBaseTableField(Data).Charset <> TCBaseTableField(Data).Table.DefaultCharset)) then
-          S := S + TCBaseTableField(Data).Charset;
-        if ((TCBaseTableField(Data).Collation <> '') and (TCBaseTableField(Data).Collation <> TCBaseTableField(Data).Table.Collation)) then
+        if ((TSBaseTableField(Data).Charset <> '') and (TSBaseTableField(Data).Charset <> TSBaseTableField(Data).Table.DefaultCharset)) then
+          S := S + TSBaseTableField(Data).Charset;
+        if ((TSBaseTableField(Data).Collation <> '') and (TSBaseTableField(Data).Collation <> TSBaseTableField(Data).Table.Collation)) then
         begin
           if (S <> '') then S := S + ', ';
-          S := S + TCBaseTableField(Data).Collation;
+          S := S + TSBaseTableField(Data).Collation;
         end;
       end;
       Item.SubItems.Add(S);
       if (Client.ServerVersion >= 40100) then
-        Item.SubItems.Add(TCBaseTableField(Data).Comment);
+        Item.SubItems.Add(TSBaseTableField(Data).Comment);
     end
-    else if (Data is TCForeignKey) then
+    else if (Data is TSForeignKey) then
     begin
       Item.GroupID := giForeignKeys;
       Item.ImageIndex := iiForeignKey;
-      Item.Caption := TCForeignKey(Data).Caption;
-      Item.SubItems.Add(TCForeignKey(Data).DBTypeStr());
+      Item.Caption := TSForeignKey(Data).Caption;
+      Item.SubItems.Add(TSForeignKey(Data).DBTypeStr());
       Item.SubItems.Add('');
       Item.SubItems.Add('');
       S := '';
-      if (TCForeignKey(Data).OnDelete = dtCascade) then S := 'cascade on delete';
-      if (TCForeignKey(Data).OnDelete = dtSetNull) then S := 'set NULL on delete';
-      if (TCForeignKey(Data).OnDelete = dtSetDefault) then S := 'set default on delete';
-      if (TCForeignKey(Data).OnDelete = dtNoAction) then S := 'no action on delete';
+      if (TSForeignKey(Data).OnDelete = dtCascade) then S := 'cascade on delete';
+      if (TSForeignKey(Data).OnDelete = dtSetNull) then S := 'set NULL on delete';
+      if (TSForeignKey(Data).OnDelete = dtSetDefault) then S := 'set default on delete';
+      if (TSForeignKey(Data).OnDelete = dtNoAction) then S := 'no action on delete';
       S2 := '';
-      if (TCForeignKey(Data).OnUpdate = utCascade) then S2 := 'cascade on update';
-      if (TCForeignKey(Data).OnUpdate = utSetNull) then S2 := 'set NULL on update';
-      if (TCForeignKey(Data).OnUpdate = utSetDefault) then S2 := 'set default on update';
-      if (TCForeignKey(Data).OnUpdate = utNoAction) then S2 := 'no action on update';
+      if (TSForeignKey(Data).OnUpdate = utCascade) then S2 := 'cascade on update';
+      if (TSForeignKey(Data).OnUpdate = utSetNull) then S2 := 'set NULL on update';
+      if (TSForeignKey(Data).OnUpdate = utSetDefault) then S2 := 'set default on update';
+      if (TSForeignKey(Data).OnUpdate = utNoAction) then S2 := 'no action on update';
       if (S <> '') and (S2 <> '') then S := S + ', ';
       S := S + S2;
       Item.SubItems.Add(S);
     end
-    else if (Data is TCTrigger) then
+    else if (Data is TSTrigger) then
     begin
       Item.GroupID := giTriggers;
       Item.ImageIndex := iiTrigger;
-      Item.Caption := TCTrigger(Data).Caption;
+      Item.Caption := TSTrigger(Data).Caption;
       S := '';
-      case (TCTrigger(Data).Timing) of
+      case (TSTrigger(Data).Timing) of
         ttBefore: S := S + 'before ';
         ttAfter: S := S + 'after ';
       end;
-      case (TCTrigger(Data).Event) of
+      case (TSTrigger(Data).Event) of
         teInsert: S := S + 'insert';
         teUpdate: S := S + 'update';
         teDelete: S := S + 'delete';
       end;
       Item.SubItems.Add(S);
     end
-    else if (Data is TCViewField) then
+    else if (Data is TSViewField) then
     begin
       Item.GroupID := giFields;
       Item.ImageIndex := iiViewField;
-      Item.Caption := TCViewField(Data).Caption;
-      if (TCViewField(Data).FieldType <> mfUnknown) then
+      Item.Caption := TSViewField(Data).Caption;
+      if (TSViewField(Data).FieldType <> mfUnknown) then
       begin
-        Item.SubItems.Add(TCViewField(Data).DBTypeStr());
-        if (TCViewField(Data).NullAllowed) then
+        Item.SubItems.Add(TSViewField(Data).DBTypeStr());
+        if (TSViewField(Data).NullAllowed) then
           Item.SubItems.Add(Preferences.LoadStr(74))
         else
           Item.SubItems.Add(Preferences.LoadStr(75));
-        if (TCViewField(Data).AutoIncrement) then
+        if (TSViewField(Data).AutoIncrement) then
           Item.SubItems.Add('<auto_increment>')
         else
-          Item.SubItems.Add(TCViewField(Data).Default);
-        if (TCViewField(Data).Charset <> TCViewField(Data).Table.Database.DefaultCharset) then
-          Item.SubItems.Add(TCViewField(Data).Charset);
+          Item.SubItems.Add(TSViewField(Data).Default);
+        if (TSViewField(Data).Charset <> TSViewField(Data).Table.Database.DefaultCharset) then
+          Item.SubItems.Add(TSViewField(Data).Charset);
       end;
     end
-    else if (Data is TCProcesses) then
+    else if (Data is TSProcesses) then
     begin
       Item.GroupID := giSystemTools;
       Item.ImageIndex := iiProcesses;
-      if (TCProcesses(Data).Count > 0) then
-        Item.SubItems.Add(FormatFloat('#,##0', TCProcesses(Data).Count, LocaleFormatSettings));
+      if (TSProcesses(Data).Count > 0) then
+        Item.SubItems.Add(FormatFloat('#,##0', TSProcesses(Data).Count, LocaleFormatSettings));
     end
-    else if (Data is TCProcess) then
+    else if (Data is TSProcess) then
     begin
       Item.GroupID := giProcesses;
       Item.ImageIndex := iiProcess;
-      Item.Caption := IntToStr(TCProcess(Data).ThreadId);
-      Item.SubItems.Add(TCProcess(Data).UserName);
-      Item.SubItems.Add(TCProcess(Data).Host);
-      Item.SubItems.Add(TCProcess(Data).DatabaseName);
-      Item.SubItems.Add(TCProcess(Data).Command);
-      Item.SubItems.Add(SQLStmtToCaption(TCProcess(Data).SQL, 30));
-      if (TCProcess(Data).Time = 0) then
+      Item.Caption := IntToStr(TSProcess(Data).ThreadId);
+      Item.SubItems.Add(TSProcess(Data).UserName);
+      Item.SubItems.Add(TSProcess(Data).Host);
+      Item.SubItems.Add(TSProcess(Data).DatabaseName);
+      Item.SubItems.Add(TSProcess(Data).Command);
+      Item.SubItems.Add(SQLStmtToCaption(TSProcess(Data).SQL, 30));
+      if (TSProcess(Data).Time = 0) then
         Item.SubItems.Add('')
       else
-        Item.SubItems.Add(ExecutionTimeToStr(TCProcess(Data).Time));
-      Item.SubItems.Add(TCProcess(Data).State);
+        Item.SubItems.Add(ExecutionTimeToStr(TSProcess(Data).Time));
+      Item.SubItems.Add(TSProcess(Data).State);
     end
-    else if (Data is TCStati) then
+    else if (Data is TSStati) then
     begin
       Item.GroupID := giSystemTools;
       Item.ImageIndex := iiStati;
-      Item.SubItems.Add(FormatFloat('#,##0', TCStati(Data).Count, LocaleFormatSettings));
+      Item.SubItems.Add(FormatFloat('#,##0', TSStati(Data).Count, LocaleFormatSettings));
     end
-    else if (Data is TCStatus) then
+    else if (Data is TSStatus) then
     begin
       Item.GroupID := giStati;
       Item.ImageIndex := iiStatus;
-      Item.Caption := TCStatus(Data).Caption;
-      Item.SubItems.Add(TCStatus(Data).Value);
+      Item.Caption := TSStatus(Data).Caption;
+      Item.SubItems.Add(TSStatus(Data).Value);
     end
-    else if (Data is TCUsers) then
+    else if (Data is TSUsers) then
     begin
       Item.GroupID := giSystemTools;
       Item.ImageIndex := iiUsers;
@@ -10399,24 +10399,24 @@ procedure TFClient.ListViewUpdate(const ClientEvent: TCClient.TEvent; const List
       else
         Item.SubItems.Add('???');
     end
-    else if (Data is TCUser) then
+    else if (Data is TSUser) then
     begin
       Item.GroupID := giUsers;
       Item.ImageIndex := iiUser;
-      Item.Caption := TCUser(Data).Caption;
+      Item.Caption := TSUser(Data).Caption;
     end
-    else if (Data is TCVariables) then
+    else if (Data is TSVariables) then
     begin
       Item.GroupID := giSystemTools;
       Item.ImageIndex := iiVariables;
       Item.SubItems.Add(FormatFloat('#,##0', Client.Variables.Count, LocaleFormatSettings));
     end
-    else if (Data is TCVariable) then
+    else if (Data is TSVariable) then
     begin
       Item.GroupID := giVariables;
       Item.ImageIndex := iiVariable;
-      Item.Caption := TCVariable(Data).Caption;
-      Item.SubItems.Add(TCVariable(Data).Value);
+      Item.Caption := TSVariable(Data).Caption;
+      Item.SubItems.Add(TSVariable(Data).Value);
     end;
 
     Item.SubItems.EndUpdate();
@@ -10450,7 +10450,7 @@ procedure TFClient.ListViewUpdate(const ClientEvent: TCClient.TEvent; const List
         Mid := (Right - Left) div 2 + Left;
         case (Compare(Kind, ListView.Items[Mid], Item)) of
           -1: begin Left := Mid + 1; Index := Mid + 1; end;
-          0: raise ERangeError.CreateFmt(SRangeError + ': %s / %s', [TCItem(Data).Name, TCItem(Data).ClassName]);
+          0: raise ERangeError.CreateFmt(SRangeError + ': %s / %s', [TSItem(Data).Name, TSItem(Data).ClassName]);
           1: begin Right := Mid - 1; Index := Mid; end;
         end;
       end;
@@ -10496,7 +10496,7 @@ procedure TFClient.ListViewUpdate(const ClientEvent: TCClient.TEvent; const List
     UpdateItem(Result, Data);
   end;
 
-  procedure UpdateGroup(const Kind: TADesktop.TListViewKind; const GroupID: Integer; const CItems: TCItems);
+  procedure UpdateGroup(const Kind: TADesktop.TListViewKind; const GroupID: Integer; const CItems: TSItems);
   var
     Add: Boolean;
     ColumnWidths: array [0..7] of Integer;
@@ -10527,7 +10527,7 @@ procedure TFClient.ListViewUpdate(const ClientEvent: TCClient.TEvent; const List
 
           Add := (ListView.Items.Count = 0) and (ListViewSortData[Kind].Index = 0) and (ListViewSortData[Kind].Order = 1);
           for I := 0 to CItems.Count - 1 do
-            if (not (CItems is TCTriggers) or (TCTriggers(CItems)[I].Table = ClientEvent.Sender)) then
+            if (not (CItems is TSTriggers) or (TSTriggers(CItems)[I].Table = ClientEvent.Sender)) then
               if (not Add) then
                 InsertItem(Kind, CItems[I])
               else
@@ -10600,18 +10600,18 @@ procedure TFClient.ListViewUpdate(const ClientEvent: TCClient.TEvent; const List
         giEvents:
           GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(876), '&', '') + ' (' + IntToStr(ClientEvent.CItems.Count) + ')';
         giKeys:
-          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(458), '&', '') + ' (' + IntToStr(TCBaseTable(ClientEvent.Sender).Keys.Count) + ')';
+          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(458), '&', '') + ' (' + IntToStr(TSBaseTable(ClientEvent.Sender).Keys.Count) + ')';
         giFields:
-          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(253), '&', '') + ' (' + IntToStr(TCTable(ClientEvent.Sender).Fields.Count) + ')';
+          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(253), '&', '') + ' (' + IntToStr(TSTable(ClientEvent.Sender).Fields.Count) + ')';
         giForeignKeys:
-          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(459), '&', '') + ' (' + IntToStr(TCBaseTable(ClientEvent.Sender).ForeignKeys.Count) + ')';
+          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(459), '&', '') + ' (' + IntToStr(TSBaseTable(ClientEvent.Sender).ForeignKeys.Count) + ')';
         giTriggers:
           begin
             Count := 0;
-            for I := 0 to TCTriggers(CItems).Count - 1 do
-              if (TCTriggers(CItems)[I].Table = TCBaseTable(ClientEvent.Sender)) then
+            for I := 0 to TSTriggers(CItems).Count - 1 do
+              if (TSTriggers(CItems)[I].Table = TSBaseTable(ClientEvent.Sender)) then
               begin
-                InsertItem(Kind, TCTriggers(CItems)[I]);
+                InsertItem(Kind, TSTriggers(CItems)[I]);
                 Inc(Count);
               end;
             GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(797), '&', '') + ' (' + IntToStr(Count) + ')';
@@ -10631,9 +10631,9 @@ var
   ChangingEvent: TLVChangingEvent;
   I: Integer;
   Kind: TADesktop.TListViewKind;
-  Table: TCTable;
+  Table: TSTable;
 begin
-  if (Assigned(ListView) and (Assigned(ClientEvent.CItems) or (ClientEvent.Sender is TCTable))) then
+  if (Assigned(ListView) and (Assigned(ClientEvent.CItems) or (ClientEvent.Sender is TSTable))) then
   begin
     ChangingEvent := ListView.OnChanging;
     ListView.OnChanging := nil;
@@ -10658,9 +10658,9 @@ begin
             ListViewInitialize(ListView);
           end;
 
-          if (ClientEvent.CItems is TCDatabases) then
+          if (ClientEvent.CItems is TSDatabases) then
             UpdateGroup(Kind, giDatabases, ClientEvent.CItems)
-          else if ((ClientEvent.CItems is TCProcesses) or (ClientEvent.CItems is TCStati) or (ClientEvent.CItems is TCUsers) or (ClientEvent.CItems is TCVariables)) then
+          else if ((ClientEvent.CItems is TSProcesses) or (ClientEvent.CItems is TSStati) or (ClientEvent.CItems is TSUsers) or (ClientEvent.CItems is TSVariables)) then
           begin
             for I := 0 to ListView.Items.Count - 1 do
               if (ListView.Items[I].Data = ClientEvent.CItems) then
@@ -10669,27 +10669,27 @@ begin
         end;
       lkDatabase:
         begin
-          if (ClientEvent.CItems is TCTables) then
+          if (ClientEvent.CItems is TSTables) then
             UpdateGroup(Kind, giTables, ClientEvent.CItems)
-          else if (ClientEvent.CItems is TCRoutines) then
+          else if (ClientEvent.CItems is TSRoutines) then
             UpdateGroup(Kind, giRoutines, ClientEvent.CItems)
-          else if (ClientEvent.CItems is TCEvents) then
+          else if (ClientEvent.CItems is TSEvents) then
             UpdateGroup(Kind, giEvents, ClientEvent.CItems);
         end;
       lkTable:
-        if (ClientEvent.Sender is TCTable) then
+        if (ClientEvent.Sender is TSTable) then
         begin
-          Table := TCTable(ClientEvent.Sender);
+          Table := TSTable(ClientEvent.Sender);
 
-          if (Table is TCBaseTable) then
-            UpdateGroup(Kind, giKeys, TCBaseTable(Table).Keys);
+          if (Table is TSBaseTable) then
+            UpdateGroup(Kind, giKeys, TSBaseTable(Table).Keys);
           UpdateGroup(Kind, giFields, Table.Fields);
-          if ((Table is TCBaseTable) and Assigned(TCBaseTable(Table).ForeignKeys)) then
-            UpdateGroup(Kind, giForeignKeys, TCBaseTable(Table).ForeignKeys);
-          if ((Table is TCBaseTable) and Assigned(TCBaseTable(Table).Database.Triggers)) then
-            UpdateGroup(Kind, giTriggers, TCBaseTable(Table).Database.Triggers);
+          if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).ForeignKeys)) then
+            UpdateGroup(Kind, giForeignKeys, TSBaseTable(Table).ForeignKeys);
+          if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).Database.Triggers)) then
+            UpdateGroup(Kind, giTriggers, TSBaseTable(Table).Database.Triggers);
         end
-        else if ((ClientEvent.Sender is TCDatabase) and (ClientEvent.CItem is TCTrigger)) then
+        else if ((ClientEvent.Sender is TSDatabase) and (ClientEvent.CItem is TSTrigger)) then
           UpdateGroup(Kind, giTriggers, ClientEvent.CItems);
       lkProcesses:
         UpdateGroup(Kind, giProcesses, ClientEvent.CItems);
@@ -10713,8 +10713,8 @@ end;
 procedure TFClient.ListViewSelectItem(Sender: TObject; Item: TListItem;
   Selected: Boolean);
 var
-  BaseTable: TCBaseTable;
-  Database: TCDatabase;
+  BaseTable: TSBaseTable;
+  Database: TSDatabase;
   I: Integer;
   ListView: TListView;
   Msg: TMsg;
@@ -10810,9 +10810,9 @@ begin
             MainAction('aDCreateDatabase').Enabled := (ListView.SelCount = 0) and (not Assigned(Client.UserRights) or Client.UserRights.RCreate);
             MainAction('aDCreateTable').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aDCreateView').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and (Client.ServerVersion >= 50001);
-            MainAction('aDCreateProcedure').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and Assigned(TCDatabase(Item.Data).Routines);
+            MainAction('aDCreateProcedure').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and Assigned(TSDatabase(Item.Data).Routines);
             MainAction('aDCreateFunction').Enabled := MainAction('aDCreateProcedure').Enabled;
-            MainAction('aDCreateEvent').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and Assigned(TCDatabase(Item.Data).Events);
+            MainAction('aDCreateEvent').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and Assigned(TSDatabase(Item.Data).Events);
             MainAction('aDCreateUser').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiUsers);
             MainAction('aDDeleteDatabase').Enabled := (ListView.SelCount >= 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aDEditServer').Enabled := (ListView.SelCount = 0);
@@ -10849,7 +10849,7 @@ begin
         iiDatabase,
         iiSystemDatabase:
           begin
-            Database := TCDatabase(FNavigator.Selected.Data);
+            Database := TSDatabase(FNavigator.Selected.Data);
 
             aPOpenInNewWindow.Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiSystemView, iiView, iiProcedure, iiFunction]);
             aPOpenInNewTab.Enabled := aPOpenInNewWindow.Enabled;
@@ -10880,7 +10880,7 @@ begin
             MainAction('aDCreateEvent').Enabled := (ListView.SelCount = 0) and (SelectedImageIndex = iiDatabase) and Assigned(Database.Events);
             MainAction('aDCreateKey').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable);
             MainAction('aDCreateField').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable);
-            MainAction('aDCreateForeignKey').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable) and Assigned(TCBaseTable(Item.Data).Engine) and TCBaseTable(Item.Data).Engine.ForeignKeyAllowed;
+            MainAction('aDCreateForeignKey').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable) and Assigned(TSBaseTable(Item.Data).Engine) and TSBaseTable(Item.Data).Engine.ForeignKeyAllowed;
             MainAction('aDCreateTrigger').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable) and Assigned(Database.Triggers);
             MainAction('aDDeleteTable').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable);
             MainAction('aDDeleteView').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiView);
@@ -10938,7 +10938,7 @@ begin
           end;
         iiBaseTable:
           begin
-            BaseTable := TCBaseTable(FNavigator.Selected.Data);
+            BaseTable := TSBaseTable(FNavigator.Selected.Data);
 
             MainAction('aFImportText').Enabled := (ListView.SelCount = 0);
             MainAction('aFImportExcel').Enabled := (ListView.SelCount = 0);
@@ -10971,7 +10971,7 @@ begin
             MainAction('aDEditField').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiField);
             MainAction('aDEditForeignKey').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiForeignKey);
             MainAction('aDEditTrigger').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiTrigger);
-            MainAction('aDEmpty').Enabled := (ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex = iiField) and TCBaseTableField(Item.Data).NullAllowed;
+            MainAction('aDEmpty').Enabled := (ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex = iiField) and TSBaseTableField(Item.Data).NullAllowed;
             aDDelete.Enabled := (ListView.SelCount >= 1);
 
             for I := 0 to ListView.Items.Count - 1 do
@@ -11023,7 +11023,7 @@ begin
           end;
         iiProcesses:
           begin
-            MainAction('aDDeleteProcess').Enabled := (ListView.SelCount >= 1) and Selected and (TObject(Item.Data) is TCProcess) and (TCProcess(Item.Data).ThreadId <> Client.ThreadId);
+            MainAction('aDDeleteProcess').Enabled := (ListView.SelCount >= 1) and Selected and (TObject(Item.Data) is TSProcess) and (TSProcess(Item.Data).ThreadId <> Client.ThreadId);
             MainAction('aDEditProcess').Enabled := (ListView.SelCount = 1);
             aDDelete.Enabled := (ListView.SelCount >= 1);
 
@@ -11079,11 +11079,11 @@ end;
 procedure TFClient.MetadataProviderGetSQLFieldNames(Sender: TacBaseMetadataProvider;
   const ASQL: WideString; AFields: TacFieldsList);
 var
-  Database: TCDatabase;
+  Database: TSDatabase;
   DatabaseName: string;
   I: Integer;
   Parse: TSQLParse;
-  Table: TCTable;
+  Table: TSTable;
   TableName: string;
 begin
   if (SQLCreateParse(Parse, PChar(ASQL), Length(ASQL), Client.ServerVersion)
@@ -11222,7 +11222,7 @@ begin
     if (MenuItem.Checked) then
       MenuItem.Checked := False
     else if ((View = vBrowser) and (SelectedImageIndex in [iiBaseTable, iiSystemView])) then
-      TCBaseTable(FNavigator.Selected.Data).Keys[MenuItem.Tag].GetSortDef(SortDef);
+      TSBaseTable(FNavigator.Selected.Data).Keys[MenuItem.Tag].GetSortDef(SortDef);
 
     TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).Sort(SortDef);
     ActiveDBGrid.UpdateHeader();
@@ -11235,22 +11235,22 @@ end;
 procedure TFClient.MGridHeaderPopup(Sender: TObject);
 var
   I: Integer;
-  Key: TCKey;
+  Key: TSKey;
   SortMenuItem: TMenuItem;
-  Table: TCBaseTable;
+  Table: TSBaseTable;
 begin
   if (SelectedImageIndex in [iiBaseTable, iiSystemView]) then
   begin
-    Table := TCBaseTable(FNavigator.Selected.Data);
+    Table := TSBaseTable(FNavigator.Selected.Data);
 
     SortMenuItem := nil;
     for I := 0 to MGridHeader.Items.Count - 1 do
       if (MGridHeader.Items[I].Count > 0) then
         SortMenuItem := TMenuItem(MGridHeader.Items[I]);
 
-    if (Assigned(SortMenuItem) and (ActiveDBGrid.DataSource.DataSet is TCTableDataSet)) then
+    if (Assigned(SortMenuItem) and (ActiveDBGrid.DataSource.DataSet is TSTableDataSet)) then
     begin
-      Key := Table.KeyByDataSet(TCTableDataSet(ActiveDBGrid.DataSource.DataSet));
+      Key := Table.KeyByDataSet(TSTableDataSet(ActiveDBGrid.DataSource.DataSet));
       for I := 0 to SortMenuItem.Count - 1 do
         if (SortMenuItem.Items[I].Tag >= 0) then
           SortMenuItem.Items[I].Checked := Assigned(Key) and (Key.Index = SortMenuItem.Items[I].Tag);
@@ -11303,8 +11303,8 @@ begin
     begin
       gmFilter.Enabled := True;
 
-      if (((ActiveDBGrid.DataSource.DataSet is TCTableDataSet) and (TCTableDataSet(ActiveDBGrid.DataSource.DataSet).FilterSQL <> ''))
-        or not (ActiveDBGrid.DataSource.DataSet is TCTableDataSet) and ActiveDBGrid.DataSource.DataSet.Filtered) then
+      if (((ActiveDBGrid.DataSource.DataSet is TSTableDataSet) and (TSTableDataSet(ActiveDBGrid.DataSource.DataSet).FilterSQL <> ''))
+        or not (ActiveDBGrid.DataSource.DataSet is TSTableDataSet) and ActiveDBGrid.DataSource.DataSet.Filtered) then
       begin
         NewMenuItem := TMenuItem.Create(Self);
         NewMenuItem.Caption := Preferences.LoadStr(28);
@@ -11482,7 +11482,7 @@ end;
 procedure TFClient.mlOpenClick(Sender: TObject);
 var
   Child: TTreeNode;
-  ForeignKey: TCForeignKey;
+  ForeignKey: TSForeignKey;
   NewNode: TTreeNode;
   URI: TUURI;
 begin
@@ -11491,7 +11491,7 @@ begin
   case (ActiveListView.Selected.ImageIndex) of
     iiForeignKey:
       begin
-        ForeignKey := TCForeignKey(ActiveListView.Selected.Data);
+        ForeignKey := TSForeignKey(ActiveListView.Selected.Data);
         URI := TUURI.Create(Address);
         URI.Database := ForeignKey.Parent.DatabaseName;
         URI.Table := ForeignKey.Parent.TableName;
@@ -11733,8 +11733,8 @@ begin
 
   if (not Assigned(ActiveWorkbench.Selected)) then
     for I := 0 to ActiveWorkbench.Database.Tables.Count - 1 do
-      if ((ActiveWorkbench.Database.Tables[I] is TCBaseTable)
-        and not Assigned(ActiveWorkbench.TableByBaseTable(TCBaseTable(ActiveWorkbench.Database.Tables[I])))) then
+      if ((ActiveWorkbench.Database.Tables[I] is TSBaseTable)
+        and not Assigned(ActiveWorkbench.TableByBaseTable(TSBaseTable(ActiveWorkbench.Database.Tables[I])))) then
       begin
         MenuItem := TMenuItem.Create(Self);
         MenuItem.Caption := ActiveWorkbench.Database.Tables[I].Name;
@@ -11829,13 +11829,13 @@ begin
     if (Node = FNavigator.Selected) then
     begin
       if (URI.Param['view'] = 'browser') then
-        if (Desktop(TCTable(FNavigator.Selected.Data)).Table.ValidData) then
+        if (Desktop(TSTable(FNavigator.Selected.Data)).Table.ValidData) then
         begin
-           if (Desktop(TCTable(FNavigator.Selected.Data)).Table.DataSet.Offset > 0) then
-            URI.Param['offset'] := IntToStr(Desktop(TCTable(FNavigator.Selected.Data)).Table.DataSet.Offset);
+           if (Desktop(TSTable(FNavigator.Selected.Data)).Table.DataSet.Offset > 0) then
+            URI.Param['offset'] := IntToStr(Desktop(TSTable(FNavigator.Selected.Data)).Table.DataSet.Offset);
 
-          if (Desktop(TCTable(FNavigator.Selected.Data)).Table.DataSet.FilterSQL <> '') then
-            URI.Param['filter'] := Desktop(TCTable(FNavigator.Selected.Data)).Table.DataSet.FilterSQL;
+          if (Desktop(TSTable(FNavigator.Selected.Data)).Table.DataSet.FilterSQL <> '') then
+            URI.Param['filter'] := Desktop(TSTable(FNavigator.Selected.Data)).Table.DataSet.FilterSQL;
         end;
       if (URI.Param['view'] = 'editor') then
       begin
@@ -12054,8 +12054,8 @@ begin
         SResult.Visible := False;
         PResult.Visible := False;
         case (View) of
-          vIDE: if (FNavigator.Selected.ImageIndex in [iiProcedure, iiFunction]) then Desktop(TCRoutine(FNavigator.Selected.Data)).CloseIDEResult();
-          vBuilder: Desktop(TCDatabase(FNavigator.Selected.Data)).CloseBuilderResult();
+          vIDE: if (FNavigator.Selected.ImageIndex in [iiProcedure, iiFunction]) then Desktop(TSRoutine(FNavigator.Selected.Data)).CloseIDEResult();
+          vBuilder: Desktop(TSDatabase(FNavigator.Selected.Data)).CloseBuilderResult();
           vEditor: SQLEditor.CloseResult();
         end;
         ActiveDBGrid := nil;
@@ -12111,25 +12111,25 @@ end;
 
 procedure TFClient.PasteExecute(const Node: TTreeNode; const Objects: string);
 var
-  Database: TCDatabase;
+  Database: TSDatabase;
   Found: Boolean;
   I: Integer;
   J: Integer;
   Name: string;
-  NewField: TCTableField;
-  NewForeignKey: TCForeignKey;
-  NewKey: TCKey;
-  NewTable: TCBaseTable;
-  SourceClient: TCClient;
-  SourceDatabase: TCDatabase;
-  SourceRoutine: TCRoutine;
-  SourceTable: TCBaseTable;
+  NewField: TSTableField;
+  NewForeignKey: TSForeignKey;
+  NewKey: TSKey;
+  NewTable: TSBaseTable;
+  SourceClient: TSSession;
+  SourceDatabase: TSDatabase;
+  SourceRoutine: TSRoutine;
+  SourceTable: TSBaseTable;
   SourceURI: TUURI;
-  SourceUser: TCUser;
-  SourceView: TCView;
+  SourceUser: TSUser;
+  SourceView: TSView;
   StringList: TStringList;
   Success: Boolean;
-  Table: TCBaseTable;
+  Table: TSBaseTable;
 begin
   StringList := TStringList.Create();
   StringList.Text := Objects;
@@ -12140,7 +12140,7 @@ begin
     SourceClient := Clients.ClientByAccount(Accounts.AccountByURI(SourceURI.Address, Client.Account), SourceURI.Database);
     if (not Assigned(SourceClient) and Assigned(Accounts.AccountByURI(SourceURI.Address))) then
     begin
-      SourceClient := TCClient.Create(Clients, Accounts.AccountByURI(SourceURI.Address));
+      SourceClient := TSSession.Create(Clients, Accounts.AccountByURI(SourceURI.Address));
       DConnecting.Client := SourceClient;
       if (not DConnecting.Execute()) then
         FreeAndNil(SourceClient);
@@ -12177,7 +12177,7 @@ begin
           else if (DPaste.Execute()) then
           begin
             DDatabase.Client := Client;
-            DDatabase.Database := TCDatabase.Create(Client, Name);
+            DDatabase.Database := TSDatabase.Create(Client, Name);
             for I := 1 to StringList.Count - 1 do
             begin
               SourceDatabase := SourceClient.DatabaseByName(StringList.ValueFromIndex[I]);
@@ -12210,7 +12210,7 @@ begin
               MessageBeep(MB_ICONERROR)
             else
             begin
-              Database := TCDatabase(Node.Data);
+              Database := TSDatabase(Node.Data);
 
               Found := False;
               for I := 1 to StringList.Count - 1 do
@@ -12341,7 +12341,7 @@ begin
               Database := Client.DatabaseByName(Node.Parent.Text);
               Table := Database.BaseTableByName(Node.Text);
 
-              NewTable := TCBaseTable.Create(Database.Tables);
+              NewTable := TSBaseTable.Create(Database.Tables);
               NewTable.Assign(Table);
 
               for I := 1 to StringList.Count - 1 do
@@ -12349,9 +12349,9 @@ begin
                 begin
                   Name := CopyName(StringList.ValueFromIndex[I], NewTable.Fields);
 
-                  NewField := TCBaseTableField.Create(NewTable.Fields);
+                  NewField := TSBaseTableField.Create(NewTable.Fields);
                   NewField.Assign(SourceTable.FieldByName(StringList.ValueFromIndex[I]));
-                  TCBaseTableField(NewField).OriginalName := '';
+                  TSBaseTableField(NewField).OriginalName := '';
                   NewField.Name := Name;
                   NewField.FieldBefore := NewTable.Fields[NewTable.Fields.Count - 1];
                   NewTable.Fields.AddField(NewField);
@@ -12363,7 +12363,7 @@ begin
                 begin
                   Name := CopyName(StringList.ValueFromIndex[I], NewTable.Keys);
 
-                  NewKey := TCKey.Create(NewTable.Keys);
+                  NewKey := TSKey.Create(NewTable.Keys);
                   NewKey.Assign(SourceTable.IndexByName(StringList.ValueFromIndex[I]));
                   NewKey.Name := Name;
                   NewTable.Keys.AddKey(NewKey);
@@ -12373,7 +12373,7 @@ begin
                 begin
                   Name := CopyName(StringList.ValueFromIndex[I], NewTable.ForeignKeys);
 
-                  NewForeignKey := TCForeignKey.Create(NewTable.ForeignKeys);
+                  NewForeignKey := TSForeignKey.Create(NewTable.ForeignKeys);
                   NewForeignKey.Assign(SourceTable.ForeignKeyByName(StringList.ValueFromIndex[I]));
                   NewForeignKey.Name := Name;
                   NewTable.ForeignKeys.AddForeignKey(NewForeignKey);
@@ -12474,11 +12474,11 @@ begin
     if (View in [vBrowser, vIDE, vBuilder, vEditor]) then ActiveDBGrid := GetActiveDBGrid() else ActiveDBGrid := nil;
     if (View in [vDiagram]) then ActiveWorkbench := GetActiveWorkbench() else ActiveWorkbench := nil;
 
-    if ((View = vBrowser) and (TObject(FNavigator.Selected.Data) is TCTable)) then
+    if ((View = vBrowser) and (TObject(FNavigator.Selected.Data) is TSTable)) then
     begin
       FUDOffset.Position := 0;
-      FUDLimit.Position := Desktop(TCTable(FNavigator.Selected.Data)).Limit;
-      FLimitEnabled.Down := Desktop(TCTable(FNavigator.Selected.Data)).Limited;
+      FUDLimit.Position := Desktop(TSTable(FNavigator.Selected.Data)).Limit;
+      FLimitEnabled.Down := Desktop(TSTable(FNavigator.Selected.Data)).Limited;
 
       PDataBrowser.Top := 0;
       PDataBrowser.Align := alTop;
@@ -12504,10 +12504,10 @@ begin
       vIDE:
         case (FNavigator.Selected.ImageIndex) of
           iiProcedure,
-          iiFunction: PResultVisible := Assigned(Desktop(TCRoutine(FNavigator.Selected.Data)).ActiveDBGrid);
+          iiFunction: PResultVisible := Assigned(Desktop(TSRoutine(FNavigator.Selected.Data)).ActiveDBGrid);
           else PResultVisible := False;
         end;
-      vBuilder: PResultVisible := Assigned(Desktop(TCDatabase(FNavigator.Selected.Data)).DBGrid);
+      vBuilder: PResultVisible := Assigned(Desktop(TSDatabase(FNavigator.Selected.Data)).DBGrid);
       vEditor: PResultVisible := Assigned(SQLEditor.ActiveDBGrid);
       else PResultVisible := False;
     end;
@@ -12705,23 +12705,23 @@ end;
 
 function TFClient.PostObject(Sender: TObject): Boolean;
 var
-  Database: TCDatabase;
-  Event: TCEvent;
-  NewEvent: TCEvent;
-  NewTrigger: TCTrigger;
-  NewView: TCView;
-  Routine: TCRoutine;
-  Trigger: TCTrigger;
-  View: TCView;
+  Database: TSDatabase;
+  Event: TSEvent;
+  NewEvent: TSEvent;
+  NewTrigger: TSTrigger;
+  NewView: TSView;
+  Routine: TSRoutine;
+  Trigger: TSTrigger;
+  View: TSView;
 begin
   Database := Client.DatabaseByName(SelectedDatabase);
 
   case (SelectedImageIndex) of
     iiView:
       begin
-        View := TCView(FNavigator.Selected.Data);
+        View := TSView(FNavigator.Selected.Data);
 
-        NewView := TCView.Create(Database.Tables);
+        NewView := TSView.Create(Database.Tables);
         NewView.Assign(View);
 
         NewView.Stmt := Trim(ActiveSynMemo.Text);
@@ -12734,15 +12734,15 @@ begin
     iiProcedure,
     iiFunction:
       begin
-        Routine := TCRoutine(FNavigator.Selected.Data);
+        Routine := TSRoutine(FNavigator.Selected.Data);
 
         Result := Database.UpdateRoutine(Routine, Trim(ActiveSynMemo.Text));
       end;
     iiEvent:
       begin
-        Event := TCEvent(FNavigator.Selected.Data);
+        Event := TSEvent(FNavigator.Selected.Data);
 
-        NewEvent := TCEvent.Create(Database.Events);
+        NewEvent := TSEvent.Create(Database.Events);
         NewEvent.Assign(Event);
 
         NewEvent.Stmt := Trim(ActiveSynMemo.Text);
@@ -12753,9 +12753,9 @@ begin
       end;
     iiTrigger:
       begin
-        Trigger := TCTrigger(FNavigator.Selected.Data);
+        Trigger := TSTrigger(FNavigator.Selected.Data);
 
-        NewTrigger := TCTrigger.Create(Database.Triggers);
+        NewTrigger := TSTrigger.Create(Database.Triggers);
         NewTrigger.Assign(Trigger);
 
         NewTrigger.Stmt := Trim(ActiveSynMemo.Text);
@@ -12787,26 +12787,26 @@ end;
 
 procedure TFClient.PSQLEditorUpdate();
 var
-  Event: TCEvent;
-  Routine: TCRoutine;
-  Trigger: TCTrigger;
+  Event: TSEvent;
+  Routine: TSRoutine;
+  Trigger: TSTrigger;
 begin
   if (Self.View = vIDE) then
     case (SelectedImageIndex) of
       iiProcedure,
       iiFunction:
         begin
-          Routine := TCRoutine(FNavigator.Selected.Data);
+          Routine := TSRoutine(FNavigator.Selected.Data);
           Desktop(Routine).SynMemo.Text := Routine.Source + #13#10;
         end;
       iiEvent:
         begin
-          Event := TCEvent(FNavigator.Selected.Data);
+          Event := TSEvent(FNavigator.Selected.Data);
           Desktop(Event).SynMemo.Text := Event.Stmt + #13#10;
         end;
       iiTrigger:
         begin
-          Trigger := TCTrigger(FNavigator.Selected.Data);
+          Trigger := TSTrigger(FNavigator.Selected.Data);
           Desktop(Trigger).SynMemo.Text := Trigger.Stmt + #13#10;
         end;
     end;
@@ -12840,81 +12840,81 @@ begin
   end;
 end;
 
-function TFClient.RenameCItem(const CItem: TCItem; const NewName: string): Boolean;
+function TFClient.RenameCItem(const CItem: TSItem; const NewName: string): Boolean;
 var
-  BaseTable: TCBaseTable;
-  Event: TCEvent;
-  NewBaseTable: TCBaseTable;
-  NewEvent: TCEvent;
-  NewTrigger: TCTrigger;
-  NewUser: TCUser;
-  Table: TCTable;
-  Trigger: TCTrigger;
-  User: TCUser;
+  BaseTable: TSBaseTable;
+  Event: TSEvent;
+  NewBaseTable: TSBaseTable;
+  NewEvent: TSEvent;
+  NewTrigger: TSTrigger;
+  NewUser: TSUser;
+  Table: TSTable;
+  Trigger: TSTrigger;
+  User: TSUser;
 begin
-  if (CItem is TCTable) then
+  if (CItem is TSTable) then
   begin
-    Table := TCTable(CItem);
+    Table := TSTable(CItem);
 
     Table.Database.RenameTable(Table, NewName);
 
     Result := False;
   end
-  else if (CItem is TCTrigger) then
+  else if (CItem is TSTrigger) then
   begin
-    Trigger := TCTrigger(CItem);
+    Trigger := TSTrigger(CItem);
 
-    NewTrigger := TCTrigger.Create(Trigger.Database.Triggers);
+    NewTrigger := TSTrigger.Create(Trigger.Database.Triggers);
     NewTrigger.Assign(Trigger);
     NewTrigger.Name := NewName;
     Result := Trigger.Database.UpdateTrigger(Trigger, NewTrigger);
     NewTrigger.Free();
   end
-  else if (CItem is TCEvent) then
+  else if (CItem is TSEvent) then
   begin
-    Event := TCEvent(CItem);
+    Event := TSEvent(CItem);
 
-    NewEvent := TCEvent.Create(Event.Database.Events);
+    NewEvent := TSEvent.Create(Event.Database.Events);
     NewEvent.Assign(Event);
     NewEvent.Name := NewName;
     Result := Event.Database.UpdateEvent(Event, NewEvent);
     NewEvent.Free();
   end
-  else if (CItem is TCKey) then
+  else if (CItem is TSKey) then
   begin
-    BaseTable := TCBaseTableField(CItem).Table;
+    BaseTable := TSBaseTableField(CItem).Table;
 
-    NewBaseTable := TCBaseTable.Create(BaseTable.Database.Tables);
+    NewBaseTable := TSBaseTable.Create(BaseTable.Database.Tables);
     NewBaseTable.Assign(BaseTable);
     NewBaseTable.KeyByCaption(CItem.Caption).Name := NewName;
     Result := BaseTable.Database.UpdateTable(BaseTable, NewBaseTable);
     NewBaseTable.Free();
   end
-  else if (CItem is TCBaseTableField) then
+  else if (CItem is TSBaseTableField) then
   begin
-    BaseTable := TCBaseTableField(CItem).Table;
+    BaseTable := TSBaseTableField(CItem).Table;
 
-    NewBaseTable := TCBaseTable.Create(BaseTable.Database.Tables);
+    NewBaseTable := TSBaseTable.Create(BaseTable.Database.Tables);
     NewBaseTable.Assign(BaseTable);
     NewBaseTable.FieldByName(CItem.Name).Name := NewName;
     Result := BaseTable.Database.UpdateTable(BaseTable, NewBaseTable);
     NewBaseTable.Free();
   end
-  else if (CItem is TCForeignKey) then
+  else if (CItem is TSForeignKey) then
   begin
-    BaseTable := TCForeignKey(CItem).Table;
+    BaseTable := TSForeignKey(CItem).Table;
 
-    NewBaseTable := TCBaseTable.Create(BaseTable.Database.Tables);
+    NewBaseTable := TSBaseTable.Create(BaseTable.Database.Tables);
     NewBaseTable.Assign(BaseTable);
     NewBaseTable.FieldByName(CItem.Name).Name := NewName;
     Result := BaseTable.Database.UpdateTable(BaseTable, NewBaseTable);
     NewBaseTable.Free();
   end
-  else if (CItem is TCUser) then
+  else if (CItem is TSUser) then
   begin
-    User := TCUser(CItem);
+    User := TSUser(CItem);
 
-    NewUser := TCUser.Create(Client.Users);
+    NewUser := TSUser.Create(Client.Users);
     NewUser.Assign(User);
     if (NewName = '<' + Preferences.LoadStr(287) + '>') then
       NewUser.Name := ''
@@ -13091,9 +13091,9 @@ begin
           iiProcedure,
           iiFunction:
             begin
-              Desktop(TCRoutine(FNavigator.Selected.Data)).CloseIDEResult();
+              Desktop(TSRoutine(FNavigator.Selected.Data)).CloseIDEResult();
               PContentChange(Sender);
-              Client.SendSQL(SQL, Desktop(TCRoutine(FNavigator.Selected.Data)).IDEResultEvent);
+              Client.SendSQL(SQL, Desktop(TSRoutine(FNavigator.Selected.Data)).IDEResultEvent);
             end;
           iiEvent:
             Client.SendSQL(SQL);
@@ -13103,9 +13103,9 @@ begin
           iiDatabase,
           iiSystemDatabase:
             begin
-              Desktop(TCDatabase(FNavigator.Selected.Data)).CloseBuilderResult();
+              Desktop(TSDatabase(FNavigator.Selected.Data)).CloseBuilderResult();
               PContentChange(Sender);
-              Client.SendSQL(SQL, Desktop(TCDatabase(FNavigator.Selected.Data)).BuilderResultEvent);
+              Client.SendSQL(SQL, Desktop(TSDatabase(FNavigator.Selected.Data)).BuilderResultEvent);
             end;
         end;
       vEditor:
@@ -13152,7 +13152,7 @@ begin
     else if ((AView = vBrowser) and not (SelectedImageIndex in [iiBaseTable, iiSystemView, iiView])) then
     begin
       if (SelectedImageIndex = iiTrigger) then
-        URI.Table := TCTrigger(FNavigator.Selected.Data).TableName
+        URI.Table := TSTrigger(FNavigator.Selected.Data).TableName
       else
         URI.Table := LastSelectedTable;
     end
@@ -13200,7 +13200,7 @@ var
   NewAddress: string;
   Node: TTreeNode;
   Position: Integer;
-  Table: TCTable;
+  Table: TSTable;
   URI: TUURI;
 begin
   AllowChange := True;
@@ -13399,10 +13399,10 @@ begin
     if (Assigned(Window.ActiveControl)) then
       if (Window.ActiveControl = ActiveSynMemo) then
         StatusBar.Panels[sbNavigation].Text := IntToStr(ActiveSynMemo.CaretXY.Line) + ':' + IntToStr(ActiveSynMemo.CaretXY.Char)
-      else if ((Window.ActiveControl = ActiveListView) and Assigned(ActiveListView.ItemFocused) and (TObject(ActiveListView.ItemFocused.Data) is TCKey)) then
-        StatusBar.Panels[sbNavigation].Text := Preferences.LoadStr(377) + ': ' + IntToStr(TCKey(ActiveListView.ItemFocused.Data).Index + 1)
-      else if ((Window.ActiveControl = ActiveListView) and Assigned(ActiveListView.ItemFocused) and (TObject(ActiveListView.ItemFocused.Data) is TCTableField)) then
-       StatusBar.Panels[sbNavigation].Text := ReplaceStr(Preferences.LoadStr(164), '&', '') + ': ' + IntToStr(TCTableField(ActiveListView.ItemFocused.Data).Index)
+      else if ((Window.ActiveControl = ActiveListView) and Assigned(ActiveListView.ItemFocused) and (TObject(ActiveListView.ItemFocused.Data) is TSKey)) then
+        StatusBar.Panels[sbNavigation].Text := Preferences.LoadStr(377) + ': ' + IntToStr(TSKey(ActiveListView.ItemFocused.Data).Index + 1)
+      else if ((Window.ActiveControl = ActiveListView) and Assigned(ActiveListView.ItemFocused) and (TObject(ActiveListView.ItemFocused.Data) is TSTableField)) then
+       StatusBar.Panels[sbNavigation].Text := ReplaceStr(Preferences.LoadStr(164), '&', '') + ': ' + IntToStr(TSTableField(ActiveListView.ItemFocused.Data).Index)
       else if ((Window.ActiveControl = ActiveDBGrid) and Assigned(ActiveDBGrid.SelectedField) and (ActiveDBGrid.DataSource.DataSet.RecNo >= 0)) then
         StatusBar.Panels[sbNavigation].Text := IntToStr(ActiveDBGrid.DataSource.DataSet.RecNo + 1) + ':' + IntToStr(ActiveDBGrid.SelectedField.FieldNo)
       else if (Window.ActiveControl = FLog) then
@@ -13445,11 +13445,11 @@ begin
     if (((View = vBrowser) or (Window.ActiveControl = ActiveDBGrid)) and Assigned(ActiveDBGrid)) then
       if (SelCount > 0) then
         StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(888, IntToStr(SelCount))
-      else if ((View = vBrowser) and (SelectedImageIndex in [iiBaseTable, iiSystemView]) and not Client.InUse() and TCBaseTable(FNavigator.Selected.Data).ValidData and TCBaseTable(FNavigator.Selected.Data).DataSet.LimitedDataReceived and (TCBaseTable(FNavigator.Selected.Data).Rows >= 0)) then
-        if (Assigned(TCBaseTable(FNavigator.Selected.Data).Engine) and TCBaseTable(FNavigator.Selected.Data).Engine.IsInnoDB) then
-          StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(889, IntToStr(Count), IntToStr(TCBaseTable(FNavigator.Selected.Data).Rows))
+      else if ((View = vBrowser) and (SelectedImageIndex in [iiBaseTable, iiSystemView]) and not Client.InUse() and TSBaseTable(FNavigator.Selected.Data).ValidData and TSBaseTable(FNavigator.Selected.Data).DataSet.LimitedDataReceived and (TSBaseTable(FNavigator.Selected.Data).Rows >= 0)) then
+        if (Assigned(TSBaseTable(FNavigator.Selected.Data).Engine) and TSBaseTable(FNavigator.Selected.Data).Engine.IsInnoDB) then
+          StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(889, IntToStr(Count), IntToStr(TSBaseTable(FNavigator.Selected.Data).Rows))
         else
-          StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(889, IntToStr(Count), '~' + IntToStr(TCBaseTable(FNavigator.Selected.Data).Rows))
+          StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(889, IntToStr(Count), '~' + IntToStr(TSBaseTable(FNavigator.Selected.Data).Rows))
         else
           StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(887, IntToStr(ActiveDBGrid.DataSource.DataSet.RecordCount))
     else if (SelCount > 0) then
@@ -13508,8 +13508,8 @@ begin
   if ((Source = FNavigator) and (Sender is TSynMemo)) then
   begin
     case (MouseDownNode.ImageIndex) of
-      iiKey: S := TCKey(MouseDownNode.Data).Name;
-      iiForeignKey: S := TCForeignKey(MouseDownNode.Data).Name;
+      iiKey: S := TSKey(MouseDownNode.Data).Name;
+      iiForeignKey: S := TSForeignKey(MouseDownNode.Data).Name;
       else S := MouseDownNode.Text;
     end;
     SelStart := TSynMemo(Sender).SelStart;
@@ -13720,9 +13720,9 @@ var
   Offset: Integer;
   QuickSearch: string;
   SortDef: TIndexDef;
-  Table: TCTable;
+  Table: TSTable;
 begin
-  Table := TCTable(FNavigator.Selected.Data);
+  Table := TSTable(FNavigator.Selected.Data);
 
   if (not FLimitEnabled.Down) then
   begin
@@ -13748,8 +13748,8 @@ begin
   SortDef := TIndexDef.Create(nil, '', '', []);
   if (Table.DataSet.Active) then
     SortDef.Assign(Table.DataSet.SortDef)
-  else if ((Table is TCBaseTable) and Assigned(TCBaseTable(Table).PrimaryKey)) then
-    TCBaseTable(Table).PrimaryKey.GetSortDef(SortDef);
+  else if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).PrimaryKey)) then
+    TSBaseTable(Table).PrimaryKey.GetSortDef(SortDef);
 
   if (not Table.DataSet.Active) then
   begin
@@ -13882,7 +13882,7 @@ end;
 
 function TFClient.UpdateAfterAddressChanged(): Boolean;
 var
-  Database: TCDatabase;
+  Database: TSDatabase;
   I: Integer;
   List: TList;
 begin
@@ -13906,9 +13906,9 @@ begin
         iiDatabase,
         iiSystemDatabase:
           begin
-            Database := TCDatabase(FNavigator.Selected.Data);
+            Database := TSDatabase(FNavigator.Selected.Data);
 
-            if ((Database.Count < PrefetchObjectCount) or (Database is TCSystemDatabase)) then
+            if ((Database.Count < PrefetchObjectCount) or (Database is TSSystemDatabase)) then
             begin
               List := TList.Create();
 
@@ -13932,12 +13932,12 @@ begin
           end;
       end;
     vBrowser:
-      if (not TCTable(FNavigator.Selected.Data).ValidData) then
+      if (not TSTable(FNavigator.Selected.Data).ValidData) then
         TableOpen(nil);
     vDiagram:
       if (not Assigned(ActiveWorkbench)) then
       begin
-        Desktop(TCDatabase(FNavigator.Selected.Data)).CreateWorkbench();
+        Desktop(TSDatabase(FNavigator.Selected.Data)).CreateWorkbench();
         ActiveWorkbench := GetActiveWorkbench();
         if (FileExists(Client.Account.DataPath + ActiveWorkbench.Database.Name + PathDelim + 'Diagram.xml')) then
           ActiveWorkbench.LoadFromFile(Client.Account.DataPath + ActiveWorkbench.Database.Name + PathDelim + 'Diagram.xml');
@@ -14012,7 +14012,7 @@ end;
 
 procedure TFClient.WorkbenchAddTable(Sender: TObject);
 var
-  BaseTable: TCBaseTable;
+  BaseTable: TSBaseTable;
   MenuItem: TMenuItem;
   Point: TPoint;
 begin
@@ -14020,10 +14020,10 @@ begin
   begin
     MenuItem := TMenuItem(Sender);
 
-    if ((MenuItem.GetParentMenu() is TPopupMenu) and (TObject(MenuItem.Tag) is TCTable)) then
+    if ((MenuItem.GetParentMenu() is TPopupMenu) and (TObject(MenuItem.Tag) is TSTable)) then
     begin
       Point := ActiveWorkbench.ScreenToClient(TPopupMenu(MenuItem.GetParentMenu()).PopupPoint);
-      BaseTable := TCBaseTable(TMenuItem(Sender).Tag);
+      BaseTable := TSBaseTable(TMenuItem(Sender).Tag);
 
       ActiveWorkbench.AddExistingTable(Point.X, Point.Y, BaseTable);
     end;
@@ -14034,12 +14034,12 @@ procedure TFClient.WorkbenchChange(Sender: TObject; Control: TWControl);
 var
   aEPasteEnabled: Boolean;
   ClipboardData: HGLOBAL;
-  Database: TCDatabase;
+  Database: TSDatabase;
   DatabaseName: string;
   Index: Integer;
   S: string;
   AccountName: string;
-  Table: TCBaseTable;
+  Table: TSBaseTable;
   TableName: string;
   Values: TStringList;
 begin
@@ -14136,7 +14136,7 @@ begin
   if (Assigned(MouseDownNode) and (MouseDownNode.TreeView = Source) and (Source = FNavigator)
     and (FNavigator.Selected = MouseDownNode.Parent) and (MouseDownNode.ImageIndex = iiBaseTable)) then
   begin
-    ActiveWorkbench.AddExistingTable(X, Y, TCBaseTable(MouseDownNode.Data));
+    ActiveWorkbench.AddExistingTable(X, Y, TSBaseTable(MouseDownNode.Data));
     Window.ActiveControl := ActiveWorkbench;
   end;
 end;
@@ -14144,21 +14144,21 @@ end;
 procedure TFClient.WorkbenchDragOver(Sender, Source: TObject; X, Y: Integer;
   State: TDragState; var Accept: Boolean);
 var
-  BaseTable: TCBaseTable;
+  BaseTable: TSBaseTable;
 begin
   Accept := False;
 
   if (Assigned(MouseDownNode) and (MouseDownNode.TreeView = Source) and (Source = FNavigator)
     and (FNavigator.Selected = MouseDownNode.Parent) and (MouseDownNode.ImageIndex = iiBaseTable)) then
   begin
-    BaseTable := TCBaseTable(MouseDownNode.Data);
+    BaseTable := TSBaseTable(MouseDownNode.Data);
     Accept := Assigned(BaseTable) and not Assigned(ActiveWorkbench.TableByBaseTable(BaseTable));
   end;
 end;
 
 procedure TFClient.WorkbenchEmptyExecute(Sender: TObject);
 var
-  BaseTable: TCBaseTable;
+  BaseTable: TSBaseTable;
 begin
   if (ActiveWorkbench.Selected is TWTable) then
   begin
@@ -14219,7 +14219,7 @@ var
   P: TPoint;
   S: string;
   AccountName: string;
-  BaseTable: TCBaseTable;
+  BaseTable: TSBaseTable;
   TableName: string;
   Values: TStringList;
 begin
@@ -14302,8 +14302,8 @@ end;
 
 function TFClient.WorkbenchValidateControl(Sender: TObject; Control: TWControl): Boolean;
 var
-  ChildTable: TCBaseTable;
-  ParentTable: TCBaseTable;
+  ChildTable: TSBaseTable;
+  ParentTable: TSBaseTable;
 begin
   if (Control is TWTable) then
   begin

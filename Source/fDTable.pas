@@ -4,11 +4,12 @@ interface {********************************************************************}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, ComCtrls, Menus, StdCtrls, ToolWin, ActnList,
+  Dialogs, ComCtrls, Menus, StdCtrls, ToolWin, ActnList, ExtCtrls,
   SynEdit, SynMemo,
-  StdCtrls_Ext, Forms_Ext,
-  fClient, fBase, MySQLDB, ComCtrls_Ext, ExtCtrls, 
-  ExtCtrls_Ext;
+  StdCtrls_Ext, Forms_Ext, ExtCtrls_Ext, ComCtrls_Ext,
+  MySQLDB,
+  fSession,
+  fBase;
 
 type
   TDTable = class (TForm_Ext)
@@ -208,22 +209,22 @@ type
     procedure TSTriggersShow(Sender: TObject);
   private
     FCreatedName: string;
-    NewTable: TCBaseTable;
+    NewTable: TSBaseTable;
     RecordCount: Integer;
     procedure Built();
     procedure FFieldsRefresh(Sender: TObject);
     procedure FForeignKeysRefresh(Sender: TObject);
     procedure FIndicesRefresh(Sender: TObject);
-    procedure FormClientEvent(const Event: TCClient.TEvent);
+    procedure FormClientEvent(const Event: TSSession.TEvent);
     procedure FPartitionsRefresh(Sender: TObject);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
     Charset: string;
     Collation: string;
-    Database: TCDatabase;
+    Database: TSDatabase;
     Engine: string;
     RowType: TMySQLRowType;
-    Table: TCBaseTable;
+    Table: TSBaseTable;
     Tables: TList;
     function Execute(): Boolean;
     property CreatedName: string read FCreatedName;
@@ -390,8 +391,8 @@ end;
 
 procedure TDTable.aPDownExecute(Sender: TObject);
 var
-  Fields: array of TCTableField;
-  FocusedField: TCTableField;
+  Fields: array of TSTableField;
+  FocusedField: TSTableField;
   I: Integer;
   Index: Integer;
   NewListItem: TListItem;
@@ -415,7 +416,7 @@ begin
     begin
       OldListItem := FFields.Items[Fields[Index].Index];
 
-      TCBaseTableFields(NewTable.Fields).MoveField(Fields[Index], Fields[Index]);
+      TSBaseTableFields(NewTable.Fields).MoveField(Fields[Index], Fields[Index]);
 
       NewListItem := FFields.Items.Insert(Fields[Index].Index + 1);
       NewListItem.Caption := OldListItem.Caption;
@@ -456,7 +457,7 @@ procedure TDTable.aPEditFieldExecute(Sender: TObject);
 begin
   DField.Database := nil;
   DField.Table := NewTable;
-  DField.Field := TCBaseTableField(NewTable.Fields[FFields.ItemIndex]);
+  DField.Field := TSBaseTableField(NewTable.Fields[FFields.ItemIndex]);
   if (DField.Execute()) then
   begin
     FFieldsRefresh(Sender);
@@ -467,7 +468,7 @@ end;
 
 procedure TDTable.aPEditForeignKeyExecute(Sender: TObject);
 var
-  ForeignKey: TCForeignKey;
+  ForeignKey: TSForeignKey;
 begin
   ForeignKey := NewTable.ForeignKeys[FForeignKeys.ItemIndex];
 
@@ -497,7 +498,7 @@ end;
 
 procedure TDTable.aPEditPartitionExecute(Sender: TObject);
 var
-  Partition: TCPartition;
+  Partition: TSPartition;
 begin
   Partition := NewTable.Partitions[FPartitions.ItemIndex];
 
@@ -513,8 +514,8 @@ end;
 
 procedure TDTable.aPUpExecute(Sender: TObject);
 var
-  Fields: array of TCTableField;
-  FocusedField: TCTableField;
+  Fields: array of TSTableField;
+  FocusedField: TSTableField;
   I: Integer;
   Index: Integer;
   NewListItem: TListItem;
@@ -538,7 +539,7 @@ begin
     begin
       OldListItem := FFields.Items[Fields[Index].Index];
 
-      TCBaseTableFields(NewTable.Fields).MoveField(Fields[Index], Fields[Index].FieldBefore.FieldBefore);
+      TSBaseTableFields(NewTable.Fields).MoveField(Fields[Index], Fields[Index].FieldBefore.FieldBefore);
 
       NewListItem := FFields.Items.Insert(Fields[Index].Index);
       NewListItem.Caption := OldListItem.Caption;
@@ -577,7 +578,7 @@ end;
 
 procedure TDTable.Built();
 var
-  Engine: TCEngine;
+  Engine: TSEngine;
   I: Integer;
   Index: Integer;
 begin
@@ -609,9 +610,9 @@ begin
     FTablesCount.Caption := IntToStr(Tables.Count);
     FDatabase.Text := Database.Name;
 
-    Engine := TCBaseTable(Tables[0]).Engine;
+    Engine := TSBaseTable(Tables[0]).Engine;
     for I := 1 to Tables.Count - 1 do
-      if (TCBaseTable(Tables[I]).Engine <> Engine) then
+      if (TSBaseTable(Tables[I]).Engine <> Engine) then
         Engine := nil;
     if (FTablesEngine.Style = csDropDown) then
       FTablesEngine.Text := NewTable.Engine.Name
@@ -620,26 +621,26 @@ begin
 
     Index := -1;
     for I := 0 to FDefaultCharset.Items.Count - 1 do
-      if (Database.Client.Charsets.NameCmp(FDefaultCharset.Items[I], TCBaseTable(Tables[0]).DefaultCharset) = 0) then
+      if (Database.Session.Charsets.NameCmp(FDefaultCharset.Items[I], TSBaseTable(Tables[0]).DefaultCharset) = 0) then
         Index := I;
     for I := 1 to Tables.Count - 1 do
-      if ((Index >= 0) and (Database.Client.Charsets.NameCmp(FDefaultCharset.Items[Index], TCBaseTable(Tables[I]).DefaultCharset) <> 0)) then
+      if ((Index >= 0) and (Database.Session.Charsets.NameCmp(FDefaultCharset.Items[Index], TSBaseTable(Tables[I]).DefaultCharset) <> 0)) then
         Index := -1;
     FTablesCharset.ItemIndex := Index;
 
     Index := -1;
     for I := 0 to FCollation.Items.Count - 1 do
-      if (Database.Client.Collations.NameCmp(FCollation.Items[I], TCBaseTable(Tables[0]).Collation) = 0) then
+      if (Database.Session.Collations.NameCmp(FCollation.Items[I], TSBaseTable(Tables[0]).Collation) = 0) then
         Index := FCollation.Items.IndexOf(FCollation.Items[I]);
     for I := 1 to Tables.Count - 1 do
-      if ((Index >= 0) and (Database.Client.Collations.NameCmp(FCollation.Items[Index], TCBaseTable(Tables[I]).Collation) <> 0)) then
+      if ((Index >= 0) and (Database.Session.Collations.NameCmp(FCollation.Items[Index], TSBaseTable(Tables[I]).Collation) <> 0)) then
         Index := -1;
-    if (Assigned(Database.Client.CharsetByName(FTablesCharset.Text)) and Assigned(Database.Client.CharsetByName(FTablesCharset.Text).DefaultCollation) and (FTablesCollation.Items[Index] <> Database.Client.CharsetByName(FTablesCharset.Text).DefaultCollation.Name)) then
+    if (Assigned(Database.Session.CharsetByName(FTablesCharset.Text)) and Assigned(Database.Session.CharsetByName(FTablesCharset.Text).DefaultCollation) and (FTablesCollation.Items[Index] <> Database.Session.CharsetByName(FTablesCharset.Text).DefaultCollation.Name)) then
       FTablesCollation.ItemIndex := Index;
 
-    Index := FTablesRowType.Items.IndexOf(TCBaseTable(Tables[0]).DBRowTypeStr());
+    Index := FTablesRowType.Items.IndexOf(TSBaseTable(Tables[0]).DBRowTypeStr());
     for I := 1 to Tables.Count - 1 do
-      if (FTablesRowType.Items.IndexOf(TCBaseTable(Tables[I]).DBRowTypeStr()) <> Index) then
+      if (FTablesRowType.Items.IndexOf(TSBaseTable(Tables[I]).DBRowTypeStr()) <> Index) then
         Index := 0;
     FTablesRowType.ItemIndex := Index;
 
@@ -857,7 +858,7 @@ begin
         DTableService.ServiceMode := smCheck;
 
         Success := DTableService.Execute();
-        if (not Success and (Database.Client.Engines.NameCmp(TCBaseTable(Tables[I]).Engine.Name, 'MYISAM') = 0)) then
+        if (not Success and (Database.Session.Engines.NameCmp(TSBaseTable(Tables[I]).Engine.Name, 'MYISAM') = 0)) then
         begin
           DTableService.ServiceMode := smRepair;
           Success := DTableService.Execute();
@@ -885,7 +886,7 @@ begin
     DTableService.Tables.Add(NewTable)
   else
     for I := 0 to Tables.Count - 1 do
-      DTableService.Tables.Add(TCBaseTable(Tables[I]));
+      DTableService.Tables.Add(TSBaseTable(Tables[I]));
   DTableService.Execute();
   DTableService.Tables.Clear();
 
@@ -904,7 +905,7 @@ procedure TDTable.FBOkCheckEnabled(Sender: TObject);
 begin
   FBOk.Enabled := PageControl.Visible
     and (FName.Text <> '')
-    and (not Assigned(Database.TableByName(FName.Text)) or (Assigned(Table) and (((Database.Client.LowerCaseTableNames = 0) and (FName.Text = Table.Name)) or ((Database.Client.LowerCaseTableNames > 0) and ((lstrcmpi(PChar(FName.Text), PChar(Table.Name)) = 0))))));
+    and (not Assigned(Database.TableByName(FName.Text)) or (Assigned(Table) and (((Database.Session.LowerCaseTableNames = 0) and (FName.Text = Table.Name)) or ((Database.Session.LowerCaseTableNames > 0) and ((lstrcmpi(PChar(FName.Text), PChar(Table.Name)) = 0))))));
 end;
 
 procedure TDTable.FBOptimizeClick(Sender: TObject);
@@ -943,27 +944,27 @@ var
   I: Integer;
   J: Integer;
 begin
-  if (Assigned(Database.Client.Collations) and (FCollation.ItemIndex < 0)) then
-    for I := 0 to Database.Client.Collations.Count - 1 do
-      if ((lstrcmpi(PChar(Database.Client.Collations[I].Charset.Name), PChar(FDefaultCharset.Text)) = 0) and Database.Client.Collations[I].Default) then
+  if (Assigned(Database.Session.Collations) and (FCollation.ItemIndex < 0)) then
+    for I := 0 to Database.Session.Collations.Count - 1 do
+      if ((lstrcmpi(PChar(Database.Session.Collations[I].Charset.Name), PChar(FDefaultCharset.Text)) = 0) and Database.Session.Collations[I].Default) then
         for J := 1 to FCollation.Items.Count - 1 do
-          if (lstrcmpi(PChar(FCollation.Items[J]), PChar(Database.Client.Collations[I].Name)) = 0) then
+          if (lstrcmpi(PChar(FCollation.Items[J]), PChar(Database.Session.Collations[I].Name)) = 0) then
             FCollation.ItemIndex := FCollation.Items.IndexOf(FCollation.Items[J]);
 end;
 
 procedure TDTable.FDefaultCharsetChange(Sender: TObject);
 var
-  Charset: TCCharset;
+  Charset: TSCharset;
   I: Integer;
 begin
-  Charset := Database.Client.CharsetByName(FDefaultCharset.Text);
+  Charset := Database.Session.CharsetByName(FDefaultCharset.Text);
 
   FCollation.Items.Clear();
   FCollation.Items.Add('');
-  if (Assigned(Database.Client.Collations)) then
-    for I := 0 to Database.Client.Collations.Count - 1 do
-      if (Assigned(Charset) and (Database.Client.Collations[I].Charset = Charset)) then
-        FCollation.Items.Add(Database.Client.Collations[I].Name);
+  if (Assigned(Database.Session.Collations)) then
+    for I := 0 to Database.Session.Collations.Count - 1 do
+      if (Assigned(Charset) and (Database.Session.Collations[I].Charset = Charset)) then
+        FCollation.Items.Add(Database.Session.Collations[I].Name);
 
   FBOkCheckEnabled(Sender);
 end;
@@ -976,9 +977,9 @@ end;
 
 procedure TDTable.FEngineChange(Sender: TObject);
 begin
-  NewTable.Engine := Database.Client.EngineByName(Trim(FEngine.Text));
+  NewTable.Engine := Database.Session.EngineByName(Trim(FEngine.Text));
 
-  TSForeignKeys.TabVisible := Assigned(Table) and Assigned(Database.Client.EngineByName(FEngine.Text)) and Database.Client.EngineByName(FEngine.Text).ForeignKeyAllowed;
+  TSForeignKeys.TabVisible := Assigned(Table) and Assigned(Database.Session.EngineByName(FEngine.Text)) and Database.Session.EngineByName(FEngine.Text).ForeignKeyAllowed;
 
   FBOkCheckEnabled(Sender);
 end;
@@ -1141,19 +1142,19 @@ begin
   aPDeletePartition.Enabled := Selected and (ListView.SelCount >= 1);
   aPEditPartition.Enabled := Selected and (ListView.SelCount = 1) and (Page = TSPartitions);
 
-  aPUp.Enabled := Selected and (ListView = FFields) and not ListView.Items[0].Selected and (NewTable.Database.Client.ServerVersion >= 40001);
-  aPDown.Enabled := Selected and (ListView = FFields) and not ListView.Items[ListView.Items.Count - 1].Selected and (NewTable.Database.Client.ServerVersion >= 40001);
+  aPUp.Enabled := Selected and (ListView = FFields) and not ListView.Items[0].Selected and (NewTable.Database.Session.ServerVersion >= 40001);
+  aPDown.Enabled := Selected and (ListView = FFields) and not ListView.Items[ListView.Items.Count - 1].Selected and (NewTable.Database.Session.ServerVersion >= 40001);
 
   ShowEnabledItems(MList.Items);
 
   mlDProperties.Default := mlDProperties.Enabled;
 end;
 
-procedure TDTable.FormClientEvent(const Event: TCClient.TEvent);
+procedure TDTable.FormClientEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = ceItemValid) and (Event.CItem = Table)) then
     Built()
-  else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.CItem is TCTable)) then
+  else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.CItem is fSession.TSTable)) then
     ModalResult := mrOk
   else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Client.ErrorCode <> 0)) then
   begin
@@ -1198,7 +1199,7 @@ begin
       else
         FCreatedName := NewTable.Name;
 
-      PageControl.Visible := CanClose or not Database.Client.Asynchron;
+      PageControl.Visible := CanClose or not Database.Session.Asynchron;
       PSQLWait.Visible := not PageControl.Visible;
 
       FBOk.Enabled := False;
@@ -1207,7 +1208,7 @@ begin
     begin
       UpdateTableNames := TStringList.Create();
       for I := 0 to Tables.Count - 1 do
-        UpdateTableNames.Add(TCBaseTable(Tables[I]).Name);
+        UpdateTableNames.Add(TSBaseTable(Tables[I]).Name);
 
       CanClose := Database.UpdateTables(UpdateTableNames, FTablesCharset.Text, FTablesCollation.Text, FTablesEngine.Text, TMySQLRowType(FTablesRowType.ItemIndex));
 
@@ -1260,7 +1261,7 @@ end;
 
 procedure TDTable.FormHide(Sender: TObject);
 begin
-  Database.Client.UnRegisterEventProc(FormClientEvent);
+  Database.Session.UnRegisterEventProc(FormClientEvent);
 
   PageControl.ActivePage := nil; // TSInformationsShow soll beim nächsten Öffnen nicht vorzeitig aufgerufen werden
 
@@ -1293,12 +1294,12 @@ end;
 procedure TDTable.FormShow(Sender: TObject);
 var
   I: Integer;
-  NewField: TCBaseTableField;
-  NewKey: TCKey;
-  NewKeyColumn: TCKeyColumn;
+  NewField: TSBaseTableField;
+  NewKey: TSKey;
+  NewKeyColumn: TSKeyColumn;
   TableName: string;
 begin
-  Database.Client.RegisterEventProc(FormClientEvent);
+  Database.Session.RegisterEventProc(FormClientEvent);
 
   if (not Assigned(Tables) and not Assigned(Table)) then
   begin
@@ -1318,25 +1319,25 @@ begin
 
   RecordCount := -1;
 
-  if (not Assigned(Table) and (Database.Client.LowerCaseTableNames = 1)) then
+  if (not Assigned(Table) and (Database.Session.LowerCaseTableNames = 1)) then
     FName.CharCase := ecLowerCase
   else
     FName.CharCase := ecNormal;
 
   FEngine.Items.Clear();
-  for I := 0 to Database.Client.Engines.Count - 1 do
-    if (not (Database.Client.Engines[I] is TCSystemEngine)) then
-      FEngine.Items.Add(Database.Client.Engines[I].Name);
+  for I := 0 to Database.Session.Engines.Count - 1 do
+    if (not (Database.Session.Engines[I] is TSSystemEngine)) then
+      FEngine.Items.Add(Database.Session.Engines[I].Name);
 
   FTablesEngine.Items.Clear();
   FTablesEngine.Items.Add('');
-  for I := 0 to Database.Client.Engines.Count - 1 do
-    FTablesEngine.Items.Add(Database.Client.Engines[I].Name);
+  for I := 0 to Database.Session.Engines.Count - 1 do
+    FTablesEngine.Items.Add(Database.Session.Engines[I].Name);
 
   FDefaultCharset.Items.Clear();
   FDefaultCharset.Items.Add('');
-  for I := 0 to Database.Client.Charsets.Count - 1 do
-    FDefaultCharset.Items.Add(Database.Client.Charsets[I].Name);
+  for I := 0 to Database.Session.Charsets.Count - 1 do
+    FDefaultCharset.Items.Add(Database.Session.Charsets[I].Name);
   FDefaultCharset.Text := ''; FDefaultCharsetChange(Sender);
 
   FCollation.Text := '';
@@ -1354,7 +1355,7 @@ begin
 
   if (not Assigned(Tables)) then
   begin
-    NewTable := TCBaseTable.Create(Database.Tables);
+    NewTable := TSBaseTable.Create(Database.Tables);
 
     TSTable.TabVisible := not Assigned(Tables);
     TSTables.TabVisible := not TSTable.TabVisible;
@@ -1364,9 +1365,9 @@ begin
     begin
       NewTable.DefaultCharset := Database.DefaultCharset;
       NewTable.Collation := Database.Collation;
-      NewTable.Engine := Database.Client.Engines.DefaultEngine;
+      NewTable.Engine := Database.Session.Engines.DefaultEngine;
 
-      NewField := TCBaseTableField.Create(NewTable.Fields);
+      NewField := TSBaseTableField.Create(NewTable.Fields);
       NewField.Name := 'Id';
       NewField.FieldType := mfInt;
       NewField.Size := 11;
@@ -1376,11 +1377,11 @@ begin
       NewTable.Fields.AddField(NewField);
       FreeAndNil(NewField);
 
-      NewKey := TCKey.Create(NewTable.Keys);
+      NewKey := TSKey.Create(NewTable.Keys);
       NewKey.Primary := True;
 
-      NewKeyColumn := TCKeyColumn.Create(NewKey.Columns);
-      NewKeyColumn.Field := TCBaseTableField(NewTable.Fields[0]);
+      NewKeyColumn := TSKeyColumn.Create(NewKey.Columns);
+      NewKeyColumn.Field := TSBaseTableField(NewTable.Fields[0]);
       NewKey.Columns.AddColumn(NewKeyColumn);
       FreeAndNil(NewKeyColumn);
 
@@ -1432,7 +1433,7 @@ begin
     TSTable.TabVisible := (not Assigned(Tables));
     TSTables.TabVisible := not TSTable.TabVisible;
     PageControl.ActivePage := TSTables;
-    PageControl.Visible := Database.Client.Update(Tables);
+    PageControl.Visible := Database.Session.Update(Tables);
     PSQLWait.Visible := not PageControl.Visible;
 
     if (PageControl.Visible) then
@@ -1442,10 +1443,10 @@ begin
   DTableService.Parent := TForm(Self);
 
 
-  FDefaultCharset.Visible := Database.Client.ServerVersion >= 40101; FLDefaultCharset.Visible := FDefaultCharset.Visible;
-  FCollation.Visible := Database.Client.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
-  FTablesCharset.Visible := Database.Client.ServerVersion >= 40101; FLTablesCharset.Visible := FTablesCharset.Visible;
-  FTablesCollation.Visible := Database.Client.ServerVersion >= 40101; FLTablesCollation.Visible := FTablesCollation.Visible;
+  FDefaultCharset.Visible := Database.Session.ServerVersion >= 40101; FLDefaultCharset.Visible := FDefaultCharset.Visible;
+  FCollation.Visible := Database.Session.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
+  FTablesCharset.Visible := Database.Session.ServerVersion >= 40101; FLTablesCharset.Visible := FTablesCharset.Visible;
+  FTablesCollation.Visible := Database.Session.ServerVersion >= 40101; FLTablesCollation.Visible := FTablesCollation.Visible;
   GRecords.Visible := Assigned(Table);
 
   TSInformation.TabVisible := Assigned(Table) and (Table.DataSize >= 0) or Assigned(Tables);
@@ -1558,17 +1559,17 @@ end;
 
 procedure TDTable.FTablesCharsetChange(Sender: TObject);
 var
-  Charset: TCCharset;
+  Charset: TSCharset;
   I: Integer;
 begin
-  Charset := Database.Client.CharsetByName(FDefaultCharset.Text);
+  Charset := Database.Session.CharsetByName(FDefaultCharset.Text);
 
   FTablesCollation.Items.Clear();
   FTablesCollation.Items.Add('');
-  if (Assigned(Database.Client.Collations)) then
-    for I := 0 to Database.Client.Collations.Count - 1 do
-      if (Assigned(Charset) and (Database.Client.Collations[I].Charset = Charset)) then
-        FTablesCollation.Items.Add(Database.Client.Collations[I].Name);
+  if (Assigned(Database.Session.Collations)) then
+    for I := 0 to Database.Session.Collations.Count - 1 do
+      if (Assigned(Charset) and (Database.Session.Collations[I].Charset = Charset)) then
+        FTablesCollation.Items.Add(Database.Session.Collations[I].Name);
 
   FBOkCheckEnabled(Sender);
 end;
@@ -1609,13 +1610,13 @@ begin
   begin
     Size := 0;
     for I := 0 to Tables.Count - 1 do
-      Inc(Size, TCBaseTable(Tables[I]).UnusedSize);
+      Inc(Size, TSBaseTable(Tables[I]).UnusedSize);
     FUnusedSize.Caption := SizeToStr(Size);
 
     DateTime := Now();
     for I := 0 to Tables.Count - 1 do
-      if (TCBaseTable(Tables[I]).Checked < DateTime) then
-        DateTime := TCBaseTable(Tables[I]).Checked;
+      if (TSBaseTable(Tables[I]).Checked < DateTime) then
+        DateTime := TSBaseTable(Tables[I]).Checked;
     if (DateTime <= 0) then
       FChecked.Caption := '???'
     else
@@ -1764,7 +1765,7 @@ begin
         ListItem.SubItems.Add('fulltext')
       else
         ListItem.SubItems.Add('');
-      if (Database.Client.ServerVersion >= 50503) then
+      if (Database.Session.ServerVersion >= 50503) then
         ListItem.SubItems.Add(NewTable.Keys[I].Comment);
       ListItem.ImageIndex := iiKey;
     end;
@@ -1806,31 +1807,31 @@ begin
   begin
     DateTime := Now();
     for I := 0 to Tables.Count - 1 do
-      if (TCBaseTable(Tables[I]).Created < DateTime) then
-        DateTime := TCBaseTable(Tables[I]).Created;
+      if (TSBaseTable(Tables[I]).Created < DateTime) then
+        DateTime := TSBaseTable(Tables[I]).Created;
     if (DateTime <= 0) then FCreated.Caption := '???' else FCreated.Caption := SysUtils.DateTimeToStr(DateTime, LocaleFormatSettings);
 
     DateTime := 0;
     for I := 0 to Tables.Count - 1 do
-      if (TCBaseTable(Tables[I]).Updated > DateTime) then
-        DateTime := TCBaseTable(Tables[I]).Updated;
+      if (TSBaseTable(Tables[I]).Updated > DateTime) then
+        DateTime := TSBaseTable(Tables[I]).Updated;
     if (DateTime = 0) then FUpdated.Caption := '???' else FUpdated.Caption := SysUtils.DateTimeToStr(DateTime, LocaleFormatSettings);
 
     Size := 0;
     for I := 0 to Tables.Count - 1 do
-      Inc(Size, TCBaseTable(Tables[I]).IndexSize);
+      Inc(Size, TSBaseTable(Tables[I]).IndexSize);
     FIndexSize.Caption := SizeToStr(Size);
 
     Size := 0;
     for I := 0 to Tables.Count - 1 do
-      Inc(Size, TCBaseTable(Tables[I]).DataSize);
+      Inc(Size, TSBaseTable(Tables[I]).DataSize);
     FDataSize.Caption := SizeToStr(Size);
 
     if (RecordCount < 0) then
     begin
       RecordCount := 0;
       for I := 0 to Tables.Count - 1 do
-        Inc(RecordCount, TCBaseTable(Tables[I]).CountRecords());
+        Inc(RecordCount, TSBaseTable(Tables[I]).CountRecords());
     end;
     FRecordCount.Caption := FormatFloat('#,##0', RecordCount, LocaleFormatSettings);
   end;
@@ -1881,7 +1882,7 @@ var
   ListItem: TListItem;
   S: string;
   S2: string;
-  Source: TCBaseTable;
+  Source: TSBaseTable;
   TempOnChange: TLVChangeEvent;
 begin
   TempOnChange := FReferenced.OnChange;
@@ -1899,9 +1900,9 @@ begin
 
   if (Assigned(Table) and (FReferenced.Items.Count = 0)) then
     for I := 0 to NewTable.Database.Tables.Count - 1 do
-      if ((NewTable.Database.Tables[I] is TCBaseTable) and (NewTable.Database.Tables[I].Name <> NewTable.Name)) then
+      if ((NewTable.Database.Tables[I] is TSBaseTable) and (NewTable.Database.Tables[I].Name <> NewTable.Name)) then
       begin
-        Source := TCBaseTable(NewTable.Database.Tables[I]);
+        Source := TSBaseTable(NewTable.Database.Tables[I]);
 
         for J := 0 to Source.ForeignKeys.Count - 1 do
           if (Source.ForeignKeys[J].Parent.TableName = NewTable.Name) then
@@ -1962,7 +1963,7 @@ begin
       for I := 0 to Tables.Count - 1 do
       begin
         if (I > 0) then FSource.Lines.Text := FSource.Lines.Text + #13#10;
-        FSource.Lines.Text := FSource.Lines.Text + TCBaseTable(Tables[I]).Source + #13#10;
+        FSource.Lines.Text := FSource.Lines.Text + TSBaseTable(Tables[I]).Source + #13#10;
       end;
 end;
 

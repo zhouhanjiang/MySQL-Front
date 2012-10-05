@@ -7,7 +7,7 @@ uses
   Dialogs, StdCtrls, ComCtrls, ToolWin, ExtCtrls, Menus,
   Forms_Ext, ExtCtrls_Ext,
   MySQLDB,
-  fClient,
+  fSession,
   fBase;
 
 const
@@ -47,7 +47,7 @@ type
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure WMNotify(var Message: TWMNotify); message WM_NOTIFY;
   public
-    Client: TCClient;
+    Client: TSSession;
     Keyword: string;
     function Execute(): Boolean;
   end;

@@ -5,9 +5,10 @@ interface {********************************************************************}
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, ComCtrls, ExtCtrls, StdCtrls, DB, Menus,
-  ComCtrls_Ext, Forms_Ext, ExtCtrls_Ext,
-  fClient, fBase, MySQLDB, fTools,
-  StdCtrls_Ext;
+  ComCtrls_Ext, Forms_Ext, ExtCtrls_Ext, StdCtrls_Ext,
+  MySQLDB,
+  fSession, fTools,
+  fBase;
 
 type
   TDTransfer = class(TForm_Ext)
@@ -61,14 +62,14 @@ type
     procedure TSExecuteShow(Sender: TObject);
     procedure TreeViewGetSelectedIndex(Sender: TObject; Node: TTreeNode);
   private
-    Clients: array of TCClient;
+    Clients: array of TSSession;
     MouseDownNode: TTreeNode;
     ProgressInfos: TTools.TProgressInfos;
     Transfer: TTTransfer;
     WantedExecute: Boolean;
     WantedNodeExpand: TTreeNode;
-    procedure FormClientEvent(const Event: TCClient.TEvent);
-    function GetClient(const Index: Integer): TCClient;
+    procedure FormClientEvent(const Event: TSSession.TEvent);
+    function GetClient(const Index: Integer): TSSession;
     procedure InitTSSelect(Sender: TObject);
     procedure OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure OnExecuted(const ASuccess: Boolean);
@@ -77,10 +78,10 @@ type
     procedure CMExecutedDone(var Message: TMessage); message CM_EXECUTIONDONE;
     procedure CMUpdateProgressInfo(var Message: TMessage); message CM_UPDATEPROGRESSINFO;
   public
-    SourceClient: TCClient;
+    SourceClient: TSSession;
     SourceDatabaseName: string;
     SourceTableName: string;
-    DestinationClient: TCClient;
+    DestinationClient: TSSession;
     DestinationDatabaseName: string;
     DestinationTableName: string;
     function Execute(): Boolean;
@@ -235,7 +236,7 @@ begin
   Application.HelpContext(HelpContext);
 end;
 
-procedure TDTransfer.FormClientEvent(const Event: TCClient.TEvent);
+procedure TDTransfer.FormClientEvent(const Event: TSSession.TEvent);
 begin
   if (Event.EventType in [ceAfterExecuteSQL]) then
     if (Assigned(WantedNodeExpand)) then
@@ -330,11 +331,11 @@ begin
   FBCancel.Default := False;
 end;
 
-function TDTransfer.GetClient(const Index: Integer): TCClient;
+function TDTransfer.GetClient(const Index: Integer): TSSession;
 begin
   if (not Assigned(Clients[Index])) then
   begin
-    Clients[Index] := TCClient.Create(fClient.Clients, Accounts[Index]);
+    Clients[Index] := TSSession.Create(fSession.Clients, Accounts[Index]);
     DConnecting.Client := Clients[Index];
     if (not DConnecting.Execute()) then
       FreeAndNil(Clients[Index]);
@@ -618,8 +619,8 @@ end;
 procedure TDTransfer.TreeViewExpanding(Sender: TObject; Node: TTreeNode;
   var AllowExpansion: Boolean);
 var
-  Client: TCClient;
-  Database: TCDatabase;
+  Client: TSSession;
+  Database: TSDatabase;
   I: Integer;
   NewNode: TTreeNode;
   TreeView: TTreeView_Ext;
@@ -647,7 +648,7 @@ begin
               else
               begin
                 for I := 0 to Client.Databases.Count - 1 do
-                  if (not (Client.Databases[I] is TCSystemDatabase)) then
+                  if (not (Client.Databases[I] is TSSystemDatabase)) then
                   begin
                     NewNode := TreeView.Items.AddChild(Node, Client.Databases[I].Name);
                     NewNode.ImageIndex := iiDatabase;
@@ -666,7 +667,7 @@ begin
             else
             begin
               for I := 0 to Database.Tables.Count - 1 do
-                if ((Database.Tables[I] is TCBaseTable) and Assigned(TCBaseTable(Database.Tables[I]).Engine) and not TCBaseTable(Database.Tables[I]).Engine.IsMerge and (RightStr(Database.Tables[I].Name, Length(BackupExtension)) <> BackupExtension)) then
+                if ((Database.Tables[I] is TSBaseTable) and Assigned(TSBaseTable(Database.Tables[I]).Engine) and not TSBaseTable(Database.Tables[I]).Engine.IsMerge and (RightStr(Database.Tables[I].Name, Length(BackupExtension)) <> BackupExtension)) then
                 begin
                   NewNode := TreeView.Items.AddChild(Node, Database.Tables[I].Name);
                   NewNode.ImageIndex := iiBaseTable;
@@ -696,7 +697,7 @@ procedure TDTransfer.TSExecuteShow(Sender: TObject);
 var
   Answer: Integer;
 
-  procedure AddTable(const SourceClient: TCClient; const SourceDatabaseName, SourceTableName: string; const DestinationClient: TCClient; const DestinationDatabaseName, DestinationTableName: string);
+  procedure AddTable(const SourceClient: TSSession; const SourceDatabaseName, SourceTableName: string; const DestinationClient: TSSession; const DestinationDatabaseName, DestinationTableName: string);
   begin
     if ((Answer <> IDYESALL) and Assigned(DestinationClient.DatabaseByName(DestinationDatabaseName)) and Assigned(DestinationClient.DatabaseByName(DestinationDatabaseName).TableByName(DestinationTableName))) then
       Answer := MsgBox(Preferences.LoadStr(700, DestinationDatabaseName + '.' + DestinationTableName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);
@@ -710,9 +711,9 @@ var
       FreeAndNil(Transfer);
   end;
 
-  function InitializeNode(const Client: TCClient; const Node: TTreeNode): Boolean;
+  function InitializeNode(const Client: TSSession; const Node: TTreeNode): Boolean;
   var
-    Database: TCDatabase;
+    Database: TSDatabase;
     I: Integer;
     J: Integer;
     Objects: TList;
@@ -724,14 +725,14 @@ var
           Result := not Client.Update() and Client.Asynchron;
           if (not Result) then
             for I := 0 to Client.Databases.Count - 1 do
-              if (not Result and not (Client.Databases[I] is TCSystemDatabase)) then
+              if (not Result and not (Client.Databases[I] is TSSystemDatabase)) then
               begin
                 Database := Client.Databases[I];
                 Result := not Database.Tables.Update() and Client.Asynchron;
                 if (not Result and (Node.TreeView = FSource)) then
                 begin
                   for J := 0 to Database.Tables.Count - 1 do
-                    if (Database.Tables[J] is TCBaseTable) then
+                    if (Database.Tables[J] is TSBaseTable) then
                       Objects.Add(Database.Tables[J]);
                   Result := not Client.Update(Objects);
                 end;
@@ -744,7 +745,7 @@ var
           if (not Result and (Node.TreeView = FSource)) then
           begin
             for J := 0 to Database.Tables.Count - 1 do
-              if (Database.Tables[J] is TCBaseTable) then
+              if (Database.Tables[J] is TSBaseTable) then
                 Objects.Add(Database.Tables[J]);
             Result := not Client.Update(Objects);
           end;
@@ -765,11 +766,11 @@ var
 var
   I: Integer;
   J: Integer;
-  Database: TCDatabase;
-  SourceClient: TCClient;
+  Database: TSDatabase;
+  SourceClient: TSSession;
   Node: TTreeNode;
   ProgressInfos: TTools.TProgressInfos;
-  DestinationClient: TCClient;
+  DestinationClient: TSSession;
 begin
   FErrors.Caption := '0';
   FErrorMessages.Lines.Clear();
@@ -821,7 +822,7 @@ begin
             begin
               Database := SourceClient.DatabaseByName(FSource.Selected.Parent[I].Text);
               for J := 0 to Database.Tables.Count - 1 do
-                if (Assigned(Transfer) and (Database.Tables[J] is TCBaseTable) and Assigned(TCBaseTable(Database.Tables[J]).Engine) and not TCBaseTable(Database.Tables[J]).Engine.IsMerge and (RightStr(Database.Tables[J].Name, Length(BackupExtension)) <> BackupExtension)) then
+                if (Assigned(Transfer) and (Database.Tables[J] is TSBaseTable) and Assigned(TSBaseTable(Database.Tables[J]).Engine) and not TSBaseTable(Database.Tables[J]).Engine.IsMerge and (RightStr(Database.Tables[J].Name, Length(BackupExtension)) <> BackupExtension)) then
                   AddTable(
                     SourceClient, Database.Name, Database.Tables[J].Name,
                     DestinationClient, Database.Name, Database.Tables[J].Name

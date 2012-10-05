@@ -6,7 +6,7 @@ uses
   Messages, Classes,
   Forms, Controls,StdCtrls,
   Forms_Ext,
-  fClient, fBase;
+  fSession, fBase;
 
 type
   TDConnecting = class (TForm_Ext)
@@ -19,7 +19,7 @@ type
     procedure CMPostShow(var Message: TMessage); message CM_POST_SHOW;
     procedure FormHide(Sender: TObject);
   public
-    Client: TCClient;
+    Client: TSSession;
     function Execute(): Boolean;
   end;
 

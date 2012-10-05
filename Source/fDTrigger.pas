@@ -6,8 +6,9 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, ComCtrls, ActnList, Menus, ExtCtrls,
   SynEdit, SynMemo,
-  Forms_Ext, ExtCtrls_Ext,
-  fBase, fClient, StdCtrls_Ext;
+  Forms_Ext, ExtCtrls_Ext, StdCtrls_Ext,
+  fSession,
+  fBase;
 
 type
   TDTrigger = class(TForm_Ext)
@@ -65,12 +66,12 @@ type
   private
     procedure Built();
     procedure FBOkCheckEnabled(Sender: TObject);
-    procedure FormClientEvent(const Event: TCClient.TEvent);
+    procedure FormClientEvent(const Event: TSSession.TEvent);
   protected
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
-    Table: TCBaseTable;
-    Trigger: TCTrigger;
+    Table: TSBaseTable;
+    Trigger: TSTrigger;
     function Execute(): Boolean;
   end;
 
@@ -195,7 +196,7 @@ var
   I: Integer;
 begin
   FBOk.Enabled := (FName.Text <> '') and SQLSingleStmt(FStatement.Text)
-    and (not Assigned(Table.Database.TriggerByName(FName.Text)) or (Assigned(Trigger) and (((Table.Database.Client.LowerCaseTableNames = 0) and (FName.Text = Trigger.Name)) or ((Table.Database.Client.LowerCaseTableNames > 0) and ((lstrcmpi(PChar(FName.Text), PChar(Trigger.Name)) = 0))))));
+    and (not Assigned(Table.Database.TriggerByName(FName.Text)) or (Assigned(Trigger) and (((Table.Database.Session.LowerCaseTableNames = 0) and (FName.Text = Trigger.Name)) or ((Table.Database.Session.LowerCaseTableNames > 0) and ((lstrcmpi(PChar(FName.Text), PChar(Trigger.Name)) = 0))))));
   for I := 0 to Table.Database.Triggers.Count - 1 do
     if (lstrcmpi(PChar(FName.Text), PChar(Table.Database.Triggers[I].Name)) = 0) and not (not Assigned(Trigger) or (lstrcmpi(PChar(FName.Text), PChar(Trigger.Name)) = 0)) then
       FBOk.Enabled := False;
@@ -218,11 +219,11 @@ begin
   HideTSSource(Sender);
 end;
 
-procedure TDTrigger.FormClientEvent(const Event: TCClient.TEvent);
+procedure TDTrigger.FormClientEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = ceItemValid) and (Event.CItem = Trigger)) then
     Built()
-  else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.CItem is TCTrigger)) then
+  else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.CItem is TSTrigger)) then
     ModalResult := mrOk
   else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Client.ErrorCode <> 0)) then
   begin
@@ -233,11 +234,11 @@ end;
 
 procedure TDTrigger.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 var
-  NewTrigger: TCTrigger;
+  NewTrigger: TSTrigger;
 begin
   if ((ModalResult = mrOk) and PageControl.Visible) then
   begin
-    NewTrigger := TCTrigger.Create(Table.Database.Triggers);
+    NewTrigger := TSTrigger.Create(Table.Database.Triggers);
     if (Assigned(Trigger)) then
       NewTrigger.Assign(Trigger);
 
@@ -257,7 +258,7 @@ begin
 
     NewTrigger.Free();
 
-    PageControl.Visible := CanClose or not Table.Database.Client.Asynchron;
+    PageControl.Visible := CanClose or not Table.Database.Session.Asynchron;
     PSQLWait.Visible := not PageControl.Visible;
     if (PSQLWait.Visible) then
       ModalResult := mrNone;
@@ -294,7 +295,7 @@ end;
 
 procedure TDTrigger.FormHide(Sender: TObject);
 begin
-  Table.Client.UnRegisterEventProc(FormClientEvent);
+  Table.Session.UnRegisterEventProc(FormClientEvent);
 
   Preferences.Trigger.Width := Width;
   Preferences.Trigger.Height := Height;
@@ -306,7 +307,7 @@ procedure TDTrigger.FormShow(Sender: TObject);
 var
   TriggerName: string;
 begin
-  Table.Client.RegisterEventProc(FormClientEvent);
+  Table.Session.RegisterEventProc(FormClientEvent);
 
   if (not Assigned(Trigger)) then
   begin

@@ -6,7 +6,7 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, ComCtrls, ExtCtrls, Menus, ActnList, 
   StdCtrls_Ext, ComCtrls_Ext, ExtCtrls_Ext, Forms_Ext,
-  fClient, fPreferences, fBase, ImgList, ToolWin;
+  fSession, fPreferences, fBase, ImgList, ToolWin;
 
 type
   TDAccounts = class (TForm_Ext)
@@ -53,7 +53,7 @@ type
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
     Account: TAAccount;
-    Client: TCClient;
+    Client: TSSession;
     Open: Boolean;
     function Execute(): Boolean;
   end;
@@ -174,7 +174,7 @@ procedure TDAccounts.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   if ((ModalResult = mrOk) and not Assigned(Client)) then
   begin
-    Client := TCClient.Create(Clients, Accounts.AccountByName(FAccounts.Selected.Caption));
+    Client := TSSession.Create(Clients, Accounts.AccountByName(FAccounts.Selected.Caption));
     DConnecting.Client := Client;
     if (not DConnecting.Execute()) then
     begin

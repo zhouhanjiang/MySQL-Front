@@ -4,9 +4,10 @@ interface {********************************************************************}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls,
-  Forms_Ext,
-  fClient, fBase, StdCtrls_Ext, Vcl.ExtCtrls;
+  Dialogs, StdCtrls, ExtCtrls,
+  Forms_Ext, StdCtrls_Ext,
+  fSession,
+  fBase;
 
 type
   TDVariable = class (TForm_Ext)
@@ -26,11 +27,11 @@ type
     procedure FSessionClick(Sender: TObject);
     procedure FormHide(Sender: TObject);
   private
-    procedure FormClientEvent(const Event: TCClient.TEvent);
+    procedure FormClientEvent(const Event: TSSession.TEvent);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
-    Client: TCClient;
-    Variable: TCVariable;
+    Client: TSSession;
+    Variable: TSVariable;
     function Execute(): Boolean;
   end;
 
@@ -90,9 +91,9 @@ begin
   FBOkButtonEnable(Sender);
 end;
 
-procedure TDVariable.FormClientEvent(const Event: TCClient.TEvent);
+procedure TDVariable.FormClientEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType in [ceItemAltered]) and (Event.CItem is TCVariable)) then
+  if ((Event.EventType in [ceItemAltered]) and (Event.CItem is TSVariable)) then
     ModalResult := mrOk
   else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Client.ErrorCode <> 0)) then
   begin
@@ -104,12 +105,12 @@ end;
 procedure TDVariable.FormCloseQuery(Sender: TObject;
   var CanClose: Boolean);
 var
-  NewVariable: TCVariable;
-  UpdateModes: TCVariable.TUpdateModes;
+  NewVariable: TSVariable;
+  UpdateModes: TSVariable.TUpdateModes;
 begin
   if ((ModalResult = mrOk) and GroupBox.Visible) then
   begin
-    NewVariable := TCVariable.Create(Client.Variables);
+    NewVariable := TSVariable.Create(Client.Variables);
     if (Assigned(Variable)) then
       NewVariable.Assign(Variable);
 

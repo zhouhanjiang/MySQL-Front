@@ -6,7 +6,7 @@ uses
   ComCtrls, Forms, Menus, ActnList, Classes, Controls, Windows, ExtCtrls,
   SysUtils, Messages, Dialogs, Graphics,
   SynEditHighlighter, SynHighlighterSQL,
-  fPreferences, fClient, MySQLDB;
+  fPreferences, fSession, MySQLDB;
 
 const
   iiLocalhost = 13;
@@ -157,7 +157,7 @@ begin
     Msg := Preferences.LoadStr(586, Text) + Msg
   else if ((Sender is TField) and (TField(Sender).DataType = ftTime)) then
     Msg := Preferences.LoadStr(587, Text) + Msg
-  else if ((Sender is TCBaseTableField) and (TCBaseTableField(Sender).FieldType in [mfDate, mfDateTime])) then
+  else if ((Sender is TSBaseTableField) and (TSBaseTableField(Sender).FieldType in [mfDate, mfDateTime])) then
     Msg := Preferences.LoadStr(586, Text) + Msg
   else
     Msg := Preferences.LoadStr(588, Text) + Msg;
@@ -165,7 +165,7 @@ begin
   // Wenn Fehler mit raise erzeugt wird wird die Tabelle bei einem falschen Datum nicht im Data Browser angezeigt
   // Wenn Fehler als MsgBox angezeigt wird werden falsche Eingaben im Data Browser nicht abgefangen
 
-  if ((Sender is TField) and (not TField(Sender).DataSet.Active or (TField(Sender).DataSet.State in [dsBrowse, dsEdit, dsInsert, dsInactive])) or (Sender is TCBaseTableField)) then
+  if ((Sender is TField) and (not TField(Sender).DataSet.Active or (TField(Sender).DataSet.State in [dsBrowse, dsEdit, dsInsert, dsInactive])) or (Sender is TSBaseTableField)) then
   begin
     DisableApplicationActivate := True;
     MsgBox(Msg + ' ' + Preferences.LoadStr(657), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);

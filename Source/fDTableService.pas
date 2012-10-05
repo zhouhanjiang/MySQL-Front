@@ -6,7 +6,8 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, ExtCtrls,
   Forms_Ext,
-  fClient, fBase;
+  fSession,
+  fBase;
 
 type
   TDTableServiceMode = (smOptimize, smCheck, smAnalyze, smRepair, smFlush);
@@ -23,7 +24,7 @@ type
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
     procedure CMPostShow(var Message: TMessage); message CM_POST_SHOW;
   public
-    Database: TCDatabase;
+    Database: TSDatabase;
     ServiceMode: TDTableServiceMode;
     Tables: TList;
     function Execute(): Boolean;
@@ -73,7 +74,7 @@ end;
 
 procedure TDTableService.FBCancelClick(Sender: TObject);
 begin
-  Database.Client.Terminate();
+  Database.Session.Terminate();
 end;
 
 procedure TDTableService.FormCreate(Sender: TObject);
@@ -94,13 +95,13 @@ begin
   begin
     case (ServiceMode) of
       smOptimize:
-        Success := TCBaseTable(Tables[0]).Optimize();
+        Success := TSBaseTable(Tables[0]).Optimize();
       smCheck:
-        Success := TCBaseTable(Tables[0]).Check();
+        Success := TSBaseTable(Tables[0]).Check();
       smFlush:
-        Success := TCBaseTable(Tables[0]).Flush();
+        Success := TSBaseTable(Tables[0]).Flush();
       smRepair:
-        Success := TCBaseTable(Tables[0]).Repair();
+        Success := TSBaseTable(Tables[0]).Repair();
       else
         Success := False;
     end;

@@ -7,7 +7,7 @@ uses
   Dialogs, StdCtrls, ComCtrls, DB, ExtCtrls,
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext,
   MySQLDB,
-  fClient, fPreferences, fTools,
+  fSession, fPreferences, fTools,
   fBase, fFClient;
 
 type
@@ -97,17 +97,17 @@ type
     procedure TSSelectShow(Sender: TObject);
     procedure FSelectGetImageIndex(Sender: TObject; Node: TTreeNode);
   private
-    Clients: array of TCClient;
-    ExecuteClient: TCClient;
+    Clients: array of TSSession;
+    ExecuteClient: TSSession;
     Search: TTSearch;
     ProgressInfos: TTools.TProgressInfos;
-    ReplaceClient: TCClient;
+    ReplaceClient: TSSession;
     SQLWait: Boolean;
     Tables: array of TDSTableItem;
     WantedExecute: Boolean;
     WantedNodeExpand: TTreeNode;
-    procedure FormClientEvent(const Event: TCClient.TEvent);
-    function GetClient(const Index: Integer): TCClient;
+    procedure FormClientEvent(const Event: TSSession.TEvent);
+    function GetClient(const Index: Integer): TSSession;
     procedure OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure OnExecuted(const ASuccess: Boolean);
     procedure OnUpdate(const AProgressInfos: TTools.TProgressInfos);
@@ -115,7 +115,7 @@ type
     procedure CMExecutedDone(var Message: TMessage); message CM_EXECUTIONDONE;
     procedure CMUpdateProgressInfo(var Message: TMessage); message CM_UPDATEPROGRESSINFO;
   public
-    Client: TCClient;
+    Client: TSSession;
     DatabaseName: string;
     FieldName: string;
     Frame: TFClient;
@@ -333,7 +333,7 @@ begin
   FFRegExprClick(Sender);
 end;
 
-procedure TDSearch.FormClientEvent(const Event: TCClient.TEvent);
+procedure TDSearch.FormClientEvent(const Event: TSSession.TEvent);
 begin
   if (Event.EventType in [ceAfterExecuteSQL]) then
     if (Assigned(WantedNodeExpand)) then
@@ -624,11 +624,11 @@ end;
 procedure TDSearch.FSelectExpanding(Sender: TObject; Node: TTreeNode;
   var AllowExpansion: Boolean);
 var
-  Client: TCClient;
-  Database: TCDatabase;
+  Client: TSSession;
+  Database: TSDatabase;
   I: Integer;
   NewNode: TTreeNode;
-  Table: TCBaseTable;
+  Table: TSBaseTable;
   TreeView: TTreeView_Ext;
 begin
   TreeView := TTreeView_Ext(Sender);
@@ -654,7 +654,7 @@ begin
               else
               begin
                 for I := 0 to Client.Databases.Count - 1 do
-                  if (not (Client.Databases[I] is TCSystemDatabase)) then
+                  if (not (Client.Databases[I] is TSSystemDatabase)) then
                   begin
                     NewNode := TreeView.Items.AddChild(Node, Client.Databases[I].Name);
                     NewNode.ImageIndex := iiDatabase;
@@ -673,7 +673,7 @@ begin
             else
             begin
               for I := 0 to Database.Tables.Count - 1 do
-                if ((Database.Tables[I] is TCBaseTable) and Assigned(TCBaseTable(Database.Tables[I]).Engine) and not TCBaseTable(Database.Tables[I]).Engine.IsMerge and (RightStr(Database.Tables[I].Name, Length(BackupExtension)) <> BackupExtension)) then
+                if ((Database.Tables[I] is TSBaseTable) and Assigned(TSBaseTable(Database.Tables[I]).Engine) and not TSBaseTable(Database.Tables[I]).Engine.IsMerge and (RightStr(Database.Tables[I].Name, Length(BackupExtension)) <> BackupExtension)) then
                 begin
                   NewNode := TreeView.Items.AddChild(Node, Database.Tables[I].Name);
                   NewNode.ImageIndex := iiBaseTable;
@@ -745,11 +745,11 @@ begin
   end;
 end;
 
-function TDSearch.GetClient(const Index: Integer): TCClient;
+function TDSearch.GetClient(const Index: Integer): TSSession;
 begin
   if (not Assigned(Clients[Index])) then
   begin
-    Clients[Index] := TCClient.Create(fClient.Clients, Accounts[Index]);
+    Clients[Index] := TSSession.Create(fSession.Clients, Accounts[Index]);
     DConnecting.Client := Clients[Index];
     if (not DConnecting.Execute()) then
       FreeAndNil(Clients[Index]);
@@ -871,9 +871,9 @@ end;
 
 procedure TDSearch.TSExecuteShow(Sender: TObject);
 
-  procedure InitializeNode(const Client: TCClient; const Node: TTreeNode);
+  procedure InitializeNode(const Client: TSSession; const Node: TTreeNode);
   var
-    Database: TCDatabase;
+    Database: TSDatabase;
     I: Integer;
     J: Integer;
     Objects: TList;
@@ -885,14 +885,14 @@ procedure TDSearch.TSExecuteShow(Sender: TObject);
           WantedExecute := not Client.Update() and Client.Asynchron;
           if (not WantedExecute) then
             for I := 0 to Client.Databases.Count - 1 do
-              if (not WantedExecute and not (Client.Databases[I] is TCSystemDatabase)) then
+              if (not WantedExecute and not (Client.Databases[I] is TSSystemDatabase)) then
               begin
                 Database := Client.Databases[I];
                 WantedExecute := not Database.Tables.Update() and Client.Asynchron;
                 if (not WantedExecute) then
                 begin
                   for J := 0 to Database.Tables.Count - 1 do
-                    if (Database.Tables[J] is TCBaseTable) then
+                    if (Database.Tables[J] is TSBaseTable) then
                       Objects.Add(Database.Tables[J]);
                   WantedExecute := not Client.Update(Objects);
                 end;
@@ -905,7 +905,7 @@ procedure TDSearch.TSExecuteShow(Sender: TObject);
           if (not WantedExecute) then
           begin
             for J := 0 to Database.Tables.Count - 1 do
-              if (Database.Tables[J] is TCBaseTable) then
+              if (Database.Tables[J] is TSBaseTable) then
                 Objects.Add(Database.Tables[J]);
             WantedExecute := not Client.Update(Objects);
           end;
@@ -922,15 +922,15 @@ procedure TDSearch.TSExecuteShow(Sender: TObject);
   end;
 
 var
-  Client: TCClient;
-  Database: TCDatabase;
+  Client: TSSession;
+  Database: TSDatabase;
   I: Integer;
   J: Integer;
   K: Integer;
   List: TList;
   Node: TTreeNode;
   ProgressInfos: TTools.TProgressInfos;
-  Table: TCBaseTable;
+  Table: TSBaseTable;
 begin
   FErrors.Caption := '0';
   FErrorMessages.Lines.Clear();
@@ -998,7 +998,7 @@ begin
     end
     else
     begin
-      ReplaceClient := TCClient.Create(fClient.Clients, ExecuteClient.Account);
+      ReplaceClient := TSSession.Create(fSession.Clients, ExecuteClient.Account);
       DConnecting.Client := ReplaceClient;
       if (not DConnecting.Execute()) then
         FreeAndNil(ReplaceClient)
@@ -1041,9 +1041,9 @@ begin
         begin
           Database := ExecuteClient.DatabaseByName(FSelect.Items[I].Text);
           for J := 0 to Database.Tables.Count - 1 do
-            if ((Database.Tables[J] is TCBaseTable)  and (RightStr(Database.Tables[J].Name, Length(BackupExtension)) <> BackupExtension)) then
+            if ((Database.Tables[J] is TSBaseTable)  and (RightStr(Database.Tables[J].Name, Length(BackupExtension)) <> BackupExtension)) then
             begin
-              Table := TCBaseTable(Database.Tables[J]);
+              Table := TSBaseTable(Database.Tables[J]);
               List.Add(Table);
               Search.Add(Table, nil);
             end;
@@ -1053,11 +1053,11 @@ begin
           for K := 0 to ExecuteClient.Databases.Count - 1 do
           begin
             Database := ExecuteClient.Databases[K];
-            if (not (Database is TCSystemDatabase)) then
+            if (not (Database is TSSystemDatabase)) then
               for J := 0 to Database.Tables.Count - 1 do
-                if ((Database.Tables[J] is TCBaseTable)  and (RightStr(Database.Tables[J].Name, Length(BackupExtension)) <> BackupExtension)) then
+                if ((Database.Tables[J] is TSBaseTable)  and (RightStr(Database.Tables[J].Name, Length(BackupExtension)) <> BackupExtension)) then
                 begin
-                  Table := TCBaseTable(Database.Tables[J]);
+                  Table := TSBaseTable(Database.Tables[J]);
                   List.Add(Table);
                   Search.Add(Table, nil);
                 end;
@@ -1066,7 +1066,7 @@ begin
       end;
     if (not SearchOnly) then
       for I := 0 to List.Count - 1 do
-        TCTable(List[I]).InvalidateData();
+        TSTable(List[I]).InvalidateData();
     List.Free();
 
     if (ExecuteClient.Asynchron) then

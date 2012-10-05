@@ -14,7 +14,7 @@ uses
   DISQLite3Api,
   SynPDF,
   MySQLConsts, MySQLDB, SQLUtils, CSVUtils,
-  fClient;
+  fSession;
 
 const
   CP_UNICODE = 1200;
@@ -25,7 +25,7 @@ type
   TTools = class(TThread)
   type
     TItem = record
-      Client: TCClient;
+      Client: TSSession;
       DatabaseName: string;
       TableName: string;
     end;
@@ -114,7 +114,7 @@ type
     procedure AfterExecute(); virtual;
     procedure BackupTable(const Item: TItem; const Rename: Boolean = False); virtual;
     procedure BeforeExecute(); virtual;
-    function DatabaseError(const Client: TCClient): TError; virtual;
+    function DatabaseError(const Client: TSSession): TError; virtual;
     procedure DoError(const Error: TError; const Item: TItem; const ShowRetry: Boolean); overload; virtual;
     procedure DoError(const Error: TError; const Item: TItem; const ShowRetry: Boolean; var SQL: string); overload; virtual;
     procedure DoUpdateGUI(); virtual; abstract;
@@ -143,8 +143,8 @@ type
     end;
   private
     EscapedFieldNames: string;
-    FClient: TCClient;
-    FDatabase: TCDatabase;
+    FClient: TSSession;
+    FDatabase: TSDatabase;
   protected
     Items: array of TItem;
     procedure AfterExecute(); override;
@@ -154,16 +154,16 @@ type
     procedure Close(); virtual;
     function DoExecuteSQL(const Item: TItem; var SQL: string): Boolean; virtual;
     procedure DoUpdateGUI(); override;
-    procedure ExecuteData(var Item: TItem; const Table: TCTable); virtual;
+    procedure ExecuteData(var Item: TItem; const Table: TSTable); virtual;
     procedure ExecuteStructure(var Item: TItem); virtual;
     function GetValues(const Item: TItem; const DataFileBuffer: TTools.TDataFileBuffer): Boolean; overload; virtual;
     function GetValues(const Item: TItem; var Values: TSQLStrings): Boolean; overload; virtual;
     procedure Open(); virtual;
     function ToolsItem(const Item: TItem): TTools.TItem; virtual;
-    property Client: TCClient read FClient;
-    property Database: TCDatabase read FDatabase;
+    property Client: TSSession read FClient;
+    property Database: TSDatabase read FDatabase;
   public
-    Fields: array of TCTableField;
+    Fields: array of TSTableField;
     Data: Boolean;
     Error: Boolean;
     SourceFields: array of record
@@ -171,7 +171,7 @@ type
     end;
     ImportType: TImportType;
     Structure: Boolean;
-    constructor Create(const AClient: TCClient; const ADatabase: TCDatabase); reintroduce; virtual;
+    constructor Create(const AClient: TSSession; const ADatabase: TSDatabase); reintroduce; virtual;
     procedure Execute(); override;
     property OnError;
   end;
@@ -202,7 +202,7 @@ type
     property FileSize: DWord read FFileSize;
   public
     procedure Close(); override;
-    constructor Create(const AFilename: TFileName; const ACodePage: Cardinal; const AClient: TCClient; const ADatabase: TCDatabase); reintroduce; virtual;
+    constructor Create(const AFilename: TFileName; const ACodePage: Cardinal; const AClient: TSSession; const ADatabase: TSDatabase); reintroduce; virtual;
     property CodePage: Cardinal read FCodePage;
     property Filename: TFileName read FFilename;
   end;
@@ -212,7 +212,7 @@ type
     FSetCharacterSetApplied: Boolean;
   public
     Text: PString;
-    constructor Create(const AFilename: TFileName; const ACodePage: Cardinal; const AClient: TCClient; const ADatabase: TCDatabase); override;
+    constructor Create(const AFilename: TFileName; const ACodePage: Cardinal; const AClient: TSSession; const ADatabase: TSDatabase); override;
     procedure Execute(); overload; override;
     property SetCharacterSetApplied: Boolean read FSetCharacterSetApplied;
   end;
@@ -245,7 +245,7 @@ type
     UseHeadline: Boolean;
     procedure Add(const TableName: string); virtual;
     procedure Close(); override;
-    constructor Create(const AFilename: TFileName; const ACodePage: Cardinal; const AClient: TCClient; const ADatabase: TCDatabase); reintroduce; virtual;
+    constructor Create(const AFilename: TFileName; const ACodePage: Cardinal; const AClient: TSSession; const ADatabase: TSDatabase); reintroduce; virtual;
     destructor Destroy(); override;
     function GetPreviewValues(var Values: TSQLStrings): Boolean; virtual;
     procedure Open(); override;
@@ -282,7 +282,7 @@ type
     Engine: string;
     RowType: TMySQLRowType;
     procedure Add(const TableName: string; const SourceTableName: string); virtual;
-    constructor Create(const AHandle: SQLHANDLE; const ADatabase: TCDatabase); reintroduce; virtual;
+    constructor Create(const AHandle: SQLHANDLE; const ADatabase: TSDatabase); reintroduce; virtual;
     destructor Destroy(); override;
   end;
 
@@ -303,7 +303,7 @@ type
     Engine: string;
     RowType: TMySQLRowType;
     procedure Add(const TableName: string; const SheetName: string); virtual;
-    constructor Create(const AHandle: sqlite3_ptr; const ADatabase: TCDatabase); reintroduce; virtual;
+    constructor Create(const AHandle: sqlite3_ptr; const ADatabase: TSDatabase); reintroduce; virtual;
   end;
 
   TTImportXML = class(TTImport)
@@ -318,7 +318,7 @@ type
   public
     RecordTag: string;
     procedure Add(const TableName: string); virtual;
-    constructor Create(const AFilename: TFileName; const ATable: TCBaseTable); reintroduce; virtual;
+    constructor Create(const AFilename: TFileName; const ATable: TSBaseTable); reintroduce; virtual;
     destructor Destroy(); override;
   end;
 
@@ -326,7 +326,7 @@ type
   type
     PExportObject = ^TExportObject;
     TExportObject = record
-      DBObject: TCDBObject;
+      DBObject: TSDBObject;
       RecordsDone, RecordsSum: Integer;
       Done: Boolean;
     end;
@@ -339,25 +339,25 @@ type
   private
     DataTables: TList;
     FDBGrids: TExportDBGrids;
-    FClient: TCClient;
+    FClient: TSSession;
     ExportObjects: array of TExportObject;
   protected
     procedure AfterExecute(); override;
     procedure BeforeExecute(); override;
     procedure DoUpdateGUI(); override;
     function EmptyToolsItem(): TTools.TItem; override;
-    procedure ExecuteDatabaseFooter(const Database: TCDatabase); virtual;
-    procedure ExecuteDatabaseHeader(const Database: TCDatabase); virtual;
+    procedure ExecuteDatabaseFooter(const Database: TSDatabase); virtual;
+    procedure ExecuteDatabaseHeader(const Database: TSDatabase); virtual;
     procedure ExecuteDBGrid(var ExportDBGrid: TExportDBGrid); virtual;
-    procedure ExecuteEvent(const Event: TCEvent); virtual;
+    procedure ExecuteEvent(const Event: TSEvent); virtual;
     procedure ExecuteFooter(); virtual;
     procedure ExecuteHeader(); virtual;
-    procedure ExecuteRoutine(const Routine: TCRoutine); virtual;
+    procedure ExecuteRoutine(const Routine: TSRoutine); virtual;
     procedure ExecuteTable(var ExportObject: TExportObject; const DataHandle: TMySQLConnection.TDataResult); virtual;
-    procedure ExecuteTableFooter(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); virtual;
-    procedure ExecuteTableHeader(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); virtual;
-    procedure ExecuteTableRecord(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); virtual; abstract;
-    procedure ExecuteTrigger(const Trigger: TCTrigger); virtual;
+    procedure ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); virtual;
+    procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); virtual;
+    procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); virtual; abstract;
+    procedure ExecuteTrigger(const Trigger: TSTrigger); virtual;
     function ToolsItem(const ExportDBGrid: TExportDBGrid): TTools.TItem; overload; virtual;
     function ToolsItem(const ExportObject: TExportObject): TTools.TItem; overload; virtual;
     property DBGrids: TExportDBGrids read FDBGrids;
@@ -368,13 +368,13 @@ type
     end;
     Fields: array of TField;
     Structure: Boolean;
-    TableFields: array of TCTableField;
+    TableFields: array of TSTableField;
     procedure Add(const ADBGrid: TDBGrid); overload; virtual;
-    procedure Add(const ADBObject: TCDBObject); overload; virtual;
-    constructor Create(const AClient: TCClient); reintroduce; virtual;
+    procedure Add(const ADBObject: TSDBObject); overload; virtual;
+    constructor Create(const AClient: TSSession); reintroduce; virtual;
     destructor Destroy(); override;
     procedure Execute(); override;
-    property Client: TCClient read FClient;
+    property Client: TSSession read FClient;
     property OnError;
   end;
 
@@ -395,7 +395,7 @@ type
     function FileCreate(const Filename: TFileName; out Error: TTools.TError): Boolean; virtual;
     procedure WriteContent(const Content: string); virtual;
   public
-    constructor Create(const AClient: TCClient; const AFilename: TFileName; const ACodePage: Cardinal); reintroduce; virtual;
+    constructor Create(const AClient: TSSession; const AFilename: TFileName; const ACodePage: Cardinal); reintroduce; virtual;
     destructor Destroy(); override;
     property CodePage: Cardinal read FCodePage;
     property Filename: TFileName read FFilename;
@@ -410,16 +410,16 @@ type
     SQLInsertPrefix: string;
     SQLInsertPrefixPacketLen: Integer;
   protected
-    procedure ExecuteDatabaseFooter(const Database: TCDatabase); override;
-    procedure ExecuteDatabaseHeader(const Database: TCDatabase); override;
-    procedure ExecuteEvent(const Event: TCEvent); override;
+    procedure ExecuteDatabaseFooter(const Database: TSDatabase); override;
+    procedure ExecuteDatabaseHeader(const Database: TSDatabase); override;
+    procedure ExecuteEvent(const Event: TSEvent); override;
     procedure ExecuteFooter(); override;
     procedure ExecuteHeader(); override;
-    procedure ExecuteRoutine(const Routine: TCRoutine); override;
-    procedure ExecuteTableFooter(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
-    procedure ExecuteTableHeader(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
-    procedure ExecuteTableRecord(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
-    procedure ExecuteTrigger(const Trigger: TCTrigger); override;
+    procedure ExecuteRoutine(const Routine: TSRoutine); override;
+    procedure ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
+    procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
+    procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
+    procedure ExecuteTrigger(const Trigger: TSTrigger); override;
     function FileCreate(const Filename: TFileName; out Error: TTools.TError): Boolean; override;
   public
     CreateDatabaseStmts: Boolean;
@@ -427,7 +427,7 @@ type
     IncludeDropStmts: Boolean;
     ReplaceData: Boolean;
     UseDatabaseStmts: Boolean;
-    constructor Create(const AClient: TCClient; const AFilename: TFileName; const ACodePage: Cardinal); override;
+    constructor Create(const AClient: TSSession; const AFilename: TFileName; const ACodePage: Cardinal); override;
   end;
 
   TTExportText = class(TTExportFile)
@@ -437,16 +437,16 @@ type
   protected
     procedure AfterExecute(); override;
     procedure BeforeExecute(); override;
-    procedure ExecuteTableFooter(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
-    procedure ExecuteTableHeader(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
-    procedure ExecuteTableRecord(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
+    procedure ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
+    procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
+    procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     function FileCreate(const Filename: TFileName; out Error: TTools.TError): Boolean; override;
   public
     Quoter: Char;
     Delimiter: string;
     QuoteStringValues: Boolean;
     QuoteValues: Boolean;
-    constructor Create(const AClient: TCClient; const AFilename: TFileName; const ACodePage: Cardinal); override;
+    constructor Create(const AClient: TSSession; const AFilename: TFileName; const ACodePage: Cardinal); override;
     destructor Destroy(); override;
   end;
 
@@ -463,20 +463,20 @@ type
     SQLFont: TFont;
     RowOdd: Boolean;
   protected
-    procedure ExecuteDatabaseHeader(const Database: TCDatabase); override;
-    procedure ExecuteEvent(const Event: TCEvent); override;
+    procedure ExecuteDatabaseHeader(const Database: TSDatabase); override;
+    procedure ExecuteEvent(const Event: TSEvent); override;
     procedure ExecuteFooter(); override;
     procedure ExecuteHeader(); override;
-    procedure ExecuteRoutine(const Routine: TCRoutine); override;
-    procedure ExecuteTableFooter(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
-    procedure ExecuteTableHeader(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
-    procedure ExecuteTableRecord(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
-    procedure ExecuteTrigger(const Trigger: TCTrigger); override;
+    procedure ExecuteRoutine(const Routine: TSRoutine); override;
+    procedure ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
+    procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
+    procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
+    procedure ExecuteTrigger(const Trigger: TSTrigger); override;
   public
     TextContent: Boolean;
     NULLText: Boolean;
     RowBackground: Boolean;
-    constructor Create(const AClient: TCClient; const AFilename: TFileName; const ACodePage: Cardinal); override;
+    constructor Create(const AClient: TSSession; const AFilename: TFileName; const ACodePage: Cardinal); override;
     destructor Destroy(); override;
   end;
 
@@ -484,20 +484,20 @@ type
   private
     function Escape(const Str: string): string; virtual;
   protected
-    procedure ExecuteDatabaseFooter(const Database: TCDatabase); override;
-    procedure ExecuteDatabaseHeader(const Database: TCDatabase); override;
+    procedure ExecuteDatabaseFooter(const Database: TSDatabase); override;
+    procedure ExecuteDatabaseHeader(const Database: TSDatabase); override;
     procedure ExecuteFooter(); override;
     procedure ExecuteHeader(); override;
-    procedure ExecuteTableFooter(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
-    procedure ExecuteTableHeader(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
-    procedure ExecuteTableRecord(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
+    procedure ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
+    procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
+    procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
   public
     DatabaseTag, DatabaseAttribute: string;
     FieldTag, FieldAttribute: string;
     RecordTag: string;
     RootTag: string;
     TableTag, TableAttribute: string;
-    constructor Create(const AClient: TCClient; const AFilename: TFileName; const ACodePage: Cardinal); override;
+    constructor Create(const AClient: TSSession; const AFilename: TFileName; const ACodePage: Cardinal); override;
   end;
 
   TTExportODBC = class(TTExport)
@@ -514,14 +514,14 @@ type
     TableName: string;
     procedure ExecuteHeader(); override;
     procedure ExecuteFooter(); override;
-    procedure ExecuteTableFooter(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
-    procedure ExecuteTableHeader(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
-    procedure ExecuteTableRecord(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
+    procedure ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
+    procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
+    procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     property Handle: SQLHDBC read FHandle;
     property ODBC: SQLHENV read FODBC;
     property Stmt: SQLHSTMT read FStmt;
   public
-    constructor Create(const AClient: TCClient; const AODBC: SQLHDBC = SQL_NULL_HANDLE; const AHandle: SQLHDBC = SQL_NULL_HANDLE); reintroduce; virtual;
+    constructor Create(const AClient: TSSession; const AODBC: SQLHDBC = SQL_NULL_HANDLE; const AHandle: SQLHDBC = SQL_NULL_HANDLE); reintroduce; virtual;
   end;
 
   TTExportAccess = class(TTExportODBC)
@@ -531,7 +531,7 @@ type
     procedure ExecuteFooter(); override;
     procedure ExecuteHeader(); override;
   public
-    constructor Create(const AClient: TCClient; const AFilename: TFileName); reintroduce; virtual;
+    constructor Create(const AClient: TSSession; const AFilename: TFileName); reintroduce; virtual;
   end;
 
   TTExportExcel = class(TTExportODBC)
@@ -541,9 +541,9 @@ type
   protected
     procedure ExecuteFooter(); override;
     procedure ExecuteHeader(); override;
-    procedure ExecuteTableHeader(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
+    procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
   public
-    constructor Create(const AClient: TCClient; const AFilename: TFileName); reintroduce; virtual;
+    constructor Create(const AClient: TSSession; const AFilename: TFileName); reintroduce; virtual;
   end;
 
   TTExportSQLite = class(TTExport)
@@ -555,11 +555,11 @@ type
   protected
     procedure ExecuteFooter(); override;
     procedure ExecuteHeader(); override;
-    procedure ExecuteTableFooter(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
-    procedure ExecuteTableHeader(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
-    procedure ExecuteTableRecord(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
+    procedure ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
+    procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
+    procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
   public
-    constructor Create(const AClient: TCClient; const AFilename: TFileName); reintroduce; virtual;
+    constructor Create(const AClient: TSSession; const AFilename: TFileName); reintroduce; virtual;
   end;
 
   TTExportCanvas = class(TTExport)
@@ -612,19 +612,19 @@ type
     PageHeight: Integer;
     PageWidth: Integer;
     procedure AddPage(const NewPageRow: Boolean); virtual; abstract;
-    procedure ExecuteDatabaseHeader(const Database: TCDatabase); override;
-    procedure ExecuteEvent(const Event: TCEvent); override;
+    procedure ExecuteDatabaseHeader(const Database: TSDatabase); override;
+    procedure ExecuteEvent(const Event: TSEvent); override;
     procedure ExecuteFooter(); override;
     procedure ExecuteHeader(); override;
-    procedure ExecuteRoutine(const Routine: TCRoutine); override;
-    procedure ExecuteTableFooter(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
-    procedure ExecuteTableHeader(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
-    procedure ExecuteTableRecord(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
-    procedure ExecuteTrigger(const Trigger: TCTrigger); override;
+    procedure ExecuteRoutine(const Routine: TSRoutine); override;
+    procedure ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
+    procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
+    procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
+    procedure ExecuteTrigger(const Trigger: TSTrigger); override;
   public
     IndexBackground: Boolean;
     NULLText: Boolean;
-    constructor Create(const AClient: TCClient); override;
+    constructor Create(const AClient: TSSession); override;
     destructor Destroy(); override;
   end;
 
@@ -636,7 +636,7 @@ type
     procedure ExecuteHeader(); override;
     procedure ExecuteFooter(); override;
   public
-    constructor Create(const AClient: TCClient; const ATitle: string); reintroduce; virtual;
+    constructor Create(const AClient: TSSession; const ATitle: string); reintroduce; virtual;
   end;
 
   TTExportPDF = class(TTExportCanvas)
@@ -648,7 +648,7 @@ type
     procedure ExecuteHeader(); override;
     procedure ExecuteFooter(); override;
   public
-    constructor Create(const AClient: TCClient; const AFilename: TFileName); reintroduce; virtual;
+    constructor Create(const AClient: TSSession; const AFilename: TFileName); reintroduce; virtual;
     destructor Destroy(); override;
   end;
 
@@ -663,47 +663,47 @@ type
       Done: Boolean;
     end;
   private
-    FClient: TCClient;
+    FClient: TSSession;
   protected
     FItem: PItem;
     Items: array of TItem;
     procedure AfterExecute(); override;
     procedure BeforeExecute(); override;
-    function DoExecuteSQL(const Client: TCClient; var Item: TItem; var SQL: string): Boolean; virtual;
+    function DoExecuteSQL(const Client: TSSession; var Item: TItem; var SQL: string): Boolean; virtual;
     procedure DoUpdateGUI(); override;
-    procedure ExecuteDefault(var Item: TItem; const Table: TCBaseTable); virtual;
-    procedure ExecuteMatchCase(var Item: TItem; const Table: TCBaseTable); virtual;
-    procedure ExecuteWholeValue(var Item: TItem; const Table: TCBaseTable); virtual;
+    procedure ExecuteDefault(var Item: TItem; const Table: TSBaseTable); virtual;
+    procedure ExecuteMatchCase(var Item: TItem; const Table: TSBaseTable); virtual;
+    procedure ExecuteWholeValue(var Item: TItem; const Table: TSBaseTable); virtual;
     function ToolsItem(const Item: TItem): TTools.TItem; virtual;
-    property Client: TCClient read FClient;
+    property Client: TSSession read FClient;
   public
     FindText: string;
     MatchCase: Boolean;
     WholeValue: Boolean;
     RegExpr: Boolean;
-    procedure Add(const Table: TCBaseTable; const Field: TCTableField = nil); virtual;
-    constructor Create(const AClient: TCClient); reintroduce; virtual;
+    procedure Add(const Table: TSBaseTable; const Field: TSTableField = nil); virtual;
+    constructor Create(const AClient: TSSession); reintroduce; virtual;
     destructor Destroy(); override;
     procedure Execute(); override;
   end;
 
   TTReplace = class(TTSearch)
   private
-    FReplaceClient: TCClient;
+    FReplaceClient: TSSession;
   protected
-    procedure ExecuteMatchCase(var Item: TTSearch.TItem; const Table: TCBaseTable); override;
-    property ReplaceConnection: TCClient read FReplaceClient;
+    procedure ExecuteMatchCase(var Item: TTSearch.TItem; const Table: TSBaseTable); override;
+    property ReplaceConnection: TSSession read FReplaceClient;
   public
     ReplaceText: string;
     Backup: Boolean;
-    constructor Create(const AClient, AReplaceClient: TCClient); reintroduce; virtual;
+    constructor Create(const AClient, AReplaceClient: TSSession); reintroduce; virtual;
     property OnError;
   end;
 
   TTTransfer = class(TTools)
   type
     TItem = record
-      Client: TCClient;
+      Client: TSSession;
       DatabaseName: string;
       TableName: string;
       RecordsSum, RecordsDone: Integer;
@@ -721,7 +721,7 @@ type
     procedure BeforeExecute(); override;
     procedure CloneTable(var Source, Destination: TItem); virtual;
     function DifferentPrimaryIndexError(): TTools.TError; virtual;
-    function DoExecuteSQL(var Item: TItem; const Client: TCClient; var SQL: string): Boolean; virtual;
+    function DoExecuteSQL(var Item: TItem; const Client: TSSession; var SQL: string): Boolean; virtual;
     procedure DoUpdateGUI(); override;
     procedure ExecuteData(var Source, Destination: TItem); virtual;
     procedure ExecuteForeignKeys(var Source, Destination: TItem); virtual;
@@ -731,7 +731,7 @@ type
   public
     Data: Boolean;
     Structure: Boolean;
-    procedure Add(const SourceClient: TCClient; const SourceDatabaseName, SourceTableName: string; const DestinationClient: TCClient; const DestinationDatabaseName, DestinationTableName: string); virtual;
+    procedure Add(const SourceClient: TSSession; const SourceDatabaseName, SourceTableName: string; const DestinationClient: TSSession; const DestinationDatabaseName, DestinationTableName: string); virtual;
     constructor Create(); override;
     destructor Destroy(); override;
     procedure Execute(); override;
@@ -840,11 +840,11 @@ begin
   Result := S;
 end;
 
-function SQLLoadDataInfile(const Database: TCDatabase; const Replace: Boolean; const Filename, FileCharset, DatabaseName, TableName: string; const FieldNames: string): string;
+function SQLLoadDataInfile(const Database: TSDatabase; const Replace: Boolean; const Filename, FileCharset, DatabaseName, TableName: string; const FieldNames: string): string;
 var
-  Client: TCClient;
+  Client: TSSession;
 begin
-  Client := Database.Client;
+  Client := Database.Session;
 
   Result := 'LOAD DATA LOCAL INFILE ' + SQLEscape(Filename) + #13#10;
   if (Replace) then
@@ -903,7 +903,7 @@ begin
       Result.ErrorMessage := 'Invalid ODBC Handle.';
     SQL_ERROR,
     SQL_NO_DATA:
-      Result.ErrorMessage := 'Unknown ODBC Error.';
+      raise Exception.Create('Unknown ODBC Error');
   end;
 end;
 
@@ -1329,9 +1329,9 @@ end;
 
 procedure TTools.BackupTable(const Item: TTools.TItem; const Rename: Boolean = False);
 var
-  Database: TCDatabase;
+  Database: TSDatabase;
   NewTableName: string;
-  Table: TCBaseTable;
+  Table: TSBaseTable;
 begin
   Database := Item.Client.DatabaseByName(Item.DatabaseName);
 
@@ -1380,7 +1380,7 @@ begin
   CriticalSection := TCriticalSection.Create();
 end;
 
-function TTools.DatabaseError(const Client: TCClient): TTools.TError;
+function TTools.DatabaseError(const Client: TSSession): TTools.TError;
 begin
   Result.ErrorType := TE_Database;
   Result.ErrorCode := Client.ErrorCode;
@@ -1474,7 +1474,7 @@ procedure TTImport.Close();
 begin
 end;
 
-constructor TTImport.Create(const AClient: TCClient; const ADatabase: TCDatabase);
+constructor TTImport.Create(const AClient: TSSession; const ADatabase: TSDatabase);
 begin
   inherited Create();
 
@@ -1631,7 +1631,7 @@ begin
   AfterExecute();
 end;
 
-procedure TTImport.ExecuteData(var Item: TItem; const Table: TCTable);
+procedure TTImport.ExecuteData(var Item: TItem; const Table: TSTable);
 var
   BytesWritten: DWord;
   DataSet: TMySQLQuery;
@@ -1665,7 +1665,7 @@ begin
     if (Structure) then
     begin
       SQL := SQL + 'LOCK TABLES ' + EscapedTableName + ' WRITE;' + #13#10;
-      if ((Client.ServerVersion >= 40000) and (Table is TCBaseTable) and TCBaseTable(Table).Engine.IsMyISAM) then
+      if ((Client.ServerVersion >= 40000) and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
         SQL := SQL + 'ALTER TABLE ' + EscapedTableName + ' DISABLE KEYS;' + #13#10;
     end;
     if (Client.Lib.LibraryType <> ltHTTP) then
@@ -1745,7 +1745,7 @@ begin
           SQL := '';
           if (Structure) then
           begin
-            if ((Client.ServerVersion >= 40000) and (Table is TCBaseTable) and TCBaseTable(Table).Engine.IsMyISAM) then
+            if ((Client.ServerVersion >= 40000) and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
               SQL := SQL + 'ALTER TABLE ' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
             SQL := SQL + 'UNLOCK TABLES;' + #13#10;
           end;
@@ -1860,7 +1860,7 @@ begin
         SQL := SQL + ';' + #13#10;
       if (Structure) then
       begin
-        if ((Client.ServerVersion >= 40000) and (Table is TCBaseTable) and TCBaseTable(Table).Engine.IsMyISAM) then
+        if ((Client.ServerVersion >= 40000) and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
           SQL := SQL + 'ALTER TABLE ' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
         SQL := SQL + 'UNLOCK TABLES;' + #13#10;
       end;
@@ -1924,7 +1924,7 @@ begin
   FileContent.Index := 1;
 end;
 
-constructor TTImportFile.Create(const AFilename: TFileName; const ACodePage: Cardinal; const AClient: TCClient; const ADatabase: TCDatabase);
+constructor TTImportFile.Create(const AFilename: TFileName; const ACodePage: Cardinal; const AClient: TSSession; const ADatabase: TSDatabase);
 begin
   inherited Create(AClient, ADatabase);
 
@@ -2129,7 +2129,7 @@ end;
 
 { TTImportSQL *************************************************************}
 
-constructor TTImportSQL.Create(const AFilename: TFileName; const ACodePage: Cardinal; const AClient: TCClient; const ADatabase: TCDatabase);
+constructor TTImportSQL.Create(const AFilename: TFileName; const ACodePage: Cardinal; const AClient: TSSession; const ADatabase: TSDatabase);
 begin
   inherited;
 
@@ -2284,7 +2284,7 @@ begin
   SetLength(FileFields, 0);
 end;
 
-constructor TTImportText.Create(const AFilename: TFileName; const ACodePage: Cardinal; const AClient: TCClient; const ADatabase: TCDatabase);
+constructor TTImportText.Create(const AFilename: TFileName; const ACodePage: Cardinal; const AClient: TSSession; const ADatabase: TSDatabase);
 begin
   inherited Create(AFilename, ACodePage, AClient, ADatabase);
 
@@ -2307,14 +2307,14 @@ end;
 procedure TTImportText.ExecuteStructure(var Item: TTImport.TItem);
 var
   I: Integer;
-  NewField: TCBaseTableField;
-  NewTable: TCBaseTable;
+  NewField: TSBaseTableField;
+  NewTable: TSBaseTable;
 begin
-  NewTable := TCBaseTable.Create(Database.Tables);
+  NewTable := TSBaseTable.Create(Database.Tables);
 
   for I := 0 to Length(FileFields) - 1 do
   begin
-    NewField := TCBaseTableField.Create(NewTable.Fields);
+    NewField := TSBaseTableField.Create(NewTable.Fields);
 
     NewField.Name := Client.ApplyIdentifierName(HeadlineNames[I]);
 
@@ -2714,9 +2714,9 @@ begin
   end;
 end;
 
-constructor TTImportODBC.Create(const AHandle: SQLHANDLE; const ADatabase: TCDatabase);
+constructor TTImportODBC.Create(const AHandle: SQLHANDLE; const ADatabase: TSDatabase);
 begin
-  inherited Create(ADatabase.Client, ADatabase);
+  inherited Create(ADatabase.Session, ADatabase);
 
   FHandle := AHandle;
 
@@ -2957,14 +2957,14 @@ var
   DecimalDigits: SQLSMALLINT;
   Found: Boolean;
   I: Integer;
-  Key: TCKey;
+  Key: TSKey;
   IndexName: array [0 .. STR_LEN] of SQLTCHAR;
   IndexType: SQLSMALLINT;
   J: Integer;
   Len: SQLINTEGER;
-  NewKeyColumn: TCKeyColumn;
-  NewField: TCBaseTableField;
-  NewTable: TCBaseTable;
+  NewKeyColumn: TSKeyColumn;
+  NewField: TSBaseTableField;
+  NewTable: TSBaseTable;
   NonUnique: SQLSMALLINT;
   Nullable: SQLSMALLINT;
   OrdinalPosition: SQLSMALLINT;
@@ -2973,12 +2973,12 @@ var
   SQLDataType: SQLSMALLINT;
   SQLDataType2: SQLSMALLINT;
   Stmt: SQLHSTMT;
-  Table: TCBaseTable;
+  Table: TSBaseTable;
   Unsigned: SQLINTEGER;
 begin
   SetLength(SourceFields, 0);
 
-  NewTable := TCBaseTable.Create(Database.Tables);
+  NewTable := TSBaseTable.Create(Database.Tables);
   NewTable.DefaultCharset := Charset;
   NewTable.Collation := Collation;
   NewTable.Engine := Client.EngineByName(Engine);
@@ -3010,7 +3010,7 @@ begin
           SourceFields[Length(SourceFields) - 1].Name := ColumnName;
 
 
-          NewField := TCBaseTableField.Create(NewTable.Fields);
+          NewField := TSBaseTableField.Create(NewTable.Fields);
           NewField.Name := Client.ApplyIdentifierName(ColumnName);
           if (NewTable.Fields.Count > 0) then
             NewField.FieldBefore := NewTable.Fields[NewTable.Fields.Count - 1];
@@ -3101,7 +3101,7 @@ begin
 
         if (not Assigned(Key)) then
         begin
-          Key := TCKey.Create(NewTable.Keys);
+          Key := TSKey.Create(NewTable.Keys);
           Key.Name := Client.ApplyIdentifierName(IndexName);
           Key.Unique := NonUnique = SQL_FALSE;
           NewTable.Keys.AddKey(Key);
@@ -3110,7 +3110,7 @@ begin
           Key := NewTable.IndexByName(IndexName);
         end;
 
-        NewKeyColumn := TCKeyColumn.Create(Key.Columns);
+        NewKeyColumn := TSKeyColumn.Create(Key.Columns);
         NewKeyColumn.Field := NewTable.FieldByName(ColumnName);
         NewKeyColumn.Ascending := AscOrDesc[0] = 'A';
         Key.Columns.AddColumn(NewKeyColumn);
@@ -3142,15 +3142,15 @@ begin
     for I := 0 to NewTable.Fields.Count -1 do
       if ((NewTable.Keys.Count = 0) and NewTable.Fields[I].AutoIncrement) then
       begin
-        Key := TCKey.Create(NewTable.Keys);
+        Key := TSKey.Create(NewTable.Keys);
         Key.Primary := True;
         NewTable.Keys.AddKey(Key);
         Key.Free();
 
         Key := NewTable.Keys[0];
 
-        NewKeyColumn := TCKeyColumn.Create(Key.Columns);
-        NewKeyColumn.Field := TCBaseTableField(NewTable.Fields[I]);
+        NewKeyColumn := TSKeyColumn.Create(Key.Columns);
+        NewKeyColumn.Field := TSBaseTableField(NewTable.Fields[I]);
         Key.Columns.AddColumn(NewKeyColumn);
         FreeAndNil(NewKeyColumn);
       end;
@@ -3265,9 +3265,9 @@ begin
   SQLiteException(Handle, sqlite3_prepare_v2(Handle, PAnsiChar(UTF8Encode(SQL)), -1, @Stmt, nil));
 end;
 
-constructor TTImportSQLite.Create(const AHandle: sqlite3_ptr; const ADatabase: TCDatabase);
+constructor TTImportSQLite.Create(const AHandle: sqlite3_ptr; const ADatabase: TSDatabase);
 begin
-  inherited Create(ADatabase.Client, ADatabase);
+  inherited Create(ADatabase.Session, ADatabase);
 
   ImportType := itInsert;
 
@@ -3332,17 +3332,17 @@ var
   Error: TTools.TError;
   I: Integer;
   Name: string;
-  NewField: TCBaseTableField;
-  NewKey: TCKey;
-  NewKeyColumn: TCKeyColumn;
-  NewTable: TCBaseTable;
+  NewField: TSBaseTableField;
+  NewKey: TSKey;
+  NewKeyColumn: TSKeyColumn;
+  NewTable: TSBaseTable;
   Parse: TSQLParse;
   ParseSQL: string;
   Primary: Boolean;
   RBS: RawByteString;
   SQL: string;
   Stmt: sqlite3_stmt_ptr;
-  Table: TCBaseTable;
+  Table: TSBaseTable;
   Unique: Boolean;
 begin
   SetLength(SourceFields, 0);
@@ -3365,7 +3365,7 @@ begin
     begin
       SQL := UTF8ToString(sqlite3_column_text(Stmt, 0));
 
-      NewTable := TCBaseTable.Create(Database.Tables, Item.TableName);
+      NewTable := TSBaseTable.Create(Database.Tables, Item.TableName);
       NewTable.DefaultCharset := Charset;
       NewTable.Collation := Collation;
       NewTable.Engine := Client.EngineByName(Engine);
@@ -3385,7 +3385,7 @@ begin
         SourceFields[Length(SourceFields) - 1].Name := Name;
 
 
-        NewField := TCBaseTableField.Create(NewTable.Fields);
+        NewField := TSBaseTableField.Create(NewTable.Fields);
         NewField.Name := Name;
         if (SQLParseKeyword(Parse, 'INTEGER PRIMARY KEY')) then
         begin
@@ -3426,10 +3426,10 @@ begin
 
         if (Primary) then
         begin
-          NewKey := TCKey.Create(NewTable.Keys);
+          NewKey := TSKey.Create(NewTable.Keys);
           NewKey.Primary := True;
-          NewKeyColumn := TCKeyColumn.Create(NewKey.Columns);
-          NewKeyColumn.Field := TCBaseTableField(NewTable.Fields[NewTable.Fields.Count - 1]);
+          NewKeyColumn := TSKeyColumn.Create(NewKey.Columns);
+          NewKeyColumn.Field := TSBaseTableField(NewTable.Fields[NewTable.Fields.Count - 1]);
           NewKeyColumn.Ascending := True;
           NewKey.Columns.AddColumn(NewKeyColumn);
           NewKeyColumn.Free();
@@ -3461,11 +3461,11 @@ begin
 
       if (SQLParseValue(Parse) = NewTable.Name) then
       begin
-        NewKey := TCKey.Create(NewTable.Keys);
+        NewKey := TSKey.Create(NewTable.Keys);
         NewKey.Name := Client.ApplyIdentifierName(Name);
         NewKey.Unique := Unique;
 
-        NewKeyColumn := TCKeyColumn.Create(NewKey.Columns);
+        NewKeyColumn := TSKeyColumn.Create(NewKey.Columns);
         NewKeyColumn.Field := NewTable.FieldByName(SQLParseValue(Parse));
         if (SQLParseKeyword(Parse, 'COLLATE')) then
           SQLParseValue(Parse);
@@ -3534,9 +3534,9 @@ begin
     Item.RecordsSum := XMLNode.parentNode.childNodes.length;
 end;
 
-constructor TTImportXML.Create(const AFilename: TFileName; const ATable: TCBaseTable);
+constructor TTImportXML.Create(const AFilename: TFileName; const ATable: TSBaseTable);
 begin
-  inherited Create(ATable.Database.Client, ATable.Database);
+  inherited Create(ATable.Database.Session, ATable.Database);
 
   Add(ATable.Name);
 
@@ -3638,7 +3638,7 @@ begin
   DBGrids[Length(DBGrids) - 1].RecordsSum := 0;
 end;
 
-procedure TTExport.Add(const ADBObject: TCDBObject);
+procedure TTExport.Add(const ADBObject: TSDBObject);
 begin
   SetLength(ExportObjects, Length(ExportObjects) + 1);
   ExportObjects[Length(ExportObjects) - 1].DBObject := ADBObject;
@@ -3668,7 +3668,7 @@ begin
     DBGrids[I].DBGrid.DataSource.DataSet.DisableControls();
 end;
 
-constructor TTExport.Create(const AClient: TCClient);
+constructor TTExport.Create(const AClient: TSSession);
 begin
   inherited Create();
 
@@ -3765,7 +3765,7 @@ var
   Index: Integer;
   J: Integer;
   SQL: string;
-  Table: TCTable;
+  Table: TSTable;
 begin
   if (not Data or (Length(ExportObjects) = 0)) then
     DataTables := nil
@@ -3785,14 +3785,14 @@ begin
   SQL := '';
   for I := 0 to Length(ExportObjects) - 1 do
   begin
-    if (not (ExportObjects[I].DBObject is TCBaseTable)) then
+    if (not (ExportObjects[I].DBObject is TSBaseTable)) then
       ExportObjects[I].RecordsSum := 0
     else
-      ExportObjects[I].RecordsSum := TCBaseTable(ExportObjects[I].DBObject).Rows;
+      ExportObjects[I].RecordsSum := TSBaseTable(ExportObjects[I].DBObject).Rows;
     ExportObjects[I].RecordsDone := 0;
     ExportObjects[I].Done := False;
 
-    if (Data and (ExportObjects[I].DBObject is TCTable) and (not (ExportObjects[I].DBObject is TCBaseTable) or not TCBaseTable(ExportObjects[I].DBObject).Engine.IsMerge)) then
+    if (Data and (ExportObjects[I].DBObject is TSTable) and (not (ExportObjects[I].DBObject is TSBaseTable) or not TSBaseTable(ExportObjects[I].DBObject).Engine.IsMerge)) then
       DataTables.Add(ExportObjects[I].DBObject);
   end;
 
@@ -3802,7 +3802,7 @@ begin
 
     for I := 0 to DataTables.Count - 1 do
     begin
-      Table := TCTable(DataTables[I]);
+      Table := TSTable(DataTables[I]);
 
       if (Length(TableFields) = 0) then
         FieldNames := '*'
@@ -3817,13 +3817,13 @@ begin
       end;
 
       SQL := SQL + 'SELECT ' + FieldNames + ' FROM ' + Client.EscapeIdentifier(Table.Database.Name) + '.' + Client.EscapeIdentifier(Table.Name);
-      if ((Table is TCBaseTable) and Assigned(TCBaseTable(Table).PrimaryKey)) then
+      if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).PrimaryKey)) then
       begin
         SQL := SQL + ' ORDER BY ';
-        for J := 0 to TCBaseTable(Table).PrimaryKey.Columns.Count - 1 do
+        for J := 0 to TSBaseTable(Table).PrimaryKey.Columns.Count - 1 do
         begin
           if (J > 0) then SQL := SQL + ',';
-          SQL := SQL + Client.EscapeIdentifier(TCBaseTable(Table).PrimaryKey.Columns[J].Field.Name);
+          SQL := SQL + Client.EscapeIdentifier(TSBaseTable(Table).PrimaryKey.Columns[J].Field.Name);
         end;
       end;
       SQL := SQL + ';' + #13#10;
@@ -3876,14 +3876,14 @@ begin
         begin
           Success := daSuccess;
 
-          if (ExportObjects[I].DBObject is TCTable) then
+          if (ExportObjects[I].DBObject is TSTable) then
             ExecuteTable(ExportObjects[I], DataHandle)
-          else if (ExportObjects[I].DBObject is TCRoutine) then
-            ExecuteRoutine(TCRoutine(ExportObjects[I].DBObject))
-          else if (ExportObjects[I].DBObject is TCEvent) then
-            ExecuteEvent(TCEvent(ExportObjects[I].DBObject))
-          else if (ExportObjects[I].DBObject is TCTrigger) then
-            ExecuteTrigger(TCTrigger(ExportObjects[I].DBObject));
+          else if (ExportObjects[I].DBObject is TSRoutine) then
+            ExecuteRoutine(TSRoutine(ExportObjects[I].DBObject))
+          else if (ExportObjects[I].DBObject is TSEvent) then
+            ExecuteEvent(TSEvent(ExportObjects[I].DBObject))
+          else if (ExportObjects[I].DBObject is TSTrigger) then
+            ExecuteTrigger(TSTrigger(ExportObjects[I].DBObject));
 
           if (Success = daFail) then Success := daSuccess;
         end;
@@ -3913,22 +3913,22 @@ begin
     DataTables.Free();
 end;
 
-procedure TTExport.ExecuteDatabaseFooter(const Database: TCDatabase);
+procedure TTExport.ExecuteDatabaseFooter(const Database: TSDatabase);
 begin
 end;
 
-procedure TTExport.ExecuteDatabaseHeader(const Database: TCDatabase);
+procedure TTExport.ExecuteDatabaseHeader(const Database: TSDatabase);
 begin
 end;
 
 procedure TTExport.ExecuteDBGrid(var ExportDBGrid: TExportDBGrid);
 var
-  Database: TCDatabase;
+  Database: TSDatabase;
   DataSet: TMySQLDataSet;
   Index: Integer;
   OldBookmark: TBookmark;
   OldLoadNextRecords: Boolean;
-  Table: TCTable;
+  Table: TSTable;
 begin
   DataSet := TMySQLDataSet(ExportDBGrid.DBGrid.DataSource.DataSet);
   if (ExportDBGrid.DBGrid.DataSource.DataSet is TMySQLTable) then
@@ -3997,7 +3997,7 @@ begin
     ExportDBGrid.RecordsSum := ExportDBGrid.RecordsDone;
 end;
 
-procedure TTExport.ExecuteEvent(const Event: TCEvent);
+procedure TTExport.ExecuteEvent(const Event: TSEvent);
 begin
 end;
 
@@ -4009,7 +4009,7 @@ procedure TTExport.ExecuteHeader();
 begin
 end;
 
-procedure TTExport.ExecuteRoutine(const Routine: TCRoutine);
+procedure TTExport.ExecuteRoutine(const Routine: TSRoutine);
 begin
 end;
 
@@ -4019,11 +4019,11 @@ var
   Fields: array of TField;
   I: Integer;
   SQL: string;
-  Table: TCTable;
+  Table: TSTable;
 begin
-  Table := TCTable(ExportObject.DBObject);
+  Table := TSTable(ExportObject.DBObject);
 
-  if (not Data or (Table is TCBaseTable) and TCBaseTable(Table).Engine.IsMerge) then
+  if (not Data or (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMerge) then
     DataSet := nil
   else
   begin
@@ -4051,7 +4051,7 @@ begin
 
     ExecuteTableHeader(Table, Fields, DataSet);
 
-    if ((Success <> daAbort) and Data and ((Table is TCBaseTable) or (Table is TCView) and (Length(ExportObjects) = 1)) and Assigned(DataSet) and not DataSet.IsEmpty()) then
+    if ((Success <> daAbort) and Data and ((Table is TSBaseTable) or (Table is TSView) and (Length(ExportObjects) = 1)) and Assigned(DataSet) and not DataSet.IsEmpty()) then
       repeat
         ExecuteTableRecord(Table, Fields, DataSet);
 
@@ -4076,21 +4076,21 @@ begin
   if (Assigned(DataSet) and (Success <> daAbort)) then
     DataSet.Free();
 
-  if (Table is TCBaseTable) then
-    for I := 0 to TCBaseTable(Table).TriggerCount - 1 do
+  if (Table is TSBaseTable) then
+    for I := 0 to TSBaseTable(Table).TriggerCount - 1 do
       if (Success = daSuccess) then
-        ExecuteTrigger(TCBaseTable(Table).Triggers[I]);
+        ExecuteTrigger(TSBaseTable(Table).Triggers[I]);
 end;
 
-procedure TTExport.ExecuteTableFooter(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExport.ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 begin
 end;
 
-procedure TTExport.ExecuteTableHeader(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExport.ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 begin
 end;
 
-procedure TTExport.ExecuteTrigger(const Trigger: TCTrigger);
+procedure TTExport.ExecuteTrigger(const Trigger: TSTrigger);
 begin
 end;
 
@@ -4121,7 +4121,7 @@ begin
   end;
 end;
 
-constructor TTExportFile.Create(const AClient: TCClient; const AFilename: TFileName; const ACodePage: Cardinal);
+constructor TTExportFile.Create(const AClient: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
 begin
   inherited Create(AClient);
 
@@ -4231,7 +4231,7 @@ end;
 
 { TTExportSQL *****************************************************************}
 
-constructor TTExportSQL.Create(const AClient: TCClient; const AFilename: TFileName; const ACodePage: Cardinal);
+constructor TTExportSQL.Create(const AClient: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
 begin
   inherited;
 
@@ -4242,13 +4242,13 @@ begin
   UseDatabaseStmts := True;
 end;
 
-procedure TTExportSQL.ExecuteDatabaseFooter(const Database: TCDatabase);
+procedure TTExportSQL.ExecuteDatabaseFooter(const Database: TSDatabase);
 begin
   if (ForeignKeySources <> '') then
     WriteContent(ForeignKeySources + #13#10);
 end;
 
-procedure TTExportSQL.ExecuteDatabaseHeader(const Database: TCDatabase);
+procedure TTExportSQL.ExecuteDatabaseHeader(const Database: TSDatabase);
 var
   Content: string;
 begin
@@ -4270,7 +4270,7 @@ begin
   end;
 end;
 
-procedure TTExportSQL.ExecuteEvent(const Event: TCEvent);
+procedure TTExportSQL.ExecuteEvent(const Event: TSEvent);
 var
   Content: string;
 begin
@@ -4358,18 +4358,18 @@ begin
   WriteContent(Content);
 end;
 
-procedure TTExportSQL.ExecuteRoutine(const Routine: TCRoutine);
+procedure TTExportSQL.ExecuteRoutine(const Routine: TSRoutine);
 var
   Content: string;
 begin
   Content := #13#10;
-  if (Routine is TCProcedure) then
+  if (Routine is TSProcedure) then
   begin
     Content := Content + '#' + #13#10;
     Content := Content + '# Source for procedure "' + Routine.Name + '"' + #13#10;
     Content := Content + '#' + #13#10;
   end
-  else if (Routine is TCFunction) then
+  else if (Routine is TSFunction) then
   begin
     Content := Content + '#' + #13#10;
     Content := Content + '# Source for function "' + Routine.Name + '"' + #13#10;
@@ -4381,7 +4381,7 @@ begin
   WriteContent(Content);
 end;
 
-procedure TTExportSQL.ExecuteTableFooter(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportSQL.ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
   Content: string;
 begin
@@ -4395,7 +4395,7 @@ begin
   begin
     Content := '';
 
-    if (DisableKeys and (Table is TCBaseTable) and TCBaseTable(Table).Engine.IsMyISAM) then
+    if (DisableKeys and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
       Content := Content + '/*!40000 ALTER TABLE ' + Client.EscapeIdentifier(Table.Name) + ' ENABLE KEYS */;' + #13#10;
 
     if (Content <> '') then
@@ -4403,7 +4403,7 @@ begin
   end;
 end;
 
-procedure TTExportSQL.ExecuteTableHeader(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportSQL.ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
   Content: string;
   ForeignKeySource: string;
@@ -4413,14 +4413,14 @@ begin
 
   if (Structure and Assigned(Table)) then
   begin
-    if (Table is TCBaseTable) then
+    if (Table is TSBaseTable) then
     begin
       Content := Content + #13#10;
       Content := Content + '#' + #13#10;
       Content := Content + '# Source for table "' + Table.Name + '"' + #13#10;
       Content := Content + '#' + #13#10;
     end
-    else if (Table is TCView) then
+    else if (Table is TSView) then
     begin
       Content := Content + #13#10;
       Content := Content + '#' + #13#10;
@@ -4429,7 +4429,7 @@ begin
     end;
     Content := Content + '' + #13#10;
 
-    if (Table is TCBaseTable) then
+    if (Table is TSBaseTable) then
     begin
       Content := Content + Table.GetSourceEx(IncludeDropStmts, False, @ForeignKeySource) + #13#10;
 
@@ -4443,7 +4443,7 @@ begin
         ForeignKeySources := ForeignKeySources + ForeignKeySource + #13#10;
       end;
     end
-    else if (Table is TCView) then
+    else if (Table is TSView) then
       Content := Content + Table.GetSourceEx(IncludeDropStmts, False) + #13#10;
   end;
 
@@ -4459,7 +4459,7 @@ begin
 
     Content := Content + #13#10;
 
-    if (DisableKeys and (Table is TCBaseTable) and TCBaseTable(Table).Engine.IsMyISAM) then
+    if (DisableKeys and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
       Content := Content + '/*!40000 ALTER TABLE ' + Client.EscapeIdentifier(Table.Name) + ' DISABLE KEYS */;' + #13#10;
   end;
 
@@ -4497,7 +4497,7 @@ begin
   end;
 end;
 
-procedure TTExportSQL.ExecuteTableRecord(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportSQL.ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
   I: Integer;
   Values: string;
@@ -4534,7 +4534,7 @@ begin
   Inc(SQLInsertPacketLen, ValuesPacketLen);
 end;
 
-procedure TTExportSQL.ExecuteTrigger(const Trigger: TCTrigger);
+procedure TTExportSQL.ExecuteTrigger(const Trigger: TSTrigger);
 var
   Content: string;
 begin
@@ -4594,7 +4594,7 @@ begin
   end;
 end;
 
-constructor TTExportText.Create(const AClient: TCClient; const AFilename: TFileName; const ACodePage: Cardinal);
+constructor TTExportText.Create(const AClient: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
 begin
   inherited;
 
@@ -4614,7 +4614,7 @@ begin
   inherited;
 end;
 
-procedure TTExportText.ExecuteTableFooter(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportText.ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 begin
   CloseFile();
 
@@ -4631,7 +4631,7 @@ begin
   end;
 end;
 
-procedure TTExportText.ExecuteTableHeader(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportText.ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
   Content: string;
   I: Integer;
@@ -4670,7 +4670,7 @@ begin
   end;
 end;
 
-procedure TTExportText.ExecuteTableRecord(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportText.ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
   Content: string;
   I: Integer;
@@ -4870,7 +4870,7 @@ begin
   HTMLEscape(PChar(Value), Length(Value), PChar(Result), Len);
 end;
 
-constructor TTExportHTML.Create(const AClient: TCClient; const AFilename: TFileName; const ACodePage: Cardinal);
+constructor TTExportHTML.Create(const AClient: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
 begin
   inherited;
 
@@ -4901,13 +4901,13 @@ begin
   inherited;
 end;
 
-procedure TTExportHTML.ExecuteDatabaseHeader(const Database: TCDatabase);
+procedure TTExportHTML.ExecuteDatabaseHeader(const Database: TSDatabase);
 begin
   if (Assigned(Database)) then
     WriteContent('<h1 class="DatabaseTitle">' + ReplaceStr(Preferences.LoadStr(38), '&', '') + ': ' + HTMLEscape(Database.Name) + '</h1>' + #13#10);
 end;
 
-procedure TTExportHTML.ExecuteEvent(const Event: TCEvent);
+procedure TTExportHTML.ExecuteEvent(const Event: TSEvent);
 var
   Content: string;
 begin
@@ -4985,11 +4985,11 @@ begin
   WriteContent(Content);
 end;
 
-procedure TTExportHTML.ExecuteRoutine(const Routine: TCRoutine);
+procedure TTExportHTML.ExecuteRoutine(const Routine: TSRoutine);
 var
   Content: string;
 begin
-  if (Routine is TCProcedure) then
+  if (Routine is TSProcedure) then
     Content := '<h2>' + Preferences.LoadStr(768) + ': ' + HTMLEscape(Routine.Name) + '</h2>' + #13#10
   else
     Content := '<h2>' + Preferences.LoadStr(769) + ': ' + HTMLEscape(Routine.Name) + '</h2>' + #13#10;
@@ -4999,7 +4999,7 @@ begin
   WriteContent(Content);
 end;
 
-procedure TTExportHTML.ExecuteTableFooter(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportHTML.ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 begin
   if (Data) then
     WriteContent('</table><br style="page-break-after: always">' + #13#10);
@@ -5008,7 +5008,7 @@ begin
   SetLength(FieldOfPrimaryIndex, 0);
 end;
 
-procedure TTExportHTML.ExecuteTableHeader(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportHTML.ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
   ClassAttr: string;
   Content: string;
@@ -5020,13 +5020,13 @@ var
 begin
   Content := '';
 
-  if (Table is TCBaseTable) then
+  if (Table is TSBaseTable) then
   begin
     Content := '<h2>' + ReplaceStr(Preferences.LoadStr(302), '&', '') + ': ' + HTMLEscape(Table.Name) + '</h2>' + #13#10;
-    if (TCBaseTable(Table).Comment <> '') then
-      Content := Content + '<p>' + ReplaceStr(Preferences.LoadStr(111), '&', '') + ': ' + HTMLEscape(TCBaseTable(Table).Comment) + '</p>' + #13#10;
+    if (TSBaseTable(Table).Comment <> '') then
+      Content := Content + '<p>' + ReplaceStr(Preferences.LoadStr(111), '&', '') + ': ' + HTMLEscape(TSBaseTable(Table).Comment) + '</p>' + #13#10;
   end
-  else if (Table is TCView) then
+  else if (Table is TSView) then
     Content := '<h2>' + ReplaceStr(Preferences.LoadStr(738), '&', '') + ': ' + HTMLEscape(Table.Name) + '</h2>' + #13#10
   else if (Structure) then
     Content := Content + '<h2>' + ReplaceStr(Preferences.LoadStr(216), '&', '') + ':</h2>' + #13#10;
@@ -5039,7 +5039,7 @@ begin
     end
     else
     begin
-      if ((Table is TCBaseTable) and (TCBaseTable(Table).Keys.Count > 0)) then
+      if ((Table is TSBaseTable) and (TSBaseTable(Table).Keys.Count > 0)) then
       begin
         Content := Content + '<h3>' + Preferences.LoadStr(458) + ':</h3>' + #13#10;
 
@@ -5051,30 +5051,30 @@ begin
         if (Client.ServerVersion >= 50503) then
           Content := Content + '<th>' + HTMLEscape(ReplaceStr(Preferences.LoadStr(111), '&', '')) + '</th>';
         Content := Content + '</tr>' + #13#10;
-        for I := 0 to TCBaseTable(Table).Keys.Count - 1 do
+        for I := 0 to TSBaseTable(Table).Keys.Count - 1 do
         begin
-          if (TCBaseTable(Table).Keys[I].Primary) then
+          if (TSBaseTable(Table).Keys[I].Primary) then
             ClassAttr := ' class="PrimaryKey"'
           else
             ClassAttr := '';
 
           Content := Content + #9 + '<tr class="Object">';
-          Content := Content + '<td ' + ClassAttr + '>' + HTMLEscape(TCBaseTable(Table).Keys[I].Caption) + '</td>';
+          Content := Content + '<td ' + ClassAttr + '>' + HTMLEscape(TSBaseTable(Table).Keys[I].Caption) + '</td>';
           S := '';
-          for J := 0 to TCBaseTable(Table).Keys[I].Columns.Count - 1 do
+          for J := 0 to TSBaseTable(Table).Keys[I].Columns.Count - 1 do
             begin
               if (S <> '') then S := S + ', ';
-              S := S + TCBaseTable(Table).Keys[I].Columns[J].Field.Name;
+              S := S + TSBaseTable(Table).Keys[I].Columns[J].Field.Name;
             end;
           Content := Content + '<td>' + HTMLEscape(S) + '</td>';
-          if (TCBaseTable(Table).Keys[I].Unique) then
+          if (TSBaseTable(Table).Keys[I].Unique) then
             Content := Content + '<td>unique</td>'
-          else if (TCBaseTable(Table).Keys[I].Fulltext) then
+          else if (TSBaseTable(Table).Keys[I].Fulltext) then
             Content := Content + '<td>fulltext</td>'
           else
             Content := Content + '<td>&nbsp;</td>';
           if (Client.ServerVersion >= 50503) then
-            Content := Content + '<td>' + HTMLEscape(TCBaseTable(Table).Keys[I].Comment) + '</td>';
+            Content := Content + '<td>' + HTMLEscape(TSBaseTable(Table).Keys[I].Comment) + '</td>';
           Content := Content + '</tr>' + #13#10;
         end;
         Content := Content + '</table><br>' + #13#10;
@@ -5117,11 +5117,11 @@ begin
         else
           Content := Content + '<td>&nbsp;</td>';
         S := '';
-        if ((Table is TCBaseTable) and (Table.Fields[I].FieldType in TextFieldTypes)) then
+        if ((Table is TSBaseTable) and (Table.Fields[I].FieldType in TextFieldTypes)) then
         begin
-          if ((Table.Fields[I].Charset <> '') and (Table.Fields[I].Charset <> TCBaseTable(Table).DefaultCharset)) then
+          if ((Table.Fields[I].Charset <> '') and (Table.Fields[I].Charset <> TSBaseTable(Table).DefaultCharset)) then
             S := S + Table.Fields[I].Charset;
-          if ((Table.Fields[I].Collation <> '') and (Table.Fields[I].Collation <> TCBaseTable(Table).Collation)) then
+          if ((Table.Fields[I].Collation <> '') and (Table.Fields[I].Collation <> TSBaseTable(Table).Collation)) then
           begin
             if (S <> '') then S := S + ', ';
             S := S + Table.Fields[I].Collation;
@@ -5132,15 +5132,15 @@ begin
         else
           Content := Content + '<td>&nbsp;</td>';
         if (Client.ServerVersion >= 40100) then
-          if (TCBaseTableField(Table.Fields[I]).Comment <> '') then
-            Content := Content + '<td>' + HTMLEscape(TCBaseTableField(Table.Fields[I]).Comment) + '</td>'
+          if (TSBaseTableField(Table.Fields[I]).Comment <> '') then
+            Content := Content + '<td>' + HTMLEscape(TSBaseTableField(Table.Fields[I]).Comment) + '</td>'
           else
             Content := Content + '<td>&nbsp;</td>';
         Content := Content + #9 + '</tr>' + #13#10;
       end;
       Content := Content + '</table><br>' + #13#10;
 
-      if ((Table is TCBaseTable) and (TCBaseTable(Table).ForeignKeys.Count > 0)) then
+      if ((Table is TSBaseTable) and (TSBaseTable(Table).ForeignKeys.Count > 0)) then
       begin
         Content := Content + '<h3>' + Preferences.LoadStr(459) + ':</h3>' + #13#10;
 
@@ -5150,21 +5150,21 @@ begin
         Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(69)) + '</th>';
         Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(73)) + '</th>';
         Content := Content + '</tr>' + #13#10;
-        for I := 0 to TCBaseTable(Table).ForeignKeys.Count - 1 do
+        for I := 0 to TSBaseTable(Table).ForeignKeys.Count - 1 do
         begin
           Content := Content + #9 + '<tr>';
-          Content := Content + '<th>' + HTMLEscape(TCBaseTable(Table).ForeignKeys[I].Name) + '</th>';
-          Content := Content + '<td>' + HTMLEscape(TCBaseTable(Table).ForeignKeys[I].DBTypeStr()) + '</td>';
+          Content := Content + '<th>' + HTMLEscape(TSBaseTable(Table).ForeignKeys[I].Name) + '</th>';
+          Content := Content + '<td>' + HTMLEscape(TSBaseTable(Table).ForeignKeys[I].DBTypeStr()) + '</td>';
           S := '';
-          if (TCBaseTable(Table).ForeignKeys[I].OnDelete = dtCascade) then S := 'cascade on delete';
-          if (TCBaseTable(Table).ForeignKeys[I].OnDelete = dtSetNull) then S := 'set NULL on delete';
-          if (TCBaseTable(Table).ForeignKeys[I].OnDelete = dtSetDefault) then S := 'set default on delete';
-          if (TCBaseTable(Table).ForeignKeys[I].OnDelete = dtNoAction) then S := 'no action on delete';
+          if (TSBaseTable(Table).ForeignKeys[I].OnDelete = dtCascade) then S := 'cascade on delete';
+          if (TSBaseTable(Table).ForeignKeys[I].OnDelete = dtSetNull) then S := 'set NULL on delete';
+          if (TSBaseTable(Table).ForeignKeys[I].OnDelete = dtSetDefault) then S := 'set default on delete';
+          if (TSBaseTable(Table).ForeignKeys[I].OnDelete = dtNoAction) then S := 'no action on delete';
           S2 := '';
-          if (TCBaseTable(Table).ForeignKeys[I].OnUpdate = utCascade) then S2 := 'cascade on update';
-          if (TCBaseTable(Table).ForeignKeys[I].OnUpdate = utSetNull) then S2 := 'set NULL on update';
-          if (TCBaseTable(Table).ForeignKeys[I].OnUpdate = utSetDefault) then S2 := 'set default on update';
-          if (TCBaseTable(Table).ForeignKeys[I].OnUpdate = utNoAction) then S2 := 'no action on update';
+          if (TSBaseTable(Table).ForeignKeys[I].OnUpdate = utCascade) then S2 := 'cascade on update';
+          if (TSBaseTable(Table).ForeignKeys[I].OnUpdate = utSetNull) then S2 := 'set NULL on update';
+          if (TSBaseTable(Table).ForeignKeys[I].OnUpdate = utSetDefault) then S2 := 'set default on update';
+          if (TSBaseTable(Table).ForeignKeys[I].OnUpdate = utNoAction) then S2 := 'no action on update';
           if (S <> '') and (S2 <> '') then S := S + ', ';
           S := S + S2;
           Content := Content + '<td>' + HTMLEscape(S) + '</td>';
@@ -5219,7 +5219,7 @@ begin
   WriteContent(Content);
 end;
 
-procedure TTExportHTML.ExecuteTableRecord(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportHTML.ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
   Content: string;
   I: Integer;
@@ -5267,7 +5267,7 @@ begin
   WriteContent(Content);
 end;
 
-procedure TTExportHTML.ExecuteTrigger(const Trigger: TCTrigger);
+procedure TTExportHTML.ExecuteTrigger(const Trigger: TSTrigger);
 var
   Content: string;
 begin
@@ -5280,7 +5280,7 @@ end;
 
 { TTExportXML *****************************************************************}
 
-constructor TTExportXML.Create(const AClient: TCClient; const AFilename: TFileName; const ACodePage: Cardinal);
+constructor TTExportXML.Create(const AClient: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
 begin
   inherited;
 
@@ -5426,7 +5426,7 @@ begin
   end;
 end;
 
-procedure TTExportXML.ExecuteDatabaseFooter(const Database: TCDatabase);
+procedure TTExportXML.ExecuteDatabaseFooter(const Database: TSDatabase);
 begin
   if (Assigned(Database)) then
     if (DatabaseAttribute <> '') then
@@ -5435,7 +5435,7 @@ begin
       WriteContent('</' + SysUtils.LowerCase(Escape(Database.Name)) + '>' + #13#10);
 end;
 
-procedure TTExportXML.ExecuteDatabaseHeader(const Database: TCDatabase);
+procedure TTExportXML.ExecuteDatabaseHeader(const Database: TSDatabase);
 begin
   if (Assigned(Database)) then
     if (DatabaseAttribute <> '') then
@@ -5460,7 +5460,7 @@ begin
   WriteContent('<' + RootTag + ' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">' + #13#10);
 end;
 
-procedure TTExportXML.ExecuteTableFooter(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportXML.ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 begin
   if (Assigned(Table)) then
     if (TableAttribute <> '') then
@@ -5469,7 +5469,7 @@ begin
       WriteContent('</' + SysUtils.LowerCase(Escape(Table.Name)) + '>' + #13#10);
 end;
 
-procedure TTExportXML.ExecuteTableHeader(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportXML.ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 begin
   if (Assigned(Table)) then
     if (TableAttribute <> '') then
@@ -5478,7 +5478,7 @@ begin
       WriteContent('<' + SysUtils.LowerCase(Escape(Table.Name)) + '>' + #13#10);
 end;
 
-procedure TTExportXML.ExecuteTableRecord(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportXML.ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
   Content: string;
   I: Integer;
@@ -5523,7 +5523,7 @@ end;
 
 { TTExportODBC ****************************************************************}
 
-constructor TTExportODBC.Create(const AClient: TCClient; const AODBC: SQLHDBC = SQL_NULL_HANDLE; const AHandle: SQLHDBC = SQL_NULL_HANDLE);
+constructor TTExportODBC.Create(const AClient: TSSession; const AODBC: SQLHDBC = SQL_NULL_HANDLE; const AHandle: SQLHDBC = SQL_NULL_HANDLE);
 begin
   inherited Create(AClient);
 
@@ -5564,7 +5564,7 @@ begin
   inherited;
 end;
 
-procedure TTExportODBC.ExecuteTableFooter(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportODBC.ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
   I: Integer;
 begin
@@ -5597,7 +5597,7 @@ begin
   SetLength(Parameter, 0);
 end;
 
-procedure TTExportODBC.ExecuteTableHeader(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportODBC.ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
   ColumnSize: SQLUINTEGER;
   Error: TTools.TError;
@@ -5685,13 +5685,13 @@ begin
       if (not Table.Fields[I].NullAllowed) then
         SQL := SQL + ' NOT NULL';
     end;
-    if ((Table is TCBaseTable) and Assigned(TCBaseTable(Table).PrimaryKey)) then
+    if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).PrimaryKey)) then
     begin
       SQL := SQL + ',PRIMARY KEY (';
-      for I := 0 to TCBaseTable(Table).PrimaryKey.Columns.Count - 1 do
+      for I := 0 to TSBaseTable(Table).PrimaryKey.Columns.Count - 1 do
       begin
         if (I > 0) then SQL := SQL + ',';
-        SQL := SQL + '"' + TCBaseTable(Table).PrimaryKey.Columns[I].Field.Name + '"';
+        SQL := SQL + '"' + TSBaseTable(Table).PrimaryKey.Columns[I].Field.Name + '"';
       end;
       SQL := SQL + ')';
     end;
@@ -5705,20 +5705,20 @@ begin
     end;
 
 
-    if (Table is TCBaseTable) then
-      for I := 0 to TCBaseTable(Table).Keys.Count - 1 do
-        if (not TCBaseTable(Table).Keys[I].Primary) then
+    if (Table is TSBaseTable) then
+      for I := 0 to TSBaseTable(Table).Keys.Count - 1 do
+        if (not TSBaseTable(Table).Keys[I].Primary) then
         begin
           SQL := 'CREATE';
-          if (TCBaseTable(Table).Keys[I].Unique) then
+          if (TSBaseTable(Table).Keys[I].Unique) then
             SQL := SQL + ' UNIQUE';
-          SQL := SQL + ' INDEX "' + TCBaseTable(Table).Keys[I].Name + '"';
+          SQL := SQL + ' INDEX "' + TSBaseTable(Table).Keys[I].Name + '"';
           SQL := SQL + ' ON "' + Table.Name + '"';
           SQL := SQL + ' (';
-          for J := 0 to TCBaseTable(Table).Keys[I].Columns.Count - 1 do
+          for J := 0 to TSBaseTable(Table).Keys[I].Columns.Count - 1 do
           begin
             if (J > 0) then SQL := SQL + ',';
-            SQL := SQL + '"' + TCBaseTable(Table).Keys[I].Columns[J].Field.Name + '"';
+            SQL := SQL + '"' + TSBaseTable(Table).Keys[I].Columns[J].Field.Name + '"';
           end;
           SQL := SQL + ');';
 
@@ -5870,7 +5870,7 @@ begin
   end;
 end;
 
-procedure TTExportODBC.ExecuteTableRecord(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportODBC.ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
   DateTime: TDateTime;
   Error: TTools.TError;
@@ -5991,7 +5991,7 @@ end;
 
 { TTExportAccess **************************************************************}
 
-constructor TTExportAccess.Create(const AClient: TCClient; const AFilename: TFileName);
+constructor TTExportAccess.Create(const AClient: TSSession; const AFilename: TFileName);
 begin
   inherited Create(AClient);
 
@@ -6052,7 +6052,7 @@ end;
 
 { TTExportExcel ***************************************************************}
 
-constructor TTExportExcel.Create(const AClient: TCClient; const AFilename: TFileName);
+constructor TTExportExcel.Create(const AClient: TSSession; const AFilename: TFileName);
 begin
   inherited Create(AClient);
 
@@ -6070,10 +6070,10 @@ begin
 
   if (Success = daSuccess) then
   begin
-    if (SysUtils.LowerCase(ExtractFileExt(Filename)) = '.xls') then
+//    if (SysUtils.LowerCase(ExtractFileExt(Filename)) = '.xls') then
       ConnStrIn := 'Driver=Driver={Microsoft Excel Driver (*.xls)};DBQ=' + Filename + ';READONLY=FALSE'
-    else
-      ConnStrIn := 'Driver={Microsoft Excel Driver (*.xls, *.xlsx, *.xlsm, *.xlsb)};DBQ=' + Filename + ';READONLY=FALSE';
+//    else
+;//      ConnStrIn := 'Driver={Microsoft Excel Driver (*.xls, *.xlsx, *.xlsm, *.xlsb)};DBQ=' + Filename + ';READONLY=FALSE';
 
     if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, @ODBC))
       or not SQL_SUCCEEDED(SQLSetEnvAttr(ODBC, SQL_ATTR_ODBC_VERSION, SQLPOINTER(SQL_OV_ODBC3), SQL_IS_UINTEGER))) then
@@ -6096,7 +6096,7 @@ begin
     DeleteFile(Filename);
 end;
 
-procedure TTExportExcel.ExecuteTableHeader(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportExcel.ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
   Error: TTools.TError;
   I: Integer;
@@ -6168,7 +6168,7 @@ end;
 
 { TTExportSQLite **************************************************************}
 
-constructor TTExportSQLite.Create(const AClient: TCClient; const AFilename: TFileName);
+constructor TTExportSQLite.Create(const AClient: TSSession; const AFilename: TFileName);
 begin
   inherited Create(AClient);
 
@@ -6204,16 +6204,16 @@ begin
     DeleteFile(Filename);
 end;
 
-procedure TTExportSQLite.ExecuteTableFooter(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportSQLite.ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 begin
   sqlite3_finalize(Stmt); Stmt := nil;
 
   SetLength(Text, 0);
 end;
 
-procedure TTExportSQLite.ExecuteTableHeader(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportSQLite.ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
-  Field: TCTableField;
+  Field: TSTableField;
   I: Integer;
   SQL: string;
 begin
@@ -6228,10 +6228,10 @@ begin
       mfBit, mfTinyInt, mfSmallInt, mfMediumInt, mfInt, mfBigInt:
         begin
           SQL := SQL + 'INTEGER';
-          if ((Table is TCBaseTable)
-            and Assigned(TCBaseTable(Table).PrimaryKey)
-            and (TCBaseTable(Table).PrimaryKey.Columns.Count = 1)
-            and (TCBaseTable(Table).PrimaryKey.Columns[0].Field = Table.Fields[I])) then
+          if ((Table is TSBaseTable)
+            and Assigned(TSBaseTable(Table).PrimaryKey)
+            and (TSBaseTable(Table).PrimaryKey.Columns.Count = 1)
+            and (TSBaseTable(Table).PrimaryKey.Columns[0].Field = Table.Fields[I])) then
             SQL := SQL + ' PRIMARY KEY';
         end;
       mfFloat, mfDouble, mfDecimal:
@@ -6272,7 +6272,7 @@ begin
   SetLength(Text, Length(Fields));
 end;
 
-procedure TTExportSQLite.ExecuteTableRecord(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportSQLite.ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
   I: Integer;
   L: LargeInt;
@@ -6413,7 +6413,7 @@ begin
   StringList.Free();
 end;
 
-constructor TTExportCanvas.Create(const AClient: TCClient);
+constructor TTExportCanvas.Create(const AClient: TSSession);
 var
   NonClientMetrics: TNonClientMetrics;
 begin
@@ -6470,7 +6470,7 @@ begin
   inherited;
 end;
 
-procedure TTExportCanvas.ExecuteDatabaseHeader(const Database: TCDatabase);
+procedure TTExportCanvas.ExecuteDatabaseHeader(const Database: TSDatabase);
 begin
   if (Assigned(Database)) then
   begin
@@ -6482,7 +6482,7 @@ begin
   end;
 end;
 
-procedure TTExportCanvas.ExecuteEvent(const Event: TCEvent);
+procedure TTExportCanvas.ExecuteEvent(const Event: TSEvent);
 begin
   Canvas.Font.Assign(ContentFont);
   Canvas.Font.Size := Canvas.Font.Size + 4;
@@ -6520,21 +6520,21 @@ begin
 
     SQL := '';
     for I := 0 to Length(ExportObjects) - 1 do
-      if (ExportObjects[I].DBObject is TCTable) then
+      if (ExportObjects[I].DBObject is TSTable) then
       begin
         Tables.Add(ExportObjects[I].DBObject);
 
         SQL := SQL + 'SELECT ';
-        for J := 0 to TCTable(ExportObjects[I].DBObject).Fields.Count - 1 do
+        for J := 0 to TSTable(ExportObjects[I].DBObject).Fields.Count - 1 do
         begin
           if (J > 0) then SQL := SQL + ',';
-          if (TCTable(ExportObjects[I].DBObject).Fields[J].FieldType in LOBFieldTypes) then
+          if (TSTable(ExportObjects[I].DBObject).Fields[J].FieldType in LOBFieldTypes) then
             SQL := SQL + '0'
-          else if (TCTable(ExportObjects[I].DBObject).Fields[J].FieldType = mfBit) then
-            SQL := SQL + 'CHAR_LENGTH(CONV(MAX(' + Client.EscapeIdentifier(TCTable(ExportObjects[I].DBObject).Fields[J].Name) + ')+0,8,2))'
+          else if (TSTable(ExportObjects[I].DBObject).Fields[J].FieldType = mfBit) then
+            SQL := SQL + 'CHAR_LENGTH(CONV(MAX(' + Client.EscapeIdentifier(TSTable(ExportObjects[I].DBObject).Fields[J].Name) + ')+0,8,2))'
           else
-            SQL := SQL + 'MAX(CHAR_LENGTH(' + Client.EscapeIdentifier(TCTable(ExportObjects[I].DBObject).Fields[J].Name) + '))';
-          SQL := SQL + ' AS ' + Client.EscapeIdentifier(TCTable(ExportObjects[I].DBObject).Fields[J].Name);
+            SQL := SQL + 'MAX(CHAR_LENGTH(' + Client.EscapeIdentifier(TSTable(ExportObjects[I].DBObject).Fields[J].Name) + '))';
+          SQL := SQL + ' AS ' + Client.EscapeIdentifier(TSTable(ExportObjects[I].DBObject).Fields[J].Name);
         end;
         SQL := SQL + ' FROM ' + Client.EscapeIdentifier(ExportObjects[I].DBObject.Database.Name) + '.' + Client.EscapeIdentifier(ExportObjects[I].DBObject.Name) + ';' + #13#10;
       end;
@@ -6555,7 +6555,7 @@ begin
               if (Tables[J] = ExportObjects[I].DBObject) then
               begin
                 SetLength(MaxFieldsCharLengths, Length(MaxFieldsCharLengths) + 1);
-                SetLength(MaxFieldsCharLengths[Length(MaxFieldsCharLengths) - 1], TCTable(Tables[J]).Fields.Count);
+                SetLength(MaxFieldsCharLengths[Length(MaxFieldsCharLengths) - 1], TSTable(Tables[J]).Fields.Count);
                 DataSet := TMySQLQuery.Create(nil);
                 DataSet.Open(DataHandle);
                 if (not DataSet.IsEmpty) then
@@ -6573,13 +6573,13 @@ begin
   inherited;
 end;
 
-procedure TTExportCanvas.ExecuteRoutine(const Routine: TCRoutine);
+procedure TTExportCanvas.ExecuteRoutine(const Routine: TSRoutine);
 begin
   Canvas.Font.Assign(ContentFont);
   Canvas.Font.Size := Canvas.Font.Size + 4;
   Canvas.Font.Style := Canvas.Font.Style + [fsBold];
 
-  if (Routine is TCProcedure) then
+  if (Routine is TSProcedure) then
     ContentTextOut(Preferences.LoadStr(768) + ': ' + Routine.Name, 2 * Padding)
   else
     ContentTextOut(Preferences.LoadStr(769) + ': ' + Routine.Name, 2 * Padding);
@@ -6589,7 +6589,7 @@ begin
   ContentTextOut(Routine.Source);
 end;
 
-procedure TTExportCanvas.ExecuteTableFooter(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportCanvas.ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 begin
   if (Length(Columns) > 0) then
   begin
@@ -6600,7 +6600,7 @@ begin
   Inc(Y, -Canvas.Font.Height);
 end;
 
-procedure TTExportCanvas.ExecuteTableHeader(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportCanvas.ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
   I: Integer;
   J: Integer;
@@ -6616,13 +6616,13 @@ begin
   Canvas.Font.Style := Canvas.Font.Style + [fsBold];
 
   if (Length(DBGrids) = 0) then
-    if (Table is TCBaseTable) then
+    if (Table is TSBaseTable) then
     begin
       ContentTextOut(ReplaceStr(Preferences.LoadStr(302), '&', '') + ': ' + Table.Name, 2 * Padding);
-      if (TCBaseTable(Table).Comment <> '') then
-        ContentTextOut(ReplaceStr(Preferences.LoadStr(111), '&', '') + ': ' + TCBaseTable(Table).Comment, 2 * Padding);
+      if (TSBaseTable(Table).Comment <> '') then
+        ContentTextOut(ReplaceStr(Preferences.LoadStr(111), '&', '') + ': ' + TSBaseTable(Table).Comment, 2 * Padding);
     end
-    else if (Table is TCView) then
+    else if (Table is TSView) then
       ContentTextOut(ReplaceStr(Preferences.LoadStr(738), '&', '') + ': ' + Table.Name, 2 * Padding)
     else if (Structure) then
       ContentTextOut(ReplaceStr(Preferences.LoadStr(216), '&', ''), 2 * Padding);
@@ -6645,7 +6645,7 @@ begin
     end
     else
     begin
-      if ((Table is TCBaseTable) and (TCBaseTable(Table).Keys.Count > 0)) then
+      if ((Table is TSBaseTable) and (TSBaseTable(Table).Keys.Count > 0)) then
       begin
         Canvas.Font.Assign(ContentFont);
         Canvas.Font.Size := Canvas.Font.Size + 2;
@@ -6662,8 +6662,8 @@ begin
         if (Client.ServerVersion >= 50503) then
           Columns[3].HeaderText := ReplaceStr(Preferences.LoadStr(111), '&', '');
 
-        SetLength(GridData, TCBaseTable(Table).Keys.Count);
-        for I := 0 to TCBaseTable(Table).Keys.Count - 1 do
+        SetLength(GridData, TSBaseTable(Table).Keys.Count);
+        for I := 0 to TSBaseTable(Table).Keys.Count - 1 do
         begin
           SetLength(GridData[I], Length(Columns));
 
@@ -6673,23 +6673,23 @@ begin
             GridData[I][J].Gray := False;
           end;
 
-          GridData[I][0].Bold := TCBaseTable(Table).Keys[I].Primary;
-          GridData[I][0].Text := TCBaseTable(Table).Keys[I].Caption;
+          GridData[I][0].Bold := TSBaseTable(Table).Keys[I].Primary;
+          GridData[I][0].Text := TSBaseTable(Table).Keys[I].Caption;
           S := '';
-          for K := 0 to TCBaseTable(Table).Keys[I].Columns.Count - 1 do
+          for K := 0 to TSBaseTable(Table).Keys[I].Columns.Count - 1 do
             begin
               if (S <> '') then S := S + ', ';
-              S := S + TCBaseTable(Table).Keys[I].Columns[K].Field.Name;
+              S := S + TSBaseTable(Table).Keys[I].Columns[K].Field.Name;
             end;
           GridData[I][1].Text := S;
-          if (TCBaseTable(Table).Keys[I].Unique) then
+          if (TSBaseTable(Table).Keys[I].Unique) then
             GridData[I][2].Text := 'unique'
-          else if (TCBaseTable(Table).Keys[I].Fulltext) then
+          else if (TSBaseTable(Table).Keys[I].Fulltext) then
             GridData[I][2].Text := 'fulltext'
           else
             GridData[I][2].Text := '';
           if (Client.ServerVersion >= 50503) then
-            GridData[I][3].Text := TCBaseTable(Table).Keys[I].Comment;
+            GridData[I][3].Text := TSBaseTable(Table).Keys[I].Comment;
         end;
 
         GridOut(GridData);
@@ -6747,11 +6747,11 @@ begin
         else
           GridData[I][3].Text := '';
         S := '';
-        if ((Table is TCBaseTable) and (Table.Fields[I].FieldType in TextFieldTypes)) then
+        if ((Table is TSBaseTable) and (Table.Fields[I].FieldType in TextFieldTypes)) then
         begin
-          if ((Table.Fields[I].Charset <> '') and (Table.Fields[I].Charset <> TCBaseTable(Table).DefaultCharset)) then
+          if ((Table.Fields[I].Charset <> '') and (Table.Fields[I].Charset <> TSBaseTable(Table).DefaultCharset)) then
             S := S + Table.Fields[I].Charset;
-          if ((Table.Fields[I].Collation <> '') and (Table.Fields[I].Collation <> TCBaseTable(Table).Collation)) then
+          if ((Table.Fields[I].Collation <> '') and (Table.Fields[I].Collation <> TSBaseTable(Table).Collation)) then
           begin
             if (S <> '') then S := S + ', ';
             S := S + Table.Fields[I].Collation;
@@ -6759,14 +6759,14 @@ begin
         end;
         GridData[I][4].Text := S;
         if (Client.ServerVersion >= 40100) then
-          GridData[I][5].Text := TCBaseTableField(Table.Fields[I]).Comment;
+          GridData[I][5].Text := TSBaseTableField(Table.Fields[I]).Comment;
       end;
 
       GridOut(GridData);
 
       {------------------------------------------------------------------------}
 
-      if ((Table is TCBaseTable) and (TCBaseTable(Table).ForeignKeys.Count > 0)) then
+      if ((Table is TSBaseTable) and (TSBaseTable(Table).ForeignKeys.Count > 0)) then
       begin
         Canvas.Font.Assign(ContentFont);
         Canvas.Font.Size := Canvas.Font.Size + 2;
@@ -6779,8 +6779,8 @@ begin
         Columns[1].HeaderText := Preferences.LoadStr(69);
         Columns[2].HeaderText := Preferences.LoadStr(73);
 
-        SetLength(GridData, TCBaseTable(Table).ForeignKeys.Count);
-        for I := 0 to TCBaseTable(Table).ForeignKeys.Count - 1 do
+        SetLength(GridData, TSBaseTable(Table).ForeignKeys.Count);
+        for I := 0 to TSBaseTable(Table).ForeignKeys.Count - 1 do
         begin
           SetLength(GridData[I], Length(Columns));
 
@@ -6790,18 +6790,18 @@ begin
             GridData[I][J].Gray := False;
           end;
 
-          GridData[I][0].Text := TCBaseTable(Table).ForeignKeys[I].Name;
-          GridData[I][1].Text := TCBaseTable(Table).ForeignKeys[I].DBTypeStr();
+          GridData[I][0].Text := TSBaseTable(Table).ForeignKeys[I].Name;
+          GridData[I][1].Text := TSBaseTable(Table).ForeignKeys[I].DBTypeStr();
           S := '';
-          if (TCBaseTable(Table).ForeignKeys[I].OnDelete = dtCascade) then S := 'cascade on delete';
-          if (TCBaseTable(Table).ForeignKeys[I].OnDelete = dtSetNull) then S := 'set NULL on delete';
-          if (TCBaseTable(Table).ForeignKeys[I].OnDelete = dtSetDefault) then S := 'set default on delete';
-          if (TCBaseTable(Table).ForeignKeys[I].OnDelete = dtNoAction) then S := 'no action on delete';
+          if (TSBaseTable(Table).ForeignKeys[I].OnDelete = dtCascade) then S := 'cascade on delete';
+          if (TSBaseTable(Table).ForeignKeys[I].OnDelete = dtSetNull) then S := 'set NULL on delete';
+          if (TSBaseTable(Table).ForeignKeys[I].OnDelete = dtSetDefault) then S := 'set default on delete';
+          if (TSBaseTable(Table).ForeignKeys[I].OnDelete = dtNoAction) then S := 'no action on delete';
           S2 := '';
-          if (TCBaseTable(Table).ForeignKeys[I].OnUpdate = utCascade) then S2 := 'cascade on update';
-          if (TCBaseTable(Table).ForeignKeys[I].OnUpdate = utSetNull) then S2 := 'set NULL on update';
-          if (TCBaseTable(Table).ForeignKeys[I].OnUpdate = utSetDefault) then S2 := 'set default on update';
-          if (TCBaseTable(Table).ForeignKeys[I].OnUpdate = utNoAction) then S2 := 'no action on update';
+          if (TSBaseTable(Table).ForeignKeys[I].OnUpdate = utCascade) then S2 := 'cascade on update';
+          if (TSBaseTable(Table).ForeignKeys[I].OnUpdate = utSetNull) then S2 := 'set NULL on update';
+          if (TSBaseTable(Table).ForeignKeys[I].OnUpdate = utSetDefault) then S2 := 'set default on update';
+          if (TSBaseTable(Table).ForeignKeys[I].OnUpdate = utNoAction) then S2 := 'no action on update';
           if (S <> '') and (S2 <> '') then S := S + ', ';
           S := S + S2;
           GridData[I][2].Text := S;
@@ -6894,7 +6894,7 @@ begin
   end;
 end;
 
-procedure TTExportCanvas.ExecuteTableRecord(const Table: TCTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportCanvas.ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 
   function FieldText(const Field: TField): string;
   begin
@@ -6957,7 +6957,7 @@ begin
   GridDrawHorzLine(Y);
 end;
 
-procedure TTExportCanvas.ExecuteTrigger(const Trigger: TCTrigger);
+procedure TTExportCanvas.ExecuteTrigger(const Trigger: TSTrigger);
 begin
   Canvas.Font.Assign(ContentFont);
   Canvas.Font.Size := Canvas.Font.Size + 4;
@@ -7263,7 +7263,7 @@ begin
   end;
 end;
 
-constructor TTExportPrint.Create(const AClient: TCClient; const ATitle: string);
+constructor TTExportPrint.Create(const AClient: TSSession; const ATitle: string);
 begin
   Printer.Title := ATitle;
 
@@ -7357,7 +7357,7 @@ begin
   Canvas := PDF.VCLCanvas;
 end;
 
-constructor TTExportPDF.Create(const AClient: TCClient; const AFilename: TFileName);
+constructor TTExportPDF.Create(const AClient: TSSession; const AFilename: TFileName);
 begin
   PDF := TPDFDocumentGDI.Create(False, CP_UTF8, False);
   PDF.DefaultPaperSize := CurrentPrinterPaperSize();
@@ -7407,7 +7407,7 @@ end;
 
 { TTSearch ********************************************************************}
 
-procedure TTSearch.Add(const Table: TCBaseTable; const Field: TCTableField = nil);
+procedure TTSearch.Add(const Table: TSBaseTable; const Field: TSTableField = nil);
 var
   Found: Boolean;
   I: Integer;
@@ -7451,7 +7451,7 @@ begin
   Client.BeginSynchron(); // We're still in a thread
 end;
 
-constructor TTSearch.Create(const AClient: TCClient);
+constructor TTSearch.Create(const AClient: TSSession);
 begin
   inherited Create();
 
@@ -7472,7 +7472,7 @@ begin
   inherited;
 end;
 
-function TTSearch.DoExecuteSQL(const Client: TCClient; var Item: TItem; var SQL: string): Boolean;
+function TTSearch.DoExecuteSQL(const Client: TSSession; var Item: TItem; var SQL: string): Boolean;
 begin
   Result := (Success = daSuccess) and Client.ExecuteSQL(SQL);
   Delete(SQL, 1, Client.ExecutedSQLLength);
@@ -7481,10 +7481,10 @@ end;
 
 procedure TTSearch.Execute();
 var
-  Database: TCDatabase;
+  Database: TSDatabase;
   I: Integer;
   J: Integer;
-  Table: TCBaseTable;
+  Table: TSBaseTable;
 begin
   BeforeExecute();
 
@@ -7552,7 +7552,7 @@ begin
   AfterExecute();
 end;
 
-procedure TTSearch.ExecuteDefault(var Item: TItem; const Table: TCBaseTable);
+procedure TTSearch.ExecuteDefault(var Item: TItem; const Table: TSBaseTable);
 var
   Buffer: TStringBuffer;
   DataSet: TMySQLQuery;
@@ -7781,7 +7781,7 @@ begin
   end;
 end;
 
-procedure TTSearch.ExecuteMatchCase(var Item: TItem; const Table: TCBaseTable);
+procedure TTSearch.ExecuteMatchCase(var Item: TItem; const Table: TSBaseTable);
 var
   DataSet: TMySQLQuery;
   I: Integer;
@@ -7811,7 +7811,7 @@ begin
   DataSet.Free();
 end;
 
-procedure TTSearch.ExecuteWholeValue(var Item: TItem; const Table: TCBaseTable);
+procedure TTSearch.ExecuteWholeValue(var Item: TItem; const Table: TSBaseTable);
 var
   DataSet: TMySQLQuery;
   I: Integer;
@@ -7933,14 +7933,14 @@ end;
 
 { TTReplace *******************************************************************}
 
-constructor TTReplace.Create(const AClient, AReplaceClient: TCClient);
+constructor TTReplace.Create(const AClient, AReplaceClient: TSSession);
 begin
   inherited Create(AClient);
 
   FReplaceClient := AReplaceClient;
 end;
 
-procedure TTReplace.ExecuteMatchCase(var Item: TTSearch.TItem; const Table: TCBaseTable);
+procedure TTReplace.ExecuteMatchCase(var Item: TTSearch.TItem; const Table: TSBaseTable);
 var
   I: Integer;
   SQL: string;
@@ -7962,7 +7962,7 @@ end;
 
 { TTTransfer  ******************************************************************}
 
-procedure TTTransfer.Add(const SourceClient: TCClient; const SourceDatabaseName, SourceTableName: string; const DestinationClient: TCClient; const DestinationDatabaseName, DestinationTableName: string);
+procedure TTTransfer.Add(const SourceClient: TSSession; const SourceDatabaseName, SourceTableName: string; const DestinationClient: TSSession; const DestinationDatabaseName, DestinationTableName: string);
 var
   Element: ^TElement;
 begin
@@ -8009,9 +8009,9 @@ end;
 
 procedure TTTransfer.CloneTable(var Source, Destination: TItem);
 var
-  DestinationDatabase: TCDatabase;
-  SourceDatabase: TCDatabase;
-  SourceTable: TCBaseTable;
+  DestinationDatabase: TSDatabase;
+  SourceDatabase: TSDatabase;
+  SourceTable: TSBaseTable;
 begin
   SourceDatabase := Source.Client.DatabaseByName(Source.DatabaseName);
   DestinationDatabase := Destination.Client.DatabaseByName(Destination.DatabaseName);
@@ -8062,7 +8062,7 @@ begin
   Result.ErrorType := TE_DifferentPrimaryIndex;
 end;
 
-function TTTransfer.DoExecuteSQL(var Item: TItem; const Client: TCClient; var SQL: string): Boolean;
+function TTTransfer.DoExecuteSQL(var Item: TItem; const Client: TSSession; var SQL: string): Boolean;
 begin
   Result := (Success = daSuccess) and Client.ExecuteSQL(SQL);
   Delete(SQL, 1, Client.ExecutedSQLLength);
@@ -8124,13 +8124,13 @@ end;
 procedure TTTransfer.Execute();
 var
   DataSet: TMySQLQuery;
-  DestinationClient: TCClient;
+  DestinationClient: TSSession;
   I: Integer;
   J: Integer;
   OLD_FOREIGN_KEY_CHECKS: string;
   OLD_UNIQUE_CHECKS: string;
-  SourceClient: TCClient;
-  SourceTable: TCBaseTable;
+  SourceClient: TSSession;
+  SourceTable: TSBaseTable;
   SQL: string;
 begin
   {$IFDEF EurekaLog}
@@ -8278,9 +8278,9 @@ procedure TTTransfer.ExecuteData(var Source, Destination: TItem);
 var
   Buffer: TTools.TStringBuffer;
   DataFileBuffer: TDataFileBuffer;
-  DestinationDatabase: TCDatabase;
-  DestinationField: TCTableField;
-  DestinationTable: TCBaseTable;
+  DestinationDatabase: TSDatabase;
+  DestinationField: TSTableField;
+  DestinationTable: TSBaseTable;
   EscapedFieldName: array of string;
   EscapedTableName: string;
   FieldCount: Integer;
@@ -8294,9 +8294,9 @@ var
   Pipe: THandle;
   Pipename: string;
   S: string;
-  SourceDatabase: TCDatabase;
+  SourceDatabase: TSDatabase;
   SourceDataSet: TMySQLQuery;
-  SourceTable: TCBaseTable;
+  SourceTable: TSBaseTable;
   SourceValues: string;
   SQL: string;
   SQLExecuted: TEvent;
@@ -8540,13 +8540,13 @@ end;
 
 procedure TTTransfer.ExecuteForeignKeys(var Source, Destination: TItem);
 var
-  DestinationDatabase: TCDatabase;
-  DestinationTable: TCBaseTable;
+  DestinationDatabase: TSDatabase;
+  DestinationTable: TSBaseTable;
   I: Integer;
-  NewTable: TCBaseTable;
-  ParentTable: TCBaseTable;
-  SourceDatabase: TCDatabase;
-  SourceTable: TCBaseTable;
+  NewTable: TSBaseTable;
+  ParentTable: TSBaseTable;
+  SourceDatabase: TSDatabase;
+  SourceTable: TSBaseTable;
 begin
   SourceDatabase := Source.Client.DatabaseByName(Source.DatabaseName);
   SourceTable := SourceDatabase.BaseTableByName(Source.TableName);
@@ -8560,7 +8560,7 @@ begin
       begin
         if (not Assigned(NewTable)) then
         begin
-          NewTable := TCBaseTable.Create(DestinationDatabase.Tables);
+          NewTable := TSBaseTable.Create(DestinationDatabase.Tables);
           NewTable.Assign(DestinationTable);
         end;
 
@@ -8580,15 +8580,15 @@ end;
 procedure TTTransfer.ExecuteStructure(const Source, Destination: TItem);
 var
   DeleteForeignKey: Boolean;
-  DestinationDatabase: TCDatabase;
-  DestinationTable: TCBaseTable;
+  DestinationDatabase: TSDatabase;
+  DestinationTable: TSBaseTable;
   I: Integer;
   J: Integer;
   Modified: Boolean;
-  NewDestinationTable: TCBaseTable;
-  OldFieldBefore: TCTableField;
-  SourceDatabase: TCDatabase;
-  SourceTable: TCBaseTable;
+  NewDestinationTable: TSBaseTable;
+  OldFieldBefore: TSTableField;
+  SourceDatabase: TSDatabase;
+  SourceTable: TSBaseTable;
 begin
   SourceDatabase := Source.Client.DatabaseByName(Source.DatabaseName);
   SourceTable := SourceDatabase.BaseTableByName(Source.TableName);
@@ -8602,7 +8602,7 @@ begin
     DestinationTable := nil;
   end;
 
-  NewDestinationTable := TCBaseTable.Create(DestinationDatabase.Tables);
+  NewDestinationTable := TSBaseTable.Create(DestinationDatabase.Tables);
 
   if (not Assigned(DestinationTable)) then
   begin
@@ -8649,17 +8649,17 @@ end;
 procedure TTTransfer.ExecuteTable(var Source, Destination: TItem);
 var
   I: Integer;
-  DestinationDatabase: TCDatabase;
-  DestinationTable: TCBaseTable;
-  NewTrigger: TCTrigger;
-  SourceDatabase: TCDatabase;
-  SourceTable: TCBaseTable;
+  DestinationDatabase: TSDatabase;
+  DestinationTable: TSBaseTable;
+  NewTrigger: TSTrigger;
+  SourceDatabase: TSDatabase;
+  SourceTable: TSBaseTable;
 begin
   DestinationDatabase := Destination.Client.DatabaseByName(Destination.DatabaseName);
 
   if ((Success = daSuccess) and Structure and not Assigned(DestinationDatabase)) then
   begin
-    DestinationDatabase := TCDatabase.Create(Destination.Client, Destination.DatabaseName);
+    DestinationDatabase := TSDatabase.Create(Destination.Client, Destination.DatabaseName);
     while ((Success <> daAbort) and not Destination.Client.AddDatabase(DestinationDatabase)) do
       DoError(DatabaseError(Destination.Client), ToolsItem(Destination), True);
     DestinationDatabase.Free();
@@ -8707,7 +8707,7 @@ begin
       for I := 0 to SourceDatabase.Triggers.Count - 1 do
         if ((Success = daSuccess) and (SourceDatabase.Triggers[I].Table = SourceTable) and not Assigned(DestinationDatabase.TriggerByName(SourceDatabase.Triggers[I].Name))) then
         begin
-          NewTrigger := TCTrigger.Create(DestinationDatabase.Tables);
+          NewTrigger := TSTrigger.Create(DestinationDatabase.Tables);
           NewTrigger.Assign(SourceDatabase.Triggers[I]);
           while (Success <> daAbort) do
           begin

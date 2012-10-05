@@ -4,10 +4,11 @@ interface {********************************************************************}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ComCtrls, Menus, 
+  Dialogs, StdCtrls, ComCtrls, Menus, ExtCtrls,
   SynEdit, SynMemo,
-  Forms_Ext,  
-  fClient, fBase, StdCtrls_Ext, ComCtrls_Ext, Vcl.ExtCtrls;
+  Forms_Ext, StdCtrls_Ext, ComCtrls_Ext,
+  fSession,
+  fBase;
 
 type
   TDUser = class (TForm_Ext)
@@ -74,16 +75,16 @@ type
     procedure TSSlowSQLLogShow(Sender: TObject);
     procedure TSSQLLogShow(Sender: TObject);
   private
-    NewUser: TCUser;
+    NewUser: TSUser;
     RightsModified: Boolean;
     procedure Built();
-    procedure FormClientEvent(const Event: TCClient.TEvent);
+    procedure FormClientEvent(const Event: TSSession.TEvent);
     procedure FRightsRefresh(Sender: TObject);
     procedure ListViewShowSortDirection(const ListView: TListView);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
-    Client: TCClient;
-    User: TCUser;
+    Client: TSSession;
+    User: TSUser;
     function Execute(): Boolean;
   end;
 
@@ -289,11 +290,11 @@ begin
     FHost.Text := '%';
 end;
 
-procedure TDUser.FormClientEvent(const Event: TCClient.TEvent);
+procedure TDUser.FormClientEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = ceItemValid) and (Event.CItem = User)) then
     Built()
-  else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.CItem is TCUser)) then
+  else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.CItem is TSUser)) then
     ModalResult := mrOk
   else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Client.ErrorCode <> 0)) then
   begin
@@ -383,12 +384,12 @@ end;
 
 procedure TDUser.FormShow(Sender: TObject);
 var
-  NewUserRight: TCUserRight;
+  NewUserRight: TSUserRight;
   UserName: string;
 begin
   Client.RegisterEventProc(FormClientEvent);
 
-  NewUser := TCUser.Create(Client.Users);
+  NewUser := TSUser.Create(Client.Users);
 
   RightsModified := False;
   if (not Assigned(User)) then
@@ -404,7 +405,7 @@ begin
 
   if (not Assigned(User)) then
   begin
-    NewUserRight := TCUserRight.Create();
+    NewUserRight := TSUserRight.Create();
     NewUser.AddRight(NewUserRight);
     FreeAndNil(NewUserRight);
 

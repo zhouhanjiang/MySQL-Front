@@ -1323,6 +1323,8 @@ function TMySQL_File.GetFileSize(): my_int;
 begin
   if (Direction = idRead) then
     Result := FReadFileBuffer.Size
+  else if (PacketBuffer.Size = 0) then
+    Result := 0
   else
     Result := PacketBuffer.Size - (NET_HEADER_SIZE + PacketBuffer.Offset);
 end;

@@ -6,7 +6,8 @@ uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, ComCtrls,
   Forms_Ext, ComCtrls_Ext, StdCtrls_Ext,
-  fClient, fBase;
+  fSession,
+  fBase;
 
 type
   TDPartition = class(TForm_Ext)
@@ -33,8 +34,8 @@ type
   protected
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
-    Partition: TCPartition;
-    Table: TCBaseTable;
+    Partition: TSPartition;
+    Table: TSBaseTable;
     function Execute(): Boolean;
   end;
 
@@ -94,16 +95,16 @@ end;
 procedure TDPartition.FormCloseQuery(Sender: TObject;
   var CanClose: Boolean);
 var
-  NewPartition: TCPartition;
+  NewPartition: TSPartition;
 begin
   if (ModalResult = mrOk) then
   begin
-    NewPartition := TCPartition.Create(Table.Partitions, Table);
+    NewPartition := TSPartition.Create(Table.Partitions, Table);
     if (Assigned(Partition)) then
       NewPartition.Assign(Partition);
 
     NewPartition.Name := Trim(FName.Text);
-    NewPartition.Engine := Table.Database.Client.EngineByName(FEngine.Text);
+    NewPartition.Engine := Table.Database.Session.EngineByName(FEngine.Text);
     NewPartition.ValuesExpr := Trim(FExpression.Text);
     if (FMinRows.Text = '') then
       NewPartition.MinRows := -1
@@ -136,18 +137,18 @@ begin
   else
     Caption := Preferences.LoadStr(842, Partition.Name);
 
-  if (Table.Database.Client.Engines.Count = 0) then
+  if (Table.Database.Session.Engines.Count = 0) then
     FEngine.Style := csDropDown
   else
     FEngine.Style := csDropDownList;
   FEngine.Items.Clear();
-  for I := 0 to Table.Database.Client.Engines.Count - 1 do
-    FEngine.Items.Add(Table.Database.Client.Engines.Engine[I].Name);
+  for I := 0 to Table.Database.Session.Engines.Count - 1 do
+    FEngine.Items.Add(Table.Database.Session.Engines.Engine[I].Name);
 
   if (not Assigned(Partition)) then
   begin
     FName.Text := '';
-    FEngine.ItemIndex := FEngine.Items.IndexOf(Table.Database.Client.Engines.DefaultEngine.Name);
+    FEngine.ItemIndex := FEngine.Items.IndexOf(Table.Database.Session.Engines.DefaultEngine.Name);
     FExpression.Text := '';
     FMinRows.Text := '';
     FMaxRows.Text := '';

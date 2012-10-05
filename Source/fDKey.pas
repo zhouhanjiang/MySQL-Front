@@ -5,8 +5,9 @@ interface {********************************************************************}
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, Buttons, ComCtrls, StdCtrls, ToolWin, ExtCtrls,
-  Forms_Ext, ComCtrls_Ext,
-  fClient, fPreferences, fBase, StdCtrls_Ext;
+  Forms_Ext, ComCtrls_Ext, StdCtrls_Ext,
+  fSession, fPreferences,
+  fBase;
 
 type
   TDIndex = class (TForm_Ext)
@@ -73,12 +74,12 @@ type
     procedure tbUpDownClick(Sender: TObject);
   private
     Lengths: array of Integer;
-    procedure FormClientEvent(const Event: TCClient.TEvent);
+    procedure FormClientEvent(const Event: TSSession.TEvent);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
-    Database: TCDatabase;
-    Key: TCKey;
-    Table: TCBaseTable;
+    Database: TSDatabase;
+    Key: TSKey;
+    Table: TSBaseTable;
     function Execute(): Boolean;
   end;
 
@@ -195,7 +196,7 @@ end;
 procedure TDIndex.FIndexedFieldsChange(Sender: TObject; Item: TListItem;
   Change: TItemChange);
 var
-  Field: TCBaseTableField;
+  Field: TSBaseTableField;
   I: Integer;
 begin
   if (Visible and Assigned(Item) and Assigned(Table.FieldByName(Item.Caption))) then
@@ -222,7 +223,7 @@ begin
     if (FLengthUD.Position = 0) then
       FLength.Text := '';
 
-    FFulltext.Enabled := not Assigned(Table.Engine) or (UpperCase(Table.Engine.Name) = 'MYISAM') and (FIndexedFields.Items.Count > 0) and (Table.Database.Client.ServerVersion >= 32323);
+    FFulltext.Enabled := not Assigned(Table.Engine) or (UpperCase(Table.Engine.Name) = 'MYISAM') and (FIndexedFields.Items.Count > 0) and (Table.Database.Session.ServerVersion >= 32323);
   end
   else
   begin
@@ -280,7 +281,7 @@ begin
   FBOkCheckEnabled(Sender);
 end;
 
-procedure TDIndex.FormClientEvent(const Event: TCClient.TEvent);
+procedure TDIndex.FormClientEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = ceItemAltered) and (Event.CItem = Table)) then
     ModalResult := mrOk
@@ -295,15 +296,15 @@ end;
 procedure TDIndex.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 var
   I: Integer;
-  NewKey: TCKey;
-  NewKeyColumn: TCKeyColumn;
-  NewTable: TCBaseTable;
+  NewKey: TSKey;
+  NewKeyColumn: TSKeyColumn;
+  NewTable: TSBaseTable;
 begin
   FLengthExit(Sender);
 
   if ((ModalResult = mrOk) and GBasics.Visible) then
   begin
-    NewKey := TCKey.Create(Table.Keys);
+    NewKey := TSKey.Create(Table.Keys);
     if (Assigned(Key)) then
       NewKey.Assign(Key);
 
@@ -314,7 +315,7 @@ begin
     NewKey.Columns.Clear();
     for I := 0 to FIndexedFields.Items.Count - 1 do
     begin
-      NewKeyColumn := TCKeyColumn.Create(NewKey.Columns);
+      NewKeyColumn := TSKeyColumn.Create(NewKey.Columns);
       NewKeyColumn.Field := Table.FieldByName(FIndexedFields.Items[I].Caption);
       NewKeyColumn.Length := Lengths[Table.Fields.IndexOf(NewKeyColumn.Field)];
       NewKey.Columns.AddColumn(NewKeyColumn);
@@ -339,7 +340,7 @@ begin
     end
     else
     begin
-      NewTable := TCBaseTable.Create(Database.Tables);
+      NewTable := TSBaseTable.Create(Database.Tables);
       NewTable.Assign(Table);
 
       if (not Assigned(Key)) then
@@ -351,7 +352,7 @@ begin
 
       NewTable.Free();
 
-      GBasics.Visible := CanClose or not Database.Client.Asynchron;
+      GBasics.Visible := CanClose or not Database.Session.Asynchron;
       GAttributes.Visible := GBasics.Visible;
       PSQLWait.Visible := not GBasics.Visible;
       if (PSQLWait.Visible) then
@@ -391,7 +392,7 @@ end;
 
 procedure TDIndex.FormHide(Sender: TObject);
 begin
-  Table.Client.UnRegisterEventProc(FormClientEvent);
+  Table.Session.UnRegisterEventProc(FormClientEvent);
 
   Preferences.Index.Width := Width;
   Preferences.Index.Height := Height;
@@ -423,7 +424,7 @@ var
   I: Integer;
   J: Integer;
 begin
-  Table.Client.RegisterEventProc(FormClientEvent);
+  Table.Session.RegisterEventProc(FormClientEvent);
 
   if (not Assigned(Key)) then
   begin
@@ -437,7 +438,7 @@ begin
   end;
 
   FIndexedFields.Items.Clear();
-  FComment.Visible := Table.Client.ServerVersion >= 50503; FLComment.Visible := FComment.Visible;
+  FComment.Visible := Table.Session.ServerVersion >= 50503; FLComment.Visible := FComment.Visible;
 
   SetLength(Lengths, Table.Fields.Count);
   for I := 0 to Length(Lengths) - 1 do
@@ -576,7 +577,7 @@ end;
 
 procedure TDIndex.tbRemoveOneClick(Sender: TObject);
 var
-  Field: TCTableField;
+  Field: TSTableField;
   I: Integer;
   Index: Integer;
   Item: TListItem;

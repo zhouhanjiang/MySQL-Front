@@ -4,9 +4,10 @@ interface {********************************************************************}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, ComCtrls, StdCtrls,
+  Dialogs, ComCtrls, StdCtrls, ExtCtrls,
   StdCtrls_Ext, Forms_Ext,
-  fClient, fBase, Vcl.ExtCtrls;
+  fSession,
+  fBase;
 
 type
   TDForeignKey = class (TForm_Ext)
@@ -51,17 +52,17 @@ type
     procedure FParentTableChange(Sender: TObject);
     procedure FTableChange(Sender: TObject);
   private
-    procedure FormClientEvent(const Event: TCClient.TEvent);
-    function GetParentDatabase(): TCDatabase;
-    function GetParentTable(): TCBaseTable;
-    property SelectedParentDatabase: TCDatabase read GetParentDatabase;
-    property SelectedParentTable: TCBaseTable read GetParentTable;
+    procedure FormClientEvent(const Event: TSSession.TEvent);
+    function GetParentDatabase(): TSDatabase;
+    function GetParentTable(): TSBaseTable;
+    property SelectedParentDatabase: TSDatabase read GetParentDatabase;
+    property SelectedParentTable: TSBaseTable read GetParentTable;
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
-    Database: TCDatabase;
-    ForeignKey: TCForeignKey;
-    ParentTable: TCBaseTable;
-    Table: TCBaseTable;
+    Database: TSDatabase;
+    ForeignKey: TSForeignKey;
+    ParentTable: TSBaseTable;
+    Table: TSBaseTable;
     function Execute(): Boolean;
   end;
 
@@ -175,11 +176,11 @@ begin
   FMatchPartialClick(Sender);
 end;
 
-procedure TDForeignKey.FormClientEvent(const Event: TCClient.TEvent);
+procedure TDForeignKey.FormClientEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = ceItemsValid) and (Event.Sender = Database.Tables)) then
     FTableChange(Event.Sender)
-  else if ((Event.EventType = ceItemsValid) and (Event.Sender = Table.Client.Databases)) then
+  else if ((Event.EventType = ceItemsValid) and (Event.Sender = Table.Session.Databases)) then
     FParentDatabaseChange(Event.Sender)
   else if ((Event.EventType = ceItemValid) and (Event.CItem = SelectedParentTable)) then
     FParentTableChange(Event.Sender)
@@ -197,12 +198,12 @@ procedure TDForeignKey.FormCloseQuery(Sender: TObject;
   var CanClose: Boolean);
 var
   I: Integer;
-  NewForeignKey: TCForeignKey;
-  NewTable: TCBaseTable;
+  NewForeignKey: TSForeignKey;
+  NewTable: TSBaseTable;
 begin
   if ((ModalResult = mrOk) and GBasics.Visible) then
   begin
-    NewForeignKey := TCForeignKey.Create(Table.ForeignKeys);
+    NewForeignKey := TSForeignKey.Create(Table.ForeignKeys);
     if (Assigned(ForeignKey)) then
       NewForeignKey.Assign(ForeignKey);
 
@@ -253,7 +254,7 @@ begin
     end
     else
     begin
-      NewTable := TCBaseTable.Create(Database.Tables);
+      NewTable := TSBaseTable.Create(Database.Tables);
       NewTable.Assign(Table);
 
       if (not Assigned(ForeignKey)) then
@@ -265,7 +266,7 @@ begin
 
       NewTable.Free();
 
-      GBasics.Visible := CanClose or not Database.Client.Asynchron;
+      GBasics.Visible := CanClose or not Database.Session.Asynchron;
       GAttributes.Visible := GBasics.Visible;
       PSQLWait.Visible := not GBasics.Visible;
       if (PSQLWait.Visible) then
@@ -294,7 +295,7 @@ end;
 
 procedure TDForeignKey.FormHide(Sender: TObject);
 begin
-  Table.Client.UnRegisterEventProc(FormClientEvent);
+  Table.Session.UnRegisterEventProc(FormClientEvent);
 
   Preferences.ForeignKey.Width := Width;
   Preferences.ForeignKey.Height := Height;
@@ -320,7 +321,7 @@ var
   I: Integer;
   J: Integer;
 begin
-  Table.Client.RegisterEventProc(FormClientEvent);
+  Table.Session.RegisterEventProc(FormClientEvent);
 
   if (not Assigned(ForeignKey)) then
   begin
@@ -337,9 +338,9 @@ begin
   FTable.Text := Table.Name;
 
   FParentDatabase.Clear();
-  for I := 0 to Table.Database.Client.Databases.Count - 1 do
-    if (not (Table.Database.Client.Databases[I] is TCSystemDatabase)) then
-      FParentDatabase.Items.Add(Table.Database.Client.Databases[I].Name);
+  for I := 0 to Table.Database.Session.Databases.Count - 1 do
+    if (not (Table.Database.Session.Databases[I] is TSSystemDatabase)) then
+      FParentDatabase.Items.Add(Table.Database.Session.Databases[I].Name);
 
   FParentFields.Clear();
 
@@ -400,24 +401,24 @@ begin
     end;
   end;
 
-  FName.Enabled := not Assigned(ForeignKey) or (Table.Database.Client.ServerVersion >= 40013);
-  FLName.Enabled := not Assigned(ForeignKey) or (Table.Database.Client.ServerVersion >= 40013);
-  FLTable.Enabled := not Assigned(ForeignKey) or (Table.Database.Client.ServerVersion >= 40013);
-  FLFields.Enabled := not Assigned(ForeignKey) or (Table.Database.Client.ServerVersion >= 40013);
-  FLChild.Enabled := not Assigned(ForeignKey) or (Table.Database.Client.ServerVersion >= 40013);
-  FLParent.Enabled := not Assigned(ForeignKey) or (Table.Database.Client.ServerVersion >= 40013);
-  FFields.Enabled := not Assigned(ForeignKey) or (Table.Database.Client.ServerVersion >= 40013);
-  FMatchFull.Enabled := not Assigned(ForeignKey) or (Table.Database.Client.ServerVersion >= 40013);
-  FMatchPartial.Enabled := not Assigned(ForeignKey) or (Table.Database.Client.ServerVersion >= 40013);
+  FName.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013);
+  FLName.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013);
+  FLTable.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013);
+  FLFields.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013);
+  FLChild.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013);
+  FLParent.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013);
+  FFields.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013);
+  FMatchFull.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013);
+  FMatchPartial.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013);
   FLMatch.Enabled := FMatchFull.Enabled or FMatchPartial.Enabled;
-  FOnDelete.Enabled := not Assigned(ForeignKey) or (Table.Database.Client.ServerVersion >= 40013); FLOnDelete.Enabled := FOnDelete.Enabled;
-  FOnUpdate.Enabled := not Assigned(ForeignKey) or (Table.Database.Client.ServerVersion >= 40013); FLOnUpdate.Enabled := FOnUpdate.Enabled;
+  FOnDelete.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013); FLOnDelete.Enabled := FOnDelete.Enabled;
+  FOnUpdate.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013); FLOnUpdate.Enabled := FOnUpdate.Enabled;
 
   GBasics.Visible := True;
   GAttributes.Visible := GBasics.Visible;
   PSQLWait.Visible := not GBasics.Visible;
 
-  FBOk.Visible := not Assigned(ForeignKey) or (Table.Database.Client.ServerVersion >= 40013);
+  FBOk.Visible := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013);
   if (FBOk.Visible) then
     FBCancel.Caption := Preferences.LoadStr(30)
   else
@@ -446,10 +447,10 @@ begin
     FParentTable.Cursor := crDefault;
 
     for I := 0 to SelectedParentDatabase.Tables.Count - 1 do
-      if (SelectedParentDatabase.Tables.Table[I] is TCBaseTable) then
+      if (SelectedParentDatabase.Tables.Table[I] is TSBaseTable) then
         FParentTable.Items.Add(SelectedParentDatabase.Tables.Table[I].Name);
 
-    FParentTable.Enabled := not Assigned(ForeignKey) or (Table.Database.Client.ServerVersion >= 40013);
+    FParentTable.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013);
     FBOkCheckEnabled(Sender);
   end;
 end;
@@ -471,7 +472,7 @@ begin
     for I := 0 to SelectedParentTable.Fields.Count - 1 do
       FParentFields.Items.Add(SelectedParentTable.Fields.Field[I].Name);
 
-    FParentFields.Enabled := not Assigned(ForeignKey) or (Table.Database.Client.ServerVersion >= 40013);
+    FParentFields.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013);
     FBOkCheckEnabled(Sender);
   end;
 end;
@@ -497,12 +498,12 @@ begin
   end;
 end;
 
-function TDForeignKey.GetParentDatabase(): TCDatabase;
+function TDForeignKey.GetParentDatabase(): TSDatabase;
 begin
-  Result := Table.Database.Client.DatabaseByName(FParentDatabase.Text);
+  Result := Table.Database.Session.DatabaseByName(FParentDatabase.Text);
 end;
 
-function TDForeignKey.GetParentTable(): TCBaseTable;
+function TDForeignKey.GetParentTable(): TSBaseTable;
 begin
   if (not Assigned(SelectedParentDatabase)) then
     Result := nil

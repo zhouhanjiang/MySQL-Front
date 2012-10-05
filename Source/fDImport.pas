@@ -8,7 +8,9 @@ uses
   ODBCAPI,
   DISQLite3Api,
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext, Dialogs_Ext,
-  fClient, fBase, MySQLDB, fTools;
+  MySQLDB,
+  fSession, fTools,
+  fBase;
 
 const
   LargeSQLScriptSize = 100 * 1024;
@@ -161,12 +163,12 @@ type
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure CMUpdateProgressInfo(var Message: TMessage); message CM_UPDATEPROGRESSINFO;
   public
-    Client: TCClient;
+    Client: TSSession;
     CodePage: Cardinal;
-    Database: TCDatabase;
+    Database: TSDatabase;
     Filename: TFileName;
     ImportType: TImportType;
-    Table: TCBaseTable;
+    Table: TSBaseTable;
     Window: TForm;
     function Execute(): Boolean;
   end;
@@ -848,8 +850,8 @@ begin
       FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf('utf8');
     FDefaultCharsetChange(Sender);
 
-    FDefaultCharset.Visible := Database.Client.ServerVersion >= 40101; FLDefaultCharset.Visible := FDefaultCharset.Visible;
-    FCollation.Visible := Database.Client.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
+    FDefaultCharset.Visible := Database.Session.ServerVersion >= 40101; FLDefaultCharset.Visible := FDefaultCharset.Visible;
+    FCollation.Visible := Database.Session.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
   end;
 
   FLProgressTables.Visible := ImportType in [itODBC, itAccessFile, itExcelFile, itSQLiteFile, itXMLFile];

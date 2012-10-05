@@ -4,10 +4,11 @@ interface {********************************************************************}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ComCtrls, Menus,
+  Dialogs, StdCtrls, ComCtrls, Menus,  ExtCtrls,
   SynEdit, SynMemo,
-  Forms_Ext, StdCtrls_Ext,
-  fBase, fClient, Vcl.ExtCtrls, ExtCtrls_Ext;
+  Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext,
+  fSession,
+  fBase;
 
 type
   TDServer = class (TForm_Ext)
@@ -75,11 +76,11 @@ type
     procedure TSStartupShow(Sender: TObject);
   private
     procedure Built();
-    procedure FormClientEvent(const Event: TCClient.TEvent);
+    procedure FormClientEvent(const Event: TSSession.TEvent);
     procedure ListViewShowSortDirection(const ListView: TListView);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
-    Client: TCClient;
+    Client: TSSession;
     Tab: TCustomFrame;
     function Execute(): Boolean;
   end;
@@ -239,7 +240,7 @@ begin
   ActiveControl := FBCancel;
 end;
 
-procedure TDServer.FormClientEvent(const Event: TCClient.TEvent);
+procedure TDServer.FormClientEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = ceItemsValid) and ((Event.CItems = Client.Stati) or Assigned(Client.Plugins) and (Event.CItems = Client.Plugins))
     and Client.Stati.Valid and (not Assigned(Client.Plugins) or Client.Plugins.Valid)) then

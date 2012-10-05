@@ -4,10 +4,11 @@ interface {********************************************************************}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Menus,
-  Dialogs, StdCtrls, ComCtrls,
+  Dialogs, StdCtrls, ComCtrls, ExtCtrls,
   SynEdit, SynMemo,
   StdCtrls_Ext, ComCtrls_Ext, Forms_Ext,
-  fBase, fClient, Vcl.ExtCtrls;
+  fSession,
+  fBase;
 
 type
   TDEvent = class(TForm_Ext)
@@ -97,11 +98,11 @@ type
     procedure TSSourceShow(Sender: TObject);
   private
     procedure Built();
-    procedure FormClientEvent(const Event: TCClient.TEvent);
+    procedure FormClientEvent(const Event: TSSession.TEvent);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
-    Database: TCDatabase;
-    Event: TCEvent;
+    Database: TSDatabase;
+    Event: TSEvent;
     function Execute(): Boolean;
   end;
 
@@ -151,7 +152,7 @@ begin
   FExecuteTime.Time := Event.Execute;
 
   FMultipleExecution.Checked := Event.EventType = etMultiple;
-  Database.Client.DecodeInterval(Event.IntervalValue, Event.IntervalType, Year, Month, Day, Quarter, Week, Hour, Minute, Second, MSec);
+  Database.Session.DecodeInterval(Event.IntervalValue, Event.IntervalType, Year, Month, Day, Quarter, Week, Hour, Minute, Second, MSec);
   FUDIntervalYear.Position := Year;
   FUDIntervalMonth.Position := Month;
   FUDIntervalDay.Position := Day;
@@ -277,7 +278,7 @@ begin
       FBOk.Enabled := False;
 
   if (FMultipleExecution.Checked) then
-    FBOk.Enabled := FBOk.Enabled and Database.Client.EncodeInterval(FUDIntervalYear.Position, FUDIntervalMonth.Position, FUDIntervalDay.Position, FUDIntervalQuarter.Position, FUDIntervalWeek.Position, FUDIntervalHour.Position, FUDIntervalMinute.Position, FUDIntervalSecond.Position, 0, Value, IntervalType);
+    FBOk.Enabled := FBOk.Enabled and Database.Session.EncodeInterval(FUDIntervalYear.Position, FUDIntervalMonth.Position, FUDIntervalDay.Position, FUDIntervalQuarter.Position, FUDIntervalWeek.Position, FUDIntervalHour.Position, FUDIntervalMinute.Position, FUDIntervalSecond.Position, 0, Value, IntervalType);
 
   TSSource.TabVisible := False;
 end;
@@ -320,11 +321,11 @@ begin
   FExecutionClick(Sender);
 end;
 
-procedure TDEvent.FormClientEvent(const Event: TCClient.TEvent);
+procedure TDEvent.FormClientEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = ceItemValid) and (Event.CItem = Self.Event)) then
     Built()
-  else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.CItem is TCEvent)) then
+  else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.CItem is TSEvent)) then
     ModalResult := mrOk
   else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Client.ErrorCode <> 0)) then
   begin
@@ -337,11 +338,11 @@ procedure TDEvent.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 var
   IntervalType: TMySQLIntervalType;
   IntervalValue: string;
-  NewEvent: TCEvent;
+  NewEvent: TSEvent;
 begin
   if ((ModalResult = mrOk) and PageControl.Visible) then
   begin
-    NewEvent := TCEvent.Create(Database.Events);
+    NewEvent := TSEvent.Create(Database.Events);
     if (Assigned(Event)) then
       NewEvent.Assign(Event);
 
@@ -365,7 +366,7 @@ begin
     end
     else
     begin
-      Database.Client.EncodeInterval(FUDIntervalYear.Position, FUDIntervalMonth.Position, FUDIntervalDay.Position, FUDIntervalQuarter.Position, FUDIntervalWeek.Position, FUDIntervalHour.Position, FUDIntervalMinute.Position, FUDIntervalSecond.Position, 0, IntervalValue, IntervalType);
+      Database.Session.EncodeInterval(FUDIntervalYear.Position, FUDIntervalMonth.Position, FUDIntervalDay.Position, FUDIntervalQuarter.Position, FUDIntervalWeek.Position, FUDIntervalHour.Position, FUDIntervalMinute.Position, FUDIntervalSecond.Position, 0, IntervalValue, IntervalType);
       NewEvent.IntervalValue := IntervalValue;
       NewEvent.IntervalType := IntervalType;
       if (not FStartEnabled.Checked) then
@@ -390,7 +391,7 @@ begin
 
     NewEvent.Free();
 
-    PageControl.Visible := CanClose or not Database.Client.Asynchron;
+    PageControl.Visible := CanClose or not Database.Session.Asynchron;
     PSQLWait.Visible := not PageControl.Visible;
     if (PSQLWait.Visible) then
       ModalResult := mrNone;
@@ -427,7 +428,7 @@ end;
 
 procedure TDEvent.FormHide(Sender: TObject);
 begin
-  Database.Client.UnRegisterEventProc(FormClientEvent);
+  Database.Session.UnRegisterEventProc(FormClientEvent);
 
   Preferences.Event.Width := Width;
   Preferences.Event.Height := Height;
@@ -441,7 +442,7 @@ var
   EventName: string;
   I: Integer;
 begin
-  Database.Client.RegisterEventProc(FormClientEvent);
+  Database.Session.RegisterEventProc(FormClientEvent);
 
   if (not Assigned(Event)) then
     Caption := Preferences.LoadStr(820)

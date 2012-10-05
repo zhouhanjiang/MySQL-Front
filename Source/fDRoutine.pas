@@ -4,10 +4,11 @@ interface {********************************************************************}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Menus,
-  Dialogs, StdCtrls, ComCtrls,
-  Forms_Ext,
+  Dialogs, StdCtrls, ComCtrls, ExtCtrls,
+  Forms_Ext, StdCtrls_Ext,
   SynEdit, SynMemo,
-  fBase, fClient, StdCtrls_Ext, Vcl.ExtCtrls;
+  fSession,
+  fBase;
 
 type
   TDRoutine = class(TForm_Ext)
@@ -61,12 +62,12 @@ type
     procedure FSourceChange(Sender: TObject);
   private
     procedure Built();
-    procedure FormClientEvent(const Event: TCClient.TEvent);
+    procedure FormClientEvent(const Event: TSSession.TEvent);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
-    Database: TCDatabase;
-    Routine: TCRoutine;
-    RoutineType: TCRoutine.TRoutineType;
+    Database: TSDatabase;
+    Routine: TSRoutine;
+    RoutineType: TSRoutine.TRoutineType;
     function Execute(): Boolean;
   end;
 
@@ -216,7 +217,7 @@ begin
 
   FBOk.Enabled := (not Assigned(Routine) or Assigned(Routine) and (Routine.Source <> ''))
     and (not TSBasics.Visible or not Assigned(Routine) or (FName.Text <> '') and ((lstrcmpi(PChar(FName.Text), PChar(Routine.Name)) = 0) or ((Routine.RoutineType = rtProcedure) and not Assigned(Database.ProcedureByName(FName.Text)) or ((Routine.RoutineType = rtFunction) and not Assigned(Database.FunctionByName(FName.Text))))))
-    and (not TSSource.Visible or SQLSingleStmt(FSource.Text) and SQLParseDDLStmt(DDLStmt, PChar(FSource.Text), Length(FSource.Text), Database.Client.ServerVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction]) and ((DDLStmt.DatabaseName = '') or (Database.Client.DatabaseByName(DDLStmt.DatabaseName) = Database)));
+    and (not TSSource.Visible or SQLSingleStmt(FSource.Text) and SQLParseDDLStmt(DDLStmt, PChar(FSource.Text), Length(FSource.Text), Database.Session.ServerVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction]) and ((DDLStmt.DatabaseName = '') or (Database.Session.DatabaseByName(DDLStmt.DatabaseName) = Database)));
 
   TSInformations.TabVisible := False;
 end;
@@ -235,11 +236,11 @@ begin
   FBOkCheckEnabled(Sender);
 end;
 
-procedure TDRoutine.FormClientEvent(const Event: TCClient.TEvent);
+procedure TDRoutine.FormClientEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = ceItemValid) and (Event.CItem = Routine)) then
     Built()
-  else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.CItem is TCRoutine)) then
+  else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.CItem is TSRoutine)) then
     ModalResult := mrOk
   else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Client.ErrorCode <> 0)) then
   begin
@@ -250,13 +251,13 @@ end;
 
 procedure TDRoutine.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 var
-  NewRoutine: TCRoutine;
+  NewRoutine: TSRoutine;
 begin
   if ((ModalResult = mrOk) and PageControl.Visible) then
   begin
     if (Assigned(Routine) and (Trim(FSource.Text) = Trim(Routine.Source) + #13#10)) then
     begin
-      NewRoutine := TCRoutine.Create(Database.Routines);
+      NewRoutine := TSRoutine.Create(Database.Routines);
       if (Assigned(Routine)) then
         NewRoutine.Assign(Routine);
 
@@ -278,7 +279,7 @@ begin
       CanClose := Database.UpdateRoutine(Routine, Trim(FSource.Text));
 
 
-    PageControl.Visible := CanClose or not Database.Client.Asynchron;
+    PageControl.Visible := CanClose or not Database.Session.Asynchron;
     PSQLWait.Visible := not PageControl.Visible;
     if (PSQLWait.Visible) then
       ModalResult := mrNone;
@@ -305,7 +306,7 @@ end;
 
 procedure TDRoutine.FormHide(Sender: TObject);
 begin
-  Database.Client.UnRegisterEventProc(FormClientEvent);
+  Database.Session.UnRegisterEventProc(FormClientEvent);
 
   Preferences.Routine.Width := Width;
   Preferences.Routine.Height := Height;
@@ -316,7 +317,7 @@ var
   I: Integer;
   RoutineName: string;
 begin
-  Database.Client.RegisterEventProc(FormClientEvent);
+  Database.Session.RegisterEventProc(FormClientEvent);
 
   if (not Assigned(Routine)) then
   begin
@@ -353,7 +354,7 @@ begin
       end;
 
       FSource.Lines.Clear();
-      FSource.Lines.Add('CREATE PROCEDURE ' + Database.Client.EscapeIdentifier(RoutineName) + '(' + Database.Client.EscapeIdentifier('Param') + ' int(11))');
+      FSource.Lines.Add('CREATE PROCEDURE ' + Database.Session.EscapeIdentifier(RoutineName) + '(' + Database.Session.EscapeIdentifier('Param') + ' int(11))');
       FSource.Lines.Add('BEGIN');
       FSource.Lines.Add('END;');
     end
@@ -368,7 +369,7 @@ begin
       end;
 
       FSource.Lines.Clear();
-      FSource.Lines.Add('CREATE FUNCTION ' + Database.Client.EscapeIdentifier(RoutineName) + '(' + Database.Client.EscapeIdentifier('Param') + ' int(11)) RETURNS int(11)');
+      FSource.Lines.Add('CREATE FUNCTION ' + Database.Session.EscapeIdentifier(RoutineName) + '(' + Database.Session.EscapeIdentifier('Param') + ' int(11)) RETURNS int(11)');
       FSource.Lines.Add('BEGIN');
       FSource.Lines.Add('  RETURN Param;');
       FSource.Lines.Add('END;');

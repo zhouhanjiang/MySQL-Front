@@ -7,7 +7,8 @@ uses
   Dialogs, ComCtrls, ExtCtrls, StdCtrls, DB, DBGrids,
   ODBCAPI,
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext, Dialogs_Ext,
-  fClient, fPreferences, fBase, fTools;
+  fSession, fPreferences, fTools,
+  fBase;
 
 type
   TDExport = class (TForm_Ext)
@@ -226,10 +227,10 @@ type
     SQLWait: Boolean;
     Title: string;
     WantedNodeExpand: TTreeNode;
-    function BuildTitle(): TCDatabase;
+    function BuildTitle(): TSDatabase;
     procedure CheckActivePageChange(const ActivePageIndex: Integer);
     procedure ClearTSFields();
-    procedure FormClientEvent(const Event: TCClient.TEvent);
+    procedure FormClientEvent(const Event: TSSession.TEvent);
     function GetFilename(): Boolean;
     procedure InitTSFields();
     procedure InitTSJob();
@@ -244,7 +245,7 @@ type
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure CMUpdateProgressInfo(var Message: TMessage); message CM_UPDATEPROGRESSINFO;
   public
-    Client: TCClient;
+    Client: TSSession;
     CodePage: Cardinal;
     DBGrid: TDBGrid;
     DialogType: (edtNormal, edtCreateJob, edtEditJob, edtExecuteJob);
@@ -282,80 +283,93 @@ end;
 
 function DBObjectsSortItem(Item1, Item2: Pointer): Integer;
 var
-  Client: TCClient;
+  I: Integer;
   Index1: Integer;
   Index2: Integer;
+  Session: TSSession;
 begin
-  Client := TCDBObject(Item1).Database.Client;
-
-  if (Client.LowerCaseTableNames = 0) then
-    Result := lstrcmp(PChar(TCDBObject(Item1).Database.Name), PChar(TCDBObject(Item2).Database.Name))
+  if (Item1 = Item2) then
+    Result := 0
   else
-    Result := lstrcmpi(PChar(TCDBObject(Item1).Database.Name), PChar(TCDBObject(Item2).Database.Name));
-
-  if (Result = 0) then
   begin
-    if ((TCDBObject(Item1) is TCBaseTable) and Assigned(TCBaseTable(Item1).Engine) and not TCBaseTable(Item1).Engine.IsMerge) then
-      Index1 := 0
-    else if (TCDBObject(Item1) is TCBaseTable) then
-      Index1 := 1
-    else if (TCDBObject(Item1) is TCFunction) then
-      Index1 := 2
-    else if (TCDBObject(Item1) is TCView) then
-      Index1 := 3
-    else if (TCDBObject(Item1) is TCProcedure) then
-      Index1 := 4
-    else if (TCDBObject(Item1) is TCTrigger) then
-      Index1 := 5
-    else if (TCDBObject(Item1) is TCEvent) then
-      Index1 := 6
-    else
-      Index1 := 7;
-    if ((TCDBObject(Item2) is TCBaseTable) and Assigned(TCBaseTable(Item2).Engine) and not TCBaseTable(Item2).Engine.IsMerge) then
-      Index2 := 0
-    else if (TCDBObject(Item2) is TCBaseTable) then
-      Index2 := 1
-    else if (TCDBObject(Item2) is TCFunction) then
-      Index2 := 2
-    else if (TCDBObject(Item2) is TCView) then
-      Index2 := 3
-    else if (TCDBObject(Item2) is TCProcedure) then
-      Index2 := 4
-    else if (TCDBObject(Item2) is TCTrigger) then
-      Index2 := 5
-    else if (TCDBObject(Item2) is TCEvent) then
-      Index2 := 6
-    else
-      Index2 := 7;
-    Result := Sign(Index1 - Index2);
-  end;
+    Session := TSDBObject(Item1).Database.Session;
 
-  if (Result = 0) then
-    if ((TCDBObject(Item1) is TCTable) and (Client.LowerCaseTableNames = 0)) then
-      Result := lstrcmp(PChar(TCDBObject(Item1).Name), PChar(TCDBObject(Item2).Name))
-    else
-      Result := lstrcmpi(PChar(TCDBObject(Item1).Name), PChar(TCDBObject(Item2).Name));
+    Result := 0;
+    if (Assigned(TSDBObject(Item1).Dependencies)) then
+      for I := 0 to TSDBObject(Item1).Dependencies.Count - 1 do
+        if ((Session.Databases.NameCmp(TSDBObject(Item1).Database.Name, TSDBObject(Item1).Dependencies[I].DatabaseName) = 0)
+          and (TSDBObject(Item1).Dependencies[I].ObjectClass = TSFunction) and (Session.DatabaseByName(TSDBObject(Item1).Dependencies[I].DatabaseName).FunctionByName(TSDBObject(Item1).Dependencies[I].ObjectName) = TSDBObject(Item2))) then
+          Result := -1;
+    if ((Result = 0) and Assigned(TSDBObject(Item2).Dependencies)) then
+      for I := 0 to TSDBObject(Item2).Dependencies.Count - 1 do
+        if ((Session.Databases.NameCmp(TSDBObject(Item2).Database.Name, TSDBObject(Item2).Dependencies[I].DatabaseName) = 0)
+          and (TSDBObject(Item2).Dependencies[I].ObjectClass = TSFunction) and (Session.DatabaseByName(TSDBObject(Item2).Dependencies[I].DatabaseName).FunctionByName(TSDBObject(Item2).Dependencies[I].ObjectName) = TSDBObject(Item1))) then
+          Result := -1;
+
+    if (Result = 0) then
+      if (Session.LowerCaseTableNames = 0) then
+        Result := lstrcmp(PChar(TSDBObject(Item1).Database.Name), PChar(TSDBObject(Item2).Database.Name))
+      else
+        Result := lstrcmpi(PChar(TSDBObject(Item1).Database.Name), PChar(TSDBObject(Item2).Database.Name));
+
+    if (Result = 0) then
+    begin
+      if ((TSDBObject(Item1) is TSBaseTable) and Assigned(TSBaseTable(Item1).Engine) and not TSBaseTable(Item1).Engine.IsMerge) then
+        Index1 := 0
+      else if (TSDBObject(Item1) is TSBaseTable) then
+        Index1 := 1
+      else if (TSDBObject(Item1) is TSFunction) then
+        Index1 := 2
+      else if (TSDBObject(Item1) is TSView) then
+        Index1 := 3
+      else if (TSDBObject(Item1) is TSProcedure) then
+        Index1 := 4
+      else if (TSDBObject(Item1) is TSTrigger) then
+        Index1 := 5
+      else if (TSDBObject(Item1) is TSEvent) then
+        Index1 := 6
+      else
+        Index1 := 7;
+      if ((TSDBObject(Item2) is TSBaseTable) and Assigned(TSBaseTable(Item2).Engine) and not TSBaseTable(Item2).Engine.IsMerge) then
+        Index2 := 0
+      else if (TSDBObject(Item2) is TSBaseTable) then
+        Index2 := 1
+      else if (TSDBObject(Item2) is TSFunction) then
+        Index2 := 2
+      else if (TSDBObject(Item2) is TSView) then
+        Index2 := 3
+      else if (TSDBObject(Item2) is TSProcedure) then
+        Index2 := 4
+      else if (TSDBObject(Item2) is TSTrigger) then
+        Index2 := 5
+      else if (TSDBObject(Item2) is TSEvent) then
+        Index2 := 6
+      else
+        Index2 := 7;
+      Result := Sign(Index1 - Index2);
+    end;
+  end;
 end;
 
 { TDExport ********************************************************************}
 
-function TDExport.BuildTitle(): TCDatabase;
+function TDExport.BuildTitle(): TSDatabase;
 var
   I: Integer;
 begin
   Result := nil;
   for I := 0 to Objects.Count - 1 do
-    if (TObject(Objects[I]) is TCDatabase) then
+    if (TObject(Objects[I]) is TSDatabase) then
       if (not Assigned(Result) or (Objects[I] = Result)) then
-        Result := TCDatabase(Objects[I])
+        Result := TSDatabase(Objects[I])
       else
       begin
         Result := nil;
         break;
       end
-    else if (TObject(Objects[I]) is TCDBObject) then
-      if (not Assigned(Result) or (TCDBObject(Objects[I]).Database = Result)) then
-        Result := TCDBObject(Objects[I]).Database
+    else if (TObject(Objects[I]) is TSDBObject) then
+      if (not Assigned(Result) or (TSDBObject(Objects[I]).Database = Result)) then
+        Result := TSDBObject(Objects[I]).Database
       else
       begin
         Result := nil;
@@ -365,7 +379,7 @@ begin
   if (Assigned(DBGrid)) then
     Title := Preferences.LoadStr(362)
   else if (Objects.Count = 1) then
-    Title := TCObject(Objects[0]).Name
+    Title := TSObject(Objects[0]).Name
   else if (Assigned(Result)) then
     Title := Result.Name
   else
@@ -544,7 +558,7 @@ end;
 
 procedure TDExport.CMPostAfterExecuteSQL(var Message: TMessage);
 var
-  Database: TCDatabase;
+  Database: TSDatabase;
   I: Integer;
   J: Integer;
 begin
@@ -553,9 +567,9 @@ begin
   begin
     I := 0;
     while (I < Objects.Count) do
-      if (TObject(Objects[I]) is TCDatabase) then
+      if (TObject(Objects[I]) is TSDatabase) then
       begin
-        Database := TCDatabase(Objects[I]);
+        Database := TSDatabase(Objects[I]);
         if (not Database.Valid) then
           Inc(I)
         else
@@ -944,7 +958,7 @@ begin
   FBForward.Click();
 end;
 
-procedure TDExport.FormClientEvent(const Event: TCClient.TEvent);
+procedure TDExport.FormClientEvent(const Event: TSSession.TEvent);
 begin
   if (Event.EventType = ceAfterExecuteSQL) then
     PostMessage(Handle, CM_POST_AFTEREXECUTESQL, 0, 0);
@@ -1055,25 +1069,25 @@ begin
           SetLength(TAJobExport(Export).Objects, Length(TAJobExport(Export).Objects) + 1);
           if (not Assigned(FSelect.Items[I].Parent)) then
             TAJobExport(Export).Objects[Length(TAJobExport(Export).Objects) - 1].ObjectType := jotServer
-          else if (TObject(FSelect.Items[I].Data) is TCDatabase) then
+          else if (TObject(FSelect.Items[I].Data) is TSDatabase) then
           begin
             TAJobExport(Export).Objects[Length(TAJobExport(Export).Objects) - 1].ObjectType := jotDatabase;
-            TAJobExport(Export).Objects[Length(TAJobExport(Export).Objects) - 1].Name := TCDatabase(FSelect.Items[I].Data).Name;
+            TAJobExport(Export).Objects[Length(TAJobExport(Export).Objects) - 1].Name := TSDatabase(FSelect.Items[I].Data).Name;
           end
-          else if (TObject(FSelect.Items[I].Data) is TCDBObject) then
+          else if (TObject(FSelect.Items[I].Data) is TSDBObject) then
           begin
-            if (TObject(FSelect.Items[I].Data) is TCTable) then
+            if (TObject(FSelect.Items[I].Data) is TSTable) then
               TAJobExport(Export).Objects[Length(TAJobExport(Export).Objects) - 1].ObjectType := jotTable
-            else if (TObject(FSelect.Items[I].Data) is TCProcedure) then
+            else if (TObject(FSelect.Items[I].Data) is TSProcedure) then
               TAJobExport(Export).Objects[Length(TAJobExport(Export).Objects) - 1].ObjectType := jotProcedure
-            else if (TObject(FSelect.Items[I].Data) is TCFunction) then
+            else if (TObject(FSelect.Items[I].Data) is TSFunction) then
               TAJobExport(Export).Objects[Length(TAJobExport(Export).Objects) - 1].ObjectType := jotFunction
-            else if (TObject(FSelect.Items[I].Data) is TCTrigger) then
+            else if (TObject(FSelect.Items[I].Data) is TSTrigger) then
               TAJobExport(Export).Objects[Length(TAJobExport(Export).Objects) - 1].ObjectType := jotTrigger
-            else if (TObject(FSelect.Items[I].Data) is TCEvent) then
+            else if (TObject(FSelect.Items[I].Data) is TSEvent) then
               TAJobExport(Export).Objects[Length(TAJobExport(Export).Objects) - 1].ObjectType := jotEvent;
-            TAJobExport(Export).Objects[Length(TAJobExport(Export).Objects) - 1].Name := TCDBObject(FSelect.Items[I].Data).Name;
-            TAJobExport(Export).Objects[Length(TAJobExport(Export).Objects) - 1].DatabaseName := TCDBObject(FSelect.Items[I].Data).Database.Name;
+            TAJobExport(Export).Objects[Length(TAJobExport(Export).Objects) - 1].Name := TSDBObject(FSelect.Items[I].Data).Name;
+            TAJobExport(Export).Objects[Length(TAJobExport(Export).Objects) - 1].DatabaseName := TSDBObject(FSelect.Items[I].Data).Database.Name;
           end;
         end;
       TAJobExport(Export).CodePage := CodePage;
@@ -1291,10 +1305,10 @@ end;
 procedure TDExport.FSelectExpanding(Sender: TObject; Node: TTreeNode;
   var AllowExpansion: Boolean);
 var
-  Database: TCDatabase;
+  Database: TSDatabase;
   I: Integer;
   NewNode: TTreeNode;
-  Table: TCBaseTable;
+  Table: TSBaseTable;
   TreeView: TTreeView_Ext;
 begin
   TreeView := TTreeView_Ext(Sender);
@@ -1313,7 +1327,7 @@ begin
             else
             begin
               for I := 0 to Client.Databases.Count - 1 do
-                if ((Client.Databases.NameCmp(Client.Databases[I].Name, 'mysql') <> 0) and not (Client.Databases[I] is TCSystemDatabase)) then
+                if ((Client.Databases.NameCmp(Client.Databases[I].Name, 'mysql') <> 0) and not (Client.Databases[I] is TSSystemDatabase)) then
                 begin
                   NewNode := TreeView.Items.AddChild(Node, Client.Databases[I].Name);
                   NewNode.ImageIndex := iiDatabase;
@@ -1333,18 +1347,18 @@ begin
               for I := 0 to Database.Tables.Count - 1 do
               begin
                 NewNode := TreeView.Items.AddChild(Node, Database.Tables[I].Name);
-                if (Database.Tables[I] is TCBaseTable) then
+                if (Database.Tables[I] is TSBaseTable) then
                   NewNode.ImageIndex := iiBaseTable
                 else
                   NewNode.ImageIndex := iiView;
                 NewNode.Data := Database.Tables[I];
-                NewNode.HasChildren := Database.Tables[I] is TCBaseTable;
+                NewNode.HasChildren := Database.Tables[I] is TSBaseTable;
               end;
               if (Assigned(Database.Routines)) then
                 for I := 0 to Database.Routines.Count - 1 do
                 begin
                   NewNode := TreeView.Items.AddChild(Node, Database.Routines[I].Name);
-                  if (Database.Routines[I] is TCProcedure) then
+                  if (Database.Routines[I] is TSProcedure) then
                     NewNode.ImageIndex := iiProcedure
                   else
                     NewNode.ImageIndex := iiFunction;
@@ -1444,14 +1458,14 @@ end;
 
 function TDExport.GetFilename(): Boolean;
 var
-  Database: TCDatabase;
+  Database: TSDatabase;
 begin
   Database := BuildTitle();
 
   if (Assigned(Client) and (Client.Charset <> '')) then
     CodePage := Client.CharsetToCodePage(Client.Charset)
-  else if ((DExport.Objects.Count = 1) and (TObject(DExport.Objects[0]) is TCBaseTable)) then
-    CodePage := Client.CharsetToCodePage(TCBaseTable(DExport.Objects[0]).DefaultCharset)
+  else if ((DExport.Objects.Count = 1) and (TObject(DExport.Objects[0]) is TSBaseTable)) then
+    CodePage := Client.CharsetToCodePage(TSBaseTable(DExport.Objects[0]).DefaultCharset)
   else if (Assigned(Database)) then
     CodePage := Client.CharsetToCodePage(Database.DefaultCharset)
   else
@@ -1551,8 +1565,8 @@ var
 begin
   ClearTSFields();
 
-  if ((Objects.Count > 0) and (TCDBObject(Objects[0]) is TCTable)) then
-    SetLength(FFields, TCTable(Objects[0]).Fields.Count)
+  if ((Objects.Count > 0) and (TSDBObject(Objects[0]) is TSTable)) then
+    SetLength(FFields, TSTable(Objects[0]).Fields.Count)
   else if (Assigned(DBGrid)) then
     SetLength(FFields, DBGrid.FieldCount);
 
@@ -1579,9 +1593,9 @@ begin
     FFields[I].Height := FField1.Height;
     FFields[I].Style := FField1.Style;
     FFields[I].Items.Add('');
-    if ((Objects.Count > 0) and (TCDBObject(Objects[0]) is TCTable)) then
-      for J := 0 to TCTable(Objects[0]).Fields.Count - 1 do
-        FFields[I].Items.Add(TCTable(Objects[0]).Fields[J].Name)
+    if ((Objects.Count > 0) and (TSDBObject(Objects[0]) is TSTable)) then
+      for J := 0 to TSTable(Objects[0]).Fields.Count - 1 do
+        FFields[I].Items.Add(TSTable(Objects[0]).Fields[J].Name)
     else if (Assigned(DBGrid)) then
       for J := 0 to DBGrid.FieldCount - 1 do
         FFields[I].Items.Add(DBGrid.Fields[J].DisplayName);
@@ -1650,7 +1664,7 @@ begin
   FPDFFile.Enabled := True;
 
   for I := 0 to Objects.Count - 1 do
-    if (TObject(Objects[I]) is TCTable) then
+    if (TObject(Objects[I]) is TSTable) then
     begin
       FTextFile.Enabled := True;
       FExcelFile.Enabled := True;
@@ -1664,7 +1678,7 @@ end;
 
 function TDExport.InitTSSelect(): Boolean;
 var
-  Database: TCDatabase;
+  Database: TSDatabase;
   I: Integer;
   J: Integer;
   K: Integer;
@@ -1706,10 +1720,10 @@ begin
                   for K := 0 to FSelect.Items[0].Item[J].Count - 1 do
                     if (Job.Objects[I].ObjectType in [jotTable, jotProcedure, jotFunction, jotEvent]) then
                     begin
-                      if ((Job.Objects[I].ObjectType = jotTable) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) is TCTable) and (Database.Tables.NameCmp(TCTable(FSelect.Items[0].Item[J].Item[K].Data).Name, Job.Objects[I].Name) = 0)
-                        or (Job.Objects[I].ObjectType = jotProcedure) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) is TCProcedure) and (Database.Routines.NameCmp(TCProcedure(FSelect.Items[0].Item[J].Item[K].Data).Name, Job.Objects[I].Name) = 0)
-                        or (Job.Objects[I].ObjectType = jotFunction) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) is TCFunction) and (Database.Routines.NameCmp(TCFunction(FSelect.Items[0].Item[J].Item[K].Data).Name, Job.Objects[I].Name) = 0)
-                        or (Job.Objects[I].ObjectType = jotEvent) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) is TCEvent) and (Database.Events.NameCmp(TCEvent(FSelect.Items[0].Item[J].Item[K].Data).Name, Job.Objects[I].Name) = 0)) then
+                      if ((Job.Objects[I].ObjectType = jotTable) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) is TSTable) and (Database.Tables.NameCmp(TSTable(FSelect.Items[0].Item[J].Item[K].Data).Name, Job.Objects[I].Name) = 0)
+                        or (Job.Objects[I].ObjectType = jotProcedure) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) is TSProcedure) and (Database.Routines.NameCmp(TSProcedure(FSelect.Items[0].Item[J].Item[K].Data).Name, Job.Objects[I].Name) = 0)
+                        or (Job.Objects[I].ObjectType = jotFunction) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) is TSFunction) and (Database.Routines.NameCmp(TSFunction(FSelect.Items[0].Item[J].Item[K].Data).Name, Job.Objects[I].Name) = 0)
+                        or (Job.Objects[I].ObjectType = jotEvent) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) is TSEvent) and (Database.Events.NameCmp(TSEvent(FSelect.Items[0].Item[J].Item[K].Data).Name, Job.Objects[I].Name) = 0)) then
                         Nodes.Add(FSelect.Items[0].Item[J].Item[K]);
                     end
                     else if (Job.Objects[I].ObjectType = jotTrigger) then
@@ -1718,7 +1732,7 @@ begin
                       begin
                         FSelect.Items[0].Item[J].Item[K].Expand(False);
                         for L := 0 to FSelect.Items[0].Item[J].Item[K].Count - 1 do
-                          if ((TObject(FSelect.Items[0].Item[J].Item[K].Data) is TCTrigger) and (Database.Triggers.NameCmp(TCTrigger(FSelect.Items[0].Item[J].Item[K].Item[L].Data).Name, Job.Objects[I].Name) = 0)) then
+                          if ((TObject(FSelect.Items[0].Item[J].Item[K].Data) is TSTrigger) and (Database.Triggers.NameCmp(TSTrigger(FSelect.Items[0].Item[J].Item[K].Item[L].Data).Name, Job.Objects[I].Name) = 0)) then
                             Nodes.Add(FSelect.Items[0].Item[J].Item[K].Item[L]);
                       end;
                     end;
@@ -2055,14 +2069,14 @@ begin
     begin
       Objects.Sort(DBObjectsSortItem);
       for I := 0 to Objects.Count - 1 do
-        Export.Add(TCDBObject(Objects[I]));
+        Export.Add(TSDBObject(Objects[I]));
 
-      if ((Objects.Count = 1) and (TCDBObject(Objects[0]) is TCTable)) then
+      if ((Objects.Count = 1) and (TSDBObject(Objects[0]) is TSTable)) then
         for I := 0 to Length(FFields) - 1 do
           if (FFields[I].ItemIndex > 0) then
           begin
             SetLength(Export.TableFields, Length(Export.TableFields) + 1);
-            Export.TableFields[Length(Export.TableFields) - 1] := TCTable(Objects[0]).Fields[FFields[I].ItemIndex - 1];
+            Export.TableFields[Length(Export.TableFields) - 1] := TSTable(Objects[0]).Fields[FFields[I].ItemIndex - 1];
             SetLength(Export.DestinationFields, Length(Export.DestinationFields) + 1);
             Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := FDestFields[I].Text;
           end;
@@ -2206,15 +2220,15 @@ procedure TDExport.TSXMLOptionsShow(Sender: TObject);
 var
   DatabaseCount: Integer;
   I: Integer;
-  OldDatabase: TCDatabase;
+  OldDatabase: TSDatabase;
 begin
   DatabaseCount := 0;
   OldDatabase := nil;
   for I := 0 to Objects.Count - 1 do
   begin
-    if (TCDBObject(Objects[I]).Database <> OldDatabase) then
+    if (TSDBObject(Objects[I]).Database <> OldDatabase) then
       Inc(DatabaseCount);
-    OldDatabase := TCDBObject(Objects[I]).Database;
+    OldDatabase := TSDBObject(Objects[I]).Database;
   end;
 
   FDatabaseTagDisabled.Enabled := DatabaseCount <= 1;

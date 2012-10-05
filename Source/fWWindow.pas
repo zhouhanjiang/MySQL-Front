@@ -12,7 +12,8 @@ uses
   SynEditHighlighter, SynHighlighterSQL,
   ExtCtrls_Ext, Forms_Ext, StdCtrls_Ext, ComCtrls_Ext, Dialogs_Ext, StdActns_Ext,
   MySQLDB,
-  fClient, fPreferences, fFClient, fBase;
+  fSession, fPreferences,
+  fFClient, fBase;
 
 const
   cWindowClassName = 'MySQL-Front.Application';
@@ -863,7 +864,7 @@ begin
     DAccounts.Account := Accounts.AccountByURI(PChar(Message.LParam));
     if (Assigned(DAccounts.Account)) then
     begin
-      DAccounts.Client := TCClient.Create(Clients, DAccounts.Account);
+      DAccounts.Client := TSSession.Create(Clients, DAccounts.Account);
       DConnecting.Client := DAccounts.Client;
       if (not DConnecting.Execute()) then
         FreeAndNil(DConnecting.Client);
@@ -1191,7 +1192,7 @@ end;
 
 procedure TWWindow.CMCloseTab(var Message: TMessage);
 var
-  Client: TCClient;
+  Client: TSSession;
   NewTabIndex: Integer;
 begin
   Perform(CM_DEACTIVATETAB, 0, 0);
@@ -2009,9 +2010,9 @@ begin
     DisableApplicationActivate := False;
   end;
 
-  if ((ErrorCode = CR_SERVER_GONE_ERROR) and (Connection is TCClient)) then
+  if ((ErrorCode = CR_SERVER_GONE_ERROR) and (Connection is TSSession)) then
   begin
-    Tab := TFClient(TCClient(Connection).Account.Frame);
+    Tab := TFClient(TSSession(Connection).Account.Frame);
     if (Boolean(SendMessage(Tab.Handle, CM_CLOSE_TAB_QUERY, 0, 0))) then
       Perform(CM_CLOSE_TAB, 0, LPARAM(Tab));
   end;

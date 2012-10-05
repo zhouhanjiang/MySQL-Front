@@ -4,10 +4,11 @@ interface {********************************************************************}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ComCtrls, ActnList, Menus,
+  Dialogs, StdCtrls, ComCtrls, ActnList, Menus, ExtCtrls,
   SynEdit, SynMemo,
-  Forms_Ext,
-  fBase, fClient, StdCtrls_Ext, Vcl.ExtCtrls;
+  Forms_Ext, StdCtrls_Ext,
+  fSession,
+  fBase;
 
 type
   TDView = class(TForm_Ext)
@@ -75,11 +76,11 @@ type
     RecordCount: Integer;
     procedure Built();
     procedure FBOkCheckEnabled(Sender: TObject);
-    procedure FormClientEvent(const Event: TCClient.TEvent);
+    procedure FormClientEvent(const Event: TSSession.TEvent);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
-    Database: TCDatabase;
-    View: TCView;
+    Database: TSDatabase;
+    View: TSView;
     function Execute(): Boolean;
   end;
 
@@ -113,7 +114,7 @@ procedure TDView.Built();
 var
   I: Integer;
   Item: TListItem;
-  ViewField: TCViewField;
+  ViewField: TSViewField;
 begin
   FName.Text := View.Name;
 
@@ -140,7 +141,7 @@ begin
   FFields.Items.BeginUpdate();
   for I := 0 to View.Fields.Count - 1 do
   begin
-    ViewField := TCViewField(View.Fields[I]);
+    ViewField := TSViewField(View.Fields[I]);
     Item := FFields.Items.Add();
     Item.Caption := ViewField.Name;
     if (ViewField.FieldType <> mfUnknown) then
@@ -281,9 +282,9 @@ var
 begin
   FBOk.Enabled := PageControl.Visible
     and (FName.Text <> '')
-    and SQLSingleStmt(FStmt.Text) and SQLCreateParse(Parse, PChar(FStmt.Text), Length(FStmt.Text), Database.Client.ServerVersion) and SQLParseKeyword(Parse, 'SELECT');
+    and SQLSingleStmt(FStmt.Text) and SQLCreateParse(Parse, PChar(FStmt.Text), Length(FStmt.Text), Database.Session.ServerVersion) and SQLParseKeyword(Parse, 'SELECT');
   for I := 0 to Database.Tables.Count - 1 do
-    if (Database.Client.TableNameCmp(FName.Text, Database.Tables[I].Name) = 0) and not (not Assigned(View) or (Database.Client.TableNameCmp(FName.Text, View.Name) = 0)) then
+    if (Database.Session.TableNameCmp(FName.Text, Database.Tables[I].Name) = 0) and not (not Assigned(View) or (Database.Session.TableNameCmp(FName.Text, View.Name) = 0)) then
       FBOk.Enabled := False;
 end;
 
@@ -347,11 +348,11 @@ end;
 
 procedure TDView.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 var
-  NewView: TCView;
+  NewView: TSView;
 begin
   if ((ModalResult = mrOk) and PageControl.Visible) then
   begin
-    NewView := TCView.Create(Database.Tables);
+    NewView := TSView.Create(Database.Tables);
     if (Assigned(View)) then
       NewView.Assign(View);
 
@@ -382,7 +383,7 @@ begin
 
     NewView.Free();
 
-    PageControl.Visible := CanClose or not Database.Client.Asynchron;
+    PageControl.Visible := CanClose or not Database.Session.Asynchron;
     PSQLWait.Visible := not PageControl.Visible;
     if (PSQLWait.Visible) then
       ModalResult := mrNone;
@@ -391,11 +392,11 @@ begin
   end;
 end;
 
-procedure TDView.FormClientEvent(const Event: TCClient.TEvent);
+procedure TDView.FormClientEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = ceItemValid) and (Event.CItem = View)) then
     Built()
-  else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.CItem is TCView)) then
+  else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.CItem is TSView)) then
     ModalResult := mrOk
   else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Client.ErrorCode <> 0)) then
   begin
@@ -434,7 +435,7 @@ end;
 
 procedure TDView.FormHide(Sender: TObject);
 begin
-  Database.Client.UnRegisterEventProc(FormClientEvent);
+  Database.Session.UnRegisterEventProc(FormClientEvent);
 
   Preferences.View.Width := Width;
   Preferences.View.Height := Height;
@@ -453,7 +454,7 @@ procedure TDView.FormShow(Sender: TObject);
 var
   TableName: string;
 begin
-  Database.Client.RegisterEventProc(FormClientEvent);
+  Database.Session.RegisterEventProc(FormClientEvent);
 
   if (not Assigned(View)) then
   begin
@@ -466,7 +467,7 @@ begin
     HelpContext := 1098;
   end;
 
-  if (not Assigned(View) and (Database.Client.LowerCaseTableNames = 1)) then
+  if (not Assigned(View) and (Database.Session.LowerCaseTableNames = 1)) then
     FName.CharCase := ecLowerCase
   else
     FName.CharCase := ecNormal;

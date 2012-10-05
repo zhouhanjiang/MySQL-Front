@@ -5,7 +5,7 @@ interface
 uses
   SysUtils, Classes, Controls, Types, Graphics, Messages, Forms,
   Windows, XMLDoc, XMLIntf, Variants,
-  fClient;
+  fSession;
 
 const
   CM_ENDLASSO = WM_USER + 400;
@@ -158,7 +158,7 @@ type
     function GetLinkPointCount(): Integer;
     procedure SetFocused(AFocused: Boolean);
   protected
-    FBaseTable: TCBaseTable;
+    FBaseTable: TSBaseTable;
     procedure ApplyPosition(); override;
     function CanAutoSize(var NewWidth, NewHeight: Integer): Boolean; override;
     procedure LoadFromXML(const XML: IXMLNode); override;
@@ -172,10 +172,10 @@ type
     property LinkPoint[Index: Integer]: TWLinkPoint read GetLinkPoint;
     property LinkPointCount: Integer read GetLinkPointCount;
   public
-    constructor Create(const ATables: TWTables; const APosition: TCoord; const ABaseTable: TCBaseTable = nil); reintroduce; virtual;
+    constructor Create(const ATables: TWTables; const APosition: TCoord; const ABaseTable: TSBaseTable = nil); reintroduce; virtual;
     destructor Destroy(); override;
     procedure Invalidate(); override;
-    property BaseTable: TCBaseTable read FBaseTable;
+    property BaseTable: TSBaseTable read FBaseTable;
     property Caption: TCaption read GetCaption;
     property Data: TCustomData read FData write FData;
     property Focused: Boolean read FFocused write SetFocused;
@@ -252,13 +252,13 @@ type
 
   TWForeignKey = class(TWLink)
   private
-    FBaseForeignKey: TCForeignKey;
+    FBaseForeignKey: TSForeignKey;
   protected
     function GetCaption(): TCaption; override;
     procedure SetCaption(const ACaption: TCaption); override;
   public
     constructor Create(const AWorkbench: TWWorkbench; const APosition: TCoord; const PreviousPoint: TWPoint = nil); override;
-    property BaseForeignKey: TCForeignKey read FBaseForeignKey write FBaseForeignKey;
+    property BaseForeignKey: TSForeignKey read FBaseForeignKey write FBaseForeignKey;
   end;
 
   TWLinks = class(TWControls)
@@ -322,7 +322,7 @@ type
   private
     CreatedLink: TWLink;
     CreatedTable: TWTable;
-    FDatabase: TCDatabase;
+    FDatabase: TSDatabase;
     FHideSelection: Boolean;
     FLinks: TWLinks;
     FMultiSelect: Boolean;
@@ -358,17 +358,17 @@ type
     procedure ReleaseControl(const Control: TWControl); virtual;
     procedure UpdateControl(const Control: TWControl); virtual;
   public
-    procedure AddExistingTable(const X, Y: Integer; const ABaseTable: TCBaseTable); virtual;
+    procedure AddExistingTable(const X, Y: Integer; const ABaseTable: TSBaseTable); virtual;
     constructor Create(AOwner: TComponent); overload; override;
-    constructor Create(const AOwner: TComponent; const ADatabase: TCDatabase); reintroduce; overload; virtual;
+    constructor Create(const AOwner: TComponent; const ADatabase: TSDatabase); reintroduce; overload; virtual;
     destructor Destroy(); override;
     procedure BeginUpdate(); virtual;
     procedure CalcRange(const Reset: Boolean); virtual;
     procedure Clear(); virtual;
-    procedure ClientUpdate(const Event: TCClient.TEvent);
+    procedure ClientUpdate(const Event: TSSession.TEvent);
     procedure EndUpdate(); virtual;
     function ExecuteAction(Action: TBasicAction): Boolean; override;
-    function ForeignKeyByBaseForeignKey(const BaseForeignKey: TCForeignKey): TWForeignKey; virtual;
+    function ForeignKeyByBaseForeignKey(const BaseForeignKey: TSForeignKey): TWForeignKey; virtual;
     procedure CreateNewForeignKey(const X, Y: Integer); virtual;
     procedure CreateNewLink(const X, Y: Integer); virtual;
     procedure CreateNewSection(const X, Y: Integer); virtual;
@@ -380,10 +380,10 @@ type
     procedure SaveToBMP(const FileName: string); virtual;
     procedure SaveToFile(const FileName: string); virtual;
     function TableAt(const Position: TCoord): TWTable;
-    function TableByBaseTable(const ATable: TCBaseTable): TWTable; virtual;
+    function TableByBaseTable(const ATable: TSBaseTable): TWTable; virtual;
     function TableByCaption(const Caption: string): TWTable; virtual;
     function UpdateAction(Action: TBasicAction): Boolean; override;
-    property Database: TCDatabase read FDatabase;
+    property Database: TSDatabase read FDatabase;
     property HideSelection: Boolean read FHideSelection write FHideSelection default False;
     property Links: TWLinks read FLinks;
     property Modified: Boolean read FModified;
@@ -1767,7 +1767,7 @@ begin
   end;
 end;
 
-constructor TWTable.Create(const ATables: TWTables; const APosition: TCoord; const ABaseTable: TCBaseTable = nil);
+constructor TWTable.Create(const ATables: TWTables; const APosition: TCoord; const ABaseTable: TSBaseTable = nil);
 begin
   inherited Create(ATables.Workbench, APosition);
 
@@ -3250,7 +3250,7 @@ end;
 
 { TWWorkbench *****************************************************************}
 
-procedure TWWorkbench.AddExistingTable(const X, Y: Integer; const ABaseTable: TCBaseTable);
+procedure TWWorkbench.AddExistingTable(const X, Y: Integer; const ABaseTable: TSBaseTable);
 var
   Table: TWTable;
 begin
@@ -3309,9 +3309,9 @@ begin
   EndUpdate();
 end;
 
-procedure TWWorkbench.ClientUpdate(const Event: TCClient.TEvent);
+procedure TWWorkbench.ClientUpdate(const Event: TSSession.TEvent);
 var
-  BaseTable: TCBaseTable;
+  BaseTable: TSBaseTable;
   ChildTable: TWTable;
   I: Integer;
   J: Integer;
@@ -3321,15 +3321,15 @@ var
   S: string;
   Table: TWTable;
 begin
-  if ((Event.EventType = ceItemsValid) and (Event.Sender = Database) and (Event.CItems is TCTables)) then
+  if ((Event.EventType = ceItemsValid) and (Event.Sender = Database) and (Event.CItems is TSTables)) then
   begin
     for I := Tables.Count - 1 downto 0 do
       if (Database.Tables.IndexOf(Tables[I].BaseTable) < 0) then
         Tables.Delete(I);
   end
-  else if ((Event.EventType = ceItemValid) and (Event.Sender = Database) and (Event.CItem is TCBaseTable)) then
+  else if ((Event.EventType = ceItemValid) and (Event.Sender = Database) and (Event.CItem is TSBaseTable)) then
   begin
-    BaseTable := TCBaseTable(Event.CItem);
+    BaseTable := TSBaseTable(Event.CItem);
 
     for I := Links.Count - 1 downto 0 do
       if ((Links[I].ChildTable.BaseTable = BaseTable)
@@ -3338,7 +3338,7 @@ begin
 
     if (Assigned(CreatedTable)) then
     begin
-      CreatedTable.FBaseTable := TCBaseTable(Event.CItem);
+      CreatedTable.FBaseTable := TSBaseTable(Event.CItem);
       Tables.Add(CreatedTable);
       Selected := CreatedTable;
 
@@ -3439,7 +3439,7 @@ begin
           Links.Add(Link);
         end;
   end
-  else if ((Event.EventType = ceItemDropped) and (Event.Sender = Database) and (Event.CItem is TCBaseTable)) then
+  else if ((Event.EventType = ceItemDropped) and (Event.Sender = Database) and (Event.CItem is TSBaseTable)) then
   begin
     for I := Tables.Count - 1 downto 0 do
       if (Tables[I].BaseTable = Event.CItem) then
@@ -3482,7 +3482,7 @@ begin
   CalcRange(False);
 end;
 
-constructor TWWorkbench.Create(const AOwner: TComponent; const ADatabase: TCDatabase);
+constructor TWWorkbench.Create(const AOwner: TComponent; const ADatabase: TSDatabase);
 begin
   Create(AOwner);
 
@@ -3603,7 +3603,7 @@ begin
     Result := inherited ExecuteAction(Action);
 end;
 
-function TWWorkbench.ForeignKeyByBaseForeignKey(const BaseForeignKey: TCForeignKey): TWForeignKey;
+function TWWorkbench.ForeignKeyByBaseForeignKey(const BaseForeignKey: TSForeignKey): TWForeignKey;
 var
   I: Integer;
 begin
@@ -3656,7 +3656,7 @@ end;
 
 procedure TWWorkbench.LoadFromFile(const FileName: string);
 var
-  BaseTable: TCBaseTable;
+  BaseTable: TSBaseTable;
   I: Integer;
   List: TList;
 begin
@@ -3678,7 +3678,7 @@ begin
         else
           List.Add(BaseTable);
     end;
-  Database.Client.Update(List);
+  Database.Session.Update(List);
   List.Free();
 
   FModified := False;
@@ -3898,7 +3898,7 @@ begin
       Result := TWTable(Controls[I]);
 end;
 
-function TWWorkbench.TableByBaseTable(const ATable: TCBaseTable): TWTable;
+function TWWorkbench.TableByBaseTable(const ATable: TSBaseTable): TWTable;
 var
   I: Integer;
 begin
