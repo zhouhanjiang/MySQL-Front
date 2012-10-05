@@ -607,8 +607,6 @@ object FClient: TFClient
         Top = 0
         Width = 467
         Height = 96
-        SyntaxProvider = SyntaxProvider
-        MetadataProvider = MetadataProvider
         MetadataFilter = <>
         BorderStyle = qbbsFlat
         SplitterHeight = 4
@@ -2184,10 +2182,6 @@ object FClient: TFClient
       OnClick = miHPropertiesClick
     end
   end
-  object SyntaxProvider: TacMYSQLSyntaxProvider
-    Left = 176
-    Top = 120
-  end
   object SQLBuilder: TacSQLBuilderPlainText
     OnSQLUpdated = FBuilderSQLUpdated
     QueryBuilder = FBuilder
@@ -2198,11 +2192,6 @@ object FClient: TFClient
     ExpressionsSubQueryFormat.MainPartsFromNewLine = False
     ExpressionsSubQueryFormat.FromClauseFormat.NewLineAfterDatasource = False
     Left = 240
-    Top = 120
-  end
-  object MetadataProvider: TacEventMetadataProvider
-    OnGetSQLFieldNames = MetadataProviderGetSQLFieldNames
-    Left = 208
     Top = 120
   end
   object PObjectIDEGridDataSource: TDataSource

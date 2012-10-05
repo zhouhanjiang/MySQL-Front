@@ -403,14 +403,12 @@ type
 
   TTExportSQL = class(TTExportFile)
   private
-    ForeignKeySources: string;
     SQLInsertPacketLen: Integer;
     SQLInsertPostfix: string;
     SQLInsertPostfixPacketLen: Integer;
     SQLInsertPrefix: string;
     SQLInsertPrefixPacketLen: Integer;
   protected
-    procedure ExecuteDatabaseFooter(const Database: TSDatabase); override;
     procedure ExecuteDatabaseHeader(const Database: TSDatabase); override;
     procedure ExecuteEvent(const Event: TSEvent); override;
     procedure ExecuteFooter(); override;
@@ -4237,15 +4235,8 @@ begin
 
   CreateDatabaseStmts := False;
   DisableKeys := False;
-  ForeignKeySources := '';
   IncludeDropStmts := False;
   UseDatabaseStmts := True;
-end;
-
-procedure TTExportSQL.ExecuteDatabaseFooter(const Database: TSDatabase);
-begin
-  if (ForeignKeySources <> '') then
-    WriteContent(ForeignKeySources + #13#10);
 end;
 
 procedure TTExportSQL.ExecuteDatabaseHeader(const Database: TSDatabase);
@@ -4406,7 +4397,6 @@ end;
 procedure TTExportSQL.ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
   Content: string;
-  ForeignKeySource: string;
   I: Integer;
 begin
   Content := '';
@@ -4429,22 +4419,7 @@ begin
     end;
     Content := Content + '' + #13#10;
 
-    if (Table is TSBaseTable) then
-    begin
-      Content := Content + Table.GetSourceEx(IncludeDropStmts, False, @ForeignKeySource) + #13#10;
-
-      if (ForeignKeySource <> '') then
-      begin
-        ForeignKeySources := ForeignKeySources + #13#10;
-        ForeignKeySources := ForeignKeySources + '#' + #13#10;
-        ForeignKeySources := ForeignKeySources + '#  Foreign keys for table ' + Table.Name + #13#10;
-        ForeignKeySources := ForeignKeySources + '#' + #13#10;
-        ForeignKeySources := ForeignKeySources + #13#10;
-        ForeignKeySources := ForeignKeySources + ForeignKeySource + #13#10;
-      end;
-    end
-    else if (Table is TSView) then
-      Content := Content + Table.GetSourceEx(IncludeDropStmts, False) + #13#10;
+    Content := Content + Table.GetSourceEx(IncludeDropStmts, False) + #13#10;
   end;
 
   if (Assigned(Table) and Data) then

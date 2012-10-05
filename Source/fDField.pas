@@ -564,7 +564,7 @@ procedure TDField.FormClientEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = ceItemAltered) and (Event.CItem = Table)) then
     ModalResult := mrOk
-  else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Client.ErrorCode <> 0)) then
+  else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
   begin
     GBasics.Visible := True;
     GAttributes.Visible := GBasics.Visible;

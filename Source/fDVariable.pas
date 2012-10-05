@@ -95,7 +95,7 @@ procedure TDVariable.FormClientEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType in [ceItemAltered]) and (Event.CItem is TSVariable)) then
     ModalResult := mrOk
-  else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Client.ErrorCode <> 0)) then
+  else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
   begin
     GroupBox.Visible := True;
     PSQLWait.Visible := not GroupBox.Visible;

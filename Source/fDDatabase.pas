@@ -229,7 +229,7 @@ begin
     Built()
   else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.CItem is TSDatabase)) then
     ModalResult := mrOk
-  else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Client.ErrorCode <> 0)) then
+  else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
   begin
     PageControl.Visible := True;
     PSQLWait.Visible := not PageControl.Visible;

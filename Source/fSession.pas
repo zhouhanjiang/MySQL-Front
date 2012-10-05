@@ -3,10 +3,10 @@ unit fSession;
 interface {********************************************************************}
 
 uses
-  SysUtils, Classes, Windows,
+  SysUtils, Classes, Windows, Contnrs,
   Graphics,
   DB,
-Contnrs, acAST, acQBBase, acMYSQLSynProvider,
+  acAST, acQBBase, acMYSQLSynProvider, acQBEventMetaProvider,
   SQLUtils, MySQLDB,
   fPreferences;
 
@@ -77,7 +77,7 @@ type
   TSCollation = class;
   TSCollations = class;
   TSSession = class;
-  TSClients = class;
+  TSSessions = class;
 
   TSSecurity = (seDefiner, seInvoker);
 
@@ -101,18 +101,18 @@ type
 
   TSItems = class(TList)
   private
-    FClient: TSSession;
+    FSession: TSSession;
     function GetItem(Index: Integer): TSItem; inline;
   protected
     function GetCount(): Integer; virtual;
     function InsertIndex(const Name: string; out Index: Integer): Boolean; virtual;
   public
     procedure Clear(); override;
-    constructor Create(const AClient: TSSession);
+    constructor Create(const ASession: TSSession);
     destructor Destroy(); override;
     function IndexByName(const Name: string): Integer; virtual;
     function NameCmp(const Name1, Name2: string): Integer; virtual;
-    property Client: TSSession read FClient;
+    property Session: TSSession read FSession;
     property Count: Integer read GetCount;
     property Item[Index: Integer]: TSItem read GetItem; default;
   end;
@@ -126,7 +126,7 @@ type
 
   TSEntities = class(TSItems)
   private
-    FClient: TSSession;
+    FSession: TSSession;
   protected
     FValid: Boolean;
     function Add(const AEntity: TSEntity; const ExecuteEvent: Boolean = False): Integer; virtual;
@@ -135,11 +135,11 @@ type
     function GetValid(): Boolean; virtual;
     function SQLGetItems(const Name: string = ''): string; virtual; abstract;
   public
-    constructor Create(const AClient: TSSession); reintroduce; virtual;
+    constructor Create(const ASession: TSSession); reintroduce; virtual;
     procedure Invalidate(); virtual;
     procedure PushBuildEvent(const Sender: TObject); virtual;
     function Update(): Boolean; virtual;
-    property Client: TSSession read FClient;
+    property Session: TSSession read FSession;
     property Valid: Boolean read GetValid;
   end;
 
@@ -220,7 +220,7 @@ type
   public
     constructor Create(const ACDBObjects: TSDBObjects; const AName: string = ''); reintroduce; virtual;
     destructor Destroy(); override;
-    function GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True; const ForeignKeysSource: PString = nil): string; virtual; abstract;
+    function GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string; virtual; abstract;
     procedure Invalidate(); override;
     procedure PushBuildEvent(); virtual;
     function Update(): Boolean; override;
@@ -455,7 +455,7 @@ type
   TSForeignKeys = class(TSItems)
   private
     FTable: TSBaseTable;
-    function GetClient(): TSSession; inline;
+    function GetSession(): TSSession; inline;
     function GetForeignKey(Index: Integer): TSForeignKey; inline;
   protected
     FValid: Boolean;
@@ -466,7 +466,7 @@ type
     constructor Create(const ATable: TSBaseTable); reintroduce; virtual;
     procedure DeleteForeignKey(const AForeignKey: TSForeignKey); virtual;
     procedure InsertForeignKey(const Index: Integer; const NewForeignKey: TSForeignKey); virtual;
-    property Client: TSSession read GetClient;
+    property Session: TSSession read GetSession;
     property ForeignKey[Index: Integer]: TSForeignKey read GetForeignKey; default;
     property Table: TSBaseTable read FTable;
     property Valid: Boolean read FValid;
@@ -509,7 +509,7 @@ type
     function DeleteRecords(const Field: TSTableField; const Values: TStringList): Boolean; virtual;
     destructor Destroy(); override;
     function FieldByName(const FieldName: string): TSTableField; virtual;
-    function GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True; const ForeignKeysSource: PString = nil): string; override;
+    function GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string; override;
     procedure Invalidate(); override;
     procedure InvalidateData(); virtual;
     procedure Open(const FilterSQL, QuickSearch: string; const ASortDef: TIndexDef; const Offset: Integer; const Limit: Integer); virtual;
@@ -568,6 +568,7 @@ type
   type
     TPackKeys = (piUnpacked, piPacked, piDefault);
     TInsertMethod = (imNo, imFirst, imLast);
+    TMergeSourceTable = record DatabaseName: string; TableName: string; end;
   private
     FAutoIncrement: LargeInt; // 0 -> unknown
     FAvgRowLength: LargeInt;
@@ -588,6 +589,7 @@ type
     FKeys: TSKeys;
     FMaxDataSize: Int64;
     FMaxRows: Int64;
+    FMergeSourceTables: array of TMergeSourceTable;
     FMinRows: Int64;
     FPackKeys: TPackKeys;
     FPartitions: TSPartitions;
@@ -599,6 +601,7 @@ type
     function GetAutoIncrementField(): TSBaseTableField;
     function GetBaseTableFields(): TSBaseTableFields; inline;
     function GetEngine(): TSEngine;
+    function GetIsMerge(): Boolean;
     function GetPrimaryKey(): TSKey;
     function GetTriggers(Index: Integer): TSTrigger;
     function GetTriggerCount(): Integer;
@@ -606,6 +609,7 @@ type
   protected
     FValidStatus: Boolean;
     procedure BuildStatus(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean); virtual;
+    function GetDependencies(): TSDependencies; override;
     function GetInServerCache(): Boolean; override;
     function GetValid(): Boolean; override;
     procedure ParseCreateTable(const SQL: string); virtual;
@@ -623,7 +627,7 @@ type
     procedure Empty(); virtual;
     function EmptyFields(const Fields: TList): Boolean; virtual;
     function Flush(): Boolean; virtual;
-    function GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True; const ForeignKeysSource: PString = nil): string; override;
+    function GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string; override;
     function KeyByCaption(const Caption: string): TSKey; virtual;
     function IndexByName(const Name: string): TSKey; virtual;
     function KeyByDataSet(const DataSet: TSTableDataSet): TSKey; virtual;
@@ -650,6 +654,7 @@ type
     property Fields: TSBaseTableFields read GetBaseTableFields;
     property IndexSize: Int64 read FIndexSize;
     property InsertMethod: TInsertMethod read FInsertMethod write FInsertMethod;
+    property IsMerge: Boolean read GetIsMerge;
     property ForeignKeys: TSForeignKeys read FForeignKeys;
     property Keys: TSKeys read FKeys;
     property MaxDataSize: Int64 read FMaxDataSize;
@@ -696,7 +701,7 @@ type
   public
     procedure Assign(const Source: TSTable); override;
     constructor Create(const ACDBObjects: TSDBObjects; const AName: string = ''); override;
-    function GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True; const ForeignKeysSource: PString = nil): string; overload; override;
+    function GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string; overload; override;
     procedure Invalidate(); override;
     property Algorithm: TAlgorithm read FAlgorithm write FAlgorithm;
     property CheckOption: TCheckOption read FCheckOption write FCheckOption;
@@ -764,7 +769,7 @@ type
     procedure Assign(const Source: TSRoutine); reintroduce; virtual;
     constructor Create(const ACDBObjects: TSDBObjects; const AName: string = ''); override;
     destructor Destroy(); override;
-    function GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True; const ForeignKeysSource: PString = nil): string; override;
+    function GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string; override;
     procedure Invalidate(); override;
     function SQLRun(): string; virtual;
     property Comment: string read FComment write FComment;
@@ -832,7 +837,7 @@ type
     procedure Assign(const Source: TSTrigger); reintroduce; virtual;
     constructor Create(const ACDBObjects: TSDBObjects; const AName: string = ''); override;
     destructor Destroy(); override;
-    function GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True; const ForeignKeysSource: PString = nil): string; override;
+    function GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string; override;
     procedure Invalidate(); override;
     function SQLDelete(): string; virtual;
     function SQLInsert(): string; virtual;
@@ -887,7 +892,7 @@ type
   public
     procedure Assign(const Source: TSEvent); reintroduce; virtual;
     constructor Create(const ACDBObjects: TSDBObjects; const AName: string = ''); override;
-    function GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True; const ForeignKeysSource: PString = nil): string; override;
+    function GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string; override;
     function SQLRun(): string; virtual;
     property Created: TDateTime read FCreated write FCreated;
     property Comment: string read FComment write FComment;
@@ -958,7 +963,7 @@ type
     function CloneRoutine(const Routine: TSRoutine; const NewRoutineName: string): Boolean; overload; virtual;
     function CloneTable(const Table: TSBaseTable; const NewTableName: string; const Data: Boolean): Boolean; overload; virtual;
     function CloneView(const View: TSView; const NewViewName: string): Boolean; virtual;
-    constructor Create(const AClient: TSSession = nil; const AName: string = ''); reintroduce; virtual;
+    constructor Create(const ASession: TSSession = nil; const AName: string = ''); reintroduce; virtual;
     function DeleteObject(const DBObject: TSDBObject): Boolean; virtual;
     destructor Destroy(); override;
     function EmptyTables(const Tables: TList = nil): Boolean; virtual;
@@ -1132,15 +1137,15 @@ type
 
   TSFieldTypes = class(TSItems)
   private
-    FClient: TSSession;
+    FSession: TSSession;
     procedure Add(const AMySQLFieldType: TMySQLFieldType; const ACaption: string; const AHighlighted: Boolean);
     function GetFieldType(Index: Integer): TSFieldType;
   protected
     function FieldAvailable(const Engine: TSEngine; const MySQLFieldType: TMySQLFieldType): Boolean; virtual;
   public
     function ApplyMySQLFieldType(const Engine: TSEngine; const MySQLFieldType: TMySQLFieldType): TMySQLFieldType; virtual;
-    constructor Create(const AClient: TSSession); reintroduce; virtual;
-    property Client: TSSession read FClient;
+    constructor Create(const ASession: TSSession); reintroduce; virtual;
+    property Session: TSSession read FSession;
     property FieldType[Index: Integer]: TSFieldType read GetFieldType; default;
   end;
 
@@ -1342,13 +1347,13 @@ RProxy: Boolean;
     TUpdate = function (): Boolean of object;
     TEvent = class
     public
-      Client: TSSession;
+      Session: TSSession;
       EventType: TEventType;
       Sender: TObject;
       CItems: TSItems;
       CItem: TSItem;
       Update: TUpdate;
-      constructor Create(const AClient: TSSession);
+      constructor Create(const ASession: TSSession);
     end;
     TCreateDesktop = function (const CObject: TSObject): TSObject.TDesktop of Object;
     TEventProc = procedure (const AEvent: TEvent) of object;
@@ -1357,7 +1362,7 @@ RProxy: Boolean;
     EventProcs: TList;
     FAccount: TAAccount;
     FCharsets: TSCharsets;
-    FClients: TSClients;
+    FSessions: TSSessions;
     FCollations: TSCollations;
     FCreateDesktop: TCreateDesktop;
     FCurrentUser: string;
@@ -1366,12 +1371,14 @@ RProxy: Boolean;
     FFieldTypes: TSFieldTypes;
     FInformationSchema: TSDatabase;
     FInvalidObjects: TList;
+    FMetadataProvider: TacEventMetadataProvider;
     FPerformanceSchema: TSDatabase;
     FPlugins: TSPlugins;
     FProcesses: TSProcesses;
     FStati: TSStati;
     FSQLMonitor: TMySQLMonitor;
     FStartTime: TDateTime;
+    FSyntaxProvider: TacMYSQLSyntaxProvider;
     FUser: TSUser;
     FUsers: TSUsers;
     FVariables: TSVariables;
@@ -1386,6 +1393,8 @@ RProxy: Boolean;
     function GetUseInformationSchema(): Boolean;
     function GetUserRights(): TSUserRight;
     function GetValid(): Boolean;
+    procedure MetadataProviderGetSQLFieldNames(Sender: TacBaseMetadataProvider;
+      const ASQL: WideString; AFields: TacFieldsList);
     procedure SetCreateDesktop(ACreateDesktop: TCreateDesktop);
   protected
     FLowerCaseTableNames: Byte;
@@ -1393,7 +1402,7 @@ RProxy: Boolean;
     procedure DoAfterExecuteSQL(); override;
     procedure DoBeforeExecuteSQL(); override;
     procedure BuildUser(const DataSet: TMySQLQuery); virtual;
-    function ClientResult(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean; virtual;
+    function SessionResult(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean; virtual;
     procedure ExecuteEvent(const EventType: TEventType); overload; virtual;
     procedure ExecuteEvent(const EventType: TEventType; const Sender: TObject; const CItems: TSItems = nil; const CItem: TSItem = nil); overload; virtual;
     function GetAutoCommit(): Boolean; override;
@@ -1407,7 +1416,7 @@ RProxy: Boolean;
     procedure MonitorExecutedStmts(const Sender: TObject; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType); virtual;
     procedure SetAutoCommit(const AAutoCommit: Boolean); override;
     procedure SetCharset(const ACharset: string); override;
-    property Clients: TSClients read FClients;
+    property Sessions: TSSessions read FSessions;
     property InvalidObjects: TList read FInvalidObjects;
     property UseInformationSchema: Boolean read GetUseInformationSchema;
   public
@@ -1423,7 +1432,7 @@ RProxy: Boolean;
     procedure CommitTransaction(); override;
     procedure FirstConnect(); overload; virtual;
     procedure FirstConnect(const AConnectionType: Integer; const ALibraryName: string; const AHost, AUser, APassword, ADatabase: string; const APort: Integer; const AAsynchron: Boolean); overload; virtual;
-    constructor Create(const AClients: TSClients; const AAccount: TAAccount = nil); reintroduce; virtual;
+    constructor Create(const ASessions: TSSessions; const AAccount: TAAccount = nil); reintroduce; virtual;
     function DatabaseByName(const DatabaseName: string): TSDatabase; virtual;
     procedure DecodeInterval(const Value: string; const IntervalType: TMySQLIntervalType; var Year, Month, Day, Quarter, Week, Hour, Minute, Second, MSec: Word); virtual;
     function DeleteDatabase(const Database: TSDatabase): Boolean; virtual;
@@ -1476,6 +1485,7 @@ RProxy: Boolean;
     property Log: string read GetLog;
     property LogActive: Boolean read GetLogActive;
     property LowerCaseTableNames: Byte read FLowerCaseTableNames;
+    property MetadataProvider: TacEventMetadataProvider read FMetadataProvider;
     property PerformanceSchema: TSDatabase read FPerformanceSchema;
     property Plugins: TSPlugins read FPlugins;
     property Processes: TSProcesses read FProcesses;
@@ -1484,6 +1494,7 @@ RProxy: Boolean;
     property StartTime: TDateTime read FStartTime;
     property Stati: TSStati read FStati;
     property SQLMonitor: TMySQLMonitor read FSQLMonitor;
+    property SyntaxProvider: TacMYSQLSyntaxProvider read FSyntaxProvider;
     property User: TSUser read FUser;
     property UserRights: TSUserRight read GetUserRights;
     property Users: TSUsers read FUsers;
@@ -1491,14 +1502,14 @@ RProxy: Boolean;
     property Variables: TSVariables read FVariables;
   end;
 
-  TSClients = class(TList)
+  TSSessions = class(TList)
   private
     FOnSQLError: TMySQLConnection.TErrorEvent;
-    function GetClient(Index: Integer): TSSession; inline;
+    function GetSession(Index: Integer): TSSession; inline;
   public
-    function Add(const Client: TSSession): Integer;
-    function ClientByAccount(const Account: TAAccount; const DatabaseName: string): TSSession; virtual;
-    property Client[Index: Integer]: TSSession read GetClient; default;
+    function Add(const Session: TSSession): Integer;
+    function SessionByAccount(const Account: TAAccount; const DatabaseName: string): TSSession; virtual;
+    property Session[Index: Integer]: TSSession read GetSession; default;
     property OnSQLError: TMySQLConnection.TErrorEvent read FOnSQLError write FOnSQLError;
   end;
 
@@ -1508,7 +1519,7 @@ const
   PrefetchObjectCount = 30;
 
 var
-  Clients: TSClients;
+  Sessions: TSSessions;
 
 implementation {***************************************************************}
 
@@ -1650,9 +1661,9 @@ begin
     Result := '''' + IntervalValue + ''' ' + Result;
 end;
 
-{ TCResultSet *****************************************************************}
+{ TSResultSet *****************************************************************}
 
-{ TCItem **********************************************************************}
+{ TSItem **********************************************************************}
 
 procedure TSItem.Assign(const Source: TSItem);
 begin
@@ -1701,7 +1712,7 @@ begin
   end;
 end;
 
-{ TCDBItems *******************************************************************}
+{ TSDBItems *******************************************************************}
 
 procedure TSItems.Clear();
 var
@@ -1713,11 +1724,11 @@ begin
   inherited;
 end;
 
-constructor TSItems.Create(const AClient: TSSession);
+constructor TSItems.Create(const ASession: TSSession);
 begin
   inherited Create();
 
-  FClient := AClient;
+  FSession := ASession;
 end;
 
 destructor TSItems.Destroy();
@@ -1750,7 +1761,7 @@ var
 begin
   Result := -1;
 
-  if (((Self is TSTables) or (Self is TSDatabases)) and (Client.LowerCaseTableNames = 0)) then
+  if (((Self is TSTables) or (Self is TSDatabases)) and (Session.LowerCaseTableNames = 0)) then
     strcmp := lstrcmp
   else
     strcmp := lstrcmpi;
@@ -1779,7 +1790,7 @@ var
 begin
   Result := True;
 
-  if (((Self is TSTables) or (Self is TSDatabases)) and (Client.LowerCaseTableNames = 0)) then
+  if (((Self is TSTables) or (Self is TSDatabases)) and (Session.LowerCaseTableNames = 0)) then
     strcmp := lstrcmp
   else
     strcmp := lstrcmpi;
@@ -1810,7 +1821,7 @@ begin
   Result := lstrcmpi(PChar(Name1), PChar(Name2));
 end;
 
-{ TCEntity ********************************************************************}
+{ TSEntity ********************************************************************}
 
 function TSEntity.GetEntities(): TSEntities;
 begin
@@ -1819,7 +1830,7 @@ begin
   Result := TSEntities(CItems);
 end;
 
-{ TCEntities ******************************************************************}
+{ TSEntities ******************************************************************}
 
 function TSEntities.Add(const AEntity: TSEntity; const ExecuteEvent: Boolean): Integer;
 begin
@@ -1837,11 +1848,11 @@ begin
   Result := False;
 end;
 
-constructor TSEntities.Create(const AClient: TSSession);
+constructor TSEntities.Create(const ASession: TSSession);
 begin
-  inherited Create(AClient);
+  inherited Create(ASession);
 
-  FClient := AClient;
+  FSession := ASession;
 
   FValid := False;
 end;
@@ -1872,7 +1883,7 @@ end;
 
 procedure TSEntities.PushBuildEvent(const Sender: TObject);
 begin
-  Client.ExecuteEvent(ceItemsValid, Sender, Self);
+  Session.ExecuteEvent(ceItemsValid, Sender, Self);
 end;
 
 function TSEntities.Update(): Boolean;
@@ -1881,11 +1892,11 @@ var
 begin
   List := TList.Create();
   List.Add(Self);
-  Result := Client.Update(List);
+  Result := Session.Update(List);
   List.Free();
 end;
 
-{ TCObject ********************************************************************}
+{ TSObject ********************************************************************}
 
 constructor TSObject.TDesktop.Create(const ACObject: TSObject);
 begin
@@ -1894,7 +1905,7 @@ begin
   FCObject := ACObject;
 end;
 
-{ TCObject ********************************************************************}
+{ TSObject ********************************************************************}
 
 procedure TSObject.Assign(const Source: TSObject);
 begin
@@ -1908,7 +1919,7 @@ constructor TSObject.Create(const ACItems: TSItems; const AName: string = '');
 begin
   inherited Create(ACItems, AName);
 
-  FSession := ACItems.Client;
+  FSession := ACItems.Session;
   FSource := '';
   FValidSource := False;
 
@@ -2000,7 +2011,7 @@ begin
   FSource := ASource;
 end;
 
-{ TCObjects *******************************************************************}
+{ TSObjects *******************************************************************}
 
 function TSObjects.Add(const AEntity: TSEntity; const ExecuteEvent: Boolean): Integer;
 begin
@@ -2015,8 +2026,8 @@ begin
   if (ExecuteEvent) then
   begin
     TSObject(AEntity).Invalidate();
-    Client.InvalidObjects.Add(AEntity);
-    Client.ExecuteEvent(ceItemCreated, Client, Self, AEntity);
+    Session.InvalidObjects.Add(AEntity);
+    Session.ExecuteEvent(ceItemCreated, Session, Self, AEntity);
   end;
 end;
 
@@ -2032,7 +2043,7 @@ begin
   begin
     TList(Self).Delete(Index);
 
-    Client.ExecuteEvent(ceItemDropped, Client, Self, AEntity);
+    Session.ExecuteEvent(ceItemDropped, Session, Self, AEntity);
 
     AEntity.Free();
   end;
@@ -2084,7 +2095,7 @@ begin
   Result := TSDependency(Items[Index]);
 end;
 
-{ TCDBObject ******************************************************************}
+{ TSDBObject ******************************************************************}
 
 constructor TSDBObject.Create(const ACDBObjects: TSDBObjects; const AName: string = '');
 begin
@@ -2111,7 +2122,7 @@ end;
 
 function TSDBObject.GetDependencies(): TSDependencies;
 begin
-  Result := nil;
+  Result := FDependencies;
 end;
 
 procedure TSDBObject.Invalidate();
@@ -2168,7 +2179,7 @@ begin
   List.Free();
 end;
 
-{ TCDBObjects *****************************************************************}
+{ TSDBObjects *****************************************************************}
 
 function TSDBObjects.Add(const AEntity: TSEntity; const ExecuteEvent: Boolean = False): Integer;
 begin
@@ -2183,8 +2194,8 @@ begin
   if (ExecuteEvent) then
   begin
     TSObject(AEntity).Invalidate();
-    Client.InvalidObjects.Add(AEntity);
-    Client.ExecuteEvent(ceItemCreated, Database, Self, AEntity);
+    Session.InvalidObjects.Add(AEntity);
+    Session.ExecuteEvent(ceItemCreated, Database, Self, AEntity);
   end;
 end;
 
@@ -2208,13 +2219,13 @@ begin
   begin
     TList(Self).Delete(Index);
 
-    Client.ExecuteEvent(ceItemDropped, Database, Self, AEntity);
+    Session.ExecuteEvent(ceItemDropped, Database, Self, AEntity);
 
     AEntity.Free();
   end;
 end;
 
-{ TCIndexColumn ***************************************************************}
+{ TSIndexColumn ***************************************************************}
 
 procedure TSKeyColumn.Assign(const Source: TSKeyColumn);
 begin
@@ -2239,7 +2250,7 @@ begin
   Result := Result and (Length = Second.Length);
 end;
 
-{ TCIndexColumns **************************************************************}
+{ TSIndexColumns **************************************************************}
 
 procedure TSKeyColumns.AddColumn(const NewColumn: TSKeyColumn);
 begin
@@ -2273,7 +2284,7 @@ begin
   Result := TSKeyColumn(Items[Index]);
 end;
 
-{ TCIndex *********************************************************************}
+{ TSIndex *********************************************************************}
 
 procedure TSKey.Assign(const Source: TSKey);
 var
@@ -2479,7 +2490,7 @@ begin
     Result := nil;
 end;
 
-{ TCField *********************************************************************}
+{ TSField *********************************************************************}
 
 procedure TSField.Assign(const Source: TSField);
 begin
@@ -2520,10 +2531,10 @@ var
 begin
   Result := '';
 
-  if (National and (FieldTypes.Client.ServerVersion < 40101)) then
+  if (National and (FieldTypes.Session.ServerVersion < 40101)) then
     Result := Result + 'national ';
 
-  Result := Result + FFieldTypes.Client.FieldTypeByMySQLFieldType(FieldType).DBTypeStr();
+  Result := Result + FFieldTypes.Session.FieldTypeByMySQLFieldType(FieldType).DBTypeStr();
 
   if (FieldType in [mfEnum, mfSet]) then
   begin
@@ -2543,7 +2554,7 @@ begin
   else if (FieldType in [mfGeometry, mfPoint, mfLineString, mfPolygon, mfMultiPoint,  mfMultiLineString, mfMultiPolygon, mfGeometryCollection]) then
   else if (FieldType in [mfDate, mfDateTime, mfTime]) then
   else if (FieldType in [mfTimeStamp]) then
-    if (FieldTypes.Client.ServerVersion < 40100) then
+    if (FieldTypes.Session.ServerVersion < 40100) then
       Result := Result + '(' + IntToStr(Size) + ')'
     else
   else
@@ -2567,7 +2578,7 @@ begin
   else if (FieldType in NotQuotedFieldTypes) then
     if (Value = '') then Result := 'NULL' else Result := Value
   else if (FieldType in BinaryFieldTypes) then
-    Result := SQLEscapeBin(Value, FieldTypes.Client.ServerVersion <= 40000)
+    Result := SQLEscapeBin(Value, FieldTypes.Session.ServerVersion <= 40000)
   else
     Result := SQLEscape(Value);
 end;
@@ -2580,7 +2591,7 @@ begin
   National := SQLParseKeyword(Parse, 'NATIONAL');
 
   Identifier := SQLParseValue(Parse);
-  FieldType := FFieldTypes.Client.FieldTypeByCaption(Identifier).MySQLFieldType;
+  FieldType := FFieldTypes.Session.FieldTypeByCaption(Identifier).MySQLFieldType;
 
   Size := -1;
   Decimals := -1;
@@ -2641,7 +2652,7 @@ begin
   Unsigned := SQLParseKeyword(Parse, 'UNSIGNED');
 end;
 
-{ TCTableField ****************************************************************}
+{ TSTableField ****************************************************************}
 
 procedure TSTableField.Assign(const Source: TSField);
 begin
@@ -2790,7 +2801,7 @@ begin
   end;
 end;
 
-{ TCBaseTableField ************************************************************}
+{ TSBaseTableField ************************************************************}
 
 procedure TSBaseTableField.Assign(const Source: TSField);
 begin
@@ -2843,14 +2854,14 @@ begin
   FName := AName;
 end;
 
-{ TCViewField *****************************************************************}
+{ TSViewField *****************************************************************}
 
 function TSViewField.GetIndex(): Integer;
 begin
   Result := Table.Fields.IndexOf(Self);
 end;
 
-{ TCTableFields ***************************************************************}
+{ TSTableFields ***************************************************************}
 
 procedure TSTableFields.AddField(const NewField: TSTableField);
 var
@@ -2968,7 +2979,7 @@ begin
         Result := I;
 end;
 
-{ TCBaseTableFields ***********************************************************}
+{ TSBaseTableFields ***********************************************************}
 
 procedure TSBaseTableFields.MoveField(const AField: TSTableField; const NewFieldBefore: TSTableField);
 var
@@ -2995,7 +3006,7 @@ begin
   end;
 end;
 
-{ TCViewFields ****************************************************************}
+{ TSViewFields ****************************************************************}
 
 constructor TSViewFields.Create(const ATable: TSTable);
 begin
@@ -3009,7 +3020,7 @@ begin
   FValid := False;
 end;
 
-{ TCForeignKey ****************************************************************}
+{ TSForeignKey ****************************************************************}
 
 procedure TSForeignKey.Assign(const Source: TSForeignKey);
 var
@@ -3137,7 +3148,7 @@ begin
   FName := AName;
 end;
 
-{ TCForeignKeys ***************************************************************}
+{ TSForeignKeys ***************************************************************}
 
 procedure TSForeignKeys.AddForeignKey(const NewForeignKey: TSForeignKey);
 begin
@@ -3184,7 +3195,7 @@ begin
   Delete(Index);
 end;
 
-function TSForeignKeys.GetClient(): TSSession;
+function TSForeignKeys.GetSession(): TSSession;
 begin
   Result := Table.Session;
 end;
@@ -3201,7 +3212,7 @@ begin
   ForeignKey[Index].Created := True;
 end;
 
-{ TCTableDataSet **************************************************************}
+{ TSTableDataSet **************************************************************}
 
 constructor TSTableDataSet.Create(const ATable: TSTable);
 begin
@@ -3283,7 +3294,7 @@ begin
   Result := Result + ';' + #13#10;
 end;
 
-{ TCTable *********************************************************************}
+{ TSTable *********************************************************************}
 
 procedure TSTable.Assign(const Source: TSTable);
 begin
@@ -3319,7 +3330,7 @@ end;
 
 constructor TSTable.Create(const ACDBObjects: TSDBObjects; const AName: string = '');
 begin
-  inherited Create(ACDBObjects, ACDBObjects.Client.TableName(AName));
+  inherited Create(ACDBObjects, ACDBObjects.Session.TableName(AName));
 
   FDataSet := nil;
   if (Self is TSBaseTable) then
@@ -3422,7 +3433,7 @@ begin
   end;
 end;
 
-function TSTable.GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True; const ForeignKeysSource: PString = nil): string;
+function TSTable.GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string;
 begin
   raise EAbstractError.Create(SAbstractError);
 end;
@@ -3467,7 +3478,7 @@ begin
   end;
 end;
 
-{ TCPartition *****************************************************************}
+{ TSPartition *****************************************************************}
 
 procedure TSPartition.Assign(const Source: TSPartition);
 begin
@@ -3534,7 +3545,7 @@ begin
     and (ValuesExpr = Second.ValuesExpr);
 end;
 
-{ TCPartitions ****************************************************************}
+{ TSPartitions ****************************************************************}
 
 procedure TSPartitions.AddPartition(const NewPartition: TSPartition);
 begin
@@ -3621,7 +3632,7 @@ begin
     Partition.Assign(NewPartition);
 end;
 
-{ TCBaseTable *****************************************************************}
+{ TSBaseTable *****************************************************************}
 
 procedure TSBaseTable.Assign(const Source: TSTable);
 var
@@ -3827,6 +3838,8 @@ begin
 end;
 
 destructor TSBaseTable.Destroy();
+var
+  I: Integer;
 begin
   inherited;
 
@@ -3834,6 +3847,12 @@ begin
   FForeignKeys.Free();
   if (Assigned(FPartitions)) then
     FPartitions.Free();
+  for I := 0 to Length(FMergeSourceTables) - 1 do
+  begin
+    FMergeSourceTables[I].DatabaseName := '';
+    FMergeSourceTables[I].TableName := '';
+  end;
+  SetLength(FMergeSourceTables, 0);
 end;
 
 procedure TSBaseTable.Empty();
@@ -3914,6 +3933,37 @@ begin
   Result := TSBaseTableFields(GetFields());
 end;
 
+function TSBaseTable.GetDependencies(): TSDependencies;
+var
+  Dependency: TSDependency;
+  I: Integer;
+begin
+  if (not Assigned(FDependencies) and ((Length(FMergeSourceTables) > 0) or Assigned(ForeignKeys) and (ForeignKeys.Count > 0))) then
+  begin
+    FDependencies := TSDependencies.Create();
+
+    for I := 0 to Length(FMergeSourceTables) - 1 do
+    begin
+      Dependency := TSDependency.Create();
+      Dependency.DatabaseName := FMergeSourceTables[I].DatabaseName;
+      Dependency.ObjectClass := TSBaseTable;
+      Dependency.ObjectName := FMergeSourceTables[I].TableName;
+      Dependencies.Add(Dependency);
+    end;
+
+    for I := 0 to ForeignKeys.Count - 1 do
+    begin
+      Dependency := TSDependency.Create();
+      Dependency.DatabaseName := ForeignKeys[I].Parent.DatabaseName;
+      Dependency.ObjectClass := TSBaseTable;
+      Dependency.ObjectName := ForeignKeys[I].Parent.TableName;
+      Dependencies.Add(Dependency);
+    end;
+  end;
+
+  Result := inherited;
+end;
+
 function TSBaseTable.GetEngine(): TSEngine;
 begin
   if (not Assigned(FEngine) and not Session.InUse) then
@@ -3931,9 +3981,9 @@ begin
   Result := Temporary or (Database is TSSystemDatabase) or inherited GetInServerCache();
 end;
 
-function TSBaseTable.GetValid(): Boolean;
+function TSBaseTable.GetIsMerge(): Boolean;
 begin
-  Result := inherited and ValidStatus;
+  Result := Length(FMergeSourceTables) > 0;
 end;
 
 function TSBaseTable.GetPrimaryKey(): TSKey;
@@ -3941,52 +3991,11 @@ begin
   Result := IndexByName('');
 end;
 
-function TSBaseTable.GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True; const ForeignKeysSource: PString = nil): string;
-var
-  I: Integer;
-  S: string;
-  StringList: TStringList;
+function TSBaseTable.GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string;
 begin
-  Result := '';
-
-  if (Name <> '') then
-    if ((FSource <> '') and not DropBeforeCreate and not Assigned(ForeignKeysSource)) then
-      Result := FSource
-    else
-    begin
-      Result := ReplaceStr(ReplaceStr(ReplaceStr(Source, #13, #10), #10#10, #10), #10, #13#10);
-
-      if (Assigned(ForeignKeysSource)) then
-      begin
-        ForeignKeysSource^ := '';
-        StringList := TStringList.Create();
-        StringList.Text := Result;
-        for I := StringList.Count - 1 downto 0 do
-          if (Pos('CONSTRAINT', UpperCase(Trim(StringList.Strings[I]))) = 1) then
-          begin
-            S := Trim(StringList.Strings[I]);
-            Insert('ADD ', S, Pos('CONSTRAINT', S));
-            if (ForeignKeysSource^ <> '') then
-              S := S + ',';
-            ForeignKeysSource^ := S + #13#10 + ForeignKeysSource^;
-            if ((I > 0) and (RightStr(TrimRight(StringList[I - 1]), 1) = ',') and (RightStr(TrimRight(StringList[I]), 1) <> ',')) then
-              StringList[I - 1] := Copy(TrimRight(StringList[I - 1]), 1, Length(TrimRight(StringList[I - 1])) - 1);
-            StringList.Delete(I);
-          end;
-        Result := SQLTrimStmt(StringList.Text);
-        FreeAndNil(StringList);
-        ForeignKeysSource^ := Trim(ForeignKeysSource^);
-
-        if (ForeignKeysSource^ <> '') then
-        begin
-          if (ForeignKeysSource^[Length(ForeignKeysSource^) - 1] = ',') then Delete(ForeignKeysSource^, Length(ForeignKeysSource^) - 1, 1);
-          ForeignKeysSource^ := SQLTrimStmt('ALTER TABLE ' + Database.Session.EscapeIdentifier(Name) + #13#10 + ForeignKeysSource^) + ';';
-        end;
-      end;
-
-      if (DropBeforeCreate) then
-        Result := 'DROP TABLE IF EXISTS ' + Database.Session.EscapeIdentifier(Name) + ';' + #13#10 + Result;
-    end;
+  Result := FSource;
+  if (DropBeforeCreate) then
+    Result := 'DROP TABLE IF EXISTS ' + Database.Session.EscapeIdentifier(Name) + ';' + #13#10 + Result;
 end;
 
 function TSBaseTable.GetTriggers(Index: Integer): TSTrigger;
@@ -4017,6 +4026,11 @@ begin
     for I := 0 to Database.Triggers.Count - 1 do
       if (Database.Triggers[I].Table = Self) then
         Inc(Result);
+end;
+
+function TSBaseTable.GetValid(): Boolean;
+begin
+  Result := inherited and ValidStatus;
 end;
 
 function TSBaseTable.KeyByCaption(const Caption: string): TSKey;
@@ -4116,6 +4130,7 @@ end;
 
 procedure TSBaseTable.ParseCreateTable(const SQL: string);
 var
+  DatabaseName: string;
   DeleteList: TList;
   FieldName: string;
   FirstParse: Boolean;
@@ -4139,24 +4154,32 @@ var
 begin
   if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.ServerVersion)) then
   begin
+    for I := 0 to Length(FMergeSourceTables) - 1 do
+    begin
+      FMergeSourceTables[I].DatabaseName := '';
+      FMergeSourceTables[I].TableName := '';
+    end;
+    SetLength(FMergeSourceTables, 0);
+
+
     FirstParse := FFields.Count = 0;
 
     if (not SQLParseKeyword(Parse, 'CREATE')) then
-      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 6, SQL]);
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 2, SQL]);
 
     Temporary := SQLParseKeyword(Parse, 'TEMPORARY');
 
-    if (not SQLParseKeyword(Parse, 'TABLE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 7, SQL]);
+    if (not SQLParseKeyword(Parse, 'TABLE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 3, SQL]);
 
     Name := SQLParseValue(Parse);
     if (SQLParseChar(Parse, '.')) then
     begin
       if (Database.Session.TableNameCmp(Database.Name, Name) <> 0) then
-        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 8, SQL]);
+        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 4, SQL]);
       Name := SQLParseValue(Parse);
     end;
 
-    if (not SQLParseChar(Parse, '(')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 9, SQL]);
+    if (not SQLParseChar(Parse, '(')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 5, SQL]);
 
     if (not Assigned(Database.Session.VariableByName('sql_quote_show_create'))) then
     begin
@@ -4364,7 +4387,7 @@ begin
       else
         Name := SQLParseValue(Parse);// Symbol Name
 
-      if (not SQLParseKeyword(Parse, 'FOREIGN KEY')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 2, SQL]);
+      if (not SQLParseKeyword(Parse, 'FOREIGN KEY')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 6, SQL]);
 
       if (not SQLParseChar(Parse, '(', False)) then
         Name := SQLParseValue(Parse); // Index Name
@@ -4381,7 +4404,7 @@ begin
         FForeignKeys.Add(TSForeignKey.Create(FForeignKeys, Name));
       NewForeignKey := FForeignKeys[Index];
 
-      if (not SQLParseChar(Parse, '(')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 3, SQL]);
+      if (not SQLParseChar(Parse, '(')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 7, SQL]);
       repeat
         SetLength(NewForeignKey.Fields, Length(NewForeignKey.Fields) + 1);
         NewForeignKey.Fields[Length(NewForeignKey.Fields) - 1] := FieldByName(SQLParseValue(Parse));
@@ -4389,14 +4412,14 @@ begin
         SQLParseChar(Parse, ',');
       until (SQLParseChar(Parse, ')'));
 
-      if (not SQLParseKeyword(Parse, 'REFERENCES')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 4, SQL]);
+      if (not SQLParseKeyword(Parse, 'REFERENCES')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 8, SQL]);
 
       NewForeignKey.Parent.DatabaseName := Database.Name;
-      if (not SQLParseObjectName(Parse, NewForeignKey.Parent.DatabaseName, NewForeignKey.Parent.TableName)) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 4, SQL]);
+      if (not SQLParseObjectName(Parse, NewForeignKey.Parent.DatabaseName, NewForeignKey.Parent.TableName)) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 9, SQL]);
 
       NewForeignKey.Parent.TableName := Session.TableName(NewForeignKey.Parent.TableName); // Sometimes MySQL reports parent table name in wrong case sensitive
 
-      if (not SQLParseChar(Parse, '(')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 5, SQL]);
+      if (not SQLParseChar(Parse, '(')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 10, SQL]);
       repeat
         FieldName := SQLParseValue(Parse);
         SetLength(NewForeignKey.Parent.FieldNames, Length(NewForeignKey.Parent.FieldNames) + 1);
@@ -4448,7 +4471,7 @@ begin
     DeleteList.Free();
 
 
-    if (not SQLParseChar(Parse, ')')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 10, SQL]);
+    if (not SQLParseChar(Parse, ')')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 11, SQL]);
 
     while (not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';')) do
     begin
@@ -4603,6 +4626,17 @@ begin
           end;
         end;
       end
+      else if (SQLParseKeyword(Parse, 'UNION')) then
+      begin
+        if (SQLParseChar(Parse, '(')) then
+          repeat
+            SetLength(FMergeSourceTables, Length(FMergeSourceTables) + 1);
+            FMergeSourceTables[Length(FMergeSourceTables) + 1].DatabaseName := Database.Name;
+            if (not SQLParseObjectName(Parse, FMergeSourceTables[Length(FMergeSourceTables) + 1].DatabaseName, FMergeSourceTables[Length(FMergeSourceTables) + 1].TableName)) then
+              raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 12, SQL]);
+            SQLParseChar(Parse, ',');
+          until (SQLParseEnd(Parse) or SQLParseChar(Parse, ')'));
+      end
       else
       begin
         SQLParseValue(Parse);
@@ -4676,11 +4710,11 @@ begin
   Result := 'SHOW CREATE TABLE ' + Database.Session.EscapeIdentifier(Database.Name) + '.' + Database.Session.EscapeIdentifier(Name) + ';' + #13#10
 end;
 
-{ TCSystemView ****************************************************************}
+{ TSSystemView ****************************************************************}
 
-{ TCViewField *****************************************************************}
+{ TSViewField *****************************************************************}
 
-{ TCView **********************************************************************}
+{ TSView **********************************************************************}
 
 procedure TSView.Assign(const Source: TSTable);
 begin
@@ -4737,14 +4771,32 @@ begin
     FDependencies := TSDependencies.Create();
 
     QueryBuilder := TacQueryBuilder.Create(nil);
-    QueryBuilder.SyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
-    TacMYSQLSyntaxProvider(QueryBuilder.SyntaxProvider).ServerVersionInt := Session.ServerVersion;
+    QueryBuilder.SyntaxProvider := Session.SyntaxProvider;
+    QueryBuilder.MetadataProvider := Session.MetadataProvider;
     QueryBuilder.SQL := Stmt;
 
     Expressions := TList.Create();
     GetExpressions(QueryBuilder.ResultQueryAST, Expressions);
     for I := 0 to Expressions.Count - 1 do
-      if ((TSQLExpressionItem(Expressions[I]) is TSQLExpressionFunction)) then
+      if ((TSQLExpressionItem(Expressions[I]) is TSQLExpressionColumn)) then
+      begin
+        SQL := TSQLExpressionFunction(Expressions[I]).Name.QualifiedNameWithQuotes;
+        if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.ServerVersion)) then
+        begin
+          DatabaseName := Database.Name;
+          if (SQLParseObjectName(Parse, DatabaseName, ObjectName)
+            and Assigned(Session.DatabaseByName(DatabaseName))
+            and Assigned(Session.DatabaseByName(DatabaseName).TableByName(ObjectName))) then
+          begin
+            Dependency := TSDependency.Create();
+            Dependency.DatabaseName := DatabaseName;
+            Dependency.ObjectClass := Session.DatabaseByName(DatabaseName).TableByName(ObjectName).ClassType;
+            Dependency.ObjectName := ObjectName;
+            FDependencies.Add(Dependency);
+          end;
+        end;
+      end
+      else if ((TSQLExpressionItem(Expressions[I]) is TSQLExpressionFunction)) then
       begin
         SQL := TSQLExpressionFunction(Expressions[I]).Name.QualifiedNameWithQuotes;
         if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.ServerVersion)) then
@@ -4764,11 +4816,10 @@ begin
       end;
     Expressions.Free();
 
-    QueryBuilder.SyntaxProvider.Free();
     QueryBuilder.Free();
   end;
 
-  Result := FDependencies;
+  Result := inherited;
 end;
 
 function TSView.GetValid(): Boolean;
@@ -4786,7 +4837,7 @@ begin
   Result := TSViewFields(GetFields());
 end;
 
-function TSView.GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True; const ForeignKeysSource: PString = nil): string;
+function TSView.GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string;
 begin
   Result := ParseCreateView(Source, not EncloseDefiner, True);
 
@@ -4815,13 +4866,13 @@ begin
   begin
     Result := SQL;
 
-    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 22, SQL]);
+    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 13, SQL]);
 
     if (not SQLParseKeyword(Parse, 'ALGORITHM')) then
       Algorithm := vaUndefined
     else
     begin
-      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 23, SQL]);
+      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 14, SQL]);
 
       if (SQLParseKeyword(Parse, 'MERGE')) then
         FAlgorithm := vaMerge
@@ -4836,7 +4887,7 @@ begin
     Index := SQLParseGetIndex(Parse);
     if (SQLParseKeyword(Parse, 'DEFINER')) then
     begin
-      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 24, SQL]);
+      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 15, SQL]);
       FDefiner := SQLParseValue(Parse);
       if (RemoveDefiner) then
         Delete(Result, Index, SQLParseGetIndex(Parse) - Index);
@@ -4847,20 +4898,20 @@ begin
     else if (SQLParseKeyword(Parse, 'SQL SECURITY INVOKER')) then
       FSecurity := seInvoker;
 
-    if (not SQLParseKeyword(Parse, 'VIEW')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 25, SQL]);
+    if (not SQLParseKeyword(Parse, 'VIEW')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 16, SQL]);
 
     Index := SQLParseGetIndex(Parse);
     FName := SQLParseValue(Parse);
     if (SQLParseChar(Parse, '.')) then
     begin
       if (Database.Session.TableNameCmp(Database.Name, FName) <> 0) then
-        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + FName, 26, SQL]);
+        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + FName, 17, SQL]);
       FName := SQLParseValue(Parse);
       if (RemoveDatabaseName) then
         Delete(Result, Index, SQLParseGetIndex(Parse) - Index);
     end;
 
-    if (not SQLParseKeyword(Parse, 'AS')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 27, SQL]);
+    if (not SQLParseKeyword(Parse, 'AS')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 18, SQL]);
 
     Len := SQLTrimStmt(SQL, SQLParseGetIndex(Parse), Length(SQL) - (SQLParseGetIndex(Parse) - 1), StartingCommentLen, EndingCommentLen);
     if (Copy(SQL, Length(SQL) - EndingCommentLen, 1) = ';') then
@@ -4913,7 +4964,7 @@ begin
   Result := 'SHOW CREATE VIEW ' + Database.Session.EscapeIdentifier(Database.Name) + '.' + Database.Session.EscapeIdentifier(Name) + ';' + #13#10
 end;
 
-{ TCTables ********************************************************************}
+{ TSTables ********************************************************************}
 
 procedure TSTables.AddTable(const NewTable: TSTable);
 var
@@ -5000,8 +5051,8 @@ begin
 
     if ((OldCount > 0) or (Count > 0)) then
     begin
-      Client.ExecuteEvent(ceItemsValid, Client, Client.Databases);
-      Client.ExecuteEvent(ceItemsValid, Database, Self);
+      Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
+      Session.ExecuteEvent(ceItemsValid, Database, Self);
     end;
   end
   else if (DataSet.FieldCount = 4) then // SHOW OPEN TABLES
@@ -5060,11 +5111,11 @@ begin
 
     if (not Filtered) then
     begin
-      Client.ExecuteEvent(ceItemsValid, Client, Client.Databases);
-      Client.ExecuteEvent(ceItemsValid, Database, Self);
+      Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
+      Session.ExecuteEvent(ceItemsValid, Database, Self);
     end;
     if (Database.Valid) then
-      Client.ExecuteEvent(ceItemValid, Client, Client.Databases, Database);
+      Session.ExecuteEvent(ceItemValid, Session, Session.Databases, Database);
 
     Result := False;
   end;
@@ -5128,7 +5179,7 @@ begin
         NewField.Comment := DataSet.FieldByName('COLUMN_COMMENT').AsString;
         NewField.Default := DataSet.FieldByName('COLUMN_DEFAULT').AsString;
         NewField.FCharset := DataSet.FieldByName('CHARACTER_SET_NAME').AsString;
-        if (DataSet.FieldByName('COLUMN_TYPE').IsNull or (DataSet.FieldByName('COLUMN_TYPE').AsString = 'null') or not SQLCreateParse(Parse, PChar(DataSet.FieldByName('COLUMN_TYPE').AsString), Length(DataSet.FieldByName('COLUMN_TYPE').AsString), Client.ServerVersion)) then
+        if (DataSet.FieldByName('COLUMN_TYPE').IsNull or (DataSet.FieldByName('COLUMN_TYPE').AsString = 'null') or not SQLCreateParse(Parse, PChar(DataSet.FieldByName('COLUMN_TYPE').AsString), Length(DataSet.FieldByName('COLUMN_TYPE').AsString), Session.ServerVersion)) then
           NewField.FieldType := mfUnknown
         else
           NewField.ParseFieldType(Parse);
@@ -5152,7 +5203,7 @@ begin
     View.PushBuildEvent();
   end;
 
-  Client.ExecuteEvent(ceItemsValid, Client, Client.Databases);
+  Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
 end;
 
 function TSTables.GetTable(Index: Integer): TSTable;
@@ -5171,7 +5222,7 @@ end;
 
 function TSTables.NameCmp(const Name1, Name2: string): Integer;
 begin
-  if (Client.LowerCaseTableNames = 0) then
+  if (Session.LowerCaseTableNames = 0) then
     Result := lstrcmp(PChar(Name1), PChar(Name2))
   else
     Result := lstrcmpi(PChar(Name1), PChar(Name2));
@@ -5212,7 +5263,7 @@ var
 begin
   if (Tables.Count < Count) then
   begin
-    if (not Client.UseInformationSchema or (Client.ServerVersion < 50003)) then // 5.0.2 supports information_schema, but WHERE clauses is supported up from 5.0.3
+    if (not Session.UseInformationSchema or (Session.ServerVersion < 50003)) then // 5.0.2 supports information_schema, but WHERE clauses is supported up from 5.0.3
     begin
       SQL := '';
       for I  := 0 to Tables.Count - 1 do
@@ -5236,7 +5287,7 @@ begin
   end
   else if (not ValidStatus) then
   begin
-    if (not Client.UseInformationSchema or (Client.ServerVersion < 50002)) then
+    if (not Session.UseInformationSchema or (Session.ServerVersion < 50002)) then
       SQL := 'SHOW TABLE STATUS FROM ' + Database.Session.EscapeIdentifier(Database.Name) + ';' + #13#10
     else
       SQL := 'SELECT * FROM ' + Database.Session.EscapeIdentifier(information_schema) + '.' + Database.Session.EscapeIdentifier('TABLES')
@@ -5251,7 +5302,7 @@ var
   I: Integer;
   SQL: string;
 begin
-  if ((Tables.Count = 0) or (Client.ServerVersion < 50001)) then
+  if ((Tables.Count = 0) or (Session.ServerVersion < 50001)) then
     SQL := ''
   else if (Tables.Count < Count) then
   begin
@@ -5263,15 +5314,15 @@ begin
         SQL := SQL + SQLEscape(TSView(Tables[I]).Name);
       end;
     if (SQL <> '') then
-      SQL := 'SELECT * FROM ' + Client.EscapeIdentifier(information_schema) + '.' + Client.EscapeIdentifier('COLUMNS') + ' WHERE ' + Client.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ' AND ' + Client.EscapeIdentifier('TABLE_NAME') + ' IN (' + SQL + ') ORDER BY ' + Client.EscapeIdentifier('TABLE_NAME') + ',' + Client.EscapeIdentifier('ORDINAL_POSITION') + ';' + #13#10;
+      SQL := 'SELECT * FROM ' + Session.EscapeIdentifier(information_schema) + '.' + Session.EscapeIdentifier('COLUMNS') + ' WHERE ' + Session.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ' AND ' + Session.EscapeIdentifier('TABLE_NAME') + ' IN (' + SQL + ') ORDER BY ' + Session.EscapeIdentifier('TABLE_NAME') + ',' + Session.EscapeIdentifier('ORDINAL_POSITION') + ';' + #13#10;
   end
   else
-    SQL := SQL + 'SELECT * FROM ' + Client.EscapeIdentifier(information_schema) + '.' + Client.EscapeIdentifier('COLUMNS') + ' WHERE ' + Client.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ' ORDER BY ' + Client.EscapeIdentifier('TABLE_NAME') + ',' + Client.EscapeIdentifier('ORDINAL_POSITION') + ';' + #13#10;
+    SQL := SQL + 'SELECT * FROM ' + Session.EscapeIdentifier(information_schema) + '.' + Session.EscapeIdentifier('COLUMNS') + ' WHERE ' + Session.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ' ORDER BY ' + Session.EscapeIdentifier('TABLE_NAME') + ',' + Session.EscapeIdentifier('ORDINAL_POSITION') + ';' + #13#10;
 
   Result := SQL;
 end;
 
-{ TCRoutineParameter **********************************************************}
+{ TSRoutineParameter **********************************************************}
 
 procedure TSRoutineParameter.Assign(const Source: TSField);
 begin
@@ -5291,7 +5342,7 @@ begin
   FParameterType := ptIn;
 end;
 
-{ TCRoutine *******************************************************************}
+{ TSRoutine *******************************************************************}
 
 procedure TSRoutine.Assign(const Source: TSRoutine);
 var
@@ -5503,7 +5554,7 @@ begin
   Result := TSRoutines(CItems);
 end;
 
-function TSRoutine.GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True; const ForeignKeysSource: PString = nil): string;
+function TSRoutine.GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string;
 var
   Parse: TSQLParse;
   Pos: Integer;
@@ -5520,11 +5571,11 @@ begin
     begin
       Pos := 1;
 
-      if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 28, SQL]);
+      if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 19, SQL]);
 
       if (SQLParseKeyword(Parse, 'DEFINER')) then
       begin
-        if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 29, SQL]);
+        if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 20, SQL]);
         Start := Pos;
         SQLParseValue(Parse);
         Delete(SQL, Start, Pos - Start);
@@ -5569,11 +5620,11 @@ begin
     if (Assigned(FFunctionResult)) then
       FreeAndNil(FFunctionResult);
 
-    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 30, SQL]);
+    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 21, SQL]);
 
     if (SQLParseKeyword(Parse, 'DEFINER')) then
     begin
-      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 31, SQL]);
+      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 22, SQL]);
       FDefiner := SQLParseValue(Parse);
     end;
 
@@ -5582,13 +5633,13 @@ begin
     else if (SQLParseKeyword(Parse, 'FUNCTION')) then
       FRoutineType := rtFunction
     else
-      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 32, SQL]);
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 23, SQL]);
 
     FName := SQLParseValue(Parse);
     if (SQLParseChar(Parse, '.')) then
     begin
       if (Database.Session.TableNameCmp(Database.Name, FName) <> 0) then
-        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + FName, 33, SQL]);
+        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + FName, 24, SQL]);
       FName := SQLParseValue(Parse);
     end;
 
@@ -5646,7 +5697,7 @@ begin
   Result := '';
 end;
 
-{ TCProcedure *****************************************************************}
+{ TSProcedure *****************************************************************}
 
 procedure TSProcedure.SetSource(const ADataSet: TMySQLQuery);
 begin
@@ -5720,7 +5771,7 @@ begin
   end;
 end;
 
-{ TCFunction ******************************************************************}
+{ TSFunction ******************************************************************}
 
 procedure TSFunction.SetSource(const ADataSet: TMySQLQuery);
 begin
@@ -5754,7 +5805,7 @@ begin
   Result := Result + ');';
 end;
 
-{ TCRoutines ******************************************************************}
+{ TSRoutines ******************************************************************}
 
 procedure TSRoutines.AddRoutine(const NewRoutine: TSRoutine);
 begin
@@ -5861,11 +5912,11 @@ begin
 
   if ((OldCount > 0) or (Count > 0)) then
   begin
-    Client.ExecuteEvent(ceItemsValid, Client, Client.Databases);
-    Client.ExecuteEvent(ceItemsValid, Database, Self);
+    Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
+    Session.ExecuteEvent(ceItemsValid, Database, Self);
   end;
   if (Database.Valid) then
-    Client.ExecuteEvent(ceItemValid, Client, Client.Databases, Database);
+    Session.ExecuteEvent(ceItemValid, Session, Session.Databases, Database);
 end;
 
 function TSRoutines.GetRoutine(Index: Integer): TSRoutine;
@@ -5875,7 +5926,7 @@ end;
 
 function TSRoutines.SQLGetItems(const Name: string = ''): string;
 begin
-  if (not Client.UseInformationSchema) then
+  if (not Session.UseInformationSchema) then
   begin
     Result := 'SHOW PROCEDURE STATUS WHERE Db=' + SQLEscape(Database.Name) + ';' + #13#10;
     Result := Result + 'SHOW FUNCTION STATUS WHERE Db=' + SQLEscape(Database.Name) + ';' + #13#10;
@@ -5888,7 +5939,7 @@ begin
   end;
 end;
 
-{ TCTrigger *******************************************************************}
+{ TSTrigger *******************************************************************}
 
 procedure TSTrigger.Assign(const Source: TSTrigger);
 begin
@@ -5949,7 +6000,7 @@ begin
   Result := FInputDataSet;
 end;
 
-function TSTrigger.GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True; const ForeignKeysSource: PString = nil): string;
+function TSTrigger.GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string;
 begin
   Result := '';
 
@@ -6049,7 +6100,7 @@ begin
   Result := Result + ';' + #13#10;
 end;
 
-{ TCTriggers ******************************************************************}
+{ TSTriggers ******************************************************************}
 
 function TSTriggers.Add(const AEntity: TSEntity; const ExecuteEvent: Boolean = False): Integer;
 begin
@@ -6064,8 +6115,8 @@ begin
   if (ExecuteEvent) then
   begin
     TSTrigger(AEntity).Invalidate();
-    Client.InvalidObjects.Add(AEntity);
-    Client.ExecuteEvent(ceItemCreated, Database, Self, AEntity);
+    Session.InvalidObjects.Add(AEntity);
+    Session.ExecuteEvent(ceItemCreated, Database, Self, AEntity);
   end;
 end;
 
@@ -6157,11 +6208,11 @@ begin
 
   if ((OldCount > 0) or (Count > 0)) then
   begin
-    Client.ExecuteEvent(ceItemsValid, Client, Client.Databases);
-    Client.ExecuteEvent(ceItemsValid, Database, Self);
+    Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
+    Session.ExecuteEvent(ceItemsValid, Database, Self);
   end;
   if (Database.Valid) then
-    Client.ExecuteEvent(ceItemValid, Client, Client.Databases, Database);
+    Session.ExecuteEvent(ceItemValid, Session, Session.Databases, Database);
 end;
 
 procedure TSTriggers.Delete(const AEntity: TSEntity);
@@ -6177,7 +6228,7 @@ begin
   begin
     TList(Self).Delete(Index);
 
-    Client.ExecuteEvent(ceItemDropped, Database, Self, AEntity);
+    Session.ExecuteEvent(ceItemDropped, Database, Self, AEntity);
 
     AEntity.Free();
   end;
@@ -6200,11 +6251,11 @@ end;
 
 function TSTriggers.SQLGetItems(const Name: string = ''): string;
 begin
-  if (not Client.UseInformationSchema) then
+  if (not Session.UseInformationSchema) then
   begin
     Result := 'SHOW TRIGGERS FROM ' + Database.Session.EscapeIdentifier(Database.Name);
     if (Name <> '') then
-      Result := Result + ' AND ' + Client.EscapeIdentifier('Name') + '=' + SQLEscape(Name);
+      Result := Result + ' AND ' + Session.EscapeIdentifier('Name') + '=' + SQLEscape(Name);
     Result := Result + ';' + #13#10;
   end
   else
@@ -6212,12 +6263,12 @@ begin
     Result := 'SELECT * FROM ' + Database.Session.EscapeIdentifier(information_schema) + '.' + Database.Session.EscapeIdentifier('TRIGGERS');
     Result := Result + ' WHERE ' + Database.Session.EscapeIdentifier('EVENT_OBJECT_SCHEMA') + '=' + SQLEscape(Database.Name);
     if (Name <> '') then
-      Result := Result + ' AND ' + Client.EscapeIdentifier('TRIGGER_NAME') + '=' + SQLEscape(Name);
+      Result := Result + ' AND ' + Session.EscapeIdentifier('TRIGGER_NAME') + '=' + SQLEscape(Name);
     Result := Result + ';' + #13#10;
   end;
 end;
 
-{ TCEvent *********************************************************************}
+{ TSEvent *********************************************************************}
 
 procedure TSEvent.Assign(const Source: TSEvent);
 begin
@@ -6266,7 +6317,7 @@ begin
   Result := TSEvents(CItems);
 end;
 
-function TSEvent.GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True; const ForeignKeysSource: PString = nil): string;
+function TSEvent.GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string;
 begin
   Result := '';
 
@@ -6281,28 +6332,28 @@ var
   Parse: TSQLParse;
 begin
   if (not SQLCreateParse(Parse, PChar(SQL), Length(SQL), Database.Session.ServerVersion)) then
-    raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 34, SQL])
+    raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 25, SQL])
   else
   begin
-    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 35, SQL]);
+    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 26, SQL]);
 
     if (SQLParseKeyword(Parse, 'DEFINER')) then
     begin
-      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 36, SQL]);
+      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 27, SQL]);
       FDefiner := SQLParseValue(Parse);
     end;
 
-    if (not SQLParseKeyword(Parse, 'EVENT')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 37, SQL]);
+    if (not SQLParseKeyword(Parse, 'EVENT')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 28, SQL]);
 
     FName := SQLParseValue(Parse);
     if (SQLParseChar(Parse, '.')) then
     begin
       if (Database.Session.TableNameCmp(Database.Name, FName) = 0) then
-        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + FName, 38, SQL]);
+        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + FName, 29, SQL]);
       FName := SQLParseValue(Parse);
     end;
 
-    if (not SQLParseKeyword(Parse, 'ON SCHEDULE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 39, SQL]);
+    if (not SQLParseKeyword(Parse, 'ON SCHEDULE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 30, SQL]);
 
     if (SQLParseKeyword(Parse, 'AT')) then
     begin
@@ -6323,7 +6374,7 @@ begin
         FEndDateTime := MySQLDB.StrToDateTime(SQLParseValue(Parse), Database.Session.FormatSettings);
     end
     else
-      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 40, SQL]);
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 31, SQL]);
 
     FPreserve := SQLParseKeyword(Parse, 'ON COMPLETION PRESERVE') or not SQLParseKeyword(Parse, 'ON COMPLETION NOT PRESERVE');
 
@@ -6334,7 +6385,7 @@ begin
     if (SQLParseKeyword(Parse, 'COMMENT')) then
       FComment := SQLParseValue(Parse);
 
-    if (not SQLParseKeyword(Parse, 'DO')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 41, SQL]);
+    if (not SQLParseKeyword(Parse, 'DO')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 32, SQL]);
 
     FStmt := SQLParseRest(Parse);
   end;
@@ -6374,7 +6425,7 @@ begin
   Result := Result + 'DROP PROCEDURE ' + Database.Session.EscapeIdentifier(Database.Name) + '.' + Database.Session.EscapeIdentifier(ObjectIDEEventProcedureName) + ';' + #13#10;
 end;
 
-{ TCEvents ********************************************************************}
+{ TSEvents ********************************************************************}
 
 function TSEvents.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
 var
@@ -6457,11 +6508,11 @@ begin
 
   if ((OldCount > 0) or (Count > 0)) then
   begin
-    Client.ExecuteEvent(ceItemsValid, Client, Client.Databases);
-    Client.ExecuteEvent(ceItemsValid, Database, Self);
+    Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
+    Session.ExecuteEvent(ceItemsValid, Database, Self);
   end;
   if (Database.Valid) then
-    Client.ExecuteEvent(ceItemValid, Client, Client.Databases, Database);
+    Session.ExecuteEvent(ceItemValid, Session, Session.Databases, Database);
 end;
 
 constructor TSEvents.Create(const ADatabase: TSDatabase);
@@ -6478,7 +6529,7 @@ end;
 
 function TSEvents.SQLGetItems(const Name: string = ''): string;
 begin
-  if (not Client.UseInformationSchema) then
+  if (not Session.UseInformationSchema) then
   begin
     Result := 'SHOW EVENTS FROM ' + Database.Session.EscapeIdentifier(Database.Name) + ';' + #13#10
   end
@@ -6490,7 +6541,7 @@ begin
   end;
 end;
 
-{ TCDatabase ******************************************************************}
+{ TSDatabase ******************************************************************}
 
 function TSDatabase.AddEvent(const NewEvent: TSEvent): Boolean;
 begin
@@ -6563,16 +6614,16 @@ begin
     Result := False
   else
   begin
-    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Name + '.' + Routine.Name, 42, SQL]);
+    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Name + '.' + Routine.Name, 33, SQL]);
 
     if (SQLParseKeyword(Parse, 'DEFINER')) then
     begin
-      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, 43, SQL]);
+      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, 34, SQL]);
       SQLParseValue(Parse);
     end;
 
     if (not SQLParseKeyword(Parse, 'PROCEDURE') and not SQLParseKeyword(Parse, 'FUNCTION')) then
-      raise EConvertError.CreateFmt(SSourceParseError, [Name + '.' + Routine.Name, 44, SQL]);
+      raise EConvertError.CreateFmt(SSourceParseError, [Name + '.' + Routine.Name, 35, SQL]);
 
     SQL := LeftStr(Routine.Source, SQLParseGetIndex(Parse));
 
@@ -6673,9 +6724,9 @@ begin
   Result := Session.ExecuteSQL(SQL);
 end;
 
-constructor TSDatabase.Create(const AClient: TSSession = nil; const AName: string = '');
+constructor TSDatabase.Create(const ASession: TSSession = nil; const AName: string = '');
 begin
-  inherited Create(AClient.Databases, AClient.TableName(AName));
+  inherited Create(ASession.Databases, ASession.TableName(AName));
 
   FCollation := '';
   FDefaultCharset := '';
@@ -6981,7 +7032,7 @@ var
 begin
   if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.ServerVersion)) then
   begin
-    if (not SQLParseKeyword(Parse, 'CREATE DATABASE')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, 45, SQL]);
+    if (not SQLParseKeyword(Parse, 'CREATE DATABASE')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, 36, SQL]);
 
     FName := SQLParseValue(Parse);
 
@@ -7746,7 +7797,7 @@ begin
   SQL := SQLAlterTable(Table, NewTable);
   SQL := SQL + NewTable.SQLGetSource();
 
-  Result := (SQL = '') or Session.SendSQL(SQL, Session.ClientResult);
+  Result := (SQL = '') or Session.SendSQL(SQL, Session.SessionResult);
 end;
 
 function TSDatabase.UpdateTables(const TableNames: TStringList; const ACharset, ACollation, AEngine: string; const ARowType: TMySQLRowType): Boolean;
@@ -7870,7 +7921,7 @@ begin
   if (Session.DatabaseName <> Name) then
     SQL := SQLUse() + SQL;
 
-  Result := (SQL = '') or Session.SendSQL(SQL, Session.ClientResult);
+  Result := (SQL = '') or Session.SendSQL(SQL, Session.SessionResult);
 end;
 
 function TSDatabase.ViewByName(const TableName: string): TSView;
@@ -7884,7 +7935,7 @@ begin
     Result := TSView(Tables[Index]);
 end;
 
-{ TCDatabases *****************************************************************}
+{ TSDatabases *****************************************************************}
 
 function TSDatabases.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
 var
@@ -7905,8 +7956,8 @@ begin
   if (not DataSet.IsEmpty()) then
   begin
     SetLength(DatabaseNames, 0);
-    if (Assigned(Client.Account)) then
-      CSVSplitValues(Client.Account.Connection.Database, ',', '"', DatabaseNames);
+    if (Assigned(Session.Account)) then
+      CSVSplitValues(Session.Account.Connection.Database, ',', '"', DatabaseNames);
 
     repeat
       if (not UseInformationSchema) then
@@ -7914,7 +7965,7 @@ begin
       else
         Name := DataSet.FieldByName('SCHEMA_NAME').AsString;
 
-      Found := ((Client.TableNameCmp(Name, information_schema) = 0)
+      Found := ((Session.TableNameCmp(Name, information_schema) = 0)
         or (NameCmp(Name, performance_schema) = 0));
       for I := 0 to Length(DatabaseNames) - 1 do
         if (NameCmp(Name, DatabaseNames[I]) = 0) then
@@ -7926,16 +7977,16 @@ begin
         begin
           if (NameCmp(Name, information_schema) = 0) then
           begin
-            NewDatabase := TSSystemDatabase.Create(Client, Name);
-            Client.FInformationSchema := NewDatabase;
+            NewDatabase := TSSystemDatabase.Create(Session, Name);
+            Session.FInformationSchema := NewDatabase;
           end
           else if (NameCmp(Name, performance_schema) = 0) then
           begin
-            NewDatabase := TSSystemDatabase.Create(Client, Name);
-            Client.FPerformanceSchema := NewDatabase;
+            NewDatabase := TSSystemDatabase.Create(Session, Name);
+            Session.FPerformanceSchema := NewDatabase;
           end
           else
-            NewDatabase := TSDatabase.Create(Client, Name);
+            NewDatabase := TSDatabase.Create(Session, Name);
 
           if (Index < Count) then
             Insert(Index, NewDatabase)
@@ -7953,25 +8004,25 @@ begin
       end;
     until (not DataSet.FindNext());
   end
-  else if (Assigned(Client.Account) and (Client.Account.Connection.Database <> '')) then
+  else if (Assigned(Session.Account) and (Session.Account.Connection.Database <> '')) then
   begin
-    CSVSplitValues(Client.Account.Connection.Database, ',', '"', DatabaseNames);
+    CSVSplitValues(Session.Account.Connection.Database, ',', '"', DatabaseNames);
     for I := 0 to Length(DatabaseNames) - 1 do
     begin
       Name := DatabaseNames[I];
 
-      if (Client.TableNameCmp(Name, information_schema) = 0) then
+      if (Session.TableNameCmp(Name, information_schema) = 0) then
       begin
-        Index := Add(TSSystemDatabase.Create(Client, Name));
-        Client.FInformationSchema := Database[Index];
+        Index := Add(TSSystemDatabase.Create(Session, Name));
+        Session.FInformationSchema := Database[Index];
       end
-      else if (Client.TableNameCmp(Name, performance_schema) = 0) then
+      else if (Session.TableNameCmp(Name, performance_schema) = 0) then
       begin
-        Index := Add(TSSystemDatabase.Create(Client, Name));
-        Client.FInformationSchema := Database[Index];
+        Index := Add(TSSystemDatabase.Create(Session, Name));
+        Session.FInformationSchema := Database[Index];
       end
       else
-        Add(TSDatabase.Create(Client, Name));
+        Add(TSDatabase.Create(Session, Name));
     end;
   end;
 
@@ -7988,7 +8039,7 @@ begin
   DeleteList.Free();
 
   if ((OldCount > 0) or (Count > 0)) then
-    Client.ExecuteEvent(ceItemsValid, Client, Self);
+    Session.ExecuteEvent(ceItemsValid, Session, Self);
 end;
 
 procedure TSDatabases.Delete(const AEntity: TSEntity);
@@ -8001,10 +8052,10 @@ begin
   Assert(AEntity is TSDatabase);
 
 
-  if (Client.Account.Connection.Database <> '') then
+  if (Session.Account.Connection.Database <> '') then
   begin
     SetLength(Names, 0);
-    CSVSplitValues(Client.Account.Connection.Database, ',', '"', Names);
+    CSVSplitValues(Session.Account.Connection.Database, ',', '"', Names);
     for I := Length(Names) - 1 downto 0 do
       if (Names[I] = AEntity.Name) then
       begin
@@ -8012,11 +8063,11 @@ begin
           Names[I] := Names[I + 1];
         SetLength(Names, Length(Names) - 1);
       end;
-    Client.Account.Connection.Database := '';
+    Session.Account.Connection.Database := '';
     for I := 0 to Length(Names) - 1 do
     begin
-      if (I > 0) then Client.Account.Connection.Database := Client.Account.Connection.Database + ',';
-      Client.Account.Connection.Database := Client.Account.Connection.Database + CSVEscape(Names[I]);
+      if (I > 0) then Session.Account.Connection.Database := Session.Account.Connection.Database + ',';
+      Session.Account.Connection.Database := Session.Account.Connection.Database + CSVEscape(Names[I]);
     end;
   end;
 
@@ -8024,7 +8075,7 @@ begin
   if (Index >= 0) then
     Delete(Index);
 
-  Client.ExecuteEvent(ceItemDropped, Client, Self, AEntity);
+  Session.ExecuteEvent(ceItemDropped, Session, Self, AEntity);
 
   AEntity.Free();
 end;
@@ -8036,7 +8087,7 @@ end;
 
 function TSDatabases.NameCmp(const Name1, Name2: string): Integer;
 begin
-  if (Client.LowerCaseTableNames = 0) then
+  if (Session.LowerCaseTableNames = 0) then
     Result := lstrcmp(PChar(Name1), PChar(Name2))
   else
     Result := lstrcmpi(PChar(Name1), PChar(Name2));
@@ -8047,17 +8098,17 @@ var
   DatabaseNames: TCSVStrings;
   I: Integer;
 begin
-  if (not Client.UseInformationSchema or (Client.ServerVersion < 50006)) then
+  if (not Session.UseInformationSchema or (Session.ServerVersion < 50006)) then
     Result := 'SHOW DATABASES;' + #13#10
   else
   begin
-    Result := 'SELECT * FROM ' + Client.EscapeIdentifier(information_schema) + '.' + Client.EscapeIdentifier('SCHEMATA');
-    if (Assigned(Client.Account) and (Client.Account.Connection.Database <> '')) then
+    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(information_schema) + '.' + Session.EscapeIdentifier('SCHEMATA');
+    if (Assigned(Session.Account) and (Session.Account.Connection.Database <> '')) then
     begin
-      Result := Result + ' WHERE ' + Client.EscapeIdentifier('SCHEMA_NAME') + ' IN (';
+      Result := Result + ' WHERE ' + Session.EscapeIdentifier('SCHEMA_NAME') + ' IN (';
 
       SetLength(DatabaseNames, 0);
-      CSVSplitValues(Client.Account.Connection.Database, ',', '"', DatabaseNames);
+      CSVSplitValues(Session.Account.Connection.Database, ',', '"', DatabaseNames);
       for I := 0 to Length(DatabaseNames) - 1 do
       begin
         if (I > 0) then Result := Result + ',';
@@ -8071,7 +8122,7 @@ begin
   end;
 end;
 
-{ TCVariable ******************************************************************}
+{ TSVariable ******************************************************************}
 
 procedure TSVariable.Assign(const Source: TSVariable);
 begin
@@ -8090,7 +8141,7 @@ begin
   if (not Assigned(Variables)) then
     Result := StrToFloat(ReplaceStr(Value, ',', ''))
   else
-    Result := StrToFloat(Value, Variables.Client.FormatSettings);
+    Result := StrToFloat(Value, Variables.Session.FormatSettings);
 end;
 
 function TSVariable.GetAsInteger(): Integer;
@@ -8129,7 +8180,7 @@ begin
   if (Assigned(Variables)) then
     Value := FloatToStr(AAsFloat)
   else
-    Value := FloatToStr(AAsFloat, Variables.Client.FormatSettings);
+    Value := FloatToStr(AAsFloat, Variables.Session.FormatSettings);
 end;
 
 procedure TSVariable.SetAsInteger(const AAsInteger: Integer);
@@ -8137,7 +8188,7 @@ begin
   Value := IntToStr(AAsInteger);
 end;
 
-{ TCVariables *****************************************************************}
+{ TSVariables *****************************************************************}
 
 function TSVariables.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
 var
@@ -8168,42 +8219,48 @@ begin
       else
         Variable[Index].Value := DataSet.FieldByName('VARIABLE_VALUE').AsString;
       if (Filtered) then
-        Client.ExecuteEvent(ceItemValid, Client, Self, Variable[Index]);
+        Session.ExecuteEvent(ceItemValid, Session, Self, Variable[Index]);
     until (not DataSet.FindNext());
 
   Result := inherited;
 
   if (Count > 0) then
   begin
-    if (Client.ServerVersion < 40101) then
+    if (Session.ServerVersion < 40101) then
     begin
-      Client.Charsets.Build(nil, False);
-      Client.Charset := Client.VariableByName('character_set').Value;
+      Session.Charsets.Build(nil, False);
+      Session.Charset := Session.VariableByName('character_set').Value;
     end
-    else if (UpperCase(Client.VariableByName('character_set_client').Value) <> UpperCase(Client.VariableByName('character_set_results').Value)) then
-      raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %s (%s) <> %s (%s)', ['Charset', 'character_set_client', Client.VariableByName('character_set_client').Value, Client.Charset, 'character_set_results', Client.VariableByName('character_set_results').Value])
+    else if (UpperCase(Session.VariableByName('character_set_client').Value) <> UpperCase(Session.VariableByName('character_set_results').Value)) then
+      raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %s (%s) <> %s (%s)', ['Charset', 'character_set_client', Session.VariableByName('character_set_client').Value, Session.Charset, 'character_set_results', Session.VariableByName('character_set_results').Value])
     else
-      Client.Charset := Client.VariableByName('character_set_client').Value;
+      Session.Charset := Session.VariableByName('character_set_client').Value;
 
-    if (Client.ServerVersion < 40102) then
-      Client.Engines.Build(nil, False);
+    if (Session.ServerVersion < 40102) then
+      Session.Engines.Build(nil, False);
 
-    if (Assigned(Client.VariableByName('max_allowed_packet'))) then
-      Client.FMaxAllowedPacket := Client.VariableByName('max_allowed_packet').AsInteger - 1; // 1 Byte for COM_QUERY
+    if (Assigned(Session.VariableByName('max_allowed_packet'))) then
+      Session.FMaxAllowedPacket := Session.VariableByName('max_allowed_packet').AsInteger - 1; // 1 Byte for COM_QUERY
 
-    if (Assigned(Client.VariableByName('lower_case_table_names'))) then
-      Client.FLowerCaseTableNames := Client.VariableByName('lower_case_table_names').AsInteger;
+    if (Assigned(Session.VariableByName('lower_case_table_names'))) then
+    begin
+      Session.FLowerCaseTableNames := Session.VariableByName('lower_case_table_names').AsInteger;
+      if (Session.LowerCaseTableNames <> 0) then
+        Session.SyntaxProvider.IdentCaseSens := icsSensitiveLowerCase
+      else
+        Session.SyntaxProvider.IdentCaseSens := icsNonSensitive;
+    end;
 
-    if (Assigned(Client.VariableByName('sql_mode')) and (POS('ANSI_QUOTES', Client.VariableByName('sql_mode').Value) > 0)) then
-      Client.IdentifierQuoter := '"';
-    if (Assigned(Client.VariableByName('sql_quote_show_create'))) then
-      Client.IdentifierQuoted := Client.VariableByName('sql_quote_show_create').AsBoolean;
+    if (Assigned(Session.VariableByName('sql_mode')) and (POS('ANSI_QUOTES', Session.VariableByName('sql_mode').Value) > 0)) then
+      Session.IdentifierQuoter := '"';
+    if (Assigned(Session.VariableByName('sql_quote_show_create'))) then
+      Session.IdentifierQuoted := Session.VariableByName('sql_quote_show_create').AsBoolean;
 
-    if (Assigned(Client.VariableByName('wait_timeout'))) then
-      if (Client.VariableByName('wait_timeout').AsInteger >= 4) then
-        Client.ServerTimeout := Client.VariableByName('wait_timeout').AsInteger - 3
-      else if (Client.VariableByName('wait_timeout').AsInteger >= 2) then
-        Client.ServerTimeout := Client.VariableByName('wait_timeout').AsInteger - 1;
+    if (Assigned(Session.VariableByName('wait_timeout'))) then
+      if (Session.VariableByName('wait_timeout').AsInteger >= 4) then
+        Session.ServerTimeout := Session.VariableByName('wait_timeout').AsInteger - 3
+      else if (Session.VariableByName('wait_timeout').AsInteger >= 2) then
+        Session.ServerTimeout := Session.VariableByName('wait_timeout').AsInteger - 1;
   end;
 
   if (not Filtered) then
@@ -8217,7 +8274,7 @@ begin
   DeleteList.Free();
 
   if (not Filtered) then
-    Client.ExecuteEvent(ceItemsValid, Client, Self);
+    Session.ExecuteEvent(ceItemsValid, Session, Self);
 end;
 
 function TSVariables.GetVariable(Index: Integer): TSVariable;
@@ -8227,9 +8284,9 @@ end;
 
 function TSVariables.SQLGetItems(const Name: string = ''): string;
 begin
-  if (not Client.UseInformationSchema or (Client.ServerVersion < 50112)) then
+  if (not Session.UseInformationSchema or (Session.ServerVersion < 50112)) then
   begin
-    if (Client.ServerVersion < 40003) then
+    if (Session.ServerVersion < 40003) then
       Result := 'SHOW VARIABLES'
     else
       Result := 'SHOW SESSION VARIABLES';
@@ -8239,14 +8296,14 @@ begin
   end
   else
   begin
-    Result := 'SELECT * FROM ' + Client.EscapeIdentifier(information_schema) + '.' + Client.EscapeIdentifier('SESSION_VARIABLES');
+    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(information_schema) + '.' + Session.EscapeIdentifier('SESSION_VARIABLES');
     if (Name <> '') then
-      Result := Result + ' WHERE ' + Client.EscapeIdentifier('VARIABLE_NAME') + '=' + SQLEscape(Name);
+      Result := Result + ' WHERE ' + Session.EscapeIdentifier('VARIABLE_NAME') + '=' + SQLEscape(Name);
     Result := Result + ';' + #13#10;
   end;
 end;
 
-{ TCStati *********************************************************************}
+{ TSStati *********************************************************************}
 
 function TSStati.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
 var
@@ -8282,15 +8339,15 @@ begin
         Status[Index].Value := DataSet.FieldByName('VARIABLE_VALUE').AsString;
     until (not DataSet.FindNext());
 
-  if (Assigned(Client.StatusByName('Uptime'))) then
+  if (Assigned(Session.StatusByName('Uptime'))) then
   begin
-    Seconds := StrToInt64(Client.StatusByName('Uptime').Value);
+    Seconds := StrToInt64(Session.StatusByName('Uptime').Value);
 
-    Client.FStartTime := Now();
-    Client.FStartTime := Client.FStartTime - EncodeTime(0, 0, Seconds mod 60, 0); Seconds := Seconds div 60;
-    Client.FStartTime := Client.FStartTime - EncodeTime(0, Seconds mod 60, 0, 0); Seconds := Seconds div 60;
-    Client.FStartTime := Client.FStartTime - EncodeTime(Seconds mod 24, 0, 0, 0); Seconds := Seconds div 24;
-    Client.FStartTime := Client.FStartTime - Seconds;
+    Session.FStartTime := Now();
+    Session.FStartTime := Session.FStartTime - EncodeTime(0, 0, Seconds mod 60, 0); Seconds := Seconds div 60;
+    Session.FStartTime := Session.FStartTime - EncodeTime(0, Seconds mod 60, 0, 0); Seconds := Seconds div 60;
+    Session.FStartTime := Session.FStartTime - EncodeTime(Seconds mod 24, 0, 0, 0); Seconds := Seconds div 24;
+    Session.FStartTime := Session.FStartTime - Seconds;
   end;
 
   Result := inherited;
@@ -8306,7 +8363,7 @@ begin
   DeleteList.Free();
 
   if ((OldCount > 0) or (Count > 0)) then
-    Client.ExecuteEvent(ceItemsValid, Client, Self);
+    Session.ExecuteEvent(ceItemsValid, Session, Self);
 end;
 
 function TSStati.GetStatus(Index: Integer): TSStatus;
@@ -8316,20 +8373,20 @@ end;
 
 function TSStati.SQLGetItems(const Name: string = ''): string;
 begin
-  if (not Client.UseInformationSchema or (Client.ServerVersion < 50112)) then
-    if (Client.ServerVersion < 50002) then
+  if (not Session.UseInformationSchema or (Session.ServerVersion < 50112)) then
+    if (Session.ServerVersion < 50002) then
       Result := 'SHOW STATUS;' + #13#10
     else
       Result := 'SHOW SESSION STATUS;' + #13#10
   else
-    Result := 'SELECT * FROM ' + Client.EscapeIdentifier(information_schema) + '.' + Client.EscapeIdentifier('SESSION_STATUS') + ';' + #13#10;
+    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(information_schema) + '.' + Session.EscapeIdentifier('SESSION_STATUS') + ';' + #13#10;
 end;
 
-{ TCEngine ********************************************************************}
+{ TSEngine ********************************************************************}
 
 function TSEngine.FieldAvailable(const MySQLFieldType: TMySQLFieldType): Boolean;
 begin
-  Result := Engines.Client.FieldTypes.FieldAvailable(Self, MySQLFieldType);
+  Result := Engines.Session.FieldTypes.FieldAvailable(Self, MySQLFieldType);
 end;
 
 function TSEngine.GetEngines(): TSEngines;
@@ -8358,24 +8415,24 @@ end;
 
 function TSEngine.ApplyMySQLFieldType(const MySQLFieldType: TMySQLFieldType; const MySQLFieldSize: Integer): TMySQLFieldType;
 begin
-  Result := Engines.Client.FieldTypes.ApplyMySQLFieldType(Self, MySQLFieldType);
+  Result := Engines.Session.FieldTypes.ApplyMySQLFieldType(Self, MySQLFieldType);
 
-  if (((Result in [mfChar, mfVarChar]) and (Engines.Client.ServerVersion < 50003) or (Result in [mfTinyText])) and (MySQLFieldSize >= 1 shl 8)) then
+  if (((Result in [mfChar, mfVarChar]) and (Engines.Session.ServerVersion < 50003) or (Result in [mfTinyText])) and (MySQLFieldSize >= 1 shl 8)) then
     Result := mfText;
-  if (((Result in [mfChar, mfVarChar]) and (Engines.Client.ServerVersion >= 50003) or (Result in [mfText])) and (MySQLFieldSize >= 1 shl 16)) then
+  if (((Result in [mfChar, mfVarChar]) and (Engines.Session.ServerVersion >= 50003) or (Result in [mfText])) and (MySQLFieldSize >= 1 shl 16)) then
     Result := mfMediumText;
   if ((Result in [mfMediumText]) and (MySQLFieldSize >= 1 shl 24)) then
     Result := mfLongText;
 
-  if (((Result in [mfBinary, mfVarBinary]) and (Engines.Client.ServerVersion < 50003) or (Result in [mfTinyBlob])) and (MySQLFieldSize >= 1 shl 8)) then
+  if (((Result in [mfBinary, mfVarBinary]) and (Engines.Session.ServerVersion < 50003) or (Result in [mfTinyBlob])) and (MySQLFieldSize >= 1 shl 8)) then
     Result := mfBlob;
-  if (((Result in [mfBinary, mfVarBinary]) and (Engines.Client.ServerVersion >= 50003) or (Result in [mfBlob])) and (MySQLFieldSize >= 1 shl 16)) then
+  if (((Result in [mfBinary, mfVarBinary]) and (Engines.Session.ServerVersion >= 50003) or (Result in [mfBlob])) and (MySQLFieldSize >= 1 shl 16)) then
     Result := mfMediumBlob;
   if ((Result in [mfMediumBlob]) and (MySQLFieldSize >= 1 shl 24)) then
     Result := mfLongBlob;
 end;
 
-{ TCEngines *******************************************************************}
+{ TSEngines *******************************************************************}
 
 function TSEngines.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
 var
@@ -8388,33 +8445,33 @@ begin
   DeleteList := TList.Create();
   DeleteList.Assign(Self);
 
-  if (not Assigned(DataSet) and Client.Variables.Valid) then
+  if (not Assigned(DataSet) and Session.Variables.Valid) then
   begin
-    if ((Client.ServerVersion >= 32334) and Assigned(Client.VariableByName('have_bdb')) and Client.VariableByName('have_bdb').AsBoolean) then
+    if ((Session.ServerVersion >= 32334) and Assigned(Session.VariableByName('have_bdb')) and Session.VariableByName('have_bdb').AsBoolean) then
       Add(TSEngine.Create(Self, 'BDB'));
 
     Add(TSEngine.Create(Self, 'HEAP'));
 
-    if (Assigned(Client.VariableByName('have_innodb')) and Client.VariableByName('have_innodb').AsBoolean) then
+    if (Assigned(Session.VariableByName('have_innodb')) and Session.VariableByName('have_innodb').AsBoolean) then
       Add(TSEngine.Create(Self, 'InnoDB'));
 
-    if (Assigned(Client.VariableByName('have_isam')) and Client.VariableByName('have_isam').AsBoolean) then
+    if (Assigned(Session.VariableByName('have_isam')) and Session.VariableByName('have_isam').AsBoolean) then
       Add(TSEngine.Create(Self, 'ISAM'));
 
-    if (Client.ServerVersion >= 32325) then
+    if (Session.ServerVersion >= 32325) then
       Add(TSEngine.Create(Self, 'MERGE'));
 
     Add(TSEngine.Create(Self, 'MyISAM'));
-    Engine[Count - 1].FDefault := not Assigned(Client.VariableByName('table_type'));
+    Engine[Count - 1].FDefault := not Assigned(Session.VariableByName('table_type'));
 
     Add(TSEngine.Create(Self, 'MRG_MyISAM'));
 
-    if (Assigned(Client.VariableByName('table_type'))) then
+    if (Assigned(Session.VariableByName('table_type'))) then
       for I := 0 to TList(Self).Count - 1 do
-        Engine[I].FDefault := UpperCase(Engine[I].Name) = UpperCase(Client.VariableByName('table_type').Value);
-    if (Assigned(Client.VariableByName('storage_engine'))) then
+        Engine[I].FDefault := UpperCase(Engine[I].Name) = UpperCase(Session.VariableByName('table_type').Value);
+    if (Assigned(Session.VariableByName('storage_engine'))) then
       for I := 0 to TList(Self).Count - 1 do
-        Engine[I].FDefault := UpperCase(Engine[I].Name) = UpperCase(Client.VariableByName('storage_engine').Value);
+        Engine[I].FDefault := UpperCase(Engine[I].Name) = UpperCase(Session.VariableByName('storage_engine').Value);
   end
   else if (not DataSet.IsEmpty()) then
     repeat
@@ -8485,23 +8542,23 @@ end;
 
 function TSEngines.SQLGetItems(const Name: string = ''): string;
 begin
-  if (Client.ServerVersion < 40102) then
+  if (Session.ServerVersion < 40102) then
     Result := ''
-  else if (not Client.UseInformationSchema or (Client.ServerVersion < 50105)) then
+  else if (not Session.UseInformationSchema or (Session.ServerVersion < 50105)) then
     Result := 'SHOW ENGINES;' + #13#10
   else
-    Result := 'SELECT * FROM ' + Client.EscapeIdentifier(information_schema) + '.' + Client.EscapeIdentifier('ENGINES') + ';' + #13#10;
+    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(information_schema) + '.' + Session.EscapeIdentifier('ENGINES') + ';' + #13#10;
 end;
 
 function TSEngines.Update(): Boolean;
 begin
-  if (Client.ServerVersion < 40102) then
-    Result := Client.Variables.Update()
+  if (Session.ServerVersion < 40102) then
+    Result := Session.Variables.Update()
   else
     Result := inherited;
 end;
 
-{ TCPlugin ********************************************************************}
+{ TSPlugin ********************************************************************}
 
 function TSPlugin.GetPlugins(): TSPlugins;
 begin
@@ -8510,7 +8567,7 @@ begin
   Result := TSPlugins(CItems);
 end;
 
-{ TCPlugins *******************************************************************}
+{ TSPlugins *******************************************************************}
 
 function TSPlugins.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
 var
@@ -8560,15 +8617,15 @@ end;
 
 function TSPlugins.SQLGetItems(const Name: string = ''): string;
 begin
-  if (not Client.UseInformationSchema and (Client.ServerVersion < 50109)) then
+  if (not Session.UseInformationSchema and (Session.ServerVersion < 50109)) then
     Result := 'SHOW PLUGIN;' + #13#10
-  else if (not Client.UseInformationSchema or (Client.ServerVersion < 50105)) then
+  else if (not Session.UseInformationSchema or (Session.ServerVersion < 50105)) then
     Result := 'SHOW PLUGINS;' + #13#10
   else
-    Result := 'SELECT * FROM ' + Client.EscapeIdentifier(information_schema) + '.' + Client.EscapeIdentifier('PLUGINS') + ';' + #13#10;
+    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(information_schema) + '.' + Session.EscapeIdentifier('PLUGINS') + ';' + #13#10;
 end;
 
-{ TCFieldType *****************************************************************}
+{ TSFieldType *****************************************************************}
 
 constructor TSFieldType.Create(const AFieldTypes: TSFieldTypes; const AMySQLFieldType: TMySQLFieldType; const ACaption: string; const AHighlighted: Boolean);
 begin
@@ -8584,7 +8641,7 @@ begin
   Result := LowerCase(Caption);
 end;
 
-{ TCFieldTypes ****************************************************************}
+{ TSFieldTypes ****************************************************************}
 
 procedure TSFieldTypes.Add(const AMySQLFieldType: TMySQLFieldType; const ACaption: string; const AHighlighted: Boolean);
 begin
@@ -8610,11 +8667,11 @@ begin
     end;
 end;
 
-constructor TSFieldTypes.Create(const AClient: TSSession);
+constructor TSFieldTypes.Create(const ASession: TSSession);
 begin
-  inherited Create(AClient);
+  inherited Create(ASession);
 
-  FClient := AClient;
+  FSession := ASession;
 
   Add(mfBit, 'Bit', False);
   Add(mfTinyInt, 'TinyInt', False);
@@ -8658,9 +8715,9 @@ function TSFieldTypes.FieldAvailable(const Engine: TSEngine; const MySQLFieldTyp
 begin
   case (MySQLFieldType) of
     mfUnknown: Result := False;
-    mfBit: Result := Assigned(Engine) and ((Client.ServerVersion >= 50003) and (Engine.Name = 'MyISAM') or (Client.ServerVersion >= 50005) and ((Engine.Name = 'MEMORY') or Engine.IsInnoDB or (Engine.Name = 'BDB')));
+    mfBit: Result := Assigned(Engine) and ((Session.ServerVersion >= 50003) and (Engine.Name = 'MyISAM') or (Session.ServerVersion >= 50005) and ((Engine.Name = 'MEMORY') or Engine.IsInnoDB or (Engine.Name = 'BDB')));
     mfBinary,
-    mfVarBinary: Result := Client.ServerVersion >= 40102;
+    mfVarBinary: Result := Session.ServerVersion >= 40102;
     mfGeometry,
     mfPoint,
     mfLineString,
@@ -8668,7 +8725,7 @@ begin
     mfMultiPoint,
     mfMultiLineString,
     mfMultiPolygon,
-    mfGeometryCollection: Result := Assigned(Engine) and (Assigned(Client.VariableByName('have_geometry')) and Client.VariableByName('have_geometry').AsBoolean and ((Engine.Name = 'MyISAM') or (Client.ServerVersion >= 50016) and (Engine.IsInnoDB or (Engine.Name = 'NDB') or (Engine.Name = 'BDB') or (Engine.Name = 'ARCHIVE'))));
+    mfGeometryCollection: Result := Assigned(Engine) and (Assigned(Session.VariableByName('have_geometry')) and Session.VariableByName('have_geometry').AsBoolean and ((Engine.Name = 'MyISAM') or (Session.ServerVersion >= 50016) and (Engine.IsInnoDB or (Engine.Name = 'NDB') or (Engine.Name = 'BDB') or (Engine.Name = 'ARCHIVE'))));
     else Result := True;
   end;
 end;
@@ -8678,7 +8735,7 @@ begin
   Result := TSFieldType(Items[Index]);
 end;
 
-{ TCCharset *******************************************************************}
+{ TSCharset *******************************************************************}
 
 function TSCharset.GetCharsets(): TSCharsets;
 begin
@@ -8693,13 +8750,13 @@ var
 begin
   Result := nil;
 
-  if (Assigned(Charsets.Client.Collations)) then
-    for I := 0 to Charsets.Client.Collations.Count - 1 do
-      if ((Charsets.Client.Collations[I].Charset = Self) and Charsets.Client.Collations[I].Default) then
-        Result := Charsets.Client.Collations[I];
+  if (Assigned(Charsets.Session.Collations)) then
+    for I := 0 to Charsets.Session.Collations.Count - 1 do
+      if ((Charsets.Session.Collations[I].Charset = Self) and Charsets.Session.Collations[I].Default) then
+        Result := Charsets.Session.Collations[I];
 end;
 
-{ TCCharsets ******************************************************************}
+{ TSCharsets ******************************************************************}
 
 function TSCharsets.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
 var
@@ -8711,11 +8768,11 @@ begin
   DeleteList := TList.Create();
   DeleteList.Assign(Self);
 
-  if (not Assigned(DataSet) and Client.Variables.Valid) then
+  if (not Assigned(DataSet) and Session.Variables.Valid) then
   begin
-    if (Assigned(Client.VariableByName('character_sets'))) then
+    if (Assigned(Session.VariableByName('character_sets'))) then
     begin
-      Names := Client.VariableByName('character_sets').Value;
+      Names := Session.VariableByName('character_sets').Value;
 
       while (Names <> '') do
       begin
@@ -8789,23 +8846,23 @@ end;
 
 function TSCharsets.SQLGetItems(const Name: string = ''): string;
 begin
-  if (Client.ServerVersion < 40100) then
+  if (Session.ServerVersion < 40100) then
     Result := ''
-  else if (not Client.UseInformationSchema or (Client.ServerVersion < 50006)) then
+  else if (not Session.UseInformationSchema or (Session.ServerVersion < 50006)) then
     Result := 'SHOW CHARACTER SET;' + #13#10
   else
-    Result := 'SELECT * FROM ' + Client.EscapeIdentifier(information_schema) + '.' + Client.EscapeIdentifier('CHARACTER_SETS') + ';' + #13#10;
+    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(information_schema) + '.' + Session.EscapeIdentifier('CHARACTER_SETS') + ';' + #13#10;
 end;
 
 function TSCharsets.Update(): Boolean;
 begin
-  if (Client.ServerVersion < 40100) then
-    Result := Client.Variables.Update()
+  if (Session.ServerVersion < 40100) then
+    Result := Session.Variables.Update()
   else
     Result := inherited;
 end;
 
-{ TCCollation *****************************************************************}
+{ TSCollation *****************************************************************}
 
 function TSCollation.GetCollations(): TSCollations;
 begin
@@ -8814,7 +8871,7 @@ begin
   Result := TSCollations(CItems);
 end;
 
-{ TCCollations ****************************************************************}
+{ TSCollations ****************************************************************}
 
 function TSCollations.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
 var
@@ -8842,7 +8899,7 @@ begin
 
       if (not UseInformationSchema) then
       begin
-        Collation[Index].FCharset := Client.CharsetByName(DataSet.FieldByName('Charset').AsString);
+        Collation[Index].FCharset := Session.CharsetByName(DataSet.FieldByName('Charset').AsString);
         Collation[Index].FId := DataSet.FieldByName('Id').AsInteger;
         Collation[Index].FDefault := UpperCase(DataSet.FieldByName('Default').AsString) = 'YES';
         Collation[Index].FCompiled := UpperCase(DataSet.FieldByName('Compiled').AsString) = 'YES';
@@ -8850,7 +8907,7 @@ begin
       end
       else
       begin
-        Collation[Index].FCharset := Client.CharsetByName(DataSet.FieldByName('CHARACTER_SET_NAME').AsString);
+        Collation[Index].FCharset := Session.CharsetByName(DataSet.FieldByName('CHARACTER_SET_NAME').AsString);
         Collation[Index].FId := DataSet.FieldByName('ID').AsInteger;
         Collation[Index].FDefault := UpperCase(DataSet.FieldByName('IS_DEFAULT').AsString) = 'YES';
         Collation[Index].FCompiled := UpperCase(DataSet.FieldByName('IS_COMPILED').AsString) = 'YES';
@@ -8878,13 +8935,13 @@ end;
 
 function TSCollations.SQLGetItems(const Name: string = ''): string;
 begin
-  if (not Client.UseInformationSchema or (Client.ServerVersion < 50006)) then
+  if (not Session.UseInformationSchema or (Session.ServerVersion < 50006)) then
     Result := 'SHOW COLLATION;' + #13#10
   else
-    Result := 'SELECT * FROM ' + Client.EscapeIdentifier(information_schema) + '.' + Client.EscapeIdentifier('COLLATIONS') + ';' + #13#10;
+    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(information_schema) + '.' + Session.EscapeIdentifier('COLLATIONS') + ';' + #13#10;
 end;
 
-{ TCProcesse ******************************************************************}
+{ TSProcesse ******************************************************************}
 
 function TSProcess.GetThreadId(): Longword;
 begin
@@ -8896,7 +8953,7 @@ begin
   Name := IntToStr(AThreadId);
 end;
 
-{ TCProcesses *****************************************************************}
+{ TSProcesses *****************************************************************}
 
 function TSProcesses.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
 var
@@ -8980,14 +9037,14 @@ begin
   DeleteList.Free();
 
   if ((OldCount > 0) or (Count > 0)) then
-    Client.ExecuteEvent(ceItemsValid, Client, Self);
+    Session.ExecuteEvent(ceItemsValid, Session, Self);
 end;
 
 procedure TSProcesses.Delete(const AEntity: TSEntity);
 begin
   inherited;
 
-  Client.ExecuteEvent(ceItemDropped, Client, Self, AEntity);
+  Session.ExecuteEvent(ceItemDropped, Session, Self, AEntity);
 end;
 
 function TSProcesses.GetProcess(Index: Integer): TSProcess;
@@ -8997,7 +9054,7 @@ end;
 
 function TSProcesses.GetValid(): Boolean;
 begin
-  if ((Client.ServerVersion >= 50000) and (not Assigned(Client.UserRights) or not Client.UserRights.RProcess)) then
+  if ((Session.ServerVersion >= 50000) and (not Assigned(Session.UserRights) or not Session.UserRights.RProcess)) then
     Result := False
   else
     Result := inherited;
@@ -9010,13 +9067,13 @@ end;
 
 function TSProcesses.SQLGetItems(const Name: string = ''): string;
 begin
-  if (not Client.UseInformationSchema or (Client.ServerVersion < 50107)) then
+  if (not Session.UseInformationSchema or (Session.ServerVersion < 50107)) then
     Result := 'SHOW FULL PROCESSLIST;' + #13#10
   else
-    Result := 'SELECT * FROM ' + Client.EscapeIdentifier(information_schema) + '.' + Client.EscapeIdentifier('PROCESSLIST') + ';' + #13#10;
+    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(information_schema) + '.' + Session.EscapeIdentifier('PROCESSLIST') + ';' + #13#10;
 end;
 
-{ TCUserRight *****************************************************************}
+{ TSUserRight *****************************************************************}
 
 procedure TSUserRight.Assign(const Source: TSUserRight);
 begin
@@ -9119,7 +9176,7 @@ begin
     Result := '<' + Preferences.LoadStr(214) + '>';
 end;
 
-{ TCUser **********************************************************************}
+{ TSUser **********************************************************************}
 
 function TSUser.AddRight(const NewUserRight: TSUserRight): Boolean;
 var
@@ -9283,34 +9340,34 @@ procedure TSUser.ParseGrant(const SQL: string);
     with Right do
       begin
         RAlter           := (RAlter           or (Privileg = 'ALTER')                   or (Privileg = 'ALL PRIVILEGES'));
-        RAlterRoutine    := (RAlterRoutine    or (Privileg = 'ALTER ROUTINE')           or (Privileg = 'ALL PRIVILEGES')) and (Users.Client.ServerVersion >= 50003);
+        RAlterRoutine    := (RAlterRoutine    or (Privileg = 'ALTER ROUTINE')           or (Privileg = 'ALL PRIVILEGES')) and (Users.Session.ServerVersion >= 50003);
         RCreate          := (RCreate          or (Privileg = 'CREATE')                  or (Privileg = 'ALL PRIVILEGES'));
-        RCreateRoutine   := (RCreateRoutine   or (Privileg = 'CREATE ROUTINE')          or (Privileg = 'ALL PRIVILEGES')) and (Users.Client.ServerVersion >= 50003);
-        RCreateTableSpace:= (RCreateTableSpace or(Privileg = 'CREATE TABLESPACE')       or (Privileg = 'ALL PRIVILEGES')) and (Users.Client.ServerVersion >= 50500);
-        RCreateTempTable := (RCreateTempTable or (Privileg = 'CREATE TEMPORARY TABLES') or (Privileg = 'ALL PRIVILEGES')) and (Users.Client.ServerVersion >= 40002);
-        RCreateUser      := (RCreateUser      or (Privileg = 'CREATE USER')             or (Privileg = 'ALL PRIVILEGES')) and (Users.Client.ServerVersion >= 50003);
-        RCreateView      := (RCreateView      or (Privileg = 'CREATE VIEW')             or (Privileg = 'ALL PRIVILEGES')) and (Users.Client.ServerVersion >= 50001);
+        RCreateRoutine   := (RCreateRoutine   or (Privileg = 'CREATE ROUTINE')          or (Privileg = 'ALL PRIVILEGES')) and (Users.Session.ServerVersion >= 50003);
+        RCreateTableSpace:= (RCreateTableSpace or(Privileg = 'CREATE TABLESPACE')       or (Privileg = 'ALL PRIVILEGES')) and (Users.Session.ServerVersion >= 50500);
+        RCreateTempTable := (RCreateTempTable or (Privileg = 'CREATE TEMPORARY TABLES') or (Privileg = 'ALL PRIVILEGES')) and (Users.Session.ServerVersion >= 40002);
+        RCreateUser      := (RCreateUser      or (Privileg = 'CREATE USER')             or (Privileg = 'ALL PRIVILEGES')) and (Users.Session.ServerVersion >= 50003);
+        RCreateView      := (RCreateView      or (Privileg = 'CREATE VIEW')             or (Privileg = 'ALL PRIVILEGES')) and (Users.Session.ServerVersion >= 50001);
         RDelete          := (RDelete          or (Privileg = 'DELETE')                  or (Privileg = 'ALL PRIVILEGES'));
         RDrop            := (RDrop            or (Privileg = 'DROP')                    or (Privileg = 'ALL PRIVILEGES'));
-        REvent           := (REvent           or (Privileg = 'EVENT')                   or (Privileg = 'ALL PRIVILEGES')) and (Users.Client.ServerVersion >= 50106);
-        RExecute         := (RExecute         or (Privileg = 'EXECUTE')                 or (Privileg = 'ALL PRIVILEGES')) and (Users.Client.ServerVersion >= 50003);
+        REvent           := (REvent           or (Privileg = 'EVENT')                   or (Privileg = 'ALL PRIVILEGES')) and (Users.Session.ServerVersion >= 50106);
+        RExecute         := (RExecute         or (Privileg = 'EXECUTE')                 or (Privileg = 'ALL PRIVILEGES')) and (Users.Session.ServerVersion >= 50003);
         RFile            := (RFile            or (Privileg = 'FILE')                    or (Privileg = 'ALL PRIVILEGES'));
         RGrant           := (RGrant           or (Privileg = 'GRANT OPTION')            or (Privileg = 'ALL PRIVILEGES'));
         RIndex           := (RIndex           or (Privileg = 'INDEX')                   or (Privileg = 'ALL PRIVILEGES'));
         RInsert          := (RInsert          or (Privileg = 'INSERT')                  or (Privileg = 'ALL PRIVILEGES'));
-        RLockTables      := (RLockTables      or (Privileg = 'LOCK TABLES')             or (Privileg = 'ALL PRIVILEGES')) and (Users.Client.ServerVersion >= 40002);
+        RLockTables      := (RLockTables      or (Privileg = 'LOCK TABLES')             or (Privileg = 'ALL PRIVILEGES')) and (Users.Session.ServerVersion >= 40002);
         RProcess         := (RProcess         or (Privileg = 'PROCESS')                 or (Privileg = 'ALL PRIVILEGES'));
-        RProxy           := (RProxy           or (Privileg = 'PROXY')                   or (Privileg = 'ALL PRIVILEGES')) and (Users.Client.ServerVersion >= 50507);
+        RProxy           := (RProxy           or (Privileg = 'PROXY')                   or (Privileg = 'ALL PRIVILEGES')) and (Users.Session.ServerVersion >= 50507);
         RReferences      := (RReferences      or (Privileg = 'REFERENCES')              or (Privileg = 'ALL PRIVILEGES'));
         RReload          := (RReload          or (Privileg = 'RELOAD')                  or (Privileg = 'ALL PRIVILEGES'));
-        RReplClient      := (RReplClient      or (Privileg = 'REPLICATION CLIENT')      or (Privileg = 'ALL PRIVILEGES')) and (Users.Client.ServerVersion >= 40002);
-        RReplSlave       := (RReplSlave       or (Privileg = 'REPLICATION SLAVE')       or (Privileg = 'ALL PRIVILEGES')) and (Users.Client.ServerVersion >= 40002);
+        RReplClient      := (RReplClient      or (Privileg = 'REPLICATION CLIENT')      or (Privileg = 'ALL PRIVILEGES')) and (Users.Session.ServerVersion >= 40002);
+        RReplSlave       := (RReplSlave       or (Privileg = 'REPLICATION SLAVE')       or (Privileg = 'ALL PRIVILEGES')) and (Users.Session.ServerVersion >= 40002);
         RSelect          := (RSelect          or (Privileg = 'SELECT')                  or (Privileg = 'ALL PRIVILEGES'));
-        RShowDatabases   := (RShowDatabases   or (Privileg = 'SHOW DATABASES')          or (Privileg = 'ALL PRIVILEGES')) and (Users.Client.ServerVersion >= 40002);
-        RShowView        := (RShowView        or (Privileg = 'SHOW VIEW')               or (Privileg = 'ALL PRIVILEGES')) and (Users.Client.ServerVersion >= 50001);
+        RShowDatabases   := (RShowDatabases   or (Privileg = 'SHOW DATABASES')          or (Privileg = 'ALL PRIVILEGES')) and (Users.Session.ServerVersion >= 40002);
+        RShowView        := (RShowView        or (Privileg = 'SHOW VIEW')               or (Privileg = 'ALL PRIVILEGES')) and (Users.Session.ServerVersion >= 50001);
         RShutdown        := (RShutdown        or (Privileg = 'SHUTDOWN')                or (Privileg = 'ALL PRIVILEGES'));
-        RSuper           := (RSuper           or (Privileg = 'SUPER')                   or (Privileg = 'ALL PRIVILEGES')) and (Users.Client.ServerVersion >= 40002);
-        RTrigger         := (RTrigger         or (Privileg = 'TRIGGER')                 or (Privileg = 'ALL PRIVILEGES')) and (Users.Client.ServerVersion >= 50106);
+        RSuper           := (RSuper           or (Privileg = 'SUPER')                   or (Privileg = 'ALL PRIVILEGES')) and (Users.Session.ServerVersion >= 40002);
+        RTrigger         := (RTrigger         or (Privileg = 'TRIGGER')                 or (Privileg = 'ALL PRIVILEGES')) and (Users.Session.ServerVersion >= 50106);
         RUpdate          := (RUpdate          or (Privileg = 'UPDATE')                  or (Privileg = 'ALL PRIVILEGES'));
       end;
   end;
@@ -9332,11 +9389,11 @@ var
 begin
   FRights.Clear();
 
-  if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Users.Client.ServerVersion)) then
+  if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Users.Session.ServerVersion)) then
   begin
     while (not SQLParseEnd(Parse)) do
     begin
-      if (not SQLParseKeyword(Parse, 'GRANT')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, 46, SQL]);
+      if (not SQLParseKeyword(Parse, 'GRANT')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, 37, SQL]);
 
       repeat
         Privileg := '';
@@ -9383,7 +9440,7 @@ begin
 
             AddPrivileg(NewRights[Index], Privileg);
           until (not SQLParseChar(Parse, ','));
-          if (not SQLParseChar(Parse, ')')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, 48, SQL]);
+          if (not SQLParseChar(Parse, ')')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, 38, SQL]);
         end;
       until (SQLParseKeyword(Parse, 'ON'));
 
@@ -9424,7 +9481,7 @@ begin
       if (DatabaseName = '*') then DatabaseName := '';
       if (TableName = '*') then TableName := '';
 
-      if (not SQLParseKeyword(Parse, 'TO')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, 49, SQL]);
+      if (not SQLParseKeyword(Parse, 'TO')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, 39, SQL]);
 
       FName := SQLParseValue(Parse);
 
@@ -9454,7 +9511,7 @@ begin
             SQLParseValue(Parse);
         until (SQLParseChar(Parse, ';', False) or SQLParseEnd(Parse));
 
-      if (not SQLParseChar(Parse, ';')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, 50, SQL]);
+      if (not SQLParseChar(Parse, ';')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, 40, SQL]);
 
       for I := 0 to Length(NewRights) - 1 do
         if (Privileg <> 'PROXY') then
@@ -9550,7 +9607,7 @@ begin
     Right[Index].Assign(NewUserRight);
 end;
 
-{ TCUsers *********************************************************************}
+{ TSUsers *********************************************************************}
 
 function TSUsers.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
 var
@@ -9569,7 +9626,7 @@ begin
     repeat
       if (not UseInformationSchema) then
         Name := DataSet.FieldByName('User').AsString + '@' + DataSet.FieldByName('Host').AsString
-      else if (SQLCreateParse(Parse, PChar(DataSet.FieldByName('GRANTEE').AsString), Length(DataSet.FieldByName('GRANTEE').AsString), Client.ServerVersion)) then
+      else if (SQLCreateParse(Parse, PChar(DataSet.FieldByName('GRANTEE').AsString), Length(DataSet.FieldByName('GRANTEE').AsString), Session.ServerVersion)) then
         Name := SQLParseValue(Parse)
       else
         raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Name']);
@@ -9583,13 +9640,13 @@ begin
         DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
     until (not DataSet.FindNext());
 
-  Result := inherited or (Client.ErrorCode = ER_DBACCESS_DENIED_ERROR) or (Client.ErrorCode = ER_TABLEACCESS_DENIED_ERROR);
+  Result := inherited or (Session.ErrorCode = ER_DBACCESS_DENIED_ERROR) or (Session.ErrorCode = ER_TABLEACCESS_DENIED_ERROR);
 
   if (Result and not Filtered) then
     while (DeleteList.Count > 0) do
     begin
-      if (Items[0] = Client.User) then
-        Client.FUser := nil;
+      if (Items[0] = Session.User) then
+        Session.FUser := nil;
       Index := IndexOf(DeleteList.Items[0]);
       Item[Index].Free();
       Delete(Index);
@@ -9598,7 +9655,7 @@ begin
   DeleteList.Free();
 
   if ((OldCount > 0) or (Count > 0)) then
-    Client.ExecuteEvent(ceItemsValid, Client, Self);
+    Session.ExecuteEvent(ceItemsValid, Session, Self);
 end;
 
 function TSUsers.GetUser(Index: Integer): TSUser;
@@ -9608,30 +9665,30 @@ end;
 
 function TSUsers.GetValid(): Boolean;
 begin
-  Result := (Assigned(Client.UserRights) and not Client.UserRights.RGrant) or inherited;
+  Result := (Assigned(Session.UserRights) and not Session.UserRights.RGrant) or inherited;
 end;
 
 function TSUsers.SQLGetItems(const Name: string = ''): string;
 begin
-  if (not Client.UseInformationSchema or (Client.ServerVersion < 50002)) then
-    Result := 'SELECT * FROM ' + Client.EscapeIdentifier('mysql') + '.' + Client.EscapeIdentifier('user') + ';' + #13#10
+  if (not Session.UseInformationSchema or (Session.ServerVersion < 50002)) then
+    Result := 'SELECT * FROM ' + Session.EscapeIdentifier('mysql') + '.' + Session.EscapeIdentifier('user') + ';' + #13#10
   else
-    Result := 'SELECT * FROM ' + Client.EscapeIdentifier(information_schema) + '.' + Client.EscapeIdentifier('USER_PRIVILEGES') + ' GROUP BY ' + Client.EscapeIdentifier('GRANTEE') + ';' + #13#10;
+    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(information_schema) + '.' + Session.EscapeIdentifier('USER_PRIVILEGES') + ' GROUP BY ' + Session.EscapeIdentifier('GRANTEE') + ';' + #13#10;
 end;
 
-{ TCClient.TEvent *************************************************************}
+{ TSSession.TEvent ************************************************************}
 
-constructor TSSession.TEvent.Create(const AClient: TSSession);
+constructor TSSession.TEvent.Create(const ASession: TSSession);
 begin
   inherited Create();
 
-  Client := AClient;
+  Session := ASession;
   Sender := nil;
   CItems := nil;
   Update := nil;
 end;
 
-{ TCClient ********************************************************************}
+{ TSSession *******************************************************************}
 
 function Compare(Item1, Item2: Pointer): Integer;
 
@@ -9917,7 +9974,7 @@ begin
         Result := Collations[I].Charset;
 end;
 
-function TSSession.ClientResult(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+function TSSession.SessionResult(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
 var
   Database: TSDatabase;
   DatabaseName: string;
@@ -10178,19 +10235,23 @@ begin
   AutoCommit := AutoCommitBeforeTransaction;
 end;
 
-constructor TSSession.Create(const AClients: TSClients; const AAccount: TAAccount = nil);
+constructor TSSession.Create(const ASessions: TSSessions; const AAccount: TAAccount = nil);
 begin
   inherited Create(nil);
 
-  FClients := AClients;
-  Clients.Add(Self);
+  FSessions := ASessions;
+  Sessions.Add(Self);
   FAccount := AAccount;
 
   EventProcs := TList.Create();
   FCurrentUser := '';
   FInformationSchema := nil;
   FMaxAllowedPacket := 0;
+  FMetadataProvider := TacEventMetadataProvider.Create(nil);
+  FMetadataProvider.OnGetSQLFieldNames := MetadataProviderGetSQLFieldNames;
   FPerformanceSchema := nil;
+  FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
+  FSyntaxProvider.ServerVersionInt := ServerVersion;
   FUser := nil;
 
   if (not Assigned(AAccount)) then
@@ -10467,7 +10528,10 @@ begin
   if (Assigned(StmtMonitor)) then
     StmtMonitor.Free();
 
-  Clients.Delete(Clients.IndexOf(Self));
+  Sessions.Delete(Sessions.IndexOf(Self));
+
+  FMetadataProvider.Free();
+  FSyntaxProvider.Free();
 
   inherited;
 end;
@@ -10916,6 +10980,45 @@ begin
   if (Assigned(Databases)) then Databases.Invalidate();
   if (Assigned(Plugins)) then Plugins.Invalidate();
   if (Assigned(Users)) then Users.Invalidate();
+end;
+
+procedure TSSession.MetadataProviderGetSQLFieldNames(Sender: TacBaseMetadataProvider;
+  const ASQL: WideString; AFields: TacFieldsList);
+var
+  Database: TSDatabase;
+  DatabaseName: string;
+  I: Integer;
+  Parse: TSQLParse;
+  Table: TSTable;
+  TableName: string;
+begin
+  if (SQLCreateParse(Parse, PChar(ASQL), Length(ASQL), ServerVersion)
+    and SQLParseKeyword(Parse, 'SELECT')) then
+  begin
+    repeat
+      SQLParseValue(Parse);
+    until (SQLParseEnd(Parse) or not SQLParseChar(Parse, ','));
+    if (SQLParseKeyword(Parse, 'FROM')) then
+    begin
+      DatabaseName := Self.DatabaseName;
+      if (SQLParseObjectName(Parse, DatabaseName, TableName)) then
+      begin
+        Database := DatabaseByName(DatabaseName);
+        if (Assigned(Database)) then
+        begin
+          Table := Database.TableByName(TableName);
+          if (Assigned(Table)) then
+          begin
+            BeginSynchron();
+            if (Table.Update()) then
+              for I := 0 to Table.Fields.Count - 1 do
+                AFields.AddField(Table.Fields[I].Name, LowerCaseTableNames = 0);
+            EndSynchron();
+          end;
+        end;
+      end;
+    end;
+  end;
 end;
 
 procedure TSSession.MonitorLog(const Sender: TObject; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
@@ -11711,7 +11814,7 @@ begin
   if (Assigned(InvalidObjects)) then
     InvalidObjects.Clear();
 
-  Result := (SQL = '') or SendSQL(SQL, ClientResult);
+  Result := (SQL = '') or SendSQL(SQL, SessionResult);
 end;
 
 function TSSession.UpdateDatabase(const Database, NewDatabase: TSDatabase): Boolean;
@@ -12090,7 +12193,7 @@ begin
 
   SQL := SQL + Variables.SQLGetItems(Variable.Name);
 
-  Result := (SQL = '') or SendSQL(SQL, ClientResult);
+  Result := (SQL = '') or SendSQL(SQL, SessionResult);
 end;
 
 function TSSession.UserByCaption(const Caption: string): TSUser;
@@ -12123,32 +12226,32 @@ begin
     Result := Variables[Index];
 end;
 
-{ TCClients *******************************************************************}
+{ TSSessions ******************************************************************}
 
-function TSClients.Add(const Client: TSSession): Integer;
+function TSSessions.Add(const Session: TSSession): Integer;
 begin
-  Result := inherited Add(Client);
+  Result := inherited Add(Session);
 
-  Client.OnSQLError := OnSQLError;
+  Session.OnSQLError := OnSQLError;
 end;
 
-function TSClients.ClientByAccount(const Account: TAAccount; const DatabaseName: string): TSSession;
+function TSSessions.SessionByAccount(const Account: TAAccount; const DatabaseName: string): TSSession;
 var
   I: Integer;
 begin
   Result := nil;
 
   for I := 0 to Count - 1 do
-    if (Clients[I].Account = Account) and (Clients[I].Databases.NameCmp(Client[I].DatabaseName, DatabaseName) = 0) then
-      Result := Clients[I];
+    if (Sessions[I].Account = Account) and (Sessions[I].Databases.NameCmp(Session[I].DatabaseName, DatabaseName) = 0) then
+      Result := Sessions[I];
 
   if (not Assigned(Result)) then
     for I := 0 to Count - 1 do
-      if (Clients[I].Account = Account) then
-        Result := Clients[I];
+      if (Sessions[I].Account = Account) then
+        Result := Sessions[I];
 end;
 
-function TSClients.GetClient(Index: Integer): TSSession;
+function TSSessions.GetSession(Index: Integer): TSSession;
 begin
   Result := TSSession(Items[Index]);
 end;
@@ -12156,8 +12259,8 @@ end;
 { *****************************************************************************}
 
 initialization
-  Clients := TSClients.Create();
+  Sessions := TSSessions.Create();
 finalization
-  Clients.Free();
+  Sessions.Free();
 end.
 

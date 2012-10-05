@@ -749,7 +749,7 @@ function TDSearch.GetClient(const Index: Integer): TSSession;
 begin
   if (not Assigned(Clients[Index])) then
   begin
-    Clients[Index] := TSSession.Create(fSession.Clients, Accounts[Index]);
+    Clients[Index] := TSSession.Create(fSession.Sessions, Accounts[Index]);
     DConnecting.Client := Clients[Index];
     if (not DConnecting.Execute()) then
       FreeAndNil(Clients[Index]);
@@ -998,7 +998,7 @@ begin
     end
     else
     begin
-      ReplaceClient := TSSession.Create(fSession.Clients, ExecuteClient.Account);
+      ReplaceClient := TSSession.Create(fSession.Sessions, ExecuteClient.Account);
       DConnecting.Client := ReplaceClient;
       if (not DConnecting.Execute()) then
         FreeAndNil(ReplaceClient)

@@ -161,7 +161,7 @@ var
 begin
   if (CheckConnectInfos()) then
   begin
-    Client := TSSession.Create(Clients);
+    Client := TSSession.Create(Sessions);
     if (Assigned(Client)) then
     begin
       case (FConnectionType.ItemIndex) of

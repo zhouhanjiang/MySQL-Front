@@ -245,7 +245,7 @@ begin
   if ((Event.EventType = ceItemsValid) and ((Event.CItems = Client.Stati) or Assigned(Client.Plugins) and (Event.CItems = Client.Plugins))
     and Client.Stati.Valid and (not Assigned(Client.Plugins) or Client.Plugins.Valid)) then
     Built()
-  else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Client.ErrorCode <> 0)) then
+  else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
   begin
     PageControl.Visible := True;
     PSQLWait.Visible := not PageControl.Visible;

@@ -864,7 +864,7 @@ begin
     DAccounts.Account := Accounts.AccountByURI(PChar(Message.LParam));
     if (Assigned(DAccounts.Account)) then
     begin
-      DAccounts.Client := TSSession.Create(Clients, DAccounts.Account);
+      DAccounts.Client := TSSession.Create(Sessions, DAccounts.Account);
       DConnecting.Client := DAccounts.Client;
       if (not DConnecting.Execute()) then
         FreeAndNil(DConnecting.Client);
@@ -1584,12 +1584,12 @@ var
   Log: TStringList;
   Start: Integer;
 begin
-  for I := 0 to Clients.Count - 1 do
-    if (Clients[I].Connected) then
-      if (Assigned(ActiveTab) and (Clients[I] = ActiveTab.Client)) then
-        DataFields.Add('MySQL Version *=' + Clients[I].ServerVersionStr)
+  for I := 0 to Sessions.Count - 1 do
+    if (Sessions[I].Connected) then
+      if (Assigned(ActiveTab) and (Sessions[I] = ActiveTab.Client)) then
+        DataFields.Add('MySQL Version *=' + Sessions[I].ServerVersionStr)
       else
-        DataFields.Add('MySQL Version=' + Clients[I].ServerVersionStr);
+        DataFields.Add('MySQL Version=' + Sessions[I].ServerVersionStr);
 
   if (Assigned(ActiveTab)) then
   begin
@@ -1712,7 +1712,7 @@ begin
 
   Accounts := TAAccounts.Create(DBLogin);
 
-  Clients.OnSQLError := SQLError;
+  Sessions.OnSQLError := SQLError;
 
   MainActionList := ActionList;
   MainHighlighter := Highlighter;

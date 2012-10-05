@@ -335,7 +335,7 @@ function TDTransfer.GetClient(const Index: Integer): TSSession;
 begin
   if (not Assigned(Clients[Index])) then
   begin
-    Clients[Index] := TSSession.Create(fSession.Clients, Accounts[Index]);
+    Clients[Index] := TSSession.Create(fSession.Sessions, Accounts[Index]);
     DConnecting.Client := Clients[Index];
     if (not DConnecting.Execute()) then
       FreeAndNil(Clients[Index]);

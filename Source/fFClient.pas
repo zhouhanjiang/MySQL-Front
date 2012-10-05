@@ -121,7 +121,6 @@ type
     mbOpenInNewTab: TMenuItem;
     mbOpenInNewWindow: TMenuItem;
     MBookmarks: TPopupMenu;
-    MetadataProvider: TacEventMetadataProvider;
     MFiles: TPopupMenu;
     mfOpen: TMenuItem;
     mfOpenInNewWindow: TMenuItem;
@@ -372,7 +371,6 @@ type
     SQLBuilder: TacSQLBuilderPlainText;
     SResult: TSplitter_Ext;
     SSideBar: TSplitter_Ext;
-    SyntaxProvider: TacMYSQLSyntaxProvider;
     tbBlobHexEditor: TToolButton;
     tbBlobHTML: TToolButton;
     tbBlobImage: TToolButton;
@@ -608,8 +606,6 @@ type
       Selected: Boolean);
     procedure mbOpenClick(Sender: TObject);
     procedure MBookmarksPopup(Sender: TObject);
-    procedure MetadataProviderGetSQLFieldNames(Sender: TacBaseMetadataProvider;
-      const ASQL: WideString; AFields: TacFieldsList);
     procedure mfOpenClick(Sender: TObject);
     procedure mfFilterClearClick(Sender: TObject);
     procedure mfFilterSQLClick(Sender: TObject);
@@ -5423,12 +5419,6 @@ begin
   FilterMRU := TMRUList.Create(100);
   ToolBarData.CurrentAddress := -1;
 
-  SyntaxProvider.ServerVersionInt := Client.ServerVersion;
-  if (Client.LowerCaseTableNames <> 0) then
-    SyntaxProvider.IdentCaseSens := icsSensitiveLowerCase
-  else
-    SyntaxProvider.IdentCaseSens := icsNonSensitive;
-
   FormAccountEvent(Client.Account.Desktop.Bookmarks.ClassType);
 
 
@@ -8594,8 +8584,8 @@ begin
           QueryBuilder := TacQueryBuilder.Create(Window);
           QueryBuilder.Visible := False;
           QueryBuilder.Parent := ActiveSynMemo;
-          QueryBuilder.SyntaxProvider := SyntaxProvider;
-          QueryBuilder.MetadataProvider := MetadataProvider;
+          QueryBuilder.SyntaxProvider := Client.SyntaxProvider;
+          QueryBuilder.MetadataProvider := Client.MetadataProvider;
           Insert('*', SQL, Index + 1);
           try
             QueryBuilder.SQL := SQL;
@@ -8646,8 +8636,8 @@ begin
         QueryBuilder := TacQueryBuilder.Create(Window);
         QueryBuilder.Visible := False;
         QueryBuilder.Parent := ActiveSynMemo;
-        QueryBuilder.SyntaxProvider := SyntaxProvider;
-        QueryBuilder.MetadataProvider := MetadataProvider;
+        QueryBuilder.SyntaxProvider := Client.SyntaxProvider;
+        QueryBuilder.MetadataProvider := Client.MetadataProvider;
         try
           QueryBuilder.SQL := SQL;
           Application.ProcessMessages();
@@ -11076,45 +11066,6 @@ begin
   ShowEnabledItems(MBookmarks.Items);
 end;
 
-procedure TFClient.MetadataProviderGetSQLFieldNames(Sender: TacBaseMetadataProvider;
-  const ASQL: WideString; AFields: TacFieldsList);
-var
-  Database: TSDatabase;
-  DatabaseName: string;
-  I: Integer;
-  Parse: TSQLParse;
-  Table: TSTable;
-  TableName: string;
-begin
-  if (SQLCreateParse(Parse, PChar(ASQL), Length(ASQL), Client.ServerVersion)
-    and SQLParseKeyword(Parse, 'SELECT')) then
-  begin
-    repeat
-      SQLParseValue(Parse);
-    until (SQLParseEnd(Parse) or not SQLParseChar(Parse, ','));
-    if (SQLParseKeyword(Parse, 'FROM')) then
-    begin
-      DatabaseName := SelectedDatabase;
-      if (SQLParseObjectName(Parse, DatabaseName, TableName)) then
-      begin
-        Database := Client.DatabaseByName(DatabaseName);
-        if (Assigned(Database)) then
-        begin
-          Table := Database.TableByName(TableName);
-          if (Assigned(Table)) then
-          begin
-            Client.BeginSynchron();
-            if (Table.Update()) then
-              for I := 0 to Table.Fields.Count - 1 do
-                AFields.AddField(Table.Fields[I].Name, Client.LowerCaseTableNames = 0);
-            Client.EndSynchron();
-          end;
-        end;
-      end;
-    end;
-  end;
-end;
-
 procedure TFClient.mfDeleteClick(Sender: TObject);
 begin
   FFiles.InvokeCommandOnSelected('delete');
@@ -12137,10 +12088,10 @@ begin
   if (StringList.Count > 0) then
   begin
     SourceURI := TUURI.Create(StringList.Values['Address']);
-    SourceClient := Clients.ClientByAccount(Accounts.AccountByURI(SourceURI.Address, Client.Account), SourceURI.Database);
+    SourceClient := Sessions.SessionByAccount(Accounts.AccountByURI(SourceURI.Address, Client.Account), SourceURI.Database);
     if (not Assigned(SourceClient) and Assigned(Accounts.AccountByURI(SourceURI.Address))) then
     begin
-      SourceClient := TSSession.Create(Clients, Accounts.AccountByURI(SourceURI.Address));
+      SourceClient := TSSession.Create(Sessions, Accounts.AccountByURI(SourceURI.Address));
       DConnecting.Client := SourceClient;
       if (not DConnecting.Execute()) then
         FreeAndNil(SourceClient);

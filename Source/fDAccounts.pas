@@ -174,7 +174,7 @@ procedure TDAccounts.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   if ((ModalResult = mrOk) and not Assigned(Client)) then
   begin
-    Client := TSSession.Create(Clients, Accounts.AccountByName(FAccounts.Selected.Caption));
+    Client := TSSession.Create(Sessions, Accounts.AccountByName(FAccounts.Selected.Caption));
     DConnecting.Client := Client;
     if (not DConnecting.Execute()) then
     begin
