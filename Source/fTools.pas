@@ -3765,6 +3765,10 @@ var
   SQL: string;
   Table: TSTable;
 begin
+  {$IFDEF EurekaLog}
+  try
+  {$ENDIF}
+
   if (not Data or (Length(ExportObjects) = 0)) then
     DataTables := nil
   else
@@ -3909,6 +3913,12 @@ begin
 
   if (Data and (Length(ExportObjects) > 0)) then
     DataTables.Free();
+
+  {$IFDEF EurekaLog}
+  except
+    StandardEurekaNotify(GetLastExceptionObject(), GetLastExceptionAddress());
+  end;
+  {$ENDIF}
 end;
 
 procedure TTExport.ExecuteDatabaseFooter(const Database: TSDatabase);
@@ -5548,27 +5558,7 @@ begin
   TableName := '';
 
   for I := 0 to Length(Parameter) - 1 do
-    case (Fields[I].DataType) of
-      ftString,
-      ftShortInt,
-      ftByte,
-      ftSmallInt,
-      ftWord,
-      ftInteger,
-      ftLongWord,
-      ftLargeint,
-      ftSingle,
-      ftFloat,
-      ftExtended,
-      ftDate,
-      ftDateTime,
-      ftTimestamp,
-      ftTime:
-        FreeMem(Parameter[I].Buffer);
-      ftWideString:
-        if (Fields[I].Size < 256) then
-          FreeMem(Parameter[I].Buffer);
-    end;
+    FreeMem(Parameter[I].Buffer);
   SetLength(Parameter, 0);
 end;
 
@@ -5713,7 +5703,6 @@ begin
         ParameterType := SQL_INTEGER;
         ColumnSize := 8;
         Parameter[I].BufferSize := Fields[I].DataSize;
-        GetMem(Parameter[I].Buffer, Parameter[I].BufferSize);
       end
     else
       case (Fields[I].DataType) of
@@ -5723,7 +5712,6 @@ begin
             ParameterType := SQL_BINARY;
             ColumnSize := Fields[I].Size;
             Parameter[I].BufferSize := ColumnSize;
-            GetMem(Parameter[I].Buffer, Parameter[I].BufferSize);
           end;
         ftShortInt,
         ftByte,
@@ -5737,7 +5725,6 @@ begin
             ParameterType := SQL_CHAR;
             ColumnSize := 100;
             Parameter[I].BufferSize := ColumnSize;
-            GetMem(Parameter[I].Buffer, Parameter[I].BufferSize);
           end;
         ftSingle,
         ftFloat,
@@ -5747,7 +5734,6 @@ begin
             ParameterType := SQL_C_DOUBLE;
             ColumnSize := 100;
             Parameter[I].BufferSize := ColumnSize;
-            GetMem(Parameter[I].Buffer, Parameter[I].BufferSize);
           end;
         ftTimestamp:
           begin
@@ -5755,7 +5741,6 @@ begin
             ParameterType := SQL_CHAR;
             ColumnSize := 100;
             Parameter[I].BufferSize := ColumnSize;
-            GetMem(Parameter[I].Buffer, Parameter[I].BufferSize);
           end;
         ftDate:
           begin
@@ -5763,7 +5748,6 @@ begin
             ParameterType := SQL_TYPE_DATE;
             ColumnSize := 10; // 'yyyy-mm-dd'
             Parameter[I].BufferSize := ColumnSize;
-            GetMem(Parameter[I].Buffer, Parameter[I].BufferSize);
           end;
         ftDateTime:
           begin
@@ -5771,7 +5755,6 @@ begin
             ParameterType := SQL_TYPE_TIMESTAMP;
             ColumnSize := 19; // 'yyyy-mm-dd hh:hh:ss'
             Parameter[I].BufferSize := ColumnSize;
-            GetMem(Parameter[I].Buffer, Parameter[I].BufferSize);
           end;
         ftTime:
           begin
@@ -5779,7 +5762,6 @@ begin
             ParameterType := -154; // SQL_SS_TIME2
             ColumnSize := 8; // 'hh:mm:ss'
             Parameter[I].BufferSize := ColumnSize;
-            GetMem(Parameter[I].Buffer, Parameter[I].BufferSize);
           end;
         ftWideString:
           begin
@@ -5789,7 +5771,6 @@ begin
               ParameterType := SQL_WCHAR;
               ColumnSize := Fields[I].Size;
               Parameter[I].BufferSize := ColumnSize * SizeOf(Char);
-              GetMem(Parameter[I].Buffer, Parameter[I].BufferSize);
             end
             else
             begin
@@ -5797,7 +5778,6 @@ begin
               ParameterType := SQL_WLONGVARCHAR;
               ColumnSize := Fields[I].Size;
               Parameter[I].BufferSize := ODBCDataSize;
-              Parameter[I].Buffer := SQLPOINTER(I);
             end;
           end;
         ftWideMemo:
@@ -5806,7 +5786,6 @@ begin
             ParameterType := SQL_WLONGVARCHAR;
             ColumnSize := Fields[I].Size;
             Parameter[I].BufferSize := ODBCDataSize;
-            Parameter[I].Buffer := SQLPOINTER(I);
           end;
         ftBlob:
           begin
@@ -5814,11 +5793,11 @@ begin
             ParameterType := SQL_LONGVARBINARY;
             ColumnSize := Fields[I].Size;
             Parameter[I].BufferSize := ODBCDataSize;
-            Parameter[I].Buffer := SQLPOINTER(I);
           end;
         else
           raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Fields[I].DisplayName, Ord(Fields[I].DataType)]);
       end;
+    GetMem(Parameter[I].Buffer, Parameter[I].BufferSize);
 
     if ((Success = daSuccess) and not SQL_SUCCEEDED(SQLBindParameter(Stmt, 1 + I, SQL_PARAM_INPUT, ValueType, ParameterType,
       ColumnSize, 0, Parameter[I].Buffer, Parameter[I].BufferSize, @Parameter[I].Size))) then
@@ -5847,9 +5826,10 @@ end;
 
 procedure TTExportODBC.ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
+  BlockSize: Integer;
+  Buffer: SQLPOINTER;
   DateTime: TDateTime;
   Error: TTools.TError;
-  Field: SQLPOINTER;
   I: Integer;
   Index: Integer;
   L: LargeInt;
@@ -5905,7 +5885,7 @@ begin
         ftWideMemo:
           begin
             Size := AnsiCharToWideChar(Client.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], nil, 0) * SizeOf(Char);
-            if (Size <= Parameter[I].BufferSize) then
+            if (Size < Parameter[I].BufferSize div SizeOf(Char)) then
               Parameter[I].Size := AnsiCharToWideChar(Client.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], Parameter[I].Buffer, Parameter[I].BufferSize div SizeOf(Char)) * SizeOf(Char)
             else
               Parameter[I].Size := SQL_LEN_DATA_AT_EXEC(Size * SizeOf(Char));
@@ -5934,33 +5914,39 @@ begin
 
   while ((Success = daSuccess) and (ReturnCode = SQL_NEED_DATA)) do
   begin
-    ReturnCode := SQLParamData(Stmt, @Field);
-    I := SQLINTEGER(Field);
+    ReturnCode := SQLParamData(Stmt, @Buffer);
     if (ReturnCode = SQL_NEED_DATA) then
-      case (Fields[I].DataType) of
-        ftWideString,
-        ftWideMemo:
-          begin
-            Size := -(Parameter[I].Size - SQL_LEN_DATA_AT_EXEC_OFFSET);
-            S := DataSet.GetAsString(Fields[I].FieldNo);
-            Index := 0;
-            repeat
-              ODBCException(Stmt, SQLPutData(Stmt, @S[1 + Index div SizeOf(Char)], Min(ODBCDataSize, Size - Index)));
-              Inc(Index, Min(ODBCDataSize, Size - Index));
-            until (Index = Size);
+      for I := 0 to Length(Fields) - 1 do
+        if (Buffer = Parameter[I].Buffer) then
+        begin
+          case (Fields[I].DataType) of
+            ftWideString,
+            ftWideMemo:
+              begin
+                S := DataSet.GetAsString(Fields[I].FieldNo);
+                Size := Length(S) * SizeOf(Char);
+                Index := 0;
+                repeat
+                  BlockSize := Min(ODBCDataSize, Size - Index);
+                  ODBCException(Stmt, SQLPutData(Stmt, @S[1 + Index div SizeOf(Char)], BlockSize));
+                  Inc(Index, BlockSize);
+                until (Index = Size);
+              end;
+            ftBlob:
+              begin
+                Size := DataSet.LibLengths^[I];
+                Index := 0;
+                repeat
+                  BlockSize := Min(ODBCDataSize, Size - Index);
+                  ODBCException(Stmt, SQLPutData(Stmt, @DataSet.LibRow^[Fields[I].FieldNo - 1][Index], BlockSize));
+                  Inc(Index, BlockSize);
+                until (Index = Size);
+              end;
+            else
+              raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Fields[I].DisplayName, Ord(Fields[I].DataType)]);
           end;
-        ftBlob:
-          begin
-            Size := DataSet.LibLengths^[I];
-            Index := 0;
-            repeat
-              ODBCException(Stmt, SQLPutData(Stmt, @DataSet.LibRow^[Fields[I].FieldNo - 1][Index], Min(ODBCDataSize, Size - Index)));
-              Inc(Index, Min(ODBCDataSize, Size - Index));
-            until (Index = Size);
-          end;
-        else
-          raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Fields[I].DisplayName, Ord(Fields[I].DataType)]);
-      end;
+          break;
+        end;
   end;
 end;
 
@@ -8706,7 +8692,5 @@ begin
   Result.TableName := Item.TableName;
 end;
 
-begin
-  HTMLEscape('Hallo' + #13#10 + 'Nils');
 end.
 

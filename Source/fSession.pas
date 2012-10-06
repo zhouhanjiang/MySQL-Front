@@ -4773,7 +4773,12 @@ begin
     QueryBuilder := TacQueryBuilder.Create(nil);
     QueryBuilder.SyntaxProvider := Session.SyntaxProvider;
     QueryBuilder.MetadataProvider := Session.MetadataProvider;
-    QueryBuilder.SQL := Stmt;
+    try
+      QueryBuilder.SQL := Stmt;
+    except
+      on E: EacSQLError do
+        raise EacSQLError.Create(E.Message + ': ' + Stmt);
+    end;
 
     Expressions := TList.Create();
     GetExpressions(QueryBuilder.ResultQueryAST, Expressions);

@@ -1562,6 +1562,7 @@ var
   I: Integer;
   J: Integer;
   K: Integer;
+  FieldNames: string;
 begin
   ClearTSFields();
 
@@ -1581,32 +1582,32 @@ begin
     SetLength(FDestFields, Length(FFields));
   end;
 
-  ScrollBox.DisableAlign();
+  FieldNames := #13#10;
+  if ((Objects.Count > 0) and (TSDBObject(Objects[0]) is TSTable)) then
+    for J := 0 to TSTable(Objects[0]).Fields.Count - 1 do
+      FieldNames := FieldNames + TSTable(Objects[0]).Fields[J].Name + #13#10
+  else if (Assigned(DBGrid)) then
+    for J := 0 to DBGrid.FieldCount - 1 do
+      FieldNames := FieldNames + DBGrid.Fields[J].DisplayName + #13#10;
 
+  ScrollBox.DisableAlign();
   for I := 0 to Length(FFields) - 1 do
   begin
     FFields[I] := TComboBox_Ext.Create(ScrollBox);
-    FFields[I].Parent := ScrollBox;
     FFields[I].Left := FField1.Left;
     FFields[I].Top := FField1.Top + I * (FField2.Top - FField1.Top);
     FFields[I].Width := FField1.Width;
     FFields[I].Height := FField1.Height;
     FFields[I].Style := FField1.Style;
-    FFields[I].Items.Add('');
-    if ((Objects.Count > 0) and (TSDBObject(Objects[0]) is TSTable)) then
-      for J := 0 to TSTable(Objects[0]).Fields.Count - 1 do
-        FFields[I].Items.Add(TSTable(Objects[0]).Fields[J].Name)
-    else if (Assigned(DBGrid)) then
-      for J := 0 to DBGrid.FieldCount - 1 do
-        FFields[I].Items.Add(DBGrid.Fields[J].DisplayName);
-    FFields[I].ItemIndex := I + 1;
     FFields[I].OnChange := FField1.OnChange;
     FFields[I].OnExit := FField1.OnExit;
+    FFields[I].Parent := ScrollBox;
+    FFields[I].Items.Text := FieldNames;
+    FFields[I].ItemIndex := I + 1;
 
     if (FLDestFields.Visible) then
     begin
       FLReferrers[I] := TLabel.Create(ScrollBox);
-      FLReferrers[I].Parent := ScrollBox;
       FLReferrers[I].Left := FLReferrer1.Left;
       FLReferrers[I].Top := FLReferrer1.Top + I * (FField2.Top - FField1.Top);
       FLReferrers[I].Width := FLReferrer1.Width;
@@ -1629,9 +1630,9 @@ begin
           Inc(K);
         end;
       FDestFields[I].OnChange := FDestField1.OnChange;
+      FLReferrers[I].Parent := ScrollBox;
     end;
   end;
-
   ScrollBox.EnableAlign();
 end;
 
