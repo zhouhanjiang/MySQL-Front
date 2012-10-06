@@ -1515,19 +1515,7 @@ begin
       GetMem(TABLE_NAME, (MaxLen + 1) * SizeOf(SQLWCHAR));
       GetMem(TABLE_TYPE, (MaxLen + 1) * SizeOf(SQLWCHAR));
 
-      SQLAllocHandle(SQL_HANDLE_STMT, ODBC, @Handle);
-      ODBCException(Handle, SQLTables(Handle, nil, 0, nil, 0, nil, 0, nil, SQL_NTS));
-      ODBCException(Handle, SQLBindCol(Handle, 3, SQL_C_WCHAR, TABLE_NAME, (MaxLen + 1) * SizeOf(SQLWCHAR), @cbTABLE_NAME));
-      ODBCException(Handle, SQLBindCol(Handle, 4, SQL_C_WCHAR, TABLE_TYPE, (MaxLen + 1) * SizeOf(SQLWCHAR), @cbTABLE_TYPE));
-      while (SQL_SUCCEEDED(ODBCException(Handle, SQLFetch(Handle)))) do
-        if (lstrcmpi(PChar(TABLE_TYPE), 'TABLE') = 0) then
-        begin
-          SetString(TableName, PChar(TABLE_NAME), cbTABLE_NAME div SizeOf(SQLTCHAR));
-          TableNames.Add(TableName);
-        end;
-      SQLFreeHandle(SQL_HANDLE_STMT, Handle);
-
-      if ((ImportType = itExcelFile) and (TableNames.Count = 0)) then
+      if (ImportType = itExcelFile) then
       begin
         SQLAllocHandle(SQL_HANDLE_STMT, ODBC, @Handle);
         ODBCException(Handle, SQLTables(Handle, nil, 0, nil, 0, nil, 0, nil, SQL_NTS));
@@ -1535,6 +1523,21 @@ begin
         ODBCException(Handle, SQLBindCol(Handle, 4, SQL_C_WCHAR, TABLE_TYPE, (MaxLen + 1) * SizeOf(SQLWCHAR), @cbTABLE_TYPE));
         while (SQL_SUCCEEDED(ODBCException(Handle, SQLFetch(Handle)))) do
           if (lstrcmpi(PChar(TABLE_TYPE), 'SYSTEM TABLE') = 0) then
+          begin
+            SetString(TableName, PChar(TABLE_NAME), cbTABLE_NAME div SizeOf(SQLTCHAR));
+            TableNames.Add(TableName);
+          end;
+        SQLFreeHandle(SQL_HANDLE_STMT, Handle);
+      end;
+
+      if ((ImportType <> itExcelFile) or (TableNames.Count = 0)) then
+      begin
+        SQLAllocHandle(SQL_HANDLE_STMT, ODBC, @Handle);
+        ODBCException(Handle, SQLTables(Handle, nil, 0, nil, 0, nil, 0, nil, SQL_NTS));
+        ODBCException(Handle, SQLBindCol(Handle, 3, SQL_C_WCHAR, TABLE_NAME, (MaxLen + 1) * SizeOf(SQLWCHAR), @cbTABLE_NAME));
+        ODBCException(Handle, SQLBindCol(Handle, 4, SQL_C_WCHAR, TABLE_TYPE, (MaxLen + 1) * SizeOf(SQLWCHAR), @cbTABLE_TYPE));
+        while (SQL_SUCCEEDED(ODBCException(Handle, SQLFetch(Handle)))) do
+          if (lstrcmpi(PChar(TABLE_TYPE), 'TABLE') = 0) then
           begin
             SetString(TableName, PChar(TABLE_NAME), cbTABLE_NAME div SizeOf(SQLTCHAR));
             TableNames.Add(TableName);
