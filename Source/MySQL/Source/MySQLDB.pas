@@ -1255,11 +1255,7 @@ begin
     Result := 0
   else
   begin
-try
     Result := MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, lpMultiByteStr, cchMultiByte, lpWideCharStr, cchWideChar);
-except
-    Result := 1;
-end;
     if (Result = 0) then
       raise EOSError.CreateFmt(SOSError + ' (CodePage: %d)', [GetLastError(), SysErrorMessage(GetLastError()), CodePage]);
   end;

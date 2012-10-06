@@ -1555,6 +1555,10 @@ var
   OLD_UNIQUE_CHECKS: string;
   SQL: string;
 begin
+  {$IFDEF EurekaLog}
+  try
+  {$ENDIF}
+
   BeforeExecute();
 
   Open();
@@ -1627,6 +1631,12 @@ begin
   end;
 
   AfterExecute();
+
+  {$IFDEF EurekaLog}
+  except
+    StandardEurekaNotify(GetLastExceptionObject(), GetLastExceptionAddress());
+  end;
+  {$ENDIF}
 end;
 
 procedure TTImport.ExecuteData(var Item: TItem; const Table: TSTable);
@@ -2081,7 +2091,6 @@ begin
         begin
           // UTF-8 coded bytes has to be separated well for the
           // MultiByteToWideChar function.
-
           UTF8Bytes := 0;
           if (CodePage = CP_UTF8) then
             while ((ReadSize > 0) and (Byte(FileBuffer.Mem[BytesPerSector + ReadSize - UTF8Bytes]) and $C0 = $80)) do
@@ -2152,6 +2161,10 @@ var
   SQL: string;
   SQLFilePos: TLargeInteger;
 begin
+  {$IFDEF EurekaLog}
+  try
+  {$ENDIF}
+
   if (not Assigned(Text)) then
     BeforeExecute();
 
@@ -2238,6 +2251,12 @@ begin
 
   if (not Assigned(Text)) then
     AfterExecute();
+
+  {$IFDEF EurekaLog}
+  except
+    StandardEurekaNotify(GetLastExceptionObject(), GetLastExceptionAddress());
+  end;
+  {$ENDIF}
 end;
 
 { TTImportText ****************************************************************}
@@ -7447,6 +7466,10 @@ var
   J: Integer;
   Table: TSBaseTable;
 begin
+  {$IFDEF EurekaLog}
+  try
+  {$ENDIF}
+
   BeforeExecute();
 
   for I := 0 to Length(Items) - 1 do
@@ -7511,6 +7534,12 @@ begin
   end;
 
   AfterExecute();
+
+  {$IFDEF EurekaLog}
+  except
+    StandardEurekaNotify(GetLastExceptionObject(), GetLastExceptionAddress());
+  end;
+  {$ENDIF}
 end;
 
 procedure TTSearch.ExecuteDefault(var Item: TItem; const Table: TSBaseTable);

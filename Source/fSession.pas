@@ -4774,7 +4774,7 @@ begin
     QueryBuilder.SyntaxProvider := Session.SyntaxProvider;
     QueryBuilder.MetadataProvider := Session.MetadataProvider;
     try
-      QueryBuilder.SQL := Stmt;
+      QueryBuilder.SQL := 'SELECT * FROM (t1 JOIN t2);';
     except
       on E: EacSQLError do
         raise EacSQLError.Create(E.Message + ': ' + Stmt);
