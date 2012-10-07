@@ -738,8 +738,9 @@ type
 
   EODBCError = EDatabaseError;
 
-function SQLiteException(const Handle: sqlite3_ptr; const ReturnCode: Integer; const AState: PString = nil): SQLRETURN;
 function ODBCException(const Stmt: SQLHSTMT; const ReturnCode: SQLRETURN; const AState: PString = nil): SQLRETURN;
+function ODBCTableName(const TableName: string; const Excel: Boolean): string;
+function SQLiteException(const Handle: sqlite3_ptr; const ReturnCode: Integer; const AState: PString = nil): SQLRETURN;
 
 const
   BackupExtension = '_bak';
@@ -766,23 +767,14 @@ const
 
   STR_LEN = 128;
 
-function UMLEncoding(const Codepage: Cardinal): string;
+function GetTempFileName(): string;
 var
-  Reg: TRegistry;
+  FilenameP: array [0 .. MAX_PATH] of Char;
 begin
-  Result := '';
-
-  Reg := TRegistry.Create();
-  Reg.RootKey := HKEY_CLASSES_ROOT;
-  if (Reg.OpenKey('\MIME\Database\Codepage\' + IntToStr(Codepage), False)) then
-  begin
-    if (Reg.ValueExists('WebCharset')) then
-      Result := Reg.ReadString('WebCharset')
-    else if (Reg.ValueExists('BodyCharset')) then
-      Result := Reg.ReadString('BodyCharset');
-    Reg.CloseKey();
-  end;
-  Reg.Free();
+  if ((GetTempPath(MAX_PATH, @FilenameP) > 0) and (Windows.GetTempFileName(FilenameP, '~MF', 0, FilenameP) <> 0)) then
+    Result := StrPas(PChar(@FilenameP[0]))
+  else
+    Result := '';
 end;
 
 function GetUTCDateTime(Date: TDateTime): string;
@@ -838,6 +830,76 @@ begin
   Result := S;
 end;
 
+function ODBCError(const HandleType: SQLSMALLINT; const Handle: SQLHSTMT): TTools.TError;
+var
+  cbMessageText: SQLSMALLINT;
+  MessageText: PSQLTCHAR;
+  SQLState: array [0 .. SQL_SQLSTATE_SIZE] of SQLTCHAR;
+begin
+  Result.ErrorType := TE_ODBC;
+  Result.ErrorCode := 0;
+  case (SQLGetDiagRec(HandleType, Handle, 1, @SQLState, nil, nil, 0, @cbMessageText)) of
+    SQL_SUCCESS,
+    SQL_SUCCESS_WITH_INFO:
+      begin
+        GetMem(MessageText, (cbMessageText + 1) * SizeOf(SQLTCHAR));
+        SQLGetDiagRec(HandleType, Handle, 1, nil, nil, MessageText, cbMessageText + 1, nil);
+        Result.ErrorMessage := PChar(MessageText) + ' (' + SQLState + ')';
+        FreeMem(MessageText);
+      end;
+    SQL_INVALID_HANDLE:
+      Result.ErrorMessage := 'Invalid ODBC Handle.';
+    SQL_ERROR,
+    SQL_NO_DATA:
+      raise Exception.Create('Unknown ODBC Error');
+  end;
+end;
+
+function ODBCTableName(const TableName: string; const Excel: Boolean): string;
+begin
+  if (Excel) then
+    Result := TableName + '$'
+  else
+    Result := TableName;
+end;
+
+function ODBCException(const Stmt: SQLHSTMT; const ReturnCode: SQLRETURN; const AState: PString = nil): SQLRETURN;
+var
+  cbMessageText: SQLSMALLINT;
+  MessageText: PSQLTCHAR;
+  Msg: string;
+  SQLState: array [0 .. SQL_SQLSTATE_SIZE] of SQLTCHAR;
+begin
+  ZeroMemory(@SQLState, SizeOf(SQLState));
+
+  if ((ReturnCode < SQL_SUCCESS) or (ReturnCode = SQL_SUCCESS_WITH_INFO)) then
+    if (SQLGetDiagRec(SQL_HANDLE_STMT, Stmt, 1, @SQLState, nil, nil, 0, @cbMessageText) = SQL_INVALID_HANDLE) then
+      raise Exception.Create('Invalid ODBC Handle')
+    else if ((SQLState <> '') and (SQLState <> '01004')) then
+    begin
+      GetMem(MessageText, (cbMessageText + 1) * SizeOf(SQLTChar));
+      SQLGetDiagRec(SQL_HANDLE_STMT, Stmt, 1, nil, nil, MessageText, cbMessageText + 1, nil);
+      Msg := PChar(MessageText) + ' (' + SQLState + ')';
+      FreeMem(MessageText);
+      raise EODBCError.Create(Msg);
+    end;
+
+  if (Assigned(AState)) then
+    AState^ := SQLState;
+
+  Result := ReturnCode;
+end;
+
+function SQLiteException(const Handle: sqlite3_ptr; const ReturnCode: Integer; const AState: PString = nil): SQLRETURN;
+begin
+  if ((ReturnCode = SQLITE_MISUSE)) then
+    raise Exception.Create('Invalid SQLite Handle')
+  else if ((ReturnCode <> SQLITE_OK) and (ReturnCode < SQLITE_ROW)) then
+    raise EODBCError.Create(UTF8ToString(sqlite3_errmsg(@Handle)) + ' (' + IntToStr(ReturnCode) + ')');
+
+  Result := ReturnCode;
+end;
+
 function SQLLoadDataInfile(const Database: TSDatabase; const Replace: Boolean; const Filename, FileCharset, DatabaseName, TableName: string; const FieldNames: string): string;
 var
   Client: TSSession;
@@ -870,83 +932,30 @@ begin
         + 'SET SESSION character_set_database=' + SQLEscape(Client.VariableByName('character_set_database').Value) + ';' + #13#10;
 end;
 
-function SQLiteException(const Handle: sqlite3_ptr; const ReturnCode: Integer; const AState: PString = nil): SQLRETURN;
-begin
-  if ((ReturnCode = SQLITE_MISUSE)) then
-    raise Exception.Create('Invalid SQLite Handle')
-  else if ((ReturnCode <> SQLITE_OK) and (ReturnCode < SQLITE_ROW)) then
-    raise EODBCError.Create(UTF8ToString(sqlite3_errmsg(@Handle)) + ' (' + IntToStr(ReturnCode) + ')');
-
-  Result := ReturnCode;
-end;
-
-function ODBCError(const HandleType: SQLSMALLINT; const Handle: SQLHSTMT): TTools.TError;
-var
-  cbMessageText: SQLSMALLINT;
-  MessageText: PSQLTCHAR;
-  SQLState: array [0 .. SQL_SQLSTATE_SIZE] of SQLTCHAR;
-begin
-  Result.ErrorType := TE_ODBC;
-  Result.ErrorCode := 0;
-  case (SQLGetDiagRec(HandleType, Handle, 1, @SQLState, nil, nil, 0, @cbMessageText)) of
-    SQL_SUCCESS,
-    SQL_SUCCESS_WITH_INFO:
-      begin
-        GetMem(MessageText, (cbMessageText + 1) * SizeOf(SQLTCHAR));
-        SQLGetDiagRec(HandleType, Handle, 1, nil, nil, MessageText, cbMessageText + 1, nil);
-        Result.ErrorMessage := PChar(MessageText) + ' (' + SQLState + ')';
-        FreeMem(MessageText);
-      end;
-    SQL_INVALID_HANDLE:
-      Result.ErrorMessage := 'Invalid ODBC Handle.';
-    SQL_ERROR,
-    SQL_NO_DATA:
-      raise Exception.Create('Unknown ODBC Error');
-  end;
-end;
-
-function ODBCException(const Stmt: SQLHSTMT; const ReturnCode: SQLRETURN; const AState: PString = nil): SQLRETURN;
-var
-  cbMessageText: SQLSMALLINT;
-  MessageText: PSQLTCHAR;
-  Msg: string;
-  SQLState: array [0 .. SQL_SQLSTATE_SIZE] of SQLTCHAR;
-begin
-  ZeroMemory(@SQLState, SizeOf(SQLState));
-
-  if ((ReturnCode < SQL_SUCCESS) or (ReturnCode = SQL_SUCCESS_WITH_INFO)) then
-    if (SQLGetDiagRec(SQL_HANDLE_STMT, Stmt, 1, @SQLState, nil, nil, 0, @cbMessageText) = SQL_INVALID_HANDLE) then
-      raise Exception.Create('Invalid ODBC Handle')
-    else if ((SQLState <> '') and (SQLState <> '01004')) then
-    begin
-      GetMem(MessageText, (cbMessageText + 1) * SizeOf(SQLTChar));
-      SQLGetDiagRec(SQL_HANDLE_STMT, Stmt, 1, nil, nil, MessageText, cbMessageText + 1, nil);
-      Msg := PChar(MessageText) + ' (' + SQLState + ')';
-      FreeMem(MessageText);
-      raise EODBCError.Create(Msg);
-    end;
-
-  if (Assigned(AState)) then
-    AState^ := SQLState;
-
-  Result := ReturnCode;
-end;
-
-function GetTempFileName(): string;
-var
-  FilenameP: array [0 .. MAX_PATH] of Char;
-begin
-  if ((GetTempPath(MAX_PATH, @FilenameP) > 0) and (Windows.GetTempFileName(FilenameP, '~MF', 0, FilenameP) <> 0)) then
-    Result := StrPas(PChar(@FilenameP[0]))
-  else
-    Result := '';
-end;
-
 function SysError(): TTools.TError;
 begin
   Result.ErrorType := TE_File;
   Result.ErrorCode := GetLastError();
   Result.ErrorMessage := SysErrorMessage(GetLastError());
+end;
+
+function UMLEncoding(const Codepage: Cardinal): string;
+var
+  Reg: TRegistry;
+begin
+  Result := '';
+
+  Reg := TRegistry.Create();
+  Reg.RootKey := HKEY_CLASSES_ROOT;
+  if (Reg.OpenKey('\MIME\Database\Codepage\' + IntToStr(Codepage), False)) then
+  begin
+    if (Reg.ValueExists('WebCharset')) then
+      Result := Reg.ReadString('WebCharset')
+    else if (Reg.ValueExists('BodyCharset')) then
+      Result := Reg.ReadString('BodyCharset');
+    Reg.CloseKey();
+  end;
+  Reg.Free();
 end;
 
 function ZipError(const Zip: TZipFile; const ErrorMessage: string): TTools.TError;

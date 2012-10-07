@@ -1083,14 +1083,12 @@ var
 begin
   BytesRead := 0;
   repeat
-Len := -1; // Debug 04.10.2012
     case (IOType) of
       itNamedPipe:
         begin
           Result := ReadFile(Pipe, PAnsiChar(@AnsiChar(Buffer))[BytesRead], BytesToRead - BytesRead, Size, nil);
           if (not Result) then
-//            Len := -1
-            RaiseLastOSError()
+            Len := -1
           else
             Len := Size;
        end;
@@ -1105,22 +1103,18 @@ Len := -1; // Debug 04.10.2012
 
           Result := Size > 0;
           if (not Result) then
-            raise Exception.Create('Size <= 0')
-//            Len := -1
+            Len := -1
           else
           begin
             FD_ZERO(ReadFDS); FD_SET(Socket, ReadFDS);
             Time.tv_sec := NET_WAIT_TIMEOUT; Time.tv_usec := Time.tv_sec * 1000;
             Result := select(0, @ReadFDS, nil, nil, @Time) > 0;
             if (not Result) then
-                raise Exception.Create('select error: ' + IntToStr(WSAGetLastError()))
-//              Len := -1
+              Len := -1
             else
             begin
               Len := recv(Socket, PAnsiChar(@AnsiChar(Buffer))[BytesRead], BytesToRead - BytesRead, 0);
               Result := Len <> SOCKET_ERROR;
-              if (not Result) then
-                raise Exception.Create('recv error: ' + IntToStr(WSAGetLastError()));
             end;
           end;
         end;
@@ -1487,40 +1481,40 @@ function TMySQL_File.ReallocBuffer(var Buffer: TFileBuffer; const Size: my_uint)
 var
   NewSize: my_uint;
 begin
-  Result := (errno() = 0) or (Size <= Buffer.MemSize);
+  if (Size = 0) then
+  begin
+    if (Assigned(Buffer.Mem)) then
+      FreeMem(Buffer.Mem);
+    FillChar(Buffer, SizeOf(Buffer), #0);
+    Result := True;
+  end
+  else
+  begin
+    NewSize := (((Size - 1) div NET_BUFFER_LENGTH) + 1) * NET_BUFFER_LENGTH;
 
-  if (Result) then
-    if (Size > 0) then
+    if (Buffer.Size > NewSize) then
     begin
-      NewSize := (((Size - 1) div NET_BUFFER_LENGTH) + 1) * NET_BUFFER_LENGTH;
+      Move(Buffer.Mem[Buffer.Offset], Buffer.Mem[0], Buffer.Size - Buffer.Offset);
+      Dec(Buffer.Size, Buffer.Offset);
+      Buffer.Offset := 0;
+    end;
 
-      if (Buffer.Size > NewSize) then
+    if (Buffer.Size > NewSize) then
+      NewSize := (((Buffer.Size - 1) div NET_BUFFER_LENGTH) + 1) * NET_BUFFER_LENGTH;
+
+    try
+      ReallocMem(Buffer.Mem, NewSize);
+      Buffer.MemSize := NewSize;
+      Result := True;
+    except
+      on E: EOutOfMemory do
       begin
-        Move(Buffer.Mem[Buffer.Offset], Buffer.Mem[0], Buffer.Size - Buffer.Offset);
-        Dec(Buffer.Size, Buffer.Offset);
-        Buffer.Offset := 0;
-      end;
-
-      if (Buffer.Size > NewSize) then
-        NewSize := (((Buffer.Size - 1) div NET_BUFFER_LENGTH) + 1) * NET_BUFFER_LENGTH;
-
-      try
-        ReallocMem(Buffer.Mem, NewSize);
-        Buffer.MemSize := NewSize;
-      except
-        on E: EOutOfMemory do
-        begin
-          Result := False;
+        if (errno() = 0) then
           Seterror(CR_OUT_OF_MEMORY);
-        end;
+        Result := False;
       end;
-    end
-    else
-    begin
-      if (Assigned(Buffer.Mem)) then
-        FreeMem(Buffer.Mem);
-      FillChar(Buffer, SizeOf(Buffer), #0);
-    end
+    end;
+  end;
 end;
 
 function TMySQL_File.ReceivePacket(): Boolean;
