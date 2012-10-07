@@ -67,7 +67,7 @@ uses
   fDVariable in 'fDVariable.pas' {DVariable},
   fDView in 'fDView.pas' {DView},
   fCWorkbench in 'fCWorkbench.pas',
-  fFClient in 'fFClient.pas' {FClient},
+  fFSession in 'fFSession.pas' {FSession},
   fWWindow in 'fWWindow.pas' {WWindow};
 
 {$R *.res}
