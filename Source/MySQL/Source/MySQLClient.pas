@@ -1485,7 +1485,7 @@ begin
   begin
     if (Assigned(Buffer.Mem)) then
       FreeMem(Buffer.Mem);
-    FillChar(Buffer, SizeOf(Buffer), #0);
+    ZeroMemory(@Buffer, SizeOf(Buffer));
     Result := True;
   end
   else
@@ -1509,8 +1509,8 @@ begin
     except
       on E: EOutOfMemory do
       begin
-        if (errno() = 0) then
-          Seterror(CR_OUT_OF_MEMORY);
+        ZeroMemory(@Buffer, SizeOf(Buffer));
+        Seterror(CR_OUT_OF_MEMORY);
         Result := False;
       end;
     end;
@@ -1643,9 +1643,8 @@ begin
         Offset := PacketBuffer.Offset; if (Index > 0) then Inc(Offset,  NET_HEADER_SIZE + my_uint(Index) * MAX_PACKET_LENGTH);
       end;
 
-      if (not Result) then
-        Seterror(CR_SERVER_LOST)
-      else
+      if (Result) then
+      begin
         if (Offset + NET_HEADER_SIZE > PacketBuffer.Size) then
           Size := 0
         else
@@ -1678,7 +1677,10 @@ begin
                 Dec(PacketBuffer.Size, NET_HEADER_SIZE);
               end;
           end;
-      end;
+        end;
+      end
+      else if (errno() = 0) then
+        Seterror(CR_SERVER_LOST);
     until (not Result or (VIOSize = 0) or (Size <> MAX_PACKET_LENGTH));
 
     if (Result) then

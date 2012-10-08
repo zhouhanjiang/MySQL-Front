@@ -3236,7 +3236,7 @@ begin
   Result := 'SELECT * FROM ';
   if (DatabaseName <> '') then
     Result := Result + Connection.EscapeIdentifier(FDatabaseName) + '.';
-  Result := Result + Connection.EscapeIdentifier(TableName);
+  Result := Result + Connection.EscapeIdentifier(Table.Name);
   if ((FilterSQL <> '') or (QuickSearch <> '')) then
   begin
     Result := Result + ' WHERE ';

@@ -4465,7 +4465,7 @@ begin
   Content := Content + '# Source for event "' + Event.Name + '"' + #13#10;
   Content := Content + '#' + #13#10;
   Content := Content + #13#10;
-  Content := Content + ReplaceStr(Event.Source, Session.EscapeIdentifier(Event.Database.Name) + '.', '') + #13#10;
+  Content := Content + Event.GetSourceEx(IncludeDropStmts) + #13#10;
 
   WriteContent(Content);
 end;
