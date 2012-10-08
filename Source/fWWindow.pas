@@ -13,14 +13,14 @@ uses
   ExtCtrls_Ext, Forms_Ext, StdCtrls_Ext, ComCtrls_Ext, Dialogs_Ext, StdActns_Ext,
   MySQLDB,
   fSession, fPreferences,
-  fFClient, fBase;
+  fFSession, fBase;
 
 const
   cWindowClassName = 'MySQL-Front.Application';
 
 const
   CM_ACTIVATETAB = WM_USER + 600;
-  CM_MYSQLCONNECTION_SYNCHRONIZE = WM_USER + 601;
+  CM_MYSQLCLIENT_SYNCHRONIZE = WM_USER + 601;
   CM_UPDATEAVAILABLE = WM_USER + 602;
 
 type
@@ -439,7 +439,7 @@ type
     TabControlDragMarkedTabIndex: Integer;
     TabControlDragStartTabIndex: Integer;
     TabControlRepaint: TList;
-    FClients: TList;
+    FSessions: TList;
     UniqueTabNameCounter: Integer;
     UpdateAvailable: Boolean;
     procedure ApplicationActivate(Sender: TObject);
@@ -454,7 +454,7 @@ type
     procedure EurekaLogExceptionNotify(
       EurekaExceptionRecord: TEurekaExceptionRecord; var Handled: Boolean);
     {$ENDIF}
-    function GetActiveTab(): TFClient;
+    function GetActiveTab(): TFSession;
     function GetNewTabIndex(Sender: TObject; X, Y: Integer): Integer;
     procedure InformUpdateAvailable();
     procedure miFReopenClick(Sender: TObject);
@@ -462,13 +462,13 @@ type
     procedure MPrevItemClick(Sender: TObject);
     procedure mtTabsClick(Sender: TObject);
     procedure MySQLConnectionSynchronize(const Data: Pointer); inline;
-    procedure SetActiveTab(const FClient: TFClient);
+    procedure SetActiveTab(const FSession: TFSession);
     procedure SQLError(const Connection: TMySQLConnection; const ErrorCode: Integer; const ErrorMessage: string);
     procedure CMActivateTab(var Message: TMessage); message CM_ACTIVATETAB;
     procedure CMAddTab(var Message: TMessage); message CM_ADDTAB;
     procedure CMBookmarkChanged(var Message: TMessage); message CM_BOOKMARKCHANGED;
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
-    procedure CMClientSynchronize(var Message: TMessage); message CM_MYSQLCONNECTION_SYNCHRONIZE;
+    procedure CMMySQLClientSynchronize(var Message: TMessage); message CM_MYSQLCLIENT_SYNCHRONIZE;
     procedure CMCloseTab(var Message: TMessage); message CM_CLOSE_TAB;
     procedure CMDeactivateTab(var Message: TMessage); message CM_DEACTIVATETAB;
     procedure CMPostShow(var Message: TMessage); message CM_POST_SHOW;
@@ -479,7 +479,7 @@ type
     procedure WMDrawItem(var Message: TWMDrawItem); message WM_DRAWITEM;
     procedure WMHelp(var Message: TWMHelp); message WM_HELP;
     procedure WMTimer(var Message: TWMTimer); message WM_TIMER;
-    property ActiveTab: TFClient read GetActiveTab write SetActiveTab;
+    property ActiveTab: TFSession read GetActiveTab write SetActiveTab;
   protected
     procedure ApplicationException(Sender: TObject; E: Exception);
     procedure CreateParams(var Params: TCreateParams); override;
@@ -515,11 +515,11 @@ end;
 
 procedure TWWindow.aEFindExecute(Sender: TObject);
 begin
-  if (Assigned(ActiveTab) and (ActiveTab is TFClient)) then
-    TFClient(ActiveTab).aEFindExecute(Sender)
+  if (Assigned(ActiveTab) and (ActiveTab is TFSession)) then
+    TFSession(ActiveTab).aEFindExecute(Sender)
   else
   begin
-    DSearch.Client := nil;
+    DSearch.Session := nil;
     DSearch.SearchOnly := True;
     DSearch.Frame := nil;
     DSearch.Execute();
@@ -528,11 +528,11 @@ end;
 
 procedure TWWindow.aEReplaceExecute(Sender: TObject);
 begin
-  if (Assigned(ActiveTab) and (ActiveTab is TFClient)) then
-    TFClient(ActiveTab).aEReplaceExecute(Sender)
+  if (Assigned(ActiveTab) and (ActiveTab is TFSession)) then
+    TFSession(ActiveTab).aEReplaceExecute(Sender)
   else
   begin
-    DSearch.Client := nil;
+    DSearch.Session := nil;
     DSearch.SearchOnly := False;
     DSearch.Frame := nil;
     DSearch.Execute();
@@ -541,12 +541,12 @@ end;
 
 procedure TWWindow.aETransferExecute(Sender: TObject);
 begin
-  if (Assigned(ActiveTab) and (ActiveTab is TFClient)) then
-    TFClient(ActiveTab).aETransferExecute(Sender)
+  if (Assigned(ActiveTab) and (ActiveTab is TFSession)) then
+    TFSession(ActiveTab).aETransferExecute(Sender)
   else
   begin
-    DTransfer.SourceClient := nil;
-    DTransfer.DestinationClient := nil;
+    DTransfer.SourceSession := nil;
+    DTransfer.DestinationSession := nil;
     DTransfer.Execute();
   end;
 end;
@@ -557,11 +557,11 @@ var
   I: Integer;
 begin
   CanClose := True;
-  for I := FClients.Count - 1 downto 0 do
+  for I := FSessions.Count - 1 downto 0 do
   begin
-    CanClose := CanClose and (SendMessage(TFClient(FClients[I]).Handle, CM_CLOSE_TAB_QUERY, 0, 0) = 1);
+    CanClose := CanClose and (SendMessage(TFSession(FSessions[I]).Handle, CM_CLOSE_TAB_QUERY, 0, 0) = 1);
     if (CanClose) then
-      Perform(CM_CLOSE_TAB, 0, LPARAM(TFClient(FClients[I])));
+      Perform(CM_CLOSE_TAB, 0, LPARAM(TFSession(FSessions[I])));
   end;
 end;
 
@@ -609,7 +609,7 @@ begin
     TempCursor := Screen.Cursor;
     Screen.Cursor := crHourGlass;
 
-    TabControl.Visible := Preferences.TabsVisible or not Preferences.TabsVisible and (FClients.Count >= 2);
+    TabControl.Visible := Preferences.TabsVisible or not Preferences.TabsVisible and (FSessions.Count >= 2);
     TBTabControl.Visible := Preferences.TabsVisible;
     for I := 0 to Screen.FormCount - 1 do
       PostMessage(Screen.Forms[I].Handle, CM_CHANGEPREFERENCES, 0, 0);
@@ -681,17 +681,17 @@ begin
       begin
         NewTabIndex := TabControl.TabIndex - 1;
         if (NewTabIndex < 0) then
-          NewTabIndex := FClients.Count - 1;
+          NewTabIndex := FSessions.Count - 1;
         Handled := True;
       end
       else if ((TWMKey(Pointer(@Msg.message)^).CharCode = VK_TAB) and (GetKeyState(VK_SHIFT) >= 0) or (TWMKey(Pointer(@Msg.message)^).CharCode =  VK_NEXT)) then
       begin
         NewTabIndex := TabControl.TabIndex + 1;
-        if (NewTabIndex >= FClients.Count) then
+        if (NewTabIndex >= FSessions.Count) then
           NewTabIndex := 0;
         Handled := True;
       end
-      else if ((Ord('1') <= TWMKey(Pointer(@Msg.message)^).CharCode) and (TWMKey(Pointer(@Msg.message)^).CharCode < Ord('1') + FClients.Count)) then
+      else if ((Ord('1') <= TWMKey(Pointer(@Msg.message)^).CharCode) and (TWMKey(Pointer(@Msg.message)^).CharCode < Ord('1') + FSessions.Count)) then
       begin
         NewTabIndex := TWMKey(Pointer(@Msg.message)^).CharCode - Ord('1');
         Handled := True;
@@ -702,7 +702,7 @@ begin
       if (NewTabIndex <> TabControl.TabIndex) then
       begin
         Perform(CM_DEACTIVATETAB, 0, 0);
-        Perform(CM_ACTIVATETAB, 0, LPARAM(FClients[NewTabIndex]));
+        Perform(CM_ACTIVATETAB, 0, LPARAM(FSessions[NewTabIndex]));
       end;
     end;
   end;
@@ -826,7 +826,7 @@ end;
 
 procedure TWWindow.CMActivateTab(var Message: TMessage);
 begin
-  ActiveTab := TFClient(Message.LParam);
+  ActiveTab := TFSession(Message.LParam);
 
   Color := clBtnFace;
 
@@ -854,38 +854,38 @@ end;
 
 procedure TWWindow.CMAddTab(var Message: TMessage);
 var
-  FClient: TFClient;
+  FSession: TFSession;
 begin
   DAccounts.Open := True;
   DAccounts.Account := nil;
-  DAccounts.Client := nil;
+  DAccounts.Session := nil;
   if (FirstOpen and (Copy(StrPas(PChar(Message.LParam)), 1, 8) = 'mysql://')) then
   begin
     DAccounts.Account := Accounts.AccountByURI(PChar(Message.LParam));
     if (Assigned(DAccounts.Account)) then
     begin
-      DAccounts.Client := TSSession.Create(Sessions, DAccounts.Account);
-      DConnecting.Client := DAccounts.Client;
+      DAccounts.Session := TSSession.Create(Sessions, DAccounts.Account);
+      DConnecting.Session := DAccounts.Session;
       if (not DConnecting.Execute()) then
-        FreeAndNil(DConnecting.Client);
+        FreeAndNil(DConnecting.Session);
     end;
   end;
-  if (not Assigned(DAccounts.Client) and not DAccounts.Execute()) then
-    FClient := nil
+  if (not Assigned(DAccounts.Session) and not DAccounts.Execute()) then
+    FSession := nil
   else
   begin
     Perform(CM_DEACTIVATETAB, 0, 0);
 
-    if (FClients.Count = 0) then
+    if (FSessions.Count = 0) then
     begin
-      TabControl.Tabs.Add(DAccounts.Client.Account.Name);
+      TabControl.Tabs.Add(DAccounts.Session.Account.Name);
       TabControl.Visible := Preferences.TabsVisible;
       if (TabControl.Visible) then
         TabControlResize(nil);
     end
     else
     begin
-      TabControl.Tabs.Add(DAccounts.Client.Account.Name);
+      TabControl.Tabs.Add(DAccounts.Session.Account.Name);
       if (TabControl.Tabs.Count < 0) then
         raise ERangeError.Create(SRangeError);
       TabControl.TabIndex := TabControl.Tabs.Count - 1;
@@ -896,24 +896,24 @@ begin
       end;
     end;
 
-    FClient := TFClient.Create(Self, PWorkSpace, DAccounts.Client, PChar(Message.LParam));
-    FClient.Visible := True;
+    FSession := TFSession.Create(Self, PWorkSpace, DAccounts.Session, PChar(Message.LParam));
+    FSession.Visible := True;
 
     Inc(UniqueTabNameCounter);
-    FClient.Name := FClient.ClassName + '_' + IntToStr(UniqueTabNameCounter);
+    FSession.Name := FSession.ClassName + '_' + IntToStr(UniqueTabNameCounter);
 
-    FClient.StatusBar := StatusBar;
+    FSession.StatusBar := StatusBar;
 
     aFCloseAll.Enabled := True;
 
-    FClients.Add(FClient);
+    FSessions.Add(FSession);
 
-    Perform(CM_ACTIVATETAB, 0, LPARAM(FClient));
+    Perform(CM_ACTIVATETAB, 0, LPARAM(FSession));
 
     TBTabControl.Visible := TabControl.Visible;
   end;
 
-  Message.Result := LRESULT(Assigned(FClient));
+  Message.Result := LRESULT(Assigned(FSession));
 
   FirstOpen := False;
 end;
@@ -928,10 +928,10 @@ begin
   while (miBookmarks.Count > Index) do
     miBookmarks.Items[Index].Free();
   if (Assigned(ActiveTab)) then
-    for I := 0 to ActiveTab.Client.Account.Desktop.Bookmarks.Count - 1 do
+    for I := 0 to ActiveTab.Session.Account.Desktop.Bookmarks.Count - 1 do
     begin
       NewMenuItem := TMenuItem.Create(Self);
-      NewMenuItem.Caption := ActiveTab.Client.Account.Desktop.Bookmarks[I].Caption;
+      NewMenuItem.Caption := ActiveTab.Session.Account.Desktop.Bookmarks[I].Caption;
       NewMenuItem.OnClick := ActiveTab.miBookmarkClick;
       miBookmarks.Add(NewMenuItem);
     end;
@@ -1180,50 +1180,50 @@ begin
     // There is a bug inside acQBLocalizer.pas ver. 1.18 - but it's not interested to get informed
   end;
 
-  if (Assigned(FClients)) then
-    for I := 0 to FClients.Count - 1 do
-      SendMessage(TFClient(FClients[0]).Handle, Message.Msg, Message.WParam, Message.LParam);
+  if (Assigned(FSessions)) then
+    for I := 0 to FSessions.Count - 1 do
+      SendMessage(TFSession(FSessions[0]).Handle, Message.Msg, Message.WParam, Message.LParam);
 end;
 
-procedure TWWindow.CMClientSynchronize(var Message: TMessage);
+procedure TWWindow.CMMySQLClientSynchronize(var Message: TMessage);
 begin
   MySQLDB.MySQLConnectionSynchronize(Pointer(Message.LParam));
 end;
 
 procedure TWWindow.CMCloseTab(var Message: TMessage);
 var
-  Client: TSSession;
+  Session: TSSession;
   NewTabIndex: Integer;
 begin
   Perform(CM_DEACTIVATETAB, 0, 0);
 
-  NewTabIndex := FClients.IndexOf(TFClient(Message.LParam));
+  NewTabIndex := FSessions.IndexOf(TFSession(Message.LParam));
 
   if (0 <= NewTabIndex) and (NewTabIndex < TabControl.Tabs.Count) then
   begin
     TabControl.Tabs.Delete(NewTabIndex);
-    FClients.Delete(FClients.IndexOf(TFClient(Message.LParam)));
+    FSessions.Delete(FSessions.IndexOf(TFSession(Message.LParam)));
     if (TabControl.TabIndex < 0) then
-      TabControl.TabIndex := FClients.Count - 1;
+      TabControl.TabIndex := FSessions.Count - 1;
 
     Dec(NewTabIndex, 1);
-    if ((NewTabIndex < 0) and (FClients.Count > 0)) then
+    if ((NewTabIndex < 0) and (FSessions.Count > 0)) then
       NewTabIndex := 0;
     if (NewTabIndex >= 0) then
-      Perform(CM_ACTIVATETAB, 0, LPARAM(FClients[NewTabIndex]));
+      Perform(CM_ACTIVATETAB, 0, LPARAM(FSessions[NewTabIndex]));
 
-    Client := TFClient(Message.LParam).Client;
+    Session := TFSession(Message.LParam).Session;
 
-    TFClient(Message.LParam).Visible := False;
-    TFClient(Message.LParam).Free();
+    TFSession(Message.LParam).Visible := False;
+    TFSession(Message.LParam).Free();
 
-    Client.Free();
+    Session.Free();
 
-    TBTabControl.Visible := Preferences.TabsVisible or not Preferences.TabsVisible and (FClients.Count >= 2);
+    TBTabControl.Visible := Preferences.TabsVisible or not Preferences.TabsVisible and (FSessions.Count >= 2);
     TabControl.Visible := TBTabControl.Visible;
     TabControlResize(nil);
 
-    aFCloseAll.Enabled := FClients.Count > 0;
+    aFCloseAll.Enabled := FSessions.Count > 0;
   end;
 
   Perform(CM_UPDATETOOLBAR, 0, 0);
@@ -1312,8 +1312,8 @@ begin
     for I := 1 to ParamCount() do
       HandleParam(ParamStr(I));
 
-  if (ExecutePostShow and (FClients.Count = 1)) then
-    PostMessage(TFClient(FClients[0]).Handle, CM_EXECUTE, 0, 0);
+  if (ExecutePostShow and (FSessions.Count = 1)) then
+    PostMessage(TFSession(FSessions[0]).Handle, CM_EXECUTE, 0, 0);
 end;
 
 procedure TWWindow.CMSysFontChanged(var Message: TMessage);
@@ -1376,9 +1376,9 @@ var
   I: Integer;
   MenuItem: TMenuItem;
   S: string;
-  Tab: TFClient;
+  Tab: TFSession;
 begin
-  Tab := TFClient(Message.LParam);
+  Tab := TFSession(Message.LParam);
 
   for I := ToolBar.ButtonCount - 1 downto ToolButton11.Index do
     ToolBar.Buttons[I].Visible := False;
@@ -1390,9 +1390,9 @@ begin
   end
   else if (Tab = ActiveTab) then
   begin
-    S := Tab.Client.Account.Connection.Host;
-    if (Tab.Client.Account.Connection.Port <> MYSQL_PORT) then
-      S := S + ':' + IntToStr(Tab.Client.Account.Connection.Port);
+    S := Tab.Session.Account.Connection.Host;
+    if (Tab.Session.Account.Connection.Port <> MYSQL_PORT) then
+      S := S + ':' + IntToStr(Tab.Session.Account.Connection.Port);
     if (Tab.ToolBarData.Caption <> '') then
       S := S + ' - ' + Tab.ToolBarData.Caption;
     Caption := S + ' - ' + LoadStr(1000);
@@ -1462,14 +1462,14 @@ begin
 
   while (miFReopen.Count > 1) do
     miFReopen.Delete(0);
-  miFReopen.Enabled := Assigned(Tab) and (Tab.ToolBarData.View = vEditor) and (Tab.Client.Account.Desktop.Files.Count > 0);
+  miFReopen.Enabled := Assigned(Tab) and (Tab.ToolBarData.View = vEditor) and (Tab.Session.Account.Desktop.Files.Count > 0);
   if (miFReopen.Enabled) then
   begin
-    for I := 0 to Tab.Client.Account.Desktop.Files.Count - 1 do
+    for I := 0 to Tab.Session.Account.Desktop.Files.Count - 1 do
     begin
       MenuItem := TMenuItem.Create(Owner);
-      MenuItem.Caption := '&' + IntToStr(miFReopen.Count) + ' ' + Tab.Client.Account.Desktop.Files[I].Filename;
-      MenuItem.Enabled := FileExists(Tab.Client.Account.Desktop.Files[I].Filename);
+      MenuItem.Caption := '&' + IntToStr(miFReopen.Count) + ' ' + Tab.Session.Account.Desktop.Files[I].Filename;
+      MenuItem.Enabled := FileExists(Tab.Session.Account.Desktop.Files[I].Filename);
       MenuItem.OnClick := miFReopenClick;
       MenuItem.Tag := I;
       miFReopen.Add(MenuItem);
@@ -1554,7 +1554,7 @@ end;
 destructor TWWindow.Destroy();
 begin
   FreeAndNil(CloseButton);
-  FreeAndNil(FClients);
+  FreeAndNil(FSessions);
   FreeAndNil(Accounts);
 
   {$IFDEF EurekaLog}
@@ -1586,7 +1586,7 @@ var
 begin
   for I := 0 to Sessions.Count - 1 do
     if (Sessions[I].Connected) then
-      if (Assigned(ActiveTab) and (Sessions[I] = ActiveTab.Client)) then
+      if (Assigned(ActiveTab) and (Sessions[I] = ActiveTab.Session)) then
         DataFields.Add('MySQL Version *=' + Sessions[I].ServerVersionStr)
       else
         DataFields.Add('MySQL Version=' + Sessions[I].ServerVersionStr);
@@ -1594,7 +1594,7 @@ begin
   if (Assigned(ActiveTab)) then
   begin
     Log := TStringList.Create();
-    Log.Text := ActiveTab.Client.BugMonitor.CacheText;
+    Log.Text := ActiveTab.Session.BugMonitor.CacheText;
     if (Log.Count < 10) then Start := 0 else Start := Log.Count - 10;
     for I := Start to Log.Count - 1 do
       DataFields.Add('Log_' + IntToStr(I - Start + 1) + '=' + Log[I]);
@@ -1613,8 +1613,8 @@ var
   CheckUpdateThread: TCheckUpdateThread;
   I: Integer;
 begin
-  for I := 0 to FClients.Count - 1 do
-    try TFClient(FClients[I]).CrashRescue(); except end;
+  for I := 0 to FSessions.Count - 1 do
+    try TFSession(FSessions[I]).CrashRescue(); except end;
 
   try Accounts.SaveToXML(); except end;
 
@@ -1680,7 +1680,7 @@ procedure TWWindow.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   aFCloseAllExecute(Sender);
 
-  CanClose := FClients.Count = 0;
+  CanClose := FSessions.Count = 0;
 end;
 
 procedure TWWindow.FormCreate(Sender: TObject);
@@ -1733,7 +1733,7 @@ begin
     CAddressBar.EdgeBorders := [];
   end;
 
-  FClients := TList.Create();
+  FSessions := TList.Create();
   TBTabControl.Visible := Preferences.TabsVisible;
   TabControlRepaint := TList.Create();
 
@@ -1846,12 +1846,12 @@ begin
   PostMessage(Handle, CM_POST_SHOW, 0, 0);
 end;
 
-function TWWindow.GetActiveTab(): TFClient;
+function TWWindow.GetActiveTab(): TFSession;
 begin
-  if (not Assigned(FClients) or (TabControl.TabIndex < 0) or (FClients.Count <= TabControl.TabIndex)) then
+  if (not Assigned(FSessions) or (TabControl.TabIndex < 0) or (FSessions.Count <= TabControl.TabIndex)) then
     Result := nil
   else
-    Result := TFClient(FClients[TabControl.TabIndex]);
+    Result := TFSession(FSessions[TabControl.TabIndex]);
 end;
 
 function TWWindow.GetNewTabIndex(Sender: TObject; X, Y: Integer): Integer;
@@ -1884,7 +1884,7 @@ end;
 
 procedure TWWindow.miFReopenClick(Sender: TObject);
 begin
-  ActiveTab.OpenSQLFile(ActiveTab.Client.Account.Desktop.Files[TMenuItem(Sender).Tag].Filename, ActiveTab.Client.Account.Desktop.Files[TMenuItem(Sender).Tag].CodePage);
+  ActiveTab.OpenSQLFile(ActiveTab.Session.Account.Desktop.Files[TMenuItem(Sender).Tag].Filename, ActiveTab.Session.Account.Desktop.Files[TMenuItem(Sender).Tag].CodePage);
 end;
 
 procedure TWWindow.MNextItemClick(Sender: TObject);
@@ -1949,26 +1949,26 @@ begin
   begin
     if (Assigned(ActiveTab)) then
       Perform(CM_DEACTIVATETAB, 0, 0);
-    Perform(CM_ACTIVATETAB, 0, LPARAM(TFClient(FClients[TMenuItem(Sender).Parent.IndexOf(TMenuItem(Sender))])));
+    Perform(CM_ACTIVATETAB, 0, LPARAM(TFSession(FSessions[TMenuItem(Sender).Parent.IndexOf(TMenuItem(Sender))])));
   end;
 end;
 
 procedure TWWindow.MySQLConnectionSynchronize(const Data: Pointer);
 begin
-  PostMessage(Handle, CM_MYSQLCONNECTION_SYNCHRONIZE, 0, LPARAM(Data));
+  PostMessage(Handle, CM_MYSQLCLIENT_SYNCHRONIZE, 0, LPARAM(Data));
 end;
 
-procedure TWWindow.SetActiveTab(const FClient: TFClient);
+procedure TWWindow.SetActiveTab(const FSession: TFSession);
 begin
-  TabControl.TabIndex := FClients.IndexOf(FClient);
+  TabControl.TabIndex := FSessions.IndexOf(FSession);
 
-  TFClient(FClients[FClients.IndexOf(FClient)]).BringToFront();
+  TFSession(FSessions[FSessions.IndexOf(FSession)]).BringToFront();
 end;
 
 procedure TWWindow.SQLError(const Connection: TMySQLConnection; const ErrorCode: Integer; const ErrorMessage: string);
 var
   Msg: string;
-  Tab: TFClient;
+  Tab: TFSession;
 begin
   case (ErrorCode) of
     EE_READ: Msg := ErrorMessage;
@@ -2012,7 +2012,7 @@ begin
 
   if ((ErrorCode = CR_SERVER_GONE_ERROR) and (Connection is TSSession)) then
   begin
-    Tab := TFClient(TSSession(Connection).Account.Frame);
+    Tab := TFSession(TSSession(Connection).Account.Frame);
     if (Boolean(SendMessage(Tab.Handle, CM_CLOSE_TAB_QUERY, 0, 0))) then
       Perform(CM_CLOSE_TAB, 0, LPARAM(Tab));
   end;
@@ -2020,11 +2020,11 @@ end;
 
 procedure TWWindow.TabControlChange(Sender: TObject);
 var
-  Tab: TFClient;
+  Tab: TFSession;
 begin
-  if ((0 <= TabControl.TabIndex) and (TabControl.TabIndex < FClients.Count)) then
+  if ((0 <= TabControl.TabIndex) and (TabControl.TabIndex < FSessions.Count)) then
   begin
-    Tab := TFClient(FClients[TabControl.TabIndex]);
+    Tab := TFSession(FSessions[TabControl.TabIndex]);
 
     Perform(CM_ACTIVATETAB, 0, LPARAM(Tab));
   end;
@@ -2045,10 +2045,10 @@ var
 begin
   mtTabs.Clear();
   if (TabControl.Tabs.Count > 1) then
-    for I := 0 to FClients.Count - 1 do
+    for I := 0 to FSessions.Count - 1 do
     begin
       MenuItem := TMenuItem.Create(Self);
-      MenuItem.Caption := TFClient(FClients[I]).ToolBarData.Caption;
+      MenuItem.Caption := TFSession(FSessions[I]).ToolBarData.Caption;
       MenuItem.RadioItem := True;
       MenuItem.Checked := I = TabControl.TabIndex;
       MenuItem.OnClick := mtTabsClick;
@@ -2066,11 +2066,11 @@ var
 begin
   NewTabIndex := GetNewTabIndex(Sender, X, Y);
 
-  FClients.Move(TabControlDragStartTabIndex, NewTabIndex);
+  FSessions.Move(TabControlDragStartTabIndex, NewTabIndex);
 
   TabControl.Tabs.Clear();
-  for I := 0 to FClients.Count - 1 do
-    TabControl.Tabs.Add(TFClient(FClients[I]).Client.Account.Name);
+  for I := 0 to FSessions.Count - 1 do
+    TabControl.Tabs.Add(TFSession(FSessions[I]).Session.Account.Name);
 
   TabControl.TabIndex := NewTabIndex;
 end;
@@ -2105,17 +2105,17 @@ end;
 procedure TWWindow.TabControlGetImageIndex(Sender: TObject;
   TabIndex: Integer; var ImageIndex: Integer);
 var
-  Tab: TFClient;
+  Tab: TFSession;
 begin
-  if ((TabIndex < 0) or (FClients.Count <= TabIndex)) then
+  if ((TabIndex < 0) or (FSessions.Count <= TabIndex)) then
     Tab := nil
   else
-    Tab := TFClient(FClients[TabIndex]);
+    Tab := TFSession(FSessions[TabIndex]);
 
   if (not Assigned(Tab)) then
     ImageIndex := iiServer
   else
-    ImageIndex := Tab.Client.Account.ImageIndex;
+    ImageIndex := Tab.Session.Account.ImageIndex;
 
   if (ImageIndex < 0) then
     ImageIndex := iiServer;

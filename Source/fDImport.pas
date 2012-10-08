@@ -161,7 +161,7 @@ type
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure CMUpdateProgressInfo(var Message: TMessage); message CM_UPDATEPROGRESSINFO;
   public
-    Client: TSSession;
+    Session: TSSession;
     CodePage: Cardinal;
     Database: TSDatabase;
     Filename: TFileName;
@@ -436,7 +436,7 @@ begin
         Success := Success and SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @ODBC));
         Success := Success and SQL_SUCCEEDED(SQLSetConnectAttr(ODBC, SQL_ATTR_ACCESS_MODE, SQLPOINTER(SQL_MODE_READ_ONLY), SQL_IS_POINTER));
 
-        DDatabases.Client := nil;
+        DDatabases.Session := nil;
         DDatabases.ODBCEnv := ODBCEnv;
         DDatabases.SelectedDatabases := '';
         if (Success) then
@@ -513,7 +513,7 @@ begin
   if (Assigned(Import)) then
   begin
     Import.UserAbort.SetEvent();
-    if (Client.Asynchron) then
+    if (Session.Asynchron) then
     begin
       Import.WaitFor();
       FreeAndNil(Import);
@@ -570,7 +570,7 @@ begin
 
     if (TSFields.Enabled or TSODBCOptions.Enabled) then
     begin
-      Import := TTImportText.Create(Filename, CodePage, Client, Database);
+      Import := TTImportText.Create(Filename, CodePage, Session, Database);
 
       if (FDelimiterTab.Checked) then
         Import.Delimiter := #9
@@ -642,13 +642,13 @@ var
 begin
   FCollation.Items.Clear();
   FCollation.Items.Add('');
-  if (Assigned(Client.Collations)) then
-    for I := 0 to Client.Collations.Count - 1 do
+  if (Assigned(Session.Collations)) then
+    for I := 0 to Session.Collations.Count - 1 do
     begin
-      if (lstrcmpi(PChar(Client.Collations[I].Charset.Name), PChar(FDefaultCharset.Text)) = 0) then
+      if (lstrcmpi(PChar(Session.Collations[I].Charset.Name), PChar(FDefaultCharset.Text)) = 0) then
       begin
-        FCollation.Items.Add(Client.Collations[I].Name);
-        if (Client.Collations[I].Default) then
+        FCollation.Items.Add(Session.Collations[I].Name);
+        if (Session.Collations[I].Default) then
           FCollation.ItemIndex := FCollation.Items.Count - 1;
       end;
     end;
@@ -820,30 +820,30 @@ begin
   if ((ImportType in [itTextFile, itODBC, itAccessFile, itExcelFile, itSQLiteFile]) and not Assigned(Table)) then
   begin
     FEngine.Clear();
-    if (Client.Engines.Count = 0) then
+    if (Session.Engines.Count = 0) then
       FEngine.Style := csDropDown
     else
     begin
       FEngine.Style := csDropDownList;
-      for I := 0 to Client.Engines.Count - 1 do
-        FEngine.Items.Add(Client.Engines.Engine[I].Name);
-      if (not Assigned(Client.Engines.DefaultEngine)) then
+      for I := 0 to Session.Engines.Count - 1 do
+        FEngine.Items.Add(Session.Engines.Engine[I].Name);
+      if (not Assigned(Session.Engines.DefaultEngine)) then
         FEngine.ItemIndex := -1
       else
-        FEngine.ItemIndex := FEngine.Items.IndexOf(Client.Engines.DefaultEngine.Name);
+        FEngine.ItemIndex := FEngine.Items.IndexOf(Session.Engines.DefaultEngine.Name);
     end;
 
     FDefaultCharset.Items.Clear();
-    if (Client.Charsets.Count = 0) then
+    if (Session.Charsets.Count = 0) then
       FDefaultCharset.Style := csDropDown
     else
     begin
       FDefaultCharset.Style := csDropDownList;
-      for I := 0 to Client.Charsets.Count - 1 do
-        FDefaultCharset.Items.Add(Client.Charsets.Charset[I].Name);
+      for I := 0 to Session.Charsets.Count - 1 do
+        FDefaultCharset.Items.Add(Session.Charsets.Charset[I].Name);
     end;
-    if (Client.ServerVersion < 40101) then
-      FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf(Client.DefaultCharset)
+    if (Session.ServerVersion < 40101) then
+      FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf(Session.DefaultCharset)
     else
       FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf('utf8');
     FDefaultCharsetChange(Sender);
@@ -1040,11 +1040,11 @@ begin
   case (Error.ErrorType) of
     TE_Database:
       begin
-        Msg := Preferences.LoadStr(165, IntToStr(Item.Client.ErrorCode), Item.Client.ErrorMessage);
-        ErrorMsg := Item.Client.ErrorMessage;
-        if (Item.Client.ErrorCode > 0) then
-          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Item.Client.ErrorCode) + ')';
-        ErrorMsg := ErrorMsg + '  -  ' + SQLUnwrapStmt(Item.Client.CommandText);
+        Msg := Preferences.LoadStr(165, IntToStr(Item.Session.ErrorCode), Item.Session.ErrorMessage);
+        ErrorMsg := Item.Session.ErrorMessage;
+        if (Item.Session.ErrorCode > 0) then
+          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Item.Session.ErrorCode) + ')';
+        ErrorMsg := ErrorMsg + '  -  ' + SQLUnwrapStmt(Item.Session.CommandText);
       end;
     TE_File:
       begin
@@ -1181,13 +1181,13 @@ begin
 
   if (ImportType = itSQLFile) then
   begin
-    ImportSQL := TTImportSQL.Create(Filename, CodePage, Client, Database);
+    ImportSQL := TTImportSQL.Create(Filename, CodePage, Session, Database);
 
     Import := ImportSQL;
   end
   else if (ImportType in [itTextFile]) then
   begin
-    ImportText := TTImportText.Create(Filename, CodePage, Client, Database);
+    ImportText := TTImportText.Create(Filename, CodePage, Session, Database);
 
     if (Assigned(ImportText)) then
     begin
@@ -1228,7 +1228,7 @@ begin
         Answer := IDYES;
         TableName := ExtractFileName(Filename);
         TableName := Copy(TableName, 1, Length(TableName) - Length(ExtractFileExt(TableName)));
-        TableName := Client.ApplyIdentifierName(TableName);
+        TableName := Session.ApplyIdentifierName(TableName);
         if (not Assigned(Database.TableByName(TableName))) then
           Answer := IDYES
         else if (Answer <> IDYESALL) then
@@ -1282,7 +1282,7 @@ begin
         for I := 0 to FTables.Items.Count - 1 do
           if (Assigned(ImportODBC) and (FTables.Items[I].Selected)) then
           begin
-            TableName := Client.ApplyIdentifierName(FTables.Items[I].Caption);
+            TableName := Session.ApplyIdentifierName(FTables.Items[I].Caption);
             if (not Assigned(Database.TableByName(TableName))) then
               Answer := IDYES
             else if (Answer <> IDYESALL) then
@@ -1336,7 +1336,7 @@ begin
         for I := 0 to FTables.Items.Count - 1 do
           if (Assigned(ImportSQLite) and (FTables.Items.Item[I].Selected)) then
           begin
-            TableName := Client.ApplyIdentifierName(FTables.Items[I].Caption);
+            TableName := Session.ApplyIdentifierName(FTables.Items[I].Caption);
             if (not Assigned(Database.TableByName(TableName))) then
               Answer := IDYES
             else if (Answer <> IDYESALL) then
@@ -1390,7 +1390,7 @@ begin
     Import.OnError := OnError;
     Import.OnExecuted := OnExecuted;
     Import.OnUpdate := OnUpdate;
-    if (Client.Asynchron) then
+    if (Session.Asynchron) then
       Import.Start()
     else
       Import.Execute();

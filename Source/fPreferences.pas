@@ -4021,7 +4021,7 @@ begin
 
     Connection.LoadFromXML();
     if (Assigned(Desktop)) then
-      Desktop.LoadFromXML(); // Client muss geladen sein, damit FullAddress funktioniert
+      Desktop.LoadFromXML(); // Session muss geladen sein, damit FullAddress funktioniert
   end;
 end;
 

@@ -80,7 +80,7 @@ type
   protected
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
-    Client: TSSession;
+    Session: TSSession;
     User: TSUser;
     UserRight: TSUserRight;
     function Execute(): Boolean;
@@ -305,9 +305,9 @@ begin
   if (FDatabases.Items.Count = 0) then
   begin
     FDatabases.Items.BeginUpdate();
-    for I := 0 to Client.Databases.Count - 1 do
-      if (not (Client.Databases[I] is TSSystemDatabase)) then
-        FDatabases.Items.Add(Client.Databases[I].Name);
+    for I := 0 to Session.Databases.Count - 1 do
+      if (not (Session.Databases[I] is TSSystemDatabase)) then
+        FDatabases.Items.Add(Session.Databases[I].Name);
     FDatabases.Items.EndUpdate();
   end;
 end;
@@ -332,7 +332,7 @@ var
 begin
   if (FFields.Items.Count = 0) then
   begin
-    Database := Client.DatabaseByName(FDatabases.Text);
+    Database := Session.DatabaseByName(FDatabases.Text);
     if (Assigned(Database)) then
     begin
       Table := Database.BaseTableByName(FTables.Text);
@@ -360,13 +360,13 @@ var
 begin
   if (FFunctions.Items.Count = 0) then
   begin
-    Database := Client.DatabaseByName(FDatabases.Text);
+    Database := Session.DatabaseByName(FDatabases.Text);
     if (Assigned(Database)) then
     begin
       FFunctions.Items.BeginUpdate();
-      for I := 0 to Client.DatabaseByName(FDatabases.Text).Routines.Count - 1 do
-        if (Client.DatabaseByName(FDatabases.Text).Routines[I].RoutineType = rtFunction) then
-          FFunctions.Items.Add(Client.DatabaseByName(FDatabases.Text).Routines[I].Name);
+      for I := 0 to Session.DatabaseByName(FDatabases.Text).Routines.Count - 1 do
+        if (Session.DatabaseByName(FDatabases.Text).Routines[I].RoutineType = rtFunction) then
+          FFunctions.Items.Add(Session.DatabaseByName(FDatabases.Text).Routines[I].Name);
       FFunctions.Items.EndUpdate();
     end;
   end;
@@ -453,23 +453,23 @@ begin
   FFields.Clear();
 
 
-  FProcedure.Visible := Client.ServerVersion >= 50006; FProcedures.Visible := FProcedure.Visible;
-  FFunction.Visible := Client.ServerVersion >= 50006; FFunctions.Visible := FFunction.Visible;
+  FProcedure.Visible := Session.ServerVersion >= 50006; FProcedures.Visible := FProcedure.Visible;
+  FFunction.Visible := Session.ServerVersion >= 50006; FFunctions.Visible := FFunction.Visible;
 
-  FAlterRoutine.Visible := Client.ServerVersion >= 50003;
-  FCreateRoutine.Visible := Client.ServerVersion >= 50003;
-  FCreateTempTable.Visible := Client.ServerVersion >= 40002;
-  FCreateUser.Visible := Client.ServerVersion >= 50003;
-  FCreateView.Visible := Client.ServerVersion >= 50001;
-  FEvent.Visible := Client.ServerVersion >= 50106;
-  FExecute.Visible := Client.ServerVersion >= 50003;
-  FLockTable.Visible := Client.ServerVersion >= 40002;
-  FReplClient.Visible := Client.ServerVersion >= 40002;
-  FReplSlave.Visible := Client.ServerVersion >= 40002;
-  FShowDatabase.Visible := Client.ServerVersion >= 40002;
-  FShowView.Visible := Client.ServerVersion >= 50001;
-  FSuper.Visible := Client.ServerVersion >= 40002;
-  FTrigger.Visible := Client.ServerVersion >= 50106;
+  FAlterRoutine.Visible := Session.ServerVersion >= 50003;
+  FCreateRoutine.Visible := Session.ServerVersion >= 50003;
+  FCreateTempTable.Visible := Session.ServerVersion >= 40002;
+  FCreateUser.Visible := Session.ServerVersion >= 50003;
+  FCreateView.Visible := Session.ServerVersion >= 50001;
+  FEvent.Visible := Session.ServerVersion >= 50106;
+  FExecute.Visible := Session.ServerVersion >= 50003;
+  FLockTable.Visible := Session.ServerVersion >= 40002;
+  FReplClient.Visible := Session.ServerVersion >= 40002;
+  FReplSlave.Visible := Session.ServerVersion >= 40002;
+  FShowDatabase.Visible := Session.ServerVersion >= 40002;
+  FShowView.Visible := Session.ServerVersion >= 50001;
+  FSuper.Visible := Session.ServerVersion >= 40002;
+  FTrigger.Visible := Session.ServerVersion >= 50106;
 
 
   FAll.Checked := not Assigned(UserRight) or (UserRight.DatabaseName = '');
@@ -564,13 +564,13 @@ var
 begin
   if (FProcedures.Items.Count = 0) then
   begin
-    Database := Client.DatabaseByName(FDatabases.Text);
+    Database := Session.DatabaseByName(FDatabases.Text);
     if (Assigned(Database)) then
     begin
       FProcedures.Items.BeginUpdate();
-      for I := 0 to Client.DatabaseByName(FDatabases.Text).Routines.Count - 1 do
-        if (Client.DatabaseByName(FDatabases.Text).Routines[I].RoutineType = rtProcedure) then
-          FProcedures.Items.Add(Client.DatabaseByName(FDatabases.Text).Routines[I].Name);
+      for I := 0 to Session.DatabaseByName(FDatabases.Text).Routines.Count - 1 do
+        if (Session.DatabaseByName(FDatabases.Text).Routines[I].RoutineType = rtProcedure) then
+          FProcedures.Items.Add(Session.DatabaseByName(FDatabases.Text).Routines[I].Name);
       FProcedures.Items.EndUpdate();
     end;
   end;
@@ -605,7 +605,7 @@ var
 begin
   if (FTables.Items.Count = 0) then
   begin
-    Database := Client.DatabaseByName(FDatabases.Text);
+    Database := Session.DatabaseByName(FDatabases.Text);
     if (Assigned(Database)) then
     begin
       FTables.Items.BeginUpdate();

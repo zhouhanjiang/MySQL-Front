@@ -1,4 +1,4 @@
-unit fFClient;
+unit fFSession;
 
 interface {********************************************************************}
 
@@ -36,7 +36,7 @@ type
   TListViewSortData = array [lkServer .. lkVariables] of TListViewSortRec;
 
 type
-  TFClient = class (TFrame)
+  TFSession = class (TFrame)
     ActionList: TActionList;
     aDCreate: TAction;
     aDDelete: TAction;
@@ -508,6 +508,7 @@ type
     procedure FBuilderEnter(Sender: TObject);
     procedure FBuilderExit(Sender: TObject);
     procedure FBuilderResize(Sender: TObject);
+    procedure FBuilderSQLUpdated(Sender: TObject);
     procedure FBuilderValidatePopupMenu(Sender: TacQueryBuilder;
       AControlOwner: TacQueryBuilderControlOwner; AForControl: TControl;
       APopupMenu: TPopupMenu);
@@ -659,7 +660,6 @@ type
     procedure smEEmptyClick(Sender: TObject);
     procedure SplitterCanResize(Sender: TObject; var NewSize: Integer;
       var Accept: Boolean);
-    procedure FBuilderSQLUpdated(Sender: TObject);
     procedure SResultMoved(Sender: TObject);
     procedure SSideBarCanResize(Sender: TObject; var NewSize: Integer;
       var Accept: Boolean);
@@ -713,7 +713,7 @@ type
         DBGrid: TMySQLDBGrid;
       end;
     private
-      FClient: TFClient;
+      FClient: TFSession;
       Results: TList;
       TCResult: TTabControl;
       function GetActiveDBGrid(): TMySQLDBGrid;
@@ -722,7 +722,7 @@ type
       Filename: TFileName;
       FileCodePage: Cardinal;
       procedure CloseResult();
-      constructor Create(const AFClient: TFClient);
+      constructor Create(const AFClient: TFSession);
       destructor Destroy(); override;
       function ResultEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
       property ActiveDBGrid: TMySQLDBGrid read GetActiveDBGrid;
@@ -730,11 +730,11 @@ type
 
     TCObjectDesktop = class(TSObject.TDesktop)
     private
-      FFClient: TFClient;
+      FFClient: TFSession;
     protected
-      property FClient: TFClient read FFClient;
+      property FClient: TFSession read FFClient;
     public
-      constructor Create(const AFClient: TFClient; const ACObject: TSObject);
+      constructor Create(const AFClient: TFSession; const ACObject: TSObject);
     end;
 
     TDatabaseDesktop = class(TCObjectDesktop)
@@ -753,7 +753,7 @@ type
       function BuilderResultEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
       procedure CloseBuilderResult();
       procedure CloseQuery(Sender: TObject; var CanClose: Boolean);
-      constructor Create(const AFClient: TFClient; const ADatabase: TSDatabase);
+      constructor Create(const AFClient: TFSession; const ADatabase: TSDatabase);
       function CreateListView(): TListView; virtual;
       function CreateWorkbench(): TWWorkbench; virtual;
       destructor Destroy(); override;
@@ -783,7 +783,7 @@ type
       DBGrid: TMySQLDBGrid;
       ListView: TListView;
       procedure AddFilter(const AFilter: string);
-      constructor Create(const AFClient: TFClient; const ATable: TSTable);
+      constructor Create(const AFClient: TFSession; const ATable: TSTable);
       function CreateDBGrid(): TMySQLDBGrid; virtual;
       function CreateListView(): TListView; virtual;
       procedure DataSetAfterOpen(DataSet: TDataSet);
@@ -799,7 +799,7 @@ type
     TViewDesktop = class(TTableDesktop)
     public
       SynMemo: TSynMemo;
-      constructor Create(const AFClient: TFClient; const AView: TSView);
+      constructor Create(const AFClient: TFSession; const AView: TSView);
       function CreateSynMemo(): TSynMemo; virtual;
       destructor Destroy(); override;
     end;
@@ -820,7 +820,7 @@ type
     public
       SynMemo: TSynMemo;
       procedure CloseIDEResult();
-      constructor Create(const AFClient: TFClient; const ARoutine: TSRoutine);
+      constructor Create(const AFClient: TFSession; const ARoutine: TSRoutine);
       function CreateSynMemo(): TSynMemo; virtual;
       destructor Destroy(); override;
       function IDEResultEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
@@ -830,7 +830,7 @@ type
     TEventDesktop = class(TCObjectDesktop)
     public
       SynMemo: TSynMemo;
-      constructor Create(const AFClient: TFClient; const AEvent: TSEvent);
+      constructor Create(const AFClient: TFSession; const AEvent: TSEvent);
       function CreateSynMemo(): TSynMemo; virtual;
       destructor Destroy(); override;
     end;
@@ -838,7 +838,7 @@ type
     TTriggerDesktop = class(TCObjectDesktop)
     public
       SynMemo: TSynMemo;
-      constructor Create(const AFClient: TFClient; const ATrigger: TSTrigger);
+      constructor Create(const AFClient: TFSession; const ATrigger: TSTrigger);
       function CreateSynMemo(): TSynMemo; virtual;
       destructor Destroy(); override;
     end;
@@ -847,7 +847,7 @@ type
     private
       FAction: TAction;
       FAddress: string;
-      FClient: TFClient;
+      FClient: TFSession;
       FUpdate: TSSession.TUpdate;
       procedure Clear();
       function GetNothing(): Boolean;
@@ -857,7 +857,7 @@ type
     protected
       procedure Synchronize();
     public
-      constructor Create(const AFClient: TFClient);
+      constructor Create(const AFClient: TFSession);
       procedure Execute();
       property Action: TAction read FAction write SetAction;
       property Address: string read FAddress write SetAddress;
@@ -1065,10 +1065,10 @@ type
     procedure CreateParams(var Params: TCreateParams); override;
   public
     ActiveDBGrid: TMySQLDBGrid;
-    Client: TSSession;
+    Session: TSSession;
     StatusBar: TStatusBar;
     ToolBarData: TToolBarData;
-    constructor Create(const AOwner: TComponent; const AParent: TWinControl; const AClient: TSSession; const AParam: string); reintroduce;
+    constructor Create(const AOwner: TComponent; const AParent: TWinControl; const ASession: TSSession; const AParam: string); reintroduce;
     destructor Destroy(); override;
     function AddressToCaption(const AAddress: string): string;
     procedure aEFindExecute(Sender: TObject);
@@ -1191,9 +1191,9 @@ begin
   end;
 end;
 
-{ TFClient.TSQLEditorDesktop **************************************************}
+{ TFSession.TSQLEditorDesktop **************************************************}
 
-procedure TFClient.TSQLEditor.CloseResult();
+procedure TFSession.TSQLEditor.CloseResult();
 var
   I: Integer;
 begin
@@ -1213,7 +1213,7 @@ begin
   end;
 end;
 
-constructor TFClient.TSQLEditor.Create(const AFClient: TFClient);
+constructor TFSession.TSQLEditor.Create(const AFClient: TFSession);
 begin
   inherited Create();
 
@@ -1225,7 +1225,7 @@ begin
   Results := nil;
 end;
 
-destructor TFClient.TSQLEditor.Destroy();
+destructor TFSession.TSQLEditor.Destroy();
 begin
   CloseResult();
   if (Assigned(Results)) then
@@ -1234,7 +1234,7 @@ begin
   inherited;
 end;
 
-function TFClient.TSQLEditor.GetActiveDBGrid(): TMySQLDBGrid;
+function TFSession.TSQLEditor.GetActiveDBGrid(): TMySQLDBGrid;
 begin
   if (not Assigned(Results) or (Results.Count = 0)) then
     Result := nil
@@ -1244,7 +1244,7 @@ begin
     Result := TResult(Results[TCResult.TabIndex]^).DBGrid;
 end;
 
-function TFClient.TSQLEditor.ResultEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+function TFSession.TSQLEditor.ResultEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
 var
   EndingCommentLength: Integer;
   Item: ^TResult;
@@ -1256,9 +1256,9 @@ begin
   if (not Assigned(Results)) then
     Results := TList.Create();
 
-  if ((Results.Count < 5) and Assigned(FClient.Client.Account.HistoryXML)) then
+  if ((Results.Count < 5) and Assigned(FClient.Session.Account.HistoryXML)) then
   begin
-    XML := FClient.Client.Account.HistoryXML.AddChild('sql');
+    XML := FClient.Session.Account.HistoryXML.AddChild('sql');
     if (not Data) then
       XML.Attributes['type'] := 'statement'
     else
@@ -1274,8 +1274,8 @@ begin
     if (DataHandle.Connection.Connected and (DataHandle.Connection.InsertId > 0)) then
       XML.AddChild('insert_id').Text := IntToStr(DataHandle.Connection.InsertId);
 
-    while (FClient.Client.Account.HistoryXML.ChildNodes.Count > 100) do
-      FClient.Client.Account.HistoryXML.ChildNodes.Delete(0);
+    while (FClient.Session.Account.HistoryXML.ChildNodes.Count > 100) do
+      FClient.Session.Account.HistoryXML.ChildNodes.Delete(0);
     FClient.FSQLHistoryRefresh(nil);
   end;
 
@@ -1291,7 +1291,7 @@ begin
   end
   else if (not Data) then
   begin
-    if (FClient.Client.Databases.NameCmp(DataHandle.Connection.DatabaseName, FClient.SelectedDatabase) <> 0) then
+    if (FClient.Session.Databases.NameCmp(DataHandle.Connection.DatabaseName, FClient.SelectedDatabase) <> 0) then
     begin
       URI := TUURI.Create(FClient.Address);
       URI.Database := DataHandle.Connection.DatabaseName;
@@ -1334,7 +1334,7 @@ begin
   Result := False;
 end;
 
-procedure TFClient.TSQLEditor.TCResultChange(Sender: TObject);
+procedure TFSession.TSQLEditor.TCResultChange(Sender: TObject);
 var
   I: Integer;
 begin
@@ -1343,18 +1343,18 @@ begin
       FClient.PDBGrid.Controls[I].Visible := TMySQLDBGrid(FClient.PDBGrid.Controls[I]).Tag = TCResult.TabIndex;
 end;
 
-{ TFClient.TCObjectDesktop ****************************************************}
+{ TFSession.TCObjectDesktop ****************************************************}
 
-constructor TFClient.TCObjectDesktop.Create(const AFClient: TFClient; const ACObject: TSObject);
+constructor TFSession.TCObjectDesktop.Create(const AFClient: TFSession; const ACObject: TSObject);
 begin
   FFClient := AFClient;
 
   inherited Create(ACObject);
 end;
 
-{ TFClient.TDatabaseDesktop ***************************************************}
+{ TFSession.TDatabaseDesktop ***************************************************}
 
-function TFClient.TDatabaseDesktop.BuilderResultEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+function TFSession.TDatabaseDesktop.BuilderResultEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
 begin
   if (Data) then
   begin
@@ -1379,7 +1379,7 @@ begin
   Result := False;
 end;
 
-procedure TFClient.TDatabaseDesktop.CloseBuilderResult();
+procedure TFSession.TDatabaseDesktop.CloseBuilderResult();
 begin
   if (Assigned(FDBGrid)) then
     FreeAndNil(FDBGrid);
@@ -1387,20 +1387,20 @@ begin
     FreeAndNil(DataSet);
 end;
 
-procedure TFClient.TDatabaseDesktop.CloseQuery(Sender: TObject; var CanClose: Boolean);
+procedure TFSession.TDatabaseDesktop.CloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   if (Assigned(Workbench) and Workbench.Modified) then
     if (Workbench.ObjectCount > 0) then
     begin
-      if (not SysUtils.ForceDirectories(ExtractFilePath(FClient.Client.Account.DataPath + Database.Name + PathDelim))) then
+      if (not SysUtils.ForceDirectories(ExtractFilePath(FClient.Session.Account.DataPath + Database.Name + PathDelim))) then
         RaiseLastOSError();
-      FWorkbench.SaveToFile(FClient.Client.Account.DataPath + Database.Name + PathDelim + 'Diagram.xml');
+      FWorkbench.SaveToFile(FClient.Session.Account.DataPath + Database.Name + PathDelim + 'Diagram.xml');
     end
-    else if (FileExists(FClient.Client.Account.DataPath + Database.Name + PathDelim + 'Diagram.xml')) then
-      DeleteFile(FClient.Client.Account.DataPath + Database.Name + PathDelim + 'Diagram.xml');
+    else if (FileExists(FClient.Session.Account.DataPath + Database.Name + PathDelim + 'Diagram.xml')) then
+      DeleteFile(FClient.Session.Account.DataPath + Database.Name + PathDelim + 'Diagram.xml');
 end;
 
-constructor TFClient.TDatabaseDesktop.Create(const AFClient: TFClient; const ADatabase: TSDatabase);
+constructor TFSession.TDatabaseDesktop.Create(const AFClient: TFSession; const ADatabase: TSDatabase);
 begin
   inherited Create(AFClient, ADatabase);
 
@@ -1412,7 +1412,7 @@ begin
   FXML := nil;
 end;
 
-function TFClient.TDatabaseDesktop.CreateListView(): TListView;
+function TFSession.TDatabaseDesktop.CreateListView(): TListView;
 begin
   if (not Assigned(ListView)) then
   begin
@@ -1424,7 +1424,7 @@ begin
   Result := ListView;
 end;
 
-function TFClient.TDatabaseDesktop.CreateWorkbench(): TWWorkbench;
+function TFSession.TDatabaseDesktop.CreateWorkbench(): TWWorkbench;
 begin
   if (not Assigned(FWorkbench)) then
     FWorkbench := FClient.CreateWorkbench(Database);
@@ -1432,7 +1432,7 @@ begin
   Result := FWorkbench;
 end;
 
-destructor TFClient.TDatabaseDesktop.Destroy();
+destructor TFSession.TDatabaseDesktop.Destroy();
 var
   I: Integer;
   TablesXML: IXMLNode;
@@ -1456,23 +1456,23 @@ begin
   inherited;
 end;
 
-function TFClient.TDatabaseDesktop.GetDatabase(): TSDatabase;
+function TFSession.TDatabaseDesktop.GetDatabase(): TSDatabase;
 begin
   Result := TSDatabase(CObject);
 end;
 
-function TFClient.TDatabaseDesktop.GetXML(): IXMLNode;
+function TFSession.TDatabaseDesktop.GetXML(): IXMLNode;
 var
   I: Integer;
   Node: IXMLNode;
 begin
-  if (not Assigned(FXML) and Assigned(FClient.Client.Account.DesktopXML)) then
+  if (not Assigned(FXML) and Assigned(FClient.Session.Account.DesktopXML)) then
   begin
-    Node := XMLNode(FClient.Client.Account.DesktopXML, 'browser/databases', True);
+    Node := XMLNode(FClient.Session.Account.DesktopXML, 'browser/databases', True);
 
     FXML := nil;
     for I := 0 to Node.ChildNodes.Count - 1 do
-      if ((Node.ChildNodes[I].NodeName = 'database') and (FClient.Client.Databases.NameCmp(Node.ChildNodes[I].Attributes['name'], Database.Name) = 0)) then
+      if ((Node.ChildNodes[I].NodeName = 'database') and (FClient.Session.Databases.NameCmp(Node.ChildNodes[I].Attributes['name'], Database.Name) = 0)) then
         FXML := Node.ChildNodes[I];
 
     if (not Assigned(FXML)) then
@@ -1490,9 +1490,9 @@ begin
   Result := FXML;
 end;
 
-{ TFClient.TTableDesktop ******************************************************}
+{ TFSession.TTableDesktop ******************************************************}
 
-procedure TFClient.TTableDesktop.AddFilter(const AFilter: string);
+procedure TFSession.TTableDesktop.AddFilter(const AFilter: string);
 var
   FiltersXML: IXMLNode;
   I: Integer;
@@ -1514,7 +1514,7 @@ begin
     FiltersXML.ChildNodes.Delete(0);
 end;
 
-constructor TFClient.TTableDesktop.Create(const AFClient: TFClient; const ATable: TSTable);
+constructor TFSession.TTableDesktop.Create(const AFClient: TFSession; const ATable: TSTable);
 begin
   inherited Create(AFClient, ATable);
 
@@ -1522,7 +1522,7 @@ begin
   FXML := nil;
 end;
 
-function TFClient.TTableDesktop.CreateDBGrid(): TMySQLDBGrid;
+function TFSession.TTableDesktop.CreateDBGrid(): TMySQLDBGrid;
 begin
   if (not Assigned(DBGrid)) then
   begin
@@ -1540,7 +1540,7 @@ begin
   Result := DBGrid;
 end;
 
-function TFClient.TTableDesktop.CreateListView(): TListView;
+function TFSession.TTableDesktop.CreateListView(): TListView;
 begin
   if (not Assigned(ListView)) then
   begin
@@ -1552,7 +1552,7 @@ begin
   Result := ListView;
 end;
 
-procedure TFClient.TTableDesktop.DataSetAfterOpen(DataSet: TDataSet);
+procedure TFSession.TTableDesktop.DataSetAfterOpen(DataSet: TDataSet);
 var
   Child: IXMLNode;
   FieldInfo: TFieldInfo;
@@ -1602,7 +1602,7 @@ begin
   FClient.FQuickSearchEnabled.Down := Table.DataSet.QuickSearch <> '';
 end;
 
-destructor TFClient.TTableDesktop.Destroy();
+destructor TFSession.TTableDesktop.Destroy();
 var
   Child: IXMLNode;
   FieldInfo: TFieldInfo;
@@ -1648,7 +1648,7 @@ begin
   inherited;
 end;
 
-function TFClient.TTableDesktop.GetFilter(Index: Integer): string;
+function TFSession.TTableDesktop.GetFilter(Index: Integer): string;
 var
   FiltersXML: IXMLNode;
 begin
@@ -1662,7 +1662,7 @@ begin
   end;
 end;
 
-function TFClient.TTableDesktop.GetFilterCount(): Integer;
+function TFSession.TTableDesktop.GetFilterCount(): Integer;
 begin
   Result := 0;
 
@@ -1671,7 +1671,7 @@ begin
       Result := XMLNode(XML, 'filters').ChildNodes.Count;
 end;
 
-function TFClient.TTableDesktop.GetGridXML(FieldName: string): IXMLNode;
+function TFSession.TTableDesktop.GetGridXML(FieldName: string): IXMLNode;
 var
   Node: IXMLNode;
   I: Integer;
@@ -1691,7 +1691,7 @@ begin
   end;
 end;
 
-function TFClient.TTableDesktop.GetLimit(): Integer;
+function TFSession.TTableDesktop.GetLimit(): Integer;
 begin
   if ((Table is TSBaseTable) and TSBaseTable(Table).ValidStatus and (TSBaseTable(Table).AvgRowLength > 0)) then
   begin
@@ -1710,7 +1710,7 @@ begin
     Result := DefaultLimit;
 end;
 
-function TFClient.TTableDesktop.GetLimited(): Boolean;
+function TFSession.TTableDesktop.GetLimited(): Boolean;
 begin
   Result := True;
   if ((Table is TSBaseTable) and TSBaseTable(Table).ValidStatus) then
@@ -1719,7 +1719,7 @@ begin
     TryStrToBool(XMLNode(XML, 'limit').Attributes['used'], Result);
 end;
 
-function TFClient.TTableDesktop.GetXML(): IXMLNode;
+function TFSession.TTableDesktop.GetXML(): IXMLNode;
 var
   I: Integer;
   Node: IXMLNode;
@@ -1742,32 +1742,32 @@ begin
   Result := FXML;
 end;
 
-function TFClient.TTableDesktop.GetTable(): TSTable;
+function TFSession.TTableDesktop.GetTable(): TSTable;
 begin
   Result := TSTable(CObject);
 end;
 
-procedure TFClient.TTableDesktop.SetLimit(const Limit: Integer);
+procedure TFSession.TTableDesktop.SetLimit(const Limit: Integer);
 begin
   if (Limit > 0) then
     XMLNode(XML, 'limit', True).Text := IntToStr(Limit);
 end;
 
-procedure TFClient.TTableDesktop.SetLimited(const ALimited: Boolean);
+procedure TFSession.TTableDesktop.SetLimited(const ALimited: Boolean);
 begin
   XMLNode(XML, 'limit', True).Attributes['used'] := BoolToStr(ALimited, True);
 end;
 
-{ TFClient.TViewDesktop *******************************************************}
+{ TFSession.TViewDesktop *******************************************************}
 
-constructor TFClient.TViewDesktop.Create(const AFClient: TFClient; const AView: TSView);
+constructor TFSession.TViewDesktop.Create(const AFClient: TFSession; const AView: TSView);
 begin
   inherited Create(AFClient, AView);
 
   SynMemo := nil;
 end;
 
-function TFClient.TViewDesktop.CreateSynMemo(): TSynMemo;
+function TFSession.TViewDesktop.CreateSynMemo(): TSynMemo;
 begin
   if (not Assigned(SynMemo)) then
   begin
@@ -1779,7 +1779,7 @@ begin
   Result := SynMemo;
 end;
 
-destructor TFClient.TViewDesktop.Destroy();
+destructor TFSession.TViewDesktop.Destroy();
 begin
   if (Assigned(SynMemo)) then
     SynMemo.Free();
@@ -1787,9 +1787,9 @@ begin
   inherited;
 end;
 
-{ TFClient.TRoutineDesktop *******************************************************}
+{ TFSession.TRoutineDesktop *******************************************************}
 
-procedure TFClient.TRoutineDesktop.CloseIDEResult();
+procedure TFSession.TRoutineDesktop.CloseIDEResult();
 var
   I: Integer;
 begin
@@ -1809,7 +1809,7 @@ begin
   end;
 end;
 
-constructor TFClient.TRoutineDesktop.Create(const AFClient: TFClient; const ARoutine: TSRoutine);
+constructor TFSession.TRoutineDesktop.Create(const AFClient: TFSession; const ARoutine: TSRoutine);
 begin
   inherited Create(AFClient, ARoutine);
 
@@ -1817,7 +1817,7 @@ begin
   SynMemo := nil;
 end;
 
-function TFClient.TRoutineDesktop.CreateSynMemo(): TSynMemo;
+function TFSession.TRoutineDesktop.CreateSynMemo(): TSynMemo;
 begin
   if (not Assigned(SynMemo)) then
     SynMemo := FClient.CreateSynMemo();
@@ -1825,7 +1825,7 @@ begin
   Result := SynMemo;
 end;
 
-destructor TFClient.TRoutineDesktop.Destroy();
+destructor TFSession.TRoutineDesktop.Destroy();
 begin
   CloseIDEResult();
   if (Assigned(PDBGrid)) then
@@ -1838,7 +1838,7 @@ begin
   inherited;
 end;
 
-function TFClient.TRoutineDesktop.GetActiveDBGrid(): TMySQLDBGrid;
+function TFSession.TRoutineDesktop.GetActiveDBGrid(): TMySQLDBGrid;
 begin
   if (not Assigned(Results) or (Results.Count = 0)) then
     Result := nil
@@ -1848,7 +1848,7 @@ begin
     Result := TResult(Results[TCResult.TabIndex]^).DBGrid;
 end;
 
-function TFClient.TRoutineDesktop.IDEResultEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+function TFSession.TRoutineDesktop.IDEResultEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
 var
   Item: ^TResult;
 begin
@@ -1890,7 +1890,7 @@ begin
   Result := False;
 end;
 
-procedure TFClient.TRoutineDesktop.TCResultChange(Sender: TObject);
+procedure TFSession.TRoutineDesktop.TCResultChange(Sender: TObject);
 var
   I: Integer;
 begin
@@ -1899,16 +1899,16 @@ begin
       PDBGrid.Controls[I].Visible := TMySQLDBGrid(PDBGrid.Controls[I]).Tag = TCResult.TabIndex;
 end;
 
-{ TFClient.TEventDesktop ******************************************************}
+{ TFSession.TEventDesktop ******************************************************}
 
-constructor TFClient.TEventDesktop.Create(const AFClient: TFClient; const AEvent: TSEvent);
+constructor TFSession.TEventDesktop.Create(const AFClient: TFSession; const AEvent: TSEvent);
 begin
   SynMemo := nil;
 
   inherited Create(AFClient, AEvent);
 end;
 
-function TFClient.TEventDesktop.CreateSynMemo(): TSynMemo;
+function TFSession.TEventDesktop.CreateSynMemo(): TSynMemo;
 begin
   if (not Assigned(SynMemo)) then
     SynMemo := FClient.CreateSynMemo();
@@ -1916,7 +1916,7 @@ begin
   Result := SynMemo;
 end;
 
-destructor TFClient.TEventDesktop.Destroy();
+destructor TFSession.TEventDesktop.Destroy();
 begin
   inherited;
 
@@ -1924,16 +1924,16 @@ begin
     SynMemo.Free();
 end;
 
-{ TFClient.TTriggerDesktop *******************************************************}
+{ TFSession.TTriggerDesktop *******************************************************}
 
-constructor TFClient.TTriggerDesktop.Create(const AFClient: TFClient; const ATrigger: TSTrigger);
+constructor TFSession.TTriggerDesktop.Create(const AFClient: TFSession; const ATrigger: TSTrigger);
 begin
   SynMemo := nil;
 
   inherited Create(AFClient, ATrigger);
 end;
 
-function TFClient.TTriggerDesktop.CreateSynMemo(): TSynMemo;
+function TFSession.TTriggerDesktop.CreateSynMemo(): TSynMemo;
 begin
   if (not Assigned(SynMemo)) then
     SynMemo := FClient.CreateSynMemo();
@@ -1941,7 +1941,7 @@ begin
   Result := SynMemo;
 end;
 
-destructor TFClient.TTriggerDesktop.Destroy();
+destructor TFSession.TTriggerDesktop.Destroy();
 begin
   inherited;
 
@@ -1949,36 +1949,36 @@ begin
     SynMemo.Free();
 end;
 
-{ TFClient.TWanted ************************************************************}
+{ TFSession.TWanted ************************************************************}
 
-procedure TFClient.TWanted.Clear();
+procedure TFSession.TWanted.Clear();
 begin
   FAction := nil;
   FAddress := '';
   FUpdate := nil;
 end;
 
-constructor TFClient.TWanted.Create(const AFClient: TFClient);
+constructor TFSession.TWanted.Create(const AFClient: TFSession);
 begin
   FClient := AFClient;
 
   Clear();
 end;
 
-procedure TFClient.TWanted.Execute();
+procedure TFSession.TWanted.Execute();
 begin
-  if (not FClient.Client.Asynchron) then
+  if (not FClient.Session.Asynchron) then
     FClient.Perform(CM_WANTED_SYNCHRONIZE, 0, 0)
   else
     PostMessage(FClient.Handle, CM_WANTED_SYNCHRONIZE, 0, 0);
 end;
 
-function TFClient.TWanted.GetNothing(): Boolean;
+function TFSession.TWanted.GetNothing(): Boolean;
 begin
   Result := not Assigned(Action) and (Address = '') and not Assigned(Update);
 end;
 
-procedure TFClient.TWanted.SetAction(const AAction: TAction);
+procedure TFSession.TWanted.SetAction(const AAction: TAction);
 begin
   if (AAction <> FAction) then
   begin
@@ -1987,7 +1987,7 @@ begin
   end;
 end;
 
-procedure TFClient.TWanted.SetAddress(const AAddress: string);
+procedure TFSession.TWanted.SetAddress(const AAddress: string);
 begin
   if (AAddress <> FAddress) then
   begin
@@ -1996,16 +1996,16 @@ begin
   end;
 end;
 
-procedure TFClient.TWanted.SetUpdate(const AUpdate: TSSession.TUpdate);
+procedure TFSession.TWanted.SetUpdate(const AUpdate: TSSession.TUpdate);
 begin
   Clear();
-  if (not FClient.Client.InUse) then
+  if (not FClient.Session.InUse) then
     AUpdate()
   else
     FUpdate := AUpdate;
 end;
 
-procedure TFClient.TWanted.Synchronize();
+procedure TFSession.TWanted.Synchronize();
 var
   TempAction: TAction;
   TempAddress: string;
@@ -2031,13 +2031,13 @@ begin
   end;
 end;
 
-{ TFClient ********************************************************************}
+{ TFSession ********************************************************************}
 
-procedure TFClient.aBAddExecute(Sender: TObject);
+procedure TFSession.aBAddExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  DBookmark.Bookmarks := Client.Account.Desktop.Bookmarks;
+  DBookmark.Bookmarks := Session.Account.Desktop.Bookmarks;
   DBookmark.Bookmark := nil;
   DBookmark.NewCaption := AddressToCaption(Address);
   DBookmark.NewURI := Address;
@@ -2045,23 +2045,23 @@ begin
     FBookmarks.Selected := FBookmarks.Items[FBookmarks.Items.Count - 1];
 end;
 
-procedure TFClient.aBDeleteExecute(Sender: TObject);
+procedure TFSession.aBDeleteExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  Client.Account.Desktop.Bookmarks.DeleteBookmark(Client.Account.Desktop.Bookmarks.ByCaption(FBookmarks.Selected.Caption));
+  Session.Account.Desktop.Bookmarks.DeleteBookmark(Session.Account.Desktop.Bookmarks.ByCaption(FBookmarks.Selected.Caption));
 end;
 
-procedure TFClient.aBEditExecute(Sender: TObject);
+procedure TFSession.aBEditExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  DBookmark.Bookmarks := Client.Account.Desktop.Bookmarks;
-  DBookmark.Bookmark := Client.Account.Desktop.Bookmarks.ByCaption(FBookmarks.Selected.Caption);
+  DBookmark.Bookmarks := Session.Account.Desktop.Bookmarks;
+  DBookmark.Bookmark := Session.Account.Desktop.Bookmarks.ByCaption(FBookmarks.Selected.Caption);
   DBookmark.Execute();
 end;
 
-function TFClient.ViewToParam(const AView: TView): Variant;
+function TFSession.ViewToParam(const AView: TView): Variant;
 begin
   case (AView) of
     vBrowser: Result := 'browser';
@@ -2073,11 +2073,11 @@ begin
   end;
 end;
 
-procedure TFClient.aDCancelExecute(Sender: TObject);
+procedure TFSession.aDCancelExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  Client.Terminate();
+  Session.Terminate();
 
   MainAction('aDCancel').Enabled := False;
 
@@ -2085,17 +2085,17 @@ begin
   StatusBarRefresh();
 end;
 
-procedure TFClient.aDCreateDatabaseExecute(Sender: TObject);
+procedure TFSession.aDCreateDatabaseExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  DDatabase.Client := Client;
+  DDatabase.Session := Session;
   DDatabase.Database := nil;
   if (DDatabase.Execute()) then
-    Wanted.Update := Client.Update;
+    Wanted.Update := Session.Update;
 end;
 
-procedure TFClient.aDCreateEventExecute(Sender: TObject);
+procedure TFSession.aDCreateEventExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
@@ -2104,11 +2104,11 @@ begin
     DEvent.Database := TSDatabase(FocusedCItem);
     DEvent.Event := nil;
     if (DEvent.Execute()) then
-      Wanted.Update := Client.Update;
+      Wanted.Update := Session.Update;
   end;
 end;
 
-procedure TFClient.aDCreateExecute(Sender: TObject);
+procedure TFSession.aDCreateExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
@@ -2128,7 +2128,7 @@ begin
     FText.InsertMode := not FText.InsertMode;
 end;
 
-procedure TFClient.aDCreateFieldExecute(Sender: TObject);
+procedure TFSession.aDCreateFieldExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
@@ -2138,11 +2138,11 @@ begin
     DField.Database := DField.Table.Database;
     DField.Field := nil;
     if (DField.Execute()) then
-      Wanted.Update := Client.Update;
+      Wanted.Update := Session.Update;
   end;
 end;
 
-procedure TFClient.aDCreateForeignKeyExecute(Sender: TObject);
+procedure TFSession.aDCreateForeignKeyExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
@@ -2153,11 +2153,11 @@ begin
     DForeignKey.ParentTable := nil;
     DForeignKey.ForeignKey := nil;
     if (DForeignKey.Execute()) then
-      Wanted.Update := Client.Update;
+      Wanted.Update := Session.Update;
   end;
 end;
 
-procedure TFClient.aDCreateIndexExecute(Sender: TObject);
+procedure TFSession.aDCreateIndexExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
@@ -2167,11 +2167,11 @@ begin
     DIndex.Database := DIndex.Table.Database;
     DIndex.Key := nil;
     if (DIndex.Execute()) then
-      Wanted.Update := Client.Update;
+      Wanted.Update := Session.Update;
   end;
 end;
 
-procedure TFClient.aDCreateRoutineExecute(Sender: TObject);
+procedure TFSession.aDCreateRoutineExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
@@ -2186,11 +2186,11 @@ begin
       DRoutine.RoutineType := rtUnknown;
     DRoutine.Routine := nil;
     if (DRoutine.Execute()) then
-      Wanted.Update := Client.Update;
+      Wanted.Update := Session.Update;
   end;
 end;
 
-procedure TFClient.aDCreateTableExecute(Sender: TObject);
+procedure TFSession.aDCreateTableExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
@@ -2201,11 +2201,11 @@ begin
     DTable.Database := TSDatabase(FocusedCItem);
     DTable.Table := nil;
     if (DTable.Execute()) then
-      Wanted.Update := Client.Update;
+      Wanted.Update := Session.Update;
   end;
 end;
 
-procedure TFClient.aDCreateTriggerExecute(Sender: TObject);
+procedure TFSession.aDCreateTriggerExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
@@ -2214,21 +2214,21 @@ begin
     DTrigger.Table := TSBaseTable(FocusedCItem);
     DTrigger.Trigger := nil;
     if (DTrigger.Execute()) then
-      Wanted.Update := Client.Update;
+      Wanted.Update := Session.Update;
   end;
 end;
 
-procedure TFClient.aDCreateUserExecute(Sender: TObject);
+procedure TFSession.aDCreateUserExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  DUser.Client := Client;
+  DUser.Session := Session;
   DUser.User := nil;
   if (DUser.Execute()) then
-    Wanted.Update := Client.Update;
+    Wanted.Update := Session.Update;
 end;
 
-procedure TFClient.aDCreateViewExecute(Sender: TObject);
+procedure TFSession.aDCreateViewExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
@@ -2237,11 +2237,11 @@ begin
     DView.Database := TSDatabase(FocusedCItem);
     DView.View := nil;
     if (DView.Execute()) then
-      Wanted.Update := Client.Update;
+      Wanted.Update := Session.Update;
   end;
 end;
 
-procedure TFClient.aDDeleteExecute(Sender: TObject);
+procedure TFSession.aDDeleteExecute(Sender: TObject);
 var
   CItems: TList;
   I: Integer;
@@ -2306,7 +2306,7 @@ begin
         CItems[I] := nil;
       end;
     if (Success and (List.Count > 0)) then
-      Success := Client.DeleteEntities(List);
+      Success := Session.DeleteEntities(List);
 
     Table := nil;
     for I := 0 to CItems.Count - 1 do
@@ -2354,7 +2354,7 @@ begin
         CItems[I] := nil;
       end;
     if (Success and (List.Count > 0)) then
-      Client.DeleteUsers(List);
+      Session.DeleteUsers(List);
 
     List.Free();
   end;
@@ -2362,7 +2362,7 @@ begin
   CItems.Free();
 end;
 
-procedure TFClient.aDDeleteRecordExecute(Sender: TObject);
+procedure TFSession.aDDeleteRecordExecute(Sender: TObject);
 var
   Bookmarks: array of TBookmark;
   I: Integer;
@@ -2385,7 +2385,7 @@ begin
   end;
 end;
 
-procedure TFClient.AddressChanged(Sender: TObject);
+procedure TFSession.AddressChanged(Sender: TObject);
 var
   Control: TWinControl;
   DDLStmt: TSQLDDLStmt;
@@ -2557,8 +2557,8 @@ begin
       or ((View = vIDE) and SQLSingleStmt(SQL) and (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent]))) and not Empty;
     MainAction('aDRunSelection').Enabled := (((ActiveSynMemo = FSQLEditorSynMemo) and not Empty) or Assigned(ActiveSynMemo) and (ActiveSynMemo.SelText <> ''));
     MainAction('aDPostObject').Enabled := (View = vIDE) and Assigned(ActiveSynMemo) and ActiveSynMemo.Modified and SQLSingleStmt(SQL)
-      and ((SelectedImageIndex in [iiView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Client.ServerVersion) and (SQLParseKeyword(Parse, 'SELECT'))
-        or (SelectedImageIndex in [iiProcedure, iiFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Client.ServerVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
+      and ((SelectedImageIndex in [iiView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.ServerVersion) and (SQLParseKeyword(Parse, 'SELECT'))
+        or (SelectedImageIndex in [iiProcedure, iiFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.ServerVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
         or (SelectedImageIndex in [iiEvent, iiTrigger]));
 
     StatusBarRefresh();
@@ -2592,7 +2592,7 @@ begin
   end;
 end;
 
-procedure TFClient.AddressChanging(const Sender: TObject; const NewAddress: String; var AllowChange: Boolean);
+procedure TFSession.AddressChanging(const Sender: TObject; const NewAddress: String; var AllowChange: Boolean);
 var
   NotFound: Boolean;
   Database: TSDatabase;
@@ -2604,13 +2604,13 @@ begin
 
   if (URI.Scheme <> 'mysql') then
     AllowChange := False
-  else if ((lstrcmpi(PChar(URI.Host), PChar(Client.Account.Connection.Host)) <> 0) and ((lstrcmpi(PChar(URI.Host), LOCAL_HOST) <> 0))) then
+  else if ((lstrcmpi(PChar(URI.Host), PChar(Session.Account.Connection.Host)) <> 0) and ((lstrcmpi(PChar(URI.Host), LOCAL_HOST) <> 0))) then
     AllowChange := False
-  else if (URI.Port <> Client.Account.Connection.Port) then
+  else if (URI.Port <> Session.Account.Connection.Port) then
     AllowChange := False
-  else if ((URI.Username <> '') and (lstrcmpi(PChar(URI.Username), PChar(Client.Account.Connection.User)) <> 0)) then
+  else if ((URI.Username <> '') and (lstrcmpi(PChar(URI.Username), PChar(Session.Account.Connection.User)) <> 0)) then
     AllowChange := False
-  else if ((URI.Password <> '') and (URI.Password <> Client.Account.Connection.Password)) then
+  else if ((URI.Password <> '') and (URI.Password <> Session.Account.Connection.Password)) then
     AllowChange := False
   else
   begin
@@ -2625,19 +2625,19 @@ begin
 
   if (AllowChange) then
   begin
-    if (not Client.Update() and ((URI.Database <> '') or (URI.Param['system'] <> Null))) then
+    if (not Session.Update() and ((URI.Database <> '') or (URI.Param['system'] <> Null))) then
       AllowChange := False
     else if (URI.Param['system'] = 'processes') then
-      Client.Processes.Update()
+      Session.Processes.Update()
     else if (URI.Param['system'] = 'stati') then
-      Client.Stati.Update()
+      Session.Stati.Update()
     else if (URI.Param['system'] = 'users') then
-      Client.Users.Update()
+      Session.Users.Update()
     else if (URI.Param['system'] = 'variables') then
-      Client.Variables.Update()
+      Session.Variables.Update()
     else if (URI.Database <> '') then
     begin
-      Database := Client.DatabaseByName(URI.Database);
+      Database := Session.DatabaseByName(URI.Database);
       if (not Assigned(Database)) then
         NotFound := True
       else if ((URI.Param['view'] <> 'editor') and not Database.Update((URI.Table = '') and (URI.Param['object'] = Null) and (URI.Param['view'] = NULL)) and ((URI.Table <> '') or (URI.Param['object'] <> Null))) then
@@ -2671,7 +2671,7 @@ begin
       AllowChange := False;
       Wanted.Clear();
     end
-    else if (not AllowChange and Client.Asynchron) then
+    else if (not AllowChange and Session.Asynchron) then
       Wanted.Address := NewAddress;
   end;
 
@@ -2691,7 +2691,7 @@ begin
       Window.ActiveControl := nil;
 end;
 
-function TFClient.AddressToCaption(const AAddress: string): string;
+function TFSession.AddressToCaption(const AAddress: string): string;
 var
   URI: TUURI;
 begin
@@ -2726,35 +2726,35 @@ begin
   URI.Free();
 end;
 
-procedure TFClient.aDInsertRecordExecute(Sender: TObject);
+procedure TFSession.aDInsertRecordExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
   aDInsertRecord.Execute();
 end;
 
-procedure TFClient.aDNextExecute(Sender: TObject);
+procedure TFSession.aDNextExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
   ActiveDBGrid.DataSource.DataSet.MoveBy(ActiveDBGrid.RowCount - 1);
 end;
 
-procedure TFClient.aDPostObjectExecute(Sender: TObject);
+procedure TFSession.aDPostObjectExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
   PostObject(Sender)
 end;
 
-procedure TFClient.aDPrevExecute(Sender: TObject);
+procedure TFSession.aDPrevExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
   ActiveDBGrid.DataSource.DataSet.MoveBy(- (ActiveDBGrid.RowCount - 1));
 end;
 
-procedure TFClient.aDPropertiesExecute(Sender: TObject);
+procedure TFSession.aDPropertiesExecute(Sender: TObject);
 type
   TExecute = function(): Boolean of Object;
 var
@@ -2775,7 +2775,7 @@ begin
     DTable.Database := TSDatabase(FNavigator.Selected.Data);
     DTable.Table := nil;
     if (DTable.Execute()) then
-      Wanted.Update := Client.Update;
+      Wanted.Update := Session.Update;
   end
   else if ((Window.ActiveControl = ActiveWorkbench) and (ActiveWorkbench.Selected is TWSection)) then
   begin
@@ -2789,7 +2789,7 @@ begin
 
     if (CItem is TSDatabase) then
     begin
-      DDatabase.Client := Client;
+      DDatabase.Session := Session;
       DDatabase.Database := TSDatabase(CItem);
       Execute := DDatabase.Execute;
     end
@@ -2853,10 +2853,10 @@ begin
     end
     else if (CItem is TSProcess) then
     begin
-      Process := Client.ProcessByThreadId(SysUtils.StrToInt(ActiveListView.Selected.Caption));
+      Process := Session.ProcessByThreadId(SysUtils.StrToInt(ActiveListView.Selected.Caption));
 
       DStatement.DatabaseName := Process.DatabaseName;
-      DStatement.DateTime := Client.ServerDateTime - Process.Time;
+      DStatement.DateTime := Session.ServerDateTime - Process.Time;
       DStatement.Host := Process.Host;
       DStatement.Id := Process.ThreadId;
       DStatement.StatementTime := Process.Time;
@@ -2871,13 +2871,13 @@ begin
     end
     else if (CItem is TSUser) then
     begin
-      DUser.Client := Client;
+      DUser.Session := Session;
       DUser.User := TSUser(CItem);
       Execute := DUser.Execute;
     end
     else if (CItem is TSVariable) then
     begin
-      DVariable.Client := Client;
+      DVariable.Session := Session;
       DVariable.Variable := TSVariable(CItem);
       Execute := DVariable.Execute;
     end
@@ -2885,11 +2885,11 @@ begin
       Execute := nil;
 
     if (Assigned(Execute) and Execute()) then
-      Wanted.Update := Client.Update;
+      Wanted.Update := Session.Update;
   end;
 end;
 
-procedure TFClient.aDRunExecute(Sender: TObject);
+procedure TFSession.aDRunExecute(Sender: TObject);
 var
   SQL: string;
 begin
@@ -2932,15 +2932,15 @@ begin
 
   if (SQL <> '') then
   begin
-    if ((SelectedDatabase <> Client.DatabaseName) and (SelectedDatabase <> '')) then
-      Client.ExecuteSQL(Client.SQLUse(SelectedDatabase));
+    if ((SelectedDatabase <> Session.DatabaseName) and (SelectedDatabase <> '')) then
+      Session.ExecuteSQL(Session.SQLUse(SelectedDatabase));
 
     aDRunExecuteSelStart := 0;
     SendQuery(Sender, SQL);
   end;
 end;
 
-procedure TFClient.aDRunSelectionExecute(Sender: TObject);
+procedure TFSession.aDRunSelectionExecute(Sender: TObject);
 var
   Index: Integer;
   Len: Integer;
@@ -2967,11 +2967,11 @@ begin
   else
     SQL := ActiveSynMemo.SelText;
 
-  if ((SQL <> '') and ((SelectedDatabase = '') or (SelectedDatabase = Client.DatabaseName) or Client.ExecuteSQL(Client.SQLUse(SelectedDatabase)))) then
+  if ((SQL <> '') and ((SelectedDatabase = '') or (SelectedDatabase = Session.DatabaseName) or Session.ExecuteSQL(Session.SQLUse(SelectedDatabase)))) then
     SendQuery(Sender, SQL);
 end;
 
-procedure TFClient.aEClearAllExecute(Sender: TObject);
+procedure TFSession.aEClearAllExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
@@ -2987,7 +2987,7 @@ begin
   end;
 end;
 
-procedure TFClient.aECopyExecute(Sender: TObject);
+procedure TFSession.aECopyExecute(Sender: TObject);
 var
   ClipboardData: HGLOBAL;
   Data: string;
@@ -3151,13 +3151,13 @@ begin
   end;
 end;
 
-procedure TFClient.aEFindExecute(Sender: TObject);
+procedure TFSession.aEFindExecute(Sender: TObject);
 var
   I: Integer;
 begin
   Wanted.Clear();
 
-  DSearch.Client := Client;
+  DSearch.Session := Session;
   if ((SelectedImageIndex in [iiBaseTable, iiSystemView, iiView]) and (Window.ActiveControl = ActiveListView)) then
   begin
     DSearch.DatabaseName := FNavigator.Selected.Parent.Text;
@@ -3191,7 +3191,7 @@ begin
   DSearch.Execute();
 end;
 
-procedure TFClient.aEPasteExecute(Sender: TObject);
+procedure TFSession.aEPasteExecute(Sender: TObject);
 var
   B: Boolean;
   ClipboardData: HGLOBAL;
@@ -3199,7 +3199,7 @@ var
   Node: TTreeNode;
   S: string;
 begin
-  if (Client.InUse()) then
+  if (Session.InUse()) then
     MessageBeep(MB_ICONERROR)
   else if (Assigned(ActiveDBGrid) and (Window.ActiveControl = ActiveDBGrid)) then
   begin
@@ -3267,14 +3267,14 @@ begin
     MessageBeep(MB_ICONERROR);
 end;
 
-procedure TFClient.aEPasteFromExecute(Sender: TObject);
+procedure TFSession.aEPasteFromExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
   OpenSQLFile('', 0, True);
 end;
 
-procedure TFClient.aEPasteFromFileExecute(Sender: TObject);
+procedure TFSession.aEPasteFromFileExecute(Sender: TObject);
 var
   Encoding: TEncoding;
   Reader: TStreamReader;
@@ -3289,7 +3289,7 @@ begin
     OpenDialog.DefaultExt := 'txt';
     OpenDialog.Filter := FilterDescription('txt') + ' (*.txt)|*.txt|' + FilterDescription('*') + ' (*.*)|*.*';
     OpenDialog.Encodings.Text := EncodingCaptions();
-    OpenDialog.EncodingIndex := OpenDialog.Encodings.IndexOf(CodePageToEncoding(Client.CodePage));
+    OpenDialog.EncodingIndex := OpenDialog.Encodings.IndexOf(CodePageToEncoding(Session.CodePage));
   end
   else if (ActiveDBGrid.SelectedField.DataType = ftBlob) then
   begin
@@ -3329,13 +3329,13 @@ begin
   end;
 end;
 
-procedure TFClient.aERedoExecute(Sender: TObject);
+procedure TFSession.aERedoExecute(Sender: TObject);
 begin
   FSQLEditorSynMemo.Redo();
   SynMemoStatusChange(Sender, [scAll]);
 end;
 
-procedure TFClient.aERenameExecute(Sender: TObject);
+procedure TFSession.aERenameExecute(Sender: TObject);
 begin
   if (Window.ActiveControl = FNavigator) then
     FNavigatorMenuNode.EditText()
@@ -3343,13 +3343,13 @@ begin
     ActiveListView.Selected.EditCaption();
 end;
 
-procedure TFClient.aEReplaceExecute(Sender: TObject);
+procedure TFSession.aEReplaceExecute(Sender: TObject);
 var
   I: Integer;
 begin
   Wanted.Clear();
 
-  DSearch.Client := Client;
+  DSearch.Session := Session;
   if ((SelectedImageIndex in [iiBaseTable, iiSystemView, iiView]) and (Window.ActiveControl = ActiveListView)) then
   begin
     DSearch.DatabaseName := FNavigator.Selected.Parent.Text;
@@ -3381,14 +3381,14 @@ begin
   DSearch.SearchOnly := False;
   DSearch.Frame := Self;
   DSearch.Execute();
-  Wanted.Update := Client.Update;
+  Wanted.Update := Session.Update;
 end;
 
-procedure TFClient.aETransferExecute(Sender: TObject);
+procedure TFSession.aETransferExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  DTransfer.SourceClient := Client;
+  DTransfer.SourceSession := Session;
   DTransfer.SourceDatabaseName := FocusedDatabaseNames;
   if (DTransfer.SourceDatabaseName = '') then
     DTransfer.SourceTableName := ''
@@ -3397,18 +3397,18 @@ begin
     DTransfer.SourceDatabaseName := SelectedDatabase;
     DTransfer.SourceTableName := FocusedTableNames;
   end;
-  DTransfer.DestinationClient := nil;
+  DTransfer.DestinationSession := nil;
   DTransfer.Execute();
 end;
 
-procedure TFClient.aFExportAccessExecute(Sender: TObject);
+procedure TFSession.aFExportAccessExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
   aFExportExecute(Sender, etAccessFile);
 end;
 
-procedure TFClient.aFExportBitmapExecute(Sender: TObject);
+procedure TFSession.aFExportBitmapExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
@@ -3427,19 +3427,19 @@ begin
   end;
 end;
 
-procedure TFClient.aFExportExcelExecute(Sender: TObject);
+procedure TFSession.aFExportExcelExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
   aFExportExecute(Sender, etExcelFile);
 end;
 
-procedure TFClient.aFExportExecute(const Sender: TObject; const ExportType: TPExportType);
+procedure TFSession.aFExportExecute(const Sender: TObject; const ExportType: TPExportType);
 var
   Database: TSDatabase;
   I: Integer;
 begin
-  DExport.Client := Client;
+  DExport.Session := Session;
   DExport.DBGrid := nil;
   DExport.DialogType := edtNormal;
   DExport.ExportType := ExportType;
@@ -3452,7 +3452,7 @@ begin
   else if (Window.ActiveControl = ActiveWorkbench) then
   begin
     Database := TSDatabase(FNavigator.Selected.Data);
-    if ((Client.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
+    if ((Session.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
       for I := 0 to ActiveWorkbench.Tables.Count - 1 do
         if (not Assigned(ActiveWorkbench.Selected) or ActiveWorkbench.Tables[I].Selected) then
           DExport.Objects.Add(ActiveWorkbench.Tables[I].BaseTable);
@@ -3465,14 +3465,14 @@ begin
           if (ActiveListView.Items[I].Selected) then
           begin
             Database := TSDatabase(ActiveListView.Items[I].Data);
-            if ((Client.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
+            if ((Session.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
               DExport.Objects.Add(Database);
           end;
 
       iiDatabase:
         begin
           Database := TSDatabase(FNavigator.Selected.Data);
-          if ((Client.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
+          if ((Session.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
             for I := 0 to ActiveListView.Items.Count - 1 do
               if (ActiveListView.Items[I].Selected) then
                 DExport.Objects.Add(TSDBObject(ActiveListView.Items[I].Data));
@@ -3480,7 +3480,7 @@ begin
       iiBaseTable:
         begin
           Database := TSDatabase(FNavigator.Selected.Parent.Data);
-          if ((Client.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
+          if ((Session.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
             for I := 0 to ActiveListView.Items.Count - 1 do
               if (ActiveListView.Items[I].Selected and (ActiveListView.Items[I].ImageIndex = iiTrigger)) then
                 DExport.Objects.Add(TSDBObject(ActiveListView.Items[I].Data));
@@ -3490,89 +3490,89 @@ begin
   else if (FocusedCItem is TSDatabase) then
   begin
     Database := TSDatabase(FocusedCItem);
-    if ((Client.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
+    if ((Session.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
       DExport.Objects.Add(Database);
   end
   else if (FocusedCItem is TSDBObject) then
   begin
     Database := TSDBObject(FocusedCItem).Database;
-    if ((Client.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
+    if ((Session.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
       DExport.Objects.Add(FocusedCItem);
   end
   else
   begin
-    for I := 0 to DExport.Client.Databases.Count - 1 do
-      if ((Client.TableNameCmp(Client.Databases[I].Name, 'mysql') <> 0) and not (Client.Databases[I] is TSSystemDatabase)) then
-        DExport.Objects.Add(Client.Databases[I]);
+    for I := 0 to DExport.Session.Databases.Count - 1 do
+      if ((Session.TableNameCmp(Session.Databases[I].Name, 'mysql') <> 0) and not (Session.Databases[I] is TSSystemDatabase)) then
+        DExport.Objects.Add(Session.Databases[I]);
   end;
 
   DExport.Execute();
 end;
 
-procedure TFClient.aFExportHTMLExecute(Sender: TObject);
+procedure TFSession.aFExportHTMLExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
   aFExportExecute(Sender, etHTMLFile);
 end;
 
-procedure TFClient.aFExportODBCExecute(Sender: TObject);
+procedure TFSession.aFExportODBCExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
   aFExportExecute(Sender, etODBC);
 end;
 
-procedure TFClient.aFExportPDFExecute(Sender: TObject);
+procedure TFSession.aFExportPDFExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
   aFExportExecute(Sender, etPDFFile);
 end;
 
-procedure TFClient.aFExportSQLExecute(Sender: TObject);
+procedure TFSession.aFExportSQLExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
   aFExportExecute(Sender, etSQLFile);
 end;
 
-procedure TFClient.aFExportSQLiteExecute(Sender: TObject);
+procedure TFSession.aFExportSQLiteExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
   aFExportExecute(Sender, etSQLiteFile);
 end;
 
-procedure TFClient.aFExportTextExecute(Sender: TObject);
+procedure TFSession.aFExportTextExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
   aFExportExecute(Sender, etTextFile);
 end;
 
-procedure TFClient.aFExportXMLExecute(Sender: TObject);
+procedure TFSession.aFExportXMLExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
   aFExportExecute(Sender, etXMLFile);
 end;
 
-procedure TFClient.aFImportAccessExecute(Sender: TObject);
+procedure TFSession.aFImportAccessExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
   aFImportExecute(Sender, itAccessFile);
 end;
 
-procedure TFClient.aFImportExcelExecute(Sender: TObject);
+procedure TFSession.aFImportExcelExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
   aFImportExecute(Sender, itExcelFile);
 end;
 
-procedure TFClient.aFImportExecute(const Sender: TObject; const ImportType: TImportType);
+procedure TFSession.aFImportExecute(const Sender: TObject; const ImportType: TImportType);
 var
   CItem: TSItem;
 begin
@@ -3582,7 +3582,7 @@ begin
     Wanted.Action := TAction(Sender)
   else
   begin
-    DImport.Client := Client;
+    DImport.Session := Session;
     DImport.Database := nil;
     DImport.Table := nil;
     if (CItem is TSDatabase) then
@@ -3651,17 +3651,17 @@ begin
       else
         DImport.CodePage := EncodingToCodePage(OpenDialog.Encodings[OpenDialog.EncodingIndex]);
       DImport.Execute();
-      Wanted.Update := Client.Update;
+      Wanted.Update := Session.Update;
     end;
   end;
 end;
 
-procedure TFClient.aFImportODBCExecute(Sender: TObject);
+procedure TFSession.aFImportODBCExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
   DImport.Window := Window;
-  DImport.Client := Client;
+  DImport.Session := Session;
   if (FocusedCItem is TSDatabase) then
   begin
     DImport.Database := TSDatabase(FocusedCItem);
@@ -3681,38 +3681,38 @@ begin
   DImport.CodePage := CP_ACP;
   DImport.ImportType := itODBC;
   DImport.Execute();
-  Wanted.Update := Client.Update;
+  Wanted.Update := Session.Update;
 end;
 
-procedure TFClient.aFImportSQLExecute(Sender: TObject);
+procedure TFSession.aFImportSQLExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
   aFImportExecute(Sender, itSQLFile);
 end;
 
-procedure TFClient.aFImportSQLiteExecute(Sender: TObject);
+procedure TFSession.aFImportSQLiteExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
   aFImportExecute(Sender, itSQLiteFile);
 end;
 
-procedure TFClient.aFImportTextExecute(Sender: TObject);
+procedure TFSession.aFImportTextExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
   aFImportExecute(Sender, itTextFile);
 end;
 
-procedure TFClient.aFImportXMLExecute(Sender: TObject);
+procedure TFSession.aFImportXMLExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
   aFImportExecute(Sender, itXMLFile);
 end;
 
-procedure TFClient.aFOpenExecute(Sender: TObject);
+procedure TFSession.aFOpenExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
@@ -3720,7 +3720,7 @@ begin
     OpenSQLFile('');
 end;
 
-procedure TFClient.aFPrintExecute(Sender: TObject);
+procedure TFSession.aFPrintExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
@@ -3732,29 +3732,29 @@ begin
     aFExportExecute(Sender, etPrinter);
 end;
 
-procedure TFClient.aFSaveAsExecute(Sender: TObject);
+procedure TFSession.aFSaveAsExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
   SaveSQLFile(Sender);
 end;
 
-procedure TFClient.aFSaveExecute(Sender: TObject);
+procedure TFSession.aFSaveExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
   SaveSQLFile(Sender);
 end;
 
-procedure TFClient.AfterConnect(Sender: TObject);
+procedure TFSession.AfterConnect(Sender: TObject);
 begin
-  MainAction('aDCancel').Enabled := Client.InUse();
+  MainAction('aDCancel').Enabled := Session.InUse();
 
   StatusBar.Panels[sbMessage].Text := Preferences.LoadStr(382);
   SetTimer(Handle, tiStatusBar, 5000, nil);
 end;
 
-procedure TFClient.AfterExecuteSQL(Sender: TObject);
+procedure TFSession.AfterExecuteSQL(Sender: TObject);
 var
   Hour: Word;
   Minute: Word;
@@ -3764,15 +3764,15 @@ var
 begin
   MainAction('aDCancel').Enabled := False;
 
-  if (Client.RowsAffected < 0) then
+  if (Session.RowsAffected < 0) then
     Msg := Preferences.LoadStr(382)
   else
-    Msg := Preferences.LoadStr(658, IntToStr(Client.RowsAffected));
+    Msg := Preferences.LoadStr(658, IntToStr(Session.RowsAffected));
 
-  DecodeTime(Client.ExecutionTime, Hour, Minute, Second, MSec);
+  DecodeTime(Session.ExecutionTime, Hour, Minute, Second, MSec);
   if (Hour > 0) or (Minute > 0) then
-    Msg := Msg + '  (' + Preferences.LoadStr(520) + ': ' + FormatDateTime(FormatSettings.LongTimeFormat, Client.ExecutionTime) + ')'
-  else if (Client.ExecutionTime >= 0) then
+    Msg := Msg + '  (' + Preferences.LoadStr(520) + ': ' + FormatDateTime(FormatSettings.LongTimeFormat, Session.ExecutionTime) + ')'
+  else if (Session.ExecutionTime >= 0) then
     Msg := Msg + '  (' + Preferences.LoadStr(520) + ': ' + Format('%2.2f', [Second + MSec / 1000]) + ')';
 
   StatusBar.Panels[sbMessage].Text := Msg;
@@ -3782,12 +3782,12 @@ begin
     Wanted.Execute();
 end;
 
-procedure TFClient.aHManualExecute(Sender: TObject);
+procedure TFSession.aHManualExecute(Sender: TObject);
 begin
-  ShellExecute(Application.Handle, 'open', PChar(Client.Account.ManualURL), '', '', SW_SHOW);
+  ShellExecute(Application.Handle, 'open', PChar(Session.Account.ManualURL), '', '', SW_SHOW);
 end;
 
-procedure TFClient.aHRunClick(Sender: TObject);
+procedure TFSession.aHRunClick(Sender: TObject);
 var
   SQL: string;
 begin
@@ -3800,8 +3800,8 @@ begin
     begin
       SQL := '';
 
-      if ((XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'database').Text <> Client.DatabaseName) and (XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'database').Text <> '')) then
-        SQL := SQL + Client.SQLUse(XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'database').Text);
+      if ((XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'database').Text <> Session.DatabaseName) and (XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'database').Text <> '')) then
+        SQL := SQL + Session.SQLUse(XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'database').Text);
 
       SQL := SQL + XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'sql').Text;
 
@@ -3810,7 +3810,7 @@ begin
   end;
 end;
 
-procedure TFClient.aHRunExecute(Sender: TObject);
+procedure TFSession.aHRunExecute(Sender: TObject);
 var
   SQL: string;
 begin
@@ -3823,8 +3823,8 @@ begin
     begin
       SQL := '';
 
-      if ((XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'database').Text <> Client.DatabaseName) and (XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'database').Text <> '')) then
-        SQL := SQL + Client.SQLUse(XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'database').Text);
+      if ((XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'database').Text <> Session.DatabaseName) and (XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'database').Text <> '')) then
+        SQL := SQL + Session.SQLUse(XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'database').Text);
 
       SQL := SQL + XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'sql').Text;
 
@@ -3833,7 +3833,7 @@ begin
   end;
 end;
 
-procedure TFClient.aHSQLExecute(Sender: TObject);
+procedure TFSession.aHSQLExecute(Sender: TObject);
 
   function FLogWordAtCursor(): string;
   var
@@ -3869,13 +3869,13 @@ begin
   else
     DSQLHelp.Keyword := '';
 
-  DSQLHelp.Client := Client;
+  DSQLHelp.Session := Session;
   DSQLHelp.Execute();
 end;
 
-procedure TFClient.aJAddExportExecute(Sender: TObject);
+procedure TFSession.aJAddExportExecute(Sender: TObject);
 begin
-  DExport.Client := Client;
+  DExport.Session := Session;
   DExport.DBGrid := nil;
   DExport.DialogType := edtCreateJob;
   DExport.Job := nil;
@@ -3884,23 +3884,23 @@ begin
   DExport.Execute();
 end;
 
-procedure TFClient.aJDeleteExecute(Sender: TObject);
+procedure TFSession.aJDeleteExecute(Sender: TObject);
 begin
-  Client.Account.Jobs.DeleteJob(Client.Account.JobByName(FJobs.Selected.Caption));
+  Session.Account.Jobs.DeleteJob(Session.Account.JobByName(FJobs.Selected.Caption));
 end;
 
-procedure TFClient.aJEditExecute(Sender: TObject);
+procedure TFSession.aJEditExecute(Sender: TObject);
 begin
-  DExport.Client := Client;
+  DExport.Session := Session;
   DExport.DBGrid := nil;
   DExport.DialogType := edtEditJob;
-  DExport.Job := TAJobExport(Client.Account.JobByName(FJobs.Selected.Caption));
+  DExport.Job := TAJobExport(Session.Account.JobByName(FJobs.Selected.Caption));
   DExport.Objects.Clear();
   DExport.Window := Window;
   DExport.Execute();
 end;
 
-procedure TFClient.aPCollapseExecute(Sender: TObject);
+procedure TFSession.aPCollapseExecute(Sender: TObject);
 begin
   if (Window.ActiveControl = FNavigator) then
     FNavigatorMenuNode.Collapse(False)
@@ -3908,7 +3908,7 @@ begin
     FSQLHistoryMenuNode.Collapse(False);
 end;
 
-procedure TFClient.aPExpandExecute(Sender: TObject);
+procedure TFSession.aPExpandExecute(Sender: TObject);
 begin
   if (Window.ActiveControl = FNavigator) then
     FNavigatorMenuNode.Expand(False)
@@ -3916,7 +3916,7 @@ begin
     FSQLHistoryMenuNode.Expand(False);
 end;
 
-procedure TFClient.aPObjectBrowserTableExecute(Sender: TObject);
+procedure TFSession.aPObjectBrowserTableExecute(Sender: TObject);
 var
   URI: TUURI;
 begin
@@ -3930,7 +3930,7 @@ begin
   URI.Free();
 end;
 
-procedure TFClient.aPOpenInNewTabExecute(Sender: TObject);
+procedure TFSession.aPOpenInNewTabExecute(Sender: TObject);
 begin
   if (FocusedCItem is TSDatabase) then
     OpenInNewTabExecute(TSDatabase(FocusedCItem).Name, '')
@@ -3939,14 +3939,14 @@ begin
   else if (Window.ActiveControl = FBookmarks) then
   begin
     if (Assigned(FBookmarks.Selected)) then
-      Window.Perform(CM_ADDTAB, 0, LPARAM(PChar(string(Client.Account.Desktop.Bookmarks.ByCaption(FBookmarks.Selected.Caption).URI))));
+      Window.Perform(CM_ADDTAB, 0, LPARAM(PChar(string(Session.Account.Desktop.Bookmarks.ByCaption(FBookmarks.Selected.Caption).URI))));
   end
   else if (Window.ActiveControl = FFiles) then
     if (LowerCase(ExtractFileExt(Path + PathDelim + FFiles.Selected.Caption)) = '.sql') then
       OpenInNewTabExecute(SelectedDatabase, '', False, Path + PathDelim + FFiles.Selected.Caption);
 end;
 
-procedure TFClient.aPOpenInNewWindowExecute(Sender: TObject);
+procedure TFSession.aPOpenInNewWindowExecute(Sender: TObject);
 begin
   if (FocusedCItem is TSDatabase) then
     OpenInNewTabExecute(TSDatabase(FocusedCItem).Name, '', True)
@@ -3955,14 +3955,14 @@ begin
   else if (Window.ActiveControl = FBookmarks) then
   begin
     if (Assigned(FBookmarks.Selected)) then
-      ShellExecute(Application.Handle, 'open', PChar(TFileName(Application.ExeName)), PChar(string(Client.Account.Desktop.Bookmarks.ByCaption(FBookmarks.Selected.Caption).URI)), '', SW_SHOW);
+      ShellExecute(Application.Handle, 'open', PChar(TFileName(Application.ExeName)), PChar(string(Session.Account.Desktop.Bookmarks.ByCaption(FBookmarks.Selected.Caption).URI)), '', SW_SHOW);
   end
   else if (Window.ActiveControl = FFiles) then
     if (LowerCase(ExtractFileExt(Path + PathDelim + FFiles.Selected.Caption)) = '.sql') then
       OpenInNewTabExecute(SelectedDatabase, '', True, Path + PathDelim + FFiles.Selected.Caption);
 end;
 
-procedure TFClient.aPResultExecute(Sender: TObject);
+procedure TFSession.aPResultExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
@@ -3970,36 +3970,36 @@ begin
     Window.ActiveControl := ActiveDBGrid;
 end;
 
-procedure TFClient.aSSearchFindNotFound(Sender: TObject);
+procedure TFSession.aSSearchFindNotFound(Sender: TObject);
 begin
   MsgBox(Preferences.LoadStr(533, TSearchFind(Sender).Dialog.FindText), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
 end;
 
-procedure TFClient.aTBFilterExecute(Sender: TObject);
+procedure TFSession.aTBFilterExecute(Sender: TObject);
 begin
   if (View = vBrowser) then
     Window.ActiveControl := FFilter;
 end;
 
-procedure TFClient.aTBLimitExecute(Sender: TObject);
+procedure TFSession.aTBLimitExecute(Sender: TObject);
 begin
   if (View = vBrowser) then
     Window.ActiveControl := FLimit;
 end;
 
-procedure TFClient.aTBOffsetExecute(Sender: TObject);
+procedure TFSession.aTBOffsetExecute(Sender: TObject);
 begin
   if (View = vBrowser) then
     Window.ActiveControl := FOffset;
 end;
 
-procedure TFClient.aTBQuickSearchExecute(Sender: TObject);
+procedure TFSession.aTBQuickSearchExecute(Sender: TObject);
 begin
   if (View = vBrowser) then
     Window.ActiveControl := FQuickSearch;
 end;
 
-procedure TFClient.aVBlobExecute(Sender: TObject);
+procedure TFSession.aVBlobExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
@@ -4029,7 +4029,7 @@ begin
     SendMessage(FBlobSearch.Handle, EM_SETCUEBANNER, 0, LParam(PChar(ReplaceStr(Preferences.LoadStr(424), '&', ''))));
 end;
 
-procedure TFClient.aViewExecute(Sender: TObject);
+procedure TFSession.aViewExecute(Sender: TObject);
 var
   NewView: TView;
   AllowChange: Boolean;
@@ -4081,7 +4081,7 @@ begin
   end;
 end;
 
-procedure TFClient.aVRefreshAllExecute(Sender: TObject);
+procedure TFSession.aVRefreshAllExecute(Sender: TObject);
 var
   ChangeEvent: TTVChangedEvent;
   ChangingEvent: TTVChangingEvent;
@@ -4090,7 +4090,7 @@ begin
   KillTimer(Handle, tiStatusBar);
   KillTimer(Handle, tiNavigator);
 
-  Client.Invalidate();
+  Session.Invalidate();
 
   TempAddress := Address;
 
@@ -4103,7 +4103,7 @@ begin
   Address := TempAddress;
 end;
 
-procedure TFClient.aVRefreshExecute(Sender: TObject);
+procedure TFSession.aVRefreshExecute(Sender: TObject);
 var
   AllowRefresh: Boolean;
   List: TList;
@@ -4119,7 +4119,7 @@ begin
       vIDE:
         begin
           case (SelectedImageIndex) of
-            iiServer: Client.Invalidate();
+            iiServer: Session.Invalidate();
             iiDatabase,
             iiSystemDatabase: TSDatabase(FNavigator.Selected.Data).Invalidate();
             iiBaseTable,
@@ -4134,10 +4134,10 @@ begin
             iiFunction: TSFunction(FNavigator.Selected.Data).Invalidate();
             iiEvent: TSEvent(FNavigator.Selected.Data).Invalidate();
             iiTrigger: TSTrigger(FNavigator.Selected.Data).Invalidate();
-            iiProcesses: Client.Processes.Invalidate();
-            iiStati: Client.Stati.Invalidate();
-            iiUsers: Client.Users.Invalidate();
-            iiVariables: Client.Variables.Invalidate();
+            iiProcesses: Session.Processes.Invalidate();
+            iiStati: Session.Stati.Invalidate();
+            iiUsers: Session.Users.Invalidate();
+            iiVariables: Session.Variables.Invalidate();
           end;
           Address := Address;
         end;
@@ -4162,7 +4162,7 @@ begin
             if ((View = vBrowser) and (FNavigator.Selected.ImageIndex in [iiBaseTable, iiSystemView, iiView]) and not TSTable(FNavigator.Selected.Data).Valid) then
             begin
               ActiveDBGrid.DataSource.DataSet.Close();
-              Client.Update();
+              Session.Update();
             end
             else
               ActiveDBGrid.DataSource.DataSet.Refresh();
@@ -4172,14 +4172,14 @@ begin
           TSDatabase(FNavigator.Selected.Data).Tables.Invalidate();
           List := TList.Create();
           List.Add(TSDatabase(FNavigator.Selected.Data).Tables);
-          Client.Update(List);
+          Session.Update(List);
           List.Free();
         end;
     end;
   end;
 end;
 
-procedure TFClient.aVSideBarExecute(Sender: TObject);
+procedure TFSession.aVSideBarExecute(Sender: TObject);
 begin
   PSideBar.DisableAlign();
 
@@ -4198,7 +4198,7 @@ begin
   if (PExplorer.Visible and not Assigned(FFolders)) then
     CreateExplorer()
   else if (PJobs.Visible and (FJobs.Items.Count = 0)) then
-    FormAccountEvent(Client.Account.Jobs.ClassType)
+    FormAccountEvent(Session.Account.Jobs.ClassType)
   else if (PSQLHistory.Visible) then
     FSQLHistoryRefresh(Sender);
 
@@ -4228,7 +4228,7 @@ begin
     Window.ActiveControl := FSQLHistory;
 end;
 
-procedure TFClient.aVSortAscExecute(Sender: TObject);
+procedure TFSession.aVSortAscExecute(Sender: TObject);
 var
   SortDef: TIndexDef;
 begin
@@ -4242,7 +4242,7 @@ begin
   SortDef.Free();
 end;
 
-procedure TFClient.aVSortDescExecute(Sender: TObject);
+procedure TFSession.aVSortDescExecute(Sender: TObject);
 var
   SortDef: TIndexDef;
 begin
@@ -4257,7 +4257,7 @@ begin
   SortDef.Free();
 end;
 
-procedure TFClient.aVSQLLogExecute(Sender: TObject);
+procedure TFSession.aVSQLLogExecute(Sender: TObject);
 begin
   PLog.Visible := MainAction('aVSQLLog').Checked;
   SLog.Visible := PLog.Visible;
@@ -4275,7 +4275,7 @@ begin
   FormResize(Sender);
 end;
 
-procedure TFClient.BeforeConnect(Sender: TObject);
+procedure TFSession.BeforeConnect(Sender: TObject);
 begin
   StatusBar.Panels[sbMessage].Text := Preferences.LoadStr(195) + '...';
   KillTimer(Handle, tiStatusBar);
@@ -4283,7 +4283,7 @@ begin
   MainAction('aDCancel').Enabled := True;
 end;
 
-procedure TFClient.BeforeExecuteSQL(Sender: TObject);
+procedure TFSession.BeforeExecuteSQL(Sender: TObject);
 begin
   StatusBar.Panels[sbMessage].Text := Preferences.LoadStr(196) + '...';
   KillTimer(Handle, tiStatusBar);
@@ -4291,7 +4291,7 @@ begin
   MainAction('aDCancel').Enabled := True;
 end;
 
-procedure TFClient.BeginEditLabel(Sender: TObject);
+procedure TFSession.BeginEditLabel(Sender: TObject);
 begin
   KillTimer(Handle, tiNavigator);
 
@@ -4299,7 +4299,7 @@ begin
   aDDelete.ShortCut := 0;
 end;
 
-procedure TFClient.BObjectIDEClick(Sender: TObject);
+procedure TFSession.BObjectIDEClick(Sender: TObject);
 var
   SQL: string;
   Trigger: TSTrigger;
@@ -4322,14 +4322,14 @@ begin
     else if (Sender = BDELETE) then
       SQL := Trigger.SQLDelete();
 
-    if (SelectedDatabase <> Client.DatabaseName) then
-      SQL := Client.SQLUse(SelectedDatabase) + SQL;
+    if (SelectedDatabase <> Session.DatabaseName) then
+      SQL := Session.SQLUse(SelectedDatabase) + SQL;
 
-    Client.ExecuteSQL(SQL);
+    Session.ExecuteSQL(SQL);
   end;
 end;
 
-procedure TFClient.ClientUpdate(const Event: TSSession.TEvent);
+procedure TFSession.ClientUpdate(const Event: TSSession.TEvent);
 var
   Control: TWinControl;
   I: Integer;
@@ -4404,16 +4404,16 @@ begin
   StatusBarRefresh();
 
   if (Assigned(Event) and ((Event.EventType in [ceItemCreated, ceItemAltered]) or ((Event.EventType in [ceItemValid]) and (Event.CItem is TSObject) and not TSObject(Event.CItem).Valid)) and (Screen.ActiveForm = Window) and Wanted.Nothing) then
-    Wanted.Update := Client.Update;
+    Wanted.Update := Session.Update;
 end;
 
-procedure TFClient.CMActivateDBGrid(var Message: TMessage);
+procedure TFSession.CMActivateDBGrid(var Message: TMessage);
 begin
   Window.ActiveControl := TWinControl(Message.LParam);
   ActiveDBGrid.EditorMode := False;
 end;
 
-procedure TFClient.CMActivateFText(var Message: TMessage);
+procedure TFSession.CMActivateFText(var Message: TMessage);
 const
   KEYEVENTF_UNICODE = 4;
 var
@@ -4431,7 +4431,7 @@ begin
   FText.SelStart := Length(FText.Text);
 end;
 
-procedure TFClient.CMChangePreferences(var Message: TMessage);
+procedure TFSession.CMChangePreferences(var Message: TMessage);
 var
   I: Integer;
 begin
@@ -4446,15 +4446,15 @@ begin
     ToolBar.BorderWidth := 2;
   end;
 
-  Client.SQLMonitor.CacheSize := Preferences.LogSize;
+  Session.SQLMonitor.CacheSize := Preferences.LogSize;
   if (Preferences.LogResult) then
-    Client.SQLMonitor.TraceTypes := Client.SQLMonitor.TraceTypes + [ttInfo]
+    Session.SQLMonitor.TraceTypes := Session.SQLMonitor.TraceTypes + [ttInfo]
   else
-    Client.SQLMonitor.TraceTypes := Client.SQLMonitor.TraceTypes - [ttInfo];
+    Session.SQLMonitor.TraceTypes := Session.SQLMonitor.TraceTypes - [ttInfo];
   if (Preferences.LogTime) then
-    Client.SQLMonitor.TraceTypes := Client.SQLMonitor.TraceTypes + [ttTime]
+    Session.SQLMonitor.TraceTypes := Session.SQLMonitor.TraceTypes + [ttTime]
   else
-    Client.SQLMonitor.TraceTypes := Client.SQLMonitor.TraceTypes - [ttTime];
+    Session.SQLMonitor.TraceTypes := Session.SQLMonitor.TraceTypes - [ttTime];
 
   aPExpand.Caption := Preferences.LoadStr(150);
   aPCollapse.Caption := Preferences.LoadStr(151);
@@ -4646,7 +4646,7 @@ begin
   PasteMode := False;
 end;
 
-procedure TFClient.CMCloseTabQuery(var Message: TMessage);
+procedure TFSession.CMCloseTabQuery(var Message: TMessage);
 var
   CanClose: Boolean;
   I: Integer;
@@ -4685,27 +4685,27 @@ begin
     Message.Result := 1;
 end;
 
-procedure TFClient.CMExecute(var Message: TMessage);
+procedure TFSession.CMExecute(var Message: TMessage);
 begin
   MainAction('aDRun').Execute();
 
   Window.Close();
 end;
 
-procedure TFClient.CMFrameActivate(var Message: TMessage);
+procedure TFSession.CMFrameActivate(var Message: TMessage);
 begin
   Include(FrameState, tsActive);
 
-  FormatSettings.ThousandSeparator := Client.FormatSettings.ThousandSeparator;
-  FormatSettings.DecimalSeparator := Client.FormatSettings.DecimalSeparator;
-  FormatSettings.ShortDateFormat := Client.FormatSettings.ShortDateFormat;
-  FormatSettings.LongTimeFormat := Client.FormatSettings.LongTimeFormat;
-  FormatSettings.DateSeparator := Client.FormatSettings.DateSeparator;
-  FormatSettings.TimeSeparator := Client.FormatSettings.TimeSeparator;
+  FormatSettings.ThousandSeparator := Session.FormatSettings.ThousandSeparator;
+  FormatSettings.DecimalSeparator := Session.FormatSettings.DecimalSeparator;
+  FormatSettings.ShortDateFormat := Session.FormatSettings.ShortDateFormat;
+  FormatSettings.LongTimeFormat := Session.FormatSettings.LongTimeFormat;
+  FormatSettings.DateSeparator := Session.FormatSettings.DateSeparator;
+  FormatSettings.TimeSeparator := Session.FormatSettings.TimeSeparator;
 
-  Client.BeforeConnect := BeforeConnect;
-  Client.AfterConnect := AfterConnect;
-  Client.OnConvertError := OnConvertError;
+  Session.BeforeConnect := BeforeConnect;
+  Session.AfterConnect := AfterConnect;
+  Session.OnConvertError := OnConvertError;
 
   if (Window.ActiveControl is TWinControl) then
     Perform(CM_ENTER, 0, 0);
@@ -4824,10 +4824,10 @@ begin
     MainAction('aVRefresh').Enabled := True;
     MainAction('aVRefreshAll').Enabled := True;
     MainAction('aBAdd').Enabled := True;
-    MainAction('aDCancel').Enabled := Client.InUse();
+    MainAction('aDCancel').Enabled := Session.InUse();
     MainAction('aJAddExport').Enabled := CheckWin32Version(6);
-    MainAction('aHSQL').Enabled := Client.ServerVersion >= 40100;
-    MainAction('aHManual').Enabled := Client.Account.ManualURL <> '';
+    MainAction('aHSQL').Enabled := Session.ServerVersion >= 40100;
+    MainAction('aHManual').Enabled := Session.Account.ManualURL <> '';
 
     aPResult.ShortCut := ShortCut(VK_F8, [ssAlt]);
 
@@ -4854,7 +4854,7 @@ begin
     StatusBarRefresh(True);
 end;
 
-procedure TFClient.CMFrameDeactivate(var Message: TMessage);
+procedure TFSession.CMFrameDeactivate(var Message: TMessage);
 begin
   KillTimer(Handle, tiNavigator);
   KillTimer(Handle, tiStatusBar);
@@ -4897,59 +4897,61 @@ begin
   Include(FrameState, tsActive);
 end;
 
-procedure TFClient.CMPostBuilderQueryChange(var Message: TMessage);
+procedure TFSession.CMPostBuilderQueryChange(var Message: TMessage);
 begin
   FBuilderEditorPageControlCheckStyle();
 end;
 
-procedure TFClient.CMPostMonitor(var Message: TMessage);
+procedure TFSession.CMPostMonitor(var Message: TMessage);
 var
   Text: string;
 begin
   if (MainAction('aVSQLLog').Checked) then
   begin
-    Text := Client.SQLMonitor.CacheText;
+    Text := Session.SQLMonitor.CacheText;
     SendMessage(FLog.Handle, WM_SETTEXT, 0, LPARAM(PChar(Text)));
 
     PLogResize(nil);
   end;
 end;
 
-procedure TFClient.CMPostShow(var Message: TMessage);
+procedure TFSession.CMPostShow(var Message: TMessage);
 var
   URI: TUURI;
 begin
-  PNavigator.Visible := Client.Account.Desktop.NavigatorVisible;
-  PBookmarks.Visible := Client.Account.Desktop.BookmarksVisible;
-  PExplorer.Visible := Client.Account.Desktop.ExplorerVisible;
-  PJobs.Visible := Client.Account.Desktop.JobsVisible;
-  PSQLHistory.Visible := Client.Account.Desktop.SQLHistoryVisible;
+  PNavigator.Visible := Session.Account.Desktop.NavigatorVisible;
+  PBookmarks.Visible := Session.Account.Desktop.BookmarksVisible;
+  PExplorer.Visible := Session.Account.Desktop.ExplorerVisible;
+  PJobs.Visible := Session.Account.Desktop.JobsVisible;
+  PSQLHistory.Visible := Session.Account.Desktop.SQLHistoryVisible;
   PSideBar.Visible := PNavigator.Visible or PBookmarks.Visible or PExplorer.Visible or PJobs.Visible or PSQLHistory.Visible; SSideBar.Visible := PSideBar.Visible;
 
   if (PExplorer.Visible) then
     CreateExplorer()
   else if (PJobs.Visible and (FJobs.Items.Count = 0)) then
-    FormAccountEvent(Client.Account.Jobs.ClassType)
+    FormAccountEvent(Session.Account.Jobs.ClassType)
   else if (PSQLHistory.Visible) then
     FSQLHistoryRefresh(nil);
 
-  PSideBar.Width := Client.Account.Desktop.SelectorWitdth;
-  PFiles.Height := PSideBar.ClientHeight - Client.Account.Desktop.FoldersHeight - SExplorer.Height;
+  PSideBar.Width := Session.Account.Desktop.SelectorWitdth;
+  PFiles.Height := PSideBar.ClientHeight - Session.Account.Desktop.FoldersHeight - SExplorer.Height;
 
   FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options + [eoScrollPastEol];  // Speed up the performance
-  FSQLEditorSynMemo.Text := Client.Account.Desktop.EditorContent;
+  FSQLEditorSynMemo.Text := Session.Account.Desktop.EditorContent;
   if (Length(FSQLEditorSynMemo.Lines.Text) < LargeSQLScriptSize) then
     FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options - [eoScrollPastEol]  // Slow down the performance on large content
   else
     FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options + [eoScrollPastEol];  // Speed up the performance
-  PResult.Height := Client.Account.Desktop.DataHeight;
+  PResult.Height := Session.Account.Desktop.DataHeight;
   PResultHeight := PResult.Height;
-  PBlob.Height := Client.Account.Desktop.BlobHeight;
+  PBlob.Height := Session.Account.Desktop.BlobHeight;
 
-  PLog.Height := Client.Account.Desktop.LogHeight;
-  PLog.Visible := Client.Account.Desktop.LogVisible; SLog.Visible := PLog.Visible;
+  PLog.Height := Session.Account.Desktop.LogHeight;
+  PLog.Visible := Session.Account.Desktop.LogVisible; SLog.Visible := PLog.Visible;
 
   aVBlobText.Checked := True;
+
+  FBuilderEditorPageControlCheckStyle();
 
   FormResize(nil);
 
@@ -4960,7 +4962,7 @@ begin
     Address := Param
   else if (Param <> '') then
   begin
-    URI := TUURI.Create(Client.Account.Desktop.Address);
+    URI := TUURI.Create(Session.Account.Desktop.Address);
     URI.Param['view'] := 'editor';
     URI.Table := '';
     URI.Param['system'] := Null;
@@ -4972,10 +4974,10 @@ begin
     URI.Free();
   end
   else
-    Address := Client.Account.Desktop.Address;
+    Address := Session.Account.Desktop.Address;
 end;
 
-procedure TFClient.CMSysFontChanged(var Message: TMessage);
+procedure TFSession.CMSysFontChanged(var Message: TMessage);
 var
   Color: TColor;
   LogFont: TLogFont;
@@ -5072,13 +5074,13 @@ begin
   SendMessage(FLog.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
 end;
 
-procedure TFClient.CMWantedSynchronize(var Message: TMessage);
+procedure TFSession.CMWantedSynchronize(var Message: TMessage);
 begin
   if (not (csDestroying in ComponentState)) then
     Wanted.Synchronize();
 end;
 
-function TFClient.ColumnWidthKindFromImageIndex(const AImageIndex: Integer): TADesktop.TListViewKind;
+function TFSession.ColumnWidthKindFromImageIndex(const AImageIndex: Integer): TADesktop.TListViewKind;
 begin
   case (AImageIndex) of
     iiServer: Result := lkServer;
@@ -5095,21 +5097,21 @@ begin
   end;
 end;
 
-procedure TFClient.CrashRescue();
+procedure TFSession.CrashRescue();
 begin
   if ((SQLEditor.Filename <> '') and not FSQLEditorSynMemo.Modified) then
-    Client.Account.Desktop.EditorContent := ''
+    Session.Account.Desktop.EditorContent := ''
   else
-    Client.Account.Desktop.EditorContent := FSQLEditorSynMemo.Text;
+    Session.Account.Desktop.EditorContent := FSQLEditorSynMemo.Text;
 
   try
     if (Assigned(ActiveWorkbench)) then
-      ActiveWorkbench.SaveToFile(Client.Account.DataPath + ActiveWorkbench.Name + PathDelim + 'Diagram.xml');
+      ActiveWorkbench.SaveToFile(Session.Account.DataPath + ActiveWorkbench.Name + PathDelim + 'Diagram.xml');
   except
   end;
 end;
 
-procedure TFClient.CreateParams(var Params: TCreateParams);
+procedure TFSession.CreateParams(var Params: TCreateParams);
 begin
   inherited;
 
@@ -5117,7 +5119,7 @@ begin
     and not (WS_THICKFRAME or WS_SYSMENU or WS_DLGFRAME or WS_BORDER);
 end;
 
-constructor TFClient.Create(const AOwner: TComponent; const AParent: TWinControl; const AClient: TSSession; const AParam: string);
+constructor TFSession.Create(const AOwner: TComponent; const AParent: TWinControl; const ASession: TSSession; const AParam: string);
 var
   Kind: TADesktop.TListViewKind;
   Node: TTreeNode;
@@ -5134,7 +5136,7 @@ begin
   FrameState := [tsLoading];
 
   NMListView := nil;
-  Client := AClient;
+  Session := ASession;
   SQLEditor := TSQLEditor.Create(Self);
   Param := AParam;
   ActiveControlOnDeactivate := nil;
@@ -5367,8 +5369,8 @@ begin
   FNavigator.RowSelect := CheckWin32Version(6, 1);
   FSQLHistory.RowSelect := CheckWin32Version(6, 1);
 
-  Node := FNavigator.Items.Add(nil, Client.Caption);
-  Node.Data := Client;
+  Node := FNavigator.Items.Add(nil, Session.Caption);
+  Node.Data := Session;
   Node.HasChildren := True;
   Node.ImageIndex := iiServer;
 
@@ -5382,6 +5384,9 @@ begin
   FSQLEditorSynMemo.Highlighter := MainHighlighter;
   FBuilderSynMemo.Highlighter := MainHighlighter;
   FSQLEditorPrint.Highlighter := MainHighlighter;
+
+  FBuilder.MetadataProvider := Session.MetadataProvider;
+  FBuilder.SyntaxProvider := Session.SyntaxProvider;
 
   FText.Modified := False;
   GIFImage := TGIFImage.Create();
@@ -5406,20 +5411,20 @@ begin
   OldFListOrderIndex := -1;
   IgnoreFGridTitleClick := False;
 
-  Client.CreateDesktop := CreateDesktop;
-  Client.RegisterEventProc(FormClientEvent);
+  Session.CreateDesktop := CreateDesktop;
+  Session.RegisterEventProc(FormClientEvent);
 
-  Client.Account.RegisterDesktop(Self, FormAccountEvent);
+  Session.Account.RegisterDesktop(Self, FormAccountEvent);
 
   Wanted := TWanted.Create(Self);
 
   ToolBarData.Addresses := TStringList.Create();
   ToolBarData.AddressMRU := TMRUList.Create(0);
-  ToolBarData.AddressMRU.Assign(Client.Account.Desktop.AddressMRU);
+  ToolBarData.AddressMRU.Assign(Session.Account.Desktop.AddressMRU);
   FilterMRU := TMRUList.Create(100);
   ToolBarData.CurrentAddress := -1;
 
-  FormAccountEvent(Client.Account.Desktop.Bookmarks.ClassType);
+  FormAccountEvent(Session.Account.Desktop.Bookmarks.ClassType);
 
 
   CloseButton := TPicture.Create();
@@ -5442,7 +5447,7 @@ begin
   PostMessage(Handle, CM_POST_SHOW, 0, 0);
 end;
 
-function TFClient.CreateDesktop(const CObject: TSObject): TSObject.TDesktop;
+function TFSession.CreateDesktop(const CObject: TSObject): TSObject.TDesktop;
 begin
   if (CObject is TSDatabase) then
     Result := TDatabaseDesktop.Create(Self, TSDatabase(CObject))
@@ -5460,7 +5465,7 @@ begin
     Result := nil;
 end;
 
-procedure TFClient.CreateExplorer();
+procedure TFSession.CreateExplorer();
 begin
   if (not Assigned(ShellLink)) then
     ShellLink := TJamShellLink.Create(Owner);
@@ -5498,7 +5503,7 @@ begin
     FFiles.Height := PFiles.Height;
     FFiles.Align := alClient;
     FFiles.BorderStyle := bsNone;
-    FFiles.Filter := Client.Account.Desktop.FilesFilter;
+    FFiles.Filter := Session.Account.Desktop.FilesFilter;
     FFiles.HelpContext := 1108;
     FFiles.HideSelection := False;
     FFiles.IconOptions.AutoArrange := True;
@@ -5516,7 +5521,7 @@ begin
   end;
 end;
 
-function TFClient.CreateDBGrid(const PDBGrid: TPanel_Ext; const DataSource: TDataSource): TMySQLDBGrid;
+function TFSession.CreateDBGrid(const PDBGrid: TPanel_Ext; const DataSource: TDataSource): TMySQLDBGrid;
 var
   I: Integer;
   LogFont: TLogFont;
@@ -5558,7 +5563,7 @@ begin
     Result.Columns[I].Font := Result.Font;
   Result.PopupMenu := MGrid;
   Result.TabOrder := 0;
-  Result.OnCanEditShow := Client.GridCanEditShow;
+  Result.OnCanEditShow := Session.GridCanEditShow;
   Result.OnColEnter := DBGridColEnter;
   Result.OnColExit := DBGridColExit;
   Result.OnColumnMoved := DBGridColumnMoved;
@@ -5586,7 +5591,7 @@ begin
     Window.ApplyWinAPIUpdates(Result, NonClientMetrics.lfStatusFont);
 end;
 
-function TFClient.CreateListView(const Data: TCustomData): TListView;
+function TFSession.CreateListView(const Data: TCustomData): TListView;
 var
   NonClientMetrics: TNonClientMetrics;
 begin
@@ -5648,7 +5653,7 @@ begin
   ListViewInitialize(Result);
 end;
 
-function TFClient.CreatePDBGrid(): TPanel_Ext;
+function TFSession.CreatePDBGrid(): TPanel_Ext;
 var
   NonClientMetrics: TNonClientMetrics;
 begin
@@ -5680,7 +5685,7 @@ begin
     Window.ApplyWinAPIUpdates(Result, NonClientMetrics.lfStatusFont);
 end;
 
-function TFClient.CreateSynMemo(): TSynMemo;
+function TFSession.CreateSynMemo(): TSynMemo;
 var
   NonClientMetrics: TNonClientMetrics;
 begin
@@ -5729,7 +5734,7 @@ begin
     Window.ApplyWinAPIUpdates(Result, NonClientMetrics.lfStatusFont);
 end;
 
-function TFClient.CreateTCResult(const PDBGrid: TPanel_Ext): TTabControl;
+function TFSession.CreateTCResult(const PDBGrid: TPanel_Ext): TTabControl;
 var
   NonClientMetrics: TNonClientMetrics;
 begin
@@ -5757,7 +5762,7 @@ begin
     Window.ApplyWinAPIUpdates(Result, NonClientMetrics.lfStatusFont);
 end;
 
-function TFClient.CreateWorkbench(const ADatabase: TSDatabase): TWWorkbench;
+function TFSession.CreateWorkbench(const ADatabase: TSDatabase): TWWorkbench;
 begin
   Result := TWWorkbench.Create(Owner, ADatabase);
 
@@ -5793,42 +5798,42 @@ begin
   Result.Perform(CM_PARENTTABLETOPTIONSCHANGED, 0, 0);
 end;
 
-function TFClient.Desktop(const Database: TSDatabase): TDatabaseDesktop;
+function TFSession.Desktop(const Database: TSDatabase): TDatabaseDesktop;
 begin
   Result := TDatabaseDesktop(Database.Desktop);
 end;
 
-function TFClient.Desktop(const Event: TSEvent): TEventDesktop;
+function TFSession.Desktop(const Event: TSEvent): TEventDesktop;
 begin
   Result := TEventDesktop(Event.Desktop);
 end;
 
-function TFClient.Desktop(const Routine: TSRoutine): TRoutineDesktop;
+function TFSession.Desktop(const Routine: TSRoutine): TRoutineDesktop;
 begin
   Result := TRoutineDesktop(Routine.Desktop);
 end;
 
-function TFClient.Desktop(const Table: TSTable): TTableDesktop;
+function TFSession.Desktop(const Table: TSTable): TTableDesktop;
 begin
   Result := TTableDesktop(Table.Desktop);
 end;
 
-function TFClient.Desktop(const Trigger: TSTrigger): TTriggerDesktop;
+function TFSession.Desktop(const Trigger: TSTrigger): TTriggerDesktop;
 begin
   Result := TTriggerDesktop(Trigger.Desktop);
 end;
 
-function TFClient.Desktop(const View: TSView): TViewDesktop;
+function TFSession.Desktop(const View: TSView): TViewDesktop;
 begin
   Result := TViewDesktop(View.Desktop);
 end;
 
-procedure TFClient.DataSetAfterCancel(DataSet: TDataSet);
+procedure TFSession.DataSetAfterCancel(DataSet: TDataSet);
 begin
   DBGridColEnter(ActiveDBGrid);
 end;
 
-procedure TFClient.DataSetAfterOpen(DataSet: TDataSet);
+procedure TFSession.DataSetAfterOpen(DataSet: TDataSet);
 begin
   if (Assigned(ActiveDBGrid) and (ActiveDBGrid.DataSource.DataSet = DataSet)) then
   begin
@@ -5838,7 +5843,7 @@ begin
   end;
 end;
 
-procedure TFClient.DataSetAfterClose(DataSet: TDataSet);
+procedure TFSession.DataSetAfterClose(DataSet: TDataSet);
 begin
   PBlob.Visible := False; SBlob.Visible := PBlob.Visible;
   if (PResult.Align = alClient) then
@@ -5865,14 +5870,14 @@ begin
   MainAction('aFExportPDF').Enabled := False;
 end;
 
-procedure TFClient.DataSetAfterPost(DataSet: TDataSet);
+procedure TFSession.DataSetAfterPost(DataSet: TDataSet);
 begin
   DataSetAfterScroll(DataSet);
 
   StatusBarRefresh();
 end;
 
-procedure TFClient.DataSetAfterScroll(DataSet: TDataSet);
+procedure TFSession.DataSetAfterScroll(DataSet: TDataSet);
 var
   InputDataSet: Boolean;
 begin
@@ -5894,7 +5899,7 @@ begin
   end;
 end;
 
-procedure TFClient.DataSetBeforeCancel(DataSet: TDataSet);
+procedure TFSession.DataSetBeforeCancel(DataSet: TDataSet);
 begin
   if (PBlob.Visible) then
   begin
@@ -5904,13 +5909,13 @@ begin
   end;
 end;
 
-procedure TFClient.DataSetBeforePost(DataSet: TDataSet);
+procedure TFSession.DataSetBeforePost(DataSet: TDataSet);
 begin
   if (PBlob.Visible and aVBlobText.Checked) then
     FTextExit(DataSetPost);
 end;
 
-procedure TFClient.DBGridColEnter(Sender: TObject);
+procedure TFSession.DBGridColEnter(Sender: TObject);
 var
   DBGrid: TMySQLDBGrid;
 begin
@@ -5983,7 +5988,7 @@ begin
   StatusBarRefresh();
 end;
 
-procedure TFClient.DBGridColExit(Sender: TObject);
+procedure TFSession.DBGridColExit(Sender: TObject);
 var
   Trigger: TSTrigger;
 begin
@@ -6006,13 +6011,13 @@ begin
   gmFilter.Clear();
 end;
 
-procedure TFClient.DBGridColumnMoved(Sender: TObject; FromIndex: Integer;
+procedure TFSession.DBGridColumnMoved(Sender: TObject; FromIndex: Integer;
   ToIndex: Integer);
 begin
   IgnoreFGridTitleClick := IgnoreFGridTitleClick or (FromIndex <> ToIndex);
 end;
 
-procedure TFClient.DBGridDrawColumnCell(Sender: TObject; const Rect: TRect;
+procedure TFSession.DBGridDrawColumnCell(Sender: TObject; const Rect: TRect;
   DataCol: Integer; Column: TColumn; State: TGridDrawState);
 
   function ColorAdd(const Color1, Color2: TColor): TColor;
@@ -6130,7 +6135,7 @@ begin
   end;
 end;
 
-procedure TFClient.DBGridCopyToExecute(Sender: TObject);
+procedure TFSession.DBGridCopyToExecute(Sender: TObject);
 const
   ChunkSize = 32768;
 var
@@ -6152,7 +6157,7 @@ begin
     SaveDialog.DefaultExt := 'txt';
     SaveDialog.Filter := FilterDescription('txt') + ' (*.txt)|*.txt' + '|' + FilterDescription('*') + ' (*.*)|*.*';
     SaveDialog.Encodings.Text := EncodingCaptions();
-    SaveDialog.EncodingIndex := SaveDialog.Encodings.IndexOf(CodePageToEncoding(Client.CodePage));
+    SaveDialog.EncodingIndex := SaveDialog.Encodings.IndexOf(CodePageToEncoding(Session.CodePage));
   end
   else if (ActiveDBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) then
   begin
@@ -6224,13 +6229,13 @@ begin
   end;
 end;
 
-procedure TFClient.DBGridDataSourceDataChange(Sender: TObject; Field: TField);
+procedure TFSession.DBGridDataSourceDataChange(Sender: TObject; Field: TField);
 begin
   if (Assigned(Window.ActiveControl) and (Window.ActiveControl = ActiveDBGrid) and Assigned(ActiveDBGrid.SelectedField) and (Field = ActiveDBGrid.SelectedField) and (ActiveDBGrid.SelectedField.DataType in [ftWideMemo, ftBlob])) then
     aVBlobExecute(nil);
 end;
 
-procedure TFClient.DBGridDblClick(Sender: TObject);
+procedure TFSession.DBGridDblClick(Sender: TObject);
 begin
   Wanted.Clear();
 
@@ -6255,14 +6260,14 @@ begin
     end;
 end;
 
-procedure TFClient.DBGridEditExecute(Sender: TObject);
+procedure TFSession.DBGridEditExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
   DBGridDblClick(Sender);
 end;
 
-procedure TFClient.DBGridEmptyExecute(Sender: TObject);
+procedure TFSession.DBGridEmptyExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
@@ -6281,7 +6286,7 @@ begin
   DBGridColEnter(ActiveDBGrid);
 end;
 
-procedure TFClient.DBGridEnter(Sender: TObject);
+procedure TFSession.DBGridEnter(Sender: TObject);
 var
   DBGrid: TMySQLDBGrid;
   FieldInfo: TFieldInfo;
@@ -6318,7 +6323,7 @@ begin
   end;
 end;
 
-procedure TFClient.DBGridExit(Sender: TObject);
+procedure TFSession.DBGridExit(Sender: TObject);
 var
   Cancel: Boolean;
   DBGrid: TMySQLDBGrid;
@@ -6368,7 +6373,7 @@ begin
   end;
 end;
 
-procedure TFClient.DBGridKeyDown(Sender: TObject; var Key: Word;
+procedure TFSession.DBGridKeyDown(Sender: TObject; var Key: Word;
   Shift: TShiftState);
 begin
   if (Key = VK_APPS) then
@@ -6403,7 +6408,7 @@ begin
     end;
 end;
 
-procedure TFClient.DBGridMouseMove(Sender: TObject; Shift: TShiftState; X,
+procedure TFSession.DBGridMouseMove(Sender: TObject; Shift: TShiftState; X,
   Y: Integer);
 var
   GridCoord: TGridCoord;
@@ -6426,7 +6431,7 @@ begin
   end;
 end;
 
-procedure TFClient.DBGridTitleClick(Column: TColumn);
+procedure TFSession.DBGridTitleClick(Column: TColumn);
 var
   FieldName: string;
   OldDescending: Boolean;
@@ -6504,7 +6509,7 @@ begin
   IgnoreFGridTitleClick := False;
 end;
 
-procedure TFClient.DBGridInitialize(const DBGrid: TMySQLDBGrid);
+procedure TFSession.DBGridInitialize(const DBGrid: TMySQLDBGrid);
 var
   I: Integer;
   MenuItem: TMenuItem;
@@ -6556,13 +6561,13 @@ begin
   SResult.Visible := PResult.Visible and (PBuilder.Visible or PSynMemo.Visible);
 end;
 
-destructor TFClient.Destroy();
+destructor TFSession.Destroy();
 var
   TempB: Boolean;
   URI: TUURI;
 begin
-  Client.UnRegisterEventProc(FormClientEvent);
-  Client.CreateDesktop := nil;
+  Session.UnRegisterEventProc(FormClientEvent);
+  Session.CreateDesktop := nil;
 
   FNavigatorChanging(nil, nil, TempB);
 
@@ -6581,39 +6586,39 @@ begin
   end;
 
   if ((SQLEditor.Filename <> '') and not FSQLEditorSynMemo.Modified) then
-    Client.Account.Desktop.EditorContent := ''
+    Session.Account.Desktop.EditorContent := ''
   else
-    Client.Account.Desktop.EditorContent := FSQLEditorSynMemo.Text;
-  Client.Account.Desktop.FoldersHeight := PFolders.Height;
+    Session.Account.Desktop.EditorContent := FSQLEditorSynMemo.Text;
+  Session.Account.Desktop.FoldersHeight := PFolders.Height;
 
   if (Assigned(FFiles)) then
     try
-      Client.Account.Desktop.FilesFilter := FFiles.Filter;
+      Session.Account.Desktop.FilesFilter := FFiles.Filter;
     except
       // There is a bug inside ShellBrowser.pas ver. 7.3 - but it's not interested to be informed
     end;
-  Client.Account.Desktop.NavigatorVisible := PNavigator.Visible;
-  Client.Account.Desktop.BookmarksVisible := PBookmarks.Visible;
-  Client.Account.Desktop.ExplorerVisible := PExplorer.Visible;
-  Client.Account.Desktop.JobsVisible := PJobs.Visible;
-  Client.Account.Desktop.SQLHistoryVisible := PSQLHistory.Visible;
-  Client.Account.Desktop.SelectorWitdth := PSideBar.Width;
-  Client.Account.Desktop.LogVisible := PLog.Visible;
-  Client.Account.Desktop.LogHeight := PLog.Height;
+  Session.Account.Desktop.NavigatorVisible := PNavigator.Visible;
+  Session.Account.Desktop.BookmarksVisible := PBookmarks.Visible;
+  Session.Account.Desktop.ExplorerVisible := PExplorer.Visible;
+  Session.Account.Desktop.JobsVisible := PJobs.Visible;
+  Session.Account.Desktop.SQLHistoryVisible := PSQLHistory.Visible;
+  Session.Account.Desktop.SelectorWitdth := PSideBar.Width;
+  Session.Account.Desktop.LogVisible := PLog.Visible;
+  Session.Account.Desktop.LogHeight := PLog.Height;
   URI := TUURI.Create(Address);
   URI.Param['file'] := Null;
   URI.Param['cp'] := Null;
-  Client.Account.Desktop.Address := URI.Address;
+  Session.Account.Desktop.Address := URI.Address;
   FreeAndNil(URI);
 
   if (PResult.Align <> alBottom) then
-    Client.Account.Desktop.DataHeight := PResultHeight
+    Session.Account.Desktop.DataHeight := PResultHeight
   else
-    Client.Account.Desktop.DataHeight := PResult.Height;
-  Client.Account.Desktop.BlobHeight := PBlob.Height;
+    Session.Account.Desktop.DataHeight := PResult.Height;
+  Session.Account.Desktop.BlobHeight := PBlob.Height;
 
-  Client.Account.Desktop.AddressMRU.Assign(ToolBarData.AddressMRU);
-  Client.Account.UnRegisterDesktop(Self);
+  Session.Account.Desktop.AddressMRU.Assign(ToolBarData.AddressMRU);
+  Session.Account.UnRegisterDesktop(Self);
 
   FServerListView.OnChanging := nil;
   FServerListView.Items.BeginUpdate();
@@ -6641,23 +6646,23 @@ begin
   inherited;
 end;
 
-function TFClient.Dragging(const Sender: TObject): Boolean;
+function TFSession.Dragging(const Sender: TObject): Boolean;
 begin
   Result := LeftMousePressed and (Window.ActiveControl = FNavigator) and ((Window.ActiveControl as TTreeView_Ext).Selected <> MouseDownNode);
 end;
 
-procedure TFClient.EndEditLabel(Sender: TObject);
+procedure TFSession.EndEditLabel(Sender: TObject);
 begin
   aDCreate.ShortCut := VK_INSERT;
   aDDelete.ShortCut := VK_DELETE;
 end;
 
-procedure TFClient.FBlobResize(Sender: TObject);
+procedure TFSession.FBlobResize(Sender: TObject);
 begin
   FText.Repaint();
 end;
 
-procedure TFClient.FBlobSearchChange(Sender: TObject);
+procedure TFSession.FBlobSearchChange(Sender: TObject);
 begin
   if (FBlobSearch.Text <> '') then
   begin
@@ -6668,7 +6673,7 @@ begin
   end;
 end;
 
-procedure TFClient.FBlobSearchKeyPress(Sender: TObject; var Key: Char);
+procedure TFSession.FBlobSearchKeyPress(Sender: TObject; var Key: Char);
 begin
   if (Ord(Key) = VK_ESCAPE) then
   begin
@@ -6682,7 +6687,7 @@ begin
   end;
 end;
 
-procedure TFClient.FBookmarksChange(Sender: TObject; Item: TListItem;
+procedure TFSession.FBookmarksChange(Sender: TObject; Item: TListItem;
   Change: TItemChange);
 begin
   mbOpen.Enabled := Assigned(Item) and Item.Selected;
@@ -6694,17 +6699,17 @@ begin
   mbOpen.Default := mbOpen.Enabled;
 end;
 
-procedure TFClient.FBookmarksDragDrop(Sender, Source: TObject; X,
+procedure TFSession.FBookmarksDragDrop(Sender, Source: TObject; X,
   Y: Integer);
 var
   TargetItem: TListItem;
 begin
   TargetItem := TListView(Sender).GetItemAt(X, Y);
 
-  Client.Account.Desktop.Bookmarks.MoveBookmark(Client.Account.Desktop.Bookmarks.ByCaption(FBookmarks.Selected.Caption), FBookmarks.Items.IndexOf(TargetItem));
+  Session.Account.Desktop.Bookmarks.MoveBookmark(Session.Account.Desktop.Bookmarks.ByCaption(FBookmarks.Selected.Caption), FBookmarks.Items.IndexOf(TargetItem));
 end;
 
-procedure TFClient.FBookmarksDragOver(Sender, Source: TObject; X,
+procedure TFSession.FBookmarksDragOver(Sender, Source: TObject; X,
   Y: Integer; State: TDragState; var Accept: Boolean);
 var
   TargetItem: TListItem;
@@ -6714,7 +6719,7 @@ begin
   Accept := (Sender = Source) and (TargetItem <> FBookmarks.Selected);
 end;
 
-procedure TFClient.FBookmarksEnter(Sender: TObject);
+procedure TFSession.FBookmarksEnter(Sender: TObject);
 begin
   mbOpen.ShortCut := VK_RETURN;
   MainAction('aBDelete').ShortCut := VK_DELETE;
@@ -6723,7 +6728,7 @@ begin
   FBookmarksChange(Sender, FBookmarks.Selected, ctState);
 end;
 
-procedure TFClient.FBookmarksExit(Sender: TObject);
+procedure TFSession.FBookmarksExit(Sender: TObject);
 begin
   mbOpen.ShortCut := 0;
   MainAction('aBDelete').ShortCut := 0;
@@ -6735,7 +6740,7 @@ begin
   MainAction('aBEdit').Enabled := False;
 end;
 
-function TFClient.FBuilderActiveSelectList(): TacQueryBuilderSelectListControl;
+function TFSession.FBuilderActiveSelectList(): TacQueryBuilderSelectListControl;
 begin
   if (not Assigned(FBuilderEditorPageControl())) then
     Result := nil
@@ -6747,7 +6752,7 @@ begin
   end;
 end;
 
-function TFClient.FBuilderActiveWorkArea(): TacQueryBuilderWorkArea;
+function TFSession.FBuilderActiveWorkArea(): TacQueryBuilderWorkArea;
 var
   PageControl: TPageControl;
 begin
@@ -6772,7 +6777,7 @@ begin
   end;
 end;
 
-procedure TFClient.FBuilderAddTable(Sender: TObject);
+procedure TFSession.FBuilderAddTable(Sender: TObject);
 var
   MenuItem: TMenuItem;
   SQLQualifiedName: TSQLQualifiedName;
@@ -6796,7 +6801,7 @@ begin
   end;
 end;
 
-procedure TFClient.FBuilderDragDrop(Sender, Source: TObject; X,
+procedure TFSession.FBuilderDragDrop(Sender, Source: TObject; X,
   Y: Integer);
 var
   Database: TSDatabase;
@@ -6820,7 +6825,7 @@ begin
   end;
 end;
 
-procedure TFClient.FBuilderDragOver(Sender, Source: TObject; X,
+procedure TFSession.FBuilderDragOver(Sender, Source: TObject; X,
   Y: Integer; State: TDragState; var Accept: Boolean);
 var
   SourceNode: TTreeNode;
@@ -6835,7 +6840,7 @@ begin
   end
 end;
 
-procedure TFClient.FBuilderEditorChange(Sender: TObject);
+procedure TFSession.FBuilderEditorChange(Sender: TObject);
 begin
   FBuilder.Enabled := True;
   try
@@ -6852,32 +6857,32 @@ begin
   FBuilderEditorStatusChange(Sender, [scModified]);
 end;
 
-procedure TFClient.FBuilderEditorEnter(Sender: TObject);
+procedure TFSession.FBuilderEditorEnter(Sender: TObject);
 begin
   SQLBuilder.OnSQLUpdated := nil;
 
   SynMemoEnter(Sender);
 end;
 
-procedure TFClient.FBuilderEditorExit(Sender: TObject);
+procedure TFSession.FBuilderEditorExit(Sender: TObject);
 begin
   SynMemoExit(Sender);
 
   SQLBuilder.OnSQLUpdated := FBuilderSQLUpdated;
 end;
 
-function TFClient.FBuilderEditorPageControl(): TacPageControl;
+function TFSession.FBuilderEditorPageControl(): TacPageControl;
 begin
   Result := TacQueryBuilderPageControl(FindChildByClassType(FBuilder, TacQueryBuilderPageControl));
 end;
 
-procedure TFClient.FBuilderEditorPageControlChange(Sender: TObject);
+procedure TFSession.FBuilderEditorPageControlChange(Sender: TObject);
 begin
   if (not Assigned(FBuilderEditorPageControl().ActivePage.OnEnter)) then
     FBuilderEditorPageControl().ActivePage.OnEnter := FBuilderEditorTabSheetEnter;
 end;
 
-procedure TFClient.FBuilderEditorPageControlCheckStyle();
+procedure TFSession.FBuilderEditorPageControlCheckStyle();
 var
   PageControl: TPageControl;
 begin
@@ -6896,7 +6901,7 @@ begin
     end;
 end;
 
-procedure TFClient.FBuilderEditorStatusChange(Sender: TObject;
+procedure TFSession.FBuilderEditorStatusChange(Sender: TObject;
   Changes: TSynStatusChanges);
 var
   BevelWidth: Integer;
@@ -6935,24 +6940,24 @@ begin
   SynMemoStatusChange(FBuilderSynMemo, Changes);
 end;
 
-procedure TFClient.FBuilderEditorTabSheetEnter(Sender: TObject);
+procedure TFSession.FBuilderEditorTabSheetEnter(Sender: TObject);
 begin
   StatusBarRefresh();
 end;
 
-procedure TFClient.FBuilderEnter(Sender: TObject);
+procedure TFSession.FBuilderEnter(Sender: TObject);
 begin
   FBuilderSynMemo.OnChange := nil;
 
   StatusBarRefresh();
 end;
 
-procedure TFClient.FBuilderExit(Sender: TObject);
+procedure TFSession.FBuilderExit(Sender: TObject);
 begin
   FBuilderSynMemo.OnChange := FBuilderEditorChange;
 end;
 
-procedure TFClient.FBuilderResize(Sender: TObject);
+procedure TFSession.FBuilderResize(Sender: TObject);
 var
   FBuilderEditorSelectList: TacQueryBuilderSelectListControl;
   I: Integer;
@@ -6984,7 +6989,7 @@ begin
     end;
 end;
 
-procedure TFClient.FBuilderSQLUpdated(Sender: TObject);
+procedure TFSession.FBuilderSQLUpdated(Sender: TObject);
 var
   S: string;
   SQL: string;
@@ -7012,7 +7017,7 @@ begin
   FBuilderEditorStatusChange(FBuilder, [scModified]);
 end;
 
-procedure TFClient.FBuilderValidatePopupMenu(Sender: TacQueryBuilder;
+procedure TFSession.FBuilderValidatePopupMenu(Sender: TacQueryBuilder;
   AControlOwner: TacQueryBuilderControlOwner; AForControl: TControl;
   APopupMenu: TPopupMenu);
 var
@@ -7040,12 +7045,12 @@ begin
   end;
 end;
 
-procedure TFClient.FFilesEnter(Sender: TObject);
+procedure TFSession.FFilesEnter(Sender: TObject);
 begin
   miHOpen.ShortCut := VK_RETURN;
 end;
 
-procedure TFClient.FFilterChange(Sender: TObject);
+procedure TFSession.FFilterChange(Sender: TObject);
 begin
   FFilter.Text := FFilter.Text;
 
@@ -7053,7 +7058,7 @@ begin
   FFilterEnabled.Down := FFilterEnabled.Enabled and Assigned(ActiveDBGrid.DataSource.DataSet) and (FFilter.Text = TSTableDataSet(ActiveDBGrid.DataSource.DataSet).FilterSQL);
 end;
 
-procedure TFClient.FFilterDropDown(Sender: TObject);
+procedure TFSession.FFilterDropDown(Sender: TObject);
 var
   I: Integer;
 begin
@@ -7062,20 +7067,20 @@ begin
     FFilter.Items.Add(FilterMRU.Values[I]);
 end;
 
-procedure TFClient.FFilterEnabledClick(Sender: TObject);
+procedure TFSession.FFilterEnabledClick(Sender: TObject);
 begin
   FQuickSearchEnabled.Down := False;
   TableOpen(Sender);
   Window.ActiveControl := FFilter;
 end;
 
-procedure TFClient.FFilterEnter(Sender: TObject);
+procedure TFSession.FFilterEnter(Sender: TObject);
 begin
   if (FFilter.Items.Count = 0) then
     FFilterDropDown(Sender);
 end;
 
-procedure TFClient.FFilterKeyPress(Sender: TObject; var Key: Char);
+procedure TFSession.FFilterKeyPress(Sender: TObject; var Key: Char);
 begin
   if ((Key = Chr(VK_ESCAPE)) and (TSTableDataSet(ActiveDBGrid.DataSource.DataSet).FilterSQL <> '')) then
   begin
@@ -7097,7 +7102,7 @@ begin
   end;
 end;
 
-procedure TFClient.FFoldersChange(Sender: TObject; Node: TTreeNode);
+procedure TFSession.FFoldersChange(Sender: TObject; Node: TTreeNode);
 begin
   if (not (tsLoading in FrameState) and PExplorer.Visible and Visible) then
     if ((Sender is TJamShellTree) and not TJamShellTree(Sender).Visible) then
@@ -7111,7 +7116,7 @@ begin
   Path := FFolders.SelectedFolder;
 end;
 
-procedure TFClient.FHexEditorChange(Sender: TObject);
+procedure TFSession.FHexEditorChange(Sender: TObject);
 var
   Stream: TStream;
 begin
@@ -7138,12 +7143,12 @@ begin
   aVBlobRTF.Visible := Assigned(EditorField) and (EditorField.DataType = ftWideMemo) and not EditorField.IsNull and IsRTF(EditorField.AsString);
 end;
 
-procedure TFClient.FHexEditorEnter(Sender: TObject);
+procedure TFSession.FHexEditorEnter(Sender: TObject);
 begin
   StatusBarRefresh();
 end;
 
-procedure TFClient.FHexEditorKeyPress(Sender: TObject; var Key: Char);
+procedure TFSession.FHexEditorKeyPress(Sender: TObject; var Key: Char);
 begin
   if (Key = #27) then
   begin
@@ -7152,7 +7157,7 @@ begin
   end;
 end;
 
-procedure TFClient.FHexEditorShow(Sender: TObject);
+procedure TFSession.FHexEditorShow(Sender: TObject);
 var
   Stream: TStream;
 begin
@@ -7184,13 +7189,13 @@ begin
   end;
 end;
 
-procedure TFClient.FHTMLHide(Sender: TObject);
+procedure TFSession.FHTMLHide(Sender: TObject);
 begin
   if (Assigned(FHTML)) then
     FreeAndNil(FHTML);
 end;
 
-procedure TFClient.FHTMLShow(Sender: TObject);
+procedure TFSession.FHTMLShow(Sender: TObject);
 var
   FilenameP: array [0 .. MAX_PATH] of Char;
   FileStream: TFileStream;
@@ -7231,7 +7236,7 @@ begin
   end;
 end;
 
-procedure TFClient.FieldSetText(Sender: TField; const Text: string);
+procedure TFSession.FieldSetText(Sender: TField; const Text: string);
 begin
   try
     Sender.AsString := Text;
@@ -7241,7 +7246,7 @@ begin
   end;
 end;
 
-procedure TFClient.FImageShow(Sender: TObject);
+procedure TFSession.FImageShow(Sender: TObject);
 var
   Buffer: array [0..9] of AnsiChar;
   Size: Integer;
@@ -7272,7 +7277,7 @@ begin
     Stream.Free();
 end;
 
-procedure TFClient.FJobsChange(Sender: TObject; Item: TListItem;
+procedure TFSession.FJobsChange(Sender: TObject; Item: TListItem;
   Change: TItemChange);
 begin
   mjExecute.Enabled := Assigned(Item) and Item.Selected;
@@ -7281,17 +7286,17 @@ begin
   MainAction('aJEdit').Enabled := Assigned(Item) and Item.Selected;
 end;
 
-procedure TFClient.FJobsEnter(Sender: TObject);
+procedure TFSession.FJobsEnter(Sender: TObject);
 begin
   FJobsChange(Sender, FJobs.Selected, ctState);
 end;
 
-procedure TFClient.FJobsExit(Sender: TObject);
+procedure TFSession.FJobsExit(Sender: TObject);
 begin
   MainAction('aJAddExport').Enabled := CheckWin32Version(6);
 end;
 
-procedure TFClient.FLimitChange(Sender: TObject);
+procedure TFSession.FLimitChange(Sender: TObject);
 begin
   FUDLimit.Position := FUDLimit.Position;
 
@@ -7300,7 +7305,7 @@ begin
   FOffsetChange(Sender);
 end;
 
-procedure TFClient.FLimitEnabledClick(Sender: TObject);
+procedure TFSession.FLimitEnabledClick(Sender: TObject);
 begin
   FQuickSearchEnabled.Down := False;
 
@@ -7309,7 +7314,7 @@ begin
   Window.ActiveControl := FOffset;
 end;
 
-procedure TFClient.FLogEnter(Sender: TObject);
+procedure TFSession.FLogEnter(Sender: TObject);
 begin
   MainAction('aECopyToFile').OnExecute := SaveSQLFile;
 
@@ -7323,7 +7328,7 @@ begin
   StatusBarRefresh();
 end;
 
-procedure TFClient.FLogExit(Sender: TObject);
+procedure TFSession.FLogExit(Sender: TObject);
 begin
   MainAction('aFPrint').Enabled := False;
   MainAction('aECopyToFile').Enabled := False;
@@ -7332,7 +7337,7 @@ begin
   MainAction('aHSQL').ShortCut := 0;
 end;
 
-procedure TFClient.FLogSelectionChange(Sender: TObject);
+procedure TFSession.FLogSelectionChange(Sender: TObject);
 begin
   if (PLog.Visible and (Window.ActiveControl = FLog)) then
     MainAction('aECopyToFile').Enabled := FLog.SelText <> '';
@@ -7340,7 +7345,7 @@ begin
   StatusBarRefresh();
 end;
 
-procedure TFClient.FNavigatorAdvancedCustomDrawItem(Sender: TCustomTreeView;
+procedure TFSession.FNavigatorAdvancedCustomDrawItem(Sender: TCustomTreeView;
   Node: TTreeNode; State: TCustomDrawState; Stage: TCustomDrawStage;
   var PaintImages, DefaultDraw: Boolean);
 begin
@@ -7351,7 +7356,7 @@ begin
     Sender.Canvas.Font.Style := Sender.Canvas.Font.Style - [fsBold];
 end;
 
-procedure TFClient.FNavigatorChange(Sender: TObject; Node: TTreeNode);
+procedure TFSession.FNavigatorChange(Sender: TObject; Node: TTreeNode);
 begin
   FNavigatorMenuNode := Node;
 
@@ -7368,7 +7373,7 @@ begin
   end;
 end;
 
-procedure TFClient.FNavigatorChange2(Sender: TObject; Node: TTreeNode);
+procedure TFSession.FNavigatorChange2(Sender: TObject; Node: TTreeNode);
 begin
   KillTimer(Handle, tiNavigator);
   FNavigatorNodeAfterActivate := nil;
@@ -7379,7 +7384,7 @@ begin
     Wanted.Address := NavigatorNodeToAddress(Node);
 end;
 
-procedure TFClient.FNavigatorChanging(Sender: TObject; Node: TTreeNode;
+procedure TFSession.FNavigatorChanging(Sender: TObject; Node: TTreeNode;
   var AllowChange: Boolean);
 begin
   AllowChange := AllowChange and not Dragging(Sender) and not (Assigned(Node) and (Node.ImageIndex in [iiKey, iiField, iiSystemViewField, iiViewField, iiForeignKey]));
@@ -7394,7 +7399,7 @@ begin
     end;
 end;
 
-procedure TFClient.FNavigatorDragDrop(Sender, Source: TObject; X, Y: Integer);
+procedure TFSession.FNavigatorDragDrop(Sender, Source: TObject; X, Y: Integer);
 var
   I: Integer;
   List: TList;
@@ -7413,7 +7418,7 @@ begin
 
   if ((Source is TTreeView_Ext) and (TTreeView_Ext(Source).Name = FNavigator.Name)) then
   begin
-    SourceNode := TFClient(TTreeView_Ext(Source).Owner).MouseDownNode;
+    SourceNode := TFSession(TTreeView_Ext(Source).Owner).MouseDownNode;
 
     case (SourceNode.ImageIndex) of
       iiDatabase,
@@ -7435,7 +7440,7 @@ begin
   end
   else if ((Source is TListView) and (TListView(Source).Parent.Name = 'PListView')) then
   begin
-    SourceNode := TFClient(TComponent(TListView(Source).Owner)).FNavigator.Selected;
+    SourceNode := TFSession(TComponent(TListView(Source).Owner)).FNavigator.Selected;
 
     for I := 0 to TListView(Source).Items.Count - 1 do
       if (TListView(Source).Items[I].Selected) then
@@ -7464,7 +7469,7 @@ begin
     PasteExecute(TargetNode, Objects);
 end;
 
-procedure TFClient.FNavigatorDragOver(Sender, Source: TObject; X, Y: Integer;
+procedure TFSession.FNavigatorDragOver(Sender, Source: TObject; X, Y: Integer;
   State: TDragState; var Accept: Boolean);
 var
   SourceNode: TTreeNode;
@@ -7476,7 +7481,7 @@ begin
 
   if (Source is TTreeView_Ext and (TTreeView_Ext(Source).Name = FNavigator.Name)) then
   begin
-    SourceNode := TFClient(TTreeView_Ext(Source).Owner).MouseDownNode;
+    SourceNode := TFSession(TTreeView_Ext(Source).Owner).MouseDownNode;
     if (Assigned(TargetNode) and (TargetNode <> SourceNode)) then
       case (SourceNode.ImageIndex) of
         iiDatabase: Accept := (TargetNode = TTreeView_Ext(Sender).Items.getFirstNode()) and (TargetNode <> SourceNode.Parent);
@@ -7487,23 +7492,23 @@ begin
       end;
   end
   else if ((Source is TListView) and (TListView(Source).Parent.Name = PListView.Name)) then
-    Accept := ((TFClient(TListView(Source).Owner).Client <> Client) or (TFClient(TListView(Source).Owner).FNavigator.Selected <> TargetNode))
-      and (TFClient(TListView(Source).Owner).FNavigator.Selected.ImageIndex = SelectedImageIndex);
+    Accept := ((TFSession(TListView(Source).Owner).Session <> Session) or (TFSession(TListView(Source).Owner).FNavigator.Selected <> TargetNode))
+      and (TFSession(TListView(Source).Owner).FNavigator.Selected.ImageIndex = SelectedImageIndex);
 end;
 
-procedure TFClient.FNavigatorEdited(Sender: TObject; Node: TTreeNode; var S: string);
+procedure TFSession.FNavigatorEdited(Sender: TObject; Node: TTreeNode; var S: string);
 begin
   if (not RenameCItem(FocusedCItem, S)) then
     S := Node.Text;
 end;
 
-procedure TFClient.FNavigatorEditing(Sender: TObject; Node: TTreeNode;
+procedure TFSession.FNavigatorEditing(Sender: TObject; Node: TTreeNode;
   var AllowEdit: Boolean);
 begin
-  AllowEdit := (Node.ImageIndex = iiDatabase) and (Client.ServerVersion >= 50107) or (Node.ImageIndex = iiForeignKey) and (Client.ServerVersion >= 40013) or (Node.ImageIndex in [iiBaseTable, iiView, iiEvent, iiTrigger, iiField]);
+  AllowEdit := (Node.ImageIndex = iiDatabase) and (Session.ServerVersion >= 50107) or (Node.ImageIndex = iiForeignKey) and (Session.ServerVersion >= 40013) or (Node.ImageIndex in [iiBaseTable, iiView, iiEvent, iiTrigger, iiField]);
 end;
 
-procedure TFClient.FNavigatorEmptyExecute(Sender: TObject);
+procedure TFSession.FNavigatorEmptyExecute(Sender: TObject);
 var
   Database: TSDatabase;
   Field: TSBaseTableField;
@@ -7540,7 +7545,7 @@ begin
   end;
 end;
 
-procedure TFClient.FNavigatorEnter(Sender: TObject);
+procedure TFSession.FNavigatorEnter(Sender: TObject);
 begin
   MainAction('aDEmpty').OnExecute := FNavigatorEmptyExecute;
 
@@ -7550,7 +7555,7 @@ begin
   StatusBarRefresh();
 end;
 
-procedure TFClient.FNavigatorExit(Sender: TObject);
+procedure TFSession.FNavigatorExit(Sender: TObject);
 begin
   MainAction('aFImportSQL').Enabled := False;
   MainAction('aFImportText').Enabled := False;
@@ -7610,7 +7615,7 @@ begin
   aDDelete.ShortCut := 0;
 end;
 
-procedure TFClient.FNavigatorExpanding(Sender: TObject; Node: TTreeNode;
+procedure TFSession.FNavigatorExpanding(Sender: TObject; Node: TTreeNode;
   var AllowExpansion: Boolean);
 var
   Database: TSDatabase;
@@ -7649,7 +7654,7 @@ begin
   end;
 end;
 
-procedure TFClient.FNavigatorInitialize(Sender: TObject);
+procedure TFSession.FNavigatorInitialize(Sender: TObject);
 var
   Node: TTreeNode;
 begin
@@ -7666,7 +7671,7 @@ begin
   end;
 end;
 
-procedure TFClient.FNavigatorKeyDown(Sender: TObject; var Key: Word;
+procedure TFSession.FNavigatorKeyDown(Sender: TObject; var Key: Word;
   Shift: TShiftState);
 begin
   if (not TTreeView(Sender).IsEditing()) then
@@ -7678,12 +7683,12 @@ begin
       NavigatorElapse := 500;
 end;
 
-procedure TFClient.FNavigatorKeyPress(Sender: TObject; var Key: Char);
+procedure TFSession.FNavigatorKeyPress(Sender: TObject; var Key: Char);
 begin
   if (Key = #3) then Key := #0; // Why is threre a Beep on <Ctrl+C> without this?
 end;
 
-function TFClient.FNavigatorNodeByAddress(const Address: string): TTreeNode;
+function TFSession.FNavigatorNodeByAddress(const Address: string): TTreeNode;
 var
   AllowExpansion: Boolean;
   Child: TTreeNode;
@@ -7712,7 +7717,7 @@ begin
   begin
     Child := FNavigator.Items.getFirstNode().getFirstChild(); DatabaseNode := nil;
     while (Assigned(Child) and not Assigned(DatabaseNode)) do
-      if ((Child.ImageIndex in [iiDatabase, iiSystemDatabase]) and (Client.Databases.NameCmp(URI.Database, Child.Text) = 0)) then
+      if ((Child.ImageIndex in [iiDatabase, iiSystemDatabase]) and (Session.Databases.NameCmp(URI.Database, Child.Text) = 0)) then
         DatabaseNode := Child
       else
         Child := Child.getNextSibling();
@@ -7783,7 +7788,7 @@ begin
   URI.Free();
 end;
 
-procedure TFClient.FNavigatorUpdate(const ClientEvent: TSSession.TEvent);
+procedure TFSession.FNavigatorUpdate(const ClientEvent: TSSession.TEvent);
 
   function GroupIDByImageIndex(const ImageIndex: Integer): Integer;
   begin
@@ -8074,12 +8079,12 @@ begin
 
     if (Node.Count = 0) then
     begin
-      if (Assigned(Client.Processes)) then
-        InsertChild(Node, Client.Processes);
-      InsertChild(Node, Client.Stati);
-      if (Assigned(Client.Users)) then
-        InsertChild(Node, Client.Users);
-      InsertChild(Node, Client.Variables);
+      if (Assigned(Session.Processes)) then
+        InsertChild(Node, Session.Processes);
+      InsertChild(Node, Session.Stati);
+      if (Assigned(Session.Users)) then
+        InsertChild(Node, Session.Users);
+      InsertChild(Node, Session.Variables);
       Node.Expand(False);
     end;
 
@@ -8162,7 +8167,7 @@ begin
   end;
 end;
 
-procedure TFClient.FNavigatorSetMenuItems(Sender: TObject; const Node: TTreeNode);
+procedure TFSession.FNavigatorSetMenuItems(Sender: TObject; const Node: TTreeNode);
 begin
   aPExpand.Enabled := Assigned(Node) and (not Assigned(Node) or not Node.Expanded) and (Assigned(Node) and Node.HasChildren);
   aPCollapse.Enabled := Assigned(Node) and (not Assigned(Node) or Node.Expanded) and (Node.ImageIndex <> iiServer);
@@ -8170,7 +8175,7 @@ begin
   ImageIndex in [iiServer, iiDatabase, iiSystemDatabase, iiBaseTable, iiSystemView, iiView, iiProcedure, iiFunction]);
   aPOpenInNewTab.Enabled := aPOpenInNewWindow.Enabled;
 
-  MainAction('aFImportSQL').Enabled := Assigned(Node) and (((Node.ImageIndex = iiServer) and (not Assigned(Client.UserRights) or Client.UserRights.RInsert)) or (Node.ImageIndex = iiDatabase));
+  MainAction('aFImportSQL').Enabled := Assigned(Node) and (((Node.ImageIndex = iiServer) and (not Assigned(Session.UserRights) or Session.UserRights.RInsert)) or (Node.ImageIndex = iiDatabase));
   MainAction('aFImportText').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
   MainAction('aFImportExcel').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
   MainAction('aFImportAccess').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
@@ -8189,10 +8194,10 @@ begin
   MainAction('aFPrint').Enabled := Assigned(Node) and ((View = vDiagram) or (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView]));
   MainAction('aECopy').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiField, iiSystemViewField, iiViewField, iiUser]);
   MainAction('aEPaste').Enabled := Assigned(Node) and ((Node.ImageIndex = iiServer) and Clipboard.HasFormat(CF_MYSQLSERVER) or (Node.ImageIndex = iiDatabase) and Clipboard.HasFormat(CF_MYSQLDATABASE) or (Node.ImageIndex = iiBaseTable) and Clipboard.HasFormat(CF_MYSQLTABLE) or (Node.ImageIndex = iiUsers) and Clipboard.HasFormat(CF_MYSQLUSERS));
-  MainAction('aERename').Enabled := Assigned(Node) and ((Node.ImageIndex = iiForeignKey) and (Client.ServerVersion >= 40013) or (Node.ImageIndex in [iiBaseTable, iiView, iiEvent, iiTrigger, iiField]));
-  MainAction('aDCreateDatabase').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer]) and (not Assigned(Client.UserRights) or Client.UserRights.RCreate);
+  MainAction('aERename').Enabled := Assigned(Node) and ((Node.ImageIndex = iiForeignKey) and (Session.ServerVersion >= 40013) or (Node.ImageIndex in [iiBaseTable, iiView, iiEvent, iiTrigger, iiField]));
+  MainAction('aDCreateDatabase').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer]) and (not Assigned(Session.UserRights) or Session.UserRights.RCreate);
   MainAction('aDCreateTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
-  MainAction('aDCreateView').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and (Client.ServerVersion >= 50001);
+  MainAction('aDCreateView').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and (Session.ServerVersion >= 50001);
   MainAction('aDCreateProcedure').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and Assigned(TSDatabase(Node.Data).Routines);
   MainAction('aDCreateFunction').Enabled := MainAction('aDCreateProcedure').Enabled;
   MainAction('aDCreateEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and Assigned(TSDatabase(Node.Data).Events);
@@ -8208,7 +8213,7 @@ begin
   MainAction('aDDeleteEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiEvent);
   MainAction('aDDeleteKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiKey);
   MainAction('aDDeleteField').Enabled := Assigned(Node) and (Node.ImageIndex = iiField) and (TSTableField(Node.Data).Fields.Count > 1);
-  MainAction('aDDeleteForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiForeignKey) and (Client.ServerVersion >= 40013);
+  MainAction('aDDeleteForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiForeignKey) and (Session.ServerVersion >= 40013);
   MainAction('aDDeleteTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiTrigger);
   MainAction('aDDeleteProcess').Enabled := False;
   MainAction('aDEditServer').Enabled := Assigned(Node) and (Node.ImageIndex = iiServer);
@@ -8268,7 +8273,7 @@ begin
   FNavigator.ReadOnly := not MainAction('aERename').Enabled;
 end;
 
-procedure TFClient.FOffsetChange(Sender: TObject);
+procedure TFSession.FOffsetChange(Sender: TObject);
 begin
   if (Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet)) then
   begin
@@ -8279,7 +8284,7 @@ begin
   end;
 end;
 
-procedure TFClient.FOffsetKeyPress(Sender: TObject; var Key: Char);
+procedure TFSession.FOffsetKeyPress(Sender: TObject; var Key: Char);
 begin
   if ((Key = Chr(VK_ESCAPE)) and (TSTableDataSet(ActiveDBGrid.DataSource.DataSet).Limit > 0)) then
   begin
@@ -8308,36 +8313,36 @@ begin
   end;
 end;
 
-procedure TFClient.FormAccountEvent(const ClassType: TClass);
+procedure TFSession.FormAccountEvent(const ClassType: TClass);
 var
   I: Integer;
   NewListItem: TListItem;
 begin
-  if (ClassType = Client.Account.Desktop.Bookmarks.ClassType) then
+  if (ClassType = Session.Account.Desktop.Bookmarks.ClassType) then
   begin
     FBookmarks.Items.Clear();
-    for I := 0 to Client.Account.Desktop.Bookmarks.Count - 1 do
+    for I := 0 to Session.Account.Desktop.Bookmarks.Count - 1 do
     begin
       NewListItem := FBookmarks.Items.Add();
-      NewListItem.Caption := Client.Account.Desktop.Bookmarks[I].Caption;
+      NewListItem.Caption := Session.Account.Desktop.Bookmarks[I].Caption;
       NewListItem.ImageIndex := 73;
     end;
 
     Window.Perform(CM_BOOKMARKCHANGED, 0, 0);
   end
-  else if (ClassType = Client.Account.Jobs.ClassType) then
+  else if (ClassType = Session.Account.Jobs.ClassType) then
   begin
     FJobs.Items.Clear();
-    for I := 0 to Client.Account.Jobs.Count - 1 do
+    for I := 0 to Session.Account.Jobs.Count - 1 do
     begin
       NewListItem := FJobs.Items.Add();
-      NewListItem.Caption := Client.Account.Jobs[I].Name;
+      NewListItem.Caption := Session.Account.Jobs[I].Name;
       NewListItem.ImageIndex := iiJob;
     end;
   end;
 end;
 
-procedure TFClient.FormClientEvent(const Event: TSSession.TEvent);
+procedure TFSession.FormClientEvent(const Event: TSSession.TEvent);
 begin
   if (not (csDestroying in ComponentState)) then
     case (Event.EventType) of
@@ -8356,7 +8361,7 @@ begin
     end;
 end;
 
-procedure TFClient.FormResize(Sender: TObject);
+procedure TFSession.FormResize(Sender: TObject);
 var
   MaxHeight: Integer;
 begin
@@ -8380,13 +8385,13 @@ begin
   end;
 end;
 
-procedure TFClient.FQuickSearchChange(Sender: TObject);
+procedure TFSession.FQuickSearchChange(Sender: TObject);
 begin
   FQuickSearchEnabled.Enabled := FQuickSearch.Text <> '';
   FQuickSearchEnabled.Down := (FQuickSearch.Text <> '') and (ActiveDBGrid.DataSource.DataSet is TSTableDataSet) and (FQuickSearch.Text = TSTableDataSet(ActiveDBGrid.DataSource.DataSet).QuickSearch);
 end;
 
-procedure TFClient.FQuickSearchEnabledClick(Sender: TObject);
+procedure TFSession.FQuickSearchEnabledClick(Sender: TObject);
 begin
   Wanted.Clear();
 
@@ -8394,7 +8399,7 @@ begin
   Window.ActiveControl := FQuickSearch;
 end;
 
-procedure TFClient.FQuickSearchKeyPress(Sender: TObject; var Key: Char);
+procedure TFSession.FQuickSearchKeyPress(Sender: TObject; var Key: Char);
 begin
   if (Key = Chr(VK_ESCAPE)) then
   begin
@@ -8415,7 +8420,7 @@ begin
   end;
 end;
 
-procedure TFClient.FreeDBGrid(const DBGrid: TMySQLDBGrid);
+procedure TFSession.FreeDBGrid(const DBGrid: TMySQLDBGrid);
 begin
   PBlob.Parent := PContent;
   if (ActiveDBGrid = DBGrid) then
@@ -8423,7 +8428,7 @@ begin
   DBGrid.Free();
 end;
 
-procedure TFClient.FreeListView(const ListView: TListView);
+procedure TFSession.FreeListView(const ListView: TListView);
 begin
   ListView.OnChanging := nil;
   ListView.Items.BeginUpdate();
@@ -8432,7 +8437,7 @@ begin
   ListView.Free();
 end;
 
-procedure TFClient.FRTFChange(Sender: TObject);
+procedure TFSession.FRTFChange(Sender: TObject);
 begin
   FRTF.ReadOnly := True;
 {
@@ -8443,14 +8448,14 @@ begin
 }
 end;
 
-procedure TFClient.FRTFEnter(Sender: TObject);
+procedure TFSession.FRTFEnter(Sender: TObject);
 begin
   FRTFChange(nil);
 
   StatusBarRefresh();
 end;
 
-procedure TFClient.FRTFExit(Sender: TObject);
+procedure TFSession.FRTFExit(Sender: TObject);
 begin
 {
   FRTF.Text ist nicht der RTF SourceCode!
@@ -8461,7 +8466,7 @@ begin
   SendMessage(FRTF.Handle, WM_VSCROLL, SB_TOP, 0);
 end;
 
-procedure TFClient.FRTFShow(Sender: TObject);
+procedure TFSession.FRTFShow(Sender: TObject);
 var
   TempFRTFOnChange: TNotifyEvent;
 begin
@@ -8482,17 +8487,17 @@ begin
   FRTF.OnChange := TempFRTFOnChange;
 end;
 
-procedure TFClient.FSQLEditorCompletionChange(Sender: TObject; AIndex: Integer);
+procedure TFSession.FSQLEditorCompletionChange(Sender: TObject; AIndex: Integer);
 begin
   FSQLEditorCompletionTimerCounter := 0;
 end;
 
-procedure TFClient.FSQLEditorCompletionClose(Sender: TObject);
+procedure TFSession.FSQLEditorCompletionClose(Sender: TObject);
 begin
   SynMemoEnter(Sender);
 end;
 
-procedure TFClient.FSQLEditorCompletionExecute(Kind: SynCompletionType;
+procedure TFSession.FSQLEditorCompletionExecute(Kind: SynCompletionType;
   Sender: TObject; var CurrentInput: string; var x, y: Integer;
   var CanExecute: Boolean);
 var
@@ -8529,18 +8534,18 @@ begin
     SQL := '';
   end;
 
-  if ((Len <> 0) and not Client.InUse() and FSQLEditorSynMemo.GetHighlighterAttriAtRowCol(FSQLEditorSynMemo.WordStart(), Token, Attri)) then
+  if ((Len <> 0) and not Session.InUse() and FSQLEditorSynMemo.GetHighlighterAttriAtRowCol(FSQLEditorSynMemo.WordStart(), Token, Attri)) then
   begin
     Index := ActiveSynMemo.SelStart - Index + 1;
     while ((Index > 0) and (Pos(SQL[Index], FSQLEditorCompletion.EndOfTokenChr) = 0)) do Dec(Index);
 
-    Database := Client.DatabaseByName(SelectedDatabase);
+    Database := Session.DatabaseByName(SelectedDatabase);
     if (Assigned(Database)) then
     begin
-      Client.BeginSynchron();
+      Session.BeginSynchron();
       if (not Database.Update()) then
         Database := nil;
-      Client.EndSynchron();
+      Session.EndSynchron();
     end;
 
     StringList := TStringList.Create();
@@ -8560,7 +8565,7 @@ begin
 
       if (Owner <> '') then
       begin
-        Database := Client.DatabaseByName(Owner);
+        Database := Session.DatabaseByName(Owner);
 
         if (Assigned(Database)) then
           for I := 0 to Database.Tables.Count - 1 do
@@ -8573,32 +8578,32 @@ begin
         if (Assigned(Database)) then
           Table := Database.BaseTableByName(Owner)
         else if (SelectedDatabase <> '') then
-          Table := Client.DatabaseByName(SelectedDatabase).BaseTableByName(Owner);
+          Table := Session.DatabaseByName(SelectedDatabase).BaseTableByName(Owner);
         if (Assigned(Table)) then
         begin
           SetLength(Tables, 1);
           Tables[0] := Table;
         end
-        else if (SQLCreateParse(Parse, PChar(SQL), Length(SQL),Client.ServerVersion) and SQLParseKeyword(Parse, 'SELECT') and (Owner <> '')) then
+        else if (SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.ServerVersion) and SQLParseKeyword(Parse, 'SELECT') and (Owner <> '')) then
         begin
           QueryBuilder := TacQueryBuilder.Create(Window);
           QueryBuilder.Visible := False;
           QueryBuilder.Parent := ActiveSynMemo;
-          QueryBuilder.SyntaxProvider := Client.SyntaxProvider;
-          QueryBuilder.MetadataProvider := Client.MetadataProvider;
+          QueryBuilder.SyntaxProvider := Session.SyntaxProvider;
+          QueryBuilder.MetadataProvider := Session.MetadataProvider;
           Insert('*', SQL, Index + 1);
           try
             QueryBuilder.SQL := SQL;
             Application.ProcessMessages();
             for I := 0 to QueryBuilder.QueryStatistics.UsedDatabaseObjects.Count - 1 do
               for J := 0 to QueryBuilder.QueryStatistics.UsedDatabaseObjects[I].Aliases.Count - 1 do
-              if ((Client.LowerCaseTableNames = 0) and (lstrcmp(PChar(QueryBuilder.QueryStatistics.UsedDatabaseObjects[I].Aliases[J].Token), PChar(Owner)) = 0)
-                or (Client.LowerCaseTableNames > 0) and (lstrcmpi(PChar(QueryBuilder.QueryStatistics.UsedDatabaseObjects[I].Aliases[J].Token), PChar(Owner)) = 0)) then
+              if ((Session.LowerCaseTableNames = 0) and (lstrcmp(PChar(QueryBuilder.QueryStatistics.UsedDatabaseObjects[I].Aliases[J].Token), PChar(Owner)) = 0)
+                or (Session.LowerCaseTableNames > 0) and (lstrcmpi(PChar(QueryBuilder.QueryStatistics.UsedDatabaseObjects[I].Aliases[J].Token), PChar(Owner)) = 0)) then
               begin
                 if (QueryBuilder.QueryStatistics.UsedDatabaseObjects[I].Database.QualifiedName = '') then
-                  Database := Client.DatabaseByName(SelectedDatabase)
+                  Database := Session.DatabaseByName(SelectedDatabase)
                 else
-                  Database := Client.DatabaseByName(QueryBuilder.QueryStatistics.UsedDatabaseObjects[I].Database.QualifiedName);
+                  Database := Session.DatabaseByName(QueryBuilder.QueryStatistics.UsedDatabaseObjects[I].Database.QualifiedName);
                 if (not Assigned(Database)) then
                   Table := nil
                 else
@@ -8614,10 +8619,10 @@ begin
           QueryBuilder.Free();
         end;
       end
-      else if (SQLParseDMLStmt(DMLStmt, PChar(SQL), Length(SQL), Client.ServerVersion)) then
+      else if (SQLParseDMLStmt(DMLStmt, PChar(SQL), Length(SQL), Session.ServerVersion)) then
         for I := 0 to Length(DMLStmt.TableNames) - 1 do
         begin
-          Database := Client.DatabaseByName(DMLStmt.DatabaseNames[I]);
+          Database := Session.DatabaseByName(DMLStmt.DatabaseNames[I]);
           if (Assigned(Database)) then
           begin
             Table := Database.TableByName(DMLStmt.TableNames[I]);
@@ -8631,22 +8636,22 @@ begin
     end
     else
     begin
-      if (SQLCreateParse(Parse, PChar(SQL), Length(SQL),Client.ServerVersion) and SQLParseKeyword(Parse, 'SELECT')) then
+      if (SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.ServerVersion) and SQLParseKeyword(Parse, 'SELECT')) then
       begin
         QueryBuilder := TacQueryBuilder.Create(Window);
         QueryBuilder.Visible := False;
         QueryBuilder.Parent := ActiveSynMemo;
-        QueryBuilder.SyntaxProvider := Client.SyntaxProvider;
-        QueryBuilder.MetadataProvider := Client.MetadataProvider;
+        QueryBuilder.SyntaxProvider := Session.SyntaxProvider;
+        QueryBuilder.MetadataProvider := Session.MetadataProvider;
         try
           QueryBuilder.SQL := SQL;
           Application.ProcessMessages();
           for I := 0 to QueryBuilder.QueryStatistics.UsedDatabaseObjects.Count - 1 do
           begin
             if (QueryBuilder.QueryStatistics.UsedDatabaseObjects[I].Database.QualifiedName = '') then
-              Database := Client.DatabaseByName(SelectedDatabase)
+              Database := Session.DatabaseByName(SelectedDatabase)
             else
-              Database := Client.DatabaseByName(QueryBuilder.QueryStatistics.UsedDatabaseObjects[I].Database.QualifiedName);
+              Database := Session.DatabaseByName(QueryBuilder.QueryStatistics.UsedDatabaseObjects[I].Database.QualifiedName);
             if (not Assigned(Database)) then
               Table := nil
             else
@@ -8668,8 +8673,8 @@ begin
         + ReplaceStr(MainHighlighter.GetKeywords(Ord(tkFunction)), ',', #13#10) + #13#10
         + ReplaceStr(MainHighlighter.GetKeywords(Ord(tkPLSQL)), ',', #13#10);
 
-      for I := 0 to Client.Databases.Count - 1 do
-        StringList.Add(Client.Databases[I].Name);
+      for I := 0 to Session.Databases.Count - 1 do
+        StringList.Add(Session.Databases[I].Name);
       if (Assigned(Database)) then
         for I := 0 to Database.Tables.Count - 1 do
           StringList.Add(Database.Tables[I].Name);
@@ -8712,14 +8717,14 @@ begin
   CanExecute := FSQLEditorCompletion.ItemList.Count > 0;
 end;
 
-procedure TFClient.FSQLEditorCompletionPaintItem(Sender: TObject;
+procedure TFSession.FSQLEditorCompletionPaintItem(Sender: TObject;
   Index: Integer; TargetCanvas: TCanvas; ItemRect: TRect;
   var CustomDraw: Boolean);
 begin
   FSQLEditorCompletionShow(Sender);
 end;
 
-procedure TFClient.FSQLEditorCompletionShow(Sender: TObject);
+procedure TFSession.FSQLEditorCompletionShow(Sender: TObject);
 begin
   MainAction('aDRun').Enabled := True;
   MainAction('aDRunSelection').Enabled := True;
@@ -8729,7 +8734,7 @@ begin
   FSQLEditorCompletionTimerCounter := 0;
 end;
 
-procedure TFClient.FSQLEditorCompletionTimerTimer(Sender: TObject);
+procedure TFSession.FSQLEditorCompletionTimerTimer(Sender: TObject);
 begin
   Inc(FSQLEditorCompletionTimerCounter);
 
@@ -8740,18 +8745,18 @@ begin
   end;
 end;
 
-procedure TFClient.FSQLHistoryChange(Sender: TObject; Node: TTreeNode);
+procedure TFSession.FSQLHistoryChange(Sender: TObject; Node: TTreeNode);
 begin
   FSQLHistoryMenuNode := Node;
 end;
 
-procedure TFClient.FSQLHistoryChanging(Sender: TObject; Node: TTreeNode;
+procedure TFSession.FSQLHistoryChanging(Sender: TObject; Node: TTreeNode;
   var AllowChange: Boolean);
 begin
   AllowChange := False;
 end;
 
-procedure TFClient.FSQLHistoryDblClick(Sender: TObject);
+procedure TFSession.FSQLHistoryDblClick(Sender: TObject);
 begin
   Wanted.Clear();
 
@@ -8766,19 +8771,19 @@ begin
   end;
 end;
 
-procedure TFClient.FSQLHistoryEnter(Sender: TObject);
+procedure TFSession.FSQLHistoryEnter(Sender: TObject);
 begin
   miHProperties.ShortCut := ShortCut(VK_RETURN, [ssAlt]);
 end;
 
-procedure TFClient.FSQLHistoryExit(Sender: TObject);
+procedure TFSession.FSQLHistoryExit(Sender: TObject);
 begin
   MainAction('aECopy').Enabled := False;
 
   miHProperties.ShortCut := 0;
 end;
 
-procedure TFClient.FSQLHistoryHint(Sender: TObject; const Node: TTreeNode;
+procedure TFSession.FSQLHistoryHint(Sender: TObject; const Node: TTreeNode;
   var Hint: string);
 begin
   if (not Assigned(Node.Data) or not (Node.ImageIndex in [iiQuery, iiStatement])) then
@@ -8787,7 +8792,7 @@ begin
     Hint := XMLNode(IXMLNode(Node.Data), 'sql').Text;
 end;
 
-procedure TFClient.FSQLHistoryKeyDown(Sender: TObject; var Key: Word;
+procedure TFSession.FSQLHistoryKeyDown(Sender: TObject; var Key: Word;
   Shift: TShiftState);
 begin
   if (not TTreeView(Sender).IsEditing()) then
@@ -8797,7 +8802,7 @@ begin
       begin aEPasteExecute(Sender); Key := 0; end;
 end;
 
-procedure TFClient.FSQLHistoryKeyPress(Sender: TObject; var Key: Char);
+procedure TFSession.FSQLHistoryKeyPress(Sender: TObject; var Key: Char);
 var
   I: Integer;
   MenuItem: TMenuItem;
@@ -8822,7 +8827,7 @@ begin
       end;
 end;
 
-procedure TFClient.FSQLHistoryRefresh(Sender: TObject);
+procedure TFSession.FSQLHistoryRefresh(Sender: TObject);
 var
   Date: TDateTime;
   DateNode: TTreeNode;
@@ -8842,8 +8847,8 @@ begin
       OldNode := FSQLHistory.Items[FSQLHistory.Items.Count - 1];
     if (Assigned(OldNode)) then
       XML := IXMLNode(OldNode.Data)
-    else if (Client.Account.HistoryXML.ChildNodes.Count > 0) then
-      XML := Client.Account.HistoryXML.ChildNodes.First()
+    else if (Session.Account.HistoryXML.ChildNodes.Count > 0) then
+      XML := Session.Account.HistoryXML.ChildNodes.First()
     else
       XML := nil;
 
@@ -8892,7 +8897,7 @@ begin
   end;
 end;
 
-procedure TFClient.FTextChange(Sender: TObject);
+procedure TFSession.FTextChange(Sender: TObject);
 begin
   if (Assigned(EditorField) and FText.Modified) then
   begin
@@ -8908,17 +8913,17 @@ begin
   aVBlobRTF.Visible := Assigned(EditorField) and (EditorField.DataType = ftWideMemo) and not EditorField.IsNull and IsRTF(EditorField.AsString);
 end;
 
-procedure TFClient.FTextEnter(Sender: TObject);
+procedure TFSession.FTextEnter(Sender: TObject);
 begin
   StatusBarRefresh();
 end;
 
-procedure TFClient.FTextExit(Sender: TObject);
+procedure TFSession.FTextExit(Sender: TObject);
 begin
   SendMessage(FText.Handle, WM_VSCROLL, SB_TOP, 0);
 end;
 
-procedure TFClient.FTextKeyPress(Sender: TObject; var Key: Char);
+procedure TFSession.FTextKeyPress(Sender: TObject; var Key: Char);
 begin
   if ((Window.ActiveControl = FText) and (Key = #27)) then
   begin
@@ -8927,7 +8932,7 @@ begin
   end
 end;
 
-procedure TFClient.FTextShow(Sender: TObject);
+procedure TFSession.FTextShow(Sender: TObject);
 var
   S: string;
 begin
@@ -8970,7 +8975,7 @@ begin
   aVBlobRTF.Visible := (EditorField.DataType = ftWideMemo) and not EditorField.IsNull and IsRTF(EditorField.AsString);
 end;
 
-function TFClient.GetActiveDBGrid(): TMySQLDBGrid;
+function TFSession.GetActiveDBGrid(): TMySQLDBGrid;
 var
   I: Integer;
 begin
@@ -9004,7 +9009,7 @@ begin
         PResult.Controls[I].Visible := PResult.Controls[I] = Result.Parent;
 end;
 
-function TFClient.GetActiveIDEInputDataSet(): TDataSet;
+function TFSession.GetActiveIDEInputDataSet(): TDataSet;
 var
   I: Integer;
   J: Integer;
@@ -9053,7 +9058,7 @@ begin
   Result := FObjectIDEGrid.DataSource.DataSet;
 end;
 
-function TFClient.GetActiveListView(): TListView;
+function TFSession.GetActiveListView(): TListView;
 var
   I: Integer;
 begin
@@ -9073,8 +9078,8 @@ begin
         begin
           if (not Assigned(ProcessesListView)) then
           begin
-            ProcessesListView := CreateListView(Client.Processes);
-            Client.Processes.PushBuildEvent(Client.Processes);
+            ProcessesListView := CreateListView(Session.Processes);
+            Session.Processes.PushBuildEvent(Session.Processes);
           end;
           Result := ProcessesListView;
         end;
@@ -9082,8 +9087,8 @@ begin
         begin
           if (not Assigned(StatiListView)) then
           begin
-            StatiListView := CreateListView(Client.Stati);
-            Client.Stati.PushBuildEvent(Client.Stati);
+            StatiListView := CreateListView(Session.Stati);
+            Session.Stati.PushBuildEvent(Session.Stati);
           end;
           Result := StatiListView;
         end;
@@ -9091,8 +9096,8 @@ begin
         begin
           if (not Assigned(UsersListView)) then
           begin
-            UsersListView := CreateListView(Client.Users);
-            Client.Users.PushBuildEvent(Client.Users);
+            UsersListView := CreateListView(Session.Users);
+            Session.Users.PushBuildEvent(Session.Users);
           end;
           Result := UsersListView;
         end;
@@ -9100,8 +9105,8 @@ begin
         begin
           if (not Assigned(VariablesListView)) then
           begin
-            VariablesListView := CreateListView(Client.Variables);
-            Client.Variables.PushBuildEvent(Client.Variables);
+            VariablesListView := CreateListView(Session.Variables);
+            Session.Variables.PushBuildEvent(Session.Variables);
           end;
           Result := VariablesListView;
         end;
@@ -9114,7 +9119,7 @@ begin
       PListView.Controls[I].Visible := PListView.Controls[I] = Result;
 end;
 
-function TFClient.GetActiveSynMemo(): TSynMemo;
+function TFSession.GetActiveSynMemo(): TSynMemo;
 var
   I: Integer;
 begin
@@ -9141,7 +9146,7 @@ begin
       PSynMemo.Controls[I].Visible := PSynMemo.Controls[I] = Result;
 end;
 
-function TFClient.GetActiveWorkbench(): TWWorkbench;
+function TFSession.GetActiveWorkbench(): TWWorkbench;
 var
   I: Integer;
 begin
@@ -9157,7 +9162,7 @@ begin
       PWorkbench.Controls[I].Visible := PWorkbench.Controls[I] = Result;
 end;
 
-function TFClient.GetFocusedCItem(): TSItem;
+function TFSession.GetFocusedCItem(): TSItem;
 begin
   if ((Window.ActiveControl = ActiveListView) and Assigned(ActiveListView.Selected)) then
     if ((ActiveListView.SelCount > 1) or not (TSObject(ActiveListView.Selected.Data) is TSItem)) then
@@ -9181,7 +9186,7 @@ begin
     Result := nil;
 end;
 
-function TFClient.GetFocusedDatabaseNames(): string;
+function TFSession.GetFocusedDatabaseNames(): string;
 var
   I: Integer;
 begin
@@ -9200,7 +9205,7 @@ begin
     Result := SelectedDatabase;
 end;
 
-function TFClient.GetFocusedTableName(): string;
+function TFSession.GetFocusedTableName(): string;
 var
   I: Integer;
   URI: TUURI;
@@ -9225,12 +9230,12 @@ begin
   end;
 end;
 
-function TFClient.GetPath(): TFileName;
+function TFSession.GetPath(): TFileName;
 begin
   Result := ExcludeTrailingPathDelimiter(Preferences.Path);
 end;
 
-function TFClient.GetMenuDatabase(): TSDatabase;
+function TFSession.GetMenuDatabase(): TSDatabase;
 var
   Node: TTreeNode;
 begin
@@ -9248,7 +9253,7 @@ begin
     Result := nil;
 end;
 
-function TFClient.GetSelectedDatabase(): string;
+function TFSession.GetSelectedDatabase(): string;
 var
   URI: TUURI;
 begin
@@ -9257,7 +9262,7 @@ begin
   URI.Free();
 end;
 
-function TFClient.GetSelectedImageIndex(): Integer;
+function TFSession.GetSelectedImageIndex(): Integer;
 begin
   if (not Assigned(FNavigator.Selected)) then
     Result := -1
@@ -9265,7 +9270,7 @@ begin
     Result := FNavigator.Selected.ImageIndex;
 end;
 
-function TFClient.GetView(): TView;
+function TFSession.GetView(): TView;
 var
   URI: TUURI;
 begin
@@ -9285,7 +9290,7 @@ begin
   URI.Free();
 end;
 
-function TFClient.GetWindow(): TForm_Ext;
+function TFSession.GetWindow(): TForm_Ext;
 begin
   if (not Assigned(Owner)) then
     raise Exception.Create('Owner not set');
@@ -9293,7 +9298,7 @@ begin
   Result := TForm_Ext(Owner);
 end;
 
-procedure TFClient.gmFilterClearClick(Sender: TObject);
+procedure TFSession.gmFilterClearClick(Sender: TObject);
 begin
   Wanted.Clear();
 
@@ -9307,7 +9312,7 @@ begin
     FFilterEnabledClick(nil);
 end;
 
-procedure TFClient.gmFilterIntoFilterClick(Sender: TObject);
+procedure TFSession.gmFilterIntoFilterClick(Sender: TObject);
 var
   FilterIndex: Integer;
   MenuItem: TMenuItem;
@@ -9344,7 +9349,7 @@ begin
   if (Success) then
     if (View = vBrowser) then
     begin
-      FFilter.Text := Format(Filters[FilterIndex].Text, [Client.EscapeIdentifier(ActiveDBGrid.SelectedField.FieldName), Value]);
+      FFilter.Text := Format(Filters[FilterIndex].Text, [Session.EscapeIdentifier(ActiveDBGrid.SelectedField.FieldName), Value]);
       FFilterEnabled.Down := True;
       FFilterEnabledClick(Sender);
     end
@@ -9357,7 +9362,7 @@ begin
     end;
 end;
 
-function TFClient.ImageIndexByData(const Data: TObject): Integer;
+function TFSession.ImageIndexByData(const Data: TObject): Integer;
 begin
   if (not Assigned(Data)) then
     Result := iiServer
@@ -9402,14 +9407,14 @@ begin
     raise ERangeError.Create(SRangeError);
 end;
 
-procedure TFClient.ImportError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
+procedure TFSession.ImportError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
 begin
   MsgBox(Error.ErrorMessage, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
 
   Success := daAbort;
 end;
 
-procedure TFClient.ListViewAdvancedCustomDrawItem(
+procedure TFSession.ListViewAdvancedCustomDrawItem(
   Sender: TCustomListView; Item: TListItem; State: TCustomDrawState;
   Stage: TCustomDrawStage; var DefaultDraw: Boolean);
 begin
@@ -9420,7 +9425,7 @@ begin
     Sender.Canvas.Font.Style := [];
 end;
 
-procedure TFClient.ListViewAdvancedCustomDrawSubItem(
+procedure TFSession.ListViewAdvancedCustomDrawSubItem(
   Sender: TCustomListView; Item: TListItem; SubItem: Integer;
   State: TCustomDrawState; Stage: TCustomDrawStage; var DefaultDraw: Boolean);
 begin
@@ -9428,7 +9433,7 @@ begin
   Sender.Canvas.Font.Style := [];
 end;
 
-procedure TFClient.ListViewColumnClick(Sender: TObject; Column: TListColumn);
+procedure TFSession.ListViewColumnClick(Sender: TObject; Column: TListColumn);
 var
   HDItem: THDItem;
   I: Integer;
@@ -9474,7 +9479,7 @@ begin
   end;
 end;
 
-procedure TFClient.ListViewCompare(Sender: TObject; Item1: TListItem;
+procedure TFSession.ListViewCompare(Sender: TObject; Item1: TListItem;
   Item2: TListItem; Data: Integer; var Compare: Integer);
 const
   ImageIndexSort = Chr(iiProcesses) + Chr(iiStati) + Chr(iiUsers) + Chr(iiVariables);
@@ -9597,7 +9602,7 @@ begin
     Compare := ListViewSortData[SortRec^.Kind].Order * Compare;
 end;
 
-procedure TFClient.ListViewDblClick(Sender: TObject);
+procedure TFSession.ListViewDblClick(Sender: TObject);
 var
   I: Integer;
   MenuItem: TMenuItem;
@@ -9625,10 +9630,10 @@ begin
   if (Assigned(MenuItem)) then MenuItem.Click();
 end;
 
-procedure TFClient.ListViewDragOver(Sender, Source: TObject; X, Y: Integer;
+procedure TFSession.ListViewDragOver(Sender, Source: TObject; X, Y: Integer;
   State: TDragState; var Accept: Boolean);
 var
-  SourceClient: TSSession;
+  SourceSession: TSSession;
   SourceDatabase: TSDatabase;
   SourceItem: TListItem;
   SourceNode: TTreeNode;
@@ -9640,7 +9645,7 @@ begin
 
   if ((Source is TTreeView_Ext) and (TTreeView_Ext(Source).Name = FNavigator.Name)) then
   begin
-    SourceNode := TFClient(TTreeView_Ext(Source).Owner).MouseDownNode;
+    SourceNode := TFSession(TTreeView_Ext(Source).Owner).MouseDownNode;
 
     if (not Assigned(TargetItem)) then
       case (SourceNode.ImageIndex) of
@@ -9658,41 +9663,41 @@ begin
   else if ((Source is TListView) and (TListView(Source).SelCount = 1) and (TListView(Source).Parent.Name = PListView.Name)) then
   begin
     SourceItem := TListView(Source).Selected;
-    SourceClient := TFClient(TTreeView_Ext(Source).Owner).Client;
-    SourceDatabase := TFClient(TTreeView_Ext(Source).Owner).MenuDatabase;
+    SourceSession := TFSession(TTreeView_Ext(Source).Owner).Session;
+    SourceDatabase := TFSession(TTreeView_Ext(Source).Owner).MenuDatabase;
 
     if (not Assigned(TargetItem)) then
       case (SourceItem.ImageIndex) of
         iiBaseTable,
         iiProcedure,
-        iiFunction: Accept := (SelectedImageIndex = iiDatabase) and (not Assigned(TargetItem) and (Client.DatabaseByName(SelectedDatabase) <> SourceDatabase));
+        iiFunction: Accept := (SelectedImageIndex = iiDatabase) and (not Assigned(TargetItem) and (Session.DatabaseByName(SelectedDatabase) <> SourceDatabase));
       end
     else if ((TargetItem <> SourceItem) and (TargetItem.ImageIndex = SourceItem.ImageIndex)) then
       case (SourceItem.ImageIndex) of
         iiBaseTable: Accept := (SelectedImageIndex = iiDatabase);
       end
-    else if ((TargetItem <> SourceItem) and (SourceClient <> Client)) then
+    else if ((TargetItem <> SourceItem) and (SourceSession <> Session)) then
       case (SourceItem.ImageIndex) of
         iiBaseTable: Accept := (SelectedImageIndex = iiServer);
       end;
   end;
 end;
 
-procedure TFClient.ListViewEdited(Sender: TObject; Item: TListItem;
+procedure TFSession.ListViewEdited(Sender: TObject; Item: TListItem;
   var S: string);
 begin
   if (not RenameCItem(FocusedCItem, S)) then
     S := Item.Caption;
 end;
 
-procedure TFClient.ListViewEditing(Sender: TObject; Item: TListItem;
+procedure TFSession.ListViewEditing(Sender: TObject; Item: TListItem;
   var AllowEdit: Boolean);
 begin
-  AllowEdit := (Item.ImageIndex = iiDatabase) and (Client.ServerVersion >= 50107) or (Item.ImageIndex = iiForeignKey) and (Client.ServerVersion >= 40013) or (Item.ImageIndex in [iiBaseTable, iiView, iiEvent, iiField, iiTrigger,
+  AllowEdit := (Item.ImageIndex = iiDatabase) and (Session.ServerVersion >= 50107) or (Item.ImageIndex = iiForeignKey) and (Session.ServerVersion >= 40013) or (Item.ImageIndex in [iiBaseTable, iiView, iiEvent, iiField, iiTrigger,
   iiUser]);
 end;
 
-procedure TFClient.ListViewInitialize(const ListView: TListView);
+procedure TFSession.ListViewInitialize(const ListView: TListView);
 
   procedure SetColumnWidths(const ListView: TListView; const Kind: TADesktop.TListViewKind);
   var
@@ -9700,7 +9705,7 @@ procedure TFClient.ListViewInitialize(const ListView: TListView);
   begin
     for I := 0 to ListView.Columns.Count - 1 do
     begin
-      ListView.Column[I].Width := Client.Account.Desktop.ColumnWidths[Kind, I];
+      ListView.Column[I].Width := Session.Account.Desktop.ColumnWidths[Kind, I];
       ListView.Columns[I].MinWidth := 10;
     end;
   end;
@@ -9759,7 +9764,7 @@ begin
       ListView.Columns.Add();
       ListView.Columns.Add();
       ListView.Columns.Add();
-      if (Client.ServerVersion >= 40100) then
+      if (Session.ServerVersion >= 40100) then
         ListView.Columns.Add();
       ListView.Columns.EndUpdate();
       SetColumnWidths(ListView, lkTable);
@@ -9865,7 +9870,7 @@ begin
     ListView.Columns[2].Caption := Preferences.LoadStr(71);
     ListView.Columns[3].Caption := Preferences.LoadStr(72);
     ListView.Columns[4].Caption := ReplaceStr(Preferences.LoadStr(73), '&', '');
-    if (Client.ServerVersion >= 40100) then
+    if (Session.ServerVersion >= 40100) then
       ListView.Columns[5].Caption := ReplaceStr(Preferences.LoadStr(111), '&', '');
   end
   else if (TObject(ListView.Tag) is TSView) then
@@ -9905,7 +9910,7 @@ begin
   ListView.Groups.EndUpdate();
 end;
 
-procedure TFClient.ListViewKeyDown(Sender: TObject; var Key: Word;
+procedure TFSession.ListViewKeyDown(Sender: TObject; var Key: Word;
   Shift: TShiftState);
 var
   I: Integer;
@@ -9932,7 +9937,7 @@ begin
       end;
 end;
 
-procedure TFClient.ListViewEmpty(Sender: TObject);
+procedure TFSession.ListViewEmpty(Sender: TObject);
 var
   I: Integer;
   List: TList;
@@ -9950,20 +9955,20 @@ begin
           for I := 0 to ActiveListView.Items.Count - 1 do
             if (ActiveListView.Items[I].Selected and (ActiveListView.Items[I].ImageIndex in [iiDatabase, iiSystemDatabase])) then
               List.Add(ActiveListView.Items[I].Data);
-          if (not Client.Update(List)) then
+          if (not Session.Update(List)) then
             Wanted.Action := TAction(Sender)
           else if (MsgBox(Preferences.LoadStr(405), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES) then
-            Client.EmptyDatabases(List);
+            Session.EmptyDatabases(List);
         end;
       iiDatabase:
         begin
           for I := 0 to ActiveListView.Items.Count - 1 do
             if (ActiveListView.Items[I].Selected and (ActiveListView.Items[I].ImageIndex in [iiBaseTable])) then
               List.Add(ActiveListView.Items[I].Data);
-          if (not Client.Update(List)) then
+          if (not Session.Update(List)) then
             Wanted.Action := TAction(Sender)
           else if (MsgBox(Preferences.LoadStr(406), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES) then
-            Client.DatabaseByName(SelectedDatabase).EmptyTables(List);
+            Session.DatabaseByName(SelectedDatabase).EmptyTables(List);
         end;
       iiBaseTable:
         if (MsgBox(Preferences.LoadStr(407), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES) then
@@ -9978,7 +9983,7 @@ begin
   end;
 end;
 
-procedure TFClient.ListViewEnter(Sender: TObject);
+procedure TFSession.ListViewEnter(Sender: TObject);
 begin
   MainAction('aDEmpty').OnExecute := ListViewEmpty;
 
@@ -9992,7 +9997,7 @@ begin
   StatusBarRefresh();
 end;
 
-procedure TFClient.ListViewExit(Sender: TObject);
+procedure TFSession.ListViewExit(Sender: TObject);
 var
   I: Integer;
   ImageIndex: Integer;
@@ -10002,7 +10007,7 @@ begin
     ImageIndex := ImageIndexByData(TObject(TListView(Sender).Tag));
     if (ImageIndex > 0) then
       for I := 0 to ActiveListView.Columns.Count - 1 do
-        Client.Account.Desktop.ColumnWidths[ColumnWidthKindFromImageIndex(ImageIndex), I] := ActiveListView.Columns[I].Width;
+        Session.Account.Desktop.ColumnWidths[ColumnWidthKindFromImageIndex(ImageIndex), I] := ActiveListView.Columns[I].Width;
   end;
 
   MainAction('aFImportSQL').Enabled := False;
@@ -10062,7 +10067,7 @@ begin
   mlEProperties.ShortCut := 0;
 end;
 
-procedure TFClient.ListViewUpdate(const ClientEvent: TSSession.TEvent; const ListView: TListView; const Data: TCustomData = nil);
+procedure TFSession.ListViewUpdate(const ClientEvent: TSSession.TEvent; const ListView: TListView; const Data: TCustomData = nil);
 
   function Compare(const Kind: TADesktop.TListViewKind; const Item1, Item2: TListItem): Integer;
   begin
@@ -10109,16 +10114,16 @@ procedure TFClient.ListViewUpdate(const ClientEvent: TSSession.TEvent; const Lis
       else
         Item.SubItems.Add(SizeToStr(TSDatabase(Data).Size));
       if (TSDatabase(Data) is TSSystemDatabase) then
-        Item.SubItems.Add(SysUtils.DateToStr(Client.StartTime, LocaleFormatSettings))
+        Item.SubItems.Add(SysUtils.DateToStr(Session.StartTime, LocaleFormatSettings))
       else if (TSDatabase(Data).Created = 0) then
         Item.SubItems.Add('')
       else
         Item.SubItems.Add(SysUtils.DateToStr(TSDatabase(Data).Created, LocaleFormatSettings));
-      if (TSDatabase(Data).DefaultCharset = Client.DefaultCharset) then
+      if (TSDatabase(Data).DefaultCharset = Session.DefaultCharset) then
         S := ''
       else
         S := TSDatabase(Data).DefaultCharset;
-      if ((TSDatabase(Data).Collation <> '') and (TSDatabase(Data).Collation <> Client.Collation)) then
+      if ((TSDatabase(Data).Collation <> '') and (TSDatabase(Data).Collation <> Session.Collation)) then
       begin
         if (S <> '') then S := S + ', ';
         S := S + TSDatabase(Data).Collation;
@@ -10246,7 +10251,7 @@ procedure TFClient.ListViewUpdate(const ClientEvent: TSSession.TEvent; const Lis
         Item.SubItems.Add('fulltext')
       else
         Item.SubItems.Add('');
-      if (Client.ServerVersion >= 50503) then
+      if (Session.ServerVersion >= 50503) then
         Item.SubItems.Add(TSKey(Data).Comment);
     end
     else if (Data is TSBaseTableField) then
@@ -10282,7 +10287,7 @@ procedure TFClient.ListViewUpdate(const ClientEvent: TSSession.TEvent; const Lis
         end;
       end;
       Item.SubItems.Add(S);
-      if (Client.ServerVersion >= 40100) then
+      if (Session.ServerVersion >= 40100) then
         Item.SubItems.Add(TSBaseTableField(Data).Comment);
     end
     else if (Data is TSForeignKey) then
@@ -10384,8 +10389,8 @@ procedure TFClient.ListViewUpdate(const ClientEvent: TSSession.TEvent; const Lis
     begin
       Item.GroupID := giSystemTools;
       Item.ImageIndex := iiUsers;
-      if (Client.Users.Count >= 0) then
-        Item.SubItems.Add(FormatFloat('#,##0', Client.Users.Count, LocaleFormatSettings))
+      if (Session.Users.Count >= 0) then
+        Item.SubItems.Add(FormatFloat('#,##0', Session.Users.Count, LocaleFormatSettings))
       else
         Item.SubItems.Add('???');
     end
@@ -10399,7 +10404,7 @@ procedure TFClient.ListViewUpdate(const ClientEvent: TSSession.TEvent; const Lis
     begin
       Item.GroupID := giSystemTools;
       Item.ImageIndex := iiVariables;
-      Item.SubItems.Add(FormatFloat('#,##0', Client.Variables.Count, LocaleFormatSettings));
+      Item.SubItems.Add(FormatFloat('#,##0', Session.Variables.Count, LocaleFormatSettings));
     end
     else if (Data is TSVariable) then
     begin
@@ -10580,7 +10585,7 @@ procedure TFClient.ListViewUpdate(const ClientEvent: TSSession.TEvent; const Lis
         giTables:
           begin
             Header := ReplaceStr(Preferences.LoadStr(234), '&', '');
-            if (Client.ServerVersion >= 50001) then
+            if (Session.ServerVersion >= 50001) then
               Header := Header + ' + ' + ReplaceStr(Preferences.LoadStr(873), '&', '');
             Header := Header + ' (' + IntToStr(ClientEvent.CItems.Count) + ')';
             GroupByGroupID(GroupID).Header := Header;
@@ -10607,13 +10612,13 @@ procedure TFClient.ListViewUpdate(const ClientEvent: TSSession.TEvent; const Lis
             GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(797), '&', '') + ' (' + IntToStr(Count) + ')';
           end;
         giProcesses:
-          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(24), '&', '') + ' (' + IntToStr(Client.Processes.Count) + ')';
+          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(24), '&', '') + ' (' + IntToStr(Session.Processes.Count) + ')';
         giStati:
-          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(23), '&', '') + ' (' + IntToStr(Client.Stati.Count) + ')';
+          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(23), '&', '') + ' (' + IntToStr(Session.Stati.Count) + ')';
         giUsers:
-          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(561), '&', '') + ' (' + IntToStr(Client.Users.Count) + ')';
+          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(561), '&', '') + ' (' + IntToStr(Session.Users.Count) + ')';
         giVariables:
-          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(22), '&', '') + ' (' + IntToStr(Client.Variables.Count) + ')';
+          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(22), '&', '') + ' (' + IntToStr(Session.Variables.Count) + ')';
       end;
   end;
 
@@ -10637,14 +10642,14 @@ begin
         begin
           if (ListView.Items.Count = 0) then
           begin
-            if (Assigned(Client.Processes)) then
-              InsertItem(Kind, Client.Processes);
-            if (Assigned(Client.Stati)) then
-              InsertItem(Kind, Client.Stati);
-            if (Assigned(Client.Users)) then
-              InsertItem(Kind, Client.Users);
-            if (Assigned(Client.Variables)) then
-              InsertItem(Kind, Client.Variables);
+            if (Assigned(Session.Processes)) then
+              InsertItem(Kind, Session.Processes);
+            if (Assigned(Session.Stati)) then
+              InsertItem(Kind, Session.Stati);
+            if (Assigned(Session.Users)) then
+              InsertItem(Kind, Session.Users);
+            if (Assigned(Session.Variables)) then
+              InsertItem(Kind, Session.Variables);
             ListViewInitialize(ListView);
           end;
 
@@ -10700,7 +10705,7 @@ begin
   end;
 end;
 
-procedure TFClient.ListViewSelectItem(Sender: TObject; Item: TListItem;
+procedure TFSession.ListViewSelectItem(Sender: TObject; Item: TListItem;
   Selected: Boolean);
 var
   BaseTable: TSBaseTable;
@@ -10780,7 +10785,7 @@ begin
           begin
             aPOpenInNewWindow.Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex in [iiDatabase, iiSystemDatabase]);
             aPOpenInNewTab.Enabled := aPOpenInNewWindow.Enabled;
-            MainAction('aFImportSQL').Enabled := (ListView.SelCount <= 1) and (not Assigned(Client.UserRights) or Client.UserRights.RInsert) or Assigned(Item) and (Item.ImageIndex = iiDatabase);
+            MainAction('aFImportSQL').Enabled := (ListView.SelCount <= 1) and (not Assigned(Session.UserRights) or Session.UserRights.RInsert) or Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFImportExcel').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFImportAccess').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFImportSQLite').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
@@ -10797,9 +10802,9 @@ begin
             MainAction('aFPrint').Enabled := (ListView.SelCount = 0) or Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aECopy').Enabled := ListView.SelCount >= 1;
             MainAction('aEPaste').Enabled := (not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLSERVER) or Assigned(Item) and (Item.ImageIndex = iiDatabase) and Clipboard.HasFormat(CF_MYSQLDATABASE));
-            MainAction('aDCreateDatabase').Enabled := (ListView.SelCount = 0) and (not Assigned(Client.UserRights) or Client.UserRights.RCreate);
+            MainAction('aDCreateDatabase').Enabled := (ListView.SelCount = 0) and (not Assigned(Session.UserRights) or Session.UserRights.RCreate);
             MainAction('aDCreateTable').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
-            MainAction('aDCreateView').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and (Client.ServerVersion >= 50001);
+            MainAction('aDCreateView').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and (Session.ServerVersion >= 50001);
             MainAction('aDCreateProcedure').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and Assigned(TSDatabase(Item.Data).Routines);
             MainAction('aDCreateFunction').Enabled := MainAction('aDCreateProcedure').Enabled;
             MainAction('aDCreateEvent').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and Assigned(TSDatabase(Item.Data).Events);
@@ -10864,7 +10869,7 @@ begin
             MainAction('aEPaste').Enabled := (not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLDATABASE) or Assigned(Item) and ((Item.ImageIndex = iiBaseTable) and Clipboard.HasFormat(CF_MYSQLTABLE) or (Item.ImageIndex = iiView) and Clipboard.HasFormat(CF_MYSQLVIEW)));
             MainAction('aERename').Enabled := Assigned(Item) and (ListView.SelCount = 1) and (Item.ImageIndex in [iiBaseTable, iiView, iiEvent]);
             MainAction('aDCreateTable').Enabled := (ListView.SelCount = 0) and (SelectedImageIndex = iiDatabase);
-            MainAction('aDCreateView').Enabled := (ListView.SelCount = 0) and (Client.ServerVersion >= 50001) and (SelectedImageIndex = iiDatabase);
+            MainAction('aDCreateView').Enabled := (ListView.SelCount = 0) and (Session.ServerVersion >= 50001) and (SelectedImageIndex = iiDatabase);
             MainAction('aDCreateProcedure').Enabled := (ListView.SelCount = 0) and (SelectedImageIndex = iiDatabase) and Assigned(Database.Events);
             MainAction('aDCreateFunction').Enabled := MainAction('aDCreateProcedure').Enabled;
             MainAction('aDCreateEvent').Enabled := (ListView.SelCount = 0) and (SelectedImageIndex = iiDatabase) and Assigned(Database.Events);
@@ -10947,14 +10952,14 @@ begin
             MainAction('aFExportPDF').Enabled := (ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiTrigger]);
             MainAction('aECopy').Enabled := (ListView.SelCount >= 1);
             MainAction('aEPaste').Enabled := not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLTABLE);
-            MainAction('aERename').Enabled := Assigned(Item) and (ListView.SelCount = 1) and ((Item.ImageIndex in [iiField, iiTrigger]) or (Item.ImageIndex = iiForeignKey) and (Client.ServerVersion >= 40013));
+            MainAction('aERename').Enabled := Assigned(Item) and (ListView.SelCount = 1) and ((Item.ImageIndex in [iiField, iiTrigger]) or (Item.ImageIndex = iiForeignKey) and (Session.ServerVersion >= 40013));
             MainAction('aDCreateKey').Enabled := (ListView.SelCount = 0);
             MainAction('aDCreateField').Enabled := (ListView.SelCount = 0);
             MainAction('aDCreateForeignKey').Enabled := (ListView.SelCount = 0) and Assigned(BaseTable.Engine) and BaseTable.Engine.ForeignKeyAllowed;
             MainAction('aDCreateTrigger').Enabled := (ListView.SelCount = 0) and Assigned(BaseTable.Database.Triggers);
             MainAction('aDDeleteKey').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiKey);
             MainAction('aDDeleteField').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiField) and (BaseTable.Fields.Count > ListView.SelCount);
-            MainAction('aDDeleteForeignKey').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiForeignKey) and (Client.ServerVersion >= 40013);
+            MainAction('aDDeleteForeignKey').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiForeignKey) and (Session.ServerVersion >= 40013);
             MainAction('aDDeleteTrigger').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiTrigger);
             MainAction('aDEditTable').Enabled := (ListView.SelCount = 0);
             MainAction('aDEditKey').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiKey);
@@ -11013,7 +11018,7 @@ begin
           end;
         iiProcesses:
           begin
-            MainAction('aDDeleteProcess').Enabled := (ListView.SelCount >= 1) and Selected and (TObject(Item.Data) is TSProcess) and (TSProcess(Item.Data).ThreadId <> Client.ThreadId);
+            MainAction('aDDeleteProcess').Enabled := (ListView.SelCount >= 1) and Selected and (TObject(Item.Data) is TSProcess) and (TSProcess(Item.Data).ThreadId <> Session.ThreadId);
             MainAction('aDEditProcess').Enabled := (ListView.SelCount = 1);
             aDDelete.Enabled := (ListView.SelCount >= 1);
 
@@ -11053,67 +11058,67 @@ begin
   end;
 end;
 
-procedure TFClient.mbOpenClick(Sender: TObject);
+procedure TFSession.mbOpenClick(Sender: TObject);
 begin
   Wanted.Clear();
 
   if (Assigned(FBookmarks.Selected)) then
-    Address := Client.Account.Desktop.Bookmarks.ByCaption(FBookmarks.Selected.Caption).URI;
+    Address := Session.Account.Desktop.Bookmarks.ByCaption(FBookmarks.Selected.Caption).URI;
 end;
 
-procedure TFClient.MBookmarksPopup(Sender: TObject);
+procedure TFSession.MBookmarksPopup(Sender: TObject);
 begin
   ShowEnabledItems(MBookmarks.Items);
 end;
 
-procedure TFClient.mfDeleteClick(Sender: TObject);
+procedure TFSession.mfDeleteClick(Sender: TObject);
 begin
   FFiles.InvokeCommandOnSelected('delete');
 end;
 
-procedure TFClient.mfFilterAccessClick(Sender: TObject);
+procedure TFSession.mfFilterAccessClick(Sender: TObject);
 begin
   FFiles.Filter := '*.mdb;*.accdb';
 end;
 
-procedure TFClient.mfFilterClearClick(Sender: TObject);
+procedure TFSession.mfFilterClearClick(Sender: TObject);
 begin
   FFiles.Filter := '*';
   mfFilter.Checked := False;
   mfFilterText.Checked := False;
 end;
 
-procedure TFClient.mfFilterExcelClick(Sender: TObject);
+procedure TFSession.mfFilterExcelClick(Sender: TObject);
 begin
   FFiles.Filter := '*.xls;*.xlsx';
 end;
 
-procedure TFClient.mfFilterHTMLClick(Sender: TObject);
+procedure TFSession.mfFilterHTMLClick(Sender: TObject);
 begin
   FFiles.Filter := '*.html;*.htm';
 end;
 
-procedure TFClient.mfFilterSQLClick(Sender: TObject);
+procedure TFSession.mfFilterSQLClick(Sender: TObject);
 begin
   FFiles.Filter := '*.sql';
 end;
 
-procedure TFClient.mfFilterSQLiteClick(Sender: TObject);
+procedure TFSession.mfFilterSQLiteClick(Sender: TObject);
 begin
   FFiles.Filter := '*.sqlite';
 end;
 
-procedure TFClient.mfFilterTextClick(Sender: TObject);
+procedure TFSession.mfFilterTextClick(Sender: TObject);
 begin
   FFiles.Filter := '*.txt;*.csv';
 end;
 
-procedure TFClient.mfFilterXMLClick(Sender: TObject);
+procedure TFSession.mfFilterXMLClick(Sender: TObject);
 begin
   FFiles.Filter := '*.xml';
 end;
 
-procedure TFClient.MFilesPopup(Sender: TObject);
+procedure TFSession.MFilesPopup(Sender: TObject);
 begin
   mfFilterClear.Checked := FFiles.Filter = '*';
   mfFilterSQL.Checked := FFiles.Filter = '*.sql';
@@ -11135,7 +11140,7 @@ begin
   ShowEnabledItems(MFiles.Items);
 end;
 
-procedure TFClient.mfOpenClick(Sender: TObject);
+procedure TFSession.mfOpenClick(Sender: TObject);
 begin
   if (Assigned(FFiles.Selected) and (LowerCase(ExtractFileExt(FFolders.SelectedFolder + PathDelim + FFiles.Selected.Caption)) = '.sql')) then
   begin
@@ -11148,17 +11153,17 @@ begin
     FFiles.InvokeCommandOnSelected('open');
 end;
 
-procedure TFClient.mfPropertiesClick(Sender: TObject);
+procedure TFSession.mfPropertiesClick(Sender: TObject);
 begin
   FFiles.InvokeCommandOnSelected('properties');
 end;
 
-procedure TFClient.mfRenameClick(Sender: TObject);
+procedure TFSession.mfRenameClick(Sender: TObject);
 begin
   FFiles.Selected.EditCaption();
 end;
 
-procedure TFClient.MGridHeaderMenuOrderClick(Sender: TObject);
+procedure TFSession.MGridHeaderMenuOrderClick(Sender: TObject);
 var
   MenuItem: TMenuItem;
   SortDef: TIndexDef;
@@ -11183,7 +11188,7 @@ begin
   IgnoreFGridTitleClick := False;
 end;
 
-procedure TFClient.MGridHeaderPopup(Sender: TObject);
+procedure TFSession.MGridHeaderPopup(Sender: TObject);
 var
   I: Integer;
   Key: TSKey;
@@ -11209,7 +11214,7 @@ begin
   end;
 end;
 
-procedure TFClient.MGridPopup(Sender: TObject);
+procedure TFSession.MGridPopup(Sender: TObject);
 
   procedure AddFilterMenuItem(const Field: TField; const Value: string; const FilterIndex: Integer);
   var
@@ -11311,14 +11316,14 @@ begin
   end;
 end;
 
-procedure TFClient.miBookmarkClick(Sender: TObject);
+procedure TFSession.miBookmarkClick(Sender: TObject);
 begin
   Wanted.Clear();
 
-  Address := Client.Account.Desktop.Bookmarks.ByCaption(ReplaceStr(TMenuItem(Sender).Caption, '&', '')).URI;
+  Address := Session.Account.Desktop.Bookmarks.ByCaption(ReplaceStr(TMenuItem(Sender).Caption, '&', '')).URI;
 end;
 
-procedure TFClient.miHOpenClick(Sender: TObject);
+procedure TFSession.miHOpenClick(Sender: TObject);
 begin
   Wanted.Clear();
 
@@ -11335,7 +11340,7 @@ begin
   end;
 end;
 
-procedure TFClient.miHPropertiesClick(Sender: TObject);
+procedure TFSession.miHPropertiesClick(Sender: TObject);
 var
   Node: IXMLNode;
 begin
@@ -11371,14 +11376,14 @@ begin
   DStatement.Execute();
 end;
 
-procedure TFClient.miHSaveAsClick(Sender: TObject);
+procedure TFSession.miHSaveAsClick(Sender: TObject);
 begin
   Wanted.Clear();
 
   SaveSQLFile(Sender);
 end;
 
-procedure TFClient.miHStatementIntoSQLEditorClick(Sender: TObject);
+procedure TFSession.miHStatementIntoSQLEditorClick(Sender: TObject);
 var
   SelLength: Integer;
   SelStart: Integer;
@@ -11402,23 +11407,23 @@ begin
   end;
 end;
 
-procedure TFClient.mjExecuteClick(Sender: TObject);
+procedure TFSession.mjExecuteClick(Sender: TObject);
 begin
-  DExport.Client := Client;
+  DExport.Session := Session;
   DExport.DBGrid := nil;
   DExport.DialogType := edtExecuteJob;
-  DExport.Job := TAJobExport(Client.Account.JobByName(FJobs.Selected.Caption));
+  DExport.Job := TAJobExport(Session.Account.JobByName(FJobs.Selected.Caption));
   DExport.Objects.Clear();
   DExport.Window := Window;
   DExport.Execute();
 end;
 
-procedure TFClient.MJobsPopup(Sender: TObject);
+procedure TFSession.MJobsPopup(Sender: TObject);
 begin
   ShowEnabledItems(MJobs.Items);
 end;
 
-procedure TFClient.MListPopup(Sender: TObject);
+procedure TFSession.MListPopup(Sender: TObject);
 var
   I: Integer;
   Rect: TRect;
@@ -11430,7 +11435,7 @@ begin
       MList.Items[I].Visible := False;
 end;
 
-procedure TFClient.mlOpenClick(Sender: TObject);
+procedure TFSession.mlOpenClick(Sender: TObject);
 var
   Child: TTreeNode;
   ForeignKey: TSForeignKey;
@@ -11466,7 +11471,7 @@ begin
   end;
 end;
 
-procedure TFClient.MNavigatorPopup(Sender: TObject);
+procedure TFSession.MNavigatorPopup(Sender: TObject);
 var
   AllowChange: Boolean;
   P: TPoint;
@@ -11489,7 +11494,7 @@ begin
   FNavigatorSetMenuItems(Sender, FNavigatorMenuNode);
 end;
 
-procedure TFClient.MoveToAddress(const ADiff: Integer);
+procedure TFSession.MoveToAddress(const ADiff: Integer);
 begin
   if (ADiff <> 0) then
   begin
@@ -11500,7 +11505,7 @@ begin
   end;
 end;
 
-procedure TFClient.MSQLEditorPopup(Sender: TObject);
+procedure TFSession.MSQLEditorPopup(Sender: TObject);
 var
   I: Integer;
 begin
@@ -11523,7 +11528,7 @@ begin
       MSQLEditor.Items[I].Visible := MSQLEditor.Items[I].Visible and (MSQLEditor.PopupPoint.X - FSQLEditorSynMemo.ClientOrigin.X > FSQLEditorSynMemo.Gutter.Width);
 end;
 
-procedure TFClient.MSQLHistoryPopup(Sender: TObject);
+procedure TFSession.MSQLHistoryPopup(Sender: TObject);
 var
   P: TPoint;
 begin
@@ -11553,7 +11558,7 @@ begin
   ShowEnabledItems(MSQLHistory.Items);
 end;
 
-procedure TFClient.MTextPopup(Sender: TObject);
+procedure TFSession.MTextPopup(Sender: TObject);
 begin
   ShowEnabledItems(MText.Items);
 
@@ -11564,7 +11569,7 @@ begin
   tmESelectAll.Visible := True;
 end;
 
-procedure TFClient.MToolBarPopup(Sender: TObject);
+procedure TFSession.MToolBarPopup(Sender: TObject);
 var
   Checked: Integer;
   I: Integer;
@@ -11592,7 +11597,7 @@ begin
     MToolBar.Items[I].Enabled := (Checked > 1) or not MToolBar.Items[I].Checked;
 end;
 
-procedure TFClient.mwCreateLinkExecute(Sender: TObject);
+procedure TFSession.mwCreateLinkExecute(Sender: TObject);
 var
   MenuItem: TMenuItem;
   P: TPoint;
@@ -11608,7 +11613,7 @@ begin
   end;
 end;
 
-procedure TFClient.mwCreateSectionClick(Sender: TObject);
+procedure TFSession.mwCreateSectionClick(Sender: TObject);
 var
   MenuItem: TMenuItem;
   P: TPoint;
@@ -11624,7 +11629,7 @@ begin
   end;
 end;
 
-procedure TFClient.mwDCreateForeignKeyClick(Sender: TObject);
+procedure TFSession.mwDCreateForeignKeyClick(Sender: TObject);
 var
   MenuItem: TMenuItem;
   P: TPoint;
@@ -11640,7 +11645,7 @@ begin
   end;
 end;
 
-procedure TFClient.mwDCreateTableClick(Sender: TObject);
+procedure TFSession.mwDCreateTableClick(Sender: TObject);
 var
   MenuItem: TMenuItem;
   P: TPoint;
@@ -11656,17 +11661,17 @@ begin
   end;
 end;
 
-procedure TFClient.mwERemoveClick(Sender: TObject);
+procedure TFSession.mwERemoveClick(Sender: TObject);
 begin
   MainAction('aEDelete').Execute();
 end;
 
-procedure TFClient.mwEPasteClick(Sender: TObject);
+procedure TFSession.mwEPasteClick(Sender: TObject);
 begin
   WorkbenchPasteExecute(Sender);
 end;
 
-procedure TFClient.MWorkbenchPopup(Sender: TObject);
+procedure TFSession.MWorkbenchPopup(Sender: TObject);
 var
   I: Integer;
   MenuItem: TMenuItem;
@@ -11700,16 +11705,16 @@ begin
   ShowEnabledItems(MWorkbench.Items);
 end;
 
-function TFClient.NavigatorNodeToAddress(const Node: TTreeNode): string;
+function TFSession.NavigatorNodeToAddress(const Node: TTreeNode): string;
 var
   URI: TUURI;
 begin
   URI := TUURI.Create('');
 
   URI.Scheme := 'mysql';
-  URI.Host := Client.Host;
-  if (Client.Port <> MYSQL_PORT) then
-    URI.Port := Client.Port;
+  URI.Host := Session.Host;
+  if (Session.Port <> MYSQL_PORT) then
+    URI.Port := Session.Port;
 
   if (Assigned(Node)) then
   begin
@@ -11803,21 +11808,21 @@ begin
   URI.Free();
 end;
 
-procedure TFClient.OnConvertError(Sender: TObject; Text: string);
+procedure TFSession.OnConvertError(Sender: TObject; Text: string);
 begin
   fBase.ConvertError(Sender, Text);
 end;
 
-procedure TFClient.OpenInNewTabExecute(const DatabaseName, TableName: string; const OpenNewWindow: Boolean = False; const Filename: TFileName = '');
+procedure TFSession.OpenInNewTabExecute(const DatabaseName, TableName: string; const OpenNewWindow: Boolean = False; const Filename: TFileName = '');
 var
   URI: TUURI;
 begin
   URI := TUURI.Create('');
-  URI.Host := Client.Account.Connection.Host;
-  if (Client.Account.Connection.Port <> MYSQL_PORT) then
-    URI.Port := Client.Account.Connection.Port;
-  URI.Username := Client.Account.Connection.User;
-  URI.Password := Client.Account.Connection.Password;
+  URI.Host := Session.Account.Connection.Host;
+  if (Session.Account.Connection.Port <> MYSQL_PORT) then
+    URI.Port := Session.Account.Connection.Port;
+  URI.Username := Session.Account.Connection.User;
+  URI.Password := Session.Account.Connection.Password;
   if (Filename = '') then
   begin
     URI.Database := DatabaseName;
@@ -11845,7 +11850,7 @@ begin
   URI.Free();
 end;
 
-procedure TFClient.OpenSQLFile(const AFilename: TFileName; const CodePage: Cardinal = 0; const Insert: Boolean = False);
+procedure TFSession.OpenSQLFile(const AFilename: TFileName; const CodePage: Cardinal = 0; const Insert: Boolean = False);
 var
   Answer: Integer;
   FileSize: TLargeInteger;
@@ -11868,7 +11873,7 @@ begin
   if (CodePage <> 0) then
     OpenDialog.EncodingIndex := OpenDialog.Encodings.IndexOf(CodePageToEncoding(CodePage))
   else
-    OpenDialog.EncodingIndex := OpenDialog.Encodings.IndexOf(CodePageToEncoding(Client.CodePage));
+    OpenDialog.EncodingIndex := OpenDialog.Encodings.IndexOf(CodePageToEncoding(Session.CodePage));
 
   if ((OpenDialog.FileName <> '') or OpenDialog.Execute()) then
   begin
@@ -11895,17 +11900,17 @@ begin
     if (Answer = ID_YES) then
     begin
       DImport.ImportType := itSQLFile;
-      DImport.Client := Client;
-      DImport.Database := Client.DatabaseByName(SelectedDatabase);
+      DImport.Session := Session;
+      DImport.Database := Session.DatabaseByName(SelectedDatabase);
       DImport.Table := nil;
       DImport.FileName := OpenDialog.FileName;
       DImport.CodePage := EncodingToCodePage(OpenDialog.Encodings[OpenDialog.EncodingIndex]);
       DImport.Execute();
-      Wanted.Update := Client.Update;
+      Wanted.Update := Session.Update;
     end
     else if (Answer = ID_NO) then
     begin
-      Import := TTImportSQL.Create(OpenDialog.FileName, EncodingToCodePage(OpenDialog.Encodings[OpenDialog.EncodingIndex]), Client, nil);
+      Import := TTImportSQL.Create(OpenDialog.FileName, EncodingToCodePage(OpenDialog.Encodings[OpenDialog.EncodingIndex]), Session, nil);
       Import.OnError := ImportError;
       Import.Text := @Text;
       Import.Execute();
@@ -11929,7 +11934,7 @@ begin
           FAddress := URI.Address;
           AddressChanged(nil);
           URI.Free();
-          Client.Account.Desktop.Files.Add(SQLEditor.Filename, SQLEditor.FileCodePage);
+          Session.Account.Desktop.Files.Add(SQLEditor.Filename, SQLEditor.FileCodePage);
           Window.Perform(CM_UPDATETOOLBAR, 0, LPARAM(Self));
         end;
         if (Length(FSQLEditorSynMemo.Lines.Text) < LargeSQLScriptSize) then
@@ -11945,7 +11950,7 @@ begin
   end;
 end;
 
-procedure TFClient.PanelMouseDown(Sender: TObject;
+procedure TFSession.PanelMouseDown(Sender: TObject;
   Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
   if (Button = mbLeft) then
@@ -11955,7 +11960,7 @@ begin
   end;
 end;
 
-procedure TFClient.PanelMouseMove(Sender: TObject; Shift: TShiftState; X,
+procedure TFSession.PanelMouseMove(Sender: TObject; Shift: TShiftState; X,
   Y: Integer);
 var
   Panel: TPanel_Ext;
@@ -11984,7 +11989,7 @@ begin
   end;
 end;
 
-procedure TFClient.PanelMouseUp(Sender: TObject;
+procedure TFSession.PanelMouseUp(Sender: TObject;
   Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
   Panel: TPanel_Ext;
@@ -12017,13 +12022,13 @@ begin
   end;
 end;
 
-procedure TFClient.PanelPaint(Sender: TObject);
+procedure TFSession.PanelPaint(Sender: TObject);
 begin
   if ((Sender is TPanel_Ext) and Assigned(CloseButton)) then
     TPanel_Ext(Sender).Canvas.Draw(TPanel_Ext(Sender).Width - CloseButton.Bitmap.Width - GetSystemMetrics(SM_CXEDGE), GetSystemMetrics(SM_CYEDGE), CloseButton.Bitmap)
 end;
 
-procedure TFClient.PanelResize(Sender: TObject);
+procedure TFSession.PanelResize(Sender: TObject);
 var
   ClientControl: TWinControl;
   Control: TWinControl;
@@ -12060,7 +12065,7 @@ begin
   end;
 end;
 
-procedure TFClient.PasteExecute(const Node: TTreeNode; const Objects: string);
+procedure TFSession.PasteExecute(const Node: TTreeNode; const Objects: string);
 var
   Database: TSDatabase;
   Found: Boolean;
@@ -12071,7 +12076,7 @@ var
   NewForeignKey: TSForeignKey;
   NewKey: TSKey;
   NewTable: TSBaseTable;
-  SourceClient: TSSession;
+  SourceSession: TSSession;
   SourceDatabase: TSDatabase;
   SourceRoutine: TSRoutine;
   SourceTable: TSBaseTable;
@@ -12088,27 +12093,27 @@ begin
   if (StringList.Count > 0) then
   begin
     SourceURI := TUURI.Create(StringList.Values['Address']);
-    SourceClient := Sessions.SessionByAccount(Accounts.AccountByURI(SourceURI.Address, Client.Account), SourceURI.Database);
-    if (not Assigned(SourceClient) and Assigned(Accounts.AccountByURI(SourceURI.Address))) then
+    SourceSession := Sessions.SessionByAccount(Accounts.AccountByURI(SourceURI.Address, Session.Account), SourceURI.Database);
+    if (not Assigned(SourceSession) and Assigned(Accounts.AccountByURI(SourceURI.Address))) then
     begin
-      SourceClient := TSSession.Create(Sessions, Accounts.AccountByURI(SourceURI.Address));
-      DConnecting.Client := SourceClient;
+      SourceSession := TSSession.Create(Sessions, Accounts.AccountByURI(SourceURI.Address));
+      DConnecting.Session := SourceSession;
       if (not DConnecting.Execute()) then
-        FreeAndNil(SourceClient);
+        FreeAndNil(SourceSession);
     end;
 
-    if (Assigned(SourceClient)) then
+    if (Assigned(SourceSession)) then
     begin
       Success := True;
 
       case (Node.ImageIndex) of
         iiServer:
-          if (SourceClient <> Client) then
+          if (SourceSession <> Session) then
           begin
-            DTransfer.SourceClient := SourceClient;
+            DTransfer.SourceSession := SourceSession;
             DTransfer.SourceDatabaseName := '';
             for I := 1 to StringList.Count - 1 do
-              if (Assigned(SourceClient.DatabaseByName(StringList.ValueFromIndex[I]))) then
+              if (Assigned(SourceSession.DatabaseByName(StringList.ValueFromIndex[I]))) then
               begin
                 if (DTransfer.SourceDatabaseName <> '') then
                   DTransfer.SourceDatabaseName := DTransfer.SourceDatabaseName + ',';
@@ -12119,7 +12124,7 @@ begin
             else
             begin
               DTransfer.SourceTableName := '';
-              DTransfer.DestinationClient := Client;
+              DTransfer.DestinationSession := Session;
               DTransfer.DestinationDatabaseName := '';
               DTransfer.DestinationTableName := '';
               DTransfer.Execute();
@@ -12127,16 +12132,16 @@ begin
           end
           else if (DPaste.Execute()) then
           begin
-            DDatabase.Client := Client;
-            DDatabase.Database := TSDatabase.Create(Client, Name);
+            DDatabase.Session := Session;
+            DDatabase.Database := TSDatabase.Create(Session, Name);
             for I := 1 to StringList.Count - 1 do
             begin
-              SourceDatabase := SourceClient.DatabaseByName(StringList.ValueFromIndex[I]);
+              SourceDatabase := SourceSession.DatabaseByName(StringList.ValueFromIndex[I]);
 
               if (Success and Assigned(SourceDatabase)) then
               begin
-                Name := CopyName(SourceDatabase.Name, Client.Databases);
-                if (Client.LowerCaseTableNames = 1) then
+                Name := CopyName(SourceDatabase.Name, Session.Databases);
+                if (Session.LowerCaseTableNames = 1) then
                   Name := LowerCase(Name);
 
                 DDatabase.Database.Assign(SourceDatabase);
@@ -12144,10 +12149,10 @@ begin
                 Success := DDatabase.Execute();
                 if (Success) then
                 begin
-                  SourceDatabase := SourceClient.DatabaseByName(StringList.ValueFromIndex[I]);
-                  Success := Client.CloneDatabase(SourceDatabase, Client.DatabaseByName(DDatabase.Name), DPaste.Data);
+                  SourceDatabase := SourceSession.DatabaseByName(StringList.ValueFromIndex[I]);
+                  Success := Session.CloneDatabase(SourceDatabase, Session.DatabaseByName(DDatabase.Name), DPaste.Data);
                   if (Success) then
-                    Wanted.Update := Client.Update;
+                    Wanted.Update := Session.Update;
                 end;
               end;
             end;
@@ -12155,7 +12160,7 @@ begin
           end;
         iiDatabase:
           begin
-            SourceDatabase := SourceClient.DatabaseByName(SourceURI.Database);
+            SourceDatabase := SourceSession.DatabaseByName(SourceURI.Database);
 
             if (not Assigned(SourceDatabase)) then
               MessageBeep(MB_ICONERROR)
@@ -12171,13 +12176,13 @@ begin
                 MessageBeep(MB_ICONERROR)
               else if (not Found or DPaste.Execute()) then
               begin
-                if (Found and (SourceClient <> Client)) then
+                if (Found and (SourceSession <> Session)) then
                 begin
-                  DTransfer.SourceClient := SourceClient;
+                  DTransfer.SourceSession := SourceSession;
                   DTransfer.SourceDatabaseName := SourceURI.Database;
                   DTransfer.SourceTableName := '';
                   for I := 1 to StringList.Count - 1 do
-                    if (Assigned(SourceClient.DatabaseByName(SourceURI.Database).TableByName(StringList.ValueFromIndex[I]))) then
+                    if (Assigned(SourceSession.DatabaseByName(SourceURI.Database).TableByName(StringList.ValueFromIndex[I]))) then
                     begin
                       if (DTransfer.SourceTableName <> '') then
                         DTransfer.SourceTableName := DTransfer.SourceTableName + ',';
@@ -12187,7 +12192,7 @@ begin
                     MessageBeep(MB_ICONERROR)
                   else
                   begin
-                    DTransfer.DestinationClient := Client;
+                    DTransfer.DestinationSession := Session;
                     DTransfer.DestinationDatabaseName := SelectedDatabase;
                     DTransfer.DestinationTableName := '';
                     DTransfer.Execute();
@@ -12204,7 +12209,7 @@ begin
                           MessageBeep(MB_ICONERROR)
                         else
                         begin
-                          Name := Client.TableName(CopyName(SourceTable.Name, Database.Tables));
+                          Name := Session.TableName(CopyName(SourceTable.Name, Database.Tables));
 
                           Success := Database.CloneTable(SourceTable, Name, DPaste.Data);
                         end;
@@ -12220,7 +12225,7 @@ begin
                       else
                       begin
                         Name := CopyName(SourceView.Name, Database.Tables);
-                        if (Client.LowerCaseTableNames = 1) then
+                        if (Session.LowerCaseTableNames = 1) then
                           Name := LowerCase(Name);
 
                         Success := Database.CloneView(SourceView, Name);
@@ -12279,7 +12284,7 @@ begin
           end;
         iiBaseTable:
           begin
-            SourceDatabase := SourceClient.DatabaseByName(SourceURI.Database);
+            SourceDatabase := SourceSession.DatabaseByName(SourceURI.Database);
             if (not Assigned(SourceDatabase)) then
               SourceTable := nil
             else
@@ -12289,7 +12294,7 @@ begin
               MessageBeep(MB_ICONERROR)
             else
             begin
-              Database := Client.DatabaseByName(Node.Parent.Text);
+              Database := Session.DatabaseByName(Node.Parent.Text);
               Table := Database.BaseTableByName(Node.Text);
 
               NewTable := TSBaseTable.Create(Database.Tables);
@@ -12339,15 +12344,15 @@ begin
           for I := 1 to StringList.Count - 1 do
             if (Success and (StringList.Names[I] = 'User')) then
             begin
-              SourceUser := SourceClient.UserByName(StringList.ValueFromIndex[I]);
+              SourceUser := SourceSession.UserByName(StringList.ValueFromIndex[I]);
 
               if (not Assigned(SourceUser)) then
                 MessageBeep(MB_ICONERROR)
               else
               begin
-                Name := CopyName(SourceUser.Name, Client.Users);
+                Name := CopyName(SourceUser.Name, Session.Users);
 
-                Success := Client.CloneUser(SourceUser, Name);
+                Success := Session.CloneUser(SourceUser, Name);
               end;
             end;
       end;
@@ -12358,7 +12363,7 @@ begin
   StringList.Free();
 end;
 
-procedure TFClient.PContentChange(Sender: TObject);
+procedure TFSession.PContentChange(Sender: TObject);
 
   procedure DisableAligns(const Control: TWinControl);
   var
@@ -12388,9 +12393,9 @@ var
   OldActiveControl: TWinControl;
   PResultVisible: Boolean;
 begin
-  for I := 0 to Client.Databases.Count - 1 do
-    if (Assigned(Desktop(Client.Databases[I]).FWorkbench)) then
-      Desktop(Client.Databases[I]).Workbench.Visible := Client.Databases[I].Name = SelectedDatabase;
+  for I := 0 to Session.Databases.Count - 1 do
+    if (Assigned(Desktop(Session.Databases[I]).FWorkbench)) then
+      Desktop(Session.Databases[I]).Workbench.Visible := Session.Databases[I].Name = SelectedDatabase;
 
   if (Sender <> Self) then
   begin
@@ -12591,7 +12596,7 @@ begin
   if (Assigned(PResult.OnResize)) then PResult.OnResize(PResult);
 end;
 
-procedure TFClient.PContentResize(Sender: TObject);
+procedure TFSession.PContentResize(Sender: TObject);
 begin
   SetWindowLong(FNavigator.Handle, GWL_STYLE, GetWindowLong(FNavigator.Handle, GWL_STYLE) or TVS_NOHSCROLL);
   SetWindowLong(FSQLHistory.Handle, GWL_STYLE, GetWindowLong(FSQLHistory.Handle, GWL_STYLE) or TVS_NOHSCROLL);
@@ -12603,7 +12608,7 @@ begin
   Toolbar.Width := PContent.Width;
 end;
 
-procedure TFClient.PDataBrowserResize(Sender: TObject);
+procedure TFSession.PDataBrowserResize(Sender: TObject);
 var
   I: Integer;
 begin
@@ -12617,19 +12622,19 @@ begin
       PDataBrowser.Controls[I].Height := FFilter.Height;
 end;
 
-procedure TFClient.PGridResize(Sender: TObject);
+procedure TFSession.PGridResize(Sender: TObject);
 begin
   if (Assigned(ActiveDBGrid)) then
     ActiveDBGrid.Invalidate();
 end;
 
-procedure TFClient.PLogResize(Sender: TObject);
+procedure TFSession.PLogResize(Sender: TObject);
 begin
   if (PLog.Visible and (FLog.Lines.Count > 0)) then
     PostMessage(FLog.Handle, WM_VSCROLL, SB_BOTTOM, 0);
 end;
 
-procedure TFClient.PObjectIDEResize(Sender: TObject);
+procedure TFSession.PObjectIDEResize(Sender: TObject);
 var
   I: Integer;
   NewHeight: Integer;
@@ -12654,7 +12659,7 @@ begin
   PObjectIDE.Height := NewHeight;
 end;
 
-function TFClient.PostObject(Sender: TObject): Boolean;
+function TFSession.PostObject(Sender: TObject): Boolean;
 var
   Database: TSDatabase;
   Event: TSEvent;
@@ -12665,7 +12670,7 @@ var
   Trigger: TSTrigger;
   View: TSView;
 begin
-  Database := Client.DatabaseByName(SelectedDatabase);
+  Database := Session.DatabaseByName(SelectedDatabase);
 
   case (SelectedImageIndex) of
     iiView:
@@ -12727,16 +12732,16 @@ begin
   end;
 end;
 
-procedure TFClient.PropertiesServerExecute(Sender: TObject);
+procedure TFSession.PropertiesServerExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  DServer.Client := Client;
+  DServer.Session := Session;
   DServer.Tab := Self;
   DServer.Execute();
 end;
 
-procedure TFClient.PSQLEditorUpdate();
+procedure TFSession.PSQLEditorUpdate();
 var
   Event: TSEvent;
   Routine: TSRoutine;
@@ -12765,7 +12770,7 @@ begin
   if (Assigned(ActiveSynMemo) and Assigned(ActiveSynMemo.OnStatusChange)) then ActiveSynMemo.OnStatusChange(ActiveSynMemo, [scModified]);
 end;
 
-procedure TFClient.PToolBarBlobResize(Sender: TObject);
+procedure TFSession.PToolBarBlobResize(Sender: TObject);
 var
   I: Integer;
   Widths: Integer;
@@ -12781,7 +12786,7 @@ begin
   PToolBarBlob.ClientHeight := TBBlob.Height;
 end;
 
-procedure TFClient.PViewPaint(Sender: TObject);
+procedure TFSession.PViewPaint(Sender: TObject);
 begin
   if (StyleServices.Enabled) then
   begin
@@ -12791,7 +12796,7 @@ begin
   end;
 end;
 
-function TFClient.RenameCItem(const CItem: TSItem; const NewName: string): Boolean;
+function TFSession.RenameCItem(const CItem: TSItem; const NewName: string): Boolean;
 var
   BaseTable: TSBaseTable;
   Event: TSEvent;
@@ -12865,13 +12870,13 @@ begin
   begin
     User := TSUser(CItem);
 
-    NewUser := TSUser.Create(Client.Users);
+    NewUser := TSUser.Create(Session.Users);
     NewUser.Assign(User);
     if (NewName = '<' + Preferences.LoadStr(287) + '>') then
       NewUser.Name := ''
     else
       NewUser.Name := NewName;
-    Result := Client.UpdateUser(User, NewUser);
+    Result := Session.UpdateUser(User, NewUser);
     NewUser.Free();
   end
   else
@@ -12881,7 +12886,7 @@ begin
     ActiveDBGrid.DataSource.DataSet.Close();
 end;
 
-procedure TFClient.SaveSQLFile(Sender: TObject);
+procedure TFSession.SaveSQLFile(Sender: TObject);
 var
   BytesWritten: DWord;
   FileBuffer: PAnsiChar;
@@ -12894,7 +12899,7 @@ begin
   SaveDialog.Title := ReplaceStr(Preferences.LoadStr(582), '&', '');
   SaveDialog.InitialDir := Path;
   SaveDialog.Encodings.Text := EncodingCaptions();
-  SaveDialog.EncodingIndex := SaveDialog.Encodings.IndexOf(CodePageToEncoding(Client.CodePage));
+  SaveDialog.EncodingIndex := SaveDialog.Encodings.IndexOf(CodePageToEncoding(Session.CodePage));
   if ((Sender = MainAction('aFSave')) or (Sender = MainAction('aFSaveAs'))) then
   begin
     if (SQLEditor.Filename = '') then
@@ -12986,7 +12991,7 @@ begin
         FAddress := URI.Address;
         AddressChanged(nil);
         URI.Free();
-        Client.Account.Desktop.Files.Add(SQLEditor.Filename, SQLEditor.FileCodePage);
+        Session.Account.Desktop.Files.Add(SQLEditor.Filename, SQLEditor.FileCodePage);
         Window.Perform(CM_UPDATETOOLBAR, 0, LPARAM(Self));
       end;
 
@@ -12995,7 +13000,7 @@ begin
   end;
 end;
 
-procedure TFClient.SBResultRefresh(const DataSet: TMySQLDataSet);
+procedure TFSession.SBResultRefresh(const DataSet: TMySQLDataSet);
 var
   I: Integer;
 begin
@@ -13024,16 +13029,16 @@ begin
     SBResult.Panels[I].Width := SBResult.Canvas.TextWidth(SBResult.Panels[I].Text) + 15;
 end;
 
-procedure TFClient.SearchNotFound(Sender: TObject; FindText: string);
+procedure TFSession.SearchNotFound(Sender: TObject; FindText: string);
 begin
   MsgBox(Preferences.LoadStr(533, FindText), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
 end;
 
-procedure TFClient.SendQuery(Sender: TObject; const SQL: string);
+procedure TFSession.SendQuery(Sender: TObject; const SQL: string);
 begin
   Wanted.Action := nil;
 
-  if ((Sender is TAction) and Assigned(Client.DatabaseByName(SelectedDatabase)) and not Client.DatabaseByName(SelectedDatabase).Update()) then
+  if ((Sender is TAction) and Assigned(Session.DatabaseByName(SelectedDatabase)) and not Session.DatabaseByName(SelectedDatabase).Update()) then
     Wanted.Action := TAction(Sender)
   else
     case (View) of
@@ -13044,10 +13049,10 @@ begin
             begin
               Desktop(TSRoutine(FNavigator.Selected.Data)).CloseIDEResult();
               PContentChange(Sender);
-              Client.SendSQL(SQL, Desktop(TSRoutine(FNavigator.Selected.Data)).IDEResultEvent);
+              Session.SendSQL(SQL, Desktop(TSRoutine(FNavigator.Selected.Data)).IDEResultEvent);
             end;
           iiEvent:
-            Client.SendSQL(SQL);
+            Session.SendSQL(SQL);
         end;
       vBuilder:
         case (FNavigator.Selected.ImageIndex) of
@@ -13056,19 +13061,19 @@ begin
             begin
               Desktop(TSDatabase(FNavigator.Selected.Data)).CloseBuilderResult();
               PContentChange(Sender);
-              Client.SendSQL(SQL, Desktop(TSDatabase(FNavigator.Selected.Data)).BuilderResultEvent);
+              Session.SendSQL(SQL, Desktop(TSDatabase(FNavigator.Selected.Data)).BuilderResultEvent);
             end;
         end;
       vEditor:
         begin
           SQLEditor.CloseResult();
           PContentChange(Sender);
-          Client.SendSQL(SQL, SQLEditor.ResultEvent);
+          Session.SendSQL(SQL, SQLEditor.ResultEvent);
         end;
     end;
 end;
 
-procedure TFClient.SetView(const AView: TView);
+procedure TFSession.SetView(const AView: TView);
 var
   URI: TUURI;
 begin
@@ -13113,7 +13118,7 @@ begin
       or (AView = vEditor) and not (SelectedImageIndex in [iiServer, iiDatabase, iiSystemDatabase])) then
     begin
       if (URI.Database = '') then
-        URI.Database := Client.DatabaseName;
+        URI.Database := Session.DatabaseName;
       URI.Table := '';
       URI.Param['objecttype'] := Null;
       URI.Param['object'] := Null;
@@ -13140,7 +13145,7 @@ begin
   end;
 end;
 
-procedure TFClient.SetAddress(const AAddress: string);
+procedure TFSession.SetAddress(const AAddress: string);
 var
   AllowChange: Boolean;
   ChangeEvent: TTVChangedEvent;
@@ -13159,7 +13164,7 @@ begin
   AddressChanging(nil, NewAddress, AllowChange);
   if (not AllowChange and Wanted.Nothing) then
   begin
-    NewAddress := Client.Account.ExpandAddress('/');
+    NewAddress := Session.Account.ExpandAddress('/');
     AllowChange := True;
     AddressChanging(nil, NewAddress, AllowChange);
   end;
@@ -13200,7 +13205,7 @@ begin
     case (NewView) of
       vBrowser:
         begin
-          Table := Client.DatabaseByName(URI.Database).TableByName(URI.Table);
+          Table := Session.DatabaseByName(URI.Database).TableByName(URI.Table);
 
           FUDOffset.Position := 0;
           FUDLimit.Position := Desktop(Table).Limit;
@@ -13238,7 +13243,7 @@ begin
   end;
 end;
 
-procedure TFClient.SetPath(const APath: TFileName);
+procedure TFSession.SetPath(const APath: TFileName);
 begin
   if (APath <> Preferences.Path) then
   begin
@@ -13248,27 +13253,27 @@ begin
   end;
 end;
 
-procedure TFClient.SLogCanResize(Sender: TObject; var NewSize: Integer;
+procedure TFSession.SLogCanResize(Sender: TObject; var NewSize: Integer;
   var Accept: Boolean);
 begin
   Accept := (PLog.Constraints.MinHeight <= NewSize) and (NewSize <= ClientHeight - PView.Height - SLog.Height - PContent.Constraints.MinHeight);
 end;
 
-procedure TFClient.SLogMoved(Sender: TObject);
+procedure TFSession.SLogMoved(Sender: TObject);
 begin
   FormResize(Sender);
 end;
 
-procedure TFClient.smEEmptyClick(Sender: TObject);
+procedure TFSession.smEEmptyClick(Sender: TObject);
 begin
   Wanted.Clear();
 
-  Client.SQLMonitor.Clear();
+  Session.SQLMonitor.Clear();
   FLog.Lines.Clear();
   PLogResize(nil);
 end;
 
-procedure TFClient.SplitterCanResize(Sender: TObject; var NewSize: Integer;
+procedure TFSession.SplitterCanResize(Sender: TObject; var NewSize: Integer;
   var Accept: Boolean);
 var
   I: Integer;
@@ -13295,7 +13300,7 @@ begin
   end;
 end;
 
-procedure TFClient.SQLError(DataSet: TDataSet; E: EDatabaseError; var Action: TDataAction);
+procedure TFSession.SQLError(DataSet: TDataSet; E: EDatabaseError; var Action: TDataAction);
 var
   Flags: Integer;
   Msg: string;
@@ -13322,24 +13327,24 @@ begin
   end;
 end;
 
-procedure TFClient.SResultMoved(Sender: TObject);
+procedure TFSession.SResultMoved(Sender: TObject);
 begin
   if (SBResult.Visible and (SBResult.Align = alBottom)) then
     SBResult.Top := PContent.Height - SBResult.Height;
 end;
 
-procedure TFClient.SSideBarCanResize(Sender: TObject; var NewSize: Integer;
+procedure TFSession.SSideBarCanResize(Sender: TObject; var NewSize: Integer;
   var Accept: Boolean);
 begin
   Accept := NewSize <= ClientWidth - SSideBar.Width - PContent.Constraints.MinWidth;
 end;
 
-procedure TFClient.SSideBarMoved(Sender: TObject);
+procedure TFSession.SSideBarMoved(Sender: TObject);
 begin
   FormResize(Sender);
 end;
 
-procedure TFClient.StatusBarRefresh(const Immediately: Boolean = False);
+procedure TFSession.StatusBarRefresh(const Immediately: Boolean = False);
 var
   Count: Integer;
   QueryBuilderWorkArea: TacQueryBuilderWorkArea;
@@ -13396,7 +13401,7 @@ begin
     if (((View = vBrowser) or (Window.ActiveControl = ActiveDBGrid)) and Assigned(ActiveDBGrid)) then
       if (SelCount > 0) then
         StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(888, IntToStr(SelCount))
-      else if ((View = vBrowser) and (SelectedImageIndex in [iiBaseTable, iiSystemView]) and not Client.InUse() and TSBaseTable(FNavigator.Selected.Data).ValidData and TSBaseTable(FNavigator.Selected.Data).DataSet.LimitedDataReceived and (TSBaseTable(FNavigator.Selected.Data).Rows >= 0)) then
+      else if ((View = vBrowser) and (SelectedImageIndex in [iiBaseTable, iiSystemView]) and not Session.InUse() and TSBaseTable(FNavigator.Selected.Data).ValidData and TSBaseTable(FNavigator.Selected.Data).DataSet.LimitedDataReceived and (TSBaseTable(FNavigator.Selected.Data).Rows >= 0)) then
         if (Assigned(TSBaseTable(FNavigator.Selected.Data).Engine) and TSBaseTable(FNavigator.Selected.Data).Engine.IsInnoDB) then
           StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(889, IntToStr(Count), IntToStr(TSBaseTable(FNavigator.Selected.Data).Rows))
         else
@@ -13418,14 +13423,14 @@ begin
       StatusBar.Panels[sbSummarize].Text := '';
 
 
-    if (not Client.Connected) then
+    if (not Session.Connected) then
       StatusBar.Panels[sbConnected].Text := ''
     else
-      StatusBar.Panels[sbConnected].Text := Preferences.LoadStr(519) + ': ' + FormatDateTime(FormatSettings.ShortTimeFormat, Client.LatestConnect);
+      StatusBar.Panels[sbConnected].Text := Preferences.LoadStr(519) + ': ' + FormatDateTime(FormatSettings.ShortTimeFormat, Session.LatestConnect);
   end;
 end;
 
-procedure TFClient.SynMemoApllyPreferences(const SynMemo: TSynMemo);
+procedure TFSession.SynMemoApllyPreferences(const SynMemo: TSynMemo);
 begin
   if (SynMemo <> FSQLEditorSynMemo) then
   begin
@@ -13450,7 +13455,7 @@ begin
   end;
 end;
 
-procedure TFClient.SynMemoDragDrop(Sender, Source: TObject; X, Y: Integer);
+procedure TFSession.SynMemoDragDrop(Sender, Source: TObject; X, Y: Integer);
 var
   DatabaseName: string;
   S: string;
@@ -13464,9 +13469,9 @@ begin
       else S := MouseDownNode.Text;
     end;
     SelStart := TSynMemo(Sender).SelStart;
-    TSynMemo(Sender).SelText := Client.EscapeIdentifier(S);
+    TSynMemo(Sender).SelText := Session.EscapeIdentifier(S);
     TSynMemo(Sender).SelStart := SelStart;
-    TSynMemo(Sender).SelLength := Length(Client.EscapeIdentifier(S));
+    TSynMemo(Sender).SelLength := Length(Session.EscapeIdentifier(S));
     TSynMemo(Sender).AlwaysShowCaret := False;
 
     Window.ActiveControl := TSynMemo(Sender);
@@ -13477,7 +13482,7 @@ begin
 
     DatabaseName := XMLNode(IXMLNode(MouseDownNode.Data), 'database').Text;
     if (DatabaseName <> SelectedDatabase) then
-      S := Client.SQLUse(DatabaseName) + S;
+      S := Session.SQLUse(DatabaseName) + S;
     S := ReplaceStr(ReplaceStr(S, #13#10, #10), #10, #13#10);
 
     SelStart := TSynMemo(Sender).SelStart;
@@ -13502,7 +13507,7 @@ begin
   end;
 end;
 
-procedure TFClient.SynMemoDragOver(Sender, Source: TObject; X, Y: Integer;
+procedure TFSession.SynMemoDragOver(Sender, Source: TObject; X, Y: Integer;
   State: TDragState; var Accept: Boolean);
 begin
   if (Source = FNavigator) then
@@ -13533,7 +13538,7 @@ begin
   end;
 end;
 
-procedure TFClient.SynMemoEnter(Sender: TObject);
+procedure TFSession.SynMemoEnter(Sender: TObject);
 begin
   MainAction('aECopyToFile').OnExecute := SaveSQLFile;
   MainAction('aEPasteFromFile').OnExecute := aEPasteFromExecute;
@@ -13545,7 +13550,7 @@ begin
   StatusBarRefresh();
 end;
 
-procedure TFClient.SynMemoExit(Sender: TObject);
+procedure TFSession.SynMemoExit(Sender: TObject);
 begin
   MainAction('aFImportSQL').Enabled := False;
   MainAction('aFExportSQL').Enabled := False;
@@ -13558,7 +13563,7 @@ begin
   MainAction('aHSQL').ShortCut := 0;
 end;
 
-procedure TFClient.SynMemoPrintExecute(Sender: TObject);
+procedure TFSession.SynMemoPrintExecute(Sender: TObject);
 var
   I: Integer;
   SynEdit: TSynEdit;
@@ -13616,7 +13621,7 @@ begin
   end;
 end;
 
-procedure TFClient.SynMemoStatusChange(Sender: TObject; Changes: TSynStatusChanges);
+procedure TFSession.SynMemoStatusChange(Sender: TObject; Changes: TSynStatusChanges);
 var
   Attri: TSynHighlighterAttributes;
   DDLStmt: TSQLDDLStmt;
@@ -13647,8 +13652,8 @@ begin
         or ((View = vIDE) and SQLSingleStmt(SQL) and (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent]))) and not Empty;
       MainAction('aDRunSelection').Enabled := (((ActiveSynMemo = FSQLEditorSynMemo) and not Empty) or Assigned(ActiveSynMemo) and (ActiveSynMemo.SelText <> ''));
       MainAction('aDPostObject').Enabled := (View = vIDE) and ActiveSynMemo.Modified and SQLSingleStmt(SQL)
-        and ((SelectedImageIndex in [iiView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Client.ServerVersion) and (SQLParseKeyword(Parse, 'SELECT'))
-          or (SelectedImageIndex in [iiProcedure, iiFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Client.ServerVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
+        and ((SelectedImageIndex in [iiView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.ServerVersion) and (SQLParseKeyword(Parse, 'SELECT'))
+          or (SelectedImageIndex in [iiProcedure, iiFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.ServerVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
           or (SelectedImageIndex in [iiEvent, iiTrigger]));
     end;
 
@@ -13664,7 +13669,7 @@ begin
   end;
 end;
 
-procedure TFClient.TableOpen(Sender: TObject);
+procedure TFSession.TableOpen(Sender: TObject);
 var
   FilterSQL: string;
   Limit: Integer;
@@ -13720,13 +13725,13 @@ begin
   SortDef.Free();
 end;
 
-procedure TFClient.ToolBarResize(Sender: TObject);
+procedure TFSession.ToolBarResize(Sender: TObject);
 begin
   if ((Sender is TToolBar) and (TToolBar(Sender).Parent is TPanel)) then
     TPanel(TToolBar(Sender).Parent).ClientHeight := TToolBar(Sender).Height + 2 * TToolBar(Sender).Top;
 end;
 
-procedure TFClient.ToolBarTabsClick(Sender: TObject);
+procedure TFSession.ToolBarTabsClick(Sender: TObject);
 begin
   Wanted.Clear();
 
@@ -13764,14 +13769,14 @@ begin
   PostMessage(Window.Handle, CM_CHANGEPREFERENCES, 0, 0);
 end;
 
-procedure TFClient.ToolButtonStyleClick(Sender: TObject);
+procedure TFSession.ToolButtonStyleClick(Sender: TObject);
 begin
   Wanted.Clear();
 
   TToolButton(Sender).CheckMenuDropdown();
 end;
 
-procedure TFClient.TreeViewCollapsed(Sender: TObject; Node: TTreeNode);
+procedure TFSession.TreeViewCollapsed(Sender: TObject; Node: TTreeNode);
 begin
   aPExpand.Enabled := not (Node.ImageIndex in [iiServer]) and Node.HasChildren;
   aPCollapse.Enabled := False;
@@ -13780,7 +13785,7 @@ begin
     ShowEnabledItems(TTreeView_Ext(Sender).PopupMenu.Items);
 end;
 
-procedure TFClient.TreeViewCollapsing(Sender: TObject;
+procedure TFSession.TreeViewCollapsing(Sender: TObject;
   Node: TTreeNode; var AllowCollapse: Boolean);
 begin
   if ((Sender is TTreeView_Ext) and Assigned(TTreeView_Ext(Sender).OnChange)) then
@@ -13792,7 +13797,7 @@ begin
   end;
 end;
 
-procedure TFClient.TreeViewEndDrag(Sender, Target: TObject; X, Y: Integer);
+procedure TFSession.TreeViewEndDrag(Sender, Target: TObject; X, Y: Integer);
 begin
   if (Assigned(ActiveSynMemo) and (ActiveSynMemo.AlwaysShowCaret)) then
   begin
@@ -13802,7 +13807,7 @@ begin
   end;
 end;
 
-procedure TFClient.TreeViewExpanded(Sender: TObject; Node: TTreeNode);
+procedure TFSession.TreeViewExpanded(Sender: TObject; Node: TTreeNode);
 begin
   aPExpand.Enabled := False;
   aPCollapse.Enabled := Node.ImageIndex <> iiServer;
@@ -13811,12 +13816,12 @@ begin
     ShowEnabledItems(TTreeView_Ext(Sender).PopupMenu.Items);
 end;
 
-procedure TFClient.TreeViewGetSelectedIndex(Sender: TObject; Node: TTreeNode);
+procedure TFSession.TreeViewGetSelectedIndex(Sender: TObject; Node: TTreeNode);
 begin
   Node.SelectedIndex := Node.ImageIndex;
 end;
 
-procedure TFClient.TreeViewMouseDown(Sender: TObject;
+procedure TFSession.TreeViewMouseDown(Sender: TObject;
   Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
   LeftMousePressed := (Sender is TTreeView_Ext) and (Button = mbLeft);
@@ -13825,13 +13830,13 @@ begin
   Exclude(FrameState, tsLoading);
 end;
 
-procedure TFClient.TreeViewMouseUp(Sender: TObject;
+procedure TFSession.TreeViewMouseUp(Sender: TObject;
   Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
   LeftMousePressed := False;
 end;
 
-function TFClient.UpdateAfterAddressChanged(): Boolean;
+function TFSession.UpdateAfterAddressChanged(): Boolean;
 var
   Database: TSDatabase;
   I: Integer;
@@ -13847,10 +13852,10 @@ begin
           begin
             List := TList.Create();
 
-            for I := 0 to Client.Databases.Count - 1 do
-              List.Add(Client.Databases[I]);
+            for I := 0 to Session.Databases.Count - 1 do
+              List.Add(Session.Databases[I]);
 
-            Result := not Client.Update(List, View = vObjects);
+            Result := not Session.Update(List, View = vObjects);
 
             List.Free();
           end;
@@ -13876,7 +13881,7 @@ begin
                 for I := 0 to Database.Triggers.Count - 1 do
                   List.Add(Database.Triggers[I]);
 
-              Result := not Client.Update(List);
+              Result := not Session.Update(List);
 
               List.Free();
             end;
@@ -13890,13 +13895,13 @@ begin
       begin
         Desktop(TSDatabase(FNavigator.Selected.Data)).CreateWorkbench();
         ActiveWorkbench := GetActiveWorkbench();
-        if (FileExists(Client.Account.DataPath + ActiveWorkbench.Database.Name + PathDelim + 'Diagram.xml')) then
-          ActiveWorkbench.LoadFromFile(Client.Account.DataPath + ActiveWorkbench.Database.Name + PathDelim + 'Diagram.xml');
+        if (FileExists(Session.Account.DataPath + ActiveWorkbench.Database.Name + PathDelim + 'Diagram.xml')) then
+          ActiveWorkbench.LoadFromFile(Session.Account.DataPath + ActiveWorkbench.Database.Name + PathDelim + 'Diagram.xml');
       end;
   end;
 end;
 
-procedure TFClient.WMNotify(var Message: TWMNotify);
+procedure TFSession.WMNotify(var Message: TWMNotify);
 begin
   case (Message.NMHdr^.code) of
     TVN_BEGINLABELEDIT,
@@ -13911,7 +13916,7 @@ begin
   NMListView := nil;
 end;
 
-procedure TFClient.WMParentNotify(var Message: TWMParentNotify);
+procedure TFSession.WMParentNotify(var Message: TWMParentNotify);
 var
   ClientPoint: TPoint;
   GridPoint: TPoint;
@@ -13939,7 +13944,7 @@ begin
   inherited;
 end;
 
-procedure TFClient.WMTimer(var Message: TWMTimer);
+procedure TFSession.WMTimer(var Message: TWMTimer);
 begin
   case (Message.TimerID) of
     tiNavigator:
@@ -13961,7 +13966,7 @@ begin
   end;
 end;
 
-procedure TFClient.WorkbenchAddTable(Sender: TObject);
+procedure TFSession.WorkbenchAddTable(Sender: TObject);
 var
   BaseTable: TSBaseTable;
   MenuItem: TMenuItem;
@@ -13981,7 +13986,7 @@ begin
   end;
 end;
 
-procedure TFClient.WorkbenchChange(Sender: TObject; Control: TWControl);
+procedure TFSession.WorkbenchChange(Sender: TObject; Control: TWControl);
 var
   aEPasteEnabled: Boolean;
   ClipboardData: HGLOBAL;
@@ -14034,9 +14039,9 @@ begin
       else
         TableName := '';
 
-      Table := Client.DatabaseByName(SelectedDatabase).BaseTableByName(TableName);
+      Table := Session.DatabaseByName(SelectedDatabase).BaseTableByName(TableName);
 
-      aEPasteEnabled := (AccountName = Client.Account.Name) and (DatabaseName = SelectedDatabase)
+      aEPasteEnabled := (AccountName = Session.Account.Name) and (DatabaseName = SelectedDatabase)
         and Assigned(Table) and Assigned(Table.Engine) and Table.Engine.ForeignKeyAllowed
         and not Assigned(ActiveWorkbench.TableByCaption(Table.Name));
     end;
@@ -14044,7 +14049,7 @@ begin
     Values.Free();
   end;
 
-  Database := Client.DatabaseByName(SelectedDatabase);
+  Database := Session.DatabaseByName(SelectedDatabase);
 
   aPOpenInNewWindow.Enabled := (Control is TWTable);
   aPOpenInNewTab.Enabled := (Control is TWTable);
@@ -14077,12 +14082,12 @@ begin
   aDDelete.Enabled := MainAction('aDDeleteTable').Enabled or MainAction('aDDeleteForeignKey').Enabled;
 end;
 
-procedure TFClient.WorkbenchCursorMove(Sender: TObject; X, Y: Integer);
+procedure TFSession.WorkbenchCursorMove(Sender: TObject; X, Y: Integer);
 begin
   StatusBar.Panels[sbNavigation].Text := IntToStr(X) + ':' + IntToStr(Y);
 end;
 
-procedure TFClient.WorkbenchDragDrop(Sender, Source: TObject; X, Y: Integer);
+procedure TFSession.WorkbenchDragDrop(Sender, Source: TObject; X, Y: Integer);
 begin
   if (Assigned(MouseDownNode) and (MouseDownNode.TreeView = Source) and (Source = FNavigator)
     and (FNavigator.Selected = MouseDownNode.Parent) and (MouseDownNode.ImageIndex = iiBaseTable)) then
@@ -14092,7 +14097,7 @@ begin
   end;
 end;
 
-procedure TFClient.WorkbenchDragOver(Sender, Source: TObject; X, Y: Integer;
+procedure TFSession.WorkbenchDragOver(Sender, Source: TObject; X, Y: Integer;
   State: TDragState; var Accept: Boolean);
 var
   BaseTable: TSBaseTable;
@@ -14107,7 +14112,7 @@ begin
   end;
 end;
 
-procedure TFClient.WorkbenchEmptyExecute(Sender: TObject);
+procedure TFSession.WorkbenchEmptyExecute(Sender: TObject);
 var
   BaseTable: TSBaseTable;
 begin
@@ -14120,7 +14125,7 @@ begin
   end;
 end;
 
-procedure TFClient.WorkbenchEnter(Sender: TObject);
+procedure TFSession.WorkbenchEnter(Sender: TObject);
 begin
   if (Sender is TWWorkbench) then
   begin
@@ -14130,7 +14135,7 @@ begin
   end;
 end;
 
-procedure TFClient.WorkbenchExit(Sender: TObject);
+procedure TFSession.WorkbenchExit(Sender: TObject);
 begin
   MainAction('aFExportSQL').Enabled := False;
   MainAction('aFExportText').Enabled := False;
@@ -14160,7 +14165,7 @@ begin
   MainAction('aDEmpty').Enabled := False;
 end;
 
-procedure TFClient.WorkbenchPasteExecute(Sender: TObject);
+procedure TFSession.WorkbenchPasteExecute(Sender: TObject);
 var
   aEPasteEnabled: Boolean;
   ClipboardData: HGLOBAL;
@@ -14224,7 +14229,7 @@ begin
         if ((MenuItem.GetParentMenu() is TPopupMenu)) then
           P := ActiveWorkbench.ScreenToClient(TPopupMenu(MenuItem.GetParentMenu()).PopupPoint);
       end;
-      BaseTable := Client.DatabaseByName(SelectedDatabase).BaseTableByName(TableName);
+      BaseTable := Session.DatabaseByName(SelectedDatabase).BaseTableByName(TableName);
 
       ActiveWorkbench.AddExistingTable(P.X, P.Y, BaseTable);
     end;
@@ -14233,7 +14238,7 @@ begin
   end;
 end;
 
-procedure TFClient.WorkbenchPrintExecute(Sender: TObject);
+procedure TFSession.WorkbenchPrintExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
@@ -14251,7 +14256,7 @@ begin
     ActiveWorkbench.Print(SelectedDatabase);
 end;
 
-function TFClient.WorkbenchValidateControl(Sender: TObject; Control: TWControl): Boolean;
+function TFSession.WorkbenchValidateControl(Sender: TObject; Control: TWControl): Boolean;
 var
   ChildTable: TSBaseTable;
   ParentTable: TSBaseTable;
@@ -14267,7 +14272,7 @@ begin
       DTable.Tables := nil;
       Result := DTable.Execute();
       if (Result) then
-        Wanted.Update := Client.Update;
+        Wanted.Update := Session.Update;
     end
   end
   else if (Control is TWForeignKey) then
@@ -14283,7 +14288,7 @@ begin
       DForeignKey.ForeignKey := nil;
       Result := DForeignKey.Execute();
       if (Result) then
-        Wanted.Update := Client.Update;
+        Wanted.Update := Session.Update;
     end
     else
       Result := False;

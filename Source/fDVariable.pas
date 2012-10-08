@@ -30,7 +30,7 @@ type
     procedure FormClientEvent(const Event: TSSession.TEvent);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
-    Client: TSSession;
+    Session: TSSession;
     Variable: TSVariable;
     function Execute(): Boolean;
   end;
@@ -110,7 +110,7 @@ var
 begin
   if ((ModalResult = mrOk) and GroupBox.Visible) then
   begin
-    NewVariable := TSVariable.Create(Client.Variables);
+    NewVariable := TSVariable.Create(Session.Variables);
     if (Assigned(Variable)) then
       NewVariable.Assign(Variable);
 
@@ -120,11 +120,11 @@ begin
     if (FGlobal.Checked) then Include(UpdateModes, vuGlobal);
     if (FSession.Checked) then Include(UpdateModes, vuSession);
 
-    CanClose := Client.UpdateVariable(Variable, NewVariable, UpdateModes);
+    CanClose := Session.UpdateVariable(Variable, NewVariable, UpdateModes);
 
     NewVariable.Free();
 
-    GroupBox.Visible := CanClose or not Client.Asynchron;
+    GroupBox.Visible := CanClose or not Session.Asynchron;
     PSQLWait.Visible := not GroupBox.Visible;
     if (PSQLWait.Visible) then
       ModalResult := mrNone;
@@ -135,12 +135,12 @@ end;
 
 procedure TDVariable.FormHide(Sender: TObject);
 begin
-  Client.UnRegisterEventProc(FormClientEvent);
+  Session.UnRegisterEventProc(FormClientEvent);
 end;
 
 procedure TDVariable.FormShow(Sender: TObject);
 begin
-  Client.RegisterEventProc(FormClientEvent);
+  Session.RegisterEventProc(FormClientEvent);
 
   Caption := Preferences.LoadStr(842, Variable.Name);
 
@@ -148,10 +148,10 @@ begin
   FGlobal.Checked := False;
   FSession.Checked := True;
 
-  FGlobal.Visible := Client.ServerVersion >= 40003;
-  FSession.Visible := Client.ServerVersion >= 40003;
+  FGlobal.Visible := Session.ServerVersion >= 40003;
+  FSession.Visible := Session.ServerVersion >= 40003;
 
-  FGlobal.Enabled := not Assigned(Client.UserRights) or Client.UserRights.RSuper;
+  FGlobal.Enabled := not Assigned(Session.UserRights) or Session.UserRights.RSuper;
 
   GroupBox.Visible := True;
   PSQLWait.Visible := not GroupBox.Visible;

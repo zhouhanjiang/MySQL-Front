@@ -29,7 +29,7 @@ type
   protected
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
-    Client: TSSession;
+    Session: TSSession;
     ODBCEnv: SQLHENV;
     SelectedDatabases: string;
     function Execute(): Boolean;
@@ -70,12 +70,12 @@ var
   Item: TListItem;
   J: Integer;
 begin
-  for I := 0 to Client.Databases.Count - 1 do
+  for I := 0 to Session.Databases.Count - 1 do
   begin
-    if (not (Client.Databases[I] is TSSystemDatabase)) then
+    if (not (Session.Databases[I] is TSSystemDatabase)) then
     begin
       Item := FDatabases.Items.Add();
-      Item.Caption := Client.Databases[I].Name;
+      Item.Caption := Session.Databases[I].Name;
       Item.ImageIndex := iiDatabase;
     end;
   end;
@@ -85,7 +85,7 @@ begin
   for I := 0 to Length(DatabaseNames) - 1 do
     for J := 0 to FDatabases.Items.Count - 1 do
       FDatabases.Items[J].Selected := FDatabases.Items[J].Selected
-        or (Client.Databases.NameCmp(FDatabases.Items[J].Caption, DatabaseNames[I]) = 0);
+        or (Session.Databases.NameCmp(FDatabases.Items[J].Caption, DatabaseNames[I]) = 0);
   SetLength(DatabaseNames, 0);
 
   FDatabases.SortType := stText;
@@ -127,7 +127,7 @@ end;
 procedure TDDatabases.FBOkCheckEnabled(Sender: TObject);
 begin
   FBOk.Enabled := GroupBox.Visible
-    and (Assigned(Client) or Assigned(FDatabases.Selected));
+    and (Assigned(Session) or Assigned(FDatabases.Selected));
 end;
 
 procedure TDDatabases.FDatabasesChange(Sender: TObject; Item: TListItem;
@@ -143,7 +143,7 @@ end;
 
 procedure TDDatabases.FormClientEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType in [ceItemsValid]) and (Event.CItems = Client.Databases)) then
+  if ((Event.EventType in [ceItemsValid]) and (Event.CItems = Session.Databases)) then
     Built();
 end;
 
@@ -167,8 +167,8 @@ procedure TDDatabases.FormHide(Sender: TObject);
 var
   I: Integer;
 begin
-  if (Assigned(Client)) then
-    Client.UnRegisterEventProc(FormClientEvent);
+  if (Assigned(Session)) then
+    Session.UnRegisterEventProc(FormClientEvent);
 
   if (ModalResult = mrOk) then
   begin
@@ -185,7 +185,7 @@ begin
   FDatabases.Items.Clear();
   FDatabases.Items.EndUpdate();
 
-  if (Assigned(Client)) then
+  if (Assigned(Session)) then
   begin
     Preferences.Databases.Height := Height;
     Preferences.Databases.Left := Left;
@@ -208,9 +208,9 @@ var
   Item: TListItem;
   ServerName: array [0 .. STR_LEN - 1] of SQLTCHAR;
 begin
-  if (Assigned(Client)) then
+  if (Assigned(Session)) then
   begin
-    Client.RegisterEventProc(FormClientEvent);
+    Session.RegisterEventProc(FormClientEvent);
 
     Left := Preferences.Databases.Left;
     Top := Preferences.Databases.Top;
@@ -220,7 +220,7 @@ begin
       Width := Preferences.Databases.Width;
     end;
 
-    GroupBox.Visible := Client.Databases.Update();
+    GroupBox.Visible := Session.Databases.Update();
     PSQLWait.Visible := not GroupBox.Visible;
 
     if (GroupBox.Visible) then

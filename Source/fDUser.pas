@@ -83,7 +83,7 @@ type
     procedure ListViewShowSortDirection(const ListView: TListView);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
-    Client: TSSession;
+    Session: TSSession;
     User: TSUser;
     function Execute(): Boolean;
   end;
@@ -243,7 +243,7 @@ begin
   if (Trim(FHost.Text) <> '') then
     Username := Username + '@' + Trim(FHost.Text);
 
-  FBOk.Enabled := (not Assigned(Client.UserByName(Username)) or (Client.Users.NameCmp(Username, NewUser.Name) = 0))
+  FBOk.Enabled := (not Assigned(Session.UserByName(Username)) or (Session.Users.NameCmp(Username, NewUser.Name) = 0))
     and (FRights.Items.Count > 0);
 end;
 
@@ -257,7 +257,7 @@ end;
 
 procedure TDUser.FBRightsEditClick(Sender: TObject);
 begin
-  DUserRight.Client := Client;
+  DUserRight.Session := Session;
   DUserRight.User := NewUser;
   DUserRight.UserRight := NewUser.RightByCaption(FRights.Selected.Caption);
   if (DUserRight.Execute()) then
@@ -271,7 +271,7 @@ end;
 
 procedure TDUser.FBRightsNewClick(Sender: TObject);
 begin
-  DUserRight.Client := Client;
+  DUserRight.Session := Session;
   DUserRight.User := NewUser;
   DUserRight.UserRight := nil;
   if (DUserRight.Execute()) then
@@ -325,11 +325,11 @@ begin
       NewUser.Right[I].NewPassword := NewUser.NewPassword;
 
     if (not Assigned(User)) then
-      CanClose := Client.AddUser(NewUser)
+      CanClose := Session.AddUser(NewUser)
     else
-      CanClose := Client.UpdateUser(User, NewUser);
+      CanClose := Session.UpdateUser(User, NewUser);
 
-    PageControl.Visible := CanClose or not Client.Asynchron;
+    PageControl.Visible := CanClose or not Session.Asynchron;
     PSQLWait.Visible := not PageControl.Visible;
     if (PSQLWait.Visible) then
       ModalResult := mrNone;
@@ -364,7 +364,7 @@ end;
 
 procedure TDUser.FormHide(Sender: TObject);
 begin
-  Client.UnRegisterEventProc(FormClientEvent);
+  Session.UnRegisterEventProc(FormClientEvent);
 
   Preferences.User.Width := Width;
   Preferences.User.Height := Height;
@@ -387,9 +387,9 @@ var
   NewUserRight: TSUserRight;
   UserName: string;
 begin
-  Client.RegisterEventProc(FormClientEvent);
+  Session.RegisterEventProc(FormClientEvent);
 
-  NewUser := TSUser.Create(Client.Users);
+  NewUser := TSUser.Create(Session.Users);
 
   RightsModified := False;
   if (not Assigned(User)) then
@@ -410,7 +410,7 @@ begin
     FreeAndNil(NewUserRight);
 
     FName.Text := Preferences.LoadStr(280);
-    while (Assigned(Client.UserByCaption(FName.Text))) do
+    while (Assigned(Session.UserByCaption(FName.Text))) do
     begin
       UserName := FName.Text;
       Delete(UserName, 1, Length(Preferences.LoadStr(280)));
@@ -441,12 +441,12 @@ begin
       Built();
   end;
 
-  FUserConnections.Visible := Client.ServerVersion >= 50003;
+  FUserConnections.Visible := Session.ServerVersion >= 50003;
   FLUserConnections.Visible := FUserConnections.Visible;
   FUDUserConnections.Visible := FUserConnections.Visible;
 
-  TSSlowSQLLog.TabVisible := Assigned(User) and Client.SlowLogActive;
-  TSSQLLog.TabVisible := Assigned(User) and Client.LogActive;
+  TSSlowSQLLog.TabVisible := Assigned(User) and Session.SlowLogActive;
+  TSSQLLog.TabVisible := Assigned(User) and Session.LogActive;
   TSSource.TabVisible := Assigned(User);
 
   PageControl.ActivePage := TSBasics;
@@ -501,10 +501,10 @@ var
   I: Integer;
   RGrant: Boolean;
 begin
-  RGrant := not Assigned(Client.User);
-  if (Assigned(Client.User)) then
-    for I := 0 to Client.User.RightCount - 1 do
-      RGrant := RGrant or Client.User.Right[I].RGrant;
+  RGrant := not Assigned(Session.User);
+  if (Assigned(Session.User)) then
+    for I := 0 to Session.User.RightCount - 1 do
+      RGrant := RGrant or Session.User.Right[I].RGrant;
 
   FBRightsNew.Enabled := RGrant;
   FBRightsEdit.Enabled := Selected;

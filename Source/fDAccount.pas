@@ -156,13 +156,13 @@ end;
 
 procedure TDAccount.FBDatabaseClick(Sender: TObject);
 var
-  Client: TSSession;
+  Session: TSSession;
   LibraryName: string;
 begin
   if (CheckConnectInfos()) then
   begin
-    Client := TSSession.Create(Sessions);
-    if (Assigned(Client)) then
+    Session := TSSession.Create(Sessions);
+    if (Assigned(Session)) then
     begin
       case (FConnectionType.ItemIndex) of
         0: LibraryName := '';
@@ -170,20 +170,20 @@ begin
         2: LibraryName := FHTTPTunnelURI.Text;
       end;
 
-      Client.BeginSilent();
-      Client.FirstConnect(FConnectionType.ItemIndex, LibraryName, FHost.Text, FUser.Text, FPassword.Text, '', FUDPort.Position, True);
-      if (Client.ErrorCode <> 0) then
-        Client.OnSQLError(Client, Client.ErrorCode, Client.ErrorMessage)
-      else if (Client.Connected) then
+      Session.BeginSilent();
+      Session.FirstConnect(FConnectionType.ItemIndex, LibraryName, FHost.Text, FUser.Text, FPassword.Text, '', FUDPort.Position, True);
+      if (Session.ErrorCode <> 0) then
+        Session.OnSQLError(Session, Session.ErrorCode, Session.ErrorMessage)
+      else if (Session.Connected) then
       begin
-        DDatabases.Client := Client;
+        DDatabases.Session := Session;
         DDatabases.SelectedDatabases := FDatabase.Text;
         if (DDatabases.Execute()) then
           FDatabase.Text := DDatabases.SelectedDatabases;
       end;
-      Client.EndSilent();
+      Session.EndSilent();
 
-      Client.Free();
+      Session.Free();
     end;
 
     ActiveControl := FDatabase;

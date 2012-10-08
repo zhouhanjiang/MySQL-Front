@@ -8,7 +8,7 @@ uses
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext,
   MySQLDB,
   fSession, fPreferences, fTools,
-  fBase, fFClient;
+  fBase, fFSession;
 
 type
   TDSTableItem = record
@@ -97,11 +97,11 @@ type
     procedure TSSelectShow(Sender: TObject);
     procedure FSelectGetImageIndex(Sender: TObject; Node: TTreeNode);
   private
-    Clients: array of TSSession;
-    ExecuteClient: TSSession;
+    Sessions: array of TSSession;
+    ExecuteSession: TSSession;
     Search: TTSearch;
     ProgressInfos: TTools.TProgressInfos;
-    ReplaceClient: TSSession;
+    ReplaceSession: TSSession;
     SQLWait: Boolean;
     Tables: array of TDSTableItem;
     WantedExecute: Boolean;
@@ -115,10 +115,10 @@ type
     procedure CMExecutedDone(var Message: TMessage); message CM_EXECUTIONDONE;
     procedure CMUpdateProgressInfo(var Message: TMessage); message CM_UPDATEPROGRESSINFO;
   public
-    Client: TSSession;
+    Session: TSSession;
     DatabaseName: string;
     FieldName: string;
-    Frame: TFClient;
+    Frame: TFSession;
     SearchOnly: Boolean;
     TableName: string;
     function Execute(): Boolean;
@@ -200,10 +200,10 @@ begin
     MsgBox(Preferences.LoadStr(533, Search.FindText), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
 
   FreeAndNil(Search);
-  if (Assigned(ExecuteClient)) then
-    ExecuteClient := nil;
-  if (Assigned(ReplaceClient)) then
-    FreeAndNil(ReplaceClient);
+  if (Assigned(ExecuteSession)) then
+    ExecuteSession := nil;
+  if (Assigned(ReplaceSession)) then
+    FreeAndNil(ReplaceSession);
 
   ModalResult := mrNone;
 
@@ -251,20 +251,20 @@ begin
   begin
     Found := False;
     for I := 0 to Length(Tables) - 1 do
-      if ((Tables[I].Account = ExecuteClient.Account) and (Tables[I].DatabaseName = CurrentItem^.DatabaseName) and (Tables[I].TableName = CurrentItem^.TableName)) then
+      if ((Tables[I].Account = ExecuteSession.Account) and (Tables[I].DatabaseName = CurrentItem^.DatabaseName) and (Tables[I].TableName = CurrentItem^.TableName)) then
         Found := True;
 
     if (not Found) then
     begin
       SetLength(Tables, Length(Tables) + 1);
 
-      Tables[Length(Tables) - 1].Account := ExecuteClient.Account;
+      Tables[Length(Tables) - 1].Account := ExecuteSession.Account;
       Tables[Length(Tables) - 1].DatabaseName := CurrentItem^.DatabaseName;
       Tables[Length(Tables) - 1].TableName := CurrentItem^.TableName;
 
       Item := FTables.Items.Add();
       if (not (FSelect.Selected.ImageIndex in [iiDatabase, iiBaseTable, iiField])) then
-        Item.Caption := Item.Caption + ExecuteClient.Account.Name + '.';
+        Item.Caption := Item.Caption + ExecuteSession.Account.Name + '.';
       Item.Caption := Item.Caption + CurrentItem^.DatabaseName + '.';
       Item.Caption := Item.Caption + CurrentItem^.TableName + ' (' + IntToStr(CurrentItem^.RecordsFound) + ')';
     end;
@@ -393,14 +393,14 @@ begin
   FSelect.Items.Clear();
   FSelect.Items.EndUpdate();
 
-  for I := 0 to Length(Clients) - 1 do
-    if (Assigned(Clients[I])) then
+  for I := 0 to Length(Sessions) - 1 do
+    if (Assigned(Sessions[I])) then
     begin
-      Clients[I].UnRegisterEventProc(FormClientEvent);
-      if (Clients[I] <> Client) then
-        FreeAndNil(Clients[I]);
+      Sessions[I].UnRegisterEventProc(FormClientEvent);
+      if (Sessions[I] <> Session) then
+        FreeAndNil(Sessions[I]);
     end;
-  SetLength(Clients, 0);
+  SetLength(Sessions, 0);
 
   if (SearchOnly) then
   begin
@@ -486,23 +486,23 @@ begin
   FTables.Visible := SearchOnly;
   FFFindTextChange(Sender);
 
-  SetLength(Clients, Accounts.Count);
+  SetLength(Sessions, Accounts.Count);
 
   for I := 0 to Accounts.Count - 1 do
   begin
-    if (Assigned(Client) and (Accounts[I] = Client.Account)) then
-      Clients[I] := Client
+    if (Assigned(Session) and (Accounts[I] = Session.Account)) then
+      Sessions[I] := Session
     else
-      Clients[I] := nil;
+      Sessions[I] := nil;
 
     Node := FSelect.Items.Add(nil, Accounts[I].Name);
     Node.ImageIndex := iiServer;
     Node.HasChildren := True;
   end;
 
-  if (Assigned(Client)) then
+  if (Assigned(Session)) then
   begin
-    Client.BeginSynchron();
+    Session.BeginSynchron();
 
     SelectedNodes := TList.Create();
     DatabaseNames := TStringList.Create();
@@ -516,7 +516,7 @@ begin
     AccountNode := FSelect.TopItem;
     while (Assigned(AccountNode)) do
     begin
-      if (AccountNode.Text = Client.Account.Name) then
+      if (AccountNode.Text = Session.Account.Name) then
       begin
         if (DatabaseNames.Count = 0) then
           AccountNode.Selected := True
@@ -573,7 +573,7 @@ begin
     TableNames.Free();
     FieldNames.Free();
 
-    Client.EndSynchron();
+    Session.EndSynchron();
   end;
 
   FFFindText.Text := '';
@@ -624,7 +624,7 @@ end;
 procedure TDSearch.FSelectExpanding(Sender: TObject; Node: TTreeNode;
   var AllowExpansion: Boolean);
 var
-  Client: TSSession;
+  Session: TSSession;
   Database: TSDatabase;
   I: Integer;
   NewNode: TTreeNode;
@@ -635,9 +635,9 @@ begin
 
   if (Assigned(WantedNodeExpand)) then
   begin
-    for I := 0 to Length(Clients) - 1 do
-      if (Assigned(Clients[I])) then
-        Clients[I].UnRegisterEventProc(FormClientEvent);
+    for I := 0 to Length(Sessions) - 1 do
+      if (Assigned(Sessions[I])) then
+        Sessions[I].UnRegisterEventProc(FormClientEvent);
     WantedNodeExpand := nil;
   end;
 
@@ -647,18 +647,18 @@ begin
       case (Node.ImageIndex) of
         iiServer:
           begin
-            Client := GetClient(Node.Index);
-            if (Assigned(Client)) then
-              if (not Client.Update() and Client.Asynchron) then
+            Session := GetClient(Node.Index);
+            if (Assigned(Session)) then
+              if (not Session.Update() and Session.Asynchron) then
                 WantedNodeExpand := Node
               else
               begin
-                for I := 0 to Client.Databases.Count - 1 do
-                  if (not (Client.Databases[I] is TSSystemDatabase)) then
+                for I := 0 to Session.Databases.Count - 1 do
+                  if (not (Session.Databases[I] is TSSystemDatabase)) then
                   begin
-                    NewNode := TreeView.Items.AddChild(Node, Client.Databases[I].Name);
+                    NewNode := TreeView.Items.AddChild(Node, Session.Databases[I].Name);
                     NewNode.ImageIndex := iiDatabase;
-                    NewNode.Data := Client.Databases[I];
+                    NewNode.Data := Session.Databases[I];
                     NewNode.HasChildren := True;
                   end;
                 Node.HasChildren := Assigned(Node.getFirstChild());
@@ -666,9 +666,9 @@ begin
           end;
         iiDatabase:
           begin
-            Client := GetClient(Node.Parent.Index);
-            Database := Client.DatabaseByName(Node.Text);
-            if ((not Database.Tables.Update() or not Client.Update(Database.Tables)) and Client.Asynchron) then
+            Session := GetClient(Node.Parent.Index);
+            Database := Session.DatabaseByName(Node.Text);
+            if ((not Database.Tables.Update() or not Session.Update(Database.Tables)) and Session.Asynchron) then
               WantedNodeExpand := Node
             else
             begin
@@ -685,8 +685,8 @@ begin
           end;
         iiBaseTable:
           begin
-            Client := GetClient(Node.Parent.Parent.Index);
-            Database := Client.DatabaseByName(Node.Parent.Text);
+            Session := GetClient(Node.Parent.Parent.Index);
+            Database := Session.DatabaseByName(Node.Parent.Text);
             Table := Database.BaseTableByName(Node.Text);
             if (not Table.Update()) then
               WantedNodeExpand := Node
@@ -714,7 +714,7 @@ procedure TDSearch.FTablesDblClick(Sender: TObject);
 var
   Result: Boolean;
   URI: TUURI;
-  ViewFrame: TFClient;
+  ViewFrame: TFSession;
 begin
   if (Assigned(FTables.Selected)) then
   begin
@@ -730,7 +730,7 @@ begin
     if (Assigned(Frame)) then
       ViewFrame := Frame
     else
-      ViewFrame := TFClient(Tables[FTables.Selected.Index].Account.Frame());
+      ViewFrame := TFSession(Tables[FTables.Selected.Index].Account.Frame());
 
     Result := True;
     if (Assigned(ViewFrame)) then
@@ -747,15 +747,15 @@ end;
 
 function TDSearch.GetClient(const Index: Integer): TSSession;
 begin
-  if (not Assigned(Clients[Index])) then
+  if (not Assigned(Sessions[Index])) then
   begin
-    Clients[Index] := TSSession.Create(fSession.Sessions, Accounts[Index]);
-    DConnecting.Client := Clients[Index];
+    Sessions[Index] := TSSession.Create(fSession.Sessions, Accounts[Index]);
+    DConnecting.Session := Sessions[Index];
     if (not DConnecting.Execute()) then
-      FreeAndNil(Clients[Index]);
+      FreeAndNil(Sessions[Index]);
   end;
 
-  Result := Clients[Index];
+  Result := Sessions[Index];
 
   if (Assigned(Result)) then
     Result.RegisterEventProc(FormClientEvent);
@@ -796,11 +796,11 @@ begin
   case (Error.ErrorType) of
     TE_Database:
       begin
-        Msg := Preferences.LoadStr(165, IntToStr(Item.Client.ErrorCode), Item.Client.ErrorMessage);
-        ErrorMsg := SQLUnwrapStmt(Item.Client.ErrorMessage);
-        if (Item.Client.ErrorCode > 0) then
-          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Item.Client.ErrorCode) + ')';
-        ErrorMsg := ErrorMsg + '  -  ' + SQLUnwrapStmt(Item.Client.CommandText);
+        Msg := Preferences.LoadStr(165, IntToStr(Item.Session.ErrorCode), Item.Session.ErrorMessage);
+        ErrorMsg := SQLUnwrapStmt(Item.Session.ErrorMessage);
+        if (Item.Session.ErrorCode > 0) then
+          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Item.Session.ErrorCode) + ')';
+        ErrorMsg := ErrorMsg + '  -  ' + SQLUnwrapStmt(Item.Session.CommandText);
       end;
     TE_File:
       begin
@@ -871,7 +871,7 @@ end;
 
 procedure TDSearch.TSExecuteShow(Sender: TObject);
 
-  procedure InitializeNode(const Client: TSSession; const Node: TTreeNode);
+  procedure InitializeNode(const Session: TSSession; const Node: TTreeNode);
   var
     Database: TSDatabase;
     I: Integer;
@@ -882,32 +882,32 @@ procedure TDSearch.TSExecuteShow(Sender: TObject);
     case (Node.ImageIndex) of
       iiServer:
         begin
-          WantedExecute := not Client.Update() and Client.Asynchron;
+          WantedExecute := not Session.Update() and Session.Asynchron;
           if (not WantedExecute) then
-            for I := 0 to Client.Databases.Count - 1 do
-              if (not WantedExecute and not (Client.Databases[I] is TSSystemDatabase)) then
+            for I := 0 to Session.Databases.Count - 1 do
+              if (not WantedExecute and not (Session.Databases[I] is TSSystemDatabase)) then
               begin
-                Database := Client.Databases[I];
-                WantedExecute := not Database.Tables.Update() and Client.Asynchron;
+                Database := Session.Databases[I];
+                WantedExecute := not Database.Tables.Update() and Session.Asynchron;
                 if (not WantedExecute) then
                 begin
                   for J := 0 to Database.Tables.Count - 1 do
                     if (Database.Tables[J] is TSBaseTable) then
                       Objects.Add(Database.Tables[J]);
-                  WantedExecute := not Client.Update(Objects);
+                  WantedExecute := not Session.Update(Objects);
                 end;
               end;
         end;
       iiDatabase:
         begin
-          Database := Client.DatabaseByName(Node.Text);
-          WantedExecute := not Database.Tables.Update() and Client.Asynchron;
+          Database := Session.DatabaseByName(Node.Text);
+          WantedExecute := not Database.Tables.Update() and Session.Asynchron;
           if (not WantedExecute) then
           begin
             for J := 0 to Database.Tables.Count - 1 do
               if (Database.Tables[J] is TSBaseTable) then
                 Objects.Add(Database.Tables[J]);
-            WantedExecute := not Client.Update(Objects);
+            WantedExecute := not Session.Update(Objects);
           end;
         end;
       iiBaseTable:
@@ -915,14 +915,14 @@ procedure TDSearch.TSExecuteShow(Sender: TObject);
           for J := 0 to Node.Parent.Count - 1 do
             if (Node.Parent.Item[J].Selected) then
               Objects.Add(Node.Parent.Item[J].Data);
-          WantedExecute := not Client.Update(Objects);
+          WantedExecute := not Session.Update(Objects);
         end;
     end;
     Objects.Free();
   end;
 
 var
-  Client: TSSession;
+  Session: TSSession;
   Database: TSDatabase;
   I: Integer;
   J: Integer;
@@ -954,8 +954,8 @@ begin
 
   Node := FSelect.Selected;
   while (Assigned(Node.Parent)) do Node := Node.Parent;
-  Client := GetClient(Node.Index);
-  InitializeNode(Client, FSelect.Selected);
+  Session := GetClient(Node.Index);
+  InitializeNode(Session, FSelect.Selected);
 
   if (not WantedExecute) then
   begin
@@ -982,13 +982,13 @@ begin
 
     Preferences.Replace.Backup := FBackup.Checked;
 
-    ExecuteClient := Client;
+    ExecuteSession := Session;
 
     if (SearchOnly) then
     begin
       SetLength(Tables, 0);
 
-      Search := TTSearch.Create(ExecuteClient);
+      Search := TTSearch.Create(ExecuteSession);
 
       Search.Wnd := Self.Handle;
       Search.FindText := FFFindText.Text;
@@ -998,13 +998,13 @@ begin
     end
     else
     begin
-      ReplaceClient := TSSession.Create(fSession.Sessions, ExecuteClient.Account);
-      DConnecting.Client := ReplaceClient;
+      ReplaceSession := TSSession.Create(fSession.Sessions, ExecuteSession.Account);
+      DConnecting.Session := ReplaceSession;
       if (not DConnecting.Execute()) then
-        FreeAndNil(ReplaceClient)
+        FreeAndNil(ReplaceSession)
       else
       begin
-        Search := TTReplace.Create(ExecuteClient, ReplaceClient);
+        Search := TTReplace.Create(ExecuteSession, ReplaceSession);
 
         TTReplace(Search).Wnd := Self.Handle;
         TTReplace(Search).OnError := OnError;
@@ -1025,21 +1025,21 @@ begin
       begin
         if (FSelect.Selected.ImageIndex = iiField) then
         begin
-          Database := ExecuteClient.DatabaseByName(FSelect.Items[I].Parent.Parent.Text);
+          Database := ExecuteSession.DatabaseByName(FSelect.Items[I].Parent.Parent.Text);
           Table := Database.BaseTableByName(FSelect.Items[I].Parent.Text);
           List.Add(Table);
           Search.Add(Table, Table.FieldByName(FSelect.Items[I].Text));
         end
         else if (FSelect.Items[I].ImageIndex = iiBaseTable) then
         begin
-          Database := ExecuteClient.DatabaseByName(FSelect.Items[I].Parent.Text);
+          Database := ExecuteSession.DatabaseByName(FSelect.Items[I].Parent.Text);
           Table := Database.BaseTableByName(FSelect.Items[I].Text);
           List.Add(Table);
           Search.Add(Table, nil);
         end
         else if (FSelect.Items[I].ImageIndex = iiDatabase) then
         begin
-          Database := ExecuteClient.DatabaseByName(FSelect.Items[I].Text);
+          Database := ExecuteSession.DatabaseByName(FSelect.Items[I].Text);
           for J := 0 to Database.Tables.Count - 1 do
             if ((Database.Tables[J] is TSBaseTable)  and (RightStr(Database.Tables[J].Name, Length(BackupExtension)) <> BackupExtension)) then
             begin
@@ -1050,9 +1050,9 @@ begin
         end
         else // iiConnection
         begin
-          for K := 0 to ExecuteClient.Databases.Count - 1 do
+          for K := 0 to ExecuteSession.Databases.Count - 1 do
           begin
-            Database := ExecuteClient.Databases[K];
+            Database := ExecuteSession.Databases[K];
             if (not (Database is TSSystemDatabase)) then
               for J := 0 to Database.Tables.Count - 1 do
                 if ((Database.Tables[J] is TSBaseTable)  and (RightStr(Database.Tables[J].Name, Length(BackupExtension)) <> BackupExtension)) then
@@ -1069,7 +1069,7 @@ begin
         TSTable(List[I]).InvalidateData();
     List.Free();
 
-    if (ExecuteClient.Asynchron) then
+    if (ExecuteSession.Asynchron) then
       Search.Start()
     else
       Search.Execute();

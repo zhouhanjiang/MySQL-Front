@@ -59,7 +59,7 @@ type
     function GetName(): string;
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
-    Client: TSSession;
+    Session: TSSession;
     Database: TSDatabase;
     function Execute(): Boolean;
     property Name: string read GetName;
@@ -166,7 +166,7 @@ end;
 procedure TDDatabase.FBOkCheckEnabled(Sender: TObject);
 begin
   FBOk.Enabled := (FName.Text <> '')
-    and (not Assigned(Client.DatabaseByName(FName.Text)) or (Assigned(Database) and (((Client.LowerCaseTableNames = 0) and (FName.Text = Database.Name)) or ((Client.LowerCaseTableNames > 0) and ((lstrcmpi(PChar(FName.Text), PChar(Database.Name)) = 0))))));
+    and (not Assigned(Session.DatabaseByName(FName.Text)) or (Assigned(Database) and (((Session.LowerCaseTableNames = 0) and (FName.Text = Database.Name)) or ((Session.LowerCaseTableNames > 0) and ((lstrcmpi(PChar(FName.Text), PChar(Database.Name)) = 0))))));
 end;
 
 procedure TDDatabase.FCollationChange(Sender: TObject);
@@ -179,11 +179,11 @@ procedure TDDatabase.FCollationDropDown(Sender: TObject);
 var
   I, J: Integer;
 begin
-  if (Assigned(Client.Collations) and (FCollation.ItemIndex < 0)) then
-    for I := 0 to Client.Collations.Count - 1 do
-      if ((lstrcmpi(PChar(Client.Collations[I].Charset.Name), PChar(FDefaultCharset.Text)) = 0) and Client.Collations[I].Default) then
+  if (Assigned(Session.Collations) and (FCollation.ItemIndex < 0)) then
+    for I := 0 to Session.Collations.Count - 1 do
+      if ((lstrcmpi(PChar(Session.Collations[I].Charset.Name), PChar(FDefaultCharset.Text)) = 0) and Session.Collations[I].Default) then
         for J := 1 to FCollation.Items.Count - 1 do
-          if (lstrcmpi(PChar(FCollation.Items[J]), PChar(Client.Collations[I].Name)) = 0) then
+          if (lstrcmpi(PChar(FCollation.Items[J]), PChar(Session.Collations[I].Name)) = 0) then
             FCollation.ItemIndex := FCollation.Items.IndexOf(FCollation.Items[J]);
 
   TSSource.TabVisible := False;
@@ -196,14 +196,14 @@ var
   Charset: TSCharset;
   I: Integer;
 begin
-  Charset := Client.CharsetByName(FDefaultCharset.Text);
+  Charset := Session.CharsetByName(FDefaultCharset.Text);
 
   FCollation.Items.Clear();
   FCollation.Items.Add('');
-  if (Assigned(Client.Collations)) then
-    for I := 0 to Client.Collations.Count - 1 do
-      if (Client.Collations[I].Charset = Charset) then
-        FCollation.Items.Add(Client.Collations[I].Name);
+  if (Assigned(Session.Collations)) then
+    for I := 0 to Session.Collations.Count - 1 do
+      if (Session.Collations[I].Charset = Charset) then
+        FCollation.Items.Add(Session.Collations[I].Name);
 
   FCollation.Enabled := FDefaultCharset.Text <> ''; FLCollation.Enabled := FCollation.Enabled;
 
@@ -243,7 +243,7 @@ var
 begin
   if ((ModalResult = mrOk) and PageControl.Visible) then
   begin
-    NewDatabase := TSDatabase.Create(Client);
+    NewDatabase := TSDatabase.Create(Session);
     if (Assigned(Database)) then
       NewDatabase.Assign(Database);
 
@@ -257,14 +257,14 @@ begin
     else
       NewDatabase.Collation := Trim(FCollation.Text);
 
-    if (not Assigned(Database) or not Assigned(Client.DatabaseByName(Database.Name))) then
-      CanClose := Client.AddDatabase(NewDatabase)
+    if (not Assigned(Database) or not Assigned(Session.DatabaseByName(Database.Name))) then
+      CanClose := Session.AddDatabase(NewDatabase)
     else
-      CanClose := Client.UpdateDatabase(Database, NewDatabase);
+      CanClose := Session.UpdateDatabase(Database, NewDatabase);
 
     NewDatabase.Free();
 
-    PageControl.Visible := CanClose or not Client.Asynchron;
+    PageControl.Visible := CanClose or not Session.Asynchron;
     PSQLWait.Visible := not PageControl.Visible;
     if (PSQLWait.Visible) then
       ModalResult := mrNone;
@@ -293,7 +293,7 @@ end;
 
 procedure TDDatabase.FormHide(Sender: TObject);
 begin
-  Client.UnRegisterEventProc(FormClientEvent);
+  Session.UnRegisterEventProc(FormClientEvent);
 
   Preferences.Database.Width := Width;
   Preferences.Database.Height := Height;
@@ -308,7 +308,7 @@ var
   DatabaseName: string;
   I: Integer;
 begin
-  Client.RegisterEventProc(FormClientEvent);
+  Session.RegisterEventProc(FormClientEvent);
 
   if (not Assigned(Database)) then
     Caption := Preferences.LoadStr(147)
@@ -320,21 +320,21 @@ begin
   else
     HelpContext := 1095;
 
-  if (not Assigned(Database) and (Client.LowerCaseTableNames = 1)) then
+  if (not Assigned(Database) and (Session.LowerCaseTableNames = 1)) then
     FName.CharCase := ecLowerCase
   else
     FName.CharCase := ecNormal;
 
   FDefaultCharset.Items.Clear();
   FDefaultCharset.Items.Add('');
-  for I := 0 to Client.Charsets.Count - 1 do
-    FDefaultCharset.Items.Add(Client.Charsets[I].Name);
+  for I := 0 to Session.Charsets.Count - 1 do
+    FDefaultCharset.Items.Add(Session.Charsets[I].Name);
   FDefaultCharset.Text := ''; FDefaultCharsetChange(Sender);
 
   if (not Assigned(Database)) then
   begin
     FName.Text := Preferences.LoadStr(145);
-    while (Assigned(Client.DatabaseByName(FName.Text))) do
+    while (Assigned(Session.DatabaseByName(FName.Text))) do
     begin
       DatabaseName := FName.Text;
       Delete(DatabaseName, 1, Length(Preferences.LoadStr(145)));
@@ -343,7 +343,7 @@ begin
       FName.Text := DatabaseName;
     end;
 
-    FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf(Client.DefaultCharset); FDefaultCharsetChange(Sender);
+    FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf(Session.DefaultCharset); FDefaultCharsetChange(Sender);
     FCollation.ItemIndex := -1;
 
     TSSource.TabVisible := False;
@@ -360,9 +360,9 @@ begin
       Built();
   end;
 
-  FName.Enabled := not Assigned(Database) or not Assigned(Client.DatabaseByName(Database.Name));
-  FDefaultCharset.Visible := Client.ServerVersion >= 40101; FLDefaultCharset.Visible := FDefaultCharset.Visible;
-  FCollation.Visible := Client.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
+  FName.Enabled := not Assigned(Database) or not Assigned(Session.DatabaseByName(Database.Name));
+  FDefaultCharset.Visible := Session.ServerVersion >= 40101; FLDefaultCharset.Visible := FDefaultCharset.Visible;
+  FCollation.Visible := Session.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
   TSInformations.TabVisible := not FName.Enabled;
 
   FName.SelectAll();

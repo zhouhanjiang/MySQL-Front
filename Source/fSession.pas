@@ -4774,53 +4774,52 @@ begin
     QueryBuilder.SyntaxProvider := Session.SyntaxProvider;
     QueryBuilder.MetadataProvider := Session.MetadataProvider;
     try
-      QueryBuilder.SQL := 'SELECT * FROM (t1 JOIN t2);';
+      QueryBuilder.SQL := Stmt;
+
+      Expressions := TList.Create();
+      GetExpressions(QueryBuilder.ResultQueryAST, Expressions);
+      for I := 0 to Expressions.Count - 1 do
+        if ((TSQLExpressionItem(Expressions[I]) is TSQLExpressionColumn)) then
+        begin
+          SQL := TSQLExpressionFunction(Expressions[I]).Name.QualifiedNameWithQuotes;
+          if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.ServerVersion)) then
+          begin
+            DatabaseName := Database.Name;
+            if (SQLParseObjectName(Parse, DatabaseName, ObjectName)
+              and Assigned(Session.DatabaseByName(DatabaseName))
+              and Assigned(Session.DatabaseByName(DatabaseName).TableByName(ObjectName))) then
+            begin
+              Dependency := TSDependency.Create();
+              Dependency.DatabaseName := DatabaseName;
+              Dependency.ObjectClass := Session.DatabaseByName(DatabaseName).TableByName(ObjectName).ClassType;
+              Dependency.ObjectName := ObjectName;
+              FDependencies.Add(Dependency);
+            end;
+          end;
+        end
+        else if ((TSQLExpressionItem(Expressions[I]) is TSQLExpressionFunction)) then
+        begin
+          SQL := TSQLExpressionFunction(Expressions[I]).Name.QualifiedNameWithQuotes;
+          if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.ServerVersion)) then
+          begin
+            DatabaseName := Database.Name;
+            if (SQLParseObjectName(Parse, DatabaseName, ObjectName)
+              and Assigned(Session.DatabaseByName(DatabaseName))
+              and Assigned(Session.DatabaseByName(DatabaseName).FunctionByName(ObjectName))) then
+            begin
+              Dependency := TSDependency.Create();
+              Dependency.DatabaseName := DatabaseName;
+              Dependency.ObjectClass := TSFunction;
+              Dependency.ObjectName := ObjectName;
+              FDependencies.Add(Dependency);
+            end;
+          end;
+        end;
+      Expressions.Free();
     except
-      on E: EacSQLError do
-        raise EacSQLError.Create(E.Message + ': ' + Stmt);
+//      on E: EacSQLError do
+//        raise EacSQLError.Create(E.Message + ': ' + Stmt);
     end;
-
-    Expressions := TList.Create();
-    GetExpressions(QueryBuilder.ResultQueryAST, Expressions);
-    for I := 0 to Expressions.Count - 1 do
-      if ((TSQLExpressionItem(Expressions[I]) is TSQLExpressionColumn)) then
-      begin
-        SQL := TSQLExpressionFunction(Expressions[I]).Name.QualifiedNameWithQuotes;
-        if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.ServerVersion)) then
-        begin
-          DatabaseName := Database.Name;
-          if (SQLParseObjectName(Parse, DatabaseName, ObjectName)
-            and Assigned(Session.DatabaseByName(DatabaseName))
-            and Assigned(Session.DatabaseByName(DatabaseName).TableByName(ObjectName))) then
-          begin
-            Dependency := TSDependency.Create();
-            Dependency.DatabaseName := DatabaseName;
-            Dependency.ObjectClass := Session.DatabaseByName(DatabaseName).TableByName(ObjectName).ClassType;
-            Dependency.ObjectName := ObjectName;
-            FDependencies.Add(Dependency);
-          end;
-        end;
-      end
-      else if ((TSQLExpressionItem(Expressions[I]) is TSQLExpressionFunction)) then
-      begin
-        SQL := TSQLExpressionFunction(Expressions[I]).Name.QualifiedNameWithQuotes;
-        if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.ServerVersion)) then
-        begin
-          DatabaseName := Database.Name;
-          if (SQLParseObjectName(Parse, DatabaseName, ObjectName)
-            and Assigned(Session.DatabaseByName(DatabaseName))
-            and Assigned(Session.DatabaseByName(DatabaseName).FunctionByName(ObjectName))) then
-          begin
-            Dependency := TSDependency.Create();
-            Dependency.DatabaseName := DatabaseName;
-            Dependency.ObjectClass := TSFunction;
-            Dependency.ObjectName := ObjectName;
-            FDependencies.Add(Dependency);
-          end;
-        end;
-      end;
-    Expressions.Free();
-
     QueryBuilder.Free();
   end;
 

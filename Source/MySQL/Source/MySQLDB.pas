@@ -1250,6 +1250,8 @@ begin
 end;
 
 function AnsiCharToWideChar(const CodePage: UINT; const lpMultiByteStr: LPCSTR; const cchMultiByte: Integer; const lpWideCharStr: LPWSTR; const cchWideChar: Integer): Integer;
+var
+  Index: Integer;
 begin
   if (not Assigned(lpMultiByteStr) or (cchMultiByte = 0)) then
     Result := 0
@@ -1257,7 +1259,12 @@ begin
   begin
     Result := MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, lpMultiByteStr, cchMultiByte, lpWideCharStr, cchWideChar);
     if (Result = 0) then
-      raise EOSError.CreateFmt(SOSError + ' (CodePage: %d)', [GetLastError(), SysErrorMessage(GetLastError()), CodePage]);
+    begin
+      Index := cchMultiByte - 1;
+      while ((Index > 0) and (MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, lpMultiByteStr, Index, nil, 0) = 0)) do
+        Dec(Index);
+      raise EOSError.CreateFmt(SOSError + ' near "%s" (CodePage: %d)', [GetLastError(), SysErrorMessage(GetLastError()), Copy(StrPas(lpMultiByteStr), 1 + Index, 20), CodePage]);
+    end;
   end;
 end;
 
@@ -1776,6 +1783,14 @@ procedure TMySQLConnection.TTerminatedThreads.Delete(const Item: Pointer);
 var
   Index: Integer;
 begin
+  // Debug 07.10.2012
+  if (not Assigned(Connection.TerminatedThreads)) then
+    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Connection.TerminatedThreads']);
+  if (not Assigned(Self)) then
+    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Self']);
+  if (not Assigned(CriticalSection)) then
+    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['CriticalSection']);
+
   CriticalSection.Enter();
 
   Index := IndexOf(Item);

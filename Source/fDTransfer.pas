@@ -62,7 +62,7 @@ type
     procedure TSExecuteShow(Sender: TObject);
     procedure TreeViewGetSelectedIndex(Sender: TObject; Node: TTreeNode);
   private
-    Clients: array of TSSession;
+    Sessions: array of TSSession;
     MouseDownNode: TTreeNode;
     ProgressInfos: TTools.TProgressInfos;
     Transfer: TTTransfer;
@@ -78,10 +78,10 @@ type
     procedure CMExecutedDone(var Message: TMessage); message CM_EXECUTIONDONE;
     procedure CMUpdateProgressInfo(var Message: TMessage); message CM_UPDATEPROGRESSINFO;
   public
-    SourceClient: TSSession;
+    SourceSession: TSSession;
     SourceDatabaseName: string;
     SourceTableName: string;
-    DestinationClient: TSSession;
+    DestinationSession: TSSession;
     DestinationDatabaseName: string;
     DestinationTableName: string;
     function Execute(): Boolean;
@@ -266,14 +266,14 @@ procedure TDTransfer.FormHide(Sender: TObject);
 var
   I: Integer;
 begin
-  for I := 0 to Length(Clients) - 1 do
-    if (Assigned(Clients[I])) then
+  for I := 0 to Length(Sessions) - 1 do
+    if (Assigned(Sessions[I])) then
     begin
-      Clients[I].UnRegisterEventProc(FormClientEvent);
-      if (Assigned(Clients[I]) and (Clients[I] <> SourceClient) and (Clients[I] <> SourceClient)) then
-        FreeAndNil(Clients[I]);
+      Sessions[I].UnRegisterEventProc(FormClientEvent);
+      if (Assigned(Sessions[I]) and (Sessions[I] <> SourceSession) and (Sessions[I] <> SourceSession)) then
+        FreeAndNil(Sessions[I]);
     end;
-  SetLength(Clients, 0);
+  SetLength(Sessions, 0);
 
   Preferences.Transfer.Height := Height;
   Preferences.Transfer.Width := Width;
@@ -306,21 +306,21 @@ begin
   WantedExecute := False;
   WantedNodeExpand := nil;
 
-  SetLength(Clients, Accounts.Count);
+  SetLength(Sessions, Accounts.Count);
   for I := 0 to Accounts.Count - 1 do
   begin
-    if (Assigned(SourceClient) and (Accounts[I] = SourceClient.Account)) then
-      Clients[I] := SourceClient
-    else if (Assigned(SourceClient) and (Accounts[I] = SourceClient.Account)) then
-      Clients[I] := SourceClient
+    if (Assigned(SourceSession) and (Accounts[I] = SourceSession.Account)) then
+      Sessions[I] := SourceSession
+    else if (Assigned(SourceSession) and (Accounts[I] = SourceSession.Account)) then
+      Sessions[I] := SourceSession
     else
-      Clients[I] := nil;
+      Sessions[I] := nil;
   end;
 
   InitTSSelect(Sender);
 
   PageControl.ActivePage := TSSelect;
-  if (Assigned(SourceClient)) then
+  if (Assigned(SourceSession)) then
     ActiveControl := FSource
   else
     ActiveControl := FBCancel;
@@ -333,15 +333,15 @@ end;
 
 function TDTransfer.GetClient(const Index: Integer): TSSession;
 begin
-  if (not Assigned(Clients[Index])) then
+  if (not Assigned(Sessions[Index])) then
   begin
-    Clients[Index] := TSSession.Create(fSession.Sessions, Accounts[Index]);
-    DConnecting.Client := Clients[Index];
+    Sessions[Index] := TSSession.Create(fSession.Sessions, Accounts[Index]);
+    DConnecting.Session := Sessions[Index];
     if (not DConnecting.Execute()) then
-      FreeAndNil(Clients[Index]);
+      FreeAndNil(Sessions[Index]);
   end;
 
-  Result := Clients[Index];
+  Result := Sessions[Index];
 
   if (Assigned(Result)) then
     Result.RegisterEventProc(FormClientEvent);
@@ -383,9 +383,9 @@ begin
     Node.HasChildren := True;
   end;
 
-  if (Assigned(SourceClient)) then
+  if (Assigned(SourceSession)) then
   begin
-    SourceClient.BeginSynchron();
+    SourceSession.BeginSynchron();
 
     SelectedNodes := TList.Create();
     DatabaseNames := TStringList.Create();
@@ -397,7 +397,7 @@ begin
     AccountNode := FSource.TopItem;
     while (Assigned(AccountNode)) do
     begin
-      if (AccountNode.Text = SourceClient.Account.Name) then
+      if (AccountNode.Text = SourceSession.Account.Name) then
       begin
         if (DatabaseNames.Count = 0) then
           AccountNode.Selected := True
@@ -442,12 +442,12 @@ begin
     DatabaseNames.Free();
     TableNames.Free();
 
-    if (Assigned(SourceClient)) then
+    if (Assigned(SourceSession)) then
     begin
       AccountNode := FDestination.TopItem;
       while (Assigned(AccountNode)) do
       begin
-        if (AccountNode.Text = SourceClient.Account.Name) then
+        if (AccountNode.Text = SourceSession.Account.Name) then
         begin
           AccountNode.Selected := True;
           if (DestinationDatabaseName <> '') then
@@ -477,7 +477,7 @@ begin
         end;
         AccountNode := AccountNode.getNextSibling();
       end;
-      SourceClient.EndSynchron();
+      SourceSession.EndSynchron();
     end;
     if (Assigned(FDestination.Selected) and FDestination.AutoExpand) then
       FDestination.Selected.Expand(False);
@@ -520,11 +520,11 @@ begin
   case (Error.ErrorType) of
     TE_Database:
       begin
-        Msg := Preferences.LoadStr(165, IntToStr(Item.Client.ErrorCode), Item.Client.ErrorMessage);
-        ErrorMsg := SQLUnwrapStmt(Item.Client.ErrorMessage);
-        if (Item.Client.ErrorCode > 0) then
-          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Item.Client.ErrorCode) + ')';
-        ErrorMsg := ErrorMsg + '  -  ' + SQLUnwrapStmt(Item.Client.CommandText);
+        Msg := Preferences.LoadStr(165, IntToStr(Item.Session.ErrorCode), Item.Session.ErrorMessage);
+        ErrorMsg := SQLUnwrapStmt(Item.Session.ErrorMessage);
+        if (Item.Session.ErrorCode > 0) then
+          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Item.Session.ErrorCode) + ')';
+        ErrorMsg := ErrorMsg + '  -  ' + SQLUnwrapStmt(Item.Session.CommandText);
       end;
     TE_File:
       begin
@@ -619,7 +619,7 @@ end;
 procedure TDTransfer.TreeViewExpanding(Sender: TObject; Node: TTreeNode;
   var AllowExpansion: Boolean);
 var
-  Client: TSSession;
+  Session: TSSession;
   Database: TSDatabase;
   I: Integer;
   NewNode: TTreeNode;
@@ -629,9 +629,9 @@ begin
 
   if (Assigned(WantedNodeExpand)) then
   begin
-    for I := 0 to Length(Clients) - 1 do
-      if (Assigned(Clients[I])) then
-        Clients[I].UnRegisterEventProc(FormClientEvent);
+    for I := 0 to Length(Sessions) - 1 do
+      if (Assigned(Sessions[I])) then
+        Sessions[I].UnRegisterEventProc(FormClientEvent);
     WantedNodeExpand := nil;
   end;
 
@@ -641,18 +641,18 @@ begin
       case (Node.ImageIndex) of
         iiServer:
           begin
-            Client := GetClient(Node.Index);
-            if (Assigned(Client)) then
-              if (not Client.Update() and Client.Asynchron) then
+            Session := GetClient(Node.Index);
+            if (Assigned(Session)) then
+              if (not Session.Update() and Session.Asynchron) then
                 WantedNodeExpand := Node
               else
               begin
-                for I := 0 to Client.Databases.Count - 1 do
-                  if (not (Client.Databases[I] is TSSystemDatabase)) then
+                for I := 0 to Session.Databases.Count - 1 do
+                  if (not (Session.Databases[I] is TSSystemDatabase)) then
                   begin
-                    NewNode := TreeView.Items.AddChild(Node, Client.Databases[I].Name);
+                    NewNode := TreeView.Items.AddChild(Node, Session.Databases[I].Name);
                     NewNode.ImageIndex := iiDatabase;
-                    NewNode.Data := Client.Databases[I];
+                    NewNode.Data := Session.Databases[I];
                     NewNode.HasChildren := TreeView = FSource;
                   end;
                 Node.HasChildren := Assigned(Node.getFirstChild());
@@ -660,9 +660,9 @@ begin
           end;
         iiDatabase:
           begin
-            Client := GetClient(Node.Parent.Index);
-            Database := Client.DatabaseByName(Node.Text);
-            if ((not Database.Tables.Update() or not Client.Update(Database.Tables)) and Client.Asynchron) then
+            Session := GetClient(Node.Parent.Index);
+            Database := Session.DatabaseByName(Node.Text);
+            if ((not Database.Tables.Update() or not Session.Update(Database.Tables)) and Session.Asynchron) then
               WantedNodeExpand := Node
             else
             begin
@@ -697,21 +697,21 @@ procedure TDTransfer.TSExecuteShow(Sender: TObject);
 var
   Answer: Integer;
 
-  procedure AddTable(const SourceClient: TSSession; const SourceDatabaseName, SourceTableName: string; const DestinationClient: TSSession; const DestinationDatabaseName, DestinationTableName: string);
+  procedure AddTable(const SourceSession: TSSession; const SourceDatabaseName, SourceTableName: string; const DestinationSession: TSSession; const DestinationDatabaseName, DestinationTableName: string);
   begin
-    if ((Answer <> IDYESALL) and Assigned(DestinationClient.DatabaseByName(DestinationDatabaseName)) and Assigned(DestinationClient.DatabaseByName(DestinationDatabaseName).TableByName(DestinationTableName))) then
+    if ((Answer <> IDYESALL) and Assigned(DestinationSession.DatabaseByName(DestinationDatabaseName)) and Assigned(DestinationSession.DatabaseByName(DestinationDatabaseName).TableByName(DestinationTableName))) then
       Answer := MsgBox(Preferences.LoadStr(700, DestinationDatabaseName + '.' + DestinationTableName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);
 
     if (Answer in [IDYES, IDYESALL]) then
       Transfer.Add(
-        SourceClient, SourceDatabaseName, SourceTableName,
-        DestinationClient, DestinationDatabaseName, DestinationTableName
+        SourceSession, SourceDatabaseName, SourceTableName,
+        DestinationSession, DestinationDatabaseName, DestinationTableName
       )
     else if (Answer = IDCANCEL) then
       FreeAndNil(Transfer);
   end;
 
-  function InitializeNode(const Client: TSSession; const Node: TTreeNode): Boolean;
+  function InitializeNode(const Session: TSSession; const Node: TTreeNode): Boolean;
   var
     Database: TSDatabase;
     I: Integer;
@@ -722,32 +722,32 @@ var
     case (Node.ImageIndex) of
       iiServer:
         begin
-          Result := not Client.Update() and Client.Asynchron;
+          Result := not Session.Update() and Session.Asynchron;
           if (not Result) then
-            for I := 0 to Client.Databases.Count - 1 do
-              if (not Result and not (Client.Databases[I] is TSSystemDatabase)) then
+            for I := 0 to Session.Databases.Count - 1 do
+              if (not Result and not (Session.Databases[I] is TSSystemDatabase)) then
               begin
-                Database := Client.Databases[I];
-                Result := not Database.Tables.Update() and Client.Asynchron;
+                Database := Session.Databases[I];
+                Result := not Database.Tables.Update() and Session.Asynchron;
                 if (not Result and (Node.TreeView = FSource)) then
                 begin
                   for J := 0 to Database.Tables.Count - 1 do
                     if (Database.Tables[J] is TSBaseTable) then
                       Objects.Add(Database.Tables[J]);
-                  Result := not Client.Update(Objects);
+                  Result := not Session.Update(Objects);
                 end;
               end;
         end;
       iiDatabase:
         begin
-          Database := Client.DatabaseByName(Node.Text);
-          Result := not Database.Tables.Update() and Client.Asynchron;
+          Database := Session.DatabaseByName(Node.Text);
+          Result := not Database.Tables.Update() and Session.Asynchron;
           if (not Result and (Node.TreeView = FSource)) then
           begin
             for J := 0 to Database.Tables.Count - 1 do
               if (Database.Tables[J] is TSBaseTable) then
                 Objects.Add(Database.Tables[J]);
-            Result := not Client.Update(Objects);
+            Result := not Session.Update(Objects);
           end;
         end;
       iiBaseTable:
@@ -755,7 +755,7 @@ var
           for J := 0 to Node.Parent.Count - 1 do
             if (Node.Parent.Item[J].Selected) then
               Objects.Add(Node.Parent.Item[J].Data);
-          Result := not Client.Update(Objects);
+          Result := not Session.Update(Objects);
         end;
       else
         Result := False;
@@ -767,10 +767,10 @@ var
   I: Integer;
   J: Integer;
   Database: TSDatabase;
-  SourceClient: TSSession;
+  SourceSession: TSSession;
   Node: TTreeNode;
   ProgressInfos: TTools.TProgressInfos;
-  DestinationClient: TSSession;
+  DestinationSession: TSSession;
 begin
   FErrors.Caption := '0';
   FErrorMessages.Lines.Clear();
@@ -790,17 +790,17 @@ begin
 
   Node := FSource.Selected;
   while (Assigned(Node.Parent)) do Node := Node.Parent;
-  SourceClient := GetClient(Node.Index);
-  WantedExecute := InitializeNode(SourceClient, FSource.Selected);
+  SourceSession := GetClient(Node.Index);
+  WantedExecute := InitializeNode(SourceSession, FSource.Selected);
 
   if (WantedExecute) then
-    DestinationClient := nil
+    DestinationSession := nil
   else
   begin
     Node := FDestination.Selected;
     while (Assigned(Node.Parent)) do Node := Node.Parent;
-    DestinationClient := GetClient(Node.Index);
-    WantedExecute := not Assigned(DestinationClient) or InitializeNode(DestinationClient, FDestination.Selected);
+    DestinationSession := GetClient(Node.Index);
+    WantedExecute := not Assigned(DestinationSession) or InitializeNode(DestinationSession, FDestination.Selected);
   end;
 
   if (not WantedExecute) then
@@ -820,18 +820,18 @@ begin
         case (FSource.Selected.Parent[I].ImageIndex) of
           iiDatabase:
             begin
-              Database := SourceClient.DatabaseByName(FSource.Selected.Parent[I].Text);
+              Database := SourceSession.DatabaseByName(FSource.Selected.Parent[I].Text);
               for J := 0 to Database.Tables.Count - 1 do
                 if (Assigned(Transfer) and (Database.Tables[J] is TSBaseTable) and Assigned(TSBaseTable(Database.Tables[J]).Engine) and not TSBaseTable(Database.Tables[J]).Engine.IsMerge and (RightStr(Database.Tables[J].Name, Length(BackupExtension)) <> BackupExtension)) then
                   AddTable(
-                    SourceClient, Database.Name, Database.Tables[J].Name,
-                    DestinationClient, Database.Name, Database.Tables[J].Name
+                    SourceSession, Database.Name, Database.Tables[J].Name,
+                    DestinationSession, Database.Name, Database.Tables[J].Name
                   );
             end;
           iiBaseTable:
             AddTable(
-              SourceClient, FSource.Selected.Parent.Text, FSource.Selected.Parent[I].Text,
-              DestinationClient, FDestination.Selected.Text, FSource.Selected.Parent[I].Text
+              SourceSession, FSource.Selected.Parent.Text, FSource.Selected.Parent[I].Text,
+              DestinationSession, FDestination.Selected.Text, FSource.Selected.Parent[I].Text
             );
         end;
 

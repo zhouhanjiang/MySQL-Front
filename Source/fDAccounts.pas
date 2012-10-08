@@ -53,7 +53,7 @@ type
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
     Account: TAAccount;
-    Client: TSSession;
+    Session: TSSession;
     Open: Boolean;
     function Execute(): Boolean;
   end;
@@ -172,13 +172,13 @@ end;
 
 procedure TDAccounts.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
-  if ((ModalResult = mrOk) and not Assigned(Client)) then
+  if ((ModalResult = mrOk) and not Assigned(Session)) then
   begin
-    Client := TSSession.Create(Sessions, Accounts.AccountByName(FAccounts.Selected.Caption));
-    DConnecting.Client := Client;
+    Session := TSSession.Create(Sessions, Accounts.AccountByName(FAccounts.Selected.Caption));
+    DConnecting.Session := Session;
     if (not DConnecting.Execute()) then
     begin
-      FreeAndNil(Client);
+      FreeAndNil(Session);
       CanClose := False;
     end;
   end;
@@ -227,7 +227,7 @@ begin
 
   SetFAccounts(Accounts.Default);
 
-  Client := nil;
+  Session := nil;
 
   FBOk.Visible := Open;
   if (not Open) then

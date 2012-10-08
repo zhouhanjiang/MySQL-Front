@@ -80,7 +80,7 @@ type
     procedure ListViewShowSortDirection(const ListView: TListView);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
-    Client: TSSession;
+    Session: TSSession;
     Tab: TCustomFrame;
     function Execute(): Boolean;
   end;
@@ -214,7 +214,7 @@ end;
 
 procedure TDServer.FBFlushHostsClick(Sender: TObject);
 begin
-  Client.FlushHosts();
+  Session.FlushHosts();
 end;
 
 procedure TDServer.FBHelpClick(Sender: TObject);
@@ -226,12 +226,12 @@ procedure TDServer.FBShutdownClick(Sender: TObject);
 var
   Host: string;
 begin
-  Host := Client.Host;
-  if (Client.Port <> MYSQL_PORT) then
-    Host := Host + ':' + IntToStr(Client.Port);
+  Host := Session.Host;
+  if (Session.Port <> MYSQL_PORT) then
+    Host := Host + ':' + IntToStr(Session.Port);
   if (MsgBox(Preferences.LoadStr(679, Host), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES) then
     if (Boolean(SendMessage(Tab.Handle, CM_CLOSE_TAB_QUERY, 0, 0))) then
-      if (Client.Shutdown()) then
+      if (Session.Shutdown()) then
       begin
         PostMessage(TForm(Tab.Owner).Handle, CM_CLOSE_TAB, 0, LPARAM(Tab));
         FBCancel.Click();
@@ -242,8 +242,8 @@ end;
 
 procedure TDServer.FormClientEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = ceItemsValid) and ((Event.CItems = Client.Stati) or Assigned(Client.Plugins) and (Event.CItems = Client.Plugins))
-    and Client.Stati.Valid and (not Assigned(Client.Plugins) or Client.Plugins.Valid)) then
+  if ((Event.EventType = ceItemsValid) and ((Event.CItems = Session.Stati) or Assigned(Session.Plugins) and (Event.CItems = Session.Plugins))
+    and Session.Stati.Valid and (not Assigned(Session.Plugins) or Session.Plugins.Valid)) then
     Built()
   else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
   begin
@@ -278,7 +278,7 @@ end;
 
 procedure TDServer.FormHide(Sender: TObject);
 begin
-  Client.UnRegisterEventProc(FormClientEvent);
+  Session.UnRegisterEventProc(FormClientEvent);
 
   Preferences.Server.Width := Width;
   Preferences.Server.Height := Height;
@@ -294,44 +294,44 @@ procedure TDServer.FormShow(Sender: TObject);
 var
   List: TList;
 begin
-  Client.RegisterEventProc(FormClientEvent);
+  Session.RegisterEventProc(FormClientEvent);
 
-  Caption := Preferences.LoadStr(842, Client.Caption);
+  Caption := Preferences.LoadStr(842, Session.Caption);
 
-  FHost.Caption := Client.HostInfo;
-  FVersion.Caption := Client.ServerVersionStr;
-  FComment.Visible := Assigned(Client.VariableByName('version_comment'));
+  FHost.Caption := Session.HostInfo;
+  FVersion.Caption := Session.ServerVersionStr;
+  FComment.Visible := Assigned(Session.VariableByName('version_comment'));
   FLComment.Visible := FComment.Visible;
   if (FComment.Visible) then
-    FComment.Caption := Client.VariableByName('version_comment').Value;
-  if (Client.LibraryType = ltDLL) then
-    FLibVersion.Caption := Client.Lib.VersionStr
+    FComment.Caption := Session.VariableByName('version_comment').Value;
+  if (Session.LibraryType = ltDLL) then
+    FLibVersion.Caption := Session.Lib.VersionStr
   else
     FLibVersion.Caption := Preferences.LoadStr(649);
-  if (Client.CurrentUser = '') then
+  if (Session.CurrentUser = '') then
     FUser.Caption := '???'
   else
-    FUser.Caption := Client.CurrentUser;
-  FCharacterSet.Caption := Client.Charset;
-  FThreadId.Visible := Client.ThreadId > 0;
+    FUser.Caption := Session.CurrentUser;
+  FCharacterSet.Caption := Session.Charset;
+  FThreadId.Visible := Session.ThreadId > 0;
   FLThreadId.Visible := FThreadId.Visible;
-  FThreadId.Caption := IntToStr(Client.ThreadId);
+  FThreadId.Caption := IntToStr(Session.ThreadId);
   FUptime.Caption := '???';
 
   FStartup.Lines.Clear();
 
-  TSSQLLog.TabVisible := Client.LogActive;
-  TSSlowSQLLog.TabVisible := Client.SlowLogActive;
-  TSStartup.TabVisible := Assigned(Client.VariableByName('init_connect')) and (Client.VariableByName('init_connect').Value <> '');
-  TSPlugins.TabVisible := Assigned(Client.Plugins);
+  TSSQLLog.TabVisible := Session.LogActive;
+  TSSlowSQLLog.TabVisible := Session.SlowLogActive;
+  TSStartup.TabVisible := Assigned(Session.VariableByName('init_connect')) and (Session.VariableByName('init_connect').Value <> '');
+  TSPlugins.TabVisible := Assigned(Session.Plugins);
 
   PageControl.ActivePage := TSBasics;
 
   List := TList.Create();
-  List.Add(Client.Stati);
-  if (Assigned(Client.Plugins)) then
-    List.Add(Client.Plugins);
-  PageControl.Visible := not Client.Update(List);
+  List.Add(Session.Stati);
+  if (Assigned(Session.Plugins)) then
+    List.Add(Session.Plugins);
+  PageControl.Visible := not Session.Update(List);
   PSQLWait.Visible := not PageControl.Visible;
   List.Free();
 
@@ -436,10 +436,10 @@ end;
 
 procedure TDServer.TSExtrasShow(Sender: TObject);
 begin
-  FUptime.Caption := SysUtils.DateTimeToStr(Client.StartTime, LocaleFormatSettings);
+  FUptime.Caption := SysUtils.DateTimeToStr(Session.StartTime, LocaleFormatSettings);
 
-  FBShutdown.Enabled := Client.CanShutdown and (not Assigned(Client.UserRights) or Client.UserRights.RShutdown);
-  FBFlushHosts.Enabled := (not Assigned(Client.UserRights) or Client.UserRights.RReload);
+  FBShutdown.Enabled := Session.CanShutdown and (not Assigned(Session.UserRights) or Session.UserRights.RShutdown);
+  FBFlushHosts.Enabled := (not Assigned(Session.UserRights) or Session.UserRights.RReload);
 end;
 
 procedure TDServer.TSPluginsShow(Sender: TObject);
@@ -451,12 +451,12 @@ begin
   begin
     FPlugins.DisableAlign(); FPlugins.Items.BeginUpdate();
 
-    for I := 0 to Client.Plugins.Count - 1 do
+    for I := 0 to Session.Plugins.Count - 1 do
     begin
       Item := FPlugins.Items.Add();
-      Item.Caption := Client.Plugins[I].Name;
+      Item.Caption := Session.Plugins[I].Name;
       Item.ImageIndex := iiPlugin;
-      Item.SubItems.Add(Client.Plugins[I].Comment);
+      Item.SubItems.Add(Session.Plugins[I].Comment);
     end;
     if (FPlugins.Items.Count = 0) then
       FPlugins.Selected := nil
@@ -479,7 +479,7 @@ procedure TDServer.TSSlowSQLLogShow(Sender: TObject);
 begin
   if (FSlowSQLLog.Lines.Text = '') then
   begin
-    FSlowSQLLog.Text := Client.SlowLog;
+    FSlowSQLLog.Text := Session.SlowLog;
     SendMessage(FSlowSQLLog.Handle, WM_VSCROLL, SB_BOTTOM, 0);
   end
 end;
@@ -488,7 +488,7 @@ procedure TDServer.TSSQLLogShow(Sender: TObject);
 begin
   if (FSQLLog.Lines.Text = '') then
   begin
-    FSQLLog.Text := Client.Log;
+    FSQLLog.Text := Session.Log;
     SendMessage(FSQLLog.Handle, WM_VSCROLL, SB_BOTTOM, 0);
   end
 end;
@@ -496,7 +496,7 @@ end;
 procedure TDServer.TSStartupShow(Sender: TObject);
 begin
   if (FStartup.Lines.Count = 0) then
-    FStartup.Text := Trim(Client.VariableByName('init_connect').Value) + #13#10;
+    FStartup.Text := Trim(Session.VariableByName('init_connect').Value) + #13#10;
 end;
 
 initialization

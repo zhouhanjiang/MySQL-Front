@@ -245,7 +245,7 @@ type
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure CMUpdateProgressInfo(var Message: TMessage); message CM_UPDATEPROGRESSINFO;
   public
-    Client: TSSession;
+    Session: TSSession;
     CodePage: Cardinal;
     DBGrid: TDBGrid;
     DialogType: (edtNormal, edtCreateJob, edtEditJob, edtExecuteJob);
@@ -281,76 +281,6 @@ begin
   Result := FExport;
 end;
 
-function DBObjectsSortItem(Item1, Item2: Pointer): Integer;
-var
-  I: Integer;
-  Index1: Integer;
-  Index2: Integer;
-  Session: TSSession;
-begin
-  if (Item1 = Item2) then
-    Result := 0
-  else
-  begin
-    Session := TSDBObject(Item1).Database.Session;
-
-    Result := 0;
-    if (Assigned(TSDBObject(Item1).Dependencies)) then
-      for I := 0 to TSDBObject(Item1).Dependencies.Count - 1 do
-        if ((Session.Databases.NameCmp(TSDBObject(Item1).Database.Name, TSDBObject(Item1).Dependencies[I].DatabaseName) = 0)
-          and (TSDBObject(Item1).Dependencies[I].ObjectClass = TSFunction) and (Session.DatabaseByName(TSDBObject(Item1).Dependencies[I].DatabaseName).FunctionByName(TSDBObject(Item1).Dependencies[I].ObjectName) = TSDBObject(Item2))) then
-          Result := -1;
-    if ((Result = 0) and Assigned(TSDBObject(Item2).Dependencies)) then
-      for I := 0 to TSDBObject(Item2).Dependencies.Count - 1 do
-        if ((Session.Databases.NameCmp(TSDBObject(Item2).Database.Name, TSDBObject(Item2).Dependencies[I].DatabaseName) = 0)
-          and (TSDBObject(Item2).Dependencies[I].ObjectClass = TSFunction) and (Session.DatabaseByName(TSDBObject(Item2).Dependencies[I].DatabaseName).FunctionByName(TSDBObject(Item2).Dependencies[I].ObjectName) = TSDBObject(Item1))) then
-          Result := -1;
-
-    if (Result = 0) then
-      if (Session.LowerCaseTableNames = 0) then
-        Result := lstrcmp(PChar(TSDBObject(Item1).Database.Name), PChar(TSDBObject(Item2).Database.Name))
-      else
-        Result := lstrcmpi(PChar(TSDBObject(Item1).Database.Name), PChar(TSDBObject(Item2).Database.Name));
-
-    if (Result = 0) then
-    begin
-      if ((TSDBObject(Item1) is TSBaseTable) and Assigned(TSBaseTable(Item1).Engine) and not TSBaseTable(Item1).Engine.IsMerge) then
-        Index1 := 0
-      else if (TSDBObject(Item1) is TSBaseTable) then
-        Index1 := 1
-      else if (TSDBObject(Item1) is TSFunction) then
-        Index1 := 2
-      else if (TSDBObject(Item1) is TSView) then
-        Index1 := 3
-      else if (TSDBObject(Item1) is TSProcedure) then
-        Index1 := 4
-      else if (TSDBObject(Item1) is TSTrigger) then
-        Index1 := 5
-      else if (TSDBObject(Item1) is TSEvent) then
-        Index1 := 6
-      else
-        Index1 := 7;
-      if ((TSDBObject(Item2) is TSBaseTable) and Assigned(TSBaseTable(Item2).Engine) and not TSBaseTable(Item2).Engine.IsMerge) then
-        Index2 := 0
-      else if (TSDBObject(Item2) is TSBaseTable) then
-        Index2 := 1
-      else if (TSDBObject(Item2) is TSFunction) then
-        Index2 := 2
-      else if (TSDBObject(Item2) is TSView) then
-        Index2 := 3
-      else if (TSDBObject(Item2) is TSProcedure) then
-        Index2 := 4
-      else if (TSDBObject(Item2) is TSTrigger) then
-        Index2 := 5
-      else if (TSDBObject(Item2) is TSEvent) then
-        Index2 := 6
-      else
-        Index2 := 7;
-      Result := Sign(Index1 - Index2);
-    end;
-  end;
-end;
-
 { TDExport ********************************************************************}
 
 function TDExport.BuildTitle(): TSDatabase;
@@ -383,7 +313,7 @@ begin
   else if (Assigned(Result)) then
     Title := Result.Name
   else
-    Title := Client.Caption;
+    Title := Session.Caption;
 end;
 
 procedure TDExport.CheckActivePageChange(const ActivePageIndex: Integer);
@@ -595,7 +525,7 @@ begin
   BuildTitle();
 
 
-  Message.Result := LRESULT(Client.Update(Objects));
+  Message.Result := LRESULT(Session.Update(Objects));
   if (Boolean(Message.Result)) then
     if (Assigned(WantedNodeExpand)) then
       WantedNodeExpand.Expand(False)
@@ -897,7 +827,7 @@ begin
 
   CheckActivePageChange(TSJob.PageIndex);
 
-  if (not ValidJobName(Trim(FName.Text)) or (DialogType in [edtCreateJob]) and Assigned(Client.Account.JobByName(Trim(FName.Text))) or (DialogType in [edtEditJob]) and (Client.Account.JobByName(Trim(FName.Text)) <> Job)) then
+  if (not ValidJobName(Trim(FName.Text)) or (DialogType in [edtCreateJob]) and Assigned(Session.Account.JobByName(Trim(FName.Text))) or (DialogType in [edtEditJob]) and (Session.Account.JobByName(Trim(FName.Text)) <> Job)) then
     FBForward.Enabled := False;
   if (FFilename.Visible and not DirectoryExists(ExtractFilePath(FFilename.Text))) then
     FBForward.Enabled := False;
@@ -1019,7 +949,7 @@ var
   Hour, Min, Sec, MSec: Word;
   Year, Month, Day: Word;
 begin
-  Client.UnRegisterEventProc(FormClientEvent);
+  Session.UnRegisterEventProc(FormClientEvent);
 
   if (Assigned(DBGrid)) then
     DBGrid.DataSource.DataSet.EnableControls();
@@ -1027,7 +957,7 @@ begin
   if (ModalResult = mrOk) then
   begin
     if (DialogType in [edtCreateJob, edtEditJob]) then
-      Export := TAJobExport.Create(Client.Account.Jobs, Trim(FName.Text))
+      Export := TAJobExport.Create(Session.Account.Jobs, Trim(FName.Text))
     else
       Export := Preferences.Export;
 
@@ -1107,9 +1037,9 @@ begin
       TAJobExport(Export).Enabled := FEnabled.Checked;
 
       if (DialogType = edtCreateJob) then
-        Client.Account.Jobs.AddJob(Export)
+        Session.Account.Jobs.AddJob(Export)
       else if (DialogType = edtEditJob) then
-        Client.Account.Jobs.UpdateJob(Job, Export);
+        Session.Account.Jobs.UpdateJob(Job, Export);
       Export.Free();
     end;
   end;
@@ -1141,7 +1071,7 @@ var
   I: Integer;
   Node: TTreeNode;
 begin
-  Client.RegisterEventProc(FormClientEvent);
+  Session.RegisterEventProc(FormClientEvent);
 
   ModalResult := mrNone;
   if (DialogType = edtCreateJob) then
@@ -1181,7 +1111,7 @@ begin
   FStartDate.Time := 0;
   if (DialogType = edtCreateJob) then
   begin
-    Node := FSelect.Items.Add(nil, Client.Caption);
+    Node := FSelect.Items.Add(nil, Session.Caption);
     Node.ImageIndex := iiServer;
     Node.HasChildren := True;
 
@@ -1195,7 +1125,7 @@ begin
   end
   else if (DialogType in [edtEditJob, edtExecuteJob]) then
   begin
-    Node := FSelect.Items.Add(nil, Client.Caption);
+    Node := FSelect.Items.Add(nil, Session.Caption);
     Node.ImageIndex := iiServer;
     Node.HasChildren := True;
 
@@ -1252,7 +1182,7 @@ begin
 
   if (DialogType in [edtCreateJob, edtEditJob]) then
   begin
-    PageControl.Visible := Client.Databases.Update() and Boolean(Perform(CM_POST_AFTEREXECUTESQL, 0, 0));
+    PageControl.Visible := Session.Databases.Update() and Boolean(Perform(CM_POST_AFTEREXECUTESQL, 0, 0));
     if (PageControl.Visible) then
       FSelect.Items.GetFirstNode().Expand(False)
     else
@@ -1322,16 +1252,16 @@ begin
       case (Node.ImageIndex) of
         iiServer:
           begin
-            if (not Client.Update() and Client.Asynchron) then
+            if (not Session.Update() and Session.Asynchron) then
               WantedNodeExpand := Node
             else
             begin
-              for I := 0 to Client.Databases.Count - 1 do
-                if ((Client.Databases.NameCmp(Client.Databases[I].Name, 'mysql') <> 0) and not (Client.Databases[I] is TSSystemDatabase)) then
+              for I := 0 to Session.Databases.Count - 1 do
+                if ((Session.Databases.NameCmp(Session.Databases[I].Name, 'mysql') <> 0) and not (Session.Databases[I] is TSSystemDatabase)) then
                 begin
-                  NewNode := TreeView.Items.AddChild(Node, Client.Databases[I].Name);
+                  NewNode := TreeView.Items.AddChild(Node, Session.Databases[I].Name);
                   NewNode.ImageIndex := iiDatabase;
-                  NewNode.Data := Client.Databases[I];
+                  NewNode.Data := Session.Databases[I];
                   NewNode.HasChildren := True;
                 end;
               Node.HasChildren := Assigned(Node.getFirstChild());
@@ -1339,8 +1269,8 @@ begin
           end;
         iiDatabase:
           begin
-            Database := Client.DatabaseByName(Node.Text);
-            if ((not Database.Tables.Update() or not Client.Update(Database.Tables)) and Client.Asynchron) then
+            Database := Session.DatabaseByName(Node.Text);
+            if ((not Database.Tables.Update() or not Session.Update(Database.Tables)) and Session.Asynchron) then
               WantedNodeExpand := Node
             else
             begin
@@ -1376,7 +1306,7 @@ begin
           end;
         iiBaseTable:
           begin
-            Database := Client.DatabaseByName(Node.Parent.Text);
+            Database := Session.DatabaseByName(Node.Parent.Text);
             Table := Database.BaseTableByName(Node.Text);
             if (not Database.Triggers.Update()) then
               WantedNodeExpand := Node
@@ -1462,14 +1392,14 @@ var
 begin
   Database := BuildTitle();
 
-  if (Assigned(Client) and (Client.Charset <> '')) then
-    CodePage := Client.CharsetToCodePage(Client.Charset)
+  if (Assigned(Session) and (Session.Charset <> '')) then
+    CodePage := Session.CharsetToCodePage(Session.Charset)
   else if ((DExport.Objects.Count = 1) and (TObject(DExport.Objects[0]) is TSBaseTable)) then
-    CodePage := Client.CharsetToCodePage(TSBaseTable(DExport.Objects[0]).DefaultCharset)
+    CodePage := Session.CharsetToCodePage(TSBaseTable(DExport.Objects[0]).DefaultCharset)
   else if (Assigned(Database)) then
-    CodePage := Client.CharsetToCodePage(Database.DefaultCharset)
+    CodePage := Session.CharsetToCodePage(Database.DefaultCharset)
   else
-    CodePage := Client.CodePage;
+    CodePage := Session.CodePage;
 
   SaveDialog.Title := ReplaceStr(Preferences.LoadStr(582), '&', '');
   SaveDialog.InitialDir := Preferences.Path;
@@ -1644,7 +1574,7 @@ begin
   if (DialogType in [edtCreateJob]) then
   begin
     FName.Text := Title;
-    while (Assigned(Client.Account.JobByName(FName.Text))) do
+    while (Assigned(Session.Account.JobByName(FName.Text))) do
     begin
       JobName := FName.Text;
       Delete(JobName, 1, Length(Title));
@@ -1690,13 +1620,13 @@ begin
   if (FSelect.Items[0].Count = 0) then
   begin
     Nodes := TList.Create();
-    if (not Client.Update()) then
+    if (not Session.Update()) then
       Result := False
     else
       for I := 0 to Length(Job.Objects) - 1 do
         if (Job.Objects[I].ObjectType = jotServer) then
           Nodes.Add(FSelect.Items[0])
-        else if (not Client.Databases.Update()) then
+        else if (not Session.Databases.Update()) then
           Result := False
         else
         begin
@@ -1704,15 +1634,15 @@ begin
           if (Job.Objects[I].ObjectType = jotDatabase) then
           begin
             for J := 0 to FSelect.Items[0].Count - 1 do
-              if (Client.Databases.NameCmp(FSelect.Items[0].Item[J].Text, Job.Objects[I].Name) = 0) then
+              if (Session.Databases.NameCmp(FSelect.Items[0].Item[J].Text, Job.Objects[I].Name) = 0) then
                 Nodes.Add(FSelect.Items[0].Item[J]);
           end
           else
           begin
             for J := 0 to FSelect.Items[0].Count - 1 do
-              if (Client.Databases.NameCmp(FSelect.Items[0].Item[J].Text, Job.Objects[I].DatabaseName) = 0) then
+              if (Session.Databases.NameCmp(FSelect.Items[0].Item[J].Text, Job.Objects[I].DatabaseName) = 0) then
               begin
-                Database := Client.DatabaseByName(Job.Objects[I].DatabaseName);
+                Database := Session.DatabaseByName(Job.Objects[I].DatabaseName);
                 if (not Database.Update()) then
                   Result := False
                 else
@@ -1780,11 +1710,11 @@ begin
   case (Error.ErrorType) of
     TE_Database:
       begin
-        Msg := Preferences.LoadStr(165, IntToStr(Item.Client.ErrorCode), Item.Client.ErrorMessage);
-        ErrorMsg := SQLUnwrapStmt(Item.Client.ErrorMessage);
-        if (Item.Client.ErrorCode > 0) then
-          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Item.Client.ErrorCode) + ')';
-        ErrorMsg := ErrorMsg + '  -  ' + SQLUnwrapStmt(Item.Client.CommandText);
+        Msg := Preferences.LoadStr(165, IntToStr(Item.Session.ErrorCode), Item.Session.ErrorMessage);
+        ErrorMsg := SQLUnwrapStmt(Item.Session.ErrorMessage);
+        if (Item.Session.ErrorCode > 0) then
+          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Item.Session.ErrorCode) + ')';
+        ErrorMsg := ErrorMsg + '  -  ' + SQLUnwrapStmt(Item.Session.CommandText);
       end;
     TE_File:
       begin
@@ -1895,7 +1825,7 @@ var
   ExportXML: TTExportXML;
   I: Integer;
 begin
-  Client.UnRegisterEventProc(FormClientEvent);
+  Session.UnRegisterEventProc(FormClientEvent);
 
   CheckActivePageChange(TSExecute.PageIndex);
   FBBack.Enabled := False;
@@ -1919,7 +1849,7 @@ begin
   case (ExportType) of
     etSQLFile:
       try
-        ExportSQL := TTExportSQL.Create(Client, Filename, CodePage);
+        ExportSQL := TTExportSQL.Create(Session, Filename, CodePage);
         ExportSQL.CreateDatabaseStmts := FCreateDatabase.Checked;
         ExportSQL.Data := FHTMLData.Checked;
         ExportSQL.DisableKeys := FDisableKeys.Checked;
@@ -1934,7 +1864,7 @@ begin
       end;
     etTextFile:
       try
-        ExportText := TTExportText.Create(Client, Filename, CodePage);
+        ExportText := TTExportText.Create(Session, Filename, CodePage);
         ExportText.Data := True;
         if (FSeparatorTab.Checked) then
           ExportText.Delimiter := #9;
@@ -1951,7 +1881,7 @@ begin
       end;
     etExcelFile:
       try
-        ExportExcel := TTExportExcel.Create(Client, Filename);
+        ExportExcel := TTExportExcel.Create(Session, Filename);
         ExportExcel.Data := True;
         ExportExcel.Structure := True;
 
@@ -1961,7 +1891,7 @@ begin
       end;
     etXMLFile:
       try
-        ExportXML := TTExportXML.Create(Client, Filename, CodePage);
+        ExportXML := TTExportXML.Create(Session, Filename, CodePage);
         if (FDatabaseTagName.Checked) then
         begin
           ExportXML.DatabaseTag := 'database';
@@ -2012,7 +1942,7 @@ begin
       end;
     etHTMLFile:
       try
-        ExportHTML := TTExportHTML.Create(Client, Filename, CodePage);
+        ExportHTML := TTExportHTML.Create(Session, Filename, CodePage);
         ExportHTML.Data := FHTMLData.Checked;
         ExportHTML.TextContent := FHTMLShowMemoContent.Checked;
         ExportHTML.NULLText := FHTMLNullText.Checked;
@@ -2027,9 +1957,9 @@ begin
     etPDFFile:
       try
         if (ExportType = etPrinter) then
-          ExportPDF := TTExportPrint.Create(Client, Title)
+          ExportPDF := TTExportPrint.Create(Session, Title)
         else
-          ExportPDF := TTExportPDF.Create(Client, Filename);
+          ExportPDF := TTExportPDF.Create(Session, Filename);
         ExportPDF.Data := FHTMLData.Checked;
         ExportPDF.NULLText := FHTMLNullText.Checked;
         ExportPDF.Structure := FHTMLStructure.Checked;
@@ -2069,7 +1999,6 @@ begin
     end
     else
     begin
-      Objects.Sort(DBObjectsSortItem);
       for I := 0 to Objects.Count - 1 do
         Export.Add(TSDBObject(Objects[I]));
 
@@ -2089,7 +2018,7 @@ begin
     Export.OnExecuted := OnExecuted;
     Export.OnError := OnError;
 
-    if (Export.Client.Asynchron) then
+    if (Export.Session.Asynchron) then
       Export.Start()
     else
       Export.Execute();

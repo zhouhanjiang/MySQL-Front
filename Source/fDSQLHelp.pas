@@ -47,7 +47,7 @@ type
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure WMNotify(var Message: TWMNotify); message WM_NOTIFY;
   public
-    Client: TSSession;
+    Session: TSSession;
     Keyword: string;
     function Execute(): Boolean;
   end;
@@ -91,7 +91,7 @@ begin
 
     if (Assigned(DataSet.FindField('description')) and not DataSet.IsEmpty()) then
     begin
-      ManualURL := Client.Account.ManualURL;
+      ManualURL := Session.Account.ManualURL;
 
       Caption := ReplaceStr(Preferences.LoadStr(883), '&', '') + ': ' + DataSet.FieldByName('name').AsString;
 
@@ -104,7 +104,7 @@ begin
       FBExample.Enabled := Trim(DataSet.FieldByName('example').AsString) <> '';
 
       if (Pos('URL: ', FDescription.Lines[FDescription.Lines.Count - 1]) <> 1) then
-        ManualURL := Client.Account.ManualURL
+        ManualURL := Session.Account.ManualURL
       else
       begin
         ManualURL := FDescription.Lines[FDescription.Lines.Count - 1];
@@ -178,7 +178,7 @@ end;
 
 procedure TDSQLHelp.CMSendSQL(var Message: TMessage);
 begin
-  Client.SendSQL('HELP ' + SQLEscape(Keyword), ClientResult);
+  Session.SendSQL('HELP ' + SQLEscape(Keyword), ClientResult);
 end;
 
 procedure TDSQLHelp.CMSysFontChanged(var Message: TMessage);
