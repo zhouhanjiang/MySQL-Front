@@ -1220,7 +1220,7 @@ begin
   FClient := AFClient;
 
   Filename := '';
-  FileCodePage := CP_ACP;
+  FileCodePage := GetACP();
   TCResult := nil;
   Results := nil;
 end;
@@ -3647,7 +3647,7 @@ begin
       DImport.ImportType := ImportType;
       DImport.Filename := OpenDialog.FileName;
       if (OpenDialog.EncodingIndex < 0) then
-        DImport.CodePage := CP_ACP
+        DImport.CodePage := GetACP()
       else
         DImport.CodePage := EncodingToCodePage(OpenDialog.Encodings[OpenDialog.EncodingIndex]);
       DImport.Execute();
@@ -3678,7 +3678,7 @@ begin
     DImport.Table := nil;
   end;
   DImport.Filename := '';
-  DImport.CodePage := CP_ACP;
+  DImport.CodePage := GetACP();
   DImport.ImportType := itODBC;
   DImport.Execute();
   Wanted.Update := Session.Update;

@@ -1480,7 +1480,7 @@ begin
     Preferences.Path := ExtractFilePath(SaveDialog.FileName);
 
     if ((SaveDialog.EncodingIndex < 0) or (SaveDialog.Encodings.Count = 0)) then
-      CodePage := CP_ACP
+      CodePage := GetACP()
     else
       CodePage := EncodingToCodePage(SaveDialog.Encodings[SaveDialog.EncodingIndex]);
     Filename := SaveDialog.FileName;

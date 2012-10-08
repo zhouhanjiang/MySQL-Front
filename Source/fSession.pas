@@ -4817,8 +4817,8 @@ begin
         end;
       Expressions.Free();
     except
-//      on E: EacSQLError do
-//        raise EacSQLError.Create(E.Message + ': ' + Stmt);
+      on E: EacSQLError do
+        raise EacSQLError.Create(E.Message + ': ' + Stmt);
     end;
     QueryBuilder.Free();
   end;
