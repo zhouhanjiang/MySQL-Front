@@ -1266,7 +1266,7 @@ begin
         ImportODBC.RowType := Table.RowType;
         ImportODBC.Structure := False;
 
-        ImportODBC.Add(Table.Name, FTables.Selected.Caption);
+        ImportODBC.Add(Table.Name, ODBCTableName(FTables.Selected.Caption, ImportType = itExcelFile));
       end
       else
       begin
