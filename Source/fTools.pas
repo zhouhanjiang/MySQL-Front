@@ -1702,7 +1702,8 @@ begin
       else
         SQL := SQL + 'START TRANSACTION;' + #13#10;
 
-    if ((ImportType <> itUpdate) and Session.DataFileAllowed) then
+    // Debug
+    if (False and (ImportType <> itUpdate) and Session.DataFileAllowed) then
     begin
       Pipename := '\\.\pipe\' + LoadStr(1000);
       Pipe := CreateNamedPipe(PChar(Pipename),
