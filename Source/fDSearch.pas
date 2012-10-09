@@ -107,7 +107,7 @@ type
     WantedExecute: Boolean;
     WantedNodeExpand: TTreeNode;
     procedure FormClientEvent(const Event: TSSession.TEvent);
-    function GetClient(const Index: Integer): TSSession;
+    function GetSession(const Index: Integer): TSSession;
     procedure OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure OnExecuted(const ASuccess: Boolean);
     procedure OnUpdate(const AProgressInfos: TTools.TProgressInfos);
@@ -526,17 +526,23 @@ begin
           DatabaseNode := AccountNode.getFirstChild();
           while (Assigned(DatabaseNode)) do
           begin
-            if ((DatabaseNames.IndexOf(DatabaseNode.Text) < 0) or (TableNames.Count = 0)) then
-              DatabaseNode.Selected := DatabaseNames.IndexOf(DatabaseNode.Text) >= 0
-            else
+            if (TableNames.Count = 0) then
+            begin
+              if (DatabaseNames.IndexOf(DatabaseNode.Text) >= 0) then
+                SelectedNodes.Add(DatabaseNode);
+            end
+            else if (DatabaseNames.IndexOf(DatabaseNode.Text) >= 0) then
             begin
               DatabaseNode.Expand(False);
               TableNode := DatabaseNode.getFirstChild();
               while (Assigned(TableNode)) do
               begin
-                if ((TableNames.IndexOf(TableNode.Text) < 0) or (FieldNames.Count = 0)) then
-                  TableNode.Selected := TableNames.IndexOf(TableNode.Text) >= 0
-                else
+                if (FieldNames.Count = 0) then
+                begin
+                  if (TableNames.IndexOf(TableNode.Text) >= 0) then
+                    SelectedNodes.Add(TableNode);
+                end
+                else if (TableNames.IndexOf(TableNode.Text) >= 0) then
                 begin
                   TableNode.Expand(False);
                   FieldNode := TableNode.getFirstChild();
@@ -647,7 +653,7 @@ begin
       case (Node.ImageIndex) of
         iiServer:
           begin
-            Session := GetClient(Node.Index);
+            Session := GetSession(Node.Index);
             if (Assigned(Session)) then
               if (not Session.Update() and Session.Asynchron) then
                 WantedNodeExpand := Node
@@ -666,7 +672,7 @@ begin
           end;
         iiDatabase:
           begin
-            Session := GetClient(Node.Parent.Index);
+            Session := GetSession(Node.Parent.Index);
             Database := Session.DatabaseByName(Node.Text);
             if ((not Database.Tables.Update() or not Session.Update(Database.Tables)) and Session.Asynchron) then
               WantedNodeExpand := Node
@@ -685,7 +691,7 @@ begin
           end;
         iiBaseTable:
           begin
-            Session := GetClient(Node.Parent.Parent.Index);
+            Session := GetSession(Node.Parent.Parent.Index);
             Database := Session.DatabaseByName(Node.Parent.Text);
             Table := Database.BaseTableByName(Node.Text);
             if (not Table.Update()) then
@@ -745,7 +751,7 @@ begin
   end;
 end;
 
-function TDSearch.GetClient(const Index: Integer): TSSession;
+function TDSearch.GetSession(const Index: Integer): TSSession;
 begin
   if (not Assigned(Sessions[Index])) then
   begin
@@ -954,7 +960,7 @@ begin
 
   Node := FSelect.Selected;
   while (Assigned(Node.Parent)) do Node := Node.Parent;
-  Session := GetClient(Node.Index);
+  Session := GetSession(Node.Index);
   InitializeNode(Session, FSelect.Selected);
 
   if (not WantedExecute) then

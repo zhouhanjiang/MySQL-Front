@@ -8423,13 +8423,18 @@ end;
 procedure TFSession.FreeDBGrid(const DBGrid: TMySQLDBGrid);
 begin
   PBlob.Parent := PContent;
+
   if (ActiveDBGrid = DBGrid) then
     ActiveDBGrid := nil;
+
   DBGrid.Free();
 end;
 
 procedure TFSession.FreeListView(const ListView: TListView);
 begin
+  if (ListView = ActiveListView) then
+    ActiveListView := nil;
+
   ListView.OnChanging := nil;
   ListView.Items.BeginUpdate();
   ListView.Items.Clear();
@@ -12160,19 +12165,26 @@ begin
           end;
         iiDatabase:
           begin
+            SourceSession.BeginSynchron();
+            SourceSession.Databases.Update();
+            SourceSession.EndSynchron();
             SourceDatabase := SourceSession.DatabaseByName(SourceURI.Database);
 
             if (not Assigned(SourceDatabase)) then
               MessageBeep(MB_ICONERROR)
             else
             begin
+              SourceSession.BeginSynchron();
+              SourceDatabase.Tables.Update();
+              SourceSession.EndSynchron();
+
               Database := TSDatabase(Node.Data);
 
               Found := False;
               for I := 1 to StringList.Count - 1 do
                 Found := Found or (StringList.Names[I] = 'Table');
 
-              if (not Assigned(SourceDatabase)) then
+              if (not Assigned(Database)) then
                 MessageBeep(MB_ICONERROR)
               else if (not Found or DPaste.Execute()) then
               begin
@@ -12188,15 +12200,10 @@ begin
                         DTransfer.SourceTableName := DTransfer.SourceTableName + ',';
                       DTransfer.SourceTableName := DTransfer.SourceTableName + StringList.ValueFromIndex[I];
                     end;
-                  if (DTransfer.SourceTableName = '') then
-                    MessageBeep(MB_ICONERROR)
-                  else
-                  begin
-                    DTransfer.DestinationSession := Session;
-                    DTransfer.DestinationDatabaseName := SelectedDatabase;
-                    DTransfer.DestinationTableName := '';
-                    DTransfer.Execute();
-                  end;
+                  DTransfer.DestinationSession := Session;
+                  DTransfer.DestinationDatabaseName := SelectedDatabase;
+                  DTransfer.DestinationTableName := '';
+                  DTransfer.Execute();
                 end
                 else
                   for I := 1 to StringList.Count - 1 do

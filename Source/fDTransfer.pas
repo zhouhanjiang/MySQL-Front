@@ -69,7 +69,7 @@ type
     WantedExecute: Boolean;
     WantedNodeExpand: TTreeNode;
     procedure FormClientEvent(const Event: TSSession.TEvent);
-    function GetClient(const Index: Integer): TSSession;
+    function GetSession(const Index: Integer): TSSession;
     procedure InitTSSelect(Sender: TObject);
     procedure OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure OnExecuted(const ASuccess: Boolean);
@@ -270,7 +270,7 @@ begin
     if (Assigned(Sessions[I])) then
     begin
       Sessions[I].UnRegisterEventProc(FormClientEvent);
-      if (Assigned(Sessions[I]) and (Sessions[I] <> SourceSession) and (Sessions[I] <> SourceSession)) then
+      if (Assigned(Sessions[I]) and (Sessions[I] <> SourceSession) and (Sessions[I] <> DestinationSession)) then
         FreeAndNil(Sessions[I]);
     end;
   SetLength(Sessions, 0);
@@ -311,8 +311,8 @@ begin
   begin
     if (Assigned(SourceSession) and (Accounts[I] = SourceSession.Account)) then
       Sessions[I] := SourceSession
-    else if (Assigned(SourceSession) and (Accounts[I] = SourceSession.Account)) then
-      Sessions[I] := SourceSession
+    else if (Assigned(DestinationSession) and (Accounts[I] = DestinationSession.Account)) then
+      Sessions[I] := DestinationSession
     else
       Sessions[I] := nil;
   end;
@@ -331,7 +331,7 @@ begin
   FBCancel.Default := False;
 end;
 
-function TDTransfer.GetClient(const Index: Integer): TSSession;
+function TDTransfer.GetSession(const Index: Integer): TSSession;
 begin
   if (not Assigned(Sessions[Index])) then
   begin
@@ -407,9 +407,12 @@ begin
           DatabaseNode := AccountNode.getFirstChild();
           while (Assigned(DatabaseNode)) do
           begin
-            if ((DatabaseNames.IndexOf(DatabaseNode.Text) < 0) or (TableNames.Count = 0)) then
-              DatabaseNode.Selected := DatabaseNames.IndexOf(DatabaseNode.Text) >= 0
-            else
+            if (TableNames.Count = 0) then
+            begin
+              if (DatabaseNames.IndexOf(DatabaseNode.Text) >= 0) then
+                SelectedNodes.Add(DatabaseNode);
+            end
+            else if (DatabaseNames.IndexOf(DatabaseNode.Text) >= 0) then
             begin
               DatabaseNode.Expand(False);
               TableNode := DatabaseNode.getFirstChild();
@@ -438,35 +441,42 @@ begin
     else if (not Assigned(FSource.Selected) and Assigned(AccountNode)) then
       AccountNode.Selected := True;
 
-    SelectedNodes.Free();
     DatabaseNames.Free();
     TableNames.Free();
+    SourceSession.EndSynchron();
 
-    if (Assigned(SourceSession)) then
+    SelectedNodes.Clear();
+
+    if (Assigned(DestinationSession)) then
     begin
-      AccountNode := FDestination.TopItem;
+      DestinationSession.BeginSynchron();
+
+      AccountNode := FDestination.Items[0];
       while (Assigned(AccountNode)) do
       begin
-        if (AccountNode.Text = SourceSession.Account.Name) then
+        if (AccountNode.Text = DestinationSession.Account.Name) then
         begin
           AccountNode.Selected := True;
           if (DestinationDatabaseName <> '') then
           begin
+            DestinationSession.Databases.Update();
+
             AccountNode.Expand(False);
             DatabaseNode := AccountNode.getFirstChild();
             while (Assigned(DatabaseNode)) do
             begin
               if (DatabaseNode.Text = DestinationDatabaseName) then
               begin
-                DatabaseNode.Selected := True;
-                if (DestinationTableName <> '') then
+                if (DestinationTableName = '') then
+                  SelectedNodes.Add(DatabaseNode)
+                else
                 begin
                   DatabaseNode.Expand(False);
                   TableNode := DatabaseNode.getFirstChild();
                   while (Assigned(TableNode)) do
                   begin
                     if (TableNode.Text = DestinationTableName) then
-                      TableNode.Selected := True;
+                      SelectedNodes.Add(TableNode);
                     TableNode := DatabaseNode.getNextChild(TableNode);
                   end;
                 end;
@@ -477,8 +487,22 @@ begin
         end;
         AccountNode := AccountNode.getNextSibling();
       end;
-      SourceSession.EndSynchron();
+
+      DestinationSession.EndSynchron();
     end;
+
+    if (SelectedNodes.Count = 1) then
+    begin
+      FDestination.Selected := SelectedNodes[0];
+      if (Assigned(FDestination.Selected) and FDestination.AutoExpand) then
+        FDestination.Selected.Expand(False);
+    end
+    else if (SelectedNodes.Count > 1) then
+      FDestination.Select(SelectedNodes)
+    else if (not Assigned(FDestination.Selected) and Assigned(AccountNode)) then
+      AccountNode.Selected := True;
+    SelectedNodes.Free();
+
     if (Assigned(FDestination.Selected) and FDestination.AutoExpand) then
       FDestination.Selected.Expand(False);
   end;
@@ -641,7 +665,7 @@ begin
       case (Node.ImageIndex) of
         iiServer:
           begin
-            Session := GetClient(Node.Index);
+            Session := GetSession(Node.Index);
             if (Assigned(Session)) then
               if (not Session.Update() and Session.Asynchron) then
                 WantedNodeExpand := Node
@@ -660,7 +684,7 @@ begin
           end;
         iiDatabase:
           begin
-            Session := GetClient(Node.Parent.Index);
+            Session := GetSession(Node.Parent.Index);
             Database := Session.DatabaseByName(Node.Text);
             if ((not Database.Tables.Update() or not Session.Update(Database.Tables)) and Session.Asynchron) then
               WantedNodeExpand := Node
@@ -790,7 +814,7 @@ begin
 
   Node := FSource.Selected;
   while (Assigned(Node.Parent)) do Node := Node.Parent;
-  SourceSession := GetClient(Node.Index);
+  SourceSession := GetSession(Node.Index);
   WantedExecute := InitializeNode(SourceSession, FSource.Selected);
 
   if (WantedExecute) then
@@ -799,7 +823,7 @@ begin
   begin
     Node := FDestination.Selected;
     while (Assigned(Node.Parent)) do Node := Node.Parent;
-    DestinationSession := GetClient(Node.Index);
+    DestinationSession := GetSession(Node.Index);
     WantedExecute := not Assigned(DestinationSession) or InitializeNode(DestinationSession, FDestination.Selected);
   end;
 

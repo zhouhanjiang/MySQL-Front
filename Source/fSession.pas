@@ -6,7 +6,7 @@ uses
   SysUtils, Classes, Windows, Contnrs,
   Graphics,
   DB,
-  acAST, acQBBase, acMYSQLSynProvider, acQBEventMetaProvider,
+  acAST, acQBBase, acMYSQLSynProvider, acQBEventMetaProvider, acSQLBuilderPlainText,
   SQLUtils, MySQLDB,
   fPreferences;
 
@@ -689,7 +689,7 @@ type
     FStmt: string;
     function GetValidFields(): Boolean; inline;
     function GetViewFields(): TSViewFields; inline;
-    function ParseCreateView(const SQL: string; const RemoveDefiner: Boolean = False; const RemoveDatabaseName: Boolean = False): string;
+    function ParseCreateView(const SQL: string): string;
   protected
     FComment: string;
     function GetDependencies(): TSDependencies; override;
@@ -4775,51 +4775,52 @@ begin
     QueryBuilder.MetadataProvider := Session.MetadataProvider;
     try
       QueryBuilder.SQL := Stmt;
-
-      Expressions := TList.Create();
-      GetExpressions(QueryBuilder.ResultQueryAST, Expressions);
-      for I := 0 to Expressions.Count - 1 do
-        if ((TSQLExpressionItem(Expressions[I]) is TSQLExpressionColumn)) then
-        begin
-          SQL := TSQLExpressionFunction(Expressions[I]).Name.QualifiedNameWithQuotes;
-          if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.ServerVersion)) then
-          begin
-            DatabaseName := Database.Name;
-            if (SQLParseObjectName(Parse, DatabaseName, ObjectName)
-              and Assigned(Session.DatabaseByName(DatabaseName))
-              and Assigned(Session.DatabaseByName(DatabaseName).TableByName(ObjectName))) then
-            begin
-              Dependency := TSDependency.Create();
-              Dependency.DatabaseName := DatabaseName;
-              Dependency.ObjectClass := Session.DatabaseByName(DatabaseName).TableByName(ObjectName).ClassType;
-              Dependency.ObjectName := ObjectName;
-              FDependencies.Add(Dependency);
-            end;
-          end;
-        end
-        else if ((TSQLExpressionItem(Expressions[I]) is TSQLExpressionFunction)) then
-        begin
-          SQL := TSQLExpressionFunction(Expressions[I]).Name.QualifiedNameWithQuotes;
-          if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.ServerVersion)) then
-          begin
-            DatabaseName := Database.Name;
-            if (SQLParseObjectName(Parse, DatabaseName, ObjectName)
-              and Assigned(Session.DatabaseByName(DatabaseName))
-              and Assigned(Session.DatabaseByName(DatabaseName).FunctionByName(ObjectName))) then
-            begin
-              Dependency := TSDependency.Create();
-              Dependency.DatabaseName := DatabaseName;
-              Dependency.ObjectClass := TSFunction;
-              Dependency.ObjectName := ObjectName;
-              FDependencies.Add(Dependency);
-            end;
-          end;
-        end;
-      Expressions.Free();
     except
       on E: EacSQLError do
         raise EacSQLError.Create(E.Message + ': ' + Stmt);
     end;
+
+    Expressions := TList.Create();
+    GetExpressions(QueryBuilder.ResultQueryAST, Expressions);
+    for I := 0 to Expressions.Count - 1 do
+      if ((TSQLExpressionItem(Expressions[I]) is TSQLExpressionColumn)) then
+      begin
+        SQL := TSQLExpressionFunction(Expressions[I]).Name.QualifiedNameWithQuotes;
+        if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.ServerVersion)) then
+        begin
+          DatabaseName := Database.Name;
+          if (SQLParseObjectName(Parse, DatabaseName, ObjectName)
+            and Assigned(Session.DatabaseByName(DatabaseName))
+            and Assigned(Session.DatabaseByName(DatabaseName).TableByName(ObjectName))) then
+          begin
+            Dependency := TSDependency.Create();
+            Dependency.DatabaseName := DatabaseName;
+            Dependency.ObjectClass := Session.DatabaseByName(DatabaseName).TableByName(ObjectName).ClassType;
+            Dependency.ObjectName := ObjectName;
+            FDependencies.Add(Dependency);
+          end;
+        end;
+      end
+      else if ((TSQLExpressionItem(Expressions[I]) is TSQLExpressionFunction)) then
+      begin
+        SQL := TSQLExpressionFunction(Expressions[I]).Name.QualifiedNameWithQuotes;
+        if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.ServerVersion)) then
+        begin
+          DatabaseName := Database.Name;
+          if (SQLParseObjectName(Parse, DatabaseName, ObjectName)
+            and Assigned(Session.DatabaseByName(DatabaseName))
+            and Assigned(Session.DatabaseByName(DatabaseName).FunctionByName(ObjectName))) then
+          begin
+            Dependency := TSDependency.Create();
+            Dependency.DatabaseName := DatabaseName;
+            Dependency.ObjectClass := TSFunction;
+            Dependency.ObjectName := ObjectName;
+            FDependencies.Add(Dependency);
+          end;
+        end;
+      end;
+    Expressions.Free();
+
     QueryBuilder.Free();
   end;
 
@@ -4842,11 +4843,53 @@ begin
 end;
 
 function TSView.GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string;
+var
+  Index: Integer;
+  Parse: TSQLParse;
+  RemovedLength: Integer;
+  SQL: string;
 begin
-  Result := ParseCreateView(Source, not EncloseDefiner, True);
+  SQL := Source; RemovedLength := 0;
+
+  if (SQLCreateParse(Parse, PChar(Source), Length(Source), Session.ServerVersion)) then
+  begin
+    if (not EncloseDefiner) then
+    begin
+      if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 19, SQL]);
+
+      Index := SQLParseGetIndex(Parse);
+      if (SQLParseKeyword(Parse, 'ALGORITHM')) then
+      begin
+        if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 20, SQL]);
+        SQLParseValue(Parse);
+        Delete(SQL, Index - RemovedLength, SQLParseGetIndex(Parse) - Index);
+        Inc(RemovedLength, SQLParseGetIndex(Parse) - Index);
+      end;
+
+      Index := SQLParseGetIndex(Parse);
+      if (SQLParseKeyword(Parse, 'DEFINER')) then
+      begin
+        if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 20, SQL]);
+        SQLParseValue(Parse);
+        Delete(SQL, Index - RemovedLength, SQLParseGetIndex(Parse) - Index);
+        Inc(RemovedLength, SQLParseGetIndex(Parse) - Index);
+      end;
+
+      Index := SQLParseGetIndex(Parse);
+      if (SQLParseKeyword(Parse, 'SQL SECURITY')) then
+      begin
+        SQLParseValue(Parse);
+        Delete(SQL, Index - RemovedLength, SQLParseGetIndex(Parse) - Index);
+      end;
+    end;
+  end;
+
+  SQL := Trim(SQL) + #13#10;
 
   if (DropBeforeCreate) then
-    Result := 'DROP VIEW IF EXISTS ' + Database.Session.EscapeIdentifier(Name) + ';' + #13#10 + Result;
+    SQL := 'DROP VIEW IF EXISTS ' + Database.Session.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
+
+  Result := SQL;
 end;
 
 procedure TSView.Invalidate();
@@ -4856,10 +4899,9 @@ begin
   Fields.Invalidate();
 end;
 
-function TSView.ParseCreateView(const SQL: string; const RemoveDefiner: Boolean = False; const RemoveDatabaseName: Boolean = False): string;
+function TSView.ParseCreateView(const SQL: string): string;
 var
   EndingCommentLen: Integer;
-  Index: Integer;
   Len: Integer;
   Parse: TSQLParse;
   StartingCommentLen: Integer;
@@ -4888,13 +4930,10 @@ begin
         FAlgorithm := vaUndefined;
     end;
 
-    Index := SQLParseGetIndex(Parse);
     if (SQLParseKeyword(Parse, 'DEFINER')) then
     begin
       if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 15, SQL]);
       FDefiner := SQLParseValue(Parse);
-      if (RemoveDefiner) then
-        Delete(Result, Index, SQLParseGetIndex(Parse) - Index);
     end;
 
     if (SQLParseKeyword(Parse, 'SQL SECURITY DEFINER')) then
@@ -4904,15 +4943,12 @@ begin
 
     if (not SQLParseKeyword(Parse, 'VIEW')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 16, SQL]);
 
-    Index := SQLParseGetIndex(Parse);
     FName := SQLParseValue(Parse);
     if (SQLParseChar(Parse, '.')) then
     begin
       if (Database.Session.TableNameCmp(Database.Name, FName) <> 0) then
         raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + FName, 17, SQL]);
       FName := SQLParseValue(Parse);
-      if (RemoveDatabaseName) then
-        Delete(Result, Index, SQLParseGetIndex(Parse) - Index);
     end;
 
     if (not SQLParseKeyword(Parse, 'AS')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 18, SQL]);
@@ -5560,46 +5596,37 @@ end;
 
 function TSRoutine.GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string;
 var
+  Index: Integer;
   Parse: TSQLParse;
-  Pos: Integer;
   SQL: string;
-  Start: Integer;
 begin
-  Result := '';
+  SQL := Source;
 
-  if (SQLCreateParse(Parse, PChar(Source), Length(Source), Database.Session.ServerVersion)) then
+  if (SQLCreateParse(Parse, PChar(Source), Length(Source), Session.ServerVersion)) then
   begin
-    SQL := Trim(Source);
-
     if (not EncloseDefiner) then
     begin
-      Pos := 1;
-
       if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 19, SQL]);
 
+      Index := SQLParseGetIndex(Parse);
       if (SQLParseKeyword(Parse, 'DEFINER')) then
       begin
         if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 20, SQL]);
-        Start := Pos;
         SQLParseValue(Parse);
-        Delete(SQL, Start, Pos - Start);
+        Delete(SQL, Index, SQLParseGetIndex(Parse) - Index);
       end;
     end;
-
-    SQL := SQL + #13#10;
-
-    if (DropBeforeCreate) then
-      case (RoutineType) of
-        rtProcedure:
-          SQL := 'DROP PROCEDURE IF EXISTS ' + Database.Session.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
-        rtFunction:
-          SQL := 'DROP FUNCTION IF EXISTS ' + Database.Session.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
-        else
-          raise Exception.CreateFMT(SUnknownRoutineType, [Name]);
-      end;
-
-    Result := SQL;
   end;
+
+  SQL := Trim(SQL) + #13#10;
+
+  if (DropBeforeCreate) then
+    if (RoutineType = rtProcedure) then
+      SQL := 'DROP PROCEDURE IF EXISTS ' + Database.Session.EscapeIdentifier(Name) + ';' + #13#10 + SQL
+    else
+      SQL := 'DROP FUNCTION IF EXISTS ' + Database.Session.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
+
+  Result := SQL;
 end;
 
 procedure TSRoutine.Invalidate();
@@ -6012,7 +6039,7 @@ begin
     Result := Result + 'DROP TRIGGER IF EXISTS ' + Database.Session.EscapeIdentifier(Database.Name) + '.' + Database.Session.EscapeIdentifier(Name) + ';' + #13#10;
 
   Result := Result + 'CREATE';
-  if (Definer <> '') then
+  if ((Definer <> '') and not EncloseDefiner) then
     Result := Result + ' DEFINER=' + Database.Session.EscapeUser(Definer, True);
   Result := Result + ' TRIGGER ' + Database.Session.EscapeIdentifier(Database.Name) + '.' + Database.Session.EscapeIdentifier(Name) + ' ';
   case (Timing) of
@@ -6322,13 +6349,35 @@ begin
 end;
 
 function TSEvent.GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string;
+var
+  Index: Integer;
+  Parse: TSQLParse;
+  SQL: string;
 begin
-  Result := '';
+  SQL := Source;
+
+  if (SQLCreateParse(Parse, PChar(Source), Length(Source), Session.ServerVersion)) then
+  begin
+    if (not EncloseDefiner) then
+    begin
+      if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 19, SQL]);
+
+      Index := SQLParseGetIndex(Parse);
+      if (SQLParseKeyword(Parse, 'DEFINER')) then
+      begin
+        if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 20, SQL]);
+        SQLParseValue(Parse);
+        Delete(SQL, Index, SQLParseGetIndex(Parse) - Index);
+      end;
+    end;
+  end;
+
+  SQL := Trim(SQL) + #13#10;
 
   if (DropBeforeCreate) then
-    Result := Result + 'DROP EVENT IF EXISTS ' + Database.Session.EscapeIdentifier(Database.Name) + '.' + Database.Session.EscapeIdentifier(Name) + ';' + #13#10;
+    SQL := 'DROP EVENT IF EXISTS ' + Database.Session.EscapeIdentifier(Database.Name) + '.' + Database.Session.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
 
-  Result := Result + Source + #13#10;
+  Result := SQL;
 end;
 
 procedure TSEvent.ParseCreateEvent(const SQL: string);
@@ -6629,31 +6678,20 @@ begin
     if (not SQLParseKeyword(Parse, 'PROCEDURE') and not SQLParseKeyword(Parse, 'FUNCTION')) then
       raise EConvertError.CreateFmt(SSourceParseError, [Name + '.' + Routine.Name, 35, SQL]);
 
-    SQL := LeftStr(Routine.Source, SQLParseGetIndex(Parse));
+    SQL := LeftStr(Routine.Source, SQLParseGetIndex(Parse) - 1);
 
-    RoutineName := SQLParseValue(Parse);
-    if (not SQLParseChar(Parse, '.')) then
-      DatabaseName := Name
-    else
-    begin
-      DatabaseName := RoutineName;
-      RoutineName := SQLParseValue(Parse);
-    end;
+    DatabaseName := Name;
+    if (not SQLParseObjectName(Parse, DatabaseName, RoutineName)) then
+      raise EConvertError.CreateFmt(SSourceParseError, [Name + '.' + Routine.Name, 50, SQL]);
 
     SQL := SQL + Session.EscapeIdentifier(Name) + '.' + Session.EscapeIdentifier(NewRoutineName);
-    SQL := SQL + RightStr(Routine.Source, Length(Routine.Source) - SQLParseGetIndex(Parse));
+    SQL := SQL + RightStr(Routine.Source, Length(Routine.Source) - (SQLParseGetIndex(Parse) - 1));
     SQL := SQL + #13#10;
 
-    case (Routine.RoutineType) of
-      rtProcedure:
-        if (Assigned(ProcedureByName(NewRoutineName))) then
-          SQL := 'DROP PROCEDURE ' + Session.EscapeIdentifier(Name) + '.' + Session.EscapeIdentifier(Routine.Name) + ';' + #13#10;
-      rtFunction:
-        if (Assigned(FunctionByName(NewRoutineName))) then
-          SQL := 'DROP FUNCTION ' + Session.EscapeIdentifier(Name) + '.' + Session.EscapeIdentifier(Routine.Name) + ';' + #13#10;
-      else
-        raise Exception.CreateFMT(SUnknownRoutineType, [Name]);
-    end;
+    if ((Routine.RoutineType = rtProcedure) and Assigned(ProcedureByName(NewRoutineName))) then
+      SQL := 'DROP PROCEDURE ' + Session.EscapeIdentifier(Name) + '.' + Session.EscapeIdentifier(Routine.Name) + ';' + #13#10
+    else if ((Routine.RoutineType = rtFunction) and Assigned(FunctionByName(NewRoutineName))) then
+      SQL := 'DROP FUNCTION ' + Session.EscapeIdentifier(Name) + '.' + Session.EscapeIdentifier(Routine.Name) + ';' + #13#10;
 
     Result := Session.ExecuteSQL(SQL);
   end;

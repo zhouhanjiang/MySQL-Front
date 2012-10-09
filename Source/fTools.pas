@@ -1702,8 +1702,7 @@ begin
       else
         SQL := SQL + 'START TRANSACTION;' + #13#10;
 
-    // Debug
-    if (False and (ImportType <> itUpdate) and Session.DataFileAllowed) then
+    if ((ImportType <> itUpdate) and Session.DataFileAllowed) then
     begin
       Pipename := '\\.\pipe\' + LoadStr(1000);
       Pipe := CreateNamedPipe(PChar(Pipename),
@@ -4466,7 +4465,7 @@ begin
   Content := Content + '# Source for event "' + Event.Name + '"' + #13#10;
   Content := Content + '#' + #13#10;
   Content := Content + #13#10;
-  Content := Content + Event.GetSourceEx(IncludeDropStmts) + #13#10;
+  Content := Content + Event.GetSourceEx(IncludeDropStmts, False) + #13#10;
 
   WriteContent(Content);
 end;
@@ -4563,7 +4562,7 @@ begin
     Content := Content + '#' + #13#10;
   end;
   Content := Content + #13#10;
-  Content := Content + Routine.GetSourceEx(IncludeDropStmts);
+  Content := Content + Routine.GetSourceEx(IncludeDropStmts, False);
 
   WriteContent(Content);
 end;
@@ -4714,7 +4713,7 @@ begin
   Content := Content + '# Source for trigger "' + Trigger.Name + '"' + #13#10;
   Content := Content + '#' + #13#10;
   Content := Content + #13#10;
-  Content := Content + Trigger.GetSourceEx(IncludeDropStmts) + #13#10;
+  Content := Content + Trigger.GetSourceEx(IncludeDropStmts, False) + #13#10;
 
   WriteContent(Content);
 end;
