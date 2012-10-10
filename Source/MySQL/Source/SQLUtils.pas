@@ -763,6 +763,11 @@ begin
   Result := StrPas(P);
 end;
 
+function RemoveDatabaseNameFromStmt(const Stmt: string; const DatabaseName: string; const NameQuoter: Char): string;
+begin
+  Result := Stmt;
+end;
+
 function SQLCreateParse(out Handle: TSQLParse; const SQL: PChar; const Len: Integer; const Version: Integer; const InCondCode: Boolean = False): Boolean;
 begin
   Result := Assigned(SQL) and (Len > 0);

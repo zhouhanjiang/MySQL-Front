@@ -74,7 +74,7 @@ type
     procedure tbUpDownClick(Sender: TObject);
   private
     Lengths: array of Integer;
-    procedure FormClientEvent(const Event: TSSession.TEvent);
+    procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
     Database: TSDatabase;
@@ -281,7 +281,7 @@ begin
   FBOkCheckEnabled(Sender);
 end;
 
-procedure TDIndex.FormClientEvent(const Event: TSSession.TEvent);
+procedure TDIndex.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = ceItemAltered) and (Event.CItem = Table)) then
     ModalResult := mrOk
@@ -392,7 +392,7 @@ end;
 
 procedure TDIndex.FormHide(Sender: TObject);
 begin
-  Table.Session.UnRegisterEventProc(FormClientEvent);
+  Table.Session.UnRegisterEventProc(FormSessionEvent);
 
   Preferences.Index.Width := Width;
   Preferences.Index.Height := Height;
@@ -424,7 +424,7 @@ var
   I: Integer;
   J: Integer;
 begin
-  Table.Session.RegisterEventProc(FormClientEvent);
+  Table.Session.RegisterEventProc(FormSessionEvent);
 
   if (not Assigned(Key)) then
   begin

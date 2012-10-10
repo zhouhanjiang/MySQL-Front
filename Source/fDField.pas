@@ -100,7 +100,7 @@ type
     function GetDefaultSize(): Integer;
     function GetMaxLength(): Integer;
     function GetType(): TMySQLFieldType;
-    procedure FormClientEvent(const Event: TSSession.TEvent);
+    procedure FormSessionEvent(const Event: TSSession.TEvent);
     function IsBinaryType(): Boolean;
     function IsCharType(): Boolean;
     function IsDateType(): Boolean;
@@ -560,7 +560,7 @@ begin
   FBOkCheckEnabled(Sender);
 end;
 
-procedure TDField.FormClientEvent(const Event: TSSession.TEvent);
+procedure TDField.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = ceItemAltered) and (Event.CItem = Table)) then
     ModalResult := mrOk
@@ -747,7 +747,7 @@ end;
 
 procedure TDField.FormHide(Sender: TObject);
 begin
-  Table.Session.UnRegisterEventProc(FormClientEvent);
+  Table.Session.UnRegisterEventProc(FormSessionEvent);
 
   Preferences.Field.Width := Width;
   Preferences.Field.Height := Height;
@@ -759,7 +759,7 @@ var
   I: Integer;
   S: string;
 begin
-  Table.Session.RegisterEventProc(FormClientEvent);
+  Table.Session.RegisterEventProc(FormSessionEvent);
 
   if (not Assigned(Field)) then
   begin

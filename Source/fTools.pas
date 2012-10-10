@@ -4394,10 +4394,11 @@ begin
 
     if (Result = 0) then
     begin
-      if ((TSDBObject(Item1) is TSBaseTable) and Assigned(TSBaseTable(Item1).Engine) and not TSBaseTable(Item1).Engine.IsMerge) then
-        Index1 := 0
-      else if (TSDBObject(Item1) is TSBaseTable) then
-        Index1 := 1
+      if (TSDBObject(Item1) is TSBaseTable) then
+        if (not Assigned(TSBaseTable(Item1).Engine) or not TSBaseTable(Item1).Engine.IsMerge) then
+          Index1 := 0
+        else
+          Index1 := 1
       else if (TSDBObject(Item1) is TSFunction) then
         Index1 := 2
       else if (TSDBObject(Item1) is TSView) then
@@ -4410,10 +4411,11 @@ begin
         Index1 := 6
       else
         Index1 := 7;
-      if ((TSDBObject(Item2) is TSBaseTable) and Assigned(TSBaseTable(Item2).Engine) and not TSBaseTable(Item2).Engine.IsMerge) then
-        Index2 := 0
-      else if (TSDBObject(Item2) is TSBaseTable) then
-        Index2 := 1
+      if (TSDBObject(Item2) is TSBaseTable) then
+        if (not Assigned(TSBaseTable(Item2).Engine) or not TSBaseTable(Item2).Engine.IsMerge) then
+          Index2 := 0
+        else
+          Index2 := 1
       else if (TSDBObject(Item2) is TSFunction) then
         Index2 := 2
       else if (TSDBObject(Item2) is TSView) then
@@ -4447,7 +4449,7 @@ begin
       Content := Content + #13#10;
 
       if (CreateDatabaseStmts) then
-        Content := Content + Database.GetSourceEx(IncludeDropStmts) + #13#10;
+        Content := Content + Database.GetSourceEx(IncludeDropStmts);
 
       Content := Content + Database.SQLUse();
     end;
@@ -4465,7 +4467,7 @@ begin
   Content := Content + '# Source for event "' + Event.Name + '"' + #13#10;
   Content := Content + '#' + #13#10;
   Content := Content + #13#10;
-  Content := Content + Event.GetSourceEx(IncludeDropStmts, False) + #13#10;
+  Content := Content + Event.GetSourceEx(IncludeDropStmts, False);
 
   WriteContent(Content);
 end;
@@ -4614,7 +4616,7 @@ begin
     end;
     Content := Content + '' + #13#10;
 
-    Content := Content + Table.GetSourceEx(IncludeDropStmts, False) + #13#10;
+    Content := Content + Table.GetSourceEx(IncludeDropStmts, False);
   end;
 
   if (Assigned(Table) and Data) then
@@ -4713,7 +4715,7 @@ begin
   Content := Content + '# Source for trigger "' + Trigger.Name + '"' + #13#10;
   Content := Content + '#' + #13#10;
   Content := Content + #13#10;
-  Content := Content + Trigger.GetSourceEx(IncludeDropStmts, False) + #13#10;
+  Content := Content + Trigger.GetSourceEx(IncludeDropStmts, False);
 
   WriteContent(Content);
 end;

@@ -76,7 +76,7 @@ type
     procedure TSStartupShow(Sender: TObject);
   private
     procedure Built();
-    procedure FormClientEvent(const Event: TSSession.TEvent);
+    procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure ListViewShowSortDirection(const ListView: TListView);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
@@ -240,7 +240,7 @@ begin
   ActiveControl := FBCancel;
 end;
 
-procedure TDServer.FormClientEvent(const Event: TSSession.TEvent);
+procedure TDServer.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = ceItemsValid) and ((Event.CItems = Session.Stati) or Assigned(Session.Plugins) and (Event.CItems = Session.Plugins))
     and Session.Stati.Valid and (not Assigned(Session.Plugins) or Session.Plugins.Valid)) then
@@ -278,7 +278,7 @@ end;
 
 procedure TDServer.FormHide(Sender: TObject);
 begin
-  Session.UnRegisterEventProc(FormClientEvent);
+  Session.UnRegisterEventProc(FormSessionEvent);
 
   Preferences.Server.Width := Width;
   Preferences.Server.Height := Height;
@@ -294,7 +294,7 @@ procedure TDServer.FormShow(Sender: TObject);
 var
   List: TList;
 begin
-  Session.RegisterEventProc(FormClientEvent);
+  Session.RegisterEventProc(FormSessionEvent);
 
   Caption := Preferences.LoadStr(842, Session.Caption);
 

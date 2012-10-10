@@ -55,7 +55,7 @@ type
     procedure TSSourceShow(Sender: TObject);
   private
     procedure Built();
-    procedure FormClientEvent(const Event: TSSession.TEvent);
+    procedure FormSessionEvent(const Event: TSSession.TEvent);
     function GetName(): string;
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
@@ -223,7 +223,7 @@ begin
   TSSource.TabVisible := False;
 end;
 
-procedure TDDatabase.FormClientEvent(const Event: TSSession.TEvent);
+procedure TDDatabase.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = ceItemValid) and (Event.CItem = Database)) then
     Built()
@@ -293,7 +293,7 @@ end;
 
 procedure TDDatabase.FormHide(Sender: TObject);
 begin
-  Session.UnRegisterEventProc(FormClientEvent);
+  Session.UnRegisterEventProc(FormSessionEvent);
 
   Preferences.Database.Width := Width;
   Preferences.Database.Height := Height;
@@ -308,7 +308,7 @@ var
   DatabaseName: string;
   I: Integer;
 begin
-  Session.RegisterEventProc(FormClientEvent);
+  Session.RegisterEventProc(FormSessionEvent);
 
   if (not Assigned(Database)) then
     Caption := Preferences.LoadStr(147)

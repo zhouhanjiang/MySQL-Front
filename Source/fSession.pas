@@ -601,7 +601,6 @@ type
     function GetAutoIncrementField(): TSBaseTableField;
     function GetBaseTableFields(): TSBaseTableFields; inline;
     function GetEngine(): TSEngine;
-    function GetIsMerge(): Boolean;
     function GetPrimaryKey(): TSKey;
     function GetTriggers(Index: Integer): TSTrigger;
     function GetTriggerCount(): Integer;
@@ -654,7 +653,6 @@ type
     property Fields: TSBaseTableFields read GetBaseTableFields;
     property IndexSize: Int64 read FIndexSize;
     property InsertMethod: TInsertMethod read FInsertMethod write FInsertMethod;
-    property IsMerge: Boolean read GetIsMerge;
     property ForeignKeys: TSForeignKeys read FForeignKeys;
     property Keys: TSKeys read FKeys;
     property MaxDataSize: Int64 read FMaxDataSize;
@@ -3981,21 +3979,21 @@ begin
   Result := Temporary or (Database is TSSystemDatabase) or inherited GetInServerCache();
 end;
 
-function TSBaseTable.GetIsMerge(): Boolean;
-begin
-  Result := Length(FMergeSourceTables) > 0;
-end;
-
 function TSBaseTable.GetPrimaryKey(): TSKey;
 begin
   Result := IndexByName('');
 end;
 
 function TSBaseTable.GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string;
+var
+  SQL: string;
 begin
-  Result := FSource;
+  SQL := Trim(FSource) + #13#10;
+
   if (DropBeforeCreate) then
-    Result := 'DROP TABLE IF EXISTS ' + Database.Session.EscapeIdentifier(Name) + ';' + #13#10 + Result;
+    SQL := 'DROP TABLE IF EXISTS ' + Database.Session.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
+
+  Result := SQL;
 end;
 
 function TSBaseTable.GetTriggers(Index: Integer): TSTrigger;
@@ -4849,9 +4847,9 @@ var
   RemovedLength: Integer;
   SQL: string;
 begin
-  SQL := Source; RemovedLength := 0;
+  SQL := FSource; RemovedLength := 0;
 
-  if (SQLCreateParse(Parse, PChar(Source), Length(Source), Session.ServerVersion)) then
+  if (SQLCreateParse(Parse, PChar(FSource), Length(FSource), Session.ServerVersion)) then
   begin
     if (not EncloseDefiner) then
     begin
@@ -4884,7 +4882,7 @@ begin
     end;
   end;
 
-  SQL := Trim(SQL) + #13#10;
+  SQL := Trim(ReplaceStr(SQL, Session.EscapeIdentifier(Database.Name) + '.', '')) + #13#10;
 
   if (DropBeforeCreate) then
     SQL := 'DROP VIEW IF EXISTS ' + Database.Session.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
@@ -5600,7 +5598,7 @@ var
   Parse: TSQLParse;
   SQL: string;
 begin
-  SQL := Source;
+  SQL := FSource;
 
   if (SQLCreateParse(Parse, PChar(Source), Length(Source), Session.ServerVersion)) then
   begin
@@ -6032,31 +6030,33 @@ begin
 end;
 
 function TSTrigger.GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string;
+var
+  SQL: string;
 begin
-  Result := '';
+  SQL := 'CREATE';
+  if ((Definer <> '') and not EncloseDefiner) then
+    SQL := SQL + ' DEFINER=' + Database.Session.EscapeUser(Definer, True);
+  SQL := SQL + ' TRIGGER ' + Database.Session.EscapeIdentifier(Database.Name) + '.' + Database.Session.EscapeIdentifier(Name) + ' ';
+  case (Timing) of
+    ttBefore: SQL := SQL + 'BEFORE';
+    ttAfter: SQL := SQL + 'AFTER';
+  end;
+  SQL := SQL + ' ';
+  case (Event) of
+    teInsert: SQL := SQL + 'INSERT';
+    teUpdate: SQL := SQL + 'UPDATE';
+    teDelete: SQL := SQL + 'DELETE';
+  end;
+  SQL := SQL + ' ON ';
+  SQL := SQL + Database.Session.EscapeIdentifier(Database.Name) + '.' + Database.Session.EscapeIdentifier(FTableName) + #13#10;
+  SQL := SQL + '  FOR EACH ROW ' + Stmt;
+  if (RightStr(SQL, 1) <> ';') then SQL := SQL + ';';
+  SQL := Trim(SQL) + #13#10;
 
   if (DropBeforeCreate) then
-    Result := Result + 'DROP TRIGGER IF EXISTS ' + Database.Session.EscapeIdentifier(Database.Name) + '.' + Database.Session.EscapeIdentifier(Name) + ';' + #13#10;
+    SQL := 'DROP TRIGGER IF EXISTS ' + Database.Session.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
 
-  Result := Result + 'CREATE';
-  if ((Definer <> '') and not EncloseDefiner) then
-    Result := Result + ' DEFINER=' + Database.Session.EscapeUser(Definer, True);
-  Result := Result + ' TRIGGER ' + Database.Session.EscapeIdentifier(Database.Name) + '.' + Database.Session.EscapeIdentifier(Name) + ' ';
-  case (Timing) of
-    ttBefore: Result := Result + 'BEFORE';
-    ttAfter: Result := Result + 'AFTER';
-  end;
-  Result := Result + ' ';
-  case (Event) of
-    teInsert: Result := Result + 'INSERT';
-    teUpdate: Result := Result + 'UPDATE';
-    teDelete: Result := Result + 'DELETE';
-  end;
-  Result := Result + ' ON ';
-  Result := Result + Database.Session.EscapeIdentifier(Database.Name) + '.' + Database.Session.EscapeIdentifier(FTableName) + #13#10;
-  Result := Result + '  FOR EACH ROW ' + Stmt;
-  if (RightStr(Result, 1) <> ';') then Result := Result + ';';
-  Result := Result + #13#10;
+  Result := SQL;
 end;
 
 function TSTrigger.GetTable(): TSBaseTable;
@@ -6354,7 +6354,7 @@ var
   Parse: TSQLParse;
   SQL: string;
 begin
-  SQL := Source;
+  SQL := FSource;
 
   if (SQLCreateParse(Parse, PChar(Source), Length(Source), Session.ServerVersion)) then
   begin
@@ -6375,7 +6375,7 @@ begin
   SQL := Trim(SQL) + #13#10;
 
   if (DropBeforeCreate) then
-    SQL := 'DROP EVENT IF EXISTS ' + Database.Session.EscapeIdentifier(Database.Name) + '.' + Database.Session.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
+    SQL := 'DROP EVENT IF EXISTS ' + Database.Session.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
 
   Result := SQL;
 end;
@@ -6755,10 +6755,7 @@ begin
   SQL := ReplaceStr(View.GetSourceEx(), 'VIEW ' + Session.EscapeIdentifier(View.Name), 'VIEW ' + Session.EscapeIdentifier(Name) + '.' + Session.EscapeIdentifier(NewViewName));
 
   if (Assigned(TableByName(NewViewName))) then
-    if (TableByName(NewViewName) is TSBaseTable) then
-      SQL := 'DROP TABLE ' + Session.EscapeIdentifier(NewViewName) + ';' + #13#10 + SQL
-    else
-      SQL := 'DROP VIEW ' + Session.EscapeIdentifier(NewViewName) + ';' + #13#10 + SQL;
+    SQL := 'DROP VIEW ' + Session.EscapeIdentifier(NewViewName) + ';' + #13#10 + SQL;
 
   if (Session.DatabaseName <> Name) then
     SQL := SQLUse() + SQL;
@@ -6970,11 +6967,20 @@ begin
 end;
 
 function TSDatabase.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
+var
+  SQL: string;
 begin
-  Result := FSource;
+  if (FSource = '') then
+    SQL := ''
+  else
+  begin
+    SQL := Trim(FSource) + #13#10;
 
-  if ((Result <> '') and DropBeforeCreate) then
-    Result := 'DROP DATABASE IF EXISTS ' + Session.EscapeIdentifier(Name) + ';' + #13#10 + Result;
+    if ((SQL <> '') and DropBeforeCreate) then
+      SQL := 'DROP DATABASE IF EXISTS ' + Session.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
+  end;
+
+  Result := SQL;
 end;
 
 function TSDatabase.GetUpdated(): TDateTime;

@@ -68,7 +68,7 @@ type
     Transfer: TTTransfer;
     WantedExecute: Boolean;
     WantedNodeExpand: TTreeNode;
-    procedure FormClientEvent(const Event: TSSession.TEvent);
+    procedure FormSessionEvent(const Event: TSSession.TEvent);
     function GetSession(const Index: Integer): TSSession;
     procedure InitTSSelect(Sender: TObject);
     procedure OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
@@ -236,7 +236,7 @@ begin
   Application.HelpContext(HelpContext);
 end;
 
-procedure TDTransfer.FormClientEvent(const Event: TSSession.TEvent);
+procedure TDTransfer.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if (Event.EventType in [ceAfterExecuteSQL]) then
     if (Assigned(WantedNodeExpand)) then
@@ -269,7 +269,7 @@ begin
   for I := 0 to Length(Sessions) - 1 do
     if (Assigned(Sessions[I])) then
     begin
-      Sessions[I].UnRegisterEventProc(FormClientEvent);
+      Sessions[I].UnRegisterEventProc(FormSessionEvent);
       if (Assigned(Sessions[I]) and (Sessions[I] <> SourceSession) and (Sessions[I] <> DestinationSession)) then
         FreeAndNil(Sessions[I]);
     end;
@@ -344,7 +344,7 @@ begin
   Result := Sessions[Index];
 
   if (Assigned(Result)) then
-    Result.RegisterEventProc(FormClientEvent);
+    Result.RegisterEventProc(FormSessionEvent);
 end;
 
 procedure TDTransfer.InitTSSelect(Sender: TObject);
@@ -655,7 +655,7 @@ begin
   begin
     for I := 0 to Length(Sessions) - 1 do
       if (Assigned(Sessions[I])) then
-        Sessions[I].UnRegisterEventProc(FormClientEvent);
+        Sessions[I].UnRegisterEventProc(FormSessionEvent);
     WantedNodeExpand := nil;
   end;
 

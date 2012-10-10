@@ -52,7 +52,7 @@ type
     procedure FParentTableChange(Sender: TObject);
     procedure FTableChange(Sender: TObject);
   private
-    procedure FormClientEvent(const Event: TSSession.TEvent);
+    procedure FormSessionEvent(const Event: TSSession.TEvent);
     function GetParentDatabase(): TSDatabase;
     function GetParentTable(): TSBaseTable;
     property SelectedParentDatabase: TSDatabase read GetParentDatabase;
@@ -176,7 +176,7 @@ begin
   FMatchPartialClick(Sender);
 end;
 
-procedure TDForeignKey.FormClientEvent(const Event: TSSession.TEvent);
+procedure TDForeignKey.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = ceItemsValid) and (Event.Sender = Database.Tables)) then
     FTableChange(Event.Sender)
@@ -295,7 +295,7 @@ end;
 
 procedure TDForeignKey.FormHide(Sender: TObject);
 begin
-  Table.Session.UnRegisterEventProc(FormClientEvent);
+  Table.Session.UnRegisterEventProc(FormSessionEvent);
 
   Preferences.ForeignKey.Width := Width;
   Preferences.ForeignKey.Height := Height;
@@ -321,7 +321,7 @@ var
   I: Integer;
   J: Integer;
 begin
-  Table.Session.RegisterEventProc(FormClientEvent);
+  Table.Session.RegisterEventProc(FormSessionEvent);
 
   if (not Assigned(ForeignKey)) then
   begin

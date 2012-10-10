@@ -230,7 +230,7 @@ type
     function BuildTitle(): TSDatabase;
     procedure CheckActivePageChange(const ActivePageIndex: Integer);
     procedure ClearTSFields();
-    procedure FormClientEvent(const Event: TSSession.TEvent);
+    procedure FormSessionEvent(const Event: TSSession.TEvent);
     function GetFilename(): Boolean;
     procedure InitTSFields();
     procedure InitTSJob();
@@ -888,7 +888,7 @@ begin
   FBForward.Click();
 end;
 
-procedure TDExport.FormClientEvent(const Event: TSSession.TEvent);
+procedure TDExport.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if (Event.EventType = ceAfterExecuteSQL) then
     PostMessage(Handle, CM_POST_AFTEREXECUTESQL, 0, 0);
@@ -949,7 +949,7 @@ var
   Hour, Min, Sec, MSec: Word;
   Year, Month, Day: Word;
 begin
-  Session.UnRegisterEventProc(FormClientEvent);
+  Session.UnRegisterEventProc(FormSessionEvent);
 
   if (Assigned(DBGrid)) then
     DBGrid.DataSource.DataSet.EnableControls();
@@ -1071,7 +1071,7 @@ var
   I: Integer;
   Node: TTreeNode;
 begin
-  Session.RegisterEventProc(FormClientEvent);
+  Session.RegisterEventProc(FormSessionEvent);
 
   ModalResult := mrNone;
   if (DialogType = edtCreateJob) then
@@ -1825,7 +1825,7 @@ var
   ExportXML: TTExportXML;
   I: Integer;
 begin
-  Session.UnRegisterEventProc(FormClientEvent);
+  Session.UnRegisterEventProc(FormSessionEvent);
 
   CheckActivePageChange(TSExecute.PageIndex);
   FBBack.Enabled := False;

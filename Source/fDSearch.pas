@@ -106,7 +106,7 @@ type
     Tables: array of TDSTableItem;
     WantedExecute: Boolean;
     WantedNodeExpand: TTreeNode;
-    procedure FormClientEvent(const Event: TSSession.TEvent);
+    procedure FormSessionEvent(const Event: TSSession.TEvent);
     function GetSession(const Index: Integer): TSSession;
     procedure OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure OnExecuted(const ASuccess: Boolean);
@@ -333,7 +333,7 @@ begin
   FFRegExprClick(Sender);
 end;
 
-procedure TDSearch.FormClientEvent(const Event: TSSession.TEvent);
+procedure TDSearch.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if (Event.EventType in [ceAfterExecuteSQL]) then
     if (Assigned(WantedNodeExpand)) then
@@ -396,7 +396,7 @@ begin
   for I := 0 to Length(Sessions) - 1 do
     if (Assigned(Sessions[I])) then
     begin
-      Sessions[I].UnRegisterEventProc(FormClientEvent);
+      Sessions[I].UnRegisterEventProc(FormSessionEvent);
       if (Sessions[I] <> Session) then
         FreeAndNil(Sessions[I]);
     end;
@@ -643,7 +643,7 @@ begin
   begin
     for I := 0 to Length(Sessions) - 1 do
       if (Assigned(Sessions[I])) then
-        Sessions[I].UnRegisterEventProc(FormClientEvent);
+        Sessions[I].UnRegisterEventProc(FormSessionEvent);
     WantedNodeExpand := nil;
   end;
 
@@ -764,7 +764,7 @@ begin
   Result := Sessions[Index];
 
   if (Assigned(Result)) then
-    Result.RegisterEventProc(FormClientEvent);
+    Result.RegisterEventProc(FormSessionEvent);
 end;
 
 procedure TDSearch.mTCopyClick(Sender: TObject);

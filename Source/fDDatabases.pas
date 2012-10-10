@@ -25,7 +25,7 @@ type
   private
     procedure Built();
     procedure FBOkCheckEnabled(Sender: TObject);
-    procedure FormClientEvent(const Event: TSSession.TEvent);
+    procedure FormSessionEvent(const Event: TSSession.TEvent);
   protected
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
@@ -141,7 +141,7 @@ begin
   FBOk.Click();
 end;
 
-procedure TDDatabases.FormClientEvent(const Event: TSSession.TEvent);
+procedure TDDatabases.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType in [ceItemsValid]) and (Event.CItems = Session.Databases)) then
     Built();
@@ -168,7 +168,7 @@ var
   I: Integer;
 begin
   if (Assigned(Session)) then
-    Session.UnRegisterEventProc(FormClientEvent);
+    Session.UnRegisterEventProc(FormSessionEvent);
 
   if (ModalResult = mrOk) then
   begin
@@ -210,7 +210,7 @@ var
 begin
   if (Assigned(Session)) then
   begin
-    Session.RegisterEventProc(FormClientEvent);
+    Session.RegisterEventProc(FormSessionEvent);
 
     Left := Preferences.Databases.Left;
     Top := Preferences.Databases.Top;

@@ -62,7 +62,7 @@ type
     procedure FSourceChange(Sender: TObject);
   private
     procedure Built();
-    procedure FormClientEvent(const Event: TSSession.TEvent);
+    procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
     Database: TSDatabase;
@@ -236,7 +236,7 @@ begin
   FBOkCheckEnabled(Sender);
 end;
 
-procedure TDRoutine.FormClientEvent(const Event: TSSession.TEvent);
+procedure TDRoutine.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = ceItemValid) and (Event.CItem = Routine)) then
     Built()
@@ -306,7 +306,7 @@ end;
 
 procedure TDRoutine.FormHide(Sender: TObject);
 begin
-  Database.Session.UnRegisterEventProc(FormClientEvent);
+  Database.Session.UnRegisterEventProc(FormSessionEvent);
 
   Preferences.Routine.Width := Width;
   Preferences.Routine.Height := Height;
@@ -317,7 +317,7 @@ var
   I: Integer;
   RoutineName: string;
 begin
-  Database.Session.RegisterEventProc(FormClientEvent);
+  Database.Session.RegisterEventProc(FormSessionEvent);
 
   if (not Assigned(Routine)) then
   begin

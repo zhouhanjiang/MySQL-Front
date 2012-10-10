@@ -78,7 +78,7 @@ type
     NewUser: TSUser;
     RightsModified: Boolean;
     procedure Built();
-    procedure FormClientEvent(const Event: TSSession.TEvent);
+    procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure FRightsRefresh(Sender: TObject);
     procedure ListViewShowSortDirection(const ListView: TListView);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
@@ -290,7 +290,7 @@ begin
     FHost.Text := '%';
 end;
 
-procedure TDUser.FormClientEvent(const Event: TSSession.TEvent);
+procedure TDUser.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = ceItemValid) and (Event.CItem = User)) then
     Built()
@@ -364,7 +364,7 @@ end;
 
 procedure TDUser.FormHide(Sender: TObject);
 begin
-  Session.UnRegisterEventProc(FormClientEvent);
+  Session.UnRegisterEventProc(FormSessionEvent);
 
   Preferences.User.Width := Width;
   Preferences.User.Height := Height;
@@ -387,7 +387,7 @@ var
   NewUserRight: TSUserRight;
   UserName: string;
 begin
-  Session.RegisterEventProc(FormClientEvent);
+  Session.RegisterEventProc(FormSessionEvent);
 
   NewUser := TSUser.Create(Session.Users);
 

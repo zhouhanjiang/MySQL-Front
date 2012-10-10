@@ -98,7 +98,7 @@ type
     procedure TSSourceShow(Sender: TObject);
   private
     procedure Built();
-    procedure FormClientEvent(const Event: TSSession.TEvent);
+    procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
     Database: TSDatabase;
@@ -321,7 +321,7 @@ begin
   FExecutionClick(Sender);
 end;
 
-procedure TDEvent.FormClientEvent(const Event: TSSession.TEvent);
+procedure TDEvent.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = ceItemValid) and (Event.CItem = Self.Event)) then
     Built()
@@ -428,7 +428,7 @@ end;
 
 procedure TDEvent.FormHide(Sender: TObject);
 begin
-  Database.Session.UnRegisterEventProc(FormClientEvent);
+  Database.Session.UnRegisterEventProc(FormSessionEvent);
 
   Preferences.Event.Width := Width;
   Preferences.Event.Height := Height;
@@ -442,7 +442,7 @@ var
   EventName: string;
   I: Integer;
 begin
-  Database.Session.RegisterEventProc(FormClientEvent);
+  Database.Session.RegisterEventProc(FormSessionEvent);
 
   if (not Assigned(Event)) then
     Caption := Preferences.LoadStr(820)

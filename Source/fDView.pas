@@ -76,7 +76,7 @@ type
     RecordCount: Integer;
     procedure Built();
     procedure FBOkCheckEnabled(Sender: TObject);
-    procedure FormClientEvent(const Event: TSSession.TEvent);
+    procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
     Database: TSDatabase;
@@ -392,7 +392,7 @@ begin
   end;
 end;
 
-procedure TDView.FormClientEvent(const Event: TSSession.TEvent);
+procedure TDView.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = ceItemValid) and (Event.CItem = View)) then
     Built()
@@ -435,7 +435,7 @@ end;
 
 procedure TDView.FormHide(Sender: TObject);
 begin
-  Database.Session.UnRegisterEventProc(FormClientEvent);
+  Database.Session.UnRegisterEventProc(FormSessionEvent);
 
   Preferences.View.Width := Width;
   Preferences.View.Height := Height;
@@ -454,7 +454,7 @@ procedure TDView.FormShow(Sender: TObject);
 var
   TableName: string;
 begin
-  Database.Session.RegisterEventProc(FormClientEvent);
+  Database.Session.RegisterEventProc(FormSessionEvent);
 
   if (not Assigned(View)) then
   begin

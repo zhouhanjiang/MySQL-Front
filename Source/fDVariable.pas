@@ -27,7 +27,7 @@ type
     procedure FSessionClick(Sender: TObject);
     procedure FormHide(Sender: TObject);
   private
-    procedure FormClientEvent(const Event: TSSession.TEvent);
+    procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
     Session: TSSession;
@@ -91,7 +91,7 @@ begin
   FBOkButtonEnable(Sender);
 end;
 
-procedure TDVariable.FormClientEvent(const Event: TSSession.TEvent);
+procedure TDVariable.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType in [ceItemAltered]) and (Event.CItem is TSVariable)) then
     ModalResult := mrOk
@@ -135,12 +135,12 @@ end;
 
 procedure TDVariable.FormHide(Sender: TObject);
 begin
-  Session.UnRegisterEventProc(FormClientEvent);
+  Session.UnRegisterEventProc(FormSessionEvent);
 end;
 
 procedure TDVariable.FormShow(Sender: TObject);
 begin
-  Session.RegisterEventProc(FormClientEvent);
+  Session.RegisterEventProc(FormSessionEvent);
 
   Caption := Preferences.LoadStr(842, Variable.Name);
 

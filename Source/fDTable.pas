@@ -215,7 +215,7 @@ type
     procedure FFieldsRefresh(Sender: TObject);
     procedure FForeignKeysRefresh(Sender: TObject);
     procedure FIndicesRefresh(Sender: TObject);
-    procedure FormClientEvent(const Event: TSSession.TEvent);
+    procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure FPartitionsRefresh(Sender: TObject);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
@@ -1150,7 +1150,7 @@ begin
   mlDProperties.Default := mlDProperties.Enabled;
 end;
 
-procedure TDTable.FormClientEvent(const Event: TSSession.TEvent);
+procedure TDTable.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = ceItemValid) and (Event.CItem = Table)) then
     Built()
@@ -1261,7 +1261,7 @@ end;
 
 procedure TDTable.FormHide(Sender: TObject);
 begin
-  Database.Session.UnRegisterEventProc(FormClientEvent);
+  Database.Session.UnRegisterEventProc(FormSessionEvent);
 
   PageControl.ActivePage := nil; // TSInformationsShow soll beim nächsten Öffnen nicht vorzeitig aufgerufen werden
 
@@ -1299,7 +1299,7 @@ var
   NewKeyColumn: TSKeyColumn;
   TableName: string;
 begin
-  Database.Session.RegisterEventProc(FormClientEvent);
+  Database.Session.RegisterEventProc(FormSessionEvent);
 
   if (not Assigned(Tables) and not Assigned(Table)) then
   begin

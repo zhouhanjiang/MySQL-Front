@@ -66,7 +66,7 @@ type
   private
     procedure Built();
     procedure FBOkCheckEnabled(Sender: TObject);
-    procedure FormClientEvent(const Event: TSSession.TEvent);
+    procedure FormSessionEvent(const Event: TSSession.TEvent);
   protected
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
@@ -219,7 +219,7 @@ begin
   HideTSSource(Sender);
 end;
 
-procedure TDTrigger.FormClientEvent(const Event: TSSession.TEvent);
+procedure TDTrigger.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = ceItemValid) and (Event.CItem = Trigger)) then
     Built()
@@ -295,7 +295,7 @@ end;
 
 procedure TDTrigger.FormHide(Sender: TObject);
 begin
-  Table.Session.UnRegisterEventProc(FormClientEvent);
+  Table.Session.UnRegisterEventProc(FormSessionEvent);
 
   Preferences.Trigger.Width := Width;
   Preferences.Trigger.Height := Height;
@@ -307,7 +307,7 @@ procedure TDTrigger.FormShow(Sender: TObject);
 var
   TriggerName: string;
 begin
-  Table.Session.RegisterEventProc(FormClientEvent);
+  Table.Session.RegisterEventProc(FormSessionEvent);
 
   if (not Assigned(Trigger)) then
   begin

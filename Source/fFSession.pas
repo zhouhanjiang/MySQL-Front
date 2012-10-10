@@ -728,7 +728,7 @@ type
       property ActiveDBGrid: TMySQLDBGrid read GetActiveDBGrid;
     end;
 
-    TCObjectDesktop = class(TSObject.TDesktop)
+    TSObjectDesktop = class(TSObject.TDesktop)
     private
       FFClient: TFSession;
     protected
@@ -737,7 +737,7 @@ type
       constructor Create(const AFClient: TFSession; const ACObject: TSObject);
     end;
 
-    TDatabaseDesktop = class(TCObjectDesktop)
+    TDatabaseDesktop = class(TSObjectDesktop)
     private
       DataSet: TMySQLDataSet;
       DataSource: TDataSource;
@@ -763,7 +763,7 @@ type
       property XML: IXMLNode read GetXML;
     end;
 
-    TTableDesktop = class(TCObjectDesktop)
+    TTableDesktop = class(TSObjectDesktop)
     private
       DataSource: TDataSource;
       PDBGrid: TPanel_Ext;
@@ -804,7 +804,7 @@ type
       destructor Destroy(); override;
     end;
 
-    TRoutineDesktop = class(TCObjectDesktop)
+    TRoutineDesktop = class(TSObjectDesktop)
     type
       TResult = record
         DataSet: TMySQLDataSet;
@@ -827,7 +827,7 @@ type
       property ActiveDBGrid: TMySQLDBGrid read GetActiveDBGrid;
     end;
 
-    TEventDesktop = class(TCObjectDesktop)
+    TEventDesktop = class(TSObjectDesktop)
     public
       SynMemo: TSynMemo;
       constructor Create(const AFClient: TFSession; const AEvent: TSEvent);
@@ -835,7 +835,7 @@ type
       destructor Destroy(); override;
     end;
 
-    TTriggerDesktop = class(TCObjectDesktop)
+    TTriggerDesktop = class(TSObjectDesktop)
     public
       SynMemo: TSynMemo;
       constructor Create(const AFClient: TFSession; const ATrigger: TSTrigger);
@@ -945,7 +945,7 @@ type
     procedure BeforeConnect(Sender: TObject);
     procedure BeforeExecuteSQL(Sender: TObject);
     procedure BeginEditLabel(Sender: TObject);
-    procedure ClientUpdate(const Event: TSSession.TEvent);
+    procedure SessionUpdate(const Event: TSSession.TEvent);
     function ColumnWidthKindFromImageIndex(const AImageIndex: Integer): TADesktop.TListViewKind;
     function CreateDesktop(const CObject: TSObject): TSObject.TDesktop;
     procedure CreateExplorer();
@@ -980,8 +980,8 @@ type
     procedure FNavigatorInitialize(Sender: TObject);
     function FNavigatorNodeByAddress(const Address: string): TTreeNode;
     procedure FNavigatorUpdate(const ClientEvent: TSSession.TEvent);
-    procedure FormClientEvent(const Event: TSSession.TEvent);
     procedure FormAccountEvent(const ClassType: TClass);
+    procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure FreeDBGrid(const DBGrid: TMySQLDBGrid);
     procedure FreeListView(const ListView: TListView);
     procedure FRTFShow(Sender: TObject);
@@ -1345,7 +1345,7 @@ end;
 
 { TFSession.TCObjectDesktop ****************************************************}
 
-constructor TFSession.TCObjectDesktop.Create(const AFClient: TFSession; const ACObject: TSObject);
+constructor TFSession.TSObjectDesktop.Create(const AFClient: TFSession; const ACObject: TSObject);
 begin
   FFClient := AFClient;
 
@@ -4329,7 +4329,7 @@ begin
   end;
 end;
 
-procedure TFSession.ClientUpdate(const Event: TSSession.TEvent);
+procedure TFSession.SessionUpdate(const Event: TSSession.TEvent);
 var
   Control: TWinControl;
   I: Integer;
@@ -4341,6 +4341,11 @@ begin
 
   if (Assigned(Event)) then
   begin
+    if (Event.CItem is TSDatabase) then
+      if (Event.EventType = ceItemDropped) then
+      begin
+      end;
+
     if (Event.EventType in [ceItemsValid, ceItemCreated, ceItemAltered, ceItemDropped]) then
       FNavigatorUpdate(Event);
 
@@ -4549,7 +4554,7 @@ begin
 
 
   if (not (tsLoading in FrameState)) then
-    ClientUpdate(nil);
+    SessionUpdate(nil);
 
   for I := 0 to PListView.ControlCount - 1 do
     if (PListView.Controls[I] is TListView) then
@@ -5412,7 +5417,7 @@ begin
   IgnoreFGridTitleClick := False;
 
   Session.CreateDesktop := CreateDesktop;
-  Session.RegisterEventProc(FormClientEvent);
+  Session.RegisterEventProc(FormSessionEvent);
 
   Session.Account.RegisterDesktop(Self, FormAccountEvent);
 
@@ -5922,6 +5927,8 @@ begin
   if (Sender is TMySQLDBGrid) then
   begin
     DBGrid := TMySQLDBGrid(Sender);
+    if (not Assigned(DBGrid.SelectedField)) then
+      DBGrid.SelectedField := DBGrid.Fields[0];
 
     if ((((Window.ActiveControl = DBGrid) or (Window.ActiveControl = FText) or (Window.ActiveControl = FRTF) or (Window.ActiveControl = FHexEditor)) and Assigned(DBGrid.SelectedField)) or (Sender = DataSetCancel)) then
     begin
@@ -6545,6 +6552,9 @@ begin
 
   DBGrid.DataSource.Enabled := True;
 
+  if (not Assigned(DBGrid.SelectedField)) then
+    raise ERangeError.Create(SRangeError);
+
   DBGrid.Columns.BeginUpdate();
   for I := 0 to DBGrid.Columns.Count - 1 do
     if (Assigned(DBGrid.Columns[I].Field)) then
@@ -6563,10 +6573,12 @@ end;
 
 destructor TFSession.Destroy();
 var
+  DatabasesXML: IXMLNode;
+  I: Integer;
   TempB: Boolean;
   URI: TUURI;
 begin
-  Session.UnRegisterEventProc(FormClientEvent);
+  Session.UnRegisterEventProc(FormSessionEvent);
   Session.CreateDesktop := nil;
 
   FNavigatorChanging(nil, nil, TempB);
@@ -6616,6 +6628,12 @@ begin
   else
     Session.Account.Desktop.DataHeight := PResult.Height;
   Session.Account.Desktop.BlobHeight := PBlob.Height;
+
+  DatabasesXML := XMLNode(Session.Account.DesktopXML, 'browser/databases');
+  if (Assigned(DatabasesXML)) then
+    for I := DatabasesXML.ChildNodes.Count - 1 downto 0 do
+      if ((DatabasesXML.ChildNodes[I].NodeName = 'database') and not Assigned(Session.DatabaseByName(DatabasesXML.ChildNodes[I].Attributes['name']))) then
+        DatabasesXML.ChildNodes.Delete(I);
 
   Session.Account.Desktop.AddressMRU.Assign(ToolBarData.AddressMRU);
   Session.Account.UnRegisterDesktop(Self);
@@ -8342,7 +8360,7 @@ begin
   end;
 end;
 
-procedure TFSession.FormClientEvent(const Event: TSSession.TEvent);
+procedure TFSession.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if (not (csDestroying in ComponentState)) then
     case (Event.EventType) of
@@ -8351,7 +8369,7 @@ begin
       ceItemCreated,
       ceItemAltered,
       ceItemDropped:
-        ClientUpdate(Event);
+        SessionUpdate(Event);
       ceMonitor:
         Perform(CM_POST_MONITOR, 0, 0);
       ceBeforeExecuteSQL:
@@ -9006,12 +9024,11 @@ begin
     aDDeleteRecord.DataSource := Result.DataSource;
     aDInsertRecord.DataSource := Result.DataSource;
     Result.DataSource.OnDataChange := DBGridDataSourceDataChange;
-  end;
 
-  if (Assigned(Result)) then
     for I := 0 to PResult.ControlCount - 1 do
       if (PResult.Controls[I] <> PResultHeader) then
         PResult.Controls[I].Visible := PResult.Controls[I] = Result.Parent;
+  end;
 end;
 
 function TFSession.GetActiveIDEInputDataSet(): TDataSet;
@@ -12437,7 +12454,7 @@ begin
     if (View in [vBrowser, vIDE, vBuilder, vEditor]) then ActiveDBGrid := GetActiveDBGrid() else ActiveDBGrid := nil;
     if (View in [vDiagram]) then ActiveWorkbench := GetActiveWorkbench() else ActiveWorkbench := nil;
 
-    if ((View = vBrowser) and (TObject(FNavigator.Selected.Data) is TSTable)) then
+    if ((View = vBrowser) and Assigned(FNavigator.Selected) and (TObject(FNavigator.Selected.Data) is TSTable)) then
     begin
       FUDOffset.Position := 0;
       FUDLimit.Position := Desktop(TSTable(FNavigator.Selected.Data)).Limit;
@@ -12462,18 +12479,19 @@ begin
     else
       PObjectIDE.Visible := False;
 
-    case (View) of
-      vBrowser: PResultVisible := True;
-      vIDE:
-        case (FNavigator.Selected.ImageIndex) of
-          iiProcedure,
-          iiFunction: PResultVisible := Assigned(Desktop(TSRoutine(FNavigator.Selected.Data)).ActiveDBGrid);
-          else PResultVisible := False;
-        end;
-      vBuilder: PResultVisible := Assigned(Desktop(TSDatabase(FNavigator.Selected.Data)).DBGrid);
-      vEditor: PResultVisible := Assigned(SQLEditor.ActiveDBGrid);
-      else PResultVisible := False;
-    end;
+    if (Assigned(FNavigator.Selected)) then
+      case (View) of
+        vBrowser: PResultVisible := True;
+        vIDE:
+          case (FNavigator.Selected.ImageIndex) of
+            iiProcedure,
+            iiFunction: PResultVisible := Assigned(Desktop(TSRoutine(FNavigator.Selected.Data)).ActiveDBGrid);
+            else PResultVisible := False;
+          end;
+        vBuilder: PResultVisible := Assigned(Desktop(TSDatabase(FNavigator.Selected.Data)).DBGrid);
+        vEditor: PResultVisible := Assigned(SQLEditor.ActiveDBGrid);
+        else PResultVisible := False;
+      end;
 
     FText.OnChange := nil;
     if (Assigned(OldActiveControl) and (PResultVisible or (OldActiveControl = FObjectIDEGrid)) and (OldActiveControl is TMySQLDBGrid) and (TMySQLDBGrid(OldActiveControl).SelectedField = EditorField)) then
