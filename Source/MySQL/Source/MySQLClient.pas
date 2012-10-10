@@ -1566,7 +1566,7 @@ function TMySQL_File.ReceivePacket(): Boolean;
         Move(PacketBuffer.Mem[PacketOffset + 3], Nr, 1);
 
         if (Nr <> CompPacketNr) then
-          Seterror(CR_SERVER_LOST)
+          Seterror(CR_SERVER_HANDSHAKE_ERR)
         else if (NET_HEADER_SIZE + COMP_HEADER_SIZE + Size > MAX_PACKET_LENGTH) then
           Seterror(CR_NET_PACKET_TOO_LARGE)
         else if (ReceivePacketBuffer(COMP_HEADER_SIZE + Size, VIOSize) and (PacketBuffer.Offset + NET_HEADER_SIZE + Size <= PacketBuffer.Size)) then
@@ -1656,7 +1656,7 @@ begin
           Move(PacketBuffer.Mem[Offset + 3], Nr, 1);
 
           if (not Compress and (Nr <> PacketNr)) then
-            Seterror(CR_SERVER_LOST)
+            Seterror(CR_SERVER_HANDSHAKE_ERR)
           else if (Size > MAX_PACKET_LENGTH) then
             Seterror(CR_NET_PACKET_TOO_LARGE)
           else
@@ -1682,7 +1682,7 @@ begin
         end;
       end
       else if (errno() = 0) then
-        Seterror(CR_SERVER_LOST);
+        Seterror(CR_UNKNOWN_ERROR);
     until (not Result or (VIOSize = 0) or (Size <> MAX_PACKET_LENGTH));
 
     if (Result) then
@@ -1711,7 +1711,8 @@ begin
         for I := 0 to DistanceToMove - 1 do
           if ((Result = 0) and (not ReceivePacket() or (FReadFileBuffer.Size = 0))) then
           begin
-            Seterror(CR_SERVER_LOST);
+            if (errno() = 0) then
+              Seterror(CR_UNKNOWN_ERROR);
             Result := -1;
           end;
       end;
@@ -1959,7 +1960,7 @@ begin
     else
     begin
       if (errno() = 0) then
-        Seterror(CR_SERVER_LOST);
+        Seterror(CR_UNKNOWN_ERROR);
       Result := -1;
     end;
   end;
@@ -2479,7 +2480,7 @@ begin
 
             if (errno() = 0) then
               if (GetFileSize() = 0) then
-                Seterror(CR_SERVER_LOST)
+                Seterror(CR_SERVER_HANDSHAKE_ERR)
               else if (not ServerError()) then
               begin
                 SetFilePointer(1, FILE_CURRENT); // $00
@@ -2739,7 +2740,7 @@ begin
   {$IFDEF EurekaLog}
     if (AErrNo = CR_COMMANDS_OUT_OF_SYNC) then
       raise Exception.Create(DecodeString(error()) + ' (' + IntToStr(Byte(fclient_status)) + ')')
-    else if ((AErrNo = CR_OUT_OF_MEMORY) or (AErrNo = CR_SERVER_LOST)) then
+    else if ((AErrNo = CR_UNKNOWN_ERROR) or (AErrNo = CR_OUT_OF_MEMORY) or (AErrNo = CR_SERVER_HANDSHAKE_ERR)) then
       raise Exception.Create(DecodeString(error()));
   {$ENDIF}
 end;

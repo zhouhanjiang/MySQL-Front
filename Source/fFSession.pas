@@ -12479,7 +12479,9 @@ begin
     else
       PObjectIDE.Visible := False;
 
-    if (Assigned(FNavigator.Selected)) then
+    if (not Assigned(FNavigator.Selected)) then
+      PResultVisible := True
+    else
       case (View) of
         vBrowser: PResultVisible := True;
         vIDE:
