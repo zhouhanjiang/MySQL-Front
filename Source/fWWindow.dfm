@@ -1494,7 +1494,7 @@ object WWindow: TWWindow
         Action = aFClose
         GroupIndex = 1
       end
-      object aFCloseAll1: TMenuItem
+      object miFCloseAll: TMenuItem
         Action = aFCloseAll
         GroupIndex = 1
       end

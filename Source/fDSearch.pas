@@ -563,15 +563,9 @@ begin
       end;
       AccountNode := AccountNode.getNextSibling();
     end;
-    if (SelectedNodes.Count = 1) then
-    begin
-      FSelect.Selected := SelectedNodes[0];
-      if (Assigned(FSelect.Selected) and FSelect.AutoExpand) then
-        FSelect.Selected.Expand(False);
-    end
-    else if (SelectedNodes.Count > 1) then
+    if (SelectedNodes.Count > 0) then
       FSelect.Select(SelectedNodes)
-    else if (not Assigned(FSelect.Selected) and Assigned(AccountNode)) then
+    else if (Assigned(AccountNode)) then
       AccountNode.Selected := True;
 
     SelectedNodes.Free();

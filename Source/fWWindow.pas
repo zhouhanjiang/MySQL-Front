@@ -93,7 +93,6 @@ type
     aEUndo: TEditUndo;
     aFClose: TAction;
     aFCloseAll: TAction;
-    aFCloseAll1: TMenuItem;
     aFExit: TAction;
     aFExportAccess: TAction;
     aFExportBitmap: TAction;
@@ -222,6 +221,7 @@ type
     miEUndo: TMenuItem;
     miExtras: TMenuItem;
     miFClose: TMenuItem;
+    miFCloseAll: TMenuItem;
     miFConnect: TMenuItem;
     miFExit: TMenuItem;
     miFExport: TMenuItem;
@@ -432,6 +432,7 @@ type
     {$ENDIF}
     FAddressDroppedDown: Boolean;
     FirstOpen: Boolean;
+    FSessions: TList;
     MouseDownPoint: TPoint;
     Param: string; // erforderlich für PostMessage
     PreviousForm: TForm;
@@ -439,7 +440,6 @@ type
     TabControlDragMarkedTabIndex: Integer;
     TabControlDragStartTabIndex: Integer;
     TabControlRepaint: TList;
-    FSessions: TList;
     UniqueTabNameCounter: Integer;
     UpdateAvailable: Boolean;
     procedure ApplicationActivate(Sender: TObject);
@@ -596,7 +596,16 @@ end;
 
 procedure TWWindow.aHUpdateExecute(Sender: TObject);
 begin
-  DInstallUpdate.Execute();
+  aFCloseAllExecute(Sender);
+  if (not Assigned(ActiveTab)) then
+  begin
+    DInstallUpdate.Silent := False;
+    if (DInstallUpdate.Execute()) then
+    begin
+      ShellExecute(0, 'open', PChar(ParamStr(0)), '', '', SW_SHOW);
+      Close();
+    end;
+  end;
 end;
 
 procedure TWWindow.aOGlobalsExecute(Sender: TObject);
@@ -646,14 +655,12 @@ begin
     Msg := 'Internal Program Bug:' + #13#10 + E.Message;
 
     {$IFNDEF EurekaLog}
-    if (IsConnectedToInternet()) then
+    if ((AvailableUpdate < 0) and IsConnectedToInternet()) then
     begin
       CheckUpdateThread := TCheckUpdateThread.Create(True);
       CheckUpdateThread.Stream := TStringStream.Create('');
       CheckUpdateThread.Execute();
       CheckUpdateThread.Stream.Free();
-
-      UpdateAvailable := CheckUpdateThread.UpdateAvailable;
 
       CheckUpdateThread.Free();
     end;
@@ -661,7 +668,7 @@ begin
 
     MsgBox(Msg, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
 
-    if (UpdateAvailable) then
+    if (AvailableUpdate > Preferences.Version) then
       PostMessage(Handle, CM_UPDATEAVAILABLE, 0, 0);
 
     DisableApplicationActivate := False;
@@ -1618,7 +1625,7 @@ begin
 
   try Accounts.SaveToXML(); except end;
 
-  if (not IsConnectedToInternet()) then
+  if ((0 < AvailableUpdate) and (AvailableUpdate < Preferences.Version) or not IsConnectedToInternet()) then
     Handled := False
   else
   begin
@@ -1627,7 +1634,7 @@ begin
     CheckUpdateThread.Execute();
     CheckUpdateThread.Stream.Free();
 
-    UpdateAvailable := CheckUpdateThread.UpdateAvailable;
+    UpdateAvailable := AvailableUpdate > Preferences.Version;
     Handled := not UpdateAvailable;
 
     CheckUpdateThread.Free();
@@ -1879,7 +1886,18 @@ end;
 procedure TWWindow.InformUpdateAvailable();
 begin
   if (MsgBox(Preferences.LoadStr(506) + #10#10 + Preferences.LoadStr(845), Preferences.LoadStr(43), MB_ICONQUESTION + MB_YESNOCANCEL) = ID_YES) then
-    aHUpdate.Execute();
+  begin
+    aFCloseAllExecute(Self);
+    if (not Assigned(ActiveTab)) then
+    begin
+      DInstallUpdate.Silent := True;
+      if (DInstallUpdate.Execute()) then
+      begin
+        ShellExecute(0, 'open', PChar(ParamStr(0)), '', '', SW_SHOW);
+        Close();
+      end;
+    end;
+  end;
 end;
 
 procedure TWWindow.miFReopenClick(Sender: TObject);

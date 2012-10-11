@@ -762,6 +762,7 @@ type
     property DBLogin: TDBLogin read FDBLogin;
   end;
 
+procedure DecodeVersion(const Version: Integer; out AMajor, AMinor, APatch, ABuild: Integer);
 function EncodeVersion(const AMajor, AMinor, APatch, ABuild: Integer): Integer;
 function XMLNode(const XML: IXMLNode; const Path: string; const NodeAutoCreate: Boolean = False): IXMLNode; overload;
 
@@ -966,6 +967,14 @@ begin
     5: Result := 'Compact';
     else Result := '';
   end;
+end;
+
+procedure DecodeVersion(const Version: Integer; out AMajor, AMinor, APatch, ABuild: Integer);
+begin
+  AMajor := Version div 100000000;
+  AMinor := Version div 1000000 - AMajor * 100;
+  APatch := Version div 10000 - AMajor * 10000 - AMinor * 100;
+  ABuild := Version mod 10000;
 end;
 
 function EncodeVersion(const AMajor, AMinor, APatch, ABuild: Integer): Integer;

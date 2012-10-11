@@ -430,15 +430,9 @@ begin
       end;
       AccountNode := AccountNode.getNextSibling();
     end;
-    if (SelectedNodes.Count = 1) then
-    begin
-      FSource.Selected := SelectedNodes[0];
-      if (Assigned(FSource.Selected) and FSource.AutoExpand) then
-        FSource.Selected.Expand(False);
-    end
-    else if (SelectedNodes.Count > 1) then
+    if (SelectedNodes.Count > 0) then
       FSource.Select(SelectedNodes)
-    else if (not Assigned(FSource.Selected) and Assigned(AccountNode)) then
+    else if (Assigned(AccountNode)) then
       AccountNode.Selected := True;
 
     DatabaseNames.Free();
@@ -487,20 +481,14 @@ begin
         end;
         AccountNode := AccountNode.getNextSibling();
       end;
+      if (SelectedNodes.Count > 0) then
+        FDestination.Select(SelectedNodes)
+      else if (Assigned(AccountNode)) then
+        AccountNode.Selected := True;
 
       DestinationSession.EndSynchron();
     end;
 
-    if (SelectedNodes.Count = 1) then
-    begin
-      FDestination.Selected := SelectedNodes[0];
-      if (Assigned(FDestination.Selected) and FDestination.AutoExpand) then
-        FDestination.Selected.Expand(False);
-    end
-    else if (SelectedNodes.Count > 1) then
-      FDestination.Select(SelectedNodes)
-    else if (not Assigned(FDestination.Selected) and Assigned(AccountNode)) then
-      AccountNode.Selected := True;
     SelectedNodes.Free();
 
     if (Assigned(FDestination.Selected) and FDestination.AutoExpand) then

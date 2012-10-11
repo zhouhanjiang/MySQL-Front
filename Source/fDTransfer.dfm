@@ -47,10 +47,6 @@ object DTransfer: TDTransfer
     object TSSelect: TTabSheet
       Caption = 'TSSelect'
       TabVisible = False
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         436
         279)

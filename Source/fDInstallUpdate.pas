@@ -42,7 +42,6 @@ type
     procedure DoTerminate(); override;
   public
     SuccessMessage: UINT;
-    UpdateAvailable: Boolean;
     procedure AfterConstruction(); override;
     procedure Execute(); override;
   end;
@@ -62,7 +61,6 @@ type
     procedure FormShow(Sender: TObject);
   private
     EXE_Stream: TFileStream;
-    EXE_URI: string;
     FullHeight: Integer;
     HTTPThread: THTTPMessagedThread;
     PAD_Stream: TStringStream;
@@ -72,13 +70,15 @@ type
     procedure CMProgramFileReceived(var Message: TMessage); message CM_PROGRAM_FILE_RECEIVED;
     procedure CMUpdateProgressBarReceived(var Message: TMessage); message CM_UPDATE_PROGRESSBAR;
   public
+    Silent: Boolean;
     function Execute(): Boolean;
   end;
 
-function CheckActualVersion(const Stream: TStringStream; var VersionStr: string; var UpdateAvailable: Boolean; var EXE_URI: string): Boolean;
+function CheckActualVersion(const Stream: TStringStream; var VersionStr: string): Boolean;
 
 var
   CheckUpdateThread: TCheckUpdateThread;
+  AvailableUpdate: Integer;
 
 function DInstallUpdate(): TDInstallUpdate;
 
@@ -95,6 +95,7 @@ const
 
 var
   FInstallUpdate: TDInstallUpdate;
+  SetupPrgURI: string;
 
 function DInstallUpdate(): TDInstallUpdate;
 begin
@@ -109,7 +110,7 @@ end;
 
 {******************************************************************************}
 
-function CheckActualVersion(const Stream: TStringStream; var VersionStr: string; var UpdateAvailable: Boolean; var EXE_URI: string): Boolean;
+function CheckActualVersion(const Stream: TStringStream; var VersionStr: string): Boolean;
 var
   Build: Integer;
   Infos: IXMLNode;
@@ -126,7 +127,6 @@ var
 begin
   Success := True;
   Major := -1; Minor := -1; Patch := -1; Build := -1;
-  UpdateAvailable := False; EXE_URI := '';
 
   XML := NewXMLDocument();
   XML.LoadFromStream(Stream, xetUnknown);
@@ -152,7 +152,7 @@ begin
           Build := StrToInt(VerBuild.GetText());
       end;
 
-      UpdateAvailable := EncodeVersion(Major, Minor, Patch, Build) > Preferences.Version;
+      AvailableUpdate := EncodeVersion(Major, Minor, Patch, Build);
 
       VersionStr := IntToStr(Major) + '.' + IntToStr(Minor) + '  (Build ' + IntToStr(Patch) + '.' + IntToStr(Build) + ')';
 
@@ -161,7 +161,7 @@ begin
       if (Assigned(Infos)) then
         if (Assigned(Infos.ChildNodes.FindNode('Download_URLs'))) then
           if (Assigned(Infos.ChildNodes.FindNode('Download_URLs'))) then
-            EXE_URI := Infos.ChildNodes.FindNode('Download_URLs').ChildNodes.FindNode('Primary_Download_URL').Text;
+            SetupPrgURI := Infos.ChildNodes.FindNode('Download_URLs').ChildNodes.FindNode('Primary_Download_URL').Text;
     end;
   end;
 
@@ -264,29 +264,35 @@ begin
               FSize := StrToInt(PChar(Buffer));
 
             repeat
-              Success := InternetReadFile(Request, Buffer, BufferSize, Size);
+              Success := InternetReadFile(Request, Buffer, BufferSize, Size) and not Terminated;
               if (Success and (Size > 0)) then
+              begin
                 Stream.Write(Buffer^, Size);
-
-              PostMessage(Wnd, CM_UPDATE_PROGRESSBAR, Stream.Size, FSize);
+                PostMessage(Wnd, CM_UPDATE_PROGRESSBAR, Stream.Size, FSize);
+              end;
             until (Terminated or (Success and (Size = 0)));
 
-            FSize := Stream.Size;
-
-            Size := BufferSize; Index := 0;
-            if (Terminated or not HttpQueryInfo(Request, HTTP_QUERY_STATUS_CODE, Buffer, Size, Index)) then
-              StatusCode := 1
+            if (Terminated) then
+              StatusCode := 0
             else
-              StatusCode := StrToInt(PChar(Buffer));
-
-            if (StatusCode = HTTP_STATUS_PROXY_AUTH_REQ) then
             begin
-              Headers := 'Proxy-Connection: Keep-Alive';
-              HttpAddRequestHeaders(Request, PChar(Headers), Length(Headers), HTTP_ADDREQ_FLAG_ADD_IF_NEW);
+              FSize := Stream.Size;
 
-              Error := InternetErrorDlg(Application.Handle, Request, ERROR_INTERNET_INCORRECT_PASSWORD, FLAGS_ERROR_UI_FILTER_FOR_ERRORS or FLAGS_ERROR_UI_FLAGS_GENERATE_DATA or FLAGS_ERROR_UI_FLAGS_CHANGE_OPTIONS, Pointer(nil^)) <> ERROR_INTERNET_FORCE_RETRY;
-              if (not Error) then
-                DownloadTry := 0;
+              Size := BufferSize; Index := 0;
+              if (Terminated or not HttpQueryInfo(Request, HTTP_QUERY_STATUS_CODE, Buffer, Size, Index)) then
+                StatusCode := 1
+              else
+                StatusCode := StrToInt(PChar(Buffer));
+
+              if (StatusCode = HTTP_STATUS_PROXY_AUTH_REQ) then
+              begin
+                Headers := 'Proxy-Connection: Keep-Alive';
+                HttpAddRequestHeaders(Request, PChar(Headers), Length(Headers), HTTP_ADDREQ_FLAG_ADD_IF_NEW);
+
+                Error := InternetErrorDlg(Application.Handle, Request, ERROR_INTERNET_INCORRECT_PASSWORD, FLAGS_ERROR_UI_FILTER_FOR_ERRORS or FLAGS_ERROR_UI_FLAGS_GENERATE_DATA or FLAGS_ERROR_UI_FLAGS_CHANGE_OPTIONS, Pointer(nil^)) <> ERROR_INTERNET_FORCE_RETRY;
+                if (not Error) then
+                  DownloadTry := 0;
+              end;
             end;
           end;
 
@@ -341,7 +347,6 @@ end;
 
 procedure TCheckUpdateThread.Execute();
 var
-  EXE_URI: string;
   VersionStr: string;
 begin
   CoInitialize(nil);
@@ -351,10 +356,10 @@ begin
   inherited;
 
   if (ReturnValue = HTTP_STATUS_OK) then
-    if (CheckActualVersion(TStringStream(Stream), VersionStr, UpdateAvailable, EXE_URI) and (SuccessMessage <> 0)) then
+    if (CheckActualVersion(TStringStream(Stream), VersionStr) and (SuccessMessage <> 0)) then
     begin
       Preferences.UpdateChecked := Now();
-      if (UpdateAvailable) then
+      if (AvailableUpdate > Preferences.Version) then
         PostMessage(Wnd, SuccessMessage, 0, 0);
     end;
 
@@ -373,7 +378,6 @@ end;
 
 procedure TDInstallUpdate.CMPadFileReceived(var Message: TMessage);
 var
-  UpdateAvailable: Boolean;
   Version: string;
 begin
   Preferences.UpdateChecked := Now();
@@ -383,7 +387,7 @@ begin
 
   SendMessage(Handle, CM_UPDATE_PROGRESSBAR, PAD_Stream.Position, PAD_Stream.Size);
 
-  if (not CheckActualVersion(PAD_Stream, Version, UpdateAvailable, EXE_URI)) then
+  if (not CheckActualVersion(PAD_Stream, Version)) then
   begin
     FVersionInfo.Caption := Preferences.LoadStr(663) + ': ' + Preferences.LoadStr(384);
     MsgBox(Preferences.LoadStr(508), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
@@ -393,7 +397,7 @@ begin
   begin
     FVersionInfo.Caption := Preferences.LoadStr(663) + ': ' + Version;
 
-    if (not UpdateAvailable) then
+    if (AvailableUpdate <= Preferences.Version) then
     begin
       MsgBox(Preferences.LoadStr(507), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
       FBCancel.Click();
@@ -423,8 +427,6 @@ begin
 
   Preferences.SetupProgram := SetupPrgFilename;
   Preferences.SetupProgramInstalled := False;
-
-  MsgBox(Preferences.LoadStr(848), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
 
   ModalResult := mrOk;
 end;
@@ -465,7 +467,7 @@ var
 begin
   if (GetTempPath(MAX_PATH, FilenameP) > 0) then
   begin
-    SetupPrgFilename := EXE_URI;
+    SetupPrgFilename := SetupPrgURI;
     while (Pos('/', SetupPrgFilename) > 0) do Delete(SetupPrgFilename, 1, Pos('/', SetupPrgFilename));
 
     if (not FileExists(FilenameP + SetupPrgFilename)) then
@@ -488,7 +490,7 @@ begin
     EXE_Stream := TFileStream.Create(SetupPrgFilename, fmCreate);
 
     HTTPThread := THTTPMessagedThread.Create(True);
-    HTTPThread.URI := PChar(EXE_URI);
+    HTTPThread.URI := PChar(SetupPrgURI);
     HTTPThread.Stream := EXE_Stream;
     HTTPThread.Wnd := Handle;
     HTTPThread.SuccessMessage := CM_PROGRAM_FILE_RECEIVED;
@@ -518,37 +520,56 @@ begin
 end;
 
 procedure TDInstallUpdate.FormShow(Sender: TObject);
+var
+  Major, Minor, Patch, Build: Integer;
 begin
-  FVersionInfo.Caption := Preferences.LoadStr(663);
-  FVersionInfo.Enabled := False;
-
-  FBOk.Enabled := False;
+  PAD_Stream := TStringStream.Create('');
+  EXE_Stream := nil;
 
   FProgram.Caption := Preferences.LoadStr(665);
   FProgram.Enabled := False;
 
   SendMessage(Handle, CM_UPDATE_PROGRESSBAR, 0, 100);
 
-  PAD_Stream := TStringStream.Create('');
-  EXE_Stream := nil;
+  if (AvailableUpdate < 0) then
+  begin
+    FVersionInfo.Caption := Preferences.LoadStr(663) + ' ...';
+    FVersionInfo.Enabled := True;
+
+    HTTPThread := THTTPMessagedThread.Create(True);
+    HTTPThread.URI := SysUtils.LoadStr(1005);
+    HTTPThread.Stream := PAD_Stream;
+    HTTPThread.Wnd := Handle;
+    HTTPThread.SuccessMessage := CM_PAD_FILE_RECEIVED;
+
+    SendMessage(Handle, CM_UPDATE_PROGRESSBAR, 10, 100);
+
+    HTTPThread.Start();
+
+    FBOk.Enabled := False;
+  end
+  else
+  begin
+    DecodeVersion(AvailableUpdate, Major, Minor, Patch, Build);
+    FVersionInfo.Caption := Preferences.LoadStr(663) + ': ' + IntToStr(Major) + '.' + IntToStr(Minor) + '  (Build ' + IntToStr(Patch) + '.' + IntToStr(Build) + ')';
+    FVersionInfo.Enabled := True;
+
+    FBOk.Visible := not Silent;
+    if (not FBOk.Visible) then
+      FBOk.OnClick(nil);
+  end;
 
   FBCancel.OnClick := FBCancelClick;
 
-  FVersionInfo.Caption := Preferences.LoadStr(663) + ' ...';
-  FVersionInfo.Enabled := True;
-
-  HTTPThread := THTTPMessagedThread.Create(True);
-  HTTPThread.URI := SysUtils.LoadStr(1005);
-  HTTPThread.Stream := PAD_Stream;
-  HTTPThread.Wnd := Handle;
-  HTTPThread.SuccessMessage := CM_PAD_FILE_RECEIVED;
-
-  SendMessage(Handle, CM_UPDATE_PROGRESSBAR, 10, 100);
-
-  HTTPThread.Start();
+  if (FBOk.Visible and FBOk.Enabled) then
+    ActiveControl := FBOk
+  else
+    ActiveControl := FBCancel
 end;
 
 initialization
+  AvailableUpdate := -1;
   CheckUpdateThread := nil;
   FInstallUpdate := nil;
+  SetupPrgURI := '';
 end.

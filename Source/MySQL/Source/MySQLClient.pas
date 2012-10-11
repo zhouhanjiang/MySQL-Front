@@ -1180,6 +1180,11 @@ begin
     FError := EncodeString(CLIENT_ERRORS[FErrNo - CR_MIN_ERROR])
   else
     FError := '';
+
+  {$IFDEF EurekaLog}
+    if ((AErrNo = CR_UNKNOWN_ERROR) or (AErrNo = CR_OUT_OF_MEMORY) or (AErrNo = CR_SERVER_HANDSHAKE_ERR)) then
+      raise Exception.Create(DecodeString(error()));
+  {$ENDIF}
 end;
 
 procedure TMySQL_IO.SetDirection(ADirection: TMySQL_IO.TDirection);
@@ -1502,18 +1507,18 @@ begin
     if (Buffer.Size > NewSize) then
       NewSize := (((Buffer.Size - 1) div NET_BUFFER_LENGTH) + 1) * NET_BUFFER_LENGTH;
 
-//    try
+    try
       ReallocMem(Buffer.Mem, NewSize);
       Buffer.MemSize := NewSize;
       Result := True;
-//    except
-//      on E: EOutOfMemory do
-//      begin
-//        ZeroMemory(@Buffer, SizeOf(Buffer));
-//        Seterror(CR_OUT_OF_MEMORY);
-//        Result := False;
-//      end;
-//    end;
+    except
+      on E: EOutOfMemory do
+      begin
+        ZeroMemory(@Buffer, SizeOf(Buffer));
+        Seterror(CR_OUT_OF_MEMORY);
+        Result := False;
+      end;
+    end;
   end;
 end;
 
@@ -1586,17 +1591,17 @@ function TMySQL_File.ReceivePacket(): Boolean;
             if (PacketOffset + UncompressedSize > PacketBuffer.MemSize) then
               Result := ReallocBuffer(PacketBuffer, PacketOffset + UncompressedSize);
 
-//            try  // Debug
+            try
               DecompressBuffer.Mem := nil;
               ZDecompress(@PacketBuffer.Mem[PacketOffset + NET_HEADER_SIZE + COMP_HEADER_SIZE], Size, DecompressBuffer.Mem, DecompressBuffer.Size);
               MoveMemory(@PacketBuffer.Mem[PacketOffset], DecompressBuffer.Mem, DecompressBuffer.Size);
               FreeMem(DecompressBuffer.Mem);
-//            except
-//              on E: EOutOfMemory do
-//                begin Seterror(CR_OUT_OF_MEMORY); Result := False; end;
-//              else
-//                begin Seterror(CR_UNKNOWN_ERROR); Result := False; end;
-//            end;
+            except
+              on E: EOutOfMemory do
+                begin Seterror(CR_OUT_OF_MEMORY); Result := False; end;
+              else
+                begin Seterror(CR_UNKNOWN_ERROR); Result := False; end;
+            end;
 
             Inc(BytesRead, UncompressedSize);
             PacketBuffer.Size := PacketOffset + UncompressedSize;
@@ -1640,8 +1645,6 @@ begin
       else
       begin
         Result := Receive(NET_HEADER_SIZE, VIOSize);
-        if (not Result) then // Debug
-          raise Exception.Create('Receive failed');
         Offset := PacketBuffer.Offset; if (Index > 0) then Inc(Offset,  NET_HEADER_SIZE + my_uint(Index) * MAX_PACKET_LENGTH);
       end;
 
@@ -2739,9 +2742,7 @@ begin
 
   {$IFDEF EurekaLog}
     if (AErrNo = CR_COMMANDS_OUT_OF_SYNC) then
-      raise Exception.Create(DecodeString(error()) + ' (' + IntToStr(Byte(fclient_status)) + ')')
-    else if ((AErrNo = CR_UNKNOWN_ERROR) or (AErrNo = CR_OUT_OF_MEMORY) or (AErrNo = CR_SERVER_HANDSHAKE_ERR)) then
-      raise Exception.Create(DecodeString(error()));
+      raise Exception.Create(DecodeString(error()) + ' (' + IntToStr(Byte(fclient_status)) + ')');
   {$ENDIF}
 end;
 
