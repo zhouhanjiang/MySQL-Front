@@ -939,7 +939,7 @@ begin
 
       SQLAllocHandle(SQL_HANDLE_STMT, ODBC, @Handle);
 
-      ODBCException(Handle, SQLColumns(Handle, nil, 0, nil, 0, PSQLTCHAR(ODBCTableName(FTables.Selected.Caption, ImportType = itExcelFile)), SQL_NTS, nil, 0));
+      ODBCException(Handle, SQLColumns(Handle, nil, 0, nil, 0, PSQLTCHAR(FTables.Selected.Caption), SQL_NTS, nil, 0));
       ODBCException(Handle, SQLBindCol(Handle, 4, SQL_C_WCHAR, @COLUMN_NAME, SizeOf(COLUMN_NAME), @cbCOLUMN_NAME));
       while (SQL_SUCCEEDED(ODBCException(Handle, SQLFetch(Handle)))) do
         FieldNames.Add(COLUMN_NAME);
@@ -1266,7 +1266,7 @@ begin
         ImportODBC.RowType := Table.RowType;
         ImportODBC.Structure := False;
 
-        ImportODBC.Add(Table.Name, ODBCTableName(FTables.Selected.Caption, ImportType = itExcelFile));
+        ImportODBC.Add(Table.Name, FTables.Selected.Caption);
       end
       else
       begin
@@ -1288,7 +1288,7 @@ begin
             else if (Answer <> IDYESALL) then
               Answer := MsgBox(Preferences.LoadStr(700, Database.Name + '.' + TableName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);
             if (Answer in [IDYES, IDYESALL]) then
-              ImportODBC.Add(TableName, ODBCTableName(FTables.Items[I].Caption, ImportType = itExcelFile))
+              ImportODBC.Add(TableName, FTables.Items[I].Caption)
             else if (Answer = IDCANCEL) then
               FreeAndNil(ImportODBC);
           end;
@@ -1477,19 +1477,24 @@ begin
 end;
 
 procedure TDImport.TSTablesShow(Sender: TObject);
+const
+  TABLE_TYPE_LEN = 30;
+  TABLE_REMARKS_LEN = 1024;
 var
   cbTABLE_NAME: SQLINTEGER;
   cbTABLE_TYPE: SQLINTEGER;
+  cbTABLE_REMARKS: SQLINTEGER;
   Handle: SQLHSTMT;
   I: Integer;
   Index: Integer;
   J: Integer;
   ListItem: TListItem;
-  MaxLen: SQLSMALLINT;
   Stmt: sqlite3_stmt_ptr;
   TableName: string;
   TABLE_NAME: PSQLTCHAR;
+  TABLE_NAME_LEN: SQLINTEGER;
   TABLE_TYPE: PSQLTCHAR;
+  TABLE_REMARKS: PSQLTCHAR;
 begin
   if (FTables.Items.Count = 0) then
   begin
@@ -1497,48 +1502,52 @@ begin
 
     if (ODBC <> SQL_NULL_HANDLE) then
     begin
-      ODBCException(ODBC, SQLGetInfo(ODBC, SQL_MAX_TABLE_NAME_LEN, @MaxLen, SizeOf(MaxLen), nil));
-      GetMem(TABLE_NAME, (MaxLen + 1) * SizeOf(SQLWCHAR));
-      GetMem(TABLE_TYPE, (MaxLen + 1) * SizeOf(SQLWCHAR));
+      ODBCException(ODBC, SQLAllocHandle(SQL_HANDLE_STMT, ODBC, @Handle));
+      ODBCException(ODBC, SQLGetInfo(ODBC, SQL_MAX_TABLE_NAME_LEN, @TABLE_NAME_LEN, SizeOf(TABLE_NAME_LEN), nil));
+      GetMem(TABLE_NAME, (TABLE_NAME_LEN + 1) * SizeOf(SQLWCHAR));
+      GetMem(TABLE_TYPE, (TABLE_TYPE_LEN + 1) * SizeOf(SQLWCHAR));
+      GetMem(TABLE_REMARKS, (TABLE_REMARKS_LEN + 1) * SizeOf(SQLWCHAR));
 
-      if (ImportType = itExcelFile) then
+//      if (ImportType = itExcelFile) then
+//      begin
+//        ODBCException(Handle, SQLTables(Handle, nil, 0, nil, 0, nil, 0, nil, SQL_NTS));
+//        ODBCException(Handle, SQLBindCol(Handle, 3, SQL_C_WCHAR, TABLE_NAME, (TABLE_NAME_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_NAME));
+//        ODBCException(Handle, SQLBindCol(Handle, 4, SQL_C_WCHAR, TABLE_TYPE, (TABLE_TYPE_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_TYPE));
+//        ODBCException(Handle, SQLBindCol(Handle, 5, SQL_C_WCHAR, TABLE_REMARKS, (TABLE_REMARKS_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_REMARKS));
+//        while (SQL_SUCCEEDED(ODBCException(Handle, SQLFetch(Handle)))) do
+//          if (lstrcmpi(PChar(TABLE_TYPE), 'SYSTEM TABLE') = 0) then
+//          begin
+//            SetString(TableName, PChar(TABLE_NAME), cbTABLE_NAME div SizeOf(SQLTCHAR));
+//            if (RightStr(TableName, 1) = '$') then
+//              TableNames.Add(LeftStr(TableName, Length(TableName) - 1))
+//            else
+//              TableNames.Add(TableName);
+//          end;
+//        SQLFreeStmt(Handle, SQL_CLOSE);
+//      end;
+
+//      if ((ImportType <> itExcelFile) or (TableNames.Count = 0)) then
       begin
-        SQLAllocHandle(SQL_HANDLE_STMT, ODBC, @Handle);
         ODBCException(Handle, SQLTables(Handle, nil, 0, nil, 0, nil, 0, nil, SQL_NTS));
-        ODBCException(Handle, SQLBindCol(Handle, 3, SQL_C_WCHAR, TABLE_NAME, (MaxLen + 1) * SizeOf(SQLWCHAR), @cbTABLE_NAME));
-        ODBCException(Handle, SQLBindCol(Handle, 4, SQL_C_WCHAR, TABLE_TYPE, (MaxLen + 1) * SizeOf(SQLWCHAR), @cbTABLE_TYPE));
+        ODBCException(Handle, SQLBindCol(Handle, 3, SQL_C_WCHAR, TABLE_NAME, (TABLE_NAME_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_NAME));
+        ODBCException(Handle, SQLBindCol(Handle, 4, SQL_C_WCHAR, TABLE_TYPE, (TABLE_TYPE_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_TYPE));
+        ODBCException(Handle, SQLBindCol(Handle, 5, SQL_C_WCHAR, TABLE_REMARKS, (TABLE_REMARKS_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_REMARKS));
         while (SQL_SUCCEEDED(ODBCException(Handle, SQLFetch(Handle)))) do
-          if (lstrcmpi(PChar(TABLE_TYPE), 'SYSTEM TABLE') = 0) then
+//          if (lstrcmpi(PChar(TABLE_TYPE), 'TABLE') = 0) then
           begin
             SetString(TableName, PChar(TABLE_NAME), cbTABLE_NAME div SizeOf(SQLTCHAR));
-            if (RightStr(TableName, 1) = '$') then
-              TableNames.Add(LeftStr(TableName, Length(TableName) - 1))
-            else
+//            if ((ImportType = itExcelFile) and (RightStr(TableName, 1) = '$')) then
+//              TableNames.Add(LeftStr(TableName, Length(TableName) - 1))
+//            else
               TableNames.Add(TableName);
           end;
-        SQLFreeHandle(SQL_HANDLE_STMT, Handle);
-      end;
-
-      if ((ImportType <> itExcelFile) or (TableNames.Count = 0)) then
-      begin
-        SQLAllocHandle(SQL_HANDLE_STMT, ODBC, @Handle);
-        ODBCException(Handle, SQLTables(Handle, nil, 0, nil, 0, nil, 0, nil, SQL_NTS));
-        ODBCException(Handle, SQLBindCol(Handle, 3, SQL_C_WCHAR, TABLE_NAME, (MaxLen + 1) * SizeOf(SQLWCHAR), @cbTABLE_NAME));
-        ODBCException(Handle, SQLBindCol(Handle, 4, SQL_C_WCHAR, TABLE_TYPE, (MaxLen + 1) * SizeOf(SQLWCHAR), @cbTABLE_TYPE));
-        while (SQL_SUCCEEDED(ODBCException(Handle, SQLFetch(Handle)))) do
-          if (lstrcmpi(PChar(TABLE_TYPE), 'TABLE') = 0) then
-          begin
-            SetString(TableName, PChar(TABLE_NAME), cbTABLE_NAME div SizeOf(SQLTCHAR));
-            if ((ImportType = itExcelFile) and (RightStr(TableName, 1) = '$')) then
-              TableNames.Add(LeftStr(TableName, Length(TableName) - 1))
-            else
-              TableNames.Add(TableName);
-          end;
-        SQLFreeHandle(SQL_HANDLE_STMT, Handle);
+        SQLFreeStmt(Handle, SQL_CLOSE);
       end;
 
       FreeMem(TABLE_NAME);
       FreeMem(TABLE_TYPE);
+      FreeMem(TABLE_REMARKS);
+      SQLFreeHandle(SQL_HANDLE_STMT, Handle);
     end
     else if (ImportType = itSQLiteFile) then
     begin
@@ -1555,19 +1564,15 @@ begin
 
     for I := 0 to TableNames.Count - 1 do
     begin
-      TableName := TableNames[I];
-      if (RightStr(TableName, 1) = '$') then
-        Delete(TableName, Length(TableName), 1);
-      TableName := Copy(TableName, Pos('.', TableName) + 1, Length(TableName) - Pos('.', TableName));
       Index := FTables.Items.Count;
       for J := FTables.Items.Count - 1 downto 0 do
-        if (lstrcmpi(PChar(TableName), PChar(FTables.Items[J].Caption)) <= 0) then
+        if (lstrcmpi(PChar(TableNames[I]), PChar(FTables.Items[J].Caption)) <= 0) then
           Index := J;
       if (Index < FTables.Items.Count) then
         ListItem := FTables.Items.Insert(Index)
       else
         ListItem := FTables.Items.Add();
-      ListItem.Caption := TableName;
+      ListItem.Caption := TableNames[I];
       ListItem.ImageIndex := iiTable;
       ListItem.Data := TCustomData(I);
     end;

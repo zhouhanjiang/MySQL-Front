@@ -750,7 +750,6 @@ type
   EODBCError = EDatabaseError;
 
 function ODBCException(const Stmt: SQLHSTMT; const ReturnCode: SQLRETURN; const AState: PString = nil): SQLRETURN;
-function ODBCTableName(const TableName: string; const Excel: Boolean): string;
 function SQLiteException(const Handle: sqlite3_ptr; const ReturnCode: Integer; const AState: PString = nil): SQLRETURN;
 
 const
@@ -864,14 +863,6 @@ begin
     SQL_NO_DATA:
       raise Exception.Create('Unknown ODBC Error');
   end;
-end;
-
-function ODBCTableName(const TableName: string; const Excel: Boolean): string;
-begin
-  if (Excel) then
-    Result := TableName + '$'
-  else
-    Result := TableName;
 end;
 
 function ODBCException(const Stmt: SQLHSTMT; const ReturnCode: SQLRETURN; const AState: PString = nil): SQLRETURN;
