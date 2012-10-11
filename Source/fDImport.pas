@@ -1479,11 +1479,9 @@ end;
 procedure TDImport.TSTablesShow(Sender: TObject);
 const
   TABLE_TYPE_LEN = 30;
-  TABLE_REMARKS_LEN = 1024;
 var
   cbTABLE_NAME: SQLINTEGER;
   cbTABLE_TYPE: SQLINTEGER;
-  cbTABLE_REMARKS: SQLINTEGER;
   Handle: SQLHSTMT;
   I: Integer;
   Index: Integer;
@@ -1494,7 +1492,6 @@ var
   TABLE_NAME: PSQLTCHAR;
   TABLE_NAME_LEN: SQLINTEGER;
   TABLE_TYPE: PSQLTCHAR;
-  TABLE_REMARKS: PSQLTCHAR;
 begin
   if (FTables.Items.Count = 0) then
   begin
@@ -1506,47 +1503,21 @@ begin
       ODBCException(ODBC, SQLGetInfo(ODBC, SQL_MAX_TABLE_NAME_LEN, @TABLE_NAME_LEN, SizeOf(TABLE_NAME_LEN), nil));
       GetMem(TABLE_NAME, (TABLE_NAME_LEN + 1) * SizeOf(SQLWCHAR));
       GetMem(TABLE_TYPE, (TABLE_TYPE_LEN + 1) * SizeOf(SQLWCHAR));
-      GetMem(TABLE_REMARKS, (TABLE_REMARKS_LEN + 1) * SizeOf(SQLWCHAR));
 
-//      if (ImportType = itExcelFile) then
-//      begin
-//        ODBCException(Handle, SQLTables(Handle, nil, 0, nil, 0, nil, 0, nil, SQL_NTS));
-//        ODBCException(Handle, SQLBindCol(Handle, 3, SQL_C_WCHAR, TABLE_NAME, (TABLE_NAME_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_NAME));
-//        ODBCException(Handle, SQLBindCol(Handle, 4, SQL_C_WCHAR, TABLE_TYPE, (TABLE_TYPE_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_TYPE));
-//        ODBCException(Handle, SQLBindCol(Handle, 5, SQL_C_WCHAR, TABLE_REMARKS, (TABLE_REMARKS_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_REMARKS));
-//        while (SQL_SUCCEEDED(ODBCException(Handle, SQLFetch(Handle)))) do
-//          if (lstrcmpi(PChar(TABLE_TYPE), 'SYSTEM TABLE') = 0) then
-//          begin
-//            SetString(TableName, PChar(TABLE_NAME), cbTABLE_NAME div SizeOf(SQLTCHAR));
-//            if (RightStr(TableName, 1) = '$') then
-//              TableNames.Add(LeftStr(TableName, Length(TableName) - 1))
-//            else
-//              TableNames.Add(TableName);
-//          end;
-//        SQLFreeStmt(Handle, SQL_CLOSE);
-//      end;
-
-//      if ((ImportType <> itExcelFile) or (TableNames.Count = 0)) then
-      begin
-        ODBCException(Handle, SQLTables(Handle, nil, 0, nil, 0, nil, 0, nil, SQL_NTS));
-        ODBCException(Handle, SQLBindCol(Handle, 3, SQL_C_WCHAR, TABLE_NAME, (TABLE_NAME_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_NAME));
-        ODBCException(Handle, SQLBindCol(Handle, 4, SQL_C_WCHAR, TABLE_TYPE, (TABLE_TYPE_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_TYPE));
-        ODBCException(Handle, SQLBindCol(Handle, 5, SQL_C_WCHAR, TABLE_REMARKS, (TABLE_REMARKS_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_REMARKS));
-        while (SQL_SUCCEEDED(ODBCException(Handle, SQLFetch(Handle)))) do
-//          if (lstrcmpi(PChar(TABLE_TYPE), 'TABLE') = 0) then
-          begin
-            SetString(TableName, PChar(TABLE_NAME), cbTABLE_NAME div SizeOf(SQLTCHAR));
-//            if ((ImportType = itExcelFile) and (RightStr(TableName, 1) = '$')) then
-//              TableNames.Add(LeftStr(TableName, Length(TableName) - 1))
-//            else
-              TableNames.Add(TableName);
-          end;
-        SQLFreeStmt(Handle, SQL_CLOSE);
-      end;
+      ODBCException(Handle, SQLTables(Handle, nil, 0, nil, 0, nil, 0, nil, SQL_NTS));
+      ODBCException(Handle, SQLBindCol(Handle, 3, SQL_C_WCHAR, TABLE_NAME, (TABLE_NAME_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_NAME));
+      ODBCException(Handle, SQLBindCol(Handle, 4, SQL_C_WCHAR, TABLE_TYPE, (TABLE_TYPE_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_TYPE));
+      while (SQL_SUCCEEDED(ODBCException(Handle, SQLFetch(Handle)))) do
+        if ((lstrcmpi(PChar(TABLE_TYPE), 'TABLE') = 0) or (ImportType = itExcelFile) and (lstrcmpi(PChar(TABLE_TYPE), 'SYSTEM TABLE') = 0))  then
+        begin
+          SetString(TableName, PChar(TABLE_NAME), cbTABLE_NAME div SizeOf(SQLTCHAR));
+          if ((ImportType <> itExcelFile) or (Pos('$', TableName) > 0)) then
+            TableNames.Add(TableName);
+        end;
+      SQLFreeStmt(Handle, SQL_CLOSE);
 
       FreeMem(TABLE_NAME);
       FreeMem(TABLE_TYPE);
-      FreeMem(TABLE_REMARKS);
       SQLFreeHandle(SQL_HANDLE_STMT, Handle);
     end
     else if (ImportType = itSQLiteFile) then

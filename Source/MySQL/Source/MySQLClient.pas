@@ -1539,7 +1539,9 @@ function TMySQL_File.ReceivePacket(): Boolean;
     Result := Receive(PacketBuffer.Mem[PacketBuffer.Size], BytesToRead, BytesRead);
 
     if (Result) then
-      Inc(PacketBuffer.Size, BytesRead);
+      Inc(PacketBuffer.Size, BytesRead)
+    else
+      Seterror(CR_UNKNOWN_ERROR);  // Debug
   end;
 
   function ReceiveCompressed(const BytesToRead: my_uint; out BytesRead: my_uint): Boolean;
@@ -1589,7 +1591,11 @@ function TMySQL_File.ReceivePacket(): Boolean;
           else
           begin
             if (PacketOffset + UncompressedSize > PacketBuffer.MemSize) then
+            begin
               Result := ReallocBuffer(PacketBuffer, PacketOffset + UncompressedSize);
+              if (not Result) then
+                Seterror(CR_UNKNOWN_ERROR); // Debug
+            end;
 
             try
               DecompressBuffer.Mem := nil;
