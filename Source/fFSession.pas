@@ -6819,26 +6819,16 @@ begin
   end;
 end;
 
-procedure TFSession.FBuilderDragDrop(Sender, Source: TObject; X,
-  Y: Integer);
+procedure TFSession.FBuilderDragDrop(Sender, Source: TObject; X, Y: Integer);
 var
-  Database: TSDatabase;
-  Node: TTreeNode;
   SQLQualifiedName: TSQLQualifiedName;
 begin
   if ((Source = FNavigator) and (MouseDownNode.ImageIndex in [iiBaseTable, iiSystemView, iiView])) then
   begin
-    Node := MouseDownNode;
-
-    Database := TSDatabase(Node.Parent.Data);
-
     SQLQualifiedName := TSQLQualifiedName.Create(FBuilder.MetadataContainer.SQLContext);
-    if (Database <> TSDatabase(FNavigator.Selected.Data)) then
-      SQLQualifiedName.AddPrefix(Database.Name);
-
-    SQLQualifiedName.AddName(TSTable(Node.Data).Name);
+    SQLQualifiedName.AddName(TSTable(MouseDownNode.Data).Name);
+    SQLQualifiedName.AddPrefix(TSDatabase(MouseDownNode.Parent.Data).Name);
     FBuilder.ActiveSubQuery.ActiveUnionSubquery.AddObjectAt(SQLQualifiedName, Point(X, Y));
-
     SQLQualifiedName.Free();
   end;
 end;

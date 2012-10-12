@@ -1182,7 +1182,7 @@ begin
     FError := '';
 
   {$IFDEF EurekaLog}
-    if ((AErrNo = CR_UNKNOWN_ERROR) or (AErrNo = CR_OUT_OF_MEMORY) or (AErrNo = CR_SERVER_HANDSHAKE_ERR)) then
+    if ((AErrNo = CR_UNKNOWN_ERROR) or (AErrNo = CR_OUT_OF_MEMORY)) then
       raise Exception.Create(DecodeString(error()));
   {$ENDIF}
 end;
@@ -2748,7 +2748,9 @@ begin
 
   {$IFDEF EurekaLog}
     if (AErrNo = CR_COMMANDS_OUT_OF_SYNC) then
-      raise Exception.Create(DecodeString(error()) + ' (' + IntToStr(Byte(fclient_status)) + ')');
+      raise Exception.CreateFmt('%s  (ClientStatus: %d)', [DecodeString(error()), Byte(fclient_status)])
+    else if (AErrNo = CR_SERVER_HANDSHAKE_ERR) then
+      raise Exception.CreateFmt('%s  (Id: %d)', [DecodeString(error()), fthread_id]);
   {$ENDIF}
 end;
 

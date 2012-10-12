@@ -140,6 +140,26 @@ type
     procedure TSXMLOptionChange(Sender: TObject);
     procedure TSXMLOptionsHide(Sender: TObject);
     procedure TSXMLOptionsShow(Sender: TObject);
+  type
+    TTableName = class
+    private
+      FSourceName: string;
+      function GetCaption(): string;
+      function GetMySQLName(): string;
+    public
+      constructor Create(const ASourceName: string);
+      property Caption: string read GetCaption;
+      property MySQLName: string read GetMySQLName;
+      property SourceName: string read FSourceName;
+    end;
+    TTableNames = class(TList)
+    private
+      function GetTableName(Index: Integer): TTableName; inline;
+    public
+      procedure Add(const SourceName: string);
+      procedure Clear(); override;
+      property TableName[Index: Integer]: TTableName read GetTableName; default;
+    end;
   private
     FFields: array of TComboBox_Ext;
     FLReferrers: array of TLabel;
@@ -149,7 +169,7 @@ type
     ODBCEnv: SQLHENV;
     ProgressInfos: TTools.TProgressInfos;
     SQLite: sqlite3_ptr;
-    TableNames: TStringList;
+    TableNames: TTableNames;
     procedure CheckActivePageChange(const ActivePageIndex: Integer);
     procedure ClearTSFields(Sender: TObject);
     procedure InitTSFields(Sender: TObject);
@@ -198,6 +218,59 @@ begin
   end;
 
   Result := FImport;
+end;
+
+{ TDImport.TTableName *********************************************************}
+
+constructor TDImport.TTableName.Create(const ASourceName: string);
+begin
+  inherited Create();
+
+  FSourceName := ASourceName;
+end;
+
+function TDImport.TTableName.GetCaption(): string;
+begin
+  if (DImport.ImportType <> itExcelFile) then
+    Result := SourceName
+  else if (Pos('$', SourceName) = Length(SourceName)) then
+    Result := LeftStr(SourceName, Length(SourceName) - 1)
+  else
+    Result := LeftStr(SourceName, Pos('$', SourceName) - 1) + ' (' + RightStr(SourceName, Length(SourceName) - Pos('$', SourceName)) + ')';
+end;
+
+function TDImport.TTableName.GetMySQLName(): string;
+begin
+  if (DImport.ImportType <> itExcelFile) then
+    Result := SourceName
+  else if (Pos('$', SourceName) = Length(SourceName)) then
+    Result := LeftStr(SourceName, Length(SourceName) - 1)
+  else
+    Result := LeftStr(SourceName, Pos('$', SourceName) - 1) + '_' + RightStr(SourceName, Length(SourceName) - Pos('$', SourceName));
+
+  Result := DImport.Session.ApplyIdentifierName(Result);
+end;
+
+{ TDImport.TTableNames ********************************************************}
+
+procedure TDImport.TTableNames.Add(const SourceName: string);
+begin
+  inherited Add(TTableName.Create(SourceName));
+end;
+
+procedure TDImport.TTableNames.Clear();
+var
+  I: Integer;
+begin
+  for I := 0 to Count - 1 do
+    TableName[I].Free();
+
+  inherited;
+end;
+
+function TDImport.TTableNames.GetTableName(Index: Integer): TTableName;
+begin
+  Result := TTableName(Items[Index]);
 end;
 
 { TDImport ********************************************************************}
@@ -385,7 +458,7 @@ begin
 
   ODBCEnv := SQL_NULL_HANDLE;
   ODBC := SQL_NULL_HANDLE;
-  TableNames := nil;
+  TableNames := TTableNames.Create();
 
   case (ImportType) of
     itExcelFile,
@@ -494,6 +567,8 @@ begin
   end;
 
   Result := Success and (ShowModal() = mrOk);
+
+  TableNames.Free();
 end;
 
 procedure TDImport.FBBackClick(Sender: TObject);
@@ -768,8 +843,6 @@ begin
   FTables.Items.BeginUpdate();
   FTables.Items.Clear();
   FTables.Items.EndUpdate();
-  if (Assigned(TableNames)) then
-    TableNames.Free();
   ClearTSFields(Sender);
 
   FCSVPreview.Items.BeginUpdate();
@@ -937,20 +1010,18 @@ begin
       else
         FLSourceFields.Caption := Preferences.LoadStr(400) + ':';
 
-      SQLAllocHandle(SQL_HANDLE_STMT, ODBC, @Handle);
-
-      ODBCException(Handle, SQLColumns(Handle, nil, 0, nil, 0, PSQLTCHAR(FTables.Selected.Caption), SQL_NTS, nil, 0));
+      ODBCException(ODBC, SQLAllocHandle(SQL_HANDLE_STMT, ODBC, @Handle));
+      ODBCException(Handle, SQLColumns(Handle, nil, 0, nil, 0, PSQLTCHAR(TTableName(FTables.Selected.Data).SourceName), SQL_NTS, nil, 0));
       ODBCException(Handle, SQLBindCol(Handle, 4, SQL_C_WCHAR, @COLUMN_NAME, SizeOf(COLUMN_NAME), @cbCOLUMN_NAME));
       while (SQL_SUCCEEDED(ODBCException(Handle, SQLFetch(Handle)))) do
         FieldNames.Add(COLUMN_NAME);
-
       SQLFreeHandle(SQL_HANDLE_STMT, Handle);
     end
     else if (ImportType in [itSQLiteFile]) then
     begin
       FLSourceFields.Caption := Preferences.LoadStr(400) + ':';
 
-      SQLiteException(SQLite, sqlite3_prepare_v2(SQLite, PAnsiChar(UTF8Encode('SELECT * FROM "' + FTables.Selected.Caption + '" WHERE 1<>1')), -1, @Stmt, nil));
+      SQLiteException(SQLite, sqlite3_prepare_v2(SQLite, PAnsiChar(UTF8Encode('SELECT * FROM "' + TTableName(FTables.Selected.Data).SourceName + '" WHERE 1<>1')), -1, @Stmt, nil));
       if (sqlite3_step(Stmt) = SQLITE_DONE) then
         for I := 0 to sqlite3_column_count(Stmt) - 1 do
           FieldNames.Add(UTF8ToString(StrPas(sqlite3_column_name(Stmt, I))));
@@ -1158,7 +1229,7 @@ var
   J: Integer;
   ProgressInfos: TTools.TProgressInfos;
   Success: Boolean;
-  TableName: string;
+  MySQLName: string;
 begin
   FBBack.Enabled := False;
   FBForward.Enabled := False;
@@ -1226,15 +1297,15 @@ begin
         ImportText.Structure := True;
 
         Answer := IDYES;
-        TableName := ExtractFileName(Filename);
-        TableName := Copy(TableName, 1, Length(TableName) - Length(ExtractFileExt(TableName)));
-        TableName := Session.ApplyIdentifierName(TableName);
-        if (not Assigned(Database.TableByName(TableName))) then
+        MySQLName := ExtractFileName(Filename);
+        MySQLName := Copy(MySQLName, 1, Length(MySQLName) - Length(ExtractFileExt(MySQLName)));
+        MySQLName := Session.ApplyIdentifierName(MySQLName);
+        if (not Assigned(Database.TableByName(MySQLName))) then
           Answer := IDYES
         else if (Answer <> IDYESALL) then
-          Answer := MsgBox(Preferences.LoadStr(700, Database.Name + '.' + TableName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);
+          Answer := MsgBox(Preferences.LoadStr(700, Database.Name + '.' + MySQLName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);
         if (Answer in [IDYES, IDYESALL]) then
-          ImportText.Add(TableName)
+          ImportText.Add(MySQLName)
         else if (Answer = IDCANCEL) then
           FreeAndNil(ImportText);
       end;
@@ -1266,7 +1337,7 @@ begin
         ImportODBC.RowType := Table.RowType;
         ImportODBC.Structure := False;
 
-        ImportODBC.Add(Table.Name, FTables.Selected.Caption);
+        ImportODBC.Add(Table.Name, TTableName(FTables.Selected.Data).SourceName);
       end
       else
       begin
@@ -1282,13 +1353,13 @@ begin
         for I := 0 to FTables.Items.Count - 1 do
           if (Assigned(ImportODBC) and (FTables.Items[I].Selected)) then
           begin
-            TableName := Session.ApplyIdentifierName(FTables.Items[I].Caption);
-            if (not Assigned(Database.TableByName(TableName))) then
+            MySQLName := TTableName(FTables.Items[I].Data).MySQLName;
+            if (not Assigned(Database.TableByName(MySQLName))) then
               Answer := IDYES
             else if (Answer <> IDYESALL) then
-              Answer := MsgBox(Preferences.LoadStr(700, Database.Name + '.' + TableName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);
+              Answer := MsgBox(Preferences.LoadStr(700, Database.Name + '.' + MySQLName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);
             if (Answer in [IDYES, IDYESALL]) then
-              ImportODBC.Add(TableName, FTables.Items[I].Caption)
+              ImportODBC.Add(MySQLName, TTableName(FTables.Items[I].Data).SourceName)
             else if (Answer = IDCANCEL) then
               FreeAndNil(ImportODBC);
           end;
@@ -1320,7 +1391,7 @@ begin
         ImportSQLite.RowType := Table.RowType;
         ImportSQLite.Structure := False;
 
-        ImportSQLite.Add(Table.Name, FTables.Items[0].Caption);
+        ImportSQLite.Add(Table.Name, TTableName(FTables.Selected.Data).SourceName);
       end
       else
       begin
@@ -1334,15 +1405,15 @@ begin
 
         Answer := IDYES;
         for I := 0 to FTables.Items.Count - 1 do
-          if (Assigned(ImportSQLite) and (FTables.Items.Item[I].Selected)) then
+          if (Assigned(ImportSQLite) and (FTables.Items[I].Selected)) then
           begin
-            TableName := Session.ApplyIdentifierName(FTables.Items[I].Caption);
-            if (not Assigned(Database.TableByName(TableName))) then
+            MySQLName := TTableName(FTables.Items[I].Data).MySQLName;
+            if (not Assigned(Database.TableByName(MySQLName))) then
               Answer := IDYES
             else if (Answer <> IDYESALL) then
-              Answer := MsgBox(Preferences.LoadStr(700, Database.Name + '.' + TableName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);
+              Answer := MsgBox(Preferences.LoadStr(700, Database.Name + '.' + MySQLName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);
             if (Answer in [IDYES, IDYESALL]) then
-              ImportSQLite.Add(TableName, FTables.Items[I].Caption)
+              ImportSQLite.Add(MySQLName, TTableName(FTables.Items[I].Data).SourceName)
             else if (Answer = IDCANCEL) then
               FreeAndNil(ImportSQLite);
           end;
@@ -1484,8 +1555,6 @@ var
   cbTABLE_TYPE: SQLINTEGER;
   Handle: SQLHSTMT;
   I: Integer;
-  Index: Integer;
-  J: Integer;
   ListItem: TListItem;
   Stmt: sqlite3_stmt_ptr;
   TableName: string;
@@ -1495,7 +1564,7 @@ var
 begin
   if (FTables.Items.Count = 0) then
   begin
-    TableNames := TStringList.Create();
+    TableNames.Clear();
 
     if (ODBC <> SQL_NULL_HANDLE) then
     begin
@@ -1504,7 +1573,7 @@ begin
       GetMem(TABLE_NAME, (TABLE_NAME_LEN + 1) * SizeOf(SQLWCHAR));
       GetMem(TABLE_TYPE, (TABLE_TYPE_LEN + 1) * SizeOf(SQLWCHAR));
 
-      ODBCException(Handle, SQLTables(Handle, nil, 0, nil, 0, nil, 0, nil, SQL_NTS));
+      ODBCException(Handle, SQLTables(Handle, nil, 0, nil, 0, nil, 0, nil, 0));
       ODBCException(Handle, SQLBindCol(Handle, 3, SQL_C_WCHAR, TABLE_NAME, (TABLE_NAME_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_NAME));
       ODBCException(Handle, SQLBindCol(Handle, 4, SQL_C_WCHAR, TABLE_TYPE, (TABLE_TYPE_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_TYPE));
       while (SQL_SUCCEEDED(ODBCException(Handle, SQLFetch(Handle)))) do
@@ -1515,6 +1584,18 @@ begin
             TableNames.Add(TableName);
         end;
       SQLFreeStmt(Handle, SQL_CLOSE);
+
+      if ((ImportType = itExcelFile) and (TableNames.Count = 0)) then
+      begin
+        ODBCException(Handle, SQLTables(Handle, nil, 0, nil, 0, nil, 0, PSQLTCHAR(PChar('TABLE')), SQL_NTS));
+        ODBCException(Handle, SQLBindCol(Handle, 3, SQL_C_WCHAR, TABLE_NAME, (TABLE_NAME_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_NAME));
+        while (SQL_SUCCEEDED(ODBCException(Handle, SQLFetch(Handle)))) do
+        begin
+          SetString(TableName, PChar(TABLE_NAME), cbTABLE_NAME div SizeOf(SQLTCHAR));
+          TableNames.Add(TableName);
+        end;
+        SQLFreeStmt(Handle, SQL_CLOSE);
+      end;
 
       FreeMem(TABLE_NAME);
       FreeMem(TABLE_TYPE);
@@ -1533,20 +1614,17 @@ begin
       end;
     end;
 
+    FTables.SortType := stNone;
+    FTables.Items.BeginUpdate();
     for I := 0 to TableNames.Count - 1 do
     begin
-      Index := FTables.Items.Count;
-      for J := FTables.Items.Count - 1 downto 0 do
-        if (lstrcmpi(PChar(TableNames[I]), PChar(FTables.Items[J].Caption)) <= 0) then
-          Index := J;
-      if (Index < FTables.Items.Count) then
-        ListItem := FTables.Items.Insert(Index)
-      else
-        ListItem := FTables.Items.Add();
-      ListItem.Caption := TableNames[I];
+      ListItem := FTables.Items.Add();
+      ListItem.Caption := TableNames[I].Caption;
       ListItem.ImageIndex := iiTable;
-      ListItem.Data := TCustomData(I);
+      ListItem.Data := TCustomData(TableNames[I]);
     end;
+    FTables.Items.EndUpdate();
+    FTables.SortType := stText;
     FTables.Column[0].AutoSize := False;
     FTables.Column[0].Width := ColumnTextWidth;
     FTables.Column[0].AutoSize := True;

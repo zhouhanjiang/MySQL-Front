@@ -6,7 +6,7 @@ uses
   SysUtils, Classes, Windows, Contnrs,
   Graphics,
   DB,
-  acAST, acQBBase, acMYSQLSynProvider, acQBEventMetaProvider, acSQLBuilderPlainText,
+  acAST, acQBBase, acMYSQLSynProvider, acQBEventMetaProvider,
   SQLUtils, MySQLDB,
   fPreferences;
 

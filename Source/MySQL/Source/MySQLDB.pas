@@ -179,7 +179,7 @@ type
       LibThreadId: my_uint;
       Mode: TMode;
       OnResult: TResultEvent;
-      ResultHandle: MySQLConsts.MYSQL_RES;
+      ResHandle: MySQLConsts.MYSQL_RES;
       SQL: string;
       SQLLastStmtInPacket: Integer;
       SQLPacket: Integer;
@@ -3082,13 +3082,13 @@ end;
 procedure TMySQLConnection.SyncCancel(const LibraryThread: TLibraryThread);
 begin
   repeat
-    if (not LibraryThread.Terminated and not Assigned(LibraryThread.ResultHandle)) then
-      LibraryThread.ResultHandle := Lib.mysql_use_result(LibraryThread.LibHandle);
-    if (Assigned(LibraryThread.ResultHandle)) then
+    if (not LibraryThread.Terminated and not Assigned(LibraryThread.ResHandle)) then
+      LibraryThread.ResHandle := Lib.mysql_use_result(LibraryThread.LibHandle);
+    if (Assigned(LibraryThread.ResHandle)) then
     begin
-      while (not LibraryThread.Terminated and Assigned(Lib.mysql_fetch_row(LibraryThread.ResultHandle))) do ;
+      while (not LibraryThread.Terminated and Assigned(Lib.mysql_fetch_row(LibraryThread.ResHandle))) do ;
       if (not LibraryThread.Terminated) then
-        begin Lib.mysql_free_result(LibraryThread.ResultHandle); LibraryThread.ResultHandle := nil; end;
+        begin Lib.mysql_free_result(LibraryThread.ResHandle); LibraryThread.ResHandle := nil; end;
     end;
   until (LibraryThread.Terminated or not MultiStatements or (Lib.mysql_next_result(LibraryThread.LibHandle) > 0));
 end;
@@ -3354,7 +3354,7 @@ begin
     end;
 
     if (LibraryThread.Success and not LibraryThread.Terminated) then
-      LibraryThread.ResultHandle := Lib.mysql_use_result(LibraryThread.LibHandle);
+      LibraryThread.ResHandle := Lib.mysql_use_result(LibraryThread.LibHandle);
   end;
 
   LibraryThread.ErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);
@@ -3382,7 +3382,7 @@ begin
 
     StmtLength := Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]);
 
-    if (not Assigned(LibraryThread.ResultHandle)) then
+    if (not Assigned(LibraryThread.ResHandle)) then
       WriteMonitor(@LibraryThread.SQL[LibraryThread.SQLStmtIndex], StmtLength, ttResult);
 
     if (LibraryThread.SQLUseStmts.IndexOf(Pointer(LibraryThread.SQLStmt)) >= 0) then
@@ -3395,7 +3395,7 @@ begin
         WriteMonitor(PChar(S), Length(S), ttInfo);
       end;
     end
-    else if (not Assigned(LibraryThread.ResultHandle)) then
+    else if (not Assigned(LibraryThread.ResHandle)) then
     begin
       if (Lib.mysql_affected_rows(LibraryThread.LibHandle) >= 0) then
       begin
@@ -3449,8 +3449,8 @@ begin
 
   if (not LibraryThread.Terminated and (LibraryThread.State = ssResult)) then
   begin
-    if (Assigned(LibraryThread.ResultHandle)) then
-      while (Assigned(Lib.mysql_fetch_row(LibraryThread.ResultHandle))) do ;
+    if (Assigned(LibraryThread.ResHandle)) then
+      while (Assigned(Lib.mysql_fetch_row(LibraryThread.ResHandle))) do ;
   end;
 
   if (not LibraryThread.Terminated) then
@@ -3463,13 +3463,13 @@ begin
     end
     else
     begin
-      if (Assigned(LibraryThread.ResultHandle)) then
+      if (Assigned(LibraryThread.ResHandle)) then
       begin
-        S := '--> ' + IntToStr(Lib.mysql_num_rows(LibraryThread.ResultHandle)) + ' Record(s) received';
+        S := '--> ' + IntToStr(Lib.mysql_num_rows(LibraryThread.ResHandle)) + ' Record(s) received';
         WriteMonitor(PChar(S), Length(S), ttInfo);
 
-        Lib.mysql_free_result(LibraryThread.ResultHandle);
-        LibraryThread.ResultHandle := nil;
+        Lib.mysql_free_result(LibraryThread.ResHandle);
+        LibraryThread.ResHandle := nil;
       end;
 
       if (MultiStatements and Assigned(LibraryThread.LibHandle) and (Lib.mysql_more_results(LibraryThread.LibHandle) <> 0)) then
@@ -3523,7 +3523,7 @@ begin
   begin
     InOnResult := True;
     try
-      if (not LibraryThread.OnResult(LibraryThread, Assigned(LibraryThread.ResultHandle))
+      if (not LibraryThread.OnResult(LibraryThread, Assigned(LibraryThread.ResHandle))
         and (ErrorCode > 0)) then
         DoError(ErrorCode, ErrorMessage);
     finally
@@ -3531,7 +3531,7 @@ begin
     end;
   end;
 
-  if ((Assigned(LibraryThread.OnResult) or not Assigned(LibraryThread.ResultHandle)) and (LibraryThread.State = ssResult)) then
+  if ((Assigned(LibraryThread.OnResult) or not Assigned(LibraryThread.ResHandle)) and (LibraryThread.State = ssResult)) then
   begin
     LibraryThread.State := ssReceivingResult;
     SyncHandledResult(LibraryThread);
@@ -3549,8 +3549,8 @@ begin
   LibraryThread.Time := LibraryThread.Time + Now() - Time;
   if (LibraryThread.Success) then
   begin
-    LibraryThread.ResultHandle := Lib.mysql_use_result(LibraryThread.LibHandle);
-    LibraryThread.Success := Assigned(LibraryThread.ResultHandle);
+    LibraryThread.ResHandle := Lib.mysql_use_result(LibraryThread.LibHandle);
+    LibraryThread.Success := Assigned(LibraryThread.ResHandle);
   end;
 
   LibraryThread.ErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);
@@ -3578,10 +3578,10 @@ begin
     if ((LibraryThread.Terminated) or not Assigned(LibraryThread.DataSet)) then
       LibRow := nil
     else
-      LibRow := Lib.mysql_fetch_row(LibraryThread.ResultHandle);
+      LibRow := Lib.mysql_fetch_row(LibraryThread.ResHandle);
 
     TerminateCS.Enter();
-    DataSet.InternAddRecord(LibRow, Lib.mysql_fetch_lengths(LibraryThread.ResultHandle));
+    DataSet.InternAddRecord(LibRow, Lib.mysql_fetch_lengths(LibraryThread.ResHandle));
     TerminateCS.Leave();
   until (not Assigned(LibRow));
 
@@ -3605,7 +3605,10 @@ begin
 
     if (LibraryThread.IsRunning) then
     begin
-      S := '----> Connection Terminated <----';
+      if (ThreadId = 0) then
+        S := '----> Connection Terminated <----'
+      else
+        S := '----> Connection Terminated (Id: ' + IntToStr(ThreadId) +') <----';
       WriteMonitor(PChar(S), Length(S), ttInfo);
     end;
     LibraryThread.Terminate();
@@ -4249,7 +4252,7 @@ begin
     if (not Assigned(LibraryThread)) then
       Result := nil
     else
-      Result := LibraryThread.ResultHandle;
+      Result := LibraryThread.ResHandle;
     Connection.TerminateCS.Leave();
   end;
 end;
@@ -4278,14 +4281,14 @@ function TMySQLQuery.GetRecord(Buffer: TRecordBuffer; GetMode: TGetMode; DoCheck
 begin
   if (GetMode <> gmNext) then
     Result := grError
-  else if (not Assigned(LibraryThread.ResultHandle)) then
+  else if (not Assigned(LibraryThread.ResHandle)) then
     Result := grEOF
   else
   begin
-    PRecordBufferData(ActiveBuffer())^.LibRow := Connection.Lib.mysql_fetch_row(LibraryThread.ResultHandle);
+    PRecordBufferData(ActiveBuffer())^.LibRow := Connection.Lib.mysql_fetch_row(LibraryThread.ResHandle);
     if (Assigned(PRecordBufferData(ActiveBuffer())^.LibRow)) then
     begin
-      PRecordBufferData(ActiveBuffer())^.LibLengths := Connection.Lib.mysql_fetch_lengths(LibraryThread.ResultHandle);
+      PRecordBufferData(ActiveBuffer())^.LibLengths := Connection.Lib.mysql_fetch_lengths(LibraryThread.ResHandle);
 
       Inc(FRecNo);
       Result := grOk;
@@ -4699,7 +4702,7 @@ begin
     FDatabaseName := Connection.DatabaseName;
   end;
 
-  SetActiveEvent(DataHandle, Assigned(DataHandle.ResultHandle));
+  SetActiveEvent(DataHandle, Assigned(DataHandle.ResHandle));
 end;
 
 procedure TMySQLQuery.SetActive(Value: Boolean);
@@ -5346,7 +5349,7 @@ begin
     if ((Self is TMySQLTable) and Assigned(LibraryThread)) then
       TMySQLTable(Self).FLimitedDataReceived :=
         not LibraryThread.Success or not Assigned(LibraryThread.DataSet)
-        or (Connection.Lib.mysql_num_rows(LibraryThread.ResultHandle) = TMySQLTable(Self).RequestedRecordCount);
+        or (Connection.Lib.mysql_num_rows(LibraryThread.ResHandle) = TMySQLTable(Self).RequestedRecordCount);
 
     RecordsReceived.SetEvent();
   end;
