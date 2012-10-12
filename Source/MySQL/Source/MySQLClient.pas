@@ -1540,7 +1540,7 @@ function TMySQL_File.ReceivePacket(): Boolean;
 
     if (Result) then
       Inc(PacketBuffer.Size, BytesRead)
-    else
+    else if (errno() = 0) then
       Seterror(CR_UNKNOWN_ERROR);  // Debug
   end;
 

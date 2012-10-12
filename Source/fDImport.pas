@@ -1587,13 +1587,15 @@ begin
 
       if ((ImportType = itExcelFile) and (TableNames.Count = 0)) then
       begin
-        ODBCException(Handle, SQLTables(Handle, nil, 0, nil, 0, nil, 0, PSQLTCHAR(PChar('TABLE')), SQL_NTS));
+        ODBCException(Handle, SQLTables(Handle, nil, 0, nil, 0, nil, 0, nil, 0));
         ODBCException(Handle, SQLBindCol(Handle, 3, SQL_C_WCHAR, TABLE_NAME, (TABLE_NAME_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_NAME));
+        ODBCException(Handle, SQLBindCol(Handle, 4, SQL_C_WCHAR, TABLE_TYPE, (TABLE_TYPE_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_TYPE));
         while (SQL_SUCCEEDED(ODBCException(Handle, SQLFetch(Handle)))) do
-        begin
-          SetString(TableName, PChar(TABLE_NAME), cbTABLE_NAME div SizeOf(SQLTCHAR));
-          TableNames.Add(TableName);
-        end;
+          if (lstrcmpi(PChar(TABLE_TYPE), 'TABLE') = 0)  then
+          begin
+            SetString(TableName, PChar(TABLE_NAME), cbTABLE_NAME div SizeOf(SQLTCHAR));
+            TableNames.Add(TableName);
+          end;
         SQLFreeStmt(Handle, SQL_CLOSE);
       end;
 

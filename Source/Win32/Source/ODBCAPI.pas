@@ -4315,7 +4315,7 @@ const
 {$endif}
 
 // Macro: test for SQL_SUCCESS or SQL_SUCCESS_WITH_INFO
-function SQL_SUCCEEDED(const rc: SQLRETURN): Boolean;
+function SQL_SUCCEEDED(const rc: SQLRETURN): Boolean; inline;
 begin
   Result := (rc and (not 1)) = 0;
 end;
