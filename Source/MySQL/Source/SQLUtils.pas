@@ -106,7 +106,6 @@ const
   KDelete: PChar = 'DELETE';
   KDrop: PChar = 'DROP';
   KEnd: PChar = 'END';
-  KEndCase: PChar = 'END CASE';
   KEndIf: PChar = 'END IF';
   KEndLoop: PChar = 'END LOOP';
   KEndRepeat: PChar = 'END REPEAT';
@@ -400,7 +399,7 @@ label
   KeywordFound,
   Finish;
 const
-  Terminators: PChar = #9#10#13#20'"(),.:;=`'; // Characters terminating the identifier
+  Terminators: PChar = #9#10#13#32'"(),.:;=`'; // Characters terminating the identifier
 asm
         PUSH EDX                         // Conditional Code Marker, changed in Trim
         PUSH EDI
@@ -1861,7 +1860,7 @@ label
   Unquoted, UnquotedL, Unquoted1, Unquoted2, UnquotedTerminatorsL, UnquotedC, UnquotedLE,
   Finish, FinishE;
 const
-  Terminators: PChar = #9#10#13#20'",.:;=`'; // Characters, terminating the value
+  Terminators: PChar = #9#10#13#32'",.:;=`'; // Characters, terminating the value
 var
   BracketDeep: Integer;
   Len: Integer;
@@ -2222,9 +2221,6 @@ begin
         CMP CompoundDeep,0               // Inside a Compound?
         JE String2                       // No!
 
-        MOV EAX,[KEndCase]
-        CALL CompareKeyword              // 'END CASE'? (Needs to be chancked before 'END')
-        JE String2                       // Yes!
         MOV EAX,[KEndIf]
         CALL CompareKeyword              // 'END IF'? (Needs to be chancked before 'END')
         JE String2                       // Yes!

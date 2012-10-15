@@ -1512,8 +1512,11 @@ begin
       Buffer.MemSize := NewSize;
       Result := True;
     except
-      on E: EOutOfMemory do
+//      on E: EOutOfMemory do
       begin
+        // Debug 15.10.2012
+        raise Exception.CreateFmt('ReallocMem exception (NewSize: %d)', [NewSize]);
+
         ZeroMemory(@Buffer, SizeOf(Buffer));
         Seterror(CR_OUT_OF_MEMORY);
         Result := False;
