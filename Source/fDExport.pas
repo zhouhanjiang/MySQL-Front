@@ -7,6 +7,7 @@ uses
   Dialogs, ComCtrls, ExtCtrls, StdCtrls, DB, DBGrids,
   ODBCAPI,
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext, Dialogs_Ext,
+  MySQLDB,
   fSession, fPreferences, fTools,
   fBase;
 
@@ -222,8 +223,7 @@ type
     FLReferrers: array of TLabel;
     FObjects: TList;
     ODBC: SQLHDBC;
-    ODBCEnv: SQLHENV;
-    ProgressInfos: TTools.TProgressInfos;
+    ProgressInfos: TTool.TProgressInfos;
     SQLWait: Boolean;
     Title: string;
     WantedNodeExpand: TTreeNode;
@@ -236,9 +236,9 @@ type
     procedure InitTSJob();
     function InitTSSelect(): Boolean;
     function ObjectsFromFSelect(): Boolean;
-    procedure OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
+    procedure OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure OnExecuted(const ASuccess: Boolean);
-    procedure OnUpdate(const AProgressInfos: TTools.TProgressInfos);
+    procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
     procedure CMExecutionDone(var Message: TMessage); message CM_EXECUTIONDONE;
     procedure CMPostAfterExecuteSQL(var Message: TMessage); message CM_POST_AFTEREXECUTESQL;
@@ -247,7 +247,7 @@ type
   public
     Session: TSSession;
     CodePage: Cardinal;
-    DBGrid: TDBGrid;
+    DataSet: TMySQLDataSet;
     DialogType: (edtNormal, edtCreateJob, edtEditJob, edtExecuteJob);
     ExportType: TPExportType;
     Job: TAJobExport;
@@ -264,7 +264,7 @@ implementation {***************************************************************}
 
 uses
   Registry, Math, StrUtils, RichEdit, DBCommon,
-  MySQLDB, SQLUtils,
+  SQLUtils,
   fDLogin;
 
 var
@@ -306,7 +306,7 @@ begin
         break;
       end;
 
-  if (Assigned(DBGrid)) then
+  if (Assigned(DataSet)) then
     Title := Preferences.LoadStr(362)
   else if (Objects.Count = 1) then
     Title := TSObject(Objects[0]).Name
@@ -566,9 +566,9 @@ end;
 
 procedure TDExport.CMUpdateProgressInfo(var Message: TMessage);
 var
-  Infos: TTools.PProgressInfos;
+  Infos: TTool.PProgressInfos;
 begin
-  Infos := TTools.PProgressInfos(Message.LParam);
+  Infos := TTool.PProgressInfos(Message.LParam);
 
   if (Infos^.TablesSum < 0) then
     FEntieredTables.Caption := '???'
@@ -605,7 +605,7 @@ begin
   Filename := '';
   Title := '';
 
-  if ((Assigned(DBGrid) or (Objects.Count >= 1)) and (DialogType = edtNormal) and not (ExportType in [etODBC, etPrinter])) then
+  if ((Assigned(DataSet) or (Objects.Count >= 1)) and (DialogType = edtNormal) and not (ExportType in [etODBC, etPrinter])) then
     if (not GetFilename()) then
       ModalResult := mrCancel;
 
@@ -863,8 +863,7 @@ begin
       Cancel := not Success;
       if (Success) then
       begin
-        Success := SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @ODBC));
-        Success := Success and SQL_SUCCEEDED(SQLConnect(ODBC, PSQLTCHAR(PChar(Item.Caption)), SQL_NTS, PSQLTCHAR(DLogin.Username), SQL_NTS, PSQLTCHAR(DLogin.Password), SQL_NTS));
+        Success := SQL_SUCCEEDED(SQLConnect(ODBC, PSQLTCHAR(PChar(Item.Caption)), SQL_NTS, PSQLTCHAR(DLogin.Username), SQL_NTS, PSQLTCHAR(DLogin.Password), SQL_NTS));
         if (not Success and (ODBC <> SQL_NULL_HANDLE)) then
         begin
           if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, nil, nil, nil, 0, @cbMessageText))) then
@@ -950,9 +949,6 @@ var
   Year, Month, Day: Word;
 begin
   Session.UnRegisterEventProc(FormSessionEvent);
-
-  if (Assigned(DBGrid)) then
-    DBGrid.DataSource.DataSet.EnableControls();
 
   if (ModalResult = mrOk) then
   begin
@@ -1060,8 +1056,6 @@ begin
     SQLDisconnect(ODBC);
     SQLFreeHandle(SQL_HANDLE_DBC, ODBC); ODBC := SQL_NULL_HANDLE;
   end;
-  if (ODBCEnv <> SQL_NULL_HANDLE) then
-    begin SQLFreeHandle(SQL_HANDLE_ENV, ODBCEnv); ODBCEnv := SQL_NULL_HANDLE; end;
 
   PageControl.ActivePage := nil;
 end;
@@ -1156,7 +1150,7 @@ begin
     FEnabled.Checked := Job.Enabled;
   end;
 
-  if (Assigned(DBGrid)) then
+  if (Assigned(DataSet)) then
     FHTMLStructure.Caption := Preferences.LoadStr(794)
   else
     FHTMLStructure.Caption := Preferences.LoadStr(215);
@@ -1168,17 +1162,14 @@ begin
   TSODBCSelect.Enabled := (DialogType in [edtNormal]) and (ExportType in [etODBC]);
   TSSQLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etSQLFile]);
   TSCSVOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etTextFile]);
-  TSXMLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etXMLFile]) and not Assigned(DBGrid);
+  TSXMLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etXMLFile]) and not Assigned(DataSet);
   TSHTMLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etHTMLFile, etPrinter, etPDFFile]);
-  TSFields.Enabled := (DialogType in [edtNormal]) and (ExportType in [etExcelFile]) and ((Objects.Count = 1) or Assigned(DBGrid)) or (ExportType in [etXMLFile]) and Assigned(DBGrid);
+  TSFields.Enabled := (DialogType in [edtNormal]) and (ExportType in [etExcelFile]) and ((Objects.Count = 1) or Assigned(DataSet)) or (ExportType in [etXMLFile]) and Assigned(DataSet);
   TSTask.Enabled := False;
   TSExecute.Enabled := not TSODBCSelect.Enabled and not TSSQLOptions.Enabled and not TSCSVOptions.Enabled and not TSHTMLOptions.Enabled and not TSFields.Enabled;
 
   FBBack.Visible := TSSelect.Enabled or TSODBCSelect.Enabled or TSSQLOptions.Enabled or TSCSVOptions.Enabled or TSXMLOptions.Enabled or TSHTMLOptions.Enabled or TSFields.Enabled;
   FBForward.Visible := FBBack.Visible;
-
-  if (Assigned(DBGrid)) then
-    DBGrid.DataSource.DataSet.DisableControls();
 
   if (DialogType in [edtCreateJob, edtEditJob]) then
   begin
@@ -1427,13 +1418,19 @@ begin
       end;
     etExcelFile:
       begin
-        SaveDialog.Filter := FilterDescription('xls') + ' (*.xls)|*.xls|' + FilterDescription('xlsx') + ' (*.xlsx)|*.xlsx';
+        if (odExcel2007 in ODBCDrivers) then
+          SaveDialog.Filter := FilterDescription('xls') + ' (*.xls)|*.xls|' + FilterDescription('xlsx') + ' (*.xlsx)|*.xlsx'
+        else
+          SaveDialog.Filter := FilterDescription('xls') + ' (*.xls)|*.xls';
         SaveDialog.DefaultExt := '.xls';
         SaveDialog.Encodings.Clear();
       end;
     etAccessFile:
       begin
-        SaveDialog.Filter := FilterDescription('mdb') + ' (*.mdb)|*.mdb|' + FilterDescription('accdb') + ' (*.accdb)|*.accdb';
+        if (odAccess2007 in ODBCDrivers) then
+          SaveDialog.Filter := FilterDescription('mdb') + ' (*.mdb;*.accdb)|*.mdb;*.accdb'
+        else
+          SaveDialog.Filter := FilterDescription('mdb') + ' (*.mdb)|*.mdb';
         SaveDialog.DefaultExt := '.mdb';
         SaveDialog.Encodings.Clear();
       end;
@@ -1498,8 +1495,8 @@ begin
 
   if ((Objects.Count > 0) and (TSDBObject(Objects[0]) is TSTable)) then
     SetLength(FFields, TSTable(Objects[0]).Fields.Count)
-  else if (Assigned(DBGrid)) then
-    SetLength(FFields, DBGrid.FieldCount);
+  else if (Assigned(DataSet)) then
+    SetLength(FFields, DataSet.Fields.Count);
 
   FLDestFields.Visible :=
     (ExportType = etTextFile) and FCSVHeadline.Checked
@@ -1516,9 +1513,9 @@ begin
   if ((Objects.Count > 0) and (TSDBObject(Objects[0]) is TSTable)) then
     for J := 0 to TSTable(Objects[0]).Fields.Count - 1 do
       FieldNames := FieldNames + TSTable(Objects[0]).Fields[J].Name + #13#10
-  else if (Assigned(DBGrid)) then
-    for J := 0 to DBGrid.FieldCount - 1 do
-      FieldNames := FieldNames + DBGrid.Fields[J].DisplayName + #13#10;
+  else if (Assigned(DataSet)) then
+    for J := 0 to DataSet.Fields.Count - 1 do
+      FieldNames := FieldNames + DataSet.Fields[J].DisplayName + #13#10;
 
   ScrollBox.DisableAlign();
   for I := 0 to Length(FFields) - 1 do
@@ -1699,7 +1696,7 @@ begin
         Objects.Add(FSelect.Items[I].Data);
 end;
 
-procedure TDExport.OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
+procedure TDExport.OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
 var
   ErrorMsg: string;
   Flags: Integer;
@@ -1710,11 +1707,11 @@ begin
   case (Error.ErrorType) of
     TE_Database:
       begin
-        Msg := Preferences.LoadStr(165, IntToStr(Item.Session.ErrorCode), Item.Session.ErrorMessage);
-        ErrorMsg := SQLUnwrapStmt(Item.Session.ErrorMessage);
-        if (Item.Session.ErrorCode > 0) then
-          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Item.Session.ErrorCode) + ')';
-        ErrorMsg := ErrorMsg + '  -  ' + SQLUnwrapStmt(Item.Session.CommandText);
+        Msg := Preferences.LoadStr(165, IntToStr(Session.ErrorCode), Session.ErrorMessage);
+        ErrorMsg := SQLUnwrapStmt(Session.ErrorMessage);
+        if (Session.ErrorCode > 0) then
+          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Session.ErrorCode) + ')';
+        ErrorMsg := ErrorMsg + '  -  ' + SQLUnwrapStmt(Session.CommandText);
       end;
     TE_File:
       begin
@@ -1764,7 +1761,7 @@ begin
 
     PostMessage(FErrorMessages.Handle, WM_VSCROLL, SB_BOTTOM, 0);
 
-    FErrors.Caption := IntToStr(TTools(Sender).ErrorCount);
+    FErrors.Caption := IntToStr(TTool(Sender).ErrorCount);
   end;
 end;
 
@@ -1779,7 +1776,7 @@ begin
   end;
 end;
 
-procedure TDExport.OnUpdate(const AProgressInfos: TTools.TProgressInfos);
+procedure TDExport.OnUpdate(const AProgressInfos: TTool.TProgressInfos);
 begin
   MoveMemory(@ProgressInfos, @AProgressInfos, SizeOf(AProgressInfos));
 
@@ -1817,9 +1814,9 @@ end;
 
 procedure TDExport.TSExecuteShow(Sender: TObject);
 var
+  ExportCanvas: TTExportCanvas;
   ExportExcel: TTExportExcel;
   ExportHTML: TTExportHTML;
-  ExportPDF: TTExportCanvas;
   ExportSQL: TTExportSQL;
   ExportText: TTExportText;
   ExportXML: TTExportXML;
@@ -1851,7 +1848,7 @@ begin
       try
         ExportSQL := TTExportSQL.Create(Session, Filename, CodePage);
         ExportSQL.CreateDatabaseStmts := FCreateDatabase.Checked;
-        ExportSQL.Data := FHTMLData.Checked;
+        ExportSQL.Data := FSQLData.Checked;
         ExportSQL.DisableKeys := FDisableKeys.Checked;
         ExportSQL.IncludeDropStmts := FDrop.Checked;
         ExportSQL.ReplaceData := FReplaceData.Checked;
@@ -1892,6 +1889,7 @@ begin
     etXMLFile:
       try
         ExportXML := TTExportXML.Create(Session, Filename, CodePage);
+        ExportXML.Data := True;
         if (FDatabaseTagName.Checked) then
         begin
           ExportXML.DatabaseTag := 'database';
@@ -1957,14 +1955,14 @@ begin
     etPDFFile:
       try
         if (ExportType = etPrinter) then
-          ExportPDF := TTExportPrint.Create(Session, Title)
+          ExportCanvas := TTExportPrint.Create(Session, Title)
         else
-          ExportPDF := TTExportPDF.Create(Session, Filename);
-        ExportPDF.Data := FHTMLData.Checked;
-        ExportPDF.NULLText := FHTMLNullText.Checked;
-        ExportPDF.Structure := FHTMLStructure.Checked;
+          ExportCanvas := TTExportPDF.Create(Session, Filename);
+        ExportCanvas.Data := FHTMLData.Checked;
+        ExportCanvas.NULLText := FHTMLNullText.Checked;
+        ExportCanvas.Structure := FHTMLStructure.Checked;
 
-        Export := ExportPDF;
+        Export := ExportCanvas;
       except
         MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
       end;
@@ -1972,27 +1970,24 @@ begin
 
   if (Assigned(Export)) then
   begin
-    if (Assigned(DBGrid)) then
+    if (Assigned(DataSet)) then
     begin
-      Export.Add(DBGrid);
+      Export.Add(DataSet);
 
       if (Length(FFields) = 0) then
-      begin
-        for I := 0 to DBGrid.Columns.Count - 1 do
-          if (DBGrid.Columns[I].Visible) then
-            begin
-              SetLength(Export.Fields, Length(Export.Fields) + 1);
-              Export.Fields[Length(Export.Fields) - 1] := DBGrid.Columns[I].Field;
-              SetLength(Export.DestinationFields, Length(Export.DestinationFields) + 1);
-              Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := DBGrid.Columns[I].DisplayName;
-            end;
-      end
+        for I := 0 to DataSet.Fields.Count - 1 do
+        begin
+          SetLength(Export.Fields, Length(Export.Fields) + 1);
+          Export.Fields[Length(Export.Fields) - 1] := DataSet.Fields[I];
+          SetLength(Export.DestinationFields, Length(Export.DestinationFields) + 1);
+          Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := DataSet.Fields[I].DisplayName;
+        end
       else
         for I := 0 to Length(FFields) - 1 do
           if (FFields[I].ItemIndex > 0) then
           begin
             SetLength(Export.Fields, Length(Export.Fields) + 1);
-            Export.Fields[Length(Export.Fields) - 1] := DBGrid.Fields[FFields[I].ItemIndex - 1];
+            Export.Fields[Length(Export.Fields) - 1] := DataSet.Fields[FFields[I].ItemIndex - 1];
             SetLength(Export.DestinationFields, Length(Export.DestinationFields) + 1);
             Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := FDestFields[I].Text;
           end;
@@ -2040,7 +2035,7 @@ end;
 
 procedure TDExport.TSHTMLOptionsShow(Sender: TObject);
 begin
-  FHTMLStructure.Enabled := not Assigned(DBGrid) or not (DBGrid.DataSource.DataSet is TMySQLTable);
+  FHTMLStructure.Enabled := not Assigned(DataSet) or not (DataSet is TMySQLTable);
   FHTMLStructure.Checked := FHTMLStructure.Checked and FHTMLStructure.Enabled;
   FHTMLStructureClick(Sender);
   FHTMLDataClick(Sender);
@@ -2061,20 +2056,18 @@ end;
 
 procedure TDExport.TSODBCSelectShow(Sender: TObject);
 var
-  DataSourceName: array [0 .. SQL_MAX_DSN_LENGTH] of SQLTCHAR;
+  DataSource: array [0 .. SQL_MAX_DSN_LENGTH] of SQLTCHAR;
   Item: TListItem;
 begin
-  if (ODBCEnv = SQL_NULL_HANDLE) then
+  if (ODBC = SQL_NULL_HANDLE) then
   begin
-    if (SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, @ODBCEnv))
-      and SQL_SUCCEEDED(SQLSetEnvAttr(ODBCEnv, SQL_ATTR_ODBC_VERSION, SQLPOINTER(SQL_OV_ODBC3), SQL_IS_UINTEGER))
-      and SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @ODBC))
-      and SQL_SUCCEEDED(SQLDataSources(ODBCEnv, SQL_FETCH_FIRST, @DataSourceName, Length(DataSourceName), nil, nil, 0, nil))) then
+    if (SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @ODBC))
+      and SQL_SUCCEEDED(SQLDataSources(ODBCEnv, SQL_FETCH_FIRST, @DataSource, Length(DataSource), nil, nil, 0, nil))) then
       repeat
         Item := FODBCSelect.Items.Add();
-        Item.Caption := DataSourceName;
+        Item.Caption := DataSource;
         Item.ImageIndex := iiDatabase;
-      until (not SQL_SUCCEEDED(SQLDataSources(ODBCEnv, SQL_FETCH_NEXT, @DataSourceName, Length(DataSourceName), nil, nil, 0, nil)));
+      until (not SQL_SUCCEEDED(SQLDataSources(ODBCEnv, SQL_FETCH_NEXT, @DataSource, Length(DataSource), nil, nil, 0, nil)));
   end;
 
   FBForward.Default := True;
@@ -2099,11 +2092,11 @@ end;
 
 procedure TDExport.TSSQLOptionsShow(Sender: TObject);
 begin
-  FSQLStructure.Enabled := not Assigned(DBGrid) or (DBGrid.DataSource.DataSet is TMySQLDataSet) and (TMySQLDataSet(DBGrid.DataSource.DataSet).TableName <> '');
-  FSQLData.Enabled := not Assigned(DBGrid);
+  FSQLStructure.Enabled := not Assigned(DataSet) or (DataSet.TableName <> '');
+  FSQLData.Enabled := not Assigned(DataSet);
 
   FSQLStructure.Checked := FSQLStructure.Checked and FSQLStructure.Enabled;
-  FSQLData.Checked := FSQLData.Checked or Assigned(DBGrid);
+  FSQLData.Checked := FSQLData.Checked or Assigned(DataSet);
 
   FBForward.Default := True;
 

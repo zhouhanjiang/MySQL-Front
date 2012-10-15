@@ -166,16 +166,15 @@ type
     FSourceFields: array of TEdit;
     Import: TTImport;
     ODBC: SQLHDBC;
-    ODBCEnv: SQLHENV;
-    ProgressInfos: TTools.TProgressInfos;
+    ProgressInfos: TTool.TProgressInfos;
     SQLite: sqlite3_ptr;
     TableNames: TTableNames;
     procedure CheckActivePageChange(const ActivePageIndex: Integer);
     procedure ClearTSFields(Sender: TObject);
     procedure InitTSFields(Sender: TObject);
-    procedure OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
+    procedure OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure OnExecuted(const ASuccess: Boolean);
-    procedure OnUpdate(const AProgressInfos: TTools.TProgressInfos);
+    procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
     procedure CMExecutedDone(var Message: TMessage); message CM_EXECUTIONDONE;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
@@ -413,9 +412,9 @@ end;
 
 procedure TDImport.CMUpdateProgressInfo(var Message: TMessage);
 var
-  Infos: TTools.PProgressInfos;
+  Infos: TTool.PProgressInfos;
 begin
-  Infos := TTools.PProgressInfos(Message.LParam);
+  Infos := TTool.PProgressInfos(Message.LParam);
 
   if (Infos^.TablesSum < 0) then
     FEntieredTables.Caption := '???'
@@ -456,7 +455,6 @@ begin
   ModalResult := mrNone;
   PageControl.ActivePageIndex := -1;
 
-  ODBCEnv := SQL_NULL_HANDLE;
   ODBC := SQL_NULL_HANDLE;
   TableNames := TTableNames.Create();
 
@@ -469,9 +467,7 @@ begin
         else
           ConnStrIn := 'Driver={Microsoft Access Driver (*.mdb, *.accdb)};' + 'DBQ=' + Filename + ';' + 'READONLY=TRUE';
 
-        Success := SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, @ODBCEnv));
-        Success := Success and SQL_SUCCEEDED(SQLSetEnvAttr(ODBCEnv, SQL_ATTR_ODBC_VERSION, SQLPOINTER(SQL_OV_ODBC3), SQL_IS_UINTEGER));
-        Success := Success and SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @ODBC));
+        Success := SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @ODBC));
         if (Success) then
         begin
           Success := SQL_SUCCEEDED(SQLDriverConnect(ODBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
@@ -485,8 +481,7 @@ begin
           end;
         end;
         if (not Success) then
-          if ((ODBCEnv <> SQL_NULL_HANDLE) and SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_ENV, ODBCEnv, 1, nil, nil, nil, 0, @cbMessageText))
-            or (ODBC <> SQL_NULL_HANDLE) and SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, nil, nil, nil, 0, @cbMessageText))) then
+          if ((ODBC <> SQL_NULL_HANDLE) and SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, nil, nil, nil, 0, @cbMessageText))) then
           begin
             if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, nil, nil, nil, 0, @cbMessageText))) then
             begin
@@ -497,20 +492,15 @@ begin
             end;
             SQLFreeHandle(SQL_HANDLE_DBC, ODBC); ODBC := SQL_NULL_HANDLE;
           end
-          else if (ODBCEnv = SQL_NULL_HANDLE) then
-            MsgBox('Can''t open ODBC Enviroment.', Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
           else
             MsgBox('Unknown ODBC Error.', Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
       end;
     itODBC:
       begin
-        Success := SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, @ODBCEnv));
-        Success := Success and SQL_SUCCEEDED(SQLSetEnvAttr(ODBCEnv, SQL_ATTR_ODBC_VERSION, SQLPOINTER(SQL_OV_ODBC3), SQL_IS_POINTER));
-        Success := Success and SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @ODBC));
+        Success := SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @ODBC));
         Success := Success and SQL_SUCCEEDED(SQLSetConnectAttr(ODBC, SQL_ATTR_ACCESS_MODE, SQLPOINTER(SQL_MODE_READ_ONLY), SQL_IS_POINTER));
 
         DDatabases.Session := nil;
-        DDatabases.ODBCEnv := ODBCEnv;
         DDatabases.SelectedDatabases := '';
         if (Success) then
           repeat
@@ -545,8 +535,7 @@ begin
             end;
           until (Success or Cancel)
         else
-          if ((ODBCEnv <> SQL_NULL_HANDLE) and SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_ENV, ODBCEnv, 1, nil, nil, nil, 0, @cbMessageText))
-            or (ODBC <> SQL_NULL_HANDLE) and SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, nil, nil, nil, 0, @cbMessageText))) then
+          if ((ODBC <> SQL_NULL_HANDLE) and SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, nil, nil, nil, 0, @cbMessageText))) then
           begin
             if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, nil, nil, nil, 0, @cbMessageText))) then
             begin
@@ -557,8 +546,6 @@ begin
             end;
             SQLFreeHandle(SQL_HANDLE_DBC, ODBC); ODBC := SQL_NULL_HANDLE;
           end
-          else if (ODBCEnv = SQL_NULL_HANDLE) then
-            MsgBox('Can''t open ODBC Enviroment.', Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
           else
             MsgBox('Unknown ODBC Error.', Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
       end;
@@ -855,8 +842,6 @@ begin
     SQLDisconnect(ODBC);
     SQLFreeHandle(SQL_HANDLE_DBC, ODBC);
   end;
-  if (ODBCEnv <> SQL_NULL_HANDLE) then
-    SQLFreeHandle(SQL_HANDLE_ENV, ODBCEnv);
 end;
 
 procedure TDImport.FormShow(Sender: TObject);
@@ -1100,7 +1085,7 @@ begin
   end;
 end;
 
-procedure TDImport.OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean;  var Success: TDataAction);
+procedure TDImport.OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean;  var Success: TDataAction);
 var
   ErrorMsg: string;
   Flags: Integer;
@@ -1111,11 +1096,11 @@ begin
   case (Error.ErrorType) of
     TE_Database:
       begin
-        Msg := Preferences.LoadStr(165, IntToStr(Item.Session.ErrorCode), Item.Session.ErrorMessage);
-        ErrorMsg := Item.Session.ErrorMessage;
-        if (Item.Session.ErrorCode > 0) then
-          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Item.Session.ErrorCode) + ')';
-        ErrorMsg := ErrorMsg + '  -  ' + SQLUnwrapStmt(Item.Session.CommandText);
+        Msg := Preferences.LoadStr(165, IntToStr(Error.Session.ErrorCode), Error.Session.ErrorMessage);
+        ErrorMsg := Error.Session.ErrorMessage;
+        if (Error.Session.ErrorCode > 0) then
+          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Error.Session.ErrorCode) + ')';
+        ErrorMsg := ErrorMsg + '  -  ' + SQLUnwrapStmt(Error.Session.CommandText);
       end;
     TE_File:
       begin
@@ -1175,7 +1160,7 @@ begin
 
     PostMessage(FErrorMessages.Handle, WM_VSCROLL, SB_BOTTOM, 0);
 
-    FErrors.Caption := IntToStr(TTools(Sender).ErrorCount);
+    FErrors.Caption := IntToStr(TTool(Sender).ErrorCount);
   end;
 end;
 
@@ -1190,7 +1175,7 @@ begin
   end;
 end;
 
-procedure TDImport.OnUpdate(const AProgressInfos: TTools.TProgressInfos);
+procedure TDImport.OnUpdate(const AProgressInfos: TTool.TProgressInfos);
 begin
   MoveMemory(@ProgressInfos, @AProgressInfos, SizeOf(AProgressInfos));
 
@@ -1227,7 +1212,7 @@ var
   ImportText: TTImportText;
   ImportXML: TTImportXML;
   J: Integer;
-  ProgressInfos: TTools.TProgressInfos;
+  ProgressInfos: TTool.TProgressInfos;
   Success: Boolean;
   MySQLName: string;
 begin

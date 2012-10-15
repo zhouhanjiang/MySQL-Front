@@ -499,12 +499,12 @@ implementation {***************************************************************}
 uses
   ShellApi, ShlObj, DBConsts, CommCtrl, StrUtils, ShLwApi, IniFiles, Themes,
   Variants, WinINet, SysConst,
+  ODBCAPI,
   acQBLocalizer,
-  MySQLConsts,
-  HTTPTunnel,
-  fDAccounts, fDAccount, fDOptions, fDLogin, fDStatement,
-  fDTransfer, fDSearch, fDConnecting,
-  fDInfo, fDInstallUpdate, fURI;
+  MySQLConsts, HTTPTunnel,
+  fTools, fURI,
+  fDAccounts, fDAccount, fDOptions, fDLogin, fDStatement, fDTransfer, fDSearch,
+  fDConnecting, fDInfo, fDInstallUpdate;
 
 { TWWindow ********************************************************************}
 
@@ -1594,9 +1594,9 @@ begin
   for I := 0 to Sessions.Count - 1 do
     if (Sessions[I].Connected) then
       if (Assigned(ActiveTab) and (Sessions[I] = ActiveTab.Session)) then
-        DataFields.Add('MySQL Version *=' + Sessions[I].ServerVersionStr)
+        DataFields.Add('MySQL Version *=' + Sessions[I].ServerVersionStr + ' (Id: ' + IntToStr(Sessions[I].ThreadId) + ')')
       else
-        DataFields.Add('MySQL Version=' + Sessions[I].ServerVersionStr);
+        DataFields.Add('MySQL Version=' + Sessions[I].ServerVersionStr + ' (Id: ' + IntToStr(Sessions[I].ThreadId) + ')');
 
   if (Assigned(ActiveTab)) then
   begin
@@ -1744,6 +1744,12 @@ begin
   TBTabControl.Visible := Preferences.TabsVisible;
   TabControlRepaint := TList.Create();
 
+  aFImportAccess.Visible := (odAccess in ODBCDrivers) or (odAccess2007 in ODBCDrivers);
+  aFImportExcel.Visible := (odExcel in ODBCDrivers) or (odExcel2007 in ODBCDrivers);
+  aFImportODBC.Visible := ODBCEnv <> SQL_NULL_HANDLE;
+  aFExportAccess.Visible := (odAccess in ODBCDrivers) or (odAccess2007 in ODBCDrivers);
+  aFExportExcel.Visible := (odExcel in ODBCDrivers) or (odExcel2007 in ODBCDrivers);
+  aFExportODBC.Visible := ODBCEnv <> SQL_NULL_HANDLE;
   {$IFNDEF Debug}
   miJobs.Visible := False;
   aVJobs.Visible := False;

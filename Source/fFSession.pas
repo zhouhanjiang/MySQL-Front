@@ -741,7 +741,7 @@ type
     private
       DataSet: TMySQLDataSet;
       DataSource: TDataSource;
-      FDBGrid: TMySQLDBGrid;
+      FBuilderDBGrid: TMySQLDBGrid;
       PDBGrid: TPanel_Ext;
       FXML: IXMLNode;
       function GetDatabase(): TSDatabase; inline;
@@ -757,7 +757,7 @@ type
       function CreateListView(): TListView; virtual;
       function CreateWorkbench(): TWWorkbench; virtual;
       destructor Destroy(); override;
-      property DBGrid: TMySQLDBGrid read FDBGrid;
+      property BuilderDBGrid: TMySQLDBGrid read FBuilderDBGrid;
       property Database: TSDatabase read GetDatabase;
       property Workbench: TWWorkbench read FWorkbench;
       property XML: IXMLNode read GetXML;
@@ -1004,7 +1004,7 @@ type
     procedure gmFilterClearClick(Sender: TObject);
     procedure gmFilterIntoFilterClick(Sender: TObject);
     function ImageIndexByData(const Data: TObject): Integer;
-    procedure ImportError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
+    procedure ImportError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure ListViewEmpty(Sender: TObject);
     procedure ListViewInitialize(const ListView: TListView);
     procedure ListViewUpdate(const ClientEvent: TSSession.TEvent; const ListView: TListView; const Data: TCustomData = nil);
@@ -1368,11 +1368,11 @@ begin
       DataSource := TDataSource.Create(FClient.Owner);
       DataSource.Enabled := False;
     end;
-    if (not Assigned(FDBGrid)) then
-      FDBGrid := FClient.CreateDBGrid(PDBGrid, DataSource);
+    if (not Assigned(FBuilderDBGrid)) then
+      FBuilderDBGrid := FClient.CreateDBGrid(PDBGrid, DataSource);
     DataSource.DataSet := DataSet;
 
-    FClient.ActiveDBGrid := FDBGrid;
+    FClient.ActiveDBGrid := FBuilderDBGrid;
     DataSet.Open(DataHandle);
   end;
 
@@ -1381,8 +1381,8 @@ end;
 
 procedure TFSession.TDatabaseDesktop.CloseBuilderResult();
 begin
-  if (Assigned(FDBGrid)) then
-    FreeAndNil(FDBGrid);
+  if (Assigned(FBuilderDBGrid)) then
+    FreeAndNil(FBuilderDBGrid);
   if (Assigned(DataSet)) then
     FreeAndNil(DataSet);
 end;
@@ -1406,7 +1406,7 @@ begin
 
   DataSet := nil;
   DataSource := nil;
-  FDBGrid := nil;
+  FBuilderDBGrid := nil;
   PDBGrid := nil;
   FWorkbench := nil;
   FXML := nil;
@@ -3440,7 +3440,7 @@ var
   I: Integer;
 begin
   DExport.Session := Session;
-  DExport.DBGrid := nil;
+  DExport.DataSet := nil;
   DExport.DialogType := edtNormal;
   DExport.ExportType := ExportType;
   DExport.Job := nil;
@@ -3448,7 +3448,7 @@ begin
   DExport.Window := Window;
 
   if (Window.ActiveControl = ActiveDBGrid) then
-    DExport.DBGrid := ActiveDBGrid
+    DExport.DataSet := TMySQLDataSet(ActiveDBGrid.DataSource.DataSet)
   else if (Window.ActiveControl = ActiveWorkbench) then
   begin
     Database := TSDatabase(FNavigator.Selected.Data);
@@ -3611,13 +3611,19 @@ begin
         end;
       itExcelFile:
         begin
-          OpenDialog.Filter := FilterDescription('xls') + ' (*.xls;*.xlsx)|*.xls;*.xlsx';
+          if (odExcel2007 in ODBCDrivers) then
+            OpenDialog.Filter := FilterDescription('xls') + ' (*.xls;*.xlsm;*.xlsb;*.xlsx)|*.xls;*.xlsm;*.xlsb;*.xlsx'
+          else
+            OpenDialog.Filter := FilterDescription('xls') + ' (*.xls)|*.xls';
           OpenDialog.DefaultExt := 'xls';
           OpenDialog.Encodings.Clear();
         end;
       itAccessFile:
         begin
-          OpenDialog.Filter := FilterDescription('mdb') + ' (*.mdb;*.accdb)|*.mdb;*.accdb';
+          if (odAccess2007 in ODBCDrivers) then
+            OpenDialog.Filter := FilterDescription('mdb') + ' (*.mdb;*.accdb)|*.mdb;*.accdb'
+          else
+            OpenDialog.Filter := FilterDescription('mdb') + ' (*.mdb)|*.mdb';
           OpenDialog.DefaultExt := 'mdb';
           OpenDialog.Encodings.Clear();
         end;
@@ -3876,7 +3882,7 @@ end;
 procedure TFSession.aJAddExportExecute(Sender: TObject);
 begin
   DExport.Session := Session;
-  DExport.DBGrid := nil;
+  DExport.DataSet := nil;
   DExport.DialogType := edtCreateJob;
   DExport.Job := nil;
   DExport.Objects.Clear();
@@ -3892,7 +3898,7 @@ end;
 procedure TFSession.aJEditExecute(Sender: TObject);
 begin
   DExport.Session := Session;
-  DExport.DBGrid := nil;
+  DExport.DataSet := nil;
   DExport.DialogType := edtEditJob;
   DExport.Job := TAJobExport(Session.Account.JobByName(FJobs.Selected.Caption));
   DExport.Objects.Clear();
@@ -9004,7 +9010,7 @@ begin
           Result := Desktop(TSRoutine(FNavigator.Selected.Data)).ActiveDBGrid;
       vBuilder:
         if (TObject(FNavigator.Selected.Data) is TSDatabase) then
-          Result := Desktop(TSDatabase(FNavigator.Selected.Data)).DBGrid;
+          Result := Desktop(TSDatabase(FNavigator.Selected.Data)).BuilderDBGrid;
       vEditor:
         Result := SQLEditor.ActiveDBGrid;
     end;
@@ -9419,7 +9425,7 @@ begin
     raise ERangeError.Create(SRangeError);
 end;
 
-procedure TFSession.ImportError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
+procedure TFSession.ImportError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
 begin
   MsgBox(Error.ErrorMessage, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
 
@@ -11422,7 +11428,7 @@ end;
 procedure TFSession.mjExecuteClick(Sender: TObject);
 begin
   DExport.Session := Session;
-  DExport.DBGrid := nil;
+  DExport.DataSet := nil;
   DExport.DialogType := edtExecuteJob;
   DExport.Job := TAJobExport(Session.Account.JobByName(FJobs.Selected.Caption));
   DExport.Objects.Clear();
@@ -12473,15 +12479,19 @@ begin
       PResultVisible := True
     else
       case (View) of
-        vBrowser: PResultVisible := True;
+        vBrowser:
+          PResultVisible := True;
         vIDE:
           case (FNavigator.Selected.ImageIndex) of
             iiProcedure,
-            iiFunction: PResultVisible := Assigned(Desktop(TSRoutine(FNavigator.Selected.Data)).ActiveDBGrid);
+            iiFunction:
+              PResultVisible := Assigned(Desktop(TSRoutine(FNavigator.Selected.Data)).ActiveDBGrid);
             else PResultVisible := False;
           end;
-        vBuilder: PResultVisible := Assigned(Desktop(TSDatabase(FNavigator.Selected.Data)).DBGrid);
-        vEditor: PResultVisible := Assigned(SQLEditor.ActiveDBGrid);
+        vBuilder:
+          PResultVisible := Assigned(Desktop(TSDatabase(FNavigator.Selected.Data)).BuilderDBGrid);
+        vEditor:
+          PResultVisible := Assigned(SQLEditor.ActiveDBGrid);
         else PResultVisible := False;
       end;
 

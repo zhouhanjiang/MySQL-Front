@@ -295,7 +295,7 @@ end;
 
 procedure TDSQLHelp.FQuickSearchEnabledClick(Sender: TObject);
 begin
-  Keyword := FQuickSearch.Text;
+  Keyword := Trim(FQuickSearch.Text);
   Perform(CM_SEND_SQL, 0, 0);
 end;
 

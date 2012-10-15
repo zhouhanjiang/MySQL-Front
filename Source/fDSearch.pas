@@ -100,7 +100,7 @@ type
     Sessions: array of TSSession;
     ExecuteSession: TSSession;
     Search: TTSearch;
-    ProgressInfos: TTools.TProgressInfos;
+    ProgressInfos: TTool.TProgressInfos;
     ReplaceSession: TSSession;
     SQLWait: Boolean;
     Tables: array of TDSTableItem;
@@ -108,9 +108,9 @@ type
     WantedNodeExpand: TTreeNode;
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     function GetSession(const Index: Integer): TSSession;
-    procedure OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
+    procedure OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure OnExecuted(const ASuccess: Boolean);
-    procedure OnUpdate(const AProgressInfos: TTools.TProgressInfos);
+    procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
     procedure CMExecutedDone(var Message: TMessage); message CM_EXECUTIONDONE;
     procedure CMUpdateProgressInfo(var Message: TMessage); message CM_UPDATEPROGRESSINFO;
@@ -215,14 +215,14 @@ end;
 
 procedure TDSearch.CMUpdateProgressInfo(var Message: TMessage);
 var
-  CurrentItem: TTSearch.PItem;
+  CurrentItem: TTSearch.TItem;
   Found: Boolean;
   I: Integer;
-  Infos: TTools.PProgressInfos;
+  Infos: TTool.PProgressInfos;
   Item: TListItem;
 begin
-  CurrentItem := TTSearch.PItem(Message.WParam);
-  Infos := TTools.PProgressInfos(Message.LParam);
+  CurrentItem := TTSearch.TItem(Message.WParam);
+  Infos := TTool.PProgressInfos(Message.LParam);
 
   if (Infos.TablesSum < 0) then
     FEntieredTables.Caption := '???'
@@ -247,11 +247,11 @@ begin
 
   FProgressBar.Position := Infos.Progress;
 
-  if (Assigned(CurrentItem) and CurrentItem^.Done and (CurrentItem^.RecordsFound > 0)) then
+  if (Assigned(CurrentItem) and CurrentItem.Done and (CurrentItem.RecordsFound > 0)) then
   begin
     Found := False;
     for I := 0 to Length(Tables) - 1 do
-      if ((Tables[I].Account = ExecuteSession.Account) and (Tables[I].DatabaseName = CurrentItem^.DatabaseName) and (Tables[I].TableName = CurrentItem^.TableName)) then
+      if ((Tables[I].Account = ExecuteSession.Account) and (Tables[I].DatabaseName = CurrentItem.DatabaseName) and (Tables[I].TableName = CurrentItem.TableName)) then
         Found := True;
 
     if (not Found) then
@@ -259,14 +259,14 @@ begin
       SetLength(Tables, Length(Tables) + 1);
 
       Tables[Length(Tables) - 1].Account := ExecuteSession.Account;
-      Tables[Length(Tables) - 1].DatabaseName := CurrentItem^.DatabaseName;
-      Tables[Length(Tables) - 1].TableName := CurrentItem^.TableName;
+      Tables[Length(Tables) - 1].DatabaseName := CurrentItem.DatabaseName;
+      Tables[Length(Tables) - 1].TableName := CurrentItem.TableName;
 
       Item := FTables.Items.Add();
       if (not (FSelect.Selected.ImageIndex in [iiDatabase, iiBaseTable, iiField])) then
         Item.Caption := Item.Caption + ExecuteSession.Account.Name + '.';
-      Item.Caption := Item.Caption + CurrentItem^.DatabaseName + '.';
-      Item.Caption := Item.Caption + CurrentItem^.TableName + ' (' + IntToStr(CurrentItem^.RecordsFound) + ')';
+      Item.Caption := Item.Caption + CurrentItem.DatabaseName + '.';
+      Item.Caption := Item.Caption + CurrentItem.TableName + ' (' + IntToStr(CurrentItem.RecordsFound) + ')';
     end;
   end;
 
@@ -785,7 +785,7 @@ begin
   end;
 end;
 
-procedure TDSearch.OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
+procedure TDSearch.OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
 var
   ErrorMsg: string;
   Flags: Integer;
@@ -796,11 +796,11 @@ begin
   case (Error.ErrorType) of
     TE_Database:
       begin
-        Msg := Preferences.LoadStr(165, IntToStr(Item.Session.ErrorCode), Item.Session.ErrorMessage);
-        ErrorMsg := SQLUnwrapStmt(Item.Session.ErrorMessage);
-        if (Item.Session.ErrorCode > 0) then
-          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Item.Session.ErrorCode) + ')';
-        ErrorMsg := ErrorMsg + '  -  ' + SQLUnwrapStmt(Item.Session.CommandText);
+        Msg := Preferences.LoadStr(165, IntToStr(Error.Session.ErrorCode), Error.Session.ErrorMessage);
+        ErrorMsg := SQLUnwrapStmt(Error.Session.ErrorMessage);
+        if (Error.Session.ErrorCode > 0) then
+          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Error.Session.ErrorCode) + ')';
+        ErrorMsg := ErrorMsg + '  -  ' + SQLUnwrapStmt(Error.Session.CommandText);
       end;
     TE_File:
       begin
@@ -808,7 +808,7 @@ begin
         ErrorMsg := Msg;
       end;
     TE_NoPrimaryIndex:
-      Msg := Preferences.LoadStr(722, Item.TableName);
+      Msg := Preferences.LoadStr(722, TTSearch.TItem(Item).TableName);
     else
       Msg := Error.ErrorMessage;
   end;
@@ -841,7 +841,7 @@ begin
 
     PostMessage(FErrorMessages.Handle, WM_VSCROLL, SB_BOTTOM, 0);
 
-    FErrors.Caption := IntToStr(TTools(Sender).ErrorCount);
+    FErrors.Caption := IntToStr(TTool(Sender).ErrorCount);
   end;
 end;
 
@@ -856,7 +856,7 @@ begin
   end;
 end;
 
-procedure TDSearch.OnUpdate(const AProgressInfos: TTools.TProgressInfos);
+procedure TDSearch.OnUpdate(const AProgressInfos: TTool.TProgressInfos);
 begin
   MoveMemory(@ProgressInfos, @AProgressInfos, SizeOf(AProgressInfos));
 
@@ -929,7 +929,7 @@ var
   K: Integer;
   List: TList;
   Node: TTreeNode;
-  ProgressInfos: TTools.TProgressInfos;
+  ProgressInfos: TTool.TProgressInfos;
   Table: TSBaseTable;
 begin
   FErrors.Caption := '0';

@@ -30,7 +30,6 @@ type
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
     Session: TSSession;
-    ODBCEnv: SQLHENV;
     SelectedDatabases: string;
     function Execute(): Boolean;
   end;
@@ -42,10 +41,10 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  fPreferences, CSVUtils;
+  fTools, fPreferences, CSVUtils;
 
 const
-  STR_LEN = 128 + 1;
+  STR_LEN = 128;
 
 var
   FDatabases: TDDatabases;
@@ -203,10 +202,9 @@ end;
 
 procedure TDDatabases.FormShow(Sender: TObject);
 var
-  cbServerName: SQLSMALLINT;
   I: Integer;
   Item: TListItem;
-  ServerName: array [0 .. STR_LEN - 1] of SQLTCHAR;
+  Server: array [0 .. STR_LEN] of SQLTCHAR;
 begin
   if (Assigned(Session)) then
   begin
@@ -238,12 +236,12 @@ begin
       Width := Preferences.ODBC.Width;
     end;
 
-    if (SQL_SUCCEEDED(SQLDataSources(ODBCEnv, SQL_FETCH_FIRST, @ServerName, STR_LEN, @cbServerName, nil, 0, nil))) then
+    if (SQL_SUCCEEDED(SQLDataSources(ODBCEnv, SQL_FETCH_FIRST, @Server, STR_LEN, nil, nil, 0, nil))) then
       repeat
         Item := FDatabases.Items.Add();
-        Item.Caption := ServerName;
+        Item.Caption := Server;
         Item.ImageIndex := iiDatabase;
-      until (not SQL_SUCCEEDED(SQLDataSources(ODBCEnv, SQL_FETCH_NEXT, @ServerName, STR_LEN, @cbServerName, nil, 0, nil)));
+      until (not SQL_SUCCEEDED(SQLDataSources(ODBCEnv, SQL_FETCH_NEXT, @Server, STR_LEN, nil, nil, 0, nil)));
 
     FDatabases.MultiSelect := False;
 

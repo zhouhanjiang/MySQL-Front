@@ -4475,17 +4475,18 @@ begin
       if (DirectoryExists(Account.DataPath)) then
         RenameFile(Account.DataPath, NewAccount.DataPath);
 
-      for I := Account.Jobs.Count - 1 downto 0 do
-      begin
-        if (Account.Jobs[I] is TAJobExport) then
-          NewJob := TAJobExport.Create(NewAccount.Jobs, Account.Jobs[I].Name)
-        else
-          NewJob := nil;
-        NewJob.Assign(Account.Jobs[I]);
-        NewAccount.Jobs.AddJob(NewJob);
-        NewJob.Free();
-        Account.Jobs.DeleteJob(Account.Jobs[I]);
-      end;
+      if (Assigned(Account.Jobs)) then
+        for I := Account.Jobs.Count - 1 downto 0 do
+        begin
+          if (Account.Jobs[I] is TAJobExport) then
+            NewJob := TAJobExport.Create(NewAccount.Jobs, Account.Jobs[I].Name)
+          else
+            NewJob := nil;
+          NewJob.Assign(Account.Jobs[I]);
+          NewAccount.Jobs.AddJob(NewJob);
+          NewJob.Free();
+          Account.Jobs.DeleteJob(Account.Jobs[I]);
+        end;
       if (Assigned(Preferences.TaskService)
         and Succeeded(Preferences.TaskService.GetFolder(TBStr('\' + SysUtils.LoadStr(1006) + '\Accounts'), TaskFolder))) then
         TaskFolder.DeleteFolder(TBStr(Account.Name), 0);

@@ -96,6 +96,7 @@ const
   KAlgorithm: PChar = 'ALGORITHM';
   KAlter: PChar = 'ALTER';
   KBegin: PChar = 'BEGIN';
+  KBeginWork: PChar = 'BEGIN WORK';
   KCall: PChar = 'CALL';
   KCase: PChar = 'CASE';
   KCreate: PChar = 'CREATE';
@@ -104,7 +105,12 @@ const
   KDelayed: PChar = 'DELAYED';
   KDelete: PChar = 'DELETE';
   KDrop: PChar = 'DROP';
-  KEnd:PChar = 'END';
+  KEnd: PChar = 'END';
+  KEndCase: PChar = 'END CASE';
+  KEndIf: PChar = 'END IF';
+  KEndLoop: PChar = 'END LOOP';
+  KEndRepeat: PChar = 'END REPEAT';
+  KEndWhile: PChar = 'END WHILE';
   KEvent: PChar = 'EVENT';
   KFrom: PChar = 'FROM';
   KFunction: PChar = 'FUNCTION';
@@ -2151,12 +2157,10 @@ end;
 
 function SQLStmtLength(const SQL: string; const Index: Integer = 1; const CompleteStmt: PBoolean = nil): Integer;
 label
-  StringL, String1, String2, String3, StringC, StringLE, StringEOS,
+  StringL, String1, String2, StringC, StringLE,
   Complete, Complete2, Complete3, Complete4,
-  UncompleteStmt,
   Finish;
 var
-  BeforeTrim: PChar;
   CompoundDeep: Cardinal;
   Len: Integer;
 begin
@@ -2203,7 +2207,6 @@ begin
         CALL MoveString                  // Quoted string?
         JE StringLE                      // Yes!
 
-        MOV BeforeTrim,ESI
         CALL Trim                        // Empty character(s)?
         JE StringLE                      // Yes!
         CMP ECX,0                        // End of SQL?
@@ -2212,72 +2215,49 @@ begin
         MOV EAX,[KBegin]
         CALL CompareKeyword              // 'BEGIN'?
         JNE String1                      // No!
-
-        CMP ECX,0                        // End of SQL?
-        JE Finish                        // Yes!
-        MOV BeforeTrim,ESI
-        CALL Trim                        // Empty character(s)?
-        CMP ECX,0                        // End of SQL?
-        JE UncompleteStmt                // Yes!
-
-        MOV EAX,[KWork]
-        CALL CompareKeyword              // 'WORK'?
-        JE StringLE                      // Yes!
-
         INC CompoundDeep                 // Compound deep
+        JMP StringLE
 
       String1:
         CMP CompoundDeep,0               // Inside a Compound?
-        JE String3                       // No!
+        JE String2                       // No!
+
+        MOV EAX,[KEndCase]
+        CALL CompareKeyword              // 'END CASE'? (Needs to be chancked before 'END')
+        JE String2                       // Yes!
+        MOV EAX,[KEndIf]
+        CALL CompareKeyword              // 'END IF'? (Needs to be chancked before 'END')
+        JE String2                       // Yes!
+        MOV EAX,[KEndLoop]
+        CALL CompareKeyword              // 'END LOOP'? (Needs to be chancked before 'END')
+        JE String2                       // Yes!
+        MOV EAX,[KEndRepeat]
+        CALL CompareKeyword              // 'END REPEAT'? (Needs to be chancked before 'END')
+        JE String2                       // Yes!
+        MOV EAX,[KEndWhile]
+        CALL CompareKeyword              // 'END WHILE'? (Needs to be chancked before 'END')
+        JE String2                       // Yes!
 
         MOV EAX,[KEnd]
         CALL CompareKeyword              // 'END'?
-        JNE StringC                      // No!
-
-        MOV BeforeTrim,ESI
-        CALL Trim                        // Ignore empty characters
-        CMP ECX,0                        // End of SQL?
-        JE UncompleteStmt                // Yes!
-
-        CMP WORD PTR [ESI],';'           // End of statement?
         JNE String2                      // No!
         DEC CompoundDeep                 // Compound deep
-        JMP StringEOS
-
-      String2:
-        MOV EAX,[KIf]
-        CALL CompareKeyword              // 'IF'?
-        JE String3                       // Yes!
-        MOV EAX,[KCase]
-        CALL CompareKeyword              // 'CASE'?
-        JE String3                       // Yes!
-        MOV EAX,[KLoop]
-        CALL CompareKeyword              // 'LOOP'?
-        JE String3                       // Yes!
-        MOV EAX,[KRepeat]
-        CALL CompareKeyword              // 'REPEAT'?
-        JE String3                       // Yes!
-        MOV EAX,[KWhile]
-        CALL CompareKeyword              // 'WHILE'?
-        JE String3                       // Yes!
-        DEC CompoundDeep                 // Compound deep
-        JMP StringC
-
-      String3:
-        CMP WORD PTR [ESI],';'           // Statement Delimiter?
-        JE StringEOS
-
-      StringC:
-        ADD ESI,2                        // Next character inside SQL
-        DEC ECX
         JMP StringLE
 
-      StringEOS:
+      String2:
+        CMP WORD PTR [ESI],';'           // Statement Delimiter?
+        JNE StringC                      // No!
+
         ADD ESI,2                        // Step over Delimiter
         DEC ECX                          // Ignore Delimiter
         JZ Complete                      // End of SQL!
         CMP CompoundDeep,0               // Still in compound?
         JE Complete                      // No!
+        JMP StringLE
+
+      StringC:
+        ADD ESI,2                        // Step over "normal" character
+        DEC ECX                          // Ignore "normal" character
 
       StringLE:
         JECXZ Finish                     // End of SQL!
@@ -2315,11 +2295,6 @@ begin
         ADD ESI,2                        // Step over CarriageReturn / LineFeed
         DEC ECX                          // Ignore CarriageReturn / LineFeed
         JMP Finish
-
-      // -------------------
-
-      UncompleteStmt:
-        MOV ESI,BeforeTrim
 
       // -------------------
 

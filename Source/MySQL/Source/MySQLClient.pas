@@ -1593,24 +1593,27 @@ function TMySQL_File.ReceivePacket(): Boolean;
             if (PacketOffset + UncompressedSize > PacketBuffer.MemSize) then
             begin
               Result := ReallocBuffer(PacketBuffer, PacketOffset + UncompressedSize);
-              if (not Result) then
+              if (not Result and (errno() = 0)) then
                 Seterror(CR_UNKNOWN_ERROR); // Debug
             end;
 
-            try
-              DecompressBuffer.Mem := nil;
-              ZDecompress(@PacketBuffer.Mem[PacketOffset + NET_HEADER_SIZE + COMP_HEADER_SIZE], Size, DecompressBuffer.Mem, DecompressBuffer.Size);
-              MoveMemory(@PacketBuffer.Mem[PacketOffset], DecompressBuffer.Mem, DecompressBuffer.Size);
-              FreeMem(DecompressBuffer.Mem);
-            except
-              on E: EOutOfMemory do
-                begin Seterror(CR_OUT_OF_MEMORY); Result := False; end;
-              else
-                begin Seterror(CR_UNKNOWN_ERROR); Result := False; end;
-            end;
+            if (Result) then
+            begin
+              try
+                DecompressBuffer.Mem := nil;
+                ZDecompress(@PacketBuffer.Mem[PacketOffset + NET_HEADER_SIZE + COMP_HEADER_SIZE], Size, DecompressBuffer.Mem, DecompressBuffer.Size);
+                MoveMemory(@PacketBuffer.Mem[PacketOffset], DecompressBuffer.Mem, DecompressBuffer.Size);
+                FreeMem(DecompressBuffer.Mem);
+              except
+                on E: EOutOfMemory do
+                  begin Seterror(CR_OUT_OF_MEMORY); Result := False; end;
+                else
+                  begin Seterror(CR_UNKNOWN_ERROR); Result := False; end;
+              end;
 
-            Inc(BytesRead, UncompressedSize);
-            PacketBuffer.Size := PacketOffset + UncompressedSize;
+              Inc(BytesRead, UncompressedSize);
+              PacketBuffer.Size := PacketOffset + UncompressedSize;
+            end;
           end;
           CompPacketNr := (CompPacketNr + 1) and $FF;
         end;
@@ -2748,7 +2751,7 @@ begin
 
   {$IFDEF EurekaLog}
     if (AErrNo = CR_COMMANDS_OUT_OF_SYNC) then
-      raise Exception.CreateFmt('%s  (ClientStatus: %d)', [DecodeString(error()), Byte(fclient_status)])
+      raise Exception.CreateFmt('%s  (Id: %d, ClientStatus: %d)', [DecodeString(error()), fthread_id, Byte(fclient_status)])
     else if (AErrNo = CR_SERVER_HANDSHAKE_ERR) then
       raise Exception.CreateFmt('%s  (Id: %d)', [DecodeString(error()), fthread_id]);
   {$ENDIF}

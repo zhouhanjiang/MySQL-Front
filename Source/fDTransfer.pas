@@ -64,16 +64,16 @@ type
   private
     Sessions: array of TSSession;
     MouseDownNode: TTreeNode;
-    ProgressInfos: TTools.TProgressInfos;
+    ProgressInfos: TTool.TProgressInfos;
     Transfer: TTTransfer;
     WantedExecute: Boolean;
     WantedNodeExpand: TTreeNode;
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     function GetSession(const Index: Integer): TSSession;
     procedure InitTSSelect(Sender: TObject);
-    procedure OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
+    procedure OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure OnExecuted(const ASuccess: Boolean);
-    procedure OnUpdate(const AProgressInfos: TTools.TProgressInfos);
+    procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
     procedure CMExecutedDone(var Message: TMessage); message CM_EXECUTIONDONE;
     procedure CMUpdateProgressInfo(var Message: TMessage); message CM_UPDATEPROGRESSINFO;
@@ -94,7 +94,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  StrUtils, CommCtrl, RichEdit,
+  StrUtils, CommCtrl, RichEdit, Consts,
   SQLUtils,
   fPreferences,
   FDConnecting;
@@ -172,9 +172,9 @@ end;
 
 procedure TDTransfer.CMUpdateProgressInfo(var Message: TMessage);
 var
-  Infos: TTools.PProgressInfos;
+  Infos: TTool.PProgressInfos;
 begin
-  Infos := TTools.PProgressInfos(Message.LParam);
+  Infos := TTool.PProgressInfos(Message.LParam);
 
   if (Infos^.TablesSum < 0) then
     FEntieredTables.Caption := '???'
@@ -521,7 +521,7 @@ begin
   ShowEnabledItems(MSource.Items);
 end;
 
-procedure TDTransfer.OnError(const Sender: TObject; const Error: TTools.TError; const Item: TTools.TItem; const ShowRetry: Boolean; var Success: TDataAction);
+procedure TDTransfer.OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
 var
   ErrorMsg: string;
   Flags: Integer;
@@ -532,11 +532,11 @@ begin
   case (Error.ErrorType) of
     TE_Database:
       begin
-        Msg := Preferences.LoadStr(165, IntToStr(Item.Session.ErrorCode), Item.Session.ErrorMessage);
-        ErrorMsg := SQLUnwrapStmt(Item.Session.ErrorMessage);
-        if (Item.Session.ErrorCode > 0) then
-          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Item.Session.ErrorCode) + ')';
-        ErrorMsg := ErrorMsg + '  -  ' + SQLUnwrapStmt(Item.Session.CommandText);
+        Msg := Preferences.LoadStr(165, IntToStr(Error.Session.ErrorCode), Error.Session.ErrorMessage);
+        ErrorMsg := SQLUnwrapStmt(Error.Session.ErrorMessage);
+        if (Error.Session.ErrorCode > 0) then
+          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Error.Session.ErrorCode) + ')';
+        ErrorMsg := ErrorMsg + '  -  ' + SQLUnwrapStmt(Error.Session.CommandText);
       end;
     TE_File:
       begin
@@ -544,9 +544,12 @@ begin
         ErrorMsg := Msg;
       end;
     TE_NoPrimaryIndex:
-      Msg := Preferences.LoadStr(722, Item.TableName);
-    TE_DifferentPrimaryIndex:
-      Msg := Preferences.LoadStr(723, Item.TableName);
+      if ((Sender is TTTransfer) and (Error.Session = TTTransfer(Sender).SourceSession)) then
+        Msg := Preferences.LoadStr(722, TTTransfer.TItem(Item).TableName)
+      else if ((Sender is TTTransfer) and (Error.Session = TTTransfer(Sender).DestinationSession)) then
+        Msg := Preferences.LoadStr(722, TTTransfer.TItem(Item).TableName)
+      else
+        raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Sender | Error.Session'])
     else
       Msg := Error.ErrorMessage;
   end;
@@ -579,7 +582,7 @@ begin
 
     PostMessage(FErrorMessages.Handle, WM_VSCROLL, SB_BOTTOM, 0);
 
-    FErrors.Caption := IntToStr(TTools(Sender).ErrorCount);
+    FErrors.Caption := IntToStr(TTool(Sender).ErrorCount);
   end;
 end;
 
@@ -594,7 +597,7 @@ begin
   end;
 end;
 
-procedure TDTransfer.OnUpdate(const AProgressInfos: TTools.TProgressInfos);
+procedure TDTransfer.OnUpdate(const AProgressInfos: TTool.TProgressInfos);
 begin
   MoveMemory(@ProgressInfos, @AProgressInfos, SizeOf(AProgressInfos));
 
@@ -715,10 +718,7 @@ var
       Answer := MsgBox(Preferences.LoadStr(700, DestinationDatabaseName + '.' + DestinationTableName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);
 
     if (Answer in [IDYES, IDYESALL]) then
-      Transfer.Add(
-        SourceSession, SourceDatabaseName, SourceTableName,
-        DestinationSession, DestinationDatabaseName, DestinationTableName
-      )
+      Transfer.Add(SourceDatabaseName, SourceTableName, DestinationDatabaseName)
     else if (Answer = IDCANCEL) then
       FreeAndNil(Transfer);
   end;
@@ -781,7 +781,7 @@ var
   Database: TSDatabase;
   SourceSession: TSSession;
   Node: TTreeNode;
-  ProgressInfos: TTools.TProgressInfos;
+  ProgressInfos: TTool.TProgressInfos;
   DestinationSession: TSSession;
 begin
   FErrors.Caption := '0';
@@ -819,7 +819,7 @@ begin
   begin
     Answer := IDYES;
 
-    Transfer := TTTransfer.Create();
+    Transfer := TTTransfer.Create(SourceSession, DestinationSession);
     Transfer.Wnd := Self.Handle;
     Transfer.Data := True;
     Transfer.Structure := True;

@@ -192,10 +192,15 @@ type
   end;
 
   TSDependency = class
-  public
+  private
+    function GetDBObject(): TSDBObject;
+  protected
     DatabaseName: string;
     ObjectClass: TClass;
     ObjectName: string;
+    Session: TSSession;
+  public
+    property DBObject: TSDBObject read GetDBObject;
   end;
 
   TSDependencies = class(TList)
@@ -1251,7 +1256,7 @@ type
     RAlter: Boolean;
     RAlterRoutine: Boolean;
     RCreate: Boolean;
-RCreateTableSpace: Boolean;
+    RCreateTableSpace: Boolean;
     RCreateTempTable: Boolean;
     RCreateRoutine: Boolean;
     RCreateUser: Boolean;
@@ -1266,7 +1271,7 @@ RCreateTableSpace: Boolean;
     RInsert: Boolean;
     RLockTables: Boolean;
     RProcess: Boolean;
-RProxy: Boolean;
+    RProxy: Boolean;
     RReferences: Boolean;
     RReload: Boolean;
     RReplClient: Boolean;
@@ -1302,17 +1307,17 @@ RProxy: Boolean;
     procedure SetName(const AName: string); override;
     procedure SetSource(const ADataSet: TMySQLQuery); override;
     procedure SetSource(const ASource: string); override;
-    function SQLGetSource(): string; virtual;
+    function SQLGetSource(): string;
   public
-    function AddRight(const NewUserRight: TSUserRight): Boolean; virtual;
-    procedure Assign(const Source: TSUser); reintroduce; virtual;
-    constructor Create(const ACItems: TSItems; const AName: string = ''); reintroduce; virtual;
-    procedure DeleteRight(const UserRight: TSUserRight); virtual;
+    function AddRight(const NewUserRight: TSUserRight): Boolean;
+    procedure Assign(const Source: TSUser); reintroduce;
+    constructor Create(const ACItems: TSItems; const AName: string = ''); reintroduce;
+    procedure DeleteRight(const UserRight: TSUserRight);
     destructor Destroy(); override;
-    function IndexOf(const UserRight: TSUserRight): Integer; virtual;
-    function RightByCaption(const Caption: string): TSUserRight; virtual;
+    function IndexOf(const UserRight: TSUserRight): Integer;
+    function RightByCaption(const Caption: string): TSUserRight;
     function Update(): Boolean; override;
-    function UpdateRight(const UserRight,  NewUserRight: TSUserRight): Boolean; virtual;
+    function UpdateRight(const UserRight,  NewUserRight: TSUserRight): Boolean;
     property ConnectionsPerHour: Integer read FConnectionsPerHour write FConnectionsPerHour;
     property Host: string read GetHost;
     property Login: string read GetLogin;
@@ -1399,75 +1404,75 @@ RProxy: Boolean;
     FMaxAllowedPacket: Integer;
     procedure DoAfterExecuteSQL(); override;
     procedure DoBeforeExecuteSQL(); override;
-    procedure BuildUser(const DataSet: TMySQLQuery); virtual;
-    function SessionResult(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean; virtual;
-    procedure ExecuteEvent(const EventType: TEventType); overload; virtual;
-    procedure ExecuteEvent(const EventType: TEventType; const Sender: TObject; const CItems: TSItems = nil; const CItem: TSItem = nil); overload; virtual;
+    procedure BuildUser(const DataSet: TMySQLQuery);
+    function SessionResult(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+    procedure ExecuteEvent(const EventType: TEventType); overload;
+    procedure ExecuteEvent(const EventType: TEventType; const Sender: TObject; const CItems: TSItems = nil; const CItem: TSItem = nil); overload;
     function GetAutoCommit(): Boolean; override;
     function GetDataFileAllowed(): Boolean; override;
-    function GetLog(): string; virtual;
+    function GetLog(): string;
     function GetMaxAllowedPacket(): Integer; override;
-    function GetSlowLog(): string; virtual;
-    function GetSlowSQLLog(const User: TSUser = nil): string; virtual;
-    function GetSQLLog(const User: TSUser = nil): string; virtual;
-    procedure MonitorLog(const Sender: TObject; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType); virtual;
-    procedure MonitorExecutedStmts(const Sender: TObject; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType); virtual;
+    function GetSlowLog(): string;
+    function GetSlowSQLLog(const User: TSUser = nil): string;
+    function GetSQLLog(const User: TSUser = nil): string;
+    procedure MonitorLog(const Sender: TObject; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
+    procedure MonitorExecutedStmts(const Sender: TObject; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
     procedure SetAutoCommit(const AAutoCommit: Boolean); override;
     procedure SetCharset(const ACharset: string); override;
     property Sessions: TSSessions read FSessions;
     property InvalidObjects: TList read FInvalidObjects;
     property UseInformationSchema: Boolean read GetUseInformationSchema;
   public
-    function AddDatabase(const NewDatabase: TSDatabase): Boolean; virtual;
-    function AddUser(const ANewUser: TSUser): Boolean; virtual;
-    function ApplyIdentifierName(const AIdentifierName: string): string; virtual;
-    procedure GridCanEditShow(Sender: TObject); virtual;
-    function CharsetByName(const CharsetName: string): TSCharset; virtual;
-    function CharsetByCollation(const Collation: string): TSCharset; virtual;
-    function CloneDatabase(const SourceDatabase, TargetDatabase: TSDatabase; const Data: Boolean): Boolean; virtual;
-    function CloneUser(const User: TSUser; const NewUserName: string): Boolean; virtual;
-    function CollationByName(const CollationName: string): TSCollation; virtual;
+    function AddDatabase(const NewDatabase: TSDatabase): Boolean;
+    function AddUser(const ANewUser: TSUser): Boolean;
+    function ApplyIdentifierName(const AIdentifierName: string): string;
+    procedure GridCanEditShow(Sender: TObject);
+    function CharsetByName(const CharsetName: string): TSCharset;
+    function CharsetByCollation(const Collation: string): TSCharset;
+    function CloneDatabase(const SourceDatabase, TargetDatabase: TSDatabase; const Data: Boolean): Boolean;
+    function CloneUser(const User: TSUser; const NewUserName: string): Boolean;
+    function CollationByName(const CollationName: string): TSCollation;
     procedure CommitTransaction(); override;
-    procedure FirstConnect(); overload; virtual;
-    procedure FirstConnect(const AConnectionType: Integer; const ALibraryName: string; const AHost, AUser, APassword, ADatabase: string; const APort: Integer; const AAsynchron: Boolean); overload; virtual;
-    constructor Create(const ASessions: TSSessions; const AAccount: TAAccount = nil); reintroduce; virtual;
-    function DatabaseByName(const DatabaseName: string): TSDatabase; virtual;
-    procedure DecodeInterval(const Value: string; const IntervalType: TMySQLIntervalType; var Year, Month, Day, Quarter, Week, Hour, Minute, Second, MSec: Word); virtual;
-    function DeleteDatabase(const Database: TSDatabase): Boolean; virtual;
-    function DeleteEntities(const List: TList): Boolean; virtual;
-    function DeleteProcess(const Process: TSProcess): Boolean; virtual;
-    function DeleteUser(const User: TSUser): Boolean; virtual;
-    function DeleteUsers(const List: TList): Boolean; virtual;
+    procedure FirstConnect(); overload;
+    procedure FirstConnect(const AConnectionType: Integer; const ALibraryName: string; const AHost, AUser, APassword, ADatabase: string; const APort: Integer; const AAsynchron: Boolean); overload;
+    constructor Create(const ASessions: TSSessions; const AAccount: TAAccount = nil); reintroduce;
+    function DatabaseByName(const DatabaseName: string): TSDatabase;
+    procedure DecodeInterval(const Value: string; const IntervalType: TMySQLIntervalType; var Year, Month, Day, Quarter, Week, Hour, Minute, Second, MSec: Word);
+    function DeleteDatabase(const Database: TSDatabase): Boolean;
+    function DeleteEntities(const List: TList): Boolean;
+    function DeleteProcess(const Process: TSProcess): Boolean;
+    function DeleteUser(const User: TSUser): Boolean;
+    function DeleteUsers(const List: TList): Boolean;
     destructor Destroy(); override;
-    procedure EmptyDatabases(const Databases: TList); virtual;
-    function EncodeInterval(const Year, Month, Day, Quarter, Week, Hour, Minute, Second, MSec: Word; var Value: string; var IntervalType: TMySQLIntervalType): Boolean; virtual;
-    function EngineByName(const EngineName: string): TSEngine; virtual;
-    function EscapeRightIdentifier(const Identifier: string; const IdentifierQuoting: Boolean = False): string; virtual;
-    function EscapeUser(const User: string; const IdentifierQuoting: Boolean = False): string; virtual;
-    function FieldTypeByCaption(const Caption: string): TSFieldType; virtual;
-    function FieldTypeByMySQLFieldType(const MySQLFieldType: TMySQLFieldType): TSFieldType; virtual;
-    function FlushHosts(): Boolean; virtual;
-    procedure UpdateIndexDefs(const DataSet: TMySQLQuery; const IndexDefs: TIndexDefs); virtual;
-    procedure Invalidate(); virtual;
-    function PluginByName(const PluginName: string): TSPlugin; virtual;
-    function ProcessByThreadId(const ThreadId: Longword): TSProcess; virtual;
-    procedure RegisterEventProc(const AEventProc: TEventProc); virtual;
+    procedure EmptyDatabases(const Databases: TList);
+    function EncodeInterval(const Year, Month, Day, Quarter, Week, Hour, Minute, Second, MSec: Word; var Value: string; var IntervalType: TMySQLIntervalType): Boolean;
+    function EngineByName(const EngineName: string): TSEngine;
+    function EscapeRightIdentifier(const Identifier: string; const IdentifierQuoting: Boolean = False): string;
+    function EscapeUser(const User: string; const IdentifierQuoting: Boolean = False): string;
+    function FieldTypeByCaption(const Caption: string): TSFieldType;
+    function FieldTypeByMySQLFieldType(const MySQLFieldType: TMySQLFieldType): TSFieldType;
+    function FlushHosts(): Boolean;
+    procedure UpdateIndexDefs(const DataSet: TMySQLQuery; const IndexDefs: TIndexDefs);
+    procedure Invalidate();
+    function PluginByName(const PluginName: string): TSPlugin;
+    function ProcessByThreadId(const ThreadId: Longword): TSProcess;
+    procedure RegisterEventProc(const AEventProc: TEventProc);
     procedure RollbackTransaction(); override;
     procedure StartTransaction(); override;
-    function StatusByName(const StatusName: string): TSStatus; virtual;
-    function TableName(const Name: string): string; virtual;
+    function StatusByName(const StatusName: string): TSStatus;
+    function TableName(const Name: string): string;
     function TableNameCmp(const Name1, Name2: string): Integer; inline;
-    function UnescapeValue(const Value: string; const FieldType: TMySQLFieldType = mfVarChar): string; overload; virtual;
-    function UnecapeRightIdentifier(const Identifier: string): string; virtual;
-    function Update(): Boolean; overload; virtual;
-    function Update(const List: TList; const Status: Boolean = False): Boolean; overload; virtual;
-    function UpdateDatabase(const Database, NewDatabase: TSDatabase): Boolean; virtual;
-    function UpdateUser(const User, NewUser: TSUser): Boolean; virtual;
-    function UpdateVariable(const Variable, NewVariable: TSVariable; const UpdateModes: TSVariable.TUpdateModes): Boolean; virtual;
-    procedure UnRegisterEventProc(const AEventProc: TEventProc); virtual;
-    function UserByCaption(const Caption: string): TSUser; virtual;
-    function UserByName(const UserName: string): TSUser; virtual;
-    function VariableByName(const VariableName: string): TSVariable; virtual;
+    function UnescapeValue(const Value: string; const FieldType: TMySQLFieldType = mfVarChar): string; overload;
+    function UnecapeRightIdentifier(const Identifier: string): string;
+    function Update(): Boolean; overload;
+    function Update(const List: TList; const Status: Boolean = False): Boolean; overload;
+    function UpdateDatabase(const Database, NewDatabase: TSDatabase): Boolean;
+    function UpdateUser(const User, NewUser: TSUser): Boolean;
+    function UpdateVariable(const Variable, NewVariable: TSVariable; const UpdateModes: TSVariable.TUpdateModes): Boolean;
+    procedure UnRegisterEventProc(const AEventProc: TEventProc);
+    function UserByCaption(const Caption: string): TSUser;
+    function UserByName(const UserName: string): TSUser;
+    function VariableByName(const VariableName: string): TSVariable;
     property Account: TAAccount read FAccount;
     property Caption: string read GetCaption;
     property Charsets: TSCharsets read FCharsets;
@@ -1506,7 +1511,7 @@ RProxy: Boolean;
     function GetSession(Index: Integer): TSSession; inline;
   public
     function Add(const Session: TSSession): Integer;
-    function SessionByAccount(const Account: TAAccount; const DatabaseName: string): TSSession; virtual;
+    function SessionByAccount(const Account: TAAccount; const DatabaseName: string): TSSession;
     property Session[Index: Integer]: TSSession read GetSession; default;
     property OnSQLError: TMySQLConnection.TErrorEvent read FOnSQLError write FOnSQLError;
   end;
@@ -2055,6 +2060,26 @@ begin
 
   for I := 0 to Count - 1 do
     TSObject(Items[I]).Invalidate();
+end;
+
+{ TSDependency ****************************************************************}
+
+function TSDependency.GetDBObject(): TSDBObject;
+var
+  Database: TSDatabase;
+begin
+  Database := Session.DatabaseByName(DatabaseName);
+
+  Result := nil;
+  if (Assigned(Database)) then
+    if ((ObjectClass = TSBaseTable) or (ObjectClass = TSSystemView) or (ObjectClass = TSView)) then
+      Result := Database.TableByName(ObjectName)
+    else if (ObjectClass = TSRoutine) then
+      Result := Database.ProcedureByName(ObjectName)
+    else if (ObjectClass = TSFunction) then
+      Result := Database.FunctionByName(ObjectName)
+    else
+      ERangeError.Create(SRangeError);
 end;
 
 { TSDependencies **************************************************************}
@@ -3943,6 +3968,7 @@ begin
     for I := 0 to Length(FMergeSourceTables) - 1 do
     begin
       Dependency := TSDependency.Create();
+      Dependency.Session := Session;
       Dependency.DatabaseName := FMergeSourceTables[I].DatabaseName;
       Dependency.ObjectClass := TSBaseTable;
       Dependency.ObjectName := FMergeSourceTables[I].TableName;
@@ -3952,6 +3978,7 @@ begin
     for I := 0 to ForeignKeys.Count - 1 do
     begin
       Dependency := TSDependency.Create();
+      Dependency.Session := Session;
       Dependency.DatabaseName := ForeignKeys[I].Parent.DatabaseName;
       Dependency.ObjectClass := TSBaseTable;
       Dependency.ObjectName := ForeignKeys[I].Parent.TableName;
@@ -4792,6 +4819,7 @@ begin
             and Assigned(Session.DatabaseByName(DatabaseName).TableByName(ObjectName))) then
           begin
             Dependency := TSDependency.Create();
+            Dependency.Session := Session;
             Dependency.DatabaseName := DatabaseName;
             Dependency.ObjectClass := Session.DatabaseByName(DatabaseName).TableByName(ObjectName).ClassType;
             Dependency.ObjectName := ObjectName;
@@ -4810,6 +4838,7 @@ begin
             and Assigned(Session.DatabaseByName(DatabaseName).FunctionByName(ObjectName))) then
           begin
             Dependency := TSDependency.Create();
+            Dependency.Session := Session;
             Dependency.DatabaseName := DatabaseName;
             Dependency.ObjectClass := TSFunction;
             Dependency.ObjectName := ObjectName;
