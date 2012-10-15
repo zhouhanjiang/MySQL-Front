@@ -400,7 +400,7 @@ label
   KeywordFound,
   Finish;
 const
-  Terminators: PChar = #9#10#13' ''"`.,=();'; // Characters terminating the identifier
+  Terminators: PChar = #9#10#13#20'"(),.:;=`'; // Characters terminating the identifier
 asm
         PUSH EDX                         // Conditional Code Marker, changed in Trim
         PUSH EDI
@@ -1861,7 +1861,7 @@ label
   Unquoted, UnquotedL, Unquoted1, Unquoted2, UnquotedTerminatorsL, UnquotedC, UnquotedLE,
   Finish, FinishE;
 const
-  Terminators: PChar = #9#10#13' ''"`.,=;'; // Characters, terminating the value
+  Terminators: PChar = #9#10#13#20'",.:;=`'; // Characters, terminating the value
 var
   BracketDeep: Integer;
   Len: Integer;
@@ -2902,5 +2902,7 @@ begin
   Result := StrPas(P);
 end;
 
+begin
+  Write
 end.
 

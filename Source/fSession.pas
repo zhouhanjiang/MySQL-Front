@@ -4766,7 +4766,7 @@ end;
 
 function TSView.GetDependencies(): TSDependencies;
 
-  procedure GetExpressions(const Node: TastNodeBase; var Expressions: TList);
+  procedure GetSQLExpressions(const Node: TastNodeBase; var SQLExpressions: TList);
   var
     Children: TObjectList;
     I: Integer;
@@ -4775,16 +4775,16 @@ function TSView.GetDependencies(): TSDependencies;
     Node.GetMyChildren(Children);
     for I := 0 to Children.Count - 1 do
       if (not (Children[I] is TSQLExpressionSelect) and (Children[I] is TSQLExpressionItem)) then
-        Expressions.Add(Children[I])
+        SQLExpressions.Add(Children[I])
       else if (Children[I] is TastNodeBase) then
-        GetExpressions(TastNodeBase(Children[I]), Expressions);
+        GetSQLExpressions(TastNodeBase(Children[I]), SQLExpressions);
     Children.Free();
   end;
 
 var
   DatabaseName: string;
   Dependency: TSDependency;
-  Expressions: TList;
+  SQLExpressions: TList;
   I: Integer;
   ObjectName: string;
   Parse: TSQLParse;
@@ -4805,12 +4805,12 @@ begin
         raise EacSQLError.Create(E.Message + ': ' + Stmt);
     end;
 
-    Expressions := TList.Create();
-    GetExpressions(QueryBuilder.ResultQueryAST, Expressions);
-    for I := 0 to Expressions.Count - 1 do
-      if ((TSQLExpressionItem(Expressions[I]) is TSQLExpressionColumn)) then
+    SQLExpressions := TList.Create();
+    GetSQLExpressions(QueryBuilder.ResultQueryAST, SQLExpressions);
+    for I := 0 to SQLExpressions.Count - 1 do
+      if ((TSQLExpressionItem(SQLExpressions[I]) is TSQLExpressionColumn)) then
       begin
-        SQL := TSQLExpressionFunction(Expressions[I]).Name.QualifiedNameWithQuotes;
+        SQL := TSQLExpressionFunction(SQLExpressions[I]).Name.QualifiedNameWithQuotes;
         if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.ServerVersion)) then
         begin
           DatabaseName := Database.Name;
@@ -4827,9 +4827,9 @@ begin
           end;
         end;
       end
-      else if ((TSQLExpressionItem(Expressions[I]) is TSQLExpressionFunction)) then
+      else if ((TSQLExpressionItem(SQLExpressions[I]) is TSQLExpressionFunction)) then
       begin
-        SQL := TSQLExpressionFunction(Expressions[I]).Name.QualifiedNameWithQuotes;
+        SQL := TSQLExpressionFunction(SQLExpressions[I]).Name.QualifiedNameWithQuotes;
         if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.ServerVersion)) then
         begin
           DatabaseName := Database.Name;
@@ -4846,7 +4846,7 @@ begin
           end;
         end;
       end;
-    Expressions.Free();
+    SQLExpressions.Free();
 
     QueryBuilder.Free();
   end;
