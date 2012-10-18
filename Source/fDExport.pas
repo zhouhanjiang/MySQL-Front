@@ -941,7 +941,7 @@ begin
   end;
   FTableNodeText.Text := Preferences.Export._XML.Table.NodeText;
   FTableNodeAttribute.Text := Preferences.Export._XML.Table.NodeAttribute;
-  FRecordNodeText.Text := Preferences.Export._XML.Root.NodeText;
+  FRecordNodeText.Text := Preferences.Export._XML.Row.NodeText;
   case (Preferences.Export._XML.Field.NodeType) of
     ntName: FFieldNodeName.Checked := True;
     ntCustom: FFieldNodeCustom.Checked := True;

@@ -3551,8 +3551,11 @@ begin
   CoInitialize(nil);
 
   XMLDocument := CoDOMDocument30.Create();
-  if (not XMLDocument.load(AFilename)) then
+  if (not XMLDocument.load(AFilename) or (XMLDocument.parseError.errorCode <> 0)) then
+  begin
+    raise Exception.Create(XMLDocument.parseError.reason + ' near "' + XMLDocument.parseError.srcText + '" in line ' + IntToStr(XMLDocument.parseError.line) + ':' + IntToStr(XMLDocument.parseError.linepos));
     CoUninitialize();
+  end;
 end;
 
 destructor TTImportXML.Destroy();
