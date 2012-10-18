@@ -39,7 +39,7 @@ object DExport: TDExport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSSQLOptions
+    ActivePage = TSXMLOptions
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     Style = tsFlatButtons
@@ -381,12 +381,12 @@ object DExport: TDExport
           Height = 13
           Caption = 'FLDatabaseHandling'
         end
-        object FDrop: TCheckBox
+        object FDropStmts: TCheckBox
           Left = 128
           Top = 66
           Width = 193
           Height = 17
-          Caption = 'FDrop'
+          Caption = 'FDropStmts'
           TabOrder = 2
           OnClick = FSQLOptionClick
           OnKeyPress = FSQLOptionKeyPress
@@ -495,30 +495,30 @@ object DExport: TDExport
             Text = 'FQuoteChar'
             OnExit = FQuoteCharExit
           end
-          object FNoQuote: TRadioButton
+          object FQuoteNothing: TRadioButton
             Left = 124
             Top = 3
             Width = 193
             Height = 17
-            Caption = 'FNoQuote'
+            Caption = 'FQuoteNothing'
             TabOrder = 2
             OnClick = FQuoteClick
           end
-          object FStringQuote: TRadioButton
+          object FQuoteStrings: TRadioButton
             Left = 124
             Top = 23
             Width = 193
             Height = 17
-            Caption = 'FStringQuote'
+            Caption = 'FQuoteStrings'
             TabOrder = 1
             OnClick = FQuoteClick
           end
-          object FAllQuote: TRadioButton
+          object FQuoteAll: TRadioButton
             Left = 124
             Top = 43
             Width = 193
             Height = 17
-            Caption = 'FAllQuote'
+            Caption = 'FQuoteAll'
             TabOrder = 0
             OnClick = FQuoteClick
             OnKeyPress = FQuoteKeyPress
@@ -600,35 +600,35 @@ object DExport: TDExport
         Anchors = [akLeft, akTop, akRight]
         Caption = 'GXMLHow'
         TabOrder = 0
-        object FLRootTag: TLabel
-          Left = 8
-          Top = 19
-          Width = 54
+        object FLRootNode: TLabel
+          Left = 3
+          Top = 21
+          Width = 61
           Height = 13
-          Caption = 'FLRootTag'
-          FocusControl = FRootTag
+          Caption = 'FLRootNode'
+          FocusControl = FRootNodeText
         end
-        object FL2RootTag: TLabel
+        object FL2RootNodeText: TLabel
           Left = 128
           Top = 19
           Width = 6
           Height = 13
           Caption = '<'
         end
-        object FL3RootTag: TLabel
+        object FL3RootNodeText: TLabel
           Left = 191
           Top = 19
           Width = 6
           Height = 13
           Caption = '>'
         end
-        object FLRecordTag: TLabel
+        object FLRecordNode: TLabel
           Left = 8
           Top = 185
-          Width = 66
+          Width = 73
           Height = 13
-          Caption = 'FLRecordTag'
-          FocusControl = FRecordTag
+          Caption = 'FLRecordNode'
+          FocusControl = FRecordNodeText
         end
         object FL2RecordTag: TLabel
           Left = 128
@@ -644,7 +644,7 @@ object DExport: TDExport
           Height = 13
           Caption = '>'
         end
-        object FRootTag: TEdit
+        object FRootNodeText: TEdit
           Left = 134
           Top = 16
           Width = 57
@@ -654,7 +654,7 @@ object DExport: TDExport
           Text = 'mysql'
           OnChange = TSXMLOptionChange
         end
-        object PDatabaseTag: TPanel_Ext
+        object PDatabaseNode: TPanel_Ext
           Left = 4
           Top = 48
           Width = 317
@@ -662,12 +662,12 @@ object DExport: TDExport
           BevelOuter = bvNone
           ParentBackground = False
           TabOrder = 4
-          object FLDatabaseTag: TLabel
+          object FLDatabaseNode: TLabel
             Left = 4
             Top = 1
-            Width = 77
+            Width = 84
             Height = 13
-            Caption = 'FLDatabaseTag'
+            Caption = 'FLDatabaseNode'
           end
           object FL1DatabaseTagFree: TLabel
             Left = 124
@@ -676,23 +676,23 @@ object DExport: TDExport
             Height = 13
             Caption = '<'
           end
-          object FL2DatabaseTagFree: TLabel
+          object FL2DatabaseNodeCustom: TLabel
             Left = 231
             Top = 37
             Width = 66
             Height = 13
             Caption = '="db_name">'
           end
-          object FDatabaseTagFree: TRadioButton
+          object FDatabaseNodeCustom: TRadioButton
             Left = 106
             Top = 36
             Width = 17
             Height = 17
             TabOrder = 2
-            OnClick = FDatabaseTagClick
-            OnKeyPress = FDatabaseTagKeyPress
+            OnClick = FDatabaseNodeClick
+            OnKeyPress = FDatabaseNodeKeyPress
           end
-          object FDatabaseTag: TEdit
+          object FDatabaseNodeText: TEdit
             Left = 130
             Top = 34
             Width = 57
@@ -702,29 +702,29 @@ object DExport: TDExport
             Text = 'database'
             OnChange = TSXMLOptionChange
           end
-          object FDatabaseTagDisabled: TRadioButton
+          object FDatabaseNodeDisabled: TRadioButton
             Left = 106
             Top = 0
             Width = 185
             Height = 17
-            Caption = 'FDatabaseTagDisabled'
+            Caption = 'FDatabaseNodeDisabled'
             Checked = True
             TabOrder = 0
             TabStop = True
-            OnClick = FDatabaseTagClick
-            OnKeyPress = FDatabaseTagKeyPress
+            OnClick = FDatabaseNodeClick
+            OnKeyPress = FDatabaseNodeKeyPress
           end
-          object FDatabaseTagName: TRadioButton
+          object FDatabaseNodeName: TRadioButton
             Left = 106
             Top = 18
             Width = 185
             Height = 17
             Caption = '<db_name>'
             TabOrder = 1
-            OnClick = FDatabaseTagClick
-            OnKeyPress = FDatabaseTagKeyPress
+            OnClick = FDatabaseNodeClick
+            OnKeyPress = FDatabaseNodeKeyPress
           end
-          object FDatabaseAttribute: TEdit
+          object FDatabaseNodeAttribute: TEdit
             Left = 194
             Top = 34
             Width = 37
@@ -735,7 +735,7 @@ object DExport: TDExport
             OnChange = TSXMLOptionChange
           end
         end
-        object PTableTag: TPanel_Ext
+        object PTableNode: TPanel_Ext
           Left = 4
           Top = 112
           Width = 317
@@ -743,28 +743,28 @@ object DExport: TDExport
           BevelOuter = bvNone
           ParentBackground = False
           TabOrder = 2
-          object FLTableTag: TLabel
+          object FLTableNode: TLabel
             Left = 4
             Top = 1
-            Width = 58
+            Width = 65
             Height = 13
-            Caption = 'FLTableTag'
+            Caption = 'FLTableNode'
           end
-          object FL1TableTagFree: TLabel
+          object FL1TableNodeCustom: TLabel
             Left = 124
             Top = 37
             Width = 6
             Height = 13
             Caption = '<'
           end
-          object FL2TableTagFree: TLabel
+          object FL2TableNodeCustom: TLabel
             Left = 231
             Top = 37
             Width = 65
             Height = 13
             Caption = '="tbl_name">'
           end
-          object FTableTagFree: TRadioButton
+          object FTableNodeCustom: TRadioButton
             Left = 106
             Top = 36
             Width = 17
@@ -773,7 +773,7 @@ object DExport: TDExport
             OnClick = FTableTagClick
             OnKeyPress = FTableTagKeyPress
           end
-          object FTableTag: TEdit
+          object FTableNodeText: TEdit
             Left = 130
             Top = 34
             Width = 57
@@ -783,19 +783,19 @@ object DExport: TDExport
             Text = 'table'
             OnChange = TSXMLOptionChange
           end
-          object FTableTagDisabled: TRadioButton
+          object FTableNodeDisabled: TRadioButton
             Left = 106
             Top = 0
             Width = 185
             Height = 17
-            Caption = 'FTableTagDisabled'
+            Caption = 'FTableNodeDisabled'
             Checked = True
             TabOrder = 0
             TabStop = True
             OnClick = FTableTagClick
             OnKeyPress = FTableTagKeyPress
           end
-          object FTableTagName: TRadioButton
+          object FTableNodeName: TRadioButton
             Left = 106
             Top = 18
             Width = 185
@@ -805,7 +805,7 @@ object DExport: TDExport
             OnClick = FTableTagClick
             OnKeyPress = FTableTagKeyPress
           end
-          object FTableAttribute: TEdit
+          object FTableNodeAttribute: TEdit
             Left = 194
             Top = 34
             Width = 37
@@ -816,7 +816,7 @@ object DExport: TDExport
             OnChange = TSXMLOptionChange
           end
         end
-        object FRecordTag: TEdit
+        object FRecordNodeText: TEdit
           Left = 134
           Top = 182
           Width = 57
@@ -826,7 +826,7 @@ object DExport: TDExport
           Text = 'row'
           OnChange = TSXMLOptionChange
         end
-        object PFieldTag: TPanel_Ext
+        object PFieldNode: TPanel_Ext
           Left = 4
           Top = 216
           Width = 317
@@ -834,28 +834,28 @@ object DExport: TDExport
           BevelOuter = bvNone
           ParentBackground = False
           TabOrder = 1
-          object FLFieldTag: TLabel
+          object FLFieldNode: TLabel
             Left = 4
             Top = 1
-            Width = 53
+            Width = 60
             Height = 13
-            Caption = 'FLFieldTag'
+            Caption = 'FLFieldNode'
           end
-          object FL1FieldTagFree: TLabel
+          object FL1FieldNodeCustom: TLabel
             Left = 124
             Top = 19
             Width = 6
             Height = 13
             Caption = '<'
           end
-          object FL2FieldTagFree: TLabel
+          object FL2FieldNodeCustom: TLabel
             Left = 231
             Top = 19
             Width = 65
             Height = 13
             Caption = '="fld_name">'
           end
-          object FFieldTagFree: TRadioButton
+          object FFieldNodeCustom: TRadioButton
             Left = 106
             Top = 18
             Width = 17
@@ -866,7 +866,7 @@ object DExport: TDExport
             OnClick = FFieldTagClick
             OnKeyPress = FFieldTagKeyPress
           end
-          object FFieldTag: TEdit
+          object FFieldNodeText: TEdit
             Left = 130
             Top = 16
             Width = 57
@@ -876,7 +876,7 @@ object DExport: TDExport
             Text = 'field'
             OnChange = TSXMLOptionChange
           end
-          object FFieldTagName: TRadioButton
+          object FFieldNodeName: TRadioButton
             Left = 106
             Top = 0
             Width = 185
@@ -886,7 +886,7 @@ object DExport: TDExport
             OnClick = FFieldTagClick
             OnKeyPress = FFieldTagKeyPress
           end
-          object FFieldAttribute: TEdit
+          object FFieldNodeAttribute: TEdit
             Left = 194
             Top = 16
             Width = 37
@@ -986,20 +986,20 @@ object DExport: TDExport
           Caption = 'FHTMLNullText'
           TabOrder = 0
         end
-        object FHTMLShowMemoContent: TCheckBox
+        object FHTMLMemoContent: TCheckBox
           Left = 128
           Top = 48
           Width = 193
           Height = 17
-          Caption = 'FHTMLShowMemoContent'
+          Caption = 'FHTMLMemoContent'
           TabOrder = 1
         end
-        object FHTMLRowBGColorEnabled: TCheckBox
+        object FHTMLRowBGColor: TCheckBox
           Left = 129
           Top = 80
           Width = 193
           Height = 17
-          Caption = 'FHTMLRowBGColorEnabled'
+          Caption = 'FHTMLRowBGColor'
           TabOrder = 2
         end
       end

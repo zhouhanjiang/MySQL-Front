@@ -64,7 +64,7 @@ type
     FLRowFormat: TLabel;
     FLSourceFields: TLabel;
     FLWhat: TLabel;
-    FNoQuote: TRadioButton;
+    FQuoteNothing: TRadioButton;
     FObjects: TCheckBox;
     FProgressBar: TProgressBar;
     FQuoteChar: TEdit;
@@ -73,7 +73,7 @@ type
     FRowFormat: TComboBox_Ext;
     FSourceField1: TEdit;
     FSourceField2: TEdit;
-    FStringQuote: TRadioButton;
+    FQuoteStrings: TRadioButton;
     FTables: TListView;
     FUpdate: TRadioButton;
     GCSVHow: TGroupBox_Ext;
@@ -328,8 +328,8 @@ begin
   FDelimiterTab.Caption := Preferences.LoadStr(394);
   FDelimiterChar.Caption := Preferences.LoadStr(355) + ':';
   FLQuoteValues.Caption := Preferences.LoadStr(353) + ':';
-  FNoQuote.Caption := Preferences.LoadStr(396);
-  FStringQuote.Caption := Preferences.LoadStr(397) + ':';
+  FQuoteNothing.Caption := Preferences.LoadStr(396);
+  FQuoteStrings.Caption := Preferences.LoadStr(397) + ':';
   GCSVPreview.Caption := Preferences.LoadStr(423);
 
   GODBCWhat.Caption := Preferences.LoadStr(227);
@@ -407,7 +407,7 @@ begin
   inherited;
 
   FDelimiter.Left := FDelimiterChar.Left + Sizer.Width + PageControl.Canvas.TextWidth(FDelimiterChar.Caption);
-  FQuoteChar.Left := FStringQuote.Left + Sizer.Width + PageControl.Canvas.TextWidth(FStringQuote.Caption);
+  FQuoteChar.Left := FQuoteStrings.Left + Sizer.Width + PageControl.Canvas.TextWidth(FQuoteStrings.Caption);
 end;
 
 procedure TDImport.CMUpdateProgressInfo(var Message: TMessage);
@@ -614,7 +614,7 @@ var
 begin
   if (Visible) then
   begin
-    if (not FDelimiterTab.Checked and (FDelimiter.Text = '') or not FNoQuote.Checked and (FQuoteChar.Text = '')) then
+    if (not FDelimiterTab.Checked and (FDelimiter.Text = '') or not FQuoteNothing.Checked and (FQuoteChar.Text = '')) then
     begin
       TSFields.Enabled := False;
       TSODBCOptions.Enabled := False;
@@ -640,7 +640,7 @@ begin
         Import.Delimiter := #0
       else
         Import.Delimiter := FDelimiter.Text[1];
-      if (not FStringQuote.Checked) or (FQuoteChar.Text = '') then
+      if (not FQuoteStrings.Checked) or (FQuoteChar.Text = '') then
         Import.Quoter := #0
       else
         Import.Quoter := FQuoteChar.Text[1];
@@ -779,11 +779,11 @@ begin
   FTables.SmallImages := Preferences.SmallImages;
 
   FCSVHeadline.Checked := Preferences.Import.CSVHeadline;
-  FDelimiterTab.Checked := Preferences.Import.CSVSeparatorType = stTab;
-  FDelimiterChar.Checked := Preferences.Import.CSVSeparatorType = stChar;
+  FDelimiterTab.Checked := Preferences.Import.CSVSeparatorType = dtTab;
+  FDelimiterChar.Checked := Preferences.Import.CSVSeparatorType = dtChar;
   FDelimiter.Text := Preferences.Import.CSVSeparator;
-  FNoQuote.Checked := Preferences.Import.CSVQuote = 0;
-  FStringQuote.Checked := Preferences.Import.CSVQuote = 1;
+  FQuoteNothing.Checked := Preferences.Import.CSVQuote = qtNothing;
+  FQuoteStrings.Checked := Preferences.Import.CSVQuote = qtStrings;
   FQuoteChar.Text := Preferences.Import.CSVQuoteChar;
   if (Preferences.Import.ImportType = itReplace) then
     FReplace.Checked := True
@@ -808,15 +808,15 @@ begin
   begin
     Preferences.Import.CSVHeadline := FCSVHeadline.Checked;
     if (FDelimiterTab.Checked) then
-      Preferences.Import.CSVSeparatorType := stTab
+      Preferences.Import.CSVSeparatorType := dtTab
     else if (FDelimiterChar.Checked) then
-      Preferences.Import.CSVSeparatorType := stChar;
+      Preferences.Import.CSVSeparatorType := dtChar;
     Preferences.Import.CSVSeparator := FDelimiter.Text;
     Preferences.Import.CSVQuoteChar := FQuoteChar.Text;
-    if (FNoQuote.Checked) then
-      Preferences.Import.CSVQuote := 0
+    if (FQuoteNothing.Checked) then
+      Preferences.Import.CSVQuote := qtNothing
     else
-      Preferences.Import.CSVQuote := 1;
+      Preferences.Import.CSVQuote := qtStrings;
 
     if (FInsert.Checked) then Preferences.Import.ImportType := itInsert
     else if (FReplace.Checked) then Preferences.Import.ImportType := itReplace
@@ -940,7 +940,7 @@ end;
 
 procedure TDImport.FQuoteClick(Sender: TObject);
 begin
-  FQuoteChar.Enabled := not FNoQuote.Checked;
+  FQuoteChar.Enabled := not FQuoteNothing.Checked;
 
   FCSVPreviewUpdate(Sender);
 end;
@@ -1253,7 +1253,7 @@ begin
         ImportText.Delimiter := #0
       else
         ImportText.Delimiter := FDelimiter.Text[1];
-      if (not FStringQuote.Checked) or (FQuoteChar.Text = '') then
+      if (not FQuoteStrings.Checked) or (FQuoteChar.Text = '') then
         ImportText.Quoter := #0
       else
         ImportText.Quoter := FQuoteChar.Text[1];

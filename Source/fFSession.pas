@@ -3444,7 +3444,7 @@ begin
   DExport.DialogType := edtNormal;
   DExport.ExportType := ExportType;
   DExport.Job := nil;
-  DExport.Objects.Clear();
+  DExport.AObjects.Clear();
   DExport.Window := Window;
 
   if (Window.ActiveControl = ActiveDBGrid) then
@@ -3455,7 +3455,7 @@ begin
     if ((Session.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
       for I := 0 to ActiveWorkbench.Tables.Count - 1 do
         if (not Assigned(ActiveWorkbench.Selected) or ActiveWorkbench.Tables[I].Selected) then
-          DExport.Objects.Add(ActiveWorkbench.Tables[I].BaseTable);
+          DExport.AObjects.Add(ActiveWorkbench.Tables[I].BaseTable);
   end
   else if ((Window.ActiveControl = ActiveListView) and (ActiveListView.SelCount > 0)) then
   begin
@@ -3466,7 +3466,7 @@ begin
           begin
             Database := TSDatabase(ActiveListView.Items[I].Data);
             if ((Session.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
-              DExport.Objects.Add(Database);
+              DExport.AObjects.Add(Database);
           end;
 
       iiDatabase:
@@ -3475,7 +3475,7 @@ begin
           if ((Session.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
             for I := 0 to ActiveListView.Items.Count - 1 do
               if (ActiveListView.Items[I].Selected) then
-                DExport.Objects.Add(TSDBObject(ActiveListView.Items[I].Data));
+                DExport.AObjects.Add(TSDBObject(ActiveListView.Items[I].Data));
         end;
       iiBaseTable:
         begin
@@ -3483,7 +3483,7 @@ begin
           if ((Session.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
             for I := 0 to ActiveListView.Items.Count - 1 do
               if (ActiveListView.Items[I].Selected and (ActiveListView.Items[I].ImageIndex = iiTrigger)) then
-                DExport.Objects.Add(TSDBObject(ActiveListView.Items[I].Data));
+                DExport.AObjects.Add(TSDBObject(ActiveListView.Items[I].Data));
         end;
     end
   end
@@ -3491,19 +3491,19 @@ begin
   begin
     Database := TSDatabase(FocusedCItem);
     if ((Session.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
-      DExport.Objects.Add(Database);
+      DExport.AObjects.Add(Database);
   end
   else if (FocusedCItem is TSDBObject) then
   begin
     Database := TSDBObject(FocusedCItem).Database;
     if ((Session.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
-      DExport.Objects.Add(FocusedCItem);
+      DExport.AObjects.Add(FocusedCItem);
   end
   else
   begin
     for I := 0 to DExport.Session.Databases.Count - 1 do
       if ((Session.TableNameCmp(Session.Databases[I].Name, 'mysql') <> 0) and not (Session.Databases[I] is TSSystemDatabase)) then
-        DExport.Objects.Add(Session.Databases[I]);
+        DExport.AObjects.Add(Session.Databases[I]);
   end;
 
   DExport.Execute();
@@ -3885,7 +3885,7 @@ begin
   DExport.DataSet := nil;
   DExport.DialogType := edtCreateJob;
   DExport.Job := nil;
-  DExport.Objects.Clear();
+  DExport.AObjects.Clear();
   DExport.Window := Window;
   DExport.Execute();
 end;
@@ -3901,7 +3901,7 @@ begin
   DExport.DataSet := nil;
   DExport.DialogType := edtEditJob;
   DExport.Job := TAJobExport(Session.Account.JobByName(FJobs.Selected.Caption));
-  DExport.Objects.Clear();
+  DExport.AObjects.Clear();
   DExport.Window := Window;
   DExport.Execute();
 end;
@@ -6069,7 +6069,7 @@ begin
     else if (Column.Field.DataType = ftBlob) then
       Text := '<BLOB>'
     else if (Column.Field.DataType = ftWideMemo) then
-      if (not Preferences.GridShowMemoContent) then
+      if (not Preferences.GridMemoContent) then
         Text := '<MEMO>'
       else
         Text := Copy(TMySQLQuery(Column.Field.DataSet).GetAsString(Column.Field.FieldNo), 1, 1000)
@@ -6127,7 +6127,7 @@ begin
       else
         DBGrid.Canvas.Brush.Color := ColorAdd(ColorToRGB(clWindow), $101010);
     end
-    else if ((DBGrid.Parent <> PObjectIDE) and Preferences.GridRowBGColorEnabled and (DBGrid.DataSource.DataSet.RecNo mod 2 <> 0) and not (dgRowSelect in DBGrid.Options)) then
+    else if ((DBGrid.Parent <> PObjectIDE) and Preferences.GridRowBGColor and (DBGrid.DataSource.DataSet.RecNo mod 2 <> 0) and not (dgRowSelect in DBGrid.Options)) then
     begin // Row is even
       DBGrid.Canvas.Font.Color := clWindowText;
       if (ColorToRGB(clWindow) >= $800000) then
@@ -11431,7 +11431,7 @@ begin
   DExport.DataSet := nil;
   DExport.DialogType := edtExecuteJob;
   DExport.Job := TAJobExport(Session.Account.JobByName(FJobs.Selected.Caption));
-  DExport.Objects.Clear();
+  DExport.AObjects.Clear();
   DExport.Window := Window;
   DExport.Execute();
 end;
@@ -12504,8 +12504,10 @@ begin
         PBlob.Parent := ActiveDBGrid.Parent;
       NewTop := PBlob.Parent.ClientHeight - PBlob.Height;
       for I := 0 to PBlob.Parent.ControlCount - 1 do
-        if (PBlob.Parent.Controls[I].Align = alBottom) then
-          Dec(NewTop, PBlob.Parent.Controls[I].Height);
+        case (PBlob.Parent.Controls[I].Align) of
+          alClient: Max(NewTop, PBlob.Parent.Controls[I].Constraints.MinHeight);
+          alBottom: Dec(NewTop, PBlob.Parent.Controls[I].Height);
+        end;
       PBlob.Top := NewTop;
       PBlob.Align := alBottom;
       PBlob.Visible := True;

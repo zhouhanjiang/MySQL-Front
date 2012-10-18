@@ -12,6 +12,7 @@ uses
 type
   TPExportType = (etSQLFile, etTextFile, etExcelFile, etAccessFile, etSQLiteFile, etODBC, etHTMLFile, etXMLFile, etPDFFile, etPrinter);
   TAJobObjectType = (jotServer, jotDatabase, jotTable, jotProcedure, jotFunction, jotTrigger, jotEvent);
+  TPNodeType = (ntDisabled, ntName, ntCustom);
 
   TPItems = class;
   TPPreferences = class;
@@ -57,7 +58,8 @@ type
   end;
 
   TPImportType = (itInsert, itReplace, itUpdate);
-  TPSeparatorType = (stTab, stChar);
+  TPDelimiterType = (dtTab, dtChar);
+  TPQuotingType = (qtNothing, qtStrings, qtAll);
   TPUpdateCheckType = (utNever, utDaily);
 
   TMRUList = class
@@ -179,21 +181,55 @@ type
     procedure LoadFromXML(const XML: IXMLNode); override;
     procedure SaveToXML(const XML: IXMLNode); override;
   public
-    CSVHeadline: Boolean;
-    CSVQuote: Integer;
-    CSVQuoteChar: string;
-    CSVSeparator: string;
-    CSVSeparatorType: TPSeparatorType;
-    ExcelHeadline: Boolean;
-    HTMLData: Boolean;
-    HTMLStructure: Boolean;
-    SQLCreateDatabase: Boolean;
-    SQLData: Boolean;
-    SQLDisableKeys: Boolean;
-    SQLDropBeforeCreate: Boolean;
-    SQLReplaceData: Boolean;
-    SQLStructure: Boolean;
-    SQLUseDatabase: Boolean;
+    CSV: record
+      Headline: Boolean;
+      Quote: TPQuotingType;
+      Quoter: Char;
+      Delimiter: string;
+      DelimiterType: TPDelimiterType;
+    end;
+    Excel: record
+      Headline: Boolean;
+    end;
+    HTML: record
+      Data: Boolean;
+      NULLText: Boolean;
+      MemoContent: Boolean;
+      RowBGColor: Boolean;
+      Structure: Boolean;
+    end;
+    SQL: record
+      CreateDatabase: Boolean;
+      Data: Boolean;
+      DisableKeys: Boolean;
+      DropStmts: Boolean;
+      ReplaceData: Boolean;
+      Structure: Boolean;
+      UseDatabase: Boolean;
+    end;
+    _XML: record
+      Database: record
+        NodeType: TPNodeType;
+        NodeText: string;
+        NodeAttribute: string;
+      end;
+      Field: record
+        NodeType: TPNodeType;
+        NodeText: string;
+        NodeAttribute: string;
+      end;
+      Row: record
+        NodeText: string;
+      end;
+      Root: record
+        NodeText: string;
+      end;
+      Table: record
+        NodeType: TPNodeType;
+        NodeText: string;
+        NodeAttribute: string;
+      end;
+    end;
     procedure Assign(const Source: TPItem); override;
     constructor Create(const AAItems: TPItems = nil; const AName: string = ''); override;
   end;
@@ -231,10 +267,10 @@ type
     procedure SaveToXML(const XML: IXMLNode); virtual;
   public
     CSVHeadline: Boolean;
-    CSVQuote: Integer;
+    CSVQuote: TPQuotingType;
     CSVQuoteChar: string;
     CSVSeparator: string;
-    CSVSeparatorType: TPSeparatorType;
+    CSVSeparatorType: TPDelimiterType;
     ExcelHeadline: Boolean;
     ImportType: TPImportType;
     ODBCData: Boolean;
@@ -424,13 +460,13 @@ type
     GridFontColor: TColor;
     GridFontSize, GridFontCharset: Integer;
     GridMaxColumnWidth: Integer;
-    GridRowBGColorEnabled: Boolean;
+    GridRowBGColor: Boolean;
     GridCurrRowBGColorEnabled: Boolean;
     GridCurrRowBGColor: TColor;
     GridNullBGColorEnabled: Boolean;
     GridNullBGColor: TColor;
     GridNullText: Boolean;
-    GridShowMemoContent: Boolean;
+    GridMemoContent: Boolean;
     GridDefaultSorting: Boolean;
     SQLFontName: TFontName;
     SQLFontStyle: TFontStyles;
@@ -841,37 +877,55 @@ begin
   end;
 end;
 
-function TryStrToQuote(const Str: string; var Quote: Integer): Boolean;
+function TryStrToQuote(const Str: string; var Quote: TPQuotingType): Boolean;
 begin
   Result := True;
-  if (UpperCase(Str) = 'NOTHING') then Quote := 0
-  else if (UpperCase(Str) = 'STRINGS') then Quote := 1
-  else if (UpperCase(Str) = 'ALL') then Quote := 2
+  if (UpperCase(Str) = 'NOTHING') then Quote := qtNothing
+  else if (UpperCase(Str) = 'STRINGS') then Quote := qtStrings
+  else if (UpperCase(Str) = 'ALL') then Quote := qtAll
   else Result := False;
 end;
 
-function QuoteToStr(const Quote: Integer): string;
+function QuoteToStr(const Quote: TPQuotingType): string;
 begin
   case Quote of
-    1: Result := 'Stings';
-    2: Result := 'All';
+    qtStrings: Result := 'Stings';
+    qtAll: Result := 'All';
     else Result := 'Nothing';
   end;
 end;
 
-function TryStrToSeparatorType(const Str: string; var SeparatorType: TPSeparatorType): Boolean;
+function TryStrToSeparatorType(const Str: string; var SeparatorType: TPDelimiterType): Boolean;
 begin
   Result := True;
-  if (UpperCase(Str) = 'STANDARD') then SeparatorType := stChar
-  else if (UpperCase(Str) = 'TAB') then SeparatorType := stTab
+  if (UpperCase(Str) = 'STANDARD') then SeparatorType := dtChar
+  else if (UpperCase(Str) = 'TAB') then SeparatorType := dtTab
   else Result := False;
 end;
 
-function SeparatorTypeToStr(const SeparatorType: TPSeparatorType): string;
+function SeparatorTypeToStr(const SeparatorType: TPDelimiterType): string;
 begin
   case (SeparatorType) of
-    stTab: Result := 'Tab';
+    dtTab: Result := 'Tab';
     else Result := 'Standard';
+  end;
+end;
+
+function TryStrToNodeType(const Str: string; var NodeType: TPNodeType): Boolean;
+begin
+  Result := True;
+  if (UpperCase(Str) = 'DISABLED') then NodeType := ntDisabled
+  else if (UpperCase(Str) = 'NAME') then NodeType := ntName
+  else if (UpperCase(Str) = 'CUSTOM') then NodeType := ntCustom
+  else Result := False;
+end;
+
+function NodeTypeToStr(const NodeType: TPNodeType): string;
+begin
+  case (NodeType) of
+    ntDisabled: Result := 'Disabled';
+    ntCustom: Result := 'Custom';
+    else Result := 'Name';
   end;
 end;
 
@@ -1496,84 +1550,116 @@ begin
 
   inherited Assign(Source);
 
-  CSVHeadline := TPExport(Source).CSVHeadline;
-  CSVQuote := TPExport(Source).CSVQuote;
-  CSVQuoteChar := TPExport(Source).CSVQuoteChar;
-  CSVSeparator := TPExport(Source).CSVSeparator;
-  CSVSeparatorType := TPExport(Source).CSVSeparatorType;
-  ExcelHeadline := TPExport(Source).ExcelHeadline;
-  HTMLData := TPExport(Source).HTMLData;
-  HTMLStructure := TPExport(Source).HTMLStructure;
-  SQLCreateDatabase := TPExport(Source).SQLCreateDatabase;
-  SQLData := TPExport(Source).SQLData;
-  SQLDisableKeys := TPExport(Source).SQLDisableKeys;
-  SQLDropBeforeCreate := TPExport(Source).SQLDropBeforeCreate;
-  SQLReplaceData := TPExport(Source).SQLReplaceData;
-  SQLStructure := TPExport(Source).SQLStructure;
-  SQLUseDatabase := TPExport(Source).SQLUseDatabase;
+  CSV := TPExport(Source).CSV;
+  Excel := TPExport(Source).Excel;
+  HTML := TPExport(Source).HTML;
+  SQL := TPExport(Source).SQL;
+  _XML := TPExport(Source)._XML;
 end;
 
 constructor TPExport.Create(const AAItems: TPItems = nil; const AName: string = '');
 begin
   inherited;
 
-  CSVHeadline := True;
-  CSVQuote := 1;
-  CSVQuoteChar := '"';
-  CSVSeparator := ',';
-  CSVSeparatorType := stChar;
-  ExcelHeadline := False;
-  HTMLData := True;
-  HTMLStructure := False;
-  SQLCreateDatabase := False;
-  SQLData := True;
-  SQLDisableKeys := True;
-  SQLDropBeforeCreate := True;
-  SQLStructure := True;
-  SQLReplaceData := False;
-  SQLUseDatabase := False;
+  CSV.Headline := True;
+  CSV.Quote := qtStrings;
+  CSV.Quoter := '"';
+  CSV.Delimiter := ',';
+  CSV.DelimiterType := dtChar;
+  Excel.Headline := False;
+  HTML.Data := True;
+  HTML.NULLText := False;
+  HTML.MemoContent := False;
+  HTML.RowBGColor := False;
+  HTML.Structure := False;
+  SQL.CreateDatabase := False;
+  SQL.Data := True;
+  SQL.DisableKeys := True;
+  SQL.DropStmts := True;
+  SQL.Structure := True;
+  SQL.ReplaceData := False;
+  SQL.UseDatabase := False;
+  _XML.Database.NodeType := ntDisabled;
+  _XML.Database.NodeText := 'database';
+  _XML.Database.NodeAttribute := 'name';
+  _XML.Field.NodeType := ntName;
+  _XML.Field.NodeText := 'field';
+  _XML.Field.NodeAttribute := 'name';
+  _XML.Root.NodeText := 'mysql';
+  _XML.Row.NodeText := 'row';
+  _XML.Table.NodeType := ntDisabled;
+  _XML.Table.NodeText := 'table';
+  _XML.Table.NodeAttribute := 'name';
 end;
 
 procedure TPExport.LoadFromXML(const XML: IXMLNode);
 begin
   inherited;
 
-  if (Assigned(XMLNode(XML, 'csv/headline'))) then TryStrToBool(XMLNode(XML, 'csv/headline').Attributes['enabled'], CSVHeadline);
-  if (Assigned(XMLNode(XML, 'csv/quote/string'))) then CSVQuoteChar := XMLNode(XML, 'csv/quote/string').Text;
-  if (Assigned(XMLNode(XML, 'csv/quote/type'))) then TryStrToQuote(XMLNode(XML, 'csv/quote/type').Text, CSVQuote);
-  if (Assigned(XMLNode(XML, 'csv/separator/character/string'))) then CSVSeparator := XMLNode(XML, 'csv/separator/character/string').Text;
-  if (Assigned(XMLNode(XML, 'csv/separator/character/type'))) then TryStrToSeparatorType(XMLNode(XML, 'csv/separator/character/type').Text, CSVSeparatorType);
-  if (Assigned(XMLNode(XML, 'excel/headline'))) then TryStrToBool(XMLNode(XML, 'excel/headline').Attributes['enabled'], ExcelHeadline);
-  if (Assigned(XMLNode(XML, 'html/data'))) then TryStrToBool(XMLNode(XML, 'html/data').Attributes['enabled'], HTMLData);
-  if (Assigned(XMLNode(XML, 'html/structure'))) then TryStrToBool(XMLNode(XML, 'html/structure').Attributes['enabled'], HTMLStructure);
-  if (Assigned(XMLNode(XML, 'sql/data'))) then TryStrToBool(XMLNode(XML, 'sql/data').Attributes['enabled'], SQLData);
-  if (Assigned(XMLNode(XML, 'sql/data'))) then TryStrToBool(XMLNode(XML, 'sql/data').Attributes['replace'], SQLReplaceData);
-  if (Assigned(XMLNode(XML, 'sql/data'))) then TryStrToBool(XMLNode(XML, 'sql/data').Attributes['disablekeys'], SQLDisableKeys);
-  if (Assigned(XMLNode(XML, 'sql/structure'))) then TryStrToBool(XMLNode(XML, 'sql/structure').Attributes['enabled'], SQLStructure);
-  if (Assigned(XMLNode(XML, 'sql/structure'))) then TryStrToBool(XMLNode(XML, 'sql/structure').Attributes['drop'], SQLDropBeforeCreate);
-  if (Assigned(XMLNode(XML, 'sql/structure/database'))) then TryStrToBool(XMLNode(XML, 'sql/structure/database').Attributes['create'], SQLCreateDatabase);
-  if (Assigned(XMLNode(XML, 'sql/structure/database'))) then TryStrToBool(XMLNode(XML, 'sql/structure/database').Attributes['change'], SQLUseDatabase);
+  if (Assigned(XMLNode(XML, 'csv/headline'))) then TryStrToBool(XMLNode(XML, 'csv/headline').Attributes['enabled'], CSV.Headline);
+  if (Assigned(XMLNode(XML, 'csv/quote/string')) and (XMLNode(XML, 'csv/quote/string').Text <> '')) then CSV.Quoter := XMLNode(XML, 'csv/quote/string').Text[1];
+  if (Assigned(XMLNode(XML, 'csv/quote/type'))) then TryStrToQuote(XMLNode(XML, 'csv/quote/type').Text, CSV.Quote);
+  if (Assigned(XMLNode(XML, 'csv/separator/character/string'))) then CSV.Delimiter := XMLNode(XML, 'csv/separator/character/string').Text;
+  if (Assigned(XMLNode(XML, 'csv/separator/character/type'))) then TryStrToSeparatorType(XMLNode(XML, 'csv/separator/character/type').Text, CSV.DelimiterType);
+  if (Assigned(XMLNode(XML, 'excel/headline'))) then TryStrToBool(XMLNode(XML, 'excel/headline').Attributes['enabled'], Excel.Headline);
+  if (Assigned(XMLNode(XML, 'html/data'))) then TryStrToBool(XMLNode(XML, 'html/data').Attributes['enabled'], HTML.Data);
+  if (Assigned(XMLNode(XML, 'html/memo')) and (XMLNode(XML, 'html/memo').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/memo').Attributes['visible'], HTML.MemoContent);
+  if (Assigned(XMLNode(XML, 'html/null')) and (XMLNode(XML, 'html/null').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/null').Attributes['visible'], HTML.NULLText);
+  if (Assigned(XMLNode(XML, 'html/row/background')) and (XMLNode(XML, 'html/row/background').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/row/background').Attributes['visible'], HTML.RowBGColor);
+  if (Assigned(XMLNode(XML, 'html/structure'))) then TryStrToBool(XMLNode(XML, 'html/structure').Attributes['enabled'], HTML.Structure);
+  if (Assigned(XMLNode(XML, 'sql/data'))) then TryStrToBool(XMLNode(XML, 'sql/data').Attributes['enabled'], SQL.Data);
+  if (Assigned(XMLNode(XML, 'sql/data'))) then TryStrToBool(XMLNode(XML, 'sql/data').Attributes['replace'], SQL.ReplaceData);
+  if (Assigned(XMLNode(XML, 'sql/data'))) then TryStrToBool(XMLNode(XML, 'sql/data').Attributes['disablekeys'], SQL.DisableKeys);
+  if (Assigned(XMLNode(XML, 'sql/structure'))) then TryStrToBool(XMLNode(XML, 'sql/structure').Attributes['enabled'], SQL.Structure);
+  if (Assigned(XMLNode(XML, 'sql/structure'))) then TryStrToBool(XMLNode(XML, 'sql/structure').Attributes['drop'], SQL.DropStmts);
+  if (Assigned(XMLNode(XML, 'sql/structure/database'))) then TryStrToBool(XMLNode(XML, 'sql/structure/database').Attributes['create'], SQL.CreateDatabase);
+  if (Assigned(XMLNode(XML, 'sql/structure/database'))) then TryStrToBool(XMLNode(XML, 'sql/structure/database').Attributes['change'], SQL.UseDatabase);
+  if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/database').Attributes['type'], _XML.Database.NodeType);
+  if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Text <> '')) then _XML.Database.NodeText := XMLNode(XML, 'xml/database').Text;
+  if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Attributes['attribute'] <> Null)) then _XML.Database.NodeText := XMLNode(XML, 'xml/database').Attributes['attribute'];
+  if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/field').Attributes['type'], _XML.Field.NodeType);
+  if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Text <> '')) then _XML.Field.NodeText := XMLNode(XML, 'xml/field').Text;
+  if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Attributes['attribute'] <> Null)) then _XML.Field.NodeText := XMLNode(XML, 'xml/field').Attributes['attribute'];
+  if (Assigned(XMLNode(XML, 'xml/record')) and (XMLNode(XML, 'xml/record').Text <> '')) then _XML.Root.NodeText := XMLNode(XML, 'xml/record').Text;
+  if (Assigned(XMLNode(XML, 'xml/root')) and (XMLNode(XML, 'xml/root').Text <> '')) then _XML.Root.NodeText := XMLNode(XML, 'xml/root').Text;
+  if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/table').Attributes['type'], _XML.Table.NodeType);
+  if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Text <> '')) then _XML.Table.NodeText := XMLNode(XML, 'xml/table').Text;
+  if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Attributes['attribute'] <> Null)) then _XML.Table.NodeText := XMLNode(XML, 'xml/table').Attributes['attribute'];
 end;
 
 procedure TPExport.SaveToXML(const XML: IXMLNode);
 begin
   inherited;
 
-  XMLNode(XML, 'csv/headline').Attributes['enabled'] := CSVHeadline;
-  XMLNode(XML, 'csv/quote/string').Text := CSVQuoteChar;
-  XMLNode(XML, 'csv/quote/type').Text := QuoteToStr(CSVQuote);
-  XMLNode(XML, 'csv/separator/character/string').Text := CSVSeparator;
-  XMLNode(XML, 'csv/separator/character/type').Text := SeparatorTypeToStr(CSVSeparatorType);
-  XMLNode(XML, 'excel/headline').Attributes['enabled'] := ExcelHeadline;
-  XMLNode(XML, 'html/data').Attributes['enabled'] := HTMLData;
-  XMLNode(XML, 'html/structure').Attributes['enabled'] := HTMLStructure;
-  XMLNode(XML, 'sql/data').Attributes['enabled'] := SQLData;
-  XMLNode(XML, 'sql/data').Attributes['replace'] := SQLReplaceData;
-  XMLNode(XML, 'sql/data').Attributes['disablekeys'] := SQLDisableKeys;
-  XMLNode(XML, 'sql/structure').Attributes['enabled'] := SQLStructure;
-  XMLNode(XML, 'sql/structure').Attributes['drop'] := SQLDropBeforeCreate;
-  XMLNode(XML, 'sql/structure/database').Attributes['create'] := SQLCreateDatabase;
-  XMLNode(XML, 'sql/structure/database').Attributes['change'] := SQLUseDatabase;
+  XMLNode(XML, 'csv/headline').Attributes['enabled'] := CSV.Headline;
+  XMLNode(XML, 'csv/quote/string').Text := CSV.Quoter;
+  XMLNode(XML, 'csv/quote/type').Text := QuoteToStr(CSV.Quote);
+  XMLNode(XML, 'csv/separator/character/string').Text := CSV.Delimiter;
+  XMLNode(XML, 'csv/separator/character/type').Text := SeparatorTypeToStr(CSV.DelimiterType);
+  XMLNode(XML, 'excel/headline').Attributes['enabled'] := Excel.Headline;
+  XMLNode(XML, 'html/data').Attributes['enabled'] := HTML.Data;
+  XMLNode(XML, 'html/memo').Attributes['visible'] := HTML.MemoContent;
+  XMLNode(XML, 'html/null').Attributes['visible'] := HTML.NullText;
+  XMLNode(XML, 'grid/row/background').Attributes['visible'] := HTML.RowBGColor;
+  XMLNode(XML, 'html/structure').Attributes['enabled'] := HTML.Structure;
+  XMLNode(XML, 'sql/data').Attributes['enabled'] := SQL.Data;
+  XMLNode(XML, 'sql/data').Attributes['replace'] := SQL.ReplaceData;
+  XMLNode(XML, 'sql/data').Attributes['disablekeys'] := SQL.DisableKeys;
+  XMLNode(XML, 'sql/structure').Attributes['enabled'] := SQL.Structure;
+  XMLNode(XML, 'sql/structure').Attributes['drop'] := SQL.DropStmts;
+  XMLNode(XML, 'sql/structure/database').Attributes['create'] := SQL.CreateDatabase;
+  XMLNode(XML, 'sql/structure/database').Attributes['change'] := SQL.UseDatabase;
+  XMLNode(XML, 'xml/database').Text := _XML.Database.NodeText;
+  XMLNode(XML, 'xml/database').Attributes['type'] := NodeTypeToStr(_XML.Database.NodeType);
+  XMLNode(XML, 'xml/database').Attributes['attribute'] := _XML.Database.NodeAttribute;
+  XMLNode(XML, 'xml/field').Text := _XML.Field.NodeText;
+  XMLNode(XML, 'xml/field').Attributes['type'] := NodeTypeToStr(_XML.Field.NodeType);
+  XMLNode(XML, 'xml/field').Attributes['attribute'] := _XML.Field.NodeAttribute;
+  XMLNode(XML, 'xml/record').Text := _XML.Row.NodeText;
+  XMLNode(XML, 'xml/root').Text := _XML.Root.NodeText;
+  XMLNode(XML, 'xml/table').Text := _XML.Table.NodeText;
+  XMLNode(XML, 'xml/table').Attributes['type'] := NodeTypeToStr(_XML.Table.NodeType);
+  XMLNode(XML, 'xml/table').Attributes['attribute'] := _XML.Table.NodeAttribute;
 end;
 
 { TPFind **********************************************************************}
@@ -1628,10 +1714,10 @@ begin
   FPreferences := APreferences;
 
   CSVHeadline := True;
-  CSVQuote := 1;
+  CSVQuote := qtStrings;
   CSVQuoteChar := '"';
   CSVSeparator := ',';
-  CSVSeparatorType := stChar;
+  CSVSeparatorType := dtChar;
   ExcelHeadline := False;
   ImportType := itInsert;
   ODBCData := True;
@@ -1949,13 +2035,13 @@ begin
   GridFontSize := FontSize;
   GridFontCharset := DEFAULT_CHARSET;
   GridMaxColumnWidth := 100;
-  GridRowBGColorEnabled := True;
+  GridRowBGColor := True;
   GridCurrRowBGColor := $C0FFFF;
   GridCurrRowBGColorEnabled := True;
   GridNullBGColorEnabled := False;
   GridNullBGColor := $E0F0E0;
   GridNullText := True;
-  GridShowMemoContent := False;
+  GridMemoContent := False;
   GridDefaultSorting := True;
   SQLFontName := 'Courier New';
   SQLFontColor := clWindowText;
@@ -2315,12 +2401,12 @@ begin
   if (Assigned(XMLNode(XML, 'grid/font/name'))) then GridFontName := XMLNode(XML, 'grid/font/name').Text;
   if (Assigned(XMLNode(XML, 'grid/font/size'))) then TryStrToInt(XMLNode(XML, 'grid/font/size').Text, GridFontSize);
   if (Assigned(XMLNode(XML, 'grid/font/style'))) then GridFontStyle := StrToStyle(XMLNode(XML, 'grid/font/style').Text);
-  if (Assigned(XMLNode(XML, 'grid/memo'))) then TryStrToBool(XMLNode(XML, 'grid/memo').Attributes['visible'], GridShowMemoContent);
+  if (Assigned(XMLNode(XML, 'grid/memo'))) then TryStrToBool(XMLNode(XML, 'grid/memo').Attributes['visible'], GridMemoContent);
   if (Assigned(XMLNode(XML, 'grid/null'))) then TryStrToBool(XMLNode(XML, 'grid/null').Attributes['visible'], GridNullText);
   if (Assigned(XMLNode(XML, 'grid/null/background'))) then TryStrToBool(XMLNode(XML, 'grid/null/background').Attributes['visible'], GridNullBGColorEnabled);
   if (Assigned(XMLNode(XML, 'grid/null/background/color'))) then GridNullBGColor := StringToColor(XMLNode(XML, 'grid/null/background/color').Text);
   if (Assigned(XMLNode(XML, 'grid/maxcolumnwidth'))) then TryStrToInt(XMLNode(XML, 'grid/maxcolumnwidth').Text, GridMaxColumnWidth);
-  if (Assigned(XMLNode(XML, 'grid/row/background'))) then TryStrToBool(XMLNode(XML, 'grid/row/background').Attributes['visible'], GridRowBGColorEnabled);
+  if (Assigned(XMLNode(XML, 'grid/row/background'))) then TryStrToBool(XMLNode(XML, 'grid/row/background').Attributes['visible'], GridRowBGColor);
   if (Assigned(XMLNode(XML, 'height'))) then TryStrToInt(XMLNode(XML, 'height').Text, Height);
   if (Assigned(XMLNode(XML, 'language/file'))) then LanguageFilename := ExtractFileName(XMLNode(XML, 'language/file').Text);
   if (Assigned(XMLNode(XML, 'left'))) then TryStrToInt(XMLNode(XML, 'left').Text, Left);
@@ -2514,12 +2600,12 @@ begin
   XMLNode(XML, 'grid/font/name').Text := GridFontName;
   XMLNode(XML, 'grid/font/size').Text := IntToStr(GridFontSize);
   XMLNode(XML, 'grid/font/style').Text := StyleToStr(GridFontStyle);
-  XMLNode(XML, 'grid/memo').Attributes['visible'] := GridShowMemoContent;
+  XMLNode(XML, 'grid/memo').Attributes['visible'] := GridMemoContent;
   XMLNode(XML, 'grid/null').Attributes['visible'] := GridNullText;
   XMLNode(XML, 'grid/null/background').Attributes['visible'] := GridNullBGColorEnabled;
   XMLNode(XML, 'grid/null/background/color').Text := ColorToString(GridNullBGColor);
   XMLNode(XML, 'grid/maxcolumnwidth').Text := IntToStr(GridMaxColumnWidth);
-  XMLNode(XML, 'grid/row/background').Attributes['visible'] := GridRowBGColorEnabled;
+  XMLNode(XML, 'grid/row/background').Attributes['visible'] := GridRowBGColor;
   XMLNode(XML, 'height').Text := IntToStr(Height);
   XMLNode(XML, 'language/file').Text := ExtractFileName(LanguageFilename);
   XMLNode(XML, 'left').Text := IntToStr(Left);

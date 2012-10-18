@@ -534,8 +534,8 @@ begin
 
     Preferences.GridMaxColumnWidth := FUDMaxColumnWidth.Position;
 
-    Preferences.GridShowMemoContent := FGridShowMemoContent.Checked;
-    Preferences.GridRowBGColorEnabled := FGridRowBGColorEnabled.Checked;
+    Preferences.GridMemoContent := FGridShowMemoContent.Checked;
+    Preferences.GridRowBGColor := FGridRowBGColorEnabled.Checked;
 
     Preferences.AssociateSQL := FAssociateSQL.Checked;
 
@@ -618,8 +618,8 @@ begin
 
   FUDMaxColumnWidth.Position := Preferences.GridMaxColumnWidth;
 
-  FGridShowMemoContent.Checked := Preferences.GridShowMemoContent;
-  FGridRowBGColorEnabled.Checked := Preferences.GridRowBGColorEnabled;
+  FGridShowMemoContent.Checked := Preferences.GridMemoContent;
+  FGridRowBGColorEnabled.Checked := Preferences.GridRowBGColor;
 
   FGridFont.Text := Preferences.GridFontName;
   PGridFont.Font.Name := Preferences.GridFontName;

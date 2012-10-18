@@ -14,7 +14,7 @@ uses
 type
   TDExport = class (TForm_Ext)
     FAccessFile: TRadioButton;
-    FAllQuote: TRadioButton;
+    FQuoteAll: TRadioButton;
     FBBack: TButton;
     FBCancel: TButton;
     FBFilename: TButton;
@@ -22,17 +22,17 @@ type
     FBHelp: TButton;
     FCreateDatabase: TCheckBox;
     FCSVHeadline: TCheckBox;
-    FDatabaseAttribute: TEdit;
-    FDatabaseTag: TEdit;
-    FDatabaseTagDisabled: TRadioButton;
-    FDatabaseTagFree: TRadioButton;
-    FDatabaseTagName: TRadioButton;
+    FDatabaseNodeAttribute: TEdit;
+    FDatabaseNodeText: TEdit;
+    FDatabaseNodeDisabled: TRadioButton;
+    FDatabaseNodeCustom: TRadioButton;
+    FDatabaseNodeName: TRadioButton;
     FDestField1: TEdit;
     FDisableKeys: TCheckBox;
     FDoneRecords: TLabel;
     FDoneTables: TLabel;
     FDoneTime: TLabel;
-    FDrop: TCheckBox;
+    FDropStmts: TCheckBox;
     FEnabled: TCheckBox;
     FEntieredRecords: TLabel;
     FEntieredTables: TLabel;
@@ -44,30 +44,30 @@ type
     FStartTime: TDateTimePicker;
     FField1: TComboBox_Ext;
     FField2: TComboBox_Ext;
-    FFieldAttribute: TEdit;
-    FFieldTag: TEdit;
-    FFieldTagFree: TRadioButton;
-    FFieldTagName: TRadioButton;
+    FFieldNodeAttribute: TEdit;
+    FFieldNodeText: TEdit;
+    FFieldNodeCustom: TRadioButton;
+    FFieldNodeName: TRadioButton;
     FFilename: TEdit;
     FHTMLData: TCheckBox;
     FHTMLFile: TRadioButton;
     FHTMLNullText: TCheckBox;
-    FHTMLRowBGColorEnabled: TCheckBox;
-    FHTMLShowMemoContent: TCheckBox;
+    FHTMLRowBGColor: TCheckBox;
+    FHTMLMemoContent: TCheckBox;
     FHTMLStructure: TCheckBox;
     FL1DatabaseTagFree: TLabel;
-    FL1FieldTagFree: TLabel;
-    FL1TableTagFree: TLabel;
-    FL2DatabaseTagFree: TLabel;
-    FL2FieldTagFree: TLabel;
+    FL1FieldNodeCustom: TLabel;
+    FL1TableNodeCustom: TLabel;
+    FL2DatabaseNodeCustom: TLabel;
+    FL2FieldNodeCustom: TLabel;
     FL2RecordTag: TLabel;
-    FL2RootTag: TLabel;
-    FL2TableTagFree: TLabel;
+    FL2RootNodeText: TLabel;
+    FL2TableNodeCustom: TLabel;
     FL3RecordTag: TLabel;
-    FL3RootTag: TLabel;
+    FL3RootNodeText: TLabel;
     FLCSVHeadline: TLabel;
     FLDatabaseHandling: TLabel;
-    FLDatabaseTag: TLabel;
+    FLDatabaseNode: TLabel;
     FLDestFields: TLabel;
     FLDone: TLabel;
     FLDrop: TLabel;
@@ -77,7 +77,7 @@ type
     FLStart: TLabel;
     FLExportType: TLabel;
     FLFields: TLabel;
-    FLFieldTag: TLabel;
+    FLFieldNode: TLabel;
     FLFilename: TLabel;
     FLGeneral: TLabel;
     FLHTMLBGColorEnabled: TLabel;
@@ -90,24 +90,24 @@ type
     FLProgressTime: TLabel;
     FLQuoteChar: TLabel;
     FLQuoteValues: TLabel;
-    FLRecordTag: TLabel;
+    FLRecordNode: TLabel;
     FLReferrer1: TLabel;
-    FLRootTag: TLabel;
+    FLRootNode: TLabel;
     FLSeparator: TLabel;
     FLExecution: TLabel;
     FLSQLWhat: TLabel;
-    FLTableTag: TLabel;
+    FLTableNode: TLabel;
     FDaily: TRadioButton;
     FName: TEdit;
-    FNoQuote: TRadioButton;
+    FQuoteNothing: TRadioButton;
     FODBC: TRadioButton;
     FODBCSelect: TListView_Ext;
     FPDFFile: TRadioButton;
     FProgressBar: TProgressBar;
     FQuoteChar: TEdit;
-    FRecordTag: TEdit;
+    FRecordNodeText: TEdit;
     FReplaceData: TCheckBox;
-    FRootTag: TEdit;
+    FRootNodeText: TEdit;
     FSelect: TTreeView_Ext;
     FSeparator: TEdit;
     FSeparatorChar: TRadioButton;
@@ -117,12 +117,12 @@ type
     FSQLFile: TRadioButton;
     FSQLiteFile: TRadioButton;
     FSQLStructure: TCheckBox;
-    FStringQuote: TRadioButton;
-    FTableAttribute: TEdit;
-    FTableTag: TEdit;
-    FTableTagDisabled: TRadioButton;
-    FTableTagFree: TRadioButton;
-    FTableTagName: TRadioButton;
+    FQuoteStrings: TRadioButton;
+    FTableNodeAttribute: TEdit;
+    FTableNodeText: TEdit;
+    FTableNodeDisabled: TRadioButton;
+    FTableNodeCustom: TRadioButton;
+    FTableNodeName: TRadioButton;
     FTextFile: TRadioButton;
     FUseDatabase: TCheckBox;
     FXMLFile: TRadioButton;
@@ -140,15 +140,15 @@ type
     GTask: TGroupBox_Ext;
     GXMLHow: TGroupBox_Ext;
     PageControl: TPageControl;
-    PDatabaseTag: TPanel_Ext;
+    PDatabaseNode: TPanel_Ext;
     PErrorMessages: TPanel_Ext;
-    PFieldTag: TPanel_Ext;
+    PFieldNode: TPanel_Ext;
     PODBCSelect: TPanel_Ext;
     PQuote: TPanel_Ext;
     PSelect: TPanel_Ext;
     PSeparator: TPanel_Ext;
     PSQLWait: TPanel;
-    PTableTag: TPanel_Ext;
+    PTableNode: TPanel_Ext;
     SaveDialog: TSaveDialog_Ext;
     ScrollBox: TScrollBox;
     TSCSVOptions: TTabSheet;
@@ -168,8 +168,8 @@ type
     procedure FBForwardClick(Sender: TObject);
     procedure FBHelpClick(Sender: TObject);
     procedure FDatabaseDblClick(Sender: TObject);
-    procedure FDatabaseTagClick(Sender: TObject);
-    procedure FDatabaseTagKeyPress(Sender: TObject; var Key: Char);
+    procedure FDatabaseNodeClick(Sender: TObject);
+    procedure FDatabaseNodeKeyPress(Sender: TObject; var Key: Char);
     procedure FDestField1Change(Sender: TObject);
     procedure FField1Change(Sender: TObject);
     procedure FField1Exit(Sender: TObject);
@@ -253,7 +253,7 @@ type
     Job: TAJobExport;
     Window: TForm;
     function Execute(): Boolean;
-    property Objects: TList read FObjects;
+    property AObjects: TList read FObjects;
   end;
 
 function DExport(): TDExport;
@@ -288,18 +288,18 @@ var
   I: Integer;
 begin
   Result := nil;
-  for I := 0 to Objects.Count - 1 do
-    if (TObject(Objects[I]) is TSDatabase) then
-      if (not Assigned(Result) or (Objects[I] = Result)) then
-        Result := TSDatabase(Objects[I])
+  for I := 0 to AObjects.Count - 1 do
+    if (TObject(AObjects[I]) is TSDatabase) then
+      if (not Assigned(Result) or (AObjects[I] = Result)) then
+        Result := TSDatabase(AObjects[I])
       else
       begin
         Result := nil;
         break;
       end
-    else if (TObject(Objects[I]) is TSDBObject) then
-      if (not Assigned(Result) or (TSDBObject(Objects[I]).Database = Result)) then
-        Result := TSDBObject(Objects[I]).Database
+    else if (TObject(AObjects[I]) is TSDBObject) then
+      if (not Assigned(Result) or (TSDBObject(AObjects[I]).Database = Result)) then
+        Result := TSDBObject(AObjects[I]).Database
       else
       begin
         Result := nil;
@@ -308,8 +308,8 @@ begin
 
   if (Assigned(DataSet)) then
     Title := Preferences.LoadStr(362)
-  else if (Objects.Count = 1) then
-    Title := TSObject(Objects[0]).Name
+  else if (AObjects.Count = 1) then
+    Title := TSObject(AObjects[0]).Name
   else if (Assigned(Result)) then
     Title := Result.Name
   else
@@ -398,7 +398,7 @@ begin
   GSQLOptions.Caption := Preferences.LoadStr(238);
   FLGeneral.Caption := Preferences.LoadStr(108) + ':';
   FLDrop.Caption := Preferences.LoadStr(242) + ':';
-  FDrop.Caption := Preferences.LoadStr(243);
+  FDropStmts.Caption := Preferences.LoadStr(243);
   FReplaceData.Caption := LowerCase(ReplaceStr(Preferences.LoadStr(416), '&', ''));
   FLDatabaseHandling.Caption := ReplaceStr(Preferences.LoadStr(38), '&', '') + ':';
   FCreateDatabase.Caption := Preferences.LoadStr(245);
@@ -412,9 +412,9 @@ begin
   FSeparatorTab.Caption := Preferences.LoadStr(354);
   FSeparatorChar.Caption := Preferences.LoadStr(355) + ':';
   FLQuoteValues.Caption := Preferences.LoadStr(353) + ':';
-  FNoQuote.Caption := Preferences.LoadStr(359);
-  FStringQuote.Caption := Preferences.LoadStr(360);
-  FAllQuote.Caption := Preferences.LoadStr(361);
+  FQuoteNothing.Caption := Preferences.LoadStr(359);
+  FQuoteStrings.Caption := Preferences.LoadStr(360);
+  FQuoteAll.Caption := Preferences.LoadStr(361);
   FLQuoteChar.Caption := Preferences.LoadStr(356) + ':';
 
   GProgress.Caption := Preferences.LoadStr(224);
@@ -426,13 +426,13 @@ begin
   FLErrors.Caption := Preferences.LoadStr(391) + ':';
 
   GXMLHow.Caption := Preferences.LoadStr(238);
-  FLRootTag.Caption := 'Root:';
-  FLDatabaseTag.Caption := ReplaceStr(Preferences.LoadStr(265), '&', '') + ':';
-  FDatabaseTagDisabled.Caption := Preferences.LoadStr(554);
-  FLTableTag.Caption := ReplaceStr(Preferences.LoadStr(234), '&', '') + ':';
-  FTableTagDisabled.Caption := Preferences.LoadStr(554);
-  FLRecordTag.Caption := Preferences.LoadStr(124) + ':';
-  FLFieldTag.Caption := ReplaceStr(Preferences.LoadStr(253), '&', '') + ':';
+  FLRootNode.Caption := 'Root:';
+  FLDatabaseNode.Caption := ReplaceStr(Preferences.LoadStr(265), '&', '') + ':';
+  FDatabaseNodeDisabled.Caption := Preferences.LoadStr(554);
+  FLTableNode.Caption := ReplaceStr(Preferences.LoadStr(234), '&', '') + ':';
+  FTableNodeDisabled.Caption := Preferences.LoadStr(554);
+  FLRecordNode.Caption := Preferences.LoadStr(124) + ':';
+  FLFieldNode.Caption := ReplaceStr(Preferences.LoadStr(253), '&', '') + ':';
 
   GHTMLWhat.Caption := Preferences.LoadStr(227);
   FLHTMLWhat.Caption := Preferences.LoadStr(218) + ':';
@@ -442,9 +442,9 @@ begin
   FLHTMLNullValues.Caption := Preferences.LoadStr(498) + ':';
   FHTMLNullText.Caption := Preferences.LoadStr(499);
   FLHTMLViewDatas.Caption := ReplaceStr(Preferences.LoadStr(574), '&', '') + ':';
-  FHTMLShowMemoContent.Caption := Preferences.LoadStr(575);
+  FHTMLMemoContent.Caption := Preferences.LoadStr(575);
   FLHTMLBGColorEnabled.Caption := Preferences.LoadStr(740) + ':';
-  FHTMLRowBGColorEnabled.Caption := Preferences.LoadStr(600);
+  FHTMLRowBGColor.Caption := Preferences.LoadStr(600);
 
   GFields.Caption := Preferences.LoadStr(253);
   FLFields.Caption := Preferences.LoadStr(401) + ':';
@@ -496,26 +496,26 @@ begin
     or (DialogType = edtNormal)) then
   begin
     I := 0;
-    while (I < Objects.Count) do
-      if (TObject(Objects[I]) is TSDatabase) then
+    while (I < AObjects.Count) do
+      if (TObject(AObjects[I]) is TSDatabase) then
       begin
-        Database := TSDatabase(Objects[I]);
+        Database := TSDatabase(AObjects[I]);
         if (not Database.Valid) then
           Inc(I)
         else
         begin
           for J := 0 to Database.Tables.Count - 1 do
-            if (Objects.IndexOf(Database.Tables[J]) < 0) then
-              Objects.Add(Database.Tables[J]);
+            if (AObjects.IndexOf(Database.Tables[J]) < 0) then
+              AObjects.Add(Database.Tables[J]);
           if (Assigned(Database.Routines)) then
             for J := 0 to Database.Routines.Count - 1 do
-              if (Objects.IndexOf(Database.Routines[J]) < 0) then
-                Objects.Add(Database.Routines[J]);
+              if (AObjects.IndexOf(Database.Routines[J]) < 0) then
+                AObjects.Add(Database.Routines[J]);
           if (Assigned(Database.Triggers)) then
             for J := 0 to Database.Triggers.Count - 1 do
-              if (Objects.IndexOf(Database.Triggers[J]) < 0) then
-                Objects.Add(Database.Triggers[J]);
-          Objects.Delete(I);
+              if (AObjects.IndexOf(Database.Triggers[J]) < 0) then
+                AObjects.Add(Database.Triggers[J]);
+          AObjects.Delete(I);
         end;
       end
       else
@@ -525,7 +525,7 @@ begin
   BuildTitle();
 
 
-  Message.Result := LRESULT(Session.Update(Objects));
+  Message.Result := LRESULT(Session.Update(AObjects));
   if (Boolean(Message.Result)) then
     if (Assigned(WantedNodeExpand)) then
       WantedNodeExpand.Expand(False)
@@ -551,17 +551,17 @@ begin
 
   FBFilename.Height := FFilename.Height;
 
-  FDatabaseTag.Left := FL1DatabaseTagFree.Left + FL1DatabaseTagFree.Width;
-  FDatabaseAttribute.Left := FDatabaseTag.Left + FDatabaseTag.Width + PDatabaseTag.Canvas.TextWidth('  ') + 2;
-  FL2DatabaseTagFree.Left := FDatabaseAttribute.Left + FDatabaseAttribute.Width + 1;
+  FDatabaseNodeText.Left := FL1DatabaseTagFree.Left + FL1DatabaseTagFree.Width;
+  FDatabaseNodeAttribute.Left := FDatabaseNodeText.Left + FDatabaseNodeText.Width + PDatabaseNode.Canvas.TextWidth('  ') + 2;
+  FL2DatabaseNodeCustom.Left := FDatabaseNodeAttribute.Left + FDatabaseNodeAttribute.Width + 1;
 
-  FTableTag.Left := FL1TableTagFree.Left + FL1TableTagFree.Width;
-  FTableAttribute.Left := FTableTag.Left + FTableTag.Width + PTableTag.Canvas.TextWidth('  ') + 2;
-  FL2TableTagFree.Left := FTableAttribute.Left + FTableAttribute.Width + 1;
+  FTableNodeText.Left := FL1TableNodeCustom.Left + FL1TableNodeCustom.Width;
+  FTableNodeAttribute.Left := FTableNodeText.Left + FTableNodeText.Width + PTableNode.Canvas.TextWidth('  ') + 2;
+  FL2TableNodeCustom.Left := FTableNodeAttribute.Left + FTableNodeAttribute.Width + 1;
 
-  FFieldTag.Left := FL1FieldTagFree.Left + FL1FieldTagFree.Width;
-  FFieldAttribute.Left := FFieldTag.Left + FFieldTag.Width + PFieldTag.Canvas.TextWidth('  ') + 2;
-  FL2FieldTagFree.Left := FFieldAttribute.Left + FFieldAttribute.Width + 1;
+  FFieldNodeText.Left := FL1FieldNodeCustom.Left + FL1FieldNodeCustom.Width;
+  FFieldNodeAttribute.Left := FFieldNodeText.Left + FFieldNodeText.Width + PFieldNode.Canvas.TextWidth('  ') + 2;
+  FL2FieldNodeCustom.Left := FFieldNodeAttribute.Left + FFieldNodeAttribute.Width + 1;
 end;
 
 procedure TDExport.CMUpdateProgressInfo(var Message: TMessage);
@@ -605,7 +605,7 @@ begin
   Filename := '';
   Title := '';
 
-  if ((Assigned(DataSet) or (Objects.Count >= 1)) and (DialogType = edtNormal) and not (ExportType in [etODBC, etPrinter])) then
+  if ((Assigned(DataSet) or (AObjects.Count >= 1)) and (DialogType = edtNormal) and not (ExportType in [etODBC, etPrinter])) then
     if (not GetFilename()) then
       ModalResult := mrCancel;
 
@@ -666,17 +666,17 @@ begin
   FBForward.Click();
 end;
 
-procedure TDExport.FDatabaseTagClick(Sender: TObject);
+procedure TDExport.FDatabaseNodeClick(Sender: TObject);
 begin
-  FDatabaseTag.Enabled := FDatabaseTagFree.Checked;
+  FDatabaseNodeText.Enabled := FDatabaseNodeCustom.Checked;
 
   TSXMLOptionChange(Sender);
 end;
 
-procedure TDExport.FDatabaseTagKeyPress(Sender: TObject;
+procedure TDExport.FDatabaseNodeKeyPress(Sender: TObject;
   var Key: Char);
 begin
-  FDatabaseTagClick(Sender);
+  FDatabaseNodeClick(Sender);
 end;
 
 procedure TDExport.FDestField1Change(Sender: TObject);
@@ -739,7 +739,7 @@ end;
 
 procedure TDExport.FFieldTagClick(Sender: TObject);
 begin
-  FFieldTag.Enabled := FFieldTagFree.Checked;
+  FFieldNodeText.Enabled := FFieldNodeCustom.Checked;
 
   TSXMLOptionChange(Sender);
 end;
@@ -762,9 +762,9 @@ begin
   FLHTMLNullValues.Enabled := FHTMLData.Checked;
   FHTMLNullText.Enabled := FHTMLData.Checked;
   FLHTMLViewDatas.Enabled := FHTMLData.Checked;
-  FHTMLShowMemoContent.Enabled := FHTMLData.Checked;
+  FHTMLMemoContent.Enabled := FHTMLData.Checked;
   FLHTMLBGColorEnabled.Enabled := FHTMLData.Checked;
-  FHTMLRowBGColorEnabled.Enabled := FHTMLData.Checked;
+  FHTMLRowBGColor.Enabled := FHTMLData.Checked;
 
   TabSheet.Enabled := FHTMLStructure.Checked or FHTMLData.Checked;
   CheckActivePageChange(TSHTMLOptions.PageIndex);
@@ -822,7 +822,7 @@ begin
   TSCSVOptions.Enabled := (ExportType in [etTextFile]) and (Filename <> '');
   TSXMLOptions.Enabled := (ExportType in [etXMLFile]) and (Filename <> '');
   TSHTMLOptions.Enabled := (ExportType in [etHTMLFile, etPDFFile]) and (Filename <> '');
-  TSFields.Enabled := (ExportType in [etExcelFile]) and (Objects.Count = 1);
+  TSFields.Enabled := (ExportType in [etExcelFile]) and (AObjects.Count = 1) and (TObject(AObjects[0]) is TSTable);
   TSTask.Enabled := True;
 
   CheckActivePageChange(TSJob.PageIndex);
@@ -902,29 +902,61 @@ begin
   FObjects := TList.Create();
   FODBCSelect.SmallImages := Preferences.SmallImages;
 
-  FCSVHeadline.Checked := Preferences.Export.CSVHeadline;
-  FSeparatorTab.Checked := Preferences.Export.CSVSeparatorType = stTab;
-  FSeparatorChar.Checked := Preferences.Export.CSVSeparatorType = stChar;
-  FSeparator.Text := Preferences.Export.CSVSeparator;
-  FNoQuote.Checked := Preferences.Export.CSVQuote = 0;
-  FStringQuote.Checked := Preferences.Export.CSVQuote = 1;
-  FAllQuote.Checked := Preferences.Export.CSVQuote = 2;
-  FQuoteChar.Text := Preferences.Export.CSVQuoteChar;
+  FCSVHeadline.Checked := Preferences.Export.CSV.Headline;
+  FSeparatorTab.Checked := Preferences.Export.CSV.DelimiterType = dtTab;
+  FSeparatorChar.Checked := Preferences.Export.CSV.DelimiterType = dtChar;
+  FSeparator.Text := Preferences.Export.CSV.Delimiter;
+  FQuoteNothing.Checked := Preferences.Export.CSV.Quote = qtNothing;
+  FQuoteStrings.Checked := Preferences.Export.CSV.Quote = qtStrings;
+  FQuoteAll.Checked := Preferences.Export.CSV.Quote = qtAll;
+  FQuoteChar.Text := Preferences.Export.CSV.Quoter;
 
-  FSQLStructure.Checked := Preferences.Export.SQLStructure;
-  FSQLData.Checked := Preferences.Export.SQLData;
-  FUseDatabase.Checked := Preferences.Export.SQLUseDatabase;
-  FDrop.Checked := Preferences.Export.SQLDropBeforeCreate;
-  FReplaceData.Checked := Preferences.Export.SQLReplaceData;
-  FDisableKeys.Checked := Preferences.Export.SQLDisableKeys;
+  FSQLStructure.Checked := Preferences.Export.SQL.Structure;
+  FSQLData.Checked := Preferences.Export.SQL.Data;
+  FUseDatabase.Checked := Preferences.Export.SQL.UseDatabase;
+  FDropStmts.Checked := Preferences.Export.SQL.DropStmts;
+  FReplaceData.Checked := Preferences.Export.SQL.ReplaceData;
+  FDisableKeys.Checked := Preferences.Export.SQL.DisableKeys;
 
   FSQLOptionClick(Sender);
 
-  FHTMLStructure.Checked := Preferences.Export.HTMLStructure;
-  FHTMLData.Checked := Preferences.Export.HTMLData;
-  FHTMLNullText.Checked := Preferences.GridNullText;
-  FHTMLShowMemoContent.Checked := Preferences.GridShowMemoContent;
-  FHTMLRowBGColorEnabled.Checked := Preferences.GridRowBGColorEnabled;
+  FHTMLStructure.Checked := Preferences.Export.HTML.Structure;
+  FHTMLData.Checked := Preferences.Export.HTML.Data;
+  FHTMLNullText.Checked := Preferences.Export.HTML.NULLText;
+  FHTMLMemoContent.Checked := Preferences.Export.HTML.MemoContent;
+  FHTMLRowBGColor.Checked := Preferences.Export.HTML.RowBGColor;
+
+  FRootNodeText.Text := Preferences.Export._XML.Root.NodeText;
+  case (Preferences.Export._XML.Database.NodeType) of
+    ntDisabled: FDatabaseNodeDisabled.Checked := True;
+    ntName: FDatabaseNodeName.Checked := True;
+    ntCustom: FDatabaseNodeCustom.Checked := True;
+  end;
+  FDatabaseNodeText.Text := Preferences.Export._XML.Database.NodeText;
+  FDatabaseNodeAttribute.Text := Preferences.Export._XML.Database.NodeAttribute;
+  case (Preferences.Export._XML.Table.NodeType) of
+    ntDisabled: FTableNodeDisabled.Checked := True;
+    ntName: FTableNodeName.Checked := True;
+    ntCustom: FTableNodeCustom.Checked := True;
+  end;
+  FTableNodeText.Text := Preferences.Export._XML.Table.NodeText;
+  FTableNodeAttribute.Text := Preferences.Export._XML.Table.NodeAttribute;
+  FRecordNodeText.Text := Preferences.Export._XML.Root.NodeText;
+  case (Preferences.Export._XML.Field.NodeType) of
+    ntName: FFieldNodeName.Checked := True;
+    ntCustom: FFieldNodeCustom.Checked := True;
+  end;
+  FFieldNodeText.Text := Preferences.Export._XML.Field.NodeText;
+  FFieldNodeAttribute.Text := Preferences.Export._XML.Field.NodeAttribute;
+
+  FRootNodeText.Text := Preferences.Export._XML.Root.NodeText;
+  case (Preferences.Export._XML.Database.NodeType) of
+    ntDisabled: FDatabaseNodeDisabled.Checked := True;
+    ntName: FDatabaseNodeName.Checked := True;
+    ntCustom: FDatabaseNodeCustom.Checked := True;
+  end;
+  FDatabaseNodeText.Text := Preferences.Export._XML.Database.NodeText;
+  FDatabaseNodeAttribute.Text := Preferences.Export._XML.Database.NodeAttribute;
 
   FMonthly.Visible := CheckWin32Version(6, 1);
 
@@ -957,34 +989,64 @@ begin
     else
       Export := Preferences.Export;
 
-    Export.CSVHeadline := FCSVHeadline.Checked;
+    Export.CSV.Headline := FCSVHeadline.Checked;
     if (ExportType = etTextFile) then
     begin
       if (FSeparatorTab.Checked) then
-        Export.CSVSeparatorType := stTab
+        Export.CSV.DelimiterType := dtTab
       else if (FSeparatorChar.Checked) then
-        Export.CSVSeparatorType := stChar;
-      Export.CSVSeparator := FSeparator.Text;
-      if (FNoQuote.Checked) then
-        Export.CSVQuote := 0
-      else if (FAllQuote.Checked) then
-        Export.CSVQuote := 0
+        Export.CSV.DelimiterType := dtChar;
+      Export.CSV.Delimiter := FSeparator.Text;
+      if (FQuoteNothing.Checked) then
+        Export.CSV.Quote := qtNothing
+      else if (FQuoteAll.Checked) then
+        Export.CSV.Quote := qtAll
       else
-        Export.CSVQuote := 1;
-      Export.CSVQuoteChar := FQuoteChar.Text;
+        Export.CSV.Quote := qtStrings;
+      if (FQuoteChar.Text <> '') then
+        Export.CSV.Quoter := FQuoteChar.Text[1];
     end;
 
-    Export.SQLStructure := FSQLStructure.Checked;
-    Export.SQLData := FSQLData.Checked;
-    Export.SQLDropBeforeCreate := FDrop.Checked;
-    Export.SQLReplaceData := FReplaceData.Checked;
-    Export.SQLDisableKeys := FDisableKeys.Checked;
-    if (Objects.Count > 1) then
-      Export.SQLCreateDatabase := FCreateDatabase.Checked;
-    Export.SQLUseDatabase := FUseDatabase.Checked;
+    Export.SQL.Structure := FSQLStructure.Checked;
+    Export.SQL.Data := FSQLData.Checked;
+    Export.SQL.DropStmts := FDropStmts.Checked;
+    Export.SQL.ReplaceData := FReplaceData.Checked;
+    Export.SQL.DisableKeys := FDisableKeys.Checked;
+    if (AObjects.Count > 1) then
+      Export.SQL.CreateDatabase := FCreateDatabase.Checked;
+    Export.SQL.UseDatabase := FUseDatabase.Checked;
 
-    Export.HTMLStructure := FHTMLStructure.Checked;
-    Export.HTMLData := FHTMLData.Checked;
+    Export.HTML.Data := FHTMLData.Checked;
+    Export.HTML.MemoContent := FHTMLMemoContent.Checked;
+    Export.HTML.NULLText := FHTMLNullText.Checked;
+    Export.HTML.RowBGColor := FHTMLRowBGColor.Checked;
+    Export.HTML.Structure := FHTMLStructure.Checked;
+
+    Export._XML.Root.NodeText := Trim(FRootNodeText.Text);
+    if (FDatabaseNodeDisabled.Checked) then
+      Export._XML.Database.NodeType := ntDisabled
+    else if (FDatabaseNodeName.Checked) then
+      Export._XML.Database.NodeType := ntName
+    else
+      Export._XML.Database.NodeType := ntCustom;
+    Export._XML.Database.NodeText := Trim(FDatabaseNodeText.Text);
+    Export._XML.Database.NodeAttribute := Trim(FDatabaseNodeAttribute.Text);
+    if (FTableNodeDisabled.Checked) then
+      Export._XML.Table.NodeType := ntDisabled
+    else if (FTableNodeName.Checked) then
+      Export._XML.Table.NodeType := ntName
+    else
+      Export._XML.Table.NodeType := ntCustom;
+    Export._XML.Table.NodeText := Trim(FTableNodeText.Text);
+    Export._XML.Table.NodeAttribute := Trim(FTableNodeAttribute.Text);
+    Export._XML.Row.NodeText := Trim(FRecordNodeText.Text);
+    if (FFieldNodeName.Checked) then
+      Export._XML.Field.NodeType := ntName
+    else
+      Export._XML.Field.NodeType := ntCustom;
+    Export._XML.Field.NodeText := Trim(FFieldNodeText.Text);
+    Export._XML.Field.NodeAttribute := Trim(FFieldNodeAttribute.Text);
+
 
     if (DialogType in [edtCreateJob, edtEditJob]) then
     begin
@@ -1155,7 +1217,7 @@ begin
   else
     FHTMLStructure.Caption := Preferences.LoadStr(215);
 
-  FCreateDatabase.Checked := (Objects.Count > 1) and Preferences.Export.SQLCreateDatabase;
+  FCreateDatabase.Checked := (AObjects.Count > 1) and Preferences.Export.SQL.CreateDatabase;
 
   TSSelect.Enabled := DialogType in [edtCreateJob, edtEditJob];
   TSJob.Enabled := False;
@@ -1164,7 +1226,7 @@ begin
   TSCSVOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etTextFile]);
   TSXMLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etXMLFile]) and not Assigned(DataSet);
   TSHTMLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etHTMLFile, etPrinter, etPDFFile]);
-  TSFields.Enabled := (DialogType in [edtNormal]) and (ExportType in [etExcelFile]) and ((Objects.Count = 1) or Assigned(DataSet)) or (ExportType in [etXMLFile]) and Assigned(DataSet);
+  TSFields.Enabled := (DialogType in [edtNormal]) and (ExportType in [etExcelFile]) and ((AObjects.Count = 1) and (TObject(AObjects[0]) is TSTable) or Assigned(DataSet)) or (ExportType in [etXMLFile]) and Assigned(DataSet);
   TSTask.Enabled := False;
   TSExecute.Enabled := not TSODBCSelect.Enabled and not TSSQLOptions.Enabled and not TSCSVOptions.Enabled and not TSHTMLOptions.Enabled and not TSFields.Enabled;
 
@@ -1200,15 +1262,15 @@ end;
 procedure TDExport.FQuoteCharExit(Sender: TObject);
 begin
   if (FQuoteChar.Text = '') then
-    FNoQuote.Checked := True;
+    FQuoteNothing.Checked := True;
 end;
 
 procedure TDExport.FQuoteClick(Sender: TObject);
 begin
-  FQuoteChar.Enabled := not FNoQuote.Checked;
+  FQuoteChar.Enabled := not FQuoteNothing.Checked;
   FLQuoteChar.Enabled := FQuoteChar.Enabled;
 
-  if (not FNoQuote.Checked and (FQuoteChar.Text = '')) then
+  if (not FQuoteNothing.Checked and (FQuoteChar.Text = '')) then
     FQuoteChar.Text := '"';
 end;
 
@@ -1324,8 +1386,8 @@ end;
 
 procedure TDExport.FSeparatorClick(Sender: TObject);
 begin
-  if (not FStringQuote.Enabled and FStringQuote.Checked) then
-    FAllQuote.Checked := True;
+  if (not FQuoteStrings.Enabled and FQuoteStrings.Checked) then
+    FQuoteAll.Checked := True;
 end;
 
 procedure TDExport.FSeparatorKeyPress(Sender: TObject; var Key: Char);
@@ -1347,9 +1409,9 @@ begin
   FUseDatabase.Enabled := not FCreateDatabase.Checked;
   FUseDatabase.Checked := FUseDatabase.Checked or FCreateDatabase.Checked;
 
-  FDrop.Enabled := FSQLStructure.Checked;
-  FDrop.Checked := FDrop.Checked and FDrop.Enabled;
-  FReplaceData.Enabled := not FCreateDatabase.Checked and FSQLData.Checked and not FDrop.Checked;
+  FDropStmts.Enabled := FSQLStructure.Checked;
+  FDropStmts.Checked := FDropStmts.Checked and FDropStmts.Enabled;
+  FReplaceData.Enabled := not FCreateDatabase.Checked and FSQLData.Checked and not FDropStmts.Checked;
   FReplaceData.Checked := FReplaceData.Checked and FReplaceData.Enabled;
 
   FDisableKeys.Enabled := FSQLData.Checked;
@@ -1366,7 +1428,7 @@ end;
 
 procedure TDExport.FTableTagClick(Sender: TObject);
 begin
-  FTableTag.Enabled := FTableTagFree.Checked;
+  FTableNodeText.Enabled := FTableNodeCustom.Checked;
 
   TSXMLOptionChange(Sender);
 end;
@@ -1385,8 +1447,8 @@ begin
 
   if (Assigned(Session) and (Session.Charset <> '')) then
     CodePage := Session.CharsetToCodePage(Session.Charset)
-  else if ((DExport.Objects.Count = 1) and (TObject(DExport.Objects[0]) is TSBaseTable)) then
-    CodePage := Session.CharsetToCodePage(TSBaseTable(DExport.Objects[0]).DefaultCharset)
+  else if ((DExport.AObjects.Count = 1) and (TObject(DExport.AObjects[0]) is TSBaseTable)) then
+    CodePage := Session.CharsetToCodePage(TSBaseTable(DExport.AObjects[0]).DefaultCharset)
   else if (Assigned(Database)) then
     CodePage := Session.CharsetToCodePage(Database.DefaultCharset)
   else
@@ -1404,7 +1466,7 @@ begin
         SaveDialog.Encodings.Text := EncodingCaptions();
       end;
     etTextFile:
-      if (Objects.Count <= 1) then
+      if (AObjects.Count <= 1) then
       begin
         SaveDialog.Filter := FilterDescription('txt') + ' (*.txt;*.csv;*.tab;*.asc)|*.txt;*.csv;*.tab;*.asc';
         SaveDialog.DefaultExt := '.csv';
@@ -1493,8 +1555,8 @@ var
 begin
   ClearTSFields();
 
-  if ((Objects.Count > 0) and (TSDBObject(Objects[0]) is TSTable)) then
-    SetLength(FFields, TSTable(Objects[0]).Fields.Count)
+  if ((AObjects.Count > 0) and (TSDBObject(AObjects[0]) is TSTable)) then
+    SetLength(FFields, TSTable(AObjects[0]).Fields.Count)
   else if (Assigned(DataSet)) then
     SetLength(FFields, DataSet.Fields.Count);
 
@@ -1510,9 +1572,9 @@ begin
   end;
 
   FieldNames := #13#10;
-  if ((Objects.Count > 0) and (TSDBObject(Objects[0]) is TSTable)) then
-    for J := 0 to TSTable(Objects[0]).Fields.Count - 1 do
-      FieldNames := FieldNames + TSTable(Objects[0]).Fields[J].Name + #13#10
+  if ((AObjects.Count > 0) and (TSDBObject(AObjects[0]) is TSTable)) then
+    for J := 0 to TSTable(AObjects[0]).Fields.Count - 1 do
+      FieldNames := FieldNames + TSTable(AObjects[0]).Fields[J].Name + #13#10
   else if (Assigned(DataSet)) then
     for J := 0 to DataSet.Fields.Count - 1 do
       FieldNames := FieldNames + DataSet.Fields[J].DisplayName + #13#10;
@@ -1591,8 +1653,8 @@ begin
   FXMLFile.Enabled := True;
   FPDFFile.Enabled := True;
 
-  for I := 0 to Objects.Count - 1 do
-    if (TObject(Objects[I]) is TSTable) then
+  for I := 0 to AObjects.Count - 1 do
+    if (TObject(AObjects[I]) is TSTable) then
     begin
       FTextFile.Enabled := True;
       FExcelFile.Enabled := True;
@@ -1680,7 +1742,7 @@ var
 begin
   Result := True;
 
-  Objects.Clear();
+  AObjects.Clear();
   for I := 0 to FSelect.Items.Count - 1 do
     if (FSelect.Items[I].Selected) then
       if (FSelect.Items[I].ImageIndex = iiServer) then
@@ -1688,12 +1750,12 @@ begin
         Child := FSelect.Items[I].getFirstChild();
         while (Assigned(Child)) do
         begin
-          Objects.Add(Child.Data);
+          AObjects.Add(Child.Data);
           Child := Child.getNextSibling();
         end;
       end
       else
-        Objects.Add(FSelect.Items[I].Data);
+        AObjects.Add(FSelect.Items[I].Data);
 end;
 
 procedure TDExport.OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
@@ -1814,12 +1876,6 @@ end;
 
 procedure TDExport.TSExecuteShow(Sender: TObject);
 var
-  ExportCanvas: TTExportCanvas;
-  ExportExcel: TTExportExcel;
-  ExportHTML: TTExportHTML;
-  ExportSQL: TTExportSQL;
-  ExportText: TTExportText;
-  ExportXML: TTExportXML;
   I: Integer;
 begin
   Session.UnRegisterEventProc(FormSessionEvent);
@@ -1846,108 +1902,98 @@ begin
   case (ExportType) of
     etSQLFile:
       try
-        ExportSQL := TTExportSQL.Create(Session, Filename, CodePage);
-        ExportSQL.CreateDatabaseStmts := FCreateDatabase.Checked;
-        ExportSQL.Data := FSQLData.Checked;
-        ExportSQL.DisableKeys := FDisableKeys.Checked;
-        ExportSQL.IncludeDropStmts := FDrop.Checked;
-        ExportSQL.ReplaceData := FReplaceData.Checked;
-        ExportSQL.Structure := FSQLStructure.Checked;
-        ExportSQL.UseDatabaseStmts := FUseDatabase.Checked;
-
-        Export := ExportSQL;
+        Export := TTExportSQL.Create(Session, Filename, CodePage);
+        TTExportSQL(Export).CreateDatabaseStmts := FCreateDatabase.Checked;
+        TTExportSQL(Export).Data := FSQLData.Checked;
+        TTExportSQL(Export).DisableKeys := FDisableKeys.Checked;
+        TTExportSQL(Export).DropStmts := FDropStmts.Checked;
+        TTExportSQL(Export).ReplaceData := FReplaceData.Checked;
+        TTExportSQL(Export).Structure := FSQLStructure.Checked;
+        TTExportSQL(Export).UseDatabaseStmts := FUseDatabase.Checked;
       except
         MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
       end;
     etTextFile:
       try
-        ExportText := TTExportText.Create(Session, Filename, CodePage);
-        ExportText.Data := True;
+        Export := TTExportText.Create(Session, Filename, CodePage);
+        TTExportText(Export).Data := True;
         if (FSeparatorTab.Checked) then
-          ExportText.Delimiter := #9;
+          TTExportText(Export).Delimiter := #9;
         if (FSeparatorChar.Checked) then
-          ExportText.Delimiter := FSeparator.Text;
-        ExportText.QuoteStringValues := FStringQuote.Checked;
-        ExportText.QuoteValues := FAllQuote.Checked;
-        ExportText.Quoter := FQuoteChar.Text[1];
-        ExportText.Structure := FCSVHeadline.Checked;
-
-        Export := ExportText;
+          TTExportText(Export).Delimiter := FSeparator.Text;
+        TTExportText(Export).QuoteStringValues := FQuoteStrings.Checked;
+        TTExportText(Export).QuoteValues := FQuoteAll.Checked;
+        TTExportText(Export).Quoter := FQuoteChar.Text[1];
+        TTExportText(Export).Structure := FCSVHeadline.Checked;
       except
         MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
       end;
     etExcelFile:
       try
-        ExportExcel := TTExportExcel.Create(Session, Filename);
-        ExportExcel.Data := True;
-        ExportExcel.Structure := True;
-
-        Export := ExportExcel;
-      except
-        MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-      end;
-    etXMLFile:
-      try
-        ExportXML := TTExportXML.Create(Session, Filename, CodePage);
-        ExportXML.Data := True;
-        if (FDatabaseTagName.Checked) then
-        begin
-          ExportXML.DatabaseTag := 'database';
-          ExportXML.DatabaseAttribute := '';
-        end
-        else if (FDatabaseTagFree.Checked) then
-        begin
-          ExportXML.DatabaseTag := FDatabaseTag.Text;
-          ExportXML.DatabaseAttribute := FDatabaseAttribute.Text;
-        end
-        else
-        begin
-          ExportXML.DatabaseTag := '';
-          ExportXML.DatabaseAttribute := '';
-        end;
-        ExportXML.RootTag := FRootTag.Text;
-        ExportXML.Structure := True;
-        if (FTableTagName.Checked) then
-        begin
-          ExportXML.TableTag := 'Table';
-          ExportXML.TableAttribute := '';
-        end
-        else if (FTableTagFree.Checked) then
-        begin
-          ExportXML.TableTag := FTableTag.Text;
-          ExportXML.TableAttribute := FTableAttribute.Text;
-        end
-        else
-        begin
-          ExportXML.TableTag := '';
-          ExportXML.TableAttribute := '';
-        end;
-        ExportXML.RecordTag := FRecordTag.Text;
-        if (FFieldTagName.Checked) then
-        begin
-          ExportXML.FieldTag := 'database';
-          ExportXML.FieldAttribute := '';
-        end
-        else
-        begin
-          ExportXML.FieldTag := FFieldTag.Text;
-          ExportXML.FieldAttribute := FFieldAttribute.Text;
-        end;
-
-        Export := ExportXML;
+        Export := TTExportExcel.Create(Session, Filename);
+        TTExportExcel(Export).Data := True;
+        TTExportExcel(Export).Structure := True;
       except
         MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
       end;
     etHTMLFile:
       try
-        ExportHTML := TTExportHTML.Create(Session, Filename, CodePage);
-        ExportHTML.Data := FHTMLData.Checked;
-        ExportHTML.TextContent := FHTMLShowMemoContent.Checked;
-        ExportHTML.NULLText := FHTMLNullText.Checked;
-        ExportHTML.RowBackground := FHTMLRowBGColorEnabled.Checked;
-        ExportHTML.Structure := FHTMLStructure.Checked;
-
-        Export := ExportHTML;
+        Export := TTExportHTML.Create(Session, Filename, CodePage);
+        TTExportHTML(Export).Data := FHTMLData.Checked;
+        TTExportHTML(Export).TextContent := FHTMLMemoContent.Checked;
+        TTExportHTML(Export).NULLText := FHTMLNullText.Checked;
+        TTExportHTML(Export).RowBackground := FHTMLRowBGColor.Checked;
+        TTExportHTML(Export).Structure := FHTMLStructure.Checked;
+      except
+        MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+      end;
+    etXMLFile:
+      try
+        Export := TTExportXML.Create(Session, Filename, CodePage);
+        TTExportXML(Export).Data := True;
+        if (FDatabaseNodeName.Checked) then
+        begin
+          TTExportXML(Export).DatabaseNodeText := 'database';
+          TTExportXML(Export).DatabaseNodeAttribute := '';
+        end
+        else if (FDatabaseNodeCustom.Checked) then
+        begin
+          TTExportXML(Export).DatabaseNodeText := FDatabaseNodeText.Text;
+          TTExportXML(Export).DatabaseNodeAttribute := FDatabaseNodeAttribute.Text;
+        end
+        else
+        begin
+          TTExportXML(Export).DatabaseNodeText := '';
+          TTExportXML(Export).DatabaseNodeAttribute := '';
+        end;
+        TTExportXML(Export).RootNodeText := FRootNodeText.Text;
+        TTExportXML(Export).Structure := True;
+        if (FTableNodeName.Checked) then
+        begin
+          TTExportXML(Export).TableNodeText := 'Table';
+          TTExportXML(Export).TableNodeAttribute := '';
+        end
+        else if (FTableNodeCustom.Checked) then
+        begin
+          TTExportXML(Export).TableNodeText := FTableNodeText.Text;
+          TTExportXML(Export).TableNodeAttribute := FTableNodeAttribute.Text;
+        end
+        else
+        begin
+          TTExportXML(Export).TableNodeText := '';
+          TTExportXML(Export).TableNodeAttribute := '';
+        end;
+        TTExportXML(Export).RecordNodeText := FRecordNodeText.Text;
+        if (FFieldNodeName.Checked) then
+        begin
+          TTExportXML(Export).FieldNodeText := 'database';
+          TTExportXML(Export).FieldNodeAttribute := '';
+        end
+        else
+        begin
+          TTExportXML(Export).FieldNodeText := FFieldNodeText.Text;
+          TTExportXML(Export).FieldNodeAttribute := FFieldNodeAttribute.Text;
+        end;
       except
         MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
       end;
@@ -1955,14 +2001,12 @@ begin
     etPDFFile:
       try
         if (ExportType = etPrinter) then
-          ExportCanvas := TTExportPrint.Create(Session, Title)
+          Export := TTExportPrint.Create(Session, Title)
         else
-          ExportCanvas := TTExportPDF.Create(Session, Filename);
-        ExportCanvas.Data := FHTMLData.Checked;
-        ExportCanvas.NULLText := FHTMLNullText.Checked;
-        ExportCanvas.Structure := FHTMLStructure.Checked;
-
-        Export := ExportCanvas;
+          Export := TTExportPDF.Create(Session, Filename);
+        TTExportCanvas(Export).Data := FHTMLData.Checked;
+        TTExportCanvas(Export).NULLText := FHTMLNullText.Checked;
+        TTExportCanvas(Export).Structure := FHTMLStructure.Checked;
       except
         MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
       end;
@@ -1994,15 +2038,15 @@ begin
     end
     else
     begin
-      for I := 0 to Objects.Count - 1 do
-        Export.Add(TSDBObject(Objects[I]));
+      for I := 0 to AObjects.Count - 1 do
+        Export.Add(TSDBObject(AObjects[I]));
 
-      if ((Objects.Count = 1) and (TSDBObject(Objects[0]) is TSTable)) then
+      if ((AObjects.Count = 1) and (TSDBObject(AObjects[0]) is TSTable)) then
         for I := 0 to Length(FFields) - 1 do
           if (FFields[I].ItemIndex > 0) then
           begin
             SetLength(Export.TableFields, Length(Export.TableFields) + 1);
-            Export.TableFields[Length(Export.TableFields) - 1] := TSTable(Objects[0]).Fields[FFields[I].ItemIndex - 1];
+            Export.TableFields[Length(Export.TableFields) - 1] := TSTable(AObjects[0]).Fields[FFields[I].ItemIndex - 1];
             SetLength(Export.DestinationFields, Length(Export.DestinationFields) + 1);
             Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := FDestFields[I].Text;
           end;
@@ -2040,8 +2084,8 @@ begin
   FHTMLStructureClick(Sender);
   FHTMLDataClick(Sender);
 
-  FHTMLShowMemoContent.Visible := not (ExportType in [etPrinter, etPDFFile]); FLHTMLViewDatas.Visible := FHTMLShowMemoContent.Visible;
-  FHTMLRowBGColorEnabled.Visible := not (ExportType in [etPrinter, etPDFFile]); FLHTMLBGColorEnabled.Visible := FHTMLRowBGColorEnabled.Visible;
+  FHTMLMemoContent.Visible := not (ExportType in [etPrinter, etPDFFile]); FLHTMLViewDatas.Visible := FHTMLMemoContent.Visible;
+  FHTMLRowBGColor.Visible := not (ExportType in [etPrinter, etPDFFile]); FLHTMLBGColorEnabled.Visible := FHTMLRowBGColor.Visible;
 end;
 
 procedure TDExport.TSJobShow(Sender: TObject);
@@ -2116,22 +2160,22 @@ end;
 procedure TDExport.TSXMLOptionChange(Sender: TObject);
 begin
   FBForward.Enabled :=
-    (FRootTag.Text <> '')
-    and (not FDatabaseTagDisabled.Checked or FDatabaseTagDisabled.Enabled)
-    and (not FDatabaseTagName.Checked or FDatabaseTagName.Enabled)
-    and (not FDatabaseTagFree.Checked or FDatabaseTagFree.Enabled and (FDatabaseTag.Text <> '') and (FDatabaseAttribute.Text <> ''))
-    and (not FTableTagDisabled.Checked or FTableTagDisabled.Enabled)
-    and (not FTableTagName.Checked or FTableTagName.Enabled)
-    and (not FTableTagFree.Checked or FTableTagFree.Enabled and (FTableTag.Text <> '') and (FTableAttribute.Text <> ''))
-    and (FRecordTag.Text <> '')
-    and (not FFieldTagName.Checked or FFieldTagName.Enabled)
-    and (not FFieldTagFree.Checked or FFieldTagFree.Enabled and (FFieldTag.Text <> '') and (FFieldAttribute.Text <> ''));
+    (FRootNodeText.Text <> '')
+    and (not FDatabaseNodeDisabled.Checked or FDatabaseNodeDisabled.Enabled)
+    and (not FDatabaseNodeName.Checked or FDatabaseNodeName.Enabled)
+    and (not FDatabaseNodeCustom.Checked or FDatabaseNodeCustom.Enabled and (FDatabaseNodeText.Text <> '') and (FDatabaseNodeAttribute.Text <> ''))
+    and (not FTableNodeDisabled.Checked or FTableNodeDisabled.Enabled)
+    and (not FTableNodeName.Checked or FTableNodeName.Enabled)
+    and (not FTableNodeCustom.Checked or FTableNodeCustom.Enabled and (FTableNodeText.Text <> '') and (FTableNodeAttribute.Text <> ''))
+    and (FRecordNodeText.Text <> '')
+    and (not FFieldNodeName.Checked or FFieldNodeName.Enabled)
+    and (not FFieldNodeCustom.Checked or FFieldNodeCustom.Enabled and (FFieldNodeText.Text <> '') and (FFieldNodeAttribute.Text <> ''));
 
-  FDatabaseTag.Enabled := FDatabaseTagFree.Checked;
-  FDatabaseAttribute.Enabled := FDatabaseTagFree.Checked;
+  FDatabaseNodeText.Enabled := FDatabaseNodeCustom.Checked;
+  FDatabaseNodeAttribute.Enabled := FDatabaseNodeCustom.Checked;
 
-  FTableTag.Enabled := FTableTagFree.Checked;
-  FTableAttribute.Enabled := FTableTagFree.Checked;
+  FTableNodeText.Enabled := FTableNodeCustom.Checked;
+  FTableNodeAttribute.Enabled := FTableNodeCustom.Checked;
 end;
 
 procedure TDExport.TSXMLOptionsHide(Sender: TObject);
@@ -2148,20 +2192,20 @@ var
 begin
   DatabaseCount := 0;
   OldDatabase := nil;
-  for I := 0 to Objects.Count - 1 do
+  for I := 0 to AObjects.Count - 1 do
   begin
-    if (TSDBObject(Objects[I]).Database <> OldDatabase) then
+    if (TSDBObject(AObjects[I]).Database <> OldDatabase) then
       Inc(DatabaseCount);
-    OldDatabase := TSDBObject(Objects[I]).Database;
+    OldDatabase := TSDBObject(AObjects[I]).Database;
   end;
 
-  FDatabaseTagDisabled.Enabled := DatabaseCount <= 1;
-  if (FDatabaseTagDisabled.Checked and not FDatabaseTagDisabled.Enabled) then
-    FDatabaseTagFree.Checked := True;
+  FDatabaseNodeDisabled.Enabled := DatabaseCount <= 1;
+  if (FDatabaseNodeDisabled.Checked and not FDatabaseNodeDisabled.Enabled) then
+    FDatabaseNodeCustom.Checked := True;
 
-  FTableTagDisabled.Enabled := Objects.Count <= 1;
-  if (FTableTagDisabled.Checked and not FTableTagDisabled.Enabled) then
-    FTableTagFree.Checked := True;
+  FTableNodeDisabled.Enabled := AObjects.Count <= 1;
+  if (FTableNodeDisabled.Checked and not FTableNodeDisabled.Enabled) then
+    FTableNodeCustom.Checked := True;
 
   CheckActivePageChange(TSXMLOptions.PageIndex);
   TSXMLOptionChange(Sender);

@@ -14,7 +14,7 @@ uses
   DISQLite3Api,
   SynPDF,
   MySQLConsts, MySQLDB, SQLUtils, CSVUtils,
-  fSession;
+  fSession, fPreferences;
 
 type
   TTool = class(TThread)
@@ -134,13 +134,13 @@ type
     procedure DoError(const Error: TError; const Item: TItem; const ShowRetry: Boolean; var SQL: string); overload; virtual;
     procedure DoUpdateGUI(); virtual; abstract;
     function NoPrimaryIndexError(const Session: TSSession): TError; virtual;
-    property Items: TItems read FItems;
     property OnError: TErrorEvent read FOnError write FOnError;
   public
     Wnd: HWND;
     constructor Create();
     destructor Destroy(); override;
     property ErrorCount: Integer read FErrorCount;
+    property Items: TItems read FItems;
     property OnExecuted: TOnExecuted read FOnExecuted write FOnExecuted;
     property OnUpdate: TOnUpdate read FOnUpdate write FOnUpdate;
     property UserAbort: TEvent read FUserAbort;
@@ -431,7 +431,7 @@ type
   public
     CreateDatabaseStmts: Boolean;
     DisableKeys: Boolean;
-    IncludeDropStmts: Boolean;
+    DropStmts: Boolean;
     ReplaceData: Boolean;
     UseDatabaseStmts: Boolean;
     constructor Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal); override;
@@ -499,11 +499,11 @@ type
     procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
   public
-    DatabaseTag, DatabaseAttribute: string;
-    FieldTag, FieldAttribute: string;
-    RecordTag: string;
-    RootTag: string;
-    TableTag, TableAttribute: string;
+    DatabaseNodeText, DatabaseNodeAttribute: string;
+    FieldNodeText, FieldNodeAttribute: string;
+    RecordNodeText: string;
+    RootNodeText: string;
+    TableNodeText, TableNodeAttribute: string;
     constructor Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal); override;
   end;
 
@@ -760,9 +760,7 @@ implementation {***************************************************************}
 uses
   ActiveX, SysConst,
   Forms, DBConsts, Registry, DBCommon, StrUtils, Math, Variants,
-  PerlRegEx,
-  SynCommons,
-  fPreferences;
+  PerlRegEx;
 
 resourcestring
   SSourceParseError = 'Source code of "%s" cannot be analyzed (%d):' + #10#10 + '%s';
@@ -3683,6 +3681,9 @@ begin
     Result := Sign(Index1 - Index2);
 
     if ((Result = 0) and (TTExport.TItem(Item1) is TTExport.TDBObjectItem)) then
+      Result := Sign(TTExport.TDBObjectItem(Item1).DBObject.Database.Index - TTExport.TDBObjectItem(Item2).DBObject.Database.Index);
+
+    if ((Result = 0) and (TTExport.TItem(Item1) is TTExport.TDBObjectItem)) then
     begin
       if (TTExport.TDBObjectItem(Item1).DBObject is TSTable) then
         Index1 := 0
@@ -3832,6 +3833,7 @@ var
   I: Integer;
   Index: Integer;
   J: Integer;
+  Objects: TList;
   SQL: string;
   Table: TSBaseTable;
 begin
@@ -3840,6 +3842,21 @@ begin
   {$ENDIF}
 
   BeforeExecute();
+
+  if (Success <> daAbort) then
+  begin
+    Objects := TList.Create();
+    for I := 0 to Items.Count - 1 do
+      if (Items[I] is TDBObjectItem) then
+        Objects.Add(TDBObjectItem(Items[I]).DBObject);
+    if (Objects.Count > 0) then
+    begin
+      Success := daSuccess;
+      while ((Success = daSuccess) and not Session.Update(Objects)) do
+        DoError(DatabaseError(Session), nil, True, SQL);
+    end;
+    Objects.Free();
+  end;
 
   DataTables := TList.Create();
 
@@ -4285,6 +4302,9 @@ begin
     Result := Sign(Index1 - Index2);
 
     if ((Result = 0) and (TTExport.TItem(Item1) is TTExport.TDBObjectItem)) then
+      Result := Sign(TTExport.TDBObjectItem(Item1).DBObject.Database.Index - TTExport.TDBObjectItem(Item2).DBObject.Database.Index);
+
+    if ((Result = 0) and (TTExport.TItem(Item1) is TTExport.TDBObjectItem)) then
     begin
       if (TTExport.TDBObjectItem(Item1).DBObject is TSBaseTable) then
         if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine) or not TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine.IsMerge) then
@@ -4353,7 +4373,7 @@ begin
         for K := I to Items.Count - 1 do
           if ((K <> I) and (Items[K] is TDBObjectItem)
             and (TDBObjectItem(Items[K]).DBObject = DBObject)) then
-              NewIndex := Max(NewIndex, K + 1);
+              NewIndex := Max(NewIndex, K);
       end;
 
     if ((NewIndex > I) and (CycleProtection > 0)) then
@@ -4375,7 +4395,7 @@ begin
 
   CreateDatabaseStmts := False;
   DisableKeys := False;
-  IncludeDropStmts := False;
+  DropStmts := False;
   UseDatabaseStmts := True;
 end;
 
@@ -4392,7 +4412,7 @@ begin
       Content := Content + #13#10;
 
       if (CreateDatabaseStmts) then
-        Content := Content + Database.GetSourceEx(IncludeDropStmts);
+        Content := Content + Database.GetSourceEx(DropStmts);
 
       Content := Content + Database.SQLUse();
     end;
@@ -4410,7 +4430,7 @@ begin
   Content := Content + '# Source for event "' + Event.Name + '"' + #13#10;
   Content := Content + '#' + #13#10;
   Content := Content + #13#10;
-  Content := Content + Event.GetSourceEx(IncludeDropStmts, False);
+  Content := Content + Event.GetSourceEx(DropStmts, False);
 
   WriteContent(Content);
 end;
@@ -4507,7 +4527,7 @@ begin
     Content := Content + '#' + #13#10;
   end;
   Content := Content + #13#10;
-  Content := Content + Routine.GetSourceEx(IncludeDropStmts, False);
+  Content := Content + Routine.GetSourceEx(DropStmts, False);
 
   WriteContent(Content);
 end;
@@ -4559,7 +4579,7 @@ begin
     end;
     Content := Content + '' + #13#10;
 
-    Content := Content + Table.GetSourceEx(IncludeDropStmts, False);
+    Content := Content + Table.GetSourceEx(DropStmts, False);
   end;
 
   if (Assigned(Table) and Data) then
@@ -4658,7 +4678,7 @@ begin
   Content := Content + '# Source for trigger "' + Trigger.Name + '"' + #13#10;
   Content := Content + '#' + #13#10;
   Content := Content + #13#10;
-  Content := Content + Trigger.GetSourceEx(IncludeDropStmts, False);
+  Content := Content + Trigger.GetSourceEx(DropStmts, False);
 
   WriteContent(Content);
 end;
@@ -5399,9 +5419,9 @@ constructor TTExportXML.Create(const ASession: TSSession; const AFilename: TFile
 begin
   inherited;
 
-  DatabaseTag := '';
-  RootTag := '';
-  TableTag := '';
+  DatabaseNodeText := '';
+  RootNodeText := '';
+  TableNodeText := '';
 end;
 
 function TTExportXML.Escape(const Str: string): string;
@@ -5544,24 +5564,24 @@ end;
 procedure TTExportXML.ExecuteDatabaseFooter(const Database: TSDatabase);
 begin
   if (Assigned(Database)) then
-    if (DatabaseAttribute <> '') then
-      WriteContent('</' + DatabaseTag + '>' + #13#10)
-    else if (DatabaseTag <> '') then
+    if (DatabaseNodeAttribute <> '') then
+      WriteContent('</' + DatabaseNodeText + '>' + #13#10)
+    else if (DatabaseNodeText <> '') then
       WriteContent('</' + SysUtils.LowerCase(Escape(Database.Name)) + '>' + #13#10);
 end;
 
 procedure TTExportXML.ExecuteDatabaseHeader(const Database: TSDatabase);
 begin
   if (Assigned(Database)) then
-    if (DatabaseAttribute <> '') then
-      WriteContent('<' + DatabaseTag + ' ' + DatabaseAttribute + '="' + Escape(Database.Name) + '">' + #13#10)
-    else if (DatabaseTag <> '') then
+    if (DatabaseNodeAttribute <> '') then
+      WriteContent('<' + DatabaseNodeText + ' ' + DatabaseNodeAttribute + '="' + Escape(Database.Name) + '">' + #13#10)
+    else if (DatabaseNodeText <> '') then
       WriteContent('<' + SysUtils.LowerCase(Escape(Database.Name)) + '>' + #13#10);
 end;
 
 procedure TTExportXML.ExecuteFooter();
 begin
-  WriteContent('</' + RootTag + '>' + #13#10);
+  WriteContent('</' + RootNodeText + '>' + #13#10);
 end;
 
 procedure TTExportXML.ExecuteHeader();
@@ -5572,24 +5592,24 @@ begin
     WriteContent('<?xml version="1.0"?>' + #13#10)
   else
     WriteContent('<?xml version="1.0" encoding="' + UMLEncoding(CodePage) + '"?>' + #13#10);
-  WriteContent('<' + RootTag + ' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">' + #13#10);
+  WriteContent('<' + RootNodeText + ' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">' + #13#10);
 end;
 
 procedure TTExportXML.ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 begin
   if (Assigned(Table)) then
-    if (TableAttribute <> '') then
-      WriteContent('</' + TableTag + '>' + #13#10)
-    else if (TableTag <> '') then
+    if (TableNodeAttribute <> '') then
+      WriteContent('</' + TableNodeText + '>' + #13#10)
+    else if (TableNodeText <> '') then
       WriteContent('</' + SysUtils.LowerCase(Escape(Table.Name)) + '>' + #13#10);
 end;
 
 procedure TTExportXML.ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 begin
   if (Assigned(Table)) then
-    if (TableAttribute <> '') then
-      WriteContent('<' + TableTag + ' ' + TableAttribute + '="' + Escape(Table.Name) + '">' + #13#10)
-    else if (TableTag <> '') then
+    if (TableNodeAttribute <> '') then
+      WriteContent('<' + TableNodeText + ' ' + TableNodeAttribute + '="' + Escape(Table.Name) + '">' + #13#10)
+    else if (TableNodeText <> '') then
       WriteContent('<' + SysUtils.LowerCase(Escape(Table.Name)) + '>' + #13#10);
 end;
 
@@ -5598,20 +5618,20 @@ var
   Content: string;
   I: Integer;
 begin
-  Content := #9 + '<' + RecordTag + '>' + #13#10;
+  Content := #9 + '<' + RecordNodeText + '>' + #13#10;
 
   for I := 0 to Length(Fields) - 1 do
   begin
-    if (FieldAttribute = '') then
+    if (FieldNodeAttribute = '') then
       if (Length(DestinationFields) > 0) then
         Content := Content + #9#9 + '<' + SysUtils.LowerCase(Escape(DestinationFields[I].Name)) + ''
       else
         Content := Content + #9#9 + '<' + SysUtils.LowerCase(Escape(Fields[I].DisplayName)) + ''
     else
       if (Length(DestinationFields) > 0) then
-        Content := Content + #9#9 + '<' + FieldTag + ' ' + FieldAttribute + '="' + Escape(DestinationFields[I].Name) + '"'
+        Content := Content + #9#9 + '<' + FieldNodeText + ' ' + FieldNodeAttribute + '="' + Escape(DestinationFields[I].Name) + '"'
       else
-        Content := Content + #9#9 + '<' + FieldTag + ' ' + FieldAttribute + '="' + Escape(Fields[I].DisplayName) + '"';
+        Content := Content + #9#9 + '<' + FieldNodeText + ' ' + FieldNodeAttribute + '="' + Escape(Fields[I].DisplayName) + '"';
     if (Fields[I].IsNull) then
       Content := Content + ' xsi:nil="true" />' + #13#10
     else
@@ -5621,17 +5641,17 @@ begin
       else
         Content := Content + '>' + DataSet.GetAsString(Fields[I].FieldNo);
 
-      if (FieldAttribute = '') then
+      if (FieldNodeAttribute = '') then
         if (Length(DestinationFields) > 0) then
           Content := Content + '</' + SysUtils.LowerCase(Escape(DestinationFields[I].Name)) + '>' + #13#10
         else
           Content := Content + '</' + SysUtils.LowerCase(Escape(Fields[I].DisplayName)) + '>' + #13#10
       else
-        Content := Content + '</' + FieldTag + '>' + #13#10;
+        Content := Content + '</' + FieldNodeText + '>' + #13#10;
     end;
   end;
 
-  Content := Content + #9 + '</' + RecordTag + '>' + #13#10;
+  Content := Content + #9 + '</' + RecordNodeText + '>' + #13#10;
 
   WriteContent(Content);
 end;
@@ -5967,6 +5987,9 @@ var
   S: string;
   Size: Integer;
 begin
+  if (not (DataSet is TMySQLQuery)) then // Debug 18.10.2012
+    raise ERangeError.Create(SRangeError);
+
   for I := 0 to Length(Fields) - 1 do
     if (Fields[I].IsNull) then
       Parameter[I].Size := SQL_NULL_DATA
@@ -5993,8 +6016,14 @@ begin
         ftSingle,
         ftFloat,
         ftExtended,
-        ftTimestamp:
+        ftTimestamp: 
           begin
+            try // Debug 18.10.2012  
+              L := DataSet.LibLengths^[I];
+            except
+              raise ERangeError.Create(SRangeError);
+            end;
+
             Parameter[I].Size := Min(Parameter[I].BufferSize, DataSet.LibLengths^[I]);
             MoveMemory(Parameter[I].Buffer, DataSet.LibRow^[I], Parameter[I].Size);
           end;

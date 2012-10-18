@@ -73,18 +73,29 @@ uses
 {$R *.res}
 
 var
+  AccountName: string;
+  I: Integer;
   JobExecution: TJobExecution;
-  Name1: string;
-  Name2: string;
-  Value1: string;
+  JobName: string;
+  Name: string;
+  Value: string;
   Value2: string;
 begin
   Preferences := TPPreferences.Create();
 
-  if ((ParamCount() = 2) and TrySplitParam(ParamStr(1), Name1, Value1) and TrySplitParam(ParamStr(2), Name2, Value2) and (UpperCase(Name1) = 'ACCOUNT') and (UpperCase(Name2) = 'JOB')) then
+  AccountName := '';
+  JobName := '';
+  for I := 1 to ParamCount() do
+    if (TrySplitParam(ParamStr(I), Name, Value)) then
+      if (lstrcmpi(PChar(Name), 'Account') = 0) then
+        AccountName := Value
+      else if (lstrcmpi(PChar(Name), 'Job') = 0) then
+        JobName := Value;
+
+  if ((AccountName <> '') and (JobName <> '')) then
   begin
-    JobExecution := TJobExecution.Create(Value1, Value2);
-    ExitCode := JobExecution.Execute();
+    JobExecution := TJobExecution.Create(AccountName, JobName);
+    JobExecution.Execute();
     JobExecution.Free();
   end
   else if ((Preferences.SetupProgram <> '') and not Preferences.SetupProgramInstalled and (FindWindow(cWindowClassName + '.UnicodeClass', nil) = 0)) then
