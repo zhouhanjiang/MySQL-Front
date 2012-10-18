@@ -5987,9 +5987,6 @@ var
   S: string;
   Size: Integer;
 begin
-  if (not (DataSet is TMySQLQuery)) then // Debug 18.10.2012
-    raise ERangeError.Create(SRangeError);
-
   for I := 0 to Length(Fields) - 1 do
     if (Fields[I].IsNull) then
       Parameter[I].Size := SQL_NULL_DATA
@@ -6016,15 +6013,18 @@ begin
         ftSingle,
         ftFloat,
         ftExtended,
-        ftTimestamp: 
+        ftTimestamp:
           begin
-            try // Debug 18.10.2012  
-              L := DataSet.LibLengths^[I];
+            try
+              Index := Parameter[I].BufferSize;
             except
-              raise ERangeError.Create(SRangeError);
+              raise ERangeError.CreateFmt(SRangeError + ' (Length: %d; DataType: %d)', [Length(Parameter), Ord(Fields[I].DataType)]);
             end;
-
-            Parameter[I].Size := Min(Parameter[I].BufferSize, DataSet.LibLengths^[I]);
+            try
+              Parameter[I].Size := Min(Index, DataSet.LibLengths^[I]);
+            except
+              raise ERangeError.CreateFmt(SRangeError + ' (Length: %d; DataType: %d; BufferSize: %d)', [Length(Parameter), Ord(Fields[I].DataType), Index]);
+            end;
             MoveMemory(Parameter[I].Buffer, DataSet.LibRow^[I], Parameter[I].Size);
           end;
         ftDate,
