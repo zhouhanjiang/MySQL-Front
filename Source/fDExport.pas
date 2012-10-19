@@ -795,6 +795,9 @@ begin
 end;
 
 procedure TDExport.FJobOptionChange(Sender: TObject);
+var
+  I: Integer;
+  TabSheet: TTabSheet;
 begin
   FFilename.Visible := True;
   if (FSQLFile.Checked) then
@@ -823,14 +826,23 @@ begin
   TSXMLOptions.Enabled := (ExportType in [etXMLFile]) and (Filename <> '');
   TSHTMLOptions.Enabled := (ExportType in [etHTMLFile, etPDFFile]) and (Filename <> '');
   TSFields.Enabled := (ExportType in [etExcelFile]) and (AObjects.Count = 1) and (TObject(AObjects[0]) is TSTable);
-  TSTask.Enabled := True;
+  TSTask.Enabled := not TSODBCSelect.Enabled and not TSSQLOptions.Enabled and not TSCSVOptions.Enabled and not TSHTMLOptions.Enabled and not TSFields.Enabled;
+
+  TabSheet := nil;
+  for I := 0 to PageControl.PageCount - 1 do
+    if (PageControl.Pages[I].Enabled) then
+      TabSheet := PageControl.Pages[I];
+  if (Assigned(TabSheet) and (TabSheet <> TSJob)) then
+  begin
+    if (not ValidJobName(Trim(FName.Text))
+      or (DialogType in [edtCreateJob]) and Assigned(Session.Account.JobByName(Trim(FName.Text)))
+      or (DialogType in [edtEditJob]) and (Session.Account.JobByName(Trim(FName.Text)) <> Job)) then
+      TabSheet.Enabled := False;
+    if (FFilename.Visible and (not DirectoryExists(ExtractFilePath(FFilename.Text)) or (ExtractFileName(FFilename.Text) = ''))) then
+      TabSheet.Enabled := False;
+  end;
 
   CheckActivePageChange(TSJob.PageIndex);
-
-  if (not ValidJobName(Trim(FName.Text)) or (DialogType in [edtCreateJob]) and Assigned(Session.Account.JobByName(Trim(FName.Text))) or (DialogType in [edtEditJob]) and (Session.Account.JobByName(Trim(FName.Text)) <> Job)) then
-    FBForward.Enabled := False;
-  if (FFilename.Visible and not DirectoryExists(ExtractFilePath(FFilename.Text))) then
-    FBForward.Enabled := False;
 end;
 
 procedure TDExport.FODBCSelectChange(Sender: TObject; Item: TListItem;
@@ -1628,18 +1640,17 @@ end;
 procedure TDExport.InitTSJob();
 var
   I: Integer;
-  JobName: string;
+  S: string;
 begin
   if (DialogType in [edtCreateJob]) then
   begin
     FName.Text := Title;
     while (Assigned(Session.Account.JobByName(FName.Text))) do
     begin
-      JobName := FName.Text;
-      Delete(JobName, 1, Length(Title));
-      if (JobName = '') then JobName := '1';
-      JobName := Title + IntToStr(StrToInt(JobName) + 1);
-      FName.Text := JobName;
+      S := FName.Text;
+      Delete(S, 1, Length(Title));
+      if (S = '') then S := '2';
+      FName.Text := Title + ' ' + IntToStr(StrToInt(Trim(S)) + 1);
     end;
   end;
 
@@ -1857,6 +1868,8 @@ var
 begin
   if (DialogType in [edtCreateJob, edtEditJob]) then
     TabSheet := TSTask
+  else if ((AObjects.Count = 1) and (TObject(AObjects[0]) is TSTable)) then
+    TabSheet := TSFields
   else
     TabSheet := TSExecute;
 
@@ -2158,8 +2171,17 @@ begin
 end;
 
 procedure TDExport.TSXMLOptionChange(Sender: TObject);
+var
+  TabSheet: TTabSheet;
 begin
-  FBForward.Enabled :=
+  if (DialogType in [edtCreateJob, edtEditJob]) then
+    TabSheet := TSTask
+  else if ((AObjects.Count = 1) and (TObject(AObjects[0]) is TSTable)) then
+    TabSheet := TSFields
+  else
+    TabSheet := TSExecute;
+
+  TabSheet.Enabled :=
     (FRootNodeText.Text <> '')
     and (not FDatabaseNodeDisabled.Checked or FDatabaseNodeDisabled.Enabled)
     and (not FDatabaseNodeName.Checked or FDatabaseNodeName.Enabled)
@@ -2170,6 +2192,7 @@ begin
     and (FRecordNodeText.Text <> '')
     and (not FFieldNodeName.Checked or FFieldNodeName.Enabled)
     and (not FFieldNodeCustom.Checked or FFieldNodeCustom.Enabled and (FFieldNodeText.Text <> '') and (FFieldNodeAttribute.Text <> ''));
+  CheckActivePageChange(TSXMLOptions.PageIndex);
 
   FDatabaseNodeText.Enabled := FDatabaseNodeCustom.Checked;
   FDatabaseNodeAttribute.Enabled := FDatabaseNodeCustom.Checked;

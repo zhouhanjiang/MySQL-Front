@@ -691,6 +691,8 @@ type
     procedure MJobsPopup(Sender: TObject);
     procedure FJobsEnter(Sender: TObject);
     procedure FJobsExit(Sender: TObject);
+    procedure PJobsEnter(Sender: TObject);
+    procedure PJobsExit(Sender: TObject);
   type
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
     TTabState = set of (tsLoading, tsActive);
@@ -2041,8 +2043,12 @@ begin
   DBookmark.Bookmark := nil;
   DBookmark.NewCaption := AddressToCaption(Address);
   DBookmark.NewURI := Address;
-  if (DBookmark.Execute()) then
+  if (DBookmark.Execute() and not MainAction('aVBookmarks').Checked) then
+  begin
     FBookmarks.Selected := FBookmarks.Items[FBookmarks.Items.Count - 1];
+    MainAction('aVBookmarks').Checked := True;
+    aVSideBarExecute(MainAction('aVBookmarks'));
+  end;
 end;
 
 procedure TFSession.aBDeleteExecute(Sender: TObject);
@@ -3887,7 +3893,11 @@ begin
   DExport.Job := nil;
   DExport.AObjects.Clear();
   DExport.Window := Window;
-  DExport.Execute();
+  if (DExport.Execute() and not MainAction('aVJobs').Checked) then
+  begin
+    MainAction('aVJobs').Checked := True;
+    aVSideBarExecute(MainAction('aVJobs'));
+  end;
 end;
 
 procedure TFSession.aJDeleteExecute(Sender: TObject);
@@ -12655,6 +12665,24 @@ procedure TFSession.PGridResize(Sender: TObject);
 begin
   if (Assigned(ActiveDBGrid)) then
     ActiveDBGrid.Invalidate();
+end;
+
+procedure TFSession.PJobsEnter(Sender: TObject);
+begin
+  mbOpen.ShortCut := VK_RETURN;
+  MainAction('aJDelete').ShortCut := VK_DELETE;
+  MainAction('aJEdit').ShortCut := ShortCut(VK_RETURN, [ssAlt]);
+
+  FJobsChange(Sender, FBookmarks.Selected, ctState);
+end;
+
+procedure TFSession.PJobsExit(Sender: TObject);
+begin
+  mbOpen.ShortCut := 0;
+  MainAction('aJDelete').ShortCut := 0;
+  MainAction('aJEdit').ShortCut := 0;
+
+  FJobsChange(Sender, FBookmarks.Selected, ctState);
 end;
 
 procedure TFSession.PLogResize(Sender: TObject);

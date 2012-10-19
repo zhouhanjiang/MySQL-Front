@@ -1415,7 +1415,7 @@ begin
       ImportXML.ImportType := fTools.itUpdate
     else
       ImportXML.ImportType := fTools.itInsert;
-    ImportXML.RecordTag := FRecordTag.Text;
+    ImportXML.RecordNodeText := FRecordTag.Text;
 
     Import := ImportXML;
   end

@@ -116,6 +116,8 @@ object FSession: TFSession
       ParentBackground = False
       TabOrder = 4
       Visible = False
+      OnEnter = PJobsEnter
+      OnExit = PJobsExit
       OnResize = PanelResize
       object FJobs: TListView
         Left = 2

@@ -318,6 +318,7 @@ type
 
   TTImportXML = class(TTImport)
   private
+    Filename: string;
     XMLDocument: IXMLDOMDocument;
     XMLNode: IXMLDOMNode;
   protected
@@ -326,7 +327,7 @@ type
     function GetValues(const Item: TTImport.TItem; const DataFileBuffer: TTool.TDataFileBuffer): Boolean; override;
     function GetValues(const Item: TTImport.TItem; var Values: TSQLStrings): Boolean; overload; override;
   public
-    RecordTag: string;
+    RecordNodeText: string;
     constructor Create(const AFilename: TFileName; const ATable: TSBaseTable); reintroduce; virtual;
     destructor Destroy(); override;
   end;
@@ -3520,14 +3521,32 @@ var
 begin
   inherited;
 
-  XMLNode := XMLDocument.documentElement.selectSingleNode('//*/' + RecordTag);
-
-  if (not Assigned(XMLNode)) then
+  if (not XMLDocument.load(Filename)) then
   begin
     Error.ErrorType := TE_XML;
-    Error.ErrorCode := 0;
-    Error.ErrorMessage := 'Node not found.';
+    Error.ErrorCode := XMLDocument.parseError.errorCode;
+    Error.ErrorMessage := XMLDocument.parseError.reason;
+    if (XMLDocument.parseError.srcText <> '') then
+      Error.ErrorMessage := Error.ErrorMessage + ' near "' + Copy(XMLDocument.parseError.srcText, 1, 20) + '"';
+    if (XMLDocument.parseError.line > 0) then
+    begin
+      Error.ErrorMessage := Error.ErrorMessage + ' in line ' + IntToStr(XMLDocument.parseError.line);
+      if (XMLDocument.parseError.linepos > 0) then
+        Error.ErrorMessage := Error.ErrorMessage + ', at position ' + IntToStr(XMLDocument.parseError.line);
+    end;
     DoError(Error, nil, False);
+  end
+  else
+  begin
+    XMLNode := XMLDocument.documentElement.selectSingleNode('//*/' + RecordNodeText);
+
+    if (not Assigned(XMLNode)) then
+    begin
+      Error.ErrorType := TE_XML;
+      Error.ErrorCode := 0;
+      Error.ErrorMessage := '[MSXML] Node <' + RecordNodeText + '> not found.';
+      DoError(Error, nil, False);
+    end;
   end;
 end;
 
@@ -3545,17 +3564,13 @@ begin
 
   Add(ATable.Name);
 
+  Filename := AFilename;
   Data := True;
-  RecordTag := 'row';
+  RecordNodeText := 'row';
 
   CoInitialize(nil);
 
   XMLDocument := CoDOMDocument30.Create();
-  if (not XMLDocument.load(AFilename) or (XMLDocument.parseError.errorCode <> 0)) then
-  begin
-    raise Exception.Create(XMLDocument.parseError.reason + ' near "' + XMLDocument.parseError.srcText + '" in line ' + IntToStr(XMLDocument.parseError.line) + ':' + IntToStr(XMLDocument.parseError.linepos));
-    CoUninitialize();
-  end;
 end;
 
 destructor TTImportXML.Destroy();
@@ -3599,7 +3614,7 @@ begin
 
     repeat
       XMLNode := XMLNode.nextSibling;
-    until (not Assigned(XMLNode) or (XMLNode.nodeName = RecordTag));
+    until (not Assigned(XMLNode) or (XMLNode.nodeName = RecordNodeText));
   end;
 end;
 
@@ -3631,7 +3646,7 @@ begin
 
     repeat
       XMLNode := XMLNode.nextSibling;
-    until (not Assigned(XMLNode) or (XMLNode.nodeName = RecordTag));
+    until (not Assigned(XMLNode) or (XMLNode.nodeName = RecordNodeText));
   end;
 end;
 
@@ -7358,11 +7373,6 @@ begin
   begin
     for I := 0 to Length(Pages) - 1 do
     begin
-{$IFDEF Debug}
-      DeleteFile('C:\Debug_' + IntToStr(Printer.PageNumber) + '.bmp');
-      Pages[I].SaveToFile('C:\Debug_' + IntToStr(Printer.PageNumber) + '.bmp');
-{$ENDIF}
-
       if (Success = daSuccess) then
         Printer.Canvas.Draw(0, 0, Pages[I]);
       Pages[I].Free();
@@ -7424,10 +7434,6 @@ begin
 
   for I := 0 to Length(Pages) - 1 do
   begin
-{$IFDEF Debug}
-    DeleteFile('C:\Debug_' + IntToStr(Printer.PageNumber) + '.bmp');
-    Pages[I].SaveToFile('C:\Debug_' + IntToStr(Printer.PageNumber) + '.bmp');
-{$ENDIF}
     if (Success = daSuccess) then
       Printer.Canvas.Draw(0, 0, Pages[I]);
     Pages[I].Free();

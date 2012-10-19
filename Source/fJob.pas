@@ -3,7 +3,8 @@ unit fJob;
 interface {********************************************************************}
 
 uses
-  fPreferences, fSession;
+  DB,
+  fPreferences, fSession, fTools;
 
 type
   TJobExecution = class(TObject)
@@ -14,6 +15,7 @@ type
     StdErr: THandle;
     StdOut: THandle;
     function ExecuteExport(const Job: TAJobExport): Integer;
+    procedure ExportError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
   public
     constructor Create(const AccountName, JobName: string);
     destructor Destroy(); override;
@@ -26,8 +28,7 @@ implementation {***************************************************************}
 uses
   Windows, Classes,
   SysUtils,
-  MySQLDB,
-  fTools;
+  MySQLDB, SQLUtils;
 
 constructor TJobExecution.Create(const AccountName, JobName: string);
 begin
@@ -323,12 +324,45 @@ begin
 
       end;
 
+      Export.OnError := ExportError;
       Export.Execute();
       Export.Free();
 
       Result := 0;
     end;
   end;
+end;
+
+procedure TJobExecution.ExportError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
+var
+  ErrorMsg: string;
+begin
+  ErrorMsg := '';
+  case (Error.ErrorType) of
+    TE_Database:
+      begin
+        ErrorMsg := SQLUnwrapStmt(Session.ErrorMessage);
+        if (Session.ErrorCode > 0) then
+          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Session.ErrorCode) + ')';
+        ErrorMsg := ErrorMsg + '  -  ' + SQLUnwrapStmt(Session.CommandText);
+      end;
+    TE_File:
+      ErrorMsg := Error.ErrorMessage + ' (#' + IntToStr(Error.ErrorCode) + ')';
+    TE_ODBC:
+      if (Error.ErrorCode = 0) then
+        ErrorMsg := Error.ErrorMessage
+      else
+        ErrorMsg := Error.ErrorMessage + ' (#' + IntToStr(Error.ErrorCode) + ')';
+    else
+      ErrorMsg := Error.ErrorMessage;
+  end;
+
+  WriteLn(StdErr, Trim(ErrorMsg));
+
+  if (not ShowRetry) then
+    Success := daAbort
+  else
+    Success := daFail;
 end;
 
 procedure TJobExecution.WriteLn(const Handle: THandle; const Text: string);
