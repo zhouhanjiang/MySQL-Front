@@ -1515,7 +1515,7 @@ begin
 //      on E: EOutOfMemory do
       begin
         // Debug 15.10.2012
-        raise Exception.CreateFmt('ReallocMem exception (NewSize: %d)', [NewSize]);
+        raise Exception.Create('ReallocMem exception (NewSize: ' + IntToStr(NewSize) + ')');
 
         ZeroMemory(@Buffer, SizeOf(Buffer));
         Seterror(CR_OUT_OF_MEMORY);
@@ -1602,17 +1602,17 @@ function TMySQL_File.ReceivePacket(): Boolean;
 
             if (Result) then
             begin
-              try
+//              try // Debug 20.10.2012
                 DecompressBuffer.Mem := nil;
                 ZDecompress(@PacketBuffer.Mem[PacketOffset + NET_HEADER_SIZE + COMP_HEADER_SIZE], Size, DecompressBuffer.Mem, DecompressBuffer.Size);
                 MoveMemory(@PacketBuffer.Mem[PacketOffset], DecompressBuffer.Mem, DecompressBuffer.Size);
                 FreeMem(DecompressBuffer.Mem);
-              except
-                on E: EOutOfMemory do
-                  begin Seterror(CR_OUT_OF_MEMORY); Result := False; end;
-                else
-                  begin Seterror(CR_UNKNOWN_ERROR); Result := False; end;
-              end;
+//              except
+//                on E: EOutOfMemory do
+//                  begin Seterror(CR_OUT_OF_MEMORY); Result := False; end;
+//                else
+//                  begin Seterror(CR_UNKNOWN_ERROR); Result := False; end;
+//              end;
 
               Inc(BytesRead, UncompressedSize);
               PacketBuffer.Size := PacketOffset + UncompressedSize;
