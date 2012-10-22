@@ -748,7 +748,7 @@ function SQLiteException(const Handle: sqlite3_ptr; const ReturnCode: Integer; c
 const
   CP_UNICODE = 1200;
   BOM_UTF8: PAnsiChar = Chr($EF) + Chr($BB) + Chr($BF);
-  BOM_UNICODE: PAnsiChar = Chr($FF) + Chr($FE);
+  BOM_UTF16: PAnsiChar = Chr($FF) + Chr($FE);
 
   BackupExtension = '_bak';
 
@@ -2102,9 +2102,9 @@ begin
         BOMLength := Length(BOM_UTF8);
         FCodePage := CP_UTF8;
       end
-      else if (CompareMem(@FileBuffer.Mem[FileBuffer.Index + 0], BOM_UNICODE, Length(BOM_UNICODE))) then
+      else if (CompareMem(@FileBuffer.Mem[FileBuffer.Index + 0], BOM_UTF16, Length(BOM_UTF16))) then
       begin
-        BOMLength := Length(BOM_UNICODE);
+        BOMLength := Length(BOM_UTF16);
         FCodePage := CP_UNICODE;
       end
       else
@@ -4711,7 +4711,7 @@ begin
   begin
     case (CodePage) of
       CP_UTF8: Result := WriteFile(Handle, BOM_UTF8^, Length(BOM_UTF8), Size, nil) and (Integer(Size) = Length(BOM_UTF8));
-      CP_UNICODE: Result := WriteFile(Handle, BOM_UNICODE^, Length(BOM_UNICODE), Size, nil) and (Integer(Size) = Length(BOM_UNICODE));
+      CP_UNICODE: Result := WriteFile(Handle, BOM_UTF16^, Length(BOM_UTF16), Size, nil) and (Integer(Size) = Length(BOM_UTF16));
     end;
 
     if (not Result) then
@@ -4854,7 +4854,7 @@ begin
   begin
     case (CodePage) of
       CP_UTF8: Result := WriteFile(Handle, BOM_UTF8^, Length(BOM_UTF8), Size, nil) and (Integer(Size) = Length(BOM_UTF8));
-      CP_UNICODE: Result := WriteFile(Handle, BOM_UNICODE^, Length(BOM_UNICODE), Size, nil) and (Integer(Size) = Length(BOM_UNICODE));
+      CP_UNICODE: Result := WriteFile(Handle, BOM_UTF16^, Length(BOM_UTF16), Size, nil) and (Integer(Size) = Length(BOM_UTF16));
     end;
 
     if (not Result) then

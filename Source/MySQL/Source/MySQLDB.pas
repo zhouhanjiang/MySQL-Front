@@ -1790,16 +1790,6 @@ procedure TMySQLConnection.TTerminatedThreads.Delete(const Item: Pointer);
 var
   Index: Integer;
 begin
-  // Debug 07.10.2012
-  if (not Assigned(Self)) then
-    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Self']);
-  if (not Assigned(Connection)) then
-    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Connection']);
-  if (not Assigned(Connection.TerminatedThreads)) then
-    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Connection.TerminatedThreads']);
-  if (not Assigned(CriticalSection)) then
-    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['CriticalSection']);
-
   CriticalSection.Enter();
 
   Index := IndexOf(Item);
@@ -2100,6 +2090,7 @@ begin
 
   if (RunExecute.WaitFor(IGNORE) <> wrSignaled) then
   begin
+    Connection.TerminatedThreads.Add(Self);
     inherited Terminate();
     RunExecute.SetEvent();
   end

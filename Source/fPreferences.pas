@@ -164,6 +164,7 @@ type
     TTriggerType = (ttSingle, ttDaily, ttWeekly, ttMonthly);
   private
     function GetJobs(): TAJobs; inline;
+    function GetLogFilename(): TFileName;
   protected
     procedure LoadFromXML(const XML: IXMLNode); override;
     function Save(const Update: Boolean): Boolean; virtual;
@@ -174,6 +175,7 @@ type
     TriggerType: TTriggerType;
     procedure Assign(const Source: TPItem); override;
     constructor Create(const AAItems: TPItems; const AName: string = ''); override;
+    property LogFilename: TFileName read GetLogFilename;
   end;
 
   TPExport = class(TAJob)
@@ -3107,6 +3109,11 @@ begin
   Result := TAJobs(AItems);
 end;
 
+function TAJob.GetLogFilename(): TFileName;
+begin
+  Result := Jobs.Account.DataPath + 'Jobs' + PathDelim + Name + '.log';
+end;
+
 procedure TAJob.LoadFromXML(const XML: IXMLNode);
 begin
   inherited;
@@ -3371,6 +3378,9 @@ begin
   if (Assigned(TaskFolder)) then
     TaskFolder.DeleteTask(TBStr(Job.Name), 0);
 
+  if (FileExists(Job.LogFilename)) then
+    DeleteFile(Job.LogFilename);
+
   Index := IndexOf(Job);
   if (Index >= 0) then
     Delete(Index);
@@ -3471,6 +3481,9 @@ begin
   Result := (IndexOf(Job) >= 0) and ((IndexByName(NewJob.Name) = IndexOf(Job)) or (IndexByName(NewJob.Name) < 0));
   if (Result) then
   begin
+    if ((Job.LogFilename <> NewJob.LogFilename) and FileExists(Job.LogFilename)) then
+      RenameFile(Job.LogFilename, NewJob.LogFilename);
+
     Job.Assign(NewJob);
 
     Result := Job.Save(True);

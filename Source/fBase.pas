@@ -95,12 +95,17 @@ var
   LocaleFormatSettings: TFormatSettings;
   MainActionList: TActionList;
   MainHighlighter: TSynSQLSyn;
+  MsgBoxHelpContext: Longint;
 
 implementation {***************************************************************}
 
 uses
   ShlObj, ActiveX, CommCtrl, RichEdit,
   StdActns, DB, StrUtils, StdCtrls, Math, Registry, DBCommon, DBCommonTypes;
+
+var
+  CBTHook: HHOOK;
+  MessageBoxCentered: Boolean;
 
 procedure ConvertError(Sender: TObject; Text: string);
 var
@@ -738,6 +743,30 @@ begin
   Form.Free();
 end;
 
+function CBTProc(Code: Integer; wParam: WPARAM; lParam: LPARAM): LRESULT stdcall;
+var
+  ClassName: array[0..256] of Char;
+  MessageBoxRect: TRect;
+  ActiveWindowRect: TRect;
+begin
+  if ((Code = HCBT_ACTIVATE)
+    and (GetClassName(HWND(wParam), @ClassName, Length(ClassName)) > 0)
+    and (lstrcmp(@ClassName, '#32770') = 0) // '#32770' is the class name of the MessageBox dialog
+    and not MessageBoxCentered) then
+  begin
+    MessageBoxCentered := True;
+
+    if (GetWindowRect(HWND(wParam), MessageBoxRect)
+    and GetWindowRect(PCBTActivateStruct(lParam).hWndActive, ActiveWindowRect)) then
+      SetWindowPos(HWND(wParam), 0,
+        (ActiveWindowRect.Left + ActiveWindowRect.Right) div 2 - (MessageBoxRect.Right - MessageBoxRect.Left) div 2,
+        (ActiveWindowRect.Top + ActiveWindowRect.Bottom) div 2 - (MessageBoxRect.Bottom - MessageBoxRect.Top) div 2,
+        0, 0, SWP_NOSIZE or SWP_NOZORDER or SWP_NOACTIVATE);
+  end;
+
+  Result := CallNextHookEx(CBTHook, Code, wParam, lParam);
+end;
+
 function MsgBox(const Text: string; const Caption: string; const Flags: Longint; const Wnd: HWND = 0): Integer;
 var
   MsgBoxParams: TMsgBoxParams;
@@ -763,8 +792,18 @@ begin
     MsgBoxParams.lpfnMsgBoxCallback := nil;
     MsgBoxParams.dwLanguageId := Preferences.Language.LanguageId;
 
+    MessageBoxCentered := False;
+    {$IFNDEF Debug}
+    CBTHook := SetWindowsHookEx(WH_CBT, CBTProc, 0, GetCurrentThreadId());
+    {$ENDIF}
+
     Result := Integer(MessageBoxIndirect(MsgBoxParams));
+
+    {$IFDEF Debug}
+    UnhookWindowsHookEx(CBTHook);
+    {$ENDIF}
   end;
+  MsgBoxHelpContext := 0;
 end;
 
 procedure SetToolBarHints(const ToolBar: TToolBar);
@@ -857,34 +896,10 @@ begin
   while Pos(LocaleFormatSettings.ThousandSeparator, Str) > 0 do
     Delete(Str, Pos(LocaleFormatSettings.ThousandSeparator, Str), 1);
   if (Str = '') then
-    begin Value := 0; Result := True; end 
+    begin Value := 0; Result := True; end
   else
     Result := SysUtils.TryStrToInt(Str, Value);
 end;
-
-{$IFNDEF Debug}
-var
-  Hook: HHOOK;
-
-function CBTProc(Code: Integer; wParam: WPARAM; lParam: LPARAM): LRESULT stdcall;
-var
-  ClassName: array[0..256] of Char;
-  MessageBoxRect: TRect;
-  ActiveWindowRect: TRect;
-begin
-  if ((Code = HCBT_ACTIVATE)
-    and (GetClassName(HWND(wParam), @ClassName, Length(ClassName)) > 0)
-    and (lstrcmp(@ClassName, '#32770') = 0) // '#32770' is the class name of the MessageBox dialog
-    and GetWindowRect(HWND(wParam), MessageBoxRect)
-    and GetWindowRect(PCBTActivateStruct(lParam).hWndActive, ActiveWindowRect)) then
-    SetWindowPos(HWND(wParam), 0,
-      (ActiveWindowRect.Left + ActiveWindowRect.Right) div 2 - (MessageBoxRect.Right - MessageBoxRect.Left) div 2,
-      (ActiveWindowRect.Top + ActiveWindowRect.Bottom) div 2 - (MessageBoxRect.Bottom - MessageBoxRect.Top) div 2,
-      0, 0, SWP_NOSIZE or SWP_NOZORDER or SWP_NOACTIVATE);
-
-  Result := CallNextHookEx(Hook, Code, wParam, lParam);
-end;
-{$ENDIF}
 
 initialization
   LocaleFormatSettings := MySQLDB.LocaleFormatSettings;
@@ -896,11 +911,5 @@ initialization
   DurationFormatSettings.LongTimeFormat := 'hh:mm:ss';
 
   Screen.Cursors[crClone] := LoadCursor(HInstance, 'Clone');
-
-{$IFNDEF Debug}
-  Hook := SetWindowsHookEx(WH_CBT, CBTProc, 0, GetCurrentThreadId());
-finalization
-  UnhookWindowsHookEx(Hook);
-{$ENDIF}
 end.
 

@@ -11,6 +11,7 @@ type
   private
     Account: TAAccount;
     Job: TAJob;
+    LogFile: THandle;
     Session: TSSession;
     StdErr: THandle;
     StdOut: THandle;
@@ -31,6 +32,8 @@ uses
   MySQLDB, SQLUtils;
 
 constructor TJobExecution.Create(const AccountName, JobName: string);
+var
+  Size: DWORD;
 begin
   inherited Create();
 
@@ -59,12 +62,33 @@ begin
     if (not Assigned(Job)) then
       WriteLn(StdErr, 'Job not found: ' + JobName)
     else
+    begin
       WriteLn(StdOut, 'Job: ' + Job.Name);
+
+      if (FileExists(Job.LogFilename)) then
+        DeleteFile(Job.LogFilename);
+      if (not ForceDirectories(ExtractFilePath(Job.LogFilename))) then
+        LogFile := INVALID_HANDLE_VALUE
+      else
+      begin
+        LogFile := CreateFile(PChar(Job.LogFilename),
+                              GENERIC_WRITE,
+                              FILE_SHARE_READ,
+                              nil,
+                              CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+
+        if (LogFile <> INVALID_HANDLE_VALUE) then
+          WriteFile(LogFile, BOM_UTF16^, Length(BOM_UTF16), Size, nil)
+      end;
+    end;
   end;
 end;
 
 destructor TJobExecution.Destroy();
 begin
+  if (LogFile <> INVALID_HANDLE_VALUE) then
+    CloseHandle(LogFile);
+
   Accounts.Free();
 
   CloseHandle(StdOut);
@@ -367,13 +391,20 @@ end;
 
 procedure TJobExecution.WriteLn(const Handle: THandle; const Text: string);
 var
+  BytesWritten: DWORD;
   CharsWritten: DWORD;
 begin
   WriteConsole(Handle, PChar(Text), Length(Text), CharsWritten, nil);
   WriteConsole(Handle, PChar(#13#10), 2, CharsWritten, nil);
 
-  if ((Handle = StdErr) and (ExitCode = 0)) then
-    ExitCode := 1;
+  if (Handle = StdErr) then
+  begin
+    if (LogFile <> INVALID_HANDLE_VALUE) then
+      WriteFile(LogFile, Text, Length(Text) * SizeOf(Char), BytesWritten, nil);
+
+    if (ExitCode = 0) then
+      ExitCode := 1;
+  end;
 end;
 
 end.

@@ -121,7 +121,7 @@ begin
   FLName.Caption := Preferences.LoadStr(35) + ':';
 
   GConnection.Caption := Preferences.LoadStr(486);
-  FLHost.Caption := Preferences.LoadStr(37) + ':';
+  FLHost.Caption := Preferences.LoadStr(906) + ':';
   FLPort.Caption := Preferences.LoadStr(436) + ':';
   FLConnectionType.Caption := Preferences.LoadStr(648) + ':';
   FConnectionType.Items.Text := '';

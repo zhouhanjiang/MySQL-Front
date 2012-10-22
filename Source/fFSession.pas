@@ -1871,10 +1871,10 @@ begin
     GetMem(Item, SizeOf(TResult));
     TResult(Item^).DataSet := TMySQLDataSet.Create(FClient.Owner);
     TResult(Item^).DataSet.AfterOpen := FClient.DataSetAfterOpen;
-    TResult(Item^).DBGrid := FClient.CreateDBGrid(PDBGrid, TResult(Item^).DataSource);
-    TResult(Item^).DBGrid.Tag := Results.Count;
     TResult(Item^).DataSource := TDataSource.Create(FClient.Owner);
     TResult(Item^).DataSource.Enabled := False;
+    TResult(Item^).DBGrid := FClient.CreateDBGrid(PDBGrid, TResult(Item^).DataSource);
+    TResult(Item^).DBGrid.Tag := Results.Count;
     TResult(Item^).DataSource.DataSet := TResult(Item^).DataSet;
     Results.Add(Item);
 
@@ -5501,6 +5501,7 @@ begin
     FFolders.Width := PFolders.ClientWidth;
     FFolders.Height := PFolders.ClientHeight;
     FFolders.Align := alClient;
+    FFolders.HelpType := htContext;
     FFolders.HelpContext := 1108;
     FFolders.HotTrack := True;
     FFolders.ShellLink := ShellLink;
@@ -5525,6 +5526,7 @@ begin
     FFiles.Align := alClient;
     FFiles.BorderStyle := bsNone;
     FFiles.Filter := Session.Account.Desktop.FilesFilter;
+    FFiles.HelpType := htContext;
     FFiles.HelpContext := 1108;
     FFiles.HideSelection := False;
     FFiles.IconOptions.AutoArrange := True;
@@ -5559,6 +5561,7 @@ begin
   Result.Constraints.MinHeight := 30;
   Result.DataSource := FGridDataSource;
   Result.DefaultDrawing := False;
+  Result.HelpType := htContext;
   Result.HelpContext := 1036;
   Result.Options := [dgTitles, dgColumnResize, dgColLines, dgRowLines, dgTabs, dgAlwaysShowSelection, dgConfirmDelete, dgMultiSelect, dgTitleClick, dgTitleHotTrack];
   Result.ParentFont := False;
@@ -5625,6 +5628,7 @@ begin
   Result.Align := alClient;
   Result.BorderStyle := FServerListView.BorderStyle;
   Result.DragMode := FServerListView.DragMode;
+  Result.HelpType := htContext;
   Result.HelpContext := FServerListView.HelpContext;
   Result.HideSelection := FServerListView.HideSelection;
   Result.MultiSelect := FServerListView.MultiSelect;
@@ -5718,7 +5722,7 @@ begin
   Result.Height := PSynMemo.ClientHeight;
   Result.Align := alClient;
   Result.BorderStyle := FSQLEditorSynMemo.BorderStyle;
-  Result.HelpType := FSQLEditorSynMemo.HelpType;
+  Result.HelpType := htContext;
   Result.HelpContext := FSQLEditorSynMemo.HelpContext;
   Result.Highlighter := FSQLEditorSynMemo.Highlighter;
   Result.Gutter.AutoSize := FSQLEditorSynMemo.Gutter.AutoSize;
@@ -5793,6 +5797,7 @@ begin
   Result.Height := PWorkbench.ClientHeight;
   Result.Align := alClient;
   Result.BorderStyle := bsNone;
+  Result.HelpType := htContext;
   Result.HelpContext := 1125;
   Result.HideSelection := True;
   Result.HorzScrollBar.Tracking := True;
@@ -6215,7 +6220,7 @@ begin
 
       if (ActiveDBGrid.SelectedField.DataType = ftWideMemo) then
         case (CodePage) of
-          CP_UNICODE: WriteFile(Handle, BOM_UNICODE^, Length(BOM_UNICODE), BytesWritten, nil);
+          CP_UNICODE: WriteFile(Handle, BOM_UTF16^, Length(BOM_UTF16), BytesWritten, nil);
           CP_UTF8: WriteFile(Handle, BOM_UTF8^, Length(BOM_UTF8), BytesWritten, nil);
         end;
 
@@ -13012,7 +13017,7 @@ begin
       SQLEditor.FileCodePage := EncodingToCodePage(SaveDialog.Encodings[SaveDialog.EncodingIndex]);
 
       case (SQLEditor.FileCodePage) of
-        CP_UNICODE: Success := WriteFile(Handle, BOM_UNICODE^, Length(BOM_UNICODE), BytesWritten, nil);
+        CP_UNICODE: Success := WriteFile(Handle, BOM_UTF16^, Length(BOM_UTF16), BytesWritten, nil);
         CP_UTF8: Success := WriteFile(Handle, BOM_UTF8^, Length(BOM_UTF8), BytesWritten, nil);
         else Success := True;
       end;

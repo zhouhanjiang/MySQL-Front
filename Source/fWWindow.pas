@@ -1575,7 +1575,7 @@ procedure TWWindow.EmptyWorkingMem();
 var
   Process: THandle;
 begin
-  Process := 0; // OpenProcess(PROCESS_ALL_ACCESS, FALSE, GetCurrentProcessId());
+  Process := OpenProcess(PROCESS_ALL_ACCESS, FALSE, GetCurrentProcessId());
   if (Process <> 0) then
   begin
     SetProcessWorkingSetSize(Process, Size_T(-1), Size_T(-1));
@@ -1987,21 +1987,14 @@ end;
 
 procedure TWWindow.SQLError(const Connection: TMySQLConnection; const ErrorCode: Integer; const ErrorMessage: string);
 var
+  Flags: Longint;
   Msg: string;
   Tab: TFSession;
 begin
   case (ErrorCode) of
     EE_READ: Msg := ErrorMessage;
-    ER_DBACCESS_DENIED_ERROR:
-      if (not Connection.Connected) then
-        Msg := Preferences.LoadStr(165, IntToStr(ErrorCode), ErrorMessage + #10#10 + Preferences.LoadStr(497))
-      else
-        Msg := Preferences.LoadStr(165, IntToStr(ErrorCode), ErrorMessage);
-    ER_ACCESS_DENIED_ERROR:
-      if (not Connection.Connected) then
-        Msg := Preferences.LoadStr(165, IntToStr(ErrorCode), ErrorMessage + #10#10 + Preferences.LoadStr(496))
-      else
-        Msg := Preferences.LoadStr(165, IntToStr(ErrorCode), ErrorMessage);
+    ER_DBACCESS_DENIED_ERROR: Msg := Preferences.LoadStr(165, IntToStr(ErrorCode), ErrorMessage);
+    ER_ACCESS_DENIED_ERROR: Msg := Preferences.LoadStr(165, IntToStr(ErrorCode), ErrorMessage);
     ER_CANT_OPEN_LIBRARY: Msg := Preferences.LoadStr(570, Connection.LibraryName, ExtractFilePath(Application.ExeName));
     CR_COMMANDS_OUT_OF_SYNC: Msg := 'Internal bug: ' + ErrorMessage;
     CR_CONN_HOST_ERROR: if (Connection.Port = MYSQL_PORT) then Msg := Preferences.LoadStr(495, Connection.Host) else Msg := Preferences.LoadStr(495, Connection.Host + ':' + IntToStr(Connection.Port));
@@ -2025,8 +2018,19 @@ begin
 
   if (Msg <> '') then
   begin
+    Flags := MB_OK + MB_ICONERROR;
+    case (ErrorCode) of
+      ER_DBACCESS_DENIED_ERROR,
+      ER_ACCESS_DENIED_ERROR: MsgBoxHelpContext := 1145;
+      CR_CONN_HOST_ERROR: MsgBoxHelpContext := 1146;
+      CR_UNKNOWN_HOST: MsgBoxHelpContext := 1144;
+      else MsgBoxHelpContext := 0;
+    end;
+    if (MsgBoxHelpContext <> 0) then
+      Flags := Flags + MB_HELP;
+
     DisableApplicationActivate := True;
-    MsgBox(Msg, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+    MsgBox(Msg, Preferences.LoadStr(45), Flags, Handle);
     DisableApplicationActivate := False;
   end;
 
@@ -2244,7 +2248,9 @@ end;
 procedure TWWindow.WMHelp(var Message: TWMHelp);
 begin
   if (Message.HelpInfo.iContextType = HELPINFO_MENUITEM) then
-    inherited;
+    inherited
+  else if (MsgBoxHelpContext <> 0) then
+    Application.HelpCommand(HELP_CONTEXT, MsgBoxHelpContext);
 end;
 
 procedure TWWindow.WMTimer(var Message: TWMTimer);

@@ -1576,7 +1576,12 @@ function TMySQL_File.ReceivePacket(): Boolean;
         Move(PacketBuffer.Mem[PacketOffset + 3], Nr, 1);
 
         if (Nr <> CompPacketNr) then
-          Seterror(CR_SERVER_HANDSHAKE_ERR)
+        begin
+          // Debug
+          raise Exception.CreateFmt('Invalid Packet Number: %d <> %d', [Nr, CompPacketNr]);
+
+          Seterror(CR_SERVER_HANDSHAKE_ERR);
+        end
         else if (NET_HEADER_SIZE + COMP_HEADER_SIZE + Size > MAX_PACKET_LENGTH) then
           Seterror(CR_NET_PACKET_TOO_LARGE)
         else if (ReceivePacketBuffer(COMP_HEADER_SIZE + Size, VIOSize) and (PacketBuffer.Offset + NET_HEADER_SIZE + Size <= PacketBuffer.Size)) then

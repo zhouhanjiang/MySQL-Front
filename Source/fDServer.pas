@@ -125,7 +125,7 @@ begin
   PSQLWait.Caption := Preferences.LoadStr(882);
 
   TSBasics.Caption := Preferences.LoadStr(108);
-  GServer.Caption := ReplaceStr(Preferences.LoadStr(37), '&', '');
+  GServer.Caption := ReplaceStr(Preferences.LoadStr(906), '&', '');
   FLVersion.Caption := Preferences.LoadStr(169) + ':';
   FLComment.Caption := ReplaceStr(Preferences.LoadStr(111), '&', '') + ':';
   GConnection.Caption := Preferences.LoadStr(486);
