@@ -11158,9 +11158,10 @@ begin
       else
       begin
         if (DDLStmt.DatabaseName = '') then
-          Database := DatabaseByName(Self.DatabaseName)
+          DatabaseName := Self.DatabaseName
         else
-          Database := DatabaseByName(DDLStmt.DatabaseName);
+          DatabaseName := DDLStmt.DatabaseName;
+        Database := DatabaseByName(DatabaseName);
         if (Assigned(Database)) then
           case (DDLStmt.ObjectType) of
             otTable,
@@ -11209,7 +11210,7 @@ begin
                       begin
                         if (Databases.NameCmp(DDLStmt.NewDatabaseName, Database.Name) <> 0) then
                           ExecuteEvent(ceItemDropped, Table.Database, Table.Tables, Table);
-                        Table.SetDatabase(DatabaseByName(DDLStmt.NewDatabaseName));
+                        Table.SetDatabase(Database);
                         Table.Name := DDLStmt.NewObjectName;
                         if (Databases.NameCmp(DDLStmt.NewDatabaseName, Database.Name) <> 0) then
                           ExecuteEvent(ceItemDropped, Table.Database, Table.Tables, Table)

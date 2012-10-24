@@ -1790,6 +1790,11 @@ procedure TMySQLConnection.TTerminatedThreads.Delete(const Item: Pointer);
 var
   Index: Integer;
 begin
+  // Debug 07.10.2012
+  if (not Assigned(Self)) then
+    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Self']);
+
+
   CriticalSection.Enter();
 
   Index := IndexOf(Item);
@@ -1898,7 +1903,10 @@ begin
 
     if (not Terminated) then
       if (WaitResult = wrTimeout) then
-        Connection.SyncPing(Self)
+      begin
+        if (not Assigned(DataSet)) then
+          Connection.SyncPing(Self);
+      end
       else
       begin
         Nils := 7;

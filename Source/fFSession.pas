@@ -4357,11 +4357,6 @@ begin
 
   if (Assigned(Event)) then
   begin
-    if (Event.CItem is TSDatabase) then
-      if (Event.EventType = ceItemDropped) then
-      begin
-      end;
-
     if (Event.EventType in [ceItemsValid, ceItemCreated, ceItemAltered, ceItemDropped]) then
       FNavigatorUpdate(Event);
 
@@ -4988,6 +4983,9 @@ begin
     URI.Table := '';
     URI.Param['system'] := Null;
     URI.Param['filter'] := Null;
+    URI.Param['offset'] := Null;
+    URI.Param['objecttype'] := Null;
+    URI.Param['object'] := Null;
     URI.Param['offset'] := Null;
     URI.Param['file'] := EscapeURL(Param);
     URI.Param['cp'] := Null;

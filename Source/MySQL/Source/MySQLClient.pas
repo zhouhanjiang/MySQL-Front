@@ -1507,21 +1507,24 @@ begin
     if (Buffer.Size > NewSize) then
       NewSize := (((Buffer.Size - 1) div NET_BUFFER_LENGTH) + 1) * NET_BUFFER_LENGTH;
 
-    try
+    if (NewSize > MAX_ALLOWED_PACKET) then
+      raise Exception.Create('ReallocMem exception (NewSize: ' + IntToStr(NewSize) + ')');
+
+//    try
       ReallocMem(Buffer.Mem, NewSize);
       Buffer.MemSize := NewSize;
       Result := True;
-    except
+//    except
 //      on E: EOutOfMemory do
-      begin
-        // Debug 15.10.2012
-        raise Exception.Create('ReallocMem exception (NewSize: ' + IntToStr(NewSize) + ')');
-
-        ZeroMemory(@Buffer, SizeOf(Buffer));
-        Seterror(CR_OUT_OF_MEMORY);
-        Result := False;
-      end;
-    end;
+//      begin
+//        // Debug 15.10.2012
+//        raise Exception.Create('ReallocMem exception (NewSize: ' + IntToStr(NewSize) + ')');
+//
+//        ZeroMemory(@Buffer, SizeOf(Buffer));
+//        Seterror(CR_OUT_OF_MEMORY);
+//        Result := False;
+//      end;
+//    end;
   end;
 end;
 

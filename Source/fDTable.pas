@@ -644,7 +644,7 @@ begin
         Index := 0;
     FTablesRowType.ItemIndex := Index;
 
-    PageControl.ActivePage := TSTable;
+    PageControl.ActivePage := TSTables;
   end;
 
   PageControl.Visible := True;
