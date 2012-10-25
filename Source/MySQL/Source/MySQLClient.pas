@@ -1605,7 +1605,8 @@ function TMySQL_File.ReceivePacket(): Boolean;
             begin
               Result := ReallocBuffer(PacketBuffer, PacketOffset + UncompressedSize);
               if (not Result and (errno() = 0)) then
-                Seterror(CR_UNKNOWN_ERROR); // Debug
+                raise Exception.Create('Error Message');
+//                Seterror(CR_UNKNOWN_ERROR); // Debug
             end;
 
             if (Result) then

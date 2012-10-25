@@ -1995,17 +1995,18 @@ end;
 
 procedure TSObject.SetSource(const AField: TField);
 var
-  S: string;
+  SQL: string;
 begin
   if (AField.DataType <> ftBlob) then
-    S := AField.AsString
+    SQL := AField.AsString
   else if (Length(AField.AsBytes) = 0) then
-    S := ''
+    SQL := ''
   else
-    S := Session.LibDecode(my_char(@AField.AsBytes[0]));
-  if (S <> '') then
-    S := S + ';';
-  SetSource(S);
+    SQL := Session.LibDecode(my_char(@AField.AsBytes[0]));
+  SQL := Trim(SQL);
+  if ((SQL <> '') and (RightStr(SQL, 1) <> ';')) then
+    SQL := SQL + ';';
+  SetSource(SQL);
 end;
 
 procedure TSObject.SetSource(const ASource: string);

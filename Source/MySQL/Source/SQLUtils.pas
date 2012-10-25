@@ -9,7 +9,7 @@ type
   TSQLStrings = array of string;
 
   TSQLCLStmt = packed record // must be "packed", since asm code address it as packed
-    CommandType: (ctSetNames, ctSetCharacterSet, ctUse);
+    CommandType: (ctDropDatabase, ctSetNames, ctSetCharacterSet, ctUse);
     ObjectName: string;
   end;
 
@@ -105,6 +105,8 @@ const
   KDelayed: PChar = 'DELAYED';
   KDelete: PChar = 'DELETE';
   KDrop: PChar = 'DROP';
+  KDropDatabase: PChar = 'DROP DATABASE';
+  KDropSchema: PChar = 'DROP SCHEMA';
   KEnd: PChar = 'END';
   KEndIf: PChar = 'END IF';
   KEndLoop: PChar = 'END LOOP';
@@ -1259,7 +1261,7 @@ end;
 
 function SQLParseCLStmt(out CLStmt: TSQLCLStmt; const SQL: PChar; const Len: Integer; const Version: Integer): Boolean;
 label
-  Commands, SetNames, SetCharacterSet, Use,
+  Commands, DropDatabase, DropSchema, SetNames, SetCharacterSet, Use,
   Found, FoundL, FoundE,
   Finish, FinishE;
 var
@@ -1292,6 +1294,20 @@ begin
 
       Commands:
         CALL Trim                        // Empty characters?
+
+      DropDatabase:
+        MOV EAX,[KDropDatabase]
+        CALL CompareKeyword              // 'DROP DATABASE'?
+        JNE DropSchema                   // No!
+        MOV BYTE PTR [EBX + 0],ctDropDatabase
+        JMP Found
+
+      DropSchema:
+        MOV EAX,[KDropSchema]
+        CALL CompareKeyword              // 'DROP SCHEMA'?
+        JNE SetNames                     // No!
+        MOV BYTE PTR [EBX + 0],ctDropDatabase
+        JMP Found
 
       SetNames:
         MOV EAX,[KSetNames]
@@ -1342,7 +1358,11 @@ begin
   if (not Result or not SQLCreateParse(Parse, PChar(@SQL[Index]), Len - Index, Version, InCondCode)) then
     CLStmt.ObjectName := ''
   else
+  begin
+    if (CLStmt.CommandType = ctDropDatabase) then
+      SQLParseKeyWord(Parse, 'IF EXISTS');
     CLStmt.ObjectName := SQLParseValue(Parse);
+  end;
 end;
 
 function SQLParseDDLStmt(out DDLStmt: TSQLDDLStmt; const SQL: PChar; const Len: Integer; const Version: Integer): Boolean;

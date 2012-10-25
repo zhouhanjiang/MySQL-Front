@@ -181,6 +181,7 @@ type
       OnResult: TResultEvent;
       ResHandle: MySQLConsts.MYSQL_RES;
       SQL: string;
+      SQLCLStmts: TList;
       SQLLastStmtInPacket: Integer;
       SQLPacket: Integer;
       SQLStmt: Integer;
@@ -188,7 +189,6 @@ type
       SQLStmtLengths: TList;
       SQLStmtInPacket: Integer;
       SQLStmtsInPackets: TList;
-      SQLUseStmts: TList;
       State: TState;
       Success: Boolean;
       procedure BindDataSet(const ADataSet: TMySQLQuery); virtual;
@@ -1850,9 +1850,9 @@ begin
 
   RunExecute := TEvent.Create(nil, True, False, '');
   SynchronizeStarted := TEvent.Create(nil, False, False, '');
+  SQLCLStmts := TList.Create();
   SQLStmtLengths := TList.Create();
   SQLStmtsInPackets := TList.Create();
-  SQLUseStmts := TList.Create();
   State := ssClose;
 
   FreeOnTerminate := True;
@@ -1866,9 +1866,9 @@ begin
 
   RunExecute.Free(); RunExecute := nil;
   SynchronizeStarted.Free();
+  SQLCLStmts.Free();
   SQLStmtLengths.Free();
   SQLStmtsInPackets.Free();
-  SQLUseStmts.Free();
 
   Nils := 14;
 
@@ -2428,9 +2428,9 @@ begin
   LibraryThread.OnResult := OnResult;
   LibraryThread.Done := Done;
   LibraryThread.SQL := SQL;
+  LibraryThread.SQLCLStmts.Clear();
   LibraryThread.SQLStmtLengths.Clear();
   LibraryThread.SQLStmtsInPackets.Clear();
-  LibraryThread.SQLUseStmts.Clear();
   LibraryThread.Time := 0;
 
   FErrorCode := CR_ASYNCHRON; FErrorMessage := '';
@@ -2455,11 +2455,12 @@ begin
     SetNames := False;
     if (SQLParseCLStmt(CLStmt, @LibraryThread.SQL[LibraryThread.SQLStmtIndex], Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]), ServerVersion)) then
       case (CLStmt.CommandType) of
+        ctDropDatabase,
+        ctUse:
+          LibraryThread.SQLCLStmts.Add(Pointer(LibraryThread.SQLStmt));
         ctSetNames,
         ctSetCharacterSet:
           SetNames := CLStmt.ObjectName <> Charset;
-        ctUse:
-          LibraryThread.SQLUseStmts.Add(Pointer(LibraryThread.SQLStmt));
       end;
     if (AlterTableAfterCreateTableFix) then
       if (not CreateTableInPacket) then
@@ -3391,15 +3392,21 @@ begin
     if (not Assigned(LibraryThread.ResHandle)) then
       WriteMonitor(@LibraryThread.SQL[LibraryThread.SQLStmtIndex], StmtLength, ttResult);
 
-    if (LibraryThread.SQLUseStmts.IndexOf(Pointer(LibraryThread.SQLStmt)) >= 0) then
+    if (LibraryThread.SQLCLStmts.IndexOf(Pointer(LibraryThread.SQLStmt)) >= 0) then
     begin
-      SQLParseCLStmt(CLStmt, @LibraryThread.SQL[LibraryThread.SQLStmtIndex], StmtLength, ServerVersion);
-      if (CLStmt.ObjectName <> FDatabaseName) then
-      begin
-        FDatabaseName := CLStmt.ObjectName;
-        S := '--> Database selected: ' + DatabaseName;
-        WriteMonitor(PChar(S), Length(S), ttInfo);
-      end;
+      if (SQLParseCLStmt(CLStmt, @LibraryThread.SQL[LibraryThread.SQLStmtIndex], StmtLength, ServerVersion)) then
+        if ((CLStmt.CommandType = ctDropDatabase) and (CLStmt.ObjectName = FDatabaseName)) then
+        begin
+          FDatabaseName := '';
+          S := '--> Database unselected';
+          WriteMonitor(PChar(S), Length(S), ttInfo);
+        end
+        else if ((CLStmt.CommandType = ctUse) and (CLStmt.ObjectName <> FDatabaseName)) then
+        begin
+          FDatabaseName := CLStmt.ObjectName;
+          S := '--> Database selected: ' + DatabaseName;
+          WriteMonitor(PChar(S), Length(S), ttInfo);
+        end;
     end
     else if (not Assigned(LibraryThread.ResHandle)) then
     begin
