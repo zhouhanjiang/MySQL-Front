@@ -1547,7 +1547,8 @@ function TMySQL_File.ReceivePacket(): Boolean;
     if (Result) then
       Inc(PacketBuffer.Size, BytesRead)
     else if (errno() = 0) then
-      Seterror(CR_UNKNOWN_ERROR);  // Debug
+//      Seterror(CR_UNKNOWN_ERROR);  // Debug
+      raise Exception.Create('Error Message 2');
   end;
 
   function ReceiveCompressed(const BytesToRead: my_uint; out BytesRead: my_uint): Boolean;
@@ -1605,7 +1606,7 @@ function TMySQL_File.ReceivePacket(): Boolean;
             begin
               Result := ReallocBuffer(PacketBuffer, PacketOffset + UncompressedSize);
               if (not Result and (errno() = 0)) then
-                raise Exception.Create('Error Message');
+                raise Exception.Create('Error Message 1');
 //                Seterror(CR_UNKNOWN_ERROR); // Debug
             end;
 

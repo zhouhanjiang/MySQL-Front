@@ -748,7 +748,7 @@ function SQLiteException(const Handle: sqlite3_ptr; const ReturnCode: Integer; c
 const
   CP_UNICODE = 1200;
   BOM_UTF8: PAnsiChar = Chr($EF) + Chr($BB) + Chr($BF);
-  BOM_UTF16: PAnsiChar = Chr($FF) + Chr($FE);
+  BOM_UNICODE_LE: PAnsiChar = Chr($FF) + Chr($FE);
 
   BackupExtension = '_bak';
 
@@ -1532,14 +1532,13 @@ end;
 function TTImport.DoExecuteSQL(const Item: TItem; var SQL: string): Boolean;
 begin
   Result := Session.ExecuteSQL(SQL);
-  if (not Result) then
+  if (Result) then
+    SQL := ''
+  else
   begin
     Delete(SQL, 1, Session.ExecutedSQLLength);
     SQL := SysUtils.Trim(SQL);
-    DoError(DatabaseError(Session), Item, True, SQL);
-  end
-  else
-    SQL := '';
+  end;
 end;
 
 procedure TTImport.DoUpdateGUI();
@@ -1977,7 +1976,7 @@ begin
 
   FilePos := 0;
   FileBuffer.Mem := nil;
-  FileBuffer.Index := 0;
+  FileBuffer.Index := BytesPerSector;
   FileBuffer.Size := 0;
   FileContent.Str := '';
   FileContent.Index := 1;
@@ -2083,11 +2082,10 @@ begin
       DoError(SysError(), nil, False);
     FileBuffer.Index := BytesPerSector + NewFilePos mod BytesPerSector;
 
-    FilePos := NewFilePos;
+    FilePos := NewFilePos - NewFilePos mod BytesPerSector;
   end
   else
   begin
-    FileBuffer.Index := BytesPerSector;
     if (FileContent.Index > 1) then
       Delete(FileContent.Str, 1, FileContent.Index - 1);
   end;
@@ -2102,9 +2100,9 @@ begin
         BOMLength := Length(BOM_UTF8);
         FCodePage := CP_UTF8;
       end
-      else if (CompareMem(@FileBuffer.Mem[FileBuffer.Index + 0], BOM_UTF16, Length(BOM_UTF16))) then
+      else if (CompareMem(@FileBuffer.Mem[FileBuffer.Index + 0], BOM_UNICODE_LE, Length(BOM_UNICODE_LE))) then
       begin
-        BOMLength := Length(BOM_UTF16);
+        BOMLength := Length(BOM_UNICODE_LE);
         FCodePage := CP_UNICODE;
       end
       else
@@ -2113,7 +2111,7 @@ begin
       FilePos := BOMLength;
       Inc(FileBuffer.Index, FilePos);
     end;
-    Inc(FilePos, ReadSize - (FileBuffer.Index - BytesPerSector));
+    Inc(FilePos, ReadSize);
 
     case (CodePage) of
       CP_UNICODE:
@@ -2122,6 +2120,7 @@ begin
           Len := Integer(ReadSize - (FileBuffer.Index - BytesPerSector));
           SetLength(FileContent.Str, Length(FileContent.Str) + Len div SizeOf(Char));
           MoveMemory(@FileContent.Str[Index], @FileBuffer.Mem[FileBuffer.Index], Len);
+          FileBuffer.Index := BytesPerSector;
         end;
       else
         begin
@@ -2129,13 +2128,13 @@ begin
           // MultiByteToWideChar function.
           UTF8Bytes := 0;
           if (CodePage = CP_UTF8) then
-            while ((ReadSize > 0) and (Byte(FileBuffer.Mem[BytesPerSector + ReadSize - UTF8Bytes]) and $C0 = $80)) do
+            while ((ReadSize > 0) and (Byte(FileBuffer.Mem[BytesPerSector + ReadSize - UTF8Bytes - 1]) and $80 <> 0)) do
               Inc(UTF8Bytes);
 
           if (BytesPerSector + ReadSize - FileBuffer.Index > 0) then
           begin
             try
-              Len := AnsiCharToWideChar(CodePage, @FileBuffer.Mem[FileBuffer.Index], BytesPerSector + ReadSize - FileBuffer.Index, nil, 0);
+              Len := AnsiCharToWideChar(CodePage, @FileBuffer.Mem[FileBuffer.Index], BytesPerSector + ReadSize - UTF8Bytes - FileBuffer.Index, nil, 0);
             except
               Len := 0;
               Error.ErrorType := TE_File;
@@ -2146,12 +2145,13 @@ begin
             if (Len > 0) then
             begin
               SetLength(FileContent.Str, Length(FileContent.Str) + Len);
-              AnsiCharToWideChar(CodePage, @FileBuffer.Mem[FileBuffer.Index], BytesPerSector + ReadSize - FileBuffer.Index, @FileContent.Str[Length(FileContent.Str) - Len + 1], Len)
+              AnsiCharToWideChar(CodePage, @FileBuffer.Mem[FileBuffer.Index], BytesPerSector + ReadSize - UTF8Bytes - FileBuffer.Index, @FileContent.Str[Length(FileContent.Str) - Len + 1], Len)
             end;
           end;
 
           if (UTF8Bytes > 0) then
             MoveMemory(@FileBuffer.Mem[BytesPerSector - UTF8Bytes], @FileBuffer.Mem[BytesPerSector + ReadSize - UTF8Bytes], UTF8Bytes);
+
           FileBuffer.Index := BytesPerSector - UTF8Bytes;
         end;
     end;
@@ -4134,7 +4134,7 @@ begin
 
     ExecuteTableHeader(Table, Fields, DataSet);
 
-    if ((Success <> daAbort) and Data and ((Table is TSBaseTable) or (Items.Count = 1)) and Assigned(DataSet) and not DataSet.IsEmpty()) then
+    if ((Success <> daAbort) and Assigned(DataSet) and not DataSet.IsEmpty()) then
       repeat
         ExecuteTableRecord(Table, Fields, DataSet);
 
@@ -4309,19 +4309,19 @@ begin
 
   if (Item1 <> Item2) then
   begin
-    if (TTExport.TItem(Item1) is TTExport.TDataSetItem) then
-      Index1 := 0
-    else
-      Index1 := 1;
-    if (TTExport.TItem(Item2) is TTExport.TDataSetItem) then
-      Index2 := 0
-    else
-      Index2 := 1;
-    Result := Sign(Index1 - Index2);
-
-    if ((Result = 0) and (TTExport.TItem(Item1) is TTExport.TDBObjectItem)) then
-      Result := Sign(TTExport.TDBObjectItem(Item1).DBObject.Database.Index - TTExport.TDBObjectItem(Item2).DBObject.Database.Index);
-
+//    if (TTExport.TItem(Item1) is TTExport.TDataSetItem) then
+//      Index1 := 0
+//    else
+//      Index1 := 1;
+//    if (TTExport.TItem(Item2) is TTExport.TDataSetItem) then
+//      Index2 := 0
+//    else
+//      Index2 := 1;
+//    Result := Sign(Index1 - Index2);
+//
+//    if ((Result = 0) and (TTExport.TItem(Item1) is TTExport.TDBObjectItem)) then
+//      Result := Sign(TTExport.TDBObjectItem(Item1).DBObject.Database.Index - TTExport.TDBObjectItem(Item2).DBObject.Database.Index);
+//
     if ((Result = 0) and (TTExport.TItem(Item1) is TTExport.TDBObjectItem)) then
     begin
       if (TTExport.TDBObjectItem(Item1).DBObject is TSBaseTable) then
@@ -4361,8 +4361,8 @@ begin
       Result := Sign(Index1 - Index2);
     end;
 
-    if (Result = 0) then
-      Result := Sign(TTExport.TItem(Item1).Index - TTExport.TItem(Item2).Index);
+    if ((Result = 0) and (TTExport.TItem(Item1) is TTExport.TDBObjectItem)) then
+      Result := Sign(TTExport.TDBObjectItem(Item1).DBObject.Index - TTExport.TDBObjectItem(Item2).DBObject.Index);
   end;
 end;
 
@@ -4600,16 +4600,12 @@ begin
     Content := Content + Table.GetSourceEx(DropStmts, False);
   end;
 
-  if (Assigned(Table) and Data) then
+  if (Assigned(Table) and Assigned(DataSet)) then
   begin
-    if (Data) then
-    begin
-      Content := Content + #13#10;
-      Content := Content + '#' + #13#10;
-      Content := Content + '# Data for table "' + Table.Name + '"' + #13#10;
-      Content := Content + '#' + #13#10;
-    end;
-
+    Content := Content + #13#10;
+    Content := Content + '#' + #13#10;
+    Content := Content + '# Data for table "' + Table.Name + '"' + #13#10;
+    Content := Content + '#' + #13#10;
     Content := Content + #13#10;
 
     if (DisableKeys and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
@@ -4711,7 +4707,7 @@ begin
   begin
     case (CodePage) of
       CP_UTF8: Result := WriteFile(Handle, BOM_UTF8^, Length(BOM_UTF8), Size, nil) and (Integer(Size) = Length(BOM_UTF8));
-      CP_UNICODE: Result := WriteFile(Handle, BOM_UTF16^, Length(BOM_UTF16), Size, nil) and (Integer(Size) = Length(BOM_UTF16));
+      CP_UNICODE: Result := WriteFile(Handle, BOM_UNICODE_LE^, Length(BOM_UNICODE_LE), Size, nil) and (Integer(Size) = Length(BOM_UNICODE_LE));
     end;
 
     if (not Result) then
@@ -4854,7 +4850,7 @@ begin
   begin
     case (CodePage) of
       CP_UTF8: Result := WriteFile(Handle, BOM_UTF8^, Length(BOM_UTF8), Size, nil) and (Integer(Size) = Length(BOM_UTF8));
-      CP_UNICODE: Result := WriteFile(Handle, BOM_UTF16^, Length(BOM_UTF16), Size, nil) and (Integer(Size) = Length(BOM_UTF16));
+      CP_UNICODE: Result := WriteFile(Handle, BOM_UNICODE_LE^, Length(BOM_UNICODE_LE), Size, nil) and (Integer(Size) = Length(BOM_UNICODE_LE));
     end;
 
     if (not Result) then

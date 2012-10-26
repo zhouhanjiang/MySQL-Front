@@ -78,7 +78,7 @@ begin
                               CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
 
         if (LogFile <> INVALID_HANDLE_VALUE) then
-          WriteFile(LogFile, BOM_UTF16^, Length(BOM_UTF16), Size, nil)
+          WriteFile(LogFile, BOM_UNICODE_LE^, Length(BOM_UNICODE_LE), Size, nil)
       end;
     end;
   end;

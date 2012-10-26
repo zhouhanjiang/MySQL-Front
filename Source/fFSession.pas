@@ -6218,7 +6218,7 @@ begin
 
       if (ActiveDBGrid.SelectedField.DataType = ftWideMemo) then
         case (CodePage) of
-          CP_UNICODE: WriteFile(Handle, BOM_UTF16^, Length(BOM_UTF16), BytesWritten, nil);
+          CP_UNICODE: WriteFile(Handle, BOM_UNICODE_LE^, Length(BOM_UNICODE_LE), BytesWritten, nil);
           CP_UTF8: WriteFile(Handle, BOM_UTF8^, Length(BOM_UTF8), BytesWritten, nil);
         end;
 
@@ -13015,7 +13015,7 @@ begin
       SQLEditor.FileCodePage := EncodingToCodePage(SaveDialog.Encodings[SaveDialog.EncodingIndex]);
 
       case (SQLEditor.FileCodePage) of
-        CP_UNICODE: Success := WriteFile(Handle, BOM_UTF16^, Length(BOM_UTF16), BytesWritten, nil);
+        CP_UNICODE: Success := WriteFile(Handle, BOM_UNICODE_LE^, Length(BOM_UNICODE_LE), BytesWritten, nil);
         CP_UTF8: Success := WriteFile(Handle, BOM_UTF8^, Length(BOM_UTF8), BytesWritten, nil);
         else Success := True;
       end;

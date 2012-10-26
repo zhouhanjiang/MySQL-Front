@@ -790,7 +790,6 @@ var
   ErrorMsg: string;
   Flags: Integer;
   Msg: string;
-  Text: string;
 begin
   ErrorMsg := '';
   case (Error.ErrorType) of
@@ -800,7 +799,6 @@ begin
         ErrorMsg := SQLUnwrapStmt(Error.Session.ErrorMessage);
         if (Error.Session.ErrorCode > 0) then
           ErrorMsg := ErrorMsg + ' (#' + IntToStr(Error.Session.ErrorCode) + ')';
-        ErrorMsg := ErrorMsg + '  -  ' + SQLUnwrapStmt(Error.Session.CommandText);
       end;
     TE_File:
       begin
@@ -829,19 +827,8 @@ begin
 
   if ((Success in [daAbort, daFail]) and (ErrorMsg <> '')) then
   begin
-    Text := FErrorMessages.Text;
-    if (Text <> '') then
-      Text := Text + #13#10;
-    Text := Text + Trim(ErrorMsg);
-
-    try
-      SendMessage(FErrorMessages.Handle, WM_SETTEXT, 0, LPARAM(PChar(Text)));
-    except
-    end;
-
-    PostMessage(FErrorMessages.Handle, WM_VSCROLL, SB_BOTTOM, 0);
-
     FErrors.Caption := IntToStr(TTool(Sender).ErrorCount);
+    FErrorMessages.Lines.Add(ErrorMsg);
   end;
 end;
 

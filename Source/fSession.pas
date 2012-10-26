@@ -4777,6 +4777,8 @@ function TSView.GetDependencies(): TSDependencies;
     for I := 0 to Children.Count - 1 do
       if (not (Children[I] is TSQLExpressionSelect) and (Children[I] is TSQLExpressionItem)) then
         SQLExpressions.Add(Children[I])
+      else if (Children[I] is TSQLDatabaseObject) then
+        SQLExpressions.Add(Children[I])
       else if (Children[I] is TastNodeBase) then
         GetSQLExpressions(TastNodeBase(Children[I]), SQLExpressions);
     Children.Free();
@@ -4791,6 +4793,7 @@ var
   Parse: TSQLParse;
   QueryBuilder: TacQueryBuilder;
   SQL: string;
+  J: Integer;
 begin
   if (not Assigned(FDependencies)) then
   begin
@@ -4809,9 +4812,9 @@ begin
     SQLExpressions := TList.Create();
     GetSQLExpressions(QueryBuilder.ResultQueryAST, SQLExpressions);
     for I := 0 to SQLExpressions.Count - 1 do
-      if ((TSQLExpressionItem(SQLExpressions[I]) is TSQLExpressionColumn)) then
+      if ((TObject(SQLExpressions[I]) is TSQLDatabaseObject)) then
       begin
-        SQL := TSQLExpressionFunction(SQLExpressions[I]).Name.QualifiedNameWithQuotes;
+        SQL := TSQLDatabaseObject(SQLExpressions[I]).QualifiedNameWithQuotes;
         if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.ServerVersion)) then
         begin
           DatabaseName := Database.Name;
@@ -4828,7 +4831,27 @@ begin
           end;
         end;
       end
-      else if ((TSQLExpressionItem(SQLExpressions[I]) is TSQLExpressionFunction)) then
+      else
+      if ((TObject(SQLExpressions[I]) is TSQLExpressionColumn)) then
+      begin
+        SQL := TSQLExpressionColumn(SQLExpressions[I]).Column.QualifiedNameWithQuotes;
+        if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.ServerVersion)) then
+        begin
+          DatabaseName := Database.Name;
+          if (SQLParseObjectName(Parse, DatabaseName, ObjectName)
+            and Assigned(Session.DatabaseByName(DatabaseName))
+            and Assigned(Session.DatabaseByName(DatabaseName).TableByName(ObjectName))) then
+          begin
+            Dependency := TSDependency.Create();
+            Dependency.Session := Session;
+            Dependency.DatabaseName := DatabaseName;
+            Dependency.ObjectClass := Session.DatabaseByName(DatabaseName).TableByName(ObjectName).ClassType;
+            Dependency.ObjectName := ObjectName;
+            FDependencies.Add(Dependency);
+          end;
+        end;
+      end
+      else if ((TObject(SQLExpressions[I]) is TSQLExpressionFunction)) then
       begin
         SQL := TSQLExpressionFunction(SQLExpressions[I]).Name.QualifiedNameWithQuotes;
         if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.ServerVersion)) then
@@ -11283,10 +11306,15 @@ begin
                       and ((NextDDLStmt.DatabaseName = DDLStmt.DatabaseName) or (NextDDLStmt.DatabaseName = ''))
                       and (NextDDLStmt.ObjectName = DDLStmt.ObjectName)) then
                       // will be handled as ceItemAltered within the next Stmt
-                    else if (DDLStmt.ObjectType = otProcedure) then
-                      Database.Routines.Delete(Database.ProcedureByName(DDLStmt.ObjectName))
                     else
-                      Database.Routines.Delete(Database.FunctionByName(DDLStmt.ObjectName));
+                    begin
+                      if (DDLStmt.ObjectType = otProcedure) then
+                        Routine := Database.ProcedureByName(DDLStmt.ObjectName)
+                      else
+                        Routine := Database.FunctionByName(DDLStmt.ObjectName);
+                      if (Assigned(Routine)) then
+                        Database.Routines.Delete(Routine);
+                    end;
                   end;
               end;
             otTrigger:
