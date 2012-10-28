@@ -2402,7 +2402,7 @@ var
   CreateTableInPacket: Boolean;
   DDLStmt: TSQLDDLStmt;
   OldStmt: Integer;
-  PacketComplete: (pcNo, pcExclusiveCurrentStmt, pcInclusiveCurrentStmt, pcStmtTooLarge);
+  PacketComplete: (pcNo, pcExclusiveCurrentStmt, pcInclusiveCurrentStmt);
   ProcedureName: string;
   RunSynchron: Boolean;
   S: string;
@@ -2450,7 +2450,7 @@ begin
   AlterTableAfterCreateTableFix := 50100 <= ServerVersion;
   PacketComplete := pcNo;
   LibraryThread.SQLStmt := 0; OldStmt := 0; LibraryThread.SQLStmtIndex := 1;
-  while ((LibraryThread.SQLStmt < LibraryThread.SQLStmtLengths.Count) and not SetNames and (PacketComplete <> pcStmtTooLarge)) do
+  while ((LibraryThread.SQLStmt < LibraryThread.SQLStmtLengths.Count) and not SetNames) do
   begin
     SetNames := False;
     if (SQLParseCLStmt(CLStmt, @LibraryThread.SQL[LibraryThread.SQLStmtIndex], Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]), ServerVersion)) then
@@ -2475,10 +2475,7 @@ begin
       if (SetNames or AlterTableAfterCreateTable) then
         PacketComplete := pcExclusiveCurrentStmt
       else if ((SizeOf(COM_QUERY) + LibraryThread.SQLStmtIndex - 1 + StmtLength > MaxAllowedPacket) and (SizeOf(COM_QUERY) + WideCharToAnsiChar(CodePage, PChar(@LibraryThread.SQL[SQLPacketIndex]), LibraryThread.SQLStmtIndex - SQLPacketIndex + StmtLength, nil, 0) > MaxAllowedPacket)) then
-        if (LibraryThread.SQLStmt > 0) then
-          PacketComplete := pcExclusiveCurrentStmt
-        else
-          PacketComplete := pcStmtTooLarge
+        PacketComplete := pcExclusiveCurrentStmt
       else if (not MultiStatements or (LibraryThread.SQLStmtIndex - 1 + StmtLength = Length(LibraryThread.SQL))) then
         PacketComplete := pcInclusiveCurrentStmt
       else
@@ -2525,11 +2522,6 @@ begin
   else if (SetNames) then
   begin
     DoError(CR_SET_NAMES, CR_SET_NAMES_MSG);
-    Result := False;
-  end
-  else if (PacketComplete = pcStmtTooLarge) then
-  begin
-    DoError(ER_NET_PACKET_TOO_LARGE, ER_NET_PACKET_TOO_LARGE_MSG);
     Result := False;
   end
   else

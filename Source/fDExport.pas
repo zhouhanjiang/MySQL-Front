@@ -1774,7 +1774,6 @@ var
   ErrorMsg: string;
   Flags: Integer;
   Msg: string;
-  Text: string;
 begin
   ErrorMsg := '';
   case (Error.ErrorType) of
@@ -2057,11 +2056,7 @@ begin
     Export.OnUpdate := OnUpdate;
     Export.OnExecuted := OnExecuted;
     Export.OnError := OnError;
-
-    if (Export.Session.Asynchron) then
-      Export.Start()
-    else
-      Export.Execute();
+    Export.Start()
   end;
 end;
 

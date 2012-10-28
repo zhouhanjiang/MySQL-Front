@@ -2343,7 +2343,7 @@ begin
         FXMLDocument := nil;
       end;
 
-    if (not Assigned(FXMLDocument)) then
+    if (not Assigned(FXMLDocument) or not Assigned(FXMLDocument.DocumentElement)) then
     begin
       FXMLDocument := NewXMLDocument();
       FXMLDocument.Encoding := 'utf-8';
@@ -3981,13 +3981,9 @@ begin
   if (not Assigned(FDesktopXMLDocument)) then
   begin
     if (FileExists(DesktopFilename)) then
-      try
-        FDesktopXMLDocument := LoadXMLDocument(DesktopFilename);
-      except
-        FDesktopXMLDocument := nil;
-      end;
+      FDesktopXMLDocument := LoadXMLDocument(DesktopFilename);
 
-    if (not Assigned(FDesktopXMLDocument)) then
+    if (not Assigned(FDesktopXMLDocument) or not Assigned(FDesktopXMLDocument.DocumentElement)) then
     begin
       FDesktopXMLDocument := NewXMLDocument();
       FDesktopXMLDocument.Encoding := 'utf-8';
@@ -4034,13 +4030,9 @@ begin
   if (not Assigned(FHistoryXMLDocument)) then
   begin
     if (FileExists(HistoryFilename)) then
-      try
-        FHistoryXMLDocument := LoadXMLDocument(HistoryFilename);
-      except
-        FHistoryXMLDocument := nil;
-      end;
+      FHistoryXMLDocument := LoadXMLDocument(HistoryFilename);
 
-    if (not Assigned(FHistoryXMLDocument)) then
+    if (not Assigned(FHistoryXMLDocument) or not Assigned(FHistoryXMLDocument.DocumentElement)) then
     begin
       FHistoryXMLDocument := NewXMLDocument();
       FHistoryXMLDocument.Encoding := 'utf-8';
@@ -4390,10 +4382,9 @@ begin
   if (not Assigned(FXMLDocument)) then
   begin
     if (FileExists(Filename)) then
-    begin
       FXMLDocument := LoadXMLDocument(Filename);
-    end
-    else
+
+    if (not Assigned(FXMLDocument) or not Assigned(FXMLDocument.DocumentElement)) then
     begin
       FXMLDocument := NewXMLDocument();
       FXMLDocument.Encoding := 'utf-8';

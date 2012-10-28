@@ -575,11 +575,8 @@ begin
   if (Assigned(Import)) then
   begin
     Import.UserAbort.SetEvent();
-    if (Session.Asynchron) then
-    begin
-      Import.WaitFor();
-      FreeAndNil(Import);
-    end;
+    Import.WaitFor();
+    FreeAndNil(Import);
   end;
 end;
 
@@ -1090,7 +1087,6 @@ var
   ErrorMsg: string;
   Flags: Integer;
   Msg: string;
-  Text: string;
 begin
   ErrorMsg := '';
   case (Error.ErrorType) of
@@ -1434,10 +1430,7 @@ begin
     Import.OnError := OnError;
     Import.OnExecuted := OnExecuted;
     Import.OnUpdate := OnUpdate;
-    if (Session.Asynchron) then
-      Import.Start()
-    else
-      Import.Execute();
+    Import.Start();
   end;
 end;
 

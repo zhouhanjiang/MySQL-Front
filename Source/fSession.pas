@@ -4767,7 +4767,7 @@ end;
 
 function TSView.GetDependencies(): TSDependencies;
 
-  procedure GetSQLExpressions(const Node: TastNodeBase; var SQLExpressions: TList);
+  procedure GetSQLObjects(const Node: TastNodeBase; var SQLObjects: TList);
   var
     Children: TObjectList;
     I: Integer;
@@ -4776,24 +4776,23 @@ function TSView.GetDependencies(): TSDependencies;
     Node.GetMyChildren(Children);
     for I := 0 to Children.Count - 1 do
       if (not (Children[I] is TSQLExpressionSelect) and (Children[I] is TSQLExpressionItem)) then
-        SQLExpressions.Add(Children[I])
+        SQLObjects.Add(Children[I])
       else if (Children[I] is TSQLDatabaseObject) then
-        SQLExpressions.Add(Children[I])
+        SQLObjects.Add(Children[I])
       else if (Children[I] is TastNodeBase) then
-        GetSQLExpressions(TastNodeBase(Children[I]), SQLExpressions);
+        GetSQLObjects(TastNodeBase(Children[I]), SQLObjects);
     Children.Free();
   end;
 
 var
   DatabaseName: string;
   Dependency: TSDependency;
-  SQLExpressions: TList;
+  SQLObjects: TList;
   I: Integer;
   ObjectName: string;
   Parse: TSQLParse;
   QueryBuilder: TacQueryBuilder;
   SQL: string;
-  J: Integer;
 begin
   if (not Assigned(FDependencies)) then
   begin
@@ -4809,12 +4808,15 @@ begin
         raise EacSQLError.Create(E.Message + ': ' + Stmt);
     end;
 
-    SQLExpressions := TList.Create();
-    GetSQLExpressions(QueryBuilder.ResultQueryAST, SQLExpressions);
-    for I := 0 to SQLExpressions.Count - 1 do
-      if ((TObject(SQLExpressions[I]) is TSQLDatabaseObject)) then
+    SQLObjects := TList.Create();
+    GetSQLObjects(QueryBuilder.ResultQueryAST, SQLObjects);
+    for I := 0 to SQLObjects.Count - 1 do
+      if ((TObject(SQLObjects[I]) is TSQLDatabaseObject) or (TObject(SQLObjects[I]) is TSQLExpressionColumn)) then
       begin
-        SQL := TSQLDatabaseObject(SQLExpressions[I]).QualifiedNameWithQuotes;
+        if (TObject(SQLObjects[I]) is TSQLDatabaseObject) then
+          SQL := TSQLDatabaseObject(SQLObjects[I]).QualifiedNameWithQuotes
+        else
+          SQL := TSQLExpressionColumn(SQLObjects[I]).Column.QualifiedNameWithQuotes;
         if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.ServerVersion)) then
         begin
           DatabaseName := Database.Name;
@@ -4831,29 +4833,9 @@ begin
           end;
         end;
       end
-      else
-      if ((TObject(SQLExpressions[I]) is TSQLExpressionColumn)) then
+      else if ((TObject(SQLObjects[I]) is TSQLExpressionFunction)) then
       begin
-        SQL := TSQLExpressionColumn(SQLExpressions[I]).Column.QualifiedNameWithQuotes;
-        if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.ServerVersion)) then
-        begin
-          DatabaseName := Database.Name;
-          if (SQLParseObjectName(Parse, DatabaseName, ObjectName)
-            and Assigned(Session.DatabaseByName(DatabaseName))
-            and Assigned(Session.DatabaseByName(DatabaseName).TableByName(ObjectName))) then
-          begin
-            Dependency := TSDependency.Create();
-            Dependency.Session := Session;
-            Dependency.DatabaseName := DatabaseName;
-            Dependency.ObjectClass := Session.DatabaseByName(DatabaseName).TableByName(ObjectName).ClassType;
-            Dependency.ObjectName := ObjectName;
-            FDependencies.Add(Dependency);
-          end;
-        end;
-      end
-      else if ((TObject(SQLExpressions[I]) is TSQLExpressionFunction)) then
-      begin
-        SQL := TSQLExpressionFunction(SQLExpressions[I]).Name.QualifiedNameWithQuotes;
+        SQL := TSQLExpressionFunction(SQLObjects[I]).Name.QualifiedNameWithQuotes;
         if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.ServerVersion)) then
         begin
           DatabaseName := Database.Name;
@@ -4870,7 +4852,7 @@ begin
           end;
         end;
       end;
-    SQLExpressions.Free();
+    SQLObjects.Free();
 
     QueryBuilder.Free();
   end;
@@ -10971,7 +10953,7 @@ end;
 function TSSession.GetMaxAllowedPacket(): Integer;
 begin
   if (FMaxAllowedPacket = 0) then
-    Result := inherited GetMaxAllowedPacket()
+    Result := inherited
   else
     Result := FMaxAllowedPacket;
 end;

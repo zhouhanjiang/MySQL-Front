@@ -759,7 +759,7 @@ var
 implementation {***************************************************************}
 
 uses
-  ActiveX, SysConst,
+  ActiveX, SysConst, Consts,
   Forms, DBConsts, Registry, DBCommon, StrUtils, Math, Variants,
   PerlRegEx;
 
@@ -4309,19 +4309,19 @@ begin
 
   if (Item1 <> Item2) then
   begin
-//    if (TTExport.TItem(Item1) is TTExport.TDataSetItem) then
-//      Index1 := 0
-//    else
-//      Index1 := 1;
-//    if (TTExport.TItem(Item2) is TTExport.TDataSetItem) then
-//      Index2 := 0
-//    else
-//      Index2 := 1;
-//    Result := Sign(Index1 - Index2);
-//
-//    if ((Result = 0) and (TTExport.TItem(Item1) is TTExport.TDBObjectItem)) then
-//      Result := Sign(TTExport.TDBObjectItem(Item1).DBObject.Database.Index - TTExport.TDBObjectItem(Item2).DBObject.Database.Index);
-//
+    if (TTExport.TItem(Item1) is TTExport.TDataSetItem) then
+      Index1 := 0
+    else
+      Index1 := 1;
+    if (TTExport.TItem(Item2) is TTExport.TDataSetItem) then
+      Index2 := 0
+    else
+      Index2 := 1;
+    Result := Sign(Index1 - Index2);
+
+    if ((Result = 0) and (TTExport.TItem(Item1) is TTExport.TDBObjectItem)) then
+      Result := Sign(TTExport.TDBObjectItem(Item1).DBObject.Database.Index - TTExport.TDBObjectItem(Item2).DBObject.Database.Index);
+
     if ((Result = 0) and (TTExport.TItem(Item1) is TTExport.TDBObjectItem)) then
     begin
       if (TTExport.TDBObjectItem(Item1).DBObject is TSBaseTable) then
@@ -4361,8 +4361,11 @@ begin
       Result := Sign(Index1 - Index2);
     end;
 
-    if ((Result = 0) and (TTExport.TItem(Item1) is TTExport.TDBObjectItem)) then
-      Result := Sign(TTExport.TDBObjectItem(Item1).DBObject.Index - TTExport.TDBObjectItem(Item2).DBObject.Index);
+    if (Result = 0) then
+      if (TTExport.TItem(Item1) is TTExport.TDataSetItem) then
+        Result := Sign(TTExport.TDataSetItem(Item1).Index - TTExport.TDataSetItem(Item2).Index)
+      else
+        Result := Sign(TTExport.TDBObjectItem(Item1).DBObject.Index - TTExport.TDBObjectItem(Item2).DBObject.Index);
   end;
 end;
 
@@ -6001,6 +6004,9 @@ var
   S: string;
   Size: Integer;
 begin
+  if (Length(Fields) <> Length(Parameter)) then
+    raise ERangeError.CreateFmt(SPropertyOutOfRange + ' (Fields: %d, Parameter: %d)', ['Parameter', Length(Fields), Length(Parameter)]);
+
   for I := 0 to Length(Fields) - 1 do
     if (Fields[I].IsNull) then
       Parameter[I].Size := SQL_NULL_DATA
@@ -6029,16 +6035,7 @@ begin
         ftExtended,
         ftTimestamp:
           begin
-            try
-              Index := Parameter[I].BufferSize;
-            except
-              raise ERangeError.CreateFmt(SRangeError + ' (Length: %d; DataType: %d)', [Length(Parameter), Ord(Fields[I].DataType)]);
-            end;
-            try
-              Parameter[I].Size := Min(Index, DataSet.LibLengths^[I]);
-            except
-              raise ERangeError.CreateFmt(SRangeError + ' (Length: %d; DataType: %d; BufferSize: %d)', [Length(Parameter), Ord(Fields[I].DataType), Index]);
-            end;
+            Parameter[I].Size := Min(Parameter[I].BufferSize, DataSet.LibLengths^[I]);
             MoveMemory(Parameter[I].Buffer, DataSet.LibRow^[I], Parameter[I].Size);
           end;
         ftDate,
