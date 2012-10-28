@@ -984,7 +984,8 @@ begin
       end;
     itTCPIP:
       if ((WSAData.wVersion = 0) and (WSAStartup($0101, WSAData) <> 0)) then
-        Seterror(CR_UNKNOWN_ERROR)
+        raise Exception.Create('Error Message 1') // Debug
+//        Seterror(CR_UNKNOWN_ERROR)
       else
       begin
         ip_addr := inet_addr(PAnsiChar(Host));
@@ -1067,7 +1068,8 @@ begin
         end;
       end;
     else
-      Seterror(CR_UNKNOWN_ERROR);
+      raise Exception.Create('Error Message 2'); // Debug
+//      Seterror(CR_UNKNOWN_ERROR);
   end;
 
   Result := errno() = 0;
@@ -1548,7 +1550,7 @@ function TMySQL_File.ReceivePacket(): Boolean;
       Inc(PacketBuffer.Size, BytesRead)
     else if (errno() = 0) then
 //      Seterror(CR_UNKNOWN_ERROR);  // Debug
-      raise Exception.Create('Error Message 2');
+      raise Exception.Create('Error Message 3');
   end;
 
   function ReceiveCompressed(const BytesToRead: my_uint; out BytesRead: my_uint): Boolean;
@@ -1606,7 +1608,7 @@ function TMySQL_File.ReceivePacket(): Boolean;
             begin
               Result := ReallocBuffer(PacketBuffer, PacketOffset + UncompressedSize);
               if (not Result and (errno() = 0)) then
-                raise Exception.Create('Error Message 1');
+                raise Exception.Create('Error Message 4');
 //                Seterror(CR_UNKNOWN_ERROR); // Debug
             end;
 
@@ -1652,7 +1654,8 @@ begin
   Result := IOType <> itNone;
 
   if (not Result) then
-    Seterror(CR_UNKNOWN_ERROR)
+    raise Exception.Create('Error Message 5') // Debug
+//    Seterror(CR_UNKNOWN_ERROR)
   else
   begin
     FillChar(FReadFileBuffer, SizeOf(FReadFileBuffer), #0);
@@ -1707,7 +1710,8 @@ begin
         end;
       end
       else if (errno() = 0) then
-        Seterror(CR_UNKNOWN_ERROR);
+        raise Exception.Create('Error Message 6'); // Debug
+//        Seterror(CR_UNKNOWN_ERROR);
     until (not Result or (VIOSize = 0) or (Size <> MAX_PACKET_LENGTH));
 
     if (Result) then
@@ -1737,7 +1741,8 @@ begin
           if ((Result = 0) and (not ReceivePacket() or (FReadFileBuffer.Size = 0))) then
           begin
             if (errno() = 0) then
-              Seterror(CR_UNKNOWN_ERROR);
+              raise Exception.Create('Error Message 7'); // Debug
+//              Seterror(CR_UNKNOWN_ERROR);
             Result := -1;
           end;
       end;
@@ -1762,7 +1767,8 @@ begin
   begin
     if (DistanceToMove <= 0) then
     begin
-      Seterror(CR_UNKNOWN_ERROR);
+      raise Exception.Create('Error Message 8'); // Debug
+//      Seterror(CR_UNKNOWN_ERROR);
       Result := -1;
     end
     else
@@ -1789,7 +1795,8 @@ begin
           end;
         else
           begin
-            Seterror(CR_UNKNOWN_ERROR);
+            raise Exception.Create('Error Message 9'); // Debug
+//            Seterror(CR_UNKNOWN_ERROR);
             Result := -1;
           end;
       end;
@@ -1985,7 +1992,8 @@ begin
     else
     begin
       if (errno() = 0) then
-        Seterror(CR_UNKNOWN_ERROR);
+        raise Exception.Create('Error Message 10'); // Debug
+//        Seterror(CR_UNKNOWN_ERROR);
       Result := -1;
     end;
   end;
@@ -2099,7 +2107,8 @@ begin
       if ((Direction = idRead) and (fserver_status and SERVER_MORE_RESULTS_EXISTS = 0) or (inherited next_result() <> 0) or (SetFilePointer(1, PACKET_CURRENT) < 0)) then
       begin
         if (errno() = 0) then
-          Seterror(CR_UNKNOWN_ERROR);
+          raise Exception.Create('Error Message 11'); // Debug
+//          Seterror(CR_UNKNOWN_ERROR);
         Result := 1;
       end
       else if (GetFileSize() = 0) then
@@ -2873,7 +2882,8 @@ begin
   end
   else if (FieldCount = 0) then
   begin
-    Seterror(CR_UNKNOWN_ERROR);
+        raise Exception.Create('Error Message 12'); // Debug
+//    Seterror(CR_UNKNOWN_ERROR);
     Result := nil;
   end
   else
