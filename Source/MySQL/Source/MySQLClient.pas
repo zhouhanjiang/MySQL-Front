@@ -1133,6 +1133,8 @@ begin
 
   if (not Result) then
     Seterror(CR_SERVER_LOST);
+  if (not Result and (errno() = 0)) then
+    raise Exception.Create('Error Message 15');
 end;
 
 function TMySQL_IO.Send(const Buffer; const BytesToWrite: my_uint): Boolean;
@@ -1575,6 +1577,8 @@ function TMySQL_File.ReceivePacket(): Boolean;
       PacketOffset := PacketBuffer.Size;
 
       Result := ReceivePacketBuffer(NET_HEADER_SIZE, VIOSize) and (PacketBuffer.Offset + NET_HEADER_SIZE <= PacketBuffer.Size);
+      if (not Result and (errno() = 0)) then
+        raise Exception.Create('Error Message 14');
       if (Result) then
       begin
         FillChar(Size, SizeOf(Size), #0);
