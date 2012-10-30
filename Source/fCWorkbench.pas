@@ -3333,7 +3333,8 @@ begin
 
     for I := Links.Count - 1 downto 0 do
       if ((Links[I].ChildTable.BaseTable = BaseTable)
-        and not Assigned(Links[I].ChildTable.BaseTable.ForeignKeyByName(Links[I].Caption))) then
+        and ((Links[I] is TWForeignKey) and (TWForeignKey(Links[I]).ChildTable.BaseTable.ForeignKeys.IndexOf(TWForeignKey(Links[I]).BaseForeignKey) < 0)
+          or not Assigned(Links[I].ChildTable.BaseTable.ForeignKeyByName(Links[I].Caption)))) then
           Links.Delete(I);
 
     if (Assigned(CreatedTable)) then
