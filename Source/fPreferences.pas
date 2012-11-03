@@ -2700,7 +2700,7 @@ begin
   View.SaveToXML(XMLNode(XML, 'view'));
 
   if (XML.OwnerDocument.Modified and ForceDirectories(ExtractFilePath(Filename))) then
-    XML.OwnerDocument.SaveToFile(Filename);
+    try XML.OwnerDocument.SaveToFile(Filename); except end; // We do not know about problems.
 end;
 
 { TABookmark ******************************************************************}

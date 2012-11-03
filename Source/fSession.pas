@@ -6,7 +6,7 @@ uses
   SysUtils, Classes, Windows, Contnrs,
   Graphics,
   DB,
-  acAST, acQBBase, acMYSQLSynProvider, acQBEventMetaProvider,
+  acQBBase, acAST, acMYSQLSynProvider, acQBEventMetaProvider,
   SQLUtils, MySQLDB,
   fPreferences;
 
@@ -695,7 +695,6 @@ type
     function ParseCreateView(const SQL: string): string;
   protected
     FComment: string;
-    function GetDependencies(): TSDependencies; override;
     function GetValid(): Boolean; override;
     procedure SetSource(const ADataSet: TMySQLQuery); overload; override;
     procedure SetSource(const ASource: string); override;
@@ -749,7 +748,7 @@ type
     TRoutineType = (rtUnknown, rtProcedure, rtFunction);
     TMySQLDataSets = array of TMySQLDataSet;
   private
-    FBody: string;
+    FStmt: string;
     FComment: string;
     FCreated: TDateTime;
     FDefiner: string;
@@ -760,14 +759,13 @@ type
     FRoutineType: TRoutineType;
     FSecurity: TSSecurity;
     FSourceParsed: Boolean;
-    function GetBody(): string;
+    function GetStmt(): string;
     function GetInputDataSet(): TMySQLDataSet;
     function GetParameter(Index: Integer): TSRoutineParameter;
     function GetParameterCount(): Integer;
     function GetRoutines(): TSRoutines; inline;
     procedure ParseCreateRoutine(const SQL: string);
   protected
-    function GetDependencies(): TSDependencies; override;
     function SQLGetSource(): string; override;
     procedure SetSource(const ASource: string); override;
     property SourceParsed: Boolean read FSourceParsed;
@@ -778,7 +776,7 @@ type
     function GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string; override;
     procedure Invalidate(); override;
     function SQLRun(): string; virtual;
-    property Body: string read GetBody;
+    property Stmt: string read GetStmt;
     property Comment: string read FComment write FComment;
     property Created: TDateTime read FCreated;
     property Definer: string read FDefiner;
@@ -954,6 +952,7 @@ type
     function GetSource(): string; override;
     function GetValid(): Boolean; override;
     function GetValidSource(): Boolean; override;
+    function ParseDependencies(const SQL: string; var Dependencies: TSDependencies): Boolean; virtual;
     procedure SetName(const AName: string); override;
     procedure SetSource(const ADataSet: TMySQLQuery); override;
     function SQLAlterTable(const Table, NewTable: TSBaseTable; const EncloseFields: Boolean = True): string; virtual;
@@ -1535,7 +1534,7 @@ uses
   Consts, DBCommon, StrUtils,
   Forms, DBGrids,
 {$IFDEF Debug}
-  GSqlParser, LzBaseType,
+  GSqlParser, LzBaseType, LzDBObjects, u_nodes, selectstatement,
 {$ENDIF}
   MySQLConsts, CSVUtils, HTTPTunnel, MySQLDBGrid,
   fURI;
@@ -2153,6 +2152,12 @@ end;
 
 function TSDBObject.GetDependencies(): TSDependencies;
 begin
+  if (not Assigned(FDependencies)) then
+  begin
+    FDependencies := TSDependencies.Create();
+    Database.ParseDependencies(Source, FDependencies);
+  end;
+
   Result := FDependencies;
 end;
 
@@ -3994,7 +3999,7 @@ begin
     end;
   end;
 
-  Result := inherited;
+  Result := FDependencies;
 end;
 
 function TSBaseTable.GetEngine(): TSEngine;
@@ -4772,101 +4777,6 @@ begin
   FStmt := '';
 end;
 
-function TSView.GetDependencies(): TSDependencies;
-
-  procedure GetSQLObjects(const Node: TastNodeBase; var SQLObjects: TList);
-  var
-    Children: TObjectList;
-    I: Integer;
-  begin
-    Children := TObjectList.Create(False);
-    Node.GetMyChildren(Children);
-    for I := 0 to Children.Count - 1 do
-      if (not (Children[I] is TSQLExpressionSelect) and (Children[I] is TSQLExpressionItem)) then
-        SQLObjects.Add(Children[I])
-      else if (Children[I] is TSQLDatabaseObject) then
-        SQLObjects.Add(Children[I])
-      else if (Children[I] is TastNodeBase) then
-        GetSQLObjects(TastNodeBase(Children[I]), SQLObjects);
-    Children.Free();
-  end;
-
-var
-  DatabaseName: string;
-  Dependency: TSDependency;
-  SQLObjects: TList;
-  I: Integer;
-  ObjectName: string;
-  Parse: TSQLParse;
-  QueryBuilder: TacQueryBuilder;
-  SQL: string;
-begin
-  if (not Assigned(FDependencies)) then
-  begin
-    FDependencies := TSDependencies.Create();
-
-    QueryBuilder := TacQueryBuilder.Create(nil);
-    QueryBuilder.SyntaxProvider := Session.SyntaxProvider;
-    QueryBuilder.MetadataProvider := Session.MetadataProvider;
-    try
-      QueryBuilder.SQL := Stmt;
-    except
-      on E: EacSQLError do
-        raise EacSQLError.Create(E.Message + ': ' + Stmt);
-    end;
-
-    SQLObjects := TList.Create();
-    GetSQLObjects(QueryBuilder.ResultQueryAST, SQLObjects);
-    for I := 0 to SQLObjects.Count - 1 do
-      if ((TObject(SQLObjects[I]) is TSQLDatabaseObject) or (TObject(SQLObjects[I]) is TSQLExpressionColumn)) then
-      begin
-        if (TObject(SQLObjects[I]) is TSQLDatabaseObject) then
-          SQL := TSQLDatabaseObject(SQLObjects[I]).QualifiedNameWithQuotes
-        else
-          SQL := TSQLExpressionColumn(SQLObjects[I]).Column.QualifiedNameWithQuotes;
-        if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.ServerVersion)) then
-        begin
-          DatabaseName := Database.Name;
-          if (SQLParseObjectName(Parse, DatabaseName, ObjectName)
-            and Assigned(Session.DatabaseByName(DatabaseName))
-            and Assigned(Session.DatabaseByName(DatabaseName).TableByName(ObjectName))) then
-          begin
-            Dependency := TSDependency.Create();
-            Dependency.Session := Session;
-            Dependency.DatabaseName := DatabaseName;
-            Dependency.ObjectClass := Session.DatabaseByName(DatabaseName).TableByName(ObjectName).ClassType;
-            Dependency.ObjectName := ObjectName;
-            FDependencies.Add(Dependency);
-          end;
-        end;
-      end
-      else if ((TObject(SQLObjects[I]) is TSQLExpressionFunction)) then
-      begin
-        SQL := TSQLExpressionFunction(SQLObjects[I]).Name.QualifiedNameWithQuotes;
-        if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.ServerVersion)) then
-        begin
-          DatabaseName := Database.Name;
-          if (SQLParseObjectName(Parse, DatabaseName, ObjectName)
-            and Assigned(Session.DatabaseByName(DatabaseName))
-            and Assigned(Session.DatabaseByName(DatabaseName).FunctionByName(ObjectName))) then
-          begin
-            Dependency := TSDependency.Create();
-            Dependency.Session := Session;
-            Dependency.DatabaseName := DatabaseName;
-            Dependency.ObjectClass := TSFunction;
-            Dependency.ObjectName := ObjectName;
-            FDependencies.Add(Dependency);
-          end;
-        end;
-      end;
-    SQLObjects.Free();
-
-    QueryBuilder.Free();
-  end;
-
-  Result := inherited;
-end;
-
 function TSView.GetValid(): Boolean;
 begin
   Result := inherited GetValid() and ValidFields;
@@ -4942,9 +4852,17 @@ end;
 function TSView.ParseCreateView(const SQL: string): string;
 var
   EndingCommentLen: Integer;
+  I: Integer;
   Len: Integer;
   Parse: TSQLParse;
+  {$IFDEF Debug}
+  SQLParser: TGSqlParser;
+  {$ENDIF}
   StartingCommentLen: Integer;
+  {$IFDEF Debug}
+  SQLStatement: TSelectSQLStatement;
+  TableName: string;
+  {$ENDIF}
 begin
   if (not SQLCreateParse(Parse, PChar(SQL), Length(SQL), Database.Session.ServerVersion)) then
     Result := ''
@@ -5019,6 +4937,59 @@ begin
       FCheckOption := voNone;
 
     FStmt := Copy(SQL, SQLParseGetIndex(Parse), Len) + ';';
+
+    {$IFDEF Debug}
+    SQLParser := TGSqlParser.Create(DbVMySQL);
+    SQLParser.SqlText.Text := FStmt;
+    if (SQLParser.Parse() = 0) then
+    begin
+      for I := SQLParser.SourceTokenList.Count - 2 downto 0 do
+        if ((SQLParser.SourceTokenList[I].DBObjType = ttObjSchema)
+          and (SQLParser.SourceTokenList[I + 1].TokenType = ttDot)
+          and (Session.Databases.NameCmp(SQLUnescape(SQLParser.SourceTokenList[I].SourceCode), Database.Name) = 0)) then
+        begin
+          SQLParser.SourceTokenList[I].SourceCode := '';
+          SQLParser.SourceTokenList[I + 1].SourceCode := '';
+        end;
+      for I := SQLParser.SourceTokenList.Count - 3 downto 1 do
+        if ((SQLParser.SourceTokenList[I].TokenType = ttKeyword)
+          and (lstrcmpi(PChar(SQLParser.SourceTokenList[I].SourceCode), 'AS') = 0)
+          and (SQLParser.SourceTokenList[I - 1].TokenType = ttWhiteSpace)
+          and (SQLParser.SourceTokenList[I + 1].TokenType = ttWhiteSpace)
+          and (SQLParser.SourceTokenList[I - 1].SourceCode = SQLParser.SourceTokenList[I + 1].SourceCode)) then
+        begin
+          SQLParser.SourceTokenList[I].SourceCode := '';
+          SQLParser.SourceTokenList[I + 1].SourceCode := '';
+          SQLParser.SourceTokenList[I + 2].SourceCode := '';
+        end;
+      FStmt := SQLParser.GetTextFromParseTree();
+    end;
+
+    SQLParser.SqlText.Text := FStmt;
+    if ((SQLParser.Parse() = 0) and (SQLParser.SqlStatements.Count = 1) and (SQLParser.SqlStatements[0] is TSelectSQLStatement)) then
+    begin
+      SQLStatement := TSelectSQLStatement(SQLParser.SqlStatements[0]);
+      TableName := SQLUnescape(Trim(SQLStatement.FromClauseText));
+
+      for I := SQLParser.SourceTokenList.Count - 2 downto 1 do
+        if ((SQLParser.SourceTokenList[I].DBObjType = ttObjTable)
+          and (SQLParser.SourceTokenList[I + 1].TokenType = ttDot)
+          and (SQLParser.SourceTokenList[I - 1].TokenType <> ttDot)
+          and (Tables.NameCmp(SQLUnescape(SQLParser.SourceTokenList[I].SourceCode), TableName) = 0)
+          ) then
+        begin
+          SQLParser.SourceTokenList[I].SourceCode := '';
+          SQLParser.SourceTokenList[I + 1].SourceCode := '';
+        end;
+
+      FStmt := SQLParser.GetTextFromParseTree();
+    end;
+
+    SQLParser.SqlText.Text := FStmt;
+    if (SQLParser.PrettyPrint() = 0) then
+      FStmt := Trim(SQLParser.FormattedSqlText.Text);
+    SQLParser.Free();
+    {$ENDIF}
 
     FSourceParsed := True;
   end;
@@ -5458,7 +5429,7 @@ constructor TSRoutine.Create(const ACDBObjects: TSDBObjects; const AName: string
 begin
   inherited Create(ACDBObjects, AName);
 
-  FBody := '';
+  FStmt := '';
   FComment := '';
   FCreated := 0;
   FDefiner := '';
@@ -5489,56 +5460,12 @@ begin
   inherited;
 end;
 
-function TSRoutine.GetBody(): string;
+function TSRoutine.GetStmt(): string;
 begin
   if (not SourceParsed and (Source <> '')) then
     ParseCreateRoutine(Source);
 
-  Result := FBody;
-end;
-
-function TSRoutine.GetDependencies(): TSDependencies;
-var
-  I: Integer;
-  Dependency: TSDependency;
-{$IFDEF Debug}
-  SQLParser: TGSqlParser;
-{$ENDIF}
-begin
-  {$IFDEF Debug}
-  if (not Assigned(FDependencies)) then
-  begin
-    FDependencies := TSDependencies.Create();
-
-    SQLParser := TGSqlParser.Create(DbVMysql);
-    SQLParser.SqlText.Text := Body;
-    SQLParser.Parse();
-
-    for I := 0 to SQLParser.SourceTokenList.Count - 1 do
-      if (SQLParser.SourceTokenList[I].DBObjType in [ttObjTable, ttObjView, ttObjFunction, ttObjProcedure, ttObjTrigger]) then
-      begin
-        Dependency := TSDependency.Create();
-        Dependency.Session := Session;
-        if ((I >= 2) and (SQLParser.SourceTokenList[I - 2].DBObjType = ttObjSchema) and (SQLParser.SourceTokenList[I - 1].TokenType = ttDot)) then
-          Dependency.DatabaseName := SQLUnescape(SQLParser.SourceTokenList[I - 2].SourceCode)
-        else
-          Dependency.DatabaseName := Database.Name;
-        Dependency.ObjectName := SQLUnescape(SQLParser.SourceTokenList[I].SourceCode);
-        case (SQLParser.SourceTokenList[I].DBObjType) of
-          ttObjTable,
-          ttObjView: Dependency.ObjectClass := TSTable;
-          ttObjFunction: Dependency.ObjectClass := TSFunction;
-          ttObjProcedure: Dependency.ObjectClass := TSProcedure;
-          ttObjTrigger: Dependency.ObjectClass := TSTrigger;
-        end;
-        FDependencies.Add(Dependency);
-      end;
-
-    SQLParser.Free();
-  end;
-  {$ENDIF}
-
-  Result := inherited;
+  Result := FStmt;
 end;
 
 function TSRoutine.GetInputDataSet(): TMySQLDataSet;
@@ -5815,7 +5742,7 @@ begin
         FSecurity := seInvoker;
     until (Index = SQLParseGetIndex(Parse));
 
-    FBody := SQLParseRest(Parse);
+    FStmt := SQLParseRest(Parse);
 
     FSourceParsed := True;
   end;
@@ -7202,6 +7129,51 @@ begin
     if (SQLParseKeyword(Parse, 'DEFAULT COLLATION') or SQLParseKeyword(Parse, 'COLLATION')) then
       Collation := LowerCase(SQLParseValue(Parse));
   end;
+end;
+
+function TSDatabase.ParseDependencies(const SQL: string; var Dependencies: TSDependencies): Boolean;
+var
+  I: Integer;
+  Dependency: TSDependency;
+  {$IFDEF Debug}
+  SQLParser: TGSqlParser;
+  {$ENDIF}
+begin
+  {$IFDEF Debug}
+  SQLParser := TGSqlParser.Create(DbVMysql);
+  SQLParser.SqlText.Text := SQL;
+  Result := SQLParser.Parse() = 0;
+
+  for I := SQLParser.SourceTokenList.Count - 2 downto 1 do
+    if (SQLParser.SourceTokenList[I].TokenType = ttDot) then
+    begin
+      if (SQLParser.SourceTokenList[I + 1].TokenType = ttWhiteSpace) then
+        SQLParser.SourceTokenList.Delete(I + 1);
+      if (SQLParser.SourceTokenList[I - 1].TokenType = ttWhiteSpace) then
+        SQLParser.SourceTokenList.Delete(I - 1);
+    end;
+  for I := 0 to SQLParser.SourceTokenList.Count - 1 do
+    if (SQLParser.SourceTokenList[I].DBObjType in [ttObjTable, ttObjView, ttObjFunction, ttObjProcedure, ttObjTrigger]) then
+    begin
+      Dependency := TSDependency.Create();
+      Dependency.Session := Session;
+      if ((I >= 2) and (SQLParser.SourceTokenList[I - 2].DBObjType = ttObjSchema) and (SQLParser.SourceTokenList[I - 1].TokenType = ttDot)) then
+        Dependency.DatabaseName := SQLUnescape(SQLParser.SourceTokenList[I - 2].SourceCode)
+      else
+        Dependency.DatabaseName := Name;
+      Dependency.ObjectName := SQLUnescape(SQLParser.SourceTokenList[I].SourceCode);
+      case (SQLParser.SourceTokenList[I].DBObjType) of
+        ttObjTable,
+        ttObjView: Dependency.ObjectClass := TSTable;
+        ttObjFunction: Dependency.ObjectClass := TSFunction;
+        ttObjProcedure: Dependency.ObjectClass := TSProcedure;
+        ttObjTrigger: Dependency.ObjectClass := TSTrigger;
+      end;
+      Dependencies.Add(Dependency);
+    end;
+
+  SQLParser.Free();
+  {$ENDIF}
 end;
 
 function TSDatabase.ProcedureByName(const ProcedureName: string): TSProcedure;

@@ -2527,6 +2527,8 @@ begin
         FFilterEnabled.Enabled := FFilter.Text <> '';
       end;
 
+      FBuilder.MetadataContainer.DefaultDatabaseNameStr := SelectedDatabase;
+
       if (Window.ActiveControl = FNavigator) then
         FNavigatorSetMenuItems(FNavigator, FNavigator.Selected);
 
@@ -4402,7 +4404,7 @@ begin
 
     if (Event.EventType in [ceItemValid]) then
       if ((Event.CItem is TSView) and Assigned(Desktop(TSView(Event.CItem)).SynMemo)) then
-        Desktop(TSView(Event.CItem)).SynMemo.Text := Trim(SQLWrapStmt(TSView(Event.CItem).Stmt, ['from', 'where', 'group by', 'having', 'order by', 'limit', 'procedure'], 0)) + #13#10
+        Desktop(TSView(Event.CItem)).SynMemo.Text := TSView(Event.CItem).Stmt + #13#10
       else if ((Event.CItem is TSRoutine) and Assigned(Desktop(TSRoutine(Event.CItem)).SynMemo)) then
       begin
         Desktop(TSRoutine(Event.CItem)).SynMemo.Text := TSRoutine(Event.CItem).Source + #13#10;

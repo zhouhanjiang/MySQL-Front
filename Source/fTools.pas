@@ -4127,7 +4127,7 @@ begin
   end;
   OldBookmark := DataSet.Bookmark;
 
-  if ((Success <> daAbort) and Assigned(Table)) then
+  if (Success <> daAbort) then
   begin
     Success := daSuccess;
     ExecuteTableHeader(Table, Fields, DataSet);
@@ -4147,7 +4147,7 @@ begin
   if (Success = daSuccess) then
     Item.RecordsSum := Item.RecordsDone;
 
-  if ((Success <> daAbort) and Assigned(Table)) then
+  if (Success <> daAbort) then
   begin
     Success := daSuccess;
     ExecuteTableFooter(Table, Fields, DataSet);
@@ -6065,9 +6065,6 @@ var
   S: string;
   Size: Integer;
 begin
-  if (Length(Fields) <> Length(Parameter)) then
-    raise ERangeError.CreateFmt(SPropertyOutOfRange + ' (Fields: %d, Parameter: %d)', ['Parameter', Length(Fields), Length(Parameter)]);
-
   for I := 0 to Length(Fields) - 1 do
     if (Fields[I].IsNull) then
       Parameter[I].Size := SQL_NULL_DATA
