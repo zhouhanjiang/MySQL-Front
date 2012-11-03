@@ -12,6 +12,7 @@ uses
   {$ENDIF}
   ODBCAPI,
   DISQLite3Api,
+  SynEditHighlighter,
   SynPDF,
   MySQLConsts, MySQLDB, SQLUtils, CSVUtils,
   fSession, fPreferences;
@@ -75,7 +76,7 @@ type
         Size: Integer;
       end;
       Temp2: record
-        Mem: my_char;
+        Mem: Pointer;
         Size: Integer;
       end;
       function GetData(): Pointer; inline;
@@ -470,6 +471,7 @@ type
     Font: TFont;
     SQLFont: TFont;
     RowOdd: Boolean;
+    function EscapeSQL(const SQL: string): string;
   protected
     procedure ExecuteDatabaseHeader(const Database: TSDatabase); override;
     procedure ExecuteEvent(const Event: TSEvent); override;
@@ -1141,6 +1143,7 @@ label
   StringL;
 var
   Len: Integer;
+  Read: Pointer;
   Size: Integer;
   Write: my_char;
 begin
@@ -1165,6 +1168,7 @@ begin
 
     Resize(Len);
 
+    Read := Temp1.Mem;
     Write := Buffer.Write;
     asm
         PUSH ES
@@ -1175,7 +1179,7 @@ begin
         POP ES
         CLD                              // string operations uses forward direction
 
-        MOV ESI,Temp1.Mem                // Copy characters from Temp1.Mem
+        MOV ESI,Read                     // Copy characters from Temp1.Mem
         MOV EDI,Write                    //   to Buffer.Write
         MOV ECX,Len                      // Character count
 
@@ -1197,6 +1201,7 @@ label
   StringL;
 var
   Size: Integer;
+  Write: Pointer;
 begin
   if (Length = 0) then
   begin
@@ -1213,6 +1218,7 @@ begin
       ReallocMem(Temp2.Mem, Temp2.Size);
     end;
 
+    Write := Temp2.Mem;
     asm
         PUSH ES
         PUSH ESI
@@ -1223,12 +1229,12 @@ begin
         CLD                              // string operations uses forward direction
 
         MOV ESI,Value                    // Copy characters from Value
-        MOV EDI,Temp2.Mem                //   to Temp2.Mem
+        MOV EDI,Write                    //   to Temp2.Mem
         MOV ECX,Length                   // Character count
 
       StringL:
-        LODSB                            // Load WideChar
-        STOSW                            // Store AnsiChar
+        LODSB                            // Load AnsiChar
+        STOSB                            // Store AnsiChar
         LOOP StringL                     // Repeat for all characters
 
         POP EDI
@@ -1442,7 +1448,7 @@ begin
   DoError(Error, Item, ShowRetry);
   if (Success = daFail) then
   begin
-    Delete(SQL, 1, SQLStmtLength(SQL));
+    Delete(SQL, 1, SQLStmtLength(PChar(SQL), Length(SQL)));
     Success := daSuccess;
   end;
 end;
@@ -2215,7 +2221,7 @@ begin
   while ((Success = daSuccess) and (not Eof or (Index <= Length(FileContent.Str)))) do
   begin
     repeat
-      Len := SQLStmtLength(FileContent.Str, Index, @CompleteStmt);
+      Len := SQLStmtLength(PChar(FileContent.Str), Length(FileContent.Str) - (Index - 1), @CompleteStmt);
       if (not CompleteStmt) then
       begin
         Eof := not ReadContent();
@@ -3731,6 +3737,75 @@ begin
   end;
 end;
 
+function TExportItemCompareForSQLExport(Item1, Item2: Pointer): Integer;
+var
+  Index1: Integer;
+  Index2: Integer;
+begin
+  Result := 0;
+
+  if (Item1 <> Item2) then
+  begin
+    if (TTExport.TItem(Item1) is TTExport.TDataSetItem) then
+      Index1 := 0
+    else
+      Index1 := 1;
+    if (TTExport.TItem(Item2) is TTExport.TDataSetItem) then
+      Index2 := 0
+    else
+      Index2 := 1;
+    Result := Sign(Index1 - Index2);
+
+    if ((Result = 0) and (TTExport.TItem(Item1) is TTExport.TDBObjectItem)) then
+      Result := Sign(TTExport.TDBObjectItem(Item1).DBObject.Database.Index - TTExport.TDBObjectItem(Item2).DBObject.Database.Index);
+
+    if ((Result = 0) and (TTExport.TItem(Item1) is TTExport.TDBObjectItem)) then
+    begin
+      if (TTExport.TDBObjectItem(Item1).DBObject is TSBaseTable) then
+        if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine) or not TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine.IsMerge) then
+          Index1 := 0
+        else
+          Index1 := 1
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSFunction) then
+        Index1 := 2
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSView) then
+        Index1 := 3
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSProcedure) then
+        Index1 := 4
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSTrigger) then
+        Index1 := 5
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSEvent) then
+        Index1 := 6
+      else
+        Index1 := 7;
+      if (TTExport.TDBObjectItem(Item2).DBObject is TSBaseTable) then
+        if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Item2).DBObject).Engine) or not TSBaseTable(TTExport.TDBObjectItem(Item2).DBObject).Engine.IsMerge) then
+          Index2 := 0
+        else
+          Index2 := 1
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSFunction) then
+        Index2 := 2
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSView) then
+        Index2 := 3
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSProcedure) then
+        Index2 := 4
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSTrigger) then
+        Index2 := 5
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSEvent) then
+        Index2 := 6
+      else
+        Index2 := 7;
+      Result := Sign(Index1 - Index2);
+    end;
+
+    if (Result = 0) then
+      if (TTExport.TItem(Item1) is TTExport.TDataSetItem) then
+        Result := Sign(TTExport.TDataSetItem(Item1).Index - TTExport.TDataSetItem(Item2).Index)
+      else
+        Result := Sign(TTExport.TDBObjectItem(Item1).DBObject.Index - TTExport.TDBObjectItem(Item2).DBObject.Index);
+  end;
+end;
+
 procedure TTExport.Add(const ADataSet: TMySQLDataSet);
 var
   NewItem: TDataSetItem;
@@ -3774,7 +3849,9 @@ begin
     if (Items[I] is TDataSetItem) then
       TDataSetItem(Items[I]).DataSet.DisableControls();
 
-  if (not (Self is TTExportSQL)) then
+  if (Self is TTExportSQL) then
+    Items.Sort(TExportItemCompareForSQLExport)
+  else
     Items.Sort(TExportItemCompare);
 end;
 
@@ -3968,12 +4045,13 @@ begin
                   ExecuteTable(TDBObjectItem(Items[I]), nil)
                 else
                   ExecuteTable(TDBObjectItem(Items[I]), DataHandle)
-              else if (TDBObjectItem(Items[I]).DBObject is TSRoutine) then
-                ExecuteRoutine(TSRoutine(TDBObjectItem(Items[I]).DBObject))
-              else if (TDBObjectItem(Items[I]).DBObject is TSEvent) then
-                ExecuteEvent(TSEvent(TDBObjectItem(Items[I]).DBObject))
-              else if ((TDBObjectItem(Items[I]).DBObject is TSTrigger) and (Self is TTExportSQL)) then
-                ExecuteTrigger(TSTrigger(TDBObjectItem(Items[I]).DBObject));
+              else if (Structure) then
+                if (TDBObjectItem(Items[I]).DBObject is TSRoutine) then
+                  ExecuteRoutine(TSRoutine(TDBObjectItem(Items[I]).DBObject))
+                else if (TDBObjectItem(Items[I]).DBObject is TSEvent) then
+                  ExecuteEvent(TSEvent(TDBObjectItem(Items[I]).DBObject))
+                else if (TDBObjectItem(Items[I]).DBObject is TSTrigger) then
+                  ExecuteTrigger(TSTrigger(TDBObjectItem(Items[I]).DBObject));
             end;
           end;
         end;
@@ -4300,75 +4378,6 @@ end;
 
 { TTExportSQL *****************************************************************}
 
-function TExportItemCompareForSQLExport(Item1, Item2: Pointer): Integer;
-var
-  Index1: Integer;
-  Index2: Integer;
-begin
-  Result := 0;
-
-  if (Item1 <> Item2) then
-  begin
-    if (TTExport.TItem(Item1) is TTExport.TDataSetItem) then
-      Index1 := 0
-    else
-      Index1 := 1;
-    if (TTExport.TItem(Item2) is TTExport.TDataSetItem) then
-      Index2 := 0
-    else
-      Index2 := 1;
-    Result := Sign(Index1 - Index2);
-
-    if ((Result = 0) and (TTExport.TItem(Item1) is TTExport.TDBObjectItem)) then
-      Result := Sign(TTExport.TDBObjectItem(Item1).DBObject.Database.Index - TTExport.TDBObjectItem(Item2).DBObject.Database.Index);
-
-    if ((Result = 0) and (TTExport.TItem(Item1) is TTExport.TDBObjectItem)) then
-    begin
-      if (TTExport.TDBObjectItem(Item1).DBObject is TSBaseTable) then
-        if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine) or not TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine.IsMerge) then
-          Index1 := 0
-        else
-          Index1 := 1
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSFunction) then
-        Index1 := 2
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSView) then
-        Index1 := 3
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSProcedure) then
-        Index1 := 4
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSTrigger) then
-        Index1 := 5
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSEvent) then
-        Index1 := 6
-      else
-        Index1 := 7;
-      if (TTExport.TDBObjectItem(Item2).DBObject is TSBaseTable) then
-        if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Item2).DBObject).Engine) or not TSBaseTable(TTExport.TDBObjectItem(Item2).DBObject).Engine.IsMerge) then
-          Index2 := 0
-        else
-          Index2 := 1
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSFunction) then
-        Index2 := 2
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSView) then
-        Index2 := 3
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSProcedure) then
-        Index2 := 4
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSTrigger) then
-        Index2 := 5
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSEvent) then
-        Index2 := 6
-      else
-        Index2 := 7;
-      Result := Sign(Index1 - Index2);
-    end;
-
-    if (Result = 0) then
-      if (TTExport.TItem(Item1) is TTExport.TDataSetItem) then
-        Result := Sign(TTExport.TDataSetItem(Item1).Index - TTExport.TDataSetItem(Item2).Index)
-      else
-        Result := Sign(TTExport.TDBObjectItem(Item1).DBObject.Index - TTExport.TDBObjectItem(Item2).DBObject.Index);
-  end;
-end;
-
 procedure TTExportSQL.BeforeExecute();
 var
   CycleProtection: Integer;
@@ -4379,8 +4388,6 @@ var
   NewIndex: Integer;
 begin
   inherited;
-
-  Items.Sort(TExportItemCompareForSQLExport);
 
   I := 0; CycleProtection := Items.Count - 1;
   while (I < Items.Count) do
@@ -5053,6 +5060,11 @@ begin
   inherited;
 end;
 
+function TTExportHTML.EscapeSQL(const SQL: string): string;
+begin
+  Result := '<code>' + HTMLEscape(SQL) + '</code>' + #13#10;
+end;
+
 procedure TTExportHTML.ExecuteDatabaseHeader(const Database: TSDatabase);
 begin
   if (Assigned(Database)) then
@@ -5065,7 +5077,7 @@ var
 begin
   Content := '<h2>' + Preferences.LoadStr(812) + ': ' + HTMLEscape(Event.Name) + '</h2>' + #13#10;
 
-  Content := Content + '<code>' + HTMLEscape(Event.Source) + '</code>' + #13#10;
+  Content := Content + EscapeSQL(Event.Source);
 
   WriteContent(Content);
 end;
@@ -5084,6 +5096,52 @@ begin
 end;
 
 procedure TTExportHTML.ExecuteHeader();
+
+  function ColorToHTML(AColor: TColor): string;
+  var
+    RGBColor: longint;
+    RGBValue: byte;
+  const
+    Digits: array[0..15] of Char = '0123456789ABCDEF';
+  begin
+    RGBColor := ColorToRGB(AColor);
+    Result := '#000000';
+    RGBValue := GetRValue(RGBColor);
+    if RGBValue > 0 then
+    begin
+      Result[2] := Digits[RGBValue shr  4];
+      Result[3] := Digits[RGBValue and 15];
+    end;
+    RGBValue := GetGValue(RGBColor);
+    if RGBValue > 0 then
+    begin
+      Result[4] := Digits[RGBValue shr  4];
+      Result[5] := Digits[RGBValue and 15];
+    end;
+    RGBValue := GetBValue(RGBColor);
+    if RGBValue > 0 then
+    begin
+      Result[6] := Digits[RGBValue shr  4];
+      Result[7] := Digits[RGBValue and 15];
+    end;
+  end;
+
+  function AttriToCSS(Attri: TSynHighlighterAttributes): string;
+  begin
+    Result := '{';
+    if Attri.Foreground <> clNone then
+      Result := Result + 'color: ' + ColorToHTML(Attri.Foreground) + '; ';
+    if fsBold in Attri.Style then
+      Result := Result + 'font-weight: bold; ';
+    if fsItalic in Attri.Style then
+      Result := Result + 'font-style: italic; ';
+    if fsUnderline in Attri.Style then
+      Result := Result + 'text-decoration: underline; ';
+    if fsStrikeOut in Attri.Style then
+      Result := Result + 'text-decoration: line-through; ';
+    Result := Trim(Result) + '}';
+  end;
+
 var
   Content: string;
   Title: string;
@@ -5113,21 +5171,23 @@ begin
   Content := Content + #9#9 + 'h2 {font-size: ' + IntToStr(-Font.Height + 4) + 'px; text-decoration: bold;}' + #13#10;
   Content := Content + #9#9 + 'h3 {font-size: ' + IntToStr(-Font.Height + 2) + 'px; text-decoration: bold;}' + #13#10;
   Content := Content + #9#9 + 'th,' + #13#10;
-  Content := Content + #9#9 + 'td {font-size: ' + IntToStr(-Font.Height) + 'px; border-style: solid; border-width: 1px; padding: 1px; font-weight: normal;}' + #13#10;
+  Content := Content + #9#9 + 'td {font-size: ' + IntToStr(-Font.Height) + 'px; border-color: #000000; border-style: solid; border-width: 1px; padding: 1px; font-weight: normal;}' + #13#10;
   Content := Content + #9#9 + 'code {font-size: ' + IntToStr(-SQLFont.Height) + 'px;}' + #13#10;
+//  Content := Content + #9#9 + 'code.sql1-reservedword ' + AttriToCSS(MainHighlighter.KeyAttri) + #13#10;
+//  Content := Content + #9#9 + 'code.sql1-number ' + AttriToCSS(MainHighlighter.NumberAttri) + #13#10;
+//  Content := Content + #9#9 + 'code.sql1-symbol ' + AttriToCSS(MainHighlighter.SymbolAttri) + #13#10;
   Content := Content + #9#9 + '.TableObject {border-collapse: collapse; border-color: #000000; font-family: ' + HTMLEscape(Font.Name) + '}' + #13#10;
   Content := Content + #9#9 + '.TableData {border-collapse: collapse; border-color: #000000; font-family: ' + HTMLEscape(Font.Name) + '}' + #13#10;
   Content := Content + #9#9 + '.TableHeader {border-color: #000000; text-decoration: bold; background-color: #e0e0e0;}' + #13#10;
-  Content := Content + #9#9 + '.ObjectHeader {padding-left: 5px; text-align: left; border-color: #000000; text-decoration: bold;}' + #13#10;
-  Content := Content + #9#9 + '.Object {text-align: left; border-color: #aaaaaa;}' + #13#10;
+  Content := Content + #9#9 + '.StructureHeader {padding-left: 5px; text-align: left; border-color: #000000; text-decoration: bold;}' + #13#10;
+  Content := Content + #9#9 + '.Structure {text-align: left; border-color: #aaaaaa;}' + #13#10;
   Content := Content + #9#9 + '.odd {}' + #13#10;
   if (RowBackground) then
     Content := Content + #9#9 + '.even {background-color: #f0f0f0;}' + #13#10
   else
     Content := Content + #9#9 + '.even {}' + #13#10;
   Content := Content + #9#9 + '.DataHeader {padding-left: 5px; text-align: left; border-color: #000000; background-color: #e0e0e0;}' + #13#10;
-  Content := Content + #9#9 + '.Data {border-color: #aaaaaa;}' + #13#10;
-  Content := Content + #9#9 + '.DataNull {color: #999999; border-color: #aaaaaa;}' + #13#10;
+  Content := Content + #9#9 + '.Null {color: #999999;}' + #13#10;
   Content := Content + #9#9 + '.PrimaryKey {font-weight: bold;}' + #13#10;
   Content := Content + #9#9 + '.RightAlign {text-align: right;}' + #13#10;
   Content := Content + #9 + '--></style>' + #13#10;
@@ -5146,7 +5206,7 @@ begin
   else
     Content := '<h2>' + Preferences.LoadStr(769) + ': ' + HTMLEscape(Routine.Name) + '</h2>' + #13#10;
 
-  Content := Content + '<code>' + HTMLEscape(Routine.Source) + '</code>' + #13#10;
+  Content := Content + EscapeSQL(Routine.Source);
 
   WriteContent(Content);
 end;
@@ -5187,7 +5247,7 @@ begin
     if (DataSet is TMySQLDataSet) then
     begin
       Content := Content + '<h2>' + ReplaceStr(Preferences.LoadStr(794), '&', '') + ':</h2>' + #13#10;
-      Content := Content + '<code>' + DataSet.CommandText + '</code>' + #13#10;
+      Content := Content + EscapeSQL(DataSet.CommandText);
     end
     else
     begin
@@ -5196,7 +5256,7 @@ begin
         Content := Content + '<h3>' + Preferences.LoadStr(458) + ':</h3>' + #13#10;
 
         Content := Content + '<table border="0" cellspacing="0" summary="' + HTMLEscape(Table.Name) + '" class="TableObject">' + #13#10;
-        Content := Content + #9 + '<tr class="TableHeader ObjectHeader">';
+        Content := Content + #9 + '<tr class="TableHeader StructureHeader">';
         Content := Content + '<th>' + HTMLEscape(ReplaceStr(Preferences.LoadStr(35), '&', '')) + '</th>';
         Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(69)) + '</th>';
         Content := Content + '<th>' + HTMLEscape(ReplaceStr(Preferences.LoadStr(73), '&', '')) + '</th>';
@@ -5210,7 +5270,7 @@ begin
           else
             ClassAttr := '';
 
-          Content := Content + #9 + '<tr class="Object">';
+          Content := Content + #9 + '<tr class="Structure">';
           Content := Content + '<td ' + ClassAttr + '>' + HTMLEscape(TSBaseTable(Table).Keys[I].Caption) + '</td>';
           S := '';
           for J := 0 to TSBaseTable(Table).Keys[I].Columns.Count - 1 do
@@ -5235,7 +5295,7 @@ begin
       Content := Content + '<h3>' + Preferences.LoadStr(253) + ':</h3>' + #13#10;
 
       Content := Content + '<table border="0" cellspacing="0" summary="' + HTMLEscape(Table.Name) + '" class="TableObject">' + #13#10;
-      Content := Content + #9 + '<tr class="TableHeader ObjectHeader">';
+      Content := Content + #9 + '<tr class="TableHeader StructureHeader">';
       Content := Content + '<th>' + HTMLEscape(ReplaceStr(Preferences.LoadStr(35), '&', '')) + '</th>';
       Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(69)) + '</th>';
       Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(71)) + '</th>';
@@ -5251,7 +5311,7 @@ begin
         else
           ClassAttr := '';
 
-        Content := Content + #9 + '<tr class="Object">';
+        Content := Content + #9 + '<tr class="Structure">';
         Content := Content + '<td' + ClassAttr + '>' + HTMLEscape(Table.Fields[I].Name) + '</td>';
         Content := Content + '<td>' + HTMLEscape(Table.Fields[I].DBTypeStr()) + '</td>';
         if (Table.Fields[I].NullAllowed) then
@@ -5261,7 +5321,7 @@ begin
         if (Table.Fields[I].AutoIncrement) then
           Content := Content + '<td>&lt;auto_increment&gt;</td>'
         else if (Table.Fields[I].Default = 'NULL') then
-          Content := Content + '<td class="DataNull">&lt;' + Preferences.LoadStr(71) + '&gt;</td>'
+          Content := Content + '<td class="Null">&lt;' + Preferences.LoadStr(71) + '&gt;</td>'
         else if (Table.Fields[I].Default = 'CURRENT_TIMESTAMP') then
           Content := Content + '<td>&lt;INSERT-TimeStamp&gt;</td>'
         else if (Table.Fields[I].Default <> '') then
@@ -5297,7 +5357,7 @@ begin
         Content := Content + '<h3>' + Preferences.LoadStr(459) + ':</h3>' + #13#10;
 
         Content := Content + '<table border="0" cellspacing="0" summary="' + HTMLEscape(Table.Name) + '" class="TableObject">' + #13#10;
-        Content := Content + #9 + '<tr class="TableHeader ObjectHeader">';
+        Content := Content + #9 + '<tr class="TableHeader StructureHeader">';
         Content := Content + '<th>' + HTMLEscape(ReplaceStr(Preferences.LoadStr(35), '&', '')) + '</th>';
         Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(69)) + '</th>';
         Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(73)) + '</th>';
@@ -5358,11 +5418,12 @@ begin
     SetLength(CSS, Length(Fields));
     for I := 0 to Length(Fields) - 1 do
     begin
-      CSS[I] := 'Data';
+      CSS[I] := '';
       if (FieldOfPrimaryIndex[I]) then
         CSS[I] := CSS[I] + ' PrimaryKey';
       if (Fields[I].Alignment = taRightJustify) then
         CSS[I] := CSS[I] + ' RightAlign';
+      CSS[I] := Trim(CSS[I]);
 
       RowOdd := True;
     end;
@@ -5380,9 +5441,9 @@ begin
   Content := '';
 
   if (RowOdd) then
-    Content := Content + #9 + '<tr class="odd">'
+    Content := Content + #9 + '<tr class="Data odd">'
   else
-    Content := Content + #9 + '<tr class="even">';
+    Content := Content + #9 + '<tr class="Data even">';
   RowOdd := not RowOdd;
 
   for I := 0 to Length(Fields) - 1 do
@@ -5425,7 +5486,7 @@ var
 begin
   Content := '<h2>' + Preferences.LoadStr(788) + ': ' + HTMLEscape(Trigger.Name) + '</h2>' + #13#10;
 
-  Content := Content + '<code>' + HTMLEscape(Trigger.Source) + '</code>' + #13#10;
+  Content := Content + EscapeSQL(Trigger.Source);
 
   WriteContent(Content);
 end;

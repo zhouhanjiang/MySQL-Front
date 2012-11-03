@@ -263,9 +263,6 @@ begin
               if (Assigned(Database.Routines)) then
                 for K := 0 to Database.Routines.Count - 1 do
                   Export.Add(Database.Routines[K]);
-              if (Assigned(Database.Triggers)) then
-                for K := 0 to Database.Triggers.Count - 1 do
-                  Export.Add(Database.Triggers[K]);
               if (Assigned(Database.Events)) then
                 for K := 0 to Database.Events.Count - 1 do
                   Export.Add(Database.Events[K]);
@@ -285,9 +282,6 @@ begin
             if (Assigned(Database.Routines)) then
               for K := 0 to Database.Routines.Count - 1 do
                 Export.Add(Database.Routines[K]);
-            if (Assigned(Database.Triggers)) then
-              for K := 0 to Database.Triggers.Count - 1 do
-                Export.Add(Database.Triggers[K]);
             if (Assigned(Database.Events)) then
               for K := 0 to Database.Events.Count - 1 do
                 Export.Add(Database.Events[K]);
@@ -309,7 +303,12 @@ begin
                   if (not Assigned(DBObject)) then
                     WriteLn(StdErr, 'Table not found: ' + Job.Objects[I].DatabaseName + '.' + Job.Objects[I].Name)
                   else
+                  begin
                     Export.Add(DBObject);
+                    if ((DBObject is TSBaseTable) and Assigned(DBObject.Database.Triggers)) then
+                      for J := 0 to TSBaseTable(DBObject).TriggerCount - 1 do
+                        Export.Add(TSBaseTable(DBObject).Triggers[J]);
+                  end;
                 end;
               jotProcedure:
                 begin

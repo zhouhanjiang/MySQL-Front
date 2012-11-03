@@ -5,8 +5,8 @@ interface {********************************************************************}
 uses
   ComCtrls, Forms, Menus, ActnList, Classes, Controls, Windows, ExtCtrls,
   SysUtils, Messages, Dialogs, Graphics,
-  SynEditHighlighter, SynHighlighterSQL,
-  fPreferences, fSession, MySQLDB;
+  MySQLDB,
+  fPreferences, fSession;
 
 const
   iiLocalhost = 13;
@@ -94,7 +94,6 @@ var
   DurationFormatSettings: TFormatSettings;
   LocaleFormatSettings: TFormatSettings;
   MainActionList: TActionList;
-  MainHighlighter: TSynSQLSyn;
   MsgBoxHelpContext: Longint;
 
 implementation {***************************************************************}
@@ -769,8 +768,11 @@ end;
 
 function MsgBox(const Text: string; const Caption: string; const Flags: Longint; const Wnd: HWND = 0): Integer;
 var
+  TopWindow: HWND;
   MsgBoxParams: TMsgBoxParams;
 begin
+  TopWindow := Application.ActiveFormHandle;
+
   if (Flags and MB_YESYESTOALLNOCANCEL = MB_YESYESTOALLNOCANCEL) then
     Result := MessageBox_Extended(Text, Caption, Flags or MB_APPLMODAL)
   else
@@ -804,6 +806,8 @@ begin
     {$ENDIF}
   end;
   MsgBoxHelpContext := 0;
+
+  SetForegroundWindow(TopWindow);
 end;
 
 procedure SetToolBarHints(const ToolBar: TToolBar);

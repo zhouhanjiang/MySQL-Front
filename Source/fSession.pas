@@ -749,6 +749,7 @@ type
     TRoutineType = (rtUnknown, rtProcedure, rtFunction);
     TMySQLDataSets = array of TMySQLDataSet;
   private
+    FBody: string;
     FComment: string;
     FCreated: TDateTime;
     FDefiner: string;
@@ -759,12 +760,14 @@ type
     FRoutineType: TRoutineType;
     FSecurity: TSSecurity;
     FSourceParsed: Boolean;
+    function GetBody(): string;
     function GetInputDataSet(): TMySQLDataSet;
     function GetParameter(Index: Integer): TSRoutineParameter;
     function GetParameterCount(): Integer;
     function GetRoutines(): TSRoutines; inline;
     procedure ParseCreateRoutine(const SQL: string);
   protected
+    function GetDependencies(): TSDependencies; override;
     function SQLGetSource(): string; override;
     procedure SetSource(const ASource: string); override;
     property SourceParsed: Boolean read FSourceParsed;
@@ -775,6 +778,7 @@ type
     function GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string; override;
     procedure Invalidate(); override;
     function SQLRun(): string; virtual;
+    property Body: string read GetBody;
     property Comment: string read FComment write FComment;
     property Created: TDateTime read FCreated;
     property Definer: string read FDefiner;
@@ -1530,6 +1534,9 @@ uses
   Variants, SysConst, WinInet, DBConsts, RTLConsts, Math,
   Consts, DBCommon, StrUtils,
   Forms, DBGrids,
+{$IFDEF Debug}
+  GSqlParser, LzBaseType,
+{$ENDIF}
   MySQLConsts, CSVUtils, HTTPTunnel, MySQLDBGrid,
   fURI;
 
@@ -5451,6 +5458,7 @@ constructor TSRoutine.Create(const ACDBObjects: TSDBObjects; const AName: string
 begin
   inherited Create(ACDBObjects, AName);
 
+  FBody := '';
   FComment := '';
   FCreated := 0;
   FDefiner := '';
@@ -5479,6 +5487,58 @@ begin
     FFunctionResult.Free();
 
   inherited;
+end;
+
+function TSRoutine.GetBody(): string;
+begin
+  if (not SourceParsed and (Source <> '')) then
+    ParseCreateRoutine(Source);
+
+  Result := FBody;
+end;
+
+function TSRoutine.GetDependencies(): TSDependencies;
+var
+  I: Integer;
+  Dependency: TSDependency;
+{$IFDEF Debug}
+  SQLParser: TGSqlParser;
+{$ENDIF}
+begin
+  {$IFDEF Debug}
+  if (not Assigned(FDependencies)) then
+  begin
+    FDependencies := TSDependencies.Create();
+
+    SQLParser := TGSqlParser.Create(DbVMysql);
+    SQLParser.SqlText.Text := Body;
+    SQLParser.Parse();
+
+    for I := 0 to SQLParser.SourceTokenList.Count - 1 do
+      if (SQLParser.SourceTokenList[I].DBObjType in [ttObjTable, ttObjView, ttObjFunction, ttObjProcedure, ttObjTrigger]) then
+      begin
+        Dependency := TSDependency.Create();
+        Dependency.Session := Session;
+        if ((I >= 2) and (SQLParser.SourceTokenList[I - 2].DBObjType = ttObjSchema) and (SQLParser.SourceTokenList[I - 1].TokenType = ttDot)) then
+          Dependency.DatabaseName := SQLUnescape(SQLParser.SourceTokenList[I - 2].SourceCode)
+        else
+          Dependency.DatabaseName := Database.Name;
+        Dependency.ObjectName := SQLUnescape(SQLParser.SourceTokenList[I].SourceCode);
+        case (SQLParser.SourceTokenList[I].DBObjType) of
+          ttObjTable,
+          ttObjView: Dependency.ObjectClass := TSTable;
+          ttObjFunction: Dependency.ObjectClass := TSFunction;
+          ttObjProcedure: Dependency.ObjectClass := TSProcedure;
+          ttObjTrigger: Dependency.ObjectClass := TSTrigger;
+        end;
+        FDependencies.Add(Dependency);
+      end;
+
+    SQLParser.Free();
+  end;
+  {$ENDIF}
+
+  Result := inherited;
 end;
 
 function TSRoutine.GetInputDataSet(): TMySQLDataSet;
@@ -5671,6 +5731,7 @@ end;
 
 procedure TSRoutine.ParseCreateRoutine(const SQL: string);
 var
+  Index: Integer;
   Parameter: TSRoutineParameter;
   Parse: TSQLParse;
 begin
@@ -5731,7 +5792,7 @@ begin
         SQLParseChar(Parse, ',');
       end;
 
-    if (SQLParseKeyword(Parse, 'RETURNS')) then
+    if ((Self is TSFunction) and SQLParseKeyword(Parse, 'RETURNS')) then
     begin
       FFunctionResult := TSField.Create(Database.Session.FieldTypes);
       FFunctionResult.ParseFieldType(Parse);
@@ -5739,6 +5800,22 @@ begin
       if (SQLParseKeyword(Parse, 'CHARSET')) then
         FFunctionResult.Charset := SQLParseValue(Parse);
     end;
+
+    repeat
+      Index := SQLParseGetIndex(Parse);
+
+      if (SQLParseKeyword(Parse, 'COMMENT')) then
+        FComment := SQLParseValue(Parse)
+      else if (SQLParseKeyword(Parse, 'LANGUAGE SQL')) then
+      else if (SQLParseKeyword(Parse, 'NOT DETERMINISTIC') or SQLParseKeyword(Parse, 'DETERMINISTIC')) then
+      else if (SQLParseKeyword(Parse, 'CONTAINS SQL') or SQLParseKeyword(Parse, 'NO SQL') or SQLParseKeyword(Parse, 'READS SQL DATA') or SQLParseKeyword(Parse, 'MODIFIES SQL DATA')) then
+      else if (SQLParseKeyword(Parse, 'SQL SECURITY DEFINER')) then
+        FSecurity := seDefiner
+      else if (SQLParseKeyword(Parse, 'SQL SECURITY INVOKER')) then
+        FSecurity := seInvoker;
+    until (Index = SQLParseGetIndex(Parse));
+
+    FBody := SQLParseRest(Parse);
 
     FSourceParsed := True;
   end;

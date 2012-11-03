@@ -7,6 +7,7 @@ uses
   ExtCtrls, Classes, SysUtils, Registry, IniFiles,
   ComCtrls,
   TaskSchd,
+  SynEditHighlighter, SynHighlighterSQL,
   MySQLDB;
 
 type
@@ -814,6 +815,7 @@ function TrySplitParam(const Param: string; out Name, Value: string): Boolean;
 var
   Accounts: TAAccounts;
   FileFormatSettings: TFormatSettings;
+  MainHighlighter: TSynSQLSyn;
   Preferences: TPPreferences;
 
 implementation {***************************************************************}

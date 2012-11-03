@@ -491,6 +491,7 @@ var
   Database: TSDatabase;
   I: Integer;
   J: Integer;
+  Table: TSBaseTable;
 begin
   if ((DialogType in [edtEditJob, edtExecuteJob]) and InitTSSelect() and (DialogType in [edtExecuteJob]) and ObjectsFromFSelect()
     or (DialogType = edtNormal)) then
@@ -511,12 +512,17 @@ begin
             for J := 0 to Database.Routines.Count - 1 do
               if (AObjects.IndexOf(Database.Routines[J]) < 0) then
                 AObjects.Add(Database.Routines[J]);
-          if (Assigned(Database.Triggers)) then
-            for J := 0 to Database.Triggers.Count - 1 do
-              if (AObjects.IndexOf(Database.Triggers[J]) < 0) then
-                AObjects.Add(Database.Triggers[J]);
           AObjects.Delete(I);
         end;
+      end
+      else if (TObject(AObjects[I]) is TSBaseTable) then
+      begin
+        Table := TSBaseTable(AObjects[I]);
+        if (Assigned(Table.Database.Triggers)) then
+          for J := 0 to Table.TriggerCount - 1 do
+            if (AObjects.IndexOf(Table.Triggers[J]) < 0) then
+              AObjects.Add(Table.Triggers[J]);
+        Inc(I);
       end
       else
         Inc(I);

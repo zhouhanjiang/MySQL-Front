@@ -164,11 +164,11 @@ type
       TMode = (smSQL, smDataHandle, smDataSet);
       TState = (ssClose, ssConnecting, ssReady, ssExecutingSQL, ssResult, ssReceivingResult, ssNextResult, ssCancel, ssDisconnecting, ssError);
     private
-      Nils: Integer;
       Done: TEvent;
       FConnection: TMySQLConnection;
       RunExecute: TEvent;
       SynchronizeStarted: TEvent;
+      ThreadState: Integer;
       Time: TDateTime;
       function GetIsRunning(): Boolean;
     protected
@@ -1840,11 +1840,11 @@ constructor TMySQLConnection.TLibraryThread.Create(const AConnection: TMySQLConn
 begin
   Assert(Assigned(AConnection));
 
-  Nils := 1;
+  ThreadState := 1;
 
   inherited Create(False);
 
-  Nils := 2;
+  ThreadState := 2;
 
   FConnection := AConnection;
 
@@ -1857,12 +1857,12 @@ begin
 
   FreeOnTerminate := True;
 
-  Nils := 3;
+  ThreadState := 3;
 end;
 
 destructor TMySQLConnection.TLibraryThread.Destroy();
 begin
-  Nils := 13;
+  ThreadState := 13;
 
   RunExecute.Free(); RunExecute := nil;
   SynchronizeStarted.Free();
@@ -1870,11 +1870,11 @@ begin
   SQLStmtLengths.Free();
   SQLStmtsInPackets.Free();
 
-  Nils := 14;
+  ThreadState := 14;
 
   inherited;
 
-  Nils := 15;
+  ThreadState := 15;
 end;
 
 procedure TMySQLConnection.TLibraryThread.Execute();
@@ -1887,11 +1887,11 @@ begin
   try
   {$ENDIF}
 
-  Nils := 4;
+  ThreadState := 4;
 
   while (not Terminated) do
   begin
-    Nils := 5;
+    ThreadState := 5;
 
     if ((Connection.ServerTimeout = 0) or (Connection.LibraryType = ltHTTP)) then
       Timeout := INFINITE
@@ -1899,7 +1899,7 @@ begin
       Timeout := Connection.ServerTimeout * 1000;
     WaitResult := RunExecute.WaitFor(Timeout);
 
-    Nils := 6;
+    ThreadState := 6;
 
     if (not Terminated) then
       if (WaitResult = wrTimeout) then
@@ -1909,7 +1909,7 @@ begin
       end
       else
       begin
-        Nils := 7;
+        ThreadState := 7;
 
         case (State) of
           ssConnecting:
@@ -1926,7 +1926,7 @@ begin
             Connection.SyncDisconnecting(Self);
         end;
 
-        Nils := 8;
+        ThreadState := 8;
 
         Connection.TerminateCS.Enter();
         RunExecute.ResetEvent();
@@ -1939,16 +1939,16 @@ begin
         end;
         Connection.TerminateCS.Leave();
 
-        Nils := 9;
+        ThreadState := 9;
 
         if (SynchronizeRequestSent) then
           SynchronizeStarted.WaitFor(INFINITE);
 
-        Nils := 10;
+        ThreadState := 10;
       end;
   end;
 
-  Nils := 11;
+  ThreadState := 11;
 
   Connection.TerminatedThreads.Delete(Self);
 
@@ -1958,16 +1958,21 @@ begin
   end;
   {$ENDIF}
 
-  Nils := 12;
+  ThreadState := 12;
 end;
 
 function TMySQLConnection.TLibraryThread.GetIsRunning(): Boolean;
 begin
+  if (not Assigned(Self)) then // Debug 01.11.2012
+    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Self']);
+  if (not Assigned(RunExecute)) then // Debug 01.11.2012
+    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['RunExecute']);
+
   try
     Result := not Terminated and ((RunExecute.WaitFor(IGNORE) = wrSignaled) or not (State in [ssClose, ssReady]));
   except
     on E: Exception do
-      raise Exception.Create(E.Message + ' (Nils: ' + IntToStr(Nils) + ')');
+      raise Exception.Create(E.Message + ' (ThreadState: ' + IntToStr(ThreadState) + ')');
   end;
 end;
 
@@ -2440,7 +2445,7 @@ begin
   LibraryThread.SQLStmtIndex := 1;
   while (LibraryThread.SQLStmtIndex < Length(LibraryThread.SQL)) do
   begin
-    StmtLength := SQLStmtLength(LibraryThread.SQL, LibraryThread.SQLStmtIndex);
+    StmtLength := SQLStmtLength(PChar(@LibraryThread.SQL[LibraryThread.SQLStmtIndex]), Length(LibraryThread.SQL) - (LibraryThread.SQLStmtIndex - 1));
     LibraryThread.SQLStmtLengths.Add(Pointer(StmtLength));
     Inc(LibraryThread.SQLStmtIndex, StmtLength);
   end;
@@ -3174,7 +3179,7 @@ begin
     if (FErrorCode > 0) then
     begin
       DoError(FErrorCode, FErrorMessage);
-      mysql_close(LibraryThread.LibHandle);
+      Lib.mysql_close(LibraryThread.LibHandle);
       LibraryThread.LibHandle := nil;
     end
     else
@@ -3339,7 +3344,7 @@ begin
         LibraryThread.Success := Lib.mysql_real_query(LibraryThread.LibHandle, my_char(LibSQL), LibLength) = 0;
         LibraryThread.Time := LibraryThread.Time + Now() - StartTime;
 
-        NeedReconnect := (Lib.mysql_errno(LibraryThread.LibHandle) = CR_SERVER_GONE_ERROR) or (Lib.mysql_errno(LibraryThread.LibHandle) = CR_SERVER_LOST);
+        NeedReconnect := not Assigned(LibraryThread.LibHandle) or (Lib.mysql_errno(LibraryThread.LibHandle) = CR_SERVER_GONE_ERROR) or (Lib.mysql_errno(LibraryThread.LibHandle) = CR_SERVER_LOST);
         if (NeedReconnect) then
         begin
           {$IFDEF Debug}
@@ -3356,6 +3361,8 @@ begin
       LibraryThread.ResHandle := Lib.mysql_use_result(LibraryThread.LibHandle);
   end;
 
+  if (not Assigned(LibraryThread.LibHandle)) then
+    raise Exception.Create('Error Message 1'); // Debug
   LibraryThread.ErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);
   LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
 end;
@@ -3558,6 +3565,8 @@ begin
     LibraryThread.Success := Assigned(LibraryThread.ResHandle);
   end;
 
+  if (not Assigned(LibraryThread.LibHandle)) then
+    raise Exception.Create('Error Message 2');
   LibraryThread.ErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);
   LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
 end;
@@ -3590,6 +3599,8 @@ begin
     TerminateCS.Leave();
   until (not Assigned(LibRow));
 
+  if (not Assigned(LibraryThread.LibHandle)) then
+    raise Exception.Create('Error Message 3'); // Debug
   LibraryThread.Success := Lib.mysql_errno(LibraryThread.LibHandle) = 0;
 
   LibraryThread.ErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);
@@ -4399,20 +4410,14 @@ begin
           else
           begin
             Binary := Connection.Lib.Field(LibField).charsetnr = 63;
-            if (Binary) then
-              Len := Connection.Lib.Field(LibField).length
-            else if (Connection.ServerVersion <= 40109) then // In 40109 this is needed. In 40122 and higher the problem is fixed. What is the exact ServerVersion?
-              Len := Connection.Lib.Field(LibField).length
-            else
-            begin
-              Len := Connection.Lib.Field(LibField).length;
+            Len := Connection.Lib.Field(LibField).length;
+            if (not Binary and (Connection.ServerVersion > 40109)) then // In 40109 this is needed. In 40122 and higher the problem is fixed. What is the exact ServerVersion?
               for I := 0 to Length(MySQL_Collations) - 1 do
                 if (MySQL_Collations[I].CharsetNr = Connection.Lib.Field(LibField).charsetnr) then
                   if (MySQL_Collations[I].MaxLen = 0) then
                     raise ERangeError.CreateFmt(SPropertyOutOfRange + ' - CharsetNr: %d', ['MaxLen', MySQL_Collations[I].CharsetNr])
                   else
                     Len := Connection.Lib.Field(LibField).length div MySQL_Collations[I].MaxLen;
-            end;
           end;
           Len := Len and $7FFFFFFF;
 

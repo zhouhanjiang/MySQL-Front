@@ -459,7 +459,7 @@ begin
       Index := 0;
       while (Index < Size) do
       begin
-        SQLLen := SQLStmtLength(SQL, SQLIndex);
+        SQLLen := SQLStmtLength(@SQL[SQLIndex], Length(SQL) - (SQLIndex - 1));
         Len := WideCharToMultiByte(CodePage, 0, PChar(@SQL[SQLIndex]), SQLLen, nil, 0, nil, nil);
 
         if (GetFileSize() > 0) then

@@ -8,7 +8,7 @@ uses
   DBCtrls, DBActns, StdActns, ImgList, XMLIntf,
   ShDocVw, CommCtrl, PNGImage, GIFImg, Jpeg, ToolWin,
   MPHexEditor, MPHexEditorEx,
-  SynEdit, SynEditHighlighter, SynMemo, SynEditMiscClasses, SynEditSearch,
+  SynEdit, SynEditHighlighter, SynHighlighterSQL, SynMemo, SynEditMiscClasses, SynEditSearch,
   SynCompletionProposal, SynEditPrint,
   acQBBase, acAST, acQBEventMetaProvider, acMYSQLSynProvider, acSQLBuilderPlainText,
   ShellControls, JAMControls, ShellLink,
@@ -468,6 +468,7 @@ type
     procedure DataSetAfterScroll(DataSet: TDataSet);
     procedure DataSetBeforeCancel(DataSet: TDataSet);
     procedure DataSetBeforePost(DataSet: TDataSet);
+    procedure DBGridCellEnter(Column: TColumn);
     procedure DBGridColEnter(Sender: TObject);
     procedure DBGridColExit(Sender: TObject);
     procedure DBGridColumnMoved(Sender: TObject; FromIndex: Integer;
@@ -482,6 +483,8 @@ type
     procedure DBGridEnter(Sender: TObject);
     procedure DBGridExit(Sender: TObject);
     procedure DBGridKeyDown(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
+    procedure DBGridKeyUp(Sender: TObject; var Key: Word;
       Shift: TShiftState);
     procedure DBGridMouseMove(Sender: TObject; Shift: TShiftState; X,
       Y: Integer);
@@ -1096,7 +1099,6 @@ uses
   MMSystem, Math, DBConsts, Clipbrd, DBCommon, ShellAPI, Variants, Types,
   XMLDoc, Themes, StrUtils, UxTheme, FileCtrl, SysConst, RichEdit,
   ShLwApi,
-  SynHighlighterSQL,
   acQBLocalizer, acQBStrings,
   CommCtrl_Ext, StdActns_Ext,
   MySQLConsts, SQLUtils,
@@ -1251,6 +1253,7 @@ var
   EndingCommentLength: Integer;
   Item: ^TResult;
   Len: Integer;
+  SQL: string;
   StartingCommentLength: Integer;
   URI: TUURI;
   XML: IXMLNode;
@@ -1285,7 +1288,8 @@ begin
   begin
     if ((DataHandle.Connection.CommandText <> '') and (Length(FClient.FSQLEditorSynMemo.Text) > Length(DataHandle.Connection.CommandText) + 5)) then
     begin
-      Len := SQLStmtLength(DataHandle.Connection.CommandText);
+      SQL := DataHandle.Connection.CommandText;
+      Len := SQLStmtLength(PChar(SQL), Length(SQL));
       SQLTrimStmt(DataHandle.Connection.CommandText, 1, Len, StartingCommentLength, EndingCommentLength);
       FClient.FSQLEditorSynMemo.SelStart := FClient.aDRunExecuteSelStart + DataHandle.Connection.ExecutedSQLLength + StartingCommentLength;
       FClient.FSQLEditorSynMemo.SelLength := Len - StartingCommentLength - EndingCommentLength;
@@ -2963,7 +2967,7 @@ begin
     Index := 1; Len := 1;
     while ((Index < aDRunExecuteSelStart + 2) and (Len > 0)) do
     begin
-      Len := SQLStmtLength(SQL, Index);
+      Len := SQLStmtLength(PChar(SQL), Length(SQL) - (Index - 1));
       Inc(Index, Len);
     end;
     Dec(Index, Len);
@@ -4374,7 +4378,8 @@ begin
           ListViewUpdate(Event, Desktop(TSTrigger(Event.CItem).Table).ListView)
         else
           for I := 0 to TSTriggers(Event.CItems).Count - 1 do
-            ListViewUpdate(Event, Desktop(TSTriggers(Event.CItems)[I].Table).ListView);
+            if (Assigned(TSTriggers(Event.CItems)[I].Table)) then
+              ListViewUpdate(Event, Desktop(TSTriggers(Event.CItems)[I].Table).ListView);
         if (Assigned(Desktop(TSDatabase(Event.Sender)).Workbench)) then
           Desktop(TSDatabase(Event.Sender)).Workbench.ClientUpdate(Event);
       end
@@ -5586,6 +5591,7 @@ begin
   Result.PopupMenu := MGrid;
   Result.TabOrder := 0;
   Result.OnCanEditShow := Session.GridCanEditShow;
+  Result.OnCellClick := DBGridCellEnter;
   Result.OnColEnter := DBGridColEnter;
   Result.OnColExit := DBGridColExit;
   Result.OnColumnMoved := DBGridColumnMoved;
@@ -5937,6 +5943,11 @@ procedure TFSession.DataSetBeforePost(DataSet: TDataSet);
 begin
   if (PBlob.Visible and aVBlobText.Checked) then
     FTextExit(DataSetPost);
+end;
+
+procedure TFSession.DBGridCellEnter(Column: TColumn);
+begin
+  StatusBarRefresh();
 end;
 
 procedure TFSession.DBGridColEnter(Sender: TObject);
@@ -6432,6 +6443,12 @@ begin
 
       Key := 0;
     end;
+end;
+
+procedure TFSession.DBGridKeyUp(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  StatusBarRefresh();
 end;
 
 procedure TFSession.DBGridMouseMove(Sender: TObject; Shift: TShiftState; X,
@@ -8218,7 +8235,7 @@ begin
   MainAction('aFExportXML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView]);
   MainAction('aFExportHTML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
   MainAction('aFExportPDF').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-  MainAction('aFPrint').Enabled := Assigned(Node) and ((View = vDiagram) or (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView]));
+  MainAction('aFPrint').Enabled := Assigned(Node) and ((View = vDiagram) or (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]));
   MainAction('aECopy').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiField, iiSystemViewField, iiViewField, iiUser]);
   MainAction('aEPaste').Enabled := Assigned(Node) and ((Node.ImageIndex = iiServer) and Clipboard.HasFormat(CF_MYSQLSERVER) or (Node.ImageIndex = iiDatabase) and Clipboard.HasFormat(CF_MYSQLDATABASE) or (Node.ImageIndex = iiBaseTable) and Clipboard.HasFormat(CF_MYSQLTABLE) or (Node.ImageIndex = iiUsers) and Clipboard.HasFormat(CF_MYSQLUSERS));
   MainAction('aERename').Enabled := Assigned(Node) and ((Node.ImageIndex = iiForeignKey) and (Session.ServerVersion >= 40013) or (Node.ImageIndex in [iiBaseTable, iiView, iiEvent, iiTrigger, iiField]));
@@ -8557,7 +8574,7 @@ begin
   try
     SQL := ActiveSynMemo.Text; // Sometimes this forces in exception SynGetText / GetSelAvail
     repeat
-      Len := SQLStmtLength(SQL, Index);
+      Len := SQLStmtLength(PChar(SQL), (Length(SQL) - (Index - 1)));
       Inc(Index, Len);
     until (Index >= ActiveSynMemo.SelStart);
     Dec(Index, Len);
@@ -10944,9 +10961,9 @@ begin
                 MainAction('aFExportSQLite').Enabled := MainAction('aFExportSQLite').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
                 MainAction('aFExportODBC').Enabled := MainAction('aFExportODBC').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
                 MainAction('aFExportXML').Enabled := MainAction('aFExportXML').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView]);
-                MainAction('aFExportHTML').Enabled := MainAction('aFExportHTML').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent]);
-                MainAction('aFExportPDF').Enabled := MainAction('aFExportPDF').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent]);
-                MainAction('aFPrint').Enabled := MainAction('aFPrint').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView]);
+                MainAction('aFExportHTML').Enabled := MainAction('aFExportHTML').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
+                MainAction('aFExportPDF').Enabled := MainAction('aFExportPDF').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
+                MainAction('aFPrint').Enabled := MainAction('aFPrint').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
                 MainAction('aECopy').Enabled := MainAction('aECopy').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent]);
                 MainAction('aDDeleteTable').Enabled := MainAction('aDDeleteTable').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
                 MainAction('aDDeleteView').Enabled := MainAction('aDDeleteView').Enabled and (ListView.Items[I].ImageIndex in [iiView]);

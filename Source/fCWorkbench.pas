@@ -3332,9 +3332,9 @@ begin
     BaseTable := TSBaseTable(Event.CItem);
 
     for I := Links.Count - 1 downto 0 do
-      if ((Links[I].ChildTable.BaseTable = BaseTable)
-        and ((Links[I] is TWForeignKey) and (TWForeignKey(Links[I]).ChildTable.BaseTable.ForeignKeys.IndexOf(TWForeignKey(Links[I]).BaseForeignKey) < 0)
-          or not Assigned(Links[I].ChildTable.BaseTable.ForeignKeyByName(Links[I].Caption)))) then
+      if ((Links[I] is TWForeignKey)
+        and Assigned(Links[I].ChildTable) and (Links[I].ChildTable.BaseTable = BaseTable)
+        and (Links[I].ChildTable.BaseTable.ForeignKeys.IndexOf(TWForeignKey(Links[I]).BaseForeignKey) < 0)) then
           Links.Delete(I);
 
     if (Assigned(CreatedTable)) then

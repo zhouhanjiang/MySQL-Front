@@ -1206,10 +1206,10 @@ begin
   else
     case (HDNotify^.Hdr.code) of
       HDN_ITEMCLICK:
-        TitleClick(Columns[HDNotify^.Item + LeftCol]);
+        TitleClick(Columns[LeftCol + HDNotify^.Item]);
       HDN_DIVIDERDBLCLICK:
         begin
-          Column := Columns[HDNotify^.Item + LeftCol];
+          Column := Columns[LeftCol + HDNotify^.Item];
           if ((DataLink.DataSet is TMySQLDataSet) and not (Column.Field is TBlobField)) then
           begin
             HDItem.Mask := HDI_WIDTH;
@@ -1234,7 +1234,7 @@ begin
         Message.Result := LRESULT(not ((HDNotify^.PItem.Mask and HDI_WIDTH = 0) or (HDNotify^.PItem.cxy >= RowHeights[1])));
       HDN_ITEMCHANGED:
         begin
-          Column := Columns[HDNotify^.Item + LeftCol];
+          Column := Columns[LeftCol + HDNotify^.Item];
           if (HDNotify^.PItem.Mask and HDI_WIDTH <> 0) then
           begin
             if (EditorMode) then Perform(CM_Exit, 0, 0);
@@ -1248,7 +1248,7 @@ begin
       HDN_ENDDRAG:
         if ((HDNotify^.PItem.Mask and HDI_ORDER <> 0) and (HDNotify^.PItem.iOrder >= 0)) then
         begin
-          Column := Columns[HDNotify^.Item + LeftCol];
+          Column := Columns[LeftCol + HDNotify^.Item];
           Column.Index := HDNotify^.PItem.iOrder + LeftCol;
           Message.Result := LRESULT(TRUE);
           Resize();
@@ -1260,9 +1260,9 @@ begin
             CDDS_PREPAINT:
               Message.Result := CDRF_NOTIFYITEMDRAW;
             CDDS_ITEMPREPAINT:
-              if (Integer(HDCustomDraw^.dwItemSpec) >= Columns.Count) then
+              if ((Integer(HDCustomDraw^.dwItemSpec) < LeftCol) or (Columns.Count <= Integer(HDCustomDraw^.dwItemSpec))) then
                 inherited
-              else if (Columns[HDCustomDraw^.dwItemSpec].Field.IsIndexField
+              else if (Columns[LeftCol + Integer(HDCustomDraw^.dwItemSpec)].Field.IsIndexField
                 and (Assigned(TitleBoldFont) or (GetObject(TitleFont.Handle, SizeOf(LogFont), @LogFont) <> 0))) then
               begin
                 if (not Assigned(TitleBoldFont)) then
