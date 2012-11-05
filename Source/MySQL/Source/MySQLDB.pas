@@ -220,6 +220,7 @@ type
   private
     ExecuteSQLDone: TEvent;
     FAfterExecuteSQL: TNotifyEvent;
+    FAnsiQuotes: Boolean;
     FAsynchron: Boolean;
     FAutoCommit: Boolean;
     FBeforeExecuteSQL: TNotifyEvent;
@@ -265,9 +266,9 @@ type
     function GetServerDateTime(): TDateTime;
     function GetHandle(): MySQLConsts.MYSQL;
     function GetInfo(): string;
+    procedure SetAnsiQuotes(const AAnsiQuotes: Boolean);
     procedure SetDatabaseName(const ADatabaseName: string);
     procedure SetHost(const AHost: string);
-    procedure SetIdentifierQuoter(const AIdentifierQuoter: Char);
     procedure SetLibraryName(const ALibraryName: string);
     procedure SetLibraryType(const ALibraryType: TMySQLLibrary.TLibraryType);
     procedure SetPassword(const APassword: string);
@@ -322,7 +323,7 @@ type
     procedure WriteMonitor(const AText: PChar; const Length: Integer; const ATraceType: TMySQLMonitor.TTraceType); virtual;
     property CharsetNr: Byte read FCharsetNr;
     property Handle: MySQLConsts.MYSQL read GetHandle;
-    property IdentifierQuoter: Char read FIdentifierQuoter write SetIdentifierQuoter;
+    property IdentifierQuoter: Char read FIdentifierQuoter;
     property IdentifierQuoted: Boolean read FIdentifierQuoted write FIdentifierQuoted;
     property LibraryThread: TLibraryThread read FLibraryThread;
     property SilentCount: Integer read FSilentCount;
@@ -359,6 +360,7 @@ type
     function SQLUse(const DatabaseName: string): string; virtual;
     procedure StartTransaction(); virtual;
     procedure Terminate(); virtual;
+    property AnsiQuotes: Boolean read FAnsiQuotes write SetAnsiQuotes;
     property AutoCommit: Boolean read GetAutoCommit write SetAutoCommit;
     property BugMonitor: TMySQLMonitor read FBugMonitor;
     property CodePage: Cardinal read FCodePage;
@@ -1880,8 +1882,8 @@ end;
 procedure TMySQLConnection.TLibraryThread.Execute();
 var
   Timeout: LongWord;
+  WaitForSynchronizeStarted: Boolean;
   WaitResult: TWaitResult;
-  SynchronizeRequestSent: Boolean;
 begin
   {$IFDEF EurekaLog}
   try
@@ -1931,17 +1933,18 @@ begin
         Connection.TerminateCS.Enter();
         RunExecute.ResetEvent();
         if (Terminated or (Mode in [smDataHandle]) and (State = ssReceivingResult)) then
-          SynchronizeRequestSent := False
+          WaitForSynchronizeStarted := False
         else
         begin
-          MySQLConnectionSynchronizeRequest(Self);
-          SynchronizeRequestSent := True;
+          if ((State <> ssReceivingResult) or (DataSet is TMySQLDataSet)) then
+            MySQLConnectionSynchronizeRequest(Self);
+          WaitForSynchronizeStarted := True;
         end;
         Connection.TerminateCS.Leave();
 
         ThreadState := 9;
 
-        if (SynchronizeRequestSent) then
+        if (WaitForSynchronizeStarted) then
           SynchronizeStarted.WaitFor(INFINITE);
 
         ThreadState := 10;
@@ -1983,7 +1986,10 @@ begin
   Assert(Assigned(DataSet));
 
   if (not (DataSet is TMySQLDataSet)) then
-    DataSet := nil
+  begin
+    DataSet := nil;
+    SynchronizeStarted.SetEvent();
+  end
   else
   begin
     RecordsReceived := TMySQLDataSet(DataSet).RecordsReceived;
@@ -2227,6 +2233,7 @@ begin
 
   ExecuteSQLDone := TEvent.Create(nil, False, False, 'ExecuteSQLDone');
   FAfterExecuteSQL := nil;
+  FAnsiQuotes := False;
   FAsynchron := False;
   FAutoCommit := True;
   FBeforeExecuteSQL := nil;
@@ -2900,6 +2907,16 @@ begin
   end;
 end;
 
+procedure TMySQLConnection.SetAnsiQuotes(const AAnsiQuotes: Boolean);
+begin
+  FAnsiQuotes := AAnsiQuotes;
+
+  if (AnsiQuotes) then
+    FIdentifierQuoter := '"'
+  else
+    FIdentifierQuoter := '`';
+end;
+
 procedure TMySQLConnection.SetAutoCommit(const AAutoCommit: Boolean);
 begin
   FAutoCommit := AAutoCommit;
@@ -2964,11 +2981,6 @@ begin
 
 
   FHost := AHost;
-end;
-
-procedure TMySQLConnection.SetIdentifierQuoter(const AIdentifierQuoter: Char);
-begin
-  FIdentifierQuoter := AIdentifierQuoter;
 end;
 
 procedure TMySQLConnection.SetLibraryName(const ALibraryName: string);

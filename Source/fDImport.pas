@@ -1546,7 +1546,7 @@ begin
         if ((lstrcmpi(PChar(TABLE_TYPE), 'TABLE') = 0) or (ImportType = itExcelFile) and (lstrcmpi(PChar(TABLE_TYPE), 'SYSTEM TABLE') = 0))  then
         begin
           SetString(TableName, PChar(TABLE_NAME), cbTABLE_NAME div SizeOf(SQLTCHAR));
-          if ((ImportType <> itExcelFile) or (Pos('$', TableName) > 0)) then
+          if ((ImportType <> itExcelFile) or (lstrcmpi(PChar(TABLE_TYPE), 'SYSTEM TABLE') = 0) or (Pos('$', TableName) > 0)) then
             TableNames.Add(TableName);
         end;
       SQLFreeStmt(Handle, SQL_CLOSE);

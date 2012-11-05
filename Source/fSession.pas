@@ -6,7 +6,6 @@ uses
   SysUtils, Classes, Windows, Contnrs,
   Graphics,
   DB,
-  acQBBase, acAST, acMYSQLSynProvider, acQBEventMetaProvider,
   SQLUtils, MySQLDB,
   fPreferences;
 
@@ -695,6 +694,7 @@ type
     function ParseCreateView(const SQL: string): string;
   protected
     FComment: string;
+    function GetDependencies(): TSDependencies; override;
     function GetValid(): Boolean; override;
     procedure SetSource(const ADataSet: TMySQLQuery); overload; override;
     procedure SetSource(const ASource: string); override;
@@ -1377,14 +1377,12 @@ type
     FFieldTypes: TSFieldTypes;
     FInformationSchema: TSDatabase;
     FInvalidObjects: TList;
-    FMetadataProvider: TacEventMetadataProvider;
     FPerformanceSchema: TSDatabase;
     FPlugins: TSPlugins;
     FProcesses: TSProcesses;
     FStati: TSStati;
     FSQLMonitor: TMySQLMonitor;
     FStartTime: TDateTime;
-    FSyntaxProvider: TacMYSQLSyntaxProvider;
     FUser: TSUser;
     FUsers: TSUsers;
     FVariables: TSVariables;
@@ -1399,8 +1397,6 @@ type
     function GetUseInformationSchema(): Boolean;
     function GetUserRights(): TSUserRight;
     function GetValid(): Boolean;
-    procedure MetadataProviderGetSQLFieldNames(Sender: TacBaseMetadataProvider;
-      const ASQL: WideString; AFields: TacFieldsList);
     procedure SetCreateDesktop(ACreateDesktop: TCreateDesktop);
   protected
     FLowerCaseTableNames: Byte;
@@ -1491,7 +1487,6 @@ type
     property Log: string read GetLog;
     property LogActive: Boolean read GetLogActive;
     property LowerCaseTableNames: Byte read FLowerCaseTableNames;
-    property MetadataProvider: TacEventMetadataProvider read FMetadataProvider;
     property PerformanceSchema: TSDatabase read FPerformanceSchema;
     property Plugins: TSPlugins read FPlugins;
     property Processes: TSProcesses read FProcesses;
@@ -1500,7 +1495,6 @@ type
     property StartTime: TDateTime read FStartTime;
     property Stati: TSStati read FStati;
     property SQLMonitor: TMySQLMonitor read FSQLMonitor;
-    property SyntaxProvider: TacMYSQLSyntaxProvider read FSyntaxProvider;
     property User: TSUser read FUser;
     property UserRights: TSUserRight read GetUserRights;
     property Users: TSUsers read FUsers;
@@ -1533,9 +1527,9 @@ uses
   Variants, SysConst, WinInet, DBConsts, RTLConsts, Math,
   Consts, DBCommon, StrUtils,
   Forms, DBGrids,
-{$IFDEF Debug}
-  GSqlParser, LzBaseType, LzDBObjects, u_nodes, selectstatement,
-{$ENDIF}
+  {$IFDEF Debug}
+  GSqlParser, LzBaseType, selectstatement,
+  {$ENDIF}
   MySQLConsts, CSVUtils, HTTPTunnel, MySQLDBGrid,
   fURI;
 
@@ -1548,7 +1542,7 @@ const
 resourcestring
   SUnknownRoutineType = 'Unknown Routine Type (%s)';
   SUnknownSQLStmt = 'Unknow SQL Stmt (%s)';
-  SSourceParseError = 'Source code of "%s" cannot be analyzed (%d):' + #10#10 + '%s';
+  SSourceParseError = 'Source code of "%s" cannot be analyzed:' + #10#10 + '%s';
 
 type
   TMCharsetTranslation = record
@@ -2079,14 +2073,14 @@ begin
 
   Result := nil;
   if (Assigned(Database)) then
-    if ((ObjectClass = TSBaseTable) or (ObjectClass = TSSystemView) or (ObjectClass = TSView)) then
+    if ((ObjectClass = TSBaseTable) or (ObjectClass = TSSystemView) or (ObjectClass = TSView) or (ObjectClass = TSTable)) then
       Result := Database.TableByName(ObjectName)
     else if (ObjectClass = TSRoutine) then
       Result := Database.ProcedureByName(ObjectName)
     else if (ObjectClass = TSFunction) then
       Result := Database.FunctionByName(ObjectName)
     else
-      ERangeError.Create(SRangeError);
+      raise ERangeError.Create(SRangeError);
 end;
 
 { TSDependencies **************************************************************}
@@ -2666,7 +2660,7 @@ begin
       Size := StrToInt(SQLParseValue(Parse));
 
     if (not SQLParseChar(Parse, ')')) then
-      raise EConvertError.CreateFmt(SSourceParseError, [Name, 1, string(Parse.Start)]);
+      raise EConvertError.CreateFmt(SSourceParseError, [Name, string(Parse.Start)]);
   end
   else if ((FieldType = mfTinyInt) and ((UpperCase(Identifier) = 'BOOL') or (UpperCase(Identifier) = 'BOOLEAN'))) then
     Size := 1
@@ -4203,27 +4197,27 @@ begin
     FirstParse := FFields.Count = 0;
 
     if (not SQLParseKeyword(Parse, 'CREATE')) then
-      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 2, SQL]);
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
     Temporary := SQLParseKeyword(Parse, 'TEMPORARY');
 
-    if (not SQLParseKeyword(Parse, 'TABLE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 3, SQL]);
+    if (not SQLParseKeyword(Parse, 'TABLE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
     Name := SQLParseValue(Parse);
     if (SQLParseChar(Parse, '.')) then
     begin
       if (Database.Session.TableNameCmp(Database.Name, Name) <> 0) then
-        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 4, SQL]);
+        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
       Name := SQLParseValue(Parse);
     end;
 
-    if (not SQLParseChar(Parse, '(')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 5, SQL]);
+    if (not SQLParseChar(Parse, '(')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
     if (not Assigned(Database.Session.VariableByName('sql_quote_show_create'))) then
     begin
       Database.Session.IdentifierQuoted := CharInSet(SQLParseChar(Parse, False), ['`', '"']);
       if (not Assigned(Database.Session.VariableByName('sql_mode')) and Database.Session.IdentifierQuoted) then
-        Database.Session.IdentifierQuoter := SQLParseChar(Parse, False);
+        Database.Session.AnsiQuotes := SQLParseChar(Parse, False) = '"';
     end;
 
     Index := 0;
@@ -4425,7 +4419,7 @@ begin
       else
         Name := SQLParseValue(Parse);// Symbol Name
 
-      if (not SQLParseKeyword(Parse, 'FOREIGN KEY')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 6, SQL]);
+      if (not SQLParseKeyword(Parse, 'FOREIGN KEY')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
       if (not SQLParseChar(Parse, '(', False)) then
         Name := SQLParseValue(Parse); // Index Name
@@ -4442,7 +4436,7 @@ begin
         FForeignKeys.Add(TSForeignKey.Create(FForeignKeys, Name));
       NewForeignKey := FForeignKeys[Index];
 
-      if (not SQLParseChar(Parse, '(')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 7, SQL]);
+      if (not SQLParseChar(Parse, '(')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
       repeat
         SetLength(NewForeignKey.Fields, Length(NewForeignKey.Fields) + 1);
         NewForeignKey.Fields[Length(NewForeignKey.Fields) - 1] := FieldByName(SQLParseValue(Parse));
@@ -4450,14 +4444,14 @@ begin
         SQLParseChar(Parse, ',');
       until (SQLParseChar(Parse, ')'));
 
-      if (not SQLParseKeyword(Parse, 'REFERENCES')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 8, SQL]);
+      if (not SQLParseKeyword(Parse, 'REFERENCES')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
       NewForeignKey.Parent.DatabaseName := Database.Name;
-      if (not SQLParseObjectName(Parse, NewForeignKey.Parent.DatabaseName, NewForeignKey.Parent.TableName)) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 9, SQL]);
+      if (not SQLParseObjectName(Parse, NewForeignKey.Parent.DatabaseName, NewForeignKey.Parent.TableName)) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
       NewForeignKey.Parent.TableName := Session.TableName(NewForeignKey.Parent.TableName); // Sometimes MySQL reports parent table name in wrong case sensitive
 
-      if (not SQLParseChar(Parse, '(')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 10, SQL]);
+      if (not SQLParseChar(Parse, '(')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
       repeat
         FieldName := SQLParseValue(Parse);
         SetLength(NewForeignKey.Parent.FieldNames, Length(NewForeignKey.Parent.FieldNames) + 1);
@@ -4509,7 +4503,7 @@ begin
     DeleteList.Free();
 
 
-    if (not SQLParseChar(Parse, ')')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 11, SQL]);
+    if (not SQLParseChar(Parse, ')')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
     while (not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';')) do
     begin
@@ -4671,7 +4665,7 @@ begin
             SetLength(FMergeSourceTables, Length(FMergeSourceTables) + 1);
             FMergeSourceTables[Length(FMergeSourceTables) + 1].DatabaseName := Database.Name;
             if (not SQLParseObjectName(Parse, FMergeSourceTables[Length(FMergeSourceTables) + 1].DatabaseName, FMergeSourceTables[Length(FMergeSourceTables) + 1].TableName)) then
-              raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 12, SQL]);
+              raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
             SQLParseChar(Parse, ',');
           until (SQLParseEnd(Parse) or SQLParseChar(Parse, ')'));
       end
@@ -4777,6 +4771,17 @@ begin
   FStmt := '';
 end;
 
+function TSView.GetDependencies(): TSDependencies;
+begin
+  if (not Assigned(FDependencies)) then
+  begin
+    FDependencies := TSDependencies.Create();
+    Database.ParseDependencies(Stmt, FDependencies);
+  end;
+
+  Result := FDependencies;
+end;
+
 function TSView.GetValid(): Boolean;
 begin
   Result := inherited GetValid() and ValidFields;
@@ -4794,10 +4799,15 @@ end;
 
 function TSView.GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string;
 var
+  CheckOptionSQL: string;
+  EndingCommentLen: Integer;
+  I: Integer;
   Index: Integer;
   Parse: TSQLParse;
   RemovedLength: Integer;
   SQL: string;
+  StartingCommentLen: Integer;
+  StringList: TStringList;
 begin
   SQL := FSource; RemovedLength := 0;
 
@@ -4805,12 +4815,12 @@ begin
   begin
     if (not EncloseDefiner) then
     begin
-      if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 19, SQL]);
+      if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
       Index := SQLParseGetIndex(Parse);
       if (SQLParseKeyword(Parse, 'ALGORITHM')) then
       begin
-        if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 20, SQL]);
+        if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
         SQLParseValue(Parse);
         Delete(SQL, Index - RemovedLength, SQLParseGetIndex(Parse) - Index);
         Inc(RemovedLength, SQLParseGetIndex(Parse) - Index);
@@ -4819,7 +4829,7 @@ begin
       Index := SQLParseGetIndex(Parse);
       if (SQLParseKeyword(Parse, 'DEFINER')) then
       begin
-        if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 20, SQL]);
+        if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
         SQLParseValue(Parse);
         Delete(SQL, Index - RemovedLength, SQLParseGetIndex(Parse) - Index);
         Inc(RemovedLength, SQLParseGetIndex(Parse) - Index);
@@ -4830,11 +4840,57 @@ begin
       begin
         SQLParseValue(Parse);
         Delete(SQL, Index - RemovedLength, SQLParseGetIndex(Parse) - Index);
+        Inc(RemovedLength, SQLParseGetIndex(Parse) - Index);
       end;
+
+      if (not SQLParseKeyword(Parse, 'VIEW')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+
+      Index := SQLParseGetIndex(Parse);
+      FName := SQLParseValue(Parse);
+      if (SQLParseChar(Parse, '.')) then
+      begin
+        Delete(SQL, Index - RemovedLength, SQLParseGetIndex(Parse) - Index);
+        Inc(RemovedLength, SQLParseGetIndex(Parse) - Index);
+        FName := SQLParseValue(Parse);
+      end;
+
+      if (SQLParseChar(Parse, '(')) then
+        while (not SQLParseEnd(Parse) and not SQLParseChar(Parse, ')')) do
+        begin
+          SQLParseValue(Parse);
+          SQLParseChar(Parse, ',');
+        end;
+
+      if (not SQLParseKeyword(Parse, 'AS')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+
+      SQLTrimStmt(SQL, SQLParseGetIndex(Parse), Length(SQL) - (SQLParseGetIndex(Parse) - 1), StartingCommentLen, EndingCommentLen);
+      if (Copy(SQL, Length(SQL) - EndingCommentLen, 1) = ';') then
+        Inc(EndingCommentLen);
+
+      if (UpperCase(RightStr(SQL, 18)) = ' WITH CHECK OPTION') then
+        CheckOptionSQL := RightStr(SQL, 17)
+      else if (UpperCase(RightStr(SQL, 27)) = ' WITH CASCADED CHECK OPTION') then
+        CheckOptionSQL := RightStr(SQL, 26)
+      else if (UpperCase(RightStr(SQL, 24)) = ' WITH LOCAL CHECK OPTION') then
+        CheckOptionSQL := RightStr(SQL, 23)
+      else
+        CheckOptionSQL := '';
+
+      SQL := LeftStr(SQL, SQLParseGetIndex(Parse) - RemovedLength - 1);
+
+      StringList := TStringList.Create();
+      StringList.Text := LeftStr(Stmt, Length(Stmt) - 1);
+      for I := 0 to StringList.Count - 1 do
+        StringList[I] := '  ' + StringList[I];
+
+      SQL := SQL + #13#10 + '  ' + Trim(StringList.Text);
+      if (CheckOptionSQL <> '') then
+        SQL := SQL + #13#10 + CheckOptionSQL;
+      SQL := SQL + ';' + #13#10;
+
+      StringList.Free();
     end;
   end;
-
-  SQL := Trim(ReplaceStr(SQL, Session.EscapeIdentifier(Database.Name) + '.', '')) + #13#10;
 
   if (DropBeforeCreate) then
     SQL := 'DROP VIEW IF EXISTS ' + Database.Session.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
@@ -4857,12 +4913,9 @@ var
   Parse: TSQLParse;
   {$IFDEF Debug}
   SQLParser: TGSqlParser;
+  SQLStatement: TSelectSQLStatement;
   {$ENDIF}
   StartingCommentLen: Integer;
-  {$IFDEF Debug}
-  SQLStatement: TSelectSQLStatement;
-  TableName: string;
-  {$ENDIF}
 begin
   if (not SQLCreateParse(Parse, PChar(SQL), Length(SQL), Database.Session.ServerVersion)) then
     Result := ''
@@ -4870,13 +4923,13 @@ begin
   begin
     Result := SQL;
 
-    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 13, SQL]);
+    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
     if (not SQLParseKeyword(Parse, 'ALGORITHM')) then
       Algorithm := vaUndefined
     else
     begin
-      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 14, SQL]);
+      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
       if (SQLParseKeyword(Parse, 'MERGE')) then
         FAlgorithm := vaMerge
@@ -4890,7 +4943,7 @@ begin
 
     if (SQLParseKeyword(Parse, 'DEFINER')) then
     begin
-      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 15, SQL]);
+      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
       FDefiner := SQLParseValue(Parse);
     end;
 
@@ -4899,17 +4952,17 @@ begin
     else if (SQLParseKeyword(Parse, 'SQL SECURITY INVOKER')) then
       FSecurity := seInvoker;
 
-    if (not SQLParseKeyword(Parse, 'VIEW')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 16, SQL]);
+    if (not SQLParseKeyword(Parse, 'VIEW')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
     FName := SQLParseValue(Parse);
     if (SQLParseChar(Parse, '.')) then
     begin
       if (Database.Session.TableNameCmp(Database.Name, FName) <> 0) then
-        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + FName, 17, SQL]);
+        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + FName, SQL]);
       FName := SQLParseValue(Parse);
     end;
 
-    if (not SQLParseKeyword(Parse, 'AS')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 18, SQL]);
+    if (not SQLParseKeyword(Parse, 'AS')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
     Len := SQLTrimStmt(SQL, SQLParseGetIndex(Parse), Length(SQL) - (SQLParseGetIndex(Parse) - 1), StartingCommentLen, EndingCommentLen);
     if (Copy(SQL, Length(SQL) - EndingCommentLen, 1) = ';') then
@@ -4918,17 +4971,17 @@ begin
       Inc(EndingCommentLen);
     end;
 
-    if (UpperCase(Copy(SQL, Length(SQL) - EndingCommentLen - 18 + 1, 18)) = ' WITH CHECK OPTION') then
+    if (UpperCase(RightStr(SQL, 18)) = ' WITH CHECK OPTION') then
     begin
       FCheckOption := voDefault;
       Dec(Len, 18); Inc(EndingCommentLen, 18);
     end
-    else if (UpperCase(Copy(SQL, Length(SQL) - EndingCommentLen - 27 + 1, 27)) = ' WITH CASCADED CHECK OPTION') then
+    else if (UpperCase(RightStr(SQL, 27)) = ' WITH CASCADED CHECK OPTION') then
     begin
       FCheckOption := voCascaded;
       Dec(Len, 27); Inc(EndingCommentLen, 27);
     end
-    else if (UpperCase(Copy(SQL, Length(SQL) - EndingCommentLen - 24 + 1, 24)) = ' WITH LOCAL CHECK OPTION') then
+    else if (UpperCase(RightStr(SQL, 24)) = ' WITH LOCAL CHECK OPTION') then
     begin
       FCheckOption := voLocal;
       Dec(Len, 24); Inc(EndingCommentLen, 24);
@@ -4941,6 +4994,7 @@ begin
     {$IFDEF Debug}
     SQLParser := TGSqlParser.Create(DbVMySQL);
     SQLParser.SqlText.Text := FStmt;
+
     if (SQLParser.Parse() = 0) then
     begin
       for I := SQLParser.SourceTokenList.Count - 2 downto 0 do
@@ -4956,38 +5010,50 @@ begin
           and (lstrcmpi(PChar(SQLParser.SourceTokenList[I].SourceCode), 'AS') = 0)
           and (SQLParser.SourceTokenList[I - 1].TokenType = ttWhiteSpace)
           and (SQLParser.SourceTokenList[I + 1].TokenType = ttWhiteSpace)
-          and (SQLParser.SourceTokenList[I - 1].SourceCode = SQLParser.SourceTokenList[I + 1].SourceCode)) then
+          and (SQLParser.SourceTokenList[I - 2].SourceCode = SQLParser.SourceTokenList[I + 2].SourceCode)) then
         begin
           SQLParser.SourceTokenList[I].SourceCode := '';
           SQLParser.SourceTokenList[I + 1].SourceCode := '';
           SQLParser.SourceTokenList[I + 2].SourceCode := '';
         end;
-      FStmt := SQLParser.GetTextFromParseTree();
+      FStmt := Trim(SQLParser.GetTextFromParseTree());
     end;
 
     SQLParser.SqlText.Text := FStmt;
     if ((SQLParser.Parse() = 0) and (SQLParser.SqlStatements.Count = 1) and (SQLParser.SqlStatements[0] is TSelectSQLStatement)) then
     begin
       SQLStatement := TSelectSQLStatement(SQLParser.SqlStatements[0]);
-      TableName := SQLUnescape(Trim(SQLStatement.FromClauseText));
 
-      for I := SQLParser.SourceTokenList.Count - 2 downto 1 do
-        if ((SQLParser.SourceTokenList[I].DBObjType = ttObjTable)
-          and (SQLParser.SourceTokenList[I + 1].TokenType = ttDot)
-          and (SQLParser.SourceTokenList[I - 1].TokenType <> ttDot)
-          and (Tables.NameCmp(SQLUnescape(SQLParser.SourceTokenList[I].SourceCode), TableName) = 0)
-          ) then
-        begin
-          SQLParser.SourceTokenList[I].SourceCode := '';
-          SQLParser.SourceTokenList[I + 1].SourceCode := '';
-        end;
+      if ((SQLStatement.JoinTables.Count = 1) and Assigned(SQLStatement.JoinTables[0].JoinTable)) then
+        for I := SQLParser.SourceTokenList.Count - 2 downto 1 do
+          if ((SQLParser.SourceTokenList[I].DBObjType = ttObjTable)
+            and (SQLParser.SourceTokenList[I + 1].TokenType = ttDot)
+            and (SQLParser.SourceTokenList[I - 1].TokenType <> ttDot)
 
-      FStmt := SQLParser.GetTextFromParseTree();
+            and (Tables.NameCmp(SQLUnescape(SQLParser.SourceTokenList[I].SourceCode), SQLUnescape(SQLStatement.JoinTables[0].JoinTable.TableFullname)) = 0)) then
+          begin
+            SQLParser.SourceTokenList[I].SourceCode := '';
+            SQLParser.SourceTokenList[I + 1].SourceCode := '';
+          end;
+
+      FStmt := Trim(SQLParser.GetTextFromParseTree());
     end;
 
     SQLParser.SqlText.Text := FStmt;
     if (SQLParser.PrettyPrint() = 0) then
+    begin
       FStmt := Trim(SQLParser.FormattedSqlText.Text);
+
+      SQLParser.SqlText.Text := FStmt;
+      if (SQLParser.Parse() = 0) then
+      begin
+        for I := 0 to SQLParser.SourceTokenList.Count - 1 do
+          if (SQLParser.SourceTokenList[I].TokenType = ttWhiteSpace) then
+            SQLParser.SourceTokenList[I].SourceCode := ' ';
+        FStmt := Trim(SQLParser.GetTextFromParseTree());
+      end;
+    end;
+
     SQLParser.Free();
     {$ENDIF}
 
@@ -5626,12 +5692,12 @@ begin
   begin
     if (not EncloseDefiner) then
     begin
-      if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 19, SQL]);
+      if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
       Index := SQLParseGetIndex(Parse);
       if (SQLParseKeyword(Parse, 'DEFINER')) then
       begin
-        if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 20, SQL]);
+        if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
         SQLParseValue(Parse);
         Delete(SQL, Index, SQLParseGetIndex(Parse) - Index);
       end;
@@ -5672,11 +5738,11 @@ begin
     if (Assigned(FFunctionResult)) then
       FreeAndNil(FFunctionResult);
 
-    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 21, SQL]);
+    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
     if (SQLParseKeyword(Parse, 'DEFINER')) then
     begin
-      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 22, SQL]);
+      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
       FDefiner := SQLParseValue(Parse);
     end;
 
@@ -5685,13 +5751,13 @@ begin
     else if (SQLParseKeyword(Parse, 'FUNCTION')) then
       FRoutineType := rtFunction
     else
-      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 23, SQL]);
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
     FName := SQLParseValue(Parse);
     if (SQLParseChar(Parse, '.')) then
     begin
       if (Database.Session.TableNameCmp(Database.Name, FName) <> 0) then
-        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + FName, 24, SQL]);
+        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + FName, SQL]);
       FName := SQLParseValue(Parse);
     end;
 
@@ -6399,12 +6465,12 @@ begin
   begin
     if (not EncloseDefiner) then
     begin
-      if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 19, SQL]);
+      if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
       Index := SQLParseGetIndex(Parse);
       if (SQLParseKeyword(Parse, 'DEFINER')) then
       begin
-        if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 20, SQL]);
+        if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
         SQLParseValue(Parse);
         Delete(SQL, Index, SQLParseGetIndex(Parse) - Index);
       end;
@@ -6424,28 +6490,28 @@ var
   Parse: TSQLParse;
 begin
   if (not SQLCreateParse(Parse, PChar(SQL), Length(SQL), Database.Session.ServerVersion)) then
-    raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 25, SQL])
+    raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL])
   else
   begin
-    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 26, SQL]);
+    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
     if (SQLParseKeyword(Parse, 'DEFINER')) then
     begin
-      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 27, SQL]);
+      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
       FDefiner := SQLParseValue(Parse);
     end;
 
-    if (not SQLParseKeyword(Parse, 'EVENT')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 28, SQL]);
+    if (not SQLParseKeyword(Parse, 'EVENT')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
     FName := SQLParseValue(Parse);
     if (SQLParseChar(Parse, '.')) then
     begin
       if (Database.Session.TableNameCmp(Database.Name, FName) = 0) then
-        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + FName, 29, SQL]);
+        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + FName, SQL]);
       FName := SQLParseValue(Parse);
     end;
 
-    if (not SQLParseKeyword(Parse, 'ON SCHEDULE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 30, SQL]);
+    if (not SQLParseKeyword(Parse, 'ON SCHEDULE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
     if (SQLParseKeyword(Parse, 'AT')) then
     begin
@@ -6466,7 +6532,7 @@ begin
         FEndDateTime := MySQLDB.StrToDateTime(SQLParseValue(Parse), Database.Session.FormatSettings);
     end
     else
-      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 31, SQL]);
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
     FPreserve := SQLParseKeyword(Parse, 'ON COMPLETION PRESERVE') or not SQLParseKeyword(Parse, 'ON COMPLETION NOT PRESERVE');
 
@@ -6477,7 +6543,7 @@ begin
     if (SQLParseKeyword(Parse, 'COMMENT')) then
       FComment := SQLParseValue(Parse);
 
-    if (not SQLParseKeyword(Parse, 'DO')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, 32, SQL]);
+    if (not SQLParseKeyword(Parse, 'DO')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
     FStmt := SQLParseRest(Parse);
   end;
@@ -6706,22 +6772,22 @@ begin
     Result := False
   else
   begin
-    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Name + '.' + Routine.Name, 33, SQL]);
+    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Name + '.' + Routine.Name, SQL]);
 
     if (SQLParseKeyword(Parse, 'DEFINER')) then
     begin
-      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, 34, SQL]);
+      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, SQL]);
       SQLParseValue(Parse);
     end;
 
     if (not SQLParseKeyword(Parse, 'PROCEDURE') and not SQLParseKeyword(Parse, 'FUNCTION')) then
-      raise EConvertError.CreateFmt(SSourceParseError, [Name + '.' + Routine.Name, 35, SQL]);
+      raise EConvertError.CreateFmt(SSourceParseError, [Name + '.' + Routine.Name, SQL]);
 
     SQL := LeftStr(Routine.Source, SQLParseGetIndex(Parse) - 1);
 
     DatabaseName := Name;
     if (not SQLParseObjectName(Parse, DatabaseName, RoutineName)) then
-      raise EConvertError.CreateFmt(SSourceParseError, [Name + '.' + Routine.Name, 50, SQL]);
+      raise EConvertError.CreateFmt(SSourceParseError, [Name + '.' + Routine.Name, SQL]);
 
     SQL := SQL + Session.EscapeIdentifier(Name) + '.' + Session.EscapeIdentifier(NewRoutineName);
     SQL := SQL + RightStr(Routine.Source, Length(Routine.Source) - (SQLParseGetIndex(Parse) - 1));
@@ -7119,7 +7185,7 @@ var
 begin
   if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.ServerVersion)) then
   begin
-    if (not SQLParseKeyword(Parse, 'CREATE DATABASE')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, 36, SQL]);
+    if (not SQLParseKeyword(Parse, 'CREATE DATABASE')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, SQL]);
 
     FName := SQLParseValue(Parse);
 
@@ -7133,8 +7199,9 @@ end;
 
 function TSDatabase.ParseDependencies(const SQL: string; var Dependencies: TSDependencies): Boolean;
 var
-  I: Integer;
+  Database: TSDatabase;
   Dependency: TSDependency;
+  I: Integer;
   {$IFDEF Debug}
   SQLParser: TGSqlParser;
   {$ENDIF}
@@ -7162,9 +7229,18 @@ begin
       else
         Dependency.DatabaseName := Name;
       Dependency.ObjectName := SQLUnescape(SQLParser.SourceTokenList[I].SourceCode);
+      Database := Session.DatabaseByName(Dependency.DatabaseName);
       case (SQLParser.SourceTokenList[I].DBObjType) of
         ttObjTable,
-        ttObjView: Dependency.ObjectClass := TSTable;
+        ttObjView:
+          begin
+            Session.BeginSynchron();
+            if (not Assigned(Database) or not Database.Update() or not Assigned(Database.TableByName(Dependency.ObjectName))) then
+              Dependency.ObjectClass := TSTable
+            else
+              Dependency.ObjectClass := Database.TableByName(Dependency.ObjectName).ClassType;
+            Session.EndSynchron();
+          end;
         ttObjFunction: Dependency.ObjectClass := TSFunction;
         ttObjProcedure: Dependency.ObjectClass := TSProcedure;
         ttObjTrigger: Dependency.ObjectClass := TSTrigger;
@@ -8375,16 +8451,10 @@ begin
       Session.FMaxAllowedPacket := Session.VariableByName('max_allowed_packet').AsInteger - 1; // 1 Byte for COM_QUERY
 
     if (Assigned(Session.VariableByName('lower_case_table_names'))) then
-    begin
       Session.FLowerCaseTableNames := Session.VariableByName('lower_case_table_names').AsInteger;
-      if (Session.LowerCaseTableNames <> 0) then
-        Session.SyntaxProvider.IdentCaseSens := icsSensitiveLowerCase
-      else
-        Session.SyntaxProvider.IdentCaseSens := icsNonSensitive;
-    end;
 
     if (Assigned(Session.VariableByName('sql_mode')) and (POS('ANSI_QUOTES', Session.VariableByName('sql_mode').Value) > 0)) then
-      Session.IdentifierQuoter := '"';
+      Session.AnsiQuotes := True;
     if (Assigned(Session.VariableByName('sql_quote_show_create'))) then
       Session.IdentifierQuoted := Session.VariableByName('sql_quote_show_create').AsBoolean;
 
@@ -9525,7 +9595,7 @@ begin
   begin
     while (not SQLParseEnd(Parse)) do
     begin
-      if (not SQLParseKeyword(Parse, 'GRANT')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, 37, SQL]);
+      if (not SQLParseKeyword(Parse, 'GRANT')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, SQL]);
 
       repeat
         Privileg := '';
@@ -9572,7 +9642,7 @@ begin
 
             AddPrivileg(NewRights[Index], Privileg);
           until (not SQLParseChar(Parse, ','));
-          if (not SQLParseChar(Parse, ')')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, 38, SQL]);
+          if (not SQLParseChar(Parse, ')')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, SQL]);
         end;
       until (SQLParseKeyword(Parse, 'ON'));
 
@@ -9613,7 +9683,7 @@ begin
       if (DatabaseName = '*') then DatabaseName := '';
       if (TableName = '*') then TableName := '';
 
-      if (not SQLParseKeyword(Parse, 'TO')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, 39, SQL]);
+      if (not SQLParseKeyword(Parse, 'TO')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, SQL]);
 
       FName := SQLParseValue(Parse);
 
@@ -9643,7 +9713,7 @@ begin
             SQLParseValue(Parse);
         until (SQLParseChar(Parse, ';', False) or SQLParseEnd(Parse));
 
-      if (not SQLParseChar(Parse, ';')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, 40, SQL]);
+      if (not SQLParseChar(Parse, ';')) then raise EConvertError.CreateFmt(SSourceParseError, [Name, SQL]);
 
       for I := 0 to Length(NewRights) - 1 do
         if (Privileg <> 'PROXY') then
@@ -10379,11 +10449,7 @@ begin
   FCurrentUser := '';
   FInformationSchema := nil;
   FMaxAllowedPacket := 0;
-  FMetadataProvider := TacEventMetadataProvider.Create(nil);
-  FMetadataProvider.OnGetSQLFieldNames := MetadataProviderGetSQLFieldNames;
   FPerformanceSchema := nil;
-  FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
-  FSyntaxProvider.ServerVersionInt := ServerVersion;
   FUser := nil;
 
   if (not Assigned(AAccount)) then
@@ -10661,9 +10727,6 @@ begin
     StmtMonitor.Free();
 
   Sessions.Delete(Sessions.IndexOf(Self));
-
-  FMetadataProvider.Free();
-  FSyntaxProvider.Free();
 
   inherited;
 end;
@@ -11112,45 +11175,6 @@ begin
   if (Assigned(Databases)) then Databases.Invalidate();
   if (Assigned(Plugins)) then Plugins.Invalidate();
   if (Assigned(Users)) then Users.Invalidate();
-end;
-
-procedure TSSession.MetadataProviderGetSQLFieldNames(Sender: TacBaseMetadataProvider;
-  const ASQL: WideString; AFields: TacFieldsList);
-var
-  Database: TSDatabase;
-  DatabaseName: string;
-  I: Integer;
-  Parse: TSQLParse;
-  Table: TSTable;
-  TableName: string;
-begin
-  if (SQLCreateParse(Parse, PChar(ASQL), Length(ASQL), ServerVersion)
-    and SQLParseKeyword(Parse, 'SELECT')) then
-  begin
-    repeat
-      SQLParseValue(Parse);
-    until (SQLParseEnd(Parse) or not SQLParseChar(Parse, ','));
-    if (SQLParseKeyword(Parse, 'FROM')) then
-    begin
-      DatabaseName := Self.DatabaseName;
-      if (SQLParseObjectName(Parse, DatabaseName, TableName)) then
-      begin
-        Database := DatabaseByName(DatabaseName);
-        if (Assigned(Database)) then
-        begin
-          Table := Database.TableByName(TableName);
-          if (Assigned(Table)) then
-          begin
-            BeginSynchron();
-            if (Table.Update()) then
-              for I := 0 to Table.Fields.Count - 1 do
-                AFields.AddField(Table.Fields[I].Name, LowerCaseTableNames = 0);
-            EndSynchron();
-          end;
-        end;
-      end;
-    end;
-  end;
 end;
 
 procedure TSSession.MonitorLog(const Sender: TObject; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
@@ -12398,6 +12422,23 @@ end;
 
 initialization
   Sessions := TSSessions.Create();
+
+  {$IFDEF Debug}
+  // SQLParser settings:
+  gFmtOpt.SelectItemInNewLine := True;
+  gFmtOpt.IntoClauseInNewline := True;
+  gFmtOpt.FromClauseInNewLine := True;
+  gFmtOpt.WhereClauseInNewline := True;
+  gFmtOpt.GroupByClauseInNewline := True;
+  gFmtOpt.HavingClauseInNewline := True;
+  gFmtOpt.OrderByClauseInNewline := True;
+  gFmtOpt.WSPadding_OperatorArithmetic := True;
+  gFmtOpt.WSPadding_ParenthesesInFunction := False;
+  gFmtOpt.WSPadding_ParenthesesInExpression := False;
+  gFmtOpt.WSPadding_ParenthesesOfSubQuery := False;
+  gFmtOpt.WSPadding_ParenthesesInFunctionCall := False;
+  gFmtOpt.WSPadding_ParenthesesOfTypename := False;
+  {$ENDIF}
 finalization
   Sessions.Free();
 end.

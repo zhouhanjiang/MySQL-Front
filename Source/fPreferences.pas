@@ -4278,6 +4278,9 @@ begin
 
   FDBLogin := ADBLogin;
 
+  DefaultAccountName := '';
+  FXMLDocument := nil;
+
   Section := 'Accounts';
 
   // "Sessions" used up to version 5.1 // May 2012
@@ -4389,6 +4392,11 @@ begin
     if (not Assigned(FXMLDocument) or not Assigned(FXMLDocument.DocumentElement)) then
     begin
       FXMLDocument := NewXMLDocument();
+
+      // Debug
+      if (not Assigned(FXMLDocument)) then
+        ERangeError.CreateFmt(SPropertyOutOfRange, ['FXMLDocument']);
+
       FXMLDocument.Encoding := 'utf-8';
       FXMLDocument.Node.AddChild('accounts').Attributes['version'] := '1.1.0';
     end;

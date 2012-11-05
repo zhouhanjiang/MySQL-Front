@@ -609,6 +609,8 @@ object FSession: TFSession
         Top = 0
         Width = 467
         Height = 96
+        SyntaxProvider = SyntaxProvider
+        MetadataProvider = MetadataProvider
         MetadataFilter = <>
         BorderStyle = qbbsFlat
         SplitterHeight = 4
@@ -2193,7 +2195,7 @@ object FSession: TFSession
     MainQueryFormat.WhereFormat.NewLineAfter = nlAllLogical
     ExpressionsSubQueryFormat.MainPartsFromNewLine = False
     ExpressionsSubQueryFormat.FromClauseFormat.NewLineAfterDatasource = False
-    Left = 240
+    Left = 232
     Top = 120
   end
   object PObjectIDEGridDataSource: TDataSource
@@ -2374,5 +2376,17 @@ object FSession: TFSession
     EncodingLabel = '&Encoding:'
     Left = 64
     Top = 72
+  end
+  object MetadataProvider: TacEventMetadataProvider
+    OnGetSQLFieldNames = MetadataProviderGetSQLFieldNames
+    Left = 168
+    Top = 120
+  end
+  object SyntaxProvider: TacMYSQLSyntaxProvider
+    DenyIntoClause = True
+    ServerVersion = '5.02'
+    DetectServerVersion = False
+    Left = 200
+    Top = 120
   end
 end

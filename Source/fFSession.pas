@@ -15,7 +15,7 @@ uses
   ComCtrls_Ext, StdCtrls_Ext, Dialogs_Ext, Forms_Ext, ExtCtrls_Ext,
   MySQLDB, MySQLDBGrid,
   fSession, fPreferences, fTools,
-  fDExport, fDImport, fCWorkbench, fBase;
+  fDExport, fDImport, fCWorkbench, fBase, acUniversalSynProvider;
 
 const
   CM_ACTIVATE_DBGRID = WM_USER + 500;
@@ -81,7 +81,6 @@ type
     FJobs: TListView;
     FLimit: TEdit;
     FLimitEnabled: TToolButton;
-    FServerListView: TListView_Ext;
     FLog: TRichEdit;
     FNavigator: TTreeView_Ext;
     FObjectIDEGrid: TMySQLDBGrid;
@@ -89,10 +88,11 @@ type
     FQuickSearch: TEdit;
     FQuickSearchEnabled: TToolButton;
     FRTF: TRichEdit;
-    FSQLEditorSynMemo: TSynMemo;
+    FServerListView: TListView_Ext;
     FSQLEditorCompletion: TSynCompletionProposal;
     FSQLEditorPrint: TSynEditPrint;
     FSQLEditorSearch: TSynEditSearch;
+    FSQLEditorSynMemo: TSynMemo;
     FSQLHistory: TTreeView_Ext;
     FText: TMemo_Ext;
     FUDLimit: TUpDown;
@@ -109,22 +109,20 @@ type
     gmFExport: TMenuItem;
     gmFExportExcel: TMenuItem;
     gmFExportHTML: TMenuItem;
-    gmFExportSQL: TMenuItem;
     gmFExportPDF: TMenuItem;
+    gmFExportSQL: TMenuItem;
     gmFExportText: TMenuItem;
     gmFExportXML: TMenuItem;
     gmFilter: TMenuItem;
     mbAdd: TMenuItem;
     mbDelete: TMenuItem;
     mbEdit: TMenuItem;
+    MBookmarks: TPopupMenu;
     mbOpen: TMenuItem;
     mbOpenInNewTab: TMenuItem;
     mbOpenInNewWindow: TMenuItem;
-    MBookmarks: TPopupMenu;
-    MFiles: TPopupMenu;
-    mfOpen: TMenuItem;
-    mfOpenInNewWindow: TMenuItem;
-    mfOpenInNewTab: TMenuItem;
+    MetadataProvider: TacEventMetadataProvider;
+    mfDelete: TMenuItem;
     mfFilter: TMenuItem;
     mfFilterAccess: TMenuItem;
     mfFilterClear: TMenuItem;
@@ -134,9 +132,12 @@ type
     mfFilterSQLite: TMenuItem;
     mfFilterText: TMenuItem;
     mfFilterXML: TMenuItem;
-    mfDelete: TMenuItem;
-    mfRename: TMenuItem;
+    MFiles: TPopupMenu;
+    mfOpen: TMenuItem;
+    mfOpenInNewTab: TMenuItem;
+    mfOpenInNewWindow: TMenuItem;
     mfProperties: TMenuItem;
+    mfRename: TMenuItem;
     MGrid: TPopupMenu;
     MGridHeader: TPopupMenu;
     miHCollapse: TMenuItem;
@@ -193,8 +194,10 @@ type
     miSNavigator: TMenuItem;
     miSSQLHistory: TMenuItem;
     mjAdd: TMenuItem;
+    mjAddExport: TMenuItem;
     mjDelete: TMenuItem;
     mjEdit: TMenuItem;
+    mjExecute: TMenuItem;
     MJobs: TPopupMenu;
     mlDCreate: TMenuItem;
     mlDCreateDatabase: TMenuItem;
@@ -251,13 +254,13 @@ type
     MSQLEditor: TPopupMenu;
     MSQLHistory: TPopupMenu;
     mtBrowser: TMenuItem;
+    mtBuilder: TMenuItem;
     mtDiagram: TMenuItem;
-    mtObjects: TMenuItem;
+    mtEditor: TMenuItem;
     MText: TPopupMenu;
     mtIDE: TMenuItem;
+    mtObjects: TMenuItem;
     MToolBar: TPopupMenu;
-    mtBuilder: TMenuItem;
-    mtEditor: TMenuItem;
     mwAddTable: TMenuItem;
     mwCreateLink: TMenuItem;
     mwCreateSection: TMenuItem;
@@ -302,6 +305,7 @@ type
     N07: TMenuItem;
     N08: TMenuItem;
     N09: TMenuItem;
+    N1: TMenuItem;
     N10: TMenuItem;
     N11: TMenuItem;
     N12: TMenuItem;
@@ -341,7 +345,6 @@ type
     PFiles: TPanel_Ext;
     PFolders: TPanel_Ext;
     PJobs: TPanel_Ext;
-    PView: TPanel_Ext;
     PListView: TPanel_Ext;
     PLog: TPanel_Ext;
     PLogHeader: TPanel_Ext;
@@ -354,44 +357,46 @@ type
     PResultHeader: TPanel_Ext;
     PrintDialog: TPrintDialog_Ext;
     PSideBar: TPanel_Ext;
-    PSynMemo: TPanel_Ext;
     PSQLHistory: TPanel_Ext;
+    PSynMemo: TPanel_Ext;
     PToolBarBlob: TPanel_Ext;
+    PView: TPanel_Ext;
     PWorkbench: TPanel_Ext;
     SaveDialog: TSaveDialog_Ext;
     SBlob: TSplitter_Ext;
     SBResult: TStatusBar;
     SBuilderQuery: TSplitter_Ext;
+    SExplorer: TSplitter_Ext;
     SLog: TSplitter_Ext;
     smECopy: TMenuItem;
     smECopyToFile: TMenuItem;
     smEEmpty: TMenuItem;
     smESelectAll: TMenuItem;
-    SExplorer: TSplitter_Ext;
     SQLBuilder: TacSQLBuilderPlainText;
     SResult: TSplitter_Ext;
     SSideBar: TSplitter_Ext;
+    SyntaxProvider: TacMYSQLSyntaxProvider;
+    TBBlob: TToolBar;
     tbBlobHexEditor: TToolButton;
     tbBlobHTML: TToolButton;
     tbBlobImage: TToolButton;
     tbBlobRTF: TToolButton;
+    tbBlobSpacer: TPanel_Ext;
     tbBlobText: TToolButton;
     tbBookmarks: TToolButton;
     tbBrowser: TToolButton;
+    tbBuilder: TToolButton;
     tbDiagram: TToolButton;
+    tbEditor: TToolButton;
     tbExplorer: TToolButton;
+    TBFilterEnabled: TToolBar;
+    tbIDE: TToolButton;
+    tbJobs: TToolButton;
+    TBLimitEnabled: TToolBar;
     tbNavigator: TToolButton;
     tbObjects: TToolButton;
-    tbIDE: TToolButton;
-    TBBlob: TToolBar;
-    tbBlobSpacer: TPanel_Ext;
-    tbBuilder: TToolButton;
-    TBFilterEnabled: TToolBar;
-    TBLimitEnabled: TToolBar;
     TBQuickSearchEnabled: TToolBar;
     TBSideBar: TToolBar;
-    tbEditor: TToolButton;
-    tbJobs: TToolButton;
     tbSQLHistory: TToolButton;
     tmECopy: TMenuItem;
     tmECut: TMenuItem;
@@ -399,9 +404,6 @@ type
     tmEPaste: TMenuItem;
     tmESelectAll: TMenuItem;
     ToolBar: TToolBar;
-    mjAddExport: TMenuItem;
-    N1: TMenuItem;
-    mjExecute: TMenuItem;
     procedure aBAddExecute(Sender: TObject);
     procedure aBDeleteExecute(Sender: TObject);
     procedure aBEditExecute(Sender: TObject);
@@ -696,6 +698,8 @@ type
     procedure FJobsExit(Sender: TObject);
     procedure PJobsEnter(Sender: TObject);
     procedure PJobsExit(Sender: TObject);
+    procedure MetadataProviderGetSQLFieldNames(Sender: TacBaseMetadataProvider;
+      const ASQL: WideString; AFields: TacFieldsList);
   type
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
     TTabState = set of (tsLoading, tsActive);
@@ -5411,9 +5415,6 @@ begin
   FBuilderSynMemo.Highlighter := MainHighlighter;
   FSQLEditorPrint.Highlighter := MainHighlighter;
 
-  FBuilder.MetadataProvider := Session.MetadataProvider;
-  FBuilder.SyntaxProvider := Session.SyntaxProvider;
-
   FText.Modified := False;
   GIFImage := TGIFImage.Create();
   PNGImage := TPNGImage.Create();
@@ -5463,6 +5464,12 @@ begin
   Perform(CM_CHANGEPREFERENCES, 0, 0);
   Window.Perform(CM_SYSFONTCHANGED, 0, 0);
 
+  SyntaxProvider.AnsiQuotes := Session.AnsiQuotes;
+  if (Session.LowerCaseTableNames <> 0) then
+    SyntaxProvider.IdentCaseSens := icsSensitiveLowerCase
+  else
+    SyntaxProvider.IdentCaseSens := icsNonSensitive;
+  SyntaxProvider.ServerVersionInt := Session.ServerVersion;
   FBuilderEditorStatusChange(Self, []);
 
   NonClientMetrics.cbSize := SizeOf(NonClientMetrics);
@@ -8640,8 +8647,8 @@ begin
           QueryBuilder := TacQueryBuilder.Create(Window);
           QueryBuilder.Visible := False;
           QueryBuilder.Parent := ActiveSynMemo;
-          QueryBuilder.SyntaxProvider := Session.SyntaxProvider;
-          QueryBuilder.MetadataProvider := Session.MetadataProvider;
+          QueryBuilder.MetadataProvider := MetadataProvider;
+          QueryBuilder.SyntaxProvider := SyntaxProvider;
           Insert('*', SQL, Index + 1);
           try
             QueryBuilder.SQL := SQL;
@@ -8692,8 +8699,8 @@ begin
         QueryBuilder := TacQueryBuilder.Create(Window);
         QueryBuilder.Visible := False;
         QueryBuilder.Parent := ActiveSynMemo;
-        QueryBuilder.SyntaxProvider := Session.SyntaxProvider;
-        QueryBuilder.MetadataProvider := Session.MetadataProvider;
+        QueryBuilder.SyntaxProvider := SyntaxProvider;
+        QueryBuilder.MetadataProvider := MetadataProvider;
         try
           QueryBuilder.SQL := SQL;
           Application.ProcessMessages();
@@ -11128,6 +11135,46 @@ begin
 
   if (Assigned(FBookmarks.Selected)) then
     Address := Session.Account.Desktop.Bookmarks.ByCaption(FBookmarks.Selected.Caption).URI;
+end;
+
+procedure TFSession.MetadataProviderGetSQLFieldNames(
+  Sender: TacBaseMetadataProvider; const ASQL: WideString;
+  AFields: TacFieldsList);
+var
+  Database: TSDatabase;
+  DatabaseName: string;
+  I: Integer;
+  Parse: TSQLParse;
+  Table: TSTable;
+  TableName: string;
+begin
+  if (SQLCreateParse(Parse, PChar(ASQL), Length(ASQL), Session.ServerVersion)
+    and SQLParseKeyword(Parse, 'SELECT')) then
+  begin
+    repeat
+      SQLParseValue(Parse);
+    until (SQLParseEnd(Parse) or not SQLParseChar(Parse, ','));
+    if (SQLParseKeyword(Parse, 'FROM')) then
+    begin
+      DatabaseName := SelectedDatabase;
+      if (SQLParseObjectName(Parse, DatabaseName, TableName)) then
+      begin
+        Database := Session.DatabaseByName(DatabaseName);
+        Session.BeginSynchron();
+        if (Assigned(Database) and Database.Update()) then
+        begin
+          Table := Database.TableByName(TableName);
+          if (Assigned(Table)) then
+          begin
+            if (Table.Update()) then
+              for I := 0 to Table.Fields.Count - 1 do
+                AFields.AddField(Table.Fields[I].Name, Session.LowerCaseTableNames = 0);
+          end;
+        end;
+        Session.EndSynchron();
+      end;
+    end;
+  end;
 end;
 
 procedure TFSession.MBookmarksPopup(Sender: TObject);
