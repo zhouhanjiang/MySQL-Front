@@ -649,7 +649,7 @@ begin
           begin
             Session := GetSession(Node.Index);
             if (Assigned(Session)) then
-              if (not Session.Update() and Session.Asynchron) then
+              if (not Session.Update()) then
                 WantedNodeExpand := Node
               else
               begin
@@ -668,7 +668,7 @@ begin
           begin
             Session := GetSession(Node.Parent.Index);
             Database := Session.DatabaseByName(Node.Text);
-            if ((not Database.Tables.Update() or not Session.Update(Database.Tables)) and Session.Asynchron) then
+            if ((not Database.Tables.Update() or not Session.Update(Database.Tables))) then
               WantedNodeExpand := Node
             else
             begin
@@ -869,13 +869,13 @@ procedure TDSearch.TSExecuteShow(Sender: TObject);
     case (Node.ImageIndex) of
       iiServer:
         begin
-          WantedExecute := not Session.Update() and Session.Asynchron;
+          WantedExecute := not Session.Update();
           if (not WantedExecute) then
             for I := 0 to Session.Databases.Count - 1 do
               if (not WantedExecute and not (Session.Databases[I] is TSSystemDatabase)) then
               begin
                 Database := Session.Databases[I];
-                WantedExecute := not Database.Tables.Update() and Session.Asynchron;
+                WantedExecute := not Database.Tables.Update();
                 if (not WantedExecute) then
                 begin
                   for J := 0 to Database.Tables.Count - 1 do
@@ -888,7 +888,7 @@ procedure TDSearch.TSExecuteShow(Sender: TObject);
       iiDatabase:
         begin
           Database := Session.DatabaseByName(Node.Text);
-          WantedExecute := not Database.Tables.Update() and Session.Asynchron;
+          WantedExecute := not Database.Tables.Update();
           if (not WantedExecute) then
           begin
             for J := 0 to Database.Tables.Count - 1 do
@@ -1056,10 +1056,7 @@ begin
         TSTable(List[I]).InvalidateData();
     List.Free();
 
-    if (ExecuteSession.Asynchron) then
-      Search.Start()
-    else
-      Search.Execute();
+    Search.Start();
   end;
 end;
 

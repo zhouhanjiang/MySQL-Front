@@ -3553,7 +3553,9 @@ begin
     finally
       InOnResult := False;
     end;
-  end;
+  end
+  else if (ErrorCode > 0) then
+    DoError(ErrorCode, ErrorMessage);
 
   if ((Assigned(LibraryThread.OnResult) or not Assigned(LibraryThread.ResHandle)) and (LibraryThread.State = ssResult)) then
   begin

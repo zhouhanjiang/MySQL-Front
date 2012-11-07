@@ -1332,7 +1332,7 @@ begin
       case (Node.ImageIndex) of
         iiServer:
           begin
-            if (not Session.Update() and Session.Asynchron) then
+            if (not Session.Update()) then
               WantedNodeExpand := Node
             else
             begin
@@ -1350,7 +1350,7 @@ begin
         iiDatabase:
           begin
             Database := Session.DatabaseByName(Node.Text);
-            if ((not Database.Tables.Update() or not Session.Update(Database.Tables)) and Session.Asynchron) then
+            if ((not Database.Tables.Update() or not Session.Update(Database.Tables))) then
               WantedNodeExpand := Node
             else
             begin

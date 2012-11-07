@@ -124,7 +124,7 @@ begin
 
     NewVariable.Free();
 
-    GroupBox.Visible := CanClose or not Session.Asynchron;
+    GroupBox.Visible := not CanClose;
     PSQLWait.Visible := not GroupBox.Visible;
     if (PSQLWait.Visible) then
       ModalResult := mrNone;

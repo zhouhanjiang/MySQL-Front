@@ -50,7 +50,6 @@ function SQLEscapeBin(const Data: Pointer; const Size: Integer; const Escaped: P
 function SQLEscapeBin(const Data: Pointer; const Size: Integer; const ODBCEncoding: Boolean): string; overload;
 function SQLEscapeBin(const Value: string; const ODBCEncoding: Boolean): string; overload;
 function SQLParseCallStmt(const SQL: PChar; const Len: Integer; out ProcedureName: string; const Version: Integer): Boolean;
-function SQLParseChar(var Handle: TSQLParse; const IncrementIndex: Boolean = True): Char; overload;
 function SQLParseChar(var Handle: TSQLParse; const Character: Char; const IncrementIndex: Boolean = True): Boolean; overload;
 function SQLParseCLStmt(out CLStmt: TSQLCLStmt; const SQL: PChar; const Len: Integer; const Version: Integer): Boolean;
 function SQLParseDDLStmt(out DDLStmt: TSQLDDLStmt; const SQL: PChar; const Len: Integer; const Version: Integer): Boolean;
@@ -63,7 +62,7 @@ function SQLParseRest(var Handle: TSQLParse): string;
 function SQLParseValue(var Handle: TSQLParse; const TrimAfterValue: Boolean = True): string;
 function SQLSingleStmt(const SQL: string): Boolean;
 procedure SQLSplitValues(const Text: string; out Values: TSQLStrings);
-function SQLStmtLength(const SQL: PChar; const Length: Integer; const CompleteStmt: PBoolean = nil): Integer;
+function SQLStmtLength(const SQL: PChar; const Length: Integer; const Delimited: PBoolean = nil): Integer;
 function SQLStmtToCaption(const SQL: string; const Len: Integer = 50): string;
 function SQLTrimStmt(const SQL: string): string; overload;
 function SQLTrimStmt(const SQL: string; const Index, Length: Integer; var StartingCommentLength, EndingCommentLength: Integer): Integer; overload;
@@ -251,14 +250,14 @@ asm
         JE EndOfStatement                // Yes!
         CMP ECX,2                        // Are there two characters left in SQL?
         JB Finish                        // No!
-        CMP LongWord PTR [ESI],$002D002D    // End of line comment ("--") in SQL?
+        CMP LongWord PTR [ESI],$002D002D // End of line comment ("--") in SQL?
         JE LineComment                   // Yes!
-        CMP LongWord PTR [ESI],$002A002F    // Start of "/*" comment in SQL?
+        CMP LongWord PTR [ESI],$002A002F // Start of "/*" comment in SQL?
         JE EnclosedComment               // Yes!
         TEST EDX,$80000000               // Are we inside cond. MySQL code?
         JZ Finish                        // No!
-        CMP LongWord PTR [ESI],$002F002A    // End of "*/" comment in SQL?
-        JE CondCodeEnd                    // Yes!
+        CMP LongWord PTR [ESI],$002F002A // End of "*/" comment in SQL?
+        JE CondCodeEnd                   // Yes!
         JMP Finish
 
       // -------------------
@@ -1201,21 +1200,6 @@ begin
 
   if (Result and SQLCreateParse(Parse, PChar(@SQL[Index]), Len - Index, Version, InCondCode)) then
     ProcedureName := SQLParseValue(Parse);
-end;
-
-function SQLParseChar(var Handle: TSQLParse; const IncrementIndex: Boolean = True): Char;
-begin
-  if (SQLParseEnd(Handle)) then
-    raise ERangeError.Create(SRangeError)
-  else
-  begin
-    Result := Handle.Pos[0];
-    if (IncrementIndex) then
-    begin
-      Inc(Handle.Pos);
-      Dec(Handle.Len);
-    end;
-  end;
 end;
 
 function SQLParseChar(var Handle: TSQLParse; const Character: Char; const IncrementIndex: Boolean = True): Boolean;
@@ -2173,7 +2157,7 @@ begin
   end;
 end;
 
-function SQLStmtLength(const SQL: PChar; const Length: Integer; const CompleteStmt: PBoolean = nil): Integer;
+function SQLStmtLength(const SQL: PChar; const Length: Integer; const Delimited: PBoolean = nil): Integer;
 label
   Start,
   StmtL, StmtLE,
@@ -2192,8 +2176,8 @@ begin
   if (Length = 0) then
   begin
     Result := 0;
-    if (Assigned(CompleteStmt)) then
-      CompleteStmt^ := False;
+    if (Assigned(Delimited)) then
+      Delimited^ := False;
   end
   else
     asm
@@ -2213,9 +2197,9 @@ begin
         MOV EDI,0                        // Don't copy inside MoveString
         MOV EDX,$7FFFFFFF                // Enclose all condional MySQL code
 
-        CMP CompleteStmt,0               // Assigned(CompleteStmt)?
+        CMP Delimited,0                  // Assigned(CompleteStmt)?
         JE Start                         // No!
-        MOV EAX,[CompleteStmt]
+        MOV EAX,[Delimited]
         MOV BYTE PTR [EAX],False         // Uncomplete Statement!
 
       // -------------------
@@ -2250,6 +2234,11 @@ begin
       // -------------------
 
       Body:
+        CALL Trim                        // Empty characters?
+        MOV EAX,[KTable]
+        CALL CompareKeyword              // 'TABLE'?
+        JE StmtL
+
         MOV CaseDeep,0
         MOV CompoundDeep,0
         MOV IfDeep,0
@@ -2367,9 +2356,9 @@ begin
       // -------------------
 
       Complete:
-        CMP CompleteStmt,0               // Assigned(CompleteStmt)?
+        CMP Delimited,0                  // Assigned(Delimited)?
         JE Complete2                     // No!
-        MOV EAX,[CompleteStmt]
+        MOV EAX,[Delimited]
         MOV BYTE PTR [EAX],True          // Complete statement!
 
       Complete2:
@@ -3002,12 +2991,5 @@ begin
   Result := StrPas(P);
 end;
 
-var
-  CompleteStmt: Boolean;
-  SQL: string;
-begin
-  SQL := #$D#$A'#'#$D#$A'# Data for table "localhost_trad"'#$D#$A'#'#$D#$A#$D#$A'INSERT INTO `localhost_trad` VALUES (''account'',1,''Dati utente'',''''),(''acquista'',1,''Conferma acquisti'',''''),(''addebiti'',1,''Addebito'',''cassa';
-  SQLStmtLength(PChar(SQL), Length(SQL), @CompleteStmt);
-  Write;
 end.
 

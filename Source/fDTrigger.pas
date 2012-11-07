@@ -258,7 +258,7 @@ begin
 
     NewTrigger.Free();
 
-    PageControl.Visible := CanClose or not Table.Database.Session.Asynchron;
+    PageControl.Visible := not CanClose;
     PSQLWait.Visible := not PageControl.Visible;
     if (PSQLWait.Visible) then
       ModalResult := mrNone;

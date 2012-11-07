@@ -1977,10 +1977,7 @@ end;
 
 procedure TFSession.TWanted.Execute();
 begin
-  if (not FSession.Session.Asynchron) then
-    FSession.Perform(CM_WANTED_SYNCHRONIZE, 0, 0)
-  else
-    PostMessage(FSession.Handle, CM_WANTED_SYNCHRONIZE, 0, 0);
+  PostMessage(FSession.Handle, CM_WANTED_SYNCHRONIZE, 0, 0);
 end;
 
 function TFSession.TWanted.GetNothing(): Boolean;
@@ -2531,8 +2528,10 @@ begin
         FFilterEnabled.Enabled := FFilter.Text <> '';
       end;
 
-// The following line causes an exception while closing the tab. 06.11.2012
-//      FBuilder.MetadataContainer.DefaultDatabaseNameStr := SelectedDatabase;
+      {$IFNDEF Debug}
+      // FastMM reports a memory leak with this code. 07.11.2012
+      FBuilder.MetadataContainer.DefaultDatabaseNameStr := SelectedDatabase;
+      {$ENDIF}
 
       if (Window.ActiveControl = FNavigator) then
         FNavigatorSetMenuItems(FNavigator, FNavigator.Selected);
@@ -2688,7 +2687,7 @@ begin
       AllowChange := False;
       Wanted.Clear();
     end
-    else if (not AllowChange and Session.Asynchron) then
+    else if (not AllowChange) then
       Wanted.Address := NewAddress;
   end;
 
@@ -8215,6 +8214,7 @@ begin
     ExpandingEvent := FNavigator.OnExpanding;
     FNavigator.OnExpanding := nil;
     FNavigatorNodeToExpand.Expand(False);
+    FNavigatorNodeToExpand := nil;
     FNavigator.OnExpanding := ExpandingEvent;
   end;
 end;

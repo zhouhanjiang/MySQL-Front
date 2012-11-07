@@ -645,7 +645,7 @@ begin
           begin
             Session := GetSession(Node.Index);
             if (Assigned(Session)) then
-              if (not Session.Update() and Session.Asynchron) then
+              if (not Session.Update()) then
                 WantedNodeExpand := Node
               else
               begin
@@ -664,7 +664,7 @@ begin
           begin
             Session := GetSession(Node.Parent.Index);
             Database := Session.DatabaseByName(Node.Text);
-            if ((not Database.Tables.Update() or not Session.Update(Database.Tables)) and Session.Asynchron) then
+            if (not Database.Tables.Update() or not Session.Update(Database.Tables)) then
               WantedNodeExpand := Node
             else
             begin
@@ -721,13 +721,13 @@ var
     case (Node.ImageIndex) of
       iiServer:
         begin
-          Result := not Session.Update() and Session.Asynchron;
+          Result := not Session.Update();
           if (not Result) then
             for I := 0 to Session.Databases.Count - 1 do
               if (not Result and not (Session.Databases[I] is TSSystemDatabase)) then
               begin
                 Database := Session.Databases[I];
-                Result := not Database.Tables.Update() and Session.Asynchron;
+                Result := not Database.Tables.Update();
                 if (not Result and (Node.TreeView = FSource)) then
                 begin
                   for J := 0 to Database.Tables.Count - 1 do
@@ -740,7 +740,7 @@ var
       iiDatabase:
         begin
           Database := Session.DatabaseByName(Node.Text);
-          Result := not Database.Tables.Update() and Session.Asynchron;
+          Result := not Database.Tables.Update();
           if (not Result and (Node.TreeView = FSource)) then
           begin
             for J := 0 to Database.Tables.Count - 1 do

@@ -4215,9 +4215,9 @@ begin
 
     if (not Assigned(Database.Session.VariableByName('sql_quote_show_create'))) then
     begin
-      Database.Session.IdentifierQuoted := CharInSet(SQLParseChar(Parse, False), ['`', '"']);
+      Database.Session.IdentifierQuoted := SQLParseChar(Parse, '`', False) or SQLParseChar(Parse, '"', False);
       if (not Assigned(Database.Session.VariableByName('sql_mode')) and Database.Session.IdentifierQuoted) then
-        Database.Session.AnsiQuotes := SQLParseChar(Parse, False) = '"';
+        Database.Session.AnsiQuotes := SQLParseChar(Parse, '"', False);
     end;
 
     Index := 0;
@@ -7962,6 +7962,9 @@ begin
     // Warum verliert die MySQL Datenbank den Multi Stmt Status ??? (Fixed in 5.0.67 - auch schon vorher?)
     if (not Result and Session.MultiStatements and Assigned(Session.Lib.mysql_set_server_option)) then
       Session.Lib.mysql_set_server_option(Session.Handle, MYSQL_OPTION_MULTI_STATEMENTS_ON);
+
+    if (not Result and Assigned(Routine)) then
+      Session.ExecuteSQL(Routine.Source);
   end;
 end;
 
@@ -8082,7 +8085,7 @@ begin
   if (Session.Connected and Session.MultiStatements and Assigned(Session.Lib.mysql_set_server_option)) then
     Session.Lib.mysql_set_server_option(Session.Handle, MYSQL_OPTION_MULTI_STATEMENTS_ON);
 
-  if (Assigned(Trigger) and not Result) then
+  if (not Result and Assigned(Trigger)) then
     Session.ExecuteSQL(Trigger.Source);
 end;
 

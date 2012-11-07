@@ -329,7 +329,7 @@ begin
     else
       CanClose := Session.UpdateUser(User, NewUser);
 
-    PageControl.Visible := CanClose or not Session.Asynchron;
+    PageControl.Visible := not CanClose;
     PSQLWait.Visible := not PageControl.Visible;
     if (PSQLWait.Visible) then
       ModalResult := mrNone;
