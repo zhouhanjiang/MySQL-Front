@@ -553,6 +553,7 @@ type
     procedure ExecuteHeader(); override;
     procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
   public
+    Excel2007: Boolean;
     constructor Create(const ASession: TSSession; const AFilename: TFileName); reintroduce; virtual;
   end;
 
@@ -2221,14 +2222,20 @@ begin
   while ((Success = daSuccess) and (not Eof or (Index <= Length(FileContent.Str)))) do
   begin
     repeat
-      Len := SQLStmtLength(PChar(FileContent.Str), Length(FileContent.Str) - (Index - 1), @CompleteStmt);
+      if ((Index - 1) = Length(FileContent.Str)) then
+      begin
+        Len := 0;
+        CompleteStmt := False;
+      end
+      else
+        Len := SQLStmtLength(PChar(@FileContent.Str[Index]), Length(FileContent.Str) - (Index - 1), @CompleteStmt);
       if (not CompleteStmt) then
       begin
         Eof := not ReadContent();
         if (not Eof) then
           Len := 0
         else
-          Len := Length(FileContent.Str) - Index + 1;
+          Len := Length(FileContent.Str) - (Index - 1);
       end;
     until ((Len > 0) or Eof);
 
@@ -6254,6 +6261,7 @@ begin
 
   Filename := AFilename;
 
+  Excel2007 := False;
   Sheet := 0;
 end;
 
@@ -6266,7 +6274,7 @@ begin
 
   if (Success = daSuccess) then
   begin
-    if (not (odExcel2007 in ODBCDrivers)) then
+    if (not Excel2007) then
       ConnStrIn := 'Driver={' + DriverExcel + '};DBQ=' + Filename + ';READONLY=FALSE'
     else
       ConnStrIn := 'Driver={' + DriverExcel2007 + '};DBQ=' + Filename + ';READONLY=FALSE';

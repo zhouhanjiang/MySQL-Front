@@ -192,7 +192,7 @@ type
       DelimiterType: TPDelimiterType;
     end;
     Excel: record
-      Headline: Boolean;
+      Excel2007: Boolean;
     end;
     HTML: record
       Data: Boolean;
@@ -1570,7 +1570,7 @@ begin
   CSV.Quoter := '"';
   CSV.Delimiter := ',';
   CSV.DelimiterType := dtChar;
-  Excel.Headline := False;
+  Excel.Excel2007 := False;
   HTML.Data := True;
   HTML.NULLText := False;
   HTML.MemoContent := False;
@@ -1605,7 +1605,7 @@ begin
   if (Assigned(XMLNode(XML, 'csv/quote/type'))) then TryStrToQuote(XMLNode(XML, 'csv/quote/type').Text, CSV.Quote);
   if (Assigned(XMLNode(XML, 'csv/separator/character/string'))) then CSV.Delimiter := XMLNode(XML, 'csv/separator/character/string').Text;
   if (Assigned(XMLNode(XML, 'csv/separator/character/type'))) then TryStrToSeparatorType(XMLNode(XML, 'csv/separator/character/type').Text, CSV.DelimiterType);
-  if (Assigned(XMLNode(XML, 'excel/headline'))) then TryStrToBool(XMLNode(XML, 'excel/headline').Attributes['enabled'], Excel.Headline);
+  if (Assigned(XMLNode(XML, 'excel/format')) and (XMLNode(XML, 'excel/format').Text = '2007')) then Excel.Excel2007 := True else Excel.Excel2007 := False;
   if (Assigned(XMLNode(XML, 'html/data'))) then TryStrToBool(XMLNode(XML, 'html/data').Attributes['enabled'], HTML.Data);
   if (Assigned(XMLNode(XML, 'html/memo')) and (XMLNode(XML, 'html/memo').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/memo').Attributes['visible'], HTML.MemoContent);
   if (Assigned(XMLNode(XML, 'html/null')) and (XMLNode(XML, 'html/null').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/null').Attributes['visible'], HTML.NULLText);
@@ -1640,7 +1640,7 @@ begin
   XMLNode(XML, 'csv/quote/type').Text := QuoteToStr(CSV.Quote);
   XMLNode(XML, 'csv/separator/character/string').Text := CSV.Delimiter;
   XMLNode(XML, 'csv/separator/character/type').Text := SeparatorTypeToStr(CSV.DelimiterType);
-  XMLNode(XML, 'excel/headline').Attributes['enabled'] := Excel.Headline;
+  if (Excel.Excel2007) then XMLNode(XML, 'excel/format').Text := '2007' else XMLNode(XML, 'excel/format').Text := '';
   XMLNode(XML, 'html/data').Attributes['enabled'] := HTML.Data;
   XMLNode(XML, 'html/memo').Attributes['visible'] := HTML.MemoContent;
   XMLNode(XML, 'html/null').Attributes['visible'] := HTML.NullText;

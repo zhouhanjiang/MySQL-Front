@@ -1260,7 +1260,7 @@ begin
             CDDS_PREPAINT:
               Message.Result := CDRF_NOTIFYITEMDRAW;
             CDDS_ITEMPREPAINT:
-              if ((Integer(HDCustomDraw^.dwItemSpec) < LeftCol) or (Columns.Count <= Integer(HDCustomDraw^.dwItemSpec))) then
+              if (Columns.Count <= LeftCol + Integer(HDCustomDraw^.dwItemSpec)) then
                 inherited
               else if (Columns[LeftCol + Integer(HDCustomDraw^.dwItemSpec)].Field.IsIndexField
                 and (Assigned(TitleBoldFont) or (GetObject(TitleFont.Handle, SizeOf(LogFont), @LogFont) <> 0))) then

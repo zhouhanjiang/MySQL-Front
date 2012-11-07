@@ -62,9 +62,12 @@ begin
       RaiseLastOSError()
     else
     begin
-      SetFilePointer(Handle, GetFileSize(Handle, nil), nil, FILE_BEGIN);
-      WriteFile(Handle, Note[1], Length(Note) * SizeOf(Note[1]), BytesWritten, nil);
-      WriteFile(Handle, NewLine^, SizeOf(NewLine), BytesWritten, nil);
+      if (Length(Note) > 0) then
+      begin
+        SetFilePointer(Handle, GetFileSize(Handle, nil), nil, FILE_BEGIN);
+        WriteFile(Handle, Note[1], Length(Note) * SizeOf(Note[1]), BytesWritten, nil);
+        WriteFile(Handle, NewLine^, SizeOf(NewLine), BytesWritten, nil);
+      end;
       CloseHandle(Handle);
     end;
   end;

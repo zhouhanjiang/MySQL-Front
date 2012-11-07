@@ -130,7 +130,6 @@ object DAccount: TDAccount
       Top = 16
       Width = 157
       Height = 21
-      MaxLength = 50
       TabOrder = 0
       Text = 'FHost'
       OnChange = FEditChange

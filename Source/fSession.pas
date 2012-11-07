@@ -766,9 +766,9 @@ type
     function GetRoutines(): TSRoutines; inline;
     procedure ParseCreateRoutine(const SQL: string);
   protected
-    function SQLGetSource(): string; override;
     procedure SetSource(const ASource: string); override;
     property SourceParsed: Boolean read FSourceParsed;
+    function SQLGetSource(): string; override;
   public
     procedure Assign(const Source: TSRoutine); reintroduce; virtual;
     constructor Create(const ACDBObjects: TSDBObjects; const AName: string = ''); override;
@@ -2149,7 +2149,7 @@ begin
   if (not Assigned(FDependencies)) then
   begin
     FDependencies := TSDependencies.Create();
-    Database.ParseDependencies(Source, FDependencies);
+    Database.ParseDependencies(GetSourceEx(False, False), FDependencies);
   end;
 
   Result := FDependencies;
@@ -7210,6 +7210,11 @@ begin
   SQLParser := TGSqlParser.Create(DbVMysql);
   SQLParser.SqlText.Text := SQL;
   Result := SQLParser.Parse() = 0;
+
+  {$IFDEF Debug}
+  if (not Result) then
+    raise Exception.Create(SQLParser.ErrorMessages);
+  {$ENDIF}
 
   for I := SQLParser.SourceTokenList.Count - 2 downto 1 do
     if (SQLParser.SourceTokenList[I].TokenType = ttDot) then

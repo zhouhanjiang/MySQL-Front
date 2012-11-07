@@ -1007,64 +1007,73 @@ begin
     else
       Export := Preferences.Export;
 
-    Export.CSV.Headline := FCSVHeadline.Checked;
-    if (ExportType = etTextFile) then
-    begin
-      if (FSeparatorTab.Checked) then
-        Export.CSV.DelimiterType := dtTab
-      else if (FSeparatorChar.Checked) then
-        Export.CSV.DelimiterType := dtChar;
-      Export.CSV.Delimiter := FSeparator.Text;
-      if (FQuoteNothing.Checked) then
-        Export.CSV.Quote := qtNothing
-      else if (FQuoteAll.Checked) then
-        Export.CSV.Quote := qtAll
-      else
-        Export.CSV.Quote := qtStrings;
-      if (FQuoteChar.Text <> '') then
-        Export.CSV.Quoter := FQuoteChar.Text[1];
+    case (ExportType) of
+      etSQLFile:
+        begin
+          Export.SQL.Structure := FSQLStructure.Checked;
+          Export.SQL.Data := FSQLData.Checked;
+          Export.SQL.DropStmts := FDropStmts.Checked;
+          Export.SQL.ReplaceData := FReplaceData.Checked;
+          Export.SQL.DisableKeys := FDisableKeys.Checked;
+          if (AObjects.Count > 1) then
+            Export.SQL.CreateDatabase := FCreateDatabase.Checked;
+          Export.SQL.UseDatabase := FUseDatabase.Checked;
+        end;
+      etTextFile:
+        begin
+          Export.CSV.Headline := FCSVHeadline.Checked;
+          if (FSeparatorTab.Checked) then
+            Export.CSV.DelimiterType := dtTab
+          else if (FSeparatorChar.Checked) then
+            Export.CSV.DelimiterType := dtChar;
+          Export.CSV.Delimiter := FSeparator.Text;
+          if (FQuoteNothing.Checked) then
+            Export.CSV.Quote := qtNothing
+          else if (FQuoteAll.Checked) then
+            Export.CSV.Quote := qtAll
+          else
+            Export.CSV.Quote := qtStrings;
+          if (FQuoteChar.Text <> '') then
+            Export.CSV.Quoter := FQuoteChar.Text[1];
+        end;
+      etExcelFile:
+        Export.Excel.Excel2007 := (odExcel2007 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
+      etHTMLFile:
+        begin
+          Export.HTML.Data := FHTMLData.Checked;
+          Export.HTML.MemoContent := FHTMLMemoContent.Checked;
+          Export.HTML.NULLText := FHTMLNullText.Checked;
+          Export.HTML.RowBGColor := FHTMLRowBGColor.Checked;
+          Export.HTML.Structure := FHTMLStructure.Checked;
+        end;
+      etXMLFile:
+        begin
+          Export._XML.Root.NodeText := Trim(FRootNodeText.Text);
+          if (FDatabaseNodeDisabled.Checked) then
+            Export._XML.Database.NodeType := ntDisabled
+          else if (FDatabaseNodeName.Checked) then
+            Export._XML.Database.NodeType := ntName
+          else
+            Export._XML.Database.NodeType := ntCustom;
+          Export._XML.Database.NodeText := Trim(FDatabaseNodeText.Text);
+          Export._XML.Database.NodeAttribute := Trim(FDatabaseNodeAttribute.Text);
+          if (FTableNodeDisabled.Checked) then
+            Export._XML.Table.NodeType := ntDisabled
+          else if (FTableNodeName.Checked) then
+            Export._XML.Table.NodeType := ntName
+          else
+            Export._XML.Table.NodeType := ntCustom;
+          Export._XML.Table.NodeText := Trim(FTableNodeText.Text);
+          Export._XML.Table.NodeAttribute := Trim(FTableNodeAttribute.Text);
+          Export._XML.Row.NodeText := Trim(FRecordNodeText.Text);
+          if (FFieldNodeName.Checked) then
+            Export._XML.Field.NodeType := ntName
+          else
+            Export._XML.Field.NodeType := ntCustom;
+          Export._XML.Field.NodeText := Trim(FFieldNodeText.Text);
+          Export._XML.Field.NodeAttribute := Trim(FFieldNodeAttribute.Text);
+        end;
     end;
-
-    Export.SQL.Structure := FSQLStructure.Checked;
-    Export.SQL.Data := FSQLData.Checked;
-    Export.SQL.DropStmts := FDropStmts.Checked;
-    Export.SQL.ReplaceData := FReplaceData.Checked;
-    Export.SQL.DisableKeys := FDisableKeys.Checked;
-    if (AObjects.Count > 1) then
-      Export.SQL.CreateDatabase := FCreateDatabase.Checked;
-    Export.SQL.UseDatabase := FUseDatabase.Checked;
-
-    Export.HTML.Data := FHTMLData.Checked;
-    Export.HTML.MemoContent := FHTMLMemoContent.Checked;
-    Export.HTML.NULLText := FHTMLNullText.Checked;
-    Export.HTML.RowBGColor := FHTMLRowBGColor.Checked;
-    Export.HTML.Structure := FHTMLStructure.Checked;
-
-    Export._XML.Root.NodeText := Trim(FRootNodeText.Text);
-    if (FDatabaseNodeDisabled.Checked) then
-      Export._XML.Database.NodeType := ntDisabled
-    else if (FDatabaseNodeName.Checked) then
-      Export._XML.Database.NodeType := ntName
-    else
-      Export._XML.Database.NodeType := ntCustom;
-    Export._XML.Database.NodeText := Trim(FDatabaseNodeText.Text);
-    Export._XML.Database.NodeAttribute := Trim(FDatabaseNodeAttribute.Text);
-    if (FTableNodeDisabled.Checked) then
-      Export._XML.Table.NodeType := ntDisabled
-    else if (FTableNodeName.Checked) then
-      Export._XML.Table.NodeType := ntName
-    else
-      Export._XML.Table.NodeType := ntCustom;
-    Export._XML.Table.NodeText := Trim(FTableNodeText.Text);
-    Export._XML.Table.NodeAttribute := Trim(FTableNodeAttribute.Text);
-    Export._XML.Row.NodeText := Trim(FRecordNodeText.Text);
-    if (FFieldNodeName.Checked) then
-      Export._XML.Field.NodeType := ntName
-    else
-      Export._XML.Field.NodeType := ntCustom;
-    Export._XML.Field.NodeText := Trim(FFieldNodeText.Text);
-    Export._XML.Field.NodeAttribute := Trim(FFieldNodeAttribute.Text);
-
 
     if (DialogType in [edtCreateJob, edtEditJob]) then
     begin
@@ -1498,10 +1507,14 @@ begin
       end;
     etExcelFile:
       begin
+        SaveDialog.Filter := '';
         if (odExcel2007 in ODBCDrivers) then
-          SaveDialog.Filter := FilterDescription('xls') + ' (*.xls)|*.xls|' + FilterDescription('xlsx') + ' (*.xlsx)|*.xlsx'
-        else
-          SaveDialog.Filter := FilterDescription('xls') + ' (*.xls)|*.xls';
+          SaveDialog.Filter := SaveDialog.Filter + FilterDescription('xlsx') + ' (*.xls;*.xlsx;*.xlsm;*.xlsb)|*.xls;*.xlsx;*.xlsm;*.xlsb';
+        if (odExcel in ODBCDrivers) then
+        begin
+          if (SaveDialog.Filter <> '') then SaveDialog.Filter := SaveDialog.Filter + '|';
+          SaveDialog.Filter := SaveDialog.Filter + FilterDescription('xls') + ' (*.xls)|*.xls';
+        end;
         SaveDialog.DefaultExt := '.xls';
         SaveDialog.Encodings.Clear();
       end;
@@ -1939,6 +1952,7 @@ begin
         Export := TTExportExcel.Create(Session, Filename);
         TTExportExcel(Export).Data := True;
         TTExportExcel(Export).Structure := True;
+        TTExportExcel(Export).Excel2007 := (odExcel2007 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
       except
         MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
       end;

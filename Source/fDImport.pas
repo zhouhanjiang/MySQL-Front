@@ -1543,11 +1543,10 @@ begin
       ODBCException(Handle, SQLBindCol(Handle, 3, SQL_C_WCHAR, TABLE_NAME, (TABLE_NAME_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_NAME));
       ODBCException(Handle, SQLBindCol(Handle, 4, SQL_C_WCHAR, TABLE_TYPE, (TABLE_TYPE_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_TYPE));
       while (SQL_SUCCEEDED(ODBCException(Handle, SQLFetch(Handle)))) do
-        if ((lstrcmpi(PChar(TABLE_TYPE), 'TABLE') = 0) or (ImportType = itExcelFile) and (lstrcmpi(PChar(TABLE_TYPE), 'SYSTEM TABLE') = 0))  then
+        if ((lstrcmpi(PChar(TABLE_TYPE), 'TABLE') = 0) or (ImportType = itExcelFile) and ((lstrcmpi(PChar(TABLE_TYPE), 'TABLE') = 0) or (lstrcmpi(PChar(TABLE_TYPE), 'SYSTEM TABLE') = 0)))  then
         begin
           SetString(TableName, PChar(TABLE_NAME), cbTABLE_NAME div SizeOf(SQLTCHAR));
-          if ((ImportType <> itExcelFile) or (lstrcmpi(PChar(TABLE_TYPE), 'SYSTEM TABLE') = 0) or (Pos('$', TableName) > 0)) then
-            TableNames.Add(TableName);
+          TableNames.Add(TableName);
         end;
       SQLFreeStmt(Handle, SQL_CLOSE);
 

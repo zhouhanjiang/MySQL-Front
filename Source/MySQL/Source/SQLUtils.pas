@@ -3002,5 +3002,12 @@ begin
   Result := StrPas(P);
 end;
 
+var
+  CompleteStmt: Boolean;
+  SQL: string;
+begin
+  SQL := #$D#$A'#'#$D#$A'# Data for table "localhost_trad"'#$D#$A'#'#$D#$A#$D#$A'INSERT INTO `localhost_trad` VALUES (''account'',1,''Dati utente'',''''),(''acquista'',1,''Conferma acquisti'',''''),(''addebiti'',1,''Addebito'',''cassa';
+  SQLStmtLength(PChar(SQL), Length(SQL), @CompleteStmt);
+  Write;
 end.
 

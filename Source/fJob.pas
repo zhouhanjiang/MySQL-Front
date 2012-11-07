@@ -158,6 +158,7 @@ begin
           Export := TTExportExcel.Create(Session, Job.Filename);
           TTExportExcel(Export).Data := True;
           TTExportExcel(Export).Structure := True;
+          TTExportExcel(Export).Excel2007 := Job.Excel.Excel2007;
         except
           WriteLn(StdErr, Preferences.LoadStr(522, Job.Filename));
         end;

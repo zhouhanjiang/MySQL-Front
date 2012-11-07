@@ -722,7 +722,7 @@ type
         DBGrid: TMySQLDBGrid;
       end;
     private
-      FClient: TFSession;
+      FSession: TFSession;
       Results: TList;
       TCResult: TTabControl;
       function GetActiveDBGrid(): TMySQLDBGrid;
@@ -739,9 +739,9 @@ type
 
     TSObjectDesktop = class(TSObject.TDesktop)
     private
-      FFClient: TFSession;
+      FFSession: TFSession;
     protected
-      property FClient: TFSession read FFClient;
+      property FSession: TFSession read FFSession;
     public
       constructor Create(const AFClient: TFSession; const ACObject: TSObject);
     end;
@@ -856,7 +856,7 @@ type
     private
       FAction: TAction;
       FAddress: string;
-      FClient: TFSession;
+      FSession: TFSession;
       FUpdate: TSSession.TUpdate;
       procedure Clear();
       function GetNothing(): Boolean;
@@ -1212,7 +1212,7 @@ begin
 
     for I := 0 to Results.Count - 1 do
     begin
-      FClient.FreeDBGrid(TResult(Results[I]^).DBGrid);
+      FSession.FreeDBGrid(TResult(Results[I]^).DBGrid);
       TResult(Results[I]^).DataSource.Free();
       TResult(Results[I]^).DataSet.Free();
       FreeMem(Results[I]);
@@ -1225,7 +1225,7 @@ constructor TFSession.TSQLEditor.Create(const AFClient: TFSession);
 begin
   inherited Create();
 
-  FClient := AFClient;
+  FSession := AFClient;
 
   Filename := '';
   FileCodePage := GetACP();
@@ -1265,9 +1265,9 @@ begin
   if (not Assigned(Results)) then
     Results := TList.Create();
 
-  if ((Results.Count < 5) and Assigned(FClient.Session.Account.HistoryXML)) then
+  if ((Results.Count < 5) and Assigned(FSession.Session.Account.HistoryXML)) then
   begin
-    XML := FClient.Session.Account.HistoryXML.AddChild('sql');
+    XML := FSession.Session.Account.HistoryXML.AddChild('sql');
     if (not Data) then
       XML.Attributes['type'] := 'statement'
     else
@@ -1283,29 +1283,29 @@ begin
     if (DataHandle.Connection.Connected and (DataHandle.Connection.InsertId > 0)) then
       XML.AddChild('insert_id').Text := IntToStr(DataHandle.Connection.InsertId);
 
-    while (FClient.Session.Account.HistoryXML.ChildNodes.Count > 100) do
-      FClient.Session.Account.HistoryXML.ChildNodes.Delete(0);
-    FClient.FSQLHistoryRefresh(nil);
+    while (FSession.Session.Account.HistoryXML.ChildNodes.Count > 100) do
+      FSession.Session.Account.HistoryXML.ChildNodes.Delete(0);
+    FSession.FSQLHistoryRefresh(nil);
   end;
 
   if (DataHandle.Connection.ErrorCode > 0) then
   begin
-    if ((DataHandle.Connection.CommandText <> '') and (Length(FClient.FSQLEditorSynMemo.Text) > Length(DataHandle.Connection.CommandText) + 5)) then
+    if ((DataHandle.Connection.CommandText <> '') and (Length(FSession.FSQLEditorSynMemo.Text) > Length(DataHandle.Connection.CommandText) + 5)) then
     begin
       SQL := DataHandle.Connection.CommandText;
       Len := SQLStmtLength(PChar(SQL), Length(SQL));
       SQLTrimStmt(DataHandle.Connection.CommandText, 1, Len, StartingCommentLength, EndingCommentLength);
-      FClient.FSQLEditorSynMemo.SelStart := FClient.aDRunExecuteSelStart + DataHandle.Connection.ExecutedSQLLength + StartingCommentLength;
-      FClient.FSQLEditorSynMemo.SelLength := Len - StartingCommentLength - EndingCommentLength;
+      FSession.FSQLEditorSynMemo.SelStart := FSession.aDRunExecuteSelStart + DataHandle.Connection.ExecutedSQLLength + StartingCommentLength;
+      FSession.FSQLEditorSynMemo.SelLength := Len - StartingCommentLength - EndingCommentLength;
     end
   end
   else if (not Data) then
   begin
-    if (FClient.Session.Databases.NameCmp(DataHandle.Connection.DatabaseName, FClient.SelectedDatabase) <> 0) then
+    if (FSession.Session.Databases.NameCmp(DataHandle.Connection.DatabaseName, FSession.SelectedDatabase) <> 0) then
     begin
-      URI := TUURI.Create(FClient.Address);
+      URI := TUURI.Create(FSession.Address);
       URI.Database := DataHandle.Connection.DatabaseName;
-      FClient.Wanted.Address := URI.Address;
+      FSession.Wanted.Address := URI.Address;
       URI.Free();
     end;
   end
@@ -1313,17 +1313,17 @@ begin
   begin
     if (Results.Count = 1) then
     begin
-      TCResult := FClient.CreateTCResult(FClient.PDBGrid);
+      TCResult := FSession.CreateTCResult(FSession.PDBGrid);
       TCResult.Tabs.Add(Preferences.LoadStr(861, IntToStr(Results.Count)));
       TCResult.OnChange := TCResultChange;
     end;
 
     GetMem(Item, SizeOf(TResult));
-    TResult(Item^).DataSet := TMySQLDataSet.Create(FClient.Owner);
-    TResult(Item^).DataSet.AfterOpen := FClient.DataSetAfterOpen;
-    TResult(Item^).DataSource := TDataSource.Create(FClient.Owner);
+    TResult(Item^).DataSet := TMySQLDataSet.Create(FSession.Owner);
+    TResult(Item^).DataSet.AfterOpen := FSession.DataSetAfterOpen;
+    TResult(Item^).DataSource := TDataSource.Create(FSession.Owner);
     TResult(Item^).DataSource.Enabled := False;
-    TResult(Item^).DBGrid := FClient.CreateDBGrid(FClient.PDBGrid, TResult(Item^).DataSource);
+    TResult(Item^).DBGrid := FSession.CreateDBGrid(FSession.PDBGrid, TResult(Item^).DataSource);
     TResult(Item^).DBGrid.Tag := Results.Count;
     TResult(Item^).DataSource.DataSet := TResult(Item^).DataSet;
     Results.Add(Item);
@@ -1335,10 +1335,10 @@ begin
       TCResultChange(nil);
     end;
 
-    FClient.ActiveDBGrid := TResult(Item^).DBGrid;
+    FSession.ActiveDBGrid := TResult(Item^).DBGrid;
     TResult(Item^).DataSet.Open(DataHandle);
 
-    FClient.SBResultRefresh(TResult(Item^).DataSet);
+    FSession.SBResultRefresh(TResult(Item^).DataSet);
   end;
 
   Result := False;
@@ -1348,16 +1348,16 @@ procedure TFSession.TSQLEditor.TCResultChange(Sender: TObject);
 var
   I: Integer;
 begin
-  for I := 0 to FClient.PDBGrid.ControlCount - 1 do
-    if (FClient.PDBGrid.Controls[I] is TMySQLDBGrid) then
-      FClient.PDBGrid.Controls[I].Visible := TMySQLDBGrid(FClient.PDBGrid.Controls[I]).Tag = TCResult.TabIndex;
+  for I := 0 to FSession.PDBGrid.ControlCount - 1 do
+    if (FSession.PDBGrid.Controls[I] is TMySQLDBGrid) then
+      FSession.PDBGrid.Controls[I].Visible := TMySQLDBGrid(FSession.PDBGrid.Controls[I]).Tag = TCResult.TabIndex;
 end;
 
 { TFSession.TCObjectDesktop ****************************************************}
 
 constructor TFSession.TSObjectDesktop.Create(const AFClient: TFSession; const ACObject: TSObject);
 begin
-  FFClient := AFClient;
+  FFSession := AFClient;
 
   inherited Create(ACObject);
 end;
@@ -1368,21 +1368,21 @@ function TFSession.TDatabaseDesktop.BuilderResultEvent(const DataHandle: TMySQLC
 begin
   if (Data) then
   begin
-    DataSet := TMySQLDataSet.Create(FClient.Owner);
-    DataSet.AfterOpen := FClient.DataSetAfterOpen;
+    DataSet := TMySQLDataSet.Create(FSession.Owner);
+    DataSet.AfterOpen := FSession.DataSetAfterOpen;
 
     if (not Assigned(PDBGrid)) then
-      PDBGrid := FClient.CreatePDBGrid();
+      PDBGrid := FSession.CreatePDBGrid();
     if (not Assigned(DataSource)) then
     begin
-      DataSource := TDataSource.Create(FClient.Owner);
+      DataSource := TDataSource.Create(FSession.Owner);
       DataSource.Enabled := False;
     end;
     if (not Assigned(FBuilderDBGrid)) then
-      FBuilderDBGrid := FClient.CreateDBGrid(PDBGrid, DataSource);
+      FBuilderDBGrid := FSession.CreateDBGrid(PDBGrid, DataSource);
     DataSource.DataSet := DataSet;
 
-    FClient.ActiveDBGrid := FBuilderDBGrid;
+    FSession.ActiveDBGrid := FBuilderDBGrid;
     DataSet.Open(DataHandle);
   end;
 
@@ -1402,12 +1402,12 @@ begin
   if (Assigned(Workbench) and Workbench.Modified) then
     if (Workbench.ObjectCount > 0) then
     begin
-      if (not SysUtils.ForceDirectories(ExtractFilePath(FClient.Session.Account.DataPath + Database.Name + PathDelim))) then
+      if (not SysUtils.ForceDirectories(ExtractFilePath(FSession.Session.Account.DataPath + Database.Name + PathDelim))) then
         RaiseLastOSError();
-      FWorkbench.SaveToFile(FClient.Session.Account.DataPath + Database.Name + PathDelim + 'Diagram.xml');
+      FWorkbench.SaveToFile(FSession.Session.Account.DataPath + Database.Name + PathDelim + 'Diagram.xml');
     end
-    else if (FileExists(FClient.Session.Account.DataPath + Database.Name + PathDelim + 'Diagram.xml')) then
-      DeleteFile(FClient.Session.Account.DataPath + Database.Name + PathDelim + 'Diagram.xml');
+    else if (FileExists(FSession.Session.Account.DataPath + Database.Name + PathDelim + 'Diagram.xml')) then
+      DeleteFile(FSession.Session.Account.DataPath + Database.Name + PathDelim + 'Diagram.xml');
 end;
 
 constructor TFSession.TDatabaseDesktop.Create(const AFClient: TFSession; const ADatabase: TSDatabase);
@@ -1426,7 +1426,7 @@ function TFSession.TDatabaseDesktop.CreateListView(): TListView;
 begin
   if (not Assigned(ListView)) then
   begin
-    ListView := FClient.CreateListView(Database);
+    ListView := FSession.CreateListView(Database);
     if (Database.Valid) then
       Database.PushBuildEvents();
   end;
@@ -1437,7 +1437,7 @@ end;
 function TFSession.TDatabaseDesktop.CreateWorkbench(): TWWorkbench;
 begin
   if (not Assigned(FWorkbench)) then
-    FWorkbench := FClient.CreateWorkbench(Database);
+    FWorkbench := FSession.CreateWorkbench(Database);
 
   Result := FWorkbench;
 end;
@@ -1459,7 +1459,7 @@ begin
   if (Assigned(DataSource)) then
     DataSource.Free();
   if (Assigned(ListView)) then
-    FClient.FreeListView(ListView);
+    FSession.FreeListView(ListView);
   if (Assigned(FWorkbench)) then
     FWorkbench.Free();
 
@@ -1476,13 +1476,13 @@ var
   I: Integer;
   Node: IXMLNode;
 begin
-  if (not Assigned(FXML) and Assigned(FClient.Session.Account.DesktopXML)) then
+  if (not Assigned(FXML) and Assigned(FSession.Session.Account.DesktopXML)) then
   begin
-    Node := XMLNode(FClient.Session.Account.DesktopXML, 'browser/databases', True);
+    Node := XMLNode(FSession.Session.Account.DesktopXML, 'browser/databases', True);
 
     FXML := nil;
     for I := 0 to Node.ChildNodes.Count - 1 do
-      if ((Node.ChildNodes[I].NodeName = 'database') and (FClient.Session.Databases.NameCmp(Node.ChildNodes[I].Attributes['name'], Database.Name) = 0)) then
+      if ((Node.ChildNodes[I].NodeName = 'database') and (FSession.Session.Databases.NameCmp(Node.ChildNodes[I].Attributes['name'], Database.Name) = 0)) then
         FXML := Node.ChildNodes[I];
 
     if (not Assigned(FXML)) then
@@ -1537,13 +1537,13 @@ begin
   if (not Assigned(DBGrid)) then
   begin
     if (not Assigned(PDBGrid)) then
-      PDBGrid := FClient.CreatePDBGrid();
+      PDBGrid := FSession.CreatePDBGrid();
     if (not Assigned(DataSource)) then
     begin
-      DataSource := TDataSource.Create(FClient.Owner);
+      DataSource := TDataSource.Create(FSession.Owner);
       DataSource.Enabled := False;
     end;
-    DBGrid := FClient.CreateDBGrid(PDBGrid, DataSource);
+    DBGrid := FSession.CreateDBGrid(PDBGrid, DataSource);
     DataSource.DataSet := Table.DataSet;
   end;
 
@@ -1554,7 +1554,7 @@ function TFSession.TTableDesktop.CreateListView(): TListView;
 begin
   if (not Assigned(ListView)) then
   begin
-    ListView := FClient.CreateListView(Table);
+    ListView := FSession.CreateListView(Table);
     if (Table.Valid) then
       Table.Tables.PushBuildEvent(Table);
   end;
@@ -1571,7 +1571,7 @@ var
 begin
   DBGrid.DataSource.DataSet := DataSet;
 
-  FClient.DataSetAfterOpen(DataSet);
+  FSession.DataSetAfterOpen(DataSet);
 
   DBGrid.ReadOnly := Table is TSSystemView;
 
@@ -1595,21 +1595,21 @@ begin
     Limit := Table.DataSet.Limit;
   end;
 
-  FClient.FUDOffset.Position := Table.DataSet.Offset;
-  FClient.FLimitEnabled.Down := Table.DataSet.Limit > 0;
-  if (FClient.FLimitEnabled.Down) then
-    FClient.FUDLimit.Position := Table.DataSet.Limit;
+  FSession.FUDOffset.Position := Table.DataSet.Offset;
+  FSession.FLimitEnabled.Down := Table.DataSet.Limit > 0;
+  if (FSession.FLimitEnabled.Down) then
+    FSession.FUDLimit.Position := Table.DataSet.Limit;
 
-  FClient.FFilterEnabled.Down := Table.DataSet.FilterSQL <> '';
-  FClient.FFilterEnabled.Enabled := FClient.FFilter.Text <> '';
-  FClient.FilterMRU.Clear();
-  if (FClient.FFilterEnabled.Down) then
-    FClient.FFilter.Text := Table.DataSet.FilterSQL;
+  FSession.FFilterEnabled.Down := Table.DataSet.FilterSQL <> '';
+  FSession.FFilterEnabled.Enabled := FSession.FFilter.Text <> '';
+  FSession.FilterMRU.Clear();
+  if (FSession.FFilterEnabled.Down) then
+    FSession.FFilter.Text := Table.DataSet.FilterSQL;
   for I := 0 to FilterCount - 1 do
-    FClient.FilterMRU.Add(Filters[I]);
-  FClient.gmFilter.Clear();
+    FSession.FilterMRU.Add(Filters[I]);
+  FSession.gmFilter.Clear();
 
-  FClient.FQuickSearchEnabled.Down := Table.DataSet.QuickSearch <> '';
+  FSession.FQuickSearchEnabled.Down := Table.DataSet.QuickSearch <> '';
 end;
 
 destructor TFSession.TTableDesktop.Destroy();
@@ -1647,9 +1647,9 @@ begin
   end;
 
   if (Assigned(ListView)) then
-    FClient.FreeListView(ListView);
+    FSession.FreeListView(ListView);
   if (Assigned(DBGrid)) then
-    FClient.FreeDBGrid(DBGrid);
+    FSession.FreeDBGrid(DBGrid);
   if (Assigned(DataSource)) then
     DataSource.Free();
   if (Assigned(PDBGrid)) then
@@ -1734,9 +1734,9 @@ var
   I: Integer;
   Node: IXMLNode;
 begin
-  if (not Assigned(FXML) and Assigned(FClient.Desktop(Table.Database).XML)) then
+  if (not Assigned(FXML) and Assigned(FSession.Desktop(Table.Database).XML)) then
   begin
-    Node := XMLNode(FClient.Desktop(Table.Database).XML, 'tables', True);
+    Node := XMLNode(FSession.Desktop(Table.Database).XML, 'tables', True);
 
     for I := 0 to Node.ChildNodes.Count - 1 do
       if ((Node.ChildNodes[I].NodeName = 'table') and (lstrcmpi(PChar(string(Node.ChildNodes[I].Attributes['name'])), PChar(Table.Name)) = 0)) then
@@ -1781,7 +1781,7 @@ function TFSession.TViewDesktop.CreateSynMemo(): TSynMemo;
 begin
   if (not Assigned(SynMemo)) then
   begin
-    SynMemo := FClient.CreateSynMemo();
+    SynMemo := FSession.CreateSynMemo();
     if (Table.Valid) then
       Table.PushBuildEvent();
   end;
@@ -1810,7 +1810,7 @@ begin
 
     for I := 0 to Results.Count - 1 do
     begin
-      FClient.FreeDBGrid(TResult(Results[I]^).DBGrid);
+      FSession.FreeDBGrid(TResult(Results[I]^).DBGrid);
       TResult(Results[I]^).DataSource.Free();
       TResult(Results[I]^).DataSet.Free();
       FreeMem(Results[I]);
@@ -1830,7 +1830,7 @@ end;
 function TFSession.TRoutineDesktop.CreateSynMemo(): TSynMemo;
 begin
   if (not Assigned(SynMemo)) then
-    SynMemo := FClient.CreateSynMemo();
+    SynMemo := FSession.CreateSynMemo();
 
   Result := SynMemo;
 end;
@@ -1865,23 +1865,23 @@ begin
   if (Data) then
   begin
     if (not Assigned(PDBGrid)) then
-      PDBGrid := FClient.CreatePDBGrid();
+      PDBGrid := FSession.CreatePDBGrid();
     if (not Assigned(Results)) then
       Results := TList.Create();
 
     if (Results.Count = 1) then
     begin
-      TCResult := FClient.CreateTCResult(PDBGrid);
+      TCResult := FSession.CreateTCResult(PDBGrid);
       TCResult.Tabs.Add(Preferences.LoadStr(861, IntToStr(Results.Count)));
       TCResult.OnChange := TCResultChange;
     end;
 
     GetMem(Item, SizeOf(TResult));
-    TResult(Item^).DataSet := TMySQLDataSet.Create(FClient.Owner);
-    TResult(Item^).DataSet.AfterOpen := FClient.DataSetAfterOpen;
-    TResult(Item^).DataSource := TDataSource.Create(FClient.Owner);
+    TResult(Item^).DataSet := TMySQLDataSet.Create(FSession.Owner);
+    TResult(Item^).DataSet.AfterOpen := FSession.DataSetAfterOpen;
+    TResult(Item^).DataSource := TDataSource.Create(FSession.Owner);
     TResult(Item^).DataSource.Enabled := False;
-    TResult(Item^).DBGrid := FClient.CreateDBGrid(PDBGrid, TResult(Item^).DataSource);
+    TResult(Item^).DBGrid := FSession.CreateDBGrid(PDBGrid, TResult(Item^).DataSource);
     TResult(Item^).DBGrid.Tag := Results.Count;
     TResult(Item^).DataSource.DataSet := TResult(Item^).DataSet;
     Results.Add(Item);
@@ -1893,7 +1893,7 @@ begin
       TCResultChange(nil);
     end;
 
-    FClient.ActiveDBGrid := TResult(Item^).DBGrid;
+    FSession.ActiveDBGrid := TResult(Item^).DBGrid;
     TResult(Item^).DataSet.Open(DataHandle);
   end;
 
@@ -1921,7 +1921,7 @@ end;
 function TFSession.TEventDesktop.CreateSynMemo(): TSynMemo;
 begin
   if (not Assigned(SynMemo)) then
-    SynMemo := FClient.CreateSynMemo();
+    SynMemo := FSession.CreateSynMemo();
 
   Result := SynMemo;
 end;
@@ -1946,7 +1946,7 @@ end;
 function TFSession.TTriggerDesktop.CreateSynMemo(): TSynMemo;
 begin
   if (not Assigned(SynMemo)) then
-    SynMemo := FClient.CreateSynMemo();
+    SynMemo := FSession.CreateSynMemo();
 
   Result := SynMemo;
 end;
@@ -1970,17 +1970,17 @@ end;
 
 constructor TFSession.TWanted.Create(const AFClient: TFSession);
 begin
-  FClient := AFClient;
+  FSession := AFClient;
 
   Clear();
 end;
 
 procedure TFSession.TWanted.Execute();
 begin
-  if (not FClient.Session.Asynchron) then
-    FClient.Perform(CM_WANTED_SYNCHRONIZE, 0, 0)
+  if (not FSession.Session.Asynchron) then
+    FSession.Perform(CM_WANTED_SYNCHRONIZE, 0, 0)
   else
-    PostMessage(FClient.Handle, CM_WANTED_SYNCHRONIZE, 0, 0);
+    PostMessage(FSession.Handle, CM_WANTED_SYNCHRONIZE, 0, 0);
 end;
 
 function TFSession.TWanted.GetNothing(): Boolean;
@@ -2009,7 +2009,7 @@ end;
 procedure TFSession.TWanted.SetUpdate(const AUpdate: TSSession.TUpdate);
 begin
   Clear();
-  if (not FClient.Session.InUse) then
+  if (not FSession.Session.InUse) then
     AUpdate()
   else
     FUpdate := AUpdate;
@@ -2031,7 +2031,7 @@ begin
   begin
     TempAddress := Address;
     Clear();
-    FClient.Address := TempAddress;
+    FSession.Address := TempAddress;
   end
   else if (Assigned(Update)) then
   begin
@@ -2520,18 +2520,19 @@ begin
           FUDLimit.Position := TSTableDataSet(Table.DataSet).Limit;
           FLimitEnabled.Down := TSTableDataSet(Table.DataSet).Limit > 1;
         end;
-        FFilterEnabled.Down := (Table.DataSet is TSTableDataSet) and Assigned(Table.DataSet) and Table.DataSet.Active and (Table.DataSet.FilterSQL <> '');
+        FFilterEnabled.Down := Assigned(Table.DataSet) and Table.DataSet.Active and (Table.DataSet.FilterSQL <> '');
         if (not FFilterEnabled.Down) then
           FFilter.Text := ''
         else
-          FFilter.Text := TSTableDataSet(Table.DataSet).FilterSQL;
+          FFilter.Text := Table.DataSet.FilterSQL;
         FilterMRU.Clear();
         for I := 0 to Desktop(Table).FilterCount - 1 do
           FilterMRU.Add(Desktop(Table).Filters[I]);
         FFilterEnabled.Enabled := FFilter.Text <> '';
       end;
 
-      FBuilder.MetadataContainer.DefaultDatabaseNameStr := SelectedDatabase;
+// The following line causes an exception while closing the tab. 06.11.2012
+//      FBuilder.MetadataContainer.DefaultDatabaseNameStr := SelectedDatabase;
 
       if (Window.ActiveControl = FNavigator) then
         FNavigatorSetMenuItems(FNavigator, FNavigator.Selected);
@@ -2973,7 +2974,7 @@ begin
     Index := 1; Len := 1;
     while ((Index < aDRunExecuteSelStart + 2) and (Len > 0)) do
     begin
-      Len := SQLStmtLength(PChar(SQL), Length(SQL) - (Index - 1));
+      Len := SQLStmtLength(PChar(@SQL[Index]), Length(SQL) - (Index - 1));
       Inc(Index, Len);
     end;
     Dec(Index, Len);
@@ -7105,8 +7106,6 @@ end;
 
 procedure TFSession.FFilterChange(Sender: TObject);
 begin
-  FFilter.Text := FFilter.Text;
-
   FFilterEnabled.Enabled := SQLSingleStmt(FFilter.Text);
   FFilterEnabled.Down := FFilterEnabled.Enabled and Assigned(ActiveDBGrid.DataSource.DataSet) and (FFilter.Text = TSTableDataSet(ActiveDBGrid.DataSource.DataSet).FilterSQL);
 end;
@@ -8583,7 +8582,7 @@ begin
   try
     SQL := ActiveSynMemo.Text; // Sometimes this forces in exception SynGetText / GetSelAvail
     repeat
-      Len := SQLStmtLength(PChar(SQL), (Length(SQL) - (Index - 1)));
+      Len := SQLStmtLength(PChar(@SQL[Index]), (Length(SQL) - (Index - 1)));
       Inc(Index, Len);
     until (Index >= ActiveSynMemo.SelStart);
     Dec(Index, Len);
