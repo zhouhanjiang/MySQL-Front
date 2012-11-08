@@ -134,7 +134,7 @@ begin
   FCheckOptionCascade.Checked := View.CheckOption = voCascaded;
   FCheckOptionLocal.Checked := View.CheckOption = voLocal;
 
-  FStmt.Lines.Text := View.Stmt + #13#10;
+  FStmt.Lines.Text := Trim(SQLWrapStmt(View.Stmt, ['from', 'where', 'group by', 'having', 'order by', 'limit'], 0)) + #13#10;
 
   FDefiner.Caption := View.Definer;
 
@@ -385,7 +385,7 @@ begin
 
     PageControl.Visible := not CanClose;
     PSQLWait.Visible := not PageControl.Visible;
-    if (PSQLWait.Visible) then
+    if (not CanClose) then
       ModalResult := mrNone;
 
     FBOk.Enabled := False;

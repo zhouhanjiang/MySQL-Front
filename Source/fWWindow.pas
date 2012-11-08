@@ -1612,8 +1612,6 @@ begin
     := AnsiString(SysUtils.LoadStr(1000) + ' ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor)
     + ' (' + Preferences.LoadStr(737) + ': ' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + ')')
     + ' - Bug Report';
-
-  EurekaExceptionRecord.
 end;
 
 procedure TWWindow.EurekaLogExceptionNotify(

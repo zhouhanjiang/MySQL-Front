@@ -15,7 +15,7 @@ uses
   ComCtrls_Ext, StdCtrls_Ext, Dialogs_Ext, Forms_Ext, ExtCtrls_Ext,
   MySQLDB, MySQLDBGrid,
   fSession, fPreferences, fTools,
-  fDExport, fDImport, fCWorkbench, fBase, acUniversalSynProvider;
+  fDExport, fDImport, fCWorkbench, fBase;
 
 const
   CM_ACTIVATE_DBGRID = WM_USER + 500;
@@ -71,8 +71,8 @@ type
     DataSetPost: TDataSetPost;
     FBlobSearch: TEdit;
     FBookmarks: TListView;
-    FBuilder: TacQueryBuilder;
-    FBuilderSynMemo: TSynMemo;
+    FQueryBuilder: TacQueryBuilder;
+    FQueryBuilderSynMemo: TSynMemo;
     FFilter: TComboBox_Ext;
     FFilterEnabled: TToolButton;
     FGridDataSource: TDataSource;
@@ -121,7 +121,6 @@ type
     mbOpen: TMenuItem;
     mbOpenInNewTab: TMenuItem;
     mbOpenInNewWindow: TMenuItem;
-    MetadataProvider: TacEventMetadataProvider;
     mfDelete: TMenuItem;
     mfFilter: TMenuItem;
     mfFilterAccess: TMenuItem;
@@ -375,7 +374,6 @@ type
     SQLBuilder: TacSQLBuilderPlainText;
     SResult: TSplitter_Ext;
     SSideBar: TSplitter_Ext;
-    SyntaxProvider: TacMYSQLSyntaxProvider;
     TBBlob: TToolBar;
     tbBlobHexEditor: TToolButton;
     tbBlobHTML: TToolButton;
@@ -501,22 +499,6 @@ type
       State: TDragState; var Accept: Boolean);
     procedure FBookmarksEnter(Sender: TObject);
     procedure FBookmarksExit(Sender: TObject);
-    procedure FBuilderDragDrop(Sender, Source: TObject; X,
-      Y: Integer);
-    procedure FBuilderDragOver(Sender, Source: TObject; X, Y: Integer;
-      State: TDragState; var Accept: Boolean);
-    procedure FBuilderEditorChange(Sender: TObject);
-    procedure FBuilderEditorEnter(Sender: TObject);
-    procedure FBuilderEditorExit(Sender: TObject);
-    procedure FBuilderEditorStatusChange(Sender: TObject;
-      Changes: TSynStatusChanges);
-    procedure FBuilderEnter(Sender: TObject);
-    procedure FBuilderExit(Sender: TObject);
-    procedure FBuilderResize(Sender: TObject);
-    procedure FBuilderSQLUpdated(Sender: TObject);
-    procedure FBuilderValidatePopupMenu(Sender: TacQueryBuilder;
-      AControlOwner: TacQueryBuilderControlOwner; AForControl: TControl;
-      APopupMenu: TPopupMenu);
     procedure PDataBrowserResize(Sender: TObject);
     procedure FFilesEnter(Sender: TObject);
     procedure FFilterChange(Sender: TObject);
@@ -558,6 +540,22 @@ type
     procedure FOffsetChange(Sender: TObject);
     procedure FOffsetKeyPress(Sender: TObject; var Key: Char);
     procedure FormResize(Sender: TObject);
+    procedure FQueryBuilderDragDrop(Sender, Source: TObject; X,
+      Y: Integer);
+    procedure FQueryBuilderDragOver(Sender, Source: TObject; X, Y: Integer;
+      State: TDragState; var Accept: Boolean);
+    procedure FQueryBuilderEditorChange(Sender: TObject);
+    procedure FQueryBuilderEditorEnter(Sender: TObject);
+    procedure FQueryBuilderEditorExit(Sender: TObject);
+    procedure FQueryBuilderEditorStatusChange(Sender: TObject;
+      Changes: TSynStatusChanges);
+    procedure FQueryBuilderEnter(Sender: TObject);
+    procedure FQueryBuilderExit(Sender: TObject);
+    procedure FQueryBuilderResize(Sender: TObject);
+    procedure FQueryBuilderSQLUpdated(Sender: TObject);
+    procedure FQueryBuilderValidatePopupMenu(Sender: TacQueryBuilder;
+      AControlOwner: TacQueryBuilderControlOwner; AForControl: TControl;
+      APopupMenu: TPopupMenu);
     procedure FQuickSearchChange(Sender: TObject);
     procedure FQuickSearchEnabledClick(Sender: TObject);
     procedure FQuickSearchKeyPress(Sender: TObject; var Key: Char);
@@ -612,6 +610,8 @@ type
       Selected: Boolean);
     procedure mbOpenClick(Sender: TObject);
     procedure MBookmarksPopup(Sender: TObject);
+    procedure MetadataProviderGetSQLFieldNames(Sender: TacBaseMetadataProvider;
+      const ASQL: WideString; AFields: TacFieldsList);
     procedure mfOpenClick(Sender: TObject);
     procedure mfFilterClearClick(Sender: TObject);
     procedure mfFilterSQLClick(Sender: TObject);
@@ -698,8 +698,6 @@ type
     procedure FJobsExit(Sender: TObject);
     procedure PJobsEnter(Sender: TObject);
     procedure PJobsExit(Sender: TObject);
-    procedure MetadataProviderGetSQLFieldNames(Sender: TacBaseMetadataProvider;
-      const ASQL: WideString; AFields: TacFieldsList);
   type
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
     TTabState = set of (tsLoading, tsActive);
@@ -973,13 +971,6 @@ type
     function Desktop(const View: TSView): TViewDesktop; overload; inline;
     function Dragging(const Sender: TObject): Boolean;
     procedure EndEditLabel(Sender: TObject);
-    function FBuilderActiveSelectList(): TacQueryBuilderSelectListControl;
-    function FBuilderActiveWorkArea(): TacQueryBuilderWorkArea;
-    procedure FBuilderAddTable(Sender: TObject);
-    function FBuilderEditorPageControl(): TacPageControl;
-    procedure FBuilderEditorPageControlChange(Sender: TObject);
-    procedure FBuilderEditorPageControlCheckStyle();
-    procedure FBuilderEditorTabSheetEnter(Sender: TObject);
     procedure FHexEditorShow(Sender: TObject);
     procedure FHTMLHide(Sender: TObject);
     procedure FHTMLShow(Sender: TObject);
@@ -991,6 +982,13 @@ type
     procedure FNavigatorUpdate(const SessionEvent: TSSession.TEvent);
     procedure FormAccountEvent(const ClassType: TClass);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
+    function FQueryBuilderActiveSelectList(): TacQueryBuilderSelectListControl;
+    function FQueryBuilderActiveWorkArea(): TacQueryBuilderWorkArea;
+    procedure FQueryBuilderAddTable(Sender: TObject);
+    function FQueryBuilderEditorPageControl(): TacPageControl;
+    procedure FQueryBuilderEditorPageControlChange(Sender: TObject);
+    procedure FQueryBuilderEditorPageControlCheckStyle();
+    procedure FQueryBuilderEditorTabSheetEnter(Sender: TObject);
     procedure FreeDBGrid(const DBGrid: TMySQLDBGrid);
     procedure FreeListView(const ListView: TListView);
     procedure FRTFShow(Sender: TObject);
@@ -2433,7 +2431,7 @@ begin
       vObjects: NewActiveControl := ActiveListView;
       vBrowser: NewActiveControl := ActiveDBGrid;
       vIDE: NewActiveControl := ActiveSynMemo;
-      vBuilder: NewActiveControl := FBuilderActiveWorkArea();
+      vBuilder: NewActiveControl := FQueryBuilderActiveWorkArea();
       vEditor: NewActiveControl := FSQLEditorSynMemo;
       vDiagram: NewActiveControl := ActiveWorkbench;
       else NewActiveControl := nil;
@@ -2530,7 +2528,7 @@ begin
 
       {$IFNDEF Debug}
       // FastMM reports a memory leak with this code. 07.11.2012
-      FBuilder.MetadataContainer.DefaultDatabaseNameStr := SelectedDatabase;
+      FQueryBuilder.MetadataContainer.DefaultDatabaseNameStr := SelectedDatabase;
       {$ENDIF}
 
       if (Window.ActiveControl = FNavigator) then
@@ -2569,7 +2567,7 @@ begin
     MainAction('aVDiagram').Enabled := (LastSelectedDatabase <> '');
     MainAction('aDRun').Enabled :=
       ((View = vEditor)
-      or ((View  = vBuilder) and FBuilder.Visible)
+      or ((View  = vBuilder) and FQueryBuilder.Visible)
       or ((View = vIDE) and SQLSingleStmt(SQL) and (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent]))) and not Empty;
     MainAction('aDRunSelection').Enabled := (((ActiveSynMemo = FSQLEditorSynMemo) and not Empty) or Assigned(ActiveSynMemo) and (ActiveSynMemo.SelText <> ''));
     MainAction('aDPostObject').Enabled := (View = vIDE) and Assigned(ActiveSynMemo) and ActiveSynMemo.Modified and SQLSingleStmt(SQL)
@@ -2587,7 +2585,7 @@ begin
         if (PNavigator.Visible) then Window.ActiveControl := FNavigator
         else if (PBookmarks.Visible) then Window.ActiveControl := FBookmarks
         else if (PListView.Visible) then Window.ActiveControl := ActiveListView
-        else if (PBuilder.Visible) then Window.ActiveControl := FBuilder
+        else if (PBuilder.Visible) then Window.ActiveControl := FQueryBuilder
         else if (PSynMemo.Visible) then Window.ActiveControl := FSQLEditorSynMemo
         else if (PResult.Visible) then Window.ActiveControl := ActiveDBGrid;
       end
@@ -2596,7 +2594,7 @@ begin
           vObjects: if (PListView.Visible) then Window.ActiveControl := ActiveListView;
           vBrowser: if (PResult.Visible) then Window.ActiveControl := ActiveDBGrid;
           vIDE: if (PSynMemo.Visible and Assigned(ActiveSynMemo)) then Window.ActiveControl := ActiveSynMemo;
-          vBuilder: if (PBuilder.Visible and Assigned(FBuilderActiveWorkArea())) then Window.ActiveControl := FBuilderActiveWorkArea();
+          vBuilder: if (PBuilder.Visible and Assigned(FQueryBuilderActiveWorkArea())) then Window.ActiveControl := FQueryBuilderActiveWorkArea();
           vEditor: if (PSynMemo.Visible) then Window.ActiveControl := FSQLEditorSynMemo;
           vDiagram: if (PWorkbench.Visible) then Window.ActiveControl := ActiveWorkbench;
         end;
@@ -2915,8 +2913,8 @@ begin
     TMySQLDBGrid(Window.ActiveControl).EditorMode := False;
 
   FSQLEditorCompletion.CancelCompletion();
-  if (Assigned(FBuilderActiveSelectList())) then
-    FBuilderActiveSelectList().EditorMode := False;
+  if (Assigned(FQueryBuilderActiveSelectList())) then
+    FQueryBuilderActiveSelectList().EditorMode := False;
 
   SQL := '';
   if (View in [vBuilder, vEditor]) then
@@ -4100,7 +4098,7 @@ begin
       vObjects: if (PListView.Visible) then Window.ActiveControl := ActiveListView;
       vBrowser: if (PResult.Visible and Assigned(ActiveDBGrid)) then Window.ActiveControl := ActiveDBGrid;
       vIDE: if (PSynMemo.Visible and Assigned(ActiveSynMemo)) then Window.ActiveControl := ActiveSynMemo;
-      vBuilder: if (PBuilder.Visible and Assigned(FBuilderActiveWorkArea())) then Window.ActiveControl := FBuilderActiveWorkArea();
+      vBuilder: if (PBuilder.Visible and Assigned(FQueryBuilderActiveWorkArea())) then Window.ActiveControl := FQueryBuilderActiveWorkArea();
       vEditor: if (PSynMemo.Visible) then Window.ActiveControl := FSQLEditorSynMemo;
       vDiagram: if (PWorkbench.Visible) then Window.ActiveControl := ActiveWorkbench;
     end;
@@ -4408,7 +4406,7 @@ begin
 
     if (Event.EventType in [ceItemValid]) then
       if ((Event.CItem is TSView) and Assigned(Desktop(TSView(Event.CItem)).SynMemo)) then
-        Desktop(TSView(Event.CItem)).SynMemo.Text := TSView(Event.CItem).Stmt + #13#10
+        Desktop(TSView(Event.CItem)).SynMemo.Text := Trim(SQLWrapStmt(TSView(Event.CItem).Stmt, ['from', 'where', 'group by', 'having', 'order by', 'limit'], 0)) + #13#10
       else if ((Event.CItem is TSRoutine) and Assigned(Desktop(TSRoutine(Event.CItem)).SynMemo)) then
       begin
         Desktop(TSRoutine(Event.CItem)).SynMemo.Text := TSRoutine(Event.CItem).Source + #13#10;
@@ -4632,7 +4630,7 @@ begin
     if (PSynMemo.Controls[I] is TSynMemo) then
       SynMemoApllyPreferences(TSynMemo(PSynMemo.Controls[I]));
 
-  SynMemoApllyPreferences(FBuilderSynMemo);
+  SynMemoApllyPreferences(FQueryBuilderSynMemo);
 
   FSQLEditorPrint.Font := FSQLEditorSynMemo.Font;
 
@@ -4662,7 +4660,7 @@ begin
   Perform(CM_PARENTDOUBLEBUFFEREDCHANGED, 0, 0);
   Perform(CM_PARENTTABLETOPTIONSCHANGED, 0, 0);
 
-  FBuilderSQLUpdated(nil);
+  FQueryBuilderSQLUpdated(nil);
 
   FLog.Font.Name := Preferences.LogFontName;
   FLog.Font.Style := Preferences.LogFontStyle;
@@ -4926,7 +4924,7 @@ end;
 
 procedure TFSession.CMPostBuilderQueryChange(var Message: TMessage);
 begin
-  FBuilderEditorPageControlCheckStyle();
+  FQueryBuilderEditorPageControlCheckStyle();
 end;
 
 procedure TFSession.CMPostMonitor(var Message: TMessage);
@@ -4978,7 +4976,7 @@ begin
 
   aVBlobText.Checked := True;
 
-  FBuilderEditorPageControlCheckStyle();
+  FQueryBuilderEditorPageControlCheckStyle();
 
   FormResize(nil);
 
@@ -5412,8 +5410,22 @@ begin
   SetWindowLong(ListView_GetHeader(FServerListView.Handle), GWL_STYLE, GetWindowLong(ListView_GetHeader(FServerListView.Handle), GWL_STYLE) or HDS_DRAGDROP);
 
   FSQLEditorSynMemo.Highlighter := MainHighlighter;
-  FBuilderSynMemo.Highlighter := MainHighlighter;
+  FQueryBuilderSynMemo.Highlighter := MainHighlighter;
   FSQLEditorPrint.Highlighter := MainHighlighter;
+
+
+  Session.SyntaxProvider.AnsiQuotes := Session.AnsiQuotes;
+  if (Session.LowerCaseTableNames <> 0) then
+    Session.SyntaxProvider.IdentCaseSens := icsSensitiveLowerCase
+  else
+    Session.SyntaxProvider.IdentCaseSens := icsNonSensitive;
+  Session.SyntaxProvider.ServerVersionInt := Session.ServerVersion;
+  Session.MetadataProvider.OnGetSQLFieldNames := MetadataProviderGetSQLFieldNames;
+
+  FQueryBuilder.MetadataProvider := Session.MetadataProvider;
+  FQueryBuilder.SyntaxProvider := Session.SyntaxProvider;
+  FQueryBuilderEditorStatusChange(Self, []);
+
 
   FText.Modified := False;
   GIFImage := TGIFImage.Create();
@@ -5463,14 +5475,6 @@ begin
 
   Perform(CM_CHANGEPREFERENCES, 0, 0);
   Window.Perform(CM_SYSFONTCHANGED, 0, 0);
-
-  SyntaxProvider.AnsiQuotes := Session.AnsiQuotes;
-  if (Session.LowerCaseTableNames <> 0) then
-    SyntaxProvider.IdentCaseSens := icsSensitiveLowerCase
-  else
-    SyntaxProvider.IdentCaseSens := icsNonSensitive;
-  SyntaxProvider.ServerVersionInt := Session.ServerVersion;
-  FBuilderEditorStatusChange(Self, []);
 
   NonClientMetrics.cbSize := SizeOf(NonClientMetrics);
   if (SystemParametersInfo(SPI_GETNONCLIENTMETRICS, SizeOf(NonClientMetrics), @NonClientMetrics, 0)) then
@@ -6801,301 +6805,6 @@ begin
   aPOpenInNewTab.Enabled := False;
   MainAction('aBDelete').Enabled := False;
   MainAction('aBEdit').Enabled := False;
-end;
-
-function TFSession.FBuilderActiveSelectList(): TacQueryBuilderSelectListControl;
-begin
-  if (not Assigned(FBuilderEditorPageControl())) then
-    Result := nil
-  else
-  begin
-    Result := TacQueryBuilderSelectListControl(FindChildByClassType(FBuilderEditorPageControl().ActivePage, TacQueryBuilderSelectListControl));
-    if (not Assigned(Result) and (FBuilderEditorPageControl().PageCount = 1)) then
-      Result := TacQueryBuilderSelectListControl(FindChildByClassType(FBuilderEditorPageControl().Pages[0], TacQueryBuilderSelectListControl));
-  end;
-end;
-
-function TFSession.FBuilderActiveWorkArea(): TacQueryBuilderWorkArea;
-var
-  PageControl: TPageControl;
-begin
-  if (not Assigned(FBuilderEditorPageControl())) then
-    Result := nil
-  else
-  begin
-    PageControl := FBuilderEditorPageControl();
-    if (Assigned(PageControl.ActivePage)) then
-      Result := TacQueryBuilderWorkArea(FindChildByClassType(PageControl.ActivePage, TacQueryBuilderWorkArea))
-    else if (PageControl.PageCount = 1) then
-      Result := TacQueryBuilderWorkArea(FindChildByClassType(PageControl.Pages[0], TacQueryBuilderWorkArea))
-    else
-      Result := nil;
-
-    if (not Assigned(PageControl.OnChange)) then
-    begin
-      PageControl.OnChange := FBuilderEditorPageControlChange;
-      FBuilderEditorPageControlChange(nil);
-    end;
-    FBuilderEditorPageControlCheckStyle();
-  end;
-end;
-
-procedure TFSession.FBuilderAddTable(Sender: TObject);
-var
-  MenuItem: TMenuItem;
-  SQLQualifiedName: TSQLQualifiedName;
-  Table: TSTable;
-begin
-  if (Sender is TMenuItem) then
-  begin
-    MenuItem := TMenuItem(Sender);
-
-    if ((MenuItem.GetParentMenu() is TPopupMenu) and (TObject(MenuItem.Tag) is TSTable)) then
-    begin
-      Table := TSTable(TMenuItem(Sender).Tag);
-
-      SQLQualifiedName := TSQLQualifiedName.Create(FBuilder.MetadataContainer.SQLContext);
-
-      SQLQualifiedName.AddName(Table.Name);
-      FBuilder.ActiveSubQuery.ActiveUnionSubquery.AddObjectAt(SQLQualifiedName, FBuilderActiveWorkArea().ScreenToClient(TPopupMenu(MenuItem.GetParentMenu()).PopupPoint));
-
-      SQLQualifiedName.Free();
-    end;
-  end;
-end;
-
-procedure TFSession.FBuilderDragDrop(Sender, Source: TObject; X, Y: Integer);
-var
-  SQLQualifiedName: TSQLQualifiedName;
-begin
-  if ((Source = FNavigator) and (MouseDownNode.ImageIndex in [iiBaseTable, iiSystemView, iiView])) then
-  begin
-    SQLQualifiedName := TSQLQualifiedName.Create(FBuilder.MetadataContainer.SQLContext);
-    SQLQualifiedName.AddName(TSTable(MouseDownNode.Data).Name);
-    SQLQualifiedName.AddPrefix(TSDatabase(MouseDownNode.Parent.Data).Name);
-    FBuilder.ActiveSubQuery.ActiveUnionSubquery.AddObjectAt(SQLQualifiedName, Point(X, Y));
-    SQLQualifiedName.Free();
-  end;
-end;
-
-procedure TFSession.FBuilderDragOver(Sender, Source: TObject; X,
-  Y: Integer; State: TDragState; var Accept: Boolean);
-var
-  SourceNode: TTreeNode;
-begin
-  Accept := False;
-
-  if (Source = FNavigator) then
-  begin
-    SourceNode := MouseDownNode;
-
-    Accept := SourceNode.ImageIndex in [iiBaseTable, iiSystemView, iiView];
-  end
-end;
-
-procedure TFSession.FBuilderEditorChange(Sender: TObject);
-begin
-  FBuilder.Enabled := True;
-  try
-    FBuilder.SQL := FBuilderSynMemo.Lines.Text;
-    PostMessage(Handle, CM_POST_BUILDER_QUERY_CHANGE, 0, 0);
-
-    FBuilderEditorPageControlCheckStyle();
-
-    FBuilder.Visible := True;
-  except
-    FBuilder.Visible := False;
-  end;
-
-  FBuilderEditorStatusChange(Sender, [scModified]);
-end;
-
-procedure TFSession.FBuilderEditorEnter(Sender: TObject);
-begin
-  SQLBuilder.OnSQLUpdated := nil;
-
-  SynMemoEnter(Sender);
-end;
-
-procedure TFSession.FBuilderEditorExit(Sender: TObject);
-begin
-  SynMemoExit(Sender);
-
-  SQLBuilder.OnSQLUpdated := FBuilderSQLUpdated;
-end;
-
-function TFSession.FBuilderEditorPageControl(): TacPageControl;
-begin
-  Result := TacQueryBuilderPageControl(FindChildByClassType(FBuilder, TacQueryBuilderPageControl));
-end;
-
-procedure TFSession.FBuilderEditorPageControlChange(Sender: TObject);
-begin
-  if (not Assigned(FBuilderEditorPageControl().ActivePage.OnEnter)) then
-    FBuilderEditorPageControl().ActivePage.OnEnter := FBuilderEditorTabSheetEnter;
-end;
-
-procedure TFSession.FBuilderEditorPageControlCheckStyle();
-var
-  PageControl: TPageControl;
-begin
-  PageControl := FBuilderEditorPageControl();
-  if (PBuilder.Visible and Assigned(PageControl)) then
-    if ((FBuilder.SubQueries.Count = 1) and PageControl.Pages[0].TabVisible) then
-    begin
-      PageControl.Style := tsFlatButtons;
-      PageControl.Pages[0].TabVisible := False;
-      PageControl.Pages[0].Visible := True;
-    end
-    else if ((FBuilder.SubQueries.Count > 1) and not PageControl.Pages[0].TabVisible) then
-    begin
-      PageControl.Style := tsTabs;
-      PageControl.Pages[0].TabVisible := True;
-    end;
-end;
-
-procedure TFSession.FBuilderEditorStatusChange(Sender: TObject;
-  Changes: TSynStatusChanges);
-var
-  BevelWidth: Integer;
-  LineCount: Integer;
-  NewHeight: Integer;
-  ScrollBarInfo: TScrollBarInfo;
-begin
-  FBuilderResize(Sender);
-
-  BevelWidth := 0;
-  if (PBuilderQuery.BevelInner in [bvLowered, bvRaised]) then
-    Inc(BevelWidth, PBuilderQuery.BevelWidth);
-  if (PBuilderQuery.BevelOuter in [bvLowered, bvRaised]) then
-    Inc(BevelWidth, PBuilderQuery.BevelWidth);
-
-  ZeroMemory(@ScrollBarInfo, SizeOf(ScrollBarInfo));
-  ScrollBarInfo.cbSize := SizeOf(ScrollBarInfo);
-  GetScrollBarInfo(FBuilderSynMemo.Handle, Integer(OBJID_HSCROLL), ScrollBarInfo);
-
-  LineCount := FBuilderSynMemo.Lines.Count;
-  if (LineCount = 0) then
-    LineCount := 1;
-
-  if (ScrollBarInfo.rgstate[0] = STATE_SYSTEM_INVISIBLE) then
-    NewHeight := LineCount * (FBuilderSynMemo.Canvas.TextHeight('SELECT') + 1) + 2 * FBuilderSynMemo.Top + 2 * BevelWidth
-  else
-    NewHeight := LineCount * (FBuilderSynMemo.Canvas.TextHeight('SELECT') + 1) + 2 * FBuilderSynMemo.Top + 2 * BevelWidth + GetSystemMetrics(SM_CYHSCROLL);
-  PBuilderQuery.Constraints.MaxHeight := NewHeight;
-
-  if (NewHeight > (PBuilder.Height + PBuilderQuery.Height) div 3) then
-    NewHeight := (PBuilder.Height + PBuilderQuery.Height) div 3;
-
-  if ((Sender = FBuilder) or (NewHeight < PBuilderQuery.Height) or (scModified in Changes)) then
-    PBuilderQuery.Height := NewHeight;
-
-  SynMemoStatusChange(FBuilderSynMemo, Changes);
-end;
-
-procedure TFSession.FBuilderEditorTabSheetEnter(Sender: TObject);
-begin
-  StatusBarRefresh();
-end;
-
-procedure TFSession.FBuilderEnter(Sender: TObject);
-begin
-  FBuilderSynMemo.OnChange := nil;
-
-  StatusBarRefresh();
-end;
-
-procedure TFSession.FBuilderExit(Sender: TObject);
-begin
-  FBuilderSynMemo.OnChange := FBuilderEditorChange;
-end;
-
-procedure TFSession.FBuilderResize(Sender: TObject);
-var
-  FBuilderEditorSelectList: TacQueryBuilderSelectListControl;
-  I: Integer;
-  PSQLEditorBuilderSelectList: TacPanel;
-  ScrollBarInfo: TScrollBarInfo;
-begin
-  if (Assigned(FBuilderEditorPageControl())) then
-    for I := 0 to FBuilderEditorPageControl().PageCount - 1 do
-    begin
-      FBuilderEditorSelectList := TacQueryBuilderSelectListControl(FindChildByClassType(FBuilderEditorPageControl().Pages[I], TacQueryBuilderSelectListControl));
-      if (Assigned(FBuilderEditorSelectList) and (FBuilderEditorSelectList.Parent is TacPanel)) then
-        PSQLEditorBuilderSelectList := TacPanel(FBuilderEditorSelectList.Parent)
-      else
-        PSQLEditorBuilderSelectList := nil;
-      if (Assigned(PSQLEditorBuilderSelectList)) then
-      begin
-        ZeroMemory(@ScrollBarInfo, SizeOf(ScrollBarInfo));
-        ScrollBarInfo.cbSize := SizeOf(ScrollBarInfo);
-        GetScrollBarInfo(FBuilderEditorSelectList.Handle, Integer(OBJID_HSCROLL), ScrollBarInfo);
-
-        if (ScrollBarInfo.rgstate[0] = STATE_SYSTEM_INVISIBLE) then
-          PSQLEditorBuilderSelectList.Height := (FBuilderEditorSelectList.DefaultRowHeight + 2) + FBuilderEditorSelectList.SelectList.Count * (FBuilderEditorSelectList.DefaultRowHeight + 1) + 3
-        else
-          PSQLEditorBuilderSelectList.Height := (FBuilderEditorSelectList.DefaultRowHeight + 2) + FBuilderEditorSelectList.SelectList.Count * (FBuilderEditorSelectList.DefaultRowHeight + 1) + 3 + GetSystemMetrics(SM_CYHSCROLL);
-
-        if (PSQLEditorBuilderSelectList.Height > FBuilder.Height div 2) then
-          PSQLEditorBuilderSelectList.Height := FBuilder.Height div 2;
-      end;
-    end;
-end;
-
-procedure TFSession.FBuilderSQLUpdated(Sender: TObject);
-var
-  S: string;
-  SQL: string;
-begin
-  FBuilderEditorPageControlCheckStyle();
-
-  SQL := Trim(SQLBuilder.SQL);
-  if (UpperCase(RightStr(SQL, 4)) = 'FROM') then
-    SQL := Trim(LeftStr(SQL, Length(SQL) - 4));
-
-  S := Trim(ReplaceStr(ReplaceStr(SQL, #13, ' '), #10, ' '));
-  while (Pos('  ', S) > 0) do
-    S := ReplaceStr(S, '  ', ' ');
-  if (S = 'SELECT *') then
-    FBuilderSynMemo.Lines.Text := ''
-  else
-  begin
-    if (Length(SQL) < 80) then SQL := SQLUnwrapStmt(SQL);
-    if (SQL = '') then
-      FBuilderSynMemo.Lines.Clear()
-    else
-      FBuilderSynMemo.Lines.Text := SQL + ';';
-  end;
-
-  FBuilderEditorStatusChange(FBuilder, [scModified]);
-end;
-
-procedure TFSession.FBuilderValidatePopupMenu(Sender: TacQueryBuilder;
-  AControlOwner: TacQueryBuilderControlOwner; AForControl: TControl;
-  APopupMenu: TPopupMenu);
-var
-  I: Integer;
-  J: Integer;
-  MenuItem: TMenuItem;
-begin
-  if (AForControl.ClassType = TacQueryBuilderWorkArea) then
-  begin
-    for I := 0 to APopupMenu.Items.Count - 1 do
-      if (APopupMenu.Items[I].Caption = QueryBuilderLocalizer.ReadWideString('acAddObject', acAddObject)) then
-      begin
-        APopupMenu.Items[I].Caption := Preferences.LoadStr(383);
-        APopupMenu.Items[I].OnClick := nil;
-
-        for J := 0 to TSDatabase(FNavigator.Selected.Data).Tables.Count - 1 do
-        begin
-          MenuItem := TMenuItem.Create(Self);
-          MenuItem.Caption := TSDatabase(FNavigator.Selected.Data).Tables[J].Name;
-          MenuItem.OnClick := FBuilderAddTable;
-          MenuItem.Tag := Integer(TSDatabase(FNavigator.Selected.Data).Tables[J]);
-          APopupMenu.Items[I].Add(MenuItem);
-        end;
-      end;
-  end;
 end;
 
 procedure TFSession.FFilesEnter(Sender: TObject);
@@ -8437,6 +8146,301 @@ begin
   end;
 end;
 
+function TFSession.FQueryBuilderActiveSelectList(): TacQueryBuilderSelectListControl;
+begin
+  if (not Assigned(FQueryBuilderEditorPageControl())) then
+    Result := nil
+  else
+  begin
+    Result := TacQueryBuilderSelectListControl(FindChildByClassType(FQueryBuilderEditorPageControl().ActivePage, TacQueryBuilderSelectListControl));
+    if (not Assigned(Result) and (FQueryBuilderEditorPageControl().PageCount = 1)) then
+      Result := TacQueryBuilderSelectListControl(FindChildByClassType(FQueryBuilderEditorPageControl().Pages[0], TacQueryBuilderSelectListControl));
+  end;
+end;
+
+function TFSession.FQueryBuilderActiveWorkArea(): TacQueryBuilderWorkArea;
+var
+  PageControl: TPageControl;
+begin
+  if (not Assigned(FQueryBuilderEditorPageControl())) then
+    Result := nil
+  else
+  begin
+    PageControl := FQueryBuilderEditorPageControl();
+    if (Assigned(PageControl.ActivePage)) then
+      Result := TacQueryBuilderWorkArea(FindChildByClassType(PageControl.ActivePage, TacQueryBuilderWorkArea))
+    else if (PageControl.PageCount = 1) then
+      Result := TacQueryBuilderWorkArea(FindChildByClassType(PageControl.Pages[0], TacQueryBuilderWorkArea))
+    else
+      Result := nil;
+
+    if (not Assigned(PageControl.OnChange)) then
+    begin
+      PageControl.OnChange := FQueryBuilderEditorPageControlChange;
+      FQueryBuilderEditorPageControlChange(nil);
+    end;
+    FQueryBuilderEditorPageControlCheckStyle();
+  end;
+end;
+
+procedure TFSession.FQueryBuilderAddTable(Sender: TObject);
+var
+  MenuItem: TMenuItem;
+  SQLQualifiedName: TSQLQualifiedName;
+  Table: TSTable;
+begin
+  if (Sender is TMenuItem) then
+  begin
+    MenuItem := TMenuItem(Sender);
+
+    if ((MenuItem.GetParentMenu() is TPopupMenu) and (TObject(MenuItem.Tag) is TSTable)) then
+    begin
+      Table := TSTable(TMenuItem(Sender).Tag);
+
+      SQLQualifiedName := TSQLQualifiedName.Create(FQueryBuilder.MetadataContainer.SQLContext);
+
+      SQLQualifiedName.AddName(Table.Name);
+      FQueryBuilder.ActiveSubQuery.ActiveUnionSubquery.AddObjectAt(SQLQualifiedName, FQueryBuilderActiveWorkArea().ScreenToClient(TPopupMenu(MenuItem.GetParentMenu()).PopupPoint));
+
+      SQLQualifiedName.Free();
+    end;
+  end;
+end;
+
+procedure TFSession.FQueryBuilderDragDrop(Sender, Source: TObject; X, Y: Integer);
+var
+  SQLQualifiedName: TSQLQualifiedName;
+begin
+  if ((Source = FNavigator) and (MouseDownNode.ImageIndex in [iiBaseTable, iiSystemView, iiView])) then
+  begin
+    SQLQualifiedName := TSQLQualifiedName.Create(FQueryBuilder.MetadataContainer.SQLContext);
+    SQLQualifiedName.AddName(TSTable(MouseDownNode.Data).Name);
+    SQLQualifiedName.AddPrefix(TSDatabase(MouseDownNode.Parent.Data).Name);
+    FQueryBuilder.ActiveSubQuery.ActiveUnionSubquery.AddObjectAt(SQLQualifiedName, Point(X, Y));
+    SQLQualifiedName.Free();
+  end;
+end;
+
+procedure TFSession.FQueryBuilderDragOver(Sender, Source: TObject; X,
+  Y: Integer; State: TDragState; var Accept: Boolean);
+var
+  SourceNode: TTreeNode;
+begin
+  Accept := False;
+
+  if (Source = FNavigator) then
+  begin
+    SourceNode := MouseDownNode;
+
+    Accept := SourceNode.ImageIndex in [iiBaseTable, iiSystemView, iiView];
+  end
+end;
+
+procedure TFSession.FQueryBuilderEditorChange(Sender: TObject);
+begin
+  FQueryBuilder.Enabled := True;
+  try
+    FQueryBuilder.SQL := FQueryBuilderSynMemo.Lines.Text;
+    PostMessage(Handle, CM_POST_BUILDER_QUERY_CHANGE, 0, 0);
+
+    FQueryBuilderEditorPageControlCheckStyle();
+
+    FQueryBuilder.Visible := True;
+  except
+    FQueryBuilder.Visible := False;
+  end;
+
+  FQueryBuilderEditorStatusChange(Sender, [scModified]);
+end;
+
+procedure TFSession.FQueryBuilderEditorEnter(Sender: TObject);
+begin
+  SQLBuilder.OnSQLUpdated := nil;
+
+  SynMemoEnter(Sender);
+end;
+
+procedure TFSession.FQueryBuilderEditorExit(Sender: TObject);
+begin
+  SynMemoExit(Sender);
+
+  SQLBuilder.OnSQLUpdated := FQueryBuilderSQLUpdated;
+end;
+
+function TFSession.FQueryBuilderEditorPageControl(): TacPageControl;
+begin
+  Result := TacQueryBuilderPageControl(FindChildByClassType(FQueryBuilder, TacQueryBuilderPageControl));
+end;
+
+procedure TFSession.FQueryBuilderEditorPageControlChange(Sender: TObject);
+begin
+  if (not Assigned(FQueryBuilderEditorPageControl().ActivePage.OnEnter)) then
+    FQueryBuilderEditorPageControl().ActivePage.OnEnter := FQueryBuilderEditorTabSheetEnter;
+end;
+
+procedure TFSession.FQueryBuilderEditorPageControlCheckStyle();
+var
+  PageControl: TPageControl;
+begin
+  PageControl := FQueryBuilderEditorPageControl();
+  if (PBuilder.Visible and Assigned(PageControl)) then
+    if ((FQueryBuilder.SubQueries.Count = 1) and PageControl.Pages[0].TabVisible) then
+    begin
+      PageControl.Style := tsFlatButtons;
+      PageControl.Pages[0].TabVisible := False;
+      PageControl.Pages[0].Visible := True;
+    end
+    else if ((FQueryBuilder.SubQueries.Count > 1) and not PageControl.Pages[0].TabVisible) then
+    begin
+      PageControl.Style := tsTabs;
+      PageControl.Pages[0].TabVisible := True;
+    end;
+end;
+
+procedure TFSession.FQueryBuilderEditorStatusChange(Sender: TObject;
+  Changes: TSynStatusChanges);
+var
+  BevelWidth: Integer;
+  LineCount: Integer;
+  NewHeight: Integer;
+  ScrollBarInfo: TScrollBarInfo;
+begin
+  FQueryBuilderResize(Sender);
+
+  BevelWidth := 0;
+  if (PBuilderQuery.BevelInner in [bvLowered, bvRaised]) then
+    Inc(BevelWidth, PBuilderQuery.BevelWidth);
+  if (PBuilderQuery.BevelOuter in [bvLowered, bvRaised]) then
+    Inc(BevelWidth, PBuilderQuery.BevelWidth);
+
+  ZeroMemory(@ScrollBarInfo, SizeOf(ScrollBarInfo));
+  ScrollBarInfo.cbSize := SizeOf(ScrollBarInfo);
+  GetScrollBarInfo(FQueryBuilderSynMemo.Handle, Integer(OBJID_HSCROLL), ScrollBarInfo);
+
+  LineCount := FQueryBuilderSynMemo.Lines.Count;
+  if (LineCount = 0) then
+    LineCount := 1;
+
+  if (ScrollBarInfo.rgstate[0] = STATE_SYSTEM_INVISIBLE) then
+    NewHeight := LineCount * (FQueryBuilderSynMemo.Canvas.TextHeight('SELECT') + 1) + 2 * FQueryBuilderSynMemo.Top + 2 * BevelWidth
+  else
+    NewHeight := LineCount * (FQueryBuilderSynMemo.Canvas.TextHeight('SELECT') + 1) + 2 * FQueryBuilderSynMemo.Top + 2 * BevelWidth + GetSystemMetrics(SM_CYHSCROLL);
+  PBuilderQuery.Constraints.MaxHeight := NewHeight;
+
+  if (NewHeight > (PBuilder.Height + PBuilderQuery.Height) div 3) then
+    NewHeight := (PBuilder.Height + PBuilderQuery.Height) div 3;
+
+  if ((Sender = FQueryBuilder) or (NewHeight < PBuilderQuery.Height) or (scModified in Changes)) then
+    PBuilderQuery.Height := NewHeight;
+
+  SynMemoStatusChange(FQueryBuilderSynMemo, Changes);
+end;
+
+procedure TFSession.FQueryBuilderEditorTabSheetEnter(Sender: TObject);
+begin
+  StatusBarRefresh();
+end;
+
+procedure TFSession.FQueryBuilderEnter(Sender: TObject);
+begin
+  FQueryBuilderSynMemo.OnChange := nil;
+
+  StatusBarRefresh();
+end;
+
+procedure TFSession.FQueryBuilderExit(Sender: TObject);
+begin
+  FQueryBuilderSynMemo.OnChange := FQueryBuilderEditorChange;
+end;
+
+procedure TFSession.FQueryBuilderResize(Sender: TObject);
+var
+  FBuilderEditorSelectList: TacQueryBuilderSelectListControl;
+  I: Integer;
+  PSQLEditorBuilderSelectList: TacPanel;
+  ScrollBarInfo: TScrollBarInfo;
+begin
+  if (Assigned(FQueryBuilderEditorPageControl())) then
+    for I := 0 to FQueryBuilderEditorPageControl().PageCount - 1 do
+    begin
+      FBuilderEditorSelectList := TacQueryBuilderSelectListControl(FindChildByClassType(FQueryBuilderEditorPageControl().Pages[I], TacQueryBuilderSelectListControl));
+      if (Assigned(FBuilderEditorSelectList) and (FBuilderEditorSelectList.Parent is TacPanel)) then
+        PSQLEditorBuilderSelectList := TacPanel(FBuilderEditorSelectList.Parent)
+      else
+        PSQLEditorBuilderSelectList := nil;
+      if (Assigned(PSQLEditorBuilderSelectList)) then
+      begin
+        ZeroMemory(@ScrollBarInfo, SizeOf(ScrollBarInfo));
+        ScrollBarInfo.cbSize := SizeOf(ScrollBarInfo);
+        GetScrollBarInfo(FBuilderEditorSelectList.Handle, Integer(OBJID_HSCROLL), ScrollBarInfo);
+
+        if (ScrollBarInfo.rgstate[0] = STATE_SYSTEM_INVISIBLE) then
+          PSQLEditorBuilderSelectList.Height := (FBuilderEditorSelectList.DefaultRowHeight + 2) + FBuilderEditorSelectList.SelectList.Count * (FBuilderEditorSelectList.DefaultRowHeight + 1) + 3
+        else
+          PSQLEditorBuilderSelectList.Height := (FBuilderEditorSelectList.DefaultRowHeight + 2) + FBuilderEditorSelectList.SelectList.Count * (FBuilderEditorSelectList.DefaultRowHeight + 1) + 3 + GetSystemMetrics(SM_CYHSCROLL);
+
+        if (PSQLEditorBuilderSelectList.Height > FQueryBuilder.Height div 2) then
+          PSQLEditorBuilderSelectList.Height := FQueryBuilder.Height div 2;
+      end;
+    end;
+end;
+
+procedure TFSession.FQueryBuilderSQLUpdated(Sender: TObject);
+var
+  S: string;
+  SQL: string;
+begin
+  FQueryBuilderEditorPageControlCheckStyle();
+
+  SQL := Trim(SQLBuilder.SQL);
+  if (UpperCase(RightStr(SQL, 4)) = 'FROM') then
+    SQL := Trim(LeftStr(SQL, Length(SQL) - 4));
+
+  S := Trim(ReplaceStr(ReplaceStr(SQL, #13, ' '), #10, ' '));
+  while (Pos('  ', S) > 0) do
+    S := ReplaceStr(S, '  ', ' ');
+  if (S = 'SELECT *') then
+    FQueryBuilderSynMemo.Lines.Text := ''
+  else
+  begin
+    if (Length(SQL) < 80) then SQL := SQLUnwrapStmt(SQL);
+    if (SQL = '') then
+      FQueryBuilderSynMemo.Lines.Clear()
+    else
+      FQueryBuilderSynMemo.Lines.Text := SQL + ';';
+  end;
+
+  FQueryBuilderEditorStatusChange(FQueryBuilder, [scModified]);
+end;
+
+procedure TFSession.FQueryBuilderValidatePopupMenu(Sender: TacQueryBuilder;
+  AControlOwner: TacQueryBuilderControlOwner; AForControl: TControl;
+  APopupMenu: TPopupMenu);
+var
+  I: Integer;
+  J: Integer;
+  MenuItem: TMenuItem;
+begin
+  if (AForControl.ClassType = TacQueryBuilderWorkArea) then
+  begin
+    for I := 0 to APopupMenu.Items.Count - 1 do
+      if (APopupMenu.Items[I].Caption = QueryBuilderLocalizer.ReadWideString('acAddObject', acAddObject)) then
+      begin
+        APopupMenu.Items[I].Caption := Preferences.LoadStr(383);
+        APopupMenu.Items[I].OnClick := nil;
+
+        for J := 0 to TSDatabase(FNavigator.Selected.Data).Tables.Count - 1 do
+        begin
+          MenuItem := TMenuItem.Create(Self);
+          MenuItem.Caption := TSDatabase(FNavigator.Selected.Data).Tables[J].Name;
+          MenuItem.OnClick := FQueryBuilderAddTable;
+          MenuItem.Tag := Integer(TSDatabase(FNavigator.Selected.Data).Tables[J]);
+          APopupMenu.Items[I].Add(MenuItem);
+        end;
+      end;
+  end;
+end;
+
 procedure TFSession.FQuickSearchChange(Sender: TObject);
 begin
   FQuickSearchEnabled.Enabled := FQuickSearch.Text <> '';
@@ -8646,8 +8650,8 @@ begin
           QueryBuilder := TacQueryBuilder.Create(Window);
           QueryBuilder.Visible := False;
           QueryBuilder.Parent := ActiveSynMemo;
-          QueryBuilder.MetadataProvider := MetadataProvider;
-          QueryBuilder.SyntaxProvider := SyntaxProvider;
+          QueryBuilder.MetadataProvider := Session.MetadataProvider;
+          QueryBuilder.SyntaxProvider := Session.SyntaxProvider;
           Insert('*', SQL, Index + 1);
           try
             QueryBuilder.SQL := SQL;
@@ -8698,8 +8702,8 @@ begin
         QueryBuilder := TacQueryBuilder.Create(Window);
         QueryBuilder.Visible := False;
         QueryBuilder.Parent := ActiveSynMemo;
-        QueryBuilder.SyntaxProvider := SyntaxProvider;
-        QueryBuilder.MetadataProvider := MetadataProvider;
+        QueryBuilder.SyntaxProvider := Session.SyntaxProvider;
+        QueryBuilder.MetadataProvider := Session.MetadataProvider;
         try
           QueryBuilder.SQL := SQL;
           Application.ProcessMessages();
@@ -9190,14 +9194,14 @@ begin
         else Result := nil;
       end;
     vBuilder:
-      Result := FBuilderSynMemo;
+      Result := FQueryBuilderSynMemo;
     vEditor:
       Result := FSQLEditorSynMemo;
     else
       Result := nil;
   end;
 
-  if (Assigned(Result) and (Result <> FBuilderSynMemo)) then
+  if (Assigned(Result) and (Result <> FQueryBuilderSynMemo)) then
     for I := 0 to PSynMemo.ControlCount - 1 do
       PSynMemo.Controls[I].Visible := PSynMemo.Controls[I] = Result;
 end;
@@ -11619,9 +11623,9 @@ procedure TFSession.MSQLEditorPopup(Sender: TObject);
 var
   I: Integer;
 begin
-  if ((View = vBuilder) and not (Window.ActiveControl = FBuilderSynMemo)) then
+  if ((View = vBuilder) and not (Window.ActiveControl = FQueryBuilderSynMemo)) then
   begin
-    Window.ActiveControl := FBuilderSynMemo;
+    Window.ActiveControl := FQueryBuilderSynMemo;
     SynMemoStatusChange(Sender, []);
   end
   else
@@ -13519,13 +13523,13 @@ begin
         else if ((Window.ActiveControl = ActiveDBGrid) and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet)) then
           Count := ActiveDBGrid.DataSource.DataSet.RecordCount;
       vBuilder:
-        if (Assigned(FBuilderEditorPageControl())) then
+        if (Assigned(FQueryBuilderEditorPageControl())) then
         begin
-          QueryBuilderWorkArea := FBuilderActiveWorkArea();
+          QueryBuilderWorkArea := FQueryBuilderActiveWorkArea();
           if (Assigned(Window.ActiveControl) and Assigned(QueryBuilderWorkArea) and IsChild(QueryBuilderWorkArea.Handle, Window.ActiveControl.Handle)) then
-            Count := FBuilderActiveWorkArea().ControlCount
-          else if (Window.ActiveControl = FBuilderSynMemo) then
-            Count := FBuilderSynMemo.Lines.Count;
+            Count := FQueryBuilderActiveWorkArea().ControlCount
+          else if (Window.ActiveControl = FQueryBuilderSynMemo) then
+            Count := FQueryBuilderSynMemo.Lines.Count;
         end;
     end;
 
@@ -13552,7 +13556,7 @@ begin
     else if (Assigned(ActiveSynMemo) and (Window.ActiveControl = ActiveSynMemo) and (Count >= 0)) then
       StatusBar.Panels[sbSummarize].Text := IntToStr(Count) + ' ' + ReplaceStr(Preferences.LoadStr(600), '&', '')
     else if ((View = vBuilder) and (Count >= 0)) then
-      if (Window.ActiveControl = FBuilderSynMemo) then
+      if (Window.ActiveControl = FQueryBuilderSynMemo) then
         StatusBar.Panels[sbSummarize].Text := IntToStr(Count) + ' ' + ReplaceStr(Preferences.LoadStr(600), '&', '')
       else
         StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(687, IntToStr(Count))
@@ -13787,7 +13791,7 @@ begin
       MainAction('aEPasteFromFile').Enabled := (ActiveSynMemo = FSQLEditorSynMemo);
       MainAction('aDRun').Enabled :=
         ((View = vEditor)
-        or ((View  = vBuilder) and FBuilder.Visible)
+        or ((View  = vBuilder) and FQueryBuilder.Visible)
         or ((View = vIDE) and SQLSingleStmt(SQL) and (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent]))) and not Empty;
       MainAction('aDRunSelection').Enabled := (((ActiveSynMemo = FSQLEditorSynMemo) and not Empty) or Assigned(ActiveSynMemo) and (ActiveSynMemo.SelText <> ''));
       MainAction('aDPostObject').Enabled := (View = vIDE) and ActiveSynMemo.Modified and SQLSingleStmt(SQL)

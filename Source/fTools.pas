@@ -1233,9 +1233,10 @@ begin
         MOV EDI,Write                    //   to Temp2.Mem
         MOV ECX,Length                   // Character count
 
+        MOV AH,0                         // High-byte for STOSW
       StringL:
         LODSB                            // Load AnsiChar
-        STOSB                            // Store AnsiChar
+        STOSW                            // Store WideChar
         LOOP StringL                     // Repeat for all characters
 
         POP EDI

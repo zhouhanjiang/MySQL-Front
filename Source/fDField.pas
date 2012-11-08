@@ -717,7 +717,7 @@ begin
         GBasics.Visible := not CanClose;
         GAttributes.Visible := GBasics.Visible;
         PSQLWait.Visible := not GBasics.Visible;
-        if (PSQLWait.Visible) then
+        if (not CanClose) then
           ModalResult := mrNone;
 
         FBOk.Enabled := False;

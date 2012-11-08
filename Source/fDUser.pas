@@ -331,7 +331,7 @@ begin
 
     PageControl.Visible := not CanClose;
     PSQLWait.Visible := not PageControl.Visible;
-    if (PSQLWait.Visible) then
+    if (not CanClose) then
       ModalResult := mrNone;
 
     FBOk.Enabled := False;

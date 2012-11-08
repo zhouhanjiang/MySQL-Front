@@ -68,6 +68,7 @@ function SQLTrimStmt(const SQL: string): string; overload;
 function SQLTrimStmt(const SQL: string; const Index, Length: Integer; var StartingCommentLength, EndingCommentLength: Integer): Integer; overload;
 function SQLUnescape(const Value: PAnsiChar; const RemoveQuoter: Boolean = True): RawByteString; overload;
 function SQLUnescape(const Value: string; const RemoveQuoter: Boolean = True): string; overload;
+function SQLWrapStmt(const SQL: string; const WrapStrs: array of string; const Indent: Integer): string;
 function SQLUnwrapStmt(const SQL: string): string;
 function StrToUInt64(const S: string): UInt64;
 function UInt64ToStr(const Value: UInt64): string;

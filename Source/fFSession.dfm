@@ -566,7 +566,7 @@ object FSession: TFSession
         Constraints.MinHeight = 50
         ParentBackground = False
         TabOrder = 0
-        object FBuilderSynMemo: TSynMemo
+        object FQueryBuilderSynMemo: TSynMemo
           Left = 2
           Top = 2
           Width = 463
@@ -583,8 +583,8 @@ object FSession: TFSession
           TabOrder = 0
           OnDragDrop = SynMemoDragDrop
           OnDragOver = SynMemoDragOver
-          OnEnter = FBuilderEditorEnter
-          OnExit = FBuilderEditorExit
+          OnEnter = FQueryBuilderEditorEnter
+          OnExit = FQueryBuilderEditorExit
           BorderStyle = bsNone
           Gutter.AutoSize = True
           Gutter.DigitCount = 2
@@ -600,17 +600,15 @@ object FSession: TFSession
           ScrollHintFormat = shfTopToBottom
           SearchEngine = FSQLEditorSearch
           WantTabs = True
-          OnChange = FBuilderEditorChange
-          OnStatusChange = FBuilderEditorStatusChange
+          OnChange = FQueryBuilderEditorChange
+          OnStatusChange = FQueryBuilderEditorStatusChange
         end
       end
-      object FBuilder: TacQueryBuilder
+      object FQueryBuilder: TacQueryBuilder
         Left = 0
         Top = 0
         Width = 467
         Height = 96
-        SyntaxProvider = SyntaxProvider
-        MetadataProvider = MetadataProvider
         MetadataFilter = <>
         BorderStyle = qbbsFlat
         SplitterHeight = 4
@@ -623,7 +621,7 @@ object FSession: TFSession
         BkImagePos = bkipTopLeft
         BkImageDarkness = bgidLight
         BkColor = clAppWorkSpace
-        OnValidatePopupMenu = FBuilderValidatePopupMenu
+        OnValidatePopupMenu = FQueryBuilderValidatePopupMenu
         TreeFont.Charset = DEFAULT_CHARSET
         TreeFont.Color = clWindowText
         TreeFont.Height = -11
@@ -667,11 +665,11 @@ object FSession: TFSession
         Align = alClient
         Constraints.MinHeight = 96
         TabOrder = 1
-        OnDragDrop = FBuilderDragDrop
-        OnDragOver = FBuilderDragOver
-        OnEnter = FBuilderEnter
-        OnExit = FBuilderExit
-        OnResize = FBuilderResize
+        OnDragDrop = FQueryBuilderDragDrop
+        OnDragOver = FQueryBuilderDragOver
+        OnEnter = FQueryBuilderEnter
+        OnExit = FQueryBuilderExit
+        OnResize = FQueryBuilderResize
       end
     end
     object PDataBrowser: TPanel_Ext
@@ -2187,8 +2185,8 @@ object FSession: TFSession
     end
   end
   object SQLBuilder: TacSQLBuilderPlainText
-    OnSQLUpdated = FBuilderSQLUpdated
-    QueryBuilder = FBuilder
+    OnSQLUpdated = FQueryBuilderSQLUpdated
+    QueryBuilder = FQueryBuilder
     KeywordFormat = akfUpperCase
     QuoteAllIdentifiers = True
     MainQueryFormat.NewLineAfterPartKeywords = True
@@ -2376,17 +2374,5 @@ object FSession: TFSession
     EncodingLabel = '&Encoding:'
     Left = 64
     Top = 72
-  end
-  object MetadataProvider: TacEventMetadataProvider
-    OnGetSQLFieldNames = MetadataProviderGetSQLFieldNames
-    Left = 168
-    Top = 120
-  end
-  object SyntaxProvider: TacMYSQLSyntaxProvider
-    DenyIntoClause = True
-    ServerVersion = '5.02'
-    DetectServerVersion = False
-    Left = 200
-    Top = 120
   end
 end

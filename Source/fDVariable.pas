@@ -126,7 +126,7 @@ begin
 
     GroupBox.Visible := not CanClose;
     PSQLWait.Visible := not GroupBox.Visible;
-    if (PSQLWait.Visible) then
+    if (not CanClose) then
       ModalResult := mrNone;
 
     FBOk.Enabled := False;
