@@ -543,9 +543,9 @@ begin
       end;
     TE_NoPrimaryIndex:
       if ((Sender is TTTransfer) and (Error.Session = TTTransfer(Sender).SourceSession)) then
-        Msg := Preferences.LoadStr(722, TTTransfer.TItem(Item).TableName)
+        Msg := Preferences.LoadStr(722, TTTransfer.TItem(Item).DBObject.Name)
       else if ((Sender is TTTransfer) and (Error.Session = TTTransfer(Sender).DestinationSession)) then
-        Msg := Preferences.LoadStr(722, TTTransfer.TItem(Item).TableName)
+        Msg := Preferences.LoadStr(722, TTTransfer.TItem(Item).DBObject.Name)
       else
         raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Sender | Error.Session'])
     else
@@ -699,13 +699,13 @@ procedure TDTransfer.TSExecuteShow(Sender: TObject);
 var
   Answer: Integer;
 
-  procedure AddTable(const SourceSession: TSSession; const SourceDatabaseName, SourceTableName: string; const DestinationSession: TSSession; const DestinationDatabaseName, DestinationTableName: string);
+  procedure AddTable(const DBObject: TSDBObject; const DestinationSession: TSSession; const DestinationDatabaseName: string);
   begin
     if ((Answer <> IDYESALL) and Assigned(DestinationSession.DatabaseByName(DestinationDatabaseName)) and Assigned(DestinationSession.DatabaseByName(DestinationDatabaseName).TableByName(DestinationTableName))) then
       Answer := MsgBox(Preferences.LoadStr(700, DestinationDatabaseName + '.' + DestinationTableName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);
 
     if (Answer in [IDYES, IDYESALL]) then
-      Transfer.Add(SourceDatabaseName, SourceTableName, DestinationDatabaseName)
+      Transfer.Add(DBObject, DestinationDatabaseName)
     else if (Answer = IDCANCEL) then
       FreeAndNil(Transfer);
   end;
@@ -822,16 +822,11 @@ begin
               Database := SourceSession.DatabaseByName(FSource.Selected.Parent[I].Text);
               for J := 0 to Database.Tables.Count - 1 do
                 if (Assigned(Transfer) and (Database.Tables[J] is TSBaseTable) and Assigned(TSBaseTable(Database.Tables[J]).Engine) and not TSBaseTable(Database.Tables[J]).Engine.IsMerge and (RightStr(Database.Tables[J].Name, Length(BackupExtension)) <> BackupExtension)) then
-                  AddTable(
-                    SourceSession, Database.Name, Database.Tables[J].Name,
-                    DestinationSession, Database.Name, Database.Tables[J].Name
-                  );
+                  AddTable(Database.Tables[J], DestinationSession, Database.Name);
             end;
           iiBaseTable:
-            AddTable(
-              SourceSession, FSource.Selected.Parent.Text, FSource.Selected.Parent[I].Text,
-              DestinationSession, FDestination.Selected.Text, FSource.Selected.Parent[I].Text
-            );
+            AddTable(SourceSession.DatabaseByName(FSource.Selected.Parent.Text).TableByName(FSource.Selected.Parent[I].Text),
+              DestinationSession, FDestination.Selected.Text);
         end;
 
     if (Assigned(Transfer)) then

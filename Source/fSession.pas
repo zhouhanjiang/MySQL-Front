@@ -4978,13 +4978,13 @@ begin
       StringList.Text := LeftStr(Stmt, Length(Stmt) - 1);
       for I := 0 to StringList.Count - 1 do
         StringList[I] := '  ' + StringList[I];
-
       SQL := SQL + #13#10 + '  ' + Trim(StringList.Text);
       if (CheckOptionSQL <> '') then
         SQL := SQL + #13#10 + CheckOptionSQL;
       SQL := SQL + ';' + #13#10;
-
       StringList.Free();
+
+      SQL := ReplaceStr(SQL, Session.EscapeIdentifier(Database.Name) + '.', '');
     end;
   end;
 
@@ -11309,15 +11309,18 @@ begin
             otProcedure:
               case (DDLStmt.DefinitionType) of
                 dtCreate:
-                  if (DDLStmt.ObjectType = otProcedure) then
                   begin
-                    if (not Assigned(Database.ProcedureByName(DDLStmt.ObjectName))) then
-                      Database.Routines.Add(TSProcedure.Create(Database.Routines, DDLStmt.ObjectName), True);
-                  end
-                  else
-                  begin
-                    if (not Assigned(Database.FunctionByName(DDLStmt.ObjectName))) then
-                      Database.Routines.Add(TSFunction.Create(Database.Routines, DDLStmt.ObjectName), True);
+                    if (DDLStmt.ObjectType = otProcedure) then
+                      Routine := Database.ProcedureByName(DDLStmt.ObjectName)
+                    else
+                      Routine := Database.FunctionByName(DDLStmt.ObjectName);
+                    if (Assigned(Routine)) then
+                      Routine.SetSource(Text)
+                    else
+                      if (DDLStmt.ObjectType = otProcedure) then
+                        Database.Routines.Add(TSProcedure.Create(Database.Routines, DDLStmt.ObjectName), True)
+                      else
+                        Database.Routines.Add(TSFunction.Create(Database.Routines, DDLStmt.ObjectName), True);
                   end;
                 dtAlter,
                 dtAlterRename:
@@ -11355,7 +11358,7 @@ begin
               case (DDLStmt.DefinitionType) of
                 dtCreate:
                   if (Assigned(Database.TriggerByName(DDLStmt.ObjectName))) then
-                    ExecuteEvent(ceItemAltered, Database, Database.Triggers, Database.TriggerByName(DDLStmt.ObjectName))
+                    Database.TriggerByName(DDLStmt.ObjectName).SetSource(Text)
                   else
                   begin
                     Trigger := TSTrigger.Create(Database.Triggers, DDLStmt.ObjectName);
@@ -11398,7 +11401,7 @@ begin
               case (DDLStmt.DefinitionType) of
                 dtCreate:
                   if (Assigned(Database.EventByName(DDLStmt.ObjectName))) then
-                    ExecuteEvent(ceItemAltered, Database, Database.Events, Database.EventByName(DDLStmt.ObjectName))
+                    Database.EventByName(DDLStmt.ObjectName).SetSource(Text)
                   else
                     Database.Events.Add(TSEvent.Create(Database.Events, DDLStmt.ObjectName), True);
                 dtAlter,

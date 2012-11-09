@@ -34,6 +34,13 @@ type
       constructor Create(const AItems: TTool.TItems);
       property Index: Integer read GetIndex;
     end;
+    TDBObjectItem = class(TItem)
+    private
+      FDBObject: TSDBObject;
+    public
+      constructor Create(const AItems: TTool.TItems; const ADBObject: TSDBObject);
+      property DBObject: TSDBObject read FDBObject;
+    end;
     TItems = class(TList)
     private
       FTool: TTool;
@@ -335,24 +342,12 @@ type
 
   TTExport = class(TTool)
   type
-    TItem = class(TTool.TItem)
-    public
-      Database: TSDatabase;
-      constructor Create(const AItems: TTool.TItems);
-    end;
-    TDataSetItem = class(TItem)
+    TDataSetItem = class(TTool.TItem)
     private
       FDataSet: TMySQLDataSet;
     public
       constructor Create(const AItems: TTool.TItems; const ADataSet: TMySQLDataSet);
       property DataSet: TMySQLDataSet read FDataSet;
-    end;
-    TDBObjectItem = class(TItem)
-    private
-      FDBObject: TSDBObject;
-    public
-      constructor Create(const AItems: TTool.TItems; const ADBObject: TSDBObject);
-      property DBObject: TSDBObject read FDBObject;
     end;
   private
     FSession: TSSession;
@@ -367,7 +362,7 @@ type
     procedure ExecuteFooter(); virtual;
     procedure ExecuteHeader(); virtual;
     procedure ExecuteRoutine(const Routine: TSRoutine); virtual;
-    procedure ExecuteTable(const Item: TDBObjectItem; const DataHandle: TMySQLConnection.TDataResult); virtual;
+    procedure ExecuteTable(const Item: TTool.TDBObjectItem; const DataHandle: TMySQLConnection.TDataResult); virtual;
     procedure ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); virtual;
     procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); virtual;
     procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); virtual; abstract;
@@ -711,31 +706,28 @@ type
 
   TTTransfer = class(TTool)
   type
-    TItem = class(TTool.TItem)
+    TItem = class(TTool.TDBObjectItem)
     public
       DestinationDatabaseName: string;
-      SourceDatabaseName: string;
-      TableName: string;
-      constructor Create(const AItems: TTool.TItems);
+      constructor Create(const AItems: TTool.TItems; const ADBObject: TSDBObject);
     end;
   private
     DataHandle: TMySQLConnection.TDataResult;
     FDestinationSession: TSSession;
     FSourceSession: TSSession;
+    procedure CloneTable(const Item: TItem);
+    function DoExecuteSQL(const Session: TSSession; var SQL: string): Boolean;
+    procedure ExecuteTableData(const Item: TItem);
+    procedure ExecuteTableStructure(const Item: TItem);
   protected
     procedure AfterExecute(); override;
     procedure BeforeExecute(); override;
-    procedure CloneTable(const Item: TItem); virtual;
-    function DoExecuteSQL(const Session: TSSession; var SQL: string): Boolean; virtual;
     procedure DoUpdateGUI(); override;
-    procedure ExecuteData(const Item: TItem); virtual;
-    procedure ExecuteForeignKeys(const Item: TItem); virtual;
-    procedure ExecuteStructure(const Item: TItem); virtual;
     procedure ExecuteTable(const Item: TItem); virtual;
   public
     Data: Boolean;
     Structure: Boolean;
-    procedure Add(const SourceDatabaseName, SourceTableName: string; const DestinationDatabaseName: string); virtual;
+    procedure Add(const ADBObject: TSDBObject; const DestinationDatabaseName: string); virtual;
     constructor Create(const ASourceSession, ADestinationSession: TSSession);
     procedure Execute(); override;
     property DestinationSession: TSSession read FDestinationSession;
@@ -947,6 +939,127 @@ begin
   Result.ErrorCode := GetLastError();
   Result.ErrorMessage := SysErrorMessage(GetLastError());
   Result.Session := nil;
+end;
+
+function TToolItemCompare(Item1, Item2: Pointer): Integer;
+var
+  Index1: Integer;
+  Index2: Integer;
+begin
+  Result := 0;
+
+  if (Item1 <> Item2) then
+  begin
+    if (TTool.TItem(Item1) is TTExport.TDataSetItem) then
+      Index1 := 0
+    else
+      Index1 := 1;
+    if (TTool.TItem(Item2) is TTExport.TDataSetItem) then
+      Index2 := 0
+    else
+      Index2 := 1;
+    Result := Sign(Index1 - Index2);
+
+    if ((Result = 0) and (TTool.TItem(Item1) is TTExport.TDBObjectItem)) then
+      Result := Sign(TTExport.TDBObjectItem(Item1).DBObject.Database.Index - TTExport.TDBObjectItem(Item2).DBObject.Database.Index);
+
+    if ((Result = 0) and (TTool.TItem(Item1) is TTExport.TDBObjectItem)) then
+    begin
+      if (TTExport.TDBObjectItem(Item1).DBObject is TSTable) then
+        Index1 := 0
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSRoutine) then
+        Index1 := 1
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSTrigger) then
+        Index1 := 2
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSEvent) then
+        Index1 := 3
+      else
+        Index1 := 4;
+      if (TTExport.TDBObjectItem(Item2).DBObject is TSTable) then
+        Index2 := 0
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSRoutine) then
+        Index2 := 1
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSTrigger) then
+        Index2 := 2
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSEvent) then
+        Index2 := 3
+      else
+        Index2 := 4;
+      Result := Sign(Index1 - Index2);
+    end;
+
+    if (Result = 0) then
+      Result := Sign(TTool.TItem(Item1).Index - TTool.TItem(Item2).Index);
+  end;
+end;
+
+function TToolItemCompareForSQL(Item1, Item2: Pointer): Integer;
+var
+  Index1: Integer;
+  Index2: Integer;
+begin
+  Result := 0;
+
+  if (Item1 <> Item2) then
+  begin
+    if (TTool.TItem(Item1) is TTExport.TDataSetItem) then
+      Index1 := 0
+    else
+      Index1 := 1;
+    if (TTool.TItem(Item2) is TTExport.TDataSetItem) then
+      Index2 := 0
+    else
+      Index2 := 1;
+    Result := Sign(Index1 - Index2);
+
+    if ((Result = 0) and (TTool.TItem(Item1) is TTExport.TDBObjectItem)) then
+      Result := Sign(TTExport.TDBObjectItem(Item1).DBObject.Database.Index - TTExport.TDBObjectItem(Item2).DBObject.Database.Index);
+
+    if ((Result = 0) and (TTool.TItem(Item1) is TTExport.TDBObjectItem)) then
+    begin
+      if (TTExport.TDBObjectItem(Item1).DBObject is TSBaseTable) then
+        if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine) or not TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine.IsMerge) then
+          Index1 := 0
+        else
+          Index1 := 1
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSFunction) then
+        Index1 := 2
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSView) then
+        Index1 := 3
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSProcedure) then
+        Index1 := 4
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSTrigger) then
+        Index1 := 5
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSEvent) then
+        Index1 := 6
+      else
+        Index1 := 7;
+      if (TTExport.TDBObjectItem(Item2).DBObject is TSBaseTable) then
+        if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Item2).DBObject).Engine) or not TSBaseTable(TTExport.TDBObjectItem(Item2).DBObject).Engine.IsMerge) then
+          Index2 := 0
+        else
+          Index2 := 1
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSFunction) then
+        Index2 := 2
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSView) then
+        Index2 := 3
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSProcedure) then
+        Index2 := 4
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSTrigger) then
+        Index2 := 5
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSEvent) then
+        Index2 := 6
+      else
+        Index2 := 7;
+      Result := Sign(Index1 - Index2);
+    end;
+
+    if (Result = 0) then
+      if (TTool.TItem(Item1) is TTExport.TDataSetItem) then
+        Result := Sign(TTExport.TDataSetItem(Item1).Index - TTExport.TDataSetItem(Item2).Index)
+      else
+        Result := Sign(TTExport.TDBObjectItem(Item1).DBObject.Index - TTExport.TDBObjectItem(Item2).DBObject.Index);
+  end;
 end;
 
 function UMLEncoding(const Codepage: Cardinal): string;
@@ -1283,6 +1396,15 @@ end;
 function TTool.TItem.GetIndex(): Integer;
 begin
   Result := Items.IndexOf(Self);
+end;
+
+{ TTool.TDataSetItem **********************************************************}
+
+constructor TTool.TDBObjectItem.Create(const AItems: TTool.TItems; const ADBObject: TSDBObject);
+begin
+  inherited Create(AItems);
+
+  FDBObject := ADBObject;
 end;
 
 { TTool.TItems ****************************************************************}
@@ -3664,15 +3786,6 @@ begin
   end;
 end;
 
-{ TTExport.TItem **************************************************************}
-
-constructor TTExport.TItem.Create(const AItems: TTool.TItems);
-begin
-  inherited;
-
-  Database := nil;
-end;
-
 { TTExport.TDataSetItem *******************************************************}
 
 constructor TTExport.TDataSetItem.Create(const AItems: TTool.TItems; const ADataSet: TMySQLDataSet);
@@ -3682,144 +3795,13 @@ begin
   FDataSet := ADataSet;
 end;
 
-{ TTExport.TDataSetItem *******************************************************}
-
-constructor TTExport.TDBObjectItem.Create(const AItems: TTool.TItems; const ADBObject: TSDBObject);
-begin
-  inherited Create(AItems);
-
-  FDBObject := ADBObject;
-end;
-
 { TTExport ********************************************************************}
-
-function TExportItemCompare(Item1, Item2: Pointer): Integer;
-var
-  Index1: Integer;
-  Index2: Integer;
-begin
-  Result := 0;
-
-  if (Item1 <> Item2) then
-  begin
-    if (TTExport.TItem(Item1) is TTExport.TDataSetItem) then
-      Index1 := 0
-    else
-      Index1 := 1;
-    if (TTExport.TItem(Item2) is TTExport.TDataSetItem) then
-      Index2 := 0
-    else
-      Index2 := 1;
-    Result := Sign(Index1 - Index2);
-
-    if ((Result = 0) and (TTExport.TItem(Item1) is TTExport.TDBObjectItem)) then
-      Result := Sign(TTExport.TDBObjectItem(Item1).DBObject.Database.Index - TTExport.TDBObjectItem(Item2).DBObject.Database.Index);
-
-    if ((Result = 0) and (TTExport.TItem(Item1) is TTExport.TDBObjectItem)) then
-    begin
-      if (TTExport.TDBObjectItem(Item1).DBObject is TSTable) then
-        Index1 := 0
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSRoutine) then
-        Index1 := 1
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSTrigger) then
-        Index1 := 2
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSEvent) then
-        Index1 := 3
-      else
-        Index1 := 4;
-      if (TTExport.TDBObjectItem(Item2).DBObject is TSTable) then
-        Index2 := 0
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSRoutine) then
-        Index2 := 1
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSTrigger) then
-        Index2 := 2
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSEvent) then
-        Index2 := 3
-      else
-        Index2 := 4;
-      Result := Sign(Index1 - Index2);
-    end;
-
-    if (Result = 0) then
-      Result := Sign(TTExport.TItem(Item1).Index - TTExport.TItem(Item2).Index);
-  end;
-end;
-
-function TExportItemCompareForSQLExport(Item1, Item2: Pointer): Integer;
-var
-  Index1: Integer;
-  Index2: Integer;
-begin
-  Result := 0;
-
-  if (Item1 <> Item2) then
-  begin
-    if (TTExport.TItem(Item1) is TTExport.TDataSetItem) then
-      Index1 := 0
-    else
-      Index1 := 1;
-    if (TTExport.TItem(Item2) is TTExport.TDataSetItem) then
-      Index2 := 0
-    else
-      Index2 := 1;
-    Result := Sign(Index1 - Index2);
-
-    if ((Result = 0) and (TTExport.TItem(Item1) is TTExport.TDBObjectItem)) then
-      Result := Sign(TTExport.TDBObjectItem(Item1).DBObject.Database.Index - TTExport.TDBObjectItem(Item2).DBObject.Database.Index);
-
-    if ((Result = 0) and (TTExport.TItem(Item1) is TTExport.TDBObjectItem)) then
-    begin
-      if (TTExport.TDBObjectItem(Item1).DBObject is TSBaseTable) then
-        if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine) or not TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine.IsMerge) then
-          Index1 := 0
-        else
-          Index1 := 1
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSFunction) then
-        Index1 := 2
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSView) then
-        Index1 := 3
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSProcedure) then
-        Index1 := 4
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSTrigger) then
-        Index1 := 5
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSEvent) then
-        Index1 := 6
-      else
-        Index1 := 7;
-      if (TTExport.TDBObjectItem(Item2).DBObject is TSBaseTable) then
-        if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Item2).DBObject).Engine) or not TSBaseTable(TTExport.TDBObjectItem(Item2).DBObject).Engine.IsMerge) then
-          Index2 := 0
-        else
-          Index2 := 1
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSFunction) then
-        Index2 := 2
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSView) then
-        Index2 := 3
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSProcedure) then
-        Index2 := 4
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSTrigger) then
-        Index2 := 5
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSEvent) then
-        Index2 := 6
-      else
-        Index2 := 7;
-      Result := Sign(Index1 - Index2);
-    end;
-
-    if (Result = 0) then
-      if (TTExport.TItem(Item1) is TTExport.TDataSetItem) then
-        Result := Sign(TTExport.TDataSetItem(Item1).Index - TTExport.TDataSetItem(Item2).Index)
-      else
-        Result := Sign(TTExport.TDBObjectItem(Item1).DBObject.Index - TTExport.TDBObjectItem(Item2).DBObject.Index);
-  end;
-end;
 
 procedure TTExport.Add(const ADataSet: TMySQLDataSet);
 var
   NewItem: TDataSetItem;
 begin
   NewItem := TDataSetItem.Create(Items, ADataSet);
-  NewItem.Database := Session.DatabaseByName(ADataSet.DatabaseName);
   Items.Add(NewItem);
 end;
 
@@ -3828,7 +3810,6 @@ var
   NewItem: TDBObjectItem;
 begin
   NewItem := TDBObjectItem.Create(Items, ADBObject);
-  NewItem.Database := ADBObject.Database;
   Items.Add(NewItem);
 end;
 
@@ -3858,9 +3839,9 @@ begin
       TDataSetItem(Items[I]).DataSet.DisableControls();
 
   if (Self is TTExportSQL) then
-    Items.Sort(TExportItemCompareForSQLExport)
+    Items.Sort(TToolItemCompareForSQL)
   else
-    Items.Sort(TExportItemCompare);
+    Items.Sort(TToolItemCompare);
 end;
 
 constructor TTExport.Create(const ASession: TSSession);
@@ -4182,7 +4163,7 @@ procedure TTExport.ExecuteRoutine(const Routine: TSRoutine);
 begin
 end;
 
-procedure TTExport.ExecuteTable(const Item: TDBObjectItem; const DataHandle: TMySQLConnection.TDataResult);
+procedure TTExport.ExecuteTable(const Item: TTool.TDBObjectItem; const DataHandle: TMySQLConnection.TDataResult);
 var
   DataSet: TMySQLQuery;
   Fields: array of TField;
@@ -8187,25 +8168,21 @@ end;
 
 { TTTransfer.TItem ************************************************************}
 
-constructor TTTransfer.TItem.Create(const AItems: TTool.TItems);
+constructor TTTransfer.TItem.Create(const AItems: TTool.TItems; const ADBObject: TSDBObject);
 begin
   inherited;
 
   DestinationDatabaseName := '';
-  SourceDatabaseName := '';
-  TableName := '';
 end;
 
 { TTTransfer ******************************************************************}
 
-procedure TTTransfer.Add(const SourceDatabaseName, SourceTableName, DestinationDatabaseName: string);
+procedure TTTransfer.Add(const ADBObject: TSDBObject; const DestinationDatabaseName: string);
 var
   NewItem: TItem;
 begin
-  NewItem := TItem.Create(Items);
+  NewItem := TItem.Create(Items, ADBObject);
 
-  NewItem.SourceDatabaseName := SourceDatabaseName;
-  NewItem.TableName := SourceTableName;
   NewItem.DestinationDatabaseName := DestinationDatabaseName;
 
   Items.Add(NewItem);
@@ -8231,20 +8208,17 @@ begin
 
   DestinationSession.BeginSilent();
   DestinationSession.BeginSynchron(); // We're still in a thread
+
+  Items.Sort(TToolItemCompareForSQL)
 end;
 
 procedure TTTransfer.CloneTable(const Item: TItem);
 var
   DestinationDatabase: TSDatabase;
-  SourceDatabase: TSDatabase;
-  SourceTable: TSBaseTable;
 begin
-  SourceDatabase := SourceSession.DatabaseByName(Item.SourceDatabaseName);
   DestinationDatabase := DestinationSession.DatabaseByName(Item.DestinationDatabaseName);
 
-  SourceTable := SourceDatabase.BaseTableByName(Item.TableName);
-
-  while ((Success <> daAbort) and not DestinationDatabase.CloneTable(SourceTable, SourceTable.Name, Data)) do
+  while ((Success <> daAbort) and not DestinationDatabase.CloneTable(TSBaseTable(Item.DBObject), Item.DBObject.Name, Data)) do
     DoError(DatabaseError(SourceSession), Item, True);
 
   if (Success = daSuccess) then
@@ -8252,7 +8226,7 @@ begin
     Item.Done := True;
     if (Data) then
     begin
-      Item.RecordsSum := DestinationDatabase.BaseTableByName(Item.TableName).CountRecords();
+      Item.RecordsSum := TSBaseTable(Item.DBObject).CountRecords();
       Item.RecordsDone := Item.RecordsSum;
     end;
   end;
@@ -8397,7 +8371,7 @@ begin
       if (Data) then
         for I := 0 to Items.Count - 1 do
         begin
-          SourceTable := SourceSession.DatabaseByName(TItem(Items[I]).SourceDatabaseName).BaseTableByName(TItem(Items[I]).TableName);
+          SourceTable := TSBaseTable(TItem(Items[I]).DBObject);
 
           SQL := SQL + 'SELECT * FROM ' + SourceSession.EscapeIdentifier(SourceTable.Database.Name) + '.' + SourceSession.EscapeIdentifier(SourceTable.Name);
           if (Assigned(SourceTable.PrimaryKey)) then
@@ -8431,16 +8405,6 @@ begin
       if (Data) then
         SourceSession.CloseResult(DataHandle);
     end;
-
-    // Handle Foreign Keys after tables executed to have more parent tables available
-    for I := 0 to Items.Count - 1 do
-      if (Success <> daAbort) then
-      begin
-        Success := daSuccess;
-
-        ExecuteForeignKeys(TItem(Items[I]));
-        if (Success = daFail) then Success := daSuccess;
-      end;
   end;
 
   if (Data and (DestinationSession.ServerVersion >= 40014)) then
@@ -8459,7 +8423,86 @@ begin
   {$ENDIF}
 end;
 
-procedure TTTransfer.ExecuteData(const Item: TItem);
+procedure TTTransfer.ExecuteTable(const Item: TItem);
+var
+  I: Integer;
+  DestinationDatabase: TSDatabase;
+  DestinationTable: TSBaseTable;
+  NewTrigger: TSTrigger;
+  SourceDatabase: TSDatabase;
+  SourceTable: TSBaseTable;
+begin
+  DestinationDatabase := DestinationSession.DatabaseByName(Item.DestinationDatabaseName);
+
+  if ((Success = daSuccess) and Structure and not Assigned(DestinationDatabase)) then
+  begin
+    DestinationDatabase := TSDatabase.Create(DestinationSession, Item.DestinationDatabaseName);
+    while ((Success <> daAbort) and not DestinationSession.AddDatabase(DestinationDatabase)) do
+      DoError(DatabaseError(DestinationSession), Item, True);
+    DestinationDatabase.Free();
+
+    DestinationDatabase := DestinationSession.DatabaseByName(Item.DestinationDatabaseName);
+  end;
+
+  if (Success = daSuccess) then
+  begin
+    SourceTable := TSBaseTable(Item.DBObject);
+    DestinationTable := DestinationDatabase.BaseTableByName(SourceTable.Name);
+
+    if (Structure and Data and not Assigned(DestinationTable) and (SourceSession = DestinationSession)) then
+    begin
+      while ((Success <> daAbort) and not DestinationDatabase.CloneTable(SourceTable, SourceTable.Name, True)) do
+        DoError(DatabaseError(DestinationSession), Item, True);
+
+      if (Success = daSuccess) then
+      begin
+        DestinationTable := DestinationDatabase.BaseTableByName(SourceTable.Name);
+
+        Item.RecordsDone := DestinationTable.Rows;
+      end;
+    end
+    else
+    begin
+      if ((Success = daSuccess) and Structure) then
+      begin
+        ExecuteTableStructure(Item);
+        DestinationTable := DestinationDatabase.BaseTableByName(SourceTable.Name);
+
+        if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
+          Success := daAbort;
+      end;
+
+      if ((Success = daSuccess) and Data and Assigned(DestinationTable) and (DestinationTable.Source <> '')) then
+        ExecuteTableData(Item);
+    end;
+
+    if (Success = daSuccess) then
+      Item.RecordsSum := Item.RecordsDone;
+
+    SourceDatabase := Item.DBObject.Database;
+    SourceTable := TSBaseTable(Item.DBObject);
+    if (Assigned(SourceDatabase.Triggers) and Assigned(DestinationDatabase.Triggers)) then
+      for I := 0 to SourceDatabase.Triggers.Count - 1 do
+        if ((Success = daSuccess) and (SourceDatabase.Triggers[I].Table = SourceTable) and not Assigned(DestinationDatabase.TriggerByName(SourceDatabase.Triggers[I].Name))) then
+        begin
+          NewTrigger := TSTrigger.Create(DestinationDatabase.Tables);
+          NewTrigger.Assign(SourceDatabase.Triggers[I]);
+          while (Success <> daAbort) do
+          begin
+            DestinationDatabase.AddTrigger(NewTrigger);
+            if (DestinationSession.ErrorCode <> 0) then
+              DoError(DatabaseError(DestinationSession), Item, True);
+          end;
+          NewTrigger.Free();
+        end;
+
+    Item.Done := Success = daSuccess;
+
+    DoUpdateGUI();
+  end;
+end;
+
+procedure TTTransfer.ExecuteTableData(const Item: TItem);
 var
   Buffer: TTool.TStringBuffer;
   DataFileBuffer: TDataFileBuffer;
@@ -8479,7 +8522,6 @@ var
   Pipe: THandle;
   Pipename: string;
   S: string;
-  SourceDatabase: TSDatabase;
   SourceDataSet: TMySQLQuery;
   SourceTable: TSBaseTable;
   SourceValues: string;
@@ -8490,10 +8532,9 @@ var
   Values: string;
 begin
   SourceValues := ''; FilenameP[0] := #0;
-  SourceDatabase := SourceSession.DatabaseByName(Item.SourceDatabaseName);
+  SourceTable := TSBaseTable(Item.DBObject);
   DestinationDatabase := DestinationSession.DatabaseByName(Item.DestinationDatabaseName);
-  SourceTable := SourceDatabase.BaseTableByName(Item.TableName);
-  DestinationTable := DestinationDatabase.BaseTableByName(Item.TableName);
+  DestinationTable := DestinationDatabase.BaseTableByName(SourceTable.Name);
 
   FieldCount := 0;
   for I := 0 to SourceTable.Fields.Count - 1 do
@@ -8723,48 +8764,8 @@ begin
   end;
 end;
 
-procedure TTTransfer.ExecuteForeignKeys(const Item: TItem);
+procedure TTTransfer.ExecuteTableStructure(const Item: TItem);
 var
-  DestinationDatabase: TSDatabase;
-  DestinationTable: TSBaseTable;
-  I: Integer;
-  NewTable: TSBaseTable;
-  ParentTable: TSBaseTable;
-  SourceDatabase: TSDatabase;
-  SourceTable: TSBaseTable;
-begin
-  SourceDatabase := SourceSession.DatabaseByName(Item.SourceDatabaseName);
-  SourceTable := SourceDatabase.BaseTableByName(Item.TableName);
-  DestinationDatabase := DestinationSession.DatabaseByName(Item.DestinationDatabaseName);
-  DestinationTable := DestinationDatabase.BaseTableByName(Item.TableName);
-  NewTable := nil;
-
-  if (Assigned(DestinationTable)) then
-    for I := 0 to SourceTable.ForeignKeys.Count - 1 do
-      if (not Assigned(DestinationTable.ForeignKeyByName(SourceTable.ForeignKeys[I].Name))) then
-      begin
-        if (not Assigned(NewTable)) then
-        begin
-          NewTable := TSBaseTable.Create(DestinationDatabase.Tables);
-          NewTable.Assign(DestinationTable);
-        end;
-
-        ParentTable := DestinationDatabase.BaseTableByName(SourceTable.ForeignKeys[I].Parent.TableName);
-        if (Assigned(ParentTable)) then
-          NewTable.ForeignKeys.AddForeignKey(SourceTable.ForeignKeys[I]);
-      end;
-
-  if (Assigned(NewTable)) then
-  begin
-    while ((Success <> daAbort) and not DestinationDatabase.UpdateTable(DestinationTable, NewTable)) do
-      DoError(DatabaseError(DestinationSession), Item, True);
-    NewTable.Free();
-  end;
-end;
-
-procedure TTTransfer.ExecuteStructure(const Item: TItem);
-var
-  DeleteForeignKey: Boolean;
   DestinationDatabase: TSDatabase;
   DestinationTable: TSBaseTable;
   I: Integer;
@@ -8775,10 +8776,10 @@ var
   SourceDatabase: TSDatabase;
   SourceTable: TSBaseTable;
 begin
-  SourceDatabase := SourceSession.DatabaseByName(Item.SourceDatabaseName);
-  SourceTable := SourceDatabase.BaseTableByName(Item.TableName);
+  SourceDatabase := Item.DBObject.Database;
+  SourceTable := TSBaseTable(Item.DBObject);
   DestinationDatabase := DestinationSession.DatabaseByName(Item.DestinationDatabaseName);
-  DestinationTable := DestinationDatabase.BaseTableByName(Item.TableName);
+  DestinationTable := DestinationDatabase.BaseTableByName(SourceTable.Name);
 
   if (Assigned(DestinationTable)) then
   begin
@@ -8798,115 +8799,16 @@ begin
       NewDestinationTable.Keys[I].Name := DestinationSession.ApplyIdentifierName(NewDestinationTable.Keys[I].Name);
     for I := 0 to NewDestinationTable.Fields.Count - 1 do
       NewDestinationTable.Fields[I].Name := DestinationSession.ApplyIdentifierName(NewDestinationTable.Fields[I].Name);
-
     for I := NewDestinationTable.ForeignKeys.Count - 1 downto 0 do
-    begin
       NewDestinationTable.ForeignKeys[I].Name := DestinationSession.ApplyIdentifierName(NewDestinationTable.ForeignKeys[I].Name);
 
-      DeleteForeignKey := (DestinationSession.TableNameCmp(NewDestinationTable.ForeignKeys[I].Parent.DatabaseName, SourceTable.Database.Name) <> 0)
-        or not Assigned(DestinationDatabase.BaseTableByName(NewDestinationTable.ForeignKeys[I].Parent.TableName));
-
-      if (not DeleteForeignKey) then
-      begin
-        NewDestinationTable.ForeignKeys[I].Parent.DatabaseName := NewDestinationTable.Database.Name;
-        NewDestinationTable.ForeignKeys[I].Parent.TableName := NewDestinationTable.Database.BaseTableByName(NewDestinationTable.ForeignKeys[I].Parent.TableName).Name;
-        DeleteForeignKey := not Assigned(DestinationDatabase.TableByName(NewDestinationTable.ForeignKeys[I].Parent.TableName));
-        for J := 0 to Length(NewDestinationTable.ForeignKeys[I].Parent.FieldNames) - 1 do
-          if (not DeleteForeignKey) then
-          begin
-            NewDestinationTable.ForeignKeys[I].Parent.FieldNames[J] := DestinationDatabase.TableByName(NewDestinationTable.ForeignKeys[I].Parent.TableName).FieldByName(NewDestinationTable.ForeignKeys[I].Parent.FieldNames[J]).Name;
-            DeleteForeignKey := not Assigned(NewDestinationTable.FieldByName(NewDestinationTable.ForeignKeys[I].Parent.FieldNames[J]));
-          end;
-      end;
-
-      if (DeleteForeignKey) then
-        NewDestinationTable.ForeignKeys.DeleteForeignKey(NewDestinationTable.ForeignKeys[I]);
-    end;
-
     NewDestinationTable.AutoIncrement := 0;
+
     while ((Success <> daAbort) and not DestinationDatabase.AddTable(NewDestinationTable)) do
       DoError(DatabaseError(DestinationSession), Item, True);
   end;
 
   NewDestinationTable.Free();
-end;
-
-procedure TTTransfer.ExecuteTable(const Item: TItem);
-var
-  I: Integer;
-  DestinationDatabase: TSDatabase;
-  DestinationTable: TSBaseTable;
-  NewTrigger: TSTrigger;
-  SourceDatabase: TSDatabase;
-  SourceTable: TSBaseTable;
-begin
-  DestinationDatabase := DestinationSession.DatabaseByName(Item.DestinationDatabaseName);
-
-  if ((Success = daSuccess) and Structure and not Assigned(DestinationDatabase)) then
-  begin
-    DestinationDatabase := TSDatabase.Create(DestinationSession, Item.DestinationDatabaseName);
-    while ((Success <> daAbort) and not DestinationSession.AddDatabase(DestinationDatabase)) do
-      DoError(DatabaseError(DestinationSession), Item, True);
-    DestinationDatabase.Free();
-
-    DestinationDatabase := DestinationSession.DatabaseByName(Item.DestinationDatabaseName);
-  end;
-
-  if (Success = daSuccess) then
-  begin
-    DestinationTable := DestinationDatabase.BaseTableByName(Item.TableName);
-
-    if (Structure and Data and not Assigned(DestinationTable) and (SourceSession = DestinationSession) and (SourceSession.DatabaseByName(Item.SourceDatabaseName).BaseTableByName(Item.TableName).ForeignKeys.Count = 0)) then
-    begin
-      while ((Success <> daAbort) and not DestinationDatabase.CloneTable(SourceSession.DatabaseByName(Item.SourceDatabaseName).BaseTableByName(Item.TableName), Item.TableName, True)) do
-        DoError(DatabaseError(DestinationSession), Item, True);
-
-      if (Success = daSuccess) then
-      begin
-        DestinationTable := DestinationDatabase.BaseTableByName(Item.TableName);
-
-        Item.RecordsDone := DestinationTable.Rows;
-      end;
-    end
-    else
-    begin
-      if ((Success = daSuccess) and Structure) then
-      begin
-        ExecuteStructure(Item);
-        DestinationTable := DestinationDatabase.BaseTableByName(Item.TableName);
-
-        if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
-          Success := daAbort;
-      end;
-
-      if ((Success = daSuccess) and Data and Assigned(DestinationTable) and (DestinationTable.Source <> '')) then
-        ExecuteData(Item);
-    end;
-
-    if (Success = daSuccess) then
-      Item.RecordsSum := Item.RecordsDone;
-
-    SourceDatabase := SourceSession.DatabaseByName(Item.SourceDatabaseName);
-    SourceTable := SourceDatabase.BaseTableByName(Item.TableName);
-    if (Assigned(SourceDatabase.Triggers) and Assigned(DestinationDatabase.Triggers)) then
-      for I := 0 to SourceDatabase.Triggers.Count - 1 do
-        if ((Success = daSuccess) and (SourceDatabase.Triggers[I].Table = SourceTable) and not Assigned(DestinationDatabase.TriggerByName(SourceDatabase.Triggers[I].Name))) then
-        begin
-          NewTrigger := TSTrigger.Create(DestinationDatabase.Tables);
-          NewTrigger.Assign(SourceDatabase.Triggers[I]);
-          while (Success <> daAbort) do
-          begin
-            DestinationDatabase.AddTrigger(NewTrigger);
-            if (DestinationSession.ErrorCode <> 0) then
-              DoError(DatabaseError(DestinationSession), Item, True);
-          end;
-          NewTrigger.Free();
-        end;
-
-    Item.Done := Success = daSuccess;
-
-    DoUpdateGUI();
-  end;
 end;
 
 {******************************************************************************}

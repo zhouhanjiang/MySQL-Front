@@ -413,7 +413,7 @@ begin
   SendMessage(FHeader, LVM_SETUNICODEFORMAT, WPARAM(TRUE), 0);
 
   if (FHeader > 0) then CloseHandle(FHeader);
-  Style := WS_CHILD or HDS_BUTTONS or HDS_FULLDRAG;
+  Style := WS_CHILD or HDS_BUTTONS or HDS_FULLDRAG or HDS_DRAGDROP;
   if (not (dgColumnResize in Options) and CheckWin32Version(6)) then
     Style := Style or HDS_NOSIZING;
   FHeader := CreateWindow(WC_HEADER, nil, Style, 0, 0, ClientWidth, RowHeights[0], Handle, 0, hInstance, nil);

@@ -991,6 +991,7 @@ type
     procedure FQueryBuilderEditorTabSheetEnter(Sender: TObject);
     procedure FreeDBGrid(const DBGrid: TMySQLDBGrid);
     procedure FreeListView(const ListView: TListView);
+    procedure FreeSynMemo(const SynMemo: TSynMemo);
     procedure FRTFShow(Sender: TObject);
     procedure FSQLHistoryRefresh(Sender: TObject);
     procedure FTextShow(Sender: TObject);
@@ -1790,7 +1791,7 @@ end;
 destructor TFSession.TViewDesktop.Destroy();
 begin
   if (Assigned(SynMemo)) then
-    SynMemo.Free();
+    FSession.FreeSynMemo(SynMemo);
 
   inherited;
 end;
@@ -1839,7 +1840,7 @@ begin
   if (Assigned(PDBGrid)) then
     PDBGrid.Free();
   if (Assigned(SynMemo)) then
-    SynMemo.Free();
+    FSession.FreeSynMemo(SynMemo);
   if (Assigned(Results)) then
     Results.Free();
 
@@ -1929,7 +1930,7 @@ begin
   inherited;
 
   if (Assigned(SynMemo)) then
-    SynMemo.Free();
+    FSession.FreeSynMemo(SynMemo);
 end;
 
 { TFSession.TTriggerDesktop *******************************************************}
@@ -1954,7 +1955,7 @@ begin
   inherited;
 
   if (Assigned(SynMemo)) then
-    SynMemo.Free();
+    FSession.FreeSynMemo(SynMemo);
 end;
 
 { TFSession.TWanted ************************************************************}
@@ -2969,7 +2970,7 @@ begin
   begin
     SQL := ActiveSynMemo.Text;
     Index := 1; Len := 1;
-    while ((Index < aDRunExecuteSelStart + 2) and (Len > 0)) do
+    while ((Index < aDRunExecuteSelStart + 1) and (Len > 0)) do
     begin
       Len := SQLStmtLength(PChar(@SQL[Index]), Length(SQL) - (Index - 1));
       Inc(Index, Len);
@@ -8498,6 +8499,14 @@ begin
   ListView.Free();
 end;
 
+procedure TFSession.FreeSynMemo(const SynMemo: TSynMemo);
+begin
+  if (ActiveSynMemo = SynMemo) then
+    ActiveSynMemo := nil;
+
+  SynMemo.Free();
+end;
+
 procedure TFSession.FRTFChange(Sender: TObject);
 begin
   FRTF.ReadOnly := True;
@@ -12867,11 +12876,11 @@ begin
       Result := False;
   end;
 
-  if (Result) then
+  if (Result and Assigned(ActiveSynMemo)) then
   begin
     GetActiveIDEInputDataSet();
     ActiveSynMemo.Modified := False;
-    SynMemoStatusChange(FSQLEditorSynMemo, []);
+    SynMemoStatusChange(ActiveSynMemo, []);
   end;
 end;
 

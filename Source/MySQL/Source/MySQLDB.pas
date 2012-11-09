@@ -6171,7 +6171,7 @@ begin
       if (pfInWhere in Fields[I].ProviderFlags) then
       begin
         if (ValueHandled) then Result := Result + ' AND ';
-        if (not Assigned(InternRecordBuffer^.OldData) or not Assigned(InternRecordBuffer^.OldData^.LibRow^[I])) then
+        if (not Assigned(InternRecordBuffer^.OldData) or not Assigned(InternRecordBuffer^.OldData^.LibRow^[Fields[I].FieldNo - 1])) then
           Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + ' IS NULL'
         else
           Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + '=' + SQLFieldValue(Fields[I], InternRecordBuffer^.OldData);
@@ -6211,7 +6211,7 @@ begin
           begin
             InternRecordBuffer := InternRecordBuffers[BookmarkToInternBufferIndex(TBookmark(DeleteBookmarks[I]))];
             if (ValueHandled) then Result := Result + ' AND ';
-            if (not Assigned(InternRecordBuffer^.OldData^.LibRow^[J])) then
+            if (not Assigned(InternRecordBuffer^.OldData^.LibRow^[Fields[J].FieldNo - 1])) then
               Result := Result + Connection.EscapeIdentifier(Fields[J].FieldName) + ' IS NULL'
             else
               Result := Result + '(' + Connection.EscapeIdentifier(Fields[J].FieldName) + '=' + SQLFieldValue(Fields[J], InternRecordBuffer^.OldData) + ')';
@@ -6247,7 +6247,7 @@ begin
     Result := 'INSERT INTO ' + SQLTableClausel() + ' SET ';
     ValueHandled := False;
     for I := 0 to FieldCount - 1 do
-      if (Assigned(ExternRecordBuffer^.InternRecordBuffer^.NewData^.LibRow^[I]) or Fields[I].Required and (Fields[I].AutoGenerateValue <> arAutoInc)) then
+      if (Assigned(ExternRecordBuffer^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1]) or Fields[I].Required and (Fields[I].AutoGenerateValue <> arAutoInc)) then
       begin
         if (ValueHandled) then Result := Result + ',';
         Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + '=' + SQLFieldValue(Fields[I], TRecordBuffer(ExternRecordBuffer));
@@ -6280,8 +6280,8 @@ begin
   Result := 'UPDATE ' + SQLTableClausel() + ' SET ';
   ValueHandled := False;
   for I := 0 to FieldCount - 1 do
-    if ((PExternRecordBuffer(Buffer)^.InternRecordBuffer^.NewData^.LibLengths^[I] <> PExternRecordBuffer(Buffer)^.InternRecordBuffer^.OldData^.LibLengths^[I])
-      or (not CompareMem(PExternRecordBuffer(Buffer)^.InternRecordBuffer^.NewData^.LibRow^[I], PExternRecordBuffer(Buffer)^.InternRecordBuffer^.OldData^.LibRow^[I], PExternRecordBuffer(Buffer)^.InternRecordBuffer^.OldData^.LibLengths^[I]))) then
+    if ((PExternRecordBuffer(Buffer)^.InternRecordBuffer^.NewData^.LibLengths^[Fields[I].FieldNo - 1] <> PExternRecordBuffer(Buffer)^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo - 1])
+      or (not CompareMem(PExternRecordBuffer(Buffer)^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1], PExternRecordBuffer(Buffer)^.InternRecordBuffer^.OldData^.LibRow^[Fields[I].FieldNo - 1], PExternRecordBuffer(Buffer)^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo - 1]))) then
     begin
       if (ValueHandled) then Result := Result + ',';
       Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + '=' + SQLFieldValue(Fields[I], Buffer);
@@ -6293,7 +6293,7 @@ begin
     if (pfInWhere in Fields[I].ProviderFlags) then
     begin
       if (ValueHandled) then Result := Result + ' AND ';
-      if (not Assigned(PExternRecordBuffer(Buffer)^.InternRecordBuffer^.OldData^.LibRow^[I])) then
+      if (not Assigned(PExternRecordBuffer(Buffer)^.InternRecordBuffer^.OldData^.LibRow^[Fields[I].FieldNo - 1])) then
         Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + ' IS NULL'
       else
         Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + '=' + SQLFieldValue(Fields[I], PExternRecordBuffer(Buffer)^.InternRecordBuffer^.OldData);
