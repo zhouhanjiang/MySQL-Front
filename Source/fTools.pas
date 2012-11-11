@@ -142,13 +142,13 @@ type
     procedure DoError(const Error: TError; const Item: TItem; const ShowRetry: Boolean; var SQL: string); overload; virtual;
     procedure DoUpdateGUI(); virtual; abstract;
     function NoPrimaryIndexError(const Session: TSSession): TError; virtual;
-    property OnError: TErrorEvent read FOnError write FOnError;
   public
     Wnd: HWND;
     constructor Create();
     destructor Destroy(); override;
     property ErrorCount: Integer read FErrorCount;
     property Items: TItems read FItems;
+    property OnError: TErrorEvent read FOnError write FOnError;
     property OnExecuted: TOnExecuted read FOnExecuted write FOnExecuted;
     property OnUpdate: TOnUpdate read FOnUpdate write FOnUpdate;
     property UserAbort: TEvent read FUserAbort;
@@ -194,7 +194,6 @@ type
     procedure Add(const TableName: string; const SourceTableName: string = '');
     constructor Create(const ASession: TSSession; const ADatabase: TSDatabase); reintroduce; virtual;
     procedure Execute(); override;
-    property OnError;
   end;
 
   TTImportFile = class(TTImport)
@@ -365,7 +364,7 @@ type
     procedure ExecuteTable(const Item: TTool.TDBObjectItem; const DataHandle: TMySQLConnection.TDataResult); virtual;
     procedure ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); virtual;
     procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); virtual;
-    procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); virtual; abstract;
+    procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); virtual;
     procedure ExecuteTrigger(const Trigger: TSTrigger); virtual;
   public
     Data: Boolean;
@@ -377,10 +376,9 @@ type
     TableFields: array of TSTableField;
     procedure Add(const ADataSet: TMySQLDataSet); overload; virtual;
     procedure Add(const ADBObject: TSDBObject); overload; inline;
-    constructor Create(const ASession: TSSession); reintroduce; virtual;
+    constructor Create(const ASession: TSSession); reintroduce;
     procedure Execute(); override;
     property Session: TSSession read FSession;
-    property OnError;
   end;
 
   TTExportFile = class(TTExport)
@@ -630,7 +628,7 @@ type
   public
     IndexBackground: Boolean;
     NULLText: Boolean;
-    constructor Create(const ASession: TSSession); override;
+    constructor Create(const ASession: TSSession);
     destructor Destroy(); override;
   end;
 
@@ -656,6 +654,30 @@ type
   public
     constructor Create(const ASession: TSSession; const AFilename: TFileName); reintroduce; virtual;
     destructor Destroy(); override;
+  end;
+
+  TTTransfer = class(TTExport)
+  type
+    TItem = class(TTool.TDBObjectItem)
+    public
+      DestinationDatabaseName: string;
+      constructor Create(const AItems: TTool.TItems; const ADBObject: TSDBObject);
+    end;
+  private
+    FDestinationSession: TSSession;
+    OLD_FOREIGN_KEY_CHECKS: string;
+    OLD_UNIQUE_CHECKS: string;
+    function DoExecuteSQL(const Session: TSSession; var SQL: string): Boolean;
+  protected
+    procedure AfterExecute(); override;
+    procedure BeforeExecute(); override;
+    procedure ExecuteTable(const Item: TTool.TDBObjectItem; const DataHandle: TMySQLConnection.TDataResult); override;
+    procedure ExecuteTableData(const Item: TItem; const DataHandle: TMySQLConnection.TDataResult);
+    procedure ExecuteTableStructure(const Item: TItem);
+  public
+    procedure Add(const ADBObject: TSDBObject; const DestinationDatabaseName: string); virtual;
+    constructor Create(const ASourceSession, ADestinationSession: TSSession);
+    property DestinationSession: TSSession read FDestinationSession;
   end;
 
   TTSearch = class(TTool)
@@ -701,38 +723,6 @@ type
     ReplaceText: string;
     Backup: Boolean;
     constructor Create(const ASession, AReplaceSession: TSSession); reintroduce; virtual;
-    property OnError;
-  end;
-
-  TTTransfer = class(TTool)
-  type
-    TItem = class(TTool.TDBObjectItem)
-    public
-      DestinationDatabaseName: string;
-      constructor Create(const AItems: TTool.TItems; const ADBObject: TSDBObject);
-    end;
-  private
-    DataHandle: TMySQLConnection.TDataResult;
-    FDestinationSession: TSSession;
-    FSourceSession: TSSession;
-    procedure CloneTable(const Item: TItem);
-    function DoExecuteSQL(const Session: TSSession; var SQL: string): Boolean;
-    procedure ExecuteTableData(const Item: TItem);
-    procedure ExecuteTableStructure(const Item: TItem);
-  protected
-    procedure AfterExecute(); override;
-    procedure BeforeExecute(); override;
-    procedure DoUpdateGUI(); override;
-    procedure ExecuteTable(const Item: TItem); virtual;
-  public
-    Data: Boolean;
-    Structure: Boolean;
-    procedure Add(const ADBObject: TSDBObject; const DestinationDatabaseName: string); virtual;
-    constructor Create(const ASourceSession, ADestinationSession: TSSession);
-    procedure Execute(); override;
-    property DestinationSession: TSSession read FDestinationSession;
-    property OnError;
-    property SourceSession: TSSession read FSourceSession;
   end;
 
   EODBCError = EDatabaseError;
@@ -754,7 +744,7 @@ var
 implementation {***************************************************************}
 
 uses
-  ActiveX, SysConst, Consts,
+  ActiveX, SysConst,
   Forms, DBConsts, Registry, DBCommon, StrUtils, Math, Variants,
   PerlRegEx;
 
@@ -3822,6 +3812,7 @@ begin
       TDataSetItem(Items[I]).DataSet.EnableControls();
 
   FSession.EndSilent();
+  FSession.EndSynchron();
 
   inherited;
 end;
@@ -3832,13 +3823,14 @@ var
 begin
   inherited;
 
+  FSession.BeginSynchron(); // We're still in a thread
   FSession.BeginSilent();
 
   for I := 0 to Items.Count - 1 do
     if (Items[I] is TDataSetItem) then
       TDataSetItem(Items[I]).DataSet.DisableControls();
 
-  if (Self is TTExportSQL) then
+  if ((Self is TTExportSQL) or (Self is TTTransfer)) then
     Items.Sort(TToolItemCompareForSQL)
   else
     Items.Sort(TToolItemCompare);
@@ -3870,13 +3862,11 @@ begin
     ProgressInfos.TimeSum := 0;
 
     for I := 0 to Items.Count - 1 do
-      if (Items[I] is TItem) then
     begin
       if (TItem(Items[I]).Done) then
         Inc(ProgressInfos.TablesDone);
-
-      Inc(ProgressInfos.RecordsDone, TItem(Items[I]).RecordsDone);
-      Inc(ProgressInfos.RecordsSum, TItem(Items[I]).RecordsSum);
+      Inc(ProgressInfos.RecordsDone, Items[I].RecordsDone);
+      Inc(ProgressInfos.RecordsSum, Items[I].RecordsSum);
     end;
 
     ProgressInfos.TimeDone := Now() - StartTime;
@@ -4237,6 +4227,10 @@ begin
 end;
 
 procedure TTExport.ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+begin
+end;
+
+procedure TTExport.ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 begin
 end;
 
@@ -7580,6 +7574,499 @@ begin
   inherited;
 end;
 
+{ TTTransfer.TItem ************************************************************}
+
+constructor TTTransfer.TItem.Create(const AItems: TTool.TItems; const ADBObject: TSDBObject);
+begin
+  inherited;
+
+  DestinationDatabaseName := '';
+end;
+
+{ TTTransfer ******************************************************************}
+
+procedure TTTransfer.Add(const ADBObject: TSDBObject; const DestinationDatabaseName: string);
+var
+  NewItem: TItem;
+begin
+  NewItem := TItem.Create(Items, ADBObject);
+  NewItem.DestinationDatabaseName := DestinationDatabaseName;
+
+  Items.Add(NewItem);
+end;
+
+procedure TTTransfer.AfterExecute();
+var
+  SQL: string;
+begin
+  if (Data and (DestinationSession.ServerVersion >= 40014)) then
+  begin
+    SQL := 'SET UNIQUE_CHECKS=' + OLD_UNIQUE_CHECKS + ', FOREIGN_KEY_CHECKS=' + OLD_FOREIGN_KEY_CHECKS + ';' + #13#10;
+    while ((Success <> daRetry) and not DestinationSession.ExecuteSQL(SQL)) do
+      DoError(DatabaseError(DestinationSession), nil, True, SQL);
+  end;
+
+  DestinationSession.EndSilent();
+  DestinationSession.EndSynchron();
+
+  inherited AfterExecute();
+end;
+
+procedure TTTransfer.BeforeExecute();
+var
+  DataSet: TMySQLQuery;
+  SQL: string;
+begin
+  inherited;
+
+  DestinationSession.BeginSilent();
+  DestinationSession.BeginSynchron(); // We're still in a thread
+
+  if (Data and (DestinationSession.ServerVersion >= 40014)) then
+  begin
+    if (Assigned(DestinationSession.VariableByName('UNIQUE_CHECKS'))
+      and Assigned(DestinationSession.VariableByName('FOREIGN_KEY_CHECKS'))) then
+    begin
+      OLD_UNIQUE_CHECKS := DestinationSession.VariableByName('UNIQUE_CHECKS').Value;
+      OLD_FOREIGN_KEY_CHECKS := DestinationSession.VariableByName('FOREIGN_KEY_CHECKS').Value;
+    end
+    else
+    begin
+      DataSet := TMySQLQuery.Create(nil);
+      DataSet.Connection := DestinationSession;
+      DataSet.CommandText := 'SELECT @@UNIQUE_CHECKS, @@FOREIGN_KEY_CHECKS';
+
+      while ((Success <> daAbort) and not DataSet.Active) do
+      begin
+        DataSet.Open();
+        if (DestinationSession.ErrorCode > 0) then
+          DoError(DatabaseError(DestinationSession), nil, True, SQL);
+      end;
+
+      if (DataSet.Active) then
+      begin
+        OLD_UNIQUE_CHECKS := DataSet.Fields[0].AsString;
+        OLD_FOREIGN_KEY_CHECKS := DataSet.Fields[1].AsString;
+        DataSet.Close();
+      end;
+
+      DataSet.Free();
+    end;
+
+    SQL := 'SET UNIQUE_CHECKS=0, FOREIGN_KEY_CHECKS=0;';
+    while ((Success <> daAbort) and not DestinationSession.ExecuteSQL(SQL)) do
+      DoError(DatabaseError(DestinationSession), nil, True, SQL);
+  end;
+end;
+
+constructor TTTransfer.Create(const ASourceSession, ADestinationSession: TSSession);
+begin
+  inherited Create(ASourceSession);
+
+  FDestinationSession := ADestinationSession;
+end;
+
+function TTTransfer.DoExecuteSQL(const Session: TSSession; var SQL: string): Boolean;
+begin
+  Result := (Success = daSuccess) and Session.ExecuteSQL(SQL);
+  Delete(SQL, 1, Session.ExecutedSQLLength);
+  SQL := SysUtils.Trim(SQL);
+end;
+
+procedure TTTransfer.ExecuteTable(const Item: TTool.TDBObjectItem; const DataHandle: TMySQLConnection.TDataResult);
+var
+  I: Integer;
+  DestinationDatabase: TSDatabase;
+  DestinationTable: TSBaseTable;
+  NewTrigger: TSTrigger;
+  SourceDatabase: TSDatabase;
+  SourceTable: TSBaseTable;
+begin
+  DestinationDatabase := DestinationSession.DatabaseByName(TItem(Item).DestinationDatabaseName);
+
+  if (Session = DestinationSession) then
+  begin
+    while ((Success <> daAbort) and not DestinationDatabase.CloneTable(TSBaseTable(Item.DBObject), Item.DBObject.Name, Data)) do
+      DoError(DatabaseError(Session), Item, True);
+
+    if ((Success = daSuccess) and Data) then
+    begin
+      Item.RecordsSum := TSBaseTable(Item.DBObject).CountRecords();
+      Item.RecordsDone := Item.RecordsSum;
+    end;
+  end
+  else
+  begin
+    if (Structure and not Assigned(DestinationDatabase)) then
+    begin
+      DestinationDatabase := TSDatabase.Create(DestinationSession, TItem(Item).DestinationDatabaseName);
+      while ((Success <> daAbort) and not DestinationSession.AddDatabase(DestinationDatabase)) do
+        DoError(DatabaseError(DestinationSession), Item, True);
+      DestinationDatabase.Free();
+
+      DestinationDatabase := DestinationSession.DatabaseByName(TItem(Item).DestinationDatabaseName);
+    end;
+
+    if (Success = daSuccess) then
+    begin
+      SourceTable := TSBaseTable(Item.DBObject);
+      DestinationTable := DestinationDatabase.BaseTableByName(SourceTable.Name);
+
+      if (Structure and Data and not Assigned(DestinationTable) and (Session = DestinationSession)) then
+      begin
+        while ((Success <> daAbort) and not DestinationDatabase.CloneTable(SourceTable, SourceTable.Name, True)) do
+          DoError(DatabaseError(DestinationSession), Item, True);
+
+        if (Success = daSuccess) then
+        begin
+          DestinationTable := DestinationDatabase.BaseTableByName(SourceTable.Name);
+
+          Item.RecordsDone := DestinationTable.Rows;
+        end;
+      end
+      else
+      begin
+        if ((Success = daSuccess) and Structure) then
+        begin
+          ExecuteTableStructure(TItem(Item));
+          DestinationTable := DestinationDatabase.BaseTableByName(SourceTable.Name);
+
+          if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
+            Success := daAbort;
+        end;
+
+        if ((Success = daSuccess) and Data and Assigned(DestinationTable) and (DestinationTable.Source <> '')) then
+          ExecuteTableData(TItem(Item), DataHandle);
+      end;
+
+      if (Success = daSuccess) then
+        Item.RecordsSum := Item.RecordsDone;
+
+      SourceDatabase := Item.DBObject.Database;
+      SourceTable := TSBaseTable(Item.DBObject);
+      if (Assigned(SourceDatabase.Triggers) and Assigned(DestinationDatabase.Triggers)) then
+        for I := 0 to SourceDatabase.Triggers.Count - 1 do
+          if ((Success = daSuccess) and (SourceDatabase.Triggers[I].Table = SourceTable) and not Assigned(DestinationDatabase.TriggerByName(SourceDatabase.Triggers[I].Name))) then
+          begin
+            NewTrigger := TSTrigger.Create(DestinationDatabase.Tables);
+            NewTrigger.Assign(SourceDatabase.Triggers[I]);
+            while (Success <> daAbort) do
+            begin
+              DestinationDatabase.AddTrigger(NewTrigger);
+              if (DestinationSession.ErrorCode <> 0) then
+                DoError(DatabaseError(DestinationSession), Item, True);
+            end;
+            NewTrigger.Free();
+          end;
+    end;
+  end;
+
+  Item.Done := Success = daSuccess;
+  DoUpdateGUI();
+end;
+
+procedure TTTransfer.ExecuteTableData(const Item: TItem; const DataHandle: TMySQLConnection.TDataResult);
+var
+  Buffer: TTool.TStringBuffer;
+  DataFileBuffer: TDataFileBuffer;
+  DestinationDatabase: TSDatabase;
+  DestinationField: TSTableField;
+  DestinationTable: TSBaseTable;
+  EscapedFieldName: array of string;
+  EscapedTableName: string;
+  FieldCount: Integer;
+  FieldInfo: TFieldInfo;
+  FilenameP: array [0 .. MAX_PATH] of Char;
+  I: Integer;
+  InsertStmtInSQL: Boolean;
+  J: Integer;
+  LibLengths: MYSQL_LENGTHS;
+  LibRow: MYSQL_ROW;
+  Pipe: THandle;
+  Pipename: string;
+  S: string;
+  SourceDataSet: TMySQLQuery;
+  SourceTable: TSBaseTable;
+  SourceValues: string;
+  SQL: string;
+  SQLExecuted: TEvent;
+  SQLExecuteLength: Integer;
+  WrittenSize: Cardinal;
+  Values: string;
+begin
+  SourceValues := ''; FilenameP[0] := #0;
+  SourceTable := TSBaseTable(Item.DBObject);
+  DestinationDatabase := DestinationSession.DatabaseByName(Item.DestinationDatabaseName);
+  DestinationTable := DestinationDatabase.BaseTableByName(SourceTable.Name);
+
+  FieldCount := 0;
+  for I := 0 to SourceTable.Fields.Count - 1 do
+    for J := 0 to DestinationTable.Fields.Count - 1 do
+      if (lstrcmpi(PChar(SourceTable.Fields[I].Name), PChar(DestinationTable.Fields[J].Name)) = 0) then
+        Inc(FieldCount);
+
+  if ((Success = daSuccess) and (FieldCount > 0)) then
+  begin
+    SourceDataSet := TMySQLQuery.Create(nil);
+    SourceDataSet.Open(DataHandle);
+    while ((Success <> daRetry) and not SourceDataSet.Active) do
+    begin
+      SourceDataSet.Open();
+      if (Session.ErrorCode > 0) then
+        DoError(DatabaseError(Session), Item, True, SQL);
+    end;
+
+    if ((Success = daSuccess) and not SourceDataSet.IsEmpty()) then
+    begin
+      SQLExecuted := TEvent.Create(nil, False, False, '');
+
+      if (DestinationSession.DataFileAllowed) then
+      begin
+        Pipename := '\\.\pipe\' + LoadStr(1000);
+        Pipe := CreateNamedPipe(PChar(Pipename),
+                                PIPE_ACCESS_OUTBOUND, PIPE_TYPE_MESSAGE or PIPE_READMODE_BYTE or PIPE_WAIT,
+                                1, 2 * NET_BUFFER_LENGTH, 0, 0, nil);
+        if (Pipe = INVALID_HANDLE_VALUE) then
+          DoError(SysError(), nil, False)
+        else
+        begin
+          SQL := '';
+          if (DestinationSession.Lib.LibraryType <> ltHTTP) then
+            if (DestinationSession.ServerVersion < 40011) then
+              SQL := SQL + 'BEGIN;' + #13#10
+            else
+              SQL := SQL + 'START TRANSACTION;' + #13#10;
+          if ((DestinationSession.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
+            SQL := SQL + 'ALTER TABLE ' + DestinationSession.EscapeIdentifier(DestinationTable.Name) + ' DISABLE KEYS;' + #13#10;
+          if (DestinationDatabase.Name <> DestinationSession.DatabaseName) then
+            SQL := SQL + DestinationDatabase.SQLUse();
+          SQL := SQL + SQLLoadDataInfile(DestinationDatabase, False, Pipename, DestinationSession.Charset, DestinationDatabase.Name, DestinationTable.Name, '');
+          if ((DestinationSession.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
+            SQL := SQL + 'ALTER TABLE ' + DestinationSession.EscapeIdentifier(DestinationTable.Name) + ' ENABLE KEYS;' + #13#10;
+          if (DestinationSession.Lib.LibraryType <> ltHTTP) then
+            SQL := SQL + 'COMMIT;' + #13#10;
+
+          DestinationSession.SendSQL(SQL, SQLExecuted);
+
+          if (ConnectNamedPipe(Pipe, nil)) then
+          begin
+            DataFileBuffer := TDataFileBuffer.Create(DestinationSession.CodePage);
+
+            repeat
+              LibLengths := SourceDataSet.LibLengths;
+              LibRow := SourceDataSet.LibRow;
+
+              for I := 0 to DestinationTable.Fields.Count - 1 do
+              begin
+                DestinationField := DestinationTable.Fields[I];
+                if (I > 0) then
+                  DataFileBuffer.Write(PAnsiChar(',_'), 1); // Two characters are needed to instruct the compiler to give a pointer - but the first character should be placed in the file only
+                if (not Assigned(LibRow^[I])) then
+                  DataFileBuffer.Write(PAnsiChar('NULL'), 4)
+                else if (BitField(SourceDataSet.Fields[I])) then
+                  begin S := UInt64ToStr(SourceDataSet.Fields[I].AsLargeInt); DataFileBuffer.WriteData(PChar(S), Length(S)); end
+                else if (DestinationTable.Fields[I].FieldType in BinaryFieldTypes) then
+                  DataFileBuffer.WriteBinary(LibRow^[I], LibLengths^[I])
+                else if (DestinationField.FieldType in TextFieldTypes) then
+                  DataFileBuffer.WriteText(LibRow^[I], LibLengths^[I], Session.CodePage)
+                else
+                  DataFileBuffer.Write(LibRow^[I], LibLengths^[I], not (DestinationField.FieldType in NotQuotedFieldTypes));
+              end;
+              DataFileBuffer.Write(PAnsiChar(#10 + '_'), 1); // Two characters are needed to instruct the compiler to give a pointer - but the first character should be placed in the file only
+
+              if (DataFileBuffer.Size > NET_BUFFER_LENGTH) then
+                if (not WriteFile(Pipe, DataFileBuffer.Data^, DataFileBuffer.Size, WrittenSize, nil) or (Abs(WrittenSize) < DataFileBuffer.Size)) then
+                  DoError(SysError(), nil, False)
+                else
+                 DataFileBuffer.Clear();
+
+              Inc(Item.RecordsDone);
+              if (Item.RecordsDone mod 100 = 0) then
+                DoUpdateGUI();
+
+              if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
+                Success := daAbort;
+            until ((Success <> daSuccess) or not SourceDataSet.FindNext());
+
+            if (DataFileBuffer.Size > 0) then
+              if (not WriteFile(Pipe, DataFileBuffer.Data^, DataFileBuffer.Size, WrittenSize, nil) or (Abs(WrittenSize) < DataFileBuffer.Size)) then
+                DoError(SysError(), nil, False)
+              else
+                DataFileBuffer.Clear();
+
+            if (not FlushFileBuffers(Pipe) or not WriteFile(Pipe, DataFileBuffer.Data^, 0, WrittenSize, nil) or not FlushFileBuffers(Pipe)) then
+              DoError(SysError(), nil, False)
+            else
+            begin
+              DoUpdateGUI();
+              SQLExecuted.WaitFor(INFINITE);
+            end;
+
+            DisconnectNamedPipe(Pipe);
+
+            if (DestinationSession.ErrorCode <> 0) then
+              DoError(DatabaseError(DestinationSession), Item, False, SQL);
+
+            DataFileBuffer.Free();
+          end;
+
+          CloseHandle(Pipe);
+        end;
+      end
+      else
+      begin
+        SQL := ''; SQLExecuteLength := 0;
+
+        InsertStmtInSQL := False;
+
+        EscapedTableName := DestinationSession.EscapeIdentifier(DestinationTable.Name);
+        SetLength(EscapedFieldName, DestinationTable.Fields.Count);
+        for I := 0 to DestinationTable.Fields.Count - 1 do
+           EscapedFieldName[I] := DestinationSession.EscapeIdentifier(DestinationTable.Fields[I].Name);
+
+        if (DestinationSession.Lib.LibraryType <> ltHTTP) then
+          if (DestinationSession.ServerVersion < 40011) then
+            SQL := SQL + 'BEGIN;' + #13#10
+          else
+            SQL := SQL + 'START TRANSACTION;' + #13#10;
+        SQL := SQL + 'LOCK TABLES ' + EscapedTableName + ' WRITE;' + #13#10;
+        if ((DestinationSession.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
+          SQL := SQL + 'ALTER TABLE ' + EscapedTableName + ' DISABLE KEYS;' + #13#10;
+
+        if (DestinationDatabase.Name <> DestinationSession.DatabaseName) then
+          SQL := SQL + DestinationDatabase.SQLUse();
+
+        repeat
+          if (not InsertStmtInSQL) then
+          begin
+            InsertStmtInSQL := True;
+
+            SQL := SQL + 'INSERT INTO ' + EscapedTableName + ' VALUES (';
+          end
+          else
+            SQL := SQL + ',(';
+          Values := '';
+          for I := 0 to SourceDataSet.FieldCount - 1 do
+          begin
+            if (I > 0) then Values := Values + ',';
+            Values := Values + SourceDataSet.SQLFieldValue(SourceDataSet.Fields[I]);
+          end;
+          SQL := SQL + Values + ')';
+
+          if (Length(SQL) - SQLExecuteLength >= SQLPacketSize) then
+          begin
+            if (InsertStmtInSQL) then
+            begin
+              SQL := SQL + ';' + #13#10;
+              InsertStmtInSQL := False;
+            end;
+
+            if (SQLExecuteLength > 0) then
+            begin
+              SQLExecuted.WaitFor(INFINITE);
+              Delete(SQL, 1, DestinationSession.ExecutedSQLLength);
+              SQLExecuteLength := 0;
+              if (DestinationSession.ErrorCode <> 0) then
+                DoError(DatabaseError(DestinationSession), Item, False, SQL);
+            end;
+
+            if (SQL <> '') then
+            begin
+              DestinationSession.SendSQL(SQL, SQLExecuted);
+              SQLExecuteLength := Length(SQL);
+            end;
+          end;
+
+          Inc(Item.RecordsDone);
+          if (Item.RecordsDone mod 100 = 0) then DoUpdateGUI();
+
+          if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
+          begin
+            if (SQL <> '') then
+              DestinationSession.Terminate();
+            Success := daAbort;
+          end;
+        until ((Success <> daSuccess) or not SourceDataSet.FindNext());
+
+        if ((Success = daSuccess) and (SQLExecuteLength > 0)) then
+        begin
+          SQLExecuted.WaitFor(INFINITE);
+          Delete(SQL, 1, DestinationSession.ExecutedSQLLength);
+          if (DestinationSession.ErrorCode <> 0) then
+            DoError(DatabaseError(DestinationSession), Item, False, SQL);
+        end;
+
+        if (InsertStmtInSQL) then
+          SQL := SQL + ';' + #13#10;
+        if ((DestinationSession.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
+          SQL := SQL + 'ALTER TABLE ' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
+        SQL := SQL + 'UNLOCK TABLES;' + #13#10;
+        if (DestinationSession.Lib.LibraryType <> ltHTTP) then
+          SQL := SQL + 'COMMIT;' + #13#10;
+
+        while ((Success <> daAbort) and not DoExecuteSQL(DestinationSession, SQL)) do
+          DoError(DatabaseError(DestinationSession), Item, True, SQL);
+      end;
+
+      if (Success <> daSuccess) then
+      begin
+        SQL := '';
+        if ((DestinationSession.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
+          SQL := SQL + 'ALTER TABLE ' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
+        SQL := SQL + 'UNLOCK TABLES;' + #13#10;
+        if (DestinationSession.Lib.LibraryType <> ltHTTP) then
+          SQL := SQL + 'ROLLBACK;' + #13#10;
+        DoExecuteSQL(DestinationSession, SQL);
+      end;
+
+      SQLExecuted.Free();
+    end;
+
+    if (Success <> daAbort) then
+      SourceDataSet.Free();
+  end;
+end;
+
+procedure TTTransfer.ExecuteTableStructure(const Item: TItem);
+var
+  DestinationDatabase: TSDatabase;
+  DestinationTable: TSBaseTable;
+  I: Integer;
+  J: Integer;
+  Modified: Boolean;
+  NewDestinationTable: TSBaseTable;
+  OldFieldBefore: TSTableField;
+  SourceDatabase: TSDatabase;
+  SourceTable: TSBaseTable;
+begin
+  SourceDatabase := Item.DBObject.Database;
+  SourceTable := TSBaseTable(Item.DBObject);
+  DestinationDatabase := DestinationSession.DatabaseByName(TItem(Item).DestinationDatabaseName);
+  DestinationTable := DestinationDatabase.BaseTableByName(SourceTable.Name);
+
+  if (Assigned(DestinationTable)) then
+    while ((Success <> daAbort) and not DestinationDatabase.DeleteObject(DestinationTable)) do
+      DoError(DatabaseError(DestinationSession), Item, True);
+
+  NewDestinationTable := TSBaseTable.Create(DestinationDatabase.Tables);
+  NewDestinationTable.Assign(SourceTable);
+  NewDestinationTable.Name := DestinationSession.ApplyIdentifierName(NewDestinationTable.Name);
+
+  for I := 0 to NewDestinationTable.Keys.Count - 1 do
+    NewDestinationTable.Keys[I].Name := DestinationSession.ApplyIdentifierName(NewDestinationTable.Keys[I].Name);
+  for I := 0 to NewDestinationTable.Fields.Count - 1 do
+    NewDestinationTable.Fields[I].Name := DestinationSession.ApplyIdentifierName(NewDestinationTable.Fields[I].Name);
+  for I := NewDestinationTable.ForeignKeys.Count - 1 downto 0 do
+    NewDestinationTable.ForeignKeys[I].Name := DestinationSession.ApplyIdentifierName(NewDestinationTable.ForeignKeys[I].Name);
+
+  NewDestinationTable.AutoIncrement := 0;
+
+  while ((Success <> daAbort) and not DestinationDatabase.AddTable(NewDestinationTable)) do
+    DoError(DatabaseError(DestinationSession), Item, True);
+
+  NewDestinationTable.Free();
+end;
+
 { TTSearch.TItem **************************************************************}
 
 constructor TTSearch.TItem.Create(const AItems: TTool.TItems);
@@ -8164,651 +8651,6 @@ begin
 
   Item.RecordsDone := Session.RowsAffected;
   Item.RecordsSum := Item.RecordsDone;
-end;
-
-{ TTTransfer.TItem ************************************************************}
-
-constructor TTTransfer.TItem.Create(const AItems: TTool.TItems; const ADBObject: TSDBObject);
-begin
-  inherited;
-
-  DestinationDatabaseName := '';
-end;
-
-{ TTTransfer ******************************************************************}
-
-procedure TTTransfer.Add(const ADBObject: TSDBObject; const DestinationDatabaseName: string);
-var
-  NewItem: TItem;
-begin
-  NewItem := TItem.Create(Items, ADBObject);
-
-  NewItem.DestinationDatabaseName := DestinationDatabaseName;
-
-  Items.Add(NewItem);
-end;
-
-procedure TTTransfer.AfterExecute();
-begin
-  SourceSession.EndSilent();
-  SourceSession.EndSynchron();
-
-  DestinationSession.EndSilent();
-  DestinationSession.EndSynchron();
-
-  inherited;
-end;
-
-procedure TTTransfer.BeforeExecute();
-begin
-  inherited;
-
-  SourceSession.BeginSilent();
-  SourceSession.BeginSynchron(); // We're still in a thread
-
-  DestinationSession.BeginSilent();
-  DestinationSession.BeginSynchron(); // We're still in a thread
-
-  Items.Sort(TToolItemCompareForSQL)
-end;
-
-procedure TTTransfer.CloneTable(const Item: TItem);
-var
-  DestinationDatabase: TSDatabase;
-begin
-  DestinationDatabase := DestinationSession.DatabaseByName(Item.DestinationDatabaseName);
-
-  while ((Success <> daAbort) and not DestinationDatabase.CloneTable(TSBaseTable(Item.DBObject), Item.DBObject.Name, Data)) do
-    DoError(DatabaseError(SourceSession), Item, True);
-
-  if (Success = daSuccess) then
-  begin
-    Item.Done := True;
-    if (Data) then
-    begin
-      Item.RecordsSum := TSBaseTable(Item.DBObject).CountRecords();
-      Item.RecordsDone := Item.RecordsSum;
-    end;
-  end;
-
-  DoUpdateGUI();
-end;
-
-constructor TTTransfer.Create(const ASourceSession, ADestinationSession: TSSession);
-begin
-  inherited Create();
-
-  FSourceSession := ASourceSession;
-  FDestinationSession := ADestinationSession;
-end;
-
-function TTTransfer.DoExecuteSQL(const Session: TSSession; var SQL: string): Boolean;
-begin
-  Result := (Success = daSuccess) and Session.ExecuteSQL(SQL);
-  Delete(SQL, 1, Session.ExecutedSQLLength);
-  SQL := SysUtils.Trim(SQL);
-end;
-
-procedure TTTransfer.DoUpdateGUI();
-var
-  I: Integer;
-begin
-  if (Assigned(OnUpdate)) then
-  begin
-    CriticalSection.Enter();
-
-    ProgressInfos.TablesDone := 0;
-    ProgressInfos.TablesSum := Items.Count;
-    ProgressInfos.RecordsDone := 0;
-    ProgressInfos.RecordsSum := 0;
-    ProgressInfos.TimeDone := 0;
-    ProgressInfos.TimeSum := 0;
-
-    for I := 0 to Items.Count - 1 do
-    begin
-      if (Items[I].Done) then
-        Inc(ProgressInfos.TablesDone);
-      Inc(ProgressInfos.RecordsDone, Items[I].RecordsDone);
-      Inc(ProgressInfos.RecordsSum, Items[I].RecordsSum);
-    end;
-
-    ProgressInfos.TimeDone := Now() - StartTime;
-
-    if ((ProgressInfos.RecordsDone = 0) and (ProgressInfos.TablesDone = 0)) then
-    begin
-      ProgressInfos.Progress := 0;
-      ProgressInfos.TimeSum := 0;
-    end
-    else if (ProgressInfos.RecordsDone = 0) then
-    begin
-      ProgressInfos.Progress := Round(ProgressInfos.TablesDone / ProgressInfos.TablesSum * 100);
-      ProgressInfos.TimeSum := ProgressInfos.TimeDone / ProgressInfos.TablesDone * ProgressInfos.TablesSum;
-    end
-    else if (ProgressInfos.RecordsDone < ProgressInfos.RecordsSum) then
-    begin
-      ProgressInfos.Progress := Round(ProgressInfos.RecordsDone / ProgressInfos.RecordsSum * 100);
-      ProgressInfos.TimeSum := ProgressInfos.TimeDone / ProgressInfos.RecordsDone * ProgressInfos.RecordsSum;
-    end
-    else
-    begin
-      ProgressInfos.Progress := 100;
-      ProgressInfos.TimeSum := ProgressInfos.TimeDone;
-    end;
-
-    CriticalSection.Leave();
-
-    OnUpdate(ProgressInfos);
-  end;
-end;
-
-procedure TTTransfer.Execute();
-var
-  DataSet: TMySQLQuery;
-  I: Integer;
-  J: Integer;
-  OLD_FOREIGN_KEY_CHECKS: string;
-  OLD_UNIQUE_CHECKS: string;
-  SourceTable: TSBaseTable;
-  SQL: string;
-begin
-  {$IFDEF EurekaLog}
-  try
-  {$ENDIF}
-
-  BeforeExecute();
-
-  if (Data and (DestinationSession.ServerVersion >= 40014)) then
-  begin
-    if (Assigned(DestinationSession.VariableByName('UNIQUE_CHECKS'))
-      and Assigned(DestinationSession.VariableByName('FOREIGN_KEY_CHECKS'))) then
-    begin
-      OLD_UNIQUE_CHECKS := DestinationSession.VariableByName('UNIQUE_CHECKS').Value;
-      OLD_FOREIGN_KEY_CHECKS := DestinationSession.VariableByName('FOREIGN_KEY_CHECKS').Value;
-    end
-    else
-    begin
-      DataSet := TMySQLQuery.Create(nil);
-      DataSet.Connection := DestinationSession;
-      DataSet.CommandText := 'SELECT @@UNIQUE_CHECKS, @@FOREIGN_KEY_CHECKS';
-
-      while ((Success <> daAbort) and not DataSet.Active) do
-      begin
-        DataSet.Open();
-        if (DestinationSession.ErrorCode > 0) then
-          DoError(DatabaseError(DestinationSession), nil, True, SQL);
-      end;
-
-      if (DataSet.Active) then
-      begin
-        OLD_UNIQUE_CHECKS := DataSet.Fields[0].AsString;
-        OLD_FOREIGN_KEY_CHECKS := DataSet.Fields[1].AsString;
-        DataSet.Close();
-      end;
-
-      DataSet.Free();
-    end;
-
-    SQL := 'SET UNIQUE_CHECKS=0, FOREIGN_KEY_CHECKS=0;';
-    while ((Success <> daAbort) and not DestinationSession.ExecuteSQL(SQL)) do
-      DoError(DatabaseError(DestinationSession), nil, True, SQL);
-  end;
-
-  if (SourceSession = DestinationSession) then
-  begin
-    for I := 0 to Items.Count - 1 do
-      if (Success <> daAbort) then
-      begin
-        Success := daSuccess;
-
-        CloneTable(TItem(Items[I]));
-      end;
-  end
-  else
-  begin
-    if (Success <> daAbort) then
-    begin
-      SQL := '';
-      if (Data) then
-        for I := 0 to Items.Count - 1 do
-        begin
-          SourceTable := TSBaseTable(TItem(Items[I]).DBObject);
-
-          SQL := SQL + 'SELECT * FROM ' + SourceSession.EscapeIdentifier(SourceTable.Database.Name) + '.' + SourceSession.EscapeIdentifier(SourceTable.Name);
-          if (Assigned(SourceTable.PrimaryKey)) then
-          begin
-            SQL := SQL + ' ORDER BY ';
-            for J := 0 to SourceTable.PrimaryKey.Columns.Count - 1 do
-            begin
-              if (J > 0) then SQL := SQL + ',';
-              SQL := SQL + SourceSession.EscapeIdentifier(SourceTable.PrimaryKey.Columns[J].Field.Name);
-            end;
-          end;
-          SQL := SQL + ';' + #13#10;
-        end;
-
-      for I := 0 to Items.Count - 1 do
-        if (Success <> daAbort) then
-        begin
-          Success := daSuccess;
-
-          if (Data) then
-            if (I = 0) then
-              while ((Success <> daAbort) and not SourceSession.FirstResult(DataHandle, SQL)) do
-                DoError(DatabaseError(SourceSession), Items[I], True, SQL)
-            else
-              if ((Success = daSuccess) and not SourceSession.NextResult(DataHandle)) then
-                DoError(DatabaseError(SourceSession), Items[I], False);
-
-          ExecuteTable(TItem(Items[I]));
-        end;
-
-      if (Data) then
-        SourceSession.CloseResult(DataHandle);
-    end;
-  end;
-
-  if (Data and (DestinationSession.ServerVersion >= 40014)) then
-  begin
-    SQL := 'SET UNIQUE_CHECKS=' + OLD_UNIQUE_CHECKS + ', FOREIGN_KEY_CHECKS=' + OLD_FOREIGN_KEY_CHECKS + ';' + #13#10;
-    while ((Success <> daRetry) and not DestinationSession.ExecuteSQL(SQL)) do
-      DoError(DatabaseError(DestinationSession), nil, True, SQL);
-  end;
-
-  AfterExecute();
-
-  {$IFDEF EurekaLog}
-  except
-    StandardEurekaNotify(GetLastExceptionObject(), GetLastExceptionAddress());
-  end;
-  {$ENDIF}
-end;
-
-procedure TTTransfer.ExecuteTable(const Item: TItem);
-var
-  I: Integer;
-  DestinationDatabase: TSDatabase;
-  DestinationTable: TSBaseTable;
-  NewTrigger: TSTrigger;
-  SourceDatabase: TSDatabase;
-  SourceTable: TSBaseTable;
-begin
-  DestinationDatabase := DestinationSession.DatabaseByName(Item.DestinationDatabaseName);
-
-  if ((Success = daSuccess) and Structure and not Assigned(DestinationDatabase)) then
-  begin
-    DestinationDatabase := TSDatabase.Create(DestinationSession, Item.DestinationDatabaseName);
-    while ((Success <> daAbort) and not DestinationSession.AddDatabase(DestinationDatabase)) do
-      DoError(DatabaseError(DestinationSession), Item, True);
-    DestinationDatabase.Free();
-
-    DestinationDatabase := DestinationSession.DatabaseByName(Item.DestinationDatabaseName);
-  end;
-
-  if (Success = daSuccess) then
-  begin
-    SourceTable := TSBaseTable(Item.DBObject);
-    DestinationTable := DestinationDatabase.BaseTableByName(SourceTable.Name);
-
-    if (Structure and Data and not Assigned(DestinationTable) and (SourceSession = DestinationSession)) then
-    begin
-      while ((Success <> daAbort) and not DestinationDatabase.CloneTable(SourceTable, SourceTable.Name, True)) do
-        DoError(DatabaseError(DestinationSession), Item, True);
-
-      if (Success = daSuccess) then
-      begin
-        DestinationTable := DestinationDatabase.BaseTableByName(SourceTable.Name);
-
-        Item.RecordsDone := DestinationTable.Rows;
-      end;
-    end
-    else
-    begin
-      if ((Success = daSuccess) and Structure) then
-      begin
-        ExecuteTableStructure(Item);
-        DestinationTable := DestinationDatabase.BaseTableByName(SourceTable.Name);
-
-        if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
-          Success := daAbort;
-      end;
-
-      if ((Success = daSuccess) and Data and Assigned(DestinationTable) and (DestinationTable.Source <> '')) then
-        ExecuteTableData(Item);
-    end;
-
-    if (Success = daSuccess) then
-      Item.RecordsSum := Item.RecordsDone;
-
-    SourceDatabase := Item.DBObject.Database;
-    SourceTable := TSBaseTable(Item.DBObject);
-    if (Assigned(SourceDatabase.Triggers) and Assigned(DestinationDatabase.Triggers)) then
-      for I := 0 to SourceDatabase.Triggers.Count - 1 do
-        if ((Success = daSuccess) and (SourceDatabase.Triggers[I].Table = SourceTable) and not Assigned(DestinationDatabase.TriggerByName(SourceDatabase.Triggers[I].Name))) then
-        begin
-          NewTrigger := TSTrigger.Create(DestinationDatabase.Tables);
-          NewTrigger.Assign(SourceDatabase.Triggers[I]);
-          while (Success <> daAbort) do
-          begin
-            DestinationDatabase.AddTrigger(NewTrigger);
-            if (DestinationSession.ErrorCode <> 0) then
-              DoError(DatabaseError(DestinationSession), Item, True);
-          end;
-          NewTrigger.Free();
-        end;
-
-    Item.Done := Success = daSuccess;
-
-    DoUpdateGUI();
-  end;
-end;
-
-procedure TTTransfer.ExecuteTableData(const Item: TItem);
-var
-  Buffer: TTool.TStringBuffer;
-  DataFileBuffer: TDataFileBuffer;
-  DestinationDatabase: TSDatabase;
-  DestinationField: TSTableField;
-  DestinationTable: TSBaseTable;
-  EscapedFieldName: array of string;
-  EscapedTableName: string;
-  FieldCount: Integer;
-  FieldInfo: TFieldInfo;
-  FilenameP: array [0 .. MAX_PATH] of Char;
-  I: Integer;
-  InsertStmtInSQL: Boolean;
-  J: Integer;
-  LibLengths: MYSQL_LENGTHS;
-  LibRow: MYSQL_ROW;
-  Pipe: THandle;
-  Pipename: string;
-  S: string;
-  SourceDataSet: TMySQLQuery;
-  SourceTable: TSBaseTable;
-  SourceValues: string;
-  SQL: string;
-  SQLExecuted: TEvent;
-  SQLExecuteLength: Integer;
-  WrittenSize: Cardinal;
-  Values: string;
-begin
-  SourceValues := ''; FilenameP[0] := #0;
-  SourceTable := TSBaseTable(Item.DBObject);
-  DestinationDatabase := DestinationSession.DatabaseByName(Item.DestinationDatabaseName);
-  DestinationTable := DestinationDatabase.BaseTableByName(SourceTable.Name);
-
-  FieldCount := 0;
-  for I := 0 to SourceTable.Fields.Count - 1 do
-    for J := 0 to DestinationTable.Fields.Count - 1 do
-      if (lstrcmpi(PChar(SourceTable.Fields[I].Name), PChar(DestinationTable.Fields[J].Name)) = 0) then
-        Inc(FieldCount);
-
-  if ((Success = daSuccess) and (FieldCount > 0)) then
-  begin
-    SourceDataSet := TMySQLQuery.Create(nil);
-    SourceDataSet.Open(DataHandle);
-    while ((Success <> daRetry) and not SourceDataSet.Active) do
-    begin
-      SourceDataSet.Open();
-      if (SourceSession.ErrorCode > 0) then
-        DoError(DatabaseError(SourceSession), Item, True, SQL);
-    end;
-
-    if ((Success = daSuccess) and not SourceDataSet.IsEmpty()) then
-    begin
-      SQLExecuted := TEvent.Create(nil, False, False, '');
-
-      if (DestinationSession.DataFileAllowed) then
-      begin
-        Pipename := '\\.\pipe\' + LoadStr(1000);
-        Pipe := CreateNamedPipe(PChar(Pipename),
-                                PIPE_ACCESS_OUTBOUND, PIPE_TYPE_MESSAGE or PIPE_READMODE_BYTE or PIPE_WAIT,
-                                1, 2 * NET_BUFFER_LENGTH, 0, 0, nil);
-        if (Pipe = INVALID_HANDLE_VALUE) then
-          DoError(SysError(), nil, False)
-        else
-        begin
-          SQL := '';
-          if (DestinationSession.Lib.LibraryType <> ltHTTP) then
-            if (DestinationSession.ServerVersion < 40011) then
-              SQL := SQL + 'BEGIN;' + #13#10
-            else
-              SQL := SQL + 'START TRANSACTION;' + #13#10;
-          if ((DestinationSession.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
-            SQL := SQL + 'ALTER TABLE ' + DestinationSession.EscapeIdentifier(DestinationTable.Name) + ' DISABLE KEYS;' + #13#10;
-          if (DestinationDatabase.Name <> DestinationSession.DatabaseName) then
-            SQL := SQL + DestinationDatabase.SQLUse();
-          SQL := SQL + SQLLoadDataInfile(DestinationDatabase, False, Pipename, DestinationSession.Charset, DestinationDatabase.Name, DestinationTable.Name, '');
-          if ((DestinationSession.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
-            SQL := SQL + 'ALTER TABLE ' + DestinationSession.EscapeIdentifier(DestinationTable.Name) + ' ENABLE KEYS;' + #13#10;
-          if (DestinationSession.Lib.LibraryType <> ltHTTP) then
-            SQL := SQL + 'COMMIT;' + #13#10;
-
-          DestinationSession.SendSQL(SQL, SQLExecuted);
-
-          if (ConnectNamedPipe(Pipe, nil)) then
-          begin
-            DataFileBuffer := TDataFileBuffer.Create(DestinationSession.CodePage);
-
-            repeat
-              LibLengths := SourceDataSet.LibLengths;
-              LibRow := SourceDataSet.LibRow;
-
-              for I := 0 to DestinationTable.Fields.Count - 1 do
-              begin
-                DestinationField := DestinationTable.Fields[I];
-                if (I > 0) then
-                  DataFileBuffer.Write(PAnsiChar(',_'), 1); // Two characters are needed to instruct the compiler to give a pointer - but the first character should be placed in the file only
-                if (not Assigned(LibRow^[I])) then
-                  DataFileBuffer.Write(PAnsiChar('NULL'), 4)
-                else if (BitField(SourceDataSet.Fields[I])) then
-                  begin S := UInt64ToStr(SourceDataSet.Fields[I].AsLargeInt); DataFileBuffer.WriteData(PChar(S), Length(S)); end
-                else if (DestinationTable.Fields[I].FieldType in BinaryFieldTypes) then
-                  DataFileBuffer.WriteBinary(LibRow^[I], LibLengths^[I])
-                else if (DestinationField.FieldType in TextFieldTypes) then
-                  DataFileBuffer.WriteText(LibRow^[I], LibLengths^[I], SourceSession.CodePage)
-                else
-                  DataFileBuffer.Write(LibRow^[I], LibLengths^[I], not (DestinationField.FieldType in NotQuotedFieldTypes));
-              end;
-              DataFileBuffer.Write(PAnsiChar(#10 + '_'), 1); // Two characters are needed to instruct the compiler to give a pointer - but the first character should be placed in the file only
-
-              if (DataFileBuffer.Size > NET_BUFFER_LENGTH) then
-                if (not WriteFile(Pipe, DataFileBuffer.Data^, DataFileBuffer.Size, WrittenSize, nil) or (Abs(WrittenSize) < DataFileBuffer.Size)) then
-                  DoError(SysError(), nil, False)
-                else
-                 DataFileBuffer.Clear();
-
-              Inc(Item.RecordsDone);
-              if (Item.RecordsDone mod 100 = 0) then
-                DoUpdateGUI();
-
-              if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
-                Success := daAbort;
-            until ((Success <> daSuccess) or not SourceDataSet.FindNext());
-
-            if (DataFileBuffer.Size > 0) then
-              if (not WriteFile(Pipe, DataFileBuffer.Data^, DataFileBuffer.Size, WrittenSize, nil) or (Abs(WrittenSize) < DataFileBuffer.Size)) then
-                DoError(SysError(), nil, False)
-              else
-                DataFileBuffer.Clear();
-
-            if (not FlushFileBuffers(Pipe) or not WriteFile(Pipe, DataFileBuffer.Data^, 0, WrittenSize, nil) or not FlushFileBuffers(Pipe)) then
-              DoError(SysError(), nil, False)
-            else
-            begin
-              DoUpdateGUI();
-              SQLExecuted.WaitFor(INFINITE);
-            end;
-
-            DisconnectNamedPipe(Pipe);
-
-            if (DestinationSession.ErrorCode <> 0) then
-              DoError(DatabaseError(DestinationSession), Item, False, SQL);
-
-            DataFileBuffer.Free();
-          end;
-
-          CloseHandle(Pipe);
-        end;
-      end
-      else
-      begin
-        SQL := ''; SQLExecuteLength := 0;
-
-        InsertStmtInSQL := False;
-
-        EscapedTableName := DestinationSession.EscapeIdentifier(DestinationTable.Name);
-        SetLength(EscapedFieldName, DestinationTable.Fields.Count);
-        for I := 0 to DestinationTable.Fields.Count - 1 do
-           EscapedFieldName[I] := DestinationSession.EscapeIdentifier(DestinationTable.Fields[I].Name);
-
-        if (DestinationSession.Lib.LibraryType <> ltHTTP) then
-          if (DestinationSession.ServerVersion < 40011) then
-            SQL := SQL + 'BEGIN;' + #13#10
-          else
-            SQL := SQL + 'START TRANSACTION;' + #13#10;
-        SQL := SQL + 'LOCK TABLES ' + EscapedTableName + ' WRITE;' + #13#10;
-        if ((DestinationSession.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
-          SQL := SQL + 'ALTER TABLE ' + EscapedTableName + ' DISABLE KEYS;' + #13#10;
-
-        if (DestinationDatabase.Name <> DestinationSession.DatabaseName) then
-          SQL := SQL + DestinationDatabase.SQLUse();
-
-        repeat
-          if (not InsertStmtInSQL) then
-          begin
-            InsertStmtInSQL := True;
-
-            SQL := SQL + 'INSERT INTO ' + EscapedTableName + ' VALUES (';
-          end
-          else
-            SQL := SQL + ',(';
-          Values := '';
-          for I := 0 to SourceDataSet.FieldCount - 1 do
-          begin
-            if (I > 0) then Values := Values + ',';
-            Values := Values + SourceDataSet.SQLFieldValue(SourceDataSet.Fields[I]);
-          end;
-          SQL := SQL + Values + ')';
-
-          if (Length(SQL) - SQLExecuteLength >= SQLPacketSize) then
-          begin
-            if (InsertStmtInSQL) then
-            begin
-              SQL := SQL + ';' + #13#10;
-              InsertStmtInSQL := False;
-            end;
-
-            if (SQLExecuteLength > 0) then
-            begin
-              SQLExecuted.WaitFor(INFINITE);
-              Delete(SQL, 1, DestinationSession.ExecutedSQLLength);
-              SQLExecuteLength := 0;
-              if (DestinationSession.ErrorCode <> 0) then
-                DoError(DatabaseError(DestinationSession), Item, False, SQL);
-            end;
-
-            if (SQL <> '') then
-            begin
-              DestinationSession.SendSQL(SQL, SQLExecuted);
-              SQLExecuteLength := Length(SQL);
-            end;
-          end;
-
-          Inc(Item.RecordsDone);
-          if (Item.RecordsDone mod 100 = 0) then DoUpdateGUI();
-
-          if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
-          begin
-            if (SQL <> '') then
-              DestinationSession.Terminate();
-            Success := daAbort;
-          end;
-        until ((Success <> daSuccess) or not SourceDataSet.FindNext());
-
-        if ((Success = daSuccess) and (SQLExecuteLength > 0)) then
-        begin
-          SQLExecuted.WaitFor(INFINITE);
-          Delete(SQL, 1, DestinationSession.ExecutedSQLLength);
-          if (DestinationSession.ErrorCode <> 0) then
-            DoError(DatabaseError(DestinationSession), Item, False, SQL);
-        end;
-
-        if (InsertStmtInSQL) then
-          SQL := SQL + ';' + #13#10;
-        if ((DestinationSession.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
-          SQL := SQL + 'ALTER TABLE ' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
-        SQL := SQL + 'UNLOCK TABLES;' + #13#10;
-        if (DestinationSession.Lib.LibraryType <> ltHTTP) then
-          SQL := SQL + 'COMMIT;' + #13#10;
-
-        while ((Success <> daAbort) and not DoExecuteSQL(DestinationSession, SQL)) do
-          DoError(DatabaseError(DestinationSession), Item, True, SQL);
-      end;
-
-      if (Success <> daSuccess) then
-      begin
-        SQL := '';
-        if ((DestinationSession.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
-          SQL := SQL + 'ALTER TABLE ' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
-        SQL := SQL + 'UNLOCK TABLES;' + #13#10;
-        if (DestinationSession.Lib.LibraryType <> ltHTTP) then
-          SQL := SQL + 'ROLLBACK;' + #13#10;
-        DoExecuteSQL(DestinationSession, SQL);
-      end;
-
-      SQLExecuted.Free();
-    end;
-
-    if (Success <> daAbort) then
-      SourceDataSet.Free();
-  end;
-end;
-
-procedure TTTransfer.ExecuteTableStructure(const Item: TItem);
-var
-  DestinationDatabase: TSDatabase;
-  DestinationTable: TSBaseTable;
-  I: Integer;
-  J: Integer;
-  Modified: Boolean;
-  NewDestinationTable: TSBaseTable;
-  OldFieldBefore: TSTableField;
-  SourceDatabase: TSDatabase;
-  SourceTable: TSBaseTable;
-begin
-  SourceDatabase := Item.DBObject.Database;
-  SourceTable := TSBaseTable(Item.DBObject);
-  DestinationDatabase := DestinationSession.DatabaseByName(Item.DestinationDatabaseName);
-  DestinationTable := DestinationDatabase.BaseTableByName(SourceTable.Name);
-
-  if (Assigned(DestinationTable)) then
-  begin
-    while ((Success <> daAbort) and not DestinationDatabase.DeleteObject(DestinationTable)) do
-      DoError(DatabaseError(DestinationSession), Item, True);
-    DestinationTable := nil;
-  end;
-
-  NewDestinationTable := TSBaseTable.Create(DestinationDatabase.Tables);
-
-  if (not Assigned(DestinationTable)) then
-  begin
-    NewDestinationTable.Assign(SourceTable);
-    NewDestinationTable.Name := DestinationSession.ApplyIdentifierName(NewDestinationTable.Name);
-
-    for I := 0 to NewDestinationTable.Keys.Count - 1 do
-      NewDestinationTable.Keys[I].Name := DestinationSession.ApplyIdentifierName(NewDestinationTable.Keys[I].Name);
-    for I := 0 to NewDestinationTable.Fields.Count - 1 do
-      NewDestinationTable.Fields[I].Name := DestinationSession.ApplyIdentifierName(NewDestinationTable.Fields[I].Name);
-    for I := NewDestinationTable.ForeignKeys.Count - 1 downto 0 do
-      NewDestinationTable.ForeignKeys[I].Name := DestinationSession.ApplyIdentifierName(NewDestinationTable.ForeignKeys[I].Name);
-
-    NewDestinationTable.AutoIncrement := 0;
-
-    while ((Success <> daAbort) and not DestinationDatabase.AddTable(NewDestinationTable)) do
-      DoError(DatabaseError(DestinationSession), Item, True);
-  end;
-
-  NewDestinationTable.Free();
 end;
 
 {******************************************************************************}

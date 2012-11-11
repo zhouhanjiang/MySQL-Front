@@ -4295,9 +4295,9 @@ begin
       + '(Error #' + IntToStr(GetLastError()) + ': ' + SysErrorMessage(GetLastError()) + ')';
     MessageBox(0, PChar(Msg), 'ERROR', MB_OK + MB_ICONERROR);
   end;
-  if (FileExists(DataPath + 'Sessions.xml') and not FileExists(Filename)) then
-  begin
-    if (CopyFile(PChar(DataPath + 'Sessions.xml'), PChar(Filename), False)) then
+  if (not FileExists(Filename)
+    and FileExists(DataPath + 'Sessions.xml')
+    and CopyFile(PChar(DataPath + 'Sessions.xml'), PChar(Filename), False)) then
     begin
       StringList := TStringList.Create();
       StringList.LoadFromFile(Filename);
@@ -4306,7 +4306,6 @@ begin
       StringList.SaveToFile(Filename);
       StringList.Free();
     end;
-  end;
 
   LoadFromXML();
 
@@ -4392,11 +4391,6 @@ begin
     if (not Assigned(FXMLDocument) or not Assigned(FXMLDocument.DocumentElement)) then
     begin
       FXMLDocument := NewXMLDocument();
-
-      // Debug
-      if (not Assigned(FXMLDocument)) then
-        ERangeError.CreateFmt(SPropertyOutOfRange, ['FXMLDocument']);
-
       FXMLDocument.Encoding := 'utf-8';
       FXMLDocument.Node.AddChild('accounts').Attributes['version'] := '1.1.0';
     end;

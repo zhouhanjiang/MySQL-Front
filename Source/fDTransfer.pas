@@ -542,7 +542,7 @@ begin
         ErrorMsg := Msg;
       end;
     TE_NoPrimaryIndex:
-      if ((Sender is TTTransfer) and (Error.Session = TTTransfer(Sender).SourceSession)) then
+      if ((Sender is TTTransfer) and (Error.Session = TTTransfer(Sender).Session)) then
         Msg := Preferences.LoadStr(722, TTTransfer.TItem(Item).DBObject.Name)
       else if ((Sender is TTTransfer) and (Error.Session = TTTransfer(Sender).DestinationSession)) then
         Msg := Preferences.LoadStr(722, TTTransfer.TItem(Item).DBObject.Name)

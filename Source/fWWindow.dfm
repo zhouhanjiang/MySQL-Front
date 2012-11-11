@@ -1821,25 +1821,6 @@ object WWindow: TWWindow
         Action = aETransfer
       end
     end
-    object miJobs: TMenuItem
-      Caption = 'miJobs'
-      GroupIndex = 3
-      object miJAdd: TMenuItem
-        Caption = 'miJAdd'
-        object miJNewExport: TMenuItem
-          Action = aJAddExport
-        end
-      end
-      object miJDelete: TMenuItem
-        Action = aJDelete
-      end
-      object miJEdit: TMenuItem
-        Action = aJEdit
-      end
-      object N3: TMenuItem
-        Caption = '-'
-      end
-    end
     object miOptions: TMenuItem
       Caption = 'miOptions'
       GroupIndex = 3
@@ -1848,6 +1829,28 @@ object WWindow: TWWindow
       end
       object miOAccounts: TMenuItem
         Action = aOAccounts
+      end
+      object N4: TMenuItem
+        Caption = '-'
+      end
+      object miJobs: TMenuItem
+        Caption = 'miJobs'
+        GroupIndex = 3
+        object miJAdd: TMenuItem
+          Caption = 'miJAdd'
+          object miJNewExport: TMenuItem
+            Action = aJAddExport
+          end
+        end
+        object miJDelete: TMenuItem
+          Action = aJDelete
+        end
+        object miJEdit: TMenuItem
+          Action = aJEdit
+        end
+        object N3: TMenuItem
+          Caption = '-'
+        end
       end
     end
     object miHelp: TMenuItem

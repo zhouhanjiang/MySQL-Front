@@ -391,7 +391,7 @@ begin
 
     NewEvent.Free();
 
-    PageControl.Visible := not CanClose;
+    PageControl.Visible := CanClose;
     PSQLWait.Visible := not PageControl.Visible;
     if (not CanClose) then
       ModalResult := mrNone;

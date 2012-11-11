@@ -714,7 +714,7 @@ begin
 
         CanClose := Database.UpdateTable(Table, NewTable);
 
-        GBasics.Visible := not CanClose;
+        GBasics.Visible := CanClose;
         GAttributes.Visible := GBasics.Visible;
         PSQLWait.Visible := not GBasics.Visible;
         if (not CanClose) then

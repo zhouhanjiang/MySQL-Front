@@ -124,7 +124,7 @@ begin
 
     NewVariable.Free();
 
-    GroupBox.Visible := not CanClose;
+    GroupBox.Visible := CanClose;
     PSQLWait.Visible := not GroupBox.Visible;
     if (not CanClose) then
       ModalResult := mrNone;

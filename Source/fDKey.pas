@@ -352,7 +352,7 @@ begin
 
       NewTable.Free();
 
-      GBasics.Visible := not CanClose;
+      GBasics.Visible := CanClose;
       GAttributes.Visible := GBasics.Visible;
       PSQLWait.Visible := not GBasics.Visible;
       if (not CanClose) then
