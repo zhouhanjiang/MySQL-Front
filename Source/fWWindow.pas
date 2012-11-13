@@ -1889,18 +1889,7 @@ end;
 procedure TWWindow.InformUpdateAvailable();
 begin
   if (MsgBox(Preferences.LoadStr(506) + #10#10 + Preferences.LoadStr(845), Preferences.LoadStr(43), MB_ICONQUESTION + MB_YESNOCANCEL) = ID_YES) then
-  begin
-    aFCloseAllExecute(Self);
-    if (not Assigned(ActiveTab)) then
-    begin
-      DInstallUpdate.Silent := True;
-      if (DInstallUpdate.Execute()) then
-      begin
-        ShellExecute(0, 'open', PChar(ParamStr(0)), '', '', SW_SHOW);
-        Close();
-      end;
-    end;
-  end;
+    aHUpdate.Execute();
 end;
 
 procedure TWWindow.miFReopenClick(Sender: TObject);

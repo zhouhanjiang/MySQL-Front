@@ -2607,7 +2607,7 @@ begin
     Index := LibraryThread.SQLStmtIndex + StartingCommentLength + Len - 1;
     if ((1 <= Index) and (LibraryThread.SQL[Index] = ';')) then
       Dec(Len);
-    Result := copy(LibraryThread.SQL, LibraryThread.SQLStmtIndex + StartingCommentLength, Len);
+    Result := Copy(LibraryThread.SQL, LibraryThread.SQLStmtIndex + StartingCommentLength, Len);
   end
 end;
 
