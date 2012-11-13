@@ -6056,7 +6056,7 @@ begin
   end
   else
   begin
-    Result := 'xSELECT * FROM ' + Database.Session.EscapeIdentifier(information_schema) + '.' + Database.Session.EscapeIdentifier('ROUTINES');
+    Result := 'SELECT * FROM ' + Database.Session.EscapeIdentifier(information_schema) + '.' + Database.Session.EscapeIdentifier('ROUTINES');
     Result := Result + ' WHERE ' + Database.Session.EscapeIdentifier('ROUTINE_SCHEMA') + '=' + SQLEscape(Database.Name);
     Result := Result + ';' + #13#10;
   end;
