@@ -2163,9 +2163,12 @@ label
   Start,
   StmtL, StmtLE,
   Body, BodyL, BodyCase, BodyIf, BodyLoop, BodyRepeat, BodyWhile, BodyEnd,
+  BodyChar, BodyCharTL, BodyCharE,
   BodyEndCase, BodyEndIf, BodyEndLoop, BodyEndRepeat, BodyEndWhile, BodyEndCompound, BodyLE,
   Complete, Complete2, Complete3, Complete4,
   Finish;
+const
+  Terminators: PChar = #9#10#13#32'"''(),.:;=`'; // Characters terminating the identifier
 var
   CaseDeep: Integer;
   CompoundDeep: Integer;
@@ -2267,6 +2270,11 @@ begin
         MOV EAX,[KIf]
         CALL CompareKeyword              // 'IF'?
         JNE BodyLoop                     // No!
+        CALL Trim                        // Empty characters?
+        CMP ECX,0                        // All characters handled?
+        JZ Finish                        // Yes!
+        CMP WORD PTR [ESI],'('
+        JE BodyLE
         INC IfDeep
         JMP BodyLE
       BodyLoop:
@@ -2290,9 +2298,74 @@ begin
       BodyEnd:
         MOV EAX,[KEnd]
         CALL CompareKeyword              // 'END'?
-        JE BodyEndCase                   // Yes!
+        JNE BodyChar                     // No!
+        CALL Trim                        // Empty characters?
+        CMP ECX,0                        // All characters handled?
+        JZ Finish                        // Yes!
+      BodyEndCase:
+        MOV EAX,[KCase]
+        CALL CompareKeyword              // 'END CASE'?
+        JNE BodyEndIf                    // No!
+        CMP CaseDeep,0
+        JE BodyLE
+        DEC CaseDeep
+        JMP BodyLE
+      BodyEndIf:
+        MOV EAX,[KIf]
+        CALL CompareKeyword              // 'END IF'?
+        JNE BodyEndLoop                  // No!
+        CMP IfDeep,0
+        JE BodyLE
+        DEC IfDeep
+        JMP BodyLE
+      BodyEndLoop:
+        MOV EAX,[KLoop]
+        CALL CompareKeyword              // 'END LOOP'?
+        JNE BodyEndRepeat                // No!
+        CMP LoopDeep,0
+        JE BodyLE
+        DEC LoopDeep
+        JMP BodyLE
+      BodyEndRepeat:
+        MOV EAX,[KRepeat]
+        CALL CompareKeyword              // 'END REPEAT'?
+        JNE BodyEndWhile                 // No!
+        CMP RepeatDeep,0
+        JE BodyLE
+        DEC RepeatDeep
+        JMP BodyLE
+      BodyEndWhile:
+        MOV EAX,[KWhile]
+        CALL CompareKeyword              // 'END WHILE'?
+        JNE BodyEndCompound              // No!
+        CMP WhileDeep,0
+        JE BodyLE
+        DEC WhileDeep
+        JMP BodyLE
+      BodyEndCompound:                   // 'END'
+        CMP CompoundDeep,0
+        JE BodyLE
+        DEC CompoundDeep
+        JMP BodyLE
+
+      BodyChar:
+        CMP ECX,0                        // All characters handled?
+        JZ Finish                        // Yes!
+        CALL Trim                        // Empty characters?
+        JE BodyLE                        // Yes!
+        CALL MoveString                  // Quoted string?
+        JE BodyLE                        // Yes!
         LODSW                            // Character -> AX
         DEC ECX                          // One character handled
+        MOV EBX,[Terminators]            // Terminating characters
+      BodyCharTL:
+        CMP WORD PTR [EBX],0             // All terminators checked?
+        JE BodyChar                      // Yes!
+        CMP AX,[EBX]                     // Charcter in SQL = Terminator?
+        JE BodyCharE                    // Yes!
+        ADD EBX,2                        // Next terminator
+        JMP BodyCharTL
+      BodyCharE:
         CMP AX,';'                       // SQL Delimiter?
         JNE BodyLE                       // No!
         CMP CaseDeep,0                   // Still inside CASE?
@@ -2308,46 +2381,6 @@ begin
         CMP WhileDeep,0                  // Still inside WHILE?
         JNE BodyLE                       // Yes!
         JMP Complete
-
-      BodyEndCase:
-        MOV EAX,[KCase]
-        CALL CompareKeyword              // 'END CASE'?
-        JNE BodyEndIf                    // No!
-        CMP CaseDeep,0
-        JE BodyLE
-        DEC CaseDeep
-      BodyEndIf:
-        MOV EAX,[KIf]
-        CALL CompareKeyword              // 'END IF'?
-        JNE BodyEndLoop                  // No!
-        CMP IfDeep,0
-        JE BodyLE
-        DEC IfDeep
-      BodyEndLoop:
-        MOV EAX,[KLoop]
-        CALL CompareKeyword              // 'END LOOP'?
-        JNE BodyEndRepeat                // No!
-        CMP LoopDeep,0
-        JE BodyLE
-        DEC LoopDeep
-      BodyEndRepeat:
-        MOV EAX,[KRepeat]
-        CALL CompareKeyword              // 'END REPEAT'?
-        JNE BodyEndWhile                 // No!
-        CMP RepeatDeep,0
-        JE BodyLE
-        DEC RepeatDeep
-      BodyEndWhile:
-        MOV EAX,[KWhile]
-        CALL CompareKeyword              // 'END WHILE'?
-        JNE BodyEndCompound              // No!
-        CMP WhileDeep,0
-        JE BodyLE
-        DEC WhileDeep
-      BodyEndCompound:                   // 'END'
-        CMP CompoundDeep,0
-        JE BodyLE
-        DEC CompoundDeep
 
       BodyLE:
         CMP ECX,0                        // All characters handled?

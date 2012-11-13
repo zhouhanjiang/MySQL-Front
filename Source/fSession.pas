@@ -5727,7 +5727,8 @@ begin
     if (Assigned(FFunctionResult)) then
       FreeAndNil(FFunctionResult);
 
-    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+    if (not SQLParseKeyword(Parse, 'CREATE')) then
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
     if (SQLParseKeyword(Parse, 'DEFINER')) then
     begin
@@ -5807,7 +5808,11 @@ procedure TSRoutine.SetSource(const ASource: string);
 begin
   inherited;
 
+  try
   ParseCreateRoutine(FSource);
+  except
+  ParseCreateRoutine(FSource);
+  end;
 end;
 
 function TSRoutine.SQLGetSource(): string;
@@ -7191,8 +7196,8 @@ begin
   Result := SQLParser.Parse() = 0;
 
   {$IFDEF Debug}
-  if (not Result) then
-    raise Exception.Create(SQLParser.ErrorMessages);
+//  if (not Result) then
+//    raise Exception.Create(SQLParser.ErrorMessages);
   {$ENDIF}
 
   for I := SQLParser.SourceTokenList.Count - 2 downto 1 do
