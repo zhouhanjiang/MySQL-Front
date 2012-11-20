@@ -825,9 +825,12 @@ type
     TTiming = (ttBefore, ttAfter);
   private
     FInputDataSet: TMySQLDataSet;
+    FSourceParsed: Boolean;
     function GetInputDataSet(): TMySQLDataSet;
+    function GetStmt(): string;
     function GetTable(): TSBaseTable; inline;
     function GetTriggers(): TSTriggers; inline;
+    procedure ParseCreateTrigger(const SQL: string);
   protected
     FCreated: TDateTime;
     FDefiner: string;
@@ -838,6 +841,7 @@ type
     FValid: Boolean;
     procedure SetSource(const ADataSet: TMySQLQuery); overload; override;
     function SQLGetSource(): string; override;
+    property SourceParsed: Boolean read FSourceParsed;
     property Valid: Boolean read FValid;
   public
     procedure Assign(const Source: TSTrigger); reintroduce; virtual;
@@ -854,7 +858,7 @@ type
     property Event: TEvent read FEvent write FEvent;
     property InputDataSet: TMySQLDataSet read GetInputDataSet;
     property Source: string read GetSource;
-    property Stmt: string read FStmt write FStmt;
+    property Stmt: string read GetStmt write FStmt;
     property Table: TSBaseTable read GetTable;
     property TableName: string read FTableName write FTableName;
     property Timing: TTiming read FTiming write FTiming;
@@ -6078,6 +6082,7 @@ begin
   FEvent := Source.Event;
   FDatabase := Source.Database;
   FDefiner := Source.Definer;
+  FSourceParsed := Source.SourceParsed;
   FStmt := Source.Stmt;
   FTableName := Source.FTableName;
   FTiming := Source.Timing;
@@ -6090,6 +6095,7 @@ begin
   FEvent := teInsert;
   FCreated := 0;
   FDefiner := '';
+  FSourceParsed := False;
   FStmt := '';
   FTiming := ttAfter;
   FValid := False;
@@ -6158,6 +6164,14 @@ begin
   Result := SQL;
 end;
 
+function TSTrigger.GetStmt(): string;
+begin
+  if (not SourceParsed and (Source <> '')) then
+    ParseCreateTrigger(Source);
+
+  Result := FStmt;
+end;
+
 function TSTrigger.GetTable(): TSBaseTable;
 begin
   Result := Database.BaseTableByName(FTableName);
@@ -6172,7 +6186,63 @@ end;
 
 procedure TSTrigger.Invalidate();
 begin
+  inherited;
+
   FValid := False;
+  FSourceParsed := False;
+end;
+
+procedure TSTrigger.ParseCreateTrigger(const SQL: string);
+var
+  DatabaseName: string;
+  Parse: TSQLParse;
+begin
+  if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Database.Session.ServerVersion)) then
+  begin
+    if (not SQLParseKeyword(Parse, 'CREATE')) then
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+
+    if (SQLParseKeyword(Parse, 'DEFINER') and SQLParseChar(Parse, '=')) then
+      FDefiner := SQLParseValue(Parse);
+
+    if (not SQLParseKeyword(Parse, 'TRIGGER')) then
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+
+    DatabaseName := Database.Name;
+    if (not SQLParseObjectName(Parse, DatabaseName, FName)) then
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL])
+    else if (Session.Databases.NameCmp(DatabaseName, Database.Name) <> 0) then
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+
+    if (SQLParseKeyword(Parse, 'BEFORE')) then
+      FTiming := ttBefore
+    else if (SQLParseKeyword(Parse, 'AFTER')) then
+      FTiming := ttAfter
+    else
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+
+    if (SQLParseKeyword(Parse, 'INSERT')) then
+      FEvent := teInsert
+    else if (SQLParseKeyword(Parse, 'UPDATE')) then
+      FEvent := teUpdate
+    else if (SQLParseKeyword(Parse, 'DELETE')) then
+      FEvent := teDelete
+    else
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+
+    if (not SQLParseKeyword(Parse, 'ON')) then
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+
+    if (not SQLParseObjectName(Parse, DatabaseName, FTableName)) then
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+
+    if (not SQLParseKeyword(Parse, 'FOR EACH ROW')) then
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+
+    FStmt := SQLParseRest(Parse);
+
+    FSourceParsed := True;
+  end;
 end;
 
 procedure TSTrigger.SetSource(const ADataSet: TMySQLQuery);

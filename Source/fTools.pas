@@ -4828,7 +4828,7 @@ begin
     else if (Fields[I].DataType in BinaryDataTypes) then
       Content := Content + CSVEscape(DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], Quoter, QuoteStringValues)
     else
-      Content := Content + CSVEscape(DataSet.GetAsString(Fields[I].FieldNo), Quoter, ((Fields[I].DataType in NotQuotedDataTypes)) and QuoteValues or not (Fields[I].DataType in NotQuotedDataTypes) and QuoteStringValues);
+      Content := Content + CSVEscape(DataSet.GetAsString(Fields[I]), Quoter, ((Fields[I].DataType in NotQuotedDataTypes)) and QuoteValues or not (Fields[I].DataType in NotQuotedDataTypes) and QuoteStringValues);
   end;
   WriteContent(Content + #13#10);
 end;
@@ -5448,9 +5448,9 @@ begin
       else if (Fields[I].DataType = ftBlob) then
         Value := '&lt;BLOB&gt;'
       else if (Fields[I].DataType in TextDataTypes) then
-        Value := HTMLEscape(DataSet.GetAsString(Fields[I].FieldNo))
+        Value := HTMLEscape(DataSet.GetAsString(Fields[I]))
       else
-        Value := DataSet.GetAsString(Fields[I].FieldNo);
+        Value := DataSet.GetAsString(Fields[I]);
 
       if (FieldOfPrimaryIndex[I]) then
         Content := Content + '<th class="' + CSS[I] + '">' + Value + '</th>'
@@ -5698,9 +5698,9 @@ begin
     else
     begin
       if (Fields[I].DataType in TextDataTypes + BinaryDataTypes) then
-        Content := Content + '>' + Escape(DataSet.GetAsString(Fields[I].FieldNo))
+        Content := Content + '>' + Escape(DataSet.GetAsString(Fields[I]))
       else
-        Content := Content + '>' + DataSet.GetAsString(Fields[I].FieldNo);
+        Content := Content + '>' + DataSet.GetAsString(Fields[I]);
 
       if (FieldNodeAttribute = '') then
         if (Length(DestinationFields) > 0) then
@@ -6134,7 +6134,7 @@ begin
             ftWideString,
             ftWideMemo:
               begin
-                S := DataSet.GetAsString(Fields[I].FieldNo);
+                S := DataSet.GetAsString(Fields[I]);
                 Size := Length(S) * SizeOf(Char);
                 Index := 0;
                 repeat
@@ -6490,7 +6490,7 @@ begin
             sqlite3_bind_text(Stmt, 1 + I, DataSet.LibRow^[I], DataSet.LibLengths^[I], SQLITE_STATIC)
           else
           begin
-            Text[I] := UTF8Encode(DataSet.GetAsString(Fields[I].FieldNo));
+            Text[I] := UTF8Encode(DataSet.GetAsString(Fields[I]));
             sqlite3_bind_text(Stmt, 1 + I, PAnsiChar(@Text[I][1]), Length(Text[I]), SQLITE_STATIC);
           end;
         ftBlob:
@@ -7087,7 +7087,7 @@ procedure TTExportCanvas.ExecuteTableRecord(const Table: TSTable; const Fields: 
     else if (Field.IsNull and NULLText) then
       Result := '<NULL>'
     else
-      Result := DataSet.GetAsString(Field.FieldNo);
+      Result := DataSet.GetAsString(Field);
   end;
 
 var
@@ -8365,7 +8365,7 @@ begin
           for I := 0 to Length(Fields) - 1 do
             if (Assigned(DataSet.LibRow^[Fields[I].FieldNo - 1])) then
             begin
-              Value := DataSet.GetAsString(Fields[I].FieldNo);
+              Value := DataSet.GetAsString(Fields[I]);
 
               if (not (Self is TTReplace)) then
                 if (not RegExpr) then
@@ -8430,11 +8430,11 @@ begin
                   else if (BitField(Fields[I])) then
                     SQL := SQL + 'b''' + Fields[I].AsString + ''''
                   else if (Fields[I].DataType in NotQuotedDataTypes + [ftTimestamp]) then
-                    SQL := SQL + DataSet.GetAsString(Fields[I].FieldNo)
+                    SQL := SQL + DataSet.GetAsString(Fields[I])
                   else if (Fields[I].DataType in [ftDate, ftDateTime, ftTime]) then
-                    SQL := SQL + '''' + DataSet.GetAsString(Fields[I].FieldNo) + ''''
+                    SQL := SQL + '''' + DataSet.GetAsString(Fields[I]) + ''''
                   else
-                    SQL := SQL + SQLEscape(DataSet.GetAsString(Fields[I].FieldNo));
+                    SQL := SQL + SQLEscape(DataSet.GetAsString(Fields[I]));
                   Found := True;
                 end;
               SQL := SQL + ';' + #13#10;

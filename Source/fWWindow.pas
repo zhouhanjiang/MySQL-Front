@@ -1751,6 +1751,8 @@ begin
   aFExportAccess.Visible := (odAccess in ODBCDrivers) or (odAccess2007 in ODBCDrivers);
   aFExportExcel.Visible := (odExcel in ODBCDrivers) or (odExcel2007 in ODBCDrivers);
   aFExportODBC.Visible := ODBCEnv <> SQL_NULL_HANDLE;
+  aVJobs.Visible := CheckWin32Version(6);
+  miJobs.Visible := CheckWin32Version(6);
   aHIndex.Enabled := FileExists(Application.HelpFile);
   aHUpdate.Enabled := IsConnectedToInternet() and (Preferences.SetupProgram = '');
 

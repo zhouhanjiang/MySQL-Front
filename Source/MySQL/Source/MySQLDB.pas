@@ -168,7 +168,6 @@ type
       FConnection: TMySQLConnection;
       RunExecute: TEvent;
       SynchronizeStarted: TEvent;
-      ThreadState: Integer;
       Time: TDateTime;
       function GetIsRunning(): Boolean;
     protected
@@ -466,7 +465,7 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy(); override;
     function CreateBlobStream(Field: TField; Mode: TBlobStreamMode): TStream; override;
-    function GetAsString(const FieldNo: Integer): string; virtual;
+    function GetAsString(const Field: TField): string; virtual;
     function GetFieldData(Field: TField; Buffer: Pointer): Boolean; override;
     procedure Open(const DataHandle: TMySQLConnection.TDataResult); overload; virtual;
     function SQLFieldValue(const Field: TField; Data: PRecordBufferData = nil): string; overload; virtual;
@@ -1842,11 +1841,7 @@ constructor TMySQLConnection.TLibraryThread.Create(const AConnection: TMySQLConn
 begin
   Assert(Assigned(AConnection));
 
-  ThreadState := 1;
-
   inherited Create(False);
-
-  ThreadState := 2;
 
   FConnection := AConnection;
 
@@ -1858,25 +1853,17 @@ begin
   State := ssClose;
 
   FreeOnTerminate := True;
-
-  ThreadState := 3;
 end;
 
 destructor TMySQLConnection.TLibraryThread.Destroy();
 begin
-  ThreadState := 13;
-
   RunExecute.Free(); RunExecute := nil;
   SynchronizeStarted.Free();
   SQLCLStmts.Free();
   SQLStmtLengths.Free();
   SQLStmtsInPackets.Free();
 
-  ThreadState := 14;
-
   inherited;
-
-  ThreadState := 15;
 end;
 
 procedure TMySQLConnection.TLibraryThread.Execute();
@@ -1889,19 +1876,13 @@ begin
   try
   {$ENDIF}
 
-  ThreadState := 4;
-
   while (not Terminated) do
   begin
-    ThreadState := 5;
-
     if ((Connection.ServerTimeout = 0) or (Connection.LibraryType = ltHTTP)) then
       Timeout := INFINITE
     else
       Timeout := Connection.ServerTimeout * 1000;
     WaitResult := RunExecute.WaitFor(Timeout);
-
-    ThreadState := 6;
 
     if (not Terminated) then
       if (WaitResult = wrTimeout) then
@@ -1911,8 +1892,6 @@ begin
       end
       else
       begin
-        ThreadState := 7;
-
         case (State) of
           ssConnecting:
             Connection.SyncConnecting(Self);
@@ -1928,8 +1907,6 @@ begin
             Connection.SyncDisconnecting(Self);
         end;
 
-        ThreadState := 8;
-
         Connection.TerminateCS.Enter();
         RunExecute.ResetEvent();
         if (Terminated or (Mode in [smDataHandle]) and (State = ssReceivingResult)) then
@@ -1942,26 +1919,19 @@ begin
         end;
         Connection.TerminateCS.Leave();
 
-        ThreadState := 9;
-
         if (WaitForSynchronizeStarted) then
           SynchronizeStarted.WaitFor(INFINITE);
-
-        ThreadState := 10;
       end;
   end;
 
-  ThreadState := 11;
-
-  Connection.TerminatedThreads.Delete(Self);
+  if (Assigned(Connection.TerminatedThreads)) then
+    Connection.TerminatedThreads.Delete(Self);
 
   {$IFDEF EurekaLog}
   except
     StandardEurekaNotify(GetLastExceptionObject(), GetLastExceptionAddress());
   end;
   {$ENDIF}
-
-  ThreadState := 12;
 end;
 
 function TMySQLConnection.TLibraryThread.GetIsRunning(): Boolean;
@@ -1971,12 +1941,7 @@ begin
   if (not Assigned(RunExecute)) then // Debug 01.11.2012
     raise ERangeError.CreateFmt(SPropertyOutOfRange, ['RunExecute']);
 
-  try
-    Result := not Terminated and ((RunExecute.WaitFor(IGNORE) = wrSignaled) or not (State in [ssClose, ssReady]));
-  except
-    on E: Exception do
-      raise Exception.Create(E.Message + ' (ThreadState: ' + IntToStr(ThreadState) + ')');
-  end;
+  Result := not Terminated and ((RunExecute.WaitFor(IGNORE) = wrSignaled) or not (State in [ssClose, ssReady]));
 end;
 
 procedure TMySQLConnection.TLibraryThread.ReleaseDataSet();
@@ -2591,24 +2556,11 @@ begin
 end;
 
 function TMySQLConnection.GetCommandText(): string;
-var
-  EndingCommentLength: Integer;
-  Index: Integer;
-  Len: Integer;
-  StartingCommentLength: Integer;
-  StmtLength: Integer;
 begin
   if ((LibraryThread.SQL = '') or (LibraryThread.SQLStmt > LibraryThread.SQLLastStmtInPacket)) then
     Result := ''
   else
-  begin
-    StmtLength := Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]);
-    Len := SQLTrimStmt(LibraryThread.SQL, LibraryThread.SQLStmtIndex, StmtLength, StartingCommentLength, EndingCommentLength);
-    Index := LibraryThread.SQLStmtIndex + StartingCommentLength + Len - 1;
-    if ((1 <= Index) and (LibraryThread.SQL[Index] = ';')) then
-      Dec(Len);
-    Result := Copy(LibraryThread.SQL, LibraryThread.SQLStmtIndex + StartingCommentLength, Len);
-  end
+    Result := Copy(LibraryThread.SQL, LibraryThread.SQLStmtIndex, Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]));
 end;
 
 function TMySQLConnection.GetServerDateTime(): TDateTime;
@@ -4193,16 +4145,16 @@ begin
   Dispose(Buffer); Buffer := nil;
 end;
 
-function TMySQLQuery.GetAsString(const FieldNo: Integer): string;
+function TMySQLQuery.GetAsString(const Field: TField): string;
 begin
-  if (not Assigned(LibRow^[FieldNo - 1]) or (LibLengths^[FieldNo - 1] = 0)) then
+  if (not Assigned(LibRow^[Field.FieldNo - 1]) or (LibLengths^[Field.FieldNo - 1] = 0)) then
     Result := ''
-  else if (BitField(Fields[FieldNo - 1])) then
-    Result := Fields[FieldNo - 1].AsString
-  else if (Fields[FieldNo - 1].DataType in NotQuotedDataTypes + BinaryDataTypes) then
-    Result := Connection.LibUnpack(LibRow^[FieldNo - 1], LibLengths^[FieldNo - 1])
+  else if (BitField(Field)) then
+    Result := Field.AsString
+  else if (Field.DataType in NotQuotedDataTypes + BinaryDataTypes) then
+    Result := Connection.LibUnpack(LibRow^[Field.FieldNo - 1], LibLengths^[Field.FieldNo - 1])
   else
-    Result := Connection.LibDecode(LibRow^[FieldNo - 1], LibLengths^[FieldNo - 1]);
+    Result := Connection.LibDecode(LibRow^[Field.FieldNo - 1], LibLengths^[Field.FieldNo - 1]);
 end;
 
 function TMySQLQuery.GetCanModify(): Boolean;
@@ -4717,12 +4669,22 @@ begin
 end;
 
 procedure TMySQLQuery.Open(const DataHandle: TMySQLConnection.TDataResult);
+var
+  EndingCommentLength: Integer;
+  Index: Integer;
+  StartingCommentLength: Integer;
+  StmtLength: Integer;
 begin
   Connection := DataHandle.Connection;
 
   if (CommandType = ctQuery) then
   begin
     FCommandText := Connection.CommandText;
+    StmtLength := SQLTrimStmt(FCommandText, 1, Length(FCommandText), StartingCommentLength, EndingCommentLength);
+    Index := 1 + StartingCommentLength + StmtLength - 1;
+    if ((1 <= Index) and (FCommandText[Index] = ';')) then Dec(StmtLength);
+    FCommandText := Copy(FCommandText, StartingCommentLength, StmtLength);
+
     FDatabaseName := Connection.DatabaseName;
   end;
 

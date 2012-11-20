@@ -2264,7 +2264,12 @@ begin
         MOV EAX,[KCase]
         CALL CompareKeyword              // 'CASE'?
         JNE BodyIf                       // No!
-        INC CaseDeep
+        CALL Trim                        // Empty characters?
+        CMP ECX,0                        // All characters handled?
+        JZ Finish                        // Yes!
+        CMP WORD PTR [ESI],'('           // CASE as function?
+        JE BodyLE                        // Yes!
+        INC IfDeep
         JMP BodyLE
       BodyIf:
         MOV EAX,[KIf]
@@ -2273,8 +2278,8 @@ begin
         CALL Trim                        // Empty characters?
         CMP ECX,0                        // All characters handled?
         JZ Finish                        // Yes!
-        CMP WORD PTR [ESI],'('
-        JE BodyLE
+        CMP WORD PTR [ESI],'('           // IF as function?
+        JE BodyLE                        // Yes!
         INC IfDeep
         JMP BodyLE
       BodyLoop:

@@ -2339,10 +2339,10 @@ begin
     if (host = '') then
       fhost := LOCAL_HOST
     else
-      fhost := Copy(host, 1, HOSTNAME_LENGTH);
-    fuser := Copy(user, 1, USERNAME_LENGTH + 1 + HOSTNAME_LENGTH);
-    fpasswd := Copy(passwd, 1, 64);
-    fdb := Copy(db, 1, NAME_LEN);
+      fhost := host;
+    fuser := user;
+    fpasswd := passwd;
+    fdb := db;
     if (port = 0) then
       fport := MYSQL_PORT
     else

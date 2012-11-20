@@ -646,7 +646,7 @@ begin
         if (Columns[J].Visible and not (Columns[J].Field.DataType = ftBlob)) then
         begin
           if (J > 0) then Result := Result + #9;
-          Result := Result + TMySQLDataSet(DataLink.DataSet).GetAsString(Columns[J].Field.FieldNo);
+          Result := Result + TMySQLDataSet(DataLink.DataSet).GetAsString(Columns[J].Field);
         end;
       Result := Result + #13#10;
     end;

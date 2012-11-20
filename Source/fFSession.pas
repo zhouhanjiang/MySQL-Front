@@ -1576,6 +1576,10 @@ begin
 
   DBGrid.Columns.BeginUpdate();
   for I := 0 to DBGrid.Columns.Count - 1 do
+  begin
+    // Debug 27.12.2012
+    if (not Assigned(DBGrid.Columns[I].Field)) then
+      ERangeError.Create(SRangeError);
     if (GetFieldInfo(DBGrid.Columns[I].Field.Origin, FieldInfo)) then
     begin
       Child := XMLNode(GridXML[FieldInfo.OriginalFieldName], 'width');
@@ -1584,6 +1588,7 @@ begin
       else if ((DBGrid.Columns[I].Width > Preferences.GridMaxColumnWidth) and not (DBGrid.Columns[I].Field.DataType in [ftSmallint, ftInteger, ftLargeint, ftWord, ftFloat, ftDate, ftDateTime, ftTime, ftCurrency])) then
         DBGrid.Columns[I].Width := Preferences.GridMaxColumnWidth;
     end;
+  end;
   DBGrid.Columns.EndUpdate();
 
   if (Table.DataSet.FilterSQL <> '') then
@@ -6110,9 +6115,9 @@ begin
       if (not Preferences.GridMemoContent) then
         Text := '<MEMO>'
       else
-        Text := Copy(TMySQLQuery(Column.Field.DataSet).GetAsString(Column.Field.FieldNo), 1, 1000)
+        Text := Copy(TMySQLQuery(Column.Field.DataSet).GetAsString(Column.Field), 1, 1000)
     else
-      Text := TMySQLQuery(Column.Field.DataSet).GetAsString(Column.Field.FieldNo);
+      Text := TMySQLQuery(Column.Field.DataSet).GetAsString(Column.Field);
 
     TextRect := Rect;
     InflateRect(TextRect, -2, -2);
@@ -9091,6 +9096,10 @@ begin
         Routine := TSRoutine(FNavigator.Selected.Data);
 
         FObjectIDEGrid.DataSource.DataSet := Routine.InputDataSet;
+
+        // Debug 19.11.2012
+        if (FObjectIDEGrid.Columns.Count <> Routine.ParameterCount) then
+          ERangeError.Create(SRangeError);
 
         for I := 0 to Routine.ParameterCount - 1 do
           if (Routine.Parameter[I].FieldType = mfEnum) then
