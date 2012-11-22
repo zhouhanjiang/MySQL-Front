@@ -549,6 +549,7 @@ type
   protected
     procedure ActivateFilter(); virtual;
     function AllocRecordBuffer(): TRecordBuffer; override;
+    procedure ClearBuffers(); override;
     procedure DeactivateFilter(); virtual;
     function FindRecord(Restart, GoForward: Boolean): Boolean; override;
     procedure FreeRecordBuffer(var Buffer: TRecordBuffer); override;
@@ -3297,13 +3298,13 @@ begin
     SetLength(LibSQL, LibLength);
     WideCharToAnsiChar(CodePage, PChar(@LibraryThread.SQL[LibraryThread.SQLStmtIndex]), TrimmedPacketLength, PAnsiChar(LibSQL), LibLength);
 
-    if (not LibraryThread.Terminated and LibraryThread.Success) then
-    begin
-      Retry := 0; NeedReconnect := False;
-      repeat
-        if (NeedReconnect) then
-          SyncConnecting(LibraryThread);
+    Retry := 0; NeedReconnect := False;
+    repeat
+      if (NeedReconnect) then
+        SyncConnecting(LibraryThread);
 
+      if (not LibraryThread.Terminated and LibraryThread.Success) then
+      begin
         StartTime := Now();
         LibraryThread.Success := Lib.mysql_real_query(LibraryThread.LibHandle, my_char(LibSQL), LibLength) = 0;
         LibraryThread.Time := LibraryThread.Time + Now() - StartTime;
@@ -3316,10 +3317,10 @@ begin
           {$ENDIF}
           SyncDisconnecting(LibraryThread);
         end;
+      end;
 
-        Inc(Retry);
-      until (not NeedReconnect or (Retry = RETRY_COUNT));
-    end;
+      Inc(Retry);
+    until (LibraryThread.Terminated or not NeedReconnect or (Retry = RETRY_COUNT));
 
     if (LibraryThread.Success and not LibraryThread.Terminated) then
       LibraryThread.ResHandle := Lib.mysql_use_result(LibraryThread.LibHandle);
@@ -4983,6 +4984,16 @@ begin
     Index := BookmarkToInternBufferIndex(Bookmark);
     Result := (Index >= 0) and (not Filtered or InternRecordBuffers[Index]^.VisibleInFilter);
   end;
+end;
+
+procedure TMySQLDataSet.ClearBuffers();
+var
+  I: Integer;
+begin
+  inherited;
+
+  for I := 0 to BufferCount - 1 do
+    PExternRecordBuffer(Buffers[I])^.InternRecordBuffer := nil;
 end;
 
 function TMySQLDataSet.CompareBookmarks(Bookmark1, Bookmark2: TBookmark): Integer;

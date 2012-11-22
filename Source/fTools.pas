@@ -4029,7 +4029,7 @@ begin
                   ExecuteRoutine(TSRoutine(TDBObjectItem(Items[I]).DBObject))
                 else if (TDBObjectItem(Items[I]).DBObject is TSEvent) then
                   ExecuteEvent(TSEvent(TDBObjectItem(Items[I]).DBObject))
-                else if (TDBObjectItem(Items[I]).DBObject is TSTrigger) then
+                else if ((TDBObjectItem(Items[I]).DBObject is TSTrigger) and (Self is TTExportSQL)) then
                   ExecuteTrigger(TSTrigger(TDBObjectItem(Items[I]).DBObject));
             end;
           end;
@@ -7138,7 +7138,7 @@ end;
 procedure TTExportCanvas.ExecuteTrigger(const Trigger: TSTrigger);
 begin
   Canvas.Font.Assign(ContentFont);
-  Canvas.Font.Size := Canvas.Font.Size + 4;
+  Canvas.Font.Size := Canvas.Font.Size + 2;
   Canvas.Font.Style := Canvas.Font.Style + [fsBold];
 
   ContentTextOut(Preferences.LoadStr(788) + ': ' + Trigger.Name, 2 * Padding);
@@ -7483,7 +7483,7 @@ begin
     if (GetLastError() > 0) then
       DoError(SysError(), nil, False);
   except
-    on E: EPrinter do
+    on E: Exception do
       if (Success = daSuccess) then
       begin
         Error.ErrorType := TE_Printer;

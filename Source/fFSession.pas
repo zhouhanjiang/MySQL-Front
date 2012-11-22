@@ -9428,6 +9428,7 @@ begin
     if (View = vBrowser) then
     begin
       FFilter.Text := Format(Filters[FilterIndex].Text, [Session.EscapeIdentifier(ActiveDBGrid.SelectedField.FieldName), Value]);
+      FFilterEnabled.Enabled := True;
       FFilterEnabled.Down := True;
       FFilterEnabledClick(Sender);
     end
@@ -10191,10 +10192,10 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         Item.SubItems.Add('')
       else
         Item.SubItems.Add(SizeToStr(TSDatabase(Data).Size));
-      if (TSDatabase(Data) is TSSystemDatabase) then
-        Item.SubItems.Add(SysUtils.DateToStr(Session.StartTime, LocaleFormatSettings))
-      else if (TSDatabase(Data).Created = 0) then
+      if (TSDatabase(Data).Created = 0) then
         Item.SubItems.Add('')
+      else if (TSDatabase(Data) is TSSystemDatabase) then
+        Item.SubItems.Add(SysUtils.DateToStr(Session.StartTime, LocaleFormatSettings))
       else
         Item.SubItems.Add(SysUtils.DateToStr(TSDatabase(Data).Created, LocaleFormatSettings));
       if (TSDatabase(Data).DefaultCharset = Session.DefaultCharset) then
