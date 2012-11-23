@@ -145,6 +145,7 @@ type
     PFieldNode: TPanel_Ext;
     PODBCSelect: TPanel_Ext;
     PQuote: TPanel_Ext;
+    PrintDialog: TPrintDialog_Ext;
     PSelect: TPanel_Ext;
     PSeparator: TPanel_Ext;
     PSQLWait: TPanel;
@@ -232,6 +233,7 @@ type
     procedure ClearTSFields();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     function GetFilename(): Boolean;
+    function GetPrinter(): Boolean;
     procedure InitTSFields();
     procedure InitTSJob();
     function InitTSSelect(): Boolean;
@@ -611,9 +613,16 @@ begin
   Filename := '';
   Title := '';
 
-  if ((Assigned(DataSet) or (AObjects.Count >= 1)) and (DialogType = edtNormal) and not (ExportType in [etODBC, etPrinter])) then
-    if (not GetFilename()) then
-      ModalResult := mrCancel;
+  if ((Assigned(DataSet) or (AObjects.Count >= 1)) and (DialogType = edtNormal)) then
+    case (ExportType) of
+      etODBC: ;
+      etPrinter:
+        if (not GetPrinter()) then
+          ModalResult := mrCancel;
+      else
+        if (not GetFilename()) then
+          ModalResult := mrCancel;
+    end;
 
   Result := (ModalResult = mrNone) and (ShowModal() = mrOk);
 end;
@@ -1575,6 +1584,11 @@ begin
       CodePage := EncodingToCodePage(SaveDialog.Encodings[SaveDialog.EncodingIndex]);
     Filename := SaveDialog.FileName;
   end;
+end;
+
+function TDExport.GetPrinter(): Boolean;
+begin
+  Result := PrintDialog.Execute();
 end;
 
 procedure TDExport.InitTSFields();

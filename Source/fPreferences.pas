@@ -4073,7 +4073,7 @@ end;
 
 function TAAccount.GetName(): string;
 begin
-  if (FName = '') and (Assigned(XML)) then
+  if ((FName = '') and Assigned(XML)) then
     FName := XML.Attributes['name'];
 
   Result := FName;

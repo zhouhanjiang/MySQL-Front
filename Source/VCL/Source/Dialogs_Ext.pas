@@ -98,6 +98,7 @@ type
     hWndOwner: HWND;
     hDevMode: HGLOBAL;
     hDevNames: HGLOBAL;
+    hDC: HDC;
     Flags: DWORD;
     Flags2: DWORD;
     ExclusionFlags: DWORD;
@@ -174,27 +175,25 @@ end;
 
 procedure GetPrinter(var DeviceMode, DeviceNames: THandle);
 var
-  Device: array[0..1023] of char;
+  Device, Driver, Port: array[0..1023] of char;
   DevNames: PDevNames;
-  Driver: array[0..1023] of char;
   Offset: PChar;
-  Port: array[0..1023] of char;
 begin
   Printer.GetPrinter(Device, Driver, Port, DeviceMode);
   if DeviceMode <> 0 then
   begin
     DeviceNames := GlobalAlloc(GHND, SizeOf(TDevNames) +
-     StrLen(Device) + StrLen(Driver) + StrLen(Port) + 3);
+     (StrLen(Device) + StrLen(Driver) + StrLen(Port) + 3) * SizeOf(Char));
     DevNames := PDevNames(GlobalLock(DeviceNames));
     try
-      Offset := PChar(DevNames) + SizeOf(TDevnames);
+      Offset := PChar(PByte(DevNames) + SizeOf(TDevnames));
       with DevNames^ do
       begin
-        wDriverOffset := Longint(Offset) - Longint(DevNames);
+        wDriverOffset := Offset - PChar(DevNames);
         Offset := StrECopy(Offset, Driver) + 1;
-        wDeviceOffset := Longint(Offset) - Longint(DevNames);
+        wDeviceOffset := Offset - PChar(DevNames);
         Offset := StrECopy(Offset, Device) + 1;
-        wOutputOffset := Longint(Offset) - Longint(DevNames);;
+        wOutputOffset := Offset - PChar(DevNames);;
         StrCopy(Offset, Port);
       end;
     finally
@@ -221,9 +220,8 @@ end;
 
 function CopyData(Handle: THandle): THandle;
 var
-  Dest: PChar;
+  Src, Dest: PChar;
   Size: Integer;
-  Src: PChar;
 begin
   if Handle <> 0 then
   begin
@@ -564,7 +562,6 @@ const
   PrintRanges: array[TPrintRange] of Integer =
     (PD_ALLPAGES, PD_SELECTION, PD_PAGENUMS);
 var
-  DevHandle: THandle;
   PrintDlgExRec: tagPDEXW;
 begin
   if ((Lib = 0) or not Assigned(PrintDlgEx)) then
@@ -580,8 +577,9 @@ begin
     begin
       lStructSize := SizeOf(PrintDlgExRec);
       hWndOwner := Application.Handle;
-      hDevMode := CopyData(DevHandle);
-      GetPrinter(DevHandle, hDevNames);
+//      hDevMode := CopyData(DevHandle);
+//      GetPrinter(DevHandle, hDevNames);
+      hDC := 0;
       Flags := PrintRanges[PrintRange] or PD_NOCURRENTPAGE;
       Flags2 := 0;
       ExclusionFlags := 0;
@@ -633,12 +631,9 @@ begin
           Copies := Printer.Copies
         else
           Copies := nCopies;
-      end
-      else
-      begin
-        if (hDevMode <> 0) then GlobalFree(hDevMode);
-        if (hDevNames <> 0) then GlobalFree(hDevNames);
       end;
+      if (hDevMode <> 0) then GlobalFree(hDevMode);
+      if (hDevNames <> 0) then GlobalFree(hDevNames);
     end;
   end;
 end;
@@ -655,7 +650,7 @@ end;
 initialization
   Lib := LoadLibrary(commdlg32);
   if (Lib > 0) then
-    PrintDlgEx := GetProcAddress(Lib, 'PrintDlgEx');
+    PrintDlgEx := GetProcAddress(Lib, 'PrintDlgExW');
 finalization
   if (Lib > 0) then
     FreeLibrary(Lib);

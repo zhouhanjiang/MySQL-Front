@@ -6684,11 +6684,14 @@ begin
     Session.Account.Desktop.DataHeight := PResult.Height;
   Session.Account.Desktop.BlobHeight := PBlob.Height;
 
-  DatabasesXML := XMLNode(Session.Account.DesktopXML, 'browser/databases');
-  if (Assigned(DatabasesXML)) then
-    for I := DatabasesXML.ChildNodes.Count - 1 downto 0 do
-      if ((DatabasesXML.ChildNodes[I].NodeName = 'database') and not Assigned(Session.DatabaseByName(DatabasesXML.ChildNodes[I].Attributes['name']))) then
-        DatabasesXML.ChildNodes.Delete(I);
+  if (Assigned(Session.Account.DesktopXML)) then
+  begin
+    DatabasesXML := XMLNode(Session.Account.DesktopXML, 'browser/databases');
+    if (Assigned(DatabasesXML)) then
+      for I := DatabasesXML.ChildNodes.Count - 1 downto 0 do
+        if ((DatabasesXML.ChildNodes[I].NodeName = 'database') and not Assigned(Session.DatabaseByName(DatabasesXML.ChildNodes[I].Attributes['name']))) then
+          DatabasesXML.ChildNodes.Delete(I);
+  end;
 
   Session.Account.Desktop.AddressMRU.Assign(ToolBarData.AddressMRU);
   Session.Account.UnRegisterDesktop(Self);

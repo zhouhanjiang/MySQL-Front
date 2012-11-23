@@ -5,7 +5,7 @@ interface {********************************************************************}
 // ODBC Driver: http://www.microsoft.com/en-us/download/details.aspx?id=13255
 
 uses
-  Windows, XMLDoc, XMLIntf, DBGrids, msxml, Zip, Printers,
+  Windows, XMLDoc, XMLIntf, DBGrids, msxml, Zip, WinSpool, Printers,
   SysUtils, DB, Classes, Graphics, SyncObjs,
   {$IFDEF EurekaLog}
   ExceptionLog,
@@ -634,6 +634,7 @@ type
 
   TTExportPrint = class(TTExportCanvas)
   private
+//    P: THandle;
     Pages: array of TBitmap;
   protected
     procedure AddPage(const NewPageRow: Boolean); override;
@@ -7437,7 +7438,25 @@ begin
 end;
 
 constructor TTExportPrint.Create(const ASession: TSSession; const ATitle: string);
+//var
+//  DM: TDeviceMode;
+//  pDevModeInput: TDeviceMode;
+//  I: Integer;
+//  Len: DWord;
+//  Buffer: PChar;
 begin
+//  GetDefaultPrinter(nil, @Len);
+//  GetMem(Buffer, Len * SizeOf(Char));
+//  GetDefaultPrinter(Buffer, @Len);
+//
+//  if (OpenPrinter(nil, P, nil)) then
+//  begin
+//    I := DocumentProperties(Application.Handle, P, Buffer, nil, nil, 0);
+//    ZeroMemory(@DM, SizeOf(DM));
+//    DM.dmSize := SizeOf(DM);
+//    I := DocumentProperties(Application.Handle, P, nil, DM, pDevModeInput, DM_OUT_BUFFER);
+//  end;
+//
   Printer.Title := ATitle;
 
   PageWidth := Printer.PageWidth;
@@ -7504,8 +7523,7 @@ begin
       if (GetLastError() > 0) then
         DoError(SysError(), nil, False);
     except
-      on E: EPrinter do
-        if (Success = daSuccess) then
+      on E: Exception do
         begin
           Error.ErrorType := TE_Printer;
           Error.ErrorCode := 1;
