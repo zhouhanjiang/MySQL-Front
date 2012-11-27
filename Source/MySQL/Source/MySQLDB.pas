@@ -1792,11 +1792,6 @@ procedure TMySQLConnection.TTerminatedThreads.Delete(const Item: Pointer);
 var
   Index: Integer;
 begin
-  // Debug 07.10.2012
-  if (not Assigned(Self)) then
-    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Self']);
-
-
   CriticalSection.Enter();
 
   Index := IndexOf(Item);
@@ -1937,11 +1932,6 @@ end;
 
 function TMySQLConnection.TLibraryThread.GetIsRunning(): Boolean;
 begin
-  if (not Assigned(Self)) then // Debug 01.11.2012
-    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Self']);
-  if (not Assigned(RunExecute)) then // Debug 01.11.2012
-    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['RunExecute']);
-
   Result := not Terminated and ((RunExecute.WaitFor(IGNORE) = wrSignaled) or not (State in [ssClose, ssReady]));
 end;
 
@@ -3326,8 +3316,6 @@ begin
       LibraryThread.ResHandle := Lib.mysql_use_result(LibraryThread.LibHandle);
   end;
 
-  if (not Assigned(LibraryThread.LibHandle)) then
-    raise Exception.Create('Error Message 1'); // Debug
   LibraryThread.ErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);
   LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
 end;
@@ -3566,8 +3554,6 @@ begin
     TerminateCS.Leave();
   until (not Assigned(LibRow));
 
-  if (not Assigned(LibraryThread.LibHandle)) then
-    raise Exception.Create('Error Message 3'); // Debug
   LibraryThread.Success := Lib.mysql_errno(LibraryThread.LibHandle) = 0;
 
   LibraryThread.ErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);
@@ -4106,14 +4092,7 @@ begin
         WideCharToAnsiChar(Connection.CodePage, PChar(Source), -1, PAnsiChar(Dest), Field.DataSize)
       else
       begin
-        try
-          Len := AnsiCharToWideChar(Connection.CodePage, PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], nil, 0);
-        except
-          on E: Exception do
-            begin // Debug
-              raise Exception.CreateFmt(E.Message + ' (Charset: %s, Value: %s, SQL: %s)', [Connection.Charset, Field.Name, SQLEscapeBin(PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], True), CommandText]);
-            end;
-        end;
+        Len := AnsiCharToWideChar(Connection.CodePage, PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], nil, 0);
         if (Len > Field.DataSize) then
           DatabaseErrorFmt(SInvalidFieldSize + ' (Fieldname: %s, Len: %d, Field.DataSize: %d, Value: %s)', [Field.DisplayName, Len, Field.DataSize, SQLEscapeBin(PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], True)]);
         AnsiCharToWideChar(Connection.CodePage, PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], PChar(Dest), Field.DataSize);

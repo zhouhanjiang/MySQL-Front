@@ -10197,8 +10197,6 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         Item.SubItems.Add(SizeToStr(TSDatabase(Data).Size));
       if (TSDatabase(Data).Created = 0) then
         Item.SubItems.Add('')
-      else if (TSDatabase(Data) is TSSystemDatabase) then
-        Item.SubItems.Add(SysUtils.DateToStr(Session.StartTime, LocaleFormatSettings))
       else
         Item.SubItems.Add(SysUtils.DateToStr(TSDatabase(Data).Created, LocaleFormatSettings));
       if (TSDatabase(Data).DefaultCharset = Session.DefaultCharset) then
@@ -11046,6 +11044,7 @@ begin
             MainAction('aFExportXML').Enabled := (ListView.SelCount = 0);
             MainAction('aFExportHTML').Enabled := (ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiTrigger]);
             MainAction('aFExportPDF').Enabled := (ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiTrigger]);
+            MainAction('aFPrint').Enabled := (ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiTrigger]);
             MainAction('aECopy').Enabled := (ListView.SelCount >= 1);
             MainAction('aEPaste').Enabled := not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLTABLE);
             MainAction('aERename').Enabled := Assigned(Item) and (ListView.SelCount = 1) and ((Item.ImageIndex in [iiField, iiTrigger]) or (Item.ImageIndex = iiForeignKey) and (Session.ServerVersion >= 40013));
@@ -11071,6 +11070,7 @@ begin
                 MainAction('aFExportSQL').Enabled := MainAction('aFExportSQL').Enabled and (ListView.Items[I].ImageIndex in [iiTrigger]);
                 MainAction('aFExportHTML').Enabled := MainAction('aFExportHTML').Enabled and (ListView.Items[I].ImageIndex in [iiTrigger]);
                 MainAction('aFExportPDF').Enabled := MainAction('aFExportPDF').Enabled and (ListView.Items[I].ImageIndex in [iiTrigger]);
+                MainAction('aFPrint').Enabled := MainAction('aFPrint').Enabled and (ListView.Items[I].ImageIndex in [iiTrigger]);
                 MainAction('aDDeleteKey').Enabled := MainAction('aDDeleteKey').Enabled and (ListView.Items[I].ImageIndex in [iiKey]);
                 MainAction('aDDeleteField').Enabled := MainAction('aDDeleteField').Enabled and (ListView.Items[I].ImageIndex in [iiField]);
                 MainAction('aDDeleteForeignKey').Enabled := MainAction('aDDeleteForeignKey').Enabled and (ListView.Items[I].ImageIndex in [iiForeignKey]);
@@ -12076,7 +12076,7 @@ begin
         if (Length(FSQLEditorSynMemo.Lines.Text) < LargeSQLScriptSize) then
           FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options - [eoScrollPastEol];  // Slow down the performance on large content
         FSQLEditorSynMemo.ClearUndo();
-        FSQLEditorSynMemo.Modified := Import.SetCharacterSetApplied;
+        FSQLEditorSynMemo.Modified := Import.SetNamesApplied;
 
         Window.Perform(CM_UPDATETOOLBAR, 0, LPARAM(Self));
       end;
@@ -13744,6 +13744,7 @@ begin
     FSQLEditorPrint.LineNumbers := SynEdit.Gutter.Visible;
     FSQLEditorPrint.TabWidth := SynEdit.TabWidth;
 
+    PrintDialog.Copies := 1;
     PrintDialog.FromPage := 1;
     PrintDialog.ToPage := FSQLEditorPrint.PageCount;
     PrintDialog.MinPage := 1;
@@ -13762,7 +13763,7 @@ begin
       PrintDialog.Options := PrintDialog.Options + [poSelection];
       PrintDialog.PrintRange := prSelection;
     end;
-    if (PrintDialog.Execute()) then
+//    if (PrintDialog.Execute()) then
     begin
       FSQLEditorPrint.Copies := PrintDialog.Copies;
       if (SQLEditor.Filename <> '') then

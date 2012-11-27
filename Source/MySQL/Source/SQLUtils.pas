@@ -2242,6 +2242,9 @@ begin
         MOV EAX,[KTable]
         CALL CompareKeyword              // 'TABLE'?
         JE StmtL
+        MOV EAX,[KDatabase]
+        CALL CompareKeyword              // 'TABLE'?
+        JE StmtL
 
         MOV CaseDeep,0
         MOV CompoundDeep,0
@@ -3030,5 +3033,11 @@ begin
   Result := StrPas(P);
 end;
 
+var
+  SQL: string;
+begin
+  SQL := 'CREATE DATABASE /*!32312 IF NOT EXISTS*/`gestionale` /*!40100 DEFAULT CHARACTER SET utf8 */;'#$D#$A#$D#$A;
+  SQL := SQL + 'SELECT 1;';
+  SQLStmtLength(PChar(SQL), Length(SQL));
 end.
 

@@ -943,7 +943,6 @@ type
     function GetDefaultCharset(): string;
     function GetCollation(): string;
     function GetCount(): Integer;
-    function GetCreated(): TDateTime;
     function GetDatabases(): TSDatabases; inline;
     function GetSize(): Int64;
     function GetUpdated(): TDateTime;
@@ -953,6 +952,7 @@ type
   protected
     function Build(const DataSet: TMySQLQuery): Boolean; virtual;
     procedure FreeDesktop(); override;
+    function GetCreated(): TDateTime; virtual;
     function GetSource(): string; override;
     function GetValid(): Boolean; override;
     function GetValidSource(): Boolean; override;
@@ -1014,6 +1014,8 @@ type
   end;
 
   TSSystemDatabase = class(TSDatabase)
+  protected
+    function GetCreated(): TDateTime; override;
   end;
 
   TSDatabases = class(TSObjects)
@@ -8204,6 +8206,14 @@ begin
     Result := TSView(Tables[Index]);
 end;
 
+function TSSystemDatabase.GetCreated(): TDateTime;
+begin
+  if (Session.StartTime = 0) then
+    Result := inherited
+  else
+    Result := Session.StartTime;
+end;
+
 { TSDatabases *****************************************************************}
 
 function TSDatabases.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
@@ -11924,6 +11934,7 @@ begin
   List := TList.Create();
 
   if (Assigned(Variables) and not Variables.Valid) then List.Add(Variables);
+  if (Assigned(Stati) and not Stati.Valid) then List.Add(Stati);
   if (Assigned(Engines) and not Engines.Valid) then List.Add(Engines);
   if (Assigned(Charsets) and not Charsets.Valid) then List.Add(Charsets);
   if (Assigned(Collations) and not Collations.Valid) then List.Add(Collations);

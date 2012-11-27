@@ -1589,6 +1589,8 @@ end;
 function TDExport.GetPrinter(): Boolean;
 begin
   Result := PrintDialog.Execute();
+  if (Result) then
+    Filename := PrintDialog.PrinterName;
 end;
 
 procedure TDExport.InitTSFields();
@@ -2035,7 +2037,7 @@ begin
     etPDFFile:
       try
         if (ExportType = etPrinter) then
-          Export := TTExportPrint.Create(Session, Title)
+          Export := TTExportPrint.Create(Session, Filename, Title)
         else
           Export := TTExportPDF.Create(Session, Filename);
         TTExportCanvas(Export).Data := FHTMLData.Checked;

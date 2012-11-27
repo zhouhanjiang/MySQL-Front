@@ -2730,9 +2730,7 @@ begin
 
   {$IFDEF EurekaLog}
     if (AErrNo = CR_COMMANDS_OUT_OF_SYNC) then
-      raise Exception.CreateFmt('%s  (Id: %d, ClientStatus: %d)', [DecodeString(error()), fthread_id, Byte(fclient_status)])
-    else if (AErrNo = CR_SERVER_HANDSHAKE_ERR) then
-      raise Exception.CreateFmt('%s  (Id: %d)', [DecodeString(error()), fthread_id]);
+      raise Exception.CreateFmt('%s  (Id: %d, ClientStatus: %d)', [DecodeString(error()), fthread_id, Byte(fclient_status)]);
   {$ENDIF}
 end;
 

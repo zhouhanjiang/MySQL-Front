@@ -679,6 +679,10 @@ begin
       DataLink.DataSet.MoveBy(+1);
     FIgnoreKeyPress := True;
   end
+  else if ((Key = VK_TAB) and (Shift = []) and (SelectedIndex = Columns.Count - 1) and DataSource.DataSet.FindNext() and not TMySQLDataSet(DataSource.DataSet).CachedUpdates) then
+    SelectedIndex := 0
+  else if ((Key = VK_TAB) and (ssShift in Shift) and (SelectedIndex = 0) and DataSource.DataSet.FindPrior() and not TMySQLDataSet(DataSource.DataSet).CachedUpdates) then
+    SelectedIndex := Columns.Count - 1
   else if (((Key = VK_HOME) or (Key = VK_END) or (Key = VK_LEFT) or (Key = VK_RIGHT)) and (Shift = [ssShift]) and not EditorMode) then
     SelectedRows.CurrentRowSelected := not SelectedRows.CurrentRowSelected
   else if ((Key = VK_SPACE) and (Shift = [ssCtrl]) and Assigned(DataLink.DataSet) and (DataLink.DataSet.State = dsBrowse)) then

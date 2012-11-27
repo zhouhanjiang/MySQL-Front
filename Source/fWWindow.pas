@@ -1745,6 +1745,7 @@ begin
   TBTabControl.Visible := Preferences.TabsVisible;
   TabControlRepaint := TList.Create();
 
+  miFPrint.Visible := False; // Debug
   aFImportAccess.Visible := (odAccess in ODBCDrivers) or (odAccess2007 in ODBCDrivers);
   aFImportExcel.Visible := (odExcel in ODBCDrivers) or (odExcel2007 in ODBCDrivers);
   aFImportODBC.Visible := ODBCEnv <> SQL_NULL_HANDLE;

@@ -229,12 +229,12 @@ type
 
   TTImportSQL = class(TTImportFile)
   private
-    FSetCharacterSetApplied: Boolean;
+    FSetNamesApplied: Boolean;
   public
     Text: PString;
     constructor Create(const AFilename: TFileName; const ACodePage: Cardinal; const ASession: TSSession; const ADatabase: TSDatabase); override;
     procedure Execute(); overload; override;
-    property SetCharacterSetApplied: Boolean read FSetCharacterSetApplied;
+    property SetNamesApplied: Boolean read FSetNamesApplied;
   end;
 
   TTImportText = class(TTImportFile)
@@ -599,7 +599,7 @@ type
     SQLFont: TFont;
     Y: Integer;
     function AllocateHeight(const Height: Integer): Boolean;
-    procedure ContentTextOut(Text: string; const ExtraPadding: Integer = 0);
+    procedure ContentTextOut(const Text: string; const ExtraPadding: Integer = 0);
     procedure GridDrawHorzLine(const Y: Integer);
     procedure GridDrawVertLines();
     procedure GridHeader();
@@ -607,6 +607,7 @@ type
     function GridTextOut(var Column: TColumn; const Text: string; const TextFormat: TTextFormat; const Bold, Gray: Boolean): Integer;
     procedure PageBreak(const NewPageRow: Boolean);
     procedure PageFooter();
+    procedure SetFont(const Font: TFont; const Size: Integer = -1; const Style: TFontStyles = []);
   protected
     Canvas: TCanvas;
     LineHeight: Integer;
@@ -616,10 +617,10 @@ type
     PageHeight: Integer;
     PageWidth: Integer;
     procedure AddPage(const NewPageRow: Boolean); virtual; abstract;
+    procedure BeforeExecute(); override;
     procedure ExecuteDatabaseHeader(const Database: TSDatabase); override;
     procedure ExecuteEvent(const Event: TSEvent); override;
     procedure ExecuteFooter(); override;
-    procedure ExecuteHeader(); override;
     procedure ExecuteRoutine(const Routine: TSRoutine); override;
     procedure ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
@@ -634,14 +635,19 @@ type
 
   TTExportPrint = class(TTExportCanvas)
   private
-//    P: THandle;
+    Handle: HDC;
+    DevMode: PDeviceMode;
     Pages: array of TBitmap;
+    Printer: THandle;
+    FTitle: string;
+    procedure PrintPage(const Page: TBitmap);
   protected
     procedure AddPage(const NewPageRow: Boolean); override;
-    procedure ExecuteHeader(); override;
-    procedure ExecuteFooter(); override;
+    procedure AfterExecute(); override;
+    procedure BeforeExecute(); override;
   public
-    constructor Create(const ASession: TSSession; const ATitle: string); reintroduce; virtual;
+    constructor Create(const ASession: TSSession; const APrinterName: string; const ATitle: string); reintroduce; virtual;
+    destructor Destroy(); override;
   end;
 
   TTExportPDF = class(TTExportCanvas)
@@ -2299,7 +2305,7 @@ begin
 
   Items.Add(TTImport.TItem.Create(Items));
 
-  FSetCharacterSetApplied := False;
+  FSetNamesApplied := False;
   Text := nil
 end;
 
@@ -2310,7 +2316,7 @@ var
   Eof: Boolean;
   Index: Integer;
   Len: Integer;
-  SetCharacterSet: Boolean;
+  SetNames: Boolean;
   SQL: string;
   SQLFilePos: TLargeInteger;
 begin
@@ -2359,11 +2365,11 @@ begin
         else Inc(SQLFilePos, WideCharToAnsiChar(CodePage, PChar(@FileContent.Str[Index]), Len, nil, 0));
       end;
 
-    SetCharacterSet := not EOF
+    SetNames := not EOF
       and SQLParseCLStmt(CLStmt, @FileContent.Str[Index], Length(FileContent.Str), Session.ServerVersion)
       and (CLStmt.CommandType in [ctSetNames, ctSetCharacterSet]);
 
-    if ((Index > 1) and (SetCharacterSet or (Index - 1 + Len >= SQLPacketSize))) then
+    if ((Index > 1) and (SetNames or (Index - 1 + Len >= SQLPacketSize))) then
     begin
       if (Assigned(Text)) then
         Text^ := Text^ + Copy(FileContent.Str, 1, Index - 1)
@@ -2380,9 +2386,9 @@ begin
 
     if (Success = daSuccess) then
     begin
-      if (SetCharacterSet) then
+      if (SetNames) then
       begin
-        FSetCharacterSetApplied := True;
+        FSetNamesApplied := True;
 
         FCodePage := Session.CharsetToCodePage(CLStmt.ObjectName);
 
@@ -6506,52 +6512,6 @@ end;
 
 { TTExportCanvas **************************************************************}
 
-function WordBreak(const Canvas: TCanvas; const Text: string; const Width: Integer): String;
-var
-  I: Integer;
-  Index: Integer;
-  OldIndex: Integer;
-  S: string;
-  Size: TSize;
-  StringList: TStringList;
-begin
-  StringList := TStringList.Create();
-  StringList.Text := Text;
-
-  I := 0;
-  while (I < StringList.Count) do
-  begin
-    S := StringList[I];
-    repeat
-      Index := 1;
-      repeat
-        OldIndex := Index;
-        while ((Index <= Length(S)) and CharInSet(S[Index], [#9, ' '])) do Inc(Index);
-        while ((Index <= Length(S)) and not CharInSet(S[Index], [#9, ' '])) do Inc(Index);
-        if (not GetTextExtentPoint32(Canvas.Handle, PChar(S), Index - 1, Size)) then
-          RaiseLastOSError();
-      until ((Size.cx > Width) or (Index >= Length(S)));
-      if (Size.cx <= Width) then
-        S := ''
-      else
-      begin
-        StringList[I] := Copy(S, 1, OldIndex - 1);
-        while ((OldIndex <= Length(S)) and CharInSet(S[OldIndex], [#9, ' '])) do Inc(OldIndex);
-        Delete(S, 1, OldIndex - 1);
-        if (S <> '') then
-        begin
-          Inc(I);
-          StringList.Insert(I, S);
-        end;
-      end;
-    until (S = '');
-    Inc(I);
-  end;
-
-  Result := StringList.Text;
-  StringList.Free();
-end;
-
 function TTExportCanvas.AllocateHeight(const Height: Integer): Boolean;
 begin
   Result := Y + Height > ContentArea.Bottom;
@@ -6564,7 +6524,80 @@ begin
   end;
 end;
 
-procedure TTExportCanvas.ContentTextOut(Text: string; const ExtraPadding: Integer = 0);
+procedure TTExportCanvas.BeforeExecute();
+var
+  DataHandle: TMySQLConnection.TDataResult;
+  DataSet: TMySQLQuery;
+  I: Integer;
+  J: Integer;
+  K: Integer;
+  SQL: string;
+  Table: TSTable;
+  Tables: TList;
+begin
+  inherited;
+
+  if (Success = daSuccess) then
+  begin
+    SetLength(MaxFieldsCharLengths, 0);
+
+    Tables := TList.Create();
+
+    SQL := '';
+    for I := 0 to Items.Count - 1 do
+      if ((Items[I] is TDBObjectItem) and (TDBObjectItem(Items[I]).DBObject is TSTable)) then
+      begin
+        Table := TSTable(TDBObjectItem(Items[I]).DBObject);
+        Tables.Add(Table);
+
+        SQL := SQL + 'SELECT ';
+        for J := 0 to Table.Fields.Count - 1 do
+        begin
+          if (J > 0) then SQL := SQL + ',';
+          if (Table.Fields[J].FieldType in LOBFieldTypes) then
+            SQL := SQL + '0'
+          else if (Table.Fields[J].FieldType = mfBit) then
+            SQL := SQL + 'CHAR_LENGTH(CONV(MAX(' + Session.EscapeIdentifier(Table.Fields[J].Name) + ')+0,8,2))'
+          else
+            SQL := SQL + 'MAX(CHAR_LENGTH(' + Session.EscapeIdentifier(Table.Fields[J].Name) + '))';
+          SQL := SQL + ' AS ' + Session.EscapeIdentifier(Table.Fields[J].Name);
+        end;
+        SQL := SQL + ' FROM ' + Session.EscapeIdentifier(Table.Database.Name) + '.' + Session.EscapeIdentifier(Table.Name) + ';' + #13#10;
+      end;
+
+    if ((Success = daSuccess) and (Tables.Count > 0)) then
+    begin
+      for J := 0 to Tables.Count - 1 do
+        if (Success = daSuccess) then
+        begin
+          if (J = 0) then
+            while ((Success <> daAbort) and not Session.FirstResult(DataHandle, SQL)) do
+              DoError(DatabaseError(Session), nil, True, SQL)
+          else
+            if ((Success = daSuccess) and not Session.NextResult(DataHandle)) then
+              DoError(DatabaseError(Session), nil, False);
+          if (Success = daSuccess) then
+            for I := 0 to Items.Count - 1 do
+              if ((Items[I] is TDBObjectItem) and (TDBObjectItem(Items[I]).DBObject = Tables[J])) then
+              begin
+                SetLength(MaxFieldsCharLengths, Length(MaxFieldsCharLengths) + 1);
+                SetLength(MaxFieldsCharLengths[Length(MaxFieldsCharLengths) - 1], TSTable(Tables[J]).Fields.Count);
+                DataSet := TMySQLQuery.Create(nil);
+                DataSet.Open(DataHandle);
+                if (not DataSet.IsEmpty) then
+                  for K := 0 to DataSet.FieldCount - 1 do
+                    MaxFieldsCharLengths[Length(MaxFieldsCharLengths) - 1][K] := DataSet.Fields[K].AsInteger;
+                DataSet.Free();
+              end;
+        end;
+      Session.CloseResult(DataHandle);
+    end;
+
+    Tables.Free();
+  end;
+end;
+
+procedure TTExportCanvas.ContentTextOut(const Text: string; const ExtraPadding: Integer = 0);
 var
   I: Integer;
   R: TRect;
@@ -6638,7 +6671,7 @@ begin
 
   Y := ContentArea.Top;
 
-  Canvas.Font.Assign(ContentFont);
+  SetFont(ContentFont);
 end;
 
 destructor TTExportCanvas.Destroy();
@@ -6655,9 +6688,7 @@ procedure TTExportCanvas.ExecuteDatabaseHeader(const Database: TSDatabase);
 begin
   if (Assigned(Database)) then
   begin
-    Canvas.Font.Assign(ContentFont);
-    Canvas.Font.Size := Canvas.Font.Size + 6;
-    Canvas.Font.Style := Canvas.Font.Style + [fsBold];
+    SetFont(ContentFont, ContentFont.Size + 6, ContentFont.Style + [fsBold]);
 
     ContentTextOut(ReplaceStr(Preferences.LoadStr(38), '&', '') + ': ' + Database.Name, 3 * Padding);
   end;
@@ -6665,14 +6696,12 @@ end;
 
 procedure TTExportCanvas.ExecuteEvent(const Event: TSEvent);
 begin
-  Canvas.Font.Assign(ContentFont);
-  Canvas.Font.Size := Canvas.Font.Size + 4;
-  Canvas.Font.Style := Canvas.Font.Style + [fsBold];
+  SetFont(ContentFont, ContentFont.Size + 4, ContentFont.Style + [fsBold]);
 
   ContentTextOut(Preferences.LoadStr(812) + ': ' + Event.Name, 2 * Padding);
 
 
-  Canvas.Font.Assign(SQLFont);
+  SetFont(SQLFont);
   ContentTextOut(Event.Source);
 end;
 
@@ -6683,84 +6712,9 @@ begin
   inherited;
 end;
 
-procedure TTExportCanvas.ExecuteHeader();
-var
-  DataHandle: TMySQLConnection.TDataResult;
-  DataSet: TMySQLQuery;
-  I: Integer;
-  J: Integer;
-  K: Integer;
-  SQL: string;
-  Table: TSTable;
-  Tables: TList;
-begin
-  if (Success = daSuccess) then
-  begin
-    SetLength(MaxFieldsCharLengths, 0);
-
-    Tables := TList.Create();
-
-    SQL := '';
-    for I := 0 to Items.Count - 1 do
-      if ((Items[I] is TDBObjectItem) and (TDBObjectItem(Items[I]).DBObject is TSTable)) then
-      begin
-        Table := TSTable(TDBObjectItem(Items[I]).DBObject);
-        Tables.Add(Table);
-
-        SQL := SQL + 'SELECT ';
-        for J := 0 to Table.Fields.Count - 1 do
-        begin
-          if (J > 0) then SQL := SQL + ',';
-          if (Table.Fields[J].FieldType in LOBFieldTypes) then
-            SQL := SQL + '0'
-          else if (Table.Fields[J].FieldType = mfBit) then
-            SQL := SQL + 'CHAR_LENGTH(CONV(MAX(' + Session.EscapeIdentifier(Table.Fields[J].Name) + ')+0,8,2))'
-          else
-            SQL := SQL + 'MAX(CHAR_LENGTH(' + Session.EscapeIdentifier(Table.Fields[J].Name) + '))';
-          SQL := SQL + ' AS ' + Session.EscapeIdentifier(Table.Fields[J].Name);
-        end;
-        SQL := SQL + ' FROM ' + Session.EscapeIdentifier(Table.Database.Name) + '.' + Session.EscapeIdentifier(Table.Name) + ';' + #13#10;
-      end;
-
-    if ((Success = daSuccess) and (Tables.Count > 0)) then
-    begin
-      for J := 0 to Tables.Count - 1 do
-        if (Success = daSuccess) then
-        begin
-          if (J = 0) then
-            while ((Success <> daAbort) and not Session.FirstResult(DataHandle, SQL)) do
-              DoError(DatabaseError(Session), nil, True, SQL)
-          else
-            if ((Success = daSuccess) and not Session.NextResult(DataHandle)) then
-              DoError(DatabaseError(Session), nil, False);
-          if (Success = daSuccess) then
-            for I := 0 to Items.Count - 1 do
-              if ((Items[I] is TDBObjectItem) and (TDBObjectItem(Items[I]).DBObject = Tables[J])) then
-              begin
-                SetLength(MaxFieldsCharLengths, Length(MaxFieldsCharLengths) + 1);
-                SetLength(MaxFieldsCharLengths[Length(MaxFieldsCharLengths) - 1], TSTable(Tables[J]).Fields.Count);
-                DataSet := TMySQLQuery.Create(nil);
-                DataSet.Open(DataHandle);
-                if (not DataSet.IsEmpty) then
-                  for K := 0 to DataSet.FieldCount - 1 do
-                    MaxFieldsCharLengths[Length(MaxFieldsCharLengths) - 1][K] := DataSet.Fields[K].AsInteger;
-                DataSet.Free();
-              end;
-        end;
-      Session.CloseResult(DataHandle);
-    end;
-
-    Tables.Free();
-  end;
-
-  inherited;
-end;
-
 procedure TTExportCanvas.ExecuteRoutine(const Routine: TSRoutine);
 begin
-  Canvas.Font.Assign(ContentFont);
-  Canvas.Font.Size := Canvas.Font.Size + 4;
-  Canvas.Font.Style := Canvas.Font.Style + [fsBold];
+  SetFont(ContentFont, ContentFont.Size + 4, ContentFont.Style + [fsBold]);
 
   if (Routine is TSProcedure) then
     ContentTextOut(Preferences.LoadStr(768) + ': ' + Routine.Name, 2 * Padding)
@@ -6768,7 +6722,7 @@ begin
     ContentTextOut(Preferences.LoadStr(769) + ': ' + Routine.Name, 2 * Padding);
 
 
-  Canvas.Font.Assign(SQLFont);
+  SetFont(SQLFont);
   ContentTextOut(Routine.Source);
 end;
 
@@ -6794,9 +6748,7 @@ var
   S2: string;
   StringList: TStringList;
 begin
-  Canvas.Font.Assign(ContentFont);
-  Canvas.Font.Size := Canvas.Font.Size + 4;
-  Canvas.Font.Style := Canvas.Font.Style + [fsBold];
+  SetFont(ContentFont, ContentFont.Size + 4, ContentFont.Style + [fsBold]);
 
   if (not (DataSet is TMySQLDataSet)) then
     if (Table is TSBaseTable) then
@@ -6813,13 +6765,10 @@ begin
   if (Structure) then
     if (DataSet is TMySQLDataSet) then
     begin
-      Canvas.Font.Assign(ContentFont);
-      Canvas.Font.Size := Canvas.Font.Size + 2;
-      Canvas.Font.Style := Canvas.Font.Style + [fsBold];
+      SetFont(ContentFont, ContentFont.Size + 2, ContentFont.Style + [fsBold]);
       ContentTextOut(ReplaceStr(Preferences.LoadStr(794), '&', '') + ':', Padding);
 
-      Canvas.Font.Assign(SQLFont);
-
+      SetFont(SQLFont);
       StringList := TStringList.Create();
       StringList.Text := DataSet.CommandText + ';';
       for I := 0 to StringList.Count - 1 do
@@ -6830,9 +6779,7 @@ begin
     begin
       if ((Table is TSBaseTable) and (TSBaseTable(Table).Keys.Count > 0)) then
       begin
-        Canvas.Font.Assign(ContentFont);
-        Canvas.Font.Size := Canvas.Font.Size + 2;
-        Canvas.Font.Style := Canvas.Font.Style + [fsBold];
+        SetFont(ContentFont, ContentFont.Size + 2, ContentFont.Style + [fsBold]);
         ContentTextOut(Preferences.LoadStr(458) + ':', Padding);
 
         if (Session.ServerVersion < 50503) then
@@ -6880,9 +6827,7 @@ begin
 
       {------------------------------------------------------------------------}
 
-      Canvas.Font.Assign(ContentFont);
-      Canvas.Font.Size := Canvas.Font.Size + 2;
-      Canvas.Font.Style := Canvas.Font.Style + [fsBold];
+      SetFont(ContentFont, ContentFont.Size + 2, ContentFont.Style + [fsBold]);
       ContentTextOut(Preferences.LoadStr(253) + ':', Padding);
 
       if (Session.ServerVersion < 40100) then
@@ -6951,9 +6896,7 @@ begin
 
       if ((Table is TSBaseTable) and (TSBaseTable(Table).ForeignKeys.Count > 0)) then
       begin
-        Canvas.Font.Assign(ContentFont);
-        Canvas.Font.Size := Canvas.Font.Size + 2;
-        Canvas.Font.Style := Canvas.Font.Style + [fsBold];
+        SetFont(ContentFont, ContentFont.Size + 2, ContentFont.Style + [fsBold]);
         ContentTextOut(Preferences.LoadStr(459) + ':', Padding);
 
 
@@ -6998,14 +6941,12 @@ begin
   begin
     if (Structure) then
     begin
-      Canvas.Font.Assign(ContentFont);
-      Canvas.Font.Size := Canvas.Font.Size + 2;
-      Canvas.Font.Style := Canvas.Font.Style + [fsBold];
+      SetFont(ContentFont, ContentFont.Size + 2, ContentFont.Style + [fsBold]);
 
       ContentTextOut(Preferences.LoadStr(580) + ':', Padding);
     end;
 
-    Canvas.Font.Assign(GridFont);
+    SetFont(GridFont);
 
     if (DataSet is TMySQLDataSet) then
     begin
@@ -7138,14 +7079,12 @@ end;
 
 procedure TTExportCanvas.ExecuteTrigger(const Trigger: TSTrigger);
 begin
-  Canvas.Font.Assign(ContentFont);
-  Canvas.Font.Size := Canvas.Font.Size + 2;
-  Canvas.Font.Style := Canvas.Font.Style + [fsBold];
+  SetFont(ContentFont, ContentFont.Size + 2, ContentFont.Style + [fsBold]);
 
   ContentTextOut(Preferences.LoadStr(788) + ': ' + Trigger.Name, 2 * Padding);
 
 
-  Canvas.Font.Assign(SQLFont);
+  SetFont(SQLFont);
   ContentTextOut(Trigger.Source);
 end;
 
@@ -7208,7 +7147,7 @@ var
 begin
   GridTop := Y; RowHeight := 0;
 
-  Canvas.Font.Assign(GridFont);
+  SetFont(GridFont);
   X := ContentArea.Left + LineWidth; Y := GridTop;
 
   for I := 0 to Length(Columns) - 1 do
@@ -7217,7 +7156,7 @@ begin
     begin
       PageBreak(False);
 
-      Canvas.Font.Assign(GridFont);
+      SetFont(GridFont);
       X := ContentArea.Left + LineWidth; Y := GridTop;
     end;
 
@@ -7246,6 +7185,8 @@ var
   MaxRowHeight: Integer;
   Text: string;
 begin
+  SetFont(GridFont);
+
   SetLength(Columns, Length(GridData[0]));
   for J := 0 to Length(Columns) - 1 do
   begin
@@ -7357,7 +7298,7 @@ begin
 
   if (Assigned(Font)) then
   begin
-    Canvas.Font.Assign(Font);
+    SetFont(Font);
     Font.Free();
   end;
 
@@ -7379,7 +7320,7 @@ begin
   Inc (Y, LineHeight + Padding);
 
 
-  Canvas.Font.Assign(PageFont);
+  SetFont(PageFont);
 
   R := Rect(ContentArea.Left, Y, ContentArea.Right, PageHeight);
   Text := SysUtils.DateTimeToStr(DateTime, LocaleFormatSettings);
@@ -7399,10 +7340,23 @@ begin
   Canvas.TextRect(R, Text, [tfRight]);
 end;
 
+procedure TTExportCanvas.SetFont(const Font: TFont; const Size: Integer = -1; const Style: TFontStyles = []);
+begin
+  Canvas.Font.Assign(Font);
+  if (Size > 0) then
+  begin
+    if (Size <> Font.Size) then
+      Canvas.Font.Size := Size;
+    if (Style <> Font.Style) then
+      Canvas.Font.Style := Style;
+  end;
+end;
+
 { TTExportPrint ***************************************************************}
 
 procedure TTExportPrint.AddPage(const NewPageRow: Boolean);
 var
+  FontSize: Integer;
   I: Integer;
 begin
   if (NewPageRow) then
@@ -7410,11 +7364,8 @@ begin
     for I := 0 to Length(Pages) - 1 do
     begin
       if (Success = daSuccess) then
-        Printer.Canvas.Draw(0, 0, Pages[I]);
+        PrintPage(Pages[I]);
       Pages[I].Free();
-
-      if (Success = daSuccess) then
-        Printer.NewPage();
     end;
     SetLength(Pages, 0);
   end;
@@ -7425,52 +7376,89 @@ begin
   begin
     SetLength(Pages, Length(Pages) + 1);
     Pages[Length(Pages) - 1] := TBitmap.Create();
+    Pages[Length(Pages) - 1].Canvas.Handle := CreateCompatibleDC(Handle);
     Pages[Length(Pages) - 1].Monochrome := True;
     Pages[Length(Pages) - 1].SetSize(PageWidth, PageHeight);
     Canvas := Pages[Length(Pages) - 1].Canvas;
 
-    if (GetDeviceCaps(Printer.Handle, LOGPIXELSY) <> Canvas.Font.PixelsPerInch) then
+    if (Canvas.Font.PixelsPerInch <> GetDeviceCaps(Handle, LOGPIXELSY)) then
     begin
-      Canvas.Font.PixelsPerInch := GetDeviceCaps(Printer.Handle, LOGPIXELSY);
-      Canvas.Font.Size := Printer.Canvas.Font.Size;
+      FontSize := Canvas.Font.Size;
+      Canvas.Font.PixelsPerInch := GetDeviceCaps(Handle, LOGPIXELSY);
+      Canvas.Font.Size := FontSize;
     end;
   end;
 end;
 
-constructor TTExportPrint.Create(const ASession: TSSession; const ATitle: string);
-//var
-//  DM: TDeviceMode;
-//  pDevModeInput: TDeviceMode;
-//  I: Integer;
-//  Len: DWord;
-//  Buffer: PChar;
+procedure TTExportPrint.AfterExecute();
+var
+  I: Integer;
 begin
-//  GetDefaultPrinter(nil, @Len);
-//  GetMem(Buffer, Len * SizeOf(Char));
-//  GetDefaultPrinter(Buffer, @Len);
-//
-//  if (OpenPrinter(nil, P, nil)) then
-//  begin
-//    I := DocumentProperties(Application.Handle, P, Buffer, nil, nil, 0);
-//    ZeroMemory(@DM, SizeOf(DM));
-//    DM.dmSize := SizeOf(DM);
-//    I := DocumentProperties(Application.Handle, P, nil, DM, pDevModeInput, DM_OUT_BUFFER);
-//  end;
-//
-  Printer.Title := ATitle;
+  for I := 0 to Length(Pages) - 1 do
+  begin
+    if (Success = daSuccess) then
+      PrintPage(Pages[I]);
+    Pages[I].Free();
+  end;
+  SetLength(Pages, 0);
 
-  PageWidth := Printer.PageWidth;
-  PageHeight := Printer.PageHeight;
+  if (EndDoc(Handle) <= 0) then
+    RaiseLastOSError();
 
-  Margins.Left := Round(GetDeviceCaps(Printer.Handle, LOGPIXELSX) * MarginsMilliInch.Left / 1000);
-  Margins.Top := Round(GetDeviceCaps(Printer.Handle, LOGPIXELSY) * MarginsMilliInch.Top / 1000);
-  Margins.Right := Round(GetDeviceCaps(Printer.Handle, LOGPIXELSX) * MarginsMilliInch.Right / 1000);
-  Margins.Bottom := Round(GetDeviceCaps(Printer.Handle, LOGPIXELSY) * MarginsMilliInch.Bottom / 1000);
+  inherited;
+end;
 
-  Padding := Round(GetDeviceCaps(Printer.Handle, LOGPIXELSY) * PaddingMilliInch / 1000);
+procedure TTExportPrint.BeforeExecute();
+var
+  DocInfo: TDocInfo;
+begin
+  inherited;
 
-  LineWidth := Round(GetDeviceCaps(Printer.Handle, LOGPIXELSX) * LineWidthMilliInch / 1000);
-  LineHeight := Round(GetDeviceCaps(Printer.Handle, LOGPIXELSY) * LineHeightMilliInch / 1000);
+  if (Success = daSuccess) then
+  begin
+    ZeroMemory(@DocInfo, SizeOf(DocInfo));
+    DocInfo.cbSize := SizeOf(DocInfo);
+    DocInfo.lpszDocName := PChar(FTitle);
+    if (StartDoc(Handle, DocInfo) <= 0) then
+      RaiseLastOSError();
+  end;
+end;
+
+constructor TTExportPrint.Create(const ASession: TSSession; const APrinterName: string; const ATitle: string);
+var
+  Size: Integer;
+  XResolution: Integer;
+begin
+  FTitle := ATitle;
+
+  if (not OpenPrinter(PChar(APrinterName), Printer, nil)) then
+    RaiseLastOSError();
+
+  Size := DocumentProperties(Application.Handle, Printer, nil, nil, nil, 0);
+
+  GetMem(DevMode, Size);
+  if (DocumentProperties(Application.Handle, Printer, nil, DevMode, nil, DM_OUT_BUFFER) <> IDOK) then
+    RaiseLastOSError();
+
+  Handle := CreateDC(nil, PChar(APrinterName), nil, DevMode);
+
+  PageWidth := GetDeviceCaps(Handle, HorzRes);
+  PageHeight := GetDeviceCaps(Handle, VertRes);
+
+  if (DevMode^.dmPrintQuality > 0) then
+    XResolution := DevMode^.dmPrintQuality
+  else
+    XResolution := DevMode^.dmYResolution;
+
+  Margins.Left := Round(XResolution * MarginsMilliInch.Left / 1000);
+  Margins.Top := Round(DevMode^.dmYResolution * MarginsMilliInch.Top / 1000);
+  Margins.Right := Round(XResolution * MarginsMilliInch.Right / 1000);
+  Margins.Bottom := Round(DevMode^.dmYResolution * MarginsMilliInch.Bottom / 1000);
+
+  Padding := Round(DevMode^.dmYResolution * PaddingMilliInch / 1000);
+
+  LineWidth := Round(XResolution * LineWidthMilliInch / 1000);
+  LineHeight := Round(DevMode^.dmYResolution * LineHeightMilliInch / 1000);
 
   SetLength(Pages, 0);
   Success := daSuccess;
@@ -7479,60 +7467,23 @@ begin
   inherited Create(ASession);
 end;
 
-procedure TTExportPrint.ExecuteFooter();
-var
-  Error: TError;
-  I: Integer;
+destructor TTExportPrint.Destroy();
 begin
+  DeleteDC(Handle);
+  FreeMem(DevMode);
+  ClosePrinter(Printer);
+
   inherited;
-
-  for I := 0 to Length(Pages) - 1 do
-  begin
-    if (Success = daSuccess) then
-      Printer.Canvas.Draw(0, 0, Pages[I]);
-    Pages[I].Free();
-
-    if ((Success = daSuccess) and (I < Length(Pages) - 1)) then
-      Printer.NewPage();
-  end;
-  SetLength(Pages, 0);
-
-  try
-    Printer.EndDoc();
-    if (GetLastError() > 0) then
-      DoError(SysError(), nil, False);
-  except
-    on E: Exception do
-      if (Success = daSuccess) then
-      begin
-        Error.ErrorType := TE_Printer;
-        Error.ErrorCode := 1;
-        Error.ErrorMessage := E.Message;
-        DoError(Error, nil, False);
-      end;
-  end;
 end;
 
-procedure TTExportPrint.ExecuteHeader();
-var
-  Error: TError;
+procedure TTExportPrint.PrintPage(const Page: TBitmap);
 begin
-  while ((Success <> daAbort) and not Printer.Printing) do
-    try
-      Printer.BeginDoc();
-      if (GetLastError() > 0) then
-        DoError(SysError(), nil, False);
-    except
-      on E: Exception do
-        begin
-          Error.ErrorType := TE_Printer;
-          Error.ErrorCode := 1;
-          Error.ErrorMessage := E.Message;
-          DoError(Error, nil, False);
-        end;
-    end;
-
-  inherited;
+  if (StartPage(Handle) <= 0) then
+    RaiseLastOSError();
+  if (not BitBlt(Handle, 0, 0, PageWidth, PageHeight, Page.Canvas.Handle, 0, 0, SRCCOPY)) then
+    RaiseLastOSError();
+  if (EndPage(Handle) <= 0) then
+    RaiseLastOSError();
 end;
 
 { TTExportPDF *****************************************************************}
