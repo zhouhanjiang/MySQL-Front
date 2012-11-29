@@ -3055,6 +3055,7 @@ end;
 procedure TMySQLConnection.SyncConnecting(const LibraryThread: TLibraryThread);
 var
   ClientFlag: my_uint;
+  ResHandle: MySQLConsts.MYSQL_RES;
   SQL: string;
 begin
   if (not Assigned(LibraryThread.LibHandle)) then
@@ -3115,7 +3116,14 @@ begin
       SQL := 'KILL CONNECTION ' + IntToStr(ThreadId);
 
     if (Lib.mysql_real_query(LibraryThread.LibHandle, my_char(AnsiString(SQL)), Length(SQL)) = 0) then
-      Lib.mysql_use_result(LibraryThread.LibHandle);
+    begin
+      ResHandle := Lib.mysql_use_result(LibraryThread.LibHandle);
+      if (Assigned(ResHandle)) then
+      begin
+        while (Assigned(Lib.mysql_fetch_row(ResHandle))) do ;
+        Lib.mysql_free_result(ResHandle);
+      end;
+    end;
   end;
 end;
 

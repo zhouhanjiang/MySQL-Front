@@ -252,39 +252,4 @@ object DAccount: TDAccount
     TabOrder = 1
     OnClick = FBHelpClick
   end
-  object OpenDialog: TOpenDialog_Ext
-    Options = [ofHideReadOnly, ofPathMustExist, ofFileMustExist, ofEnableSizing]
-    EncodingIndex = -1
-    EncodingLabel = '&Encoding:'
-    Left = 80
-    Top = 336
-  end
-  object MSource: TPopupMenu
-    Left = 112
-    Top = 336
-    object msUndo: TMenuItem
-      Caption = 'aEUndo'
-    end
-    object N2: TMenuItem
-      Caption = '-'
-    end
-    object msCut: TMenuItem
-      Caption = 'aECut'
-    end
-    object msCopy: TMenuItem
-      Caption = 'aECopy'
-    end
-    object msPaste: TMenuItem
-      Caption = 'aEPaste'
-    end
-    object msDelete: TMenuItem
-      Caption = 'aEDelete'
-    end
-    object N1: TMenuItem
-      Caption = '-'
-    end
-    object msSelectAll: TMenuItem
-      Caption = 'aESelectAll'
-    end
-  end
 end

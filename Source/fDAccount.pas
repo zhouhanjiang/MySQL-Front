@@ -5,7 +5,7 @@ interface {********************************************************************}
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, ComCtrls, ExtCtrls,
-  ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext, Dialogs_Ext,
+  ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext,
   fPreferences, fBase, fSession, SynEdit, SynMemo, Menus;
 
 type
@@ -39,15 +39,6 @@ type
     GBasics: TGroupBox_Ext;
     GLogin: TGroupBox_Ext;
     GConnection: TGroupBox_Ext;
-    msCopy: TMenuItem;
-    msCut: TMenuItem;
-    msDelete: TMenuItem;
-    MSource: TPopupMenu;
-    msPaste: TMenuItem;
-    msSelectAll: TMenuItem;
-    msUndo: TMenuItem;
-    N2: TMenuItem;
-    OpenDialog: TOpenDialog_Ext;
     procedure FBDatabaseClick(Sender: TObject);
     procedure FBHelpClick(Sender: TObject);
     procedure FConnectionTypeChange(Sender: TObject);
@@ -137,8 +128,6 @@ begin
   FBHelp.Caption := Preferences.LoadStr(167);
   FBOk.Caption := Preferences.LoadStr(29);
   FBCancel.Caption := Preferences.LoadStr(30);
-
-  OpenDialog.Title := ReplaceStr(Preferences.LoadStr(581), '&', '');
 end;
 
 procedure TDAccount.CMSysFontChanged(var Message: TMessage);
@@ -307,18 +296,6 @@ procedure TDAccount.FormCreate(Sender: TObject);
 begin
   FBDatabase.Height := FDatabase.Height; FBDatabase.Width := FBDatabase.Height;
   FBDatabase.Left := FDatabase.Left + FDatabase.Width;
-
-  OpenDialog.InitialDir := GetCurrentDir();
-  OpenDialog.FileName := '';
-  OpenDialog.DefaultExt := 'ico';
-  OpenDialog.Filter := FilterDescription('ico') + ' (*.ico)|*.ico';
-
-  msUndo.Action := MainAction('aEUndo'); msCut.ShortCut := 0;
-  msCut.Action := MainAction('aECut'); msCut.ShortCut := 0;
-  msCopy.Action := MainAction('aECopy'); msCopy.ShortCut := 0;
-  msPaste.Action := MainAction('aEPaste'); msPaste.ShortCut := 0;
-  msDelete.Action := MainAction('aEDelete'); msDelete.ShortCut := 0;
-  msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;
 end;
 
 procedure TDAccount.FormShow(Sender: TObject);

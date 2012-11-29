@@ -1105,10 +1105,14 @@ begin
             FD_ZERO(ReadFDS); FD_SET(Socket, ReadFDS);
             Time.tv_sec := NET_WAIT_TIMEOUT; Time.tv_usec := Time.tv_sec * 1000;
             Result := select(0, @ReadFDS, nil, nil, @Time) > 0;
+            if (not Result) then // Debug
+              raise Exception.CreateFmt('select failed - WSAGetLastError: %d', [WSAGetLastError()]);
             if (Result) then
             begin
               Len := recv(Socket, PAnsiChar(@AnsiChar(Buffer))[BytesRead], BytesToRead - BytesRead, 0);
               Result := (Len <> SOCKET_ERROR) and (Len > 0);
+              if (not Result) then // Debug
+                raise Exception.CreateFmt('recv failed (%d) - WSAGetLastError: %d', [Len, WSAGetLastError()]);
               if (Result) then
                 Inc(BytesRead, Len);
             end;
@@ -1121,9 +1125,6 @@ begin
 
   if (not Result) then
     Seterror(CR_SERVER_LOST);
-
-  if (not Result and (errno() = 0)) then // Debug 13.11.2012
-    Seterror(CR_UNKNOWN_ERROR);
 end;
 
 function TMySQL_IO.Send(const Buffer; const BytesToWrite: my_uint): Boolean;
@@ -1531,9 +1532,6 @@ function TMySQL_File.ReceivePacket(): Boolean;
     Result := Receive(PacketBuffer.Mem[PacketBuffer.Size], BytesToRead, BytesRead);
 
     Inc(PacketBuffer.Size, BytesRead);
-
-    if (not Result and (errno() = 0)) then // Debug 13.11.2012
-      Seterror(CR_UNKNOWN_ERROR);
   end;
 
   function ReceiveCompressed(const BytesToRead: my_uint): Boolean;
@@ -1608,9 +1606,6 @@ function TMySQL_File.ReceivePacket(): Boolean;
         end;
       end;
     until (not Result or (BytesRead >= BytesToRead));
-
-    if (not Result and (errno() = 0)) then // Debug 13.11.2012
-      Seterror(CR_UNKNOWN_ERROR);
   end;
 
   function Receive(const BytesToRead: my_uint): Boolean;
@@ -1684,9 +1679,6 @@ begin
     FReadFileBuffer.Size := my_uint(Index) * MAX_PACKET_LENGTH + Size;
     Inc(PacketBuffer.Offset, NET_HEADER_SIZE + FReadFileBuffer.Size);
   end;
-
-  if (not Result and (errno() = 0)) then // Debug 13.11.2012
-    Seterror(CR_UNKNOWN_ERROR);
 end;
 
 function TMySQL_File.SetFilePointer(const DistanceToMove: my_int; const MoveMethod: my_int): my_int;
@@ -1892,6 +1884,7 @@ begin
   fserver_capabilities := 0;
   fserver_info := nil;
   fthread_id := 0;
+  fserver_status := 0;
   fuser := '';
   fpipe_name := '';
   fwarning_count := 0;

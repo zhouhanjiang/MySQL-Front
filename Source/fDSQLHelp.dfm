@@ -12,7 +12,6 @@ object DSQLHelp: TDSQLHelp
   Font.Height = -12
   Font.Name = 'MS Sans Serif'
   Font.Style = []
-  FormStyle = fsStayOnTop
   OldCreateOrder = False
   Visible = True
   OnCreate = FormCreate
