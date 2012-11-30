@@ -1076,8 +1076,8 @@ end;
 function TMySQL_IO.Receive(var Buffer; const BytesToRead: my_uint; out BytesRead: my_uint): Boolean;
 var
   arg: u_long;
-  Len: my_int;
   ReadFDS: TFDSet;
+  Res: Integer;
   Size: Cardinal;
   Time: timeval;
 begin
@@ -1104,17 +1104,20 @@ begin
           begin
             FD_ZERO(ReadFDS); FD_SET(Socket, ReadFDS);
             Time.tv_sec := NET_WAIT_TIMEOUT; Time.tv_usec := Time.tv_sec * 1000;
-            Result := select(0, @ReadFDS, nil, nil, @Time) > 0;
-            if (not Result) then // Debug
-              raise Exception.CreateFmt('select failed - WSAGetLastError: %d', [WSAGetLastError()]);
-            if (Result) then
+            Res := select(0, @ReadFDS, nil, nil, @Time);
+            if (Res = SOCKET_ERROR) then
+              raise Exception.CreateFmt('select failed - WSAGetLastError: %d', [WSAGetLastError()])
+            else if (Res = 0) then
+              Result := False // Timeout
+            else
             begin
-              Len := recv(Socket, PAnsiChar(@AnsiChar(Buffer))[BytesRead], BytesToRead - BytesRead, 0);
-              Result := (Len <> SOCKET_ERROR) and (Len > 0);
-              if (not Result) then // Debug
-                raise Exception.CreateFmt('recv failed (%d) - WSAGetLastError: %d', [Len, WSAGetLastError()]);
-              if (Result) then
-                Inc(BytesRead, Len);
+              Res := recv(Socket, PAnsiChar(@AnsiChar(Buffer))[BytesRead], BytesToRead - BytesRead, 0);
+              if (Res = SOCKET_ERROR) then
+                raise Exception.CreateFmt('recv failed - WSAGetLastError: %d', [WSAGetLastError()])
+              else if (Res = 0) then
+                Result := False // Connection closed
+              else
+                Inc(BytesRead, Res);
             end;
           end;
         end;
