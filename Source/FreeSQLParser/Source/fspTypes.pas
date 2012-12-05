@@ -5,6 +5,22 @@ interface {********************************************************************}
 type
   TSQLDialect = (sdStandard, sdMySQL);
 
+  TNodeType = (
+    ntUnknown,
+    ntRoot,
+    ntToken,
+    ntStmtNode,
+    ntSibling,
+    ntList,
+    ntStmt
+  );
+
+  TStmtType = (
+    stUnknown,
+    stSELECT,
+    stCompound
+  );
+
   TUsageType = (
     utUnknown,
     utSymbol,

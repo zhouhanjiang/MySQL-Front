@@ -108,6 +108,22 @@ const
     'UPGRADE,USAGE,USE,USE_FRM,USING,VALUE,VALUES,VARIABLES,VARYING,VIEW,' +
     'WAIT,WARNINGS,WHEN,WHERE,WHILE,WITH,WORK,WRAPPER,WRITE,X509,XOR';
 
+  NodeTypeToString: array[TNodeType] of PChar = (
+    'ntUnknown',
+    'ntRoot',
+    'ntToken',
+    'ntStmtNode',
+    'ntSibling',
+    'ntList',
+    'ntStmt'
+  );
+
+  StmtTypeToString: array[TStmtType] of PChar = (
+    'stUnknown',
+    'stSELECT',
+    'stCompound'
+  );
+
   TokenTypeToString: array[TTokenType] of PChar = (
     'ttUnknown',
     'ttSpace',
