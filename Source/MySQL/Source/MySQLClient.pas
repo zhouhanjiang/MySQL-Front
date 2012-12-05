@@ -1088,7 +1088,11 @@ begin
         begin
           Result := ReadFile(Pipe, PAnsiChar(@AnsiChar(Buffer))[BytesRead], BytesToRead - BytesRead, Size, nil) and (Size > 0);
           if (Result) then
-            Inc(BytesRead, Size);
+            Inc(BytesRead, Size)
+          else if (GetLastError() = ERROR_PIPE_NOT_CONNECTED) then
+            Seterror(CR_SERVER_LOST)
+          else
+            RaiseLastOSError();
        end;
       itTCPIP:
         begin
@@ -1106,28 +1110,31 @@ begin
             Time.tv_sec := NET_WAIT_TIMEOUT; Time.tv_usec := Time.tv_sec * 1000;
             Res := select(0, @ReadFDS, nil, nil, @Time);
             if (Res = SOCKET_ERROR) then
-              raise Exception.CreateFmt('select failed - WSAGetLastError: %d', [WSAGetLastError()])
+              raise Exception.CreateFmt('select error (#%d)', [WSAGetLastError()])
             else if (Res = 0) then
-              Result := False // Timeout
+            begin // Timeout
+              Seterror(CR_SERVER_LOST);
+              Result := False;
+            end
             else
             begin
               Res := recv(Socket, PAnsiChar(@AnsiChar(Buffer))[BytesRead], BytesToRead - BytesRead, 0);
               if (Res = SOCKET_ERROR) then
-                raise Exception.CreateFmt('recv failed - WSAGetLastError: %d', [WSAGetLastError()])
+                raise Exception.CreateFmt('recv error (#%d)', [WSAGetLastError()])
               else if (Res = 0) then
-                Result := False // Connection closed
+              begin // Connection lost
+                Seterror(CR_SERVER_LOST);
+                Result := False;
+              end
               else
                 Inc(BytesRead, Res);
             end;
           end;
         end;
       else
-        Result := False;
+        raise Exception.Create('Unknown IOType');
     end;
   until (not Result or (BytesRead = BytesToRead));
-
-  if (not Result) then
-    Seterror(CR_SERVER_LOST);
 end;
 
 function TMySQL_IO.Send(const Buffer; const BytesToWrite: my_uint): Boolean;

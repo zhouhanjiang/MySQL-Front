@@ -13337,7 +13337,7 @@ begin
   begin
     FAddress := NewAddress;
 
-    Node := FNavigatorNodeByAddress(Address);
+    Node := FNavigatorNodeByAddress(NewAddress);
 
     ChangingEvent := FNavigator.OnChanging; FNavigator.OnChanging := nil;
     ChangeEvent := FNavigator.OnChange; FNavigator.OnChange := nil;

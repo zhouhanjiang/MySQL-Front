@@ -4565,12 +4565,12 @@ begin
       else if (SQLParseKeyword(Parse, 'MAX_ROWS')) then
       begin
         SQLParseChar(Parse, '=');
-        FMaxRows := StrToInt(SQLParseValue(Parse));
+        FMaxRows := StrToInt64(SQLParseValue(Parse));
       end
       else if (SQLParseKeyword(Parse, 'MIN_ROWS')) then
       begin
         SQLParseChar(Parse, '=');
-        FMinRows := StrToInt(SQLParseValue(Parse));
+        FMinRows := StrToInt64(SQLParseValue(Parse));
       end
       else if (SQLParseKeyword(Parse, 'PACK_KEYS')) then
       begin
@@ -8532,7 +8532,7 @@ begin
     if (Assigned(Session.VariableByName('wait_timeout'))) then
       if (Session.VariableByName('wait_timeout').AsInteger >= 4) then
         Session.ServerTimeout := Session.VariableByName('wait_timeout').AsInteger - 3
-      else if (Session.VariableByName('wait_timeout').AsInteger >= 2) then
+      else if (Session.VariableByName('wait_timeout').AsInteger >= 60) then
         Session.ServerTimeout := Session.VariableByName('wait_timeout').AsInteger - 1;
   end;
 

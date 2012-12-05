@@ -2924,7 +2924,10 @@ begin
         SQL_TYPE_TIME,
         SQL_TYPE_TIMESTAMP:
           if (not SQL_SUCCEEDED(SQLGetData(Stmt, I + 1, SQL_C_CHAR, ODBCData, ODBCDataSize, @cbData))) then
-            ODBCException(Stmt, SQL_ERROR)
+          begin
+            DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
+            DataFileBuffer.Write(PAnsiChar('NULL'), 4)
+          end
           else if (cbData = SQL_NULL_DATA) then
             DataFileBuffer.Write(PAnsiChar('NULL'), 4)
           else
@@ -2951,7 +2954,10 @@ begin
               end;
             until (ReturnCode <> SQL_SUCCESS_WITH_INFO);
             if (not SQL_SUCCEEDED(ReturnCode)) then
-              ODBCException(Stmt, ReturnCode)
+            begin
+              DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
+              DataFileBuffer.Write(PAnsiChar('NULL'), 4);
+            end
             else if ((Size = 0) and (cbData = SQL_NULL_DATA)) then
               DataFileBuffer.Write(PAnsiChar('NULL'), 4)
             else
@@ -2976,7 +2982,10 @@ begin
               end;
             until (ReturnCode <> SQL_SUCCESS_WITH_INFO);
             if (not SQL_SUCCEEDED(ReturnCode)) then
-              ODBCException(Stmt, ReturnCode)
+            begin
+              DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
+              DataFileBuffer.Write(PAnsiChar('NULL'), 4);
+            end
             else if (cbData = SQL_NULL_DATA) then
               DataFileBuffer.Write(PAnsiChar('NULL'), 4)
             else

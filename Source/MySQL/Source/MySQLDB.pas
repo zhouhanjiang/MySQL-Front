@@ -1883,7 +1883,7 @@ begin
     if (not Terminated) then
       if (WaitResult = wrTimeout) then
       begin
-        if (not Assigned(DataSet)) then
+        if (not Assigned(DataSet) and (not Assigned(Connection.Lib.mysql_more_results) or (Connection.Lib.mysql_more_results(LibHandle) = 0))) then
           Connection.SyncPing(Self);
       end
       else
@@ -2342,13 +2342,15 @@ begin
 end;
 
 function TMySQLConnection.ErrorMsg(const AHandle: MySQLConsts.MYSQL): string;
+var
+  RBS: RawByteString;
 begin
-try
-  Result := LibDecode(my_char(SQLUnescape(Lib.mysql_error(AHandle), False)));
-except
-  on E: Exception do
-    raise EDatabaseError.Create(string(Lib.mysql_error(AHandle)));
-end;
+  RBS := SQLUnescape(Lib.mysql_error(AHandle), False);
+  try
+    Result := LibDecode(my_char(RBS));
+  except
+    Result := string(RBS);
+  end;
 end;
 
 function TMySQLConnection.EscapeIdentifier(const Identifier: string): string;
@@ -3324,8 +3326,13 @@ begin
       LibraryThread.ResHandle := Lib.mysql_use_result(LibraryThread.LibHandle);
   end;
 
-  LibraryThread.ErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);
-  LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
+  if (Assigned(LibraryThread.LibHandle)) then
+  begin
+    LibraryThread.ErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);
+    LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
+  end
+  else if (not LibraryThread.Terminated) then
+    raise Exception.Create('Error Message 1'); // Debug 03.12.2012
 end;
 
 procedure TMySQLConnection.SyncHandleResult(const LibraryThread: TLibraryThread);
