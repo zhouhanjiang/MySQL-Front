@@ -194,6 +194,7 @@ type
     miSSQLHistory: TMenuItem;
     mjAdd: TMenuItem;
     mjAddExport: TMenuItem;
+    mjAddImport: TMenuItem;
     mjDelete: TMenuItem;
     mjEdit: TMenuItem;
     mjExecute: TMenuItem;
@@ -444,6 +445,7 @@ type
     procedure aHRunClick(Sender: TObject);
     procedure aHRunExecute(Sender: TObject);
     procedure aJAddExportExecute(Sender: TObject);
+    procedure aJAddImportExecute(Sender: TObject);
     procedure aJDeleteExecute(Sender: TObject);
     procedure aJEditExecute(Sender: TObject);
     procedure aPCollapseExecute(Sender: TObject);
@@ -3704,7 +3706,7 @@ begin
     DImport.Table := nil;
   end;
   DImport.Filename := '';
-  DImport.CodePage := GetACP();
+  DImport.CodePage := CP_ACP;
   DImport.ImportType := itODBC;
   DImport.Execute();
   Wanted.Update := Session.Update;
@@ -3914,20 +3916,32 @@ begin
   end;
 end;
 
+procedure TFSession.aJAddImportExecute(Sender: TObject);
+begin
+  Write;
+end;
+
 procedure TFSession.aJDeleteExecute(Sender: TObject);
 begin
   Session.Account.Jobs.DeleteJob(Session.Account.JobByName(FJobs.Selected.Caption));
 end;
 
 procedure TFSession.aJEditExecute(Sender: TObject);
+var
+  Job: TAJob;
 begin
-  DExport.Session := Session;
-  DExport.DataSet := nil;
-  DExport.DialogType := edtEditJob;
-  DExport.Job := TAJobExport(Session.Account.JobByName(FJobs.Selected.Caption));
-  DExport.AObjects.Clear();
-  DExport.Window := Window;
-  DExport.Execute();
+  Job := Session.Account.JobByName(FJobs.Selected.Caption);
+
+  if (Job is TAJobExport) then
+  begin
+    DExport.Session := Session;
+    DExport.DataSet := nil;
+    DExport.DialogType := edtEditJob;
+    DExport.Job := TAJobExport(Job);
+    DExport.AObjects.Clear();
+    DExport.Window := Window;
+    DExport.Execute();
+  end;
 end;
 
 procedure TFSession.aPCollapseExecute(Sender: TObject);
@@ -4833,6 +4847,7 @@ begin
     MainAction('aDRun').OnExecute := aDRunExecute;
     MainAction('aDRunSelection').OnExecute := aDRunSelectionExecute;
     MainAction('aDPostObject').OnExecute := aDPostObjectExecute;
+    MainAction('aJAddImport').OnExecute := aJAddImportExecute;
     MainAction('aJAddExport').OnExecute := aJAddExportExecute;
     MainAction('aJDelete').OnExecute := aJDeleteExecute;
     MainAction('aJEdit').OnExecute := aJEditExecute;
@@ -4856,6 +4871,7 @@ begin
     MainAction('aVRefreshAll').Enabled := True;
     MainAction('aBAdd').Enabled := True;
     MainAction('aDCancel').Enabled := Session.InUse();
+    MainAction('aJAddImport').Enabled := CheckWin32Version(6);
     MainAction('aJAddExport').Enabled := CheckWin32Version(6);
     MainAction('aHSQL').Enabled := Session.ServerVersion >= 40100;
     MainAction('aHManual').Enabled := Session.Account.ManualURL <> '';
@@ -4910,6 +4926,7 @@ begin
   MainAction('aDCancel').Enabled := False;
   MainAction('aHSQL').Enabled := False;
   MainAction('aHManual').Enabled := False;
+  MainAction('aJAddImport').Enabled := False;
   MainAction('aJAddExport').Enabled := False;
   MainAction('aJDelete').Enabled := False;
   MainAction('aJEdit').Enabled := False;
@@ -5268,6 +5285,7 @@ begin
   mbDelete.Action := MainAction('aBDelete');
   mbEdit.Action := MainAction('aBEdit');
 
+  mjAddImport.Action := MainAction('aJAddImport');
   mjAddExport.Action := MainAction('aJAddExport');
   mjDelete.Action := MainAction('aJDelete');
   mjEdit.Action := MainAction('aJEdit');
@@ -6649,7 +6667,7 @@ begin
     if (Assigned(FFolders)) then FFolders.Free();
     if (Assigned(FFiles)) then FFiles.Free();
   except
-      // There is a bug inside ShellBrowser.pas ver. 7.3 - but it's not interested to get informed
+    // There is a bug inside ShellBrowser.pas ver. 7.3 - but it's not interested to get informed
   end;
 
   if ((SQLEditor.Filename <> '') and not FSQLEditorSynMemo.Modified) then
@@ -6684,14 +6702,14 @@ begin
     Session.Account.Desktop.DataHeight := PResult.Height;
   Session.Account.Desktop.BlobHeight := PBlob.Height;
 
-//  if (Assigned(Session.Account.DesktopXML)) then
-//  begin
-//    DatabasesXML := XMLNode(Session.Account.DesktopXML, 'browser/databases');
-//    if (Assigned(DatabasesXML)) then
-//      for I := DatabasesXML.ChildNodes.Count - 1 downto 0 do
-//        if ((DatabasesXML.ChildNodes[I].NodeName = 'database') and not Assigned(Session.DatabaseByName(DatabasesXML.ChildNodes[I].Attributes['name']))) then
-//          DatabasesXML.ChildNodes.Delete(I);
-//  end;
+  if (Assigned(Session.Account.DesktopXML)) then
+  begin
+    DatabasesXML := XMLNode(Session.Account.DesktopXML, 'browser/databases');
+    if (Assigned(DatabasesXML)) then
+      for I := DatabasesXML.ChildNodes.Count - 1 downto 0 do
+        if ((DatabasesXML.ChildNodes[I].NodeName = 'database') and not Assigned(Session.DatabaseByName(DatabasesXML.ChildNodes[I].Attributes['name']))) then
+          DatabasesXML.ChildNodes.Delete(I);
+  end;
 
   Session.Account.Desktop.AddressMRU.Assign(ToolBarData.AddressMRU);
   Session.Account.UnRegisterDesktop(Self);
@@ -7050,6 +7068,7 @@ procedure TFSession.FJobsChange(Sender: TObject; Item: TListItem;
   Change: TItemChange);
 begin
   mjExecute.Enabled := Assigned(Item) and Item.Selected;
+  MainAction('aJAddImport').Enabled := CheckWin32Version(6) and (not Assigned(Item) or not Item.Selected);
   MainAction('aJAddExport').Enabled := CheckWin32Version(6) and (not Assigned(Item) or not Item.Selected);
   MainAction('aJDelete').Enabled := Assigned(Item) and Item.Selected;
   MainAction('aJEdit').Enabled := Assigned(Item) and Item.Selected;
@@ -7062,6 +7081,7 @@ end;
 
 procedure TFSession.FJobsExit(Sender: TObject);
 begin
+  MainAction('aJAddImport').Enabled := CheckWin32Version(6);
   MainAction('aJAddExport').Enabled := CheckWin32Version(6);
 end;
 

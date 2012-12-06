@@ -505,6 +505,13 @@ object WWindow: TWWindow
   object ActionList: TActionList
     Left = 80
     Top = 240
+    object aJAddExport: TAction
+      Category = 'Jobs'
+      Caption = 'aJAddExport'
+      Enabled = False
+      HelpContext = 1138
+      HelpType = htContext
+    end
     object aVObjectBrowser: TAction
       Category = 'View'
       Caption = 'aVObjectBrowser'
@@ -513,6 +520,13 @@ object WWindow: TWWindow
       HelpType = htContext
       ImageIndex = 1
       ShortCut = 117
+    end
+    object aJAddImport: TAction
+      Category = 'Jobs'
+      Caption = 'aJAddImport'
+      Enabled = False
+      HelpContext = 1148
+      HelpType = htContext
     end
     object aVDataBrowser: TAction
       Category = 'View'
@@ -1343,13 +1357,6 @@ object WWindow: TWWindow
       Category = 'Bookmark'
       Caption = 'aBookmark'
     end
-    object aJAddExport: TAction
-      Category = 'Jobs'
-      Caption = 'aJExport'
-      Enabled = False
-      HelpContext = 1138
-      HelpType = htContext
-    end
     object aJDelete: TAction
       Category = 'Jobs'
       Caption = 'aJDelete'
@@ -1838,7 +1845,10 @@ object WWindow: TWWindow
         GroupIndex = 3
         object miJAdd: TMenuItem
           Caption = 'miJAdd'
-          object miJNewExport: TMenuItem
+          object miJAddImport: TMenuItem
+            Action = aJAddImport
+          end
+          object miJAddExport: TMenuItem
             Action = aJAddExport
           end
         end

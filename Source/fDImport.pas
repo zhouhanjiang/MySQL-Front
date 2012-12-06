@@ -455,107 +455,112 @@ begin
   ModalResult := mrNone;
   PageControl.ActivePageIndex := -1;
 
-  ODBC := SQL_NULL_HANDLE;
-  TableNames := TTableNames.Create();
+  if (ModalResult = mrCancel) then
+    Result := False
+  else
+  begin
+    ODBC := SQL_NULL_HANDLE;
+    TableNames := TTableNames.Create();
 
-  case (ImportType) of
-    itExcelFile,
-    itAccessFile:
-      begin
-        if (ImportType = itExcelFile) then
-          ConnStrIn := 'Driver={Microsoft Excel Driver (*.xls, *.xlsx, *.xlsm, *.xlsb)};' + 'DBQ=' + Filename + ';' + 'READONLY=TRUE'
-        else
-          ConnStrIn := 'Driver={Microsoft Access Driver (*.mdb, *.accdb)};' + 'DBQ=' + Filename + ';' + 'READONLY=TRUE';
-
-        Success := SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @ODBC));
-        if (Success) then
+    case (ImportType) of
+      itExcelFile,
+      itAccessFile:
         begin
-          Success := SQL_SUCCEEDED(SQLDriverConnect(ODBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
-          if (not Success) then
-          begin
-            if (ImportType = itExcelFile) then
-              ConnStrIn := 'Driver={Microsoft Excel Driver (*.xls)};' + 'DBQ=' + Filename + ';' + 'READONLY=TRUE'
-            else
-              ConnStrIn := 'Driver={Microsoft Access Driver (*.mdb)};' + 'DBQ=' + Filename + ';' + 'READONLY=TRUE';
-            Success := SQL_SUCCEEDED(SQLDriverConnect(ODBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
-          end;
-        end;
-        if (not Success) then
-          if ((ODBC <> SQL_NULL_HANDLE) and SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, nil, nil, nil, 0, @cbMessageText))) then
-          begin
-            if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, nil, nil, nil, 0, @cbMessageText))) then
-            begin
-              GetMem(MessageText, (cbMessageText + 1) * SizeOf(SQLTCHAR));
-              if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, @SQLState, nil, MessageText, cbMessageText + 1, nil))) then
-                MsgBox(PChar(MessageText) + ' (' + SQLState + ')', Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-              FreeMem(MessageText);
-            end;
-            SQLFreeHandle(SQL_HANDLE_DBC, ODBC); ODBC := SQL_NULL_HANDLE;
-          end
+          if (ImportType = itExcelFile) then
+            ConnStrIn := 'Driver={Microsoft Excel Driver (*.xls, *.xlsx, *.xlsm, *.xlsb)};' + 'DBQ=' + Filename + ';' + 'READONLY=TRUE'
           else
-            MsgBox('Unknown ODBC Error.', Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-      end;
-    itODBC:
-      begin
-        Success := SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @ODBC));
-        Success := Success and SQL_SUCCEEDED(SQLSetConnectAttr(ODBC, SQL_ATTR_ACCESS_MODE, SQLPOINTER(SQL_MODE_READ_ONLY), SQL_IS_POINTER));
+            ConnStrIn := 'Driver={Microsoft Access Driver (*.mdb, *.accdb)};' + 'DBQ=' + Filename + ';' + 'READONLY=TRUE';
 
-        DDatabases.Session := nil;
-        DDatabases.SelectedDatabases := '';
-        if (Success) then
-          repeat
-            Success := DDatabases.Execute();
-            Cancel := not Success;
-            if (Success) then
+          Success := SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @ODBC));
+          if (Success) then
+          begin
+            Success := SQL_SUCCEEDED(SQLDriverConnect(ODBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
+            if (not Success) then
             begin
-              DatabaseName := DDatabases.SelectedDatabases;
-              if ((Copy(DatabaseName, 1, 1) = '"') and (Copy(DatabaseName, Length(DatabaseName), 1) = '"')) then
-                DatabaseName := Copy(DatabaseName, 2, Length(DatabaseName) - 2);
+              if (ImportType = itExcelFile) then
+                ConnStrIn := 'Driver={Microsoft Excel Driver (*.xls)};' + 'DBQ=' + Filename + ';' + 'READONLY=TRUE'
+              else
+                ConnStrIn := 'Driver={Microsoft Access Driver (*.mdb)};' + 'DBQ=' + Filename + ';' + 'READONLY=TRUE';
+              Success := SQL_SUCCEEDED(SQLDriverConnect(ODBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
+            end;
+          end;
+          if (not Success) then
+            if ((ODBC <> SQL_NULL_HANDLE) and SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, nil, nil, nil, 0, @cbMessageText))) then
+            begin
+              if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, nil, nil, nil, 0, @cbMessageText))) then
+              begin
+                GetMem(MessageText, (cbMessageText + 1) * SizeOf(SQLTCHAR));
+                if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, @SQLState, nil, MessageText, cbMessageText + 1, nil))) then
+                  MsgBox(PChar(MessageText) + ' (' + SQLState + ')', Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+                FreeMem(MessageText);
+              end;
+              SQLFreeHandle(SQL_HANDLE_DBC, ODBC); ODBC := SQL_NULL_HANDLE;
+            end
+            else
+              MsgBox('Unknown ODBC Error.', Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+        end;
+      itODBC:
+        begin
+          Success := SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @ODBC));
+          Success := Success and SQL_SUCCEEDED(SQLSetConnectAttr(ODBC, SQL_ATTR_ACCESS_MODE, SQLPOINTER(SQL_MODE_READ_ONLY), SQL_IS_POINTER));
 
-              DLogin.Account := nil;
-              DLogin.Filename := DatabaseName;
-              DLogin.Window := Window;
-              Success := DLogin.Execute();
+          DDatabases.Session := nil;
+          DDatabases.SelectedDatabases := '';
+          if (Success) then
+            repeat
+              Success := DDatabases.Execute();
               Cancel := not Success;
               if (Success) then
               begin
-                Success := Success and SQL_SUCCEEDED(SQLConnect(ODBC, PSQLTCHAR(PChar(DatabaseName)), SQL_NTS, PSQLTCHAR(PChar(DLogin.Username)), SQL_NTS, PSQLTCHAR(PChar(DLogin.Password)), SQL_NTS));
-                if (not Success and (ODBC <> SQL_NULL_HANDLE)) then
+                DatabaseName := DDatabases.SelectedDatabases;
+                if ((Copy(DatabaseName, 1, 1) = '"') and (Copy(DatabaseName, Length(DatabaseName), 1) = '"')) then
+                  DatabaseName := Copy(DatabaseName, 2, Length(DatabaseName) - 2);
+
+                DLogin.Account := nil;
+                DLogin.Filename := DatabaseName;
+                DLogin.Window := Window;
+                Success := DLogin.Execute();
+                Cancel := not Success;
+                if (Success) then
                 begin
-                  if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, nil, nil, nil, 0, @cbMessageText))) then
+                  Success := Success and SQL_SUCCEEDED(SQLConnect(ODBC, PSQLTCHAR(PChar(DatabaseName)), SQL_NTS, PSQLTCHAR(PChar(DLogin.Username)), SQL_NTS, PSQLTCHAR(PChar(DLogin.Password)), SQL_NTS));
+                  if (not Success and (ODBC <> SQL_NULL_HANDLE)) then
                   begin
-                    GetMem(MessageText, (cbMessageText + 1) * SizeOf(SQLTCHAR));
-                    if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, @SQLState, nil, MessageText, cbMessageText + 1, nil))) then
-                      MsgBox(PChar(MessageText) + ' (' + SQLState + ')', Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-                    FreeMem(MessageText);
+                    if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, nil, nil, nil, 0, @cbMessageText))) then
+                    begin
+                      GetMem(MessageText, (cbMessageText + 1) * SizeOf(SQLTCHAR));
+                      if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, @SQLState, nil, MessageText, cbMessageText + 1, nil))) then
+                        MsgBox(PChar(MessageText) + ' (' + SQLState + ')', Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+                      FreeMem(MessageText);
+                    end;
+                    SQLFreeHandle(SQL_HANDLE_DBC, ODBC); ODBC := SQL_NULL_HANDLE;
                   end;
-                  SQLFreeHandle(SQL_HANDLE_DBC, ODBC); ODBC := SQL_NULL_HANDLE;
                 end;
               end;
-            end;
-          until (Success or Cancel)
-        else
-          if ((ODBC <> SQL_NULL_HANDLE) and SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, nil, nil, nil, 0, @cbMessageText))) then
-          begin
-            if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, nil, nil, nil, 0, @cbMessageText))) then
-            begin
-              GetMem(MessageText, (cbMessageText + 1) * SizeOf(SQLTCHAR));
-              if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, @SQLState, nil, MessageText, cbMessageText + 1, nil))) then
-                MsgBox(PChar(MessageText) + ' (' + SQLState + ')', Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-              FreeMem(MessageText);
-            end;
-            SQLFreeHandle(SQL_HANDLE_DBC, ODBC); ODBC := SQL_NULL_HANDLE;
-          end
+            until (Success or Cancel)
           else
-            MsgBox('Unknown ODBC Error.', Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-      end;
-    else
-      Success := True;
+            if ((ODBC <> SQL_NULL_HANDLE) and SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, nil, nil, nil, 0, @cbMessageText))) then
+            begin
+              if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, nil, nil, nil, 0, @cbMessageText))) then
+              begin
+                GetMem(MessageText, (cbMessageText + 1) * SizeOf(SQLTCHAR));
+                if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, @SQLState, nil, MessageText, cbMessageText + 1, nil))) then
+                  MsgBox(PChar(MessageText) + ' (' + SQLState + ')', Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+                FreeMem(MessageText);
+              end;
+              SQLFreeHandle(SQL_HANDLE_DBC, ODBC); ODBC := SQL_NULL_HANDLE;
+            end
+            else
+              MsgBox('Unknown ODBC Error.', Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+        end;
+      else
+        Success := True;
+    end;
+
+    Result := Success and (ShowModal() = mrOk);
+
+    TableNames.Free();
   end;
-
-  Result := Success and (ShowModal() = mrOk);
-
-  TableNames.Free();
 end;
 
 procedure TDImport.FBBackClick(Sender: TObject);

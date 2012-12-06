@@ -20,7 +20,7 @@ const
   PE_UnexpectedToken = 4; // Token unexpected or not understood
   PE_UnkownStmt = 5; // First Token is not a known keyword
   PE_IncompleteStmt = 6; // Uncompleted Token
-  PE_InvalidEndToken = 7; // Begin and End Token are different
+  PE_InvalidEndLabel = 7; // Begin and End Token are different
 
   MySQLFunctions =
     'BINARY,INTERVAL,' +
@@ -112,10 +112,11 @@ const
     'ntUnknown',
     'ntRoot',
     'ntToken',
-    'ntStmtNode',
+    'ntRangeNode',
+    'ntSiblings',
     'ntSibling',
-    'ntList',
-    'ntStmt'
+    'ntStmt',
+    'ntColumn'
   );
 
   StmtTypeToString: array[TStmtType] of PChar = (

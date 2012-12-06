@@ -242,8 +242,8 @@ end;
 
 procedure TDServer.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = ceItemsValid) and ((Event.CItems = Session.Stati) or Assigned(Session.Plugins) and (Event.CItems = Session.Plugins))
-    and Session.Stati.Valid and (not Assigned(Session.Plugins) or Session.Plugins.Valid)) then
+  if ((Event.EventType = ceItemsValid) and (Assigned(Session.Plugins) and (Event.CItems = Session.Plugins))
+    and (not Assigned(Session.Plugins) or Session.Plugins.Valid)) then
     Built()
   else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
   begin
@@ -331,7 +331,7 @@ begin
   List.Add(Session.Stati);
   if (Assigned(Session.Plugins)) then
     List.Add(Session.Plugins);
-  PageControl.Visible := not Session.Update(List);
+  PageControl.Visible := Session.Update(List);
   PSQLWait.Visible := not PageControl.Visible;
   List.Free();
 

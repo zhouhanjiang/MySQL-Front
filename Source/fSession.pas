@@ -8847,7 +8847,10 @@ var
   DeleteList: TList;
   Index: Integer;
   Name: string;
+  OldCount: Integer;
 begin
+  OldCount := Count;
+
   DeleteList := TList.Create();
   DeleteList.Assign(Self);
 
@@ -8881,6 +8884,9 @@ begin
       DeleteList.Delete(0);
     end;
   DeleteList.Free();
+
+  if ((OldCount > 0) or (Count > 0)) then
+    Session.ExecuteEvent(ceItemsValid, Session, Self);
 end;
 
 function TSPlugins.GetPlugin(Index: Integer): TSPlugin;

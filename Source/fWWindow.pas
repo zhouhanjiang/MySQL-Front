@@ -256,7 +256,7 @@ type
     miJDelete: TMenuItem;
     miJEdit: TMenuItem;
     miJAdd: TMenuItem;
-    miJNewExport: TMenuItem;
+    miJAddExport: TMenuItem;
     miJobs: TMenuItem;
     miOGlobals: TMenuItem;
     miOptions: TMenuItem;
@@ -366,6 +366,8 @@ type
     ToolButton5: TToolButton;
     ToolButton7: TToolButton;
     N4: TMenuItem;
+    aJAddImport: TAction;
+    miJAddImport: TMenuItem;
     procedure aDCreateParentExecute(Sender: TObject);
     procedure aEFindExecute(Sender: TObject);
     procedure aEReplaceExecute(Sender: TObject);
@@ -601,11 +603,9 @@ begin
   if (not Assigned(ActiveTab)) then
   begin
     DInstallUpdate.Silent := False;
-    if (DInstallUpdate.Execute()) then
-    begin
-      ShellExecute(0, 'open', PChar(ParamStr(0)), '', '', SW_SHOW);
+    Preferences.SetupProgramExecute := DInstallUpdate.Execute();
+    if (Preferences.SetupProgramExecute) then
       Close();
-    end;
   end;
 end;
 
@@ -1102,6 +1102,7 @@ begin
 
   miJobs.Caption := Preferences.LoadStr(896);
   miJAdd.Caption := Preferences.LoadStr(26);
+  aJAddImport.Caption := Preferences.LoadStr(371) + '...';
   aJAddExport.Caption := Preferences.LoadStr(200) + '...';
   aJDelete.Caption := Preferences.LoadStr(28);
   aJEdit.Caption := Preferences.LoadStr(97) + '...';

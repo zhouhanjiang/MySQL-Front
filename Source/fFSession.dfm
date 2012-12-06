@@ -2125,6 +2125,9 @@ object FSession: TFSession
     end
     object mjAdd: TMenuItem
       Caption = 'mjAdd'
+      object mjAddImport: TMenuItem
+        Caption = 'aJAddImport'
+      end
       object mjAddExport: TMenuItem
         Caption = 'aJAddExport'
       end

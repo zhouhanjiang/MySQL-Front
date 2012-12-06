@@ -217,6 +217,7 @@ type
     procedure TSTaskShow(Sender: TObject);
     procedure FExportTypeChange(Sender: TObject);
   private
+    CodePage: Cardinal;
     Export: TTExport;
     FDestFields: array of TEdit;
     FFields: array of TComboBox_Ext;
@@ -248,7 +249,6 @@ type
     procedure CMUpdateProgressInfo(var Message: TMessage); message CM_UPDATEPROGRESSINFO;
   public
     Session: TSSession;
-    CodePage: Cardinal;
     DataSet: TMySQLDataSet;
     DialogType: (edtNormal, edtCreateJob, edtEditJob, edtExecuteJob);
     ExportType: TPExportType;

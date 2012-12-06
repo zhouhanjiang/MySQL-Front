@@ -338,6 +338,10 @@ object DServer: TDServer
     object TSExtras: TTabSheet
       Caption = 'TSExtras'
       OnShow = TSExtrasShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         275)

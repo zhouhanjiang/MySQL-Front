@@ -9,10 +9,11 @@ type
     ntUnknown,
     ntRoot,
     ntToken,
-    ntStmtNode,
+    ntRangeNode,
+    ntSiblings,
     ntSibling,
-    ntList,
-    ntStmt
+    ntStmt,
+    ntColumn
   );
 
   TStmtType = (

@@ -491,6 +491,7 @@ type
     UpdateCheck: TPUpdateCheckType;
     UpdateChecked: TDateTime;
     SetupProgram: TFileName;
+    SetupProgramExecute: Boolean;
     SetupProgramInstalled: Boolean;
     property InternetAgent: string read FInternetAgent;
     property Language: TPLanguage read GetLanguage;
@@ -2047,6 +2048,8 @@ begin
   GridNullText := True;
   GridMemoContent := False;
   GridDefaultSorting := True;
+  SetupProgramExecute := False;
+  SetupProgramInstalled := False;
   SQLFontName := 'Courier New';
   SQLFontColor := clWindowText;
   SQLFontStyle := [];
