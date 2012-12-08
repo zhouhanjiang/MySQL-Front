@@ -17,6 +17,9 @@ object DImport: TDImport
   OnCreate = FormCreate
   OnHide = FormHide
   OnShow = FormShow
+  DesignSize = (
+    341
+    331)
   PixelsPerInch = 106
   TextHeight = 13
   object FBForward: TButton
@@ -40,15 +43,247 @@ object DImport: TDImport
     TabOrder = 4
     OnClick = FBCancelClick
   end
+  object PSQLWait: TPanel_Ext
+    Left = 8
+    Top = 0
+    Width = 341
+    Height = 281
+    Cursor = crHourGlass
+    Anchors = [akLeft, akTop, akRight, akBottom]
+    BevelOuter = bvNone
+    Caption = 'PSQLWait'
+    ParentBackground = False
+    TabOrder = 5
+    Visible = False
+  end
   object PageControl: TPageControl
     Left = 0
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSCSVOptions
+    ActivePage = TSWhat
     Style = tsButtons
     TabOrder = 0
     TabStop = False
+    object TSJob: TTabSheet
+      Caption = 'TSJob'
+      TabVisible = False
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
+      DesignSize = (
+        333
+        271)
+      object GBasics: TGroupBox_Ext
+        Left = 4
+        Top = 0
+        Width = 325
+        Height = 265
+        Anchors = [akLeft, akTop, akRight]
+        Caption = 'GBasics'
+        TabOrder = 0
+        TabStop = True
+        object FLName: TLabel
+          Left = 8
+          Top = 17
+          Width = 40
+          Height = 13
+          Caption = 'FLName'
+          FocusControl = FName
+        end
+        object FLExportType: TLabel
+          Left = 8
+          Top = 48
+          Width = 66
+          Height = 13
+          Caption = 'FLExportType'
+        end
+        object FLFilename: TLabel
+          Left = 8
+          Top = 234
+          Width = 54
+          Height = 13
+          Caption = 'FLFilename'
+          FocusControl = FFilename
+        end
+        object FLDataSource: TLabel
+          Left = 8
+          Top = 234
+          Width = 69
+          Height = 13
+          Caption = 'FLDataSource'
+          FocusControl = FDataSource
+        end
+        object FDataSource: TEdit
+          Left = 128
+          Top = 233
+          Width = 166
+          Height = 21
+          ReadOnly = True
+          TabOrder = 8
+          Text = 'FFilename'
+          OnChange = FDataSourceChange
+        end
+        object FFilename: TEdit
+          Left = 128
+          Top = 233
+          Width = 166
+          Height = 21
+          TabOrder = 10
+          Text = 'FFilename'
+          OnChange = FFilenameChange
+        end
+        object FName: TEdit
+          Left = 128
+          Top = 16
+          Width = 187
+          Height = 21
+          TabOrder = 0
+          Text = 'FName'
+          OnChange = FJobOptionChange
+        end
+        object FSQLFile: TRadioButton
+          Left = 128
+          Top = 47
+          Width = 185
+          Height = 17
+          Caption = 'FSQLFile'
+          TabOrder = 1
+          TabStop = True
+          OnClick = FImportTypeChange
+        end
+        object FTextFile: TRadioButton
+          Left = 128
+          Top = 67
+          Width = 185
+          Height = 17
+          Caption = 'FTextFile'
+          TabOrder = 2
+          TabStop = True
+          OnClick = FImportTypeChange
+        end
+        object FExcelFile: TRadioButton
+          Left = 128
+          Top = 87
+          Width = 185
+          Height = 17
+          Caption = 'FExcelFile'
+          TabOrder = 3
+          TabStop = True
+          OnClick = FImportTypeChange
+        end
+        object FAccessFile: TRadioButton
+          Left = 128
+          Top = 107
+          Width = 185
+          Height = 17
+          Caption = 'FAccessFile'
+          TabOrder = 4
+          TabStop = True
+          OnClick = FImportTypeChange
+        end
+        object FSQLiteFile: TRadioButton
+          Left = 128
+          Top = 127
+          Width = 185
+          Height = 17
+          Caption = 'FSQLiteFile'
+          TabOrder = 5
+          TabStop = True
+          OnClick = FImportTypeChange
+        end
+        object FODBC: TRadioButton
+          Left = 128
+          Top = 147
+          Width = 185
+          Height = 17
+          Caption = 'FODBC'
+          TabOrder = 6
+          TabStop = True
+          OnClick = FImportTypeChange
+        end
+        object FXMLFile: TRadioButton
+          Left = 128
+          Top = 167
+          Width = 185
+          Height = 17
+          Caption = 'FXMLFile'
+          TabOrder = 7
+          TabStop = True
+          OnClick = FImportTypeChange
+        end
+        object FBFilename: TButton
+          Left = 294
+          Top = 233
+          Width = 21
+          Height = 21
+          Caption = #183#183#183
+          TabOrder = 11
+          OnClick = FBFilenameClick
+        end
+        object FBDataSource: TButton
+          Left = 294
+          Top = 233
+          Width = 21
+          Height = 21
+          Caption = #183#183#183
+          TabOrder = 9
+          OnClick = FBDataSourceClick
+        end
+      end
+    end
+    object TSSelect: TTabSheet
+      Caption = 'TSSelect'
+      ImageIndex = 9
+      TabVisible = False
+      OnShow = TSSelectShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
+      object GSelect: TGroupBox_Ext
+        Left = 4
+        Top = 0
+        Width = 325
+        Height = 265
+        Caption = 'GSelect'
+        TabOrder = 0
+        DesignSize = (
+          325
+          265)
+        object PSelect: TPanel_Ext
+          Left = 8
+          Top = 16
+          Width = 310
+          Height = 241
+          Anchors = [akLeft, akTop, akRight, akBottom]
+          BevelInner = bvRaised
+          BevelOuter = bvLowered
+          ParentBackground = False
+          TabOrder = 0
+          object FSelect: TTreeView_Ext
+            Left = 2
+            Top = 2
+            Width = 306
+            Height = 237
+            Align = alClient
+            BorderStyle = bsNone
+            HideSelection = False
+            Indent = 19
+            MultiSelect = True
+            MultiSelectStyle = [msControlSelect, msShiftSelect, msSiblingOnly]
+            ReadOnly = True
+            ShowLines = False
+            ShowRoot = False
+            TabOrder = 0
+            OnChange = FSelectChange
+            OnExpanding = FSelectExpanding
+            OnGetImageIndex = FSelectGetImageIndex
+          end
+        end
+      end
+    end
     object TSTables: TTabSheet
       Caption = 'TSTables'
       TabVisible = False
@@ -58,12 +293,12 @@ object DImport: TDImport
       ExplicitTop = 0
       ExplicitWidth = 0
       ExplicitHeight = 0
-      object GTable: TGroupBox_Ext
+      object GTables: TGroupBox_Ext
         Left = 4
         Top = 0
         Width = 325
         Height = 265
-        Caption = 'GTable'
+        Caption = 'GTables'
         TabOrder = 0
         object PTables: TPanel_Ext
           Left = 8
@@ -264,130 +499,6 @@ object DImport: TDImport
         end
       end
     end
-    object TSODBCOptions: TTabSheet
-      Caption = 'TSODBCOptions'
-      TabVisible = False
-      OnHide = TSODBCOptionsHide
-      OnShow = TSODBCOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
-      object GODBCDatabaseHow: TGroupBox_Ext
-        Left = 4
-        Top = 76
-        Width = 325
-        Height = 157
-        Caption = 'GODBCDatabaseHow'
-        TabOrder = 1
-        object FLEngine: TLabel
-          Left = 8
-          Top = 23
-          Width = 45
-          Height = 13
-          Caption = 'FLEngine'
-          FocusControl = FEngine
-        end
-        object FLDefaultCharset: TLabel
-          Left = 8
-          Top = 61
-          Width = 82
-          Height = 13
-          Caption = 'FLDefaultCharset'
-          FocusControl = FDefaultCharset
-        end
-        object FLCollation: TLabel
-          Left = 8
-          Top = 87
-          Width = 52
-          Height = 13
-          Caption = 'FLCollation'
-          FocusControl = FCollation
-        end
-        object FLRowFormat: TLabel
-          Left = 8
-          Top = 125
-          Width = 66
-          Height = 13
-          Caption = 'FLRowFormat'
-          FocusControl = FRowFormat
-        end
-        object FEngine: TComboBox_Ext
-          Left = 128
-          Top = 20
-          Width = 89
-          Height = 21
-          TabOrder = 0
-          Text = 'FEngine'
-        end
-        object FDefaultCharset: TComboBox_Ext
-          Left = 128
-          Top = 58
-          Width = 89
-          Height = 21
-          TabOrder = 1
-          Text = 'FDefaultCharset'
-          OnChange = FDefaultCharsetChange
-        end
-        object FCollation: TComboBox_Ext
-          Left = 128
-          Top = 84
-          Width = 145
-          Height = 21
-          Style = csDropDownList
-          TabOrder = 2
-        end
-        object FRowFormat: TComboBox_Ext
-          Left = 128
-          Top = 122
-          Width = 121
-          Height = 21
-          TabOrder = 3
-          Items.Strings = (
-            ''
-            'Fixed'
-            'Dynamic'
-            'Compressed'
-            'Redundant'
-            'Compact')
-        end
-      end
-      object GODBCWhat: TGroupBox_Ext
-        Left = 4
-        Top = 0
-        Width = 325
-        Height = 71
-        Caption = 'GODBCWhat'
-        TabOrder = 0
-        object FLWhat: TLabel
-          Left = 8
-          Top = 17
-          Width = 38
-          Height = 13
-          Caption = 'FLWhat'
-        end
-        object FObjects: TCheckBox
-          Left = 128
-          Top = 16
-          Width = 193
-          Height = 17
-          Caption = 'FObjects'
-          TabOrder = 0
-          OnClick = FObjectsClick
-          OnKeyPress = FObjectsKeyPress
-        end
-        object FData: TCheckBox
-          Left = 128
-          Top = 42
-          Width = 193
-          Height = 17
-          Caption = 'FData'
-          TabOrder = 1
-          OnClick = FDataClick
-          OnKeyPress = FDataKeyPress
-        end
-      end
-    end
     object TSXMLOptions: TTabSheet
       Caption = 'TSXMLOptions'
       TabVisible = False
@@ -435,6 +546,130 @@ object DImport: TDImport
           TabOrder = 0
           Text = 'row'
           OnChange = TSXMLOptionChange
+        end
+      end
+    end
+    object TSWhat: TTabSheet
+      Caption = 'TSWhat'
+      TabVisible = False
+      OnHide = TSWhatHide
+      OnShow = TSWhatShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
+      object GStructure: TGroupBox_Ext
+        Left = 4
+        Top = 76
+        Width = 325
+        Height = 157
+        Caption = 'GStructure'
+        TabOrder = 1
+        object FLEngine: TLabel
+          Left = 8
+          Top = 23
+          Width = 45
+          Height = 13
+          Caption = 'FLEngine'
+          FocusControl = FEngine
+        end
+        object FLCharset: TLabel
+          Left = 8
+          Top = 61
+          Width = 48
+          Height = 13
+          Caption = 'FLCharset'
+          FocusControl = FCharset
+        end
+        object FLCollation: TLabel
+          Left = 8
+          Top = 87
+          Width = 52
+          Height = 13
+          Caption = 'FLCollation'
+          FocusControl = FCollation
+        end
+        object FLRowFormat: TLabel
+          Left = 8
+          Top = 125
+          Width = 66
+          Height = 13
+          Caption = 'FLRowFormat'
+          FocusControl = FRowFormat
+        end
+        object FEngine: TComboBox_Ext
+          Left = 128
+          Top = 20
+          Width = 89
+          Height = 21
+          Style = csDropDownList
+          TabOrder = 0
+        end
+        object FCharset: TComboBox_Ext
+          Left = 128
+          Top = 58
+          Width = 89
+          Height = 21
+          Style = csDropDownList
+          TabOrder = 1
+          OnChange = FCharsetChange
+        end
+        object FCollation: TComboBox_Ext
+          Left = 128
+          Top = 84
+          Width = 145
+          Height = 21
+          Style = csDropDownList
+          TabOrder = 2
+        end
+        object FRowFormat: TComboBox_Ext
+          Left = 128
+          Top = 122
+          Width = 121
+          Height = 21
+          Style = csDropDownList
+          TabOrder = 3
+          Items.Strings = (
+            ''
+            'Fixed'
+            'Dynamic'
+            'Compressed'
+            'Redundant'
+            'Compact')
+        end
+      end
+      object GWhat: TGroupBox_Ext
+        Left = 4
+        Top = 0
+        Width = 325
+        Height = 71
+        Caption = 'GWhat'
+        TabOrder = 0
+        object FLWhat: TLabel
+          Left = 8
+          Top = 17
+          Width = 38
+          Height = 13
+          Caption = 'FLWhat'
+        end
+        object FStructure: TCheckBox
+          Left = 128
+          Top = 16
+          Width = 193
+          Height = 17
+          Caption = 'FStructure'
+          TabOrder = 0
+          OnClick = FStructureClick
+        end
+        object FData: TCheckBox
+          Left = 128
+          Top = 42
+          Width = 193
+          Height = 17
+          Caption = 'FData'
+          TabOrder = 1
+          OnClick = FDataClick
+          OnKeyPress = FDataKeyPress
         end
       end
     end
@@ -570,6 +805,109 @@ object DImport: TDImport
           TabOrder = 2
           OnClick = FImportTypeClick
           OnKeyPress = FImportTypeKeyPress
+        end
+      end
+    end
+    object TSTask: TTabSheet
+      Caption = 'TSTask'
+      TabVisible = False
+      OnShow = TSTaskShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
+      DesignSize = (
+        333
+        271)
+      object GTask: TGroupBox_Ext
+        Left = 4
+        Top = 0
+        Width = 325
+        Height = 173
+        Anchors = [akLeft, akTop, akRight]
+        Caption = 'GTask'
+        TabOrder = 0
+        object FLEnabled: TLabel
+          Left = 8
+          Top = 143
+          Width = 51
+          Height = 13
+          Caption = 'FLEnabled'
+          FocusControl = FEnabled
+        end
+        object FLExecution: TLabel
+          Left = 7
+          Top = 55
+          Width = 59
+          Height = 13
+          Caption = 'FLExecution'
+        end
+        object FLStart: TLabel
+          Left = 7
+          Top = 23
+          Width = 34
+          Height = 13
+          Caption = 'FLStart'
+          FocusControl = FStartDate
+        end
+        object FEnabled: TCheckBox
+          Left = 128
+          Top = 142
+          Width = 193
+          Height = 17
+          Caption = 'FEnabled'
+          TabOrder = 6
+        end
+        object FSingle: TRadioButton
+          Left = 128
+          Top = 54
+          Width = 193
+          Height = 17
+          Caption = 'FSingle'
+          TabOrder = 2
+        end
+        object FStartDate: TDateTimePicker
+          Left = 128
+          Top = 19
+          Width = 81
+          Height = 21
+          Date = 2.500000000000000000
+          Time = 2.500000000000000000
+          TabOrder = 0
+        end
+        object FStartTime: TDateTimePicker
+          Left = 214
+          Top = 19
+          Width = 69
+          Height = 21
+          Date = 1.000000000000000000
+          Time = 1.000000000000000000
+          Kind = dtkTime
+          TabOrder = 1
+        end
+        object FDaily: TRadioButton
+          Left = 128
+          Top = 74
+          Width = 193
+          Height = 17
+          Caption = 'FDaily'
+          TabOrder = 3
+        end
+        object FWeekly: TRadioButton
+          Left = 128
+          Top = 94
+          Width = 193
+          Height = 17
+          Caption = 'FWeekly'
+          TabOrder = 4
+        end
+        object FMonthly: TRadioButton
+          Left = 128
+          Top = 114
+          Width = 193
+          Height = 17
+          Caption = 'FMonthly'
+          TabOrder = 5
         end
       end
     end

@@ -175,7 +175,7 @@ type
     constructor Create(const ACItems: TSItems; const AName: string = ''); reintroduce; virtual;
     destructor Destroy(); override;
     procedure Invalidate(); virtual;
-    function Update(): Boolean; overload; virtual; abstract;
+    function Update(): Boolean; virtual;
     property Desktop: TDesktop read GetDesktop;
     property Objects: TSObjects read GetObjects;
     property Session: TSSession read FSession;
@@ -2018,6 +2018,14 @@ procedure TSObject.SetSource(const ASource: string);
 begin
   FValidSource := True;
   FSource := ASource;
+end;
+
+function TSObject.Update(): Boolean;
+begin
+  if (not (Self is TSDatabase)) then
+    raise EAbstractError.Create(SAbstractError)
+  else
+    Result := TSDatabase(Self).Update();
 end;
 
 { TSObjects *******************************************************************}

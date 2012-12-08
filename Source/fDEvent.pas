@@ -352,7 +352,7 @@ begin
     else if (FMultipleExecution.Checked) then
       NewEvent.EventType := etMultiple
     else
-      NewEvent.EventType := etUnknown;
+      NewEvent.EventType := TMySQLEventType.etUnknown;
 
     if (NewEvent.EventType <> etSingle) then
       NewEvent.Execute := 0

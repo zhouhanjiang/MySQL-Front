@@ -22,7 +22,7 @@ object DExport: TDExport
     331)
   PixelsPerInch = 106
   TextHeight = 13
-  object PSQLWait: TPanel
+  object PSQLWait: TPanel_Ext
     Left = 8
     Top = 0
     Width = 341
@@ -31,6 +31,7 @@ object DExport: TDExport
     Anchors = [akLeft, akTop, akRight, akBottom]
     BevelOuter = bvNone
     Caption = 'PSQLWait'
+    ParentBackground = False
     TabOrder = 0
     Visible = False
   end
@@ -39,7 +40,7 @@ object DExport: TDExport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSJob
+    ActivePage = TSCSVOptions
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     Style = tsFlatButtons
@@ -99,6 +100,10 @@ object DExport: TDExport
       Caption = 'TSJob'
       TabVisible = False
       OnShow = TSJobShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -117,6 +122,7 @@ object DExport: TDExport
           Width = 40
           Height = 13
           Caption = 'FLName'
+          FocusControl = FName
         end
         object FLExportType: TLabel
           Left = 8
@@ -131,6 +137,16 @@ object DExport: TDExport
           Width = 54
           Height = 13
           Caption = 'FLFilename'
+          FocusControl = FFilename
+        end
+        object FFilename: TEdit
+          Left = 128
+          Top = 233
+          Width = 166
+          Height = 21
+          TabOrder = 10
+          Text = 'FFilename'
+          OnChange = FFilenameChange
         end
         object FName: TEdit
           Left = 128
@@ -230,15 +246,6 @@ object DExport: TDExport
           TabOrder = 9
           TabStop = True
           OnClick = FExportTypeChange
-        end
-        object FFilename: TEdit
-          Left = 128
-          Top = 233
-          Width = 166
-          Height = 21
-          TabOrder = 10
-          Text = 'FFilename'
-          OnChange = FJobOptionChange
         end
         object FBFilename: TButton
           Left = 294
@@ -1115,6 +1122,7 @@ object DExport: TDExport
           Width = 51
           Height = 13
           Caption = 'FLEnabled'
+          FocusControl = FEnabled
         end
         object FLExecution: TLabel
           Left = 7

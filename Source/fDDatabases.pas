@@ -204,7 +204,7 @@ procedure TDDatabases.FormShow(Sender: TObject);
 var
   I: Integer;
   Item: TListItem;
-  Server: array [0 .. STR_LEN] of SQLTCHAR;
+  DataSource: array [0 .. STR_LEN] of SQLTCHAR;
 begin
   if (Assigned(Session)) then
   begin
@@ -236,12 +236,12 @@ begin
       Width := Preferences.ODBC.Width;
     end;
 
-    if (SQL_SUCCEEDED(SQLDataSources(ODBCEnv, SQL_FETCH_FIRST, @Server, STR_LEN, nil, nil, 0, nil))) then
+    if (SQL_SUCCEEDED(SQLDataSources(ODBCEnv, SQL_FETCH_FIRST, @DataSource, STR_LEN, nil, nil, 0, nil))) then
       repeat
         Item := FDatabases.Items.Add();
-        Item.Caption := Server;
+        Item.Caption := DataSource;
         Item.ImageIndex := iiDatabase;
-      until (not SQL_SUCCEEDED(SQLDataSources(ODBCEnv, SQL_FETCH_NEXT, @Server, STR_LEN, nil, nil, 0, nil)));
+      until (not SQL_SUCCEEDED(SQLDataSources(ODBCEnv, SQL_FETCH_NEXT, @DataSource, STR_LEN, nil, nil, 0, nil)));
 
     FDatabases.MultiSelect := False;
 

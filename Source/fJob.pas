@@ -16,6 +16,7 @@ type
     StdErr: THandle;
     StdOut: THandle;
     function ExecuteExport(const Job: TAJobExport): Integer;
+    function ExecuteImport(const Job: TAJobImport): Integer;
     procedure ExportError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
   public
     constructor Create(const AccountName, JobName: string);
@@ -28,7 +29,9 @@ implementation {***************************************************************}
 
 uses
   Windows, Classes,
-  SysUtils,
+  SysUtils, StrUtils,
+  ODBCAPI,
+  DISQLite3Api,
   MySQLDB, SQLUtils;
 
 constructor TJobExecution.Create(const AccountName, JobName: string);
@@ -105,8 +108,196 @@ begin
   if (not Session.Connected) then
     WriteLn(StdErr, Session.ErrorMessage)
   else if (Job is TAJobExport) then
+    ExecuteImport(TAJobImport(Job))
+  else if (Job is TAJobExport) then
     ExecuteExport(TAJobExport(Job));
   Session.Free();
+end;
+
+function TJobExecution.ExecuteImport(const Job: TAJobImport): Integer;
+var
+  Database: TSDatabase;
+  Import: TTImport;
+
+  procedure ImportAdd(TableName: string; const SourceTableName: string = '');
+  begin
+    TableName := Session.ApplyIdentifierName(TableName);
+    if ((Job.JobObject.ObjectType <> jotTable) and Assigned(Database.TableByName(TableName))) then
+      WriteLn(StdErr, 'Table ' + Database.Name + '.' + TableName + ' already exists. Table ignored.')
+    else
+      Import.Add(TableName, SourceTableName);
+  end;
+
+  function TableName(const SourceName: string): string;
+  begin
+    if (Job.ImportType <> itExcelFile) then
+      Result := SourceName
+    else if (Pos('$', SourceName) = Length(SourceName)) then
+      Result := LeftStr(SourceName, Length(SourceName) - 1)
+    else
+      Result := LeftStr(SourceName, Pos('$', SourceName) - 1) + '_' + RightStr(SourceName, Length(SourceName) - Pos('$', SourceName));
+
+    Result := Session.ApplyIdentifierName(Result);
+  end;
+
+var
+  I: Integer;
+  ODBC: SQLHDBC;
+  SQLite: sqlite3_ptr;
+  Table: TSBaseTable;
+begin
+  Result := 1;
+  if (not Session.Update()) then
+    WriteLn(StdErr, Session.ErrorMessage)
+  else
+  begin
+    case (Job.JobObject.ObjectType) of
+      jotServer: Database := nil;
+      jotDatabase: Database := Session.DatabaseByName(Job.JobObject.Name);
+      jotTable: Database := Session.DatabaseByName(Job.JobObject.DatabaseName);
+    end;
+
+    if ((Job.JobObject.ObjectType <> jotServer) or not Assigned(Database)) then
+      case (Job.JobObject.ObjectType) of
+        jotDatabase: WriteLn(StdErr, 'Database not found: ' + Job.JobObject.Name);
+        jotTable: WriteLn(StdErr, 'Database not found: ' + Job.JobObject.DatabaseName);
+      end
+    else if (Assigned(Database) or not Database.Update()) then
+      WriteLn(StdErr, Session.ErrorMessage)
+    else
+    begin
+      if (Job.JobObject.ObjectType <> jotTable) then
+        Table := nil
+      else
+        Table := Database.BaseTableByName(Job.JobObject.Name);
+
+      if ((Job.JobObject.ObjectType = jotTable) and not Assigned(Table)) then
+        WriteLn(StdErr, 'Table not found: ' + Database.Name + '.' + Job.JobObject.Name)
+      else
+      begin
+        ODBC := SQL_NULL_HANDLE;
+        SQLite := nil;
+
+        Import := nil;
+        case (Job.ImportType) of
+          itSQLFile:
+            begin
+              Import := TTImportSQL.Create(Job.Filename, Job.CodePage, Session, Database);
+            end;
+          itTextFile:
+            begin
+              Import := TTImportText.Create(Job.Filename, Job.CodePage, Session, Database);
+
+              case (Job.CSV.DelimiterType) of
+                dtTab: TTImportText(Import).Delimiter := #9;
+                dtChar: TTImportText(Import).Delimiter := Job.CSV.Delimiter[1];
+              end;
+              case (Job.CSV.Quote) of
+                qtNothing: TTImportText(Import).Quoter := #0;
+                qtStrings: TTImportText(Import).Quoter := Job.CSV.QuoteChar[1];
+                qtAll: TTImportText(Import).Quoter := Job.CSV.QuoteChar[1];
+              end;
+              TTImportText(Import).UseHeadline := Job.CSV.Headline;
+
+              if (Job.JobObject.ObjectType = jotTable) then
+                ImportAdd(Job.JobObject.Name)
+              else
+                ImportAdd(Copy(Job.Filename, 1 + Length(ExtractFilePath(Job.Filename)), Length(Job.Filename) - Length(ExtractFilePath(Job.Filename)) - Length(ExtractFileExt(Job.Filename))));
+            end;
+          itExcelFile,
+          itAccessFile,
+          itODBC:
+            if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @ODBC))) then
+              WriteLn(StdErr, 'Can''t open ODBC environment')
+            else
+            begin
+              Import := TTImportODBC.Create(ODBC, Database);
+
+              if (Job.JobObject.ObjectType = jotTable) then
+                ImportAdd(Job.JobObject.Name, Job.SourceObjects[0].Name)
+              else
+                for I := 0 to Length(Job.SourceObjects) - 1 do
+                  ImportAdd(TableName(Job.JobObject.Name), Job.SourceObjects[I].Name);
+            end;
+          itSQLiteFile:
+            if (sqlite3_open_v2(PAnsiChar(UTF8Encode(Job.Filename)), @SQLite, SQLITE_OPEN_READONLY, nil) <> SQLITE_OK) then
+              WriteLn(StdErr, 'Can''t open SQLite environment for file: ' + Job.Filename)
+            else
+            begin
+              Import := TTImportSQLite.Create(SQLite, Database);
+
+              if (Job.JobObject.ObjectType = jotTable) then
+                ImportAdd(Job.JobObject.Name, Job.SourceObjects[0].Name)
+              else
+                for I := 0 to Length(Job.SourceObjects) - 1 do
+                  ImportAdd(TableName(Job.JobObject.Name), Job.SourceObjects[I].Name);
+            end;
+          itXMLFile:
+            if (Job.JobObject.ObjectType = jotTable) then
+            begin
+              Table := Database.BaseTableByName(Job.JobObject.Name);
+              if (not Assigned(Table)) then
+                WriteLn(StdErr, 'Table not found: ' + Database.Name + '.' + Job.JobObject.Name)
+              else
+              begin
+                Import := TTImportXML.Create(Job.Filename, Table);
+
+                ImportAdd(Job.JobObject.Name, Job.SourceObjects[0].Name);
+              end;
+            end;
+        end;
+
+        if (Assigned(Import)) then
+        begin
+          Import.Data := Job.Data;
+          Import.Charset := Job.Charset;
+          Import.Collation := Job.Collation;
+          Import.Engine := Job.Engine;
+          case (Job.ImportStmt) of
+            isInsert: Import.StmtType := stInsert;
+            isReplace: Import.StmtType := stReplace;
+            isUpdate: Import.StmtType := stUpdate;
+          end;
+          Import.RowType := mrUnknown;
+          Import.Structure := Job.Structure;
+
+          if (Assigned(Table)) then
+          begin
+            Table.InvalidateData();
+            for I := 0 to Length(Job.FieldMappings) - 1 do
+              if (Assigned(Import)) then
+
+              begin
+                SetLength(Import.Fields, Length(Import.Fields) + 1);
+                Import.Fields[Length(Import.Fields) - 1] := Table.FieldByName(Job.FieldMappings[I].Name);
+                if (not Assigned(Import.Fields[Length(Import.Fields) - 1])) then
+                begin
+                  WriteLn(StdErr, 'Field not found: ' + Database.Name + '.' + Table.Name + '.' + Job.FieldMappings[I].Name);
+                  FreeAndNil(Import);
+                end
+                else
+                begin
+                  SetLength(Import.SourceFields, Length(Import.SourceFields) + 1);
+                  Import.SourceFields[Length(Import.Fields) - 1].Name := Job.FieldMappings[I].SourceName;
+                end;
+              end;
+          end;
+
+          if (Assigned(Import)) then
+          begin
+            Import.OnError := ExportError;
+            Import.Execute();
+            Import.Free();
+          end;
+        end;
+
+        if (ODBC <> SQL_NULL_HANDLE) then
+          SQLFreeHandle(SQL_HANDLE_DBC, ODBC);
+        if (Assigned(SQLite)) then
+          sqlite3_close(SQLite);
+      end;
+    end;
+  end;
 end;
 
 function TJobExecution.ExecuteExport(const Job: TAJobExport): Integer;
@@ -177,7 +368,7 @@ begin
         try
           Export := TTExportXML.Create(Session, Job.Filename, Job.CodePage);
           TTExportXML(Export).Data := True;
-          case (Job._XML.Database.NodeType) of
+          case (Job.XML.Database.NodeType) of
             ntDisabled:
               begin
                 TTExportXML(Export).DatabaseNodeText := '';
@@ -185,16 +376,16 @@ begin
               end;
             ntName:
               begin
-                TTExportXML(Export).DatabaseNodeText := Job._XML.Database.NodeText;
+                TTExportXML(Export).DatabaseNodeText := Job.XML.Database.NodeText;
                 TTExportXML(Export).DatabaseNodeAttribute := '';
               end;
             ntCustom:
               begin
-                TTExportXML(Export).DatabaseNodeText := Job._XML.Database.NodeText;
-                TTExportXML(Export).DatabaseNodeAttribute := Job._XML.Database.NodeAttribute;
+                TTExportXML(Export).DatabaseNodeText := Job.XML.Database.NodeText;
+                TTExportXML(Export).DatabaseNodeAttribute := Job.XML.Database.NodeAttribute;
               end;
           end;
-          case (Job._XML.Field.NodeType) of
+          case (Job.XML.Field.NodeType) of
             ntDisabled:
               begin
                 TTExportXML(Export).FieldNodeText := '';
@@ -202,19 +393,19 @@ begin
               end;
             ntName:
               begin
-                TTExportXML(Export).FieldNodeText := Job._XML.Field.NodeText;
+                TTExportXML(Export).FieldNodeText := Job.XML.Field.NodeText;
                 TTExportXML(Export).FieldNodeAttribute := '';
               end;
             ntCustom:
               begin
-                TTExportXML(Export).FieldNodeText := Job._XML.Field.NodeText;
-                TTExportXML(Export).FieldNodeAttribute := Job._XML.Field.NodeAttribute;
+                TTExportXML(Export).FieldNodeText := Job.XML.Field.NodeText;
+                TTExportXML(Export).FieldNodeAttribute := Job.XML.Field.NodeAttribute;
               end;
           end;
-          TTExportXML(Export).RecordNodeText := Job._XML.Row.NodeText;
-          TTExportXML(Export).RootNodeText := Job._XML.Root.NodeText;
+          TTExportXML(Export).RecordNodeText := Job.XML.Row.NodeText;
+          TTExportXML(Export).RootNodeText := Job.XML.Root.NodeText;
           TTExportXML(Export).Structure := True;
-          case (Job._XML.Table.NodeType) of
+          case (Job.XML.Table.NodeType) of
             ntDisabled:
               begin
                 TTExportXML(Export).TableNodeText := '';
@@ -222,13 +413,13 @@ begin
               end;
             ntName:
               begin
-                TTExportXML(Export).TableNodeText := Job._XML.Table.NodeText;
+                TTExportXML(Export).TableNodeText := Job.XML.Table.NodeText;
                 TTExportXML(Export).TableNodeAttribute := '';
               end;
             ntCustom:
               begin
-                TTExportXML(Export).TableNodeText := Job._XML.Table.NodeText;
-                TTExportXML(Export).TableNodeAttribute := Job._XML.Table.NodeAttribute;
+                TTExportXML(Export).TableNodeText := Job.XML.Table.NodeText;
+                TTExportXML(Export).TableNodeAttribute := Job.XML.Table.NodeAttribute;
               end;
           end;
         except
@@ -249,9 +440,9 @@ begin
       WriteLn(StdErr, 'Export type not supported')
     else
     begin
-      for I := 0 to Length(Job.Objects) - 1 do
+      for I := 0 to Length(Job.JobObjects) - 1 do
       begin
-        if (Job.Objects[I].ObjectType = jotServer) then
+        if (Job.JobObjects[I].ObjectType = jotServer) then
           for J := 0 to Session.Databases.Count - 1 do
           begin
             Database := Session.Databases[J];
@@ -269,11 +460,11 @@ begin
                   Export.Add(Database.Events[K]);
             end;
           end
-        else if (Job.Objects[I].ObjectType = jotDatabase) then
+        else if (Job.JobObjects[I].ObjectType = jotDatabase) then
         begin
-          Database := Session.DatabaseByName(Job.Objects[I].Name);
+          Database := Session.DatabaseByName(Job.JobObjects[I].Name);
           if (not Assigned(Database)) then
-            WriteLn(StdErr, 'Database not found: ' + Job.Objects[I].Name)
+            WriteLn(StdErr, 'Database not found: ' + Job.JobObjects[I].Name)
           else if (not Database.Update()) then
             WriteLn(StdErr, Session.ErrorMessage)
           else
@@ -291,18 +482,18 @@ begin
         end
         else
         begin
-          Database := Session.DatabaseByName(Job.Objects[I].DatabaseName);
+          Database := Session.DatabaseByName(Job.JobObjects[I].DatabaseName);
           if (not Assigned(Database)) then
-            WriteLn(StdErr, 'Database not found: ' + Job.Objects[I].DatabaseName)
+            WriteLn(StdErr, 'Database not found: ' + Job.JobObjects[I].DatabaseName)
           else if (not Database.Update()) then
             WriteLn(StdErr, Session.ErrorMessage)
           else
-            case (Job.Objects[I].ObjectType) of
+            case (Job.JobObjects[I].ObjectType) of
               jotTable:
                 begin
-                  DBObject := Database.TableByName(Job.Objects[I].Name);
+                  DBObject := Database.TableByName(Job.JobObjects[I].Name);
                   if (not Assigned(DBObject)) then
-                    WriteLn(StdErr, 'Table not found: ' + Job.Objects[I].DatabaseName + '.' + Job.Objects[I].Name)
+                    WriteLn(StdErr, 'Table not found: ' + Job.JobObjects[I].DatabaseName + '.' + Job.JobObjects[I].Name)
                   else
                   begin
                     Export.Add(DBObject);
@@ -313,33 +504,33 @@ begin
                 end;
               jotProcedure:
                 begin
-                  DBObject := Database.ProcedureByName(Job.Objects[I].Name);
+                  DBObject := Database.ProcedureByName(Job.JobObjects[I].Name);
                   if (not Assigned(DBObject)) then
-                    WriteLn(StdErr, 'Procedure not found: ' + Job.Objects[I].DatabaseName + '.' + Job.Objects[I].Name)
+                    WriteLn(StdErr, 'Procedure not found: ' + Job.JobObjects[I].DatabaseName + '.' + Job.JobObjects[I].Name)
                   else
                     Export.Add(DBObject);
                 end;
               jotFunction:
                 begin
-                  DBObject := Database.FunctionByName(Job.Objects[I].Name);
+                  DBObject := Database.FunctionByName(Job.JobObjects[I].Name);
                   if (not Assigned(DBObject)) then
-                    WriteLn(StdErr, 'Function not found: ' + Job.Objects[I].DatabaseName + '.' + Job.Objects[I].Name)
+                    WriteLn(StdErr, 'Function not found: ' + Job.JobObjects[I].DatabaseName + '.' + Job.JobObjects[I].Name)
                   else
                     Export.Add(DBObject);
                 end;
               jotTrigger:
                 begin
-                  DBObject := Database.TriggerByName(Job.Objects[I].Name);
+                  DBObject := Database.TriggerByName(Job.JobObjects[I].Name);
                   if (not Assigned(DBObject)) then
-                    WriteLn(StdErr, 'Trigger not found: ' + Job.Objects[I].DatabaseName + '.' + Job.Objects[I].Name)
+                    WriteLn(StdErr, 'Trigger not found: ' + Job.JobObjects[I].DatabaseName + '.' + Job.JobObjects[I].Name)
                   else
                     Export.Add(DBObject);
                 end;
               jotEvent:
                 begin
-                  DBObject := Database.EventByName(Job.Objects[I].Name);
+                  DBObject := Database.EventByName(Job.JobObjects[I].Name);
                   if (not Assigned(DBObject)) then
-                    WriteLn(StdErr, 'Event not found: ' + Job.Objects[I].DatabaseName + '.' + Job.Objects[I].Name)
+                    WriteLn(StdErr, 'Event not found: ' + Job.JobObjects[I].DatabaseName + '.' + Job.JobObjects[I].Name)
                   else
                     Export.Add(DBObject);
                 end;

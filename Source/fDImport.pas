@@ -9,52 +9,65 @@ uses
   DISQLite3Api,
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext, Dialogs_Ext,
   MySQLDB,
-  fSession, fTools,
+  fSession, fTools, fPreferences,
   fBase;
 
 const
   LargeSQLScriptSize = 100 * 1024;
 
 type
-  TImportType = (itSQLFile, itTextFile, itAccessFile, itExcelFile, itSQLiteFile, itODBC, itODBCFile, itXMLFile);
   TLoadFromStream = procedure(Stream: TStream) of object;
 
   TDImport = class (TForm_Ext)
+    FAccessFile: TRadioButton;
     FBBack: TButton;
     FBCancel: TButton;
+    FBDataSource: TButton;
+    FBFilename: TButton;
     FBForward: TButton;
     FBHelp: TButton;
     FCollation: TComboBox_Ext;
     FCSVHeadline: TCheckBox;
     FCSVPreview: TListView;
+    FDaily: TRadioButton;
     FData: TCheckBox;
-    FDefaultCharset: TComboBox_Ext;
+    FDataSource: TEdit;
+    FCharset: TComboBox_Ext;
     FDelimiter: TEdit;
     FDelimiterChar: TRadioButton;
     FDelimiterTab: TRadioButton;
     FDoneRecords: TLabel;
     FDoneTables: TLabel;
     FDoneTime: TLabel;
+    FEnabled: TCheckBox;
     FEngine: TComboBox_Ext;
     FEntieredRecords: TLabel;
     FEntieredTables: TLabel;
     FEntieredTime: TLabel;
     FErrorMessages: TRichEdit;
     FErrors: TLabel;
+    FExcelFile: TRadioButton;
     FField1: TComboBox_Ext;
+    FFilename: TEdit;
     FInsert: TRadioButton;
     FL2RecordTag: TLabel;
     FL3RecordTag: TLabel;
     FLCollation: TLabel;
     FLCSVHeadline: TLabel;
-    FLDefaultCharset: TLabel;
+    FLDataSource: TLabel;
+    FLCharset: TLabel;
     FLDelimiter: TLabel;
     FLDone: TLabel;
+    FLEnabled: TLabel;
     FLEngine: TLabel;
     FLEntiered: TLabel;
     FLErrors: TLabel;
+    FLExecution: TLabel;
+    FLExportType: TLabel;
     FLFields: TLabel;
+    FLFilename: TLabel;
     FLImportType: TLabel;
+    FLName: TLabel;
     FLProgressRecords: TLabel;
     FLProgressTables: TLabel;
     FLProgressTime: TLabel;
@@ -63,28 +76,44 @@ type
     FLReferrer1: TLabel;
     FLRowFormat: TLabel;
     FLSourceFields: TLabel;
+    FLStart: TLabel;
     FLWhat: TLabel;
-    FQuoteNothing: TRadioButton;
-    FObjects: TCheckBox;
+    FMonthly: TRadioButton;
+    FName: TEdit;
+    FODBC: TRadioButton;
     FProgressBar: TProgressBar;
     FQuoteChar: TEdit;
+    FQuoteNothing: TRadioButton;
+    FQuoteStrings: TRadioButton;
     FRecordTag: TEdit;
     FReplace: TRadioButton;
     FRowFormat: TComboBox_Ext;
+    FSelect: TTreeView_Ext;
+    FSingle: TRadioButton;
     FSourceField1: TEdit;
     FSourceField2: TEdit;
-    FQuoteStrings: TRadioButton;
+    FSQLFile: TRadioButton;
+    FSQLiteFile: TRadioButton;
+    FStartDate: TDateTimePicker;
+    FStartTime: TDateTimePicker;
+    FStructure: TCheckBox;
     FTables: TListView;
+    FTextFile: TRadioButton;
     FUpdate: TRadioButton;
+    FWeekly: TRadioButton;
+    FXMLFile: TRadioButton;
+    GBasics: TGroupBox_Ext;
     GCSVHow: TGroupBox_Ext;
     GCSVPreview: TGroupBox_Ext;
     GErrorMessages: TGroupBox_Ext;
     GFields: TGroupBox_Ext;
     GImportType: TGroupBox_Ext;
-    GODBCDatabaseHow: TGroupBox_Ext;
-    GODBCWhat: TGroupBox_Ext;
+    GStructure: TGroupBox_Ext;
+    GWhat: TGroupBox_Ext;
     GProgress: TGroupBox_Ext;
-    GTable: TGroupBox_Ext;
+    GSelect: TGroupBox_Ext;
+    GTables: TGroupBox_Ext;
+    GTask: TGroupBox_Ext;
     GXMLHow: TGroupBox_Ext;
     OpenDialog: TOpenDialog_Ext;
     PageControl: TPageControl;
@@ -92,6 +121,8 @@ type
     PDelimiter: TPanel_Ext;
     PErrorMessages: TPanel_Ext;
     PQuoting: TPanel_Ext;
+    PSelect: TPanel_Ext;
+    PSQLWait: TPanel_Ext;
     PTables: TPanel_Ext;
     ScrollBox: TScrollBox;
     Sizer: TRadioButton;
@@ -99,31 +130,41 @@ type
     TSExecute: TTabSheet;
     TSFields: TTabSheet;
     TSImportType: TTabSheet;
-    TSODBCOptions: TTabSheet;
+    TSJob: TTabSheet;
+    TSWhat: TTabSheet;
+    TSSelect: TTabSheet;
     TSTables: TTabSheet;
+    TSTask: TTabSheet;
     TSXMLOptions: TTabSheet;
     procedure FBBackClick(Sender: TObject);
     procedure FBCancelClick(Sender: TObject);
+    procedure FBFilenameClick(Sender: TObject);
     procedure FBForwardClick(Sender: TObject);
     procedure FBHelpClick(Sender: TObject);
     procedure FCSVKeyPress(Sender: TObject; var Key: Char);
     procedure FCSVPreviewUpdate(Sender: TObject);
     procedure FDataClick(Sender: TObject);
     procedure FDataKeyPress(Sender: TObject; var Key: Char);
-    procedure FDefaultCharsetChange(Sender: TObject);
+    procedure FCharsetChange(Sender: TObject);
     procedure FDelimiterClick(Sender: TObject);
     procedure FDelimiterKeyPress(Sender: TObject; var Key: Char);
     procedure FFieldExit(Sender: TObject);
+    procedure FImportTypeChange(Sender: TObject);
     procedure FImportTypeClick(Sender: TObject);
     procedure FImportTypeKeyPress(Sender: TObject; var Key: Char);
-    procedure FObjectsClick(Sender: TObject);
-    procedure FObjectsKeyPress(Sender: TObject; var Key: Char);
+    procedure FJobOptionChange(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormCreate(Sender: TObject);
     procedure FormHide(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure FQuoteClick(Sender: TObject);
     procedure FQuoteKeyPress(Sender: TObject; var Key: Char);
+    procedure FSelectChange(Sender: TObject; Node: TTreeNode);
+    procedure FSelectGetImageIndex(Sender: TObject; Node: TTreeNode);
+    procedure FSelectExpanding(Sender: TObject; Node: TTreeNode;
+      var AllowExpansion: Boolean);
+    procedure FStructureClick(Sender: TObject);
+    procedure FStructureKeyPress(Sender: TObject; var Key: Char);
     procedure FTablesDblClick(Sender: TObject);
     procedure FTablesSelectItem(Sender: TObject; Item: TListItem;
       Selected: Boolean);
@@ -133,23 +174,28 @@ type
     procedure TSFieldsChange(Sender: TObject);
     procedure TSFieldsShow(Sender: TObject);
     procedure TSImportTypeShow(Sender: TObject);
-    procedure TSODBCOptionsHide(Sender: TObject);
-    procedure TSODBCOptionsShow(Sender: TObject);
+    procedure TSWhatHide(Sender: TObject);
+    procedure TSWhatShow(Sender: TObject);
     procedure TSTablesHide(Sender: TObject);
     procedure TSTablesShow(Sender: TObject);
     procedure TSXMLOptionChange(Sender: TObject);
     procedure TSXMLOptionsHide(Sender: TObject);
     procedure TSXMLOptionsShow(Sender: TObject);
+    procedure FFilenameChange(Sender: TObject);
+    procedure FDataSourceChange(Sender: TObject);
+    procedure FBDataSourceClick(Sender: TObject);
+    procedure TSSelectShow(Sender: TObject);
+    procedure TSTaskShow(Sender: TObject);
   type
     TTableName = class
     private
       FSourceName: string;
       function GetCaption(): string;
-      function GetMySQLName(): string;
+      function GetTableName(): string;
     public
       constructor Create(const ASourceName: string);
       property Caption: string read GetCaption;
-      property MySQLName: string read GetMySQLName;
+      property TableName: string read GetTableName;
       property SourceName: string read FSourceName;
     end;
     TTableNames = class(TList)
@@ -169,23 +215,29 @@ type
     ProgressInfos: TTool.TProgressInfos;
     SQLite: sqlite3_ptr;
     TableNames: TTableNames;
+    WantedNodeExpand: TTreeNode;
     procedure CheckActivePageChange(const ActivePageIndex: Integer);
     procedure ClearTSFields(Sender: TObject);
+    procedure FormSessionEvent(const Event: TSSession.TEvent);
+    function GetFilename(): Boolean;
     procedure InitTSFields(Sender: TObject);
+    function InitTSSelect(): Boolean;
     procedure OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure OnExecuted(const ASuccess: Boolean);
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
     procedure CMExecutedDone(var Message: TMessage); message CM_EXECUTIONDONE;
+    procedure CMPostAfterExecuteSQL(var Message: TMessage); message CM_POST_AFTEREXECUTESQL;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure CMUpdateProgressInfo(var Message: TMessage); message CM_UPDATEPROGRESSINFO;
   public
-    Session: TSSession;
     CodePage: Cardinal;
-    Database: TSDatabase;
+    DialogType: (idtNormal, idtCreateJob, idtEditJob, idtExecuteJob);
     Filename: TFileName;
-    ImportType: TImportType;
-    Table: TSBaseTable;
+    ImportType: TPImportType;
+    Job: TAJobImport;
+    Session: TSSession;
+    SObject: TSObject;
     Window: TForm;
     function Execute(): Boolean;
   end;
@@ -199,7 +251,7 @@ implementation {***************************************************************}
 uses
   CommDlg, Dlgs, Math, StrUtils, RichEdit,
   SQLUtils, CSVUtils,
-  fPreferences, fDLogin, fDDatabases;
+  fDLogin, fDDatabases;
 
 const
   ImportBufferSize = 1024 * 1024;
@@ -238,7 +290,7 @@ begin
     Result := LeftStr(SourceName, Pos('$', SourceName) - 1) + ' (' + RightStr(SourceName, Length(SourceName) - Pos('$', SourceName)) + ')';
 end;
 
-function TDImport.TTableName.GetMySQLName(): string;
+function TDImport.TTableName.GetTableName(): string;
 begin
   if (DImport.ImportType <> itExcelFile) then
     Result := SourceName
@@ -287,18 +339,18 @@ begin
   for I := PageControl.PageCount - 1 downto ActivePageIndex + 1 do
     if (PageControl.Pages[I].Enabled) then
       NextActivePageIndex := I;
-
   if (NextActivePageIndex >= 0) then
     for I := NextActivePageIndex + 1 to PageControl.PageCount - 1 do
       PageControl.Pages[I].Enabled := False;
 
-  if (NextActivePageIndex > 0) then
-    if (NextActivePageIndex < TSExecute.PageIndex) then
-      FBForward.Caption := Preferences.LoadStr(229) + ' >'
-    else
-      FBForward.Caption := Preferences.LoadStr(174);
+  if (ActivePageIndex = TSTask.PageIndex) then
+    FBForward.Caption := Preferences.LoadStr(230)
+  else if (NextActivePageIndex < TSExecute.PageIndex) then
+    FBForward.Caption := Preferences.LoadStr(229) + ' >'
+  else
+    FBForward.Caption := Preferences.LoadStr(174);
 
-  FBForward.Enabled := (NextActivePageIndex >= 0) and ((NextActivePageIndex < TSExecute.PageIndex) or True);
+  FBForward.Enabled := FBForward.Visible and ((NextActivePageIndex >= 0) or (ActivePageIndex = TSTask.PageIndex));
   FBForward.Default := True;
 
   FBCancel.Caption := Preferences.LoadStr(30);
@@ -319,7 +371,26 @@ end;
 
 procedure TDImport.CMChangePreferences(var Message: TMessage);
 begin
-  GTable.Caption := Preferences.LoadStr(234);
+  OpenDialog.EncodingLabel := Preferences.LoadStr(682) + ':';
+
+  PSQLWait.Caption := Preferences.LoadStr(882);
+
+  GBasics.Caption := Preferences.LoadStr(85);
+  FLName.Caption := Preferences.LoadStr(35) + ':';
+  FLExportType.Caption := Preferences.LoadStr(200) + ':';
+  FSQLFile.Caption := Preferences.LoadStr(409);
+  FTextFile.Caption := Preferences.LoadStr(410);
+  FExcelFile.Caption := Preferences.LoadStr(801);
+  FAccessFile.Caption := Preferences.LoadStr(695);
+  FSQLiteFile.Caption := Preferences.LoadStr(870);
+  FODBC.Caption := Preferences.LoadStr(607);
+  FXMLFile.Caption := Preferences.LoadStr(454);
+  FLFilename.Caption := Preferences.LoadStr(348) + ':';
+  FLDataSource.Caption := Preferences.LoadStr(38) + ':';
+
+  GBasics.Caption := Preferences.LoadStr(755);
+
+  GTables.Caption := Preferences.LoadStr(234);
 
   GCSVHow.Caption := Preferences.LoadStr(238);
   FLCSVHeadline.Caption := Preferences.LoadStr(393) + ':';
@@ -332,13 +403,13 @@ begin
   FQuoteStrings.Caption := Preferences.LoadStr(397) + ':';
   GCSVPreview.Caption := Preferences.LoadStr(423);
 
-  GODBCWhat.Caption := Preferences.LoadStr(227);
+  GWhat.Caption := Preferences.LoadStr(227);
   FLWhat.Caption := Preferences.LoadStr(218) + ':';
-  FObjects.Caption := Preferences.LoadStr(215);
+  FStructure.Caption := Preferences.LoadStr(215);
   FData.Caption := Preferences.LoadStr(216);
-  GODBCDatabaseHow.Caption := Preferences.LoadStr(238);
+  GStructure.Caption := Preferences.LoadStr(238);
   FLEngine.Caption := Preferences.LoadStr(110) + ':';
-  FLDefaultCharset.Caption := Preferences.LoadStr(682) + ':';
+  FLCharset.Caption := Preferences.LoadStr(682) + ':';
   FLCollation.Caption := Preferences.LoadStr(702) + ':';
   FLRowFormat.Caption := Preferences.LoadStr(129) + ':';
 
@@ -361,9 +432,17 @@ begin
   FLProgressTime.Caption := ReplaceStr(Preferences.LoadStr(661), '&', '') + ':';
   FLErrors.Caption := Preferences.LoadStr(391) + ':';
 
-  GErrorMessages.Caption := Preferences.LoadStr(392);
+  GTask.Caption := Preferences.LoadStr(661);
+  FLStart.Caption := Preferences.LoadStr(817) + ':';
+  FLExecution.Caption := Preferences.LoadStr(174) + ':';
+  FSingle.Caption := Preferences.LoadStr(902);
+  FDaily.Caption := Preferences.LoadStr(903);
+  FWeekly.Caption := Preferences.LoadStr(904);
+  FMonthly.Caption := Preferences.LoadStr(905);
+  FLEnabled.Caption := Preferences.LoadStr(812) + ':';
+  FEnabled.Caption := Preferences.LoadStr(529);
 
-  OpenDialog.EncodingLabel := Preferences.LoadStr(682) + ':';
+  GErrorMessages.Caption := Preferences.LoadStr(392);
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBBack.Caption := '< ' + Preferences.LoadStr(228);
@@ -402,9 +481,37 @@ begin
     FreeAndNil(Import);
 end;
 
+procedure TDImport.CMPostAfterExecuteSQL(var Message: TMessage);
+begin
+  if (((DialogType = idtNormal) or (DialogType in [idtEditJob, idtExecuteJob]) and InitTSSelect()) and Assigned(FSelect.Selected)) then
+    SObject := TSObject(FSelect.Selected.Data);
+
+  Message.Result := LRESULT(not Assigned(SObject) or SObject.Update());
+  if (Boolean(Message.Result)) then
+  begin
+    if (Assigned(WantedNodeExpand)) then
+      WantedNodeExpand.Expand(False)
+    else
+    begin
+      if (not PageControl.Visible) then
+      begin
+        PageControl.Visible := True;
+        PSQLWait.Visible := not PageControl.Visible;
+      end;
+
+      if (TSFields.Enabled) then
+        InitTSFields(nil);
+      CheckActivePageChange(PageControl.ActivePageIndex);
+    end;
+  end;
+end;
+
 procedure TDImport.CMSysFontChanged(var Message: TMessage);
 begin
   inherited;
+
+  FBFilename.Height := FFilename.Height;
+  FBDataSource.Height := FFilename.Height;
 
   FDelimiter.Left := FDelimiterChar.Left + Sizer.Width + PageControl.Canvas.TextWidth(FDelimiterChar.Caption);
   FQuoteChar.Left := FQuoteStrings.Left + Sizer.Width + PageControl.Canvas.TextWidth(FQuoteStrings.Caption);
@@ -454,6 +561,10 @@ var
 begin
   ModalResult := mrNone;
   PageControl.ActivePageIndex := -1;
+
+  if ((ImportType in [itSQLFile, itTextFile, itAccessFile, itExcelFile, itSQLiteFile, itODBC, itXMLFile]) and (Filename = '') and (DialogType = idtNormal)) then
+    if (not GetFilename()) then
+      ModalResult := mrCancel;
 
   if (ModalResult = mrCancel) then
     Result := False
@@ -585,16 +696,34 @@ begin
   end;
 end;
 
+procedure TDImport.FBDataSourceClick(Sender: TObject);
+begin
+  DDatabases.Session := nil;
+  DDatabases.SelectedDatabases := FDataSource.Text;
+  if (DDatabases.Execute()) then
+    FDataSource.Text := DDatabases.SelectedDatabases;
+end;
+
+procedure TDImport.FBFilenameClick(Sender: TObject);
+begin
+  Filename := FFilename.Text;
+  if (GetFilename()) then
+    FFilename.Text := Filename;
+end;
+
 procedure TDImport.FBForwardClick(Sender: TObject);
 var
-  PageIndex: Integer;
+  ActivePageIndex: Integer;
 begin
-  for PageIndex := PageControl.ActivePageIndex + 1 to PageControl.PageCount - 1 do
-    if (PageControl.Pages[PageIndex].Enabled) then
-    begin
-      PageControl.ActivePageIndex := PageIndex;
-      Exit;
-    end;
+  if (PageControl.ActivePageIndex = TSTask.PageIndex) then
+    ModalResult := mrOk
+  else
+    for ActivePageIndex := PageControl.ActivePageIndex + 1 to PageControl.PageCount - 1 do
+      if (PageControl.Pages[ActivePageIndex].Enabled) then
+      begin
+        PageControl.ActivePageIndex := ActivePageIndex;
+        Exit;
+      end;
 end;
 
 procedure TDImport.FBHelpClick(Sender: TObject);
@@ -609,6 +738,7 @@ end;
 
 procedure TDImport.FCSVPreviewUpdate(Sender: TObject);
 var
+  Database: TSDatabase;
   I: Integer;
   Import: TTImportText;
   Item: TListItem;
@@ -619,12 +749,12 @@ begin
     if (not FDelimiterTab.Checked and (FDelimiter.Text = '') or not FQuoteNothing.Checked and (FQuoteChar.Text = '')) then
     begin
       TSFields.Enabled := False;
-      TSODBCOptions.Enabled := False;
+      TSWhat.Enabled := False;
     end
     else
     begin
-      TSFields.Enabled := Assigned(Table);
-      TSODBCOptions.Enabled := not TSFields.Enabled;
+      TSFields.Enabled := (SObject is TSBaseTable);
+      TSWhat.Enabled := not TSFields.Enabled;
     end;
 
 
@@ -632,8 +762,14 @@ begin
     FCSVPreview.Columns.Clear();
     FCSVPreview.Items.Clear();
 
-    if (TSFields.Enabled or TSODBCOptions.Enabled) then
+    if (TSFields.Enabled or TSWhat.Enabled) then
     begin
+      if (SObject is TSDatabase) then
+        Database := TSDatabase(SObject)
+      else if (SObject is TSDBObject) then
+        Database := TSDBObject(SObject).Database
+      else
+        Database := nil;
       Import := TTImportText.Create(Filename, CodePage, Session, Database);
 
       if (FDelimiterTab.Checked) then
@@ -686,11 +822,11 @@ end;
 
 procedure TDImport.FDataClick(Sender: TObject);
 begin
-  FObjects.Checked := FObjects.Checked or FData.Checked and not Assigned(Table);
+  FStructure.Checked := FStructure.Checked or FData.Checked and not (SObject is TSBaseTable);
 
-  TSFields.Enabled := FData.Checked and Assigned(Table);
-  TSExecute.Enabled := FObjects.Checked and not TSFields.Enabled;
-  CheckActivePageChange(TSODBCOptions.PageIndex);
+  TSFields.Enabled := FData.Checked and (SObject is TSBaseTable);
+  TSExecute.Enabled := not TSFields.Enabled and FStructure.Checked;
+  CheckActivePageChange(TSWhat.PageIndex);
 
   ClearTSFields(Sender);
 end;
@@ -700,7 +836,17 @@ begin
   FDataClick(Sender);
 end;
 
-procedure TDImport.FDefaultCharsetChange(Sender: TObject);
+procedure TDImport.FDataSourceChange(Sender: TObject);
+begin
+  Filename := Trim(FDataSource.Text);
+
+  if (FName.Text = '') then
+    FName.Text := Filename;
+
+  FJobOptionChange(Sender);
+end;
+
+procedure TDImport.FCharsetChange(Sender: TObject);
 var
   I: Integer;
 begin
@@ -709,14 +855,14 @@ begin
   if (Assigned(Session.Collations)) then
     for I := 0 to Session.Collations.Count - 1 do
     begin
-      if (lstrcmpi(PChar(Session.Collations[I].Charset.Name), PChar(FDefaultCharset.Text)) = 0) then
+      if (lstrcmpi(PChar(Session.Collations[I].Charset.Name), PChar(FCharset.Text)) = 0) then
       begin
         FCollation.Items.Add(Session.Collations[I].Name);
         if (Session.Collations[I].Default) then
           FCollation.ItemIndex := FCollation.Items.Count - 1;
       end;
     end;
-  FCollation.Enabled := FDefaultCharset.Text <> ''; FLCollation.Enabled := FCollation.Enabled;
+  FCollation.Enabled := FCharset.Text <> ''; FLCollation.Enabled := FCollation.Enabled;
 end;
 
 procedure TDImport.FDelimiterClick(Sender: TObject);
@@ -739,6 +885,26 @@ begin
       FFields[I].ItemIndex := 0;
 end;
 
+procedure TDImport.FFilenameChange(Sender: TObject);
+begin
+  Filename := Trim(FFilename.Text);
+
+  if (FName.Text = '') then
+    if (Pos('.', Filename) = 0) then
+      FName.Text := ExtractFileName(Filename)
+    else
+      FName.Text := Copy(ExtractFileName(Filename), 1, Length(ExtractFileName(Filename)) - Length(ExtractFileExt(Filename)));
+
+  FJobOptionChange(Sender);
+end;
+
+procedure TDImport.FImportTypeChange(Sender: TObject);
+begin
+  FFilename.Text := '';
+
+  FJobOptionChange(Sender);
+end;
+
 procedure TDImport.FImportTypeClick(Sender: TObject);
 begin
   TSExecute.Enabled := FInsert.Checked and FInsert.Enabled or FReplace.Checked and FReplace.Enabled or FUpdate.Checked and FUpdate.Enabled;
@@ -750,20 +916,39 @@ begin
   FImportTypeClick(Sender);
 end;
 
-procedure TDImport.FObjectsClick(Sender: TObject);
+procedure TDImport.FJobOptionChange(Sender: TObject);
 begin
-  FData.Checked := FData.Checked and (Assigned(Table) or FObjects.Checked);
+  if (FSQLFile.Checked) then
+    ImportType := itSQLFile
+  else if (FTextFile.Checked) then
+    ImportType := itTextFile
+  else if (FExcelFile.Checked) then
+    ImportType := itExcelFile
+  else if (FAccessFile.Checked) then
+    ImportType := itAccessFile
+  else if (FSQLiteFile.Checked) then
+    ImportType := itSQLiteFile
+  else if (FODBC.Checked) then
+    ImportType := itODBC
+  else if (FXMLFile.Checked) then
+    ImportType := itXMLFile
+  else
+    ImportType := itUnknown;
 
-  TSFields.Enabled := FData.Checked and Assigned(Table);
-  TSExecute.Enabled := FObjects.Checked and not TSFields.Enabled;
-  CheckActivePageChange(TSODBCOptions.PageIndex);
+  FFilename.Visible := ImportType in [itSQLFile, itTextFile, itExcelFile, itAccessFile, itSQLiteFile, itXMLFile];
+  FLFilename.Visible := FFilename.Visible;
+  FBFilename.Visible := FFilename.Visible;
+  FDataSource.Visible := ImportType in [itODBC];
+  FLDataSource.Visible := FDataSource.Visible;
+  FBDataSource.Visible := FDataSource.Visible;
 
-  ClearTSFields(Sender);
-end;
+  TSSelect.Enabled := ValidJobName(Trim(FName.Text))
+    and ((DialogType <> idtCreateJob) or not Assigned(Session.Account.JobByName(Trim(FName.Text))))
+    and ((DialogType <> idtEditJob) or (Session.Account.JobByName(Trim(FName.Text)) = Job))
+    and (not FFilename.Visible or (DirectoryExists(ExtractFilePath(FFilename.Text)) and (ExtractFileName(FFilename.Text) <> '')))
+    and (not FDataSource.Visible or (FDataSource.Text <> ''));
 
-procedure TDImport.FObjectsKeyPress(Sender: TObject; var Key: Char);
-begin
-  FObjectsClick(Sender);
+  CheckActivePageChange(TSJob.PageIndex);
 end;
 
 procedure TDImport.FormClose(Sender: TObject; var Action: TCloseAction);
@@ -778,25 +963,21 @@ procedure TDImport.FormCreate(Sender: TObject);
 begin
   Import := nil;
 
+  FSelect.Images := Preferences.SmallImages;
   FTables.SmallImages := Preferences.SmallImages;
 
-  FCSVHeadline.Checked := Preferences.Import.CSVHeadline;
-  FDelimiterTab.Checked := Preferences.Import.CSVSeparatorType = dtTab;
-  FDelimiterChar.Checked := Preferences.Import.CSVSeparatorType = dtChar;
-  FDelimiter.Text := Preferences.Import.CSVSeparator;
-  FQuoteNothing.Checked := Preferences.Import.CSVQuote = qtNothing;
-  FQuoteStrings.Checked := Preferences.Import.CSVQuote = qtStrings;
-  FQuoteChar.Text := Preferences.Import.CSVQuoteChar;
-  if (Preferences.Import.ImportType = itReplace) then
-    FReplace.Checked := True
-  else if (Preferences.Import.ImportType = itUpdate) then
-    FUpdate.Checked := True
-  else
-    FInsert.Checked := True;
-
-  FObjects.Checked := Preferences.Import.ODBCObjects;
-  FData.Checked := Preferences.Import.ODBCData;
-  FRowFormat.ItemIndex := Preferences.Import.ODBCRowType;
+  FCSVHeadline.Checked := Preferences.Import.CSV.Headline;
+  FDelimiterTab.Checked := Preferences.Import.CSV.DelimiterType = dtTab;
+  FDelimiterChar.Checked := Preferences.Import.CSV.DelimiterType = dtChar;
+  FDelimiter.Text := Preferences.Import.CSV.Delimiter;
+  FQuoteNothing.Checked := Preferences.Import.CSV.Quote = qtNothing;
+  FQuoteStrings.Checked := Preferences.Import.CSV.Quote = qtStrings;
+  FQuoteChar.Text := Preferences.Import.CSV.QuoteChar;
+  case (Preferences.Import.ImportStmt) of
+    isReplace: FReplace.Checked := True;
+    isUpdate: FUpdate.Checked := True;
+    else FInsert.Checked := True;
+  end;
 
   SendMessage(FErrorMessages.Handle, EM_SETTEXTMODE, TM_PLAINTEXT, 0);
   SendMessage(FErrorMessages.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
@@ -805,28 +986,121 @@ begin
 end;
 
 procedure TDImport.FormHide(Sender: TObject);
+var
+  Import: TPImport;
+  Hour, Min, Sec, MSec: Word;
+  Year, Month, Day: Word;
+  I: Integer;
+  J: Integer;
 begin
+  Session.UnRegisterEventProc(FormSessionEvent);
+
   if (ModalResult = mrOk) then
   begin
-    Preferences.Import.CSVHeadline := FCSVHeadline.Checked;
-    if (FDelimiterTab.Checked) then
-      Preferences.Import.CSVSeparatorType := dtTab
-    else if (FDelimiterChar.Checked) then
-      Preferences.Import.CSVSeparatorType := dtChar;
-    Preferences.Import.CSVSeparator := FDelimiter.Text;
-    Preferences.Import.CSVQuoteChar := FQuoteChar.Text;
-    if (FQuoteNothing.Checked) then
-      Preferences.Import.CSVQuote := qtNothing
+    if (DialogType in [idtCreateJob, idtEditJob]) then
+      Import := TAJobImport.Create(Session.Account.Jobs, Trim(FName.Text))
     else
-      Preferences.Import.CSVQuote := qtStrings;
+      Import := Preferences.Import;
 
-    if (FInsert.Checked) then Preferences.Import.ImportType := itInsert
-    else if (FReplace.Checked) then Preferences.Import.ImportType := itReplace
-    else if (FUpdate.Checked) then Preferences.Import.ImportType := itUpdate;
+    case (ImportType) of
+      itTextFile:
+        begin
+          Import.CSV.Headline := FCSVHeadline.Checked;
+          if (FDelimiterTab.Checked) then
+            Import.CSV.DelimiterType := dtTab
+          else if (FDelimiterChar.Checked) then
+            Import.CSV.DelimiterType := dtChar;
+          Import.CSV.Delimiter := FDelimiter.Text;
+          Import.CSV.QuoteChar := FQuoteChar.Text;
+          if (FQuoteNothing.Checked) then
+            Import.CSV.Quote := qtNothing
+          else
+            Import.CSV.Quote := qtStrings;
+        end;
+      itODBC:
+        begin
+          Import.Structure := FStructure.Checked;
+          Import.Data := FData.Checked;
+        end;
+    end;
+    if (FReplace.Checked) then
+      Import.ImportStmt := isReplace
+    else if (FUpdate.Checked) then
+      Import.ImportStmt := isUpdate
+    else
+      Import.ImportStmt := isInsert;
 
-    Preferences.Import.ODBCObjects := FObjects.Checked;
-    Preferences.Import.ODBCData := FData.Checked;
-    Preferences.Import.ODBCRowType := FRowFormat.ItemIndex;
+    if (DialogType in [idtCreateJob, idtEditJob]) then
+    begin
+      if (Assigned(FSelect.Selected)) then
+      begin
+        if (not Assigned(FSelect.Selected.Parent)) then
+          TAJobImport(Import).JobObject.ObjectType := jotServer
+        else if (TObject(FSelect.Selected.Data) is TSDatabase) then
+        begin
+          TAJobImport(Import).JobObject.ObjectType := jotDatabase;
+          TAJobImport(Import).JobObject.Name := TSDatabase(FSelect.Selected.Data).Name;
+        end
+        else if (TObject(FSelect.Selected.Data) is TSDBObject) then
+        begin
+          if (TObject(FSelect.Selected.Data) is TSTable) then
+            TAJobImport(Import).JobObject.ObjectType := jotTable;
+          TAJobImport(Import).JobObject.Name := TSDBObject(FSelect.Selected.Data).Name;
+          TAJobImport(Import).JobObject.DatabaseName := TSDBObject(FSelect.Selected.Data).Database.Name;
+        end;
+      end;
+      TAJobImport(Import).CodePage := CodePage;
+      TAJobImport(Import).ImportType := ImportType;
+      TAJobImport(Import).Filename := FFilename.Text;
+
+      SetLength(TAJobImport(Import).SourceObjects, 0);
+      case (ImportType) of
+        itAccessFile,
+        itExcelFile,
+        itSQLiteFile,
+        itODBC:
+          for I := 0 to FTables.Items.Count - 1 do
+            if (FTables.Items[I].Selected) then
+            begin
+              SetLength(TAJobImport(Import).SourceObjects, Length(TAJobImport(Import).SourceObjects) + 1);
+              TAJobImport(Import).SourceObjects[Length(TAJobImport(Import).SourceObjects) - 1].Name := TTableName(FTables.Items[I].Data).SourceName;
+            end;
+        itXMLFile:
+          begin
+            SetLength(TAJobImport(Import).SourceObjects, Length(TAJobImport(Import).SourceObjects) + 1);
+            TAJobImport(Import).SourceObjects[Length(TAJobImport(Import).SourceObjects) - 1].Name := FRecordTag.Text;
+          end;
+      end;
+
+      SetLength(TAJobImport(Import).FieldMappings, 0);
+      for I := 0 to TSBaseTable(SObject).Fields.Count - 1 do
+        for J := 0 to Length(FFields) - 1 do
+          if ((FSourceFields[J].Text <> '') and (FFields[J].ItemIndex = I + 1)) then
+          begin
+            SetLength(TAJobImport(Import).FieldMappings, Length(TAJobImport(Import).FieldMappings) + 1);
+            TAJobImport(Import).FieldMappings[Length(TAJobImport(Import).FieldMappings) - 1].Name := TSBaseTable(SObject).Fields[I].Name;
+            TAJobImport(Import).FieldMappings[Length(TAJobImport(Import).FieldMappings) - 1].SourceName := FSourceFields[J].Text;
+          end;
+
+      DecodeDate(FStartDate.Date, Year, Month, Day);
+      DecodeTime(FStartTime.Time, Hour, Min, Sec, MSec);
+      TAJobImport(Import).Start := EncodeDate(Year, Month, Day) + EncodeTime(Hour, Min, Sec, MSec);
+      if (FDaily.Checked) then
+        TAJobImport(Import).TriggerType := ttDaily
+      else if (FWeekly.Checked) then
+        TAJobImport(Import).TriggerType := ttWeekly
+      else if (FMonthly.Checked) then
+        TAJobImport(Import).TriggerType := ttMonthly
+      else
+        TAJobImport(Import).TriggerType := ttSingle;
+      TAJobImport(Import).Enabled := FEnabled.Checked;
+
+      if (DialogType = idtCreateJob) then
+        Session.Account.Jobs.AddJob(Import)
+      else if (DialogType = idtEditJob) then
+        Session.Account.Jobs.UpdateJob(Job, Import);
+      Import.Free();
+    end;
   end;
 
   FTables.Items.BeginUpdate();
@@ -846,95 +1120,186 @@ begin
   end;
 end;
 
+procedure TDImport.FormSessionEvent(const Event: TSSession.TEvent);
+begin
+  if (Event.EventType = ceAfterExecuteSQL) then
+    PostMessage(Handle, CM_POST_AFTEREXECUTESQL, 0, 0);
+end;
+
 procedure TDImport.FormShow(Sender: TObject);
 var
   I: Integer;
+  Node: TTreeNode;
 begin
-  if (ExtractFileName(Filename) = '') then
+  Session.RegisterEventProc(FormSessionEvent);
+
+  ModalResult := mrNone;
+  if (DialogType = idtCreateJob) then
+    Caption := Preferences.LoadStr(897)
+  else if (DialogType = idtEditJob) then
+    Caption := Preferences.LoadStr(842, Job.Name)
+  else if (DialogType = idtExecuteJob) then
+    Caption := Preferences.LoadStr(210) + ' ' + ExtractFileName(Job.Filename)
+  else if (ExtractFileName(Filename) = '') then
     Caption := Preferences.LoadStr(386)
   else
     Caption := Preferences.LoadStr(386) + ' ' + ExtractFileName(Filename);
 
-  case (ImportType) of
-    itSQLFile: HelpContext := 1010;
-    itTextFile: HelpContext := 1133;
-    itAccessFile: HelpContext := 1013;
-    itExcelFile: HelpContext := 1106;
-    itSQLiteFile: HelpContext := 1127;
-    itODBC: HelpContext := 1012;
-    itXMLFile: HelpContext := 1132;
-    else HelpContext := 0;
-  end;
+  if (DialogType = idtCreateJob) then
+    HelpContext := 1148
+  else if (DialogType = idtEditJob) then
+    HelpContext := 1140
+  else if (DialogType = idtExecuteJob) then
+    HelpContext := -1
+  else
+    case (ImportType) of
+      itSQLFile: HelpContext := 1010;
+      itTextFile: HelpContext := 1133;
+      itAccessFile: HelpContext := 1013;
+      itExcelFile: HelpContext := 1106;
+      itSQLiteFile: HelpContext := 1127;
+      itODBC: HelpContext := 1012;
+      itXMLFile: HelpContext := 1132;
+      else HelpContext := -1;
+    end;
+  FBHelp.Visible := HelpContext >= 0;
 
   SQLite := nil;
 
-  TSTables.Enabled := ImportType in [itAccessFile, itExcelFile, itSQLiteFile, itODBC];
-  TSCSVOptions.Enabled := ImportType in [itTextFile];
-  TSODBCOptions.Enabled := False;
-  TSXMLOptions.Enabled := ImportType in [itXMLFile];
-  TSFields.Enabled := False;
-  TSExecute.Enabled := not TSTables.Enabled and not TSCSVOptions.Enabled and not TSODBCOptions.Enabled and not TSXMLOptions.Enabled and not TSFields.Enabled;
-
-  FObjects.Enabled := not Assigned(Table);
-
-  if ((ImportType in [itTextFile, itODBC, itAccessFile, itExcelFile, itSQLiteFile]) and not Assigned(Table)) then
+  FEngine.Clear();
+  if (Session.Engines.Count = 0) then
+    FEngine.Style := csDropDown
+  else
   begin
-    FEngine.Clear();
-    if (Session.Engines.Count = 0) then
-      FEngine.Style := csDropDown
-    else
-    begin
-      FEngine.Style := csDropDownList;
-      for I := 0 to Session.Engines.Count - 1 do
-        FEngine.Items.Add(Session.Engines.Engine[I].Name);
-      if (not Assigned(Session.Engines.DefaultEngine)) then
-        FEngine.ItemIndex := -1
-      else
-        FEngine.ItemIndex := FEngine.Items.IndexOf(Session.Engines.DefaultEngine.Name);
-    end;
-
-    FDefaultCharset.Items.Clear();
-    if (Session.Charsets.Count = 0) then
-      FDefaultCharset.Style := csDropDown
-    else
-    begin
-      FDefaultCharset.Style := csDropDownList;
-      for I := 0 to Session.Charsets.Count - 1 do
-        FDefaultCharset.Items.Add(Session.Charsets.Charset[I].Name);
-    end;
-    if (Session.ServerVersion < 40101) then
-      FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf(Session.DefaultCharset)
-    else
-      FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf('utf8');
-    FDefaultCharsetChange(Sender);
-
-    FDefaultCharset.Visible := Database.Session.ServerVersion >= 40101; FLDefaultCharset.Visible := FDefaultCharset.Visible;
-    FCollation.Visible := Database.Session.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
+    FEngine.Style := csDropDownList;
+    for I := 0 to Session.Engines.Count - 1 do
+      FEngine.Items.Add(Session.Engines.Engine[I].Name);
   end;
 
-  FLProgressTables.Visible := ImportType in [itODBC, itAccessFile, itExcelFile, itSQLiteFile, itXMLFile];
-  FEntieredTables.Visible := FLProgressTables.Visible;
-  FDoneTables.Visible := FLProgressTables.Visible;
-  if (ImportType in [itODBC, itAccessFile, itExcelFile, itSQLiteFile, itXMLFile]) then
-    FLProgressRecords.Caption := Preferences.LoadStr(235) + ':'
+  FCharset.Items.Clear();
+  if (Session.Charsets.Count = 0) then
+    FCharset.Style := csDropDown
   else
-    FLProgressRecords.Caption := Preferences.LoadStr(67) + ':';
+  begin
+    FCharset.Style := csDropDownList;
+    for I := 0 to Session.Charsets.Count - 1 do
+      FCharset.Items.Add(Session.Charsets.Charset[I].Name);
+  end;
+  FCharset.Visible := Session.ServerVersion >= 40101; FLCharset.Visible := FCharset.Visible;
+  FCollation.Visible := Session.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
+
+  if (DialogType = idtCreateJob) then
+  begin
+    Node := FSelect.Items.Add(nil, Session.Caption);
+    Node.ImageIndex := iiServer;
+    Node.HasChildren := True;
+
+    FName.Text := '';
+    FFilename.Visible := False; FLFilename.Visible := FFilename.Visible; FBFilename.Visible := FFilename.Visible;
+    FFilename.Text := '';
+    FDataSource.Visible := False; FLDataSource.Visible := FDataSource.Visible; FBDataSource.Visible := FDataSource.Visible;
+    FDataSource.Text := '';
+
+    FStructure.Checked := Preferences.Import.Structure;
+    FData.Checked := Preferences.Import.Data;
+    FEngine.ItemIndex := FEngine.Items.IndexOf(Preferences.Import.Engine);
+    FCharset.ItemIndex := FCharset.Items.IndexOf(Preferences.Import.Charset);
+    FRowFormat.ItemIndex := Preferences.Import.RowType;
+
+    FStartDate.Date := Now() + 1; FStartTime.Time := 0;
+    FSingle.Checked := True;
+    FEnabled.Checked := True;
+  end
+  else if (DialogType in [idtEditJob, idtExecuteJob]) then
+  begin
+    Node := FSelect.Items.Add(nil, Session.Caption);
+    Node.ImageIndex := iiServer;
+    Node.HasChildren := True;
+
+    FName.Text := Job.Name;
+    case (Job.ImportType) of
+      itSQLFile: FSQLFile.Checked := True;
+      itTextFile: FTextFile.Checked := True;
+      itExcelFile: FExcelFile.Checked := True;
+      itAccessFile: FAccessFile.Checked := True;
+      itSQLiteFile: FSQLiteFile.Checked := True;
+      itODBC: FODBC.Checked := True;
+      itXMLFile: FXMLFile.Checked := True;
+    end;
+    FFilename.Visible := False; FLFilename.Visible := FFilename.Visible;
+    CodePage := Job.CodePage;
+    Filename := Job.Filename;
+    FFilename.Text := Filename;
+
+    FStructure.Checked := Job.Structure;
+    FData.Checked := Job.Data;
+    FEngine.ItemIndex := FEngine.Items.IndexOf(Job.Engine);
+    FCharset.ItemIndex := FCharset.Items.IndexOf(Job.Charset);
+    FRowFormat.ItemIndex := Job.RowType;
+
+    FStartDate.Date := Job.Start; FStartTime.Time := Job.Start;
+    case (Job.TriggerType) of
+      ttDaily: FDaily.Checked := True;
+      ttWeekly: FWeekly.Checked := True;
+      ttMonthly: FMonthly.Checked := True;
+      else FSingle.Checked := True;
+    end;
+    FEnabled.Checked := Job.Enabled;
+  end
+  else if ((ImportType in [itTextFile, itODBC, itAccessFile, itExcelFile, itSQLiteFile]) and not (SObject is TSTable)) then
+  begin
+    FStructure.Checked := Preferences.Import.Structure and not (SObject is TSBaseTable);
+    FData.Checked := Preferences.Import.Data and (FStructure.Checked or (SObject is TSBaseTable));
+    FEngine.ItemIndex := FEngine.Items.IndexOf(Preferences.Import.Engine);
+    FCharset.ItemIndex := FCharset.Items.IndexOf(Preferences.Import.Charset);
+    FRowFormat.ItemIndex := Preferences.Import.RowType;
+  end;
+
+  if (FEngine.ItemIndex < 0) then
+    FEngine.ItemIndex := FEngine.Items.IndexOf(Session.Engines.DefaultEngine.Name);
+  if (FCharset.ItemIndex < 0) then
+    if (SObject is TSDatabase) then
+      FCharset.ItemIndex := FCharset.Items.IndexOf(TSDatabase(SObject).DefaultCharset)
+    else if (SObject is TSDBObject) then
+      FCharset.ItemIndex := FCharset.Items.IndexOf(TSDBObject(SObject).Database.DefaultCharset);
+  FCharsetChange(Sender);
 
   if (TSFields.Enabled) then
     InitTSFields(Sender);
   if (not TSTables.Enabled) then
     TSTablesHide(Sender);
 
+  if (DialogType in [idtCreateJob, idtEditJob]) then
+  begin
+    PageControl.Visible := Session.Databases.Update() and Boolean(Perform(CM_POST_AFTEREXECUTESQL, 0, 0));
+    if (PageControl.Visible) then
+      FSelect.Items.GetFirstNode().Expand(False)
+    else
+      WantedNodeExpand := FSelect.Items.GetFirstNode();
+  end
+  else
+    PageControl.Visible := Boolean(Perform(CM_POST_AFTEREXECUTESQL, 0, 0));
+  PSQLWait.Visible := not PageControl.Visible;
+
+  TSJob.Enabled := DialogType in [idtCreateJob, idtEditJob];
+  TSTables.Enabled := (ImportType in [itAccessFile, itExcelFile, itSQLiteFile, itODBC]);
+  TSCSVOptions.Enabled := (ImportType in [itTextFile]);
+  TSXMLOptions.Enabled := (SObject is TSTable) and (ImportType in [itXMLFile]);
+  TSExecute.Enabled := (ImportType in [itSQLFile]);
+
   for I := 0 to PageControl.PageCount - 1 do
     if ((PageControl.ActivePageIndex < 0) and PageControl.Pages[I].Enabled) then
       PageControl.ActivePageIndex := I;
+  CheckActivePageChange(PageControl.ActivePageIndex);
 
-  FBBack.Visible := not (ImportType in [itSQLFile]);
-  FBForward.Visible := not (ImportType in [itSQLFile]);
+  FBBack.Visible := (DialogType <> idtNormal) or not (ImportType in [itSQLFile]);
+  FBForward.Visible := FBBack.Visible;
   FBCancel.ModalResult := mrCancel;
   FBCancel.Caption := Preferences.LoadStr(30);
 
-  if (FBForward.Visible and FBForward.Enabled) then
+  if (PageControl.Visible and TSJob.Visible) then
+    ActiveControl := FName
+  else if (FBForward.Visible and FBForward.Enabled) then
     ActiveControl := FBForward
   else
     ActiveControl := FBCancel;
@@ -952,6 +1317,99 @@ begin
   FQuoteClick(Sender);
 end;
 
+procedure TDImport.FSelectChange(Sender: TObject; Node: TTreeNode);
+begin
+  if (Assigned(FSelect.Selected)) then
+  begin
+    SObject := TSObject(FSelect.Selected.Data);
+
+    TSTables.Enabled := (SObject is TSObject) and (ImportType in [itAccessFile, itExcelFile, itSQLiteFile, itODBC]);
+    TSCSVOptions.Enabled := (ImportType in [itTextFile]);
+    TSXMLOptions.Enabled := (SObject is TSTable) and (ImportType in [itXMLFile]);
+    TSWhat.Enabled := not Assigned(SObject) or (SObject is TSDatabase);
+
+    CheckActivePageChange(TSSelect.PageIndex);
+  end;
+end;
+
+procedure TDImport.FSelectExpanding(Sender: TObject; Node: TTreeNode;
+  var AllowExpansion: Boolean);
+var
+  Database: TSDatabase;
+  I: Integer;
+  NewNode: TTreeNode;
+  TreeView: TTreeView_Ext;
+begin
+  TreeView := TTreeView_Ext(Sender);
+
+  if (Assigned(WantedNodeExpand)) then
+    WantedNodeExpand := nil;
+
+  if (Assigned(Node)) then
+    if (Node.HasChildren and not Assigned(Node.getFirstChild())) then
+    begin
+      case (Node.ImageIndex) of
+        iiServer:
+          begin
+            if (not Session.Update()) then
+              WantedNodeExpand := Node
+            else
+            begin
+              for I := 0 to Session.Databases.Count - 1 do
+                if ((Session.Databases.NameCmp(Session.Databases[I].Name, 'mysql') <> 0) and not (Session.Databases[I] is TSSystemDatabase)) then
+                begin
+                  NewNode := TreeView.Items.AddChild(Node, Session.Databases[I].Name);
+                  NewNode.ImageIndex := iiDatabase;
+                  NewNode.Data := Session.Databases[I];
+                  NewNode.HasChildren := True;
+                end;
+              Node.HasChildren := Assigned(Node.getFirstChild());
+            end;
+          end;
+        iiDatabase:
+          begin
+            Database := Session.DatabaseByName(Node.Text);
+            if ((not Database.Tables.Update() or not Session.Update(Database.Tables))) then
+              WantedNodeExpand := Node
+            else
+            begin
+              for I := 0 to Database.Tables.Count - 1 do
+              begin
+                NewNode := TreeView.Items.AddChild(Node, Database.Tables[I].Name);
+                if (Database.Tables[I] is TSBaseTable) then
+                  NewNode.ImageIndex := iiBaseTable
+                else
+                  NewNode.ImageIndex := iiView;
+                NewNode.Data := Database.Tables[I];
+              end;
+              Node.HasChildren := Assigned(Node.getFirstChild());
+            end;
+          end;
+      end;
+    end;
+end;
+
+procedure TDImport.FSelectGetImageIndex(Sender: TObject; Node: TTreeNode);
+begin
+  Node.SelectedIndex := Node.ImageIndex;
+end;
+
+procedure TDImport.FStructureClick(Sender: TObject);
+begin
+  FData.Checked := FData.Checked and (SObject is TSTable) or FStructure.Checked;
+
+  TSFields.Enabled := FData.Checked and (SObject is TSTable);
+  TSExecute.Enabled := not TSFields.Enabled and FStructure.Checked;
+  CheckActivePageChange(TSWhat.PageIndex);
+
+  ClearTSFields(Sender);
+end;
+
+procedure TDImport.FStructureKeyPress(Sender: TObject; var Key: Char);
+begin
+  FStructureClick(Sender);
+end;
+
 procedure TDImport.FTablesDblClick(Sender: TObject);
 begin
   FTablesSelectItem(Sender, FTables.Selected, Assigned(FTables.Selected));
@@ -962,9 +1420,77 @@ end;
 procedure TDImport.FTablesSelectItem(Sender: TObject; Item: TListItem;
   Selected: Boolean);
 begin
-  TSODBCOptions.Enabled := (FTables.SelCount > 0) and (ImportType in [itAccessFile, itExcelFile, itSQLiteFile, itODBC]) and not Assigned(Table);
-  TSFields.Enabled := (FTables.SelCount > 0) and not TSODBCOptions.Enabled;
+  TSWhat.Enabled := (FTables.SelCount > 0) and (ImportType in [itTextFile, itAccessFile, itExcelFile, itSQLiteFile, itODBC, itXMLFile]) and not (SObject is TSBaseTable);
+  TSFields.Enabled := (FTables.SelCount > 0) and not TSWhat.Enabled;
   CheckActivePageChange(TSTables.PageIndex);
+end;
+
+function TDImport.GetFilename(): Boolean;
+begin
+  OpenDialog.Title := ReplaceStr(Preferences.LoadStr(581), '&', '');
+  OpenDialog.InitialDir := Preferences.Path;
+  OpenDialog.Filter := '';
+
+  case (ImportType) of
+    itSQLFile:
+      begin
+        OpenDialog.Filter := FilterDescription('sql') + ' (*.sql)|*.sql';
+        OpenDialog.DefaultExt := 'sql';
+        OpenDialog.Encodings.Text := EncodingCaptions();
+      end;
+    itTextFile:
+      begin
+        OpenDialog.Filter := FilterDescription('txt') + ' (*.txt;*.csv;*.tab;*.asc)|*.txt;*.csv;*.tab;*.asc';
+        OpenDialog.DefaultExt := 'csv';
+        OpenDialog.Encodings.Text := EncodingCaptions();
+      end;
+    itExcelFile:
+      begin
+        if (odExcel2007 in ODBCDrivers) then
+          OpenDialog.Filter := FilterDescription('xls') + ' (*.xls;*.xlsm;*.xlsb;*.xlsx)|*.xls;*.xlsm;*.xlsb;*.xlsx'
+        else
+          OpenDialog.Filter := FilterDescription('xls') + ' (*.xls)|*.xls';
+        OpenDialog.DefaultExt := 'xls';
+        OpenDialog.Encodings.Clear();
+      end;
+    itAccessFile:
+      begin
+        if (odAccess2007 in ODBCDrivers) then
+          OpenDialog.Filter := FilterDescription('mdb') + ' (*.mdb;*.accdb)|*.mdb;*.accdb'
+        else
+          OpenDialog.Filter := FilterDescription('mdb') + ' (*.mdb)|*.mdb';
+        OpenDialog.DefaultExt := 'mdb';
+        OpenDialog.Encodings.Clear();
+      end;
+    itSQLiteFile:
+      begin
+        OpenDialog.Filter := FilterDescription('sqlite') + ' (*.db3;*.sqlite)|*.db3;*.sqlite';
+        OpenDialog.DefaultExt := 'db3';
+        OpenDialog.Encodings.Clear();
+      end;
+    itXMLFile:
+      begin
+        OpenDialog.Filter := FilterDescription('xml') + ' (*.xml)|*.xml';
+        OpenDialog.DefaultExt := 'xml';
+        OpenDialog.Encodings.Clear();
+      end;
+  end;
+  OpenDialog.Filter := OpenDialog.Filter + '|' + FilterDescription('*') + ' (*.*)|*.*';
+
+  OpenDialog.FileName := '';
+  OpenDialog.EncodingIndex := OpenDialog.Encodings.IndexOf(CodePageToEncoding(CP_ACP));
+
+  Result := OpenDialog.Execute();
+  if (Result) then
+  begin
+    Preferences.Path := ExtractFilePath(OpenDialog.FileName);
+
+    if ((OpenDialog.EncodingIndex < 0) or (OpenDialog.Encodings.Count = 0)) then
+      CodePage := GetACP()
+    else
+      CodePage := EncodingToCodePage(OpenDialog.Encodings[OpenDialog.EncodingIndex]);
+    Filename := OpenDialog.FileName;
+  end;
 end;
 
 procedure TDImport.InitTSFields(Sender: TObject);
@@ -990,7 +1516,7 @@ begin
       for I := 0 to FCSVPreview.Columns.Count - 1 do
         FieldNames.Add(FCSVPreview.Column[I].Caption);
     end
-    else if ((ImportType in [itExcelFile, itAccessFile, itODBC]) and Assigned(Table)) then
+    else if ((ImportType in [itExcelFile, itAccessFile, itODBC]) and (SObject is TSBaseTable)) then
     begin
       if (ImportType = itODBC) then
         FLSourceFields.Caption := Preferences.LoadStr(610) + ':'
@@ -1015,19 +1541,19 @@ begin
 
       SQLiteException(SQLite, sqlite3_finalize(Stmt));
     end
-    else if ((ImportType in [itXMLFile]) and Assigned(Table)) then
+    else if ((ImportType in [itXMLFile]) and (SObject is TSBaseTable)) then
     begin
       FLSourceFields.Caption := Preferences.LoadStr(400) + ':';
 
-      for I := 0 to Table.Fields.Count - 1 do
-        FieldNames.Add(Table.Fields[I].Name);
+      for I := 0 to TSBaseTable(SObject).Fields.Count - 1 do
+        FieldNames.Add(TSBaseTable(SObject).Fields[I].Name);
     end;
 
     SetLength(FSourceFields, FieldNames.Count);
     SetLength(FLReferrers, Length(FSourceFields));
     SetLength(FFields, Length(FSourceFields));
 
-    if (Assigned(Table)) then
+    if (SObject is TSBaseTable) then
     begin
       ScrollBox.Visible := False;
       ScrollBox.AutoScroll := False;
@@ -1063,8 +1589,8 @@ begin
         if (I = 0) then
         begin
           FFields[I].Items.Add('');
-          for J := 0 to Table.Fields.Count - 1 do
-            FFields[I].Items.Add(Table.Fields.Field[J].Name);
+          for J := 0 to TSBaseTable(SObject).Fields.Count - 1 do
+            FFields[I].Items.Add(TSBaseTable(SObject).Fields.Field[J].Name);
         end
         else
           FFields[I].Items.Text := FFields[0].Items.Text;
@@ -1084,6 +1610,61 @@ begin
     end;
 
     FieldNames.Free();
+  end;
+end;
+
+function TDImport.InitTSSelect(): Boolean;
+var
+  Database: TSDatabase;
+  J: Integer;
+  K: Integer;
+  Nodes: TList;
+begin
+  Result := True;
+  if (FSelect.Items[0].Count = 0) then
+  begin
+    Nodes := TList.Create();
+    if (not Session.Update()) then
+      Result := False
+    else
+      if (Job.JobObject.ObjectType = jotServer) then
+        Nodes.Add(FSelect.Items[0])
+      else if (not Session.Databases.Update()) then
+        Result := False
+      else if (Job.JobObject.ObjectType = jotServer) then
+      begin
+        FSelect.Items[0].Expand(False);
+        Nodes.Add(FSelect.Items[0]);
+      end
+      else
+      begin
+        FSelect.Items[0].Expand(False);
+        if (Job.JobObject.ObjectType = jotDatabase) then
+        begin
+          for J := 0 to FSelect.Items[0].Count - 1 do
+            if (Session.Databases.NameCmp(FSelect.Items[0].Item[J].Text, Job.JobObject.Name) = 0) then
+              Nodes.Add(FSelect.Items[0].Item[J]);
+        end
+        else
+        begin
+          for J := 0 to FSelect.Items[0].Count - 1 do
+            if (Session.Databases.NameCmp(FSelect.Items[0].Item[J].Text, Job.JobObject.DatabaseName) = 0) then
+            begin
+              Database := Session.DatabaseByName(Job.JobObject.DatabaseName);
+              if (not Database.Update()) then
+                Result := False
+              else
+              begin
+                FSelect.Items[0].Item[J].Expand(False);
+                for K := 0 to FSelect.Items[0].Item[J].Count - 1 do
+                  if ((Job.JobObject.ObjectType = jotTable) and (TObject(FSelect.Items[0].Item[J].Item[K].Data) is TSTable) and (Database.Tables.NameCmp(TSTable(FSelect.Items[0].Item[J].Item[K].Data).Name, Job.JobObject.Name) = 0)) then
+                    Nodes.Add(FSelect.Items[0].Item[J].Item[K]);
+              end;
+            end;
+        end;
+      end;
+    FSelect.Select(Nodes);
+    Nodes.Free();
   end;
 end;
 
@@ -1194,17 +1775,33 @@ end;
 procedure TDImport.TSExecuteShow(Sender: TObject);
 var
   Answer: Integer;
+  Database: TSDatabase;
+
+  procedure ImportAdd(TableName: string; const SourceTableName: string = '');
+  begin
+    TableName := Session.ApplyIdentifierName(TableName);
+    if ((Answer <> IDYESALL) and not (SObject is TSTable) and Assigned(Database.TableByName(TableName))) then
+      Answer := MsgBox(Preferences.LoadStr(700, Database.Name + '.' + TableName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);
+    if (Answer in [IDYES, IDYESALL]) then
+      Import.Add(TableName, SourceTableName);
+  end;
+
+var
   I: Integer;
-  ImportODBC: TTImportODBC;
-  ImportSQL: TTImportSQL;
-  ImportSQLite: TTImportSQLite;
-  ImportText: TTImportText;
-  ImportXML: TTImportXML;
   J: Integer;
   ProgressInfos: TTool.TProgressInfos;
   Success: Boolean;
-  MySQLName: string;
 begin
+  Session.UnRegisterEventProc(FormSessionEvent);
+
+  FLProgressTables.Visible := ImportType in [itODBC, itAccessFile, itExcelFile, itSQLiteFile, itXMLFile];
+  FEntieredTables.Visible := FLProgressTables.Visible;
+  FDoneTables.Visible := FLProgressTables.Visible;
+  if (ImportType in [itODBC, itAccessFile, itExcelFile, itSQLiteFile, itXMLFile]) then
+    FLProgressRecords.Caption := Preferences.LoadStr(235) + ':'
+  else
+    FLProgressRecords.Caption := Preferences.LoadStr(67) + ':';
+
   FBBack.Enabled := False;
   FBForward.Enabled := False;
   FBForward.Default := False;
@@ -1224,213 +1821,108 @@ begin
   ProgressInfos.Progress := 0;
   SendMessage(Self.Handle, CM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos));
 
-  if (ImportType = itSQLFile) then
-  begin
-    ImportSQL := TTImportSQL.Create(Filename, CodePage, Session, Database);
-
-    Import := ImportSQL;
-  end
-  else if (ImportType in [itTextFile]) then
-  begin
-    ImportText := TTImportText.Create(Filename, CodePage, Session, Database);
-
-    if (Assigned(ImportText)) then
-    begin
-      if (FDelimiterTab.Checked) then
-        ImportText.Delimiter := #9
-      else if (FDelimiter.Text = '') then
-        ImportText.Delimiter := #0
-      else
-        ImportText.Delimiter := FDelimiter.Text[1];
-      if (not FQuoteStrings.Checked) or (FQuoteChar.Text = '') then
-        ImportText.Quoter := #0
-      else
-        ImportText.Quoter := FQuoteChar.Text[1];
-      ImportText.UseHeadline := FCSVHeadline.Checked;
-
-      if (Assigned(Table)) then
-      begin
-        if (FReplace.Checked) then
-          ImportText.ImportType := fTools.itReplace
-        else if (FUpdate.Checked) then
-          ImportText.ImportType := fTools.itUpdate
-        else
-          ImportText.ImportType := fTools.itInsert;
-        ImportText.Structure := False;
-
-        ImportText.Add(Table.Name);
-      end
-      else
-      begin
-        ImportText.Charset := FDefaultCharset.Text;
-        ImportText.Collation := FCollation.Text;
-        ImportText.Data := FData.Checked;
-        ImportText.Engine := FEngine.Text;
-        ImportText.ImportType := fTools.itInsert;
-        ImportText.RowType := TMySQLRowType(FRowFormat.ItemIndex);
-        ImportText.Structure := True;
-
-        Answer := IDYES;
-        MySQLName := ExtractFileName(Filename);
-        MySQLName := Copy(MySQLName, 1, Length(MySQLName) - Length(ExtractFileExt(MySQLName)));
-        MySQLName := Session.ApplyIdentifierName(MySQLName);
-        if (not Assigned(Database.TableByName(MySQLName))) then
-          Answer := IDYES
-        else if (Answer <> IDYESALL) then
-          Answer := MsgBox(Preferences.LoadStr(700, Database.Name + '.' + MySQLName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);
-        if (Answer in [IDYES, IDYESALL]) then
-          ImportText.Add(MySQLName)
-        else if (Answer = IDCANCEL) then
-          FreeAndNil(ImportText);
-      end;
-    end;
-
-    Import := ImportText;
-  end
-  else if (ImportType in [itExcelFile, itAccessFile, itODBC]) then
-  begin
-    ImportODBC := TTImportODBC.Create(ODBC, Database);
-
-    if (Assigned(ImportODBC)) then
-    begin
-      if (Assigned(Table)) then
-      begin
-        ImportODBC.Charset := Table.DefaultCharset;
-        ImportODBC.Collation := Table.Collation;
-        ImportODBC.Data := True;
-        if (not Assigned(Table.Engine)) then
-          ImportODBC.Engine := ''
-        else
-          ImportODBC.Engine := Table.Engine.Name;
-        if (FReplace.Checked) then
-          ImportODBC.ImportType := fTools.itReplace
-        else if (FUpdate.Checked) then
-          ImportODBC.ImportType := fTools.itUpdate
-        else
-          ImportODBC.ImportType := fTools.itInsert;
-        ImportODBC.RowType := Table.RowType;
-        ImportODBC.Structure := False;
-
-        ImportODBC.Add(Table.Name, TTableName(FTables.Selected.Data).SourceName);
-      end
-      else
-      begin
-        ImportODBC.Charset := FDefaultCharset.Text;
-        ImportODBC.Collation := FCollation.Text;
-        ImportODBC.Data := FData.Checked;
-        ImportODBC.Engine := FEngine.Text;
-        ImportODBC.ImportType := fTools.itInsert;
-        ImportODBC.RowType := TMySQLRowType(FRowFormat.ItemIndex);
-        ImportODBC.Structure := not Assigned(Table) and FObjects.Checked;
-
-        Answer := IDYES;
-        for I := 0 to FTables.Items.Count - 1 do
-          if (Assigned(ImportODBC) and (FTables.Items[I].Selected)) then
-          begin
-            MySQLName := TTableName(FTables.Items[I].Data).MySQLName;
-            if (not Assigned(Database.TableByName(MySQLName))) then
-              Answer := IDYES
-            else if (Answer <> IDYESALL) then
-              Answer := MsgBox(Preferences.LoadStr(700, Database.Name + '.' + MySQLName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);
-            if (Answer in [IDYES, IDYESALL]) then
-              ImportODBC.Add(MySQLName, TTableName(FTables.Items[I].Data).SourceName)
-            else if (Answer = IDCANCEL) then
-              FreeAndNil(ImportODBC);
-          end;
-      end;
-    end;
-
-    Import := ImportODBC;
-  end
-  else if (ImportType = itSQLiteFile) then
-  begin
-    ImportSQLite := TTImportSQLite.Create(SQLite, Database);
-
-    if (Assigned(ImportSQLite)) then
-      if (Assigned(Table)) then
-      begin
-        ImportSQLite.Charset := Table.DefaultCharset;
-        ImportSQLite.Collation := Table.Collation;
-        ImportSQLite.Data := True;
-        if (not Assigned(Table.Engine)) then
-          ImportSQLite.Engine := ''
-        else
-          ImportSQLite.Engine := Table.Engine.Name;
-        if (FReplace.Checked) then
-          ImportSQLite.ImportType := fTools.itReplace
-        else if (FUpdate.Checked) then
-          ImportSQLite.ImportType := fTools.itUpdate
-        else
-          ImportSQLite.ImportType := fTools.itInsert;
-        ImportSQLite.RowType := Table.RowType;
-        ImportSQLite.Structure := False;
-
-        ImportSQLite.Add(Table.Name, TTableName(FTables.Selected.Data).SourceName);
-      end
-      else
-      begin
-        ImportSQLite.Charset := FDefaultCharset.Text;
-        ImportSQLite.Collation := FCollation.Text;
-        ImportSQLite.Data := FData.Checked;
-        ImportSQLite.Engine := FEngine.Text;
-        ImportSQLite.ImportType := fTools.itInsert;
-        ImportSQLite.RowType := TMySQLRowType(FRowFormat.ItemIndex);
-        ImportSQLite.Structure := not Assigned(Table) and FObjects.Checked;
-
-        Answer := IDYES;
-        for I := 0 to FTables.Items.Count - 1 do
-          if (Assigned(ImportSQLite) and (FTables.Items[I].Selected)) then
-          begin
-            MySQLName := TTableName(FTables.Items[I].Data).MySQLName;
-            if (not Assigned(Database.TableByName(MySQLName))) then
-              Answer := IDYES
-            else if (Answer <> IDYESALL) then
-              Answer := MsgBox(Preferences.LoadStr(700, Database.Name + '.' + MySQLName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);
-            if (Answer in [IDYES, IDYESALL]) then
-              ImportSQLite.Add(MySQLName, TTableName(FTables.Items[I].Data).SourceName)
-            else if (Answer = IDCANCEL) then
-              FreeAndNil(ImportSQLite);
-          end;
-      end;
-
-    Import := ImportSQLite;
-  end
-  else if (ImportType = itXMLFile) then
-  begin
-    ImportXML := TTImportXML.Create(Filename, Table);
-    if (FReplace.Checked) then
-      ImportXML.ImportType := fTools.itReplace
-    else if (FUpdate.Checked) then
-      ImportXML.ImportType := fTools.itUpdate
-    else
-      ImportXML.ImportType := fTools.itInsert;
-    ImportXML.RecordNodeText := FRecordTag.Text;
-
-    Import := ImportXML;
-  end
+  if (SObject is TSDatabase) then
+    Database := TSDatabase(SObject)
+  else if (SObject is TSDBObject) then
+    Database := TSDBObject(SObject).Database
   else
-    Import := nil;
+    Database := nil;
+  Answer := IDYES;
+  case (ImportType) of
+    itSQLFile:
+      begin
+        Import := TTImportSQL.Create(Filename, CodePage, Session, Database);
+      end;
+    itTextFile:
+      begin
+        Import := TTImportText.Create(Filename, CodePage, Session, Database);
 
-  if (Assigned(Import) and Assigned(Table)) then
-  begin
-    Table.InvalidateData();
-    for I := 0 to Table.Fields.Count - 1 do
-      for J := 0 to Length(FFields) - 1 do
-        if ((FSourceFields[J].Text <> '') and (FFields[J].ItemIndex = I + 1)) then
-        begin
-          SetLength(Import.Fields, Length(Import.Fields) + 1);
-          Import.Fields[Length(Import.Fields) - 1] := Table.Fields[I];
-          SetLength(Import.SourceFields, Length(Import.SourceFields) + 1);
-          Import.SourceFields[Length(Import.Fields) - 1].Name := FSourceFields[J].Text;
-        end;
+        if (FDelimiterTab.Checked) then
+          TTImportText(Import).Delimiter := #9
+        else if (FDelimiter.Text = '') then
+          TTImportText(Import).Delimiter := #0
+        else
+          TTImportText(Import).Delimiter := FDelimiter.Text[1];
+        if (not FQuoteStrings.Checked) or (FQuoteChar.Text = '') then
+          TTImportText(Import).Quoter := #0
+        else
+          TTImportText(Import).Quoter := FQuoteChar.Text[1];
+        TTImportText(Import).UseHeadline := FCSVHeadline.Checked;
+
+        if (SObject is TSTable) then
+          ImportAdd(SObject.Name)
+        else
+          ImportAdd(Copy(Filename, 1 + Length(ExtractFilePath(Filename)), Length(Filename) - Length(ExtractFilePath(Filename)) - Length(ExtractFileExt(Filename))));
+      end;
+    itExcelFile,
+    itAccessFile,
+    itODBC:
+      begin
+        Import := TTImportODBC.Create(ODBC, Database);
+
+        if (SObject is TSTable) then
+          ImportAdd(SObject.Name, TTableName(FTables.Selected.Data).SourceName)
+        else
+          for I := 0 to FTables.Items.Count - 1 do
+            if (FTables.Items[I].Selected) then
+              ImportAdd(TTableName(FTables.Items[I].Data).TableName, TTableName(FTables.Items[I].Data).SourceName);
+      end;
+    itSQLiteFile:
+      begin
+        Import := TTImportSQLite.Create(SQLite, Database);
+
+        if (SObject is TSBaseTable) then
+          ImportAdd(SObject.Name, TTableName(FTables.Selected.Data).SourceName)
+        else
+          for I := 0 to FTables.Items.Count - 1 do
+            if (FTables.Items[I].Selected) then
+              ImportAdd(TTableName(FTables.Items[I].Data).TableName, TTableName(FTables.Items[I].Data).SourceName);
+      end;
+    itXMLFile:
+      if (SObject is TSBaseTable) then
+      begin
+        Import := TTImportXML.Create(Filename, TSBaseTable(SObject));
+
+        ImportAdd(SObject.Name, FRecordTag.Text);
+      end;
   end;
+  if (Answer = IDCANCEL) then
+    FreeAndNil(Import);
 
   Success := Assigned(Import);
-
   if (not Success) then
     SendMessage(Self.Handle, CM_EXECUTIONDONE, WPARAM(Success), 0)
   else
   begin
+    Import.Data := (SObject is TSTable) or not (SObject is TSTable) and FData.Checked;
+    Import.Charset := FCharset.Text;
+    Import.Collation := FCollation.Text;
+    Import.Engine := FEngine.Text;
+    if (Import.Structure) then
+      Import.StmtType := stInsert
+    else if (FReplace.Checked) then
+      Import.StmtType := stReplace
+    else if (FUpdate.Checked) then
+      Import.StmtType := stUpdate
+    else
+      Import.StmtType := stInsert;
+    Import.RowType := TMySQLRowType(FRowFormat.ItemIndex);
+    Import.Structure := not (SObject is TSTable) and FStructure.Checked;
+
+    if (SObject is TSBaseTable) then
+    begin
+      TSBaseTable(SObject).InvalidateData();
+      for I := 0 to TSBaseTable(SObject).Fields.Count - 1 do
+        for J := 0 to Length(FFields) - 1 do
+          if ((FSourceFields[J].Text <> '') and (FFields[J].ItemIndex = I + 1)) then
+          begin
+            SetLength(Import.Fields, Length(Import.Fields) + 1);
+            Import.Fields[Length(Import.Fields) - 1] := TSBaseTable(SObject).Fields[I];
+            SetLength(Import.SourceFields, Length(Import.SourceFields) + 1);
+            Import.SourceFields[Length(Import.Fields) - 1].Name := FSourceFields[J].Text;
+          end;
+    end;
+
     Import.Wnd := Self.Handle;
     Import.OnError := OnError;
     Import.OnExecuted := OnExecuted;
@@ -1461,24 +1953,24 @@ var
   J: Integer;
   Selected: Boolean;
 begin
-  if (not Assigned(Table) or not Assigned(Table.Keys.PrimaryKey)) then
+  if (not (SObject is TSBaseTable) or not Assigned(TSBaseTable(SObject).Keys.PrimaryKey)) then
     FUpdate.Enabled := False
   else
   begin
     Selected := True;
-    for I := 0 to Table.Keys.PrimaryKey.Columns.Count - 1 do
+    for I := 0 to TSBaseTable(SObject).Keys.PrimaryKey.Columns.Count - 1 do
       if (Selected) then
       begin
         Selected := False;
         for J := 0 to Length(FFields) - 1 do
-          if ((FSourceFields[J].Text <> '') and (FFields[J].ItemIndex = Table.Keys.PrimaryKey.Columns[I].Field.Index + 1)) then
+          if ((FSourceFields[J].Text <> '') and (FFields[J].ItemIndex = TSBaseTable(SObject).Keys.PrimaryKey.Columns[I].Field.Index + 1)) then
             Selected := True;
       end;
     if (Selected) then
     begin
       Selected := False;
       for J := 0 to Length(FFields) - 1 do
-        if ((FSourceFields[J].Text <> '') and (FFields[J].ItemIndex > 0) and not Table.Fields[FFields[J].ItemIndex - 1].InPrimaryKey) then
+        if ((FSourceFields[J].Text <> '') and (FFields[J].ItemIndex > 0) and not TSBaseTable(SObject).Fields[FFields[J].ItemIndex - 1].InPrimaryKey) then
           Selected := True;
     end;
 
@@ -1488,24 +1980,24 @@ begin
   FImportTypeClick(Sender);
 end;
 
-procedure TDImport.TSODBCOptionsHide(Sender: TObject);
+procedure TDImport.TSWhatHide(Sender: TObject);
 begin
   InitTSFields(Sender);
 end;
 
-procedure TDImport.TSODBCOptionsShow(Sender: TObject);
+procedure TDImport.TSWhatShow(Sender: TObject);
 begin
-  FObjects.Enabled := not Assigned(Table);
-  FData.Enabled := not Assigned(Table);
+  FStructure.Enabled := not (SObject is TSBaseTable);
+  FData.Enabled := not (SObject is TSBaseTable);
 
-  FObjects.Checked := FObjects.Checked and not Assigned(Table);
-  FData.Checked := FObjects.Checked or Assigned(Table);
-
-  GODBCDatabaseHow.Visible := not Assigned(Table);
-
-  TSFields.Enabled := (FObjects.Checked or FData.Checked) and Assigned(Table);
+  TSFields.Enabled := (FStructure.Checked or FData.Checked) and (SObject is TSBaseTable);
   TSExecute.Enabled := not TSFields.Enabled;
-  CheckActivePageChange(TSODBCOptions.PageIndex);
+  CheckActivePageChange(TSWhat.PageIndex);
+end;
+
+procedure TDImport.TSSelectShow(Sender: TObject);
+begin
+  FSelectChange(Sender, FSelect.Selected);
 end;
 
 procedure TDImport.TSTablesHide(Sender: TObject);
@@ -1601,7 +2093,7 @@ begin
     FTables.Column[0].Width := ColumnTextWidth;
     FTables.Column[0].AutoSize := True;
 
-    FTables.MultiSelect := not Assigned(Table);
+    FTables.MultiSelect := not (SObject is TSBaseTable);
     if (FTables.Items.Count = 1) then
     begin
       FTables.Selected := FTables.Items[0];
@@ -1614,10 +2106,16 @@ begin
   FTablesSelectItem(FTables, FTables.Selected, Assigned(FTables.Selected));
 end;
 
+procedure TDImport.TSTaskShow(Sender: TObject);
+begin
+  CheckActivePageChange(TSTask.PageIndex);
+end;
+
 procedure TDImport.TSXMLOptionChange(Sender: TObject);
 begin
-  FBForward.Enabled :=
-    (FRecordTag.Text <> '');
+  TSFields.Enabled := FRecordTag.Text <> '';
+
+  CheckActivePageChange(TSXMLOptions.PageIndex);
 end;
 
 procedure TDImport.TSXMLOptionsHide(Sender: TObject);
@@ -1628,9 +2126,6 @@ end;
 
 procedure TDImport.TSXMLOptionsShow(Sender: TObject);
 begin
-  TSFields.Enabled := True;
-
-  CheckActivePageChange(TSXMLOptions.PageIndex);
   TSXMLOptionChange(Sender);
 end;
 

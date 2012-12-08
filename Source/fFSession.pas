@@ -937,7 +937,7 @@ type
     procedure aERedoExecute(Sender: TObject);
     procedure aERenameExecute(Sender: TObject);
     procedure aFExportExecute(const Sender: TObject; const ExportType: TPExportType);
-    procedure aFImportExecute(const Sender: TObject; const ImportType: TImportType);
+    procedure aFImportExecute(const Sender: TObject; const ImportType: TPImportType);
     procedure aFOpenExecute(Sender: TObject);
     procedure aFPrintExecute(Sender: TObject);
     procedure aFSaveAsExecute(Sender: TObject);
@@ -3466,7 +3466,7 @@ begin
   DExport.DialogType := edtNormal;
   DExport.ExportType := ExportType;
   DExport.Job := nil;
-  DExport.AObjects.Clear();
+  DExport.SObjects.Clear();
   DExport.Window := Window;
 
   if (Window.ActiveControl = ActiveDBGrid) then
@@ -3477,7 +3477,7 @@ begin
     if ((Session.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
       for I := 0 to ActiveWorkbench.Tables.Count - 1 do
         if (not Assigned(ActiveWorkbench.Selected) or ActiveWorkbench.Tables[I].Selected) then
-          DExport.AObjects.Add(ActiveWorkbench.Tables[I].BaseTable);
+          DExport.SObjects.Add(ActiveWorkbench.Tables[I].BaseTable);
   end
   else if ((Window.ActiveControl = ActiveListView) and (ActiveListView.SelCount > 0)) then
   begin
@@ -3488,7 +3488,7 @@ begin
           begin
             Database := TSDatabase(ActiveListView.Items[I].Data);
             if ((Session.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
-              DExport.AObjects.Add(Database);
+              DExport.SObjects.Add(Database);
           end;
 
       iiDatabase:
@@ -3497,7 +3497,7 @@ begin
           if ((Session.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
             for I := 0 to ActiveListView.Items.Count - 1 do
               if (ActiveListView.Items[I].Selected) then
-                DExport.AObjects.Add(TSDBObject(ActiveListView.Items[I].Data));
+                DExport.SObjects.Add(TSDBObject(ActiveListView.Items[I].Data));
         end;
       iiBaseTable:
         begin
@@ -3505,7 +3505,7 @@ begin
           if ((Session.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
             for I := 0 to ActiveListView.Items.Count - 1 do
               if (ActiveListView.Items[I].Selected and (ActiveListView.Items[I].ImageIndex = iiTrigger)) then
-                DExport.AObjects.Add(TSDBObject(ActiveListView.Items[I].Data));
+                DExport.SObjects.Add(TSDBObject(ActiveListView.Items[I].Data));
         end;
     end
   end
@@ -3513,19 +3513,19 @@ begin
   begin
     Database := TSDatabase(FocusedCItem);
     if ((Session.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
-      DExport.AObjects.Add(Database);
+      DExport.SObjects.Add(Database);
   end
   else if (FocusedCItem is TSDBObject) then
   begin
     Database := TSDBObject(FocusedCItem).Database;
     if ((Session.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
-      DExport.AObjects.Add(FocusedCItem);
+      DExport.SObjects.Add(FocusedCItem);
   end
   else
   begin
     for I := 0 to DExport.Session.Databases.Count - 1 do
       if ((Session.TableNameCmp(Session.Databases[I].Name, 'mysql') <> 0) and not (Session.Databases[I] is TSSystemDatabase)) then
-        DExport.AObjects.Add(Session.Databases[I]);
+        DExport.SObjects.Add(Session.Databases[I]);
   end;
 
   DExport.Execute();
@@ -3594,7 +3594,7 @@ begin
   aFImportExecute(Sender, itExcelFile);
 end;
 
-procedure TFSession.aFImportExecute(const Sender: TObject; const ImportType: TImportType);
+procedure TFSession.aFImportExecute(const Sender: TObject; const ImportType: TPImportType);
 var
   CItem: TSItem;
 begin
@@ -3602,85 +3602,17 @@ begin
 
   if ((Sender is TAction) and ((CItem is TSDatabase) and not TSDatabase(CItem).Update()) or ((CItem is TSTable) and not TSTable(CItem).Update())) then
     Wanted.Action := TAction(Sender)
-  else
+  else if (CItem is TSObject) then
   begin
     DImport.Session := Session;
-    DImport.Database := nil;
-    DImport.Table := nil;
-    if (CItem is TSDatabase) then
-      DImport.Database := TSDatabase(CItem)
-    else if (CItem is TSBaseTable) then
-    begin
-      DImport.Database := TSBaseTable(CItem).Database;
-      DImport.Table := TSBaseTable(CItem);
-    end;
-
-    OpenDialog.Title := ReplaceStr(Preferences.LoadStr(581), '&', '');
-    OpenDialog.InitialDir := Path;
-    OpenDialog.Filter := '';
-    case (ImportType) of
-      itSQLFile:
-        begin
-          OpenDialog.Filter := FilterDescription('sql') + ' (*.sql)|*.sql';
-          OpenDialog.DefaultExt := 'sql';
-          OpenDialog.Encodings.Text := EncodingCaptions();
-        end;
-      itTextFile:
-        begin
-          OpenDialog.Filter := FilterDescription('txt') + ' (*.txt;*.csv;*.tab;*.asc)|*.txt;*.csv;*.tab;*.asc';
-          OpenDialog.DefaultExt := 'csv';
-          OpenDialog.Encodings.Text := EncodingCaptions();
-        end;
-      itExcelFile:
-        begin
-          if (odExcel2007 in ODBCDrivers) then
-            OpenDialog.Filter := FilterDescription('xls') + ' (*.xls;*.xlsm;*.xlsb;*.xlsx)|*.xls;*.xlsm;*.xlsb;*.xlsx'
-          else
-            OpenDialog.Filter := FilterDescription('xls') + ' (*.xls)|*.xls';
-          OpenDialog.DefaultExt := 'xls';
-          OpenDialog.Encodings.Clear();
-        end;
-      itAccessFile:
-        begin
-          if (odAccess2007 in ODBCDrivers) then
-            OpenDialog.Filter := FilterDescription('mdb') + ' (*.mdb;*.accdb)|*.mdb;*.accdb'
-          else
-            OpenDialog.Filter := FilterDescription('mdb') + ' (*.mdb)|*.mdb';
-          OpenDialog.DefaultExt := 'mdb';
-          OpenDialog.Encodings.Clear();
-        end;
-      itSQLiteFile:
-        begin
-          OpenDialog.Filter := FilterDescription('sqlite') + ' (*.db3;*.sqlite)|*.db3;*.sqlite';
-          OpenDialog.DefaultExt := 'db3';
-          OpenDialog.Encodings.Clear();
-        end;
-      itXMLFile:
-        begin
-          OpenDialog.Filter := FilterDescription('xml') + ' (*.xml)|*.xml';
-          OpenDialog.DefaultExt := 'xml';
-          OpenDialog.Encodings.Clear();
-        end;
-    end;
-    OpenDialog.Filter := OpenDialog.Filter + '|' + FilterDescription('*') + ' (*.*)|*.*';
-
-    OpenDialog.FileName := '';
-    OpenDialog.EncodingIndex := OpenDialog.Encodings.IndexOf(CodePageToEncoding(CP_ACP));
-
-    if (OpenDialog.Execute()) then
-    begin
-      Path := ExtractFilePath(OpenDialog.FileName);
-
-      DImport.Window := Window;
-      DImport.ImportType := ImportType;
-      DImport.Filename := OpenDialog.FileName;
-      if (OpenDialog.EncodingIndex < 0) then
-        DImport.CodePage := GetACP()
-      else
-        DImport.CodePage := EncodingToCodePage(OpenDialog.Encodings[OpenDialog.EncodingIndex]);
-      DImport.Execute();
-      Wanted.Update := Session.Update;
-    end;
+    DImport.SObject := TSObject(CItem);
+    DImport.DialogType := idtNormal;
+    DImport.Filename := '';
+    DImport.Window := Window;
+    DImport.ImportType := ImportType;
+    DImport.Job := nil;
+    DImport.Execute();
+    Wanted.Update := Session.Update;
   end;
 end;
 
@@ -3690,24 +3622,15 @@ begin
 
   DImport.Window := Window;
   DImport.Session := Session;
-  if (FocusedCItem is TSDatabase) then
-  begin
-    DImport.Database := TSDatabase(FocusedCItem);
-    DImport.Table := nil;
-  end
-  else if (FocusedCItem is TSBaseTable) then
-  begin
-    DImport.Table := TSBaseTable(FocusedCItem);
-    DImport.Database := DImport.Table.Database;
-  end
+  if (FocusedCItem is TSObject) then
+    DImport.SObject := TSObject(FocusedCItem)
   else
-  begin
-    DImport.Database := nil;
-    DImport.Table := nil;
-  end;
+    DImport.SObject := nil;
+  DImport.DialogType := idtNormal;
   DImport.Filename := '';
   DImport.CodePage := CP_ACP;
   DImport.ImportType := itODBC;
+  DImport.Job := nil;
   DImport.Execute();
   Wanted.Update := Session.Update;
 end;
@@ -3907,7 +3830,7 @@ begin
   DExport.DataSet := nil;
   DExport.DialogType := edtCreateJob;
   DExport.Job := nil;
-  DExport.AObjects.Clear();
+  DExport.SObjects.Clear();
   DExport.Window := Window;
   if (DExport.Execute() and not MainAction('aVJobs').Checked) then
   begin
@@ -3918,7 +3841,18 @@ end;
 
 procedure TFSession.aJAddImportExecute(Sender: TObject);
 begin
-  Write;
+  DImport.Session := Session;
+  DImport.SObject := nil;
+  DImport.DialogType := idtCreateJob;
+  DImport.Filename := '';
+  DImport.Window := Window;
+  DImport.ImportType := itSQLFile;
+  DImport.Job := nil;
+  if (DImport.Execute() and not MainAction('aVJobs').Checked) then
+  begin
+    MainAction('aVJobs').Checked := True;
+    aVSideBarExecute(MainAction('aVJobs'));
+  end;
 end;
 
 procedure TFSession.aJDeleteExecute(Sender: TObject);
@@ -3932,13 +3866,23 @@ var
 begin
   Job := Session.Account.JobByName(FJobs.Selected.Caption);
 
-  if (Job is TAJobExport) then
+  if (Job is TAJobImport) then
+  begin
+    DImport.Session := Session;
+    DImport.SObject := nil;
+    DImport.DialogType := idtEditJob;
+    DImport.Filename := '';
+    DImport.Window := Window;
+    DImport.Job := TAJobImport(Job);
+    DImport.Execute();
+  end
+  else if (Job is TAJobExport) then
   begin
     DExport.Session := Session;
     DExport.DataSet := nil;
     DExport.DialogType := edtEditJob;
     DExport.Job := TAJobExport(Job);
-    DExport.AObjects.Clear();
+    DExport.SObjects.Clear();
     DExport.Window := Window;
     DExport.Execute();
   end;
@@ -11569,7 +11513,7 @@ begin
   DExport.DataSet := nil;
   DExport.DialogType := edtExecuteJob;
   DExport.Job := TAJobExport(Session.Account.JobByName(FJobs.Selected.Caption));
-  DExport.AObjects.Clear();
+  DExport.SObjects.Clear();
   DExport.Window := Window;
   DExport.Execute();
 end;
@@ -12055,12 +11999,13 @@ begin
     CloseHandle(Handle);
     if (Answer = ID_YES) then
     begin
-      DImport.ImportType := itSQLFile;
       DImport.Session := Session;
-      DImport.Database := Session.DatabaseByName(SelectedDatabase);
-      DImport.Table := nil;
+      DImport.SObject := Session.DatabaseByName(SelectedDatabase);
+      DImport.DialogType := idtNormal;
       DImport.FileName := OpenDialog.FileName;
       DImport.CodePage := EncodingToCodePage(OpenDialog.Encodings[OpenDialog.EncodingIndex]);
+      DImport.ImportType := itSQLFile;
+      DImport.Job := nil;
       DImport.Execute();
       Wanted.Update := Session.Update;
     end

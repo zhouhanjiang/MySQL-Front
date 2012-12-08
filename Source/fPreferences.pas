@@ -11,7 +11,8 @@ uses
   MySQLDB;
 
 type
-  TPExportType = (etSQLFile, etTextFile, etExcelFile, etAccessFile, etSQLiteFile, etODBC, etHTMLFile, etXMLFile, etPDFFile, etPrinter);
+  TPExportType = (etUnknown, etSQLFile, etTextFile, etExcelFile, etAccessFile, etSQLiteFile, etODBC, etHTMLFile, etXMLFile, etPDFFile, etPrinter);
+  TPImportType = (itUnknown, itSQLFile, itTextFile, itAccessFile, itExcelFile, itSQLiteFile, itODBC, itXMLFile);
   TAJobObjectType = (jotServer, jotDatabase, jotTable, jotProcedure, jotFunction, jotTrigger, jotEvent);
   TPNodeType = (ntDisabled, ntName, ntCustom);
 
@@ -38,7 +39,7 @@ type
     property XML: IXMLNode read GetXML;
   public
     procedure Assign(const Source: TPItem); virtual;
-    constructor Create(const AAItems: TPItems; const AName: string = ''); virtual;
+    constructor Create(const AAItems: TPItems; const AName: string = '');
     property AItems: TPItems read FAItems;
     property Index: Integer read GetIndex;
     property Name: string read FName write FName;
@@ -58,7 +59,7 @@ type
     property Item[Index: Integer]: TPItem read GetItem; default;
   end;
 
-  TPImportType = (itInsert, itReplace, itUpdate);
+  TPImportStmt = (isInsert, isReplace, isUpdate);
   TPDelimiterType = (dtTab, dtChar);
   TPQuotingType = (qtNothing, qtStrings, qtAll);
   TPUpdateCheckType = (utNever, utDaily);
@@ -157,17 +158,23 @@ type
 
   TAJob = class(TPItem)
   type
-    TObject = record
+    TJobObject = record
       DatabaseName: string;
       Name: string;
       ObjectType: TAJobObjectType;
+    end;
+    TSourceObject = record
+      Name: string;
+    end;
+    TFieldMapping = record
+      Name: string;
+      SourceName: string;
     end;
     TTriggerType = (ttSingle, ttDaily, ttWeekly, ttMonthly);
   private
     function GetJobs(): TAJobs; inline;
     function GetLogFilename(): TFileName;
   protected
-    procedure LoadFromXML(const XML: IXMLNode); override;
     function Save(const Update: Boolean): Boolean; virtual;
     property Jobs: TAJobs read GetJobs;
   public
@@ -175,7 +182,7 @@ type
     Start: TDateTime;
     TriggerType: TTriggerType;
     procedure Assign(const Source: TPItem); override;
-    constructor Create(const AAItems: TPItems; const AName: string = ''); override;
+    constructor Create(const AAItems: TPItems; const AName: string = '');
     property LogFilename: TFileName read GetLogFilename;
   end;
 
@@ -210,7 +217,7 @@ type
       Structure: Boolean;
       UseDatabase: Boolean;
     end;
-    _XML: record
+    XML: record
       Database: record
         NodeType: TPNodeType;
         NodeText: string;
@@ -234,7 +241,7 @@ type
       end;
     end;
     procedure Assign(const Source: TPItem); override;
-    constructor Create(const AAItems: TPItems = nil; const AName: string = ''); override;
+    constructor Create(const AAItems: TPItems = nil; const AName: string = '');
   end;
 
   TPField = class(TPWindow)
@@ -262,25 +269,26 @@ type
   TPForeignKey = class(TPWindow)
   end;
 
-  TPImport = class
-  private
-    FPreferences: TPPreferences;
+  TPImport = class(TAJob)
   protected
-    procedure LoadFromXML(const XML: IXMLNode); virtual;
-    procedure SaveToXML(const XML: IXMLNode); virtual;
+    procedure LoadFromXML(const XML: IXMLNode); override;
+    procedure SaveToXML(const XML: IXMLNode); override;
   public
-    CSVHeadline: Boolean;
-    CSVQuote: TPQuotingType;
-    CSVQuoteChar: string;
-    CSVSeparator: string;
-    CSVSeparatorType: TPDelimiterType;
-    ExcelHeadline: Boolean;
-    ImportType: TPImportType;
-    ODBCData: Boolean;
-    ODBCObjects: Boolean;
-    ODBCRowType: Integer;
-    SaveErrors: Boolean;
-    constructor Create(const APreferences: TPPreferences); virtual;
+    CSV: record
+      Headline: Boolean;
+      Quote: TPQuotingType;
+      QuoteChar: string;
+      Delimiter: string;
+      DelimiterType: TPDelimiterType;
+    end;
+    Charset: string;
+    Collation: string;
+    Data: Boolean;
+    Engine: string;
+    ImportStmt: TPImportStmt;
+    RowType: Integer;
+    Structure: Boolean;
+    constructor Create(const AAItems: TPItems = nil; const AName: string = '');
   end;
 
   TPIndex = class(TPWindow)
@@ -592,6 +600,23 @@ type
     property Files[Index: Integer]: TAFile read Get; default;
   end;
 
+  TAJobImport = class(TPImport)
+  protected
+    function GetXML(): IXMLNode; override;
+    procedure LoadFromXML(const XML: IXMLNode); override;
+    procedure SaveToXML(const XML: IXMLNode); override;
+  public
+    CodePage: Integer;
+    ImportType: TPImportType;
+    JobObject: TAJob.TJobObject;
+    FieldMappings: array of TAJob.TFieldMapping;
+    Filename: TFileName;
+    SourceObjects: array of TAJob.TSourceObject;
+    procedure Assign(const Source: TPItem); override;
+    constructor Create(const AAItems: TPItems = nil; const AName: string = '');
+    destructor Destroy(); override;
+  end;
+
   TAJobExport = class(TPExport)
   protected
     function GetXML(): IXMLNode; override;
@@ -601,10 +626,10 @@ type
     CodePage: Integer;
     ExportType: TPExportType;
     Filename: TFileName;
-    Objects: array of TAJob.TObject;
+    JobObjects: array of TAJob.TJobObject;
     procedure Assign(const Source: TPItem); override;
     procedure ClearObjects(); virtual;
-    constructor Create(const AAItems: TPItems = nil; const AName: string = ''); override;
+    constructor Create(const AAItems: TPItems = nil; const AName: string = '');
     destructor Destroy(); override;
   end;
 
@@ -934,20 +959,20 @@ begin
   end;
 end;
 
-function TryStrToImportType(const Str: string; var ImportTypeType: TPImportType): Boolean;
+function TryStrToImportStmt(const Str: string; var ImportTypeType: TPImportStmt): Boolean;
 begin
   Result := True;
-  if (UpperCase(Str) = 'INSERT') then ImportTypeType := itInsert
-  else if (UpperCase(Str) = 'REPLACE') then ImportTypeType := itReplace
-  else if (UpperCase(Str) = 'UPDATE') then ImportTypeType := itUpdate
+  if (UpperCase(Str) = 'INSERT') then ImportTypeType := isInsert
+  else if (UpperCase(Str) = 'REPLACE') then ImportTypeType := isReplace
+  else if (UpperCase(Str) = 'UPDATE') then ImportTypeType := isUpdate
   else Result := False;
 end;
 
-function ImportTypeToStr(const ImportTypeType: TPImportType): string;
+function ImportStmtToStr(const ImportTypeType: TPImportStmt): string;
 begin
   case (ImportTypeType) of
-    itReplace: Result := 'Replace';
-    itUpdate: Result := 'Update';
+    isReplace: Result := 'Replace';
+    isUpdate: Result := 'Update';
     else Result := 'Insert';
   end;
 end;
@@ -1080,6 +1105,33 @@ begin
     jotTrigger: Result := 'Trigger';
     jotEvent: Result := 'Event';
     else raise ERangeError.CreateFmt(SPropertyOutOfRange, ['ObjectType']);
+  end;
+end;
+
+function TryStrToImportType(const Str: string; var ImportType: TPImportType): Boolean;
+begin
+  Result := True;
+  if (UpperCase(Str) = 'SQLFILE') then ImportType := itSQLFile
+  else if (UpperCase(Str) = 'TEXTFILE') then ImportType := itTextFile
+  else if (UpperCase(Str) = 'EXCELFILE') then ImportType := itExcelFile
+  else if (UpperCase(Str) = 'ACCESSFILE') then ImportType := itAccessFile
+  else if (UpperCase(Str) = 'SQLITEFILE') then ImportType := itSQLiteFile
+  else if (UpperCase(Str) = 'ODBC') then ImportType := itODBC
+  else if (UpperCase(Str) = 'XMLFILE') then ImportType := itXMLFile
+  else Result := False;
+end;
+
+function ImportTypeToStr(const ImportType: TPImportType): string;
+begin
+  case (ImportType) of
+    itSQLFile: Result := 'SQLFile';
+    itTextFile: Result := 'TextFile';
+    itExcelFile: Result := 'ExcelFile';
+    itAccessFile: Result := 'AccessFile';
+    itSQLiteFile: Result := 'SQLiteFile';
+    itODBC: Result := 'ODBC';
+    itXMLFile: Result := 'XMLFile';
+    else raise ERangeError.CreateFmt(SPropertyOutOfRange, ['ImportType']);
   end;
 end;
 
@@ -1559,7 +1611,7 @@ begin
   Excel := TPExport(Source).Excel;
   HTML := TPExport(Source).HTML;
   SQL := TPExport(Source).SQL;
-  _XML := TPExport(Source)._XML;
+  XML := TPExport(Source).XML;
 end;
 
 constructor TPExport.Create(const AAItems: TPItems = nil; const AName: string = '');
@@ -1584,17 +1636,17 @@ begin
   SQL.Structure := True;
   SQL.ReplaceData := False;
   SQL.UseDatabase := False;
-  _XML.Database.NodeType := ntDisabled;
-  _XML.Database.NodeText := 'database';
-  _XML.Database.NodeAttribute := 'name';
-  _XML.Field.NodeType := ntName;
-  _XML.Field.NodeText := 'field';
-  _XML.Field.NodeAttribute := 'name';
-  _XML.Root.NodeText := 'mysql';
-  _XML.Row.NodeText := 'row';
-  _XML.Table.NodeType := ntDisabled;
-  _XML.Table.NodeText := 'table';
-  _XML.Table.NodeAttribute := 'name';
+  XML.Database.NodeType := ntDisabled;
+  XML.Database.NodeText := 'database';
+  XML.Database.NodeAttribute := 'name';
+  XML.Field.NodeType := ntName;
+  XML.Field.NodeText := 'field';
+  XML.Field.NodeAttribute := 'name';
+  XML.Root.NodeText := 'mysql';
+  XML.Row.NodeText := 'row';
+  XML.Table.NodeType := ntDisabled;
+  XML.Table.NodeText := 'table';
+  XML.Table.NodeAttribute := 'name';
 end;
 
 procedure TPExport.LoadFromXML(const XML: IXMLNode);
@@ -1619,17 +1671,17 @@ begin
   if (Assigned(XMLNode(XML, 'sql/structure'))) then TryStrToBool(XMLNode(XML, 'sql/structure').Attributes['drop'], SQL.DropStmts);
   if (Assigned(XMLNode(XML, 'sql/structure/database'))) then TryStrToBool(XMLNode(XML, 'sql/structure/database').Attributes['create'], SQL.CreateDatabase);
   if (Assigned(XMLNode(XML, 'sql/structure/database'))) then TryStrToBool(XMLNode(XML, 'sql/structure/database').Attributes['change'], SQL.UseDatabase);
-  if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/database').Attributes['type'], _XML.Database.NodeType);
-  if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Text <> '')) then _XML.Database.NodeText := XMLNode(XML, 'xml/database').Text;
-  if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Attributes['attribute'] <> Null)) then _XML.Database.NodeText := XMLNode(XML, 'xml/database').Attributes['attribute'];
-  if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/field').Attributes['type'], _XML.Field.NodeType);
-  if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Text <> '')) then _XML.Field.NodeText := XMLNode(XML, 'xml/field').Text;
-  if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Attributes['attribute'] <> Null)) then _XML.Field.NodeText := XMLNode(XML, 'xml/field').Attributes['attribute'];
-  if (Assigned(XMLNode(XML, 'xml/record')) and (XMLNode(XML, 'xml/record').Text <> '')) then _XML.Root.NodeText := XMLNode(XML, 'xml/record').Text;
-  if (Assigned(XMLNode(XML, 'xml/root')) and (XMLNode(XML, 'xml/root').Text <> '')) then _XML.Root.NodeText := XMLNode(XML, 'xml/root').Text;
-  if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/table').Attributes['type'], _XML.Table.NodeType);
-  if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Text <> '')) then _XML.Table.NodeText := XMLNode(XML, 'xml/table').Text;
-  if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Attributes['attribute'] <> Null)) then _XML.Table.NodeText := XMLNode(XML, 'xml/table').Attributes['attribute'];
+  if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/database').Attributes['type'], Self.XML.Database.NodeType);
+  if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Text <> '')) then Self.XML.Database.NodeText := XMLNode(XML, 'xml/database').Text;
+  if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Attributes['attribute'] <> Null)) then Self.XML.Database.NodeText := XMLNode(XML, 'xml/database').Attributes['attribute'];
+  if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/field').Attributes['type'], Self.XML.Field.NodeType);
+  if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Text <> '')) then Self.XML.Field.NodeText := XMLNode(XML, 'xml/field').Text;
+  if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Attributes['attribute'] <> Null)) then Self.XML.Field.NodeText := XMLNode(XML, 'xml/field').Attributes['attribute'];
+  if (Assigned(XMLNode(XML, 'xml/record')) and (XMLNode(XML, 'xml/record').Text <> '')) then Self.XML.Root.NodeText := XMLNode(XML, 'xml/record').Text;
+  if (Assigned(XMLNode(XML, 'xml/root')) and (XMLNode(XML, 'xml/root').Text <> '')) then Self.XML.Root.NodeText := XMLNode(XML, 'xml/root').Text;
+  if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/table').Attributes['type'], Self.XML.Table.NodeType);
+  if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Text <> '')) then Self.XML.Table.NodeText := XMLNode(XML, 'xml/table').Text;
+  if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Attributes['attribute'] <> Null)) then Self.XML.Table.NodeText := XMLNode(XML, 'xml/table').Attributes['attribute'];
 end;
 
 procedure TPExport.SaveToXML(const XML: IXMLNode);
@@ -1654,17 +1706,17 @@ begin
   XMLNode(XML, 'sql/structure').Attributes['drop'] := SQL.DropStmts;
   XMLNode(XML, 'sql/structure/database').Attributes['create'] := SQL.CreateDatabase;
   XMLNode(XML, 'sql/structure/database').Attributes['change'] := SQL.UseDatabase;
-  XMLNode(XML, 'xml/database').Text := _XML.Database.NodeText;
-  XMLNode(XML, 'xml/database').Attributes['type'] := NodeTypeToStr(_XML.Database.NodeType);
-  XMLNode(XML, 'xml/database').Attributes['attribute'] := _XML.Database.NodeAttribute;
-  XMLNode(XML, 'xml/field').Text := _XML.Field.NodeText;
-  XMLNode(XML, 'xml/field').Attributes['type'] := NodeTypeToStr(_XML.Field.NodeType);
-  XMLNode(XML, 'xml/field').Attributes['attribute'] := _XML.Field.NodeAttribute;
-  XMLNode(XML, 'xml/record').Text := _XML.Row.NodeText;
-  XMLNode(XML, 'xml/root').Text := _XML.Root.NodeText;
-  XMLNode(XML, 'xml/table').Text := _XML.Table.NodeText;
-  XMLNode(XML, 'xml/table').Attributes['type'] := NodeTypeToStr(_XML.Table.NodeType);
-  XMLNode(XML, 'xml/table').Attributes['attribute'] := _XML.Table.NodeAttribute;
+  XMLNode(XML, 'xml/database').Text := Self.XML.Database.NodeText;
+  XMLNode(XML, 'xml/database').Attributes['type'] := NodeTypeToStr(Self.XML.Database.NodeType);
+  XMLNode(XML, 'xml/database').Attributes['attribute'] := Self.XML.Database.NodeAttribute;
+  XMLNode(XML, 'xml/field').Text := Self.XML.Field.NodeText;
+  XMLNode(XML, 'xml/field').Attributes['type'] := NodeTypeToStr(Self.XML.Field.NodeType);
+  XMLNode(XML, 'xml/field').Attributes['attribute'] := Self.XML.Field.NodeAttribute;
+  XMLNode(XML, 'xml/record').Text := Self.XML.Row.NodeText;
+  XMLNode(XML, 'xml/root').Text := Self.XML.Root.NodeText;
+  XMLNode(XML, 'xml/table').Text := Self.XML.Table.NodeText;
+  XMLNode(XML, 'xml/table').Attributes['type'] := NodeTypeToStr(Self.XML.Table.NodeType);
+  XMLNode(XML, 'xml/table').Attributes['attribute'] := Self.XML.Table.NodeAttribute;
 end;
 
 { TPFind **********************************************************************}
@@ -1714,51 +1766,59 @@ end;
 
 { TPImport ********************************************************************}
 
-constructor TPImport.Create(const APreferences: TPPreferences);
+constructor TPImport.Create(const AAItems: TPItems = nil; const AName: string = '');
 begin
-  FPreferences := APreferences;
+  inherited;
 
-  CSVHeadline := True;
-  CSVQuote := qtStrings;
-  CSVQuoteChar := '"';
-  CSVSeparator := ',';
-  CSVSeparatorType := dtChar;
-  ExcelHeadline := False;
-  ImportType := itInsert;
-  ODBCData := True;
-  ODBCObjects := True;
-  ODBCRowType := 0;
-  SaveErrors := True;
+  CSV.Headline := True;
+  CSV.Quote := qtStrings;
+  CSV.QuoteChar := '"';
+  CSV.Delimiter := ',';
+  CSV.DelimiterType := dtChar;
+  Charset := '';
+  Collation := '';
+  Data := True;
+  Engine := '';
+  ImportStmt := isInsert;
+  RowType := 0;
+  Structure := True;
 end;
 
 procedure TPImport.LoadFromXML(const XML: IXMLNode);
 begin
-  if (Assigned(XMLNode(XML, 'csv/headline'))) then TryStrToBool(XMLNode(XML, 'csv/headline').Attributes['enabled'], CSVHeadline);
-  if (Assigned(XMLNode(XML, 'csv/quote/string'))) then CSVQuoteChar := XMLNode(XML, 'csv/quote/string').Text;
-  if (Assigned(XMLNode(XML, 'csv/quote/type'))) then TryStrToQuote(XMLNode(XML, 'csv/quote/type').Text, CSVQuote);
-  if (Assigned(XMLNode(XML, 'csv/separator/character/string'))) then CSVSeparator := XMLNode(XML, 'csv/separator/character/string').Text;
-  if (Assigned(XMLNode(XML, 'csv/separator/character/type'))) then TryStrToSeparatorType(XMLNode(XML, 'csv/separator/character/type').Text, CSVSeparatorType);
-  if (Assigned(XMLNode(XML, 'data/importtype'))) then TryStrToImportType(XMLNode(XML, 'data/importtype').Text, ImportType);
-  if (Assigned(XMLNode(XML, 'errors/save'))) then TryStrToBool(XMLNode(XML, 'errors/save').Text, SaveErrors);
-  if (Assigned(XMLNode(XML, 'excel/headline'))) then TryStrToBool(XMLNode(XML, 'excel/headline').Attributes['enabled'], ExcelHeadline);
-  if (Assigned(XMLNode(XML, 'odbc/data'))) then TryStrToBool(XMLNode(XML, 'odbc/data').Attributes['enabled'], ODBCData);
-  if (Assigned(XMLNode(XML, 'odbc/objects'))) then TryStrToBool(XMLNode(XML, 'odbc/objects').Attributes['enabled'], ODBCObjects);
-  if (Assigned(XMLNode(XML, 'odbc/rowformat'))) then TryStrToRowType(XMLNode(XML, 'odbc/rowformat').Text, ODBCRowType);
+  inherited;
+
+  if (Assigned(XMLNode(XML, 'csv/headline'))) then TryStrToBool(XMLNode(XML, 'csv/headline').Attributes['enabled'], CSV.Headline);
+  if (Assigned(XMLNode(XML, 'csv/quote/string'))) then CSV.QuoteChar := XMLNode(XML, 'csv/quote/string').Text;
+  if (Assigned(XMLNode(XML, 'csv/quote/type'))) then TryStrToQuote(XMLNode(XML, 'csv/quote/type').Text, CSV.Quote);
+  if (Assigned(XMLNode(XML, 'csv/separator/character/string'))) then CSV.Delimiter := XMLNode(XML, 'csv/separator/character/string').Text;
+  if (Assigned(XMLNode(XML, 'csv/separator/character/type'))) then TryStrToSeparatorType(XMLNode(XML, 'csv/separator/character/type').Text, CSV.DelimiterType);
+  if (Assigned(XMLNode(XML, 'data')) and (XMLNode(XML, 'data').Attributes['enabled'] <> Null)) then TryStrToBool(XMLNode(XML, 'data').Attributes['enabled'], Data);
+  if (Assigned(XMLNode(XML, 'data/importtype'))) then TryStrToImportStmt(XMLNode(XML, 'data/importtype').Text, ImportStmt);
+  if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['charset'] <> Null)) then Charset := XMLNode(XML, 'structure').Attributes['charset'];
+  if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['collation'] <> Null)) then Collation := XMLNode(XML, 'structure').Attributes['collation'];
+  if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['enabled'] <> Null)) then TryStrToBool(XMLNode(XML, 'structure').Attributes['enabled'], Structure);
+  if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['engine'] <> Null)) then Engine := XMLNode(XML, 'structure').Attributes['engine'];
+  if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['rowtype'] <> Null)) then TryStrToRowType(XMLNode(XML, 'structure').Attributes['rowtype'], RowType);
+  if (Assigned(XMLNode(XML, 'rowtype'))) then TryStrToRowType(XMLNode(XML, 'rowtype').Text, RowType);
 end;
 
 procedure TPImport.SaveToXML(const XML: IXMLNode);
 begin
-  XMLNode(XML, 'csv/headline').Attributes['enabled'] := CSVHeadline;
-  XMLNode(XML, 'csv/quote/string').Text := CSVQuoteChar;
-  XMLNode(XML, 'csv/quote/type').Text := QuoteToStr(CSVQuote);
-  XMLNode(XML, 'csv/separator/character/string').Text := CSVSeparator;
-  XMLNode(XML, 'csv/separator/character/type').Text := SeparatorTypeToStr(CSVSeparatorType);
-  XMLNode(XML, 'data/importtype').Text := ImportTypeToStr(ImportType);
-  XMLNode(XML, 'errors/save').Text := BoolToStr(SaveErrors, True);
-  XMLNode(XML, 'excel/headline').Attributes['enabled'] := ExcelHeadline;
-  XMLNode(XML, 'odbc/data').Attributes['enabled'] := ODBCData;
-  XMLNode(XML, 'odbc/objects').Attributes['enabled'] := ODBCObjects;
-  XMLNode(XML, 'odbc/rowformat').Text := RowTypeToStr(ODBCRowType);
+  inherited;
+
+  XMLNode(XML, 'csv/headline').Attributes['enabled'] := CSV.Headline;
+  XMLNode(XML, 'csv/quote/string').Text := CSV.QuoteChar;
+  XMLNode(XML, 'csv/quote/type').Text := QuoteToStr(CSV.Quote);
+  XMLNode(XML, 'csv/separator/character/string').Text := CSV.Delimiter;
+  XMLNode(XML, 'csv/separator/character/type').Text := SeparatorTypeToStr(CSV.DelimiterType);
+  XMLNode(XML, 'data').Attributes['enabled'] := Data;
+  XMLNode(XML, 'data/importtype').Text := ImportStmtToStr(ImportStmt);
+  XMLNode(XML, 'structure').Attributes['charset'] := Charset;
+  XMLNode(XML, 'structure').Attributes['collation'] := Collation;
+  XMLNode(XML, 'structure').Attributes['enabled'] := Structure;
+  XMLNode(XML, 'structure').Attributes['engine'] := Engine;
+  XMLNode(XML, 'structure').Attributes['rowtype'] := RowTypeToStr(RowType);
 end;
 
 { TPODBC **********************************************************************}
@@ -2153,7 +2213,7 @@ begin
   Find := TPFind.Create(Self);
   ForeignKey := TPForeignKey.Create(Self);
   Host := TPHost.Create(Self);
-  Import := TPImport.Create(Self);
+  Import := TPImport.Create();
   Index := TPIndex.Create(Self);
   ODBC := TPODBC.Create(Self);
   Paste := TPPaste.Create(Self);
@@ -3119,11 +3179,6 @@ begin
   Result := Jobs.Account.DataPath + 'Jobs' + PathDelim + Name + '.log';
 end;
 
-procedure TAJob.LoadFromXML(const XML: IXMLNode);
-begin
-  inherited;
-end;
-
 function TAJob.Save(const Update: Boolean): Boolean;
 var
   Action: IAction;
@@ -3199,6 +3254,149 @@ begin
   end;
 end;
 
+{ TAJobImport *****************************************************************}
+
+procedure TAJobImport.Assign(const Source: TPItem);
+begin
+  Assert(Source is TAJobImport);
+
+  inherited Assign(Source);
+
+  CodePage := TAJobImport(Source).CodePage;
+  FieldMappings := TAJobImport(Source).FieldMappings;
+  Filename := TAJobImport(Source).Filename;
+  ImportType := TAJobImport(Source).ImportType;
+  JobObject := TAJobImport(Source).JobObject;
+  SourceObjects := TAJobImport(Source).SourceObjects;
+end;
+
+constructor TAJobImport.Create(const AAItems: TPItems = nil; const AName: string = '');
+begin
+  inherited;
+
+  CodePage := CP_ACP;
+  SetLength(FieldMappings, 0);
+  Filename := '';
+  JobObject.DatabaseName := '';
+  JobObject.Name := '';
+  SetLength(SourceObjects, 0);
+end;
+
+destructor TAJobImport.Destroy();
+var
+  I: Integer;
+begin
+  for I := 0 to Length(FieldMappings) - 1 do
+  begin
+    FieldMappings[I].Name := '';
+    FieldMappings[I].SourceName := '';
+  end;
+  SetLength(FieldMappings, 0);
+  for I := 0 to Length(SourceObjects) - 1 do
+    SourceObjects[I].Name := '';
+  SetLength(SourceObjects, 0);
+
+  inherited;
+end;
+
+function TAJobImport.GetXML(): IXMLNode;
+var
+  I: Integer;
+begin
+  if (not Assigned(FXML)) then
+  begin
+    for I := 0 to AItems.XML.ChildNodes.Count - 1 do
+      if ((AItems.XML.ChildNodes[I].NodeName = 'job') and (lstrcmpi(PChar(string(AItems.XML.ChildNodes[I].Attributes['name'])), PChar(Name)) = 0)) then
+        FXML := AItems.XML.ChildNodes[I];
+
+    if (not Assigned(FXML) and (doNodeAutoCreate in AItems.XML.OwnerDocument.Options)) then
+    begin
+      FXML := AItems.XML.AddChild('job');
+      FXML.Attributes['name'] := Name;
+    end;
+  end;
+
+  Result := FXML;
+end;
+
+procedure TAJobImport.LoadFromXML(const XML: IXMLNode);
+var
+  Child: IXMLNode;
+  ObjectType: TAJobObjectType;
+begin
+  inherited;
+
+  if (Assigned(XMLNode(XML, 'filename'))) then Filename := XMLNode(XML, 'filename').Text;
+  if (Assigned(XMLNode(XML, 'filename')) and (XMLNode(XML, 'filename').Attributes['codepage'] <> Null)) then TryStrToInt(XMLNode(XML, 'filename').Attributes['codepage'], CodePage);
+  if (Assigned(XMLNode(XML, 'type'))) then TryStrToImportType(XMLNode(XML, 'type').Text, ImportType);
+
+  if (Assigned(XMLNode(XML, 'object')) and TryStrToObjectType(XMLNode(XML, 'object').Attributes['type'], ObjectType)) then
+  begin
+    if (XMLNode(XML, 'object').Attributes['database'] = Null) then
+      JobObject.DatabaseName := ''
+    else
+      JobObject.DatabaseName := XMLNode(XML, 'object').Attributes['database'];
+    JobObject.Name := XMLNode(XML, 'object').Attributes['name'];
+    JobObject.ObjectType := ObjectType;
+  end;
+
+  if (Assigned(XMLNode(XML, 'sources'))) then
+  begin
+    Child := XMLNode(XML, 'sources').ChildNodes.First();
+    while (Assigned(Child)) do
+    begin
+      if (Child.NodeName = 'source') then
+      begin
+        SetLength(SourceObjects, Length(SourceObjects) + 1);
+        SourceObjects[Length(SourceObjects) - 1].Name := Child.Attributes['name'];
+      end;
+      Child := Child.NextSibling();
+    end;
+  end;
+end;
+
+procedure TAJobImport.SaveToXML(const XML: IXMLNode);
+var
+  Child: IXMLNode;
+  RemoveChild: IXMLNode;
+  I: Integer;
+begin
+  inherited;
+
+  XML.Attributes['type'] := 'import';
+
+  XMLNode(XML, 'filename').Text := Filename;
+  if (CodePage = CP_ACP) then XMLNode(XML, 'filename').Attributes['codepage'] := Null else XMLNode(XML, 'filename').Attributes['codepage'] := IntToStr(CodePage);
+  XMLNode(XML, 'type').Text := ImportTypeToStr(ImportType);
+
+  XMLNode(XML, 'object').Attributes['name'] := JobObject.Name;
+  if (JobObject.ObjectType in [jotTable]) then
+    XMLNode(XML, 'object').Attributes['databasename'] := JobObject.DatabaseName;
+  XMLNode(XML, 'object').Attributes['type'] := ObjectTypeToStr(JobObject.ObjectType);
+
+  if (Assigned(XMLNode(XML, 'sources'))) then
+  begin
+    Child := XMLNode(XML, 'sources').ChildNodes.First();
+    while (Assigned(Child)) do
+    begin
+      if (Child.NodeName <> 'source') then
+        RemoveChild := nil
+      else
+        RemoveChild := Child;
+      Child := Child.NextSibling();
+      if (Assigned(RemoveChild)) then
+        XMLNode(XML, 'sources').ChildNodes.Remove(RemoveChild);
+    end;
+
+    for I := 0 to Length(SourceObjects) - 1 do
+    begin
+      Child := XMLNode(XML, 'sources').AddChild('source');
+      Child.Attributes['name'] := SourceObjects[I].Name;
+      Child.Attributes['type'] := 'Table';
+    end;
+  end;
+end;
+
 { TAJobExport *****************************************************************}
 
 procedure TAJobExport.Assign(const Source: TPItem);
@@ -3210,14 +3408,15 @@ begin
   inherited Assign(Source);
 
   CodePage := TAJobExport(Source).CodePage;
+  ExportType := TAJobExport(Source).ExportType;
   Filename := TAJobExport(Source).Filename;
   ClearObjects();
-  SetLength(Objects, Length(TAJobExport(Source).Objects));
-  for I := 0 to Length(Objects) - 1 do
+  SetLength(JobObjects, Length(TAJobExport(Source).JobObjects));
+  for I := 0 to Length(JobObjects) - 1 do
   begin
-    Objects[I].ObjectType := TAJobExport(Source).Objects[I].ObjectType;
-    Objects[I].Name := TAJobExport(Source).Objects[I].Name;
-    Objects[I].DatabaseName := TAJobExport(Source).Objects[I].DatabaseName;
+    JobObjects[I].ObjectType := TAJobExport(Source).JobObjects[I].ObjectType;
+    JobObjects[I].Name := TAJobExport(Source).JobObjects[I].Name;
+    JobObjects[I].DatabaseName := TAJobExport(Source).JobObjects[I].DatabaseName;
   end;
 end;
 
@@ -3225,12 +3424,12 @@ procedure TAJobExport.ClearObjects();
 var
   I: Integer;
 begin
-  for I := 0 to Length(Objects) - 1 do
+  for I := 0 to Length(JobObjects) - 1 do
   begin
-    Objects[I].DatabaseName := '';
-    Objects[I].Name := '';
+    JobObjects[I].DatabaseName := '';
+    JobObjects[I].Name := '';
   end;
-  SetLength(Objects, 0);
+  SetLength(JobObjects, 0);
 end;
 
 constructor TAJobExport.Create(const AAItems: TPItems = nil; const AName: string = '');
@@ -3239,7 +3438,7 @@ begin
 
   CodePage := CP_ACP;
   Filename := '';
-  SetLength(Objects, 0);
+  SetLength(JobObjects, 0);
 end;
 
 destructor TAJobExport.Destroy();
@@ -3287,13 +3486,13 @@ begin
     begin
       if ((Child.NodeName = 'object') and TryStrToObjectType(Child.Attributes['type'], ObjectType)) then
       begin
-        SetLength(Objects, Length(Objects) + 1);
+        SetLength(JobObjects, Length(JobObjects) + 1);
         if (Child.Attributes['database'] = Null) then
-          Objects[Length(Objects) - 1].DatabaseName := ''
+          JobObjects[Length(JobObjects) - 1].DatabaseName := ''
         else
-          Objects[Length(Objects) - 1].DatabaseName := Child.Attributes['database'];
-        Objects[Length(Objects) - 1].Name := Child.Attributes['name'];
-        Objects[Length(Objects) - 1].ObjectType := ObjectType;
+          JobObjects[Length(JobObjects) - 1].DatabaseName := Child.Attributes['database'];
+        JobObjects[Length(JobObjects) - 1].Name := Child.Attributes['name'];
+        JobObjects[Length(JobObjects) - 1].ObjectType := ObjectType;
       end;
       Child := Child.NextSibling();
     end;
@@ -3328,13 +3527,13 @@ begin
         XMLNode(XML, 'objects').ChildNodes.Remove(RemoveChild);
     end;
 
-    for I := 0 to Length(Objects) - 1 do
+    for I := 0 to Length(JobObjects) - 1 do
     begin
       Child := XMLNode(XML, 'objects').AddChild('object');
-      Child.Attributes['name'] := Objects[I].Name;
-      if (Objects[I].ObjectType in [jotTable, jotProcedure, jotFunction, jotTrigger, jotEvent]) then
-        Child.Attributes['databasename'] := Objects[I].DatabaseName;
-      Child.Attributes['type'] := ObjectTypeToStr(Objects[I].ObjectType);
+      Child.Attributes['name'] := JobObjects[I].Name;
+      if (JobObjects[I].ObjectType in [jotTable, jotProcedure, jotFunction, jotTrigger, jotEvent]) then
+        Child.Attributes['databasename'] := JobObjects[I].DatabaseName;
+      Child.Attributes['type'] := ObjectTypeToStr(JobObjects[I].ObjectType);
     end;
   end;
 end;
@@ -3345,15 +3544,15 @@ function TAJobs.AddJob(const NewJob: TAJob): Boolean;
 var
   Job: TAJob;
 begin
-  Assert(NewJob is TAJobExport);
-
   Result := IndexByName(NewJob.Name) < 0;
   if (Result) then
   begin
-    if (NewJob is TAJobExport) then
+    if (NewJob is TAJobImport) then
+      Job := TAJobImport.Create(Self, NewJob.Name)
+    else if (NewJob is TAJobExport) then
       Job := TAJobExport.Create(Self, NewJob.Name)
     else
-      Job := nil;
+      raise ERangeError.Create(SRangeError);
     Job.Assign(NewJob);
 
     Result := Job.Save(False);
@@ -3448,7 +3647,9 @@ begin
     begin
       RegisteredTask := Tasks.Item[1 + I];
       XMLDocument.LoadFromXML(StrPas(RegisteredTask.Definition.Data));
-      if (XMLDocument.DocumentElement.Attributes['type'] = 'export') then
+      if (XMLDocument.DocumentElement.Attributes['type'] = 'import') then
+        Job := TAJobImport.Create(Self, StrPas(RegisteredTask.Name))
+      else if (XMLDocument.DocumentElement.Attributes['type'] = 'export') then
         Job := TAJobExport.Create(Self, StrPas(RegisteredTask.Name))
       else
         Job := nil;
@@ -3481,8 +3682,6 @@ end;
 
 function TAJobs.UpdateJob(const Job, NewJob: TAJob): Boolean;
 begin
-  Assert(NewJob is TAJobExport);
-
   Result := (IndexOf(Job) >= 0) and ((IndexByName(NewJob.Name) = IndexOf(Job)) or (IndexByName(NewJob.Name) < 0));
   if (Result) then
   begin

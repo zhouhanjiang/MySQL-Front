@@ -156,7 +156,7 @@ type
 
   TTImport = class(TTool)
   type
-    TImportType = (itInsert, itReplace, itUpdate);
+    TStmtType = (stInsert, stReplace, stUpdate);
     TItem = class(TTool.TItem)
     public
       SourceTableName: string;
@@ -183,13 +183,17 @@ type
     property Session: TSSession read FSession;
     property Database: TSDatabase read FDatabase;
   public
+    Charset: string;
+    Collation: string;
+    Engine: string;
     Fields: array of TSTableField;
     Data: Boolean;
     Error: Boolean;
+    RowType: TMySQLRowType;
     SourceFields: array of record
       Name: string;
     end;
-    ImportType: TImportType;
+    StmtType: TStmtType;
     Structure: Boolean;
     procedure Add(const TableName: string; const SourceTableName: string = '');
     constructor Create(const ASession: TSSession; const ADatabase: TSDatabase); reintroduce; virtual;
@@ -256,12 +260,8 @@ type
     function GetValues(const Item: TTImport.TItem; const DataFileBuffer: TTool.TDataFileBuffer): Boolean; override;
     function GetValues(const Item: TTImport.TItem; var Values: TSQLStrings): Boolean; overload; override;
   public
-    Charset: string;
-    Collation: string;
     Delimiter: Char;
-    Engine: string;
     Quoter: Char;
-    RowType: TMySQLRowType;
     UseHeadline: Boolean;
     procedure Close(); override;
     constructor Create(const AFilename: TFileName; const ACodePage: Cardinal; const ASession: TSSession; const ADatabase: TSDatabase); reintroduce; virtual;
@@ -296,10 +296,6 @@ type
     procedure ExecuteStructure(const Item: TTImport.TItem); override;
     function ODBCStmtException(const Handle: SQLHSTMT): Exception;
   public
-    Charset: string;
-    Collation: string;
-    Engine: string;
-    RowType: TMySQLRowType;
     constructor Create(const AHandle: SQLHANDLE; const ADatabase: TSDatabase); reintroduce; virtual;
     destructor Destroy(); override;
   end;
@@ -316,10 +312,6 @@ type
     function GetValues(const Item: TTImport.TItem; const DataFileBuffer: TTool.TDataFileBuffer): Boolean; override;
     function GetValues(const Item: TTImport.TItem; var Values: TSQLStrings): Boolean; overload; override;
   public
-    Charset: string;
-    Collation: string;
-    Engine: string;
-    RowType: TMySQLRowType;
     constructor Create(const AHandle: sqlite3_ptr; const ADatabase: TSDatabase); reintroduce; virtual;
   end;
 
@@ -334,7 +326,6 @@ type
     function GetValues(const Item: TTImport.TItem; const DataFileBuffer: TTool.TDataFileBuffer): Boolean; override;
     function GetValues(const Item: TTImport.TItem; var Values: TSQLStrings): Boolean; overload; override;
   public
-    RecordNodeText: string;
     constructor Create(const AFilename: TFileName; const ATable: TSBaseTable); reintroduce; virtual;
     destructor Destroy(); override;
   end;
@@ -1854,7 +1845,7 @@ begin
       else
         SQL := SQL + 'START TRANSACTION;' + #13#10;
 
-    if ((ImportType <> itUpdate) and Session.DataFileAllowed) then
+    if ((StmtType <> stUpdate) and Session.DataFileAllowed) then
     begin
       Pipename := '\\.\pipe\' + LoadStr(1000);
       Pipe := CreateNamedPipe(PChar(Pipename),
@@ -1864,7 +1855,7 @@ begin
         DoError(SysError(), nil, False)
       else
       begin
-        SQL := SQL + SQLLoadDataInfile(Database, ImportType = itReplace, Pipename, Session.Charset, Database.Name, Table.Name, EscapedFieldNames);
+        SQL := SQL + SQLLoadDataInfile(Database, StmtType = stReplace, Pipename, Session.Charset, Database.Name, Table.Name, EscapedFieldNames);
 
         Session.SendSQL(SQL, SQLExecuted);
 
@@ -1900,7 +1891,7 @@ begin
             SQLExecuted.WaitFor(INFINITE);
           DisconnectNamedPipe(Pipe);
 
-          if ((Success = daSuccess) and (ImportType = itInsert) and (Session.WarningCount > 0)) then
+          if ((Success = daSuccess) and (StmtType = stInsert) and (Session.WarningCount > 0)) then
           begin
             DataSet := TMySQLQuery.Create(nil);
             DataSet.Connection := Session;
@@ -1955,7 +1946,7 @@ begin
       begin
         Values := ''; WhereClausel := '';
         for I := 0 to Length(Fields) - 1 do
-          if (ImportType <> itUpdate) then
+          if (StmtType <> stUpdate) then
           begin
             if (Values <> '') then Values := Values + ',';
             Values := Values + Fields[I].EscapeValue(SQLValues[I]);
@@ -1971,7 +1962,7 @@ begin
             WhereClausel := WhereClausel + EscapedFieldName[I] + '=' + Fields[I].EscapeValue(SQLValues[I]);
           end;
 
-        if (ImportType = itUpdate) then
+        if (StmtType = stUpdate) then
         begin
           if (InsertStmtInSQL) then
             SQL := SQL + ';' + #13#10;
@@ -1980,7 +1971,7 @@ begin
         end
         else if (not InsertStmtInSQL) then
         begin
-          if (ImportType = itReplace) then
+          if (StmtType = stReplace) then
             SQL := SQL + 'REPLACE INTO ' + EscapedTableName
           else
             SQL := SQL + 'INSERT INTO ' + EscapedTableName;
@@ -1992,7 +1983,7 @@ begin
         else
           SQL := SQL + ',(' + Values + ')';
 
-        if ((ImportType = itUpdate) and not Session.MultiStatements or (Length(SQL) - SQLExecuteLength >= SQLPacketSize)) then
+        if ((StmtType = stUpdate) and not Session.MultiStatements or (Length(SQL) - SQLExecuteLength >= SQLPacketSize)) then
         begin
           if (InsertStmtInSQL) then
           begin
@@ -2672,10 +2663,13 @@ begin
 
   if (UseHeadline) then
   begin
-    case (CodePage) of
-      CP_Unicode: FirstRecordFilePos := BOMLength + (FileContent.Index - 1) * SizeOf(Char);
-      else FirstRecordFilePos := BOMLength + WideCharToAnsiChar(CodePage, PChar(@FileContent.Str[OldFileContentIndex]), FileContent.Index - OldFileContentIndex, nil, 0);
-    end;
+    if (FileContent.Str = '') then
+      FirstRecordFilePos := SizeOf(Char)
+    else
+      case (CodePage) of
+        CP_Unicode: FirstRecordFilePos := BOMLength + (FileContent.Index - 1) * SizeOf(Char);
+        else FirstRecordFilePos := BOMLength + WideCharToAnsiChar(CodePage, PChar(@FileContent.Str[OldFileContentIndex]), FileContent.Index - OldFileContentIndex, nil, 0);
+      end;
     SetLength(FileFields, Length(CSVValues));
     for I := 0 to Length(FileFields) - 1 do
       FileFields[I].Name := CSVUnescape(CSVValues[I].Text, CSVValues[I].Length, Quoter);
@@ -3427,7 +3421,7 @@ constructor TTImportSQLite.Create(const AHandle: sqlite3_ptr; const ADatabase: T
 begin
   inherited Create(ADatabase.Session, ADatabase);
 
-  ImportType := itInsert;
+  StmtType := stInsert;
 
   Handle := AHandle;
 end;
@@ -3677,24 +3671,24 @@ begin
         Error.ErrorMessage := Error.ErrorMessage + ', at position ' + IntToStr(XMLDocument.parseError.line);
     end;
     DoError(Error, nil, False);
-  end
-  else
-  begin
-    XMLNode := XMLDocument.documentElement.selectSingleNode('//*/' + RecordNodeText);
-
-    if (not Assigned(XMLNode)) then
-    begin
-      Error.ErrorType := TE_XML;
-      Error.ErrorCode := 0;
-      Error.ErrorMessage := '[MSXML] Node <' + RecordNodeText + '> not found.';
-      DoError(Error, nil, False);
-    end;
   end;
 end;
 
 procedure TTImportXML.BeforeExecuteData(const Item: TTImport.TItem);
+var
+  Error: TTool.TError;
 begin
   inherited;
+
+  XMLNode := XMLDocument.documentElement.selectSingleNode('//*/' + Item.SourceTableName);
+
+  if (not Assigned(XMLNode)) then
+  begin
+    Error.ErrorType := TE_XML;
+    Error.ErrorCode := 0;
+    Error.ErrorMessage := '[MSXML] Node <' + Item.SourceTableName + '> not found.';
+    DoError(Error, nil, False);
+  end;
 
   if (Assigned(XMLNode)) then
     Item.RecordsSum := XMLNode.parentNode.childNodes.length;
@@ -3708,7 +3702,6 @@ begin
 
   Filename := AFilename;
   Data := True;
-  RecordNodeText := 'row';
 
   CoInitialize(nil);
 
@@ -3756,7 +3749,7 @@ begin
 
     repeat
       XMLNode := XMLNode.nextSibling;
-    until (not Assigned(XMLNode) or (XMLNode.nodeName = RecordNodeText));
+    until (not Assigned(XMLNode) or (XMLNode.nodeName = Item.SourceTableName));
   end;
 end;
 
@@ -3788,7 +3781,7 @@ begin
 
     repeat
       XMLNode := XMLNode.nextSibling;
-    until (not Assigned(XMLNode) or (XMLNode.nodeName = RecordNodeText));
+    until (not Assigned(XMLNode) or (XMLNode.nodeName = Item.SourceTableName));
   end;
 end;
 
