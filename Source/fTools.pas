@@ -196,7 +196,7 @@ type
     StmtType: TStmtType;
     Structure: Boolean;
     procedure Add(const TableName: string; const SourceTableName: string = '');
-    constructor Create(const ASession: TSSession; const ADatabase: TSDatabase); reintroduce; virtual;
+    constructor Create(const ASession: TSSession; const ADatabase: TSDatabase);
     procedure Execute(); override;
   end;
 
@@ -226,7 +226,7 @@ type
     property FileSize: DWord read FFileSize;
   public
     procedure Close(); override;
-    constructor Create(const AFilename: TFileName; const ACodePage: Cardinal; const ASession: TSSession; const ADatabase: TSDatabase); reintroduce; virtual;
+    constructor Create(const AFilename: TFileName; const ACodePage: Cardinal; const ASession: TSSession; const ADatabase: TSDatabase);
     property CodePage: Cardinal read FCodePage;
     property Filename: TFileName read FFilename;
   end;
@@ -236,7 +236,7 @@ type
     FSetNamesApplied: Boolean;
   public
     Text: PString;
-    constructor Create(const AFilename: TFileName; const ACodePage: Cardinal; const ASession: TSSession; const ADatabase: TSDatabase); override;
+    constructor Create(const AFilename: TFileName; const ACodePage: Cardinal; const ASession: TSSession; const ADatabase: TSDatabase);
     procedure Execute(); overload; override;
     property SetNamesApplied: Boolean read FSetNamesApplied;
   end;
@@ -264,7 +264,7 @@ type
     Quoter: Char;
     UseHeadline: Boolean;
     procedure Close(); override;
-    constructor Create(const AFilename: TFileName; const ACodePage: Cardinal; const ASession: TSSession; const ADatabase: TSDatabase); reintroduce; virtual;
+    constructor Create(const AFilename: TFileName; const ACodePage: Cardinal; const ASession: TSSession; const ADatabase: TSDatabase);
     destructor Destroy(); override;
     function GetPreviewValues(var Values: TSQLStrings): Boolean; virtual;
     procedure Open(); override;
@@ -296,7 +296,7 @@ type
     procedure ExecuteStructure(const Item: TTImport.TItem); override;
     function ODBCStmtException(const Handle: SQLHSTMT): Exception;
   public
-    constructor Create(const AHandle: SQLHANDLE; const ADatabase: TSDatabase); reintroduce; virtual;
+    constructor Create(const AHandle: SQLHANDLE; const ADatabase: TSDatabase);
     destructor Destroy(); override;
   end;
 
@@ -312,7 +312,7 @@ type
     function GetValues(const Item: TTImport.TItem; const DataFileBuffer: TTool.TDataFileBuffer): Boolean; override;
     function GetValues(const Item: TTImport.TItem; var Values: TSQLStrings): Boolean; overload; override;
   public
-    constructor Create(const AHandle: sqlite3_ptr; const ADatabase: TSDatabase); reintroduce; virtual;
+    constructor Create(const AHandle: sqlite3_ptr; const ADatabase: TSDatabase);
   end;
 
   TTImportXML = class(TTImport)
@@ -326,7 +326,7 @@ type
     function GetValues(const Item: TTImport.TItem; const DataFileBuffer: TTool.TDataFileBuffer): Boolean; override;
     function GetValues(const Item: TTImport.TItem; var Values: TSQLStrings): Boolean; overload; override;
   public
-    constructor Create(const AFilename: TFileName; const ATable: TSBaseTable); reintroduce; virtual;
+    constructor Create(const AFilename: TFileName; const ATable: TSBaseTable);
     destructor Destroy(); override;
   end;
 
@@ -367,7 +367,7 @@ type
     TableFields: array of TSTableField;
     procedure Add(const ADataSet: TMySQLDataSet); overload; virtual;
     procedure Add(const ADBObject: TSDBObject); overload; inline;
-    constructor Create(const ASession: TSSession); reintroduce;
+    constructor Create(const ASession: TSSession);
     procedure Execute(); override;
     property Session: TSSession read FSession;
   end;
@@ -389,7 +389,7 @@ type
     function FileCreate(const Filename: TFileName; out Error: TTool.TError): Boolean; virtual;
     procedure WriteContent(const Content: string); virtual;
   public
-    constructor Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal); reintroduce; virtual;
+    constructor Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
     destructor Destroy(); override;
     property CodePage: Cardinal read FCodePage;
     property Filename: TFileName read FFilename;
@@ -420,7 +420,7 @@ type
     DropStmts: Boolean;
     ReplaceData: Boolean;
     UseDatabaseStmts: Boolean;
-    constructor Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal); override;
+    constructor Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
   end;
 
   TTExportText = class(TTExportFile)
@@ -439,7 +439,7 @@ type
     Delimiter: string;
     QuoteStringValues: Boolean;
     QuoteValues: Boolean;
-    constructor Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal); override;
+    constructor Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
     destructor Destroy(); override;
   end;
 
@@ -470,7 +470,7 @@ type
     TextContent: Boolean;
     NULLText: Boolean;
     RowBackground: Boolean;
-    constructor Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal); override;
+    constructor Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
     destructor Destroy(); override;
   end;
 
@@ -491,7 +491,7 @@ type
     RecordNodeText: string;
     RootNodeText: string;
     TableNodeText, TableNodeAttribute: string;
-    constructor Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal); override;
+    constructor Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
   end;
 
   TTExportODBC = class(TTExport)
@@ -515,7 +515,7 @@ type
     property ODBC: SQLHENV read FODBC;
     property Stmt: SQLHSTMT read FStmt;
   public
-    constructor Create(const ASession: TSSession; const AODBC: SQLHDBC = SQL_NULL_HANDLE; const AHandle: SQLHDBC = SQL_NULL_HANDLE); reintroduce; virtual;
+    constructor Create(const ASession: TSSession; const AODBC: SQLHDBC = SQL_NULL_HANDLE; const AHandle: SQLHDBC = SQL_NULL_HANDLE);
   end;
 
   TTExportAccess = class(TTExportODBC)
@@ -525,7 +525,7 @@ type
     procedure ExecuteFooter(); override;
     procedure ExecuteHeader(); override;
   public
-    constructor Create(const ASession: TSSession; const AFilename: TFileName); reintroduce; virtual;
+    constructor Create(const ASession: TSSession; const AFilename: TFileName);
   end;
 
   TTExportExcel = class(TTExportODBC)
@@ -538,7 +538,7 @@ type
     procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
   public
     Excel2007: Boolean;
-    constructor Create(const ASession: TSSession; const AFilename: TFileName); reintroduce; virtual;
+    constructor Create(const ASession: TSSession; const AFilename: TFileName);
   end;
 
   TTExportSQLite = class(TTExport)
@@ -554,7 +554,7 @@ type
     procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
   public
-    constructor Create(const ASession: TSSession; const AFilename: TFileName); reintroduce; virtual;
+    constructor Create(const ASession: TSSession; const AFilename: TFileName);
   end;
 
   TTExportCanvas = class(TTExport)
@@ -637,7 +637,7 @@ type
     procedure AfterExecute(); override;
     procedure BeforeExecute(); override;
   public
-    constructor Create(const ASession: TSSession; const APrinterName: string; const ATitle: string); reintroduce; virtual;
+    constructor Create(const ASession: TSSession; const APrinterName: string; const ATitle: string);
     destructor Destroy(); override;
   end;
 
@@ -650,7 +650,7 @@ type
     procedure ExecuteHeader(); override;
     procedure ExecuteFooter(); override;
   public
-    constructor Create(const ASession: TSSession; const AFilename: TFileName); reintroduce; virtual;
+    constructor Create(const ASession: TSSession; const AFilename: TFileName);
     destructor Destroy(); override;
   end;
 
@@ -707,7 +707,7 @@ type
     WholeValue: Boolean;
     RegExpr: Boolean;
     procedure Add(const Table: TSBaseTable; const Field: TSTableField = nil); virtual;
-    constructor Create(const ASession: TSSession); reintroduce; virtual;
+    constructor Create(const ASession: TSSession);
     procedure Execute(); override;
   end;
 
@@ -720,7 +720,7 @@ type
   public
     ReplaceText: string;
     Backup: Boolean;
-    constructor Create(const ASession, AReplaceSession: TSSession); reintroduce; virtual;
+    constructor Create(const ASession, AReplaceSession: TSSession);
   end;
 
   EODBCError = EDatabaseError;

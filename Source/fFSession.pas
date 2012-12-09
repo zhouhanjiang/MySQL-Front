@@ -11508,18 +11508,38 @@ begin
 end;
 
 procedure TFSession.mjExecuteClick(Sender: TObject);
+var
+  Job: TAJob;
 begin
-  DExport.Session := Session;
-  DExport.DataSet := nil;
-  DExport.DialogType := edtExecuteJob;
-  DExport.Job := TAJobExport(Session.Account.JobByName(FJobs.Selected.Caption));
-  DExport.SObjects.Clear();
-  DExport.Window := Window;
-  DExport.Execute();
+  Job := Session.Account.JobByName(FJobs.Selected.Caption);
+
+  if (Job is TAJobImport) then
+  begin
+    DImport.Session := Session;
+    DImport.SObject := nil;
+    DImport.DialogType := idtExecuteJob;
+    DImport.Filename := '';
+    DImport.Window := Window;
+    DImport.ImportType := itUnknown;
+    DImport.Job := TAJobImport(Job);
+    DImport.Execute();
+  end
+  else
+  begin
+    DExport.Session := Session;
+    DExport.DataSet := nil;
+    DExport.DialogType := edtExecuteJob;
+    DExport.Job := TAJobExport(Job);
+    DExport.SObjects.Clear();
+    DExport.Window := Window;
+    DExport.ExportType := etUnknown;
+    DExport.Execute();
+  end;
 end;
 
 procedure TFSession.MJobsPopup(Sender: TObject);
 begin
+  FJobsChange(Sender, FJobs.Selected, ctState);
   ShowEnabledItems(MJobs.Items);
 end;
 

@@ -1503,7 +1503,7 @@ begin
     etTextFile:
       if (SObjects.Count <= 1) then
       begin
-        SaveDialog.Filter := FilterDescription('txt') + ' (*.txt;*.csv;*.tab;*.asc)|*.txt;*.csv;*.tab;*.asc';
+        SaveDialog.Filter := FilterDescription('txt') + ' (*.txt;*.csv;*.tab)|*.txt;*.csv;*.tab';
         SaveDialog.DefaultExt := '.csv';
         SaveDialog.Encodings.Text := EncodingCaptions();
       end
@@ -1674,17 +1674,17 @@ end;
 procedure TDExport.InitTSJob();
 var
   I: Integer;
-  S: string;
+  Index: Integer;
 begin
-  if (DialogType in [edtCreateJob]) then
+  if ((FName.Text = '') and (DialogType in [edtCreateJob])) then
   begin
     FName.Text := Title;
-    while (Assigned(Session.Account.JobByName(FName.Text))) do
+    if (Assigned(Session.Account.JobByName(FName.Text))) then
     begin
-      S := FName.Text;
-      Delete(S, 1, Length(Title));
-      if (S = '') then S := '2';
-      FName.Text := Title + ' ' + IntToStr(StrToInt(Trim(S)) + 1);
+      Index := 2;
+      while (Assigned(Session.Account.JobByName(FName.Text + ' (' + IntToStr(Index) + ')'))) do
+        Inc(Index);
+      FName.Text := FName.Text + ' (' + IntToStr(Index) + ')';
     end;
   end;
 

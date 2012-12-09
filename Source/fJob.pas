@@ -266,7 +266,6 @@ begin
             Table.InvalidateData();
             for I := 0 to Length(Job.FieldMappings) - 1 do
               if (Assigned(Import)) then
-
               begin
                 SetLength(Import.Fields, Length(Import.Fields) + 1);
                 Import.Fields[Length(Import.Fields) - 1] := Table.FieldByName(Job.FieldMappings[I].Name);

@@ -284,6 +284,7 @@ type
     Charset: string;
     Collation: string;
     Data: Boolean;
+    DataSource: string;
     Engine: string;
     ImportStmt: TPImportStmt;
     RowType: Integer;
@@ -1778,6 +1779,7 @@ begin
   Charset := '';
   Collation := '';
   Data := True;
+  DataSource := '';
   Engine := '';
   ImportStmt := isInsert;
   RowType := 0;
@@ -3326,6 +3328,7 @@ var
 begin
   inherited;
 
+  if (Assigned(XMLNode(XML, 'datasource'))) then DataSource := XMLNode(XML, 'datasource').Text;
   if (Assigned(XMLNode(XML, 'filename'))) then Filename := XMLNode(XML, 'filename').Text;
   if (Assigned(XMLNode(XML, 'filename')) and (XMLNode(XML, 'filename').Attributes['codepage'] <> Null)) then TryStrToInt(XMLNode(XML, 'filename').Attributes['codepage'], CodePage);
   if (Assigned(XMLNode(XML, 'type'))) then TryStrToImportType(XMLNode(XML, 'type').Text, ImportType);
@@ -3365,6 +3368,7 @@ begin
 
   XML.Attributes['type'] := 'import';
 
+  XMLNode(XML, 'datasource').Text := datasource;
   XMLNode(XML, 'filename').Text := Filename;
   if (CodePage = CP_ACP) then XMLNode(XML, 'filename').Attributes['codepage'] := Null else XMLNode(XML, 'filename').Attributes['codepage'] := IntToStr(CodePage);
   XMLNode(XML, 'type').Text := ImportTypeToStr(ImportType);
