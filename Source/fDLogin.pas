@@ -3,25 +3,12 @@ unit fDLogin;
 interface {********************************************************************}
 
 uses
-  Windows, Messages, SysUtils, Classes, Controls, Forms, WinCred,
+  Windows, Messages, SysUtils, Classes, Controls, Forms,
   Dialogs, StdCtrls, ExtCtrls,
   Forms_Ext, StdCtrls_Ext,
   fSession, fPreferences,
   fBase;
 
-const
-  CREDUI_MAX_MESSAGE_LENGTH        = 32767;
-  {$EXTERNALSYM CREDUI_MAX_MESSAGE_LENGTH}
-  CREDUI_MAX_CAPTION_LENGTH        = 128;
-  {$EXTERNALSYM CREDUI_MAX_CAPTION_LENGTH}
-  CREDUI_MAX_GENERIC_TARGET_LENGTH = CRED_MAX_GENERIC_TARGET_NAME_LENGTH;
-  {$EXTERNALSYM CREDUI_MAX_GENERIC_TARGET_LENGTH}
-  CREDUI_MAX_DOMAIN_TARGET_LENGTH  = CRED_MAX_DOMAIN_TARGET_NAME_LENGTH;
-  {$EXTERNALSYM CREDUI_MAX_DOMAIN_TARGET_LENGTH}
-  CREDUI_MAX_USERNAME_LENGTH       = CRED_MAX_USERNAME_LENGTH;
-  {$EXTERNALSYM CREDUI_MAX_USERNAME_LENGTH}
-  CREDUI_MAX_PASSWORD_LENGTH       = CRED_MAX_CREDENTIAL_BLOB_SIZE div 2;
-  {$EXTERNALSYM CREDUI_MAX_PASSWORD_LENGTH}
 
 type
   TDLogin = class (TForm_Ext)
@@ -34,13 +21,8 @@ type
     FUsername: TEdit;
     GAccount: TGroupBox_Ext;
     procedure FBSettingsClick(Sender: TObject);
-    procedure FormCreate(Sender: TObject);
     procedure FormHide(Sender: TObject);
     procedure FormShow(Sender: TObject);
-  private
-    PasswordC: array [0 .. CREDUI_MAX_PASSWORD_LENGTH] of Char;
-    UsernameC: array [0 .. CRED_MAX_USERNAME_LENGTH] of Char;
-  protected
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
     Filename: TFileName;
@@ -74,12 +56,6 @@ begin
   Result := FLogin;
 end;
 
-type
-  TCredUIPromptForCredentials = function (pUiInfo: PCredUIInfoW;
-    pszTargetName: PCWSTR; pContext: PCtxtHandle; dwAuthError: DWORD;
-    pszUserName: PWSTR; ulUserNameBufferSize: ULONG; pszPassword: PWSTR;
-    ulPasswordBufferSize: ULONG; var save: BOOL; dwFlags: DWORD): DWORD; stdcall;
-
 { TDLogin *********************************************************************}
 
 procedure TDLogin.CMChangePreferences(var Message: TMessage);
@@ -96,54 +72,9 @@ begin
 end;
 
 function TDLogin.Execute(): Boolean;
-var
-  Handle: THandle;
-  CredUIPromptForCredentials: TCredUIPromptForCredentials;
-  Info: TCredUIInfoW;
-  Save: BOOL;
-  Flags: DWORD;
 begin
-  if (Assigned(Account) or not CheckWin32Version(5, 1)) then
-  begin
-    Handle := 0;
-    CredUIPromptForCredentials := nil;
-  end
-  else
-  begin
-    Handle := LoadLibrary('CredUI.dll');
-    CredUIPromptForCredentials := GetProcAddress(Handle, 'CredUIPromptForCredentialsW');
-  end;
-
-  if (not Assigned(CredUIPromptForCredentials)) then
-  begin
-    ShowModal();
-    Result := ModalResult = mrOk;
-  end
-  else
-  begin
-    ZeroMemory(@Info, SizeOf(TCredUIInfo));
-    Info.cbSize := SizeOf(TCredUIInfo);
-    Info.hwndParent := Window.Handle;
-    Info.pszMessageText := PChar(Filename);
-    Info.pszCaptionText := PChar(Caption);
-
-    Save := False;
-    Flags := CREDUI_FLAGS_ALWAYS_SHOW_UI or CREDUI_FLAGS_DO_NOT_PERSIST or CREDUI_FLAGS_EXCLUDE_CERTIFICATES or CREDUI_FLAGS_GENERIC_CREDENTIALS;
-
-    Result := CredUIPromptForCredentials(@Info, PChar(Filename), nil, 0,
-      UsernameC, CRED_MAX_USERNAME_LENGTH,
-      PasswordC, CREDUI_MAX_PASSWORD_LENGTH,
-      Save, Flags) = NO_ERROR;
-
-    if (Result) then
-    begin
-      Username := UsernameC;
-      Password := PasswordC;
-    end;
-  end;
-
-  if (Handle <> 0) then
-    FreeLibrary(Handle);
+  ShowModal();
+  Result := ModalResult = mrOk;
 end;
 
 procedure TDLogin.FBSettingsClick(Sender: TObject);
@@ -156,12 +87,6 @@ begin
     ActiveControl := FPassword
   else
     FormShow(Sender);
-end;
-
-procedure TDLogin.FormCreate(Sender: TObject);
-begin
-  UsernameC := 'Admin';
-  PasswordC := '';
 end;
 
 procedure TDLogin.FormHide(Sender: TObject);

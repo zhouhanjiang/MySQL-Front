@@ -612,6 +612,11 @@ type
     JobObject: TAJob.TJobObject;
     FieldMappings: array of TAJob.TFieldMapping;
     Filename: TFileName;
+    ODBC: record
+      DataSource: string;
+      Username: string;
+      Password: string;
+    end;
     SourceObjects: array of TAJob.TSourceObject;
     procedure Assign(const Source: TPItem); override;
     constructor Create(const AAItems: TPItems = nil; const AName: string = '');
@@ -628,6 +633,11 @@ type
     ExportType: TPExportType;
     Filename: TFileName;
     JobObjects: array of TAJob.TJobObject;
+    ODBC: record
+      DataSource: string;
+      Password: string;
+      Username: string;
+    end;
     procedure Assign(const Source: TPItem); override;
     procedure ClearObjects(); virtual;
     constructor Create(const AAItems: TPItems = nil; const AName: string = '');
@@ -1211,7 +1221,7 @@ begin
   end;
 end;
 
-function GetFileIcon(const CSIDL: Integer): HIcon;
+function GetFileIcon(const CSIDL: Integer): HIcon; overload;
 var
   FileInfo: TSHFileInfo;
   PIDL: PItemIDList;
@@ -1220,6 +1230,15 @@ begin
   SHGetFolderLocation(Application.Handle, CSIDL, 0, 0, PIDL);
   ZeroMemory(@FileInfo, SizeOf(FileInfo));
   SHGetFileInfo(PChar(PIDL), 0, FileInfo, SizeOf(FileInfo), SHGFI_PIDL or SHGFI_ICON or SHGFI_SMALLICON);
+  Result := FileInfo.hIcon;
+end;
+
+function GetFileIcon(const Path: TFileName): HIcon; overload;
+var
+  FileInfo: TSHFileInfo;
+begin
+  ZeroMemory(@FileInfo, SizeOf(FileInfo));
+  SHGetFileInfo(PChar(Path), 0, FileInfo, SizeOf(FileInfo), SHGFI_ICON or SHGFI_SMALLICON);
   Result := FileInfo.hIcon;
 end;
 
@@ -2065,11 +2084,11 @@ end;
 
 constructor TPPreferences.Create();
 var
-  MaxIconIndex: Integer;
+  Foldername: array [0..MAX_PATH] of Char;
   Font: TFont;
   FontSize: Integer;
-  Foldername: array [0..MAX_PATH] of Char;
   I: Integer;
+  MaxIconIndex: Integer;
   NonClientMetrics: TNonClientMetrics;
   Path: string;
   StringList: TStringList;
@@ -2189,6 +2208,11 @@ begin
   for I := 0 to MaxIconIndex do
     if (I = 13) then
       ImageList_AddIcon(FSmallImages.Handle, GetFileIcon(CSIDL_DRIVES))
+    else if (I = 16) then
+    begin
+      SHGetFolderPath(Application.Handle, CSIDL_SYSTEM, 0, 0, @Foldername);
+      ImageList_AddIcon(FSmallImages.Handle, GetFileIcon(StrPas(PChar(@Foldername)) + '\odbcad32.exe'))
+    end
     else if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
       ImageList_AddIcon(FSmallImages.Handle, LoadImage(hInstance, MAKEINTRESOURCE(10000 + I), IMAGE_ICON, GetSystemMetrics(SM_CYSMICON), GetSystemMetrics(SM_CXSMICON), LR_DEFAULTCOLOR))
     else if (I > 0) then
@@ -3328,9 +3352,11 @@ var
 begin
   inherited;
 
-  if (Assigned(XMLNode(XML, 'datasource'))) then DataSource := XMLNode(XML, 'datasource').Text;
   if (Assigned(XMLNode(XML, 'filename'))) then Filename := XMLNode(XML, 'filename').Text;
   if (Assigned(XMLNode(XML, 'filename')) and (XMLNode(XML, 'filename').Attributes['codepage'] <> Null)) then TryStrToInt(XMLNode(XML, 'filename').Attributes['codepage'], CodePage);
+  if (Assigned(XMLNode(XML, 'odbc/datasource'))) then ODBC.DataSource := XMLNode(XML, 'odbc/datasource').Text;
+  if (Assigned(XMLNode(XML, 'odbc/password'))) then ODBC.Password := XMLNode(XML, 'odbc/password').Text;
+  if (Assigned(XMLNode(XML, 'odbc/username'))) then ODBC.Username := XMLNode(XML, 'odbc/username').Text;
   if (Assigned(XMLNode(XML, 'type'))) then TryStrToImportType(XMLNode(XML, 'type').Text, ImportType);
 
   if (Assigned(XMLNode(XML, 'object')) and TryStrToObjectType(XMLNode(XML, 'object').Attributes['type'], ObjectType)) then
@@ -3368,9 +3394,11 @@ begin
 
   XML.Attributes['type'] := 'import';
 
-  XMLNode(XML, 'datasource').Text := datasource;
   XMLNode(XML, 'filename').Text := Filename;
   if (CodePage = CP_ACP) then XMLNode(XML, 'filename').Attributes['codepage'] := Null else XMLNode(XML, 'filename').Attributes['codepage'] := IntToStr(CodePage);
+  XMLNode(XML, 'odbc/datasource').Text := ODBC.DataSource;
+  XMLNode(XML, 'odbc/password').Text := ODBC.Password;
+  XMLNode(XML, 'odbc/username').Text := ODBC.Username;
   XMLNode(XML, 'type').Text := ImportTypeToStr(ImportType);
 
   XMLNode(XML, 'object').Attributes['name'] := JobObject.Name;
@@ -3481,6 +3509,9 @@ begin
 
   if (Assigned(XMLNode(XML, 'filename'))) then Filename := XMLNode(XML, 'filename').Text;
   if (Assigned(XMLNode(XML, 'filename')) and (XMLNode(XML, 'filename').Attributes['codepage'] <> Null)) then TryStrToInt(XMLNode(XML, 'filename').Attributes['codepage'], CodePage);
+  if (Assigned(XMLNode(XML, 'odbc/datasource'))) then ODBC.DataSource := XMLNode(XML, 'odbc/datasource').Text;
+  if (Assigned(XMLNode(XML, 'odbc/password'))) then ODBC.Password := XMLNode(XML, 'odbc/password').Text;
+  if (Assigned(XMLNode(XML, 'odbc/username'))) then ODBC.Username := XMLNode(XML, 'odbc/username').Text;
   if (Assigned(XMLNode(XML, 'type'))) then TryStrToExportType(XMLNode(XML, 'type').Text, ExportType);
 
   if (Assigned(XMLNode(XML, 'objects'))) then
@@ -3516,6 +3547,9 @@ begin
   XMLNode(XML, 'filename').Text := Filename;
   if (CodePage = CP_ACP) then XMLNode(XML, 'filename').Attributes['codepage'] := Null else XMLNode(XML, 'filename').Attributes['codepage'] := IntToStr(CodePage);
   XMLNode(XML, 'type').Text := ExportTypeToStr(ExportType);
+  XMLNode(XML, 'odbc/datasource').Text := ODBC.DataSource;
+  XMLNode(XML, 'odbc/password').Text := ODBC.Password;
+  XMLNode(XML, 'odbc/username').Text := ODBC.Username;
 
   if (Assigned(XMLNode(XML, 'objects'))) then
   begin

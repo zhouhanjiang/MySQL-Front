@@ -5,7 +5,6 @@ interface {********************************************************************}
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, ComCtrls, ExtCtrls, StdCtrls, DB, DBGrids,
-  ODBCAPI,
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext, Dialogs_Ext,
   MySQLDB,
   fSession, fPreferences, fTools,
@@ -16,6 +15,7 @@ type
     FAccessFile: TRadioButton;
     FBBack: TButton;
     FBCancel: TButton;
+    FBDataSource: TButton;
     FBFilename: TButton;
     FBForward: TButton;
     FBHelp: TButton;
@@ -27,6 +27,7 @@ type
     FDatabaseNodeDisabled: TRadioButton;
     FDatabaseNodeName: TRadioButton;
     FDatabaseNodeText: TEdit;
+    FDataSource: TEdit;
     FDestField1: TEdit;
     FDisableKeys: TCheckBox;
     FDoneRecords: TLabel;
@@ -66,6 +67,7 @@ type
     FLCSVHeadline: TLabel;
     FLDatabaseHandling: TLabel;
     FLDatabaseNode: TLabel;
+    FLDataSource: TLabel;
     FLDestFields: TLabel;
     FLDone: TLabel;
     FLDrop: TLabel;
@@ -98,7 +100,6 @@ type
     FMonthly: TRadioButton;
     FName: TEdit;
     FODBC: TRadioButton;
-    FODBCSelect: TListView_Ext;
     FPDFFile: TRadioButton;
     FProgressBar: TProgressBar;
     FQuoteAll: TRadioButton;
@@ -134,7 +135,6 @@ type
     GFields: TGroupBox_Ext;
     GHTMLOptions: TGroupBox_Ext;
     GHTMLWhat: TGroupBox_Ext;
-    GODBCSelect: TGroupBox_Ext;
     GProgress: TGroupBox_Ext;
     GSelect: TGroupBox_Ext;
     GSQLOptions: TGroupBox_Ext;
@@ -145,7 +145,6 @@ type
     PDatabaseNode: TPanel_Ext;
     PErrorMessages: TPanel_Ext;
     PFieldNode: TPanel_Ext;
-    PODBCSelect: TPanel_Ext;
     PQuote: TPanel_Ext;
     PrintDialog: TPrintDialog_Ext;
     PSelect: TPanel_Ext;
@@ -159,7 +158,6 @@ type
     TSFields: TTabSheet;
     TSHTMLOptions: TTabSheet;
     TSJob: TTabSheet;
-    TSODBCSelect: TTabSheet;
     TSSelect: TTabSheet;
     TSSQLOptions: TTabSheet;
     TSTask: TTabSheet;
@@ -182,8 +180,6 @@ type
     procedure FHTMLDataKeyPress(Sender: TObject; var Key: Char);
     procedure FHTMLStructureClick(Sender: TObject);
     procedure FHTMLStructureKeyPress(Sender: TObject; var Key: Char);
-    procedure FODBCSelectChange(Sender: TObject; Item: TListItem;
-      Change: TItemChange);
     procedure FODBCSelectDblClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
@@ -206,7 +202,6 @@ type
     procedure TSExecuteShow(Sender: TObject);
     procedure TSFieldsShow(Sender: TObject);
     procedure TSHTMLOptionsShow(Sender: TObject);
-    procedure TSODBCSelectShow(Sender: TObject);
     procedure TSOptionsHide(Sender: TObject);
     procedure TSSQLOptionsShow(Sender: TObject);
     procedure TSXMLOptionChange(Sender: TObject);
@@ -217,6 +212,7 @@ type
     procedure TSSelectShow(Sender: TObject);
     procedure TSTaskShow(Sender: TObject);
     procedure FFilenameChange(Sender: TObject);
+    procedure FBDataSourceClick(Sender: TObject);
   private
     CodePage: Cardinal;
     Export: TTExport;
@@ -225,7 +221,6 @@ type
     Filename: string;
     FLReferrers: array of TLabel;
     FObjects: TList;
-    ODBC: SQLHDBC;
     ProgressInfos: TTool.TProgressInfos;
     Title: string;
     WantedNodeExpand: TTreeNode;
@@ -233,6 +228,7 @@ type
     procedure CheckActivePageChange(const ActivePageIndex: Integer);
     procedure ClearTSFields();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
+    function GetDataSource(): Boolean;
     function GetFilename(): Boolean;
     function GetPrinter(): Boolean;
     procedure InitTSFields();
@@ -267,7 +263,7 @@ implementation {***************************************************************}
 uses
   Registry, Math, StrUtils, RichEdit, DBCommon,
   SQLUtils,
-  fDLogin;
+  fDLogin, fDODBC;
 
 var
   FExport: TDExport;
@@ -385,8 +381,6 @@ begin
   FXMLFile.Caption := Preferences.LoadStr(454);
   FPDFFile.Caption := Preferences.LoadStr(890);
   FLFilename.Caption := Preferences.LoadStr(348) + ':';
-
-  GODBCSelect.Caption := Preferences.LoadStr(265) + ':';
 
   GSQLWhat.Caption := Preferences.LoadStr(227);
   FLSQLWhat.Caption := Preferences.LoadStr(218) + ':';
@@ -611,7 +605,9 @@ begin
 
   if ((Assigned(DataSet) or (SObjects.Count >= 1)) and (DialogType = edtNormal)) then
     case (ExportType) of
-      etODBC: ;
+      etODBC:
+        if (not GetDataSource()) then
+          ModalResult := mrCancel;
       etPrinter:
         if (not GetPrinter()) then
           ModalResult := mrCancel;
@@ -643,6 +639,11 @@ begin
     if (not Export.Suspended) then
       Export.WaitFor();
   end;
+end;
+
+procedure TDExport.FBDataSourceClick(Sender: TObject);
+begin
+  GetDataSource()
 end;
 
 procedure TDExport.FBFilenameClick(Sender: TObject);
@@ -836,15 +837,16 @@ begin
   else
     ExportType := etUnknown;
   FFilename.Visible := ExportType in [etSQLFile, etTextFile, etExcelFile, etAccessFile, etSQLiteFile, etHTMLFile, etXMLFile, etPDFFile];
-  FLFilename.Visible := FFilename.Visible;
+  FLFilename.Visible := FFilename.Visible; FBFilename.Visible := FFilename.Visible;
+  FDataSource.Visible := ExportType in [etODBC];
+  FLDataSource.Visible := FDataSource.Visible; FBDataSource.Visible := FDataSource.Visible;
 
-  TSODBCSelect.Enabled := (ExportType in [etODBC]);
   TSSQLOptions.Enabled := (ExportType in [etSQLFile]) and (Filename <> '');
   TSCSVOptions.Enabled := (ExportType in [etTextFile]) and (Filename <> '');
   TSXMLOptions.Enabled := (ExportType in [etXMLFile]) and (Filename <> '');
   TSHTMLOptions.Enabled := (ExportType in [etHTMLFile, etPDFFile]) and (Filename <> '');
-  TSFields.Enabled := (ExportType in [etExcelFile]) and (SObjects.Count = 1) and (TObject(SObjects[0]) is TSTable);
-  TSTask.Enabled := not TSODBCSelect.Enabled and not TSSQLOptions.Enabled and not TSCSVOptions.Enabled and not TSHTMLOptions.Enabled and not TSFields.Enabled;
+  TSFields.Enabled := (ExportType in [etExcelFile, etODBC]) and (SObjects.Count = 1) and (TObject(SObjects[0]) is TSTable);
+  TSTask.Enabled := not TSSQLOptions.Enabled and not TSCSVOptions.Enabled and not TSHTMLOptions.Enabled and not TSFields.Enabled;
 
   TabSheet := nil;
   for I := 0 to PageControl.PageCount - 1 do
@@ -860,55 +862,6 @@ begin
   CheckActivePageChange(TSJob.PageIndex);
 end;
 
-procedure TDExport.FODBCSelectChange(Sender: TObject; Item: TListItem;
-  Change: TItemChange);
-var
-  Cancel: Boolean;
-  cbMessageText: SQLSMALLINT;
-  MessageText: PSQLTCHAR;
-  SQLState: array [0 .. SQL_SQLSTATE_SIZE] of SQLTCHAR;
-  Success: Boolean;
-  TabSheet: TTabSheet;
-begin
-  if (DialogType in [edtCreateJob, edtEditJob]) then
-    TabSheet := TSTask
-  else
-    TabSheet := TSExecute;
-
-  if (ODBC <> SQL_NULL_HANDLE) then
-  begin
-    SQLDisconnect(ODBC);
-    SQLFreeHandle(SQL_HANDLE_DBC, ODBC); ODBC := SQL_NULL_HANDLE;
-  end;
-
-  if ((Change = ctState) and Assigned(Item) and Item.Selected) then
-    repeat
-      DLogin.Account := nil;
-      DLogin.Filename := Item.Caption;
-      DLogin.Window := Window;
-      Success := DLogin.Execute();
-      Cancel := not Success;
-      if (Success) then
-      begin
-        Success := SQL_SUCCEEDED(SQLConnect(ODBC, PSQLTCHAR(PChar(Item.Caption)), SQL_NTS, PSQLTCHAR(DLogin.Username), SQL_NTS, PSQLTCHAR(DLogin.Password), SQL_NTS));
-        if (not Success and (ODBC <> SQL_NULL_HANDLE)) then
-        begin
-          if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, nil, nil, nil, 0, @cbMessageText))) then
-          begin
-            GetMem(MessageText, (cbMessageText + 1) * SizeOf(SQLTCHAR));
-            if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, @SQLState, nil, @MessageText, cbMessageText + 1, nil))) then
-              MsgBox(PChar(MessageText) + ' (' + SQLState + ')', Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-            FreeMem(MessageText);
-          end;
-          SQLFreeHandle(SQL_HANDLE_DBC, ODBC); ODBC := SQL_NULL_HANDLE;
-        end;
-      end;
-    until (Success or Cancel);
-
-  TabSheet.Enabled := ODBC <> SQL_NULL_HANDLE;
-  FBForward.Enabled := TabSheet.Enabled;
-end;
-
 procedure TDExport.FODBCSelectDblClick(Sender: TObject);
 begin
   FBForward.Click();
@@ -921,7 +874,6 @@ begin
   FSelect.Images := Preferences.SmallImages;
 
   FObjects := TList.Create();
-  FODBCSelect.SmallImages := Preferences.SmallImages;
 
   FCSVHeadline.Checked := Preferences.Export.CSV.Headline;
   FSeparatorTab.Checked := Preferences.Export.CSV.DelimiterType = dtTab;
@@ -1041,6 +993,13 @@ begin
         end;
       etExcelFile:
         Export.Excel.Excel2007 := (odExcel2007 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
+      etODBC:
+        if (Export is TAJobExport) then
+        begin
+          TAJobExport(Export).ODBC.DataSource := DODBC.DataSource;
+          TAJobExport(Export).ODBC.Password := DODBC.Password;
+          TAJobExport(Export).ODBC.Username := DODBC.Username;
+        end;
       etHTMLFile:
         begin
           Export.HTML.Data := FHTMLData.Checked;
@@ -1137,17 +1096,8 @@ begin
   FSelect.Items.Clear();
   FSelect.Items.EndUpdate();
 
-  FODBCSelect.Items.BeginUpdate();
-  FODBCSelect.Items.Clear();
-  FODBCSelect.Items.EndUpdate();
   ClearTSFields();
   PageControl.ActivePage := nil;
-
-  if (ODBC <> SQL_NULL_HANDLE) then
-  begin
-    SQLDisconnect(ODBC);
-    SQLFreeHandle(SQL_HANDLE_DBC, ODBC); ODBC := SQL_NULL_HANDLE;
-  end;
 
   PageControl.ActivePage := nil;
 end;
@@ -1209,6 +1159,9 @@ begin
     FName.Text := Title;
     FFilename.Visible := False; FLFilename.Visible := FFilename.Visible;
     FFilename.Text := '';
+    DODBC.DataSource := '';
+    DODBC.Username := 'Admin';
+    DODBC.Password := '';
 
     FStartDate.Date := Now() + 1; FStartTime.Time := 0;
     FSingle.Checked := True;
@@ -1236,6 +1189,9 @@ begin
     CodePage := Job.CodePage;
     Filename := Job.Filename;
     FFilename.Text := Job.Filename;
+    DODBC.DataSource := Job.ODBC.DataSource;
+    DODBC.Username := Job.ODBC.Username;
+    DODBC.Password := Job.ODBC.Password;
 
     FStartDate.Date := Job.Start; FStartTime.Time := Job.Start;
     case (Job.TriggerType) of
@@ -1256,16 +1212,15 @@ begin
 
   TSSelect.Enabled := DialogType in [edtCreateJob, edtEditJob];
   TSJob.Enabled := False;
-  TSODBCSelect.Enabled := (DialogType in [edtNormal]) and (ExportType in [etODBC]);
   TSSQLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etSQLFile]);
   TSCSVOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etTextFile]);
   TSXMLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etXMLFile]) and not Assigned(DataSet);
   TSHTMLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etHTMLFile, etPrinter, etPDFFile]);
-  TSFields.Enabled := (DialogType in [edtNormal]) and (ExportType in [etExcelFile]) and ((SObjects.Count = 1) and (TObject(SObjects[0]) is TSTable) or Assigned(DataSet)) or (ExportType in [etXMLFile]) and Assigned(DataSet);
+  TSFields.Enabled := (DialogType in [edtNormal]) and (ExportType in [etExcelFile, etODBC]) and ((SObjects.Count = 1) and (TObject(SObjects[0]) is TSTable) or Assigned(DataSet)) or (ExportType in [etXMLFile]) and Assigned(DataSet);
   TSTask.Enabled := False;
-  TSExecute.Enabled := not TSODBCSelect.Enabled and not TSSQLOptions.Enabled and not TSCSVOptions.Enabled and not TSHTMLOptions.Enabled and not TSFields.Enabled;
+  TSExecute.Enabled := not TSSQLOptions.Enabled and not TSCSVOptions.Enabled and not TSHTMLOptions.Enabled and not TSFields.Enabled;
 
-  FBBack.Visible := TSSelect.Enabled or TSODBCSelect.Enabled or TSSQLOptions.Enabled or TSCSVOptions.Enabled or TSXMLOptions.Enabled or TSHTMLOptions.Enabled or TSFields.Enabled;
+  FBBack.Visible := TSSelect.Enabled or TSSQLOptions.Enabled or TSCSVOptions.Enabled or TSXMLOptions.Enabled or TSHTMLOptions.Enabled or TSFields.Enabled;
   FBForward.Visible := FBBack.Visible;
 
   if (DialogType in [edtCreateJob, edtEditJob]) then
@@ -1474,6 +1429,11 @@ begin
   FTableTagClick(Sender);
 end;
 
+function TDExport.GetDataSource(): Boolean;
+begin
+  Result := DODBC.Execute();
+end;
+
 function TDExport.GetFilename(): Boolean;
 var
   Database: TSDatabase;
@@ -1528,11 +1488,18 @@ begin
       end;
     etAccessFile:
       begin
+        SaveDialog.Filter := '';
         if (odAccess2007 in ODBCDrivers) then
-          SaveDialog.Filter := FilterDescription('mdb') + ' (*.mdb;*.accdb)|*.mdb;*.accdb'
-        else
-          SaveDialog.Filter := FilterDescription('mdb') + ' (*.mdb)|*.mdb';
-        SaveDialog.DefaultExt := '.mdb';
+          SaveDialog.Filter := FilterDescription('accdb') + ' (*.accdb)|*.accdb';
+        if (odAccess in ODBCDrivers) then
+        begin
+          if (SaveDialog.Filter <> '') then SaveDialog.Filter := SaveDialog.Filter + '|';
+          SaveDialog.Filter := SaveDialog.Filter + FilterDescription('mdb') + ' (*.mdb)|*.mdb';
+        end;
+        if (odAccess2007 in ODBCDrivers) then
+          SaveDialog.DefaultExt := '.accdb'
+        else if (odAccess in ODBCDrivers) then
+          SaveDialog.DefaultExt := '.mdb';
         SaveDialog.Encodings.Clear();
       end;
     etSQLiteFile:
@@ -1608,8 +1575,8 @@ begin
 
   FLDestFields.Visible :=
     (ExportType = etTextFile) and FCSVHeadline.Checked
-    or (ExportType = etExcelFile)
-    or (ExportType in [etXMLFile, etHTMLFile, etPrinter, etPDFFile]) and not FHTMLStructure.Checked;
+    or (ExportType in [etExcelFile, etXMLFile])
+    or (ExportType in [etHTMLFile, etPrinter, etPDFFile]) and not FHTMLStructure.Checked;
 
   if (FLDestFields.Visible) then
   begin
@@ -1935,7 +1902,7 @@ begin
 
   case (ExportType) of
     etSQLFile:
-      try
+      begin
         Export := TTExportSQL.Create(Session, Filename, CodePage);
         TTExportSQL(Export).CreateDatabaseStmts := FCreateDatabase.Checked;
         TTExportSQL(Export).Data := FSQLData.Checked;
@@ -1944,11 +1911,9 @@ begin
         TTExportSQL(Export).ReplaceData := FReplaceData.Checked;
         TTExportSQL(Export).Structure := FSQLStructure.Checked;
         TTExportSQL(Export).UseDatabaseStmts := FUseDatabase.Checked;
-      except
-        MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
       end;
     etTextFile:
-      try
+      begin
         Export := TTExportText.Create(Session, Filename, CodePage);
         TTExportText(Export).Data := True;
         if (FSeparatorTab.Checked) then
@@ -1959,31 +1924,46 @@ begin
         TTExportText(Export).QuoteValues := FQuoteAll.Checked;
         TTExportText(Export).Quoter := FQuoteChar.Text[1];
         TTExportText(Export).Structure := FCSVHeadline.Checked;
-      except
-        MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+      end;
+    etODBC:
+      begin
+        if (DialogType = edtNormal) then
+          Export := TTExportODBC.Create(Session, DODBC.DataSource, DODBC.Username, DODBC.Password)
+        else
+          Export := TTExportODBC.Create(Session, Job.ODBC.DataSource, Job.ODBC.Username, Job.ODBC.Password);
+        TTExportBaseODBC(Export).Data := True;
+        TTExportBaseODBC(Export).Structure := True;
+      end;
+    etAccessFile:
+      begin
+        Export := TTExportAccess.Create(Session, Filename);
+        TTExportAccess(Export).Data := True;
+        TTExportAccess(Export).Structure := True;
       end;
     etExcelFile:
-      try
+      begin
         Export := TTExportExcel.Create(Session, Filename);
         TTExportExcel(Export).Data := True;
         TTExportExcel(Export).Structure := True;
         TTExportExcel(Export).Excel2007 := (odExcel2007 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
-      except
-        MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+      end;
+    etSQLiteFile:
+      begin
+        Export := TTExportSQLite.Create(Session, Filename);
+        TTExportAccess(Export).Data := True;
+        TTExportAccess(Export).Structure := True;
       end;
     etHTMLFile:
-      try
+      begin
         Export := TTExportHTML.Create(Session, Filename, CodePage);
         TTExportHTML(Export).Data := FHTMLData.Checked;
         TTExportHTML(Export).TextContent := FHTMLMemoContent.Checked;
         TTExportHTML(Export).NULLText := FHTMLNullText.Checked;
         TTExportHTML(Export).RowBackground := FHTMLRowBGColor.Checked;
         TTExportHTML(Export).Structure := FHTMLStructure.Checked;
-      except
-        MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
       end;
     etXMLFile:
-      try
+      begin
         Export := TTExportXML.Create(Session, Filename, CodePage);
         TTExportXML(Export).Data := True;
         if (FDatabaseNodeName.Checked) then
@@ -2029,12 +2009,10 @@ begin
           TTExportXML(Export).FieldNodeText := FFieldNodeText.Text;
           TTExportXML(Export).FieldNodeAttribute := FFieldNodeAttribute.Text;
         end;
-      except
-        MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
       end;
     etPrinter,
     etPDFFile:
-      try
+      begin
         if (ExportType = etPrinter) then
           Export := TTExportPrint.Create(Session, Filename, Title)
         else
@@ -2042,8 +2020,6 @@ begin
         TTExportCanvas(Export).Data := FHTMLData.Checked;
         TTExportCanvas(Export).NULLText := FHTMLNullText.Checked;
         TTExportCanvas(Export).Structure := FHTMLStructure.Checked;
-      except
-        MsgBox(Preferences.LoadStr(522, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
       end;
   end;
 
@@ -2127,31 +2103,6 @@ begin
   PSQLWait.Visible := not PageControl.Visible;
 
   FJobOptionChange(Sender);
-end;
-
-procedure TDExport.TSODBCSelectShow(Sender: TObject);
-var
-  DataSource: array [0 .. SQL_MAX_DSN_LENGTH] of SQLTCHAR;
-  Item: TListItem;
-begin
-  if (ODBC = SQL_NULL_HANDLE) then
-  begin
-    if (SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @ODBC))
-      and SQL_SUCCEEDED(SQLDataSources(ODBCEnv, SQL_FETCH_FIRST, @DataSource, Length(DataSource), nil, nil, 0, nil))) then
-      repeat
-        Item := FODBCSelect.Items.Add();
-        Item.Caption := DataSource;
-        Item.ImageIndex := iiDatabase;
-      until (not SQL_SUCCEEDED(SQLDataSources(ODBCEnv, SQL_FETCH_NEXT, @DataSource, Length(DataSource), nil, nil, 0, nil)));
-  end;
-
-  FBForward.Default := True;
-
-  FBCancel.Caption := Preferences.LoadStr(30);
-  FBCancel.ModalResult := mrCancel;
-  FBCancel.Default := False;
-
-  CheckActivePageChange(TSODBCSelect.PageIndex);
 end;
 
 procedure TDExport.TSOptionsHide(Sender: TObject);

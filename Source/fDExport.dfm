@@ -40,7 +40,7 @@ object DExport: TDExport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSCSVOptions
+    ActivePage = TSFields
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     Style = tsFlatButtons
@@ -50,10 +50,6 @@ object DExport: TDExport
       Caption = 'TSSelect'
       TabVisible = False
       OnShow = TSSelectShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GSelect: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -100,10 +96,6 @@ object DExport: TDExport
       Caption = 'TSJob'
       TabVisible = False
       OnShow = TSJobShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -139,14 +131,13 @@ object DExport: TDExport
           Caption = 'FLFilename'
           FocusControl = FFilename
         end
-        object FFilename: TEdit
-          Left = 128
-          Top = 233
-          Width = 166
-          Height = 21
-          TabOrder = 10
-          Text = 'FFilename'
-          OnChange = FFilenameChange
+        object FLDataSource: TLabel
+          Left = 8
+          Top = 234
+          Width = 69
+          Height = 13
+          Caption = 'FLDataSource'
+          FocusControl = FDataSource
         end
         object FName: TEdit
           Left = 128
@@ -247,6 +238,15 @@ object DExport: TDExport
           TabStop = True
           OnClick = FExportTypeChange
         end
+        object FFilename: TEdit
+          Left = 128
+          Top = 233
+          Width = 166
+          Height = 21
+          TabOrder = 10
+          Text = 'FFilename'
+          OnChange = FFilenameChange
+        end
         object FBFilename: TButton
           Left = 294
           Top = 233
@@ -256,54 +256,24 @@ object DExport: TDExport
           TabOrder = 11
           OnClick = FBFilenameClick
         end
-      end
-    end
-    object TSODBCSelect: TTabSheet
-      Caption = 'TSODBCSelect'
-      TabVisible = False
-      OnShow = TSODBCSelectShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
-      DesignSize = (
-        333
-        271)
-      object GODBCSelect: TGroupBox_Ext
-        Left = 4
-        Top = 0
-        Width = 325
-        Height = 265
-        Anchors = [akLeft, akTop, akRight, akBottom]
-        Caption = 'GODBCSelect'
-        TabOrder = 0
-        DesignSize = (
-          325
-          265)
-        object PODBCSelect: TPanel_Ext
-          Left = 8
-          Top = 16
-          Width = 310
-          Height = 241
-          Anchors = [akLeft, akTop, akRight, akBottom]
-          BevelInner = bvRaised
-          BevelOuter = bvLowered
-          ParentBackground = False
-          TabOrder = 0
-          object FODBCSelect: TListView_Ext
-            Left = 2
-            Top = 2
-            Width = 306
-            Height = 237
-            Align = alClient
-            BorderStyle = bsNone
-            Columns = <>
-            HideSelection = False
-            TabOrder = 0
-            ViewStyle = vsList
-            OnChange = FODBCSelectChange
-            OnDblClick = FODBCSelectDblClick
-          end
+        object FDataSource: TEdit
+          Left = 128
+          Top = 233
+          Width = 166
+          Height = 21
+          ReadOnly = True
+          TabOrder = 12
+          Text = 'FDataSource'
+          OnClick = FBDataSourceClick
+        end
+        object FBDataSource: TButton
+          Left = 294
+          Top = 233
+          Width = 21
+          Height = 21
+          Caption = #183#183#183
+          TabOrder = 13
+          OnClick = FBDataSourceClick
         end
       end
     end
@@ -312,10 +282,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSSQLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -443,10 +409,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSCSVOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -588,10 +550,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSXMLOptionsHide
       OnShow = TSXMLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -907,10 +865,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSHTMLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -1011,10 +965,6 @@ object DExport: TDExport
       Caption = 'TSFields'
       TabVisible = False
       OnShow = TSFieldsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -1101,10 +1051,6 @@ object DExport: TDExport
       ImageIndex = 9
       TabVisible = False
       OnShow = TSTaskShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -1204,10 +1150,6 @@ object DExport: TDExport
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)

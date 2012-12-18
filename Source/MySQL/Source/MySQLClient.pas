@@ -1119,13 +1119,11 @@ begin
             else
             begin
               Res := recv(Socket, PAnsiChar(@AnsiChar(Buffer))[BytesRead], BytesToRead - BytesRead, 0);
-              if ((Res = SOCKET_ERROR) and (WSAGetLastError() = WSAECONNABORTED) or (Res = 0)) then
+              if ((Res = SOCKET_ERROR)  or (Res = 0)) then
               begin // Connection lost
                 Seterror(CR_SERVER_LOST);
                 Result := False;
               end
-              else if (Res = SOCKET_ERROR) then
-                raise Exception.CreateFmt('recv error (#%d)', [WSAGetLastError()])
               else
                 Inc(BytesRead, Res);
             end;

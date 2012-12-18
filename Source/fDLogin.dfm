@@ -13,7 +13,6 @@ object DLogin: TDLogin
   Font.Style = []
   OldCreateOrder = False
   Position = poOwnerFormCenter
-  OnCreate = FormCreate
   OnHide = FormHide
   OnShow = FormShow
   PixelsPerInch = 106

@@ -559,13 +559,14 @@ var
   CanClose: Boolean;
   I: Integer;
 begin
-  CanClose := True;
-  for I := FSessions.Count - 1 downto 0 do
-  begin
-    CanClose := CanClose and (SendMessage(TFSession(FSessions[I]).Handle, CM_CLOSE_TAB_QUERY, 0, 0) = 1);
-    if (CanClose) then
-      Perform(CM_CLOSE_TAB, 0, LPARAM(TFSession(FSessions[I])));
-  end;
+  CanClose := Assigned(FSessions); // Prevent a new call, while closing
+  if (CanClose) then
+    for I := FSessions.Count - 1 downto 0 do
+    begin
+      CanClose := CanClose and (SendMessage(TFSession(FSessions[I]).Handle, CM_CLOSE_TAB_QUERY, 0, 0) = 1);
+      if (CanClose) then
+        Perform(CM_CLOSE_TAB, 0, LPARAM(TFSession(FSessions[I])));
+    end;
 end;
 
 procedure TWWindow.aFCloseExecute(Sender: TObject);

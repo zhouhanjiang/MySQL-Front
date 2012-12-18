@@ -10,6 +10,7 @@ uses
 
 const
   iiLocalhost = 13;
+  iiODBC = 16;
   iiServer = 23;
   iiDatabase = 24;
   iiSystemDatabase = 90;

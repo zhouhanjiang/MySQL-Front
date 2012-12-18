@@ -197,6 +197,7 @@ type
     Structure: Boolean;
     procedure Add(const TableName: string; const SourceTableName: string = '');
     constructor Create(const ASession: TSSession; const ADatabase: TSDatabase);
+    destructor Destroy(); override;
     procedure Execute(); override;
   end;
 
@@ -268,11 +269,12 @@ type
     destructor Destroy(); override;
     function GetPreviewValues(var Values: TSQLStrings): Boolean; virtual;
     procedure Open(); override;
+    procedure Reset();
     property HeadlineNameCount: Integer read GetHeadlineNameCount;
     property HeadlineNames[Index: Integer]: string read GetHeadlineName;
   end;
 
-  TTImportODBC = class(TTImport)
+  TTImportBaseODBC = class(TTImport)
   private
     ColumnDesc: array of record
       ColumnName: PSQLTCHAR;
@@ -282,26 +284,57 @@ type
       Nullable: SQLSMALLINT;
       SQL_C_TYPE: SQLSMALLINT;
     end;
-    FHandle: SQLHANDLE;
     ODBCData: SQLPOINTER;
     ODBCMem: Pointer;
     ODBCMemSize: Integer;
     Stmt: SQLHANDLE;
   protected
+    FHandle: SQLHDBC;
     procedure AfterExecuteData(const Item: TTImport.TItem); override;
     procedure BeforeExecute(); override;
     procedure BeforeExecuteData(const Item: TTImport.TItem); override;
     function GetValues(const Item: TTImport.TItem; const DataFileBuffer: TTool.TDataFileBuffer): Boolean; override;
     function GetValues(const Item: TTImport.TItem; var Values: TSQLStrings): Boolean; overload; override;
     procedure ExecuteStructure(const Item: TTImport.TItem); override;
-    function ODBCStmtException(const Handle: SQLHSTMT): Exception;
+    function ODBCStmtException(const AStmt: SQLHSTMT): Exception;
+    property Handle: SQLHDBC read FHandle;
   public
-    constructor Create(const AHandle: SQLHANDLE; const ADatabase: TSDatabase);
+    procedure Close(); override;
+    constructor Create(const ASession: TSSession; const ADatabase: TSDatabase);
     destructor Destroy(); override;
+    function GetFieldNames(const TableName: string; const FieldNames: TStrings): Boolean; virtual;
+    function GetTableNames(const TableNames: TStrings): Boolean; virtual;
+  end;
+
+  TTImportODBC = class(TTImportBaseODBC)
+  private
+    FDataSource: string;
+    FPassword: string;
+    FUsername: string;
+  public
+    constructor Create(const ASession: TSSession; const ADatabase: TSDatabase; const ADataSource, AUsername, APassword: string);
+    procedure Open(); override;
+  end;
+
+  TTImportAccess = class(TTImportBaseODBC)
+  private
+    FFilename: string;
+  public
+    constructor Create(const ASession: TSSession; const ADatabase: TSDatabase; const AFilename: string);
+    procedure Open(); override;
+  end;
+
+  TTImportExcel = class(TTImportBaseODBC)
+  private
+    FFilename: string;
+  public
+    constructor Create(const ASession: TSSession; const ADatabase: TSDatabase; const AFilename: string);
+    procedure Open(); override;
   end;
 
   TTImportSQLite = class(TTImport)
   private
+    FFilename: string;
     Handle: sqlite3_ptr;
     Stmt: sqlite3_stmt_ptr;
   protected
@@ -309,10 +342,14 @@ type
     procedure BeforeExecute(); override;
     procedure BeforeExecuteData(const Item: TTImport.TItem); override;
     procedure ExecuteStructure(const Item: TTImport.TItem); override;
+    procedure Close(); override;
     function GetValues(const Item: TTImport.TItem; const DataFileBuffer: TTool.TDataFileBuffer): Boolean; override;
     function GetValues(const Item: TTImport.TItem; var Values: TSQLStrings): Boolean; overload; override;
+    procedure Open(); override;
   public
-    constructor Create(const AHandle: sqlite3_ptr; const ADatabase: TSDatabase);
+    constructor Create(const ASession: TSSession; const ADatabase: TSDatabase; const AFilename: string);
+    function GetFieldNames(const TableName: string; const FieldNames: TStrings): Boolean; virtual;
+    function GetTableNames(const TableNames: TStrings): Boolean; virtual;
   end;
 
   TTImportXML = class(TTImport)
@@ -494,10 +531,8 @@ type
     constructor Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
   end;
 
-  TTExportODBC = class(TTExport)
+  TTExportBaseODBC = class(TTExport)
   private
-    FHandle: SQLHDBC;
-    FODBC: SQLHENV;
     FStmt: SQLHSTMT;
     Parameter: array of record
       Buffer: SQLPOINTER;
@@ -505,20 +540,31 @@ type
       Size: SQLINTEGER;
     end;
   protected
+    FHandle: SQLHDBC;
     TableName: string;
-    procedure ExecuteHeader(); override;
+    constructor Create(const ASession: TSSession; const AHandle: SQLHDBC = SQL_NULL_HANDLE); overload;
     procedure ExecuteFooter(); override;
     procedure ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
-    property Handle: SQLHDBC read FHandle;
-    property ODBC: SQLHENV read FODBC;
     property Stmt: SQLHSTMT read FStmt;
   public
-    constructor Create(const ASession: TSSession; const AODBC: SQLHDBC = SQL_NULL_HANDLE; const AHandle: SQLHDBC = SQL_NULL_HANDLE);
+    property Handle: SQLHDBC read FHandle;
   end;
 
-  TTExportAccess = class(TTExportODBC)
+  TTExportODBC = class(TTExportBaseODBC)
+  private
+    FDataSource: string;
+    FPassword: string;
+    FUsername: string;
+  protected
+    procedure ExecuteFooter(); override;
+    procedure ExecuteHeader(); override;
+  public
+    constructor Create(const ASession: TSSession; const ADataSource, AUsername, APassword: string); overload;
+  end;
+
+  TTExportAccess = class(TTExportBaseODBC)
   private
     Filename: TFileName;
   protected
@@ -528,7 +574,7 @@ type
     constructor Create(const ASession: TSSession; const AFilename: TFileName);
   end;
 
-  TTExportExcel = class(TTExportODBC)
+  TTExportExcel = class(TTExportBaseODBC)
   private
     Filename: TFileName;
     Sheet: Integer;
@@ -827,7 +873,7 @@ begin
   Result := S;
 end;
 
-function ODBCError(const HandleType: SQLSMALLINT; const Handle: SQLHSTMT): TTool.TError;
+function ODBCError(const HandleType: SQLSMALLINT; const Handle: SQLHANDLE): TTool.TError;
 var
   cbMessageText: SQLSMALLINT;
   MessageText: PSQLTCHAR;
@@ -877,6 +923,13 @@ begin
     AState^ := SQLState;
 
   Result := ReturnCode;
+end;
+
+function SQLiteError(const Handle: sqlite3_ptr): TTool.TError;
+begin
+  Result.ErrorType := TE_SQLite;
+  Result.ErrorCode := sqlite3_errcode(Handle);
+  Result.ErrorMessage := UTF8ToString(sqlite3_errmsg(Handle));
 end;
 
 function SQLiteException(const Handle: sqlite3_ptr; const ReturnCode: Integer; const AState: PString = nil): SQLRETURN;
@@ -1599,8 +1652,6 @@ end;
 
 procedure TTImport.AfterExecute();
 begin
-  Close();
-
   Session.EndSilent();
   Session.EndSynchron();
 
@@ -1645,6 +1696,13 @@ begin
 
   Data := False;
   Structure := False;
+end;
+
+destructor TTImport.Destroy();
+begin
+  Close();
+
+  inherited;
 end;
 
 function TTImport.DoExecuteSQL(const Item: TItem; var SQL: string): Boolean;
@@ -2403,8 +2461,6 @@ begin
         DoError(DatabaseError(Session), Items[0], True, SQL);
     end;
 
-  Close();
-
   if (not Assigned(Text)) then
     AfterExecute();
 
@@ -2716,7 +2772,12 @@ begin
   Success := OldSuccess; ReadContent(FirstRecordFilePos);
 end;
 
-{ TTImportODBC ****************************************************************}
+procedure TTImportText.Reset();
+begin
+  Close();
+end;
+
+{ TTImportBaseODBC ************************************************************}
 
 function SQLDataTypeToMySQLType(const SQLType: SQLSMALLINT; const Size: Integer; const FieldName: string): TMySQLFieldType;
 begin
@@ -2749,7 +2810,7 @@ begin
   end;
 end;
 
-procedure TTImportODBC.AfterExecuteData(const Item: TTImport.TItem);
+procedure TTImportBaseODBC.AfterExecuteData(const Item: TTImport.TItem);
 var
   I: Integer;
 begin
@@ -2765,7 +2826,7 @@ begin
     SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
 end;
 
-procedure TTImportODBC.BeforeExecute();
+procedure TTImportBaseODBC.BeforeExecute();
 var
   cbRecordsSum: SQLINTEGER;
   Handle: SQLHSTMT;
@@ -2793,7 +2854,7 @@ begin
     end;
 end;
 
-procedure TTImportODBC.BeforeExecuteData(const Item: TTImport.TItem);
+procedure TTImportBaseODBC.BeforeExecuteData(const Item: TTImport.TItem);
 var
   cbColumnName: SQLSMALLINT;
   ColumnNums: SQLSMALLINT;
@@ -2870,233 +2931,31 @@ begin
   end;
 end;
 
-constructor TTImportODBC.Create(const AHandle: SQLHANDLE; const ADatabase: TSDatabase);
+procedure TTImportBaseODBC.Close();
 begin
-  inherited Create(ADatabase.Session, ADatabase);
+  if (FHandle <> SQL_NULL_HANDLE) then
+  begin
+    SQLDisconnect(FHandle);
+    SQLFreeHandle(SQL_HANDLE_DBC, FHandle); FHandle := SQL_NULL_HANDLE;
+  end;
+end;
 
-  FHandle := AHandle;
+constructor TTImportBaseODBC.Create(const ASession: TSSession; const ADatabase: TSDatabase);
+begin
+  inherited Create(ASession, ADatabase);
 
   ODBCMemSize := 256;
   GetMem(ODBCMem, ODBCMemSize);
 end;
 
-destructor TTImportODBC.Destroy();
+destructor TTImportBaseODBC.Destroy();
 begin
   FreeMem(ODBCMem);
 
   inherited;
 end;
 
-function TTImportODBC.GetValues(const Item: TTImport.TItem; const DataFileBuffer: TTool.TDataFileBuffer): Boolean;
-var
-  cbData: SQLINTEGER;
-  I: Integer;
-  ReturnCode: SQLRETURN;
-  Size: Integer;
-begin
-  Result := SQL_SUCCEEDED(ODBCException(Stmt, SQLFetch(Stmt)));
-
-  if (Result) then
-  begin
-    for I := 0 to Length(Fields) - 1 do
-    begin
-      if (I > 0) then
-        DataFileBuffer.Write(PAnsiChar(',_'), 1); // Two characters are needed to instruct the compiler to give a pointer - but the first character should be placed in the file only
-
-      case (ColumnDesc[I].SQLDataType) of
-        SQL_BIT,
-        SQL_TINYINT,
-        SQL_SMALLINT,
-        SQL_INTEGER,
-        SQL_BIGINT,
-        SQL_DECIMAL,
-        SQL_NUMERIC,
-        SQL_REAL,
-        SQL_FLOAT,
-        SQL_DOUBLE,
-        SQL_TYPE_DATE,
-        SQL_TYPE_TIME,
-        SQL_TYPE_TIMESTAMP:
-          if (not SQL_SUCCEEDED(SQLGetData(Stmt, I + 1, SQL_C_CHAR, ODBCData, ODBCDataSize, @cbData))) then
-          begin
-            DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
-            DataFileBuffer.Write(PAnsiChar('NULL'), 4)
-          end
-          else if (cbData = SQL_NULL_DATA) then
-            DataFileBuffer.Write(PAnsiChar('NULL'), 4)
-          else
-            DataFileBuffer.Write(PSQLACHAR(ODBCData), cbData div SizeOf(SQLACHAR), ColumnDesc[I].SQLDataType in [SQL_TYPE_DATE, SQL_TYPE_TIMESTAMP, SQL_TYPE_TIME]);
-        SQL_CHAR,
-        SQL_VARCHAR,
-        SQL_LONGVARCHAR,
-        SQL_WCHAR,
-        SQL_WVARCHAR,
-        SQL_WLONGVARCHAR:
-          begin
-            Size := 0;
-            repeat
-              ReturnCode := SQLGetData(Stmt, I + 1, SQL_C_WCHAR, ODBCData, ODBCDataSize, @cbData);
-              if ((cbData <> SQL_NULL_DATA) and (cbData > 0)) then
-              begin
-                if (ODBCMemSize < Size + cbData) then
-                begin
-                  ODBCMemSize := ODBCMemSize + 2 * (Size + cbData - ODBCMemSize);
-                  ReallocMem(ODBCMem, ODBCMemSize);
-                end;
-                MoveMemory(@PAnsiChar(ODBCMem)[Size], ODBCData, cbData);
-                Inc(Size, cbData);
-              end;
-            until (ReturnCode <> SQL_SUCCESS_WITH_INFO);
-            if (not SQL_SUCCEEDED(ReturnCode)) then
-            begin
-              DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
-              DataFileBuffer.Write(PAnsiChar('NULL'), 4);
-            end
-            else if ((Size = 0) and (cbData = SQL_NULL_DATA)) then
-              DataFileBuffer.Write(PAnsiChar('NULL'), 4)
-            else
-              DataFileBuffer.WriteText(PChar(ODBCMem), Size div SizeOf(Char));
-          end;
-        SQL_BINARY,
-        SQL_VARBINARY,
-        SQL_LONGVARBINARY:
-          begin
-            Size := 0;
-            repeat
-              ReturnCode := SQLGetData(Stmt, I + 1, SQL_C_BINARY, ODBCData, ODBCDataSize, @cbData);
-              if ((cbData <> SQL_NULL_DATA) and (cbData > 0)) then
-              begin
-                if (ODBCMemSize < Size) then
-                begin
-                  ODBCMemSize := ODBCMemSize + 2 * (Size + cbData - ODBCMemSize);
-                  ReallocMem(ODBCMem, ODBCMemSize);
-                end;
-                MoveMemory(@PAnsiChar(ODBCMem)[Size], ODBCData, cbData);
-                Inc(Size, cbData);
-              end;
-            until (ReturnCode <> SQL_SUCCESS_WITH_INFO);
-            if (not SQL_SUCCEEDED(ReturnCode)) then
-            begin
-              DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
-              DataFileBuffer.Write(PAnsiChar('NULL'), 4);
-            end
-            else if (cbData = SQL_NULL_DATA) then
-              DataFileBuffer.Write(PAnsiChar('NULL'), 4)
-            else
-              DataFileBuffer.WriteBinary(my_char(ODBCMem), Size);
-          end;
-        else
-          raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Fields[I].Name, ColumnDesc[I].SQLDataType]);
-      end;
-    end;
-  end;
-end;
-
-function TTImportODBC.GetValues(const Item: TTImport.TItem; var Values: TSQLStrings): Boolean;
-var
-  Bytes: TBytes;
-  cbData: SQLINTEGER;
-  D: Double;
-  I: Integer;
-  ReturnCode: SQLRETURN;
-  S: string;
-  Timestamp: tagTIMESTAMP_STRUCT;
-begin
-  Result := SQL_SUCCEEDED(ODBCException(Stmt, SQLFetch(Stmt)));
-  if (Result) then
-    for I := 0 to Length(Fields) - 1 do
-      case (ColumnDesc[I].SQLDataType) of
-        SQL_BIT,
-        SQL_TINYINT,
-        SQL_SMALLINT,
-        SQL_INTEGER,
-        SQL_BIGINT:
-          if (not SQL_SUCCEEDED(SQLGetData(Stmt, I + 1, SQL_C_WCHAR, ODBCData, ODBCDataSize, @cbData))) then
-            ODBCException(Stmt, SQL_ERROR)
-          else if (cbData = SQL_NULL_DATA) then
-            Values[I] := 'NULL'
-          else
-          begin
-            SetString(S, PChar(ODBCData), cbData div SizeOf(Char));
-            Values[I] := Fields[I].EscapeValue(S);
-          end;
-        SQL_DECIMAL,
-        SQL_NUMERIC,
-        SQL_REAL,
-        SQL_FLOAT,
-        SQL_DOUBLE:
-          if (not SQL_SUCCEEDED(SQLGetData(Stmt, I + 1, SQL_C_DOUBLE, @D, SizeOf(D), @cbData))) then
-            ODBCException(Stmt, SQL_ERROR)
-          else if (cbData = SQL_NULL_DATA) then
-            Values[I] := 'NULL'
-          else
-            Values[I] := Fields[I].EscapeValue(FloatToStr(D, Session.FormatSettings));
-        SQL_TYPE_DATE,
-        SQL_TYPE_TIME,
-        SQL_TYPE_TIMESTAMP:
-          if (not SQL_SUCCEEDED(SQLGetData(Stmt, I + 1, SQL_C_TYPE_TIMESTAMP, @Timestamp, SizeOf(Timestamp), @cbData))) then
-            ODBCException(Stmt, SQL_ERROR)
-          else if (cbData = SQL_NULL_DATA) then
-            Values[I] := 'NULL'
-          else
-            with (Timestamp) do
-              if (ColumnDesc[I].SQLDataType = SQL_TYPE_TIME) then
-                Values[I] := TimeToStr(EncodeTime(hour, minute, second, 0), Session.FormatSettings)
-              else if (ColumnDesc[I].SQLDataType = SQL_TYPE_TIMESTAMP) then
-                Values[I] := MySQLDB.DateTimeToStr(EncodeDate(year, month, day) + EncodeTime(hour, minute, second, 0), Session.FormatSettings)
-              else if (ColumnDesc[I].SQLDataType = SQL_TYPE_DATE) then
-                Values[I] := MySQLDB.DateToStr(EncodeDate(year, month, day) + EncodeTime(hour, minute, second, 0), Session.FormatSettings);
-        SQL_CHAR,
-        SQL_VARCHAR,
-        SQL_LONGVARCHAR,
-        SQL_WCHAR,
-        SQL_WVARCHAR,
-        SQL_WLONGVARCHAR:
-          begin
-            SetLength(S, 0);
-            repeat
-              ReturnCode := SQLGetData(Stmt, I + 1, SQL_C_WCHAR, ODBCData, ODBCDataSize, @cbData);
-              if (cbData <> SQL_NULL_DATA) then
-              begin
-                SetLength(S, Length(S) + cbData div SizeOf(SQLTCHAR));
-                if (cbData > 0) then
-                  MoveMemory(@S[1 + Length(S) - cbData div SizeOf(SQLTCHAR)], ODBCData, cbData);
-              end;
-            until (ReturnCode <> SQL_SUCCESS_WITH_INFO);
-            if (not SQL_SUCCEEDED(ReturnCode)) then
-              ODBCException(Stmt, ReturnCode)
-            else if (cbData = SQL_NULL_DATA) then
-              Values[I] := 'NULL'
-            else
-              Values[I] := S;
-          end;
-        SQL_BINARY,
-        SQL_VARBINARY,
-        SQL_LONGVARBINARY:
-          begin
-            SetLength(Bytes, 0);
-            repeat
-              ReturnCode := SQLGetData(Stmt, I + 1, SQL_C_BINARY, ODBCData, ODBCDataSize, @cbData);
-              if (cbData <> SQL_NULL_DATA) then
-              begin
-                SetLength(Bytes, Length(Bytes) + cbData);
-                if (cbData > 0) then
-                  MoveMemory(@Bytes[Length(Bytes) - cbData], ODBCData, cbData);
-              end;
-            until (ReturnCode <> SQL_SUCCESS_WITH_INFO);
-            if (not SQL_SUCCEEDED(ReturnCode)) then
-              ODBCException(Stmt, ReturnCode)
-            else if (cbData = SQL_NULL_DATA) then
-              Values[I] := 'NULL'
-            else
-              SetString(Values[I], PChar(@Bytes[0]), Length(Bytes));
-          end;
-        else
-          raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Fields[I].Name, Ord(Fields[I].FieldType)]);
-      end;
-end;
-
-procedure TTImportODBC.ExecuteStructure(const Item: TTImport.TItem);
+procedure TTImportBaseODBC.ExecuteStructure(const Item: TTImport.TItem);
 var
   AscOrDesc: array [0 .. 2 - 1] of SQLTCHAR;
   AutoUniqueValue: SQLINTEGER;
@@ -3362,18 +3221,418 @@ begin
   end;
 end;
 
-function TTImportODBC.ODBCStmtException(const Handle: SQLHANDLE): Exception;
+function TTImportBaseODBC.GetFieldNames(const TableName: string; const FieldNames: TStrings): Boolean;
+var
+  cbCOLUMN_NAME: SQLINTEGER;
+  COLUMN_NAME: array [0 .. STR_LEN] of SQLWCHAR;
+  Stmt: SQLHSTMT;
+  FieldName: string;
+begin
+  Success := daSuccess;
+
+  Open();
+
+  Result := False;
+  if (Success <> daSuccess) then
+    if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, FHandle, @Stmt))) then
+      DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, True)
+    else if (not SQL_SUCCEEDED(SQLColumns(Handle, nil, 0, nil, 0, PSQLTCHAR(PChar(TableName)), SQL_NTS, nil, 0))) then
+      DoError(ODBCError(SQL_HANDLE_STMT, Stmt), nil, True)
+    else
+    begin
+      ODBCException(Handle, SQLBindCol(Handle, 4, SQL_C_WCHAR, @COLUMN_NAME, SizeOf(COLUMN_NAME), @cbCOLUMN_NAME));
+      while (SQL_SUCCEEDED(ODBCException(Handle, SQLFetch(Handle)))) do
+      begin
+        SetString(FieldName, PChar(@COLUMN_NAME), cbCOLUMN_NAME);
+        FieldNames.Add(FieldName);
+      end;
+
+      SQLFreeHandle(SQL_HANDLE_STMT, Handle);
+
+      Result := True;
+    end;
+end;
+
+function TTImportBaseODBC.GetTableNames(const TableNames: TStrings): Boolean;
+const
+  TABLE_TYPE_LEN = 30;
+var
+  cbTABLE_NAME: SQLINTEGER;
+  cbTABLE_TYPE: SQLINTEGER;
+  Stmt: SQLHSTMT;
+  TableName: string;
+  TABLE_NAME: PSQLTCHAR;
+  TABLE_NAME_LEN: SQLINTEGER;
+  TABLE_TYPE: PSQLTCHAR;
+begin
+  Success := daSuccess;
+
+  Open();
+
+  Result := False;
+  if (Success = daSuccess) then
+    if (not SQL_SUCCEEDED(SQLGetInfo(Handle, SQL_MAX_TABLE_NAME_LEN, @TABLE_NAME_LEN, SizeOf(TABLE_NAME_LEN), nil))) then
+      DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False)
+    else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, FHandle, @Stmt))) then
+      raise ERangeError.Create(SRangeError)
+    else
+    begin
+      GetMem(TABLE_NAME, (TABLE_NAME_LEN + 1) * SizeOf(SQLWCHAR));
+      GetMem(TABLE_TYPE, (TABLE_TYPE_LEN + 1) * SizeOf(SQLWCHAR));
+
+      if (not SQL_SUCCEEDED(SQLTables(Stmt, nil, 0, nil, 0, nil, 0, nil, 0))
+        or not SQL_SUCCEEDED(SQLBindCol(Stmt, 3, SQL_C_WCHAR, TABLE_NAME, (TABLE_NAME_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_NAME))
+        or not SQL_SUCCEEDED(SQLBindCol(Stmt, 4, SQL_C_WCHAR, TABLE_TYPE, (TABLE_TYPE_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_TYPE))) then
+        DoError(ODBCError(SQL_HANDLE_STMT, Stmt), nil, False)
+      else
+      begin
+        while (SQL_SUCCEEDED(ODBCException(Stmt, SQLFetch(Stmt)))) do
+          if ((lstrcmpi(PChar(TABLE_TYPE), 'TABLE') = 0) or (Self is TTImportExcel) and ((lstrcmpi(PChar(TABLE_TYPE), 'TABLE') = 0) or (lstrcmpi(PChar(TABLE_TYPE), 'SYSTEM TABLE') = 0)))  then
+          begin
+            SetString(TableName, PChar(TABLE_NAME), cbTABLE_NAME div SizeOf(SQLTCHAR));
+            TableNames.Add(TableName);
+          end;
+        SQLFreeStmt(Stmt, SQL_CLOSE);
+
+        if ((Self is TTImportExcel) and (TableNames.Count = 0)) then
+          if (not SQL_SUCCEEDED(SQLTables(Stmt, nil, 0, nil, 0, nil, 0, nil, 0))
+            or not SQL_SUCCEEDED(SQLBindCol(Stmt, 3, SQL_C_WCHAR, TABLE_NAME, (TABLE_NAME_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_NAME))
+            or not SQL_SUCCEEDED(SQLBindCol(Stmt, 4, SQL_C_WCHAR, TABLE_TYPE, (TABLE_TYPE_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_TYPE))) then
+            raise ERangeError.Create(SRangeError)
+          else
+          begin
+            while (SQL_SUCCEEDED(ODBCException(Stmt, SQLFetch(Stmt)))) do
+              if (lstrcmpi(PChar(TABLE_TYPE), 'TABLE') = 0)  then
+              begin
+                SetString(TableName, PChar(TABLE_NAME), cbTABLE_NAME div SizeOf(SQLTCHAR));
+                TableNames.Add(TableName);
+              end;
+            SQLFreeStmt(Stmt, SQL_CLOSE);
+          end;
+
+        Result := True;
+      end;
+
+      FreeMem(TABLE_NAME);
+      FreeMem(TABLE_TYPE);
+      SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
+    end;
+end;
+
+function TTImportBaseODBC.GetValues(const Item: TTImport.TItem; const DataFileBuffer: TTool.TDataFileBuffer): Boolean;
+var
+  cbData: SQLINTEGER;
+  I: Integer;
+  ReturnCode: SQLRETURN;
+  Size: Integer;
+begin
+  Result := SQL_SUCCEEDED(ODBCException(Stmt, SQLFetch(Stmt)));
+
+  if (Result) then
+  begin
+    for I := 0 to Length(Fields) - 1 do
+    begin
+      if (I > 0) then
+        DataFileBuffer.Write(PAnsiChar(',_'), 1); // Two characters are needed to instruct the compiler to give a pointer - but the first character should be placed in the file only
+
+      case (ColumnDesc[I].SQLDataType) of
+        SQL_BIT,
+        SQL_TINYINT,
+        SQL_SMALLINT,
+        SQL_INTEGER,
+        SQL_BIGINT,
+        SQL_DECIMAL,
+        SQL_NUMERIC,
+        SQL_REAL,
+        SQL_FLOAT,
+        SQL_DOUBLE,
+        SQL_TYPE_DATE,
+        SQL_TYPE_TIME,
+        SQL_TYPE_TIMESTAMP:
+          if (not SQL_SUCCEEDED(SQLGetData(Stmt, I + 1, SQL_C_CHAR, ODBCData, ODBCDataSize, @cbData))) then
+          begin
+            DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
+            DataFileBuffer.Write(PAnsiChar('NULL'), 4)
+          end
+          else if (cbData = SQL_NULL_DATA) then
+            DataFileBuffer.Write(PAnsiChar('NULL'), 4)
+          else
+            DataFileBuffer.Write(PSQLACHAR(ODBCData), cbData div SizeOf(SQLACHAR), ColumnDesc[I].SQLDataType in [SQL_TYPE_DATE, SQL_TYPE_TIMESTAMP, SQL_TYPE_TIME]);
+        SQL_CHAR,
+        SQL_VARCHAR,
+        SQL_LONGVARCHAR,
+        SQL_WCHAR,
+        SQL_WVARCHAR,
+        SQL_WLONGVARCHAR:
+          begin
+            Size := 0;
+            repeat
+              ReturnCode := SQLGetData(Stmt, I + 1, SQL_C_WCHAR, ODBCData, ODBCDataSize, @cbData);
+              if ((cbData <> SQL_NULL_DATA) and (cbData > 0)) then
+              begin
+                if (ODBCMemSize < Size + cbData) then
+                begin
+                  ODBCMemSize := ODBCMemSize + 2 * (Size + cbData - ODBCMemSize);
+                  ReallocMem(ODBCMem, ODBCMemSize);
+                end;
+                MoveMemory(@PAnsiChar(ODBCMem)[Size], ODBCData, cbData);
+                Inc(Size, cbData);
+              end;
+            until (ReturnCode <> SQL_SUCCESS_WITH_INFO);
+            if (not SQL_SUCCEEDED(ReturnCode)) then
+            begin
+              DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
+              DataFileBuffer.Write(PAnsiChar('NULL'), 4);
+            end
+            else if ((Size = 0) and (cbData = SQL_NULL_DATA)) then
+              DataFileBuffer.Write(PAnsiChar('NULL'), 4)
+            else
+              DataFileBuffer.WriteText(PChar(ODBCMem), Size div SizeOf(Char));
+          end;
+        SQL_BINARY,
+        SQL_VARBINARY,
+        SQL_LONGVARBINARY:
+          begin
+            Size := 0;
+            repeat
+              ReturnCode := SQLGetData(Stmt, I + 1, SQL_C_BINARY, ODBCData, ODBCDataSize, @cbData);
+              if ((cbData <> SQL_NULL_DATA) and (cbData > 0)) then
+              begin
+                if (ODBCMemSize < Size) then
+                begin
+                  ODBCMemSize := ODBCMemSize + 2 * (Size + cbData - ODBCMemSize);
+                  ReallocMem(ODBCMem, ODBCMemSize);
+                end;
+                MoveMemory(@PAnsiChar(ODBCMem)[Size], ODBCData, cbData);
+                Inc(Size, cbData);
+              end;
+            until (ReturnCode <> SQL_SUCCESS_WITH_INFO);
+            if (not SQL_SUCCEEDED(ReturnCode)) then
+            begin
+              DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
+              DataFileBuffer.Write(PAnsiChar('NULL'), 4);
+            end
+            else if (cbData = SQL_NULL_DATA) then
+              DataFileBuffer.Write(PAnsiChar('NULL'), 4)
+            else
+              DataFileBuffer.WriteBinary(my_char(ODBCMem), Size);
+          end;
+        else
+          raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Fields[I].Name, ColumnDesc[I].SQLDataType]);
+      end;
+    end;
+  end;
+end;
+
+function TTImportBaseODBC.GetValues(const Item: TTImport.TItem; var Values: TSQLStrings): Boolean;
+var
+  Bytes: TBytes;
+  cbData: SQLINTEGER;
+  D: Double;
+  I: Integer;
+  ReturnCode: SQLRETURN;
+  S: string;
+  Timestamp: tagTIMESTAMP_STRUCT;
+begin
+  Result := SQL_SUCCEEDED(ODBCException(Stmt, SQLFetch(Stmt)));
+  if (Result) then
+    for I := 0 to Length(Fields) - 1 do
+      case (ColumnDesc[I].SQLDataType) of
+        SQL_BIT,
+        SQL_TINYINT,
+        SQL_SMALLINT,
+        SQL_INTEGER,
+        SQL_BIGINT:
+          if (not SQL_SUCCEEDED(SQLGetData(Stmt, I + 1, SQL_C_WCHAR, ODBCData, ODBCDataSize, @cbData))) then
+            ODBCException(Stmt, SQL_ERROR)
+          else if (cbData = SQL_NULL_DATA) then
+            Values[I] := 'NULL'
+          else
+          begin
+            SetString(S, PChar(ODBCData), cbData div SizeOf(Char));
+            Values[I] := Fields[I].EscapeValue(S);
+          end;
+        SQL_DECIMAL,
+        SQL_NUMERIC,
+        SQL_REAL,
+        SQL_FLOAT,
+        SQL_DOUBLE:
+          if (not SQL_SUCCEEDED(SQLGetData(Stmt, I + 1, SQL_C_DOUBLE, @D, SizeOf(D), @cbData))) then
+            ODBCException(Stmt, SQL_ERROR)
+          else if (cbData = SQL_NULL_DATA) then
+            Values[I] := 'NULL'
+          else
+            Values[I] := Fields[I].EscapeValue(FloatToStr(D, Session.FormatSettings));
+        SQL_TYPE_DATE,
+        SQL_TYPE_TIME,
+        SQL_TYPE_TIMESTAMP:
+          if (not SQL_SUCCEEDED(SQLGetData(Stmt, I + 1, SQL_C_TYPE_TIMESTAMP, @Timestamp, SizeOf(Timestamp), @cbData))) then
+            ODBCException(Stmt, SQL_ERROR)
+          else if (cbData = SQL_NULL_DATA) then
+            Values[I] := 'NULL'
+          else
+            with (Timestamp) do
+              if (ColumnDesc[I].SQLDataType = SQL_TYPE_TIME) then
+                Values[I] := TimeToStr(EncodeTime(hour, minute, second, 0), Session.FormatSettings)
+              else if (ColumnDesc[I].SQLDataType = SQL_TYPE_TIMESTAMP) then
+                Values[I] := MySQLDB.DateTimeToStr(EncodeDate(year, month, day) + EncodeTime(hour, minute, second, 0), Session.FormatSettings)
+              else if (ColumnDesc[I].SQLDataType = SQL_TYPE_DATE) then
+                Values[I] := MySQLDB.DateToStr(EncodeDate(year, month, day) + EncodeTime(hour, minute, second, 0), Session.FormatSettings);
+        SQL_CHAR,
+        SQL_VARCHAR,
+        SQL_LONGVARCHAR,
+        SQL_WCHAR,
+        SQL_WVARCHAR,
+        SQL_WLONGVARCHAR:
+          begin
+            SetLength(S, 0);
+            repeat
+              ReturnCode := SQLGetData(Stmt, I + 1, SQL_C_WCHAR, ODBCData, ODBCDataSize, @cbData);
+              if (cbData <> SQL_NULL_DATA) then
+              begin
+                SetLength(S, Length(S) + cbData div SizeOf(SQLTCHAR));
+                if (cbData > 0) then
+                  MoveMemory(@S[1 + Length(S) - cbData div SizeOf(SQLTCHAR)], ODBCData, cbData);
+              end;
+            until (ReturnCode <> SQL_SUCCESS_WITH_INFO);
+            if (not SQL_SUCCEEDED(ReturnCode)) then
+              ODBCException(Stmt, ReturnCode)
+            else if (cbData = SQL_NULL_DATA) then
+              Values[I] := 'NULL'
+            else
+              Values[I] := S;
+          end;
+        SQL_BINARY,
+        SQL_VARBINARY,
+        SQL_LONGVARBINARY:
+          begin
+            SetLength(Bytes, 0);
+            repeat
+              ReturnCode := SQLGetData(Stmt, I + 1, SQL_C_BINARY, ODBCData, ODBCDataSize, @cbData);
+              if (cbData <> SQL_NULL_DATA) then
+              begin
+                SetLength(Bytes, Length(Bytes) + cbData);
+                if (cbData > 0) then
+                  MoveMemory(@Bytes[Length(Bytes) - cbData], ODBCData, cbData);
+              end;
+            until (ReturnCode <> SQL_SUCCESS_WITH_INFO);
+            if (not SQL_SUCCEEDED(ReturnCode)) then
+              ODBCException(Stmt, ReturnCode)
+            else if (cbData = SQL_NULL_DATA) then
+              Values[I] := 'NULL'
+            else
+              SetString(Values[I], PChar(@Bytes[0]), Length(Bytes));
+          end;
+        else
+          raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Fields[I].Name, Ord(Fields[I].FieldType)]);
+      end;
+end;
+
+function TTImportBaseODBC.ODBCStmtException(const AStmt: SQLHSTMT): Exception;
 var
   MessageText: array [0 .. STR_LEN] of SQLTCHAR;
   NativeErrorPtr: SQLSMALLINT;
   SQLState: array [0 .. SQL_SQLSTATE_SIZE] of SQLTCHAR;
   TextLengthPtr: SQLSMALLINT;
 begin
-  SQLGetDiagRec(SQL_HANDLE_STMT, Handle, 1, @SQLState, @NativeErrorPtr, @MessageText, Length(MessageText), @TextLengthPtr);
+  SQLGetDiagRec(SQL_HANDLE_STMT, AStmt, 1, @SQLState, @NativeErrorPtr, @MessageText, Length(MessageText), @TextLengthPtr);
   Result := Exception.Create(string(MessageText) + ' (' + SQLState + ')');
 end;
 
-{ TTImportSQLite *****************************************************************}
+{ TTImportODBC ****************************************************************}
+
+constructor TTImportODBC.Create(const ASession: TSSession; const ADatabase: TSDatabase; const ADataSource, AUsername, APassword: string);
+begin
+  inherited Create(ASession, ADatabase);
+
+  FDataSource := ADataSource;
+  FUsername := AUsername;
+  FPassword := APassword;
+end;
+
+procedure TTImportODBC.Open();
+begin
+  if (FHandle = SQL_NULL_HANDLE) then
+  begin
+    if ((Success = daSuccess) and not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @FHandle))) then
+      DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False);
+
+    while ((Success <> daAbort) and SQL_SUCCEEDED(SQLConnect(FHandle, PSQLTCHAR(PChar(FDataSource)), SQL_NTS, PSQLTCHAR(PChar(FUsername)), SQL_NTS, PSQLTCHAR(PChar(FPassword)), SQL_NTS))) do
+      DoError(ODBCError(SQL_HANDLE_DBC, FHandle), nil, True);
+  end;
+end;
+
+{ TTImportAccess **************************************************************}
+
+constructor TTImportAccess.Create(const ASession: TSSession; const ADatabase: TSDatabase; const AFilename: string);
+begin
+  inherited Create(ASession, ADatabase);
+
+  FFilename := AFilename;
+end;
+
+procedure TTImportAccess.Open();
+var
+  Connected: Boolean;
+  ConnStrIn: string;
+begin
+  if (FHandle = SQL_NULL_HANDLE) then
+  begin
+    if ((Success = daSuccess) and not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @FHandle))) then
+      DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False);
+
+    Connected := False;
+    while ((Success <> daAbort) and not Connected) do
+    begin
+      ConnStrIn := 'Driver={Microsoft Access Driver (*.mdb, *.accdb)};' + 'DBQ=' + FFilename + ';' + 'READONLY=TRUE';
+      Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
+      if (not Connected) then
+      begin
+        ConnStrIn := 'Driver={Microsoft Access Driver (*.mdb)};' + 'DBQ=' + FFilename + ';' + 'READONLY=TRUE';
+        Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
+      end;
+      if (not Connected) then
+        DoError(ODBCError(SQL_HANDLE_DBC, FHandle), nil, True);
+    end;
+  end;
+end;
+
+{ TTImportExcel **************************************************************}
+
+constructor TTImportExcel.Create(const ASession: TSSession; const ADatabase: TSDatabase; const AFilename: string);
+begin
+  inherited Create(ASession, ADatabase);
+
+  FFilename := AFilename;
+end;
+
+procedure TTImportExcel.Open();
+var
+  Connected: Boolean;
+  ConnStrIn: string;
+begin
+  if (FHandle = SQL_NULL_HANDLE) then
+  begin
+    if ((Success = daSuccess) and not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @FHandle))) then
+      DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False);
+
+    Connected := False;
+    while ((Success <> daAbort) and not Connected) do
+    begin
+      ConnStrIn := 'Driver={Microsoft Excel Driver (*.xls, *.xlsx, *.xlsm, *.xlsb)};' + 'DBQ=' + FFilename + ';' + 'READONLY=TRUE';
+      Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
+      if (not Connected) then
+      begin
+        ConnStrIn := 'Driver={Microsoft Excel Driver (*.xls)};' + 'DBQ=' + FFilename + ';' + 'READONLY=TRUE';
+        Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
+      end;
+      if (not Connected) then
+        DoError(ODBCError(SQL_HANDLE_DBC, FHandle), nil, True);
+    end;
+  end;
+end;
+
+{ TTImportSQLite **************************************************************}
 
 procedure TTImportSQLite.AfterExecuteData(const Item: TTImport.TItem);
 begin
@@ -3417,13 +3676,64 @@ begin
   SQLiteException(Handle, sqlite3_prepare_v2(Handle, PAnsiChar(UTF8Encode(SQL)), -1, @Stmt, nil));
 end;
 
-constructor TTImportSQLite.Create(const AHandle: sqlite3_ptr; const ADatabase: TSDatabase);
+procedure TTImportSQLite.Close();
 begin
-  inherited Create(ADatabase.Session, ADatabase);
+  if (Assigned(Handle)) then
+    begin sqlite3_close(Handle); Handle := nil; end;
+end;
 
-  StmtType := stInsert;
+constructor TTImportSQLite.Create(const ASession: TSSession; const ADatabase: TSDatabase; const AFilename: string);
+begin
+  inherited Create(ASession, ADatabase);
 
-  Handle := AHandle;
+  FFilename := AFilename;
+
+  Handle := nil;
+end;
+
+function TTImportSQLite.GetFieldNames(const TableName: string; const FieldNames: TStrings): Boolean;
+var
+  I: Integer;
+begin
+  Success := daSuccess;
+
+  Open();
+
+  Result := False;
+  if (Success = daSuccess) then
+  begin
+    while ((Success <> daAbort) and (sqlite3_prepare_v2(Handle, PAnsiChar(UTF8Encode('SELECT * FROM "' + TableName + '" WHERE 1<>1')), -1, @Stmt, nil) <> SQLITE_OK)) do
+      DoError(SQLiteError(Handle), nil, True);
+
+    Result := Success = daSuccess;
+    if (Result) then
+      if (sqlite3_step(Stmt) = SQLITE_DONE) then
+        for I := 0 to sqlite3_column_count(Stmt) - 1 do
+          FieldNames.Add(UTF8ToString(StrPas(sqlite3_column_name(Stmt, I))));
+
+    sqlite3_finalize(Stmt);
+  end;
+end;
+
+function TTImportSQLite.GetTableNames(const TableNames: TStrings): Boolean;
+begin
+  Success := daSuccess;
+
+  Open();
+
+  Result := False;
+  if (Success = daSuccess) then
+  begin
+    while ((Success <> daAbort) and (sqlite3_prepare_v2(Handle, 'SELECT "name" FROM "sqlite_master" WHERE type=''table'' ORDER BY "name"', -1, @Stmt, nil) <> SQLITE_OK)) do
+      DoError(SQLiteError(Handle), nil, True);
+
+    Result := Success = daSuccess;
+    if (Result) then
+      while (sqlite3_step(Stmt) = SQLITE_ROW) do
+        TableNames.Add(UTF8ToString(sqlite3_column_text(Stmt, 0)));
+
+    sqlite3_finalize(Stmt);
+  end;
 end;
 
 function TTImportSQLite.GetValues(const Item: TTImport.TItem; const DataFileBuffer: TTool.TDataFileBuffer): Boolean;
@@ -3646,6 +3956,15 @@ begin
       for I := 0 to Table.Fields.Count - 1 do
         Fields[I] := Table.Fields[I];
     end;
+  end;
+end;
+
+procedure TTImportSQLite.Open();
+begin
+  if (not Assigned(Handle)) then
+  begin
+    while ((Success <> daAbort) and (sqlite3_open_v2(PAnsiChar(UTF8Encode(FFilename)), @Handle, SQLITE_OPEN_READONLY, nil) <> SQLITE_OK)) do
+      DoError(SQLiteError(Handle), nil, True);
   end;
 end;
 
@@ -4206,7 +4525,7 @@ begin
 
         Inc(Item.RecordsDone);
         if ((Item.RecordsDone mod 1000 = 0)
-          or ((Item.RecordsDone mod 100 = 0) and ((Self is TTExportSQLite) or (Self is TTExportODBC)))) then
+          or ((Item.RecordsDone mod 100 = 0) and ((Self is TTExportSQLite) or (Self is TTExportBaseODBC)))) then
           DoUpdateGUI();
 
         if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
@@ -5726,63 +6045,46 @@ begin
   WriteContent(Content);
 end;
 
-{ TTExportODBC ****************************************************************}
+{ TTExportBaseODBC ************************************************************}
 
-constructor TTExportODBC.Create(const ASession: TSSession; const AODBC: SQLHDBC = SQL_NULL_HANDLE; const AHandle: SQLHDBC = SQL_NULL_HANDLE);
+constructor TTExportBaseODBC.Create(const ASession: TSSession; const AHandle: SQLHDBC);
 begin
   inherited Create(ASession);
 
-  FODBC := AODBC;
   FHandle := AHandle;
 
   FStmt := SQL_NULL_HANDLE;
   TableName := '';
 end;
 
-procedure TTExportODBC.ExecuteFooter();
+procedure TTExportBaseODBC.ExecuteFooter();
 begin
-  inherited;
-
-  if (Stmt <> SQL_NULL_HANDLE) then
+  if (FStmt <> SQL_NULL_HANDLE) then
     begin SQLFreeHandle(SQL_HANDLE_STMT, FStmt); FStmt := SQL_NULL_HANDLE; end;
 
-  if (Handle <> SQL_NULL_HANDLE) then
+  if (FHandle <> SQL_NULL_HANDLE) then
   begin
-    SQLEndTran(SQL_HANDLE_DBC, Handle, SQL_COMMIT);
-
-    SQLDisconnect(Handle);
+    SQLDisconnect(FHandle);
     SQLFreeHandle(SQL_HANDLE_DBC, FHandle); FHandle := SQL_NULL_HANDLE;
-  end;
-  if (ODBC <> SQL_NULL_HANDLE) then
-    begin SQLFreeHandle(SQL_HANDLE_ENV, FODBC); FODBC := SQL_NULL_HANDLE; end;
-end;
-
-procedure TTExportODBC.ExecuteHeader();
-begin
-  if (Success = daSuccess) then
-  begin
-    SQLSetConnectAttr(Handle, SQL_ATTR_AUTOCOMMIT, SQLPOINTER(SQL_AUTOCOMMIT_OFF), 1);
-    if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, Handle, @Stmt))) then
-      DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False);
   end;
 
   inherited;
 end;
 
-procedure TTExportODBC.ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportBaseODBC.ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
   I: Integer;
 begin
-  inherited;
-
   TableName := '';
 
   for I := 0 to Length(Parameter) - 1 do
     FreeMem(Parameter[I].Buffer);
   SetLength(Parameter, 0);
+
+  inherited;
 end;
 
-procedure TTExportODBC.ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportBaseODBC.ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
   ColumnSize: SQLUINTEGER;
   Error: TTool.TError;
@@ -6044,7 +6346,7 @@ begin
   end;
 end;
 
-procedure TTExportODBC.ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+procedure TTExportBaseODBC.ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
   BlockSize: Integer;
   Buffer: SQLPOINTER;
@@ -6170,6 +6472,38 @@ begin
   end;
 end;
 
+{ TTExportODBC ****************************************************************}
+
+constructor TTExportODBC.Create(const ASession: TSSession; const ADataSource, AUsername, APassword: string);
+begin
+  inherited Create(ASession);
+
+  FDataSource := ADataSource;
+  FUsername := AUsername;
+  FPassword := APassword;
+end;
+
+procedure TTExportODBC.ExecuteFooter();
+begin
+  if (not SQL_SUCCEEDED(SQLEndTran(SQL_HANDLE_DBC, Handle, SQL_COMMIT))
+    and (Success = daSuccess)) then
+    DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False);
+
+  inherited;
+end;
+
+procedure TTExportODBC.ExecuteHeader();
+begin
+  inherited;
+
+  if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @FHandle))) then
+    DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False)
+  else if (not SQL_SUCCEEDED(SQLConnect(FHandle, PSQLTCHAR(PChar(FDataSource)), SQL_NTS, PSQLTCHAR(PChar(FUsername)), SQL_NTS, PSQLTCHAR(PChar(FPassword)), SQL_NTS))) then
+    DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False)
+  else if (not SQL_SUCCEEDED(SQLSetConnectAttr(Handle, SQL_ATTR_AUTOCOMMIT, SQLPOINTER(SQL_AUTOCOMMIT_OFF), 1))) then
+    DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False);
+end;
+
 { TTExportAccess **************************************************************}
 
 constructor TTExportAccess.Create(const ASession: TSSession; const AFilename: TFileName);
@@ -6177,6 +6511,18 @@ begin
   inherited Create(ASession);
 
   Filename := AFilename;
+end;
+
+procedure TTExportAccess.ExecuteFooter();
+begin
+  if (not SQL_SUCCEEDED(SQLEndTran(SQL_HANDLE_DBC, Handle, SQL_COMMIT))
+    and (Success = daSuccess)) then
+    DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False);
+
+  inherited ExecuteFooter;
+
+  if (Success = daAbort) then
+    DeleteFile(Filename);
 end;
 
 procedure TTExportAccess.ExecuteHeader();
@@ -6204,11 +6550,7 @@ begin
 
   if (Success = daSuccess) then
   begin
-    if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, @ODBC))) then
-      DoError(ODBCError(0, SQL_NULL_HANDLE), nil, False)
-    else if (not SQL_SUCCEEDED(SQLSetEnvAttr(ODBC, SQL_ATTR_ODBC_VERSION, SQLPOINTER(SQL_OV_ODBC3), SQL_IS_UINTEGER))) then
-      DoError(ODBCError(SQL_HANDLE_ENV, ODBC), nil, False)
-    else if (not (odAccess2007 in ODBCDrivers) and not SQLConfigDataSource(Application.Handle, ODBC_ADD_DSN, DriverAccess, PChar(Attributes))
+    if (not (odAccess2007 in ODBCDrivers) and not SQLConfigDataSource(Application.Handle, ODBC_ADD_DSN, DriverAccess, PChar(Attributes))
       or ((odAccess2007 in ODBCDrivers) and not SQLConfigDataSource(Application.Handle, ODBC_ADD_DSN, DriverAccess2007, PChar(Attributes)))) then
     begin
       Error.ErrorType := TE_ODBC;
@@ -6220,22 +6562,16 @@ begin
       FreeMem(ErrorMsg);
       DoError(Error, nil, False);
     end
-    else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBC, @Handle))) then
-      DoError(ODBCError(SQL_HANDLE_ENV, ODBC), nil, False)
+    else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @Handle))) then
+      DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False)
     else if (not SQL_SUCCEEDED(SQLDriverConnect(Handle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE))
       or not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, Handle, @Stmt))) then
+      DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False)
+    else if (not SQL_SUCCEEDED(SQLSetConnectAttr(Handle, SQL_ATTR_AUTOCOMMIT, SQLPOINTER(SQL_AUTOCOMMIT_OFF), 1))) then
       DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False);
   end;
 
   inherited;
-end;
-
-procedure TTExportAccess.ExecuteFooter();
-begin
-  inherited;
-
-  if (Success = daAbort) then
-    DeleteFile(Filename);
 end;
 
 { TTExportExcel ***************************************************************}
@@ -6264,12 +6600,12 @@ begin
     else
       ConnStrIn := 'Driver={' + DriverExcel2007 + '};DBQ=' + Filename + ';READONLY=FALSE';
 
-    if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, @ODBC))
-      or not SQL_SUCCEEDED(SQLSetEnvAttr(ODBC, SQL_ATTR_ODBC_VERSION, SQLPOINTER(SQL_OV_ODBC3), SQL_IS_UINTEGER))) then
+    if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, @ODBCEnv))
+      or not SQL_SUCCEEDED(SQLSetEnvAttr(ODBCEnv, SQL_ATTR_ODBC_VERSION, SQLPOINTER(SQL_OV_ODBC3), SQL_IS_UINTEGER))) then
       DoError(ODBCError(0, SQL_NULL_HANDLE), nil, False)
-    else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBC, @Handle))
+    else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @Handle))
       or not SQL_SUCCEEDED(SQLDriverConnect(Handle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE))) then
-      DoError(ODBCError(SQL_HANDLE_ENV, ODBC), nil, False)
+      DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False)
     else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, Handle, @Stmt))) then
       DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False);
   end;
@@ -6310,7 +6646,7 @@ begin
       SQL := SQL + '"' + Fields[I].DisplayName + '" ';
 
     if (BitField(Fields[I])) then
-      if (Table.Fields[I].Size = 1) then
+      if (Assigned(Table) and (Table.Fields[I].Size = 1)) then
         SQL := SQL + 'BIT'
       else
         SQL := SQL + 'NUMERIC'

@@ -204,14 +204,29 @@ begin
               else
                 ImportAdd(Copy(Job.Filename, 1 + Length(ExtractFilePath(Job.Filename)), Length(Job.Filename) - Length(ExtractFilePath(Job.Filename)) - Length(ExtractFileExt(Job.Filename))));
             end;
-          itExcelFile,
-          itAccessFile,
-          itODBC:
-            if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @ODBC))) then
-              WriteLn(StdErr, 'Can''t open ODBC environment')
-            else
+          itExcelFile:
             begin
-              Import := TTImportODBC.Create(ODBC, Database);
+              Import := TTImportExcel.Create(Session, Database, Job.Filename);
+
+              if (Job.JobObject.ObjectType = jotTable) then
+                ImportAdd(Job.JobObject.Name, Job.SourceObjects[0].Name)
+              else
+                for I := 0 to Length(Job.SourceObjects) - 1 do
+                  ImportAdd(TableName(Job.JobObject.Name), Job.SourceObjects[I].Name);
+            end;
+          itAccessFile:
+            begin
+              Import := TTImportAccess.Create(Session, Database, Job.Filename);
+
+              if (Job.JobObject.ObjectType = jotTable) then
+                ImportAdd(Job.JobObject.Name, Job.SourceObjects[0].Name)
+              else
+                for I := 0 to Length(Job.SourceObjects) - 1 do
+                  ImportAdd(TableName(Job.JobObject.Name), Job.SourceObjects[I].Name);
+            end;
+          itODBC:
+            begin
+              Import := TTImportODBC.Create(Session, Database, Job.ODBC.DataSource, Job.ODBC.Username, Job.ODBC.Password);
 
               if (Job.JobObject.ObjectType = jotTable) then
                 ImportAdd(Job.JobObject.Name, Job.SourceObjects[0].Name)
@@ -220,11 +235,8 @@ begin
                   ImportAdd(TableName(Job.JobObject.Name), Job.SourceObjects[I].Name);
             end;
           itSQLiteFile:
-            if (sqlite3_open_v2(PAnsiChar(UTF8Encode(Job.Filename)), @SQLite, SQLITE_OPEN_READONLY, nil) <> SQLITE_OK) then
-              WriteLn(StdErr, 'Can''t open SQLite environment for file: ' + Job.Filename)
-            else
             begin
-              Import := TTImportSQLite.Create(SQLite, Database);
+              Import := TTImportSQLite.Create(Session, Database, Job.Filename);
 
               if (Job.JobObject.ObjectType = jotTable) then
                 ImportAdd(Job.JobObject.Name, Job.SourceObjects[0].Name)
@@ -316,7 +328,7 @@ begin
     Export := nil;
     case (Job.ExportType) of
       etSQLFile:
-        try
+        begin
           Export := TTExportSQL.Create(Session, Job.Filename, Job.CodePage);
           TTExportSQL(Export).CreateDatabaseStmts := Job.SQL.CreateDatabase;
           TTExportSQL(Export).Data := Job.SQL.Data;
@@ -325,11 +337,9 @@ begin
           TTExportSQL(Export).ReplaceData := Job.SQL.ReplaceData;
           TTExportSQL(Export).Structure := Job.SQL.Structure;
           TTExportSQL(Export).UseDatabaseStmts := Job.SQL.UseDatabase;
-        except
-          WriteLn(StdErr, Preferences.LoadStr(522, Job.Filename));
         end;
       etTextFile:
-        try
+        begin
           Export := TTExportText.Create(Session, Job.Filename, Job.CodePage);
           TTExportText(Export).Data := True;
           case (Job.CSV.DelimiterType) of
@@ -340,31 +350,37 @@ begin
           TTExportText(Export).QuoteValues := Job.CSV.Quote in [qtAll];
           TTExportText(Export).Quoter := Job.CSV.Quoter;
           TTExportText(Export).Structure := Job.CSV.Headline;
-        except
-          WriteLn(StdErr, Preferences.LoadStr(522, Job.Filename));
+        end;
+      etAccessFile:
+        begin
+          Export := TTExportAccess.Create(Session, Job.Filename);
+          TTExportAccess(Export).Data := True;
+          TTExportAccess(Export).Structure := True;
         end;
       etExcelFile:
-        try
+        begin
           Export := TTExportExcel.Create(Session, Job.Filename);
           TTExportExcel(Export).Data := True;
           TTExportExcel(Export).Structure := True;
           TTExportExcel(Export).Excel2007 := Job.Excel.Excel2007;
-        except
-          WriteLn(StdErr, Preferences.LoadStr(522, Job.Filename));
+        end;
+      etODBC:
+        begin
+          Export := TTExportODBC.Create(Session, Job.ODBC.DataSource, Job.ODBC.Username, Job.ODBC.Password);
+          TTExportBaseODBC(Export).Data := True;
+          TTExportBaseODBC(Export).Structure := True;
         end;
       etHTMLFile:
-        try
+        begin
           Export := TTExportHTML.Create(Session, Job.Filename, Job.CodePage);
           TTExportHTML(Export).Data := Job.HTML.Data;
           TTExportHTML(Export).TextContent := Job.HTML.MemoContent;
           TTExportHTML(Export).NULLText := Job.HTML.NULLText;
           TTExportHTML(Export).RowBackground := Job.HTML.RowBGColor;
           TTExportHTML(Export).Structure := Job.HTML.Structure
-        except
-          WriteLn(StdErr, Preferences.LoadStr(522, Job.Filename));
         end;
       etXMLFile:
-        try
+        begin
           Export := TTExportXML.Create(Session, Job.Filename, Job.CodePage);
           TTExportXML(Export).Data := True;
           case (Job.XML.Database.NodeType) of
@@ -421,17 +437,13 @@ begin
                 TTExportXML(Export).TableNodeAttribute := Job.XML.Table.NodeAttribute;
               end;
           end;
-        except
-          WriteLn(StdErr, Preferences.LoadStr(522, Job.Filename));
         end;
       etPDFFile:
-        try
+        begin
           Export := TTExportPDF.Create(Session, Job.Filename);
           TTExportCanvas(Export).Data := Job.HTML.Data;
           TTExportCanvas(Export).NULLText := Job.HTML.NullText;
           TTExportCanvas(Export).Structure := Job.HTML.Structure;
-        except
-          WriteLn(StdErr, Preferences.LoadStr(522, Job.Filename));
         end;
     end;
 

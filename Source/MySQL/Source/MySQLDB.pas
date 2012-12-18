@@ -1932,6 +1932,11 @@ end;
 
 function TMySQLConnection.TLibraryThread.GetIsRunning(): Boolean;
 begin
+  if (not Assigned(Self)) then // Debug 01.11.2012
+    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Self']);
+  if (not Assigned(RunExecute)) then // Debug 01.11.2012
+    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['RunExecute']);
+
   Result := not Terminated and ((RunExecute.WaitFor(IGNORE) = wrSignaled) or not (State in [ssClose, ssReady]));
 end;
 
@@ -3309,7 +3314,7 @@ begin
         LibraryThread.Success := Lib.mysql_real_query(LibraryThread.LibHandle, my_char(LibSQL), LibLength) = 0;
         LibraryThread.Time := LibraryThread.Time + Now() - StartTime;
 
-        NeedReconnect := not Assigned(LibraryThread.LibHandle) or (Lib.mysql_errno(LibraryThread.LibHandle) = CR_SERVER_GONE_ERROR) or (Lib.mysql_errno(LibraryThread.LibHandle) = CR_SERVER_LOST);
+        NeedReconnect := not Assigned(LibraryThread.LibHandle) or (Lib.mysql_errno(LibraryThread.LibHandle) = CR_SERVER_GONE_ERROR) or (Lib.mysql_errno(LibraryThread.LibHandle) = CR_SERVER_LOST) or (Lib.mysql_errno(LibraryThread.LibHandle) = CR_SERVER_HANDSHAKE_ERR);
         if (NeedReconnect) then
         begin
           {$IFDEF Debug}
@@ -3569,6 +3574,8 @@ begin
     TerminateCS.Leave();
   until (not Assigned(LibRow));
 
+  if (not Assigned(LibraryThread.LibHandle)) then
+    raise Exception.Create('Error Message 3'); // Debug
   LibraryThread.Success := Lib.mysql_errno(LibraryThread.LibHandle) = 0;
 
   LibraryThread.ErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);

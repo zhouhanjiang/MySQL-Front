@@ -5,8 +5,6 @@ interface {********************************************************************}
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, ComCtrls, ExtCtrls, StdCtrls, DB, DBTables, Consts, Contnrs,
-  ODBCAPI,
-  DISQLite3Api,
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext, Dialogs_Ext,
   MySQLDB,
   fSession, fTools, fPreferences,
@@ -207,18 +205,18 @@ type
       property TableName[Index: Integer]: TTableName read GetTableName; default;
     end;
   private
+    Database: TSDatabase;
     FFields: array of TComboBox_Ext;
     FLReferrers: array of TLabel;
     FSourceFields: array of TEdit;
     Import: TTImport;
-    ODBC: SQLHDBC;
     ProgressInfos: TTool.TProgressInfos;
-    SQLite: sqlite3_ptr;
     TableNames: TTableNames;
     WantedNodeExpand: TTreeNode;
     procedure CheckActivePageChange(const ActivePageIndex: Integer);
     procedure ClearTSFields(Sender: TObject);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
+    function GetDataSource(): Boolean;
     function GetFilename(): Boolean;
     procedure InitTSFields(Sender: TObject);
     function InitTSSelect(): Boolean;
@@ -251,7 +249,7 @@ implementation {***************************************************************}
 uses
   CommDlg, Dlgs, Math, StrUtils, RichEdit,
   SQLUtils, CSVUtils,
-  fDLogin, fDDatabases;
+  fDLogin, fDODBC;
 
 const
   ImportBufferSize = 1024 * 1024;
@@ -550,128 +548,21 @@ begin
 end;
 
 function TDImport.Execute(): Boolean;
-var
-  Cancel: Boolean;
-  cbMessageText: SQLSMALLINT;
-  ConnStrIn: string;
-  DatabaseName: string;
-  MessageText: PSQLTCHAR;
-  SQLState: array [0 .. SQL_SQLSTATE_SIZE] of SQLWCHAR;
-  Success: Boolean;
 begin
   ModalResult := mrNone;
   PageControl.ActivePageIndex := -1;
 
-  if ((ImportType in [itSQLFile, itTextFile, itAccessFile, itExcelFile, itSQLiteFile, itODBC, itXMLFile]) and (Filename = '') and (DialogType = idtNormal)) then
+  if ((ImportType in [itSQLFile, itTextFile, itAccessFile, itExcelFile, itSQLiteFile, itXMLFile]) and (Filename = '') and (DialogType = idtNormal)) then
     if (not GetFilename()) then
+      ModalResult := mrCancel;
+  if ((ImportType in [itODBC]) and (DialogType = idtNormal)) then
+    if (not GetDataSource()) then
       ModalResult := mrCancel;
 
   if (ModalResult = mrCancel) then
     Result := False
   else
-  begin
-    ODBC := SQL_NULL_HANDLE;
-    TableNames := TTableNames.Create();
-
-    case (ImportType) of
-      itExcelFile,
-      itAccessFile:
-        begin
-          if (ImportType = itExcelFile) then
-            ConnStrIn := 'Driver={Microsoft Excel Driver (*.xls, *.xlsx, *.xlsm, *.xlsb)};' + 'DBQ=' + Filename + ';' + 'READONLY=TRUE'
-          else
-            ConnStrIn := 'Driver={Microsoft Access Driver (*.mdb, *.accdb)};' + 'DBQ=' + Filename + ';' + 'READONLY=TRUE';
-
-          Success := SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @ODBC));
-          if (Success) then
-          begin
-            Success := SQL_SUCCEEDED(SQLDriverConnect(ODBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
-            if (not Success) then
-            begin
-              if (ImportType = itExcelFile) then
-                ConnStrIn := 'Driver={Microsoft Excel Driver (*.xls)};' + 'DBQ=' + Filename + ';' + 'READONLY=TRUE'
-              else
-                ConnStrIn := 'Driver={Microsoft Access Driver (*.mdb)};' + 'DBQ=' + Filename + ';' + 'READONLY=TRUE';
-              Success := SQL_SUCCEEDED(SQLDriverConnect(ODBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
-            end;
-          end;
-          if (not Success) then
-            if ((ODBC <> SQL_NULL_HANDLE) and SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, nil, nil, nil, 0, @cbMessageText))) then
-            begin
-              if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, nil, nil, nil, 0, @cbMessageText))) then
-              begin
-                GetMem(MessageText, (cbMessageText + 1) * SizeOf(SQLTCHAR));
-                if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, @SQLState, nil, MessageText, cbMessageText + 1, nil))) then
-                  MsgBox(PChar(MessageText) + ' (' + SQLState + ')', Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-                FreeMem(MessageText);
-              end;
-              SQLFreeHandle(SQL_HANDLE_DBC, ODBC); ODBC := SQL_NULL_HANDLE;
-            end
-            else
-              MsgBox('Unknown ODBC Error.', Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-        end;
-      itODBC:
-        begin
-          Success := SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @ODBC));
-          Success := Success and SQL_SUCCEEDED(SQLSetConnectAttr(ODBC, SQL_ATTR_ACCESS_MODE, SQLPOINTER(SQL_MODE_READ_ONLY), SQL_IS_POINTER));
-
-          DDatabases.Session := nil;
-          DDatabases.SelectedDatabases := '';
-          if (Success) then
-            repeat
-              Success := DDatabases.Execute();
-              Cancel := not Success;
-              if (Success) then
-              begin
-                DatabaseName := DDatabases.SelectedDatabases;
-                if ((Copy(DatabaseName, 1, 1) = '"') and (Copy(DatabaseName, Length(DatabaseName), 1) = '"')) then
-                  DatabaseName := Copy(DatabaseName, 2, Length(DatabaseName) - 2);
-
-                DLogin.Account := nil;
-                DLogin.Filename := DatabaseName;
-                DLogin.Window := Window;
-                Success := DLogin.Execute();
-                Cancel := not Success;
-                if (Success) then
-                begin
-                  Success := Success and SQL_SUCCEEDED(SQLConnect(ODBC, PSQLTCHAR(PChar(DatabaseName)), SQL_NTS, PSQLTCHAR(PChar(DLogin.Username)), SQL_NTS, PSQLTCHAR(PChar(DLogin.Password)), SQL_NTS));
-                  if (not Success and (ODBC <> SQL_NULL_HANDLE)) then
-                  begin
-                    if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, nil, nil, nil, 0, @cbMessageText))) then
-                    begin
-                      GetMem(MessageText, (cbMessageText + 1) * SizeOf(SQLTCHAR));
-                      if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, @SQLState, nil, MessageText, cbMessageText + 1, nil))) then
-                        MsgBox(PChar(MessageText) + ' (' + SQLState + ')', Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-                      FreeMem(MessageText);
-                    end;
-                    SQLFreeHandle(SQL_HANDLE_DBC, ODBC); ODBC := SQL_NULL_HANDLE;
-                  end;
-                end;
-              end;
-            until (Success or Cancel)
-          else
-            if ((ODBC <> SQL_NULL_HANDLE) and SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, nil, nil, nil, 0, @cbMessageText))) then
-            begin
-              if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, nil, nil, nil, 0, @cbMessageText))) then
-              begin
-                GetMem(MessageText, (cbMessageText + 1) * SizeOf(SQLTCHAR));
-                if (SQL_SUCCEEDED(SQLGetDiagRec(SQL_HANDLE_DBC, ODBC, 1, @SQLState, nil, MessageText, cbMessageText + 1, nil))) then
-                  MsgBox(PChar(MessageText) + ' (' + SQLState + ')', Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-                FreeMem(MessageText);
-              end;
-              SQLFreeHandle(SQL_HANDLE_DBC, ODBC); ODBC := SQL_NULL_HANDLE;
-            end
-            else
-              MsgBox('Unknown ODBC Error.', Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-        end;
-      else
-        Success := True;
-    end;
-
-    Result := Success and (ShowModal() = mrOk);
-
-    TableNames.Free();
-  end;
+    Result := ShowModal() = mrOk;
 end;
 
 procedure TDImport.FBBackClick(Sender: TObject);
@@ -698,10 +589,9 @@ end;
 
 procedure TDImport.FBDataSourceClick(Sender: TObject);
 begin
-  DDatabases.Session := nil;
-  DDatabases.SelectedDatabases := FDataSource.Text;
-  if (DDatabases.Execute()) then
-    FDataSource.Text := DDatabases.SelectedDatabases;
+  DODBC.DataSource := FDataSource.Text;
+  if (DODBC.Execute()) then
+    FDataSource.Text := DODBC.DataSource;
 end;
 
 procedure TDImport.FBFilenameClick(Sender: TObject);
@@ -738,9 +628,7 @@ end;
 
 procedure TDImport.FCSVPreviewUpdate(Sender: TObject);
 var
-  Database: TSDatabase;
   I: Integer;
-  Import: TTImportText;
   Item: TListItem;
   Values: TSQLStrings;
 begin
@@ -764,32 +652,24 @@ begin
 
     if (TSFields.Enabled or TSWhat.Enabled) then
     begin
-      if (SObject is TSDatabase) then
-        Database := TSDatabase(SObject)
-      else if (SObject is TSDBObject) then
-        Database := TSDBObject(SObject).Database
-      else
-        Database := nil;
-      Import := TTImportText.Create(Filename, CodePage, Session, Database);
-
       if (FDelimiterTab.Checked) then
-        Import.Delimiter := #9
+        TTImportText(Import).Delimiter := #9
       else if (FDelimiter.Text = '') then
-        Import.Delimiter := #0
+        TTImportText(Import).Delimiter := #0
       else
-        Import.Delimiter := FDelimiter.Text[1];
+        TTImportText(Import).Delimiter := FDelimiter.Text[1];
       if (not FQuoteStrings.Checked) or (FQuoteChar.Text = '') then
-        Import.Quoter := #0
+        TTImportText(Import).Quoter := #0
       else
-        Import.Quoter := FQuoteChar.Text[1];
-      Import.UseHeadLine := FCSVHeadline.Checked;
-      Import.Open();
+        TTImportText(Import).Quoter := FQuoteChar.Text[1];
+      TTImportText(Import).UseHeadLine := FCSVHeadline.Checked;
+      TTImportText(Import).Open();
 
-      for I := 0 to Import.HeadlineNameCount - 1 do
-        FCSVPreview.Columns.Add().Caption := Import.HeadlineNames[I];
+      for I := 0 to TTImportText(Import).HeadlineNameCount - 1 do
+        FCSVPreview.Columns.Add().Caption := TTImportText(Import).HeadlineNames[I];
 
       Item := nil;
-      while ((FCSVPreview.Items.Count < 10) and Import.GetPreviewValues(Values)) do
+      while ((FCSVPreview.Items.Count < 10) and TTImportText(Import).GetPreviewValues(Values)) do
         for I := 0 to Min(Length(Values), FCSVPreview.Columns.Count) - 1 do
           if (I = 0) then
           begin
@@ -803,9 +683,6 @@ begin
         FCSVPreview.Column[I].AutoSize := True;
 
       SetLength(Values, 0);
-
-      Import.Close();
-      Import.Free();
     end;
 
     FCSVPreview.Items.EndUpdate(); FCSVPreview.EnableAlign();
@@ -969,9 +846,6 @@ end;
 
 procedure TDImport.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
-  if (Assigned(SQLite)) then
-    begin sqlite3_close(SQLite); SQLite := nil; end;
-
   PageControl.ActivePage := nil;
 end;
 
@@ -1003,74 +877,76 @@ end;
 
 procedure TDImport.FormHide(Sender: TObject);
 var
-  Import: TPImport;
   Hour, Min, Sec, MSec: Word;
   Year, Month, Day: Word;
   I: Integer;
   J: Integer;
+  PImport: TPImport;
 begin
   Session.UnRegisterEventProc(FormSessionEvent);
+
+  Import.Free();
 
   if (ModalResult = mrOk) then
   begin
     if (DialogType in [idtCreateJob, idtEditJob]) then
-      Import := TAJobImport.Create(Session.Account.Jobs, Trim(FName.Text))
+      PImport := TAJobImport.Create(Session.Account.Jobs, Trim(FName.Text))
     else
-      Import := Preferences.Import;
+      PImport := Preferences.Import;
 
     case (ImportType) of
       itTextFile:
         begin
-          Import.CSV.Headline := FCSVHeadline.Checked;
+          PImport.CSV.Headline := FCSVHeadline.Checked;
           if (FDelimiterTab.Checked) then
-            Import.CSV.DelimiterType := dtTab
+            PImport.CSV.DelimiterType := dtTab
           else if (FDelimiterChar.Checked) then
-            Import.CSV.DelimiterType := dtChar;
-          Import.CSV.Delimiter := FDelimiter.Text;
-          Import.CSV.QuoteChar := FQuoteChar.Text;
+            PImport.CSV.DelimiterType := dtChar;
+          PImport.CSV.Delimiter := FDelimiter.Text;
+          PImport.CSV.QuoteChar := FQuoteChar.Text;
           if (FQuoteNothing.Checked) then
-            Import.CSV.Quote := qtNothing
+            PImport.CSV.Quote := qtNothing
           else
-            Import.CSV.Quote := qtStrings;
+            PImport.CSV.Quote := qtStrings;
         end;
       itODBC:
         begin
-          Import.Structure := FStructure.Checked;
-          Import.Data := FData.Checked;
+          PImport.Structure := FStructure.Checked;
+          PImport.Data := FData.Checked;
         end;
     end;
     if (FReplace.Checked) then
-      Import.ImportStmt := isReplace
+      PImport.ImportStmt := isReplace
     else if (FUpdate.Checked) then
-      Import.ImportStmt := isUpdate
+      PImport.ImportStmt := isUpdate
     else
-      Import.ImportStmt := isInsert;
+      PImport.ImportStmt := isInsert;
 
     if (DialogType in [idtCreateJob, idtEditJob]) then
     begin
       if (Assigned(FSelect.Selected)) then
       begin
         if (not Assigned(FSelect.Selected.Parent)) then
-          TAJobImport(Import).JobObject.ObjectType := jotServer
+          TAJobImport(PImport).JobObject.ObjectType := jotServer
         else if (TObject(FSelect.Selected.Data) is TSDatabase) then
         begin
-          TAJobImport(Import).JobObject.ObjectType := jotDatabase;
-          TAJobImport(Import).JobObject.Name := TSDatabase(FSelect.Selected.Data).Name;
+          TAJobImport(PImport).JobObject.ObjectType := jotDatabase;
+          TAJobImport(PImport).JobObject.Name := TSDatabase(FSelect.Selected.Data).Name;
         end
         else if (TObject(FSelect.Selected.Data) is TSDBObject) then
         begin
           if (TObject(FSelect.Selected.Data) is TSTable) then
-            TAJobImport(Import).JobObject.ObjectType := jotTable;
-          TAJobImport(Import).JobObject.Name := TSDBObject(FSelect.Selected.Data).Name;
-          TAJobImport(Import).JobObject.DatabaseName := TSDBObject(FSelect.Selected.Data).Database.Name;
+            TAJobImport(PImport).JobObject.ObjectType := jotTable;
+          TAJobImport(PImport).JobObject.Name := TSDBObject(FSelect.Selected.Data).Name;
+          TAJobImport(PImport).JobObject.DatabaseName := TSDBObject(FSelect.Selected.Data).Database.Name;
         end;
       end;
-      TAJobImport(Import).CodePage := CodePage;
-      TAJobImport(Import).ImportType := ImportType;
-      TAJobImport(Import).Filename := FFilename.Text;
-      TAJobImport(Import).DataSource := FDataSource.Text;
+      TAJobImport(PImport).CodePage := CodePage;
+      TAJobImport(PImport).ImportType := ImportType;
+      TAJobImport(PImport).Filename := FFilename.Text;
+      TAJobImport(PImport).DataSource := FDataSource.Text;
 
-      SetLength(TAJobImport(Import).SourceObjects, 0);
+      SetLength(TAJobImport(PImport).SourceObjects, 0);
       case (ImportType) of
         itAccessFile,
         itExcelFile,
@@ -1079,45 +955,45 @@ begin
           for I := 0 to FTables.Items.Count - 1 do
             if (FTables.Items[I].Selected) then
             begin
-              SetLength(TAJobImport(Import).SourceObjects, Length(TAJobImport(Import).SourceObjects) + 1);
-              TAJobImport(Import).SourceObjects[Length(TAJobImport(Import).SourceObjects) - 1].Name := TTableName(FTables.Items[I].Data).SourceName;
+              SetLength(TAJobImport(PImport).SourceObjects, Length(TAJobImport(PImport).SourceObjects) + 1);
+              TAJobImport(PImport).SourceObjects[Length(TAJobImport(PImport).SourceObjects) - 1].Name := TTableName(FTables.Items[I].Data).SourceName;
             end;
         itXMLFile:
           begin
-            SetLength(TAJobImport(Import).SourceObjects, Length(TAJobImport(Import).SourceObjects) + 1);
-            TAJobImport(Import).SourceObjects[Length(TAJobImport(Import).SourceObjects) - 1].Name := FRecordTag.Text;
+            SetLength(TAJobImport(PImport).SourceObjects, Length(TAJobImport(PImport).SourceObjects) + 1);
+            TAJobImport(PImport).SourceObjects[Length(TAJobImport(PImport).SourceObjects) - 1].Name := FRecordTag.Text;
           end;
       end;
 
-      SetLength(TAJobImport(Import).FieldMappings, 0);
+      SetLength(TAJobImport(PImport).FieldMappings, 0);
       if (SObject is TSTable) then
         for I := 0 to TSTable(SObject).Fields.Count - 1 do
           for J := 0 to Length(FFields) - 1 do
             if ((FSourceFields[J].Text <> '') and (FFields[J].ItemIndex = I + 1)) then
             begin
-              SetLength(TAJobImport(Import).FieldMappings, Length(TAJobImport(Import).FieldMappings) + 1);
-              TAJobImport(Import).FieldMappings[Length(TAJobImport(Import).FieldMappings) - 1].Name := TSTable(SObject).Fields[I].Name;
-              TAJobImport(Import).FieldMappings[Length(TAJobImport(Import).FieldMappings) - 1].SourceName := FSourceFields[J].Text;
+              SetLength(TAJobImport(PImport).FieldMappings, Length(TAJobImport(PImport).FieldMappings) + 1);
+              TAJobImport(PImport).FieldMappings[Length(TAJobImport(PImport).FieldMappings) - 1].Name := TSTable(SObject).Fields[I].Name;
+              TAJobImport(PImport).FieldMappings[Length(TAJobImport(PImport).FieldMappings) - 1].SourceName := FSourceFields[J].Text;
             end;
 
       DecodeDate(FStartDate.Date, Year, Month, Day);
       DecodeTime(FStartTime.Time, Hour, Min, Sec, MSec);
-      TAJobImport(Import).Start := EncodeDate(Year, Month, Day) + EncodeTime(Hour, Min, Sec, MSec);
+      TAJobImport(PImport).Start := EncodeDate(Year, Month, Day) + EncodeTime(Hour, Min, Sec, MSec);
       if (FDaily.Checked) then
-        TAJobImport(Import).TriggerType := ttDaily
+        TAJobImport(PImport).TriggerType := ttDaily
       else if (FWeekly.Checked) then
-        TAJobImport(Import).TriggerType := ttWeekly
+        TAJobImport(PImport).TriggerType := ttWeekly
       else if (FMonthly.Checked) then
-        TAJobImport(Import).TriggerType := ttMonthly
+        TAJobImport(PImport).TriggerType := ttMonthly
       else
-        TAJobImport(Import).TriggerType := ttSingle;
-      TAJobImport(Import).Enabled := FEnabled.Checked;
+        TAJobImport(PImport).TriggerType := ttSingle;
+      TAJobImport(PImport).Enabled := FEnabled.Checked;
 
       if (DialogType = idtCreateJob) then
-        Session.Account.Jobs.AddJob(Import)
+        Session.Account.Jobs.AddJob(PImport)
       else if (DialogType = idtEditJob) then
-        Session.Account.Jobs.UpdateJob(Job, Import);
-      Import.Free();
+        Session.Account.Jobs.UpdateJob(Job, PImport);
+      PImport.Free();
     end;
   end;
 
@@ -1135,11 +1011,7 @@ begin
   FCSVPreview.Columns.Clear();
   FCSVPreview.Items.EndUpdate();
 
-  if (ODBC <> SQL_NULL_HANDLE) then
-  begin
-    SQLDisconnect(ODBC);
-    SQLFreeHandle(SQL_HANDLE_DBC, ODBC);
-  end;
+  TableNames.Free();
 end;
 
 procedure TDImport.FormSessionEvent(const Event: TSSession.TEvent);
@@ -1154,6 +1026,8 @@ var
   Node: TTreeNode;
 begin
   Session.RegisterEventProc(FormSessionEvent);
+
+  TableNames := TTableNames.Create();
 
   ModalResult := mrNone;
   if (DialogType = idtCreateJob) then
@@ -1185,8 +1059,6 @@ begin
       else HelpContext := -1;
     end;
   FBHelp.Visible := HelpContext >= 0;
-
-  SQLite := nil;
 
   FEngine.Clear();
   if (Session.Engines.Count = 0) then
@@ -1299,6 +1171,28 @@ begin
     InitTSFields(Sender);
   if (not TSTables.Enabled) then
     TSTablesHide(Sender);
+
+  if (DialogType <> idtNormal) then
+    Database := nil
+  else if (SObject is TSDatabase) then
+    Database := TSDatabase(SObject)
+  else if (SObject is TSDBObject) then
+    Database := TSDBObject(SObject).Database
+  else
+    Database := nil;
+
+  if (DialogType in [idtNormal, idtExecuteJob]) then
+    case (ImportType) of
+      itSQLFile: Import := TTImportSQL.Create(Filename, CodePage, Session, Database);
+      itTextFile: Import := TTImportText.Create(Filename, CodePage, Session, Database);
+      itAccessFile: Import := TTImportAccess.Create(Session, Database, Filename);
+      itExcelFile: Import := TTImportExcel.Create(Session, Database, Filename);
+      itODBC: Import := TTImportODBC.Create(Session, Database, DODBC.DataSource, DODBC.Username, DODBC.Password);
+      itSQLiteFile: Import := TTImportSQLite.Create(Session, Database, Filename);
+      itXMLFile: if (SObject is TSBaseTable) then Import := TTImportXML.Create(Filename, TSBaseTable(SObject));
+    end
+  else
+    Import := nil;
 
   if (DialogType in [idtCreateJob, idtEditJob]) then
   begin
@@ -1470,6 +1364,11 @@ begin
   CheckActivePageChange(TSTables.PageIndex);
 end;
 
+function TDImport.GetDataSource(): Boolean;
+begin
+  Result := DODBC.Execute();
+end;
+
 function TDImport.GetFilename(): Boolean;
 begin
   OpenDialog.Title := ReplaceStr(Preferences.LoadStr(581), '&', '');
@@ -1540,13 +1439,9 @@ end;
 
 procedure TDImport.InitTSFields(Sender: TObject);
 var
-  cbCOLUMN_NAME: SQLINTEGER;
-  COLUMN_NAME: array [0 .. STR_LEN] of SQLWCHAR;
   FieldNames: TStringList;
-  Handle: SQLHSTMT;
   I: Integer;
   J: Integer;
-  Stmt: sqlite3_stmt_ptr;
 begin
   if (TSFields.Enabled) then
   begin
@@ -1568,24 +1463,10 @@ begin
       else
         FLSourceFields.Caption := Preferences.LoadStr(400) + ':';
 
-      ODBCException(ODBC, SQLAllocHandle(SQL_HANDLE_STMT, ODBC, @Handle));
-      ODBCException(Handle, SQLColumns(Handle, nil, 0, nil, 0, PSQLTCHAR(TTableName(FTables.Selected.Data).SourceName), SQL_NTS, nil, 0));
-      ODBCException(Handle, SQLBindCol(Handle, 4, SQL_C_WCHAR, @COLUMN_NAME, SizeOf(COLUMN_NAME), @cbCOLUMN_NAME));
-      while (SQL_SUCCEEDED(ODBCException(Handle, SQLFetch(Handle)))) do
-        FieldNames.Add(COLUMN_NAME);
-      SQLFreeHandle(SQL_HANDLE_STMT, Handle);
+      TTImportSQLite(Import).GetFieldNames(TTableName(FTables.Selected.Data).SourceName, FieldNames);
     end
     else if (ImportType in [itSQLiteFile]) then
-    begin
-      FLSourceFields.Caption := Preferences.LoadStr(400) + ':';
-
-      SQLiteException(SQLite, sqlite3_prepare_v2(SQLite, PAnsiChar(UTF8Encode('SELECT * FROM "' + TTableName(FTables.Selected.Data).SourceName + '" WHERE 1<>1')), -1, @Stmt, nil));
-      if (sqlite3_step(Stmt) = SQLITE_DONE) then
-        for I := 0 to sqlite3_column_count(Stmt) - 1 do
-          FieldNames.Add(UTF8ToString(StrPas(sqlite3_column_name(Stmt, I))));
-
-      SQLiteException(SQLite, sqlite3_finalize(Stmt));
-    end
+      TTImportSQLite(Import).GetFieldNames(TTableName(FTables.Selected.Data).SourceName, FieldNames)
     else if ((ImportType in [itXMLFile]) and (SObject is TSBaseTable)) then
     begin
       FLSourceFields.Caption := Preferences.LoadStr(400) + ':';
@@ -1832,7 +1713,6 @@ end;
 procedure TDImport.TSExecuteShow(Sender: TObject);
 var
   Answer: Integer;
-  Database: TSDatabase;
 
   procedure ImportAdd(TableName: string; const SourceTableName: string = '');
   begin
@@ -1878,22 +1758,10 @@ begin
   ProgressInfos.Progress := 0;
   SendMessage(Self.Handle, CM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos));
 
-  if (SObject is TSDatabase) then
-    Database := TSDatabase(SObject)
-  else if (SObject is TSDBObject) then
-    Database := TSDBObject(SObject).Database
-  else
-    Database := nil;
   Answer := IDYES;
   case (ImportType) of
-    itSQLFile:
-      begin
-        Import := TTImportSQL.Create(Filename, CodePage, Session, Database);
-      end;
     itTextFile:
       begin
-        Import := TTImportText.Create(Filename, CodePage, Session, Database);
-
         if (FDelimiterTab.Checked) then
           TTImportText(Import).Delimiter := #9
         else if (FDelimiter.Text = '') then
@@ -1911,12 +1779,26 @@ begin
         else
           ImportAdd(Copy(Filename, 1 + Length(ExtractFilePath(Filename)), Length(Filename) - Length(ExtractFilePath(Filename)) - Length(ExtractFileExt(Filename))));
       end;
-    itExcelFile,
-    itAccessFile,
+    itAccessFile:
+      begin
+        if (SObject is TSTable) then
+          ImportAdd(SObject.Name, TTableName(FTables.Selected.Data).SourceName)
+        else
+          for I := 0 to FTables.Items.Count - 1 do
+            if (FTables.Items[I].Selected) then
+              ImportAdd(TTableName(FTables.Items[I].Data).TableName, TTableName(FTables.Items[I].Data).SourceName);
+      end;
+    itExcelFile:
+      begin
+        if (SObject is TSTable) then
+          ImportAdd(SObject.Name, TTableName(FTables.Selected.Data).SourceName)
+        else
+          for I := 0 to FTables.Items.Count - 1 do
+            if (FTables.Items[I].Selected) then
+              ImportAdd(TTableName(FTables.Items[I].Data).TableName, TTableName(FTables.Items[I].Data).SourceName);
+      end;
     itODBC:
       begin
-        Import := TTImportODBC.Create(ODBC, Database);
-
         if (SObject is TSTable) then
           ImportAdd(SObject.Name, TTableName(FTables.Selected.Data).SourceName)
         else
@@ -1926,8 +1808,6 @@ begin
       end;
     itSQLiteFile:
       begin
-        Import := TTImportSQLite.Create(SQLite, Database);
-
         if (SObject is TSBaseTable) then
           ImportAdd(SObject.Name, TTableName(FTables.Selected.Data).SourceName)
         else
@@ -1938,15 +1818,11 @@ begin
     itXMLFile:
       if (SObject is TSBaseTable) then
       begin
-        Import := TTImportXML.Create(Filename, TSBaseTable(SObject));
-
         ImportAdd(SObject.Name, FRecordTag.Text);
       end;
   end;
-  if (Answer = IDCANCEL) then
-    FreeAndNil(Import);
 
-  Success := Assigned(Import);
+  Success := (Answer <> IDCANCEL);
   if (not Success) then
     SendMessage(Self.Handle, CM_EXECUTIONDONE, WPARAM(Success), 0)
   else
@@ -2069,71 +1945,57 @@ begin
 end;
 
 procedure TDImport.TSTablesShow(Sender: TObject);
-const
-  TABLE_TYPE_LEN = 30;
 var
-  cbTABLE_NAME: SQLINTEGER;
-  cbTABLE_TYPE: SQLINTEGER;
-  Handle: SQLHSTMT;
+  Import: TTImport;
   I: Integer;
   ListItem: TListItem;
-  Stmt: sqlite3_stmt_ptr;
-  TableName: string;
-  TABLE_NAME: PSQLTCHAR;
-  TABLE_NAME_LEN: SQLINTEGER;
-  TABLE_TYPE: PSQLTCHAR;
+  StringList: TStringList;
 begin
   if (FTables.Items.Count = 0) then
   begin
     TableNames.Clear();
 
-    if (ODBC <> SQL_NULL_HANDLE) then
-    begin
-      ODBCException(ODBC, SQLAllocHandle(SQL_HANDLE_STMT, ODBC, @Handle));
-      ODBCException(ODBC, SQLGetInfo(ODBC, SQL_MAX_TABLE_NAME_LEN, @TABLE_NAME_LEN, SizeOf(TABLE_NAME_LEN), nil));
-      GetMem(TABLE_NAME, (TABLE_NAME_LEN + 1) * SizeOf(SQLWCHAR));
-      GetMem(TABLE_TYPE, (TABLE_TYPE_LEN + 1) * SizeOf(SQLWCHAR));
-
-      ODBCException(Handle, SQLTables(Handle, nil, 0, nil, 0, nil, 0, nil, 0));
-      ODBCException(Handle, SQLBindCol(Handle, 3, SQL_C_WCHAR, TABLE_NAME, (TABLE_NAME_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_NAME));
-      ODBCException(Handle, SQLBindCol(Handle, 4, SQL_C_WCHAR, TABLE_TYPE, (TABLE_TYPE_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_TYPE));
-      while (SQL_SUCCEEDED(ODBCException(Handle, SQLFetch(Handle)))) do
-        if ((lstrcmpi(PChar(TABLE_TYPE), 'TABLE') = 0) or (ImportType = itExcelFile) and ((lstrcmpi(PChar(TABLE_TYPE), 'TABLE') = 0) or (lstrcmpi(PChar(TABLE_TYPE), 'SYSTEM TABLE') = 0)))  then
+    case (ImportType) of
+      itExcelFile:
         begin
-          SetString(TableName, PChar(TABLE_NAME), cbTABLE_NAME div SizeOf(SQLTCHAR));
-          TableNames.Add(TableName);
+          Import := TTImportExcel.Create(Session, nil, Filename);
+          StringList := TStringList.Create();
+          if (TTImportExcel(Import).GetTableNames(StringList)) then
+            for I := 0 to StringList.Count - 1 do
+              TableNames.Add(StringList[I]);
+          StringList.Free();
+          Import.Free();
         end;
-      SQLFreeStmt(Handle, SQL_CLOSE);
-
-      if ((ImportType = itExcelFile) and (TableNames.Count = 0)) then
-      begin
-        ODBCException(Handle, SQLTables(Handle, nil, 0, nil, 0, nil, 0, nil, 0));
-        ODBCException(Handle, SQLBindCol(Handle, 3, SQL_C_WCHAR, TABLE_NAME, (TABLE_NAME_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_NAME));
-        ODBCException(Handle, SQLBindCol(Handle, 4, SQL_C_WCHAR, TABLE_TYPE, (TABLE_TYPE_LEN + 1) * SizeOf(SQLWCHAR), @cbTABLE_TYPE));
-        while (SQL_SUCCEEDED(ODBCException(Handle, SQLFetch(Handle)))) do
-          if (lstrcmpi(PChar(TABLE_TYPE), 'TABLE') = 0)  then
-          begin
-            SetString(TableName, PChar(TABLE_NAME), cbTABLE_NAME div SizeOf(SQLTCHAR));
-            TableNames.Add(TableName);
-          end;
-        SQLFreeStmt(Handle, SQL_CLOSE);
-      end;
-
-      FreeMem(TABLE_NAME);
-      FreeMem(TABLE_TYPE);
-      SQLFreeHandle(SQL_HANDLE_STMT, Handle);
-    end
-    else if (ImportType = itSQLiteFile) then
-    begin
-      if (sqlite3_open_v2(PAnsiChar(UTF8Encode(Filename)), @SQLite, SQLITE_OPEN_READONLY, nil) <> SQLITE_OK) then
-        MsgBox(Preferences.LoadStr(523, Filename), Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
-      else
-      begin
-        SQLiteException(SQLite, sqlite3_prepare_v2(SQLite, 'SELECT "name" FROM "sqlite_master" WHERE type=''table'' ORDER BY "name"', -1, @Stmt, nil));
-        while (sqlite3_step(Stmt) = SQLITE_ROW) do
-          TableNames.Add(UTF8ToString(sqlite3_column_text(Stmt, 0)));
-        SQLiteException(SQLite, sqlite3_finalize(Stmt));
-      end;
+      itAccessFile:
+        begin
+          Import := TTImportAccess.Create(Session, nil, Filename);
+          StringList := TStringList.Create();
+          if (TTImportAccess(Import).GetTableNames(StringList)) then
+            for I := 0 to StringList.Count - 1 do
+              TableNames.Add(StringList[I]);
+          StringList.Free();
+          Import.Free();
+        end;
+      itODBC:
+        begin
+          Import := TTImportODBC.Create(Session, nil, DODBC.DataSource, DODBC.Username, DODBC.Password);
+          StringList := TStringList.Create();
+          if (TTImportODBC(Import).GetTableNames(StringList)) then
+            for I := 0 to StringList.Count - 1 do
+              TableNames.Add(StringList[I]);
+          StringList.Free();
+          Import.Free();
+        end;
+      itSQLiteFile:
+        begin
+          Import := TTImportSQLite.Create(Session, nil, Filename);
+          StringList := TStringList.Create();
+          if (TTImportSQLite(Import).GetTableNames(StringList)) then
+            for I := 0 to StringList.Count - 1 do
+              TableNames.Add(StringList[I]);
+          StringList.Free();
+          Import.Free();
+        end;
     end;
 
     FTables.SortType := stNone;

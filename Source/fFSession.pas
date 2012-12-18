@@ -10052,8 +10052,8 @@ begin
   begin
     ImageIndex := ImageIndexByData(TObject(TListView(Sender).Tag));
     if (ImageIndex > 0) then
-      for I := 0 to ActiveListView.Columns.Count - 1 do
-        Session.Account.Desktop.ColumnWidths[ColumnWidthKindFromImageIndex(ImageIndex), I] := ActiveListView.Columns[I].Width;
+      for I := 0 to TListView(Sender).Columns.Count - 1 do
+        Session.Account.Desktop.ColumnWidths[ColumnWidthKindFromImageIndex(ImageIndex), I] := TListView(Sender).Columns[I].Width;
   end;
 
   MainAction('aFImportSQL').Enabled := False;
