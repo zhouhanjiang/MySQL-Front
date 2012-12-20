@@ -1463,7 +1463,7 @@ begin
       else
         FLSourceFields.Caption := Preferences.LoadStr(400) + ':';
 
-      TTImportSQLite(Import).GetFieldNames(TTableName(FTables.Selected.Data).SourceName, FieldNames);
+      TTImportODBC(Import).GetFieldNames(TTableName(FTables.Selected.Data).SourceName, FieldNames);
     end
     else if (ImportType in [itSQLiteFile]) then
       TTImportSQLite(Import).GetFieldNames(TTableName(FTables.Selected.Data).SourceName, FieldNames)

@@ -10288,45 +10288,45 @@ begin
         begin
           DataSet.Open(DataHandle);
           if (TableNameCmp(ObjectName, 'CHARACTER_SETS') = 0) then
-            Result := Charsets.Build(DataSet, True, not SQLParseEnd(Parse))
+            Result := Charsets.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
           else if (TableNameCmp(ObjectName, 'COLLATIONS') = 0) then
-            Result := Collations.Build(DataSet, True, not SQLParseEnd(Parse))
+            Result := Collations.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
           else if ((TableNameCmp(ObjectName, 'COLUMNS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'TABLE_SCHEMA') and SQLParseChar(Parse, '=')) then
             DatabaseByName(SQLParseValue(Parse)).Tables.BuildViewFields(DataSet, True)
           else if (TableNameCmp(ObjectName, 'ENGINES') = 0) then
-            Result := Engines.Build(DataSet, True, not SQLParseEnd(Parse))
+            Result := Engines.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
           else if ((TableNameCmp(ObjectName, 'EVENTS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'EVENT_SCHEMA') and SQLParseChar(Parse, '=')) then
           begin
             Database := DatabaseByName(SQLParseValue(Parse));
-            Result := Database.Events.Build(DataSet, True, not SQLParseEnd(Parse));
+            Result := Database.Events.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'));
           end
           else if (TableNameCmp(ObjectName, 'PLUGINS') = 0) then
-            Result := Plugins.Build(DataSet, True, not SQLParseEnd(Parse))
+            Result := Plugins.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
           else if (TableNameCmp(ObjectName, 'PROCESSLIST') = 0) then
-            Result := Processes.Build(DataSet, True, not SQLParseEnd(Parse))
+            Result := Processes.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
           else if ((TableNameCmp(ObjectName, 'ROUTINES') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'ROUTINE_SCHEMA') and SQLParseChar(Parse, '=')) then
           begin
             Database := DatabaseByName(SQLParseValue(Parse));
             Result := Database.Routines.Build(DataSet, True, not SQLParseEnd(Parse));
           end
           else if (TableNameCmp(ObjectName, 'SESSION_STATUS') = 0) then
-            Result := Stati.Build(DataSet, True, not SQLParseEnd(Parse))
+            Result := Stati.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
           else if (TableNameCmp(ObjectName, 'SESSION_VARIABLES') = 0) then
-            Result := Variables.Build(DataSet, True, not SQLParseEnd(Parse))
+            Result := Variables.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
           else if (TableNameCmp(ObjectName, 'SCHEMATA') = 0) then
-            Result := Databases.Build(DataSet, True, not SQLParseEnd(Parse))
+            Result := Databases.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
           else if ((TableNameCmp(ObjectName, 'TABLES') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'TABLE_SCHEMA') and SQLParseChar(Parse, '=')) then
           begin
             Database := DatabaseByName(SQLParseValue(Parse));
-            Result := Database.Tables.Build(DataSet, True, not SQLParseEnd(Parse));
+            Result := Database.Tables.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'));
           end
           else if ((TableNameCmp(ObjectName, 'TRIGGERS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'EVENT_OBJECT_SCHEMA') and SQLParseChar(Parse, '=')) then
           begin
             Database := DatabaseByName(SQLParseValue(Parse));
-            Result := Database.Triggers.Build(DataSet, True, not SQLParseEnd(Parse));
+            Result := Database.Triggers.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'));
           end
           else if ((TableNameCmp(ObjectName, 'USER_PRIVILEGES') = 0)) then
-            Result := Users.Build(DataSet, True, not SQLParseKeyword(Parse, 'GROUP BY') and not SQLParseEnd(Parse))
+            Result := Users.Build(DataSet, True, not SQLParseKeyword(Parse, 'GROUP BY') and not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
           else
             raise EConvertError.CreateFmt(SUnknownSQLStmt, [CommandText]);
         end
