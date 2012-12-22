@@ -579,7 +579,7 @@ end;
 
 procedure TDImport.FBCancelClick(Sender: TObject);
 begin
-  if (Assigned(Import)) then
+  if (Assigned(Import) and not Import.Suspended) then
   begin
     Import.UserAbort.SetEvent();
     Import.WaitFor();
@@ -1167,11 +1167,6 @@ begin
       FCharset.ItemIndex := FCharset.Items.IndexOf('utf8');
   FCharsetChange(Sender);
 
-  if (TSFields.Enabled) then
-    InitTSFields(Sender);
-  if (not TSTables.Enabled) then
-    TSTablesHide(Sender);
-
   if (DialogType <> idtNormal) then
     Database := nil
   else if (SObject is TSDatabase) then
@@ -1194,6 +1189,27 @@ begin
   else
     Import := nil;
 
+  TSJob.Enabled := DialogType in [idtCreateJob, idtEditJob];
+  TSSelect.Enabled := DialogType in [idtEditJob];
+  TSTables.Enabled := (ImportType in [itAccessFile, itExcelFile, itSQLiteFile, itODBC]);
+  TSCSVOptions.Enabled := (ImportType in [itTextFile]);
+  TSXMLOptions.Enabled := (SObject is TSTable) and (ImportType in [itXMLFile]);
+  TSWhat.Enabled := False;
+  TSFields.Enabled := False;
+  TSStmtType.Enabled := False;
+  TSTask.Enabled := False;
+  TSExecute.Enabled := (ImportType in [itSQLFile]);
+
+  if (TSFields.Enabled) then
+    InitTSFields(Sender);
+  if (not TSTables.Enabled) then
+    TSTablesHide(Sender);
+
+  for I := 0 to PageControl.PageCount - 1 do
+    if ((PageControl.ActivePageIndex < 0) and PageControl.Pages[I].Enabled) then
+      PageControl.ActivePageIndex := I;
+  CheckActivePageChange(PageControl.ActivePageIndex);
+
   if (DialogType in [idtCreateJob, idtEditJob]) then
   begin
     PageControl.Visible := Session.Databases.Update() and Boolean(Perform(CM_POST_AFTEREXECUTESQL, 0, 0));
@@ -1205,18 +1221,6 @@ begin
   else
     PageControl.Visible := Boolean(Perform(CM_POST_AFTEREXECUTESQL, 0, 0));
   PSQLWait.Visible := not PageControl.Visible;
-
-  TSJob.Enabled := DialogType in [idtCreateJob, idtEditJob];
-  TSSelect.Enabled := DialogType in [idtEditJob];
-  TSTables.Enabled := (ImportType in [itAccessFile, itExcelFile, itSQLiteFile, itODBC]);
-  TSCSVOptions.Enabled := (ImportType in [itTextFile]);
-  TSXMLOptions.Enabled := (SObject is TSTable) and (ImportType in [itXMLFile]);
-  TSExecute.Enabled := (ImportType in [itSQLFile]);
-
-  for I := 0 to PageControl.PageCount - 1 do
-    if ((PageControl.ActivePageIndex < 0) and PageControl.Pages[I].Enabled) then
-      PageControl.ActivePageIndex := I;
-  CheckActivePageChange(PageControl.ActivePageIndex);
 
   FBBack.Visible := (DialogType <> idtNormal) or not (ImportType in [itSQLFile]);
   FBForward.Visible := FBBack.Visible;

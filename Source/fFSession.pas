@@ -936,6 +936,7 @@ type
     procedure aEPasteFromExecute(Sender: TObject);
     procedure aERedoExecute(Sender: TObject);
     procedure aERenameExecute(Sender: TObject);
+    procedure aESelectAllExecute(Sender: TObject);
     procedure aFExportExecute(const Sender: TObject; const ExportType: TPExportType);
     procedure aFImportExecute(const Sender: TObject; const ImportType: TPImportType);
     procedure aFOpenExecute(Sender: TObject);
@@ -3404,6 +3405,11 @@ begin
   DSearch.Frame := Self;
   DSearch.Execute();
   Wanted.Update := Session.Update;
+end;
+
+procedure TFSession.aESelectAllExecute(Sender: TObject);
+begin
+  ActiveListView.SelectAll();
 end;
 
 procedure TFSession.aETransferExecute(Sender: TObject);
@@ -10031,6 +10037,7 @@ end;
 
 procedure TFSession.ListViewEnter(Sender: TObject);
 begin
+  MainAction('aESelectAll').OnExecute := aESelectAllExecute;
   MainAction('aDEmpty').OnExecute := ListViewEmpty;
 
   aDCreate.ShortCut := VK_INSERT;
@@ -10055,6 +10062,9 @@ begin
       for I := 0 to TListView(Sender).Columns.Count - 1 do
         Session.Account.Desktop.ColumnWidths[ColumnWidthKindFromImageIndex(ImageIndex), I] := TListView(Sender).Columns[I].Width;
   end;
+
+  MainAction('aESelectAll').OnExecute := nil;
+  MainAction('aDEmpty').OnExecute := nil;
 
   MainAction('aFImportSQL').Enabled := False;
   MainAction('aFImportText').Enabled := False;
@@ -10801,6 +10811,7 @@ begin
     MainAction('aECopy').Enabled := False;
     MainAction('aEPaste').Enabled := False;
     MainAction('aERename').Enabled := False;
+    MainAction('aESelectAll').Enabled := ListView.Items.Count > 1;
     MainAction('aDCreateDatabase').Enabled := False;
     MainAction('aDCreateTable').Enabled := False;
     MainAction('aDCreateView').Enabled := False;

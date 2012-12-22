@@ -319,7 +319,6 @@ asm
         JA VersionE                      // No!
 
         PUSH EAX
-        PUSH EBX
         PUSH EDX
         MOV EAX,EBX
         MOV BX,10
@@ -331,13 +330,10 @@ asm
         SUB AX,'0'                       // Convert digit numerical
         ADD EBX,EAX                      // Add digit to version
         POP EDX
-        POP EBX
         POP EAX
 
-        ADD ESI,2                        // One character handled in SQL
-        DEC EAX                          // One version digit handled
-        JZ VersionE                      // All version digits handled!
-        LOOP VersionL
+        CMP ECX,0
+        JNE VersionL
 
       VersionE:
         POP EDX

@@ -633,7 +633,7 @@ end;
 
 procedure TDExport.FBCancelClick(Sender: TObject);
 begin
-  if (Assigned(Export)) then
+  if (Assigned(Export) and not Export.Suspended) then
   begin
     Export.UserAbort.SetEvent();
     if (not Export.Suspended) then

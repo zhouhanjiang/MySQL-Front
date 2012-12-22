@@ -2303,9 +2303,12 @@ begin
           // UTF-8 coded bytes has to be separated well for the
           // MultiByteToWideChar function.
           UTF8Bytes := 0;
-          if (CodePage = CP_UTF8) then
-            while ((ReadSize > 0) and (Byte(FileBuffer.Mem[BytesPerSector + ReadSize - UTF8Bytes - 1]) and $80 <> 0)) do
+          if ((CodePage = CP_UTF8) and (Byte(FileBuffer.Mem[BytesPerSector + ReadSize - UTF8Bytes - 1]) and $80 <> 0)) then
+            repeat
               Inc(UTF8Bytes);
+            until ((BytesPerSector + ReadSize - UTF8Bytes - 1 = 0)
+              or (Byte(FileBuffer.Mem[BytesPerSector + ReadSize - UTF8Bytes]) and $C0 = 0)
+              or (Byte(FileBuffer.Mem[BytesPerSector + ReadSize - UTF8Bytes]) and $C0 <> $80));
 
           if (BytesPerSector + ReadSize - FileBuffer.Index > 0) then
           begin
