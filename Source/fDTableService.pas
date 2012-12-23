@@ -111,6 +111,8 @@ begin
     case (ServiceMode) of
       smOptimize:
         Success := Database.OptimizeTables(Tables);
+      smCheck:
+        Success := Database.CheckTables(Tables);
       smFlush:
         Success := Database.FlushTables(Tables);
       else

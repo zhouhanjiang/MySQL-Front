@@ -933,6 +933,7 @@ type
 
   TSDatabase = class(TSObject)
   private
+    CheckTableList: TList;
     FDefaultCharset: string;
     FDefaultCodePage: Cardinal;
     FCollation: string;
@@ -940,6 +941,8 @@ type
     FRoutines: TSRoutines;
     FTables: TSTables;
     FTriggers: TSTriggers;
+    RepairTableList: TList;
+    function CheckTableEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
     function GetDefaultCharset(): string;
     function GetCollation(): string;
     function GetCount(): Integer;
@@ -970,6 +973,7 @@ type
     function AddTrigger(const NewTrigger: TSTrigger): Boolean; virtual;
     function AddView(const NewView: TSView): Boolean; virtual;
     function BaseTableByName(const TableName: string): TSBaseTable; overload; virtual;
+    function CheckTables(const Tables: TList): Boolean; virtual;
     function CloneRoutine(const Routine: TSRoutine; const NewRoutineName: string): Boolean; overload; virtual;
     function CloneTable(const Table: TSBaseTable; const NewTableName: string; const Data: Boolean): Boolean; overload; virtual;
     function CloneView(const View: TSView; const NewViewName: string): Boolean; virtual;
@@ -986,6 +990,7 @@ type
     procedure PushBuildEvents(); virtual;
     function ProcedureByName(const ProcedureName: string): TSProcedure;
     function RenameTable(const Table: TSTable; const NewTableName: string): Boolean; virtual;
+    function RepairTables(const Tables: TList): Boolean; virtual;
     function SQLUse(): string; virtual;
     function TableByName(const TableName: string): TSTable; overload; virtual;
     function TriggerByName(const TriggerName: string): TSTrigger; virtual;
@@ -6828,6 +6833,54 @@ begin
   Result := False;
 end;
 
+function TSDatabase.CheckTables(const Tables: TList): Boolean;
+var
+  I: Integer;
+  SQL: string;
+begin
+  SQL := '';
+  for I := 0 to Tables.Count - 1 do
+    if (TObject(Tables[I]) is TSBaseTable) then
+    begin
+      if (SQL <> '') then SQL := SQL + ',';
+      SQL := SQL + Session.EscapeIdentifier(Name) + '.' + Session.EscapeIdentifier(TSBaseTable(Tables[I]).Name);
+    end;
+  SQL := 'CHECK TABLE ' + SQL + ';' + #13#10;
+
+  if (Session.DatabaseName = Name) then
+    Result := True
+  else
+    Result := Session.ExecuteSQL(SQLUse());
+  if (Result) then
+  begin
+    CheckTableList := Tables;
+    RepairTableList := TList.Create();
+    Result := Result and Session.ExecuteSQL(SQL, CheckTableEvent);
+    if (Result and (RepairTableList.Count > 0)) then
+      Result := RepairTables(RepairTableList);
+    RepairTableList.Free();
+  end;
+end;
+
+function TSDatabase.CheckTableEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+var
+  DataSet: TMySQLQuery;
+begin
+  if (Data) then
+  begin
+    DataSet := TMySQLQuery.Create(nil);
+    DataSet.Open(DataHandle);
+    if (not DataSet.IsEmpty) then
+      repeat
+//        if (lstrcmpi(PChar(DataSet.FieldByName('Msg_text').AsString), 'OK') <> 0) then
+          RepairTableList.Add(CheckTableList[DataSet.RecNo]);
+      until (not DataSet.FindNext());
+    DataSet.Free();
+  end;
+
+  Result := False;
+end;
+
 function TSDatabase.CloneRoutine(const Routine: TSRoutine; const NewRoutineName: string): Boolean;
 var
   DatabaseName: string;
@@ -7015,10 +7068,11 @@ var
 begin
   SQL := '';
   for I := 0 to Tables.Count - 1 do
-  begin
-    if (SQL <> '') then SQL := SQL + ',';
-    SQL := SQL + Session.EscapeIdentifier(Name) + '.' + Session.EscapeIdentifier(TSBaseTable(Tables[I]).Name);
-  end;
+    if (TObject(Tables[I]) is TSBaseTable) then
+    begin
+      if (SQL <> '') then SQL := SQL + ',';
+      SQL := SQL + Session.EscapeIdentifier(Name) + '.' + Session.EscapeIdentifier(TSBaseTable(Tables[I]).Name);
+    end;
   SQL := 'FLUSH TABLE ' + SQL + ';' + #13#10;
 
   if (Session.DatabaseName <> Name) then
@@ -7362,6 +7416,26 @@ begin
     else
       Result := Session.SendSQL('RENAME TABLE ' + Session.EscapeIdentifier(Table.Database.Name) + '.' + Session.EscapeIdentifier(Table.Name) + ' TO ' + Session.EscapeIdentifier(Name) + '.' + Session.EscapeIdentifier(NewTableName) + ';');
   end;
+end;
+
+function TSDatabase.RepairTables(const Tables: TList): Boolean;
+var
+  I: Integer;
+  SQL: string;
+begin
+  SQL := '';
+  for I := 0 to Tables.Count - 1 do
+    if (TObject(Tables[I]) is TSBaseTable) then
+    begin
+      if (SQL <> '') then SQL := SQL + ',';
+      SQL := SQL + Session.EscapeIdentifier(Name) + '.' + Session.EscapeIdentifier(TSBaseTable(Tables[I]).Name);
+    end;
+  SQL := 'REPAIR TABLE ' + SQL + ';' + #13#10;
+
+  if (Session.DatabaseName <> Name) then
+    SQL := SQLUse() + SQL;
+
+  Result := Session.ExecuteSQL(SQL);
 end;
 
 procedure TSDatabase.SetDefaultCharset(const ADefaultCharset: string);

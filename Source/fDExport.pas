@@ -222,6 +222,7 @@ type
     FLReferrers: array of TLabel;
     FObjects: TList;
     ProgressInfos: TTool.TProgressInfos;
+    SingleTable: Boolean;
     Title: string;
     WantedNodeExpand: TTreeNode;
     function BuildTitle(): TSDatabase;
@@ -306,7 +307,7 @@ begin
 
   if (Assigned(DataSet)) then
     Title := Preferences.LoadStr(362)
-  else if (SObjects.Count = 1) then
+  else if (SingleTable) then
     Title := TSObject(SObjects[0]).Name
   else if (Assigned(Result)) then
     Title := Result.Name
@@ -602,8 +603,9 @@ begin
 
   Filename := '';
   Title := '';
+  SingleTable := (SObjects.Count = 1) and (TSObject(SObjects[0]) is TSTable);
 
-  if ((Assigned(DataSet) or (SObjects.Count >= 1)) and (DialogType = edtNormal)) then
+  if ((Assigned(DataSet) or (SObjects.Count > 0)) and (DialogType = edtNormal)) then
     case (ExportType) of
       etODBC:
         if (not GetDataSource()) then
@@ -845,7 +847,7 @@ begin
   TSCSVOptions.Enabled := (ExportType in [etTextFile]) and (Filename <> '');
   TSXMLOptions.Enabled := (ExportType in [etXMLFile]) and (Filename <> '');
   TSHTMLOptions.Enabled := (ExportType in [etHTMLFile, etPDFFile]) and (Filename <> '');
-  TSFields.Enabled := (ExportType in [etExcelFile, etODBC]) and (SObjects.Count = 1) and (TObject(SObjects[0]) is TSTable);
+  TSFields.Enabled := (ExportType in [etExcelFile, etODBC]) and SingleTable and (TObject(SObjects[0]) is TSTable);
   TSTask.Enabled := not TSSQLOptions.Enabled and not TSCSVOptions.Enabled and not TSHTMLOptions.Enabled and not TSFields.Enabled;
 
   TabSheet := nil;
@@ -970,7 +972,7 @@ begin
           Export.SQL.DropStmts := FDropStmts.Checked;
           Export.SQL.ReplaceData := FReplaceData.Checked;
           Export.SQL.DisableKeys := FDisableKeys.Checked;
-          if (SObjects.Count > 1) then
+          if (not SingleTable) then
             Export.SQL.CreateDatabase := FCreateDatabase.Checked;
           Export.SQL.UseDatabase := FUseDatabase.Checked;
         end;
@@ -1208,7 +1210,7 @@ begin
   else
     FHTMLStructure.Caption := Preferences.LoadStr(215);
 
-  FCreateDatabase.Checked := (SObjects.Count > 1) and Preferences.Export.SQL.CreateDatabase;
+  FCreateDatabase.Checked := not SingleTable and Preferences.Export.SQL.CreateDatabase;
 
   TSSelect.Enabled := DialogType in [edtCreateJob, edtEditJob];
   TSJob.Enabled := False;
@@ -1216,7 +1218,7 @@ begin
   TSCSVOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etTextFile]);
   TSXMLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etXMLFile]) and not Assigned(DataSet);
   TSHTMLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etHTMLFile, etPrinter, etPDFFile]);
-  TSFields.Enabled := (DialogType in [edtNormal]) and (ExportType in [etExcelFile, etODBC]) and ((SObjects.Count = 1) and (TObject(SObjects[0]) is TSTable) or Assigned(DataSet)) or (ExportType in [etXMLFile]) and Assigned(DataSet);
+  TSFields.Enabled := (DialogType in [edtNormal]) and (ExportType in [etExcelFile, etODBC]) and (SingleTable and (TObject(SObjects[0]) is TSTable) or Assigned(DataSet)) or (ExportType in [etXMLFile]) and Assigned(DataSet);
   TSTask.Enabled := False;
   TSExecute.Enabled := not TSSQLOptions.Enabled and not TSCSVOptions.Enabled and not TSHTMLOptions.Enabled and not TSFields.Enabled;
 
@@ -1442,7 +1444,7 @@ begin
 
   if (Assigned(Session) and (Session.Charset <> '')) then
     CodePage := Session.CharsetToCodePage(Session.Charset)
-  else if ((DExport.SObjects.Count = 1) and (TObject(DExport.SObjects[0]) is TSBaseTable)) then
+  else if (SingleTable and (TObject(DExport.SObjects[0]) is TSBaseTable)) then
     CodePage := Session.CharsetToCodePage(TSBaseTable(DExport.SObjects[0]).DefaultCharset)
   else if (Assigned(Database)) then
     CodePage := Session.CharsetToCodePage(Database.DefaultCharset)
@@ -1461,7 +1463,7 @@ begin
         SaveDialog.Encodings.Text := EncodingCaptions();
       end;
     etTextFile:
-      if (SObjects.Count <= 1) then
+      if (SingleTable) then
       begin
         SaveDialog.Filter := FilterDescription('txt') + ' (*.txt;*.csv;*.tab)|*.txt;*.csv;*.tab';
         SaveDialog.DefaultExt := '.csv';
@@ -1568,7 +1570,7 @@ var
 begin
   ClearTSFields();
 
-  if ((SObjects.Count > 0) and (TSDBObject(SObjects[0]) is TSTable)) then
+  if (SingleTable) then
     SetLength(FFields, TSTable(SObjects[0]).Fields.Count)
   else if (Assigned(DataSet)) then
     SetLength(FFields, DataSet.Fields.Count);
@@ -1585,7 +1587,7 @@ begin
   end;
 
   FieldNames := #13#10;
-  if ((SObjects.Count > 0) and (TSDBObject(SObjects[0]) is TSTable)) then
+  if (SingleTable) then
     for J := 0 to TSTable(SObjects[0]).Fields.Count - 1 do
       FieldNames := FieldNames + TSTable(SObjects[0]).Fields[J].Name + #13#10
   else if (Assigned(DataSet)) then
@@ -1856,7 +1858,7 @@ var
 begin
   if (DialogType in [edtCreateJob, edtEditJob]) then
     TabSheet := TSTask
-  else if ((SObjects.Count = 1) and (TObject(SObjects[0]) is TSTable)) then
+  else if (SingleTable) then
     TabSheet := TSFields
   else
     TabSheet := TSExecute;
@@ -2052,7 +2054,7 @@ begin
       for I := 0 to SObjects.Count - 1 do
         Export.Add(TSDBObject(SObjects[I]));
 
-      if ((SObjects.Count = 1) and (TSDBObject(SObjects[0]) is TSTable)) then
+      if (SingleTable) then
         for I := 0 to Length(FFields) - 1 do
           if (FFields[I].ItemIndex > 0) then
           begin
@@ -2144,7 +2146,7 @@ var
 begin
   if (DialogType in [edtCreateJob, edtEditJob]) then
     TabSheet := TSTask
-  else if ((SObjects.Count = 1) and (TObject(SObjects[0]) is TSTable)) then
+  else if (SingleTable) then
     TabSheet := TSFields
   else
     TabSheet := TSExecute;
@@ -2194,7 +2196,7 @@ begin
   if (FDatabaseNodeDisabled.Checked and not FDatabaseNodeDisabled.Enabled) then
     FDatabaseNodeCustom.Checked := True;
 
-  FTableNodeDisabled.Enabled := SObjects.Count <= 1;
+  FTableNodeDisabled.Enabled := SingleTable;
   if (FTableNodeDisabled.Checked and not FTableNodeDisabled.Enabled) then
     FTableNodeCustom.Checked := True;
 

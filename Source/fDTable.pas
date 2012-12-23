@@ -831,41 +831,17 @@ end;
 procedure TDTable.FBCheckClick(Sender: TObject);
 var
   I: Byte;
-  Success: Boolean;
 begin
+  DTableService.ServiceMode := smCheck;
   DTableService.Database := Database;
 
   if (not Assigned(Tables)) then
-  begin
-    DTableService.Tables.Add(Table);
-    DTableService.ServiceMode := smCheck;
-
-    Success := DTableService.Execute();
-    if (not Success and (UpperCase(Table.Engine.Name) = 'MYISAM')) then
-    begin
-      DTableService.ServiceMode := smRepair;
-      DTableService.Execute();
-    end;
-    DTableService.Tables.Clear();
-  end
+    DTableService.Tables.Add(NewTable)
   else
-  begin
-    Success := True;
     for I := 0 to Tables.Count - 1 do
-      if (Success) then
-      begin
-        DTableService.Tables.Add(Tables[I]);
-        DTableService.ServiceMode := smCheck;
-
-        Success := DTableService.Execute();
-        if (not Success and (Database.Session.Engines.NameCmp(TSBaseTable(Tables[I]).Engine.Name, 'MYISAM') = 0)) then
-        begin
-          DTableService.ServiceMode := smRepair;
-          Success := DTableService.Execute();
-        end;
-        DTableService.Tables.Clear();
-      end;
-  end;
+      DTableService.Tables.Add(TSBaseTable(Tables[I]));
+  DTableService.Execute();
+  DTableService.Tables.Clear();
 
   TSExtrasShow(Sender);
 
@@ -916,20 +892,12 @@ begin
   DTableService.Database := Database;
 
   if (not Assigned(Tables)) then
-  begin
-    DTableService.Tables.Add(Table);
-    if (DTableService.Execute()) then
-      NewTable.UnusedSize := Table.UnusedSize;
-    DTableService.Tables.Clear();
-  end
+    DTableService.Tables.Add(NewTable)
   else
-  begin
     for I := 0 to Tables.Count - 1 do
-      DTableService.Tables.Add(Tables[I]);
-
-    DTableService.Execute();
-    DTableService.Tables.Clear();
-  end;
+      DTableService.Tables.Add(TSBaseTable(Tables[I]));
+  DTableService.Execute();
+  DTableService.Tables.Clear();
 
   TSExtrasShow(Sender);
 
@@ -1152,11 +1120,12 @@ end;
 
 procedure TDTable.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = ceItemValid) and (Event.CItem = Table)) then
+  if ((Tables.Count = 0) and (Event.EventType = ceItemValid) and (Event.CItem = Table)
+    or (Tables.Count > 0) and (Event.EventType = ceAfterExecuteSQL) and not PageControl.Visible) then
     Built()
   else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.CItem is fSession.TSTable)) then
-    ModalResult := mrOk
-  else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
+    ModalResult := mrOk;
+  if ((Event.EventType = ceAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
   begin
     PageControl.Visible := True;
     PSQLWait.Visible := not PageControl.Visible;
