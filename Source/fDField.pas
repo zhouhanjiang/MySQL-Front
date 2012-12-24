@@ -244,7 +244,11 @@ begin
   if (Assigned(Charset) and Assigned(Table.Database.Session.Collations)) then
     for I := 0 to Table.Database.Session.Collations.Count - 1 do
       if (Table.Database.Session.Collations[I].Charset = Charset) then
+      begin
         FCollation.Items.Add(Table.Database.Session.Collations[I].Name);
+        if (Table.Database.Session.Collations[I].Default) then
+          FCollation.ItemIndex := FCollation.Items.Count - 1;
+      end;
 
   FBOkCheckEnabled(Sender);
 end;

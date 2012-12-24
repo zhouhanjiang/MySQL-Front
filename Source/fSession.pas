@@ -621,7 +621,6 @@ type
     function SQLGetSource(): string; override;
   public
     procedure Assign(const Source: TSTable); override;
-    function Check(): Boolean; virtual;
     function FieldByName(const FieldName: string): TSBaseTableField; reintroduce; virtual;
     function ForeignKeyByName(const ForeignKeyName: string): TSForeignKey; virtual;
     function CountRecords(): Integer; override;
@@ -630,14 +629,12 @@ type
     function DBRowTypeStr(): string; virtual;
     procedure Empty(); virtual;
     function EmptyFields(const Fields: TList): Boolean; virtual;
-    function Flush(): Boolean; virtual;
     function GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string; override;
     function KeyByCaption(const Caption: string): TSKey; virtual;
     function IndexByName(const Name: string): TSKey; virtual;
     function KeyByDataSet(const DataSet: TSTableDataSet): TSKey; virtual;
     procedure Invalidate(); override;
     procedure InvalidateStatus(); virtual;
-    function Optimize(): Boolean; virtual;
     function PartitionByName(const PartitionName: string): TSPartition; virtual;
     procedure PushBuildEvent(); override;
     function Repair(): Boolean; virtual;
@@ -3818,14 +3815,6 @@ begin
   FValidStatus := True;
 end;
 
-function TSBaseTable.Check(): Boolean;
-begin
-  Result := Database.Session.ExecuteSQL('CHECK TABLE ' + Database.Session.EscapeIdentifier(Database.Name) + '.' + Database.Session.EscapeIdentifier(Name) + ';');
-
-  if (Result) then
-    FChecked := Database.Session.ServerDateTime;
-end;
-
 function TSBaseTable.CountRecords(): Integer;
 begin
   if (Assigned(Engine) and Engine.IsInnoDB) then
@@ -3946,11 +3935,6 @@ begin
     Result := nil
   else
     Result := TSBaseTableField(Field);
-end;
-
-function TSBaseTable.Flush(): Boolean;
-begin
-  Result := Database.Session.ExecuteSQL('FLUSH TABLE ' + Database.Session.EscapeIdentifier(Database.Name) + '.' + Database.Session.EscapeIdentifier(Name) + ';');
 end;
 
 function TSBaseTable.ForeignKeyByName(const ForeignKeyName: string): TSForeignKey;
@@ -4159,11 +4143,6 @@ begin
     Session.InvalidObjects.Add(Self);
 
   FValidStatus := False;
-end;
-
-function TSBaseTable.Optimize(): Boolean;
-begin
-  Result := Database.Session.ExecuteSQL('OPTIMIZE TABLE ' + Database.Session.EscapeIdentifier(Database.Name) + '.' + Database.Session.EscapeIdentifier(Name) + ';');
 end;
 
 function TSBaseTable.PartitionByName(const PartitionName: string): TSPartition;
@@ -6864,7 +6843,10 @@ end;
 
 function TSDatabase.CheckTableEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
 var
+  DatabaseName: string;
   DataSet: TMySQLQuery;
+  Parse: TSQLParse;
+  TableName: string;
 begin
   if (Data) then
   begin
@@ -6872,8 +6854,13 @@ begin
     DataSet.Open(DataHandle);
     if (not DataSet.IsEmpty) then
       repeat
-//        if (lstrcmpi(PChar(DataSet.FieldByName('Msg_text').AsString), 'OK') <> 0) then
-          RepairTableList.Add(CheckTableList[DataSet.RecNo]);
+        if ((lstrcmpi(PChar(DataSet.FieldByName('Msg_text').AsString), 'OK') <> 0)
+          and SQLCreateParse(Parse, PChar(DataSet.FieldByName('Table').AsString), Length(DataSet.FieldByName('Table').AsString), Session.ServerVersion)) then
+        begin
+          DatabaseName := Name;
+          if (SQLParseObjectName(Parse, DatabaseName, TableName)) then
+            RepairTableList.Add(Session.DatabaseByName(DatabaseName).BaseTableByName(TableName));
+        end;
       until (not DataSet.FindNext());
     DataSet.Free();
   end;
@@ -7072,13 +7059,17 @@ begin
     begin
       if (SQL <> '') then SQL := SQL + ',';
       SQL := SQL + Session.EscapeIdentifier(Name) + '.' + Session.EscapeIdentifier(TSBaseTable(Tables[I]).Name);
+
+      TSBaseTable(Tables[I]).InvalidateStatus();
     end;
   SQL := 'FLUSH TABLE ' + SQL + ';' + #13#10;
+
+  SQL := SQL + Self.Tables.SQLGetStatus(Tables);
 
   if (Session.DatabaseName <> Name) then
     SQL := SQLUse() + SQL;
 
-  Result := Session.ExecuteSQL(SQL);
+  Result := Session.SendSQL(SQL, Session.SessionResult);
 end;
 
 procedure TSDatabase.FreeDesktop();
@@ -7288,16 +7279,21 @@ var
 begin
   SQL := '';
   for I := 0 to Tables.Count - 1 do
-  begin
-    if (SQL <> '') then SQL := SQL + ',';
-    SQL := SQL + Session.EscapeIdentifier(Name) + '.' + Session.EscapeIdentifier(TSBaseTable(Tables[I]).Name);
-  end;
+    if (TObject(Tables[I]) is TSBaseTable) then
+    begin
+      if (SQL <> '') then SQL := SQL + ',';
+      SQL := SQL + Session.EscapeIdentifier(Name) + '.' + Session.EscapeIdentifier(TSBaseTable(Tables[I]).Name);
+
+      TSBaseTable(Tables[I]).InvalidateStatus();
+    end;
   SQL := 'OPTIMIZE TABLE ' + SQL + ';' + #13#10;
+
+  SQL := SQL + Self.Tables.SQLGetStatus(Tables);
 
   if (Session.DatabaseName <> Name) then
     SQL := SQLUse() + SQL;
 
-  Result := Session.ExecuteSQL(SQL);
+  Result := Session.SendSQL(SQL, Session.SessionResult);
 end;
 
 procedure TSDatabase.ParseCreateDatabase(const SQL: string);
@@ -7431,6 +7427,8 @@ begin
       SQL := SQL + Session.EscapeIdentifier(Name) + '.' + Session.EscapeIdentifier(TSBaseTable(Tables[I]).Name);
     end;
   SQL := 'REPAIR TABLE ' + SQL + ';' + #13#10;
+
+  SQL := SQL + Self.Tables.SQLGetStatus(Tables);
 
   if (Session.DatabaseName <> Name) then
     SQL := SQLUse() + SQL;

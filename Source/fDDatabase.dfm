@@ -35,7 +35,6 @@ object DDatabase: TDDatabase
     Caption = 'PSQLWait'
     TabOrder = 0
     Visible = False
-    ExplicitHeight = 196
   end
   object FBOk: TButton
     Left = 167
@@ -47,7 +46,6 @@ object DDatabase: TDDatabase
     Default = True
     ModalResult = 1
     TabOrder = 2
-    ExplicitTop = 215
   end
   object FBCancel: TButton
     Left = 255
@@ -59,7 +57,6 @@ object DDatabase: TDDatabase
     Caption = 'FBCancel'
     ModalResult = 2
     TabOrder = 4
-    ExplicitTop = 215
   end
   object FBHelp: TButton
     Left = 8
@@ -70,7 +67,6 @@ object DDatabase: TDDatabase
     Caption = 'FBHelp'
     TabOrder = 1
     OnClick = FBHelpClick
-    ExplicitTop = 215
   end
   object PageControl: TPageControl
     Left = 8
@@ -83,10 +79,6 @@ object DDatabase: TDDatabase
     TabOrder = 3
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         168)
@@ -161,10 +153,6 @@ object DDatabase: TDDatabase
     object TSInformations: TTabSheet
       Caption = 'TSInformations'
       OnShow = TSInformationsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         168)
@@ -244,10 +232,6 @@ object DDatabase: TDDatabase
     object TSSource: TTabSheet
       Caption = 'TSSource'
       OnShow = TSSourceShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         168)

@@ -207,6 +207,7 @@ type
     procedure TSReferencedShow(Sender: TObject);
     procedure TSSourceShow(Sender: TObject);
     procedure TSTriggersShow(Sender: TObject);
+    procedure FCollationChange(Sender: TObject);
   private
     FCreatedName: string;
     NewTable: TSBaseTable;
@@ -239,8 +240,8 @@ implementation {***************************************************************}
 uses
   Clipbrd, StrUtils,
   SQLUtils,
-  fDField, fDKey, fDForeignKey, fDTableService, fPreferences,
-  fDTrigger, fDPartition;
+  fPreferences,
+  fDField, fDKey, fDForeignKey, fDTrigger, fDPartition;
 
 var
   FTable: TDTable;
@@ -830,20 +831,15 @@ end;
 
 procedure TDTable.FBCheckClick(Sender: TObject);
 var
-  I: Byte;
+  List: TList;
 begin
-  DTableService.ServiceMode := smCheck;
-  DTableService.Database := Database;
-
+  List := TList.Create();
   if (not Assigned(Tables)) then
-    DTableService.Tables.Add(NewTable)
+    List.Add(NewTable)
   else
-    for I := 0 to Tables.Count - 1 do
-      DTableService.Tables.Add(TSBaseTable(Tables[I]));
-  DTableService.Execute();
-  DTableService.Tables.Clear();
-
-  TSExtrasShow(Sender);
+    List.Assign(Tables);
+  Database.CheckTables(List);
+  List.Free();
 
   FBCheck.Enabled := False;
   ActiveControl := FBCancel;
@@ -853,18 +849,15 @@ end;
 
 procedure TDTable.FBFlushClick(Sender: TObject);
 var
-  I: Byte;
+  List: TList;
 begin
-  DTableService.ServiceMode := smFlush;
-  DTableService.Database := Database;
-
+  List := TList.Create();
   if (not Assigned(Tables)) then
-    DTableService.Tables.Add(NewTable)
+    List.Add(NewTable)
   else
-    for I := 0 to Tables.Count - 1 do
-      DTableService.Tables.Add(TSBaseTable(Tables[I]));
-  DTableService.Execute();
-  DTableService.Tables.Clear();
+    List.Assign(Tables);
+  Database.FlushTables(List);
+  List.Free();
 
   FBFlush.Enabled := False;
   ActiveControl := FBCancel;
@@ -886,25 +879,31 @@ end;
 
 procedure TDTable.FBOptimizeClick(Sender: TObject);
 var
-  I: Byte;
+  List: TList;
 begin
-  DTableService.ServiceMode := smOptimize;
-  DTableService.Database := Database;
-
+  List := TList.Create();
   if (not Assigned(Tables)) then
-    DTableService.Tables.Add(NewTable)
+    List.Add(NewTable)
   else
-    for I := 0 to Tables.Count - 1 do
-      DTableService.Tables.Add(TSBaseTable(Tables[I]));
-  DTableService.Execute();
-  DTableService.Tables.Clear();
-
-  TSExtrasShow(Sender);
+    List.Assign(Tables);
+  Database.OptimizeTables(List);
+  List.Free();
 
   FBOptimize.Enabled := False;
   ActiveControl := FBCancel;
 
   FBCancel.Caption := Preferences.LoadStr(231);
+end;
+
+procedure TDTable.FCollationChange(Sender: TObject);
+var
+  Collation: TSCollation;
+begin
+  Collation := Database.Session.CollationByName(FCollation.Text);
+  if (Assigned(Collation)) then
+    NewTable.Collation := Collation.Name;
+
+  FBOkCheckEnabled(Sender);
 end;
 
 procedure TDTable.FCollationDropDown(Sender: TObject);
@@ -926,15 +925,21 @@ var
   I: Integer;
 begin
   Charset := Database.Session.CharsetByName(FDefaultCharset.Text);
+  if (Assigned(Charset)) then
+    NewTable.DefaultCharset := Charset.Name;
 
   FCollation.Items.Clear();
   FCollation.Items.Add('');
   if (Assigned(Database.Session.Collations)) then
     for I := 0 to Database.Session.Collations.Count - 1 do
       if (Assigned(Charset) and (Database.Session.Collations[I].Charset = Charset)) then
+      begin
         FCollation.Items.Add(Database.Session.Collations[I].Name);
+        if (Database.Session.Collations[I].Default) then
+          FCollation.ItemIndex := FCollation.Items.Count - 1;
+      end;
 
-  FBOkCheckEnabled(Sender);
+  FCollationChange(Sender);
 end;
 
 procedure TDTable.FDefaultCharsetExit(Sender: TObject);
@@ -1123,6 +1128,8 @@ begin
   if ((Tables.Count = 0) and (Event.EventType = ceItemValid) and (Event.CItem = Table)
     or (Tables.Count > 0) and (Event.EventType = ceAfterExecuteSQL) and not PageControl.Visible) then
     Built()
+  else if ((Tables.Count > 0) and (Event.EventType = ceItemValid)) then
+    TSExtrasShow(nil)
   else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.CItem is fSession.TSTable)) then
     ModalResult := mrOk;
   if ((Event.EventType = ceAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
@@ -1410,8 +1417,6 @@ begin
     if (PageControl.Visible) then
       Built();
   end;
-
-  DTableService.Parent := TForm(Self);
 
 
   FDefaultCharset.Visible := Database.Session.ServerVersion >= 40101; FLDefaultCharset.Visible := FDefaultCharset.Visible;
