@@ -5,7 +5,7 @@ object DDatabase: TDDatabase
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'DDatabase'
-  ClientHeight = 252
+  ClientHeight = 377
   ClientWidth = 337
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -21,14 +21,14 @@ object DDatabase: TDDatabase
   OnShow = FormShow
   DesignSize = (
     337
-    252)
+    377)
   PixelsPerInch = 106
   TextHeight = 13
   object PSQLWait: TPanel
     Left = 8
     Top = 8
     Width = 321
-    Height = 200
+    Height = 325
     Cursor = crHourGlass
     Anchors = [akLeft, akTop, akRight, akBottom]
     BevelOuter = bvNone
@@ -38,7 +38,7 @@ object DDatabase: TDDatabase
   end
   object FBOk: TButton
     Left = 167
-    Top = 219
+    Top = 344
     Width = 75
     Height = 25
     Anchors = [akRight, akBottom]
@@ -49,7 +49,7 @@ object DDatabase: TDDatabase
   end
   object FBCancel: TButton
     Left = 255
-    Top = 219
+    Top = 344
     Width = 75
     Height = 25
     Anchors = [akRight, akBottom]
@@ -60,7 +60,7 @@ object DDatabase: TDDatabase
   end
   object FBHelp: TButton
     Left = 8
-    Top = 219
+    Top = 344
     Width = 75
     Height = 25
     Anchors = [akLeft, akBottom]
@@ -72,8 +72,8 @@ object DDatabase: TDDatabase
     Left = 8
     Top = 8
     Width = 321
-    Height = 196
-    ActivePage = TSBasics
+    Height = 325
+    ActivePage = TSExtras
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     TabOrder = 3
@@ -81,7 +81,7 @@ object DDatabase: TDDatabase
       Caption = 'TSBasics'
       DesignSize = (
         313
-        168)
+        297)
       object GBasics: TGroupBox_Ext
         Left = 8
         Top = 8
@@ -155,7 +155,7 @@ object DDatabase: TDDatabase
       OnShow = TSInformationsShow
       DesignSize = (
         313
-        168)
+        297)
       object GDates: TGroupBox_Ext
         Left = 8
         Top = 8
@@ -229,17 +229,122 @@ object DDatabase: TDDatabase
         end
       end
     end
+    object TSExtras: TTabSheet
+      Caption = 'TSExtras'
+      OnShow = TSExtrasShow
+      DesignSize = (
+        313
+        297)
+      object GOptimize: TGroupBox_Ext
+        Left = 8
+        Top = 8
+        Width = 297
+        Height = 81
+        Anchors = [akLeft, akTop, akRight]
+        Caption = 'GOptimize'
+        TabOrder = 0
+        DesignSize = (
+          297
+          81)
+        object FLUnusedSize: TLabel
+          Left = 8
+          Top = 20
+          Width = 69
+          Height = 13
+          Caption = 'FLUnusedSize'
+        end
+        object FUnusedSize: TLabel
+          Left = 226
+          Top = 20
+          Width = 63
+          Height = 13
+          Alignment = taRightJustify
+          Anchors = [akTop, akRight]
+          Caption = 'FUnusedSize'
+        end
+        object FBOptimize: TButton
+          Left = 168
+          Top = 44
+          Width = 122
+          Height = 25
+          Anchors = [akTop, akRight]
+          Caption = 'FBOptimize'
+          TabOrder = 0
+          OnClick = FBOptimizeClick
+        end
+      end
+      object GCheck: TGroupBox_Ext
+        Left = 8
+        Top = 96
+        Width = 297
+        Height = 81
+        Anchors = [akLeft, akTop, akRight]
+        Caption = 'GCheck'
+        TabOrder = 1
+        DesignSize = (
+          297
+          81)
+        object FLChecked: TLabel
+          Left = 8
+          Top = 20
+          Width = 55
+          Height = 13
+          Caption = 'FLChecked'
+        end
+        object FChecked: TLabel
+          Left = 240
+          Top = 20
+          Width = 49
+          Height = 13
+          Alignment = taRightJustify
+          Anchors = [akTop, akRight]
+          Caption = 'FChecked'
+        end
+        object FBCheck: TButton
+          Left = 168
+          Top = 44
+          Width = 122
+          Height = 25
+          Anchors = [akTop, akRight]
+          Caption = 'FBCheck'
+          TabOrder = 0
+          OnClick = FBCheckClick
+        end
+      end
+      object GFlush: TGroupBox_Ext
+        Left = 8
+        Top = 188
+        Width = 297
+        Height = 53
+        Anchors = [akLeft, akTop, akRight]
+        Caption = 'GFlush'
+        TabOrder = 2
+        DesignSize = (
+          297
+          53)
+        object FBFlush: TButton
+          Left = 168
+          Top = 16
+          Width = 121
+          Height = 25
+          Anchors = [akTop, akRight]
+          Caption = 'FBFlush'
+          TabOrder = 0
+          OnClick = FBFlushClick
+        end
+      end
+    end
     object TSSource: TTabSheet
       Caption = 'TSSource'
       OnShow = TSSourceShow
       DesignSize = (
         313
-        168)
+        297)
       object FSource: TSynMemo
         Left = 8
         Top = 8
         Width = 297
-        Height = 141
+        Height = 270
         Anchors = [akLeft, akTop, akRight, akBottom]
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText

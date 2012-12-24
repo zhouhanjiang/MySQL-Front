@@ -8,27 +8,37 @@ uses
   SynEdit, SynMemo,
   Forms_Ext, StdCtrls_Ext,
   fSession, fBase, Vcl.ExtCtrls;
-                                                             
+
 type
   TDDatabase = class (TForm_Ext)
     FBCancel: TButton;
+    FBCheck: TButton;
+    FBFlush: TButton;
     FBHelp: TButton;
     FBOk: TButton;
+    FBOptimize: TButton;
     FCollation: TComboBox_Ext;
+    FChecked: TLabel;
     FCreated: TLabel;
     FDefaultCharset: TComboBox_Ext;
+    FLChecked: TLabel;
     FLCollation: TLabel;
     FLCreated: TLabel;
     FLDefaultCharset: TLabel;
     FLName: TLabel;
     FLSize: TLabel;
+    FLUnusedSize: TLabel;
     FLUpdated: TLabel;
     FName: TEdit;
     FSize: TLabel;
     FSource: TSynMemo;
+    FUnusedSize: TLabel;
     FUpdated: TLabel;
     GBasics: TGroupBox_Ext;
+    GCheck: TGroupBox_Ext;
     GDates: TGroupBox_Ext;
+    GFlush: TGroupBox_Ext;
+    GOptimize: TGroupBox_Ext;
     GSize: TGroupBox_Ext;
     msCopy: TMenuItem;
     MSource: TPopupMenu;
@@ -37,6 +47,7 @@ type
     PageControl: TPageControl;
     PSQLWait: TPanel;
     TSBasics: TTabSheet;
+    TSExtras: TTabSheet;
     TSInformations: TTabSheet;
     TSSource: TTabSheet;
     procedure FBHelpClick(Sender: TObject);
@@ -53,6 +64,10 @@ type
     procedure FSourceChange(Sender: TObject);
     procedure TSInformationsShow(Sender: TObject);
     procedure TSSourceShow(Sender: TObject);
+    procedure FBOptimizeClick(Sender: TObject);
+    procedure TSExtrasShow(Sender: TObject);
+    procedure FBCheckClick(Sender: TObject);
+    procedure FBFlushClick(Sender: TObject);
   private
     procedure Built();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
@@ -72,6 +87,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
+  StrUtils,
   fPreferences;
 
 var
@@ -127,6 +143,16 @@ begin
   GSize.Caption := Preferences.LoadStr(125);
   FLSize.Caption := Preferences.LoadStr(67) + ':';
 
+  TSExtras.Caption := ReplaceStr(Preferences.LoadStr(73), '&', '');
+  GOptimize.Caption := Preferences.LoadStr(171);
+  FLUnusedSize.Caption := Preferences.LoadStr(128) + ':';
+  FBOptimize.Caption := Preferences.LoadStr(130);
+  GCheck.Caption := Preferences.LoadStr(172);
+  FLChecked.Caption := Preferences.LoadStr(120) + ':';
+  FBCheck.Caption := Preferences.LoadStr(131);
+  GFlush.Caption := Preferences.LoadStr(328);
+  FBFlush.Caption := Preferences.LoadStr(329);
+
   TSSource.Caption := Preferences.LoadStr(198);
   FSource.Font.Name := Preferences.SQLFontName;
   FSource.Font.Style := Preferences.SQLFontStyle;
@@ -158,6 +184,42 @@ begin
   Result := ModalResult = mrOk;
 end;
 
+procedure TDDatabase.FBCheckClick(Sender: TObject);
+var
+  I: Integer;
+  List: TList;
+begin
+  List := TList.Create();
+  for I := 0 to Database.Tables.Count - 1 do
+    if (Database.Tables[I] is TSBaseTable) then
+      List.Add(Database.Tables[I]);
+  Database.CheckTables(List);
+  List.Free();
+
+  FBCheck.Enabled := False;
+  ActiveControl := FBCancel;
+
+  FBCancel.Caption := Preferences.LoadStr(231);
+end;
+
+procedure TDDatabase.FBFlushClick(Sender: TObject);
+var
+  I: Integer;
+  List: TList;
+begin
+  List := TList.Create();
+  for I := 0 to Database.Tables.Count - 1 do
+    if (Database.Tables[I] is TSBaseTable) then
+      List.Add(Database.Tables[I]);
+  Database.FlushTables(List);
+  List.Free();
+
+  FBFlush.Enabled := False;
+  ActiveControl := FBCancel;
+
+  FBCancel.Caption := Preferences.LoadStr(231);
+end;
+
 procedure TDDatabase.FBHelpClick(Sender: TObject);
 begin
   Application.HelpContext(HelpContext);
@@ -167,6 +229,24 @@ procedure TDDatabase.FBOkCheckEnabled(Sender: TObject);
 begin
   FBOk.Enabled := (FName.Text <> '')
     and (not Assigned(Session.DatabaseByName(FName.Text)) or (Assigned(Database) and (((Session.LowerCaseTableNames = 0) and (FName.Text = Database.Name)) or ((Session.LowerCaseTableNames > 0) and ((lstrcmpi(PChar(FName.Text), PChar(Database.Name)) = 0))))));
+end;
+
+procedure TDDatabase.FBOptimizeClick(Sender: TObject);
+var
+  I: Integer;
+  List: TList;
+begin
+  List := TList.Create();
+  for I := 0 to Database.Tables.Count - 1 do
+    if (Database.Tables[I] is TSBaseTable) then
+      List.Add(Database.Tables[I]);
+  Database.OptimizeTables(List);
+  List.Free();
+
+  FBOptimize.Enabled := False;
+  ActiveControl := FBCancel;
+
+  FBCancel.Caption := Preferences.LoadStr(231);
 end;
 
 procedure TDDatabase.FCollationChange(Sender: TObject);
@@ -230,7 +310,10 @@ end;
 procedure TDDatabase.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = ceItemValid) and (Event.CItem = Database)) then
-    Built()
+    if (not PageControl.Visible) then
+      Built()
+    else
+      TSExtrasShow(nil)
   else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.CItem is TSDatabase)) then
     ModalResult := mrOk
   else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
@@ -367,7 +450,13 @@ begin
   FName.Enabled := not Assigned(Database) or not Assigned(Session.DatabaseByName(Database.Name));
   FDefaultCharset.Visible := Session.ServerVersion >= 40101; FLDefaultCharset.Visible := FDefaultCharset.Visible;
   FCollation.Visible := Session.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
+
+  FBOptimize.Enabled := True;
+  FBCheck.Enabled := True;
+  FBFlush.Enabled := True;
+
   TSInformations.TabVisible := not FName.Enabled;
+  TSExtras.TabVisible := Assigned(Database);
 
   FName.SelectAll();
 
@@ -391,6 +480,28 @@ end;
 function TDDatabase.GetName(): string;
 begin
   Result := FName.Text;
+end;
+
+procedure TDDatabase.TSExtrasShow(Sender: TObject);
+var
+  DateTime: TDateTime;
+  I: Integer;
+  Size: Int64;
+begin
+  Size := 0;
+  for I := 0 to Database.Tables.Count - 1 do
+    if (Database.Tables[I] is TSBaseTable) then
+      Inc(Size, TSBaseTable(Database.Tables[I]).UnusedSize);
+  FUnusedSize.Caption := SizeToStr(Size);
+
+  DateTime := Now();
+  for I := 0 to Database.Tables.Count - 1 do
+    if ((Database.Tables[I] is TSBaseTable) and (TSBaseTable(Database.Tables[I]).Checked < DateTime)) then
+      DateTime := TSBaseTable(Database.Tables[I]).Checked;
+  if (DateTime <= 0) then
+    FChecked.Caption := '???'
+  else
+    FChecked.Caption := SysUtils.DateTimeToStr(DateTime, LocaleFormatSettings);
 end;
 
 procedure TDDatabase.TSInformationsShow(Sender: TObject);

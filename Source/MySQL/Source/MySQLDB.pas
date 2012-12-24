@@ -3516,7 +3516,7 @@ begin
   else if (ErrorCode > 0) then
     DoError(ErrorCode, ErrorMessage);
 
-  if ((not Assigned(LibraryThread.OnResult) or not Assigned(LibraryThread.ResHandle)) and (LibraryThread.State = ssResult)) then
+  if (LibraryThread.State = ssResult) then
   begin
     LibraryThread.State := ssReceivingResult;
     SyncHandledResult(LibraryThread);

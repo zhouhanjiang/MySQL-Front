@@ -7283,8 +7283,6 @@ begin
     begin
       if (SQL <> '') then SQL := SQL + ',';
       SQL := SQL + Session.EscapeIdentifier(Name) + '.' + Session.EscapeIdentifier(TSBaseTable(Tables[I]).Name);
-
-      TSBaseTable(Tables[I]).InvalidateStatus();
     end;
   SQL := 'OPTIMIZE TABLE ' + SQL + ';' + #13#10;
 
@@ -8664,7 +8662,7 @@ var
   Index: Integer;
   Name: string;
   OldCount: Integer;
-  Seconds: Int64;
+  Seconds: UInt64;
 begin
   OldCount := Count;
 
@@ -8694,7 +8692,7 @@ begin
 
   if (Assigned(Session.StatusByName('Uptime'))) then
   begin
-    Seconds := StrToInt64(Session.StatusByName('Uptime').Value);
+    Seconds := StrToUInt64(Session.StatusByName('Uptime').Value);
 
     Session.FStartTime := Now();
     Session.FStartTime := Session.FStartTime - EncodeTime(0, 0, Seconds mod 60, 0); Seconds := Seconds div 60;

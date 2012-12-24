@@ -1,6 +1,6 @@
 object DTable: TDTable
-  Left = 741
-  Top = 463
+  Left = 0
+  Top = 0
   HelpContext = 1054
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
@@ -65,7 +65,7 @@ object DTable: TDTable
     Top = 8
     Width = 321
     Height = 325
-    ActivePage = TSTable
+    ActivePage = TSExtras
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
