@@ -1100,8 +1100,6 @@ begin
 
   ClearTSFields();
   PageControl.ActivePage := nil;
-
-  PageControl.ActivePage := nil;
 end;
 
 procedure TDExport.FormSessionEvent(const Event: TSSession.TEvent);
@@ -1939,6 +1937,7 @@ begin
     etAccessFile:
       begin
         Export := TTExportAccess.Create(Session, Filename);
+        TTExportAccess(Export).Access2007 := (odAccess2007 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
         TTExportAccess(Export).Data := True;
         TTExportAccess(Export).Structure := True;
       end;
@@ -1946,8 +1945,8 @@ begin
       begin
         Export := TTExportExcel.Create(Session, Filename);
         TTExportExcel(Export).Data := True;
-        TTExportExcel(Export).Structure := True;
         TTExportExcel(Export).Excel2007 := (odExcel2007 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
+        TTExportExcel(Export).Structure := True;
       end;
     etSQLiteFile:
       begin

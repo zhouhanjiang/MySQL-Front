@@ -1126,10 +1126,11 @@ end;
 procedure TDTable.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if ((Tables.Count = 0) and (Event.EventType = ceItemValid) and (Event.CItem = Table)
-    or (Tables.Count > 0) and (Event.EventType = ceAfterExecuteSQL) and not PageControl.Visible) then
-    Built()
-  else if ((Tables.Count > 0) and (Event.EventType = ceItemValid)) then
-    TSExtrasShow(nil)
+    or (Tables.Count > 0) and (Event.EventType = ceAfterExecuteSQL)) then
+    if (not PageControl.Visible) then
+      Built()
+    else
+      TSExtrasShow(nil)
   else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.CItem is fSession.TSTable)) then
     ModalResult := mrOk;
   if ((Event.EventType = ceAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then

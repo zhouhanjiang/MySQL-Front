@@ -205,26 +205,27 @@ type
 //        property Operator: TToken read FOperator;
 //      end;
 //
-//      TBinaryOperation = record
-//      private // Heritage
-//        FNodeType: TNodeType;
-//        FParser: TCustomSQLParser;
-//        FParentNode: ONode;
-//        FFirstToken: TNodeOffset;
-//        FLastToken: TNodeOffset;
-//        FStmtToken: TNodeOffset;
-//        FStmtToken: TNodeOffset;
-//      private
-//        FOperand1: TNode;
-//        FOperand2: TNode;
-//        FOperator: TToken;
-//      public
-//        constructor Create(const AParentNode: TNode;  const AOperator: TToken; const AOperand1, AOperand2: TNode);
-//        property Operand1: TNode read FOperand1;
-//        property Operand2: TNode read FOperand2;
-//        property Operator: TToken read FOperator;
-//      end;
-//
+      TBinaryOperation = record
+      private // Heritage from TRangeNode
+        FNodeType: TNodeType;
+        FParser: TCustomSQLParser;
+        FParentNode: ONode;
+        FFirstToken: ONode;
+        FLastToken: ONode;
+      private
+        FOperand1: ONode;
+        FOperand2: ONode;
+        FOperator: ONode;
+        function GetOperand1(): PNode;
+        function GetOperand2(): PNode;
+        function GetOperator(): PToken;
+      public
+        class function Create(const AParser: TCustomSQLParser; const AOperator, AOperand1, AOperand2: ONode): ONode; static;
+        property Operand1: PNode read GetOperand1;
+        property Operand2: PNode read GetOperand2;
+        property Operator: PToken read GetOperator;
+      end;
+
 //      TFunction = record
 //      private // Heritage
 //        FNodeType: TNodeType;
@@ -959,24 +960,39 @@ end;
 //
 //  FLastToken := Operand.LastToken;
 //end;
-//
-//{ TCustomSQLParser.TTwoOperandOperation ***************************************}
-//
-//constructor TCustomSQLParser.TBinaryOperation.Create(const AParentNode: TNode; const AOperator: TToken; const AOperand1, AOperand2: TNode);
-//begin
-//  inherited Create(AParentNode, AOperand1.FirstToken);
-//
-//  FOperator := AOperator;
-//  FOperand1 := AOperand1;
-//  FOperand2 := AOperand2;
-//
-//  Operator.FParentNode := Self;
-//  Operand1.FParentNode := Self;
-//  Operand2.FParentNode := Self;
-//
-//  FLastToken := Operand2.LastToken;
-//end;
-//
+
+{ TCustomSQLParser.TBinaryOperation *******************************************}
+
+class function TCustomSQLParser.TBinaryOperation.Create(const AParser: TCustomSQLParser; const AOperator, AOperand1, AOperand2: ONode): ONode;
+begin
+  inherited Create(AParentNode, AOperand1.FirstToken);
+
+  FOperator := AOperator;
+  FOperand1 := AOperand1;
+  FOperand2 := AOperand2;
+
+  Operator.FParentNode := Self;
+  Operand1.FParentNode := Self;
+  Operand2.FParentNode := Self;
+
+  FLastToken := Operand2.LastToken;
+end;
+
+function TCustomSQLParser.TBinaryOperation.GetOperand1(): PNode;
+begin
+
+end;
+
+function TCustomSQLParser.TBinaryOperation.GetOperand2(): PNode;
+begin
+
+end;
+
+function TCustomSQLParser.TBinaryOperation.GetOperator(): PToken;
+begin
+
+end;
+
 //{ TCustomSQLParser.TFunction **************************************************}
 //
 //constructor TCustomSQLParser.TFunction.Create(const AParentNode: TNode; const AIdentifier: TToken; const AArgumentList: TList);
@@ -1075,6 +1091,8 @@ end;
 class function TCustomSQLParser.TSelectStmt.TColumn.Create(const AParser: TCustomSQLParser; const AColumns, AFirstToken: ONode): ONode;
 begin
   Result := TRangeNode.Create(AParser, ntColumn, AColumns, AFirstToken);
+
+  AParser.ParseExpression(Result, AFirstToken, TCustomSQLParser.TSelectStmt.PColumns(AParser.NodePtr(AColumns))^.FParentNode);
 end;
 
 function TCustomSQLParser.TSelectStmt.TColumn.GetAliasToken(): PToken;
@@ -1133,12 +1151,17 @@ begin
 end;
 
 class function TCustomSQLParser.TSelectStmt.TColumns.Create(const AParser: TCustomSQLParser; const ASelectStmt, AFirstToken: ONode): ONode;
+var
+  Token: ONode;
 begin
   Result := TRangeNode.Create(AParser, ntColumn, ASelectStmt, AFirstToken);
 
-//  repeat
-//    Add(TColumn.Create(Self, Tokens.Current));
-//  until (Stmt.Error or not Assigned(Tokens.Current) or (Tokens.Current.TokenType <> ttComma) or not Tokens.FindNext());
+  Token := AParser.ParseToken();
+  if (Token > 0) then
+    repeat
+      TCustomSQLParser.TSelectStmt.PColumns(AParser.NodePtr(Result))^.Add(TColumn.Create(AParser, Result, Token));
+    until (True);
+      //    until (Stmt.Error or not Assigned(Tokens.Current) or (Tokens.Current.TokenType <> ttComma) or not Tokens.FindNext());
 end;
 
 { TCustomSQLParser.TSelectStmt ************************************************}
@@ -1209,6 +1232,7 @@ begin
     ntRoot: Size := SizeOf(TRoot);
     ntToken: Size := SizeOf(TToken);
     ntStmt: Size := SizeOf(TStmt);
+    ntColumn: Size := SizeOf(TSelectStmt.TColumn);
     else raise ERangeError.Create(SArgumentOutOfRange);
   end;
 
@@ -1357,33 +1381,38 @@ var
 var
   I: Integer;
   Precedence: Integer;
-  TokenOffset: ONode;
-  SubAreaOffset: ONode;
+  TokenO: ONode;
+  SubAreaO: ONode;
   EndOfExpression: Boolean;
 begin
   NodeCount := 0;
 
   EndOfExpression := False;
+  TokenO := AFirstToken;
   repeat
-    TokenOffset := AFirstToken;
-
-    case (TokenPtr(TokenOffset)^.TokenType) of
+    case (TokenPtr(TokenO)^.TokenType) of
+      ttSpace,
+      ttReturn: ;
       ttComma,
       ttCloseBracket,
       ttDelimiter:
         break;
-      ttOperator: ;
+      ttOperator:
+        begin
+          TokenPtr(TokenO)^.Assign(AStmt, utOperator);
+          EndOfExpression := not AddNode(TokenO);
+        end;
       ttInteger,
       ttNumeric,
       ttString:
         begin
-          TokenPtr(TokenOffset)^.Assign(AStmt, utConst);
-          EndOfExpression := not AddNode(TokenOffset);
+          TokenPtr(TokenO)^.Assign(AStmt, utConst);
+          EndOfExpression := not AddNode(TokenO);
         end;
       ttVariable:
         begin
-          TokenPtr(TokenOffset)^.Assign(AStmt, utVariable);
-          EndOfExpression := not AddNode(TokenOffset);
+          TokenPtr(TokenO)^.Assign(AStmt, utVariable);
+          EndOfExpression := not AddNode(TokenO);
         end;
       ttIdentifier,
       ttDQIdentifier,
@@ -1391,53 +1420,48 @@ begin
       ttBRIdentifier,
       ttMySQLIdentifier:
         begin
-          TokenPtr(TokenOffset)^.Assign(AStmt, utDbObject);
-          EndOfExpression := not AddNode(TokenOffset);
+          TokenPtr(TokenO)^.Assign(AStmt, utDbObject);
+          EndOfExpression := not AddNode(TokenO);
         end;
       ttKeyword:
-        if (TokenPtr(TokenOffset)^.KeywordIndex = kiBETWEEN) then
-          TokenPtr(TokenOffset)^.FOperatorType := otBetween
-        else if (TokenPtr(TokenOffset)^.KeywordIndex = kiBINARY) then
-          TokenPtr(TokenOffset)^.FOperatorType := otBinary
-        else if (TokenPtr(TokenOffset)^.KeywordIndex = kiCOLLATE) then
-          TokenPtr(TokenOffset)^.FOperatorType := otCollate
-        else if (TokenPtr(TokenOffset)^.KeywordIndex = kiCASE) then
-          TokenPtr(TokenOffset)^.FOperatorType := otCase
-        else if (TokenPtr(TokenOffset)^.KeywordIndex = kiIN) then
-          TokenPtr(TokenOffset)^.FOperatorType := otIn
-        else if (TokenPtr(TokenOffset)^.KeywordIndex = kiINTERVAL) then
-          TokenPtr(TokenOffset)^.FOperatorType := otInterval
-        else if (TokenPtr(TokenOffset)^.KeywordIndex = kiNULL) then
+        if (TokenPtr(TokenO)^.KeywordIndex = kiBETWEEN) then
+          TokenPtr(TokenO)^.FOperatorType := otBetween
+        else if (TokenPtr(TokenO)^.KeywordIndex = kiBINARY) then
+          TokenPtr(TokenO)^.FOperatorType := otBinary
+        else if (TokenPtr(TokenO)^.KeywordIndex = kiCOLLATE) then
+          TokenPtr(TokenO)^.FOperatorType := otCollate
+        else if (TokenPtr(TokenO)^.KeywordIndex = kiCASE) then
+          TokenPtr(TokenO)^.FOperatorType := otCase
+        else if (TokenPtr(TokenO)^.KeywordIndex = kiIN) then
+          TokenPtr(TokenO)^.FOperatorType := otIn
+        else if (TokenPtr(TokenO)^.KeywordIndex = kiINTERVAL) then
+          TokenPtr(TokenO)^.FOperatorType := otInterval
+        else if (TokenPtr(TokenO)^.KeywordIndex = kiNULL) then
         begin
-          TokenPtr(TokenOffset)^.Assign(AStmt, utConst);
-          EndOfExpression := not AddNode(TokenOffset);
+          TokenPtr(TokenO)^.Assign(AStmt, utConst);
+          EndOfExpression := not AddNode(TokenO);
         end
-        else if (TokenPtr(TokenOffset)^.KeywordIndex = kiSOUNDS) then
-          TokenPtr(TokenOffset)^.FOperatorType := otSounds
-        else if (TokenPtr(TokenOffset)^.KeywordIndex = kiTHEN) then
-          TokenPtr(TokenOffset)^.FOperatorType := otThen
-        else if (TokenPtr(TokenOffset)^.KeywordIndex = kiWHEN) then
-          TokenPtr(TokenOffset)^.FOperatorType := otWhen;
+        else if (TokenPtr(TokenO)^.KeywordIndex = kiSOUNDS) then
+          TokenPtr(TokenO)^.FOperatorType := otSounds
+        else if (TokenPtr(TokenO)^.KeywordIndex = kiTHEN) then
+          TokenPtr(TokenO)^.FOperatorType := otThen
+        else if (TokenPtr(TokenO)^.KeywordIndex = kiWHEN) then
+          TokenPtr(TokenO)^.FOperatorType := otWhen;
       ttOpenBracket:
         begin
-          if (TokenPtr(TokenOffset)^.PriorToken.UsageType = utDbObject) then
-            TokenPtr(TokenOffset)^.PriorToken.FOperatorType := otFunction_;
+          if (TokenPtr(TokenO)^.PriorToken.UsageType = utDbObject) then
+            TokenPtr(TokenO)^.PriorToken.FOperatorType := otFunction_;
 //          SubAreaOffset := ParseSubArea(TokenOffset);
         end;
       else
-        PStmt(NodePtr(AStmt))^.SetError(PE_UnexpectedToken, TokenOffset);
-    end;
-    if (not PStmt(NodePtr(AStmt))^.Error and (PToken(TokenOffset)^.OperatorType <> otUnknown)) then
-    begin
-      TokenPtr(TokenOffset)^.Assign(AStmt, utOperator);
-      EndOfExpression := not AddNode(TokenOffset);
+        PStmt(NodePtr(AStmt))^.SetError(PE_UnexpectedToken, TokenO);
     end;
 
     if (PStmt(NodePtr(AStmt))^.Error or EndOfExpression) then
-      TokenOffset := 0
+      TokenO := 0
     else
-      TokenOffset := ParseToken();
-    EndOfExpression := EndOfExpression or (TokenOffset = 0);
+      TokenO := ParseToken();
+    EndOfExpression := EndOfExpression or (TokenO = 0);
   until (StmtPtr(AStmt)^.Error or EndOfExpression);
 
   for Precedence := 1 to MaxOperatorPrecedence do
@@ -1445,8 +1469,8 @@ begin
     I := 0;
     while (not StmtPtr(AStmt)^.Error and (I < NodeCount - 1)) do
     begin
-//      if ((NodePtr(Nodes[I])^.FNodeType = ntToken) and (OperatorPrecedenceByOperatorType[TokenPtr(Nodes[I])^.OperatorType] = Precedence)) then
-//        case (TokenPtr(Nodes[I])^.OperatorType) of
+      if ((NodePtr(Nodes[I])^.FNodeType = ntToken) and (OperatorPrecedenceByOperatorType[TokenPtr(Nodes[I])^.OperatorType] = Precedence)) then
+        case (TokenPtr(Nodes[I])^.OperatorType) of
 //          otFunction_,
 //          otInterval,
 //          otBinary,
@@ -1475,43 +1499,43 @@ begin
 //              Dec(NodeCount);
 //              Move(Nodes[I + 1], Nodes[I], NodeCount - I);
 //            end;
-//          otBitXOR,
-//          otMulti,
-//          otDivision,
-//          otDiv,
-//          otMod,
-//          otMinus,
-//          otPlus,
-//          otShiftLeft,
-//          otShiftRight,
-//          otBitAND,
-//          otBitOR,
-//          otEqual,
-//          otNullSaveEqual,
-//          otGreaterEqual,
-//          otGreater,
-//          otLessEqual,
-//          otLess,
-//          otNotEqual,
-//          otIS,
-//          otLike,
-//          otRegExp,
-//          otIn,
-//          otAnd,
-//          otXOr,
-//          otPipes,
-//          otOr:
-//            if (I = 0) then
-//              StmtPtr(AStmt)^.SetError(PE_UnexpectedToken, Nodes[I])
-//            else if (I >= NodeCount - 1) then
-//              StmtPtr(AStmt)^.SetError(PE_IncompleteStmt)
-//            else
-//            begin
-//              Nodes[I + 1] := TBinaryOperation.Create(AParentNode, TToken(Nodes[I]), Nodes[I - 1], Nodes[I + 1]);
-//              Dec(NodeCount, 2);
-//              Move(Nodes[I + 1], Nodes[I - 1], NodeCount - I);
-//              Dec(I);
-//            end;
+          otBitXOR,
+          otMulti,
+          otDivision,
+          otDiv,
+          otMod,
+          otMinus,
+          otPlus,
+          otShiftLeft,
+          otShiftRight,
+          otBitAND,
+          otBitOR,
+          otEqual,
+          otNullSaveEqual,
+          otGreaterEqual,
+          otGreater,
+          otLessEqual,
+          otLess,
+          otNotEqual,
+          otIS,
+          otLike,
+          otRegExp,
+          otIn,
+          otAnd,
+          otXOr,
+          otPipes,
+          otOr:
+            if (I = 0) then
+              StmtPtr(AStmt)^.SetError(PE_UnexpectedToken, Nodes[I])
+            else if (I >= NodeCount - 1) then
+              StmtPtr(AStmt)^.SetError(PE_IncompleteStmt)
+            else
+            begin
+              Nodes[I + 1] := TBinaryOperation.Create(Self, Nodes[I], Nodes[I - 1], Nodes[I + 1]);
+              Dec(NodeCount, 2);
+              Move(Nodes[I + 1], Nodes[I - 1], NodeCount - I);
+              Dec(I);
+            end;
 //          otDot:
 //            if (I = 0) then
 //              SetError(PE_UnexpectedToken, TToken(Nodes[I]))
@@ -1557,9 +1581,13 @@ begin
 //              Move(Nodes[I + 2], Nodes[I - 1], NodeCount - I);
 //              Dec(I);
 //            end;
-//          else
-//            StmtPtr(AStmt)^.SetError(PE_UnexpectedToken, Nodes[I].FirstToken)
-//        end;
+          else
+            case (NodePtr(Nodes[I])^.FNodeType) of
+              ntToken: StmtPtr(AStmt)^.SetError(PE_UnexpectedToken, Nodes[I]);
+              ntRangeNode: StmtPtr(AStmt)^.SetError(PE_UnexpectedToken, RangeNodePtr(Nodes[I])^.FFirstToken);
+              else raise ERangeError.Create(SArgumentOutOfRange);
+            end;
+        end;
       Inc(I);
     end;
   end;

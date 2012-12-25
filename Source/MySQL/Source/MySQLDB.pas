@@ -3272,7 +3272,8 @@ var
   StartTime: TDateTime;
   TrimmedPacketLength: Integer;
 begin
-  LibraryThread.Success := True;
+  if (not LibraryThread.Success) then
+    Terminate();
 
   Retry := 0;
   while (not Assigned(LibraryThread.LibHandle) and (Retry < RETRY_COUNT)) do
@@ -3295,9 +3296,6 @@ begin
     SetLength(LibSQL, LibLength);
     WideCharToAnsiChar(CodePage, PChar(@LibraryThread.SQL[LibraryThread.SQLStmtIndex]), TrimmedPacketLength, PAnsiChar(LibSQL), LibLength);
 
-    if (Lib.mysql_more_results(LibraryThread.LibHandle) <> 0) then
-      raise Exception.Create('Commands out of sync'); // Debug 20.12.2012
-
     Retry := 0; NeedReconnect := False;
     repeat
       if (NeedReconnect) then
@@ -3305,9 +3303,6 @@ begin
 
       if (not LibraryThread.Terminated and LibraryThread.Success) then
       begin
-        if (Lib.mysql_more_results(LibraryThread.LibHandle) <> 0) then
-          raise Exception.CreateFmt('Commands out of sync (Retry: %d)', [Retry]); // Debug 20.12.2012
-
         StartTime := Now();
         LibraryThread.Success := Lib.mysql_real_query(LibraryThread.LibHandle, my_char(LibSQL), LibLength) = 0;
         LibraryThread.Time := LibraryThread.Time + Now() - StartTime;
