@@ -930,7 +930,6 @@ type
 
   TSDatabase = class(TSObject)
   private
-    CheckTableList: TList;
     FDefaultCharset: string;
     FDefaultCodePage: Cardinal;
     FCollation: string;
@@ -6826,19 +6825,17 @@ begin
     end;
   SQL := 'CHECK TABLE ' + SQL + ';' + #13#10;
 
-  if (Session.DatabaseName = Name) then
-    Result := True
-  else
-    Result := Session.ExecuteSQL(SQLUse());
-  if (Result) then
-  begin
-    CheckTableList := Tables;
-    RepairTableList := TList.Create();
-    Result := Result and Session.ExecuteSQL(SQL, CheckTableEvent);
-    if (Result and (RepairTableList.Count > 0)) then
-      Result := RepairTables(RepairTableList);
-    RepairTableList.Free();
-  end;
+  if (Session.DatabaseName <> Name) then
+    SQL := SQLUse() + SQL;
+
+  RepairTableList := TList.Create();
+  Result := Session.ExecuteSQL(SQL, CheckTableEvent);
+  if (Result and (RepairTableList.Count > 0)) then
+    Result := RepairTables(RepairTableList);
+  RepairTableList.Free();
+
+  SQL := Self.Tables.SQLGetStatus(Tables);
+  Session.SendSQL(SQL, Session.SessionResult);
 end;
 
 function TSDatabase.CheckTableEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
@@ -7063,8 +7060,6 @@ begin
       TSBaseTable(Tables[I]).InvalidateStatus();
     end;
   SQL := 'FLUSH TABLE ' + SQL + ';' + #13#10;
-
-  SQL := SQL + Self.Tables.SQLGetStatus(Tables);
 
   if (Session.DatabaseName <> Name) then
     SQL := SQLUse() + SQL;
