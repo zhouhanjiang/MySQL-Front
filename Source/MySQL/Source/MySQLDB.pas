@@ -3273,7 +3273,10 @@ var
   TrimmedPacketLength: Integer;
 begin
   if (not LibraryThread.Success) then
-    Terminate();
+    if (Assigned(LibraryThread.LibHandle) and (Lib.mysql_more_results(LibraryThread.LibHandle) <> 0)) then
+      Terminate()
+    else
+      LibraryThread.Success := True;
 
   Retry := 0;
   while (not Assigned(LibraryThread.LibHandle) and (Retry < RETRY_COUNT)) do
