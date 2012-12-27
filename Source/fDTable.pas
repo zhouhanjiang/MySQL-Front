@@ -1125,8 +1125,8 @@ end;
 
 procedure TDTable.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Tables.Count = 0) and (Event.EventType = ceItemValid) and (Event.CItem = Table)
-    or (Tables.Count > 0) and (Event.EventType = ceAfterExecuteSQL)) then
+  if (not Assigned(Tables) and (Event.EventType = ceItemValid) and (Event.CItem = Table)
+    or Assigned(Tables) and (Event.EventType = ceAfterExecuteSQL)) then
     if (not PageControl.Visible) then
       Built()
     else

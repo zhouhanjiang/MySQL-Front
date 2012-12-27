@@ -2218,6 +2218,7 @@ begin
   begin
     DTable.Database := TSDatabase(FocusedCItem);
     DTable.Table := nil;
+    DTable.Tables := nil;
     if (DTable.Execute()) then
       Wanted.Update := Session.Update;
   end;
@@ -2799,6 +2800,8 @@ begin
     DTable.Table := nil;
     if (DTable.Execute()) then
       Wanted.Update := Session.Update;
+
+    FreeAndNil(DTable.Tables);
   end
   else if ((Window.ActiveControl = ActiveWorkbench) and (ActiveWorkbench.Selected is TWSection)) then
   begin
@@ -2820,6 +2823,7 @@ begin
     begin
       DTable.Database := TSBaseTable(CItem).Database;
       DTable.Table := TSBaseTable(CItem);
+      DTable.Tables := nil;
       Execute := DTable.Execute;
     end
     else if (CItem is TSView) then

@@ -3586,19 +3586,22 @@ begin
 
   if (Assigned(LibraryThread)) then
   begin
-    {$IFDEF Debug}
-      MessageBox(Application.Handle, 'Terminate required!', 'Debug', MB_OK);
-    {$ENDIF}
-
-    if (LibraryThread.IsRunning) then
+    if (not LibraryThread.FreeOnTerminate) then
     begin
-      if (ThreadId = 0) then
-        S := '----> Connection Terminated <----'
-      else
-        S := '----> Connection Terminated (Id: ' + IntToStr(ThreadId) +') <----';
-      WriteMonitor(PChar(S), Length(S), ttInfo);
+      {$IFDEF Debug}
+        MessageBox(Application.Handle, 'Terminate required!', 'Debug', MB_OK);
+      {$ENDIF}
+
+      if (LibraryThread.IsRunning) then
+      begin
+        if (ThreadId = 0) then
+          S := '----> Connection Terminated <----'
+        else
+          S := '----> Connection Terminated (Id: ' + IntToStr(ThreadId) +') <----';
+        WriteMonitor(PChar(S), Length(S), ttInfo);
+      end;
+      LibraryThread.Terminate();
     end;
-    LibraryThread.Terminate();
     FLibraryThread := nil;
   end;
 
