@@ -4729,7 +4729,7 @@ var
   I: Integer;
   FieldNames: string;
 begin
-  if (not Assigned(ADataSet.FieldByName('Create Table'))) then
+  if (not Assigned(ADataSet.FindField('Create Table'))) then
   begin
     FieldNames := '';
     for I := 0 to ADataSet.FieldCount - 1 do
