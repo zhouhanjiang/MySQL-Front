@@ -14054,7 +14054,9 @@ begin
           end;
       end;
     vBrowser:
-      if (not TSTable(FNavigator.Selected.Data).ValidData) then
+      if (not (TObject(FNavigator.Selected.Data) is TSTable)) then
+        raise Exception.CreateFmt('Error Message: Wrong Class Type: %s', [TObject(FNavigator.Selected.Data).ClassName]) // Debug 27.12.2012
+      else if (not TSTable(FNavigator.Selected.Data).ValidData) then
         TableOpen(nil);
     vDiagram:
       if (not Assigned(ActiveWorkbench)) then

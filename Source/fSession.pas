@@ -10436,7 +10436,7 @@ begin
           until (not SQLParseChar(Parse, ','));
       end;
     end
-    else if (SQLParseKeyword(Parse, 'SHOW')) then
+    else if (SQLParseKeyword(Parse, 'SHOW') and (DataHandle.Connection.ErrorCode = 0)) then
     begin
       DataSet.Open(DataHandle);
       DatabaseName := DataSet.DatabaseName;

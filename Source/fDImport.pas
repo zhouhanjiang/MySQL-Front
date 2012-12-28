@@ -682,6 +682,7 @@ begin
       for I := 0 to FCSVPreview.Columns.Count - 1 do
         FCSVPreview.Column[I].AutoSize := True;
 
+      TTImportText(Import).Close();
       SetLength(Values, 0);
     end;
 
