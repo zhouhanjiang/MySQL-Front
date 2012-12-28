@@ -227,7 +227,7 @@ type
     destructor Destroy(); override;
     function GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string; virtual; abstract;
     procedure Invalidate(); override;
-    procedure PushBuildEvent(); virtual;
+    procedure PushBuildEvent(const CItemsEvents: Boolean = True); virtual;
     function Update(): Boolean; override;
     property Database: TSDatabase read FDatabase;
     property DBObjects: TSDBObjects read GetDBObjects;
@@ -518,7 +518,7 @@ type
     procedure Invalidate(); override;
     procedure InvalidateData(); virtual;
     procedure Open(const FilterSQL, QuickSearch: string; const ASortDef: TIndexDef; const Offset: Integer; const Limit: Integer); virtual;
-    procedure PushBuildEvent(); override;
+    procedure PushBuildEvent(const CItemsEvents: Boolean = True); override;
     property DataSet: TSTableDataSet read GetDataSet;
     property Fields: TSTableFields read GetFields;
     property Index: Integer read GetIndex;
@@ -636,7 +636,7 @@ type
     procedure Invalidate(); override;
     procedure InvalidateStatus(); virtual;
     function PartitionByName(const PartitionName: string): TSPartition; virtual;
-    procedure PushBuildEvent(); override;
+    procedure PushBuildEvent(const CItemsEvents: Boolean = True); override;
     function Repair(): Boolean; virtual;
     property AutoIncrement: LargeInt read FAutoIncrement write FAutoIncrement;
     property AutoIncrementField: TSBaseTableField read GetAutoIncrementField;
@@ -2177,11 +2177,12 @@ begin
   inherited;
 end;
 
-procedure TSDBObject.PushBuildEvent();
+procedure TSDBObject.PushBuildEvent(const CItemsEvents: Boolean = True);
 begin
   if (Valid) then
   begin
-    Session.ExecuteEvent(ceItemsValid, Database, CItems);
+    if (CItemsEvents) then
+      Session.ExecuteEvent(ceItemsValid, Database, CItems);
     Session.ExecuteEvent(ceItemValid, Database, CItems, Self);
   end;
 end;
@@ -3511,12 +3512,15 @@ begin
     inherited SetName(AName);
 end;
 
-procedure TSTable.PushBuildEvent();
+procedure TSTable.PushBuildEvent(const CItemsEvents: Boolean = True);
 begin
   if (Valid) then
   begin
-    Session.ExecuteEvent(ceItemsValid, Database, CItems);
-    Session.ExecuteEvent(ceItemsValid, Self, Fields);
+    if (CItemsEvents) then
+    begin
+      Session.ExecuteEvent(ceItemsValid, Database, CItems);
+      Session.ExecuteEvent(ceItemsValid, Self, Fields);
+    end;
     Session.ExecuteEvent(ceItemValid, Database, CItems, Self);
   end;
 end;
@@ -4699,11 +4703,12 @@ begin
   Result := Database.Session.ExecuteSQL('REPAIR TABLE ' + Database.Session.EscapeIdentifier(Database.Name) + '.' + Database.Session.EscapeIdentifier(Name) + ';');
 end;
 
-procedure TSBaseTable.PushBuildEvent();
+procedure TSBaseTable.PushBuildEvent(const CItemsEvents: Boolean = True);
 begin
   if (Valid) then
   begin
-    Session.ExecuteEvent(ceItemsValid, Self);
+    if (CItemsEvents) then
+      Session.ExecuteEvent(ceItemsValid, Self);
     Session.ExecuteEvent(ceItemValid, Database, Tables, Self);
   end;
 end;
@@ -5209,7 +5214,7 @@ begin
         end;
 
         if (Table[Index].Valid) then
-          Table[Index].PushBuildEvent();
+          Table[Index].PushBuildEvent(False);
       until (not DataSet.FindNext());
 
     if (not Filtered) then
@@ -5246,7 +5251,7 @@ begin
         end;
 
         View.Fields.FValid := True;
-        View.PushBuildEvent();
+        View.PushBuildEvent(False);
 
         Index := 0;
       end;
@@ -5303,10 +5308,13 @@ begin
     end;
 
     View.Fields.FValid := True;
-    View.PushBuildEvent();
+    View.PushBuildEvent(False);
   end;
 
   Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
+  Session.ExecuteEvent(ceItemsValid, Database, Self);
+  if (Database.Valid) then
+    Session.ExecuteEvent(ceItemValid, Session, Session.Databases, Database);
 end;
 
 function TSTables.GetTable(Index: Integer): TSTable;
