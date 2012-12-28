@@ -4725,7 +4725,22 @@ begin
 end;
 
 procedure TSBaseTable.SetSource(const ADataSet: TMySQLQuery);
+var
+  I: Integer;
+  FieldNames: string;
 begin
+  if (not Assigned(ADataSet.FieldByName('Create Table'))) then
+  begin
+    FieldNames := '';
+    for I := 0 to ADataSet.FieldCount - 1 do
+    begin
+      if (I > 0) then
+        FieldNames := FieldNames + ',';
+      FieldNames := FieldNames + '"' + ADataSet.Fields[I].DisplayName + '"';
+    end;
+    raise Exception.CreateFmt('Error Message - SQL: %s - Fields: %s', [ADataSet.CommandText, FieldNames]);
+  end;
+
   SetSource(ADataSet.FieldByName('Create Table'));
 
   if (Source <> '') then

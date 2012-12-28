@@ -2564,6 +2564,7 @@ end;
 procedure TCustomSQLParser.SaveToFile(const Filename: string; const FileType: TFileType = ftSQL);
 var
   FirstToken: PToken;
+  G: Integer;
   GenerationCount: Integer;
   Handle: THandle;
   HTML: string;
@@ -2571,6 +2572,7 @@ var
   J: Integer;
   LastToken: PToken;
   Node: PNode;
+  ParentNodes: TList;
   S: string;
   Size: DWord;
   Stmt: PStmt;
@@ -2637,69 +2639,90 @@ begin
     '  </head>' + #13#10 +
     '  <body>' + #13#10;
 
-  if (not ParseStmts) then
-    Stmt := nil
-  else
-    Stmt := Root^.FirstStmt;
-  if (not Assigned(Stmt)) then
-  begin
-    FirstToken := Root^.FirstToken;
-    LastToken := Root^.LastToken;
-  end
-  else
-  begin
-    FirstToken := Stmt^.FirstToken;
-    LastToken := Stmt^.LastToken;
-  end;
-
-  HTML := HTML
-    + '<table cellspacing="2" cellpadding="0" border="0">' + #13#10;
-
-  Token := FirstToken; GenerationCount := 0;
-  while (Assigned(Token)) do
-  begin
-    GenerationCount := Max(GenerationCount, PStmtNode(Token)^.Generation);
-    if (Token = LastToken) then
-      Token := nil
-    else
-      Token := Token^.NextToken;
-  end;
-
-  for Generation := GenerationCount - 1 downto 1 do
-  begin
-    HTML := HTML
-      + '<tr class="Node">' + #13#10;
-    Token := FirstToken;
+  Stmt := Root^.FirstStmt;
+  repeat
+    Token := Stmt^.FirstToken; GenerationCount := 0;
     while (Assigned(Token)) do
     begin
-      Node := Token^.Generation[Generation];
-      if (IsStmtNode(Node) and (PStmtNode(Node)^.FirstToken = Token)) then
-      begin
-        HTML := HTML
-          + '<td colspan="' + IntToStr(PRangeNode(Node)^.LastToken^.Index - PRangeNode(Node)^.FirstToken^.Index + 1) + '">';
-        HTML := HTML
-          + '<a href="">'
-          + HTMLEscape(NodeTypeToString[Node^.NodeType]);
-        if (IsStmt(Node)) then
-        begin
-          HTML := HTML
-            + '<span><table cellspacing="2" cellpadding="0">';
-          HTML := HTML + '<tr><td>StmtType:</td><td>&nbsp;</td><td>' + StmtTypeToString[PStmt(Node)^.StmtType] + '</td></tr>';
-          HTML := HTML
-            + '</table></span>';
-        end;
-        HTML := HTML
-          + '</a></td>' + #13#10;
-      end;
-
+      GenerationCount := Max(GenerationCount, PStmtNode(Token)^.Generation);
       if (Token = LastToken) then
         Token := nil
       else
-        Token := Token.NextToken;
+        Token := Token^.NextToken;
     end;
+
+    ParentNodes := TList.Create();
+
+    HTML := HTML
+      + '<table cellspacing="2" cellpadding="0" border="0">' + #13#10;
+
+    HTML := HTML
+      + '<tr class="Node">' + #13#10;
+    HTML := HTML
+      + '<td colspan="' + IntToStr(Stmt^.LastToken^.Index - Stmt^.FirstToken^.Index + 1) + '">';
+    HTML := HTML
+      + '<a href="">'
+      + HTMLEscape(NodeTypeToString[Stmt^.NodeType]);
+    HTML := HTML
+      + '<span><table cellspacing="2" cellpadding="0">';
+    HTML := HTML + '<tr><td>StmtType:</td><td>&nbsp;</td><td>' + StmtTypeToString[Stmt^.StmtType] + '</td></tr>';
+    HTML := HTML
+      + '</table></span>';
+    HTML := HTML
+      + '</a></td>' + #13#10;
     HTML := HTML
       + '</tr>' + #13#10;
-  end;
+    ParentNodes.Add(Stmt);
+
+    for Generation := GenerationCount - 2 downto 1 do
+    begin
+      HTML := HTML
+        + '<tr class="Node">' + #13#10;
+      Token := Stmt^.FirstToken;
+      while (Assigned(Token)) do
+      begin
+        Node := Token^.ParentNode; G := 0;
+        while (IsStmtNode(Node) and (ParentNodes.IndexOf(Node) < 0) and (G < Generation)) do
+        begin
+          Inc(G);
+          Node := PStmtNode(Node)^.ParentNode;
+        end;
+
+        if (IsStmtNode(Node) and (G = Generation)) then
+        begin
+          HTML := HTML
+            + '<td colspan="' + IntToStr(PStmtNode(Node)^.LastToken^.Index - PStmtNode(Node)^.FirstToken^.Index + 1) + '">';
+          HTML := HTML
+            + '<a href="">'
+            + HTMLEscape(NodeTypeToString[Node^.NodeType]);
+          if (IsStmt(Node)) then
+          begin
+            HTML := HTML
+              + '<span><table cellspacing="2" cellpadding="0">';
+            HTML := HTML + '<tr><td>StmtType:</td><td>&nbsp;</td><td>' + StmtTypeToString[PStmt(Node)^.StmtType] + '</td></tr>';
+            HTML := HTML
+              + '</table></span>';
+          end;
+          HTML := HTML
+            + '</a></td>' + #13#10;
+          Token := PStmtNode(Node)^.LastToken;
+        end;
+
+        if (Token = Stmt^.LastToken) then
+          Token := nil
+        else
+          Token := Token^.NextToken;
+      end;
+      HTML := HTML
+        + '</tr>' + #13#10;
+    end;
+
+
+    ParentNodes.Free();
+
+    Stmt := nil;
+  until (not Assigned(Stmt));
+
 
 
   HTML := HTML
@@ -2797,6 +2820,9 @@ begin
 //        Stmt := nil;
 //      end;
 //  end;
+
+  if (Assigned(ParentNodes)) then
+    ParentNodes.Free();
 
   HTML := HTML +
     '     <br>' + #13#10 +

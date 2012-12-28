@@ -1872,6 +1872,7 @@ begin
   try
   {$ENDIF}
 
+  WaitForSynchronizeStarted := False;
   while (not Terminated) do
   begin
     if ((Connection.ServerTimeout = 0) or (Connection.LibraryType = ltHTTP)) then
@@ -1883,7 +1884,7 @@ begin
     if (not Terminated) then
       if (WaitResult = wrTimeout) then
       begin
-        if (not Assigned(DataSet) and (not Assigned(Connection.Lib.mysql_more_results) or (Connection.Lib.mysql_more_results(LibHandle) = 0))) then
+        if (not Assigned(DataSet) and not WaitForSynchronizeStarted and (not Assigned(Connection.Lib.mysql_more_results) or (Connection.Lib.mysql_more_results(LibHandle) = 0))) then
           Connection.SyncPing(Self);
       end
       else
@@ -3273,10 +3274,10 @@ var
   TrimmedPacketLength: Integer;
 begin
   if (not LibraryThread.Success) then
-    if (Assigned(LibraryThread.LibHandle) and (Lib.mysql_more_results(LibraryThread.LibHandle) <> 0)) then
-      Terminate()
+    if (not Assigned(LibraryThread.LibHandle) or (Lib.mysql_more_results(LibraryThread.LibHandle) = 0)) then
+      LibraryThread.Success := True
     else
-      LibraryThread.Success := True;
+      Terminate();
 
   Retry := 0;
   while (not Assigned(LibraryThread.LibHandle) and (Retry < RETRY_COUNT)) do
@@ -3285,7 +3286,7 @@ begin
     Inc(Retry);
   end;
 
-  if (LibraryThread.Success) then
+  if (not LibraryThread.Terminated and LibraryThread.Success) then
   begin
     PacketLength := 0;
     for I := 0 to Integer(LibraryThread.SQLStmtsInPackets[LibraryThread.SQLPacket]) - 1 do

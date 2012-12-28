@@ -852,11 +852,16 @@ begin
         FFormatYear.ItemIndex := I;
 
     if (Field.Charset <> '') then
-      FCharset.ItemIndex := FCharset.Items.IndexOf(Field.Charset)
+    begin
+      FCharset.ItemIndex := FCharset.Items.IndexOf(Field.Charset);
+      FCharsetChange(Sender);
+      FCollation.ItemIndex := FCollation.Items.IndexOf(Field.Collation);
+    end
     else
+    begin
       FCharset.ItemIndex := FCharset.Items.IndexOf(Table.DefaultCharset);
-    FCharsetChange(Sender);
-    FCollation.ItemIndex := FCollation.Items.IndexOf(Field.Collation);
+      FCharsetChange(Sender);
+    end;
 
     FFlagUnsigned.Checked := Field.Unsigned;
     FFlagZerofill.Checked := Field.Zerofill;
