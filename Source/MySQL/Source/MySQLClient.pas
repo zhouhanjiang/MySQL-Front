@@ -1119,7 +1119,7 @@ begin
             else
             begin
               Res := recv(Socket, PAnsiChar(@AnsiChar(Buffer))[BytesRead], BytesToRead - BytesRead, 0);
-              if ((Res = SOCKET_ERROR)  or (Res = 0)) then
+              if ((Res = SOCKET_ERROR) or (Res = 0)) then
               begin // Connection lost
                 Seterror(CR_SERVER_LOST);
                 Result := False;
@@ -1934,7 +1934,8 @@ begin
   end
   else if ((IOType = itNone) and not (Retry and Reconnect())) then
   begin
-    Seterror(CR_SERVER_GONE_ERROR);
+    if (errno() = 0) then
+      Seterror(CR_SERVER_GONE_ERROR);
     Result := -1;
   end
   else
@@ -2066,7 +2067,10 @@ begin
       if ((Direction = idRead) and (fserver_status and SERVER_MORE_RESULTS_EXISTS = 0) or (inherited next_result() <> 0) or (SetFilePointer(1, PACKET_CURRENT) < 0)) then
       begin
         if (errno() = 0) then
-          Seterror(CR_UNKNOWN_ERROR);
+          if ((Direction = idRead) and (fserver_status and SERVER_MORE_RESULTS_EXISTS = 0)) then
+           Seterror(CR_UNKNOWN_ERROR)
+          else
+            Seterror(CR_UNKNOWN_ERROR);
         Result := 1;
       end
       else if (GetFileSize() = 0) then

@@ -4272,7 +4272,10 @@ begin
     for I := 0 to Items.Count - 1 do
       if (Items[I] is TDataSetItem) then
         TDataSetItem(Items[I]).RecordsSum := TDataSetItem(Items[I]).DataSet.RecordCount
-      else if ((Items[I] is TDBObjectItem) and (TDBObjectItem(Items[I]).DBObject is TSBaseTable) and not TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine.IsMerge) then
+      else if ((Items[I] is TDBObjectItem)
+        and (TDBObjectItem(Items[I]).DBObject is TSBaseTable)
+        and not TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine.IsMerge
+        and not (Self is TTTransfer) or (TTTransfer(Self).DestinationSession <> Session)) then
       begin
         TDBObjectItem(Items[I]).RecordsSum := TSBaseTable(TDBObjectItem(Items[I]).DBObject).Rows;
         DataTables.Add(TSBaseTable(TDBObjectItem(Items[I]).DBObject));

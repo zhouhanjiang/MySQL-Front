@@ -374,6 +374,7 @@ begin
   IgnoreTitleClick := False;
   IgnoreTitleChange := False;
   FOnCanEditShowExecuted := False;
+  TitleBoldFont := nil;
 
   FMouseMoveCell.X := -1;
   FMouseMoveCell.Y := -1;

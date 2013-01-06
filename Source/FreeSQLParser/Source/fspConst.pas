@@ -13,14 +13,14 @@ const
   PE_EmptyText = 2; // Text is empty
 
   // Bugs while parsing Tokens:
-  PE_Syntax = 2; // Invalid or unexpected character
-  PE_IncompleteToken = 3; // Uncompleted Token
+  PE_Syntax = 3; // Invalid or unexpected character
+  PE_IncompleteToken = 4; // Uncompleted Token
 
   // Bugs while parsing Stmts:
-  PE_UnexpectedToken = 4; // Token unexpected or not understood
-  PE_UnkownStmt = 5; // First Token is not a known keyword
-  PE_IncompleteStmt = 6; // Uncompleted Token
-  PE_InvalidEndLabel = 7; // Begin and End Token are different
+  PE_UnexpectedToken = 5; // Token unexpected or not understood
+  PE_UnkownStmt = 6; // First Token is not a known keyword
+  PE_IncompleteStmt = 7; // Uncompleted Token
+  PE_InvalidEndLabel = 8; // Begin and End Token are different
 
   MySQLFunctions =
     'BINARY,INTERVAL,' +
@@ -113,10 +113,15 @@ const
     'ntRoot',
     'ntToken',
     'ntRangeNode',
-    'ntSiblings',
-    'ntSibling',
+    'ntColumns',
+    'ntColumn',
+    'ntDbIdentifier',
+    'ntUnaryOperation',
+    'ntBinaryOperation',
+    'ntBetweenOperation',
+    'ntSoundsLikeOperation',
     'ntStmt',
-    'ntColumn'
+    'ntSelectStmt'
   );
 
   StmtTypeToString: array[TStmtType] of PChar = (
@@ -157,6 +162,8 @@ const
 
   UsageTypeToString: array[TUsageType] of PChar = (
     'utUnknown',
+    'utWhiteSpace',
+    'utComment',
     'utSymbol',
     'utKeyword',
     'utLabel',
@@ -165,7 +172,7 @@ const
     'utConst',
     'utVariable',
     'utFunction',
-    'utDbObject',
+    'utDbIdentifier',
     'utAlias'
   );
 
@@ -240,35 +247,19 @@ const
     'otParameter'
   );
 
-  DbObjectTypeToString: array[TDbObjectType] of PChar = (
-    'dotUnknown',
-    'dotTable',
-    'dotTableCTE',
-    'dotTableTemp',
-    'dotTablePivot',
-    'dotTableVar',
-    'dotField',
-    'dotTableAlias',
-    'dotFieldAlias',
-    'dotAlias',
-    'dotDataType',
-    'dotFunction',
-    'dotProcedure',
-    'dotTrigger',
-    'dotView',
-    'dotIndex',
-    'dotOracleExceptionName',
-    'dotOracleHint',
-    'dotDatabase',
-    'dotServer',
-    'dotSequence',
-    'dotSequenceVal',
-    'dotParameter',
-    'dotLocalVariable',
-    'dotPackage',
-    'dotObjectProperty',
-    'dotObjectMethod',
-    'dotMaterializedView'
+  DbIdentifierTypeToString: array[TDbIdentifierType] of PChar = (
+    'ditUnknown',
+    'ditTable',
+    'ditField',
+    'ditFunction',
+    'ditProcedure',
+    'ditTrigger',
+    'ditView',
+    'ditIndex',
+    'ditDatabase',
+    'ditParameter',
+    'ditLocalVariable',
+    'ditEvent'
   );
 
   OperatorPrecedenceByOperatorType: array[TOperatorType] of Integer = (

@@ -10,10 +10,15 @@ type
     ntRoot,
     ntToken,
     ntRangeNode,
-    ntSiblings,
-    ntSibling,
+    ntColumns,
+    ntColumn,
+    ntDbIdentifier,
+    ntUnaryOperation,
+    ntBinaryOperation,
+    ntBetweenOperation,
+    ntSoundsLikeOperation,
     ntStmt,
-    ntColumn
+    ntSelectStmt
   );
 
   TStmtType = (
@@ -24,6 +29,8 @@ type
 
   TUsageType = (
     utUnknown,
+    utWhiteSpace,
+    utComment,
     utSymbol,
     utKeyword,
     utLabel,
@@ -32,7 +39,7 @@ type
     utConst,
     utVariable,
     utFunction,
-    utDbObject,
+    utDbIdentifier,
     utAlias
   );
 
@@ -137,35 +144,19 @@ type
     otParameter               // "?"
   );
 
-  TDbObjectType = (
-    dotUnknown,
-    dotTable,
-    dotTableCTE,
-    dotTableTemp,
-    dotTablePivot,
-    dotTableVar,
-    dotField,
-    dotTableAlias,
-    dotFieldAlias,
-    dotAlias,
-    dotDataType,
-    dotFunction,
-    dotProcedure,
-    dotTrigger,
-    dotView,
-    dotIndex,
-    dotOracleExceptionName,
-    dotOracleHint,
-    dotDatabase,
-    dotServer,
-    dotSequence,
-    dotSequenceVal,
-    dotParameter,
-    dotLocalVariable,
-    dotPackage,
-    dotObjectProperty,
-    dotObjectMethod,
-    dotMaterializedView
+  TDbIdentifierType = (
+    ditUnknown,
+    ditTable,
+    ditField,
+    ditFunction,
+    ditProcedure,
+    ditTrigger,
+    ditView,
+    ditIndex,
+    ditDatabase,
+    ditParameter,
+    ditLocalVariable,
+    ditEvent
   );
 
   TFileType = (ftSQL, ftDebugHTML);

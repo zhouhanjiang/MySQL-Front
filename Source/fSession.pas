@@ -6944,8 +6944,9 @@ begin
       else
         SQL := 'DROP VIEW ' + Session.EscapeIdentifier(NewTableName) + ';' + #13#10 + SQL;
 
-    if (Session.DatabaseName <> Name) then
-      SQL := SQLUse() + SQL;
+//    Will be handled in SQLAlterTable
+//    if (Session.DatabaseName <> Name) then
+//      SQL := SQLUse() + SQL;
 
     Result := Session.ExecuteSQL(SQL);
   end;

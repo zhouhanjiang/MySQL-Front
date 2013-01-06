@@ -47,7 +47,11 @@ type
       PSibling = ^TSibling;
       PSiblings = ^TSiblings;
       PStmt = ^TStmt;
+      PDbIdentifier = ^TDbIdentifier;
+      PUnaryOperation = ^TUnaryOperation;
       PBinaryOperation = ^TBinaryOperation;
+      PBetweenOperation = ^TBetweenOperation;
+      PSoundsLikeOperation = ^TSoundsLikeOperation;
 
       TNode = record
       private
@@ -55,96 +59,43 @@ type
         FParser: TCustomSQLParser;
       private
         class function Create(const AParser: TCustomSQLParser; const ANodeType: TNodeType): ONode; static;
+        function GetOffset(): ONode; {$IFNDEF Debug} inline; {$ENDIF}
+        property Offset: Integer read GetOffset;
       public
         property NodeType: TNodeType read FNodeType;
         property Parser: TCustomSQLParser read FParser;
       end;
 
       TStmtNode = record
-      private // Heritage from TNode, virtual for TRangeNode / TToken
-        FNodeType: TNodeType;
-        FParser: TCustomSQLParser;
+      private // Virtual for TRangeNode / TToken
+        Heritage: TNode;
         FParentNode: ONode;
       private
+        function GetFFirstToken(): ONode; {$IFNDEF Debug} inline; {$ENDIF}
         function GetFirstToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
-        function GetGeneration(): Integer;
+        function GetFLastToken(): ONode; {$IFNDEF Debug} inline; {$ENDIF}
         function GetLastToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
         function GetParentNode(): PNode; {$IFNDEF Debug} inline; {$ENDIF}
-      public
-        property FirstToken: PToken read GetFirstToken;
-        property Generation: Integer read GetGeneration;
-        property LastToken: PToken read GetLastToken;
-        property NodeType: TNodeType read FNodeType;
-        property ParentNode: PNode read GetParentNode;
-      end;
-
-      TRangeNode = record
-      private // Heritage from TStmtNode
-        FNodeType: TNodeType;
-        FParser: TCustomSQLParser;
-        FParentNode: ONode;
-        FFirstToken: ONode;
-        FLastToken: ONode;
-      private
-        class function Create(const AParser: TCustomSQLParser; const ANodeType: TNodeType; const AParentNode, AFirstToken: ONode): ONode; static;
-        function GetFirstToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
-        function GetLastToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
-        function GetParentNode(): PNode; {$IFNDEF Debug} inline; {$ENDIF}
+        property FFirstToken: ONode read GetFFirstToken;
+        property FLastToken: ONode read GetFLastToken;
       public
         property FirstToken: PToken read GetFirstToken;
         property LastToken: PToken read GetLastToken;
-        property NodeType: TNodeType read FNodeType;
-        property Parser: TCustomSQLParser read FParser;
+        property NodeType: TNodeType read Heritage.FNodeType;
         property ParentNode: PNode read GetParentNode;
-      end;
-
-      TSibling = record
-      private // Heritage from TRangeNode
-        FNodeType: TNodeType;
-        FParser: TCustomSQLParser;
-        FParentNode: ONode;
-        FFirstToken: ONode;
-        FLastToken: ONode;
-        FNextSibling: ONode;
-      private
-        class function Create(const AParser: TCustomSQLParser; const ASiblings, AFirstToken: ONode): ONode; static;
-        function GetNextSibling(): PSibling; {$IFNDEF Debug} inline; {$ENDIF}
-        function GetPriorSibling(): PSibling; {$IFNDEF Debug} inline; {$ENDIF}
-        property PriorSibling: PSibling read GetPriorSibling;
-      public
-        property NextSibling: PSibling read GetNextSibling;
-        property NodeType: TNodeType read FNodeType;
-        property Parser: TCustomSQLParser read FParser;
-      end;
-
-      TSiblings = record
-      private // Heritage from TRangeNode
-        FNodeType: TNodeType;
-        FParser: TCustomSQLParser;
-        FParentNode: ONode;
-        FFirstToken: ONode;
-        FLastToken: ONode;
-        FFirstSibling: ONode;
-      private
-        function Add(const ASibling: ONode): ONode;
-        class function Create(const AParser: TCustomSQLParser; const AParentNode, AFirstToken: ONode): ONode; static;
+        property Parser: TCustomSQLParser read Heritage.FParser;
       end;
 
       TToken = record
-      private // Heritage from TStmtNode
-        FNodeType: TNodeType;
-        FParser: TCustomSQLParser;
-        FParentNode: ONode;
       private
-        FDbObjectType: TDbObjectType;
+        Heritage: TStmtNode;
+      private
         FErrorCode: Integer;
-        FIsUsed: Boolean;
         FKeywordIndex: Integer;
-        FMySQLCode: Integer;
+        FMySQLVersion: Integer;
         FNextToken: ONode;
         FOperatorType: TOperatorType;
         FOrigin: TOrigin;
-        FParentToken: PToken;
         FPriorToken: ONode;
         FText: record
           SQL: PChar;
@@ -153,43 +104,91 @@ type
         end;
         FTokenType: TTokenType;
         FUsageType: TUsageType;
-        procedure Assign(const AParentNode: ONode; const AUsageType: TUsageType = utUnknown);
-        class function Create(const AParser: TCustomSQLParser): ONode; static;
+        class function Create(const AParser: TCustomSQLParser;
+          const ASQL: PChar; const ALength: Integer; const AOrigin: TOrigin;
+          const AErrorCode: Integer; const AMySQLVersion: Integer; const ATokenType: TTokenType;
+          const AOperatorType: TOperatorType; const AKeywordIndex: Integer): ONode; static;
         function GetAsString(): string;
-        function GetGeneration(Index: Integer): PNode;
+        function GetDbIdentifierType(): TDbIdentifierType;
+        function GetErrorMessage(): string;
+        function GetGeneration(): Integer;
         function GetIndex(): Integer;
+        function GetIsUsed(): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
         function GetNextToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
         function GetParentNode(): PNode; {$IFNDEF Debug} inline; {$ENDIF}
         function GetPriorToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
         function GetText(): string;
         procedure SetText(AText: string);
-        property Generation[Index: Integer]: PNode read GetGeneration;
+        property FParentNode: ONode read Heritage.FParentNode write Heritage.FParentNode;
+        property Generation: Integer read GetGeneration;
         property Index: Integer read GetIndex;
       public
         property AsString: string read GetAsString;
-        property DbObjectType: TDbObjectType read FDbObjectType;
+        property DbIdentifierType: TDbIdentifierType read GetDbIdentifierType;
         property ErrorCode: Integer read FErrorCode;
-        property IsUsed: Boolean read FIsUsed;
+        property ErrorMessage: string read GetErrorMessage;
+        property IsUsed: Boolean read GetIsUsed;
         property KeywordIndex: Integer read FKeywordIndex;
+        property MySQLVersion: Integer read FMySQLVersion;
         property NextToken: PToken read GetNextToken;
-        property NodeType: TNodeType read FNodeType;
+        property NodeType: TNodeType read Heritage.Heritage.FNodeType;
         property OperatorType: TOperatorType read FOperatorType;
         property Origin: TOrigin read FOrigin;
         property ParentNode: PNode read GetParentNode;
-        property ParentToken: PToken read FParentToken;
+        property Parser: TCustomSQLParser read Heritage.Heritage.FParser;
         property PriorToken: PToken read GetPriorToken;
         property Text: string read GetText write SetText;
         property TokenType: TTokenType read FTokenType;
         property UsageType: TUsageType read FUsageType;
       end;
 
-      TRoot = record
-      private // Heritage from TRangeNode
-        FNodeType: TNodeType;
-        FParser: TCustomSQLParser;
-        FParentNode: ONode;
+      TRangeNode = record
+      private
+        Heritage: TStmtNode;
         FFirstToken: ONode;
         FLastToken: ONode;
+        property FParentNode: ONode read Heritage.FParentNode write Heritage.FParentNode;
+      private
+        class function Create(const AParser: TCustomSQLParser; const ANodeType: TNodeType; const AParentNode, AFirstToken: ONode): ONode; static;
+        function GetFirstToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
+        function GetLastToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
+        function GetOffset(): ONode; {$IFNDEF Debug} inline; {$ENDIF}
+        function GetParentNode(): PNode; {$IFNDEF Debug} inline; {$ENDIF}
+        procedure RegisterChildNode(const ChildNode: ONode);
+        property Offset: ONode read GetOffset;
+      public
+        property FirstToken: PToken read GetFirstToken;
+        property LastToken: PToken read GetLastToken;
+        property NodeType: TNodeType read Heritage.Heritage.FNodeType;
+        property Parser: TCustomSQLParser read Heritage.Heritage.FParser;
+        property ParentNode: PNode read GetParentNode;
+      end;
+
+      TSibling = record
+      private
+        Heritage: TRangeNode;
+        FNextSibling: ONode;
+      private
+        class function Create(const AParser: TCustomSQLParser; const ANodeType: TNodeType; const ASiblings, AFirstToken: ONode): ONode; static;
+        function GetNextSibling(): PSibling; {$IFNDEF Debug} inline; {$ENDIF}
+      public
+        property NextSibling: PSibling read GetNextSibling;
+      end;
+
+      TSiblings = record
+      private
+        Heritage: TRangeNode;
+        FFirstSibling: ONode;
+      private
+        function Add(const ASibling: ONode): ONode;
+        class function Create(const AParser: TCustomSQLParser; const ANodeType: TNodeType; const AParentNode, AFirstToken: ONode): ONode; static;
+      public
+        property Parser: TCustomSQLParser read Heritage.Heritage.Heritage.FParser;
+      end;
+
+      TRoot = record
+      private
+        Heritage: TRangeNode;
       private
         FFirstStmt: ONode;
         FLastStmt: ONode;
@@ -203,33 +202,47 @@ type
         property FirstToken: PToken read GetFirstToken;
         property LastStmt: PStmt read GetLastStmt;
         property LastToken: PToken read GetLastToken;
-        property NodeType: TNodeType read FNodeType;
+        property NodeType: TNodeType read Heritage.Heritage.Heritage.FNodeType;
+        property Parser: TCustomSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
-//      TUnaryOperation = record
-//      private // Heritage
-//        FNodeType: TNodeType;
-//        FParser: TCustomSQLParser;
-//        FParentNode: ONode;
-//        FFirstToken: TNodeOffset;
-//        FLastToken: TNodeOffset;
-//        FStmtToken: TNodeOffset;
-//      private
-//        FOperand: TNode;
-//        FOperator: TToken;
-//      public
-//        constructor Create(const AParentNode: TNode; const AOperator: TToken; const AOperand: TNode);
-//        property Operand: TNode read FOperand;
-//        property Operator: TToken read FOperator;
-//      end;
-//
+      TDbIdentifier = record
+      private
+        Heritage: TRangeNode;
+        FDatabase: ONode;
+        FDbObject: ONode;
+        FDbIdentifierType: TDbIdentifierType;
+        FField: ONode;
+        function GetDatabase(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
+        function GetDbObject(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
+        function GetField(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
+      public
+        class function Create(const AParser: TCustomSQLParser; const AParentNode: ONode; const ADbIdentifierType: TDbIdentifierType; const ADatabase, ADbObject, AField: ONode; const ADot1: ONode = 0; const ADot2: ONode = 0): ONode; static;
+        property Database: PToken read GetDatabase;
+        property DbObject: PToken read GetDbObject;
+        property DbIdentifierType: TDbIdentifierType read FDbIdentifierType;
+        property Field: PToken read GetField;
+        property Parser: TCustomSQLParser read Heritage.Heritage.Heritage.FParser;
+      end;
+
+      TUnaryOperation = record
+      private
+        Heritage: TRangeNode;
+      private
+        FOperand: ONode;
+        FOperator: ONode;
+        function GetOperand(): PStmtNode; {$IFNDEF Debug} inline; {$ENDIF}
+        function GetOperator(): PStmtNode; {$IFNDEF Debug} inline; {$ENDIF}
+      public
+        class function Create(const AParser: TCustomSQLParser; const AParentNode: ONode; const AOperator, AOperand: ONode): ONode; static;
+        property Operand: PStmtNode read GetOperand;
+        property Operator: PStmtNode read GetOperator;
+        property Parser: TCustomSQLParser read Heritage.Heritage.Heritage.FParser;
+      end;
+
       TBinaryOperation = record
-      private // Heritage from TRangeNode
-        FNodeType: TNodeType;
-        FParser: TCustomSQLParser;
-        FParentNode: ONode;
-        FFirstToken: ONode;
-        FLastToken: ONode;
+      private
+        Heritage: TRangeNode;
       private
         FOperand1: ONode;
         FOperand2: ONode;
@@ -242,15 +255,12 @@ type
         property Operand1: PStmtNode read GetOperand1;
         property Operand2: PStmtNode read GetOperand2;
         property Operator: PStmtNode read GetOperator;
+        property Parser: TCustomSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
 //      TFunction = record
-//      private // Heritage
-//        FNodeType: TNodeType;
-//        FParser: TCustomSQLParser;
-//        FParentNode: ONode;
-//        FFirstToken: TNodeOffset;
-//        FLastToken: TNodeOffset;
+//      private
+//        Heritage: TRangeNode;
 //      private
 //        FArgumentList: PList;
 //      public
@@ -258,66 +268,62 @@ type
 //        property Identifier: PToken read Heritage.Heritage.FFirstToken;
 //        property ArgumentList: PList read FArgumentList;
 //      end;
-//
-//      TBetweenOperation = record
-//      private // Heritage
-//        FNodeType: TNodeType;
-//        FParser: TCustomSQLParser;
-//        FParentNode: ONode;
-//        FFirstToken: TNodeOffset;
-//        FLastToken: TNodeOffset;
-//        FStmtToken: TNodeOffset;
-//      private
-//        FExpr: TNode;
-//        FMax: TNode;
-//        FMin: TNode;
-//        FOperator1: TToken;
-//        FOperator2: TToken;
-//      public
-//        constructor Create(const AParentNode: TNode; const AOperator1, AOperator2: TToken; const AExpr, AMin, AMax: TNode);
-//        property Expr: TNode read FExpr;
-//        property Max: TNode read FMax;
-//        property Min: TNode read FMin;
-//        property Operator1: TToken read FOperator1;
-//        property Operator2: TToken read FOperator2;
-//      end;
-//
-//      TSoundsLikeOperation = record
-//      private // Heritage
-//        FNodeType: TNodeType;
-//        FParser: TCustomSQLParser;
-//        FParentNode: ONode;
-//        FFirstToken: TNodeOffset;
-//        FLastToken: TNodeOffset;
-//        FStmtToken: TNodeOffset;
-//      private
-//        Heritage: TNode;
-//      private
-//        FOperand1: TNode;
-//        FOperand2: TNode;
-//        FOperator1: TToken;
-//        FOperator2: TToken;
-//      public
-//        constructor Create(const AParentNode: TNode; const AOperator1, AOperator2: TToken; const AOperand1, AOperand2: TNode);
-//        property Operand1: TNode read FOperand1;
-//        property Operand2: TNode read FOperand2;
-//        property Operator1: TToken read FOperator1;
-//        property Operator2: TToken read FOperator2;
-//      end;
-//
+
+      TBetweenOperation = record
+      private
+        Heritage: TRangeNode;
+      private
+        FExpr: ONode;
+        FMax: ONode;
+        FMin: ONode;
+        FOperator1: ONode;
+        FOperator2: ONode;
+        function GetExpr(): PStmtNode; {$IFNDEF Debug} inline; {$ENDIF}
+        function GetMax(): PStmtNode; {$IFNDEF Debug} inline; {$ENDIF}
+        function GetMin(): PStmtNode; {$IFNDEF Debug} inline; {$ENDIF}
+        function GetOperator1(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
+        function GetOperator2(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
+      public
+        class function Create(const AParser: TCustomSQLParser; const AParentNode: ONode; const AOperator1, AOperator2: ONode; const AExpr, AMin, AMax: ONode): ONode; static;
+        property Expr: PStmtNode read GetExpr;
+        property Max: PStmtNode read GetMax;
+        property Min: PStmtNode read GetMin;
+        property Operator1: PToken read GetOperator1;
+        property Operator2: PToken read GetOperator2;
+        property Parser: TCustomSQLParser read Heritage.Heritage.Heritage.FParser;
+      end;
+
+      TSoundsLikeOperation = record
+      private
+        Heritage: TRangeNode;
+      private
+        FOperand1: ONode;
+        FOperand2: ONode;
+        FOperator1: ONode;
+        FOperator2: ONode;
+        function GetOperand1(): PStmtNode; {$IFNDEF Debug} inline; {$ENDIF}
+        function GetOperand2(): PStmtNode; {$IFNDEF Debug} inline; {$ENDIF}
+        function GetOperator1(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
+        function GetOperator2(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
+      public
+        class function Create(const AParser: TCustomSQLParser; const AParentNode: ONode; const AOperator1, AOperator2: ONode; const AOperand1, AOperand2: ONode): ONode; static;
+        property Operand1: PStmtNode read GetOperand1;
+        property Operand2: PStmtNode read GetOperand2;
+        property Operator1: PToken read GetOperator1;
+        property Operator2: PToken read GetOperator2;
+        property Parser: TCustomSQLParser read Heritage.Heritage.Heritage.FParser;
+      end;
+
       TStmt = record
-      private // Heritage from TRangeNode
-        FNodeType: TNodeType;
-        FParser: TCustomSQLParser;
-        FParentNode: ONode;
-        FFirstToken: ONode;
-        FLastToken: ONode;
+      private
+        Heritage: TRangeNode;
         FStmtType: TStmtType;
         FErrorCode: Integer;
         FErrorToken: ONode;
       private
         class function Create(const AParser: TCustomSQLParser; const AStmtType: TStmtType; const AParentNode, AFirstToken: ONode): ONode; static;
         function GetError(): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
+        function GetErrorMessage(): string;
         function GetErrorToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
         function GetFirstToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
         function GetLastToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
@@ -325,36 +331,27 @@ type
         property Error: Boolean read GetError;
       public
         property ErrorCode: Integer read FErrorCode;
+        property ErrorMessage: string read GetErrorMessage;
         property ErrorToken: PToken read GetErrorToken;
         property FirstToken: PToken read GetFirstToken;
         property LastToken: PToken read GetLastToken;
-        property NodeType: TNodeType read FNodeType;
+        property NodeType: TNodeType read Heritage.Heritage.Heritage.FNodeType;
+        property Parser: TCustomSQLParser read Heritage.Heritage.Heritage.FParser;
         property StmtType: TStmtType read FStmtType;
       end;
 
       PSelectStmt = ^TSelectStmt;
       TSelectStmt = record
-      private // Heritage from TStmt
-        FNodeType: TNodeType;
-        FParser: TCustomSQLParser;
-        FParentNode: ONode;
-        FFirstToken: ONode;
-        FLastToken: ONode;
-        FStmtType: TStmtType;
-        FErrorCode: Integer;
-        FErrorToken: ONode;
+      private
+        Heritage: TStmt;
       private
         type
           PColumns = ^TColumns;
 
           PColumn = ^TColumn;
           TColumn = record
-          private // Heritage from TRangeNode
-            FNodeType: TNodeType;
-            FParser: TCustomSQLParser;
-            FParentNode: ONode;
-            FFirstToken: ONode;
-            FLastToken: ONode;
+          private
+            Heritage: TRangeNode;
           private
             FAliasToken: ONode;
             FColumns: ONode;
@@ -364,32 +361,29 @@ type
             function GetDisplayName(): string;
             function GetExpression(): PStmtNode; {$IFNDEF Debug} inline; {$ENDIF}
           public
-            class function Create(const AParser: TCustomSQLParser; const AColumns, AFirstToken: ONode): ONode; static;
+            class function Create(const AParser: TCustomSQLParser; const AColumns, AExpression: ONode): ONode; static;
             property AliasToken: PToken read GetAliasToken;
             property Columns: PColumns read GetColumns;
             property DisplayName: string read GetDisplayName;
             property Expression: PStmtNode read GetExpression;
+            property Parser: TCustomSQLParser read Heritage.Heritage.Heritage.FParser;
           end;
 
         TColumns = record
         private // Heritage from TRangeNode
-          FNodeType: TNodeType;
-          FParser: TCustomSQLParser;
-          FParentNode: ONode;
-          FFirstToken: ONode;
-          FLastToken: ONode;
+          Heritage: TSiblings;
         public
-          procedure Add(const AColumn: ONode);
           class function Create(const AParser: TCustomSQLParser; const ASelectStmt, AFirstToken: ONode): ONode; static;
+          property Parser: TCustomSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
         end;
 
       private
         FColumns: ONode;
         class function Create(const AParser: TCustomSQLParser; const AParentNode, AFirstToken: ONode): ONode; static;
+        function GetColumns(): PColumns; {$IFNDEF Debug} inline; {$ENDIF}
       public
-//        function Create(const AParser: TCustomSQLParser; const AFirstToken: ONode): ONode;
-//        procedure Free();
-//        property Columns: TColumnList read FColumns;
+        property Columns: PColumns read GetColumns;
+        property Parser: TCustomSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
 //      TCompoundStmt = record
@@ -410,21 +404,26 @@ type
     FFunctions: TWordList;
     FHighNotPrecedence: Boolean;
     FKeywords: TWordList;
-    FMySQLCode: Integer;
+    FMySQLVersion: Integer;
     FNodes: record
       Mem: PAnsiChar;
       Offset: Integer;
       Size: Integer;
     end;
     FParsedText: string;
+    FParsedTokens: TList;
     FParsePos: record Text: PChar; Length: Integer; Origin: TOrigin; end;
     FParseStmts: Boolean;
     FPipesAsConcat: Boolean;
     FRoot: ONode;
     FSQLDialect: TSQLDialect;
-    function GetRoot(): PRoot; {$IFNDEF Debug} inline; {$ENDIF}
+    function GetCurrentToken(): ONode; {$IFNDEF Debug} inline; {$ENDIF}
+    function GetErrorMessage(const AErrorCode: Integer): string;
     function GetFunctions(): string; {$IFNDEF Debug} inline; {$ENDIF}
     function GetKeywords(): string; {$IFNDEF Debug} inline; {$ENDIF}
+    function GetNextToken(Index: Integer): ONode; {$IFNDEF Debug} inline; {$ENDIF}
+    function GetParsedToken(Index: Integer): ONode;
+    function GetRoot(): PRoot; {$IFNDEF Debug} inline; {$ENDIF}
     procedure SetFunctions(AFunctions: string); {$IFNDEF Debug} inline; {$ENDIF}
     procedure SetKeywords(AKeywords: string);
 
@@ -463,11 +462,13 @@ type
 
     OperatorTypeByKeywordIndex: array of TOperatorType;
 
+    procedure ApplyCurrentToken();
     function IsRangeNode(const ANode: PNode): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
     function IsStmt(const ANode: PNode): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
     function IsStmtNode(const ANode: PNode): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
     function NewNode(const ANodeType: TNodeType): ONode;
     function NodePtr(const ANode: ONode): PNode; {$IFNDEF Debug} inline; {$ENDIF}
+    function ParseColumn(const AParentNode, AFirstToken, AStmt: ONode): ONode;
     function ParseCompoundStmt(const AParentNode, AFirstToken, ALabelToken: ONode): ONode;
     function ParseExpression(const AParentNode, AFirstToken: ONode; const AStmt: ONode): ONode;
     function ParseSelectStmt(const AParentNode, AFirstToken: ONode): ONode;
@@ -481,7 +482,9 @@ type
     function StmtPtr(const ANode: ONode): PStmt; {$IFNDEF Debug} inline; {$ENDIF}
     function TokenPtr(const ANode: ONode): PToken; {$IFNDEF Debug} inline; {$ENDIF}
 
+    property CurrentToken: ONode read GetCurrentToken;
     property ParsedText: string read FParsedText;
+    property NextToken[Index: Integer]: ONode read GetNextToken;
 
   public
     constructor Create(const ASQLDialect: TSQLDialect);
@@ -712,7 +715,23 @@ begin
   AParser.NodePtr(Result)^.FNodeType := ANodeType;
 end;
 
+function TCustomSQLParser.TNode.GetOffset(): ONode;
+begin
+  Result := @Self - Parser.FNodes.Mem;
+end;
+
 { TCustomSQLParser.TStmtNode **************************************************}
+
+function TCustomSQLParser.TStmtNode.GetFFirstToken(): ONode;
+begin
+  if (NodeType = ntToken) then
+    Result := @Self - Parser.FNodes.Mem
+  else
+  begin
+    Assert(Parser.IsRangeNode(@Self));
+    Result := PRangeNode(@Self).FFirstToken;
+  end;
+end;
 
 function TCustomSQLParser.TStmtNode.GetFirstToken(): PToken;
 begin
@@ -720,21 +739,19 @@ begin
     Result := @Self
   else
   begin
-    Assert(FParser.IsRangeNode(@Self));
+    Assert(Parser.IsRangeNode(@Self));
     Result := PRangeNode(@Self).FirstToken;
   end;
 end;
 
-function TCustomSQLParser.TStmtNode.GetGeneration(): Integer;
-var
-  Node: PNode;
+function TCustomSQLParser.TStmtNode.GetFLastToken(): ONode;
 begin
-  Result := 0;
-  Node := ParentNode;
-  while (Assigned(Node) and FParser.IsStmtNode(Node)) do
+  if (NodeType = ntToken) then
+    Result := PNode(@Self)^.Offset
+  else
   begin
-    Inc(Result);
-    Node := PStmtNode(Node)^.ParentNode;
+    Assert(Parser.IsRangeNode(@Self));
+    Result := PRangeNode(@Self)^.FLastToken;
   end;
 end;
 
@@ -744,155 +761,37 @@ begin
     Result := @Self
   else
   begin
-    Assert(FParser.IsRangeNode(@Self));
+    Assert(Parser.IsRangeNode(@Self));
     Result := PRangeNode(@Self).LastToken;
   end;
 end;
 
 function TCustomSQLParser.TStmtNode.GetParentNode(): PNode;
 begin
-  Result := FParser.NodePtr(FParentNode);
-end;
-
-{ TCustomSQLParser.TRangeNode *************************************************}
-
-class function TCustomSQLParser.TRangeNode.Create(const AParser: TCustomSQLParser; const ANodeType: TNodeType; const AParentNode, AFirstToken: ONode): ONode;
-begin
-  Result := TNode.Create(AParser, ANodeType);
-
-  with PRangeNode(AParser.NodePtr(Result))^ do
-  begin
-    FParentNode := AParentNode;
-    FFirstToken := AFirstToken;
-  end;
-end;
-
-function TCustomSQLParser.TRangeNode.GetFirstToken(): PToken;
-begin
-  Result := PToken(FParser.NodePtr(FFirstToken));
-end;
-
-function TCustomSQLParser.TRangeNode.GetLastToken(): PToken;
-begin
-  Result := PToken(FParser.NodePtr(FLastToken));
-end;
-
-function TCustomSQLParser.TRangeNode.GetParentNode(): PNode;
-begin
-  Result := PNode(FParser.NodePtr(FParentNode));
-end;
-
-{ TCustomSQLParser.TSibling ***************************************************}
-
-class function TCustomSQLParser.TSibling.Create(const AParser: TCustomSQLParser; const ASiblings, AFirstToken: ONode): ONode;
-begin
-  Result := TRangeNode.Create(AParser, ntSibling, ASiblings, AFirstToken);
-end;
-
-function TCustomSQLParser.TSibling.GetNextSibling(): PSibling;
-begin
-  Result := FParser.SiblingPtr(FNextSibling);
-end;
-
-function TCustomSQLParser.TSibling.GetPriorSibling(): PSibling;
-var
-  Sibling: ONode;
-begin
-  Sibling := FParser.SiblingsPtr(FParentNode)^.FFirstSibling;
-
-  if (FParser.SiblingPtr(Sibling) = @Self) then
-    Result := nil
-  else
-  begin
-    while (FParser.SiblingPtr(Sibling)^.NextSibling <> @Self) do
-      Sibling := FParser.SiblingPtr(Sibling)^.FNextSibling;
-    Result := FParser.SiblingPtr(Sibling);
-  end;
-end;
-
-{ TCustomSQLParser.TSiblings **************************************************}
-
-function TCustomSQLParser.TSiblings.Add(const ASibling: ONode): ONode;
-var
-  LastSibling: ONode;
-begin
-  if (FFirstSibling = 0) then
-    FFirstSibling := ASibling
-  else
-  begin
-    LastSibling := FFirstSibling;
-    while (FParser.SiblingPtr(LastSibling)^.FNextSibling > 0) do
-      LastSibling := FParser.SiblingPtr(LastSibling)^.FNextSibling;
-    FParser.SiblingPtr(LastSibling)^.FNextSibling := ASibling;
-  end;
-
-  Result := ASibling;
-end;
-
-class function TCustomSQLParser.TSiblings.Create(const AParser: TCustomSQLParser; const AParentNode, AFirstToken: ONode): ONode;
-begin
-  Result := TRangeNode.Create(AParser, ntSiblings, AParentNode, AFirstToken);
-end;
-
-//var
-//  Expression: TNode;
-//begin
-//  inherited;
-//
-//  repeat
-//    Expression := Stmt.ParseExpression(Self);
-//    if (Expression is TToken) then
-//      Add(TToken(Expression), TToken(Expression).UsageType)
-//    else if (Expression is TNode) then
-//      Add(TNode(Expression));
-//  until (Stmt.Error or not Assigned(Tokens.Current) or (Tokens.Current.TokenType <> ttComma) or not Tokens.FindNext());
-//
-//  if (not Assigned(Tokens.Current)) then
-//    Stmt.SetError(PE_IncompleteStmt)
-//  else if (Tokens.Current.TokenType <> ttCloseBracket) then
-//    Stmt.SetError(PE_UnexpectedToken, Tokens.Current)
-//  else
-//    FLastToken := Expression.LastToken;
-//end;
-
-{ TCustomSQLParser.TRoot ******************************************************}
-
-class function TCustomSQLParser.TRoot.Create(const AParser: TCustomSQLParser): ONode;
-begin
-  Result := TNode.Create(AParser, ntRoot);
-end;
-
-function TCustomSQLParser.TRoot.GetFirstStmt(): PStmt;
-begin
-  Result := PStmt(FParser.NodePtr(FFirstStmt));
-end;
-
-function TCustomSQLParser.TRoot.GetFirstToken(): PToken;
-begin
-  Result := PToken(FParser.NodePtr(FFirstToken));
-end;
-
-function TCustomSQLParser.TRoot.GetLastStmt(): PStmt;
-begin
-  Result := PStmt(FParser.NodePtr(FLastStmt));
-end;
-
-function TCustomSQLParser.TRoot.GetLastToken(): PToken;
-begin
-  Result := PToken(FParser.NodePtr(FLastToken));
+  Result := Parser.NodePtr(FParentNode);
 end;
 
 { TCustomSQLParser.TToken *****************************************************}
 
-procedure TCustomSQLParser.TToken.Assign(const AParentNode: ONode; const AUsageType: TUsageType = utUnknown);
-begin
-  FParentNode := AParentNode;
-  FUsageType := AUsageType;
-end;
-
-class function TCustomSQLParser.TToken.Create(const AParser: TCustomSQLParser): ONode;
+class function TCustomSQLParser.TToken.Create(const AParser: TCustomSQLParser;
+  const ASQL: PChar; const ALength: Integer; const AOrigin: TOrigin;
+  const AErrorCode: Integer; const AMySQLVersion: Integer; const ATokenType: fspTypes.TTokenType;
+  const AOperatorType: TOperatorType; const AKeywordIndex: Integer): ONode;
 begin
   Result := TNode.Create(AParser, ntToken);
+
+  with PToken(AParser.NodePtr(Result))^ do
+  begin
+    Heritage.Heritage.FParser := AParser;
+    FText.SQL := ASQL;
+    FText.Length := ALength;
+    FOrigin := AOrigin;
+    FTokenType := ATokenType;
+    FErrorCode := AErrorCode;
+    FMySQLVersion := AMySQLVersion;
+    FOperatorType := FOperatorType;
+    FKeywordIndex := AKeywordIndex;
+  end;
 end;
 
 function TCustomSQLParser.TToken.GetAsString(): string;
@@ -942,26 +841,59 @@ begin
   end;
 end;
 
-function TCustomSQLParser.TToken.GetGeneration(Index: Integer): PNode;
-var
-  Generation: Integer;
+function TCustomSQLParser.TToken.GetDbIdentifierType(): TDbIdentifierType;
 begin
-  Generation := 1;
-  Result := ParentNode;
-  while (Assigned(Result) and FParser.IsStmtNode(Result) and (Generation < Index)) do
+  if ((FParentNode = 0) or (Parser.NodePtr(FParentNode)^.NodeType <> ntDbIdentifier)) then
+    Result := ditUnknown
+  else if (PNode(@Self)^.Offset = PDbIdentifier(Parser.NodePtr(FParentNode))^.FDatabase) then
+    Result := ditDatabase
+  else if (PNode(@Self)^.Offset = PDbIdentifier(Parser.NodePtr(FParentNode))^.FDbObject) then
+    case (PDbIdentifier(Parser.NodePtr(FParentNode))^.DbIdentifierType) of
+      ditTable,
+      ditField,
+      ditFunction,
+      ditProcedure,
+      ditTrigger,
+      ditView,
+      ditEvent:
+        Result := PDbIdentifier(Parser.NodePtr(FParentNode))^.DbIdentifierType;
+      else
+        Result := ditUnknown;
+    end
+  else if (PNode(@Self)^.Offset = PDbIdentifier(Parser.NodePtr(FParentNode))^.FField) then
+    case (PDbIdentifier(Parser.NodePtr(FParentNode))^.DbIdentifierType) of
+      ditField:
+        Result := PDbIdentifier(Parser.NodePtr(FParentNode))^.DbIdentifierType;
+      else
+        Result := ditUnknown;
+    end
+  else
+    Result := ditUnknown;
+end;
+
+function TCustomSQLParser.TToken.GetErrorMessage(): string;
+begin
+  Result := Parser.GetErrorMessage(ErrorCode);
+end;
+
+function TCustomSQLParser.TToken.GetGeneration(): Integer;
+var
+  Node: PNode;
+begin
+  Result := 0;
+  Node := ParentNode;
+  while (Parser.IsStmtNode(Node)) do
   begin
-    Inc(Generation);
-    Result := PRangeNode(Result)^.ParentNode;
+    Inc(Result);
+    Node := PStmtNode(Node)^.ParentNode;
   end;
-  if (Generation <> Index) then
-    Result := nil;
 end;
 
 function TCustomSQLParser.TToken.GetIndex(): Integer;
 var
   Token: PToken;
 begin
-  Token := FParser.Root^.FirstToken;
+  Token := Parser.Root^.FirstToken;
   Result := 0;
   while (Assigned(Token) and (Token <> @Self)) do
   begin
@@ -970,19 +902,24 @@ begin
   end;
 end;
 
+function TCustomSQLParser.TToken.GetIsUsed(): Boolean;
+begin
+  Result := not (TokenType in [ttSpace, ttReturn, ttComment]) and (not (Parser is TMySQLSQLParser) or (TMySQLSQLParser(Parser).MySQLVersion >= FMySQLVersion));
+end;
+
 function TCustomSQLParser.TToken.GetNextToken(): PToken;
 begin
-  Result := PToken(FParser.NodePtr(FNextToken));
+  Result := PToken(Parser.NodePtr(FNextToken));
 end;
 
 function TCustomSQLParser.TToken.GetParentNode(): PNode;
 begin
-  Result := FParser.NodePtr(FParentNode);
+  Result := Heritage.GetParentNode();
 end;
 
 function TCustomSQLParser.TToken.GetPriorToken(): PToken;
 begin
-  Result := PToken(FParser.NodePtr(FPriorToken));
+  Result := PToken(Parser.NodePtr(FPriorToken));
 end;
 
 function TCustomSQLParser.TToken.GetText(): string;
@@ -998,26 +935,195 @@ begin
   FText.NewText := AText;
 end;
 
-//{ TCustomSQLParser.TOperation *************************************************}
-//
-//constructor TCustomSQLParser.TUnaryOperation.Create(const AParentNode: TNode; const AOperator: TToken; const AOperand: TNode);
-//begin
-//  inherited Create(AParentNode, AOperand.FirstToken);
-//
-//  FOperator := AOperator;
-//  FOperand := AOperand;
-//
-//  Operator.FParentNode := Self;
-//  Operand.FParentNode := Self;
-//
-//  FLastToken := Operand.LastToken;
-//end;
+{ TCustomSQLParser.TRangeNode *************************************************}
+
+class function TCustomSQLParser.TRangeNode.Create(const AParser: TCustomSQLParser; const ANodeType: TNodeType; const AParentNode, AFirstToken: ONode): ONode;
+begin
+  Result := TNode.Create(AParser, ANodeType);
+
+  with PRangeNode(AParser.NodePtr(Result))^ do
+  begin
+    FParentNode := AParentNode;
+    FFirstToken := AFirstToken;
+  end;
+end;
+
+function TCustomSQLParser.TRangeNode.GetFirstToken(): PToken;
+begin
+  Result := PToken(Parser.NodePtr(FFirstToken));
+end;
+
+function TCustomSQLParser.TRangeNode.GetLastToken(): PToken;
+begin
+  Result := PToken(Parser.NodePtr(FLastToken));
+end;
+
+function TCustomSQLParser.TRangeNode.GetOffset(): ONode;
+begin
+  Result := Heritage.Heritage.Offset;
+end;
+
+function TCustomSQLParser.TRangeNode.GetParentNode(): PNode;
+begin
+  Result := PNode(Parser.NodePtr(FParentNode));
+end;
+
+procedure TCustomSQLParser.TRangeNode.RegisterChildNode(const ChildNode: ONode);
+var
+  Child: PStmtNode;
+begin
+  if (ChildNode > 0) then
+  begin
+    Child := Parser.StmtNodePtr(ChildNode);
+    Child^.FParentNode := Offset;
+    if ((FFirstToken = 0) or (FFirstToken > Child^.FFirstToken)) then
+      FFirstToken := Child^.FFirstToken;
+    if ((FLastToken = 0) or (FLastToken < Child^.FLastToken)) then
+      FLastToken := Child^.FLastToken;
+  end;
+end;
+
+{ TCustomSQLParser.TSibling ***************************************************}
+
+class function TCustomSQLParser.TSibling.Create(const AParser: TCustomSQLParser; const ANodeType: TNodeType; const ASiblings, AFirstToken: ONode): ONode;
+begin
+  Result := TRangeNode.Create(AParser, ANodeType, ASiblings, AFirstToken);
+end;
+
+function TCustomSQLParser.TSibling.GetNextSibling(): PSibling;
+begin
+  Result := Heritage.Parser.SiblingPtr(FNextSibling);
+end;
+
+{ TCustomSQLParser.TSiblings **************************************************}
+
+function TCustomSQLParser.TSiblings.Add(const ASibling: ONode): ONode;
+var
+  LastSibling: ONode;
+begin
+  if (FFirstSibling = 0) then
+    FFirstSibling := ASibling
+  else
+  begin
+    LastSibling := FFirstSibling;
+    while (Parser.SiblingPtr(LastSibling)^.FNextSibling > 0) do
+      LastSibling := Parser.SiblingPtr(LastSibling)^.FNextSibling;
+    Parser.SiblingPtr(LastSibling)^.FNextSibling := ASibling;
+  end;
+
+  Result := ASibling;
+end;
+
+class function TCustomSQLParser.TSiblings.Create(const AParser: TCustomSQLParser; const ANodeType: TNodeType; const AParentNode, AFirstToken: ONode): ONode;
+begin
+  Result := TRangeNode.Create(AParser, ANodeType, AParentNode, AFirstToken);
+end;
+
+{ TCustomSQLParser.TRoot ******************************************************}
+
+class function TCustomSQLParser.TRoot.Create(const AParser: TCustomSQLParser): ONode;
+begin
+  Result := TNode.Create(AParser, ntRoot);
+end;
+
+function TCustomSQLParser.TRoot.GetFirstStmt(): PStmt;
+begin
+  Result := PStmt(Parser.NodePtr(FFirstStmt));
+end;
+
+function TCustomSQLParser.TRoot.GetFirstToken(): PToken;
+begin
+  Result := PToken(Parser.NodePtr(Heritage.FFirstToken));
+end;
+
+function TCustomSQLParser.TRoot.GetLastStmt(): PStmt;
+begin
+  Result := PStmt(Parser.NodePtr(FLastStmt));
+end;
+
+function TCustomSQLParser.TRoot.GetLastToken(): PToken;
+begin
+  Result := PToken(Parser.NodePtr(Heritage.FLastToken));
+end;
+
+{ TCustomSQLParser.TDbIdentifier **********************************************}
+
+class function TCustomSQLParser.TDbIdentifier.Create(const AParser: TCustomSQLParser; const AParentNode: ONode; const ADbIdentifierType: TDbIdentifierType; const ADatabase, ADbObject, AField: ONode; const ADot1: ONode = 0; const ADot2: ONode = 0): ONode;
+var
+  Token: ONode;
+begin
+  if (ADatabase > 0) then
+    Token := ADatabase
+  else if (ADbObject > 0) then
+    Token := ADbObject
+  else if (AField > 0) then
+    Token := AField
+  else
+    raise ERangeError.Create(SArgumentOutOfRange);
+
+  Result := TRangeNode.Create(AParser, ntDbIdentifier, AParentNode, Token);
+
+  with PDbIdentifier(AParser.NodePtr(Result))^ do
+  begin
+    FDbIdentifierType := ADbIdentifierType;
+    FDatabase := ADatabase;
+    FDbObject := ADbObject;
+    FField := AField;
+
+    Heritage.RegisterChildNode(ADatabase);
+    Heritage.RegisterChildNode(ADbObject);
+    Heritage.RegisterChildNode(AField);
+    Heritage.RegisterChildNode(ADot1);
+    Heritage.RegisterChildNode(ADot2);
+  end;
+end;
+
+function TCustomSQLParser.TDbIdentifier.GetDatabase(): PToken;
+begin
+  Result := Parser.TokenPtr(FDatabase);
+end;
+
+function TCustomSQLParser.TDbIdentifier.GetDbObject(): PToken;
+begin
+  Result := Parser.TokenPtr(FDbObject);
+end;
+
+function TCustomSQLParser.TDbIdentifier.GetField(): PToken;
+begin
+  Result := Parser.TokenPtr(FField);
+end;
+
+{ TCustomSQLParser.TOperation *************************************************}
+
+class function TCustomSQLParser.TUnaryOperation.Create(const AParser: TCustomSQLParser; const AParentNode: ONode; const AOperator, AOperand: ONode): ONode;
+begin
+  Result := TRangeNode.Create(AParser, ntUnaryOperation, AParentNode, AParser.StmtNodePtr(AOperator)^.FFirstToken);
+
+  with PUnaryOperation(AParser.NodePtr(Result))^ do
+  begin
+    FOperator := AOperator;
+    FOperand := AOperand;
+
+    Heritage.RegisterChildNode(AOperator);
+    Heritage.RegisterChildNode(AOperand);
+  end;
+end;
+
+function TCustomSQLParser.TUnaryOperation.GetOperand(): PStmtNode;
+begin
+  Result := Parser.StmtNodePtr(FOperand);
+end;
+
+function TCustomSQLParser.TUnaryOperation.GetOperator(): PStmtNode;
+begin
+  Result := Parser.StmtNodePtr(FOperator);
+end;
 
 { TCustomSQLParser.TBinaryOperation *******************************************}
 
 class function TCustomSQLParser.TBinaryOperation.Create(const AParser: TCustomSQLParser; const AParentNode: ONode; const AOperator, AOperand1, AOperand2: ONode): ONode;
 begin
-  Result := TRangeNode.Create(AParser, ntRangeNode, AParentNode, AOperand1);
+  Result := TRangeNode.Create(AParser, ntBinaryOperation, AParentNode, AParser.StmtNodePtr(AOperand1)^.FFirstToken);
 
   with PBinaryOperation(AParser.NodePtr(Result))^ do
   begin
@@ -1025,31 +1131,25 @@ begin
     FOperand1 := AOperand1;
     FOperand2 := AOperand2;
 
-    Operator^.FParentNode := Result;
-    Operand1^.FParentNode := Result;
-    Operand2^.FParentNode := Result;
-
-    case (Operand2^.NodeType) of
-      ntToken: FLastToken := FOperand2;
-      ntRangeNode: FLastToken := PRangeNode(Operand2)^.FLastToken;
-      else raise ERangeError.Create(SArgumentOutOfRange);
-    end;
+    Heritage.RegisterChildNode(AOperator);
+    Heritage.RegisterChildNode(AOperand1);
+    Heritage.RegisterChildNode(AOperand2);
   end;
 end;
 
 function TCustomSQLParser.TBinaryOperation.GetOperand1(): PStmtNode;
 begin
-  Result := FParser.StmtNodePtr(FOperand1);
+  Result := Parser.StmtNodePtr(FOperand1);
 end;
 
 function TCustomSQLParser.TBinaryOperation.GetOperand2(): PStmtNode;
 begin
-  Result := FParser.StmtNodePtr(FOperand2);
+  Result := Parser.StmtNodePtr(FOperand2);
 end;
 
 function TCustomSQLParser.TBinaryOperation.GetOperator(): PStmtNode;
 begin
-  Result := FParser.StmtNodePtr(FOperator);
+  Result := Parser.StmtNodePtr(FOperator);
 end;
 
 //{ TCustomSQLParser.TFunction **************************************************}
@@ -1067,52 +1167,106 @@ end;
 //
 //  FLastToken := FArgumentList.LastToken;
 //end;
-//
-//{ TCustomSQLParser.TBetweenOperation ********************************************}
-//
-//constructor TCustomSQLParser.TBetweenOperation.Create(const AParentNode: TNode; const AOperator1, AOperator2: TToken; const AExpr, AMin, AMax: TNode);
-//begin
-//  inherited Create(AParentNode, AExpr.FirstToken);
-//
-//  FOperator1 := AOperator1;
-//  FOperator2 := AOperator2;
-//  FExpr := AExpr;
-//  FMin := AMin;
-//  FMax := AMax;
-//
-//  Operator2.FParentNode := Self;
-//  Operator2.FParentNode := Self;
-//  Expr.FParentNode := Self;
-//  Min.FParentNode := Self;
-//  Max.FParentNode := Self;
-//
-//  FLastToken := Max.LastToken;
-//end;
-//
-//{ TCustomSQLParser.TTwoOperandOperation ***************************************}
-//
-//constructor TCustomSQLParser.TSoundsLikeOperation.Create(const AParentNode: TNode;  const AOperator1, AOperator2: TToken; const AOperand1, AOperand2: TNode);
-//begin
-//  inherited Create(AParentNode, AOperand1.FirstToken);
-//
-//  FOperator1 := AOperator1;
-//  FOperator2 := AOperator2;
-//  FOperand1 := AOperand1;
-//  FOperand2 := AOperand2;
-//
-//  Operator1.FParentNode := Self;
-//  Operator2.FParentNode := Self;
-//  Operand1.FParentNode := Self;
-//  Operand2.FParentNode := Self;
-//
-//  FLastToken := Operand2.LastToken;
-//end;
+
+{ TCustomSQLParser.TBetweenOperation ******************************************}
+
+class function TCustomSQLParser.TBetweenOperation.Create(const AParser: TCustomSQLParser; const AParentNode: ONode; const AOperator1, AOperator2: ONode; const AExpr, AMin, AMax: ONode): ONode;
+begin
+  Result := TRangeNode.Create(AParser, ntBetweenOperation, AParentNode, AParser.StmtNodePtr(AExpr)^.FFirstToken);
+
+  with PBetweenOperation(AParser.NodePtr(Result))^ do
+  begin
+    FOperator1 := AOperator1;
+    FOperator2 := AOperator2;
+    FExpr := AExpr;
+    FMin := AMin;
+    FMax := AMax;
+
+    Heritage.RegisterChildNode(AOperator1);
+    Heritage.RegisterChildNode(AOperator2);
+    Heritage.RegisterChildNode(AExpr);
+    Heritage.RegisterChildNode(AMin);
+    Heritage.RegisterChildNode(AMax);
+  end;
+end;
+
+function TCustomSQLParser.TBetweenOperation.GetExpr(): PStmtNode;
+begin
+  Result := Parser.StmtNodePtr(FExpr);
+end;
+
+function TCustomSQLParser.TBetweenOperation.GetMax(): PStmtNode;
+begin
+  Result := Parser.StmtNodePtr(FMax);
+end;
+
+function TCustomSQLParser.TBetweenOperation.GetMin(): PStmtNode;
+begin
+  Result := Parser.StmtNodePtr(FMin);
+end;
+
+function TCustomSQLParser.TBetweenOperation.GetOperator1(): PToken;
+begin
+  Result := Parser.TokenPtr(FOperator1);
+end;
+
+function TCustomSQLParser.TBetweenOperation.GetOperator2(): PToken;
+begin
+  Result := Parser.TokenPtr(FOperator2);
+end;
+
+{ TCustomSQLParser.TSoundsLikeOperation ***************************************}
+
+class function TCustomSQLParser.TSoundsLikeOperation.Create(const AParser: TCustomSQLParser; const AParentNode: ONode; const AOperator1, AOperator2: ONode; const AOperand1, AOperand2: ONode): ONode;
+begin
+  Result := TRangeNode.Create(AParser, ntSoundsLikeOperation, AParentNode, AParser.StmtNodePtr(AOperand1)^.FFirstToken);
+
+  with PSoundsLikeOperation(AParser.NodePtr(Result))^ do
+  begin
+    FOperator1 := AOperator1;
+    FOperator2 := AOperator2;
+    FOperand1 := AOperand1;
+    FOperand2 := AOperand2;
+
+    Heritage.RegisterChildNode(AOperator1);
+    Heritage.RegisterChildNode(AOperator2);
+    Heritage.RegisterChildNode(AOperand1);
+    Heritage.RegisterChildNode(AOperand2);
+  end;
+end;
+
+function TCustomSQLParser.TSoundsLikeOperation.GetOperand1(): PStmtNode;
+begin
+  Result := Parser.StmtNodePtr(FOperator1);
+end;
+
+function TCustomSQLParser.TSoundsLikeOperation.GetOperand2(): PStmtNode;
+begin
+  Result := Parser.StmtNodePtr(FOperator2);
+end;
+
+function TCustomSQLParser.TSoundsLikeOperation.GetOperator1(): PToken;
+begin
+  Result := Parser.TokenPtr(FOperator1);
+end;
+
+function TCustomSQLParser.TSoundsLikeOperation.GetOperator2(): PToken;
+begin
+  Result := Parser.TokenPtr(FOperator2);
+end;
 
 { TCustomSQLParser.TStmt ******************************************************}
 
 class function TCustomSQLParser.TStmt.Create(const AParser: TCustomSQLParser; const AStmtType: TStmtType; const AParentNode, AFirstToken: ONode): ONode;
+var
+  NodeType: TNodeType;
 begin
-  Result := TRangeNode.Create(AParser, ntStmt, AParentNode, AFirstToken);
+  case (AStmtType) of
+    stUnknown: NodeType := ntStmt;
+    stSelect: NodeType := ntSelectStmt;
+    else raise ERangeError.Create(SArgumentOutOfRange);
+  end;
+  Result := TRangeNode.Create(AParser, NodeType, AParentNode, AFirstToken);
 
   AParser.StmtPtr(Result)^.FStmtType := AStmtType;
 end;
@@ -1122,24 +1276,29 @@ begin
   Result := FErrorCode <> PE_Success;
 end;
 
+function TCustomSQLParser.TStmt.GetErrorMessage(): string;
+begin
+  Result := Parser.GetErrorMessage(ErrorCode);
+end;
+
 function TCustomSQLParser.TStmt.GetErrorToken(): PToken;
 begin
-  Result := PToken(FParser.NodePtr(FErrorToken));
+  Result := PToken(Parser.NodePtr(FErrorToken));
 end;
 
 function TCustomSQLParser.TStmt.GetFirstToken(): PToken;
 begin
-  Result := PToken(FParser.NodePtr(FFirstToken));
+  Result := PToken(Parser.NodePtr(Heritage.FFirstToken));
 end;
 
 function TCustomSQLParser.TStmt.GetLastToken(): PToken;
 begin
-  Result := PToken(FParser.NodePtr(FLastToken));
+  Result := PToken(Parser.NodePtr(Heritage.FLastToken));
 end;
 
 procedure TCustomSQLParser.TStmt.SetError(const AErrorCode: Integer; const AErrorToken: ONode = 0);
 begin
-  Assert((AErrorToken = 0) or (FParser.NodePtr(AErrorToken)^.FNodeType = ntToken));
+  Assert((AErrorToken = 0) or (Parser.NodePtr(AErrorToken)^.FNodeType = ntToken));
 
   FErrorCode := AErrorCode;
   FErrorToken := AErrorToken;
@@ -1147,34 +1306,46 @@ end;
 
 { TCustomSQLParser.TSelectStmt.TColumn ****************************************}
 
-class function TCustomSQLParser.TSelectStmt.TColumn.Create(const AParser: TCustomSQLParser; const AColumns, AFirstToken: ONode): ONode;
+class function TCustomSQLParser.TSelectStmt.TColumn.Create(const AParser: TCustomSQLParser; const AColumns, AExpression: ONode): ONode;
+var
+  FirstToken: ONode;
 begin
-  Result := TRangeNode.Create(AParser, ntColumn, AColumns, AFirstToken);
+  if (AParser.StmtNodePtr(AExpression)^.NodeType = ntToken) then
+    FirstToken := AExpression
+  else
+  begin
+    Assert(AParser.IsRangeNode(PNode(AParser.RangeNodePtr(AExpression))));
+    FirstToken := AParser.RangeNodePtr(AExpression)^.FFirstToken;
+  end;
+
+  Result := TSibling.Create(AParser, ntColumn, AColumns, FirstToken);
 
   with PColumn(AParser.NodePtr(Result))^ do
   begin
     FColumns := AColumns;
 
-    FExpression := AParser.ParseExpression(Result, AFirstToken, TCustomSQLParser.TSelectStmt.PColumns(AParser.NodePtr(AColumns))^.FParentNode);
+    FExpression := AExpression;
+
+    Expression^.FParentNode := Result;
 
     if (Expression^.NodeType = ntToken) then
-      FLastToken := FExpression
+      Heritage.FLastToken := FExpression
     else
     begin
-      Assert(FParser.IsRangeNode(PNode(Expression)));
-      FLastToken := PRangeNode(Expression)^.FLastToken;
+      Assert(Parser.IsRangeNode(PNode(Expression)));
+      Heritage.FLastToken := PRangeNode(Expression)^.FLastToken;
     end;
   end;
 end;
 
 function TCustomSQLParser.TSelectStmt.TColumn.GetAliasToken(): PToken;
 begin
-  Result := FParser.TokenPtr(FAliasToken);
+  Result := Parser.TokenPtr(FAliasToken);
 end;
 
 function TCustomSQLParser.TSelectStmt.TColumn.GetColumns(): PColumns;
 begin
-  Result := PColumns(FParser.NodePtr(FColumns));
+  Result := PColumns(Parser.NodePtr(FColumns));
 end;
 
 function TCustomSQLParser.TSelectStmt.TColumn.GetDisplayName(): string;
@@ -1184,61 +1355,16 @@ end;
 
 function TCustomSQLParser.TSelectStmt.TColumn.GetExpression(): PStmtNode;
 begin
-  Assert(FParser.IsStmtNode(FParser.NodePtr(FExpression)));
+  Assert(Parser.IsStmtNode(Parser.NodePtr(FExpression)));
 
-  Result := PStmtNode(FParser.NodePtr(FExpression));
+  Result := PStmtNode(Parser.NodePtr(FExpression));
 end;
-
-//constructor TCustomSQLParser.TSelectStmt.TColumn.Create(const AFields: TColumnList; const AFirstToken: TToken);
-//begin
-//  FColumns := AFields;
-//
-//  inherited Create(AFields, AFirstToken);
-//
-//  FExpression := Stmt.ParseExpression(Self);
-//
-//  if (Assigned(Tokens.Current) and (Tokens.Current.TokenType <> ttComma) and (Tokens.Current.KeywordIndex <> Parser.kiFROM)) then
-//  begin
-//    if (Tokens.Current.KeywordIndex = Parser.kiAS) then
-//      Tokens.FindNext();
-//    if (Tokens.Current.TokenType in [ttIdentifier, ttDQIdentifier, ttBRIdentifier, ttMySQLIdentifier]) then
-//    begin
-//      Tokens.Current.Assign(Self, utAlias);
-//      Tokens.FindNext();
-//    end
-//    else
-//      Stmt.SetError(PE_UnexpectedToken, Tokens.Current);
-//  end;
-//end;
-//
-//function TCustomSQLParser.TSelectStmt.TColumn.GetDisplayName(): string;
-//begin
-//  if (Assigned(Alias)) then
-//    Result := Alias.AsString;
-//end;
 
 { TCustomSQLParser.TSelectStmt ************************************************}
 
-procedure TCustomSQLParser.TSelectStmt.TColumns.Add(const AColumn: ONode);
-begin
-
-end;
-
 class function TCustomSQLParser.TSelectStmt.TColumns.Create(const AParser: TCustomSQLParser; const ASelectStmt, AFirstToken: ONode): ONode;
-var
-  Token: ONode;
 begin
-  Result := TRangeNode.Create(AParser, ntColumn, ASelectStmt, AFirstToken);
-
-  with PColumns(AParser.NodePtr(Result))^ do
-  begin
-    Token := AParser.ParseToken();
-    if (Token > 0) then
-      repeat
-        Add(TColumn.Create(AParser, Result, Token));
-      until (True);
-        //    until (Stmt.Error or not Assigned(Tokens.Current) or (Tokens.Current.TokenType <> ttComma) or not Tokens.FindNext());
-  end;
+  Result := TSiblings.Create(AParser, ntColumns, ASelectStmt, AFirstToken);
 end;
 
 { TCustomSQLParser.TSelectStmt ************************************************}
@@ -1248,7 +1374,20 @@ begin
   Result := TStmt.Create(AParser, stSelect, AParentNode, AFirstToken);
 end;
 
+function TCustomSQLParser.TSelectStmt.GetColumns(): PColumns;
+begin
+  Assert(Parser.NodePtr(FColumns)^.NodeType = ntColumns);
+
+  Result := PColumns(Parser.NodePtr(FColumns));
+end;
+
 { TCustomSQLParser ************************************************************}
+
+procedure TCustomSQLParser.ApplyCurrentToken();
+begin
+  if (CurrentToken > 0) then
+    FParsedTokens.Delete(0);
+end;
 
 constructor TCustomSQLParser.Create(const ASQLDialect: TSQLDialect);
 begin
@@ -1260,6 +1399,7 @@ begin
   FNodes.Mem := nil;
   FNodes.Offset := 0;
   FNodes.Size := 0;
+  FParsedTokens := TList.Create();
   FParseStmts := True;
   FPipesAsConcat := False;
   FSQLDialect := ASQLDialect;
@@ -1271,13 +1411,30 @@ begin
   FKeywords.Free();
   if (FNodes.Size > 0) then
     FreeMem(FNodes.Mem);
+  FParsedTokens.Free();
 
   inherited;
 end;
 
-function TCustomSQLParser.GetRoot(): PRoot;
+function TCustomSQLParser.GetCurrentToken(): ONode;
 begin
-  Result := PRoot(NodePtr(FRoot));
+  Result := GetParsedToken(0);
+end;
+
+function TCustomSQLParser.GetErrorMessage(const AErrorCode: Integer): string;
+begin
+  case (AErrorCode) of
+    PE_Success: Result := '';
+    PE_Unknown: Result := 'Unknown error';
+    PE_EmptyText: Result := 'Text is empty';
+    PE_Syntax: Result := 'Invalid or unexpected character';
+    PE_IncompleteToken: Result := 'Uncompleted Token';
+    PE_UnexpectedToken: Result := 'Token unexpected or not understood';
+    PE_UnkownStmt: Result := 'First Token is not a known keyword';
+    PE_IncompleteStmt: Result := 'Uncompleted Token';
+    PE_InvalidEndLabel: Result := 'Begin and End Token are different';
+    else Result := '[Unknown Error Message]';
+  end;
 end;
 
 function TCustomSQLParser.GetFunctions(): string;
@@ -1290,6 +1447,35 @@ begin
   Result := FKeywords.Text;
 end;
 
+function TCustomSQLParser.GetNextToken(Index: Integer): ONode;
+begin
+  Assert(Index > 0);
+
+  Result := GetParsedToken(Index);
+end;
+
+function TCustomSQLParser.GetParsedToken(Index: Integer): ONode;
+var
+  Token: ONode;
+begin
+  if (FParsedTokens.Count - 1 < Index) then
+    repeat
+      Token := ParseToken();
+      if ((Token > 0) and TokenPtr(Token)^.IsUsed) then
+        FParsedTokens.Add(Pointer(Token));
+    until ((Token = 0) or (FParsedTokens.Count - 1 = Index));
+
+  if (FParsedTokens.Count - 1 < Index) then
+    Result := 0
+  else
+    Result := ONode(FParsedTokens[Index]);
+end;
+
+function TCustomSQLParser.GetRoot(): PRoot;
+begin
+  Result := PRoot(NodePtr(FRoot));
+end;
+
 function TCustomSQLParser.IsRangeNode(const ANode: PNode): Boolean;
 begin
   Result := Assigned(ANode) and not (ANode^.NodeType in [ntUnknown, ntRoot, ntToken]);
@@ -1297,7 +1483,7 @@ end;
 
 function TCustomSQLParser.IsStmt(const ANode: PNode): Boolean;
 begin
-  Result := Assigned(ANode) and (ANode^.NodeType = ntStmt);
+  Result := Assigned(ANode) and (ANode^.NodeType in [ntSelectStmt]);
 end;
 
 function TCustomSQLParser.IsStmtNode(const ANode: PNode): Boolean;
@@ -1314,8 +1500,13 @@ begin
     ntRoot: Size := SizeOf(TRoot);
     ntToken: Size := SizeOf(TToken);
     ntRangeNode: Size := SizeOf(TRangeNode);
-    ntStmt: Size := SizeOf(TStmt);
+    ntColumns: Size := SizeOf(TSelectStmt.TColumns);
     ntColumn: Size := SizeOf(TSelectStmt.TColumn);
+    ntDbIdentifier: Size := SizeOf(TDbIdentifier);
+    ntUnaryOperation: Size := SizeOf(TUnaryOperation);
+    ntBinaryOperation: Size := SizeOf(TBinaryOperation);
+    ntStmt: Size := SizeOf(TStmt);
+    ntSelectStmt: Size := SizeOf(TSelectStmt);
     else raise ERangeError.Create(SArgumentOutOfRange);
   end;
 
@@ -1355,33 +1546,36 @@ begin
   FillChar(FNodes.Mem[0], FNodes.Size, #0);
 
   FRoot := TRoot.Create(Self);
-  FMySQLCode := -1;
+  FMySQLVersion := -1;
 
   Result := True;
 
   if (FParsePos.Length > 0) then
   begin
-    Root^.FFirstToken := ParseToken();
-    Result := Result and (Root^.FFirstToken > 0);
-    if (Root^.FFirstToken > 0) then
+    Root^.Heritage.FFirstToken := CurrentToken;
+    Result := Result and (Root^.Heritage.FFirstToken > 0);
+    if (Root^.Heritage.FFirstToken > 0) then
+    begin
+      ApplyCurrentToken();
       if (not ParseStmts) then
         Result := Result and (Root^.FirstToken^.ErrorCode = PE_Success)
       else
       begin
-        Root^.FFirstStmt := ParseStmt(FRoot, Root^.FFirstToken);
+        Root^.FFirstStmt := ParseStmt(FRoot, Root^.Heritage.FFirstToken);
         Result := Result and (Root^.FFirstStmt > 0) and (Root^.FirstStmt^.ErrorCode = PE_Success);
       end;
+    end;
   end;
 
   while (FParsePos.Length > 0) do
   begin
-    Root^.FLastToken := ParseToken();
-    Result := Result and (Root^.FLastToken > 0);
+    Root^.Heritage.FLastToken := CurrentToken; ApplyCurrentToken();
+    Result := Result and (Root^.Heritage.FLastToken > 0);
     if (not ParseStmts) then
       Result := Result and (Root^.LastToken^.ErrorCode = PE_Success)
     else
     begin
-      Root^.FLastStmt := ParseStmt(FRoot, Root^.FLastToken);
+      Root^.FLastStmt := ParseStmt(FRoot, Root^.Heritage.FLastToken);
       Result := Result and (Root^.FLastStmt > 0) and (Root^.LastStmt^.ErrorCode = PE_Success);
     end;
   end;
@@ -1392,22 +1586,29 @@ begin
   Result := Parse(PChar(Text), Length(Text));
 end;
 
+function TCustomSQLParser.ParseColumn(const AParentNode, AFirstToken, AStmt: ONode): ONode;
+var
+  Expression: ONode;
+begin
+  Expression := ParseExpression(AParentNode, AFirstToken, AStmt);
+
+  Result := TSelectStmt.TColumn.Create(Self, AParentNode, Expression);
+end;
+
 function TCustomSQLParser.ParseCompoundStmt(const AParentNode, AFirstToken, ALabelToken: ONode): ONode;
 var
   Token: ONode;
 begin
   Result := TStmt.Create(Self, stCompound, AParentNode, AFirstToken);
 
-  Token := AFirstToken;
-
   repeat
-    Token := ParseToken();
+    Token := CurrentToken; ApplyCurrentToken();
     if (Token > 0) then
       if (TokenPtr(Token)^.KeywordIndex <> kiEnd) then
         ParseStmt(Result, Token)
       else
       begin
-        Token := ParseToken();
+        Token := CurrentToken; ApplyCurrentToken();
         if (Token > 0) then
           case (TokenPtr(Token)^.TokenType) of
             ttDelimiter: ;
@@ -1463,9 +1664,8 @@ var
 
 var
   I: Integer;
-  Precedence: Integer;
+  OperatorPrecedence: Integer;
   TokenO: ONode;
-  SubAreaO: ONode;
   EndOfExpression: Boolean;
 begin
   NodeCount := 0;
@@ -1482,19 +1682,19 @@ begin
         break;
       ttOperator:
         begin
-          TokenPtr(TokenO)^.Assign(AStmt, utOperator);
+          TokenPtr(TokenO)^.FUsageType := utOperator;
           EndOfExpression := not AddNode(TokenO);
         end;
       ttInteger,
       ttNumeric,
       ttString:
         begin
-          TokenPtr(TokenO)^.Assign(AStmt, utConst);
+          TokenPtr(TokenO)^.FUsageType := utConst;
           EndOfExpression := not AddNode(TokenO);
         end;
       ttVariable:
         begin
-          TokenPtr(TokenO)^.Assign(AStmt, utVariable);
+          TokenPtr(TokenO)^.FUsageType := utVariable;
           EndOfExpression := not AddNode(TokenO);
         end;
       ttIdentifier,
@@ -1503,36 +1703,43 @@ begin
       ttBRIdentifier,
       ttMySQLIdentifier:
         begin
-          TokenPtr(TokenO)^.Assign(AStmt, utDbObject);
+          TokenPtr(TokenO)^.FUsageType := utDbIdentifier;
           EndOfExpression := not AddNode(TokenO);
         end;
       ttKeyword:
-        if (TokenPtr(TokenO)^.KeywordIndex = kiBETWEEN) then
-          TokenPtr(TokenO)^.FOperatorType := otBetween
-        else if (TokenPtr(TokenO)^.KeywordIndex = kiBINARY) then
-          TokenPtr(TokenO)^.FOperatorType := otBinary
-        else if (TokenPtr(TokenO)^.KeywordIndex = kiCOLLATE) then
-          TokenPtr(TokenO)^.FOperatorType := otCollate
-        else if (TokenPtr(TokenO)^.KeywordIndex = kiCASE) then
-          TokenPtr(TokenO)^.FOperatorType := otCase
-        else if (TokenPtr(TokenO)^.KeywordIndex = kiIN) then
-          TokenPtr(TokenO)^.FOperatorType := otIn
-        else if (TokenPtr(TokenO)^.KeywordIndex = kiINTERVAL) then
-          TokenPtr(TokenO)^.FOperatorType := otInterval
-        else if (TokenPtr(TokenO)^.KeywordIndex = kiNULL) then
         begin
-          TokenPtr(TokenO)^.Assign(AStmt, utConst);
-          EndOfExpression := not AddNode(TokenO);
-        end
-        else if (TokenPtr(TokenO)^.KeywordIndex = kiSOUNDS) then
-          TokenPtr(TokenO)^.FOperatorType := otSounds
-        else if (TokenPtr(TokenO)^.KeywordIndex = kiTHEN) then
-          TokenPtr(TokenO)^.FOperatorType := otThen
-        else if (TokenPtr(TokenO)^.KeywordIndex = kiWHEN) then
-          TokenPtr(TokenO)^.FOperatorType := otWhen;
+          if (TokenPtr(TokenO)^.KeywordIndex = kiBETWEEN) then
+            TokenPtr(TokenO)^.FOperatorType := otBetween
+          else if (TokenPtr(TokenO)^.KeywordIndex = kiBINARY) then
+            TokenPtr(TokenO)^.FOperatorType := otBinary
+          else if (TokenPtr(TokenO)^.KeywordIndex = kiCOLLATE) then
+            TokenPtr(TokenO)^.FOperatorType := otCollate
+          else if (TokenPtr(TokenO)^.KeywordIndex = kiCASE) then
+            TokenPtr(TokenO)^.FOperatorType := otCase
+          else if (TokenPtr(TokenO)^.KeywordIndex = kiIN) then
+            TokenPtr(TokenO)^.FOperatorType := otIn
+          else if (TokenPtr(TokenO)^.KeywordIndex = kiINTERVAL) then
+            TokenPtr(TokenO)^.FOperatorType := otInterval
+          else if (TokenPtr(TokenO)^.KeywordIndex = kiNULL) then
+          begin
+            TokenPtr(TokenO)^.FUsageType := utConst;
+            EndOfExpression := not AddNode(TokenO);
+          end
+          else if (TokenPtr(TokenO)^.KeywordIndex = kiSOUNDS) then
+            TokenPtr(TokenO)^.FOperatorType := otSounds
+          else if (TokenPtr(TokenO)^.KeywordIndex = kiTHEN) then
+            TokenPtr(TokenO)^.FOperatorType := otThen
+          else if (TokenPtr(TokenO)^.KeywordIndex = kiWHEN) then
+            TokenPtr(TokenO)^.FOperatorType := otWhen;
+          if (TokenPtr(TokenO)^.OperatorType <> otUnknown) then
+          begin
+            TokenPtr(TokenO)^.FUsageType := utOperator;
+            EndOfExpression := not AddNode(TokenO);
+          end;
+        end;
       ttOpenBracket:
         begin
-          if (TokenPtr(TokenO)^.PriorToken.UsageType = utDbObject) then
+          if (TokenPtr(TokenO)^.PriorToken.UsageType = utDbIdentifier) then
             TokenPtr(TokenO)^.PriorToken.FOperatorType := otFunction_;
 //          SubAreaOffset := ParseSubArea(TokenOffset);
         end;
@@ -1543,16 +1750,33 @@ begin
     if (PStmt(NodePtr(AStmt))^.Error or EndOfExpression) then
       TokenO := 0
     else
-      TokenO := ParseToken();
+    begin
+      TokenO := CurrentToken; ApplyCurrentToken();
+    end;
     EndOfExpression := EndOfExpression or (TokenO = 0);
   until (StmtPtr(AStmt)^.Error or EndOfExpression);
 
-  for Precedence := 1 to MaxOperatorPrecedence do
+  for OperatorPrecedence := 1 to MaxOperatorPrecedence do
   begin
     I := 0;
     while (not StmtPtr(AStmt)^.Error and (I < NodeCount - 1)) do
     begin
-      if ((NodePtr(Nodes[I])^.FNodeType = ntToken) and (OperatorPrecedenceByOperatorType[TokenPtr(Nodes[I])^.OperatorType] = Precedence)) then
+      if ((OperatorPrecedence = OperatorPrecedenceByOperatorType[otDot]) and (NodePtr(Nodes[I])^.FNodeType = ntToken) and (TokenPtr(Nodes[I])^.TokenType in [ttIdentifier, ttDQIdentifier, ttDBIdentifier, ttBRIdentifier, ttMySQLIdentifier])) then
+        if ((I + 1 >= NodeCount) or (NodePtr(Nodes[I + 1])^.FNodeType <> ntToken) or (TokenPtr(Nodes[I + 1])^.OperatorType <> otDot) or not (TokenPtr(Nodes[I + 2])^.TokenType in [ttIdentifier, ttDQIdentifier, ttDBIdentifier, ttBRIdentifier, ttMySQLIdentifier])) then
+          Nodes[I] := TDbIdentifier.Create(Self, AParentNode, ditField, 0, 0, Nodes[I])
+        else if ((I + 3 >= NodeCount) or (NodePtr(Nodes[I + 3])^.FNodeType <> ntToken) or (TokenPtr(Nodes[I + 3])^.OperatorType <> otDot) or not (TokenPtr(Nodes[I + 4])^.TokenType in [ttIdentifier, ttDQIdentifier, ttDBIdentifier, ttBRIdentifier, ttMySQLIdentifier])) then
+        begin
+          Nodes[I] := TDbIdentifier.Create(Self, AParentNode, ditField, 0, Nodes[I], Nodes[I + 2], Nodes[I + 1]);
+          Dec(NodeCount, 2);
+          Move(Nodes[I + 3], Nodes[I + 1], (NodeCount - I) * SizeOf(Nodes[0]));
+        end
+        else
+        begin
+          Nodes[I] := TDbIdentifier.Create(Self, AParentNode, ditField, Nodes[I], Nodes[I + 2], Nodes[I + 4], Nodes[I + 1], Nodes[I + 3]);
+          Dec(NodeCount, 4);
+          Move(Nodes[I + 5], Nodes[I + 1], (NodeCount - I) * SizeOf(Nodes[0]));
+        end
+      else if ((NodePtr(Nodes[I])^.FNodeType = ntToken) and (OperatorPrecedenceByOperatorType[TokenPtr(Nodes[I])^.OperatorType] = OperatorPrecedence)) then
         case (TokenPtr(Nodes[I])^.OperatorType) of
 //          otFunction_,
 //          otInterval,
@@ -1568,20 +1792,19 @@ begin
 //              Dec(NodeCount);
 //              Move(Nodes[I + 1], Nodes[I], NodeCount - I);
 //            end;
-//          otNot1,
-//          otUnaryMinus,
-//          otUnaryPlus,
-//          otInvertBits,
-//          otNot2:
-//            if ((I >= NodeCount - 1)
-//              or (Nodes[I + 1] is TList) and (ListPtr(Nodes[I + 1])^.Count <> 1)) then
-//              SetError(PE_UnexpectedToken, TToken(Nodes[I]).NextUsedToken)
-//            else
-//            begin
-//              Nodes[I + 1] := TUnaryOperation.Create(AParentNode, TToken(Nodes[I]), TList(Nodes[I + 1]));
-//              Dec(NodeCount);
-//              Move(Nodes[I + 1], Nodes[I], NodeCount - I);
-//            end;
+          otNot1,
+          otUnaryMinus,
+          otUnaryPlus,
+          otInvertBits,
+          otNot2:
+            if (I >= NodeCount - 1) then
+              StmtPtr(AStmt)^.SetError(PE_IncompleteStmt)
+            else
+            begin
+              Nodes[I] := TUnaryOperation.Create(Self, AParentNode, Nodes[I], Nodes[I + 1]);
+              Dec(NodeCount);
+              Move(Nodes[I + 2], Nodes[I + 1], (NodeCount - I - 1) * SizeOf(Nodes[0]));
+            end;
           otBitXOR,
           otMulti,
           otDivision,
@@ -1616,62 +1839,45 @@ begin
             begin
               Nodes[I - 1] := TBinaryOperation.Create(Self, AParentNode, Nodes[I], Nodes[I - 1], Nodes[I + 1]);
               Dec(NodeCount, 2);
-              Move(Nodes[I + 1], Nodes[I - 1], NodeCount - I);
+              Move(Nodes[I + 2], Nodes[I], (NodeCount - I) * SizeOf(Nodes[0]));
               Dec(I);
             end;
-//          otDot:
-//            if (I = 0) then
-//              SetError(PE_UnexpectedToken, TToken(Nodes[I]))
-//            else if (I >= NodeCount - 1) then
-//              SetError(PE_IncompleteStmt)
-//            else if (not (Nodes[I - 1] is TToken) or (TToken(Nodes[I - 1]).UsageType <> utDbObject)) then
-//              SetError(PE_UnexpectedToken, TToken(Nodes[I]))
-//            else if (not (Nodes[I + 1] is TToken) or (TToken(Nodes[I + 1]).UsageType <> utDbObject)) then
-//              SetError(PE_UnexpectedToken, TToken(Nodes[I + 1]))
-//            else
-//            begin
-//              TToken(Nodes[I + 1]).FParentToken := TToken(Nodes[I - 1]);
-//              Dec(NodeCount, 2);
-//              Move(Nodes[I + 1], Nodes[I - 1], NodeCount - I);
-//              Dec(I);
-//            end;
-//          otBetween:
-//            if (NodeCount - 1 < I + 3) then
-//              SetError(PE_IncompleteToken, TToken(Nodes[I]))
-//            else if (Nodes[I + 2] is TNode) then
-//              SetError(PE_UnexpectedToken, TNode(Nodes[I + 2]).FirstToken)
-//            else if (TToken(Nodes[I + 2]).OperatorType <> otAnd) then
-//              SetError(PE_UnexpectedToken, TToken(Nodes[I + 2]))
-//            else
-//            begin
-//              Nodes[I + 3] := TBetweenOperation.Create(AParentNode, TToken(Nodes[I]), TToken(Nodes[I + 2]), Nodes[I - 1], Nodes[I + 1], Nodes[I + 3]);
-//              Dec(NodeCount, 4);
-//              Move(Nodes[I + 3], Nodes[I - 1], NodeCount - I);
-//              Dec(I);
-//            end;
+          otDot:
+            StmtPtr(AStmt)^.SetError(PE_UnexpectedToken, Nodes[I]);
+          otBetween:
+            if (I + 3 >= NodeCount) then
+              StmtPtr(AStmt)^.SetError(PE_IncompleteToken, Nodes[I])
+            else if ((NodePtr(Nodes[I + 2])^.NodeType <> ntToken) or (TokenPtr(Nodes[I + 2])^.OperatorType <> otAnd)) then
+              StmtPtr(AStmt)^.SetError(PE_UnexpectedToken, Nodes[I + 2])
+            else
+            begin
+              Nodes[I + 3] := TBetweenOperation.Create(Self, AParentNode, Nodes[I], Nodes[I + 2], Nodes[I - 1], Nodes[I + 1], Nodes[I + 3]);
+              Dec(NodeCount, 4);
+              Move(Nodes[I + 3], Nodes[I - 1], NodeCount - I);
+              Dec(I);
+            end;
 //          otCASE: ; // Todo
-//          otSounds:
-//            if (NodeCount - 1 < I + 2) then
-//              SetError(PE_IncompleteToken, TToken(Nodes[I]))
-//            else if (Nodes[I + 1] is TNode) then
-//              SetError(PE_UnexpectedToken, TNode(Nodes[I + 1]).FirstToken)
-//            else if (TToken(Nodes[I + 1]).OperatorType <> otLike) then
-//              SetError(PE_UnexpectedToken, TToken(Nodes[I + 1]))
-//            else
-//            begin
+          otSounds:
+            if (NodeCount - 1 < I + 2) then
+              StmtPtr(AStmt)^.SetError(PE_IncompleteToken, Nodes[I])
+            else if ((NodePtr(Nodes[I + 1])^.NodeType <> ntToken) or (TokenPtr(Nodes[I + 1])^.OperatorType <> otLike)) then
+              StmtPtr(AStmt)^.SetError(PE_UnexpectedToken, Nodes[I + 1])
+            else
+            begin
 //              Nodes[I + 2] := TSoundsLikeOperation.Create(AParentNode, TToken(Nodes[I]), TToken(Nodes[I + 1]), Nodes[I - 1], Nodes[I + 2]);
-//              Dec(NodeCount, 3);
-//              Move(Nodes[I + 2], Nodes[I - 1], NodeCount - I);
-//              Dec(I);
-//            end;
+              Dec(NodeCount, 3);
+              Move(Nodes[I + 2], Nodes[I - 1], NodeCount - I);
+              Dec(I);
+            end;
           else
             case (NodePtr(Nodes[I])^.FNodeType) of
               ntToken: StmtPtr(AStmt)^.SetError(PE_UnexpectedToken, Nodes[I]);
               ntRangeNode: StmtPtr(AStmt)^.SetError(PE_UnexpectedToken, RangeNodePtr(Nodes[I])^.FFirstToken);
               else raise ERangeError.Create(SArgumentOutOfRange);
             end;
-        end;
-      Inc(I);
+        end
+      else
+        Inc(I);
     end;
   end;
 
@@ -1680,22 +1886,30 @@ begin
   if (StmtPtr(AStmt)^.Error or (NodeCount <> 1)) then
     Result := 0
   else
-  begin
     Result := Nodes[0];
-    StmtNodePtr(Result)^.FParentNode := AParentNode;
-  end;
 end;
 
 function TCustomSQLParser.ParseSelectStmt(const AParentNode, AFirstToken: ONode): ONode;
 var
+  Column: ONode;
   Token: ONode;
 begin
   Result := TSelectStmt.Create(Self, AParentNode, AFirstToken);
 
-  with PSelectStmt(StmtPtr(Result))^ do
+  with PSelectStmt(NodePtr(Result))^ do
   begin
-    Token := ParseToken();
-    FColumns := TSelectStmt.TColumns.Create(Self, Result, Token);
+    Token := CurrentToken; ApplyCurrentToken();
+    if (Token > 0) then
+    begin
+      FColumns := TSelectStmt.TColumns.Create(Self, Result, Token);
+
+      repeat
+        Column := ParseColumn(FColumns, Token, Result);
+        Columns^.Heritage.Add(Column);
+      until (True); // Parser.StmtPtr(ASelectStmt)^.Error) or not Assigned(Parser.Root^.LastToken) or (Parser.Root^.LastToken^.TokenType <> ttComma);
+
+      Columns^.Heritage.Heritage.FLastToken := StmtNodePtr(Column)^.FLastToken;
+    end;
   end;
 end;
 
@@ -1709,7 +1923,9 @@ var
 begin
   TokenO := AFirstToken;
   while ((TokenO > 0) and not TokenPtr(TokenO)^.IsUsed) do
-    TokenO := ParseToken();
+  begin
+    TokenO := CurrentToken; ApplyCurrentToken();
+  end;
 
   if ((TokenO = 0) or (TokenPtr(TokenO)^.TokenType <> ttBeginLabel)) then
     LabelToken := 0
@@ -1718,7 +1934,9 @@ begin
     LabelToken := TokenO;
 
     while ((TokenO > 0) and not TokenPtr(TokenO)^.IsUsed) do
-      TokenO := ParseToken();
+    begin
+      TokenO := CurrentToken; ApplyCurrentToken();
+    end;
   end;
 
   if ((TokenO = 0) or (TokenPtr(TokenO)^.TokenType <> ttKeyword)) then
@@ -1737,23 +1955,13 @@ begin
   else
     Result := ParseUnknownStmt(AParentNode, AFirstToken);
 
-  TokenO := Root^.FLastToken;
-  if ((TokenO > 0) and (TokenPtr(TokenO)^.FTokenType <> ttDelimiter)) then
-  begin
-    TokenO := ParseToken();
-    StmtPtr(Result)^.SetError(PE_UnexpectedToken, TokenO);
-
-    while ((TokenO > 0) and (TokenPtr(TokenO)^.TokenType <> ttDelimiter)) do
-      TokenO := ParseToken();
-  end;
-
   Stmt := StmtPtr(Result);
-  if (TokenPtr(Root^.FLastToken)^.TokenType = ttDelimiter) then
-    Stmt^.FLastToken := TokenPtr(Root^.FLastToken)^.FPriorToken
+  if (Root^.LastToken^.TokenType = ttDelimiter) then
+    Stmt^.Heritage.FLastToken := Root^.LastToken^.FPriorToken
   else
-    Stmt^.FLastToken := Root^.FLastToken;
-  while ((Stmt^.FLastToken <> Stmt^.FFirstToken) and (TokenPtr(Stmt^.FLastToken)^.TokenType in [ttSpace, ttReturn, ttComment])) do
-    Stmt^.FLastToken := TokenPtr(Stmt^.FLastToken)^.FPriorToken;
+    Stmt^.Heritage.FLastToken := Root^.Heritage.FLastToken;
+  while ((Stmt^.Heritage.FLastToken <> Stmt^.Heritage.FFirstToken) and (Stmt^.LastToken^.TokenType in [ttSpace, ttReturn, ttComment])) do
+    Stmt^.Heritage.FLastToken := Stmt^.LastToken^.FPriorToken;
 
   Token := StmtPtr(Result)^.FirstToken;
   while (Assigned(Token)) do
@@ -1770,7 +1978,7 @@ end;
 function TCustomSQLParser.ParseToken(): ONode;
 label
   TwoChars,
-  Selection, SelSpace, SelQuotedIdentifier, SelNotLess, SelNotEqual1, SelNotGreater, SelNot1, SelDoubleQuote, SelComment, SelModulo, SelDolor, SelAmpersand2, SelBitAND, SelSingleQuote, SelOpenBracket, SelCloseBracket, SelMySQLCodeEnd, SelLeftJoin, SelMulti, SelComma, SelDoubleDot, SelDot, SelMySQLCode, SelMLComment, SelDiv, SelNumeric, SelSLComment, SelArrow, SelMinus, SelPlus, SelAssign, SelColon, SelDelimiter, SelNULLSaveEqual, SelLessEqual, SelShiftLeft, SelNotEqual2, SelLess, SelRightJoin, SelEqual, SelGreaterEqual, SelShiftRight, SelGreater, SelParameter, SelAt, SelUnquotedIdentifier, SelDBIdentifier, SelBackslash, SelCloseSquareBracket, SelHat, SelMySQLCharacterSet, SelMySQLIdentifier, SelUnquotedIdentifierLower, SelRBIdentifier, SelPipe, SelBitOR, SelTilde, SelE,
+  Selection, SelSpace, SelQuotedIdentifier, SelNotLess, SelNotEqual1, SelNotGreater, SelNot1, SelDoubleQuote, SelComment, SelModulo, SelDolor, SelAmpersand2, SelBitAND, SelSingleQuote, SelOpenBracket, SelCloseBracket, SelMySQLCodeEnd, SelLeftJoin, SelMulti, SelComma, SelDoubleDot, SelDot, SelMySQLCode, SelDiv, SelNumeric, SelSLComment, SelArrow, SelMinus, SelPlus, SelAssign, SelColon, SelDelimiter, SelNULLSaveEqual, SelLessEqual, SelShiftLeft, SelNotEqual2, SelLess, SelRightJoin, SelEqual, SelGreaterEqual, SelShiftRight, SelGreater, SelParameter, SelAt, SelUnquotedIdentifier, SelDBIdentifier, SelBackslash, SelCloseSquareBracket, SelHat, SelMySQLCharacterSet, SelMySQLIdentifier, SelUnquotedIdentifierLower, SelRBIdentifier, SelPipe, SelBitOR, SelTilde, SelE,
   At,
   BindVariable,
   Colon,
@@ -1778,7 +1986,7 @@ label
   Intger, IntgerL, IntgerE,
   MLComment, MLCommentL, MLComment2,
   MySQLCharacterSet, MySQLCharacterSetL, MySQLCharacterSetLE, MySQLCharacterSetE,
-  MySQLCode, MySQLCodeL,
+  MySQLCondCode, MySQLCondCodeL, MySQLCondCodeE,
   Numeric, NumericL, NumericExp, NumericE, NumericDot, NumericLE,
   QuotedIdentifier, QuotedIdentifier2,
   Return, ReturnE,
@@ -1795,14 +2003,13 @@ const
   Terminators: PChar = #9#10#13#32'#$%&()*+,-./;<=>@'; // Characters, terminating a token
   TerminatorsL = 21; // Count of Terminators
 var
-  Code: Integer;
   DotFound: Boolean;
   EFound: Boolean;
   ErrorCode: Integer;
   KeywordIndex: Integer;
   Length: Integer;
+  MySQLVersion: Integer;
   OperatorType: TOperatorType;
-  S: string;
   SQL: PChar;
   TokenLength: Integer;
   TokenType: fspTypes.TTokenType;
@@ -1824,6 +2031,7 @@ begin
 
       MOV TokenType,ttUnknown
       MOV OperatorType,otUnknown
+      MOV MySQLVersion,0
       MOV ErrorCode,PE_Success
 
     // ------------------------------
@@ -1962,13 +2170,13 @@ begin
     SelMySQLCode:
       CMP AX,'/'                       // "/" ?
       JNE SelNumeric                   // No!
-      CMP ECX,3                        // Three characters in SQL?
-      JB SelMLComment                  // No!
-      CMP WORD PTR [ESI + 4],'!'       // "/*!" ?
-      JE MySQLCode                     // Yes!
-    SelMLComment:
       CMP EAX,$002A002F                // "/*" ?
-      JE MLComment                     // Yes!
+      JNE SelDiv                       // No!
+      CMP ECX,3                        // Three characters in SQL?
+      JB MLComment                     // No!
+      CMP WORD PTR [ESI + 4],'!'       // "/*!" ?
+      JNE MLComment                    // No!
+      JMP MySQLCondCode                // MySQL Code!
     SelDiv:
       MOV OperatorType,otDivision
       JMP SingleChar
@@ -2257,21 +2465,34 @@ begin
 
     // ------------------------------
 
-    MySQLCode:
+    MySQLCondCode:
       MOV TokenType,ttMySQLCodeStart
       ADD ESI,4                        // Step over "/*" in SQL
       SUB ECX,2                        // Two characters handled
-    MySQLCodeL:
+      MOV EAX,0
+      MOV EDX,0
+    MySQLCondCodeL:
       ADD ESI,2                        // Next character in SQL
       DEC ECX                          // One character handled
       CMP ECX,0                        // End of SQL?
-      JE Finish                        // Yes!
+      JE MySQLCondCodeE                    // Yes!
       MOV AX,[ESI]                     // One Character from SQL to AX
       CMP AX,'0'                       // Digit?
-      JB Finish                        // No!
+      JB MySQLCondCodeE                    // No!
       CMP AX,'9'                       // Digit?
-      JA Finish                        // No!
-      JMP MySQLCodeL
+      JA MySQLCondCodeE                    // No!
+      SUB AX,'0'                       // Str to Int
+      PUSH EAX                         // EDX := EDX * 10
+      MOV EAX,EDX
+      MOV EDX,10
+      MUL EDX
+      MOV EDX,EAX
+      POP EAX
+      ADD EDX,EAX                      // EDX := EDX + Digit
+      JMP MySQLCondCodeL
+    MySQLCondCodeE:
+      MOV MySQLVersion,EDX
+      JMP Finish
 
     // ------------------------------
 
@@ -2475,30 +2696,21 @@ begin
         TokenType := ttUnknown;
       case (TokenType) of
         ttMySQLCodeStart:
-          if (FMySQLCode >= 0) then
+          if (FMySQLVersion >= 0) then
           begin
             TokenType := ttUnknown;
             ErrorCode := PE_Syntax;
           end
           else
-          begin
-            SetString(S, PChar(@SQL[3]), 5);
-            Val(S, FMySQLCode, Code);
-            if (Code <> 0) then
-            begin
-              FMySQLCode := -1;
-              TokenType := ttUnknown;
-              ErrorCode := PE_Syntax;
-            end;
-          end;
+            FMySQLVersion := MySQLVersion;
         ttMySQLCodeEnd:
-          if (FMySQLCode < 0) then
+          if (FMySQLVersion < 0) then
           begin
             TokenType := ttUnknown;
             ErrorCode := PE_Syntax;
           end
           else
-            FMySQLCode := -1;
+            FMySQLVersion := -1;
       end;
     end
     else if (TokenType in [ttMySQLCodeStart, ttMySQLCodeEnd]) then
@@ -2522,25 +2734,14 @@ begin
       end;
     end;
 
-    Result := TToken.Create(Self);
+    Result := TToken.Create(Self, SQL, TokenLength, FParsePos.Origin, ErrorCode, FMySQLVersion, TokenType, OperatorType, KeywordIndex);
 
-    if (Root^.FLastToken > 0) then
+    if (Root^.Heritage.FLastToken > 0) then
     begin
-      TokenPtr(Root^.FLastToken)^.FNextToken := Result;
-      TokenPtr(Result)^.FPriorToken := Root^.FLastToken;
+      TokenPtr(Root^.Heritage.FLastToken)^.FNextToken := Result;
+      TokenPtr(Result)^.FPriorToken := Root^.Heritage.FLastToken;
     end;
-    Root^.FLastToken := Result;
-
-    TokenPtr(Result)^.FErrorCode := ErrorCode;
-    TokenPtr(Result)^.FIsUsed := not (TokenType in [ttSpace, ttReturn, ttComment]) and (not (Self is TMySQLSQLParser) or (TMySQLSQLParser(Self).MySQLVersion >= FMySQLCode));
-    TokenPtr(Result)^.FKeywordIndex := KeywordIndex;
-    TokenPtr(Result)^.FMySQLCode := FMySQLCode;
-    TokenPtr(Result)^.FOperatorType := OperatorType;
-    TokenPtr(Result)^.FOrigin := FParsePos.Origin;
-    TokenPtr(Result)^.FParser := Self;
-    TokenPtr(Result)^.FText.SQL := SQL;
-    TokenPtr(Result)^.FText.Length := TokenLength;
-    TokenPtr(Result)^.FTokenType := TokenType;
+    Root^.Heritage.FLastToken := Result;
 
     FParsePos.Text := @SQL[TokenLength];
     Dec(FParsePos.Length, TokenLength);
@@ -2564,15 +2765,15 @@ begin
   Token := AFirstToken;
   if (Token > 0) then
     repeat
-      Token := ParseToken();
+      Token := CurrentToken; ApplyCurrentToken();
     until ((Token = 0) or (TokenPtr(Token)^.TokenType = ttDelimiter));
 
   StmtPtr(Result)^.SetError(PE_UnkownStmt, AFirstToken);
 
-  if (TokenPtr(Root^.FLastToken)^.TokenType = ttDelimiter) then
-    StmtPtr(Result)^.FLastToken := TokenPtr(Root^.FLastToken)^.FPriorToken
+  if (TokenPtr(Root^.Heritage.FLastToken)^.TokenType = ttDelimiter) then
+    StmtPtr(Result)^.Heritage.FLastToken := TokenPtr(Root^.Heritage.FLastToken)^.FPriorToken
   else
-    StmtPtr(Result)^.FLastToken := Root^.FLastToken;
+    StmtPtr(Result)^.Heritage.FLastToken := Root^.Heritage.FLastToken;
 end;
 
 function TCustomSQLParser.RangeNodePtr(const ANode: ONode): PRangeNode;
@@ -2584,17 +2785,13 @@ end;
 
 procedure TCustomSQLParser.SaveToFile(const Filename: string; const FileType: TFileType = ftSQL);
 var
-  FirstToken: PToken;
   G: Integer;
   GenerationCount: Integer;
   Handle: THandle;
   HTML: string;
-  I: Integer;
-  J: Integer;
-  LastToken: PToken;
+  LastTokenIndex: Integer;
   Node: PNode;
   ParentNodes: TList;
-  S: string;
   Size: DWord;
   Stmt: PStmt;
   Token: PToken;
@@ -2638,12 +2835,18 @@ begin
     '      color: #000;' + #13#10 +
     '    }' + #13#10 +
     '    .Node {' + #13#10 +
+    '      font-size: 15px;' + #13#10 +
     '      text-align: center;' + #13#10 +
     '      background-color: #F4F4F4;' + #13#10 +
     '    }' + #13#10 +
     '    .SQL {' + #13#10 +
     '      font-size: 16px;' + #13#10 +
     '      background-color: #F4F4F4;' + #13#10 +
+    '      text-align: center;' + #13#10 +
+    '    }' + #13#10 +
+    '    .StmtError {' + #13#10 +
+    '      font-size: 16px;' + #13#10 +
+    '      background-color: #FFC0C0;' + #13#10 +
     '      text-align: center;' + #13#10 +
     '    }' + #13#10 +
 //    '    span a:visited { display: none; }' + #13#10 +
@@ -2665,185 +2868,142 @@ begin
     Token := Stmt^.FirstToken; GenerationCount := 0;
     while (Assigned(Token)) do
     begin
-      GenerationCount := Max(GenerationCount, PStmtNode(Token)^.Generation);
-      if (Token = LastToken) then
+      GenerationCount := Max(GenerationCount, Token^.Generation);
+      if (Token = Stmt^.LastToken) then
         Token := nil
       else
         Token := Token^.NextToken;
     end;
 
     ParentNodes := TList.Create();
+    ParentNodes.Add(Root);
 
     HTML := HTML
       + '<table cellspacing="2" cellpadding="0" border="0">' + #13#10;
 
-    HTML := HTML
-      + '<tr class="Node">' + #13#10;
-    HTML := HTML
-      + '<td colspan="' + IntToStr(Stmt^.LastToken^.Index - Stmt^.FirstToken^.Index + 1) + '">';
-    HTML := HTML
-      + '<a href="">'
-      + HTMLEscape(NodeTypeToString[Stmt^.NodeType]);
-    HTML := HTML
-      + '<span><table cellspacing="2" cellpadding="0">';
-    HTML := HTML + '<tr><td>StmtType:</td><td>&nbsp;</td><td>' + StmtTypeToString[Stmt^.StmtType] + '</td></tr>';
-    HTML := HTML
-      + '</table></span>';
-    HTML := HTML
-      + '</a></td>' + #13#10;
-    HTML := HTML
-      + '</tr>' + #13#10;
-    ParentNodes.Add(Stmt);
-
-    for Generation := GenerationCount - 2 downto 1 do
+    for Generation := 0 to GenerationCount - 1 do
     begin
+      LastTokenIndex := -1;
+
       HTML := HTML
-        + '<tr class="Node">' + #13#10;
+        + '<tr>' + #13#10;
       Token := Stmt^.FirstToken;
       while (Assigned(Token)) do
       begin
-        Node := Token^.ParentNode; G := 0;
-        while (IsStmtNode(Node) and (ParentNodes.IndexOf(Node) < 0) and (G < Generation)) do
+        Node := Token^.ParentNode; G := Token^.Generation;
+        while (IsStmtNode(Node) and (G > Generation)) do
         begin
-          Inc(G);
-          Node := PStmtNode(Node)^.ParentNode;
+          Dec(G);
+          if (G > Generation) then
+            Node := PStmtNode(Node)^.ParentNode;
         end;
 
-        if (IsStmtNode(Node) and (G = Generation)) then
+        if (IsStmtNode(Node) and (G = Generation) and (ParentNodes.IndexOf(Node) < 1)) then
         begin
+          if (PStmtNode(Node)^.FirstToken^.Index - LastTokenIndex - 1 > 0) then
+            HTML := HTML
+              + '<td colspan="' + IntToStr(PStmtNode(Node)^.FirstToken^.Index - LastTokenIndex - 1) + '"></td>';
           HTML := HTML
-            + '<td colspan="' + IntToStr(PStmtNode(Node)^.LastToken^.Index - PStmtNode(Node)^.FirstToken^.Index + 1) + '">';
+            + '<td colspan="' + IntToStr(PStmtNode(Node)^.LastToken^.Index - PStmtNode(Node)^.FirstToken^.Index + 1) + '" class="Node">';
           HTML := HTML
             + '<a href="">'
-            + HTMLEscape(NodeTypeToString[Node^.NodeType]);
+            + HTMLEscape(NodeTypeToString[Node^.NodeType])
+            + '<span><table cellspacing="2" cellpadding="0">'
+            + '<tr><td>ParentNode Offset:</td><td>&nbsp;</td><td>' + IntToStr(PStmtNode(Node)^.ParentNode^.Offset) + '</td></tr>'
+            + '<tr><td>Offset:</td><td>&nbsp;</td><td>' + IntToStr(Node^.Offset) + '</td></tr>';
           if (IsStmt(Node)) then
           begin
-            HTML := HTML
-              + '<span><table cellspacing="2" cellpadding="0">';
             HTML := HTML + '<tr><td>StmtType:</td><td>&nbsp;</td><td>' + StmtTypeToString[PStmt(Node)^.StmtType] + '</td></tr>';
-            HTML := HTML
-              + '</table></span>';
+          end;
+          case (Node^.NodeType) of
+            ntDbIdentifier:
+              HTML := HTML
+                + '<tr><td>DbIdentifierType:</td><td>&nbsp;</td><td>' + DbIdentifierTypeToString[PDbIdentifier(Node)^.DbIdentifierType] + '</td></tr>';
           end;
           HTML := HTML
+            + '</table></span>'
             + '</a></td>' + #13#10;
+
+          LastTokenIndex := PStmtNode(Node)^.LastToken^.Index;
+
+          ParentNodes.Add(Node);
           Token := PStmtNode(Node)^.LastToken;
         end;
 
-        if (Token = Stmt^.LastToken) then
-          Token := nil
+        if (Token <> Stmt^.LastToken) then
+          Token := Token^.NextToken
         else
-          Token := Token^.NextToken;
+        begin
+          if (Token^.Index - LastTokenIndex > 0) then
+            HTML := HTML
+              + '<td colspan="' + IntToStr(Token^.Index - LastTokenIndex) + '"></td>';
+          Token := nil;
+        end;
       end;
       HTML := HTML
         + '</tr>' + #13#10;
     end;
 
-
     ParentNodes.Free();
+
+
+    HTML := HTML
+      + '<tr class="SQL">' + #13#10;
+
+    Token := Stmt^.FirstToken;
+    while (Assigned(Token)) do
+    begin
+      HTML := HTML
+        + '<td><a href="">';
+      HTML := HTML
+        + '<code>' + HTMLEscape(ReplaceStr(Token.Text, ' ', '&nbsp;')) + '</code>';
+      HTML := HTML
+        + '<span><table cellspacing="2" cellpadding="0">';
+      HTML := HTML + '<tr><td>ParentNode Offset:</td><td>&nbsp;</td><td>' + IntToStr(PStmtNode(Token)^.ParentNode^.Offset) + '</td></tr>';
+      HTML := HTML + '<tr><td>Offset:</td><td>&nbsp;</td><td>' + IntToStr(PNode(Token)^.Offset) + '</td></tr>';
+      HTML := HTML + '<tr><td>Type:</td><td>&nbsp;</td><td>' + HTMLEscape(TokenTypeToString[Token^.TokenType]) + '</td></tr>';
+      if (Token^.KeywordIndex >= 0) then
+        HTML := HTML + '<tr><td>KeywordIndex:</td><td>&nbsp;</td><td>ki' + HTMLEscape(FKeywords[Token^.KeywordIndex]) + '</td></tr>';
+      if (Token^.OperatorType <> otUnknown) then
+        HTML := HTML + '<tr><td>OperatorType:</td><td>&nbsp;</td><td>' + HTMLEscape(OperatorTypeToString[Token^.OperatorType]) + '</td></tr>';
+      if ((Trim(Token^.AsString) <> '') and (Token^.KeywordIndex < 0) and (Token^.OperatorType = otUnknown)) then
+        HTML := HTML + '<tr><td>AsString:</td><td>&nbsp;</td><td>' + HTMLEscape(Token^.AsString) + '</td></tr>';
+      if (Token^.ErrorCode <> PE_Success) then
+        HTML := HTML + '<tr><td>ErrorCode:</td><td>&nbsp;</td><td>' + IntToStr(Token^.ErrorCode) + '</td></tr>';
+      if (Token^.UsageType <> utUnknown) then
+        HTML := HTML + '<tr><td>UsageType:</td><td>&nbsp;</td><td>' + HTMLEscape(UsageTypeToString[Token^.UsageType]) + '</td></tr>';
+      HTML := HTML
+        + '</table></span>';
+      HTML := HTML
+        + '</a></td>' + #13#10;
+
+      if (Token = Stmt^.LastToken) then
+        Token := nil
+      else
+        Token := Token.NextToken;
+    end;
+    HTML := HTML
+      + '</tr>' + #13#10;
+
+    if (Stmt^.Error and Assigned(Stmt^.ErrorToken)) then
+    begin
+      HTML := HTML
+        + '<tr class=""><td colspan="' + IntToStr(Stmt^.ErrorToken^.Index) + '"></td>'
+        + '<td class="StmtError"><a href="">&uarr;'
+        + '<span><table cellspacing="2" cellpadding="0">'
+        + '<tr><td>ErrorCode:</td><td>' + IntToStr(Stmt.ErrorCode) + '</td></tr>'
+        + '<tr><td>ErrorMessage:</td><td>' + HTMLEscape(Stmt.ErrorMessage) + '</td></tr>'
+        + '</table></span>'
+        + '</a></td>'
+        + '<td colspan="' + IntToStr(Stmt^.LastToken.Index - Stmt^.ErrorToken^.Index) + '"></td>'
+        + '</tr>' + #13#10;
+    end;
+
+    HTML := HTML
+      + '</table>' + #13#10;
 
     Stmt := nil;
   until (not Assigned(Stmt));
-
-
-
-  HTML := HTML
-    + '<tr class="SQL">' + #13#10;
-
-  Token := FirstToken;
-  while (Assigned(Token)) do
-  begin
-    HTML := HTML
-      + '<td><a href="">';
-    HTML := HTML
-      + '<code>' + HTMLEscape(ReplaceStr(Token.Text, ' ', '&nbsp;')) + '</code>';
-    HTML := HTML
-      + '<span><table cellspacing="2" cellpadding="0">';
-    HTML := HTML + '<tr><td>Type:</td><td>&nbsp;</td><td>' + HTMLEscape(TokenTypeToString[Token^.TokenType]) + '</td></tr>';
-    if (Token^.KeywordIndex >= 0) then
-      HTML := HTML + '<tr><td>KeywordIndex:</td><td>&nbsp;</td><td>ki' + HTMLEscape(FKeywords[Token^.KeywordIndex]) + '</td></tr>';
-    if (Token^.OperatorType <> otUnknown) then
-      HTML := HTML + '<tr><td>OperatorType:</td><td>&nbsp;</td><td>' + HTMLEscape(OperatorTypeToString[Token^.OperatorType]) + '</td></tr>';
-    if (Token^.DbObjectType <> dotUnknown) then
-      HTML := HTML + '<tr><td>DbObjectType:</td><td>&nbsp;</td><td>' + HTMLEscape(DbObjectTypeToString[Token^.DbObjectType]) + '</td></tr>';
-    if ((Trim(Token^.AsString) <> '') and (Token^.KeywordIndex < 0) and (Token^.OperatorType = otUnknown)) then
-      HTML := HTML + '<tr><td>AsString:</td><td>&nbsp;</td><td>' + HTMLEscape(Token^.AsString) + '</td></tr>';
-    if (Token^.ErrorCode <> PE_Success) then
-      HTML := HTML + '<tr><td>ErrorCode:</td><td>&nbsp;</td><td>' + IntToStr(Token^.ErrorCode) + '</td></tr>';
-    if (Token^.UsageType <> utUnknown) then
-      HTML := HTML + '<tr><td>UsageType:</td><td>&nbsp;</td><td>' + HTMLEscape(UsageTypeToString[Token^.UsageType]) + '</td></tr>';
-    HTML := HTML
-      + '</table></span>';
-    HTML := HTML
-      + '</a></td>' + #13#10;
-
-    if (Token = LastToken) then
-      Token := nil
-    else
-      Token := Token.NextToken;
-  end;
-  HTML := HTML
-    + '</tr>' + #13#10;
-
-  HTML := HTML
-    + '</table>';
-
-//  for I := 0 to Tokens.Count - 1 do
-//  begin
-//    for J := 0 to Stmts.Count - 1 do
-//      if (Stmts[J].FirstToken = Tokens[I]) then
-//      begin
-//        Stmt := Stmts[J];
-//        if (Stmts[J].ErrorCode <> PE_Success) then
-//          HTML := HTML + '<span class="error">'
-//        else if (Stmts[J] is TUnknownStmt) then
-//          HTML := HTML + '<span class="stmt">'
-//        else
-//          HTML := HTML + '<span class="plsql">';
-//      end;
-//
-//    if (Tokens[I].ErrorCode <> PE_Success) then
-//      HTML := HTML
-//        + '<a href="" class="token error">'
-//    else
-//      HTML := HTML
-//        + '<a href="" class="token">';
-//    HTML := HTML
-//      + HTMLEscape(ReplaceStr(ReplaceStr(Tokens[I].Text, ' ', '&nbsp;'), #13#10, '&nbsp;' + #13#10));
-//    if (Tokens[I].ErrorCode <> PE_Success) then
-//      HTML := HTML
-//        + '<table cellspacing="2" cellpadding="0" class="token" style="background-color: #FCC;">'
-//    else
-//      HTML := HTML
-//        + '<table cellspacing="2" cellpadding="0">';
-//    HTML := HTML + '<tr><td>Index:</td><td>&nbsp;</td><td>' + IntToStr(I) + '</td></tr>';
-//    HTML := HTML + '<tr><td>Type:</td><td>&nbsp;</td><td>' + HTMLEscape(TokenTypeToString[Tokens[I].TokenType]) + '</td></tr>';
-//    Node := Tokens[I].ParentNode;
-//    while (Assigned(Node)) do
-//    begin
-//      HTML := HTML + '<tr><td>Node:</td><td>&nbsp;</td><td>' + HTMLEscape(Node.ClassName) + '</td></tr>';
-//      Node := Node.ParentNode;
-//    end;
-//    if (Assigned(Stmt) and (Stmt.Error)) then
-//    begin
-//      if (Stmt.ErrorToken = Tokens[I]) then
-//        HTML := HTML + '<tr><td>Stmt.ErrorCode:</td><td>&nbsp;</td><td>' + IntToStr(Stmt.ErrorCode) + '</td></tr>'
-//      else if (Stmt.FirstToken = Tokens[I]) then
-//        HTML := HTML + '<tr><td>Stmt.ErrorCode:</td><td>&nbsp;</td><td>' + IntToStr(Stmt.ErrorCode) + '</td></tr>';
-//    end;
-//
-//    HTML := HTML
-//      + '</table></a>';
-//
-//    for J := 0 to Stmts.Count - 1 do
-//      if (Assigned(Stmts[J]) and (Stmts[J].LastToken = Tokens[I])) then
-//      begin
-//        HTML := HTML + '</span>';
-//        Stmt := nil;
-//      end;
-//  end;
-
-  if (Assigned(ParentNodes)) then
-    ParentNodes.Free();
 
   HTML := HTML +
     '     <br>' + #13#10 +
@@ -2955,14 +3115,14 @@ end;
 
 function TCustomSQLParser.StmtNodePtr(const ANode: ONode): PStmtNode;
 begin
-  Assert(NodePtr(ANode)^.FNodeType in [ntToken, ntRangeNode]);
+  Assert(IsStmtNode(NodePtr(ANode)));
 
   Result := @FNodes.Mem[ANode];
 end;
 
 function TCustomSQLParser.StmtPtr(const ANode: ONode): PStmt;
 begin
-  Assert(NodePtr(ANode)^.FNodeType = ntStmt);
+  Assert(IsStmtNode(NodePtr(ANode)));
 
   Result := @FNodes.Mem[ANode];
 end;

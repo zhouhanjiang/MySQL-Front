@@ -3591,6 +3591,11 @@ begin
       MessageBox(Application.Handle, 'Terminate required!', 'Debug', MB_OK);
     {$ENDIF}
 
+    if (LibraryThread.Terminated) then // Debug 28.12.2012
+      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Terminated']);
+    if (LibraryThread.FreeOnTerminate) then // Debug 28.12.2012
+      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['FreeOnTerminate']);
+
     if (LibraryThread.IsRunning) then
     begin
       if (ThreadId = 0) then
