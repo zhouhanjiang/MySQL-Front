@@ -30,7 +30,7 @@ type
     public
       Done: Boolean;
       RecordsDone: Integer;
-      RecordsSum: Integer;
+      RecordsSum: Int64;
       constructor Create(const AItems: TTool.TItems);
       property Index: Integer read GetIndex;
     end;
@@ -4275,7 +4275,7 @@ begin
       else if ((Items[I] is TDBObjectItem)
         and (TDBObjectItem(Items[I]).DBObject is TSBaseTable)
         and not TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine.IsMerge
-        and not (Self is TTTransfer) or (TTTransfer(Self).DestinationSession <> Session)) then
+        and (not (Self is TTTransfer) or (TTTransfer(Self).DestinationSession <> Session))) then
       begin
         TDBObjectItem(Items[I]).RecordsSum := TSBaseTable(TDBObjectItem(Items[I]).DBObject).Rows;
         DataTables.Add(TSBaseTable(TDBObjectItem(Items[I]).DBObject));

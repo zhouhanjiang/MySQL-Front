@@ -4863,7 +4863,7 @@ begin
 
       if (not SQLParseKeyword(Parse, 'AS')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
-      SQLTrimStmt(SQL, SQLParseGetIndex(Parse), Length(SQL) - (SQLParseGetIndex(Parse) - 1), StartingCommentLen, EndingCommentLen);
+      SQLTrimStmt(FSource, SQLParseGetIndex(Parse), Length(FSource) - (SQLParseGetIndex(Parse) - 1), StartingCommentLen, EndingCommentLen);
       if (Copy(SQL, Length(SQL) - EndingCommentLen, 1) = ';') then
         Inc(EndingCommentLen);
 

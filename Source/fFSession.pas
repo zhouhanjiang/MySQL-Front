@@ -6320,8 +6320,6 @@ end;
 procedure TFSession.DBGridEnter(Sender: TObject);
 var
   DBGrid: TMySQLDBGrid;
-  FieldInfo: TFieldInfo;
-  I: Integer;
   SQL: string;
 begin
   if (Sender is TMySQLDBGrid) then
