@@ -3593,10 +3593,8 @@ begin
 
     if (LibraryThread.Terminated) then // Debug 28.12.2012
       raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Terminated']);
-    if (LibraryThread.FreeOnTerminate) then // Debug 28.12.2012
-      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['FreeOnTerminate']);
 
-    if (LibraryThread.IsRunning) then
+    if (not LibraryThread.FreeOnTerminate and LibraryThread.IsRunning) then
     begin
       if (ThreadId = 0) then
         S := '----> Connection Terminated <----'
@@ -3604,7 +3602,8 @@ begin
         S := '----> Connection Terminated (Id: ' + IntToStr(ThreadId) +') <----';
       WriteMonitor(PChar(S), Length(S), ttInfo);
     end;
-    LibraryThread.Terminate();
+    if (not LibraryThread.FreeOnTerminate) then
+      LibraryThread.Terminate();
     FLibraryThread := nil;
   end;
 
@@ -3632,7 +3631,7 @@ end;
 
 function TMySQLConnection.UseCompression(): Boolean;
 begin
-  Result := True or (LibraryType = ltHTTP) or not ((lstrcmpi(PChar(Host), LOCAL_HOST) = 0) or (Host = '127.0.0.1') or (Host = '::1'));
+  Result := (LibraryType = ltHTTP) or not ((lstrcmpi(PChar(Host), LOCAL_HOST) = 0) or (Host = '127.0.0.1') or (Host = '::1'));
 end;
 
 function TMySQLConnection.UseLibraryThread(): Boolean;

@@ -3237,21 +3237,21 @@ begin
   Open();
 
   Result := False;
-  if (Success <> daSuccess) then
+  if (Success = daSuccess) then
     if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, FHandle, @Stmt))) then
-      DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, True)
-    else if (not SQL_SUCCEEDED(SQLColumns(Handle, nil, 0, nil, 0, PSQLTCHAR(PChar(TableName)), SQL_NTS, nil, 0))) then
+      raise ERangeError.Create(SRangeError)
+    else if (not SQL_SUCCEEDED(SQLColumns(Stmt, nil, 0, nil, 0, PSQLTCHAR(PChar(TableName)), SQL_NTS, nil, 0))) then
       DoError(ODBCError(SQL_HANDLE_STMT, Stmt), nil, True)
     else
     begin
-      ODBCException(Handle, SQLBindCol(Handle, 4, SQL_C_WCHAR, @COLUMN_NAME, SizeOf(COLUMN_NAME), @cbCOLUMN_NAME));
-      while (SQL_SUCCEEDED(ODBCException(Handle, SQLFetch(Handle)))) do
+      ODBCException(Handle, SQLBindCol(Stmt, 4, SQL_C_WCHAR, @COLUMN_NAME, SizeOf(COLUMN_NAME), @cbCOLUMN_NAME));
+      while (SQL_SUCCEEDED(ODBCException(Stmt, SQLFetch(Stmt)))) do
       begin
         SetString(FieldName, PChar(@COLUMN_NAME), cbCOLUMN_NAME);
         FieldNames.Add(FieldName);
       end;
 
-      SQLFreeHandle(SQL_HANDLE_STMT, Handle);
+      SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
 
       Result := True;
     end;
@@ -4426,7 +4426,7 @@ begin
   else
   begin
     Database := Session.DatabaseByName(DataSet.DatabaseName);
-    if (not Assigned(Database)) then
+    if (not Assigned(Database) or not DataSet.CanModify) then
       Table := nil
     else
       Table := Database.TableByName(DataSet.TableName);
@@ -4944,7 +4944,7 @@ begin
     WriteContent(Content);
 
 
-  if (Data) then
+  if (Data and Assigned(Table)) then
   begin
     if (ReplaceData) then
       SQLInsertPrefix := 'REPLACE INTO '
@@ -4953,7 +4953,7 @@ begin
 
     SQLInsertPrefix := SQLInsertPrefix + Session.EscapeIdentifier(Table.Name);
 
-    if (not Structure and Data and Assigned(Table)) then
+    if (not Structure) then
     begin
       SQLInsertPrefix := SQLInsertPrefix + ' (';
       for I := 0 to Length(Fields) - 1 do

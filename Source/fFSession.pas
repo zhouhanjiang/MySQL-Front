@@ -1582,7 +1582,7 @@ begin
   begin
     // Debug 27.12.2012
     if (not Assigned(DBGrid.Columns[I].Field)) then
-      ERangeError.Create(SRangeError);
+      raise ERangeError.Create(SRangeError);
     if (GetFieldInfo(DBGrid.Columns[I].Field.Origin, FieldInfo)) then
     begin
       Child := XMLNode(GridXML[FieldInfo.OriginalFieldName], 'width');
@@ -6321,7 +6321,6 @@ procedure TFSession.DBGridEnter(Sender: TObject);
 var
   DBGrid: TMySQLDBGrid;
   FieldInfo: TFieldInfo;
-  Found: Boolean;
   I: Integer;
   SQL: string;
 begin
@@ -6331,10 +6330,7 @@ begin
 
     DBGrid := TMySQLDBGrid(Sender);
 
-    Found := False;
-    for I := 0 to DBGrid.DataSource.DataSet.FieldCount - 1 do
-      Found := Found or GetFieldInfo(DBGrid.DataSource.DataSet.Fields[I].Origin, FieldInfo) and (FieldInfo.TableName <> '');
-    MainAction('aFExportSQL').Enabled := Found;
+    MainAction('aFExportSQL').Enabled := DBGrid.DataSource.DataSet.CanModify;
     MainAction('aFExportText').Enabled := True;
     MainAction('aFExportExcel').Enabled := True;
     MainAction('aFExportXML').Enabled := True;
