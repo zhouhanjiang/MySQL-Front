@@ -3591,16 +3591,21 @@ begin
       MessageBox(Application.Handle, 'Terminate required!', 'Debug', MB_OK);
     {$ENDIF}
 
-    if (LibraryThread.IsRunning) then
+    if (LibraryThread.Terminated) then // Debug 28.12.2012
+      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Terminated']);
+
+    if (LibraryThread.FreeOnTerminate) then
+      FLibraryThread := nil
+    else if (LibraryThread.IsRunning) then
     begin
       if (ThreadId = 0) then
         S := '----> Connection Terminated <----'
       else
         S := '----> Connection Terminated (Id: ' + IntToStr(ThreadId) +') <----';
       WriteMonitor(PChar(S), Length(S), ttInfo);
+      LibraryThread.Terminate();
+      FLibraryThread := nil;
     end;
-    LibraryThread.Terminate();
-    FLibraryThread := nil;
   end;
 
   TerminateCS.Leave();

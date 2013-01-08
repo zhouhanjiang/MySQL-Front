@@ -317,6 +317,8 @@ type
         FStmtType: TStmtType;
         FErrorCode: Integer;
         FErrorToken: ONode;
+        property FFirstToken: ONode read Heritage.FFirstToken write Heritage.FFirstToken;
+        property FParentNode: ONode read Heritage.Heritage.FParentNode write Heritage.Heritage.FParentNode;
       private
         class function Create(const AParser: TCustomSQLParser; const AStmtType: TStmtType): ONode; static;
         function GetError(): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
@@ -1936,13 +1938,15 @@ end;
 
 function TCustomSQLParser.ParseStmt(const AParentNode: ONode): ONode;
 var
+  FirstToken: ONode;
   KeywordIndex: Integer;
   KeywordToken: ONode;
   LabelToken: ONode;
   Stmt: PStmt;
   Token: PToken;
 begin
-  KeywordToken := CurrentToken;
+  FirstToken := CurrentToken;
+  KeywordToken := FirstToken;
   if ((KeywordToken = 0) or (TokenPtr(KeywordToken)^.TokenType <> ttBeginLabel)) then
     LabelToken := 0
   else
@@ -1970,6 +1974,8 @@ begin
   Stmt := StmtPtr(Result);
   Stmt^.FErrorCode := FErrorCode;
   Stmt^.FErrorToken := FErrorToken;
+  Stmt^.FParentNode := FRoot;
+  Stmt^.FFirstToken := FirstToken;
   if (Root^.LastToken^.TokenType = ttDelimiter) then
     Stmt^.Heritage.FLastToken := Root^.LastToken^.FPriorToken
   else
