@@ -44,6 +44,8 @@ type
       PRangeNode = ^TRangeNode;
       PRoot = ^TRoot;
       PToken = ^TToken;
+      PSibling = ^TSibling;
+      PSiblings = ^TSiblings;
       PStmt = ^TStmt;
       PDbIdentifier = ^TDbIdentifier;
       PUnaryOperation = ^TUnaryOperation;
@@ -149,7 +151,7 @@ type
         function GetLastToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
         function GetOffset(): ONode; {$IFNDEF Debug} inline; {$ENDIF}
         function GetParentNode(): PNode; {$IFNDEF Debug} inline; {$ENDIF}
-        procedure RegisterChildNode(const ChildNode: ONode);
+        procedure AddChild(const ChildNode: ONode);
         property Offset: ONode read GetOffset;
       public
         property FirstToken: PToken read GetFirstToken;
@@ -157,6 +159,28 @@ type
         property NodeType: TNodeType read Heritage.Heritage.FNodeType;
         property Parser: TCustomSQLParser read Heritage.Heritage.FParser;
         property ParentNode: PNode read GetParentNode;
+      end;
+
+      TSiblings = record
+      private
+        Heritage: TRangeNode;
+        FFirstSibling: ONode;
+      private
+        procedure AddSibling(const ASibling: ONode);
+        class function Create(const AParser: TCustomSQLParser; const ANodeType: TNodeType): ONode; static;
+      public
+        property Parser: TCustomSQLParser read Heritage.Heritage.Heritage.FParser;
+      end;
+
+      TSibling = record
+      private
+        Heritage: TRangeNode;
+        FNextSibling: ONode;
+      private
+        class function Create(const AParser: TCustomSQLParser; const ANodeType: TNodeType): ONode; static;
+        function GetNextSibling(): PSibling; {$IFNDEF Debug} inline; {$ENDIF}
+      public
+        property NextSibling: PSibling read GetNextSibling;
       end;
 
       TRoot = packed record
@@ -342,15 +366,15 @@ type
 
         TColumns = packed record
         private
-          Heritage: TRangeNode;
+          Heritage: TSiblings;
         public
           class function Create(const AParser: TCustomSQLParser): ONode; static;
-          property Parser: TCustomSQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TCustomSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
         end;
 
       private
         FColumns: ONode;
-        class function Create(const AParser: TCustomSQLParser): ONode; static;
+        class function Create(const AParser: TCustomSQLParser; const AColumns: ONode): ONode; static;
         function GetColumns(): PColumns; {$IFNDEF Debug} inline; {$ENDIF}
       public
         property Columns: PColumns read GetColumns;
@@ -452,6 +476,8 @@ type
     function ParseUnknownStmt(): ONode;
     function RangeNodePtr(const ANode: ONode): PRangeNode; {$IFNDEF Debug} inline; {$ENDIF}
     procedure SetError(const AErrorCode: Integer; const AErrorToken: ONode = 0);
+    function SiblingPtr(const ANode: ONode): PSibling; {$IFNDEF Debug} inline; {$ENDIF}
+    function SiblingsPtr(const ANode: ONode): PSiblings; {$IFNDEF Debug} inline; {$ENDIF}
     function StmtNodePtr(const ANode: ONode): PStmtNode; {$IFNDEF Debug} inline; {$ENDIF}
     function StmtPtr(const ANode: ONode): PStmt; {$IFNDEF Debug} inline; {$ENDIF}
     function TokenPtr(const ANode: ONode): PToken; {$IFNDEF Debug} inline; {$ENDIF}
@@ -941,7 +967,7 @@ begin
   Result := PNode(Parser.NodePtr(FParentNode));
 end;
 
-procedure TCustomSQLParser.TRangeNode.RegisterChildNode(const ChildNode: ONode);
+procedure TCustomSQLParser.TRangeNode.AddChild(const ChildNode: ONode);
 var
   Child: PStmtNode;
 begin
@@ -954,6 +980,42 @@ begin
     if ((FLastToken = 0) or (FLastToken < Child^.FLastToken)) then
       FLastToken := Child^.FLastToken;
   end;
+end;
+
+{ TCustomSQLParser.TSiblings **************************************************}
+
+procedure TCustomSQLParser.TSiblings.AddSibling(const ASibling: ONode);
+var
+  LastSibling: ONode;
+begin
+  if (FFirstSibling = 0) then
+    FFirstSibling := ASibling
+  else
+  begin
+    LastSibling := FFirstSibling;
+    while (Parser.SiblingPtr(LastSibling)^.FNextSibling > 0) do
+      LastSibling := Parser.SiblingPtr(LastSibling)^.FNextSibling;
+    Parser.SiblingPtr(LastSibling)^.FNextSibling := ASibling;
+  end;
+
+  Heritage.AddChild(ASibling);
+end;
+
+class function TCustomSQLParser.TSiblings.Create(const AParser: TCustomSQLParser; const ANodeType: TNodeType): ONode;
+begin
+  Result := TRangeNode.Create(AParser, ANodeType);
+end;
+
+{ TCustomSQLParser.TSibling ***************************************************}
+
+class function TCustomSQLParser.TSibling.Create(const AParser: TCustomSQLParser; const ANodeType: TNodeType): ONode;
+begin
+  Result := TRangeNode.Create(AParser, ANodeType);
+end;
+
+function TCustomSQLParser.TSibling.GetNextSibling(): PSibling;
+begin
+  Result := Heritage.Parser.SiblingPtr(FNextSibling);
 end;
 
 { TCustomSQLParser.TRoot ******************************************************}
@@ -996,11 +1058,11 @@ begin
     FDbObject := ADbObject;
     FField := AField;
 
-    Heritage.RegisterChildNode(ADatabase);
-    Heritage.RegisterChildNode(ADbObject);
-    Heritage.RegisterChildNode(AField);
-    Heritage.RegisterChildNode(ADot1);
-    Heritage.RegisterChildNode(ADot2);
+    Heritage.AddChild(ADatabase);
+    Heritage.AddChild(ADbObject);
+    Heritage.AddChild(AField);
+    Heritage.AddChild(ADot1);
+    Heritage.AddChild(ADot2);
   end;
 end;
 
@@ -1030,8 +1092,8 @@ begin
     FOperator := AOperator;
     FOperand := AOperand;
 
-    Heritage.RegisterChildNode(AOperator);
-    Heritage.RegisterChildNode(AOperand);
+    Heritage.AddChild(AOperator);
+    Heritage.AddChild(AOperand);
   end;
 end;
 
@@ -1057,9 +1119,9 @@ begin
     FOperand1 := AOperand1;
     FOperand2 := AOperand2;
 
-    Heritage.RegisterChildNode(AOperator);
-    Heritage.RegisterChildNode(AOperand1);
-    Heritage.RegisterChildNode(AOperand2);
+    Heritage.AddChild(AOperator);
+    Heritage.AddChild(AOperand1);
+    Heritage.AddChild(AOperand2);
   end;
 end;
 
@@ -1108,11 +1170,11 @@ begin
     FMin := AMin;
     FMax := AMax;
 
-    Heritage.RegisterChildNode(AOperator1);
-    Heritage.RegisterChildNode(AOperator2);
-    Heritage.RegisterChildNode(AExpr);
-    Heritage.RegisterChildNode(AMin);
-    Heritage.RegisterChildNode(AMax);
+    Heritage.AddChild(AOperator1);
+    Heritage.AddChild(AOperator2);
+    Heritage.AddChild(AExpr);
+    Heritage.AddChild(AMin);
+    Heritage.AddChild(AMax);
   end;
 end;
 
@@ -1154,10 +1216,10 @@ begin
     FOperand1 := AOperand1;
     FOperand2 := AOperand2;
 
-    Heritage.RegisterChildNode(AOperator1);
-    Heritage.RegisterChildNode(AOperator2);
-    Heritage.RegisterChildNode(AOperand1);
-    Heritage.RegisterChildNode(AOperand2);
+    Heritage.AddChild(AOperator1);
+    Heritage.AddChild(AOperator2);
+    Heritage.AddChild(AOperand1);
+    Heritage.AddChild(AOperand2);
   end;
 end;
 
@@ -1226,7 +1288,7 @@ end;
 
 class function TCustomSQLParser.TSelectStmt.TColumn.Create(const AParser: TCustomSQLParser; const AExpression: ONode): ONode;
 begin
-  Result := TRangeNode.Create(AParser, ntColumn);
+  Result := TSibling.Create(AParser, ntColumn);
 
   with PColumn(AParser.NodePtr(Result))^ do
   begin
@@ -1271,14 +1333,19 @@ end;
 
 class function TCustomSQLParser.TSelectStmt.TColumns.Create(const AParser: TCustomSQLParser): ONode;
 begin
-  Result := TRangeNode.Create(AParser, ntColumns);
+  Result := TSiblings.Create(AParser, ntColumns);
 end;
 
 { TCustomSQLParser.TSelectStmt ************************************************}
 
-class function TCustomSQLParser.TSelectStmt.Create(const AParser: TCustomSQLParser): ONode;
+class function TCustomSQLParser.TSelectStmt.Create(const AParser: TCustomSQLParser; const AColumns: ONode): ONode;
 begin
   Result := TStmt.Create(AParser, stSelect);
+
+  with PSelectStmt(AParser.NodePtr(Result))^ do
+  begin
+    FColumns := AColumns;
+  end;
 end;
 
 function TCustomSQLParser.TSelectStmt.GetColumns(): PColumns;
@@ -1848,28 +1915,23 @@ end;
 
 function TCustomSQLParser.ParseSelectStmt(): ONode;
 var
-  ColumnsNode: ONode;
+  Columns: ONode;
   Column: ONode;
-  Index: Integer;
+  First: Boolean;
 begin
   Assert(TokenPtr(CurrentToken)^.KeywordIndex = kiSELECT); ApplyCurrentToken();
 
-  ColumnsNode := TSelectStmt.TColumns.Create(Self);
+  Columns := TSelectStmt.TColumns.Create(Self);
 
-  Index := 0;
+  First := True;
   repeat
-    if (Index > 0) then ApplyCurrentToken();
+    if (First) then First := False else ApplyCurrentToken();
     Column := ParseColumn();
-    TSelectStmt.PColumns(NodePtr(ColumnsNode))^.Heritage.RegisterChildNode(Column);
-    Inc(Index);
+    if (not Error) then
+      SiblingsPtr(Columns)^.AddSibling(Column);
   until (Error or (CurrentToken = 0) or (TokenPtr(CurrentToken)^.TokenType <> ttComma));
 
-  Result := TSelectStmt.Create(Self);
-
-  with PSelectStmt(NodePtr(Result))^ do
-  begin
-    FColumns := ColumnsNode;
-  end;
+  Result := TSelectStmt.Create(Self, Columns);
 end;
 
 function TCustomSQLParser.ParseStmt(const AParentNode: ONode): ONode;
@@ -3054,6 +3116,22 @@ begin
     OperatorTypeByKeywordIndex[kiTHEN]    := otTHEN;
     OperatorTypeByKeywordIndex[kiXOR]     := otXOR;
   end;
+end;
+
+function TCustomSQLParser.SiblingPtr(const ANode: ONode): PSibling;
+begin
+  if (ANode = 0) then
+    Result := nil
+  else
+    Result := @FNodes.Mem[ANode];
+end;
+
+function TCustomSQLParser.SiblingsPtr(const ANode: ONode): PSiblings;
+begin
+  if (ANode = 0) then
+    Result := nil
+  else
+    Result := @FNodes.Mem[ANode];
 end;
 
 function TCustomSQLParser.StmtNodePtr(const ANode: ONode): PStmtNode;
