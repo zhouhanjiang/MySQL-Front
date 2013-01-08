@@ -4232,25 +4232,28 @@ begin
       FDesktopXMLDocument.Node.AddChild('desktop').Attributes['version'] := '1.3.1';
     end;
 
-    if (VersionStrToVersion(FDesktopXMLDocument.DocumentElement.Attributes['version']) < 10300)  then
+    if (FDesktopXMLDocument.DocumentElement.Attributes['version'] <> Null) then
     begin
-      Node := FDesktopXMLDocument.DocumentElement;
-      if (Assigned(Node) and Assigned(XMLNode(Node, 'address'))) then
-        Node.ChildNodes.Remove(XMLNode(Node, 'address'));
+      if (VersionStrToVersion(FDesktopXMLDocument.DocumentElement.Attributes['version']) < 10300)  then
+      begin
+        Node := FDesktopXMLDocument.DocumentElement;
+        if (Assigned(Node) and Assigned(XMLNode(Node, 'address'))) then
+          Node.ChildNodes.Remove(XMLNode(Node, 'address'));
 
-      FDesktopXMLDocument.DocumentElement.Attributes['version'] := '1.3';
-    end;
+        FDesktopXMLDocument.DocumentElement.Attributes['version'] := '1.3';
+      end;
 
-    if (VersionStrToVersion(FDesktopXMLDocument.DocumentElement.Attributes['version']) < 10301)  then
-    begin
-      Node := FDesktopXMLDocument.DocumentElement;
-      if (Assigned(XMLNode(Node, 'browser'))) then
-        Node.ChildNodes.Remove(XMLNode(Node, 'browser'));
-      Node := XMLNode(Node, 'editor');
-      if (Assigned(XMLNode(Node, 'filename'))) then
-        Node.ChildNodes.Remove(XMLNode(Node, 'filename'));
+      if (VersionStrToVersion(FDesktopXMLDocument.DocumentElement.Attributes['version']) < 10301)  then
+      begin
+        Node := FDesktopXMLDocument.DocumentElement;
+        if (Assigned(XMLNode(Node, 'browser'))) then
+          Node.ChildNodes.Remove(XMLNode(Node, 'browser'));
+        Node := XMLNode(Node, 'editor');
+        if (Assigned(XMLNode(Node, 'filename'))) then
+          Node.ChildNodes.Remove(XMLNode(Node, 'filename'));
 
-      FDesktopXMLDocument.DocumentElement.Attributes['version'] := '1.3.1';
+        FDesktopXMLDocument.DocumentElement.Attributes['version'] := '1.3.1';
+      end;
     end;
 
     FDesktopXMLDocument.Options := FDesktopXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
