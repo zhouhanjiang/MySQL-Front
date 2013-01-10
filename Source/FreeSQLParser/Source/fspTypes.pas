@@ -10,6 +10,8 @@ type
     ntRoot,
     ntToken,
     ntRangeNode,
+    ntSubArea,
+    ntExpressions,
     ntColumns,
     ntColumn,
     ntDbIdentifier,
@@ -20,6 +22,7 @@ type
     ntStmt,
     ntSelectStmt
   );
+  TNodeTypes = set of TNodeType;
 
   TStmtType = (
     stUnknown,

@@ -5214,7 +5214,7 @@ begin
         end;
 
         if (Table[Index].Valid) then
-          Table[Index].PushBuildEvent(False);
+          Table[Index].PushBuildEvent(Filtered);
       until (not DataSet.FindNext());
 
     if (not Filtered) then
@@ -8135,6 +8135,7 @@ end;
 function TSDatabase.UpdateTable(const Table, NewTable: TSBaseTable): Boolean;
 var
   I: Integer;
+  List: TList;
   SQL: string;
 begin
   if (Assigned(Table)) then
@@ -8147,8 +8148,14 @@ begin
           NewTable.Fields[I].Collation := NewTable.Collation;
       end;
 
-  SQL := SQLAlterTable(Table, NewTable);
-  SQL := SQL + NewTable.SQLGetSource();
+  List := TList.Create();
+  List.Add(Table);
+
+  SQL := SQLAlterTable(Table, NewTable)
+    + NewTable.SQLGetSource()
+    + Tables.SQLGetStatus(List);
+
+  List.Free();
 
   Result := (SQL = '') or Session.SendSQL(SQL, Session.SessionResult);
 end;

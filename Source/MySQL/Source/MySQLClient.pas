@@ -137,7 +137,7 @@ type
     fcert: RawByteString;
     fcharacter_set_name: RawByteString;
     fcipher: RawByteString;
-    fclient_flag: my_uint;
+    fclient_capabilities: my_uint;
     fclient_status: TMySQL_File.TClientStatus;
     fcompress: Boolean;
     fdb: RawByteString;
@@ -1872,7 +1872,7 @@ begin
   UseNamedPipe := False;
 
   faffected_rows := 0;
-  fclient_flag := CLIENT_CAPABILITIES;
+  fclient_capabilities := CLIENT_CAPABILITIES;
   fcharacter_set_name := '';
   fcompress := False;
   ftimeout := NET_READ_TIMEOUT;
@@ -2033,7 +2033,7 @@ end;
 
 function MYSQL.more_results(): my_bool;
 begin
-  if ((fclient_flag and CLIENT_MULTI_RESULTS = 0) or (fserver_status and SERVER_MORE_RESULTS_EXISTS = 0)) then
+  if ((fclient_capabilities and CLIENT_MULTI_RESULTS = 0) or (fserver_status and SERVER_MORE_RESULTS_EXISTS = 0)) then
     Result := 0
   else
     Result := 1;
@@ -2094,7 +2094,7 @@ begin
       begin
         SetFilePointer(1, FILE_CURRENT); // $FE
 
-        if (fclient_flag and CLIENT_PROTOCOL_41 <> 0) then
+        if (fclient_capabilities and CLIENT_PROTOCOL_41 <> 0) then
         begin
           ReadFile(fserver_status, 2);
           ReadFile(fwarning_count, 2);
@@ -2113,7 +2113,7 @@ begin
         ReadFile(faffected_rows);
         ReadFile(finsert_id);
 
-        if (fclient_flag and CLIENT_PROTOCOL_41 <> 0) then
+        if (fclient_capabilities and CLIENT_PROTOCOL_41 <> 0) then
         begin
           ReadFile(fserver_status, 2);
           ReadFile(fwarning_count, 2);
@@ -2196,7 +2196,7 @@ begin
   begin
     SetFilePointer(1, FILE_CURRENT); // $FE
 
-    if (fclient_flag and CLIENT_PROTOCOL_41 <> 0) then
+    if (fclient_capabilities and CLIENT_PROTOCOL_41 <> 0) then
     begin
       ReadFile(fwarning_count, 2);
       ReadFile(fserver_status, 2);
@@ -2356,9 +2356,9 @@ begin
       fpipe_name := MYSQL_NAMEDPIPE
     else
       fpipe_name := unix_socket;
-    fclient_flag := client_flag or CLIENT_CAPABILITIES or CLIENT_LONG_PASSWORD;
+    fclient_capabilities := client_flag or CLIENT_CAPABILITIES or CLIENT_LONG_PASSWORD;
     if (fdb = '') then
-      fclient_flag := fclient_flag and not CLIENT_CONNECT_WITH_DB;
+      fclient_capabilities := fclient_capabilities and not CLIENT_CONNECT_WITH_DB;
 
     if ((host = LOCAL_HOST_NAMEDPIPE) or (StrLen(unix_socket) > 0)) then
       CreateFile(itNamedPipe, host, fpipe_name, fport, ftimeout)
@@ -2381,6 +2381,7 @@ begin
       ReadFile(fthread_id, 4);
       ReadFile(Salt);
       ReadFile(fserver_capabilities, 2);
+fserver_capabilities := fserver_capabilities and not CLIENT_COMPRESS;
       ReadFile(CharsetNr, 1);
       ReadFile(fserver_status, 2);
 
@@ -2400,12 +2401,12 @@ begin
           Insert('0', S, 6);
         Val(StringReplace(S, '.', '', [rfReplaceAll	]), fserver_version, I);
 
-        fclient_flag := fclient_flag and ($FFFF2481 or ($0000DB7E and fserver_capabilities));
+        fclient_capabilities := fclient_capabilities and ($FFFF2481 or ($0000DB7E and fserver_capabilities));
         if (get_server_version() < 40101) then
-          fclient_flag := fclient_flag and $FFFFF
+          fclient_capabilities := fclient_capabilities and $FFFFF
         else if ((fserver_capabilities and CLIENT_RESERVED <> 0) and (get_server_version() < 50000)) then
-          fclient_flag := fclient_flag or CLIENT_PROTOCOL_41 or CLIENT_RESERVED; //  CLIENT_PROTOCOL_41 has in some older 4.1.xx versions the value $04000 instead of $00200
-        fclient_flag := fclient_flag and not CLIENT_SSL;
+          fclient_capabilities := fclient_capabilities or CLIENT_PROTOCOL_41 or CLIENT_RESERVED; //  CLIENT_PROTOCOL_41 has in some older 4.1.xx versions the value $04000 instead of $00200
+        fclient_capabilities := fclient_capabilities and not CLIENT_SSL;
 
         if (fcharacter_set_name = '') then
         begin
@@ -2416,7 +2417,7 @@ begin
               if (MySQL_Collations[I].CharsetNr = CharsetNr) then
                 fcharacter_set_name := MySQL_Collations[I].CharsetName;
         end
-        else if (fclient_flag and CLIENT_PROTOCOL_41 <> 0) then
+        else if (fclient_capabilities and CLIENT_PROTOCOL_41 <> 0) then
         begin
           CharsetNr := 0;
           for I := 0 to Length(MySQL_Collations) - 1 do
@@ -2431,14 +2432,14 @@ begin
         end;
 
         Direction := idWrite;
-        if (fclient_flag and CLIENT_PROTOCOL_41 = 0) then
+        if (fclient_capabilities and CLIENT_PROTOCOL_41 = 0) then
         begin
-          WriteFile(fclient_flag and $FFFF, 2);
+          WriteFile(fclient_capabilities and $FFFF, 2);
           WriteFile(MAX_ALLOWED_PACKET, 3); // Max allowed packet size (Client)
         end
         else
         begin
-          WriteFile(fclient_flag, 4);
+          WriteFile(fclient_capabilities, 4);
           WriteFile($40000000, 4); // Max allowed packet size (Client)
           WriteFile(CharsetNr, 1);
           WriteFile(RawByteString(StringOfChar(#0, 22))); // unused space
@@ -2453,7 +2454,7 @@ begin
             WriteFile(Scramble(my_char(fpasswd), my_char(Salt)))
           else
             WriteFile(SecureScramble(my_char(fpasswd), my_char(Salt)), False);
-          if (fclient_flag and CLIENT_CONNECT_WITH_DB <> 0) then
+          if (fclient_capabilities and CLIENT_CONNECT_WITH_DB <> 0) then
             WriteFile(fdb);
           FlushFileBuffers();
 
@@ -2483,7 +2484,7 @@ begin
                 ReadFile(faffected_rows);
                 ReadFile(finsert_id);
 
-                if (fclient_flag and CLIENT_PROTOCOL_41 <> 0) then
+                if (fclient_capabilities and CLIENT_PROTOCOL_41 <> 0) then
                 begin
                   ReadFile(fserver_status, 2);
                   ReadFile(fwarning_count, 2);
@@ -2494,7 +2495,7 @@ begin
                   fwarning_count := 0;
                 end;
 
-                Compress := fclient_flag and CLIENT_COMPRESS <> 0;
+                Compress := fclient_capabilities and CLIENT_COMPRESS <> 0;
               end;
           end;
         end;
@@ -2551,7 +2552,7 @@ begin
     Result := False;
   end
   else
-    Result := Assigned(real_connect(my_char(fhost), my_char(fuser), my_char(fpasswd), my_char(fdb), fport, my_char(fpipe_name), fclient_flag));
+    Result := Assigned(real_connect(my_char(fhost), my_char(fuser), my_char(fpasswd), my_char(fdb), fport, my_char(fpipe_name), fclient_capabilities));
 end;
 
 function MYSQL.refresh(options: my_int): my_int;
@@ -2903,7 +2904,7 @@ begin
       else
       begin
         MemSize := SizeOf(Field^);
-        if (mysql.fclient_flag and CLIENT_PROTOCOL_41 = 0) then
+        if (mysql.fclient_capabilities and CLIENT_PROTOCOL_41 = 0) then
           if (ItemCount < 5) then
             mysql.Seterror(CR_SERVER_HANDSHAKE_ERR)
           else
@@ -2936,7 +2937,7 @@ begin
         if (mysql.errno() = 0) then
         begin
           Index := SizeOf(Field^);
-          if (mysql.fclient_flag and CLIENT_PROTOCOL_41 = 0) then
+          if (mysql.fclient_capabilities and CLIENT_PROTOCOL_41 = 0) then
           begin
             if (Assigned(Row^.Row^[0])) then begin Field^.table := @PAnsiChar(Field)[Index]; MoveMemory(Field^.table, Row^.Row^[0], Row^.Lengths^[0]); end; Inc(Index, Row^.Lengths^[0] + 1);
             Field^.table_length := Row^.Lengths^[0];

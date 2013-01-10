@@ -113,6 +113,8 @@ const
     'ntRoot',
     'ntToken',
     'ntRangeNode',
+    'ntSubArea',
+    'ntExpressions',
     'ntColumns',
     'ntColumn',
     'ntDbIdentifier',

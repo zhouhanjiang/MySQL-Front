@@ -3002,7 +3002,7 @@ begin
     FLibraryThread := TLibraryThread.Create(Self);
 
   Retry := 0;
-  while (not Assigned(LibraryThread.LibHandle) and (Retry < RETRY_COUNT)) do
+  while (not Assigned(LibraryThread.LibHandle) and (Retry <= RETRY_COUNT)) do
   begin
     SyncConnecting(LibraryThread);
     Inc(Retry);
@@ -3245,7 +3245,7 @@ begin
   FErrorMessage := LibraryThread.ErrorMessage;
   FExecutionTime := LibraryThread.Time;
 
-  if (Assigned(Lib.mysql_get_server_status)) then
+  if (Assigned(Lib.mysql_get_server_status) and Assigned(LibraryThread.LibHandle)) then
     FAutoCommit := Lib.mysql_get_server_status(LibraryThread.LibHandle) and SERVER_STATUS_AUTOCOMMIT <> 0;
 
   if (FErrorCode = 0) then
@@ -3280,7 +3280,7 @@ begin
       Terminate();
 
   Retry := 0;
-  while (not Assigned(LibraryThread.LibHandle) and (Retry < RETRY_COUNT)) do
+  while (not Assigned(LibraryThread.LibHandle) and (Retry <= RETRY_COUNT)) do
   begin
     SyncConnecting(LibraryThread);
     Inc(Retry);
@@ -3322,7 +3322,7 @@ begin
       end;
 
       Inc(Retry);
-    until (LibraryThread.Terminated or not NeedReconnect or (Retry = RETRY_COUNT));
+    until (LibraryThread.Terminated or not NeedReconnect or (Retry > RETRY_COUNT));
 
     if (LibraryThread.Success and not LibraryThread.Terminated) then
       LibraryThread.ResHandle := Lib.mysql_use_result(LibraryThread.LibHandle);
@@ -3332,9 +3332,7 @@ begin
   begin
     LibraryThread.ErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);
     LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
-  end
-  else if (not LibraryThread.Terminated) then
-    raise Exception.Create('Error Message 1'); // Debug 03.12.2012
+  end;
 end;
 
 procedure TMySQLConnection.SyncHandleResult(const LibraryThread: TLibraryThread);

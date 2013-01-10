@@ -390,7 +390,7 @@ begin
           WriteFile(RawByteString(fdb));
           WriteFile(RawByteString(fcharacter_set_name));
           WriteFile(fport, 2);
-          WriteFile(fclient_flag, 4);
+          WriteFile(fclient_capabilities, 4);
           WriteFile(ftimeout, 2);
           FlushFileBuffers();
 
