@@ -11,7 +11,6 @@ uses
   ExceptionLog,
   {$ENDIF}
   ODBCAPI,
-  DISQLite3Api,
   SynEditHighlighter,
   SynPDF,
   MySQLConsts, MySQLDB, SQLUtils, CSVUtils,
@@ -51,7 +50,7 @@ type
       property Item[Index: Integer]: TItem read GetItem; default;
       property Tool: TTool read FTool;
     end;
-    TErrorType = (TE_Database, TE_NoPrimaryIndex, TE_File, TE_ODBC, TE_SQLite, TE_XML, TE_Warning, TE_Printer);
+    TErrorType = (TE_Database, TE_NoPrimaryIndex, TE_File, TE_ODBC, TE_XML, TE_Warning, TE_Printer);
     TError = record
       ErrorType: TErrorType;
       ErrorCode: Integer;
@@ -332,26 +331,6 @@ type
     procedure Open(); override;
   end;
 
-  TTImportSQLite = class(TTImport)
-  private
-    FFilename: string;
-    Handle: sqlite3_ptr;
-    Stmt: sqlite3_stmt_ptr;
-  protected
-    procedure AfterExecuteData(const Item: TTImport.TItem); override;
-    procedure BeforeExecute(); override;
-    procedure BeforeExecuteData(const Item: TTImport.TItem); override;
-    procedure ExecuteStructure(const Item: TTImport.TItem); override;
-    procedure Close(); override;
-    function GetValues(const Item: TTImport.TItem; const DataFileBuffer: TTool.TDataFileBuffer): Boolean; override;
-    function GetValues(const Item: TTImport.TItem; var Values: TSQLStrings): Boolean; overload; override;
-    procedure Open(); override;
-  public
-    constructor Create(const ASession: TSSession; const ADatabase: TSDatabase; const AFilename: string);
-    function GetFieldNames(const TableName: string; const FieldNames: TStrings): Boolean; virtual;
-    function GetTableNames(const TableNames: TStrings): Boolean; virtual;
-  end;
-
   TTImportXML = class(TTImport)
   private
     Filename: string;
@@ -588,22 +567,6 @@ type
     constructor Create(const ASession: TSSession; const AFilename: TFileName);
   end;
 
-  TTExportSQLite = class(TTExport)
-  private
-    Filename: TFileName;
-    Handle: sqlite3_ptr;
-    Stmt: sqlite3_stmt_ptr;
-    Text: array of RawByteString;
-  protected
-    procedure ExecuteFooter(); override;
-    procedure ExecuteHeader(); override;
-    procedure ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
-    procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
-    procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
-  public
-    constructor Create(const ASession: TSSession; const AFilename: TFileName);
-  end;
-
   TTExportCanvas = class(TTExport)
   type
     TColumn = record
@@ -773,7 +736,6 @@ type
   EODBCError = EDatabaseError;
 
 function ODBCException(const Stmt: SQLHSTMT; const ReturnCode: SQLRETURN; const AState: PString = nil): SQLRETURN;
-function SQLiteException(const Handle: sqlite3_ptr; const ReturnCode: Integer; const AState: PString = nil): SQLRETURN;
 
 const
   CP_UNICODE = 1200;
@@ -922,23 +884,6 @@ begin
 
   if (Assigned(AState)) then
     AState^ := SQLState;
-
-  Result := ReturnCode;
-end;
-
-function SQLiteError(const Handle: sqlite3_ptr): TTool.TError;
-begin
-  Result.ErrorType := TE_SQLite;
-  Result.ErrorCode := sqlite3_errcode(Handle);
-  Result.ErrorMessage := UTF8ToString(sqlite3_errmsg(Handle));
-end;
-
-function SQLiteException(const Handle: sqlite3_ptr; const ReturnCode: Integer; const AState: PString = nil): SQLRETURN;
-begin
-  if ((ReturnCode = SQLITE_MISUSE)) then
-    raise Exception.Create('Invalid SQLite Handle')
-  else if ((ReturnCode <> SQLITE_OK) and (ReturnCode < SQLITE_ROW)) then
-    raise EODBCError.Create(UTF8ToString(sqlite3_errmsg(@Handle)) + ' (' + IntToStr(ReturnCode) + ')');
 
   Result := ReturnCode;
 end;
@@ -3636,342 +3581,6 @@ begin
   end;
 end;
 
-{ TTImportSQLite **************************************************************}
-
-procedure TTImportSQLite.AfterExecuteData(const Item: TTImport.TItem);
-begin
-  sqlite3_finalize(Stmt); Stmt := nil;
-end;
-
-procedure TTImportSQLite.BeforeExecute();
-var
-  I: Integer;
-begin
-  inherited;
-
-  if ((Success = daSuccess) and Data) then
-    for I := 0 to Items.Count - 1 do
-    begin
-      SQLiteException(Handle, sqlite3_prepare_v2(Handle, PAnsiChar(UTF8Encode('SELECT COUNT(*) FROM "' + TTImport.TItem(Items[I]).SourceTableName + '"')), -1, @Stmt, nil));
-      if (sqlite3_step(Stmt) = SQLITE_ROW) then
-        Items[I].RecordsSum := sqlite3_column_int(Stmt, 0);
-      sqlite3_finalize(Stmt); Stmt := nil;
-    end;
-end;
-
-procedure TTImportSQLite.BeforeExecuteData(const Item: TTImport.TItem);
-var
-  I: Integer;
-  SQL: string;
-begin
-  inherited;
-
-  SQL := '';
-  if (not Structure and (Items.Count = 1)) then
-    for I := 0 to Length(SourceFields) - 1 do
-    begin
-      if (I > 0) then SQL := SQL + ',';
-      SQL := SQL + '"' + SourceFields[I].Name + '"';
-    end
-  else
-    SQL := '*';
-  SQL := 'SELECT ' + SQL + ' FROM "' + Item.SourceTableName + '"';
-
-  SQLiteException(Handle, sqlite3_prepare_v2(Handle, PAnsiChar(UTF8Encode(SQL)), -1, @Stmt, nil));
-end;
-
-procedure TTImportSQLite.Close();
-begin
-  if (Assigned(Handle)) then
-    begin sqlite3_close(Handle); Handle := nil; end;
-end;
-
-constructor TTImportSQLite.Create(const ASession: TSSession; const ADatabase: TSDatabase; const AFilename: string);
-begin
-  inherited Create(ASession, ADatabase);
-
-  FFilename := AFilename;
-
-  Handle := nil;
-end;
-
-function TTImportSQLite.GetFieldNames(const TableName: string; const FieldNames: TStrings): Boolean;
-var
-  I: Integer;
-begin
-  Success := daSuccess;
-
-  Open();
-
-  Result := False;
-  if (Success = daSuccess) then
-  begin
-    while ((Success <> daAbort) and (sqlite3_prepare_v2(Handle, PAnsiChar(UTF8Encode('SELECT * FROM "' + TableName + '" WHERE 1<>1')), -1, @Stmt, nil) <> SQLITE_OK)) do
-      DoError(SQLiteError(Handle), nil, True);
-
-    Result := Success = daSuccess;
-    if (Result) then
-      if (sqlite3_step(Stmt) = SQLITE_DONE) then
-        for I := 0 to sqlite3_column_count(Stmt) - 1 do
-          FieldNames.Add(UTF8ToString(StrPas(sqlite3_column_name(Stmt, I))));
-
-    sqlite3_finalize(Stmt);
-  end;
-end;
-
-function TTImportSQLite.GetTableNames(const TableNames: TStrings): Boolean;
-begin
-  Success := daSuccess;
-
-  Open();
-
-  Result := False;
-  if (Success = daSuccess) then
-  begin
-    while ((Success <> daAbort) and (sqlite3_prepare_v2(Handle, 'SELECT "name" FROM "sqlite_master" WHERE type=''table'' ORDER BY "name"', -1, @Stmt, nil) <> SQLITE_OK)) do
-      DoError(SQLiteError(Handle), nil, True);
-
-    Result := Success = daSuccess;
-    if (Result) then
-      while (sqlite3_step(Stmt) = SQLITE_ROW) do
-        TableNames.Add(UTF8ToString(sqlite3_column_text(Stmt, 0)));
-
-    sqlite3_finalize(Stmt);
-  end;
-end;
-
-function TTImportSQLite.GetValues(const Item: TTImport.TItem; const DataFileBuffer: TTool.TDataFileBuffer): Boolean;
-var
-  I: Integer;
-begin
-  Result := sqlite3_step(Stmt) = SQLITE_ROW;
-  if (Result) then
-  begin
-    for I := 0 to Length(Fields) - 1 do
-    begin
-      if (I > 0) then
-        DataFileBuffer.Write(PAnsiChar(',_'), 1); // Two characters are needed to instruct the compiler to give a pointer - but the first character should be placed in the file only
-      if (sqlite3_column_type(Stmt, I) = SQLITE_NULL) then
-        DataFileBuffer.Write(PAnsiChar('NULL'), 4)
-      else if (Fields[I].FieldType in BinaryFieldTypes) then
-        DataFileBuffer.WriteBinary(my_char(sqlite3_column_blob(Stmt, I)), sqlite3_column_bytes(Stmt, I))
-      else if (Fields[I].FieldType in TextFieldTypes) then
-        DataFileBuffer.WriteText(sqlite3_column_text(Stmt, I), sqlite3_column_bytes(Stmt, I), CP_UTF8)
-      else
-        DataFileBuffer.Write(sqlite3_column_text(Stmt, I), sqlite3_column_bytes(Stmt, I), not (Fields[I].FieldType in NotQuotedFieldTypes));
-    end;
-  end;
-end;
-
-function TTImportSQLite.GetValues(const Item: TTImport.TItem; var Values: TSQLStrings): Boolean;
-var
-  I: Integer;
-  RBS: RawByteString;
-begin
-  Result := sqlite3_step(Stmt) = SQLITE_ROW;
-  if (Result) then
-    for I := 0 to Length(Fields) - 1 do
-      case (sqlite3_column_type(Stmt, I)) of
-        SQLITE_NULL:
-          if (Fields[I].NullAllowed) then
-            Values[I] := 'NULL'
-          else
-            Values[I] := Fields[I].EscapeValue('');
-        SQLITE_INTEGER:
-          Values[I] := Fields[I].EscapeValue(IntToStr(sqlite3_column_int64(Stmt, I)));
-        SQLITE_FLOAT:
-          Values[I] := Fields[I].EscapeValue(FloatToStr(sqlite3_column_double(Stmt, I), Session.FormatSettings));
-        SQLITE3_TEXT:
-          begin
-            SetString(RBS, sqlite3_column_text(Stmt, I), sqlite3_column_bytes(Stmt, I));
-            Values[I] := UTF8ToString(RBS);
-          end;
-        SQLITE_BLOB:
-          SetString(Values[I], PChar(sqlite3_column_blob(Stmt, I)), sqlite3_column_bytes(Stmt, I));
-        else
-          raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [SourceFields[I].Name, Integer(sqlite3_column_type(Stmt, I))]);
-      end;
-end;
-
-procedure TTImportSQLite.ExecuteStructure(const Item: TTImport.TItem);
-var
-  Error: TTool.TError;
-  I: Integer;
-  Name: string;
-  NewField: TSBaseTableField;
-  NewKey: TSKey;
-  NewKeyColumn: TSKeyColumn;
-  NewTable: TSBaseTable;
-  Parse: TSQLParse;
-  ParseSQL: string;
-  Primary: Boolean;
-  RBS: RawByteString;
-  SQL: string;
-  Stmt: sqlite3_stmt_ptr;
-  Table: TSBaseTable;
-  Unique: Boolean;
-begin
-  SetLength(SourceFields, 0);
-
-
-  NewTable := nil;
-
-  SQLiteException(Handle, sqlite3_prepare_v2(Handle, PAnsiChar(UTF8Encode('SELECT "sql" FROM "sqlite_master" WHERE type=''table'' AND name=''' + Item.TableName + '''')), -1, @Stmt, nil));
-  if (sqlite3_step(Stmt) = SQLITE_ROW) then
-  begin
-    ParseSQL := UTF8ToString(sqlite3_column_text(Stmt, 0));
-    if (not SQLCreateParse(Parse, PChar(ParseSQL), Length(ParseSQL), 0)) then
-    begin
-      Error.ErrorType := TE_SQLite;
-      Error.ErrorCode := 0;
-      Error.ErrorMessage := 'Empty Result';
-      DoError(Error, nil, False);
-    end
-    else
-    begin
-      SQL := UTF8ToString(sqlite3_column_text(Stmt, 0));
-
-      NewTable := TSBaseTable.Create(Database.Tables, Item.TableName);
-      NewTable.DefaultCharset := Charset;
-      NewTable.Collation := Collation;
-      NewTable.Engine := Session.EngineByName(Engine);
-      NewTable.RowType := RowType;
-
-      if (not SQLParseKeyword(Parse, 'CREATE TABLE')) then raise EConvertError.CreateFmt(SSourceParseError, [Item.TableName, 1, SQL]);
-
-      NewTable.Name := Session.ApplyIdentifierName(SQLParseValue(Parse));
-
-      if (not SQLParseChar(Parse, '(')) then raise EConvertError.CreateFmt(SSourceParseError, [Item.TableName, 2, SQL]);
-
-      repeat
-        Name := Session.ApplyIdentifierName(SQLParseValue(Parse));
-        Primary := False;
-
-        SetLength(SourceFields, Length(SourceFields) + 1);
-        SourceFields[Length(SourceFields) - 1].Name := Name;
-
-
-        NewField := TSBaseTableField.Create(NewTable.Fields);
-        NewField.Name := Name;
-        if (SQLParseKeyword(Parse, 'INTEGER PRIMARY KEY')) then
-        begin
-          Primary := True;
-          NewField.FieldType := mfBigInt;
-          NewField.Unsigned := False;
-          NewField.AutoIncrement := SQLParseKeyword(Parse, 'AUTOINCREMENT');
-        end
-        else if (SQLParseKeyword(Parse, 'INTEGER')) then
-          NewField.FieldType := mfBigInt
-        else if (SQLParseKeyword(Parse, 'REAL')) then
-          NewField.FieldType := mfDouble
-        else if (SQLParseKeyword(Parse, 'TEXT')) then
-          NewField.FieldType := mfLongText
-        else if (SQLParseKeyword(Parse, 'BLOB')) then
-          NewField.FieldType := mfLongBlob
-        else
-          raise EConvertError.CreateFmt(SSourceParseError, [Item.TableName, 3, SQL]);
-
-        if (SQLParseChar(Parse, '(')) then
-        begin
-          if (TryStrToInt(SQLParseValue(Parse), I)) then
-            NewField.Size := I;
-          if (SQLParseChar(Parse, ',')) then
-            if (TryStrToInt(SQLParseValue(Parse), I)) then
-              NewField.Decimals := I;
-          SQLParseChar(Parse, ')');
-        end;
-
-        // Ignore all further field properties like keys and foreign keys
-        while (not SQLParseChar(Parse, ',', False) and not SQLParseChar(Parse, ')', False) and (SQLParseGetIndex(Parse) <= Length(SQL))) do
-          SQLParseValue(Parse);
-
-        if (NewTable.Fields.Count > 0) then
-          NewField.FieldBefore := NewTable.Fields[NewTable.Fields.Count - 1];
-        NewTable.Fields.AddField(NewField);
-        NewField.Free();
-
-        if (Primary) then
-        begin
-          NewKey := TSKey.Create(NewTable.Keys);
-          NewKey.Primary := True;
-          NewKeyColumn := TSKeyColumn.Create(NewKey.Columns);
-          NewKeyColumn.Field := TSBaseTableField(NewTable.Fields[NewTable.Fields.Count - 1]);
-          NewKeyColumn.Ascending := True;
-          NewKey.Columns.AddColumn(NewKeyColumn);
-          NewKeyColumn.Free();
-          NewTable.Keys.AddKey(NewKey);
-          NewKey.Free();
-        end;
-      until (not SQLParseChar(Parse, ',') and SQLParseChar(Parse, ')'));
-    end;
-  end;
-  SQLiteException(Handle, sqlite3_finalize(Stmt));
-
-  if (Assigned(NewTable)) then
-  begin
-    RBS := UTF8Encode('SELECT "sql" FROM "sqlite_master" WHERE type=''index''');
-    SQLiteException(Handle, sqlite3_prepare_v2(Handle, PAnsiChar(RBS), -1, @Stmt, nil));
-    while (sqlite3_step(Stmt) = SQLITE_ROW) do
-    begin
-      SQL := UTF8ToString(sqlite3_column_text(Stmt, 0));
-
-      if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Item.TableName, 3, SQL]);
-
-      Unique := SQLParseKeyword(Parse, 'UNIQUE');
-
-      if (not SQLParseKeyword(Parse, 'INDEX')) then raise EConvertError.CreateFmt(SSourceParseError, [Item.TableName, 4, SQL]);
-
-      Name := SQLParseValue(Parse);
-
-      if (not SQLParseKeyword(Parse, 'ON')) then raise EConvertError.CreateFmt(SSourceParseError, [Item.TableName, 5, SQL]);
-
-      if (SQLParseValue(Parse) = NewTable.Name) then
-      begin
-        NewKey := TSKey.Create(NewTable.Keys);
-        NewKey.Name := Session.ApplyIdentifierName(Name);
-        NewKey.Unique := Unique;
-
-        NewKeyColumn := TSKeyColumn.Create(NewKey.Columns);
-        NewKeyColumn.Field := NewTable.FieldByName(SQLParseValue(Parse));
-        if (SQLParseKeyword(Parse, 'COLLATE')) then
-          SQLParseValue(Parse);
-        NewKeyColumn.Ascending := SQLParseKeyword(Parse, 'ASC') or not SQLParseKeyword(Parse, 'DESC');
-        NewKey.Columns.AddColumn(NewKeyColumn);
-        NewKeyColumn.Free();
-
-        NewTable.Keys.AddKey(NewKey);
-        NewKey.Free();
-      end;
-    end;
-    SQLiteException(Handle, sqlite3_finalize(Stmt));
-
-    while ((Success <> daAbort) and not Database.AddTable(NewTable)) do
-      DoError(DatabaseError(Session), Item, True);
-
-    NewTable.Free();
-  end;
-
-  if (Success = daSuccess) then
-  begin
-    Table := Database.BaseTableByName(Session.ApplyIdentifierName(Item.TableName));
-    if (Assigned(Table)) then
-    begin
-      SetLength(Fields, Table.Fields.Count);
-      for I := 0 to Table.Fields.Count - 1 do
-        Fields[I] := Table.Fields[I];
-    end;
-  end;
-end;
-
-procedure TTImportSQLite.Open();
-begin
-  if (not Assigned(Handle)) then
-  begin
-    while ((Success <> daAbort) and (sqlite3_open_v2(PAnsiChar(UTF8Encode(FFilename)), @Handle, SQLITE_OPEN_READONLY, nil) <> SQLITE_OK)) do
-      DoError(SQLiteError(Handle), nil, True);
-  end;
-end;
-
 { TTImportXML *****************************************************************}
 
 procedure TTImportXML.BeforeExecute();
@@ -4532,7 +4141,7 @@ begin
 
         Inc(Item.RecordsDone);
         if ((Item.RecordsDone mod 1000 = 0)
-          or ((Item.RecordsDone mod 100 = 0) and ((Self is TTExportSQLite) or (Self is TTExportBaseODBC)))) then
+          or ((Item.RecordsDone mod 100 = 0) and (Self is TTExportBaseODBC))) then
           DoUpdateGUI();
 
         if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
@@ -6698,163 +6307,6 @@ begin
 
   if (Success = daSuccess) then
     inherited;
-end;
-
-{ TTExportSQLite **************************************************************}
-
-constructor TTExportSQLite.Create(const ASession: TSSession; const AFilename: TFileName);
-begin
-  inherited Create(ASession);
-
-  Filename := AFilename;
-end;
-
-procedure TTExportSQLite.ExecuteHeader();
-var
-  Error: TTool.TError;
-begin
-  if (FileExists(Filename) and not DeleteFile(Filename)) then
-    DoError(SysError(), nil, False)
-  else if ((sqlite3_open_v2(PAnsiChar(UTF8Encode(Filename)), @Handle, SQLITE_OPEN_READWRITE or SQLITE_OPEN_CREATE, nil) <> SQLITE_OK)
-    or (sqlite3_exec(Handle, PAnsiChar(UTF8Encode('BEGIN TRANSACTION;')), nil, nil, nil) <> SQLITE_OK)) then
-  begin
-    Error.ErrorType := TE_SQLite;
-    Error.ErrorCode := sqlite3_errcode(Handle);
-    Error.ErrorMessage := UTF8ToString(sqlite3_errmsg(Handle));
-    DoError(Error, nil, False);
-  end;
-
-  inherited;
-end;
-
-procedure TTExportSQLite.ExecuteFooter();
-begin
-  inherited;
-
-  SQLiteException(Handle, sqlite3_exec(Handle, PAnsiChar(UTF8Encode('COMMIT;')), nil, nil, nil));
-  sqlite3_close(Handle);
-
-  if (Success = daAbort) then
-    DeleteFile(Filename);
-end;
-
-procedure TTExportSQLite.ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
-begin
-  sqlite3_finalize(Stmt); Stmt := nil;
-
-  SetLength(Text, 0);
-end;
-
-procedure TTExportSQLite.ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
-var
-  Field: TSTableField;
-  I: Integer;
-  SQL: string;
-begin
-  SQL := 'CREATE TABLE "' + Table.Name + '" (';
-  for I := 0 to Length(Fields) - 1 do
-  begin
-    Field := Table.FieldByName(Fields[I].Name);
-
-    if (I > 0) then SQL := SQL + ', ';
-    SQL := SQL + Field.Name + ' ';
-    case (Field.FieldType) of
-      mfBit, mfTinyInt, mfSmallInt, mfMediumInt, mfInt, mfBigInt:
-        begin
-          SQL := SQL + 'INTEGER';
-          if ((Table is TSBaseTable)
-            and Assigned(TSBaseTable(Table).PrimaryKey)
-            and (TSBaseTable(Table).PrimaryKey.Columns.Count = 1)
-            and (TSBaseTable(Table).PrimaryKey.Columns[0].Field = Table.Fields[I])) then
-            SQL := SQL + ' PRIMARY KEY';
-        end;
-      mfFloat, mfDouble, mfDecimal:
-        SQL := SQL + 'REAL';
-      mfDate, mfDateTime, mfTimeStamp, mfTime, mfYear,
-      mfEnum, mfSet,
-      mfChar, mfVarChar, mfTinyText, mfText, mfMediumText, mfLongText:
-        SQL := SQL + 'TEXT';
-      mfBinary, mfVarBinary, mfTinyBlob, mfBlob, mfMediumBlob, mfLongBlob,
-      mfGeometry, mfPoint, mfLineString, mfPolygon, mfMultiPoint, mfMultiLineString, mfMultiPolygon, mfGeometryCollection:
-        SQL := SQL + 'BLOB';
-    end;
-  end;
-  SQL := SQL + ');';
-  SQLiteException(Handle, sqlite3_exec(Handle, PAnsiChar(UTF8Encode(SQL)), nil, nil, nil));
-
-
-  SQL := 'INSERT INTO "' + Table.Name + '"';
-  if (Length(DestinationFields) > 0) then
-  begin
-    SQL := SQL + '(';
-    for I := 0 to Length(DestinationFields) - 1 do
-    begin
-      if (I > 0) then SQL := SQL + ',';
-      SQL := SQL + '"' + DestinationFields[I].Name + '"';
-    end;
-    SQL := SQL + ')';
-  end;
-  SQL := SQL + ' VALUES (';
-  for I := 0 to Length(Fields) - 1 do
-  begin
-    if (I > 0) then SQL := SQL + ',';
-    SQL := SQL + '?' + IntToStr(1 + I)
-  end;
-  SQL := SQL + ')';
-  SQLiteException(Handle, sqlite3_prepare_v2(Handle, PAnsiChar(UTF8Encode(SQL)), -1, @Stmt, nil));
-
-  SetLength(Text, Length(Fields));
-end;
-
-procedure TTExportSQLite.ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
-var
-  I: Integer;
-  L: LargeInt;
-begin
-  for I := 0 to Length(Fields) - 1 do
-    if (not Assigned(DataSet.LibRow^[I])) then
-      sqlite3_bind_null(Stmt, 1 + I)
-    else if (BitField(Fields[I])) then
-    begin
-      L := Fields[I].AsLargeInt;
-      sqlite3_bind_blob(Stmt, 1 + I, @L, SizeOf(L), SQLITE_STATIC)
-    end
-    else
-      case (Fields[I].DataType) of
-        ftString:
-          sqlite3_bind_blob(Stmt, 1 + I, DataSet.LibRow^[I], DataSet.LibLengths^[I], SQLITE_STATIC);
-        ftShortInt,
-        ftByte,
-        ftSmallInt,
-        ftWord,
-        ftInteger,
-        ftLongWord,
-        ftLargeint,
-        ftSingle,
-        ftFloat,
-        ftExtended,
-        ftDate,
-        ftDateTime,
-        ftTimestamp,
-        ftTime:
-          sqlite3_bind_text(Stmt, 1 + I, DataSet.LibRow^[I], DataSet.LibLengths^[I], SQLITE_STATIC);
-        ftWideString,
-        ftWideMemo:
-          if ((Session.CodePage = CP_UTF8) or (DataSet.LibLengths^[I] = 0)) then
-            sqlite3_bind_text(Stmt, 1 + I, DataSet.LibRow^[I], DataSet.LibLengths^[I], SQLITE_STATIC)
-          else
-          begin
-            Text[I] := UTF8Encode(DataSet.GetAsString(Fields[I]));
-            sqlite3_bind_text(Stmt, 1 + I, PAnsiChar(@Text[I][1]), Length(Text[I]), SQLITE_STATIC);
-          end;
-        ftBlob:
-          sqlite3_bind_blob(Stmt, 1 + I, DataSet.LibRow^[I], DataSet.LibLengths^[I], SQLITE_STATIC);
-        else
-          raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Fields[I].Name, Integer(Fields[I].DataType)]);
-      end;
-
-  SQLiteException(Handle, sqlite3_step(Stmt));
-  SQLiteException(Handle, sqlite3_reset(Stmt));
 end;
 
 { TTExportCanvas **************************************************************}

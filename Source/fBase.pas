@@ -458,8 +458,6 @@ begin
       Description := Preferences.LoadStr(890)
     else if (LowerCase(Ext) = 'sql') then
       Description := Preferences.LoadStr(184)
-    else if (LowerCase(Ext) = 'sqlite') then
-      Description := ReplaceStr(Preferences.LoadStr(870), '&', '')
     else if (LowerCase(Ext) = 'txt') then
       Description := Preferences.LoadStr(350)
     else if (LowerCase(Ext) = 'xls') then

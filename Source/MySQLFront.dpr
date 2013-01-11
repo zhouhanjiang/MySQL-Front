@@ -47,6 +47,7 @@ uses
   fDInstallUpdate in 'fDInstallUpdate.pas' {DInstallUpdate},
   fDKey in 'fDKey.pas' {DIndex},
   fDLogin in 'fDLogin.pas' {DDBLogin},
+  fDODBC in 'fDODBC.pas' {DDBODBC},
   fDOptions in 'fDOptions.pas' {DOptions},
   fDPartition in 'fDPartition.pas' {DPartition},
   fDPaste in 'fDPaste.pas' {DPaste},
@@ -59,7 +60,6 @@ uses
   fDSQLHelp in 'fDSQLHelp.pas' {DSQLHelp},
   fDStatement in 'fDStatement.pas' {DStatement},
   fDTable in 'fDTable.pas' {DTable},
-  fDTableService in 'fDTableService.pas' {DTableService},
   fDTransfer in 'fDTransfer.pas' {DTransfer},
   fDTrigger in 'fDTrigger.pas' {DTrigger},
   fDUser in 'fDUser.pas' {DUser},
@@ -78,6 +78,7 @@ var
   JobExecution: TJobExecution;
   JobName: string;
   Name: string;
+  SetupProgramExecute: Boolean;
   Value: string;
   Value2: string;
 begin
@@ -131,5 +132,8 @@ begin
     Application.DestroyComponents();
   end;
 
+  SetupProgramExecute := Preferences.SetupProgramExecute;
   Preferences.Free();
+  if (SetupProgramExecute) then
+    ShellExecute(0, 'open', PChar(ParamStr(0)), '', '', SW_SHOW);
 end.

@@ -128,7 +128,6 @@ type
     mfFilterExcel: TMenuItem;
     mfFilterHTML: TMenuItem;
     mfFilterSQL: TMenuItem;
-    mfFilterSQLite: TMenuItem;
     mfFilterText: TMenuItem;
     mfFilterXML: TMenuItem;
     MFiles: TPopupMenu;
@@ -171,7 +170,6 @@ type
     miNExportODBC: TMenuItem;
     miNExportPDF: TMenuItem;
     miNExportSQL: TMenuItem;
-    miNExportSQLite: TMenuItem;
     miNExportText: TMenuItem;
     miNExportXML: TMenuItem;
     miNImport: TMenuItem;
@@ -179,7 +177,6 @@ type
     miNImportExcel: TMenuItem;
     miNImportODBC: TMenuItem;
     miNImportSQL: TMenuItem;
-    miNImportSQLite: TMenuItem;
     miNImportText: TMenuItem;
     miNImportXML: TMenuItem;
     miNOpenInNewTab: TMenuItem;
@@ -224,7 +221,6 @@ type
     mlFExportODBC: TMenuItem;
     mlFExportPDF: TMenuItem;
     mlFExportSQL: TMenuItem;
-    mlFExportSQLite: TMenuItem;
     mlFExportText: TMenuItem;
     mlFExportXML: TMenuItem;
     mlFImport: TMenuItem;
@@ -232,7 +228,6 @@ type
     mlFImportExcel: TMenuItem;
     mlFImportODBC: TMenuItem;
     mlFImportSQL: TMenuItem;
-    mlFImportSQLite: TMenuItem;
     mlFImportText: TMenuItem;
     mlFImportXML: TMenuItem;
     MList: TPopupMenu;
@@ -282,7 +277,6 @@ type
     mwFExportODBC: TMenuItem;
     mwFExportPDF: TMenuItem;
     mwFExportSQL: TMenuItem;
-    mwFExportSQLite: TMenuItem;
     mwFExportText: TMenuItem;
     mwFExportXML: TMenuItem;
     mwFImport: TMenuItem;
@@ -290,7 +284,6 @@ type
     mwFImportExcel: TMenuItem;
     mwFImportODBC: TMenuItem;
     mwFImportSQL: TMenuItem;
-    mwFImportSQLite: TMenuItem;
     mwFImportText: TMenuItem;
     mwFImportXML: TMenuItem;
     MWorkbench: TPopupMenu;
@@ -432,14 +425,12 @@ type
     procedure aFExportODBCExecute(Sender: TObject);
     procedure aFExportPDFExecute(Sender: TObject);
     procedure aFExportSQLExecute(Sender: TObject);
-    procedure aFExportSQLiteExecute(Sender: TObject);
     procedure aFExportTextExecute(Sender: TObject);
     procedure aFExportXMLExecute(Sender: TObject);
     procedure aFImportAccessExecute(Sender: TObject);
     procedure aFImportExcelExecute(Sender: TObject);
     procedure aFImportODBCExecute(Sender: TObject);
     procedure aFImportSQLExecute(Sender: TObject);
-    procedure aFImportSQLiteExecute(Sender: TObject);
     procedure aFImportTextExecute(Sender: TObject);
     procedure aFImportXMLExecute(Sender: TObject);
     procedure aHRunClick(Sender: TObject);
@@ -622,7 +613,6 @@ type
     procedure mfFilterXMLClick(Sender: TObject);
     procedure mfFilterAccessClick(Sender: TObject);
     procedure mfFilterExcelClick(Sender: TObject);
-    procedure mfFilterSQLiteClick(Sender: TObject);
     procedure mfDeleteClick(Sender: TObject);
     procedure mfRenameClick(Sender: TObject);
     procedure mfPropertiesClick(Sender: TObject);
@@ -3569,13 +3559,6 @@ begin
   aFExportExecute(Sender, etSQLFile);
 end;
 
-procedure TFSession.aFExportSQLiteExecute(Sender: TObject);
-begin
-  Wanted.Clear();
-
-  aFExportExecute(Sender, etSQLiteFile);
-end;
-
 procedure TFSession.aFExportTextExecute(Sender: TObject);
 begin
   Wanted.Clear();
@@ -3650,13 +3633,6 @@ begin
   Wanted.Clear();
 
   aFImportExecute(Sender, itSQLFile);
-end;
-
-procedure TFSession.aFImportSQLiteExecute(Sender: TObject);
-begin
-  Wanted.Clear();
-
-  aFImportExecute(Sender, itSQLiteFile);
 end;
 
 procedure TFSession.aFImportTextExecute(Sender: TObject);
@@ -4725,14 +4701,12 @@ begin
     MainAction('aFImportText').OnExecute := aFImportTextExecute;
     MainAction('aFImportExcel').OnExecute := aFImportExcelExecute;
     MainAction('aFImportAccess').OnExecute := aFImportAccessExecute;
-    MainAction('aFImportSQLite').OnExecute := aFImportSQLiteExecute;
     MainAction('aFImportODBC').OnExecute := aFImportODBCExecute;
     MainAction('aFImportXML').OnExecute := aFImportXMLExecute;
     MainAction('aFExportSQL').OnExecute := aFExportSQLExecute;
     MainAction('aFExportText').OnExecute := aFExportTextExecute;
     MainAction('aFExportExcel').OnExecute := aFExportExcelExecute;
     MainAction('aFExportAccess').OnExecute := aFExportAccessExecute;
-    MainAction('aFExportSQLite').OnExecute := aFExportSQLiteExecute;
     MainAction('aFExportODBC').OnExecute := aFExportODBCExecute;
     MainAction('aFExportXML').OnExecute := aFExportXMLExecute;
     MainAction('aFExportHTML').OnExecute := aFExportHTMLExecute;
@@ -5207,14 +5181,12 @@ begin
   miNImportText.Action := MainAction('aFImportText');
   miNImportExcel.Action := MainAction('aFImportExcel');
   miNImportAccess.Action := MainAction('aFImportAccess');
-  miNImportSQLite.Action := MainAction('aFImportSQLite');
   miNImportODBC.Action := MainAction('aFImportODBC');
   miNImportXML.Action := MainAction('aFImportXML');
   miNExportSQL.Action := MainAction('aFExportSQL');
   miNExportText.Action := MainAction('aFExportText');
   miNExportExcel.Action := MainAction('aFExportExcel');
   miNExportAccess.Action := MainAction('aFExportAccess');
-  miNExportSQLite.Action := MainAction('aFExportSQLite');
   miNExportODBC.Action := MainAction('aFExportODBC');
   miNExportXML.Action := MainAction('aFExportXML');
   miNExportHTML.Action := MainAction('aFExportHTML');
@@ -5250,14 +5222,12 @@ begin
   mlFImportText.Action := MainAction('aFImportText');
   mlFImportExcel.Action := MainAction('aFImportExcel');
   mlFImportAccess.Action := MainAction('aFImportAccess');
-  mlFImportSQLite.Action := MainAction('aFImportSQLite');
   mlFImportODBC.Action := MainAction('aFImportODBC');
   mlFImportXML.Action := MainAction('aFImportXML');
   mlFExportSQL.Action := MainAction('aFExportSQL');
   mlFExportText.Action := MainAction('aFExportText');
   mlFExportExcel.Action := MainAction('aFExportExcel');
   mlFExportAccess.Action := MainAction('aFExportAccess');
-  mlFExportSQLite.Action := MainAction('aFExportSQLite');
   mlFExportODBC.Action := MainAction('aFExportODBC');
   mlFExportXML.Action := MainAction('aFExportXML');
   mlFExportHTML.Action := MainAction('aFExportHTML');
@@ -5308,14 +5278,12 @@ begin
   mwFImportText.Action := MainAction('aFImportText');
   mwFImportExcel.Action := MainAction('aFImportExcel');
   mwFImportAccess.Action := MainAction('aFImportAccess');
-  mwFImportSQLite.Action := MainAction('aFImportSQLite');
   mwFImportODBC.Action := MainAction('aFImportODBC');
   mwFImportXML.Action := MainAction('aFImportXML');
   mwFExportSQL.Action := MainAction('aFExportSQL');
   mwFExportText.Action := MainAction('aFExportText');
   mwFExportExcel.Action := MainAction('aFExportExcel');
   mwFExportAccess.Action := MainAction('aFExportAccess');
-  mwFExportSQLite.Action := MainAction('aFExportSQLite');
   mwFExportODBC.Action := MainAction('aFExportODBC');
   mwFExportXML.Action := MainAction('aFExportXML');
   mwFExportHTML.Action := MainAction('aFExportHTML');
@@ -5885,7 +5853,6 @@ begin
   MainAction('aFExportSQL').Enabled := False;
   MainAction('aFExportText').Enabled := False;
   MainAction('aFExportExcel').Enabled := False;
-  MainAction('aFExportSQLite').Enabled := False;
   MainAction('aFExportXML').Enabled := False;
   MainAction('aFExportHTML').Enabled := False;
   MainAction('aFExportPDF').Enabled := False;
@@ -6379,7 +6346,6 @@ begin
       MainAction('aFImportText').Enabled := False;
       MainAction('aFImportExcel').Enabled := False;
       MainAction('aFImportAccess').Enabled := False;
-      MainAction('aFImportSQLite').Enabled := False;
       MainAction('aFImportODBC').Enabled := False;
       MainAction('aFImportXML').Enabled := False;
       MainAction('aFPrint').Enabled := False;
@@ -7301,14 +7267,12 @@ begin
   MainAction('aFImportText').Enabled := False;
   MainAction('aFImportExcel').Enabled := False;
   MainAction('aFImportAccess').Enabled := False;
-  MainAction('aFImportSQLite').Enabled := False;
   MainAction('aFImportODBC').Enabled := False;
   MainAction('aFImportXML').Enabled := False;
   MainAction('aFExportSQL').Enabled := False;
   MainAction('aFExportText').Enabled := False;
   MainAction('aFExportExcel').Enabled := False;
   MainAction('aFExportAccess').Enabled := False;
-  MainAction('aFExportSQLite').Enabled := False;
   MainAction('aFExportODBC').Enabled := False;
   MainAction('aFExportXML').Enabled := False;
   MainAction('aFExportHTML').Enabled := False;
@@ -7920,14 +7884,12 @@ begin
   MainAction('aFImportText').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
   MainAction('aFImportExcel').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
   MainAction('aFImportAccess').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
-  MainAction('aFImportSQLite').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
   MainAction('aFImportODBC').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
   MainAction('aFImportXML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseTable]);
   MainAction('aFExportSQL').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
   MainAction('aFExportText').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView]);
   MainAction('aFExportExcel').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView]);
   MainAction('aFExportAccess').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
-  MainAction('aFExportSQLite').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView]);
   MainAction('aFExportODBC').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
   MainAction('aFExportXML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView]);
   MainAction('aFExportHTML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
@@ -10071,14 +10033,12 @@ begin
   MainAction('aFImportText').Enabled := False;
   MainAction('aFImportExcel').Enabled := False;
   MainAction('aFImportAccess').Enabled := False;
-  MainAction('aFImportSQLite').Enabled := False;
   MainAction('aFImportODBC').Enabled := False;
   MainAction('aFImportXML').Enabled := False;
   MainAction('aFExportSQL').Enabled := False;
   MainAction('aFExportText').Enabled := False;
   MainAction('aFExportExcel').Enabled := False;
   MainAction('aFExportAccess').Enabled := False;
-  MainAction('aFExportSQLite').Enabled := False;
   MainAction('aFExportODBC').Enabled := False;
   MainAction('aFExportXML').Enabled := False;
   MainAction('aFExportHTML').Enabled := False;
@@ -10796,14 +10756,12 @@ begin
     MainAction('aFImportText').Enabled := False;
     MainAction('aFImportExcel').Enabled := False;
     MainAction('aFImportAccess').Enabled := False;
-    MainAction('aFImportSQLite').Enabled := False;
     MainAction('aFImportODBC').Enabled := False;
     MainAction('aFImportXML').Enabled := False;
     MainAction('aFExportSQL').Enabled := False;
     MainAction('aFExportText').Enabled := False;
     MainAction('aFExportExcel').Enabled := False;
     MainAction('aFExportAccess').Enabled := False;
-    MainAction('aFExportSQLite').Enabled := False;
     MainAction('aFExportODBC').Enabled := False;
     MainAction('aFExportXML').Enabled := False;
     MainAction('aFExportHTML').Enabled := False;
@@ -10858,13 +10816,11 @@ begin
             MainAction('aFImportSQL').Enabled := (ListView.SelCount <= 1) and (not Assigned(Session.UserRights) or Session.UserRights.RInsert) or Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFImportExcel').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFImportAccess').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
-            MainAction('aFImportSQLite').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFImportODBC').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFExportSQL').Enabled := (ListView.SelCount = 0) or Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFExportText').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFExportExcel').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFExportAccess').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
-            MainAction('aFExportSQLite').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFExportODBC').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFExportXML').Enabled := (ListView.SelCount = 0) or Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFExportHTML').Enabled := (ListView.SelCount = 0) or Assigned(Item) and (Item.ImageIndex = iiDatabase);
@@ -10892,7 +10848,6 @@ begin
                 MainAction('aFExportText').Enabled := MainAction('aFExportText').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
                 MainAction('aFExportExcel').Enabled := MainAction('aFExportExcel').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
                 MainAction('aFExportAccess').Enabled := MainAction('aFExportAccess').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
-                MainAction('aFExportSQLite').Enabled := MainAction('aFExportSQLite').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
                 MainAction('aFExportODBC').Enabled := MainAction('aFExportODBC').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
                 MainAction('aFExportXML').Enabled := MainAction('aFExportXML').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
                 MainAction('aFExportHTML').Enabled := MainAction('aFExportHTML').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
@@ -10922,14 +10877,12 @@ begin
             MainAction('aFImportText').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
             MainAction('aFImportExcel').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
             MainAction('aFImportAccess').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
-            MainAction('aFImportSQLite').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
             MainAction('aFImportODBC').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
             MainAction('aFImportXML').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable);
             MainAction('aFExportSQL').Enabled := ((ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger])) and (SelectedImageIndex = iiDatabase);
             MainAction('aFExportText').Enabled := ((ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiView])) and (SelectedImageIndex = iiDatabase);
             MainAction('aFExportExcel').Enabled := ((ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiView])) and (SelectedImageIndex = iiDatabase);
             MainAction('aFExportAccess').Enabled := ((ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable])) and (SelectedImageIndex = iiDatabase);
-            MainAction('aFExportSQLite').Enabled := ((ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable])) and (SelectedImageIndex = iiDatabase);
             MainAction('aFExportODBC').Enabled := ((ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable])) and (SelectedImageIndex = iiDatabase);
             MainAction('aFExportXML').Enabled := ((ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiView])) and (SelectedImageIndex = iiDatabase);
             MainAction('aFExportHTML').Enabled := SelectedImageIndex = iiDatabase;
@@ -10966,7 +10919,6 @@ begin
                 MainAction('aFExportText').Enabled := MainAction('aFExportText').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView]);
                 MainAction('aFExportExcel').Enabled := MainAction('aFExportExcel').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView]);
                 MainAction('aFExportAccess').Enabled := MainAction('aFExportAccess').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
-                MainAction('aFExportSQLite').Enabled := MainAction('aFExportSQLite').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
                 MainAction('aFExportODBC').Enabled := MainAction('aFExportODBC').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
                 MainAction('aFExportXML').Enabled := MainAction('aFExportXML').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView]);
                 MainAction('aFExportHTML').Enabled := MainAction('aFExportHTML').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
@@ -11008,14 +10960,12 @@ begin
             MainAction('aFImportText').Enabled := (ListView.SelCount = 0);
             MainAction('aFImportExcel').Enabled := (ListView.SelCount = 0);
             MainAction('aFImportAccess').Enabled := (ListView.SelCount = 0);
-            MainAction('aFImportSQLite').Enabled := (ListView.SelCount = 0);
             MainAction('aFImportODBC').Enabled := (ListView.SelCount = 0);
             MainAction('aFImportXML').Enabled := (ListView.SelCount = 0);
             MainAction('aFExportSQL').Enabled := (ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiTrigger]);
             MainAction('aFExportText').Enabled := (ListView.SelCount = 0);
             MainAction('aFExportExcel').Enabled := (ListView.SelCount = 0);
             MainAction('aFExportAccess').Enabled := (ListView.SelCount = 0);
-            MainAction('aFExportSQLite').Enabled := (ListView.SelCount = 0);
             MainAction('aFExportODBC').Enabled := (ListView.SelCount = 0);
             MainAction('aFExportXML').Enabled := (ListView.SelCount = 0);
             MainAction('aFExportHTML').Enabled := (ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiTrigger]);
@@ -11081,7 +11031,6 @@ begin
             MainAction('aFExportXML').Enabled := (ListView.SelCount = 0);
             MainAction('aFExportHTML').Enabled := (ListView.SelCount = 0);
             MainAction('aFExportPDF').Enabled := (ListView.SelCount = 0);
-            MainAction('aFExportSQLite').Enabled := (ListView.SelCount = 0);
             MainAction('aECopy').Enabled := (ListView.SelCount >= 1);
             MainAction('aEPaste').Enabled := not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLVIEW);
             MainAction('aDEditView').Enabled := (ListView.SelCount = 0);
@@ -11215,11 +11164,6 @@ begin
   FFiles.Filter := '*.sql';
 end;
 
-procedure TFSession.mfFilterSQLiteClick(Sender: TObject);
-begin
-  FFiles.Filter := '*.sqlite';
-end;
-
 procedure TFSession.mfFilterTextClick(Sender: TObject);
 begin
   FFiles.Filter := '*.txt;*.csv';
@@ -11237,7 +11181,6 @@ begin
   mfFilterText.Checked := FFiles.Filter = '*.txt;*.csv';
   mfFilterAccess.Checked := FFiles.Filter = '*.mdb;*.accdb';
   mfFilterExcel.Checked := FFiles.Filter = '*.xls;*.xlsx';
-  mfFilterSQLite.Checked := FFiles.Filter = '*.sqlite';
   mfFilterHTML.Checked := FFiles.Filter = '*.html;*.htm';
   mfFilterXML.Checked := FFiles.Filter = '*.xml';
 
@@ -14222,7 +14165,6 @@ begin
   MainAction('aFExportText').Enabled := not Assigned(Control) or (Control is TWTable);
   MainAction('aFExportExcel').Enabled := not Assigned(Control) or (Control is TWTable);
   MainAction('aFExportAccess').Enabled := not Assigned(Control) or (Control is TWTable);
-  MainAction('aFExportSQLite').Enabled := not Assigned(Control) or (Control is TWTable);
   MainAction('aFExportODBC').Enabled := not Assigned(Control) or (Control is TWTable);
   MainAction('aFExportXML').Enabled := not Assigned(Control) or (Control is TWTable);
   MainAction('aFExportHTML').Enabled := not Assigned(Control) or (Control is TWTable);
@@ -14306,7 +14248,6 @@ begin
   MainAction('aFExportText').Enabled := False;
   MainAction('aFExportExcel').Enabled := False;
   MainAction('aFExportAccess').Enabled := False;
-  MainAction('aFExportSQLite').Enabled := False;
   MainAction('aFExportODBC').Enabled := False;
   MainAction('aFExportXML').Enabled := False;
   MainAction('aFExportHTML').Enabled := False;

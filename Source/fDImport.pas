@@ -91,7 +91,6 @@ type
     FSourceField1: TEdit;
     FSourceField2: TEdit;
     FSQLFile: TRadioButton;
-    FSQLiteFile: TRadioButton;
     FStartDate: TDateTimePicker;
     FStartTime: TDateTimePicker;
     FStructure: TCheckBox;
@@ -380,7 +379,6 @@ begin
   FTextFile.Caption := Preferences.LoadStr(410);
   FExcelFile.Caption := Preferences.LoadStr(801);
   FAccessFile.Caption := Preferences.LoadStr(695);
-  FSQLiteFile.Caption := Preferences.LoadStr(870);
   FODBC.Caption := Preferences.LoadStr(607);
   FXMLFile.Caption := Preferences.LoadStr(454);
   FLFilename.Caption := Preferences.LoadStr(348) + ':';
@@ -552,7 +550,7 @@ begin
   ModalResult := mrNone;
   PageControl.ActivePageIndex := -1;
 
-  if ((ImportType in [itSQLFile, itTextFile, itAccessFile, itExcelFile, itSQLiteFile, itXMLFile]) and (Filename = '') and (DialogType = idtNormal)) then
+  if ((ImportType in [itSQLFile, itTextFile, itAccessFile, itExcelFile, itXMLFile]) and (Filename = '') and (DialogType = idtNormal)) then
     if (not GetFilename()) then
       ModalResult := mrCancel;
   if ((ImportType in [itODBC]) and (DialogType = idtNormal)) then
@@ -820,8 +818,6 @@ begin
     ImportType := itExcelFile
   else if (FAccessFile.Checked) then
     ImportType := itAccessFile
-  else if (FSQLiteFile.Checked) then
-    ImportType := itSQLiteFile
   else if (FODBC.Checked) then
     ImportType := itODBC
   else if (FXMLFile.Checked) then
@@ -829,7 +825,7 @@ begin
   else
     ImportType := itUnknown;
 
-  FFilename.Visible := ImportType in [itSQLFile, itTextFile, itExcelFile, itAccessFile, itSQLiteFile, itXMLFile];
+  FFilename.Visible := ImportType in [itSQLFile, itTextFile, itExcelFile, itAccessFile, itXMLFile];
   FLFilename.Visible := FFilename.Visible;
   FBFilename.Visible := FFilename.Visible;
   FDataSource.Visible := ImportType in [itODBC];
@@ -951,7 +947,6 @@ begin
       case (ImportType) of
         itAccessFile,
         itExcelFile,
-        itSQLiteFile,
         itODBC:
           for I := 0 to FTables.Items.Count - 1 do
             if (FTables.Items[I].Selected) then
@@ -1054,7 +1049,6 @@ begin
       itTextFile: HelpContext := 1133;
       itAccessFile: HelpContext := 1013;
       itExcelFile: HelpContext := 1106;
-      itSQLiteFile: HelpContext := 1127;
       itODBC: HelpContext := 1012;
       itXMLFile: HelpContext := 1132;
       else HelpContext := -1;
@@ -1094,7 +1088,6 @@ begin
     FTextFile.Checked := False;
     FExcelFile.Checked := False;
     FAccessFile.Checked := False;
-    FSQLiteFile.Checked := False;
     FODBC.Checked := False;
     FXMLFile.Checked := False;
     FFilename.Text := '';
@@ -1123,7 +1116,6 @@ begin
       itTextFile: FTextFile.Checked := True;
       itExcelFile: FExcelFile.Checked := True;
       itAccessFile: FAccessFile.Checked := True;
-      itSQLiteFile: FSQLiteFile.Checked := True;
       itODBC: FODBC.Checked := True;
       itXMLFile: FXMLFile.Checked := True;
     end;
@@ -1146,7 +1138,7 @@ begin
     end;
     FEnabled.Checked := Job.Enabled;
   end
-  else if ((ImportType in [itTextFile, itODBC, itAccessFile, itExcelFile, itSQLiteFile]) and not (SObject is TSTable)) then
+  else if ((ImportType in [itTextFile, itODBC, itAccessFile, itExcelFile]) and not (SObject is TSTable)) then
   begin
     FStructure.Checked := Preferences.Import.Structure and not (SObject is TSBaseTable);
     FData.Checked := Preferences.Import.Data and (FStructure.Checked or (SObject is TSBaseTable));
@@ -1184,7 +1176,6 @@ begin
       itAccessFile: Import := TTImportAccess.Create(Session, Database, Filename);
       itExcelFile: Import := TTImportExcel.Create(Session, Database, Filename);
       itODBC: Import := TTImportODBC.Create(Session, Database, DODBC.DataSource, DODBC.Username, DODBC.Password);
-      itSQLiteFile: Import := TTImportSQLite.Create(Session, Database, Filename);
       itXMLFile: if (SObject is TSBaseTable) then Import := TTImportXML.Create(Filename, TSBaseTable(SObject));
     end
   else
@@ -1192,7 +1183,7 @@ begin
 
   TSJob.Enabled := DialogType in [idtCreateJob, idtEditJob];
   TSSelect.Enabled := DialogType in [idtEditJob];
-  TSTables.Enabled := (ImportType in [itAccessFile, itExcelFile, itSQLiteFile, itODBC]);
+  TSTables.Enabled := (ImportType in [itAccessFile, itExcelFile, itODBC]);
   TSCSVOptions.Enabled := (ImportType in [itTextFile]);
   TSXMLOptions.Enabled := (SObject is TSTable) and (ImportType in [itXMLFile]);
   TSWhat.Enabled := False;
@@ -1254,7 +1245,7 @@ begin
   begin
     SObject := TSObject(FSelect.Selected.Data);
 
-    TSTables.Enabled := (SObject is TSObject) and (ImportType in [itAccessFile, itExcelFile, itSQLiteFile, itODBC]);
+    TSTables.Enabled := (SObject is TSObject) and (ImportType in [itAccessFile, itExcelFile, itODBC]);
     TSCSVOptions.Enabled := (ImportType in [itTextFile]);
     TSXMLOptions.Enabled := (SObject is TSTable) and (ImportType in [itXMLFile]);
     TSWhat.Enabled := (not Assigned(SObject) or (SObject is TSDatabase)) and (ImportType <> itSQLFile);
@@ -1364,7 +1355,7 @@ end;
 procedure TDImport.FTablesSelectItem(Sender: TObject; Item: TListItem;
   Selected: Boolean);
 begin
-  TSWhat.Enabled := (FTables.SelCount > 0) and (ImportType in [itTextFile, itAccessFile, itExcelFile, itSQLiteFile, itODBC, itXMLFile]) and not (SObject is TSBaseTable);
+  TSWhat.Enabled := (FTables.SelCount > 0) and (ImportType in [itTextFile, itAccessFile, itExcelFile, itODBC, itXMLFile]) and not (SObject is TSBaseTable);
   TSFields.Enabled := (FTables.SelCount > 0) and not TSWhat.Enabled;
   CheckActivePageChange(TSTables.PageIndex);
 end;
@@ -1409,12 +1400,6 @@ begin
         else
           OpenDialog.Filter := FilterDescription('mdb') + ' (*.mdb)|*.mdb';
         OpenDialog.DefaultExt := 'mdb';
-        OpenDialog.Encodings.Clear();
-      end;
-    itSQLiteFile:
-      begin
-        OpenDialog.Filter := FilterDescription('sqlite') + ' (*.db3;*.sqlite)|*.db3;*.sqlite';
-        OpenDialog.DefaultExt := 'db3';
         OpenDialog.Encodings.Clear();
       end;
     itXMLFile:
@@ -1470,8 +1455,6 @@ begin
 
       TTImportODBC(Import).GetFieldNames(TTableName(FTables.Selected.Data).SourceName, FieldNames);
     end
-    else if (ImportType in [itSQLiteFile]) then
-      TTImportSQLite(Import).GetFieldNames(TTableName(FTables.Selected.Data).SourceName, FieldNames)
     else if ((ImportType in [itXMLFile]) and (SObject is TSBaseTable)) then
     begin
       FLSourceFields.Caption := Preferences.LoadStr(400) + ':';
@@ -1525,7 +1508,7 @@ begin
         end
         else
           FFields[I].Items.Text := FFields[0].Items.Text;
-        if ((ImportType in [itTextFile]) and FCSVHeadline.Checked or (ImportType in [itExcelFile, itAccessFile, itODBC, itSQLiteFile])) then
+        if ((ImportType in [itTextFile]) and FCSVHeadline.Checked or (ImportType in [itExcelFile, itAccessFile, itODBC])) then
           FFields[I].ItemIndex := FFields[I].Items.IndexOf(FSourceFields[I].Text)
         else
           FFields[I].ItemIndex := I + 1;
@@ -1736,10 +1719,10 @@ var
 begin
   Session.UnRegisterEventProc(FormSessionEvent);
 
-  FLProgressTables.Visible := ImportType in [itODBC, itAccessFile, itExcelFile, itSQLiteFile, itXMLFile];
+  FLProgressTables.Visible := ImportType in [itODBC, itAccessFile, itExcelFile, itXMLFile];
   FEntieredTables.Visible := FLProgressTables.Visible;
   FDoneTables.Visible := FLProgressTables.Visible;
-  if (ImportType in [itODBC, itAccessFile, itExcelFile, itSQLiteFile, itXMLFile]) then
+  if (ImportType in [itODBC, itAccessFile, itExcelFile, itXMLFile]) then
     FLProgressRecords.Caption := Preferences.LoadStr(235) + ':'
   else
     FLProgressRecords.Caption := Preferences.LoadStr(67) + ':';
@@ -1805,15 +1788,6 @@ begin
     itODBC:
       begin
         if (SObject is TSTable) then
-          ImportAdd(SObject.Name, TTableName(FTables.Selected.Data).SourceName)
-        else
-          for I := 0 to FTables.Items.Count - 1 do
-            if (FTables.Items[I].Selected) then
-              ImportAdd(TTableName(FTables.Items[I].Data).TableName, TTableName(FTables.Items[I].Data).SourceName);
-      end;
-    itSQLiteFile:
-      begin
-        if (SObject is TSBaseTable) then
           ImportAdd(SObject.Name, TTableName(FTables.Selected.Data).SourceName)
         else
           for I := 0 to FTables.Items.Count - 1 do
@@ -1941,7 +1915,7 @@ end;
 
 procedure TDImport.TSTablesHide(Sender: TObject);
 begin
-  if (ImportType in [itExcelFile, itAccessFile, itODBC, itSQLiteFile, itXMLFile]) then
+  if (ImportType in [itExcelFile, itAccessFile, itODBC, itXMLFile]) then
   begin
     ClearTSFields(Sender);
     if (TSFields.Enabled) then
@@ -1986,16 +1960,6 @@ begin
           Import := TTImportODBC.Create(Session, nil, DODBC.DataSource, DODBC.Username, DODBC.Password);
           StringList := TStringList.Create();
           if (TTImportODBC(Import).GetTableNames(StringList)) then
-            for I := 0 to StringList.Count - 1 do
-              TableNames.Add(StringList[I]);
-          StringList.Free();
-          Import.Free();
-        end;
-      itSQLiteFile:
-        begin
-          Import := TTImportSQLite.Create(Session, nil, Filename);
-          StringList := TStringList.Create();
-          if (TTImportSQLite(Import).GetTableNames(StringList)) then
             for I := 0 to StringList.Count - 1 do
               TableNames.Add(StringList[I]);
           StringList.Free();

@@ -2,15 +2,15 @@ object WWindow: TWWindow
   Left = 387
   Top = 161
   Caption = 'WWindow'
-  ClientHeight = 449
-  ClientWidth = 683
+  ClientHeight = 417
+  ClientWidth = 634
   Color = clBtnFace
-  Constraints.MinHeight = 485
-  Constraints.MinWidth = 560
+  Constraints.MinHeight = 450
+  Constraints.MinWidth = 520
   DoubleBuffered = True
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clBlack
-  Font.Height = -12
+  Font.Height = -11
   Font.Name = 'Tahoma'
   Font.Style = []
   KeyPreview = True
@@ -25,13 +25,13 @@ object WWindow: TWWindow
   OnKeyDown = FormKeyDown
   OnResize = FormResize
   OnShow = FormShow
-  PixelsPerInch = 106
-  TextHeight = 14
+  PixelsPerInch = 96
+  TextHeight = 13
   object PWorkSpace: TPanel_Ext
     Left = 0
-    Top = 102
-    Width = 683
-    Height = 326
+    Top = 99
+    Width = 634
+    Height = 298
     Align = alClient
     BevelOuter = bvNone
     Color = clAppWorkSpace
@@ -40,9 +40,9 @@ object WWindow: TWWindow
   end
   object TabControl: TTabControl
     Left = 0
-    Top = 74
-    Width = 683
-    Height = 28
+    Top = 73
+    Width = 634
+    Height = 26
     Align = alTop
     MultiLine = True
     PopupMenu = MTabControl
@@ -64,8 +64,8 @@ object WWindow: TWWindow
   object CAddressBar: TCoolBar
     Left = 0
     Top = 52
-    Width = 683
-    Height = 22
+    Width = 634
+    Height = 21
     BandBorderStyle = bsNone
     BandMaximize = bmNone
     Bands = <
@@ -102,7 +102,7 @@ object WWindow: TWWindow
         Style = tbsDropDown
       end
       object tbNext: TToolButton
-        Left = 38
+        Left = 36
         Top = 0
         Action = aVNext
         DropdownMenu = MNext
@@ -111,17 +111,17 @@ object WWindow: TWWindow
         Style = tbsDropDown
       end
       object ToolButton26: TToolButton
-        Left = 76
+        Left = 72
         Top = 0
         Width = 8
         Caption = 'ToolButton26'
         Style = tbsSeparator
       end
       object FAddress: TComboBox_Ext
-        Left = 84
+        Left = 80
         Top = 0
         Width = 457
-        Height = 22
+        Height = 21
         Anchors = [akLeft, akTop, akRight]
         Constraints.MinWidth = 300
         TabOrder = 0
@@ -130,7 +130,7 @@ object WWindow: TWWindow
         OnSelect = FAddressSelect
       end
       object FAddressApply: TToolButton
-        Left = 541
+        Left = 537
         Top = 0
         Caption = 'aVAddress'
         ImageIndex = 21
@@ -141,9 +141,9 @@ object WWindow: TWWindow
   end
   object StatusBar: TStatusBar
     Left = 0
-    Top = 428
-    Width = 683
-    Height = 21
+    Top = 397
+    Width = 634
+    Height = 20
     Panels = <
       item
         Text = 'sbMessage'
@@ -172,7 +172,7 @@ object WWindow: TWWindow
   object CToolBar: TCoolBar
     Left = 0
     Top = 0
-    Width = 683
+    Width = 634
     Height = 52
     AutoSize = True
     BandBorderStyle = bsNone
@@ -754,13 +754,6 @@ object WWindow: TWWindow
       HelpContext = 1013
       HelpType = htContext
     end
-    object aFImportSQLite: TAction
-      Category = 'File'
-      Caption = 'aFImportSQLite'
-      Enabled = False
-      HelpContext = 1127
-      HelpType = htContext
-    end
     object aFImportODBC: TAction
       Category = 'File'
       Caption = 'aFImportODBC'
@@ -801,13 +794,6 @@ object WWindow: TWWindow
       Caption = 'aFExportAccess'
       Enabled = False
       HelpContext = 1129
-      HelpType = htContext
-    end
-    object aFExportSQLite: TAction
-      Category = 'File'
-      Caption = 'aFExportSQLite'
-      Enabled = False
-      HelpContext = 1128
       HelpType = htContext
     end
     object aFExportODBC: TAction
@@ -1441,9 +1427,6 @@ object WWindow: TWWindow
         object miFImportAccess: TMenuItem
           Action = aFImportAccess
         end
-        object miFImportSQLite1: TMenuItem
-          Action = aFImportSQLite
-        end
         object miFImportODBC: TMenuItem
           Action = aFImportODBC
         end
@@ -1465,9 +1448,6 @@ object WWindow: TWWindow
         end
         object miFExportAccess: TMenuItem
           Action = aFExportAccess
-        end
-        object miFExportSQLite: TMenuItem
-          Action = aFExportSQLite
         end
         object aFExportODBC1: TMenuItem
           Action = aFExportODBC
@@ -1827,16 +1807,6 @@ object WWindow: TWWindow
       object miETransfer: TMenuItem
         Action = aETransfer
       end
-    end
-    object miOptions: TMenuItem
-      Caption = 'miOptions'
-      GroupIndex = 3
-      object miOGlobals: TMenuItem
-        Action = aOGlobals
-      end
-      object miOAccounts: TMenuItem
-        Action = aOAccounts
-      end
       object N4: TMenuItem
         Caption = '-'
       end
@@ -1861,6 +1831,16 @@ object WWindow: TWWindow
         object N3: TMenuItem
           Caption = '-'
         end
+      end
+    end
+    object miOptions: TMenuItem
+      Caption = 'miOptions'
+      GroupIndex = 3
+      object miOGlobals: TMenuItem
+        Action = aOGlobals
+      end
+      object miOAccounts: TMenuItem
+        Action = aOAccounts
       end
     end
     object miHelp: TMenuItem

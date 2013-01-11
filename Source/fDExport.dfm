@@ -8,7 +8,7 @@ object DExport: TDExport
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
-  Font.Height = -12
+  Font.Height = -11
   Font.Name = 'MS Sans Serif'
   Font.Style = []
   OldCreateOrder = False
@@ -20,7 +20,7 @@ object DExport: TDExport
   DesignSize = (
     341
     331)
-  PixelsPerInch = 106
+  PixelsPerInch = 96
   TextHeight = 13
   object PSQLWait: TPanel_Ext
     Left = 8
@@ -40,7 +40,7 @@ object DExport: TDExport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSXMLOptions
+    ActivePage = TSJob
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     Style = tsFlatButtons
@@ -50,10 +50,6 @@ object DExport: TDExport
       Caption = 'TSSelect'
       TabVisible = False
       OnShow = TSSelectShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GSelect: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -100,10 +96,6 @@ object DExport: TDExport
       Caption = 'TSJob'
       TabVisible = False
       OnShow = TSJobShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -196,53 +188,43 @@ object DExport: TDExport
           TabStop = True
           OnClick = FExportTypeChange
         end
-        object FSQLiteFile: TRadioButton
+        object FODBC: TRadioButton
           Left = 128
           Top = 127
           Width = 185
           Height = 17
-          Caption = 'FSQLiteFile'
-          TabOrder = 5
-          TabStop = True
-          OnClick = FExportTypeChange
-        end
-        object FODBC: TRadioButton
-          Left = 128
-          Top = 147
-          Width = 185
-          Height = 17
           Caption = 'FODBC'
-          TabOrder = 6
+          TabOrder = 5
           TabStop = True
           OnClick = FExportTypeChange
         end
         object FHTMLFile: TRadioButton
           Left = 128
-          Top = 167
+          Top = 147
           Width = 185
           Height = 17
           Caption = 'FHTMLFile'
-          TabOrder = 7
+          TabOrder = 6
           TabStop = True
           OnClick = FExportTypeChange
         end
         object FXMLFile: TRadioButton
           Left = 128
-          Top = 187
+          Top = 167
           Width = 185
           Height = 17
           Caption = 'FXMLFile'
-          TabOrder = 8
+          TabOrder = 7
           TabStop = True
           OnClick = FExportTypeChange
         end
         object FPDFFile: TRadioButton
           Left = 128
-          Top = 207
+          Top = 187
           Width = 185
           Height = 17
           Caption = 'FPDFFile'
-          TabOrder = 9
+          TabOrder = 8
           TabStop = True
           OnClick = FExportTypeChange
         end
@@ -251,7 +233,7 @@ object DExport: TDExport
           Top = 233
           Width = 166
           Height = 21
-          TabOrder = 10
+          TabOrder = 9
           Text = 'FFilename'
           OnChange = FFilenameChange
         end
@@ -261,7 +243,7 @@ object DExport: TDExport
           Width = 21
           Height = 21
           Caption = #183#183#183
-          TabOrder = 11
+          TabOrder = 10
           OnClick = FBFilenameClick
         end
         object FDataSource: TEdit
@@ -280,7 +262,7 @@ object DExport: TDExport
           Width = 21
           Height = 21
           Caption = #183#183#183
-          TabOrder = 13
+          TabOrder = 11
           OnClick = FBDataSourceClick
         end
       end
@@ -290,10 +272,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSSQLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -421,10 +399,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSCSVOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -566,10 +540,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSXMLOptionsHide
       OnShow = TSXMLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -885,10 +855,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSHTMLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -989,10 +955,6 @@ object DExport: TDExport
       Caption = 'TSFields'
       TabVisible = False
       OnShow = TSFieldsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -1079,10 +1041,6 @@ object DExport: TDExport
       ImageIndex = 9
       TabVisible = False
       OnShow = TSTaskShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -1182,10 +1140,6 @@ object DExport: TDExport
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)

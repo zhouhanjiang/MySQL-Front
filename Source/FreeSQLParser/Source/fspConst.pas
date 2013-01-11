@@ -23,7 +23,6 @@ const
   PE_InvalidEndLabel = 8; // Begin and End Token are different
 
   MySQLFunctions =
-    'BINARY,INTERVAL,' +
     'ABS,ACOS,ADD,ADDDATE,ADDTIME,AES_DECRYPT,AES_ENCRYPT,ANALYSE,ASCII,ASIN,' +
     'ATAN,ATAN2,AVG,BIN,BIT_AND,BIT_COUNT,BIT_LENGTH,BIT_OR,BIT_XOR,' +
     'CAST,CEIL,CEILING,CHAR_LENGTH,CHARACTER_LENGTH,COALESCE,COERCIBILITY,' +
@@ -113,15 +112,17 @@ const
     'ntRoot',
     'ntToken',
     'ntRangeNode',
-    'ntSubArea',
-    'ntExpressions',
+    'ntValues',
     'ntColumns',
     'ntColumn',
     'ntDbIdentifier',
-    'ntUnaryOperation',
-    'ntBinaryOperation',
-    'ntBetweenOperation',
-    'ntSoundsLikeOperation',
+    'ntFunction',
+    'ntUnaryOp',
+    'ntBinaryOp',
+    'ntBetweenOp',
+    'ntCaseCond',
+    'ntCaseOp',
+    'ntSoundsLikeOp',
     'ntStmt',
     'ntSelectStmt'
   );

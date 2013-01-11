@@ -702,7 +702,7 @@ object FSession: TFSession
         Left = 0
         Top = 0
         Width = 43
-        Height = 22
+        Height = 21
         TabOrder = 0
         Text = '0'
         OnChange = FOffsetChange
@@ -712,7 +712,7 @@ object FSession: TFSession
         Left = 43
         Top = 0
         Width = 15
-        Height = 22
+        Height = 21
         Associate = FOffset
         Max = 2147483647
         TabOrder = 1
@@ -722,7 +722,7 @@ object FSession: TFSession
         Left = 59
         Top = 0
         Width = 36
-        Height = 22
+        Height = 21
         TabOrder = 2
         Text = '100'
         OnChange = FLimitChange
@@ -732,7 +732,7 @@ object FSession: TFSession
         Left = 95
         Top = 0
         Width = 15
-        Height = 22
+        Height = 21
         Associate = FLimit
         Min = 1
         Max = 2147483647
@@ -763,7 +763,7 @@ object FSession: TFSession
         Left = 142
         Top = 0
         Width = 198
-        Height = 22
+        Height = 21
         Constraints.MinWidth = 100
         TabOrder = 5
         OnChange = FFilterChange
@@ -860,7 +860,7 @@ object FSession: TFSession
         TabOrder = 1
         TitleFont.Charset = DEFAULT_CHARSET
         TitleFont.Color = clWindowText
-        TitleFont.Height = -12
+        TitleFont.Height = -11
         TitleFont.Name = 'Tahoma'
         TitleFont.Style = []
         OnColEnter = DBGridColEnter
@@ -958,7 +958,8 @@ object FSession: TFSession
           Top = 0
           Width = 463
           Height = 23
-          ButtonWidth = 97
+          ButtonHeight = 21
+          ButtonWidth = 86
           Color = clBtnFace
           DoubleBuffered = False
           ParentColor = False
@@ -976,7 +977,7 @@ object FSession: TFSession
             Style = tbsCheck
           end
           object tbBlobRTF: TToolButton
-            Left = 74
+            Left = 65
             Top = 0
             Action = aVBlobRTF
             AutoSize = True
@@ -984,7 +985,7 @@ object FSession: TFSession
             Style = tbsCheck
           end
           object tbBlobHTML: TToolButton
-            Left = 143
+            Left = 127
             Top = 0
             Action = aVBlobHTML
             AutoSize = True
@@ -992,7 +993,7 @@ object FSession: TFSession
             Style = tbsCheck
           end
           object tbBlobImage: TToolButton
-            Left = 213
+            Left = 189
             Top = 0
             Action = aVBlobImage
             AutoSize = True
@@ -1000,7 +1001,7 @@ object FSession: TFSession
             Style = tbsCheck
           end
           object tbBlobHexEditor: TToolButton
-            Left = 295
+            Left = 262
             Top = 0
             Action = aVBlobHexEditor
             AutoSize = True
@@ -1008,19 +1009,19 @@ object FSession: TFSession
             Style = tbsCheck
           end
           object tbBlobSpacer: TPanel_Ext
-            Left = 396
+            Left = 352
             Top = 0
             Width = 49
-            Height = 22
+            Height = 21
             BevelOuter = bvNone
             ParentBackground = False
             TabOrder = 1
           end
           object FBlobSearch: TEdit
-            Left = 445
+            Left = 401
             Top = 0
             Width = 136
-            Height = 22
+            Height = 21
             AutoSize = False
             TabOrder = 0
             OnChange = FBlobSearchChange
@@ -1242,8 +1243,8 @@ object FSession: TFSession
       Width = 374
       Height = 20
       Align = alNone
-      ButtonHeight = 20
-      ButtonWidth = 68
+      ButtonHeight = 19
+      ButtonWidth = 61
       List = True
       PopupMenu = MToolBar
       ShowCaptions = True
@@ -1261,7 +1262,7 @@ object FSession: TFSession
         Style = tbsCheck
       end
       object tbBrowser: TToolButton
-        Left = 70
+        Left = 63
         Top = 0
         AutoSize = True
         Caption = 'tbBrowser'
@@ -1270,7 +1271,7 @@ object FSession: TFSession
         Style = tbsCheck
       end
       object tbIDE: TToolButton
-        Left = 142
+        Left = 128
         Top = 0
         AutoSize = True
         Caption = 'tbIDE'
@@ -1279,7 +1280,7 @@ object FSession: TFSession
         Visible = False
       end
       object tbBuilder: TToolButton
-        Left = 184
+        Left = 166
         Top = 0
         AutoSize = True
         Caption = 'tbBuilder'
@@ -1288,7 +1289,7 @@ object FSession: TFSession
         Style = tbsCheck
       end
       object tbEditor: TToolButton
-        Left = 248
+        Left = 224
         Top = 0
         AutoSize = True
         Caption = 'tbEditor'
@@ -1297,7 +1298,7 @@ object FSession: TFSession
         Style = tbsCheck
       end
       object tbDiagram: TToolButton
-        Left = 308
+        Left = 278
         Top = 0
         AutoSize = True
         Caption = 'tbDiagram'
@@ -1337,9 +1338,6 @@ object FSession: TFSession
       object mlFImportAccess: TMenuItem
         Caption = 'aFImportAccess'
       end
-      object mlFImportSQLite: TMenuItem
-        Caption = 'aFImportSQLite'
-      end
       object mlFImportODBC: TMenuItem
         Caption = 'aFImportODBC'
       end
@@ -1360,9 +1358,6 @@ object FSession: TFSession
       end
       object mlFExportAccess: TMenuItem
         Caption = 'aFExportAccess'
-      end
-      object mlFExportSQLite: TMenuItem
-        Caption = 'aFExportSQLite'
       end
       object mlFExportODBC: TMenuItem
         Caption = 'aFExportODBC'
@@ -1629,9 +1624,6 @@ object FSession: TFSession
       object miNImportAccess: TMenuItem
         Caption = 'aFImportAccess'
       end
-      object miNImportSQLite: TMenuItem
-        Caption = 'aFImportSQLite'
-      end
       object miNImportODBC: TMenuItem
         Caption = 'aFImportODBC'
       end
@@ -1652,9 +1644,6 @@ object FSession: TFSession
       end
       object miNExportAccess: TMenuItem
         Caption = 'aFExportAccess'
-      end
-      object miNExportSQLite: TMenuItem
-        Caption = 'aFExportSQLite'
       end
       object miNExportODBC: TMenuItem
         Caption = 'aFExportODBC'
@@ -2077,10 +2066,6 @@ object FSession: TFSession
         RadioItem = True
         OnClick = mfFilterAccessClick
       end
-      object mfFilterSQLite: TMenuItem
-        Caption = 'mfFilterSQLite'
-        OnClick = mfFilterSQLiteClick
-      end
       object mfFilterHTML: TMenuItem
         Caption = 'mfFilterHTML'
         RadioItem = True
@@ -2231,9 +2216,6 @@ object FSession: TFSession
       object mwFImportAccess: TMenuItem
         Caption = 'aFImportAccess'
       end
-      object mwFImportSQLite: TMenuItem
-        Caption = 'aFImportSQLite'
-      end
       object mwFImportODBC: TMenuItem
         Caption = 'aFImportODBC'
       end
@@ -2254,9 +2236,6 @@ object FSession: TFSession
       end
       object mwFExportAccess: TMenuItem
         Caption = 'aFExportAccess'
-      end
-      object mwFExportSQLite: TMenuItem
-        Caption = 'aFExportSQLite'
       end
       object mwFExportODBC: TMenuItem
         Caption = 'aFExportODBC'

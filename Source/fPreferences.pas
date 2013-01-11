@@ -11,8 +11,8 @@ uses
   MySQLDB;
 
 type
-  TPExportType = (etUnknown, etSQLFile, etTextFile, etExcelFile, etAccessFile, etSQLiteFile, etODBC, etHTMLFile, etXMLFile, etPDFFile, etPrinter);
-  TPImportType = (itUnknown, itSQLFile, itTextFile, itAccessFile, itExcelFile, itSQLiteFile, itODBC, itXMLFile);
+  TPExportType = (etUnknown, etSQLFile, etTextFile, etExcelFile, etAccessFile, etODBC, etHTMLFile, etXMLFile, etPDFFile, etPrinter);
+  TPImportType = (itUnknown, itSQLFile, itTextFile, itAccessFile, itExcelFile, itODBC, itXMLFile);
   TAJobObjectType = (jotServer, jotDatabase, jotTable, jotProcedure, jotFunction, jotTrigger, jotEvent);
   TPNodeType = (ntDisabled, ntName, ntCustom);
 
@@ -1126,7 +1126,6 @@ begin
   else if (UpperCase(Str) = 'TEXTFILE') then ImportType := itTextFile
   else if (UpperCase(Str) = 'EXCELFILE') then ImportType := itExcelFile
   else if (UpperCase(Str) = 'ACCESSFILE') then ImportType := itAccessFile
-  else if (UpperCase(Str) = 'SQLITEFILE') then ImportType := itSQLiteFile
   else if (UpperCase(Str) = 'ODBC') then ImportType := itODBC
   else if (UpperCase(Str) = 'XMLFILE') then ImportType := itXMLFile
   else Result := False;
@@ -1139,7 +1138,6 @@ begin
     itTextFile: Result := 'TextFile';
     itExcelFile: Result := 'ExcelFile';
     itAccessFile: Result := 'AccessFile';
-    itSQLiteFile: Result := 'SQLiteFile';
     itODBC: Result := 'ODBC';
     itXMLFile: Result := 'XMLFile';
     else raise ERangeError.CreateFmt(SPropertyOutOfRange, ['ImportType']);
@@ -1153,7 +1151,6 @@ begin
   else if (UpperCase(Str) = 'TEXTFILE') then ExportType := etTextFile
   else if (UpperCase(Str) = 'EXCELFILE') then ExportType := etExcelFile
   else if (UpperCase(Str) = 'ACCESSFILE') then ExportType := etAccessFile
-  else if (UpperCase(Str) = 'SQLITEFILE') then ExportType := etSQLiteFile
   else if (UpperCase(Str) = 'ODBC') then ExportType := etODBC
   else if (UpperCase(Str) = 'HTMLFILE') then ExportType := etHTMLFile
   else if (UpperCase(Str) = 'XMLFILE') then ExportType := etXMLFile
@@ -1169,7 +1166,6 @@ begin
     etTextFile: Result := 'TextFile';
     etExcelFile: Result := 'ExcelFile';
     etAccessFile: Result := 'AccessFile';
-    etSQLiteFile: Result := 'SQLiteFile';
     etODBC: Result := 'ODBC';
     etHTMLFile: Result := 'HTMLFile';
     etXMLFile: Result := 'XMLFile';

@@ -116,7 +116,6 @@ type
     FSingle: TRadioButton;
     FSQLData: TCheckBox;
     FSQLFile: TRadioButton;
-    FSQLiteFile: TRadioButton;
     FSQLStructure: TCheckBox;
     FStartDate: TDateTimePicker;
     FStartTime: TDateTimePicker;
@@ -376,7 +375,6 @@ begin
   FTextFile.Caption := Preferences.LoadStr(410);
   FExcelFile.Caption := Preferences.LoadStr(801);
   FAccessFile.Caption := Preferences.LoadStr(695);
-  FSQLiteFile.Caption := Preferences.LoadStr(870);
   FODBC.Caption := Preferences.LoadStr(607);
   FHTMLFile.Caption := Preferences.LoadStr(453);
   FXMLFile.Caption := Preferences.LoadStr(454);
@@ -468,7 +466,7 @@ begin
   if (Assigned(Export)) then
     FreeAndNil(Export);
 
-  FBBack.Enabled := ExportType <> etSQLiteFile;
+  FBBack.Enabled := True;
   FBCancel.Caption := Preferences.LoadStr(231);
 
   if (Success) then
@@ -826,8 +824,6 @@ begin
     ExportType := etExcelFile
   else if (FAccessFile.Checked) then
     ExportType := etAccessFile
-  else if (FSQLiteFile.Checked) then
-    ExportType := etSQLiteFile
   else if (FODBC.Checked) then
     ExportType := etODBC
   else if (FHTMLFile.Checked) then
@@ -838,7 +834,7 @@ begin
     ExportType := etPDFFile
   else
     ExportType := etUnknown;
-  FFilename.Visible := ExportType in [etSQLFile, etTextFile, etExcelFile, etAccessFile, etSQLiteFile, etHTMLFile, etXMLFile, etPDFFile];
+  FFilename.Visible := ExportType in [etSQLFile, etTextFile, etExcelFile, etAccessFile, etHTMLFile, etXMLFile, etPDFFile];
   FLFilename.Visible := FFilename.Visible; FBFilename.Visible := FFilename.Visible;
   FDataSource.Visible := ExportType in [etODBC];
   FLDataSource.Visible := FDataSource.Visible; FBDataSource.Visible := FDataSource.Visible;
@@ -1141,7 +1137,6 @@ begin
       etTextFile: HelpContext := 1134;
       etExcelFile: HelpContext := 1107;
       etAccessFile: HelpContext := 1129;
-      etSQLiteFile: HelpContext := 1128;
       etXMLFile: HelpContext := 1017;
       etHTMLFile: HelpContext := 1016;
       etPDFFile: HelpContext := 1137;
@@ -1179,7 +1174,6 @@ begin
       etTextFile: FTextFile.Checked := True;
       etExcelFile: FExcelFile.Checked := True;
       etAccessFile: FAccessFile.Checked := True;
-      etSQLiteFile: FSQLiteFile.Checked := True;
       etODBC: FODBC.Checked := True;
       etHTMLFile: FHTMLFile.Checked := True;
       etXMLFile: FXMLFile.Checked := True;
@@ -1502,12 +1496,6 @@ begin
           SaveDialog.DefaultExt := '.mdb';
         SaveDialog.Encodings.Clear();
       end;
-    etSQLiteFile:
-      begin
-        SaveDialog.Filter := FilterDescription('sqlite') + ' (*.db3;*.sqlite)|*.db3;*.sqlite';
-        SaveDialog.DefaultExt := '.db3';
-        SaveDialog.Encodings.Clear();
-      end;
     etHTMLFile:
       begin
         SaveDialog.Filter := FilterDescription('html') + ' (*.html;*.htm)|*.html;*.htm';
@@ -1659,7 +1647,6 @@ begin
   FTextFile.Enabled := False;
   FExcelFile.Enabled := False;
   FAccessFile.Enabled := False;
-  FSQLiteFile.Enabled := False;
   FODBC.Enabled := False;
   FHTMLFile.Enabled := True;
   FXMLFile.Enabled := True;
@@ -1671,7 +1658,6 @@ begin
       FTextFile.Enabled := True;
       FExcelFile.Enabled := True;
       FAccessFile.Enabled := True;
-      FSQLiteFile.Enabled := True;
       FODBC.Enabled := True;
       FXMLFile.Enabled := True;
     end;
@@ -1947,12 +1933,6 @@ begin
         TTExportExcel(Export).Data := True;
         TTExportExcel(Export).Excel2007 := (odExcel2007 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
         TTExportExcel(Export).Structure := True;
-      end;
-    etSQLiteFile:
-      begin
-        Export := TTExportSQLite.Create(Session, Filename);
-        TTExportAccess(Export).Data := True;
-        TTExportAccess(Export).Structure := True;
       end;
     etHTMLFile:
       begin

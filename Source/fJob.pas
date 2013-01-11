@@ -31,7 +31,6 @@ uses
   Windows, Classes,
   SysUtils, StrUtils,
   ODBCAPI,
-  DISQLite3Api,
   MySQLDB, SQLUtils;
 
 constructor TJobExecution.Create(const AccountName, JobName: string);
@@ -143,7 +142,6 @@ var
 var
   I: Integer;
   ODBC: SQLHDBC;
-  SQLite: sqlite3_ptr;
   Table: TSBaseTable;
 begin
   Result := 1;
@@ -176,7 +174,6 @@ begin
       else
       begin
         ODBC := SQL_NULL_HANDLE;
-        SQLite := nil;
 
         Import := nil;
         case (Job.ImportType) of
@@ -227,16 +224,6 @@ begin
           itODBC:
             begin
               Import := TTImportODBC.Create(Session, Database, Job.ODBC.DataSource, Job.ODBC.Username, Job.ODBC.Password);
-
-              if (Job.JobObject.ObjectType = jotTable) then
-                ImportAdd(Job.JobObject.Name, Job.SourceObjects[0].Name)
-              else
-                for I := 0 to Length(Job.SourceObjects) - 1 do
-                  ImportAdd(TableName(Job.JobObject.Name), Job.SourceObjects[I].Name);
-            end;
-          itSQLiteFile:
-            begin
-              Import := TTImportSQLite.Create(Session, Database, Job.Filename);
 
               if (Job.JobObject.ObjectType = jotTable) then
                 ImportAdd(Job.JobObject.Name, Job.SourceObjects[0].Name)
@@ -304,8 +291,6 @@ begin
 
         if (ODBC <> SQL_NULL_HANDLE) then
           SQLFreeHandle(SQL_HANDLE_DBC, ODBC);
-        if (Assigned(SQLite)) then
-          sqlite3_close(SQLite);
       end;
     end;
   end;

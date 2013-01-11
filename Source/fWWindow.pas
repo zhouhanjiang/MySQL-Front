@@ -102,14 +102,12 @@ type
     aFExportODBC1: TMenuItem;
     aFExportPDF: TAction;
     aFExportSQL: TAction;
-    aFExportSQLite: TAction;
     aFExportText: TAction;
     aFExportXML: TAction;
     aFImportAccess: TAction;
     aFImportExcel: TAction;
     aFImportODBC: TAction;
     aFImportSQL: TAction;
-    aFImportSQLite: TAction;
     aFImportText: TAction;
     aFImportXML: TAction;
     aFOpen: TAction;
@@ -239,7 +237,6 @@ type
     miFImportExcel: TMenuItem;
     miFImportODBC: TMenuItem;
     miFImportSQL: TMenuItem;
-    miFImportSQLite1: TMenuItem;
     miFImportText: TMenuItem;
     miFImportXML: TMenuItem;
     miFOpen: TMenuItem;
@@ -983,7 +980,6 @@ begin
   aFImportText.Caption := Preferences.LoadStr(410) + '...';
   aFImportExcel.Caption := Preferences.LoadStr(801) + '...';
   aFImportAccess.Caption := Preferences.LoadStr(695) + '...';
-  aFImportSQLite.Caption := Preferences.LoadStr(870) + '...';
   aFImportODBC.Caption := Preferences.LoadStr(607) + '...';
   aFImportXML.Caption := Preferences.LoadStr(454) + '...';
   miFExport.Caption := Preferences.LoadStr(200);
@@ -991,7 +987,6 @@ begin
   aFExportText.Caption := Preferences.LoadStr(410) + '...';
   aFExportExcel.Caption := Preferences.LoadStr(801) + '...';
   aFExportAccess.Caption := Preferences.LoadStr(695) + '...';
-  aFExportSQLite.Caption := Preferences.LoadStr(870) + '...';
   aFExportODBC.Caption := Preferences.LoadStr(607) + '...';
   aFExportHTML.Caption := Preferences.LoadStr(453) + '...';
   aFExportXML.Caption := Preferences.LoadStr(454) + '...';
