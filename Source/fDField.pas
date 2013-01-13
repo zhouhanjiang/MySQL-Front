@@ -7,6 +7,7 @@ uses
   Dialogs, ComCtrls, StdCtrls, Mask, ExtCtrls,
   ComCtrls_Ext, StdCtrls_Ext, Forms_Ext,
   MySQLDB,
+SysConst,
   fSession,
   fBase;
 
@@ -834,6 +835,18 @@ begin
   else
   begin
     FName.Text := Field.Name;
+
+    // Debug 12.01.20013
+    if (not Assigned(Table)) then
+      raise ERangeError.Create(SRangeError)
+    else if (not Assigned(Table)) then
+      raise ERangeError.Create(SRangeError)
+    else if (not Assigned(Table.Database)) then
+      raise ERangeError.Create(SRangeError)
+    else if (not Assigned(Table.Database.Session)) then
+      raise ERangeError.Create(SRangeError)
+    else if (not Assigned(Table.Database.Session.FieldTypeByMySQLFieldType(Field.FieldType))) then
+      raise ERangeError.Create(SRangeError + 'FieldType: ' + IntToStr(Ord(Field.FieldType)));
 
     FFieldType.ItemIndex := FFieldType.Items.IndexOf(Table.Database.Session.FieldTypeByMySQLFieldType(Field.FieldType).Caption); FFieldTypeChange(Sender); FFieldTypeExit(Sender);
     if (Field.Size >= 0) then FUDFormatSize.Position := Field.Size; FFormatSizeChange(Sender);

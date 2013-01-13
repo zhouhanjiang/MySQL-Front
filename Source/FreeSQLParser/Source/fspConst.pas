@@ -32,7 +32,7 @@ const
     'DAY_SECOND,DAYNAME,DAYOFMONTH,DAYOFWEEK,DAYOFYEAR,DECODE,DEGREES,ELT,' +
     'ENCODE,ENCRYPT,EXP,EXPORT_SET,EXTRACT,EXTRACTVALUE,FIELD,FIND_IN_SET,' +
     'FLOOR,FORMAT,FOUND_ROWS,FROM_DAYS,FROM_UNIXTIME,GET_FORMAT,GET_LOCK,' +
-    'GREATEST,GROUP_CONCAT,HEX,HOUR,HOUR_MINUTE,HOUR_SECOND,IFNULL,IN,' +
+    'GREATEST,GROUP_CONCAT,HEX,HOUR,HOUR_MINUTE,HOUR_SECOND,IFNULL,' +
     'INET_ATON,INSERT_ID,INSTR,INTERVAL,IS_FREE_LOCK,IS_USED_LOCK,ISNULL,' +
     'LAST_DAY,LAST_INSERT_ID,LCASE,LEAST,LEFT,LENGTH,LINESTRINGFROMTEXT,' +
     'LINESTRINGFROMWKB,LN,LOAD_FILE,LOCALTIME,LOCALTIMESTAMP,LOCATE,LOG,' +
@@ -53,7 +53,7 @@ const
     'WEEKDAY,WEEKOFYEAR,YEAR_MONTH,YEARWEEK,';
 
   MySQLKeywords =
-    'BINARY,IN,INTERVAL,' +
+    'BINARY,INTERVAL,' +
     'ACTION,AFTER,AGAINST,AGGREGATE,ALGORITHM,ALL,ALTER,ANALYZE,AND,ANY,AS,' +
     'ASC,AT,AUTHORS,AUTO_INCREMENT,AUTOEXTEND_SIZE,AVG_ROW_LENGTH,BACKUP,' +
     'BEFORE,BEGIN,BENCHMARK,BETWEEN,BINLOG,BIT,BOTH,BY,CACHE,CALL,CASCADE,' +
@@ -72,7 +72,7 @@ const
     'FIRST,FLUSH,FOR,FORCE,FOREIGN,FOUND,FROM,FULL,FULLTEXT,FUNCTION,' +
     'FUNCTIONS,GLOBAL,GOTO,GRANT,GRANTS,GROUP,HANDLER,HAVING,HELP,' +
     'HIGH_PRIORITY,HOST,HOSTS,IDENTIFIED,IF,IGNORE,IGNORE_SERVER_IDS,IMPORT,' +
-    'INDEX,INFILE,INITIAL_SIZE,INNER,INSERT,INSERT_METHOD,INSTALL,INT1,INT2,' +
+    'IN,INDEX,INFILE,INITIAL_SIZE,INNER,INSERT,INSERT_METHOD,INSTALL,INT1,INT2,' +
     'INT3,INT4,INT8,INTO,INVOKER,IO_THREAD,IS,ISOLATION,ISSUER,ITERATE,JOIN,' +
     'KEY,KEY_BLOCK_SIZE,KEYS,KILL,LANGUAGE,LAST,LEADING,LEAVE,LEAVES,LESS,' +
     'LEVEL,LIKE,LIMIT,LINEAR,LINES,LIST,LOAD,LOCAL,LOCK,LOGFILE,LOGS,LONG,' +
@@ -182,17 +182,17 @@ const
   OperatorTypeToString: array[TOperatorType] of PChar = (
     'otUnknown',
 
-    'otFunction',
+    'otFunction_',
     'otInterval',
     'otBinary',
     'otCollate',
 
+    'otNot1',
+
     'otUnaryMinus',
     'otUnaryPlus',
-    'otNot1',
-    'otDot',
-
     'otInvertBits',
+    'otDot',
 
     'otBitXOR',
 
@@ -240,8 +240,8 @@ const
     'otOr',
 
 
-    'otAssignment',
-    'otAssign',
+    'otAssign1',
+    'otAssign2',
     'otLeftJoin',
     'otRightJoin',
     'otHat',
@@ -342,4 +342,17 @@ const
 
 implementation {***************************************************************}
 
+{$IFDEF Debug}
+var
+  Max: Integer;
+  OperatorType: TOperatorType;
+{$ENDIF}
+initialization
+  {$IFDEF Debug}
+    Max := 0;
+    for OperatorType := Low(TOperatorType) to High(TOperatorType) do
+      if (OperatorPrecedenceByOperatorType[OperatorType] > Max) then
+        Max := OperatorPrecedenceByOperatorType[OperatorType];
+    Assert(Max = MaxOperatorPrecedence);
+  {$ENDIF}
 end.
