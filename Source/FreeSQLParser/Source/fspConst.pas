@@ -17,9 +17,9 @@ const
   PE_IncompleteToken = 4; // Uncompleted Token
 
   // Bugs while parsing Stmts:
-  PE_UnexpectedToken = 5; // Token unexpected or not understood
-  PE_UnkownStmt = 6; // First Token is not a known keyword
-  PE_IncompleteStmt = 7; // Uncompleted Token
+  PE_IncompleteStmt = 5; // Uncompleted Token
+  PE_UnexpectedToken = 6; // Token unexpected or not understood
+  PE_UnkownStmt = 7; // First Token is not a known keyword
   PE_InvalidEndLabel = 8; // Begin and End Token are different
 
   MySQLFunctions =
@@ -53,7 +53,7 @@ const
     'WEEKDAY,WEEKOFYEAR,YEAR_MONTH,YEARWEEK,';
 
   MySQLKeywords =
-    'BINARY,INTERVAL,' +
+    'BINARY,INTERVAL,LEFT,RIGHT,' +
     'ACTION,AFTER,AGAINST,AGGREGATE,ALGORITHM,ALL,ALTER,ANALYZE,AND,ANY,AS,' +
     'ASC,AT,AUTHORS,AUTO_INCREMENT,AUTOEXTEND_SIZE,AVG_ROW_LENGTH,BACKUP,' +
     'BEFORE,BEGIN,BENCHMARK,BETWEEN,BINLOG,BIT,BOTH,BY,CACHE,CALL,CASCADE,' +
@@ -109,9 +109,12 @@ const
 
   NodeTypeToString: array[TNodeType] of PChar = (
     'ntUnknown',
+    'ntDeleted',
     'ntRoot',
     'ntToken',
     'ntRangeNode',
+    'ntSibling',
+    'ntSiblings',
     'ntValues',
     'ntColumns',
     'ntColumn',
@@ -123,6 +126,11 @@ const
     'ntCaseCond',
     'ntCaseOp',
     'ntSoundsLikeOp',
+    'ntTable',
+    'ntJoin',
+    'ntTables',
+    'ntIndexHint',
+    'ntIndexHints',
     'ntStmt',
     'ntSelectStmt'
   );
@@ -141,6 +149,8 @@ const
     'ttComma',
     'ttOpenBracket',
     'ttCloseBracket',
+    'ttOpenCurlyBracket',
+    'ttCloseCurlyBracket',
     'ttDelimiter',
     'ttInteger',
     'ttNumeric',
@@ -242,8 +252,6 @@ const
 
     'otAssign1',
     'otAssign2',
-    'otLeftJoin',
-    'otRightJoin',
     'otHat',
     'otDoubleDot',
     'otArrow',
@@ -253,16 +261,18 @@ const
   DbIdentifierTypeToString: array[TDbIdentifierType] of PChar = (
     'ditUnknown',
     'ditTable',
+    'ditKey',
     'ditField',
+    'ditAllFields',
     'ditFunction',
     'ditProcedure',
     'ditTrigger',
     'ditView',
-    'ditIndex',
     'ditDatabase',
     'ditParameter',
     'ditLocalVariable',
-    'ditEvent'
+    'ditEvent',
+    'ditPartition'
   );
 
   OperatorPrecedenceByOperatorType: array[TOperatorType] of Integer = (
@@ -331,8 +341,6 @@ const
 
     0,  // otAssignment
     0,  // otAssign
-    0,  // otLeftJoin
-    0,  // otRightJoin
     0,  // otHat
     0,  // otDoubleDot
     0,  // otArrow

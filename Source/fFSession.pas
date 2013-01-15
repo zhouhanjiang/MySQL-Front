@@ -1268,7 +1268,7 @@ begin
     XML.AddChild('datetime').Text := FloatToStr(DataHandle.Connection.ServerDateTime, FileFormatSettings);
     if (not Data and (DataHandle.Connection.RowsAffected >= 0)) then
       XML.AddChild('rows_affected').Text := IntToStr(DataHandle.Connection.RowsAffected);
-    XML.AddChild('sql').Text := DataHandle.Connection.CommandText;
+    XML.AddChild('sql').Text := XMLEscape(DataHandle.Connection.CommandText);
     if (DataHandle.Connection.Info <> '') then
       XML.AddChild('info').Text := DataHandle.Connection.Info;
     XML.AddChild('execution_time').Text := FloatToStr(DataHandle.Connection.ExecutionTime, FileFormatSettings);
@@ -1570,9 +1570,9 @@ begin
   DBGrid.Columns.BeginUpdate();
   for I := 0 to DBGrid.Columns.Count - 1 do
   begin
-    // Debug 27.12.2012
+    // Debug 15.01.2013
     if (not Assigned(DBGrid.Columns[I].Field)) then
-      raise ERangeError.Create(SRangeError);
+      raise ERangeError.CreateFmt(SRangeError + ' - Query: %s', [TMySQLQuery(DBGrid.DataSource.DataSet).CommandText]);
     if (GetFieldInfo(DBGrid.Columns[I].Field.Origin, FieldInfo)) then
     begin
       Child := XMLNode(GridXML[FieldInfo.OriginalFieldName], 'width');
@@ -13994,9 +13994,7 @@ begin
           end;
       end;
     vBrowser:
-      if (not (TObject(FNavigator.Selected.Data) is TSTable)) then
-        raise Exception.CreateFmt('Error Message: Wrong Class Type: %s', [TObject(FNavigator.Selected.Data).ClassName]) // Debug 27.12.2012
-      else if (not TSTable(FNavigator.Selected.Data).ValidData) then
+      if ((TObject(FNavigator.Selected.Data) is TSTable) and not TSTable(FNavigator.Selected.Data).ValidData) then
         TableOpen(nil);
     vDiagram:
       if (not Assigned(ActiveWorkbench)) then

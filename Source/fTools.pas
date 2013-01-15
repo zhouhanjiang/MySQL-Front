@@ -492,7 +492,6 @@ type
 
   TTExportXML = class(TTExportUML)
   private
-    function Escape(const Str: string): string; virtual;
   protected
     procedure ExecuteDatabaseFooter(const Database: TSDatabase); override;
     procedure ExecuteDatabaseHeader(const Database: TSDatabase); override;
@@ -736,6 +735,7 @@ type
   EODBCError = EDatabaseError;
 
 function ODBCException(const Stmt: SQLHSTMT; const ReturnCode: SQLRETURN; const AState: PString = nil): SQLRETURN;
+function XMLEscape(const Str: string): string;
 
 const
   CP_UNICODE = 1200;
@@ -5420,16 +5420,7 @@ end;
 
 { TTExportXML *****************************************************************}
 
-constructor TTExportXML.Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
-begin
-  inherited;
-
-  DatabaseNodeText := '';
-  RootNodeText := '';
-  TableNodeText := '';
-end;
-
-function TTExportXML.Escape(const Str: string): string;
+function XMLEscape(const Str: string): string;
 label
   StartL,
   StringL, String2,
@@ -5566,22 +5557,31 @@ begin
   end;
 end;
 
+constructor TTExportXML.Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
+begin
+  inherited;
+
+  DatabaseNodeText := '';
+  RootNodeText := '';
+  TableNodeText := '';
+end;
+
 procedure TTExportXML.ExecuteDatabaseFooter(const Database: TSDatabase);
 begin
   if (Assigned(Database)) then
     if (DatabaseNodeAttribute <> '') then
       WriteContent('</' + DatabaseNodeText + '>' + #13#10)
     else if (DatabaseNodeText <> '') then
-      WriteContent('</' + SysUtils.LowerCase(Escape(Database.Name)) + '>' + #13#10);
+      WriteContent('</' + SysUtils.LowerCase(XMLEscape(Database.Name)) + '>' + #13#10);
 end;
 
 procedure TTExportXML.ExecuteDatabaseHeader(const Database: TSDatabase);
 begin
   if (Assigned(Database)) then
     if (DatabaseNodeAttribute <> '') then
-      WriteContent('<' + DatabaseNodeText + ' ' + DatabaseNodeAttribute + '="' + Escape(Database.Name) + '">' + #13#10)
+      WriteContent('<' + DatabaseNodeText + ' ' + DatabaseNodeAttribute + '="' + XMLEscape(Database.Name) + '">' + #13#10)
     else if (DatabaseNodeText <> '') then
-      WriteContent('<' + SysUtils.LowerCase(Escape(Database.Name)) + '>' + #13#10);
+      WriteContent('<' + SysUtils.LowerCase(XMLEscape(Database.Name)) + '>' + #13#10);
 end;
 
 procedure TTExportXML.ExecuteFooter();
@@ -5606,16 +5606,16 @@ begin
     if (TableNodeAttribute <> '') then
       WriteContent('</' + TableNodeText + '>' + #13#10)
     else if (TableNodeText <> '') then
-      WriteContent('</' + SysUtils.LowerCase(Escape(Table.Name)) + '>' + #13#10);
+      WriteContent('</' + SysUtils.LowerCase(XMLEscape(Table.Name)) + '>' + #13#10);
 end;
 
 procedure TTExportXML.ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 begin
   if (Assigned(Table)) then
     if (TableNodeAttribute <> '') then
-      WriteContent('<' + TableNodeText + ' ' + TableNodeAttribute + '="' + Escape(Table.Name) + '">' + #13#10)
+      WriteContent('<' + TableNodeText + ' ' + TableNodeAttribute + '="' + XMLEscape(Table.Name) + '">' + #13#10)
     else if (TableNodeText <> '') then
-      WriteContent('<' + SysUtils.LowerCase(Escape(Table.Name)) + '>' + #13#10);
+      WriteContent('<' + SysUtils.LowerCase(XMLEscape(Table.Name)) + '>' + #13#10);
 end;
 
 procedure TTExportXML.ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
@@ -5629,28 +5629,28 @@ begin
   begin
     if (FieldNodeAttribute = '') then
       if (Length(DestinationFields) > 0) then
-        Content := Content + #9#9 + '<' + SysUtils.LowerCase(Escape(DestinationFields[I].Name)) + ''
+        Content := Content + #9#9 + '<' + SysUtils.LowerCase(XMLEscape(DestinationFields[I].Name)) + ''
       else
-        Content := Content + #9#9 + '<' + SysUtils.LowerCase(Escape(Fields[I].DisplayName)) + ''
+        Content := Content + #9#9 + '<' + SysUtils.LowerCase(XMLEscape(Fields[I].DisplayName)) + ''
     else
       if (Length(DestinationFields) > 0) then
-        Content := Content + #9#9 + '<' + FieldNodeText + ' ' + FieldNodeAttribute + '="' + Escape(DestinationFields[I].Name) + '"'
+        Content := Content + #9#9 + '<' + FieldNodeText + ' ' + FieldNodeAttribute + '="' + XMLEscape(DestinationFields[I].Name) + '"'
       else
-        Content := Content + #9#9 + '<' + FieldNodeText + ' ' + FieldNodeAttribute + '="' + Escape(Fields[I].DisplayName) + '"';
+        Content := Content + #9#9 + '<' + FieldNodeText + ' ' + FieldNodeAttribute + '="' + XMLEscape(Fields[I].DisplayName) + '"';
     if (Fields[I].IsNull) then
       Content := Content + ' xsi:nil="true" />' + #13#10
     else
     begin
       if (Fields[I].DataType in TextDataTypes + BinaryDataTypes) then
-        Content := Content + '>' + Escape(DataSet.GetAsString(Fields[I]))
+        Content := Content + '>' + XMLEscape(DataSet.GetAsString(Fields[I]))
       else
         Content := Content + '>' + DataSet.GetAsString(Fields[I]);
 
       if (FieldNodeAttribute = '') then
         if (Length(DestinationFields) > 0) then
-          Content := Content + '</' + SysUtils.LowerCase(Escape(DestinationFields[I].Name)) + '>' + #13#10
+          Content := Content + '</' + SysUtils.LowerCase(XMLEscape(DestinationFields[I].Name)) + '>' + #13#10
         else
-          Content := Content + '</' + SysUtils.LowerCase(Escape(Fields[I].DisplayName)) + '>' + #13#10
+          Content := Content + '</' + SysUtils.LowerCase(XMLEscape(Fields[I].DisplayName)) + '>' + #13#10
       else
         Content := Content + '</' + FieldNodeText + '>' + #13#10;
     end;

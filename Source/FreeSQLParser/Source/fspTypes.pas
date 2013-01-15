@@ -7,9 +7,12 @@ type
 
   TNodeType = (
     ntUnknown,
+    ntDeleted,
     ntRoot,
     ntToken,
     ntRangeNode,
+    ntSibling,
+    ntSiblings,
     ntValues,
     ntColumns,
     ntColumn,
@@ -21,6 +24,11 @@ type
     ntCaseCond,
     ntCaseOp,
     ntSoundsLikeOp,
+    ntTable,
+    ntJoin,
+    ntTables,
+    ntIndexHint,
+    ntIndexHints,
     ntStmt,
     ntSelectStmt
   );
@@ -56,6 +64,8 @@ type
     ttComma,                  // ","
     ttOpenBracket,            // "("
     ttCloseBracket,           // ")"
+    ttOpenCurlyBracket,       // "{"
+    ttCloseCurlyBracket,      // "}"
     ttDelimiter,              // ";"
     ttInteger,                // Tnteger constant, like 123456
     ttNumeric,                // Numeric (float) constant, like -123.456E15
@@ -141,8 +151,6 @@ type
 
     otAssign1,                // "="
     otAssign2,                // ":="
-    otLeftJoin,               // "*="
-    otRightJoin,              // "=*"
     otHat,                    // "^"
     otDoubleDot,              // ".."
     otArrow,                  // "->"
@@ -152,17 +160,40 @@ type
   TDbIdentifierType = (
     ditUnknown,
     ditTable,
+    ditIndex,
     ditField,
+    ditAllFields,
     ditFunction,
     ditProcedure,
     ditTrigger,
     ditView,
-    ditIndex,
     ditDatabase,
     ditParameter,
     ditLocalVariable,
-    ditEvent
+    ditEvent,
+    ditPartition
   );
+
+  TJoinType = (
+    jtUnknown,
+    jtInner,
+    jtCross,
+    jtEqui,
+    jtLeft,
+    jtRight,
+    jtNaturalLeft,
+    jtNaturalRight
+  );
+
+  TSubAreaType = (
+    satSelectStmt,
+    satValues,
+    satPartitionIdentifiers,
+    satIndexIdentifiers,
+    satTableReferences,
+    satColumnIdentifiers
+  );
+  TSubAreaTypes = set of TSubAreaType;
 
   TFileType = (ftSQL, ftDebugHTML);
 
