@@ -184,6 +184,8 @@ var
   Rect: TRect;
   StringList: TStringList;
 begin
+  if (FMouseMoveCell.Y = 0) then
+    Write;
   if ((0 <= FMouseMoveCell.X) and (FMouseMoveCell.X < FieldCount) and not (Columns[FMouseMoveCell.X].Field.DataType in BinaryDataTypes) and not EditorMode) then
   begin
     if (not Assigned(FHintWindow)) then
@@ -831,14 +833,14 @@ begin
 
   Cell := MouseCoord(X, Y);
   if (not ShowHint and not ParentShowHint or (Hint = '')) then
-    if (((FMouseMoveCell.X >= 0) or (FMouseMoveCell.Y >= 1)) and ((Cell.X <> FMouseMoveCell.X) or (Cell.Y <> FMouseMoveCell.Y))) then
+    if (((FMouseMoveCell.X >= 0) or (FMouseMoveCell.Y >= 0)) and ((Cell.X <> FMouseMoveCell.X) or (Cell.Y <> FMouseMoveCell.Y))) then
     begin
       FMouseMoveCell.X := -1; FMouseMoveCell.Y := -1;
       ReleaseCapture();
       if (Assigned(FHintWindow)) then
         FreeAndNil(FHintWindow);
     end
-    else if ((Cell.X >= 0) and (Cell.Y >= 1) and ((Cell.X <> FMouseMoveCell.X) or (Cell.Y <> FMouseMoveCell.Y))) then
+    else if ((Cell.X >= 0) and (Cell.Y >= 0) and ((Cell.X <> FMouseMoveCell.X) or (Cell.Y <> FMouseMoveCell.Y))) then
     begin
       FMouseMoveCell := Cell;
       SetCapture(Handle);

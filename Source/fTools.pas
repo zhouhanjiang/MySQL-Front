@@ -8224,13 +8224,16 @@ begin
             Success := daAbort;
         until ((Success <> daSuccess) or not DataSet.FindNext());
 
-        if (Buffer.Size > 0) then
+        if (Assigned(Buffer)) then
         begin
-          SQL := Buffer.Read();
-          DoExecuteSQL(TTReplace(Self).ReplaceConnection, Item, SQL);
-        end;
+          if (Buffer.Size > 0) then
+          begin
+            SQL := Buffer.Read();
+            DoExecuteSQL(TTReplace(Self).ReplaceConnection, Item, SQL);
+          end;
 
-        Buffer.Free();
+          Buffer.Free();
+        end;
 
         if (Self is TTReplace) then
         begin
