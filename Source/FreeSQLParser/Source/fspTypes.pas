@@ -29,6 +29,8 @@ type
     ntTables,
     ntIndexHint,
     ntIndexHints,
+    ntGroupIdentifier,
+    ntGroupIdentifiers,
     ntStmt,
     ntSelectStmt
   );

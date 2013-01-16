@@ -518,14 +518,20 @@ type
 
       private
         FColumns: ONode;
+        FDistinct: ONode;
         FTables: ONode;
-        class function Create(const AParser: TCustomSQLParser; const AColumns, ATables: ONode): ONode; static;
+        FWhere: ONode;
+        class function Create(const AParser: TCustomSQLParser; const ADistinct, AColumns, ATables, AWhere: ONode): ONode; static;
         function GetColumns(): PColumns; {$IFNDEF Debug} inline; {$ENDIF}
+        function GetDistinct(): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
         function GetTables(): PTables; {$IFNDEF Debug} inline; {$ENDIF}
+        function GetWhere(): PStmtNode; {$IFNDEF Debug} inline; {$ENDIF}
       public
         property Columns: PColumns read GetColumns;
+        property Distinct: Boolean read GetDistinct;
         property Parser: TCustomSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
         property Tables: PTables read GetTables;
+        property Where: PStmtNode read GetWhere;
       end;
 
 //      TCompoundStmt = packed record
@@ -572,6 +578,7 @@ type
     procedure SetKeywords(AKeywords: string);
 
   protected
+    kiALL,
     kiAND,
     kiAS,
     kiBINARY,
@@ -581,6 +588,8 @@ type
     kiCASE,
     kiCOLLATE,
     kiCROSS,
+    kiDISTINCT,
+    kiDISTINCTROW,
     kiDIV,
     kiDO,
     kiELSE,
@@ -589,6 +598,7 @@ type
     kiFOR,
     kiFORCE,
     kiGROUP,
+    kiHIGH_PRIORITY,
     kiIGNORE,
     kiIN,
     kiINDEX,
@@ -616,12 +626,19 @@ type
     kiRLIKE,
     kiSELECT,
     kiSOUNDS,
+    kiSQL_BIG_RESULT,
+    kiSQL_BUFFER_RESULT,
+    kiSQL_CACHE,
+    kiSQL_CALC_FOUND_ROWS,
+    kiSQL_NO_CACHE,
+    kiSQL_SMALL_RESULT,
     kiSTRAIGHT_JOIN,
     kiTHEN,
     kiUNTIL,
     kiUSE,
     kiUSING,
     kiWHEN,
+    kiWHERE,
     kiWHILE,
     kiXOR: Integer;
 
@@ -1746,18 +1763,27 @@ end;
 
 { TCustomSQLParser.TSelectStmt ************************************************}
 
-class function TCustomSQLParser.TSelectStmt.Create(const AParser: TCustomSQLParser; const AColumns, ATables: ONode): ONode;
+class function TCustomSQLParser.TSelectStmt.Create(const AParser: TCustomSQLParser; const ADistinct, AColumns, ATables, AWhere: ONode): ONode;
 begin
   Result := TStmt.Create(AParser, stSelect);
 
   with PSelectStmt(AParser.NodePtr(Result))^ do
   begin
+    FDistinct := ADistinct;
     FColumns := AColumns;
     FTables := ATables;
+    FWhere := AWhere;
 
+    Heritage.Heritage.AddChild(ADistinct);
     Heritage.Heritage.AddChild(AColumns);
     Heritage.Heritage.AddChild(ATables);
+    Heritage.Heritage.AddChild(AWhere);
   end;
+end;
+
+function TCustomSQLParser.TSelectStmt.GetDistinct(): Boolean;
+begin
+  Result := (FDistinct <> 0) and ((Parser.TokenPtr(FDistinct)^.KeywordIndex = Parser.kiDISTINCT) or (Parser.TokenPtr(FDistinct)^.KeywordIndex = Parser.kiDISTINCTROW));
 end;
 
 function TCustomSQLParser.TSelectStmt.GetColumns(): PColumns;
@@ -1772,6 +1798,11 @@ begin
   Assert(Parser.NodePtr(FTables)^.NodeType = ntTables);
 
   Result := PTables(Parser.NodePtr(FTables));
+end;
+
+function TCustomSQLParser.TSelectStmt.GetWhere(): PStmtNode; {$IFNDEF Debug} inline; {$ENDIF}
+begin
+  Result := Parser.StmtNodePtr(FWhere);
 end;
 
 { TCustomSQLParser ************************************************************}
@@ -2686,25 +2717,82 @@ begin
 end;
 
 function TCustomSQLParser.ParseSelectStmt(): ONode;
+
+  function ParseGroupBy(): ONode;
+  begin
+
+  end;
+
 var
   Columns: ONode;
+  Distinct: ONode;
+  Found: Boolean;
+  GroupBy: ONode;
   Tables: ONode;
+  Where: ONode;
 begin
   Assert(TokenPtr(CurrentToken)^.KeywordIndex = kiSELECT); ApplyCurrentToken();
+
+  Distinct := 0;
+  repeat
+    Found := True;
+    if (CurrentToken = 0) then
+      SetError(PE_IncompleteStmt)
+    else if ((TokenPtr(CurrentToken)^.KeywordIndex = kiAll) or (TokenPtr(CurrentToken)^.KeywordIndex = kiDISTINCT) or (TokenPtr(CurrentToken)^.KeywordIndex = kiDISTINCTROW)) then
+    begin
+      Distinct := CurrentToken;
+      ApplyCurrentToken();
+    end
+    else if (TokenPtr(CurrentToken)^.KeywordIndex = kiHIGH_PRIORITY) then
+      ApplyCurrentToken()
+    else if (TokenPtr(CurrentToken)^.KeywordIndex = kiSTRAIGHT_JOIN) then
+      ApplyCurrentToken()
+    else if (TokenPtr(CurrentToken)^.KeywordIndex = kiSQL_SMALL_RESULT) then
+      ApplyCurrentToken()
+    else if (TokenPtr(CurrentToken)^.KeywordIndex = kiSQL_BIG_RESULT) then
+      ApplyCurrentToken()
+    else if (TokenPtr(CurrentToken)^.KeywordIndex = kiSQL_BUFFER_RESULT) then
+      ApplyCurrentToken()
+    else if ((TokenPtr(CurrentToken)^.KeywordIndex = kiSQL_CACHE) or (TokenPtr(CurrentToken)^.KeywordIndex = kiSQL_NO_CACHE)) then
+      ApplyCurrentToken()
+    else if (TokenPtr(CurrentToken)^.KeywordIndex = kiSQL_CALC_FOUND_ROWS) then
+      ApplyCurrentToken()
+    else
+      Found := False;
+  until not Found;
 
   Columns := ParseSiblings(ntColumns, ParseColumn);
 
   Tables := 0;
-  if ((CurrentToken > 0) and (TokenPtr(CurrentToken)^.TokenType <> ttDelimiter)) then
+  if (not Error and (CurrentToken > 0)) then
     if (TokenPtr(CurrentToken)^.KeywordIndex <> kiFROM) then
       SetError(PE_UnexpectedToken, CurrentToken)
     else
     begin
-      ApplyCurrentToken(); // FROM
+      ApplyCurrentToken();
       Tables := ParseSiblings(ntTables, ParseTableReference);
     end;
 
-  Result := TSelectStmt.Create(Self, Columns, Tables);
+  Where := 0;
+  if (not Error and (CurrentToken > 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiWHERE)) then
+  begin
+    ApplyCurrentToken();
+    Where := ParseExpression();
+  end;
+
+  GroupBy := 0;
+  if (not Error and (CurrentToken > 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiGROUP)) then
+  begin
+    ApplyCurrentToken();
+    if (CurrentToken = 0) then
+      SetError(PE_IncompleteToken)
+    else if (TokenPtr(CurrentToken)^.KeywordIndex <> kiBY) then
+      SetError(PE_UnexpectedToken, CurrentToken)
+    else
+      GroupBy := ParseGroupBy();
+  end;
+
+  Result := TSelectStmt.Create(Self, Distinct, Columns, Tables, Where);
 end;
 
 function TCustomSQLParser.ParseSiblings(const ANodeType: TNodeType; const ParseSibling: TParseFunction; const Empty: Boolean = False): ONode;
@@ -4234,58 +4322,69 @@ begin
 
   if (AKeywords <> '') then
   begin
-    kiAND            := IndexOf('AND');
-    kiAS             := IndexOf('AS');
-    kiBEGIN          := IndexOf('BEGIN');
-    kiBETWEEN        := IndexOf('BETWEEN');
-    kiBINARY         := IndexOf('BINARY');
-    kiBY             := IndexOf('BY');
-    kiCASE           := IndexOf('CASE');
-    kiCOLLATE        := IndexOf('COLLATE');
-    kiCROSS          := IndexOf('CROSS');
-    kiDIV            := IndexOf('DIV');
-    kiDO             := IndexOf('DO');
-    kiELSE           := IndexOf('ELSE');
-    kiEND            := IndexOf('END');
-    kiFORCE          := IndexOf('FORCE');
-    kiFROM           := IndexOf('FROM');
-    kiFOR            := IndexOf('FOR');
-    kiGROUP          := IndexOf('GROUP');
-    kiIGNORE         := IndexOf('IGNORE');
-    kiIN             := IndexOf('IN');
-    kiINDEX          := IndexOf('INDEX');
-    kiINNER          := IndexOf('INNER');
-    kiINTERVAL       := IndexOf('INTERVAL');
-    kiIS             := IndexOf('IS');
-    kiJOIN           := IndexOf('JOIN');
-    kiKEY            := IndexOf('KEY');
-    kiLIKE           := IndexOf('LIKE');
-    kiLOOP           := IndexOf('LOOP');
-    kiLEFT           := IndexOf('LEFT');
-    kiMOD            := IndexOf('MOD');
-    kiNATURAL        := IndexOf('NATURAL');
-    kiNOT            := IndexOf('NOT');
-    kiNULL           := IndexOf('NULL');
-    kiOJ             := IndexOf('OJ');
-    kiON             := IndexOf('ON');
-    kiOR             := IndexOf('OR');
-    kiORDER          := IndexOf('ORDER');
-    kiOUTER          := IndexOf('OUTER');
-    kiPARTITION      := IndexOf('PARTITION');
-    kiREGEXP         := IndexOf('REGEXP');
-    kiREPEAT         := IndexOf('REPEAT');
-    kiRIGHT          := IndexOf('RIGHT');
-    kiRLIKE          := IndexOf('RLIKE');
-    kiSELECT         := IndexOf('SELECT');
-    kiSOUNDS         := IndexOf('SOUNDS');
-    kiSTRAIGHT_JOIN  := IndexOf('STRAIGHT_JOIN');
-    kiWHEN           := IndexOf('WHEN');
-    kiTHEN           := IndexOf('THEN');
-    kiUNTIL          := IndexOf('UNTIL');
-    kiUSE            := IndexOf('USE');
-    kiUSING          := IndexOf('USING');
-    kiWHILE          := IndexOf('WHILE');
-    kiXOR            := IndexOf('XOR');
+    kiALL                 := IndexOf('ALL');
+    kiAND                 := IndexOf('AND');
+    kiAS                  := IndexOf('AS');
+    kiBEGIN               := IndexOf('BEGIN');
+    kiBETWEEN             := IndexOf('BETWEEN');
+    kiBINARY              := IndexOf('BINARY');
+    kiBY                  := IndexOf('BY');
+    kiCASE                := IndexOf('CASE');
+    kiCOLLATE             := IndexOf('COLLATE');
+    kiCROSS               := IndexOf('CROSS');
+    kiDISTINCT            := IndexOf('DISTINCT');
+    kiDISTINCTROW         := IndexOf('DISTINCTROW');
+    kiDIV                 := IndexOf('DIV');
+    kiDO                  := IndexOf('DO');
+    kiELSE                := IndexOf('ELSE');
+    kiEND                 := IndexOf('END');
+    kiFORCE               := IndexOf('FORCE');
+    kiFROM                := IndexOf('FROM');
+    kiFOR                 := IndexOf('FOR');
+    kiGROUP               := IndexOf('GROUP');
+    kiHIGH_PRIORITY       := IndexOf('HIGH_PRIORITY');
+    kiIGNORE              := IndexOf('IGNORE');
+    kiIN                  := IndexOf('IN');
+    kiINDEX               := IndexOf('INDEX');
+    kiINNER               := IndexOf('INNER');
+    kiINTERVAL            := IndexOf('INTERVAL');
+    kiIS                  := IndexOf('IS');
+    kiJOIN                := IndexOf('JOIN');
+    kiKEY                 := IndexOf('KEY');
+    kiLIKE                := IndexOf('LIKE');
+    kiLOOP                := IndexOf('LOOP');
+    kiLEFT                := IndexOf('LEFT');
+    kiMOD                 := IndexOf('MOD');
+    kiNATURAL             := IndexOf('NATURAL');
+    kiNOT                 := IndexOf('NOT');
+    kiNULL                := IndexOf('NULL');
+    kiOJ                  := IndexOf('OJ');
+    kiON                  := IndexOf('ON');
+    kiOR                  := IndexOf('OR');
+    kiORDER               := IndexOf('ORDER');
+    kiOUTER               := IndexOf('OUTER');
+    kiPARTITION           := IndexOf('PARTITION');
+    kiREGEXP              := IndexOf('REGEXP');
+    kiREPEAT              := IndexOf('REPEAT');
+    kiRIGHT               := IndexOf('RIGHT');
+    kiRLIKE               := IndexOf('RLIKE');
+    kiSELECT              := IndexOf('SELECT');
+    kiSOUNDS              := IndexOf('SOUNDS');
+    kiSQL_BIG_RESULT      := IndexOf('SQL_BIG_RESULT');
+    kiSQL_BUFFER_RESULT   := IndexOf('SQL_BUFFER_RESULT');
+    kiSQL_CACHE           := IndexOf('SQL_CACHE');
+    kiSQL_CALC_FOUND_ROWS := IndexOf('SQL_CALC_FOUND_ROWS');
+    kiSQL_NO_CACHE        := IndexOf('SQL_NO_CACHE');
+    kiSQL_SMALL_RESULT    := IndexOf('SQL_SMALL_RESULT');
+    kiSTRAIGHT_JOIN       := IndexOf('STRAIGHT_JOIN');
+    kiWHEN                := IndexOf('WHEN');
+    kiWHERE               := IndexOf('WHERE');
+    kiTHEN                := IndexOf('THEN');
+    kiUNTIL               := IndexOf('UNTIL');
+    kiUSE                 := IndexOf('USE');
+    kiUSING               := IndexOf('USING');
+    kiWHILE               := IndexOf('WHILE');
+    kiXOR                 := IndexOf('XOR');
 
     SetLength(OperatorTypeByKeywordIndex, FKeywords.Count);
     for Index := 0 to FKeywords.Count - 1 do

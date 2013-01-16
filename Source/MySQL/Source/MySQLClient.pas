@@ -57,7 +57,7 @@ type
     );
   private
     CompPacketNr: Byte;
-    FCompress: Boolean;
+    FUseCompression: Boolean;
     FReadFileBuffer: TFileBuffer;
     PacketBuffer: TFileBuffer;
     PacketNr: Byte;
@@ -81,7 +81,7 @@ type
     function WriteFile(const Buffer: my_char; const Size: my_uint): Boolean; overload; virtual;
     function WriteFile(const Value: my_ulonglong; const Size: my_uint): Boolean; overload; virtual;
     function WriteFile(const Value: RawByteString; const NTS: Boolean = True): Boolean; overload; virtual;
-    property Compress: Boolean read FCompress write FCompress;
+    property UseCompression: Boolean read FUseCompression;
     property ReadFileBuffer: TFileBuffer read FReadFileBuffer;
   public
     constructor Create(); override;
@@ -1184,7 +1184,7 @@ begin
     FError := '';
 
   {$IFDEF EurekaLog}
-    if ((AErrNo = CR_UNKNOWN_ERROR) or (AErrNo = CR_OUT_OF_MEMORY)) then
+    if ((AErrNo = CR_UNKNOWN_ERROR) or (AErrNo = CR_OUT_OF_MEMORY) or (AErrNo = CR_SERVER_HANDSHAKE_ERR)) then
       raise Exception.Create(DecodeString(error()));
   {$ENDIF}
 end;
@@ -1231,7 +1231,7 @@ begin
   begin
     ReallocBuffer(PacketBuffer, NET_BUFFER_LENGTH);
 
-    FCompress := False;
+    FUseCompression := False;
 
     PacketNr := 0;
     CompPacketNr := 0;
@@ -1253,7 +1253,7 @@ begin
     SetFilePointer(1, PACKET_CURRENT);
     Dec(PacketBuffer.Size, NET_HEADER_SIZE);
 
-    if (not Compress) then
+    if (not UseCompression) then
       Result := Send(PacketBuffer.Mem[0], PacketBuffer.Size)
     else
     begin
@@ -1348,7 +1348,7 @@ function TMySQL_File.next_result(): my_int;
 begin
   Direction := idRead;
 
-  if (Compress) then
+  if (UseCompression) then
     PacketNr := CompPacketNr;
 
   Result := 0;
@@ -1618,7 +1618,7 @@ function TMySQL_File.ReceivePacket(): Boolean;
 
   function Receive(const BytesToRead: my_uint): Boolean;
   begin
-    if (not Compress) then
+    if (not UseCompression) then
       Result := ReceivePacketBuffer(BytesToRead)
     else
       Result := ReceiveCompressed(BytesToRead);
@@ -1653,7 +1653,7 @@ begin
         Move(PacketBuffer.Mem[Offset + 0], Size, 3);
         Move(PacketBuffer.Mem[Offset + 3], Nr, 1);
 
-        if (not Compress and (Nr <> PacketNr)) then
+        if (not UseCompression and (Nr <> PacketNr)) then
           Seterror(CR_SERVER_HANDSHAKE_ERR)
         else if (Size > MAX_PACKET_LENGTH) then
           Seterror(CR_NET_PACKET_TOO_LARGE)
@@ -2381,7 +2381,6 @@ begin
       ReadFile(fthread_id, 4);
       ReadFile(Salt);
       ReadFile(fserver_capabilities, 2);
-fserver_capabilities := fserver_capabilities and not CLIENT_COMPRESS;
       ReadFile(CharsetNr, 1);
       ReadFile(fserver_status, 2);
 
@@ -2495,7 +2494,7 @@ fserver_capabilities := fserver_capabilities and not CLIENT_COMPRESS;
                   fwarning_count := 0;
                 end;
 
-                Compress := fclient_capabilities and CLIENT_COMPRESS <> 0;
+                FUseCompression := fclient_capabilities and CLIENT_COMPRESS <> 0;
               end;
           end;
         end;

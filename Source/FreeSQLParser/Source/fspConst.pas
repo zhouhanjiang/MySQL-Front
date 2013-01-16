@@ -131,6 +131,8 @@ const
     'ntTables',
     'ntIndexHint',
     'ntIndexHints',
+    'ntGroupIdentifier',
+    'ntGroupIdentifiers',
     'ntStmt',
     'ntSelectStmt'
   );
