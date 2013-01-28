@@ -514,13 +514,16 @@ end;
 
 function TMySQLDBGrid.EditDeleteExecute(): Boolean;
 begin
-  DataLink.DataSet.Edit();
-  if (EditorMode and Assigned(InplaceEditor)) then
-    InplaceEditor.SelText := ''
-  else
-    SelectedField.Clear();
+  Result := Assigned(DataLink.DataSet);
 
-  Result := True;
+  if (Result) then
+  begin
+    DataLink.DataSet.Edit();
+    if (EditorMode and Assigned(InplaceEditor)) then
+      InplaceEditor.SelText := ''
+    else
+      SelectedField.Clear();
+  end;
 end;
 
 function TMySQLDBGrid.ExecuteAction(Action: TBasicAction): Boolean;

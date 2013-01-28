@@ -1561,6 +1561,10 @@ var
   I: Integer;
   Width: Integer;
 begin
+  // Debug 25.01.2013
+  if (Assigned(Table) and (DataSet <> Table.DataSet)) then
+    raise ERangeError.Create(SRangeError);
+
   DBGrid.DataSource.DataSet := DataSet;
 
   FSession.DataSetAfterOpen(DataSet);
@@ -5868,15 +5872,25 @@ end;
 procedure TFSession.DataSetAfterScroll(DataSet: TDataSet);
 var
   InputDataSet: Boolean;
+  DBGrid: TMySQLDBGrid;
 begin
   if (not DataSet.ControlsDisabled) then
   begin
-    InputDataSet := (DataSet is TMySQLDataSet) and (TMySQLDataSet(DataSet).CachedUpdates);
+    InputDataSet := (DataSet is TMySQLDataSet) and TMySQLDataSet(DataSet).CachedUpdates;
 
     if (((Window.ActiveControl = ActiveDBGrid) or (Window.ActiveControl = FText) or (Window.ActiveControl = FRTF) or (Window.ActiveControl = FHexEditor)) and (TMySQLQuery(DataSet).FieldCount > 0)) then
-      DBGridColEnter(ActiveDBGrid)
+      DBGrid := ActiveDBGrid
     else if (FObjectIDEGrid.DataSource.DataSet = DataSet) then
+      DBGrid := FObjectIDEGrid
+    else
+      DBGrid := nil;
+
+    if (Assigned(DBGrid)) then
+    begin
+      if (not Assigned(DBGrid.SelectedField)) then
+        DBGrid.SelectedField := DBGrid.Fields[0];
       DBGridColEnter(FObjectIDEGrid);
+    end;
 
     aDPrev.Enabled := not DataSet.Bof and not InputDataSet;
     aDNext.Enabled := not DataSet.Eof and not InputDataSet;
@@ -9367,6 +9381,9 @@ begin
       FFilterEnabled.Enabled := True;
       FFilterEnabled.Down := True;
       FFilterEnabledClick(Sender);
+      if (not (TObject(FNavigator.Selected.Data) is TSTable)) then
+        raise ERangeError.Create(SRangeError);
+      Desktop(TSTable(FNavigator.Selected.Data)).AddFilter(Format(Filters[FilterIndex].Text, [Session.EscapeIdentifier(ActiveDBGrid.SelectedField.FieldName), Value]));
     end
     else
     begin
@@ -10130,7 +10147,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         Item.SubItems.Add('')
       else
         Item.SubItems.Add(SizeToStr(TSDatabase(Data).Size));
-      if (TSDatabase(Data).Created = 0) then
+      if (TSDatabase(Data).Created <= 0) then
         Item.SubItems.Add('')
       else
         Item.SubItems.Add(SysUtils.DateToStr(TSDatabase(Data).Created, LocaleFormatSettings));

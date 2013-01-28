@@ -114,8 +114,9 @@ const
     'ntToken',
     'ntRangeNode',
     'ntSibling',
+    'ntNodeSibling',
     'ntSiblings',
-    'ntValues',
+    'ntExpressions',
     'ntColumns',
     'ntColumn',
     'ntDbIdentifier',
@@ -131,16 +132,23 @@ const
     'ntTables',
     'ntIndexHint',
     'ntIndexHints',
-    'ntGroupIdentifier',
-    'ntGroupIdentifiers',
-    'ntStmt',
-    'ntSelectStmt'
+    'ntGroup',
+    'ntGroups',
+    'ntOrder',
+    'ntOrders',
+    'ntUnknownStmt',
+    'ntCompoundStmt',
+    'ntSelectStmt',
+    'ntStmts'
   );
 
   StmtTypeToString: array[TStmtType] of PChar = (
     'stUnknown',
+    'stCompound',
+    'stLOOP',
+    'stREPEAT',
     'stSELECT',
-    'stCompound'
+    'stWHILE'
   );
 
   TokenTypeToString: array[TTokenType] of PChar = (

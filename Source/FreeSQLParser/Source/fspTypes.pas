@@ -12,8 +12,9 @@ type
     ntToken,
     ntRangeNode,
     ntSibling,
+    ntNodeSibling,
     ntSiblings,
-    ntValues,
+    ntExpressions,
     ntColumns,
     ntColumn,
     ntDbIdentifier,
@@ -29,17 +30,24 @@ type
     ntTables,
     ntIndexHint,
     ntIndexHints,
-    ntGroupIdentifier,
-    ntGroupIdentifiers,
-    ntStmt,
-    ntSelectStmt
+    ntGroup,
+    ntGroups,
+    ntOrder,
+    ntOrders,
+    ntUnknownStmt,
+    ntCompoundStmt,
+    ntSelectStmt,
+    ntStmts
   );
   TNodeTypes = set of TNodeType;
 
   TStmtType = (
     stUnknown,
+    stCompound,
+    stLOOP,
+    stREPEAT,
     stSELECT,
-    stCompound
+    stWHILE
   );
 
   TUsageType = (
@@ -77,13 +85,13 @@ type
     ttEndLabel,               // Lable, like Label_Name:
     ttVariable,               // Variable, like @varname
     ttBindVariable,           // Bind Variable, like :bindvarname
-    ttDQIdentifier,           // Identifier, enclosed in ""
+    ttDQString,           // Identifier, enclosed in ""
     ttDBIdentifier,           // Identifier, enclosed in []
     ttBRIdentifier,           // Identifier, enclosed in {}
     ttMySQLIdentifier,        // Identifier, enclosed in ``
     ttMySQLCodeStart,         // MySQL specific code, like /*!50000 SELECT 1; */
     ttMySQLCodeEnd,
-    ttMySQLCharacterSet,      // MySQL Character Set, like _utf8
+    ttCSString,           // MySQL Character Set, like _utf8
     ttOperator,               // Symbol operator, like +, -, &&, *=
     ttAt,                     // "@"
     ttBackslash,              // "\", DB2 use
@@ -189,7 +197,7 @@ type
 
   TSubAreaType = (
     satSelectStmt,
-    satValues,
+    satExpressions,
     satPartitionIdentifiers,
     satIndexIdentifiers,
     satTableReferences,

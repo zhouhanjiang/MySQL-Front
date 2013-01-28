@@ -3,7 +3,7 @@ unit fSession;
 interface {********************************************************************}
 
 uses
-  SysUtils, Classes, Windows, Contnrs,
+  SysUtils, Classes, Windows,
   Graphics,
   DB,
   acAST, acQBBase, acMYSQLSynProvider, acQBEventMetaProvider,
@@ -605,7 +605,6 @@ type
     FUpdated: TDateTime;
     function GetAutoIncrementField(): TSBaseTableField;
     function GetBaseTableFields(): TSBaseTableFields; inline;
-    function GetEngine(): TSEngine;
     function GetPrimaryKey(): TSKey;
     function GetTriggers(Index: Integer): TSTrigger;
     function GetTriggerCount(): Integer;
@@ -651,7 +650,7 @@ type
     property DefaultCharset: string read FDefaultCharset write SetDefaultCharset;
     property DefaultCodePage: Cardinal read FDefaultCodePage;
     property DelayKeyWrite: Boolean read FDelayKeyWrite write FDelayKeyWrite;
-    property Engine: TSEngine read GetEngine write FEngine;
+    property Engine: TSEngine read FEngine write FEngine;
     property Fields: TSBaseTableFields read GetBaseTableFields;
     property IndexSize: Int64 read FIndexSize;
     property InsertMethod: TInsertMethod read FInsertMethod write FInsertMethod;
@@ -3998,18 +3997,6 @@ begin
   end;
 
   Result := FDependencies;
-end;
-
-function TSBaseTable.GetEngine(): TSEngine;
-begin
-  if (not Assigned(FEngine) and not Session.InUse) then
-  begin
-    Session.BeginSynchron();
-    Update();
-    Session.EndSynchron();
-  end;
-
-  Result := FEngine;
 end;
 
 function TSBaseTable.GetInServerCache(): Boolean;
