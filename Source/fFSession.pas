@@ -5986,9 +5986,6 @@ begin
       FText.OnChange := FTextChange;
     end;
 
-    if (not Assigned(DBGrid.SelectedField)) then // Debug 04.01.2013
-      raise ERangeError.CreateFmt(SRangeError + '(%s)', ['SelectedField']);
-
     DBGrid.UpdateAction(MainAction('aEPaste'));
     MainAction('aECopyToFile').Enabled := (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) and (not DBGrid.SelectedField.IsNull) and (DBGrid.SelectedRows.Count <= 1);
     MainAction('aEPasteFromFile').Enabled := (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) and not DBGrid.SelectedField.ReadOnly and (DBGrid.SelectedRows.Count <= 1);
