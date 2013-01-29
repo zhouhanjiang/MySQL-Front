@@ -2326,10 +2326,7 @@ begin
   if (not Assigned(FTaskService) and Succeeded(CoInitialize(nil))) then
     if (Failed(CoCreateInstance(CLSID_TaskScheduler, nil, CLSCTX_INPROC_SERVER, IID_ITaskService, FTaskService))
       or (Failed(FTaskService.Connect(Null, Null, Null, Null)))) then
-    begin
-      CoUninitialize();
       FTaskService := nil;
-    end;
 
   Result := FTaskService;
 end;
