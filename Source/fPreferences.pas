@@ -2292,8 +2292,7 @@ begin
   if (Assigned(FLanguage)) then
     FLanguage.Free();
 
-  if (Assigned(FTaskService) or Assigned(FTaskService)) then
-    CoUninitialize();
+  CoUninitialize();
 
   inherited;
 end;

@@ -5889,14 +5889,14 @@ begin
     begin
       if (not Assigned(DBGrid.SelectedField)) then
       begin
-        if (DataSet.FieldCount = 0) then
+        if (DataSet.FieldCount = 0) then                  // Debug 28.01.2013
           raise ERangeError.Create(SRangeError + 'FieldCount')
-        else if (not Assigned(DataSet.Fields[0])) then
+        else if (not Assigned(DataSet.Fields[0])) then    // Debug 28.01.2013
           raise ERangeError.Create(SRangeError + 'Fields[0]')
         else
           DBGrid.SelectedField := DBGrid.Fields[0];
       end;
-      DBGridColEnter(FObjectIDEGrid);
+      DBGridColEnter(DBGrid);
     end;
 
     aDPrev.Enabled := not DataSet.Bof and not InputDataSet;
