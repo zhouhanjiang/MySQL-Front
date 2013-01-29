@@ -1355,7 +1355,7 @@ var
 begin
   Node := @Self;
   while (not Parser.IsRangeNode(Node)) do
-    Node := PRangeNode(Node)^.Heritage;
+    Node := PRangeNode(Node)^.LastToken;
 end;
 
 { TCustomSQLParser.TNodeSibling ***************************************************}

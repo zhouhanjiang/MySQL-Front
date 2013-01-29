@@ -5888,7 +5888,14 @@ begin
     if (Assigned(DBGrid)) then
     begin
       if (not Assigned(DBGrid.SelectedField)) then
-        DBGrid.SelectedField := DBGrid.Fields[0];
+      begin
+        if (DataSet.FieldCount = 0) then
+          raise ERangeError.Create(SRangeError + 'FieldCount')
+        else if (not Assigned(DataSet.Fields[0])) then
+          raise ERangeError.Create(SRangeError + 'Fields[0]')
+        else
+          DBGrid.SelectedField := DBGrid.Fields[0];
+      end;
       DBGridColEnter(FObjectIDEGrid);
     end;
 
