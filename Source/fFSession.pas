@@ -1561,10 +1561,6 @@ var
   I: Integer;
   Width: Integer;
 begin
-  // Debug 25.01.2013
-  if (Assigned(Table) and (DataSet <> Table.DataSet)) then
-    raise ERangeError.Create(SRangeError);
-
   DBGrid.DataSource.DataSet := DataSet;
 
   FSession.DataSetAfterOpen(DataSet);
@@ -1573,10 +1569,6 @@ begin
 
   DBGrid.Columns.BeginUpdate();
   for I := 0 to DBGrid.Columns.Count - 1 do
-  begin
-    // Debug 15.01.2013
-    if (not Assigned(DBGrid.Columns[I].Field)) then
-      raise ERangeError.CreateFmt(SRangeError + ' - Query: %s', [TMySQLQuery(DBGrid.DataSource.DataSet).CommandText]);
     if (GetFieldInfo(DBGrid.Columns[I].Field.Origin, FieldInfo)) then
     begin
       Child := XMLNode(GridXML[FieldInfo.OriginalFieldName], 'width');
@@ -1585,7 +1577,6 @@ begin
       else if ((DBGrid.Columns[I].Width > Preferences.GridMaxColumnWidth) and not (DBGrid.Columns[I].Field.DataType in [ftSmallint, ftInteger, ftLargeint, ftWord, ftFloat, ftDate, ftDateTime, ftTime, ftCurrency])) then
         DBGrid.Columns[I].Width := Preferences.GridMaxColumnWidth;
     end;
-  end;
   DBGrid.Columns.EndUpdate();
 
   if (Table.DataSet.FilterSQL <> '') then
@@ -5886,18 +5877,7 @@ begin
       DBGrid := nil;
 
     if (Assigned(DBGrid)) then
-    begin
-      if (not Assigned(DBGrid.SelectedField)) then
-      begin
-        if (DataSet.FieldCount = 0) then                  // Debug 28.01.2013
-          raise ERangeError.Create(SRangeError + 'FieldCount')
-        else if (not Assigned(DataSet.Fields[0])) then    // Debug 28.01.2013
-          raise ERangeError.Create(SRangeError + 'Fields[0]')
-        else
-          DBGrid.SelectedField := DBGrid.Fields[0];
-      end;
       DBGridColEnter(DBGrid);
-    end;
 
     aDPrev.Enabled := not DataSet.Bof and not InputDataSet;
     aDNext.Enabled := not DataSet.Eof and not InputDataSet;
@@ -9050,10 +9030,6 @@ begin
         Routine := TSRoutine(FNavigator.Selected.Data);
 
         FObjectIDEGrid.DataSource.DataSet := Routine.InputDataSet;
-
-        // Debug 19.11.2012
-        if (FObjectIDEGrid.Columns.Count <> Routine.ParameterCount) then
-          ERangeError.Create(SRangeError);
 
         for I := 0 to Routine.ParameterCount - 1 do
           if (Routine.Parameter[I].FieldType = mfEnum) then
