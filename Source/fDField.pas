@@ -222,7 +222,7 @@ procedure TDField.FBOkCheckEnabled(Sender: TObject);
 begin
   FBOk.Enabled := Active and (FName.Text <> '')
     and (not IsFloatType() or (FUDFormatSize.Position = 0) and (FUDFormatDecimals.Position = 0) or (FUDFormatSize.Position <> 0))
-    and ((GetType() <> mfEnum) or ((FFormatUnion.Text <> '') and (FDefaultEnum.ItemIndex >= 0)))
+    and ((GetType() <> mfEnum) or ((Trim(FFormatUnion.Text) <> '') and (FDefaultEnum.ItemIndex >= 0)))
     and (not Assigned(Table.FieldByName(FName.Text)) or (Assigned(Field) and (Table.Fields.NameCmp(FName.Text, Field.Name) = 0)));
 end;
 
@@ -621,8 +621,8 @@ begin
       else if (NewField.FieldType = mfYear) then NewField.Size := Length(FFormatYear.Text)
       else NewField.Size := 0;
       if (IsFloatType()) then NewField.Decimals := FUDFormatDecimals.Position else NewField.Decimals := 0;
-      SetLength(NewField.Items, 0);
 
+      SetLength(NewField.Items, 0);
       if (NewField.FieldType = mfEnum) then
       begin
         if (FFlagNullAllowed.Checked) then
@@ -854,7 +854,10 @@ begin
 
     FFormatUnion.Text := '';
     for I := 0 to Length(Field.Items) - 1 do
-      begin if (I > 0) then FFormatUnion.Text := FFormatUnion.Text + ','; FFormatUnion.Text := FFormatUnion.Text + Field.Items[I]; end;
+    begin
+      if (I > 0) then FFormatUnion.Text := FFormatUnion.Text + ',';
+      FFormatUnion.Text := FFormatUnion.Text + Field.Items[I];
+    end;
     FFormatTimestamp.ItemIndex := 0;
     for I := 0 to FFormatTimestamp.Items.Count - 1 do
       if (FUDFormatSize.Position = Length(FFormatTimestamp.Items.Strings[I])) then

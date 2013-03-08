@@ -53,7 +53,7 @@ const
     'WEEKDAY,WEEKOFYEAR,YEAR_MONTH,YEARWEEK,';
 
   MySQLKeywords =
-    'BINARY,INTERVAL,LEFT,RIGHT,' +
+    'BINARY,INTERVAL,LEFT,RIGHT,MERGE,CURRENT_USER,' +
     'ACTION,AFTER,AGAINST,AGGREGATE,ALGORITHM,ALL,ALTER,ANALYZE,AND,ANY,AS,' +
     'ASC,AT,AUTHORS,AUTO_INCREMENT,AUTOEXTEND_SIZE,AVG_ROW_LENGTH,BACKUP,' +
     'BEFORE,BEGIN,BENCHMARK,BETWEEN,BINLOG,BIT,BOTH,BY,CACHE,CALL,CASCADE,' +
@@ -114,7 +114,6 @@ const
     'ntToken',
     'ntRangeNode',
     'ntSibling',
-    'ntNodeSibling',
     'ntSiblings',
     'ntExpressions',
     'ntColumns',
@@ -136,8 +135,10 @@ const
     'ntGroups',
     'ntOrder',
     'ntOrders',
+    'ntPLSQLCondPart',
     'ntUnknownStmt',
     'ntCompoundStmt',
+    'ntIfStmt',
     'ntSelectStmt',
     'ntStmts'
   );
@@ -145,6 +146,7 @@ const
   StmtTypeToString: array[TStmtType] of PChar = (
     'stUnknown',
     'stCompound',
+    'stIF',
     'stLOOP',
     'stREPEAT',
     'stSELECT',
@@ -247,8 +249,10 @@ const
     'otBetween',
     'otCASE',
     'otWHEN',
+    'otIF',
     'otTHEN',
     'otELSE',
+    'otELSEIF',
 
     'otNot2',
 
@@ -336,8 +340,10 @@ const
     12,  // otBetween
     12,  // otCASE
     12,  // otWHEN
+    12,  // otIF
     12,  // otTHEN
     12,  // otELSE
+    12,  // otELSEIF
 
     13,  // otNot2, if not Parser.HighNotPrecedence
 

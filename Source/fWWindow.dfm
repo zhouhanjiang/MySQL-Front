@@ -2,15 +2,15 @@ object WWindow: TWWindow
   Left = 387
   Top = 161
   Caption = 'WWindow'
-  ClientHeight = 417
-  ClientWidth = 634
+  ClientHeight = 449
+  ClientWidth = 683
   Color = clBtnFace
-  Constraints.MinHeight = 450
-  Constraints.MinWidth = 520
+  Constraints.MinHeight = 485
+  Constraints.MinWidth = 560
   DoubleBuffered = True
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clBlack
-  Font.Height = -11
+  Font.Height = -12
   Font.Name = 'Tahoma'
   Font.Style = []
   KeyPreview = True
@@ -25,13 +25,13 @@ object WWindow: TWWindow
   OnKeyDown = FormKeyDown
   OnResize = FormResize
   OnShow = FormShow
-  PixelsPerInch = 96
-  TextHeight = 13
+  PixelsPerInch = 106
+  TextHeight = 14
   object PWorkSpace: TPanel_Ext
     Left = 0
-    Top = 99
-    Width = 634
-    Height = 298
+    Top = 103
+    Width = 683
+    Height = 325
     Align = alClient
     BevelOuter = bvNone
     Color = clAppWorkSpace
@@ -40,9 +40,9 @@ object WWindow: TWWindow
   end
   object TabControl: TTabControl
     Left = 0
-    Top = 73
-    Width = 634
-    Height = 26
+    Top = 75
+    Width = 683
+    Height = 28
     Align = alTop
     MultiLine = True
     PopupMenu = MTabControl
@@ -64,8 +64,8 @@ object WWindow: TWWindow
   object CAddressBar: TCoolBar
     Left = 0
     Top = 52
-    Width = 634
-    Height = 21
+    Width = 683
+    Height = 23
     BandBorderStyle = bsNone
     BandMaximize = bmNone
     Bands = <
@@ -102,7 +102,7 @@ object WWindow: TWWindow
         Style = tbsDropDown
       end
       object tbNext: TToolButton
-        Left = 36
+        Left = 38
         Top = 0
         Action = aVNext
         DropdownMenu = MNext
@@ -111,17 +111,17 @@ object WWindow: TWWindow
         Style = tbsDropDown
       end
       object ToolButton26: TToolButton
-        Left = 72
+        Left = 76
         Top = 0
         Width = 8
         Caption = 'ToolButton26'
         Style = tbsSeparator
       end
       object FAddress: TComboBox_Ext
-        Left = 80
+        Left = 84
         Top = 0
         Width = 457
-        Height = 21
+        Height = 22
         Anchors = [akLeft, akTop, akRight]
         Constraints.MinWidth = 300
         TabOrder = 0
@@ -130,7 +130,7 @@ object WWindow: TWWindow
         OnSelect = FAddressSelect
       end
       object FAddressApply: TToolButton
-        Left = 537
+        Left = 541
         Top = 0
         Caption = 'aVAddress'
         ImageIndex = 21
@@ -141,9 +141,9 @@ object WWindow: TWWindow
   end
   object StatusBar: TStatusBar
     Left = 0
-    Top = 397
-    Width = 634
-    Height = 20
+    Top = 428
+    Width = 683
+    Height = 21
     Panels = <
       item
         Text = 'sbMessage'
@@ -172,7 +172,7 @@ object WWindow: TWWindow
   object CToolBar: TCoolBar
     Left = 0
     Top = 0
-    Width = 634
+    Width = 683
     Height = 52
     AutoSize = True
     BandBorderStyle = bsNone

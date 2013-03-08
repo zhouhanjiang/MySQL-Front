@@ -690,6 +690,9 @@ type
     procedure FJobsExit(Sender: TObject);
     procedure PJobsEnter(Sender: TObject);
     procedure PJobsExit(Sender: TObject);
+    procedure FTextMouseUp(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure FTextKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
   type
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
     TTabState = set of (tsLoading, tsActive);
@@ -5973,6 +5976,9 @@ begin
       FText.OnChange := FTextChange;
     end;
 
+    if (not Assigned(DBGrid.SelectedField)) then  // Debug 01.02.2013
+      raise ERangeError.Create(SRangeError + ': SelectedField');
+
     DBGrid.UpdateAction(MainAction('aEPaste'));
     MainAction('aECopyToFile').Enabled := (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) and (not DBGrid.SelectedField.IsNull) and (DBGrid.SelectedRows.Count <= 1);
     MainAction('aEPasteFromFile').Enabled := (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) and not DBGrid.SelectedField.ReadOnly and (DBGrid.SelectedRows.Count <= 1);
@@ -6572,6 +6578,7 @@ begin
   FNavigatorChanging(nil, nil, TempB);
 
   Window.ActiveControl := nil;
+  OnResize := nil;
 
   FNavigator.Items.BeginUpdate();
   FNavigator.Items.Clear();
@@ -7913,7 +7920,7 @@ begin
   MainAction('aDDeleteRoutine').Enabled := Assigned(Node) and (Node.ImageIndex in [iiProcedure, iiFunction]);
   MainAction('aDDeleteEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiEvent);
   MainAction('aDDeleteKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiKey);
-  MainAction('aDDeleteField').Enabled := Assigned(Node) and (Node.ImageIndex = iiField) and (TSTableField(Node.Data).Fields.Count > 1);
+  MainAction('aDDeleteField').Enabled := Assigned(Node) and (Node.ImageIndex = iiField) and (TObject(Node.Data) is TSTableField) and (TSTableField(Node.Data).Fields.Count > 1);
   MainAction('aDDeleteForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiForeignKey) and (Session.ServerVersion >= 40013);
   MainAction('aDDeleteTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiTrigger);
   MainAction('aDDeleteProcess').Enabled := False;
@@ -8920,6 +8927,8 @@ begin
   end;
 
   aVBlobRTF.Visible := Assigned(EditorField) and (EditorField.DataType = ftWideMemo) and not EditorField.IsNull and IsRTF(EditorField.AsString);
+
+  StatusBarRefresh();
 end;
 
 procedure TFSession.FTextEnter(Sender: TObject);
@@ -8939,6 +8948,18 @@ begin
     Window.ActiveControl := ActiveDBGrid;
     ActiveDBGrid.DataSource.DataSet.Cancel();
   end
+end;
+
+procedure TFSession.FTextKeyUp(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  StatusBarRefresh();
+end;
+
+procedure TFSession.FTextMouseUp(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  StatusBarRefresh();
 end;
 
 procedure TFSession.FTextShow(Sender: TObject);
@@ -13463,8 +13484,10 @@ begin
        StatusBar.Panels[sbNavigation].Text := ReplaceStr(Preferences.LoadStr(164), '&', '') + ': ' + IntToStr(TSTableField(ActiveListView.ItemFocused.Data).Index)
       else if ((Window.ActiveControl = ActiveDBGrid) and Assigned(ActiveDBGrid.SelectedField) and (ActiveDBGrid.DataSource.DataSet.RecNo >= 0)) then
         StatusBar.Panels[sbNavigation].Text := IntToStr(ActiveDBGrid.DataSource.DataSet.RecNo + 1) + ':' + IntToStr(ActiveDBGrid.SelectedField.FieldNo)
+      else if (Window.ActiveControl = FText) then
+        StatusBar.Panels[sbNavigation].Text := IntToStr(FText.CaretPos.Y + 1) + ':' + IntToStr(FText.CaretPos.X + 1)
       else if (Window.ActiveControl = FLog) then
-        StatusBar.Panels[sbNavigation].Text := IntToStr(FLog.CaretPos.X) + ':' + IntToStr(FLog.CaretPos.Y)
+        StatusBar.Panels[sbNavigation].Text := IntToStr(FLog.CaretPos.Y + 1) + ':' + IntToStr(FLog.CaretPos.X + 1)
       else
         StatusBar.Panels[sbNavigation].Text := '';
 

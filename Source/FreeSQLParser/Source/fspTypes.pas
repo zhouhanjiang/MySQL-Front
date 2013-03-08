@@ -12,7 +12,6 @@ type
     ntToken,
     ntRangeNode,
     ntSibling,
-    ntNodeSibling,
     ntSiblings,
     ntExpressions,
     ntColumns,
@@ -34,8 +33,10 @@ type
     ntGroups,
     ntOrder,
     ntOrders,
+    ntPLSQLCondPart,
     ntUnknownStmt,
     ntCompoundStmt,
+    ntIfStmt,
     ntSelectStmt,
     ntStmts
   );
@@ -44,6 +45,7 @@ type
   TStmtType = (
     stUnknown,
     stCompound,
+    stIF,
     stLOOP,
     stREPEAT,
     stSELECT,
@@ -85,13 +87,13 @@ type
     ttEndLabel,               // Lable, like Label_Name:
     ttVariable,               // Variable, like @varname
     ttBindVariable,           // Bind Variable, like :bindvarname
-    ttDQString,           // Identifier, enclosed in ""
+    ttDQIdentifier,           // Identifier, enclosed in ""
     ttDBIdentifier,           // Identifier, enclosed in []
     ttBRIdentifier,           // Identifier, enclosed in {}
     ttMySQLIdentifier,        // Identifier, enclosed in ``
     ttMySQLCodeStart,         // MySQL specific code, like /*!50000 SELECT 1; */
     ttMySQLCodeEnd,
-    ttCSString,           // MySQL Character Set, like _utf8
+    ttCSString,               // MySQL Character Set, like _utf8'Hello'
     ttOperator,               // Symbol operator, like +, -, &&, *=
     ttAt,                     // "@"
     ttBackslash,              // "\", DB2 use
@@ -146,8 +148,10 @@ type
     otBetween,                // "BETWEEN"
     otCASE,                   // "CASE"
     otWHEN,                   // "WHEN"
+    otIF,                     // "IF"
     otTHEN,                   // "THEN"
     otELSE,                   // "ELSE"
+    otELSEIF,                 // "ELSEIF"
 
     otNot2,                   // "NOT"
 

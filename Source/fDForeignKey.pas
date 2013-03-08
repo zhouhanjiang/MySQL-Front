@@ -428,7 +428,7 @@ begin
   FBCancel.Default := not FBOk.Default;
 
   ActiveControl := FBCancel;
-  if (FBOk.Visible) then
+  if (GBasics.Visible) then
     ActiveControl := FName;
 end;
 

@@ -2537,6 +2537,8 @@ end;
 
 procedure TSField.Assign(const Source: TSField);
 begin
+  Assert(Source is TSTableField);
+
   inherited Assign(Source);
 
   FCharset := Source.FCharset;
@@ -2570,7 +2572,6 @@ end;
 function TSField.DBTypeStr(): string;
 var
   I: Integer;
-  S: string;
 begin
   Result := '';
 
@@ -2581,13 +2582,13 @@ begin
 
   if (FieldType in [mfEnum, mfSet]) then
   begin
-    S := '';
+    Result := Result + '(';
     for I := 0 to Length(Items) - 1 do
     begin
-      if (S <> '') then S := S + ',';
-      S := S + EscapeValue(Items[I]);
+      if (I > 0) then Result := Result + ',';
+      Result := Result + EscapeValue(Items[I]);
     end;
-    Result := Result + '(' + S + ')';
+    Result := Result + ')';
   end
   else if ((FieldType in [mfFloat, mfDouble, mfDecimal]) and (Size > 0)) then
     Result := Result + '(' + IntToStr(Size) + ',' + IntToStr(Decimals) + ')'
@@ -2646,9 +2647,7 @@ begin
       repeat
         SetLength(Items, Length(Items) + 1);
         Items[Length(Items) - 1] := SQLParseValue(Parse);
-
-        SQLParseChar(Parse, ',');
-      until (SQLParseChar(Parse, ')', False));
+      until (not SQLParseChar(Parse, ','));
     end
     else if (FieldType in [mfFloat, mfDouble, mfDecimal]) then
     begin
@@ -7314,11 +7313,6 @@ begin
   SQLParser.SqlText.Text := SQL;
   Result := SQLParser.Parse() = 0;
 
-  {$IFDEF Debug}
-//  if (not Result) then
-//    raise Exception.Create(SQLParser.ErrorMessages);
-  {$ENDIF}
-
   for I := SQLParser.SourceTokenList.Count - 2 downto 1 do
     if (SQLParser.SourceTokenList[I].TokenType = ttDot) then
     begin
@@ -10261,35 +10255,43 @@ begin
       begin
         BeginSilent();
 
-        DataSet := TMySQLQuery.Create(nil);
-        DataSet.Connection := Self;
-
-        DataSet.CommandText := 'HELP ' + SQLEscape('SELECT');
-        DataSet.Open();
-        if (not DataSet.Active or not Assigned(DataSet.FindField('name')) or DataSet.IsEmpty()) then
-          URL1 := ''
-        else
-        begin
-          URL1 := DataSet.FieldByName('description').AsString;
-          while (Pos('URL:', URL1) > 1) do Delete(URL1, 1, Pos('URL:', URL1) - 1);
-          if (Pos('URL:', URL1) = 1) then Delete(URL1, 1, Length('URL:'));
-          URL1 := Trim(URL1);
-        end;
-        DataSet.Close();
-
-        DataSet.CommandText := 'HELP ' + SQLEscape('VERSION');
-        DataSet.Open();
-        if (not DataSet.Active or not Assigned(DataSet.FindField('name')) or DataSet.IsEmpty()) then
-          URL2 := ''
-        else
-        begin
-          URL2 := DataSet.FieldByName('description').AsString;
-          while (Pos('URL:', URL2) > 1) do Delete(URL2, 1, Pos('URL:', URL2) - 1);
-          if (Pos('URL:', URL2) = 1) then Delete(URL2, 1, Length('URL:'));
-          URL2 := Trim(URL2);
+        try
+          DataSet := TMySQLQuery.Create(nil);
+          DataSet.Connection := Self;
+          DataSet.CommandText := 'HELP ' + SQLEscape('SELECT');
+          DataSet.Open();
+          if (not DataSet.Active or not Assigned(DataSet.FindField('name')) or DataSet.IsEmpty()) then
+            URL1 := ''
+          else
+          begin
+            URL1 := DataSet.FieldByName('description').AsString;
+            while (Pos('URL:', URL1) > 1) do Delete(URL1, 1, Pos('URL:', URL1) - 1);
+            if (Pos('URL:', URL1) = 1) then Delete(URL1, 1, Length('URL:'));
+            URL1 := Trim(URL1);
+          end;
+          DataSet.Free();
+        except
+          // sometimes an Invalid field size occurs
         end;
 
-        DataSet.Free();
+        try
+          DataSet := TMySQLQuery.Create(nil);
+          DataSet.Connection := Self;
+          DataSet.CommandText := 'HELP ' + SQLEscape('VERSION');
+          DataSet.Open();
+          if (not DataSet.Active or not Assigned(DataSet.FindField('name')) or DataSet.IsEmpty()) then
+            URL2 := ''
+          else
+          begin
+            URL2 := DataSet.FieldByName('description').AsString;
+            while (Pos('URL:', URL2) > 1) do Delete(URL2, 1, Pos('URL:', URL2) - 1);
+            if (Pos('URL:', URL2) = 1) then Delete(URL2, 1, Length('URL:'));
+            URL2 := Trim(URL2);
+          end;
+          DataSet.Free();
+        except
+          // sometimes an Invalid field size occurs
+        end;
 
         EndSilent();
 
@@ -11166,7 +11168,7 @@ end;
 
 function TSSession.GetSlowLogActive(): Boolean;
 begin
-  Result := (ServerVersion >= 50111) and VariableByName('log_slow_queries').AsBoolean;
+  Result := (ServerVersion >= 50111) and Assigned(VariableByName('log_slow_queries')) and VariableByName('log_slow_queries').AsBoolean;
 end;
 
 function TSSession.GetSlowLog(): string;
@@ -12588,6 +12590,7 @@ end;
 initialization
   Sessions := TSSessions.Create();
 
+{$IFNDEF Debug}
   // SQLParser settings:
   gFmtOpt.SelectItemInNewLine := True;
   gFmtOpt.IntoClauseInNewline := True;
@@ -12602,6 +12605,7 @@ initialization
   gFmtOpt.WSPadding_ParenthesesOfSubQuery := False;
   gFmtOpt.WSPadding_ParenthesesInFunctionCall := False;
   gFmtOpt.WSPadding_ParenthesesOfTypename := False;
+{$ENDIF}
 finalization
   Sessions.Free();
 end.

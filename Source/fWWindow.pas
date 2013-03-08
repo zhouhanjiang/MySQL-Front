@@ -1608,7 +1608,7 @@ begin
 
   EurekaExceptionRecord.CurrentModuleOptions.EMailSubject
     := AnsiString(SysUtils.LoadStr(1000) + ' ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor)
-    + ' (' + Preferences.LoadStr(737) + ': ' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + ')')
+    + ' (Build: ' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + ')')
     + ' - Bug Report';
 end;
 
