@@ -13,7 +13,6 @@ uses
 type
   TDServer = class (TForm_Ext)
     FBCancel: TButton;
-    FBFlushHosts: TButton;
     FBHelp: TButton;
     FBShutdown: TButton;
     FCharacterSet: TLabel;
@@ -36,7 +35,6 @@ type
     FVersion: TLabel;
     GConnection: TGroupBox_Ext;
     GServer: TGroupBox_Ext;
-    GServiceHosts: TGroupBox_Ext;
     GServiceServer: TGroupBox_Ext;
     msCopy: TMenuItem;
     msCut: TMenuItem;
@@ -191,9 +189,6 @@ begin
   GServiceServer.Caption := ReplaceStr(Preferences.LoadStr(37), '&', '');
   FLUptime.Caption := Preferences.LoadStr(520) + ':';
   FBShutdown.Caption := Preferences.LoadStr(323);
-
-  GServiceHosts.Caption := ReplaceStr(Preferences.LoadStr(335), '&', '');
-  FBFlushHosts.Caption := Preferences.LoadStr(329);
 
   msUndo.Action := MainAction('aEUndo'); msCut.ShortCut := 0;
   msCut.Action := MainAction('aECut'); msCut.ShortCut := 0;
@@ -439,7 +434,6 @@ begin
   FUptime.Caption := SysUtils.DateTimeToStr(Session.StartTime, LocaleFormatSettings);
 
   FBShutdown.Enabled := Session.CanShutdown and (not Assigned(Session.UserRights) or Session.UserRights.RShutdown);
-  FBFlushHosts.Enabled := (not Assigned(Session.UserRights) or Session.UserRights.RReload);
 end;
 
 procedure TDServer.TSPluginsShow(Sender: TObject);

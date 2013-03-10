@@ -395,7 +395,7 @@ begin
         Item.SubItems.Add('???')
       else
         Item.SubItems.Add(DateTimeToStr(Accounts[I].LastLogin, LocaleFormatSettings));
-      Item.ImageIndex := Accounts[I].ImageIndex;
+      Item.ImageIndex := 23;
     end;
 
   FAccountsColumnClick(Account, FAccounts.Column[FAccounts.Tag]);

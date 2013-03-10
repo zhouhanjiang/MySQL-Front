@@ -52,7 +52,7 @@ object DServer: TDServer
     Top = 8
     Width = 321
     Height = 321
-    ActivePage = TSBasics
+    ActivePage = TSExtras
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
@@ -194,10 +194,6 @@ object DServer: TDServer
     object TSSQLLog: TTabSheet
       Caption = 'TSSQLLog'
       OnShow = TSSQLLogShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         275)
@@ -231,10 +227,6 @@ object DServer: TDServer
     object TSSlowSQLLog: TTabSheet
       Caption = 'TSSlowSQLLog'
       OnShow = TSSlowSQLLogShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         275)
@@ -268,10 +260,6 @@ object DServer: TDServer
     object TSStartup: TTabSheet
       Caption = 'TSStartup'
       OnShow = TSStartupShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         275)
@@ -309,10 +297,6 @@ object DServer: TDServer
     object TSPlugins: TTabSheet
       Caption = 'TSPlugins'
       OnShow = TSPluginsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         275)
@@ -338,10 +322,6 @@ object DServer: TDServer
     object TSExtras: TTabSheet
       Caption = 'TSExtras'
       OnShow = TSExtrasShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         275)
@@ -381,28 +361,6 @@ object DServer: TDServer
           Caption = 'FBShutdown'
           TabOrder = 0
           OnClick = FBShutdownClick
-        end
-      end
-      object GServiceHosts: TGroupBox_Ext
-        Left = 8
-        Top = 96
-        Width = 297
-        Height = 53
-        Anchors = [akLeft, akTop, akRight]
-        Caption = 'GServiceHosts'
-        TabOrder = 1
-        DesignSize = (
-          297
-          53)
-        object FBFlushHosts: TButton
-          Left = 168
-          Top = 16
-          Width = 122
-          Height = 25
-          Anchors = [akTop, akRight]
-          Caption = 'FBFlushHosts'
-          TabOrder = 0
-          OnClick = FBFlushHostsClick
         end
       end
     end

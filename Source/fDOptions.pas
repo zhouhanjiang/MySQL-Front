@@ -578,7 +578,6 @@ begin
 
     Preferences.SaveToXML();
     Preferences.LoadFromXML();
-    Accounts.AppendIconsToImageList(Preferences.SmallImages);
   end;
 end;
 

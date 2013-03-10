@@ -2750,6 +2750,31 @@ end;
 
 function TCustomSQLParser.ParseCreateViewStmt(): ONode;
 begin
+  if (CurrentToken = 0) then
+    SetError(PE_IncompleteStmt)
+  else if (TokenPtr(CurrentToken)^.KeywordIndex <> kiCREATE) then
+    SetError(PE_UnexpectedToken, CurrentToken)
+  else
+    ApplyCurrentToken(); // CREATE
+
+  OrToken := 0; ReplaceToken := 0;
+  if (TokenPtr(CurrentToken)^.KeywordIndex = kiOR) then
+  begin
+    OrToken := CurrentToken;
+    ApplyCurrentToken(); // OR
+
+    if (CurrentToken = 0) then
+      SetError(PE_IncompleteStmt)
+    else if (TokenPtr(CurrentToken)^.KeywordIndex <> kiREPLACE) then
+      SetError(PE_UnexpectedToken, CurrentToken)
+    else
+    begin
+      ReplaceToken := CurrentToken;
+      ApplyCurrentToken();
+    end;
+  end;
+
+  AlgorithmToken := 0;
 
 end;
 

@@ -2719,8 +2719,6 @@ begin
     if (((URI.Table = '') or (URI.Param['objecttype'] = 'trigger')) and (URI.Param['object'] <> Null)) then
       Result := Result + '.' + URI.Param['object'];
   end
-  else if ((URI.Database = '') and (URI.Param['system'] = 'hosts')) then
-    Result := ReplaceStr(Preferences.LoadStr(335), '&', '')
   else if ((URI.Database = '') and (URI.Param['system'] = 'processes')) then
     Result := ReplaceStr(Preferences.LoadStr(24), '&', '')
   else if ((URI.Database = '') and (URI.Param['system'] = 'stati')) then

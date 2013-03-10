@@ -10158,19 +10158,9 @@ procedure TSSession.ConnectChange(Sender: TObject; Connecting: Boolean);
 const
   BufferSize = 10240;
 var
-  Buffer: Pointer;
   DataSet: TMySQLQuery;
   Equal: Integer;
   I: Integer;
-  Icon: TIcon;
-  Index: Cardinal;
-  Internet: HInternet;
-  L: Longint;
-  Request: HInternet;
-  Size: Cardinal;
-  StatusCode: array [0..4] of Char;
-  Stream: TStringStream;
-  Success: Boolean;
   URL1: string;
   URL2: string;
 begin
@@ -10183,70 +10173,6 @@ begin
     if (not Assigned(FStati)) then FStati := TSStati.Create(Self);
     if (not Assigned(FUsers)) then FUsers := TSUsers.Create(Self);
 
-    if (Assigned(Account) and not Account.IconFetched and not FileExists(Account.IconFilename) and not HostIsLocalhost(Host)) then
-    begin
-      Internet := InternetOpen(PChar(PChar(Preferences.InternetAgent)), INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);
-
-      if (Assigned(Internet)) then
-      begin
-        L := 3 * 1000;
-        InternetSetOption(Internet, INTERNET_OPTION_CONNECT_TIMEOUT, @L, SizeOf(L));
-        InternetSetOption(Internet, INTERNET_OPTION_SEND_TIMEOUT, @L, SizeOf(L));
-        InternetSetOption(Internet, INTERNET_OPTION_RECEIVE_TIMEOUT, @L, SizeOf(L));
-
-        if (LibraryType <> ltHTTP) then
-        begin
-          Request := InternetOpenURL(Internet, PChar('http://' + Host + '/favicon.ico'), nil, 0, 0, 0);
-          if (not Assigned(Request) and (Pos('www.', LowerCase(Host)) = 0)) then
-            Request := InternetOpenURL(Internet, PChar('http://' + 'www.' + Host + '/favicon.ico'), nil, 0, 0, 0);
-        end
-        else
-        begin
-          Request := InternetOpenURL(Internet, PChar('http://' + ExtractURIHost(LibraryName) + '/favicon.ico'), nil, 0, INTERNET_FLAG_NO_AUTO_REDIRECT, 0);
-          if (not Assigned(Request) and (Pos('www.', LowerCase(Host)) = 0)) then
-            Request := InternetOpenURL(Internet, PChar('http://' + string('www.' + ExtractURIHost(LibraryName)) + '/favicon.ico'), nil, 0, INTERNET_FLAG_NO_AUTO_REDIRECT, 0);
-        end;
-
-        if (Assigned(Request)) then
-        begin
-          GetMem(Buffer, BufferSize);
-          Stream := TStringStream.Create('');
-
-          repeat
-            Success := InternetReadFile(Request, Buffer, BufferSize, Size);
-            if (Success and (Size > 0)) then
-              Stream.Write(Buffer^, Size);
-          until (Success and (Size = 0));
-
-          try
-            Size := SizeOf(StatusCode); Index := 0;
-            if (HttpQueryInfo(Request, HTTP_QUERY_STATUS_CODE, @StatusCode, Size, Index) and (StrToInt(StatusCode) = HTTP_STATUS_OK)) then
-            begin
-              Icon := TIcon.Create();
-              Stream.Seek(0, soFromBeginning);
-              Icon.LoadFromStream(Stream);
-              Preferences.SmallImages.AddIcon(Icon);
-              Account.ImageIndex := Preferences.SmallImages.Count - 1;
-
-              if (ForceDirectories(ExtractFilePath(Account.IconFilename))) then
-                Icon.SaveToFile(Account.IconFilename);
-              Icon.Free();
-            end;
-          except
-          end;
-
-          FreeAndNil(Stream);
-          FreeMem(Buffer);
-
-          InternetCloseHandle(Request);
-        end;
-
-        InternetCloseHandle(Internet);
-
-        Account.IconFetched := True;
-      end;
-    end;
-
     if (Assigned(Account)) then
     begin
       Account.LastLogin := Now();
@@ -10255,43 +10181,35 @@ begin
       begin
         BeginSilent();
 
-        try
-          DataSet := TMySQLQuery.Create(nil);
-          DataSet.Connection := Self;
-          DataSet.CommandText := 'HELP ' + SQLEscape('SELECT');
-          DataSet.Open();
-          if (not DataSet.Active or not Assigned(DataSet.FindField('name')) or DataSet.IsEmpty()) then
-            URL1 := ''
-          else
-          begin
-            URL1 := DataSet.FieldByName('description').AsString;
-            while (Pos('URL:', URL1) > 1) do Delete(URL1, 1, Pos('URL:', URL1) - 1);
-            if (Pos('URL:', URL1) = 1) then Delete(URL1, 1, Length('URL:'));
-            URL1 := Trim(URL1);
-          end;
-          DataSet.Free();
-        except
-          // sometimes an Invalid field size occurs
+        DataSet := TMySQLQuery.Create(nil);
+        DataSet.Connection := Self;
+        DataSet.CommandText := 'HELP ' + SQLEscape('SELECT');
+        DataSet.Open();
+        if (not DataSet.Active or not Assigned(DataSet.FindField('name')) or DataSet.IsEmpty()) then
+          URL1 := ''
+        else
+        begin
+          URL1 := DataSet.FieldByName('description').AsString;
+          while (Pos('URL:', URL1) > 1) do Delete(URL1, 1, Pos('URL:', URL1) - 1);
+          if (Pos('URL:', URL1) = 1) then Delete(URL1, 1, Length('URL:'));
+          URL1 := Trim(URL1);
         end;
+        DataSet.Free();
 
-        try
-          DataSet := TMySQLQuery.Create(nil);
-          DataSet.Connection := Self;
-          DataSet.CommandText := 'HELP ' + SQLEscape('VERSION');
-          DataSet.Open();
-          if (not DataSet.Active or not Assigned(DataSet.FindField('name')) or DataSet.IsEmpty()) then
-            URL2 := ''
-          else
-          begin
-            URL2 := DataSet.FieldByName('description').AsString;
-            while (Pos('URL:', URL2) > 1) do Delete(URL2, 1, Pos('URL:', URL2) - 1);
-            if (Pos('URL:', URL2) = 1) then Delete(URL2, 1, Length('URL:'));
-            URL2 := Trim(URL2);
-          end;
-          DataSet.Free();
-        except
-          // sometimes an Invalid field size occurs
+        DataSet := TMySQLQuery.Create(nil);
+        DataSet.Connection := Self;
+        DataSet.CommandText := 'HELP ' + SQLEscape('VERSION');
+        DataSet.Open();
+        if (not DataSet.Active or not Assigned(DataSet.FindField('name')) or DataSet.IsEmpty()) then
+          URL2 := ''
+        else
+        begin
+          URL2 := DataSet.FieldByName('description').AsString;
+          while (Pos('URL:', URL2) > 1) do Delete(URL2, 1, Pos('URL:', URL2) - 1);
+          if (Pos('URL:', URL2) = 1) then Delete(URL2, 1, Length('URL:'));
+          URL2 := Trim(URL2);
         end;
+        DataSet.Free();
 
         EndSilent();
 

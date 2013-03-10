@@ -2118,18 +2118,8 @@ end;
 
 procedure TWWindow.TabControlGetImageIndex(Sender: TObject;
   TabIndex: Integer; var ImageIndex: Integer);
-var
-  Tab: TFSession;
 begin
-  if ((TabIndex < 0) or (FSessions.Count <= TabIndex)) then
-    Tab := nil
-  else
-    Tab := TFSession(FSessions[TabIndex]);
-
-  if (not Assigned(Tab)) then
-    ImageIndex := iiServer
-  else
-    ImageIndex := Tab.Session.Account.ImageIndex;
+  ImageIndex := iiServer;
 
   if (ImageIndex < 0) then
     ImageIndex := iiServer;

@@ -761,7 +761,6 @@ type
     procedure SetLastLogin(const ALastLogin: TDateTime);
     procedure SetName(const AName: string);
   protected
-    FImageIndex: Integer;
     Section: string;
     function GetIndex(): Integer;
     procedure LoadFromXML();
@@ -776,7 +775,6 @@ type
     property XML: IXMLNode read GetXML;
   public
     Connection: TAConnection;
-    IconFetched: Boolean;
     ManualURL: string;
     ManualURLFetched: Boolean;
     procedure Assign(const Source: TAAccount); virtual;
@@ -796,7 +794,6 @@ type
     property DesktopXML: IXMLNode read GetDesktopXML;
     property HistoryXML: IXMLNode read GetHistoryXML;
     property IconFilename: TFileName read GetIconFilename;
-    property ImageIndex: Integer read FImageIndex write FImageIndex;
     property Index: Integer read GetIndex;
     property Jobs: TAJobs read GetJobs;
     property LastLogin: TDateTime read FLastLogin write SetLastLogin;
@@ -825,7 +822,6 @@ type
     function AccountByName(const AccountName: string): TAAccount; virtual;
     function AccountByURI(const AURI: string; const DefaultAccount: TAAccount = nil): TAAccount; virtual;
     procedure AddAccount(const NewAccount: TAAccount); virtual;
-    procedure AppendIconsToImageList(const AImageList: TImageList; const AAccount: TAAccount = nil); virtual;
     procedure Clear(); override;
     constructor Create(const ADBLogin: TDBLogin);
     function DeleteAccount(const AAccount: TAAccount): Boolean; virtual;
@@ -2202,10 +2198,8 @@ begin
   FSmallImages.Width := GetSystemMetrics(SM_CXSMICON);
 
   for I := 0 to MaxIconIndex do
-    if (I = 13) then
-      ImageList_AddIcon(FSmallImages.Handle, GetFileIcon(CSIDL_DRIVES))
-    else if (I = 16) then
-    begin
+    if (I = 16) then
+    begin // ODBC icon
       SHGetFolderPath(Application.Handle, CSIDL_SYSTEM, 0, 0, @Foldername);
       ImageList_AddIcon(FSmallImages.Handle, GetFileIcon(StrPas(PChar(@Foldername)) + '\odbcad32.exe'))
     end
@@ -4044,8 +4038,6 @@ begin
   if (not Assigned(Accounts)) then FAccounts := Source.Accounts;
 
   FLastLogin := Source.LastLogin;
-  IconFetched := Source.IconFetched;
-  ImageIndex := Source.ImageIndex;
   ManualURL := Source.ManualURL;
   ManualURLFetched := Source.ManualURLFetched;
   Name := Source.Name;
@@ -4065,8 +4057,6 @@ begin
   FDesktopXMLDocument := nil;
   FHistoryXMLDocument := nil;
   FLastLogin := 0;
-  IconFetched := False;
-  ImageIndex := 23;
   ManualURL := '';
   ManualURLFetched := False;
   Modified := False;
@@ -4348,7 +4338,6 @@ procedure TAAccount.LoadFromXML();
 begin
   if (Assigned(XML)) then
   begin
-    if (Assigned(XMLNode(XML, 'iconfetched'))) then TryStrToBool(XMLNode(XML, 'iconfetched').Text, IconFetched);
     if (Assigned(XMLNode(XML, 'lastlogin'))) then
       TryStrToFloat(ReplaceStr(XMLNode(XML, 'lastlogin').Text, '.', FormatSettings.DecimalSeparator), Double(FLastLogin));
     if (Assigned(XMLNode(XML, 'manualurl'))) then ManualURL := XMLNode(XML, 'manualurl').Text;
@@ -4373,7 +4362,6 @@ procedure TAAccount.SaveToXML();
 begin
   if (Assigned(XML)) then
   begin
-    XMLNode(XML, 'iconfetched').Text := BoolToStr(IconFetched, True);
     XMLNode(XML, 'lastlogin').Text := FloatToStr(LastLogin);
     XMLNode(XML, 'manualurl').Text := ManualURL;
     XMLNode(XML, 'manualurlfetched').Text := BoolToStr(ManualURLFetched, True);
@@ -4460,36 +4448,6 @@ begin
   begin
     Add(TAAccount.Create(Self));
     Account[Count - 1].Assign(NewAccount);
-
-    AppendIconsToImageList(Preferences.SmallImages, NewAccount);
-  end;
-end;
-
-procedure TAAccounts.AppendIconsToImageList(const AImageList: TImageList; const AAccount: TAAccount = nil);
-var
-  I: Integer;
-  Icon: TIcon;
-begin
-  if (Assigned(AImageList)) then
-  begin
-    Icon := TIcon.Create();
-
-    for I := 0 to Count - 1 do
-      if (not Assigned(AAccount) or (Account[I] = AAccount)) then
-        if (FileExists(Account[I].IconFilename)) then
-          try
-            Icon.LoadFromFile(Account[I].IconFilename);
-            Account[I].ImageIndex := AImageList.Count;
-            ImageList_AddIcon(AImageList.Handle, Icon.Handle);
-          except
-            Account[I].ImageIndex := 23;
-          end
-        else if (HostIsLocalHost(Account[I].Connection.Host)) then
-          Account[I].ImageIndex := 13
-        else
-          Account[I].ImageIndex := 23;
-
-    Icon.Free();
   end;
 end;
 
@@ -4543,8 +4501,6 @@ begin
     end;
 
   LoadFromXML();
-
-  AppendIconsToImageList(Preferences.SmallImages);
 end;
 
 function TAAccounts.DeleteAccount(const AAccount: TAAccount): Boolean;
@@ -4830,8 +4786,6 @@ begin
     end;
 
     Account.Assign(NewAccount);
-
-    AppendIconsToImageList(Preferences.SmallImages, NewAccount);
 
     SaveToXML();
   end;

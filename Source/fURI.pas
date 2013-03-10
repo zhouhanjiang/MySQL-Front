@@ -74,7 +74,7 @@ begin
     Size := (INTERNET_MAX_URL_LENGTH + 1) * SizeOf(Char);
     GetMem(URL, Size);
     if (UrlCreateFromPath(PChar(APath), URL, @Size, 0) <> S_OK) then
-      raise EConvertError.CreateFmt(SConvStrParseError, [APath]);
+      raise EConvertError.CreateFmt(SConvStrParseError + ' (%d)', [APath, 1]);
 
     Result := PChar(URL);
   finally
@@ -93,7 +93,7 @@ begin
     Size := 2 * Length(AURI) + 1;
     GetMem(PathP, Size);
     if (PathCreateFromUrl(PChar(AURI), PathP, @Size, 0) <> S_OK) then
-      raise EConvertError.CreateFmt(SConvStrParseError, [AURI]);
+      raise EConvertError.CreateFmt(SConvStrParseError + ' (%d)', [AURI, 2]);
 
     Result := PChar(PathP);
   finally
@@ -122,7 +122,7 @@ begin
 
   try
     if (UrlUnescape(PChar(AParam), UnescapedURL, @Size, 0) <> S_OK) then
-      raise EConvertError.CreateFmt(SConvStrParseError, [AParam]);
+      raise EConvertError.CreateFmt(SConvStrParseError + ' (%d)', [AParam, 3]);
 
     Result := UnescapedURL;
   finally
@@ -151,7 +151,7 @@ begin
 
     try
       if (UrlEscape(PChar(S), EscapedURL, @Size, 0) <> S_OK) then
-        raise EConvertError.CreateFmt(SConvStrParseError, [AParam]);
+        raise EConvertError.CreateFmt(SConvStrParseError + ' (%d)', [AParam, 4]);
 
       Result := EscapedURL;
     finally
@@ -278,7 +278,7 @@ begin
 
     try
       if (not InternetCrackUrl(PChar(AAddress), Length(AAddress), 0, URLComponents)) then
-        raise EConvertError.CreateFmt(SConvStrParseError, [AAddress]);
+        raise EConvertError.CreateFmt(SConvStrParseError + ' (%d)', [AAddress, 5]);
 
       Scheme := URLComponents.lpszScheme;
       Username := UnescapeURL(URLComponents.lpszUserName);
