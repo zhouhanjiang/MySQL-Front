@@ -4931,7 +4931,11 @@ begin
 
 
   if (Copy(Param, 1, 8) = 'mysql://') then
-    Address := Param
+    try
+      Address := Param;
+    except
+      Param := '';
+    end
   else if (Param <> '') then
   begin
     URI := TUURI.Create(Session.Account.Desktop.Address);

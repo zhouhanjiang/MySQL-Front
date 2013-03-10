@@ -4678,10 +4678,13 @@ var
 begin
   Result := nil;
 
+  URI := nil;
   if (LowerCase(Copy(AURI, 1, 8)) = 'mysql://') then
-    URI := TUURI.Create(AURI)
-  else
-    URI := nil;
+    try
+      URI := TUURI.Create(AURI);
+    except
+      URI := nil;
+    end;
 
   if (Assigned(URI)) then
   begin
