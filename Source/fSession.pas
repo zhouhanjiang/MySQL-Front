@@ -1537,7 +1537,6 @@ uses
   Variants, SysConst, WinInet, DBConsts, RTLConsts, Math,
   Consts, DBCommon, StrUtils,
   Forms, DBGrids,
-  GSqlParser, LzBaseType, selectstatement,
   MySQLConsts, CSVUtils, HTTPTunnel, MySQLDBGrid,
   fURI;
 
@@ -4892,11 +4891,8 @@ end;
 function TSView.ParseCreateView(const SQL: string): string;
 var
   EndingCommentLen: Integer;
-  I: Integer;
   Len: Integer;
   Parse: TSQLParse;
-  SQLParser: TGSqlParser;
-  SQLStatement: TSelectSQLStatement;
   StartingCommentLen: Integer;
 begin
   if (not SQLCreateParse(Parse, PChar(SQL), Length(SQL), Database.Session.ServerVersion)) then
@@ -4972,67 +4968,6 @@ begin
       FCheckOption := voNone;
 
     FStmt := Copy(SQL, SQLParseGetIndex(Parse), Len) + ';';
-
-    SQLParser := TGSqlParser.Create(DbVMySQL);
-    SQLParser.SqlText.Text := FStmt;
-    if (SQLParser.Parse() = 0) then
-    begin
-      for I := SQLParser.SourceTokenList.Count - 2 downto 0 do
-        if ((SQLParser.SourceTokenList[I].DBObjType = ttObjSchema)
-          and (SQLParser.SourceTokenList[I + 1].TokenType = ttDot)
-          and (Session.Databases.NameCmp(SQLUnescape(SQLParser.SourceTokenList[I].SourceCode), Database.Name) = 0)) then
-        begin
-          SQLParser.SourceTokenList[I].SourceCode := '';
-          SQLParser.SourceTokenList[I + 1].SourceCode := '';
-        end;
-      for I := SQLParser.SourceTokenList.Count - 3 downto 1 do
-        if ((SQLParser.SourceTokenList[I].TokenType = ttKeyword)
-          and (lstrcmpi(PChar(SQLParser.SourceTokenList[I].SourceCode), 'AS') = 0)
-          and (SQLParser.SourceTokenList[I - 1].TokenType = ttWhiteSpace)
-          and (SQLParser.SourceTokenList[I + 1].TokenType = ttWhiteSpace)
-          and (SQLParser.SourceTokenList[I - 2].SourceCode = SQLParser.SourceTokenList[I + 2].SourceCode)) then
-        begin
-          SQLParser.SourceTokenList[I].SourceCode := '';
-          SQLParser.SourceTokenList[I + 1].SourceCode := '';
-          SQLParser.SourceTokenList[I + 2].SourceCode := '';
-        end;
-      FStmt := Trim(SQLParser.GetTextFromParseTree());
-    end;
-
-    SQLParser.SqlText.Text := FStmt;
-    if ((SQLParser.Parse() = 0) and (SQLParser.SqlStatements.Count = 1) and (SQLParser.SqlStatements[0] is TSelectSQLStatement)) then
-    begin
-      SQLStatement := TSelectSQLStatement(SQLParser.SqlStatements[0]);
-
-      if ((SQLStatement.JoinTables.Count = 1) and Assigned(SQLStatement.JoinTables[0].JoinTable)) then
-        for I := SQLParser.SourceTokenList.Count - 2 downto 1 do
-          if ((SQLParser.SourceTokenList[I].DBObjType = ttObjTable)
-            and (SQLParser.SourceTokenList[I + 1].TokenType = ttDot)
-            and (SQLParser.SourceTokenList[I - 1].TokenType <> ttDot)
-
-            and (Tables.NameCmp(SQLUnescape(SQLParser.SourceTokenList[I].SourceCode), SQLUnescape(SQLStatement.JoinTables[0].JoinTable.TableFullname)) = 0)) then
-          begin
-            SQLParser.SourceTokenList[I].SourceCode := '';
-            SQLParser.SourceTokenList[I + 1].SourceCode := '';
-          end;
-
-      FStmt := Trim(SQLParser.GetTextFromParseTree());
-    end;
-
-    SQLParser.SqlText.Text := FStmt;
-    if (SQLParser.PrettyPrint() = 0) then
-    begin
-      FStmt := Trim(SQLParser.FormattedSqlText.Text);
-
-      SQLParser.SqlText.Text := FStmt;
-      SQLParser.Parse();
-      for I := 0 to SQLParser.SourceTokenList.Count - 1 do
-        if (SQLParser.SourceTokenList[I].TokenType = ttWhiteSpace) then
-          SQLParser.SourceTokenList[I].SourceCode := ' ';
-      FStmt := Trim(SQLParser.GetTextFromParseTree());
-    end;
-
-    SQLParser.Free();
 
     FSourceParsed := True;
   end;
@@ -7303,54 +7238,8 @@ begin
 end;
 
 function TSDatabase.ParseDependencies(const SQL: string; var Dependencies: TSDependencies): Boolean;
-var
-  Database: TSDatabase;
-  Dependency: TSDependency;
-  I: Integer;
-  SQLParser: TGSqlParser;
 begin
-  SQLParser := TGSqlParser.Create(DbVMysql);
-  SQLParser.SqlText.Text := SQL;
-  Result := SQLParser.Parse() = 0;
-
-  for I := SQLParser.SourceTokenList.Count - 2 downto 1 do
-    if (SQLParser.SourceTokenList[I].TokenType = ttDot) then
-    begin
-      if (SQLParser.SourceTokenList[I + 1].TokenType = ttWhiteSpace) then
-        SQLParser.SourceTokenList.Delete(I + 1);
-      if (SQLParser.SourceTokenList[I - 1].TokenType = ttWhiteSpace) then
-        SQLParser.SourceTokenList.Delete(I - 1);
-    end;
-  for I := 0 to SQLParser.SourceTokenList.Count - 1 do
-    if (SQLParser.SourceTokenList[I].DBObjType in [ttObjTable, ttObjView, ttObjFunction, ttObjProcedure, ttObjTrigger]) then
-    begin
-      Dependency := TSDependency.Create();
-      Dependency.Session := Session;
-      if ((I >= 2) and (SQLParser.SourceTokenList[I - 2].DBObjType = ttObjSchema) and (SQLParser.SourceTokenList[I - 1].TokenType = ttDot)) then
-        Dependency.DatabaseName := SQLUnescape(SQLParser.SourceTokenList[I - 2].SourceCode)
-      else
-        Dependency.DatabaseName := Name;
-      Dependency.ObjectName := SQLUnescape(SQLParser.SourceTokenList[I].SourceCode);
-      Database := Session.DatabaseByName(Dependency.DatabaseName);
-      case (SQLParser.SourceTokenList[I].DBObjType) of
-        ttObjTable,
-        ttObjView:
-          begin
-            Session.BeginSynchron();
-            if (not Assigned(Database) or not Database.Update() or not Assigned(Database.TableByName(Dependency.ObjectName))) then
-              Dependency.ObjectClass := TSTable
-            else
-              Dependency.ObjectClass := Database.TableByName(Dependency.ObjectName).ClassType;
-            Session.EndSynchron();
-          end;
-        ttObjFunction: Dependency.ObjectClass := TSFunction;
-        ttObjProcedure: Dependency.ObjectClass := TSProcedure;
-        ttObjTrigger: Dependency.ObjectClass := TSTrigger;
-      end;
-      Dependencies.Add(Dependency);
-    end;
-
-  SQLParser.Free();
+  Result := False;
 end;
 
 function TSDatabase.ProcedureByName(const ProcedureName: string): TSProcedure;
@@ -12507,23 +12396,6 @@ end;
 
 initialization
   Sessions := TSSessions.Create();
-
-{$IFNDEF Debug}
-  // SQLParser settings:
-  gFmtOpt.SelectItemInNewLine := True;
-  gFmtOpt.IntoClauseInNewline := True;
-  gFmtOpt.FromClauseInNewLine := True;
-  gFmtOpt.WhereClauseInNewline := True;
-  gFmtOpt.GroupByClauseInNewline := True;
-  gFmtOpt.HavingClauseInNewline := True;
-  gFmtOpt.OrderByClauseInNewline := True;
-  gFmtOpt.WSPadding_OperatorArithmetic := True;
-  gFmtOpt.WSPadding_ParenthesesInFunction := False;
-  gFmtOpt.WSPadding_ParenthesesInExpression := False;
-  gFmtOpt.WSPadding_ParenthesesOfSubQuery := False;
-  gFmtOpt.WSPadding_ParenthesesInFunctionCall := False;
-  gFmtOpt.WSPadding_ParenthesesOfTypename := False;
-{$ENDIF}
 finalization
   Sessions.Free();
 end.

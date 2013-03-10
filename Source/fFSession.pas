@@ -4934,7 +4934,7 @@ begin
     try
       Address := Param;
     except
-      Param := '';
+      Address := Session.Account.Desktop.Address;
     end
   else if (Param <> '') then
   begin
