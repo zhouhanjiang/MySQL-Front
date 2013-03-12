@@ -99,8 +99,11 @@ begin
     JobExecution.Execute();
     JobExecution.Free();
   end
-  else if ((Preferences.SetupProgram <> '') and not Preferences.SetupProgramInstalled and (FindWindow(cWindowClassName + '.UnicodeClass', nil) = 0)) then
-    Preferences.SetupProgramInstalled := ShellExecute(0, 'open', PChar(Preferences.SetupProgram), '/SILENT /NOICONS /TASKS=""', nil, SW_SHOW) >= 32
+  else if ((Preferences.SetupProgram <> '') and not Preferences.SetupProgramInstalled) then
+    if (FindWindow(cWindowClassName, nil) <> 0) then
+      MsgBox(Preferences.LoadStr(908, SysUtils.LoadStr(1000)), Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
+    else
+      Preferences.SetupProgramInstalled := ShellExecute(0, 'open', PChar(Preferences.SetupProgram), '/SILENT /NOICONS /TASKS=""', nil, SW_SHOW) >= 32
   else
   begin
     if (Preferences.SetupProgramInstalled) then
