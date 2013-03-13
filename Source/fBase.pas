@@ -782,7 +782,7 @@ begin
       MsgBoxParams.hwndOwner := GetFocus();
     if ((MsgBoxParams.hwndOwner = 0) and Assigned(Screen.ActiveForm)) then
       MsgBoxParams.hwndOwner := Screen.ActiveForm.Handle;
-    if (MsgBoxParams.hwndOwner = 0) then
+    if ((MsgBoxParams.hwndOwner = 0) and Assigned(Application.MainForm)) then
       MsgBoxParams.hwndOwner := Application.MainForm.Handle;
     MsgBoxParams.hInstance := HInstance;
     MsgBoxParams.lpszText := PChar(Text);

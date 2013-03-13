@@ -2341,20 +2341,17 @@ begin
   if (BufferSize > 0) then
   begin
     GetMem(Buffer, BufferSize);
-    if (Assigned(Buffer)) then
-    begin
-      FileVersionAvailable := GetFileVersionInfo(PChar(Application.ExeName), Application.Handle, BufferSize, Buffer);
-      if (FileVersionAvailable) then
-        if (VerQueryValue(Buffer, '\', Pointer(FileInfo), FileInfoSize)) then
-          if (FileInfoSize >= SizeOf(FileInfo^)) then
-          begin
-            VerMajor := FileInfo.dwFileVersionMS shr 16;
-            VerMinor := FileInfo.dwFileVersionMS and $FFFF;
-            VerPatch := FileInfo.dwFileVersionLS shr 16;
-            VerBuild := FileInfo.dwFileVersionLS and $FFFF;
-            Result := (VerMajor > 0) and (VerMinor >= 0) and (VerPatch >= 0) and (VerBuild >= 0);
-          end;
-    end;
+    FileVersionAvailable := GetFileVersionInfo(PChar(Application.ExeName), Application.Handle, BufferSize, Buffer);
+    if (FileVersionAvailable) then
+      if (VerQueryValue(Buffer, '\', Pointer(FileInfo), FileInfoSize)) then
+        if (FileInfoSize >= SizeOf(FileInfo^)) then
+        begin
+          VerMajor := FileInfo.dwFileVersionMS shr 16;
+          VerMinor := FileInfo.dwFileVersionMS and $FFFF;
+          VerPatch := FileInfo.dwFileVersionLS shr 16;
+          VerBuild := FileInfo.dwFileVersionLS and $FFFF;
+          Result := (VerMajor > 0) and (VerMinor >= 0) and (VerPatch >= 0) and (VerBuild >= 0);
+        end;
     FreeMem(Buffer);
   end;
 end;
