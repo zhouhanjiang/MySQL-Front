@@ -2002,13 +2002,12 @@ var
   SQL: string;
 begin
   if (AField.DataType <> ftBlob) then
-    SQL := AField.AsString
+    SQL := Trim(AField.AsString)
   else if (Length(AField.AsBytes) = 0) then
     SQL := ''
   else
-    SQL := Session.LibDecode(my_char(@AField.AsBytes[0]));
-  SQL := Trim(SQL);
-  if ((SQL <> '') and (RightStr(SQL, 1) <> ';')) then
+    SQL := Trim(Session.LibDecode(my_char(@AField.AsBytes[0])));
+  if ((SQL <> '') and (Copy(SQL, Length(SQL), 1) <> ';')) then
     SQL := SQL + ';';
   SetSource(SQL);
 end;
