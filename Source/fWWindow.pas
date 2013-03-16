@@ -1848,7 +1848,7 @@ begin
     CheckUpdateThread := TCheckUpdateThread.Create(True);
     CheckUpdateThread.FreeOnTerminate := True;
     CheckUpdateThread.Stream := TStringStream.Create('');
-    CheckUpdateThread.Wnd := Self.Handle;
+    CheckUpdateThread.Wnd := Handle;
     CheckUpdateThread.SuccessMessage := CM_UPDATEAVAILABLE;
     CheckUpdateThread.Start();
   end;

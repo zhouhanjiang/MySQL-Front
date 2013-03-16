@@ -1575,7 +1575,7 @@ begin
   SymbolForeground := clNone; SymbolBackground := clNone; SymbolStyle := [];
   TabAccepted := True;
   TabToSpaces := True;
-  TabWidth := 4;
+  TabWidth := 2;
   VariableForeground := clGreen; VariableBackground := clNone; VariableStyle := [];
   WordWrap := False;
 end;
@@ -2286,8 +2286,6 @@ begin
   if (Assigned(FLanguage)) then
     FLanguage.Free();
 
-  CoUninitialize();
-
   inherited;
 end;
 
@@ -2316,7 +2314,7 @@ end;
 
 function TPPreferences.GetTaskService(): ITaskService;
 begin
-  if (not Assigned(FTaskService) and Succeeded(CoInitialize(nil))) then
+  if (not Assigned(FTaskService)) then
     if (Failed(CoCreateInstance(CLSID_TaskScheduler, nil, CLSCTX_INPROC_SERVER, IID_ITaskService, FTaskService))
       or (Failed(FTaskService.Connect(Null, Null, Null, Null)))) then
       FTaskService := nil;
@@ -4583,18 +4581,24 @@ begin
       FXMLDocument.Node.AddChild('accounts').Attributes['version'] := '1.1.0';
     end;
 
-    // Debug
-    if (not Assigned(FXMLDocument)) then
-      ERangeError.CreateFmt(SPropertyOutOfRange, ['FXMLDocument']);
-
     FXMLDocument.Options := FXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
   end;
 
-  // Debug
+  // Debug 00.00.13
   if (not Assigned(FXMLDocument)) then
     ERangeError.CreateFmt(SPropertyOutOfRange, ['FXMLDocument']);
 
-  Result := FXMLDocument.DocumentElement;
+  try
+    FXMLDocument.Active;
+  except
+    ERangeError.CreateFmt(SPropertyOutOfRange, ['Active']);
+  end;
+
+  try
+    Result := FXMLDocument.DocumentElement;
+  except
+    ERangeError.CreateFmt(SPropertyOutOfRange, ['DocumentElement']);
+  end;
 end;
 
 procedure TAAccounts.LoadFromXML();
@@ -4808,5 +4812,9 @@ initialization
   FileFormatSettings.TimePMString := '';
   FileFormatSettings.ShortTimeFormat := 'hh:mm';
   FileFormatSettings.LongTimeFormat := 'hh:mm:ss';
+
+  CoInitialize(nil);
+finalization
+  CoUninitialize();
 end.
 

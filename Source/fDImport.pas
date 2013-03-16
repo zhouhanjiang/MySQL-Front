@@ -540,9 +540,6 @@ begin
   FDoneTime.Caption := TimeToStr(Infos^.TimeDone, DurationFormatSettings);
 
   FProgressBar.Position := Infos^.Progress;
-
-  if (Assigned(Import) and Import.Suspended) then
-    Application.ProcessMessages();
 end;
 
 function TDImport.Execute(): Boolean;
@@ -1650,26 +1647,14 @@ end;
 
 procedure TDImport.OnExecuted(const ASuccess: Boolean);
 begin
-  if (not Import.Suspended) then
-    PostMessage(Handle, CM_EXECUTIONDONE, WPARAM(ASuccess), 0)
-  else
-  begin
-    Perform(CM_EXECUTIONDONE, WPARAM(ASuccess), 0);
-    Application.ProcessMessages();
-  end;
+  PostMessage(Handle, CM_EXECUTIONDONE, WPARAM(ASuccess), 0);
 end;
 
 procedure TDImport.OnUpdate(const AProgressInfos: TTool.TProgressInfos);
 begin
   MoveMemory(@ProgressInfos, @AProgressInfos, SizeOf(AProgressInfos));
 
-  if (not Import.Suspended) then
-    PostMessage(Handle, CM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos))
-  else
-  begin
-    Perform(CM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos));
-    Application.ProcessMessages();
-  end;
+  PostMessage(Handle, CM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos))
 end;
 
 procedure TDImport.TSCSVOptionsHide(Sender: TObject);
@@ -1714,7 +1699,6 @@ var
 var
   I: Integer;
   J: Integer;
-  ProgressInfos: TTool.TProgressInfos;
   Success: Boolean;
 begin
   Session.UnRegisterEventProc(FormSessionEvent);
@@ -1736,15 +1720,6 @@ begin
 
   FErrors.Caption := '0';
   FErrorMessages.Lines.Clear();
-
-  ProgressInfos.TablesDone := 0;
-  ProgressInfos.TablesSum := 0;
-  ProgressInfos.RecordsDone := 0;
-  ProgressInfos.RecordsSum := 0;
-  ProgressInfos.TimeDone := 0;
-  ProgressInfos.TimeSum := 0;
-  ProgressInfos.Progress := 0;
-  SendMessage(Self.Handle, CM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos));
 
   Answer := IDYES;
   case (ImportType) of

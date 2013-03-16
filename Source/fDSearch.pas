@@ -110,6 +110,7 @@ type
     function GetSession(const Index: Integer): TSSession;
     procedure OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure OnExecuted(const ASuccess: Boolean);
+    procedure OnSearched(const AItem: TTSearch.TItem);
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
     procedure CMExecutedDone(var Message: TMessage); message CM_EXECUTIONDONE;
@@ -215,13 +216,8 @@ end;
 
 procedure TDSearch.CMUpdateProgressInfo(var Message: TMessage);
 var
-  CurrentItem: TTSearch.TItem;
-  Found: Boolean;
-  I: Integer;
   Infos: TTool.PProgressInfos;
-  Item: TListItem;
 begin
-  CurrentItem := TTSearch.TItem(Message.WParam);
   Infos := TTool.PProgressInfos(Message.LParam);
 
   if (Infos.TablesSum < 0) then
@@ -246,32 +242,6 @@ begin
   FDoneTime.Caption := TimeToStr(Infos.TimeDone, DurationFormatSettings);
 
   FProgressBar.Position := Infos.Progress;
-
-  if (Assigned(CurrentItem) and CurrentItem.Done and (CurrentItem.RecordsFound > 0)) then
-  begin
-    Found := False;
-    for I := 0 to Length(Tables) - 1 do
-      if ((Tables[I].Account = ExecuteSession.Account) and (Tables[I].DatabaseName = CurrentItem.DatabaseName) and (Tables[I].TableName = CurrentItem.TableName)) then
-        Found := True;
-
-    if (not Found) then
-    begin
-      SetLength(Tables, Length(Tables) + 1);
-
-      Tables[Length(Tables) - 1].Account := ExecuteSession.Account;
-      Tables[Length(Tables) - 1].DatabaseName := CurrentItem.DatabaseName;
-      Tables[Length(Tables) - 1].TableName := CurrentItem.TableName;
-
-      Item := FTables.Items.Add();
-      if (not (FSelect.Selected.ImageIndex in [iiDatabase, iiBaseTable, iiField])) then
-        Item.Caption := Item.Caption + ExecuteSession.Account.Name + '.';
-      Item.Caption := Item.Caption + CurrentItem.DatabaseName + '.';
-      Item.Caption := Item.Caption + CurrentItem.TableName + ' (' + IntToStr(CurrentItem.RecordsFound) + ')';
-    end;
-  end;
-
-  if (Assigned(Search) and Search.Suspended) then
-    Application.ProcessMessages();
 end;
 
 function TDSearch.Execute(): Boolean;
@@ -834,12 +804,36 @@ end;
 
 procedure TDSearch.OnExecuted(const ASuccess: Boolean);
 begin
-  if (not Search.Suspended) then
-    PostMessage(Handle, CM_EXECUTIONDONE, WPARAM(ASuccess), 0)
-  else
+  PostMessage(Handle, CM_EXECUTIONDONE, WPARAM(ASuccess), 0);
+end;
+
+procedure TDSearch.OnSearched(const AItem: TTSearch.TItem);
+var
+  Found: Boolean;
+  I: Integer;
+  Item: TListItem;
+begin
+  if (AItem.Done and (AItem.RecordsFound > 0)) then
   begin
-    Perform(CM_EXECUTIONDONE, WPARAM(ASuccess), 0);
-    Application.ProcessMessages();
+    Found := False;
+    for I := 0 to Length(Tables) - 1 do
+      if ((Tables[I].Account = ExecuteSession.Account) and (Tables[I].DatabaseName = AItem.DatabaseName) and (Tables[I].TableName = AItem.TableName)) then
+        Found := True;
+
+    if (not Found) then
+    begin
+      SetLength(Tables, Length(Tables) + 1);
+
+      Tables[Length(Tables) - 1].Account := ExecuteSession.Account;
+      Tables[Length(Tables) - 1].DatabaseName := AItem.DatabaseName;
+      Tables[Length(Tables) - 1].TableName := AItem.TableName;
+
+      Item := FTables.Items.Add();
+      if (not (FSelect.Selected.ImageIndex in [iiDatabase, iiBaseTable, iiField])) then
+        Item.Caption := Item.Caption + ExecuteSession.Account.Name + '.';
+      Item.Caption := Item.Caption + AItem.DatabaseName + '.';
+      Item.Caption := Item.Caption + AItem.TableName + ' (' + IntToStr(AItem.RecordsFound) + ')';
+    end;
   end;
 end;
 
@@ -847,13 +841,7 @@ procedure TDSearch.OnUpdate(const AProgressInfos: TTool.TProgressInfos);
 begin
   MoveMemory(@ProgressInfos, @AProgressInfos, SizeOf(AProgressInfos));
 
-  if (not Search.Suspended) then
-    PostMessage(Handle, CM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos))
-  else
-  begin
-    Perform(CM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos));
-    Application.ProcessMessages();
-  end;
+  PostMessage(Handle, CM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos))
 end;
 
 procedure TDSearch.TSExecuteShow(Sender: TObject);
@@ -925,15 +913,6 @@ begin
   FTables.Items.Clear();
   FTables.Items.EndUpdate();
 
-  ProgressInfos.TablesDone := 0;
-  ProgressInfos.TablesSum := 0;
-  ProgressInfos.RecordsDone := 0;
-  ProgressInfos.RecordsSum := 0;
-  ProgressInfos.TimeDone := 0;
-  ProgressInfos.TimeSum := 0;
-  ProgressInfos.Progress := 0;
-  SendMessage(Self.Handle, CM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos));
-
   FBForward.Enabled := False;
   FBForward.Default := False;
   FBCancel.Default := True;
@@ -1004,6 +983,7 @@ begin
       end;
     end;
     Search.OnExecuted := OnExecuted;
+    Search.OnSearched := OnSearched;
     Search.OnUpdate := OnUpdate;
 
     List := TList.Create();

@@ -4289,13 +4289,14 @@ end;
 
 procedure TMySQLQuery.InternalClose();
 begin
-  Connection.TerminateCS.Enter();
   if (Assigned(LibraryThread)) then
   begin
+    if (not Assigned(LibraryThread)) then // Debug 14.03.2013
+      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['LibraryThread']);
+
     LibraryThread.ReleaseDataSet();
     LibraryThread := nil;
   end;
-  Connection.TerminateCS.Leave();
 
   FIndexDefs.Clear();
 

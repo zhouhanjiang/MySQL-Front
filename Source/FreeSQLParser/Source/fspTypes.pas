@@ -3,6 +3,8 @@ unit fspTypes;
 interface {********************************************************************}
 
 type
+  ONode = Integer;
+
   TSQLDialect = (sdStandard, sdMySQL);
 
   TNodeType = (
@@ -20,6 +22,7 @@ type
     ntFunction,
     ntUnaryOp,
     ntBinaryOp,
+    ntUser,
     ntBetweenOp,
     ntCaseCond,
     ntCaseOp,
@@ -35,15 +38,21 @@ type
     ntOrders,
     ntPLSQLCondPart,
     ntUnknownStmt,
+    ntCreateViewStmt,
     ntCompoundStmt,
     ntIfStmt,
     ntSelectStmt,
-    ntStmts
+    ntStmts,
+    ntTag,
+    ntValue
   );
   TNodeTypes = set of TNodeType;
 
   TStmtType = (
     stUnknown,
+    stCreateFunction,
+    stCreateProcedure,
+    stCreateView,
     stCompound,
     stIF,
     stLOOP,
@@ -99,7 +108,10 @@ type
     ttBackslash,              // "\", DB2 use
     ttKeyword
   );
+const
+  ttIdentifiers = [ttIdentifier, ttDQIdentifier, ttDBIdentifier, ttBRIdentifier, ttMySQLIdentifier];
 
+type
   TOperatorType = (
     otUnknown,
 
@@ -163,7 +175,7 @@ type
     otOr,                     // "OR"
 
 
-    otAssign1,                // "="
+    otAssign,                 // "="
     otAssign2,                // ":="
     otHat,                    // "^"
     otDoubleDot,              // ".."

@@ -74,9 +74,9 @@ const
     'HIGH_PRIORITY,HOST,HOSTS,IDENTIFIED,IF,IGNORE,IGNORE_SERVER_IDS,IMPORT,' +
     'IN,INDEX,INFILE,INITIAL_SIZE,INNER,INSERT,INSERT_METHOD,INSTALL,INT1,INT2,' +
     'INT3,INT4,INT8,INTO,INVOKER,IO_THREAD,IS,ISOLATION,ISSUER,ITERATE,JOIN,' +
-    'KEY,KEY_BLOCK_SIZE,KEYS,KILL,LANGUAGE,LAST,LEADING,LEAVE,LEAVES,LESS,' +
-    'LEVEL,LIKE,LIMIT,LINEAR,LINES,LIST,LOAD,LOCAL,LOCK,LOGFILE,LOGS,LONG,' +
-    'LOOP,LOW_PRIORITY,MASTER,MASTER_BIND,MASTER_CONNECT_RETRY,' +
+    'JSON,KEY,KEY_BLOCK_SIZE,KEYS,KILL,LANGUAGE,LAST,LEADING,LEAVE,LEAVES,' +
+    'LESS,LEVEL,LIKE,LIMIT,LINEAR,LINES,LIST,LOAD,LOCAL,LOCK,LOGFILE,LOGS,' +
+    'LONG,LOOP,LOW_PRIORITY,MASTER,MASTER_BIND,MASTER_CONNECT_RETRY,' +
     'MASTER_HEARTBEAT_PERIOD,MASTER_HOST,MASTER_LOG_FILE,MASTER_LOG_POS,' +
     'MASTER_PASSWORD,MASTER_PORT,MASTER_SSL,MASTER_SSL_CA,MASTER_SSL_CAPATH,' +
     'MASTER_SSL_CERT,MASTER_SSL_CIPHER,MASTER_SSL_KEY,' +
@@ -122,6 +122,7 @@ const
     'ntFunction',
     'ntUnaryOp',
     'ntBinaryOp',
+    'ntUser',
     'ntBetweenOp',
     'ntCaseCond',
     'ntCaseOp',
@@ -137,14 +138,20 @@ const
     'ntOrders',
     'ntPLSQLCondPart',
     'ntUnknownStmt',
+    'ntCreateViewStmt',
     'ntCompoundStmt',
     'ntIfStmt',
     'ntSelectStmt',
-    'ntStmts'
+    'ntStmts',
+    'ntTag',
+    'ntValue'
   );
 
   StmtTypeToString: array[TStmtType] of PChar = (
     'stUnknown',
+    'stCreateFunction',
+    'stCreateRoutine',
+    'stCreateView',
     'stCompound',
     'stIF',
     'stLOOP',
@@ -264,7 +271,7 @@ const
     'otOr',
 
 
-    'otAssign1',
+    'otAssign',
     'otAssign2',
     'otHat',
     'otDoubleDot',

@@ -5978,15 +5978,12 @@ begin
       FText.OnChange := FTextChange;
     end;
 
-    if (not Assigned(DBGrid.SelectedField)) then  // Debug 01.02.2013
-      raise ERangeError.Create(SRangeError + ': SelectedField');
-
     DBGrid.UpdateAction(MainAction('aEPaste'));
-    MainAction('aECopyToFile').Enabled := (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) and (not DBGrid.SelectedField.IsNull) and (DBGrid.SelectedRows.Count <= 1);
-    MainAction('aEPasteFromFile').Enabled := (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) and not DBGrid.SelectedField.ReadOnly and (DBGrid.SelectedRows.Count <= 1);
+    MainAction('aECopyToFile').Enabled := Assigned(DBGrid.SelectedField) and (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) and (not DBGrid.SelectedField.IsNull) and (DBGrid.SelectedRows.Count <= 1);
+    MainAction('aEPasteFromFile').Enabled := Assigned(DBGrid.SelectedField) and (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) and not DBGrid.SelectedField.ReadOnly and (DBGrid.SelectedRows.Count <= 1);
     MainAction('aDCreateField').Enabled := Assigned(DBGrid.SelectedField) and (View = vBrowser);
     MainAction('aDEditRecord').Enabled := Assigned(DBGrid.SelectedField) and (View <> vIDE);
-    MainAction('aDEmpty').Enabled := (Assigned(DBGrid.DataSource.DataSet) and DBGrid.DataSource.DataSet.CanModify and not DBGrid.SelectedField.IsNull and not DBGrid.SelectedField.Required and (DBGrid.SelectedRows.Count <= 1));
+    MainAction('aDEmpty').Enabled := (Assigned(DBGrid.DataSource.DataSet) and DBGrid.DataSource.DataSet.CanModify and Assigned(DBGrid.SelectedField) and not DBGrid.SelectedField.IsNull and not DBGrid.SelectedField.Required and (DBGrid.SelectedRows.Count <= 1));
   end;
 
   StatusBarRefresh();
@@ -8444,7 +8441,11 @@ begin
   ListView.Items.BeginUpdate();
   ListView.Items.Clear();
   ListView.Items.EndUpdate();
-  ListView.Free();
+  try
+    ListView.Free();
+  except
+    // Sometimes, this gives an System Error 5 (Access denied) - but why???
+  end;
 end;
 
 procedure TFSession.FreeSynMemo(const SynMemo: TSynMemo);

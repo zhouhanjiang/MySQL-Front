@@ -198,9 +198,6 @@ begin
   FDoneTime.Caption := TimeToStr(Infos^.TimeDone, DurationFormatSettings);
 
   FProgressBar.Position := Infos^.Progress;
-
-  if (Assigned(Transfer) and Transfer.Suspended) then
-    Application.ProcessMessages();
 end;
 
 function TDTransfer.Execute(): Boolean;
@@ -575,26 +572,14 @@ end;
 
 procedure TDTransfer.OnExecuted(const ASuccess: Boolean);
 begin
-  if (not Transfer.Suspended) then
-    PostMessage(Handle, CM_EXECUTIONDONE, WPARAM(ASuccess), 0)
-  else
-  begin
-    Perform(CM_EXECUTIONDONE, WPARAM(ASuccess), 0);
-    Application.ProcessMessages();
-  end;
+  PostMessage(Handle, CM_EXECUTIONDONE, WPARAM(ASuccess), 0);
 end;
 
 procedure TDTransfer.OnUpdate(const AProgressInfos: TTool.TProgressInfos);
 begin
   MoveMemory(@ProgressInfos, @AProgressInfos, SizeOf(AProgressInfos));
 
-  if (not Transfer.Suspended) then
-    PostMessage(Handle, CM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos))
-  else
-  begin
-    Perform(CM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos));
-    Application.ProcessMessages();
-  end;
+  PostMessage(Handle, CM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos));
 end;
 
 procedure TDTransfer.PageControlResize(Sender: TObject);
@@ -773,15 +758,6 @@ var
 begin
   FErrors.Caption := '0';
   FErrorMessages.Lines.Clear();
-
-  ProgressInfos.TablesDone := 0;
-  ProgressInfos.TablesSum := 0;
-  ProgressInfos.RecordsDone := 0;
-  ProgressInfos.RecordsSum := 0;
-  ProgressInfos.TimeDone := 0;
-  ProgressInfos.TimeSum := 0;
-  ProgressInfos.Progress := 0;
-  SendMessage(Self.Handle, CM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos));
 
   FBForward.Enabled := False;
   FBCancel.Default := True;

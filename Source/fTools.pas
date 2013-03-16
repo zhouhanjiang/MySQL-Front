@@ -343,7 +343,6 @@ type
     function GetValues(const Item: TTImport.TItem; var Values: TSQLStrings): Boolean; overload; override;
   public
     constructor Create(const AFilename: TFileName; const ATable: TSBaseTable);
-    destructor Destroy(); override;
   end;
 
   TTExport = class(TTool)
@@ -698,7 +697,9 @@ type
       constructor Create(const AItems: TTool.TItems);
       destructor Destroy(); override;
     end;
+    TOnSearched = procedure(const AItem: TItem) of object;
   private
+    FOnSearched: TOnSearched;
     FSession: TSSession;
     procedure BackupTable(const Item: TItem; const Rename: Boolean = False);
   protected
@@ -718,6 +719,7 @@ type
     procedure Add(const Table: TSBaseTable; const Field: TSTableField = nil); virtual;
     constructor Create(const ASession: TSSession);
     procedure Execute(); override;
+    property OnSearched: TOnSearched read FOnSearched write FOnSearched;
   end;
 
   TTReplace = class(TTSearch)
@@ -3635,16 +3637,7 @@ begin
   Filename := AFilename;
   Data := True;
 
-  CoInitialize(nil);
-
   XMLDocument := CoDOMDocument30.Create();
-end;
-
-destructor TTImportXML.Destroy();
-begin
-  CoUninitialize();
-
-  inherited;
 end;
 
 function TTImportXML.GetValues(const Item: TTImport.TItem; const DataFileBuffer: TTool.TDataFileBuffer): Boolean;
@@ -7936,6 +7929,8 @@ begin
   inherited Create();
 
   FSession := ASession;
+
+  FOnSearched := nil;
 end;
 
 function TTSearch.DoExecuteSQL(const Session: TSSession; const Item: TItem; var SQL: string): Boolean;
@@ -8004,6 +7999,8 @@ begin
       end;
 
       TItem(Items[I]).Done := Success <> daAbort;
+      if ((TItem(Items[I]).Done) and Assigned(FOnSearched)) then
+        FOnSearched(TItem(Items[I]));
 
       if (Success = daFail) then Success := daSuccess;
 
