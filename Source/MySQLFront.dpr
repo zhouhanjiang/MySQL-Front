@@ -78,6 +78,7 @@ var
   JobExecution: TJobExecution;
   JobName: string;
   Name: string;
+  SetupProgram: TFileName;
   SetupProgramExecute: Boolean;
   Value: string;
   Value2: string;
@@ -100,10 +101,11 @@ begin
     JobExecution.Free();
   end
   else if ((Preferences.SetupProgram <> '') and not Preferences.SetupProgramInstalled) then
-    if (FindWindow(cWindowClassName, nil) <> 0) then
-      MsgBox(Preferences.LoadStr(908, SysUtils.LoadStr(1000)), Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
-    else
-      Preferences.SetupProgramInstalled := ShellExecute(0, 'open', PChar(Preferences.SetupProgram), '/SILENT /NOICONS /TASKS=""', nil, SW_SHOW) >= 32
+  begin
+    Preferences.SetupProgramExecute := FindWindow(cWindowClassName, nil) = 0;
+    if (not Preferences.SetupProgramExecute) then
+      MsgBox(Preferences.LoadStr(908, SysUtils.LoadStr(1000)), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+  end
   else
   begin
     if (Preferences.SetupProgramInstalled) then
@@ -127,6 +129,7 @@ begin
     {$ENDIF}
     Application.CreateForm(TWWindow, WWindow);
     Application.MainForm.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    GetClassName(Application.MainForm.Handle, PChar(SetupProgram), 100);
     Application.Run();
     if (Application.Handle <> 0) then
       ShowOwnedPopups(Application.Handle, False);
@@ -135,8 +138,10 @@ begin
     Application.DestroyComponents();
   end;
 
+  SetupProgram := Preferences.SetupProgram;
   SetupProgramExecute := Preferences.SetupProgramExecute;
   Preferences.Free();
+
   if (SetupProgramExecute) then
-    ShellExecute(0, 'open', PChar(ParamStr(0)), '', '', SW_SHOW);
+    ShellExecute(0, 'open', PChar(SetupProgram), '/SILENT /NOICONS /TASKS=""', nil, SW_SHOWNORMAL);
 end.
