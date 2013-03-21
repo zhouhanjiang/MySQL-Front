@@ -1572,7 +1572,9 @@ begin
 
   DBGrid.Columns.BeginUpdate();
   for I := 0 to DBGrid.Columns.Count - 1 do
-    if (GetFieldInfo(DBGrid.Columns[I].Field.Origin, FieldInfo)) then
+    if (not Assigned(DBGrid.Columns[I].Field)) then // Debug 21.03.12
+      raise ERangeError.Create(SRangeError)
+    else if (GetFieldInfo(DBGrid.Columns[I].Field.Origin, FieldInfo)) then
     begin
       Child := XMLNode(GridXML[FieldInfo.OriginalFieldName], 'width');
       if (Assigned(Child) and TryStrToInt(Child.Text, Width) and (Width > 10)) then

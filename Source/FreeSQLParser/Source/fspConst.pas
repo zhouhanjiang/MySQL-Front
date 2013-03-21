@@ -53,7 +53,8 @@ const
     'WEEKDAY,WEEKOFYEAR,YEAR_MONTH,YEARWEEK,';
 
   MySQLKeywords =
-    'BINARY,INTERVAL,LEFT,RIGHT,MERGE,CURRENT_USER,' +
+    'BINARY,INTERVAL,LEFT,RIGHT,MERGE,CURRENT_USER,UNSIGNED,ZEROFILL,' +
+
     'ACTION,AFTER,AGAINST,AGGREGATE,ALGORITHM,ALL,ALTER,ANALYZE,AND,ANY,AS,' +
     'ASC,AT,AUTHORS,AUTO_INCREMENT,AUTOEXTEND_SIZE,AVG_ROW_LENGTH,BACKUP,' +
     'BEFORE,BEGIN,BENCHMARK,BETWEEN,BINLOG,BIT,BOTH,BY,CACHE,CALL,CASCADE,' +
@@ -72,7 +73,7 @@ const
     'FIRST,FLUSH,FOR,FORCE,FOREIGN,FOUND,FROM,FULL,FULLTEXT,FUNCTION,' +
     'FUNCTIONS,GLOBAL,GOTO,GRANT,GRANTS,GROUP,HANDLER,HAVING,HELP,' +
     'HIGH_PRIORITY,HOST,HOSTS,IDENTIFIED,IF,IGNORE,IGNORE_SERVER_IDS,IMPORT,' +
-    'IN,INDEX,INFILE,INITIAL_SIZE,INNER,INSERT,INSERT_METHOD,INSTALL,INT1,INT2,' +
+    'IN,INDEX,INFILE,INITIAL_SIZE,INNER,INOUT,INSERT,INSERT_METHOD,INSTALL,INT1,INT2,' +
     'INT3,INT4,INT8,INTO,INVOKER,IO_THREAD,IS,ISOLATION,ISSUER,ITERATE,JOIN,' +
     'JSON,KEY,KEY_BLOCK_SIZE,KEYS,KILL,LANGUAGE,LAST,LEADING,LEAVE,LEAVES,' +
     'LESS,LEVEL,LIKE,LIMIT,LINEAR,LINES,LIST,LOAD,LOCAL,LOCK,LOGFILE,LOGS,' +
@@ -86,11 +87,11 @@ const
     'MIDDLEINT,MIN_ROWS,MOD,MODE,MODIFIES,MODIFY,MUTEX,MYSQL_ERRNO,NAME,' +
     'NAMES,NATURAL,NEW,NEXT,NO,NO_WRITE_TO_BINLOG,NODEGROUP,NONE,NOT,NULL,' +
     'OFFLINE,OFFSET,OJ,OLD,ON,ONLINE,OPEN,OPTIMIZE,OPTION,OPTIONALLY,' +
-    'OPTIONS,OR,ORDER,OUTER,OUTFILE,OWNER,PACK_KEYS,PARSER,PARTIAL,' +
+    'OPTIONS,OR,ORDER,OUT,OUTER,OUTFILE,OWNER,PACK_KEYS,PARSER,PARTIAL,' +
     'PARTITION,PARTITIONING,PARTITIONS,PLUGIN,PLUGINS,PORT,PREPARE,PRESERVE,' +
     'PREV,PRIMARY,PRIVILEGES,PROCEDURE,PROCESS,PROCESSLIST,PROFILE,PROFILES,' +
     'PROXY,PURGE,QUERY,QUICK,RAID_CHUNKS,RAID_CHUNKSIZE,RAID_TYPE,RANGE,' +
-    'READ,REBUILD,REDO_BUFFER_SIZE,REFERENCES,REGEXP,RELAY_LOG_FILE,' +
+    'READ,READS,REBUILD,REDO_BUFFER_SIZE,REFERENCES,REGEXP,RELAY_LOG_FILE,' +
     'RELAY_LOG_POS,RELAYLOG,RELEASE,RELOAD,REMOVE,RENAME,REORGANIZE,REPAIR,' +
     'REPEATABLE,REPLACE,REPLICATION,REQUIRE,RESET,RESTORE,RESTRICT,RETURN,' +
     'RETURNS,REVOKE,RLIKE,ROLLBACK,ROLLUP,ROUTINE,ROW,ROW_FORMAT,ROWS,' +
@@ -109,41 +110,40 @@ const
 
   NodeTypeToString: array[TNodeType] of PChar = (
     'ntUnknown',
+    'ntToken',
+    'ntRange',
     'ntDeleted',
     'ntRoot',
-    'ntToken',
-    'ntRangeNode',
-    'ntSibling',
-    'ntSiblings',
-    'ntExpressions',
-    'ntColumns',
-    'ntColumn',
-    'ntDbIdentifier',
-    'ntFunction',
-    'ntUnaryOp',
-    'ntBinaryOp',
-    'ntUser',
+
     'ntBetweenOp',
+    'ntBinaryOp',
     'ntCaseCond',
     'ntCaseOp',
-    'ntSoundsLikeOp',
-    'ntTable',
-    'ntJoin',
-    'ntTables',
-    'ntIndexHint',
-    'ntIndexHints',
-    'ntGroup',
-    'ntGroups',
-    'ntOrder',
-    'ntOrders',
-    'ntPLSQLCondPart',
-    'ntUnknownStmt',
-    'ntCreateViewStmt',
+    'ntColumn',
     'ntCompoundStmt',
+    'ntCreateRoutineStmt',
+    'ntCreateTriggerStmt',
+    'ntCreateViewStmt',
+    'ntDataType',
+    'ntDbIdentifier',
+    'ntFunction',
+    'ntFunctionParam',
+    'ntGroup',
     'ntIfStmt',
+    'ntIndexHint',
+    'ntJoin',
+    'ntList',
+    'ntOrder',
+    'ntPLSQLCondPart',
+    'ntProcedureParam',
     'ntSelectStmt',
-    'ntStmts',
+    'ntSoundsLikeOp',
+    'ntSubArea',
+    'ntTable',
     'ntTag',
+    'ntUnaryOp',
+    'ntUnknownStmt',
+    'ntUser',
     'ntValue'
   );
 
@@ -151,6 +151,7 @@ const
     'stUnknown',
     'stCreateFunction',
     'stCreateRoutine',
+    'stCreateTrigger',
     'stCreateView',
     'stCompound',
     'stIF',
@@ -174,22 +175,21 @@ const
     'ttInteger',
     'ttNumeric',
     'ttString',
+    'ttCSString',
     'ttIdentifier',
-    'ttBeginLabel',
-    'ttEndLabel',
-    'ttVariable',
-    'ttBindVariable',
     'ttDQIdentifier',
     'ttDBIdentifier',
     'ttBRIdentifier',
     'ttMySQLIdentifier',
+    'ttBeginLabel',
+    'ttEndLabel',
+    'ttVariable',
+    'ttBindVariable',
     'ttMySQLCodeStart',
     'ttMySQLCodeEnd',
-    'ttMySQLCharacterSet',
     'ttOperator',
     'ttAt',
-    'ttBackslash',
-    'ttKeyword'
+    'ttBackslash'
   );
 
   UsageTypeToString: array[TUsageType] of PChar = (
@@ -205,7 +205,9 @@ const
     'utVariable',
     'utFunction',
     'utDbIdentifier',
-    'utAlias'
+    'utAlias',
+    'utMySQLCondCode',
+    'utPLSQL'
   );
 
   OperatorTypeToString: array[TOperatorType] of PChar = (
@@ -291,7 +293,6 @@ const
     'ditView',
     'ditDatabase',
     'ditParameter',
-    'ditLocalVariable',
     'ditEvent',
     'ditPartition'
   );
@@ -370,6 +371,51 @@ const
     0   // otParameter
   );
   MaxOperatorPrecedence = 16;
+
+  UsageTypeByTokenType: array[TTokenType] of TUsageType = (
+    utUnknown,
+    utWhiteSpace,
+    utWhiteSpace,
+    utComment,
+    utSymbol,
+    utSymbol,
+    utSymbol,
+    utSymbol,
+    utSymbol,
+    utSymbol,
+    utConst,
+    utConst,
+    utConst,
+    utConst,
+    utDbIdentifier,
+    utDbIdentifier,
+    utDbIdentifier,
+    utDbIdentifier,
+    utDbIdentifier,
+    utLabel,
+    utLabel,
+    utVariable,
+    utVariable,
+    utMySQLCondCode,
+    utMySQLCondCode,
+    utSymbol,
+    utSymbol,
+    utSymbol
+  );
+
+  NodeTypeByStmtType: array[TStmtType] of TNodeType = (
+    ntUnknown,
+    ntCreateRoutineStmt,
+    ntCreateRoutineStmt,
+    ntCreateTriggerStmt,
+    ntCreateViewStmt,
+    ntCompoundStmt,
+    ntIFStmt,
+    ntUnknown,
+    ntUnknown,
+    ntSELECTStmt,
+    ntUnknown
+  );
 
 implementation {***************************************************************}
 

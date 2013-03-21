@@ -320,7 +320,7 @@ type
 
   TSField = class(TSItem)
   private
-    FCharset: string;
+//    FCharset: string;
     FFieldTypes: TSFieldTypes;
   protected
     procedure ParseFieldType(var Parse: TSQLParse); virtual;
@@ -2539,7 +2539,7 @@ begin
 
   inherited Assign(Source);
 
-  FCharset := Source.FCharset;
+  Charset := Source.Charset;
   Decimals := Source.Decimals;
   FieldType := Source.FieldType;
   Items := TSTableField(Source).Items;
@@ -2550,7 +2550,7 @@ end;
 
 procedure TSField.Clear();
 begin
-  FCharset := '';
+  Charset := '';
   Decimals := 0;
   FieldType := mfUnknown;
   SetLength(Items, 0);
@@ -2860,7 +2860,7 @@ end;
 
 procedure TSBaseTableField.Clear();
 begin
-  FCharset := '';
+  Charset := '';
   FCollation := '';
 
   OnUpdate := '';
@@ -5206,7 +5206,7 @@ begin
         NewField.FCollation := LowerCase(DataSet.FieldByName('COLLATION_NAME').AsString);
         NewField.Comment := DataSet.FieldByName('COLUMN_COMMENT').AsString;
         NewField.Default := DataSet.FieldByName('COLUMN_DEFAULT').AsString;
-        NewField.FCharset := DataSet.FieldByName('CHARACTER_SET_NAME').AsString;
+        NewField.Charset := DataSet.FieldByName('CHARACTER_SET_NAME').AsString;
         if (DataSet.FieldByName('COLUMN_TYPE').IsNull or (DataSet.FieldByName('COLUMN_TYPE').AsString = 'null') or not SQLCreateParse(Parse, PChar(DataSet.FieldByName('COLUMN_TYPE').AsString), Length(DataSet.FieldByName('COLUMN_TYPE').AsString), Session.ServerVersion)) then
           NewField.FieldType := mfUnknown
         else
@@ -8916,36 +8916,38 @@ begin
   Add(mfMediumInt, 'MediumInt', False);
   Add(mfInt, 'Int', True);
   Add(mfBigInt, 'BigInt', False);
-  Add(mfFloat, 'Float', False);
+  Add(mfFloat, 'Real', False);
   Add(mfDouble, 'Double', False);
+  Add(mfFloat, 'Float', False);
   Add(mfDecimal, 'Decimal', False);
+  Add(mfDecimal, 'Numeric', False);
   Add(mfDate, 'Date', False);
-  Add(mfDateTime, 'DateTime', True);
-  Add(mfTimeStamp, 'TimeStamp', False);
   Add(mfTime, 'Time', False);
+  Add(mfTimeStamp, 'TimeStamp', False);
+  Add(mfDateTime, 'DateTime', True);
   Add(mfYear, 'Year', False);
   Add(mfChar, 'Char', False);
   Add(mfVarChar, 'VarChar', True);
   Add(mfBinary, 'Binary', False);
   Add(mfVarBinary, 'VarBinary', False);
-  Add(mfTinyText, 'TinyText', False);
-  Add(mfText, 'Text', True);
-  Add(mfMediumText, 'MediumText', False);
-  Add(mfLongText, 'LongText', False);
   Add(mfTinyBlob, 'TinyBlob', False);
   Add(mfBlob, 'Blob', True);
   Add(mfMediumBlob, 'MediumBlob', False);
   Add(mfLongBlob, 'LongBlob', False);
+  Add(mfTinyText, 'TinyText', False);
+  Add(mfText, 'Text', True);
+  Add(mfMediumText, 'MediumText', False);
+  Add(mfLongText, 'LongText', False);
   Add(mfEnum, 'Enum', False);
   Add(mfSet, 'Set', False);
-  Add(mfGeometry, 'Geometry', False);
-  Add(mfPoint, 'Point', False);
-  Add(mfLineString, 'LineString', False);
-  Add(mfPolygon, 'Polygon', False);
-  Add(mfMultiPoint, 'MultiPoint', False);
-  Add(mfMultiLineString, 'MultiLineString', False);
-  Add(mfMultiPolygon, 'MultiPolygon', False);
-  Add(mfGeometryCollection, 'GeometryCollection', False);
+//  Add(mfGeometry, 'Geometry', False);
+//  Add(mfPoint, 'Point', False);
+//  Add(mfLineString, 'LineString', False);
+//  Add(mfPolygon, 'Polygon', False);
+//  Add(mfMultiPoint, 'MultiPoint', False);
+//  Add(mfMultiLineString, 'MultiLineString', False);
+//  Add(mfMultiPolygon, 'MultiPolygon', False);
+//  Add(mfGeometryCollection, 'GeometryCollection', False);
 end;
 
 function TSFieldTypes.FieldAvailable(const Engine: TSEngine; const MySQLFieldType: TMySQLFieldType): Boolean;

@@ -3,62 +3,59 @@ unit fspTypes;
 interface {********************************************************************}
 
 type
-  ONode = Integer;
-
-  TSQLDialect = (sdStandard, sdMySQL);
-
   TNodeType = (
-    ntUnknown,
-    ntDeleted,
-    ntRoot,
-    ntToken,
-    ntRangeNode,
-    ntSibling,
-    ntSiblings,
-    ntExpressions,
-    ntColumns,
-    ntColumn,
-    ntDbIdentifier,
-    ntFunction,
-    ntUnaryOp,
-    ntBinaryOp,
-    ntUser,
+    ntUnknown,         // Unused
+    ntToken,           // Token node
+    ntRange,           // A node with a range of tokens, base for all further nodes
+    ntDeleted,         // Token was deleted, but is still in memory
+    ntRoot,            // Root token, one usage by the parser to handle node tree
+
     ntBetweenOp,
+    ntBinaryOp,
     ntCaseCond,
     ntCaseOp,
-    ntSoundsLikeOp,
-    ntTable,
-    ntJoin,
-    ntTables,
-    ntIndexHint,
-    ntIndexHints,
-    ntGroup,
-    ntGroups,
-    ntOrder,
-    ntOrders,
-    ntPLSQLCondPart,
-    ntUnknownStmt,
-    ntCreateViewStmt,
+    ntColumn,
     ntCompoundStmt,
+    ntCreateRoutineStmt,
+    ntCreateTriggerStmt,
+    ntCreateViewStmt,
+    ntDataType,
+    ntDbIdentifier,
+    ntFunction,
+    ntFunctionParam,
+    ntGroup,
     ntIfStmt,
+    ntIndexHint,
+    ntJoin,
+    ntList,
+    ntOrder,
+    ntPLSQLCondPart,
+    ntProcedureParam,
     ntSelectStmt,
-    ntStmts,
+    ntSoundsLikeOp,
+    ntSubArea,
+    ntTable,
     ntTag,
+    ntUnaryOp,
+    ntUnknownStmt,
+    ntUser,
     ntValue
   );
   TNodeTypes = set of TNodeType;
 
   TStmtType = (
-    stUnknown,
+    stUnknown,         // Unused
+
     stCreateFunction,
     stCreateProcedure,
+    stCreateTrigger,
     stCreateView,
     stCompound,
-    stIF,
-    stLOOP,
-    stREPEAT,
-    stSELECT,
-    stWHILE
+    stIf,
+    stLoop,
+    stRepeat,
+    stSelect,
+    stWhile
   );
 
   TUsageType = (
@@ -74,7 +71,9 @@ type
     utVariable,
     utFunction,
     utDbIdentifier,
-    utAlias
+    utAlias,
+    utMySQLCondCode,
+    utPLSQL
   );
 
   TTokenType = (
@@ -91,25 +90,25 @@ type
     ttInteger,                // Tnteger constant, like 123456
     ttNumeric,                // Numeric (float) constant, like -123.456E15
     ttString,                 // String constant, enclosed in ''
+    ttCSString,               // MySQL Character Set, like _utf8'Hello'
     ttIdentifier,             // Identifier
-    ttBeginLabel,             // Lable, like Label_Name:
-    ttEndLabel,               // Lable, like Label_Name:
-    ttVariable,               // Variable, like @varname
-    ttBindVariable,           // Bind Variable, like :bindvarname
     ttDQIdentifier,           // Identifier, enclosed in ""
     ttDBIdentifier,           // Identifier, enclosed in []
     ttBRIdentifier,           // Identifier, enclosed in {}
     ttMySQLIdentifier,        // Identifier, enclosed in ``
+    ttBeginLabel,             // Lable, like Label_Name:
+    ttEndLabel,               // Lable, like Label_Name:
+    ttVariable,               // Variable, like @varname
+    ttBindVariable,           // Bind Variable, like :bindvarname
     ttMySQLCodeStart,         // MySQL specific code, like /*!50000 SELECT 1; */
     ttMySQLCodeEnd,
-    ttCSString,               // MySQL Character Set, like _utf8'Hello'
     ttOperator,               // Symbol operator, like +, -, &&, *=
     ttAt,                     // "@"
-    ttBackslash,              // "\", DB2 use
-    ttKeyword
+    ttBackslash               // "\", DB2 use
   );
 const
   ttIdentifiers = [ttIdentifier, ttDQIdentifier, ttDBIdentifier, ttBRIdentifier, ttMySQLIdentifier];
+  ttStrings = [ttString, ttCSString];
 
 type
   TOperatorType = (
@@ -195,7 +194,6 @@ type
     ditView,
     ditDatabase,
     ditParameter,
-    ditLocalVariable,
     ditEvent,
     ditPartition
   );
@@ -210,18 +208,6 @@ type
     jtNaturalLeft,
     jtNaturalRight
   );
-
-  TSubAreaType = (
-    satSelectStmt,
-    satExpressions,
-    satPartitionIdentifiers,
-    satIndexIdentifiers,
-    satTableReferences,
-    satColumnIdentifiers
-  );
-  TSubAreaTypes = set of TSubAreaType;
-
-  TFileType = (ftSQL, ftDebugHTML);
 
 implementation {***************************************************************}
 
