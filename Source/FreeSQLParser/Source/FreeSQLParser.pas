@@ -663,52 +663,81 @@ type
 
       PCompoundStmt = ^TCompoundStmt;
       TCompoundStmt = packed record
+      private type
+        TNodes = record
+          BeginLabelToken: TNodeOffset;
+          BeginTag: TNodeOffset;
+          StmtList: TNodeOffset;
+          EndTag: TNodeOffset;
+          EndLabelToken: TNodeOffset;
+        end;
       private
         Heritage: TStmt;
       private
-        procedure AddStmt(const AStmt: TNodeOffset); {$IFNDEF Debug} inline; {$ENDIF}
-        class function Create(const AParser: TCustomSQLParser): TNodeOffset; static;
+        FNodes: TNodes;
+        class function Create(const AParser: TCustomSQLParser; const ANodes: TNodes): TNodeOffset; static;
       public
         property Parser: TCustomSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PLoopStmt = ^TLoopStmt;
       TLoopStmt = packed record
+      private type
+        TNodes = record
+          BeginLabelToken: TNodeOffset;
+          BeginTag: TNodeOffset;
+          StmtList: TNodeOffset;
+          EndTag: TNodeOffset;
+          EndLabelToken: TNodeOffset;
+        end;
       private
         Heritage: TStmt;
       private
-        procedure AddStmt(const AStmt: TNodeOffset); {$IFNDEF Debug} inline; {$ENDIF}
-        class function Create(const AParser: TCustomSQLParser): TNodeOffset; static;
+        FNodes: TNodes;
+        class function Create(const AParser: TCustomSQLParser; const ANodes: TNodes): TNodeOffset; static;
       public
         property Parser: TCustomSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PRepeatStmt = ^TRepeatStmt;
       TRepeatStmt = packed record
+      private type
+        TNodes = record
+          BeginLabelToken: TNodeOffset;
+          RepeatTag: TNodeOffset;
+          StmtList: TNodeOffset;
+          UntilTag: TNodeOffset;
+          SearchConditionExpression: TNodeOffset;
+          EndTag: TNodeOffset;
+          EndLabelToken: TNodeOffset;
+        end;
       private
         Heritage: TStmt;
       private
-        FCondition: TNodeOffset;
-        procedure AddStmt(const AStmt: TNodeOffset); {$IFNDEF Debug} inline; {$ENDIF}
-        class function Create(const AParser: TCustomSQLParser): TNodeOffset; static;
-        function GetCondition(): PStmtNode; {$IFNDEF Debug} inline; {$ENDIF}
-        procedure SetCondition(const ACondition: TNodeOffset);
+        FNodes: TNodes;
+        class function Create(const AParser: TCustomSQLParser; const ANodes: TNodes): TNodeOffset; static;
       public
-        property Condition: PStmtNode read GetCondition;
         property Parser: TCustomSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PWhileStmt = ^TWhileStmt;
       TWhileStmt = packed record
+      private type
+        TNodes = record
+          BeginLabelToken: TNodeOffset;
+          WhileTag: TNodeOffset;
+          SearchConditionExpression: TNodeOffset;
+          DoTag: TNodeOffset;
+          StmtList: TNodeOffset;
+          EndTag: TNodeOffset;
+          EndLabelToken: TNodeOffset;
+        end;
       private
         Heritage: TStmt;
       private
-        FCondition: TNodeOffset;
-        procedure AddStmt(const AStmt: TNodeOffset); {$IFNDEF Debug} inline; {$ENDIF}
-        class function Create(const AParser: TCustomSQLParser; const ACondition: TNodeOffset): TNodeOffset; static;
-        function GetCondition(): PStmtNode; {$IFNDEF Debug} inline; {$ENDIF}
+        FNodes: TNodes;
+        class function Create(const AParser: TCustomSQLParser; const ANodes: TNodes): TNodeOffset; static;
       public
-        property Condition: PStmtNode read GetCondition;
         property Parser: TCustomSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
@@ -832,7 +861,7 @@ type
         Heritage: TRange;
       private
         FNodes: TNodes;
-        class function Create(const AParser: TCustomSQLParser; const ANodes: TNodes; const AChildrenList: Classes.TList): TNodeOffset; static;
+        class function Create(const AParser: TCustomSQLParser; const ANodes: TNodes; const ChildrenCount: Integer; const AChildrens: array of TNodeOffset): TNodeOffset; static;
       public
         property Parser: TCustomSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
@@ -1015,11 +1044,13 @@ type
     function ParseIndexHint(): TNodeOffset;
     function ParseIndexIdentifier(): TNodeOffset;
     function ParseKeyword(): TNodeOffset;
-    function ParseList(const Brackets: Boolean; const ParseNode: TParseFunction): TNodeOffset;
+    function ParseList(const Brackets: Boolean; const ParseNode: TParseFunction): TNodeOffset; overload;
+    function ParseList(const Brackets: Boolean; const ParseNode: TParseFunction; const DelimterType: TTokenType; const DelimiterKeywordIndex: TWordList.TIndex): TNodeOffset; overload;
     function ParseLoopStmt(): TNodeOffset;
     function ParseTag(const KeywordIndex1: TWordList.TIndex; const KeywordIndex2: TWordList.TIndex = -1; const KeywordIndex3: TWordList.TIndex = -1; const KeywordIndex4: TWordList.TIndex = -1; const KeywordIndex5: TWordList.TIndex = -1): TNodeOffset;
     function ParseOrder(): TNodeOffset;
     function ParsePartitionIdentifier(): TNodeOffset;
+    function ParsePL_SQLStmt(): TNodeOffset;
     function ParseProcedureParameter(): TNodeOffset;
     function ParseRepeatStmt(): TNodeOffset;
     function ParseSelectStmt(): TNodeOffset;
@@ -2317,76 +2348,78 @@ end;
 
 { TCustomSQLParser.TCompoundStmt **********************************************}
 
-procedure TCustomSQLParser.TCompoundStmt.AddStmt(const AStmt: TNodeOffset);
-begin
-  Heritage.Heritage.AddChild(AStmt);
-end;
-
-class function TCustomSQLParser.TCompoundStmt.Create(const AParser: TCustomSQLParser): TNodeOffset;
+class function TCustomSQLParser.TCompoundStmt.Create(const AParser: TCustomSQLParser; const ANodes: TNodes): TNodeOffset;
 begin
   Result := TStmt.Create(AParser, stCompound);
+
+  with PCompoundStmt(AParser.NodePtr(Result))^ do
+  begin
+    FNodes := ANodes;
+
+    Heritage.Heritage.AddChild(ANodes.BeginLabelToken);
+    Heritage.Heritage.AddChild(ANodes.BeginTag);
+    Heritage.Heritage.AddChild(ANodes.StmtList);
+    Heritage.Heritage.AddChild(ANodes.EndTag);
+    Heritage.Heritage.AddChild(ANodes.EndLabelToken);
+  end;
 end;
 
 { TCustomSQLParser.TLoopStmt **************************************************}
 
-procedure TCustomSQLParser.TLoopStmt.AddStmt(const AStmt: TNodeOffset);
-begin
-  Heritage.Heritage.AddChild(AStmt);
-end;
-
-class function TCustomSQLParser.TLoopStmt.Create(const AParser: TCustomSQLParser): TNodeOffset;
+class function TCustomSQLParser.TLoopStmt.Create(const AParser: TCustomSQLParser; const ANodes: TNodes): TNodeOffset;
 begin
   Result := TStmt.Create(AParser, stLoop);
+
+  with PLoopStmt(AParser.NodePtr(Result))^ do
+  begin
+    FNodes := ANodes;
+
+    Heritage.Heritage.AddChild(ANodes.BeginLabelToken);
+    Heritage.Heritage.AddChild(ANodes.BeginTag);
+    Heritage.Heritage.AddChild(ANodes.StmtList);
+    Heritage.Heritage.AddChild(ANodes.EndTag);
+    Heritage.Heritage.AddChild(ANodes.EndLabelToken);
+  end;
 end;
 
 { TCustomSQLParser.TRepeatStmt ************************************************}
 
-procedure TCustomSQLParser.TRepeatStmt.AddStmt(const AStmt: TNodeOffset);
-begin
-  Heritage.Heritage.AddChild(AStmt);
-end;
-
-class function TCustomSQLParser.TRepeatStmt.Create(const AParser: TCustomSQLParser): TNodeOffset;
+class function TCustomSQLParser.TRepeatStmt.Create(const AParser: TCustomSQLParser; const ANodes: TNodes): TNodeOffset;
 begin
   Result := TStmt.Create(AParser, stRepeat);
-end;
 
-function TCustomSQLParser.TRepeatStmt.GetCondition(): PStmtNode;
-begin
-  Result := Parser.StmtNodePtr(FCondition);
-end;
+  with PRepeatStmt(AParser.NodePtr(Result))^ do
+  begin
+    FNodes := ANodes;
 
-procedure TCustomSQLParser.TRepeatStmt.SetCondition(const ACondition: TNodeOffset);
-begin
-  Assert(FCondition = 0);
-
-  FCondition := ACondition;
-
-  Heritage.Heritage.AddChild(ACondition);
+    Heritage.Heritage.AddChild(ANodes.BeginLabelToken);
+    Heritage.Heritage.AddChild(ANodes.RepeatTag);
+    Heritage.Heritage.AddChild(ANodes.StmtList);
+    Heritage.Heritage.AddChild(ANodes.UntilTag);
+    Heritage.Heritage.AddChild(ANodes.SearchConditionExpression);
+    Heritage.Heritage.AddChild(ANodes.EndTag);
+    Heritage.Heritage.AddChild(ANodes.EndLabelToken);
+  end;
 end;
 
 { TCustomSQLParser.TWhileStmt *************************************************}
 
-procedure TCustomSQLParser.TWhileStmt.AddStmt(const AStmt: TNodeOffset);
-begin
-  Heritage.Heritage.AddChild(AStmt);
-end;
-
-class function TCustomSQLParser.TWhileStmt.Create(const AParser: TCustomSQLParser; const ACondition: TNodeOffset): TNodeOffset;
+class function TCustomSQLParser.TWhileStmt.Create(const AParser: TCustomSQLParser; const ANodes: TNodes): TNodeOffset;
 begin
   Result := TStmt.Create(AParser, stWhile);
 
   with PWhileStmt(AParser.NodePtr(Result))^ do
   begin
-    FCondition := ACondition;
+    FNodes := ANodes;
 
-    Heritage.Heritage.AddChild(ACondition);
+    Heritage.Heritage.AddChild(ANodes.BeginLabelToken);
+    Heritage.Heritage.AddChild(ANodes.WhileTag);
+    Heritage.Heritage.AddChild(ANodes.SearchConditionExpression);
+    Heritage.Heritage.AddChild(ANodes.DoTag);
+    Heritage.Heritage.AddChild(ANodes.StmtList);
+    Heritage.Heritage.AddChild(ANodes.EndTag);
+    Heritage.Heritage.AddChild(ANodes.EndLabelToken);
   end;
-end;
-
-function TCustomSQLParser.TWhileStmt.GetCondition(): PStmtNode;
-begin
-  Result := Parser.StmtNodePtr(FCondition);
 end;
 
 { TCustomSQLParser.TIfStmt ****************************************************}
@@ -2494,7 +2527,7 @@ end;
 
 { TCustomSQLParser.TList ******************************************************}
 
-class function TCustomSQLParser.TList.Create(const AParser: TCustomSQLParser; const ANodes: TNodes; const AChildrenList: Classes.TList): TNodeOffset;
+class function TCustomSQLParser.TList.Create(const AParser: TCustomSQLParser; const ANodes: TNodes; const ChildrenCount: Integer; const AChildrens: array of TNodeOffset): TNodeOffset;
 type
   PList = ^TList; // Why is this needed???
 var
@@ -2507,8 +2540,8 @@ begin
     FNodes := ANodes;
 
     Heritage.AddChild(ANodes.OpenBracket);
-    for I := 0 to AChildrenList.Count - 1 do
-      Heritage.AddChild(Integer(AChildrenList[I]));
+    for I := 0 to ChildrenCount - 1 do
+      Heritage.AddChild(Integer(AChildrens[I]));
     Heritage.AddChild(ANodes.CloseBracket);
   end;
 end;
@@ -2883,45 +2916,28 @@ end;
 
 function TCustomSQLParser.ParseCompoundStmt(): TNodeOffset;
 var
-  BeginLabel: TNodeOffset;
+  Nodes: TCompoundStmt.TNodes;
 begin
-  if (TokenPtr(CurrentToken)^.TokenType <> ttBeginLabel) then
-    BeginLabel := 0
-  else
-    BeginLabel := ApplyCurrentToken(utLabel);
+  FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Assert(TokenPtr(CurrentToken)^.KeywordIndex = kiBEGIN);
-  ApplyCurrentToken();
+  if (TokenPtr(CurrentToken)^.TokenType = ttBeginLabel) then
+    Nodes.BeginLabelToken := ApplyCurrentToken();
 
-  Result := TCompoundStmt.Create(Self);
-
-  repeat
-    if (CurrentToken = 0) then
-      SetError(PE_IncompleteStmt)
-    else if (TokenPtr(CurrentToken)^.KeywordIndex <> kiEnd) then
-      PCompoundStmt(NodePtr(Result))^.AddStmt(ParseStmt(True));
-
-    if (CurrentToken = 0) then
-      SetError(PE_IncompleteStmt)
-    else if (TokenPtr(CurrentToken)^.TokenType <> ttDelimiter) then
-      SetError(PE_UnexpectedToken, CurrentToken)
-    else
-      ApplyCurrentToken();
-  until (Error or (CurrentToken = 0) or (TokenPtr(CurrentToken)^.KeywordIndex = kiEND));
+  Nodes.BeginTag := ParseTag(kiBEGIN);
 
   if (not Error) then
-    if (CurrentToken = 0) then
-      SetError(PE_IncompleteStmt)
-    else
-    begin
-      ApplyCurrentToken();
+    Nodes.StmtList := ParseList(False, ParsePL_SQLStmt, ttDelimiter, kiEND);
 
-      if (not Error and (CurrentToken > 0) and (TokenPtr(CurrentToken)^.TokenType = ttIdentifier)) then
-        if ((BeginLabel = 0) or (StrIComp(PChar(TokenPtr(CurrentToken)^.AsString), PChar(TokenPtr(BeginLabel)^.AsString)) <> 0)) then
-          SetError(PE_UnexpectedToken, CurrentToken)
-        else
-          ApplyCurrentToken(utLabel, ttEndLabel);
-    end;
+  if (not Error) then
+    Nodes.EndTag := ParseTag(kiEND);
+
+  if (not Error and (CurrentToken > 0) and (TokenPtr(CurrentToken)^.TokenType = ttIdentifier)) then
+    if ((Nodes.BeginLabelToken = 0) or (StrIComp(PChar(TokenPtr(CurrentToken)^.AsString), PChar(TokenPtr(Nodes.BeginLabelToken)^.AsString)) <> 0)) then
+      SetError(PE_UnexpectedToken, CurrentToken)
+    else
+      Nodes.EndLabelToken := ApplyCurrentToken(utLabel, ttEndLabel);
+
+  Result := TCompoundStmt.Create(Self, Nodes);
 end;
 
 function TCustomSQLParser.ParseColumnIdentifier(): TNodeOffset;
@@ -4215,14 +4231,24 @@ begin
 end;
 
 function TCustomSQLParser.ParseList(const Brackets: Boolean; const ParseNode: TParseFunction): TNodeOffset;
+begin
+  Result := ParseList(Brackets, ParseNode, ttComma, -1);
+end;
+
+function TCustomSQLParser.ParseList(const Brackets: Boolean; const ParseNode: TParseFunction; const DelimterType: fspTypes.TTokenType; const DelimiterKeywordIndex: TWordList.TIndex): TNodeOffset;
+type
+  TIntergerArray = array of Integer;
 var
-  First: Boolean;
+  DelimiterFound: Boolean;
+  I: Integer;
+  Index: Integer;
   Nodes: TList.TNodes;
-  ParseListNodes: Classes.TList;
+  Childrens: array[0..100-1] of TNodeOffset;
+  ChildrenList: Classes.TList;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  ParseListNodes := Classes.TList.Create();
+  ChildrenList := nil;
 
   if (Brackets) then
     if (CurrentToken = 0) then
@@ -4232,22 +4258,47 @@ begin
     else
       Nodes.OpenBracket := ApplyCurrentToken();
 
+  Index := 0;
   if (not Error and (not Brackets or (CurrentToken > 0) and (TokenPtr(CurrentToken)^.TokenType <> ttCloseBracket))) then
   begin
-    First := True;
     repeat
-      if (not First) then
+      if (Index < Length(Childrens)) then
+        Childrens[Index] := ParseNode()
+      else
       begin
-        ParseListNodes.Add(Pointer(CurrentToken));
-        ApplyCurrentToken(); // ttComma
+        if (Index = Length(Childrens)) then
+        begin
+          ChildrenList := Classes.TList.Create();
+          for I := 0 to Length(Childrens) - 1 do
+            ChildrenList.Add(Pointer(Childrens[I]));
+        end;
+        ChildrenList.Add(Pointer(ParseNode()));
       end;
-      ParseListNodes.Add(Pointer(ParseNode()));
-      if (First) then
-      begin
-        First := False;
-        Nodes.FirstChild := Integer(ParseListNodes[0]);
-      end;
-    until (Error or (CurrentToken = 0) or (TokenPtr(CurrentToken)^.TokenType <> ttComma));
+
+      Inc(Index);
+
+      DelimiterFound := not Error and (CurrentToken > 0) and (TokenPtr(CurrentToken)^.TokenType = DelimterType);
+      if (DelimiterFound) then
+        if (Index < Length(Childrens)) then
+        begin
+          Childrens[Index] := ApplyCurrentToken(); // Delimiter
+          Inc(Index);
+        end
+        else
+        begin
+          begin
+            ChildrenList := Classes.TList.Create();
+            for I := 0 to Length(Childrens) - 1 do
+              ChildrenList.Add(Pointer(Childrens[I]));
+          end;
+          ChildrenList.Add(Pointer(ApplyCurrentToken()));  // Delimiter
+          Inc(Index);
+        end;
+
+    until (Error or not DelimiterFound
+      or ((DelimterType = ttDelimiter) and (TokenPtr(CurrentToken)^.KeywordIndex = DelimiterKeywordIndex)));
+
+    Nodes.FirstChild := Childrens[0];
   end;
 
   if (not Error and Brackets) then
@@ -4258,63 +4309,49 @@ begin
     else
       Nodes.CloseBracket := ApplyCurrentToken();
 
-  Result := TList.Create(Self, Nodes, ParseListNodes);
-  ParseListNodes.Free();
+  if (Index <= Length(Childrens)) then
+    Result := TList.Create(Self, Nodes, Index, Childrens)
+  else
+  begin
+    Result := TList.Create(Self, Nodes, Index, TIntergerArray(ChildrenList.List));
+    ChildrenList.Free();
+  end;
 end;
 
 function TCustomSQLParser.ParseLoopStmt(): TNodeOffset;
 var
-  BeginLabel: TNodeOffset;
+  Nodes: TLoopStmt.TNodes;
 begin
-  if (TokenPtr(CurrentToken)^.TokenType <> ttBeginLabel) then
-    BeginLabel := 0
-  else
-    BeginLabel := ApplyCurrentToken(utLabel);
+  FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Assert(TokenPtr(CurrentToken)^.KeywordIndex = kiLOOP);
-  ApplyCurrentToken();
+  if (TokenPtr(CurrentToken)^.TokenType = ttBeginLabel) then
+    Nodes.BeginLabelToken := ApplyCurrentToken();
 
-  Result := TLoopStmt.Create(Self);
-
-  repeat
-    if (CurrentToken = 0) then
-      SetError(PE_IncompleteStmt)
-    else if (TokenPtr(CurrentToken)^.KeywordIndex <> kiEnd) then
-      PLoopStmt(NodePtr(Result))^.AddStmt(ParseStmt(True));
-
-    if (CurrentToken = 0) then
-      SetError(PE_IncompleteStmt)
-    else if (TokenPtr(CurrentToken)^.TokenType <> ttDelimiter) then
-      SetError(PE_UnexpectedToken, CurrentToken)
-    else
-      ApplyCurrentToken();
-  until (Error or (CurrentToken = 0) or (TokenPtr(CurrentToken)^.KeywordIndex = kiEND));
+  Nodes.BeginTag := ParseTag(kiLOOP);
 
   if (not Error) then
-    if (CurrentToken = 0) then
-      SetError(PE_IncompleteStmt)
+    Nodes.StmtList := ParseList(False, ParsePL_SQLStmt, ttDelimiter, kiEND);
+
+  if (not Error) then
+    Nodes.EndTag := ParseTag(kiEND, kiLOOP);
+
+  if (not Error and (CurrentToken > 0) and (TokenPtr(CurrentToken)^.TokenType = ttIdentifier)) then
+    if ((Nodes.BeginLabelToken = 0) or (StrIComp(PChar(TokenPtr(CurrentToken)^.AsString), PChar(TokenPtr(Nodes.BeginLabelToken)^.AsString)) <> 0)) then
+      SetError(PE_UnexpectedToken, CurrentToken)
     else
-    begin
-      ApplyCurrentToken();
+      Nodes.EndLabelToken := ApplyCurrentToken(utLabel, ttEndLabel);
 
-      if (CurrentToken = 0) then
-        SetError(PE_IncompleteStmt)
-      else if (TokenPtr(CurrentToken)^.KeywordIndex <> kiLOOP) then
-        SetError(PE_UnexpectedToken, CurrentToken)
-      else
-        ApplyCurrentToken();
-
-      if (not Error and (CurrentToken > 0) and (TokenPtr(CurrentToken)^.TokenType = ttIdentifier)) then
-        if ((BeginLabel = 0) or (StrIComp(PChar(TokenPtr(CurrentToken)^.AsString), PChar(TokenPtr(BeginLabel)^.AsString)) <> 0)) then
-          SetError(PE_UnexpectedToken, CurrentToken)
-        else
-          ApplyCurrentToken(utLabel, ttEndLabel);
-    end;
+  Result := TLoopStmt.Create(Self, Nodes);
 end;
 
 function TCustomSQLParser.ParsePartitionIdentifier(): TNodeOffset;
 begin
   Result := ParseDbIdentifier(ditPartition);
+end;
+
+function TCustomSQLParser.ParsePL_SQLStmt(): TNodeOffset;
+begin
+  Result := ParseStmt(True);
 end;
 
 function TCustomSQLParser.ParseProcedureParameter(): TNodeOffset;
@@ -4348,60 +4385,34 @@ end;
 
 function TCustomSQLParser.ParseRepeatStmt(): TNodeOffset;
 var
-  BeginLabel: TNodeOffset;
+  Nodes: TRepeatStmt.TNodes;
 begin
-  if (TokenPtr(CurrentToken)^.TokenType <> ttBeginLabel) then
-    BeginLabel := 0
-  else
-    BeginLabel := ApplyCurrentToken();
+  FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Assert(TokenPtr(CurrentToken)^.KeywordIndex = kiREPEAT);
-  ApplyCurrentToken();
+  if (TokenPtr(CurrentToken)^.TokenType = ttBeginLabel) then
+    Nodes.BeginLabelToken := ApplyCurrentToken();
 
-  Result := TRepeatStmt.Create(Self);
-
-  repeat
-    if (CurrentToken = 0) then
-      SetError(PE_IncompleteStmt)
-    else if (TokenPtr(CurrentToken)^.KeywordIndex <> kiEnd) then
-      PRepeatStmt(NodePtr(Result))^.AddStmt(ParseStmt(True));
-
-    if (CurrentToken = 0) then
-      SetError(PE_IncompleteStmt)
-    else if (TokenPtr(CurrentToken)^.TokenType <> ttDelimiter) then
-      SetError(PE_UnexpectedToken, CurrentToken)
-    else
-      ApplyCurrentToken();
-  until (Error or (CurrentToken = 0) or (TokenPtr(CurrentToken)^.KeywordIndex = kiUNTIL));
+  Nodes.RepeatTag := ParseTag(kiREPEAT);
 
   if (not Error) then
-    if (CurrentToken = 0) then
-      SetError(PE_IncompleteStmt)
+    Nodes.StmtList := ParseList(False, ParsePL_SQLStmt, ttDelimiter, kiUNTIL);
+
+  if (not Error) then
+    Nodes.UntilTag := ParseTag(kiUNTIL);
+
+  if (not Error) then
+    Nodes.SearchConditionExpression := ParseExpression();
+
+  if (not Error) then
+    Nodes.EndTag := ParseTag(kiEND, kiREPEAT);
+
+  if (not Error and (CurrentToken > 0) and (TokenPtr(CurrentToken)^.TokenType = ttIdentifier)) then
+    if ((Nodes.BeginLabelToken = 0) or (StrIComp(PChar(TokenPtr(CurrentToken)^.AsString), PChar(TokenPtr(Nodes.BeginLabelToken)^.AsString)) <> 0)) then
+      SetError(PE_UnexpectedToken, CurrentToken)
     else
-    begin
-      ApplyCurrentToken(utPLSQL); // UNTIL
+      Nodes.EndLabelToken := ApplyCurrentToken(utLabel, ttEndLabel);
 
-      if (CurrentToken = 0) then
-        SetError(PE_IncompleteStmt)
-      else
-        PRepeatStmt(NodePtr(Result))^.SetCondition(ParseExpression());
-
-      if (not Error) then
-      begin
-        if (CurrentToken = 0) then
-          SetError(PE_IncompleteStmt)
-        else if (TokenPtr(CurrentToken)^.KeywordIndex <> kiREPEAT) then
-          SetError(PE_UnexpectedToken, CurrentToken)
-        else
-          ApplyCurrentToken(utPLSQL);
-
-        if (not Error and (CurrentToken > 0) and (TokenPtr(CurrentToken)^.TokenType = ttIdentifier)) then
-          if ((BeginLabel = 0) or (StrIComp(PChar(TokenPtr(CurrentToken)^.AsString), PChar(TokenPtr(BeginLabel)^.AsString)) <> 0)) then
-            SetError(PE_UnexpectedToken, CurrentToken)
-          else
-            ApplyCurrentToken(utLabel, ttEndLabel);
-      end;
-    end;
+  Result := TRepeatStmt.Create(Self, Nodes);
 end;
 
 function TCustomSQLParser.ParseSelectStmt(): TNodeOffset;
@@ -5769,67 +5780,35 @@ end;
 
 function TCustomSQLParser.ParseWhileStmt(): TNodeOffset;
 var
-  BeginLabel: TNodeOffset;
-  Condition: TNodeOffset;
+  Nodes: TWhileStmt.TNodes;
 begin
-  if (TokenPtr(CurrentToken)^.TokenType <> ttBeginLabel) then
-    BeginLabel := 0
-  else
-    BeginLabel := ApplyCurrentToken(utLabel);
+  FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Assert(TokenPtr(CurrentToken)^.KeywordIndex = kiWHILE);
-  ApplyCurrentToken();
-
-  Condition := ParseExpression();
-
-  if (Error) then
-    Result := 0
-  else
-    Result := TWhileStmt.Create(Self, Condition);
+  if (TokenPtr(CurrentToken)^.TokenType = ttBeginLabel) then
+    Nodes.BeginLabelToken := ApplyCurrentToken();
 
   if (not Error) then
-    if (CurrentToken = 0) then
-      SetError(PE_IncompleteStmt)
-    else if (TokenPtr(CurrentToken)^.KeywordIndex <> kiDO) then
-      SetError(PE_UnexpectedToken)
+    Nodes.WhileTag := ParseTag(kiWHILE);
+
+  if (not Error) then
+    Nodes.SearchConditionExpression := ParseExpression();
+
+  if (not Error) then
+    Nodes.DoTag := ParseTag(kiDO);
+
+  if (not Error) then
+    Nodes.StmtList := ParseList(False, ParsePL_SQLStmt, ttDelimiter, kiEND);
+
+  if (not Error) then
+    Nodes.EndTag := ParseTag(kiEND, kiWHILE);
+
+  if (not Error and (CurrentToken > 0) and (TokenPtr(CurrentToken)^.TokenType = ttIdentifier)) then
+    if ((Nodes.BeginLabelToken = 0) or (StrIComp(PChar(TokenPtr(CurrentToken)^.AsString), PChar(TokenPtr(Nodes.BeginLabelToken)^.AsString)) <> 0)) then
+      SetError(PE_UnexpectedToken, CurrentToken)
     else
-      ApplyCurrentToken();
+      Nodes.EndLabelToken := ApplyCurrentToken(utLabel, ttEndLabel);
 
-  if (not Error) then
-    repeat
-      if (CurrentToken = 0) then
-        SetError(PE_IncompleteStmt)
-      else if (TokenPtr(CurrentToken)^.KeywordIndex <> kiEnd) then
-        PWhileStmt(NodePtr(Result))^.AddStmt(ParseStmt(True));
-
-      if (CurrentToken = 0) then
-        SetError(PE_IncompleteStmt)
-      else if (TokenPtr(CurrentToken)^.TokenType <> ttDelimiter) then
-        SetError(PE_UnexpectedToken, CurrentToken)
-      else
-        ApplyCurrentToken();
-    until (Error or (CurrentToken = 0) or (TokenPtr(CurrentToken)^.KeywordIndex = kiEND));
-
-  if (not Error) then
-    if (CurrentToken = 0) then
-      SetError(PE_IncompleteStmt)
-    else
-    begin
-      ApplyCurrentToken();
-
-      if (CurrentToken = 0) then
-        SetError(PE_IncompleteStmt)
-      else if (TokenPtr(CurrentToken)^.KeywordIndex <> kiWHILE) then
-        SetError(PE_UnexpectedToken, CurrentToken)
-      else
-        ApplyCurrentToken();
-
-      if (not Error and (CurrentToken > 0) and (TokenPtr(CurrentToken)^.TokenType = ttIdentifier)) then
-        if ((BeginLabel = 0) or (StrIComp(PChar(TokenPtr(CurrentToken)^.AsString), PChar(TokenPtr(BeginLabel)^.AsString)) <> 0)) then
-          SetError(PE_UnexpectedToken, CurrentToken)
-        else
-          ApplyCurrentToken(utLabel, ttEndLabel);
-    end;
+  Result := TWhileStmt.Create(Self, Nodes);
 end;
 
 function TCustomSQLParser.RangeNodePtr(const ANode: TNodeOffset): PRangeNode;

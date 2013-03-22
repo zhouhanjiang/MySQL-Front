@@ -2527,7 +2527,7 @@ begin
     begin
       RunSynchron := Synchron or not UseLibraryThread() and not Assigned(Done);
       LibraryThread.RunAction(ssExecutingSQL, RunSynchron);
-      if (not RunSynchron or not Assigned(LibraryThread.LibHandle)) then
+      if (not RunSynchron or not Assigned(LibraryThread) or not Assigned(LibraryThread.LibHandle)) then
         Result := False
       else
         Result := ErrorCode = 0;
