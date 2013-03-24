@@ -5,31 +5,36 @@ interface {********************************************************************}
 type
   TNodeType = (
     ntUnknown,         // Unused
+    ntRoot,            // Root token, one usage by the parser to handle node tree
     ntToken,           // Token node
     ntRange,           // A node with a range of tokens, base for all further nodes
     ntDeleted,         // Token was deleted, but is still in memory
-    ntRoot,            // Root token, one usage by the parser to handle node tree
 
     ntBetweenOp,
     ntBinaryOp,
     ntCaseCond,
     ntCaseOp,
+    ntCaseOpBranch,
+    ntCaseStmt,
+    ntCaseStmtBranch,
     ntColumn,
     ntCompoundStmt,
     ntCreateRoutineStmt,
     ntCreateTriggerStmt,
     ntCreateViewStmt,
     ntDataType,
-    ntDbIdentifier,
+    ntDbIdent,
     ntFunction,
     ntFunctionParam,
     ntGroup,
+    ntIfBranch,
     ntIfStmt,
     ntIndexHint,
+    ntIterateStmt,
     ntJoin,
+    ntLeaveStmt,
     ntList,
     ntOrder,
-    ntPLSQLCondPart,
     ntProcedureParam,
     ntSelectStmt,
     ntSoundsLikeOp,
@@ -70,7 +75,7 @@ type
     utConst,
     utVariable,
     utFunction,
-    utDbIdentifier,
+    utDbIdent,
     utAlias,
     utMySQLCondCode,
     utPLSQL
@@ -91,11 +96,11 @@ type
     ttNumeric,                // Numeric (float) constant, like -123.456E15
     ttString,                 // String constant, enclosed in ''
     ttCSString,               // MySQL Character Set, like _utf8'Hello'
-    ttIdentifier,             // Identifier
-    ttDQIdentifier,           // Identifier, enclosed in ""
-    ttDBIdentifier,           // Identifier, enclosed in []
-    ttBRIdentifier,           // Identifier, enclosed in {}
-    ttMySQLIdentifier,        // Identifier, enclosed in ``
+    ttIdent,             // Ident
+    ttDQIdent,           // Ident, enclosed in ""
+    ttDBIdent,           // Ident, enclosed in []
+    ttBRIdent,           // Ident, enclosed in {}
+    ttMySQLIdent,        // Ident, enclosed in ``
     ttBeginLabel,             // Lable, like Label_Name:
     ttEndLabel,               // Lable, like Label_Name:
     ttVariable,               // Variable, like @varname
@@ -107,14 +112,14 @@ type
     ttBackslash               // "\", DB2 use
   );
 const
-  ttIdentifiers = [ttIdentifier, ttDQIdentifier, ttDBIdentifier, ttBRIdentifier, ttMySQLIdentifier];
+  ttIdents = [ttIdent, ttDQIdent, ttDBIdent, ttBRIdent, ttMySQLIdent];
   ttStrings = [ttString, ttCSString];
 
 type
   TOperatorType = (
     otUnknown,
 
-    otFunction_,              // Something like Abs(1.2), will be defined in ParseExpression
+    otFunction_,              // Something like Abs(1.2), will be defined in ParseExpr
     otInterval,               // "INTERVAL"
     otBinary,                 // "BINARY"
     otCollate,                // "COLLATE"
@@ -182,7 +187,7 @@ type
     otParameter               // "?"
   );
 
-  TDbIdentifierType = (
+  TDbIdentType = (
     ditUnknown,
     ditTable,
     ditIndex,

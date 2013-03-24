@@ -365,6 +365,8 @@ type
     N4: TMenuItem;
     aJAddImport: TAction;
     miJAddImport: TMenuItem;
+    ahDonation: TAction;
+    miHDonation: TMenuItem;
     procedure aDCreateParentExecute(Sender: TObject);
     procedure aEFindExecute(Sender: TObject);
     procedure aEReplaceExecute(Sender: TObject);
@@ -417,6 +419,7 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure TabControlMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
+    procedure ahDonationExecute(Sender: TObject);
   const
     tiDeactivate = 1;
   type
@@ -580,6 +583,11 @@ end;
 procedure TWWindow.aFOpenAccountExecute(Sender: TObject);
 begin
   Perform(CM_ADDTAB, 0, 0);
+end;
+
+procedure TWWindow.ahDonationExecute(Sender: TObject);
+begin
+  ShellExecute(Application.Handle, 'open', 'https://secure.avangate.com/order/checkout.php?PRODS=696145&QTY=7&CART=1&CARD=2', '', '', SW_SHOW)
 end;
 
 procedure TWWindow.aHIndexExecute(Sender: TObject);
@@ -1108,6 +1116,7 @@ begin
   aHSQL.Caption := Preferences.LoadStr(883) + '...';
   aHManual.Caption := Preferences.LoadStr(573);
   aHUpdate.Caption := Preferences.LoadStr(666) + '...';
+  aHDonation.Caption := Preferences.LoadStr(909) + '...';
   aHInfo.Caption := Preferences.LoadStr(168) + '...';
 
   for I := 0 to ActionList.ActionCount - 1 do

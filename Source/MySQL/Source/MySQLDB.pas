@@ -3271,51 +3271,68 @@ var
   StartTime: TDateTime;
   TrimmedPacketLength: Integer;
 begin
-  PacketLength := 0;
-  for I := 0 to Integer(LibraryThread.SQLStmtsInPackets[LibraryThread.SQLPacket]) - 1 do
-    Inc(PacketLength, Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt + I]));
-  TrimmedPacketLength := PacketLength;
-  if (not MultiStatements) then
-    while ((TrimmedPacketLength > 0) and CharInSet(LibraryThread.SQL[LibraryThread.SQLStmtIndex + TrimmedPacketLength - 1], [#9, #10, #13, ' ', ';'])) do
-      Dec(TrimmedPacketLength);
-
-  LibLength := WideCharToAnsiChar(CodePage, PChar(@LibraryThread.SQL[LibraryThread.SQLStmtIndex]), TrimmedPacketLength, nil, 0);
-  SetLength(LibSQL, LibLength);
-  WideCharToAnsiChar(CodePage, PChar(@LibraryThread.SQL[LibraryThread.SQLStmtIndex]), TrimmedPacketLength, PAnsiChar(LibSQL), LibLength);
-
   if (not LibraryThread.Success) then
-    Terminate();
+    if (not Assigned(LibraryThread.LibHandle) or (Lib.mysql_more_results(LibraryThread.LibHandle) = 0)) then
+      LibraryThread.Success := True
+    else
+      Terminate();
 
-  Retry := 0; NeedReconnect := not Assigned(LibraryThread.LibHandle);
-  repeat
-    while (NeedReconnect) do
-      SyncConnecting(LibraryThread);
-
-    if (not LibraryThread.Terminated and LibraryThread.Success) then
-    begin
-      StartTime := Now();
-      LibraryThread.Success := Lib.mysql_real_query(LibraryThread.LibHandle, my_char(LibSQL), LibLength) = 0;
-      LibraryThread.Time := LibraryThread.Time + Now() - StartTime;
-
-      NeedReconnect := not Assigned(LibraryThread.LibHandle)
-        or (Lib.mysql_errno(LibraryThread.LibHandle) = CR_SERVER_GONE_ERROR)
-        or (Lib.mysql_errno(LibraryThread.LibHandle) = CR_SERVER_LOST)
-        or (Lib.mysql_errno(LibraryThread.LibHandle) = CR_SERVER_HANDSHAKE_ERR);
-      if (NeedReconnect) then
-        SyncDisconnecting(LibraryThread);
-    end;
-
+  Retry := 0;
+  while (not Assigned(LibraryThread.LibHandle) and (Retry < RETRY_COUNT)) do
+  begin
+    SyncConnecting(LibraryThread);
     Inc(Retry);
-  until (LibraryThread.Terminated or not NeedReconnect or (Retry > RETRY_COUNT));
+  end;
 
-  if (LibraryThread.Success and not LibraryThread.Terminated) then
-    LibraryThread.ResHandle := Lib.mysql_use_result(LibraryThread.LibHandle);
+  if (not LibraryThread.Terminated and LibraryThread.Success) then
+  begin
+    PacketLength := 0;
+    for I := 0 to Integer(LibraryThread.SQLStmtsInPackets[LibraryThread.SQLPacket]) - 1 do
+      Inc(PacketLength, Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt + I]));
+    TrimmedPacketLength := PacketLength;
+    if (not MultiStatements) then
+      while ((TrimmedPacketLength > 0) and CharInSet(LibraryThread.SQL[LibraryThread.SQLStmtIndex + TrimmedPacketLength - 1], [#9, #10, #13, ' ', ';'])) do
+        Dec(TrimmedPacketLength);
+
+    LibLength := WideCharToAnsiChar(CodePage, PChar(@LibraryThread.SQL[LibraryThread.SQLStmtIndex]), TrimmedPacketLength, nil, 0);
+    SetLength(LibSQL, LibLength);
+    WideCharToAnsiChar(CodePage, PChar(@LibraryThread.SQL[LibraryThread.SQLStmtIndex]), TrimmedPacketLength, PAnsiChar(LibSQL), LibLength);
+
+    Retry := 0; NeedReconnect := False;
+    repeat
+      if (NeedReconnect) then
+        SyncConnecting(LibraryThread);
+
+      if (not LibraryThread.Terminated and LibraryThread.Success) then
+      begin
+        StartTime := Now();
+        LibraryThread.Success := Lib.mysql_real_query(LibraryThread.LibHandle, my_char(LibSQL), LibLength) = 0;
+        LibraryThread.Time := LibraryThread.Time + Now() - StartTime;
+
+        NeedReconnect := not Assigned(LibraryThread.LibHandle) or (Lib.mysql_errno(LibraryThread.LibHandle) = CR_SERVER_GONE_ERROR) or (Lib.mysql_errno(LibraryThread.LibHandle) = CR_SERVER_LOST) or (Lib.mysql_errno(LibraryThread.LibHandle) = CR_SERVER_HANDSHAKE_ERR);
+        if (NeedReconnect) then
+        begin
+          {$IFDEF Debug}
+            MessageBox(Application.Handle, 'Reconnect required!', 'Debug', MB_OK);
+          {$ENDIF}
+          SyncDisconnecting(LibraryThread);
+        end;
+      end;
+
+      Inc(Retry);
+    until (LibraryThread.Terminated or not NeedReconnect or (Retry = RETRY_COUNT));
+
+    if (LibraryThread.Success and not LibraryThread.Terminated) then
+      LibraryThread.ResHandle := Lib.mysql_use_result(LibraryThread.LibHandle);
+  end;
 
   if (Assigned(LibraryThread.LibHandle)) then
   begin
     LibraryThread.ErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);
     LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
-  end;
+  end
+  else if (not LibraryThread.Terminated) then
+    raise Exception.Create('Error Message 1'); // Debug 03.12.2012
 end;
 
 procedure TMySQLConnection.SyncHandleResult(const LibraryThread: TLibraryThread);

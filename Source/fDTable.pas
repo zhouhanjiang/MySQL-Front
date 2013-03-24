@@ -1428,6 +1428,7 @@ begin
 
   TSInformation.TabVisible := Assigned(Table) and (Table.DataSize >= 0) or Assigned(Tables);
   TSFields.TabVisible := not Assigned(Tables);
+  TSForeignKeys.TabVisible := not Assigned(Tables);
   TSKeys.TabVisible := not Assigned(Tables);
   TSTriggers.TabVisible := Assigned(Table)  and Assigned(Database.Triggers);
   TSReferenced.TabVisible := Assigned(Table) and Assigned(NewTable.Engine) and NewTable.Engine.IsInnoDB;
