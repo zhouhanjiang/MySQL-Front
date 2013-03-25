@@ -10,6 +10,7 @@ type
     ntRange,           // A node with a range of tokens, base for all further nodes
     ntDeleted,         // Token was deleted, but is still in memory
 
+    ntAlterDatabaseStmt,
     ntBetweenOp,
     ntBinaryOp,
     ntCaseCond,
@@ -51,6 +52,7 @@ type
   TStmtType = (
     stUnknown,         // Unused
 
+    stAlterDatabase,
     stCreateFunction,
     stCreateProcedure,
     stCreateTrigger,

@@ -201,8 +201,6 @@ type
         FNodeSize: Integer;
       end;
 
-      { Stmt nodes ------------------------------------------------------------}
-
       TStmt = packed record
       private
         Heritage: TRange;
@@ -231,6 +229,28 @@ type
         property NodeType: TNodeType read Heritage.Heritage.Heritage.FNodeType;
         property Parser: TCustomSQLParser read Heritage.Heritage.Heritage.FParser;
         property StmtType: TStmtType read FStmtType;
+      end;
+
+      { Normal nodes ----------------------------------------------------------}
+
+      PAlterDatabaseStmt = ^TAlterDatabaseStmt;
+      TAlterDatabaseStmt = packed record
+      private
+        Heritage: TStmt;
+      private type
+        TNodes = record
+          AlterTag: TOffset;
+          DatabaseTag: TOffset;
+          IdentTag: TOffset;
+          CharacterSetValue: TOffset;
+          CollateVale: TOffset;
+          UpgradeDataDirectoryNameTag: TOffset;
+        end;
+      private
+        FNodes: TNodes;
+        class function Create(const AParser: TCustomSQLParser; const ANodes: TNodes): TOffset; static;
+      public
+        property Parser: TCustomSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PBinaryOp = ^TBinaryOp;
@@ -948,6 +968,7 @@ type
   protected
     kiAFTER,
     kiALL,
+    kiALTER,
     kiAND,
     kiALGORITHM,
     kiAS,
@@ -968,10 +989,13 @@ type
     kiCROSS,
     kiCURRENT_USER,
     kiDATA,
+    kiDATABASE,
+    kiDEFAULT,
     kiDEFINER,
     kiDELETE,
     kiDESC,
     kiDETERMINISTIC,
+    kiDIRECTORY,
     kiDISTINCT,
     kiDISTINCTROW,
     kiDIV,
@@ -1010,6 +1034,7 @@ type
     kiMERGE,
     kiMOD,
     kiMODIFIES,
+    kiNAME,
     kiNATURAL,
     kiNO,
     kiNOT,
@@ -1033,6 +1058,7 @@ type
     kiRLIKE,
     kiROLLUP,
     kiROW,
+    kiSCHEMA,
     kiSECURITY,
     kiSELECT,
     kiSET,
@@ -1052,6 +1078,7 @@ type
     kiUNSIGNED,
     kiUNTIL,
     kiUPDATE,
+    kiUPGRADE,
     kiUSE,
     kiUSING,
     kiVIEW,
@@ -1076,6 +1103,7 @@ type
     function NodePtr(const ANode: TOffset): PNode; {$IFNDEF Debug} inline; {$ENDIF}
     function NodeSize(const ANode: TOffset): Integer; overload;
     function NodeSize(const ANodeType: TNodeType): Integer; overload;
+    function ParseAlterDatabaseStmt(): TOffset;
     function ParseCaseOp(): TOffset;
     function ParseCaseOpBranch(): TOffset;
     function ParseCaseStmt(): TOffset;
@@ -1733,6 +1761,25 @@ begin
       Result := nil
     else
       Result := PStmt(Node);
+  end;
+end;
+
+{ TCustomSQLParser.TAlterDatabase *********************************************}
+
+class function TCustomSQLParser.TAlterDatabaseStmt.Create(const AParser: TCustomSQLParser; const ANodes: TNodes): TOffset;
+begin
+  Result := TStmt.Create(AParser, stAlterDatabase);
+
+  with PAlterDatabaseStmt(AParser.NodePtr(Result))^ do
+  begin
+    FNodes := ANodes;
+
+    Heritage.Heritage.AddChild(ANodes.AlterTag);
+    Heritage.Heritage.AddChild(ANodes.DatabaseTag);
+    Heritage.Heritage.AddChild(ANodes.IdentTag);
+    Heritage.Heritage.AddChild(ANodes.CharacterSetValue);
+    Heritage.Heritage.AddChild(ANodes.CollateVale);
+    Heritage.Heritage.AddChild(ANodes.UpgradeDataDirectoryNameTag);
   end;
 end;
 
@@ -2744,6 +2791,41 @@ end;
 function TCustomSQLParser.Parse(const Text: string): Boolean;
 begin
   Result := Parse(PChar(Text), Length(Text));
+end;
+
+function TCustomSQLParser.ParseAlterDatabaseStmt(): TOffset;
+var
+  Found: Boolean;
+  Nodes: TAlterDatabaseStmt.TNodes;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
+  Nodes.AlterTag := ParseTag(kiALTER);
+
+  if (not Error and (CurrentToken > 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiSCHEMA)) then
+    Nodes.DatabaseTag := ParseTag(kiSCHEMA)
+  else
+    Nodes.DatabaseTag := ParseTag(kiDATABASE);
+
+  if (not Error and (CurrentToken > 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiUPGRADE)) then
+    Nodes.UpgradeDataDirectoryNameTag := ParseTag(kiUPGRADE, kiDATA, kiDIRECTORY, kiNAME)
+  else
+  begin
+    Found := True;
+    while (not Error and Found and (CurrentToken > 0)) do
+      if ((Nodes.CharacterSetValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCHARACTER)) then
+        Nodes.CharacterSetValue := ParseValue(ParseTag(kiCHARACTER, kiSET), vaAuto, ParseString)
+      else if ((Nodes.CharacterSetValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCOLLATE)) then
+        Nodes.CharacterSetValue := ParseValue(kiCOLLATE, vaAuto, ParseString)
+      else if ((Nodes.CharacterSetValue = 0) and (NextToken[1] > 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiDEFAULT) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCHARACTER)) then
+        Nodes.CharacterSetValue := ParseValue(ParseTag(kiDEFAULT, kiCHARACTER, kiSET), vaAuto, ParseString)
+      else if ((Nodes.CharacterSetValue = 0) and (NextToken[1] > 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiDEFAULT) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCOLLATE)) then
+        Nodes.CharacterSetValue := ParseValue(ParseTag(kiDEFAULT, kiCOLLATE), vaAuto, ParseString)
+      else
+        Found := False;
+  end;
+
+  Result := TAlterDatabaseStmt.Create(Self, Nodes);
 end;
 
 function TCustomSQLParser.ParseCaseOp(): TOffset;
@@ -5748,7 +5830,8 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.IdentTag := IdentTag;
+  if (not Error) then
+    Nodes.IdentTag := IdentTag;
 
   if (not Error and (Assign in [vaYes, vaAuto])) then
     if (CurrentToken = 0) then
@@ -6087,6 +6170,7 @@ begin
   begin
     kiAFTER               := IndexOf('AFTER');
     kiALL                 := IndexOf('ALL');
+    kiALTER               := IndexOf('ALTER');
     kiAND                 := IndexOf('AND');
     kiAS                  := IndexOf('AS');
     kiALGORITHM           := IndexOf('ALGORITHM');
@@ -6107,10 +6191,13 @@ begin
     kiCROSS               := IndexOf('CROSS');
     kiCURRENT_USER        := IndexOf('CURRENT_USER');
     kiDATA                := IndexOf('DATA');
+    kiDATABASE            := IndexOf('DATABASE');
+    kiDEFAULT             := IndexOf('DEFAULT');
     kiDEFINER             := IndexOf('DEFINER');
     kiDELETE              := IndexOf('DELETE');
     kiDESC                := IndexOf('DESC');
     kiDETERMINISTIC       := IndexOf('DETERMINISTIC');
+    kiDIRECTORY           := IndexOf('DIRECTORY');
     kiDISTINCT            := IndexOf('DISTINCT');
     kiDISTINCTROW         := IndexOf('DISTINCTROW');
     kiDIV                 := IndexOf('DIV');
@@ -6150,6 +6237,7 @@ begin
     kiMOD                 := IndexOf('MOD');
     kiMODIFIES            := IndexOf('MODIFIES');
     kiNATURAL             := IndexOf('NATURAL');
+    kiNAME                := IndexOf('NAME');
     kiNO                  := IndexOf('NO');
     kiNOT                 := IndexOf('NOT');
     kiNULL                := IndexOf('NULL');
@@ -6172,6 +6260,7 @@ begin
     kiRLIKE               := IndexOf('RLIKE');
     kiROLLUP              := IndexOf('ROLLUP');
     kiROW                 := IndexOf('ROW');
+    kiSCHEMA              := IndexOf('SCHEMA');
     kiSECURITY            := IndexOf('SECURITY');
     kiSELECT              := IndexOf('SELECT');
     kiSET                 := IndexOf('SET');
@@ -6193,6 +6282,7 @@ begin
     kiUNDEFINED           := IndexOf('UNDEFINED');
     kiUNSIGNED            := IndexOf('UNSIGNED');
     kiUNTIL               := IndexOf('UNTIL');
+    kiUPGRADE             := IndexOf('UPGRADE');
     kiUSE                 := IndexOf('USE');
     kiUSING               := IndexOf('USING');
     kiUPDATE              := IndexOf('UPDATE');

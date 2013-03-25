@@ -115,6 +115,7 @@ const
     'ntRange',
     'ntDeleted',
 
+    'ntAlterDatabaseStmt',
     'ntBetweenOp',
     'ntBinaryOp',
     'ntCaseCond',
@@ -154,6 +155,7 @@ const
 
   StmtTypeToString: array[TStmtType] of PChar = (
     'stUnknown',
+    'stAlterDatabase',
     'stCreateFunction',
     'stCreateRoutine',
     'stCreateTrigger',
@@ -410,6 +412,7 @@ const
 
   NodeTypeByStmtType: array[TStmtType] of TNodeType = (
     ntUnknown,
+    ntAlterDatabaseStmt,
     ntCreateRoutineStmt,
     ntCreateRoutineStmt,
     ntCreateTriggerStmt,

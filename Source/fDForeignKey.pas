@@ -148,7 +148,7 @@ var
 begin
   FBOk.Enabled := (FFields.SelCount > 0) and (FParentTable.Text <> '') and (FParentFields.SelCount > 0);
   for I := 0 to Table.ForeignKeys.Count - 1 do
-    if (lstrcmpi(PChar(FName.Text), PChar(Table.ForeignKeys[I].Name)) = 0) and (FName.Text <> '') and (not Assigned(ForeignKey) or (lstrcmpi(PChar(FName.Text), PChar(ForeignKey.Name)) = 0)) then
+    if (not Assigned(ForeignKey) and (lstrcmpi(PChar(FName.Text), PChar(Table.ForeignKeys[I].Name)) = 0)) then
       FBOk.Enabled := False;
 end;
 
@@ -377,11 +377,6 @@ begin
     FParentTable.ItemIndex := FParentTable.Items.IndexOf(ForeignKey.Parent.TableName);
     FParentTableChange(Sender);
 
-    for I := 0 to FParentFields.Items.Count - 1 do
-      for J := 0 to Length(ForeignKey.Parent.FieldNames) - 1 do
-        if (lstrcmpi(PChar(FParentFields.Items.Strings[I]), PChar(ForeignKey.Parent.FieldNames[J])) = 0) then
-          FParentFields.Selected[I] := True;
-
     FMatchFull.Checked := ForeignKey.Match = mtFull;
     FMatchPartial.Checked := ForeignKey.Match = mtFull;
 
@@ -424,6 +419,7 @@ begin
   else
     FBCancel.Caption := Preferences.LoadStr(231);
 
+  FBOk.Enabled := False;
   FBOk.Default := FBOk.Visible;
   FBCancel.Default := not FBOk.Default;
 
@@ -458,19 +454,24 @@ end;
 procedure TDForeignKey.FParentTableChange(Sender: TObject);
 var
   I: Integer;
+  J: Integer;
 begin
   FParentFields.Clear();
 
   if (not Assigned(SelectedParentTable)) then
     FParentFields.Cursor := crDefault
-  else if (not SelectedParentTable.Update()) then
-    FParentFields.Cursor := crSQLWait
-  else
+  else if (SelectedParentTable.Update()) then
   begin
     FParentFields.Cursor := crDefault;
 
     for I := 0 to SelectedParentTable.Fields.Count - 1 do
       FParentFields.Items.Add(SelectedParentTable.Fields.Field[I].Name);
+
+    if (Assigned(ForeignKey)) then
+      for I := 0 to FParentFields.Items.Count - 1 do
+        for J := 0 to Length(ForeignKey.Parent.FieldNames) - 1 do
+          if (lstrcmpi(PChar(FParentFields.Items.Strings[I]), PChar(ForeignKey.Parent.FieldNames[J])) = 0) then
+            FParentFields.Selected[I] := True;
 
     FParentFields.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013);
     FBOkCheckEnabled(Sender);
