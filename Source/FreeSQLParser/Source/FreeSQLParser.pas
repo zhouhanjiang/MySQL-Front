@@ -756,14 +756,14 @@ type
       private type
         TNodes = record
           SelectTag: TOffset;
-          DistinctToken: TOffset;
-          HighPriorityToken: TOffset;
-          StraightJoinToken: TOffset;
-          SQLSmallResultToken: TOffset;
-          SQLBigResultToken: TOffset;
-          SQLBufferResultToken: TOffset;
-          SQLNoCacheToken: TOffset;
-          SQLCalcFoundRowsToken: TOffset;
+          DistinctTag: TOffset;
+          HighPriorityTag: TOffset;
+          StraightJoinTag: TOffset;
+          SQLSmallResultTag: TOffset;
+          SQLBigResultTag: TOffset;
+          SQLBufferResultTag: TOffset;
+          SQLNoCacheTag: TOffset;
+          SQLCalcFoundRowsTag: TOffset;
           ColumnsNode: TOffset;
           FromTag: TOffset;
           TablesNodes: TOffset;
@@ -2350,7 +2350,7 @@ begin
     FNodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.SelectTag);
-    Heritage.Heritage.AddChild(ANodes.DistinctToken);
+    Heritage.Heritage.AddChild(ANodes.DistinctTag);
     Heritage.Heritage.AddChild(ANodes.ColumnsNode);
     Heritage.Heritage.AddChild(ANodes.FromTag);
     Heritage.Heritage.AddChild(ANodes.TablesNodes);
@@ -2958,7 +2958,7 @@ begin
   end;
 
   Found := True;
-  while (not Error and (CurrentToken > 0) and Found) do
+  while (not Error and Found and (CurrentToken > 0)) do
     if (TokenPtr(CurrentToken)^.KeywordIndex = kiCOMMENT) then
       Nodes.CommentValue := ParseValue(kiCOMMENT, vaNo, ParseString)
     else if (TokenPtr(CurrentToken)^.KeywordIndex = kiLANGUAGE) then
@@ -4417,29 +4417,32 @@ begin
 
   Nodes.SelectTag := ParseTag(kiSELECT);
 
-  repeat
-    Found := True;
-    if (CurrentToken = 0) then
-      SetError(PE_IncompleteStmt)
-    else if ((TokenPtr(CurrentToken)^.KeywordIndex = kiAll) or (TokenPtr(CurrentToken)^.KeywordIndex = kiDISTINCT) or (TokenPtr(CurrentToken)^.KeywordIndex = kiDISTINCTROW)) then
-      Nodes.DistinctToken := ApplyCurrentToken()
-    else if (TokenPtr(CurrentToken)^.KeywordIndex = kiHIGH_PRIORITY) then
-      Nodes.HighPriorityToken := ApplyCurrentToken()
-    else if (TokenPtr(CurrentToken)^.KeywordIndex = kiSTRAIGHT_JOIN) then
-      Nodes.StraightJoinToken := ApplyCurrentToken()
-    else if (TokenPtr(CurrentToken)^.KeywordIndex = kiSQL_SMALL_RESULT) then
-      Nodes.SQLSmallResultToken := ApplyCurrentToken()
-    else if (TokenPtr(CurrentToken)^.KeywordIndex = kiSQL_BIG_RESULT) then
-      Nodes.SQLBigResultToken := ApplyCurrentToken()
-    else if (TokenPtr(CurrentToken)^.KeywordIndex = kiSQL_BUFFER_RESULT) then
-      Nodes.SQLBufferResultToken := ApplyCurrentToken()
-    else if ((TokenPtr(CurrentToken)^.KeywordIndex = kiSQL_CACHE) or (TokenPtr(CurrentToken)^.KeywordIndex = kiSQL_NO_CACHE)) then
-      Nodes.SQLNoCacheToken := ApplyCurrentToken()
-    else if (TokenPtr(CurrentToken)^.KeywordIndex = kiSQL_CALC_FOUND_ROWS) then
-      Nodes.SQLCalcFoundRowsToken := ApplyCurrentToken()
+  Found := True;
+  while (not Error and Found and (CurrentToken > 0)) do
+    if ((Nodes.DistinctTag = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiALL)) then
+      Nodes.DistinctTag := ParseTag(kiALL)
+    else if ((Nodes.DistinctTag = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiDISTINCT)) then
+      Nodes.DistinctTag := ParseTag(kiDISTINCT)
+    else if ((Nodes.DistinctTag = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiDISTINCTROW)) then
+      Nodes.DistinctTag := ParseTag(kiDISTINCTROW)
+    else if ((Nodes.HighPriorityTag = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiHIGH_PRIORITY)) then
+      Nodes.HighPriorityTag := ParseTag(kiHIGH_PRIORITY)
+    else if ((Nodes.StraightJoinTag = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiSTRAIGHT_JOIN)) then
+      Nodes.StraightJoinTag := ParseTag(kiSTRAIGHT_JOIN)
+    else if ((Nodes.SQLSmallResultTag = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiSQL_SMALL_RESULT)) then
+      Nodes.SQLSmallResultTag := ParseTag(kiSQL_SMALL_RESULT)
+    else if ((Nodes.SQLBigResultTag = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiSQL_BIG_RESULT)) then
+      Nodes.SQLBigResultTag := ParseTag(kiSQL_BIG_RESULT)
+    else if ((Nodes.SQLBufferResultTag = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiSQL_BUFFER_RESULT)) then
+      Nodes.SQLBufferResultTag := ParseTag(kiSQL_BUFFER_RESULT)
+    else if ((Nodes.SQLNoCacheTag = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiSQL_CACHE)) then
+      Nodes.SQLNoCacheTag := ParseTag(kiSQL_CACHE)
+    else if ((Nodes.SQLNoCacheTag = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiSQL_NO_CACHE)) then
+      Nodes.SQLNoCacheTag := ParseTag(kiSQL_NO_CACHE)
+    else if ((Nodes.SQLCalcFoundRowsTag = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiSQL_CALC_FOUND_ROWS)) then
+      Nodes.SQLCalcFoundRowsTag := ParseTag(kiSQL_CALC_FOUND_ROWS)
     else
       Found := False;
-  until (not Found);
 
   Nodes.ColumnsNode := ParseList(False, ParseColumn);
 
