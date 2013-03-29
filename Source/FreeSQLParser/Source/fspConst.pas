@@ -53,7 +53,10 @@ const
     'WEEKDAY,WEEKOFYEAR,YEAR_MONTH,YEARWEEK,';
 
   MySQLKeywords =
-    'BINARY,INTERVAL,LEFT,RIGHT,MERGE,CURRENT_USER,UNSIGNED,ZEROFILL,' +
+    'BINARY,INTERVAL,LEFT,RIGHT,MERGE,CURRENT_USER,UNSIGNED,ZEROFILL,DAY,' +
+    'DAY_HOUR,DAY_MINUTE,DAY_SECOND,HOUR,HOUR_MINUTE,HOUR_SECOND,MONTH,' +
+    'MINUTE,MINUTE_SECOND,QUARTER,SECOND,WEEK,YEAR,YEAR_MONTH,ADD,PASSWORD,' +
+    'SPATIAL,STATS_AUTO_CALC,STATS_AUTO_RECALC,STATS_PERSISTENT,USER,' +
 
     'ACTION,AFTER,AGAINST,AGGREGATE,ALGORITHM,ALL,ALTER,ANALYZE,AND,ANY,AS,' +
     'ASC,AT,AUTHORS,AUTO_INCREMENT,AUTOEXTEND_SIZE,AVG_ROW_LENGTH,BACKUP,' +
@@ -116,6 +119,11 @@ const
     'ntDeleted',
 
     'ntAlterDatabaseStmt',
+    'ntAlterEventStmt',
+    'ntAlterRoutineStmt',
+    'ntAlterServerStmt',
+    'ntAlterTableStmt',
+    'ntAlterViewStmt',
     'ntBetweenOp',
     'ntBinaryOp',
     'ntCaseCond',
@@ -126,6 +134,10 @@ const
     'ntColumn',
     'ntCompoundStmt',
     'ntCreateRoutineStmt',
+    'ntCreateTableStmtIndex',
+    'ntCreateTableStmtIndexColName',
+    'ntCreateTableStmtReference',
+    'ntCreateTableStmtColum',
     'ntCreateTriggerStmt',
     'ntCreateViewStmt',
     'ntDataType',
@@ -136,12 +148,15 @@ const
     'ntIfBranch',
     'ntIfStmt',
     'ntIndexHint',
+    'ntInterval',
+    'ntIntervalListItem',
     'ntIterateStmt',
     'ntJoin',
     'ntLeaveStmt',
     'ntList',
     'ntOrder',
     'ntProcedureParam',
+    'ntSchedule',
     'ntSelectStmt',
     'ntSoundsLikeOp',
     'ntSubArea',
@@ -155,9 +170,15 @@ const
 
   StmtTypeToString: array[TStmtType] of PChar = (
     'stUnknown',
+    'stAlterEvent',
     'stAlterDatabase',
+    'stAlterFunction',
+    'stAlterProcedure',
+    'stAlterServer',
+    'stAlterTable',
+    'stAlterView',
     'stCreateFunction',
-    'stCreateRoutine',
+    'stCreateProcedure',
     'stCreateTrigger',
     'stCreateView',
     'stCompound',
@@ -301,7 +322,8 @@ const
     'ditDatabase',
     'ditParameter',
     'ditEvent',
-    'ditPartition'
+    'ditPartition',
+    'ditServer'
   );
 
   OperatorPrecedenceByOperatorType: array[TOperatorType] of Integer = (
@@ -413,15 +435,21 @@ const
   NodeTypeByStmtType: array[TStmtType] of TNodeType = (
     ntUnknown,
     ntAlterDatabaseStmt,
+    ntAlterEventStmt,
+    ntAlterRoutineStmt,
+    ntAlterRoutineStmt,
+    ntAlterServerStmt,
+    ntAlterTableStmt,
+    ntAlterViewStmt,
     ntCreateRoutineStmt,
     ntCreateRoutineStmt,
     ntCreateTriggerStmt,
     ntCreateViewStmt,
     ntCompoundStmt,
-    ntIFStmt,
+    ntIfStmt,
     ntUnknown,
     ntUnknown,
-    ntSELECTStmt,
+    ntSelectStmt,
     ntUnknown
   );
 

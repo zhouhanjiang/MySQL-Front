@@ -11,6 +11,11 @@ type
     ntDeleted,         // Token was deleted, but is still in memory
 
     ntAlterDatabaseStmt,
+    ntAlterEventStmt,
+    ntAlterRoutineStmt,
+    ntAlterServerStmt,
+    ntAlterTableStmt,
+    ntAlterViewStmt,
     ntBetweenOp,
     ntBinaryOp,
     ntCaseCond,
@@ -21,6 +26,10 @@ type
     ntColumn,
     ntCompoundStmt,
     ntCreateRoutineStmt,
+    ntCreateTableStmtIndex,
+    ntCreateTableStmtIndexColName,
+    ntCreateTableStmtReference,
+    ntCreateTableStmtColum,
     ntCreateTriggerStmt,
     ntCreateViewStmt,
     ntDataType,
@@ -31,12 +40,15 @@ type
     ntIfBranch,
     ntIfStmt,
     ntIndexHint,
+    ntInterval,
+    ntIntervalListItem,
     ntIterateStmt,
     ntJoin,
     ntLeaveStmt,
     ntList,
     ntOrder,
     ntProcedureParam,
+    ntSchedule,
     ntSelectStmt,
     ntSoundsLikeOp,
     ntSubArea,
@@ -53,6 +65,12 @@ type
     stUnknown,         // Unused
 
     stAlterDatabase,
+    stAlterEvent,
+    stAlterFunction,
+    stAlterProcedure,
+    stAlterServer,
+    stAlterTable,
+    stAlterView,
     stCreateFunction,
     stCreateProcedure,
     stCreateTrigger,
@@ -98,11 +116,11 @@ type
     ttNumeric,                // Numeric (float) constant, like -123.456E15
     ttString,                 // String constant, enclosed in ''
     ttCSString,               // MySQL Character Set, like _utf8'Hello'
-    ttIdent,             // Ident
-    ttDQIdent,           // Ident, enclosed in ""
-    ttDBIdent,           // Ident, enclosed in []
-    ttBRIdent,           // Ident, enclosed in {}
-    ttMySQLIdent,        // Ident, enclosed in ``
+    ttIdentifier,             // Identifier
+    ttDQIdentifier,           // Identifier, enclosed in ""
+    ttDBIdentifier,           // Identifier, enclosed in []
+    ttBRIdentifier,           // Identifier, enclosed in {}
+    ttMySQLIdentifier,        // Identifier, enclosed in ``
     ttBeginLabel,             // Lable, like Label_Name:
     ttEndLabel,               // Lable, like Label_Name:
     ttVariable,               // Variable, like @varname
@@ -114,7 +132,7 @@ type
     ttBackslash               // "\", DB2 use
   );
 const
-  ttIdents = [ttIdent, ttDQIdent, ttDBIdent, ttBRIdent, ttMySQLIdent];
+  ttIdents = [ttIdentifier, ttDQIdentifier, ttDBIdentifier, ttBRIdentifier, ttMySQLIdentifier];
   ttStrings = [ttString, ttCSString];
 
 type
@@ -202,7 +220,8 @@ type
     ditDatabase,
     ditParameter,
     ditEvent,
-    ditPartition
+    ditPartition,
+    ditServer
   );
 
   TJoinType = (

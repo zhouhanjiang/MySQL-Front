@@ -143,13 +143,9 @@ begin
 end;
 
 procedure TDForeignKey.FBOkCheckEnabled(Sender: TObject);
-var
-  I: Integer;
 begin
-  FBOk.Enabled := (FFields.SelCount > 0) and (FParentTable.Text <> '') and (FParentFields.SelCount > 0);
-  for I := 0 to Table.ForeignKeys.Count - 1 do
-    if (not Assigned(ForeignKey) and (lstrcmpi(PChar(FName.Text), PChar(Table.ForeignKeys[I].Name)) = 0)) then
-      FBOk.Enabled := False;
+  FBOk.Enabled := (FFields.SelCount > 0) and (FParentTable.Text <> '') and (FParentFields.SelCount > 0)
+    and (not Assigned(Table.ForeignKeyByName(FName.Text)) or (Assigned(ForeignKey) and (Table.ForeignKeys.NameCmp(FName.Text, ForeignKey.Name) = 0)));
 end;
 
 procedure TDForeignKey.FMatchFullClick(Sender: TObject);

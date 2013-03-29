@@ -4691,8 +4691,7 @@ procedure TSBaseTable.PushBuildEvent(const CItemsEvents: Boolean = True);
 begin
   if (Valid) then
   begin
-    if (CItemsEvents) then
-      Session.ExecuteEvent(ceItemsValid, Self);
+    Session.ExecuteEvent(ceItemsValid, Self);
     Session.ExecuteEvent(ceItemValid, Database, Tables, Self);
   end;
 end;
