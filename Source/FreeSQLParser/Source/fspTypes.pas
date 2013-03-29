@@ -26,10 +26,11 @@ type
     ntColumn,
     ntCompoundStmt,
     ntCreateRoutineStmt,
-    ntCreateTableStmtIndex,
-    ntCreateTableStmtIndexColName,
-    ntCreateTableStmtReference,
     ntCreateTableStmtColum,
+    ntCreateTableStmtForeignKey,
+    ntCreateTableStmtKey,
+    ntCreateTableStmtKeyColName,
+    ntCreateTableStmtReference,
     ntCreateTriggerStmt,
     ntCreateViewStmt,
     ntDataType,
@@ -133,7 +134,7 @@ type
   );
 const
   ttIdents = [ttIdentifier, ttDQIdentifier, ttDBIdentifier, ttBRIdentifier, ttMySQLIdentifier];
-  ttStrings = [ttString, ttCSString];
+  ttStrings = [ttIdentifier, ttString, ttCSString];
 
 type
   TOperatorType = (

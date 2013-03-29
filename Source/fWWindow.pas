@@ -587,7 +587,7 @@ end;
 
 procedure TWWindow.ahDonationExecute(Sender: TObject);
 begin
-  ShellExecute(Application.Handle, 'open', 'https://secure.avangate.com/order/checkout.php?PRODS=696145&QTY=7&CART=1&CARD=2', '', '', SW_SHOW)
+  ShellExecute(Application.Handle, 'open', PChar(SysUtils.LoadStr(1007)), '', '', SW_SHOW)
 end;
 
 procedure TWWindow.aHIndexExecute(Sender: TObject);
