@@ -347,12 +347,39 @@ type
       PAlterTableStmt = ^TAlterTableStmt;
       TAlterTableStmt = packed record
       private type
+
+        PDropObject = ^TDropObject;
+        TDropObject = packed record
+        private type
+          TNodes = record
+            DropTag: TOffset;
+            ObjectTypeTag: TOffset;
+            NameToken: TOffset;
+          end;
+        private
+          Heritage: TRange;
+          FNodes: TNodes;
+          class function Create(const AParser: TCustomSQLParser; const ANodes: TNodes): TOffset; static;
+        public
+          property Parser: TCustomSQLParser read Heritage.Heritage.Heritage.FParser;
+        end;
+
         TNodes = record
           AlterTag: TOffset;
           IgnoreTag: TOffset;
           TableTag: TOffset;
           IdentNode: TOffset;
           TableOptionsNodes: TTableOptionNodes;
+          SpecificationList: TOffset;
+          AlgorighmNode: TOffset;
+          EnableKeys: TOffset;
+          RenameNode: TOffset;
+          OrderByList: TOffset;
+          ConvertToCharacterSetNode: TOffset;
+          CharacterSetNode: TOffset;
+          DiscardTablespaceTag: TOffset;
+          ImportTablespaceTag: TOffset;
+          ForceTag: TOffset;
         end;
       private
         Heritage: TStmt;
@@ -558,6 +585,7 @@ type
         private type
           TNodes = record
             AddTag: TOffset;
+            ColumnTag: TOffset;
             DataTypeNode: TOffset;
             Null: TOffset;
             DefaultValue: TOffset;
@@ -1285,6 +1313,7 @@ type
     kiCHECK,
     kiCHECKSUM,
     kiCOLLATE,
+    kiCOLUMN,
     kiCOLUMN_FORMAT,
     kiCOMMENT,
     kiCOMPLETION,
@@ -1311,6 +1340,7 @@ type
     kiDISTINCTROW,
     kiDIV,
     kiDO,
+    kiDROP,
     kiEACH,
     kiELSE,
     kiELSEIF,
@@ -2233,6 +2263,22 @@ begin
   end;
 end;
 
+{ TCustomSQLParser.TAlterTableStmt.TDropObject ********************************}
+
+class function TCustomSQLParser.TAlterTableStmt.TDropObject.Create(const AParser: TCustomSQLParser; const ANodes: TDropObject.TNodes): TOffset;
+begin
+  Result := TRange.Create(AParser, ntDropTableObject);
+
+  with PDropObject(AParser.NodePtr(Result))^ do
+  begin
+    FNodes := ANodes;
+
+    Heritage.AddChild(ANodes.DropTag);
+    Heritage.AddChild(ANodes.ObjectTypeTag);
+    Heritage.AddChild(ANodes.NameToken);
+  end;
+end;
+
 { TCustomSQLParser.TAlterTableStmt ********************************************}
 
 class function TCustomSQLParser.TAlterTableStmt.Create(const AParser: TCustomSQLParser; const ANodes: TNodes): TOffset;
@@ -2444,6 +2490,7 @@ begin
     FNodes := ANodes;
 
     Heritage.AddChild(ANodes.AddTag);
+    Heritage.AddChild(ANodes.ColumnTag);
     Heritage.AddChild(ANodes.DataTypeNode);
     Heritage.AddChild(ANodes.Null);
     Heritage.AddChild(ANodes.DefaultValue);
@@ -3609,8 +3656,10 @@ function TCustomSQLParser.ParseAlterTableStmt(): TOffset;
 var
   DelimiterExpected: Boolean;
   DelimiterFound: Boolean;
+  DropObjectValues: TAlterTableStmt.TDropObject.TNodes;
   First: Boolean;
   Nodes: TAlterTableStmt.TNodes;
+  PrimaryKey: Boolean;
   Specifications: Classes.TList;
   SpecificationType: (stUnknown, stColumn, stKey, stForeignKey, stPartition);
   ValueNodes: TValue.TNodes;
@@ -3825,6 +3874,41 @@ begin
         stKey: Specifications.Add(Pointer(ParseCreateTableKey(True)));
         stForeignKey: Specifications.Add(Pointer(ParseCreateTableForeignKey(True)));
         stPartition: Specifications.Add(Pointer(ParseCreateTablePartition(True)));
+      end;
+    end
+    else if (TokenPtr(CurrentToken)^.KeywordIndex = kiDROP) then
+    begin
+      FillChar(DropObjectValues, SizeOf(DropObjectValues), 0);
+
+      if (not Error) then
+        DropObjectValues.DropTag := ParseTag(kiDROP);
+
+      if (not Error) then
+      begin
+        PrimaryKey := False;
+        if (CurrentToken = 0) then
+          SetError(PE_IncompleteStmt)
+        else if (TokenPtr(CurrentToken)^.KeywordIndex = kiPRIMARY) then
+        begin
+          PrimaryKey := True;
+          DropObjectValues.ObjectTypeTag := ParseTag(kiPRIMARY, kiKEY);
+        end
+        else if (TokenPtr(CurrentToken)^.KeywordIndex = kiINDEX) then
+          DropObjectValues.ObjectTypeTag := ParseTag(kiINDEX)
+        else if (TokenPtr(CurrentToken)^.KeywordIndex = kiKEY) then
+          DropObjectValues.ObjectTypeTag := ParseTag(kiKEY)
+        else if (TokenPtr(CurrentToken)^.KeywordIndex = kiFOREIGN) then
+          DropObjectValues.ObjectTypeTag := ParseTag(kiFOREIGN, kiKEY)
+        else if (TokenPtr(CurrentToken)^.KeywordIndex = kiCOLUMN) then
+          DropObjectValues.ObjectTypeTag := ParseTag(kiCOLUMN);
+
+        if (not Error) then
+          if (CurrentToken = 0) then
+            SetError(PE_IncompleteStmt)
+          else
+            DropObjectValues.NameToken := ApplyCurrentToken();
+
+        Specifications.Add(Pointer(TAlterTableStmt.TDropObject.Create(Self, DropObjectValues)));
       end;
     end;
 
@@ -4376,6 +4460,9 @@ begin
 
   if (not Error and Add) then
     Nodes.AddTag := ParseTag(kiADD);
+
+  if (not Error) then
+    Nodes.ColumnTag := ParseTag(kiCOLUMN);
 
   if (not Error) then
     Nodes.DataTypeNode := ParseDataType();
@@ -8032,6 +8119,7 @@ begin
     kiCHECKSUM            := IndexOf('CHECKSUM');
     kiCHARACTER           := IndexOf('CHARACTER');
     kiCOLLATE             := IndexOf('COLLATE');
+    kiCOLUMN              := IndexOf('COLUMN');
     kiCOLUMN_FORMAT       := IndexOf('COLUMN_FORMAT');
     kiCOMMENT             := IndexOf('COMMENT');
     kiCONNECTION          := IndexOf('CONNECTION');
@@ -8058,6 +8146,7 @@ begin
     kiDISTINCTROW         := IndexOf('DISTINCTROW');
     kiDIV                 := IndexOf('DIV');
     kiDO                  := IndexOf('DO');
+    kiDROP                := IndexOf('DROP');
     kiEACH                := IndexOf('EACH');
     kiELSE                := IndexOf('ELSE');
     kiELSEIF              := IndexOf('ELSEIF');

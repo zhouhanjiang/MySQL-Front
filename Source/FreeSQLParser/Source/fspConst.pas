@@ -143,6 +143,7 @@ const
     'ntCreateViewStmt',
     'ntDataType',
     'ntDbIdent',
+    'ntDropTableObject',
     'ntFunction',
     'ntFunctionParam',
     'ntGroup',

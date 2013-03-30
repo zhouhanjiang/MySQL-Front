@@ -35,6 +35,7 @@ type
     ntCreateViewStmt,
     ntDataType,
     ntDbIdent,
+    ntDropTableObject,
     ntFunction,
     ntFunctionParam,
     ntGroup,
