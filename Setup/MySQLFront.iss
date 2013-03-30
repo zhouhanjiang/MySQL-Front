@@ -56,7 +56,7 @@ Name: AssociateSQL; Description: "Associate .sql (SQL File) with {BuildName}"; G
 
 [Registry]
 Root: HKCU; Subkey: "Software\{BuildName}"; ValueType: string; ValueName: "LanguageFile"; ValueData: "{language}.ini"; Flags: createvalueifdoesntexist uninsdeletevalue
-Root: HKCU; Subkey: "Software\{BuildName}"; ValueType: string; ValueName: "SetupProgram"; Flags: deletevalue
+Root: HKCU; Subkey: "Software\{BuildName}"; ValueType: dword; ValueName: "SetupProgramInstalled"; ValueData: 1
 Root: HKCR; Subkey: ".sql"; ValueType: string; ValueName: ""; ValueData: "SQLFile"; Tasks: AssociateSQL; Flags: uninsdeletevalue
 Root: HKCR; Subkey: "SQLFile"; ValueType: string; ValueName: ""; ValueData: "SQL Script"; Tasks: AssociateSQL; Flags: uninsdeletekey
 Root: HKCR; Subkey: "SQLFile\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{BuildName}.exe,0"; Tasks: AssociateSQL; Flags: createvalueifdoesntexist uninsdeletevalue
