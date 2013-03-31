@@ -3269,6 +3269,7 @@ var
   PacketLength: Integer;
   Retry: Integer;
   StartTime: TDateTime;
+  Success: Boolean;
   TrimmedPacketLength: Integer;
 begin
   PacketLength := 0;
@@ -3285,10 +3286,15 @@ begin
 
   Retry := 0; NeedReconnect := not Assigned(LibraryThread.LibHandle);
   repeat
-    if (NeedReconnect) then
+    if (not NeedReconnect) then
+      Success := True
+    else
+    begin
       SyncConnecting(LibraryThread);
+      Success := Assigned(LibraryThread) and LibraryThread.Success;
+    end;
 
-    if (not LibraryThread.Terminated and LibraryThread.Success) then
+    if (not LibraryThread.Terminated and Success) then
     begin
       StartTime := Now();
       LibraryThread.Success := Lib.mysql_real_query(LibraryThread.LibHandle, my_char(LibSQL), LibLength) = 0;
