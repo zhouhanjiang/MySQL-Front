@@ -8106,6 +8106,7 @@ var
   SQL: string;
 begin
   SQL := '';
+
   case (NewView.Algorithm) of
     vaUndefined: SQL := SQL + 'ALGORITHM=UNDEFINED ';
     vaMerge: SQL := SQL + 'ALGORITHM=MERGE ';
@@ -8120,7 +8121,7 @@ begin
       seInvoker: SQL := SQL + 'SQL SECURITY INVOKER ';
     end;
   end;
-  SQL := SQL + 'VIEW ' + Session.EscapeIdentifier(Name) + '.' + Session.EscapeIdentifier(NewView.Name);
+  SQL := SQL + 'VIEW ' + Session.EscapeIdentifier(NewView.Database.Name) + '.' + Session.EscapeIdentifier(NewView.Name);
   SQL := SQL + ' AS ' + SQLTrimStmt(NewView.Stmt);
   if (SQL[Length(SQL)] = ';') then
     Delete(SQL, Length(SQL), 1);
@@ -8132,19 +8133,20 @@ begin
 
   if (not Assigned(View)) then
     SQL := 'CREATE ' + SQL
-  else if (View.Name = NewView.Name) then
-    SQL := 'ALTER ' + SQL
   else
-  begin
-    SQL := 'DROP VIEW ' + Session.EscapeIdentifier(Name) + '.' + Session.EscapeIdentifier(View.Name) + ';' + #13#10;
-    SQL := SQL + 'CREATE ' + SQL;
-  end;
+    SQL := 'ALTER ' + SQL;
   SQL := Trim(SQL);
   if (SQL[Length(SQL)] <> ';') then
     SQL := SQL + ';';
   SQL := SQL + #13#10;
 
   SQL := SQL + NewView.SQLGetSource();
+
+  if (Assigned(View) and (View.Name <> NewView.Name)) then
+    SQL := 'RENAME TABLE '
+      + Session.EscapeIdentifier(View.Database.Name) + '.' + Session.EscapeIdentifier(View.Name) + ' TO '
+      + Session.EscapeIdentifier(NewView.Database.Name) + '.' + Session.EscapeIdentifier(NewView.Name) + ';' + #13#10
+      + SQL;
 
   if (Session.DatabaseName <> Name) then
     SQL := SQLUse() + SQL;

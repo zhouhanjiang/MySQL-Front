@@ -83,7 +83,7 @@ object FSession: TFSession
         Left = 2
         Top = 106
         Width = 116
-        Height = 498
+        Height = 521
         Align = alClient
         BevelOuter = bvNone
         Color = clWindow
@@ -124,7 +124,7 @@ object FSession: TFSession
         Left = 2
         Top = 2
         Width = 116
-        Height = 602
+        Height = 625
         HelpContext = 1082
         Align = alClient
         BorderStyle = bsNone
@@ -208,7 +208,7 @@ object FSession: TFSession
         Left = 2
         Top = 2
         Width = 116
-        Height = 602
+        Height = 625
         HelpContext = 1082
         Align = alClient
         BorderStyle = bsNone
@@ -705,7 +705,7 @@ object FSession: TFSession
         Left = 0
         Top = 0
         Width = 43
-        Height = 21
+        Height = 22
         TabOrder = 0
         Text = '0'
         OnChange = FOffsetChange
@@ -715,7 +715,7 @@ object FSession: TFSession
         Left = 43
         Top = 0
         Width = 15
-        Height = 21
+        Height = 22
         Associate = FOffset
         Max = 2147483647
         TabOrder = 1
@@ -725,7 +725,7 @@ object FSession: TFSession
         Left = 59
         Top = 0
         Width = 36
-        Height = 21
+        Height = 22
         TabOrder = 2
         Text = '100'
         OnChange = FLimitChange
@@ -735,7 +735,7 @@ object FSession: TFSession
         Left = 95
         Top = 0
         Width = 15
-        Height = 21
+        Height = 22
         Associate = FLimit
         Min = 1
         Max = 2147483647
@@ -766,7 +766,7 @@ object FSession: TFSession
         Left = 142
         Top = 0
         Width = 198
-        Height = 21
+        Height = 22
         Constraints.MinWidth = 100
         TabOrder = 5
         OnChange = FFilterChange
@@ -961,8 +961,7 @@ object FSession: TFSession
           Top = 0
           Width = 463
           Height = 23
-          ButtonHeight = 21
-          ButtonWidth = 86
+          ButtonWidth = 97
           Color = clBtnFace
           DoubleBuffered = False
           ParentColor = False
@@ -980,7 +979,7 @@ object FSession: TFSession
             Style = tbsCheck
           end
           object tbBlobRTF: TToolButton
-            Left = 65
+            Left = 74
             Top = 0
             Action = aVBlobRTF
             AutoSize = True
@@ -988,7 +987,7 @@ object FSession: TFSession
             Style = tbsCheck
           end
           object tbBlobHTML: TToolButton
-            Left = 127
+            Left = 143
             Top = 0
             Action = aVBlobHTML
             AutoSize = True
@@ -996,7 +995,7 @@ object FSession: TFSession
             Style = tbsCheck
           end
           object tbBlobImage: TToolButton
-            Left = 189
+            Left = 213
             Top = 0
             Action = aVBlobImage
             AutoSize = True
@@ -1004,7 +1003,7 @@ object FSession: TFSession
             Style = tbsCheck
           end
           object tbBlobHexEditor: TToolButton
-            Left = 262
+            Left = 295
             Top = 0
             Action = aVBlobHexEditor
             AutoSize = True
@@ -1012,19 +1011,19 @@ object FSession: TFSession
             Style = tbsCheck
           end
           object tbBlobSpacer: TPanel_Ext
-            Left = 352
+            Left = 396
             Top = 0
             Width = 49
-            Height = 21
+            Height = 22
             BevelOuter = bvNone
             ParentBackground = False
             TabOrder = 1
           end
           object FBlobSearch: TEdit
-            Left = 401
+            Left = 445
             Top = 0
             Width = 136
-            Height = 21
+            Height = 22
             AutoSize = False
             TabOrder = 0
             OnChange = FBlobSearchChange
@@ -1248,8 +1247,8 @@ object FSession: TFSession
       Width = 374
       Height = 20
       Align = alNone
-      ButtonHeight = 19
-      ButtonWidth = 61
+      ButtonHeight = 20
+      ButtonWidth = 68
       List = True
       PopupMenu = MToolBar
       ShowCaptions = True
@@ -1267,7 +1266,7 @@ object FSession: TFSession
         Style = tbsCheck
       end
       object tbBrowser: TToolButton
-        Left = 63
+        Left = 70
         Top = 0
         AutoSize = True
         Caption = 'tbBrowser'
@@ -1276,7 +1275,7 @@ object FSession: TFSession
         Style = tbsCheck
       end
       object tbIDE: TToolButton
-        Left = 128
+        Left = 142
         Top = 0
         AutoSize = True
         Caption = 'tbIDE'
@@ -1285,7 +1284,7 @@ object FSession: TFSession
         Visible = False
       end
       object tbBuilder: TToolButton
-        Left = 166
+        Left = 184
         Top = 0
         AutoSize = True
         Caption = 'tbBuilder'
@@ -1294,7 +1293,7 @@ object FSession: TFSession
         Style = tbsCheck
       end
       object tbEditor: TToolButton
-        Left = 224
+        Left = 248
         Top = 0
         AutoSize = True
         Caption = 'tbEditor'
@@ -1303,7 +1302,7 @@ object FSession: TFSession
         Style = tbsCheck
       end
       object tbDiagram: TToolButton
-        Left = 278
+        Left = 308
         Top = 0
         AutoSize = True
         Caption = 'tbDiagram'

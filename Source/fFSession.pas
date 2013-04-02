@@ -1162,6 +1162,11 @@ begin
   Result := Copy(Trim(Value), 1, 2) = '<!';
 end;
 
+function IsPDF(const Value: string): Boolean;
+begin
+  Result := Copy(Trim(Value), 1, 4) = '%PDF';
+end;
+
 function FindChildByClassType(const Control: TWinControl; ClassType: TClass): TWinControl;
 var
   I: Integer;
@@ -5946,7 +5951,7 @@ begin
 
         aVBlobText.Visible := not GeometryField(EditorField) and ((EditorField.DataType = ftWideMemo) or not Assigned(FImage.Picture.Graphic));
         aVBlobRTF.Visible := aVBlobText.Visible and (EditorField.DataType = ftWideMemo) and not EditorField.IsNull and IsRTF(EditorField.AsString);
-        aVBlobHTML.Visible := aVBlobText.Visible and (EditorField.DataType = ftWideMemo) and not EditorField.IsNull and IsHTML(EditorField.AsString);
+        aVBlobHTML.Visible := aVBlobText.Visible and ((EditorField.DataType = ftWideMemo) and not EditorField.IsNull and IsHTML(EditorField.AsString) or IsPDF(EditorField.AsString));
         aVBlobImage.Visible := (EditorField.DataType = ftBlob) and Assigned(FImage.Picture.Graphic);
         PToolBarBlobResize(Sender);
 
@@ -6382,12 +6387,12 @@ begin
     Key := 0;
   end
   else if (ActiveDBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) then
-    if ((Key = VK_RETURN) and not aVBlobText.Visible) then
+    if ((Key = VK_RETURN) and not aVBlobText.Visible and not aVBlobImage.Visible) then
     begin
       aVBlobHexEditor.Checked := True;
       SendMessage(FText.Handle, WM_VSCROLL, SB_BOTTOM, 0);
     end
-    else if (not (Key in [VK_F2, VK_TAB, VK_DOWN, VK_UP, VK_LEFT, VK_RIGHT, VK_HOME, VK_END, VK_PRIOR, VK_NEXT, VK_APPS, VK_SHIFT, VK_CONTROL, VK_MENU])) then
+    else if (aVBlobText.Visible and not (Key in [VK_F2, VK_TAB, VK_DOWN, VK_UP, VK_LEFT, VK_RIGHT, VK_HOME, VK_END, VK_PRIOR, VK_NEXT, VK_APPS, VK_SHIFT, VK_CONTROL, VK_MENU])) then
     begin
       aVBlobText.Checked := True;
       if (Key = VK_RETURN) then
