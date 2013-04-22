@@ -1601,7 +1601,7 @@ begin
   for I := 0 to Sessions.Count - 1 do
     if (Sessions[I].Connected) then
       if (Assigned(ActiveTab) and (Sessions[I] = ActiveTab.Session)) then
-        DataFields.Add('MySQL Version *=' + Sessions[I].ServerVersionStr + ' (Id: ' + IntToStr(Sessions[I].ThreadId) + ')')
+        DataFields.Add('MySQL Version=' + Sessions[I].ServerVersionStr + ' (Id*: ' + IntToStr(Sessions[I].ThreadId) + ')')
       else
         DataFields.Add('MySQL Version=' + Sessions[I].ServerVersionStr + ' (Id: ' + IntToStr(Sessions[I].ThreadId) + ')');
 

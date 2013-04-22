@@ -248,7 +248,7 @@ begin
   FLEditorCompletitionTime.Left := FUDEditorCompletitionTime.Left + FUDEditorCompletitionTime.Width + Canvas.TextWidth('  ');
   FLEditorCurrRowBGColor.Caption := Preferences.LoadStr(784) + ':';
   FLEditorCurrRowBGColor.Caption := Preferences.LoadStr(784) + ':';
-  FLEditorWordWrap.Caption := Preferences.LoadStr(891);
+  FLEditorWordWrap.Caption := Preferences.LoadStr(891) + ':';
   FEditorWordWrap.Caption := Preferences.LoadStr(892);
 
   TSHighlighter.Caption := ReplaceStr(Preferences.LoadStr(528), '&', '');

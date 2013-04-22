@@ -4679,6 +4679,8 @@ begin
         FKeys.Key[0].Columns.Column[J].Field.FInPrimaryKey := True;
 
     FSourceParsed := True;
+
+    PushBuildEvent();
   end;
 end;
 
@@ -4689,11 +4691,10 @@ end;
 
 procedure TSBaseTable.PushBuildEvent(const CItemsEvents: Boolean = True);
 begin
-  if (Valid) then
-  begin
+  if (SourceParsed and CItemsEvents) then
     Session.ExecuteEvent(ceItemsValid, Self);
+  if (Valid) then
     Session.ExecuteEvent(ceItemValid, Database, Tables, Self);
-  end;
 end;
 
 procedure TSBaseTable.SetDefaultCharset(const ADefaultCharset: string);
@@ -7815,7 +7816,7 @@ end;
 
 function TSDatabase.SQLTruncateTable(const Table: TSBaseTable): string;
 begin
-  if (Session.ServerVersion < 32328) then
+  if ((Session.ServerVersion < 32328) or Assigned(Table.Engine) and Table.Engine.IsInnoDB) then
     Result := 'DELETE FROM ' + Session.EscapeIdentifier(Name) + '.' + Session.EscapeIdentifier(Table.Name) + ';' + #13#10
   else
     Result := 'TRUNCATE TABLE ' + Session.EscapeIdentifier(Name) + '.' + Session.EscapeIdentifier(Table.Name) + ';' + #13#10;
@@ -11433,9 +11434,26 @@ begin
     else if (SQLParseDMLStmt(DMLStmt, Text, Len, ServerVersion)) then
     begin
       if ((Length(DMLStmt.DatabaseNames) = 1) and (Length(DMLStmt.TableNames) = 1)
-        and (TableNameCmp(DMLStmt.DatabaseNames[0], 'mysql') = 0)) then
-        if (TableNameCmp(DMLStmt.TableNames[0], 'user') = 0) then
-          Users.Invalidate();
+        and (TableNameCmp(DMLStmt.DatabaseNames[0], 'mysql') = 0) and (TableNameCmp(DMLStmt.TableNames[0], 'user') = 0)) then
+        Users.Invalidate();
+      if ((DMLStmt.ManipulationType = mtDelete) and SQLParseKeyword(Parse, 'DELETE FROM')) then
+      begin
+        DatabaseName := Self.DatabaseName;
+        if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
+        begin
+          Database := DatabaseByName(DatabaseName);
+          if (Assigned(Database)) then
+          begin
+            Table := Database.BaseTableByName(ObjectName);
+            if (Assigned(Table) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
+            begin
+              TSBaseTable(Table).InvalidateStatus();
+              TSBaseTable(Table).InvalidateData();
+              ExecuteEvent(ceItemValid, Database, Database.Tables, Table);
+            end;
+          end;
+        end;
+      end;
     end
     else if (SQLParseKeyword(Parse, 'SET')) then
     begin

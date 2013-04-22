@@ -11,10 +11,12 @@ type
   private
     FDatabase: string;
     FExtraInfos: string;
+    FHost: string;
     FPath: TFileName;
     FScheme: string;
     FTable: string;
     function GetAddress(): string;
+    function GetHost(): string;
     function GetParam(AName: string): Variant;
     function GetParamCount(): Integer;
     procedure SetAddress(const AAddress: string);
@@ -24,7 +26,6 @@ type
     procedure SetScheme(const AScheme: string);
     procedure SetTable(const ATable: string);
   public
-    Host: string;
     Username: string;
     Password: string;
     Port: INTERNET_PORT;
@@ -32,6 +33,7 @@ type
     constructor Create(const AAddress: string = ''); virtual;
     property Address: string read GetAddress write SetAddress;
     property Database: string read FDatabase write SetDatabase;
+    property Host: string read GetHost write FHost;
     property ExtraInfos: string read FExtraInfos;
     property Param[Name: string]: Variant read GetParam write SetParam;
     property ParamCount: Integer read GetParamCount;
@@ -107,7 +109,7 @@ var
 begin
   URI := TUURI.Create(AURI);
 
-  Result := URI.Host;
+  Result := URI.FHost;
 
   URI.Free();
 end;
@@ -167,7 +169,7 @@ begin
   Scheme := 'mysql';
   Username := '';
   Password := '';
-  Host := '';
+  FHost := '';
   Port := 0;
   FPath := '/';
   FExtraInfos := '';
@@ -190,7 +192,7 @@ begin
   URLComponents.dwStructSize := SizeOf(URLComponents);
 
   URLComponents.lpszScheme := PChar(Scheme);
-  URLComponents.lpszHostName := PChar(Host);
+  URLComponents.lpszHostName := PChar(FHost);
   if (Port <> MYSQL_PORT) then
     URLComponents.nPort := Port;
   if (Username <> '') then
@@ -207,6 +209,14 @@ begin
     RaiseLastOSError()
   else
     SetString(Result, PChar(@URL), Len);
+end;
+
+function TUURI.GetHost(): string;
+begin
+  if ((LeftStr(FHost, 1) = '[') and (RightStr(FHost, 1) = ']')) then
+    Result := Copy(FHost, 2, Length(FHost) - 2)
+  else
+    Result := FHost;
 end;
 
 function TUURI.GetParam(AName: string): Variant;
@@ -283,7 +293,7 @@ begin
       Scheme := URLComponents.lpszScheme;
       Username := UnescapeURL(URLComponents.lpszUserName);
       Password := UnescapeURL(URLComponents.lpszPassword);
-      Host := URLComponents.lpszHostName;
+      FHost := URLComponents.lpszHostName;
       if (URLComponents.nPort = 0) then
         Port := MYSQL_PORT
       else

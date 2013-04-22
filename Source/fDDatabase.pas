@@ -440,7 +440,7 @@ begin
   end
   else
   begin
-    PageControl.Visible := Database.Update();
+    PageControl.Visible := Database.Update(True);
     PSQLWait.Visible := not PageControl.Visible;
 
     if (PageControl.Visible) then

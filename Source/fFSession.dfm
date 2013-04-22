@@ -83,14 +83,13 @@ object FSession: TFSession
         Left = 2
         Top = 106
         Width = 116
-        Height = 521
+        Height = 126
         Align = alClient
         BevelOuter = bvNone
         Color = clWindow
         Constraints.MinHeight = 50
         ParentBackground = False
         TabOrder = 0
-        ExplicitHeight = 126
       end
       object PFolders: TPanel_Ext
         Left = 2
@@ -124,7 +123,7 @@ object FSession: TFSession
         Left = 2
         Top = 2
         Width = 116
-        Height = 625
+        Height = 230
         HelpContext = 1082
         Align = alClient
         BorderStyle = bsNone
@@ -145,7 +144,6 @@ object FSession: TFSession
         OnDblClick = ListViewDblClick
         OnEnter = FJobsEnter
         OnExit = FJobsExit
-        ExplicitHeight = 230
       end
     end
     object PSQLHistory: TPanel_Ext
@@ -208,7 +206,7 @@ object FSession: TFSession
         Left = 2
         Top = 2
         Width = 116
-        Height = 625
+        Height = 230
         HelpContext = 1082
         Align = alClient
         BorderStyle = bsNone
@@ -230,7 +228,6 @@ object FSession: TFSession
         OnExit = FBookmarksExit
         OnDragDrop = FBookmarksDragDrop
         OnDragOver = FBookmarksDragOver
-        ExplicitHeight = 230
       end
     end
     object PNavigator: TPanel_Ext
@@ -775,7 +772,7 @@ object FSession: TFSession
         OnKeyPress = FFilterKeyPress
       end
       object TBFilterEnabled: TToolBar
-        Left = 603
+        Left = 836
         Top = 0
         Width = 31
         Height = 23
@@ -794,7 +791,7 @@ object FSession: TFSession
         end
       end
       object FQuickSearch: TEdit
-        Left = 679
+        Left = 855
         Top = 0
         Width = 136
         Height = 21
@@ -805,7 +802,7 @@ object FSession: TFSession
         OnKeyPress = FQuickSearchKeyPress
       end
       object TBQuickSearchEnabled: TToolBar
-        Left = 895
+        Left = 1236
         Top = 0
         Width = 23
         Height = 22
@@ -995,7 +992,7 @@ object FSession: TFSession
             Style = tbsCheck
           end
           object tbBlobImage: TToolButton
-            Left = 213
+            Left = 222
             Top = 0
             Action = aVBlobImage
             AutoSize = True
@@ -1003,7 +1000,7 @@ object FSession: TFSession
             Style = tbsCheck
           end
           object tbBlobHexEditor: TToolButton
-            Left = 295
+            Left = 304
             Top = 0
             Action = aVBlobHexEditor
             AutoSize = True
@@ -1011,7 +1008,7 @@ object FSession: TFSession
             Style = tbsCheck
           end
           object tbBlobSpacer: TPanel_Ext
-            Left = 396
+            Left = 405
             Top = 0
             Width = 49
             Height = 22
@@ -1020,7 +1017,7 @@ object FSession: TFSession
             TabOrder = 1
           end
           object FBlobSearch: TEdit
-            Left = 445
+            Left = 454
             Top = 0
             Width = 136
             Height = 22
@@ -1570,7 +1567,7 @@ object FSession: TFSession
     object aVBlobHTML: TAction
       Category = 'View'
       AutoCheck = True
-      Caption = 'aVBlobXML'
+      Caption = 'aVBlobHTML'
       GroupIndex = 1
       OnExecute = aVBlobExecute
     end

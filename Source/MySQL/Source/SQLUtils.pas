@@ -217,7 +217,7 @@ procedure Trim();
 // ECX will be decremened by the ignored characters
 // ZF if no string copied
 label
-  StringL,
+  StringL, StringL2,
   EndOfStatement,
   EmptyCharacter,
   LineComment, LineCommentL,
@@ -252,7 +252,18 @@ asm
         CMP ECX,2                        // Are there two characters left in SQL?
         JB Finish                        // No!
         CMP LongWord PTR [ESI],$002D002D // End of line comment ("--") in SQL?
+        JNE StringL2                     // No!
+        CMP ECX,3                        // Thre characters inside SQL?
+        JB StringL2                      // No!
+        CMP WORD PTR [ESI + 4],9         // Current character inside SQL?
+        JE LineComment                   // Tabulator!
+        CMP WORD PTR [ESI + 4],10        // New Line?
         JE LineComment                   // Yes!
+        CMP WORD PTR [ESI + 4],13        // Carrige Return?
+        JE LineComment                   // Yes!
+        CMP WORD PTR [ESI + 4],' '       // Space?
+        JE LineComment                   // Yes!
+      StringL2:
         CMP LongWord PTR [ESI],$002A002F // Start of "/*" comment in SQL?
         JE EnclosedComment               // Yes!
         TEST EDX,$80000000               // Are we inside cond. MySQL code?

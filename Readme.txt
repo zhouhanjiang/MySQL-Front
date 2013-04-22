@@ -44,9 +44,6 @@ http://www.eurekalog.com/
 Gawk for Windows:
 http://gnuwin32.sourceforge.net/packages/gawk.htm
 
-Ultimate Packer for eXecutables (UPX):
-http://upx.sourceforge.net/
-
 Help & Manual:
 http://www.ec-software.com/
 

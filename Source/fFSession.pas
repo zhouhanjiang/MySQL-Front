@@ -3033,7 +3033,7 @@ begin
         iiProcedure:  Data := Data + 'Procedure='   + FNavigatorMenuNode.Text + #13#10;
         iiFunction:   Data := Data + 'Function='    + FNavigatorMenuNode.Text + #13#10;
         iiEvent:      Data := Data + 'Event='       + FNavigatorMenuNode.Text + #13#10;
-        iiKey:      Data := Data + 'Index='       + FNavigatorMenuNode.Text + #13#10;
+        iiKey:        Data := Data + 'Index='       + FNavigatorMenuNode.Text + #13#10;
         iiSystemViewField,
         iiField,
         iiViewField:  Data := Data + 'Field='       + FNavigatorMenuNode.Text + #13#10;
@@ -3058,7 +3058,7 @@ begin
           iiProcedure:  Data := Data + 'Procedure='  + ActiveListView.Items[I].Caption + #13#10;
           iiFunction:   Data := Data + 'Function='   + ActiveListView.Items[I].Caption + #13#10;
           iiEvent:      Data := Data + 'Event='      + ActiveListView.Items[I].Caption + #13#10;
-          iiKey:        Data := Data + 'Key='      + TSKey(ActiveListView.Items[I].Data).Name + #13#10;
+          iiKey:        Data := Data + 'Key='        + TSKey(ActiveListView.Items[I].Data).Name + #13#10;
           iiField,
           iiViewField:  Data := Data + 'Field='      + ActiveListView.Items[I].Caption + #13#10;
           iiForeignKey: Data := Data + 'ForeignKey=' + ActiveListView.Items[I].Caption + #13#10;
@@ -3598,10 +3598,13 @@ begin
 
   if ((Sender is TAction) and ((CItem is TSDatabase) and not TSDatabase(CItem).Update()) or ((CItem is TSTable) and not TSTable(CItem).Update())) then
     Wanted.Action := TAction(Sender)
-  else if (CItem is TSObject) then
+  else
   begin
     DImport.Session := Session;
-    DImport.SObject := TSObject(CItem);
+    if (CItem is TSObject) then
+      DImport.SObject := TSObject(CItem)
+    else
+      DImport.SObject := nil;
     DImport.DialogType := idtNormal;
     DImport.Filename := '';
     DImport.Window := Window;
@@ -4447,7 +4450,6 @@ begin
   DataSetCancel.Caption := Preferences.LoadStr(517);
   aVBlobText.Caption := Preferences.LoadStr(379);
   aVBlobRTF.Caption := 'RTF';
-  aVBlobHTML.Caption := 'HTML';
   aVBlobImage.Caption := Preferences.LoadStr(380);
   aVBlobHexEditor.Caption := Preferences.LoadStr(381);
   mwDCreateTable.Caption := MainAction('aDCreateTable').Caption;
@@ -4627,9 +4629,8 @@ end;
 procedure TFSession.CMCloseTabQuery(var Message: TMessage);
 var
   CanClose: Boolean;
-  I: Integer;
   Msg: string;
-  ServerNode: TTreeNode;
+  Node: TTreeNode;
 begin
   CanClose := True;
 
@@ -4651,11 +4652,17 @@ begin
       end;
     end;
 
-  ServerNode := FNavigator.Items.getFirstNode();
-  if (Assigned(ServerNode)) then
-    for I := 0 to ServerNode.Count - 1 do
-      if (CanClose and (ServerNode.Item[I].ImageIndex = iiDatabase)) then
-        Desktop(TSDatabase(ServerNode.Item[I].Data)).CloseQuery(nil, CanClose);
+  Node := FNavigator.Items.getFirstNode();
+  if (Assigned(Node)) then
+  begin
+    Node := Node.getFirstChild();
+    while (Assigned(Node)) do
+    begin
+      if (CanClose and (Node.ImageIndex = iiDatabase)) then
+        Desktop(TSDatabase(Node.Data)).CloseQuery(nil, CanClose);
+      Node := Node.getNextSibling();
+    end;
+  end;
 
   if (not CanClose) then
     Message.Result := 0
@@ -5949,11 +5956,17 @@ begin
         if (EditorField.DataType = ftBlob) then
           FImageShow(Sender);
 
-        aVBlobText.Visible := not GeometryField(EditorField) and ((EditorField.DataType = ftWideMemo) or not Assigned(FImage.Picture.Graphic));
+        aVBlobText.Visible := not GeometryField(EditorField) and not IsPDF(EditorField.AsString) and ((EditorField.DataType = ftWideMemo) or not Assigned(FImage.Picture.Graphic));
         aVBlobRTF.Visible := aVBlobText.Visible and (EditorField.DataType = ftWideMemo) and not EditorField.IsNull and IsRTF(EditorField.AsString);
-        aVBlobHTML.Visible := aVBlobText.Visible and ((EditorField.DataType = ftWideMemo) and not EditorField.IsNull and IsHTML(EditorField.AsString) or IsPDF(EditorField.AsString));
+        aVBlobHTML.Visible := aVBlobText.Visible and (EditorField.DataType = ftWideMemo) and not EditorField.IsNull and IsHTML(EditorField.AsString) or IsPDF(EditorField.AsString);
         aVBlobImage.Visible := (EditorField.DataType = ftBlob) and Assigned(FImage.Picture.Graphic);
         PToolBarBlobResize(Sender);
+
+        if (aVBlobHTML.Visible) then
+          if (not IsPDF(EditorField.AsString)) then
+            aVBlobHTML.Caption := 'HTML'
+          else
+            aVBlobHTML.Caption := 'PDF';
 
         if (aVBlobText.Visible and aVBlobText.Checked) then
           aVBlobExecute(nil)
@@ -7169,7 +7182,7 @@ begin
           iiProcedure:  Objects := Objects + 'Procedure='  + TListView(Source).Items[I].Caption + #13#10;
           iiFunction:   Objects := Objects + 'Function='   + TListView(Source).Items[I].Caption + #13#10;
           iiEvent:      Objects := Objects + 'Event='      + TListView(Source).Items[I].Caption + #13#10;
-          iiKey:        Objects := Objects + 'Key='      + TSKey(TListView(Source).Items[I].Data).Name + #13#10;
+          iiKey:        Objects := Objects + 'Key='        + TSKey(TListView(Source).Items[I].Data).Name + #13#10;
           iiField,
           iiViewField:  Objects := Objects + 'Field='      + TListView(Source).Items[I].Caption + #13#10;
           iiForeignKey: Objects := Objects + 'ForeignKey=' + TListView(Source).Items[I].Caption + #13#10;
@@ -7358,7 +7371,7 @@ begin
 
     if (not AllowExpansion and (Sender = FNavigator)) then
       FNavigatorNodeToExpand := Node;
-    if (Node.HasChildren and (Node.Count = 0)) then
+    if (Node.HasChildren and not Assigned(Node.getFirstChild())) then
     begin
       FNavigatorNodeToExpand := Node;
       if (Assigned(Table)) then
@@ -7441,7 +7454,7 @@ begin
       Result := DatabaseNode
     else
     begin
-      if (DatabaseNode.HasChildren and (DatabaseNode.Count = 0)) then
+      if (DatabaseNode.HasChildren and not Assigned(DatabaseNode.getFirstChild())) then
       begin
         AllowExpansion := True;
         FNavigatorExpanding(nil, DatabaseNode, AllowExpansion);
@@ -7464,7 +7477,7 @@ begin
           Result := TableNode
         else
         begin
-          if (TableNode.HasChildren and (TableNode.Count = 0)) then
+          if (TableNode.HasChildren and not Assigned(TableNode.getFirstChild())) then
           begin
             AllowExpansion := True;
             FNavigatorExpanding(nil, TableNode, AllowExpansion);
@@ -7573,6 +7586,7 @@ procedure TFSession.FNavigatorUpdate(const SessionEvent: TSSession.TEvent);
     Left: Integer;
     Mid: Integer;
     MidChild: TTreeNode;
+    NodeCount: Integer;
     OldMid: Integer;
     Right: Integer;
     Text: string;
@@ -7586,7 +7600,8 @@ procedure TFSession.FNavigatorUpdate(const SessionEvent: TSSession.TEvent);
       Inc(Index);
     end;
 
-    if ((Index = Node.Count) and (Node.Count > 0)) then
+    NodeCount := Node.Count;
+    if ((Index = NodeCount) and (NodeCount > 0)) then
     begin
       VirtualChild := TTreeNode.Create(Node.Owner);
       VirtualChild.Data := Data;
@@ -7594,7 +7609,7 @@ procedure TFSession.FNavigatorUpdate(const SessionEvent: TSSession.TEvent);
       VirtualChild.Text := TSItem(Data).Caption;
 
       Left := 0; C := 0; OldMid := 0; MidChild := Node.getFirstChild();
-      Right := Node.Count - 1;
+      Right := NodeCount - 1;
       while (Left <= Right) do
       begin
         Mid := (Right - Left) div 2 + Left;
@@ -7633,7 +7648,7 @@ procedure TFSession.FNavigatorUpdate(const SessionEvent: TSSession.TEvent);
     else
       raise ERangeError.Create(SRangeError);
 
-    if (Index = Node.Count) then
+    if (Index = NodeCount) then
     begin
       Child := FNavigator.Items.AddChild(Node, Text);
       Added := True;
@@ -7717,7 +7732,7 @@ procedure TFSession.FNavigatorUpdate(const SessionEvent: TSSession.TEvent);
               DeleteNode(DeleteChild);
             end;
 
-          Add := Node.Count = 0;
+          Add := not Assigned(Node.getFirstChild());
           for I := 0 to CItems.Count - 1 do
             if (not (CItems is TSTriggers) or (TSTriggers(CItems)[I].Table = SessionEvent.Sender)) then
               if (not Add) then
@@ -7792,7 +7807,7 @@ begin
   begin
     Node := FNavigator.Items.getFirstNode();
 
-    if (Node.Count = 0) then
+    if (not Assigned(Node.getFirstChild())) then
     begin
       if (Assigned(Session.Processes)) then
         InsertChild(Node, Session.Processes);
@@ -7813,13 +7828,13 @@ begin
     Node := FNavigator.Items.getFirstNode().getFirstChild();
     while (Assigned(Node) and (Node.Data <> Database)) do Node := Node.getNextSibling();
 
-    if (Assigned(Node) and (not Node.HasChildren or (Node.Count > 0) or (Node = FNavigatorNodeToExpand))) then
+    if (Assigned(Node) and (not Node.HasChildren or Assigned(Node.getFirstChild()) or (Node = FNavigatorNodeToExpand))) then
     begin
       if (not (SessionEvent.CItems is TSTriggers)) then
       begin
         UpdateGroup(Node, giTriggers, SessionEvent.CItems);
 
-        Node.HasChildren := (Node.Count > 0)
+        Node.HasChildren := Assigned(Node.getFirstChild())
           or not Database.Tables.Valid or (Database.Tables.Count > 0)
           or (Assigned(Database.Routines) and ((Database.Routines.Count > 0) or not Database.Routines.Valid))
           or (Assigned(Database.Events) and ((Database.Events.Count > 0) or not Database.Events.Valid));
@@ -7843,12 +7858,12 @@ begin
     Node := FNavigator.Items.getFirstNode().getFirstChild();
     while (Assigned(Node) and (Node.Data <> Table.Database)) do Node := Node.getNextSibling();
 
-    if (Assigned(Node) and (not Node.HasChildren or (Node.Count > 0) or (Node = FNavigatorNodeToExpand))) then
+    if (Assigned(Node) and (not Node.HasChildren or Assigned(Node.getFirstChild()) or (Node = FNavigatorNodeToExpand))) then
     begin
       Node := Node.getFirstChild();
       while (Assigned(Node) and (Node.Data <> Table)) do Node := Node.getNextSibling();
 
-      if (Assigned(Node) and (not Node.HasChildren or (Node.Count > 0) or (Node = FNavigatorNodeToExpand))) then
+      if (Assigned(Node) and (not Node.HasChildren or Assigned(Node.getFirstChild()) or (Node = FNavigatorNodeToExpand))) then
       begin
         Expanded := Node.Expanded;
 
@@ -7860,7 +7875,7 @@ begin
         if ((Table is TSBaseTable) and Assigned(Table.Database.Triggers)) then
           UpdateGroup(Node, giTriggers, Table.Database.Triggers);
 
-        Node.HasChildren := Node.Count > 0;
+        Node.HasChildren := Assigned(Node.getFirstChild());
         Node.Expanded := Expanded;
       end;
     end;
@@ -13485,21 +13500,22 @@ var
 begin
   if (Assigned(StatusBar) and (Immediately or (tsActive in FrameState)) and not (csDestroying in ComponentState) and Assigned(Window)) then
   begin
-    if (Assigned(Window.ActiveControl)) then
-      if (Window.ActiveControl = ActiveSynMemo) then
-        StatusBar.Panels[sbNavigation].Text := IntToStr(ActiveSynMemo.CaretXY.Line) + ':' + IntToStr(ActiveSynMemo.CaretXY.Char)
-      else if ((Window.ActiveControl = ActiveListView) and Assigned(ActiveListView.ItemFocused) and (TObject(ActiveListView.ItemFocused.Data) is TSKey)) then
-        StatusBar.Panels[sbNavigation].Text := Preferences.LoadStr(377) + ': ' + IntToStr(TSKey(ActiveListView.ItemFocused.Data).Index + 1)
-      else if ((Window.ActiveControl = ActiveListView) and Assigned(ActiveListView.ItemFocused) and (TObject(ActiveListView.ItemFocused.Data) is TSTableField)) then
-       StatusBar.Panels[sbNavigation].Text := ReplaceStr(Preferences.LoadStr(164), '&', '') + ': ' + IntToStr(TSTableField(ActiveListView.ItemFocused.Data).Index)
-      else if ((Window.ActiveControl = ActiveDBGrid) and Assigned(ActiveDBGrid.SelectedField) and (ActiveDBGrid.DataSource.DataSet.RecNo >= 0)) then
-        StatusBar.Panels[sbNavigation].Text := IntToStr(ActiveDBGrid.DataSource.DataSet.RecNo + 1) + ':' + IntToStr(ActiveDBGrid.SelectedField.FieldNo)
-      else if (Window.ActiveControl = FText) then
-        StatusBar.Panels[sbNavigation].Text := IntToStr(FText.CaretPos.Y + 1) + ':' + IntToStr(FText.CaretPos.X + 1)
-      else if (Window.ActiveControl = FLog) then
-        StatusBar.Panels[sbNavigation].Text := IntToStr(FLog.CaretPos.Y + 1) + ':' + IntToStr(FLog.CaretPos.X + 1)
-      else
-        StatusBar.Panels[sbNavigation].Text := '';
+    if (not Assigned(Window.ActiveControl)) then
+      StatusBar.Panels[sbNavigation].Text := ''
+    else if (Window.ActiveControl = ActiveSynMemo) then
+      StatusBar.Panels[sbNavigation].Text := IntToStr(ActiveSynMemo.CaretXY.Line) + ':' + IntToStr(ActiveSynMemo.CaretXY.Char)
+    else if ((Window.ActiveControl = ActiveListView) and Assigned(ActiveListView.ItemFocused) and (TObject(ActiveListView.ItemFocused.Data) is TSKey)) then
+      StatusBar.Panels[sbNavigation].Text := Preferences.LoadStr(377) + ': ' + IntToStr(TSKey(ActiveListView.ItemFocused.Data).Index + 1)
+    else if ((Window.ActiveControl = ActiveListView) and Assigned(ActiveListView.ItemFocused) and (TObject(ActiveListView.ItemFocused.Data) is TSTableField)) then
+     StatusBar.Panels[sbNavigation].Text := ReplaceStr(Preferences.LoadStr(164), '&', '') + ': ' + IntToStr(TSTableField(ActiveListView.ItemFocused.Data).Index)
+    else if ((Window.ActiveControl = ActiveDBGrid) and Assigned(ActiveDBGrid.SelectedField) and (ActiveDBGrid.DataSource.DataSet.RecNo >= 0)) then
+      StatusBar.Panels[sbNavigation].Text := IntToStr(ActiveDBGrid.DataSource.DataSet.RecNo + 1) + ':' + IntToStr(ActiveDBGrid.SelectedField.FieldNo)
+    else if (Window.ActiveControl = FText) then
+      StatusBar.Panels[sbNavigation].Text := IntToStr(FText.CaretPos.Y + 1) + ':' + IntToStr(FText.CaretPos.X + 1)
+    else if (Window.ActiveControl = FLog) then
+      StatusBar.Panels[sbNavigation].Text := IntToStr(FLog.CaretPos.Y + 1) + ':' + IntToStr(FLog.CaretPos.X + 1)
+    else
+      StatusBar.Panels[sbNavigation].Text := '';
 
 
     Count := -1;

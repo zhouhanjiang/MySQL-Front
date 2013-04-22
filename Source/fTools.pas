@@ -597,7 +597,7 @@ type
     PageNumber: record Row, Column: Integer; end;
     SQLFont: TFont;
     Y: Integer;
-    function AllocateHeight(const Height: Integer): Boolean;
+    function AllocateHeight(const Height: Integer; const DrawGridVertLines: Boolean = True): Boolean;
     procedure ContentTextOut(const Text: string; const ExtraPadding: Integer = 0);
     procedure GridDrawHorzLine(const Y: Integer);
     procedure GridDrawVertLines();
@@ -6304,12 +6304,12 @@ end;
 
 { TTExportCanvas **************************************************************}
 
-function TTExportCanvas.AllocateHeight(const Height: Integer): Boolean;
+function TTExportCanvas.AllocateHeight(const Height: Integer; const DrawGridVertLines: Boolean = True): Boolean;
 begin
   Result := Y + Height > ContentArea.Bottom;
   if (Result) then
   begin
-    if (Length(Columns) > 0) then
+    if (DrawGridVertLines and (Length(Columns) > 0)) then
       GridDrawVertLines();
 
     PageBreak(True);
@@ -6957,13 +6957,15 @@ begin
 
     Text := Columns[I].HeaderText;
     RowHeight := Max(RowHeight, GridTextOut(Columns[I], Columns[I].HeaderText, [tfCalcRect], Columns[I].HeaderBold, False));
-    GridTextOut(Columns[I], Columns[I].HeaderText, [], Columns[I].HeaderBold, False);
 
     Inc(X, Padding + Columns[I].Width + Padding + LineWidth);
   end;
 
   for I := 0 to Length(Columns) - 1 do
+  begin
+    GridTextOut(Columns[I], Columns[I].HeaderText, [], Columns[I].HeaderBold, False);
     Columns[I].Canvas.Font.Assign(GridFont);
+  end;
 
   GridDrawHorzLine(GridTop);
   Inc(Y, RowHeight);
@@ -6979,6 +6981,7 @@ var
 begin
   SetFont(GridFont);
 
+  MaxRowHeight := 0;
   SetLength(Columns, Length(GridData[0]));
   for J := 0 to Length(Columns) - 1 do
   begin
@@ -6986,12 +6989,16 @@ begin
     for I := 0 to Length(GridData) - 1 do
     begin
       if (GridData[I][J].Bold) then Canvas.Font.Style := Canvas.Font.Style + [fsBold];
+      MaxRowHeight := Max(MaxRowHeight, Canvas.TextHeight(GridData[I][J].Text));
       Columns[J].Width := Max(Columns[J].Width, Canvas.TextWidth(GridData[I][J].Text));
       if (GridData[I][J].Bold) then Canvas.Font.Style := Canvas.Font.Style - [fsBold];
     end;
     Columns[J].Width := Min(Columns[J].Width, ContentArea.Right - ContentArea.Left - 2 * Padding - 2 * LineWidth);
+
+    Columns[J].Canvas := Canvas;
   end;
 
+  AllocateHeight(LineHeight + MaxRowHeight + LineHeight, False);
   GridHeader();
 
   for I := 0 to Length(GridData) - 1 do
@@ -7005,7 +7012,7 @@ begin
       if (GridData[I][J].Bold) then Canvas.Font.Style := Canvas.Font.Style - [fsBold];
     end;
 
-    if (AllocateHeight(MaxRowHeight + LineHeight)) then
+  if (AllocateHeight(LineHeight + MaxRowHeight + LineHeight)) then
       GridHeader();
 
     for J := 0 to Length(GridData[I]) - 1 do
