@@ -1100,7 +1100,7 @@ uses
   ShLwApi,
   acQBLocalizer, acQBStrings,
   CommCtrl_Ext, StdActns_Ext,
-  MySQLConsts, SQLUtils,
+  MySQLConsts, SQLUtils, UMLUtils,
   fDField, fDKey, fDTable, fDVariable, fDDatabase, fDForeignKey, fDUser,
   fDQuickFilter, fDSQLHelp, fDTransfer, fDSearch, fDServer, fDBookmark,
   fURI, fDView, fDRoutine, fDTrigger, fDStatement, fDEvent, fDPaste, fDSegment,

@@ -165,6 +165,7 @@
 			<DCCReference Include="fWWindow.pas">
 				<Form>WWindow</Form>
 			</DCCReference>
+			<DCCReference Include="MySQL\Source\UMLUtils.pas"/>
 			<BuildConfiguration Include="Base">
 				<Key>Base</Key>
 			</BuildConfiguration>

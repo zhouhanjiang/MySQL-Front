@@ -8,7 +8,7 @@ uses
   ComCtrls,
   TaskSchd,
   SynEditHighlighter, SynHighlighterSQL,
-  MySQLDB;
+  UMLUtils, MySQLDB;
 
 type
   TPExportType = (etUnknown, etSQLFile, etTextFile, etExcelFile, etAccessFile, etODBC, etHTMLFile, etXMLFile, etPDFFile, etPrinter);
@@ -3864,7 +3864,7 @@ begin
   XMLNode(XML, 'datagrid/height').Text := IntToStr(DataHeight);
   XMLNode(XML, 'datagrid/blob/height').Text := IntToStr(BlobHeight);
   try
-    XMLNode(XML, 'editor/content').Text := EditorContent;
+    XMLNode(XML, 'editor/content').Text := XMLEscape(EditorContent);
   except
     XMLNode(XML, 'editor/content').Text := '';
   end;
