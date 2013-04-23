@@ -18,6 +18,7 @@ uses
   HTTPTunnel in 'MySQL\Source\HTTPTunnel.pas',
   SQLUtils in 'MySQL\Source\SQLUtils.pas',
   CSVUtils in 'MySQL\Source\CSVUtils.pas',
+  UMLUtils in 'MySQL\Source\UMLUtils.pas',
   MySQLDBGrid in 'MySQL\Source\MySQLDBGrid.pas',
   ExtCtrls_Ext in 'VCL\Source\ExtCtrls_Ext.pas',
   StdCtrls_Ext in 'VCL\Source\StdCtrls_Ext.pas',
@@ -74,6 +75,7 @@ uses
 
 var
   AccountName: string;
+  Console: Boolean;
   I: Integer;
   JobExecution: TJobExecution;
   JobName: string;
@@ -94,17 +96,12 @@ begin
       else if (lstrcmpi(PChar(Name), 'Job') = 0) then
         JobName := Value;
 
-  if ((AccountName <> '') and (JobName <> '')) then
+  Console := (AccountName <> '') and (JobName <> '');
+  if (Console) then
   begin
     JobExecution := TJobExecution.Create(AccountName, JobName);
     JobExecution.Execute();
     JobExecution.Free();
-  end
-  else if ((Preferences.SetupProgram <> '') and not Preferences.SetupProgramInstalled) then
-  begin
-    Preferences.SetupProgramExecute := FindWindow(cWindowClassName, nil) = 0;
-    if (not Preferences.SetupProgramExecute) then
-      MsgBox(Preferences.LoadStr(908, SysUtils.LoadStr(1000)), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
   end
   else
   begin
@@ -114,34 +111,46 @@ begin
         DeleteFile(PChar(Preferences.SetupProgram));
       Preferences.SetupProgram := '';
       Preferences.SetupProgramInstalled := False;
+    end
+    else if (Preferences.SetupProgram <> '') then
+    begin
+      Preferences.SetupProgramExecute := FindWindow(cWindowClassName, nil) = 0;
+      if (not Preferences.SetupProgramExecute) then
+        MsgBox(Preferences.LoadStr(908, SysUtils.LoadStr(1000)), Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
     end;
 
-    Application.Initialize();
-    Application.Title := LoadStr(1000);
-    {$IFDEF Debug}
-      if (Application.Title = '') then
-        Application.Title := Copy(ExtractFileName(Application.ExeName), 1, Length(ExtractFileName(Application.ExeName)) - Length(ExtractFileExt(Application.ExeName)));
-    {$ENDIF}
-    Application.Icon.Handle := LoadImage(hInstance, 'MAINICON', IMAGE_ICON, Application.Icon.Height, Application.Icon.Height, LR_DEFAULTCOLOR);
-    {$IFDEF Debug}
-      if (Application.Icon.Handle = 0) then
-        Application.Icon.Handle := LoadImage(hInstance, PChar('..\Images\MySQLFront.ico'), IMAGE_ICON, Application.Icon.Height, Application.Icon.Height, LR_DEFAULTCOLOR + LR_LOADFROMFILE);
-    {$ENDIF}
-    Application.CreateForm(TWWindow, WWindow);
-    Application.MainForm.Perform(CM_CHANGEPREFERENCES, 0, 0);
-    GetClassName(Application.MainForm.Handle, PChar(SetupProgram), 100);
-    Application.Run();
-    if (Application.Handle <> 0) then
-      ShowOwnedPopups(Application.Handle, False);
-    Application.ShowHint := False;
-    Application.Destroying();
-    Application.DestroyComponents();
+    if (not Preferences.SetupProgramExecute) then
+    begin
+      Application.Initialize();
+      Application.Title := LoadStr(1000);
+      {$IFDEF Debug}
+        if (Application.Title = '') then
+          Application.Title := Copy(ExtractFileName(Application.ExeName), 1, Length(ExtractFileName(Application.ExeName)) - Length(ExtractFileExt(Application.ExeName)));
+      {$ENDIF}
+      Application.Icon.Handle := LoadImage(hInstance, 'MAINICON', IMAGE_ICON, Application.Icon.Height, Application.Icon.Height, LR_DEFAULTCOLOR);
+      {$IFDEF Debug}
+        if (Application.Icon.Handle = 0) then
+          Application.Icon.Handle := LoadImage(hInstance, PChar('..\Images\MySQLFront.ico'), IMAGE_ICON, Application.Icon.Height, Application.Icon.Height, LR_DEFAULTCOLOR + LR_LOADFROMFILE);
+      {$ENDIF}
+      Application.CreateForm(TWWindow, WWindow);
+      Application.MainForm.Perform(CM_CHANGEPREFERENCES, 0, 0);
+      GetClassName(Application.MainForm.Handle, PChar(SetupProgram), 100);
+      Application.Run();
+      if (Application.Handle <> 0) then
+        ShowOwnedPopups(Application.Handle, False);
+      Application.ShowHint := False;
+      Application.Destroying();
+      Application.DestroyComponents();
+    end;
   end;
 
-  SetupProgram := Preferences.SetupProgram;
-  SetupProgramExecute := Preferences.SetupProgramExecute;
-  Preferences.Free();
+  if (not Console) then
+  begin
+    SetupProgram := Preferences.SetupProgram;
+    SetupProgramExecute := Preferences.SetupProgramExecute;
+    Preferences.Free();
 
-  if (SetupProgramExecute) then
-    ShellExecute(0, 'open', PChar(SetupProgram), '/SILENT /NOICONS /TASKS=""', nil, SW_SHOWNORMAL);
+    if (SetupProgramExecute) then
+      ShellExecute(0, 'open', PChar(SetupProgram), '/SILENT /NOICONS /TASKS=""', nil, SW_SHOWNORMAL);
+  end;
 end.
