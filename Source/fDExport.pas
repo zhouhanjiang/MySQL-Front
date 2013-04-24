@@ -2016,7 +2016,10 @@ begin
             SetLength(Export.TableFields, Length(Export.TableFields) + 1);
             Export.TableFields[Length(Export.TableFields) - 1] := TSTable(SObjects[0]).Fields[FFields[I].ItemIndex - 1];
             SetLength(Export.DestinationFields, Length(Export.DestinationFields) + 1);
-            Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := FDestFields[I].Text;
+            if (Length(FDestFields) = 0) then
+              Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := FFields[I].Text
+            else
+              Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := FDestFields[I].Text;
           end;
     end;
 

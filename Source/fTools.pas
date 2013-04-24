@@ -5423,7 +5423,7 @@ begin
     SQL := 'CREATE TABLE "' + TableName + '" (';
     for I := 0 to Length(Fields) - 1 do
     begin
-      if (I > 0) then SQL := SQL + ',';
+      if (I > 0) then SQL := SQL + ', ';
       SQL := SQL + '"' + Table.Fields[I].Name + '" ';
 
       if (Table.Fields[I].AutoIncrement and (Table.Fields[I].FieldType in [mfTinyInt, mfSmallInt, mfMediumInt, mfInt])) then
@@ -5495,7 +5495,7 @@ begin
     end;
     if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).PrimaryKey)) then
     begin
-      SQL := SQL + ',PRIMARY KEY (';
+      SQL := SQL + ', PRIMARY KEY (';
       for I := 0 to TSBaseTable(Table).PrimaryKey.Columns.Count - 1 do
       begin
         if (I > 0) then SQL := SQL + ',';
@@ -5504,6 +5504,9 @@ begin
       SQL := SQL + ')';
     end;
     SQL := SQL + ')';
+
+    if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, Handle, @FStmt))) then
+      DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False);
 
     while ((Success <> daAbort) and not SQL_SUCCEEDED(SQLExecDirect(Stmt, PSQLTCHAR(SQL), SQL_NTS))) do
     begin
