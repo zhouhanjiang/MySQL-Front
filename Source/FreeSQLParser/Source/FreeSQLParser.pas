@@ -12894,4 +12894,3 @@ end;
 
 end.
 
--- Kommentar, nur mit Whitespace nach '--' in MySQL - sonst auch ohne Whitespace

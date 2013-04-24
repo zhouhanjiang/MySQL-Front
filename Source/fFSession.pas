@@ -13504,10 +13504,13 @@ begin
       StatusBar.Panels[sbNavigation].Text := ''
     else if (Window.ActiveControl = ActiveSynMemo) then
       StatusBar.Panels[sbNavigation].Text := IntToStr(ActiveSynMemo.CaretXY.Line) + ':' + IntToStr(ActiveSynMemo.CaretXY.Char)
-    else if ((Window.ActiveControl = ActiveListView) and Assigned(ActiveListView.ItemFocused) and (TObject(ActiveListView.ItemFocused.Data) is TSKey)) then
-      StatusBar.Panels[sbNavigation].Text := Preferences.LoadStr(377) + ': ' + IntToStr(TSKey(ActiveListView.ItemFocused.Data).Index + 1)
-    else if ((Window.ActiveControl = ActiveListView) and Assigned(ActiveListView.ItemFocused) and (TObject(ActiveListView.ItemFocused.Data) is TSTableField)) then
-     StatusBar.Panels[sbNavigation].Text := ReplaceStr(Preferences.LoadStr(164), '&', '') + ': ' + IntToStr(TSTableField(ActiveListView.ItemFocused.Data).Index)
+    else if (Window.ActiveControl = ActiveListView) then
+      if (Assigned(ActiveListView.Selected) and (TObject(ActiveListView.Selected.Data) is TSKey)) then
+        StatusBar.Panels[sbNavigation].Text := Preferences.LoadStr(377) + ': ' + IntToStr(TSKey(ActiveListView.Selected.Data).Index + 1)
+      else if (Assigned(ActiveListView.Selected) and (TObject(ActiveListView.Selected.Data) is TSTableField)) then
+        StatusBar.Panels[sbNavigation].Text := ReplaceStr(Preferences.LoadStr(164), '&', '') + ': ' + IntToStr(TSTableField(ActiveListView.Selected.Data).Index)
+      else
+        StatusBar.Panels[sbNavigation].Text := ''
     else if ((Window.ActiveControl = ActiveDBGrid) and Assigned(ActiveDBGrid.SelectedField) and (ActiveDBGrid.DataSource.DataSet.RecNo >= 0)) then
       StatusBar.Panels[sbNavigation].Text := IntToStr(ActiveDBGrid.DataSource.DataSet.RecNo + 1) + ':' + IntToStr(ActiveDBGrid.SelectedField.FieldNo)
     else if (Window.ActiveControl = FText) then

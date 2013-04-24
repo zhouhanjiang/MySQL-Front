@@ -857,9 +857,10 @@ begin
       end;
     SQL_INVALID_HANDLE:
       Result.ErrorMessage := 'Invalid ODBC Handle.';
-    SQL_ERROR,
-    SQL_NO_DATA:
+    SQL_ERROR:
       raise Exception.Create('Unknown ODBC Error');
+    SQL_NO_DATA:
+      raise Exception.Create('Unknown ODBC Error (No Data)');
   end;
 end;
 
@@ -3509,7 +3510,12 @@ begin
       DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False);
 
     while ((Success <> daAbort) and SQL_SUCCEEDED(SQLConnect(FHandle, PSQLTCHAR(PChar(FDataSource)), SQL_NTS, PSQLTCHAR(PChar(FUsername)), SQL_NTS, PSQLTCHAR(PChar(FPassword)), SQL_NTS))) do
+try
       DoError(ODBCError(SQL_HANDLE_DBC, FHandle), nil, True);
+except // Debug 2013-04-24
+  on E: Exception do
+    raise Exception.CreateFmt(E.Message + 'DataSource: %s, Username: %s, Password: %s', [FDataSource, FUsername, FPassword]);
+end;
   end;
 end;
 
@@ -4796,15 +4802,6 @@ begin
 end;
 
 { TTExportHTML ****************************************************************}
-
-function HTMLEscape(const Value: string): string; overload;
-var
-  Len: Integer;
-begin
-  Len := HTMLEscape(PChar(Value), Length(Value), nil, 0);
-  SetLength(Result, Len);
-  HTMLEscape(PChar(Value), Length(Value), PChar(Result), Len);
-end;
 
 constructor TTExportHTML.Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
 begin
