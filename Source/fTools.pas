@@ -847,6 +847,8 @@ begin
   Result.ErrorType := TE_ODBC;
   Result.ErrorCode := 0;
   case (SQLGetDiagRec(HandleType, Handle, 1, @SQLState, nil, nil, 0, @cbMessageText)) of
+    SQL_ERROR:
+      raise Exception.Create('Unknown ODBC Error');
     SQL_SUCCESS,
     SQL_SUCCESS_WITH_INFO:
       begin
@@ -857,8 +859,6 @@ begin
       end;
     SQL_INVALID_HANDLE:
       Result.ErrorMessage := 'Invalid ODBC Handle.';
-    SQL_ERROR:
-      raise Exception.Create('Unknown ODBC Error');
     SQL_NO_DATA:
       raise Exception.Create('Unknown ODBC Error (No Data)');
   end;
@@ -3509,13 +3509,8 @@ begin
     if ((Success = daSuccess) and not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @FHandle))) then
       DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False);
 
-    while ((Success <> daAbort) and SQL_SUCCEEDED(SQLConnect(FHandle, PSQLTCHAR(PChar(FDataSource)), SQL_NTS, PSQLTCHAR(PChar(FUsername)), SQL_NTS, PSQLTCHAR(PChar(FPassword)), SQL_NTS))) do
-try
+    while ((Success <> daAbort) and not SQL_SUCCEEDED(SQLConnect(FHandle, PSQLTCHAR(PChar(FDataSource)), SQL_NTS, PSQLTCHAR(PChar(FUsername)), SQL_NTS, PSQLTCHAR(PChar(FPassword)), SQL_NTS))) do
       DoError(ODBCError(SQL_HANDLE_DBC, FHandle), nil, True);
-except // Debug 2013-04-24
-  on E: Exception do
-    raise Exception.CreateFmt(E.Message + 'DataSource: %s, Username: %s, Password: %s', [FDataSource, FUsername, FPassword]);
-end;
   end;
 end;
 

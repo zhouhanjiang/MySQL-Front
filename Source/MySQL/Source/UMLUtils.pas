@@ -22,8 +22,8 @@ label
   Finish;
 const
   SearchLen = 5;
-  Search: array [0 .. SearchLen - 1] of Char = (#10, #13, '"', '<', '>');
-  Replace: array [0 .. SearchLen - 1] of PChar = ('<br>' + #13#10, '', '&quot;', '&lt;', '&gt;');
+  Search: array [0 .. SearchLen - 1] of Char = (#13, '"', '&', '<', '>');
+  Replace: array [0 .. SearchLen - 1] of PChar = ('<br>' + #13, '&quot;', '&amp;', '&lt;', '&gt;');
 var
   Len: Integer;
   Positions: packed array [0 .. SearchLen] of Cardinal;
@@ -327,7 +327,7 @@ begin
         ADD @Result,6                    // 6 characters needed: &#xhh;
         CMP Escaped,0                    // Calculate length only?
         JE MoveBinE                      // Yes!
-        CMP Escaped,6                    // Enough space in Escaped?
+        CMP Len,6                        // Enough space in Escaped?
         JB Error                         // No!
         MOV AX,'&'
         STOSW
@@ -430,6 +430,4 @@ begin
     XMLEscape(PChar(Value), Length(Value), PChar(Result), Len);
 end;
 
-begin
-  HTMLEscape('Hallo' + #3#13#10 + 'Test');
 end.
