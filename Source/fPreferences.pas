@@ -1685,15 +1685,15 @@ begin
   if (Assigned(XMLNode(XML, 'sql/structure/database'))) then TryStrToBool(XMLNode(XML, 'sql/structure/database').Attributes['change'], SQL.UseDatabase);
   if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/database').Attributes['type'], Self.XML.Database.NodeType);
   if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Text <> '')) then Self.XML.Database.NodeText := XMLNode(XML, 'xml/database').Text;
-  if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Attributes['attribute'] <> Null)) then Self.XML.Database.NodeText := XMLNode(XML, 'xml/database').Attributes['attribute'];
+  if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Attributes['attribute'] <> Null)) then Self.XML.Database.NodeAttribute := XMLNode(XML, 'xml/database').Attributes['attribute'];
   if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/field').Attributes['type'], Self.XML.Field.NodeType);
   if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Text <> '')) then Self.XML.Field.NodeText := XMLNode(XML, 'xml/field').Text;
-  if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Attributes['attribute'] <> Null)) then Self.XML.Field.NodeText := XMLNode(XML, 'xml/field').Attributes['attribute'];
+  if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Attributes['attribute'] <> Null)) then Self.XML.Field.NodeAttribute := XMLNode(XML, 'xml/field').Attributes['attribute'];
   if (Assigned(XMLNode(XML, 'xml/record')) and (XMLNode(XML, 'xml/record').Text <> '')) then Self.XML.Root.NodeText := XMLNode(XML, 'xml/record').Text;
   if (Assigned(XMLNode(XML, 'xml/root')) and (XMLNode(XML, 'xml/root').Text <> '')) then Self.XML.Root.NodeText := XMLNode(XML, 'xml/root').Text;
   if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/table').Attributes['type'], Self.XML.Table.NodeType);
   if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Text <> '')) then Self.XML.Table.NodeText := XMLNode(XML, 'xml/table').Text;
-  if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Attributes['attribute'] <> Null)) then Self.XML.Table.NodeText := XMLNode(XML, 'xml/table').Attributes['attribute'];
+  if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Attributes['attribute'] <> Null)) then Self.XML.Table.NodeAttribute := XMLNode(XML, 'xml/table').Attributes['attribute'];
 end;
 
 procedure TPExport.SaveToXML(const XML: IXMLNode);

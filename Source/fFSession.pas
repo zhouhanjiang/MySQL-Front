@@ -2678,10 +2678,12 @@ begin
 
         if (not Assigned(DBObject)) then
           NotFound := True
-        else if (not DBObject.Update()) then
-          AllowChange := False
-        else if ((URI.Param['objecttype'] = 'trigger') and (URI.Param['object'] <> Null) and not Assigned(Database.TriggerByName(URI.Param['object']))) then
-          NotFound := True
+        else
+        begin
+          DBObject.Update();
+          if ((URI.Param['objecttype'] = 'trigger') and (URI.Param['object'] <> Null) and not Assigned(Database.TriggerByName(URI.Param['object']))) then
+            NotFound := True
+        end;
       end;
     end;
 

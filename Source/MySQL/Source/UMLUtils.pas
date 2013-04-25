@@ -125,8 +125,11 @@ begin
         INC @Result                      // One characters needed
         CMP Escaped,0                    // Calculate length only?
         JE MoveBinE                      // Yes!
+        CMP Len,1                        // Enough character left in Escaped?
+        JB Error                         // No!
         MOV AX,'_'
         STOSW
+        DEC Len                          // One character added to Escaped
       MoveBinE:
         ADD ESI,2                        // Step of Search character
 
@@ -334,19 +337,20 @@ begin
         MOV AX,'#'
         STOSW
         MOV AX,'x'
-        STOSW
+        STOSW                            // High nibbel as Ansi
         MOV EDX,Hex
         MOV AX,[ESI]
         AND AX,$00F0
         SHR AX,4
         MOV AX,[EDX + EAX * 2]
         STOSW
-        MOV AX,[ESI]
+        MOV AX,[ESI]                     // Low nibbel as Ansi
         AND AX,$000F
         MOV AX,[EDX + EAX * 2]
         STOSW
         MOV AX,';'
         STOSW
+        SUB Len,6                        // 6 characters used in Escaped
       MoveBinE:
         ADD ESI,2                        // Step of Search character
 
