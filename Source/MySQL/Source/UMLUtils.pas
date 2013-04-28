@@ -168,14 +168,14 @@ begin
         PUSH ESI
       FindBinPosL:
         MOV AX,[ESI]                     // Current character in Value
+        CMP AX,31                        // Binary character (#0 .. #31)?
+        JA FindBinPosLE                  // No!
         CMP AX,9                         // Tabulator?
         JE FindBinPosLE                  // Yes!
         CMP AX,10                        // LineFeed?
         JE FindBinPosLE                  // Yes!
         CMP AX,13                        // CarriadgeReturn?
         JE FindBinPosLE                  // Yes!
-        CMP AX,31                        // Binary character (#0 .. #31)?
-        JA FindBinPosLE                  // No!
         LEA ESI,Positions
         MOV [ESI + SearchLen * 4],ECX    // Store found Position
         JMP FindBinPosE
@@ -389,14 +389,14 @@ begin
         PUSH ESI
       FindBinPosL:
         MOV AX,[ESI]                     // Current character in Value
+        CMP AX,31                        // Binary character (#0 .. #31)?
+        JA FindBinPosLE                  // No!
         CMP AX,9                         // Tabulator?
         JE FindBinPosLE                  // Yes!
         CMP AX,10                        // LineFeed?
         JE FindBinPosLE                  // Yes!
         CMP AX,13                        // CarriadgeReturn?
         JE FindBinPosLE                  // Yes!
-        CMP AX,31                        // Binary character (#0 .. #31)?
-        JA FindBinPosLE                  // No!
         LEA ESI,Positions
         MOV [ESI + SearchLen * 4],ECX    // Store found Position
         JMP FindBinPosE

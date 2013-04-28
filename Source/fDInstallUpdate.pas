@@ -349,6 +349,8 @@ procedure TCheckUpdateThread.Execute();
 var
   VersionStr: string;
 begin
+  CoInitialize(nil);
+
   URI := SysUtils.LoadStr(1005);
 
   inherited;
@@ -360,6 +362,8 @@ begin
       if (AvailableUpdate > Preferences.Version) then
         PostMessage(Wnd, SuccessMessage, 0, 0);
     end;
+
+  CoUninitialize();
 end;
 
 procedure TDInstallUpdate.CMChangePreferences(var Message: TMessage);

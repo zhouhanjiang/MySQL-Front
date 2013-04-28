@@ -1319,11 +1319,6 @@ object WWindow: TWWindow
       ShortCut = 32883
       OnExecute = aFExitExecute
     end
-    object ahDonation: TAction
-      Category = 'Help'
-      Caption = 'ahDonation'
-      OnExecute = ahDonationExecute
-    end
     object aHInfo: TAction
       Category = 'Help'
       Caption = 'aHInfo'
@@ -1868,9 +1863,6 @@ object WWindow: TWWindow
       end
       object N19: TMenuItem
         Caption = '-'
-      end
-      object miHDonation: TMenuItem
-        Action = ahDonation
       end
       object miHInfo: TMenuItem
         Action = aHInfo
