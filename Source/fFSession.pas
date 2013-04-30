@@ -4144,7 +4144,7 @@ begin
               ActiveDBGrid.DataSource.DataSet.Close();
               Session.Update();
             end
-            else
+            else if (ActiveDBGrid.DataSource.DataSet.Active) then
               ActiveDBGrid.DataSource.DataSet.Refresh();
         end;
       vDiagram:
@@ -4194,18 +4194,21 @@ begin
   TBSideBar.Visible := PSideBar.Visible;
 
 
-  PSideBar.EnableAlign();
+  if (PSideBar.Visible) then
+  begin
+    PSideBar.EnableAlign();
 
-  if (MainAction('aVNavigator').Checked) then
-    Window.ActiveControl := FNavigator
-  else if (MainAction('aVBookmarks').Checked) then
-    Window.ActiveControl := FBookmarks
-  else if (MainAction('aVExplorer').Checked and FFolders.Visible) then
-    Window.ActiveControl := FFolders
-  else if (MainAction('aVJobs').Checked) then
-    Window.ActiveControl := FJobs
-  else if (MainAction('aVSQLHistory').Checked) then
-    Window.ActiveControl := FSQLHistory;
+//    if (MainAction('aVNavigator').Checked) then
+//      Window.ActiveControl := FNavigator
+//    else if (MainAction('aVBookmarks').Checked) then
+//      Window.ActiveControl := FBookmarks
+//    else if (MainAction('aVExplorer').Checked and FFolders.Visible) then
+//      Window.ActiveControl := FFolders
+//    else if (MainAction('aVJobs').Checked) then
+//      Window.ActiveControl := FJobs
+//    else if (MainAction('aVSQLHistory').Checked) then
+//      Window.ActiveControl := FSQLHistory;
+  end;
 end;
 
 procedure TFSession.aVSortAscExecute(Sender: TObject);
@@ -8068,6 +8071,7 @@ begin
       NewListItem.Caption := Session.Account.Jobs[I].Name;
       NewListItem.ImageIndex := iiJob;
     end;
+    FJobsChange(FJobs, FJobs.Selected, ctState);
   end;
 end;
 

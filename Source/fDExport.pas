@@ -640,14 +640,17 @@ end;
 
 procedure TDExport.FBDataSourceClick(Sender: TObject);
 begin
-  GetDataSource()
+  GetDataSource();
 end;
 
 procedure TDExport.FBFilenameClick(Sender: TObject);
 begin
   Filename := FFilename.Text;
   if (GetFilename()) then
+  begin
     FFilename.Text := Filename;
+    FJobOptionChange(Sender);
+  end;
 end;
 
 procedure TDExport.FBForwardClick(Sender: TObject);
@@ -1193,6 +1196,8 @@ begin
     end;
     FEnabled.Checked := Job.Enabled;
   end;
+  if (DialogType <> edtNormal) then
+    FJobOptionChange(nil);
 
   if (Assigned(DataSet)) then
     FHTMLStructure.Caption := Preferences.LoadStr(794)
@@ -1423,6 +1428,9 @@ end;
 function TDExport.GetDataSource(): Boolean;
 begin
   Result := DODBC.Execute();
+
+  if (Result) then
+    FJobOptionChange(nil);
 end;
 
 function TDExport.GetFilename(): Boolean;
@@ -1534,6 +1542,8 @@ begin
     else
       CodePage := EncodingToCodePage(SaveDialog.Encodings[SaveDialog.EncodingIndex]);
     Filename := SaveDialog.FileName;
+
+    FJobOptionChange(nil);
   end;
 end;
 

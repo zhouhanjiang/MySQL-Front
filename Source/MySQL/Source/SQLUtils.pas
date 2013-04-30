@@ -811,23 +811,10 @@ end;
 
 function SQLEscape(const Value: PChar; const ValueLen: Integer; const Escaped: PChar; const EscapedLen: Integer; const Quoter: Char = ''''): Integer; overload;
 label
-  StartL,
-  String_, StringL, String2, String3, String4,
-  PosL, PosE,
-  FindPos, FindPos2,
+  StringL, String2, String3, String4, String5, String6, String7, String8, StringLE,
   Error,
-  Finish, FinishE;
-const
-  SearchLen = 7;
-  Search: array [0 .. SearchLen - 1] of Char = (#0, #9, #10, #13, '''', '"', '\');
-  Replace: array [0 .. 2 * SearchLen - 1] of Char = ('\','0', '\','t', '\','n', '\','r', '\','''', '\','"', '\','\');
-var
-  Len: Integer;
-  Poss: packed array [0 .. SearchLen - 1] of Cardinal;
+  Finish;
 begin
-  Result := 0;
-  Len := EscapedLen;
-
   asm
         PUSH ES
         PUSH ESI
@@ -841,119 +828,147 @@ begin
         MOV ESI,PChar(Value)             // Copy characters from Value
         MOV EDI,Escaped                  //   to Escaped
         MOV ECX,ValueLen                 // Length of Value string
+        MOV EDX,EscapedLen               // Length of Escaped
 
-      // -------------------
-
-        MOV EBX,0                        // Numbers of characters in Search
-      StartL:
-        CALL FindPos                     // Find Search character Pos
-        INC EBX                          // Next character in Search
-        CMP EBX,SearchLen                // All Search characters handled?
-        JNE StartL                       // No!
-
-      // -------------------
-
-        INC @Result                      // One character needed
-        CMP Escaped,0                    // Calculate length only?
-        JE String_                       // Yes!
-        CMP Len,1                        // One character left in Escaped?
-        JB Error                         // No!
-        DEC Len                          // One character less in Escaped!
-        MOV AX,Quoter                    // Start2 quoting
-        STOSW                            //   to Escaped
-
-      String_:
+        MOV @Result,0
         CMP ECX,0                        // Empty string?
-        JE Finish                        // Yes!
-      StringL:
-        PUSH ECX
+        JE Error                         // Yes!
 
-        MOV ECX,0                        // Numbers of characters in Search
-        MOV EBX,-1                       // Index of first Pos
-        MOV EAX,0                        // Last character
-        LEA EDX,Poss
-      PosL:
-        CMP [EDX + ECX * 4],EAX          // Pos before other Poss?
-        JB PosE                          // No!
-        MOV EBX,ECX                      // Index of first Pos
-        MOV EAX,[EDX + EBX * 4]          // Value of first Pos
-      PosE:
-        INC ECX                          // Next Pos
-        CMP ECX,SearchLen                // All Poss compared?
-        JNE PosL                         // No!
-
-        POP ECX
-
-        SUB ECX,EAX                      // Copy normal characters from Value
-        JZ String3                       // End of Value!
-        ADD @Result,ECX                  // Characters to copy
+        INC @Result                      // 1 characters needed in Escaped
         CMP Escaped,0                    // Calculate length only?
-        JE String2                       // Yes!
-        CMP Len,ECX                      // Enough character left in Escaped?
-        JB Error                         // No!
-        SUB Len,ECX                      // Calc new len space in Escaped
-        REPNE MOVSW                      // Copy normal characters to Result
-        JMP String3
+        JE StringL                       // Yes!
+        DEC EDX                          // 1 characters left in Escaped?
+        JC Error                         // No!
+        MOV AX,Quoter
+        STOSW
+
+      StringL:
+        LODSW                            // Character from Value
+
+        CMP AX,0                         // #0 ?
+        JNE String2                      // No!
+        ADD @Result,2                    // 2 characters needed in Escaped
+        CMP Escaped,0                    // Calculate length only?
+        JE StringLE                      // Yes!
+        SUB EDX,2                        // 2 characters left in Escaped?
+        JC Error                         // No!
+        MOV AX,'\'
+        STOSW
+        MOV AX,'0'
+        STOSW
+        JMP StringLE
+
       String2:
-        SHL ECX,1
-        ADD ESI,ECX
+        CMP AX,9                         // #9 ?
+        JNE String3                      // No!
+        ADD @Result,2                    // 2 characters needed in Escaped
+        CMP Escaped,0                    // Calculate length only?
+        JE StringLE                      // Yes!
+        SUB EDX,2                        // 2 characters left in Escaped?
+        JC Error                         // No!
+        MOV AX,'\'
+        STOSW
+        MOV AX,'t'
+        STOSW
+        JMP StringLE
 
       String3:
-        MOV ECX,EAX
-        JECXZ Finish                     // End of Value!
-
-        ADD ESI,2                        // Step of Search character
-        LEA EDX,Replace                  // Insert Replace characters
-        MOV EAX,[EDX + EBX * 4]
-        ADD @Result,2                    // Characters to copy
+        CMP AX,10                        // #10 ?
+        JNE String4                      // No!
+        ADD @Result,2                    // 2 characters needed in Escaped
         CMP Escaped,0                    // Calculate length only?
-        JE String4                       // Yes!
-        CMP Len,ECX                      // Enough character left in Escaped?
-        JB Error                         // No!
-        SUB Len,2                        // Calc new len space in Escaped
-        STOSD
+        JE StringLE                      // Yes!
+        SUB EDX,2                        // 2 characters left in Escaped?
+        JC Error                         // No!
+        MOV AX,'\'
+        STOSW
+        MOV AX,'n'
+        STOSW
+        JMP StringLE
 
       String4:
-        DEC ECX                          // Ignore Search character
-        JZ Finish                        // All character in Value handled!
-        CALL FindPos                     // Find Search character
-        JMP StringL
+        CMP AX,13                        // #13 ?
+        JNE String5                      // No!
+        ADD @Result,2                    // 2 characters needed in Escaped
+        CMP Escaped,0                    // Calculate length only?
+        JE StringLE                      // Yes!
+        SUB EDX,2                        // 2 characters left in Escaped?
+        JC Error                         // No!
+        MOV AX,'\'
+        STOSW
+        MOV AX,'r'
+        STOSW
+        JMP StringLE
 
-      // -------------------
+      String5:
+        CMP AX,'"'                       // '"' ?
+        JNE String6                      // No!
+        ADD @Result,2                    // 2 characters needed in Escaped
+        CMP Escaped,0                    // Calculate length only?
+        JE StringLE                      // Yes!
+        SUB EDX,2                        // 2 characters left in Escaped?
+        JC Error                         // No!
+        MOV AX,'\'
+        STOSW
+        MOV AX,'"'
+        STOSW
+        JMP StringLE
 
-      FindPos:
-        PUSH ECX
-        PUSH EDI
-        LEA EDI,Search                   // Character to Search
-        MOV AX,[EDI + EBX * 2]
-        MOV EDI,ESI                      // Search in Value
-        REPNE SCASW                      // Find Search character
-        JNE FindPos2                     // Search character not found!
-        INC ECX
-      FindPos2:
-        LEA EDI,Poss
-        MOV [EDI + EBX * 4],ECX          // Store found Position
-        POP EDI
-        POP ECX
-        RET
+      String6:
+        CMP AX,''''                      // "'" ?
+        JNE String7                      // No!
+        ADD @Result,2                    // 2 characters needed in Escaped
+        CMP Escaped,0                    // Calculate length only?
+        JE StringLE                      // Yes!
+        SUB EDX,2                        // 2 characters left in Escaped?
+        JC Error                         // No!
+        MOV AX,'\'
+        STOSW
+        MOV AX,''''
+        STOSW
+        JMP StringLE
+
+      String7:
+        CMP AX,'\'                       // '\' ?
+        JNE String8                      // No!
+        ADD @Result,2                    // 2 characters needed in Escaped
+        CMP Escaped,0                    // Calculate length only?
+        JE StringLE                      // Yes!
+        SUB EDX,2                        // 2 characters left in Escaped?
+        JC Error                         // No!
+        MOV AX,'\'
+        STOSW
+        MOV AX,'\'
+        STOSW
+        JMP StringLE
+
+      String8:                           // "normal" character
+        INC @Result                      // One character needed
+        CMP Escaped,0                    // Calculate length only?
+        JE StringLE                      // Yes!
+        DEC EDX                          // One character left in Escaped?
+        JC Error                         // No!
+        STOSW
+
+      StringLE:
+        DEC ECX
+        JNZ StringL
+
+        INC @Result                      // 1 characters needed in Escaped
+        CMP Escaped,0                    // Calculate length only?
+        JE Finish                        // Yes!
+        DEC EDX                          // 1 characters left in Escaped?
+        JC Error                         // No!
+        MOV AX,Quoter
+        STOSW
+        JMP Finish
 
       // -------------------
 
       Error:
         MOV @Result,0                    // Too few space in Escaped
-        JMP FinishE
 
       Finish:
-        INC @Result                      // One character needed
-        CMP Escaped,0                    // Calculate length only?
-        JE FinishE                       // Yes!
-        CMP Len,1                        // One character left in Escaped?
-        JB Error                         // No!
-        DEC Len                          // One character less in Escaped!
-        MOV AX,Quoter                    // End quoting
-        STOSW                            //   into Escaped
-
-      FinishE:
         POP EBX
         POP EDI
         POP ESI
