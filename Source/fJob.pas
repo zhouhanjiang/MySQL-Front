@@ -106,7 +106,7 @@ begin
   Session.FirstConnect();
   if (not Session.Connected) then
     WriteLn(StdErr, Session.ErrorMessage)
-  else if (Job is TAJobExport) then
+  else if (Job is TAJobImport) then
     ExecuteImport(TAJobImport(Job))
   else if (Job is TAJobExport) then
     ExecuteExport(TAJobExport(Job));
