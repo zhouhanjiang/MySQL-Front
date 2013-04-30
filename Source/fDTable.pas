@@ -101,11 +101,11 @@ type
     GCheck: TGroupBox_Ext;
     GDates: TGroupBox_Ext;
     GFlush: TGroupBox_Ext;
-    GMemory: TGroupBox_Ext;
     GOptimize: TGroupBox_Ext;
     GPartitions: TGroupBox_Ext;
     GRecordCount: TGroupBox_Ext;
     GRecords: TGroupBox_Ext;
+    GSize: TGroupBox_Ext;
     GTablesBasics: TGroupBox_Ext;
     GTablesRecords: TGroupBox_Ext;
     mlDCreate: TMenuItem;
@@ -700,7 +700,7 @@ begin
   GDates.Caption := Preferences.LoadStr(122);
   FLCreated.Caption := Preferences.LoadStr(118) + ':';
   FLUpdated.Caption := Preferences.LoadStr(119) + ':';
-  GMemory.Caption := Preferences.LoadStr(125);
+  GSize.Caption := Preferences.LoadStr(125);
   FLIndexSize.Caption := ReplaceStr(Preferences.LoadStr(163), '&', '') + ':';
   FLDataSize.Caption := Preferences.LoadStr(127) + ':';
   FLMaxDataSize.Caption := Preferences.LoadStr(844) + ':';

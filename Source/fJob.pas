@@ -33,16 +33,41 @@ uses
   ODBCAPI,
   MySQLDB, SQLUtils;
 
+function AttachedConsole(): Boolean;
+type
+  TConsoleFunc = function(dwProcessId: DWORD): Boolean; stdcall;
+const
+  ATTACH_PARENT_PROCESS = DWORD(-1);
+var
+  AttachConsole: TConsoleFunc;
+  Handle: THandle;
+begin
+  Result := False;
+
+  Handle := LoadLibrary('KERNEL32.DLL');
+  if (Handle <> 0) then
+  begin
+    AttachConsole := GetProcAddress(Handle, 'AttachConsole');
+    if (Assigned(AttachConsole)) then
+      Result := AttachConsole(ATTACH_PARENT_PROCESS);
+    FreeLibrary(Handle);
+  end;
+end;
+
 constructor TJobExecution.Create(const AccountName, JobName: string);
 var
   Size: DWORD;
 begin
   inherited Create();
 
-  AllocConsole();
-  SetConsoleTitle(PChar(SysUtils.LoadStr(1000)));
-  SetConsoleCP(CP_UTF8);
-  SetConsoleOutputCP(CP_UTF8);
+  if (not AttachedConsole()) then
+  begin
+    AllocConsole();
+    SetConsoleTitle(PChar(SysUtils.LoadStr(1000)));
+    SetConsoleCP(CP_UTF8);
+    SetConsoleOutputCP(CP_UTF8);
+  end;
+
   StdOut := GetStdHandle(STD_OUTPUT_HANDLE);
   StdErr := GetStdHandle(STD_ERROR_HANDLE);
 
@@ -581,6 +606,8 @@ var
   BytesWritten: DWORD;
   CharsWritten: DWORD;
 begin
+  MessageBox(0, PChar(Text), 'Debug', MB_OK);
+
   WriteConsole(Handle, PChar(Text), Length(Text), CharsWritten, nil);
   WriteConsole(Handle, PChar(#13#10), 2, CharsWritten, nil);
 

@@ -415,13 +415,13 @@ object DTable: TDTable
           Caption = 'FUpdated'
         end
       end
-      object GMemory: TGroupBox_Ext
+      object GSize: TGroupBox_Ext
         Left = 8
         Top = 88
         Width = 297
         Height = 95
         Anchors = [akLeft, akTop, akRight]
-        Caption = 'GMemory'
+        Caption = 'GSize'
         TabOrder = 1
         DesignSize = (
           297

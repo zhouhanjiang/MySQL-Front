@@ -1542,8 +1542,6 @@ begin
     else
       CodePage := EncodingToCodePage(SaveDialog.Encodings[SaveDialog.EncodingIndex]);
     Filename := SaveDialog.FileName;
-
-    FJobOptionChange(nil);
   end;
 end;
 

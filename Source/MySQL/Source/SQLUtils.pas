@@ -811,7 +811,7 @@ end;
 
 function SQLEscape(const Value: PChar; const ValueLen: Integer; const Escaped: PChar; const EscapedLen: Integer; const Quoter: Char = ''''): Integer; overload;
 label
-  StringL, String2, String3, String4, String5, String6, String7, String8, StringLE,
+  ValueStart, ValueL, Value2, Value3, Value4, Value5, Value6, Value7, Value8, ValueLE, ValueFinish,
   Error,
   Finish;
 begin
@@ -830,131 +830,135 @@ begin
         MOV ECX,ValueLen                 // Length of Value string
         MOV EDX,EscapedLen               // Length of Escaped
 
-        MOV @Result,0
-        CMP ECX,0                        // Empty string?
-        JE Error                         // Yes!
+        MOV EBX,0
 
-        INC @Result                      // 1 characters needed in Escaped
+        INC EBX                          // 1 characters needed in Escaped
         CMP Escaped,0                    // Calculate length only?
-        JE StringL                       // Yes!
+        JE ValueStart                    // Yes!
         DEC EDX                          // 1 characters left in Escaped?
         JC Error                         // No!
         MOV AX,Quoter
         STOSW
 
-      StringL:
+      ValueStart:
+        CMP ECX,0                        // Empty string?
+        JE ValueFinish                  // Yes!
+
+      ValueL:
         LODSW                            // Character from Value
 
         CMP AX,0                         // #0 ?
-        JNE String2                      // No!
-        ADD @Result,2                    // 2 characters needed in Escaped
+        JNE Value2                       // No!
+        ADD EBX,2                        // 2 characters needed in Escaped
         CMP Escaped,0                    // Calculate length only?
-        JE StringLE                      // Yes!
+        JE ValueLE                       // Yes!
         SUB EDX,2                        // 2 characters left in Escaped?
         JC Error                         // No!
         MOV AX,'\'
         STOSW
         MOV AX,'0'
         STOSW
-        JMP StringLE
+        JMP ValueLE
 
-      String2:
+      Value2:
         CMP AX,9                         // #9 ?
-        JNE String3                      // No!
-        ADD @Result,2                    // 2 characters needed in Escaped
+        JNE Value3                       // No!
+        ADD EBX,2                        // 2 characters needed in Escaped
         CMP Escaped,0                    // Calculate length only?
-        JE StringLE                      // Yes!
+        JE ValueLE                       // Yes!
         SUB EDX,2                        // 2 characters left in Escaped?
         JC Error                         // No!
         MOV AX,'\'
         STOSW
         MOV AX,'t'
         STOSW
-        JMP StringLE
+        JMP ValueLE
 
-      String3:
+      Value3:
         CMP AX,10                        // #10 ?
-        JNE String4                      // No!
-        ADD @Result,2                    // 2 characters needed in Escaped
+        JNE Value4                       // No!
+        ADD EBX,2                        // 2 characters needed in Escaped
         CMP Escaped,0                    // Calculate length only?
-        JE StringLE                      // Yes!
+        JE ValueLE                       // Yes!
         SUB EDX,2                        // 2 characters left in Escaped?
         JC Error                         // No!
         MOV AX,'\'
         STOSW
         MOV AX,'n'
         STOSW
-        JMP StringLE
+        JMP ValueLE
 
-      String4:
+      Value4:
         CMP AX,13                        // #13 ?
-        JNE String5                      // No!
-        ADD @Result,2                    // 2 characters needed in Escaped
+        JNE Value5                       // No!
+        ADD EBX,2                        // 2 characters needed in Escaped
         CMP Escaped,0                    // Calculate length only?
-        JE StringLE                      // Yes!
+        JE ValueLE                       // Yes!
         SUB EDX,2                        // 2 characters left in Escaped?
         JC Error                         // No!
         MOV AX,'\'
         STOSW
         MOV AX,'r'
         STOSW
-        JMP StringLE
+        JMP ValueLE
 
-      String5:
+      Value5:
         CMP AX,'"'                       // '"' ?
-        JNE String6                      // No!
-        ADD @Result,2                    // 2 characters needed in Escaped
+        JNE Value6                       // No!
+        ADD EBX,2                        // 2 characters needed in Escaped
         CMP Escaped,0                    // Calculate length only?
-        JE StringLE                      // Yes!
+        JE ValueLE                       // Yes!
         SUB EDX,2                        // 2 characters left in Escaped?
         JC Error                         // No!
         MOV AX,'\'
         STOSW
         MOV AX,'"'
         STOSW
-        JMP StringLE
+        JMP ValueLE
 
-      String6:
+      Value6:
         CMP AX,''''                      // "'" ?
-        JNE String7                      // No!
-        ADD @Result,2                    // 2 characters needed in Escaped
+        JNE Value7                       // No!
+        ADD EBX,2                        // 2 characters needed in Escaped
         CMP Escaped,0                    // Calculate length only?
-        JE StringLE                      // Yes!
+        JE ValueLE                       // Yes!
         SUB EDX,2                        // 2 characters left in Escaped?
         JC Error                         // No!
         MOV AX,'\'
         STOSW
         MOV AX,''''
         STOSW
-        JMP StringLE
+        JMP ValueLE
 
-      String7:
+      Value7:
         CMP AX,'\'                       // '\' ?
-        JNE String8                      // No!
-        ADD @Result,2                    // 2 characters needed in Escaped
+        JNE Value8                       // No!
+        ADD EBX,2                        // 2 characters needed in Escaped
         CMP Escaped,0                    // Calculate length only?
-        JE StringLE                      // Yes!
+        JE ValueLE                       // Yes!
         SUB EDX,2                        // 2 characters left in Escaped?
         JC Error                         // No!
         MOV AX,'\'
         STOSW
         MOV AX,'\'
         STOSW
-        JMP StringLE
+        JMP ValueLE
 
-      String8:                           // "normal" character
-        INC @Result                      // One character needed
+      Value8:                            // "normal" character
+        INC EBX                          // One character needed
         CMP Escaped,0                    // Calculate length only?
-        JE StringLE                      // Yes!
+        JE ValueLE                       // Yes!
         DEC EDX                          // One character left in Escaped?
         JC Error                         // No!
         STOSW
 
-      StringLE:
+      ValueLE:
         DEC ECX
-        JNZ StringL
+        JNZ ValueL
 
-        INC @Result                      // 1 characters needed in Escaped
+      ValueFinish:
+        INC EBX                          // 1 characters needed in Escaped
+        MOV @Result,EBX
         CMP Escaped,0                    // Calculate length only?
         JE Finish                        // Yes!
         DEC EDX                          // 1 characters left in Escaped?
@@ -3055,5 +3059,7 @@ begin
   Result := StrPas(P);
 end;
 
+begin
+  SQLEscape('test');
 end.
 
