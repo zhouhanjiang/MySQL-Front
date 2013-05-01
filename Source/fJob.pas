@@ -360,10 +360,7 @@ var
   procedure ImportAdd(TableName: string; const SourceTableName: string = '');
   begin
     TableName := Session.ApplyIdentifierName(TableName);
-    if ((Job.JobObject.ObjectType <> jotTable) and Assigned(Database.TableByName(TableName))) then
-      WriteLn(StdErr, 'Table ' + Database.Name + '.' + TableName + ' already exists. Table ignored.')
-    else
-      Import.Add(TableName, SourceTableName);
+    Import.Add(TableName, SourceTableName);
   end;
 
   function TableName(const SourceName: string): string;
@@ -389,13 +386,13 @@ begin
   else
   begin
     case (Job.JobObject.ObjectType) of
-      jotServer: Database := nil;
       jotDatabase: Database := Session.DatabaseByName(Job.JobObject.Name);
       jotTable,
       jotProcedure,
       jotFunction,
       jotTrigger,
       jotEvent: Database := Session.DatabaseByName(Job.JobObject.DatabaseName);
+      else Database := nil;
     end;
 
     if ((Job.JobObject.ObjectType <> jotServer) and not Assigned(Database)) then

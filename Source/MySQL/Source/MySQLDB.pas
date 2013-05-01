@@ -4835,6 +4835,20 @@ begin
 
   if (Mode in [bmRead, bmReadWrite]) then
   begin
+    // Debug 01.05.2013
+    if (not Assigned(Field)) then
+      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Field']);
+    if (not Assigned(Field.DataSet)) then
+      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['DataSet']);
+    if (not Assigned(Field.DataSet.ActiveBuffer())) then
+      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['ActiveBuffer']);
+    if (not Assigned(TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer)) then
+      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['InternRecordBuffer']);
+    if (not Assigned(TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData)) then
+      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['NewData']);
+    if (not Assigned(TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow)) then
+      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['LibRow']);
+
     Empty := not Assigned(TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Field.FieldNo - 1]);
     if (Empty or (TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Field.FieldNo - 1] = 0)) then
       SetSize(0)
