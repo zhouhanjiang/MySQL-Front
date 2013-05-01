@@ -38,7 +38,7 @@
 			<DCC_MapFile>3</DCC_MapFile>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Base_Win32)'!=''">
-			<Debugger_RunParams>/Account=&quot;localhost&quot; /Job=&quot;db1087474-phpbb3&quot;</Debugger_RunParams>
+			<Debugger_RunParams>/Account=&quot;localhost&quot; /Job=&quot;Northwind&quot;</Debugger_RunParams>
 		</PropertyGroup>
 		<ItemGroup>
 			<DelphiCompile Include="$(MainSource)">

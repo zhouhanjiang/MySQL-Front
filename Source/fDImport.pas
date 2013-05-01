@@ -938,7 +938,7 @@ begin
       TAJobImport(PImport).CodePage := CodePage;
       TAJobImport(PImport).ImportType := ImportType;
       TAJobImport(PImport).Filename := FFilename.Text;
-      TAJobImport(PImport).DataSource := FDataSource.Text;
+      TAJobImport(PImport).ODBC.DataSource := FDataSource.Text;
 
       SetLength(TAJobImport(PImport).SourceObjects, 0);
       case (ImportType) of
@@ -1016,6 +1016,7 @@ end;
 procedure TDImport.FormShow(Sender: TObject);
 var
   I: Integer;
+  J: Integer;
   Node: TTreeNode;
 begin
   Session.RegisterEventProc(FormSessionEvent);
@@ -1028,7 +1029,10 @@ begin
   else if (DialogType = idtEditJob) then
     Caption := Preferences.LoadStr(842, Job.Name)
   else if (DialogType = idtExecuteJob) then
-    Caption := Preferences.LoadStr(210) + ' ' + ExtractFileName(Job.Filename)
+    if (Job.ImportType <> itODBC) then
+      Caption := Preferences.LoadStr(386) + ' ' + ExtractFileName(Job.Filename)
+    else
+      Caption := Preferences.LoadStr(386) + ' ' + ExtractFileName(Job.ODBC.DataSource)
   else if (ExtractFileName(Filename) = '') then
     Caption := Preferences.LoadStr(386)
   else
@@ -1117,8 +1121,27 @@ begin
       itXMLFile: FXMLFile.Checked := True;
     end;
     FFilename.Text := Job.Filename;
-    FDataSource.Text := Job.DataSource;
+    FDataSource.Text := Job.ODBC.DataSource;
     FJobOptionChange(Sender);
+    DODBC.DataSource := Job.ODBC.DataSource;
+    DODBC.Username := Job.ODBC.Username;
+    DODBC.Password := Job.ODBC.Password;
+
+    case (Job.JobObject.ObjectType) of
+      jotServer: Database := nil;
+      jotDatabase: Database := Session.DatabaseByName(Job.JobObject.Name);
+      jotTable,
+      jotProcedure,
+      jotFunction,
+      jotTrigger,
+      jotEvent: Database := Session.DatabaseByName(Job.JobObject.DatabaseName);
+    end;
+
+    TSTablesShow(nil);
+    for I := 0 to Length(Job.SourceObjects) - 1 do
+      for J := 0 to FTables.Items.Count - 1 do
+        if (FTables.Items[J].Caption = Job.SourceObjects[I].Name) then
+          FTables.Items[J].Selected := True;
 
     FStructure.Checked := Job.Structure;
     FData.Checked := Job.Data;
@@ -1137,6 +1160,15 @@ begin
   end
   else if ((ImportType in [itTextFile, itODBC, itAccessFile, itExcelFile]) and not (SObject is TSTable)) then
   begin
+    if (DialogType <> idtNormal) then
+      Database := nil
+    else if (SObject is TSDatabase) then
+      Database := TSDatabase(SObject)
+    else if (SObject is TSDBObject) then
+      Database := TSDBObject(SObject).Database
+    else
+      Database := nil;
+
     FStructure.Checked := Preferences.Import.Structure and not (SObject is TSBaseTable);
     FData.Checked := Preferences.Import.Data and (FStructure.Checked or (SObject is TSBaseTable));
     FEngine.ItemIndex := FEngine.Items.IndexOf(Preferences.Import.Engine);
@@ -1157,15 +1189,6 @@ begin
       FCharset.ItemIndex := FCharset.Items.IndexOf('utf8');
   FCharsetChange(Sender);
 
-  if (DialogType <> idtNormal) then
-    Database := nil
-  else if (SObject is TSDatabase) then
-    Database := TSDatabase(SObject)
-  else if (SObject is TSDBObject) then
-    Database := TSDBObject(SObject).Database
-  else
-    Database := nil;
-
   if (DialogType in [idtNormal, idtExecuteJob]) then
     case (ImportType) of
       itSQLFile: Import := TTImportSQL.Create(Filename, CodePage, Session, Database);
@@ -1180,14 +1203,14 @@ begin
 
   TSJob.Enabled := DialogType in [idtCreateJob, idtEditJob];
   TSSelect.Enabled := DialogType in [idtEditJob];
-  TSTables.Enabled := (ImportType in [itAccessFile, itExcelFile, itODBC]);
+  TSTables.Enabled := (DialogType in [idtNormal, idtCreateJob, idtEditJob]) and (ImportType in [itAccessFile, itExcelFile, itODBC]);
   TSCSVOptions.Enabled := (ImportType in [itTextFile]);
   TSXMLOptions.Enabled := (SObject is TSTable) and (ImportType in [itXMLFile]);
   TSWhat.Enabled := False;
   TSFields.Enabled := False;
   TSStmtType.Enabled := False;
   TSTask.Enabled := False;
-  TSExecute.Enabled := (ImportType in [itSQLFile]);
+  TSExecute.Enabled := (DialogType in [idtExecuteJob]) or (ImportType in [itSQLFile]);
 
   if (TSFields.Enabled) then
     InitTSFields(Sender);

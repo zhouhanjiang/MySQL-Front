@@ -61,7 +61,7 @@ object DImport: TDImport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSStmtType
+    ActivePage = TSJob
     Style = tsButtons
     TabOrder = 0
     TabStop = False

@@ -2525,12 +2525,18 @@ begin
     end
     else
     begin
-      RunSynchron := Synchron or not UseLibraryThread() and not Assigned(Done);
+      RunSynchron := Synchron or not UseLibraryThread();
       LibraryThread.RunAction(ssExecutingSQL, RunSynchron);
       if (not RunSynchron or not Assigned(LibraryThread) or not Assigned(LibraryThread.LibHandle)) then
         Result := False
       else
+      begin
+        if (FErrorCode = CR_ASYNCHRON) then
+          FErrorCode := 0;
+        if (Assigned(Done)) then
+          Done.SetEvent();
         Result := ErrorCode = 0;
+      end;
     end;
   end;
 end;

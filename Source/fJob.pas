@@ -11,7 +11,7 @@ type
   private
     Account: TAAccount;
     Job: TAJob;
-    LogFile: THandle;
+    ErrorLogFile: THandle;
     Session: TSSession;
     StdErr: THandle;
     StdOut: THandle;
@@ -33,40 +33,16 @@ uses
   ODBCAPI,
   MySQLDB, SQLUtils;
 
-function AttachedConsole(): Boolean;
-type
-  TConsoleFunc = function(dwProcessId: DWORD): Boolean; stdcall;
-const
-  ATTACH_PARENT_PROCESS = DWORD(-1);
-var
-  AttachConsole: TConsoleFunc;
-  Handle: THandle;
-begin
-  Result := False;
-
-  Handle := LoadLibrary('KERNEL32.DLL');
-  if (Handle <> 0) then
-  begin
-    AttachConsole := GetProcAddress(Handle, 'AttachConsole');
-    if (Assigned(AttachConsole)) then
-      Result := AttachConsole(ATTACH_PARENT_PROCESS);
-    FreeLibrary(Handle);
-  end;
-end;
-
 constructor TJobExecution.Create(const AccountName, JobName: string);
-var
-  Size: DWORD;
 begin
   inherited Create();
 
-  if (not AttachedConsole()) then
-  begin
-    AllocConsole();
-    SetConsoleTitle(PChar(SysUtils.LoadStr(1000)));
-    SetConsoleCP(CP_UTF8);
-    SetConsoleOutputCP(CP_UTF8);
-  end;
+  ErrorLogFile := INVALID_HANDLE_VALUE;
+
+  AllocConsole();
+  SetConsoleTitle(PChar(SysUtils.LoadStr(1000)));
+  SetConsoleCP(CP_UTF8);
+  SetConsoleOutputCP(CP_UTF8);
 
   StdOut := GetStdHandle(STD_OUTPUT_HANDLE);
   StdErr := GetStdHandle(STD_ERROR_HANDLE);
@@ -94,27 +70,17 @@ begin
 
       if (FileExists(Job.LogFilename)) then
         DeleteFile(Job.LogFilename);
-      if (not ForceDirectories(ExtractFilePath(Job.LogFilename))) then
-        LogFile := INVALID_HANDLE_VALUE
-      else
-      begin
-        LogFile := CreateFile(PChar(Job.LogFilename),
-                              GENERIC_WRITE,
-                              FILE_SHARE_READ,
-                              nil,
-                              CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
-
-        if (LogFile <> INVALID_HANDLE_VALUE) then
-          WriteFile(LogFile, BOM_UNICODE_LE^, Length(BOM_UNICODE_LE), Size, nil)
-      end;
     end;
   end;
 end;
 
 destructor TJobExecution.Destroy();
 begin
-  if (LogFile <> INVALID_HANDLE_VALUE) then
-    CloseHandle(LogFile);
+  if (ErrorLogFile <> INVALID_HANDLE_VALUE) then
+  begin
+    CloseHandle(ErrorLogFile);
+    Sleep(5000);
+  end;
 
   Accounts.Free();
 
@@ -136,189 +102,6 @@ begin
   else if (Job is TAJobExport) then
     ExecuteExport(TAJobExport(Job));
   Session.Free();
-end;
-
-function TJobExecution.ExecuteImport(const Job: TAJobImport): Integer;
-var
-  Database: TSDatabase;
-  Import: TTImport;
-
-  procedure ImportAdd(TableName: string; const SourceTableName: string = '');
-  begin
-    TableName := Session.ApplyIdentifierName(TableName);
-    if ((Job.JobObject.ObjectType <> jotTable) and Assigned(Database.TableByName(TableName))) then
-      WriteLn(StdErr, 'Table ' + Database.Name + '.' + TableName + ' already exists. Table ignored.')
-    else
-      Import.Add(TableName, SourceTableName);
-  end;
-
-  function TableName(const SourceName: string): string;
-  begin
-    if (Job.ImportType <> itExcelFile) then
-      Result := SourceName
-    else if (Pos('$', SourceName) = Length(SourceName)) then
-      Result := LeftStr(SourceName, Length(SourceName) - 1)
-    else
-      Result := LeftStr(SourceName, Pos('$', SourceName) - 1) + '_' + RightStr(SourceName, Length(SourceName) - Pos('$', SourceName));
-
-    Result := Session.ApplyIdentifierName(Result);
-  end;
-
-var
-  I: Integer;
-  ODBC: SQLHDBC;
-  Table: TSBaseTable;
-begin
-  Result := 1;
-  if (not Session.Update()) then
-    WriteLn(StdErr, Session.ErrorMessage)
-  else
-  begin
-    case (Job.JobObject.ObjectType) of
-      jotServer: Database := nil;
-      jotDatabase: Database := Session.DatabaseByName(Job.JobObject.Name);
-      jotTable: Database := Session.DatabaseByName(Job.JobObject.DatabaseName);
-    end;
-
-    if ((Job.JobObject.ObjectType <> jotServer) or not Assigned(Database)) then
-      case (Job.JobObject.ObjectType) of
-        jotDatabase: WriteLn(StdErr, 'Database not found: ' + Job.JobObject.Name);
-        jotTable: WriteLn(StdErr, 'Database not found: ' + Job.JobObject.DatabaseName);
-      end
-    else if (Assigned(Database) or not Database.Update()) then
-      WriteLn(StdErr, Session.ErrorMessage)
-    else
-    begin
-      if (Job.JobObject.ObjectType <> jotTable) then
-        Table := nil
-      else
-        Table := Database.BaseTableByName(Job.JobObject.Name);
-
-      if ((Job.JobObject.ObjectType = jotTable) and not Assigned(Table)) then
-        WriteLn(StdErr, 'Table not found: ' + Database.Name + '.' + Job.JobObject.Name)
-      else
-      begin
-        ODBC := SQL_NULL_HANDLE;
-
-        Import := nil;
-        case (Job.ImportType) of
-          itSQLFile:
-            begin
-              Import := TTImportSQL.Create(Job.Filename, Job.CodePage, Session, Database);
-            end;
-          itTextFile:
-            begin
-              Import := TTImportText.Create(Job.Filename, Job.CodePage, Session, Database);
-
-              case (Job.CSV.DelimiterType) of
-                dtTab: TTImportText(Import).Delimiter := #9;
-                dtChar: TTImportText(Import).Delimiter := Job.CSV.Delimiter[1];
-              end;
-              case (Job.CSV.Quote) of
-                qtNothing: TTImportText(Import).Quoter := #0;
-                qtStrings: TTImportText(Import).Quoter := Job.CSV.QuoteChar[1];
-                qtAll: TTImportText(Import).Quoter := Job.CSV.QuoteChar[1];
-              end;
-              TTImportText(Import).UseHeadline := Job.CSV.Headline;
-
-              if (Job.JobObject.ObjectType = jotTable) then
-                ImportAdd(Job.JobObject.Name)
-              else
-                ImportAdd(Copy(Job.Filename, 1 + Length(ExtractFilePath(Job.Filename)), Length(Job.Filename) - Length(ExtractFilePath(Job.Filename)) - Length(ExtractFileExt(Job.Filename))));
-            end;
-          itExcelFile:
-            begin
-              Import := TTImportExcel.Create(Session, Database, Job.Filename);
-
-              if (Job.JobObject.ObjectType = jotTable) then
-                ImportAdd(Job.JobObject.Name, Job.SourceObjects[0].Name)
-              else
-                for I := 0 to Length(Job.SourceObjects) - 1 do
-                  ImportAdd(TableName(Job.JobObject.Name), Job.SourceObjects[I].Name);
-            end;
-          itAccessFile:
-            begin
-              Import := TTImportAccess.Create(Session, Database, Job.Filename);
-
-              if (Job.JobObject.ObjectType = jotTable) then
-                ImportAdd(Job.JobObject.Name, Job.SourceObjects[0].Name)
-              else
-                for I := 0 to Length(Job.SourceObjects) - 1 do
-                  ImportAdd(TableName(Job.JobObject.Name), Job.SourceObjects[I].Name);
-            end;
-          itODBC:
-            begin
-              Import := TTImportODBC.Create(Session, Database, Job.ODBC.DataSource, Job.ODBC.Username, Job.ODBC.Password);
-
-              if (Job.JobObject.ObjectType = jotTable) then
-                ImportAdd(Job.JobObject.Name, Job.SourceObjects[0].Name)
-              else
-                for I := 0 to Length(Job.SourceObjects) - 1 do
-                  ImportAdd(TableName(Job.JobObject.Name), Job.SourceObjects[I].Name);
-            end;
-          itXMLFile:
-            if (Job.JobObject.ObjectType = jotTable) then
-            begin
-              Table := Database.BaseTableByName(Job.JobObject.Name);
-              if (not Assigned(Table)) then
-                WriteLn(StdErr, 'Table not found: ' + Database.Name + '.' + Job.JobObject.Name)
-              else
-              begin
-                Import := TTImportXML.Create(Job.Filename, Table);
-
-                ImportAdd(Job.JobObject.Name, Job.SourceObjects[0].Name);
-              end;
-            end;
-        end;
-
-        if (Assigned(Import)) then
-        begin
-          Import.Data := Job.Data;
-          Import.Charset := Job.Charset;
-          Import.Collation := Job.Collation;
-          Import.Engine := Job.Engine;
-          case (Job.ImportStmt) of
-            isInsert: Import.StmtType := stInsert;
-            isReplace: Import.StmtType := stReplace;
-            isUpdate: Import.StmtType := stUpdate;
-          end;
-          Import.RowType := mrUnknown;
-          Import.Structure := Job.Structure;
-
-          if (Assigned(Table)) then
-          begin
-            Table.InvalidateData();
-            for I := 0 to Length(Job.FieldMappings) - 1 do
-              if (Assigned(Import)) then
-              begin
-                SetLength(Import.Fields, Length(Import.Fields) + 1);
-                Import.Fields[Length(Import.Fields) - 1] := Table.FieldByName(Job.FieldMappings[I].Name);
-                if (not Assigned(Import.Fields[Length(Import.Fields) - 1])) then
-                begin
-                  WriteLn(StdErr, 'Field not found: ' + Database.Name + '.' + Table.Name + '.' + Job.FieldMappings[I].Name);
-                  FreeAndNil(Import);
-                end
-                else
-                begin
-                  SetLength(Import.SourceFields, Length(Import.SourceFields) + 1);
-                  Import.SourceFields[Length(Import.Fields) - 1].Name := Job.FieldMappings[I].SourceName;
-                end;
-              end;
-          end;
-
-          if (Assigned(Import)) then
-          begin
-            Import.OnError := ExportError;
-            Import.Execute();
-            Import.Free();
-          end;
-        end;
-
-        if (ODBC <> SQL_NULL_HANDLE) then
-          SQLFreeHandle(SQL_HANDLE_DBC, ODBC);
-      end;
-    end;
-  end;
 end;
 
 function TJobExecution.ExecuteExport(const Job: TAJobExport): Integer;
@@ -569,6 +352,197 @@ begin
   end;
 end;
 
+function TJobExecution.ExecuteImport(const Job: TAJobImport): Integer;
+var
+  Database: TSDatabase;
+  Import: TTImport;
+
+  procedure ImportAdd(TableName: string; const SourceTableName: string = '');
+  begin
+    TableName := Session.ApplyIdentifierName(TableName);
+    if ((Job.JobObject.ObjectType <> jotTable) and Assigned(Database.TableByName(TableName))) then
+      WriteLn(StdErr, 'Table ' + Database.Name + '.' + TableName + ' already exists. Table ignored.')
+    else
+      Import.Add(TableName, SourceTableName);
+  end;
+
+  function TableName(const SourceName: string): string;
+  begin
+    if (Job.ImportType <> itExcelFile) then
+      Result := SourceName
+    else if (Pos('$', SourceName) = Length(SourceName)) then
+      Result := LeftStr(SourceName, Length(SourceName) - 1)
+    else
+      Result := LeftStr(SourceName, Pos('$', SourceName) - 1) + '_' + RightStr(SourceName, Length(SourceName) - Pos('$', SourceName));
+
+    Result := Session.ApplyIdentifierName(Result);
+  end;
+
+var
+  I: Integer;
+  ODBC: SQLHDBC;
+  Table: TSBaseTable;
+begin
+  Result := 1;
+  if (not Session.Update()) then
+    WriteLn(StdErr, Session.ErrorMessage)
+  else
+  begin
+    case (Job.JobObject.ObjectType) of
+      jotServer: Database := nil;
+      jotDatabase: Database := Session.DatabaseByName(Job.JobObject.Name);
+      jotTable,
+      jotProcedure,
+      jotFunction,
+      jotTrigger,
+      jotEvent: Database := Session.DatabaseByName(Job.JobObject.DatabaseName);
+    end;
+
+    if ((Job.JobObject.ObjectType <> jotServer) and not Assigned(Database)) then
+      case (Job.JobObject.ObjectType) of
+        jotDatabase: WriteLn(StdErr, 'Database not found: ' + Job.JobObject.Name);
+        jotTable,
+        jotProcedure,
+        jotFunction,
+        jotTrigger,
+        jotEvent: WriteLn(StdErr, 'Database not found: ' + Job.JobObject.DatabaseName);
+      end
+    else if (not Assigned(Database) or not Database.Update()) then
+      WriteLn(StdErr, Session.ErrorMessage)
+    else
+    begin
+      if (Job.JobObject.ObjectType <> jotTable) then
+        Table := nil
+      else
+        Table := Database.BaseTableByName(Job.JobObject.Name);
+
+      if ((Job.JobObject.ObjectType = jotTable) and not Assigned(Table)) then
+        WriteLn(StdErr, 'Table not found: ' + Database.Name + '.' + Job.JobObject.Name)
+      else
+      begin
+        ODBC := SQL_NULL_HANDLE;
+
+        Import := nil;
+        case (Job.ImportType) of
+          itSQLFile:
+            begin
+              Import := TTImportSQL.Create(Job.Filename, Job.CodePage, Session, Database);
+            end;
+          itTextFile:
+            begin
+              Import := TTImportText.Create(Job.Filename, Job.CodePage, Session, Database);
+
+              case (Job.CSV.DelimiterType) of
+                dtTab: TTImportText(Import).Delimiter := #9;
+                dtChar: TTImportText(Import).Delimiter := Job.CSV.Delimiter[1];
+              end;
+              case (Job.CSV.Quote) of
+                qtNothing: TTImportText(Import).Quoter := #0;
+                qtStrings: TTImportText(Import).Quoter := Job.CSV.QuoteChar[1];
+                qtAll: TTImportText(Import).Quoter := Job.CSV.QuoteChar[1];
+              end;
+              TTImportText(Import).UseHeadline := Job.CSV.Headline;
+
+              if (Job.JobObject.ObjectType = jotTable) then
+                ImportAdd(Job.JobObject.Name)
+              else
+                ImportAdd(Copy(Job.Filename, 1 + Length(ExtractFilePath(Job.Filename)), Length(Job.Filename) - Length(ExtractFilePath(Job.Filename)) - Length(ExtractFileExt(Job.Filename))));
+            end;
+          itExcelFile:
+            begin
+              Import := TTImportExcel.Create(Session, Database, Job.Filename);
+
+              if (Job.JobObject.ObjectType = jotTable) then
+                ImportAdd(Job.JobObject.Name, Job.SourceObjects[0].Name)
+              else
+                for I := 0 to Length(Job.SourceObjects) - 1 do
+                  ImportAdd(TableName(Job.SourceObjects[I].Name), Job.SourceObjects[I].Name);
+            end;
+          itAccessFile:
+            begin
+              Import := TTImportAccess.Create(Session, Database, Job.Filename);
+
+              if (Job.JobObject.ObjectType = jotTable) then
+                ImportAdd(Job.JobObject.Name, Job.SourceObjects[0].Name)
+              else
+                for I := 0 to Length(Job.SourceObjects) - 1 do
+                  ImportAdd(TableName(Job.SourceObjects[I].Name), Job.SourceObjects[I].Name);
+            end;
+          itODBC:
+            begin
+              Import := TTImportODBC.Create(Session, Database, Job.ODBC.DataSource, Job.ODBC.Username, Job.ODBC.Password);
+
+              if (Job.JobObject.ObjectType = jotTable) then
+                ImportAdd(Job.JobObject.Name, Job.SourceObjects[0].Name)
+              else
+                for I := 0 to Length(Job.SourceObjects) - 1 do
+                  ImportAdd(TableName(Job.SourceObjects[I].Name), Job.SourceObjects[I].Name);
+            end;
+          itXMLFile:
+            if (Job.JobObject.ObjectType = jotTable) then
+            begin
+              Table := Database.BaseTableByName(Job.JobObject.Name);
+              if (not Assigned(Table)) then
+                WriteLn(StdErr, 'Table not found: ' + Database.Name + '.' + Job.JobObject.Name)
+              else
+              begin
+                Import := TTImportXML.Create(Job.Filename, Table);
+
+                ImportAdd(Job.JobObject.Name, Job.SourceObjects[0].Name);
+              end;
+            end;
+        end;
+
+        if (Assigned(Import)) then
+        begin
+          Import.Data := Job.Data;
+          Import.Charset := Job.Charset;
+          Import.Collation := Job.Collation;
+          Import.Engine := Job.Engine;
+          case (Job.ImportStmt) of
+            isInsert: Import.StmtType := stInsert;
+            isReplace: Import.StmtType := stReplace;
+            isUpdate: Import.StmtType := stUpdate;
+          end;
+          Import.RowType := mrUnknown;
+          Import.Structure := Job.Structure;
+
+          if (Assigned(Table)) then
+          begin
+            Table.InvalidateData();
+            for I := 0 to Length(Job.FieldMappings) - 1 do
+              if (Assigned(Import)) then
+              begin
+                SetLength(Import.Fields, Length(Import.Fields) + 1);
+                Import.Fields[Length(Import.Fields) - 1] := Table.FieldByName(Job.FieldMappings[I].Name);
+                if (not Assigned(Import.Fields[Length(Import.Fields) - 1])) then
+                begin
+                  WriteLn(StdErr, 'Field not found: ' + Database.Name + '.' + Table.Name + '.' + Job.FieldMappings[I].Name);
+                  FreeAndNil(Import);
+                end
+                else
+                begin
+                  SetLength(Import.SourceFields, Length(Import.SourceFields) + 1);
+                  Import.SourceFields[Length(Import.Fields) - 1].Name := Job.FieldMappings[I].SourceName;
+                end;
+              end;
+          end;
+
+          if (Assigned(Import)) then
+          begin
+            Import.OnError := ExportError;
+            Import.Execute();
+            Import.Free();
+          end;
+        end;
+
+        if (ODBC <> SQL_NULL_HANDLE) then
+          SQLFreeHandle(SQL_HANDLE_DBC, ODBC);
+      end;
+    end;
+  end;
+end;
+
 procedure TJobExecution.ExportError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
 var
   ErrorMsg: string;
@@ -605,16 +579,27 @@ procedure TJobExecution.WriteLn(const Handle: THandle; const Text: string);
 var
   BytesWritten: DWORD;
   CharsWritten: DWORD;
+  Size: DWORD;
 begin
-  MessageBox(0, PChar(Text), 'Debug', MB_OK);
-
   WriteConsole(Handle, PChar(Text), Length(Text), CharsWritten, nil);
   WriteConsole(Handle, PChar(#13#10), 2, CharsWritten, nil);
 
-  if (Handle = StdErr) then
+  if ((Handle = StdErr) and Assigned(Job)) then
   begin
-    if (LogFile <> INVALID_HANDLE_VALUE) then
-      WriteFile(LogFile, Text, Length(Text) * SizeOf(Char), BytesWritten, nil);
+    if ((ErrorLogFile = INVALID_HANDLE_VALUE) and ForceDirectories(ExtractFilePath(Job.LogFilename))) then
+    begin
+      ErrorLogFile := CreateFile(PChar(Job.LogFilename),
+                            GENERIC_WRITE,
+                            FILE_SHARE_READ,
+                            nil,
+                            CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+
+      if (ErrorLogFile <> INVALID_HANDLE_VALUE) then
+        WriteFile(ErrorLogFile, BOM_UNICODE_LE^, Length(BOM_UNICODE_LE), Size, nil)
+    end;
+
+    if (ErrorLogFile <> INVALID_HANDLE_VALUE) then
+      WriteFile(ErrorLogFile, PChar(Text)^, Length(Text) * SizeOf(Char), BytesWritten, nil);
 
     if (ExitCode = 0) then
       ExitCode := 1;

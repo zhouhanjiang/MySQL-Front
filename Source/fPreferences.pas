@@ -284,7 +284,6 @@ type
     Charset: string;
     Collation: string;
     Data: Boolean;
-    DataSource: string;
     Engine: string;
     ImportStmt: TPImportStmt;
     RowType: Integer;
@@ -1790,7 +1789,6 @@ begin
   Charset := '';
   Collation := '';
   Data := True;
-  DataSource := '';
   Engine := '';
   ImportStmt := isInsert;
   RowType := 0;
@@ -3183,7 +3181,7 @@ end;
 
 function TAJob.GetLogFilename(): TFileName;
 begin
-  Result := Jobs.Account.DataPath + 'Jobs' + PathDelim + Name + '.log';
+  Result := Jobs.Account.DataPath + 'Jobs' + PathDelim + Name + '.err';
 end;
 
 function TAJob.Save(const Update: Boolean): Boolean;
@@ -3274,6 +3272,9 @@ begin
   Filename := TAJobImport(Source).Filename;
   ImportType := TAJobImport(Source).ImportType;
   JobObject := TAJobImport(Source).JobObject;
+  ODBC.DataSource := TAJobImport(Source).ODBC.DataSource;
+  ODBC.Username := TAJobImport(Source).ODBC.Username;
+  ODBC.Password := TAJobImport(Source).ODBC.Password;
   SourceObjects := TAJobImport(Source).SourceObjects;
 end;
 

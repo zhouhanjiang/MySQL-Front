@@ -1602,7 +1602,6 @@ end;
 procedure TTImport.AfterExecute();
 begin
   Session.EndSilent();
-  Session.EndSynchron();
 
   inherited;
 end;
@@ -1616,7 +1615,6 @@ begin
   inherited;
 
   Session.BeginSilent();
-  Session.BeginSynchron(); // We're still in a thread
 end;
 
 procedure TTImport.BeforeExecuteData(const Item: TItem);
@@ -1777,8 +1775,12 @@ begin
       if (Structure) then
       begin
         if (Assigned(Database.TableByName(TTImport.TItem(Items[I]).TableName))) then
+        begin
+          Session.BeginSynchron();
           while ((Success <> daAbort) and not Database.DeleteObject(Database.TableByName(TTImport.TItem(Items[I]).TableName))) do
             DoError(DatabaseError(Session), Items[I], True);
+          Session.EndSynchron();
+        end;
         if (Success = daSuccess) then
           ExecuteStructure(TTImport.TItem(Items[I]));
       end;
@@ -1852,7 +1854,7 @@ begin
       else
         SQL := SQL + 'START TRANSACTION;' + #13#10;
 
-    if ((StmtType <> stUpdate) and Session.DataFileAllowed) then
+    if ((StmtType <> stUpdate) and Session.DataFileAllowed and not Suspended) then
     begin
       Pipename := '\\.\pipe\' + LoadStr(1000);
       Pipe := CreateNamedPipe(PChar(Pipename),
@@ -2508,8 +2510,10 @@ begin
 
   NewTable.Name := Session.ApplyIdentifierName(Item.TableName);
 
+  Session.BeginSynchron();
   while ((Success <> daAbort) and not Database.AddTable(NewTable)) do
     DoError(DatabaseError(Session), Item, True);
+  Session.EndSynchron();
 
   NewTable.Free();
 
@@ -3156,8 +3160,10 @@ begin
 
     NewTable.Name := Session.ApplyIdentifierName(Item.TableName);
 
+    Session.BeginSynchron();
     while ((Success <> daAbort) and not Database.AddTable(NewTable)) do
       DoError(DatabaseError(Session), Item, True);
+    Session.EndSynchron();
   end;
 
   NewTable.Free();
@@ -3350,7 +3356,7 @@ begin
               ReturnCode := SQLGetData(Stmt, I + 1, SQL_C_BINARY, ODBCData, ODBCDataSize, @cbData);
               if ((cbData <> SQL_NULL_DATA) and (cbData > 0)) then
               begin
-                if (ODBCMemSize < Size) then
+                if (ODBCMemSize < Size + cbData) then
                 begin
                   ODBCMemSize := ODBCMemSize + 2 * (Size + cbData - ODBCMemSize);
                   ReallocMem(ODBCMem, ODBCMemSize);
