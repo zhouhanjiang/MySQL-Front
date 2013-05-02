@@ -2757,6 +2757,7 @@ begin
     SQL_BINARY: Result := mfBinary;
     SQL_VARBINARY: Result := mfVarBinary;
     SQL_LONGVARBINARY: Result := mfBlob;
+    SQL_DATETIME: Result := mfDateTime;
     SQL_TYPE_DATE: Result := mfDate;
     SQL_TYPE_TIME: Result := mfTime;
     SQL_TYPE_TIMESTAMP: Result := mfDateTime;
@@ -3442,6 +3443,7 @@ begin
             Values[I] := 'NULL'
           else
             Values[I] := Fields[I].EscapeValue(FloatToStr(D, Session.FormatSettings));
+        SQL_DATETIME,
         SQL_TYPE_DATE,
         SQL_TYPE_TIME,
         SQL_TYPE_TIMESTAMP:
@@ -3453,7 +3455,7 @@ begin
             with (Timestamp) do
               if (ColumnDesc[I].SQLDataType = SQL_TYPE_TIME) then
                 Values[I] := TimeToStr(EncodeTime(hour, minute, second, 0), Session.FormatSettings)
-              else if (ColumnDesc[I].SQLDataType = SQL_TYPE_TIMESTAMP) then
+              else if (ColumnDesc[I].SQLDataType in [SQL_DATETIME, SQL_TYPE_TIMESTAMP]) then
                 Values[I] := MySQLDB.DateTimeToStr(EncodeDate(year, month, day) + EncodeTime(hour, minute, second, 0), Session.FormatSettings)
               else if (ColumnDesc[I].SQLDataType = SQL_TYPE_DATE) then
                 Values[I] := MySQLDB.DateToStr(EncodeDate(year, month, day) + EncodeTime(hour, minute, second, 0), Session.FormatSettings);
