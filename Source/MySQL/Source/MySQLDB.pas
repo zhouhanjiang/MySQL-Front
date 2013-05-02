@@ -459,9 +459,9 @@ type
     procedure SetConnection(const AConnection: TMySQLConnection); virtual;
     function SQLSelect(): string; overload; virtual;
     procedure UpdateIndexDefs(); override;
-    property Handle: MySQLConsts.MYSQL_RES read GetHandle;
     property IndexDefs: TIndexDefs read FIndexDefs;
   public
+property Handle: MySQLConsts.MYSQL_RES read GetHandle;
     constructor Create(AOwner: TComponent); override;
     destructor Destroy(); override;
     function CreateBlobStream(Field: TField; Mode: TBlobStreamMode): TStream; override;

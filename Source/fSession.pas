@@ -7326,7 +7326,26 @@ begin
 end;
 
 procedure TSDatabase.SetSource(const ADataSet: TMySQLQuery);
+var
+  Field: TField;
+  S: string;
+  S2: string;
+  LibField: MYSQL_FIELD_40101;
 begin
+  if (Name = 'newfoxpro') then
+  begin
+    Field := ADataSet.FieldByName('Create Database');
+    SetString(S, ADataSet.LibRow[Field.FieldNo - 1], ADataSet.LibLengths[Field.FieldNo - 1]);
+    S := SQLEscapeBin(S, False);
+    if (Field.DataType <> ftBytes) then
+      S2 := ''
+    else
+      S2 := SQLEscapeBin(string(StrPas(my_char(@Field.AsBytes[0]))), False);
+    LibField := Session.Lib.mysql_fetch_field_direct(ADataSet.Handle, Field.FieldNo - 1);
+
+    raise Exception.CreateFmt('Name: %s, DataType: %d, field_type: %d, charsetnr: %d, LibLength: %d, LibRow: %s, AsBytes: %s', [Name, Ord(Field.DataType), Ord(LibField^.field_type), LibField^.charsetnr, ADataSet.LibLengths[Field.FieldNo - 1], S, S2]);
+  end;
+
   SetSource(ADataSet.FieldByName('Create Database'));
 
   if (Valid) then
