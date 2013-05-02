@@ -2003,8 +2003,6 @@ var
 begin
   if (AField.DataType <> ftBlob) then
     SQL := Trim(AField.AsString)
-  else if (Length(AField.AsBytes) = 0) then
-    SQL := ''
   else
     SQL := Trim(Session.LibDecode(my_char(AField.AsAnsiString)));
   if ((SQL <> '') and (Copy(SQL, Length(SQL), 1) <> ';')) then
@@ -6727,10 +6725,8 @@ begin
     Field := DataSet.FieldByName('Create Database');
     if (Field.DataType <> ftBlob) then
       FSource := Field.AsString
-    else if (Length(Field.AsBytes) = 0) then
-      FSource := ''
     else
-      FSource := Session.LibDecode(my_char(@Field.AsBytes[0]));
+      FSource := Session.LibDecode(my_char(Field.AsAnsiString));
     FSource := Trim(ReplaceStr(ReplaceStr(FSource, #10, #13#10), #13#13#10, #13#10));
     if (FSource <> '') then
       FSource := FSource + ';';

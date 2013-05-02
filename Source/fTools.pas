@@ -2920,6 +2920,7 @@ var
   cbColumnName: SQLINTEGER;
   cbColumnSize: SQLINTEGER;
   cbDecimalDigits: SQLINTEGER;
+  cbDRIVER_ODBC_VER: SQLINTEGER;
   cbIndexName: SQLINTEGER;
   cbIndexType: SQLINTEGER;
   cbNonUnique: SQLINTEGER;
@@ -2933,6 +2934,9 @@ var
   ColumnNumber: SQLINTEGER;
   ColumnSize: SQLINTEGER;
   DecimalDigits: SQLSMALLINT;
+  DRIVER_ODBC_VER: array [0 .. STR_LEN] of SQLTCHAR;
+  DriverVer: Integer;
+  F: Single;
   Found: Boolean;
   I: Integer;
   Key: TSKey;
@@ -2967,6 +2971,20 @@ begin
     if ((Success <> daAbort) and (SQLColumns(Stmt, nil, 0, nil, 0, PSQLTCHAR(Item.SourceTableName), SQL_NTS, nil, 0) <> SQL_SUCCESS)) then
       DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
 
+    if (not SQL_SUCCEEDED(SQLGetInfo(Handle, SQL_DRIVER_ODBC_VER, @DRIVER_ODBC_VER, SizeOf(DRIVER_ODBC_VER), @cbDRIVER_ODBC_VER))) then
+    begin
+      DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False);
+      DriverVer := 0;
+    end
+    else
+    begin
+      SetString(S, PChar(@DRIVER_ODBC_VER), cbDRIVER_ODBC_VER div SizeOf(DRIVER_ODBC_VER[0]));
+      if (not TryStrToFloat(S, F)) then
+        DriverVer := 0
+      else
+        DriverVer := Trunc(F);
+    end;
+
     if (Success = daSuccess) then
     begin
       ODBCException(Stmt, SQLBindCol(Stmt, 4, SQL_C_WCHAR, @ColumnName, SizeOf(ColumnName), @cbColumnName));
@@ -2976,10 +2994,13 @@ begin
       ODBCException(Stmt, SQLBindCol(Stmt, 11, SQL_C_SSHORT, @Nullable, SizeOf(Nullable), @cbNullable));
       if (not SQL_SUCCEEDED(SQLBindCol(Stmt, 12, SQL_C_WCHAR, @Remarks, SizeOf(Remarks), @cbRemarks))) then
         begin ZeroMemory(@Remarks, SizeOf(Remarks)); cbRemarks := 0; end;
-      if (not SQL_SUCCEEDED(SQLBindCol(Stmt, 13, SQL_C_WCHAR, @ColumnDef, SizeOf(ColumnDef), @cbColumnDef))) then
-        begin ZeroMemory(@ColumnDef, SizeOf(ColumnDef)); cbColumnDef := 0; end;
-      if (not SQL_SUCCEEDED(SQLBindCol(Stmt, 14, SQL_C_SSHORT, @SQLDataType2, SizeOf(SQLDataType2), @cbSQLDataType2))) then
-        begin ZeroMemory(@SQLDataType2, SizeOf(SQLDataType2)); cbSQLDataType2 := 0; end;
+      if (DriverVer >= 3) then
+      begin
+        if (not SQL_SUCCEEDED(SQLBindCol(Stmt, 13, SQL_C_WCHAR, @ColumnDef, SizeOf(ColumnDef), @cbColumnDef))) then
+          begin ZeroMemory(@ColumnDef, SizeOf(ColumnDef)); cbColumnDef := 0; end;
+        if (not SQL_SUCCEEDED(SQLBindCol(Stmt, 14, SQL_C_SSHORT, @SQLDataType2, SizeOf(SQLDataType2), @cbSQLDataType2))) then
+          begin ZeroMemory(@SQLDataType2, SizeOf(SQLDataType2)); cbSQLDataType2 := 0; end;
+      end;
 
       while (SQL_SUCCEEDED(ODBCException(Stmt, SQLFetch(Stmt)))) do
         if (not Assigned(NewTable.FieldByName(ColumnName))) then
@@ -2994,7 +3015,7 @@ begin
             NewField.FieldBefore := NewTable.Fields[NewTable.Fields.Count - 1];
           if (SQLDataType <> SQL_UNKNOWN_TYPE) then
             NewField.FieldType := SQLDataTypeToMySQLType(SQLDataType, ColumnSize, NewField.Name)
-          else if (cbSQLDataType2 > 0) then
+          else if ((DriverVer >= 3) and (cbSQLDataType2 > 0)) then
             NewField.FieldType := SQLDataTypeToMySQLType(SQLDataType2, ColumnSize, NewField.Name)
           else
             raise EODBCError.CreateFMT(SUnknownFieldType + ' (%d)', [ColumnName, SQLDataType]);
@@ -3003,7 +3024,7 @@ begin
             NewField.Size := ColumnSize;
             NewField.Decimals := DecimalDigits;
           end;
-          if (cbColumnDef > 0) then
+          if ((DriverVer >= 3) and (cbColumnDef > 0)) then
           begin
             SetString(S, ColumnDef, cbColumnDef);
             while ((Length(S) > 0) and (S[Length(S)] = #0)) do
