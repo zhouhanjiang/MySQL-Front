@@ -734,6 +734,11 @@ begin
 
   if (Length(FDestFields) > 0) then
     FDestField1Change(Sender);
+
+  FBForward.Enabled := False;
+  for I := 0 to Length(FFields) - 1 do
+    if (FFields[I].ItemIndex > 0) then
+      FBForward.Enabled := True;
 end;
 
 procedure TDExport.FField1Exit(Sender: TObject);
@@ -1234,6 +1239,7 @@ begin
   for I := 0 to PageControl.PageCount - 1 do
     if ((PageControl.ActivePageIndex < 0) and PageControl.Pages[I].Enabled) then
       PageControl.ActivePageIndex := I;
+  CheckActivePageChange(PageControl.ActivePageIndex);
 
   FBCancel.ModalResult := mrCancel;
 
@@ -1429,7 +1435,7 @@ function TDExport.GetDataSource(): Boolean;
 begin
   Result := DODBC.Execute();
 
-  if (Result) then
+  if (Result and (DialogType in [edtCreateJob, edtEditJob, edtExecuteJob])) then
     FJobOptionChange(nil);
 end;
 
