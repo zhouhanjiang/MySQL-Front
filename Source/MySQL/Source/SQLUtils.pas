@@ -3059,7 +3059,5 @@ begin
   Result := StrPas(P);
 end;
 
-begin
-  SQLEscape('test');
 end.
 

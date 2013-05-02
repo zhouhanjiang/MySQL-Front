@@ -298,7 +298,6 @@ type
     function GetInsertId(): my_ulonglong; virtual;
     function GetDataFileAllowed(): Boolean; virtual;
     function GetMaxAllowedPacket(): Integer; virtual;
-    function LibDecode(const Data: my_char; const Length: my_int = -1): string; virtual;
     function LibUnpack(const Data: my_char; const Length: my_int = -1): string; virtual;
     function NextCommandText(): string;
     procedure RegisterSQLMonitor(const AMySQLMonitor: TMySQLMonitor); virtual;
@@ -329,6 +328,7 @@ type
     property TerminateCS: TCriticalSection read FTerminateCS;
     property TerminatedThreads: TTerminatedThreads read FTerminatedThreads;
   public
+    function LibDecode(const Data: my_char; const Length: my_int = -1): string; virtual;
     procedure BeginSilent(); virtual;
     procedure BeginSynchron(); virtual;
     function CanShutdown(): Boolean; virtual;
@@ -459,9 +459,9 @@ type
     procedure SetConnection(const AConnection: TMySQLConnection); virtual;
     function SQLSelect(): string; overload; virtual;
     procedure UpdateIndexDefs(); override;
+    property Handle: MySQLConsts.MYSQL_RES read GetHandle;
     property IndexDefs: TIndexDefs read FIndexDefs;
   public
-property Handle: MySQLConsts.MYSQL_RES read GetHandle;
     constructor Create(AOwner: TComponent); override;
     destructor Destroy(); override;
     function CreateBlobStream(Field: TField; Mode: TBlobStreamMode): TStream; override;
@@ -4835,21 +4835,9 @@ begin
 
   if (Mode in [bmRead, bmReadWrite]) then
   begin
-    // Debug 01.05.2013
-    if (not Assigned(Field)) then
-      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Field']);
-    if (not Assigned(Field.DataSet)) then
-      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['DataSet']);
-    if (not Assigned(Field.DataSet.ActiveBuffer())) then
-      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['ActiveBuffer']);
-    if (not Assigned(TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer)) then
-      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['InternRecordBuffer']);
-    if (not Assigned(TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData)) then
-      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['NewData']);
-    if (not Assigned(TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow)) then
-      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['LibRow']);
-
-    Empty := not Assigned(TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Field.FieldNo - 1]);
+    Empty := not Assigned(TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer)
+      or not Assigned(TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData)
+      or not Assigned(TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibRow^[Field.FieldNo - 1]);
     if (Empty or (TMySQLDataSet.PExternRecordBuffer(Field.DataSet.ActiveBuffer())^.InternRecordBuffer^.NewData^.LibLengths^[Field.FieldNo - 1] = 0)) then
       SetSize(0)
     else
