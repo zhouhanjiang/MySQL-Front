@@ -1467,7 +1467,7 @@ begin
         SaveDialog.Encodings.Text := EncodingCaptions();
       end;
     etTextFile:
-      if (SingleTable) then
+      if (SObjects.Count <= 1) then
       begin
         SaveDialog.Filter := FilterDescription('txt') + ' (*.txt;*.csv;*.tab)|*.txt;*.csv;*.tab';
         SaveDialog.DefaultExt := '.csv';

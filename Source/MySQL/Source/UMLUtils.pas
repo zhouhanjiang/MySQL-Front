@@ -24,12 +24,12 @@ asm
         POP ES
         CLD                              // string operations uses forward direction
 
-        MOV ESI,PChar(Value)             // Copy characters from Value
+        MOV ESI,Value                    // Copy characters from Value
         MOV EDI,Escaped                  //   to Escaped
         MOV ECX,ValueLen                 // Length of Value string
         MOV EDX,EscapedLen               // Length of Escaped
 
-        MOV @Result,0
+        MOV EBX,0
         CMP ECX,0                        // Empty string?
         JE Error                         // Yes!
 
@@ -43,7 +43,7 @@ asm
 
         CMP AX,13                        // #13 ?
         JNE String2                      // No!
-        ADD @Result,5                    // 5 characters needed in Escaped
+        ADD EBX,5                        // 5 characters needed in Escaped
         CMP EDI,0                        // Calculate length only?
         JE StringLE                      // Yes!
         SUB EDX,5                        // 5 characters left in Escaped?
@@ -63,7 +63,7 @@ asm
       String2:
         CMP AX,31                        // <= #31 ?
         JA String3                       // No!
-        INC @Result                      // 1 characters needed in Escaped
+        INC EBX                          // 1 characters needed in Escaped
         CMP EDI,0                        // Calculate length only?
         JE StringLE                      // Yes!
         DEC EDX                          // 1 characters left in Escaped?
@@ -76,7 +76,7 @@ asm
       String3:
         CMP AX,'"'                       // '"' ?
         JNE String4                      // No!
-        ADD @Result,6                    // 6 characters needed in Escaped
+        ADD EBX,6                        // 6 characters needed in Escaped
         CMP EDI,0                        // Calculate length only?
         JE StringLE                      // Yes!
         SUB EDX,6                        // 6 characters left in Escaped?
@@ -98,7 +98,7 @@ asm
       String4:                           // "normal" character
         CMP AX,'&'                       // "&" ?
         JNE String5                      // No!
-        ADD @Result,5                    // 5 characters needed in Escaped
+        ADD EBX,5                        // 5 characters needed in Escaped
         CMP EDI,0                        // Calculate length only?
         JE StringLE                      // Yes!
         SUB EDX,5                        // 5 characters left in Escaped?
@@ -117,7 +117,7 @@ asm
       String5:
         CMP AX,'<'                       // "<" ?
         JNE String6                      // No!
-        ADD @Result,4                    // 4 characters needed in Escaped
+        ADD EBX,4                        // 4 characters needed in Escaped
         CMP EDI,0                        // Calculate length only?
         JE StringLE                      // Yes!
         SUB EDX,4                        // 4 characters left in Escaped?
@@ -135,7 +135,7 @@ asm
       String6:
         CMP AX,'>'                       // ">" ?
         JNE String7                      // No!
-        ADD @Result,4                    // 4 characters needed in Escaped
+        ADD EBX,4                        // 4 characters needed in Escaped
         CMP EDI,0                        // Calculate length only?
         JE StringLE                      // Yes!
         SUB EDX,4                        // 4 characters left in Escaped?
@@ -151,7 +151,7 @@ asm
         JMP StringLE
 
       String7:                           // "normal" character
-        INC @Result                      // One character needed
+        INC EBX                          // One character needed
         CMP EDI,0                        // Calculate length only?
         JE StringLE                      // Yes!
         DEC EDX                          // One character left in Escaped?
@@ -161,6 +161,7 @@ asm
       StringLE:
         DEC ECX
         JNZ StringL
+        MOV @Result,EBX
         JMP Finish
 
       // -------------------
@@ -205,7 +206,7 @@ asm
         MOV ECX,ValueLen                 // Length of Value string
         MOV EDX,EscapedLen               // Length of Escaped
 
-        MOV @Result,0
+        MOV EBX,0
         CMP ECX,0                        // Empty string?
         JE Error                         // Yes!
 
@@ -221,7 +222,7 @@ asm
 
         CMP AX,9                         // <= #9 ?
         JA String2                       // No!
-        ADD @Result,4                    // 4 characters needed in Escaped
+        ADD EBX,4                        // 4 characters needed in Escaped
         CMP EDI,0                        // Calculate length only?
         JE StringLE                      // Yes!
         SUB EDX,4                        // 4 characters left in Escaped?
@@ -241,7 +242,7 @@ asm
       String2:
         CMP AX,31                        // <= #31 ?
         JA String3                       // No!
-        ADD @Result,5                    // 5 characters needed in Escaped
+        ADD EBX,5                        // 5 characters needed in Escaped
         CMP EDI,0                        // Calculate length only?
         JE StringLE                      // Yes!
         SUB EDX,5                        // 5 characters left in Escaped?
@@ -269,7 +270,7 @@ asm
       String3:
         CMP AX,'"'                       // '"' ?
         JNE String4                      // No!
-        ADD @Result,6                    // 6 characters needed in Escaped
+        ADD EBX,6                        // 6 characters needed in Escaped
         CMP EDI,0                        // Calculate length only?
         JE StringLE                      // Yes!
         SUB EDX,6                        // 6 characters left in Escaped?
@@ -291,7 +292,7 @@ asm
       String4:                           // "normal" character
         CMP AX,'&'                       // "&" ?
         JNE String5                      // No!
-        ADD @Result,5                    // 5 characters needed in Escaped
+        ADD EBX,5                        // 5 characters needed in Escaped
         CMP EDI,0                        // Calculate length only?
         JE StringLE                      // Yes!
         SUB EDX,5                        // 5 characters left in Escaped?
@@ -310,7 +311,7 @@ asm
       String5:
         CMP AX,''''                      // "'" ?
         JNE String6                      // No!
-        ADD @Result,6                    // 6 characters needed in Escaped
+        ADD EBX,6                        // 6 characters needed in Escaped
         CMP EDI,0                        // Calculate length only?
         JE StringLE                      // Yes!
         SUB EDX,6                        // 6 characters left in Escaped?
@@ -332,7 +333,7 @@ asm
       String6:
         CMP AX,'<'                       // "<" ?
         JNE String7                      // No!
-        ADD @Result,4                    // 4 characters needed in Escaped
+        ADD EBX,4                        // 4 characters needed in Escaped
         CMP EDI,0                        // Calculate length only?
         JE StringLE                      // Yes!
         SUB EDX,4                        // 4 characters left in Escaped?
@@ -350,7 +351,7 @@ asm
       String7:
         CMP AX,'>'                       // ">" ?
         JNE String8                      // No!
-        ADD @Result,4                    // 4 characters needed in Escaped
+        ADD EBX,4                        // 4 characters needed in Escaped
         CMP EDI,0                        // Calculate length only?
         JE StringLE                      // Yes!
         SUB EDX,4                        // 4 characters left in Escaped?
@@ -366,7 +367,7 @@ asm
         JMP StringLE
 
       String8:                           // "normal" character
-        INC @Result                      // One character needed
+        INC EBX                          // One character needed
         CMP EDI,0                        // Calculate length only?
         JE StringLE                      // Yes!
         DEC EDX                          // One character left in Escaped?
@@ -376,6 +377,7 @@ asm
       StringLE:
         DEC ECX
         JNZ StringL
+        MOV @Result,EBX
         JMP Finish
 
       // -------------------
