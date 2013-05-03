@@ -44,7 +44,7 @@ asm
         CMP AX,13                        // #13 ?
         JNE String2                      // No!
         ADD @Result,5                    // 5 characters needed in Escaped
-        CMP Escaped,0                    // Calculate length only?
+        CMP EDI,0                        // Calculate length only?
         JE StringLE                      // Yes!
         SUB EDX,5                        // 5 characters left in Escaped?
         JC Error                         // No!
@@ -64,7 +64,7 @@ asm
         CMP AX,31                        // <= #31 ?
         JA String3                       // No!
         INC @Result                      // 1 characters needed in Escaped
-        CMP Escaped,0                    // Calculate length only?
+        CMP EDI,0                        // Calculate length only?
         JE StringLE                      // Yes!
         DEC EDX                          // 1 characters left in Escaped?
         JC Error                         // No!
@@ -77,7 +77,7 @@ asm
         CMP AX,'"'                       // '"' ?
         JNE String4                      // No!
         ADD @Result,6                    // 6 characters needed in Escaped
-        CMP Escaped,0                    // Calculate length only?
+        CMP EDI,0                        // Calculate length only?
         JE StringLE                      // Yes!
         SUB EDX,6                        // 6 characters left in Escaped?
         JC Error                         // No!
@@ -99,7 +99,7 @@ asm
         CMP AX,'&'                       // "&" ?
         JNE String5                      // No!
         ADD @Result,5                    // 5 characters needed in Escaped
-        CMP Escaped,0                    // Calculate length only?
+        CMP EDI,0                        // Calculate length only?
         JE StringLE                      // Yes!
         SUB EDX,5                        // 5 characters left in Escaped?
         JC Error                         // No!
@@ -118,7 +118,7 @@ asm
         CMP AX,'<'                       // "<" ?
         JNE String6                      // No!
         ADD @Result,4                    // 4 characters needed in Escaped
-        CMP Escaped,0                    // Calculate length only?
+        CMP EDI,0                        // Calculate length only?
         JE StringLE                      // Yes!
         SUB EDX,4                        // 4 characters left in Escaped?
         JC Error                         // No!
@@ -136,7 +136,7 @@ asm
         CMP AX,'>'                       // ">" ?
         JNE String7                      // No!
         ADD @Result,4                    // 4 characters needed in Escaped
-        CMP Escaped,0                    // Calculate length only?
+        CMP EDI,0                        // Calculate length only?
         JE StringLE                      // Yes!
         SUB EDX,4                        // 4 characters left in Escaped?
         JC Error                         // No!
@@ -152,7 +152,7 @@ asm
 
       String7:                           // "normal" character
         INC @Result                      // One character needed
-        CMP Escaped,0                    // Calculate length only?
+        CMP EDI,0                        // Calculate length only?
         JE StringLE                      // Yes!
         DEC EDX                          // One character left in Escaped?
         JC Error                         // No!

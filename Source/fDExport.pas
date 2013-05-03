@@ -640,7 +640,8 @@ end;
 
 procedure TDExport.FBDataSourceClick(Sender: TObject);
 begin
-  GetDataSource();
+  if (DODBC.Execute()) then
+    FJobOptionChange(nil);
 end;
 
 procedure TDExport.FBFilenameClick(Sender: TObject);
