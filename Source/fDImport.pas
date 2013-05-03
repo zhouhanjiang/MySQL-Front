@@ -1904,8 +1904,8 @@ begin
   FData.Enabled := not (SObject is TSBaseTable);
 
   TSFields.Enabled := (FStructure.Checked or FData.Checked) and (SObject is TSBaseTable);
-  TSExecute.Enabled := (DialogType = idtNormal) and not TSFields.Enabled;
-  TSTask.Enabled := (DialogType <> idtNormal) and not TSFields.Enabled;
+  TSExecute.Enabled := (DialogType = idtNormal) and (FStructure.Checked or FData.Checked) and not TSFields.Enabled;
+  TSTask.Enabled := (DialogType <> idtNormal) and (FStructure.Checked or FData.Checked) and not TSFields.Enabled;
   CheckActivePageChange(TSWhat.PageIndex);
 end;
 
