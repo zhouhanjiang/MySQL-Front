@@ -8938,14 +8938,14 @@ begin
   Add(mfLongText, 'LongText', False);
   Add(mfEnum, 'Enum', False);
   Add(mfSet, 'Set', False);
-//  Add(mfGeometry, 'Geometry', False);
-//  Add(mfPoint, 'Point', False);
-//  Add(mfLineString, 'LineString', False);
-//  Add(mfPolygon, 'Polygon', False);
-//  Add(mfMultiPoint, 'MultiPoint', False);
-//  Add(mfMultiLineString, 'MultiLineString', False);
-//  Add(mfMultiPolygon, 'MultiPolygon', False);
-//  Add(mfGeometryCollection, 'GeometryCollection', False);
+  Add(mfGeometry, 'Geometry', False);
+  Add(mfPoint, 'Point', False);
+  Add(mfLineString, 'LineString', False);
+  Add(mfPolygon, 'Polygon', False);
+  Add(mfMultiPoint, 'MultiPoint', False);
+  Add(mfMultiLineString, 'MultiLineString', False);
+  Add(mfMultiPolygon, 'MultiPolygon', False);
+  Add(mfGeometryCollection, 'GeometryCollection', False);
 end;
 
 function TSFieldTypes.FieldAvailable(const Engine: TSEngine; const MySQLFieldType: TMySQLFieldType): Boolean;
