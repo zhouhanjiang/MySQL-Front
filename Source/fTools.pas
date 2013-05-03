@@ -6145,7 +6145,7 @@ begin
 
   for I := 0 to StringList.Count - 1 do
   begin
-    S := StringList[I];
+    S := ReplaceStr(StringList[I], '&', '&&');
 
     R := Rect(ContentArea.Left, Y, ContentArea.Right, ContentArea.Bottom);
     Canvas.TextRect(R, S, [tfCalcRect, tfWordBreak]);
@@ -6873,7 +6873,7 @@ begin
   Text := Session.Account.Connection.Host;
   if (Session.Account.Connection.Port <> MYSQL_PORT) then
     Text := Text + ':' + IntToStr(Session.Account.Connection.Port);
-  Text := Text + '  (MySQL: ' + Session.ServerVersionStr + ')';
+  Text := Text + '  (MySQL: ' + ReplaceStr(Session.ServerVersionStr, '&', '&&') + ')';
   Canvas.TextRect(R, Text, [tfCenter]);
 
   R := Rect(ContentArea.Left, Y, ContentArea.Right, PageHeight);
