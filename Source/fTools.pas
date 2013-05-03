@@ -6145,17 +6145,17 @@ begin
 
   for I := 0 to StringList.Count - 1 do
   begin
-    S := ReplaceStr(StringList[I], '&', '&&');
+    S := StringList[I];
 
     R := Rect(ContentArea.Left, Y, ContentArea.Right, ContentArea.Bottom);
-    Canvas.TextRect(R, S, [tfCalcRect, tfWordBreak]);
+    Canvas.TextRect(R, S, [tfCalcRect, tfHidePrefix, tfWordBreak]);
 
     AllocateHeight(ExtraPadding + R.Bottom - R.Top + Padding + ExtraPadding);
 
     if (Y > ContentArea.Top) then
       Inc(Y, ExtraPadding);
     R := Rect(ContentArea.Left, Y, ContentArea.Right, Y + R.Bottom - R.Top);
-    Canvas.TextRect(R, S, [tfWordBreak]);
+    Canvas.TextRect(R, S, [tfHidePrefix, tfWordBreak]);
 
     Inc(Y, R.Bottom - R.Top + Padding + ExtraPadding);
   end;
@@ -6793,7 +6793,7 @@ begin
   if (tfCalcRect in TextFormat) then
   begin
     Column.Rect := R;
-    Windows.DrawText(Column.Canvas.Handle, PChar(Text), Length(Text), R, TTextFormatFlags([tfCalcRect] + TextFormat));
+    Windows.DrawText(Column.Canvas.Handle, PChar(Text), Length(Text), R, TTextFormatFlags([tfHidePrefix, tfCalcRect] + TextFormat));
     Column.Rect.Bottom := R.Bottom;
   end
   else if (Text <> '') then
@@ -6801,7 +6801,7 @@ begin
     if (Gray) then Column.Canvas.Font.Color := clGray;
 
     if ((Column.Rect.Right < R.Right) or (Column.Rect.Bottom < R.Bottom) or (tfRight in TextFormat)) then
-      Windows.DrawText(Column.Canvas.Handle, PChar(Text), Length(Text), Column.Rect, TTextFormatFlags(TextFormat))
+      Windows.DrawText(Column.Canvas.Handle, PChar(Text), Length(Text), Column.Rect, TTextFormatFlags([tfHidePrefix] + TextFormat))
     else
       Windows.ExtTextOut(Column.Canvas.Handle, R.Left, R.Top, ETO_CLIPPED, R, Text, Length(Text), nil);
 
@@ -6867,20 +6867,20 @@ begin
 
   R := Rect(ContentArea.Left, Y, ContentArea.Right, PageHeight);
   Text := SysUtils.DateTimeToStr(DateTime, LocaleFormatSettings);
-  Canvas.TextRect(R, Text, []);
+  Canvas.TextRect(R, Text, [tfHidePrefix]);
 
   R := Rect(ContentArea.Left, Y, ContentArea.Right, PageHeight);
   Text := Session.Account.Connection.Host;
   if (Session.Account.Connection.Port <> MYSQL_PORT) then
     Text := Text + ':' + IntToStr(Session.Account.Connection.Port);
   Text := Text + '  (MySQL: ' + ReplaceStr(Session.ServerVersionStr, '&', '&&') + ')';
-  Canvas.TextRect(R, Text, [tfCenter]);
+  Canvas.TextRect(R, Text, [tfCenter, tfHidePrefix]);
 
   R := Rect(ContentArea.Left, Y, ContentArea.Right, PageHeight);
   Text := IntToStr(PageNumber.Row);
   if (PageNumber.Column > 0) then
     Text := Text + Chr(Ord('a') - 1 + PageNumber.Column);
-  Canvas.TextRect(R, Text, [tfRight]);
+  Canvas.TextRect(R, Text, [tfRight, tfHidePrefix]);
 end;
 
 procedure TTExportCanvas.SetFont(const Font: TFont; const Size: Integer = -1; const Style: TFontStyles = []);
