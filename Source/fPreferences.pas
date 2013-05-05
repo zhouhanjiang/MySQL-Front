@@ -8,7 +8,7 @@ uses
   ComCtrls,
   TaskSchd,
   SynEditHighlighter, SynHighlighterSQL,
-  UMLUtils, MySQLDB;
+  MySQLDB;
 
 type
   TPExportType = (etUnknown, etSQLFile, etTextFile, etExcelFile, etAccessFile, etODBC, etHTMLFile, etXMLFile, etPDFFile, etPrinter);
@@ -380,9 +380,15 @@ type
   end;
 
   TPTransfer = class(TPWindow)
+  protected
+    procedure LoadFromXML(const XML: IXMLNode); override;
+    procedure SaveToXML(const XML: IXMLNode); override;
   public
+    Data: Boolean;
     Left: Integer;
+    Structure: Boolean;
     Top: Integer;
+    constructor Create(const APreferences: TPPreferences); override;
   end;
 
   TPTrigger = class(TPWindow)
@@ -2014,6 +2020,30 @@ begin
 end;
 
 { TPTransfer ******************************************************************}
+
+constructor TPTransfer.Create(const APreferences: TPPreferences);
+begin
+  inherited;
+
+  Data := True;
+  Structure := False;
+end;
+
+procedure TPTransfer.LoadFromXML(const XML: IXMLNode);
+begin
+  inherited;
+
+  if (Assigned(XMLNode(XML, 'data'))) then TryStrToBool(XMLNode(XML, 'data').Attributes['enabled'], Data);
+  if (Assigned(XMLNode(XML, 'structure'))) then TryStrToBool(XMLNode(XML, 'structure').Attributes['enabled'], Structure);
+end;
+
+procedure TPTransfer.SaveToXML(const XML: IXMLNode);
+begin
+  inherited;
+
+  XMLNode(XML, 'data').Attributes['enabled'] := Data;
+  XMLNode(XML, 'structure').Attributes['enabled'] := Structure;
+end;
 
 { TPLanguage ******************************************************************}
 

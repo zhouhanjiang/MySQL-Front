@@ -271,10 +271,6 @@ object DImport: TDImport
       TabVisible = False
       OnHide = TSTablesHide
       OnShow = TSTablesShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GTables: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -319,10 +315,6 @@ object DImport: TDImport
       TabVisible = False
       OnHide = TSCSVOptionsHide
       OnShow = TSCSVOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GCSVHow: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -486,10 +478,6 @@ object DImport: TDImport
       TabVisible = False
       OnHide = TSXMLOptionsHide
       OnShow = TSXMLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GXMLHow: TGroupBox_Ext
         Left = 4
         Top = 8
@@ -638,6 +626,7 @@ object DImport: TDImport
           Caption = 'FStructure'
           TabOrder = 0
           OnClick = FStructureClick
+          OnKeyPress = FStructureKeyPress
         end
         object FData: TCheckBox
           Left = 128
@@ -730,10 +719,6 @@ object DImport: TDImport
       Caption = 'TSStmtType'
       TabVisible = False
       OnShow = TSStmtTypeShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GImportType: TGroupBox_Ext
         Left = 4
         Top = 0

@@ -12,9 +12,12 @@ uses
 
 type
   TDTransfer = class(TForm_Ext)
+    FBBack: TButton;
     FBCancel: TButton;
     FBForward: TButton;
     FBHelp: TButton;
+    FData: TCheckBox;
+    FDestination: TTreeView_Ext;
     FDoneRecords: TLabel;
     FDoneTables: TLabel;
     FDoneTime: TLabel;
@@ -29,21 +32,24 @@ type
     FLProgressRecords: TLabel;
     FLProgressTables: TLabel;
     FLProgressTime: TLabel;
-    FSource: TTreeView_Ext;
+    FLWhat: TLabel;
     FProgressBar: TProgressBar;
-    FDestination: TTreeView_Ext;
-    GErrorMessages: TGroupBox_Ext;
-    GSource: TGroupBox_Ext;
-    GProgress: TGroupBox;
+    FSource: TTreeView_Ext;
+    FStructure: TCheckBox;
     GDestination: TGroupBox_Ext;
+    GErrorMessages: TGroupBox_Ext;
+    GProgress: TGroupBox;
+    GSource: TGroupBox_Ext;
+    GWhat: TGroupBox;
     miSelectAll: TMenuItem;
     MSource: TPopupMenu;
     PageControl: TPageControl;
+    PDestination: TPanel_Ext;
     PErrorMessages: TPanel_Ext;
     PSource: TPanel_Ext;
-    PDestination: TPanel_Ext;
     TSExecute: TTabSheet;
     TSSelect: TTabSheet;
+    TSWhat: TTabSheet;
     procedure FBBackClick(Sender: TObject);
     procedure FBCancelClick(Sender: TObject);
     procedure FBForwardClick(Sender: TObject);
@@ -61,6 +67,12 @@ type
       Shift: TShiftState; X, Y: Integer);
     procedure TSExecuteShow(Sender: TObject);
     procedure TreeViewGetSelectedIndex(Sender: TObject; Node: TTreeNode);
+    procedure FStructureClick(Sender: TObject);
+    procedure FStructureKeyPress(Sender: TObject; var Key: Char);
+    procedure FDataClick(Sender: TObject);
+    procedure FDataKeyPress(Sender: TObject; var Key: Char);
+    procedure TSWhatShow(Sender: TObject);
+    procedure TSSelectShow(Sender: TObject);
   private
     Sessions: array of TSSession;
     MouseDownNode: TTreeNode;
@@ -68,6 +80,7 @@ type
     Transfer: TTTransfer;
     WantedExecute: Boolean;
     WantedNodeExpand: TTreeNode;
+    procedure CheckActivePageChange(const ActivePageIndex: Integer);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     function GetSession(const Index: Integer): TSSession;
     procedure InitTSSelect(Sender: TObject);
@@ -126,6 +139,35 @@ end;
 
 { TDTransfer ******************************************************************}
 
+procedure TDTransfer.CheckActivePageChange(const ActivePageIndex: Integer);
+var
+  I: Integer;
+  NextActivePageIndex: Integer;
+begin
+  FBBack.Enabled := False;
+  for I := 0 to PageControl.PageCount - 1 do
+    FBBack.Enabled := FBBack.Enabled or PageControl.Pages[I].Enabled and (I < ActivePageIndex);
+
+  NextActivePageIndex := -1;
+  for I := PageControl.PageCount - 1 downto ActivePageIndex + 1 do
+    if (PageControl.Pages[I].Enabled) then
+      NextActivePageIndex := I;
+  if (NextActivePageIndex >= 0) then
+    for I := NextActivePageIndex + 1 to PageControl.PageCount - 1 do
+      PageControl.Pages[I].Enabled := False;
+
+  if (PageControl.ActivePageIndex < TSExecute.PageIndex - 1) then
+    FBForward.Caption := Preferences.LoadStr(229) + ' >'
+  else
+    FBForward.Caption := Preferences.LoadStr(174);
+
+  FBForward.Enabled := FBForward.Visible and (NextActivePageIndex >= 0);
+  FBForward.Default := True;
+
+  FBCancel.Caption := Preferences.LoadStr(30);
+  FBCancel.Default := False;
+end;
+
 procedure TDTransfer.CMChangePreferences(var Message: TMessage);
 begin
   miSelectAll.Caption := Preferences.LoadStr(572);
@@ -134,6 +176,11 @@ begin
 
   GSource.Caption := ReplaceStr(Preferences.LoadStr(754), '&', '');
   GDestination.Caption := ReplaceStr(Preferences.LoadStr(755), '&', '');
+
+  GWhat.Caption := Preferences.LoadStr(227);
+  FLWhat.Caption := Preferences.LoadStr(218) + ':';
+  FStructure.Caption := Preferences.LoadStr(215);
+  FData.Caption := Preferences.LoadStr(216);
 
   GProgress.Caption := Preferences.LoadStr(224);
   FLEntiered.Caption := Preferences.LoadStr(211) + ':';
@@ -146,6 +193,7 @@ begin
   GErrorMessages.Caption := Preferences.LoadStr(392);
 
   FBHelp.Caption := Preferences.LoadStr(167);
+  FBBack.Caption := '< ' + Preferences.LoadStr(228);
 end;
 
 procedure TDTransfer.CMExecutedDone(var Message: TMessage);
@@ -207,9 +255,15 @@ begin
 end;
 
 procedure TDTransfer.FBBackClick(Sender: TObject);
+var
+  ActivePageIndex: Integer;
 begin
-  if (PageControl.ActivePage = TSExecute) then
-    PageControl.ActivePage := TSSelect;
+  for ActivePageIndex := PageControl.ActivePageIndex - 1 downto 0 do
+    if (PageControl.Pages[ActivePageIndex].Enabled) then
+    begin
+      PageControl.ActivePageIndex := ActivePageIndex;
+      Exit;
+    end;
 end;
 
 procedure TDTransfer.FBCancelClick(Sender: TObject);
@@ -223,14 +277,33 @@ begin
 end;
 
 procedure TDTransfer.FBForwardClick(Sender: TObject);
+var
+  ActivePageIndex: Integer;
 begin
-  if (PageControl.ActivePage = TSSelect) then
-    PageControl.ActivePage := TSExecute;
+  for ActivePageIndex := PageControl.ActivePageIndex + 1 to PageControl.PageCount - 1 do
+    if (PageControl.Pages[ActivePageIndex].Enabled) then
+    begin
+      PageControl.ActivePageIndex := ActivePageIndex;
+      Exit;
+    end;
 end;
 
 procedure TDTransfer.FBHelpClick(Sender: TObject);
 begin
   Application.HelpContext(HelpContext);
+end;
+
+procedure TDTransfer.FDataClick(Sender: TObject);
+begin
+  FStructure.Checked := FStructure.Checked or FData.Checked;
+
+  TSExecute.Enabled := FStructure.Checked;
+  CheckActivePageChange(TSWhat.PageIndex);
+end;
+
+procedure TDTransfer.FDataKeyPress(Sender: TObject; var Key: Char);
+begin
+  FDataClick(Sender);
 end;
 
 procedure TDTransfer.FormSessionEvent(const Event: TSSession.TEvent);
@@ -256,6 +329,9 @@ begin
   SendMessage(FErrorMessages.Handle, EM_SETTEXTMODE, TM_PLAINTEXT, 0);
   SendMessage(FErrorMessages.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
 
+  FStructure.Checked := Preferences.Transfer.Structure;
+  FData.Checked := Preferences.Transfer.Data;
+
   PageControl.ActivePage := nil; // Make sure, not ___OnShowPage will be executed
 end;
 
@@ -276,6 +352,12 @@ begin
   Preferences.Transfer.Width := Width;
   Preferences.Transfer.Left := Left;
   Preferences.Transfer.Top := Top;
+
+  if (ModalResult = mrOK) then
+  begin
+    Preferences.Transfer.Data := FData.Checked;
+    Preferences.Transfer.Structure := FStructure.Checked;
+  end;
 end;
 
 procedure TDTransfer.FormShow(Sender: TObject);
@@ -316,7 +398,15 @@ begin
 
   InitTSSelect(Sender);
 
-  PageControl.ActivePage := TSSelect;
+  TSSelect.Enabled := True;
+  TSWhat.Enabled := False;
+  TSExecute.Enabled := False;
+
+  for I := 0 to PageControl.PageCount - 1 do
+    if ((PageControl.ActivePageIndex < 0) and PageControl.Pages[I].Enabled) then
+      PageControl.ActivePageIndex := I;
+  CheckActivePageChange(PageControl.ActivePageIndex);
+
   if (Assigned(SourceSession)) then
     ActiveControl := FSource
   else
@@ -326,6 +416,19 @@ begin
   FBCancel.Caption := Preferences.LoadStr(30);
   FBCancel.ModalResult := mrCancel;
   FBCancel.Default := False;
+end;
+
+procedure TDTransfer.FStructureClick(Sender: TObject);
+begin
+  FData.Checked := FStructure.Checked;
+
+  TSExecute.Enabled := FStructure.Checked;
+  CheckActivePageChange(TSWhat.PageIndex);
+end;
+
+procedure TDTransfer.FStructureKeyPress(Sender: TObject; var Key: Char);
+begin
+  FStructureClick(Sender);
 end;
 
 function TDTransfer.GetSession(const Index: Integer): TSSession;
@@ -596,10 +699,12 @@ begin
     if ((Sender = FSource) and Assigned(Node)) then
       FSource.MultiSelect := Assigned(Node.Parent);
 
-    FBForward.Enabled := Assigned(FSource.Selected) and Assigned(FSource.Selected.Parent) and Assigned(FDestination.Selected)
+    TSWhat.Enabled := Assigned(FSource.Selected) and Assigned(FSource.Selected.Parent) and Assigned(FDestination.Selected)
       and (FSource.Selected.Parent.Level = FDestination.Selected.Level)
       and ((FSource.Selected.ImageIndex <> iiDatabase) or (FSource.Selected.Parent.Text <> FDestination.Selected.Text))
       and ((FSource.Selected.ImageIndex <> iiBaseTable) or (FSource.Selected.Parent.Text <> FDestination.Selected.Text) or (FSource.Selected.Parent.Parent.Text <> FDestination.Selected.Parent.Text));
+
+    CheckActivePageChange(PageControl.ActivePageIndex);
   end;
 end;
 
@@ -784,8 +889,8 @@ begin
 
     Transfer := TTTransfer.Create(SourceSession, DestinationSession);
     Transfer.Wnd := Self.Handle;
-    Transfer.Data := True;
-    Transfer.Structure := True;
+    Transfer.Data := FData.Checked;
+    Transfer.Structure := FStructure.Checked;
     Transfer.OnError := OnError;
     Transfer.OnExecuted := OnExecuted;
     Transfer.OnUpdate := OnUpdate;
@@ -808,6 +913,17 @@ begin
     if (Assigned(Transfer)) then
       Transfer.Start();
   end;
+end;
+
+procedure TDTransfer.TSSelectShow(Sender: TObject);
+begin
+  CheckActivePageChange(TSSelect.PageIndex);
+end;
+
+procedure TDTransfer.TSWhatShow(Sender: TObject);
+begin
+  TSExecute.Enabled := FStructure.Checked or FData.Checked;
+  CheckActivePageChange(TSWhat.PageIndex);
 end;
 
 initialization

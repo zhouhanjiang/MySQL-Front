@@ -18,7 +18,6 @@ uses
   HTTPTunnel in 'MySQL\Source\HTTPTunnel.pas',
   SQLUtils in 'MySQL\Source\SQLUtils.pas',
   CSVUtils in 'MySQL\Source\CSVUtils.pas',
-  UMLUtils in 'MySQL\Source\UMLUtils.pas',
   MySQLDBGrid in 'MySQL\Source\MySQLDBGrid.pas',
   ExtCtrls_Ext in 'VCL\Source\ExtCtrls_Ext.pas',
   StdCtrls_Ext in 'VCL\Source\StdCtrls_Ext.pas',
@@ -75,7 +74,7 @@ uses
 
 var
   AccountName: string;
-  Console: Boolean;
+  UseConsole: Boolean;
   I: Integer;
   JobExecution: TJobExecution;
   JobName: string;
@@ -96,8 +95,8 @@ begin
       else if (lstrcmpi(PChar(Name), 'Job') = 0) then
         JobName := Value;
 
-  Console := (AccountName <> '') and (JobName <> '');
-  if (Console) then
+  UseConsole := (AccountName <> '') and (JobName <> '');
+  if (UseConsole) then
   begin
     JobExecution := TJobExecution.Create(AccountName, JobName);
     JobExecution.Execute();
@@ -144,7 +143,9 @@ begin
     end;
   end;
 
-  if (not Console) then
+  if (UseConsole) then
+    Preferences.Free()
+  else
   begin
     SetupProgram := Preferences.SetupProgram;
     SetupProgramExecute := Preferences.SetupProgramExecute;

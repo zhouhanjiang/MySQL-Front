@@ -1100,7 +1100,7 @@ uses
   ShLwApi,
   acQBLocalizer, acQBStrings,
   CommCtrl_Ext, StdActns_Ext,
-  MySQLConsts, SQLUtils, UMLUtils,
+  MySQLConsts, SQLUtils,
   fDField, fDKey, fDTable, fDVariable, fDDatabase, fDForeignKey, fDUser,
   fDQuickFilter, fDSQLHelp, fDTransfer, fDSearch, fDServer, fDBookmark,
   fURI, fDView, fDRoutine, fDTrigger, fDStatement, fDEvent, fDPaste, fDSegment,
@@ -7205,28 +7205,37 @@ end;
 procedure TFSession.FNavigatorDragOver(Sender, Source: TObject; X, Y: Integer;
   State: TDragState; var Accept: Boolean);
 var
+  SourceItem: TListItem;
   SourceNode: TTreeNode;
   TargetNode: TTreeNode;
 begin
   Accept := False;
 
-  TargetNode := TTreeView_Ext(Sender).GetNodeAt(X, Y);
+  TargetNode := TTreeView(Sender).GetNodeAt(X, Y);
 
-  if (Source is TTreeView_Ext and (TTreeView_Ext(Source).Name = FNavigator.Name)) then
+  if (Source is TTreeView and (TTreeView(Source).Name = FNavigator.Name)) then
   begin
-    SourceNode := TFSession(TTreeView_Ext(Source).Owner).MouseDownNode;
+    SourceNode := TFSession(TTreeView(Source).Owner).MouseDownNode;
     if (Assigned(TargetNode) and (TargetNode <> SourceNode)) then
       case (SourceNode.ImageIndex) of
-        iiDatabase: Accept := (TargetNode = TTreeView_Ext(Sender).Items.getFirstNode()) and (TargetNode <> SourceNode.Parent);
-        iiBaseTable: Accept := (TargetNode.ImageIndex = iiDatabase) and (TargetNode <> SourceNode.Parent) or (TargetNode.ImageIndex = iiBaseTable) and (TargetNode <> SourceNode);
+        iiDatabase: Accept := (TargetNode = TTreeView(Sender).Items.getFirstNode()) and (TargetNode <> SourceNode.Parent);
+        iiBaseTable: Accept := (TargetNode.ImageIndex = iiDatabase) and (TargetNode <> SourceNode.Parent);
         iiProcedure,
         iiFunction: Accept := (TargetNode.ImageIndex = iiDatabase) and (TargetNode <> SourceNode.Parent);
         iiField: Accept := (TargetNode.ImageIndex = iiBaseTable) and (TargetNode <> SourceNode.Parent);
       end;
   end
   else if ((Source is TListView) and (TListView(Source).Parent.Name = PListView.Name)) then
-    Accept := ((TFSession(TListView(Source).Owner).Session <> Session) or (TFSession(TListView(Source).Owner).FNavigator.Selected <> TargetNode))
-      and (TFSession(TListView(Source).Owner).FNavigator.Selected.ImageIndex = SelectedImageIndex);
+  begin
+    SourceItem := TListView(Source).Selected;
+    case (SourceItem.ImageIndex) of
+      iiDatabase: Accept := (TargetNode = TTreeView(Sender).Items.getFirstNode()) and (TargetNode <> TFSession(TListView(Source).Owner).FNavigator.Selected);
+      iiBaseTable: Accept := (TargetNode.ImageIndex = iiDatabase) and (TargetNode <> TFSession(TListView(Source).Owner).FNavigator.Selected);
+      iiProcedure,
+      iiFunction: Accept := (TargetNode.ImageIndex = iiDatabase) and (TargetNode <> TFSession(TListView(Source).Owner).FNavigator.Selected);
+      iiField: Accept := (TargetNode.ImageIndex = iiBaseTable) and (TargetNode <> TFSession(TListView(Source).Owner).FNavigator.Selected);
+    end;
+  end;
 end;
 
 procedure TFSession.FNavigatorEdited(Sender: TObject; Node: TTreeNode; var S: string);
@@ -9705,9 +9714,9 @@ begin
 
   TargetItem := TListView(Sender).GetItemAt(X, Y);
 
-  if ((Source is TTreeView_Ext) and (TTreeView_Ext(Source).Name = FNavigator.Name)) then
+  if ((Source is TTreeView) and (TTreeView(Source).Name = FNavigator.Name)) then
   begin
-    SourceNode := TFSession(TTreeView_Ext(Source).Owner).MouseDownNode;
+    SourceNode := TFSession(TTreeView(Source).Owner).MouseDownNode;
 
     if (not Assigned(TargetItem)) then
       case (SourceNode.ImageIndex) of
@@ -9719,7 +9728,7 @@ begin
     else if (((TargetItem.Caption <> SourceNode.Text) or (SourceNode.Parent <> FNavigator.Selected)) and (SourceNode.Parent.Text <> TargetItem.Caption)) then
       case (TargetItem.ImageIndex) of
         iiDatabase: Accept := (SourceNode.ImageIndex in [iiDatabase, iiBaseTable, iiProcedure, iiFunction]);
-        iiBaseTable: Accept := SourceNode.ImageIndex in [iiBaseTable, iiField];
+        iiBaseTable: Accept := SourceNode.ImageIndex in [iiField];
       end;
   end
   else if ((Source is TListView) and (TListView(Source).SelCount = 1) and (TListView(Source).Parent.Name = PListView.Name)) then

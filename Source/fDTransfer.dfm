@@ -22,6 +22,17 @@ object DTransfer: TDTransfer
     331)
   PixelsPerInch = 106
   TextHeight = 13
+  object FBBack: TButton
+    Left = 200
+    Top = 296
+    Width = 75
+    Height = 25
+    Anchors = [akRight, akBottom]
+    Caption = 'FBBack'
+    Default = True
+    TabOrder = 4
+    OnClick = FBBackClick
+  end
   object FBForward: TButton
     Left = 275
     Top = 296
@@ -47,10 +58,7 @@ object DTransfer: TDTransfer
     object TSSelect: TTabSheet
       Caption = 'TSSelect'
       TabVisible = False
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+      OnShow = TSSelectShow
       DesignSize = (
         436
         279)
@@ -139,14 +147,55 @@ object DTransfer: TDTransfer
         end
       end
     end
+    object TSWhat: TTabSheet
+      Caption = 'TSWhat'
+      ImageIndex = 2
+      TabVisible = False
+      OnShow = TSWhatShow
+      DesignSize = (
+        436
+        279)
+      object GWhat: TGroupBox
+        Left = 4
+        Top = 0
+        Width = 429
+        Height = 69
+        Anchors = [akLeft, akTop, akRight]
+        Caption = 'GWhat'
+        TabOrder = 0
+        object FLWhat: TLabel
+          Left = 8
+          Top = 17
+          Width = 38
+          Height = 13
+          Caption = 'FLWhat'
+        end
+        object FStructure: TCheckBox
+          Left = 216
+          Top = 16
+          Width = 208
+          Height = 17
+          Caption = 'FStructure'
+          TabOrder = 0
+          OnClick = FStructureClick
+          OnKeyPress = FStructureKeyPress
+        end
+        object FData: TCheckBox
+          Left = 216
+          Top = 42
+          Width = 208
+          Height = 17
+          Caption = 'FData'
+          TabOrder = 1
+          OnClick = FDataClick
+          OnKeyPress = FDataKeyPress
+        end
+      end
+    end
     object TSExecute: TTabSheet
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         436
         279)

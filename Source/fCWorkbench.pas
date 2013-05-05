@@ -1903,7 +1903,7 @@ var
   end;
 
 var
-  Flags: Longint;
+  Flags: UINT;
   I: Integer;
   Rect: TRect;
 begin
@@ -1966,12 +1966,12 @@ begin
   Inc(Rect.Left, BorderSize + Padding); Dec(Rect.Right, BorderSize - 1 + Padding);
   Inc(Rect.Top, BorderSize - 1 + Padding); Dec(Rect.Bottom, BorderSize - 1 + Padding);
 
-  Flags := DrawTextBiDiModeFlags(DT_CENTER);
+  Flags := DrawTextBiDiModeFlags(DT_CENTER) + DT_NOPREFIX;
   Canvas.Font.Style := [fsBold];
   DrawText(Canvas.Handle, PChar(Caption), -1, Rect, Flags);
   Inc(Rect.Top, 2 * BorderSize + 2 * Padding + -Canvas.Font.Height);
 
-  Flags := DrawTextBiDiModeFlags(0);
+  Flags := DrawTextBiDiModeFlags(0) + DT_NOPREFIX;
 
   for I := 0 to BaseTable.Fields.Count - 1 do
   begin
@@ -3065,7 +3065,7 @@ begin
   Inc(Rect.Left, BorderSize + Padding); Dec(Rect.Right, BorderSize + 1 + Padding);
   Rect.Top := Rect.Bottom + Canvas.Font.Height - BorderSize - 1 - Padding;
 
-  Flags := DrawTextBiDiModeFlags(DT_RIGHT);
+  Flags := DrawTextBiDiModeFlags(DT_RIGHT) + DT_NOPREFIX;
   Canvas.Font.Color := Canvas.Pen.Color;
   DrawText(Canvas.Handle, PChar(Caption), -1, Rect, Flags);
 end;

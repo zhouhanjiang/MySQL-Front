@@ -42,7 +42,6 @@
 			<DCCReference Include="MySQL\Source\HTTPTunnel.pas"/>
 			<DCCReference Include="MySQL\Source\SQLUtils.pas"/>
 			<DCCReference Include="MySQL\Source\CSVUtils.pas"/>
-			<DCCReference Include="MySQL\Source\UMLUtils.pas"/>
 			<DCCReference Include="MySQL\Source\MySQLDBGrid.pas"/>
 			<DCCReference Include="VCL\Source\ExtCtrls_Ext.pas"/>
 			<DCCReference Include="VCL\Source\StdCtrls_Ext.pas"/>
