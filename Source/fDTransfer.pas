@@ -156,7 +156,7 @@ begin
     for I := NextActivePageIndex + 1 to PageControl.PageCount - 1 do
       PageControl.Pages[I].Enabled := False;
 
-  if (PageControl.ActivePageIndex < TSExecute.PageIndex - 1) then
+  if (not FBBack.Enabled) then
     FBForward.Caption := Preferences.LoadStr(229) + ' >'
   else
     FBForward.Caption := Preferences.LoadStr(174);
@@ -412,7 +412,6 @@ begin
   else
     ActiveControl := FBCancel;
 
-  FBForward.Caption := Preferences.LoadStr(174);
   FBCancel.Caption := Preferences.LoadStr(30);
   FBCancel.ModalResult := mrCancel;
   FBCancel.Default := False;

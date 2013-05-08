@@ -11946,6 +11946,8 @@ begin
     end
     else if (TObject(List[I]) is TSDBObject) then
     begin
+      Database := TSDBObject(List[I]).Database;
+
       if (not TSDBObject(List[I]).ValidSource and (TSDBObject(List[I]) is TSTable) and not TSBaseTable(List[I]).InServerCache) then
         SQL := SQL + TSDBObject(List[I]).SQLGetSource();
       if ((TSDBObject(List[I]) is TSBaseTable) and not TSBaseTable(List[I]).ValidStatus and not TSBaseTable(List[I]).InServerCache) then

@@ -1839,13 +1839,13 @@ begin
     SQLExecuted := TEvent.Create(nil, False, False, '');
 
     SQL := '';
-    if (Session.DatabaseName <> Database.Name) then
+    if (Session.Databases.NameCmp(Session.DatabaseName, Database.Name) <> 0) then
       SQL := SQL + Database.SQLUse() + #13#10;
     if (Structure) then
     begin
-      SQL := SQL + 'LOCK TABLES ' + EscapedTableName + ' WRITE;' + #13#10;
+      SQL := SQL + 'LOCK TABLES ' + Session.EscapeIdentifier(Database.Name) + '.' + EscapedTableName + ' WRITE;' + #13#10;
       if ((Session.ServerVersion >= 40000) and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
-        SQL := SQL + 'ALTER TABLE ' + EscapedTableName + ' DISABLE KEYS;' + #13#10;
+        SQL := SQL + 'ALTER TABLE ' + Session.EscapeIdentifier(Database.Name) + '.' + EscapedTableName + ' DISABLE KEYS;' + #13#10;
     end;
     if (Session.Lib.LibraryType <> ltHTTP) then
       if (Session.ServerVersion < 40011) then
@@ -1925,7 +1925,7 @@ begin
           if (Structure) then
           begin
             if ((Session.ServerVersion >= 40000) and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
-              SQL := SQL + 'ALTER TABLE ' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
+              SQL := SQL + 'ALTER TABLE ' + Session.EscapeIdentifier(Database.Name) + '.' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
             SQL := SQL + 'UNLOCK TABLES;' + #13#10;
           end;
           if (Session.Lib.LibraryType <> ltHTTP) then
@@ -2040,7 +2040,7 @@ begin
       if (Structure) then
       begin
         if ((Session.ServerVersion >= 40000) and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
-          SQL := SQL + 'ALTER TABLE ' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
+          SQL := SQL + 'ALTER TABLE ' + Session.EscapeIdentifier(Database.Name) + '.' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
         SQL := SQL + 'UNLOCK TABLES;' + #13#10;
       end;
       if (Session.Lib.LibraryType <> ltHTTP) then
@@ -2333,7 +2333,7 @@ begin
 
   if (Assigned(Text)) then
     Text^ := ''
-  else if ((Success = daSuccess) and Assigned(Database) and (Session.DatabaseName <> Database.Name)) then
+  else if ((Success = daSuccess) and Assigned(Database) and (Session.Databases.NameCmp(Session.DatabaseName, Database.Name) <> 0)) then
   begin
     SQL := Database.SQLUse();
     while ((Success <> daAbort) and not DoExecuteSQL(TTImport.TItem(Items[0]), SQL)) do
@@ -4524,7 +4524,7 @@ begin
     Content := '';
 
     if (DisableKeys and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
-      Content := Content + '/*!40000 ALTER TABLE ' + Session.EscapeIdentifier(Table.Name) + ' ENABLE KEYS */;' + #13#10;
+      Content := Content + '/*!40000 ALTER TABLE ' + Session.EscapeIdentifier(Table.Database.Name) + '.' + Session.EscapeIdentifier(Table.Name) + ' ENABLE KEYS */;' + #13#10;
 
     if (Content <> '') then
       WriteContent(Content);
@@ -4568,7 +4568,7 @@ begin
     Content := Content + #13#10;
 
     if (DisableKeys and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
-      Content := Content + '/*!40000 ALTER TABLE ' + Session.EscapeIdentifier(Table.Name) + ' DISABLE KEYS */;' + #13#10;
+      Content := Content + '/*!40000 ALTER TABLE ' + Session.EscapeIdentifier(Table.Database.Name) + '.' + Session.EscapeIdentifier(Table.Name) + ' DISABLE KEYS */;' + #13#10;
   end;
 
   if (Content <> '') then
@@ -7618,8 +7618,10 @@ begin
 
       if (Structure and Data and not Assigned(DestinationTable) and (Session = DestinationSession)) then
       begin
+        DestinationSession.BeginSynchron();
         while ((Success <> daAbort) and not DestinationDatabase.CloneTable(SourceTable, SourceTable.Name, True)) do
           DoError(DatabaseError(DestinationSession), Item, True);
+        DestinationSession.EndSynchron();
 
         if (Success = daSuccess) then
         begin
@@ -7740,13 +7742,15 @@ begin
               SQL := SQL + 'BEGIN;' + #13#10
             else
               SQL := SQL + 'START TRANSACTION;' + #13#10;
+          if (DestinationSession.Databases.NameCmp(DestinationSession.DatabaseName, DestinationDatabase.Name) <> 0) then
+            SQL := SQL + DestinationDatabase.SQLUse();
           if ((DestinationSession.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
-            SQL := SQL + 'ALTER TABLE ' + DestinationSession.EscapeIdentifier(DestinationTable.Name) + ' DISABLE KEYS;' + #13#10;
+            SQL := SQL + 'ALTER TABLE ' + DestinationSession.EscapeIdentifier(DestinationDatabase.Name) + '.' + DestinationSession.EscapeIdentifier(DestinationTable.Name) + ' DISABLE KEYS;' + #13#10;
           if (DestinationDatabase.Name <> DestinationSession.DatabaseName) then
             SQL := SQL + DestinationDatabase.SQLUse();
           SQL := SQL + SQLLoadDataInfile(DestinationDatabase, False, Pipename, DestinationSession.Charset, DestinationDatabase.Name, DestinationTable.Name, '');
           if ((DestinationSession.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
-            SQL := SQL + 'ALTER TABLE ' + DestinationSession.EscapeIdentifier(DestinationTable.Name) + ' ENABLE KEYS;' + #13#10;
+            SQL := SQL + 'ALTER TABLE ' + DestinationSession.EscapeIdentifier(DestinationDatabase.Name) + '.' + DestinationSession.EscapeIdentifier(DestinationTable.Name) + ' ENABLE KEYS;' + #13#10;
           if (DestinationSession.Lib.LibraryType <> ltHTTP) then
             SQL := SQL + 'COMMIT;' + #13#10;
 
@@ -7833,11 +7837,11 @@ begin
             SQL := SQL + 'BEGIN;' + #13#10
           else
             SQL := SQL + 'START TRANSACTION;' + #13#10;
-        SQL := SQL + 'LOCK TABLES ' + EscapedTableName + ' WRITE;' + #13#10;
+        SQL := SQL + 'LOCK TABLES ' + Session.EscapeIdentifier(DestinationDatabase.Name) + '.' + EscapedTableName + ' WRITE;' + #13#10;
         if ((DestinationSession.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
-          SQL := SQL + 'ALTER TABLE ' + EscapedTableName + ' DISABLE KEYS;' + #13#10;
+          SQL := SQL + 'ALTER TABLE ' + Session.EscapeIdentifier(DestinationDatabase.Name) + '.' + EscapedTableName + ' DISABLE KEYS;' + #13#10;
 
-        if (DestinationDatabase.Name <> DestinationSession.DatabaseName) then
+        if (DestinationSession.Databases.NameCmp(DestinationSession.DatabaseName, DestinationDatabase.Name) <> 0) then
           SQL := SQL + DestinationDatabase.SQLUse();
 
         repeat
@@ -7903,7 +7907,7 @@ begin
         if (InsertStmtInSQL) then
           SQL := SQL + ';' + #13#10;
         if ((DestinationSession.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
-          SQL := SQL + 'ALTER TABLE ' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
+          SQL := SQL + 'ALTER TABLE ' + Session.EscapeIdentifier(DestinationDatabase.Name) + '.' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
         SQL := SQL + 'UNLOCK TABLES;' + #13#10;
         if (DestinationSession.Lib.LibraryType <> ltHTTP) then
           SQL := SQL + 'COMMIT;' + #13#10;
@@ -7916,7 +7920,7 @@ begin
       begin
         SQL := '';
         if ((DestinationSession.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
-          SQL := SQL + 'ALTER TABLE ' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
+          SQL := SQL + 'ALTER TABLE ' + Session.EscapeIdentifier(DestinationDatabase.Name) + '.' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
         SQL := SQL + 'UNLOCK TABLES;' + #13#10;
         if (DestinationSession.Lib.LibraryType <> ltHTTP) then
           SQL := SQL + 'ROLLBACK;' + #13#10;
@@ -8458,7 +8462,7 @@ begin
   if (Self is TTReplace) then
   begin
     SQL := '';
-    if (Session.DatabaseName = Table.Database.Name) then
+    if (Session.Databases.NameCmp(Session.DatabaseName, Table.Database.Name) <> 0) then
       SQL := SQL + Table.Database.SQLUse();
 
     for I := 0 to Length(Item.FieldNames) - 1 do

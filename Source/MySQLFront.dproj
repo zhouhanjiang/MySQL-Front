@@ -86,6 +86,9 @@
 			<DCCReference Include="fDForeignKey.pas">
 				<Form>DForeignKey</Form>
 			</DCCReference>
+			<DCCReference Include="fDGoto.pas">
+				<Form>DGoto</Form>
+			</DCCReference>
 			<DCCReference Include="fDImport.pas">
 				<Form>DImport</Form>
 			</DCCReference>

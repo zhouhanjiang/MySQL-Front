@@ -120,12 +120,14 @@ type
     aHManual: TAction;
     aHSQL: TAction;
     aHUpdate: TAction;
+    aJAddExport: TAction;
+    aJAddImport: TAction;
     aJDelete: TAction;
     aJEdit: TAction;
     aJExecute: TAction;
-    aJAddExport: TAction;
-    aOGlobals: TAction;
     aOAccounts: TAction;
+    aOGlobals: TAction;
+    aSGoto: TAction;
     aSSearchFind: TSearchFind_Ext;
     aSSearchNext: TSearchFindNext;
     aSSearchReplace: TSearchReplace_Ext;
@@ -250,14 +252,15 @@ type
     miHManual: TMenuItem;
     miHSQL: TMenuItem;
     miHUpdate: TMenuItem;
-    miJDelete: TMenuItem;
-    miJEdit: TMenuItem;
     miJAdd: TMenuItem;
     miJAddExport: TMenuItem;
+    miJAddImport: TMenuItem;
+    miJDelete: TMenuItem;
+    miJEdit: TMenuItem;
     miJobs: TMenuItem;
+    miOAccounts: TMenuItem;
     miOGlobals: TMenuItem;
     miOptions: TMenuItem;
-    miOAccounts: TMenuItem;
     miSearch: TMenuItem;
     miSSearchFind: TMenuItem;
     miSSearchNext: TMenuItem;
@@ -267,6 +270,7 @@ type
     miVBrowser: TMenuItem;
     miVDiagram: TMenuItem;
     miVExplorer: TMenuItem;
+    miSGoto: TMenuItem;
     miView: TMenuItem;
     miVJobs: TMenuItem;
     miVNavigator: TMenuItem;
@@ -299,7 +303,9 @@ type
     N27: TMenuItem;
     N3: TMenuItem;
     N30: TMenuItem;
+    N4: TMenuItem;
     N5: TMenuItem;
+    N6: TMenuItem;
     N7: TMenuItem;
     N8: TMenuItem;
     N9: TMenuItem;
@@ -362,9 +368,6 @@ type
     ToolButton4: TToolButton;
     ToolButton5: TToolButton;
     ToolButton7: TToolButton;
-    N4: TMenuItem;
-    aJAddImport: TAction;
-    miJAddImport: TMenuItem;
     procedure aDCreateParentExecute(Sender: TObject);
     procedure aEFindExecute(Sender: TObject);
     procedure aEReplaceExecute(Sender: TObject);
@@ -1013,6 +1016,7 @@ begin
   aSSearchFind.Caption := Preferences.LoadStr(187) + '...';
   aSSearchReplace.Caption := Preferences.LoadStr(416) + '...';
   aSSearchNext.Caption := Preferences.LoadStr(188);
+  aSGoto.Caption := Preferences.LoadStr(676) + '...';
 
   miView.Caption := Preferences.LoadStr(9);
   aVObjectBrowser.Caption := Preferences.LoadStr(4);

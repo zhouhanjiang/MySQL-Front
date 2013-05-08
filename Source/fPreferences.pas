@@ -4608,17 +4608,11 @@ begin
       FXMLDocument.Node.AddChild('accounts').Attributes['version'] := '1.1.0';
     end;
 
+    // Debug 00.00.13
+    if (not Assigned(FXMLDocument)) then
+      ERangeError.CreateFmt(SPropertyOutOfRange, ['FXMLDocument']);
+
     FXMLDocument.Options := FXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
-  end;
-
-  // Debug 00.00.13
-  if (not Assigned(FXMLDocument)) then
-    ERangeError.CreateFmt(SPropertyOutOfRange, ['FXMLDocument']);
-
-  try
-    FXMLDocument.Active;
-  except
-    ERangeError.CreateFmt(SPropertyOutOfRange, ['Active']);
   end;
 
   try

@@ -876,6 +876,12 @@ object WWindow: TWWindow
       SearchFind = aSSearchFind
       ShortCut = 114
     end
+    object aSGoto: TAction
+      Category = 'Search'
+      Caption = 'aSGoto'
+      Enabled = False
+      ShortCut = 16455
+    end
     object aBAdd: TAction
       Category = 'Bookmark'
       Caption = 'aBAdd'
@@ -1549,6 +1555,12 @@ object WWindow: TWWindow
       end
       object miSSearchNext: TMenuItem
         Action = aSSearchNext
+      end
+      object N6: TMenuItem
+        Caption = '-'
+      end
+      object miSGoto: TMenuItem
+        Action = aSGoto
       end
     end
     object miView: TMenuItem

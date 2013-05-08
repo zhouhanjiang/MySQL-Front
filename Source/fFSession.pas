@@ -940,6 +940,7 @@ type
     procedure AfterExecuteSQL(Sender: TObject);
     procedure aHManualExecute(Sender: TObject);
     procedure aHSQLExecute(Sender: TObject);
+    procedure aSGotoExecute(Sender: TObject);
     procedure aViewExecute(Sender: TObject);
     procedure aVRefreshAllExecute(Sender: TObject);
     procedure aVRefreshExecute(Sender: TObject);
@@ -1102,7 +1103,7 @@ uses
   CommCtrl_Ext, StdActns_Ext,
   MySQLConsts, SQLUtils,
   fDField, fDKey, fDTable, fDVariable, fDDatabase, fDForeignKey, fDUser,
-  fDQuickFilter, fDSQLHelp, fDTransfer, fDSearch, fDServer, fDBookmark,
+  fDQuickFilter, fDSQLHelp, fDTransfer, fDSearch, fDServer, fDBookmark, fDGoto,
   fURI, fDView, fDRoutine, fDTrigger, fDStatement, fDEvent, fDPaste, fDSegment,
   fDConnecting;
 
@@ -4009,6 +4010,12 @@ begin
     SendMessage(FBlobSearch.Handle, EM_SETCUEBANNER, 0, LParam(PChar(ReplaceStr(Preferences.LoadStr(424), '&', ''))));
 end;
 
+procedure TFSession.aSGotoExecute(Sender: TObject);
+begin
+  DGoto.DBGrid := ActiveDBGrid;
+  DGoto.Execute();
+end;
+
 procedure TFSession.aViewExecute(Sender: TObject);
 var
   NewView: TView;
@@ -4730,6 +4737,7 @@ begin
     MainAction('aECopy').OnExecute := aECopyExecute;
     MainAction('aEPaste').OnExecute := aEPasteExecute;
     MainAction('aERename').OnExecute := aERenameExecute;
+    MainAction('aSGoto').OnExecute := aSGotoExecute;
     MainAction('aVObjectBrowser').OnExecute := aViewExecute;
     MainAction('aVDataBrowser').OnExecute := aViewExecute;
     MainAction('aVObjectIDE').OnExecute := aViewExecute;
@@ -6330,6 +6338,7 @@ begin
     MainAction('aFPrint').Enabled := True;
     MainAction('aECopyToFile').OnExecute := DBGridCopyToExecute;
     MainAction('aEPasteFromFile').OnExecute := aEPasteFromFileExecute;
+    MainAction('aSGoto').Enabled := True;
     MainAction('aDEditRecord').OnExecute := DBGridEditExecute;
     MainAction('aDEmpty').OnExecute := DBGridEmptyExecute;
 
@@ -6377,6 +6386,7 @@ begin
       MainAction('aFPrint').Enabled := False;
       MainAction('aECopyToFile').Enabled := False;
       MainAction('aEPasteFromFile').Enabled := False;
+      MainAction('aSGoto').Enabled := False;
       MainAction('aDInsertRecord').Enabled := False;
       MainAction('aDDeleteRecord').Enabled := False;
       MainAction('aDEditRecord').Enabled := False;
