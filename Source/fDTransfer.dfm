@@ -30,7 +30,7 @@ object DTransfer: TDTransfer
     Anchors = [akRight, akBottom]
     Caption = 'FBBack'
     Default = True
-    TabOrder = 4
+    TabOrder = 2
     OnClick = FBBackClick
   end
   object FBForward: TButton
@@ -41,7 +41,7 @@ object DTransfer: TDTransfer
     Anchors = [akRight, akBottom]
     Caption = 'FBForward'
     Default = True
-    TabOrder = 2
+    TabOrder = 3
     OnClick = FBForwardClick
   end
   object PageControl: TPageControl
@@ -404,7 +404,7 @@ object DTransfer: TDTransfer
     Cancel = True
     Caption = 'FBCancel'
     ModalResult = 2
-    TabOrder = 3
+    TabOrder = 4
     OnClick = FBCancelClick
   end
   object MSource: TPopupMenu

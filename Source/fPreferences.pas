@@ -3894,7 +3894,7 @@ begin
 
   XMLNode(XML, 'datagrid/height').Text := IntToStr(DataHeight);
   XMLNode(XML, 'datagrid/blob/height').Text := IntToStr(BlobHeight);
-  XMLNode(XML, 'editor/content').Text := EditorContent;
+  try XMLNode(XML, 'editor/content').Text := EditorContent; except end;
   XMLNode(XML, 'log/height').Text := IntToStr(LogHeight);
   XMLNode(XML, 'log/visible').Text := BoolToStr(LogVisible, True);
   XMLNode(XML, 'objects/server/widths/name').Text := IntToStr(ColumnWidths[lkServer][0]);

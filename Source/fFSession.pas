@@ -1277,16 +1277,20 @@ begin
     XML.AddChild('datetime').Text := FloatToStr(DataHandle.Connection.ServerDateTime, FileFormatSettings);
     if (not Data and (DataHandle.Connection.RowsAffected >= 0)) then
       XML.AddChild('rows_affected').Text := IntToStr(DataHandle.Connection.RowsAffected);
-    XML.AddChild('sql').Text := DataHandle.Connection.CommandText;
-    if (DataHandle.Connection.Info <> '') then
-      XML.AddChild('info').Text := DataHandle.Connection.Info;
-    XML.AddChild('execution_time').Text := FloatToStr(DataHandle.Connection.ExecutionTime, FileFormatSettings);
-    if (DataHandle.Connection.Connected and (DataHandle.Connection.InsertId > 0)) then
-      XML.AddChild('insert_id').Text := IntToStr(DataHandle.Connection.InsertId);
+    try
+      XML.AddChild('sql').Text := DataHandle.Connection.CommandText;
+      if (DataHandle.Connection.Info <> '') then
+        XML.AddChild('info').Text := DataHandle.Connection.Info;
+      XML.AddChild('execution_time').Text := FloatToStr(DataHandle.Connection.ExecutionTime, FileFormatSettings);
+      if (DataHandle.Connection.Connected and (DataHandle.Connection.InsertId > 0)) then
+        XML.AddChild('insert_id').Text := IntToStr(DataHandle.Connection.InsertId);
 
-    while (FSession.Session.Account.HistoryXML.ChildNodes.Count > 100) do
-      FSession.Session.Account.HistoryXML.ChildNodes.Delete(0);
-    FSession.FSQLHistoryRefresh(nil);
+      while (FSession.Session.Account.HistoryXML.ChildNodes.Count > 100) do
+        FSession.Session.Account.HistoryXML.ChildNodes.Delete(0);
+      FSession.FSQLHistoryRefresh(nil);
+    except
+      FSession.Session.Account.HistoryXML.ChildNodes.Delete(FSession.Session.Account.HistoryXML.ChildNodes.Count - 1);
+    end;
   end;
 
   if (DataHandle.Connection.ErrorCode > 0) then
@@ -7130,7 +7134,9 @@ end;
 procedure TFSession.FNavigatorChanging(Sender: TObject; Node: TTreeNode;
   var AllowChange: Boolean);
 begin
-  AllowChange := AllowChange and not Dragging(Sender) and not (Assigned(Node) and (Node.ImageIndex in [iiKey, iiField, iiSystemViewField, iiViewField, iiForeignKey]));
+  AllowChange := AllowChange
+    and not Dragging(Sender)
+    and not (Assigned(Node) and (Node.ImageIndex in [iiKey, iiField, iiSystemViewField, iiViewField, iiForeignKey]));
 
   if (AllowChange and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then
     try
@@ -11864,7 +11870,10 @@ begin
 
     case (Node.ImageIndex) of
       iiServer:
-        if ((URI.Param['view'] <> Null) and (URI.Param['view'] <> 'editor')) then URI.Param['view'] := Null;
+        begin
+          if ((URI.Param['view'] <> Null) and (URI.Param['view'] <> 'editor')) then URI.Param['view'] := Null;
+          if ((URI.Param['view'] = 'editor') and (Session.DatabaseName <> '')) then URI.Param['view'] := Null;
+        end;
       iiDatabase,
       iiSystemDatabase:
         begin
@@ -13299,6 +13308,8 @@ begin
       URI.Param['file'] := Null;
       URI.Param['cp'] := Null;
     end
+    else if ((AView = vEditor) and (Session.DatabaseName <> '') and not (SelectedImageIndex in [iiDatabase, iiSystemDatabase])) then
+      URI.Database := Session.DatabaseName
     else if ((AView = vDiagram) and not (SelectedImageIndex in [iiDatabase, iiSystemDatabase])) then
     begin
       if (URI.Database = '') then

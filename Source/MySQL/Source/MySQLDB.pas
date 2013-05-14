@@ -3330,6 +3330,7 @@ end;
 procedure TMySQLConnection.SyncHandleResult(const LibraryThread: TLibraryThread);
 var
   CLStmt: TSQLCLStmt;
+  Info: my_char;
   S: String;
   StmtLength: Integer;
 begin
@@ -3377,7 +3378,12 @@ begin
 
       if (Assigned(Lib.mysql_info) and Assigned(Lib.mysql_info(LibraryThread.LibHandle))) then
       begin
-        S := '--> ' + LibDecode(Lib.mysql_info(LibraryThread.LibHandle));
+        Info := Lib.mysql_info(LibraryThread.LibHandle);
+        try
+          S := '--> ' + LibDecode(Info);
+        except
+          S := '--> ' + string(Info);
+        end;
         WriteMonitor(PChar(S), Length(S), ttInfo);
       end
       else if (Lib.mysql_affected_rows(LibraryThread.LibHandle) > 0) then
@@ -4714,7 +4720,7 @@ begin
   Assert(not Assigned(LibraryThread));
   Assert(DataHandle = Connection.LibraryThread);
 
-  if (not Data) then
+  if (not Data or (DataHandle.ErrorCode <> 0)) then
     SetState(dsInactive)
   else
   begin

@@ -833,7 +833,6 @@ object WWindow: TWWindow
       Enabled = False
       HelpContext = 1019
       HelpType = htContext
-      ShortCut = 16464
     end
     object aESelectAll: TEditSelectAll
       Category = 'Edit'

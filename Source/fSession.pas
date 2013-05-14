@@ -10069,45 +10069,48 @@ begin
       begin
         BeginSilent();
 
-        DataSet := TMySQLQuery.Create(nil);
-        DataSet.Connection := Self;
-        DataSet.CommandText := 'HELP ' + SQLEscape('SELECT');
-        DataSet.Open();
-        if (not DataSet.Active or not Assigned(DataSet.FindField('name')) or DataSet.IsEmpty()) then
-          URL1 := ''
-        else
-        begin
-          URL1 := DataSet.FieldByName('description').AsString;
-          while (Pos('URL:', URL1) > 1) do Delete(URL1, 1, Pos('URL:', URL1) - 1);
-          if (Pos('URL:', URL1) = 1) then Delete(URL1, 1, Length('URL:'));
-          URL1 := Trim(URL1);
+        try
+          DataSet := TMySQLQuery.Create(nil);
+          DataSet.Connection := Self;
+          DataSet.CommandText := 'HELP ' + SQLEscape('SELECT');
+          DataSet.Open();
+          if (not DataSet.Active or not Assigned(DataSet.FindField('name')) or DataSet.IsEmpty()) then
+            URL1 := ''
+          else
+          begin
+            URL1 := DataSet.FieldByName('description').AsString;
+            while (Pos('URL:', URL1) > 1) do Delete(URL1, 1, Pos('URL:', URL1) - 1);
+            if (Pos('URL:', URL1) = 1) then Delete(URL1, 1, Length('URL:'));
+            URL1 := Trim(URL1);
+          end;
+          DataSet.Free();
+
+          DataSet := TMySQLQuery.Create(nil);
+          DataSet.Connection := Self;
+          DataSet.CommandText := 'HELP ' + SQLEscape('VERSION');
+          DataSet.Open();
+          if (not DataSet.Active or not Assigned(DataSet.FindField('name')) or DataSet.IsEmpty()) then
+            URL2 := ''
+          else
+          begin
+            URL2 := DataSet.FieldByName('description').AsString;
+            while (Pos('URL:', URL2) > 1) do Delete(URL2, 1, Pos('URL:', URL2) - 1);
+            if (Pos('URL:', URL2) = 1) then Delete(URL2, 1, Length('URL:'));
+            URL2 := Trim(URL2);
+          end;
+          DataSet.Free();
+
+          EndSilent();
+
+          Equal := 0;
+          for I := 1 to Min(Length(URL1), Length(URL2)) - 1 do
+            if ((URL1[I] = URL2[I]) and (Equal = I - 1)) then
+              Equal := I + 1;
+
+          if (Copy(URL1, 1, 7) = 'http://') then
+            Account.ManualURL := Copy(URL1, 1, Equal - 1);
+        except
         end;
-        DataSet.Free();
-
-        DataSet := TMySQLQuery.Create(nil);
-        DataSet.Connection := Self;
-        DataSet.CommandText := 'HELP ' + SQLEscape('VERSION');
-        DataSet.Open();
-        if (not DataSet.Active or not Assigned(DataSet.FindField('name')) or DataSet.IsEmpty()) then
-          URL2 := ''
-        else
-        begin
-          URL2 := DataSet.FieldByName('description').AsString;
-          while (Pos('URL:', URL2) > 1) do Delete(URL2, 1, Pos('URL:', URL2) - 1);
-          if (Pos('URL:', URL2) = 1) then Delete(URL2, 1, Length('URL:'));
-          URL2 := Trim(URL2);
-        end;
-        DataSet.Free();
-
-        EndSilent();
-
-        Equal := 0;
-        for I := 1 to Min(Length(URL1), Length(URL2)) - 1 do
-          if ((URL1[I] = URL2[I]) and (Equal = I - 1)) then
-            Equal := I + 1;
-
-        if (Copy(URL1, 1, 7) = 'http://') then
-          Account.ManualURL := Copy(URL1, 1, Equal - 1);
         Account.ManualURLFetched := True;
       end;
     end;
