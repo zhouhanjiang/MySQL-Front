@@ -2580,11 +2580,20 @@ begin
 end;
 
 function TMySQLConnection.GetInfo(): string;
+var
+  Info: my_char;
 begin
   if (not Assigned(Handle)) then
     Result := ''
   else
-    Result := LibDecode(Lib.mysql_info(Handle));
+  begin
+    Info := Lib.mysql_info(Handle);
+    try
+      Result := '--> ' + LibDecode(Info);
+    except
+      Result := '--> ' + string(Info);
+    end;
+  end;
 end;
 
 function TMySQLConnection.GetInsertId(): my_ulonglong;
@@ -3315,7 +3324,7 @@ begin
     end;
 
     Inc(Retry);
-  until (LibraryThread.Terminated or not NeedReconnect or (Retry > RETRY_COUNT));
+  until (not NeedReconnect or (Retry > RETRY_COUNT));
 
   if (LibraryThread.Success and not LibraryThread.Terminated) then
     LibraryThread.ResHandle := Lib.mysql_use_result(LibraryThread.LibHandle);

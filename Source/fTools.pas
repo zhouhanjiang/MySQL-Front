@@ -2834,14 +2834,14 @@ begin
     GetMem(ODBCData, ODBCDataSize);
 
     SQL := '';
-    if (not Structure and (Length(SourceFields) > 1)) then
+    if (Structure or (Length(SourceFields) = 1)) then
+      SQL := '*'
+    else
       for I := 0 to Length(SourceFields) - 1 do
       begin
         if (I > 0) then SQL := SQL + ',';
         SQL := SQL + '"' + SourceFields[I].Name + '"';
-      end
-    else
-      SQL := '*';
+      end;
     SQL := 'SELECT ' + SQL + ' FROM "' + Item.SourceTableName + '"';
 
     while ((Success <> daAbort) and not SQL_SUCCEEDED(SQLExecDirect(Stmt, PSQLTCHAR(SQL), SQL_NTS))) do

@@ -1602,7 +1602,9 @@ function TMySQL_File.ReceivePacket(): Boolean;
                 Inc(BytesRead, DecompressBuffer.Size);
               except
                 on E: EOutOfMemory do
-                  begin Seterror(CR_OUT_OF_MEMORY); Result := False; end;
+                  // Debug 15.05.2013
+                  raise Exception.CreateFmt(StrPas(CLIENT_ERRORS[8]) + ' (Size: %d, DecompressBuffer.Size: %d)', [Size, DecompressBuffer.Size]);
+//                  begin Seterror(CR_OUT_OF_MEMORY); Result := False; end;
                 else
                   begin Seterror(CR_UNKNOWN_ERROR); Result := False; end;
               end;
