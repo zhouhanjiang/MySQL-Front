@@ -1570,9 +1570,9 @@ function TMySQL_File.ReceivePacket(): Boolean;
         Move(PacketBuffer.Mem[PacketOffset + 3], Nr, 1);
 
         if (Nr <> CompPacketNr) then
-          Seterror(CR_SERVER_HANDSHAKE_ERR)
+          begin Seterror(CR_SERVER_HANDSHAKE_ERR); Result := False; end
         else if (NET_HEADER_SIZE + COMP_HEADER_SIZE + Size > MAX_PACKET_LENGTH) then
-          Seterror(CR_NET_PACKET_TOO_LARGE)
+          begin Seterror(CR_NET_PACKET_TOO_LARGE); Result := False; end
         else if (ReceivePacketBuffer(COMP_HEADER_SIZE + Size)) then
         begin
           FillChar(UncompressedSize, SizeOf(UncompressedSize), #0);
@@ -1656,9 +1656,10 @@ begin
         Move(PacketBuffer.Mem[Offset + 3], Nr, 1);
 
         if (not UseCompression and (Nr <> PacketNr)) then
-          Seterror(CR_SERVER_HANDSHAKE_ERR)
-        else if (Size > MAX_PACKET_LENGTH) then
-          Seterror(CR_NET_PACKET_TOO_LARGE)
+          begin Seterror(CR_SERVER_HANDSHAKE_ERR); Result := False; end
+        else
+        if (Size > MAX_PACKET_LENGTH) then
+          begin Seterror(CR_NET_PACKET_TOO_LARGE); Result := False; end
         else
         begin
           PacketNr := (PacketNr + 1) and $FF;

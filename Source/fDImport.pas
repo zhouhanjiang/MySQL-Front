@@ -1158,7 +1158,8 @@ begin
     end;
     FEnabled.Checked := Job.Enabled;
   end
-  else if (ImportType in [itTextFile, itODBC, itAccessFile, itExcelFile]) then
+  else
+  begin
     if (SObject is TSTable) then
       Database := TSDBObject(SObject).Database
     else
@@ -1171,13 +1172,17 @@ begin
         Database := TSDBObject(SObject).Database
       else
         Database := nil;
+    end;
 
+    if (ImportType in [itTextFile, itODBC, itAccessFile, itExcelFile]) then
+    begin
       FStructure.Checked := Preferences.Import.Structure and not (SObject is TSBaseTable);
       FData.Checked := Preferences.Import.Data and (FStructure.Checked or (SObject is TSBaseTable));
       FEngine.ItemIndex := FEngine.Items.IndexOf(Preferences.Import.Engine);
       FCharset.ItemIndex := FCharset.Items.IndexOf(Preferences.Import.Charset);
       FRowFormat.ItemIndex := Preferences.Import.RowType;
     end;
+  end;
 
   if (FEngine.ItemIndex < 0) then
     FEngine.ItemIndex := FEngine.Items.IndexOf(Session.Engines.DefaultEngine.Name);

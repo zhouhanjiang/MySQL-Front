@@ -2598,7 +2598,7 @@ end;
 
 function TMySQLConnection.GetInsertId(): my_ulonglong;
 begin
-  if (not Assigned(LibraryThread)) then
+  if (not Assigned(Handle)) then
     Result := 0
   else
     Result := Lib.mysql_insert_id(Handle);

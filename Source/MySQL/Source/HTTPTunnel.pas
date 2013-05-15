@@ -489,12 +489,18 @@ var
 begin
   BytesRead := 0;
   repeat
+    SetLastError(ERROR_SUCCESS);
     Result := InternetReadFile(Request, @my_char(@Buffer)[BytesRead], BytesToRead - BytesRead, Size);
     if (not Result) then
       Seterror(CR_SERVER_LOST)
+    else if (Size = 0) then
+    begin
+      Seterror(CR_SERVER_HANDSHAKE_ERR);
+      Result := False;
+    end
     else
       Inc(BytesRead, Size);
-  until (not Result or (Size = 0) or (BytesRead = BytesToRead));
+  until (not Result or (BytesRead = BytesToRead));
 end;
 
 function MYSQL.Send(const Buffer; const BytesToWrite: my_uint): Boolean;
