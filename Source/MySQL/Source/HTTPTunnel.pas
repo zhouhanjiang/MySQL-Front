@@ -66,7 +66,7 @@ uses
   SQLUtils;
 
 const
-  RequiredTunnelVersion = 8;
+  RequiredTunnelVersion = 14;
 
 const
   HTTPTTUNNEL_ERRORS: array [0..9] of PChar = (
@@ -489,7 +489,6 @@ var
 begin
   BytesRead := 0;
   repeat
-    SetLastError(ERROR_SUCCESS);
     Result := InternetReadFile(Request, @my_char(@Buffer)[BytesRead], BytesToRead - BytesRead, Size);
     if (not Result) then
       Seterror(CR_SERVER_LOST)

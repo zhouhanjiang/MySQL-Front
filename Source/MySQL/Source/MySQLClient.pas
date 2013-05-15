@@ -1657,8 +1657,7 @@ begin
 
         if (not UseCompression and (Nr <> PacketNr)) then
           begin Seterror(CR_SERVER_HANDSHAKE_ERR); Result := False; end
-        else
-        if (Size > MAX_PACKET_LENGTH) then
+        else if (Size > MAX_PACKET_LENGTH) then
           begin Seterror(CR_NET_PACKET_TOO_LARGE); Result := False; end
         else
         begin
@@ -1762,7 +1761,7 @@ begin
             Result := -1;
           end;
       end;
-  end;                                                             
+  end;
 end;
 
 procedure TMySQL_File.SetDirection(ADirection: TMySQL_IO.TDirection);
