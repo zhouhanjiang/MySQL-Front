@@ -40,7 +40,7 @@ object DExport: TDExport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSHTMLOptions
+    ActivePage = TSSQLOptions
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     Style = tsFlatButtons
@@ -315,17 +315,10 @@ object DExport: TDExport
         Left = 4
         Top = 70
         Width = 325
-        Height = 143
+        Height = 113
         Anchors = [akLeft, akTop, akRight]
         Caption = 'GSQLOptions'
         TabOrder = 1
-        object FLGeneral: TLabel
-          Left = 9
-          Top = 117
-          Width = 49
-          Height = 13
-          Caption = 'FLGeneral'
-        end
         object FLDrop: TLabel
           Left = 8
           Top = 67
@@ -367,18 +360,6 @@ object DExport: TDExport
           Height = 17
           Caption = 'FCreateDatabase'
           TabOrder = 0
-          OnClick = FSQLOptionClick
-          OnKeyPress = FSQLOptionKeyPress
-        end
-        object FDisableKeys: TCheckBox
-          Left = 129
-          Top = 116
-          Width = 193
-          Height = 17
-          Caption = 'FDisableKeys'
-          Checked = True
-          State = cbChecked
-          TabOrder = 4
           OnClick = FSQLOptionClick
           OnKeyPress = FSQLOptionKeyPress
         end

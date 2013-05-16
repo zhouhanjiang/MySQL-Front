@@ -421,7 +421,6 @@ type
     procedure BeforeExecute(); override;
     procedure ExecuteDatabaseHeader(const Database: TSDatabase); override;
     procedure ExecuteEvent(const Event: TSEvent); override;
-    procedure ExecuteFooter(); override;
     procedure ExecuteHeader(); override;
     procedure ExecuteRoutine(const Routine: TSRoutine); override;
     procedure ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
@@ -431,7 +430,6 @@ type
     function FileCreate(const Filename: TFileName; out Error: TTool.TError): Boolean; override;
   public
     CreateDatabaseStmts: Boolean;
-    DisableKeys: Boolean;
     DropStmts: Boolean;
     ReplaceData: Boolean;
     UseDatabaseStmts: Boolean;
@@ -2761,7 +2759,7 @@ begin
     SQL_TYPE_TIME: Result := mfTime;
     SQL_TYPE_TIMESTAMP: Result := mfDateTime;
     SQL_TIMESTAMP: Result := mfTimestamp;
-    SQL_GUID: Result := mfChar;
+    SQL_GUID: Result := mfVarChar;
     else raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [FieldName, SQLType]);
   end;
 end;
@@ -3342,7 +3340,8 @@ begin
         SQL_LONGVARCHAR,
         SQL_WCHAR,
         SQL_WVARCHAR,
-        SQL_WLONGVARCHAR:
+        SQL_WLONGVARCHAR,
+        SQL_GUID:
           begin
             Size := 0;
             repeat
@@ -3463,7 +3462,8 @@ begin
         SQL_LONGVARCHAR,
         SQL_WCHAR,
         SQL_WVARCHAR,
-        SQL_WLONGVARCHAR:
+        SQL_WLONGVARCHAR,
+        SQL_GUID:
           begin
             SetLength(S, 0);
             repeat
@@ -4371,7 +4371,6 @@ begin
   inherited;
 
   CreateDatabaseStmts := False;
-  DisableKeys := False;
   DropStmts := False;
   UseDatabaseStmts := True;
 end;
@@ -4412,33 +4411,6 @@ begin
   WriteContent(Content);
 end;
 
-procedure TTExportSQL.ExecuteFooter();
-var
-  Content: string;
-begin
-  Content := '';
-
-  if (DisableKeys and (Session.ServerVersion >= 40014)) then
-  begin
-    Content := Content + '/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;' + #13#10;
-    Content := Content + '/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;' + #13#10;
-  end;
-  if (Assigned(Session.VariableByName('SQL_NOTES')) and (Session.ServerVersion >= 40111)) then
-    Content := Content + '/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;' + #13#10;
-  if (Assigned(Session.VariableByName('SQL_MODE')) and (Session.ServerVersion >= 40101)) then
-    Content := Content + '/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;' + #13#10;
-  if (Assigned(Session.VariableByName('TIME_ZONE')) and (Session.VariableByName('TIME_ZONE').Value <> 'SYSTEM') and (Session.ServerVersion >= 40103)) then
-    Content := Content + '/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;' + #13#10;
-  if ((CodePage <> CP_UNICODE) and (Session.CodePageToCharset(CodePage) <> '') and (Session.ServerVersion >= 40101)) then
-  begin
-    Content := Content + '/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;' + #13#10;
-    Content := Content + '/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;' + #13#10;
-    Content := Content + '/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;' + #13#10;
-  end;
-
-  WriteContent(#13#10 + Content);
-end;
-
 procedure TTExportSQL.ExecuteHeader();
 var
   Content: string;
@@ -4454,34 +4426,7 @@ begin
   Content := Content + #13#10;
 
   if ((CodePage <> CP_UNICODE) and (Session.CodePageToCharset(CodePage) <> '') and (Session.ServerVersion >= 40101)) then
-  begin
-    Content := Content + '/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;' + #13#10;
-    Content := Content + '/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;' + #13#10;
-    Content := Content + '/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;' + #13#10;
     Content := Content + '/*!40101 SET NAMES ' + Session.CodePageToCharset(CodePage) + ' */;' + #13#10;
-  end;
-  if (Assigned(Session.VariableByName('TIME_ZONE')) and (Session.VariableByName('TIME_ZONE').Value <> 'SYSTEM')) then
-  begin
-    Content := Content + '/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;' + #13#10;
-    Content := Content + '/*!40103 SET TIME_ZONE=' + SQLEscape(Session.VariableByName('TIME_ZONE').Value) + ' */;' + #13#10;
-  end;
-  if (Assigned(Session.VariableByName('SQL_MODE')) and (Session.ServerVersion >= 40101)) then
-  begin
-    Content := Content + '/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE */;' + #13#10;
-    Content := Content + '/*!40101 SET SQL_MODE=' + SQLEscape(Session.VariableByName('SQL_MODE').Value) + ' */;' + #13#10;
-  end;
-  if (Assigned(Session.VariableByName('SQL_NOTES'))) then
-  begin
-    Content := Content + '/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES */;' + #13#10;
-    Content := Content + '/*!40103 SET SQL_NOTES=' + SQLEscape(Session.VariableByName('SQL_NOTES').Value) + ' */;' + #13#10;
-  end;
-  if (DisableKeys and (Session.ServerVersion >= 40014)) then
-  begin
-    Content := Content + '/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS */;' + #13#10;
-    Content := Content + '/*!40014 SET UNIQUE_CHECKS=0 */;' + #13#10;
-    Content := Content + '/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS */;' + #13#10;
-    Content := Content + '/*!40014 SET FOREIGN_KEY_CHECKS=0 */;' + #13#10;
-  end;
 
   WriteContent(Content);
 end;
@@ -4523,7 +4468,7 @@ begin
   begin
     Content := '';
 
-    if (DisableKeys and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
+    if (DropStmts and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
       Content := Content + '/*!40000 ALTER TABLE ' + Session.EscapeIdentifier(Table.Database.Name) + '.' + Session.EscapeIdentifier(Table.Name) + ' ENABLE KEYS */;' + #13#10;
 
     if (Content <> '') then
@@ -4567,7 +4512,7 @@ begin
     Content := Content + '#' + #13#10;
     Content := Content + #13#10;
 
-    if (DisableKeys and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
+    if (DropStmts and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
       Content := Content + '/*!40000 ALTER TABLE ' + Session.EscapeIdentifier(Table.Database.Name) + '.' + Session.EscapeIdentifier(Table.Name) + ' DISABLE KEYS */;' + #13#10;
   end;
 

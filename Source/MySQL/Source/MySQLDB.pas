@@ -3087,6 +3087,14 @@ begin
       Lib.mysql_set_local_infile_handler(LibraryThread.LibHandle, @MySQLDB.local_infile_init, @MySQLDB.local_infile_read, @MySQLDB.local_infile_end, @MySQLDB.local_infile_error, Self);
   end;
 
+  ClientFlag := CLIENT_INTERACTIVE or CLIENT_LOCAL_FILES;
+  if (DatabaseName <> '') then
+    ClientFlag := ClientFlag or CLIENT_CONNECT_WITH_DB;
+  if (Assigned(Lib.mysql_more_results) and Assigned(Lib.mysql_next_result)) then
+    ClientFlag := ClientFlag or CLIENT_MULTI_STATEMENTS or CLIENT_MULTI_RESULTS;
+  if (UseCompression()) then
+    ClientFlag := ClientFlag or CLIENT_COMPRESS;
+
   Lib.mysql_options(LibraryThread.LibHandle, MYSQL_OPT_READ_TIMEOUT, my_char(RawByteString(IntToStr(NET_WAIT_TIMEOUT))));
   Lib.mysql_options(LibraryThread.LibHandle, MYSQL_OPT_WRITE_TIMEOUT, my_char(RawByteString(IntToStr(NET_WAIT_TIMEOUT))));
   Lib.mysql_options(LibraryThread.LibHandle, MYSQL_SET_CHARSET_NAME, my_char(RawByteString(FCharset)));
@@ -3098,14 +3106,6 @@ begin
     if (HTTPAgent <> '') then
       Lib.mysql_options(LibraryThread.LibHandle, enum_mysql_option(MYSQL_OPT_HTTPTUNNEL_AGENT), my_char(LibEncode(HTTPAgent)));
   end;
-
-  ClientFlag := CLIENT_INTERACTIVE or CLIENT_LOCAL_FILES;
-  if (DatabaseName <> '') then
-    ClientFlag := ClientFlag or CLIENT_CONNECT_WITH_DB;
-  if (Assigned(Lib.mysql_more_results) and Assigned(Lib.mysql_next_result)) then
-    ClientFlag := ClientFlag or CLIENT_MULTI_STATEMENTS or CLIENT_MULTI_RESULTS;
-  if (UseCompression()) then
-    ClientFlag := ClientFlag or CLIENT_COMPRESS;
 
   if (LibraryType <> ltNamedPipe) then
     LibraryThread.Success := Assigned(Lib.mysql_real_connect(LibraryThread.LibHandle,

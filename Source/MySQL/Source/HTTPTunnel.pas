@@ -452,7 +452,12 @@ begin
     next_command();
 
     if (Command <> COM_QUERY) then
-      WriteFile(Bin, Size)
+    begin
+      if (Size > $FFFFFE) then
+        // The stmt length is limited to the send packet size of 3 byte length
+        raise Exception.Create('Maximal allowed data size for the HTTP Tunnel is: 16777214');
+      WriteFile(Bin, Size);
+    end
     else
     begin
       SQL := DecodeString(Bin); SQLIndex := 1;
@@ -465,6 +470,10 @@ begin
         if (GetFileSize() > 0) then
           SetFilePointer(1, PACKET_CURRENT);
         WriteFile(@Command, 1);
+
+        if (Len > $FFFFFE) then
+          // The stmt length is limited to the send packet size of 3 byte length
+          raise Exception.Create('Maximal allowed statement size for the HTTP Tunnel is: 16777214');
         WriteFile(my_char(@Bin[Index]), Len);
 
         Inc(SQLIndex, SQLLen);

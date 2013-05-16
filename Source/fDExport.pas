@@ -29,7 +29,6 @@ type
     FDatabaseNodeText: TEdit;
     FDataSource: TEdit;
     FDestField1: TEdit;
-    FDisableKeys: TCheckBox;
     FDoneRecords: TLabel;
     FDoneTables: TLabel;
     FDoneTime: TLabel;
@@ -79,7 +78,6 @@ type
     FLFieldNode: TLabel;
     FLFields: TLabel;
     FLFilename: TLabel;
-    FLGeneral: TLabel;
     FLHTMLBGColorEnabled: TLabel;
     FLHTMLNullValues: TLabel;
     FLHTMLViewDatas: TLabel;
@@ -387,14 +385,12 @@ begin
   FSQLData.Caption := Preferences.LoadStr(216);
 
   GSQLOptions.Caption := Preferences.LoadStr(238);
-  FLGeneral.Caption := Preferences.LoadStr(108) + ':';
   FLDrop.Caption := Preferences.LoadStr(242) + ':';
   FDropStmts.Caption := Preferences.LoadStr(243);
   FReplaceData.Caption := LowerCase(ReplaceStr(Preferences.LoadStr(416), '&', ''));
   FLDatabaseHandling.Caption := ReplaceStr(Preferences.LoadStr(38), '&', '') + ':';
   FCreateDatabase.Caption := Preferences.LoadStr(245);
   FUseDatabase.Caption := Preferences.LoadStr(246);
-  FDisableKeys.Caption := Preferences.LoadStr(621);
 
   GCSVOptions.Caption := Preferences.LoadStr(238);
   FLCSVHeadline.Caption := Preferences.LoadStr(393) + ':';
@@ -893,7 +889,6 @@ begin
   FUseDatabase.Checked := Preferences.Export.SQL.UseDatabase;
   FDropStmts.Checked := Preferences.Export.SQL.DropStmts;
   FReplaceData.Checked := Preferences.Export.SQL.ReplaceData;
-  FDisableKeys.Checked := Preferences.Export.SQL.DisableKeys;
 
   FSQLOptionClick(Sender);
 
@@ -973,7 +968,6 @@ begin
           Export.SQL.Data := FSQLData.Checked;
           Export.SQL.DropStmts := FDropStmts.Checked;
           Export.SQL.ReplaceData := FReplaceData.Checked;
-          Export.SQL.DisableKeys := FDisableKeys.Checked;
           if (not SingleTable) then
             Export.SQL.CreateDatabase := FCreateDatabase.Checked;
           Export.SQL.UseDatabase := FUseDatabase.Checked;
@@ -1406,9 +1400,6 @@ begin
   FDropStmts.Checked := FDropStmts.Checked and FDropStmts.Enabled;
   FReplaceData.Enabled := not FCreateDatabase.Checked and FSQLData.Checked and not FDropStmts.Checked;
   FReplaceData.Checked := FReplaceData.Checked and FReplaceData.Enabled;
-
-  FDisableKeys.Enabled := FSQLData.Checked;
-  FDisableKeys.Checked := FDisableKeys.Checked and FDisableKeys.Enabled;
 
   TabSheet.Enabled := FSQLStructure.Checked or FSQLData.Checked;
   CheckActivePageChange(TSSQLOptions.PageIndex);
@@ -1883,7 +1874,6 @@ begin
         Export := TTExportSQL.Create(Session, Filename, CodePage);
         TTExportSQL(Export).CreateDatabaseStmts := FCreateDatabase.Checked;
         TTExportSQL(Export).Data := FSQLData.Checked;
-        TTExportSQL(Export).DisableKeys := FDisableKeys.Checked;
         TTExportSQL(Export).DropStmts := FDropStmts.Checked;
         TTExportSQL(Export).ReplaceData := FReplaceData.Checked;
         TTExportSQL(Export).Structure := FSQLStructure.Checked;

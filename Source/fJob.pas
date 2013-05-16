@@ -125,7 +125,6 @@ begin
           Export := TTExportSQL.Create(Session, Job.Filename, Job.CodePage);
           TTExportSQL(Export).CreateDatabaseStmts := Job.SQL.CreateDatabase;
           TTExportSQL(Export).Data := Job.SQL.Data;
-          TTExportSQL(Export).DisableKeys := Job.SQL.DisableKeys;
           TTExportSQL(Export).DropStmts := Job.SQL.DropStmts;
           TTExportSQL(Export).ReplaceData := Job.SQL.ReplaceData;
           TTExportSQL(Export).Structure := Job.SQL.Structure;

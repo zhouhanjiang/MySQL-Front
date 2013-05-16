@@ -211,7 +211,6 @@ type
     SQL: record
       CreateDatabase: Boolean;
       Data: Boolean;
-      DisableKeys: Boolean;
       DropStmts: Boolean;
       ReplaceData: Boolean;
       Structure: Boolean;
@@ -1648,7 +1647,6 @@ begin
   HTML.Structure := False;
   SQL.CreateDatabase := False;
   SQL.Data := True;
-  SQL.DisableKeys := True;
   SQL.DropStmts := True;
   SQL.Structure := True;
   SQL.ReplaceData := False;
@@ -1683,7 +1681,6 @@ begin
   if (Assigned(XMLNode(XML, 'html/structure'))) then TryStrToBool(XMLNode(XML, 'html/structure').Attributes['enabled'], HTML.Structure);
   if (Assigned(XMLNode(XML, 'sql/data'))) then TryStrToBool(XMLNode(XML, 'sql/data').Attributes['enabled'], SQL.Data);
   if (Assigned(XMLNode(XML, 'sql/data'))) then TryStrToBool(XMLNode(XML, 'sql/data').Attributes['replace'], SQL.ReplaceData);
-  if (Assigned(XMLNode(XML, 'sql/data'))) then TryStrToBool(XMLNode(XML, 'sql/data').Attributes['disablekeys'], SQL.DisableKeys);
   if (Assigned(XMLNode(XML, 'sql/structure'))) then TryStrToBool(XMLNode(XML, 'sql/structure').Attributes['enabled'], SQL.Structure);
   if (Assigned(XMLNode(XML, 'sql/structure'))) then TryStrToBool(XMLNode(XML, 'sql/structure').Attributes['drop'], SQL.DropStmts);
   if (Assigned(XMLNode(XML, 'sql/structure/database'))) then TryStrToBool(XMLNode(XML, 'sql/structure/database').Attributes['create'], SQL.CreateDatabase);
@@ -1718,7 +1715,6 @@ begin
   XMLNode(XML, 'html/structure').Attributes['enabled'] := HTML.Structure;
   XMLNode(XML, 'sql/data').Attributes['enabled'] := SQL.Data;
   XMLNode(XML, 'sql/data').Attributes['replace'] := SQL.ReplaceData;
-  XMLNode(XML, 'sql/data').Attributes['disablekeys'] := SQL.DisableKeys;
   XMLNode(XML, 'sql/structure').Attributes['enabled'] := SQL.Structure;
   XMLNode(XML, 'sql/structure').Attributes['drop'] := SQL.DropStmts;
   XMLNode(XML, 'sql/structure/database').Attributes['create'] := SQL.CreateDatabase;
