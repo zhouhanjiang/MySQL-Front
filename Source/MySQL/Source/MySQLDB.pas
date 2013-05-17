@@ -3560,6 +3560,8 @@ var
   LibRow: MYSQL_ROW;
 begin
   TerminateCS.Enter();
+  Assert(LibraryThread.State = ssReceivingResult);
+  Assert(LibraryThread.DataSet is TMySQLDataSet);
   DataSet := TMySQLDataSet(LibraryThread.DataSet);
   TerminateCS.Leave();
 
@@ -3577,8 +3579,6 @@ begin
       TerminateCS.Leave();
     end;
   until (not Assigned(LibRow));
-
-  DataSet.RecordsReceived.SetEvent();
 
   if (not LibraryThread.Success) then
   begin
@@ -5385,7 +5385,11 @@ begin
       TMySQLTable(Self).FLimitedDataReceived :=
         not LibraryThread.Success or not Assigned(LibraryThread.DataSet)
         or (Connection.Lib.mysql_num_rows(LibraryThread.ResHandle) = TMySQLTable(Self).RequestedRecordCount);
+
+    RecordsReceived.SetEvent();
   end;
+
+  InternRecordBuffers.RecordReceived.SetEvent();
 end;
 
 procedure TMySQLDataSet.InternalAddRecord(Buffer: Pointer; Append: Boolean);
