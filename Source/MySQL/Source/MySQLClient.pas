@@ -1184,7 +1184,7 @@ begin
     FError := '';
 
   {$IFDEF EurekaLog}
-    if ((AErrNo = CR_UNKNOWN_ERROR) or (AErrNo = CR_OUT_OF_MEMORY) or (AErrNo = CR_SERVER_HANDSHAKE_ERR)) then
+    if ((AErrNo = CR_UNKNOWN_ERROR) or (AErrNo = CR_SERVER_HANDSHAKE_ERR)) then
       raise Exception.Create(DecodeString(error()));
   {$ENDIF}
 end;
@@ -1271,10 +1271,7 @@ begin
           try
             ZCompress(@PacketBuffer.Mem[Offset], Size, CompressBuffer, CompressedSize);
           except
-            on E: EOutOfMemory do
-              begin Seterror(CR_OUT_OF_MEMORY); Result := False; end;
-            else
-              begin Seterror(CR_UNKNOWN_ERROR); Result := False; end;
+            Seterror(CR_UNKNOWN_ERROR); Result := False;
           end;
 
         if (Result) then
@@ -1601,12 +1598,7 @@ function TMySQL_File.ReceivePacket(): Boolean;
 
                 Inc(BytesRead, DecompressBuffer.Size);
               except
-                on E: EOutOfMemory do
-                  // Debug 15.05.2013
-                  raise Exception.CreateFmt(StrPas(CLIENT_ERRORS[8]) + ' (Size: %d, DecompressBuffer.Size: %d)', [Size, DecompressBuffer.Size]);
-//                  begin Seterror(CR_OUT_OF_MEMORY); Result := False; end;
-                else
-                  begin Seterror(CR_UNKNOWN_ERROR); Result := False; end;
+                Seterror(CR_UNKNOWN_ERROR); Result := False;
               end;
 
               PacketBuffer.Size := PacketOffset + UncompressedSize;

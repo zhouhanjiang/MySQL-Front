@@ -768,9 +768,9 @@ const
   STR_LEN = 128;
 
   DriverAccess = 'Microsoft Access Driver (*.mdb)';
-  DriverAccess2007 = 'Microsoft Access Driver (*.mdb, *.accdb)';
+  DriverAccess12 = 'Microsoft Access Driver (*.mdb, *.accdb)';
   DriverExcel = 'Microsoft Excel Driver (*.xls)';
-  DriverExcel2007 = 'Microsoft Excel Driver (*.xls, *.xlsx, *.xlsm, *.xlsb)';
+  DriverExcel12 = 'Microsoft Excel Driver (*.xls, *.xlsx, *.xlsm, *.xlsb)';
 
 function GetTempFileName(): string;
 var
@@ -3775,7 +3775,6 @@ begin
       TDataSetItem(Items[I]).DataSet.EnableControls();
 
   FSession.EndSilent();
-  FSession.EndSynchron();
 
   inherited;
 end;
@@ -3786,7 +3785,6 @@ var
 begin
   inherited;
 
-  FSession.BeginSynchron(); // We're still in a thread
   FSession.BeginSilent();
 
   for I := 0 to Items.Count - 1 do
@@ -5900,7 +5898,7 @@ begin
           SQL := SQL + ');';
 
           // Execute silent, since some ODBC drivers doesn't support keys
-          // and the user should know that...
+          // and the user does not need to know this...
           SQLExecDirect(Stmt, PSQLTCHAR(SQL), SQL_NTS);
         end;
   end;
@@ -6233,7 +6231,7 @@ begin
   end
   else
   begin
-    ConnStrIn := 'Driver={' + DriverAccess2007 + '};DBQ=' + Filename + ';READONLY=FALSE';
+    ConnStrIn := 'Driver={' + DriverAccess12 + '};DBQ=' + Filename + ';READONLY=FALSE';
     Attributes := 'CREATE_DBV12=' + Filename + ' General';
   end;
 
@@ -6243,7 +6241,7 @@ begin
   if (Success = daSuccess) then
   begin
     if (not Access2007 and not SQLConfigDataSource(Application.Handle, ODBC_ADD_DSN, DriverAccess, PChar(Attributes))
-      or (Access2007 and not SQLConfigDataSource(Application.Handle, ODBC_ADD_DSN, DriverAccess2007, PChar(Attributes)))) then
+      or (Access2007 and not SQLConfigDataSource(Application.Handle, ODBC_ADD_DSN, DriverAccess12, PChar(Attributes)))) then
     begin
       Error.ErrorType := TE_ODBC;
       GetMem(ErrorMsg, SQL_MAX_MESSAGE_LENGTH * SizeOf(Char));
@@ -6256,10 +6254,11 @@ begin
     end
     else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @Handle))) then
       DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False)
-    else if (not SQL_SUCCEEDED(SQLDriverConnect(Handle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE))
-      or not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, Handle, @Stmt))) then
+    else if (not SQL_SUCCEEDED(SQLDriverConnect(Handle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE))) then
       DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False)
     else if (not SQL_SUCCEEDED(SQLSetConnectAttr(Handle, SQL_ATTR_AUTOCOMMIT, SQLPOINTER(SQL_AUTOCOMMIT_OFF), 1))) then
+      DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False)
+    else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, Handle, @Stmt))) then
       DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False);
   end;
 
@@ -6290,13 +6289,9 @@ begin
     if (not Excel2007) then
       ConnStrIn := 'Driver={' + DriverExcel + '};DBQ=' + Filename + ';READONLY=FALSE'
     else
-      ConnStrIn := 'Driver={' + DriverExcel2007 + '};DBQ=' + Filename + ';READONLY=FALSE';
+      ConnStrIn := 'Driver={' + DriverExcel12 + '};DBQ=' + Filename + ';READONLY=FALSE';
 
-    if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, @ODBCEnv))) then
-      DoError(ODBCError(0, SQL_NULL_HANDLE), nil, False)
-    else if (not SQL_SUCCEEDED(SQLSetEnvAttr(ODBCEnv, SQL_ATTR_ODBC_VERSION, SQLPOINTER(SQL_OV_ODBC3), SQL_IS_UINTEGER))) then
-      DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False)
-    else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @Handle))) then
+    if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @Handle))) then
       DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False)
     else if (not SQL_SUCCEEDED(SQLDriverConnect(Handle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE))) then
       DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False)
@@ -7457,10 +7452,7 @@ begin
       DoError(DatabaseError(DestinationSession), nil, True, SQL);
   end;
 
-  DestinationSession.EndSilent();
-  DestinationSession.EndSynchron();
-
-  inherited AfterExecute();
+  inherited;
 end;
 
 procedure TTTransfer.BeforeExecute();
@@ -7469,9 +7461,6 @@ var
   SQL: string;
 begin
   inherited;
-
-  DestinationSession.BeginSilent();
-  DestinationSession.BeginSynchron(); // We're still in a thread
 
   if (Data and (DestinationSession.ServerVersion >= 40014)) then
   begin
@@ -7900,8 +7889,12 @@ begin
   DestinationTable := DestinationDatabase.BaseTableByName(SourceTable.Name);
 
   if (Assigned(DestinationTable)) then
+  begin
+    DestinationSession.BeginSynchron();
     while ((Success <> daAbort) and not DestinationDatabase.DeleteObject(DestinationTable)) do
       DoError(DatabaseError(DestinationSession), Item, True);
+    DestinationSession.EndSynchron();
+  end;
 
   NewDestinationTable := TSBaseTable.Create(DestinationDatabase.Tables);
   NewDestinationTable.Assign(SourceTable);
@@ -7916,8 +7909,10 @@ begin
 
   NewDestinationTable.AutoIncrement := 0;
 
+  DestinationSession.BeginSynchron();
   while ((Success <> daAbort) and not DestinationDatabase.AddTable(NewDestinationTable)) do
     DoError(DatabaseError(DestinationSession), Item, True);
+  DestinationSession.EndSynchron();
 
   NewDestinationTable.Free();
 end;
@@ -7993,8 +7988,12 @@ begin
       NewTableName := Item.TableName + BackupExtension;
 
       if (Assigned(Database.BaseTableByName(NewTableName))) then
+      begin
+        Session.BeginSynchron();
         while ((Success <> daAbort) and not Database.DeleteObject(Database.BaseTableByName(NewTableName))) do
           DoError(DatabaseError(Session), Item, True);
+        Session.EndSynchron();
+      end;
 
       if (Rename) then
         while (Success <> daAbort) do
@@ -8527,16 +8526,16 @@ initialization
   begin
     SQLFreeHandle(SQL_HANDLE_ENV, ODBCEnv);
     ODBCEnv := SQL_NULL_HANDLE
-  end 
+  end
   else if (SQL_SUCCEEDED(SQLDrivers(ODBCEnv, SQL_FETCH_FIRST, @Driver, Length(Driver), nil, nil, 0, nil))) then
     repeat
       if (lstrcmpi(PChar(@Driver), DriverAccess) = 0) then
         ODBCDrivers := ODBCDrivers + [odAccess]
-      else if (lstrcmpi(PChar(@Driver), DriverAccess2007) = 0) then
+      else if (lstrcmpi(PChar(@Driver), DriverAccess12) = 0) then
         ODBCDrivers := ODBCDrivers + [odAccess2007]
       else if (lstrcmpi(PChar(@Driver), DriverExcel) = 0) then
         ODBCDrivers := ODBCDrivers + [odExcel]
-      else if (lstrcmpi(PChar(@Driver), DriverExcel2007) = 0) then
+      else if (lstrcmpi(PChar(@Driver), DriverExcel12) = 0) then
         ODBCDrivers := ODBCDrivers + [odExcel2007];
     until (not SQL_SUCCEEDED(SQLDrivers(ODBCEnv, SQL_FETCH_NEXT, @Driver, Length(Driver), nil, nil, 0, nil)));
 finalization

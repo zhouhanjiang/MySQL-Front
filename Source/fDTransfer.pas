@@ -358,6 +358,8 @@ begin
     Preferences.Transfer.Data := FData.Checked;
     Preferences.Transfer.Structure := FStructure.Checked;
   end;
+
+  PageControl.ActivePage := TSSelect; // TSInformationsShow soll nicht vorzeitig aufgerufen werden
 end;
 
 procedure TDTransfer.FormShow(Sender: TObject);
@@ -788,13 +790,26 @@ procedure TDTransfer.TSExecuteShow(Sender: TObject);
 var
   Answer: Integer;
 
-  procedure AddTable(const DBObject: TSDBObject; const DestinationSession: TSSession; const DestinationDatabaseName: string);
+  procedure AddTable(const DestinationTable: TSTable; const DestinationSession: TSSession; const DestinationDatabaseName: string);
+  var
+    DestinationDatabase: TSDatabase;
+    DestinationTableName: string;
   begin
-    if ((Answer <> IDYESALL) and Assigned(DestinationSession.DatabaseByName(DestinationDatabaseName)) and Assigned(DestinationSession.DatabaseByName(DestinationDatabaseName).TableByName(DestinationTableName))) then
-      Answer := MsgBox(Preferences.LoadStr(700, DestinationDatabaseName + '.' + DestinationTableName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);
+    if (Answer <> IDYESALL) then
+    begin
+      DestinationDatabase := DestinationSession.DatabaseByName(DestinationDatabaseName);
+      if (Assigned(DestinationDatabase)) then
+      begin
+        DestinationSession.BeginSynchron();
+        DestinationTableName := DestinationSession.TableName(DestinationTable.Name);
+        if (DestinationDatabase.Update() and Assigned(DestinationDatabase.TableByName(DestinationTableName))) then
+          Answer := MsgBox(Preferences.LoadStr(700, DestinationDatabase.Name + '.' + DestinationTableName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);
+        DestinationSession.EndSynchron();
+      end;
+    end;
 
     if (Answer in [IDYES, IDYESALL]) then
-      Transfer.Add(DBObject, DestinationDatabaseName)
+      Transfer.Add(DestinationTable, DestinationDatabaseName)
     else if (Answer = IDCANCEL) then
       FreeAndNil(Transfer);
   end;
