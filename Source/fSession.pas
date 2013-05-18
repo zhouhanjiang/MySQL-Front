@@ -10260,10 +10260,16 @@ begin
         Result := Collations.Build(DataSet, False, not SQLParseEnd(Parse))
       else if (SQLParseKeyword(Parse, 'CREATE')) then
       begin
-        if (DataSet.Active) then
-          if (SQLParseKeyword(Parse, 'DATABASE')) then
+        if (SQLParseKeyword(Parse, 'DATABASE')) then
+          if (not DataSet.Active) then
+          begin
+            Databases.FValid := True;
+            Result := True;
+          end
+          else
             DatabaseByName(SQLParseValue(Parse)).SetSource(DataSet)
-          else if (SQLParseKeyword(Parse, 'EVENT')) then
+        else if (DataSet.Active) then
+          if (SQLParseKeyword(Parse, 'EVENT')) then
             begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).EventByName(ObjectName).SetSource(DataSet); end
           else if (SQLParseKeyword(Parse, 'FUNCTION')) then
             begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).FunctionByName(ObjectName).SetSource(DataSet); end

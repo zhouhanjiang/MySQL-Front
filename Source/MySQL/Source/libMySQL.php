@@ -99,7 +99,7 @@
 		if (strlen($Packet) < 50)
 			$CompressedPacket = "\x00\x00\x00" . $Packet;
 		else
-			$CompressedPacket = substr(pack('V', strlen($Packet) & 0xffffff), 0, 3) . gzcompress($Packet);
+			$CompressedPacket = substr(pack('V', strlen($Packet) & 0xFFFFFF), 0, 3) . gzcompress($Packet);
 		
 		echo(substr(pack('V', strlen($CompressedPacket) - 3), 0, 3) . pack('C', $CompPacketNr++) . $CompressedPacket);
 	}
@@ -518,7 +518,7 @@
 			else
 				$Packet .= pack('v', 0x420C); // Server Capabilities
 			$Packet .= pack('C', $CharsetNr);
-	 		$Packet .= pack('v', 0x0000); // Server Status
+			$Packet .= pack('v', 0x0000); // Server Status
 			$Packet .= pack('a13', 1); // unused
 			SendPacket($Packet);
 			

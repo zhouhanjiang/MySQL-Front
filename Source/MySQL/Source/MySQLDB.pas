@@ -526,7 +526,7 @@ type
       destructor Destroy(); override;
       property Buffers[Index: Integer]: PInternRecordBuffer read Get write Put; default;
       property DataSet: TMySQLDataSet read FDataSet;
-      property RecordReceived: TEvent read FRecordReceived;
+      property Received: TEvent read FRecordReceived;
     end;
   private
     BookmarkCounter: DWord;
@@ -1933,9 +1933,6 @@ end;
 
 function TMySQLConnection.TLibraryThread.GetIsRunning(): Boolean;
 begin
-  if (not Assigned(RunExecute)) then // Debug 01.11.2012
-    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['RunExecute']);
-
   Result := not Terminated and ((RunExecute.WaitFor(IGNORE) = wrSignaled) or not (State in [ssClose, ssReady]));
 end;
 
@@ -3567,31 +3564,33 @@ begin
 
   LibraryThread.Success := True;
   repeat
-    if ((LibraryThread.Terminated) or not Assigned(LibraryThread.DataSet)) then
+    if (LibraryThread.Terminated or not Assigned(LibraryThread.DataSet)) then
       LibRow := nil
     else
+    begin
       LibRow := Lib.mysql_fetch_row(LibraryThread.ResHandle);
+      LibraryThread.Success := Lib.mysql_errno(LibraryThread.LibHandle) = 0;
+      if (not LibraryThread.Success) then
+      begin
+        LibraryThread.ErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);
+        LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
+      end;
+    end;
 
-    if (LibraryThread.Success) then
+    if (LibraryThread.Success and Assigned(LibRow)) then
     begin
       TerminateCS.Enter();
       LibraryThread.Success := DataSet.InternAddRecord(LibRow, Lib.mysql_fetch_lengths(LibraryThread.ResHandle));
       TerminateCS.Leave();
+      if (not LibraryThread.Success) then
+      begin
+        LibraryThread.ErrorCode := CR_OUT_OF_MEMORY;
+        LibraryThread.ErrorMessage := StrPas(CLIENT_ERRORS[CR_OUT_OF_MEMORY - CR_MIN_ERROR]);
+      end;
     end;
-  until (not Assigned(LibRow));
+  until (not LibraryThread.Success or not Assigned(LibRow));
 
-  if (not LibraryThread.Success) then
-  begin
-    LibraryThread.ErrorCode := CR_OUT_OF_MEMORY;
-    LibraryThread.ErrorMessage := StrPas(CLIENT_ERRORS[CR_OUT_OF_MEMORY - CR_MIN_ERROR]);
-  end
-  else
-  begin
-    LibraryThread.Success := LibraryThread.Success and (Lib.mysql_errno(LibraryThread.LibHandle) = 0);
-
-    LibraryThread.ErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);
-    LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
-  end;
+  DataSet.InternAddRecord(nil, nil);
 end;
 
 procedure TMySQLConnection.Terminate();
@@ -3605,12 +3604,6 @@ begin
     {$IFDEF Debug}
       MessageBox(Application.Handle, 'Terminate required!', 'Debug', MB_OK);
     {$ENDIF}
-
-    if (not Assigned(LibraryThread.RunExecute)) then // Debug 13.03.2013
-      if (LibraryThread.Terminated) then
-        raise ERangeError.CreateFmt(SPropertyOutOfRange + ' Terminated=%s', ['RunExecute', 'True'])
-      else
-        raise ERangeError.CreateFmt(SPropertyOutOfRange + ' Terminated=%s', ['RunExecute', 'False']);
 
     if (LibraryThread.IsRunning) then
     begin
@@ -4325,9 +4318,6 @@ procedure TMySQLQuery.InternalClose();
 begin
   if (Assigned(LibraryThread)) then
   begin
-    if (not Assigned(LibraryThread)) then // Debug 14.03.2013
-      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['LibraryThread']);
-
     LibraryThread.ReleaseDataSet();
     LibraryThread := nil;
   end;
@@ -4905,7 +4895,7 @@ begin
   inherited Clear();
   FilteredRecordCount := 0;
   Index := -1;
-  RecordReceived.ResetEvent();
+  Received.ResetEvent();
   CriticalSection.Leave();
 end;
 
@@ -5242,7 +5232,7 @@ begin
           if ((NewIndex + 1 = InternRecordBuffers.Count) and not Filtered
             and ((RecordsReceived.WaitFor(IGNORE) <> wrSignaled) or (Self is TMySQLTable) and TMySQLTable(Self).LimitedDataReceived and TMySQLTable(Self).AutomaticLoadNextRecords and TMySQLTable(Self).LoadNextRecords())
             and Assigned(LibraryThread)) then
-            InternRecordBuffers.RecordReceived.WaitFor(NET_WAIT_TIMEOUT * 1000);
+            InternRecordBuffers.Received.WaitFor(NET_WAIT_TIMEOUT * 1000);
 
           if (NewIndex >= InternRecordBuffers.Count - 1) then
             Result := grEOF
@@ -5255,7 +5245,7 @@ begin
         end;
 
         if (Result <> grEOF) then
-          InternRecordBuffers.RecordReceived.ResetEvent();
+          InternRecordBuffers.Received.ResetEvent();
       end;
     else // gmCurrent
       if (Filtered) then
@@ -5344,16 +5334,18 @@ var
   I: Integer;
   InternRecordBuffer: PInternRecordBuffer;
 begin
-  if (Assigned(LibRow)) then
+  if (not Assigned(LibRow)) then
+    Result := True
+  else
   begin
-    Data.LibLengths := LibLengths;
-    Data.LibRow := LibRow;
-
     InternRecordBuffer := AllocInternRecordBuffer();
     Result := Assigned(InternRecordBuffer);
 
     if (Result) then
     begin
+      Data.LibLengths := LibLengths;
+      Data.LibRow := LibRow;
+
       Result := MoveRecordBufferData(InternRecordBuffer^.OldData, @Data);
       if (not Result) then
         FreeInternRecordBuffer(InternRecordBuffer)
@@ -5376,20 +5368,18 @@ begin
         InternRecordBuffers.CriticalSection.Leave();
       end;
     end;
-  end
-  else
-  begin
-    Result := True;
+  end;
 
+  if (not Assigned(LibRow) or not Result) then
+  begin
     if ((Self is TMySQLTable) and Assigned(LibraryThread)) then
       TMySQLTable(Self).FLimitedDataReceived :=
-        not LibraryThread.Success or not Assigned(LibraryThread.DataSet)
-        or (Connection.Lib.mysql_num_rows(LibraryThread.ResHandle) = TMySQLTable(Self).RequestedRecordCount);
+        LibraryThread.Success and (Connection.Lib.mysql_num_rows(LibraryThread.ResHandle) = TMySQLTable(Self).RequestedRecordCount);
 
     RecordsReceived.SetEvent();
   end;
 
-  InternRecordBuffers.RecordReceived.SetEvent();
+  InternRecordBuffers.Received.SetEvent();
 end;
 
 procedure TMySQLDataSet.InternalAddRecord(Buffer: Pointer; Append: Boolean);
@@ -6882,7 +6872,7 @@ begin
   begin
     LibraryThread := Connection.LibraryThread;
     LibraryThread.BindDataSet(Self);
-    InternRecordBuffers.RecordReceived.WaitFor(INFINITE);
+    InternRecordBuffers.Received.WaitFor(INFINITE);
   end;
 end;
 

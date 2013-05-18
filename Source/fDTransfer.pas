@@ -83,7 +83,6 @@ type
     procedure CheckActivePageChange(const ActivePageIndex: Integer);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     function GetSession(const Index: Integer): TSSession;
-    procedure InitTSSelect(Sender: TObject);
     procedure OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure OnExecuted(const ASuccess: Boolean);
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
@@ -359,7 +358,7 @@ begin
     Preferences.Transfer.Structure := FStructure.Checked;
   end;
 
-  PageControl.ActivePage := TSSelect; // TSInformationsShow soll nicht vorzeitig aufgerufen werden
+  PageControl.ActivePage := nil; // Make sure, not ___OnShowPage will be executed
 end;
 
 procedure TDTransfer.FormShow(Sender: TObject);
@@ -397,8 +396,6 @@ begin
     else
       Sessions[I] := nil;
   end;
-
-  InitTSSelect(Sender);
 
   TSSelect.Enabled := True;
   TSWhat.Enabled := False;
@@ -446,160 +443,6 @@ begin
 
   if (Assigned(Result)) then
     Result.RegisterEventProc(FormSessionEvent);
-end;
-
-procedure TDTransfer.InitTSSelect(Sender: TObject);
-var
-  DatabaseNames: TStringList;
-  DatabaseNode: TTreeNode;
-  FSourceOnChange: TTVChangedEvent;
-  FDestinationOnChange: TTVChangedEvent;
-  I: Integer;
-  Node: TTreeNode;
-  SelectedNodes: TList;
-  AccountNode: TTreeNode;
-  TableNames: TStringList;
-  TableNode: TTreeNode;
-begin
-  FSourceOnChange := FSource.OnChange;
-  FSource.OnChange := nil;
-  FDestinationOnChange := FDestination.OnChange;
-  FDestination.OnChange := nil;
-
-  FSource.Items.BeginUpdate();
-  FSource.Items.Clear();
-  FSource.Items.EndUpdate();
-  FDestination.Items.BeginUpdate();
-  FDestination.Items.Clear();
-  FDestination.Items.EndUpdate();
-
-  for I := 0 to Accounts.Count - 1 do
-  begin
-    Node := FSource.Items.Add(nil, Accounts[I].Name);
-    Node.ImageIndex := iiServer;
-    Node.HasChildren := True;
-
-    Node := FDestination.Items.Add(nil, Accounts[I].Name);
-    Node.ImageIndex := iiServer;
-    Node.HasChildren := True;
-  end;
-
-  if (Assigned(SourceSession)) then
-  begin
-    SourceSession.BeginSynchron();
-
-    SelectedNodes := TList.Create();
-    DatabaseNames := TStringList.Create();
-    TableNames := TStringList.Create();
-
-    DatabaseNames.Text := ReplaceStr(SourceDatabaseName, ',', #13#10);
-    TableNames.Text := ReplaceStr(SourceTableName, ',', #13#10);
-
-    AccountNode := FSource.TopItem;
-    while (Assigned(AccountNode)) do
-    begin
-      if (AccountNode.Text = SourceSession.Account.Name) then
-      begin
-        if (DatabaseNames.Count = 0) then
-          AccountNode.Selected := True
-        else
-        begin
-          AccountNode.Expand(False);
-          DatabaseNode := AccountNode.getFirstChild();
-          while (Assigned(DatabaseNode)) do
-          begin
-            if (TableNames.Count = 0) then
-            begin
-              if (DatabaseNames.IndexOf(DatabaseNode.Text) >= 0) then
-                SelectedNodes.Add(DatabaseNode);
-            end
-            else if (DatabaseNames.IndexOf(DatabaseNode.Text) >= 0) then
-            begin
-              DatabaseNode.Expand(False);
-              TableNode := DatabaseNode.getFirstChild();
-              while (Assigned(TableNode)) do
-              begin
-                if (TableNames.IndexOf(TableNode.Text) >= 0) then
-                  SelectedNodes.Add(TableNode);
-                TableNode := TableNode.getNextSibling();
-              end;
-            end;
-            DatabaseNode := DatabaseNode.getNextSibling();
-          end;
-        end;
-        break;
-      end;
-      AccountNode := AccountNode.getNextSibling();
-    end;
-    if (SelectedNodes.Count > 0) then
-      FSource.Select(SelectedNodes)
-    else if (Assigned(AccountNode)) then
-      AccountNode.Selected := True;
-
-    DatabaseNames.Free();
-    TableNames.Free();
-    SourceSession.EndSynchron();
-
-    SelectedNodes.Clear();
-
-    if (Assigned(DestinationSession)) then
-    begin
-      DestinationSession.BeginSynchron();
-
-      AccountNode := FDestination.Items[0];
-      while (Assigned(AccountNode)) do
-      begin
-        if (AccountNode.Text = DestinationSession.Account.Name) then
-        begin
-          AccountNode.Selected := True;
-          if (DestinationDatabaseName <> '') then
-          begin
-            DestinationSession.Databases.Update();
-
-            AccountNode.Expand(False);
-            DatabaseNode := AccountNode.getFirstChild();
-            while (Assigned(DatabaseNode)) do
-            begin
-              if (DatabaseNode.Text = DestinationDatabaseName) then
-              begin
-                if (DestinationTableName = '') then
-                  SelectedNodes.Add(DatabaseNode)
-                else
-                begin
-                  DatabaseNode.Expand(False);
-                  TableNode := DatabaseNode.getFirstChild();
-                  while (Assigned(TableNode)) do
-                  begin
-                    if (TableNode.Text = DestinationTableName) then
-                      SelectedNodes.Add(TableNode);
-                    TableNode := DatabaseNode.getNextChild(TableNode);
-                  end;
-                end;
-              end;
-              DatabaseNode := DatabaseNode.getNextSibling();
-            end;
-          end;
-        end;
-        AccountNode := AccountNode.getNextSibling();
-      end;
-      if (SelectedNodes.Count > 0) then
-        FDestination.Select(SelectedNodes)
-      else if (Assigned(AccountNode)) then
-        AccountNode.Selected := True;
-
-      DestinationSession.EndSynchron();
-    end;
-
-    SelectedNodes.Free();
-
-    if (Assigned(FDestination.Selected) and FDestination.AutoExpand) then
-      FDestination.Selected.Expand(False);
-  end;
-
-  TreeViewChange(Sender, nil);
-
-  FSource.OnChange := FSourceOnChange;
-  FDestination.OnChange := FDestinationOnChange;
 end;
 
 procedure TDTransfer.miSelectAllClick(Sender: TObject);
@@ -790,7 +633,7 @@ procedure TDTransfer.TSExecuteShow(Sender: TObject);
 var
   Answer: Integer;
 
-  procedure AddTable(const DestinationTable: TSTable; const DestinationSession: TSSession; const DestinationDatabaseName: string);
+  procedure AddTable(const SourceTable: TSTable; const DestinationSession: TSSession; const DestinationDatabaseName: string);
   var
     DestinationDatabase: TSDatabase;
     DestinationTableName: string;
@@ -798,10 +641,10 @@ var
     if (Answer <> IDYESALL) then
     begin
       DestinationDatabase := DestinationSession.DatabaseByName(DestinationDatabaseName);
+      DestinationTableName := DestinationSession.TableName(SourceTable.Name);
       if (Assigned(DestinationDatabase)) then
       begin
         DestinationSession.BeginSynchron();
-        DestinationTableName := DestinationSession.TableName(DestinationTable.Name);
         if (DestinationDatabase.Update() and Assigned(DestinationDatabase.TableByName(DestinationTableName))) then
           Answer := MsgBox(Preferences.LoadStr(700, DestinationDatabase.Name + '.' + DestinationTableName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);
         DestinationSession.EndSynchron();
@@ -809,7 +652,7 @@ var
     end;
 
     if (Answer in [IDYES, IDYESALL]) then
-      Transfer.Add(DestinationTable, DestinationDatabaseName)
+      Transfer.Add(SourceTable, DestinationDatabaseName)
     else if (Answer = IDCANCEL) then
       FreeAndNil(Transfer);
   end;
@@ -930,7 +773,158 @@ begin
 end;
 
 procedure TDTransfer.TSSelectShow(Sender: TObject);
+var
+  DatabaseNames: TStringList;
+  DatabaseNode: TTreeNode;
+  FSourceOnChange: TTVChangedEvent;
+  FDestinationOnChange: TTVChangedEvent;
+  I: Integer;
+  Node: TTreeNode;
+  SelectedNodes: TList;
+  AccountNode: TTreeNode;
+  TableNames: TStringList;
+  TableNode: TTreeNode;
 begin
+  FSourceOnChange := FSource.OnChange;
+  FSource.OnChange := nil;
+  FDestinationOnChange := FDestination.OnChange;
+  FDestination.OnChange := nil;
+
+  FSource.Items.BeginUpdate();
+  FSource.Items.Clear();
+  FSource.Items.EndUpdate();
+  FDestination.Items.BeginUpdate();
+  FDestination.Items.Clear();
+  FDestination.Items.EndUpdate();
+
+  for I := 0 to Accounts.Count - 1 do
+  begin
+    Node := FSource.Items.Add(nil, Accounts[I].Name);
+    Node.ImageIndex := iiServer;
+    Node.HasChildren := True;
+
+    Node := FDestination.Items.Add(nil, Accounts[I].Name);
+    Node.ImageIndex := iiServer;
+    Node.HasChildren := True;
+  end;
+
+  if (Assigned(SourceSession)) then
+  begin
+    SourceSession.BeginSynchron();
+
+    SelectedNodes := TList.Create();
+    DatabaseNames := TStringList.Create();
+    TableNames := TStringList.Create();
+
+    DatabaseNames.Text := ReplaceStr(SourceDatabaseName, ',', #13#10);
+    TableNames.Text := ReplaceStr(SourceTableName, ',', #13#10);
+
+    AccountNode := FSource.TopItem;
+    while (Assigned(AccountNode)) do
+    begin
+      if (AccountNode.Text = SourceSession.Account.Name) then
+      begin
+        if (DatabaseNames.Count = 0) then
+          AccountNode.Selected := True
+        else
+        begin
+          AccountNode.Expand(False);
+          DatabaseNode := AccountNode.getFirstChild();
+          while (Assigned(DatabaseNode)) do
+          begin
+            if (TableNames.Count = 0) then
+            begin
+              if (DatabaseNames.IndexOf(DatabaseNode.Text) >= 0) then
+                SelectedNodes.Add(DatabaseNode);
+            end
+            else if (DatabaseNames.IndexOf(DatabaseNode.Text) >= 0) then
+            begin
+              DatabaseNode.Expand(False);
+              TableNode := DatabaseNode.getFirstChild();
+              while (Assigned(TableNode)) do
+              begin
+                if (TableNames.IndexOf(TableNode.Text) >= 0) then
+                  SelectedNodes.Add(TableNode);
+                TableNode := TableNode.getNextSibling();
+              end;
+            end;
+            DatabaseNode := DatabaseNode.getNextSibling();
+          end;
+        end;
+        break;
+      end;
+      AccountNode := AccountNode.getNextSibling();
+    end;
+    if (SelectedNodes.Count > 0) then
+      FSource.Select(SelectedNodes)
+    else if (Assigned(AccountNode)) then
+      AccountNode.Selected := True;
+
+    DatabaseNames.Free();
+    TableNames.Free();
+    SourceSession.EndSynchron();
+
+    SelectedNodes.Clear();
+
+    if (Assigned(DestinationSession)) then
+    begin
+      DestinationSession.BeginSynchron();
+
+      AccountNode := FDestination.Items[0];
+      while (Assigned(AccountNode)) do
+      begin
+        if (AccountNode.Text = DestinationSession.Account.Name) then
+        begin
+          AccountNode.Selected := True;
+          if (DestinationDatabaseName <> '') then
+          begin
+            DestinationSession.Databases.Update();
+
+            AccountNode.Expand(False);
+            DatabaseNode := AccountNode.getFirstChild();
+            while (Assigned(DatabaseNode)) do
+            begin
+              if (DatabaseNode.Text = DestinationDatabaseName) then
+              begin
+                if (DestinationTableName = '') then
+                  SelectedNodes.Add(DatabaseNode)
+                else
+                begin
+                  DatabaseNode.Expand(False);
+                  TableNode := DatabaseNode.getFirstChild();
+                  while (Assigned(TableNode)) do
+                  begin
+                    if (TableNode.Text = DestinationTableName) then
+                      SelectedNodes.Add(TableNode);
+                    TableNode := DatabaseNode.getNextChild(TableNode);
+                  end;
+                end;
+              end;
+              DatabaseNode := DatabaseNode.getNextSibling();
+            end;
+          end;
+        end;
+        AccountNode := AccountNode.getNextSibling();
+      end;
+      if (SelectedNodes.Count > 0) then
+        FDestination.Select(SelectedNodes)
+      else if (Assigned(AccountNode)) then
+        AccountNode.Selected := True;
+
+      DestinationSession.EndSynchron();
+    end;
+
+    SelectedNodes.Free();
+
+    if (Assigned(FDestination.Selected) and FDestination.AutoExpand) then
+      FDestination.Selected.Expand(False);
+  end;
+
+  TreeViewChange(Sender, nil);
+
+  FSource.OnChange := FSourceOnChange;
+  FDestination.OnChange := FDestinationOnChange;
+
   CheckActivePageChange(TSSelect.PageIndex);
 end;
 

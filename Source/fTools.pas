@@ -663,9 +663,11 @@ type
   TTTransfer = class(TTExport)
   type
     TItem = class(TTool.TDBObjectItem)
+    private
+      FDestinationDatabaseName: string;
     public
-      DestinationDatabaseName: string;
-      constructor Create(const AItems: TTool.TItems; const ADBObject: TSDBObject);
+      constructor Create(const AItems: TTool.TItems; const ADBObject: TSDBObject; const ADestinationDatabaseName: string);
+      property DestinationDatabaseName: string read FDestinationDatabaseName;
     end;
   private
     FDestinationSession: TSSession;
@@ -679,7 +681,7 @@ type
     procedure ExecuteTableData(const Item: TItem; const DataHandle: TMySQLConnection.TDataResult);
     procedure ExecuteTableStructure(const Item: TItem);
   public
-    procedure Add(const ADBObject: TSDBObject; const DestinationDatabaseName: string); virtual;
+    procedure Add(const ADBObject: TSDBObject; const ADestinationDatabaseName: string); virtual;
     constructor Create(const ASourceSession, ADestinationSession: TSSession);
     property DestinationSession: TSSession read FDestinationSession;
   end;
@@ -2517,8 +2519,10 @@ begin
   if (Success = daSuccess) then
   begin
     NewTable := Database.BaseTableByName(Item.TableName);
+    Session.BeginSynchron();
     while ((Success <> daAbort) and not NewTable.Update()) do
       DoError(DatabaseError(Session), Item, True);
+    Session.EndSynchron();
 
     SetLength(Fields, NewTable.Fields.Count);
     for I := 0 to NewTable.Fields.Count - 1 do
@@ -7422,21 +7426,20 @@ end;
 
 { TTTransfer.TItem ************************************************************}
 
-constructor TTTransfer.TItem.Create(const AItems: TTool.TItems; const ADBObject: TSDBObject);
+constructor TTTransfer.TItem.Create(const AItems: TTool.TItems; const ADBObject: TSDBObject; const ADestinationDatabaseName: string);
 begin
-  inherited;
+  inherited Create(AItems, ADBObject);
 
-  DestinationDatabaseName := '';
+  FDestinationDatabaseName := ADestinationDatabaseName;
 end;
 
 { TTTransfer ******************************************************************}
 
-procedure TTTransfer.Add(const ADBObject: TSDBObject; const DestinationDatabaseName: string);
+procedure TTTransfer.Add(const ADBObject: TSDBObject; const ADestinationDatabaseName: string);
 var
   NewItem: TItem;
 begin
-  NewItem := TItem.Create(Items, ADBObject);
-  NewItem.DestinationDatabaseName := DestinationDatabaseName;
+  NewItem := TItem.Create(Items, ADBObject, ADestinationDatabaseName);
 
   Items.Add(NewItem);
 end;

@@ -1688,22 +1688,20 @@ var
   I: my_int;
   Size: my_uint;
 begin
+  Assert((MoveMethod <> PACKET_CURRENT) or (DistanceToMove = 1));
+  Assert((Direction = idRead) or (MoveMethod in [FILE_CURRENT, PACKET_CURRENT]) and (DistanceToMove >= 1));
+
   if (Direction = idRead) then
   begin
-    if (MoveMethod = PACKET_CURRENT) then // Switch to next packet
+    if ((errno() <> 0) and (errno() <> CR_SERVER_GONE_ERROR)) then
+      Result := -1
+    else if (MoveMethod = PACKET_CURRENT) then // Switch to next packet
     begin
-      if ((DistanceToMove < 1) or ((errno() <> 0) and (errno() <> CR_SERVER_GONE_ERROR))) then
+      if (not ReceivePacket()) then
         Result := -1
       else
-      begin
         Result := 0;
-        for I := 0 to DistanceToMove - 1 do
-          if ((Result = 0) and not ReceivePacket()) then
-            Result := -1;
-      end;
     end
-    else if ((errno() <> 0) and (errno() <> CR_SERVER_GONE_ERROR)) then
-      Result := -1
     else // Move inside a packet
     begin
       case (MoveMethod) of
@@ -1718,42 +1716,28 @@ begin
         FReadFileBuffer.Offset := Result;
     end;
   end
-  else
-  begin
-    if (DistanceToMove <= 0) then
-    begin
-      Seterror(CR_UNKNOWN_ERROR);
-      Result := -1;
-    end
-    else
-      case (MoveMethod) of
-        FILE_CURRENT:
-          begin
-            for I := 0 to DistanceToMove - 1 do WriteFile(0, 1);
-            Result := PacketBuffer.Size - PacketBuffer.Offset;
-          end;
-        PACKET_CURRENT:
-          begin
-            for I := 0 to DistanceToMove - 1 do
-            begin
-              Size := PacketBuffer.Size - (PacketBuffer.Offset + NET_HEADER_SIZE);
-              Move(Size, PacketBuffer.Mem[PacketBuffer.Offset], 3);
-              Move(PacketNr, PacketBuffer.Mem[PacketBuffer.Offset + 3], 1);
-              PacketNr := (PacketNr + 1) and $FF;
+  else // idWrite
+    case (MoveMethod) of
+      FILE_CURRENT:
+        begin
+          for I := 0 to DistanceToMove - 1 do WriteFile(0, 1);
+          Result := PacketBuffer.Size - PacketBuffer.Offset;
+        end;
+      PACKET_CURRENT: // Switch to next packet
+        begin
+          Size := PacketBuffer.Size - (PacketBuffer.Offset + NET_HEADER_SIZE);
+          Move(Size, PacketBuffer.Mem[PacketBuffer.Offset], 3);
+          Move(PacketNr, PacketBuffer.Mem[PacketBuffer.Offset + 3], 1);
+          PacketNr := (PacketNr + 1) and $FF;
 
-              PacketBuffer.Offset := PacketBuffer.Size;
-              Inc(PacketBuffer.Size, NET_HEADER_SIZE); // Reserve space for packet header
-            end;
+          PacketBuffer.Offset := PacketBuffer.Size;
+          Inc(PacketBuffer.Size, NET_HEADER_SIZE); // Reserve space for packet header
 
-            Result := 0;
-          end;
-        else
-          begin
-            Seterror(CR_UNKNOWN_ERROR);
-            Result := -1;
-          end;
-      end;
-  end;
+          Result := 0;
+        end;
+      else // Cannot occur, but for compiler warning...
+        Result := -1;
+    end;
 end;
 
 procedure TMySQL_File.SetDirection(ADirection: TMySQL_IO.TDirection);
