@@ -1056,6 +1056,9 @@ begin
     end;
   FBHelp.Visible := HelpContext >= 0;
 
+  FDataSource.Text := '';
+  FFilename.Text := '';
+
   FEngine.Clear();
   if (Session.Engines.Count = 0) then
     FEngine.Style := csDropDown
@@ -1120,8 +1123,8 @@ begin
       itODBC: FODBC.Checked := True;
       itXMLFile: FXMLFile.Checked := True;
     end;
-    FFilename.Text := Job.Filename;
     FDataSource.Text := Job.ODBC.DataSource;
+    FFilename.Text := Job.Filename;
     FJobOptionChange(Sender);
     DODBC.DataSource := Job.ODBC.DataSource;
     DODBC.Username := Job.ODBC.Username;
@@ -1138,10 +1141,12 @@ begin
     end;
 
     TSTablesShow(nil);
-    for I := 0 to Length(Job.SourceObjects) - 1 do
-      for J := 0 to FTables.Items.Count - 1 do
-        if (FTables.Items[J].Caption = Job.SourceObjects[I].Name) then
-          FTables.Items[J].Selected := True;
+    for I := 0 to FTables.Items.Count - 1 do
+      for J := 0 to Length(Job.SourceObjects) - 1 do
+      begin // why is this needed here??? (Without it, it will be executed too many times
+        if (TTableName(FTables.Items[I].Data).SourceName = Job.SourceObjects[J].Name) then
+          FTables.Items[I].Selected := True;
+      end;
 
     FStructure.Checked := Job.Structure;
     FData.Checked := Job.Data;
@@ -1206,7 +1211,7 @@ begin
       itODBC: Import := TTImportODBC.Create(Session, Database, DODBC.DataSource, DODBC.Username, DODBC.Password);
       itXMLFile: if (SObject is TSBaseTable) then Import := TTImportXML.Create(Filename, TSBaseTable(SObject));
     end
-  else
+  else if (DialogType in [idtCreateJob, idtEditJob]) then
     Import := nil;
 
   TSJob.Enabled := DialogType in [idtCreateJob, idtEditJob];
@@ -1242,7 +1247,7 @@ begin
     PageControl.Visible := Boolean(Perform(CM_POST_AFTEREXECUTESQL, 0, 0));
   PSQLWait.Visible := not PageControl.Visible;
 
-  FBBack.Visible := (DialogType <> idtNormal) or not (ImportType in [itSQLFile]);
+  FBBack.Visible := (DialogType in [idtNormal, idtCreateJob, idtEditJob]) and not (ImportType in [itSQLFile]);
   FBForward.Visible := FBBack.Visible;
   FBCancel.ModalResult := mrCancel;
   FBCancel.Caption := Preferences.LoadStr(30);
@@ -1269,18 +1274,18 @@ end;
 
 procedure TDImport.FSelectChange(Sender: TObject; Node: TTreeNode);
 begin
-  if (Assigned(FSelect.Selected)) then
-  begin
+  if (not Assigned(FSelect.Selected)) then
+    SObject := nil
+  else
     SObject := TSObject(FSelect.Selected.Data);
 
-    TSTables.Enabled := (SObject is TSObject) and (ImportType in [itAccessFile, itExcelFile, itODBC]);
-    TSCSVOptions.Enabled := (ImportType in [itTextFile]);
-    TSXMLOptions.Enabled := (SObject is TSTable) and (ImportType in [itXMLFile]);
-    TSWhat.Enabled := (not Assigned(SObject) or (SObject is TSDatabase)) and (ImportType <> itSQLFile);
-    TSTask.Enabled := (ImportType = itSQLFile);
+  TSTables.Enabled := (SObject is TSObject) and (ImportType in [itAccessFile, itExcelFile, itODBC]);
+  TSCSVOptions.Enabled := (ImportType in [itTextFile]);
+  TSXMLOptions.Enabled := (SObject is TSTable) and (ImportType in [itXMLFile]);
+  TSWhat.Enabled := not Assigned(SObject) and (ImportType = itSQLFile) or (SObject is TSDatabase);
+  TSTask.Enabled := (ImportType = itSQLFile);
 
-    CheckActivePageChange(TSSelect.PageIndex);
-  end;
+  CheckActivePageChange(TSSelect.PageIndex);
 end;
 
 procedure TDImport.FSelectExpanding(Sender: TObject; Node: TTreeNode;
@@ -1940,39 +1945,32 @@ begin
   begin
     TableNames.Clear();
 
+    StringList := TStringList.Create();
     case (ImportType) of
       itExcelFile:
         begin
           Import := TTImportExcel.Create(Session, nil, Filename);
-          StringList := TStringList.Create();
-          if (TTImportExcel(Import).GetTableNames(StringList)) then
-            for I := 0 to StringList.Count - 1 do
-              TableNames.Add(StringList[I]);
-          StringList.Free();
+          TTImportExcel(Import).GetTableNames(StringList);
           Import.Free();
         end;
       itAccessFile:
         begin
           Import := TTImportAccess.Create(Session, nil, Filename);
-          StringList := TStringList.Create();
-          if (TTImportAccess(Import).GetTableNames(StringList)) then
-            for I := 0 to StringList.Count - 1 do
-              TableNames.Add(StringList[I]);
-          StringList.Free();
+          TTImportAccess(Import).GetTableNames(StringList);
           Import.Free();
         end;
       itODBC:
         begin
           Import := TTImportODBC.Create(Session, nil, DODBC.DataSource, DODBC.Username, DODBC.Password);
-          StringList := TStringList.Create();
-          if (TTImportODBC(Import).GetTableNames(StringList)) then
-            for I := 0 to StringList.Count - 1 do
-              TableNames.Add(StringList[I]);
-          StringList.Free();
+          TTImportODBC(Import).GetTableNames(StringList);
           Import.Free();
         end;
     end;
+    for I := 0 to StringList.Count - 1 do
+      TableNames.Add(StringList[I]);
+    StringList.Free();
 
+    FTables.MultiSelect := not (SObject is TSBaseTable);
     FTables.SortType := stNone;
     FTables.Items.BeginUpdate();
     for I := 0 to TableNames.Count - 1 do
@@ -1988,7 +1986,6 @@ begin
     FTables.Column[0].Width := ColumnTextWidth;
     FTables.Column[0].AutoSize := True;
 
-    FTables.MultiSelect := not (SObject is TSBaseTable);
     if (FTables.Items.Count = 1) then
     begin
       FTables.Selected := FTables.Items[0];
