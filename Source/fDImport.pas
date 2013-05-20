@@ -183,6 +183,7 @@ type
     procedure FBDataSourceClick(Sender: TObject);
     procedure TSSelectShow(Sender: TObject);
     procedure TSTaskShow(Sender: TObject);
+    procedure TSJobHide(Sender: TObject);
   type
     TTableName = class
     private
@@ -845,8 +846,6 @@ end;
 
 procedure TDImport.FormCreate(Sender: TObject);
 begin
-  Import := nil;
-
   FSelect.Images := Preferences.SmallImages;
   FTables.SmallImages := Preferences.SmallImages;
 
@@ -867,6 +866,8 @@ begin
   SendMessage(FErrorMessages.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
 
   PageControl.ActivePage := nil; // Make sure, not ___OnShowPage will be executed
+  FDataSource.Text := '';
+  FFilename.Text := '';
 end;
 
 procedure TDImport.FormHide(Sender: TObject);
@@ -990,6 +991,9 @@ begin
     end;
   end;
 
+  FDataSource.Text := '';
+  FFilename.Text := '';
+
   FSelect.Items.BeginUpdate();
   FSelect.Items.Clear();
   FSelect.Items.EndUpdate();
@@ -1055,9 +1059,6 @@ begin
       else HelpContext := -1;
     end;
   FBHelp.Visible := HelpContext >= 0;
-
-  FDataSource.Text := '';
-  FFilename.Text := '';
 
   FEngine.Clear();
   if (Session.Engines.Count = 0) then
@@ -1202,7 +1203,9 @@ begin
       FCharset.ItemIndex := FCharset.Items.IndexOf('utf8');
   FCharsetChange(Sender);
 
-  if (DialogType in [idtNormal, idtExecuteJob]) then
+  if (DialogType in [idtCreateJob, idtEditJob]) then
+    Import := nil
+  else
     case (ImportType) of
       itSQLFile: Import := TTImportSQL.Create(Filename, CodePage, Session, Database);
       itTextFile: Import := TTImportText.Create(Filename, CodePage, Session, Database);
@@ -1210,9 +1213,7 @@ begin
       itExcelFile: Import := TTImportExcel.Create(Session, Database, Filename);
       itODBC: Import := TTImportODBC.Create(Session, Database, DODBC.DataSource, DODBC.Username, DODBC.Password);
       itXMLFile: if (SObject is TSBaseTable) then Import := TTImportXML.Create(Filename, TSBaseTable(SObject));
-    end
-  else if (DialogType in [idtCreateJob, idtEditJob]) then
-    Import := nil;
+    end;
 
   TSJob.Enabled := DialogType in [idtCreateJob, idtEditJob];
   TSSelect.Enabled := DialogType in [idtEditJob];
@@ -1870,6 +1871,21 @@ begin
   TSFieldsChange(Sender);
 end;
 
+procedure TDImport.TSJobHide(Sender: TObject);
+begin
+  if (Assigned(Import)) then
+    Import.Free();
+
+  case (ImportType) of
+    itSQLFile: Import := TTImportSQL.Create(Filename, CodePage, Session, Database);
+    itTextFile: Import := TTImportText.Create(Filename, CodePage, Session, Database);
+    itAccessFile: Import := TTImportAccess.Create(Session, Database, Filename);
+    itExcelFile: Import := TTImportExcel.Create(Session, Database, Filename);
+    itODBC: Import := TTImportODBC.Create(Session, Database, DODBC.DataSource, DODBC.Username, DODBC.Password);
+    itXMLFile: if (SObject is TSBaseTable) then Import := TTImportXML.Create(Filename, TSBaseTable(SObject));
+  end;
+end;
+
 procedure TDImport.TSStmtTypeShow(Sender: TObject);
 var
   I: Integer;
@@ -1936,7 +1952,6 @@ end;
 
 procedure TDImport.TSTablesShow(Sender: TObject);
 var
-  Import: TTImport;
   I: Integer;
   ListItem: TListItem;
   StringList: TStringList;
@@ -1948,23 +1963,11 @@ begin
     StringList := TStringList.Create();
     case (ImportType) of
       itExcelFile:
-        begin
-          Import := TTImportExcel.Create(Session, nil, Filename);
-          TTImportExcel(Import).GetTableNames(StringList);
-          Import.Free();
-        end;
+        TTImportExcel(Import).GetTableNames(StringList);
       itAccessFile:
-        begin
-          Import := TTImportAccess.Create(Session, nil, Filename);
-          TTImportAccess(Import).GetTableNames(StringList);
-          Import.Free();
-        end;
+        TTImportAccess(Import).GetTableNames(StringList);
       itODBC:
-        begin
-          Import := TTImportODBC.Create(Session, nil, DODBC.DataSource, DODBC.Username, DODBC.Password);
-          TTImportODBC(Import).GetTableNames(StringList);
-          Import.Free();
-        end;
+        TTImportODBC(Import).GetTableNames(StringList);
     end;
     for I := 0 to StringList.Count - 1 do
       TableNames.Add(StringList[I]);

@@ -3240,6 +3240,8 @@ const
 var
   cbTABLE_NAME: SQLINTEGER;
   cbTABLE_TYPE: SQLINTEGER;
+  Found: Boolean;
+  I: Integer;
   Stmt: SQLHSTMT;
   TableName: string;
   TABLE_NAME: PSQLTCHAR;
@@ -3291,6 +3293,16 @@ begin
             SQLFreeStmt(Stmt, SQL_CLOSE);
           end;
 
+        if (Self is TTImportExcel) then
+        begin
+          Found := False;
+          for I := 0 to TableNames.Count - 1 do
+            Found := Found or (Pos('$', TableNames[I]) > 0);
+          if (Found) then
+            for I := TableNames.Count - 1 downto 0 do
+              if (Pos('$', TableNames[I]) = 0) then
+                TableNames.Delete(I);
+        end;
         Result := True;
       end;
 
