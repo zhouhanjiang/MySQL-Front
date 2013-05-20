@@ -880,7 +880,8 @@ var
 begin
   Session.UnRegisterEventProc(FormSessionEvent);
 
-  Import.Free();
+  if (Assigned(Import)) then
+    Import.Free();
 
   if (ModalResult = mrOk) then
   begin
@@ -920,7 +921,6 @@ begin
     if (DialogType in [idtCreateJob, idtEditJob]) then
     begin
       if (Assigned(FSelect.Selected)) then
-      begin
         if (not Assigned(FSelect.Selected.Parent)) then
           TAJobImport(PImport).JobObject.ObjectType := jotServer
         else if (TObject(FSelect.Selected.Data) is TSDatabase) then
@@ -935,7 +935,6 @@ begin
           TAJobImport(PImport).JobObject.Name := TSDBObject(FSelect.Selected.Data).Name;
           TAJobImport(PImport).JobObject.DatabaseName := TSDBObject(FSelect.Selected.Data).Database.Name;
         end;
-      end;
       TAJobImport(PImport).CodePage := CodePage;
       TAJobImport(PImport).ImportType := ImportType;
       TAJobImport(PImport).Filename := FFilename.Text;
@@ -1025,6 +1024,7 @@ var
 begin
   Session.RegisterEventProc(FormSessionEvent);
 
+  Import := nil;
   TableNames := TTableNames.Create();
 
   ModalResult := mrNone;
@@ -1131,6 +1131,12 @@ begin
     DODBC.Username := Job.ODBC.Username;
     DODBC.Password := Job.ODBC.Password;
 
+    FStructure.Checked := Job.Structure;
+    FData.Checked := Job.Data;
+    FEngine.ItemIndex := FEngine.Items.IndexOf(Job.Engine);
+    FCharset.ItemIndex := FCharset.Items.IndexOf(Job.Charset);
+    FRowFormat.ItemIndex := Job.RowType;
+
     case (Job.JobObject.ObjectType) of
       jotServer: Database := nil;
       jotDatabase: Database := Session.DatabaseByName(Job.JobObject.Name);
@@ -1140,7 +1146,12 @@ begin
       jotTrigger,
       jotEvent: Database := Session.DatabaseByName(Job.JobObject.DatabaseName);
     end;
+    case (Job.JobObject.ObjectType) of
+      jotTable:
+        SObject := Database.TableByName(Job.JobObject.Name);
+    end;
 
+    TSJobHide(Sender);
     TSTablesShow(nil);
     for I := 0 to FTables.Items.Count - 1 do
       for J := 0 to Length(Job.SourceObjects) - 1 do
@@ -1148,12 +1159,7 @@ begin
         if (TTableName(FTables.Items[I].Data).SourceName = Job.SourceObjects[J].Name) then
           FTables.Items[I].Selected := True;
       end;
-
-    FStructure.Checked := Job.Structure;
-    FData.Checked := Job.Data;
-    FEngine.ItemIndex := FEngine.Items.IndexOf(Job.Engine);
-    FCharset.ItemIndex := FCharset.Items.IndexOf(Job.Charset);
-    FRowFormat.ItemIndex := Job.RowType;
+    InitTSFields(nil);
 
     FStartDate.Date := Job.Start; FStartTime.Time := Job.Start;
     case (Job.TriggerType) of
@@ -1188,6 +1194,8 @@ begin
       FCharset.ItemIndex := FCharset.Items.IndexOf(Preferences.Import.Charset);
       FRowFormat.ItemIndex := Preferences.Import.RowType;
     end;
+
+    TSJobHide(Sender);
   end;
 
   if (FEngine.ItemIndex < 0) then
@@ -1203,18 +1211,6 @@ begin
       FCharset.ItemIndex := FCharset.Items.IndexOf('utf8');
   FCharsetChange(Sender);
 
-  if (DialogType in [idtCreateJob, idtEditJob]) then
-    Import := nil
-  else
-    case (ImportType) of
-      itSQLFile: Import := TTImportSQL.Create(Filename, CodePage, Session, Database);
-      itTextFile: Import := TTImportText.Create(Filename, CodePage, Session, Database);
-      itAccessFile: Import := TTImportAccess.Create(Session, Database, Filename);
-      itExcelFile: Import := TTImportExcel.Create(Session, Database, Filename);
-      itODBC: Import := TTImportODBC.Create(Session, Database, DODBC.DataSource, DODBC.Username, DODBC.Password);
-      itXMLFile: if (SObject is TSBaseTable) then Import := TTImportXML.Create(Filename, TSBaseTable(SObject));
-    end;
-
   TSJob.Enabled := DialogType in [idtCreateJob, idtEditJob];
   TSSelect.Enabled := DialogType in [idtEditJob];
   TSTables.Enabled := (DialogType in [idtNormal, idtCreateJob, idtEditJob]) and (ImportType in [itAccessFile, itExcelFile, itODBC]);
@@ -1228,8 +1224,6 @@ begin
 
   if (TSFields.Enabled) then
     InitTSFields(Sender);
-  if (not TSTables.Enabled) then
-    TSTablesHide(Sender);
 
   for I := 0 to PageControl.PageCount - 1 do
     if ((PageControl.ActivePageIndex < 0) and PageControl.Pages[I].Enabled) then

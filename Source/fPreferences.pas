@@ -3410,8 +3410,8 @@ begin
   XMLNode(XML, 'type').Text := ImportTypeToStr(ImportType);
 
   XMLNode(XML, 'object').Attributes['name'] := JobObject.Name;
-  if (JobObject.ObjectType in [jotTable]) then
-    XMLNode(XML, 'object').Attributes['databasename'] := JobObject.DatabaseName;
+  if (JobObject.ObjectType in [jotTable, jotProcedure, jotFunction, jotTrigger, jotEvent]) then
+    XMLNode(XML, 'object').Attributes['database'] := JobObject.DatabaseName;
   XMLNode(XML, 'object').Attributes['type'] := ObjectTypeToStr(JobObject.ObjectType);
 
   if (Assigned(XMLNode(XML, 'sources'))) then

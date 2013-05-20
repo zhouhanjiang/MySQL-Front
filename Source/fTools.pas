@@ -3028,7 +3028,7 @@ begin
           end;
           if ((DriverVer >= 3) and (cbColumnDef > 0)) then
           begin
-            SetString(S, ColumnDef, cbColumnDef);
+            SetString(S, ColumnDef, cbColumnDef div SizeOf(SQLTCHAR));
             while ((Length(S) > 0) and (S[Length(S)] = #0)) do
               Delete(S, Length(S), 1);
             if (SysUtils.UpperCase(S) = 'NULL') then
@@ -3205,7 +3205,7 @@ end;
 function TTImportBaseODBC.GetFieldNames(const TableName: string; const FieldNames: TStrings): Boolean;
 var
   cbCOLUMN_NAME: SQLINTEGER;
-  COLUMN_NAME: array [0 .. STR_LEN] of SQLWCHAR;
+  COLUMN_NAME: array [0 .. STR_LEN] of SQLTCHAR;
   Stmt: SQLHSTMT;
   FieldName: string;
 begin
@@ -3224,7 +3224,7 @@ begin
       ODBCException(Handle, SQLBindCol(Stmt, 4, SQL_C_WCHAR, @COLUMN_NAME, SizeOf(COLUMN_NAME), @cbCOLUMN_NAME));
       while (SQL_SUCCEEDED(ODBCException(Stmt, SQLFetch(Stmt)))) do
       begin
-        SetString(FieldName, PChar(@COLUMN_NAME), cbCOLUMN_NAME);
+        SetString(FieldName, PChar(@COLUMN_NAME), cbCOLUMN_NAME div SizeOf(SQLTCHAR));
         FieldNames.Add(FieldName);
       end;
 

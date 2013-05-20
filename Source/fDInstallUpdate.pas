@@ -520,8 +520,6 @@ begin
 end;
 
 procedure TDInstallUpdate.FormShow(Sender: TObject);
-var
-  Major, Minor, Patch, Build: Integer;
 begin
   PAD_Stream := TStringStream.Create('');
   EXE_Stream := nil;
@@ -531,33 +529,20 @@ begin
 
   SendMessage(Handle, CM_UPDATE_PROGRESSBAR, 0, 100);
 
-  if (AvailableUpdate < 0) then
-  begin
-    FVersionInfo.Caption := Preferences.LoadStr(663) + ' ...';
-    FVersionInfo.Enabled := True;
+  FVersionInfo.Caption := Preferences.LoadStr(663) + ' ...';
+  FVersionInfo.Enabled := True;
 
-    HTTPThread := THTTPMessagedThread.Create(True);
-    HTTPThread.URI := SysUtils.LoadStr(1005);
-    HTTPThread.Stream := PAD_Stream;
-    HTTPThread.Wnd := Handle;
-    HTTPThread.SuccessMessage := CM_PAD_FILE_RECEIVED;
+  HTTPThread := THTTPMessagedThread.Create(True);
+  HTTPThread.URI := SysUtils.LoadStr(1005);
+  HTTPThread.Stream := PAD_Stream;
+  HTTPThread.Wnd := Handle;
+  HTTPThread.SuccessMessage := CM_PAD_FILE_RECEIVED;
 
-    SendMessage(Handle, CM_UPDATE_PROGRESSBAR, 10, 100);
+  HTTPThread.Start();
 
-    HTTPThread.Start();
+  PostMessage(Handle, CM_UPDATE_PROGRESSBAR, 10, 100);
 
-    FBOk.Enabled := False;
-  end
-  else
-  begin
-    DecodeVersion(AvailableUpdate, Major, Minor, Patch, Build);
-    FVersionInfo.Caption := Preferences.LoadStr(663) + ': ' + IntToStr(Major) + '.' + IntToStr(Minor) + '  (Build ' + IntToStr(Patch) + '.' + IntToStr(Build) + ')';
-    FVersionInfo.Enabled := True;
-
-    FBOk.Visible := not Silent;
-    if (not FBOk.Visible) then
-      FBOk.OnClick(nil);
-  end;
+  FBOk.Enabled := False;
 
   FBCancel.OnClick := FBCancelClick;
 
