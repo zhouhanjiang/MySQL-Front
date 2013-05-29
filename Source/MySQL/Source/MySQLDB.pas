@@ -3641,7 +3641,7 @@ end;
 
 function TMySQLConnection.UseCompression(): Boolean;
 begin
-  Result := (LibraryType = ltHTTP) or not ((lstrcmpi(PChar(Host), LOCAL_HOST) = 0) or (Host = '127.0.0.1') or (Host = '::1'));
+  Result := True; // (LibraryType = ltHTTP) or not ((lstrcmpi(PChar(Host), LOCAL_HOST) = 0) or (Host = '127.0.0.1') or (Host = '::1'));
 end;
 
 function TMySQLConnection.UseLibraryThread(): Boolean;
@@ -4696,7 +4696,7 @@ begin
     StmtLength := SQLTrimStmt(FCommandText, 1, Length(FCommandText), StartingCommentLength, EndingCommentLength);
     Index := 1 + StartingCommentLength + StmtLength - 1;
     if ((1 <= Index) and (FCommandText[Index] = ';')) then Dec(StmtLength);
-    FCommandText := Copy(FCommandText, StartingCommentLength, StmtLength);
+    FCommandText := Trim(Copy(FCommandText, StartingCommentLength, StmtLength));
 
     FDatabaseName := Connection.DatabaseName;
   end;
@@ -6393,8 +6393,6 @@ begin
     end
     else
     begin
-      FCanModify := Self is TMySQLTable;
-
       for I := 0 to FieldCount - 1 do
         Fields[I].ProviderFlags := Fields[I].ProviderFlags + [pfInWhere];
     end;

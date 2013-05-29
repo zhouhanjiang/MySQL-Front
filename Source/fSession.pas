@@ -12017,7 +12017,12 @@ var
   Table: TSBaseTable;
   UniqueTable: Boolean;
 begin
-  if (not (DataSet is TSTableDataSet) or Assigned(DatabaseByName(DataSet.DatabaseName).ViewByName(DataSet.TableName))) then
+  if (DataSet is TSTableDataSet) then
+  begin
+    OriginalDatabaseName := DataSet.DatabaseName;
+    OriginalTableName := DataSet.CommandText;
+  end
+  else
   begin
     OriginalTableName := ''; UniqueTable := True;
     for I := 0 to DataSet.FieldCount - 1 do
@@ -12037,14 +12042,9 @@ begin
       OriginalDatabaseName := '';
       OriginalTableName := '';
     end;
-  end
-  else
-  begin
-    OriginalDatabaseName := DataSet.DatabaseName;
-    OriginalTableName := DataSet.CommandText;
   end;
 
-  if (Assigned(DatabaseByName(OriginalDatabaseName)) and (OriginalTableName <> '')) then
+  if (Assigned(DatabaseByName(OriginalDatabaseName))) then
   begin
     Table := DatabaseByName(OriginalDatabaseName).BaseTableByName(OriginalTableName);
     if (Assigned(Table)) then

@@ -184,6 +184,8 @@ type
     procedure TSSelectShow(Sender: TObject);
     procedure TSTaskShow(Sender: TObject);
     procedure TSJobHide(Sender: TObject);
+    procedure FTablesChange(Sender: TObject; Item: TListItem;
+      Change: TItemChange);
   type
     TTableName = class
     private
@@ -604,12 +606,17 @@ begin
   if (PageControl.ActivePageIndex = TSTask.PageIndex) then
     ModalResult := mrOk
   else
+  begin
+    if (PageControl.ActivePageIndex = TSJob.PageIndex) then
+      TSJobHide(Sender);
+
     for ActivePageIndex := PageControl.ActivePageIndex + 1 to PageControl.PageCount - 1 do
       if (PageControl.Pages[ActivePageIndex].Enabled) then
       begin
         PageControl.ActivePageIndex := ActivePageIndex;
         Exit;
       end;
+  end;
 end;
 
 procedure TDImport.FBHelpClick(Sender: TObject);
@@ -807,6 +814,8 @@ begin
 end;
 
 procedure TDImport.FJobOptionChange(Sender: TObject);
+var
+  Enabled: Boolean;
 begin
   if (FSQLFile.Checked) then
     ImportType := itSQLFile
@@ -830,11 +839,15 @@ begin
   FLDataSource.Visible := FDataSource.Visible;
   FBDataSource.Visible := FDataSource.Visible;
 
-  TSSelect.Enabled := ValidJobName(Trim(FName.Text))
+
+  Enabled := ValidJobName(Trim(FName.Text))
     and ((DialogType <> idtCreateJob) or not Assigned(Session.Account.JobByName(Trim(FName.Text))))
     and ((DialogType <> idtEditJob) or (Session.Account.JobByName(Trim(FName.Text)) = Job))
     and (not FFilename.Visible or (DirectoryExists(ExtractFilePath(FFilename.Text)) and (ExtractFileName(FFilename.Text) <> '')))
     and (not FDataSource.Visible or (FDataSource.Text <> ''));
+
+  TSTables.Enabled := (ImportType in [itExcelFile, itAccessFile, itODBC]) and Enabled;
+  TSSelect.Enabled := not TSTables.Enabled and Enabled;
 
   CheckActivePageChange(TSJob.PageIndex);
 end;
@@ -1212,8 +1225,8 @@ begin
   FCharsetChange(Sender);
 
   TSJob.Enabled := DialogType in [idtCreateJob, idtEditJob];
-  TSSelect.Enabled := DialogType in [idtEditJob];
   TSTables.Enabled := (DialogType in [idtNormal, idtCreateJob, idtEditJob]) and (ImportType in [itAccessFile, itExcelFile, itODBC]);
+  TSSelect.Enabled := DialogType in [idtEditJob];
   TSCSVOptions.Enabled := (ImportType in [itTextFile]);
   TSXMLOptions.Enabled := (SObject is TSTable) and (ImportType in [itXMLFile]);
   TSWhat.Enabled := False;
@@ -1247,6 +1260,7 @@ begin
   FBCancel.ModalResult := mrCancel;
   FBCancel.Caption := Preferences.LoadStr(30);
 
+  CheckActivePageChange(PageControl.ActivePageIndex);
   if (PageControl.Visible and TSJob.Visible) then
     ActiveControl := FName
   else if (FBForward.Visible and FBForward.Enabled) then
@@ -1274,10 +1288,9 @@ begin
   else
     SObject := TSObject(FSelect.Selected.Data);
 
-  TSTables.Enabled := (SObject is TSObject) and (ImportType in [itAccessFile, itExcelFile, itODBC]);
   TSCSVOptions.Enabled := (ImportType in [itTextFile]);
   TSXMLOptions.Enabled := (SObject is TSTable) and (ImportType in [itXMLFile]);
-  TSWhat.Enabled := not Assigned(SObject) and (ImportType = itSQLFile) or (SObject is TSDatabase);
+  TSWhat.Enabled := not Assigned(SObject) and (ImportType = itSQLFile) or (SObject is TSDatabase) or (SObject is TSTable) and (ImportType <> itSQLFile) and (FTables.SelCount = 1);
   TSTask.Enabled := (ImportType = itSQLFile);
 
   CheckActivePageChange(TSSelect.PageIndex);
@@ -1371,6 +1384,18 @@ end;
 procedure TDImport.FStructureKeyPress(Sender: TObject; var Key: Char);
 begin
   FStructureClick(Sender);
+end;
+
+procedure TDImport.FTablesChange(Sender: TObject; Item: TListItem;
+  Change: TItemChange);
+begin
+  TSSelect.Enabled := (DialogType in [idtCreateJob, idtEditJob, idtExecuteJob]) and Assigned(FTables.Selected);
+  TSCSVOptions.Enabled := (DialogType in [idtNormal]) and (ImportType in [itTextFile]);
+  TSXMLOptions.Enabled := (DialogType in [idtNormal]) and (SObject is TSTable) and (ImportType in [itXMLFile]);
+  TSWhat.Enabled := (DialogType in [idtNormal]) and not Assigned(SObject) and (ImportType = itSQLFile) or (SObject is TSDatabase) or (SObject is TSTable) and (ImportType <> itSQLFile) and (FTables.SelCount = 1);
+  TSTask.Enabled := (DialogType in [idtCreateJob, idtEditJob]) and (ImportType = itSQLFile);
+
+  CheckActivePageChange(TSTables.PageIndex);
 end;
 
 procedure TDImport.FTablesDblClick(Sender: TObject);

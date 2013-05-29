@@ -47,7 +47,7 @@ type
       const Bin: my_char; const Size: my_int; const Retry: Boolean): my_int; override;
     function Open(const AType: TMYSQL_IO.TType; const AHost, AUnixSocket: RawByteString;
       const APort, ATimeout: my_uint): Boolean; override;
-    function Receive(var Buffer; const BytesToRead: my_uint; out BytesRead: my_uint): Boolean; override;
+    function Receive(var Buffer; const BytesToRead: my_uint): Boolean; override;
     function Send(const Buffer; const BytesToWrite: my_uint): Boolean; override;
   public
     constructor Create(); override;
@@ -66,7 +66,7 @@ uses
   SQLUtils;
 
 const
-  RequiredTunnelVersion = 14;
+  RequiredMFVersion = 15;
 
 const
   HTTPTTUNNEL_ERRORS: array [0..9] of PChar = (
@@ -220,7 +220,8 @@ begin
     begin
       InternetSetOption(Request, INTERNET_OPTION_SECURITY_FLAGS, @SecurityFlags, SizeOf(SecurityFlags));
 
-      Headers := 'Content-Type: application/binary' + #10;
+      Headers := 'Content-Type: application/mysql-front' + #10;
+	    Headers := Headers + 'Content-Transfer-Encoding: binary' + #10;
       Headers := Headers + 'Keep-Alive: 300' + #10;
       if (not Connect) then
         Headers := Headers + 'Referer: ' + URL + #10;
@@ -282,7 +283,7 @@ begin
                 begin
                   Size := SizeOf(Buffer);
                   if (HttpQueryInfo(Request, HTTP_QUERY_CONTENT_TYPE, @Buffer, Size, Index) and (LowerCase(Buffer) <> 'application/mysql-front')) then
-                    if (not Receive(Buffer, SizeOf(Buffer), Size) or (Size = 0)) then
+                    if (not Receive(Buffer, SizeOf(Buffer)) or (Size = 0)) then
                       Seterror(CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR - CR_HTTPTUNNEL_UNKNOWN_ERROR], [Buffer])))
                     else
                     begin
@@ -292,10 +293,11 @@ begin
                 end;
               else
                 begin
-                  Seterror(CR_HTTPTUNNEL_SERVER_ERROR, RawByteString(StatusCode));
                   Size := SizeOf(Buffer); Index := 0;
-                  if (HttpQueryInfo(Request, HTTP_QUERY_STATUS_TEXT, @Buffer, Size, Index)) then
-                    Seterror(CR_HTTPTUNNEL_SERVER_ERROR, error() + ' ' + RawByteString(Buffer));
+                  if (not HttpQueryInfo(Request, HTTP_QUERY_STATUS_TEXT, @Buffer, Size, Index)) then
+                    Seterror(CR_HTTPTUNNEL_SERVER_ERROR, RawByteString(StatusCode))
+                  else
+                    Seterror(CR_HTTPTUNNEL_SERVER_ERROR, RawByteString(StatusCode) + ' ' + RawByteString(Buffer));
                 end;
             end;
           end;
@@ -397,7 +399,7 @@ begin
           if (ExecuteHTTPRequest(True)) then
           begin
             StrPCopy(@Buffer, 'MF-Version'); Size := SizeOf(Buffer); Index := 0;
-            if (not HttpQueryInfo(Request, HTTP_QUERY_CUSTOM, @Buffer, Size, Index) or (StrToInt(Buffer) < RequiredTunnelVersion)) then
+            if (not HttpQueryInfo(Request, HTTP_QUERY_CUSTOM, @Buffer, Size, Index) or (StrToInt(Buffer) < RequiredMFVersion)) then
               Seterror(CR_HTTPTUNNEL_OLD, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_OLD - CR_HTTPTUNNEL_UNKNOWN_ERROR], [URL])))
             else
             begin
@@ -486,8 +488,9 @@ begin
   end;
 end;
 
-function MYSQL.Receive(var Buffer; const BytesToRead: my_uint; out BytesRead: my_uint): Boolean;
+function MYSQL.Receive(var Buffer; const BytesToRead: my_uint): Boolean;
 var
+  BytesRead: my_uint;
   Size: DWord;
 begin
   BytesRead := 0;

@@ -8,8 +8,13 @@
 
 	/****************************************************************************/
 
-	$Version = 14;
+	define('MF_VERSION', 15);
 
+	define('MIN_COMPRESS_LENGTH', 50);
+	define('NET_BUFFER_LENGTH', 0x4000);
+	define('NET_HEADER_SIZE', 4);
+	define('COMP_HEADER_SIZE', 3);
+	
 	$Charsets = array(
 		'big5' => 1,
 		'czech' => 2,
@@ -46,17 +51,12 @@
 	/****************************************************************************/
 	
 	function FlushPackets() {
-		global $CompPacketNr;
-		global $PacketNr;
 		global $SendPacketBuffer;
 		
 		if ($SendPacketBuffer) {
 			SendCompressedPacket($SendPacketBuffer);
 			$SendPacketBuffer = '';
 		}
-		
-		if ($_SESSION['compress'])
-			$PacketNr = $CompPacketNr;
 	}
 	
 	function PackLength($Length) {
@@ -79,13 +79,13 @@
 		} else {
 			$Packet = '';
 			do {
-				$a = unpack('V', substr($ReceivePacketBuffer, $ReceivePacketBufferOffset + 0, 3) . "\x00"); $Size = $a[1];
-				$a = unpack('C', substr($ReceivePacketBuffer, $ReceivePacketBufferOffset + 3, 1)); $Nr = $a[1];
+				$Size = unpack('V', substr($ReceivePacketBuffer, $ReceivePacketBufferOffset + 0, 3) . "\x00")[1];
+				$Nr = unpack('C', substr($ReceivePacketBuffer, $ReceivePacketBufferOffset + 3, 1))[1];
 				
 				$Packet .= substr($ReceivePacketBuffer, $ReceivePacketBufferOffset + 4, $Size);
 				
 				$ReceivePacketBufferOffset += 4 + $Size;
-			} while ($Size == 0xFFFFFE);
+			} while ($Size == 0xFFFFFF);
 			
 			$MorePackets = $ReceivePacketBufferOffset < strlen($ReceivePacketBuffer);
 			
@@ -94,42 +94,49 @@
 	}
 	
 	function SendCompressedPacket($Packet) {
-		global $CompPacketNr;
+		global $PacketNr;
 		
-		if (strlen($Packet) < 50)
-			$CompressedPacket = "\x00\x00\x00" . $Packet;
+		if (strlen($Packet) >= MIN_COMPRESS_LENGTH)
+			$CompressedPacket = gzcompress($Packet);
+		
+		if ((! isset($CompressedPacket)) || (strlen($CompressedPacket) >= strlen($Packet)))
+			echo(substr(pack('V', strlen($Packet)), 0, 3) . pack('C', $PacketNr) . substr(pack('V', 0), 0, 3) . $Packet);
 		else
-			$CompressedPacket = substr(pack('V', strlen($Packet) & 0xFFFFFF), 0, 3) . gzcompress($Packet);
+			echo(substr(pack('V', strlen($CompressedPacket)), 0, 3) . pack('C', $PacketNr) . substr(pack('V', strlen($Packet)), 0, 3) . $CompressedPacket);
 		
-		echo(substr(pack('V', strlen($CompressedPacket) - 3), 0, 3) . pack('C', $CompPacketNr++) . $CompressedPacket);
+		$PacketNr = ($PacketNr + 1) & 0xFF;
 	}
 	
 	function SendPacket($Packet) {
 		global $PacketNr;
 		global $SendPacketBuffer;
 		
-		do
-			if (strlen($Packet) >= 0xFFFFFE) {
-				$SendPacketBuffer .= substr(pack('V', 0xFFFFFE), 0, 3) . pack('C', $PacketNr++) . substr($Packet, 0, 0xFFFFFE);
-				$Packet = substr($Packet, 0xFFFFFE);
+		while ($Packet) {
+			if (strlen($Packet) > 0xFFFFFF) {
+				$SendPacketBuffer .= substr(pack('V', 0xFFFFFF), 0, 3) . pack('C', $PacketNr) . substr($Packet, 0, 0xFFFFFF);
+				$Packet = substr($Packet, 0xFFFFFF);
 			} else {
-				$SendPacketBuffer .= substr(pack('V', strlen($Packet)), 0, 3) . pack('C', $PacketNr++) . $Packet;
-				unset($Packet);
+				$SendPacketBuffer .= substr(pack('V', strlen($Packet)), 0, 3) . pack('C', $PacketNr) . $Packet;
+				$Packet = '';
 			}
-		while (isset($Packet));
+		
+			if (! $_SESSION['compress'])
+				$PacketNr = ($PacketNr + 1) & 0xFF;
+		};
 		
 		if (! $_SESSION['compress']) {
 			echo($SendPacketBuffer);
 			$SendPacketBuffer = '';
 		} else {
-			if (strlen($SendPacketBuffer) > 16384) {
-				SendCompressedPacket(substr($SendPacketBuffer, 0, 16384));
-				$SendPacketBuffer = substr($SendPacketBuffer, 16384);
-			}
-			if (strlen($SendPacketBuffer) > 16384) {
-				SendCompressedPacket($SendPacketBuffer);
-				$SendPacketBuffer = '';
-			}
+			while (strlen($SendPacketBuffer) > NET_BUFFER_LENGTH) {
+				if (strlen($SendPacketBuffer) > 0xFFFFFF) {
+					SendCompressedPacket(substr($SendPacketBuffer, 0, 0xFFFFFF));
+					$SendPacketBuffer = substr($SendPacketBuffer, 0xFFFFFF);
+				} else {
+					SendCompressedPacket($SendPacketBuffer);
+					$SendPacketBuffer = '';
+				}
+			} 
 		}
 	}
 	
@@ -176,32 +183,37 @@
 	session_start();
 	
 	$Offset = 0;
+	while ($Offset < strlen($HTTP_RAW_POST_DATA)) {
+		$Size = unpack('V', substr($HTTP_RAW_POST_DATA, $Offset + 0, 3) . "\x00")[1];
+		$PacketNr = unpack('C', substr($HTTP_RAW_POST_DATA, $Offset + 3, 1))[1]; 
+		$Offset += NET_HEADER_SIZE + $Size;
+	}
+	$PacketNr++;
+	
+	$Offset = 0;
 	if (! $_SESSION['compress']) {
 		while ($Offset < strlen($HTTP_RAW_POST_DATA)) {
-			$a = unpack('V', substr($HTTP_RAW_POST_DATA, $Offset + 0, 3) . "\x00"); $Size = $a[1];
-			$a = unpack('C', substr($HTTP_RAW_POST_DATA, $Offset + 3, 1)); $PacketNr = $a[1];
-			$Offset += 4 + $Size;
+			$Size = unpack('V', substr($HTTP_RAW_POST_DATA, $Offset + 0, 3) . "\x00")[1];
+			$Nr = unpack('C', substr($HTTP_RAW_POST_DATA, $Offset + 3, 1))[1];
+			$Offset += NET_HEADER_SIZE + $Size;
 		}
 		
 		$ReceivePacketBuffer = $HTTP_RAW_POST_DATA;
 	} else {
 		while ($Offset < strlen($HTTP_RAW_POST_DATA)) {
-			$a = unpack('V', substr($HTTP_RAW_POST_DATA, $Offset + 0, 3) . "\x00"); $Size = $a[1];
-			$a = unpack('C', substr($HTTP_RAW_POST_DATA, $Offset + 3, 1)); $CompPacketNr = $a[1];
-			$a = unpack('V', substr($HTTP_RAW_POST_DATA, $Offset + 4, 3) . "\x00"); $UncompressedSize = $a[1];
+			$Size = unpack('V', substr($HTTP_RAW_POST_DATA, $Offset + 0, 3) . "\x00")[1];
+			$Nr = unpack('C', substr($HTTP_RAW_POST_DATA, $Offset + 3, 1))[1];
+			$UncompressedSize = unpack('V', substr($HTTP_RAW_POST_DATA, $Offset + 4, 3) . "\x00")[1];
 			
 			if ($UncompressedSize == 0)
 				$ReceivePacketBuffer .= substr($HTTP_RAW_POST_DATA, $Offset + 7, $Size);
 			else
 				$ReceivePacketBuffer .= gzuncompress(substr($HTTP_RAW_POST_DATA, $Offset + 7, $Size), $UncompressedSize);
 			
-			$Offset += 7 + $Size;
+			$Offset += NET_HEADER_SIZE + COMP_HEADER_SIZE + $Size;
 		}
 	}
 	$ReceivePacketBufferOffset = 0;
-	
-	$PacketNr++;
-	$CompPacketNr++;
 	
 	$Connect = ! $_SESSION['host'];
 	if ($Connect && ReceivePacket($Packet, $MorePackets) && (substr($Packet, 0, 1) == "\x0B")) {
@@ -211,10 +223,10 @@
 		while (substr($Packet, $Offset, 1) != "\x00") $_SESSION['password'] .= substr($Packet, $Offset++, 1); $Offset++;
 		while (substr($Packet, $Offset, 1) != "\x00") $_SESSION['database'] .= substr($Packet, $Offset++, 1); $Offset++;
 		while (substr($Packet, $Offset, 1) != "\x00") $_SESSION['charset'] .= substr($Packet, $Offset++, 1); $Offset++;
-		$a = unpack('v', substr($Packet, $Offset, 2)); $_SESSION['port'] = $a[1]; $Offset += 2;
-		$a = unpack('V', substr($Packet, $Offset, 4)); $_SESSION['client_flag'] = $a[1]; $Offset += 4;
-		$a = unpack('v', substr($Packet, $Offset, 2)); $_SESSION['timeout'] = $a[1]; $Offset += 2;
-
+		$_SESSION['port'] = unpack('v', substr($Packet, $Offset, 2))[1]; $Offset += 2;
+		$_SESSION['client_flag'] = unpack('V', substr($Packet, $Offset, 4))[1]; $Offset += 4;
+		$_SESSION['timeout'] = unpack('v', substr($Packet, $Offset, 2))[1]; $Offset += 2;
+		
 		set_time_limit($_SESSION['timeout']);
 	} else if (isset($_SESSION['host']))
 		set_time_limit(0);
@@ -227,7 +239,7 @@
 	header('Content-Transfer-Encoding: binary');
 	if ($Connect)
 	{
-		header('MF-Version: ' . $Version);
+		header('MF-Version: ' . MF_VERSION);
 		header('MF-SID: ' . session_id());
 	}
 	
@@ -363,9 +375,9 @@
 								case 'year':                    $FieldType =  13; break;
 								case 'blob': {
 									$Flags |= 0x00010;
-									     if ($Length <= 0xff    ) $FieldType = 249;
-									else if ($Length <= 0xffff  ) $FieldType = 252;
-									else if ($Length <= 0xffffff) $FieldType = 250;
+									     if ($Length <= 0xFF    ) $FieldType = 249;
+									else if ($Length <= 0xFFFF  ) $FieldType = 252;
+									else if ($Length <= 0xFFFFFF) $FieldType = 250;
 									else                          $FieldType = 251;
 								}                                                 break;
 								case 'string':                  $FieldType = 254; break;
@@ -492,7 +504,7 @@
 				mysqli_free_result($result);
 			} else
 				$_SESSION['charset'] = mysqli_character_set_name($mysqli);
-
+			
 			if (version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '4.1.1') < 0) {
 				$CharsetNr = $Charsets[$_SESSION['charset']];
 			} else if (version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '5.0.0') < 0) {

@@ -68,7 +68,6 @@ object DImport: TDImport
     object TSJob: TTabSheet
       Caption = 'TSJob'
       TabVisible = False
-      OnHide = TSJobHide
       DesignSize = (
         333
         271)
@@ -220,15 +219,56 @@ object DImport: TDImport
         end
       end
     end
+    object TSTables: TTabSheet
+      Caption = 'TSTables'
+      TabVisible = False
+      OnHide = TSTablesHide
+      OnShow = TSTablesShow
+      object GTables: TGroupBox_Ext
+        Left = 4
+        Top = 0
+        Width = 325
+        Height = 265
+        Caption = 'GTables'
+        TabOrder = 0
+        object PTables: TPanel_Ext
+          Left = 8
+          Top = 16
+          Width = 310
+          Height = 241
+          BevelInner = bvRaised
+          BevelOuter = bvLowered
+          ParentBackground = False
+          TabOrder = 0
+          object FTables: TListView
+            Left = 2
+            Top = 2
+            Width = 306
+            Height = 237
+            Align = alClient
+            BorderStyle = bsNone
+            Columns = <
+              item
+                Width = 304
+              end>
+            HideSelection = False
+            MultiSelect = True
+            ReadOnly = True
+            ShowColumnHeaders = False
+            TabOrder = 0
+            ViewStyle = vsList
+            OnChange = FTablesChange
+            OnDblClick = FTablesDblClick
+            OnSelectItem = FTablesSelectItem
+          end
+        end
+      end
+    end
     object TSSelect: TTabSheet
       Caption = 'TSSelect'
       ImageIndex = 9
       TabVisible = False
       OnShow = TSSelectShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GSelect: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -271,63 +311,11 @@ object DImport: TDImport
         end
       end
     end
-    object TSTables: TTabSheet
-      Caption = 'TSTables'
-      TabVisible = False
-      OnHide = TSTablesHide
-      OnShow = TSTablesShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
-      object GTables: TGroupBox_Ext
-        Left = 4
-        Top = 0
-        Width = 325
-        Height = 265
-        Caption = 'GTables'
-        TabOrder = 0
-        object PTables: TPanel_Ext
-          Left = 8
-          Top = 16
-          Width = 310
-          Height = 241
-          BevelInner = bvRaised
-          BevelOuter = bvLowered
-          ParentBackground = False
-          TabOrder = 0
-          object FTables: TListView
-            Left = 2
-            Top = 2
-            Width = 306
-            Height = 237
-            Align = alClient
-            BorderStyle = bsNone
-            Columns = <
-              item
-                Width = 304
-              end>
-            HideSelection = False
-            MultiSelect = True
-            ReadOnly = True
-            ShowColumnHeaders = False
-            TabOrder = 0
-            ViewStyle = vsList
-            OnDblClick = FTablesDblClick
-            OnSelectItem = FTablesSelectItem
-          end
-        end
-      end
-    end
     object TSCSVOptions: TTabSheet
       Caption = 'TSCSVOptions'
       TabVisible = False
       OnHide = TSCSVOptionsHide
       OnShow = TSCSVOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GCSVHow: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -491,10 +479,6 @@ object DImport: TDImport
       TabVisible = False
       OnHide = TSXMLOptionsHide
       OnShow = TSXMLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GXMLHow: TGroupBox_Ext
         Left = 4
         Top = 8
@@ -541,10 +525,6 @@ object DImport: TDImport
       TabVisible = False
       OnHide = TSWhatHide
       OnShow = TSWhatShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GStructure: TGroupBox_Ext
         Left = 4
         Top = 76
@@ -665,10 +645,6 @@ object DImport: TDImport
       Caption = 'TSFields'
       TabVisible = False
       OnShow = TSFieldsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GFields: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -744,10 +720,6 @@ object DImport: TDImport
       Caption = 'TSStmtType'
       TabVisible = False
       OnShow = TSStmtTypeShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GImportType: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -800,10 +772,6 @@ object DImport: TDImport
       Caption = 'TSTask'
       TabVisible = False
       OnShow = TSTaskShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -903,10 +871,6 @@ object DImport: TDImport
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GErrorMessages: TGroupBox_Ext
         Left = 4
         Top = 176

@@ -30,16 +30,16 @@ type
     function EncodeString(const Str: string): RawByteString; virtual;
     function Open(const AType: TType; const Host, PipeName: RawByteString;
       const Port, Timeout: my_uint): Boolean; virtual;
-    function Receive(var Buffer; const BytesToRead: my_uint; out BytesRead: my_uint): Boolean; virtual;
+    function Receive(var Buffer; const BytesToRead: my_uint): Boolean; virtual;
     function Send(const Buffer; const BytesToWrite: my_uint): Boolean; virtual;
-    procedure Seterror(const AErrNo: my_uint; const AError: RawByteString = ''); virtual;
+    function Seterror(const AErrNo: my_uint; const AError: RawByteString = ''): my_uint; virtual;
     property CodePage: Cardinal read GetCodePage;
     property Direction: TDirection read FDirection write SetDirection;
   public
     constructor Create(); virtual;
     destructor Destroy(); override;
-    function errno(): my_uint; virtual;
-    function error(): RawByteString; virtual;
+    function errno(): my_uint; inline;
+    function error(): RawByteString; inline;
   end;
 
   TMySQL_File = class (TMySQL_IO)
@@ -57,8 +57,9 @@ type
     );
   private
     CompPacketNr: Byte;
+    CompressedBuffer: TFileBuffer;
+    DecompressedBuffer: TFileBuffer;
     FUseCompression: Boolean;
-    FReadFileBuffer: TFileBuffer;
     PacketBuffer: TFileBuffer;
     PacketNr: Byte;
     function ReceivePacket(): Boolean;
@@ -75,14 +76,13 @@ type
     function ReadFile(out Value: my_uint; const Size: Byte = 0): Boolean; overload; virtual;
     function ReadFile(out Value: my_ulonglong; const Size: Byte = 0): Boolean; overload; virtual;
     function ReadFile(out Value: RawByteString; const NTS: Boolean = True; const Size: Byte = 0): Boolean; overload; virtual;
-    function ReallocBuffer(var Buffer: TFileBuffer; const Size: my_uint): Boolean;
+    function ReallocBuffer(var Buffer: TFileBuffer; const ReserveSize: my_uint): Boolean;
     function SetFilePointer(const DistanceToMove: my_int; const MoveMethod: my_int): my_int; virtual;
     procedure SetDirection(ADirection: TMySQL_IO.TDirection); override;
     function WriteFile(const Buffer: my_char; const Size: my_uint): Boolean; overload; virtual;
     function WriteFile(const Value: my_ulonglong; const Size: my_uint): Boolean; overload; virtual;
     function WriteFile(const Value: RawByteString; const NTS: Boolean = True): Boolean; overload; virtual;
     property UseCompression: Boolean read FUseCompression;
-    property ReadFileBuffer: TFileBuffer read FReadFileBuffer;
   public
     constructor Create(); override;
   end;
@@ -171,7 +171,7 @@ type
     function ReadRow(var Row: MYSQL_RES.PRow): my_int; virtual;
     procedure ReadRows(const Ares: MYSQL_RES); virtual;
     function ServerError(): Boolean; virtual;
-    procedure Seterror(const AErrNo: my_uint; const AError: RawByteString = ''); override;
+    function Seterror(const AErrNo: my_uint; const AError: RawByteString = ''): my_uint; override;
     property ClientStatus: TMySQL_File.TClientStatus read fclient_status;
     property CodePage: Cardinal read GetCodePage;
   public
@@ -1073,9 +1073,10 @@ begin
   Result := errno() = 0;
 end;
 
-function TMySQL_IO.Receive(var Buffer; const BytesToRead: my_uint; out BytesRead: my_uint): Boolean;
+function TMySQL_IO.Receive(var Buffer; const BytesToRead: my_uint): Boolean;
 var
   arg: u_long;
+  BytesRead: my_uint;
   ReadFDS: TFDSet;
   Res: Integer;
   Size: Cardinal;
@@ -1172,7 +1173,7 @@ begin
     Seterror(CR_SERVER_GONE_ERROR);
 end;
 
-procedure TMySQL_IO.Seterror(const AErrNo: my_uint; const AError: RawByteString = '');
+function TMySQL_IO.Seterror(const AErrNo: my_uint; const AError: RawByteString = ''): my_uint;
 begin
   FErrNo := AErrNo;
 
@@ -1187,6 +1188,8 @@ begin
     if ((AErrNo = CR_UNKNOWN_ERROR) or (AErrNo = CR_SERVER_HANDSHAKE_ERR)) then
       raise Exception.Create(DecodeString(error()));
   {$ENDIF}
+
+  Result := FErrNo;
 end;
 
 procedure TMySQL_IO.SetDirection(ADirection: TMySQL_IO.TDirection);
@@ -1211,16 +1214,18 @@ begin
 
   Close();
 
+  ReallocBuffer(CompressedBuffer, 0);
+  ReallocBuffer(DecompressedBuffer, 0);
   ReallocBuffer(PacketBuffer, 0);
-  FillChar(FReadFileBuffer, SizeOf(FReadFileBuffer), #0);
 end;
 
 constructor TMySQL_File.Create();
 begin
   inherited;
 
+  FillChar(CompressedBuffer, SizeOf(DecompressedBuffer), #0);
+  FillChar(DecompressedBuffer, SizeOf(DecompressedBuffer), #0);
   FillChar(PacketBuffer, SizeOf(PacketBuffer), #0);
-  FillChar(FReadFileBuffer, SizeOf(FReadFileBuffer), #0);
 end;
 
 function TMySQL_File.CreateFile(const AIOType: TMYSQL_IO.TType;
@@ -1233,8 +1238,8 @@ begin
 
     FUseCompression := False;
 
-    PacketNr := 0;
     CompPacketNr := 0;
+    PacketNr := 0;
 
     Result := Open(AIOType, Host, UnixSocket, Port, Timeout);
   end;
@@ -1262,8 +1267,7 @@ begin
 
       repeat
         Size := PacketBuffer.Size - Offset;
-        if (Size > MAX_PACKET_LENGTH) then
-          Size := MAX_PACKET_LENGTH;
+        if (Size > $FFFFFF) then Size := $FFFFFF;
 
         CompressBuffer := nil;
         CompressedSize := Size;
@@ -1284,7 +1288,6 @@ begin
             Inc(PacketBuffer.Size, NET_HEADER_SIZE + COMP_HEADER_SIZE);
 
             Move(Size, PacketBuffer.Mem[Offset + 0], 3);
-            Move(CompPacketNr, PacketBuffer.Mem[Offset + 3], 1);
             FillChar(PacketBuffer.Mem[Offset + NET_HEADER_SIZE], COMP_HEADER_SIZE, #0);
 
             Result := Send(PacketBuffer.Mem[Offset], NET_HEADER_SIZE + COMP_HEADER_SIZE + Size);
@@ -1294,8 +1297,7 @@ begin
           else
           begin
             Move(CompressedSize, PacketBuffer.Mem[Offset + 0], 3);
-            Move(CompPacketNr, PacketBuffer.Mem[Offset + 3], 1);
-            Move(Size, PacketBuffer.Mem[Offset + NET_HEADER_SIZE], 3);
+            Move(Size, PacketBuffer.Mem[Offset + 4], 3);
 
             if (NET_HEADER_SIZE + COMP_HEADER_SIZE + my_uint(CompressedSize) > Size) then
             begin
@@ -1326,7 +1328,7 @@ end;
 function TMySQL_File.GetFileSize(): my_int;
 begin
   if (Direction = idRead) then
-    Result := FReadFileBuffer.Size
+    Result := PacketBuffer.Size
   else if (PacketBuffer.Size = 0) then
     Result := 0
   else
@@ -1337,16 +1339,13 @@ procedure TMySQL_File.next_command();
 begin
   Direction := idWrite;
 
-  PacketNr := 0;
   CompPacketNr := 0;
+  PacketNr := 0;
 end;
 
 function TMySQL_File.next_result(): my_int;
 begin
   Direction := idRead;
-
-  if (UseCompression) then
-    PacketNr := CompPacketNr;
 
   Result := 0;
 end;
@@ -1356,13 +1355,13 @@ begin
   Assert(Direction = idRead);
   
 
-  Result := FReadFileBuffer.Offset + Size <= FReadFileBuffer.Size;
+  Result := PacketBuffer.Offset + Size <= PacketBuffer.Size;
   if (not Result) then
     Seterror(CR_SERVER_HANDSHAKE_ERR)
   else
   begin
-    Move(FReadFileBuffer.Mem[FReadFileBuffer.Offset], Buffer^, Size);
-    Inc(FReadFileBuffer.Offset, Size);
+    Move(PacketBuffer.Mem[PacketBuffer.Offset], Buffer^, Size);
+    Inc(PacketBuffer.Offset, Size);
   end;
 end;
 
@@ -1392,52 +1391,52 @@ begin
     Result := False
   else if (Size > 0) then
   begin
-    Result := FReadFileBuffer.Offset + Size <= FReadFileBuffer.Size;
+    Result := PacketBuffer.Offset + Size <= PacketBuffer.Size;
     if (Result) then
     begin
-      Move(FReadFileBuffer.Mem[FReadFileBuffer.Offset], Value, Size);
-      Inc(FReadFileBuffer.Offset, Size);
+      Move(PacketBuffer.Mem[PacketBuffer.Offset], Value, Size);
+      Inc(PacketBuffer.Offset, Size);
     end;
   end
-  else if (FReadFileBuffer.Offset + 1 > FReadFileBuffer.Size) then
+  else if (PacketBuffer.Offset + 1 > PacketBuffer.Size) then
     Result := False
-  else if (Byte(FReadFileBuffer.Mem[FReadFileBuffer.Offset]) = $FB) then
+  else if (Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FB) then
   begin
     Result := True;
     Value := NULL_LENGTH;
-    Inc(FReadFileBuffer.Offset);
+    Inc(PacketBuffer.Offset);
   end
-  else if (Byte(FReadFileBuffer.Mem[FReadFileBuffer.Offset]) < $FB) then
+  else if (Byte(PacketBuffer.Mem[PacketBuffer.Offset]) < $FB) then
   begin
     Result := True;
-    Move(FReadFileBuffer.Mem[FReadFileBuffer.Offset], Value, 1);
-    Inc(FReadFileBuffer.Offset, 1);
+    Move(PacketBuffer.Mem[PacketBuffer.Offset], Value, 1);
+    Inc(PacketBuffer.Offset, 1);
   end
-  else if (Byte(FReadFileBuffer.Mem[FReadFileBuffer.Offset]) = $FC) then
+  else if (Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FC) then
   begin
-    Result := FReadFileBuffer.Offset + 2 <= FReadFileBuffer.Size;
+    Result := PacketBuffer.Offset + 2 <= PacketBuffer.Size;
     if (Result) then
     begin
-      Move(FReadFileBuffer.Mem[FReadFileBuffer.Offset + 1], Value, 2);
-      Inc(FReadFileBuffer.Offset, 3);
+      Move(PacketBuffer.Mem[PacketBuffer.Offset + 1], Value, 2);
+      Inc(PacketBuffer.Offset, 3);
     end;
   end
-  else if (Byte(FReadFileBuffer.Mem[FReadFileBuffer.Offset]) = $FD) then
+  else if (Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FD) then
   begin
-    Result := FReadFileBuffer.Offset + 3 <= FReadFileBuffer.Size;
+    Result := PacketBuffer.Offset + 3 <= PacketBuffer.Size;
     if (Result) then
     begin
-      Move(FReadFileBuffer.Mem[FReadFileBuffer.Offset + 1], Value, 3);
-      Inc(FReadFileBuffer.Offset, 4);
+      Move(PacketBuffer.Mem[PacketBuffer.Offset + 1], Value, 3);
+      Inc(PacketBuffer.Offset, 4);
     end;
   end
   else
   begin
-    Result := FReadFileBuffer.Offset + 8 <= FReadFileBuffer.Size;
+    Result := PacketBuffer.Offset + 8 <= PacketBuffer.Size;
     if (Result) then
     begin
-      Move(FReadFileBuffer.Mem[FReadFileBuffer.Offset + 1], Value, 8);
-      Inc(FReadFileBuffer.Offset, 9);
+      Move(PacketBuffer.Mem[PacketBuffer.Offset + 1], Value, 8);
+      Inc(PacketBuffer.Offset, 9);
     end;
   end;
 end;
@@ -1449,238 +1448,207 @@ begin
   if ((errno() <> 0) and (errno() <> CR_SERVER_GONE_ERROR)) then
     Result := False
   else if (not NTS and (Size > 0)) then
-    if (FReadFileBuffer.Offset + Size > FReadFileBuffer.Size) then
+    if (PacketBuffer.Offset + Size > PacketBuffer.Size) then
       Result := False
     else
     begin
-      SetString(Value, PAnsiChar(@FReadFileBuffer.Mem[FReadFileBuffer.Offset]), Size);
-      Inc(FReadFileBuffer.Offset, Size);
+      SetString(Value, PAnsiChar(@PacketBuffer.Mem[PacketBuffer.Offset]), Size);
+      Inc(PacketBuffer.Offset, Size);
       Result := True;
     end
   else if (not NTS and ReadFile(Len)) then
-    if ((Len = NULL_LENGTH) or (FReadFileBuffer.Offset + Len > FReadFileBuffer.Size)) then
+    if ((Len = NULL_LENGTH) or (PacketBuffer.Offset + Len > PacketBuffer.Size)) then
       Result := False
     else
     begin
-      SetString(Value, PAnsiChar(@FReadFileBuffer.Mem[FReadFileBuffer.Offset]), Len);
-      Inc(FReadFileBuffer.Offset, Len);
+      SetString(Value, PAnsiChar(@PacketBuffer.Mem[PacketBuffer.Offset]), Len);
+      Inc(PacketBuffer.Offset, Len);
       Result := True;
     end
-  else if (NTS and (FReadFileBuffer.Offset + 1 <= FReadFileBuffer.Size)) then
+  else if (NTS and (PacketBuffer.Offset + 1 <= PacketBuffer.Size)) then
   begin
     Len := 0;
-    while ((FReadFileBuffer.Offset + Len < FReadFileBuffer.Size) and (FReadFileBuffer.Mem[FReadFileBuffer.Offset + Len] <> #0)) do
+    while ((PacketBuffer.Offset + Len < PacketBuffer.Size) and (PacketBuffer.Mem[PacketBuffer.Offset + Len] <> #0)) do
       Inc(Len);
-    SetString(Value, PAnsiChar(@FReadFileBuffer.Mem[FReadFileBuffer.Offset]), Len);
-    Inc(FReadFileBuffer.Offset, Len);
+    SetString(Value, PAnsiChar(@PacketBuffer.Mem[PacketBuffer.Offset]), Len);
+    Inc(PacketBuffer.Offset, Len);
     if (Size = 0) then
-      Inc(FReadFileBuffer.Offset);
+      Inc(PacketBuffer.Offset);
     Result := True;
   end
   else
     Result := False;
 end;
 
-function TMySQL_File.ReallocBuffer(var Buffer: TFileBuffer; const Size: my_uint): Boolean;
-var
-  NewSize: my_uint;
+function TMySQL_File.ReallocBuffer(var Buffer: TFileBuffer; const ReserveSize: my_uint): Boolean;
 begin
-  if (Size = 0) then
+  Result := True;
+
+  if (ReserveSize = 0) then
   begin
     if (Assigned(Buffer.Mem)) then
       FreeMem(Buffer.Mem);
     ZeroMemory(@Buffer, SizeOf(Buffer));
-    Result := True;
   end
   else
   begin
-    NewSize := (((Size - 1) div NET_BUFFER_LENGTH) + 1) * NET_BUFFER_LENGTH;
-
-    if (Buffer.Size > NewSize) then
+    if ((Buffer.Size + ReserveSize > Buffer.MemSize) and (Buffer.Offset > 0)) then
     begin
-      Move(Buffer.Mem[Buffer.Offset], Buffer.Mem[0], Buffer.Size - Buffer.Offset);
       Dec(Buffer.Size, Buffer.Offset);
+      Move(Buffer.Mem[Buffer.Offset], Buffer.Mem[0], Buffer.Size);
       Buffer.Offset := 0;
     end;
 
-    if (Buffer.Size > NewSize) then
-      NewSize := (((Buffer.Size - 1) div NET_BUFFER_LENGTH) + 1) * NET_BUFFER_LENGTH;
+    if (Buffer.Size + ReserveSize > Buffer.MemSize) then
+    begin
+      Buffer.MemSize := (((Buffer.Size + ReserveSize - 1) div NET_BUFFER_LENGTH) + 1) * NET_BUFFER_LENGTH;
 
-    try
-      ReallocMem(Buffer.Mem, NewSize);
-      Buffer.MemSize := NewSize;
-      Result := True;
-    except
-      ZeroMemory(@Buffer, SizeOf(Buffer));
-      Seterror(CR_OUT_OF_MEMORY);
-      Result := False;
+      try
+        ReallocMem(Buffer.Mem, Buffer.MemSize);
+      except
+        FreeMem(Buffer.Mem);
+        FillChar(Buffer, SizeOf(Buffer), #0);
+        Seterror(CR_OUT_OF_MEMORY);
+        Result := False;
+      end;
     end;
   end;
 end;
 
 function TMySQL_File.ReceivePacket(): Boolean;
 
-  function ReceivePacketBuffer(const BytesToRead: my_uint): Boolean;
+  function ReceiveCompressed(var Buffer; const BytesToRead: Integer): Boolean;
   var
-    BytesRead: my_uint;
-  begin
-    if (PacketBuffer.Size + BytesToRead > PacketBuffer.MemSize) then
-    begin
-      Move(PacketBuffer.Mem[PacketBuffer.Offset], PacketBuffer.Mem[0], PacketBuffer.Size - PacketBuffer.Offset);
-      Dec(PacketBuffer.Size, PacketBuffer.Offset);
-      PacketBuffer.Offset := 0;
-
-      if (PacketBuffer.Size + BytesToRead > PacketBuffer.MemSize) then
-        ReallocBuffer(PacketBuffer, PacketBuffer.Size + BytesToRead);
-    end;
-
-    Result := Receive(PacketBuffer.Mem[PacketBuffer.Size], BytesToRead, BytesRead);
-
-    Inc(PacketBuffer.Size, BytesRead);
-  end;
-
-  function ReceiveCompressed(const BytesToRead: my_uint): Boolean;
-  var
-    BytesRead: my_uint;
-    DecompressBuffer: record
-      Mem: Pointer;
-      Size: Integer;
-    end;
+    DecompressedSize: Integer;
+    Header: array [0..NET_HEADER_SIZE + COMP_HEADER_SIZE - 1] of Byte;
     Nr: Byte;
-    PacketOffset: my_uint;
-    Size: my_uint;
+    Offset: Integer;
+    Size: Integer;
     UncompressedSize: my_uint;
   begin
-    Move(PacketBuffer.Mem[PacketBuffer.Offset], PacketBuffer.Mem[0], PacketBuffer.Size - PacketBuffer.Offset);
-    Dec(PacketBuffer.Size, PacketBuffer.Offset);
-    PacketBuffer.Offset := 0;
-
-    BytesRead := 0;
+    Offset := 0;
     repeat
-      PacketOffset := PacketBuffer.Size;
-
-      Result := ReceivePacketBuffer(NET_HEADER_SIZE);
-      if (Result) then
+      Size := DecompressedBuffer.Size - DecompressedBuffer.Offset;
+      if (Size > 0) then
       begin
-        FillChar(Size, SizeOf(Size), #0);
-        Move(PacketBuffer.Mem[PacketOffset + 0], Size, 3);
-        Move(PacketBuffer.Mem[PacketOffset + 3], Nr, 1);
+        if (Size > BytesToRead - Offset) then Size := BytesToRead - Offset;
+        Move(DecompressedBuffer.Mem[DecompressedBuffer.Offset], PAnsiChar(@Buffer)[Offset], Size);
+        Inc(DecompressedBuffer.Offset, Size);
+        Inc(Offset, Size);
 
-        if (Nr <> CompPacketNr) then
-          begin Seterror(CR_SERVER_HANDSHAKE_ERR); Result := False; end
-        else if (NET_HEADER_SIZE + COMP_HEADER_SIZE + Size > MAX_PACKET_LENGTH) then
-          begin Seterror(CR_NET_PACKET_TOO_LARGE); Result := False; end
-        else if (ReceivePacketBuffer(COMP_HEADER_SIZE + Size)) then
+        Result := True;
+      end
+      else
+      begin
+        Result := Receive(Header, SizeOf(Header));
+
+        if (Result) then
         begin
-          FillChar(UncompressedSize, SizeOf(UncompressedSize), #0);
-          Move(PacketBuffer.Mem[PacketOffset + NET_HEADER_SIZE], UncompressedSize, 3);
+          Size := 0;
+          UncompressedSize := 0;
+          Move(Header[0], Size, 3);
+          Move(Header[3], Nr, 1);
+          Move(Header[4], UncompressedSize, 3);
 
-          if (UncompressedSize = 0) then
-          begin
-            Move(PacketBuffer.Mem[PacketOffset + NET_HEADER_SIZE + COMP_HEADER_SIZE], PacketBuffer.Mem[PacketOffset], Size);
-
-            PacketBuffer.Size := PacketOffset + Size;
-
-            Inc(BytesRead, Size);
-          end
+          if (Nr <> CompPacketNr) then
+            Result := Seterror(CR_SERVER_HANDSHAKE_ERR) = 0
           else
           begin
-            if (PacketOffset + UncompressedSize > PacketBuffer.MemSize) then
-              Result := ReallocBuffer(PacketBuffer, PacketOffset + UncompressedSize);
+            PacketNr := CompPacketNr;
+            CompPacketNr := (CompPacketNr + 1) and $FF;
 
-            if (Result) then
+            if (UncompressedSize = 0) then
             begin
-              try
-                DecompressBuffer.Mem := nil;
-                ZDecompress(@PacketBuffer.Mem[PacketOffset + NET_HEADER_SIZE + COMP_HEADER_SIZE], Size, DecompressBuffer.Mem, DecompressBuffer.Size);
-                MoveMemory(@PacketBuffer.Mem[PacketOffset], DecompressBuffer.Mem, DecompressBuffer.Size);
-                FreeMem(DecompressBuffer.Mem);
+              DecompressedBuffer.Offset := 0;
+              DecompressedBuffer.Size := 0;
+              Result := ReallocBuffer(DecompressedBuffer, Size);
 
-                Inc(BytesRead, DecompressBuffer.Size);
-              except
-                Seterror(CR_UNKNOWN_ERROR); Result := False;
+              if (Result) then
+                Result := Receive(DecompressedBuffer.Mem[0], Size);
+
+              if (Result) then
+                DecompressedBuffer.Size := Size;
+            end
+            else
+            begin
+              CompressedBuffer.Offset := 0;
+              CompressedBuffer.Size := 0;
+              Result := ReallocBuffer(CompressedBuffer, Size);
+
+              if (Result) then
+                Result := Receive(CompressedBuffer.Mem[0], Size);
+
+              if (Result) then
+              begin
+                CompressedBuffer.Size := Size;
+
+                if (Result) then
+                begin
+                  if (Assigned(DecompressedBuffer.Mem)) then
+                    FreeMem(DecompressedBuffer.Mem);
+                  try
+                    ZDecompress(CompressedBuffer.Mem, CompressedBuffer.Size, Pointer(DecompressedBuffer.Mem), DecompressedSize);
+                  except
+                    Result := Seterror(CR_UNKNOWN_ERROR) = 0;
+                  end;
+                end;
+
+                if (Result) then
+                  if (DecompressedSize <> Integer(UncompressedSize)) then
+                    Result := Seterror(CR_SERVER_HANDSHAKE_ERR) = 0
+                  else
+                  begin
+                    DecompressedBuffer.Offset := 0;
+                    DecompressedBuffer.Size := DecompressedSize;
+                    DecompressedBuffer.MemSize := DecompressedBuffer.Size;
+                  end;
               end;
-
-              PacketBuffer.Size := PacketOffset + UncompressedSize;
             end;
           end;
-          CompPacketNr := (CompPacketNr + 1) and $FF;
         end;
       end;
-    until (not Result or (BytesRead >= BytesToRead));
-  end;
-
-  function Receive(const BytesToRead: my_uint): Boolean;
-  begin
-    if (not UseCompression) then
-      Result := ReceivePacketBuffer(BytesToRead)
-    else
-      Result := ReceiveCompressed(BytesToRead);
+    until (not Result or (Offset = BytesToRead));
   end;
 
 var
-  Index: my_int;
+  Header: array [0..NET_HEADER_SIZE - 1] of Byte;
   Nr: Byte;
-  Offset: my_uint;
   Size: my_uint;
 begin
-  FillChar(FReadFileBuffer, SizeOf(FReadFileBuffer), #0);
-
-  Index := -1;
+  Size := 0;
   repeat
-    Inc(Index);
-    Offset := PacketBuffer.Offset; if (Index > 0) then Inc(Offset,  NET_HEADER_SIZE + my_uint(Index) * MAX_PACKET_LENGTH);
-    Result := (Offset + NET_HEADER_SIZE <= PacketBuffer.Size);
-    if (not Result) then
-    begin
-      Result := Receive(NET_HEADER_SIZE);
-      Offset := PacketBuffer.Offset; if (Index > 0) then Inc(Offset,  NET_HEADER_SIZE + my_uint(Index) * MAX_PACKET_LENGTH);
-    end;
+    if (not UseCompression) then
+      Result := Receive(Header, SizeOf(Header))
+    else
+      Result := ReceiveCompressed(Header, SizeOf(Header));
 
     if (Result) then
     begin
-      if (Offset + NET_HEADER_SIZE > PacketBuffer.Size) then
-        Size := 0
+      Size := 0;
+      Move(Header[0], Size, 3);
+      Move(Header[3], Nr, 1);
+
+      if (not UseCompression and (Nr <> PacketNr)) then
+        Result := Seterror(CR_SERVER_HANDSHAKE_ERR) = 0
       else
       begin
-        FillChar(Size, SizeOf(Size), #0);
-        Move(PacketBuffer.Mem[Offset + 0], Size, 3);
-        Move(PacketBuffer.Mem[Offset + 3], Nr, 1);
+        PacketNr := (PacketNr + 1) and $FF;
 
-        if (not UseCompression and (Nr <> PacketNr)) then
-          begin Seterror(CR_SERVER_HANDSHAKE_ERR); Result := False; end
-        else if (Size > MAX_PACKET_LENGTH) then
-          begin Seterror(CR_NET_PACKET_TOO_LARGE); Result := False; end
-        else
-        begin
-          PacketNr := (PacketNr + 1) and $FF;
+        PacketBuffer.Offset := 0;
+        PacketBuffer.Size := 0;
+        Result := ReallocBuffer(PacketBuffer, Size);
 
-          if (Offset + NET_HEADER_SIZE + Size > PacketBuffer.MemSize) then
-            ReallocBuffer(PacketBuffer, Offset + NET_HEADER_SIZE + Size);
+        if (Result) then
+          if (not UseCompression) then
+            Result := Receive(PacketBuffer.Mem[PacketBuffer.Offset], Size)
+          else
+            Result := ReceiveCompressed(PacketBuffer.Mem[PacketBuffer.Offset], Size);
 
-          if (Offset + NET_HEADER_SIZE + Size > PacketBuffer.Size) then
-          begin
-            Receive(Offset + NET_HEADER_SIZE + Size - PacketBuffer.Size);
-            Offset := PacketBuffer.Offset; if (Index > 0) then Inc(Offset,  NET_HEADER_SIZE + my_uint(Index) * MAX_PACKET_LENGTH);
-          end;
-
-          if (Offset + NET_HEADER_SIZE + Size <= PacketBuffer.Size) then
-            if (Index > 0) then
-            begin
-              Move(PacketBuffer.Mem[Offset + NET_HEADER_SIZE], PacketBuffer.Mem[Offset], PacketBuffer.Size - Offset);
-              Dec(PacketBuffer.Size, NET_HEADER_SIZE);
-            end;
-        end;
+        if (Result) then
+          PacketBuffer.Size := Size;
       end;
     end;
-  until (not Result or (Size <> MAX_PACKET_LENGTH));
-
-  if (Result) then
-  begin
-    FReadFileBuffer.Mem := @PacketBuffer.Mem[PacketBuffer.Offset + NET_HEADER_SIZE];
-    FReadFileBuffer.Size := my_uint(Index) * MAX_PACKET_LENGTH + Size;
-    Inc(PacketBuffer.Offset, NET_HEADER_SIZE + FReadFileBuffer.Size);
-  end;
+  until (not Result or (Size < $FFFFFF));
 end;
 
 function TMySQL_File.SetFilePointer(const DistanceToMove: my_int; const MoveMethod: my_int): my_int;
@@ -1700,20 +1668,20 @@ begin
       if (not ReceivePacket()) then
         Result := -1
       else
-        Result := 0;
+        Result := 0
     end
     else // Move inside a packet
     begin
       case (MoveMethod) of
         FILE_BEGIN: Result := DistanceToMove;
-        FILE_CURRENT: Result := my_int(FReadFileBuffer.Offset) + DistanceToMove;
-        FILE_END: Result := my_int(FReadFileBuffer.Size) + DistanceToMove;
+        FILE_CURRENT: Result := my_int(PacketBuffer.Offset) + DistanceToMove;
+        FILE_END: Result := my_int(PacketBuffer.Size) + DistanceToMove;
         else Result := -1;
       end;
-      if ((Result < 0) or (my_int(FReadFileBuffer.Size) < Result)) then
+      if ((Result < 0) or (my_int(PacketBuffer.Size) < Result)) then
         Seterror(CR_SERVER_HANDSHAKE_ERR)
       else
-        FReadFileBuffer.Offset := Result;
+        PacketBuffer.Offset := Result;
     end;
   end
   else // idWrite
@@ -1726,7 +1694,7 @@ begin
       PACKET_CURRENT: // Switch to next packet
         begin
           Size := PacketBuffer.Size - (PacketBuffer.Offset + NET_HEADER_SIZE);
-          Move(Size, PacketBuffer.Mem[PacketBuffer.Offset], 3);
+          Move(Size, PacketBuffer.Mem[PacketBuffer.Offset + 0], 3);
           Move(PacketNr, PacketBuffer.Mem[PacketBuffer.Offset + 3], 1);
           PacketNr := (PacketNr + 1) and $FF;
 
@@ -2057,7 +2025,7 @@ begin
       end
       else if (ServerError()) then
         Result := 1
-      else if (Byte(ReadFileBuffer.Mem[ReadFileBuffer.Offset]) = $FB) then // NULL_LENGTH
+      else if (Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FB) then // NULL_LENGTH
       begin
         SetFilePointer(1, FILE_CURRENT); // $FB
 
@@ -2067,7 +2035,7 @@ begin
         else
           Result := 0;
       end
-      else if ((Byte(ReadFileBuffer.Mem[ReadFileBuffer.Offset]) = $FE) and (ReadFileBuffer.Size - ReadFileBuffer.Offset < 9)) then
+      else if ((Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FE) and (PacketBuffer.Size - PacketBuffer.Offset < 9)) then
       begin
         SetFilePointer(1, FILE_CURRENT); // $FE
 
@@ -2101,7 +2069,7 @@ begin
           fwarning_count := 0;
         end;
 
-        if ((ReadFileBuffer.Offset < ReadFileBuffer.Size) and ReadFile(RBS, False)) then
+        if ((PacketBuffer.Offset < PacketBuffer.Size) and ReadFile(RBS, False)) then
         begin
           GetMem(finfo, Length(RBS) + 1);
           StrPCopy(finfo, RBS);
@@ -2169,7 +2137,7 @@ begin
 
   if ((SetFilePointer(1, PACKET_CURRENT) < 0) or ServerError()) then
     Result := -1
-  else if ((Byte(ReadFileBuffer.Mem[ReadFileBuffer.Offset]) = $FE) and (ReadFileBuffer.Size - ReadFileBuffer.Offset < 9)) then
+  else if ((Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FE) and (PacketBuffer.Size - PacketBuffer.Offset < 9)) then
   begin
     SetFilePointer(1, FILE_CURRENT); // $FE
 
@@ -2197,10 +2165,10 @@ begin
         end
         else
         begin
-          res.CurrentRow^.Row^[I] := @ReadFileBuffer.Mem[ReadFileBuffer.Offset];
+          res.CurrentRow^.Row^[I] := @PacketBuffer.Mem[PacketBuffer.Offset];
           SetFilePointer(res.CurrentRow^.Lengths^[I], FILE_CURRENT);
         end;
-    if ((errno() = 0) and (ReadFileBuffer.Offset <> ReadFileBuffer.Offset)) then
+    if ((errno() = 0) and (PacketBuffer.Offset <> PacketBuffer.Offset)) then
       Seterror(CR_SERVER_HANDSHAKE_ERR);
     if (errno() <> 0) then
       Result := -1
@@ -2212,7 +2180,7 @@ begin
     Result := 0;
 
     TotalSize := 0;
-    while ((not Assigned(res) or (my_uint(Result) < FieldCount)) and (ReadFileBuffer.Offset < ReadFileBuffer.Size) and ReadFile(Len)) do
+    while ((not Assigned(res) or (my_uint(Result) < FieldCount)) and (PacketBuffer.Offset < PacketBuffer.Size) and ReadFile(Len)) do
     begin
       if (Len <> NULL_LENGTH) then
       begin
@@ -2225,7 +2193,7 @@ begin
 
     if (Assigned(res) and (my_uint(Result) <> FieldCount)) then
       Seterror(CR_SERVER_HANDSHAKE_ERR)
-    else if (ReadFileBuffer.Offset <> ReadFileBuffer.Size) then
+    else if (PacketBuffer.Offset <> PacketBuffer.Size) then
       Seterror(CR_SERVER_HANDSHAKE_ERR)
     else
     begin
@@ -2438,7 +2406,7 @@ begin
           Direction := idRead;
           if (SetFilePointer(1, PACKET_CURRENT) = 0) then
           begin
-            if ((Byte(ReadFileBuffer.Mem[ReadFileBuffer.Offset]) = $FE) and (GetFileSize() < 9) and (fserver_capabilities and CLIENT_SECURE_CONNECTION <> 0)) then
+            if ((Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FE) and (GetFileSize() < 9) and (fserver_capabilities and CLIENT_SECURE_CONNECTION <> 0)) then
             begin
               Direction := idWrite;
               WriteFile(Scramble(my_char(fpasswd), my_char(RawByteString(Copy(Salt, 1, SCRAMBLE_LENGTH_323)))));
@@ -2685,7 +2653,7 @@ var
   I: my_uint;
   RBS: RawByteString;
 begin
-  Result := Byte(ReadFileBuffer.Mem[ReadFileBuffer.Offset]) = $FF;
+  Result := Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FF;
 
   if (Result) then
   begin
@@ -2704,9 +2672,9 @@ begin
   end;
 end;
 
-procedure MYSQL.Seterror(const AErrNo: my_uint; const AError: RawByteString = '');
+function MYSQL.Seterror(const AErrNo: my_uint; const AError: RawByteString = ''): my_uint;
 begin
-  inherited;
+  Result := inherited Seterror(AErrNo, AError);
 
   FillChar(FSQLState, SizeOf(FSQLState), #0);
 

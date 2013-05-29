@@ -4606,9 +4606,13 @@ begin
 
     // Debug 00.00.13
     if (not Assigned(FXMLDocument)) then
-      ERangeError.CreateFmt(SPropertyOutOfRange, ['FXMLDocument']);
+      raise ERangeError.CreateFmt(SPropertyOutOfRange, ['FXMLDocument']);
 
-    FXMLDocument.Options := FXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
+    try
+      FXMLDocument.Options := FXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
+    except
+      raise Exception.Create('Unknown bug.');
+    end;
   end;
 
   try

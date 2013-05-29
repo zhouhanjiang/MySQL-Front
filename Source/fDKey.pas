@@ -178,7 +178,7 @@ begin
 
   if (not Assigned(Key) and Visible) then
     if (FPrimary.Checked or (FName.Text = 'PRIMARY')) then
-      FBOk.Enabled := FBOk.Enabled and ((Table.Keys.Count = 0) or Table.Keys[0].Primary)
+      FBOk.Enabled := FBOk.Enabled and not Assigned(Table.PrimaryKey)
     else
       for I := 0 to Table.Keys.Count - 1 do
         if (not Table.Keys[I].Primary and (Table.Keys.NameCmp(Table.Keys[I].Name, FName.Text) = 0)) then
