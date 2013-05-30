@@ -3641,7 +3641,7 @@ end;
 
 function TMySQLConnection.UseCompression(): Boolean;
 begin
-  Result := True; // (LibraryType = ltHTTP) or not ((lstrcmpi(PChar(Host), LOCAL_HOST) = 0) or (Host = '127.0.0.1') or (Host = '::1'));
+  Result := (LibraryType = ltHTTP) or not ((lstrcmpi(PChar(Host), LOCAL_HOST) = 0) or (Host = '127.0.0.1') or (Host = '::1'));
 end;
 
 function TMySQLConnection.UseLibraryThread(): Boolean;

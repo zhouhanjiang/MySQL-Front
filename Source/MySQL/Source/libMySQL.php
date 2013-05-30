@@ -79,8 +79,8 @@
 		} else {
 			$Packet = '';
 			do {
-				$Size = unpack('V', substr($ReceivePacketBuffer, $ReceivePacketBufferOffset + 0, 3) . "\x00")[1];
-				$Nr = unpack('C', substr($ReceivePacketBuffer, $ReceivePacketBufferOffset + 3, 1))[1];
+				$a = unpack('V', substr($ReceivePacketBuffer, $ReceivePacketBufferOffset + 0, 3) . "\x00"); $Size = $a[1];
+				$a = unpack('C', substr($ReceivePacketBuffer, $ReceivePacketBufferOffset + 3, 1)); $Nr = $a[1];
 				
 				$Packet .= substr($ReceivePacketBuffer, $ReceivePacketBufferOffset + 4, $Size);
 				
@@ -184,8 +184,8 @@
 	
 	$Offset = 0;
 	while ($Offset < strlen($HTTP_RAW_POST_DATA)) {
-		$Size = unpack('V', substr($HTTP_RAW_POST_DATA, $Offset + 0, 3) . "\x00")[1];
-		$PacketNr = unpack('C', substr($HTTP_RAW_POST_DATA, $Offset + 3, 1))[1]; 
+		$a = unpack('V', substr($HTTP_RAW_POST_DATA, $Offset + 0, 3) . "\x00"); $Size = $a[1];
+		$a = unpack('C', substr($HTTP_RAW_POST_DATA, $Offset + 3, 1)); $PacketNr = $a[1]; 
 		$Offset += NET_HEADER_SIZE + $Size;
 	}
 	$PacketNr++;
@@ -193,17 +193,17 @@
 	$Offset = 0;
 	if (! $_SESSION['compress']) {
 		while ($Offset < strlen($HTTP_RAW_POST_DATA)) {
-			$Size = unpack('V', substr($HTTP_RAW_POST_DATA, $Offset + 0, 3) . "\x00")[1];
-			$Nr = unpack('C', substr($HTTP_RAW_POST_DATA, $Offset + 3, 1))[1];
+			$a = unpack('V', substr($HTTP_RAW_POST_DATA, $Offset + 0, 3) . "\x00"); $Size = $a[1];
+			$a = unpack('C', substr($HTTP_RAW_POST_DATA, $Offset + 3, 1)); $Nr = $a[1];
 			$Offset += NET_HEADER_SIZE + $Size;
 		}
 		
 		$ReceivePacketBuffer = $HTTP_RAW_POST_DATA;
 	} else {
 		while ($Offset < strlen($HTTP_RAW_POST_DATA)) {
-			$Size = unpack('V', substr($HTTP_RAW_POST_DATA, $Offset + 0, 3) . "\x00")[1];
-			$Nr = unpack('C', substr($HTTP_RAW_POST_DATA, $Offset + 3, 1))[1];
-			$UncompressedSize = unpack('V', substr($HTTP_RAW_POST_DATA, $Offset + 4, 3) . "\x00")[1];
+			$a = unpack('V', substr($HTTP_RAW_POST_DATA, $Offset + 0, 3) . "\x00"); $Size = $a[1];
+			$a = unpack('C', substr($HTTP_RAW_POST_DATA, $Offset + 3, 1)); $Nr = $a[1];
+			$a = unpack('V', substr($HTTP_RAW_POST_DATA, $Offset + 4, 3) . "\x00"); $UncompressedSize = $a[1];
 			
 			if ($UncompressedSize == 0)
 				$ReceivePacketBuffer .= substr($HTTP_RAW_POST_DATA, $Offset + 7, $Size);
@@ -223,9 +223,9 @@
 		while (substr($Packet, $Offset, 1) != "\x00") $_SESSION['password'] .= substr($Packet, $Offset++, 1); $Offset++;
 		while (substr($Packet, $Offset, 1) != "\x00") $_SESSION['database'] .= substr($Packet, $Offset++, 1); $Offset++;
 		while (substr($Packet, $Offset, 1) != "\x00") $_SESSION['charset'] .= substr($Packet, $Offset++, 1); $Offset++;
-		$_SESSION['port'] = unpack('v', substr($Packet, $Offset, 2))[1]; $Offset += 2;
-		$_SESSION['client_flag'] = unpack('V', substr($Packet, $Offset, 4))[1]; $Offset += 4;
-		$_SESSION['timeout'] = unpack('v', substr($Packet, $Offset, 2))[1]; $Offset += 2;
+		$a = unpack('v', substr($Packet, $Offset, 2)); $_SESSION['port'] = $a[1]; $Offset += 2;
+		$a = unpack('V', substr($Packet, $Offset, 4)); $_SESSION['client_flag'] = $a[1]; $Offset += 4;
+		$a = unpack('v', substr($Packet, $Offset, 2)); $_SESSION['timeout'] = $a[1]; $Offset += 2;
 		
 		set_time_limit($_SESSION['timeout']);
 	} else if (isset($_SESSION['host']))
