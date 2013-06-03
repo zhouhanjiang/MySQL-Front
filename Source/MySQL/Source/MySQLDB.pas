@@ -8,9 +8,11 @@ uses
   MySQLConsts;
 
 const
-  CR_ASYNCHRON = -1;
-  CR_SET_NAMES  = 2300;
-  CR_SERVER_OLD = 2301;
+  DS_ASYNCHRON     = -1;
+  DS_MIN_ERROR     = 2300;
+  DS_SET_NAMES     = 2300;
+  DS_SERVER_OLD    = 2301;
+  DS_OUT_OF_MEMORY = 2302;
 
 type
   TMySQLMonitor = class;
@@ -261,7 +263,7 @@ type
     InOnResult: Boolean;
     local_infile: Plocal_infile;
     function GetCommandText(): string;
-    function UseCompression(): Boolean;
+    function UseCompression(): Boolean; inline;
     function GetServerDateTime(): TDateTime;
     function GetHandle(): MySQLConsts.MYSQL;
     function GetInfo(): string;
@@ -803,8 +805,12 @@ resourcestring
   SLibraryNotAvailable = 'Library can not be loaded ("%s")';
   SOutOfSync = 'Thread synchronization error';
   SWrongDataSet = 'Field doesn''t attached to a "%s" DataSet';
-  CR_SET_NAMES_MSG = 'SET NAMES / SET CHARACTER SET statements are not supported';
-  CR_SERVER_OLD_MSG = 'Require MySQL Server 3.23.20 or higher';
+
+const
+  DATASET_ERRORS: array [0..2] of PChar = (
+    'SET NAMES / SET CHARACTER SET statements are not supported',            {0}
+    'Require MySQL Server 3.23.20 or higher',                                {1}
+    'DataSet run out of memory');                                            {2}
 
 const
   // Field mappings needed for filtering. (What field type should be compared with what internal type).
@@ -2276,7 +2282,7 @@ begin
   Assert(not Connected);
 
   FExecutionTime := 0;
-  FErrorCode := CR_ASYNCHRON; FErrorMessage := '';
+  FErrorCode := DS_ASYNCHRON; FErrorMessage := '';
 
   if (Assigned(LibraryThread) and (LibraryThread.State <> ssClose)) then
     Terminate();
@@ -2303,7 +2309,7 @@ begin
   if (Assigned(LibraryThread) and (LibraryThread.State <> ssReady)) then
     Terminate();
 
-  FErrorCode := CR_ASYNCHRON; FErrorMessage := '';
+  FErrorCode := DS_ASYNCHRON; FErrorMessage := '';
 
   if (not Assigned(LibraryThread)) then
     SyncDisconncted(nil)
@@ -2314,7 +2320,7 @@ end;
 procedure TMySQLConnection.DoError(const AErrorCode: Integer; const AErrorMessage: string);
 begin
   if ((AErrorCode = CR_UNKNOWN_HOST)
-    or (AErrorCode = CR_SERVER_OLD)) then
+    or (AErrorCode = DS_SERVER_OLD)) then
     Close()
   else if ((AErrorCode = CR_UNKNOWN_ERROR)
     or (AErrorCode = CR_IPSOCK_ERROR)
@@ -2406,7 +2412,7 @@ begin
   LibraryThread.SQLStmtsInPackets.Clear();
   LibraryThread.Time := 0;
 
-  FErrorCode := CR_ASYNCHRON; FErrorMessage := '';
+  FErrorCode := DS_ASYNCHRON; FErrorMessage := '';
   FExecutedSQLLength := 0; FExecutedStmts := 0; FResultCount := 0;
   FRowsAffected := -1; FWarningCount := -1; FExecutionTime := 0;
 
@@ -2447,7 +2453,7 @@ begin
     begin
       if (SetNames or AlterTableAfterCreateTable) then
         PacketComplete := pcExclusiveCurrentStmt
-      else if ((SizeOf(COM_QUERY) + LibraryThread.SQLStmtIndex - 1 + StmtLength > MaxAllowedPacket) and (SizeOf(COM_QUERY) + WideCharToAnsiChar(CodePage, PChar(@LibraryThread.SQL[SQLPacketIndex]), LibraryThread.SQLStmtIndex - SQLPacketIndex + StmtLength, nil, 0) > MaxAllowedPacket)) then
+      else if ((SizeOf(COM_QUERY) + LibraryThread.SQLStmtIndex - 1 + StmtLength > MaxAllowedPacket) and (SizeOf(COM_QUERY) + WideCharToAnsiChar(CodePage, PChar(@LibraryThread.SQL[SQLPacketIndex]), LibraryThread.SQLStmtIndex - SQLPacketIndex + StmtLength, nil, 0) > MaxAllowedPacket) and (LibraryThread.SQLStmt > OldStmt)) then
         PacketComplete := pcExclusiveCurrentStmt
       else if (not MultiStatements or (LibraryThread.SQLStmtIndex - 1 + StmtLength = Length(LibraryThread.SQL))) then
         PacketComplete := pcInclusiveCurrentStmt
@@ -2494,7 +2500,7 @@ begin
   end
   else if (SetNames) then
   begin
-    DoError(CR_SET_NAMES, CR_SET_NAMES_MSG);
+    DoError(DS_SET_NAMES, StrPas(DATASET_ERRORS[DS_SET_NAMES - DS_MIN_ERROR]));
     Result := False;
   end
   else
@@ -2530,7 +2536,7 @@ begin
         Result := False
       else
       begin
-        if (FErrorCode = CR_ASYNCHRON) then
+        if (FErrorCode = DS_ASYNCHRON) then
           FErrorCode := 0;
         if (Assigned(Done)) then
           Done.SetEvent();
@@ -3180,7 +3186,7 @@ begin
       end;
 
       if (ServerVersion < 32320) then
-        DoError(CR_SERVER_OLD, CR_SERVER_OLD_MSG)
+        DoError(DS_SERVER_OLD, StrPas(DATASET_ERRORS[DS_SERVER_OLD - DS_MIN_ERROR]))
       else
       begin
         if ((ServerVersion < 40101) or not Assigned(Lib.mysql_character_set_name)) then
@@ -3584,8 +3590,8 @@ begin
       TerminateCS.Leave();
       if (not LibraryThread.Success) then
       begin
-        LibraryThread.ErrorCode := CR_OUT_OF_MEMORY;
-        LibraryThread.ErrorMessage := StrPas(CLIENT_ERRORS[CR_OUT_OF_MEMORY - CR_MIN_ERROR]);
+        LibraryThread.ErrorCode := DS_OUT_OF_MEMORY;
+        LibraryThread.ErrorMessage := StrPas(DATASET_ERRORS[DS_OUT_OF_MEMORY - DS_MIN_ERROR]);
       end;
     end;
   until (not LibraryThread.Success or not Assigned(LibRow));
@@ -3641,7 +3647,7 @@ end;
 
 function TMySQLConnection.UseCompression(): Boolean;
 begin
-  Result := (LibraryType = ltHTTP) or not ((lstrcmpi(PChar(Host), LOCAL_HOST) = 0) or (Host = '127.0.0.1') or (Host = '::1'));
+  Result := LibraryType <> ltNamedPipe;
 end;
 
 function TMySQLConnection.UseLibraryThread(): Boolean;
@@ -4954,7 +4960,11 @@ end;
 
 function TMySQLDataSet.AllocInternRecordBuffer(): PInternRecordBuffer;
 begin
-  New(Result);
+  try
+    New(Result);
+  except
+    Result := nil;
+  end;
 
   if (Assigned(Result)) then
   begin
@@ -5392,7 +5402,7 @@ begin
     Success := InternAddRecord(PExternRecordBuffer(Buffer)^.InternRecordBuffer^.NewData^.LibRow, PExternRecordBuffer(Buffer)^.InternRecordBuffer^.NewData^.LibLengths);
 
   if (not Success) then
-    Connection.DoError(CR_OUT_OF_MEMORY, StrPas(CLIENT_ERRORS[CR_OUT_OF_MEMORY - CR_MIN_ERROR]));
+    Connection.DoError(DS_OUT_OF_MEMORY, StrPas(CLIENT_ERRORS[DS_OUT_OF_MEMORY - DS_MIN_ERROR]));
 end;
 
 procedure TMySQLDataSet.InternalCancel();
@@ -5751,9 +5761,13 @@ begin
   MemSize := SizeOf(DestData^) + FieldCount * (SizeOf(DestData^.LibLengths^[0]) + SizeOf(DestData^.LibRow^[0]));
   for I := 0 to FieldCount - 1 do
     Inc(MemSize, SourceData^.LibLengths^[I]);
-  GetMem(DestData, MemSize);
-  Result := Assigned(DestData);
+  try
+    GetMem(DestData, MemSize);
+  except
+    DestData := nil;
+  end;
 
+  Result := Assigned(DestData);
   if (Result) then
   begin
     DestData^.LibLengths := Pointer(@PAnsiChar(DestData)[SizeOf(DestData^)]);
@@ -6291,6 +6305,7 @@ begin
   ValueHandled := False;
   for I := 0 to FieldCount - 1 do
     if ((PExternRecordBuffer(Buffer)^.InternRecordBuffer^.NewData^.LibLengths^[Fields[I].FieldNo - 1] <> PExternRecordBuffer(Buffer)^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo - 1])
+      or (Assigned(PExternRecordBuffer(Buffer)^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1]) xor Assigned(PExternRecordBuffer(Buffer)^.InternRecordBuffer^.OldData^.LibRow^[Fields[I].FieldNo - 1]))
       or (not CompareMem(PExternRecordBuffer(Buffer)^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1], PExternRecordBuffer(Buffer)^.InternRecordBuffer^.OldData^.LibRow^[Fields[I].FieldNo - 1], PExternRecordBuffer(Buffer)^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo - 1]))) then
     begin
       if (ValueHandled) then Result := Result + ',';

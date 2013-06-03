@@ -42,47 +42,42 @@ type
     function error(): RawByteString; inline;
   end;
 
-  TMySQL_File = class (TMySQL_IO)
+  TMySQL_Packet = class (TMySQL_IO)
   type
-    TFileBuffer = record
+    TBuffer = record
       Mem: my_char;
       MemSize: my_uint;
       Offset: my_uint;
       Size: my_uint;
     end;
-    TClientStatus = (
-      MYSQL_STATUS_READY,
-      MYSQL_STATUS_GET_RESULT,
-      MYSQL_STATUS_USE_RESULT
-    );
+    TClientStatus = (MYSQL_STATUS_READY, MYSQL_STATUS_GET_RESULT, MYSQL_STATUS_USE_RESULT);
   private
     CompPacketNr: Byte;
-    CompressedBuffer: TFileBuffer;
-    DecompressedBuffer: TFileBuffer;
-    FUseCompression: Boolean;
-    PacketBuffer: TFileBuffer;
+    CompressedBuffer: TBuffer;
+    DecompressedBuffer: TBuffer;
+    PacketBuffer: TBuffer;
     PacketNr: Byte;
+    UseCompression: Boolean;
     function ReceivePacket(): Boolean;
   protected
-    function CreateFile(const AIOType: TMySQL_IO.TType;
+    function CreatePacket(const AIOType: TMySQL_IO.TType;
       const Host, UnixSocket: RawByteString; const Port, Timeout: my_uint): Boolean; virtual;
-    procedure CloseFile(); virtual;
-    function FlushFileBuffers(): Boolean; virtual;
-    function GetFileSize(): my_int; virtual;
+    procedure ClosePacket(); virtual;
+    function FlushPacketBuffers(): Boolean; virtual;
+    function GetPacketSize(): my_int; virtual;
     procedure next_command(); virtual;
     function next_result(): my_int; virtual;
-    function ReadFile(const Buffer: my_char; const Size: my_uint): Boolean; overload; virtual;
-    function ReadFile(out Value: my_int; const Size: Byte = 0): Boolean; overload; virtual;
-    function ReadFile(out Value: my_uint; const Size: Byte = 0): Boolean; overload; virtual;
-    function ReadFile(out Value: my_ulonglong; const Size: Byte = 0): Boolean; overload; virtual;
-    function ReadFile(out Value: RawByteString; const NTS: Boolean = True; const Size: Byte = 0): Boolean; overload; virtual;
-    function ReallocBuffer(var Buffer: TFileBuffer; const ReserveSize: my_uint): Boolean;
-    function SetFilePointer(const DistanceToMove: my_int; const MoveMethod: my_int): my_int; virtual;
+    function ReadPacket(const Buffer: my_char; const Size: my_uint): Boolean; overload; virtual;
+    function ReadPacket(out Value: my_int; const Size: Byte = 0): Boolean; overload; virtual;
+    function ReadPacket(out Value: my_uint; const Size: Byte = 0): Boolean; overload; virtual;
+    function ReadPacket(out Value: my_ulonglong; const Size: Byte = 0): Boolean; overload; virtual;
+    function ReadPacket(out Value: RawByteString; const NTS: Boolean = True; const Size: Byte = 0): Boolean; overload; virtual;
+    function ReallocBuffer(var Buffer: TBuffer; const ReserveSize: my_uint): Boolean;
+    function SetPacketPointer(const DistanceToMove: my_int; const MoveMethod: my_int): my_int; virtual;
     procedure SetDirection(ADirection: TMySQL_IO.TDirection); override;
-    function WriteFile(const Buffer: my_char; const Size: my_uint): Boolean; overload; virtual;
-    function WriteFile(const Value: my_ulonglong; const Size: my_uint): Boolean; overload; virtual;
-    function WriteFile(const Value: RawByteString; const NTS: Boolean = True): Boolean; overload; virtual;
-    property UseCompression: Boolean read FUseCompression;
+    function WritePacket(const Buffer: my_char; const Size: my_uint): Boolean; overload; virtual;
+    function WritePacket(const Value: my_ulonglong; const Size: my_uint): Boolean; overload; virtual;
+    function WritePacket(const Value: RawByteString; const NTS: Boolean = True): Boolean; overload; virtual;
   public
     constructor Create(); override;
   end;
@@ -122,7 +117,7 @@ type
     function num_rows(): my_ulonglong; virtual;
   end;
 
-  MYSQL = class (TMySQL_File)
+  MYSQL = class (TMySQL_Packet)
   private
     CriticalSection: TCriticalSection;
     FieldCount: my_uint;
@@ -138,7 +133,7 @@ type
     fcharacter_set_name: RawByteString;
     fcipher: RawByteString;
     fclient_capabilities: my_uint;
-    fclient_status: TMySQL_File.TClientStatus;
+    fclient_status: TMySQL_Packet.TClientStatus;
     fcompress: Boolean;
     fdb: RawByteString;
     fhost: RawByteString;
@@ -165,14 +160,14 @@ type
     ftimeout: my_uint;
     fuser: RawByteString;
     fwarning_count: my_uint;
-    procedure CloseFile(); override;
+    procedure ClosePacket(); override;
     function ExecuteCommand(const Command: enum_server_command; const Bin: my_char; const Size: my_int; const Retry: Boolean): my_int; virtual;
     function GetCodePage(): Cardinal; override;
     function ReadRow(var Row: MYSQL_RES.PRow): my_int; virtual;
     procedure ReadRows(const Ares: MYSQL_RES); virtual;
     function ServerError(): Boolean; virtual;
     function Seterror(const AErrNo: my_uint; const AError: RawByteString = ''): my_uint; override;
-    property ClientStatus: TMySQL_File.TClientStatus read fclient_status;
+    property ClientStatus: TMySQL_Packet.TClientStatus read fclient_status;
     property CodePage: Cardinal read GetCodePage;
   public
     constructor Create(); override;
@@ -209,7 +204,7 @@ type
     function thread_id(): my_uint; virtual;
     function use_result(): MYSQL_RES; virtual;
     function warning_count(): my_uint; virtual;
-    property client_status: TMySQL_File.TClientStatus read fclient_status;
+    property client_status: TMySQL_Packet.TClientStatus read fclient_status;
     property res: MYSQL_RES read fres;
   end;
 
@@ -1200,7 +1195,7 @@ end;
 
 { TMySQL_File *****************************************************************}
 
-procedure TMySQL_File.CloseFile();
+procedure TMySQL_Packet.ClosePacket();
 var
   C: AnsiChar;
 begin
@@ -1208,8 +1203,8 @@ begin
   begin
     next_command();
     C := AnsiChar(COM_QUIT); // inform the server we're gone
-    WriteFile(@C, 1);
-    FlushFileBuffers();
+    WritePacket(@C, 1);
+    FlushPacketBuffers();
   end;
 
   Close();
@@ -1219,7 +1214,7 @@ begin
   ReallocBuffer(PacketBuffer, 0);
 end;
 
-constructor TMySQL_File.Create();
+constructor TMySQL_Packet.Create();
 begin
   inherited;
 
@@ -1228,7 +1223,7 @@ begin
   FillChar(PacketBuffer, SizeOf(PacketBuffer), #0);
 end;
 
-function TMySQL_File.CreateFile(const AIOType: TMYSQL_IO.TType;
+function TMySQL_Packet.CreatePacket(const AIOType: TMYSQL_IO.TType;
   const Host, UnixSocket: RawByteString; const Port, Timeout: my_uint): Boolean;
 begin
   Result := IOType = itNone;
@@ -1236,7 +1231,7 @@ begin
   begin
     ReallocBuffer(PacketBuffer, NET_BUFFER_LENGTH);
 
-    FUseCompression := False;
+    UseCompression := False;
 
     CompPacketNr := 0;
     PacketNr := 0;
@@ -1245,17 +1240,20 @@ begin
   end;
 end;
 
-function TMySQL_File.FlushFileBuffers(): Boolean;
+function TMySQL_Packet.FlushPacketBuffers(): Boolean;
 var
   CompressBuffer: Pointer;
   CompressedSize: Integer;
+  Header: array [0..NET_HEADER_SIZE + COMP_HEADER_SIZE - 1] of Byte;
   Offset: my_uint;
   Size: my_uint;
 begin
+  Assert(Assigned(PacketBuffer.Mem));
+
   Result := (errno() <> CR_SERVER_GONE_ERROR) and (errno() <> CR_SERVER_LOST);
-  if (Result and Assigned(PacketBuffer.Mem)) then
+  if (Result) then
   begin
-    SetFilePointer(1, PACKET_CURRENT);
+    SetPacketPointer(1, PACKET_CURRENT);
     Dec(PacketBuffer.Size, NET_HEADER_SIZE);
 
     if (not UseCompression) then
@@ -1269,9 +1267,9 @@ begin
         Size := PacketBuffer.Size - Offset;
         if (Size > $FFFFFF) then Size := $FFFFFF;
 
-        CompressBuffer := nil;
-        CompressedSize := Size;
-        if (Size >= MIN_COMPRESS_LENGTH) then
+        if (Size < MIN_COMPRESS_LENGTH) then
+          CompressedSize := Size
+        else
           try
             ZCompress(@PacketBuffer.Mem[Offset], Size, CompressBuffer, CompressedSize);
           except
@@ -1281,38 +1279,22 @@ begin
         if (Result) then
           if (my_uint(CompressedSize) >= Size) then
           begin
-            if (Offset + NET_HEADER_SIZE + COMP_HEADER_SIZE + Size > PacketBuffer.MemSize) then
-              ReallocBuffer(PacketBuffer, Offset + NET_HEADER_SIZE + COMP_HEADER_SIZE + Size);
+            Move(Size, Header[0], 3);
+            Move(CompPacketNr, Header[3], 1);
+            FillChar(Header[4], 3, #0);
 
-            Move(PacketBuffer.Mem[Offset], PacketBuffer.Mem[Offset + NET_HEADER_SIZE + COMP_HEADER_SIZE], Size);
-            Inc(PacketBuffer.Size, NET_HEADER_SIZE + COMP_HEADER_SIZE);
-
-            Move(Size, PacketBuffer.Mem[Offset + 0], 3);
-            FillChar(PacketBuffer.Mem[Offset + NET_HEADER_SIZE], COMP_HEADER_SIZE, #0);
-
-            Result := Send(PacketBuffer.Mem[Offset], NET_HEADER_SIZE + COMP_HEADER_SIZE + Size);
-
-            Inc(Offset, NET_HEADER_SIZE + COMP_HEADER_SIZE + Size);
+            Result := Send(Header, SizeOf(Header)) and Send(PacketBuffer.Mem[Offset], Size);
           end
           else
           begin
-            Move(CompressedSize, PacketBuffer.Mem[Offset + 0], 3);
-            Move(Size, PacketBuffer.Mem[Offset + 4], 3);
+            Move(CompressedSize, Header[0], 3);
+            Move(CompPacketNr, Header[3], 1);
+            Move(Size, Header[4], 3);
 
-            if (NET_HEADER_SIZE + COMP_HEADER_SIZE + my_uint(CompressedSize) > Size) then
-            begin
-              Result := Send(PacketBuffer.Mem[Offset], NET_HEADER_SIZE + COMP_HEADER_SIZE);
-              Result := Result and Send(CompressBuffer^, CompressedSize);
-            end
-            else
-            begin
-              Move(CompressBuffer^, PacketBuffer.Mem[Offset + NET_HEADER_SIZE + COMP_HEADER_SIZE], CompressedSize);
-              Result := Send(PacketBuffer.Mem[Offset], NET_HEADER_SIZE + COMP_HEADER_SIZE + CompressedSize);
-            end;
-
-            Inc(Offset, Size);
+            Result := Send(Header, SizeOf(Header)) and Send(CompressBuffer^, CompressedSize);
           end;
 
+        Inc(Offset, Size);
         CompPacketNr := (CompPacketNr + 1) and $FF;
 
         if (Assigned(CompressBuffer)) then
@@ -1325,7 +1307,7 @@ begin
   end;
 end;
 
-function TMySQL_File.GetFileSize(): my_int;
+function TMySQL_Packet.GetPacketSize(): my_int;
 begin
   if (Direction = idRead) then
     Result := PacketBuffer.Size
@@ -1335,7 +1317,7 @@ begin
     Result := PacketBuffer.Size - (NET_HEADER_SIZE + PacketBuffer.Offset);
 end;
 
-procedure TMySQL_File.next_command();
+procedure TMySQL_Packet.next_command();
 begin
   Direction := idWrite;
 
@@ -1343,14 +1325,14 @@ begin
   PacketNr := 0;
 end;
 
-function TMySQL_File.next_result(): my_int;
+function TMySQL_Packet.next_result(): my_int;
 begin
   Direction := idRead;
 
   Result := 0;
 end;
 
-function TMySQL_File.ReadFile(const Buffer: my_char; const Size: my_uint): Boolean;
+function TMySQL_Packet.ReadPacket(const Buffer: my_char; const Size: my_uint): Boolean;
 begin
   Assert(Direction = idRead);
   
@@ -1365,25 +1347,25 @@ begin
   end;
 end;
 
-function TMySQL_File.ReadFile(out Value: my_int; const Size: Byte = 0): Boolean;
+function TMySQL_Packet.ReadPacket(out Value: my_int; const Size: Byte = 0): Boolean;
 var
   LL: my_ulonglong;
 begin
-  Result := ReadFile(LL, Size);
+  Result := ReadPacket(LL, Size);
   if (Result) then
     Move(LL, Value, SizeOf(Value));
 end;
 
-function TMySQL_File.ReadFile(out Value: my_uint; const Size: Byte = 0): Boolean;
+function TMySQL_Packet.ReadPacket(out Value: my_uint; const Size: Byte = 0): Boolean;
 var
   LL: my_ulonglong;
 begin
-  Result := ReadFile(LL, Size);
+  Result := ReadPacket(LL, Size);
   if (Result) then
     Move(LL, Value, SizeOf(Value));
 end;
 
-function TMySQL_File.ReadFile(out Value: my_ulonglong; const Size: Byte = 0): Boolean;
+function TMySQL_Packet.ReadPacket(out Value: my_ulonglong; const Size: Byte = 0): Boolean;
 begin
   FillChar(Value, SizeOf(Value), #0);
 
@@ -1441,7 +1423,7 @@ begin
   end;
 end;
 
-function TMySQL_File.ReadFile(out Value: RawByteString; const NTS: Boolean = True; const Size: Byte = 0): Boolean;
+function TMySQL_Packet.ReadPacket(out Value: RawByteString; const NTS: Boolean = True; const Size: Byte = 0): Boolean;
 var
   Len: my_ulonglong;
 begin
@@ -1456,7 +1438,7 @@ begin
       Inc(PacketBuffer.Offset, Size);
       Result := True;
     end
-  else if (not NTS and ReadFile(Len)) then
+  else if (not NTS and ReadPacket(Len)) then
     if ((Len = NULL_LENGTH) or (PacketBuffer.Offset + Len > PacketBuffer.Size)) then
       Result := False
     else
@@ -1480,7 +1462,7 @@ begin
     Result := False;
 end;
 
-function TMySQL_File.ReallocBuffer(var Buffer: TFileBuffer; const ReserveSize: my_uint): Boolean;
+function TMySQL_Packet.ReallocBuffer(var Buffer: TBuffer; const ReserveSize: my_uint): Boolean;
 begin
   Result := True;
 
@@ -1515,7 +1497,7 @@ begin
   end;
 end;
 
-function TMySQL_File.ReceivePacket(): Boolean;
+function TMySQL_Packet.ReceivePacket(): Boolean;
 
   function ReceiveCompressed(var Buffer; const BytesToRead: Integer): Boolean;
   var
@@ -1651,7 +1633,7 @@ begin
   until (not Result or (Size < $FFFFFF));
 end;
 
-function TMySQL_File.SetFilePointer(const DistanceToMove: my_int; const MoveMethod: my_int): my_int;
+function TMySQL_Packet.SetPacketPointer(const DistanceToMove: my_int; const MoveMethod: my_int): my_int;
 var
   I: my_int;
   Size: my_uint;
@@ -1668,7 +1650,7 @@ begin
       if (not ReceivePacket()) then
         Result := -1
       else
-        Result := 0
+        Result := 0;
     end
     else // Move inside a packet
     begin
@@ -1688,17 +1670,17 @@ begin
     case (MoveMethod) of
       FILE_CURRENT:
         begin
-          for I := 0 to DistanceToMove - 1 do WriteFile(0, 1);
+          for I := 0 to DistanceToMove - 1 do WritePacket(0, 1);
           Result := PacketBuffer.Size - PacketBuffer.Offset;
         end;
       PACKET_CURRENT: // Switch to next packet
         begin
-          Size := PacketBuffer.Size - (PacketBuffer.Offset + NET_HEADER_SIZE);
+          Size := GetPacketSize();
           Move(Size, PacketBuffer.Mem[PacketBuffer.Offset + 0], 3);
           Move(PacketNr, PacketBuffer.Mem[PacketBuffer.Offset + 3], 1);
           PacketNr := (PacketNr + 1) and $FF;
 
-          PacketBuffer.Offset := PacketBuffer.Size;
+          Inc(PacketBuffer.Offset, Size);
           Inc(PacketBuffer.Size, NET_HEADER_SIZE); // Reserve space for packet header
 
           Result := 0;
@@ -1708,7 +1690,7 @@ begin
     end;
 end;
 
-procedure TMySQL_File.SetDirection(ADirection: TMySQL_IO.TDirection);
+procedure TMySQL_Packet.SetDirection(ADirection: TMySQL_IO.TDirection);
 const
   ReducedBufferSized = 2 * NET_BUFFER_LENGTH;
 begin
@@ -1727,7 +1709,7 @@ begin
   inherited;
 end;
 
-function TMySQL_File.WriteFile(const Buffer: my_char; const Size: my_uint): Boolean;
+function TMySQL_Packet.WritePacket(const Buffer: my_char; const Size: my_uint): Boolean;
 var
   Offset: my_uint;
   PartSize: my_uint;
@@ -1738,40 +1720,37 @@ begin
   Offset := 0;
   repeat
     PartSize := Size - Offset;
-    if (PartSize > NET_HEADER_SIZE + MAX_PACKET_LENGTH - (PacketBuffer.Size - PacketBuffer.Offset)) then
-      PartSize := NET_HEADER_SIZE + MAX_PACKET_LENGTH - (PacketBuffer.Size - PacketBuffer.Offset);
+    if (PartSize > $FFFFFF - (PacketBuffer.Size - (PacketBuffer.Offset + NET_HEADER_SIZE))) then
+      PartSize := $FFFFFF - (PacketBuffer.Size - (PacketBuffer.Offset + NET_HEADER_SIZE));
 
-    if (PacketBuffer.Size + PartSize > PacketBuffer.MemSize) then
-      ReallocBuffer(PacketBuffer, PacketBuffer.Size + PartSize);
+    Result := ReallocBuffer(PacketBuffer, PartSize);
 
-    if (errno() = 0) then
+    if (Result) then
     begin
       Move(Buffer[Offset], PacketBuffer.Mem[PacketBuffer.Size], PartSize);
       Inc(PacketBuffer.Size, PartSize);
       Inc(Offset, PartSize);
     end;
 
-    if (PacketBuffer.Size = NET_HEADER_SIZE + MAX_PACKET_LENGTH) then
-      SetFilePointer(1, PACKET_CURRENT);
-
-    Result := errno() = 0;
-  until (not Result or (Offset = Size) and (PartSize <> MAX_PACKET_LENGTH));
+    if (Result and (PacketBuffer.Size = NET_HEADER_SIZE + $FFFFFF)) then
+      Result := FlushPacketBuffers();
+  until (not Result or (Offset = Size) and (PartSize <> $FFFFFF));
 end;
 
-function TMySQL_File.WriteFile(const Value: my_ulonglong; const Size: my_uint): Boolean;
+function TMySQL_Packet.WritePacket(const Value: my_ulonglong; const Size: my_uint): Boolean;
 begin
-  Result := WriteFile(@Value, Size);
+  Result := WritePacket(@Value, Size);
 end;
 
-function TMySQL_File.WriteFile(const Value: RawByteString; const NTS: Boolean = True): Boolean;
+function TMySQL_Packet.WritePacket(const Value: RawByteString; const NTS: Boolean = True): Boolean;
 begin
   Result := True;
   if (not NTS) then
-    Result := Result and WriteFile(Length(Value), 1);
+    Result := Result and WritePacket(Length(Value), 1);
   if (Value <> '') then
-    Result := Result and WriteFile(my_char(Value), Length(Value));
+    Result := Result and WritePacket(my_char(Value), Length(Value));
   if (NTS) then
-    Result := Result and WriteFile(0, 1);
+    Result := Result and WritePacket(0, 1);
 end;
 
 { MYSQL ****************************************************************}
@@ -1786,7 +1765,7 @@ begin
   Result := my_char(fcharacter_set_name);
 end;
 
-procedure MYSQL.CloseFile();
+procedure MYSQL.ClosePacket();
 begin
   CriticalSection.Enter();
 
@@ -1846,7 +1825,7 @@ end;
 
 destructor MYSQL.Destroy();
 begin
-  CloseFile();
+  ClosePacket();
 
   CriticalSection.Free();
 
@@ -1889,7 +1868,7 @@ begin
     Seterror(0);
     next_command();
 
-    if (WriteFile(@Command, 1) and WriteFile(Bin, Size) and (FlushFileBuffers() or (errno() = CR_SERVER_GONE_ERROR)) and (next_result() <= 0)) then
+    if (WritePacket(@Command, 1) and WritePacket(Bin, Size) and (FlushPacketBuffers() or (errno() = CR_SERVER_GONE_ERROR)) and (next_result() <= 0)) then
       if (errno() = 0) then
         Result := 0
       else
@@ -2012,13 +1991,13 @@ begin
 
       if ((Direction = idRead) and (fserver_status and SERVER_MORE_RESULTS_EXISTS = 0)) then
         Result := -1
-      else if ((inherited next_result() <> 0) or (SetFilePointer(1, PACKET_CURRENT) < 0)) then
+      else if ((inherited next_result() <> 0) or (SetPacketPointer(1, PACKET_CURRENT) < 0)) then
       begin
         if (errno() = 0) then
           Seterror(CR_UNKNOWN_ERROR);
         Result := 1;
       end
-      else if (GetFileSize() = 0) then
+      else if (GetPacketSize() = 0) then
       begin
         Seterror(CR_SERVER_HANDSHAKE_ERR);
         Result := 1;
@@ -2027,27 +2006,27 @@ begin
         Result := 1
       else if (Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FB) then // NULL_LENGTH
       begin
-        SetFilePointer(1, FILE_CURRENT); // $FB
+        SetPacketPointer(1, FILE_CURRENT); // $FB
 
         FileSent := True;
-        if (not ReadFile(RBS) or not SendFile(RBS)) then
+        if (not ReadPacket(RBS) or not SendFile(RBS)) then
           Result := 1
         else
           Result := 0;
       end
       else if ((Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FE) and (PacketBuffer.Size - PacketBuffer.Offset < 9)) then
       begin
-        SetFilePointer(1, FILE_CURRENT); // $FE
+        SetPacketPointer(1, FILE_CURRENT); // $FE
 
         if (fclient_capabilities and CLIENT_PROTOCOL_41 <> 0) then
         begin
-          ReadFile(fserver_status, 2);
-          ReadFile(fwarning_count, 2);
+          ReadPacket(fserver_status, 2);
+          ReadPacket(fwarning_count, 2);
         end;
 
         Result := 0;
       end
-      else if (not ReadFile(FieldCount)) then
+      else if (not ReadPacket(FieldCount)) then
       begin
         if (errno() = 0) then
           Seterror(CR_SERVER_HANDSHAKE_ERR);
@@ -2055,21 +2034,21 @@ begin
       end
       else if (FieldCount = 0) then
       begin
-        ReadFile(faffected_rows);
-        ReadFile(finsert_id);
+        ReadPacket(faffected_rows);
+        ReadPacket(finsert_id);
 
         if (fclient_capabilities and CLIENT_PROTOCOL_41 <> 0) then
         begin
-          ReadFile(fserver_status, 2);
-          ReadFile(fwarning_count, 2);
+          ReadPacket(fserver_status, 2);
+          ReadPacket(fwarning_count, 2);
         end
         else if (fserver_capabilities and CLIENT_TRANSACTIONS <> 0) then
         begin
-          ReadFile(fserver_status, 2);
+          ReadPacket(fserver_status, 2);
           fwarning_count := 0;
         end;
 
-        if ((PacketBuffer.Offset < PacketBuffer.Size) and ReadFile(RBS, False)) then
+        if ((PacketBuffer.Offset < PacketBuffer.Size) and ReadPacket(RBS, False)) then
         begin
           GetMem(finfo, Length(RBS) + 1);
           StrPCopy(finfo, RBS);
@@ -2135,16 +2114,16 @@ begin
   Assert(Direction = idRead);
 
 
-  if ((SetFilePointer(1, PACKET_CURRENT) < 0) or ServerError()) then
+  if ((SetPacketPointer(1, PACKET_CURRENT) < 0) or ServerError()) then
     Result := -1
   else if ((Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FE) and (PacketBuffer.Size - PacketBuffer.Offset < 9)) then
   begin
-    SetFilePointer(1, FILE_CURRENT); // $FE
+    SetPacketPointer(1, FILE_CURRENT); // $FE
 
     if (fclient_capabilities and CLIENT_PROTOCOL_41 <> 0) then
     begin
-      ReadFile(fwarning_count, 2);
-      ReadFile(fserver_status, 2);
+      ReadPacket(fwarning_count, 2);
+      ReadPacket(fserver_status, 2);
     end;
 
     if (fclient_status = MYSQL_STATUS_GET_RESULT) then
@@ -2157,7 +2136,7 @@ begin
   else if (Assigned(res) and (res.ResultType = rtUsed)) then
   begin
     for I := 0 to FieldCount - 1 do
-      if ((errno() = 0) and ReadFile(res.CurrentRow^.Lengths^[I])) then
+      if ((errno() = 0) and ReadPacket(res.CurrentRow^.Lengths^[I])) then
         if (res.CurrentRow^.Lengths^[I] = NULL_LENGTH) then
         begin
           res.CurrentRow^.Lengths^[I] := 0;
@@ -2166,7 +2145,7 @@ begin
         else
         begin
           res.CurrentRow^.Row^[I] := @PacketBuffer.Mem[PacketBuffer.Offset];
-          SetFilePointer(res.CurrentRow^.Lengths^[I], FILE_CURRENT);
+          SetPacketPointer(res.CurrentRow^.Lengths^[I], FILE_CURRENT);
         end;
     if ((errno() = 0) and (PacketBuffer.Offset <> PacketBuffer.Offset)) then
       Seterror(CR_SERVER_HANDSHAKE_ERR);
@@ -2180,11 +2159,11 @@ begin
     Result := 0;
 
     TotalSize := 0;
-    while ((not Assigned(res) or (my_uint(Result) < FieldCount)) and (PacketBuffer.Offset < PacketBuffer.Size) and ReadFile(Len)) do
+    while ((not Assigned(res) or (my_uint(Result) < FieldCount)) and (PacketBuffer.Offset < PacketBuffer.Size) and ReadPacket(Len)) do
     begin
       if (Len <> NULL_LENGTH) then
       begin
-        SetFilePointer(Len, FILE_CURRENT);
+        SetPacketPointer(Len, FILE_CURRENT);
         Inc(TotalSize, Len);
       end;
 
@@ -2223,9 +2202,9 @@ begin
       Row^.Row := Pointer(@PAnsiChar(Row)[SizeOf(Row^) + Result * SizeOf(Row^.Lengths^[0])]);
 
       Index := SizeOf(Row^) + Result * (SizeOf(Row^.Lengths^[0]) + SizeOf(Row^.Row^[0]));
-      SetFilePointer(0, FILE_BEGIN);
+      SetPacketPointer(0, FILE_BEGIN);
       for I := 0 to Result - 1 do
-        if (ReadFile(Row^.Lengths^[I])) then
+        if (ReadPacket(Row^.Lengths^[I])) then
           if (Row^.Lengths^[I] = NULL_LENGTH) then
           begin
             Row^.Lengths^[I] := 0;
@@ -2234,7 +2213,7 @@ begin
           else
           begin
             Row^.Row^[I] := @PAnsiChar(Row)[Index];
-            if (ReadFile(Row^.Row^[I], Row^.Lengths^[I])) then
+            if (ReadPacket(Row^.Row^[I], Row^.Lengths^[I])) then
               Inc(Index, Row^.Lengths^[I]);
 
             if (Assigned(res) and (res.Fields^[I]^.max_length < my_uint(Row^.Lengths^[I]))) then
@@ -2306,30 +2285,30 @@ begin
       fclient_capabilities := fclient_capabilities and not CLIENT_CONNECT_WITH_DB;
 
     if ((host = LOCAL_HOST_NAMEDPIPE) or (StrLen(unix_socket) > 0)) then
-      CreateFile(itNamedPipe, host, fpipe_name, fport, ftimeout)
+      CreatePacket(itNamedPipe, host, fpipe_name, fport, ftimeout)
     else
-      CreateFile(itTCPIP, fhost, '', fport, ftimeout);
+      CreatePacket(itTCPIP, fhost, '', fport, ftimeout);
 
     if (IOType = itNone) then
       // errno() has been set by CreateFile()
-    else if (SetFilePointer(1, PACKET_CURRENT) < 0) then
+    else if (SetPacketPointer(1, PACKET_CURRENT) < 0) then
       // errno() has been set by SetFilePointer()
     else if (ServerError()) then
       // errno() has been set by ServerError()
-    else if (not ReadFile(ProtocolVersion, 1)) then
+    else if (not ReadPacket(ProtocolVersion, 1)) then
       // errno() has been set by ReadFile()
     else if (ProtocolVersion <> PROTOCOL_VERSION) then
       Seterror(CR_VERSION_ERROR, EncodeString(Format(CLIENT_ERRORS[CR_VERSION_ERROR - CR_MIN_ERROR], [ProtocolVersion, PROTOCOL_VERSION])))
     else
     begin
-      ReadFile(RBS); ReallocMem(fserver_info, Length(RBS) + 1); StrPCopy(fserver_info, RBS);
-      ReadFile(fthread_id, 4);
-      ReadFile(Salt);
-      ReadFile(fserver_capabilities, 2);
-      ReadFile(CharsetNr, 1);
-      ReadFile(fserver_status, 2);
+      ReadPacket(RBS); ReallocMem(fserver_info, Length(RBS) + 1); StrPCopy(fserver_info, RBS);
+      ReadPacket(fthread_id, 4);
+      ReadPacket(Salt);
+      ReadPacket(fserver_capabilities, 2);
+      ReadPacket(CharsetNr, 1);
+      ReadPacket(fserver_status, 2);
 
-      if ((SetFilePointer(13, FILE_CURRENT) + 1 < GetFileSize()) and ReadFile(RBS)) then
+      if ((SetPacketPointer(13, FILE_CURRENT) + 1 < GetPacketSize()) and ReadPacket(RBS)) then
         Salt := Salt + RBS
       else if (get_server_version() <> 40100) then
         fserver_capabilities := fserver_capabilities and not CLIENT_SECURE_CONNECTION;
@@ -2378,68 +2357,68 @@ begin
         Direction := idWrite;
         if (fclient_capabilities and CLIENT_PROTOCOL_41 = 0) then
         begin
-          WriteFile(fclient_capabilities and $FFFF, 2);
-          WriteFile(MAX_ALLOWED_PACKET, 3); // Max allowed packet size (Client)
+          WritePacket(fclient_capabilities and $FFFF, 2);
+          WritePacket(MAX_ALLOWED_PACKET, 3); // Max allowed packet size (Client)
         end
         else
         begin
-          WriteFile(fclient_capabilities, 4);
-          WriteFile($40000000, 4); // Max allowed packet size (Client)
-          WriteFile(CharsetNr, 1);
-          WriteFile(RawByteString(StringOfChar(#0, 22))); // unused space
+          WritePacket(fclient_capabilities, 4);
+          WritePacket($40000000, 4); // Max allowed packet size (Client)
+          WritePacket(CharsetNr, 1);
+          WritePacket(RawByteString(StringOfChar(#0, 22))); // unused space
         end;
 
         if (errno() = 0) then
         begin
-          WriteFile(fuser);
+          WritePacket(fuser);
           if (fpasswd = '') then
-            WriteFile('')
+            WritePacket('')
           else if (fserver_capabilities and CLIENT_SECURE_CONNECTION = 0) then
-            WriteFile(Scramble(my_char(fpasswd), my_char(Salt)))
+            WritePacket(Scramble(my_char(fpasswd), my_char(Salt)))
           else
-            WriteFile(SecureScramble(my_char(fpasswd), my_char(Salt)), False);
+            WritePacket(SecureScramble(my_char(fpasswd), my_char(Salt)), False);
           if (fclient_capabilities and CLIENT_CONNECT_WITH_DB <> 0) then
-            WriteFile(fdb);
-          FlushFileBuffers();
+            WritePacket(fdb);
+          FlushPacketBuffers();
 
 
           Direction := idRead;
-          if (SetFilePointer(1, PACKET_CURRENT) = 0) then
+          if (SetPacketPointer(1, PACKET_CURRENT) = 0) then
           begin
-            if ((Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FE) and (GetFileSize() < 9) and (fserver_capabilities and CLIENT_SECURE_CONNECTION <> 0)) then
+            if ((Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FE) and (GetPacketSize() < 9) and (fserver_capabilities and CLIENT_SECURE_CONNECTION <> 0)) then
             begin
               Direction := idWrite;
-              WriteFile(Scramble(my_char(fpasswd), my_char(RawByteString(Copy(Salt, 1, SCRAMBLE_LENGTH_323)))));
-              if (not FlushFileBuffers()) then
+              WritePacket(Scramble(my_char(fpasswd), my_char(RawByteString(Copy(Salt, 1, SCRAMBLE_LENGTH_323)))));
+              if (not FlushPacketBuffers()) then
                 Seterror(CR_SERVER_GONE_ERROR)
               else
               begin
                 Direction := idRead;
-                SetFilePointer(1, PACKET_CURRENT);
+                SetPacketPointer(1, PACKET_CURRENT);
               end;
             end;
 
             if (errno() = 0) then
-              if (GetFileSize() = 0) then
+              if (GetPacketSize() = 0) then
                 Seterror(CR_SERVER_HANDSHAKE_ERR)
               else if (not ServerError()) then
               begin
-                SetFilePointer(1, FILE_CURRENT); // $00
-                ReadFile(faffected_rows);
-                ReadFile(finsert_id);
+                SetPacketPointer(1, FILE_CURRENT); // $00
+                ReadPacket(faffected_rows);
+                ReadPacket(finsert_id);
 
                 if (fclient_capabilities and CLIENT_PROTOCOL_41 <> 0) then
                 begin
-                  ReadFile(fserver_status, 2);
-                  ReadFile(fwarning_count, 2);
+                  ReadPacket(fserver_status, 2);
+                  ReadPacket(fwarning_count, 2);
                 end
                 else if (fserver_capabilities and CLIENT_TRANSACTIONS <> 0) then
                 begin
-                  ReadFile(fserver_status, 2);
+                  ReadPacket(fserver_status, 2);
                   fwarning_count := 0;
                 end;
 
-                FUseCompression := fclient_capabilities and CLIENT_COMPRESS <> 0;
+                UseCompression := fclient_capabilities and CLIENT_COMPRESS <> 0;
               end;
           end;
         end;
@@ -2453,7 +2432,7 @@ begin
 
   if (errno() <> 0) then
   begin
-    CloseFile();
+    ClosePacket();
     Result := nil;
   end
   else
@@ -2572,10 +2551,10 @@ begin
               Seterror(EE_READ, EncodeString(Format('%s  (%s)', [SysErrorMessage(GetLastError()), Filename])))
             else
             begin
-              if ((GetFileSize() > 0) and (GetFileSize() + Integer(ReadSize) > 2 * NET_BUFFER_LENGTH)) then
-                Result := FlushFileBuffers();
+              if ((GetPacketSize() > 0) and (GetPacketSize() + Integer(ReadSize) > 2 * NET_BUFFER_LENGTH)) then
+                Result := FlushPacketBuffers();
               if (Result) then
-                Result := WriteFile(Buffer, ReadSize);
+                Result := WritePacket(Buffer, ReadSize);
             end;
           until (not Result or (ReadSize = 0));
 
@@ -2623,10 +2602,10 @@ begin
               Seterror(flocal_infile_error(ptr, ErrMsg, MYSQL_ERRMSG_SIZE), RawByteString(ErrMsg))
             else
             begin
-              if ((GetFileSize() > 0) and (GetFileSize() + Size > 2 * NET_BUFFER_LENGTH)) then
-                Result := FlushFileBuffers();
+              if ((GetPacketSize() > 0) and (GetPacketSize() + Size > 2 * NET_BUFFER_LENGTH)) then
+                Result := FlushPacketBuffers();
               if (Result) then
-                Result := WriteFile(Buffer, Size);
+                Result := WritePacket(Buffer, Size);
             end;
           until (not Result or (Size <= 0));
 
@@ -2642,9 +2621,9 @@ begin
 
   if (Result) then
   begin
-    if (GetFileSize() > 0) then
-      SetFilePointer(1, PACKET_CURRENT);
-    FlushFileBuffers();
+    if (GetPacketSize() > 0) then
+      SetPacketPointer(1, PACKET_CURRENT);
+    FlushPacketBuffers();
   end;
 end;
 
@@ -2657,9 +2636,9 @@ begin
 
   if (Result) then
   begin
-    SetFilePointer(1, FILE_CURRENT);
-    ReadFile(I, 2);
-    ReadFile(RBS);
+    SetPacketPointer(1, FILE_CURRENT);
+    ReadPacket(I, 2);
+    ReadPacket(RBS);
     if ((Length(RBS) < 6) or (RBS[1] <> '#')) then
       Seterror(I, RBS)
     else

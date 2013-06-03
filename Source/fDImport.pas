@@ -347,7 +347,7 @@ begin
     FBForward.Caption := Preferences.LoadStr(230)
   else if (NextActivePageIndex < TSExecute.PageIndex) then
     FBForward.Caption := Preferences.LoadStr(229) + ' >'
-  else
+  else if (NextActivePageIndex >= 0) then
     FBForward.Caption := Preferences.LoadStr(174);
 
   FBForward.Enabled := FBForward.Visible and ((NextActivePageIndex >= 0) or (ActivePageIndex = TSTask.PageIndex));

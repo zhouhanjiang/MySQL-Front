@@ -991,85 +991,95 @@ label
 var
   Len: Integer;
 begin
-  Result := 0;
-  Len := EscapedLen;
-  asm
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
-        PUSH EBX
+  if (not Assigned(Escaped)) then
+  begin
+    if (ODBCEncoding) then
+      Result := 2 + 2 * Size
+    else
+      Result := 2 + 2 * Size + 1;
+  end
+  else
+  begin
+    Result := 0;
+    Len := EscapedLen;
+    asm
+          PUSH ES
+          PUSH ESI
+          PUSH EDI
+          PUSH EBX
 
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
+          PUSH DS                          // string operations uses ES
+          POP ES
+          CLD                              // string operations uses forward direction
 
-        MOV EBX,Pointer(HexDigits)       // Hex digits
+          MOV EBX,Pointer(HexDigits)       // Hex digits
 
-        MOV ESI,Data                     // Read bytes from Data
-        MOV EDI,Escaped                  // Store into Escaped
-        MOV ECX,Size                     // Number of bytes to handle
+          MOV ESI,Data                     // Read bytes from Data
+          MOV EDI,Escaped                  // Store into Escaped
+          MOV ECX,Size                     // Number of bytes to handle
 
-      // -------------------
+        // -------------------
 
-        ADD @Result,2                    // Two character needed
-        CMP Escaped,0                    // Calculate length only?
-        JE BinL                          // Yes!
-        SUB Len,2                        // Two character less in Escaped!
-        JC Error                         // Not enough space in Escaped!
-        CMP ODBCEncoding,True            // ODBC Encoding?
-        JNE Start2                       // No!
-        MOV AX,'0'
-        STOSW
-        MOV AX,'x'
-        STOSW
-        JMP BinL
-      Start2:
-        MOV AX,'X'
-        STOSW
-        MOV AX,''''
-        STOSW
+          ADD @Result,2                    // Two character needed
+          CMP Escaped,0                    // Calculate length only?
+          JE BinL                          // Yes!
+          SUB Len,2                        // Two character less in Escaped!
+          JC Error                         // Not enough space in Escaped!
+          CMP ODBCEncoding,True            // ODBC Encoding?
+          JNE Start2                       // No!
+          MOV AX,'0'
+          STOSW
+          MOV AX,'x'
+          STOSW
+          JMP BinL
+        Start2:
+          MOV AX,'X'
+          STOSW
+          MOV AX,''''
+          STOSW
 
-      BinL:
-        ADD @Result,2                    // Two characters needed
-        CMP Escaped,0                    // Calculate length only?
-        JE Bin1                          // Yes!
-        SUB Len,2                        // Two character less in Escaped!
-        JC Error                         // Not enough space in Escaped!
-      Bin1:
-        MOV EAX,0                        // Clear EAX since AL will be loaded, but be EAX used
-        LODSB                            // Read byte
-        PUSH EAX
-        SHR AL,4                         // Use high octet
-        MOV AX,[EBX + EAX * 2]           // Get hex character
-        STOSW                            // Store character
-        POP EAX
-        AND AL,$0F                       // Use low octet
-        MOV AX,[EBX + EAX * 2]           // Get hex character
-        STOSW                            // Store character
-      BinE:
-        LOOP BinL                        // Next Bin byte
+        BinL:
+          ADD @Result,2                    // Two characters needed
+          CMP Escaped,0                    // Calculate length only?
+          JE Bin1                          // Yes!
+          SUB Len,2                        // Two character less in Escaped!
+          JC Error                         // Not enough space in Escaped!
+        Bin1:
+          MOV EAX,0                        // Clear EAX since AL will be loaded, but be AX used
+          LODSB                            // Read byte
+          PUSH EAX
+          SHR AL,4                         // Use high octet
+          MOV AX,[EBX + EAX * 2]           // Get hex character
+          STOSW                            // Store character
+          POP EAX
+          AND AL,$0F                       // Use low octet
+          MOV AX,[EBX + EAX * 2]           // Get hex character
+          STOSW                            // Store character
+        BinE:
+          LOOP BinL                        // Next Bin byte
 
-        CMP ODBCEncoding,True            // ODBC Encoding?
-        JE Finish                        // No!
-        INC @Result                      // One character needed
-        CMP Escaped,0                    // Calculate length only?
-        JE Finish                        // Yes!
-        DEC Len                          // One character less in Escaped!
-        JC Error                         // Not enough space in Escaped!
-        MOV AX,''''
-        STOSW
-        JMP Finish
+          CMP ODBCEncoding,True            // ODBC Encoding?
+          JE Finish                        // No!
+          INC @Result                      // One character needed
+          CMP Escaped,0                    // Calculate length only?
+          JE Finish                        // Yes!
+          DEC Len                          // One character less in Escaped!
+          JC Error                         // Not enough space in Escaped!
+          MOV AX,''''
+          STOSW
+          JMP Finish
 
-      // -------------------
+        // -------------------
 
-      Error:
-        MOV @Result,0
+        Error:
+          MOV @Result,0
 
-      Finish:
-        POP EBX
-        POP EDI
-        POP ESI
-        POP ES
+        Finish:
+          POP EBX
+          POP EDI
+          POP ESI
+          POP ES
+    end;
   end;
 end;
 

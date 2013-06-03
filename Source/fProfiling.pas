@@ -4,10 +4,9 @@ interface {********************************************************************}
 
 procedure ProfilingDisablePoint(const Index: Integer);
 procedure ProfilingEnablePoint(const Index: Integer);
-procedure ProfilingNote(const Note: string);
 procedure ProfilingPoint(const Index: Integer);
-function ProfilingReport(): string;
-procedure ProfilingReset(const Filename: string = '');
+function ProfilingReport(const Filename: string = ''): string;
+procedure ProfilingReset();
 
 implementation {***************************************************************}
 
@@ -22,7 +21,6 @@ var
     Disabled: Integer;
     Sum: Int64;
   end;
-  ReportFilename: TFileName;
 
 procedure ProfilingDisablePoint(const Index: Integer);
 begin
@@ -35,46 +33,6 @@ procedure ProfilingEnablePoint(const Index: Integer);
 begin
   CriticalSection.Enter();
   Dec(Points[Index].Disabled);
-  CriticalSection.Leave();
-end;
-
-procedure ProfilingNote(const Note: string);
-const
-  NewLine: PChar = #13#10;
-var
-  EndCounter: Int64;
-  Handle: THandle;
-  BytesWritten: DWord;
-  StartCounter: Int64;
-begin
-  CriticalSection.Enter();
-
-  QueryPerformanceCounter(StartCounter);
-
-  if (ReportFilename <> '') then
-  begin
-    Handle := CreateFile(PChar(ReportFilename),
-                         GENERIC_WRITE,
-                         FILE_SHARE_READ,
-                         nil,
-                         OPEN_EXISTING, 0, 0);
-    if (Handle = INVALID_HANDLE_VALUE) then
-      RaiseLastOSError()
-    else
-    begin
-      if (Length(Note) > 0) then
-      begin
-        SetFilePointer(Handle, GetFileSize(Handle, nil), nil, FILE_BEGIN);
-        WriteFile(Handle, Note[1], Length(Note) * SizeOf(Note[1]), BytesWritten, nil);
-        WriteFile(Handle, NewLine^, SizeOf(NewLine), BytesWritten, nil);
-      end;
-      CloseHandle(Handle);
-    end;
-  end;
-
-  QueryPerformanceCounter(EndCounter);
-  Inc(LastCount, EndCounter - StartCounter);
-
   CriticalSection.Leave();
 end;
 
@@ -101,12 +59,14 @@ begin
   CriticalSection.Leave();
 end;
 
-function ProfilingReport(): string;
+function ProfilingReport(const Filename: string = ''): string;
+const
+  BOM: PAnsiChar = #$FF + #$FE;
 var
+  BytesWritten: DWord;
   Frequency: Int64;
   Index: Integer;
   Handle: THandle;
-  BytesWritten: DWord;
   Sum: Int64;
 begin
   CriticalSection.Enter();
@@ -131,39 +91,9 @@ begin
   Result := Result + Format('----------------------' + #13#10, []);
   Result := Result + Format('     %7s %s  %3d %s' + #13#10, [FormatFloat('#,##0.000', Sum * 1000 div Frequency / 1000, LocaleFormatSettings), 's', 100, '%']);
 
-  if (ReportFilename <> '') then
+  if (Filename <> '') then
   begin
-    Handle := CreateFile(PChar(ReportFilename),
-                         FILE_APPEND_DATA or GENERIC_WRITE,
-                         FILE_SHARE_READ,
-                         nil,
-                         OPEN_EXISTING, 0, 0);
-    if (Handle = INVALID_HANDLE_VALUE) then
-      RaiseLastOSError()
-    else
-    begin
-      SetFilePointer(Handle, GetFileSize(Handle, nil), nil, FILE_BEGIN);
-      WriteFile(Handle, Result[1], Length(Result) * SizeOf(Result[1]), BytesWritten, nil);
-      CloseHandle(Handle);
-    end;
-  end;
-
-  CriticalSection.Leave();
-end;
-
-procedure ProfilingReset(const Filename: string = '');
-const
-  BOM: PAnsiChar = #$FF + #$FE;
-var
-  BytesWritten: DWord;
-  Handle: THandle;
-begin
-  CriticalSection.Enter();
-
-  ReportFilename := Filename;
-  if (ReportFilename <> '') then
-  begin
-    Handle := CreateFile(PChar(ReportFilename),
+    Handle := CreateFile(PChar(Filename),
                          GENERIC_WRITE,
                          FILE_SHARE_READ,
                          nil,
@@ -173,9 +103,17 @@ begin
     else
     begin
       WriteFile(Handle, BOM^, StrLen(BOM), BytesWritten, nil);
+      WriteFile(Handle, Result[1], Length(Result) * SizeOf(Result[1]), BytesWritten, nil);
       CloseHandle(Handle);
     end;
   end;
+
+  CriticalSection.Leave();
+end;
+
+procedure ProfilingReset();
+begin
+  CriticalSection.Enter();
 
   QueryPerformanceCounter(LastCount);
 

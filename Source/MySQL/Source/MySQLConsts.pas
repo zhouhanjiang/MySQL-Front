@@ -1322,7 +1322,6 @@ const
 
 const
   ER_EMPTY_QUERY_MSG = 'Query was empty';
-  ER_NET_PACKET_TOO_LARGE_MSG = 'Got a packet bigger than ''max_allowed_packet'' bytes';
 
 var
   CLIENT_ERRORS: array [0..20] of PChar = (

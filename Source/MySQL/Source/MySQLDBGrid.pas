@@ -184,9 +184,9 @@ var
   Rect: TRect;
   StringList: TStringList;
 begin
-  if (FMouseMoveCell.Y = 0) then
-    Write;
-  if ((0 <= FMouseMoveCell.X) and (FMouseMoveCell.X < FieldCount) and not (Columns[FMouseMoveCell.X].Field.DataType in BinaryDataTypes) and not EditorMode) then
+  if ((0 <= FMouseMoveCell.X) and (FMouseMoveCell.X < FieldCount)
+    and not (Columns[FMouseMoveCell.X].Field.DataType in BinaryDataTypes)
+    and not EditorMode) then
   begin
     if (not Assigned(FHintWindow)) then
     begin
@@ -207,49 +207,52 @@ begin
     else
       StringList.Text := Columns[FMouseMoveCell.X].Field.DisplayText;
 
-    if (SystemParametersInfo(SPI_GETNONCLIENTMETRICS, SizeOf(NonClientMetrics), @NonClientMetrics, 0)
-      and (GetObject(Columns[FMouseMoveCell.X].Font.Handle, SizeOf(LogFont), @LogFont) <> 0)) then
+    if (Length(StringList.Text) < 10 * 1024) then
     begin
-      LogFont.lfQuality  := NonClientMetrics.lfMessageFont.lfQuality;
-      FHintWindow.Canvas.Font.Handle := CreateFontIndirect(LogFont);
-    end
-    else
-      FHintWindow.Canvas.Font := Columns[FMouseMoveCell.X].Font;
-
-    Rect.Left := 0;
-    for I := LeftCol to FMouseMoveCell.X - 1 do
-      if (Columns[I].Visible) then
-        if (dgRowLines in Options) then
-          Inc(Rect.Left, Columns[I].Width + GridLineWidth)
-        else
-          Inc(Rect.Left, Columns[I].Width);
-    Rect.Top := 0;
-    for I := 0 to FMouseMoveCell.Y - 1 do
-      if ((I > 0) and (dgRowLines in Options)) then
-        Inc(Rect.Top, RowHeights[I] + GridLineWidth)
+      if (SystemParametersInfo(SPI_GETNONCLIENTMETRICS, SizeOf(NonClientMetrics), @NonClientMetrics, 0)
+        and (GetObject(Columns[FMouseMoveCell.X].Font.Handle, SizeOf(LogFont), @LogFont) <> 0)) then
+      begin
+        LogFont.lfQuality  := NonClientMetrics.lfMessageFont.lfQuality;
+        FHintWindow.Canvas.Font.Handle := CreateFontIndirect(LogFont);
+      end
       else
-        Inc(Rect.Top, RowHeights[I]);
+        FHintWindow.Canvas.Font := Columns[FMouseMoveCell.X].Font;
 
-    Rect.Left := ClientToScreen(Point(Rect.Left, Rect.Top)).X - 1;
-    Rect.Top := ClientToScreen(Point(Rect.Left, Rect.Top)).Y;
+      Rect.Left := 0;
+      for I := LeftCol to FMouseMoveCell.X - 1 do
+        if (Columns[I].Visible) then
+          if (dgRowLines in Options) then
+            Inc(Rect.Left, Columns[I].Width + GridLineWidth)
+          else
+            Inc(Rect.Left, Columns[I].Width);
+      Rect.Top := 0;
+      for I := 0 to FMouseMoveCell.Y - 1 do
+        if ((I > 0) and (dgRowLines in Options)) then
+          Inc(Rect.Top, RowHeights[I] + GridLineWidth)
+        else
+          Inc(Rect.Top, RowHeights[I]);
 
-    Rect.Right := 0;
-    for I := 0 to StringList.Count - 1 do
-      Rect.Right := Max(Rect.Right, Rect.Left + FHintWindow.Canvas.TextWidth(StringList[I]) + 6);
-    Rect.Bottom := Rect.Top + FHintWindow.Canvas.TextHeight('H') * StringList.Count + 2;
+      Rect.Left := ClientToScreen(Point(Rect.Left, Rect.Top)).X - 1;
+      Rect.Top := ClientToScreen(Point(Rect.Left, Rect.Top)).Y;
 
-    if ((Rect.Right - Rect.Left - 2 > Columns[FMouseMoveCell.X].Width)
-      or (Columns[FMouseMoveCell.X].Field.DataType = ftWideMemo)
-      or (StringList.Count > 1)) then
-    begin
-      FHintWindow.ActivateHint(Rect, StringList.Text);
-      SetTimer(Handle, tiHideHint, Application.HintHidePause, nil);
-    end
-    else
-      FreeAndNil(FHintWindow);
+      Rect.Right := 0;
+      for I := 0 to StringList.Count - 1 do
+        Rect.Right := Max(Rect.Right, Rect.Left + FHintWindow.Canvas.TextWidth(StringList[I]) + 6);
+      Rect.Bottom := Rect.Top + FHintWindow.Canvas.TextHeight('H') * StringList.Count + 2;
 
-    StringList.Free();
-    DataLink.ActiveRecord := OldActiveRecord;
+      if ((Rect.Right - Rect.Left - 2 > Columns[FMouseMoveCell.X].Width)
+        or (Columns[FMouseMoveCell.X].Field.DataType = ftWideMemo)
+        or (StringList.Count > 1)) then
+      begin
+        FHintWindow.ActivateHint(Rect, StringList.Text);
+        SetTimer(Handle, tiHideHint, Application.HintHidePause, nil);
+      end
+      else
+        FreeAndNil(FHintWindow);
+
+      StringList.Free();
+      DataLink.ActiveRecord := OldActiveRecord;
+    end;
   end;
 end;
 

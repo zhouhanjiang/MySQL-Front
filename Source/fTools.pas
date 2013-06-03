@@ -110,16 +110,24 @@ type
         Write: PChar;
       end;
       function GetData(): Pointer; inline;
+      function GetLength(): Integer; inline;
       function GetSize(): Integer; inline;
-      procedure Resize(const NeededLength: Integer);
+      function GetText(): PChar; inline;
+      procedure Reallocate(const NeededLength: Integer);
     public
       procedure Clear(); virtual;
-      constructor Create(const MemSize: Integer);
+      constructor Create(const InitialLength: Integer);
+      procedure Delete(const Start: Integer; const Length: Integer);
       destructor Destroy(); override;
       function Read(): string; virtual;
+      function Reserve(const Length: Integer): PChar; virtual;
+      procedure Write(const Text: PChar; const Length: Integer); overload;
       procedure Write(const Text: string); overload; inline;
+      procedure WriteData(const Data: my_char; const Length: Integer; const Quote: Boolean = False); overload;
       property Data: Pointer read GetData;
+      property Length: Integer read GetLength;
       property Size: Integer read GetSize;
+      property Text: PChar read GetText;
     end;
 
   private
@@ -397,6 +405,11 @@ type
     end;
     FFilename: TFileName;
     Handle: THandle;
+    ValueBuffer: record
+      Mem: PChar;
+      Length: Integer;
+    end;
+    ValuesBuffer: TTool.TStringBuffer;
     procedure Flush();
   protected
     procedure CloseFile(); virtual;
@@ -414,9 +427,7 @@ type
   private
     SQLInsertPacketLen: Integer;
     SQLInsertPostfix: string;
-    SQLInsertPostfixPacketLen: Integer;
     SQLInsertPrefix: string;
-    SQLInsertPrefixPacketLen: Integer;
   protected
     procedure BeforeExecute(); override;
     procedure ExecuteDatabaseHeader(const Database: TSDatabase); override;
@@ -1427,13 +1438,19 @@ begin
   Buffer.Write := Buffer.Mem;
 end;
 
-constructor TTool.TStringBuffer.Create(const MemSize: Integer);
+constructor TTool.TStringBuffer.Create(const InitialLength: Integer);
 begin
   Buffer.Size := 0;
   Buffer.Mem := nil;
   Buffer.Write := nil;
 
-  Resize(MemSize);
+  Reallocate(InitialLength);
+end;
+
+procedure TTool.TStringBuffer.Delete(const Start: Integer; const Length: Integer);
+begin
+  MoveMemory(@Buffer.Mem[Start], @Buffer.Mem[Start + Length], Size - Length);
+  Buffer.Write := Pointer(Integer(Buffer.Write) - Length);
 end;
 
 destructor TTool.TStringBuffer.Destroy();
@@ -1448,9 +1465,19 @@ begin
   Result := Pointer(Buffer.Mem);
 end;
 
+function TTool.TStringBuffer.GetLength(): Integer;
+begin
+  Result := (Integer(Buffer.Write) - Integer(Buffer.Mem)) div SizeOf(Buffer.Mem[0]);
+end;
+
 function TTool.TStringBuffer.GetSize(): Integer;
 begin
   Result := Integer(Buffer.Write) - Integer(Buffer.Mem);
+end;
+
+function TTool.TStringBuffer.GetText(): PChar;
+begin
+  Result := Buffer.Mem;
 end;
 
 function TTool.TStringBuffer.Read(): string;
@@ -1459,38 +1486,107 @@ begin
   Clear();
 end;
 
-procedure TTool.TStringBuffer.Resize(const NeededLength: Integer);
+function TTool.TStringBuffer.Reserve(const Length: Integer): PChar;
+begin
+  if (Length = 0) then
+    Result := nil
+  else
+  begin
+    Reallocate(Length);
+
+    Result := Buffer.Write;
+
+    Buffer.Write := @Buffer.Write[Length];
+  end;
+end;
+
+procedure TTool.TStringBuffer.Reallocate(const NeededLength: Integer);
 var
   Index: Integer;
 begin
   if (Buffer.Size = 0) then
   begin
-    Buffer.Size := NeededLength * SizeOf(Char);
+    Buffer.Size := NeededLength * SizeOf(Buffer.Write[0]);
     GetMem(Buffer.Mem, Buffer.Size);
     Buffer.Write := Buffer.Mem;
   end
   else if (Size + NeededLength * SizeOf(Char) > Buffer.Size) then
   begin
-    Index := Size * SizeOf(Buffer.Write[0]);
-    Inc(Buffer.Size, 2 * (Size + NeededLength * SizeOf(Char) - Buffer.Size));
+    Index := Size div SizeOf(Buffer.Write[0]);
+    Inc(Buffer.Size, 2 * (Size + NeededLength * SizeOf(Buffer.Write[0]) - Buffer.Size));
     ReallocMem(Buffer.Mem, Buffer.Size);
     Buffer.Write := @Buffer.Mem[Index];
   end;
 end;
 
-procedure TTool.TStringBuffer.Write(const Text: string);
-var
-  Size: Integer;
+procedure TTool.TStringBuffer.Write(const Text: PChar; const Length: Integer);
 begin
-  Size := System.Length(Text) * SizeOf(Text[1]);
-
-  if (Size > 0) then
+  if (Length > 0) then
   begin
-    Resize(Size);
+    Reallocate(Length);
 
-    MoveMemory(Buffer.Write, PChar(Text), Size);
-    Buffer.Write := @Buffer.Write[System.Length(Text)];
+    MoveMemory(Buffer.Write, Text, Length * SizeOf(Text[1]));
+    Buffer.Write := @Buffer.Write[Length];
   end;
+end;
+
+procedure TTool.TStringBuffer.Write(const Text: string);
+begin
+  Write(PChar(Text), System.Length(Text));
+end;
+
+procedure TTool.TStringBuffer.WriteData(const Data: my_char; const Length: Integer; const Quote: Boolean = False);
+label
+  StringL,
+  Finish;
+var
+  Len: Integer;
+  Write: PChar;
+begin
+  if (not Quote) then
+    Len := Length
+  else
+    Len := 1 + Length + 1;
+
+  Reallocate(Len);
+
+  Write := Buffer.Write;
+  asm
+        PUSH ES
+        PUSH ESI
+        PUSH EDI
+
+        PUSH DS                          // string operations uses ES
+        POP ES
+        CLD                              // string operations uses forward direction
+
+        MOV ESI,Data                     // Copy characters from Data
+        MOV EDI,Write                    //   to Write
+        MOV ECX,Length                   // Character count
+
+        MOV EAX,0                        // Clear EAX since AL will be loaded, but be AX used
+        CMP Quote,False                  // Quote Value?
+        JE StringL                       // No!
+        MOV AX,''''                      // Starting quoter
+        STOSW                            //   into Write
+
+      StringL:
+        LODSB                            // Load AnisChar from Data
+        STOSW                            // Store WideChar into Buffer.Mem
+        LOOP StringL                     // Repeat for all characters
+
+        CMP Quote,False                  // Quote Value?
+        JE Finish                        // No!
+        MOV AX,''''                      // Ending quoter
+        STOSW                            //   into Write
+
+      Finish:
+        POP EDI
+        POP ESI
+        POP ES
+    end;
+
+  Buffer.Write := @Buffer.Write[Len];
 end;
 
 { TTools **********************************************************************}
@@ -1883,10 +1979,13 @@ begin
                 DataFileBuffer.Clear();
 
             Inc(Item.RecordsDone);
-            if (Item.RecordsDone mod 100 = 0) then DoUpdateGUI();
-
-            if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
-              Success := daAbort;
+            if (Item.RecordsDone mod 10 = 0) then
+            begin
+              if (Item.RecordsDone mod 100 = 0) then
+                DoUpdateGUI();
+              if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
+                Success := daAbort;
+            end;
           end;
 
           if (DataFileBuffer.Size > 0) then
@@ -2016,13 +2115,16 @@ begin
         end;
 
         Inc(Item.RecordsDone);
-        if (Item.RecordsDone mod 100 = 0) then DoUpdateGUI();
-
-        if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
+        if (Item.RecordsDone mod 10 = 0) then
         begin
-          if (SQL <> '') then
-            Session.Terminate();
-          Success := daAbort;
+          if (Item.RecordsDone mod 100 = 0) then
+            DoUpdateGUI();
+          if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
+          begin
+            if (SQL <> '') then
+              Session.Terminate();
+            Success := daAbort;
+          end;
         end;
       end;
       SetLength(SQLValues, 0);
@@ -4097,10 +4199,13 @@ begin
       ExecuteTableRecord(Table, Fields, DataSet);
 
       Inc(Item.RecordsDone);
-      if (Item.RecordsDone mod 100 = 0) then DoUpdateGUI();
-
-      if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
-        Success := daAbort;
+      if (Item.RecordsDone mod 10 = 0) then
+      begin
+        if (Item.RecordsDone mod 100 = 0) then
+          DoUpdateGUI();
+        if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
+          Success := daAbort;
+      end;
     until ((Success = daAbort) or not DataSet.FindNext());
 
   if (Success = daSuccess) then
@@ -4176,12 +4281,15 @@ begin
         ExecuteTableRecord(Table, Fields, DataSet);
 
         Inc(Item.RecordsDone);
-        if ((Item.RecordsDone mod 1000 = 0)
-          or ((Item.RecordsDone mod 100 = 0) and (Self is TTExportBaseODBC))) then
-          DoUpdateGUI();
+        if (Item.RecordsDone mod 10 = 0) then
+        begin
+          if ((Item.RecordsDone mod 1000 = 0)
+            or ((Item.RecordsDone mod 100 = 0) and (Self is TTExportBaseODBC))) then
+            DoUpdateGUI();
+          if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
+            Success := daAbort;
+        end;
 
-        if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
-          Success := daAbort;
       until ((Success <> daSuccess) or not DataSet.FindNext());
 
     if (Success <> daAbort) then
@@ -4249,6 +4357,9 @@ begin
   end;
   FFilename := AFilename;
   Handle := INVALID_HANDLE_VALUE;
+  ValueBuffer.Mem := nil;
+  ValueBuffer.Length := 0;
+  ValuesBuffer := TStringBuffer.Create(SQLPacketSize);
 end;
 
 destructor TTExportFile.Destroy();
@@ -4257,6 +4368,9 @@ begin
   if (Assigned(FileBuffer.Mem)) then
     FreeMem(FileBuffer.Mem);
   ContentBuffer.Free();
+  if (Assigned(ValueBuffer.Mem)) then
+    FreeMem(ValueBuffer.Mem);
+  ValuesBuffer.Free();
 
   inherited;
 
@@ -4302,7 +4416,7 @@ begin
   case (CodePage) of
     CP_UNICODE:
       begin
-        Buffer := ContentBuffer.Data;
+        Buffer := Pointer(ContentBuffer.Data);
         BytesToWrite := ContentBuffer.Size;
       end;
     else
@@ -4555,10 +4669,8 @@ begin
     end;
 
     SQLInsertPrefix := SQLInsertPrefix + ' VALUES ';
-    SQLInsertPrefixPacketLen := SizeOf(COM_QUERY) + WideCharToAnsiChar(Session.CodePage, PChar(SQLInsertPrefix), Length(SQLInsertPrefix), nil, 0);
 
     SQLInsertPostfix := ';' + #13#10;
-    SQLInsertPrefixPacketLen := WideCharToAnsiChar(Session.CodePage, PChar(SQLInsertPostfix), Length(SQLInsertPostfix), nil, 0);
 
     SQLInsertPacketLen := 0;
   end;
@@ -4566,21 +4678,42 @@ end;
 
 procedure TTExportSQL.ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
+  EscapedLen: Integer;
   I: Integer;
-  Values: string;
-  ValuesPacketLen: Integer;
+  Len: Integer;
 begin
-  Values := '(';
+  ValuesBuffer.Write('(');
   for I := 0 to Length(Fields) - 1 do
   begin
-    if (I > 0) then Values := Values + ',';
-    Values := Values + DataSet.SQLFieldValue(Fields[I]);
+    if (I > 0) then ValuesBuffer.Write(',');
+    if (not Assigned(DataSet.LibRow^[Fields[I].FieldNo - 1])) then
+      ValuesBuffer.Write('NULL')
+    else if (BitField(Fields[I])) then
+      ValuesBuffer.Write('b''' + Fields[I].AsString + '''')
+    else if (Fields[I].DataType in BinaryDataTypes) then
+    begin
+      Len := SQLEscapeBin(DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], nil, 0, False);
+      SQLEscapeBin(DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], ValuesBuffer.Reserve(Len), Len, False);
+    end
+    else if (Fields[I].DataType in TextDataTypes) then
+    begin
+      Len := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], nil, 0);
+      if (Len > ValueBuffer.Length) then
+      begin
+        ValueBuffer.Length := Len;
+        ReallocMem(ValueBuffer.Mem, Len * SizeOf(ValueBuffer.Mem[0]));
+      end;
+      AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], ValueBuffer.Mem, ValueBuffer.Length);
+
+      EscapedLen := SQLEscape(ValueBuffer.Mem, Len, nil, 0);
+      SQLEscape(ValueBuffer.Mem, Len, ValuesBuffer.Reserve(EscapedLen), EscapedLen);
+    end
+    else
+      ValuesBuffer.WriteData(DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], not (Fields[I].DataType in NotQuotedDataTypes));
   end;
-  Values := Values + ')';
+  ValuesBuffer.Write(')');
 
-  ValuesPacketLen := WideCharToAnsiChar(Session.CodePage, PChar(Values), Length(Values), nil, 0);
-
-  if ((SQLInsertPacketLen > 0) and (SQLInsertPacketLen + ValuesPacketLen + SQLInsertPostfixPacketLen >= SQLPacketSize)) then
+  if ((SQLInsertPacketLen > 0) and (SQLInsertPacketLen + 1 + ValuesBuffer.Length + Length(SQLInsertPrefix) > SQLPacketSize)) then
   begin
     WriteContent(SQLInsertPostfix);
     SQLInsertPacketLen := 0;
@@ -4589,7 +4722,7 @@ begin
   if (SQLInsertPacketLen = 0) then
   begin
     WriteContent(SQLInsertPrefix);
-    Inc(SQLInsertPacketLen, SQLInsertPrefixPacketLen);
+    Inc(SQLInsertPacketLen, Length(SQLInsertPrefix));
   end
   else
   begin
@@ -4597,8 +4730,13 @@ begin
     Inc(SQLInsertPacketLen, 1);
   end;
 
-  WriteContent(Values);
-  Inc(SQLInsertPacketLen, ValuesPacketLen);
+  ContentBuffer.Write(ValuesBuffer.Text, ValuesBuffer.Length);
+  Inc(SQLInsertPacketLen, ValuesBuffer.Length);
+
+  ValuesBuffer.Clear();
+
+  if (ContentBuffer.Size > FilePacketSize) then
+    Flush();
 end;
 
 procedure TTExportSQL.ExecuteTrigger(const Trigger: TSTrigger);
@@ -7740,11 +7878,13 @@ begin
                  DataFileBuffer.Clear();
 
               Inc(Item.RecordsDone);
-              if (Item.RecordsDone mod 100 = 0) then
-                DoUpdateGUI();
-
-              if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
-                Success := daAbort;
+              if (Item.RecordsDone mod 10 = 0) then
+              begin
+                if (Item.RecordsDone mod 100 = 0) then
+                  DoUpdateGUI();
+                if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
+                  Success := daAbort;
+              end;
             until ((Success <> daSuccess) or not SourceDataSet.FindNext());
 
             if (DataFileBuffer.Size > 0) then
@@ -7837,13 +7977,16 @@ begin
           end;
 
           Inc(Item.RecordsDone);
-          if (Item.RecordsDone mod 100 = 0) then DoUpdateGUI();
-
-          if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
+          if (Item.RecordsDone mod 10 = 0) then
           begin
-            if (SQL <> '') then
-              DestinationSession.Terminate();
-            Success := daAbort;
+            if (Item.RecordsDone mod 100 = 0) then
+              DoUpdateGUI();
+            if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
+            begin
+              if (SQL <> '') then
+                DestinationSession.Terminate();
+              Success := daAbort;
+            end;
           end;
         until ((Success <> daSuccess) or not SourceDataSet.FindNext());
 
@@ -8323,10 +8466,13 @@ begin
             end;
 
           Inc(Item.RecordsDone);
-          if (Item.RecordsDone mod 100 = 0) then DoUpdateGUI();
-
-          if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
-            Success := daAbort;
+          if (Item.RecordsDone mod 10 = 0) then
+          begin
+            if (Item.RecordsDone mod 100 = 0) then
+              DoUpdateGUI();
+            if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
+              Success := daAbort;
+          end;
         until ((Success <> daSuccess) or not DataSet.FindNext());
 
         if (Assigned(Buffer)) then

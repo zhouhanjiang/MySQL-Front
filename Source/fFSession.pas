@@ -94,7 +94,7 @@ type
     FSQLEditorSearch: TSynEditSearch;
     FSQLEditorSynMemo: TSynMemo;
     FSQLHistory: TTreeView_Ext;
-    FText: TMemo_Ext;
+    FText: TRichEdit;
     FUDLimit: TUpDown;
     FUDOffset: TUpDown;
     gmDDeleteRecord: TMenuItem;
@@ -396,6 +396,8 @@ type
     tmEPaste: TMenuItem;
     tmESelectAll: TMenuItem;
     ToolBar: TToolBar;
+    N2: TMenuItem;
+    gmEmpty: TMenuItem;
     procedure aBAddExecute(Sender: TObject);
     procedure aBDeleteExecute(Sender: TObject);
     procedure aBEditExecute(Sender: TObject);
@@ -2139,9 +2141,7 @@ begin
   else if (Window.ActiveControl = FSQLEditorSynMemo) then
     FSQLEditorSynMemo.InsertMode := not FSQLEditorSynMemo.InsertMode
   else if (Window.ActiveControl = ActiveDBGrid) and (not ActiveDBGrid.EditorMode) then
-    MainAction('aDInsertRecord').Execute()
-  else if (Window.ActiveControl = FText) then
-    FText.InsertMode := not FText.InsertMode;
+    MainAction('aDInsertRecord').Execute();
 end;
 
 procedure TFSession.aDCreateFieldExecute(Sender: TObject);
@@ -3299,8 +3299,15 @@ end;
 
 procedure TFSession.aEPasteFromFileExecute(Sender: TObject);
 var
-  Encoding: TEncoding;
-  Reader: TStreamReader;
+  CodePage: Cardinal;
+  Content: Pointer;
+  Handle: THandle;
+  FileSize: DWord;
+  FileSizeHigh: DWord;
+  Mem: Pointer;
+  Mem2: PChar;
+  RBS: AnsiString;
+  Size: DWord;
 begin
   Wanted.Clear();
 
@@ -3326,29 +3333,70 @@ begin
   begin
     Path := ExtractFilePath(OpenDialog.FileName);
 
-    ActiveDBGrid.SelectedField.DataSet.Edit();
-    if (ActiveDBGrid.SelectedField.DataType = ftWideMemo) then
+    Handle := CreateFile(PChar(OpenDialog.FileName),
+                         GENERIC_READ,
+                         FILE_SHARE_READ,
+                         nil,
+                         OPEN_EXISTING, 0, 0);
+
+    if (Handle = INVALID_HANDLE_VALUE) then
+      RaiseLastOSError()
+    else
     begin
-      case (EncodingToCodePage(OpenDialog.Encodings[OpenDialog.EncodingIndex])) of
-        CP_UTF8: Encoding := TUTF8Encoding.Create();
-        CP_UNICODE: Encoding := TUnicodeEncoding.Create();
-        else Encoding := TMBCSEncoding.Create(EncodingToCodePage(OpenDialog.Encodings[OpenDialog.EncodingIndex]))
+      FileSize := GetFileSize(Handle, @FileSizeHigh);
+
+      if (FileSizeHigh > 0) then
+        raise ERangeError.Create(SRangeError)
+      else
+      begin
+        GetMem(Mem, FileSize);
+        ActiveDBGrid.DataSource.DataSet.Edit();
+
+        if (not ReadFile(Handle, Mem^, FileSize, Size, nil) or (Size < FileSize)) then
+          RaiseLastOSError()
+        else if (ActiveDBGrid.SelectedField.DataType = ftBlob) then
+        begin
+          SetString(RBS, PAnsiChar(Mem), Size);
+          ActiveDBGrid.SelectedField.AsAnsiString := RBS;
+        end
+        else if (ActiveDBGrid.SelectedField.DataType = ftWideMemo) then
+        begin
+          if (CompareMem(Mem, BOM_UNICODE_LE, StrLen(BOM_UNICODE_LE))) then
+          begin
+            CodePage := CP_UNICODE;
+            Content := @PAnsiChar(Mem)[StrLen(BOM_UNICODE_LE)];
+            FileSize := FileSize - StrLen(BOM_UNICODE_LE);
+          end
+          else if (CompareMem(Mem, BOM_UTF8, StrLen(BOM_UTF8))) then
+          begin
+            CodePage := CP_UTF8;
+            Content := @PAnsiChar(Mem)[StrLen(BOM_UTF8)];
+            FileSize := FileSize - StrLen(BOM_UTF8);
+          end
+          else
+          begin
+            CodePage := EncodingToCodePage(OpenDialog.Encodings[OpenDialog.EncodingIndex]);
+            Content := Mem;
+          end;
+
+          case (CodePage) of
+            CP_UNICODE: ActiveDBGrid.SelectedField.AsString := StrPas(PWideChar(Content));
+            else
+            begin
+              Size := AnsiCharToWideChar(CodePage, PAnsiChar(Content), FileSize, nil, 0);
+              GetMem(Mem2, Size * SizeOf(Char));
+              AnsiCharToWideChar(CodePage, PAnsiChar(Content), FileSize, Mem2, Size);
+              ActiveDBGrid.SelectedField.AsString := StrPas(Mem2);
+              FreeMem(Mem2);
+            end;
+          end;
+        end
+        else
+          raise ERangeError.Create(SRangeError);
+        FreeMem(Mem);
       end;
-      try
-        Reader := TStreamReader.Create(OpenDialog.Filename, Encoding, True);
-        try
-          TMySQLWideMemoField(ActiveDBGrid.SelectedField).LoadFromStream(Reader.BaseStream);
-        finally
-          Reader.Free();
-        end;
-      except
-        on E: EFileStreamError do
-          MsgBox(SysErrorMessage(GetLastError()), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-      end;
-      Encoding.Free();
-    end
-    else if (ActiveDBGrid.SelectedField.DataType = ftBlob) then
-      TBlobField(ActiveDBGrid.SelectedField).LoadFromFile(OpenDialog.FileName);
+      CloseHandle(Handle);
+    end;
   end;
 end;
 
@@ -5289,6 +5337,7 @@ begin
   gmECopy.Action := MainAction('aECopy');
   gmEPaste.Action := MainAction('aEPaste');
   gmEDelete.Action := MainAction('aEDelete');
+  gmEmpty.Action := MainAction('aDEmpty');
   gmECopyToFile.Action := MainAction('aECopyToFile');
   gmEPasteFromFile.Action := MainAction('aEPasteFromFile');
   gmFExportSQL.Action := MainAction('aFExportSQL');
@@ -9040,10 +9089,10 @@ begin
       NewLineFormat := nlUnix;
 
     case (NewLineFormat) of
-      nlUnix: FText.Text := ReplaceStr(ReplaceStr(EditorField.AsString, #10, #13#10), #13#10#10, #13#10);
-      nlMacintosh: FText.Text := ReplaceStr(ReplaceStr(EditorField.AsString, #13, #13#10), #13#13#10, #13#10);
-      else FText.Text := EditorField.AsString;
+      nlUnix: S := ReplaceStr(ReplaceStr(EditorField.AsString, #10, #13#10), #13#10#10, #13#10);
+      nlMacintosh: S := ReplaceStr(ReplaceStr(EditorField.AsString, #13, #13#10), #13#13#10, #13#10);
     end;
+    FText.Text := S;
     FText.Modified := False;
   end;
   if (FText.Text <> '') then
