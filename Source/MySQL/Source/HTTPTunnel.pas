@@ -32,7 +32,7 @@ type
     Connection: HInternet;
     Handle: HInternet;
     LastRequest: TDateTime;
-    SendBuffer: TMySQL_Packet.TBuffer;
+    SendBuffer: TMySQL_File.TFileBuffer;
     Request: HInternet;
     RequestComplete: TEvent;
     ResponseReceived: TEvent;
@@ -382,19 +382,19 @@ begin
           Direction := idWrite;
 
           Command := AnsiChar(COM_CONNECT);
-          WritePacket(@Command, SizeOf(Command));
+          WriteFile(@Command, SizeOf(Command));
           if (lstrcmpi(URLComponents.lpszHostName, PChar(string(fhost))) = 0) then
-            WritePacket(LOCAL_HOST)
+            WriteFile(LOCAL_HOST)
           else
-            WritePacket(RawByteString(fhost));
-          WritePacket(RawByteString(fuser));
-          WritePacket(RawByteString(fpasswd));
-          WritePacket(RawByteString(fdb));
-          WritePacket(RawByteString(fcharacter_set_name));
-          WritePacket(fport, 2);
-          WritePacket(fclient_capabilities, 4);
-          WritePacket(ftimeout, 2);
-          FlushPacketBuffers();
+            WriteFile(RawByteString(fhost));
+          WriteFile(RawByteString(fuser));
+          WriteFile(RawByteString(fpasswd));
+          WriteFile(RawByteString(fdb));
+          WriteFile(RawByteString(fcharacter_set_name));
+          WriteFile(fport, 2);
+          WriteFile(fclient_capabilities, 4);
+          WriteFile(ftimeout, 2);
+          FlushFileBuffers();
 
           if (ExecuteHTTPRequest(True)) then
           begin
@@ -455,7 +455,7 @@ begin
 
     if (Command <> COM_QUERY) then
     begin
-      WritePacket(Bin, Size);
+      WriteFile(Bin, Size);
     end
     else
     begin
@@ -466,18 +466,18 @@ begin
         SQLLen := SQLStmtLength(@SQL[SQLIndex], Length(SQL) - (SQLIndex - 1));
         Len := WideCharToMultiByte(CodePage, 0, PChar(@SQL[SQLIndex]), SQLLen, nil, 0, nil, nil);
 
-        if (GetPacketSize() > 0) then
-          SetPacketPointer(1, PACKET_CURRENT);
-        WritePacket(@Command, 1);
+        if (GetFileSize() > 0) then
+          SetFilePointer(1, PACKET_CURRENT);
+        WriteFile(@Command, 1);
 
-        WritePacket(my_char(@Bin[Index]), Len);
+        WriteFile(my_char(@Bin[Index]), Len);
 
         Inc(SQLIndex, SQLLen);
         Inc(Index, Len);
       end;
     end;
 
-    if ((FlushPacketBuffers() or (errno() = CR_SERVER_GONE_ERROR)) and ExecuteHTTPRequest(False) and (next_result() <= 0)) then
+    if ((FlushFileBuffers() or (errno() = CR_SERVER_GONE_ERROR)) and ExecuteHTTPRequest(False) and (next_result() <= 0)) then
       Result := 0
     else
     begin
