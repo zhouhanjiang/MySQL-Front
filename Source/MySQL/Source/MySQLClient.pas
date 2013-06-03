@@ -1268,12 +1268,16 @@ begin
         if (Size > $FFFFFF) then Size := $FFFFFF;
 
         if (Size < MIN_COMPRESS_LENGTH) then
-          CompressedSize := Size
+        begin
+          CompressedSize := Size;
+          CompressBuffer := nil;
+        end
         else
           try
             ZCompress(@PacketBuffer.Mem[Offset], Size, CompressBuffer, CompressedSize);
           except
             Seterror(CR_UNKNOWN_ERROR); Result := False;
+            CompressBuffer := nil;
           end;
 
         if (Result) then
