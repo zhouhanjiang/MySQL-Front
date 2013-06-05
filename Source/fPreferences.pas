@@ -4595,11 +4595,22 @@ begin
   if (not Assigned(FXMLDocument)) then
   begin
     if (FileExists(Filename)) then
+    begin
       FXMLDocument := LoadXMLDocument(Filename);
+
+      // Debug 04.06.13
+      if (not Assigned(FXMLDocument)) then
+        raise ERangeError.CreateFmt(SPropertyOutOfRange, ['FXMLDocument']);
+    end;
 
     if (not Assigned(FXMLDocument) or not Assigned(FXMLDocument.DocumentElement)) then
     begin
       FXMLDocument := NewXMLDocument();
+
+      // Debug 04.06.13
+      if (not Assigned(FXMLDocument)) then
+        raise ERangeError.CreateFmt(SPropertyOutOfRange, ['FXMLDocument']);
+
       FXMLDocument.Encoding := 'utf-8';
       FXMLDocument.Node.AddChild('accounts').Attributes['version'] := '1.1.0';
     end;
@@ -4608,18 +4619,10 @@ begin
     if (not Assigned(FXMLDocument)) then
       raise ERangeError.CreateFmt(SPropertyOutOfRange, ['FXMLDocument']);
 
-    try
-      FXMLDocument.Options := FXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
-    except
-      raise Exception.Create('Unknown bug.');
-    end;
+    FXMLDocument.Options := FXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
   end;
 
-  try
-    Result := FXMLDocument.DocumentElement;
-  except
-    ERangeError.CreateFmt(SPropertyOutOfRange, ['DocumentElement']);
-  end;
+  Result := FXMLDocument.DocumentElement;
 end;
 
 procedure TAAccounts.LoadFromXML();

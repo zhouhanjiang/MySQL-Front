@@ -106,20 +106,28 @@ type
     private
       Buffer: record
         Mem: PChar;
-        Size: Integer;
+        MemSize: Integer;
         Write: PChar;
       end;
       function GetData(): Pointer; inline;
+      function GetLength(): Integer; inline;
       function GetSize(): Integer; inline;
-      procedure Resize(const NeededLength: Integer);
+      function GetText(): PChar; inline;
+      procedure Reallocate(const NeededLength: Integer);
     public
-      procedure Clear(); virtual;
-      constructor Create(const MemSize: Integer);
+      procedure Clear();
+      constructor Create(const InitialLength: Integer);
+      procedure Delete(const Start: Integer; const Length: Integer);
       destructor Destroy(); override;
-      function Read(): string; virtual;
+      function Read(): string;
+      procedure Write(const Text: PChar; const Length: Integer); overload;
       procedure Write(const Text: string); overload; inline;
+      procedure WriteData(const Data: my_char; const Length: Integer; const Quote: Boolean = False); overload;
+      function WriteExternal(const Length: Integer): PChar;
       property Data: Pointer read GetData;
+      property Length: Integer read GetLength;
       property Size: Integer read GetSize;
+      property Text: PChar read GetText;
     end;
 
   private
@@ -397,6 +405,11 @@ type
     end;
     FFilename: TFileName;
     Handle: THandle;
+    ValueBuffer: record
+      Mem: PChar;
+      MemSize: Integer;
+    end;
+    ValuesBuffer: TTool.TStringBuffer;
     procedure Flush();
   protected
     procedure CloseFile(); virtual;
@@ -412,11 +425,9 @@ type
 
   TTExportSQL = class(TTExportFile)
   private
-    SQLInsertPacketLen: Integer;
+    SQLInsertLen: Integer;
     SQLInsertPostfix: string;
-    SQLInsertPostfixPacketLen: Integer;
     SQLInsertPrefix: string;
-    SQLInsertPrefixPacketLen: Integer;
   protected
     procedure BeforeExecute(); override;
     procedure ExecuteDatabaseHeader(const Database: TSDatabase); override;
@@ -1427,13 +1438,19 @@ begin
   Buffer.Write := Buffer.Mem;
 end;
 
-constructor TTool.TStringBuffer.Create(const MemSize: Integer);
+constructor TTool.TStringBuffer.Create(const InitialLength: Integer);
 begin
-  Buffer.Size := 0;
   Buffer.Mem := nil;
+  Buffer.MemSize := 0;
   Buffer.Write := nil;
 
-  Resize(MemSize);
+  Reallocate(InitialLength);
+end;
+
+procedure TTool.TStringBuffer.Delete(const Start: Integer; const Length: Integer);
+begin
+  MoveMemory(@Buffer.Mem[Start], @Buffer.Mem[Start + Length], Size - Length);
+  Buffer.Write := Pointer(Integer(Buffer.Write) - Length);
 end;
 
 destructor TTool.TStringBuffer.Destroy();
@@ -1448,9 +1465,19 @@ begin
   Result := Pointer(Buffer.Mem);
 end;
 
+function TTool.TStringBuffer.GetLength(): Integer;
+begin
+  Result := (Integer(Buffer.Write) - Integer(Buffer.Mem)) div SizeOf(Buffer.Mem[0]);
+end;
+
 function TTool.TStringBuffer.GetSize(): Integer;
 begin
   Result := Integer(Buffer.Write) - Integer(Buffer.Mem);
+end;
+
+function TTool.TStringBuffer.GetText(): PChar;
+begin
+  Result := Buffer.Mem;
 end;
 
 function TTool.TStringBuffer.Read(): string;
@@ -1459,37 +1486,106 @@ begin
   Clear();
 end;
 
-procedure TTool.TStringBuffer.Resize(const NeededLength: Integer);
+procedure TTool.TStringBuffer.Reallocate(const NeededLength: Integer);
 var
   Index: Integer;
 begin
-  if (Buffer.Size = 0) then
+  if (Buffer.MemSize = 0) then
   begin
-    Buffer.Size := NeededLength * SizeOf(Char);
-    GetMem(Buffer.Mem, Buffer.Size);
+    Buffer.MemSize := NeededLength * SizeOf(Buffer.Write[0]);
+    GetMem(Buffer.Mem, Buffer.MemSize);
     Buffer.Write := Buffer.Mem;
   end
-  else if (Size + NeededLength * SizeOf(Char) > Buffer.Size) then
+  else if (Size + NeededLength * SizeOf(Buffer.Mem[0]) > Buffer.MemSize) then
   begin
-    Index := Size * SizeOf(Buffer.Write[0]);
-    Inc(Buffer.Size, 2 * (Size + NeededLength * SizeOf(Char) - Buffer.Size));
-    ReallocMem(Buffer.Mem, Buffer.Size);
+    Index := Size div SizeOf(Buffer.Write[0]);
+    Inc(Buffer.MemSize, 2 * (Size + NeededLength * SizeOf(Buffer.Mem[0]) - Buffer.MemSize));
+    ReallocMem(Buffer.Mem, Buffer.MemSize);
     Buffer.Write := @Buffer.Mem[Index];
   end;
 end;
 
-procedure TTool.TStringBuffer.Write(const Text: string);
-var
-  Size: Integer;
+procedure TTool.TStringBuffer.Write(const Text: PChar; const Length: Integer);
 begin
-  Size := System.Length(Text) * SizeOf(Text[1]);
-
-  if (Size > 0) then
+  if (Length > 0) then
   begin
-    Resize(Size);
+    Reallocate(Length);
 
-    MoveMemory(Buffer.Write, PChar(Text), Size);
-    Buffer.Write := @Buffer.Write[System.Length(Text)];
+    MoveMemory(Buffer.Write, Text, Length * SizeOf(Buffer.Mem[0]));
+    Buffer.Write := @Buffer.Write[Length];
+  end;
+end;
+
+procedure TTool.TStringBuffer.Write(const Text: string);
+begin
+  Write(PChar(Text), System.Length(Text));
+end;
+
+procedure TTool.TStringBuffer.WriteData(const Data: my_char; const Length: Integer; const Quote: Boolean = False);
+label
+  StringL,
+  Finish;
+var
+  Len: Integer;
+  Write: PChar;
+begin
+  if (not Quote) then
+    Len := Length
+  else
+    Len := 1 + Length + 1;
+
+  Reallocate(Len);
+
+  Write := Buffer.Write;
+  asm
+        PUSH ES
+        PUSH ESI
+        PUSH EDI
+
+        PUSH DS                          // string operations uses ES
+        POP ES
+        CLD                              // string operations uses forward direction
+
+        MOV ESI,Data                     // Copy characters from Data
+        MOV EDI,Write                    //   to Write
+        MOV ECX,Length                   // Character count
+
+        MOV EAX,0                        // Clear EAX since AL will be loaded, but be AX used
+        CMP Quote,False                  // Quote Value?
+        JE StringL                       // No!
+        MOV AX,''''                      // Starting quoter
+        STOSW                            //   into Write
+
+      StringL:
+        LODSB                            // Load AnisChar from Data
+        STOSW                            // Store WideChar into Buffer.Mem
+        LOOP StringL                     // Repeat for all characters
+
+        CMP Quote,False                  // Quote Value?
+        JE Finish                        // No!
+        MOV AX,''''                      // Ending quoter
+        STOSW                            //   into Write
+
+      Finish:
+        POP EDI
+        POP ESI
+        POP ES
+    end;
+
+  Buffer.Write := @Buffer.Write[Len];
+end;
+
+function TTool.TStringBuffer.WriteExternal(const Length: Integer): PChar;
+begin
+  if (Length = 0) then
+    Result := nil
+  else
+  begin
+    Reallocate(Length);
+
+    Result := Buffer.Write;
+
+    Buffer.Write := @Buffer.Write[Length];
   end;
 end;
 
@@ -1828,7 +1924,7 @@ var
   SQLExecuteLength: Integer;
   SQLValues: TSQLStrings;
   Values: string;
-  WhereClausel: string;
+  WhereClause: string;
 begin
   BeforeExecuteData(Item);
 
@@ -1883,10 +1979,13 @@ begin
                 DataFileBuffer.Clear();
 
             Inc(Item.RecordsDone);
-            if (Item.RecordsDone mod 100 = 0) then DoUpdateGUI();
-
-            if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
-              Success := daAbort;
+            if (Item.RecordsDone mod 10 = 0) then
+            begin
+              if (Item.RecordsDone mod 100 = 0) then
+                DoUpdateGUI();
+              if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
+                Success := daAbort;
+            end;
           end;
 
           if (DataFileBuffer.Size > 0) then
@@ -1952,7 +2051,7 @@ begin
       SetLength(SQLValues, Length(Fields));
       while ((Success = daSuccess) and GetValues(Item, SQLValues)) do
       begin
-        Values := ''; WhereClausel := '';
+        Values := ''; WhereClause := '';
         for I := 0 to Length(Fields) - 1 do
           if (StmtType <> stUpdate) then
           begin
@@ -1966,15 +2065,15 @@ begin
           end
           else
           begin
-            if (WhereClausel <> '') then WhereClausel := WhereClausel + ' AND ';
-            WhereClausel := WhereClausel + EscapedFieldName[I] + '=' + Fields[I].EscapeValue(SQLValues[I]);
+            if (WhereClause <> '') then WhereClause := WhereClause + ' AND ';
+            WhereClause := WhereClause + EscapedFieldName[I] + '=' + Fields[I].EscapeValue(SQLValues[I]);
           end;
 
         if (StmtType = stUpdate) then
         begin
           if (InsertStmtInSQL) then
             SQL := SQL + ';' + #13#10;
-          SQL := SQL + 'UPDATE ' + EscapedTableName + ' SET ' + Values + ' WHERE ' + WhereClausel + ';' + #13#10;
+          SQL := SQL + 'UPDATE ' + EscapedTableName + ' SET ' + Values + ' WHERE ' + WhereClause + ';' + #13#10;
           InsertStmtInSQL := False;
         end
         else if (not InsertStmtInSQL) then
@@ -2016,13 +2115,16 @@ begin
         end;
 
         Inc(Item.RecordsDone);
-        if (Item.RecordsDone mod 100 = 0) then DoUpdateGUI();
-
-        if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
+        if (Item.RecordsDone mod 10 = 0) then
         begin
-          if (SQL <> '') then
-            Session.Terminate();
-          Success := daAbort;
+          if (Item.RecordsDone mod 100 = 0) then
+            DoUpdateGUI();
+          if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
+          begin
+            if (SQL <> '') then
+              Session.Terminate();
+            Success := daAbort;
+          end;
         end;
       end;
       SetLength(SQLValues, 0);
@@ -4097,10 +4199,13 @@ begin
       ExecuteTableRecord(Table, Fields, DataSet);
 
       Inc(Item.RecordsDone);
-      if (Item.RecordsDone mod 100 = 0) then DoUpdateGUI();
-
-      if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
-        Success := daAbort;
+      if (Item.RecordsDone mod 10 = 0) then
+      begin
+        if (Item.RecordsDone mod 100 = 0) then
+          DoUpdateGUI();
+        if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
+          Success := daAbort;
+      end;
     until ((Success = daAbort) or not DataSet.FindNext());
 
   if (Success = daSuccess) then
@@ -4154,15 +4259,13 @@ begin
       if (not DataSet.Active) then
         DoError(DatabaseError(Session), Item, False, SQL);
     end;
-  end;
 
-  if ((Success <> daSuccess) or not Assigned(DataSet)) then
-    SetLength(Fields, 0)
-  else
-  begin
-    SetLength(Fields, DataSet.FieldCount);
-    for I := 0 to DataSet.FieldCount - 1 do
-      Fields[I] := DataSet.Fields[I];
+    if (Success = daSuccess) then
+    begin
+      SetLength(Fields, DataSet.FieldCount);
+      for I := 0 to DataSet.FieldCount - 1 do
+        Fields[I] := DataSet.Fields[I];
+    end;
   end;
 
   if (Success <> daAbort) then
@@ -4176,12 +4279,15 @@ begin
         ExecuteTableRecord(Table, Fields, DataSet);
 
         Inc(Item.RecordsDone);
-        if ((Item.RecordsDone mod 1000 = 0)
-          or ((Item.RecordsDone mod 100 = 0) and (Self is TTExportBaseODBC))) then
-          DoUpdateGUI();
+        if (Item.RecordsDone mod 10 = 0) then
+        begin
+          if ((Item.RecordsDone mod 1000 = 0)
+            or ((Item.RecordsDone mod 100 = 0) and (Self is TTExportBaseODBC))) then
+            DoUpdateGUI();
+          if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
+            Success := daAbort;
+        end;
 
-        if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
-          Success := daAbort;
       until ((Success <> daSuccess) or not DataSet.FindNext());
 
     if (Success <> daAbort) then
@@ -4249,6 +4355,9 @@ begin
   end;
   FFilename := AFilename;
   Handle := INVALID_HANDLE_VALUE;
+  ValueBuffer.Mem := nil;
+  ValueBuffer.MemSize := 0;
+  ValuesBuffer := TStringBuffer.Create(SQLPacketSize);
 end;
 
 destructor TTExportFile.Destroy();
@@ -4257,6 +4366,9 @@ begin
   if (Assigned(FileBuffer.Mem)) then
     FreeMem(FileBuffer.Mem);
   ContentBuffer.Free();
+  if (Assigned(ValueBuffer.Mem)) then
+    FreeMem(ValueBuffer.Mem);
+  ValuesBuffer.Free();
 
   inherited;
 
@@ -4472,10 +4584,10 @@ procedure TTExportSQL.ExecuteTableFooter(const Table: TSTable; const Fields: arr
 var
   Content: string;
 begin
-  if (SQLInsertPacketLen > 0) then
+  if (SQLInsertLen > 0) then
   begin
     WriteContent(SQLInsertPostfix);
-    SQLInsertPacketLen := 0;
+    SQLInsertLen := 0;
   end;
 
   if (Assigned(Table) and Data) then
@@ -4555,50 +4667,71 @@ begin
     end;
 
     SQLInsertPrefix := SQLInsertPrefix + ' VALUES ';
-    SQLInsertPrefixPacketLen := SizeOf(COM_QUERY) + WideCharToAnsiChar(Session.CodePage, PChar(SQLInsertPrefix), Length(SQLInsertPrefix), nil, 0);
-
     SQLInsertPostfix := ';' + #13#10;
-    SQLInsertPrefixPacketLen := WideCharToAnsiChar(Session.CodePage, PChar(SQLInsertPostfix), Length(SQLInsertPostfix), nil, 0);
-
-    SQLInsertPacketLen := 0;
+    SQLInsertLen := 0;
   end;
 end;
 
 procedure TTExportSQL.ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
+  LenEscaped: Integer;
   I: Integer;
-  Values: string;
-  ValuesPacketLen: Integer;
+  Len: Integer;
 begin
-  Values := '(';
+  ValuesBuffer.Write('(');
   for I := 0 to Length(Fields) - 1 do
   begin
-    if (I > 0) then Values := Values + ',';
-    Values := Values + DataSet.SQLFieldValue(Fields[I]);
+    if (I > 0) then ValuesBuffer.Write(',');
+    if (not Assigned(DataSet.LibRow^[Fields[I].FieldNo - 1])) then
+      ValuesBuffer.Write('NULL')
+    else if (BitField(Fields[I])) then
+      ValuesBuffer.Write('b''' + Fields[I].AsString + '''')
+    else if (Fields[I].DataType in BinaryDataTypes) then
+    begin
+      Len := SQLEscapeBin(DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], nil, 0, False);
+      SQLEscapeBin(DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], ValuesBuffer.WriteExternal(Len), Len, False);
+    end
+    else if (Fields[I].DataType in TextDataTypes) then
+    begin
+      Len := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], nil, 0);
+      if (Len * SizeOf(ValueBuffer.Mem[0]) > ValueBuffer.MemSize) then
+      begin
+        ValueBuffer.MemSize := Len * SizeOf(ValueBuffer.Mem[0]);
+        ReallocMem(ValueBuffer.Mem, ValueBuffer.MemSize);
+      end;
+      AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], ValueBuffer.Mem, Len);
+
+      LenEscaped := SQLEscape(ValueBuffer.Mem, Len, nil, 0);
+      SQLEscape(ValueBuffer.Mem, Len, ValuesBuffer.WriteExternal(LenEscaped), LenEscaped);
+    end
+    else
+      ValuesBuffer.WriteData(DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], not (Fields[I].DataType in NotQuotedDataTypes));
   end;
-  Values := Values + ')';
+  ValuesBuffer.Write(')');
 
-  ValuesPacketLen := WideCharToAnsiChar(Session.CodePage, PChar(Values), Length(Values), nil, 0);
-
-  if ((SQLInsertPacketLen > 0) and (SQLInsertPacketLen + ValuesPacketLen + SQLInsertPostfixPacketLen >= SQLPacketSize)) then
+  if ((SQLInsertLen > 0) and (SQLInsertLen + 1 + ValuesBuffer.Length + Length(SQLInsertPrefix) > SQLPacketSize)) then
   begin
-    WriteContent(SQLInsertPostfix);
-    SQLInsertPacketLen := 0;
+    ContentBuffer.Write(SQLInsertPostfix);
+    SQLInsertLen := 0;
   end;
 
-  if (SQLInsertPacketLen = 0) then
+  if (SQLInsertLen = 0) then
   begin
-    WriteContent(SQLInsertPrefix);
-    Inc(SQLInsertPacketLen, SQLInsertPrefixPacketLen);
+    ContentBuffer.Write(SQLInsertPrefix);
+    Inc(SQLInsertLen, Length(SQLInsertPrefix));
   end
   else
   begin
-    WriteContent(',');
-    Inc(SQLInsertPacketLen, 1);
+    ContentBuffer.Write(',');
+    Inc(SQLInsertLen, 1);
   end;
 
-  WriteContent(Values);
-  Inc(SQLInsertPacketLen, ValuesPacketLen);
+  ContentBuffer.Write(ValuesBuffer.Text, ValuesBuffer.Length);
+  Inc(SQLInsertLen, ValuesBuffer.Length);
+  ValuesBuffer.Clear();
+
+  if (ContentBuffer.Size > FilePacketSize) then
+    Flush();
 end;
 
 procedure TTExportSQL.ExecuteTrigger(const Trigger: TSTrigger);
@@ -7626,6 +7759,7 @@ procedure TTTransfer.ExecuteTableData(const Item: TItem; const DataHandle: TMySQ
 var
   Buffer: TTool.TStringBuffer;
   DataFileBuffer: TDataFileBuffer;
+  DataSet: TMySQLQuery;
   DestinationDatabase: TSDatabase;
   DestinationField: TSTableField;
   DestinationTable: TSBaseTable;
@@ -7635,21 +7769,29 @@ var
   FieldInfo: TFieldInfo;
   FilenameP: array [0 .. MAX_PATH] of Char;
   I: Integer;
-  InsertStmtInSQL: Boolean;
   J: Integer;
+  Len: Integer;
+  LenEscaped: Integer;
   LibLengths: MYSQL_LENGTHS;
   LibRow: MYSQL_ROW;
   Pipe: THandle;
   Pipename: string;
   S: string;
-  SourceDataSet: TMySQLQuery;
   SourceTable: TSBaseTable;
   SourceValues: string;
   SQL: string;
   SQLExecuted: TEvent;
   SQLExecuteLength: Integer;
+  SQLInsertLen: Integer;
+  SQLInsertPostfix: string;
+  SQLInsertPrefix: string;
   WrittenSize: Cardinal;
   Values: string;
+  ValueBuffer: record
+    Mem: PChar;
+    MemSize: Integer;
+  end;
+  ValuesBuffer: TTool.TStringBuffer;
 begin
   SourceValues := ''; FilenameP[0] := #0;
   SourceTable := TSBaseTable(Item.DBObject);
@@ -7664,16 +7806,22 @@ begin
 
   if ((Success = daSuccess) and (FieldCount > 0)) then
   begin
-    SourceDataSet := TMySQLQuery.Create(nil);
-    SourceDataSet.Open(DataHandle);
-    while ((Success <> daRetry) and not SourceDataSet.Active) do
+    DataSet := TMySQLQuery.Create(nil);
+    while ((Success <> daAbort) and not DataSet.Active) do
     begin
-      SourceDataSet.Open();
-      if (Session.ErrorCode > 0) then
-        DoError(DatabaseError(Session), Item, True, SQL);
+      DataSet.Open(DataHandle);
+      if (not DataSet.Active) then
+        DoError(DatabaseError(Session), Item, False, SQL);
     end;
 
-    if ((Success = daSuccess) and not SourceDataSet.IsEmpty()) then
+    if (Success = daSuccess) then
+    begin
+      SetLength(Fields, DataSet.FieldCount);
+      for I := 0 to DataSet.FieldCount - 1 do
+        Fields[I] := DataSet.Fields[I];
+    end;
+
+    if ((Success = daSuccess) and not DataSet.IsEmpty()) then
     begin
       SQLExecuted := TEvent.Create(nil, False, False, '');
 
@@ -7712,8 +7860,8 @@ begin
             DataFileBuffer := TDataFileBuffer.Create(DestinationSession.CodePage);
 
             repeat
-              LibLengths := SourceDataSet.LibLengths;
-              LibRow := SourceDataSet.LibRow;
+              LibLengths := DataSet.LibLengths;
+              LibRow := DataSet.LibRow;
 
               for I := 0 to DestinationTable.Fields.Count - 1 do
               begin
@@ -7722,8 +7870,8 @@ begin
                   DataFileBuffer.Write(PAnsiChar(',_'), 1); // Two characters are needed to instruct the compiler to give a pointer - but the first character should be placed in the file only
                 if (not Assigned(LibRow^[I])) then
                   DataFileBuffer.Write(PAnsiChar('NULL'), 4)
-                else if (BitField(SourceDataSet.Fields[I])) then
-                  begin S := UInt64ToStr(SourceDataSet.Fields[I].AsLargeInt); DataFileBuffer.WriteData(PChar(S), Length(S)); end
+                else if (BitField(DataSet.Fields[I])) then
+                  begin S := UInt64ToStr(DataSet.Fields[I].AsLargeInt); DataFileBuffer.WriteData(PChar(S), Length(S)); end
                 else if (DestinationTable.Fields[I].FieldType in BinaryFieldTypes) then
                   DataFileBuffer.WriteBinary(LibRow^[I], LibLengths^[I])
                 else if (DestinationField.FieldType in TextFieldTypes) then
@@ -7740,12 +7888,14 @@ begin
                  DataFileBuffer.Clear();
 
               Inc(Item.RecordsDone);
-              if (Item.RecordsDone mod 100 = 0) then
-                DoUpdateGUI();
-
-              if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
-                Success := daAbort;
-            until ((Success <> daSuccess) or not SourceDataSet.FindNext());
+              if (Item.RecordsDone mod 10 = 0) then
+              begin
+                if (Item.RecordsDone mod 100 = 0) then
+                  DoUpdateGUI();
+                if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
+                  Success := daAbort;
+              end;
+            until ((Success <> daSuccess) or not DataSet.FindNext());
 
             if (DataFileBuffer.Size > 0) then
               if (not WriteFile(Pipe, DataFileBuffer.Data^, DataFileBuffer.Size, WrittenSize, nil) or (Abs(WrittenSize) < DataFileBuffer.Size)) then
@@ -7776,48 +7926,82 @@ begin
       begin
         SQL := ''; SQLExecuteLength := 0;
 
-        InsertStmtInSQL := False;
+        ValueBuffer.Mem := nil; ValueBuffer.MemSize := 0;
+        ValuesBuffer := TStringBuffer.Create(SQLPacketSize);
+        SQLInsertLen := 0;
 
-        EscapedTableName := DestinationSession.EscapeIdentifier(DestinationTable.Name);
+        EscapedTableName := Session.EscapeIdentifier(DestinationDatabase.Name) + '.' + DestinationSession.EscapeIdentifier(DestinationTable.Name);
         SetLength(EscapedFieldName, DestinationTable.Fields.Count);
         for I := 0 to DestinationTable.Fields.Count - 1 do
            EscapedFieldName[I] := DestinationSession.EscapeIdentifier(DestinationTable.Fields[I].Name);
+        SQLInsertPrefix := 'INSERT INTO ' + EscapedTableName + ' VALUES ';
+        SQLInsertPostfix := ';' + #13#10;
 
         if (DestinationSession.Lib.LibraryType <> ltHTTP) then
           if (DestinationSession.ServerVersion < 40011) then
             SQL := SQL + 'BEGIN;' + #13#10
           else
             SQL := SQL + 'START TRANSACTION;' + #13#10;
-        SQL := SQL + 'LOCK TABLES ' + Session.EscapeIdentifier(DestinationDatabase.Name) + '.' + EscapedTableName + ' WRITE;' + #13#10;
+        SQL := SQL + 'LOCK TABLES ' + EscapedTableName + ' WRITE;' + #13#10;
         if ((DestinationSession.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
-          SQL := SQL + 'ALTER TABLE ' + Session.EscapeIdentifier(DestinationDatabase.Name) + '.' + EscapedTableName + ' DISABLE KEYS;' + #13#10;
+          SQL := SQL + 'ALTER TABLE ' + EscapedTableName + ' DISABLE KEYS;' + #13#10;
 
         if (DestinationSession.Databases.NameCmp(DestinationSession.DatabaseName, DestinationDatabase.Name) <> 0) then
           SQL := SQL + DestinationDatabase.SQLUse();
 
         repeat
-          if (not InsertStmtInSQL) then
+          if (SQLInsertLen = 0) then
           begin
-            InsertStmtInSQL := True;
-
-            SQL := SQL + 'INSERT INTO ' + EscapedTableName + ' VALUES (';
+            SQL := SQL + SQLInsertPrefix;
+            SQLInsertLen := Length(SQLInsertPrefix);
           end
           else
-            SQL := SQL + ',(';
-          Values := '';
-          for I := 0 to SourceDataSet.FieldCount - 1 do
           begin
-            if (I > 0) then Values := Values + ',';
-            Values := Values + SourceDataSet.SQLFieldValue(SourceDataSet.Fields[I]);
+            SQL := SQL + ',';
+            Inc(SQLInsertLen);
           end;
-          SQL := SQL + Values + ')';
+
+          ValuesBuffer.Write('(');
+          for I := 0 to Length(Fields) - 1 do
+          begin
+            if (I > 0) then ValuesBuffer.Write(',');
+            if (not Assigned(DataSet.LibRow^[Fields[I].FieldNo - 1])) then
+              ValuesBuffer.Write('NULL')
+            else if (BitField(Fields[I])) then
+              ValuesBuffer.Write('b''' + Fields[I].AsString + '''')
+            else if (Fields[I].DataType in BinaryDataTypes) then
+            begin
+              Len := SQLEscapeBin(DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], nil, 0, False);
+              SQLEscapeBin(DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], ValuesBuffer.WriteExternal(Len), Len, False);
+            end
+            else if (Fields[I].DataType in TextDataTypes) then
+            begin
+              Len := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], nil, 0);
+              if (Len * SizeOf(ValueBuffer.Mem[0]) > ValueBuffer.MemSize) then
+              begin
+                ValueBuffer.MemSize := Len * SizeOf(ValueBuffer.Mem[0]);
+                ReallocMem(ValueBuffer.Mem, ValueBuffer.MemSize);
+              end;
+              AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], ValueBuffer.Mem, Len);
+
+              LenEscaped := SQLEscape(ValueBuffer.Mem, Len, nil, 0);
+              SQLEscape(ValueBuffer.Mem, Len, ValuesBuffer.WriteExternal(LenEscaped), LenEscaped);
+            end
+            else
+              ValuesBuffer.WriteData(DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], not (Fields[I].DataType in NotQuotedDataTypes));
+          end;
+          ValuesBuffer.Write(')');
+
+          SetString(S, ValuesBuffer.Text, ValuesBuffer.Length);
+          ValuesBuffer.Clear();
+          SQL := SQL + S;
 
           if (Length(SQL) - SQLExecuteLength >= SQLPacketSize) then
           begin
-            if (InsertStmtInSQL) then
+            if (SQLInsertLen > 0) then
             begin
-              SQL := SQL + ';' + #13#10;
-              InsertStmtInSQL := False;
+              SQL := SQL + SQLInsertPostfix;
+              SQLInsertLen := 0;
             end;
 
             if (SQLExecuteLength > 0) then
@@ -7837,15 +8021,18 @@ begin
           end;
 
           Inc(Item.RecordsDone);
-          if (Item.RecordsDone mod 100 = 0) then DoUpdateGUI();
-
-          if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
+          if (Item.RecordsDone mod 10 = 0) then
           begin
-            if (SQL <> '') then
-              DestinationSession.Terminate();
-            Success := daAbort;
+            if (Item.RecordsDone mod 100 = 0) then
+              DoUpdateGUI();
+            if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
+            begin
+              if (SQL <> '') then
+                DestinationSession.Terminate();
+              Success := daAbort;
+            end;
           end;
-        until ((Success <> daSuccess) or not SourceDataSet.FindNext());
+        until ((Success <> daSuccess) or not DataSet.FindNext());
 
         if ((Success = daSuccess) and (SQLExecuteLength > 0)) then
         begin
@@ -7855,23 +8042,30 @@ begin
             DoError(DatabaseError(DestinationSession), Item, False, SQL);
         end;
 
-        if (InsertStmtInSQL) then
-          SQL := SQL + ';' + #13#10;
+        if (SQLInsertLen > 0) then
+        begin
+          SQL := SQL + SQLInsertPostfix;
+          Inc(SQLInsertLen, Length(SQLInsertPostfix));
+        end;
         if ((DestinationSession.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
-          SQL := SQL + 'ALTER TABLE ' + Session.EscapeIdentifier(DestinationDatabase.Name) + '.' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
+          SQL := SQL + 'ALTER TABLE ' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
         SQL := SQL + 'UNLOCK TABLES;' + #13#10;
         if (DestinationSession.Lib.LibraryType <> ltHTTP) then
           SQL := SQL + 'COMMIT;' + #13#10;
 
         while ((Success <> daAbort) and not DoExecuteSQL(DestinationSession, SQL)) do
           DoError(DatabaseError(DestinationSession), Item, True, SQL);
+
+        if (Assigned(ValueBuffer.Mem)) then
+          FreeMem(ValueBuffer.Mem);
+        ValuesBuffer.Free();
       end;
 
       if (Success <> daSuccess) then
       begin
         SQL := '';
         if ((DestinationSession.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
-          SQL := SQL + 'ALTER TABLE ' + Session.EscapeIdentifier(DestinationDatabase.Name) + '.' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
+          SQL := SQL + 'ALTER TABLE ' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
         SQL := SQL + 'UNLOCK TABLES;' + #13#10;
         if (DestinationSession.Lib.LibraryType <> ltHTTP) then
           SQL := SQL + 'ROLLBACK;' + #13#10;
@@ -7882,7 +8076,7 @@ begin
     end;
 
     if (Success <> daAbort) then
-      SourceDataSet.Free();
+      DataSet.Free();
   end;
 end;
 
@@ -8137,7 +8331,7 @@ var
   PerlRegEx: TPerlRegEx;
   SQL: string;
   Value: string;
-  WhereClausel: string;
+  WhereClause: string;
   UseIndexFields: Boolean;
 begin
   if (Success = daSuccess) then
@@ -8164,16 +8358,16 @@ begin
             end;
     end;
 
-    WhereClausel := '';
+    WhereClause := '';
     for I := 0 to Length(Item.FieldNames) - 1 do
     begin
-      if (I > 0) then WhereClausel := WhereClausel + ' OR ';
+      if (I > 0) then WhereClause := WhereClause + ' OR ';
       if (not RegExpr) then
-        WhereClausel := WhereClausel + Session.EscapeIdentifier(Item.FieldNames[I]) + ' LIKE ' + SQLEscape('%' + FindText + '%')
+        WhereClause := WhereClause + Session.EscapeIdentifier(Item.FieldNames[I]) + ' LIKE ' + SQLEscape('%' + FindText + '%')
       else
-        WhereClausel := WhereClausel + Session.EscapeIdentifier(Item.FieldNames[I]) + ' REGEXP ' + SQLEscape(FindText);
+        WhereClause := WhereClause + Session.EscapeIdentifier(Item.FieldNames[I]) + ' REGEXP ' + SQLEscape(FindText);
     end;
-    SQL := 'SELECT ' + SQL + ' FROM ' + Session.EscapeIdentifier(Item.DatabaseName) + '.' + Session.EscapeIdentifier(Item.TableName) + ' WHERE ' + WhereClausel;
+    SQL := 'SELECT ' + SQL + ' FROM ' + Session.EscapeIdentifier(Item.DatabaseName) + '.' + Session.EscapeIdentifier(Item.TableName) + ' WHERE ' + WhereClause;
 
     DataSet := TMySQLQuery.Create(nil);
     DataSet.Connection := Session;
@@ -8323,10 +8517,13 @@ begin
             end;
 
           Inc(Item.RecordsDone);
-          if (Item.RecordsDone mod 100 = 0) then DoUpdateGUI();
-
-          if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
-            Success := daAbort;
+          if (Item.RecordsDone mod 10 = 0) then
+          begin
+            if (Item.RecordsDone mod 100 = 0) then
+              DoUpdateGUI();
+            if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
+              Success := daAbort;
+          end;
         until ((Success <> daSuccess) or not DataSet.FindNext());
 
         if (Assigned(Buffer)) then

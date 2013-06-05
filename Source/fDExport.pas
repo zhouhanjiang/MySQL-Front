@@ -1858,6 +1858,16 @@ var
 begin
   Session.UnRegisterEventProc(FormSessionEvent);
 
+  FEntieredTables.Caption := '';
+  FDoneTables.Caption := '';
+  FEntieredRecords.Caption := '';
+  FDoneRecords.Caption := '';
+  FEntieredTime.Caption := '';
+  FDoneTime.Caption := '';
+  FProgressBar.Position := 0;
+  FErrors.Caption := '0';
+  FErrorMessages.Lines.Clear();
+
   CheckActivePageChange(TSExecute.PageIndex);
   FBBack.Enabled := False;
 

@@ -1767,6 +1767,16 @@ begin
   else
     FLProgressRecords.Caption := Preferences.LoadStr(67) + ':';
 
+  FEntieredTables.Caption := '';
+  FDoneTables.Caption := '';
+  FEntieredRecords.Caption := '';
+  FDoneRecords.Caption := '';
+  FEntieredTime.Caption := '';
+  FDoneTime.Caption := '';
+  FProgressBar.Position := 0;
+  FErrors.Caption := '0';
+  FErrorMessages.Lines.Clear();
+
   FBBack.Enabled := False;
   FBForward.Enabled := False;
   FBForward.Default := False;

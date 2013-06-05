@@ -718,6 +718,13 @@ var
   ProgressInfos: TTool.TProgressInfos;
   DestinationSession: TSSession;
 begin
+  FEntieredTables.Caption := '';
+  FDoneTables.Caption := '';
+  FEntieredRecords.Caption := '';
+  FDoneRecords.Caption := '';
+  FEntieredTime.Caption := '';
+  FDoneTime.Caption := '';
+  FProgressBar.Position := 0;
   FErrors.Caption := '0';
   FErrorMessages.Lines.Clear();
 

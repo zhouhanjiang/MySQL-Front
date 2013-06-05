@@ -907,11 +907,19 @@ var
   ProgressInfos: TTool.TProgressInfos;
   Table: TSBaseTable;
 begin
-  FErrors.Caption := '0';
-  FErrorMessages.Lines.Clear();
   FTables.Items.BeginUpdate();
   FTables.Items.Clear();
   FTables.Items.EndUpdate();
+
+  FEntieredTables.Caption := '';
+  FDoneTables.Caption := '';
+  FEntieredRecords.Caption := '';
+  FDoneRecords.Caption := '';
+  FEntieredTime.Caption := '';
+  FDoneTime.Caption := '';
+  FProgressBar.Position := 0;
+  FErrors.Caption := '0';
+  FErrorMessages.Lines.Clear();
 
   FBForward.Enabled := False;
   FBForward.Default := False;
