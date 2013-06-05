@@ -434,7 +434,6 @@ type
     EurekaLog: TEurekaLog;
     {$ENDIF}
     FAddressDroppedDown: Boolean;
-    FirstOpen: Boolean;
     FSessions: TList;
     MouseDownPoint: TPoint;
     Param: string; // erforderlich für PostMessage
@@ -868,7 +867,7 @@ begin
   DAccounts.Open := True;
   DAccounts.Account := nil;
   DAccounts.Session := nil;
-  if (FirstOpen and (Copy(StrPas(PChar(Message.LParam)), 1, 8) = 'mysql://')) then
+  if (Copy(StrPas(PChar(Message.LParam)), 1, 8) = 'mysql://') then
   begin
     DAccounts.Account := Accounts.AccountByURI(PChar(Message.LParam));
     if (Assigned(DAccounts.Account)) then
@@ -923,8 +922,6 @@ begin
   end;
 
   Message.Result := LRESULT(Assigned(FSession));
-
-  FirstOpen := False;
 end;
 
 procedure TWWindow.CMBookmarkChanged(var Message: TMessage);
@@ -1697,7 +1694,6 @@ var
   I: Integer;
 begin
   DisableApplicationActivate := False;
-  FirstOpen := True;
   MouseDownPoint := Point(-1, -1);
   QuitAfterShow := False;
   UniqueTabNameCounter := 0;

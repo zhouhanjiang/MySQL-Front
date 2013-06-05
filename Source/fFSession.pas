@@ -4111,7 +4111,11 @@ begin
       vObjects: if (PListView.Visible) then Window.ActiveControl := ActiveListView;
       vBrowser: if (PResult.Visible and Assigned(ActiveDBGrid)) then Window.ActiveControl := ActiveDBGrid;
       vIDE: if (PSynMemo.Visible and Assigned(ActiveSynMemo)) then Window.ActiveControl := ActiveSynMemo;
-      vBuilder: if (PBuilder.Visible and Assigned(FQueryBuilderActiveWorkArea())) then Window.ActiveControl := FQueryBuilderActiveWorkArea();
+      vBuilder: if (PBuilder.Visible) then
+        if (FQueryBuilder.Visible and Assigned(FQueryBuilderActiveWorkArea())) then
+          Window.ActiveControl := FQueryBuilderActiveWorkArea()
+        else
+          Window.ActiveControl := FQueryBuilderSynMemo;
       vEditor: if (PSynMemo.Visible) then Window.ActiveControl := FSQLEditorSynMemo;
       vDiagram: if (PWorkbench.Visible) then Window.ActiveControl := ActiveWorkbench;
     end;

@@ -64,6 +64,7 @@ type
       const Host, UnixSocket: RawByteString; const Port, Timeout: my_uint): Boolean; virtual;
     procedure ClosePacket(); virtual;
     function FlushPacketBuffers(): Boolean; virtual;
+    procedure FreeBuffer(var Buffer: TBuffer); virtual;
     function GetPacketSize(): my_int; virtual;
     procedure next_command(); virtual;
     function next_result(): my_int; virtual;
@@ -1209,9 +1210,9 @@ begin
 
   Close();
 
-  ReallocBuffer(CompressedBuffer, 0);
-  ReallocBuffer(DecompressedBuffer, 0);
-  ReallocBuffer(PacketBuffer, 0);
+  FreeBuffer(CompressedBuffer);
+  FreeBuffer(DecompressedBuffer);
+  FreeBuffer(PacketBuffer);
 end;
 
 constructor TMySQL_Packet.Create();
@@ -1309,6 +1310,13 @@ begin
     PacketBuffer.Offset := 0;
     PacketBuffer.Size := NET_HEADER_SIZE; // Reserve space for packet header
   end;
+end;
+
+procedure TMySQL_Packet.FreeBuffer(var Buffer: TBuffer);
+begin
+  if (Assigned(Buffer.Mem)) then
+    FreeMem(Buffer.Mem);
+  ZeroMemory(@Buffer, SizeOf(Buffer));
 end;
 
 function TMySQL_Packet.GetPacketSize(): my_int;
@@ -1470,33 +1478,24 @@ function TMySQL_Packet.ReallocBuffer(var Buffer: TBuffer; const ReserveSize: my_
 begin
   Result := True;
 
-  if (ReserveSize = 0) then
+  if ((Buffer.Size + ReserveSize > Buffer.MemSize) and (Buffer.Offset > 0)) then
   begin
-    if (Assigned(Buffer.Mem)) then
+    Dec(Buffer.Size, Buffer.Offset);
+    Move(Buffer.Mem[Buffer.Offset], Buffer.Mem[0], Buffer.Size);
+    Buffer.Offset := 0;
+  end;
+
+  if (Buffer.Size + ReserveSize > Buffer.MemSize) then
+  begin
+    Buffer.MemSize := (((Buffer.Size + ReserveSize - 1) div NET_BUFFER_LENGTH) + 1) * NET_BUFFER_LENGTH;
+
+    try
+      ReallocMem(Buffer.Mem, Buffer.MemSize);
+    except
       FreeMem(Buffer.Mem);
-    ZeroMemory(@Buffer, SizeOf(Buffer));
-  end
-  else
-  begin
-    if ((Buffer.Size + ReserveSize > Buffer.MemSize) and (Buffer.Offset > 0)) then
-    begin
-      Dec(Buffer.Size, Buffer.Offset);
-      Move(Buffer.Mem[Buffer.Offset], Buffer.Mem[0], Buffer.Size);
-      Buffer.Offset := 0;
-    end;
-
-    if (Buffer.Size + ReserveSize > Buffer.MemSize) then
-    begin
-      Buffer.MemSize := (((Buffer.Size + ReserveSize - 1) div NET_BUFFER_LENGTH) + 1) * NET_BUFFER_LENGTH;
-
-      try
-        ReallocMem(Buffer.Mem, Buffer.MemSize);
-      except
-        FreeMem(Buffer.Mem);
-        FillChar(Buffer, SizeOf(Buffer), #0);
-        Seterror(CR_OUT_OF_MEMORY);
-        Result := False;
-      end;
+      FillChar(Buffer, SizeOf(Buffer), #0);
+      Seterror(CR_OUT_OF_MEMORY);
+      Result := False;
     end;
   end;
 end;
