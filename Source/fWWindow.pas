@@ -147,7 +147,6 @@ type
     aVRefreshAll: TAction;
     aVSQLEditor: TAction;
     aVSQLHistory: TAction;
-    aVSQLHistory1: TMenuItem;
     aVSQLLog: TAction;
     CAddressBar: TCoolBar;
     CToolBar: TCoolBar;
@@ -281,6 +280,7 @@ type
     miVRefreshAll: TMenuItem;
     miVSidebar: TMenuItem;
     miVSQLEditor: TMenuItem;
+    miVSQLHistory: TMenuItem;
     miVSQLLog: TMenuItem;
     MNext: TPopupMenu;
     MPrev: TPopupMenu;

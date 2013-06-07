@@ -71,8 +71,6 @@ type
     DataSetPost: TDataSetPost;
     FBlobSearch: TEdit;
     FBookmarks: TListView;
-    FQueryBuilder: TacQueryBuilder;
-    FQueryBuilderSynMemo: TSynMemo;
     FFilter: TComboBox_Ext;
     FFilterEnabled: TToolButton;
     FGridDataSource: TDataSource;
@@ -85,6 +83,8 @@ type
     FNavigator: TTreeView_Ext;
     FObjectIDEGrid: TMySQLDBGrid;
     FOffset: TEdit;
+    FQueryBuilder: TacQueryBuilder;
+    FQueryBuilderSynMemo: TSynMemo;
     FQuickSearch: TEdit;
     FQuickSearchEnabled: TToolButton;
     FRTF: TRichEdit;
@@ -104,6 +104,7 @@ type
     gmECopyToFile: TMenuItem;
     gmECut: TMenuItem;
     gmEDelete: TMenuItem;
+    gmEmpty: TMenuItem;
     gmEPaste: TMenuItem;
     gmEPasteFromFile: TMenuItem;
     gmFExport: TMenuItem;
@@ -309,6 +310,7 @@ type
     N17: TMenuItem;
     N18: TMenuItem;
     N19: TMenuItem;
+    N2: TMenuItem;
     N20: TMenuItem;
     N21: TMenuItem;
     N22: TMenuItem;
@@ -396,8 +398,6 @@ type
     tmEPaste: TMenuItem;
     tmESelectAll: TMenuItem;
     ToolBar: TToolBar;
-    N2: TMenuItem;
-    gmEmpty: TMenuItem;
     procedure aBAddExecute(Sender: TObject);
     procedure aBDeleteExecute(Sender: TObject);
     procedure aBEditExecute(Sender: TObject);
@@ -2965,6 +2965,7 @@ end;
 
 procedure TFSession.aDRunSelectionExecute(Sender: TObject);
 var
+  I: Integer;
   Index: Integer;
   Len: Integer;
   SQL: string;
@@ -2977,11 +2978,12 @@ begin
   if (ActiveSynMemo.SelText = '') then
   begin
     SQL := ActiveSynMemo.Text;
-    Index := 1; Len := 1;
-    while ((Index < aDRunExecuteSelStart + 1) and (Len > 0)) do
+    Index := 1; I := Index; Len := 1;
+    while ((I <= aDRunExecuteSelStart + 1) and (Index < Length(SQL)) and (Len > 0)) do
     begin
       Len := SQLStmtLength(PChar(@SQL[Index]), Length(SQL) - (Index - 1));
       Inc(Index, Len);
+      I := Index; while ((I > 1) and (CharInSet(SQL[I - 1], [#10,#13]))) do Dec(I);
     end;
     Dec(Index, Len);
     SQL := Copy(SQL, Index, Len);
@@ -4314,7 +4316,9 @@ begin
     SLog.Align := alBottom;
 
     Perform(CM_POST_MONITOR, 0, 0);
-  end;
+  end
+  else
+    SendMessage(FLog.Handle, WM_SETTEXT, 0, 0);
 
   FormResize(Sender);
 end;
@@ -6069,7 +6073,7 @@ begin
     MainAction('aEPasteFromFile').Enabled := Assigned(DBGrid.SelectedField) and (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) and not DBGrid.SelectedField.ReadOnly and (DBGrid.SelectedRows.Count <= 1);
     MainAction('aDCreateField').Enabled := Assigned(DBGrid.SelectedField) and (View = vBrowser);
     MainAction('aDEditRecord').Enabled := Assigned(DBGrid.SelectedField) and (View <> vIDE);
-    MainAction('aDEmpty').Enabled := (Assigned(DBGrid.DataSource.DataSet) and DBGrid.DataSource.DataSet.CanModify and Assigned(DBGrid.SelectedField) and not DBGrid.SelectedField.IsNull and not DBGrid.SelectedField.Required and (DBGrid.SelectedRows.Count <= 1));
+    MainAction('aDEmpty').Enabled := (DBGrid.DataSource.DataSet.CanModify and Assigned(DBGrid.SelectedField) and not DBGrid.SelectedField.IsNull and not DBGrid.SelectedField.Required and (DBGrid.SelectedRows.Count <= 1));
   end;
 
   StatusBarRefresh();

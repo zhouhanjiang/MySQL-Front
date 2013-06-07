@@ -540,7 +540,6 @@ type
     FilterParser: TExprParser;
     FInternRecordBuffers: TInternRecordBuffers;
     FLocateNext: Boolean;
-    FReadOnly: Boolean;
     FRecordsReceived: TEvent;
     FSortDef: TIndexDef;
     function AllocInternRecordBuffer(): PInternRecordBuffer;
@@ -589,7 +588,7 @@ type
     procedure SetFilterText(const Value: string); override;
     procedure SetRecNo(Value: Integer); override;
     function SQLFieldValue(const Field: TField; Buffer: TRecordBuffer = nil): string; overload; virtual;
-    function SQLTableClausel(): string; virtual;
+    function SQLTableClause(): string; virtual;
     function SQLUpdate(Buffer: TRecordBuffer = nil): string; virtual;
     procedure UpdateIndexDefs(); override;
     property InternRecordBuffers: TInternRecordBuffers read FInternRecordBuffers;
@@ -4776,30 +4775,8 @@ begin
     else
       Data := TMySQLDataSet.PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
 
-  if (not Assigned(Data) or not Assigned(Data^.LibRow^[Field.FieldNo - 1]) and (not Field.Required or (Field.AutoGenerateValue = arAutoInc))) then
+  if (not Assigned(Data^.LibRow^[Field.FieldNo - 1])) then
     Result := 'NULL'
-  else if (not Assigned(Data^.LibRow^[Field.FieldNo - 1])) then
-    case (Field.DataType) of
-      ftString,
-      ftShortInt,
-      ftByte,
-      ftSmallInt,
-      ftWord,
-      ftInteger,
-      ftLongWord,
-      ftLargeint,
-      ftSingle,
-      ftFloat,
-      ftExtended: Result := '0';
-      ftDate,
-      ftTime,
-      ftDateTime: if (Field.DefaultExpression = '') then Result := 'NULL' else Result := SQLEscape(Field.DefaultExpression);
-      ftBlob,
-      ftWideMemo,
-      ftWideString: Result := '''''';
-      ftTimeStamp: Result := '0';
-      else raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%d)', [Field.Name, Integer(Field.DataType)]);
-    end
   else if (BitField(Field)) then
     Result := 'b''' + Field.AsString + ''''
   else
@@ -5591,8 +5568,8 @@ begin
 
     if (Connection.Connected) then
       for I := 0 to Fields.Count - 1 do
-        if ((Fields[I].AutoGenerateValue = arAutoInc) and (Fields[I].IsNull or (Fields[I].AsInteger = 0))) then
-          Fields[I].AsInteger := Connection.Lib.mysql_insert_id(Connection.Handle);
+        if ((Fields[I].AutoGenerateValue = arAutoInc) and (Fields[I].IsNull or (Fields[I].AsLargeInt = 0))) then
+          Fields[I].AsLargeInt := Connection.InsertId;
 
     if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData) then
       FreeMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData);
@@ -6180,11 +6157,13 @@ var
   I: Integer;
   InternRecordBuffer: PInternRecordBuffer;
   J: Integer;
+  NullValue: Boolean;
   ValueHandled: Boolean;
+  Values: string;
   WhereField: TField;
   WhereFieldCount: Integer;
 begin
-  Result := 'DELETE FROM ' + SQLTableClausel() + ' WHERE ';
+  Result := 'DELETE FROM ' + SQLTableClause() + ' WHERE ';
 
   if (Length(DeleteBookmarks) = 0) then
   begin
@@ -6214,14 +6193,27 @@ begin
 
     if (WhereFieldCount = 1) then
     begin
-      Result := Result + Connection.EscapeIdentifier(WhereField.FieldName) + ' IN (';
+      Values := ''; NullValue := False;
       for I := 0 to Length(DeleteBookmarks) - 1 do
       begin
         InternRecordBuffer := InternRecordBuffers[BookmarkToInternBufferIndex(TBookmark(DeleteBookmarks[I]))];
-        if (I > 0) then Result := Result + ',';
-        Result := Result + SQLFieldValue(WhereField, InternRecordBuffer^.OldData);
+        if (not Assigned(InternRecordBuffer^.OldData) or not Assigned(InternRecordBuffer^.OldData^.LibRow^[WhereField.FieldNo - 1])) then
+          NullValue := True
+        else
+        begin
+          if (Values <> '') then Values := Values + ',';
+          Values := Values + SQLFieldValue(WhereField, InternRecordBuffer^.OldData);
+        end;
       end;
-      Result := Result + ')';
+
+      if (Values <> '') then
+        Result := Result + Connection.EscapeIdentifier(WhereField.FieldName) + ' IN (' + Values + ')';
+      if (NullValue) then
+      begin
+        if (Values <> '') then
+          Result := Result + ' OR ';
+        Result := Result + Connection.EscapeIdentifier(WhereField.FieldName) + ' IS NULL';
+      end;
     end
     else
     begin
@@ -6245,6 +6237,7 @@ begin
       end;
     end;
   end;
+
   Result := Result + ';' + #13#10;
 end;
 
@@ -6268,10 +6261,10 @@ begin
     Result := ''
   else
   begin
-    Result := 'INSERT INTO ' + SQLTableClausel() + ' SET ';
+    Result := 'INSERT INTO ' + SQLTableClause() + ' SET ';
     ValueHandled := False;
     for I := 0 to FieldCount - 1 do
-      if (Assigned(ExternRecordBuffer^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1]) or Fields[I].Required and (Fields[I].AutoGenerateValue <> arAutoInc)) then
+      if (Assigned(ExternRecordBuffer^.InternRecordBuffer^.NewData^.LibRow^[Fields[I].FieldNo - 1])) then
       begin
         if (ValueHandled) then Result := Result + ',';
         Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + '=' + SQLFieldValue(Fields[I], TRecordBuffer(ExternRecordBuffer));
@@ -6281,7 +6274,7 @@ begin
   end;
 end;
 
-function TMySQLDataSet.SQLTableClausel(): string;
+function TMySQLDataSet.SQLTableClause(): string;
 begin
   if (DatabaseName = '') then
     Result := ''
@@ -6301,7 +6294,7 @@ begin
   if (not Assigned(Buffer)) then
     Buffer := ActiveBuffer();
 
-  Result := 'UPDATE ' + SQLTableClausel() + ' SET ';
+  Result := 'UPDATE ' + SQLTableClause() + ' SET ';
   ValueHandled := False;
   for I := 0 to FieldCount - 1 do
     if ((PExternRecordBuffer(Buffer)^.InternRecordBuffer^.NewData^.LibLengths^[Fields[I].FieldNo - 1] <> PExternRecordBuffer(Buffer)^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo - 1])
@@ -6837,7 +6830,10 @@ end;
 
 function TMySQLTable.GetCanModify(): Boolean;
 begin
-  Result := not FReadOnly and inherited;
+  if (not IndexDefs.Updated) then
+    UpdateIndexDefs();
+
+  Result := True;
 end;
 
 constructor TMySQLTable.Create(AOwner: TComponent);

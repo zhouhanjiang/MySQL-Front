@@ -593,7 +593,7 @@ object WWindow: TWWindow
     end
     object aVSQLEditor: TAction
       Category = 'View'
-      Caption = 'aVPlainSQL'
+      Caption = 'aVSQLEditor'
       Enabled = False
       HelpContext = 1037
       HelpType = htContext
@@ -1612,7 +1612,7 @@ object WWindow: TWWindow
           Action = aVJobs
           AutoCheck = True
         end
-        object aVSQLHistory1: TMenuItem
+        object miVSQLHistory: TMenuItem
           Action = aVSQLHistory
           AutoCheck = True
         end

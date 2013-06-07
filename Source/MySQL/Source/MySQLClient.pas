@@ -73,7 +73,7 @@ type
     function ReadPacket(out Value: my_uint; const Size: Byte = 0): Boolean; overload; virtual;
     function ReadPacket(out Value: my_ulonglong; const Size: Byte = 0): Boolean; overload; virtual;
     function ReadPacket(out Value: RawByteString; const NTS: Boolean = True; const Size: Byte = 0): Boolean; overload; virtual;
-    function ReallocBuffer(var Buffer: TBuffer; const ReserveSize: my_uint): Boolean;
+    function ReallocBuffer(var Buffer: TBuffer; const NeededSize: my_uint; const ReduceSize: Boolean = False): Boolean;
     function SetPacketPointer(const DistanceToMove: my_int; const MoveMethod: my_int): my_int; virtual;
     procedure SetDirection(ADirection: TMySQL_IO.TDirection); override;
     function WritePacket(const Buffer: my_char; const Size: my_uint): Boolean; overload; virtual;
@@ -1474,20 +1474,20 @@ begin
     Result := False;
 end;
 
-function TMySQL_Packet.ReallocBuffer(var Buffer: TBuffer; const ReserveSize: my_uint): Boolean;
+function TMySQL_Packet.ReallocBuffer(var Buffer: TBuffer; const NeededSize: my_uint; const ReduceSize: Boolean = False): Boolean;
 begin
   Result := True;
 
-  if ((Buffer.Size + ReserveSize > Buffer.MemSize) and (Buffer.Offset > 0)) then
+  if ((Buffer.Size + NeededSize > Buffer.MemSize) and (Buffer.Offset > 0)) then
   begin
     Dec(Buffer.Size, Buffer.Offset);
     Move(Buffer.Mem[Buffer.Offset], Buffer.Mem[0], Buffer.Size);
     Buffer.Offset := 0;
   end;
 
-  if (Buffer.Size + ReserveSize > Buffer.MemSize) then
+  if (Buffer.Size + NeededSize > Buffer.MemSize) then
   begin
-    Buffer.MemSize := (((Buffer.Size + ReserveSize - 1) div NET_BUFFER_LENGTH) + 1) * NET_BUFFER_LENGTH;
+    Buffer.MemSize := (((Buffer.Size + NeededSize - 1) div NET_BUFFER_LENGTH) + 1) * NET_BUFFER_LENGTH;
 
     try
       ReallocMem(Buffer.Mem, Buffer.MemSize);
@@ -1699,7 +1699,7 @@ const
 begin
   if (ADirection <> Direction) then
   begin
-    ReallocBuffer(PacketBuffer, ReducedBufferSized);
+    ReallocBuffer(PacketBuffer, ReducedBufferSized, True);
 
     PacketBuffer.Offset := 0;
     if (ADirection = idRead) then
