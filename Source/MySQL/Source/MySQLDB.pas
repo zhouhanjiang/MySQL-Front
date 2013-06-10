@@ -4486,8 +4486,6 @@ begin
           end;
 
           Field.FieldName := Connection.LibDecode(Connection.Lib.Field(LibField).name);
-          if (Field.FieldName = *') then
-            Field.FieldName := 'Field';
           if (FieldDefs.IndexOf(Field.FieldName) >= 0) then
           begin
             I := 2;
