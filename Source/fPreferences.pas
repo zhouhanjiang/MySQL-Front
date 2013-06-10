@@ -416,7 +416,7 @@ type
 
   TPPreferences = class(TRegistry)
   type
-    TToolbarTabs = set of (ttObjects, ttBrowser, ttIDE, ttBuilder, ttEditor, ttDiagram);
+    TToolbarTabs = set of (ttObjects, ttBrowser, ttIDE, ttBuilder, ttDiagram, ttEditor, ttEditor2, ttEditor3);
   private
     FInternetAgent: string;
     FLanguage: TPLanguage;
@@ -2525,10 +2525,14 @@ begin
     if (Visible) then ToolbarTabs := ToolbarTabs + [ttIDE] else ToolbarTabs := ToolbarTabs - [ttIDE];
   if (Assigned(XMLNode(XML, 'toolbar/builder')) and TryStrToBool(XMLNode(XML, 'toolbar/builder').Attributes['visible'], Visible)) then
     if (Visible) then ToolbarTabs := ToolbarTabs + [ttBuilder] else ToolbarTabs := ToolbarTabs - [ttBuilder];
-  if (Assigned(XMLNode(XML, 'toolbar/editor')) and TryStrToBool(XMLNode(XML, 'toolbar/editor').Attributes['visible'], Visible)) then
-    if (Visible) then ToolbarTabs := ToolbarTabs + [ttEditor] else ToolbarTabs := ToolbarTabs - [ttEditor];
   if (Assigned(XMLNode(XML, 'toolbar/diagram')) and TryStrToBool(XMLNode(XML, 'toolbar/diagram').Attributes['visible'], Visible)) then
     if (Visible) then ToolbarTabs := ToolbarTabs + [ttDiagram] else ToolbarTabs := ToolbarTabs - [ttDiagram];
+  if (Assigned(XMLNode(XML, 'toolbar/editor')) and TryStrToBool(XMLNode(XML, 'toolbar/editor').Attributes['visible'], Visible)) then
+    if (Visible) then ToolbarTabs := ToolbarTabs + [ttEditor] else ToolbarTabs := ToolbarTabs - [ttEditor];
+  if (Assigned(XMLNode(XML, 'toolbar/editor2')) and TryStrToBool(XMLNode(XML, 'toolbar/editor2').Attributes['visible'], Visible)) then
+    if (Visible) then ToolbarTabs := ToolbarTabs + [ttEditor2] else ToolbarTabs := ToolbarTabs - [ttEditor2];
+  if (Assigned(XMLNode(XML, 'toolbar/editor3')) and TryStrToBool(XMLNode(XML, 'toolbar/editor3').Attributes['visible'], Visible)) then
+    if (Visible) then ToolbarTabs := ToolbarTabs + [ttEditor3] else ToolbarTabs := ToolbarTabs - [ttEditor3];
   if (Assigned(XMLNode(XML, 'sql/font/charset'))) then TryStrToInt(XMLNode(XML, 'sql/font/charset').Text, SQLFontCharset);
   if (Assigned(XMLNode(XML, 'sql/font/color'))) then SQLFontColor := StringToColor(XMLNode(XML, 'sql/font/color').Text);
   if (Assigned(XMLNode(XML, 'sql/font/name'))) then SQLFontName := XMLNode(XML, 'sql/font/name').Text;
@@ -2722,8 +2726,10 @@ begin
   XMLNode(XML, 'toolbar/browser').Attributes['visible'] := ttBrowser in ToolbarTabs;
   XMLNode(XML, 'toolbar/ide').Attributes['visible'] := ttIDE in ToolbarTabs;
   XMLNode(XML, 'toolbar/builder').Attributes['visible'] := ttBuilder in ToolbarTabs;
-  XMLNode(XML, 'toolbar/editor').Attributes['visible'] := ttEditor in ToolbarTabs;
   XMLNode(XML, 'toolbar/diagram').Attributes['visible'] := ttDiagram in ToolbarTabs;
+  XMLNode(XML, 'toolbar/editor').Attributes['visible'] := ttEditor in ToolbarTabs;
+  XMLNode(XML, 'toolbar/editor2').Attributes['visible'] := ttEditor2 in ToolbarTabs;
+  XMLNode(XML, 'toolbar/editor3').Attributes['visible'] := ttEditor3 in ToolbarTabs;
   XMLNode(XML, 'sql/font/charset').Text := IntToStr(SQLFontCharset);
   XMLNode(XML, 'sql/font/color').Text := ColorToString(SQLFontColor);
   XMLNode(XML, 'sql/font/name').Text := SQLFontName;

@@ -253,6 +253,8 @@ type
     mtBuilder: TMenuItem;
     mtDiagram: TMenuItem;
     mtEditor: TMenuItem;
+    mtEditor2: TMenuItem;
+    mtEditor3: TMenuItem;
     MText: TPopupMenu;
     mtIDE: TMenuItem;
     mtObjects: TMenuItem;
@@ -335,7 +337,7 @@ type
     PContent: TPanel_Ext;
     PDataBrowser: TPanel_Ext;
     PDataBrowserSpacer: TPanel_Ext;
-    PDBGrid: TPanel_Ext;
+    PSQLEditorDBGrid: TPanel_Ext;
     PExplorer: TPanel_Ext;
     PFiles: TPanel_Ext;
     PFolders: TPanel_Ext;
@@ -382,6 +384,8 @@ type
     tbBuilder: TToolButton;
     tbDiagram: TToolButton;
     tbEditor: TToolButton;
+    tbEditor2: TToolButton;
+    tbEditor3: TToolButton;
     tbExplorer: TToolButton;
     TBFilterEnabled: TToolBar;
     tbIDE: TToolButton;
@@ -698,7 +702,7 @@ type
   type
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
     TTabState = set of (tsLoading, tsActive);
-    TView = (vObjects, vBrowser, vIDE, vBuilder, vEditor, vDiagram);
+    TView = (vObjects, vBrowser, vIDE, vBuilder, vDiagram, vEditor, vEditor2, vEditor3);
     TToolBarData = record
       Address: string;
       Addresses: TStringList;
@@ -718,6 +722,8 @@ type
       end;
     private
       FSession: TFSession;
+      FSynMemo: TSynMemo;
+      PDBGrid: TPanel_Ext;
       Results: TList;
       TCResult: TTabControl;
       function GetActiveDBGrid(): TMySQLDBGrid;
@@ -726,10 +732,11 @@ type
       Filename: TFileName;
       FileCodePage: Cardinal;
       procedure CloseResult();
-      constructor Create(const AFClient: TFSession);
+      constructor Create(const AFClient: TFSession; const ASynMemo: TSynMemo; const APDBGrid: TPanel_Ext);
       destructor Destroy(); override;
       function ResultEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
       property ActiveDBGrid: TMySQLDBGrid read GetActiveDBGrid;
+      property SynMemo: TSynMemo read FSynMemo;
     end;
 
     TSObjectDesktop = class(TSObject.TDesktop)
@@ -888,6 +895,8 @@ type
     FNavigatorNodeToExpand: TTreeNode;
     FrameState: TTabState;
     FSQLEditorCompletionTimerCounter: Integer;
+    FSQLEditorSynMemo2: TSynMemo;
+    FSQLEditorSynMemo3: TSynMemo;
     FSQLHistoryMenuNode: TTreeNode;
     GIFImage: TGIFImage;
     IgnoreFGridTitleClick: Boolean;
@@ -913,6 +922,8 @@ type
     ShellLink: TJamShellLink;
     SplitColor: TColor;
     SQLEditor: TSQLEditor;
+    SQLEditor2: TSQLEditor;
+    SQLEditor3: TSQLEditor;
     StatiListView: TListView;
     SynMemoBeforeDrag: TSynMemoBeforeDrag;
     NavigatorElapse: Integer;
@@ -1006,6 +1017,7 @@ type
     function GetMenuDatabase(): TSDatabase;
     function GetSelectedDatabase(): string;
     function GetSelectedImageIndex(): Integer;
+    function GetSQLEditors(View: TView): TSQLEditor;
     function GetView(): TView;
     function GetWindow(): TForm_Ext;
     procedure gmFilterClearClick(Sender: TObject);
@@ -1068,6 +1080,7 @@ type
     property FocusedTableNames: string read GetFocusedTableName;
     property MenuDatabase: TSDatabase read GetMenuDatabase;
     property SelectedImageIndex: Integer read GetSelectedImageIndex;
+    property SQLEditors[View: TView]: TSQLEditor read GetSQLEditors;
   protected
     procedure CreateParams(var Params: TCreateParams); override;
   public
@@ -1224,7 +1237,7 @@ begin
   end;
 end;
 
-constructor TFSession.TSQLEditor.Create(const AFClient: TFSession);
+constructor TFSession.TSQLEditor.Create(const AFClient: TFSession; const ASynMemo: TSynMemo; const APDBGrid: TPanel_Ext);
 begin
   inherited Create();
 
@@ -1232,8 +1245,10 @@ begin
 
   Filename := '';
   FileCodePage := GetACP();
-  TCResult := nil;
+  FSynMemo := ASynMemo;
+  PDBGrid := APDBGrid;
   Results := nil;
+  TCResult := nil;
 end;
 
 destructor TFSession.TSQLEditor.Destroy();
@@ -1241,6 +1256,8 @@ begin
   CloseResult();
   if (Assigned(Results)) then
     Results.Free();
+  if (PDBGrid <> FSession.PSQLEditorDBGrid) then
+    PDBGrid.Free();
 
   inherited;
 end;
@@ -1297,13 +1314,13 @@ begin
 
   if (DataHandle.Connection.ErrorCode > 0) then
   begin
-    if ((DataHandle.Connection.CommandText <> '') and (Length(FSession.FSQLEditorSynMemo.Text) > Length(DataHandle.Connection.CommandText) + 5)) then
+    if ((DataHandle.Connection.CommandText <> '') and (Length(FSynMemo.Text) > Length(DataHandle.Connection.CommandText) + 5)) then
     begin
       SQL := DataHandle.Connection.CommandText;
       Len := SQLStmtLength(PChar(SQL), Length(SQL));
       SQLTrimStmt(DataHandle.Connection.CommandText, 1, Len, StartingCommentLength, EndingCommentLength);
-      FSession.FSQLEditorSynMemo.SelStart := FSession.aDRunExecuteSelStart + DataHandle.Connection.ExecutedSQLLength + StartingCommentLength;
-      FSession.FSQLEditorSynMemo.SelLength := Len - StartingCommentLength - EndingCommentLength;
+      FSynMemo.SelStart := FSession.aDRunExecuteSelStart + DataHandle.Connection.ExecutedSQLLength + StartingCommentLength;
+      FSynMemo.SelLength := Len - StartingCommentLength - EndingCommentLength;
     end
   end
   else if (not Data) then
@@ -1320,7 +1337,7 @@ begin
   begin
     if (Results.Count = 1) then
     begin
-      TCResult := FSession.CreateTCResult(FSession.PDBGrid);
+      TCResult := FSession.CreateTCResult(PDBGrid);
       TCResult.Tabs.Add(Preferences.LoadStr(861, IntToStr(Results.Count)));
       TCResult.OnChange := TCResultChange;
     end;
@@ -1330,7 +1347,7 @@ begin
     TResult(Item^).DataSet.AfterOpen := FSession.DataSetAfterOpen;
     TResult(Item^).DataSource := TDataSource.Create(FSession.Owner);
     TResult(Item^).DataSource.Enabled := False;
-    TResult(Item^).DBGrid := FSession.CreateDBGrid(FSession.PDBGrid, TResult(Item^).DataSource);
+    TResult(Item^).DBGrid := FSession.CreateDBGrid(PDBGrid, TResult(Item^).DataSource);
     TResult(Item^).DBGrid.Tag := Results.Count;
     TResult(Item^).DataSource.DataSet := TResult(Item^).DataSet;
     Results.Add(Item);
@@ -1355,9 +1372,9 @@ procedure TFSession.TSQLEditor.TCResultChange(Sender: TObject);
 var
   I: Integer;
 begin
-  for I := 0 to FSession.PDBGrid.ControlCount - 1 do
-    if (FSession.PDBGrid.Controls[I] is TMySQLDBGrid) then
-      FSession.PDBGrid.Controls[I].Visible := TMySQLDBGrid(FSession.PDBGrid.Controls[I]).Tag = TCResult.TabIndex;
+  for I := 0 to PDBGrid.ControlCount - 1 do
+    if (PDBGrid.Controls[I] is TMySQLDBGrid) then
+      PDBGrid.Controls[I].Visible := TMySQLDBGrid(PDBGrid.Controls[I]).Tag = TCResult.TabIndex;
 end;
 
 { TFSession.TCObjectDesktop ****************************************************}
@@ -2085,8 +2102,10 @@ begin
     vBrowser: Result := 'browser';
     vIDE: Result := 'ide';
     vBuilder: Result := 'builder';
-    vEditor: Result := 'editor';
     vDiagram: Result := 'diagram';
+    vEditor: Result := 'editor';
+    vEditor2: Result := 'editor2';
+    vEditor3: Result := 'editor3';
     else Result := Null;
   end;
 end;
@@ -2138,8 +2157,8 @@ begin
     else if (MainAction('aDCreateField').Enabled) then MainAction('aDCreateField').Execute()
     else if (MainAction('aDCreateUser').Enabled) then MainAction('aDCreateUser').Execute();
   end
-  else if (Window.ActiveControl = FSQLEditorSynMemo) then
-    FSQLEditorSynMemo.InsertMode := not FSQLEditorSynMemo.InsertMode
+  else if (Window.ActiveControl = ActiveSynMemo) then
+    ActiveSynMemo.InsertMode := not ActiveSynMemo.InsertMode
   else if (Window.ActiveControl = ActiveDBGrid) and (not ActiveDBGrid.EditorMode) then
     MainAction('aDInsertRecord').Execute();
 end;
@@ -2421,8 +2440,10 @@ begin
     tbBrowser.Down := MainAction('aVDataBrowser').Checked;
     tbIDE.Down := MainAction('aVObjectIDE').Checked;
     tbBuilder.Down := MainAction('aVQueryBuilder').Checked;
-    tbEditor.Down := MainAction('aVSQLEditor').Checked;
     tbDiagram.Down := MainAction('aVDiagram').Checked;
+    tbEditor.Down := MainAction('aVSQLEditor').Checked;
+    tbEditor2.Down := MainAction('aVSQLEditor2').Checked;
+    tbEditor3.Down := MainAction('aVSQLEditor3').Checked;
 
 
     LeftMousePressed := False;
@@ -2440,8 +2461,10 @@ begin
       vBrowser: NewActiveControl := ActiveDBGrid;
       vIDE: NewActiveControl := ActiveSynMemo;
       vBuilder: NewActiveControl := FQueryBuilderActiveWorkArea();
-      vEditor: NewActiveControl := FSQLEditorSynMemo;
       vDiagram: NewActiveControl := ActiveWorkbench;
+      vEditor,
+      vEditor2,
+      vEditor3: NewActiveControl := ActiveSynMemo;
       else NewActiveControl := nil;
     end;
 
@@ -2458,8 +2481,10 @@ begin
       vBrowser: if (not (ttBrowser in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttBrowser); PostMessage(Window.Handle, CM_CHANGEPREFERENCES, 0, 0); end;
       vIDE: if (not (ttIDE in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttIDE); PostMessage(Window.Handle, CM_CHANGEPREFERENCES, 0, 0); end;
       vBuilder: if (not (ttBuilder in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttBuilder); PostMessage(Window.Handle, CM_CHANGEPREFERENCES, 0, 0); end;
-      vEditor: if (not (ttEditor in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttEditor); PostMessage(Window.Handle, CM_CHANGEPREFERENCES, 0, 0); end;
       vDiagram: if (not (ttDiagram in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttDiagram); PostMessage(Window.Handle, CM_CHANGEPREFERENCES, 0, 0); end;
+      vEditor: if (not (ttEditor in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttEditor); PostMessage(Window.Handle, CM_CHANGEPREFERENCES, 0, 0); end;
+      vEditor2: if (not (ttEditor2 in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttEditor2); PostMessage(Window.Handle, CM_CHANGEPREFERENCES, 0, 0); end;
+      vEditor3: if (not (ttEditor3 in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttEditor3); PostMessage(Window.Handle, CM_CHANGEPREFERENCES, 0, 0); end;
     end;
 
     ToolBarData.Caption := AddressToCaption(Address);
@@ -2564,20 +2589,22 @@ begin
     Empty := not Assigned(ActiveSynMemo) or (ActiveSynMemo.Lines.Count <= 1) and (ActiveSynMemo.Text = ''); // Takes a lot of time
     if (not Empty and (View = vIDE)) then SQL := ActiveSynMemo.Text else SQL := '';
 
-    MainAction('aFOpen').Enabled := View = vEditor;
-    MainAction('aFSave').Enabled := (View = vEditor) and not Empty and ((SQLEditor.Filename = '') or ActiveSynMemo.Modified);
-    MainAction('aFSaveAs').Enabled := (View = vEditor) and not Empty;
+    MainAction('aFOpen').Enabled := View in [vEditor, vEditor2, vEditor3];
+    MainAction('aFSave').Enabled := (View in [vEditor, vEditor2, vEditor3]) and not Empty and ((SQLEditor.Filename = '') or ActiveSynMemo.Modified);
+    MainAction('aFSaveAs').Enabled := (View in [vEditor, vEditor2, vEditor3]) and not Empty;
     MainAction('aVObjectBrowser').Enabled := True;
     MainAction('aVDataBrowser').Enabled := (SelectedImageIndex in [iiBaseTable, iiSystemView, iiView, iiTrigger]) or ((LastSelectedDatabase <> '') and (LastSelectedDatabase = SelectedDatabase) and (LastSelectedTable <> ''));
     MainAction('aVObjectIDE').Enabled := (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]) or (LastObjectIDEAddress <> '');
     MainAction('aVQueryBuilder').Enabled := (LastSelectedDatabase <> '');
     MainAction('aVSQLEditor').Enabled := True;
+    MainAction('aVSQLEditor2').Enabled := True;
+    MainAction('aVSQLEditor3').Enabled := True;
     MainAction('aVDiagram').Enabled := (LastSelectedDatabase <> '');
     MainAction('aDRun').Enabled :=
-      ((View = vEditor)
+      ((View in [vEditor, vEditor2, vEditor3])
       or ((View  = vBuilder) and FQueryBuilder.Visible)
       or ((View = vIDE) and SQLSingleStmt(SQL) and (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent]))) and not Empty;
-    MainAction('aDRunSelection').Enabled := (((ActiveSynMemo = FSQLEditorSynMemo) and not Empty) or Assigned(ActiveSynMemo) and (ActiveSynMemo.SelText <> ''));
+    MainAction('aDRunSelection').Enabled := (((View in [vEditor, vEditor2, vEditor3]) and not Empty) or Assigned(ActiveSynMemo) and (ActiveSynMemo.SelText <> ''));
     MainAction('aDPostObject').Enabled := (View = vIDE) and Assigned(ActiveSynMemo) and ActiveSynMemo.Modified and SQLSingleStmt(SQL)
       and ((SelectedImageIndex in [iiView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.ServerVersion) and (SQLParseKeyword(Parse, 'SELECT'))
         or (SelectedImageIndex in [iiProcedure, iiFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.ServerVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
@@ -2594,7 +2621,7 @@ begin
         else if (PBookmarks.Visible) then Window.ActiveControl := FBookmarks
         else if (PListView.Visible) then Window.ActiveControl := ActiveListView
         else if (PBuilder.Visible) then Window.ActiveControl := FQueryBuilder
-        else if (PSynMemo.Visible) then Window.ActiveControl := FSQLEditorSynMemo
+        else if (PSynMemo.Visible) then Window.ActiveControl := ActiveSynMemo
         else if (PResult.Visible) then Window.ActiveControl := ActiveDBGrid;
       end
       else
@@ -2603,8 +2630,10 @@ begin
           vBrowser: if (PResult.Visible) then Window.ActiveControl := ActiveDBGrid;
           vIDE: if (PSynMemo.Visible and Assigned(ActiveSynMemo)) then Window.ActiveControl := ActiveSynMemo;
           vBuilder: if (PBuilder.Visible and Assigned(FQueryBuilderActiveWorkArea())) then Window.ActiveControl := FQueryBuilderActiveWorkArea();
-          vEditor: if (PSynMemo.Visible) then Window.ActiveControl := FSQLEditorSynMemo;
           vDiagram: if (PWorkbench.Visible) then Window.ActiveControl := ActiveWorkbench;
+          vEditor,
+          vEditor2,
+          vEditor3: if (PSynMemo.Visible) then Window.ActiveControl := ActiveSynMemo;
         end;
       Exclude(FrameState, tsLoading);
     end;
@@ -2926,7 +2955,7 @@ begin
     FQueryBuilderActiveSelectList().EditorMode := False;
 
   SQL := '';
-  if (View in [vBuilder, vEditor]) then
+  if (View in [vBuilder, vEditor, vEditor2, vEditor3]) then
     SQL := Trim(ActiveSynMemo.Text)
   else if ((View = vIDE) and (SelectedImageIndex = iiView)) then
   begin
@@ -3002,13 +3031,13 @@ begin
 
   if (Window.ActiveControl = FText) then
     FText.Text := ''
-  else if (Window.ActiveControl = FSQLEditorSynMemo) then
+  else if (Window.ActiveControl = ActiveSynMemo) then
   begin
     // ClearAll kann nicht mit Undo Rückgängig gemacht werden.
-    FSQLEditorSynMemo.BeginUpdate();
-    FSQLEditorSynMemo.SelectAll();
+    ActiveSynMemo.BeginUpdate();
+    ActiveSynMemo.SelectAll();
     MainAction('aEDelete').Execute();
-    FSQLEditorSynMemo.EndUpdate();
+    ActiveSynMemo.EndUpdate();
   end;
 end;
 
@@ -3284,8 +3313,8 @@ begin
       end;
     end;
   end
-  else if (Window.ActiveControl = FSQLEditorSynMemo) then
-    FSQLEditorSynMemo.PasteFromClipboard()
+  else if (Window.ActiveControl = ActiveSynMemo) then
+    ActiveSynMemo.PasteFromClipboard()
   else if (Assigned(ActiveWorkbench) and (Window.ActiveControl = ActiveWorkbench)) then
     WorkbenchPasteExecute(Sender)
   else
@@ -3404,7 +3433,7 @@ end;
 
 procedure TFSession.aERedoExecute(Sender: TObject);
 begin
-  FSQLEditorSynMemo.Redo();
+  ActiveSynMemo.Redo();
   SynMemoStatusChange(Sender, [scAll]);
 end;
 
@@ -3720,7 +3749,7 @@ procedure TFSession.aFPrintExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  if ((Window.ActiveControl = FSQLEditorSynMemo) or (Window.ActiveControl = FLog)) then
+  if ((Window.ActiveControl = ActiveSynMemo) or (Window.ActiveControl = FLog)) then
     SynMemoPrintExecute(Sender)
   else if (Window.ActiveControl = ActiveWorkbench) then
     WorkbenchPrintExecute(Sender)
@@ -3791,8 +3820,9 @@ begin
   begin
     Wanted.Clear();
 
-    View := vEditor;
-    if (View = vEditor) then
+    if (not (View in [vEditor, vEditor2, vEditor3])) then
+      View := vEditor;
+    if (View in [vEditor, vEditor2, vEditor3]) then
     begin
       SQL := '';
 
@@ -3814,8 +3844,9 @@ begin
 
   if (Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery, iiClock])) then
   begin
-    View := vEditor;
-    if (View = vEditor) then
+    if (not (View in [vEditor, vEditor2, vEditor3])) then
+      View := vEditor;
+    if (View in [vEditor, vEditor2, vEditor3]) then
     begin
       SQL := '';
 
@@ -4081,10 +4112,14 @@ begin
     NewView := vIDE
   else if (Sender = MainAction('aVQueryBuilder')) then
     NewView := vBuilder
-  else if (Sender = MainAction('aVSQLEditor')) then
-    NewView := vEditor
   else if (Sender = MainAction('aVDiagram')) then
     NewView := vDiagram
+  else if (Sender = MainAction('aVSQLEditor')) then
+    NewView := vEditor
+  else if (Sender = MainAction('aVSQLEditor2')) then
+    NewView := vEditor2
+  else if (Sender = MainAction('aVSQLEditor3')) then
+    NewView := vEditor3
   else
     NewView := View;
 
@@ -4102,8 +4137,10 @@ begin
   tbBrowser.Down := MainAction('aVDataBrowser').Checked;
   tbIDE.Down := MainAction('aVObjectIDE').Checked;
   tbBuilder.Down := MainAction('aVQueryBuilder').Checked;
-  tbEditor.Down := MainAction('aVSQLEditor').Checked;
   tbDiagram.Down := MainAction('aVDiagram').Checked;
+  tbEditor.Down := MainAction('aVSQLEditor').Checked;
+  tbEditor2.Down := MainAction('aVSQLEditor2').Checked;
+  tbEditor3.Down := MainAction('aVSQLEditor3').Checked;
 
   if (AllowChange) then
   begin
@@ -4118,8 +4155,10 @@ begin
           Window.ActiveControl := FQueryBuilderActiveWorkArea()
         else
           Window.ActiveControl := FQueryBuilderSynMemo;
-      vEditor: if (PSynMemo.Visible) then Window.ActiveControl := FSQLEditorSynMemo;
       vDiagram: if (PWorkbench.Visible) then Window.ActiveControl := ActiveWorkbench;
+      vEditor,
+      vEditor2,
+      vEditor3: if (PSynMemo.Visible) then Window.ActiveControl := ActiveSynMemo;
     end;
   end;
 end;
@@ -4186,7 +4225,9 @@ begin
         end;
       vBrowser,
       vBuilder,
-      vEditor:
+      vEditor,
+      vEditor2,
+      vEditor3:
         if ((PResult.Visible or (View = vBrowser)) and (ActiveDBGrid.DataSource.DataSet is TMySQLDataSet) and (TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).CommandText <> '')) then
         begin
           AllowRefresh := True;
@@ -4532,8 +4573,10 @@ begin
   tbBrowser.Caption := ReplaceStr(Preferences.LoadStr(5), '&', '');
   tbIDE.Caption := ReplaceStr(Preferences.LoadStr(865), '&', '');
   tbBuilder.Caption := ReplaceStr(tbBuilder.Caption, '&', '');
-  tbEditor.Caption := ReplaceStr(Preferences.LoadStr(6), '&', '');
   tbDiagram.Caption := ReplaceStr(Preferences.LoadStr(800), '&', '');
+  tbEditor.Caption := ReplaceStr(Preferences.LoadStr(6), '&', '');
+  tbEditor2.Caption := ReplaceStr(Preferences.LoadStr(6), '&', '') + ' #2';
+  tbEditor3.Caption := ReplaceStr(Preferences.LoadStr(6), '&', '') + ' #3';
 
   mfOpen.Caption := Preferences.LoadStr(581);
   mfOpenInNewWindow.Caption := Preferences.LoadStr(760);
@@ -4585,14 +4628,18 @@ begin
   mtBrowser.Caption := tbBrowser.Caption;
   mtIDE.Caption := tbIDE.Caption;
   mtBuilder.Caption := tbBuilder.Caption;
-  mtEditor.Caption := tbEditor.Caption;
   mtDiagram.Caption := tbDiagram.Caption;
+  mtEditor.Caption := tbEditor.Caption;
+  mtEditor2.Caption := tbEditor2.Caption;
+  mtEditor3.Caption := tbEditor3.Caption;
 
   tbObjects.Visible := ttObjects in Preferences.ToolbarTabs;
   tbBrowser.Visible := ttBrowser in Preferences.ToolbarTabs;
   tbIDE.Visible := ttIDE in Preferences.ToolbarTabs;
   tbBuilder.Visible := ttBuilder in Preferences.ToolbarTabs;
   tbEditor.Visible := ttEditor in Preferences.ToolbarTabs;
+  tbEditor2.Visible := ttEditor2 in Preferences.ToolbarTabs;
+  tbEditor3.Visible := ttEditor3 in Preferences.ToolbarTabs;
   tbDiagram.Visible := ttDiagram in Preferences.ToolbarTabs;
 
 
@@ -4697,7 +4744,6 @@ end;
 procedure TFSession.CMCloseTabQuery(var Message: TMessage);
 var
   CanClose: Boolean;
-  Msg: string;
   Node: TTreeNode;
 begin
   CanClose := True;
@@ -4706,15 +4752,11 @@ begin
     ActiveDBGrid.DataSource.DataSet.CheckBrowseMode();
 
   if (CanClose) then
-    if (FSQLEditorSynMemo.Modified and (SQLEditor.Filename <> '')) then
+    if (SQLEditor.SynMemo.Modified and (SQLEditor.Filename <> '')) then
     begin
-      if (SQLEditor.Filename = '') then
-        Msg := Preferences.LoadStr(589)
-      else
-        Msg := Preferences.LoadStr(584, ExtractFileName(SQLEditor.Filename));
       View := vEditor;
-      Window.ActiveControl := FSQLEditorSynMemo;
-      case (MsgBox(Msg, Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
+      Window.ActiveControl := ActiveSynMemo;
+      case (MsgBox(Preferences.LoadStr(584, ExtractFileName(SQLEditor.Filename)), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
         IDYES: SaveSQLFile(MainAction('aFSave'));
         IDCANCEL: CanClose := False;
       end;
@@ -4801,6 +4843,8 @@ begin
     MainAction('aVObjectIDE').OnExecute := aViewExecute;
     MainAction('aVQueryBuilder').OnExecute := aViewExecute;
     MainAction('aVSQLEditor').OnExecute := aViewExecute;
+    MainAction('aVSQLEditor2').OnExecute := aViewExecute;
+    MainAction('aVSQLEditor3').OnExecute := aViewExecute;
     MainAction('aVDiagram').OnExecute := aViewExecute;
     MainAction('aVNavigator').OnExecute := aVSideBarExecute;
     MainAction('aVBookmarks').OnExecute := aVSideBarExecute;
@@ -4867,6 +4911,8 @@ begin
     MainAction('aVObjectIDE').Enabled := (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]) or (LastObjectIDEAddress <> '');
     MainAction('aVQueryBuilder').Enabled := (LastSelectedDatabase <> '');
     MainAction('aVSQLEditor').Enabled := True;
+    MainAction('aVSQLEditor2').Enabled := True;
+    MainAction('aVSQLEditor3').Enabled := True;
     MainAction('aVDiagram').Enabled := (LastSelectedDatabase <> '');
     MainAction('aVNavigator').Enabled := True;
     MainAction('aVBookmarks').Enabled := True;
@@ -4920,6 +4966,8 @@ begin
   MainAction('aVObjectIDE').Enabled := False;
   MainAction('aVQueryBuilder').Enabled := False;
   MainAction('aVSQLEditor').Enabled := False;
+  MainAction('aVSQLEditor2').Enabled := False;
+  MainAction('aVSQLEditor3').Enabled := False;
   MainAction('aVDiagram').Enabled := False;
   MainAction('aVNavigator').Enabled := False;
   MainAction('aVBookmarks').Enabled := False;
@@ -5161,10 +5209,10 @@ end;
 
 procedure TFSession.CrashRescue();
 begin
-  if ((SQLEditor.Filename <> '') and not FSQLEditorSynMemo.Modified) then
+  if ((SQLEditor.Filename <> '') and not SQLEditor.SynMemo.Modified) then
     Session.Account.Desktop.EditorContent := ''
   else
-    Session.Account.Desktop.EditorContent := FSQLEditorSynMemo.Text;
+    Session.Account.Desktop.EditorContent := SQLEditor.SynMemo.Text;
 
   try
     if (Assigned(ActiveWorkbench)) then
@@ -5199,7 +5247,7 @@ begin
 
   NMListView := nil;
   Session := ASession;
-  SQLEditor := TSQLEditor.Create(Self);
+  SQLEditor := TSQLEditor.Create(Self, FSQLEditorSynMemo, PSQLEditorDBGrid);
   Param := AParam;
   ActiveControlOnDeactivate := nil;
   ActiveDBGrid := nil;
@@ -5251,8 +5299,10 @@ begin
   tbBrowser.Action := MainAction('aVDataBrowser'); tbBrowser.Caption := ReplaceStr(tbBrowser.Caption, '&', '');
   tbIDE.Action := MainAction('aVObjectIDE'); tbIDE.Caption := ReplaceStr(tbIDE.Caption, '&', '');
   tbBuilder.Action := MainAction('aVQueryBuilder'); tbBuilder.Caption := ReplaceStr(tbBuilder.Caption, '&', '');
-  tbEditor.Action := MainAction('aVSQLEditor'); tbEditor.Caption := ReplaceStr(tbEditor.Caption, '&', '');
   tbDiagram.Action := MainAction('aVDiagram'); tbDiagram.Caption := ReplaceStr(tbDiagram.Caption, '&', '');
+  tbEditor.Action := MainAction('aVSQLEditor'); tbEditor.Caption := ReplaceStr(tbEditor.Caption, '&', '');
+  tbEditor2.Action := MainAction('aVSQLEditor2'); tbEditor.Caption := ReplaceStr(tbEditor2.Caption, '&', '');
+  tbEditor3.Action := MainAction('aVSQLEditor3'); tbEditor.Caption := ReplaceStr(tbEditor3.Caption, '&', '');
 
   miSNavigator.Action := MainAction('aVNavigator');
   miSBookmarks.Action := MainAction('aVBookmarks');
@@ -5402,7 +5452,7 @@ begin
     PBuilderQuery.BevelInner := bvRaised; PBuilderQuery.BevelOuter := bvLowered;
     PSynMemo.BevelInner := bvRaised; PSynMemo.BevelOuter := bvLowered;
     PWorkbench.BevelInner := bvRaised; PWorkbench.BevelOuter := bvLowered;
-    PDBGrid.BevelInner := bvRaised; PDBGrid.BevelOuter := bvLowered;
+    PSQLEditorDBGrid.BevelInner := bvRaised; PSQLEditorDBGrid.BevelOuter := bvLowered;
     PBlob.BevelInner := bvRaised; PBlob.BevelOuter := bvLowered;
     PLog.BevelInner := bvRaised; PLog.BevelOuter := bvLowered;
   end
@@ -5419,7 +5469,7 @@ begin
     PBuilderQuery.BevelInner := bvNone; PBuilderQuery.BevelOuter := bvNone;
     PSynMemo.BevelInner := bvNone; PSynMemo.BevelOuter := bvNone;
     PWorkbench.BevelInner := bvNone; PWorkbench.BevelOuter := bvNone;
-    PDBGrid.BevelInner := bvNone; PDBGrid.BevelOuter := bvNone;
+    PSQLEditorDBGrid.BevelInner := bvNone; PSQLEditorDBGrid.BevelOuter := bvNone;
     PBlob.BevelInner := bvNone; PBlob.BevelOuter := bvNone;
     PLog.BevelInner := bvNone; PLog.BevelOuter := bvNone;
   end;
@@ -5683,7 +5733,6 @@ begin
   Result.PopupMenu := FServerListView.PopupMenu;
   Result.RowSelect := FServerListView.RowSelect;
   Result.SmallImages := Preferences.SmallImages;
-  Result.Parent := FServerListView.Parent;
   Result.ViewStyle := FServerListView.ViewStyle;
   Result.Visible := False;
   if (TObject(Data) is TSTable) then
@@ -5691,6 +5740,9 @@ begin
     Result.OnAdvancedCustomDrawItem := ListViewAdvancedCustomDrawItem;
     Result.OnAdvancedCustomDrawSubItem := ListViewAdvancedCustomDrawSubItem;
   end;
+
+  Result.Parent := FServerListView.Parent;
+
   Result.OnChange := FServerListView.OnChange;
   Result.OnChanging := FServerListView.OnChanging;
   Result.OnColumnClick := FServerListView.OnColumnClick;
@@ -5731,19 +5783,19 @@ var
 begin
   Result := TPanel_Ext.Create(Owner);
 
-  Result.Left := PDBGrid.Left;
-  Result.Top := PDBGrid.Top;
-  Result.Width := PDBGrid.Width;
-  Result.Height := PDBGrid.Height;
-  Result.Align := PDBGrid.Align;
-  Result.BevelInner := PDBGrid.BevelInner;
-  Result.BevelOuter := PDBGrid.BevelOuter;
-  Result.Color := PDBGrid.Color;
-  Result.Constraints.MinHeight := PDBGrid.Constraints.MinHeight;
-  Result.ParentBackground := PDBGrid.ParentBackground;
-  Result.OnResize := PDBGrid.OnResize;
+  Result.Left := PSQLEditorDBGrid.Left;
+  Result.Top := PSQLEditorDBGrid.Top;
+  Result.Width := PSQLEditorDBGrid.Width;
+  Result.Height := PSQLEditorDBGrid.Height;
+  Result.Align := PSQLEditorDBGrid.Align;
+  Result.BevelInner := PSQLEditorDBGrid.BevelInner;
+  Result.BevelOuter := PSQLEditorDBGrid.BevelOuter;
+  Result.Color := PSQLEditorDBGrid.Color;
+  Result.Constraints.MinHeight := PSQLEditorDBGrid.Constraints.MinHeight;
+  Result.ParentBackground := PSQLEditorDBGrid.ParentBackground;
+  Result.OnResize := PSQLEditorDBGrid.OnResize;
 
-  Result.Parent := PDBGrid.Parent;
+  Result.Parent := PSQLEditorDBGrid.Parent;
 
   Result.Perform(CM_PARENTCOLORCHANGED, 0, 0);
   Result.Perform(CM_PARENTFONTCHANGED, 0, 0);
@@ -6683,10 +6735,10 @@ begin
     // There is a bug inside ShellBrowser.pas ver. 7.3 - but it's not interested to get informed
   end;
 
-  if ((SQLEditor.Filename <> '') and not FSQLEditorSynMemo.Modified) then
+  if ((SQLEditor.Filename <> '') and not SQLEditor.SynMemo.Modified) then
     Session.Account.Desktop.EditorContent := ''
   else
-    Session.Account.Desktop.EditorContent := FSQLEditorSynMemo.Text;
+    Session.Account.Desktop.EditorContent := SQLEditor.SynMemo.Text;
   Session.Account.Desktop.FoldersHeight := PFolders.Height;
 
   if (Assigned(FFiles)) then
@@ -6736,6 +6788,10 @@ begin
   if (Assigned(UsersListView)) then FreeListView(UsersListView);
   if (Assigned(VariablesListView)) then FreeListView(VariablesListView);
   if (Assigned(SQLEditor)) then SQLEditor.Free();
+  if (Assigned(SQLEditor2)) then SQLEditor2.Free();
+  if (Assigned(SQLEditor3)) then SQLEditor3.Free();
+  if (Assigned(FSQLEditorSynMemo2)) then FreeSynMemo(FSQLEditorSynMemo2);
+  if (Assigned(FSQLEditorSynMemo3)) then FreeSynMemo(FSQLEditorSynMemo3);
 
   FreeAndNil(JPEGImage);
   FreeAndNil(PNGImage);
@@ -8659,7 +8715,7 @@ begin
     SQL := '';
   end;
 
-  if ((Len <> 0) and not Session.InUse() and FSQLEditorSynMemo.GetHighlighterAttriAtRowCol(FSQLEditorSynMemo.WordStart(), Token, Attri)) then
+  if ((Len <> 0) and not Session.InUse() and ActiveSynMemo.GetHighlighterAttriAtRowCol(ActiveSynMemo.WordStart(), Token, Attri)) then
   begin
     Index := ActiveSynMemo.SelStart - Index + 1;
     while ((Index > 0) and (Pos(SQL[Index], FSQLEditorCompletion.EndOfTokenChr) = 0)) do Dec(Index);
@@ -9131,8 +9187,10 @@ begin
       vBuilder:
         if (TObject(FNavigator.Selected.Data) is TSDatabase) then
           Result := Desktop(TSDatabase(FNavigator.Selected.Data)).BuilderDBGrid;
-      vEditor:
-        Result := SQLEditor.ActiveDBGrid;
+      vEditor,
+      vEditor2,
+      vEditor3:
+        Result := SQLEditors[View].ActiveDBGrid;
     end;
 
   if (Assigned(Result)) then
@@ -9275,6 +9333,24 @@ begin
       Result := FQueryBuilderSynMemo;
     vEditor:
       Result := FSQLEditorSynMemo;
+    vEditor2:
+      begin
+        if (not Assigned(FSQLEditorSynMemo2)) then
+        begin
+          FSQLEditorSynMemo2 := CreateSynMemo();
+          SQLEditor2 := TSQLEditor.Create(Self, FSQLEditorSynMemo2, CreatePDBGrid());
+        end;
+        Result := FSQLEditorSynMemo2;
+      end;
+    vEditor3:
+      begin
+        if (not Assigned(FSQLEditorSynMemo3)) then
+        begin
+          FSQLEditorSynMemo3 := CreateSynMemo();
+          SQLEditor3 := TSQLEditor.Create(Self, FSQLEditorSynMemo3, CreatePDBGrid());
+        end;
+        Result := FSQLEditorSynMemo3;
+      end;
     else
       Result := nil;
   end;
@@ -9408,6 +9484,16 @@ begin
     Result := FNavigator.Selected.ImageIndex;
 end;
 
+function TFSession.GetSQLEditors(View: TView): TSQLEditor;
+begin
+  case (View) of
+    vEditor: Result := SQLEditor;
+    vEditor2: Result := SQLEditor2;
+    vEditor3: Result := SQLEditor3;
+    else raise ERangeError.Create(SRangeError);
+  end;
+end;
+
 function TFSession.GetView(): TView;
 var
   URI: TUURI;
@@ -9419,10 +9505,14 @@ begin
     Result := vIDE
   else if (URI.Param['view'] = 'builder') then
     Result := vBuilder
-  else if (URI.Param['view'] = 'editor') then
-    Result := vEditor
   else if (URI.Param['view'] = 'diagram') then
     Result := vDiagram
+  else if (URI.Param['view'] = 'editor') then
+    Result := vEditor
+  else if (URI.Param['view'] = 'editor2') then
+    Result := vEditor2
+  else if (URI.Param['view'] = 'editor3') then
+    Result := vEditor3
   else
     Result := vObjects;
   URI.Free();
@@ -11512,12 +11602,13 @@ begin
   if (Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery, iiClock])
     and Boolean(Perform(CM_CLOSE_TAB_QUERY, 0, 0))) then
   begin
-    View := vEditor;
-    if (View = vEditor) then
+    if (not (View in [vEditor, vEditor2, vEditor3])) then
+      View := vEditor;
+    if (View in [vEditor, vEditor2, vEditor3]) then
     begin
-      FSQLEditorSynMemo.Text := XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'sql').Text;
+      ActiveSynMemo.Text := XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'sql').Text;
 
-      Window.ActiveControl := FSQLEditorSynMemo;
+      Window.ActiveControl := ActiveSynMemo;
     end;
   end;
 end;
@@ -11574,17 +11665,18 @@ begin
 
   if (Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery, iiClock])) then
   begin
-    View := vEditor;
-    if (View = vEditor) then
+    if (not (View in [vEditor, vEditor2, vEditor3])) then
+      View := vEditor;
+    if (View in [vEditor, vEditor2, vEditor3]) then
     begin
-      SelStart := FSQLEditorSynMemo.SelStart;
-      FSQLEditorSynMemo.SelText := XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'sql').Text;
-      SelLength := FSQLEditorSynMemo.SelStart - SelStart;
+      SelStart := ActiveSynMemo.SelStart;
+      ActiveSynMemo.SelText := XMLNode(IXMLNode(FSQLHistoryMenuNode.Data), 'sql').Text;
+      SelLength := ActiveSynMemo.SelStart - SelStart;
 
-      FSQLEditorSynMemo.SelStart := SelStart;
-      FSQLEditorSynMemo.SelLength := SelLength;
+      ActiveSynMemo.SelStart := SelStart;
+      ActiveSynMemo.SelLength := SelLength;
 
-      Window.ActiveControl := FSQLEditorSynMemo;
+      Window.ActiveControl := ActiveSynMemo;
     end;
   end;
 end;
@@ -11711,23 +11803,12 @@ procedure TFSession.MSQLEditorPopup(Sender: TObject);
 var
   I: Integer;
 begin
-  if ((View = vBuilder) and not (Window.ActiveControl = FQueryBuilderSynMemo)) then
-  begin
-    Window.ActiveControl := FQueryBuilderSynMemo;
-    SynMemoStatusChange(Sender, []);
-  end
-  else
-  if ((View = vEditor) and not (Window.ActiveControl = FSQLEditorSynMemo)) then
-  begin
-    Window.ActiveControl := FSQLEditorSynMemo;
-    SynMemoStatusChange(Sender, []);
-  end;
-
+  SynMemoStatusChange(Sender, []);
   ShowEnabledItems(MSQLEditor.Items);
 
-  if (FSQLEditorSynMemo.Gutter.Visible) then
+  if (ActiveSynMemo.Gutter.Visible) then
     for I := 0 to MSQLEditor.Items.Count - 1 do
-      MSQLEditor.Items[I].Visible := MSQLEditor.Items[I].Visible and (MSQLEditor.PopupPoint.X - FSQLEditorSynMemo.ClientOrigin.X > FSQLEditorSynMemo.Gutter.Width);
+      MSQLEditor.Items[I].Visible := MSQLEditor.Items[I].Visible and (MSQLEditor.PopupPoint.X - ActiveSynMemo.ClientOrigin.X > ActiveSynMemo.Gutter.Width);
 end;
 
 procedure TFSession.MSQLHistoryPopup(Sender: TObject);
@@ -11745,10 +11826,10 @@ begin
 
   MainAction('aECopy').Enabled := Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery]);
 
-  miHStatementIntoSQLEditor.Enabled := Assigned(FSQLHistoryMenuNode) and (View = vEditor) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery, iiClock]);
+  miHStatementIntoSQLEditor.Enabled := Assigned(FSQLHistoryMenuNode) and (View in [vEditor, vEditor2, vEditor3]) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery, iiClock]);
   aPExpand.Enabled := Assigned(FSQLHistoryMenuNode) and not FSQLHistoryMenuNode.Expanded and FSQLHistoryMenuNode.HasChildren;
   aPCollapse.Enabled := Assigned(FSQLHistoryMenuNode) and FSQLHistoryMenuNode.Expanded;
-  miHOpen.Enabled := Assigned(FSQLHistoryMenuNode) and (View = vEditor) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery, iiClock]);
+  miHOpen.Enabled := Assigned(FSQLHistoryMenuNode) and (View in [vEditor, vEditor2, vEditor3]) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery, iiClock]);
   miHSaveAs.Enabled := Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery, iiClock]);
   miHRun.Enabled := Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery, iiClock]);
   miHProperties.Enabled := Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery, iiClock]) and not FSQLHistoryMenuNode.HasChildren;
@@ -11780,15 +11861,19 @@ begin
   mtBrowser.Checked := ttBrowser in Preferences.ToolbarTabs;
   mtIDE.Checked := ttIDE in Preferences.ToolbarTabs;
   mtBuilder.Checked := ttBuilder in Preferences.ToolbarTabs;
-  mtEditor.Checked := ttEditor in Preferences.ToolbarTabs;
   mtDiagram.Checked := ttDiagram in Preferences.ToolbarTabs;
+  mtEditor.Checked := ttEditor in Preferences.ToolbarTabs;
+  mtEditor2.Checked := ttEditor2 in Preferences.ToolbarTabs;
+  mtEditor3.Checked := ttEditor3 in Preferences.ToolbarTabs;
 
   mtObjects.Enabled := View <> vObjects;
   mtBrowser.Enabled := View <> vBrowser;
   mtIDE.Enabled := View <> vIDE;
   mtBuilder.Enabled := View <> vBuilder;
-  mtEditor.Enabled := View <> vEditor;
   mtDiagram.Enabled := View <> vDiagram;
+  mtEditor.Enabled := View <> vEditor;
+  mtEditor2.Enabled := View <> vEditor2;
+  mtEditor3.Enabled := View <> vEditor3;
 
   Checked := 0;
   for I := 0 to MToolBar.Items.Count - 1 do
@@ -11797,6 +11882,11 @@ begin
 
   for I := 0 to MToolBar.Items.Count - 1 do
     MToolBar.Items[I].Enabled := (Checked > 1) or not MToolBar.Items[I].Checked;
+
+  {$IFNDEF Debug}
+  mtEditor2.Visible := False;
+  mtEditor3.Visible := False;
+  {$ENDIF}
 end;
 
 procedure TFSession.mwCreateLinkExecute(Sender: TObject);
@@ -12036,8 +12126,10 @@ begin
       vBrowser: if (TableName <> '') then URI.Param['view'] := 'browser';
       vIDE: if (TableName = '') then URI.Param['view'] := 'ide';
       vBuilder: if (TableName = '') then URI.Param['view'] := 'builder';
-      vEditor: if (TableName = '') then URI.Param['view'] := 'editor';
       vDiagram: if (TableName = '') then URI.Param['view'] := 'diagram';
+      vEditor: if (TableName = '') then URI.Param['view'] := 'editor';
+      vEditor2: if (TableName = '') then URI.Param['view'] := 'editor2';
+      vEditor3: if (TableName = '') then URI.Param['view'] := 'editor3';
     end;
   end
   else
@@ -12097,7 +12189,7 @@ begin
 
     if ((Handle = INVALID_HANDLE_VALUE) or (LARGE_INTEGER(FileSize).LowPart = INVALID_FILE_SIZE) and (GetLastError() <> 0)) then
       MsgBox(SysErrorMessage(GetLastError()), Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
-    else if ((ActiveSynMemo <> FSQLEditorSynMemo) or (FileSize < TLargeInteger(LargeSQLScriptSize))) then
+    else if ((ActiveSynMemo <> ActiveSynMemo) or (FileSize < TLargeInteger(LargeSQLScriptSize))) then
       Answer := ID_NO
     else
       Answer := MsgBox(Preferences.LoadStr(751), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION);
@@ -12123,12 +12215,12 @@ begin
 
       if (Import.ErrorCount = 0) then
       begin
-        FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options + [eoScrollPastEol];  // Speed up the performance
+        ActiveSynMemo.Options := ActiveSynMemo.Options + [eoScrollPastEol];  // Speed up the performance
         if (Insert) then
-          FSQLEditorSynMemo.SelText := Text
+          ActiveSynMemo.SelText := Text
         else
         begin
-          FSQLEditorSynMemo.Text := Text;
+          ActiveSynMemo.Text := Text;
           SQLEditor.Filename := Import.Filename;
           SQLEditor.FileCodePage := Import.CodePage;
           URI := TUURI.Create(Address);
@@ -12143,10 +12235,10 @@ begin
           Session.Account.Desktop.Files.Add(SQLEditor.Filename, SQLEditor.FileCodePage);
           Window.Perform(CM_UPDATETOOLBAR, 0, LPARAM(Self));
         end;
-        if (Length(FSQLEditorSynMemo.Lines.Text) < LargeSQLScriptSize) then
-          FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options - [eoScrollPastEol];  // Slow down the performance on large content
-        FSQLEditorSynMemo.ClearUndo();
-        FSQLEditorSynMemo.Modified := Import.SetNamesApplied;
+        if (Length(ActiveSynMemo.Lines.Text) < LargeSQLScriptSize) then
+          ActiveSynMemo.Options := ActiveSynMemo.Options - [eoScrollPastEol];  // Slow down the performance on large content
+        ActiveSynMemo.ClearUndo();
+        ActiveSynMemo.Modified := Import.SetNamesApplied;
 
         Window.Perform(CM_UPDATETOOLBAR, 0, LPARAM(Self));
       end;
@@ -12219,6 +12311,8 @@ begin
           vIDE: if (FNavigator.Selected.ImageIndex in [iiProcedure, iiFunction]) then Desktop(TSRoutine(FNavigator.Selected.Data)).CloseIDEResult();
           vBuilder: Desktop(TSDatabase(FNavigator.Selected.Data)).CloseBuilderResult();
           vEditor: SQLEditor.CloseResult();
+          vEditor2: SQLEditor2.CloseResult();
+          vEditor3: SQLEditor3.CloseResult();
         end;
         ActiveDBGrid := nil;
       end
@@ -12634,8 +12728,8 @@ begin
 
     ActiveListView := nil; if (View in [vObjects]) then ActiveListView := GetActiveListView();
     if (View in [vIDE]) then ActiveIDEInputDataSet := GetActiveIDEInputDataSet() else ActiveIDEInputDataSet := nil;
-    if (View in [vIDE, vBuilder, vEditor]) then ActiveSynMemo := GetActiveSynMemo() else ActiveSynMemo := nil;
-    if (View in [vBrowser, vIDE, vBuilder, vEditor]) then ActiveDBGrid := GetActiveDBGrid() else ActiveDBGrid := nil;
+    if (View in [vIDE, vBuilder, vEditor, vEditor2, vEditor3]) then ActiveSynMemo := GetActiveSynMemo() else ActiveSynMemo := nil;
+    if (View in [vBrowser, vIDE, vBuilder, vEditor, vEditor2, vEditor3]) then ActiveDBGrid := GetActiveDBGrid() else ActiveDBGrid := nil;
     if (View in [vDiagram]) then ActiveWorkbench := GetActiveWorkbench() else ActiveWorkbench := nil;
 
     if ((View = vBrowser) and Assigned(FNavigator.Selected) and (TObject(FNavigator.Selected.Data) is TSTable)) then
@@ -12678,8 +12772,10 @@ begin
           end;
         vBuilder:
           PResultVisible := Assigned(Desktop(TSDatabase(FNavigator.Selected.Data)).BuilderDBGrid);
-        vEditor:
-          PResultVisible := Assigned(SQLEditor.ActiveDBGrid);
+        vEditor,
+        vEditor2,
+        vEditor3:
+          PResultVisible := Assigned(SQLEditors[View].ActiveDBGrid);
         else PResultVisible := False;
       end;
 
@@ -12720,7 +12816,7 @@ begin
       SBlob.Parent := nil;
     end;
 
-    if ((Sender is TMySQLDataSet) and Assigned(ActiveDBGrid) and (ActiveDBGrid = SQLEditor.ActiveDBGrid)) then
+    if ((Sender is TMySQLDataSet) and Assigned(ActiveDBGrid) and (ActiveDBGrid = SQLEditors[View].ActiveDBGrid)) then
     begin
       SBResult.Top := PContent.ClientHeight - SBResult.Height;
       SBResult.Align := alBottom;
@@ -12788,7 +12884,7 @@ begin
     else
       PBuilder.Visible := False;
 
-    if ((View = vEditor) and (SelectedImageIndex in [iiServer, iiDatabase, iiSystemDatabase]) or (View = vIDE) and (SelectedImageIndex in [iiView, iiFunction, iiProcedure, iiEvent, iiTrigger])) then
+    if ((View in [vEditor, vEditor2, vEditor3]) and (SelectedImageIndex in [iiServer, iiDatabase, iiSystemDatabase]) or (View = vIDE) and (SelectedImageIndex in [iiView, iiFunction, iiProcedure, iiEvent, iiTrigger])) then
     begin
       PSQLEditorUpdate();
       if (Assigned(ActiveSynMemo)) then ActiveSynMemo.BringToFront();
@@ -13305,6 +13401,18 @@ begin
           PContentChange(Sender);
           Session.SendSQL(SQL, SQLEditor.ResultEvent);
         end;
+      vEditor2:
+        begin
+          SQLEditor2.CloseResult();
+          PContentChange(Sender);
+          Session.SendSQL(SQL, SQLEditor2.ResultEvent);
+        end;
+      vEditor3:
+        begin
+          SQLEditor3.CloseResult();
+          PContentChange(Sender);
+          Session.SendSQL(SQL, SQLEditor3.ResultEvent);
+        end;
     end;
 end;
 
@@ -13321,9 +13429,15 @@ begin
       vBrowser: URI.Param['view'] := 'browser';
       vIDE: URI.Param['view'] := 'ide';
       vBuilder: URI.Param['view'] := 'builder';
-      vEditor:
+      vEditor,
+      vEditor2,
+      vEditor3:
         begin
-          URI.Param['view'] := 'editor';
+          case (AView) of
+            vEditor: URI.Param['view'] := 'editor';
+            vEditor2: URI.Param['view'] := 'editor2';
+            vEditor3: URI.Param['view'] := 'editor3';
+          end;
           if (SQLEditor.Filename <> '') then
             URI.Param['file'] := EscapeURL(SQLEditor.Filename);
           if (SQLEditor.FileCodePage = 0) then
@@ -13350,7 +13464,7 @@ begin
     else if ((AView = vIDE) and not (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent, iiTrigger])) then
       URI.Address := LastObjectIDEAddress
     else if ((AView = vBuilder) and not (SelectedImageIndex in [iiDatabase, iiSystemDatabase])
-      or (AView = vEditor) and not (SelectedImageIndex in [iiServer, iiDatabase, iiSystemDatabase])) then
+      or (AView in [vEditor, vEditor2, vEditor3]) and not (SelectedImageIndex in [iiServer, iiDatabase, iiSystemDatabase])) then
     begin
       if (URI.Database = '') then
         URI.Database := Session.DatabaseName;
@@ -13363,7 +13477,7 @@ begin
       URI.Param['file'] := Null;
       URI.Param['cp'] := Null;
     end
-    else if ((AView = vEditor) and (Session.DatabaseName <> '') and not (SelectedImageIndex in [iiDatabase, iiSystemDatabase])) then
+    else if ((AView in [vEditor, vEditor2, vEditor3]) and (Session.DatabaseName <> '') and not (SelectedImageIndex in [iiDatabase, iiSystemDatabase])) then
       URI.Database := Session.DatabaseName
     else if ((AView = vDiagram) and not (SelectedImageIndex in [iiDatabase, iiSystemDatabase])) then
     begin
@@ -13425,10 +13539,14 @@ begin
       NewView := vIDE
     else if ((URI.Param['view'] = 'builder') and (Node.ImageIndex in [iiDatabase, iiSystemDatabase])) then
       NewView := vBuilder
-    else if (URI.Param['view'] = 'editor') then
-      NewView := vEditor
     else if ((URI.Param['view'] = 'diagram') and (Node.ImageIndex in [iiDatabase, iiSystemDatabase])) then
       NewView := vDiagram
+    else if (URI.Param['view'] = 'editor') then
+      NewView := vEditor
+    else if (URI.Param['view'] = 'editor2') then
+      NewView := vEditor2
+    else if (URI.Param['view'] = 'editor3') then
+      NewView := vEditor3
     else
       NewView := vObjects;
 
@@ -13436,8 +13554,10 @@ begin
     MainAction('aVDataBrowser').Checked := NewView = vBrowser;
     MainAction('aVObjectIDE').Checked := NewView = vIDE;
     MainAction('aVQueryBuilder').Checked := NewView = vBuilder;
-    MainAction('aVSQLEditor').Checked := NewView = vEditor;
     MainAction('aVDiagram').Checked := NewView = vDiagram;
+    MainAction('aVSQLEditor').Checked := NewView = vEditor;
+    MainAction('aVSQLEditor2').Checked := NewView = vEditor2;
+    MainAction('aVSQLEditor3').Checked := NewView = vEditor3;
 
     case (NewView) of
       vBrowser:
@@ -13460,7 +13580,9 @@ begin
             FFilterEnabled.Enabled := FFilterEnabled.Down;
           end;
         end;
-      vEditor:
+      vEditor,
+      vEditor2,
+      vEditor3:
         if (URI.Param['file'] <> Null) then
         begin
           FileName := UnescapeURL(URI.Param['file']);
@@ -13617,11 +13739,6 @@ begin
       vBrowser:
         if (Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then Count := ActiveDBGrid.DataSource.DataSet.RecordCount;
       vIDE,
-      vEditor:
-        if (Assigned(Window.ActiveControl) and (Window.ActiveControl = ActiveSynMemo)) then
-          Count := ActiveSynMemo.Lines.Count
-        else if ((Window.ActiveControl = ActiveDBGrid) and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet)) then
-          Count := ActiveDBGrid.DataSource.DataSet.RecordCount;
       vBuilder:
         if (Assigned(FQueryBuilderEditorPageControl())) then
         begin
@@ -13631,6 +13748,13 @@ begin
           else if (Window.ActiveControl = FQueryBuilderSynMemo) then
             Count := FQueryBuilderSynMemo.Lines.Count;
         end;
+      vEditor,
+      vEditor2,
+      vEditor3:
+        if (Assigned(Window.ActiveControl) and (Window.ActiveControl = ActiveSynMemo)) then
+          Count := ActiveSynMemo.Lines.Count
+        else if ((Window.ActiveControl = ActiveDBGrid) and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet)) then
+          Count := ActiveDBGrid.DataSource.DataSet.RecordCount;
     end;
 
     SelCount := -1;
@@ -13736,7 +13860,7 @@ begin
 
     Window.ActiveControl := TSynMemo(Sender);
   end
-  else if ((Source = ActiveDBGrid) and (Sender = FSQLEditorSynMemo)) then
+  else if ((Source = ActiveDBGrid) and (Sender = ActiveSynMemo)) then
   begin
     S := ActiveDBGrid.SelectedField.AsString;
 
@@ -13773,7 +13897,7 @@ begin
       ActiveSynMemo.AlwaysShowCaret := True;
     end;
 
-    if (not FSQLEditorSynMemo.Gutter.Visible) then
+    if (not ActiveSynMemo.Gutter.Visible) then
       ActiveSynMemo.CaretX := (X) div ActiveSynMemo.CharWidth + 1
     else
       ActiveSynMemo.CaretX := (X - ActiveSynMemo.Gutter.RealGutterWidth(ActiveSynMemo.CharWidth)) div ActiveSynMemo.CharWidth + 1;
@@ -13841,7 +13965,7 @@ begin
       PrintDialog.Options := PrintDialog.Options + [poSelection];
       PrintDialog.PrintRange := prSelection;
     end;
-//    if (PrintDialog.Execute()) then
+    if (PrintDialog.Execute()) then
     begin
       FSQLEditorPrint.Copies := PrintDialog.Copies;
       if (SQLEditor.Filename <> '') then
@@ -13886,15 +14010,15 @@ begin
 
       MainAction('aFSave').Enabled := not Empty and ((SQLEditor.Filename = '') or ActiveSynMemo.Modified);
       MainAction('aFSaveAs').Enabled := not Empty;
-      MainAction('aFPrint').Enabled := (ActiveSynMemo = FSQLEditorSynMemo) and not Empty;
+      MainAction('aFPrint').Enabled := (View in [vEditor, vEditor2, vEditor3]) and not Empty;
       MainAction('aERedo').Enabled := ActiveSynMemo.CanRedo;
       MainAction('aECopyToFile').Enabled := (SelSQL <> '');
-      MainAction('aEPasteFromFile').Enabled := (ActiveSynMemo = FSQLEditorSynMemo);
+      MainAction('aEPasteFromFile').Enabled := (View in [vEditor, vEditor2, vEditor3]);
       MainAction('aDRun').Enabled :=
-        ((View = vEditor)
+        ((View in [vEditor, vEditor2, vEditor3])
         or ((View  = vBuilder) and FQueryBuilder.Visible)
         or ((View = vIDE) and SQLSingleStmt(SQL) and (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent]))) and not Empty;
-      MainAction('aDRunSelection').Enabled := (((ActiveSynMemo = FSQLEditorSynMemo) and not Empty) or Assigned(ActiveSynMemo) and (ActiveSynMemo.SelText <> ''));
+      MainAction('aDRunSelection').Enabled := (((View in [vEditor, vEditor2, vEditor3]) and not Empty) or Assigned(ActiveSynMemo) and (ActiveSynMemo.SelText <> ''));
       MainAction('aDPostObject').Enabled := (View = vIDE) and ActiveSynMemo.Modified and SQLSingleStmt(SQL)
         and ((SelectedImageIndex in [iiView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.ServerVersion) and (SQLParseKeyword(Parse, 'SELECT'))
           or (SelectedImageIndex in [iiProcedure, iiFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.ServerVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
@@ -13902,8 +14026,8 @@ begin
     end;
 
     FSQLEditorCompletion.TimerInterval := 0;
-    if ((ActiveSynMemo = FSQLEditorSynMemo) and (FSQLEditorSynMemo.SelStart > 0)
-      and FSQLEditorSynMemo.GetHighlighterAttriAtRowCol(FSQLEditorSynMemo.WordStart(), Token, Attri) and (Attri <> MainHighlighter.StringAttri) and (Attri <> MainHighlighter.CommentAttri) and (Attri <> MainHighlighter.VariableAttri)) then
+    if ((View in [vEditor, vEditor2, vEditor3]) and (ActiveSynMemo.SelStart > 0)
+      and ActiveSynMemo.GetHighlighterAttriAtRowCol(ActiveSynMemo.WordStart(), Token, Attri) and (Attri <> MainHighlighter.StringAttri) and (Attri <> MainHighlighter.CommentAttri) and (Attri <> MainHighlighter.VariableAttri)) then
     begin
       FSQLEditorCompletion.Editor := ActiveSynMemo;
       FSQLEditorCompletion.TimerInterval := Preferences.Editor.CodeCompletionTime;
@@ -13999,16 +14123,26 @@ begin
       Exclude(Preferences.ToolbarTabs, ttBuilder)
     else
       Include(Preferences.ToolbarTabs, ttBuilder);
-  if (Sender = mtEditor) then
-    if (mtEditor.Checked) then
-      Exclude(Preferences.ToolbarTabs, ttEditor)
-    else
-      Include(Preferences.ToolbarTabs, ttEditor);
   if (Sender = mtDiagram) then
     if (mtDiagram.Checked) then
       Exclude(Preferences.ToolbarTabs, ttDiagram)
     else
       Include(Preferences.ToolbarTabs, ttDiagram);
+  if (Sender = mtEditor) then
+    if (mtEditor.Checked) then
+      Exclude(Preferences.ToolbarTabs, ttEditor)
+    else
+      Include(Preferences.ToolbarTabs, ttEditor);
+  if (Sender = mtEditor2) then
+    if (mtEditor2.Checked) then
+      Exclude(Preferences.ToolbarTabs, ttEditor2)
+    else
+      Include(Preferences.ToolbarTabs, ttEditor2);
+  if (Sender = mtEditor3) then
+    if (mtEditor3.Checked) then
+      Exclude(Preferences.ToolbarTabs, ttEditor3)
+    else
+      Include(Preferences.ToolbarTabs, ttEditor3);
 
   PostMessage(Window.Handle, CM_CHANGEPREFERENCES, 0, 0);
 end;
@@ -14090,7 +14224,9 @@ begin
 
   case (View) of
     vObjects,
-    vEditor:
+    vEditor,
+    vEditor2,
+    vEditor3:
       case (SelectedImageIndex) of
         iiServer:
           begin

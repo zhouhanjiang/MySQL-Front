@@ -583,14 +583,6 @@ object WWindow: TWWindow
       HelpContext = 1125
       ImageIndex = 99
     end
-    object aHSQL: TAction
-      Category = 'Help'
-      Caption = 'aHSQL'
-      Enabled = False
-      HelpContext = 1135
-      HelpType = htContext
-      ImageIndex = 14
-    end
     object aVSQLEditor: TAction
       Category = 'View'
       Caption = 'aVSQLEditor'
@@ -599,6 +591,32 @@ object WWindow: TWWindow
       HelpType = htContext
       ImageIndex = 3
       ShortCut = 119
+    end
+    object aVSQLEditor2: TAction
+      Category = 'View'
+      Caption = 'aVSQLEditor2'
+      Enabled = False
+      HelpContext = 1037
+      HelpType = htContext
+      ImageIndex = 3
+      ShortCut = 119
+    end
+    object aVSQLEditor3: TAction
+      Category = 'View'
+      Caption = 'aVSQLEditor3'
+      Enabled = False
+      HelpContext = 1037
+      HelpType = htContext
+      ImageIndex = 3
+      ShortCut = 119
+    end
+    object aHSQL: TAction
+      Category = 'Help'
+      Caption = 'aHSQL'
+      Enabled = False
+      HelpContext = 1135
+      HelpType = htContext
+      ImageIndex = 14
     end
     object aVAddressBar: TAction
       Category = 'View'
@@ -1579,12 +1597,12 @@ object WWindow: TWWindow
       object miVQueryBuilder: TMenuItem
         Action = aVQueryBuilder
       end
-      object miVSQLEditor: TMenuItem
-        Action = aVSQLEditor
-        RadioItem = True
-      end
       object miVDiagram: TMenuItem
         Action = aVDiagram
+        RadioItem = True
+      end
+      object miVSQLEditor: TMenuItem
+        Action = aVSQLEditor
         RadioItem = True
       end
       object N12: TMenuItem

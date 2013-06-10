@@ -83,13 +83,14 @@ object FSession: TFSession
         Left = 2
         Top = 106
         Width = 116
-        Height = 126
+        Height = 533
         Align = alClient
         BevelOuter = bvNone
         Color = clWindow
         Constraints.MinHeight = 50
         ParentBackground = False
         TabOrder = 0
+        ExplicitHeight = 126
       end
       object PFolders: TPanel_Ext
         Left = 2
@@ -123,7 +124,7 @@ object FSession: TFSession
         Left = 2
         Top = 2
         Width = 116
-        Height = 230
+        Height = 637
         HelpContext = 1082
         Align = alClient
         BorderStyle = bsNone
@@ -144,6 +145,7 @@ object FSession: TFSession
         OnDblClick = ListViewDblClick
         OnEnter = FJobsEnter
         OnExit = FJobsExit
+        ExplicitHeight = 230
       end
     end
     object PSQLHistory: TPanel_Ext
@@ -206,7 +208,7 @@ object FSession: TFSession
         Left = 2
         Top = 2
         Width = 116
-        Height = 230
+        Height = 637
         HelpContext = 1082
         Align = alClient
         BorderStyle = bsNone
@@ -228,6 +230,7 @@ object FSession: TFSession
         OnExit = FBookmarksExit
         OnDragDrop = FBookmarksDragDrop
         OnDragOver = FBookmarksDragOver
+        ExplicitHeight = 230
       end
     end
     object PNavigator: TPanel_Ext
@@ -515,7 +518,7 @@ object FSession: TFSession
         OnMouseUp = PanelMouseUp
         OnPaint = PanelPaint
       end
-      object PDBGrid: TPanel_Ext
+      object PSQLEditorDBGrid: TPanel_Ext
         Left = 17
         Top = 0
         Width = 450
@@ -1247,8 +1250,8 @@ object FSession: TFSession
     object ToolBar: TToolBar
       Left = 124
       Top = 0
-      Width = 374
-      Height = 20
+      Width = 541
+      Height = 22
       Align = alNone
       ButtonHeight = 20
       ButtonWidth = 68
@@ -1295,8 +1298,16 @@ object FSession: TFSession
         PopupMenu = MToolBar
         Style = tbsCheck
       end
-      object tbEditor: TToolButton
+      object tbDiagram: TToolButton
         Left = 248
+        Top = 0
+        AutoSize = True
+        Caption = 'tbDiagram'
+        PopupMenu = MToolBar
+        Style = tbsCheck
+      end
+      object tbEditor: TToolButton
+        Left = 314
         Top = 0
         AutoSize = True
         Caption = 'tbEditor'
@@ -1304,11 +1315,21 @@ object FSession: TFSession
         PopupMenu = MToolBar
         Style = tbsCheck
       end
-      object tbDiagram: TToolButton
-        Left = 308
+      object tbEditor2: TToolButton
+        Left = 374
         Top = 0
         AutoSize = True
-        Caption = 'tbDiagram'
+        Caption = 'tbEditor2'
+        ImageIndex = 4
+        PopupMenu = MToolBar
+        Style = tbsCheck
+      end
+      object tbEditor3: TToolButton
+        Left = 441
+        Top = 0
+        AutoSize = True
+        Caption = 'tbEditor3'
+        ImageIndex = 5
         PopupMenu = MToolBar
         Style = tbsCheck
       end
@@ -2347,12 +2368,20 @@ object FSession: TFSession
       Caption = 'mtBuilder'
       OnClick = ToolBarTabsClick
     end
+    object mtDiagram: TMenuItem
+      Caption = 'mtDiagram'
+      OnClick = ToolBarTabsClick
+    end
     object mtEditor: TMenuItem
       Caption = 'mtEditor'
       OnClick = ToolBarTabsClick
     end
-    object mtDiagram: TMenuItem
-      Caption = 'mtDiagram'
+    object mtEditor2: TMenuItem
+      Caption = 'mtEditor2'
+      OnClick = ToolBarTabsClick
+    end
+    object mtEditor3: TMenuItem
+      Caption = 'mtEditor3'
       OnClick = ToolBarTabsClick
     end
   end

@@ -146,6 +146,8 @@ type
     aVRefresh: TAction;
     aVRefreshAll: TAction;
     aVSQLEditor: TAction;
+    aVSQLEditor2: TAction;
+    aVSQLEditor3: TAction;
     aVSQLHistory: TAction;
     aVSQLLog: TAction;
     CAddressBar: TCoolBar;
@@ -1020,8 +1022,10 @@ begin
   aVDataBrowser.Caption := Preferences.LoadStr(5);
   aVObjectIDE.Caption := Preferences.LoadStr(865);
   aVQueryBuilder.Caption := Preferences.LoadStr(852);
-  aVSQLEditor.Caption := Preferences.LoadStr(6);
   aVDiagram.Caption := Preferences.LoadStr(800);
+  aVSQLEditor.Caption := Preferences.LoadStr(6);
+  aVSQLEditor2.Caption := Preferences.LoadStr(6) + ' #2';
+  aVSQLEditor3.Caption := Preferences.LoadStr(6) + ' #3';
   aVAddressBar.Caption := Preferences.LoadStr(731);
   miVSidebar.Caption := Preferences.LoadStr(736);
   aVNavigator.Caption := Preferences.LoadStr(10);
@@ -1259,6 +1263,8 @@ begin
     aVObjectIDE.Checked := False;
     aVQueryBuilder.Checked := False;
     aVSQLEditor.Checked := False;
+    aVSQLEditor2.Checked := False;
+    aVSQLEditor3.Checked := False;
     aVNavigator.Checked := False;
     aVBookmarks.Checked := False;
     aVExplorer.Checked := False;
@@ -1276,8 +1282,10 @@ begin
     aVDataBrowser.Enabled := False;
     aVObjectIDE.Enabled := False;
     aVQueryBuilder.Enabled := False;
-    aVSQLEditor.Enabled := False;
     aVDiagram.Enabled := False;
+    aVSQLEditor.Enabled := False;
+    aVSQLEditor2.Enabled := False;
+    aVSQLEditor3.Enabled := False;
     aVNavigator.Enabled := False;
     aVBookmarks.Enabled := False;
     aVExplorer.Enabled := False;
@@ -1430,22 +1438,22 @@ begin
   tbDeleteForeignKey.Visible := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vDiagram]);
   tbProperties.Visible       := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vDiagram]);
 
-  tbOpen.Visible             := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor]);
-  tbSave.Visible             := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor]);
-  tbUndo.Visible             := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor]);
-  tbRedo.Visible             := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor]);
-  tbSearchFind.Visible       := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor]);
-  tbSearchReplace.Visible    := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor]);
-  tbRun.Visible              := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor]);
-  tbRunSelection.Visible     := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vEditor]);
+  tbOpen.Visible             := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor, vEditor2, vEditor3]);
+  tbSave.Visible             := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor, vEditor2, vEditor3]);
+  tbUndo.Visible             := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor, vEditor2, vEditor3]);
+  tbRedo.Visible             := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor, vEditor2, vEditor3]);
+  tbSearchFind.Visible       := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor, vEditor2, vEditor3]);
+  tbSearchReplace.Visible    := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor, vEditor2, vEditor3]);
+  tbRun.Visible              := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor, vEditor2, vEditor3]);
+  tbRunSelection.Visible     := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vEditor, vEditor2, vEditor3]);
   tbPostObject.Visible       := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE]);
 
-  tbDBFirst.Visible          := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser, vBuilder, vEditor]);
+  tbDBFirst.Visible          := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser, vBuilder, vEditor, vEditor2, vEditor3]);
   tbDBPrev.Visible           := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser]);
   tbDBNext.Visible           := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser]);
-  tbDBLast.Visible           := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser, vBuilder, vEditor]);
-  tbDInsertRecord.Visible    := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser, vBuilder, vEditor]);
-  tbDDeleteRecord.Visible    := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser, vBuilder, vEditor]);
+  tbDBLast.Visible           := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser, vBuilder, vEditor, vEditor2, vEditor3]);
+  tbDInsertRecord.Visible    := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser, vBuilder, vEditor, vEditor2, vEditor3]);
+  tbDDeleteRecord.Visible    := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser, vBuilder, vEditor, vEditor2, vEditor3]);
   tbPostRecord.Visible       := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser]);
   tbCancelRecord.Visible     := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser]);
 
@@ -1468,7 +1476,7 @@ begin
 
   while (miFReopen.Count > 1) do
     miFReopen.Delete(0);
-  miFReopen.Enabled := Assigned(Tab) and (Tab.ToolBarData.View = vEditor) and (Tab.Session.Account.Desktop.Files.Count > 0);
+  miFReopen.Enabled := Assigned(Tab) and (Tab.ToolBarData.View in [vEditor, vEditor2, vEditor3]) and (Tab.Session.Account.Desktop.Files.Count > 0);
   if (miFReopen.Enabled) then
   begin
     for I := 0 to Tab.Session.Account.Desktop.Files.Count - 1 do
