@@ -20,9 +20,9 @@ uses
 const
   CM_ACTIVATE_DBGRID = WM_USER + 500;
   CM_ACTIVATEFTEXT = WM_USER + 501;
-  CM_POST_BUILDER_QUERY_CHANGE = WM_USER + 503;
-  CM_POST_MONITOR = WM_USER + 504;
-  CM_WANTED_SYNCHRONIZE = WM_USER + 505;
+  CM_POST_BUILDER_QUERY_CHANGE = WM_USER + 502;
+  CM_POST_MONITOR = WM_USER + 503;
+  CM_WANTED_SYNCHRONIZE = WM_USER + 504;
 
 const
   sbMessage = 0;
@@ -2590,7 +2590,7 @@ begin
     if (not Empty and (View = vIDE)) then SQL := ActiveSynMemo.Text else SQL := '';
 
     MainAction('aFOpen').Enabled := View in [vEditor, vEditor2, vEditor3];
-    MainAction('aFSave').Enabled := (View in [vEditor, vEditor2, vEditor3]) and not Empty and ((SQLEditor.Filename = '') or ActiveSynMemo.Modified);
+    MainAction('aFSave').Enabled := (View in [vEditor, vEditor2, vEditor3]) and not Empty and ((SQLEditors[View].Filename = '') or ActiveSynMemo.Modified);
     MainAction('aFSaveAs').Enabled := (View in [vEditor, vEditor2, vEditor3]) and not Empty;
     MainAction('aVObjectBrowser').Enabled := True;
     MainAction('aVDataBrowser').Enabled := (SelectedImageIndex in [iiBaseTable, iiSystemView, iiView, iiTrigger]) or ((LastSelectedDatabase <> '') and (LastSelectedDatabase = SelectedDatabase) and (LastSelectedTable <> ''));
@@ -4745,6 +4745,7 @@ procedure TFSession.CMCloseTabQuery(var Message: TMessage);
 var
   CanClose: Boolean;
   Node: TTreeNode;
+  View: TView;
 begin
   CanClose := True;
 
@@ -4752,15 +4753,16 @@ begin
     ActiveDBGrid.DataSource.DataSet.CheckBrowseMode();
 
   if (CanClose) then
-    if (SQLEditor.SynMemo.Modified and (SQLEditor.Filename <> '')) then
-    begin
-      View := vEditor;
-      Window.ActiveControl := ActiveSynMemo;
-      case (MsgBox(Preferences.LoadStr(584, ExtractFileName(SQLEditor.Filename)), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
-        IDYES: SaveSQLFile(MainAction('aFSave'));
-        IDCANCEL: CanClose := False;
+    for View in [vEditor, vEditor2, vEditor3] do
+      if (SQLEditors[View].SynMemo.Modified and (SQLEditors[View].Filename <> '')) then
+      begin
+        Self.View := View;
+        Window.ActiveControl := ActiveSynMemo;
+        case (MsgBox(Preferences.LoadStr(584, ExtractFileName(SQLEditors[View].Filename)), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
+          IDYES: SaveSQLFile(MainAction('aFSave'));
+          IDCANCEL: CanClose := False;
+        end;
       end;
-    end;
 
   Node := FNavigator.Items.getFirstNode();
   if (Assigned(Node)) then
@@ -5208,11 +5210,14 @@ begin
 end;
 
 procedure TFSession.CrashRescue();
+var
+  View: TView;
 begin
-  if ((SQLEditor.Filename <> '') and not SQLEditor.SynMemo.Modified) then
-    Session.Account.Desktop.EditorContent := ''
-  else
-    Session.Account.Desktop.EditorContent := SQLEditor.SynMemo.Text;
+  for View in [vEditor, vEditor2, vEditor3] do
+    if ((SQLEditors[View].Filename <> '') and not SQLEditors[View].SynMemo.Modified) then
+      Session.Account.Desktop.EditorContent := ''
+    else
+      Session.Account.Desktop.EditorContent := SQLEditors[View].SynMemo.Text;
 
   try
     if (Assigned(ActiveWorkbench)) then
@@ -6714,6 +6719,7 @@ var
   I: Integer;
   TempB: Boolean;
   URI: TUURI;
+  View: TView;
 begin
   Session.UnRegisterEventProc(FormSessionEvent);
   Session.CreateDesktop := nil;
@@ -6735,10 +6741,11 @@ begin
     // There is a bug inside ShellBrowser.pas ver. 7.3 - but it's not interested to get informed
   end;
 
-  if ((SQLEditor.Filename <> '') and not SQLEditor.SynMemo.Modified) then
-    Session.Account.Desktop.EditorContent := ''
-  else
-    Session.Account.Desktop.EditorContent := SQLEditor.SynMemo.Text;
+  for View in [vEditor, vEditor2, vEditor3] do
+    if ((SQLEditors[View].Filename <> '') and not SQLEditors[View].SynMemo.Modified) then
+      Session.Account.Desktop.EditorContent := ''
+    else
+      Session.Account.Desktop.EditorContent := SQLEditors[View].SynMemo.Text;
   Session.Account.Desktop.FoldersHeight := PFolders.Height;
 
   if (Assigned(FFiles)) then
@@ -11882,11 +11889,6 @@ begin
 
   for I := 0 to MToolBar.Items.Count - 1 do
     MToolBar.Items[I].Enabled := (Checked > 1) or not MToolBar.Items[I].Checked;
-
-  {$IFNDEF Debug}
-  mtEditor2.Visible := False;
-  mtEditor3.Visible := False;
-  {$ENDIF}
 end;
 
 procedure TFSession.mwCreateLinkExecute(Sender: TObject);
@@ -12080,6 +12082,7 @@ begin
     if (Node = FNavigator.Selected) then
     begin
       if (URI.Param['view'] = 'browser') then
+      begin
         if (Desktop(TSTable(FNavigator.Selected.Data)).Table.ValidData) then
         begin
            if (Desktop(TSTable(FNavigator.Selected.Data)).Table.DataSet.Offset > 0) then
@@ -12088,12 +12091,27 @@ begin
           if (Desktop(TSTable(FNavigator.Selected.Data)).Table.DataSet.FilterSQL <> '') then
             URI.Param['filter'] := Desktop(TSTable(FNavigator.Selected.Data)).Table.DataSet.FilterSQL;
         end;
-      if (URI.Param['view'] = 'editor') then
+      end
+      else if (URI.Param['view'] = 'editor') then
       begin
         if (SQLEditor.Filename <> '') then
           URI.Param['file'] := UnescapeURL(SQLEditor.Filename);
         if (SQLEditor.FileCodePage <> 0) then
           URI.Param['cp'] := IntToStr(SQLEditor.FileCodePage);
+      end
+      else if (URI.Param['view'] = 'editor2') then
+      begin
+        if (SQLEditor2.Filename <> '') then
+          URI.Param['file'] := UnescapeURL(SQLEditor2.Filename);
+        if (SQLEditor2.FileCodePage <> 0) then
+          URI.Param['cp'] := IntToStr(SQLEditor2.FileCodePage);
+      end
+      else if (URI.Param['view'] = 'editor3') then
+      begin
+        if (SQLEditor3.Filename <> '') then
+          URI.Param['file'] := UnescapeURL(SQLEditor3.Filename);
+        if (SQLEditor3.FileCodePage <> 0) then
+          URI.Param['cp'] := IntToStr(SQLEditor3.FileCodePage);
       end;
     end;
   end;
@@ -12221,18 +12239,18 @@ begin
         else
         begin
           ActiveSynMemo.Text := Text;
-          SQLEditor.Filename := Import.Filename;
-          SQLEditor.FileCodePage := Import.CodePage;
+          SQLEditors[View].Filename := Import.Filename;
+          SQLEditors[View].FileCodePage := Import.CodePage;
           URI := TUURI.Create(Address);
-          URI.Param['file'] := EscapeURL(SQLEditor.Filename);
-          if (SQLEditor.FileCodePage = 0) then
+          URI.Param['file'] := EscapeURL(SQLEditors[View].Filename);
+          if (SQLEditors[View].FileCodePage = 0) then
             URI.Param['cp'] := Null
           else
-            URI.Param['cp'] := IntToStr(SQLEditor.FileCodePage);
+            URI.Param['cp'] := IntToStr(SQLEditors[View].FileCodePage);
           FAddress := URI.Address;
           AddressChanged(nil);
           URI.Free();
-          Session.Account.Desktop.Files.Add(SQLEditor.Filename, SQLEditor.FileCodePage);
+          Session.Account.Desktop.Files.Add(SQLEditors[View].Filename, SQLEditors[View].FileCodePage);
           Window.Perform(CM_UPDATETOOLBAR, 0, LPARAM(Self));
         end;
         if (Length(ActiveSynMemo.Lines.Text) < LargeSQLScriptSize) then
@@ -12310,9 +12328,9 @@ begin
         case (View) of
           vIDE: if (FNavigator.Selected.ImageIndex in [iiProcedure, iiFunction]) then Desktop(TSRoutine(FNavigator.Selected.Data)).CloseIDEResult();
           vBuilder: Desktop(TSDatabase(FNavigator.Selected.Data)).CloseBuilderResult();
-          vEditor: SQLEditor.CloseResult();
-          vEditor2: SQLEditor2.CloseResult();
-          vEditor3: SQLEditor3.CloseResult();
+          vEditor,
+          vEditor2,
+          vEditor3: SQLEditors[View].CloseResult();
         end;
         ActiveDBGrid := nil;
       end
@@ -12404,6 +12422,8 @@ begin
 
     if (Assigned(SourceSession)) then
     begin
+      Session.BeginSynchron();
+
       Success := True;
 
       case (Node.ImageIndex) of
@@ -12460,26 +12480,20 @@ begin
           end;
         iiDatabase:
           begin
-            SourceSession.BeginSynchron();
             SourceSession.Databases.Update();
-            SourceSession.EndSynchron();
             SourceDatabase := SourceSession.DatabaseByName(SourceURI.Database);
 
             if (not Assigned(SourceDatabase)) then
               MessageBeep(MB_ICONERROR)
             else
             begin
-              SourceSession.BeginSynchron();
-              SourceDatabase.Tables.Update();
-              SourceSession.EndSynchron();
-
               Database := TSDatabase(Node.Data);
 
               Found := False;
               for I := 1 to StringList.Count - 1 do
                 Found := Found or (StringList.Names[I] = 'Table');
 
-              if (not Assigned(Database)) then
+              if (not Assigned(Database) or not SourceDatabase.Tables.Update()) then
                 MessageBeep(MB_ICONERROR)
               else if (not Found or DPaste.Execute()) then
               begin
@@ -12587,17 +12601,18 @@ begin
         iiBaseTable:
           begin
             SourceDatabase := SourceSession.DatabaseByName(SourceURI.Database);
-            if (not Assigned(SourceDatabase)) then
+            if (not Assigned(SourceDatabase) or not SourceDatabase.Tables.Update()) then
               SourceTable := nil
             else
               SourceTable := SourceDatabase.BaseTableByName(SourceURI.Table);
 
-            if (not Assigned(SourceTable)) then
+            if (not Assigned(SourceTable) or not SourceTable.Update()) then
               MessageBeep(MB_ICONERROR)
             else
             begin
               Database := Session.DatabaseByName(Node.Parent.Text);
               Table := Database.BaseTableByName(Node.Text);
+              Table.Update();
 
               NewTable := TSBaseTable.Create(Database.Tables);
               NewTable.Assign(Table);
@@ -12661,6 +12676,7 @@ begin
     end;
 
     SourceURI.Free();
+    Session.EndSynchron();
   end;
   StringList.Free();
 end;
@@ -13233,15 +13249,15 @@ begin
   SaveDialog.EncodingIndex := SaveDialog.Encodings.IndexOf(CodePageToEncoding(Session.CodePage));
   if ((Sender = MainAction('aFSave')) or (Sender = MainAction('aFSaveAs'))) then
   begin
-    if (SQLEditor.Filename = '') then
+    if (SQLEditors[View].Filename = '') then
       SaveDialog.FileName := ReplaceStr(Preferences.LoadStr(6), '&', '') + '.sql'
     else
     begin
       if (Sender = MainAction('aFSave')) then
-        SaveDialog.FileName := SQLEditor.Filename
+        SaveDialog.FileName := SQLEditors[View].Filename
       else
-        SaveDialog.FileName := ExtractFileName(SQLEditor.Filename);
-      SaveDialog.EncodingIndex := SaveDialog.Encodings.IndexOf(CodePageToEncoding(SQLEditor.FileCodePage));
+        SaveDialog.FileName := ExtractFileName(SQLEditors[View].Filename);
+      SaveDialog.EncodingIndex := SaveDialog.Encodings.IndexOf(CodePageToEncoding(SQLEditors[View].FileCodePage));
     end;
     Text := ActiveSynMemo.Text;
   end
@@ -13269,7 +13285,7 @@ begin
     Exit;
   SaveDialog.DefaultExt := 'sql';
   SaveDialog.Filter := FilterDescription('sql') + ' (*.sql)|*.sql' + '|' + FilterDescription('*') + ' (*.*)|*.*';
-  if (((Sender = MainAction('aFSave')) and (SQLEditor.Filename <> '')) or (Text <> '') and SaveDialog.Execute()) then
+  if (((Sender = MainAction('aFSave')) and (SQLEditors[View].Filename <> '')) or (Text <> '') and SaveDialog.Execute()) then
   begin
     Path := ExtractFilePath(SaveDialog.FileName);
 
@@ -13282,25 +13298,25 @@ begin
       MsgBox(SysErrorMessage(GetLastError()), Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
     else
     begin
-      SQLEditor.Filename := SaveDialog.FileName;
-      SQLEditor.FileCodePage := EncodingToCodePage(SaveDialog.Encodings[SaveDialog.EncodingIndex]);
+      SQLEditors[View].Filename := SaveDialog.FileName;
+      SQLEditors[View].FileCodePage := EncodingToCodePage(SaveDialog.Encodings[SaveDialog.EncodingIndex]);
 
-      case (SQLEditor.FileCodePage) of
+      case (SQLEditors[View].FileCodePage) of
         CP_UNICODE: Success := WriteFile(Handle, BOM_UNICODE_LE^, Length(BOM_UNICODE_LE), BytesWritten, nil);
         CP_UTF8: Success := WriteFile(Handle, BOM_UTF8^, Length(BOM_UTF8), BytesWritten, nil);
         else Success := True;
       end;
 
       if (Success) then
-        case (SQLEditor.FileCodePage) of
+        case (SQLEditors[View].FileCodePage) of
           CP_UNICODE: Success := WriteFile(Handle, Text[1], Length(Text), BytesWritten, nil);
           else
             begin
-              Len := WideCharToAnsiChar(SQLEditor.FileCodePage, PChar(Text), Length(Text), nil, 0);
+              Len := WideCharToAnsiChar(SQLEditors[View].FileCodePage, PChar(Text), Length(Text), nil, 0);
               if (Len > 0) then
               begin
                 GetMem(FileBuffer, Len);
-                WideCharToAnsiChar(SQLEditor.FileCodePage, PChar(Text), Length(Text), FileBuffer, Len);
+                WideCharToAnsiChar(SQLEditors[View].FileCodePage, PChar(Text), Length(Text), FileBuffer, Len);
                 Success := WriteFile(Handle, FileBuffer^, Len, BytesWritten, nil);
                 FreeMem(FileBuffer);
               end;
@@ -13314,15 +13330,15 @@ begin
         if ((Sender = MainAction('aFSave')) or (Sender = MainAction('aFSaveAs'))) then
           ActiveSynMemo.Modified := False;
         URI := TUURI.Create(Address);
-        URI.Param['file'] := EscapeURL(SQLEditor.Filename);
-        if (SQLEditor.FileCodePage = 0) then
+        URI.Param['file'] := EscapeURL(SQLEditors[View].Filename);
+        if (SQLEditors[View].FileCodePage = 0) then
           URI.Param['cp'] := Null
         else
-          URI.Param['cp'] := IntToStr(SQLEditor.FileCodePage);
+          URI.Param['cp'] := IntToStr(SQLEditors[View].FileCodePage);
         FAddress := URI.Address;
         AddressChanged(nil);
         URI.Free();
-        Session.Account.Desktop.Files.Add(SQLEditor.Filename, SQLEditor.FileCodePage);
+        Session.Account.Desktop.Files.Add(SQLEditors[View].Filename, SQLEditors[View].FileCodePage);
         Window.Perform(CM_UPDATETOOLBAR, 0, LPARAM(Self));
       end;
 
@@ -13395,23 +13411,13 @@ begin
               Session.SendSQL(SQL, Desktop(TSDatabase(FNavigator.Selected.Data)).BuilderResultEvent);
             end;
         end;
-      vEditor:
-        begin
-          SQLEditor.CloseResult();
-          PContentChange(Sender);
-          Session.SendSQL(SQL, SQLEditor.ResultEvent);
-        end;
-      vEditor2:
-        begin
-          SQLEditor2.CloseResult();
-          PContentChange(Sender);
-          Session.SendSQL(SQL, SQLEditor2.ResultEvent);
-        end;
+      vEditor,
+      vEditor2,
       vEditor3:
         begin
-          SQLEditor3.CloseResult();
+          SQLEditors[View].CloseResult();
           PContentChange(Sender);
-          Session.SendSQL(SQL, SQLEditor3.ResultEvent);
+          Session.SendSQL(SQL, SQLEditors[View].ResultEvent);
         end;
     end;
 end;
@@ -13438,12 +13444,12 @@ begin
             vEditor2: URI.Param['view'] := 'editor2';
             vEditor3: URI.Param['view'] := 'editor3';
           end;
-          if (SQLEditor.Filename <> '') then
-            URI.Param['file'] := EscapeURL(SQLEditor.Filename);
-          if (SQLEditor.FileCodePage = 0) then
+          if (SQLEditors[AView].Filename <> '') then
+            URI.Param['file'] := EscapeURL(SQLEditors[AView].Filename);
+          if (SQLEditors[AView].FileCodePage = 0) then
             URI.Param['cp'] := Null
           else
-            URI.Param['cp'] := IntToStr(SQLEditor.FileCodePage);
+            URI.Param['cp'] := IntToStr(SQLEditors[AView].FileCodePage);
         end;
       vDiagram: URI.Param['view'] := 'diagram';
     end;
@@ -13588,7 +13594,7 @@ begin
           FileName := UnescapeURL(URI.Param['file']);
           if (ExtractFilePath(FileName) = '') then
             FileName := ExpandFilename(FileName);
-          if ((FileName <> SQLEditor.Filename) and FileExists(FileName)) then
+          if ((FileName <> SQLEditors[NewView].Filename) and FileExists(FileName)) then
             if ((URI.Param['cp'] = Null) or not TryStrToInt(URI.Param['cp'], CodePage)) then
               OpenSQLFile(FileName)
             else
@@ -13968,8 +13974,8 @@ begin
     if (PrintDialog.Execute()) then
     begin
       FSQLEditorPrint.Copies := PrintDialog.Copies;
-      if (SQLEditor.Filename <> '') then
-        FSQLEditorPrint.Title := ExtractFileName(SQLEditor.Filename)
+      if (SQLEditors[View].Filename <> '') then
+        FSQLEditorPrint.Title := ExtractFileName(SQLEditors[View].Filename)
       else
         FSQLEditorPrint.Title := ReplaceStr(Preferences.LoadStr(6), '&', '');
       FSQLEditorPrint.Header.Clear();
@@ -14008,7 +14014,7 @@ begin
 
       Empty := ((ActiveSynMemo.Lines.Count <= 1) and (ActiveSynMemo.Text = '')); // Benötigt bei vielen Zeilen Zeit
 
-      MainAction('aFSave').Enabled := not Empty and ((SQLEditor.Filename = '') or ActiveSynMemo.Modified);
+      MainAction('aFSave').Enabled := not Empty and ((SQLEditors[View].Filename = '') or ActiveSynMemo.Modified);
       MainAction('aFSaveAs').Enabled := not Empty;
       MainAction('aFPrint').Enabled := (View in [vEditor, vEditor2, vEditor3]) and not Empty;
       MainAction('aERedo').Enabled := ActiveSynMemo.CanRedo;

@@ -690,7 +690,7 @@ type
     BookmarksVisible: Boolean;
     ColumnWidths: array [lkServer .. lkVariables] of array [0..7] of Integer;
     DataHeight, BlobHeight: Integer;
-    EditorContent: string;
+    EditorContent: string; {$MESSAGE 'hier'}
     ExplorerVisible: Boolean;
     FilesFilter: string;
     FoldersHeight: Integer;
