@@ -1385,20 +1385,6 @@ object WWindow: TWWindow
       Caption = 'aJExecute'
     end
   end
-  object OpenDialog: TOpenDialog_Ext
-    Options = [ofReadOnly, ofHideReadOnly, ofPathMustExist, ofFileMustExist, ofEnableSizing]
-    EncodingIndex = -1
-    EncodingLabel = '&Encoding:'
-    Left = 16
-    Top = 288
-  end
-  object SaveDialog: TSaveDialog_Ext
-    Options = [ofOverwritePrompt, ofHideReadOnly, ofPathMustExist, ofEnableSizing]
-    EncodingIndex = -1
-    EncodingLabel = '&Encoding:'
-    Left = 80
-    Top = 288
-  end
   object MainMenu: TMainMenu
     Left = 16
     Top = 240

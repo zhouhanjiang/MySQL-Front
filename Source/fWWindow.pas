@@ -311,9 +311,7 @@ type
     N7: TMenuItem;
     N8: TMenuItem;
     N9: TMenuItem;
-    OpenDialog: TOpenDialog_Ext;
     PWorkSpace: TPanel_Ext;
-    SaveDialog: TSaveDialog_Ext;
     StatusBar: TStatusBar;
     TabControl: TTabControl;
     TBAddressBar: TToolBar;

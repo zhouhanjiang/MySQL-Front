@@ -931,7 +931,6 @@ type
     UsersListView: TListView;
     VariablesListView: TListView;
     Wanted: TWanted;
-    function ViewToParam(const AView: TView): Variant;
     procedure aDCancelExecute(Sender: TObject);
     procedure AddressChanged(Sender: TObject);
     procedure AddressChanging(const Sender: TObject; const NewAddress: String; var AllowChange: Boolean);
@@ -1032,6 +1031,7 @@ type
     function NavigatorNodeToAddress(const Node: TTreeNode): string;
     procedure OnConvertError(Sender: TObject; Text: string);
     procedure OpenInNewTabExecute(const DatabaseName, TableName: string; const OpenNewWindow: Boolean = False; const Filename: TFileName = '');
+    function ParamToView(const AParam: Variant): TView;
     procedure PasteExecute(const Node: TTreeNode; const Objects: string);
     procedure PContentChange(Sender: TObject);
     function PostObject(Sender: TObject): Boolean;
@@ -1049,6 +1049,7 @@ type
     procedure SynMemoPrintExecute(Sender: TObject);
     procedure TableOpen(Sender: TObject);
     function UpdateAfterAddressChanged(): Boolean; virtual;
+    function ViewToParam(const AView: TView): Variant;
     procedure WorkbenchAddTable(Sender: TObject);
     procedure WorkbenchChange(Sender: TObject; Control: TWControl);
     procedure WorkbenchCursorMove(Sender: TObject; X, Y: Integer);
@@ -2101,20 +2102,6 @@ begin
   DBookmark.Execute();
 end;
 
-function TFSession.ViewToParam(const AView: TView): Variant;
-begin
-  case (AView) of
-    vBrowser: Result := 'browser';
-    vIDE: Result := 'ide';
-    vBuilder: Result := 'builder';
-    vDiagram: Result := 'diagram';
-    vEditor: Result := 'editor';
-    vEditor2: Result := 'editor2';
-    vEditor3: Result := 'editor3';
-    else Result := Null;
-  end;
-end;
-
 procedure TFSession.aDCancelExecute(Sender: TObject);
 begin
   Wanted.Clear();
@@ -2696,7 +2683,7 @@ begin
       Database := Session.DatabaseByName(URI.Database);
       if (not Assigned(Database)) then
         NotFound := True
-      else if ((URI.Param['view'] <> 'editor') and not Database.Update((URI.Table = '') and (URI.Param['object'] = Null) and (URI.Param['view'] = NULL)) and ((URI.Table <> '') or (URI.Param['object'] <> Null))) then
+      else if ((ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and not Database.Update((URI.Table = '') and (URI.Param['object'] = Null) and (URI.Param['view'] = NULL)) and ((URI.Table <> '') or (URI.Param['object'] <> Null))) then
         AllowChange := False
       else if ((URI.Table <> '') or (URI.Param['object'] <> Null)) then
       begin
@@ -2772,7 +2759,7 @@ begin
   else if ((URI.Database = '') and (URI.Param['system'] = 'variables')) then
     Result := ReplaceStr(Preferences.LoadStr(22), '&', '');
 
-  if ((URI.Param['view'] = 'editor') and (URI.Param['file'] <> Null)) then
+  if ((ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and (URI.Param['file'] <> Null)) then
     Result := Result + ' - ' + EscapeURL(URI.Param['file']);
 
   Result := UnescapeURL(Result);
@@ -9518,22 +9505,7 @@ var
   URI: TUURI;
 begin
   URI := TUURI.Create(Address);
-  if (URI.Param['view'] = 'browser') then
-    Result := vBrowser
-  else if (URI.Param['view'] = 'ide') then
-    Result := vIDE
-  else if (URI.Param['view'] = 'builder') then
-    Result := vBuilder
-  else if (URI.Param['view'] = 'diagram') then
-    Result := vDiagram
-  else if (URI.Param['view'] = 'editor') then
-    Result := vEditor
-  else if (URI.Param['view'] = 'editor2') then
-    Result := vEditor2
-  else if (URI.Param['view'] = 'editor3') then
-    Result := vEditor3
-  else
-    Result := vObjects;
+  Result := ParamToView(URI.Param['view']);
   URI.Free();
 end;
 
@@ -12030,13 +12002,13 @@ begin
     case (Node.ImageIndex) of
       iiServer:
         begin
-          if ((URI.Param['view'] <> Null) and (URI.Param['view'] <> 'editor')) then URI.Param['view'] := Null;
-          if ((URI.Param['view'] = 'editor') and (Session.DatabaseName <> '')) then URI.Param['view'] := Null;
+          if ((URI.Param['view'] <> Null) and not (ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3])) then URI.Param['view'] := Null;
+          if ((ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and (Session.DatabaseName <> '')) then URI.Param['view'] := Null;
         end;
       iiDatabase,
       iiSystemDatabase:
         begin
-          if ((URI.Param['view'] <> Null) and (URI.Param['view'] <> 'editor') and (URI.Param['view'] <> 'builder') and (URI.Param['view'] <> 'diagram')) then URI.Param['view'] := Null;
+          if ((URI.Param['view'] <> Null) and not (ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and (URI.Param['view'] <> 'builder') and (URI.Param['view'] <> 'diagram')) then URI.Param['view'] := Null;
           URI.Database := Node.Text;
         end;
       iiBaseTable,
@@ -12104,26 +12076,21 @@ begin
             URI.Param['filter'] := Desktop(TSTable(FNavigator.Selected.Data)).Table.DataSet.FilterSQL;
         end;
       end
-      else if (URI.Param['view'] = 'editor') then
+      else if (ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) then
       begin
-        if (SQLEditor.Filename <> '') then
-          URI.Param['file'] := UnescapeURL(SQLEditor.Filename);
-        if (SQLEditor.FileCodePage <> 0) then
-          URI.Param['cp'] := IntToStr(SQLEditor.FileCodePage);
-      end
-      else if (URI.Param['view'] = 'editor2') then
-      begin
-        if (SQLEditor2.Filename <> '') then
-          URI.Param['file'] := UnescapeURL(SQLEditor2.Filename);
-        if (SQLEditor2.FileCodePage <> 0) then
-          URI.Param['cp'] := IntToStr(SQLEditor2.FileCodePage);
-      end
-      else if (URI.Param['view'] = 'editor3') then
-      begin
-        if (SQLEditor3.Filename <> '') then
-          URI.Param['file'] := UnescapeURL(SQLEditor3.Filename);
-        if (SQLEditor3.FileCodePage <> 0) then
-          URI.Param['cp'] := IntToStr(SQLEditor3.FileCodePage);
+        if (SQLEditors[ParamToView(URI.Param['view'])].Filename = '') then
+        begin
+          URI.Param['file'] := Null;
+          URI.Param['cp'] := Null;
+        end
+        else
+        begin
+          URI.Param['file'] := EscapeURL(SQLEditors[ParamToView(URI.Param['view'])].Filename);
+          if (SQLEditors[ParamToView(URI.Param['view'])].FileCodePage = 0) then
+            URI.Param['cp'] := Null
+          else
+            URI.Param['cp'] := IntToStr(SQLEditors[ParamToView(URI.Param['view'])].FileCodePage);
+        end;
       end;
     end;
   end;
@@ -12393,6 +12360,26 @@ begin
         ReduceControl.Height := ReduceControl.Height - ToReduceHeight;
     end;
   end;
+end;
+
+function TFSession.ParamToView(const AParam: Variant): TView;
+begin
+  if (AParam = 'browser') then
+    Result := vBrowser
+  else if (AParam = 'ide') then
+    Result := vIDE
+  else if (AParam = 'builder') then
+    Result := vBuilder
+  else if (AParam = 'diagram') then
+    Result := vDiagram
+  else if (AParam = 'editor') then
+    Result := vEditor
+  else if (AParam = 'editor2') then
+    Result := vEditor2
+  else if (AParam = 'editor3') then
+    Result := vEditor3
+  else
+    Result := vObjects;
 end;
 
 procedure TFSession.PasteExecute(const Node: TTreeNode; const Objects: string);
@@ -13452,19 +13439,22 @@ begin
       vEditor2,
       vEditor3:
         begin
-          case (AView) of
-            vEditor: URI.Param['view'] := 'editor';
-            vEditor2: URI.Param['view'] := 'editor2';
-            vEditor3: URI.Param['view'] := 'editor3';
-          end;
+          URI.Param['view'] := ViewToParam(AView);
           if (Assigned(SQLEditors[AView])) then
           begin
-            if (SQLEditors[AView].Filename <> '') then
-              URI.Param['file'] := EscapeURL(SQLEditors[AView].Filename);
-            if (SQLEditors[AView].FileCodePage = 0) then
-              URI.Param['cp'] := Null
+            if (SQLEditors[AView].Filename = '') then
+            begin
+              URI.Param['file'] := Null;
+              URI.Param['cp'] := Null;
+            end
             else
-              URI.Param['cp'] := IntToStr(SQLEditors[AView].FileCodePage);
+            begin
+              URI.Param['file'] := EscapeURL(SQLEditors[AView].Filename);
+              if (SQLEditors[AView].FileCodePage = 0) then
+                URI.Param['cp'] := Null
+              else
+                URI.Param['cp'] := IntToStr(SQLEditors[AView].FileCodePage);
+            end;
           end;
         end;
     end;
@@ -14299,6 +14289,20 @@ begin
         if (FileExists(Session.Account.DataPath + ActiveWorkbench.Database.Name + PathDelim + 'Diagram.xml')) then
           ActiveWorkbench.LoadFromFile(Session.Account.DataPath + ActiveWorkbench.Database.Name + PathDelim + 'Diagram.xml');
       end;
+  end;
+end;
+
+function TFSession.ViewToParam(const AView: TView): Variant;
+begin
+  case (AView) of
+    vBrowser: Result := 'browser';
+    vIDE: Result := 'ide';
+    vBuilder: Result := 'builder';
+    vDiagram: Result := 'diagram';
+    vEditor: Result := 'editor';
+    vEditor2: Result := 'editor2';
+    vEditor3: Result := 'editor3';
+    else Result := Null;
   end;
 end;
 
