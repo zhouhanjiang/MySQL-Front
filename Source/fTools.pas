@@ -428,6 +428,7 @@ type
     SQLInsertLen: Integer;
     SQLInsertPostfix: string;
     SQLInsertPrefix: string;
+    UseDatabaseStmts: Boolean;
   protected
     procedure BeforeExecute(); override;
     procedure ExecuteDatabaseHeader(const Database: TSDatabase); override;
@@ -440,10 +441,8 @@ type
     procedure ExecuteTrigger(const Trigger: TSTrigger); override;
     function FileCreate(const Filename: TFileName; out Error: TTool.TError): Boolean; override;
   public
-    CreateDatabaseStmts: Boolean;
     DropStmts: Boolean;
     ReplaceData: Boolean;
-    UseDatabaseStmts: Boolean;
     constructor Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
   end;
 
@@ -4456,6 +4455,7 @@ end;
 procedure TTExportSQL.BeforeExecute();
 var
   CycleProtection: Integer;
+  Database: TSDatabase;
   DBObject: TSDBObject;
   I: Integer;
   J: Integer;
@@ -4464,20 +4464,28 @@ var
 begin
   inherited;
 
-  I := 0; CycleProtection := Items.Count - 1;
+  I := 0; CycleProtection := Items.Count - 1; Database := nil;
   while (I < Items.Count) do
   begin
     NewIndex := I;
 
-    if ((Items[I] is TDBObjectItem) and Assigned(TDBObjectItem(Items[I]).DBObject.Dependencies)) then
-      for J := 0 to TDBObjectItem(Items[I]).DBObject.Dependencies.Count - 1 do
-      begin
-        DBObject := TDBObjectItem(Items[I]).DBObject.Dependencies[J].DBObject;
-        for K := I to Items.Count - 1 do
-          if ((K <> I) and (Items[K] is TDBObjectItem)
-            and (TDBObjectItem(Items[K]).DBObject = DBObject)) then
-              NewIndex := Max(NewIndex, K);
-      end;
+    if (Items[I] is TDBObjectItem) then
+    begin
+      if (not Assigned(Database)) then
+        Database := TDBObjectItem(Items[I]).DBObject.Database
+      else if (TDBObjectItem(Items[I]).DBObject.Database <> Database) then
+        UseDatabaseStmts := True;
+
+      if (Assigned(TDBObjectItem(Items[I]).DBObject.Dependencies)) then
+        for J := 0 to TDBObjectItem(Items[I]).DBObject.Dependencies.Count - 1 do
+        begin
+          DBObject := TDBObjectItem(Items[I]).DBObject.Dependencies[J].DBObject;
+          for K := I to Items.Count - 1 do
+            if ((K <> I) and (Items[K] is TDBObjectItem)
+              and (TDBObjectItem(Items[K]).DBObject = DBObject)) then
+                NewIndex := Max(NewIndex, K);
+        end;
+    end;
 
     if ((NewIndex > I) and (CycleProtection > 0)) then
     begin
@@ -4496,29 +4504,21 @@ constructor TTExportSQL.Create(const ASession: TSSession; const AFilename: TFile
 begin
   inherited;
 
-  CreateDatabaseStmts := False;
   DropStmts := False;
-  UseDatabaseStmts := True;
+  UseDatabaseStmts := False;
 end;
 
 procedure TTExportSQL.ExecuteDatabaseHeader(const Database: TSDatabase);
-var
-  Content: string;
+var Content: string;
 begin
-  if (Assigned(Database)) then
+  if (UseDatabaseStmts) then
   begin
-    Content := '';
-
-    if (UseDatabaseStmts or CreateDatabaseStmts) then
-    begin
-      Content := Content + #13#10;
-
-      if (CreateDatabaseStmts) then
-        Content := Content + Database.GetSourceEx(DropStmts);
-
-      Content := Content + Database.SQLUse();
-    end;
-
+    Content := #13#10;
+    Content := Content + '#' + #13#10;
+    Content := Content + '# Database "' + Database.Name + '"' + #13#10;
+    Content := Content + '#' + #13#10;
+    Content := Content + #13#10;
+    Content := Content + Database.SQLUse();
     WriteContent(Content);
   end;
 end;

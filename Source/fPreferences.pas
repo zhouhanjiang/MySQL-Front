@@ -209,12 +209,10 @@ type
       Structure: Boolean;
     end;
     SQL: record
-      CreateDatabase: Boolean;
       Data: Boolean;
       DropStmts: Boolean;
       ReplaceData: Boolean;
       Structure: Boolean;
-      UseDatabase: Boolean;
     end;
     XML: record
       Database: record
@@ -416,7 +414,8 @@ type
 
   TPPreferences = class(TRegistry)
   type
-    TToolbarTabs = set of (ttObjects, ttBrowser, ttIDE, ttBuilder, ttDiagram, ttEditor, ttEditor2, ttEditor3);
+    TToolbarTab = (ttObjects, ttBrowser, ttIDE, ttBuilder, ttDiagram, ttEditor, ttEditor2, ttEditor3);
+    TToolbarTabs = set of TToolbarTab;
   private
     FInternetAgent: string;
     FLanguage: TPLanguage;
@@ -690,7 +689,7 @@ type
     BookmarksVisible: Boolean;
     ColumnWidths: array [lkServer .. lkVariables] of array [0..7] of Integer;
     DataHeight, BlobHeight: Integer;
-    EditorContent: string; {$MESSAGE 'hier'}
+    EditorContent: array [ttEditor .. ttEditor3] of string;
     ExplorerVisible: Boolean;
     FilesFilter: string;
     FoldersHeight: Integer;
@@ -1645,12 +1644,10 @@ begin
   HTML.MemoContent := False;
   HTML.RowBGColor := False;
   HTML.Structure := False;
-  SQL.CreateDatabase := False;
   SQL.Data := True;
   SQL.DropStmts := True;
   SQL.Structure := True;
   SQL.ReplaceData := False;
-  SQL.UseDatabase := False;
   XML.Database.NodeType := ntDisabled;
   XML.Database.NodeText := 'database';
   XML.Database.NodeAttribute := 'name';
@@ -1683,8 +1680,6 @@ begin
   if (Assigned(XMLNode(XML, 'sql/data'))) then TryStrToBool(XMLNode(XML, 'sql/data').Attributes['replace'], SQL.ReplaceData);
   if (Assigned(XMLNode(XML, 'sql/structure'))) then TryStrToBool(XMLNode(XML, 'sql/structure').Attributes['enabled'], SQL.Structure);
   if (Assigned(XMLNode(XML, 'sql/structure'))) then TryStrToBool(XMLNode(XML, 'sql/structure').Attributes['drop'], SQL.DropStmts);
-  if (Assigned(XMLNode(XML, 'sql/structure/database'))) then TryStrToBool(XMLNode(XML, 'sql/structure/database').Attributes['create'], SQL.CreateDatabase);
-  if (Assigned(XMLNode(XML, 'sql/structure/database'))) then TryStrToBool(XMLNode(XML, 'sql/structure/database').Attributes['change'], SQL.UseDatabase);
   if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/database').Attributes['type'], Self.XML.Database.NodeType);
   if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Text <> '')) then Self.XML.Database.NodeText := XMLNode(XML, 'xml/database').Text;
   if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Attributes['attribute'] <> Null)) then Self.XML.Database.NodeAttribute := XMLNode(XML, 'xml/database').Attributes['attribute'];
@@ -1717,8 +1712,6 @@ begin
   XMLNode(XML, 'sql/data').Attributes['replace'] := SQL.ReplaceData;
   XMLNode(XML, 'sql/structure').Attributes['enabled'] := SQL.Structure;
   XMLNode(XML, 'sql/structure').Attributes['drop'] := SQL.DropStmts;
-  XMLNode(XML, 'sql/structure/database').Attributes['create'] := SQL.CreateDatabase;
-  XMLNode(XML, 'sql/structure/database').Attributes['change'] := SQL.UseDatabase;
   XMLNode(XML, 'xml/database').Text := Self.XML.Database.NodeText;
   XMLNode(XML, 'xml/database').Attributes['type'] := NodeTypeToStr(Self.XML.Database.NodeType);
   XMLNode(XML, 'xml/database').Attributes['attribute'] := Self.XML.Database.NodeAttribute;
@@ -3792,7 +3785,9 @@ begin
     for I := 0 to Length(ColumnWidths[Kind]) - 1 do
       ColumnWidths[Kind][I] := ColumnTextWidth;
   DataHeight := 150;
-  EditorContent := '';
+  EditorContent[ttEditor] := '';
+  EditorContent[ttEditor2] := '';
+  EditorContent[ttEditor3] := '';
   ExplorerVisible := False;
   FilesFilter := '*.sql';
   FoldersHeight := 100;
@@ -3836,7 +3831,9 @@ begin
   begin
     if (Assigned(XMLNode(XML, 'datagrid/height'))) then TryStrToInt(XMLNode(XML, 'datagrid/height').Text, DataHeight);
     if (Assigned(XMLNode(XML, 'datagrid/blob/height'))) then TryStrToInt(XMLNode(XML, 'datagrid/blob/height').Text, BlobHeight);
-    if (Assigned(XMLNode(XML, 'editor/content'))) then EditorContent := XMLNode(XML, 'editor/content').Text;
+    if (Assigned(XMLNode(XML, 'editor/content'))) then EditorContent[ttEditor] := XMLNode(XML, 'editor/content').Text;
+    if (Assigned(XMLNode(XML, 'editor2/content'))) then EditorContent[ttEditor2] := XMLNode(XML, 'editor2/content').Text;
+    if (Assigned(XMLNode(XML, 'editor3/content'))) then EditorContent[ttEditor3] := XMLNode(XML, 'editor3/content').Text;
     if (Assigned(XMLNode(XML, 'log/height'))) then TryStrToInt(XMLNode(XML, 'log/height').Text, LogHeight);
     if (Assigned(XMLNode(XML, 'log/visible'))) then TryStrToBool(XMLNode(XML, 'log/visible').Text, LogVisible);
     if (Assigned(XMLNode(XML, 'objects/server/widths/name'))) then TryStrToInt(XMLNode(XML, 'objects/server/widths/name').Text, ColumnWidths[lkServer][0]);
@@ -3896,7 +3893,9 @@ begin
 
   XMLNode(XML, 'datagrid/height').Text := IntToStr(DataHeight);
   XMLNode(XML, 'datagrid/blob/height').Text := IntToStr(BlobHeight);
-  try XMLNode(XML, 'editor/content').Text := EditorContent; except end;
+  try XMLNode(XML, 'editor/content').Text := EditorContent[ttEditor]; except end;
+  try XMLNode(XML, 'editor2/content').Text := EditorContent[ttEditor2]; except end;
+  try XMLNode(XML, 'editor3/content').Text := EditorContent[ttEditor3]; except end;
   XMLNode(XML, 'log/height').Text := IntToStr(LogHeight);
   XMLNode(XML, 'log/visible').Text := BoolToStr(LogVisible, True);
   XMLNode(XML, 'objects/server/widths/name').Text := IntToStr(ColumnWidths[lkServer][0]);

@@ -40,7 +40,7 @@ object DExport: TDExport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSExecute
+    ActivePage = TSSQLOptions
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     Style = tsFlatButtons
@@ -50,10 +50,6 @@ object DExport: TDExport
       Caption = 'TSSelect'
       TabVisible = False
       OnShow = TSSelectShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GSelect: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -100,10 +96,6 @@ object DExport: TDExport
       Caption = 'TSJob'
       TabVisible = False
       OnShow = TSJobShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -280,10 +272,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSSQLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -327,61 +315,34 @@ object DExport: TDExport
         Left = 4
         Top = 70
         Width = 325
-        Height = 113
+        Height = 63
         Anchors = [akLeft, akTop, akRight]
         Caption = 'GSQLOptions'
         TabOrder = 1
         object FLDrop: TLabel
           Left = 8
-          Top = 67
+          Top = 17
           Width = 35
           Height = 13
           Caption = 'FLDrop'
         end
-        object FLDatabaseHandling: TLabel
-          Left = 8
-          Top = 17
-          Width = 100
-          Height = 13
-          Caption = 'FLDatabaseHandling'
-        end
         object FDropStmts: TCheckBox
-          Left = 128
-          Top = 66
-          Width = 193
-          Height = 17
-          Caption = 'FDropStmts'
-          TabOrder = 2
-          OnClick = FSQLOptionClick
-          OnKeyPress = FSQLOptionKeyPress
-        end
-        object FUseDatabase: TCheckBox
-          Left = 128
-          Top = 36
-          Width = 193
-          Height = 17
-          Caption = 'FUseDatabase'
-          TabOrder = 1
-          OnClick = FSQLOptionClick
-          OnKeyPress = FSQLOptionKeyPress
-        end
-        object FCreateDatabase: TCheckBox
           Left = 128
           Top = 16
           Width = 193
           Height = 17
-          Caption = 'FCreateDatabase'
+          Caption = 'FDropStmts'
           TabOrder = 0
           OnClick = FSQLOptionClick
           OnKeyPress = FSQLOptionKeyPress
         end
         object FReplaceData: TCheckBox
           Left = 128
-          Top = 86
+          Top = 36
           Width = 193
           Height = 17
           Caption = 'FReplaceData'
-          TabOrder = 3
+          TabOrder = 1
           OnClick = FSQLOptionClick
           OnKeyPress = FSQLOptionKeyPress
         end
@@ -533,10 +494,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSXMLOptionsHide
       OnShow = TSXMLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -852,10 +809,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSHTMLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -956,10 +909,6 @@ object DExport: TDExport
       Caption = 'TSFields'
       TabVisible = False
       OnShow = TSFieldsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -1046,10 +995,6 @@ object DExport: TDExport
       ImageIndex = 9
       TabVisible = False
       OnShow = TSTaskShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)

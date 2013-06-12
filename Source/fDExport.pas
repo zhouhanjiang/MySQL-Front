@@ -19,7 +19,6 @@ type
     FBFilename: TButton;
     FBForward: TButton;
     FBHelp: TButton;
-    FCreateDatabase: TCheckBox;
     FCSVHeadline: TCheckBox;
     FDaily: TRadioButton;
     FDatabaseNodeAttribute: TEdit;
@@ -64,7 +63,6 @@ type
     FL3RecordTag: TLabel;
     FL3RootNodeText: TLabel;
     FLCSVHeadline: TLabel;
-    FLDatabaseHandling: TLabel;
     FLDatabaseNode: TLabel;
     FLDataSource: TLabel;
     FLDestFields: TLabel;
@@ -123,7 +121,6 @@ type
     FTableNodeName: TRadioButton;
     FTableNodeText: TEdit;
     FTextFile: TRadioButton;
-    FUseDatabase: TCheckBox;
     FWeekly: TRadioButton;
     FXMLFile: TRadioButton;
     GBasics: TGroupBox_Ext;
@@ -388,9 +385,6 @@ begin
   FLDrop.Caption := Preferences.LoadStr(242) + ':';
   FDropStmts.Caption := Preferences.LoadStr(243);
   FReplaceData.Caption := LowerCase(ReplaceStr(Preferences.LoadStr(416), '&', ''));
-  FLDatabaseHandling.Caption := ReplaceStr(Preferences.LoadStr(38), '&', '') + ':';
-  FCreateDatabase.Caption := Preferences.LoadStr(245);
-  FUseDatabase.Caption := Preferences.LoadStr(246);
 
   GCSVOptions.Caption := Preferences.LoadStr(238);
   FLCSVHeadline.Caption := Preferences.LoadStr(393) + ':';
@@ -886,7 +880,6 @@ begin
 
   FSQLStructure.Checked := Preferences.Export.SQL.Structure;
   FSQLData.Checked := Preferences.Export.SQL.Data;
-  FUseDatabase.Checked := Preferences.Export.SQL.UseDatabase;
   FDropStmts.Checked := Preferences.Export.SQL.DropStmts;
   FReplaceData.Checked := Preferences.Export.SQL.ReplaceData;
 
@@ -968,9 +961,6 @@ begin
           Export.SQL.Data := FSQLData.Checked;
           Export.SQL.DropStmts := FDropStmts.Checked;
           Export.SQL.ReplaceData := FReplaceData.Checked;
-          if (not SingleTable) then
-            Export.SQL.CreateDatabase := FCreateDatabase.Checked;
-          Export.SQL.UseDatabase := FUseDatabase.Checked;
         end;
       etTextFile:
         begin
@@ -1204,8 +1194,6 @@ begin
   else
     FHTMLStructure.Caption := Preferences.LoadStr(215);
 
-  FCreateDatabase.Checked := not SingleTable and Preferences.Export.SQL.CreateDatabase;
-
   TSSelect.Enabled := DialogType in [edtCreateJob, edtEditJob];
   TSJob.Enabled := False;
   TSSQLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etSQLFile]);
@@ -1391,14 +1379,9 @@ begin
   else
     TabSheet := TSExecute;
 
-  FCreateDatabase.Enabled := FSQLStructure.Checked;
-  FCreateDatabase.Checked := FCreateDatabase.Checked and FCreateDatabase.Enabled;
-  FUseDatabase.Enabled := not FCreateDatabase.Checked;
-  FUseDatabase.Checked := FUseDatabase.Checked or FCreateDatabase.Checked;
-
   FDropStmts.Enabled := FSQLStructure.Checked;
   FDropStmts.Checked := FDropStmts.Checked and FDropStmts.Enabled;
-  FReplaceData.Enabled := not FCreateDatabase.Checked and FSQLData.Checked and not FDropStmts.Checked;
+  FReplaceData.Enabled := FSQLData.Checked and not FDropStmts.Checked;
   FReplaceData.Checked := FReplaceData.Checked and FReplaceData.Enabled;
 
   TabSheet.Enabled := FSQLStructure.Checked or FSQLData.Checked;
@@ -1882,12 +1865,10 @@ begin
     etSQLFile:
       begin
         Export := TTExportSQL.Create(Session, Filename, CodePage);
-        TTExportSQL(Export).CreateDatabaseStmts := FCreateDatabase.Checked;
         TTExportSQL(Export).Data := FSQLData.Checked;
         TTExportSQL(Export).DropStmts := FDropStmts.Checked;
         TTExportSQL(Export).ReplaceData := FReplaceData.Checked;
         TTExportSQL(Export).Structure := FSQLStructure.Checked;
-        TTExportSQL(Export).UseDatabaseStmts := FUseDatabase.Checked;
       end;
     etTextFile:
       begin

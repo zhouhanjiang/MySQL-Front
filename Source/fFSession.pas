@@ -713,6 +713,7 @@ type
       View: TView;
     end;
 
+  type
     TSQLEditor = class(TObject)
     type
       TResult = record
@@ -1163,6 +1164,10 @@ const
       (Text: '%s > %s'; ValueType: 3),
       (Text: '%s LIKE %s'; ValueType: 4)
     );
+
+  ToolbarTabByView: array[vObjects .. vEditor3] of TPPreferences.TToolbarTab =
+    (ttObjects, ttBrowser, ttIDE, ttBuilder, ttDiagram, ttEditor, ttEditor2, ttEditor3);
+
 
 function IsRTF(const Value: string): Boolean;
 var
@@ -4754,7 +4759,7 @@ begin
 
   if (CanClose) then
     for View in [vEditor, vEditor2, vEditor3] do
-      if (SQLEditors[View].SynMemo.Modified and (SQLEditors[View].Filename <> '')) then
+      if (Assigned(SQLEditors[View]) and SQLEditors[View].SynMemo.Modified and (SQLEditors[View].Filename <> '')) then
       begin
         Self.View := View;
         Window.ActiveControl := ActiveSynMemo;
@@ -5042,11 +5047,9 @@ begin
   PFiles.Height := PSideBar.ClientHeight - Session.Account.Desktop.FoldersHeight - SExplorer.Height;
 
   FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options + [eoScrollPastEol];  // Speed up the performance
-  FSQLEditorSynMemo.Text := Session.Account.Desktop.EditorContent;
+  FSQLEditorSynMemo.Text := Session.Account.Desktop.EditorContent[ttEditor];
   if (Length(FSQLEditorSynMemo.Lines.Text) < LargeSQLScriptSize) then
-    FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options - [eoScrollPastEol]  // Slow down the performance on large content
-  else
-    FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options + [eoScrollPastEol];  // Speed up the performance
+    FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options - [eoScrollPastEol];  // Slow down the performance on large content
   PResult.Height := Session.Account.Desktop.DataHeight;
   PResultHeight := PResult.Height;
   PBlob.Height := Session.Account.Desktop.BlobHeight;
@@ -5214,10 +5217,10 @@ var
   View: TView;
 begin
   for View in [vEditor, vEditor2, vEditor3] do
-    if ((SQLEditors[View].Filename <> '') and not SQLEditors[View].SynMemo.Modified) then
-      Session.Account.Desktop.EditorContent := ''
+    if (Assigned(SQLEditors[View]) and (SQLEditors[View].Filename <> '') and not SQLEditors[View].SynMemo.Modified) then
+      Session.Account.Desktop.EditorContent[ToolbarTabByView[View]] := ''
     else
-      Session.Account.Desktop.EditorContent := SQLEditors[View].SynMemo.Text;
+      Session.Account.Desktop.EditorContent[ToolbarTabByView[View]] := SQLEditors[View].SynMemo.Text;
 
   try
     if (Assigned(ActiveWorkbench)) then
@@ -6742,10 +6745,11 @@ begin
   end;
 
   for View in [vEditor, vEditor2, vEditor3] do
-    if ((SQLEditors[View].Filename <> '') and not SQLEditors[View].SynMemo.Modified) then
-      Session.Account.Desktop.EditorContent := ''
-    else
-      Session.Account.Desktop.EditorContent := SQLEditors[View].SynMemo.Text;
+    if (Assigned(SQLEditors[View])) then
+      if ((SQLEditors[View].Filename <> '') and not SQLEditors[View].SynMemo.Modified) then
+        Session.Account.Desktop.EditorContent[ToolbarTabByView[View]] := ''
+      else
+        Session.Account.Desktop.EditorContent[ToolbarTabByView[View]] := SQLEditors[View].SynMemo.Text;
   Session.Account.Desktop.FoldersHeight := PFolders.Height;
 
   if (Assigned(FFiles)) then
@@ -9345,6 +9349,10 @@ begin
         if (not Assigned(FSQLEditorSynMemo2)) then
         begin
           FSQLEditorSynMemo2 := CreateSynMemo();
+          FSQLEditorSynMemo2.Options := FSQLEditorSynMemo2.Options + [eoScrollPastEol];  // Speed up the performance
+          FSQLEditorSynMemo2.Text := Session.Account.Desktop.EditorContent[ttEditor2];
+          if (Length(FSQLEditorSynMemo2.Lines.Text) < LargeSQLScriptSize) then
+            FSQLEditorSynMemo2.Options := FSQLEditorSynMemo2.Options - [eoScrollPastEol];  // Slow down the performance on large content
           SQLEditor2 := TSQLEditor.Create(Self, FSQLEditorSynMemo2, CreatePDBGrid());
         end;
         Result := FSQLEditorSynMemo2;
@@ -9354,6 +9362,10 @@ begin
         if (not Assigned(FSQLEditorSynMemo3)) then
         begin
           FSQLEditorSynMemo3 := CreateSynMemo();
+          FSQLEditorSynMemo3.Options := FSQLEditorSynMemo3.Options + [eoScrollPastEol];  // Speed up the performance
+          FSQLEditorSynMemo3.Text := Session.Account.Desktop.EditorContent[ttEditor3];
+          if (Length(FSQLEditorSynMemo3.Lines.Text) < LargeSQLScriptSize) then
+            FSQLEditorSynMemo3.Options := FSQLEditorSynMemo3.Options - [eoScrollPastEol];  // Slow down the performance on large content
           SQLEditor3 := TSQLEditor.Create(Self, FSQLEditorSynMemo3, CreatePDBGrid());
         end;
         Result := FSQLEditorSynMemo3;
@@ -13435,6 +13447,7 @@ begin
       vBrowser: URI.Param['view'] := 'browser';
       vIDE: URI.Param['view'] := 'ide';
       vBuilder: URI.Param['view'] := 'builder';
+      vDiagram: URI.Param['view'] := 'diagram';
       vEditor,
       vEditor2,
       vEditor3:
@@ -13444,14 +13457,16 @@ begin
             vEditor2: URI.Param['view'] := 'editor2';
             vEditor3: URI.Param['view'] := 'editor3';
           end;
-          if (SQLEditors[AView].Filename <> '') then
-            URI.Param['file'] := EscapeURL(SQLEditors[AView].Filename);
-          if (SQLEditors[AView].FileCodePage = 0) then
-            URI.Param['cp'] := Null
-          else
-            URI.Param['cp'] := IntToStr(SQLEditors[AView].FileCodePage);
+          if (Assigned(SQLEditors[AView])) then
+          begin
+            if (SQLEditors[AView].Filename <> '') then
+              URI.Param['file'] := EscapeURL(SQLEditors[AView].Filename);
+            if (SQLEditors[AView].FileCodePage = 0) then
+              URI.Param['cp'] := Null
+            else
+              URI.Param['cp'] := IntToStr(SQLEditors[AView].FileCodePage);
+          end;
         end;
-      vDiagram: URI.Param['view'] := 'diagram';
     end;
 
 
@@ -14014,7 +14029,7 @@ begin
 
       Empty := ((ActiveSynMemo.Lines.Count <= 1) and (ActiveSynMemo.Text = '')); // Benötigt bei vielen Zeilen Zeit
 
-      MainAction('aFSave').Enabled := not Empty and ((SQLEditors[View].Filename = '') or ActiveSynMemo.Modified);
+      MainAction('aFSave').Enabled := not Empty and ((View in [vEditor, vEditor2, vEditor3]) and (SQLEditors[View].Filename = '') or ActiveSynMemo.Modified);
       MainAction('aFSaveAs').Enabled := not Empty;
       MainAction('aFPrint').Enabled := (View in [vEditor, vEditor2, vEditor3]) and not Empty;
       MainAction('aERedo').Enabled := ActiveSynMemo.CanRedo;
