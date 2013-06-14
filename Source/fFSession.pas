@@ -620,6 +620,8 @@ type
     procedure mfFilterAccessClick(Sender: TObject);
     procedure mfFilterExcelClick(Sender: TObject);
     procedure mfDeleteClick(Sender: TObject);
+    procedure mfOpenInNewWindowClick(Sender: TObject);
+    procedure mfOpenInNewTabClick(Sender: TObject);
     procedure mfRenameClick(Sender: TObject);
     procedure mfPropertiesClick(Sender: TObject);
     procedure MFilesPopup(Sender: TObject);
@@ -881,7 +883,6 @@ type
     ActiveControlOnDeactivate: TWinControl;
     ActiveIDEInputDataSet: TDataSet;
     ActiveListView: TListView;
-    ActiveSynMemo: TSynMemo;
     ActiveWorkbench: TWWorkbench;
     aDRunExecuteSelStart: Integer;
     CloseButton: TPicture;
@@ -1001,7 +1002,6 @@ type
     procedure FQueryBuilderEditorTabSheetEnter(Sender: TObject);
     procedure FreeDBGrid(const DBGrid: TMySQLDBGrid);
     procedure FreeListView(const ListView: TListView);
-    procedure FreeSynMemo(const SynMemo: TSynMemo);
     procedure FRTFShow(Sender: TObject);
     procedure FSQLHistoryRefresh(Sender: TObject);
     procedure FTextShow(Sender: TObject);
@@ -1077,6 +1077,7 @@ type
     procedure WMNotify(var Message: TWMNotify); message WM_NOTIFY;
     procedure WMParentNotify(var Message: TWMParentNotify); message WM_PARENTNOTIFY;
     procedure WMTimer(var Message: TWMTimer); message WM_TIMER;
+    property ActiveSynMemo: TSynMemo read GetActiveSynMemo;
     property FocusedCItem: TSItem read GetFocusedCItem;
     property FocusedDatabaseNames: string read GetFocusedDatabaseNames;
     property FocusedTableNames: string read GetFocusedTableName;
@@ -1822,7 +1823,7 @@ end;
 destructor TFSession.TViewDesktop.Destroy();
 begin
   if (Assigned(SynMemo)) then
-    FSession.FreeSynMemo(SynMemo);
+    SynMemo.Free;
 
   inherited;
 end;
@@ -1871,7 +1872,7 @@ begin
   if (Assigned(PDBGrid)) then
     PDBGrid.Free();
   if (Assigned(SynMemo)) then
-    FSession.FreeSynMemo(SynMemo);
+    SynMemo.Free();
   if (Assigned(Results)) then
     Results.Free();
 
@@ -1961,7 +1962,7 @@ begin
   inherited;
 
   if (Assigned(SynMemo)) then
-    FSession.FreeSynMemo(SynMemo);
+    SynMemo.Free();
 end;
 
 { TFSession.TTriggerDesktop *******************************************************}
@@ -1986,7 +1987,7 @@ begin
   inherited;
 
   if (Assigned(SynMemo)) then
-    FSession.FreeSynMemo(SynMemo);
+    SynMemo.Free();
 end;
 
 { TFSession.TWanted ************************************************************}
@@ -4298,7 +4299,7 @@ begin
       Window.ActiveControl := FNavigator
     else if (MainAction('aVBookmarks').Checked) then
       Window.ActiveControl := FBookmarks
-    else if (MainAction('aVExplorer').Checked and FFolders.Visible) then
+    else if (MainAction('aVExplorer').Checked) then
       Window.ActiveControl := FFolders
     else if (MainAction('aVJobs').Checked) then
       Window.ActiveControl := FJobs
@@ -4572,6 +4573,7 @@ begin
 
   mfOpen.Caption := Preferences.LoadStr(581);
   mfOpenInNewWindow.Caption := Preferences.LoadStr(760);
+  mfOpenInNewTab.Caption := Preferences.LoadStr(850);
   mfFilter.Caption := Preferences.LoadStr(209);
   mfFilterClear.Caption := FilterDescription('*') + ' (*.*)';
   mfFilterSQL.Caption := FilterDescription('sql') + ' (*.sql)';
@@ -5248,7 +5250,6 @@ begin
   ActiveDBGrid := nil;
   ActiveIDEInputDataSet := nil;
   ActiveListView := FServerListView;
-  ActiveSynMemo := nil;
   ActiveWorkbench := nil;
   ProcessesListView := nil;
   StatiListView := nil;
@@ -5600,6 +5601,7 @@ begin
     FFolders.ParentFont := True;
     FFolders.ShowLines := False;
     FFolders.ShowRecycleBin := False;
+    FFolders.Visible := True;
     FFolders.OnChange := FFoldersChange;
 
     if (CheckWin32Version(6, 1)) then
@@ -6788,8 +6790,8 @@ begin
   if (Assigned(SQLEditor)) then SQLEditor.Free();
   if (Assigned(SQLEditor2)) then SQLEditor2.Free();
   if (Assigned(SQLEditor3)) then SQLEditor3.Free();
-  if (Assigned(FSQLEditorSynMemo2)) then FreeSynMemo(FSQLEditorSynMemo2);
-  if (Assigned(FSQLEditorSynMemo3)) then FreeSynMemo(FSQLEditorSynMemo3);
+  if (Assigned(FSQLEditorSynMemo2)) then FSQLEditorSynMemo2.Free();
+  if (Assigned(FSQLEditorSynMemo3)) then FSQLEditorSynMemo3.Free();
 
   FreeAndNil(JPEGImage);
   FreeAndNil(PNGImage);
@@ -6963,9 +6965,7 @@ begin
     begin
       TJamShellTree(Sender).Visible := True;
       Window.ActiveControl := TJamShellTree(Sender);
-    end
-    else
-      PlaySound(PChar(Preferences.SoundFileNavigating), Handle, SND_FILENAME or SND_ASYNC);
+    end;
 
   Path := FFolders.SelectedFolder;
 end;
@@ -8608,14 +8608,6 @@ begin
   end;
 end;
 
-procedure TFSession.FreeSynMemo(const SynMemo: TSynMemo);
-begin
-  if (ActiveSynMemo = SynMemo) then
-    ActiveSynMemo := nil;
-
-  SynMemo.Free();
-end;
-
 procedure TFSession.FRTFChange(Sender: TObject);
 begin
   FRTF.ReadOnly := True;
@@ -9188,7 +9180,7 @@ begin
       vEditor,
       vEditor2,
       vEditor3:
-        Result := SQLEditors[View].ActiveDBGrid;
+        if (not Assigned(SQLEditors[View])) then Result := nil else Result := SQLEditors[View].ActiveDBGrid;
     end;
 
   if (Assigned(Result)) then
@@ -9840,6 +9832,8 @@ begin
 
   if (Sender is TListView) then
     PopupMenu := TListView(Sender).PopupMenu
+  else if (Sender is TJamShellList) then
+    PopupMenu := TJamShellList(Sender).PopupMenu
   else if (Sender is TWWorkbench) then
     PopupMenu := TWWorkbench(Sender).PopupMenu
   else
@@ -11416,6 +11410,16 @@ begin
     FFiles.InvokeCommandOnSelected('open');
 end;
 
+procedure TFSession.mfOpenInNewTabClick(Sender: TObject);
+begin
+  OpenInNewTabExecute(TSDatabase(FocusedCItem).Name, '', False, FFolders.SelectedFolder + PathDelim + FFiles.Selected.Caption)
+end;
+
+procedure TFSession.mfOpenInNewWindowClick(Sender: TObject);
+begin
+  OpenInNewTabExecute(TSDatabase(FocusedCItem).Name, '', True, FFolders.SelectedFolder + PathDelim + FFiles.Selected.Caption)
+end;
+
 procedure TFSession.mfPropertiesClick(Sender: TObject);
 begin
   FFiles.InvokeCommandOnSelected('properties');
@@ -12124,9 +12128,9 @@ begin
       vIDE: if (TableName = '') then URI.Param['view'] := 'ide';
       vBuilder: if (TableName = '') then URI.Param['view'] := 'builder';
       vDiagram: if (TableName = '') then URI.Param['view'] := 'diagram';
-      vEditor: if (TableName = '') then URI.Param['view'] := 'editor';
-      vEditor2: if (TableName = '') then URI.Param['view'] := 'editor2';
-      vEditor3: if (TableName = '') then URI.Param['view'] := 'editor3';
+      vEditor,
+      vEditor2,
+      vEditor3: if (TableName = '') then URI.Param['view'] := ViewToParam(View);
     end;
   end
   else
@@ -12153,7 +12157,8 @@ var
   Text: string;
   URI: TUURI;
 begin
-  tbEditor.Click();
+  if (not (View in [vEditor, vEditor2, vEditor3])) then
+    View := vEditor;
 
   OpenDialog.Title := ReplaceStr(Preferences.LoadStr(581), '&', '');
   if (AFilename = '') then
@@ -12743,7 +12748,6 @@ begin
 
     ActiveListView := nil; if (View in [vObjects]) then ActiveListView := GetActiveListView();
     if (View in [vIDE]) then ActiveIDEInputDataSet := GetActiveIDEInputDataSet() else ActiveIDEInputDataSet := nil;
-    if (View in [vIDE, vBuilder, vEditor, vEditor2, vEditor3]) then ActiveSynMemo := GetActiveSynMemo() else ActiveSynMemo := nil;
     if (View in [vBrowser, vIDE, vBuilder, vEditor, vEditor2, vEditor3]) then ActiveDBGrid := GetActiveDBGrid() else ActiveDBGrid := nil;
     if (View in [vDiagram]) then ActiveWorkbench := GetActiveWorkbench() else ActiveWorkbench := nil;
 
@@ -12790,7 +12794,7 @@ begin
         vEditor,
         vEditor2,
         vEditor3:
-          PResultVisible := Assigned(SQLEditors[View].ActiveDBGrid);
+          PResultVisible := Assigned(SQLEditors[View]) and Assigned(SQLEditors[View].ActiveDBGrid);
         else PResultVisible := False;
       end;
 

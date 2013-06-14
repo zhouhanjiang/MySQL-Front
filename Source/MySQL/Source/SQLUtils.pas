@@ -1299,7 +1299,7 @@ begin
         POP ES
         CLD                              // string operations uses forward direction
 
-        MOV BYTE PTR [Result],False
+        MOV @Result,False
 
         MOV ESI,PChar(SQL)               // Scan characters from SQL
 
@@ -1353,7 +1353,7 @@ begin
         CALL Trim                        // Empty characters?
 
       FoundE:
-        MOV BYTE PTR [Result],True
+        MOV @Result,True
 
         MOV ECX,ESI                      // Calculate ObjectName position
         SUB ECX,Pointer(SQL)

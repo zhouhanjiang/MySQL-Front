@@ -83,14 +83,13 @@ object FSession: TFSession
         Left = 2
         Top = 106
         Width = 116
-        Height = 533
+        Height = 126
         Align = alClient
         BevelOuter = bvNone
         Color = clWindow
         Constraints.MinHeight = 50
         ParentBackground = False
         TabOrder = 0
-        ExplicitHeight = 126
       end
       object PFolders: TPanel_Ext
         Left = 2
@@ -124,7 +123,7 @@ object FSession: TFSession
         Left = 2
         Top = 2
         Width = 116
-        Height = 637
+        Height = 230
         HelpContext = 1082
         Align = alClient
         BorderStyle = bsNone
@@ -145,7 +144,6 @@ object FSession: TFSession
         OnDblClick = ListViewDblClick
         OnEnter = FJobsEnter
         OnExit = FJobsExit
-        ExplicitHeight = 230
       end
     end
     object PSQLHistory: TPanel_Ext
@@ -208,7 +206,7 @@ object FSession: TFSession
         Left = 2
         Top = 2
         Width = 116
-        Height = 637
+        Height = 230
         HelpContext = 1082
         Align = alClient
         BorderStyle = bsNone
@@ -230,7 +228,6 @@ object FSession: TFSession
         OnExit = FBookmarksExit
         OnDragDrop = FBookmarksDragDrop
         OnDragOver = FBookmarksDragOver
-        ExplicitHeight = 230
       end
     end
     object PNavigator: TPanel_Ext
@@ -2156,10 +2153,13 @@ object FSession: TFSession
       OnClick = mfOpenClick
     end
     object mfOpenInNewWindow: TMenuItem
-      Action = aPOpenInNewWindow
+      Caption = 'mfOpenInNewWindow'
+      OnClick = mfOpenInNewWindowClick
     end
     object mfOpenInNewTab: TMenuItem
-      Action = aPOpenInNewTab
+      Caption = 'mfOpenInNewTab'
+      ShortCut = 16462
+      OnClick = mfOpenInNewTabClick
     end
     object N30: TMenuItem
       Caption = '-'

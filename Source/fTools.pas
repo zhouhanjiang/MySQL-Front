@@ -2489,7 +2489,7 @@ begin
 
     if (Success = daSuccess) then
     begin
-      if (SetNames) then
+      if (SetNames and not Assigned(Text)) then
       begin
         FSetNamesApplied := True;
 
