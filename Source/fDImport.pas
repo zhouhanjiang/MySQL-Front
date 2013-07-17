@@ -1211,7 +1211,7 @@ begin
     TSJobHide(Sender);
   end;
 
-  if (FEngine.ItemIndex < 0) then
+  if ((FEngine.ItemIndex < 0) and Assigned(Session.Engines.DefaultEngine)) then
     FEngine.ItemIndex := FEngine.Items.IndexOf(Session.Engines.DefaultEngine.Name);
   if (FCharset.ItemIndex < 0) then
     if (SObject is TSDatabase) then
