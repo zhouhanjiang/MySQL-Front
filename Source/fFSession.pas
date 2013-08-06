@@ -13108,7 +13108,13 @@ begin
       iiEvent:
         begin
           Event := TSEvent(FNavigator.Selected.Data);
+try
+  // Debug 06.08.2013
           Desktop(Event).SynMemo.Text := Event.Stmt + #13#10;
+except
+  on E: Exception do
+    raise Exception.CreateFmt(E.Message + ' (Event.Stmt: %s)', [Event.Stmt]);
+end;
         end;
       iiTrigger:
         begin
@@ -14264,6 +14270,8 @@ begin
               List := TList.Create();
 
               List.Add(Database);
+              if (not Database.Tables.Valid) then
+                Wanted.FUpdate := UpdateAfterAddressChanged;
               for I := 0 to Database.Tables.Count - 1 do
                 List.Add(Database.Tables[I]);
               if (Assigned(Database.Routines)) then

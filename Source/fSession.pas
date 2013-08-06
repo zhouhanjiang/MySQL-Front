@@ -7815,7 +7815,8 @@ begin
   if ((Session.ServerVersion < 32328) or Assigned(Table.Engine) and Table.Engine.IsInnoDB) then
   begin
     Result := 'DELETE FROM ' + Session.EscapeIdentifier(Name) + '.' + Session.EscapeIdentifier(Table.Name) + ';' + #13#10;
-    Result := Result + 'ALTER TABLE ' + Session.EscapeIdentifier(Name) + '.' + Session.EscapeIdentifier(Table.Name) + ' AUTO_INCREMENT=0;' + #13#10;
+    if (Assigned(Table.Engine) and Table.Engine.IsInnoDB) then
+      Result := Result + 'ALTER TABLE ' + Session.EscapeIdentifier(Name) + '.' + Session.EscapeIdentifier(Table.Name) + ' AUTO_INCREMENT=1;' + #13#10;
   end
   else
     Result := 'TRUNCATE TABLE ' + Session.EscapeIdentifier(Name) + '.' + Session.EscapeIdentifier(Table.Name) + ';' + #13#10;

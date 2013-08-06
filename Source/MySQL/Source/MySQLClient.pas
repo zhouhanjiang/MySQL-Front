@@ -326,7 +326,7 @@ var
 
 {$Q-}
 
-procedure sha1_ProcessMessageBlock(var context: TSHA1Context);
+procedure sha1_ProcessMessageBlock(var Context: TSHA1Context);
 const
   ctKeys: array[0..3] of Longint =
     (Longint($5A827999), Longint($6ED9EBA1), Longint($8F1BBCDC), Longint($CA62C1D6));
@@ -344,21 +344,21 @@ begin
   for I := 0 to 15 do
   begin
     J := I * 4;
-    W[I] := context.FMsgBlock[J] shl 24;
-    W[I] := W[I] or context.FMsgBlock[J + 1] shl 16;
-    W[I] := W[I] or context.FMsgBlock[J + 2] shl 8;
-    W[I] := W[I] or context.FMsgBlock[J + 3];
+    W[I] :=         Context.FMsgBlock[J + 0] shl 24;
+    W[I] := W[I] or Context.FMsgBlock[J + 1] shl 16;
+    W[I] := W[I] or Context.FMsgBlock[J + 2] shl 8;
+    W[I] := W[I] or Context.FMsgBlock[J + 3];
   end;
   for I := 16 to 79 do
   begin
     W[I] := W[I-3] xor W[I-8] xor W[I-14] xor W[I-16];
     W[I] := (W[I] shl 1) or (W[I] shr 31);
   end;
-  A := context.FInterimHash[0];
-  B := context.FInterimHash[1];
-  C := context.FInterimHash[2];
-  D := context.FInterimHash[3];
-  E := context.FInterimHash[4];
+  A := Context.FInterimHash[0];
+  B := Context.FInterimHash[1];
+  C := Context.FInterimHash[2];
+  D := Context.FInterimHash[3];
+  E := Context.FInterimHash[4];
   for I := 0 to 19 do
   begin
     Temp := ((A shl 5) or (A shr 27)) + ((B and C) or ((not B) and D)) + E + W[I] + ctKeys[0];
@@ -395,12 +395,12 @@ begin
     B := A;
     A := Temp;
   end;
-  context.FInterimHash[0] := context.FInterimHash[0] + A;
-  context.FInterimHash[1] := context.FInterimHash[1] + B;
-  context.FInterimHash[2] := context.FInterimHash[2] + C;
-  context.FInterimHash[3] := context.FInterimHash[3] + D;
-  context.FInterimHash[4] := context.FInterimHash[4] + E;
-  context.FMsgBlockIndex := 0;
+  Context.FInterimHash[0] := Context.FInterimHash[0] + A;
+  Context.FInterimHash[1] := Context.FInterimHash[1] + B;
+  Context.FInterimHash[2] := Context.FInterimHash[2] + C;
+  Context.FInterimHash[3] := Context.FInterimHash[3] + D;
+  Context.FInterimHash[4] := Context.FInterimHash[4] + E;
+  Context.FMsgBlockIndex := 0;
 end;
 
 procedure sha1_reset(var context: TSHA1Context);
@@ -490,7 +490,6 @@ end;
 
 function Scramble(const Password: my_char; const Salt: my_char): RawByteString;
 
-  {$Q-}
   procedure hashPassword(const pass: my_char; var res0, res1: my_int);
   var
     nr, add, nr2, tmp: my_ulonglong;
@@ -515,7 +514,6 @@ function Scramble(const Password: my_char; const Salt: my_char): RawByteString;
     res0 := nr and $7fffffff;
     res1 := nr2 and $7fffffff;
   end;
-  {$Q+}
 
   function Floor(X: Extended): my_int;
   begin
@@ -585,6 +583,8 @@ begin
 
   SetString(Result, PAnsiChar(@Scramled), ctSHA1HashSize);
 end;
+
+{$Q+}
 
 { C API functions *************************************************************}
 
