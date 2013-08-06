@@ -1608,6 +1608,9 @@ begin
 
   DBGrid.Columns.BeginUpdate();
   for I := 0 to DBGrid.Columns.Count - 1 do
+    if (not Assigned(DBGrid.Columns[I].Field)) then // Debug 06.08.2013
+      raise ERangeError.Create(SRangeError + ' (Field)')
+    else
     if (GetFieldInfo(DBGrid.Columns[I].Field.Origin, FieldInfo)) then
     begin
       Child := XMLNode(GridXML[FieldInfo.OriginalFieldName], 'width');
@@ -9072,6 +9075,9 @@ procedure TFSession.FTextChange(Sender: TObject);
 begin
   if (Assigned(EditorField) and FText.Modified) then
   begin
+    if (not Assigned(EditorField.DataSet)) then // Debug 06.08.2013
+      raise ERangeError.Create(SRangeError + ' (DataSet)');
+
     if (EditorField.DataSet.State = dsBrowse) then
       EditorField.DataSet.Edit();
     case (NewLineFormat) of
