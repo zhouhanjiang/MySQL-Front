@@ -3203,13 +3203,15 @@ begin
 
         if (not Assigned(Key)) then
         begin
+          S := Session.ApplyIdentifierName(IndexName);
+
           Key := TSKey.Create(NewTable.Keys);
-          Key.Name := Session.ApplyIdentifierName(IndexName);
+          Key.Name := S;
           Key.Unique := NonUnique = SQL_FALSE;
           NewTable.Keys.AddKey(Key);
           Key.Free();
 
-          Key := NewTable.IndexByName(IndexName);
+          Key := NewTable.IndexByName(S);
         end;
 
         NewKeyColumn := TSKeyColumn.Create(Key.Columns);
