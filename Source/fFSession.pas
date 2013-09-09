@@ -9073,11 +9073,8 @@ end;
 
 procedure TFSession.FTextChange(Sender: TObject);
 begin
-  if (Assigned(EditorField) and FText.Modified) then
+  if (Assigned(EditorField) and Assigned(EditorField.DataSet) and FText.Modified) then
   begin
-    if (not Assigned(EditorField.DataSet)) then // Debug 06.08.2013
-      raise ERangeError.Create(SRangeError + ' (DataSet)');
-
     if (EditorField.DataSet.State = dsBrowse) then
       EditorField.DataSet.Edit();
     case (NewLineFormat) of
@@ -13098,35 +13095,16 @@ begin
 end;
 
 procedure TFSession.PSQLEditorUpdate();
-var
-  Event: TSEvent;
-  Routine: TSRoutine;
-  Trigger: TSTrigger;
 begin
   if (Self.View = vIDE) then
     case (SelectedImageIndex) of
       iiProcedure,
       iiFunction:
-        begin
-          Routine := TSRoutine(FNavigator.Selected.Data);
-          Desktop(Routine).SynMemo.Text := Routine.Source + #13#10;
-        end;
+        ActiveSynMemo.Text := TSRoutine(FNavigator.Selected.Data).Source + #13#10;
       iiEvent:
-        begin
-          Event := TSEvent(FNavigator.Selected.Data);
-try
-  // Debug 06.08.2013
-          Desktop(Event).SynMemo.Text := Event.Stmt + #13#10;
-except
-  on E: Exception do
-    raise Exception.CreateFmt(E.Message + ' (Event.Stmt: %s)', [Event.Stmt]);
-end;
-        end;
+        ActiveSynMemo.Text := TSEvent(FNavigator.Selected.Data).Stmt + #13#10;
       iiTrigger:
-        begin
-          Trigger := TSTrigger(FNavigator.Selected.Data);
-          Desktop(Trigger).SynMemo.Text := Trigger.Stmt + #13#10;
-        end;
+        ActiveSynMemo.Text := TSTrigger(FNavigator.Selected.Data).Stmt + #13#10;
     end;
 
   if (Assigned(ActiveSynMemo) and Assigned(ActiveSynMemo.OnStatusChange)) then ActiveSynMemo.OnStatusChange(ActiveSynMemo, [scModified]);
@@ -14271,7 +14249,7 @@ begin
           begin
             Database := TSDatabase(FNavigator.Selected.Data);
 
-            if ((Database.Count < PrefetchObjectCount) or (Database is TSSystemDatabase)) then
+            if ((0 < Database.Count) and (Database.Count < PrefetchObjectCount) or (Database is TSSystemDatabase) or not Database.Tables.ValidStatus) then
             begin
               List := TList.Create();
 

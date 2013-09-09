@@ -720,11 +720,11 @@ type
     function SQLGetItems(const Name: string = ''): string; override;
     function SQLGetStatus(const Tables: TList = nil): string; virtual;
     function SQLGetViewFields(const Tables: TList = nil): string; virtual;
-    property ValidStatus: Boolean read GetValidStatus;
   public
     procedure AddTable(const NewTable: TSTable); virtual;
     function NameCmp(const Name1, Name2: string): Integer; override;
     property Table[Index: Integer]: TSTable read GetTable; default;
+    property ValidStatus: Boolean read GetValidStatus;
   end;
 
   TSRoutineParameter = class(TSField)
@@ -12058,12 +12058,12 @@ begin
       begin
         Found := True;
         for J := 0 to Table.Keys[I].Columns.Count - 1 do
-          if (Found) then
+          if (Found and Assigned(DataSet.Fields[J])) then
           begin
             Found := False;
             for K := 0 to DataSet.FieldCount - 1 do
-              if (GetFieldInfo(DataSet.Fields[K].Origin, FieldInfo) and (FieldInfo.OriginalFieldName = Table.Keys[I].Columns[J].Field.Name)) then
-                Found := True;
+              if (GetFieldInfo(DataSet.Fields[K].Origin, FieldInfo)) then
+                Found := Found or (FieldInfo.OriginalFieldName = Table.Keys[I].Columns[J].Field.Name);
           end;
         if (Found) then
         begin
