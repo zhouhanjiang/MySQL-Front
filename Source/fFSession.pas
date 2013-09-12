@@ -1608,10 +1608,7 @@ begin
 
   DBGrid.Columns.BeginUpdate();
   for I := 0 to DBGrid.Columns.Count - 1 do
-    if (not Assigned(DBGrid.Columns[I].Field)) then // Debug 06.08.2013
-      raise ERangeError.Create(SRangeError + ' (Field)')
-    else
-    if (GetFieldInfo(DBGrid.Columns[I].Field.Origin, FieldInfo)) then
+    if (Assigned(DBGrid.Columns[I].Field) and GetFieldInfo(DBGrid.Columns[I].Field.Origin, FieldInfo)) then
     begin
       Child := XMLNode(GridXML[FieldInfo.OriginalFieldName], 'width');
       if (Assigned(Child) and TryStrToInt(Child.Text, Width) and (Width > 10)) then
@@ -10211,9 +10208,12 @@ begin
   aDCreate.ShortCut := VK_INSERT;
   aDDelete.ShortCut := VK_DELETE;
 
-  ListViewSelectItem(ActiveListView, ActiveListView.Selected, Assigned(ActiveListView.Selected));
-  if (not Assigned(ActiveListView.Selected) and (ActiveListView.Items.Count > 0)) then
-    ActiveListView.Items[0].Focused := True;
+  if (Assigned(ActiveListView)) then
+  begin
+    ListViewSelectItem(ActiveListView, ActiveListView.Selected, Assigned(ActiveListView.Selected));
+    if (not Assigned(ActiveListView.Selected) and (ActiveListView.Items.Count > 0)) then
+      ActiveListView.Items[0].Focused := True;
+  end;
 
   StatusBarRefresh();
 end;

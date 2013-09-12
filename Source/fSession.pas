@@ -1402,7 +1402,6 @@ type
     function GetDefaultCharset(): string;
     function GetLogActive(): Boolean;
     function GetSlowLogActive(): Boolean;
-    function GetUseInformationSchema(): Boolean;
     function GetUserRights(): TSUserRight;
     function GetValid(): Boolean;
     procedure SetCreateDesktop(ACreateDesktop: TCreateDesktop);
@@ -1428,7 +1427,6 @@ type
     procedure SetCharset(const ACharset: string); override;
     property Sessions: TSSessions read FSessions;
     property InvalidObjects: TList read FInvalidObjects;
-    property UseInformationSchema: Boolean read GetUseInformationSchema;
   public
     function AddDatabase(const NewDatabase: TSDatabase): Boolean;
     function AddUser(const ANewUser: TSUser): Boolean;
@@ -5019,6 +5017,7 @@ end;
 
 function TSTables.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
 var
+B: Boolean;
   BaseTable: TSBaseTable;
   DeleteList: TList;
   I: Integer;
@@ -5026,6 +5025,7 @@ var
   Name: string;
   NewTable: TSTable;
   OldCount: Integer;
+S: string;
 begin
   OldCount := Count;
 
@@ -5133,7 +5133,12 @@ begin
 
         if (Table[Index].Valid) then
           Table[Index].PushBuildEvent(Filtered);
-      until (not DataSet.FindNext());
+S := '# Debug 2 ' + SysUtils.DateTimeToStr(Now() + Database.Session.TimeDiff, FormatSettings);
+Database.Session.WriteMonitor(PChar(S), Length(S), ttTime);
+B := DataSet.FindNext();
+S := '# Debug 3 ' + SysUtils.DateTimeToStr(Now() + Database.Session.TimeDiff, FormatSettings);
+Database.Session.WriteMonitor(PChar(S), Length(S), ttTime);
+      until (not B);
 
     if (not Filtered) then
     begin
@@ -5258,72 +5263,65 @@ begin
 end;
 
 function TSTables.SQLGetItems(const Name: string = ''): string;
-var
-  SQL: string;
 begin
   if (Database.Session.ServerVersion < 50002) then
   begin
-    SQL := Database.SQLUse();
-    SQL := SQL + 'SHOW TABLES FROM ' + Database.Session.EscapeIdentifier(Database.Name) + ';' + #13#10;
+    Result := Database.SQLUse()
+      + 'SHOW TABLES FROM ' + Database.Session.EscapeIdentifier(Database.Name) + ';' + #13#10;
     if (not (Database is TSSystemDatabase)) then
-      SQL := SQL + 'SHOW OPEN TABLES;' + #13#10;
+      Result := Result + 'SHOW OPEN TABLES;' + #13#10;
   end
   else if (Database.Session.ServerVersion < 50012) then
   begin
-    SQL := Database.SQLUse();
-    SQL := SQL + 'SHOW FULL TABLES FROM ' + Database.Session.EscapeIdentifier(Database.Name) + ';' + #13#10;
+    Result := Database.SQLUse()
+      + 'SHOW FULL TABLES FROM ' + Database.Session.EscapeIdentifier(Database.Name) + ';' + #13#10;
     if (not (Database is TSSystemDatabase)) then
-      SQL := SQL + 'SHOW OPEN TABLES;' + #13#10;
+      Result := Result + 'SHOW OPEN TABLES;' + #13#10;
   end
   else
   begin
-    SQL := 'SHOW FULL TABLES FROM ' + Database.Session.EscapeIdentifier(Database.Name) + ';' + #13#10;
+    Result := 'SHOW FULL TABLES FROM ' + Database.Session.EscapeIdentifier(Database.Name) + ';' + #13#10;
     if (not (Database is TSSystemDatabase)) then
-      SQL := SQL + 'SHOW OPEN TABLES FROM ' + Database.Session.EscapeIdentifier(Database.Name) + ';' + #13#10;
+      Result := Result + 'SHOW OPEN TABLES FROM ' + Database.Session.EscapeIdentifier(Database.Name) + ';' + #13#10;
   end;
-
-  Result := SQL;
 end;
 
 function TSTables.SQLGetStatus(const Tables: TList = nil): string;
 var
   I: Integer;
-  SQL: string;
 begin
+  Result := '';
+
   if (Tables.Count < Count) then
   begin
-    if (not Session.UseInformationSchema or (Session.ServerVersion < 50003)) then // 5.0.2 supports information_schema, but WHERE clauses is supported up from 5.0.3
+    if (Session.ServerVersion < 50003) then // 5.0.2 supports information_schema, but WHERE clause is supported up from 5.0.3
     begin
-      SQL := '';
       for I  := 0 to Tables.Count - 1 do
         if (TSDBObject(Tables[I]) is TSBaseTable) then
-          SQL := SQL + 'SHOW TABLE STATUS FROM ' + Database.Session.EscapeIdentifier(Database.Name) + ' LIKE ' + SQLEscape(TSTable(Tables[I]).Name) + ';' + #13#10;
+          Result := Result + 'SHOW TABLE STATUS FROM ' + Database.Session.EscapeIdentifier(Database.Name) + ' LIKE ' + SQLEscape(TSTable(Tables[I]).Name) + ';' + #13#10;
     end
     else
     begin
-      SQL := '';
       for I := 0 to Tables.Count - 1 do
         if (TSDBObject(Tables[I]) is TSBaseTable) then
         begin
-          if (SQL <> '') then SQL := SQL + ',';
-          SQL := SQL + SQLEscape(TSBaseTable(Tables[I]).Name);
+          if (Result <> '') then Result := Result + ',';
+          Result := Result + SQLEscape(TSBaseTable(Tables[I]).Name);
         end;
-      if (SQL <> '') then
-        SQL := 'SELECT * FROM ' + Database.Session.EscapeIdentifier(information_schema) + '.' + Database.Session.EscapeIdentifier('TABLES')
+      if (Result <> '') then
+        Result := 'SELECT * FROM ' + Database.Session.EscapeIdentifier(information_schema) + '.' + Database.Session.EscapeIdentifier('TABLES')
           + ' WHERE ' + Database.Session.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name)
-          + ' AND ' + Database.Session.EscapeIdentifier('TABLE_NAME') + ' IN (' + SQL + ');' + #13#10;
+          + ' AND ' + Database.Session.EscapeIdentifier('TABLE_NAME') + ' IN (' + Result + ');' + #13#10;
     end;
   end
   else if (not ValidStatus) then
   begin
-    if (not Session.UseInformationSchema or (Session.ServerVersion < 50002)) then
-      SQL := 'SHOW TABLE STATUS FROM ' + Database.Session.EscapeIdentifier(Database.Name) + ';' + #13#10
-    else
-      SQL := 'SELECT * FROM ' + Database.Session.EscapeIdentifier(information_schema) + '.' + Database.Session.EscapeIdentifier('TABLES')
-        + ' WHERE ' + Database.Session.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ';' + #13#10;
+//    if (Session.ServerVersion < 50002) then
+      Result := 'SHOW TABLE STATUS FROM ' + Database.Session.EscapeIdentifier(Database.Name) + ';' + #13#10
+;//    else
+//      Result := 'SELECT * FROM ' + Database.Session.EscapeIdentifier(information_schema) + '.' + Database.Session.EscapeIdentifier('TABLES')
+//        + ' WHERE ' + Database.Session.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ';' + #13#10;
   end;
-
-  Result := SQL;
 end;
 
 function TSTables.SQLGetViewFields(const Tables: TList = nil): string;
@@ -5977,17 +5975,8 @@ end;
 
 function TSRoutines.SQLGetItems(const Name: string = ''): string;
 begin
-  if (not Session.UseInformationSchema) then
-  begin
-    Result := 'SHOW PROCEDURE STATUS WHERE Db=' + SQLEscape(Database.Name) + ';' + #13#10;
-    Result := Result + 'SHOW FUNCTION STATUS WHERE Db=' + SQLEscape(Database.Name) + ';' + #13#10;
-  end
-  else
-  begin
-    Result := 'SELECT * FROM ' + Database.Session.EscapeIdentifier(information_schema) + '.' + Database.Session.EscapeIdentifier('ROUTINES');
-    Result := Result + ' WHERE ' + Database.Session.EscapeIdentifier('ROUTINE_SCHEMA') + '=' + SQLEscape(Database.Name);
-    Result := Result + ';' + #13#10;
-  end;
+  Result := 'SELECT * FROM ' + Database.Session.EscapeIdentifier(information_schema) + '.' + Database.Session.EscapeIdentifier('ROUTINES')
+    + ' WHERE ' + Database.Session.EscapeIdentifier('ROUTINE_SCHEMA') + '=' + SQLEscape(Database.Name) + ';' + #13#10;
 end;
 
 { TSTrigger *******************************************************************}
@@ -6370,21 +6359,11 @@ end;
 
 function TSTriggers.SQLGetItems(const Name: string = ''): string;
 begin
-  if (not Session.UseInformationSchema) then
-  begin
-    Result := 'SHOW TRIGGERS FROM ' + Database.Session.EscapeIdentifier(Database.Name);
-    if (Name <> '') then
-      Result := Result + ' AND ' + Session.EscapeIdentifier('Name') + '=' + SQLEscape(Name);
-    Result := Result + ';' + #13#10;
-  end
-  else
-  begin
-    Result := 'SELECT * FROM ' + Database.Session.EscapeIdentifier(information_schema) + '.' + Database.Session.EscapeIdentifier('TRIGGERS');
-    Result := Result + ' WHERE ' + Database.Session.EscapeIdentifier('EVENT_OBJECT_SCHEMA') + '=' + SQLEscape(Database.Name);
-    if (Name <> '') then
-      Result := Result + ' AND ' + Session.EscapeIdentifier('TRIGGER_NAME') + '=' + SQLEscape(Name);
-    Result := Result + ';' + #13#10;
-  end;
+  Result := 'SELECT * FROM ' + Database.Session.EscapeIdentifier(information_schema) + '.' + Database.Session.EscapeIdentifier('TRIGGERS')
+    + ' WHERE ' + Database.Session.EscapeIdentifier('EVENT_OBJECT_SCHEMA') + '=' + SQLEscape(Database.Name);
+  if (Name <> '') then
+    Result := Result + ' AND ' + Session.EscapeIdentifier('TRIGGER_NAME') + '=' + SQLEscape(Name);
+  Result := Result + ';' + #13#10;
 end;
 
 { TSEvent *********************************************************************}
@@ -6663,16 +6642,8 @@ end;
 
 function TSEvents.SQLGetItems(const Name: string = ''): string;
 begin
-  if (not Session.UseInformationSchema) then
-  begin
-    Result := 'SHOW EVENTS FROM ' + Database.Session.EscapeIdentifier(Database.Name) + ';' + #13#10
-  end
-  else
-  begin
-    Result := 'SELECT * FROM ' + Database.Session.EscapeIdentifier(information_schema) + '.' + Database.Session.EscapeIdentifier('EVENTS');
-    Result := Result + ' WHERE ' + Database.Session.EscapeIdentifier('EVENT_SCHEMA') + '=' + SQLEscape(Database.Name);
-    Result := Result + ';' + #13#10;
-  end;
+  Result := 'SELECT * FROM ' + Database.Session.EscapeIdentifier(information_schema) + '.' + Database.Session.EscapeIdentifier('EVENTS')
+    + ' WHERE ' + Database.Session.EscapeIdentifier('EVENT_SCHEMA') + '=' + SQLEscape(Database.Name) + ';' + #13#10;
 end;
 
 { TSDatabase ******************************************************************}
@@ -8337,7 +8308,7 @@ var
   DatabaseNames: TCSVStrings;
   I: Integer;
 begin
-  if (not Session.UseInformationSchema or (Session.ServerVersion < 50006)) then
+  if (Session.ServerVersion < 50006) then
     Result := 'SHOW DATABASES;' + #13#10
   else
   begin
@@ -8517,7 +8488,7 @@ end;
 
 function TSVariables.SQLGetItems(const Name: string = ''): string;
 begin
-  if (not Session.UseInformationSchema or (Session.ServerVersion < 50112)) then
+  if (Session.ServerVersion < 50112) then
   begin
     if (Session.ServerVersion < 40003) then
       Result := 'SHOW VARIABLES'
@@ -8606,7 +8577,7 @@ end;
 
 function TSStati.SQLGetItems(const Name: string = ''): string;
 begin
-  if (not Session.UseInformationSchema or (Session.ServerVersion < 50112)) then
+  if (Session.ServerVersion < 50112) then
     if (Session.ServerVersion < 50002) then
       Result := 'SHOW STATUS;' + #13#10
     else
@@ -8777,7 +8748,7 @@ function TSEngines.SQLGetItems(const Name: string = ''): string;
 begin
   if (Session.ServerVersion < 40102) then
     Result := ''
-  else if (not Session.UseInformationSchema or (Session.ServerVersion < 50105)) then
+  else if (Session.ServerVersion < 50105) then
     Result := 'SHOW ENGINES;' + #13#10
   else
     Result := 'SELECT * FROM ' + Session.EscapeIdentifier(information_schema) + '.' + Session.EscapeIdentifier('ENGINES') + ';' + #13#10;
@@ -8856,9 +8827,9 @@ end;
 
 function TSPlugins.SQLGetItems(const Name: string = ''): string;
 begin
-  if (not Session.UseInformationSchema and (Session.ServerVersion < 50109)) then
+  if (Session.ServerVersion < 50109) then
     Result := 'SHOW PLUGIN;' + #13#10
-  else if (not Session.UseInformationSchema or (Session.ServerVersion < 50105)) then
+  else if (Session.ServerVersion < 50105) then
     Result := 'SHOW PLUGINS;' + #13#10
   else
     Result := 'SELECT * FROM ' + Session.EscapeIdentifier(information_schema) + '.' + Session.EscapeIdentifier('PLUGINS') + ';' + #13#10;
@@ -9089,7 +9060,7 @@ function TSCharsets.SQLGetItems(const Name: string = ''): string;
 begin
   if (Session.ServerVersion < 40100) then
     Result := ''
-  else if (not Session.UseInformationSchema or (Session.ServerVersion < 50006)) then
+  else if (Session.ServerVersion < 50006) then
     Result := 'SHOW CHARACTER SET;' + #13#10
   else
     Result := 'SELECT * FROM ' + Session.EscapeIdentifier(information_schema) + '.' + Session.EscapeIdentifier('CHARACTER_SETS') + ';' + #13#10;
@@ -9176,7 +9147,7 @@ end;
 
 function TSCollations.SQLGetItems(const Name: string = ''): string;
 begin
-  if (not Session.UseInformationSchema or (Session.ServerVersion < 50006)) then
+  if (Session.ServerVersion < 50006) then
     Result := 'SHOW COLLATION;' + #13#10
   else
     Result := 'SELECT * FROM ' + Session.EscapeIdentifier(information_schema) + '.' + Session.EscapeIdentifier('COLLATIONS') + ';' + #13#10;
@@ -9308,7 +9279,7 @@ end;
 
 function TSProcesses.SQLGetItems(const Name: string = ''): string;
 begin
-  if (not Session.UseInformationSchema or (Session.ServerVersion < 50107)) then
+  if (Session.ServerVersion < 50107) then
     Result := 'SHOW FULL PROCESSLIST;' + #13#10
   else
     Result := 'SELECT * FROM ' + Session.EscapeIdentifier(information_schema) + '.' + Session.EscapeIdentifier('PROCESSLIST') + ';' + #13#10;
@@ -9911,7 +9882,7 @@ end;
 
 function TSUsers.SQLGetItems(const Name: string = ''): string;
 begin
-  if (not Session.UseInformationSchema or (Session.ServerVersion < 50002)) then
+  if (Session.ServerVersion < 50002) then
     Result := 'SELECT * FROM ' + Session.EscapeIdentifier('mysql') + '.' + Session.EscapeIdentifier('user') + ';' + #13#10
   else
     Result := 'SELECT * FROM ' + Session.EscapeIdentifier(information_schema) + '.' + Session.EscapeIdentifier('USER_PRIVILEGES') + ' GROUP BY ' + Session.EscapeIdentifier('GRANTEE') + ';' + #13#10;
@@ -10153,6 +10124,7 @@ var
   FunctionName: string;
   ObjectName: string;
   Parse: TSQLParse;
+S: string;
   SQL: string;
   Table: TSTable;
 begin
@@ -10341,7 +10313,11 @@ begin
           DatabaseName := Self.DatabaseName
         else
           DatabaseName := SQLParseValue(Parse);
+S := '# Debug 1 ' + SysUtils.DateTimeToStr(Now() + TimeDiff, FormatSettings);
+WriteMonitor(PChar(S), Length(S), ttTime);
         Result := DatabaseByName(DatabaseName).Tables.Build(DataSet, False, not SQLParseEnd(Parse));
+S := '# Debug 4 ' + SysUtils.DateTimeToStr(Now() + TimeDiff, FormatSettings);
+WriteMonitor(PChar(S), Length(S), ttTime);
       end
       else if (SQLParseKeyword(Parse, 'TRIGGERS')) then
       begin
@@ -11080,11 +11056,6 @@ begin
         Result := '# ' + MySQLDB.DateTimeToStr(DataSet.FieldByName('event_time').AsDateTime, FormatSettings) + #13#10 + Result;
     until (not DataSet.FindNext());
   DataSet.Free();
-end;
-
-function TSSession.GetUseInformationSchema(): Boolean;
-begin
-  Result := True;
 end;
 
 function TSSession.GetUserRights(): TSUserRight;
