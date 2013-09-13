@@ -1470,7 +1470,7 @@ type
     function UnescapeValue(const Value: string; const FieldType: TMySQLFieldType = mfVarChar): string; overload;
     function UnecapeRightIdentifier(const Identifier: string): string;
     function Update(): Boolean; overload;
-    function Update(const List: TList; const Status: Boolean = False): Boolean; overload;
+    function Update(const Objects: TList; const Status: Boolean = False): Boolean; overload;
     function UpdateDatabase(const Database, NewDatabase: TSDatabase): Boolean;
     function UpdateUser(const User, NewUser: TSUser): Boolean;
     function UpdateVariable(const Variable, NewVariable: TSVariable; const UpdateModes: TSVariable.TUpdateModes): Boolean;
@@ -5017,7 +5017,6 @@ end;
 
 function TSTables.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
 var
-B: Boolean;
   BaseTable: TSBaseTable;
   DeleteList: TList;
   I: Integer;
@@ -5025,7 +5024,6 @@ B: Boolean;
   Name: string;
   NewTable: TSTable;
   OldCount: Integer;
-S: string;
 begin
   OldCount := Count;
 
@@ -5133,12 +5131,7 @@ begin
 
         if (Table[Index].Valid) then
           Table[Index].PushBuildEvent(Filtered);
-S := '# Debug 2 ' + SysUtils.DateTimeToStr(Now() + Database.Session.TimeDiff, FormatSettings);
-Database.Session.WriteMonitor(PChar(S), Length(S), ttTime);
-B := DataSet.FindNext();
-S := '# Debug 3 ' + SysUtils.DateTimeToStr(Now() + Database.Session.TimeDiff, FormatSettings);
-Database.Session.WriteMonitor(PChar(S), Length(S), ttTime);
-      until (not B);
+      until (not DataSet.FindNext());
 
     if (not Filtered) then
     begin
@@ -5316,11 +5309,11 @@ begin
   end
   else if (not ValidStatus) then
   begin
-//    if (Session.ServerVersion < 50002) then
+    if (Session.ServerVersion < 50002) then
       Result := 'SHOW TABLE STATUS FROM ' + Database.Session.EscapeIdentifier(Database.Name) + ';' + #13#10
-;//    else
-//      Result := 'SELECT * FROM ' + Database.Session.EscapeIdentifier(information_schema) + '.' + Database.Session.EscapeIdentifier('TABLES')
-//        + ' WHERE ' + Database.Session.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ';' + #13#10;
+    else
+      Result := 'SELECT * FROM ' + Database.Session.EscapeIdentifier(information_schema) + '.' + Database.Session.EscapeIdentifier('TABLES')
+        + ' WHERE ' + Database.Session.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ';' + #13#10;
   end;
 end;
 
@@ -10124,7 +10117,6 @@ var
   FunctionName: string;
   ObjectName: string;
   Parse: TSQLParse;
-S: string;
   SQL: string;
   Table: TSTable;
 begin
@@ -10313,11 +10305,7 @@ begin
           DatabaseName := Self.DatabaseName
         else
           DatabaseName := SQLParseValue(Parse);
-S := '# Debug 1 ' + SysUtils.DateTimeToStr(Now() + TimeDiff, FormatSettings);
-WriteMonitor(PChar(S), Length(S), ttTime);
         Result := DatabaseByName(DatabaseName).Tables.Build(DataSet, False, not SQLParseEnd(Parse));
-S := '# Debug 4 ' + SysUtils.DateTimeToStr(Now() + TimeDiff, FormatSettings);
-WriteMonitor(PChar(S), Length(S), ttTime);
       end
       else if (SQLParseKeyword(Parse, 'TRIGGERS')) then
       begin
@@ -11831,10 +11819,11 @@ begin
   List.Free();
 end;
 
-function TSSession.Update(const List: TList; const Status: Boolean = False): Boolean;
+function TSSession.Update(const Objects: TList; const Status: Boolean = False): Boolean;
 var
   Database: TSDatabase;
   I: Integer;
+  List: TList;
   SQL: string;
   Tables: TList;
   ViewInTables: Boolean;
@@ -11854,6 +11843,8 @@ begin
       SQL := SQL + 'SHOW GRANTS FOR CURRENT_USER();' + #13#10;
 
 
+  List := TList.Create();
+  List.Assign(Objects);
   if (Assigned(InvalidObjects) and (InvalidObjects.Count < 10)) then
     List.Assign(InvalidObjects, laOr);
   List.Sort(Compare);
@@ -11945,6 +11936,7 @@ begin
   Tables.Free();
   if (Assigned(InvalidObjects)) then
     InvalidObjects.Clear();
+  List.Free();
 
   Result := (SQL = '') or SendSQL(SQL, SessionResult);
 end;

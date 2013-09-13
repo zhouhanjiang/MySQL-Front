@@ -2569,6 +2569,7 @@ begin
   if (Assigned(XMLNode(XML, 'updates/check'))) then TryStrToUpdateCheck(XMLNode(XML, 'updates/check').Text, UpdateCheck);
   if (Assigned(XMLNode(XML, 'updates/lastcheck'))) then TryStrToDate(XMLNode(XML, 'updates/lastcheck').Text, UpdateChecked, FileFormatSettings);
   if (Assigned(XMLNode(XML, 'width'))) then TryStrToInt(XMLNode(XML, 'width').Text, Width);
+  if (Assigned(XMLNode(XML, 'windowstate'))) then TryStrToWindowState(XMLNode(XML, 'windowstate').Text, WindowState);
 
   Database.LoadFromXML(XMLNode(XML, 'database'));
   Editor.LoadFromXML(XMLNode(XML, 'editor'));

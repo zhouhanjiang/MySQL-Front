@@ -14237,8 +14237,9 @@ begin
           begin
             List := TList.Create();
 
-            for I := 0 to Session.Databases.Count - 1 do
-              List.Add(Session.Databases[I]);
+            if (Session.Databases.Count < PrefetchObjectCount) then
+              for I := 0 to Session.Databases.Count - 1 do
+                List.Add(Session.Databases[I]);
 
             Result := not Session.Update(List, View = vObjects);
 
