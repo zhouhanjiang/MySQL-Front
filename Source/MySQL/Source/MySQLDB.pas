@@ -1938,10 +1938,7 @@ end;
 
 function TMySQLConnection.TLibraryThread.GetIsRunning(): Boolean;
 begin
-  if (not Assigned(RunExecute)) then // Debug 01.11.2012
-    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['RunExecute']);
-
-  Result := not Terminated and ((RunExecute.WaitFor(IGNORE) = wrSignaled) or not (State in [ssClose, ssReady]));
+  Result := not Terminated and Assigned(RunExecute) and ((RunExecute.WaitFor(IGNORE) = wrSignaled) or not (State in [ssClose, ssReady]));
 end;
 
 procedure TMySQLConnection.TLibraryThread.ReleaseDataSet();

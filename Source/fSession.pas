@@ -5285,15 +5285,20 @@ var
 begin
   Result := '';
 
-  if (Tables.Count < Count) then
+  if (Session.ServerVersion < 50003) then // 5.0.2 supports information_schema, but WHERE clause is supported up from 5.0.3
   begin
-    if (Session.ServerVersion < 50003) then // 5.0.2 supports information_schema, but WHERE clause is supported up from 5.0.3
+    if (Tables.Count < Count) then
     begin
       for I  := 0 to Tables.Count - 1 do
         if (TSDBObject(Tables[I]) is TSBaseTable) then
           Result := Result + 'SHOW TABLE STATUS FROM ' + Database.Session.EscapeIdentifier(Database.Name) + ' LIKE ' + SQLEscape(TSTable(Tables[I]).Name) + ';' + #13#10;
     end
-    else
+    else if (not ValidStatus) then
+      Result := 'SHOW TABLE STATUS FROM ' + Database.Session.EscapeIdentifier(Database.Name) + ';' + #13#10
+  end
+  else
+  begin
+    if (Tables.Count < Count) then
     begin
       for I := 0 to Tables.Count - 1 do
         if (TSDBObject(Tables[I]) is TSBaseTable) then
@@ -5305,13 +5310,8 @@ begin
         Result := 'SELECT * FROM ' + Database.Session.EscapeIdentifier(information_schema) + '.' + Database.Session.EscapeIdentifier('TABLES')
           + ' WHERE ' + Database.Session.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name)
           + ' AND ' + Database.Session.EscapeIdentifier('TABLE_NAME') + ' IN (' + Result + ');' + #13#10;
-    end;
-  end
-  else if (not ValidStatus) then
-  begin
-    if (Session.ServerVersion < 50002) then
-      Result := 'SHOW TABLE STATUS FROM ' + Database.Session.EscapeIdentifier(Database.Name) + ';' + #13#10
-    else
+    end
+    else if (not ValidStatus) then
       Result := 'SELECT * FROM ' + Database.Session.EscapeIdentifier(information_schema) + '.' + Database.Session.EscapeIdentifier('TABLES')
         + ' WHERE ' + Database.Session.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ';' + #13#10;
   end;

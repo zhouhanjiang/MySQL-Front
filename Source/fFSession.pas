@@ -2606,6 +2606,12 @@ begin
     StatusBarRefresh();
 
 
+    FNavigatorMenuNode := FNavigator.Selected;
+
+    if (not (tsLoading in FrameState) and Session.InUse) then
+      Session.Terminate();
+    Wanted.Update := UpdateAfterAddressChanged;
+
     if (tsLoading in FrameState) then
     begin
       if (PSideBar.Visible) then
@@ -2630,9 +2636,6 @@ begin
         end;
       Exclude(FrameState, tsLoading);
     end;
-
-    FNavigatorMenuNode := FNavigator.Selected;
-    Wanted.Update := UpdateAfterAddressChanged;
   end;
 end;
 
@@ -2816,10 +2819,9 @@ begin
 
     DTable.Database := TSDatabase(FNavigator.Selected.Data);
     DTable.Table := nil;
+    FreeAndNil(DTable.Tables);
     if (DTable.Execute()) then
       Wanted.Update := Session.Update;
-
-    FreeAndNil(DTable.Tables);
   end
   else if ((Window.ActiveControl = ActiveWorkbench) and (ActiveWorkbench.Selected is TWSection)) then
   begin
@@ -14237,9 +14239,8 @@ begin
           begin
             List := TList.Create();
 
-            if (Session.Databases.Count < PrefetchObjectCount) then
-              for I := 0 to Session.Databases.Count - 1 do
-                List.Add(Session.Databases[I]);
+            for I := 0 to Session.Databases.Count - 1 do
+              List.Add(Session.Databases[I]);
 
             Result := not Session.Update(List, View = vObjects);
 
