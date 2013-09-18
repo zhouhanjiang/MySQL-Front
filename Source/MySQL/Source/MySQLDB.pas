@@ -2071,7 +2071,7 @@ begin
     DataSet.LibraryThread := nil;
   SynchronizingThreadsCS.Leave();
 
-  if (RunExecute.WaitFor(IGNORE) <> wrSignaled) then
+  if (Assigned(RunExecute) and (RunExecute.WaitFor(IGNORE) <> wrSignaled)) then
   begin
     Connection.TerminatedThreads.Add(Self);
     inherited Terminate();

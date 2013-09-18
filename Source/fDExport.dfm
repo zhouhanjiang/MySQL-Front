@@ -40,7 +40,7 @@ object DExport: TDExport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSSQLOptions
+    ActivePage = TSExecute
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     Style = tsFlatButtons
@@ -50,6 +50,10 @@ object DExport: TDExport
       Caption = 'TSSelect'
       TabVisible = False
       OnShow = TSSelectShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GSelect: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -96,6 +100,10 @@ object DExport: TDExport
       Caption = 'TSJob'
       TabVisible = False
       OnShow = TSJobShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -272,6 +280,10 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSSQLOptionsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -353,6 +365,10 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSCSVOptionsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -494,6 +510,10 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSXMLOptionsHide
       OnShow = TSXMLOptionsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -809,6 +829,10 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSHTMLOptionsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -909,6 +933,10 @@ object DExport: TDExport
       Caption = 'TSFields'
       TabVisible = False
       OnShow = TSFieldsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -995,6 +1023,10 @@ object DExport: TDExport
       ImageIndex = 9
       TabVisible = False
       OnShow = TSTaskShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -1094,6 +1126,10 @@ object DExport: TDExport
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -1107,12 +1143,12 @@ object DExport: TDExport
         DesignSize = (
           325
           169)
-        object FLProgressTables: TLabel
+        object FLProgressObjects: TLabel
           Left = 8
           Top = 40
-          Width = 85
+          Width = 89
           Height = 13
-          Caption = 'FLProgressTables'
+          Caption = 'FLProgressObjects'
         end
         object FLProgressRecords: TLabel
           Left = 8
@@ -1121,14 +1157,14 @@ object DExport: TDExport
           Height = 13
           Caption = 'FLProgressRecords'
         end
-        object FDoneTables: TLabel
-          Left = 171
+        object FDoneObjects: TLabel
+          Left = 167
           Top = 40
-          Width = 64
+          Width = 68
           Height = 13
           Alignment = taRightJustify
           Anchors = [akTop, akRight]
-          Caption = 'FDoneTables'
+          Caption = 'FDoneObjects'
         end
         object FDoneRecords: TLabel
           Left = 163
@@ -1172,14 +1208,14 @@ object DExport: TDExport
           Anchors = [akTop, akRight]
           Caption = 'FLEntiered'
         end
-        object FEntieredTables: TLabel
-          Left = 240
+        object FEntieredObjects: TLabel
+          Left = 236
           Top = 40
-          Width = 77
+          Width = 81
           Height = 13
           Alignment = taRightJustify
           Anchors = [akTop, akRight]
-          Caption = 'FEntieredTables'
+          Caption = 'FEntieredObjects'
         end
         object FEntieredRecords: TLabel
           Left = 232

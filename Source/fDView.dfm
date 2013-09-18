@@ -47,10 +47,6 @@ object DView: TDView
     TabOrder = 1
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -75,7 +71,7 @@ object DView: TDView
         end
         object FLCheckOption: TLabel
           Left = 8
-          Top = 145
+          Top = 143
           Width = 74
           Height = 13
           Caption = 'FLCheckOption'
@@ -141,6 +137,7 @@ object DView: TDView
           Top = 164
           Width = 153
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FCheckOptionCascade'
           TabOrder = 5
           OnClick = FCheckOptionCascadeClick
@@ -151,6 +148,7 @@ object DView: TDView
           Top = 184
           Width = 153
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FCheckOptionLocal'
           TabOrder = 6
           OnClick = FCheckOptionLocalClick
@@ -161,6 +159,7 @@ object DView: TDView
           Top = 142
           Width = 169
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FCheckOption'
           TabOrder = 4
           OnClick = FCheckOptionClick
@@ -171,6 +170,7 @@ object DView: TDView
           Top = 24
           Width = 145
           Height = 21
+          Anchors = [akLeft, akTop, akRight]
           TabOrder = 0
           Text = 'FName'
           OnChange = FNameChange
@@ -180,6 +180,7 @@ object DView: TDView
           Top = 96
           Width = 169
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FSecurityDefiner'
           TabOrder = 2
           OnClick = FSecurityClick
@@ -190,6 +191,7 @@ object DView: TDView
           Top = 116
           Width = 169
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FSecurityInvoker'
           TabOrder = 3
           OnClick = FSecurityClick
@@ -200,10 +202,6 @@ object DView: TDView
     object TSInformations: TTabSheet
       Caption = 'TSInformations'
       OnShow = TSInformationsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -266,10 +264,6 @@ object DView: TDView
     end
     object TSFields: TTabSheet
       Caption = 'TSFields'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -314,10 +308,6 @@ object DView: TDView
     end
     object TSSource: TTabSheet
       Caption = 'TSSource'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)

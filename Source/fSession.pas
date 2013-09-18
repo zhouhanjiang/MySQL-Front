@@ -6722,7 +6722,7 @@ begin
     Result := RepairTables(RepairTableList);
   RepairTableList.Free();
 
-  SQL := Self.Tables.SQLGetStatus(Tables);
+  SQL := SQL + Self.Tables.SQLGetStatus(Tables);
   Session.SendSQL(SQL, Session.SessionResult);
 end;
 

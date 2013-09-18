@@ -5,7 +5,7 @@ interface {********************************************************************}
 // ODBC Driver: http://www.microsoft.com/en-us/download/details.aspx?id=13255
 
 uses
-  Windows, XMLDoc, XMLIntf, DBGrids, msxml, Zip, WinSpool, Printers,
+  Windows, XMLDoc, XMLIntf, DBGrids, msxml, Zip, WinSpool,
   SysUtils, DB, Classes, Graphics, SyncObjs,
   {$IFDEF EurekaLog}
   ExceptionLog,
@@ -473,7 +473,7 @@ type
 
   TTExportHTML = class(TTExportUML)
   private
-    CSS: array of string;
+    CSSClass: array of string;
     FieldOfPrimaryIndex: array of Boolean;
     Font: TFont;
     SQLFont: TFont;
@@ -499,6 +499,7 @@ type
 
   TTExportXML = class(TTExportUML)
   private
+    EscapedFieldNames: array of string;
   protected
     procedure ExecuteDatabaseFooter(const Database: TSDatabase); override;
     procedure ExecuteDatabaseHeader(const Database: TSDatabase); override;
@@ -514,6 +515,7 @@ type
     RootNodeText: string;
     TableNodeText, TableNodeAttribute: string;
     constructor Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
+    destructor Destroy(); override;
   end;
 
   TTExportBaseODBC = class(TTExport)
@@ -1522,7 +1524,7 @@ end;
 
 procedure TTool.TStringBuffer.WriteData(const Data: my_char; const Length: Integer; const Quote: Boolean = False);
 label
-  StringL,
+  StringL, StringLE,
   Finish;
 var
   Len: Integer;
@@ -1556,10 +1558,14 @@ begin
         STOSW                            //   into Write
 
       StringL:
+        CMP ECX,0                        // All characters handled?
+        JE StringLE                      // Yes!
         LODSB                            // Load AnisChar from Data
         STOSW                            // Store WideChar into Buffer.Mem
-        LOOP StringL                     // Repeat for all characters
+        DEC ECX
+        JMP StringL                      // Repeat for all characters
 
+      StringLE:
         CMP Quote,False                  // Quote Value?
         JE Finish                        // No!
         MOV AX,''''                      // Ending quoter
@@ -4520,7 +4526,9 @@ begin
     Content := Content + '# Database "' + Database.Name + '"' + #13#10;
     Content := Content + '#' + #13#10;
     Content := Content + #13#10;
+    Content := Content + 'CREATE DATABASE IF NOT EXISTS ' + Session.EscapeIdentifier(Database.Name) + ';' + #13#10;
     Content := Content + Database.SQLUse();
+
     WriteContent(Content);
   end;
 end;
@@ -4531,7 +4539,7 @@ var
 begin
   Content := #13#10;
   Content := Content + '#' + #13#10;
-  Content := Content + '# Source for event "' + Event.Name + '"' + #13#10;
+  Content := Content + '# Event "' + Event.Name + '"' + #13#10;
   Content := Content + '#' + #13#10;
   Content := Content + #13#10;
   Content := Content + Event.GetSourceEx(DropStmts, False);
@@ -4567,13 +4575,13 @@ begin
   if (Routine is TSProcedure) then
   begin
     Content := Content + '#' + #13#10;
-    Content := Content + '# Source for procedure "' + Routine.Name + '"' + #13#10;
+    Content := Content + '# Procedure "' + Routine.Name + '"' + #13#10;
     Content := Content + '#' + #13#10;
   end
   else if (Routine is TSFunction) then
   begin
     Content := Content + '#' + #13#10;
-    Content := Content + '# Source for function "' + Routine.Name + '"' + #13#10;
+    Content := Content + '# Function "' + Routine.Name + '"' + #13#10;
     Content := Content + '#' + #13#10;
   end;
   Content := Content + #13#10;
@@ -4611,20 +4619,20 @@ var
 begin
   Content := '';
 
-  if (Structure and Assigned(Table)) then
+  if (Structure) then
   begin
     if (Table is TSBaseTable) then
     begin
       Content := Content + #13#10;
       Content := Content + '#' + #13#10;
-      Content := Content + '# Source for table "' + Table.Name + '"' + #13#10;
+      Content := Content + '# Structure for table "' + Table.Name + '"' + #13#10;
       Content := Content + '#' + #13#10;
     end
     else if (Table is TSView) then
     begin
       Content := Content + #13#10;
       Content := Content + '#' + #13#10;
-      Content := Content + '# Source for view "' + Table.Name + '"' + #13#10;
+      Content := Content + '# View "' + Table.Name + '"' + #13#10;
       Content := Content + '#' + #13#10;
     end;
     Content := Content + '' + #13#10;
@@ -4632,7 +4640,7 @@ begin
     Content := Content + Table.GetSourceEx(DropStmts, False);
   end;
 
-  if (Assigned(Table) and Assigned(DataSet)) then
+  if ((Table is TSBaseTable) and Assigned(DataSet)) then
   begin
     Content := Content + #13#10;
     Content := Content + '#' + #13#10;
@@ -4742,7 +4750,7 @@ var
 begin
   Content := #13#10;
   Content := Content + '#' + #13#10;
-  Content := Content + '# Source for trigger "' + Trigger.Name + '"' + #13#10;
+  Content := Content + '# Trigger "' + Trigger.Name + '"' + #13#10;
   Content := Content + '#' + #13#10;
   Content := Content + #13#10;
   Content := Content + Trigger.GetSourceEx(DropStmts, False);
@@ -5078,7 +5086,7 @@ asm
       // -------------------
 
       Error:
-        MOV @Result,0                    // Too few space in Escaped
+        MOV @Result,0                    // Too few space in Escaped!
 
       Finish:
         POP EBX
@@ -5284,7 +5292,7 @@ begin
   if (Data) then
     WriteContent('</table><br style="page-break-after: always">' + #13#10);
 
-  SetLength(CSS, 0);
+  SetLength(CSSClass, 0);
   SetLength(FieldOfPrimaryIndex, 0);
 end;
 
@@ -5483,15 +5491,15 @@ begin
     Content := Content + '</tr>' + #13#10;
 
 
-    SetLength(CSS, Length(Fields));
+    SetLength(CSSClass, Length(Fields));
     for I := 0 to Length(Fields) - 1 do
     begin
-      CSS[I] := '';
+      CSSClass[I] := '';
       if (FieldOfPrimaryIndex[I]) then
-        CSS[I] := CSS[I] + ' PrimaryKey';
+        CSSClass[I] := CSSClass[I] + ' PrimaryKey';
       if (Fields[I].Alignment = taRightJustify) then
-        CSS[I] := CSS[I] + ' RightAlign';
-      CSS[I] := Trim(CSS[I]);
+        CSSClass[I] := CSSClass[I] + ' RightAlign';
+      CSSClass[I] := Trim(CSSClass[I]);
 
       RowOdd := True;
     end;
@@ -5502,50 +5510,69 @@ end;
 
 procedure TTExportHTML.ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
-  Content: string;
   I: Integer;
-  Value: string;
+  Len: Integer;
+  LenEscaped: Integer;
 begin
-  Content := '';
-
   if (RowOdd) then
-    Content := Content + #9 + '<tr class="Data odd">'
+    ValuesBuffer.Write(#9 + '<tr class="Data odd">')
   else
-    Content := Content + #9 + '<tr class="Data even">';
+    ValuesBuffer.Write(#9 + '<tr class="Data even">');
   RowOdd := not RowOdd;
 
   for I := 0 to Length(Fields) - 1 do
-    if (Fields[I].IsNull) then
+    if (not Assigned(DataSet.LibRow^[Fields[I].FieldNo - 1])) then
       if (NULLText) then
-        Content := Content + '<td class="Null">&lt;NULL&gt;</td>'
+        ValuesBuffer.Write('<td class="Null">&lt;NULL&gt;</td>')
       else
-        Content := Content + '<td class="Null">&nbsp;</td>'
+        ValuesBuffer.Write('<td class="Null">&nbsp;</td>')
     else
     begin
-      if (DataSet.LibLengths^[I] = 0) then
-        Value := '&nbsp;'
-      else if (GeometryField(Fields[I])) then
-        Value := '&lt;GEO&gt;'
-      else if (not TextContent and (Fields[I].DataType = ftWideMemo)) then
-        Value := '&lt;MEMO&gt;'
-      else if (Fields[I].DataType = ftBytes) then
-        Value := '&lt;BINARY&gt;'
-      else if (Fields[I].DataType = ftBlob) then
-        Value := '&lt;BLOB&gt;'
-      else if (Fields[I].DataType in TextDataTypes) then
-        Value := HTMLEscape(DataSet.GetAsString(Fields[I]))
+      if (FieldOfPrimaryIndex[I]) then
+        ValuesBuffer.Write('<th class="' + CSSClass[I] + '">')
       else
-        Value := DataSet.GetAsString(Fields[I]);
+        ValuesBuffer.Write('<td class="' + CSSClass[I] + '">');
+
+      if (DataSet.LibLengths^[I] = 0) then
+        ValuesBuffer.Write('&nbsp;')
+      else if (GeometryField(Fields[I])) then
+        ValuesBuffer.Write('&lt;GEO&gt;')
+      else if (not TextContent and (Fields[I].DataType = ftWideMemo)) then
+        ValuesBuffer.Write('&lt;MEMO&gt;')
+      else if (Fields[I].DataType = ftBytes) then
+        ValuesBuffer.Write('&lt;BINARY&gt;')
+      else if (Fields[I].DataType = ftBlob) then
+        ValuesBuffer.Write('&lt;BLOB&gt;')
+      else
+      if (Fields[I].DataType in TextDataTypes) then
+      begin
+        Len := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], nil, 0);
+        if (Len * SizeOf(ValueBuffer.Mem[0]) > ValueBuffer.MemSize) then
+        begin
+          ValueBuffer.MemSize := Len * SizeOf(ValueBuffer.Mem[0]);
+          ReallocMem(ValueBuffer.Mem, ValueBuffer.MemSize);
+        end;
+        AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], ValueBuffer.Mem, Len);
+
+        LenEscaped := HTMLEscape(ValueBuffer.Mem, Len, nil, 0);
+        HTMLEscape(ValueBuffer.Mem, Len, ValuesBuffer.WriteExternal(LenEscaped), LenEscaped);
+      end
+      else
+        ValuesBuffer.WriteData(DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], False);
 
       if (FieldOfPrimaryIndex[I]) then
-        Content := Content + '<th class="' + CSS[I] + '">' + Value + '</th>'
+        ValuesBuffer.Write('</th>')
       else
-        Content := Content + '<td class="' + CSS[I] + '">' + Value + '</td>';
+        ValuesBuffer.Write('</td>');
     end;
 
-  Content := Content + '</tr>' + #13#10;
+  ValuesBuffer.Write('</tr>' + #13#10);
 
-  WriteContent(Content);
+  ContentBuffer.Write(ValuesBuffer.Text, ValuesBuffer.Length);
+  ValuesBuffer.Clear();
+
+  if (ContentBuffer.Size > FilePacketSize) then
+    Flush();
 end;
 
 procedure TTExportHTML.ExecuteTrigger(const Trigger: TSTrigger);
@@ -5782,8 +5809,16 @@ begin
   inherited;
 
   DatabaseNodeText := '';
+  SetLength(EscapedFieldNames, 0);
   RootNodeText := '';
   TableNodeText := '';
+end;
+
+destructor TTExportXML.Destroy();
+begin
+  SetLength(EscapedFieldNames, 0);
+
+  inherited;
 end;
 
 procedure TTExportXML.ExecuteDatabaseFooter(const Database: TSDatabase);
@@ -5830,7 +5865,16 @@ begin
 end;
 
 procedure TTExportXML.ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+var
+  I: Integer;
 begin
+  SetLength(EscapedFieldNames, Length(Fields));
+  for I := 0 to Length(Fields) - 1 do
+    if (Length(DestinationFields) > 0) then
+      EscapedFieldNames[I] := SysUtils.LowerCase(XMLEscape(DestinationFields[I].Name))
+    else
+      EscapedFieldNames[I] := SysUtils.LowerCase(XMLEscape(Fields[I].DisplayName));
+
   if (Assigned(Table)) then
     if (TableNodeAttribute <> '') then
       WriteContent('<' + TableNodeText + ' ' + TableNodeAttribute + '="' + XMLEscape(Table.Name) + '">' + #13#10)
@@ -5840,45 +5884,57 @@ end;
 
 procedure TTExportXML.ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
-  Content: string;
   I: Integer;
+  Len: Integer;
+  LenEscaped: Integer;
 begin
-  Content := #9 + '<' + RecordNodeText + '>' + #13#10;
+  ValuesBuffer.Write(#9 + '<' + RecordNodeText + '>' + #13#10);
 
   for I := 0 to Length(Fields) - 1 do
   begin
     if (FieldNodeAttribute = '') then
-      if (Length(DestinationFields) > 0) then
-        Content := Content + #9#9 + '<' + SysUtils.LowerCase(XMLEscape(DestinationFields[I].Name)) + ''
-      else
-        Content := Content + #9#9 + '<' + SysUtils.LowerCase(XMLEscape(Fields[I].DisplayName)) + ''
+      ValuesBuffer.Write(#9#9 + '<' + EscapedFieldNames[I])
     else
-      if (Length(DestinationFields) > 0) then
-        Content := Content + #9#9 + '<' + FieldNodeText + ' ' + FieldNodeAttribute + '="' + XMLEscape(DestinationFields[I].Name) + '"'
-      else
-        Content := Content + #9#9 + '<' + FieldNodeText + ' ' + FieldNodeAttribute + '="' + XMLEscape(Fields[I].DisplayName) + '"';
-    if (Fields[I].IsNull) then
-      Content := Content + ' xsi:nil="true" />' + #13#10
+      ValuesBuffer.Write(#9#9 + '<' + FieldNodeText + ' ' + FieldNodeAttribute + '="' + EscapedFieldNames[I] + '"');
+
+    if (DataSet.LibRow^[I] = nil) then
+      ValuesBuffer.Write(' xsi:nil="true" />' + #13#10) // NULL
     else
     begin
-      if (Fields[I].DataType in TextDataTypes + BinaryDataTypes) then
-        Content := Content + '>' + XMLEscape(DataSet.GetAsString(Fields[I]))
+      if (Fields[I].DataType = ftBytes) then
+        ValuesBuffer.Write('&lt;BINARY&gt;')
+      else if (Fields[I].DataType = ftBlob) then
+        ValuesBuffer.Write('&lt;BLOB&gt;')
+      else if (Fields[I].DataType in TextDataTypes) then
+      begin
+        Len := AnsiCharToWideChar(CodePage, DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], nil, 0);
+        if (Len * SizeOf(ValueBuffer.Mem[0]) > ValueBuffer.MemSize) then
+        begin
+          ValueBuffer.MemSize := Len * SizeOf(ValueBuffer.Mem[0]);
+          ReallocMem(ValueBuffer.Mem, ValueBuffer.MemSize);
+        end;
+        AnsiCharToWideChar(CodePage, DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], ValueBuffer.Mem, Len);
+
+        LenEscaped := XMLEscape(ValueBuffer.Mem, Len, nil, 0);
+        XMLEscape(ValueBuffer.Mem, Len, ValuesBuffer.WriteExternal(LenEscaped), LenEscaped);
+      end
       else
-        Content := Content + '>' + DataSet.GetAsString(Fields[I]);
+        ValuesBuffer.Write('>' + DataSet.GetAsString(Fields[I]));
 
       if (FieldNodeAttribute = '') then
-        if (Length(DestinationFields) > 0) then
-          Content := Content + '</' + SysUtils.LowerCase(XMLEscape(DestinationFields[I].Name)) + '>' + #13#10
-        else
-          Content := Content + '</' + SysUtils.LowerCase(XMLEscape(Fields[I].DisplayName)) + '>' + #13#10
+        ValuesBuffer.Write('</' + EscapedFieldNames[I] + '>' + #13#10)
       else
-        Content := Content + '</' + FieldNodeText + '>' + #13#10;
+        ValuesBuffer.Write('</' + FieldNodeText + '>' + #13#10);
     end;
   end;
 
-  Content := Content + #9 + '</' + RecordNodeText + '>' + #13#10;
+  ValuesBuffer.Write(#9 + '</' + RecordNodeText + '>' + #13#10);
 
-  WriteContent(Content);
+  ContentBuffer.Write(ValuesBuffer.Text, ValuesBuffer.Length);
+  ValuesBuffer.Clear();
+
+  if (ContentBuffer.Size > FilePacketSize) then
+    Flush();
 end;
 
 { TTExportBaseODBC ************************************************************}

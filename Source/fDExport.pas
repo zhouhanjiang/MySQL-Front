@@ -29,12 +29,12 @@ type
     FDataSource: TEdit;
     FDestField1: TEdit;
     FDoneRecords: TLabel;
-    FDoneTables: TLabel;
+    FDoneObjects: TLabel;
     FDoneTime: TLabel;
     FDropStmts: TCheckBox;
     FEnabled: TCheckBox;
     FEntieredRecords: TLabel;
-    FEntieredTables: TLabel;
+    FEntieredObjects: TLabel;
     FEntieredTime: TLabel;
     FErrorMessages: TRichEdit;
     FErrors: TLabel;
@@ -82,7 +82,7 @@ type
     FLHTMLWhat: TLabel;
     FLName: TLabel;
     FLProgressRecords: TLabel;
-    FLProgressTables: TLabel;
+    FLProgressObjects: TLabel;
     FLProgressTime: TLabel;
     FLQuoteChar: TLabel;
     FLQuoteValues: TLabel;
@@ -401,7 +401,7 @@ begin
   GProgress.Caption := Preferences.LoadStr(224);
   FLEntiered.Caption := Preferences.LoadStr(211) + ':';
   FLDone.Caption := Preferences.LoadStr(232) + ':';
-  FLProgressTables.Caption := Preferences.LoadStr(234) + ':';
+  FLProgressObjects.Caption := Preferences.LoadStr(909) + ':';
   FLProgressRecords.Caption := Preferences.LoadStr(235) + ':';
   FLProgressTime.Caption := ReplaceStr(Preferences.LoadStr(661), '&', '') + ':';
   FLErrors.Caption := Preferences.LoadStr(391) + ':';
@@ -558,13 +558,13 @@ begin
   Infos := TTool.PProgressInfos(Message.LParam);
 
   if (Infos^.TablesSum < 0) then
-    FEntieredTables.Caption := '???'
+    FEntieredObjects.Caption := '???'
   else
-    FEntieredTables.Caption := FormatFloat('#,##0', Infos^.TablesSum, LocaleFormatSettings);
+    FEntieredObjects.Caption := FormatFloat('#,##0', Infos^.TablesSum, LocaleFormatSettings);
   if (Infos^.TablesDone < 0) then
-    FDoneTables.Caption := '???'
+    FDoneObjects.Caption := '???'
   else
-    FDoneTables.Caption := FormatFloat('#,##0', Infos^.TablesDone, LocaleFormatSettings);
+    FDoneObjects.Caption := FormatFloat('#,##0', Infos^.TablesDone, LocaleFormatSettings);
 
   if (Infos^.RecordsSum < 0) then
     FEntieredRecords.Caption := '???'
@@ -1841,8 +1841,8 @@ var
 begin
   Session.UnRegisterEventProc(FormSessionEvent);
 
-  FEntieredTables.Caption := '';
-  FDoneTables.Caption := '';
+  FEntieredObjects.Caption := '';
+  FDoneObjects.Caption := '';
   FEntieredRecords.Caption := '';
   FDoneRecords.Caption := '';
   FEntieredTime.Caption := '';
