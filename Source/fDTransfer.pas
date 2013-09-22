@@ -19,10 +19,10 @@ type
     FData: TCheckBox;
     FDestination: TTreeView_Ext;
     FDoneRecords: TLabel;
-    FDoneTables: TLabel;
+    FDoneObjects: TLabel;
     FDoneTime: TLabel;
     FEntieredRecords: TLabel;
-    FEntieredTables: TLabel;
+    FEntieredObjects: TLabel;
     FEntieredTime: TLabel;
     FErrorMessages: TRichEdit;
     FErrors: TLabel;
@@ -30,7 +30,7 @@ type
     FLEntiered: TLabel;
     FLErrors: TLabel;
     FLProgressRecords: TLabel;
-    FLProgressTables: TLabel;
+    FLProgressObjects: TLabel;
     FLProgressTime: TLabel;
     FLWhat: TLabel;
     FProgressBar: TProgressBar;
@@ -184,7 +184,7 @@ begin
   GProgress.Caption := Preferences.LoadStr(224);
   FLEntiered.Caption := Preferences.LoadStr(211) + ':';
   FLDone.Caption := Preferences.LoadStr(232) + ':';
-  FLProgressTables.Caption := Preferences.LoadStr(234) + ':';
+  FLProgressObjects.Caption := Preferences.LoadStr(234) + ':';
   FLProgressRecords.Caption := Preferences.LoadStr(235) + ':';
   FLProgressTime.Caption := ReplaceStr(Preferences.LoadStr(661), '&', '') + ':';
   FLErrors.Caption := Preferences.LoadStr(391) + ':';
@@ -223,14 +223,14 @@ var
 begin
   Infos := TTool.PProgressInfos(Message.LParam);
 
-  if (Infos^.TablesSum < 0) then
-    FEntieredTables.Caption := '???'
+  if (Infos^.ObjectsSum < 0) then
+    FEntieredObjects.Caption := '???'
   else
-    FEntieredTables.Caption := FormatFloat('#,##0', Infos^.TablesSum, LocaleFormatSettings);
-  if (Infos^.TablesDone < 0) then
-    FDoneTables.Caption := '???'
+    FEntieredObjects.Caption := FormatFloat('#,##0', Infos^.ObjectsSum, LocaleFormatSettings);
+  if (Infos^.ObjectsDone < 0) then
+    FDoneObjects.Caption := '???'
   else
-    FDoneTables.Caption := FormatFloat('#,##0', Infos^.TablesDone, LocaleFormatSettings);
+    FDoneObjects.Caption := FormatFloat('#,##0', Infos^.ObjectsDone, LocaleFormatSettings);
 
   if (Infos^.RecordsSum < 0) then
     FEntieredRecords.Caption := '???'
@@ -718,8 +718,8 @@ var
   ProgressInfos: TTool.TProgressInfos;
   DestinationSession: TSSession;
 begin
-  FEntieredTables.Caption := '';
-  FDoneTables.Caption := '';
+  FEntieredObjects.Caption := '';
+  FDoneObjects.Caption := '';
   FEntieredRecords.Caption := '';
   FDoneRecords.Caption := '';
   FEntieredTime.Caption := '';

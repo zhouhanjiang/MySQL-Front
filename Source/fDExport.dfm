@@ -420,12 +420,12 @@ object DExport: TDExport
             Text = 'FQuoteChar'
             OnExit = FQuoteCharExit
           end
-          object FQuoteNothing: TRadioButton
+          object FQuoteNone: TRadioButton
             Left = 124
             Top = 3
             Width = 193
             Height = 17
-            Caption = 'FQuoteNothing'
+            Caption = 'FQuoteNone'
             TabOrder = 2
             OnClick = FQuoteClick
           end
@@ -526,7 +526,7 @@ object DExport: TDExport
         Caption = 'GXMLHow'
         TabOrder = 0
         object FLRootNode: TLabel
-          Left = 3
+          Left = 8
           Top = 21
           Width = 61
           Height = 13
@@ -1158,7 +1158,7 @@ object DExport: TDExport
           Caption = 'FLProgressRecords'
         end
         object FDoneObjects: TLabel
-          Left = 167
+          Left = 151
           Top = 40
           Width = 68
           Height = 13
@@ -1167,7 +1167,7 @@ object DExport: TDExport
           Caption = 'FDoneObjects'
         end
         object FDoneRecords: TLabel
-          Left = 163
+          Left = 147
           Top = 64
           Width = 72
           Height = 13
@@ -1183,7 +1183,7 @@ object DExport: TDExport
           Caption = 'FLProgressTime'
         end
         object FDoneTime: TLabel
-          Left = 180
+          Left = 164
           Top = 88
           Width = 55
           Height = 13
@@ -1191,7 +1191,7 @@ object DExport: TDExport
           Caption = 'FDoneTime'
         end
         object FLDone: TLabel
-          Left = 197
+          Left = 181
           Top = 16
           Width = 38
           Height = 13

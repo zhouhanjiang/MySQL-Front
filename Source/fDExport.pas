@@ -100,7 +100,7 @@ type
     FProgressBar: TProgressBar;
     FQuoteAll: TRadioButton;
     FQuoteChar: TEdit;
-    FQuoteNothing: TRadioButton;
+    FQuoteNone: TRadioButton;
     FQuoteStrings: TRadioButton;
     FRecordNodeText: TEdit;
     FReplaceData: TCheckBox;
@@ -393,7 +393,7 @@ begin
   FSeparatorTab.Caption := Preferences.LoadStr(354);
   FSeparatorChar.Caption := Preferences.LoadStr(355) + ':';
   FLQuoteValues.Caption := Preferences.LoadStr(353) + ':';
-  FQuoteNothing.Caption := Preferences.LoadStr(359);
+  FQuoteNone.Caption := Preferences.LoadStr(359);
   FQuoteStrings.Caption := Preferences.LoadStr(360);
   FQuoteAll.Caption := Preferences.LoadStr(361);
   FLQuoteChar.Caption := Preferences.LoadStr(356) + ':';
@@ -557,14 +557,14 @@ var
 begin
   Infos := TTool.PProgressInfos(Message.LParam);
 
-  if (Infos^.TablesSum < 0) then
+  if (Infos^.ObjectsSum < 0) then
     FEntieredObjects.Caption := '???'
   else
-    FEntieredObjects.Caption := FormatFloat('#,##0', Infos^.TablesSum, LocaleFormatSettings);
-  if (Infos^.TablesDone < 0) then
+    FEntieredObjects.Caption := FormatFloat('#,##0', Infos^.ObjectsSum, LocaleFormatSettings);
+  if (Infos^.ObjectsDone < 0) then
     FDoneObjects.Caption := '???'
   else
-    FDoneObjects.Caption := FormatFloat('#,##0', Infos^.TablesDone, LocaleFormatSettings);
+    FDoneObjects.Caption := FormatFloat('#,##0', Infos^.ObjectsDone, LocaleFormatSettings);
 
   if (Infos^.RecordsSum < 0) then
     FEntieredRecords.Caption := '???'
@@ -873,9 +873,9 @@ begin
   FSeparatorTab.Checked := Preferences.Export.CSV.DelimiterType = dtTab;
   FSeparatorChar.Checked := Preferences.Export.CSV.DelimiterType = dtChar;
   FSeparator.Text := Preferences.Export.CSV.Delimiter;
-  FQuoteNothing.Checked := Preferences.Export.CSV.Quote = qtNothing;
-  FQuoteStrings.Checked := Preferences.Export.CSV.Quote = qtStrings;
-  FQuoteAll.Checked := Preferences.Export.CSV.Quote = qtAll;
+  FQuoteNone.Checked := Preferences.Export.CSV.QuoteValues = qtNone;
+  FQuoteStrings.Checked := Preferences.Export.CSV.QuoteValues = qtStrings;
+  FQuoteAll.Checked := Preferences.Export.CSV.QuoteValues = qtAll;
   FQuoteChar.Text := Preferences.Export.CSV.Quoter;
 
   FSQLStructure.Checked := Preferences.Export.SQL.Structure;
@@ -970,12 +970,12 @@ begin
           else if (FSeparatorChar.Checked) then
             Export.CSV.DelimiterType := dtChar;
           Export.CSV.Delimiter := FSeparator.Text;
-          if (FQuoteNothing.Checked) then
-            Export.CSV.Quote := qtNothing
+          if (FQuoteNone.Checked) then
+            Export.CSV.QuoteValues := qtNone
           else if (FQuoteAll.Checked) then
-            Export.CSV.Quote := qtAll
+            Export.CSV.QuoteValues := qtAll
           else
-            Export.CSV.Quote := qtStrings;
+            Export.CSV.QuoteValues := qtStrings;
           if (FQuoteChar.Text <> '') then
             Export.CSV.Quoter := FQuoteChar.Text[1];
         end;
@@ -1237,15 +1237,15 @@ end;
 procedure TDExport.FQuoteCharExit(Sender: TObject);
 begin
   if (FQuoteChar.Text = '') then
-    FQuoteNothing.Checked := True;
+    FQuoteNone.Checked := True;
 end;
 
 procedure TDExport.FQuoteClick(Sender: TObject);
 begin
-  FQuoteChar.Enabled := not FQuoteNothing.Checked;
+  FQuoteChar.Enabled := not FQuoteNone.Checked;
   FLQuoteChar.Enabled := FQuoteChar.Enabled;
 
-  if (not FQuoteNothing.Checked and (FQuoteChar.Text = '')) then
+  if (not FQuoteNone.Checked and (FQuoteChar.Text = '')) then
     FQuoteChar.Text := '"';
 end;
 
@@ -1441,17 +1441,10 @@ begin
         SaveDialog.Encodings.Text := EncodingCaptions();
       end;
     etTextFile:
-      if (SObjects.Count <= 1) then
       begin
         SaveDialog.Filter := FilterDescription('txt') + ' (*.txt;*.csv;*.tab)|*.txt;*.csv;*.tab';
         SaveDialog.DefaultExt := '.csv';
         SaveDialog.Encodings.Text := EncodingCaptions();
-      end
-      else
-      begin
-        SaveDialog.Filter := FilterDescription('zip') + ' (*.zip)|*.zip';
-        SaveDialog.DefaultExt := '.zip';
-        SaveDialog.Encodings.Clear();
       end;
     etExcelFile:
       begin
@@ -1878,8 +1871,12 @@ begin
           TTExportText(Export).Delimiter := #9;
         if (FSeparatorChar.Checked) then
           TTExportText(Export).Delimiter := FSeparator.Text;
-        TTExportText(Export).QuoteStringValues := FQuoteStrings.Checked;
-        TTExportText(Export).QuoteValues := FQuoteAll.Checked;
+        if (FQuoteNone.Checked) then
+          TTExportText(Export).QuoteValues := qtNone
+        else if (FQuoteAll.Checked) then
+          TTExportText(Export).QuoteValues := qtAll
+        else
+          TTExportText(Export).QuoteValues := qtStrings;
         TTExportText(Export).Quoter := FQuoteChar.Text[1];
         TTExportText(Export).Structure := FCSVHeadline.Checked;
       end;
@@ -1951,7 +1948,7 @@ begin
           TTExportXML(Export).TableNodeText := '';
           TTExportXML(Export).TableNodeAttribute := '';
         end;
-        TTExportXML(Export).RecordNodeText := FRecordNodeText.Text;
+        TTExportXML(Export).RecoreNodeText := FRecordNodeText.Text;
         if (FFieldNodeName.Checked) then
         begin
           TTExportXML(Export).FieldNodeText := 'database';
@@ -1988,7 +1985,7 @@ begin
           SetLength(Export.Fields, Length(Export.Fields) + 1);
           Export.Fields[Length(Export.Fields) - 1] := DataSet.Fields[I];
           SetLength(Export.DestinationFields, Length(Export.DestinationFields) + 1);
-          Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := DataSet.Fields[I].DisplayName;
+          Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := DataSet.Fields[I].Name;
         end
       else
         for I := 0 to Length(FFields) - 1 do
@@ -2015,7 +2012,7 @@ begin
             if (Length(FDestFields) = 0) then
               Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := FFields[I].Text
             else
-              Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := FDestFields[I].Text;
+              Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := Session.ApplyIdentifierName(FDestFields[I].Text);
           end;
     end;
 

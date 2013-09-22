@@ -4475,7 +4475,7 @@ begin
                 begin Field := TMySQLStringField.Create(Self); if (Connection.ServerVersion < 40100) then Field.Size := Len + 1 else Field.Size := Len; end
               else if (Len <= 255) then
                 begin Field := TMySQLWideStringField.Create(Self); Field.Size := 255; end
-              else if ((Len <= 65535) and (Connection.ServerVersion >= 50000)) then
+              else if ((Len <= 21845) and (Connection.ServerVersion >= 50000)) then
                 begin Field := TMySQLWideStringField.Create(Self); Field.Size := 65535; end
               else
                 begin Field := TMySQLWideMemoField.Create(Self); Field.Size := Len; end;
@@ -5825,7 +5825,6 @@ begin
       ftTime: RBS := Connection.LibPack(TimeToStr(Integer(Buffer^), TMySQLTimeField(Field).SQLFormat));
       ftTimeStamp: RBS := Connection.LibPack(MySQLTimeStampToStr(PSQLTimeStamp(Buffer)^, TMySQLTimeStampField(Field).DisplayFormat));
       ftDateTime: begin DataConvert(Field, Buffer, @DT, False); RBS := Connection.LibPack(MySQLDB.DateTimeToStr(DT, Connection.FormatSettings)); end;
-      ftBytes: SetString(RBS, PAnsiChar(Buffer), Field.DataSize);
       ftBlob: begin SetLength(RBS, TMemoryStream(Buffer).Size); Move(TMemoryStream(Buffer).Memory^, PAnsiChar(RBS)^, TMemoryStream(Buffer).Size); end;
       ftWideMemo: DataConvert(Field, Buffer, @RBS, True);
       ftWideString: RBS := PAnsiChar(Buffer);

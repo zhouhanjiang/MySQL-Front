@@ -187,7 +187,7 @@ object FSession: TFSession
         OnHint = FSQLHistoryHint
         OnKeyDown = FSQLHistoryKeyDown
         OnKeyPress = FSQLHistoryKeyPress
-        OnMouseDown = TreeViewMouseDown
+        OnMouseDown = FSQLHistoryMouseDown
         OnMouseUp = TreeViewMouseUp
       end
     end

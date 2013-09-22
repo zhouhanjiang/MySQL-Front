@@ -61,13 +61,17 @@ object DImport: TDImport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSJob
+    ActivePage = TSExecute
     Style = tsButtons
     TabOrder = 0
     TabStop = False
     object TSJob: TTabSheet
       Caption = 'TSJob'
       TabVisible = False
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -963,7 +967,7 @@ object DImport: TDImport
           Caption = 'FLProgressTime'
         end
         object FLDone: TLabel
-          Left = 197
+          Left = 181
           Top = 16
           Width = 38
           Height = 13
@@ -986,7 +990,7 @@ object DImport: TDImport
           Caption = 'FLProgressRecords'
         end
         object FDoneRecords: TLabel
-          Left = 163
+          Left = 147
           Top = 64
           Width = 72
           Height = 13
@@ -1002,7 +1006,7 @@ object DImport: TDImport
           Caption = 'FEntieredRecords'
         end
         object FDoneTime: TLabel
-          Left = 180
+          Left = 164
           Top = 88
           Width = 55
           Height = 13
@@ -1032,28 +1036,30 @@ object DImport: TDImport
           Alignment = taRightJustify
           Caption = 'FErrors'
         end
-        object FLProgressTables: TLabel
+        object FLProgressObjects: TLabel
           Left = 8
           Top = 40
-          Width = 85
+          Width = 89
           Height = 13
-          Caption = 'FLProgressTables'
+          Caption = 'FLProgressObjects'
+          Color = clBtnFace
+          ParentColor = False
         end
-        object FDoneTables: TLabel
-          Left = 171
+        object FDoneObjects: TLabel
+          Left = 151
           Top = 40
-          Width = 64
+          Width = 68
           Height = 13
           Alignment = taRightJustify
-          Caption = 'FDoneTables'
+          Caption = 'FDoneObjects'
         end
-        object FEntieredTables: TLabel
-          Left = 240
+        object FEntieredObjects: TLabel
+          Left = 236
           Top = 40
-          Width = 77
+          Width = 81
           Height = 13
           Alignment = taRightJustify
-          Caption = 'FEntieredTables'
+          Caption = 'FEntieredObjects'
         end
         object FProgressBar: TProgressBar
           Left = 8

@@ -34,7 +34,6 @@ type
 
 function IsWine(): Boolean;
 procedure Register();
-procedure SetFontByLogFont(const Font: TFont; const LogFont: TLogFont);
 
 implementation {***************************************************************}
 
@@ -56,11 +55,6 @@ end;
 procedure Register();
 begin
   RegisterComponents('VCL Extensions', [TForm_Ext]);
-end;
-
-procedure SetFontByLogFont(const Font: TFont; const LogFont: TLogFont);
-begin
-  Font.Handle := CreateFontIndirect(LogFont);
 end;
 
 { TForm_Ext *******************************************************************}

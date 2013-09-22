@@ -9950,6 +9950,7 @@ begin
   Result := AIdentifierName;
 
   Result := ReplaceStr(Result, #0, '_');
+  Result := ReplaceStr(Result, ' ', '_');
   if (ServerVersion < 50106) then
   begin
     Result := ReplaceStr(Result, '/', '_');
@@ -11256,7 +11257,9 @@ begin
                       if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
                       begin
                         Database := DatabaseByName(DatabaseName);
-                        Database.Tables.Delete(Database.TableByName(ObjectName));
+                        Table := Database.TableByName(ObjectName);
+                        if (Assigned(Table)) then
+                          Database.Tables.Delete(Table);
                       end;
                     until (not SQLParseChar(Parse, ','));
                   end;

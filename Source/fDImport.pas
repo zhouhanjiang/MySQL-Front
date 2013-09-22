@@ -35,12 +35,12 @@ type
     FDelimiterChar: TRadioButton;
     FDelimiterTab: TRadioButton;
     FDoneRecords: TLabel;
-    FDoneTables: TLabel;
+    FDoneObjects: TLabel;
     FDoneTime: TLabel;
     FEnabled: TCheckBox;
     FEngine: TComboBox_Ext;
     FEntieredRecords: TLabel;
-    FEntieredTables: TLabel;
+    FEntieredObjects: TLabel;
     FEntieredTime: TLabel;
     FErrorMessages: TRichEdit;
     FErrors: TLabel;
@@ -67,7 +67,7 @@ type
     FLStmtType: TLabel;
     FLName: TLabel;
     FLProgressRecords: TLabel;
-    FLProgressTables: TLabel;
+    FLProgressObjects: TLabel;
     FLProgressTime: TLabel;
     FLQuoteValues: TLabel;
     FLRecordTag: TLabel;
@@ -427,7 +427,7 @@ begin
   GProgress.Caption := Preferences.LoadStr(224);
   FLEntiered.Caption := Preferences.LoadStr(211) + ':';
   FLDone.Caption := Preferences.LoadStr(232) + ':';
-  FLProgressTables.Caption := Preferences.LoadStr(234) + ':';
+  FLProgressObjects.Caption := Preferences.LoadStr(234) + ':';
   FLProgressTime.Caption := ReplaceStr(Preferences.LoadStr(661), '&', '') + ':';
   FLErrors.Caption := Preferences.LoadStr(391) + ':';
 
@@ -522,14 +522,14 @@ var
 begin
   Infos := TTool.PProgressInfos(Message.LParam);
 
-  if (Infos^.TablesSum < 0) then
-    FEntieredTables.Caption := '???'
+  if (Infos^.ObjectsSum < 0) then
+    FEntieredObjects.Caption := '???'
   else
-    FEntieredTables.Caption := FormatFloat('#,##0', Infos^.TablesSum, LocaleFormatSettings);
-  if (Infos^.TablesDone < 0) then
-    FDoneTables.Caption := '???'
+    FEntieredObjects.Caption := FormatFloat('#,##0', Infos^.ObjectsSum, LocaleFormatSettings);
+  if (Infos^.ObjectsDone < 0) then
+    FDoneObjects.Caption := '???'
   else
-    FDoneTables.Caption := FormatFloat('#,##0', Infos^.TablesDone, LocaleFormatSettings);
+    FDoneObjects.Caption := FormatFloat('#,##0', Infos^.ObjectsDone, LocaleFormatSettings);
 
   if (Infos^.RecordsSum < 0) then
     FEntieredRecords.Caption := '???'
@@ -866,7 +866,7 @@ begin
   FDelimiterTab.Checked := Preferences.Import.CSV.DelimiterType = dtTab;
   FDelimiterChar.Checked := Preferences.Import.CSV.DelimiterType = dtChar;
   FDelimiter.Text := Preferences.Import.CSV.Delimiter;
-  FQuoteNothing.Checked := Preferences.Import.CSV.Quote = qtNothing;
+  FQuoteNothing.Checked := Preferences.Import.CSV.Quote = qtNone;
   FQuoteStrings.Checked := Preferences.Import.CSV.Quote = qtStrings;
   FQuoteChar.Text := Preferences.Import.CSV.QuoteChar;
   case (Preferences.Import.ImportStmt) of
@@ -914,7 +914,7 @@ begin
           PImport.CSV.Delimiter := FDelimiter.Text;
           PImport.CSV.QuoteChar := FQuoteChar.Text;
           if (FQuoteNothing.Checked) then
-            PImport.CSV.Quote := qtNothing
+            PImport.CSV.Quote := qtNone
           else
             PImport.CSV.Quote := qtStrings;
         end;
@@ -1759,16 +1759,16 @@ var
 begin
   Session.UnRegisterEventProc(FormSessionEvent);
 
-  FLProgressTables.Visible := ImportType in [itODBC, itAccessFile, itExcelFile, itXMLFile];
-  FEntieredTables.Visible := FLProgressTables.Visible;
-  FDoneTables.Visible := FLProgressTables.Visible;
+  FLProgressObjects.Visible := ImportType in [itODBC, itAccessFile, itExcelFile, itXMLFile];
+  FEntieredObjects.Visible := FLProgressObjects.Visible;
+  FDoneObjects.Visible := FLProgressObjects.Visible;
   if (ImportType in [itODBC, itAccessFile, itExcelFile, itXMLFile]) then
     FLProgressRecords.Caption := Preferences.LoadStr(235) + ':'
   else
     FLProgressRecords.Caption := Preferences.LoadStr(67) + ':';
 
-  FEntieredTables.Caption := '';
-  FDoneTables.Caption := '';
+  FEntieredObjects.Caption := '';
+  FDoneObjects.Caption := '';
   FEntieredRecords.Caption := '';
   FDoneRecords.Caption := '';
   FEntieredTime.Caption := '';

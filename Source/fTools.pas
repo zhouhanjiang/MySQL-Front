@@ -5,7 +5,7 @@ interface {********************************************************************}
 // ODBC Driver: http://www.microsoft.com/en-us/download/details.aspx?id=13255
 
 uses
-  Windows, XMLDoc, XMLIntf, DBGrids, msxml, Zip, WinSpool,
+  Windows, XMLDoc, XMLIntf, DBGrids, msxml, WinSpool,
   SysUtils, DB, Classes, Graphics, SyncObjs,
   {$IFDEF EurekaLog}
   ExceptionLog,
@@ -61,7 +61,7 @@ type
     TOnExecuted = procedure(const Success: Boolean) of object;
     PProgressInfos = ^TProgressInfos;
     TProgressInfos = record
-      TablesDone, TablesSum: Integer;
+      ObjectsDone, ObjectsSum: Integer;
       RecordsDone, RecordsSum: Int64;
       TimeDone, TimeSum: TDateTime;
       Progress: Byte;
@@ -122,7 +122,7 @@ type
       function Read(): string;
       procedure Write(const Text: PChar; const Length: Integer); overload;
       procedure Write(const Text: string); overload; inline;
-      procedure WriteData(const Data: my_char; const Length: Integer; const Quote: Boolean = False); overload;
+      procedure WriteData(const Data: my_char; const Length: Integer; const Quote: Boolean = False; const Quoter: Char = ''''); overload;
       function WriteExternal(const Length: Integer): PChar;
       property Data: Pointer read GetData;
       property Length: Integer read GetLength;
@@ -449,10 +449,7 @@ type
   TTExportText = class(TTExportFile)
   private
     TempFilename: string;
-    Zip: TZipFile;
   protected
-    procedure AfterExecute(); override;
-    procedure BeforeExecute(); override;
     procedure ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
@@ -460,8 +457,7 @@ type
   public
     Quoter: Char;
     Delimiter: string;
-    QuoteStringValues: Boolean;
-    QuoteValues: Boolean;
+    QuoteValues: TPQuotingType;
     constructor Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
     destructor Destroy(); override;
   end;
@@ -473,8 +469,8 @@ type
 
   TTExportHTML = class(TTExportUML)
   private
-    CSSClass: array of string;
-    FieldOfPrimaryIndex: array of Boolean;
+    FieldOpenTags: array of string;
+    FieldOfPrimaryKey: array of Boolean;
     Font: TFont;
     SQLFont: TFont;
     RowOdd: Boolean;
@@ -499,8 +495,13 @@ type
 
   TTExportXML = class(TTExportUML)
   private
-    EscapedFieldNames: array of string;
+    FieldCloseTag: array of string;
+    FieldNulls: array of string;
+    FieldOpenTags: array of string;
+    RecordClosing: string;
+    RecordOpening: string;
   protected
+    procedure BeforeExecute(); override;
     procedure ExecuteDatabaseFooter(const Database: TSDatabase); override;
     procedure ExecuteDatabaseHeader(const Database: TSDatabase); override;
     procedure ExecuteFooter(); override;
@@ -511,11 +512,10 @@ type
   public
     DatabaseNodeText, DatabaseNodeAttribute: string;
     FieldNodeText, FieldNodeAttribute: string;
-    RecordNodeText: string;
+    RecoreNodeText: string;
     RootNodeText: string;
     TableNodeText, TableNodeAttribute: string;
     constructor Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
-    destructor Destroy(); override;
   end;
 
   TTExportBaseODBC = class(TTExport)
@@ -1082,14 +1082,6 @@ begin
   Reg.Free();
 end;
 
-function ZipError(const Zip: TZipFile; const ErrorMessage: string): TTool.TError;
-begin
-  Result.ErrorType := TE_File;
-  Result.ErrorCode := 0;
-  Result.ErrorMessage := ErrorMessage;
-  Result.Session := nil;
-end;
-
 { TTool.TDataFileBuffer *******************************************************}
 
 procedure TTool.TDataFileBuffer.Clear();
@@ -1522,7 +1514,7 @@ begin
   Write(PChar(Text), System.Length(Text));
 end;
 
-procedure TTool.TStringBuffer.WriteData(const Data: my_char; const Length: Integer; const Quote: Boolean = False);
+procedure TTool.TStringBuffer.WriteData(const Data: my_char; const Length: Integer; const Quote: Boolean = False; const Quoter: Char = '''');
 label
   StringL, StringLE,
   Finish;
@@ -1554,7 +1546,7 @@ begin
         MOV EAX,0                        // Clear EAX since AL will be loaded, but be AX used
         CMP Quote,False                  // Quote Value?
         JE StringL                       // No!
-        MOV AX,''''                      // Starting quoter
+        MOV AX,Quoter                    // Starting quoter
         STOSW                            //   into Write
 
       StringL:
@@ -1568,7 +1560,7 @@ begin
       StringLE:
         CMP Quote,False                  // Quote Value?
         JE Finish                        // No!
-        MOV AX,''''                      // Ending quoter
+        MOV AX,Quoter                    // Ending quoter
         STOSW                            //   into Write
 
       Finish:
@@ -1770,8 +1762,8 @@ var
 begin
   CriticalSection.Enter();
 
-  ProgressInfos.TablesDone := 0;
-  ProgressInfos.TablesSum := Items.Count;
+  ProgressInfos.ObjectsDone := 0;
+  ProgressInfos.ObjectsSum := Items.Count;
   ProgressInfos.RecordsDone := 0;
   ProgressInfos.RecordsSum := 0;
   ProgressInfos.TimeDone := 0;
@@ -1780,7 +1772,7 @@ begin
   for I := 0 to Items.Count - 1 do
   begin
     if (Items[I].Done) then
-      Inc(ProgressInfos.TablesDone);
+      Inc(ProgressInfos.ObjectsDone);
 
     Inc(ProgressInfos.RecordsDone, Items[I].RecordsDone);
     Inc(ProgressInfos.RecordsSum, Items[I].RecordsSum);
@@ -1788,15 +1780,15 @@ begin
 
   ProgressInfos.TimeDone := Now() - StartTime;
 
-  if ((ProgressInfos.RecordsDone = 0) and (ProgressInfos.TablesDone = 0)) then
+  if ((ProgressInfos.RecordsDone = 0) and (ProgressInfos.ObjectsDone = 0)) then
   begin
     ProgressInfos.Progress := 0;
     ProgressInfos.TimeSum := 0;
   end
   else if (ProgressInfos.RecordsDone = 0) then
   begin
-    ProgressInfos.Progress := Round(ProgressInfos.TablesDone / ProgressInfos.TablesSum * 100);
-    ProgressInfos.TimeSum := ProgressInfos.TimeDone / ProgressInfos.TablesDone * ProgressInfos.TablesSum;
+    ProgressInfos.Progress := Round(ProgressInfos.ObjectsDone / ProgressInfos.ObjectsSum * 100);
+    ProgressInfos.TimeSum := ProgressInfos.TimeDone / ProgressInfos.ObjectsDone * ProgressInfos.ObjectsSum;
   end
   else if (ProgressInfos.RecordsDone < ProgressInfos.RecordsSum) then
   begin
@@ -2222,8 +2214,8 @@ procedure TTImportFile.DoUpdateGUI();
 begin
   CriticalSection.Enter();
 
-  ProgressInfos.TablesDone := -1;
-  ProgressInfos.TablesSum := -1;
+  ProgressInfos.ObjectsDone := -1;
+  ProgressInfos.ObjectsSum := -1;
   ProgressInfos.RecordsDone := FilePos;
   ProgressInfos.RecordsSum := FileSize;
   ProgressInfos.TimeDone := 0;
@@ -3940,8 +3932,8 @@ begin
   begin
     CriticalSection.Enter();
 
-    ProgressInfos.TablesDone := 0;
-    ProgressInfos.TablesSum := Items.Count;
+    ProgressInfos.ObjectsDone := 0;
+    ProgressInfos.ObjectsSum := Items.Count;
     ProgressInfos.RecordsDone := 0;
     ProgressInfos.RecordsSum := 0;
     ProgressInfos.TimeDone := 0;
@@ -3950,22 +3942,22 @@ begin
     for I := 0 to Items.Count - 1 do
     begin
       if (TItem(Items[I]).Done) then
-        Inc(ProgressInfos.TablesDone);
+        Inc(ProgressInfos.ObjectsDone);
       Inc(ProgressInfos.RecordsDone, Items[I].RecordsDone);
       Inc(ProgressInfos.RecordsSum, Items[I].RecordsSum);
     end;
 
     ProgressInfos.TimeDone := Now() - StartTime;
 
-    if ((ProgressInfos.RecordsDone = 0) and (ProgressInfos.TablesDone = 0)) then
+    if ((ProgressInfos.RecordsDone = 0) and (ProgressInfos.ObjectsDone = 0)) then
     begin
       ProgressInfos.Progress := 0;
       ProgressInfos.TimeSum := 0;
     end
     else if (ProgressInfos.RecordsDone = 0) then
     begin
-      ProgressInfos.Progress := Round(ProgressInfos.TablesDone / ProgressInfos.TablesSum * 100);
-      ProgressInfos.TimeSum := ProgressInfos.TimeDone / ProgressInfos.TablesDone * ProgressInfos.TablesSum;
+      ProgressInfos.Progress := Round(ProgressInfos.ObjectsDone / ProgressInfos.ObjectsSum * 100);
+      ProgressInfos.TimeSum := ProgressInfos.TimeDone / ProgressInfos.ObjectsDone * ProgressInfos.ObjectsSum;
     end
     else if (ProgressInfos.RecordsDone < ProgressInfos.RecordsSum) then
     begin
@@ -4392,19 +4384,12 @@ begin
 end;
 
 function TTExportFile.FileCreate(const Filename: TFileName; out Error: TTool.TError): Boolean;
-var
-  Attributes: DWord;
 begin
-  if ((Self is TTExportText) and Assigned(TTExportText(Self).Zip)) then
-    Attributes := FILE_ATTRIBUTE_TEMPORARY
-  else
-    Attributes := FILE_ATTRIBUTE_NORMAL;
-
   Handle := CreateFile(PChar(Filename),
                        GENERIC_WRITE,
                        FILE_SHARE_READ,
                        nil,
-                       CREATE_ALWAYS, Attributes, 0);
+                       CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
   Result := Handle <> INVALID_HANDLE_VALUE;
 
   if (not Result) then
@@ -4517,7 +4502,8 @@ begin
 end;
 
 procedure TTExportSQL.ExecuteDatabaseHeader(const Database: TSDatabase);
-var Content: string;
+var
+  Content: string;
 begin
   if (UseDatabaseStmts) then
   begin
@@ -4526,7 +4512,10 @@ begin
     Content := Content + '# Database "' + Database.Name + '"' + #13#10;
     Content := Content + '#' + #13#10;
     Content := Content + #13#10;
-    Content := Content + 'CREATE DATABASE IF NOT EXISTS ' + Session.EscapeIdentifier(Database.Name) + ';' + #13#10;
+    Content := Content + 'CREATE DATABASE IF NOT EXISTS ' + Session.EscapeIdentifier(Database.Name);
+    if ((Database.DefaultCharset <> '') and (Database.Collation <> '')) then
+      Content := Content + ' /*!40100 DEFAULT CHARACTER SET ' + Database.DefaultCharset + ' COLLATE ' + Database.Collation + ' */';
+    Content := Content + ';' + #13#10;
     Content := Content + Database.SQLUse();
 
     WriteContent(Content);
@@ -4684,38 +4673,38 @@ end;
 
 procedure TTExportSQL.ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
-  LenEscaped: Integer;
-  I: Integer;
+  Field: TField;
   Len: Integer;
+  LenEscaped: Integer;
 begin
   ValuesBuffer.Write('(');
-  for I := 0 to Length(Fields) - 1 do
+  for Field in Fields do
   begin
-    if (I > 0) then ValuesBuffer.Write(',');
-    if (not Assigned(DataSet.LibRow^[Fields[I].FieldNo - 1])) then
+    if (ValuesBuffer.Length > 1) then ValuesBuffer.Write(',');
+    if (not Assigned(DataSet.LibRow^[Field.FieldNo - 1])) then
       ValuesBuffer.Write('NULL')
-    else if (BitField(Fields[I])) then
-      ValuesBuffer.Write('b''' + Fields[I].AsString + '''')
-    else if (Fields[I].DataType in BinaryDataTypes) then
+    else if (BitField(Field)) then
+      ValuesBuffer.Write('b''' + Field.AsString + '''')
+    else if (Field.DataType in BinaryDataTypes) then
     begin
-      Len := SQLEscapeBin(DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], nil, 0, False);
-      SQLEscapeBin(DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], ValuesBuffer.WriteExternal(Len), Len, False);
+      LenEscaped := SQLEscapeBin(DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], nil, 0, False);
+      SQLEscapeBin(DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValuesBuffer.WriteExternal(LenEscaped), LenEscaped, False);
     end
-    else if (Fields[I].DataType in TextDataTypes) then
+    else if (Field.DataType in TextDataTypes) then
     begin
-      Len := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], nil, 0);
+      Len := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], nil, 0);
       if (Len * SizeOf(ValueBuffer.Mem[0]) > ValueBuffer.MemSize) then
       begin
         ValueBuffer.MemSize := Len * SizeOf(ValueBuffer.Mem[0]);
         ReallocMem(ValueBuffer.Mem, ValueBuffer.MemSize);
       end;
-      AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], ValueBuffer.Mem, Len);
+      AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
 
       LenEscaped := SQLEscape(ValueBuffer.Mem, Len, nil, 0);
       SQLEscape(ValueBuffer.Mem, Len, ValuesBuffer.WriteExternal(LenEscaped), LenEscaped);
     end
     else
-      ValuesBuffer.WriteData(DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], not (Fields[I].DataType in NotQuotedDataTypes));
+      ValuesBuffer.WriteData(DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], not (Field.DataType in NotQuotedDataTypes));
   end;
   ValuesBuffer.Write(')');
 
@@ -4778,41 +4767,13 @@ end;
 
 { TTExportText ****************************************************************}
 
-procedure TTExportText.AfterExecute();
-begin
-  if (Assigned(Zip)) then
-    Zip.Free();
-
-  inherited;
-end;
-
-procedure TTExportText.BeforeExecute();
-begin
-  inherited;
-
-  if (Items.Count > 1) then
-  begin
-    Zip := TZipFile.Create();
-
-    while ((Success <> daAbort) and (Zip.Mode <> zmWrite)) do
-      try
-        Zip.Open(Filename, zmWrite);
-      except
-        on E: EZipException do
-          DoError(ZipError(Zip, E.Message), nil, True);
-      end;
-  end;
-end;
-
 constructor TTExportText.Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
 begin
   inherited;
 
   Delimiter := ',';
   Quoter := '"';
-  QuoteStringValues := True;
-  QuoteValues := False;
-  Zip := nil;
+  QuoteValues := qtStrings;
 end;
 
 destructor TTExportText.Destroy();
@@ -4827,18 +4788,6 @@ end;
 procedure TTExportText.ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 begin
   CloseFile();
-
-  if (Items.Count > 1) then
-  begin
-    if (Success = daSuccess) then
-      try
-        Zip.Add(TempFilename, Table.Name + '.csv');
-      except
-        on E: EZipException do
-          DoError(ZipError(Zip, E.Message), nil, False);
-      end;
-    DeleteFile(TempFilename);
-  end;
 end;
 
 procedure TTExportText.ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
@@ -4870,10 +4819,10 @@ begin
       else
         Value := Table.Fields[I].Name;
 
-      if (QuoteValues or QuoteStringValues) then
-        Content := Content + Quoter + Value + Quoter
+      if (QuoteValues = qtNone) then
+        Content := Content + Value
       else
-        Content := Content + Value;
+        Content := Content + Quoter + Value + Quoter;
     end;
 
     WriteContent(Content + #13#10);
@@ -4882,23 +4831,49 @@ end;
 
 procedure TTExportText.ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
-  Content: string;
-  I: Integer;
+  Field: TField;
+  Len: Integer;
+  LenEscaped: Integer;
 begin
-  Content := '';
-  for I := 0 to Length(Fields) - 1 do
+  for Field in Fields do
   begin
-    if (I > 0) then Content := Content + Delimiter;
-    if (not Assigned(DataSet.LibRow^[Fields[I].FieldNo - 1])) then
+    if (Field <> Fields[0]) then ValuesBuffer.Write(Delimiter);
+    if (not Assigned(DataSet.LibRow^[Field.FieldNo - 1])) then
       // NULL values are empty in MS Text files
-    else if (BitField(Fields[I])) then
-      Content := Content + CSVEscape(UInt64ToStr(Fields[I].AsLargeInt), Quoter, QuoteValues)
-    else if (Fields[I].DataType in BinaryDataTypes) then
-      Content := Content + CSVEscape(DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], Quoter, QuoteStringValues)
+    else if (BitField(Field)) then
+      ValuesBuffer.Write(CSVEscape(Field.AsString, Quoter, QuoteValues <> qtNone))
+    else if (Field.DataType = ftString) then
+      ValuesBuffer.Write(CSVEscape('BINARY', Quoter, QuoteValues <> qtNone))
+    else if (Field.DataType = ftBlob) then
+      ValuesBuffer.Write(CSVEscape('BLOB', Quoter, QuoteValues <> qtNone))
+    else if (Field.DataType = ftWideMemo) then
+      ValuesBuffer.Write(CSVEscape('MEMO', Quoter, QuoteValues <> qtNone))
+    else if (Field.DataType = ftWideString) then
+    begin
+      Len := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], nil, 0);
+      if (Len * SizeOf(ValueBuffer.Mem[0]) > ValueBuffer.MemSize) then
+      begin
+        ValueBuffer.MemSize := Len * SizeOf(ValueBuffer.Mem[0]);
+        ReallocMem(ValueBuffer.Mem, ValueBuffer.MemSize);
+      end;
+      AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
+
+      LenEscaped := CSVEscape(ValueBuffer.Mem, Len, nil, 0, Quoter, (QuoteValues <> qtNone));
+      CSVEscape(ValueBuffer.Mem, Len, ValuesBuffer.WriteExternal(LenEscaped), LenEscaped, Quoter, QuoteValues <> qtNone);
+    end
+    else if (Field.DataType = ftWideMemo) then
+      ValuesBuffer.Write(CSVEscape('TEXT', Quoter, QuoteValues <> qtNone))
     else
-      Content := Content + CSVEscape(DataSet.GetAsString(Fields[I]), Quoter, ((Fields[I].DataType in NotQuotedDataTypes)) and QuoteValues or not (Fields[I].DataType in NotQuotedDataTypes) and QuoteStringValues);
+      ValuesBuffer.WriteData(DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], QuoteValues = qtAll, Quoter);
   end;
-  WriteContent(Content + #13#10);
+
+  ValuesBuffer.Write(#13#10);
+
+  ContentBuffer.Write(ValuesBuffer.Text, ValuesBuffer.Length);
+  ValuesBuffer.Clear();
+
+  if (ContentBuffer.Size > FilePacketSize) then
+    Flush();
 end;
 
 function TTExportText.FileCreate(const Filename: TFileName; out Error: TTool.TError): Boolean;
@@ -4948,7 +4923,8 @@ asm
         MOV ECX,ValueLen                 // Length of Value string
         MOV EDX,EscapedLen               // Length of Escaped
 
-        MOV EBX,0
+        MOV EBX,0                        // Result
+
         CMP ECX,0                        // Empty string?
         JE Error                         // Yes!
 
@@ -4987,8 +4963,7 @@ asm
         JE StringLE                      // Yes!
         DEC EDX                          // 1 characters left in Escaped?
         JC Error                         // No!
-        PUSH EAX
-        MOV AX,'_'
+        MOV AX,'?'
         STOSW
         JMP StringLE
 
@@ -5079,7 +5054,9 @@ asm
 
       StringLE:
         DEC ECX
-        JNZ StringL
+        CMP ECX,0
+        JA StringL
+
         MOV @Result,EBX
         JMP Finish
 
@@ -5292,8 +5269,8 @@ begin
   if (Data) then
     WriteContent('</table><br style="page-break-after: always">' + #13#10);
 
-  SetLength(CSSClass, 0);
-  SetLength(FieldOfPrimaryIndex, 0);
+  SetLength(FieldOpenTags, 0);
+  SetLength(FieldOfPrimaryKey, 0);
 end;
 
 procedure TTExportHTML.ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
@@ -5473,12 +5450,12 @@ begin
       Content := Content + '<table border="0" cellspacing="0" class="TableData">' + #13#10;
     Content := Content + #9 + '<tr class="TableHeader">';
 
-    SetLength(FieldOfPrimaryIndex, Length(Fields));
+    SetLength(FieldOfPrimaryKey, Length(Fields));
     for I := 0 to Length(Fields) - 1 do
     begin
-      FieldOfPrimaryIndex[I] := Fields[I].IsIndexField;
+      FieldOfPrimaryKey[I] := Fields[I].IsIndexField;
 
-      if (FieldOfPrimaryIndex[I]) then
+      if (FieldOfPrimaryKey[I]) then
         Content := Content + '<th class="DataHeader PrimaryKey">'
       else
         Content := Content + '<th class="DataHeader">';
@@ -5491,15 +5468,15 @@ begin
     Content := Content + '</tr>' + #13#10;
 
 
-    SetLength(CSSClass, Length(Fields));
+    SetLength(FieldOpenTags, Length(Fields));
     for I := 0 to Length(Fields) - 1 do
     begin
-      CSSClass[I] := '';
-      if (FieldOfPrimaryIndex[I]) then
-        CSSClass[I] := CSSClass[I] + ' PrimaryKey';
+      FieldOpenTags[I] := '';
+      if (FieldOfPrimaryKey[I]) then
+        FieldOpenTags[I] := FieldOpenTags[I] + ' PrimaryKey';
       if (Fields[I].Alignment = taRightJustify) then
-        CSSClass[I] := CSSClass[I] + ' RightAlign';
-      CSSClass[I] := Trim(CSSClass[I]);
+        FieldOpenTags[I] := FieldOpenTags[I] + ' RightAlign';
+      FieldOpenTags[I] := Trim(FieldOpenTags[I]);
 
       RowOdd := True;
     end;
@@ -5510,6 +5487,7 @@ end;
 
 procedure TTExportHTML.ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
+  Field: TField;
   I: Integer;
   Len: Integer;
   LenEscaped: Integer;
@@ -5521,50 +5499,55 @@ begin
   RowOdd := not RowOdd;
 
   for I := 0 to Length(Fields) - 1 do
-    if (not Assigned(DataSet.LibRow^[Fields[I].FieldNo - 1])) then
+  begin
+    Field := Fields[I];
+
+    if (not Assigned(DataSet.LibRow^[Field.FieldNo - 1])) then
       if (NULLText) then
         ValuesBuffer.Write('<td class="Null">&lt;NULL&gt;</td>')
       else
         ValuesBuffer.Write('<td class="Null">&nbsp;</td>')
     else
     begin
-      if (FieldOfPrimaryIndex[I]) then
-        ValuesBuffer.Write('<th class="' + CSSClass[I] + '">')
+      if (Field.IsIndexField) then
+        ValuesBuffer.Write('<th class="' + FieldOpenTags[I] + '">')
       else
-        ValuesBuffer.Write('<td class="' + CSSClass[I] + '">');
+        ValuesBuffer.Write('<td class="' + FieldOpenTags[I] + '">');
 
-      if (DataSet.LibLengths^[I] = 0) then
+      if (DataSet.LibLengths^[Field.FieldNo - 1] = 0) then
         ValuesBuffer.Write('&nbsp;')
-      else if (GeometryField(Fields[I])) then
+      else if (BitField(Field)) then
+        ValuesBuffer.Write(Field.AsString)
+      else if (GeometryField(Field)) then
         ValuesBuffer.Write('&lt;GEO&gt;')
-      else if (not TextContent and (Fields[I].DataType = ftWideMemo)) then
-        ValuesBuffer.Write('&lt;MEMO&gt;')
-      else if (Fields[I].DataType = ftBytes) then
+      else if (Field.DataType = ftString) then
         ValuesBuffer.Write('&lt;BINARY&gt;')
-      else if (Fields[I].DataType = ftBlob) then
+      else if (Field.DataType = ftBlob) then
         ValuesBuffer.Write('&lt;BLOB&gt;')
-      else
-      if (Fields[I].DataType in TextDataTypes) then
+      else if ((Field.DataType = ftWideMemo) and not TextContent) then
+        ValuesBuffer.Write('&lt;MEMO&gt;')
+      else if (Field.DataType in TextDataTypes) then
       begin
-        Len := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], nil, 0);
+        Len := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], nil, 0);
         if (Len * SizeOf(ValueBuffer.Mem[0]) > ValueBuffer.MemSize) then
         begin
           ValueBuffer.MemSize := Len * SizeOf(ValueBuffer.Mem[0]);
           ReallocMem(ValueBuffer.Mem, ValueBuffer.MemSize);
         end;
-        AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], ValueBuffer.Mem, Len);
+        AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
 
         LenEscaped := HTMLEscape(ValueBuffer.Mem, Len, nil, 0);
         HTMLEscape(ValueBuffer.Mem, Len, ValuesBuffer.WriteExternal(LenEscaped), LenEscaped);
       end
       else
-        ValuesBuffer.WriteData(DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], False);
+        ValuesBuffer.WriteData(DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], False);
 
-      if (FieldOfPrimaryIndex[I]) then
+      if (Field.IsIndexField) then
         ValuesBuffer.Write('</th>')
       else
         ValuesBuffer.Write('</td>');
     end;
+  end;
 
   ValuesBuffer.Write('</tr>' + #13#10);
 
@@ -5804,21 +5787,22 @@ begin
     XMLEscape(PChar(Value), Length(Value), PChar(Result), Len);
 end;
 
+procedure TTExportXML.BeforeExecute();
+begin
+  inherited;
+
+  RecordOpening := #9 + '<' + RecoreNodeText + '>';
+  RecordClosing := '</' + RecoreNodeText + '>' + #13#10;
+end;
+
 constructor TTExportXML.Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
 begin
   inherited;
 
   DatabaseNodeText := '';
-  SetLength(EscapedFieldNames, 0);
+  RecoreNodeText := 'row';
   RootNodeText := '';
   TableNodeText := '';
-end;
-
-destructor TTExportXML.Destroy();
-begin
-  SetLength(EscapedFieldNames, 0);
-
-  inherited;
 end;
 
 procedure TTExportXML.ExecuteDatabaseFooter(const Database: TSDatabase);
@@ -5857,6 +5841,10 @@ end;
 
 procedure TTExportXML.ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 begin
+  SetLength(FieldCloseTag, 0);
+  SetLength(FieldNulls, 0);
+  SetLength(FieldOpenTags, 0);
+
   if (Assigned(Table)) then
     if (TableNodeAttribute <> '') then
       WriteContent('</' + TableNodeText + '>' + #13#10)
@@ -5868,12 +5856,41 @@ procedure TTExportXML.ExecuteTableHeader(const Table: TSTable; const Fields: arr
 var
   I: Integer;
 begin
-  SetLength(EscapedFieldNames, Length(Fields));
-  for I := 0 to Length(Fields) - 1 do
-    if (Length(DestinationFields) > 0) then
-      EscapedFieldNames[I] := SysUtils.LowerCase(XMLEscape(DestinationFields[I].Name))
+  SetLength(FieldOpenTags, Length(Fields));
+  for I := 0 to Length(FieldOpenTags) - 1 do
+    if (FieldNodeAttribute = '') then
+      if (Length(DestinationFields) > 0) then
+        FieldOpenTags[I] := Session.ApplyIdentifierName('<' + SysUtils.LowerCase(XMLEscape(DestinationFields[I].Name)) + '>')
+      else
+        FieldOpenTags[I] := Session.ApplyIdentifierName('<' + SysUtils.LowerCase(XMLEscape(Fields[I].DisplayName)) + '>')
     else
-      EscapedFieldNames[I] := SysUtils.LowerCase(XMLEscape(Fields[I].DisplayName));
+      if (Length(DestinationFields) > 0) then
+        FieldOpenTags[I] := Session.ApplyIdentifierName('<' + FieldNodeText + ' ' + FieldNodeAttribute + '=' + SysUtils.LowerCase(XMLEscape(DestinationFields[I].Name)) + '>')
+      else
+        FieldOpenTags[I] := Session.ApplyIdentifierName('<' + FieldNodeText + ' ' + FieldNodeAttribute + '=' + SysUtils.LowerCase(XMLEscape(Fields[I].DisplayName)) + '>');
+
+  SetLength(FieldNulls, Length(Fields));
+  for I := 0 to Length(FieldNulls) - 1 do
+    if (FieldNodeAttribute = '') then
+      if (Length(DestinationFields) > 0) then
+        FieldNulls[I] := Session.ApplyIdentifierName('<' + SysUtils.LowerCase(XMLEscape(DestinationFields[I].Name)) + ' xsi:nil="true"/>')
+      else
+        FieldNulls[I] := Session.ApplyIdentifierName('<' + SysUtils.LowerCase(XMLEscape(Fields[I].DisplayName)) + ' xsi:nil="true"/>')
+    else
+      if (Length(DestinationFields) > 0) then
+        FieldNulls[I] := Session.ApplyIdentifierName('<' + FieldNodeText + ' ' + FieldNodeAttribute + '=' + SysUtils.LowerCase(XMLEscape(DestinationFields[I].Name)) + ' xsi:nil="true"/>')
+      else
+        FieldNulls[I] := Session.ApplyIdentifierName('<' + FieldNodeText + ' ' + FieldNodeAttribute + '=' + SysUtils.LowerCase(XMLEscape(Fields[I].DisplayName)) + ' xsi:nil="true"/>');
+
+  SetLength(FieldCloseTag, Length(Fields));
+  for I := 0 to Length(FieldCloseTag) - 1 do
+    if (FieldNodeAttribute = '') then
+      if (Length(DestinationFields) > 0) then
+        FieldCloseTag[I] := Session.ApplyIdentifierName('</' + SysUtils.LowerCase(XMLEscape(DestinationFields[I].Name)) + '>')
+      else
+        FieldCloseTag[I] := Session.ApplyIdentifierName('</' + SysUtils.LowerCase(XMLEscape(Fields[I].DisplayName)) + '>')
+    else
+      FieldCloseTag[I] := Session.ApplyIdentifierName('</' + FieldNodeText + '>');
 
   if (Assigned(Table)) then
     if (TableNodeAttribute <> '') then
@@ -5884,51 +5901,52 @@ end;
 
 procedure TTExportXML.ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
+  Field: TField;
   I: Integer;
   Len: Integer;
   LenEscaped: Integer;
 begin
-  ValuesBuffer.Write(#9 + '<' + RecordNodeText + '>' + #13#10);
+  ValuesBuffer.Write(RecordOpening);
 
   for I := 0 to Length(Fields) - 1 do
   begin
-    if (FieldNodeAttribute = '') then
-      ValuesBuffer.Write(#9#9 + '<' + EscapedFieldNames[I])
-    else
-      ValuesBuffer.Write(#9#9 + '<' + FieldNodeText + ' ' + FieldNodeAttribute + '="' + EscapedFieldNames[I] + '"');
+    Field := Fields[I];
 
-    if (DataSet.LibRow^[I] = nil) then
-      ValuesBuffer.Write(' xsi:nil="true" />' + #13#10) // NULL
+    if (DataSet.LibRow[Field.FieldNo - 1] = nil) then
+      ValuesBuffer.Write(FieldNulls[I])
     else
     begin
-      if (Fields[I].DataType = ftBytes) then
-        ValuesBuffer.Write('&lt;BINARY&gt;')
-      else if (Fields[I].DataType = ftBlob) then
-        ValuesBuffer.Write('&lt;BLOB&gt;')
-      else if (Fields[I].DataType in TextDataTypes) then
+      ValuesBuffer.Write(FieldOpenTags[I]);
+
+      if (BitField(Field)) then
+        ValuesBuffer.Write(Field.AsString)
+      else if (GeometryField(Field)) then
+        ValuesBuffer.Write('GEO')
+      else if (Field.DataType = ftString) then
+        ValuesBuffer.Write('BINARY')
+      else if (Field.DataType = ftBlob) then
+        ValuesBuffer.Write('BLOB')
+      else if (Field.DataType = ftWideString) then
       begin
-        Len := AnsiCharToWideChar(CodePage, DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], nil, 0);
+        Len := AnsiCharToWideChar(CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], nil, 0);
         if (Len * SizeOf(ValueBuffer.Mem[0]) > ValueBuffer.MemSize) then
         begin
           ValueBuffer.MemSize := Len * SizeOf(ValueBuffer.Mem[0]);
           ReallocMem(ValueBuffer.Mem, ValueBuffer.MemSize);
         end;
-        AnsiCharToWideChar(CodePage, DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], ValueBuffer.Mem, Len);
+        AnsiCharToWideChar(CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
 
         LenEscaped := XMLEscape(ValueBuffer.Mem, Len, nil, 0);
         XMLEscape(ValueBuffer.Mem, Len, ValuesBuffer.WriteExternal(LenEscaped), LenEscaped);
       end
       else
-        ValuesBuffer.Write('>' + DataSet.GetAsString(Fields[I]));
+        ValuesBuffer.WriteData(DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1]);
 
-      if (FieldNodeAttribute = '') then
-        ValuesBuffer.Write('</' + EscapedFieldNames[I] + '>' + #13#10)
-      else
-        ValuesBuffer.Write('</' + FieldNodeText + '>' + #13#10);
+      ValuesBuffer.Write(FieldCloseTag[I]);
     end;
   end;
 
-  ValuesBuffer.Write(#9 + '</' + RecordNodeText + '>' + #13#10);
+  ValuesBuffer.Write(RecordClosing);
 
   ContentBuffer.Write(ValuesBuffer.Text, ValuesBuffer.Length);
   ValuesBuffer.Clear();
@@ -7044,7 +7062,7 @@ begin
           Columns[J].Width := Canvas.TextWidth('<GEO>')
         else if (Fields[J].DataType = ftWideMemo) then
           Columns[J].Width := Canvas.TextWidth('<MEMO>')
-        else if (Fields[J].DataType = ftBytes) then
+        else if (Fields[J].DataType = ftString) then
           Columns[J].Width := Canvas.TextWidth('<BINARY>')
         else if (Fields[J].DataType = ftBlob) then
           Columns[J].Width := Canvas.TextWidth('<BLOB>')
@@ -7095,16 +7113,14 @@ procedure TTExportCanvas.ExecuteTableRecord(const Table: TSTable; const Fields: 
 
   function FieldText(const Field: TField): string;
   begin
-    if (GeometryField(Field)) then
+    if (not Assigned(DataSet.LibRow^[Field.FieldNo - 1]) and NULLText) then
+      Result := '<NULL>'
+    else if (GeometryField(Field)) then
       Result := '<GEO>'
-    else if (Field.DataType = ftWideMemo) then
-      Result := '<MEMO>'
-    else if (Field.DataType = ftBytes) then
+    else if (Field.DataType = ftString) then
       Result := '<BINARY>'
     else if (Field.DataType = ftBlob) then
       Result := '<BLOB>'
-    else if (Field.IsNull and NULLText) then
-      Result := '<NULL>'
     else
       Result := DataSet.GetAsString(Field);
   end;
@@ -8713,8 +8729,8 @@ begin
   begin
     CriticalSection.Enter();
 
-    ProgressInfos.TablesDone := 0;
-    ProgressInfos.TablesSum := Items.Count;
+    ProgressInfos.ObjectsDone := 0;
+    ProgressInfos.ObjectsSum := Items.Count;
     ProgressInfos.RecordsDone := 0;
     ProgressInfos.RecordsSum := 0;
     ProgressInfos.TimeDone := 0;
@@ -8724,7 +8740,7 @@ begin
     begin
       if (TItem(Items[I]).Done) then
       begin
-        Inc(ProgressInfos.TablesDone);
+        Inc(ProgressInfos.ObjectsDone);
         Inc(ProgressInfos.RecordsDone, TItem(Items[I]).RecordsSum);
       end;
 
@@ -8733,15 +8749,15 @@ begin
 
     ProgressInfos.TimeDone := Now() - StartTime;
 
-    if ((ProgressInfos.RecordsDone = 0) and (ProgressInfos.TablesDone = 0)) then
+    if ((ProgressInfos.RecordsDone = 0) and (ProgressInfos.ObjectsDone = 0)) then
     begin
       ProgressInfos.Progress := 0;
       ProgressInfos.TimeSum := 0;
     end
-    else if (ProgressInfos.TablesDone < ProgressInfos.TablesSum) then
+    else if (ProgressInfos.ObjectsDone < ProgressInfos.ObjectsSum) then
     begin
-      ProgressInfos.Progress := Round(ProgressInfos.TablesDone / ProgressInfos.TablesSum * 100);
-      ProgressInfos.TimeSum := ProgressInfos.TimeDone / ProgressInfos.TablesDone * ProgressInfos.TablesSum;
+      ProgressInfos.Progress := Round(ProgressInfos.ObjectsDone / ProgressInfos.ObjectsSum * 100);
+      ProgressInfos.TimeSum := ProgressInfos.TimeDone / ProgressInfos.ObjectsDone * ProgressInfos.ObjectsSum;
     end
     else
     begin

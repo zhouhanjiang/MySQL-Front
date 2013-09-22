@@ -136,8 +136,7 @@ begin
             dtTab: TTExportText(Export).Delimiter := #9;
             dtChar: TTExportText(Export).Delimiter := Job.CSV.Delimiter;
           end;
-          TTExportText(Export).QuoteStringValues := Job.CSV.Quote in [qtStrings, qtAll];
-          TTExportText(Export).QuoteValues := Job.CSV.Quote in [qtAll];
+          TTExportText(Export).QuoteValues := Job.CSV.QuoteValues;
           TTExportText(Export).Quoter := Job.CSV.Quoter;
           TTExportText(Export).Structure := Job.CSV.Headline;
         end;
@@ -207,7 +206,7 @@ begin
                 TTExportXML(Export).FieldNodeAttribute := Job.XML.Field.NodeAttribute;
               end;
           end;
-          TTExportXML(Export).RecordNodeText := Job.XML.Row.NodeText;
+          TTExportXML(Export).RecoreNodeText := Job.XML.Row.NodeText;
           TTExportXML(Export).RootNodeText := Job.XML.Root.NodeText;
           TTExportXML(Export).Structure := True;
           case (Job.XML.Table.NodeType) of
@@ -431,7 +430,7 @@ begin
                 dtChar: TTImportText(Import).Delimiter := Job.CSV.Delimiter[1];
               end;
               case (Job.CSV.Quote) of
-                qtNothing: TTImportText(Import).Quoter := #0;
+                qtNone: TTImportText(Import).Quoter := #0;
                 qtStrings: TTImportText(Import).Quoter := Job.CSV.QuoteChar[1];
                 qtAll: TTImportText(Import).Quoter := Job.CSV.QuoteChar[1];
               end;

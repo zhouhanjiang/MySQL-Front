@@ -61,7 +61,7 @@ type
 
   TPImportStmt = (isInsert, isReplace, isUpdate);
   TPDelimiterType = (dtTab, dtChar);
-  TPQuotingType = (qtNothing, qtStrings, qtAll);
+  TPQuotingType = (qtNone, qtStrings, qtAll);
   TPUpdateCheckType = (utNever, utDaily);
 
   TMRUList = class
@@ -193,7 +193,7 @@ type
   public
     CSV: record
       Headline: Boolean;
-      Quote: TPQuotingType;
+      QuoteValues: TPQuotingType;
       Quoter: Char;
       Delimiter: string;
       DelimiterType: TPDelimiterType;
@@ -837,7 +837,6 @@ type
     property DBLogin: TDBLogin read FDBLogin;
   end;
 
-procedure DecodeVersion(const Version: Integer; out AMajor, AMinor, APatch, ABuild: Integer);
 function EncodeVersion(const AMajor, AMinor, APatch, ABuild: Integer): Integer;
 function XMLNode(const XML: IXMLNode; const Path: string; const NodeAutoCreate: Boolean = False): IXMLNode; overload;
 
@@ -920,7 +919,7 @@ end;
 function TryStrToQuote(const Str: string; var Quote: TPQuotingType): Boolean;
 begin
   Result := True;
-  if (UpperCase(Str) = 'NOTHING') then Quote := qtNothing
+  if (UpperCase(Str) = 'NOTHING') then Quote := qtNone
   else if (UpperCase(Str) = 'STRINGS') then Quote := qtStrings
   else if (UpperCase(Str) = 'ALL') then Quote := qtAll
   else Result := False;
@@ -1033,7 +1032,7 @@ end;
 
 function UpdateCheckToStr(const UpdateCheck: TPUpdateCheckType): string;
 begin
-  case UpdateCheck of
+  case (UpdateCheck) of
     utDaily: Result := 'Daily';
     else Result := 'Never';
   end;
@@ -1061,14 +1060,6 @@ begin
     5: Result := 'Compact';
     else Result := '';
   end;
-end;
-
-procedure DecodeVersion(const Version: Integer; out AMajor, AMinor, APatch, ABuild: Integer);
-begin
-  AMajor := Version div 100000000;
-  AMinor := Version div 1000000 - AMajor * 100;
-  APatch := Version div 10000 - AMajor * 10000 - AMinor * 100;
-  ABuild := Version mod 10000;
 end;
 
 function EncodeVersion(const AMajor, AMinor, APatch, ABuild: Integer): Integer;
@@ -1634,7 +1625,7 @@ begin
   inherited;
 
   CSV.Headline := True;
-  CSV.Quote := qtStrings;
+  CSV.QuoteValues := qtStrings;
   CSV.Quoter := '"';
   CSV.Delimiter := ',';
   CSV.DelimiterType := dtChar;
@@ -1667,7 +1658,7 @@ begin
 
   if (Assigned(XMLNode(XML, 'csv/headline'))) then TryStrToBool(XMLNode(XML, 'csv/headline').Attributes['enabled'], CSV.Headline);
   if (Assigned(XMLNode(XML, 'csv/quote/string')) and (XMLNode(XML, 'csv/quote/string').Text <> '')) then CSV.Quoter := XMLNode(XML, 'csv/quote/string').Text[1];
-  if (Assigned(XMLNode(XML, 'csv/quote/type'))) then TryStrToQuote(XMLNode(XML, 'csv/quote/type').Text, CSV.Quote);
+  if (Assigned(XMLNode(XML, 'csv/quote/type'))) then TryStrToQuote(XMLNode(XML, 'csv/quote/type').Text, CSV.QuoteValues);
   if (Assigned(XMLNode(XML, 'csv/separator/character/string'))) then CSV.Delimiter := XMLNode(XML, 'csv/separator/character/string').Text;
   if (Assigned(XMLNode(XML, 'csv/separator/character/type'))) then TryStrToSeparatorType(XMLNode(XML, 'csv/separator/character/type').Text, CSV.DelimiterType);
   if (Assigned(XMLNode(XML, 'excel/format')) and (XMLNode(XML, 'excel/format').Text = '2007')) then Excel.Excel2007 := True else Excel.Excel2007 := False;
@@ -1699,7 +1690,7 @@ begin
 
   XMLNode(XML, 'csv/headline').Attributes['enabled'] := CSV.Headline;
   XMLNode(XML, 'csv/quote/string').Text := CSV.Quoter;
-  XMLNode(XML, 'csv/quote/type').Text := QuoteToStr(CSV.Quote);
+  XMLNode(XML, 'csv/quote/type').Text := QuoteToStr(CSV.QuoteValues);
   XMLNode(XML, 'csv/separator/character/string').Text := CSV.Delimiter;
   XMLNode(XML, 'csv/separator/character/type').Text := SeparatorTypeToStr(CSV.DelimiterType);
   if (Excel.Excel2007) then XMLNode(XML, 'excel/format').Text := '2007' else XMLNode(XML, 'excel/format').Text := '';
@@ -2158,7 +2149,7 @@ begin
   TabsVisible := False;
   ToolbarTabs := [ttObjects, ttBrowser, ttEditor];
   UpdateCheck := utNever;
-  UpdateChecked := Now();
+  UpdateChecked := 0;
 
 
   KeyBase := SysUtils.LoadStr(1003);

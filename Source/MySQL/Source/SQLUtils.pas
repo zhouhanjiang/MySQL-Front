@@ -46,8 +46,8 @@ function IntToBitString(const Value: UInt64; const MinWidth: Integer = 1): strin
 function SQLCreateParse(out Handle: TSQLParse; const SQL: PChar; const Len: Integer; const Version: Integer; const InCondCode: Boolean = False): Boolean;
 function SQLEscape(const Value: string; const Quoter: Char = ''''): string; overload;
 function SQLEscape(const Value: PChar; const ValueLen: Integer; const Escaped: PChar; const EscapedLen: Integer; const Quoter: Char = ''''): Integer; overload;
-function SQLEscapeBin(const Data: Pointer; const Size: Integer; const Escaped: PChar; const EscapedLen: Integer; const ODBCEncoding: Boolean): Integer; overload;
-function SQLEscapeBin(const Data: Pointer; const Size: Integer; const ODBCEncoding: Boolean): string; overload;
+function SQLEscapeBin(const Data: PAnsiChar; const Len: Integer; const Escaped: PChar; const EscapedLen: Integer; const ODBCEncoding: Boolean): Integer; overload;
+function SQLEscapeBin(const Data: PAnsiChar; const Len: Integer; const ODBCEncoding: Boolean): string; overload;
 function SQLEscapeBin(const Value: string; const ODBCEncoding: Boolean): string; overload;
 function SQLParseCallStmt(const SQL: PChar; const Len: Integer; out ProcedureName: string; const Version: Integer): Boolean;
 function SQLParseChar(var Handle: TSQLParse; const Character: Char; const IncrementIndex: Boolean = True): Boolean; overload;
@@ -799,18 +799,14 @@ function SQLEscape(const Value: string; const Quoter: Char = ''''): string;
 var
   Len: Integer;
 begin
-  if (Length(Value) = 0) then
-    Result := StringOfChar(Quoter, 2)
-  else
-  begin
-    Len := SQLEscape(PChar(Value), Length(Value), nil, 0, Quoter);
-    SetLength(Result, Len);
-    SQLEscape(PChar(Value), Length(Value), PChar(Result), Len, Quoter);
-  end;
+  Len := SQLEscape(PChar(Value), Length(Value), nil, 0, Quoter);
+  SetLength(Result, Len);
+  SQLEscape(PChar(Value), Length(Value), PChar(Result), Len, Quoter);
 end;
 
 function SQLEscape(const Value: PChar; const ValueLen: Integer; const Escaped: PChar; const EscapedLen: Integer; const Quoter: Char = ''''): Integer; overload;
 label
+  Start, StartE,
   ValueStart, ValueL, Value2, Value3, Value4, Value5, Value6, Value7, Value8, ValueLE, ValueFinish,
   Error,
   Finish;
@@ -825,24 +821,24 @@ begin
         POP ES
         CLD                              // string operations uses forward direction
 
+        MOV EBX,0                        // Result
         MOV ESI,PChar(Value)             // Copy characters from Value
         MOV EDI,Escaped                  //   to Escaped
-        MOV ECX,ValueLen                 // Length of Value string
         MOV EDX,EscapedLen               // Length of Escaped
+        MOV ECX,ValueLen                 // Length of Value string
 
-        MOV EBX,0
-
+      Start:
         INC EBX                          // 1 characters needed in Escaped
         CMP Escaped,0                    // Calculate length only?
-        JE ValueStart                    // Yes!
+        JE StartE                        // Yes!
         DEC EDX                          // 1 characters left in Escaped?
         JC Error                         // No!
         MOV AX,Quoter
         STOSW
 
-      ValueStart:
+      StartE:
         CMP ECX,0                        // Empty string?
-        JE ValueFinish                  // Yes!
+        JE ValueFinish                   // Yes!
 
       ValueL:
         LODSW                            // Character from Value
@@ -980,124 +976,105 @@ begin
   end;
 end;
 
-function SQLEscapeBin(const Data: Pointer; const Size: Integer; const Escaped: PChar; const EscapedLen: Integer; const ODBCEncoding: Boolean): Integer;
+function SQLEscapeBin(const Data: PAnsiChar; const Len: Integer; const Escaped: PChar; const EscapedLen: Integer; const ODBCEncoding: Boolean): Integer;
 const
   HexDigits: PChar = '0123456789ABCDEF';
 label
-  Start2,
-  BinL, Bin1, BinE,
+  Start, Start2, StartE,
+  DataL, DataLE, DataE,
   Error,
   Finish;
-var
-  Len: Integer;
 begin
-  if (not Assigned(Escaped)) then
-  begin
-    if (ODBCEncoding) then
-      Result := 2 + 2 * Size
-    else
-      Result := 2 + 2 * Size + 1;
-  end
+  if (not ODBCEncoding) then
+    Result := 2 + 2 * Len + 1
   else
-  begin
-    Result := 0;
-    Len := EscapedLen;
+    Result := 2 + 2 * Len;
+
+  if (Assigned(Escaped) and (Result > EscapedLen)) then
+    Result := 0
+  else if (Assigned(Escaped)) then
     asm
-          PUSH ES
-          PUSH ESI
-          PUSH EDI
-          PUSH EBX
+        PUSH ES
+        PUSH ESI
+        PUSH EDI
+        PUSH EBX
 
-          PUSH DS                          // string operations uses ES
-          POP ES
-          CLD                              // string operations uses forward direction
+        PUSH DS                          // string operations uses ES
+        POP ES
+        CLD                              // string operations uses forward direction
 
-          MOV EBX,Pointer(HexDigits)       // Hex digits
+        MOV EBX,Pointer(HexDigits)       // Hex digits
 
-          MOV ESI,Data                     // Read bytes from Data
-          MOV EDI,Escaped                  // Store into Escaped
-          MOV ECX,Size                     // Number of bytes to handle
+        MOV ESI,PChar(Data)              // Copy characters from Data
+        MOV EDI,Escaped                  //   to Escaped
+        MOV EDX,EscapedLen               // Length of Escaped
+        MOV ECX,Len                      // Length of Data
 
-        // -------------------
+      Start:
+        CMP ODBCEncoding,True            // ODBC Encoding?
+        JNE Start2                       // No!
+        MOV AX,'0'
+        STOSW
+        MOV AX,'x'
+        STOSW
+        JMP StartE
+      Start2:
+        MOV AX,'X'
+        STOSW
+        MOV AX,''''
+        STOSW
+      StartE:
+        CMP ECX,0                        // Empty Data?
+        JE DataE                         // Yes!
 
-          ADD @Result,2                    // Two character needed
-          CMP Escaped,0                    // Calculate length only?
-          JE BinL                          // Yes!
-          SUB Len,2                        // Two character less in Escaped!
-          JC Error                         // Not enough space in Escaped!
-          CMP ODBCEncoding,True            // ODBC Encoding?
-          JNE Start2                       // No!
-          MOV AX,'0'
-          STOSW
-          MOV AX,'x'
-          STOSW
-          JMP BinL
-        Start2:
-          MOV AX,'X'
-          STOSW
-          MOV AX,''''
-          STOSW
+      DataL:
+        MOV EAX,0                        // Clear EAX since AL will be loaded, but be AX used
+        LODSB                            // Read byte
+        PUSH EAX
+        SHR AL,4                         // Use high octet
+        MOV AX,[EBX + EAX * 2]           // Get hex character
+        STOSW                            // Store character
+        POP EAX
+        AND AL,$0F                       // Use low octet
+        MOV AX,[EBX + EAX * 2]           // Get hex character
+        STOSW                            // Store character
+      DataLE:
+        LOOP DataL                        // Next Bin byte
+      DataE:
+        CMP ODBCEncoding,True            // ODBC Encoding?
+        JE Finish                        // No!
+        MOV AX,''''
+        STOSW
+        JMP Finish
 
-        BinL:
-          ADD @Result,2                    // Two characters needed
-          CMP Escaped,0                    // Calculate length only?
-          JE Bin1                          // Yes!
-          SUB Len,2                        // Two character less in Escaped!
-          JC Error                         // Not enough space in Escaped!
-        Bin1:
-          MOV EAX,0                        // Clear EAX since AL will be loaded, but be AX used
-          LODSB                            // Read byte
-          PUSH EAX
-          SHR AL,4                         // Use high octet
-          MOV AX,[EBX + EAX * 2]           // Get hex character
-          STOSW                            // Store character
-          POP EAX
-          AND AL,$0F                       // Use low octet
-          MOV AX,[EBX + EAX * 2]           // Get hex character
-          STOSW                            // Store character
-        BinE:
-          LOOP BinL                        // Next Bin byte
+      // -------------------
 
-          CMP ODBCEncoding,True            // ODBC Encoding?
-          JE Finish                        // No!
-          INC @Result                      // One character needed
-          CMP Escaped,0                    // Calculate length only?
-          JE Finish                        // Yes!
-          DEC Len                          // One character less in Escaped!
-          JC Error                         // Not enough space in Escaped!
-          MOV AX,''''
-          STOSW
-          JMP Finish
+      Error:
+        MOV @Result,0
 
-        // -------------------
-
-        Error:
-          MOV @Result,0
-
-        Finish:
-          POP EBX
-          POP EDI
-          POP ESI
-          POP ES
+      Finish:
+        POP EBX
+        POP EDI
+        POP ESI
+        POP ES
     end;
-  end;
 end;
 
-function SQLEscapeBin(const Data: Pointer; const Size: Integer; const ODBCEncoding: Boolean): string;
+function SQLEscapeBin(const Data: PAnsiChar; const Len: Integer; const ODBCEncoding: Boolean): string;
 const
   HexDigits: PChar = '0123456789ABCDEF';
 label
   BinL;
 begin
-  if (Size = 0) then
+  if (Len = 0) then
     Result := ''''''
   else
   begin
     if (ODBCEncoding) then
-      SetLength(Result, 2 + 2 * Size)
+      SetLength(Result, 2 + 2 * Len)
     else
-      SetLength(Result, 2 + 2 * Size + 1);
-    SQLEscapeBin(Data, Size, PChar(Result), Length(Result), ODBCEncoding);
+      SetLength(Result, 2 + 2 * Len + 1);
+    SQLEscapeBin(Data, Len, PChar(Result), Length(Result), ODBCEncoding);
   end;
 end;
 
@@ -3069,5 +3046,7 @@ begin
   Result := StrPas(P);
 end;
 
+begin
+  SQLEscape('');
 end.
 

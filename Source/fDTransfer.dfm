@@ -204,6 +204,10 @@ object DTransfer: TDTransfer
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         436
         279)
@@ -218,12 +222,12 @@ object DTransfer: TDTransfer
         DesignSize = (
           429
           169)
-        object FLProgressTables: TLabel
+        object FLProgressObjects: TLabel
           Left = 8
           Top = 40
-          Width = 85
+          Width = 89
           Height = 13
-          Caption = 'FLProgressTables'
+          Caption = 'FLProgressObjects'
         end
         object FLProgressRecords: TLabel
           Left = 8
@@ -232,17 +236,17 @@ object DTransfer: TDTransfer
           Height = 13
           Caption = 'FLProgressRecords'
         end
-        object FDoneTables: TLabel
-          Left = 275
+        object FDoneObjects: TLabel
+          Left = 255
           Top = 40
-          Width = 64
+          Width = 68
           Height = 13
           Alignment = taRightJustify
           Anchors = [akTop, akRight]
-          Caption = 'FDoneTables'
+          Caption = 'FDoneObjects'
         end
         object FDoneRecords: TLabel
-          Left = 267
+          Left = 251
           Top = 64
           Width = 72
           Height = 13
@@ -258,7 +262,7 @@ object DTransfer: TDTransfer
           Caption = 'FLProgressTime'
         end
         object FDoneTime: TLabel
-          Left = 284
+          Left = 268
           Top = 88
           Width = 55
           Height = 13
@@ -267,7 +271,7 @@ object DTransfer: TDTransfer
           Caption = 'FDoneTime'
         end
         object FLDone: TLabel
-          Left = 302
+          Left = 286
           Top = 16
           Width = 38
           Height = 13
@@ -284,14 +288,14 @@ object DTransfer: TDTransfer
           Anchors = [akTop, akRight]
           Caption = 'FLEntiered'
         end
-        object FEntieredTables: TLabel
-          Left = 342
+        object FEntieredObjects: TLabel
+          Left = 338
           Top = 40
-          Width = 77
+          Width = 81
           Height = 13
           Alignment = taRightJustify
           Anchors = [akTop, akRight]
-          Caption = 'FEntieredTables'
+          Caption = 'FEntieredObjects'
         end
         object FEntieredRecords: TLabel
           Left = 334

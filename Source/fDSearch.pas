@@ -220,14 +220,14 @@ var
 begin
   Infos := TTool.PProgressInfos(Message.LParam);
 
-  if (Infos.TablesSum < 0) then
+  if (Infos.ObjectsSum < 0) then
     FEntieredTables.Caption := '???'
   else
-    FEntieredTables.Caption := FormatFloat('#,##0', Infos.TablesSum, LocaleFormatSettings);
-  if (Infos.TablesDone < 0) then
+    FEntieredTables.Caption := FormatFloat('#,##0', Infos.ObjectsSum, LocaleFormatSettings);
+  if (Infos.ObjectsDone < 0) then
     FDoneTables.Caption := '???'
   else
-    FDoneTables.Caption := FormatFloat('#,##0', Infos.TablesDone, LocaleFormatSettings);
+    FDoneTables.Caption := FormatFloat('#,##0', Infos.ObjectsDone, LocaleFormatSettings);
 
   if (Infos.RecordsSum < 0) then
     FEntieredRecords.Caption := '???'

@@ -1775,7 +1775,7 @@ begin
 
   if (Assigned(BaseTable)) then
 
-    Hint := BaseTable.Comment;
+  Hint := BaseTable.Comment;
 
   FDoubleBuffered := True;
   SetLength(FLinkPoints, 0);

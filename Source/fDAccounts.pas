@@ -4,9 +4,9 @@ interface {********************************************************************}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ComCtrls, ExtCtrls, Menus, ActnList, 
+  Dialogs, StdCtrls, ComCtrls, ExtCtrls, Menus, ActnList, ImgList, ToolWin,
   StdCtrls_Ext, ComCtrls_Ext, ExtCtrls_Ext, Forms_Ext,
-  fSession, fPreferences, fBase, ImgList, ToolWin;
+  fSession, fPreferences, fBase;
 
 type
   TDAccounts = class (TForm_Ext)
@@ -51,6 +51,7 @@ type
     procedure ListViewShowSortDirection(const ListView: TListView);
     procedure SetFAccounts(const ASelected: TAAccount);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMPostShow(var Message: TMessage); message CM_POST_SHOW;
   public
     Account: TAAccount;
     Session: TSSession;
@@ -153,6 +154,11 @@ begin
   FBOk.Caption := Preferences.LoadStr(581);
 end;
 
+procedure TDAccounts.CMPostShow(var Message: TMessage);
+begin
+  ListViewShowSortDirection(FAccounts);
+end;
+
 function TDAccounts.Execute(): Boolean;
 begin
   ShowModal();
@@ -241,6 +247,8 @@ begin
   ActiveControl := FAccounts;
 
   FBOkEnabledCheck(Sender);
+
+  PostMessage(Handle, CM_POST_SHOW, 0, 0);
 end;
 
 procedure TDAccounts.FAccountsColumnClick(Sender: TObject;

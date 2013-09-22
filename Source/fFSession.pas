@@ -585,6 +585,9 @@ type
     procedure FTextEnter(Sender: TObject);
     procedure FTextExit(Sender: TObject);
     procedure FTextKeyPress(Sender: TObject; var Key: Char);
+    procedure FTextKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure FTextMouseUp(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
     procedure ListViewAdvancedCustomDrawItem(Sender: TCustomListView;
       Item: TListItem; State: TCustomDrawState; Stage: TCustomDrawStage;
       var DefaultDraw: Boolean);
@@ -698,9 +701,8 @@ type
     procedure FJobsExit(Sender: TObject);
     procedure PJobsEnter(Sender: TObject);
     procedure PJobsExit(Sender: TObject);
-    procedure FTextMouseUp(Sender: TObject; Button: TMouseButton;
+    procedure FSQLHistoryMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
-    procedure FTextKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
   type
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
     TTabState = set of (tsLoading, tsActive);
@@ -8052,7 +8054,7 @@ begin
   MainAction('aFImportODBC').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
   MainAction('aFImportXML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseTable]);
   MainAction('aFExportSQL').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-  MainAction('aFExportText').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView]);
+  MainAction('aFExportText').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseTable, iiView]);
   MainAction('aFExportExcel').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView]);
   MainAction('aFExportAccess').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
   MainAction('aFExportODBC').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
@@ -8930,18 +8932,21 @@ begin
 end;
 
 procedure TFSession.FSQLHistoryDblClick(Sender: TObject);
+var
+  I: Integer;
+  MenuItem: TMenuItem;
 begin
   Wanted.Clear();
 
-  FSQLHistoryMenuNode := FSQLHistory.Selected;
+  MSQLHistoryPopup(FSQLHistory);
 
+  MenuItem := nil;
+  if (Assigned(MSQLHistory)) then
+    for I := 0 to MSQLHistory.Items.Count - 1 do
+      if (MSQLHistory.Items[I].Default and MSQLHistory.Items[I].Visible and MSQLHistory.Items[I].Enabled) then
+        MenuItem := MSQLHistory.Items[I];
 
-  if (Sender = FSQLHistory) then
-  begin
-    MSQLHistoryPopup(Sender);
-      if (miHStatementIntoSQLEditor.Default) then
-        miHStatementIntoSQLEditor.Click();
-  end;
+  if (Assigned(MenuItem)) then MenuItem.Click();
 end;
 
 procedure TFSession.FSQLHistoryEnter(Sender: TObject);
@@ -8998,6 +9003,17 @@ begin
         if Assigned(MenuItem) then
           begin MenuItem.Click(); Key := #0; end;
       end;
+end;
+
+procedure TFSession.FSQLHistoryMouseDown(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+var
+  Point: TPoint;
+begin
+  TreeViewMouseDown(Sender, Button, Shift, X, Y);
+
+  Point := GetClientOrigin();
+  FSQLHistoryMenuNode := FSQLHistory.GetNodeAt(X, Y);
 end;
 
 procedure TFSession.FSQLHistoryRefresh(Sender: TObject);
@@ -11025,7 +11041,6 @@ begin
             MainAction('aFImportAccess').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFImportODBC').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFExportSQL').Enabled := (ListView.SelCount = 0) or Assigned(Item) and (Item.ImageIndex = iiDatabase);
-            MainAction('aFExportText').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFExportExcel').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFExportAccess').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFExportODBC').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
@@ -11052,7 +11067,6 @@ begin
               if (ListView.Items[I].Selected) then
               begin
                 MainAction('aFExportSQL').Enabled := MainAction('aFExportSQL').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
-                MainAction('aFExportText').Enabled := MainAction('aFExportText').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
                 MainAction('aFExportExcel').Enabled := MainAction('aFExportExcel').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
                 MainAction('aFExportAccess').Enabled := MainAction('aFExportAccess').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
                 MainAction('aFExportODBC').Enabled := MainAction('aFExportODBC').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
@@ -11087,7 +11101,7 @@ begin
             MainAction('aFImportODBC').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
             MainAction('aFImportXML').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable);
             MainAction('aFExportSQL').Enabled := ((ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger])) and (SelectedImageIndex = iiDatabase);
-            MainAction('aFExportText').Enabled := ((ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiView])) and (SelectedImageIndex = iiDatabase);
+            MainAction('aFExportText').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiView])) and (SelectedImageIndex = iiDatabase);
             MainAction('aFExportExcel').Enabled := ((ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiView])) and (SelectedImageIndex = iiDatabase);
             MainAction('aFExportAccess').Enabled := ((ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable])) and (SelectedImageIndex = iiDatabase);
             MainAction('aFExportODBC').Enabled := ((ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable])) and (SelectedImageIndex = iiDatabase);
@@ -11123,7 +11137,6 @@ begin
               if (ListView.Items[I].Selected) then
               begin
                 MainAction('aFExportSQL').Enabled := MainAction('aFExportSQL').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-                MainAction('aFExportText').Enabled := MainAction('aFExportText').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView]);
                 MainAction('aFExportExcel').Enabled := MainAction('aFExportExcel').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView]);
                 MainAction('aFExportAccess').Enabled := MainAction('aFExportAccess').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
                 MainAction('aFExportODBC').Enabled := MainAction('aFExportODBC').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
@@ -11813,15 +11826,15 @@ end;
 
 procedure TFSession.MSQLHistoryPopup(Sender: TObject);
 var
-  P: TPoint;
+  Point: TPoint;
 begin
   if (Sender = FSQLHistory.PopupMenu) then
   begin
     // Bei einem Click auf den WhiteSpace: FNavigator.Selected zeigt den zuletzt selektierten Node an :-(
-    P := GetClientOrigin();
-    FSQLHistoryMenuNode := FSQLHistory.GetNodeAt(MSQLHistory.PopupPoint.x - P.x - (PSideBar.Left + PSQLHistory.Left + FSQLHistory.Left), MSQLHistory.PopupPoint.y - P.y - (PSideBar.Top + PSQLHistory.Top + FSQLHistory.Top));
+    Point := GetClientOrigin();
+    FSQLHistoryMenuNode := FSQLHistory.GetNodeAt(MSQLHistory.PopupPoint.x - Point.x - (PSideBar.Left + PSQLHistory.Left + FSQLHistory.Left), MSQLHistory.PopupPoint.y - Point.y - (PSideBar.Top + PSQLHistory.Top + FSQLHistory.Top));
   end
-  else
+  else if (Assigned(FSQLHistory.Selected)) then
     FSQLHistoryMenuNode := FSQLHistory.Selected;
 
   MainAction('aECopy').Enabled := Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery]);
@@ -14236,6 +14249,7 @@ begin
     vEditor3:
       case (SelectedImageIndex) of
         iiServer:
+          if (Session.Databases.Count < PrefetchObjectCount) then
           begin
             List := TList.Create();
 
