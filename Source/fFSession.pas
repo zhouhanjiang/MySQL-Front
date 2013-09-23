@@ -10333,7 +10333,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
     Assert(Item.Data = Data);
 
 
-    Item.SubItems.BeginUpdate();
+//    Item.SubItems.BeginUpdate();
     Item.SubItems.Clear();
 
     if (Data is TSDatabase) then
@@ -10652,7 +10652,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
       Item.SubItems.Add(TSVariable(Data).Value);
     end;
 
-    Item.SubItems.EndUpdate();
+//    Item.SubItems.EndUpdate();
   end;
 
   function InsertItem(const Kind: TADesktop.TListViewKind; const Data: TObject): TListItem;
@@ -10885,7 +10885,7 @@ begin
     ChangingEvent := ListView.OnChanging;
     ListView.OnChanging := nil;
     ListView.DisableAlign();
-    ListView.Items.BeginUpdate();
+//    ListView.Items.BeginUpdate();
 
     Kind := ColumnWidthKindFromImageIndex(ImageIndexByData(TObject(ListView.Tag)));
 
@@ -10951,7 +10951,7 @@ begin
     if ((Window.ActiveControl = ListView) and Assigned(ListView.OnSelectItem)) then
       ListView.OnSelectItem(nil, ListView.Selected, Assigned(ListView.Selected));
 
-    ListView.Items.EndUpdate();
+//    ListView.Items.EndUpdate();
     ListView.EnableAlign();
     ListView.OnChanging := ChangingEvent;
   end;
