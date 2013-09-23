@@ -14,8 +14,8 @@ uses
   ShellControls, JAMControls, ShellLink,
   ComCtrls_Ext, StdCtrls_Ext, Dialogs_Ext, Forms_Ext, ExtCtrls_Ext,
   MySQLDB, MySQLDBGrid,
-  fSession, fPreferences, fTools,
-  fDExport, fDImport, fCWorkbench, fBase;
+  fSession, fPreferences, fTools, fBase,
+  fDExport, fDImport, fCWorkbench;
 
 const
   CM_ACTIVATE_DBGRID = WM_USER + 500;
@@ -1030,7 +1030,7 @@ type
     procedure ImportError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure ListViewEmpty(Sender: TObject);
     procedure ListViewInitialize(const ListView: TListView);
-    procedure ListViewUpdate(const SessionEvent: TSSession.TEvent; const ListView: TListView; const Data: TCustomData = nil; const Event: TSSession.TEvent = nil);
+    procedure ListViewUpdate(const SessionEvent: TSSession.TEvent; const ListView: TListView; const Data: TCustomData = nil);
     procedure MGridHeaderMenuOrderClick(Sender: TObject);
     function NavigatorNodeToAddress(const Node: TTreeNode): string;
     procedure OnConvertError(Sender: TObject; Text: string);
@@ -4450,7 +4450,7 @@ begin
     if (SessionEvent.EventType in [ceItemsValid, ceItemValid, ceItemCreated, ceItemAltered, ceItemDropped]) then
     begin
       if (SessionEvent.Sender is TSSession) then
-        ListViewUpdate(SessionEvent, FServerListView, nil, SessionEvent);
+        ListViewUpdate(SessionEvent, FServerListView, nil);
 
       if (SessionEvent.Sender is TSDatabase) then
       begin
@@ -10329,7 +10329,7 @@ begin
   mlEProperties.ShortCut := 0;
 end;
 
-procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const ListView: TListView; const Data: TCustomData = nil; const Event: TSSession.TEvent = nil);
+procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const ListView: TListView; const Data: TCustomData = nil);
 
   function Compare(const Kind: TADesktop.TListViewKind; const Item1, Item2: TListItem): Integer;
   begin

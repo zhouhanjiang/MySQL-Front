@@ -5073,7 +5073,7 @@ begin
 
     Result := inherited;
 
-    if (not Filtered and ((OldCount > 0) or (Count > 0))) then
+    if ((OldCount > 0) or (Count > 0)) then
     begin
       Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
       Session.ExecuteEvent(ceItemsValid, Database, Self);
@@ -5955,7 +5955,7 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered and (OldCount > 0) or (Count > 0)) then
+  if ((OldCount > 0) or (Count > 0)) then
   begin
     Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
     Session.ExecuteEvent(ceItemsValid, Database, Self);
@@ -6313,7 +6313,7 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered and (OldCount > 0) or (Count > 0)) then
+  if ((OldCount > 0) or (Count > 0)) then
   begin
     Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
     Session.ExecuteEvent(ceItemsValid, Database, Self);
@@ -6625,7 +6625,7 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered and ((OldCount > 0) or (Count > 0))) then
+  if ((OldCount > 0) or (Count > 0)) then
   begin
     Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
     Session.ExecuteEvent(ceItemsValid, Database, Self);
@@ -8250,7 +8250,7 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered and (OldCount > 0) or (Count > 0)) then
+  if ((OldCount > 0) or (Count > 0)) then
     Session.ExecuteEvent(ceItemsValid, Session, Self);
 end;
 
@@ -8571,7 +8571,7 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered and (OldCount > 0) or (Count > 0)) then
+  if ((OldCount > 0) or (Count > 0)) then
     Session.ExecuteEvent(ceItemsValid, Session, Self);
 end;
 
@@ -8821,7 +8821,7 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered and ((OldCount > 0) or (Count > 0))) then
+  if ((OldCount > 0) or (Count > 0)) then
     Session.ExecuteEvent(ceItemsValid, Session, Self);
 end;
 
@@ -9253,7 +9253,7 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered and ((OldCount > 0) or (Count > 0))) then
+  if ((OldCount > 0) or (Count > 0)) then
     Session.ExecuteEvent(ceItemsValid, Session, Self);
 end;
 
@@ -9874,7 +9874,7 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered and (OldCount > 0) or (Count > 0)) then
+  if ((OldCount > 0) or (Count > 0)) then
     Session.ExecuteEvent(ceItemsValid, Session, Self);
 end;
 
