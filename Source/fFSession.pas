@@ -14257,6 +14257,7 @@ begin
     vEditor3:
       case (SelectedImageIndex) of
         iiServer:
+          if (Database.Count < PrefetchObjectCount) then
           begin
             List := TList.Create();
 
