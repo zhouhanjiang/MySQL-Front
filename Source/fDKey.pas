@@ -283,7 +283,7 @@ end;
 
 procedure TDIndex.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = ceItemAltered) and (Event.CItem = Table)) then
+  if ((Event.EventType = ceItemAltered) and (Event.SItem = Table)) then
     ModalResult := mrOk
   else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
   begin

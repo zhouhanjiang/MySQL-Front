@@ -3607,7 +3607,7 @@ begin
   if (Assigned(LibraryThread)) then
   begin
     {$IFDEF Debug}
-      MessageBox(Application.Handle, 'Terminate required!', 'Debug', MB_OK);
+//      MessageBox(Application.Handle, 'Terminate required!', 'Debug', MB_OK);
     {$ENDIF}
 
     if (LibraryThread.IsRunning) then

@@ -221,9 +221,9 @@ end;
 
 procedure TDTrigger.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = ceItemValid) and (Event.CItem = Trigger)) then
+  if ((Event.EventType = ceItemValid) and (Event.SItem = Trigger)) then
     Built()
-  else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.CItem is TSTrigger)) then
+  else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.SItem is TSTrigger)) then
     ModalResult := mrOk
   else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
   begin

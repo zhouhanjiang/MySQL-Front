@@ -4438,14 +4438,14 @@ begin
       if (Event.Sender is TSDatabase) then
       begin
         ListViewUpdate(Event, FServerListView);
-        if (not (Event.CItems is TSTriggers)) then
+        if (not (Event.SItems is TSTriggers)) then
           ListViewUpdate(Event, Desktop(TSDatabase(Event.Sender)).ListView)
         else if (Event.EventType = ceItemDropped) then
-          ListViewUpdate(Event, Desktop(TSTrigger(Event.CItem).Table).ListView)
+          ListViewUpdate(Event, Desktop(TSTrigger(Event.SItem).Table).ListView)
         else
-          for I := 0 to TSTriggers(Event.CItems).Count - 1 do
-            if (Assigned(TSTriggers(Event.CItems)[I].Table)) then
-              ListViewUpdate(Event, Desktop(TSTriggers(Event.CItems)[I].Table).ListView);
+          for I := 0 to TSTriggers(Event.SItems).Count - 1 do
+            if (Assigned(TSTriggers(Event.SItems)[I].Table)) then
+              ListViewUpdate(Event, Desktop(TSTriggers(Event.SItems)[I].Table).ListView);
         if (Assigned(Desktop(TSDatabase(Event.Sender)).Workbench)) then
           Desktop(TSDatabase(Event.Sender)).Workbench.ClientUpdate(Event);
       end
@@ -4456,28 +4456,28 @@ begin
         if ((Event.Sender is TSBaseTable) and Assigned(Desktop(TSBaseTable(Event.Sender).Database).Workbench)) then
           Desktop(TSBaseTable(Event.Sender).Database).Workbench.ClientUpdate(Event);
       end
-      else if (Event.CItems is TSProcesses) then
+      else if (Event.SItems is TSProcesses) then
         ListViewUpdate(Event, ProcessesListView)
-      else if (Event.CItems is TSStati) then
+      else if (Event.SItems is TSStati) then
         ListViewUpdate(Event, StatiListView)
-      else if (Event.CItems is TSUsers) then
+      else if (Event.SItems is TSUsers) then
         ListViewUpdate(Event, UsersListView)
-      else if (Event.CItems is TSVariables) then
+      else if (Event.SItems is TSVariables) then
         ListViewUpdate(Event, VariablesListView);
     end;
 
     if (Event.EventType in [ceItemValid]) then
-      if ((Event.CItem is TSView) and Assigned(Desktop(TSView(Event.CItem)).SynMemo)) then
-        Desktop(TSView(Event.CItem)).SynMemo.Text := Trim(SQLWrapStmt(TSView(Event.CItem).Stmt, ['from', 'where', 'group by', 'having', 'order by', 'limit'], 0)) + #13#10
-      else if ((Event.CItem is TSRoutine) and Assigned(Desktop(TSRoutine(Event.CItem)).SynMemo)) then
+      if ((Event.SItem is TSView) and Assigned(Desktop(TSView(Event.SItem)).SynMemo)) then
+        Desktop(TSView(Event.SItem)).SynMemo.Text := Trim(SQLWrapStmt(TSView(Event.SItem).Stmt, ['from', 'where', 'group by', 'having', 'order by', 'limit'], 0)) + #13#10
+      else if ((Event.SItem is TSRoutine) and Assigned(Desktop(TSRoutine(Event.SItem)).SynMemo)) then
       begin
-        Desktop(TSRoutine(Event.CItem)).SynMemo.Text := TSRoutine(Event.CItem).Source + #13#10;
+        Desktop(TSRoutine(Event.SItem)).SynMemo.Text := TSRoutine(Event.SItem).Source + #13#10;
         PContentChange(nil);
       end;
 
-    if ((Event.EventType = ceItemAltered) and (Event.CItem is TSTable)
-      and Assigned(Desktop(TSTable(Event.CItem)).DBGrid)) then
-      Desktop(TSTable(Event.CItem)).DBGrid.DataSource.DataSet.Close();
+    if ((Event.EventType = ceItemAltered) and (Event.SItem is TSTable)
+      and Assigned(Desktop(TSTable(Event.SItem)).DBGrid)) then
+      Desktop(TSTable(Event.SItem)).DBGrid.DataSource.DataSet.Close();
   end;
 
   if (PContent.Visible and Assigned(TempActiveControl) and TempActiveControl.Visible) then
@@ -4490,7 +4490,7 @@ begin
 
   StatusBarRefresh();
 
-  if (Assigned(Event) and ((Event.EventType in [ceItemCreated, ceItemAltered]) or ((Event.EventType in [ceItemValid]) and (Event.CItem is TSObject) and not TSObject(Event.CItem).Valid)) and (Screen.ActiveForm = Window) and Wanted.Nothing) then
+  if (Assigned(Event) and ((Event.EventType in [ceItemCreated, ceItemAltered]) or ((Event.EventType in [ceItemValid]) and (Event.SItem is TSObject) and not TSObject(Event.SItem).Valid)) and (Screen.ActiveForm = Window) and Wanted.Nothing) then
     Wanted.Update := Session.Update;
 end;
 
@@ -7882,15 +7882,15 @@ procedure TFSession.FNavigatorUpdate(const SessionEvent: TSSession.TEvent);
                 AddChild(Node, CItems[I]);
         end;
       ceItemCreated:
-        InsertChild(Node, SessionEvent.CItem);
+        InsertChild(Node, SessionEvent.SItem);
       ceItemAltered:
         begin
           Child := Node.getFirstChild();
-          while (Assigned(Child) and (Child.Data <> SessionEvent.CItem)) do
+          while (Assigned(Child) and (Child.Data <> SessionEvent.SItem)) do
             Child := Child.getNextSibling();
-          if (Assigned(Child) and (Child.Text <> SessionEvent.CItem.Caption)) then
+          if (Assigned(Child) and (Child.Text <> SessionEvent.SItem.Caption)) then
           begin
-            Child.Text := SessionEvent.CItem.Caption;
+            Child.Text := SessionEvent.SItem.Caption;
             Destination := Node.getFirstChild();
             while (Assigned(Destination) and ((Destination = Child) or (Compare(Node.ImageIndex, Destination, Child) < 0))) do
               Destination := Destination.getNextSibling();
@@ -7904,7 +7904,7 @@ procedure TFSession.FNavigatorUpdate(const SessionEvent: TSSession.TEvent);
         begin
           Child := Node.getFirstChild();
           while (Assigned(Child)) do
-            if (Child.Data <> SessionEvent.CItem) then
+            if (Child.Data <> SessionEvent.SItem) then
               Child := Child.getNextSibling()
             else
             begin
@@ -7959,8 +7959,8 @@ begin
       Node.Expand(False);
     end;
 
-    if (SessionEvent.CItems is TSDatabases) then
-      UpdateGroup(Node, giDatabases, SessionEvent.CItems);
+    if (SessionEvent.SItems is TSDatabases) then
+      UpdateGroup(Node, giDatabases, SessionEvent.SItems);
   end
   else if (SessionEvent.Sender is TSDatabase) then
   begin
@@ -7971,22 +7971,22 @@ begin
 
     if (Assigned(Node) and (not Node.HasChildren or Assigned(Node.getFirstChild()) or (Node = FNavigatorNodeToExpand))) then
     begin
-      if (not (SessionEvent.CItems is TSTriggers)) then
+      if (not (SessionEvent.SItems is TSTriggers)) then
       begin
-        UpdateGroup(Node, giTriggers, SessionEvent.CItems);
+        UpdateGroup(Node, giTriggers, SessionEvent.SItems);
 
         Node.HasChildren := Assigned(Node.getFirstChild())
           or not Database.Tables.Valid or (Database.Tables.Count > 0)
           or (Assigned(Database.Routines) and ((Database.Routines.Count > 0) or not Database.Routines.Valid))
           or (Assigned(Database.Events) and ((Database.Events.Count > 0) or not Database.Events.Valid));
       end
-      else if (SessionEvent.CItem is TSTrigger) then
+      else if (SessionEvent.SItem is TSTrigger) then
       begin
         Child := Node.getFirstChild();
         while (Assigned(Child)) do
         begin
-          if (TObject(Child.Data) = TSTrigger(SessionEvent.CItem).Table) then
-            UpdateGroup(Child, giTables, SessionEvent.CItems);
+          if (TObject(Child.Data) = TSTrigger(SessionEvent.SItem).Table) then
+            UpdateGroup(Child, giTables, SessionEvent.SItems);
           Child := Child.getNextSibling();
         end;
       end;
@@ -10333,7 +10333,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
     Assert(Item.Data = Data);
 
 
-//    Item.SubItems.BeginUpdate();
+    Item.SubItems.BeginUpdate();
     Item.SubItems.Clear();
 
     if (Data is TSDatabase) then
@@ -10652,7 +10652,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
       Item.SubItems.Add(TSVariable(Data).Value);
     end;
 
-//    Item.SubItems.EndUpdate();
+    Item.SubItems.EndUpdate();
   end;
 
   function InsertItem(const Kind: TADesktop.TListViewKind; const Data: TObject): TListItem;
@@ -10780,11 +10780,11 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         end;
       ceItemValid:
         for I := 0 to ListView.Items.Count - 1 do
-          if (ListView.Items[I].Data = SessionEvent.CItem) then
-            UpdateItem(ListView.Items[I], SessionEvent.CItem);
+          if (ListView.Items[I].Data = SessionEvent.SItem) then
+            UpdateItem(ListView.Items[I], SessionEvent.SItem);
       ceItemCreated:
         begin
-          Item := InsertItem(Kind, SessionEvent.CItem);
+          Item := InsertItem(Kind, SessionEvent.SItem);
           if (not Assigned(ListView.Selected)) then
           begin
             Item.Selected := True;
@@ -10794,18 +10794,18 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
       ceItemAltered:
         begin
           Index := 0;
-          while ((Index < ListView.Items.Count) and (ListView.Items[Index].Data <> SessionEvent.CItem)) do
+          while ((Index < ListView.Items.Count) and (ListView.Items[Index].Data <> SessionEvent.SItem)) do
             Inc(Index);
           if (Index = ListView.Items.Count) then
-            InsertItem(Kind, SessionEvent.CItem)
-          else if (ListView.Items[Index].Caption = SessionEvent.CItem.Caption) then
-            UpdateItem(ListView.Items[Index], SessionEvent.CItem)
+            InsertItem(Kind, SessionEvent.SItem)
+          else if (ListView.Items[Index].Caption = SessionEvent.SItem.Caption) then
+            UpdateItem(ListView.Items[Index], SessionEvent.SItem)
           else
           begin
             ItemSelected := ListView.Items[Index].Selected;
             ItemFocused := ListView.Items[Index].Focused;
             ListView.Items.Delete(Index);
-            Item := InsertItem(Kind, SessionEvent.CItem);
+            Item := InsertItem(Kind, SessionEvent.SItem);
             Item.Selected := ItemSelected;
             Item.Focused := ItemFocused;
           end;
@@ -10813,18 +10813,18 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
       ceItemDropped:
         begin
           for I := ListView.Items.Count - 1 downto 0 do
-            if (ListView.Items[I].Data = SessionEvent.CItem) then
+            if (ListView.Items[I].Data = SessionEvent.SItem) then
               ListView.Items.Delete(I);
-          if ((Kind = lkTable) and (SessionEvent.CItems is TSBaseTableFields)) then
+          if ((Kind = lkTable) and (SessionEvent.SItems is TSBaseTableFields)) then
           begin
             for I := ListView.Items.Count - 1 downto 0 do
-              if ((TObject(ListView.Items[I].Data) is TSKey) and (TSBaseTable(TSBaseTableFields(SessionEvent.CItems).Table).Keys.IndexOf(ListView.Items[I].Data) < 0)) then
+              if ((TObject(ListView.Items[I].Data) is TSKey) and (TSBaseTable(TSBaseTableFields(SessionEvent.SItems).Table).Keys.IndexOf(ListView.Items[I].Data) < 0)) then
                 ListView.Items.Delete(I);
             for I := ListView.Items.Count - 1 downto 0 do
-              if ((TObject(ListView.Items[I].Data) is TSField) and (TSBaseTable(TSBaseTableFields(SessionEvent.CItems).Table).Fields.IndexOf(ListView.Items[I].Data) < 0)) then
+              if ((TObject(ListView.Items[I].Data) is TSField) and (TSBaseTable(TSBaseTableFields(SessionEvent.SItems).Table).Fields.IndexOf(ListView.Items[I].Data) < 0)) then
                 ListView.Items.Delete(I);
             for I := ListView.Items.Count - 1 downto 0 do
-              if ((TObject(ListView.Items[I].Data) is TSForeignKey) and (TSBaseTable(TSBaseTableFields(SessionEvent.CItems).Table).ForeignKeys.IndexOf(ListView.Items[I].Data) < 0)) then
+              if ((TObject(ListView.Items[I].Data) is TSForeignKey) and (TSBaseTable(TSBaseTableFields(SessionEvent.SItems).Table).ForeignKeys.IndexOf(ListView.Items[I].Data) < 0)) then
                 ListView.Items.Delete(I);
           end;
         end;
@@ -10833,19 +10833,19 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
     if (SessionEvent.EventType in [ceItemsValid, ceItemCreated, ceItemDropped]) then
       case (GroupID) of
         giDatabases:
-          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(265) + ' (' + IntToStr(SessionEvent.CItems.Count) + ')', '&', '');
+          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(265) + ' (' + IntToStr(SessionEvent.SItems.Count) + ')', '&', '');
         giTables:
           begin
             Header := ReplaceStr(Preferences.LoadStr(234), '&', '');
             if (Session.ServerVersion >= 50001) then
               Header := Header + ' + ' + ReplaceStr(Preferences.LoadStr(873), '&', '');
-            Header := Header + ' (' + IntToStr(SessionEvent.CItems.Count) + ')';
+            Header := Header + ' (' + IntToStr(SessionEvent.SItems.Count) + ')';
             GroupByGroupID(GroupID).Header := Header;
           end;
         giRoutines:
-          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(874) + ' + ' + Preferences.LoadStr(875), '&', '') + ' (' + IntToStr(SessionEvent.CItems.Count) + ')';
+          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(874) + ' + ' + Preferences.LoadStr(875), '&', '') + ' (' + IntToStr(SessionEvent.SItems.Count) + ')';
         giEvents:
-          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(876), '&', '') + ' (' + IntToStr(SessionEvent.CItems.Count) + ')';
+          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(876), '&', '') + ' (' + IntToStr(SessionEvent.SItems.Count) + ')';
         giKeys:
           GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(458), '&', '') + ' (' + IntToStr(TSBaseTable(SessionEvent.Sender).Keys.Count) + ')';
         giFields:
@@ -10880,12 +10880,13 @@ var
   Kind: TADesktop.TListViewKind;
   Table: TSTable;
 begin
-  if (Assigned(ListView) and (Assigned(SessionEvent.CItems) or (SessionEvent.Sender is TSTable))) then
+  if (Assigned(ListView) and (Assigned(SessionEvent.SItems) or (SessionEvent.Sender is TSTable))) then
   begin
     ChangingEvent := ListView.OnChanging;
     ListView.OnChanging := nil;
     ListView.DisableAlign();
-//    ListView.Items.BeginUpdate();
+    if (SessionEvent.EventType = ceItemsValid) then
+      ListView.Items.BeginUpdate();
 
     Kind := ColumnWidthKindFromImageIndex(ImageIndexByData(TObject(ListView.Tag)));
 
@@ -10905,23 +10906,23 @@ begin
             ListViewInitialize(ListView);
           end;
 
-          if (SessionEvent.CItems is TSDatabases) then
-            UpdateGroup(Kind, giDatabases, SessionEvent.CItems)
-          else if ((SessionEvent.CItems is TSProcesses) or (SessionEvent.CItems is TSStati) or (SessionEvent.CItems is TSUsers) or (SessionEvent.CItems is TSVariables)) then
+          if (SessionEvent.SItems is TSDatabases) then
+            UpdateGroup(Kind, giDatabases, SessionEvent.SItems)
+          else if ((SessionEvent.SItems is TSProcesses) or (SessionEvent.SItems is TSStati) or (SessionEvent.SItems is TSUsers) or (SessionEvent.SItems is TSVariables)) then
           begin
             for I := 0 to ListView.Items.Count - 1 do
-              if (ListView.Items[I].Data = SessionEvent.CItems) then
-                UpdateItem(ListView.Items[I], SessionEvent.CItems);
+              if (ListView.Items[I].Data = SessionEvent.SItems) then
+                UpdateItem(ListView.Items[I], SessionEvent.SItems);
           end;
         end;
       lkDatabase:
         begin
-          if (SessionEvent.CItems is TSTables) then
-            UpdateGroup(Kind, giTables, SessionEvent.CItems)
-          else if (SessionEvent.CItems is TSRoutines) then
-            UpdateGroup(Kind, giRoutines, SessionEvent.CItems)
-          else if (SessionEvent.CItems is TSEvents) then
-            UpdateGroup(Kind, giEvents, SessionEvent.CItems);
+          if (SessionEvent.SItems is TSTables) then
+            UpdateGroup(Kind, giTables, SessionEvent.SItems)
+          else if (SessionEvent.SItems is TSRoutines) then
+            UpdateGroup(Kind, giRoutines, SessionEvent.SItems)
+          else if (SessionEvent.SItems is TSEvents) then
+            UpdateGroup(Kind, giEvents, SessionEvent.SItems);
         end;
       lkTable:
         if (SessionEvent.Sender is TSTable) then
@@ -10936,22 +10937,23 @@ begin
           if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).Database.Triggers)) then
             UpdateGroup(Kind, giTriggers, TSBaseTable(Table).Database.Triggers);
         end
-        else if ((SessionEvent.Sender is TSDatabase) and (SessionEvent.CItem is TSTrigger)) then
-          UpdateGroup(Kind, giTriggers, SessionEvent.CItems);
+        else if ((SessionEvent.Sender is TSDatabase) and (SessionEvent.SItem is TSTrigger)) then
+          UpdateGroup(Kind, giTriggers, SessionEvent.SItems);
       lkProcesses:
-        UpdateGroup(Kind, giProcesses, SessionEvent.CItems);
+        UpdateGroup(Kind, giProcesses, SessionEvent.SItems);
       lkStati:
-        UpdateGroup(Kind, giStati, SessionEvent.CItems);
+        UpdateGroup(Kind, giStati, SessionEvent.SItems);
       lkUsers:
-        UpdateGroup(Kind, giUsers, SessionEvent.CItems);
+        UpdateGroup(Kind, giUsers, SessionEvent.SItems);
       lkVariables:
-        UpdateGroup(Kind, giVariables, SessionEvent.CItems);
+        UpdateGroup(Kind, giVariables, SessionEvent.SItems);
     end;
 
     if ((Window.ActiveControl = ListView) and Assigned(ListView.OnSelectItem)) then
       ListView.OnSelectItem(nil, ListView.Selected, Assigned(ListView.Selected));
 
-//    ListView.Items.EndUpdate();
+    if (SessionEvent.EventType = ceItemsValid) then
+      ListView.Items.EndUpdate();
     ListView.EnableAlign();
     ListView.OnChanging := ChangingEvent;
   end;
@@ -14249,7 +14251,6 @@ begin
     vEditor3:
       case (SelectedImageIndex) of
         iiServer:
-          if (Session.Databases.Count < PrefetchObjectCount) then
           begin
             List := TList.Create();
 

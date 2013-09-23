@@ -3321,15 +3321,15 @@ var
   S: string;
   Table: TWTable;
 begin
-  if ((Event.EventType = ceItemsValid) and (Event.Sender = Database) and (Event.CItems is TSTables)) then
+  if ((Event.EventType = ceItemsValid) and (Event.Sender = Database) and (Event.SItems is TSTables)) then
   begin
     for I := Tables.Count - 1 downto 0 do
       if (Database.Tables.IndexOf(Tables[I].BaseTable) < 0) then
         Tables.Delete(I);
   end
-  else if ((Event.EventType = ceItemValid) and (Event.Sender = Database) and (Event.CItem is TSBaseTable)) then
+  else if ((Event.EventType = ceItemValid) and (Event.Sender = Database) and (Event.SItem is TSBaseTable)) then
   begin
-    BaseTable := TSBaseTable(Event.CItem);
+    BaseTable := TSBaseTable(Event.SItem);
 
     for I := Links.Count - 1 downto 0 do
       if ((Links[I] is TWForeignKey)
@@ -3339,7 +3339,7 @@ begin
 
     if (Assigned(CreatedTable)) then
     begin
-      CreatedTable.FBaseTable := TSBaseTable(Event.CItem);
+      CreatedTable.FBaseTable := TSBaseTable(Event.SItem);
       Tables.Add(CreatedTable);
       Selected := CreatedTable;
 
@@ -3440,10 +3440,10 @@ begin
           Links.Add(Link);
         end;
   end
-  else if ((Event.EventType = ceItemDropped) and (Event.Sender = Database) and (Event.CItem is TSBaseTable)) then
+  else if ((Event.EventType = ceItemDropped) and (Event.Sender = Database) and (Event.SItem is TSBaseTable)) then
   begin
     for I := Tables.Count - 1 downto 0 do
-      if (Tables[I].BaseTable = Event.CItem) then
+      if (Tables[I].BaseTable = Event.SItem) then
         Tables.Delete(I);
   end;
 end;

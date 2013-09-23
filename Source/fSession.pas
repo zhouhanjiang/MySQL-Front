@@ -1362,8 +1362,8 @@ type
       Session: TSSession;
       EventType: TEventType;
       Sender: TObject;
-      CItems: TSItems;
-      CItem: TSItem;
+      SItems: TSItems;
+      SItem: TSItem;
       Update: TUpdate;
       constructor Create(const ASession: TSSession);
     end;
@@ -1413,7 +1413,7 @@ type
     procedure BuildUser(const DataSet: TMySQLQuery);
     function SessionResult(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
     procedure ExecuteEvent(const EventType: TEventType); overload;
-    procedure ExecuteEvent(const EventType: TEventType; const Sender: TObject; const CItems: TSItems = nil; const CItem: TSItem = nil); overload;
+    procedure ExecuteEvent(const EventType: TEventType; const Sender: TObject; const SItems: TSItems = nil; const SItem: TSItem = nil); overload;
     function GetAutoCommit(): Boolean; override;
     function GetDataFileAllowed(): Boolean; override;
     function GetLog(): string;
@@ -5073,7 +5073,7 @@ begin
 
     Result := inherited;
 
-    if ((OldCount > 0) or (Count > 0)) then
+    if (not Filtered and ((OldCount > 0) or (Count > 0))) then
     begin
       Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
       Session.ExecuteEvent(ceItemsValid, Database, Self);
@@ -5938,6 +5938,9 @@ begin
           Routine[Index].FRoutineType := RoutineType;
         end;
       end;
+
+      if (Filtered) then
+        Session.ExecuteEvent(ceItemValid, Session, Self, Routine[Index]);
     until (not DataSet.FindNext());
 
   Result := inherited or (Session.ErrorCode = ER_CANNOT_LOAD_FROM_TABLE);
@@ -5952,7 +5955,7 @@ begin
     end;
   DeleteList.Free();
 
-  if ((OldCount > 0) or (Count > 0)) then
+  if (not Filtered and (OldCount > 0) or (Count > 0)) then
   begin
     Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
     Session.ExecuteEvent(ceItemsValid, Database, Self);
@@ -6293,6 +6296,9 @@ begin
 
       if (Database.Session.ServerVersion < 50121) then
         Trigger[Index].SetSource(Trigger[Index].GetSourceEx());
+
+      if (Filtered) then
+        Session.ExecuteEvent(ceItemValid, Session, Self, Trigger[Index]);
     until (not DataSet.FindNext());
 
   Result := inherited;
@@ -6307,7 +6313,7 @@ begin
     end;
   DeleteList.Free();
 
-  if ((OldCount > 0) or (Count > 0)) then
+  if (not Filtered and (OldCount > 0) or (Count > 0)) then
   begin
     Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
     Session.ExecuteEvent(ceItemsValid, Database, Self);
@@ -6619,7 +6625,7 @@ begin
     end;
   DeleteList.Free();
 
-  if ((OldCount > 0) or (Count > 0)) then
+  if (not Filtered and ((OldCount > 0) or (Count > 0))) then
   begin
     Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
     Session.ExecuteEvent(ceItemsValid, Database, Self);
@@ -8205,6 +8211,9 @@ begin
           Database[Index].Collation := LowerCase(DataSet.FieldByName('DEFAULT_COLLATION_NAME').AsString);
         end;
       end;
+
+      if (Filtered) then
+        Session.ExecuteEvent(ceItemValid, Session, Self, Database[Index]);
     until (not DataSet.FindNext());
   end
   else if (Assigned(Session.Account) and (Session.Account.Connection.Database <> '')) then
@@ -8241,7 +8250,7 @@ begin
     end;
   DeleteList.Free();
 
-  if ((OldCount > 0) or (Count > 0)) then
+  if (not Filtered and (OldCount > 0) or (Count > 0)) then
     Session.ExecuteEvent(ceItemsValid, Session, Self);
 end;
 
@@ -8534,6 +8543,9 @@ begin
         Status[Index].Value := DataSet.FieldByName('Value').AsString
       else
         Status[Index].Value := DataSet.FieldByName('VARIABLE_VALUE').AsString;
+
+      if (Filtered) then
+        Session.ExecuteEvent(ceItemValid, Session, Self, Status[Index]);
     until (not DataSet.FindNext());
 
   if (Assigned(Session.StatusByName('Uptime'))) then
@@ -8559,7 +8571,7 @@ begin
     end;
   DeleteList.Free();
 
-  if ((OldCount > 0) or (Count > 0)) then
+  if (not Filtered and (OldCount > 0) or (Count > 0)) then
     Session.ExecuteEvent(ceItemsValid, Session, Self);
 end;
 
@@ -8809,7 +8821,7 @@ begin
     end;
   DeleteList.Free();
 
-  if ((OldCount > 0) or (Count > 0)) then
+  if (not Filtered and ((OldCount > 0) or (Count > 0))) then
     Session.ExecuteEvent(ceItemsValid, Session, Self);
 end;
 
@@ -9241,7 +9253,7 @@ begin
     end;
   DeleteList.Free();
 
-  if ((OldCount > 0) or (Count > 0)) then
+  if (not Filtered and ((OldCount > 0) or (Count > 0))) then
     Session.ExecuteEvent(ceItemsValid, Session, Self);
 end;
 
@@ -9843,6 +9855,9 @@ begin
           Add(TSUser.Create(Self, Name))
       else if (DeleteList.IndexOf(Items[Index]) >= 0) then
         DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
+
+      if (Filtered) then
+        Session.ExecuteEvent(ceItemValid, Session, Self, User[Index]);
     until (not DataSet.FindNext());
 
   Result := inherited or (Session.ErrorCode = ER_DBACCESS_DENIED_ERROR) or (Session.ErrorCode = ER_TABLEACCESS_DENIED_ERROR);
@@ -9859,7 +9874,7 @@ begin
     end;
   DeleteList.Free();
 
-  if ((OldCount > 0) or (Count > 0)) then
+  if (not Filtered and (OldCount > 0) or (Count > 0)) then
     Session.ExecuteEvent(ceItemsValid, Session, Self);
 end;
 
@@ -9889,7 +9904,7 @@ begin
 
   Session := ASession;
   Sender := nil;
-  CItems := nil;
+  SItems := nil;
   Update := nil;
 end;
 
@@ -10283,13 +10298,13 @@ begin
       end
       else if (SQLParseKeyword(Parse, 'FULL PROCESSLIST')
         or SQLParseKeyword(Parse, 'PROCESSLIST')) then
-        Result := Processes.Build(DataSet, False, not SQLParseEnd(Parse))
+        Result := Processes.Build(DataSet, False, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
       else if (SQLParseKeyword(Parse, 'STATUS')
         or SQLParseKeyword(Parse, 'SESSION STATUS')) then
-        Result := Stati.Build(DataSet, False, not SQLParseEnd(Parse))
+        Result := Stati.Build(DataSet, False, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
       else if (SQLParseKeyword(Parse, 'VARIABLES')
         or SQLParseKeyword(Parse, 'SESSION VARIABLES')) then
-        Result := Variables.Build(DataSet, False, not SQLParseEnd(Parse))
+        Result := Variables.Build(DataSet, False, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
       else if (SQLParseKeyword(Parse, 'FULL TABLES')
         or SQLParseKeyword(Parse, 'OPEN TABLES')
         or SQLParseKeyword(Parse, 'TABLES')) then
@@ -10798,15 +10813,15 @@ begin
   Event.Free();
 end;
 
-procedure TSSession.ExecuteEvent(const EventType: TEventType; const Sender: TObject; const CItems: TSItems = nil; const CItem: TSItem = nil);
+procedure TSSession.ExecuteEvent(const EventType: TEventType; const Sender: TObject; const SItems: TSItems = nil; const SItem: TSItem = nil);
 var
   Event: TEvent;
 begin
   Event := TEvent.Create(Self);
   Event.EventType := EventType;
   Event.Sender := Sender;
-  Event.CItems := CItems;
-  Event.CItem := CItem;
+  Event.SItems := SItems;
+  Event.SItem := SItem;
   DoExecuteEvent(Event);
   Event.Free();
 end;

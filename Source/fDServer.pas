@@ -237,7 +237,7 @@ end;
 
 procedure TDServer.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = ceItemsValid) and (Assigned(Session.Plugins) and (Event.CItems = Session.Plugins))
+  if ((Event.EventType = ceItemsValid) and (Assigned(Session.Plugins) and (Event.SItems = Session.Plugins))
     and (not Assigned(Session.Plugins) or Session.Plugins.Valid)) then
     Built()
   else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then

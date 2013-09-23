@@ -394,9 +394,9 @@ end;
 
 procedure TDView.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = ceItemValid) and (Event.CItem = View)) then
+  if ((Event.EventType = ceItemValid) and (Event.SItem = View)) then
     Built()
-  else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.CItem is TSView)) then
+  else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.SItem is TSView)) then
     ModalResult := mrOk
   else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
   begin

@@ -93,7 +93,7 @@ end;
 
 procedure TDVariable.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType in [ceItemAltered]) and (Event.CItem is TSVariable)) then
+  if ((Event.EventType in [ceItemAltered]) and (Event.SItem is TSVariable)) then
     ModalResult := mrOk
   else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
   begin
