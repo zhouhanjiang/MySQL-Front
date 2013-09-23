@@ -465,6 +465,7 @@ type
     procedure DataSetAfterOpen(DataSet: TDataSet);
     procedure DataSetAfterPost(DataSet: TDataSet);
     procedure DataSetAfterScroll(DataSet: TDataSet);
+    procedure DataSetAfterRefresh(DataSet: TDataSet);
     procedure DataSetBeforeCancel(DataSet: TDataSet);
     procedure DataSetBeforePost(DataSet: TDataSet);
     procedure DBGridCellEnter(Column: TColumn);
@@ -802,7 +803,8 @@ type
       constructor Create(const AFClient: TFSession; const ATable: TSTable);
       function CreateDBGrid(): TMySQLDBGrid; virtual;
       function CreateListView(): TListView; virtual;
-      procedure DataSetAfterOpen(DataSet: TDataSet);
+      procedure DataSetAfterOpen(DataSet: TDataSet); virtual;
+      procedure DataSetAfterRefresh(DataSet: TDataSet); virtual;
       destructor Destroy(); override;
       property Filters[Index: Integer]: string read GetFilter;
       property FilterCount: Integer read GetFilterCount;
@@ -1354,6 +1356,7 @@ begin
     GetMem(Item, SizeOf(TResult));
     TResult(Item^).DataSet := TMySQLDataSet.Create(FSession.Owner);
     TResult(Item^).DataSet.AfterOpen := FSession.DataSetAfterOpen;
+    TResult(Item^).DataSet.AfterRefresh := FSession.DataSetAfterRefresh;
     TResult(Item^).DataSource := TDataSource.Create(FSession.Owner);
     TResult(Item^).DataSource.Enabled := False;
     TResult(Item^).DBGrid := FSession.CreateDBGrid(PDBGrid, TResult(Item^).DataSource);
@@ -1403,6 +1406,7 @@ begin
   begin
     DataSet := TMySQLDataSet.Create(FSession.Owner);
     DataSet.AfterOpen := FSession.DataSetAfterOpen;
+    DataSet.AfterRefresh := FSession.DataSetAfterRefresh;
 
     if (not Assigned(PDBGrid)) then
       PDBGrid := FSession.CreatePDBGrid();
@@ -1619,6 +1623,16 @@ begin
         DBGrid.Columns[I].Width := Preferences.GridMaxColumnWidth;
     end;
   DBGrid.Columns.EndUpdate();
+
+end;
+
+procedure TFSession.TTableDesktop.DataSetAfterRefresh(DataSet: TDataSet);
+var
+  I: Integer;
+begin
+  DBGrid.DataSource.DataSet := DataSet;
+
+  FSession.DataSetAfterRefresh(DataSet);
 
   if (Table.DataSet.FilterSQL <> '') then
     AddFilter(Table.DataSet.FilterSQL);
@@ -1912,6 +1926,7 @@ begin
     GetMem(Item, SizeOf(TResult));
     TResult(Item^).DataSet := TMySQLDataSet.Create(FSession.Owner);
     TResult(Item^).DataSet.AfterOpen := FSession.DataSetAfterOpen;
+    TResult(Item^).DataSet.AfterRefresh := FSession.DataSetAfterRefresh;
     TResult(Item^).DataSource := TDataSource.Create(FSession.Owner);
     TResult(Item^).DataSource.Enabled := False;
     TResult(Item^).DBGrid := FSession.CreateDBGrid(PDBGrid, TResult(Item^).DataSource);
@@ -2690,6 +2705,8 @@ begin
       if (not Assigned(Database)) then
         NotFound := True
       else if ((ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and not Database.Update((URI.Table = '') and (URI.Param['object'] = Null) and (URI.Param['view'] = NULL)) and ((URI.Table <> '') or (URI.Param['object'] <> Null))) then
+        AllowChange := False
+      else if ((URI.Table <> '') and not Database.Tables.Update()) then
         AllowChange := False
       else if ((URI.Table <> '') or (URI.Param['object'] <> Null)) then
       begin
@@ -5959,16 +5976,6 @@ begin
   DBGridColEnter(ActiveDBGrid);
 end;
 
-procedure TFSession.DataSetAfterOpen(DataSet: TDataSet);
-begin
-  if (Assigned(ActiveDBGrid) and (ActiveDBGrid.DataSource.DataSet = DataSet)) then
-  begin
-    ActiveDBGrid.DataSource.Enabled := False;
-    DBGridInitialize(ActiveDBGrid);
-    PContentChange(nil);
-  end;
-end;
-
 procedure TFSession.DataSetAfterClose(DataSet: TDataSet);
 begin
   PBlob.Visible := False; SBlob.Visible := PBlob.Visible;
@@ -5993,6 +6000,16 @@ begin
   MainAction('aFExportXML').Enabled := False;
   MainAction('aFExportHTML').Enabled := False;
   MainAction('aFExportPDF').Enabled := False;
+end;
+
+procedure TFSession.DataSetAfterOpen(DataSet: TDataSet);
+begin
+  if (Assigned(ActiveDBGrid) and (ActiveDBGrid.DataSource.DataSet = DataSet)) then
+  begin
+    ActiveDBGrid.DataSource.Enabled := False;
+    DBGridInitialize(ActiveDBGrid);
+    PContentChange(nil);
+  end;
 end;
 
 procedure TFSession.DataSetAfterPost(DataSet: TDataSet);
@@ -6028,6 +6045,11 @@ begin
 
     StatusBarRefresh();
   end;
+end;
+
+procedure TFSession.DataSetAfterRefresh(DataSet: TDataSet);
+begin
+  Write;
 end;
 
 procedure TFSession.DataSetBeforeCancel(DataSet: TDataSet);
@@ -14100,6 +14122,7 @@ begin
   if (not Table.DataSet.Active) then
   begin
     Table.DataSet.AfterOpen := Desktop(Table).DataSetAfterOpen;
+    Table.DataSet.AfterRefresh := Desktop(Table).DataSetAfterRefresh;
     Table.Open(FilterSQL, QuickSearch, SortDef, Offset, Limit);
   end
   else
