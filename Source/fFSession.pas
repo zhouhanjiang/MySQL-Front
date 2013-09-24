@@ -14277,8 +14277,10 @@ begin
               List := TList.Create();
 
               List.Add(Database);
+
               if (not Database.Tables.Valid) then
                 Wanted.FUpdate := UpdateAfterAddressChanged;
+              if (((0 < Database.Count) and (Database.Count < PrefetchObjectCount)) or (Database is TSSystemDatabase)) then
               for I := 0 to Database.Tables.Count - 1 do
                 List.Add(Database.Tables[I]);
               if (Assigned(Database.Routines)) then

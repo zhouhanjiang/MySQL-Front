@@ -527,7 +527,7 @@ begin
 
       if (TSFields.Enabled) then
         InitTSFields();
-      if (TSJob.Enabled) then
+      if (TSJob.Enabled and (DialogType = edtCreateJob)) then
         InitTSJob();
       CheckActivePageChange(PageControl.ActivePageIndex);
     end;
@@ -856,7 +856,8 @@ begin
       and ValidJobName(Trim(FName.Text))
       and ((DialogType <> edtCreateJob) or not Assigned(Session.Account.JobByName(Trim(FName.Text))))
       and ((DialogType <> edtEditJob) or (Session.Account.JobByName(Trim(FName.Text)) = Job))
-      and (not FFilename.Visible or (DirectoryExists(ExtractFilePath(FFilename.Text)) and (ExtractFileName(FFilename.Text) <> '')));
+      and (not FFilename.Visible or (DirectoryExists(ExtractFilePath(FFilename.Text)) and (ExtractFileName(FFilename.Text) <> '')))
+      and (not FDataSource.Visible or (FDataSource.Text <> ''));
 
   CheckActivePageChange(TSJob.PageIndex);
 end;
@@ -1181,6 +1182,7 @@ begin
     DODBC.DataSource := Job.ODBC.DataSource;
     DODBC.Username := Job.ODBC.Username;
     DODBC.Password := Job.ODBC.Password;
+    FDataSource.Text := DODBC.DataSource;
 
     FStartDate.Date := Job.Start; FStartTime.Time := Job.Start;
     case (Job.TriggerType) of
@@ -1303,7 +1305,7 @@ begin
         iiDatabase:
           begin
             Database := Session.DatabaseByName(Node.Text);
-            if ((not Database.Tables.Update() or not Session.Update(Database.Tables))) then
+            if (not Database.Tables.Update()) then
               WantedNodeExpand := Node
             else
             begin

@@ -3441,6 +3441,9 @@ begin
   CodePage := TAJobExport(Source).CodePage;
   ExportType := TAJobExport(Source).ExportType;
   Filename := TAJobExport(Source).Filename;
+  ODBC.DataSource := TAJobExport(Source).ODBC.DataSource;
+  ODBC.Password := TAJobExport(Source).ODBC.Password;
+  ODBC.Username := TAJobExport(Source).ODBC.Username;
   ClearObjects();
   SetLength(JobObjects, Length(TAJobExport(Source).JobObjects));
   for I := 0 to Length(JobObjects) - 1 do
