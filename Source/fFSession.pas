@@ -4450,9 +4450,8 @@ begin
     if (SessionEvent.EventType in [ceItemsValid, ceItemValid, ceItemCreated, ceItemAltered, ceItemDropped]) then
     begin
       if (SessionEvent.Sender is TSSession) then
-        ListViewUpdate(SessionEvent, FServerListView, nil);
-
-      if (SessionEvent.Sender is TSDatabase) then
+        ListViewUpdate(SessionEvent, FServerListView)
+      else if (SessionEvent.Sender is TSDatabase) then
       begin
         ListViewUpdate(SessionEvent, FServerListView);
         if (not (SessionEvent.SItems is TSTriggers)) then
@@ -10371,7 +10370,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         Item.SubItems.Add('')
       else
         Item.SubItems.Add(FormatFloat('#,##0', TSDatabase(Data).Count, LocaleFormatSettings));
-      if ((TSDatabase(Data) is TSSystemDatabase) or (TSDatabase(Data).Size < 0)) then
+      if ((TSDatabase(Data) is TSSystemDatabase) or (TSDatabase(Data).Size <= 0)) then
         Item.SubItems.Add('')
       else
         Item.SubItems.Add(SizeToStr(TSDatabase(Data).Size));

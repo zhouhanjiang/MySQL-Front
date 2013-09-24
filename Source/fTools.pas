@@ -4280,8 +4280,7 @@ begin
         Inc(Item.RecordsDone);
         if (Item.RecordsDone mod 10 = 0) then
         begin
-          if ((Item.RecordsDone mod 1000 = 0)
-            or ((Item.RecordsDone mod 100 = 0) and (Self is TTExportBaseODBC))) then
+          if (Item.RecordsDone mod 100 = 0) then
             DoUpdateGUI();
           if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
             Success := daAbort;

@@ -375,6 +375,7 @@ begin
   FXMLFile.Caption := Preferences.LoadStr(454);
   FPDFFile.Caption := Preferences.LoadStr(890);
   FLFilename.Caption := Preferences.LoadStr(348) + ':';
+  FLDataSource.Caption := Preferences.LoadStr(38) + ':';
 
   GSQLWhat.Caption := Preferences.LoadStr(227);
   FLSQLWhat.Caption := Preferences.LoadStr(218) + ':';
@@ -631,7 +632,10 @@ end;
 procedure TDExport.FBDataSourceClick(Sender: TObject);
 begin
   if (DODBC.Execute()) then
+  begin
+    FDataSource.Text := DODBC.DataSource;
     FJobOptionChange(nil);
+  end;
 end;
 
 procedure TDExport.FBFilenameClick(Sender: TObject);
@@ -708,6 +712,7 @@ end;
 procedure TDExport.FExportTypeChange(Sender: TObject);
 begin
   FFilename.Text := '';
+  FDataSource.Text := '';
 
   FJobOptionChange(Sender);
 end;
@@ -1310,7 +1315,7 @@ begin
                 else
                   NewNode.ImageIndex := iiView;
                 NewNode.Data := Database.Tables[I];
-                NewNode.HasChildren := Database.Tables[I] is TSBaseTable;
+                NewNode.HasChildren := False;
               end;
               if (Assigned(Database.Routines)) then
                 for I := 0 to Database.Routines.Count - 1 do

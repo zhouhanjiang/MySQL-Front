@@ -1753,7 +1753,7 @@ begin
   FEnabled := False;
   FOnMonitor := nil;
   FCacheSize := 0;
-  FTraceTypes := [ttRequest];
+  FTraceTypes := [ttRequest, ttDebug];
 
   Cache.First := 0;
   Cache.Items := TList.Create();

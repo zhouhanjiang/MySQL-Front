@@ -5074,10 +5074,7 @@ begin
     Result := inherited;
 
     if ((OldCount > 0) or (Count > 0)) then
-    begin
-      Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
       Session.ExecuteEvent(ceItemsValid, Database, Self);
-    end;
   end
   else if (DataSet.FieldCount = 4) then // SHOW OPEN TABLES
   begin
@@ -5134,10 +5131,7 @@ begin
       until (not DataSet.FindNext());
 
     if (not Filtered) then
-    begin
-      Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
       Session.ExecuteEvent(ceItemsValid, Database, Self);
-    end;
     if (Database.Valid) then
       Session.ExecuteEvent(ceItemValid, Session, Session.Databases, Database);
 
