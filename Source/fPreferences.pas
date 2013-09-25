@@ -3572,7 +3572,7 @@ begin
       Child := XMLNode(XML, 'objects').AddChild('object');
       Child.Attributes['name'] := JobObjects[I].Name;
       if (JobObjects[I].ObjectType in [jotTable, jotProcedure, jotFunction, jotTrigger, jotEvent]) then
-        Child.Attributes['databasename'] := JobObjects[I].DatabaseName;
+        Child.Attributes['database'] := JobObjects[I].DatabaseName;
       Child.Attributes['type'] := ObjectTypeToStr(JobObjects[I].ObjectType);
     end;
   end;
@@ -3725,7 +3725,7 @@ begin
   Result := (IndexOf(Job) >= 0) and ((IndexByName(NewJob.Name) = IndexOf(Job)) or (IndexByName(NewJob.Name) < 0));
   if (Result) then
   begin
-    if ((Job.LogFilename <> NewJob.LogFilename) and FileExists(Job.LogFilename)) then
+    if ((NewJob.LogFilename <> Job.LogFilename) and FileExists(Job.LogFilename)) then
       RenameFile(Job.LogFilename, NewJob.LogFilename);
 
     Job.Assign(NewJob);

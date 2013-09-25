@@ -1085,7 +1085,7 @@ begin
     end;
   end;
 
-  FSelect.Selected := nil; // Make sure, not to call FSelectedChange with a selcted node
+  FSelect.Selected := nil; // Make sure, not to call FSelectedChange with a selected node
   FSelect.Items.BeginUpdate();
   FSelect.Items.Clear();
   FSelect.Items.EndUpdate();
@@ -1195,6 +1195,7 @@ begin
   end;
   if (DialogType <> edtNormal) then
     FJobOptionChange(nil);
+  FName.Enabled := DialogType = edtCreateJob;
 
   if (Assigned(DataSet)) then
     FHTMLStructure.Caption := Preferences.LoadStr(794)
@@ -1662,6 +1663,8 @@ begin
   Result := True;
   if (FSelect.Items[0].Count = 0) then
   begin
+    Session.BeginSynchron();
+
     Nodes := TList.Create();
     if (not Session.Update()) then
       Result := False
@@ -1716,6 +1719,8 @@ begin
         end;
     FSelect.Select(Nodes);
     Nodes.Free();
+
+    Session.EndSynchron();
   end;
 end;
 

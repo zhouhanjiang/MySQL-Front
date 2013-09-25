@@ -1210,6 +1210,7 @@ begin
 
     TSJobHide(Sender);
   end;
+  FName.Enabled := DialogType = idtCreateJob;
 
   if ((FEngine.ItemIndex < 0) and Assigned(Session.Engines.DefaultEngine)) then
     FEngine.ItemIndex := FEngine.Items.IndexOf(Session.Engines.DefaultEngine.Name);
@@ -1590,6 +1591,8 @@ begin
   Result := True;
   if (FSelect.Items[0].Count = 0) then
   begin
+    Session.BeginSynchron();
+
     Nodes := TList.Create();
     if (not Session.Update()) then
       Result := False
@@ -1632,6 +1635,8 @@ begin
       end;
     FSelect.Select(Nodes);
     Nodes.Free();
+
+    Session.BeginSynchron();
   end;
 end;
 
