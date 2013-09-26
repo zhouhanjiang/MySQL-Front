@@ -130,7 +130,7 @@ type
   protected
     FValid: Boolean;
     function Add(const AEntity: TSEntity; const ExecuteEvent: Boolean = False): Integer; virtual;
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean; virtual;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; virtual;
     procedure Delete(const AEntity: TSEntity); overload; virtual;
     function GetValid(): Boolean; virtual;
     function SQLGetItems(const Name: string = ''): string; virtual; abstract;
@@ -711,11 +711,11 @@ type
     function GetTable(Index: Integer): TSTable; inline;
     function GetValidStatus(): Boolean;
   protected
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean; override;
-    procedure BuildViewFields(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean); virtual;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; overload; override;
+    procedure BuildViewFields(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean);
     function SQLGetItems(const Name: string = ''): string; override;
-    function SQLGetStatus(const Tables: TList = nil): string; virtual;
-    function SQLGetViewFields(const Tables: TList = nil): string; virtual;
+    function SQLGetStatus(const Tables: TList = nil): string;
+    function SQLGetViewFields(const Tables: TList = nil): string;
   public
     procedure AddTable(const NewTable: TSTable); virtual;
     function NameCmp(const Name1, Name2: string): Integer; override;
@@ -804,7 +804,7 @@ type
   private
     function GetRoutine(Index: Integer): TSRoutine;
   protected
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     procedure AddRoutine(const NewRoutine: TSRoutine); virtual;
@@ -862,7 +862,7 @@ type
     function GetTrigger(Index: Integer): TSTrigger; inline;
   protected
     function Add(const AEntity: TSEntity; const ExecuteEvent: Boolean = False): Integer; override;
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; override;
     procedure Delete(const AEntity: TSEntity); override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
@@ -917,7 +917,7 @@ type
   private
     function GetEvent(Index: Integer): TSEvent;
   protected
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     property Event[Index: Integer]: TSEvent read GetEvent; default;
@@ -1018,7 +1018,7 @@ type
   private
     function GetDatabase(Index: Integer): TSDatabase; inline;
   protected
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; override;
     procedure Delete(const AEntity: TSEntity); override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
@@ -1052,7 +1052,7 @@ type
   private
     function GetVariable(Index: Integer): TSVariable; inline;
   protected
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     property Variable[Index: Integer]: TSVariable read GetVariable; default;
@@ -1067,7 +1067,7 @@ type
   private
     function GetStatus(Index: Integer): TSStatus;
   protected
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     property Status[Index: Integer]: TSStatus read GetStatus; default;
@@ -1101,7 +1101,7 @@ type
     function GetDefaultEngine(): TSEngine;
     function GetEngine(Index: Integer): TSEngine; inline;
   protected
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     function Update(): Boolean; override;
@@ -1123,7 +1123,7 @@ type
   private
     function GetPlugin(Index: Integer): TSPlugin;
   protected
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     property Plugin[Index: Integer]: TSPlugin read GetPlugin; default;
@@ -1176,7 +1176,7 @@ type
   private
     function GetCharset(Index: Integer): TSCharset;
   protected
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     function Update(): Boolean; override;
@@ -1206,7 +1206,7 @@ type
   private
     function GetCollation(Index: Integer): TSCollation;
   protected
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
     property Collation[Index: Integer]: TSCollation read GetCollation; default;
@@ -1238,7 +1238,7 @@ type
   private
     function GetProcess(Index: Integer): TSProcess;
   protected
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; override;
     function GetValid(): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
@@ -1342,7 +1342,7 @@ type
   private
     function GetUser(Index: Integer): TSUser; inline;
   protected
-    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean; override;
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; override;
     function GetValid(): Boolean; override;
     function SQLGetItems(const Name: string = ''): string; override;
   public
@@ -1391,6 +1391,10 @@ type
     FUsers: TSUsers;
     FVariables: TSVariables;
     StmtMonitor: TMySQLMonitor;
+    function BuildEvents(const DataSet: TMySQLQuery): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
+    function BuildRoutines(const DataSet: TMySQLQuery): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
+    function BuildTables(const DataSet: TMySQLQuery): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
+    function BuildTriggers(const DataSet: TMySQLQuery): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
     procedure ConnectChange(Sender: TObject; Connecting: Boolean);
     procedure DoExecuteEvent(const AEvent: TEvent);
     function GetCaption(): string;
@@ -1404,10 +1408,9 @@ type
   protected
     FLowerCaseTableNames: Byte;
     FMaxAllowedPacket: Integer;
+    procedure BuildUser(const DataSet: TMySQLQuery);
     procedure DoAfterExecuteSQL(); override;
     procedure DoBeforeExecuteSQL(); override;
-    procedure BuildUser(const DataSet: TMySQLQuery);
-    function SessionResult(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
     procedure ExecuteEvent(const EventType: TEventType); overload;
     procedure ExecuteEvent(const EventType: TEventType; const Sender: TObject; const SItems: TSItems = nil; const SItem: TSItem = nil); overload;
     function GetAutoCommit(): Boolean; override;
@@ -1419,6 +1422,7 @@ type
     function GetSQLLog(const User: TSUser = nil): string;
     procedure MonitorLog(const Sender: TObject; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
     procedure MonitorExecutedStmts(const Sender: TObject; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
+    function SessionResult(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
     procedure SetAutoCommit(const AAutoCommit: Boolean); override;
     procedure SetCharset(const ACharset: string); override;
     property Sessions: TSSessions read FSessions;
@@ -1520,7 +1524,6 @@ type
 const
   DefaultLimit = 100;
   DefaultLimitSize = 50 * 1024;
-  PrefetchObjectCount = 30;
 
 var
   Sessions: TSSessions;
@@ -1842,7 +1845,7 @@ begin
       TList(Self).Add(AEntity);
 end;
 
-function TSEntities.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
+function TSEntities.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
 begin
   FValid := True;
 
@@ -1889,12 +1892,12 @@ end;
 
 function TSEntities.Update(): Boolean;
 var
-  List: TList;
+  Objects: TList;
 begin
-  List := TList.Create();
-  List.Add(Self);
-  Result := Session.Update(List);
-  List.Free();
+  Objects := TList.Create();
+  Objects.Add(Self);
+  Result := Session.Update(Objects);
+  Objects.Free();
 end;
 
 { TSObject ********************************************************************}
@@ -5000,7 +5003,7 @@ begin
   end;
 end;
 
-function TSTables.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
+function TSTables.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -5058,7 +5061,7 @@ begin
 
     Result := inherited;
 
-    if (OldCount = 0) then
+    if ((OldCount = 0) and SessionEvents) then
     begin
       Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
       Session.ExecuteEvent(ceItemsValid, Database, Self);
@@ -5095,16 +5098,17 @@ begin
         if (Table[Index] is TSBaseTable) then
           TSBaseTable(Table[Index]).BuildStatus(DataSet, UseInformationSchema);
 
-        if (Filtered) then
+        if (Filtered and SessionEvents) then
           Table[Index].PushBuildEvent(Filtered);
-      until (not DataSet.FindNext());
+      until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('TABLE_SCHEMA').AsString, Database.Name) <> 0));
 
-    if (not Filtered) then
+    if (not Filtered and SessionEvents) then
     begin
+      FValid := True;
       Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
       Session.ExecuteEvent(ceItemsValid, Database, Self);
     end;
-    if (Database.Valid) then
+    if (Database.Valid and SessionEvents) then
       Session.ExecuteEvent(ceItemValid, Session, Session.Databases, Database);
 
     Result := False;
@@ -5813,7 +5817,7 @@ begin
   end;
 end;
 
-function TSRoutines.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
+function TSRoutines.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -5891,7 +5895,7 @@ begin
 
       if (Filtered) then
         Session.ExecuteEvent(ceItemValid, Session, Self, Routine[Index]);
-    until (not DataSet.FindNext());
+    until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('ROUTINE_SCHEMA').AsString, Database.Name) <> 0));
 
   Result := inherited or (Session.ErrorCode = ER_CANNOT_LOAD_FROM_TABLE);
 
@@ -6174,7 +6178,7 @@ begin
   end;
 end;
 
-function TSTriggers.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
+function TSTriggers.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -6249,7 +6253,7 @@ begin
 
       if (Filtered) then
         Session.ExecuteEvent(ceItemValid, Session, Self, Trigger[Index]);
-    until (not DataSet.FindNext());
+    until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('TRIGGER_SCHEMA').AsString, Database.Name) <> 0));
 
   Result := inherited;
 
@@ -6496,15 +6500,12 @@ end;
 
 { TSEvents ********************************************************************}
 
-function TSEvents.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
+function TSEvents.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
   Name: string;
-  OldCount: Integer;
 begin
-  OldCount := Count;
-
   DeleteList := TList.Create();
   DeleteList.Assign(Self);
 
@@ -6560,8 +6561,11 @@ begin
         end;
 
         if (Copy(Event[Index].Stmt, Length(Event[Index].Stmt), 1) <> ';') then Event[Index].Stmt := Event[Index].Stmt + ';';
+
+        if (Filtered) then
+          Session.ExecuteEvent(ceItemsValid, Database, Self, Event[Index]);
       end;
-    until (not DataSet.FindNext());
+    until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('EVENT_SCHEMA').AsString, Database.Name) <> 0));
 
   Result := inherited;
 
@@ -6575,7 +6579,7 @@ begin
     end;
   DeleteList.Free();
 
-  if ((OldCount > 0) or (Count > 0)) then
+  if (not Filtered) then
   begin
     Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
     Session.ExecuteEvent(ceItemsValid, Database, Self);
@@ -8096,7 +8100,7 @@ end;
 
 { TSDatabases *****************************************************************}
 
-function TSDatabases.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
+function TSDatabases.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
 var
   DatabaseNames: TCSVStrings;
   DeleteList: TList;
@@ -8105,10 +8109,7 @@ var
   Index: Integer;
   Name: string;
   NewDatabase: TSDatabase;
-  OldCount: Integer;
 begin
-  OldCount := Count;
-
   DeleteList := TList.Create();
   DeleteList.Assign(Self);
 
@@ -8160,10 +8161,10 @@ begin
           Database[Index].DefaultCharset := DataSet.FieldByName('DEFAULT_CHARACTER_SET_NAME').AsString;
           Database[Index].Collation := LowerCase(DataSet.FieldByName('DEFAULT_COLLATION_NAME').AsString);
         end;
-      end;
 
-      if (Filtered) then
-        Session.ExecuteEvent(ceItemValid, Session, Self, Database[Index]);
+        if (Filtered) then
+          Session.ExecuteEvent(ceItemValid, Session, Self, Database[Index]);
+      end;
     until (not DataSet.FindNext());
   end
   else if (Assigned(Session.Account) and (Session.Account.Connection.Database <> '')) then
@@ -8200,8 +8201,8 @@ begin
     end;
   DeleteList.Free();
 
-  if ((OldCount > 0) or (Count > 0)) then
-    Session.ExecuteEvent(ceItemsValid, Session, Self);
+//  if (not Filtered) then
+//    Session.ExecuteEvent(ceItemsValid, Session, Self);
 end;
 
 procedure TSDatabases.Delete(const AEntity: TSEntity);
@@ -8352,7 +8353,7 @@ end;
 
 { TSVariables *****************************************************************}
 
-function TSVariables.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
+function TSVariables.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -8461,7 +8462,7 @@ end;
 
 { TSStati *********************************************************************}
 
-function TSStati.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
+function TSStati.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -8593,7 +8594,7 @@ end;
 
 { TSEngines *******************************************************************}
 
-function TSEngines.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
+function TSEngines.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
 var
   DeleteList: TList;
   I: Integer;
@@ -8728,7 +8729,7 @@ end;
 
 { TSPlugins *******************************************************************}
 
-function TSPlugins.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
+function TSPlugins.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -8925,7 +8926,7 @@ end;
 
 { TSCharsets ******************************************************************}
 
-function TSCharsets.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
+function TSCharsets.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -9040,7 +9041,7 @@ end;
 
 { TSCollations ****************************************************************}
 
-function TSCollations.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
+function TSCollations.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -9122,7 +9123,7 @@ end;
 
 { TSProcesses *****************************************************************}
 
-function TSProcesses.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
+function TSProcesses.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
 var
   Days: Integer;
   DeleteList: TList;
@@ -9776,7 +9777,7 @@ end;
 
 { TSUsers *********************************************************************}
 
-function TSUsers.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
+function TSUsers.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
 var
   DeleteList: TList;
   Index: Integer;
@@ -9924,18 +9925,75 @@ begin
   end;
 end;
 
-procedure TSSession.DoAfterExecuteSQL();
+function TSSession.BuildEvents(const DataSet: TMySQLQuery): Boolean;
+var
+  I: Integer;
 begin
-  inherited;
+  if (not DataSet.IsEmpty()) then
+    repeat
+      DatabaseByName(DataSet.FindField('EVENT_SCHEMA').AsString).Events.Build(DataSet, True, False, False);
+    until (DataSet.Eof);
 
-  ExecuteEvent(ceAfterExecuteSQL);
+  for I := 0 to Databases.Count - 1 do
+    if (Assigned(Databases[I].Events)) then
+      Databases[I].Events.FValid := True;
+
+  ExecuteEvent(ceItemsValid, Self, Databases);
+
+  Result := False;
 end;
 
-procedure TSSession.DoBeforeExecuteSQL();
+function TSSession.BuildRoutines(const DataSet: TMySQLQuery): Boolean;
+var
+  I: Integer;
 begin
-  ExecuteEvent(ceBeforeExecuteSQL);
+  if (not DataSet.IsEmpty()) then
+    repeat
+      DatabaseByName(DataSet.FindField('ROUTINE_SCHEMA').AsString).Routines.Build(DataSet, True, False, False);
+    until (DataSet.Eof);
 
-  inherited;
+  for I := 0 to Databases.Count - 1 do
+    if (Assigned(Databases[I].Routines)) then
+      Databases[I].Routines.FValid := True;
+
+  ExecuteEvent(ceItemsValid, Self, Databases);
+
+  Result := False;
+end;
+
+function TSSession.BuildTables(const DataSet: TMySQLQuery): Boolean;
+var
+  I: Integer;
+begin
+  if (not DataSet.IsEmpty()) then
+    repeat
+      DatabaseByName(DataSet.FindField('TABLE_SCHEMA').AsString).Tables.Build(DataSet, True, False, False);
+    until (DataSet.Eof);
+
+  for I := 0 to Databases.Count - 1 do
+    Databases[I].Tables.FValid := True;
+
+  ExecuteEvent(ceItemsValid, Self, Databases);
+
+  Result := False;
+end;
+
+function TSSession.BuildTriggers(const DataSet: TMySQLQuery): Boolean;
+var
+  I: Integer;
+begin
+  if (not DataSet.IsEmpty()) then
+    repeat
+      DatabaseByName(DataSet.FindField('TRIGGER_SCHEMA').AsString).Triggers.Build(DataSet, True);
+    until (DataSet.Eof);
+
+  for I := 0 to Databases.Count - 1 do
+    if (Assigned(Databases[I].Triggers)) then
+      Databases[I].Triggers.FValid := True;
+
+  ExecuteEvent(ceItemsValid, Self, Databases);
+
+  Result := False;
 end;
 
 procedure TSSession.BuildUser(const DataSet: TMySQLQuery);
@@ -10072,220 +10130,6 @@ begin
     for I := 0 to Collations.Count - 1 do
       if (Collations[I].Name = Collation) then
         Result := Collations[I].Charset;
-end;
-
-function TSSession.SessionResult(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
-var
-  Database: TSDatabase;
-  DatabaseName: string;
-  DataSet: TMySQLQuery;
-  Field: Integer;
-  FunctionName: string;
-  ObjectName: string;
-  Parse: TSQLParse;
-  SQL: string;
-  Table: TSTable;
-begin
-  Result := False;
-
-  DataSet := TMySQLQuery.Create(nil);
-
-  SQL := CommandText;
-  if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), ServerVersion)) then
-    if (SQLParseKeyword(Parse, 'SELECT')) then
-    begin
-      DatabaseName := Self.DatabaseName;
-      if (SQLParseChar(Parse, '*') and SQLParseKeyword(Parse, 'FROM') and SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
-      begin
-        if (Databases.NameCmp(DatabaseName, information_schema) = 0) then
-        begin
-          DataSet.Open(DataHandle);
-          if (TableNameCmp(ObjectName, 'CHARACTER_SETS') = 0) then
-            Result := Charsets.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
-          else if (TableNameCmp(ObjectName, 'COLLATIONS') = 0) then
-            Result := Collations.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
-          else if ((TableNameCmp(ObjectName, 'COLUMNS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'TABLE_SCHEMA') and SQLParseChar(Parse, '=')) then
-            DatabaseByName(SQLParseValue(Parse)).Tables.BuildViewFields(DataSet, True)
-          else if (TableNameCmp(ObjectName, 'ENGINES') = 0) then
-            Result := Engines.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
-          else if ((TableNameCmp(ObjectName, 'EVENTS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'EVENT_SCHEMA') and SQLParseChar(Parse, '=')) then
-          begin
-            Database := DatabaseByName(SQLParseValue(Parse));
-            Result := Database.Events.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'));
-          end
-          else if (TableNameCmp(ObjectName, 'PLUGINS') = 0) then
-            Result := Plugins.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
-          else if (TableNameCmp(ObjectName, 'PROCESSLIST') = 0) then
-            Result := Processes.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
-          else if ((TableNameCmp(ObjectName, 'ROUTINES') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'ROUTINE_SCHEMA') and SQLParseChar(Parse, '=')) then
-          begin
-            Database := DatabaseByName(SQLParseValue(Parse));
-            Result := Database.Routines.Build(DataSet, True, not SQLParseEnd(Parse));
-          end
-          else if (TableNameCmp(ObjectName, 'SESSION_STATUS') = 0) then
-            Result := Stati.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
-          else if (TableNameCmp(ObjectName, 'SESSION_VARIABLES') = 0) then
-            Result := Variables.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
-          else if (TableNameCmp(ObjectName, 'SCHEMATA') = 0) then
-            Result := Databases.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
-          else if ((TableNameCmp(ObjectName, 'TABLES') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'TABLE_SCHEMA') and SQLParseChar(Parse, '=')) then
-          begin
-            Database := DatabaseByName(SQLParseValue(Parse));
-            Result := Database.Tables.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'));
-          end
-          else if ((TableNameCmp(ObjectName, 'TRIGGERS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'EVENT_OBJECT_SCHEMA') and SQLParseChar(Parse, '=')) then
-          begin
-            Database := DatabaseByName(SQLParseValue(Parse));
-            Result := Database.Triggers.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'));
-          end
-          else if ((TableNameCmp(ObjectName, 'USER_PRIVILEGES') = 0)) then
-            Result := Users.Build(DataSet, True, not SQLParseKeyword(Parse, 'GROUP BY') and not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
-          else
-            raise EConvertError.CreateFmt(SUnknownSQLStmt, [CommandText]);
-        end
-        else if (Databases.NameCmp(DatabaseName, 'mysql') = 0) then
-        begin
-          DataSet.Open(DataHandle);
-          if (TableNameCmp(ObjectName, 'user') = 0) then
-            Result := Users.Build(DataSet, False, not SQLParseEnd(Parse));
-        end
-        else if (DataHandle.Connection.ErrorCode = 0) then
-        begin
-          Database := DatabaseByName(DatabaseName);
-          if (Assigned(Database)) then
-          begin
-            Table := Database.TableByName(ObjectName);
-            if (Assigned(Table.FDataSet) and not Table.FDataSet.Active) then
-              Table.FDataSet.Open(DataHandle)
-            else
-              DataSet.Open(DataHandle);
-          end;
-        end;
-      end
-      else if ((FCurrentUser = '') and (DataHandle.Connection.ErrorCode = 0)) then
-      begin
-        DataSet.Open(DataHandle);
-        Field := 0;
-        if (not DataSet.IsEmpty) then
-          repeat
-            FunctionName := SQLParseValue(Parse);
-            if (SQLParseChar(Parse, '(', False)) then
-              FunctionName := FunctionName + SQLParseValue(Parse);
-            if (lstrcmpi(PChar(FunctionName), 'CURRENT_USER()') = 0) then
-              FCurrentUser := DataSet.Fields[Field].AsString
-            else if (lstrcmpi(PChar(FunctionName), 'SYSDATE()') = 0) then
-            begin
-              if (TryStrToDateTime(DataSet.Fields[0].AsString, TimeDiff, FormatSettings)) then
-                TimeDiff := TimeDiff - Now();
-            end
-            else if (lstrcmpi(PChar(FunctionName), 'USER()') = 0) then
-              FCurrentUser := DataSet.Fields[Field].AsString;
-            Inc(Field);
-          until (not SQLParseChar(Parse, ','));
-      end;
-    end
-    else if (SQLParseKeyword(Parse, 'SHOW') and (DataHandle.Connection.ErrorCode = 0)) then
-    begin
-      DataSet.Open(DataHandle);
-      DatabaseName := DataSet.DatabaseName;
-      if (SQLParseKeyword(Parse, 'CHARACTER SET')) then
-        Result := Charsets.Build(DataSet, False, not SQLParseEnd(Parse))
-      else if (SQLParseKeyword(Parse, 'COLLATION')) then
-        Result := Collations.Build(DataSet, False, not SQLParseEnd(Parse))
-      else if (SQLParseKeyword(Parse, 'CREATE')) then
-      begin
-        if (DataSet.Active) then
-          if (SQLParseKeyword(Parse, 'DATABASE')) then
-            DatabaseByName(SQLParseValue(Parse)).SetSource(DataSet)
-          else if (SQLParseKeyword(Parse, 'EVENT')) then
-            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).EventByName(ObjectName).SetSource(DataSet); end
-          else if (SQLParseKeyword(Parse, 'FUNCTION')) then
-            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).FunctionByName(ObjectName).SetSource(DataSet); end
-          else if (SQLParseKeyword(Parse, 'PROCEDURE')) then
-            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).ProcedureByName(ObjectName).SetSource(DataSet); end
-          else if (SQLParseKeyword(Parse, 'TABLE')) then
-            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).TableByName(ObjectName).SetSource(DataSet); end
-          else if (SQLParseKeyword(Parse, 'TRIGGER')) then
-            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).TriggerByName(ObjectName).SetSource(DataSet); end
-          else if (SQLParseKeyword(Parse, 'VIEW')) then
-            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).TableByName(ObjectName).SetSource(DataSet); end;
-      end
-      else if (SQLParseKeyword(Parse, 'DATABASES')) then
-        Result := Databases.Build(DataSet, False, not SQLParseEnd(Parse))
-      else if (SQLParseKeyword(Parse, 'ENGINES')) then
-        Result := Engines.Build(DataSet, False, not SQLParseEnd(Parse))
-      else if (SQLParseKeyword(Parse, 'EVENTS')) then
-      begin
-        if (not SQLParseKeyword(Parse, 'FROM') or SQLParseKeyword(Parse, 'IN')) then
-          DatabaseName := Self.DatabaseName
-        else
-          DatabaseName := SQLParseValue(Parse);
-        Result := DatabaseByName(DatabaseName).Events.Build(DataSet, False, not SQLParseEnd(Parse));
-      end
-      else if (SQLParseKeyword(Parse, 'GRANTS FOR')) then
-        if (SQLParseKeyword(Parse, 'CURRENT_USER')) then
-          BuildUser(DataSet)
-        else
-        begin
-          ObjectName := SQLParseValue(Parse);
-          if (Users.NameCmp(ObjectName, FCurrentUser) = 0) then
-            BuildUser(DataSet)
-          else if (Assigned(UserByName(ObjectName))) then
-            UserByName(ObjectName).SetSource(DataSet)
-          else
-            Users.Invalidate();
-        end
-      else if (SQLParseKeyword(Parse, 'PLUGINS')) then
-        Result := Plugins.Build(DataSet, False, not SQLParseEnd(Parse))
-      else if (SQLParseKeyword(Parse, 'PROCEDURE STATUS')
-        or SQLParseKeyword(Parse, 'FUNCTION STATUS')) then
-      begin
-        if (not SQLParseKeyword(Parse, 'WHERE') or not SQLParseKeyword(Parse, 'DB') or not SQLParseChar(Parse, '=')) then
-          DatabaseName := Self.DatabaseName
-        else
-          DatabaseName := SQLParseValue(Parse);
-        Result := DatabaseByName(DatabaseName).Routines.Build(DataSet, False, not SQLParseEnd(Parse));
-      end
-      else if (SQLParseKeyword(Parse, 'FULL PROCESSLIST')
-        or SQLParseKeyword(Parse, 'PROCESSLIST')) then
-        Result := Processes.Build(DataSet, False, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
-      else if (SQLParseKeyword(Parse, 'STATUS')
-        or SQLParseKeyword(Parse, 'SESSION STATUS')) then
-        Result := Stati.Build(DataSet, False, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
-      else if (SQLParseKeyword(Parse, 'VARIABLES')
-        or SQLParseKeyword(Parse, 'SESSION VARIABLES')) then
-        Result := Variables.Build(DataSet, False, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
-      else if (SQLParseKeyword(Parse, 'FULL TABLES')
-        or SQLParseKeyword(Parse, 'OPEN TABLES')
-        or SQLParseKeyword(Parse, 'TABLES')) then
-      begin
-        if (not SQLParseKeyword(Parse, 'FROM') or SQLParseKeyword(Parse, 'IN')) then
-          DatabaseName := Self.DatabaseName
-        else
-          DatabaseName := SQLParseValue(Parse);
-        Result := DatabaseByName(DatabaseName).Tables.Build(DataSet, False, not SQLParseEnd(Parse));
-      end
-      else if (SQLParseKeyword(Parse, 'TABLE STATUS')) then
-      begin
-        if (not SQLParseKeyword(Parse, 'FROM') or SQLParseKeyword(Parse, 'IN')) then
-          DatabaseName := Self.DatabaseName
-        else
-          DatabaseName := SQLParseValue(Parse);
-        Result := DatabaseByName(DatabaseName).Tables.Build(DataSet, False, not SQLParseEnd(Parse));
-      end
-      else if (SQLParseKeyword(Parse, 'TRIGGERS')) then
-      begin
-        if (not SQLParseKeyword(Parse, 'FROM') or SQLParseKeyword(Parse, 'IN')) then
-          DatabaseName := Self.DatabaseName
-        else
-          DatabaseName := SQLParseValue(Parse);
-        Result := DatabaseByName(DatabaseName).Triggers.Build(DataSet, False, not SQLParseEnd(Parse));
-      end
-      else
-        raise EConvertError.CreateFmt(SUnknownSQLStmt, [CommandText]);
-    end;
-
-  DataSet.Free();
 end;
 
 function TSSession.CloneDatabase(const SourceDatabase, TargetDatabase: TSDatabase; const Data: Boolean): Boolean;
@@ -10633,6 +10477,20 @@ begin
 
   FMetadataProvider.Free();
   FSyntaxProvider.Free();
+
+  inherited;
+end;
+
+procedure TSSession.DoAfterExecuteSQL();
+begin
+  inherited;
+
+  ExecuteEvent(ceAfterExecuteSQL);
+end;
+
+procedure TSSession.DoBeforeExecuteSQL();
+begin
+  ExecuteEvent(ceBeforeExecuteSQL);
 
   inherited;
 end;
@@ -11576,6 +11434,228 @@ begin
   Invalidate();
 end;
 
+function TSSession.SessionResult(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
+var
+  Database: TSDatabase;
+  DatabaseName: string;
+  DataSet: TMySQLQuery;
+  Field: Integer;
+  FunctionName: string;
+  ObjectName: string;
+  Parse: TSQLParse;
+  SQL: string;
+  Table: TSTable;
+begin
+  Result := False;
+
+  DataSet := TMySQLQuery.Create(nil);
+
+  SQL := CommandText;
+  if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), ServerVersion)) then
+    if (SQLParseKeyword(Parse, 'SELECT')) then
+    begin
+      DatabaseName := Self.DatabaseName;
+      if (SQLParseChar(Parse, '*') and SQLParseKeyword(Parse, 'FROM') and SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
+      begin
+        if (Databases.NameCmp(DatabaseName, information_schema) = 0) then
+        begin
+          DataSet.Open(DataHandle);
+          if (TableNameCmp(ObjectName, 'CHARACTER_SETS') = 0) then
+            Result := Charsets.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
+          else if (TableNameCmp(ObjectName, 'COLLATIONS') = 0) then
+            Result := Collations.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
+          else if ((TableNameCmp(ObjectName, 'COLUMNS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'TABLE_SCHEMA') and SQLParseChar(Parse, '=')) then
+            DatabaseByName(SQLParseValue(Parse)).Tables.BuildViewFields(DataSet, True)
+          else if (TableNameCmp(ObjectName, 'ENGINES') = 0) then
+            Result := Engines.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
+          else if ((TableNameCmp(ObjectName, 'EVENTS') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
+            Result := BuildEvents(DataSet)
+          else if ((TableNameCmp(ObjectName, 'EVENTS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'EVENT_SCHEMA') and SQLParseChar(Parse, '=')) then
+          begin
+            Database := DatabaseByName(SQLParseValue(Parse));
+            Result := Database.Events.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'));
+          end
+          else if (TableNameCmp(ObjectName, 'PLUGINS') = 0) then
+            Result := Plugins.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
+          else if (TableNameCmp(ObjectName, 'PROCESSLIST') = 0) then
+            Result := Processes.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
+          else if ((TableNameCmp(ObjectName, 'ROUTINES') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
+            Result := BuildRoutines(DataSet)
+          else if ((TableNameCmp(ObjectName, 'ROUTINES') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'ROUTINE_SCHEMA') and SQLParseChar(Parse, '=')) then
+          begin
+            Database := DatabaseByName(SQLParseValue(Parse));
+            Result := Database.Routines.Build(DataSet, True, not SQLParseEnd(Parse));
+          end
+          else if (TableNameCmp(ObjectName, 'SESSION_STATUS') = 0) then
+            Result := Stati.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
+          else if (TableNameCmp(ObjectName, 'SESSION_VARIABLES') = 0) then
+            Result := Variables.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
+          else if (TableNameCmp(ObjectName, 'SCHEMATA') = 0) then
+            Result := Databases.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
+          else if ((TableNameCmp(ObjectName, 'TABLES') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
+            Result := BuildTables(DataSet)
+          else if ((TableNameCmp(ObjectName, 'TABLES') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'TABLE_SCHEMA') and SQLParseChar(Parse, '=')) then
+          begin
+            Database := DatabaseByName(SQLParseValue(Parse));
+            Result := Database.Tables.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'));
+          end
+          else if ((TableNameCmp(ObjectName, 'TRIGGERS') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
+            Result := BuildTriggers(DataSet)
+          else if ((TableNameCmp(ObjectName, 'TRIGGERS') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'EVENT_OBJECT_SCHEMA') and SQLParseChar(Parse, '=')) then
+          begin
+            Database := DatabaseByName(SQLParseValue(Parse));
+            Result := Database.Triggers.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'));
+          end
+          else if ((TableNameCmp(ObjectName, 'USER_PRIVILEGES') = 0)) then
+            Result := Users.Build(DataSet, True, not SQLParseKeyword(Parse, 'GROUP BY') and not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
+          else
+            raise EConvertError.CreateFmt(SUnknownSQLStmt, [CommandText]);
+        end
+        else if (Databases.NameCmp(DatabaseName, 'mysql') = 0) then
+        begin
+          DataSet.Open(DataHandle);
+          if (TableNameCmp(ObjectName, 'user') = 0) then
+            Result := Users.Build(DataSet, False, not SQLParseEnd(Parse));
+        end
+        else if (DataHandle.Connection.ErrorCode = 0) then
+        begin
+          Database := DatabaseByName(DatabaseName);
+          if (Assigned(Database)) then
+          begin
+            Table := Database.TableByName(ObjectName);
+            if (Assigned(Table.FDataSet) and not Table.FDataSet.Active) then
+              Table.FDataSet.Open(DataHandle)
+            else
+              DataSet.Open(DataHandle);
+          end;
+        end;
+      end
+      else if ((FCurrentUser = '') and (DataHandle.Connection.ErrorCode = 0)) then
+      begin
+        DataSet.Open(DataHandle);
+        Field := 0;
+        if (not DataSet.IsEmpty) then
+          repeat
+            FunctionName := SQLParseValue(Parse);
+            if (SQLParseChar(Parse, '(', False)) then
+              FunctionName := FunctionName + SQLParseValue(Parse);
+            if (lstrcmpi(PChar(FunctionName), 'CURRENT_USER()') = 0) then
+              FCurrentUser := DataSet.Fields[Field].AsString
+            else if (lstrcmpi(PChar(FunctionName), 'SYSDATE()') = 0) then
+            begin
+              if (TryStrToDateTime(DataSet.Fields[0].AsString, TimeDiff, FormatSettings)) then
+                TimeDiff := TimeDiff - Now();
+            end
+            else if (lstrcmpi(PChar(FunctionName), 'USER()') = 0) then
+              FCurrentUser := DataSet.Fields[Field].AsString;
+            Inc(Field);
+          until (not SQLParseChar(Parse, ','));
+      end;
+    end
+    else if (SQLParseKeyword(Parse, 'SHOW') and (DataHandle.Connection.ErrorCode = 0)) then
+    begin
+      DataSet.Open(DataHandle);
+      DatabaseName := DataSet.DatabaseName;
+      if (SQLParseKeyword(Parse, 'CHARACTER SET')) then
+        Result := Charsets.Build(DataSet, False, not SQLParseEnd(Parse))
+      else if (SQLParseKeyword(Parse, 'COLLATION')) then
+        Result := Collations.Build(DataSet, False, not SQLParseEnd(Parse))
+      else if (SQLParseKeyword(Parse, 'CREATE')) then
+      begin
+        if (DataSet.Active) then
+          if (SQLParseKeyword(Parse, 'DATABASE')) then
+            DatabaseByName(SQLParseValue(Parse)).SetSource(DataSet)
+          else if (SQLParseKeyword(Parse, 'EVENT')) then
+            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).EventByName(ObjectName).SetSource(DataSet); end
+          else if (SQLParseKeyword(Parse, 'FUNCTION')) then
+            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).FunctionByName(ObjectName).SetSource(DataSet); end
+          else if (SQLParseKeyword(Parse, 'PROCEDURE')) then
+            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).ProcedureByName(ObjectName).SetSource(DataSet); end
+          else if (SQLParseKeyword(Parse, 'TABLE')) then
+            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).TableByName(ObjectName).SetSource(DataSet); end
+          else if (SQLParseKeyword(Parse, 'TRIGGER')) then
+            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).TriggerByName(ObjectName).SetSource(DataSet); end
+          else if (SQLParseKeyword(Parse, 'VIEW')) then
+            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).TableByName(ObjectName).SetSource(DataSet); end;
+      end
+      else if (SQLParseKeyword(Parse, 'DATABASES')) then
+        Result := Databases.Build(DataSet, False, not SQLParseEnd(Parse))
+      else if (SQLParseKeyword(Parse, 'ENGINES')) then
+        Result := Engines.Build(DataSet, False, not SQLParseEnd(Parse))
+      else if (SQLParseKeyword(Parse, 'EVENTS')) then
+      begin
+        if (not SQLParseKeyword(Parse, 'FROM') or SQLParseKeyword(Parse, 'IN')) then
+          DatabaseName := Self.DatabaseName
+        else
+          DatabaseName := SQLParseValue(Parse);
+        Result := DatabaseByName(DatabaseName).Events.Build(DataSet, False, not SQLParseEnd(Parse));
+      end
+      else if (SQLParseKeyword(Parse, 'GRANTS FOR')) then
+        if (SQLParseKeyword(Parse, 'CURRENT_USER')) then
+          BuildUser(DataSet)
+        else
+        begin
+          ObjectName := SQLParseValue(Parse);
+          if (Users.NameCmp(ObjectName, FCurrentUser) = 0) then
+            BuildUser(DataSet)
+          else if (Assigned(UserByName(ObjectName))) then
+            UserByName(ObjectName).SetSource(DataSet)
+          else
+            Users.Invalidate();
+        end
+      else if (SQLParseKeyword(Parse, 'PLUGINS')) then
+        Result := Plugins.Build(DataSet, False, not SQLParseEnd(Parse))
+      else if (SQLParseKeyword(Parse, 'PROCEDURE STATUS')
+        or SQLParseKeyword(Parse, 'FUNCTION STATUS')) then
+      begin
+        if (not SQLParseKeyword(Parse, 'WHERE') or not SQLParseKeyword(Parse, 'DB') or not SQLParseChar(Parse, '=')) then
+          DatabaseName := Self.DatabaseName
+        else
+          DatabaseName := SQLParseValue(Parse);
+        Result := DatabaseByName(DatabaseName).Routines.Build(DataSet, False, not SQLParseEnd(Parse));
+      end
+      else if (SQLParseKeyword(Parse, 'FULL PROCESSLIST')
+        or SQLParseKeyword(Parse, 'PROCESSLIST')) then
+        Result := Processes.Build(DataSet, False, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
+      else if (SQLParseKeyword(Parse, 'STATUS')
+        or SQLParseKeyword(Parse, 'SESSION STATUS')) then
+        Result := Stati.Build(DataSet, False, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
+      else if (SQLParseKeyword(Parse, 'VARIABLES')
+        or SQLParseKeyword(Parse, 'SESSION VARIABLES')) then
+        Result := Variables.Build(DataSet, False, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
+      else if (SQLParseKeyword(Parse, 'FULL TABLES')
+        or SQLParseKeyword(Parse, 'OPEN TABLES')
+        or SQLParseKeyword(Parse, 'TABLES')) then
+      begin
+        if (not SQLParseKeyword(Parse, 'FROM') or SQLParseKeyword(Parse, 'IN')) then
+          DatabaseName := Self.DatabaseName
+        else
+          DatabaseName := SQLParseValue(Parse);
+        Result := DatabaseByName(DatabaseName).Tables.Build(DataSet, False, not SQLParseEnd(Parse));
+      end
+      else if (SQLParseKeyword(Parse, 'TABLE STATUS')) then
+      begin
+        if (not SQLParseKeyword(Parse, 'FROM') or SQLParseKeyword(Parse, 'IN')) then
+          DatabaseName := Self.DatabaseName
+        else
+          DatabaseName := SQLParseValue(Parse);
+        Result := DatabaseByName(DatabaseName).Tables.Build(DataSet, False, not SQLParseEnd(Parse));
+      end
+      else if (SQLParseKeyword(Parse, 'TRIGGERS')) then
+      begin
+        if (not SQLParseKeyword(Parse, 'FROM') or SQLParseKeyword(Parse, 'IN')) then
+          DatabaseName := Self.DatabaseName
+        else
+          DatabaseName := SQLParseValue(Parse);
+        Result := DatabaseByName(DatabaseName).Triggers.Build(DataSet, False, not SQLParseEnd(Parse));
+      end
+      else
+        raise EConvertError.CreateFmt(SUnknownSQLStmt, [CommandText]);
+    end;
+
+  DataSet.Free();
+end;
+
 procedure TSSession.SetAutoCommit(const AAutoCommit: Boolean);
 var
   DataSet: TMySQLQuery;
@@ -11770,21 +11850,11 @@ end;
 
 function TSSession.Update(): Boolean;
 var
-  List: TList;
+  Objects: TList;
 begin
-  List := TList.Create();
-
-  if (Assigned(Variables) and not Variables.Valid) then List.Add(Variables);
-  if (Assigned(Stati) and not Stati.Valid) then List.Add(Stati);
-  if (Assigned(Engines) and not Engines.Valid) then List.Add(Engines);
-  if (Assigned(Charsets) and not Charsets.Valid) then List.Add(Charsets);
-  if (Assigned(Collations) and not Collations.Valid) then List.Add(Collations);
-  if (Assigned(Databases) and not Databases.Valid) then List.Add(Databases);
-  if (Assigned(Users) and not Users.Valid) then List.Add(Users);
-
-  Result := Update(List);
-
-  List.Free();
+  Objects := TList.Create();
+  Result := Update(Objects);
+  Objects.Free();
 end;
 
 function TSSession.Update(const Objects: TList; const Status: Boolean = False): Boolean;
@@ -11812,7 +11882,16 @@ begin
 
 
   List := TList.Create();
-  List.Assign(Objects);
+
+  if (Assigned(Variables) and not Variables.Valid) then List.Add(Variables);
+  if (Assigned(Stati) and not Stati.Valid) then List.Add(Stati);
+  if (Assigned(Engines) and not Engines.Valid) then List.Add(Engines);
+  if (Assigned(Charsets) and not Charsets.Valid) then List.Add(Charsets);
+  if (Assigned(Collations) and not Collations.Valid) then List.Add(Collations);
+  if (Assigned(Databases) and not Databases.Valid) then List.Add(Databases);
+  if (Assigned(Users) and not Users.Valid) then List.Add(Users);
+
+  List.Assign(Objects, laOr);
   if (Assigned(InvalidObjects) and (InvalidObjects.Count < 10)) then
     List.Assign(InvalidObjects, laOr);
   List.Sort(Compare);
@@ -11881,6 +11960,15 @@ begin
       if (Status and not TSDatabase(List[I]).Tables.ValidStatus and not (TSDatabase(List[I]) is TSSystemDatabase)) then
         SQL := SQL + TSDatabase(List[I]).Tables.SQLGetStatus(TSDatabase(List[I]).Tables);
     end;
+
+  if (not Databases.Valid and (Objects.Count = 0) and (ServerVersion > 50002)) then
+  begin
+    if (ServerVersion >= 50004) then SQL := SQL + 'SELECT * FROM `information_schema`.`ROUTINES`;' + #13#10;
+    if (ServerVersion >= 50010) then SQL := SQL + 'SELECT * FROM `information_schema`.`TRIGGERS`;' + #13#10;
+    if (ServerVersion >= 50106) then SQL := SQL + 'SELECT * FROM `information_schema`.`EVENTS`;' + #13#10;
+    SQL := SQL + 'SELECT * FROM `information_schema`.`TABLES`;' + #13#10;
+  end;
+
 
   Tables.Free();
   if (Assigned(InvalidObjects)) then

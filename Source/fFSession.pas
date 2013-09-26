@@ -10310,6 +10310,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
       else
         Item.ImageIndex := iiDatabase;
       Item.Caption := TSDatabase(Data).Caption;
+
       Item.SubItems.Clear();
       if (TSDatabase(Data).Count < 0) then
         Item.SubItems.Add('')
@@ -14201,18 +14202,6 @@ begin
     vEditor2,
     vEditor3:
       case (SelectedImageIndex) of
-        iiServer:
-          if (Session.Databases.Count < PrefetchObjectCount) then
-          begin
-            List := TList.Create();
-
-            for I := 0 to Session.Databases.Count - 1 do
-              List.Add(Session.Databases[I]);
-
-            Result := not Session.Update(List, View = vObjects);
-
-            List.Free();
-          end;
         iiDatabase,
         iiSystemDatabase:
           begin
