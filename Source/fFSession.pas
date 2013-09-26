@@ -787,15 +787,12 @@ type
       FXML: IXMLNode;
       function GetFilter(Index: Integer): string;
       function GetFilterCount(): Integer;
-      function GetGridXML(FieldName: string): IXMLNode;
       function GetLimit(): Integer;
       function GetLimited(): Boolean;
       function GetTable(): TSTable; inline;
       function GetXML(): IXMLNode;
       procedure SetLimit(const Limit: Integer);
       procedure SetLimited(const ALimited: Boolean);
-    protected
-      property GridXML[FieldName: string]: IXMLNode read GetGridXML;
     public
       DBGrid: TMySQLDBGrid;
       ListView: TListView;
@@ -1601,10 +1598,7 @@ end;
 
 procedure TFSession.TTableDesktop.DataSetAfterOpen(DataSet: TDataSet);
 var
-  Child: IXMLNode;
-  FieldInfo: TFieldInfo;
   I: Integer;
-  Width: Integer;
 begin
   DBGrid.DataSource.DataSet := DataSet;
 
@@ -1614,16 +1608,9 @@ begin
 
   DBGrid.Columns.BeginUpdate();
   for I := 0 to DBGrid.Columns.Count - 1 do
-    if (Assigned(DBGrid.Columns[I].Field) and GetFieldInfo(DBGrid.Columns[I].Field.Origin, FieldInfo)) then
-    begin
-      Child := XMLNode(GridXML[FieldInfo.OriginalFieldName], 'width');
-      if (Assigned(Child) and TryStrToInt(Child.Text, Width) and (Width > 10)) then
-        DBGrid.Columns[I].Width := Width
-      else if ((DBGrid.Columns[I].Width > Preferences.GridMaxColumnWidth) and not (DBGrid.Columns[I].Field.DataType in [ftSmallint, ftInteger, ftLargeint, ftWord, ftFloat, ftDate, ftDateTime, ftTime, ftCurrency])) then
-        DBGrid.Columns[I].Width := Preferences.GridMaxColumnWidth;
-    end;
+    if ((DBGrid.Columns[I].Width > Preferences.GridMaxColumnWidth) and not (DBGrid.Columns[I].Field.DataType in [ftSmallint, ftInteger, ftLargeint, ftWord, ftFloat, ftDate, ftDateTime, ftTime, ftCurrency])) then
+      DBGrid.Columns[I].Width := Preferences.GridMaxColumnWidth;
   DBGrid.Columns.EndUpdate();
-
 end;
 
 procedure TFSession.TTableDesktop.DataSetAfterRefresh(DataSet: TDataSet);
@@ -1660,39 +1647,7 @@ begin
 end;
 
 destructor TFSession.TTableDesktop.Destroy();
-var
-  Child: IXMLNode;
-  FieldInfo: TFieldInfo;
-  FieldName: string;
-  I: Integer;
-  J: Integer;
-  Node: IXMLNode;
 begin
-  Node := XMLNode(XML, 'grid', True);
-  if (Assigned(Node)) then
-  begin
-    for I := Node.ChildNodes.Count - 1 downto 0 do
-      if ((Node.ChildNodes[I].NodeName = 'field') and not Assigned(Table.FieldByName(Node.ChildNodes[I].Attributes['name']))) then
-        Node.ChildNodes.Delete(I);
-
-    if (Assigned(DBGrid) and DBGrid.DataSource.DataSet.Active) then
-      for I := 0 to DBGrid.Columns.Count - 1 do
-        if (Assigned(DBGrid.Columns[I].Field) and GetFieldInfo(DBGrid.Columns[I].Field.Origin, FieldInfo)) then
-        begin
-          FieldName := FieldInfo.OriginalFieldName;
-          Child := nil;
-          for J := 0 to Node.ChildNodes.Count - 1 do
-            if ((Node.ChildNodes[J].NodeName = 'field') and (lstrcmpi(PChar(string(Node.ChildNodes[J].Attributes['name'])), PChar(FieldName)) = 0)) then
-              Child := Node.ChildNodes[J];
-          if (not Assigned(Child)) then
-          begin
-            Child := XMLNode(XML, 'grid', True).AddChild('field');
-            Child.Attributes['name'] := FieldName;
-          end;
-          XMLNode(Child, 'width', True).Text := IntToStr(DBGrid.Columns[I].Width);
-        end;
-  end;
-
   if (Assigned(ListView)) then
     FSession.FreeListView(ListView);
   if (Assigned(DBGrid)) then
@@ -1726,26 +1681,6 @@ begin
   if (Assigned(XML)) then
     if (Assigned(XMLNode(XML, 'filters'))) then
       Result := XMLNode(XML, 'filters').ChildNodes.Count;
-end;
-
-function TFSession.TTableDesktop.GetGridXML(FieldName: string): IXMLNode;
-var
-  Node: IXMLNode;
-  I: Integer;
-begin
-  Node := XMLNode(XML, 'grid', True);
-  Result := nil;
-  if (Assigned(Node)) then
-  begin
-    for I := 0 to Node.ChildNodes.Count - 1 do
-      if ((Node.ChildNodes[I].NodeName = 'field') and (lstrcmpi(PChar(string(Node.ChildNodes[I].Attributes['name'])), PChar(FieldName)) = 0)) then
-        Result := Node.ChildNodes[I];
-    if (not Assigned(Result)) then
-    begin
-      Result := Node.AddChild('field');
-      Result.Attributes['name'] := Table.Name;
-    end;
-  end;
 end;
 
 function TFSession.TTableDesktop.GetLimit(): Integer;
@@ -7963,11 +7898,12 @@ begin
 
   ChangingEvent := FNavigator.OnChanging; FNavigator.OnChanging := nil;
   ChangeEvent := FNavigator.OnChange; FNavigator.OnChange := nil;
-  FNavigator.Items.BeginUpdate();
 
   if (SessionEvent.Sender is TSSession) then
   begin
     Node := FNavigator.Items.getFirstNode();
+
+    FNavigator.Items.BeginUpdate();
 
     if (not Assigned(Node.getFirstChild())) then
     begin
@@ -7982,6 +7918,8 @@ begin
 
     if (SessionEvent.SItems is TSDatabases) then
       UpdateGroup(Node, giDatabases, SessionEvent.SItems);
+
+    FNavigator.Items.EndUpdate();
   end
   else if (SessionEvent.Sender is TSDatabase) then
   begin
@@ -7992,6 +7930,8 @@ begin
 
     if (Assigned(Node) and (not Node.HasChildren or Assigned(Node.getFirstChild()) or (Node = FNavigatorNodeToExpand))) then
     begin
+      FNavigator.Items.BeginUpdate();
+
       if (not (SessionEvent.SItems is TSTriggers)) then
       begin
         UpdateGroup(Node, giTriggers, SessionEvent.SItems);
@@ -8011,6 +7951,8 @@ begin
           Child := Child.getNextSibling();
         end;
       end;
+
+      FNavigator.Items.EndUpdate();
     end;
   end
   else if (SessionEvent.Sender is TSTable) then
@@ -8027,6 +7969,8 @@ begin
 
       if (Assigned(Node) and (not Node.HasChildren or Assigned(Node.getFirstChild()) or (Node = FNavigatorNodeToExpand))) then
       begin
+        FNavigator.Items.BeginUpdate();
+
         Expanded := Node.Expanded;
 
         if (Table is TSBaseTable) then
@@ -8039,11 +7983,12 @@ begin
 
         Node.HasChildren := Assigned(Node.getFirstChild());
         Node.Expanded := Expanded;
+
+        FNavigator.Items.EndUpdate();
       end;
     end;
   end;
 
-  FNavigator.Items.EndUpdate();
   FNavigator.OnChanging := ChangingEvent;
   FNavigator.OnChange := ChangeEvent;
 
@@ -10751,6 +10696,9 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         begin
           ListView.Groups.BeginUpdate();
           ListView.Columns.BeginUpdate();
+          ListView.DisableAlign();
+          ListView.Items.BeginUpdate();
+
           for I := 0 to ListView.Columns.Count - 1 do
           begin
             ColumnWidths[I] := ListView.Columns[I].Width;
@@ -10769,6 +10717,8 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
               else
                 AddItem(Kind, CItems[I]);
 
+          ListView.Items.EndUpdate();
+          ListView.EnableAlign();
           ListView.Groups.EndUpdate();
           ListView.Columns.EndUpdate();
 
@@ -10888,9 +10838,6 @@ begin
   begin
     ChangingEvent := ListView.OnChanging;
     ListView.OnChanging := nil;
-    ListView.DisableAlign();
-    if (SessionEvent.EventType = ceItemsValid) then
-      ListView.Items.BeginUpdate();
 
     Kind := ColumnWidthKindFromImageIndex(ImageIndexByData(TObject(ListView.Tag)));
 
@@ -10929,20 +10876,22 @@ begin
             UpdateGroup(Kind, giEvents, SessionEvent.SItems);
         end;
       lkTable:
-        if (SessionEvent.Sender is TSTable) then
         begin
-          Table := TSTable(SessionEvent.Sender);
+          if (SessionEvent.Sender is TSTable) then
+          begin
+            Table := TSTable(SessionEvent.Sender);
 
-          if (Table is TSBaseTable) then
-            UpdateGroup(Kind, giKeys, TSBaseTable(Table).Keys);
-          UpdateGroup(Kind, giFields, Table.Fields);
-          if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).ForeignKeys)) then
-            UpdateGroup(Kind, giForeignKeys, TSBaseTable(Table).ForeignKeys);
-          if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).Database.Triggers)) then
-            UpdateGroup(Kind, giTriggers, TSBaseTable(Table).Database.Triggers);
-        end
-        else if ((SessionEvent.Sender is TSDatabase) and (SessionEvent.SItem is TSTrigger)) then
-          UpdateGroup(Kind, giTriggers, SessionEvent.SItems);
+            if (Table is TSBaseTable) then
+              UpdateGroup(Kind, giKeys, TSBaseTable(Table).Keys);
+            UpdateGroup(Kind, giFields, Table.Fields);
+            if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).ForeignKeys)) then
+              UpdateGroup(Kind, giForeignKeys, TSBaseTable(Table).ForeignKeys);
+            if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).Database.Triggers)) then
+              UpdateGroup(Kind, giTriggers, TSBaseTable(Table).Database.Triggers);
+          end
+          else if ((SessionEvent.Sender is TSDatabase) and (SessionEvent.SItem is TSTrigger)) then
+            UpdateGroup(Kind, giTriggers, SessionEvent.SItems);
+        end;
       lkProcesses:
         UpdateGroup(Kind, giProcesses, SessionEvent.SItems);
       lkStati:
@@ -10956,9 +10905,6 @@ begin
     if ((Window.ActiveControl = ListView) and Assigned(ListView.OnSelectItem)) then
       ListView.OnSelectItem(nil, ListView.Selected, Assigned(ListView.Selected));
 
-    if (SessionEvent.EventType = ceItemsValid) then
-      ListView.Items.EndUpdate();
-    ListView.EnableAlign();
     ListView.OnChanging := ChangingEvent;
   end;
 end;
@@ -14272,15 +14218,13 @@ begin
           begin
             Database := TSDatabase(FNavigator.Selected.Data);
 
-            if ((0 < Database.Count) and (Database.Count < PrefetchObjectCount) or (Database is TSSystemDatabase) or not Database.Tables.ValidStatus) then
+            if ((Database is TSSystemDatabase) or not Database.Tables.ValidStatus) then
             begin
               List := TList.Create();
 
               List.Add(Database);
-
               if (not Database.Tables.Valid) then
                 Wanted.FUpdate := UpdateAfterAddressChanged;
-              if (((0 < Database.Count) and (Database.Count < PrefetchObjectCount)) or (Database is TSSystemDatabase)) then
               for I := 0 to Database.Tables.Count - 1 do
                 List.Add(Database.Tables[I]);
               if (Assigned(Database.Routines)) then

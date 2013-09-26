@@ -501,10 +501,8 @@ type
   protected
     FDataSet: TSTableDataSet;
     FFilterSQL: string;
-    FInServerCache: Boolean;
     FSourceParsed: Boolean;
     function GetFields(): TSTableFields; virtual;
-    function GetInServerCache(): Boolean; virtual;
     procedure SetName(const AName: string); override;
     property SourceParsed: Boolean read FSourceParsed;
   public
@@ -522,7 +520,6 @@ type
     property DataSet: TSTableDataSet read GetDataSet;
     property Fields: TSTableFields read GetFields;
     property Index: Integer read GetIndex;
-    property InServerCache: Boolean read GetInServerCache;
     property Tables: TSTables read GetTables;
     property ValidData: Boolean read GetValidData;
   end;
@@ -613,7 +610,6 @@ type
     FValidStatus: Boolean;
     procedure BuildStatus(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean); virtual;
     function GetDependencies(): TSDependencies; override;
-    function GetInServerCache(): Boolean; override;
     function GetValid(): Boolean; override;
     procedure ParseCreateTable(const SQL: string); virtual;
     procedure SetSource(const ADataSet: TMySQLQuery); overload; override;
@@ -3375,7 +3371,6 @@ begin
     FFields := TSViewFields.Create(Self)
   else
     FFields := TSTableFields.Create(Self);
-  FInServerCache := False;
   FSourceParsed := False;
 end;
 
@@ -3433,11 +3428,6 @@ end;
 function TSTable.GetFields(): TSTableFields;
 begin
   Result := FFields;
-end;
-
-function TSTable.GetInServerCache(): Boolean;
-begin
-  Result := (Database is TSSystemDatabase) or FInServerCache or (Self is TSBaseTable) and TSBaseTable(Self).Temporary;
 end;
 
 function TSTable.GetTables(): TSTables;
@@ -3990,11 +3980,6 @@ begin
   end;
 
   Result := FDependencies;
-end;
-
-function TSBaseTable.GetInServerCache(): Boolean;
-begin
-  Result := Temporary or (Database is TSSystemDatabase) or inherited GetInServerCache();
 end;
 
 function TSBaseTable.GetPrimaryKey(): TSKey;
@@ -5017,9 +5002,7 @@ end;
 
 function TSTables.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False): Boolean;
 var
-  BaseTable: TSBaseTable;
   DeleteList: TList;
-  I: Integer;
   Index: Integer;
   Name: string;
   NewTable: TSTable;
@@ -5058,6 +5041,8 @@ begin
         end
         else if (DeleteList.IndexOf(Items[Index]) >= 0) then
           DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
+
+        Session.ExecuteEvent(ceItemValid, Database, Self, Table[Index]);
       until (not DataSet.FindNext());
     FValid := True;
 
@@ -5073,24 +5058,11 @@ begin
 
     Result := inherited;
 
-    if ((OldCount > 0) or (Count > 0)) then
+    if (OldCount = 0) then
+    begin
+      Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
       Session.ExecuteEvent(ceItemsValid, Database, Self);
-  end
-  else if (DataSet.FieldCount = 4) then // SHOW OPEN TABLES
-  begin
-    for I := 0 to Count - 1 do
-      Table[I].FInServerCache := False;
-
-    if (not DataSet.IsEmpty()) then
-      repeat
-        Name := DataSet.FieldByName('Table').AsString;
-
-        Index := IndexByName(Name);
-        if (Index >= 0) then
-          Table[Index].FInServerCache := True;
-      until (not DataSet.FindNext());
-
-    Result := False;
+    end;
   end
   else
   begin
@@ -5121,17 +5093,17 @@ begin
         end;
 
         if (Table[Index] is TSBaseTable) then
-        begin
-          BaseTable := TSBaseTable(Table[Index]);
-          BaseTable.BuildStatus(DataSet, UseInformationSchema);
-        end;
+          TSBaseTable(Table[Index]).BuildStatus(DataSet, UseInformationSchema);
 
-        if (Table[Index].Valid) then
+        if (Filtered) then
           Table[Index].PushBuildEvent(Filtered);
       until (not DataSet.FindNext());
 
     if (not Filtered) then
+    begin
+      Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
       Session.ExecuteEvent(ceItemsValid, Database, Self);
+    end;
     if (Database.Valid) then
       Session.ExecuteEvent(ceItemValid, Session, Session.Databases, Database);
 
@@ -5252,25 +5224,9 @@ end;
 function TSTables.SQLGetItems(const Name: string = ''): string;
 begin
   if (Database.Session.ServerVersion < 50002) then
-  begin
-    Result := Database.SQLUse()
-      + 'SHOW TABLES FROM ' + Database.Session.EscapeIdentifier(Database.Name) + ';' + #13#10;
-    if (not (Database is TSSystemDatabase)) then
-      Result := Result + 'SHOW OPEN TABLES;' + #13#10;
-  end
-  else if (Database.Session.ServerVersion < 50012) then
-  begin
-    Result := Database.SQLUse()
-      + 'SHOW FULL TABLES FROM ' + Database.Session.EscapeIdentifier(Database.Name) + ';' + #13#10;
-    if (not (Database is TSSystemDatabase)) then
-      Result := Result + 'SHOW OPEN TABLES;' + #13#10;
-  end
+    Result := 'SHOW TABLES FROM ' + Database.Session.EscapeIdentifier(Database.Name) + ';' + #13#10
   else
-  begin
     Result := 'SHOW FULL TABLES FROM ' + Database.Session.EscapeIdentifier(Database.Name) + ';' + #13#10;
-    if (not (Database is TSSystemDatabase)) then
-      Result := Result + 'SHOW OPEN TABLES FROM ' + Database.Session.EscapeIdentifier(Database.Name) + ';' + #13#10;
-  end;
 end;
 
 function TSTables.SQLGetStatus(const Tables: TList = nil): string;
@@ -11896,11 +11852,11 @@ begin
       end;
       Database := TSDBObject(List[I]).Database;
 
-      if (not TSDBObject(List[I]).ValidSource and (not (TSDBObject(List[I]) is TSTable) or TSTable(List[I]).InServerCache)) then
+      if (not TSDBObject(List[I]).ValidSource) then
         SQL := SQL + TSDBObject(List[I]).SQLGetSource();
-      if ((TSDBObject(List[I]) is TSBaseTable) and not TSBaseTable(List[I]).ValidStatus and TSBaseTable(List[I]).InServerCache) then
+      if ((TSDBObject(List[I]) is TSBaseTable) and not TSBaseTable(List[I]).ValidStatus) then
         Tables.Add(List[I])
-      else if ((TSObject(List[I]) is TSView) and not TSView(List[I]).ValidFields and TSBaseTable(List[I]).InServerCache) then
+      else if ((TSObject(List[I]) is TSView) and not TSView(List[I]).ValidFields) then
         Tables.Add(List[I]);
       ViewInTables := ViewInTables or (TSObject(List[I]) is TSView);
     end
@@ -11924,25 +11880,6 @@ begin
     begin
       if (Status and not TSDatabase(List[I]).Tables.ValidStatus and not (TSDatabase(List[I]) is TSSystemDatabase)) then
         SQL := SQL + TSDatabase(List[I]).Tables.SQLGetStatus(TSDatabase(List[I]).Tables);
-    end
-    else if (TObject(List[I]) is TSDBObject) then
-    begin
-      Database := TSDBObject(List[I]).Database;
-
-      if (not TSDBObject(List[I]).ValidSource and (TSDBObject(List[I]) is TSTable) and not TSBaseTable(List[I]).InServerCache) then
-        SQL := SQL + TSDBObject(List[I]).SQLGetSource();
-      if ((TSDBObject(List[I]) is TSBaseTable) and not TSBaseTable(List[I]).ValidStatus and not TSBaseTable(List[I]).InServerCache) then
-      begin
-        Tables.Add(TSBaseTable(List[I]));
-        SQL := SQL + Database.Tables.SQLGetStatus(Tables);
-        Tables.Clear();
-      end
-      else if ((TSObject(List[I]) is TSView) and not TSView(List[I]).ValidFields and not TSBaseTable(List[I]).InServerCache) then
-      begin
-        Tables.Add(List[I]);
-        SQL := SQL + Database.Tables.SQLGetViewFields(Tables);
-        Tables.Clear();
-      end;
     end;
 
   Tables.Free();
