@@ -4591,41 +4591,20 @@ begin
 end;
 
 function TAAccounts.GetXML(): IXMLNode;
-var
-  S: string;
 begin
   if (not Assigned(FXMLDocument)) then
   begin
-    S := 'A';
 
     if (FileExists(Filename)) then
-    begin
-      S := S + ' B';
-
       FXMLDocument := LoadXMLDocument(Filename);
-
-      // Debug 04.06.13
-      if (not Assigned(FXMLDocument)) then
-        raise ERangeError.CreateFmt(SPropertyOutOfRange, ['FXMLDocument']);
-    end;
 
     if (not Assigned(FXMLDocument) or not Assigned(FXMLDocument.DocumentElement)) then
     begin
-      S := S + ' C';
-
       FXMLDocument := NewXMLDocument();
-
-      // Debug 04.06.13
-      if (not Assigned(FXMLDocument)) then
-        raise ERangeError.CreateFmt(SPropertyOutOfRange, ['FXMLDocument']);
 
       FXMLDocument.Encoding := 'utf-8';
       FXMLDocument.Node.AddChild('accounts').Attributes['version'] := '1.1.0';
     end;
-
-    // Debug 00.00.13
-    if (not Assigned(FXMLDocument)) then
-      raise ERangeError.CreateFmt(SPropertyOutOfRange + ' (%s)', ['FXMLDocument', S]);
 
     FXMLDocument.Options := FXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
   end;
