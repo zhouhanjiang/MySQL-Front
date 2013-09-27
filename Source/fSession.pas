@@ -320,7 +320,6 @@ type
 
   TSField = class(TSItem)
   private
-//    FCharset: string;
     FFieldTypes: TSFieldTypes;
   protected
     procedure ParseFieldType(var Parse: TSQLParse); virtual;
@@ -5823,11 +5822,8 @@ var
   Index: Integer;
   Name: string;
   NewRoutine: TSRoutine;
-  OldCount: Integer;
   RoutineType: TSRoutine.TRoutineType;
 begin
-  OldCount := Count;
-
   DeleteList := TList.Create();
   DeleteList.Assign(Self);
 
@@ -5893,7 +5889,7 @@ begin
         end;
       end;
 
-      if (Filtered) then
+      if (Filtered and SessionEvents) then
         Session.ExecuteEvent(ceItemValid, Session, Self, Routine[Index]);
     until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('ROUTINE_SCHEMA').AsString, Database.Name) <> 0));
 
@@ -5909,12 +5905,12 @@ begin
     end;
   DeleteList.Free();
 
-  if ((OldCount > 0) or (Count > 0)) then
+  if (not Filtered and SessionEvents) then
   begin
     Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
     Session.ExecuteEvent(ceItemsValid, Database, Self);
   end;
-  if (Database.Valid) then
+  if (Database.Valid and SessionEvents) then
     Session.ExecuteEvent(ceItemValid, Session, Session.Databases, Database);
 end;
 
@@ -6183,10 +6179,7 @@ var
   DeleteList: TList;
   Index: Integer;
   Name: string;
-  OldCount: Integer;
 begin
-  OldCount := Count;
-
   DeleteList := TList.Create();
   DeleteList.Assign(Self);
 
@@ -6251,7 +6244,7 @@ begin
       if (Database.Session.ServerVersion < 50121) then
         Trigger[Index].SetSource(Trigger[Index].GetSourceEx());
 
-      if (Filtered) then
+      if (Filtered and SessionEvents) then
         Session.ExecuteEvent(ceItemValid, Session, Self, Trigger[Index]);
     until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('TRIGGER_SCHEMA').AsString, Database.Name) <> 0));
 
@@ -6267,12 +6260,12 @@ begin
     end;
   DeleteList.Free();
 
-  if ((OldCount > 0) or (Count > 0)) then
+  if (not Filtered and SessionEvents) then
   begin
     Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
     Session.ExecuteEvent(ceItemsValid, Database, Self);
   end;
-  if (Database.Valid) then
+  if (Database.Valid and SessionEvents) then
     Session.ExecuteEvent(ceItemValid, Session, Session.Databases, Database);
 end;
 
@@ -6562,7 +6555,7 @@ begin
 
         if (Copy(Event[Index].Stmt, Length(Event[Index].Stmt), 1) <> ';') then Event[Index].Stmt := Event[Index].Stmt + ';';
 
-        if (Filtered) then
+        if (Filtered and SessionEvents) then
           Session.ExecuteEvent(ceItemsValid, Database, Self, Event[Index]);
       end;
     until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('EVENT_SCHEMA').AsString, Database.Name) <> 0));
@@ -6579,12 +6572,12 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered) then
+  if (not Filtered and SessionEvents) then
   begin
     Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
     Session.ExecuteEvent(ceItemsValid, Database, Self);
   end;
-  if (Database.Valid) then
+  if (Database.Valid and SessionEvents) then
     Session.ExecuteEvent(ceItemValid, Session, Session.Databases, Database);
 end;
 
@@ -8470,8 +8463,6 @@ var
   OldCount: Integer;
   Seconds: UInt64;
 begin
-  OldCount := Count;
-
   DeleteList := TList.Create();
   DeleteList.Assign(Self);
 
@@ -8522,7 +8513,7 @@ begin
     end;
   DeleteList.Free();
 
-  if ((OldCount > 0) or (Count > 0)) then
+  if (not Filtered) then
     Session.ExecuteEvent(ceItemsValid, Session, Self);
 end;
 
@@ -9131,11 +9122,8 @@ var
   Index: Integer;
   Minutes: Integer;
   Name: string;
-  OldCount: Integer;
   Seconds: Integer;
 begin
-  OldCount := Count;
-
   DeleteList := TList.Create();
   DeleteList.Assign(Self);
 
@@ -9190,6 +9178,9 @@ begin
         Process[Index].FState := DataSet.FieldByName('STATE').AsString;
         Process[Index].FSQL := DataSet.FieldByName('INFO').AsString;
       end;
+
+      if (not Filtered) then
+        Session.ExecuteEvent(ceItemValid, Session, Self, Process[Index]);
     until (not DataSet.FindNext());
 
   Result := inherited;
@@ -9204,7 +9195,7 @@ begin
     end;
   DeleteList.Free();
 
-  if ((OldCount > 0) or (Count > 0)) then
+  if (not Filtered) then
     Session.ExecuteEvent(ceItemsValid, Session, Self);
 end;
 

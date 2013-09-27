@@ -4384,7 +4384,15 @@ begin
 
     if (SessionEvent.EventType in [ceItemsValid, ceItemValid, ceItemCreated, ceItemAltered, ceItemDropped]) then
     begin
-      if (SessionEvent.Sender is TSSession) then
+      if (SessionEvent.SItems is TSProcesses) then
+        ListViewUpdate(SessionEvent, ProcessesListView)
+      else if (SessionEvent.SItems is TSStati) then
+        ListViewUpdate(SessionEvent, StatiListView)
+      else if (SessionEvent.SItems is TSUsers) then
+        ListViewUpdate(SessionEvent, UsersListView)
+      else if (SessionEvent.SItems is TSVariables) then
+        ListViewUpdate(SessionEvent, VariablesListView)
+      else if (SessionEvent.Sender is TSSession) then
         ListViewUpdate(SessionEvent, FServerListView)
       else if (SessionEvent.Sender is TSDatabase) then
       begin
@@ -4406,15 +4414,7 @@ begin
         ListViewUpdate(SessionEvent, Desktop(TSTable(SessionEvent.Sender)).ListView);
         if ((SessionEvent.Sender is TSBaseTable) and Assigned(Desktop(TSBaseTable(SessionEvent.Sender).Database).Workbench)) then
           Desktop(TSBaseTable(SessionEvent.Sender).Database).Workbench.ClientUpdate(SessionEvent);
-      end
-      else if (SessionEvent.SItems is TSProcesses) then
-        ListViewUpdate(SessionEvent, ProcessesListView)
-      else if (SessionEvent.SItems is TSStati) then
-        ListViewUpdate(SessionEvent, StatiListView)
-      else if (SessionEvent.SItems is TSUsers) then
-        ListViewUpdate(SessionEvent, UsersListView)
-      else if (SessionEvent.SItems is TSVariables) then
-        ListViewUpdate(SessionEvent, VariablesListView);
+      end;
     end;
 
     if (SessionEvent.EventType in [ceItemValid]) then
@@ -10989,7 +10989,7 @@ begin
           begin
             aPOpenInNewWindow.Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex in [iiDatabase, iiSystemDatabase]);
             aPOpenInNewTab.Enabled := aPOpenInNewWindow.Enabled;
-            MainAction('aFImportSQL').Enabled := (ListView.SelCount <= 1) and (not Assigned(Session.UserRights) or Session.UserRights.RInsert) or Assigned(Item) and (Item.ImageIndex = iiDatabase);
+            MainAction('aFImportSQL').Enabled := (ListView.SelCount <= 1) and ((not Assigned(Session.UserRights) or Session.UserRights.RInsert) or Assigned(Item) and (Item.ImageIndex = iiDatabase));
             MainAction('aFImportExcel').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFImportAccess').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFImportODBC').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
@@ -11014,7 +11014,6 @@ begin
             MainAction('aDEditServer').Enabled := (ListView.SelCount = 0);
             MainAction('aDEditDatabase').Enabled := (ListView.SelCount >= 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aDEmpty').Enabled := (ListView.SelCount >= 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
-            aDDelete.Enabled := MainAction('aDDeleteDatabase').Enabled;
 
             for I := 0 to ListView.Items.Count - 1 do
               if (ListView.Items[I].Selected) then
@@ -11034,6 +11033,7 @@ begin
               end;
 
             mlOpen.Enabled := ListView.SelCount = 1;
+            aDDelete.Enabled := MainAction('aDDeleteDatabase').Enabled;
 
             if (not Assigned(Item)) then
               mlEProperties.Action := MainAction('aDEditServer')
