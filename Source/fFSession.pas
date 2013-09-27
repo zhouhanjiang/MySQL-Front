@@ -2624,16 +2624,10 @@ begin
 
   if (AllowChange) then
   begin
-    if (not Session.Update() and ((URI.Database <> '') or (URI.Param['system'] <> Null))) then
+    if (((URI.Database = '') and (URI.Param['system'] = Null)) and not Session.Update()) then
       AllowChange := False
-    else if (URI.Param['system'] = 'processes') then
-      Session.Processes.Update()
-    else if (URI.Param['system'] = 'stati') then
-      Session.Stati.Update()
-    else if (URI.Param['system'] = 'users') then
-      Session.Users.Update()
-    else if (URI.Param['system'] = 'variables') then
-      Session.Variables.Update()
+    else if ((URI.Database <> '') and not Session.Databases.Update()) then
+      AllowChange := False
     else if (URI.Database <> '') then
     begin
       Database := Session.DatabaseByName(URI.Database);
@@ -14192,7 +14186,7 @@ function TFSession.UpdateAfterAddressChanged(): Boolean;
 var
   Database: TSDatabase;
   I: Integer;
-  List: TList;
+  Objects: TList;
 begin
   Result := False;
 
@@ -14207,30 +14201,41 @@ begin
           begin
             Database := TSDatabase(FNavigator.Selected.Data);
 
-            if ((Database is TSSystemDatabase) or not Database.Tables.ValidStatus) then
+            if (not Database.Tables.ValidStatus) then
             begin
-              List := TList.Create();
+              Objects := TList.Create();
 
-              List.Add(Database);
+              Objects.Add(Database);
               if (not Database.Tables.Valid) then
                 Wanted.FUpdate := UpdateAfterAddressChanged;
               for I := 0 to Database.Tables.Count - 1 do
-                List.Add(Database.Tables[I]);
+                Objects.Add(Database.Tables[I]);
               if (Assigned(Database.Routines)) then
                 for I := 0 to Database.Routines.Count - 1 do
-                  List.Add(Database.Routines[I]);
+                  Objects.Add(Database.Routines[I]);
               if (Assigned(Database.Events)) then
                 for I := 0 to Database.Routines.Count - 1 do
-                  List.Add(Database.Routines[I]);
+                  Objects.Add(Database.Routines[I]);
               if (Assigned(Database.Triggers)) then
                 for I := 0 to Database.Triggers.Count - 1 do
-                  List.Add(Database.Triggers[I]);
+                  Objects.Add(Database.Triggers[I]);
 
-              Result := not Session.Update(List);
+              Result := not Session.Update(Objects);
 
-              List.Free();
+              Objects.Free();
             end;
           end;
+        iiProcesses:
+          begin
+            Session.Processes.Invalidate();
+            Session.Processes.Update();
+          end;
+        iiStati:
+          Session.Stati.Update();
+        iiUsers:
+          Session.Users.Update();
+        iiVariables:
+          Session.Variables.Update();
       end;
     vBrowser:
       if ((TObject(FNavigator.Selected.Data) is TSTable) and not TSTable(FNavigator.Selected.Data).ValidData) then
