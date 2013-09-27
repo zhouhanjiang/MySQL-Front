@@ -8155,7 +8155,7 @@ begin
           Database[Index].Collation := LowerCase(DataSet.FieldByName('DEFAULT_COLLATION_NAME').AsString);
         end;
 
-        if (Filtered) then
+        if (Filtered and SessionEvents) then
           Session.ExecuteEvent(ceItemValid, Session, Self, Database[Index]);
       end;
     until (not DataSet.FindNext());
@@ -8179,6 +8179,9 @@ begin
       end
       else
         Add(TSDatabase.Create(Session, Name));
+
+      if (SessionEvents) then
+        Session.ExecuteEvent(ceItemValid, Session, Self, Database[Index]);
     end;
   end;
 
@@ -8194,8 +8197,8 @@ begin
     end;
   DeleteList.Free();
 
-//  if (not Filtered) then
-//    Session.ExecuteEvent(ceItemsValid, Session, Self);
+  if (not Filtered and SessionEvents) then
+    Session.ExecuteEvent(ceItemsValid, Session, Self);
 end;
 
 procedure TSDatabases.Delete(const AEntity: TSEntity);
@@ -8460,7 +8463,6 @@ var
   DeleteList: TList;
   Index: Integer;
   Name: string;
-  OldCount: Integer;
   Seconds: UInt64;
 begin
   DeleteList := TList.Create();
@@ -9918,11 +9920,16 @@ end;
 
 function TSSession.BuildEvents(const DataSet: TMySQLQuery): Boolean;
 var
+  Database: TSDatabase;
   I: Integer;
 begin
   if (not DataSet.IsEmpty()) then
     repeat
-      DatabaseByName(DataSet.FindField('EVENT_SCHEMA').AsString).Events.Build(DataSet, True, False, False);
+      Database := DatabaseByName(DataSet.FindField('EVENT_SCHEMA').AsString);
+      if (Assigned(Database)) then
+        Database.Events.Build(DataSet, True, False, False)
+      else
+        DataSet.FindNext();
     until (DataSet.Eof);
 
   for I := 0 to Databases.Count - 1 do
@@ -9936,11 +9943,16 @@ end;
 
 function TSSession.BuildRoutines(const DataSet: TMySQLQuery): Boolean;
 var
+  Database: TSDatabase;
   I: Integer;
 begin
   if (not DataSet.IsEmpty()) then
     repeat
-      DatabaseByName(DataSet.FindField('ROUTINE_SCHEMA').AsString).Routines.Build(DataSet, True, False, False);
+      Database := DatabaseByName(DataSet.FindField('ROUTINE_SCHEMA').AsString);
+      if (Assigned(Database) and Assigned(Database.Routines)) then
+        Database.Routines.Build(DataSet, True, False, False)
+      else
+        DataSet.FindNext();
     until (DataSet.Eof);
 
   for I := 0 to Databases.Count - 1 do
@@ -9954,11 +9966,16 @@ end;
 
 function TSSession.BuildTables(const DataSet: TMySQLQuery): Boolean;
 var
+  Database: TSDatabase;
   I: Integer;
 begin
   if (not DataSet.IsEmpty()) then
     repeat
-      DatabaseByName(DataSet.FindField('TABLE_SCHEMA').AsString).Tables.Build(DataSet, True, False, False);
+      Database := DatabaseByName(DataSet.FindField('TABLE_SCHEMA').AsString);
+      if (Assigned(Database)) then
+        Database.Tables.Build(DataSet, True, False, False)
+      else
+        DataSet.FindNext();
     until (DataSet.Eof);
 
   for I := 0 to Databases.Count - 1 do
@@ -9971,11 +9988,16 @@ end;
 
 function TSSession.BuildTriggers(const DataSet: TMySQLQuery): Boolean;
 var
+  Database: TSDatabase;
   I: Integer;
 begin
   if (not DataSet.IsEmpty()) then
     repeat
-      DatabaseByName(DataSet.FindField('TRIGGER_SCHEMA').AsString).Triggers.Build(DataSet, True);
+      Database := DatabaseByName(DataSet.FindField('TRIGGER_SCHEMA').AsString);
+      if (Assigned(Database)) then
+        Database.Triggers.Build(DataSet, True, False, False)
+      else
+        DataSet.FindNext();
     until (DataSet.Eof);
 
   for I := 0 to Databases.Count - 1 do
