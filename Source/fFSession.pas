@@ -1617,8 +1617,6 @@ procedure TFSession.TTableDesktop.DataSetAfterRefresh(DataSet: TDataSet);
 var
   I: Integer;
 begin
-  DBGrid.DataSource.DataSet := DataSet;
-
   FSession.DataSetAfterRefresh(DataSet);
 
   if (Table.DataSet.FilterSQL <> '') then
@@ -10691,8 +10689,8 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         begin
           ListView.Groups.BeginUpdate();
           ListView.Columns.BeginUpdate();
-          ListView.DisableAlign();
           ListView.Items.BeginUpdate();
+          ListView.DisableAlign();
 
           for I := 0 to ListView.Columns.Count - 1 do
           begin
@@ -10712,8 +10710,8 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
               else
                 AddItem(Kind, CItems[I]);
 
-          ListView.Items.EndUpdate();
           ListView.EnableAlign();
+          ListView.Items.EndUpdate();
           ListView.Groups.EndUpdate();
           ListView.Columns.EndUpdate();
 

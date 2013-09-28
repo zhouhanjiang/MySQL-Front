@@ -4606,7 +4606,10 @@ begin
       FXMLDocument.Node.AddChild('accounts').Attributes['version'] := '1.1.0';
     end;
 
+try //why is this needed? 28.9.13
     FXMLDocument.Options := FXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
+except
+end;
   end;
 
   Result := FXMLDocument.DocumentElement;

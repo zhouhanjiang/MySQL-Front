@@ -5044,7 +5044,8 @@ begin
         else if (DeleteList.IndexOf(Items[Index]) >= 0) then
           DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
 
-        Session.ExecuteEvent(ceItemValid, Database, Self, Table[Index]);
+        if (Filtered and SessionEvents) then
+          Session.ExecuteEvent(ceItemValid, Database, Self, Table[Index]);
       until (not DataSet.FindNext());
     FValid := True;
 
@@ -5060,7 +5061,7 @@ begin
 
     Result := inherited;
 
-    if ((OldCount = 0) and SessionEvents) then
+    if (not Filtered and SessionEvents) then
     begin
       Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
       Session.ExecuteEvent(ceItemsValid, Database, Self);
@@ -11644,7 +11645,7 @@ begin
           DatabaseName := Self.DatabaseName
         else
           DatabaseName := SQLParseValue(Parse);
-        Result := DatabaseByName(DatabaseName).Tables.Build(DataSet, False, not SQLParseEnd(Parse));
+        Result := DatabaseByName(DatabaseName).Tables.Build(DataSet, False, not SQLParseChar(Parse, ';') and not SQLParseEnd(Parse));
       end
       else if (SQLParseKeyword(Parse, 'TABLE STATUS')) then
       begin
