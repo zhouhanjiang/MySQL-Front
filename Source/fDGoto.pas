@@ -55,7 +55,7 @@ end;
 
 procedure TDGoto.CMChangePreferences(var Message: TMessage);
 begin
-  Caption := ReplaceStr(Preferences.LoadStr(676), '&', '');
+  Caption := Preferences.LoadStr(676);
 
   FLField.Caption := Preferences.LoadStr(164) + ':';
 

@@ -387,7 +387,7 @@ begin
   FLFilename.Caption := Preferences.LoadStr(348) + ':';
   FLDataSource.Caption := Preferences.LoadStr(38) + ':';
 
-  GSelect.Caption := ReplaceStr(Preferences.LoadStr(755), '&', '');
+  GSelect.Caption := Preferences.LoadStr(755);
 
   GTables.Caption := Preferences.LoadStr(234);
 
@@ -428,7 +428,7 @@ begin
   FLEntiered.Caption := Preferences.LoadStr(211) + ':';
   FLDone.Caption := Preferences.LoadStr(232) + ':';
   FLProgressObjects.Caption := Preferences.LoadStr(234) + ':';
-  FLProgressTime.Caption := ReplaceStr(Preferences.LoadStr(661), '&', '') + ':';
+  FLProgressTime.Caption := Preferences.LoadStr(661) + ':';
   FLErrors.Caption := Preferences.LoadStr(391) + ':';
 
   GTask.Caption := Preferences.LoadStr(661);
@@ -1025,7 +1025,7 @@ end;
 
 procedure TDImport.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if (Event.EventType = ceAfterExecuteSQL) then
+  if (Event.EventType = etAfterExecuteSQL) then
     PostMessage(Handle, CM_POST_AFTEREXECUTESQL, 0, 0);
 end;
 
@@ -1421,7 +1421,7 @@ end;
 
 function TDImport.GetFilename(): Boolean;
 begin
-  OpenDialog.Title := ReplaceStr(Preferences.LoadStr(581), '&', '');
+  OpenDialog.Title := Preferences.LoadStr(581);
   OpenDialog.InitialDir := Preferences.Path;
   OpenDialog.Filter := '';
 

@@ -72,8 +72,8 @@ begin
   FLName.Caption := Preferences.LoadStr(35) + ':';
   FLEngine.Caption := Preferences.LoadStr(110) + ':';
   FLExpression.Caption := Preferences.LoadStr(836) + ':';
-  FLMinRows.Caption := ReplaceStr(Preferences.LoadStr(837), '&', '');
-  FLMaxRows.Caption := ReplaceStr(Preferences.LoadStr(838), '&', '');
+  FLMinRows.Caption := Preferences.LoadStr(837);
+  FLMaxRows.Caption := Preferences.LoadStr(838);
   FLComment.Caption := Preferences.LoadStr(111) + ':';
 
   FBOk.Caption := Preferences.LoadStr(29);

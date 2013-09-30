@@ -186,7 +186,7 @@ begin
   FLDone.Caption := Preferences.LoadStr(232);
   FLProgressTables.Caption := Preferences.LoadStr(234) + ':';
   FLProgressRecords.Caption := Preferences.LoadStr(235) + ':';
-  FLProgressTime.Caption := ReplaceStr(Preferences.LoadStr(661), '&', '') + ':';
+  FLProgressTime.Caption := Preferences.LoadStr(661) + ':';
   FLErrors.Caption := Preferences.LoadStr(391) + ':';
 
   mtCopy.Caption := MainAction('aECopy').Caption;
@@ -305,7 +305,7 @@ end;
 
 procedure TDSearch.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if (Event.EventType in [ceAfterExecuteSQL]) then
+  if (Event.EventType in [etAfterExecuteSQL]) then
     if (Assigned(WantedNodeExpand)) then
       WantedNodeExpand.Expand(False)
     else if (WantedExecute) then
@@ -403,7 +403,7 @@ var
 begin
   if (SearchOnly) then
   begin
-    Caption := ReplaceStr(Preferences.LoadStr(187), '&', '');
+    Caption := Preferences.LoadStr(187);
     Preferences.SmallImages.GetIcon(12, Icon);
     HelpContext := 1093;
 
@@ -427,7 +427,7 @@ begin
   end
   else
   begin
-    Caption := ReplaceStr(Preferences.LoadStr(416), '&', '');
+    Caption := Preferences.LoadStr(416);
     Preferences.SmallImages.GetIcon(29, Icon);
     HelpContext := 1090;
 

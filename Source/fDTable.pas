@@ -689,7 +689,7 @@ begin
   TSTables.Caption := Preferences.LoadStr(108);
   GTablesBasics.Caption := Preferences.LoadStr(85);
   FLTablesCount.Caption := Preferences.LoadStr(617) + ':';
-  FLDatabase.Caption := ReplaceStr(Preferences.LoadStr(38), '&', '') + ':';
+  FLDatabase.Caption := Preferences.LoadStr(38) + ':';
   FLTablesEngine.Caption := Preferences.LoadStr(110) + ':';
   FLTablesCharset.Caption := Preferences.LoadStr(682) + ':';
   FLTablesCollation.Caption := Preferences.LoadStr(702) + ':';
@@ -701,7 +701,7 @@ begin
   FLCreated.Caption := Preferences.LoadStr(118) + ':';
   FLUpdated.Caption := Preferences.LoadStr(119) + ':';
   GSize.Caption := Preferences.LoadStr(125);
-  FLIndexSize.Caption := ReplaceStr(Preferences.LoadStr(163), '&', '') + ':';
+  FLIndexSize.Caption := Preferences.LoadStr(163) + ':';
   FLDataSize.Caption := Preferences.LoadStr(127) + ':';
   FLMaxDataSize.Caption := Preferences.LoadStr(844) + ':';
   GRecordCount.Caption := Preferences.LoadStr(170);
@@ -709,44 +709,44 @@ begin
 
   TSFields.Caption := Preferences.LoadStr(253);
   tbCreateField.Hint := Preferences.LoadStr(87) + '...';
-  tbDeleteField.Hint := ReplaceStr(Preferences.LoadStr(28), '&', '');
-  tbPropertiesField.Hint := ReplaceStr(Preferences.LoadStr(97), '&', '') + '...';
-  tbFieldUp.Hint := ReplaceStr(Preferences.LoadStr(545), '&', '');
-  tbFieldDown.Hint := ReplaceStr(Preferences.LoadStr(547), '&', '');
-  FFields.Column[0].Caption := ReplaceStr(Preferences.LoadStr(35), '&', '');
+  tbDeleteField.Hint := Preferences.LoadStr(28);
+  tbPropertiesField.Hint := Preferences.LoadStr(97) + '...';
+  tbFieldUp.Hint := Preferences.LoadStr(545);
+  tbFieldDown.Hint := Preferences.LoadStr(547);
+  FFields.Column[0].Caption := Preferences.LoadStr(35);
   FFields.Column[1].Caption := Preferences.LoadStr(69);
   FFields.Column[2].Caption := Preferences.LoadStr(71);
   FFields.Column[3].Caption := Preferences.LoadStr(72);
-  FFields.Column[4].Caption := ReplaceStr(Preferences.LoadStr(73), '&', '');
-  FFields.Column[5].Caption := ReplaceStr(Preferences.LoadStr(111), '&', '');
+  FFields.Column[4].Caption := Preferences.LoadStr(73);
+  FFields.Column[5].Caption := Preferences.LoadStr(111);
 
   TSKeys.Caption := Preferences.LoadStr(458);
   tbCreateKey.Hint := Preferences.LoadStr(160) + '...';
-  tbDeleteKey.Hint := ReplaceStr(Preferences.LoadStr(28), '&', '');
-  tbPropertiesKey.Hint := ReplaceStr(Preferences.LoadStr(97), '&', '') + '...';
-  FKeys.Column[0].Caption := ReplaceStr(Preferences.LoadStr(35), '&', '');
+  tbDeleteKey.Hint := Preferences.LoadStr(28);
+  tbPropertiesKey.Hint := Preferences.LoadStr(97) + '...';
+  FKeys.Column[0].Caption := Preferences.LoadStr(35);
   FKeys.Column[1].Caption := Preferences.LoadStr(69);
-  FKeys.Column[2].Caption := ReplaceStr(Preferences.LoadStr(73), '&', '');
-  FKeys.Column[3].Caption := ReplaceStr(Preferences.LoadStr(111), '&', '');
+  FKeys.Column[2].Caption := Preferences.LoadStr(73);
+  FKeys.Column[3].Caption := Preferences.LoadStr(111);
 
   TSForeignKeys.Caption := Preferences.LoadStr(459);
   tbCreateForeignKey.Hint := Preferences.LoadStr(249) + '...';
-  tbDeleteForeignKey.Hint := ReplaceStr(Preferences.LoadStr(28), '&', '');
-  tbPropertiesForeignKey.Hint := ReplaceStr(Preferences.LoadStr(97), '&', '') + '...';
-  FForeignKeys.Column[0].Caption := ReplaceStr(Preferences.LoadStr(35), '&', '');
+  tbDeleteForeignKey.Hint := Preferences.LoadStr(28);
+  tbPropertiesForeignKey.Hint := Preferences.LoadStr(97) + '...';
+  FForeignKeys.Column[0].Caption := Preferences.LoadStr(35);
   FForeignKeys.Column[1].Caption := Preferences.LoadStr(69);
-  FForeignKeys.Column[2].Caption := ReplaceStr(Preferences.LoadStr(73), '&', '');
+  FForeignKeys.Column[2].Caption := Preferences.LoadStr(73);
 
   TSTriggers.Caption := Preferences.LoadStr(797);
-  FTriggers.Column[0].Caption := ReplaceStr(Preferences.LoadStr(35), '&', '');
+  FTriggers.Column[0].Caption := Preferences.LoadStr(35);
   FTriggers.Column[1].Caption := Preferences.LoadStr(69);
 
   TSReferenced.Caption := Preferences.LoadStr(782);
-  FReferenced.Column[0].Caption := ReplaceStr(Preferences.LoadStr(35), '&', '');
+  FReferenced.Column[0].Caption := Preferences.LoadStr(35);
   FReferenced.Column[1].Caption := Preferences.LoadStr(69);
-  FReferenced.Column[2].Caption := ReplaceStr(Preferences.LoadStr(73), '&', '');
+  FReferenced.Column[2].Caption := Preferences.LoadStr(73);
 
-  TSPartitions.Caption := ReplaceStr(Preferences.LoadStr(830), '&', '');
+  TSPartitions.Caption := Preferences.LoadStr(830);
   GPartitions.Caption := Preferences.LoadStr(85);
   FLPartitionType.Caption := Preferences.LoadStr(110) + ':';
   FPartitionType.Items.Clear();
@@ -758,15 +758,15 @@ begin
   FLPartitionExpr.Caption := Preferences.LoadStr(836) + ':';
   FLPartitionCount.Caption := Preferences.LoadStr(617) + ':';
   FLPartitions.Caption := Preferences.LoadStr(830) + ':';
-//  tbPartitionUp.Hint := ReplaceStr(Preferences.LoadStr(545), '&', '');
-//  tbPartitionDown.Hint := ReplaceStr(Preferences.LoadStr(547), '&', '');
-  FPartitions.Column[0].Caption := ReplaceStr(Preferences.LoadStr(35), '&', '');
-  FPartitions.Column[1].Caption := ReplaceStr(Preferences.LoadStr(836), '&', '');
-  FPartitions.Column[2].Caption := ReplaceStr(Preferences.LoadStr(837), '&', '');
-  FPartitions.Column[3].Caption := ReplaceStr(Preferences.LoadStr(838), '&', '');
-  FPartitions.Column[4].Caption := ReplaceStr(Preferences.LoadStr(111), '&', '');
+//  tbPartitionUp.Hint := Preferences.LoadStr(545);
+//  tbPartitionDown.Hint := Preferences.LoadStr(547);
+  FPartitions.Column[0].Caption := Preferences.LoadStr(35);
+  FPartitions.Column[1].Caption := Preferences.LoadStr(836);
+  FPartitions.Column[2].Caption := Preferences.LoadStr(837);
+  FPartitions.Column[3].Caption := Preferences.LoadStr(838);
+  FPartitions.Column[4].Caption := Preferences.LoadStr(111);
 
-  TSExtras.Caption := ReplaceStr(Preferences.LoadStr(73), '&', '');
+  TSExtras.Caption := Preferences.LoadStr(73);
   GOptimize.Caption := Preferences.LoadStr(171);
   FLUnusedSize.Caption := Preferences.LoadStr(128) + ':';
   FBOptimize.Caption := Preferences.LoadStr(130);
@@ -1125,15 +1125,15 @@ end;
 
 procedure TDTable.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if (not Assigned(Tables) and (Event.EventType = ceItemValid) and (Event.SItem = Table)
-    or Assigned(Tables) and (Event.EventType = ceAfterExecuteSQL)) then
+  if (not Assigned(Tables) and (Event.EventType = etItemValid) and (Event.SItem = Table)
+    or Assigned(Tables) and (Event.EventType = etAfterExecuteSQL)) then
     if (not PageControl.Visible) then
       Built()
     else
       TSExtrasShow(nil)
-  else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.SItem is fSession.TSTable)) then
+  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is fSession.TSTable)) then
     ModalResult := mrOk;
-  if ((Event.EventType = ceAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
+  if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
   begin
     PageControl.Visible := True;
     PSQLWait.Visible := not PageControl.Visible;

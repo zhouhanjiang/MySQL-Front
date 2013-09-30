@@ -5120,7 +5120,7 @@ end;
 procedure TTExportHTML.ExecuteDatabaseHeader(const Database: TSDatabase);
 begin
   if (Assigned(Database)) then
-    WriteContent('<h1 class="DatabaseTitle">' + ReplaceStr(Preferences.LoadStr(38), '&', '') + ': ' + HTMLEscape(Database.Name) + '</h1>' + #13#10);
+    WriteContent('<h1 class="DatabaseTitle">' + Preferences.LoadStr(38) + ': ' + HTMLEscape(Database.Name) + '</h1>' + #13#10);
 end;
 
 procedure TTExportHTML.ExecuteEvent(const Event: TSEvent);
@@ -5286,19 +5286,19 @@ begin
 
   if (Table is TSBaseTable) then
   begin
-    Content := '<h2>' + ReplaceStr(Preferences.LoadStr(302), '&', '') + ': ' + HTMLEscape(Table.Name) + '</h2>' + #13#10;
+    Content := '<h2>' + Preferences.LoadStr(302) + ': ' + HTMLEscape(Table.Name) + '</h2>' + #13#10;
     if (TSBaseTable(Table).Comment <> '') then
-      Content := Content + '<p>' + ReplaceStr(Preferences.LoadStr(111), '&', '') + ': ' + HTMLEscape(TSBaseTable(Table).Comment) + '</p>' + #13#10;
+      Content := Content + '<p>' + Preferences.LoadStr(111) + ': ' + HTMLEscape(TSBaseTable(Table).Comment) + '</p>' + #13#10;
   end
   else if (Table is TSView) then
-    Content := '<h2>' + ReplaceStr(Preferences.LoadStr(738), '&', '') + ': ' + HTMLEscape(Table.Name) + '</h2>' + #13#10
+    Content := '<h2>' + Preferences.LoadStr(738) + ': ' + HTMLEscape(Table.Name) + '</h2>' + #13#10
   else if (Structure) then
-    Content := Content + '<h2>' + ReplaceStr(Preferences.LoadStr(216), '&', '') + ':</h2>' + #13#10;
+    Content := Content + '<h2>' + Preferences.LoadStr(216) + ':</h2>' + #13#10;
 
   if (Structure) then
     if (DataSet is TMySQLDataSet) then
     begin
-      Content := Content + '<h2>' + ReplaceStr(Preferences.LoadStr(794), '&', '') + ':</h2>' + #13#10;
+      Content := Content + '<h2>' + Preferences.LoadStr(794) + ':</h2>' + #13#10;
       Content := Content + EscapeSQL(DataSet.CommandText);
     end
     else
@@ -5309,11 +5309,11 @@ begin
 
         Content := Content + '<table border="0" cellspacing="0" summary="' + HTMLEscape(Table.Name) + '" class="TableObject">' + #13#10;
         Content := Content + #9 + '<tr class="TableHeader StructureHeader">';
-        Content := Content + '<th>' + HTMLEscape(ReplaceStr(Preferences.LoadStr(35), '&', '')) + '</th>';
+        Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(35)) + '</th>';
         Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(69)) + '</th>';
-        Content := Content + '<th>' + HTMLEscape(ReplaceStr(Preferences.LoadStr(73), '&', '')) + '</th>';
+        Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(73)) + '</th>';
         if (Session.ServerVersion >= 50503) then
-          Content := Content + '<th>' + HTMLEscape(ReplaceStr(Preferences.LoadStr(111), '&', '')) + '</th>';
+          Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(111)) + '</th>';
         Content := Content + '</tr>' + #13#10;
         for I := 0 to TSBaseTable(Table).Keys.Count - 1 do
         begin
@@ -5348,13 +5348,13 @@ begin
 
       Content := Content + '<table border="0" cellspacing="0" summary="' + HTMLEscape(Table.Name) + '" class="TableObject">' + #13#10;
       Content := Content + #9 + '<tr class="TableHeader StructureHeader">';
-      Content := Content + '<th>' + HTMLEscape(ReplaceStr(Preferences.LoadStr(35), '&', '')) + '</th>';
+      Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(35)) + '</th>';
       Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(69)) + '</th>';
       Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(71)) + '</th>';
       Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(72)) + '</th>';
-      Content := Content + '<th>' + HTMLEscape(ReplaceStr(Preferences.LoadStr(73), '&', '')) + '</th>';
+      Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(73)) + '</th>';
       if (Session.ServerVersion >= 40100) then
-        Content := Content + '<th>' + HTMLEscape(ReplaceStr(Preferences.LoadStr(111), '&', '')) + '</th>';
+        Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(111)) + '</th>';
       Content := Content + '</tr>' + #13#10;
       for I := 0 to Table.Fields.Count - 1 do
       begin
@@ -5410,7 +5410,7 @@ begin
 
         Content := Content + '<table border="0" cellspacing="0" summary="' + HTMLEscape(Table.Name) + '" class="TableObject">' + #13#10;
         Content := Content + #9 + '<tr class="TableHeader StructureHeader">';
-        Content := Content + '<th>' + HTMLEscape(ReplaceStr(Preferences.LoadStr(35), '&', '')) + '</th>';
+        Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(35)) + '</th>';
         Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(69)) + '</th>';
         Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(73)) + '</th>';
         Content := Content + '</tr>' + #13#10;
@@ -6784,7 +6784,7 @@ begin
   begin
     SetFont(ContentFont, ContentFont.Size + 6, ContentFont.Style + [fsBold]);
 
-    ContentTextOut(ReplaceStr(Preferences.LoadStr(38), '&', '') + ': ' + Database.Name, 3 * Padding);
+    ContentTextOut(Preferences.LoadStr(38) + ': ' + Database.Name, 3 * Padding);
   end;
 end;
 
@@ -6847,20 +6847,20 @@ begin
   if (not (DataSet is TMySQLDataSet)) then
     if (Table is TSBaseTable) then
     begin
-      ContentTextOut(ReplaceStr(Preferences.LoadStr(302), '&', '') + ': ' + Table.Name, 2 * Padding);
+      ContentTextOut(Preferences.LoadStr(302) + ': ' + Table.Name, 2 * Padding);
       if (TSBaseTable(Table).Comment <> '') then
-        ContentTextOut(ReplaceStr(Preferences.LoadStr(111), '&', '') + ': ' + TSBaseTable(Table).Comment, 2 * Padding);
+        ContentTextOut(Preferences.LoadStr(111) + ': ' + TSBaseTable(Table).Comment, 2 * Padding);
     end
     else if (Table is TSView) then
-      ContentTextOut(ReplaceStr(Preferences.LoadStr(738), '&', '') + ': ' + Table.Name, 2 * Padding)
+      ContentTextOut(Preferences.LoadStr(738) + ': ' + Table.Name, 2 * Padding)
     else if (Structure) then
-      ContentTextOut(ReplaceStr(Preferences.LoadStr(216), '&', ''), 2 * Padding);
+      ContentTextOut(Preferences.LoadStr(216), 2 * Padding);
 
   if (Structure) then
     if (DataSet is TMySQLDataSet) then
     begin
       SetFont(ContentFont, ContentFont.Size + 2, ContentFont.Style + [fsBold]);
-      ContentTextOut(ReplaceStr(Preferences.LoadStr(794), '&', '') + ':', Padding);
+      ContentTextOut(Preferences.LoadStr(794) + ':', Padding);
 
       SetFont(SQLFont);
       StringList := TStringList.Create();
@@ -6880,11 +6880,11 @@ begin
           SetLength(Columns, 3)
         else
           SetLength(Columns, 4);
-        Columns[0].HeaderText := ReplaceStr(Preferences.LoadStr(35), '&', '');
+        Columns[0].HeaderText := Preferences.LoadStr(35);
         Columns[1].HeaderText := Preferences.LoadStr(69);
-        Columns[2].HeaderText := ReplaceStr(Preferences.LoadStr(73), '&', '');
+        Columns[2].HeaderText := Preferences.LoadStr(73);
         if (Session.ServerVersion >= 50503) then
-          Columns[3].HeaderText := ReplaceStr(Preferences.LoadStr(111), '&', '');
+          Columns[3].HeaderText := Preferences.LoadStr(111);
 
         SetLength(GridData, TSBaseTable(Table).Keys.Count);
         for I := 0 to TSBaseTable(Table).Keys.Count - 1 do
@@ -6928,13 +6928,13 @@ begin
         SetLength(Columns, 5)
       else
         SetLength(Columns, 6);
-      Columns[0].HeaderText := ReplaceStr(Preferences.LoadStr(35), '&', '');
+      Columns[0].HeaderText := Preferences.LoadStr(35);
       Columns[1].HeaderText := Preferences.LoadStr(69);
       Columns[2].HeaderText := Preferences.LoadStr(71);
       Columns[3].HeaderText := Preferences.LoadStr(72);
-      Columns[4].HeaderText := ReplaceStr(Preferences.LoadStr(73), '&', '');
+      Columns[4].HeaderText := Preferences.LoadStr(73);
       if (Session.ServerVersion >= 40100) then
-        Columns[5].HeaderText := ReplaceStr(Preferences.LoadStr(111), '&', '');
+        Columns[5].HeaderText := Preferences.LoadStr(111);
 
 
       SetLength(GridData, Table.Fields.Count);
@@ -6995,7 +6995,7 @@ begin
 
 
         SetLength(Columns, 3);
-        Columns[0].HeaderText := ReplaceStr(Preferences.LoadStr(35), '&', '');
+        Columns[0].HeaderText := Preferences.LoadStr(35);
         Columns[1].HeaderText := Preferences.LoadStr(69);
         Columns[2].HeaderText := Preferences.LoadStr(73);
 

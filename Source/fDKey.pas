@@ -121,7 +121,7 @@ begin
   FLIndexedFields.Caption := Preferences.LoadStr(155) + ':';
   FLLength.Caption := Preferences.LoadStr(630) + ':';
   FLAvailableFields.Caption := Preferences.LoadStr(156) + ':';
-  FLComment.Caption := ReplaceStr(Preferences.LoadStr(111), '&', '') + ':';
+  FLComment.Caption := Preferences.LoadStr(111) + ':';
 
   GAttributes.Caption := Preferences.LoadStr(157);
   FUnique.Caption := Preferences.LoadStr(158);
@@ -283,9 +283,9 @@ end;
 
 procedure TDIndex.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = ceItemAltered) and (Event.SItem = Table)) then
+  if ((Event.EventType = etItemAltered) and (Event.SItem = Table)) then
     ModalResult := mrOk
-  else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
+  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
   begin
     GBasics.Visible := True;
     GAttributes.Visible := GBasics.Visible;

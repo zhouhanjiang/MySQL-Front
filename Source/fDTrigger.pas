@@ -163,8 +163,8 @@ begin
     FStatement.ActiveLineColor := Preferences.Editor.CurrRowBGColor;
 
   TSInformations.Caption := Preferences.LoadStr(121);
-  GDefiner.Caption := ReplaceStr(Preferences.LoadStr(561), '&', '');
-  FLDefiner.Caption := ReplaceStr(Preferences.LoadStr(799), '&', '') + ':';
+  GDefiner.Caption := Preferences.LoadStr(561);
+  FLDefiner.Caption := Preferences.LoadStr(799) + ':';
   GSize.Caption := Preferences.LoadStr(67);
   FLSize.Caption := Preferences.LoadStr(67) + ':';
 
@@ -221,11 +221,11 @@ end;
 
 procedure TDTrigger.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = ceItemValid) and (Event.SItem = Trigger)) then
+  if ((Event.EventType = etItemValid) and (Event.SItem = Trigger)) then
     Built()
-  else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.SItem is TSTrigger)) then
+  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is TSTrigger)) then
     ModalResult := mrOk
-  else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
+  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
   begin
     PageControl.Visible := True;
     PSQLWait.Visible := not PageControl.Visible;

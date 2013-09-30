@@ -567,9 +567,9 @@ end;
 
 procedure TDField.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = ceItemAltered) and (Event.SItem = Table)) then
+  if ((Event.EventType = etItemAltered) and (Event.SItem = Table)) then
     ModalResult := mrOk
-  else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
+  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
   begin
     GBasics.Visible := True;
     GAttributes.Visible := GBasics.Visible;

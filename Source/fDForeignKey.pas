@@ -174,15 +174,15 @@ end;
 
 procedure TDForeignKey.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = ceItemsValid) and (Event.Sender = Database.Tables)) then
+  if ((Event.EventType = etItemsValid) and (Event.Sender = Database.Tables)) then
     FTableChange(Event.Sender)
-  else if ((Event.EventType = ceItemsValid) and (Event.Sender = Table.Session.Databases)) then
+  else if ((Event.EventType = etItemsValid) and (Event.Sender = Table.Session.Databases)) then
     FParentDatabaseChange(Event.Sender)
-  else if ((Event.EventType = ceItemValid) and (Event.SItem = SelectedParentTable)) then
+  else if ((Event.EventType = etItemValid) and (Event.SItem = SelectedParentTable)) then
     FParentTableChange(Event.Sender)
-  else if ((Event.EventType = ceItemAltered) and (Event.SItem = Table)) then
+  else if ((Event.EventType = etItemAltered) and (Event.SItem = Table)) then
     ModalResult := mrOk
-  else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
+  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
   begin
     GBasics.Visible := True;
     GAttributes.Visible := GBasics.Visible;

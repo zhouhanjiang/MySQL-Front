@@ -171,10 +171,10 @@ procedure TDTransfer.CMChangePreferences(var Message: TMessage);
 begin
   miSelectAll.Caption := Preferences.LoadStr(572);
 
-  Caption := ReplaceStr(Preferences.LoadStr(753), '&', '');;
+  Caption := Preferences.LoadStr(753);;
 
-  GSource.Caption := ReplaceStr(Preferences.LoadStr(754), '&', '');
-  GDestination.Caption := ReplaceStr(Preferences.LoadStr(755), '&', '');
+  GSource.Caption := Preferences.LoadStr(754);
+  GDestination.Caption := Preferences.LoadStr(755);
 
   GWhat.Caption := Preferences.LoadStr(227);
   FLWhat.Caption := Preferences.LoadStr(218) + ':';
@@ -186,7 +186,7 @@ begin
   FLDone.Caption := Preferences.LoadStr(232) + ':';
   FLProgressObjects.Caption := Preferences.LoadStr(234) + ':';
   FLProgressRecords.Caption := Preferences.LoadStr(235) + ':';
-  FLProgressTime.Caption := ReplaceStr(Preferences.LoadStr(661), '&', '') + ':';
+  FLProgressTime.Caption := Preferences.LoadStr(661) + ':';
   FLErrors.Caption := Preferences.LoadStr(391) + ':';
 
   GErrorMessages.Caption := Preferences.LoadStr(392);
@@ -307,7 +307,7 @@ end;
 
 procedure TDTransfer.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if (Event.EventType in [ceAfterExecuteSQL]) then
+  if (Event.EventType in [etAfterExecuteSQL]) then
     if (Assigned(WantedNodeExpand)) then
       WantedNodeExpand.Expand(False)
     else if (WantedExecute) then

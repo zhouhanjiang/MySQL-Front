@@ -368,9 +368,9 @@ end;
 
 procedure TDInstallUpdate.CMChangePreferences(var Message: TMessage);
 begin
-  Caption := ReplaceStr(Preferences.LoadStr(666), '&', '');
+  Caption := Preferences.LoadStr(666);
 
-  GroupBox.Caption := ReplaceStr(Preferences.LoadStr(224), '&', '');
+  GroupBox.Caption := Preferences.LoadStr(224);
 
   FBOk.Caption := Preferences.LoadStr(174);
   FBCancel.Caption := Preferences.LoadStr(30);

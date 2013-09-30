@@ -52,7 +52,7 @@ end;
 
 procedure TDPaste.CMChangePreferences(var Message: TMessage);
 begin
-  Caption := ReplaceStr(Preferences.LoadStr(65), '&', '');
+  Caption := Preferences.LoadStr(65);
 
   FStructure.Caption := Preferences.LoadStr(215);
   FData.Caption := Preferences.LoadStr(216);

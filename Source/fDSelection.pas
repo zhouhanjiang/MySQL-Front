@@ -59,10 +59,10 @@ end;
 
 procedure TDSelection.CMChangePreferences(var Message: TMessage);
 begin
-  Caption := ReplaceStr(Preferences.LoadStr(721), '&', '');
+  Caption := Preferences.LoadStr(721);
 
   if (CheckWin32Version(6)) then
-    SendMessage(FManual.Handle, EM_SETCUEBANNER, 0, LParam(PChar(ReplaceStr(Preferences.LoadStr(424), '&', ''))));
+    SendMessage(FManual.Handle, EM_SETCUEBANNER, 0, LParam(PChar(Preferences.LoadStr(424))));
 
   FBOk.Caption := Preferences.LoadStr(29);
   FBCancel.Caption := Preferences.LoadStr(30);

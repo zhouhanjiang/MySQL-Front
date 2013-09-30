@@ -450,9 +450,9 @@ begin
     else if (LowerCase(Ext) = 'html') then
       Description := Preferences.LoadStr(455)
     else if (LowerCase(Ext) = 'mdb') then
-      Description := ReplaceStr(Preferences.LoadStr(695), '&', '')
+      Description := Preferences.LoadStr(695)
     else if (LowerCase(Ext) = 'accdb') then
-      Description := ReplaceStr(Preferences.LoadStr(900), '&', '')
+      Description := Preferences.LoadStr(900)
     else if (LowerCase(Ext) = 'pdf') then
       Description := Preferences.LoadStr(890)
     else if (LowerCase(Ext) = 'sql') then
@@ -460,9 +460,9 @@ begin
     else if (LowerCase(Ext) = 'txt') then
       Description := Preferences.LoadStr(350)
     else if (LowerCase(Ext) = 'xls') then
-      Description := ReplaceStr(Preferences.LoadStr(801), '&', '')
+      Description := Preferences.LoadStr(801)
     else if (LowerCase(Ext) = 'xlsx') then
-      Description := ReplaceStr(Preferences.LoadStr(901), '&', '')
+      Description := Preferences.LoadStr(901)
     else if (LowerCase(Ext) = 'xml') then
       Description := Preferences.LoadStr(456);
 
@@ -540,7 +540,7 @@ begin
     mbRetry:       Result := 'Retry';
     mbIgnore:      Result := 'Ignore';
     mbAll:         Result := Preferences.LoadStr(214);
-    mbHelp:        Result := ReplaceStr(Preferences.LoadStr(167), '&', '');
+    mbHelp:        Result := Preferences.LoadStr(167);
   end;
 end;
 
@@ -814,25 +814,25 @@ begin
     if (Assigned(ToolBar.Buttons[I].Action) and (TAction(ToolBar.Buttons[I].Action).Caption <> '')) then
     begin
       if (not (ToolBar.Buttons[I] is TToolButton)) then
-        ToolBar.Buttons[I].Hint := ReplaceStr(TAction(ToolBar.Buttons[I].Action).Caption, '&', '')
+        ToolBar.Buttons[I].Hint := TAction(ToolBar.Buttons[I].Action).Caption
       else if (ToolBar.Buttons[I].Action is TAction) then
-        TToolButton(ToolBar.Buttons[I]).Hint := ReplaceStr(TAction(ToolBar.Buttons[I].Action).Caption, '&', '')
+        TToolButton(ToolBar.Buttons[I]).Hint := TAction(ToolBar.Buttons[I].Action).Caption
       else if (ToolBar.Buttons[I].Action is TWindowClose) then
-        TToolButton(ToolBar.Buttons[I]).Hint := ReplaceStr(TWindowClose(ToolBar.Buttons[I].Action).Caption, '&', '')
+        TToolButton(ToolBar.Buttons[I]).Hint := TWindowClose(ToolBar.Buttons[I].Action).Caption
       else if (ToolBar.Buttons[I].Action is TEditCut) then
-        TToolButton(ToolBar.Buttons[I]).Hint := ReplaceStr(TEditCut(ToolBar.Buttons[I].Action).Caption, '&', '')
+        TToolButton(ToolBar.Buttons[I]).Hint := TEditCut(ToolBar.Buttons[I].Action).Caption
       else if (ToolBar.Buttons[I].Action is TEditCopy) then
-        TToolButton(ToolBar.Buttons[I]).Hint := ReplaceStr(TEditCopy(ToolBar.Buttons[I].Action).Caption, '&', '')
+        TToolButton(ToolBar.Buttons[I]).Hint := TEditCopy(ToolBar.Buttons[I].Action).Caption
       else if (ToolBar.Buttons[I].Action is TEditPaste) then
-        TToolButton(ToolBar.Buttons[I]).Hint := ReplaceStr(TEditPaste(ToolBar.Buttons[I].Action).Caption, '&', '')
+        TToolButton(ToolBar.Buttons[I]).Hint := TEditPaste(ToolBar.Buttons[I].Action).Caption
       else if (ToolBar.Buttons[I].Action is TEditSelectAll) then
-        TToolButton(ToolBar.Buttons[I]).Hint := ReplaceStr(TEditSelectAll(ToolBar.Buttons[I].Action).Caption, '&', '')
+        TToolButton(ToolBar.Buttons[I]).Hint := TEditSelectAll(ToolBar.Buttons[I].Action).Caption
       else if (ToolBar.Buttons[I].Action is TEditUndo) then
-        TToolButton(ToolBar.Buttons[I]).Hint := ReplaceStr(TEditUndo(ToolBar.Buttons[I].Action).Caption, '&', '')
+        TToolButton(ToolBar.Buttons[I]).Hint := TEditUndo(ToolBar.Buttons[I].Action).Caption
       else if (ToolBar.Buttons[I].Action is TEditDelete) then
-        TToolButton(ToolBar.Buttons[I]).Hint := ReplaceStr(TEditDelete(ToolBar.Buttons[I].Action).Caption, '&', '')
+        TToolButton(ToolBar.Buttons[I]).Hint := TEditDelete(ToolBar.Buttons[I].Action).Caption
       else
-        TToolButton(ToolBar.Buttons[I]).Hint := ReplaceStr(TAction(ToolBar.Buttons[I].Action).Caption, '&', '');
+        TToolButton(ToolBar.Buttons[I]).Hint := TAction(ToolBar.Buttons[I].Action).Caption;
 
       if (Pos(#9, TToolButton(ToolBar.Buttons[I]).Hint) > 0) then
         TToolButton(ToolBar.Buttons[I]).Hint := Copy(TToolButton(ToolBar.Buttons[I]).Hint, 1, Pos(#9, TToolButton(ToolBar.Buttons[I]).Hint) - 1);
@@ -855,9 +855,9 @@ begin
   if (Item.Caption = '-') then
     Item.Hint := ''
   else if (Pos(#9, Item.Caption) > 0) then
-    Item.Hint := ReplaceStr(Copy(Item.Caption, 1, Pos(#9, Item.Caption) - 1), '&', '')
+    Item.Hint := Copy(Item.Caption, 1, Pos(#9, Item.Caption) - 1)
   else
-    Item.Hint := ReplaceStr(Item.Caption, '&', '');
+    Item.Hint := Item.Caption;
   Item.Default := Item.Default and Item.Visible;
 
   Result := Item.Visible and (Item.Caption <> '-');

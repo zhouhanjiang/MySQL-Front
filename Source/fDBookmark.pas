@@ -119,7 +119,7 @@ begin
   if (not Assigned(Bookmark)) then
   begin
     HelpContext := 1087;
-    Caption := ReplaceStr(Preferences.LoadStr(728), '&', '');
+    Caption := Preferences.LoadStr(728);
   end
   else
   begin

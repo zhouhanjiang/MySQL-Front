@@ -148,7 +148,7 @@ begin
 
   PSQLWait.Caption := Preferences.LoadStr(882);
 
-  TSBasics.Caption := ReplaceStr(Preferences.LoadStr(108), '&', '');
+  TSBasics.Caption := Preferences.LoadStr(108);
   GBasics.Caption := Preferences.LoadStr(85);
   FLUser.Caption := Preferences.LoadStr(561) + ':';
   FLHost.Caption := Preferences.LoadStr(289) + ':';
@@ -166,7 +166,7 @@ begin
   FLUpdatesPerHour.Caption := Preferences.LoadStr(291) + ':';
   FLUserConnections.Caption := Preferences.LoadStr(871) + ':';
 
-  TSSQLLog.Caption := ReplaceStr(Preferences.LoadStr(11), '&', '');
+  TSSQLLog.Caption := Preferences.LoadStr(11);
   FSQLLog.Font.Name := Preferences.SQLFontName;
   FSQLLog.Font.Style := Preferences.SQLFontStyle;
   FSQLLog.Font.Color := Preferences.SQLFontColor;
@@ -182,7 +182,7 @@ begin
     FSQLLog.Gutter.Color := Preferences.Editor.LineNumbersBackground;
   FSQLLog.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
 
-  TSSlowSQLLog.Caption := ReplaceStr(Preferences.LoadStr(847), '&', '');
+  TSSlowSQLLog.Caption := Preferences.LoadStr(847);
   FSlowSQLLog.Font.Name := Preferences.SQLFontName;
   FSlowSQLLog.Font.Style := Preferences.SQLFontStyle;
   FSlowSQLLog.Font.Color := Preferences.SQLFontColor;
@@ -292,11 +292,11 @@ end;
 
 procedure TDUser.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = ceItemValid) and (Event.SItem = User)) then
+  if ((Event.EventType = etItemValid) and (Event.SItem = User)) then
     Built()
-  else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.SItem is TSUser)) then
+  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is TSUser)) then
     ModalResult := mrOk
-  else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
+  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
   begin
     PageControl.Visible := True;
     PSQLWait.Visible := not PageControl.Visible;

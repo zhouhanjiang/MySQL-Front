@@ -142,7 +142,7 @@ end;
 
 procedure TDDatabases.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType in [ceItemsValid]) and (Event.SItems = Session.Databases)) then
+  if ((Event.EventType in [etItemsValid]) and (Event.SItems = Session.Databases)) then
     Built();
 end;
 

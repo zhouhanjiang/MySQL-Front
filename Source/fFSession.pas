@@ -510,6 +510,8 @@ type
     procedure FHexEditorChange(Sender: TObject);
     procedure FHexEditorEnter(Sender: TObject);
     procedure FHexEditorKeyPress(Sender: TObject; var Key: Char);
+    procedure FJobsEnter(Sender: TObject);
+    procedure FJobsExit(Sender: TObject);
     procedure FLimitChange(Sender: TObject);
     procedure FLimitEnabledClick(Sender: TObject);
     procedure FLogEnter(Sender: TObject);
@@ -698,8 +700,6 @@ type
       Change: TItemChange);
     procedure mjExecuteClick(Sender: TObject);
     procedure MJobsPopup(Sender: TObject);
-    procedure FJobsEnter(Sender: TObject);
-    procedure FJobsExit(Sender: TObject);
     procedure PJobsEnter(Sender: TObject);
     procedure PJobsExit(Sender: TObject);
     procedure FSQLHistoryMouseDown(Sender: TObject; Button: TMouseButton;
@@ -2622,7 +2622,7 @@ begin
 
   if (AllowChange) then
   begin
-    if (((URI.Database = '') and (URI.Param['system'] = Null)) and not Session.Update()) then
+    if ((URI.Database = '') and not Session.Update()) then
       AllowChange := False
     else if ((URI.Database <> '') and not Session.Databases.Update()) then
       AllowChange := False
@@ -2701,13 +2701,13 @@ begin
       Result := Result + '.' + URI.Param['object'];
   end
   else if ((URI.Database = '') and (URI.Param['system'] = 'processes')) then
-    Result := ReplaceStr(Preferences.LoadStr(24), '&', '')
+    Result := Preferences.LoadStr(24)
   else if ((URI.Database = '') and (URI.Param['system'] = 'stati')) then
-    Result := ReplaceStr(Preferences.LoadStr(23), '&', '')
+    Result := Preferences.LoadStr(23)
   else if ((URI.Database = '') and (URI.Param['system'] = 'users')) then
-    Result := ReplaceStr(Preferences.LoadStr(561), '&', '')
+    Result := Preferences.LoadStr(561)
   else if ((URI.Database = '') and (URI.Param['system'] = 'variables')) then
-    Result := ReplaceStr(Preferences.LoadStr(22), '&', '');
+    Result := Preferences.LoadStr(22);
 
   if ((ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and (URI.Param['file'] <> Null)) then
     Result := Result + ' - ' + EscapeURL(URI.Param['file']);
@@ -3283,7 +3283,7 @@ var
 begin
   Wanted.Clear();
 
-  OpenDialog.Title := ReplaceStr(Preferences.LoadStr(581), '&', '');
+  OpenDialog.Title := Preferences.LoadStr(581);
   OpenDialog.InitialDir := Path;
   OpenDialog.FileName := '';
   if (ActiveDBGrid.SelectedField.DataType = ftWideMemo) then
@@ -3460,7 +3460,7 @@ procedure TFSession.aFExportBitmapExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  SaveDialog.Title := ReplaceStr(Preferences.LoadStr(582), '&', '');
+  SaveDialog.Title := Preferences.LoadStr(582);
   SaveDialog.InitialDir := Path;
   SaveDialog.FileName := SelectedDatabase + '.bmp';
   SaveDialog.DefaultExt := 'bmp';
@@ -4031,7 +4031,7 @@ begin
     FHexEditorShow(Sender);
 
   if (CheckWin32Version(6)) then
-    SendMessage(FBlobSearch.Handle, EM_SETCUEBANNER, 0, LParam(PChar(ReplaceStr(Preferences.LoadStr(424), '&', ''))));
+    SendMessage(FBlobSearch.Handle, EM_SETCUEBANNER, 0, LParam(PChar(Preferences.LoadStr(424))));
 end;
 
 procedure TFSession.aSGotoExecute(Sender: TObject);
@@ -4371,10 +4371,10 @@ begin
 
   if (Assigned(SessionEvent)) then
   begin
-    if (SessionEvent.EventType in [ceItemsValid, ceItemCreated, ceItemAltered, ceItemDropped]) then
+    if (SessionEvent.EventType in [etItemsValid, etItemCreated, etItemAltered, etItemDropped]) then
       FNavigatorUpdate(SessionEvent);
 
-    if (SessionEvent.EventType in [ceItemsValid, ceItemValid, ceItemCreated, ceItemAltered, ceItemDropped]) then
+    if (SessionEvent.EventType in [etItemsValid, etItemValid, etItemCreated, etItemAltered, etItemDropped]) then
     begin
       if (SessionEvent.SItems is TSProcesses) then
         ListViewUpdate(SessionEvent, ProcessesListView)
@@ -4391,7 +4391,7 @@ begin
         ListViewUpdate(SessionEvent, FServerListView);
         if (not (SessionEvent.SItems is TSTriggers)) then
           ListViewUpdate(SessionEvent, Desktop(TSDatabase(SessionEvent.Sender)).ListView)
-        else if (SessionEvent.EventType = ceItemDropped) then
+        else if (SessionEvent.EventType = etItemDropped) then
           ListViewUpdate(SessionEvent, Desktop(TSTrigger(SessionEvent.SItem).Table).ListView)
         else
           for I := 0 to TSTriggers(SessionEvent.SItems).Count - 1 do
@@ -4409,7 +4409,7 @@ begin
       end;
     end;
 
-    if (SessionEvent.EventType in [ceItemValid]) then
+    if (SessionEvent.EventType in [etItemValid]) then
       if ((SessionEvent.SItem is TSView) and Assigned(Desktop(TSView(SessionEvent.SItem)).SynMemo)) then
         Desktop(TSView(SessionEvent.SItem)).SynMemo.Text := Trim(SQLWrapStmt(TSView(SessionEvent.SItem).Stmt, ['from', 'where', 'group by', 'having', 'order by', 'limit'], 0)) + #13#10
       else if ((SessionEvent.SItem is TSRoutine) and Assigned(Desktop(TSRoutine(SessionEvent.SItem)).SynMemo)) then
@@ -4418,7 +4418,7 @@ begin
         PContentChange(nil);
       end;
 
-    if ((SessionEvent.EventType = ceItemAltered) and (SessionEvent.SItem is TSTable)
+    if ((SessionEvent.EventType = etItemAltered) and (SessionEvent.SItem is TSTable)
       and Assigned(Desktop(TSTable(SessionEvent.SItem)).DBGrid)) then
       Desktop(TSTable(SessionEvent.SItem)).DBGrid.DataSource.DataSet.Close();
   end;
@@ -4433,7 +4433,7 @@ begin
 
   StatusBarRefresh();
 
-  if (Assigned(SessionEvent) and ((SessionEvent.EventType in [ceItemCreated, ceItemAltered]) or ((SessionEvent.EventType in [ceItemValid]) and (SessionEvent.SItem is TSObject) and not TSObject(SessionEvent.SItem).Valid)) and (Screen.ActiveForm = Window) and Wanted.Nothing) then
+  if (Assigned(SessionEvent) and ((SessionEvent.EventType in [etItemCreated, etItemAltered]) or ((SessionEvent.EventType in [etItemValid]) and (SessionEvent.SItem is TSObject) and not TSObject(SessionEvent.SItem).Valid)) and (Screen.ActiveForm = Window) and Wanted.Nothing) then
     Wanted.Update := Session.Update;
 end;
 
@@ -4509,14 +4509,14 @@ begin
     if (ActionList.Actions[I] is TCustomAction) and (TCustomAction(ActionList.Actions[I]).Hint = '') then
       TCustomAction(ActionList.Actions[I]).Hint := TCustomAction(ActionList.Actions[I]).Caption;
 
-  tbObjects.Caption := ReplaceStr(Preferences.LoadStr(4), '&', '');
-  tbBrowser.Caption := ReplaceStr(Preferences.LoadStr(5), '&', '');
-  tbIDE.Caption := ReplaceStr(Preferences.LoadStr(865), '&', '');
-  tbBuilder.Caption := ReplaceStr(tbBuilder.Caption, '&', '');
-  tbDiagram.Caption := ReplaceStr(Preferences.LoadStr(800), '&', '');
-  tbEditor.Caption := ReplaceStr(Preferences.LoadStr(6), '&', '');
-  tbEditor2.Caption := ReplaceStr(Preferences.LoadStr(6), '&', '') + ' #2';
-  tbEditor3.Caption := ReplaceStr(Preferences.LoadStr(6), '&', '') + ' #3';
+  tbObjects.Caption := Preferences.LoadStr(4);
+  tbBrowser.Caption := Preferences.LoadStr(5);
+  tbIDE.Caption := Preferences.LoadStr(865);
+  tbBuilder.Caption := tbBuilder.Caption;
+  tbDiagram.Caption := Preferences.LoadStr(800);
+  tbEditor.Caption := Preferences.LoadStr(6);
+  tbEditor2.Caption := Preferences.LoadStr(6) + ' #2';
+  tbEditor3.Caption := Preferences.LoadStr(6) + ' #3';
 
   mfOpen.Caption := Preferences.LoadStr(581);
   mfOpenInNewWindow.Caption := Preferences.LoadStr(760);
@@ -4593,23 +4593,23 @@ begin
 
   SQLBuilder.RightMargin := Preferences.Editor.RightEdge;
 
-  FOffset.Hint := ReplaceStr(Preferences.LoadStr(846), '&', '') + ' (' + ShortCutToText(aTBOffset.ShortCut) + ')';
-  FUDOffset.Hint := ReplaceStr(Preferences.LoadStr(846), '&', '');
-  FLimit.Hint := ReplaceStr(Preferences.LoadStr(197), '&', '') + ' (' + ShortCutToText(aTBLimit.ShortCut) + ')';
-  FUDLimit.Hint := ReplaceStr(Preferences.LoadStr(846), '&', '');
-  FLimitEnabled.Hint := ReplaceStr(Preferences.LoadStr(197), '&', '');
-  FFilter.Hint := ReplaceStr(Preferences.LoadStr(209), '&', '') + ' (' + ShortCutToText(aTBFilter.ShortCut) + ')';
-  FFilterEnabled.Hint := ReplaceStr(Preferences.LoadStr(209), '&', '');
-  FQuickSearch.Hint := ReplaceStr(Preferences.LoadStr(424), '&', '') + ' (' + ShortCutToText(aTBQuickSearch.ShortCut) + ')';
-  FQuickSearchEnabled.Hint := ReplaceStr(Preferences.LoadStr(424), '&', '');
+  FOffset.Hint := Preferences.LoadStr(846) + ' (' + ShortCutToText(aTBOffset.ShortCut) + ')';
+  FUDOffset.Hint := Preferences.LoadStr(846);
+  FLimit.Hint := Preferences.LoadStr(197) + ' (' + ShortCutToText(aTBLimit.ShortCut) + ')';
+  FUDLimit.Hint := Preferences.LoadStr(846);
+  FLimitEnabled.Hint := Preferences.LoadStr(197);
+  FFilter.Hint := Preferences.LoadStr(209) + ' (' + ShortCutToText(aTBFilter.ShortCut) + ')';
+  FFilterEnabled.Hint := Preferences.LoadStr(209);
+  FQuickSearch.Hint := Preferences.LoadStr(424) + ' (' + ShortCutToText(aTBQuickSearch.ShortCut) + ')';
+  FQuickSearchEnabled.Hint := Preferences.LoadStr(424);
   if (CheckWin32Version(6)) then
   begin
-    SendMessage(FFilter.Handle, CB_SETCUEBANNER, 0, LParam(PChar(ReplaceStr(Preferences.LoadStr(209), '&', ''))));
-    SendMessage(FQuickSearch.Handle, EM_SETCUEBANNER, 0, LParam(PChar(ReplaceStr(Preferences.LoadStr(424), '&', ''))));
-    SendMessage(FBlobSearch.Handle, EM_SETCUEBANNER, 0, LParam(PChar(ReplaceStr(Preferences.LoadStr(424), '&', ''))));
+    SendMessage(FFilter.Handle, CB_SETCUEBANNER, 0, LParam(PChar(Preferences.LoadStr(209))));
+    SendMessage(FQuickSearch.Handle, EM_SETCUEBANNER, 0, LParam(PChar(Preferences.LoadStr(424))));
+    SendMessage(FBlobSearch.Handle, EM_SETCUEBANNER, 0, LParam(PChar(Preferences.LoadStr(424))));
   end;
 
-  FBlobSearch.Hint := ReplaceStr(Preferences.LoadStr(424), '&', '');
+  FBlobSearch.Hint := Preferences.LoadStr(424);
 
   if (not Preferences.Editor.CurrRowBGColorEnabled) then
     FSQLEditorSynMemo.ActiveLineColor := clNone
@@ -5238,14 +5238,14 @@ begin
   tbJobs.Action := MainAction('aVJobs');
   tbSQLHistory.Action := MainAction('aVSQLHistory');
 
-  tbObjects.Action := MainAction('aVObjectBrowser'); tbObjects.Caption := ReplaceStr(tbObjects.Caption, '&', '');
-  tbBrowser.Action := MainAction('aVDataBrowser'); tbBrowser.Caption := ReplaceStr(tbBrowser.Caption, '&', '');
-  tbIDE.Action := MainAction('aVObjectIDE'); tbIDE.Caption := ReplaceStr(tbIDE.Caption, '&', '');
-  tbBuilder.Action := MainAction('aVQueryBuilder'); tbBuilder.Caption := ReplaceStr(tbBuilder.Caption, '&', '');
-  tbDiagram.Action := MainAction('aVDiagram'); tbDiagram.Caption := ReplaceStr(tbDiagram.Caption, '&', '');
-  tbEditor.Action := MainAction('aVSQLEditor'); tbEditor.Caption := ReplaceStr(tbEditor.Caption, '&', '');
-  tbEditor2.Action := MainAction('aVSQLEditor2'); tbEditor.Caption := ReplaceStr(tbEditor2.Caption, '&', '');
-  tbEditor3.Action := MainAction('aVSQLEditor3'); tbEditor.Caption := ReplaceStr(tbEditor3.Caption, '&', '');
+  tbObjects.Action := MainAction('aVObjectBrowser'); tbObjects.Caption := tbObjects.Caption;
+  tbBrowser.Action := MainAction('aVDataBrowser'); tbBrowser.Caption := tbBrowser.Caption;
+  tbIDE.Action := MainAction('aVObjectIDE'); tbIDE.Caption := tbIDE.Caption;
+  tbBuilder.Action := MainAction('aVQueryBuilder'); tbBuilder.Caption := tbBuilder.Caption;
+  tbDiagram.Action := MainAction('aVDiagram'); tbDiagram.Caption := tbDiagram.Caption;
+  tbEditor.Action := MainAction('aVSQLEditor'); tbEditor.Caption := tbEditor.Caption;
+  tbEditor2.Action := MainAction('aVSQLEditor2'); tbEditor.Caption := tbEditor2.Caption;
+  tbEditor3.Action := MainAction('aVSQLEditor3'); tbEditor.Caption := tbEditor3.Caption;
 
   miSNavigator.Action := MainAction('aVNavigator');
   miSBookmarks.Action := MainAction('aVBookmarks');
@@ -6241,7 +6241,7 @@ var
   StreamBuffer: array[0 .. ChunkSize - 1] of Byte;
   Success: Boolean;
 begin
-  SaveDialog.Title := ReplaceStr(Preferences.LoadStr(582), '&', '');
+  SaveDialog.Title := Preferences.LoadStr(582);
   SaveDialog.InitialDir := Path;
   if (ActiveDBGrid.SelectedField.DataType = ftWideMemo) then
   begin
@@ -7481,7 +7481,7 @@ begin
     case (Node.ImageIndex) of
       iiProcesses: Node.Text := Preferences.LoadStr(24);
       iiStati: Node.Text := Preferences.LoadStr(23);
-      iiUsers: Node.Text := ReplaceStr(Preferences.LoadStr(561), '&', '');
+      iiUsers: Node.Text := Preferences.LoadStr(561);
       iiVariables: Node.Text := Preferences.LoadStr(22);
     end;
     Node := Node.getNextSibling();
@@ -7731,7 +7731,7 @@ procedure TFSession.FNavigatorUpdate(const SessionEvent: TSSession.TEvent);
     else if (TObject(Data) is TSStati) then
       Text := Preferences.LoadStr(23)
     else if (TObject(Data) is TSUsers) then
-      Text := ReplaceStr(Preferences.LoadStr(561), '&', '')
+      Text := Preferences.LoadStr(561)
     else if (TObject(Data) is TSVariables) then
       Text := Preferences.LoadStr(22)
     else
@@ -7768,7 +7768,7 @@ procedure TFSession.FNavigatorUpdate(const SessionEvent: TSSession.TEvent);
     else if (TObject(Data) is TSStati) then
       Text := Preferences.LoadStr(23)
     else if (TObject(Data) is TSUsers) then
-      Text := ReplaceStr(Preferences.LoadStr(561), '&', '')
+      Text := Preferences.LoadStr(561)
     else if (TObject(Data) is TSVariables) then
       Text := Preferences.LoadStr(22)
     else
@@ -7806,7 +7806,7 @@ procedure TFSession.FNavigatorUpdate(const SessionEvent: TSSession.TEvent);
     I: Integer;
   begin
     case (SessionEvent.EventType) of
-      ceItemsValid:
+      etItemsValid:
         begin
           Child := Node.getFirstChild();
           while (Assigned(Child)) do
@@ -7829,9 +7829,9 @@ procedure TFSession.FNavigatorUpdate(const SessionEvent: TSSession.TEvent);
               else
                 AddChild(Node, CItems[I]);
         end;
-      ceItemCreated:
+      etItemCreated:
         InsertChild(Node, SessionEvent.SItem);
-      ceItemAltered:
+      etItemAltered:
         begin
           Child := Node.getFirstChild();
           while (Assigned(Child) and (Child.Data <> SessionEvent.SItem)) do
@@ -7848,7 +7848,7 @@ procedure TFSession.FNavigatorUpdate(const SessionEvent: TSSession.TEvent);
               Child.MoveTo(Node, naAddChild);
           end;
         end;
-      ceItemDropped:
+      etItemDropped:
         begin
           Child := Node.getFirstChild();
           while (Assigned(Child)) do
@@ -8175,17 +8175,17 @@ procedure TFSession.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if (not (csDestroying in ComponentState)) then
     case (Event.EventType) of
-      ceItemsValid,
-      ceItemValid,
-      ceItemCreated,
-      ceItemAltered,
-      ceItemDropped:
+      etItemsValid,
+      etItemValid,
+      etItemCreated,
+      etItemAltered,
+      etItemDropped:
         SessionUpdate(Event);
-      ceMonitor:
+      etMonitor:
         Perform(CM_POST_MONITOR, 0, 0);
-      ceBeforeExecuteSQL:
+      etBeforeExecuteSQL:
         BeforeExecuteSQL(Event);
-      ceAfterExecuteSQL:
+      etAfterExecuteSQL:
         AfterExecuteSQL(Event);
     end;
 end;
@@ -10028,61 +10028,61 @@ begin
 
   if (ListView = FServerListView) then
   begin
-    ListView.Columns[0].Caption := ReplaceStr(Preferences.LoadStr(38), '&', '');
+    ListView.Columns[0].Caption := Preferences.LoadStr(38);
     ListView.Columns[1].Caption := Preferences.LoadStr(76);
     ListView.Columns[2].Caption := Preferences.LoadStr(67);
     ListView.Columns[3].Caption := Preferences.LoadStr(77);
-    ListView.Columns[4].Caption := ReplaceStr(Preferences.LoadStr(73), '&', '');
+    ListView.Columns[4].Caption := Preferences.LoadStr(73);
 
     Count := ListView.Items.Count;
     for I := 0 to ListView.Items.Count - 1 do
       case (ListView.Items[I].ImageIndex) of
         iiProcesses: ListView.Items[I].Caption := Preferences.LoadStr(24);
         iiStati: ListView.Items[I].Caption := Preferences.LoadStr(23);
-        iiUsers: ListView.Items[I].Caption := ReplaceStr(Preferences.LoadStr(561), '&', '');
+        iiUsers: ListView.Items[I].Caption := Preferences.LoadStr(561);
         iiVariables: ListView.Items[I].Caption := Preferences.LoadStr(22);
         else Dec(Count);
       end;
 
-    ListView.Groups[1].Header := ReplaceStr(Preferences.LoadStr(12), '&', '') + ' (' + IntToStr(Count) + ')';
+    ListView.Groups[1].Header := Preferences.LoadStr(12) + ' (' + IntToStr(Count) + ')';
   end
   else if (TObject(ListView.Tag) is TSDatabase) then
   begin
-    ListView.Columns[0].Caption := ReplaceStr(Preferences.LoadStr(35), '&', '');
+    ListView.Columns[0].Caption := Preferences.LoadStr(35);
     ListView.Columns[1].Caption := Preferences.LoadStr(69);
     ListView.Columns[2].Caption := Preferences.LoadStr(66);
     ListView.Columns[3].Caption := Preferences.LoadStr(67);
     ListView.Columns[4].Caption := Preferences.LoadStr(68);
-    ListView.Columns[5].Caption := ReplaceStr(Preferences.LoadStr(73), '&', '');
-    ListView.Columns[6].Caption := ReplaceStr(Preferences.LoadStr(111), '&', '');
+    ListView.Columns[5].Caption := Preferences.LoadStr(73);
+    ListView.Columns[6].Caption := Preferences.LoadStr(111);
   end
   else if (TObject(ListView.Tag) is TSBaseTable) then
   begin
-    ListView.Columns[0].Caption := ReplaceStr(Preferences.LoadStr(35), '&', '');
+    ListView.Columns[0].Caption := Preferences.LoadStr(35);
     ListView.Columns[1].Caption := Preferences.LoadStr(69);
     ListView.Columns[2].Caption := Preferences.LoadStr(71);
     ListView.Columns[3].Caption := Preferences.LoadStr(72);
-    ListView.Columns[4].Caption := ReplaceStr(Preferences.LoadStr(73), '&', '');
+    ListView.Columns[4].Caption := Preferences.LoadStr(73);
     if (Session.ServerVersion >= 40100) then
-      ListView.Columns[5].Caption := ReplaceStr(Preferences.LoadStr(111), '&', '');
+      ListView.Columns[5].Caption := Preferences.LoadStr(111);
   end
   else if (TObject(ListView.Tag) is TSView) then
   begin
-    ListView.Columns[0].Caption := ReplaceStr(Preferences.LoadStr(35), '&', '');
+    ListView.Columns[0].Caption := Preferences.LoadStr(35);
     ListView.Columns[1].Caption := Preferences.LoadStr(69);
     ListView.Columns[2].Caption := Preferences.LoadStr(71);
     ListView.Columns[3].Caption := Preferences.LoadStr(72);
-    ListView.Columns[4].Caption := ReplaceStr(Preferences.LoadStr(73), '&', '');
+    ListView.Columns[4].Caption := Preferences.LoadStr(73);
   end
   else if (TObject(ListView.Tag) is TSProcesses) then
   begin
     ListView.Columns[0].Caption := Preferences.LoadStr(269);
-    ListView.Columns[1].Caption := ReplaceStr(Preferences.LoadStr(561), '&', '');
+    ListView.Columns[1].Caption := Preferences.LoadStr(561);
     ListView.Columns[2].Caption := Preferences.LoadStr(271);
-    ListView.Columns[3].Caption := ReplaceStr(Preferences.LoadStr(38), '&', '');
+    ListView.Columns[3].Caption := Preferences.LoadStr(38);
     ListView.Columns[4].Caption := Preferences.LoadStr(273);
     ListView.Columns[5].Caption := Preferences.LoadStr(274);
-    ListView.Columns[6].Caption := ReplaceStr(Preferences.LoadStr(661), '&', '');
+    ListView.Columns[6].Caption := Preferences.LoadStr(661);
     ListView.Columns[7].Caption := Preferences.LoadStr(276);
   end
   else if (TObject(ListView.Tag) is TSStati) then
@@ -10092,7 +10092,7 @@ begin
   end
   else if (TObject(ListView.Tag) is TSUsers) then
   begin
-    ListView.Columns[0].Caption := ReplaceStr(Preferences.LoadStr(561), '&', '');
+    ListView.Columns[0].Caption := Preferences.LoadStr(561);
   end
   else if (TObject(ListView.Tag) is TSVariables) then
   begin
@@ -10272,16 +10272,6 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
     ListViewCompare(nil, Item1, Item2, LPARAM(@ListViewSortData[Kind]), Result);
   end;
 
-  function GroupByGroupID(const GroupID: Integer): TListGroup;
-  var
-    I: Integer;
-  begin
-    Result := nil;
-    for I := 0 to ListView.Groups.Count - 1 do
-      if (ListView.Groups[I].GroupID = GroupID) then
-        Result := ListView.Groups[I];
-  end;
-
   procedure UpdateItem(const Item: TListItem; const Data: TObject);
   var
     I: Integer;
@@ -10343,7 +10333,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
       if ((TSTable(Data) is TSBaseTable) and TSBaseTable(Data).ValidStatus and Assigned(TSBaseTable(Data).Engine)) then
         Item.SubItems.Add(TSBaseTable(Data).Engine.Name)
       else if ((TSTable(Data) is TSView)) then
-        Item.SubItems.Add(ReplaceStr(Preferences.LoadStr(738), '&', ''))
+        Item.SubItems.Add(Preferences.LoadStr(738))
       else
         Item.SubItems.Add('');
       if ((TSTable(Data) is TSBaseTable) and not TSBaseTable(Data).ValidStatus) then
@@ -10670,6 +10660,21 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
   end;
 
   procedure UpdateGroup(const Kind: TADesktop.TListViewKind; const GroupID: Integer; const CItems: TSItems);
+
+    procedure SetGroupHeader(const GroupID: Integer; const NewHeader: string);
+      // In Delphi XE2 there is a flickering in the VScrollBar, while changing
+      // TListGroup.Header - also if Groups.BeginUpdate is used
+    var
+      LVGroup: TLVGroup;
+    begin
+      ZeroMemory(@LVGroup, SizeOf(LVGroup));
+      LVGroup.cbSize := SizeOf(LVGroup);
+      LVGroup.mask := LVGF_HEADER;
+      LVGroup.pszHeader := PChar(NewHeader);
+      LVGroup.cchHeader := Length(NewHeader);
+      ListView_SetGroupInfo(ListView.Handle, GroupID, LVGroup);
+    end;
+
   var
     Add: Boolean;
     ColumnWidths: array [0..7] of Integer;
@@ -10685,9 +10690,8 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
     ItemFocused: Boolean;
   begin
     case (SessionEvent.EventType) of
-      ceItemsValid:
+      etItemsValid:
         begin
-          ListView.Groups.BeginUpdate();
           ListView.Columns.BeginUpdate();
           ListView.Items.BeginUpdate();
           ListView.DisableAlign();
@@ -10710,11 +10714,6 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
               else
                 AddItem(Kind, CItems[I]);
 
-          ListView.EnableAlign();
-          ListView.Items.EndUpdate();
-          ListView.Groups.EndUpdate();
-          ListView.Columns.EndUpdate();
-
           for I := 0 to ListView.Columns.Count - 1 do
             if ((Kind = lkProcesses) and (I = 5)) then
               ListView.Columns[I].Width := Preferences.GridMaxColumnWidth
@@ -10724,12 +10723,16 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
               ListView.Columns[I].Width := ColumnHeaderWidth
             else
               ListView.Columns[I].Width := ColumnTextWidth;
+
+          ListView.EnableAlign();
+          ListView.Items.EndUpdate();
+          ListView.Columns.EndUpdate();
         end;
-      ceItemValid:
+      etItemValid:
         for I := 0 to ListView.Items.Count - 1 do
           if (ListView.Items[I].Data = SessionEvent.SItem) then
             UpdateItem(ListView.Items[I], SessionEvent.SItem);
-      ceItemCreated:
+      etItemCreated:
         begin
           Item := InsertItem(Kind, SessionEvent.SItem);
           if (not Assigned(ListView.Selected)) then
@@ -10738,7 +10741,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
             Item.Focused := True;
           end;
         end;
-      ceItemAltered:
+      etItemAltered:
         begin
           Index := 0;
           while ((Index < ListView.Items.Count) and (ListView.Items[Index].Data <> SessionEvent.SItem)) do
@@ -10757,7 +10760,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
             Item.Focused := ItemFocused;
           end;
         end;
-      ceItemDropped:
+      etItemDropped:
         begin
           for I := ListView.Items.Count - 1 downto 0 do
             if (ListView.Items[I].Data = SessionEvent.SItem) then
@@ -10777,28 +10780,28 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         end;
     end;
 
-    if (SessionEvent.EventType in [ceItemsValid, ceItemCreated, ceItemDropped]) then
+    if (SessionEvent.EventType in [etItemsValid, etItemCreated, etItemDropped]) then
       case (GroupID) of
         giDatabases:
-          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(265) + ' (' + IntToStr(SessionEvent.SItems.Count) + ')', '&', '');
+          SetGroupHeader(GroupID, Preferences.LoadStr(265) + ' (' + IntToStr(SessionEvent.SItems.Count) + ')');
         giTables:
           begin
-            Header := ReplaceStr(Preferences.LoadStr(234), '&', '');
+            Header := Preferences.LoadStr(234);
             if (Session.ServerVersion >= 50001) then
-              Header := Header + ' + ' + ReplaceStr(Preferences.LoadStr(873), '&', '');
+              Header := Header + ' + ' + Preferences.LoadStr(873);
             Header := Header + ' (' + IntToStr(SessionEvent.SItems.Count) + ')';
-            GroupByGroupID(GroupID).Header := Header;
+            SetGroupHeader(GroupID, Header);
           end;
         giRoutines:
-          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(874) + ' + ' + Preferences.LoadStr(875), '&', '') + ' (' + IntToStr(SessionEvent.SItems.Count) + ')';
+          SetGroupHeader(GroupID, Preferences.LoadStr(874) + ' + ' + Preferences.LoadStr(875) + ' (' + IntToStr(SessionEvent.SItems.Count) + ')');
         giEvents:
-          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(876), '&', '') + ' (' + IntToStr(SessionEvent.SItems.Count) + ')';
+          SetGroupHeader(GroupID, Preferences.LoadStr(876) + ' (' + IntToStr(SessionEvent.SItems.Count) + ')');
         giKeys:
-          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(458), '&', '') + ' (' + IntToStr(TSBaseTable(SessionEvent.Sender).Keys.Count) + ')';
+          SetGroupHeader(GroupID, Preferences.LoadStr(458) + ' (' + IntToStr(TSBaseTable(SessionEvent.Sender).Keys.Count) + ')');
         giFields:
-          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(253), '&', '') + ' (' + IntToStr(TSTable(SessionEvent.Sender).Fields.Count) + ')';
+          SetGroupHeader(GroupID, Preferences.LoadStr(253) + ' (' + IntToStr(TSTable(SessionEvent.Sender).Fields.Count) + ')');
         giForeignKeys:
-          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(459), '&', '') + ' (' + IntToStr(TSBaseTable(SessionEvent.Sender).ForeignKeys.Count) + ')';
+          SetGroupHeader(GroupID, Preferences.LoadStr(459) + ' (' + IntToStr(TSBaseTable(SessionEvent.Sender).ForeignKeys.Count) + ')');
         giTriggers:
           begin
             Count := 0;
@@ -10808,16 +10811,16 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
                 InsertItem(Kind, TSTriggers(CItems)[I]);
                 Inc(Count);
               end;
-            GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(797), '&', '') + ' (' + IntToStr(Count) + ')';
+            SetGroupHeader(GroupID, Preferences.LoadStr(797) + ' (' + IntToStr(Count) + ')');
           end;
         giProcesses:
-          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(24), '&', '') + ' (' + IntToStr(Session.Processes.Count) + ')';
+          SetGroupHeader(GroupID, Preferences.LoadStr(24) + ' (' + IntToStr(Session.Processes.Count) + ')');
         giStati:
-          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(23), '&', '') + ' (' + IntToStr(Session.Stati.Count) + ')';
+          SetGroupHeader(GroupID, Preferences.LoadStr(23) + ' (' + IntToStr(Session.Stati.Count) + ')');
         giUsers:
-          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(561), '&', '') + ' (' + IntToStr(Session.Users.Count) + ')';
+          SetGroupHeader(GroupID, Preferences.LoadStr(561) + ' (' + IntToStr(Session.Users.Count) + ')');
         giVariables:
-          GroupByGroupID(GroupID).Header := ReplaceStr(Preferences.LoadStr(22), '&', '') + ' (' + IntToStr(Session.Variables.Count) + ')';
+          SetGroupHeader(GroupID, Preferences.LoadStr(22) + ' (' + IntToStr(Session.Variables.Count) + ')');
       end;
   end;
 
@@ -11550,7 +11553,7 @@ procedure TFSession.miBookmarkClick(Sender: TObject);
 begin
   Wanted.Clear();
 
-  Address := Session.Account.Desktop.Bookmarks.ByCaption(ReplaceStr(TMenuItem(Sender).Caption, '&', '')).URI;
+  Address := Session.Account.Desktop.Bookmarks.ByCaption(TMenuItem(Sender).Caption).URI;
 end;
 
 procedure TFSession.miHOpenClick(Sender: TObject);
@@ -12123,7 +12126,7 @@ begin
   if (not (View in [vEditor, vEditor2, vEditor3])) then
     View := vEditor;
 
-  OpenDialog.Title := ReplaceStr(Preferences.LoadStr(581), '&', '');
+  OpenDialog.Title := Preferences.LoadStr(581);
   if (AFilename = '') then
     OpenDialog.InitialDir := Path
   else
@@ -13196,14 +13199,14 @@ var
   Text: string;
   URI: TUURI;
 begin
-  SaveDialog.Title := ReplaceStr(Preferences.LoadStr(582), '&', '');
+  SaveDialog.Title := Preferences.LoadStr(582);
   SaveDialog.InitialDir := Path;
   SaveDialog.Encodings.Text := EncodingCaptions();
   SaveDialog.EncodingIndex := SaveDialog.Encodings.IndexOf(CodePageToEncoding(Session.CodePage));
   if ((Sender = MainAction('aFSave')) or (Sender = MainAction('aFSaveAs'))) then
   begin
     if (SQLEditors[View].Filename = '') then
-      SaveDialog.FileName := ReplaceStr(Preferences.LoadStr(6), '&', '') + '.sql'
+      SaveDialog.FileName := Preferences.LoadStr(6) + '.sql'
     else
     begin
       if (Sender = MainAction('aFSave')) then
@@ -13224,7 +13227,7 @@ begin
     end
     else if (Window.ActiveControl = FLog) then
     begin
-      SaveDialog.FileName := ReplaceStr(Preferences.LoadStr(11), '&', '') + '.sql';
+      SaveDialog.FileName := Preferences.LoadStr(11) + '.sql';
       Text := FLog.SelText;
       if (Text = '') then Text := FLog.Text;
     end;
@@ -13684,7 +13687,7 @@ begin
       if (Assigned(ActiveListView.Selected) and (TObject(ActiveListView.Selected.Data) is TSKey)) then
         StatusBar.Panels[sbNavigation].Text := Preferences.LoadStr(377) + ': ' + IntToStr(TSKey(ActiveListView.Selected.Data).Index + 1)
       else if (Assigned(ActiveListView.Selected) and (TObject(ActiveListView.Selected.Data) is TSTableField)) then
-        StatusBar.Panels[sbNavigation].Text := ReplaceStr(Preferences.LoadStr(164), '&', '') + ': ' + IntToStr(TSTableField(ActiveListView.Selected.Data).Index)
+        StatusBar.Panels[sbNavigation].Text := Preferences.LoadStr(164) + ': ' + IntToStr(TSTableField(ActiveListView.Selected.Data).Index)
       else
         StatusBar.Panels[sbNavigation].Text := ''
     else if ((Window.ActiveControl = ActiveDBGrid) and Assigned(ActiveDBGrid.SelectedField) and (ActiveDBGrid.DataSource.DataSet.RecNo >= 0)) then
@@ -13743,10 +13746,10 @@ begin
     else if (SelCount > 0) then
       StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(688, IntToStr(SelCount))
     else if (Assigned(ActiveSynMemo) and (Window.ActiveControl = ActiveSynMemo) and (Count >= 0)) then
-      StatusBar.Panels[sbSummarize].Text := IntToStr(Count) + ' ' + ReplaceStr(Preferences.LoadStr(600), '&', '')
+      StatusBar.Panels[sbSummarize].Text := IntToStr(Count) + ' ' + Preferences.LoadStr(600)
     else if ((View = vBuilder) and (Count >= 0)) then
       if (Window.ActiveControl = FQueryBuilderSynMemo) then
-        StatusBar.Panels[sbSummarize].Text := IntToStr(Count) + ' ' + ReplaceStr(Preferences.LoadStr(600), '&', '')
+        StatusBar.Panels[sbSummarize].Text := IntToStr(Count) + ' ' + Preferences.LoadStr(600)
       else
         StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(687, IntToStr(Count))
     else if (Count >= 0) then
@@ -13936,7 +13939,7 @@ begin
       if (SQLEditors[View].Filename <> '') then
         FSQLEditorPrint.Title := ExtractFileName(SQLEditors[View].Filename)
       else
-        FSQLEditorPrint.Title := ReplaceStr(Preferences.LoadStr(6), '&', '');
+        FSQLEditorPrint.Title := Preferences.LoadStr(6);
       FSQLEditorPrint.Header.Clear();
       FSQLEditorPrint.Header.Add('$TITLE$', nil, taLeftJustify, 1);
       FSQLEditorPrint.Header.Add('$PAGENUM$ / $PAGECOUNT$', nil, taRightJustify, 1);
@@ -14110,7 +14113,7 @@ begin
     else
       Include(Preferences.ToolbarTabs, ttEditor3);
 
-  PostMessage(Window.Handle, CM_CHANGEPREFERENCES, 0, 0);
+  PostMessage(Handle, CM_CHANGEPREFERENCES, 0, 0);
 end;
 
 procedure TFSession.ToolButtonStyleClick(Sender: TObject);
@@ -14184,7 +14187,7 @@ function TFSession.UpdateAfterAddressChanged(): Boolean;
 var
   Database: TSDatabase;
   I: Integer;
-  Objects: TList;
+  List: TList;
 begin
   Result := False;
 
@@ -14201,26 +14204,26 @@ begin
 
             if (not Database.Tables.ValidStatus) then
             begin
-              Objects := TList.Create();
+              List := TList.Create();
 
-              Objects.Add(Database);
+              List.Add(Database);
               if (not Database.Tables.Valid) then
-                Wanted.FUpdate := UpdateAfterAddressChanged;
-              for I := 0 to Database.Tables.Count - 1 do
-                Objects.Add(Database.Tables[I]);
+                Wanted.FUpdate := UpdateAfterAddressChanged
+              else
+                List.Add(Database.Tables);
               if (Assigned(Database.Routines)) then
                 for I := 0 to Database.Routines.Count - 1 do
-                  Objects.Add(Database.Routines[I]);
+                  List.Add(Database.Routines[I]);
               if (Assigned(Database.Events)) then
-                for I := 0 to Database.Routines.Count - 1 do
-                  Objects.Add(Database.Routines[I]);
+                for I := 0 to Database.Events.Count - 1 do
+                  List.Add(Database.Events[I]);
               if (Assigned(Database.Triggers)) then
                 for I := 0 to Database.Triggers.Count - 1 do
-                  Objects.Add(Database.Triggers[I]);
+                  List.Add(Database.Triggers[I]);
 
-              Result := not Session.Update(Objects);
+              Result := not Session.Update(List, True);
 
-              Objects.Free();
+              List.Free();
             end;
           end;
         iiProcesses:

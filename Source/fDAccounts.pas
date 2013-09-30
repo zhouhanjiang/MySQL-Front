@@ -143,10 +143,10 @@ begin
 
   Preferences.SmallImages.GetIcon(40, Icon);
 
-  GAccounts.Caption := ReplaceStr(Preferences.LoadStr(25), '&', '');
-  FAccounts.Columns.Items[0].Caption := ReplaceStr(Preferences.LoadStr(35), '&', '');
-  FAccounts.Columns.Items[1].Caption := ReplaceStr(Preferences.LoadStr(693), '&', '');
-  aOpen.Caption := ReplaceStr(Preferences.LoadStr(581), '&', '');
+  GAccounts.Caption := Preferences.LoadStr(25);
+  FAccounts.Columns.Items[0].Caption := Preferences.LoadStr(35);
+  FAccounts.Columns.Items[1].Caption := Preferences.LoadStr(693);
+  aOpen.Caption := Preferences.LoadStr(581);
   aNew.Caption := Preferences.LoadStr(26) + '...';
   aEdit.Caption := Preferences.LoadStr(97) + '...';
   aDelete.Caption := Preferences.LoadStr(28);
@@ -221,7 +221,7 @@ end;
 procedure TDAccounts.FormShow(Sender: TObject);
 begin
   if (not Open) then
-    Caption := ReplaceStr(Preferences.LoadStr(25), '&', '')
+    Caption := Preferences.LoadStr(25)
   else
     Caption := Preferences.LoadStr(1);
 

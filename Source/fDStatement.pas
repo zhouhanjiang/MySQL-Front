@@ -95,22 +95,22 @@ procedure TDStatement.CMChangePreferences(var Message: TMessage);
 begin
   TSInformations.Caption := Preferences.LoadStr(121);
   GBasics.Caption := Preferences.LoadStr(85);
-  FLExecutionTime.Caption := ReplaceStr(Preferences.LoadStr(520), '&', '') + ':';
-  FLDatabase.Caption := ReplaceStr(Preferences.LoadStr(38), '&', '') + ':';
+  FLExecutionTime.Caption := Preferences.LoadStr(520) + ':';
+  FLDatabase.Caption := Preferences.LoadStr(38) + ':';
 
-  GStatement.Caption := ReplaceStr(Preferences.LoadStr(662), '&', '');
-  FLStatementTime.Caption := ReplaceStr(Preferences.LoadStr(661), '&', '') + ':';
+  GStatement.Caption := Preferences.LoadStr(662);
+  FLStatementTime.Caption := Preferences.LoadStr(661) + ':';
   FLRowsAffected.Caption := Preferences.LoadStr(808) + ':';
-  FLInfo.Caption := ReplaceStr(Preferences.LoadStr(274), '&', '') + ':';
-  FLInsertId.Caption := ReplaceStr(Preferences.LoadStr(84), '&', '') + ':';
+  FLInfo.Caption := Preferences.LoadStr(274) + ':';
+  FLInsertId.Caption := Preferences.LoadStr(84) + ':';
 
-  GQuery.Caption := ReplaceStr(Preferences.LoadStr(662), '&', '');
-  FLQueryTime.Caption := ReplaceStr(Preferences.LoadStr(661), '&', '') + ':';
+  GQuery.Caption := Preferences.LoadStr(662);
+  FLQueryTime.Caption := Preferences.LoadStr(661) + ':';
 
-  GProcess.Caption := ReplaceStr(Preferences.LoadStr(684), '&', '');
+  GProcess.Caption := Preferences.LoadStr(684);
   FLId.Caption := Preferences.LoadStr(269) + ':';
-  FLUser.Caption := ReplaceStr(Preferences.LoadStr(561), '&', '') + ':';
-  FLHost.Caption := ReplaceStr(Preferences.LoadStr(271), '&', '') + ':';
+  FLUser.Caption := Preferences.LoadStr(561) + ':';
+  FLHost.Caption := Preferences.LoadStr(271) + ':';
 
   TSSource.Caption := Preferences.LoadStr(198);
   FSource.Font.Name := Preferences.SQLFontName;
@@ -168,17 +168,17 @@ begin
     vtQuery:
       begin
         Preferences.SmallImages.GetIcon(iiStatement, Icon);
-        Caption := ReplaceStr(Preferences.LoadStr(794), '&', '');
+        Caption := Preferences.LoadStr(794);
       end;
     vtStatement:
       begin
         Preferences.SmallImages.GetIcon(iiQuery, Icon);
-        Caption := ReplaceStr(Preferences.LoadStr(794), '&', '');
+        Caption := Preferences.LoadStr(794);
       end;
     vtProcess:
       begin
         Preferences.SmallImages.GetIcon(iiProcess, Icon);
-        Caption := ReplaceStr(Preferences.LoadStr(562), '&', '');
+        Caption := Preferences.LoadStr(562);
       end;
   end;
 

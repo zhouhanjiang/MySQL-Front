@@ -191,11 +191,11 @@ begin
   TSBasics.Caption := Preferences.LoadStr(108);
   GBasics.Caption := Preferences.LoadStr(85);
   FLName.Caption := Preferences.LoadStr(35) + ':';
-  FLSingleExecution.Caption := ReplaceStr(Preferences.LoadStr(174), '&', '') + ':';
+  FLSingleExecution.Caption := Preferences.LoadStr(174) + ':';
   FSingleExecution.Caption := Preferences.LoadStr(815) + ' ...';
   FLExecuteDateTime.Caption := Preferences.LoadStr(520) + ':';
   FMultipleExecution.Caption := Preferences.LoadStr(816) + ' ...';
-  FLMultipleExecution.Caption := ReplaceStr(Preferences.LoadStr(174), '&', '') + ':';
+  FLMultipleExecution.Caption := Preferences.LoadStr(174) + ':';
   FLIntervalDate.Caption := Preferences.LoadStr(822) + ' / ' + Preferences.LoadStr(823) + ' / ' + Preferences.LoadStr(824) + ':';
   FLIntervalWeeks.Caption := Preferences.LoadStr(825) + ' / ' + Preferences.LoadStr(826) + ':';
   FLIntervalTime.Caption := Preferences.LoadStr(827) + ' / ' + Preferences.LoadStr(828) + ' / ' + Preferences.LoadStr(829) + ':';
@@ -204,7 +204,7 @@ begin
   FLEnabled.Caption := Preferences.LoadStr(812) + ':';
   FEnabled.Caption := Preferences.LoadStr(529);
   FLPreserve.Caption := Preferences.LoadStr(819) + ':';
-  FPreserve.Caption := ReplaceStr(Preferences.LoadStr(884), '&', '');
+  FPreserve.Caption := Preferences.LoadStr(884);
   FLComment.Caption := Preferences.LoadStr(111) + ':';
   FLStatement.Caption := Preferences.LoadStr(794) + ':';
 
@@ -237,8 +237,8 @@ begin
     FStatement.ActiveLineColor := Preferences.Editor.CurrRowBGColor;
 
   TSInformations.Caption := Preferences.LoadStr(121);
-  GDefiner.Caption := ReplaceStr(Preferences.LoadStr(561), '&', '');
-  FLDefiner.Caption := ReplaceStr(Preferences.LoadStr(799), '&', '') + ':';
+  GDefiner.Caption := Preferences.LoadStr(561);
+  FLDefiner.Caption := Preferences.LoadStr(799) + ':';
   GDates.Caption := Preferences.LoadStr(122);
   FLCreated.Caption := Preferences.LoadStr(118) + ':';
   FLUpdated.Caption := Preferences.LoadStr(119) + ':';
@@ -323,11 +323,11 @@ end;
 
 procedure TDEvent.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = ceItemValid) and (Event.SItem = Self.Event)) then
+  if ((Event.EventType = etItemValid) and (Event.SItem = Self.Event)) then
     Built()
-  else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.SItem is TSEvent)) then
+  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is TSEvent)) then
     ModalResult := mrOk
-  else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
+  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
   begin
     PageControl.Visible := True;
     PSQLWait.Visible := not PageControl.Visible;

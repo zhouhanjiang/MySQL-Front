@@ -132,14 +132,14 @@ begin
   FCreateTempTable.Caption := Preferences.LoadStr(318);
   FCreateUser.Caption := Preferences.LoadStr(767);
   FCreateView.Caption := Preferences.LoadStr(763);
-  FDelete.Caption := ReplaceStr(Preferences.LoadStr(310), '&', '');
+  FDelete.Caption := Preferences.LoadStr(310);
   FDrop.Caption := Preferences.LoadStr(312);
   FEvent.Caption := Preferences.LoadStr(809);
   FExecute.Caption := Preferences.LoadStr(317);
   FFile.Caption := Preferences.LoadStr(324);
   FGrant.Caption := Preferences.LoadStr(332);
   FIndex.Caption := Preferences.LoadStr(314);
-  FInsert.Caption := ReplaceStr(Preferences.LoadStr(308), '&', '');
+  FInsert.Caption := Preferences.LoadStr(308);
   FLockTable.Caption := Preferences.LoadStr(316);
   FProcess.Caption := Preferences.LoadStr(320);
   FProxy.Caption := Preferences.LoadStr(894);
@@ -152,8 +152,8 @@ begin
   FShowView.Caption := Preferences.LoadStr(764);
   FShutdown.Caption := Preferences.LoadStr(323);
   FSuper.Caption := Preferences.LoadStr(322);
-  FTrigger.Caption := ReplaceStr(Preferences.LoadStr(810), '&', '');
-  FUpdate.Caption := ReplaceStr(Preferences.LoadStr(309), '&', '');
+  FTrigger.Caption := Preferences.LoadStr(810);
+  FUpdate.Caption := Preferences.LoadStr(309);
 
   FBOk.Caption := Preferences.LoadStr(29);
   FBCancel.Caption := Preferences.LoadStr(30);

@@ -1115,31 +1115,31 @@ begin
 
   for I := 0 to ActionList.ActionCount - 1 do
     if (ActionList.Actions[I] is TCustomAction) and (TCustomAction(ActionList.Actions[I]).Hint = '') then
-      TCustomAction(ActionList.Actions[I]).Hint := ReplaceStr(TCustomAction(ActionList.Actions[I]).Caption, '&', '');
+      TCustomAction(ActionList.Actions[I]).Hint := TCustomAction(ActionList.Actions[I]).Caption;
 
 
   mtTabs.Caption := Preferences.LoadStr(851);
 
   SetToolBarHints(ToolBar);
   tbCreateDatabase.Hint := Preferences.LoadStr(147) + '...';
-  tbDeleteDatabase.Hint := ReplaceStr(Preferences.LoadStr(28), '&', '');
+  tbDeleteDatabase.Hint := Preferences.LoadStr(28);
   tbCreateTable.Hint := Preferences.LoadStr(383) + '...';
-  tbDeleteTable.Hint := ReplaceStr(Preferences.LoadStr(28), '&', '');
+  tbDeleteTable.Hint := Preferences.LoadStr(28);
   tbCreateIndex.Hint := Preferences.LoadStr(160) + '...';
-  tbDeleteIndex.Hint := ReplaceStr(Preferences.LoadStr(28), '&', '');
+  tbDeleteIndex.Hint := Preferences.LoadStr(28);
   tbCreateField.Hint := Preferences.LoadStr(87) + '...';
-  tbDeleteField.Hint := ReplaceStr(Preferences.LoadStr(28), '&', '');
+  tbDeleteField.Hint := Preferences.LoadStr(28);
   tbCreateForeignKey.Hint := Preferences.LoadStr(249) + '...';
-  tbDeleteForeignKey.Hint := ReplaceStr(Preferences.LoadStr(28), '&', '');
-  tbProperties.Hint := ReplaceStr(Preferences.LoadStr(97), '&', '') + '...';
+  tbDeleteForeignKey.Hint := Preferences.LoadStr(28);
+  tbProperties.Hint := Preferences.LoadStr(97) + '...';
   tbPostRecord.Hint := Preferences.LoadStr(516);
   tbCancelRecord.Hint := Preferences.LoadStr(517);
 
 
   tbPrev.Hint := Preferences.LoadStr(512);
   tbNext.Hint := Preferences.LoadStr(513);
-  FAddress.Hint := ReplaceStr(Preferences.LoadStr(730), '&', '');
-  FAddressApply.Hint := ReplaceStr(Preferences.LoadStr(676), '&', '');
+  FAddress.Hint := Preferences.LoadStr(730);
+  FAddressApply.Hint := Preferences.LoadStr(676);
 
 
   SetToolBarHints(TBTabControl);
@@ -1998,7 +1998,7 @@ begin
     CR_UNKNOWN_HOST: if (Connection.Host <> '') then Msg := Preferences.LoadStr(706, Connection.Host) else Msg := Preferences.LoadStr(706);
     CR_OUT_OF_MEMORY: Msg := Preferences.LoadStr(733);
     CR_SERVER_LOST: Msg := Preferences.LoadStr(806, Connection.Host);
-    CR_HTTPTUNNEL_UNKNOWN_ERROR: Msg := ErrorMessage + #10#10 + ReplaceStr(Preferences.LoadStr(652), '&', '') + ': ' + Connection.LibraryName;
+    CR_HTTPTUNNEL_UNKNOWN_ERROR: Msg := ErrorMessage + #10#10 + Preferences.LoadStr(652) + ': ' + Connection.LibraryName;
     CR_HTTPTUNNEL_OLD: Msg := Preferences.LoadStr(659, Connection.LibraryName);
     CR_HTTPTUNNEL_CONN_ERROR: Msg := ErrorMessage;
     CR_HTTPTUNNEL_ACCESS_DENIED_ERROR: Msg := Preferences.LoadStr(860, Preferences.LoadStr(859), Copy(ErrorMessage, 1, Pos(' ', ErrorMessage) - 1)) + ':' + #10#10 + ErrorMessage  + #10#10 + ' (' + Connection.LibraryName + ')';

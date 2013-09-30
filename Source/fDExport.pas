@@ -306,7 +306,7 @@ begin
   else if (Assigned(Result)) then
     Title := Result.Name
   else
-    Title := Session.Caption;
+    Title := ReplaceStr(Session.Caption, ':', '_');
 end;
 
 procedure TDExport.CheckActivePageChange(const ActivePageIndex: Integer);
@@ -385,7 +385,7 @@ begin
   GSQLOptions.Caption := Preferences.LoadStr(238);
   FLDrop.Caption := Preferences.LoadStr(242) + ':';
   FDropStmts.Caption := Preferences.LoadStr(243);
-  FReplaceData.Caption := LowerCase(ReplaceStr(Preferences.LoadStr(416), '&', ''));
+  FReplaceData.Caption := LowerCase(Preferences.LoadStr(416));
 
   GCSVOptions.Caption := Preferences.LoadStr(238);
   FLCSVHeadline.Caption := Preferences.LoadStr(393) + ':';
@@ -404,17 +404,17 @@ begin
   FLDone.Caption := Preferences.LoadStr(232) + ':';
   FLProgressObjects.Caption := Preferences.LoadStr(909) + ':';
   FLProgressRecords.Caption := Preferences.LoadStr(235) + ':';
-  FLProgressTime.Caption := ReplaceStr(Preferences.LoadStr(661), '&', '') + ':';
+  FLProgressTime.Caption := Preferences.LoadStr(661) + ':';
   FLErrors.Caption := Preferences.LoadStr(391) + ':';
 
   GXMLHow.Caption := Preferences.LoadStr(238);
   FLRootNode.Caption := 'Root:';
-  FLDatabaseNode.Caption := ReplaceStr(Preferences.LoadStr(265), '&', '') + ':';
+  FLDatabaseNode.Caption := Preferences.LoadStr(265) + ':';
   FDatabaseNodeDisabled.Caption := Preferences.LoadStr(554);
-  FLTableNode.Caption := ReplaceStr(Preferences.LoadStr(234), '&', '') + ':';
+  FLTableNode.Caption := Preferences.LoadStr(234) + ':';
   FTableNodeDisabled.Caption := Preferences.LoadStr(554);
   FLRecordNode.Caption := Preferences.LoadStr(124) + ':';
-  FLFieldNode.Caption := ReplaceStr(Preferences.LoadStr(253), '&', '') + ':';
+  FLFieldNode.Caption := Preferences.LoadStr(253) + ':';
 
   GHTMLWhat.Caption := Preferences.LoadStr(227);
   FLHTMLWhat.Caption := Preferences.LoadStr(218) + ':';
@@ -423,7 +423,7 @@ begin
   GHTMLOptions.Caption := Preferences.LoadStr(238);
   FLHTMLNullValues.Caption := Preferences.LoadStr(498) + ':';
   FHTMLNullText.Caption := Preferences.LoadStr(499);
-  FLHTMLViewDatas.Caption := ReplaceStr(Preferences.LoadStr(574), '&', '') + ':';
+  FLHTMLViewDatas.Caption := Preferences.LoadStr(574) + ':';
   FHTMLMemoContent.Caption := Preferences.LoadStr(575);
   FLHTMLBGColorEnabled.Caption := Preferences.LoadStr(740) + ':';
   FHTMLRowBGColor.Caption := Preferences.LoadStr(600);
@@ -1096,7 +1096,7 @@ end;
 
 procedure TDExport.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if (Event.EventType = ceAfterExecuteSQL) then
+  if (Event.EventType = etAfterExecuteSQL) then
     PostMessage(Handle, CM_POST_AFTEREXECUTESQL, 0, 0);
 end;
 
@@ -1437,7 +1437,7 @@ begin
   else
     CodePage := Session.CodePage;
 
-  SaveDialog.Title := ReplaceStr(Preferences.LoadStr(582), '&', '');
+  SaveDialog.Title := Preferences.LoadStr(582);
   SaveDialog.InitialDir := Preferences.Path;
   SaveDialog.Filter := '';
   SaveDialog.DefaultExt := '';

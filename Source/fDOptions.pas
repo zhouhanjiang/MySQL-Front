@@ -192,7 +192,7 @@ begin
   if (Caption = Preferences.LoadStr(468)) then Result := Highlighter.DataTypeAttri;
   if (Caption = Preferences.LoadStr(469)) then Result := Highlighter.VariableAttri;
   if (Caption = Preferences.LoadStr(735)) then Result := Highlighter.ConditionalCommentAttri;
-  if (Caption = ReplaceStr(Preferences.LoadStr(526), '&', '')) then Result := LineNumbersAttri;
+  if (Caption = Preferences.LoadStr(526)) then Result := LineNumbersAttri;
 end;
 
 procedure TDOptions.CMChangePreferences(var Message: TMessage);
@@ -204,12 +204,12 @@ begin
   TSView.Caption := Preferences.LoadStr(491);
   GProgram.Caption := Preferences.LoadStr(52);
   FLLanguage.Caption := Preferences.LoadStr(32) + ':';
-  GTabs.Caption := ReplaceStr(Preferences.LoadStr(851), '&', '');
-  FLTabsVisible.Caption := ReplaceStr(Preferences.LoadStr(851), '&', '') + ':';
+  GTabs.Caption := Preferences.LoadStr(851);
+  FLTabsVisible.Caption := Preferences.LoadStr(851) + ':';
   FTabsVisible.Caption := LowerCase(Preferences.LoadStr(699));
 
-  TSExtras.Caption := ReplaceStr(Preferences.LoadStr(73), '&', '');
-  GAssociate.Caption := ReplaceStr(Preferences.LoadStr(108), '&', '');
+  TSExtras.Caption := Preferences.LoadStr(73);
+  GAssociate.Caption := Preferences.LoadStr(108);
   FLAssociate.Caption := Preferences.LoadStr(566) + ':';
   FAssociateSQL.Caption := '.sql';
 
@@ -219,7 +219,7 @@ begin
   FLGridNullValues.Caption := Preferences.LoadStr(498) + ':';
   FGridNullText.Caption := Preferences.LoadStr(499);
   FLMaxColumnWidth.Caption := Preferences.LoadStr(208) + ':';
-  FLMaxColumnWidthCharacters.Caption := ReplaceStr(Preferences.LoadStr(869), '&', '');
+  FLMaxColumnWidthCharacters.Caption := Preferences.LoadStr(869);
   FLMaxColumnWidthCharacters.Left := FUDMaxColumnWidth.Left + FUDMaxColumnWidth.Width + Canvas.TextWidth('  ');
   FLViewDatas.Caption := Preferences.LoadStr(574) + ':';
   FGridShowMemoContent.Caption := Preferences.LoadStr(575);
@@ -230,17 +230,17 @@ begin
   TSEditor.Caption := Preferences.LoadStr(473);
   GEditor.Caption := Preferences.LoadStr(473);
   FLEditorFont.Caption := Preferences.LoadStr(439) + ':';
-  FLEditorLinenumbers.Caption := ReplaceStr(Preferences.LoadStr(527), '&', '') + ':';
+  FLEditorLinenumbers.Caption := Preferences.LoadStr(527) + ':';
   FEditorLinenumbers.Caption := Preferences.LoadStr(526);
-  FLEditorAutoIndent.Caption := ReplaceStr(Preferences.LoadStr(529), '&', '') + ':';
+  FLEditorAutoIndent.Caption := Preferences.LoadStr(529) + ':';
   FEditorAutoIndent.Caption := Preferences.LoadStr(756);
   FEditorTabAccepted.Caption := Preferences.LoadStr(776);
   FEditorTabToSpaces.Caption := Preferences.LoadStr(759);
   FLEditorTabWidth.Caption := Preferences.LoadStr(757) + ':';
   FLEditorRightEdge.Caption := Preferences.LoadStr(758) + ':';
-  FEditorTabWidthCharacters.Caption := ReplaceStr(Preferences.LoadStr(395), '&', '');
+  FEditorTabWidthCharacters.Caption := Preferences.LoadStr(395);
   FEditorTabWidthCharacters.Left := FUDEditorTabWidth.Left + FUDEditorTabWidth.Width + Canvas.TextWidth('  ');
-  FLEditorRightEdgeCharacters.Caption := ReplaceStr(Preferences.LoadStr(395), '&', '');
+  FLEditorRightEdgeCharacters.Caption := Preferences.LoadStr(395);
   FLEditorRightEdgeCharacters.Left := FUDEditorRightEdge.Left + FUDEditorRightEdge.Width + Canvas.TextWidth('  ');
   FLEditorCompletition.Caption := Preferences.LoadStr(660) + ':';
   FEditorCompletitionEnabled.Width := FEditorCurrRowBGColorEnabled.Width + Canvas.TextWidth(FEditorCompletitionEnabled.Caption);
@@ -251,7 +251,7 @@ begin
   FLEditorWordWrap.Caption := Preferences.LoadStr(891) + ':';
   FEditorWordWrap.Caption := Preferences.LoadStr(892);
 
-  TSHighlighter.Caption := ReplaceStr(Preferences.LoadStr(528), '&', '');
+  TSHighlighter.Caption := Preferences.LoadStr(528);
   GColors.Caption := Preferences.LoadStr(474);
   FStyles.Items.Clear();
   FStyles.Items.Add().Caption := Preferences.LoadStr(461);
@@ -264,7 +264,7 @@ begin
   FStyles.Items.Add().Caption := Preferences.LoadStr(468);
   FStyles.Items.Add().Caption := Preferences.LoadStr(469);
   FStyles.Items.Add().Caption := Preferences.LoadStr(735);
-  FStyles.Items.Add().Caption := ReplaceStr(Preferences.LoadStr(526), '&', '');
+  FStyles.Items.Add().Caption := Preferences.LoadStr(526);
   FStyles.SortType := Comctrls.stText;
   FBold.Caption := Preferences.LoadStr(477);
   FItalic.Caption := Preferences.LoadStr(478);
@@ -287,7 +287,7 @@ begin
 
   TSUpdates.Caption := Preferences.LoadStr(592);
   GUpdates.Caption := Preferences.LoadStr(592);
-  FLUpdateCheck.Caption := ReplaceStr(Preferences.LoadStr(509), '&', '') + ':';
+  FLUpdateCheck.Caption := Preferences.LoadStr(509) + ':';
   FUpdateCheckNever.Caption := Preferences.LoadStr(638);
   FUpdateCheckDaily.Caption := Preferences.LoadStr(640);
 

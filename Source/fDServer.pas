@@ -123,17 +123,17 @@ begin
   PSQLWait.Caption := Preferences.LoadStr(882);
 
   TSBasics.Caption := Preferences.LoadStr(108);
-  GServer.Caption := ReplaceStr(Preferences.LoadStr(906), '&', '');
+  GServer.Caption := Preferences.LoadStr(906);
   FLVersion.Caption := Preferences.LoadStr(169) + ':';
-  FLComment.Caption := ReplaceStr(Preferences.LoadStr(111), '&', '') + ':';
+  FLComment.Caption := Preferences.LoadStr(111) + ':';
   GConnection.Caption := Preferences.LoadStr(486);
-  FLHost.Caption := ReplaceStr(Preferences.LoadStr(305), '&', '') + ':';
-  FLLibVersion.Caption := ReplaceStr(Preferences.LoadStr(568), '&', '') + ':';
-  FLUser.Caption := ReplaceStr(Preferences.LoadStr(561), '&', '') + ':';
-  FLCharacterSet.Caption := ReplaceStr(Preferences.LoadStr(682), '&', '') + ':';
+  FLHost.Caption := Preferences.LoadStr(305) + ':';
+  FLLibVersion.Caption := Preferences.LoadStr(568) + ':';
+  FLUser.Caption := Preferences.LoadStr(561) + ':';
+  FLCharacterSet.Caption := Preferences.LoadStr(682) + ':';
   FLThreadId.Caption := Preferences.LoadStr(269) + ':';
 
-  TSSQLLog.Caption := ReplaceStr(Preferences.LoadStr(11), '&', '');
+  TSSQLLog.Caption := Preferences.LoadStr(11);
   FSQLLog.Font.Name := Preferences.SQLFontName;
   FSQLLog.Font.Style := Preferences.SQLFontStyle;
   FSQLLog.Font.Color := Preferences.SQLFontColor;
@@ -149,7 +149,7 @@ begin
     FSQLLog.Gutter.Color := Preferences.Editor.LineNumbersBackground;
   FSQLLog.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
 
-  TSSlowSQLLog.Caption := ReplaceStr(Preferences.LoadStr(847), '&', '');
+  TSSlowSQLLog.Caption := Preferences.LoadStr(847);
   FSlowSQLLog.Font.Name := Preferences.SQLFontName;
   FSlowSQLLog.Font.Style := Preferences.SQLFontStyle;
   FSlowSQLLog.Font.Color := Preferences.SQLFontColor;
@@ -181,12 +181,12 @@ begin
     FStartup.Gutter.Color := Preferences.Editor.LineNumbersBackground;
   FStartup.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
 
-  TSPlugins.Caption := ReplaceStr(Preferences.LoadStr(811), '&', '');
-  FPlugins.Columns[0].Caption := ReplaceStr(Preferences.LoadStr(35), '&', '');
-  FPlugins.Columns[1].Caption := ReplaceStr(Preferences.LoadStr(111), '&', '');
+  TSPlugins.Caption := Preferences.LoadStr(811);
+  FPlugins.Columns[0].Caption := Preferences.LoadStr(35);
+  FPlugins.Columns[1].Caption := Preferences.LoadStr(111);
 
-  TSExtras.Caption := ReplaceStr(Preferences.LoadStr(73), '&', '');
-  GServiceServer.Caption := ReplaceStr(Preferences.LoadStr(37), '&', '');
+  TSExtras.Caption := Preferences.LoadStr(73);
+  GServiceServer.Caption := Preferences.LoadStr(37);
   FLUptime.Caption := Preferences.LoadStr(520) + ':';
   FBShutdown.Caption := Preferences.LoadStr(323);
 
@@ -237,10 +237,10 @@ end;
 
 procedure TDServer.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = ceItemsValid) and (Assigned(Session.Plugins) and (Event.SItems = Session.Plugins))
+  if ((Event.EventType = etItemsValid) and (Assigned(Session.Plugins) and (Event.SItems = Session.Plugins))
     and (not Assigned(Session.Plugins) or Session.Plugins.Valid)) then
     Built()
-  else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
+  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
   begin
     PageControl.Visible := True;
     PSQLWait.Visible := not PageControl.Visible;

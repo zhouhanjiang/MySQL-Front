@@ -93,7 +93,7 @@ begin
     begin
       ManualURL := Session.Account.ManualURL;
 
-      Caption := ReplaceStr(Preferences.LoadStr(883), '&', '') + ': ' + DataSet.FieldByName('name').AsString;
+      Caption := Preferences.LoadStr(883) + ': ' + DataSet.FieldByName('name').AsString;
 
       FDescription.Text := Trim(DataSet.FieldByName('description').AsString);
       PostMessage(FDescription.Handle, WM_VSCROLL, SB_TOP, 0);
@@ -157,10 +157,10 @@ begin
   FBDescription.Caption := Preferences.LoadStr(85);
   FBExample.Caption := Preferences.LoadStr(849);
   FBManual.Caption := Preferences.LoadStr(573);
-  FQuickSearch.Hint := ReplaceStr(Preferences.LoadStr(424), '&', '');
+  FQuickSearch.Hint := Preferences.LoadStr(424);
   if (CheckWin32Version(6)) then
-    SendMessage(FQuickSearch.Handle, EM_SETCUEBANNER, 0, LParam(PChar(ReplaceStr(Preferences.LoadStr(424), '&', ''))));
-  FQuickSearchEnabled.Hint := ReplaceStr(Preferences.LoadStr(424), '&', '');
+    SendMessage(FQuickSearch.Handle, EM_SETCUEBANNER, 0, LParam(PChar(Preferences.LoadStr(424))));
+  FQuickSearchEnabled.Hint := Preferences.LoadStr(424);
 
   FDescription.Font.Name := Preferences.SQLFontName;
   FDescription.Font.Style := Preferences.SQLFontStyle;
@@ -281,7 +281,7 @@ end;
 
 procedure TDSQLHelp.FormShow(Sender: TObject);
 begin
-  Caption := ReplaceStr(Preferences.LoadStr(883), '&', '');
+  Caption := Preferences.LoadStr(883);
 
   FDescription.Lines.Clear();
   FDescription.Visible := False;

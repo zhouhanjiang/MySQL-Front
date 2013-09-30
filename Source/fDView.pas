@@ -224,18 +224,18 @@ begin
   FStmt.WordWrap := Preferences.Editor.WordWrap;
 
   TSInformations.Caption := Preferences.LoadStr(121);
-  GDefiner.Caption := ReplaceStr(Preferences.LoadStr(561), '&', '');
-  FLDefiner.Caption := ReplaceStr(Preferences.LoadStr(799), '&', '') + ':';
+  GDefiner.Caption := Preferences.LoadStr(561);
+  FLDefiner.Caption := Preferences.LoadStr(799) + ':';
   GRecordCount.Caption := Preferences.LoadStr(170);
   FLRecordCount.Caption := Preferences.LoadStr(116) + ':';
 
   TSFields.Caption := Preferences.LoadStr(253);
-  FFields.Column[0].Caption := ReplaceStr(Preferences.LoadStr(35), '&', '');
+  FFields.Column[0].Caption := Preferences.LoadStr(35);
   FFields.Column[1].Caption := Preferences.LoadStr(69);
   FFields.Column[2].Caption := Preferences.LoadStr(71);
   FFields.Column[3].Caption := Preferences.LoadStr(72);
-  FFields.Column[4].Caption := ReplaceStr(Preferences.LoadStr(73), '&', '');
-  FFields.Column[5].Caption := ReplaceStr(Preferences.LoadStr(111), '&', '');
+  FFields.Column[4].Caption := Preferences.LoadStr(73);
+  FFields.Column[5].Caption := Preferences.LoadStr(111);
 
   TSSource.Caption := Preferences.LoadStr(198);
   FSource.Font.Name := Preferences.SQLFontName;
@@ -394,11 +394,11 @@ end;
 
 procedure TDView.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = ceItemValid) and (Event.SItem = View)) then
+  if ((Event.EventType = etItemValid) and (Event.SItem = View)) then
     Built()
-  else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.SItem is TSView)) then
+  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is TSView)) then
     ModalResult := mrOk
-  else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
+  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
   begin
     PageControl.Visible := True;
     PSQLWait.Visible := not PageControl.Visible;

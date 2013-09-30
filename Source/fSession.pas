@@ -1350,7 +1350,7 @@ type
 
   TSSession = class(TMySQLConnection)
   type
-    TEventType = (ceItemsValid, ceItemValid, ceItemCreated, ceItemDropped, ceItemAltered, ceBeforeExecuteSQL, ceAfterExecuteSQL, ceMonitor, ceError);
+    TEventType = (etItemsValid, etItemValid, etItemCreated, etItemDropped, etItemAltered, etBeforeExecuteSQL, etAfterExecuteSQL, etMonitor, etError);
     TUpdate = function (): Boolean of object;
     TEvent = class
     public
@@ -1886,7 +1886,7 @@ end;
 
 procedure TSEntities.PushBuildEvent(const Sender: TObject);
 begin
-  Session.ExecuteEvent(ceItemsValid, Sender, Self);
+  Session.ExecuteEvent(etItemsValid, Sender, Self);
 end;
 
 function TSEntities.Update(): Boolean;
@@ -2036,7 +2036,7 @@ begin
   begin
     TSObject(AEntity).Invalidate();
     Session.InvalidObjects.Add(AEntity);
-    Session.ExecuteEvent(ceItemCreated, Session, Self, AEntity);
+    Session.ExecuteEvent(etItemCreated, Session, Self, AEntity);
   end;
 end;
 
@@ -2052,7 +2052,7 @@ begin
   begin
     TList(Self).Delete(Index);
 
-    Session.ExecuteEvent(ceItemDropped, Session, Self, AEntity);
+    Session.ExecuteEvent(etItemDropped, Session, Self, AEntity);
 
     AEntity.Free();
   end;
@@ -2173,8 +2173,8 @@ begin
   if (Valid) then
   begin
     if (CItemsEvents) then
-      Session.ExecuteEvent(ceItemsValid, Database, CItems);
-    Session.ExecuteEvent(ceItemValid, Database, CItems, Self);
+      Session.ExecuteEvent(etItemsValid, Database, CItems);
+    Session.ExecuteEvent(etItemValid, Database, CItems, Self);
   end;
 end;
 
@@ -2192,7 +2192,7 @@ begin
     else if (Self is TSTrigger) then
       FCItems := ADatabase.Triggers
     else
-      ERangeError.Create(SRangeError);
+      raise ERangeError.Create(SRangeError);
     Entities.Add(Self, True);
   end;
 end;
@@ -2231,7 +2231,7 @@ begin
   begin
     TSObject(AEntity).Invalidate();
     Session.InvalidObjects.Add(AEntity);
-    Session.ExecuteEvent(ceItemCreated, Database, Self, AEntity);
+    Session.ExecuteEvent(etItemCreated, Database, Self, AEntity);
   end;
 end;
 
@@ -2254,7 +2254,7 @@ begin
   begin
     TList(Self).Delete(Index);
 
-    Session.ExecuteEvent(ceItemDropped, Database, Self, AEntity);
+    Session.ExecuteEvent(etItemDropped, Database, Self, AEntity);
 
     AEntity.Free();
   end;
@@ -2389,7 +2389,7 @@ end;
 function TSKey.GetCaption(): string;
 begin
   if (Primary) then
-    Result := ReplaceStr(Preferences.LoadStr(154), '&', '')
+    Result := Preferences.LoadStr(154)
   else
     Result := Name;
 end;
@@ -3502,10 +3502,10 @@ begin
   begin
     if (CItemsEvents) then
     begin
-      Session.ExecuteEvent(ceItemsValid, Database, CItems);
-      Session.ExecuteEvent(ceItemsValid, Self, Fields);
+      Session.ExecuteEvent(etItemsValid, Database, CItems);
+      Session.ExecuteEvent(etItemsValid, Self, Fields);
     end;
-    Session.ExecuteEvent(ceItemValid, Database, CItems, Self);
+    Session.ExecuteEvent(etItemValid, Database, CItems, Self);
   end;
 end;
 
@@ -4043,7 +4043,7 @@ begin
   IndexName := Caption;
 
   Delete(IndexName, Pos(' (' + Preferences.LoadStr(377), IndexName), Length(IndexName) - Pos(' (' + Preferences.LoadStr(377), IndexName) + 2);
-  if (IndexName = ReplaceStr(Preferences.LoadStr(154), '&', '')) then IndexName := '';
+  if (IndexName = Preferences.LoadStr(154)) then IndexName := '';
 
   Result := IndexByName(IndexName);
 end;
@@ -4276,8 +4276,8 @@ begin
 
       if (Moved and not FirstParse) then
       begin
-        Session.ExecuteEvent(ceItemDropped, Self, FFields, NewField);
-        Session.ExecuteEvent(ceItemCreated, Self, FFields, NewField);
+        Session.ExecuteEvent(etItemDropped, Self, FFields, NewField);
+        Session.ExecuteEvent(etItemCreated, Self, FFields, NewField);
       end;
 
       Inc(Index);
@@ -4675,9 +4675,9 @@ end;
 procedure TSBaseTable.PushBuildEvent(const CItemsEvents: Boolean = True);
 begin
   if (SourceParsed and CItemsEvents) then
-    Session.ExecuteEvent(ceItemsValid, Self);
+    Session.ExecuteEvent(etItemsValid, Self);
   if (Valid) then
-    Session.ExecuteEvent(ceItemValid, Database, Tables, Self);
+    Session.ExecuteEvent(etItemValid, Database, Tables, Self);
 end;
 
 procedure TSBaseTable.SetDefaultCharset(const ADefaultCharset: string);
@@ -5008,10 +5008,7 @@ var
   Index: Integer;
   Name: string;
   NewTable: TSTable;
-  OldCount: Integer;
 begin
-  OldCount := Count;
-
   if (DataSet.FieldCount = 0) then
     Result := inherited
   else if (DataSet.FieldCount <= 2) then // SHOW [FULL] TABLES
@@ -5045,7 +5042,7 @@ begin
           DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
 
         if (Filtered and SessionEvents) then
-          Session.ExecuteEvent(ceItemValid, Database, Self, Table[Index]);
+          Session.ExecuteEvent(etItemValid, Database, Self, Table[Index]);
       until (not DataSet.FindNext());
     FValid := True;
 
@@ -5063,8 +5060,8 @@ begin
 
     if (not Filtered and SessionEvents) then
     begin
-      Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
-      Session.ExecuteEvent(ceItemsValid, Database, Self);
+      Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
+      Session.ExecuteEvent(etItemsValid, Database, Self);
     end;
   end
   else
@@ -5100,16 +5097,16 @@ begin
 
         if (Filtered and SessionEvents) then
           Table[Index].PushBuildEvent(Filtered);
-      until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('TABLE_SCHEMA').AsString, Database.Name) <> 0));
+      until (not DataSet.FindNext() or (UseInformationSchema and (Session.Databases.NameCmp(DataSet.FieldByName('TABLE_SCHEMA').AsString, Database.Name) <> 0)));
 
     if (not Filtered and SessionEvents) then
     begin
       FValid := True;
-      Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
-      Session.ExecuteEvent(ceItemsValid, Database, Self);
+      Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
+      Session.ExecuteEvent(etItemsValid, Database, Self);
     end;
     if (Database.Valid and SessionEvents) then
-      Session.ExecuteEvent(ceItemValid, Session, Session.Databases, Database);
+      Session.ExecuteEvent(etItemValid, Session, Session.Databases, Database);
 
     Result := False;
   end;
@@ -5197,10 +5194,10 @@ begin
     View.PushBuildEvent(False);
   end;
 
-  Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
-  Session.ExecuteEvent(ceItemsValid, Database, Self);
+  Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
+  Session.ExecuteEvent(etItemsValid, Database, Self);
   if (Database.Valid) then
-    Session.ExecuteEvent(ceItemValid, Session, Session.Databases, Database);
+    Session.ExecuteEvent(etItemValid, Session, Session.Databases, Database);
 end;
 
 function TSTables.GetTable(Index: Integer): TSTable;
@@ -5701,8 +5698,8 @@ begin
 
   if (Valid) then
   begin
-    Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
-    Session.ExecuteEvent(ceItemValid, Database, Routines, Self);
+    Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
+    Session.ExecuteEvent(etItemValid, Database, Routines, Self);
   end;
 end;
 
@@ -5775,8 +5772,8 @@ begin
 
   if (Valid) then
   begin
-    Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
-    Session.ExecuteEvent(ceItemValid, Database, Routines, Self);
+    Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
+    Session.ExecuteEvent(etItemValid, Database, Routines, Self);
   end;
 end;
 
@@ -5891,7 +5888,7 @@ begin
       end;
 
       if (Filtered and SessionEvents) then
-        Session.ExecuteEvent(ceItemValid, Session, Self, Routine[Index]);
+        Session.ExecuteEvent(etItemValid, Session, Self, Routine[Index]);
     until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('ROUTINE_SCHEMA').AsString, Database.Name) <> 0));
 
   Result := inherited or (Session.ErrorCode = ER_CANNOT_LOAD_FROM_TABLE);
@@ -5908,11 +5905,11 @@ begin
 
   if (not Filtered and SessionEvents) then
   begin
-    Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
-    Session.ExecuteEvent(ceItemsValid, Database, Self);
+    Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
+    Session.ExecuteEvent(etItemsValid, Database, Self);
   end;
   if (Database.Valid and SessionEvents) then
-    Session.ExecuteEvent(ceItemValid, Session, Session.Databases, Database);
+    Session.ExecuteEvent(etItemValid, Session, Session.Databases, Database);
 end;
 
 function TSRoutines.GetRoutine(Index: Integer): TSRoutine;
@@ -6106,8 +6103,8 @@ begin
 
   if (Valid) then
   begin
-    Session.ExecuteEvent(ceItemsValid, Session.Databases);
-    Session.ExecuteEvent(ceItemValid, Database, Triggers, Self);
+    Session.ExecuteEvent(etItemsValid, Session.Databases);
+    Session.ExecuteEvent(etItemValid, Database, Triggers, Self);
   end;
 end;
 
@@ -6171,7 +6168,7 @@ begin
   begin
     TSTrigger(AEntity).Invalidate();
     Session.InvalidObjects.Add(AEntity);
-    Session.ExecuteEvent(ceItemCreated, Database, Self, AEntity);
+    Session.ExecuteEvent(etItemCreated, Database, Self, AEntity);
   end;
 end;
 
@@ -6246,7 +6243,7 @@ begin
         Trigger[Index].SetSource(Trigger[Index].GetSourceEx());
 
       if (Filtered and SessionEvents) then
-        Session.ExecuteEvent(ceItemValid, Session, Self, Trigger[Index]);
+        Session.ExecuteEvent(etItemValid, Session, Self, Trigger[Index]);
     until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('TRIGGER_SCHEMA').AsString, Database.Name) <> 0));
 
   Result := inherited;
@@ -6263,11 +6260,11 @@ begin
 
   if (not Filtered and SessionEvents) then
   begin
-    Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
-    Session.ExecuteEvent(ceItemsValid, Database, Self);
+    Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
+    Session.ExecuteEvent(etItemsValid, Database, Self);
   end;
   if (Database.Valid and SessionEvents) then
-    Session.ExecuteEvent(ceItemValid, Session, Session.Databases, Database);
+    Session.ExecuteEvent(etItemValid, Session, Session.Databases, Database);
 end;
 
 procedure TSTriggers.Delete(const AEntity: TSEntity);
@@ -6283,7 +6280,7 @@ begin
   begin
     TList(Self).Delete(Index);
 
-    Session.ExecuteEvent(ceItemDropped, Database, Self, AEntity);
+    Session.ExecuteEvent(etItemDropped, Database, Self, AEntity);
 
     AEntity.Free();
   end;
@@ -6464,8 +6461,8 @@ begin
 
   if (Valid) then
   begin
-    Session.ExecuteEvent(ceItemsValid, Session.Databases);
-    Session.ExecuteEvent(ceItemValid, Database, Events, Self);
+    Session.ExecuteEvent(etItemsValid, Session.Databases);
+    Session.ExecuteEvent(etItemValid, Database, Events, Self);
   end;
 end;
 
@@ -6557,7 +6554,7 @@ begin
         if (Copy(Event[Index].Stmt, Length(Event[Index].Stmt), 1) <> ';') then Event[Index].Stmt := Event[Index].Stmt + ';';
 
         if (Filtered and SessionEvents) then
-          Session.ExecuteEvent(ceItemsValid, Database, Self, Event[Index]);
+          Session.ExecuteEvent(etItemsValid, Database, Self, Event[Index]);
       end;
     until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('EVENT_SCHEMA').AsString, Database.Name) <> 0));
 
@@ -6575,11 +6572,11 @@ begin
 
   if (not Filtered and SessionEvents) then
   begin
-    Session.ExecuteEvent(ceItemsValid, Session, Session.Databases);
-    Session.ExecuteEvent(ceItemsValid, Database, Self);
+    Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
+    Session.ExecuteEvent(etItemsValid, Database, Self);
   end;
   if (Database.Valid and SessionEvents) then
-    Session.ExecuteEvent(ceItemValid, Session, Session.Databases, Database);
+    Session.ExecuteEvent(etItemValid, Session, Session.Databases, Database);
 end;
 
 function TSEvents.GetEvent(Index: Integer): TSEvent;
@@ -7168,11 +7165,11 @@ end;
 
 procedure TSDatabase.PushBuildEvents();
 begin
-  Session.ExecuteEvent(ceItemsValid, Self, Tables);
+  Session.ExecuteEvent(etItemsValid, Self, Tables);
   if (Assigned(Routines)) then
-    Session.ExecuteEvent(ceItemsValid, Self, Routines);
+    Session.ExecuteEvent(etItemsValid, Self, Routines);
   if (Assigned(Events)) then
-    Session.ExecuteEvent(ceItemsValid, Self, Events);
+    Session.ExecuteEvent(etItemsValid, Self, Events);
 end;
 
 function TSDatabase.RenameTable(const Table: TSTable; const NewTableName: string): Boolean;
@@ -7244,7 +7241,7 @@ begin
   SetSource(ADataSet.FieldByName('Create Database'));
 
   if (Valid) then
-    Session.ExecuteEvent(ceItemValid, Session, Databases, Self);
+    Session.ExecuteEvent(etItemValid, Session, Databases, Self);
 end;
 
 function TSDatabase.SQLAlterTable(const Table, NewTable: TSBaseTable; const EncloseFields: Boolean): string;
@@ -8157,7 +8154,7 @@ begin
         end;
 
         if (Filtered and SessionEvents) then
-          Session.ExecuteEvent(ceItemValid, Session, Self, Database[Index]);
+          Session.ExecuteEvent(etItemValid, Session, Self, Database[Index]);
       end;
     until (not DataSet.FindNext());
   end
@@ -8181,8 +8178,8 @@ begin
       else
         Add(TSDatabase.Create(Session, Name));
 
-      if (SessionEvents) then
-        Session.ExecuteEvent(ceItemValid, Session, Self, Database[Index]);
+      if (Filtered and SessionEvents) then
+        Session.ExecuteEvent(etItemValid, Session, Self, Database[Index]);
     end;
   end;
 
@@ -8199,7 +8196,7 @@ begin
   DeleteList.Free();
 
   if (not Filtered and SessionEvents) then
-    Session.ExecuteEvent(ceItemsValid, Session, Self);
+    Session.ExecuteEvent(etItemsValid, Session, Self);
 end;
 
 procedure TSDatabases.Delete(const AEntity: TSEntity);
@@ -8235,7 +8232,7 @@ begin
   if (Index >= 0) then
     Delete(Index);
 
-  Session.ExecuteEvent(ceItemDropped, Session, Self, AEntity);
+  Session.ExecuteEvent(etItemDropped, Session, Self, AEntity);
 
   AEntity.Free();
 end;
@@ -8378,8 +8375,9 @@ begin
         Variable[Index].Value := DataSet.FieldByName('Value').AsString
       else
         Variable[Index].Value := DataSet.FieldByName('VARIABLE_VALUE').AsString;
-      if (Filtered) then
-        Session.ExecuteEvent(ceItemValid, Session, Self, Variable[Index]);
+
+      if (Filtered and SessionEvents) then
+        Session.ExecuteEvent(etItemValid, Session, Self, Variable[Index]);
     until (not DataSet.FindNext());
 
   Result := inherited;
@@ -8427,8 +8425,8 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered) then
-    Session.ExecuteEvent(ceItemsValid, Session, Self);
+  if (not Filtered and SessionEvents) then
+    Session.ExecuteEvent(etItemsValid, Session, Self);
 end;
 
 function TSVariables.GetVariable(Index: Integer): TSVariable;
@@ -8489,8 +8487,8 @@ begin
       else
         Status[Index].Value := DataSet.FieldByName('VARIABLE_VALUE').AsString;
 
-      if (Filtered) then
-        Session.ExecuteEvent(ceItemValid, Session, Self, Status[Index]);
+      if (Filtered and SessionEvents) then
+        Session.ExecuteEvent(etItemValid, Session, Self, Status[Index]);
     until (not DataSet.FindNext());
 
   if (Assigned(Session.StatusByName('Uptime'))) then
@@ -8516,8 +8514,8 @@ begin
     end;
   DeleteList.Free();
 
-  if (not Filtered) then
-    Session.ExecuteEvent(ceItemsValid, Session, Self);
+  if (not Filtered and SessionEvents) then
+    Session.ExecuteEvent(etItemsValid, Session, Self);
 end;
 
 function TSStati.GetStatus(Index: Integer): TSStatus;
@@ -8728,10 +8726,7 @@ var
   DeleteList: TList;
   Index: Integer;
   Name: string;
-  OldCount: Integer;
 begin
-  OldCount := Count;
-
   DeleteList := TList.Create();
   DeleteList.Assign(Self);
 
@@ -8752,6 +8747,9 @@ begin
 
       if (UseInformationSchema) then
         Plugin[Index].FComment := DataSet.FieldByName('PLUGIN_DESCRIPTION').AsString;
+
+      if (Filtered and SessionEvents) then
+        Session.ExecuteEvent(etItemValid, Session, Self, Plugin[Index]);
     until (not DataSet.FindNext());
 
   Result := inherited;
@@ -8766,8 +8764,8 @@ begin
     end;
   DeleteList.Free();
 
-  if ((OldCount > 0) or (Count > 0)) then
-    Session.ExecuteEvent(ceItemsValid, Session, Self);
+  if (not Filtered and SessionEvents) then
+    Session.ExecuteEvent(etItemsValid, Session, Self);
 end;
 
 function TSPlugins.GetPlugin(Index: Integer): TSPlugin;
@@ -9183,7 +9181,7 @@ begin
       end;
 
       if (not Filtered) then
-        Session.ExecuteEvent(ceItemValid, Session, Self, Process[Index]);
+        Session.ExecuteEvent(etItemValid, Session, Self, Process[Index]);
     until (not DataSet.FindNext());
 
   Result := inherited;
@@ -9199,14 +9197,14 @@ begin
   DeleteList.Free();
 
   if (not Filtered) then
-    Session.ExecuteEvent(ceItemsValid, Session, Self);
+    Session.ExecuteEvent(etItemsValid, Session, Self);
 end;
 
 procedure TSProcesses.Delete(const AEntity: TSEntity);
 begin
   inherited;
 
-  Session.ExecuteEvent(ceItemDropped, Session, Self, AEntity);
+  Session.ExecuteEvent(etItemDropped, Session, Self, AEntity);
 end;
 
 function TSProcesses.GetProcess(Index: Integer): TSProcess;
@@ -9729,8 +9727,8 @@ begin
 
     if (Valid) then
     begin
-      Session.ExecuteEvent(ceItemsValid, Session, Session.Users);
-      Session.ExecuteEvent(ceItemValid, Session, Users, Self);
+      Session.ExecuteEvent(etItemsValid, Session, Session.Users);
+      Session.ExecuteEvent(etItemValid, Session, Users, Self);
     end;
   end;
 end;
@@ -9776,11 +9774,8 @@ var
   DeleteList: TList;
   Index: Integer;
   Name: string;
-  OldCount: Integer;
   Parse: TSQLParse;
 begin
-  OldCount := Count;
-
   DeleteList := TList.Create();
   DeleteList.Assign(Self);
 
@@ -9801,8 +9796,8 @@ begin
       else if (DeleteList.IndexOf(Items[Index]) >= 0) then
         DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
 
-      if (Filtered) then
-        Session.ExecuteEvent(ceItemValid, Session, Self, User[Index]);
+      if (Filtered and SessionEvents) then
+        Session.ExecuteEvent(etItemValid, Session, Self, User[Index]);
     until (not DataSet.FindNext());
 
   Result := inherited or (Session.ErrorCode = ER_DBACCESS_DENIED_ERROR) or (Session.ErrorCode = ER_TABLEACCESS_DENIED_ERROR);
@@ -9819,8 +9814,8 @@ begin
     end;
   DeleteList.Free();
 
-  if ((OldCount > 0) or (Count > 0)) then
-    Session.ExecuteEvent(ceItemsValid, Session, Self);
+  if (not Filtered and SessionEvents) then
+    Session.ExecuteEvent(etItemsValid, Session, Self);
 end;
 
 function TSUsers.GetUser(Index: Integer): TSUser;
@@ -9859,7 +9854,6 @@ function Compare(Item1, Item2: Pointer): Integer;
 
   function ClassOrder(const Item: TObject): Integer;
   begin
-    Result := -1;
     if (Item is TSVariables) then Result := 0
     else if (Item is TSStati) then Result := 1
     else if (Item is TSCharsets) then Result := 2
@@ -9882,8 +9876,9 @@ function Compare(Item1, Item2: Pointer): Integer;
     else if (Item is TSPlugin) then Result := 19
     else if (Item is TSProcess) then Result := 20
     else if (Item is TSUser) then Result := 21
-    else ERangeError.Create(SRangeError);
+    else Result := -1;
   end;
+
 begin
   Result := Sign(ClassOrder(TObject(Item1)) - ClassOrder(TObject(Item2)));
   if ((Result = 0) and (TObject(Item1) is TSDBObject)) then
@@ -9937,7 +9932,7 @@ begin
     if (Assigned(Databases[I].Events)) then
       Databases[I].Events.FValid := True;
 
-  ExecuteEvent(ceItemsValid, Self, Databases);
+  ExecuteEvent(etItemsValid, Self, Databases);
 
   Result := False;
 end;
@@ -9960,7 +9955,7 @@ begin
     if (Assigned(Databases[I].Routines)) then
       Databases[I].Routines.FValid := True;
 
-  ExecuteEvent(ceItemsValid, Self, Databases);
+  ExecuteEvent(etItemsValid, Self, Databases);
 
   Result := False;
 end;
@@ -9982,7 +9977,7 @@ begin
   for I := 0 to Databases.Count - 1 do
     Databases[I].Tables.FValid := True;
 
-  ExecuteEvent(ceItemsValid, Self, Databases);
+  ExecuteEvent(etItemsValid, Self, Databases);
 
   Result := False;
 end;
@@ -10005,7 +10000,7 @@ begin
     if (Assigned(Databases[I].Triggers)) then
       Databases[I].Triggers.FValid := True;
 
-  ExecuteEvent(ceItemsValid, Self, Databases);
+  ExecuteEvent(etItemsValid, Self, Databases);
 
   Result := False;
 end;
@@ -10044,8 +10039,7 @@ begin
   if (not Assigned(Processes) and ((ServerVersion < 50000) or not Assigned(UserRights) or UserRights.RProcess)) then
     FProcesses := TSProcesses.Create(Self);
 
-  if (Valid) then
-    ExecuteEvent(ceItemValid, Self, Users, User);
+  ExecuteEvent(etItemValid, Self, Users, User);
 end;
 
 procedure TSSession.ConnectChange(Sender: TObject; Connecting: Boolean);
@@ -10499,12 +10493,12 @@ procedure TSSession.DoAfterExecuteSQL();
 begin
   inherited;
 
-  ExecuteEvent(ceAfterExecuteSQL);
+  ExecuteEvent(etAfterExecuteSQL);
 end;
 
 procedure TSSession.DoBeforeExecuteSQL();
 begin
-  ExecuteEvent(ceBeforeExecuteSQL);
+  ExecuteEvent(etBeforeExecuteSQL);
 
   inherited;
 end;
@@ -10828,7 +10822,7 @@ begin
       else
         Result := SQL + #13#10 + Result;
       if (not Assigned(User)) then
-        Result := '# ' + MySQLDB.DateTimeToStr(DataSet.FieldByName('start_time').AsDateTime, FormatSettings) + ', ' + Preferences.LoadStr(829) + ': ' + IntToStr(Seconds) + ', ' + ReplaceStr(Preferences.LoadStr(561), '&', '') + ': ' + Copy(DataSet.FieldByName('user_host').AsString, 1, Pos('[', DataSet.FieldByName('user_host').AsString) - 1) + #13#10 + Result
+        Result := '# ' + MySQLDB.DateTimeToStr(DataSet.FieldByName('start_time').AsDateTime, FormatSettings) + ', ' + Preferences.LoadStr(829) + ': ' + IntToStr(Seconds) + ', ' + Preferences.LoadStr(561) + ': ' + Copy(DataSet.FieldByName('user_host').AsString, 1, Pos('[', DataSet.FieldByName('user_host').AsString) - 1) + #13#10 + Result
       else
         Result := '# ' + MySQLDB.DateTimeToStr(DataSet.FieldByName('start_time').AsDateTime, FormatSettings) + ', ' + Preferences.LoadStr(829) + ': ' + IntToStr(Seconds) + #13#10 + Result;
     until (not DataSet.FindNext());
@@ -10877,7 +10871,7 @@ begin
       else
         Result := SQL + #13#10 + Result;
       if (not Assigned(User)) then
-        Result := '# ' + MySQLDB.DateTimeToStr(DataSet.FieldByName('event_time').AsDateTime, FormatSettings) + ', ' + ReplaceStr(Preferences.LoadStr(561), '&', '') + ': ' + Copy(DataSet.FieldByName('user_host').AsString, 1, Pos('[', DataSet.FieldByName('user_host').AsString) - 1) + #13#10 + Result
+        Result := '# ' + MySQLDB.DateTimeToStr(DataSet.FieldByName('event_time').AsDateTime, FormatSettings) + ', ' + Preferences.LoadStr(561) + ': ' + Copy(DataSet.FieldByName('user_host').AsString, 1, Pos('[', DataSet.FieldByName('user_host').AsString) - 1) + #13#10 + Result
       else if (Assigned(SQLMonitor) and (ttTime in SQLMonitor.TraceTypes)) then
         Result := '# ' + MySQLDB.DateTimeToStr(DataSet.FieldByName('event_time').AsDateTime, FormatSettings) + #13#10 + Result;
     until (not DataSet.FindNext());
@@ -10893,8 +10887,14 @@ begin
 end;
 
 function TSSession.GetValid(): Boolean;
+var
+  I: Integer;
 begin
-  Result := (FCurrentUser <> '') and Assigned(FUser);
+  Result := (FCurrentUser <> '') and Assigned(FUser)
+    and Variables.Valid and Stati.Valid and Engines.Valid and Charsets.Valid and (not Assigned(Collations) or Collations.Valid) and Users.Valid
+    and Databases.Valid;
+  for I := 0 to Databases.Count - 1 do
+    Result := Result and (Databases[I].Valid);
 end;
 
 procedure TSSession.GridCanEditShow(Sender: TObject);
@@ -10952,7 +10952,7 @@ end;
 
 procedure TSSession.MonitorLog(const Sender: TObject; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
 begin
-  ExecuteEvent(ceMonitor);
+  ExecuteEvent(etMonitor);
 end;
 
 procedure TSSession.MonitorExecutedStmts(const Sender: TObject; const Text: PChar; const Len: Integer; const ATraceType: TMySQLMonitor.TTraceType);
@@ -10987,7 +10987,7 @@ begin
         case (DDLStmt.DefinitionType) of
           dtCreate:
             if (Assigned(DatabaseByName(DDLStmt.ObjectName))) then
-              ExecuteEvent(ceItemAltered, Self, Databases, DatabaseByName(DDLStmt.ObjectName))
+              ExecuteEvent(etItemAltered, Self, Databases, DatabaseByName(DDLStmt.ObjectName))
             else
               Databases.Add(TSDatabase.Create(Self, DDLStmt.ObjectName), True);
           dtRename,
@@ -10997,7 +10997,7 @@ begin
               if (Assigned(Database) and Database.Valid or Database.ValidSource or Database.ValidSources) then
               begin
                 Database.Invalidate();
-                ExecuteEvent(ceItemAltered, Self, Databases, Database);
+                ExecuteEvent(etItemAltered, Self, Databases, Database);
               end;
             end;
           dtDrop:
@@ -11021,7 +11021,7 @@ begin
               case (DDLStmt.DefinitionType) of
                 dtCreate:
                   if (Assigned(Database.TableByName(DDLStmt.ObjectName))) then
-                    ExecuteEvent(ceItemAltered, Database, Database.Tables, Database.TableByName(DDLStmt.ObjectName))
+                    ExecuteEvent(etItemAltered, Database, Database.Tables, Database.TableByName(DDLStmt.ObjectName))
                   else if (DDLStmt.ObjectType = otTable) then
                     Database.Tables.Add(TSBaseTable.Create(Database.Tables, DDLStmt.ObjectName), True)
                   else
@@ -11041,13 +11041,13 @@ begin
                         if (Assigned(Table)) then
                         begin
                           if (DDLStmt.NewDatabaseName <> DatabaseName) then
-                            ExecuteEvent(ceItemDropped, Table.Database, Table.Tables, Table);
+                            ExecuteEvent(etItemDropped, Table.Database, Table.Tables, Table);
                           Table.SetDatabase(DatabaseByName(DDLStmt.NewDatabaseName));
                           Table.Name := DDLStmt.NewObjectName;
                           if (DDLStmt.NewDatabaseName <> DatabaseName) then
-                            ExecuteEvent(ceItemDropped, Table.Database, Table.Tables, Table)
+                            ExecuteEvent(etItemDropped, Table.Database, Table.Tables, Table)
                           else
-                            ExecuteEvent(ceItemAltered, Database, Database.Tables, Table);
+                            ExecuteEvent(etItemAltered, Database, Database.Tables, Table);
                         end;
                       end;
                     end;
@@ -11061,26 +11061,26 @@ begin
                       if (DDLStmt.DefinitionType = dtAlterRename) then
                       begin
                         if (Databases.NameCmp(DDLStmt.NewDatabaseName, Database.Name) <> 0) then
-                          ExecuteEvent(ceItemDropped, Table.Database, Table.Tables, Table);
+                          ExecuteEvent(etItemDropped, Table.Database, Table.Tables, Table);
                         Table.SetDatabase(Database);
                         Table.Name := DDLStmt.NewObjectName;
                         if (Databases.NameCmp(DDLStmt.NewDatabaseName, Database.Name) <> 0) then
-                          ExecuteEvent(ceItemDropped, Table.Database, Table.Tables, Table)
+                          ExecuteEvent(etItemDropped, Table.Database, Table.Tables, Table)
                         else
-                          ExecuteEvent(ceItemAltered, Database, Database.Tables, Table);
+                          ExecuteEvent(etItemAltered, Database, Database.Tables, Table);
                       end;
 
                       if ((Table.Database <> Database) and Table.Database.Valid) then
                       begin
                         Table.Database.Invalidate();
-                        ExecuteEvent(ceItemAltered, Database, Database.Tables, Table);
+                        ExecuteEvent(etItemAltered, Database, Database.Tables, Table);
                       end
                       else if (Table.ValidSource
                         or (Table is TSBaseTable) and TSBaseTable(Table).ValidStatus
                         or (Table is TSView) and TSView(Table).Valid) then
                       begin
                         Table.Invalidate();
-                        ExecuteEvent(ceItemAltered, Database, Database.Tables, Table);
+                        ExecuteEvent(etItemAltered, Database, Database.Tables, Table);
                       end;
                     end;
                   end;
@@ -11128,7 +11128,7 @@ begin
                     if (Routine.ValidSource) then
                     begin
                       Routine.Invalidate();
-                      ExecuteEvent(ceItemAltered, Database, Database.Routines, Routine);
+                      ExecuteEvent(etItemAltered, Database, Database.Routines, Routine);
                     end;
                   end;
                 dtDrop:
@@ -11207,24 +11207,24 @@ begin
                     if (DDLStmt.DefinitionType = dtAlterRename) then
                     begin
                       if (Databases.NameCmp(DDLStmt.NewDatabaseName, Database.Name) <> 0) then
-                        ExecuteEvent(ceItemDropped, Event.Database, Event.Events, Event);
+                        ExecuteEvent(etItemDropped, Event.Database, Event.Events, Event);
                       Event.SetDatabase(DatabaseByName(DDLStmt.NewDatabaseName));
                       Event.Name := DDLStmt.NewObjectName;
                       if (Databases.NameCmp(DDLStmt.NewDatabaseName, Database.Name) <> 0) then
-                        ExecuteEvent(ceItemDropped, Event.Database, Event.Events, Event)
+                        ExecuteEvent(etItemDropped, Event.Database, Event.Events, Event)
                       else
-                        ExecuteEvent(ceItemAltered, Database, Database.Events, Event);
+                        ExecuteEvent(etItemAltered, Database, Database.Events, Event);
                     end;
 
                     if ((Event.Database <> Database) and Event.Database.Valid) then
                     begin
                       Event.Database.Invalidate();
-                      ExecuteEvent(ceItemAltered, Database, Database.Events, Event);
+                      ExecuteEvent(etItemAltered, Database, Database.Events, Event);
                     end
                     else if (Event.ValidSource) then
                     begin
                       Event.Invalidate();
-                      ExecuteEvent(ceItemAltered, Database, Database.Events, Event);
+                      ExecuteEvent(etItemAltered, Database, Database.Events, Event);
                     end;
                   end;
                 dtDrop:
@@ -11251,7 +11251,7 @@ begin
             begin
               TSBaseTable(Table).InvalidateStatus();
               TSBaseTable(Table).InvalidateData();
-              ExecuteEvent(ceItemValid, Database, Database.Tables, Table);
+              ExecuteEvent(etItemValid, Database, Database.Tables, Table);
             end;
           end;
         end;
@@ -11266,7 +11266,7 @@ begin
           if (Assigned(Variable) and SQLParseChar(Parse, '=')) then
           begin
             Variable.FValue := SQLParseValue(Parse);
-            ExecuteEvent(ceItemAltered, Self, Variables, Variable);
+            ExecuteEvent(etItemAltered, Self, Variables, Variable);
           end;
         end
         else
@@ -11283,7 +11283,7 @@ begin
             if (Assigned(Variable) and SQLParseChar(Parse, '=')) then
             begin
               Variable.FValue := SQLParseValue(Parse);
-              ExecuteEvent(ceItemAltered, Self, Variables, Variable);
+              ExecuteEvent(etItemAltered, Self, Variables, Variable);
             end;
           end;
         end;
@@ -11305,7 +11305,7 @@ begin
               if (Assigned(Table)) then
               begin
                 TSBaseTable(Table).InvalidateStatus();
-                ExecuteEvent(ceItemValid, Database, Database.Tables, Table);
+                ExecuteEvent(etItemValid, Database, Database.Tables, Table);
               end;
             end;
           end;
@@ -11325,7 +11325,7 @@ begin
           begin
             TSBaseTable(Table).InvalidateStatus();
             TSBaseTable(Table).InvalidateData();
-            ExecuteEvent(ceItemValid, Database, Database.Tables, Table);
+            ExecuteEvent(etItemValid, Database, Database.Tables, Table);
           end;
         end;
       end;
@@ -11347,7 +11347,7 @@ begin
           if (Assigned(User)) then
           begin
             User.Name := ObjectName;
-            ExecuteEvent(ceItemAltered, Self, Users, User);
+            ExecuteEvent(etItemAltered, Self, Users, User);
           end;
         end;
       until (not SQLParseChar(Parse, ','))
@@ -11362,7 +11362,7 @@ begin
             if (Assigned(User)) then
             begin
               User.Invalidate();
-              ExecuteEvent(ceItemAltered, Self, Users, User);
+              ExecuteEvent(etItemAltered, Self, Users, User);
             end;
             while (not SQLParseChar(Parse, ';') and not SQLParseEnd(Parse) and not SQLParseKeyword(Parse, 'REQUIRE', False) and not SQLParseKeyword(Parse, 'WITH', False) and not SQLParseChar(Parse, ',', False)) do
               SQLParseValue(Parse);
@@ -11379,7 +11379,7 @@ begin
             if (Assigned(User)) then
             begin
               User.Invalidate();
-              ExecuteEvent(ceItemAltered, Self, Users, User);
+              ExecuteEvent(etItemAltered, Self, Users, User);
             end;
           until (not SQLParseChar(Parse, ','));
       end
@@ -11593,7 +11593,7 @@ begin
             begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).TableByName(ObjectName).SetSource(DataSet); end;
       end
       else if (SQLParseKeyword(Parse, 'DATABASES')) then
-        Result := Databases.Build(DataSet, False, not SQLParseEnd(Parse))
+        Result := Databases.Build(DataSet, False, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
       else if (SQLParseKeyword(Parse, 'ENGINES')) then
         Result := Engines.Build(DataSet, False, not SQLParseEnd(Parse))
       else if (SQLParseKeyword(Parse, 'EVENTS')) then
@@ -11653,7 +11653,7 @@ begin
           DatabaseName := Self.DatabaseName
         else
           DatabaseName := SQLParseValue(Parse);
-        Result := DatabaseByName(DatabaseName).Tables.Build(DataSet, False, not SQLParseEnd(Parse));
+        Result := DatabaseByName(DatabaseName).Tables.Build(DataSet, False,not SQLParseChar(Parse, ';') and not SQLParseEnd(Parse));
       end
       else if (SQLParseKeyword(Parse, 'TRIGGERS')) then
       begin
@@ -11661,7 +11661,7 @@ begin
           DatabaseName := Self.DatabaseName
         else
           DatabaseName := SQLParseValue(Parse);
-        Result := DatabaseByName(DatabaseName).Triggers.Build(DataSet, False, not SQLParseEnd(Parse));
+        Result := DatabaseByName(DatabaseName).Triggers.Build(DataSet, False, not SQLParseChar(Parse, ';') and not SQLParseEnd(Parse));
       end
       else
         raise EConvertError.CreateFmt(SUnknownSQLStmt, [CommandText]);
@@ -11864,11 +11864,11 @@ end;
 
 function TSSession.Update(): Boolean;
 var
-  Objects: TList;
+  List: TList;
 begin
-  Objects := TList.Create();
-  Result := Update(Objects);
-  Objects.Free();
+  List := TList.Create();
+  Result := Update(List);
+  List.Free();
 end;
 
 function TSSession.Update(const Objects: TList; const Status: Boolean = False): Boolean;
@@ -11975,12 +11975,12 @@ begin
         SQL := SQL + TSDatabase(List[I]).Tables.SQLGetStatus(TSDatabase(List[I]).Tables);
     end;
 
-  if (not Databases.Valid and (Objects.Count = 0) and (ServerVersion > 50002)) then
+  if (not Valid and (Objects.Count = 0) and (ServerVersion > 50002)) then
   begin
-    if (ServerVersion >= 50004) then SQL := SQL + 'SELECT * FROM `information_schema`.`ROUTINES`;' + #13#10;
-    if (ServerVersion >= 50010) then SQL := SQL + 'SELECT * FROM `information_schema`.`TRIGGERS`;' + #13#10;
-    if (ServerVersion >= 50106) then SQL := SQL + 'SELECT * FROM `information_schema`.`EVENTS`;' + #13#10;
     SQL := SQL + 'SELECT * FROM `information_schema`.`TABLES`;' + #13#10;
+    if (ServerVersion >= 50010) then SQL := SQL + 'SELECT * FROM `information_schema`.`TRIGGERS`;' + #13#10;
+    if (ServerVersion >= 50004) then SQL := SQL + 'SELECT * FROM `information_schema`.`ROUTINES`;' + #13#10;
+    if (ServerVersion >= 50106) then SQL := SQL + 'SELECT * FROM `information_schema`.`EVENTS`;' + #13#10;
   end;
 
 

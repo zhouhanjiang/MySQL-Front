@@ -143,7 +143,7 @@ begin
   GSize.Caption := Preferences.LoadStr(125);
   FLSize.Caption := Preferences.LoadStr(67) + ':';
 
-  TSExtras.Caption := ReplaceStr(Preferences.LoadStr(73), '&', '');
+  TSExtras.Caption := Preferences.LoadStr(73);
   GOptimize.Caption := Preferences.LoadStr(171);
   FLUnusedSize.Caption := Preferences.LoadStr(128) + ':';
   FBOptimize.Caption := Preferences.LoadStr(130);
@@ -309,14 +309,14 @@ end;
 
 procedure TDDatabase.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = ceItemValid) and (Event.SItem = Database)) then
+  if ((Event.EventType = etItemValid) and (Event.SItem = Database)) then
     if (not PageControl.Visible) then
       Built()
     else
       TSExtrasShow(nil)
-  else if ((Event.EventType in [ceItemCreated, ceItemAltered]) and (Event.SItem is TSDatabase)) then
+  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is TSDatabase)) then
     ModalResult := mrOk
-  else if ((Event.EventType = ceAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
+  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
   begin
     PageControl.Visible := True;
     PSQLWait.Visible := not PageControl.Visible;
