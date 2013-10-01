@@ -5,7 +5,7 @@ object DAccount: TDAccount
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'DAccount'
-  ClientHeight = 370
+  ClientHeight = 362
   ClientWidth = 313
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -22,7 +22,7 @@ object DAccount: TDAccount
   TextHeight = 13
   object FBOk: TButton
     Left = 142
-    Top = 336
+    Top = 328
     Width = 75
     Height = 25
     Caption = 'FBOk'
@@ -32,7 +32,7 @@ object DAccount: TDAccount
   end
   object FBCancel: TButton
     Left = 230
-    Top = 336
+    Top = 328
     Width = 75
     Height = 25
     Cancel = True
@@ -177,12 +177,12 @@ object DAccount: TDAccount
     Left = 8
     Top = 191
     Width = 297
-    Height = 125
+    Height = 117
     Caption = 'GLogin'
     TabOrder = 0
     object FLDatabase: TLabel
       Left = 8
-      Top = 95
+      Top = 87
       Width = 58
       Height = 13
       Caption = 'FLDatabase'
@@ -206,7 +206,7 @@ object DAccount: TDAccount
     end
     object FDatabase: TEdit
       Left = 128
-      Top = 92
+      Top = 84
       Width = 137
       Height = 21
       TabOrder = 2
@@ -235,7 +235,7 @@ object DAccount: TDAccount
     end
     object FBDatabase: TButton
       Left = 266
-      Top = 92
+      Top = 84
       Width = 21
       Height = 21
       Caption = #183#183#183
@@ -245,7 +245,7 @@ object DAccount: TDAccount
   end
   object FBHelp: TButton
     Left = 8
-    Top = 336
+    Top = 328
     Width = 75
     Height = 25
     Caption = 'FBHelp'

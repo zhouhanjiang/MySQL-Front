@@ -61,7 +61,7 @@ object DImport: TDImport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSExecute
+    ActivePage = TSFields
     Style = tsButtons
     TabOrder = 0
     TabStop = False
@@ -669,10 +669,6 @@ object DImport: TDImport
       Caption = 'TSFields'
       TabVisible = False
       OnShow = TSFieldsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GFields: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -744,70 +740,10 @@ object DImport: TDImport
         end
       end
     end
-    object TSStmtType: TTabSheet
-      Caption = 'TSStmtType'
-      TabVisible = False
-      OnShow = TSStmtTypeShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
-      object GImportType: TGroupBox_Ext
-        Left = 4
-        Top = 0
-        Width = 325
-        Height = 121
-        Caption = 'GImportType'
-        TabOrder = 0
-        object FLStmtType: TLabel
-          Left = 8
-          Top = 24
-          Width = 57
-          Height = 13
-          Caption = 'FLStmtType'
-        end
-        object FInsert: TRadioButton
-          Left = 128
-          Top = 24
-          Width = 193
-          Height = 17
-          Caption = 'FInsert'
-          Checked = True
-          TabOrder = 0
-          TabStop = True
-          OnClick = FStmtTypeClick
-          OnKeyPress = FStmtTypeKeyPress
-        end
-        object FReplace: TRadioButton
-          Left = 128
-          Top = 56
-          Width = 193
-          Height = 17
-          Caption = 'FReplace'
-          TabOrder = 1
-          OnClick = FStmtTypeClick
-          OnKeyPress = FStmtTypeKeyPress
-        end
-        object FUpdate: TRadioButton
-          Left = 128
-          Top = 88
-          Width = 193
-          Height = 17
-          Caption = 'FUpdate'
-          TabOrder = 2
-          OnClick = FStmtTypeClick
-          OnKeyPress = FStmtTypeKeyPress
-        end
-      end
-    end
     object TSTask: TTabSheet
       Caption = 'TSTask'
       TabVisible = False
       OnShow = TSTaskShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -907,10 +843,6 @@ object DImport: TDImport
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GErrorMessages: TGroupBox_Ext
         Left = 4
         Top = 176

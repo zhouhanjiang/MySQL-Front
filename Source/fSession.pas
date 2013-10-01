@@ -937,7 +937,9 @@ type
     function GetCollation(): string;
     function GetCount(): Integer;
     function GetDatabases(): TSDatabases; inline;
-    function GetSize(): Int64;
+    function GetDataSize(): Int64;
+    function GetIndexSize(): Int64;
+    function GetMaxDataSize(): Int64;
     function GetUpdated(): TDateTime;
     function GetValidSources(): Boolean;
     procedure ParseCreateDatabase(const SQL: string);
@@ -994,15 +996,17 @@ type
     function UpdateTrigger(const Trigger, NewTrigger: TSTrigger): Boolean; virtual;
     function UpdateView(const View, NewView: TSView): Boolean; virtual;
     function ViewByName(const TableName: string): TSView; overload; virtual;
+    property Collation: string read GetCollation write FCollation;
+    property Count: Integer read GetCount;
+    property Created: TDateTime read GetCreated;
+    property DataSize: Int64 read GetDataSize;
     property DefaultCharset: string read GetDefaultCharset write SetDefaultCharset;
     property DefaultCodePage: Cardinal read FDefaultCodePage;
-    property Count: Integer read GetCount;
-    property Collation: string read GetCollation write FCollation;
-    property Created: TDateTime read GetCreated;
     property Databases: TSDatabases read GetDatabases;
     property Events: TSEvents read FEvents;
+    property IndexSize: Int64 read GetIndexSize;
+    property MaxDataSize: Int64 read GetMaxDataSize;
     property Routines: TSRoutines read FRoutines;
-    property Size: Int64 read GetSize;
     property Tables: TSTables read FTables;
     property Triggers: TSTriggers read FTriggers;
     property Updated: TDateTime read GetUpdated;
@@ -6983,31 +6987,52 @@ begin
   Result := FDefaultCharset;
 end;
 
-function TSDatabase.GetSize(): Int64;
+function TSDatabase.GetDataSize(): Int64;
 // Result in Byte
 var
   I: Integer;
 begin
-  if (Tables.Valid or Assigned(Routines) and Routines.Valid or Assigned(Events) and Events.Valid) then
+  if (not Tables.Valid) then
+    Result := -1
+  else
   begin
     Result := 0;
     for I := 0 to Tables.Count - 1 do
       if ((Tables[I] is TSBaseTable) and TSBaseTable(Tables[I]).ValidStatus) then
-        Inc(Result, TSBaseTable(Tables[I]).DataSize + TSBaseTable(Tables[I]).IndexSize + TSBaseTable(Tables[I]).UnusedSize)
-      else if ((Tables[I] is TSView) and TSBaseTable(Tables[I]).Valid) then
-        Inc(Result, SizeOf(TSView(Tables[I]).Source));
-    if (Assigned(Routines)) then
-      for I := 0 to Routines.Count - 1 do
-        Inc(Result, SizeOf(Routines[I].Source));
-    if (Assigned(Triggers)) then
-      for I := 0 to Triggers.Count - 1 do
-        Inc(Result, SizeOf(Triggers[I].Source));
-    if (Assigned(Events)) then
-      for I := 0 to Triggers.Count - 1 do
-        Inc(Result, SizeOf(Events[I].Source));
-  end
+        Inc(Result, TSBaseTable(Tables[I]).DataSize);
+  end;
+end;
+
+function TSDatabase.GetIndexSize(): Int64;
+// Result in Byte
+var
+  I: Integer;
+begin
+  if (not Tables.Valid) then
+    Result := -1
   else
-    Result := -1;
+  begin
+    Result := 0;
+    for I := 0 to Tables.Count - 1 do
+      if ((Tables[I] is TSBaseTable) and TSBaseTable(Tables[I]).ValidStatus) then
+        Inc(Result, TSBaseTable(Tables[I]).IndexSize);
+  end;
+end;
+
+function TSDatabase.GetMaxDataSize(): Int64;
+// Result in Byte
+var
+  I: Integer;
+begin
+  if (not Tables.Valid) then
+    Result := -1
+  else
+  begin
+    Result := 0;
+    for I := 0 to Tables.Count - 1 do
+      if ((Tables[I] is TSBaseTable) and TSBaseTable(Tables[I]).ValidStatus) then
+        Inc(Result, TSBaseTable(Tables[I]).MaxDataSize);
+  end;
 end;
 
 function TSDatabase.GetSource(): string;
@@ -11498,7 +11523,7 @@ begin
           else if ((TableNameCmp(ObjectName, 'ROUTINES') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'ROUTINE_SCHEMA') and SQLParseChar(Parse, '=')) then
           begin
             Database := DatabaseByName(SQLParseValue(Parse));
-            Result := Database.Routines.Build(DataSet, True, not SQLParseEnd(Parse));
+            Result := Database.Routines.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'));
           end
           else if (TableNameCmp(ObjectName, 'SESSION_STATUS') = 0) then
             Result := Stati.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
@@ -11529,7 +11554,7 @@ begin
         begin
           DataSet.Open(DataHandle);
           if (TableNameCmp(ObjectName, 'user') = 0) then
-            Result := Users.Build(DataSet, False, not SQLParseEnd(Parse));
+            Result := Users.Build(DataSet, False, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'));
         end
         else if (DataHandle.Connection.ErrorCode = 0) then
         begin

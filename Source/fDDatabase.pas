@@ -20,17 +20,21 @@ type
     FCollation: TComboBox_Ext;
     FChecked: TLabel;
     FCreated: TLabel;
+    FDataSize: TLabel;
     FDefaultCharset: TComboBox_Ext;
+    FIndexSize: TLabel;
     FLChecked: TLabel;
     FLCollation: TLabel;
     FLCreated: TLabel;
+    FLDataSize: TLabel;
     FLDefaultCharset: TLabel;
+    FLIndexSize: TLabel;
+    FLMaxDataSize: TLabel;
     FLName: TLabel;
-    FLSize: TLabel;
     FLUnusedSize: TLabel;
     FLUpdated: TLabel;
+    FMaxDataSize: TLabel;
     FName: TEdit;
-    FSize: TLabel;
     FSource: TSynMemo;
     FUnusedSize: TLabel;
     FUpdated: TLabel;
@@ -141,7 +145,9 @@ begin
   FLCreated.Caption := Preferences.LoadStr(118) + ':';
   FLUpdated.Caption := Preferences.LoadStr(119) + ':';
   GSize.Caption := Preferences.LoadStr(125);
-  FLSize.Caption := Preferences.LoadStr(67) + ':';
+  FLIndexSize.Caption := Preferences.LoadStr(163) + ':';
+  FLDataSize.Caption := Preferences.LoadStr(127) + ':';
+  FLMaxDataSize.Caption := Preferences.LoadStr(844) + ':';
 
   TSExtras.Caption := Preferences.LoadStr(73);
   GOptimize.Caption := Preferences.LoadStr(171);
@@ -508,12 +514,16 @@ procedure TDDatabase.TSInformationsShow(Sender: TObject);
 begin
   FCreated.Caption := '???';
   FUpdated.Caption := '???';
-  FSize.Caption := '???';
+  FIndexSize.Caption := '???';
+  FDataSize.Caption := '???';
+  FUnusedSize.Caption := '???';
 
   if (Database.Created = 0) then FCreated.Caption := '???' else FCreated.Caption := SysUtils.DateTimeToStr(Database.Created, LocaleFormatSettings);
   if (Database.Updated = 0) then FUpdated.Caption := '???' else FUpdated.Caption := SysUtils.DateTimeToStr(Database.Updated, LocaleFormatSettings);
 
-  FSize.Caption := SizeToStr(Database.Size);
+  FIndexSize.Caption := SizeToStr(Database.DataSize);
+  FDataSize.Caption := SizeToStr(Database.IndexSize);
+  FMaxDataSize.Caption := SizeToStr(Database.MaxDataSize);
 end;
 
 procedure TDDatabase.TSSourceShow(Sender: TObject);

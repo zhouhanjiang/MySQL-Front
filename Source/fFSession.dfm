@@ -409,7 +409,6 @@ object FSession: TFSession
         Align = alClient
         BorderStyle = bsNone
         Columns = <>
-        DragMode = dmAutomatic
         HideSelection = False
         MultiSelect = True
         GroupView = True

@@ -163,7 +163,6 @@ type
 
   TTImport = class(TTool)
   type
-    TStmtType = (stInsert, stReplace, stUpdate);
     TItem = class(TTool.TItem)
     public
       SourceTableName: string;
@@ -200,7 +199,6 @@ type
     SourceFields: array of record
       Name: string;
     end;
-    StmtType: TStmtType;
     Structure: Boolean;
     procedure Add(const TableName: string; const SourceTableName: string = '');
     constructor Create(const ASession: TSSession; const ADatabase: TSDatabase);
@@ -902,15 +900,13 @@ begin
   Result := ReturnCode;
 end;
 
-function SQLLoadDataInfile(const Database: TSDatabase; const Replace: Boolean; const Filename, FileCharset, DatabaseName, TableName: string; const FieldNames: string): string;
+function SQLLoadDataInfile(const Database: TSDatabase; const Filename, FileCharset, DatabaseName, TableName: string; const FieldNames: string): string;
 var
   Session: TSSession;
 begin
   Session := Database.Session;
 
   Result := 'LOAD DATA LOCAL INFILE ' + SQLEscape(Filename) + #13#10;
-  if (Replace) then
-    Result := Result + '  REPLACE' + #13#10;
   Result := Result + '  INTO TABLE ' + Session.EscapeIdentifier(DatabaseName) + '.' + Session.EscapeIdentifier(TableName) + #13#10;
   if (((50038 <= Session.ServerVersion) and (Session.ServerVersion < 50100) or (50117 <= Session.ServerVersion)) and (FileCharset <> '')) then
     Result := Result + '  CHARACTER SET ' + FileCharset + #13#10;
@@ -1946,7 +1942,7 @@ begin
       else
         SQL := SQL + 'START TRANSACTION;' + #13#10;
 
-    if ((StmtType <> stUpdate) and Session.DataFileAllowed and not Suspended) then
+    if (Session.DataFileAllowed and not Suspended) then
     begin
       Pipename := '\\.\pipe\' + LoadStr(1000);
       Pipe := CreateNamedPipe(PChar(Pipename),
@@ -1956,7 +1952,7 @@ begin
         DoError(SysError(), nil, False)
       else
       begin
-        SQL := SQL + SQLLoadDataInfile(Database, StmtType = stReplace, Pipename, Session.Charset, Database.Name, Table.Name, EscapedFieldNames);
+        SQL := SQL + SQLLoadDataInfile(Database, Pipename, Session.Charset, Database.Name, Table.Name, EscapedFieldNames);
 
         Session.SendSQL(SQL, SQLExecuted);
 
@@ -1995,7 +1991,7 @@ begin
             SQLExecuted.WaitFor(INFINITE);
           DisconnectNamedPipe(Pipe);
 
-          if ((Success = daSuccess) and (StmtType = stInsert) and (Session.WarningCount > 0)) then
+          if ((Success = daSuccess) and (Session.WarningCount > 0)) then
           begin
             DataSet := TMySQLQuery.Create(nil);
             DataSet.Connection := Session;
@@ -2050,35 +2046,14 @@ begin
       begin
         Values := ''; WhereClause := '';
         for I := 0 to Length(Fields) - 1 do
-          if (StmtType <> stUpdate) then
-          begin
-            if (Values <> '') then Values := Values + ',';
-            Values := Values + Fields[I].EscapeValue(SQLValues[I]);
-          end
-          else if (not Fields[I].InPrimaryKey) then
-          begin
-            if (Values <> '') then Values := Values + ',';
-            Values := Values + EscapedFieldName[I] + '=' + Fields[I].EscapeValue(SQLValues[I]);
-          end
-          else
-          begin
-            if (WhereClause <> '') then WhereClause := WhereClause + ' AND ';
-            WhereClause := WhereClause + EscapedFieldName[I] + '=' + Fields[I].EscapeValue(SQLValues[I]);
-          end;
+        begin
+          if (Values <> '') then Values := Values + ',';
+          Values := Values + Fields[I].EscapeValue(SQLValues[I]);
+        end;
 
-        if (StmtType = stUpdate) then
+        if (not InsertStmtInSQL) then
         begin
-          if (InsertStmtInSQL) then
-            SQL := SQL + ';' + #13#10;
-          SQL := SQL + 'UPDATE ' + EscapedTableName + ' SET ' + Values + ' WHERE ' + WhereClause + ';' + #13#10;
-          InsertStmtInSQL := False;
-        end
-        else if (not InsertStmtInSQL) then
-        begin
-          if (StmtType = stReplace) then
-            SQL := SQL + 'REPLACE INTO ' + EscapedTableName
-          else
-            SQL := SQL + 'INSERT INTO ' + EscapedTableName;
+          SQL := SQL + 'INSERT INTO ' + EscapedTableName;
           if (EscapedFieldNames <> '') then
             SQL := SQL + ' (' + EscapedFieldNames + ')';
           SQL := SQL + ' VALUES (' + Values + ')';
@@ -2087,7 +2062,7 @@ begin
         else
           SQL := SQL + ',(' + Values + ')';
 
-        if ((StmtType = stUpdate) and not Session.MultiStatements or (Length(SQL) - SQLExecuteLength >= SQLPacketSize)) then
+        if (not Session.MultiStatements or (Length(SQL) - SQLExecuteLength >= SQLPacketSize)) then
         begin
           if (InsertStmtInSQL) then
           begin
@@ -7920,7 +7895,7 @@ begin
             SQL := SQL + 'ALTER TABLE ' + DestinationSession.EscapeIdentifier(DestinationDatabase.Name) + '.' + DestinationSession.EscapeIdentifier(DestinationTable.Name) + ' DISABLE KEYS;' + #13#10;
           if (DestinationDatabase.Name <> DestinationSession.DatabaseName) then
             SQL := SQL + DestinationDatabase.SQLUse();
-          SQL := SQL + SQLLoadDataInfile(DestinationDatabase, False, Pipename, DestinationSession.Charset, DestinationDatabase.Name, DestinationTable.Name, '');
+          SQL := SQL + SQLLoadDataInfile(DestinationDatabase, Pipename, DestinationSession.Charset, DestinationDatabase.Name, DestinationTable.Name, '');
           if ((DestinationSession.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
             SQL := SQL + 'ALTER TABLE ' + DestinationSession.EscapeIdentifier(DestinationDatabase.Name) + '.' + DestinationSession.EscapeIdentifier(DestinationTable.Name) + ' ENABLE KEYS;' + #13#10;
           if (DestinationSession.Lib.LibraryType <> ltHTTP) then

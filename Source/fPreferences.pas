@@ -282,7 +282,6 @@ type
     Collation: string;
     Data: Boolean;
     Engine: string;
-    ImportStmt: TPImportStmt;
     RowType: Integer;
     Structure: Boolean;
     constructor Create(const AAItems: TPItems = nil; const AName: string = '');
@@ -965,24 +964,6 @@ begin
     ntDisabled: Result := 'Disabled';
     ntCustom: Result := 'Custom';
     else Result := 'Name';
-  end;
-end;
-
-function TryStrToImportStmt(const Str: string; var ImportTypeType: TPImportStmt): Boolean;
-begin
-  Result := True;
-  if (UpperCase(Str) = 'INSERT') then ImportTypeType := isInsert
-  else if (UpperCase(Str) = 'REPLACE') then ImportTypeType := isReplace
-  else if (UpperCase(Str) = 'UPDATE') then ImportTypeType := isUpdate
-  else Result := False;
-end;
-
-function ImportStmtToStr(const ImportTypeType: TPImportStmt): string;
-begin
-  case (ImportTypeType) of
-    isReplace: Result := 'Replace';
-    isUpdate: Result := 'Update';
-    else Result := 'Insert';
   end;
 end;
 
@@ -1776,7 +1757,6 @@ begin
   Collation := '';
   Data := True;
   Engine := '';
-  ImportStmt := isInsert;
   RowType := 0;
   Structure := True;
 end;
@@ -1791,7 +1771,6 @@ begin
   if (Assigned(XMLNode(XML, 'csv/separator/character/string'))) then CSV.Delimiter := XMLNode(XML, 'csv/separator/character/string').Text;
   if (Assigned(XMLNode(XML, 'csv/separator/character/type'))) then TryStrToSeparatorType(XMLNode(XML, 'csv/separator/character/type').Text, CSV.DelimiterType);
   if (Assigned(XMLNode(XML, 'data')) and (XMLNode(XML, 'data').Attributes['enabled'] <> Null)) then TryStrToBool(XMLNode(XML, 'data').Attributes['enabled'], Data);
-  if (Assigned(XMLNode(XML, 'data/importtype'))) then TryStrToImportStmt(XMLNode(XML, 'data/importtype').Text, ImportStmt);
   if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['charset'] <> Null)) then Charset := XMLNode(XML, 'structure').Attributes['charset'];
   if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['collation'] <> Null)) then Collation := XMLNode(XML, 'structure').Attributes['collation'];
   if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['enabled'] <> Null)) then TryStrToBool(XMLNode(XML, 'structure').Attributes['enabled'], Structure);
@@ -1810,7 +1789,6 @@ begin
   XMLNode(XML, 'csv/separator/character/string').Text := CSV.Delimiter;
   XMLNode(XML, 'csv/separator/character/type').Text := SeparatorTypeToStr(CSV.DelimiterType);
   XMLNode(XML, 'data').Attributes['enabled'] := Data;
-  XMLNode(XML, 'data/importtype').Text := ImportStmtToStr(ImportStmt);
   XMLNode(XML, 'structure').Attributes['charset'] := Charset;
   XMLNode(XML, 'structure').Attributes['collation'] := Collation;
   XMLNode(XML, 'structure').Attributes['enabled'] := Structure;

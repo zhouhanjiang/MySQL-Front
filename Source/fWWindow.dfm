@@ -376,7 +376,6 @@ object WWindow: TWWindow
         Left = 77
         Top = 30
         Action = aERedo
-        Enabled = False
       end
       object ToolButton7: TToolButton
         Left = 100
@@ -1267,6 +1266,7 @@ object WWindow: TWWindow
     object aERedo: TAction
       Category = 'Edit'
       Caption = 'aERedo'
+      Enabled = False
       HelpContext = 1092
       ImageIndex = 38
       ShortCut = 16473

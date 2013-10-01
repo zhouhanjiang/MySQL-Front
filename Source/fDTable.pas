@@ -1123,23 +1123,6 @@ begin
   mlDProperties.Default := mlDProperties.Enabled;
 end;
 
-procedure TDTable.FormSessionEvent(const Event: TSSession.TEvent);
-begin
-  if (not Assigned(Tables) and (Event.EventType = etItemValid) and (Event.SItem = Table)
-    or Assigned(Tables) and (Event.EventType = etAfterExecuteSQL)) then
-    if (not PageControl.Visible) then
-      Built()
-    else
-      TSExtrasShow(nil)
-  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is fSession.TSTable)) then
-    ModalResult := mrOk;
-  if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
-  begin
-    PageControl.Visible := True;
-    PSQLWait.Visible := not PageControl.Visible;
-  end;
-end;
-
 procedure TDTable.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 var
   I: Integer;
@@ -1246,7 +1229,8 @@ begin
 
   if (Assigned(NewTable)) then
     FreeAndNil(NewTable);
-  FreeAndNil(Tables);
+  if (Assigned(Tables)) then
+    FreeAndNil(Tables);
 
   Preferences.Table.Width := Width;
   Preferences.Table.Height := Height;
@@ -1270,6 +1254,23 @@ begin
   FSource.Lines.Clear();
 end;
 
+procedure TDTable.FormSessionEvent(const Event: TSSession.TEvent);
+begin
+  if (not Assigned(Tables) and (Event.EventType = etItemValid) and (Event.SItem = Table)
+    or Assigned(Tables) and (Event.EventType = etAfterExecuteSQL)) then
+    if (not PageControl.Visible) then
+      Built()
+    else
+      TSExtrasShow(nil)
+  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is fSession.TSTable)) then
+    ModalResult := mrOk;
+  if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
+  begin
+    PageControl.Visible := True;
+    PSQLWait.Visible := not PageControl.Visible;
+  end;
+end;
+
 procedure TDTable.FormShow(Sender: TObject);
 var
   I: Integer;
@@ -1280,15 +1281,15 @@ var
 begin
   Database.Session.RegisterEventProc(FormSessionEvent);
 
-  if (not Assigned(Tables) and not Assigned(Table)) then
-  begin
-    Caption := Preferences.LoadStr(383);
-    HelpContext := 1045;
-  end
-  else if (not Assigned(Table)) then
+  if (Assigned(Tables)) then
   begin
     Caption := Preferences.LoadStr(107);
     HelpContext := 1054;
+  end
+  else if (not Assigned(Table)) then
+  begin
+    Caption := Preferences.LoadStr(383);
+    HelpContext := 1045;
   end
   else
   begin
@@ -1804,6 +1805,8 @@ begin
     for I := 0 to Tables.Count - 1 do
       Inc(Size, TSBaseTable(Tables[I]).DataSize);
     FDataSize.Caption := SizeToStr(Size);
+
+    FMaxDataSize.Visible := False; FLMaxDataSize.Visible := FMaxDataSize.Visible;
 
     if (RecordCount < 0) then
     begin

@@ -937,7 +937,12 @@ begin
                   if ((Values[I].Length = 0) or (DataLink.DataSet.Fields[I].AutoGenerateValue = arAutoInc)) then
                     DataLink.DataSet.Fields[I].Clear()
                   else
+                  try
                     DataLink.DataSet.Fields[I].AsString := CSVUnescape(Values[I].Text, Values[I].Length);
+                  except
+                    MessageBeep(MB_ICONERROR);
+                    DataLink.DataSet.Fields[I].Clear();
+                  end;
 
                 if ((RecNo > 0) or (Index <= Length(S))) then
                   try

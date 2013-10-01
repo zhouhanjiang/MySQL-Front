@@ -492,11 +492,6 @@ begin
           Import.Charset := Job.Charset;
           Import.Collation := Job.Collation;
           Import.Engine := Job.Engine;
-          case (Job.ImportStmt) of
-            isInsert: Import.StmtType := stInsert;
-            isReplace: Import.StmtType := stReplace;
-            isUpdate: Import.StmtType := stUpdate;
-          end;
           Import.RowType := mrUnknown;
           Import.Structure := Job.Structure;
 

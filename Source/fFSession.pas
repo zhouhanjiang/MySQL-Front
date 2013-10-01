@@ -1044,6 +1044,7 @@ type
     procedure SendQuery(Sender: TObject; const SQL: string);
     procedure SetView(const AView: TView);
     procedure SetAddress(const AAddress: string);
+    procedure SetListViewGroupHeader(const ListView: TListView; const GroupID: Integer; const NewHeader: string);
     procedure SetPath(const APath: TFileName);
     procedure SQLError(DataSet: TDataSet; E: EDatabaseError; var Action: TDataAction);
     procedure SynMemoApllyPreferences(const SynMemo: TSynMemo);
@@ -2765,7 +2766,6 @@ begin
 
     DTable.Database := TSDatabase(FNavigator.Selected.Data);
     DTable.Table := nil;
-    FreeAndNil(DTable.Tables);
     if (DTable.Execute()) then
       Wanted.Update := Session.Update;
   end
@@ -10044,7 +10044,7 @@ begin
         else Dec(Count);
       end;
 
-    ListView.Groups[1].Header := Preferences.LoadStr(12) + ' (' + IntToStr(Count) + ')';
+    SetListViewGroupHeader(ListView, 1, Preferences.LoadStr(12) + ' (' + IntToStr(Count) + ')');
   end
   else if (TObject(ListView.Tag) is TSDatabase) then
   begin
@@ -10298,10 +10298,10 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         Item.SubItems.Add('')
       else
         Item.SubItems.Add(FormatFloat('#,##0', TSDatabase(Data).Count, LocaleFormatSettings));
-      if ((TSDatabase(Data) is TSSystemDatabase) or (TSDatabase(Data).Size <= 0)) then
+      if ((TSDatabase(Data) is TSSystemDatabase) or (TSDatabase(Data).DataSize <= 0)) then
         Item.SubItems.Add('')
       else
-        Item.SubItems.Add(SizeToStr(TSDatabase(Data).Size));
+        Item.SubItems.Add(SizeToStr(TSDatabase(Data).DataSize));
       if (TSDatabase(Data).Created <= 0) then
         Item.SubItems.Add('')
       else
@@ -10660,21 +10660,6 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
   end;
 
   procedure UpdateGroup(const Kind: TADesktop.TListViewKind; const GroupID: Integer; const CItems: TSItems);
-
-    procedure SetGroupHeader(const GroupID: Integer; const NewHeader: string);
-      // In Delphi XE2 there is a flickering in the VScrollBar, while changing
-      // TListGroup.Header - also if Groups.BeginUpdate is used
-    var
-      LVGroup: TLVGroup;
-    begin
-      ZeroMemory(@LVGroup, SizeOf(LVGroup));
-      LVGroup.cbSize := SizeOf(LVGroup);
-      LVGroup.mask := LVGF_HEADER;
-      LVGroup.pszHeader := PChar(NewHeader);
-      LVGroup.cchHeader := Length(NewHeader);
-      ListView_SetGroupInfo(ListView.Handle, GroupID, LVGroup);
-    end;
-
   var
     Add: Boolean;
     ColumnWidths: array [0..7] of Integer;
@@ -10783,25 +10768,25 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
     if (SessionEvent.EventType in [etItemsValid, etItemCreated, etItemDropped]) then
       case (GroupID) of
         giDatabases:
-          SetGroupHeader(GroupID, Preferences.LoadStr(265) + ' (' + IntToStr(SessionEvent.SItems.Count) + ')');
+          SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(265) + ' (' + IntToStr(SessionEvent.SItems.Count) + ')');
         giTables:
           begin
             Header := Preferences.LoadStr(234);
             if (Session.ServerVersion >= 50001) then
               Header := Header + ' + ' + Preferences.LoadStr(873);
             Header := Header + ' (' + IntToStr(SessionEvent.SItems.Count) + ')';
-            SetGroupHeader(GroupID, Header);
+            SetListViewGroupHeader(ListView, GroupID, Header);
           end;
         giRoutines:
-          SetGroupHeader(GroupID, Preferences.LoadStr(874) + ' + ' + Preferences.LoadStr(875) + ' (' + IntToStr(SessionEvent.SItems.Count) + ')');
+          SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(874) + ' + ' + Preferences.LoadStr(875) + ' (' + IntToStr(SessionEvent.SItems.Count) + ')');
         giEvents:
-          SetGroupHeader(GroupID, Preferences.LoadStr(876) + ' (' + IntToStr(SessionEvent.SItems.Count) + ')');
+          SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(876) + ' (' + IntToStr(SessionEvent.SItems.Count) + ')');
         giKeys:
-          SetGroupHeader(GroupID, Preferences.LoadStr(458) + ' (' + IntToStr(TSBaseTable(SessionEvent.Sender).Keys.Count) + ')');
+          SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(458) + ' (' + IntToStr(TSBaseTable(SessionEvent.Sender).Keys.Count) + ')');
         giFields:
-          SetGroupHeader(GroupID, Preferences.LoadStr(253) + ' (' + IntToStr(TSTable(SessionEvent.Sender).Fields.Count) + ')');
+          SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(253) + ' (' + IntToStr(TSTable(SessionEvent.Sender).Fields.Count) + ')');
         giForeignKeys:
-          SetGroupHeader(GroupID, Preferences.LoadStr(459) + ' (' + IntToStr(TSBaseTable(SessionEvent.Sender).ForeignKeys.Count) + ')');
+          SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(459) + ' (' + IntToStr(TSBaseTable(SessionEvent.Sender).ForeignKeys.Count) + ')');
         giTriggers:
           begin
             Count := 0;
@@ -10811,16 +10796,16 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
                 InsertItem(Kind, TSTriggers(CItems)[I]);
                 Inc(Count);
               end;
-            SetGroupHeader(GroupID, Preferences.LoadStr(797) + ' (' + IntToStr(Count) + ')');
+            SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(797) + ' (' + IntToStr(Count) + ')');
           end;
         giProcesses:
-          SetGroupHeader(GroupID, Preferences.LoadStr(24) + ' (' + IntToStr(Session.Processes.Count) + ')');
+          SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(24) + ' (' + IntToStr(Session.Processes.Count) + ')');
         giStati:
-          SetGroupHeader(GroupID, Preferences.LoadStr(23) + ' (' + IntToStr(Session.Stati.Count) + ')');
+          SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(23) + ' (' + IntToStr(Session.Stati.Count) + ')');
         giUsers:
-          SetGroupHeader(GroupID, Preferences.LoadStr(561) + ' (' + IntToStr(Session.Users.Count) + ')');
+          SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(561) + ' (' + IntToStr(Session.Users.Count) + ')');
         giVariables:
-          SetGroupHeader(GroupID, Preferences.LoadStr(22) + ' (' + IntToStr(Session.Variables.Count) + ')');
+          SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(22) + ' (' + IntToStr(Session.Variables.Count) + ')');
       end;
   end;
 
@@ -13570,6 +13555,20 @@ begin
   end;
 end;
 
+procedure TFSession.SetListViewGroupHeader(const ListView: TListView; const GroupID: Integer; const NewHeader: string);
+  // In Delphi XE2 there is a flickering in the VScrollBar, while changing
+  // TListGroup.Header - also if Groups.BeginUpdate is used
+var
+  LVGroup: TLVGroup;
+begin
+  ZeroMemory(@LVGroup, SizeOf(LVGroup));
+  LVGroup.cbSize := SizeOf(LVGroup);
+  LVGroup.mask := LVGF_HEADER;
+  LVGroup.pszHeader := PChar(NewHeader);
+  LVGroup.cchHeader := Length(NewHeader);
+  ListView_SetGroupInfo(ListView.Handle, GroupID, LVGroup);
+end;
+
 procedure TFSession.SetPath(const APath: TFileName);
 begin
   if (APath <> Preferences.Path) then
@@ -14208,20 +14207,9 @@ begin
 
               List.Add(Database);
               if (not Database.Tables.Valid) then
-                Wanted.FUpdate := UpdateAfterAddressChanged
-              else
-                List.Add(Database.Tables);
-              if (Assigned(Database.Routines)) then
-                for I := 0 to Database.Routines.Count - 1 do
-                  List.Add(Database.Routines[I]);
-              if (Assigned(Database.Events)) then
-                for I := 0 to Database.Events.Count - 1 do
-                  List.Add(Database.Events[I]);
-              if (Assigned(Database.Triggers)) then
-                for I := 0 to Database.Triggers.Count - 1 do
-                  List.Add(Database.Triggers[I]);
+                Wanted.FUpdate := UpdateAfterAddressChanged;
 
-              Result := not Session.Update(List, True);
+              Result := not Session.Update(List);
 
               List.Free();
             end;

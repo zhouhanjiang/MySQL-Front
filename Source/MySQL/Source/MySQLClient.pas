@@ -1492,8 +1492,7 @@ begin
     try
       ReallocMem(Buffer.Mem, Buffer.MemSize);
     except
-      FreeMem(Buffer.Mem);
-      FillChar(Buffer, SizeOf(Buffer), #0);
+      FreeBuffer(Buffer);
       Seterror(CR_OUT_OF_MEMORY);
       Result := False;
     end;

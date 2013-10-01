@@ -43,16 +43,16 @@ object DInfo: TDInfo
     Transparent = True
   end
   object FURI: TLabel
-    Left = 440
+    Left = 434
     Top = 112
-    Width = 25
-    Height = 13
+    Width = 31
+    Height = 16
     Cursor = crHandPoint
     Alignment = taRightJustify
     Caption = 'FURI'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clBlue
-    Font.Height = -12
+    Font.Height = -13
     Font.Name = 'MS Sans Serif'
     Font.Style = [fsUnderline]
     ParentFont = False

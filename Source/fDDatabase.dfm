@@ -73,16 +73,12 @@ object DDatabase: TDDatabase
     Top = 8
     Width = 321
     Height = 325
-    ActivePage = TSExtras
+    ActivePage = TSInformations
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     TabOrder = 3
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -157,10 +153,6 @@ object DDatabase: TDDatabase
     object TSInformations: TTabSheet
       Caption = 'TSInformations'
       OnShow = TSInformationsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -212,38 +204,66 @@ object DDatabase: TDDatabase
         Left = 8
         Top = 88
         Width = 297
-        Height = 49
+        Height = 95
         Anchors = [akLeft, akTop, akRight]
         Caption = 'GSize'
         TabOrder = 1
         DesignSize = (
           297
-          49)
-        object FLSize: TLabel
+          95)
+        object FLIndexSize: TLabel
           Left = 8
           Top = 20
-          Width = 32
+          Width = 58
           Height = 13
-          Caption = 'FLSize'
+          Caption = 'FLIndexSize'
         end
-        object FSize: TLabel
-          Left = 263
+        object FLDataSize: TLabel
+          Left = 8
+          Top = 44
+          Width = 55
+          Height = 13
+          Caption = 'FLDataSize'
+        end
+        object FIndexSize: TLabel
+          Left = 237
           Top = 20
-          Width = 26
+          Width = 52
           Height = 13
           Alignment = taRightJustify
-          Anchors = [akLeft, akTop, akRight]
-          Caption = 'FSize'
+          Anchors = [akTop, akRight]
+          Caption = 'FIndexSize'
+        end
+        object FDataSize: TLabel
+          Left = 240
+          Top = 44
+          Width = 49
+          Height = 13
+          Alignment = taRightJustify
+          Anchors = [akTop, akRight]
+          Caption = 'FDataSize'
+        end
+        object FLMaxDataSize: TLabel
+          Left = 8
+          Top = 68
+          Width = 75
+          Height = 13
+          Caption = 'FLMaxDataSize'
+        end
+        object FMaxDataSize: TLabel
+          Left = 220
+          Top = 68
+          Width = 69
+          Height = 13
+          Alignment = taRightJustify
+          Anchors = [akTop, akRight]
+          Caption = 'FMaxDataSize'
         end
       end
     end
     object TSExtras: TTabSheet
       Caption = 'TSExtras'
       OnShow = TSExtrasShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -349,10 +369,6 @@ object DDatabase: TDDatabase
     object TSSource: TTabSheet
       Caption = 'TSSource'
       OnShow = TSSourceShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
