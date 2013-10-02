@@ -93,7 +93,8 @@ type
       constructor Create(const ACodePage: Cardinal);
       destructor Destroy(); override;
       procedure Write(const Data: Pointer; const Size: Integer; const Quote: Boolean = False); overload;
-      procedure WriteData(const Text: PChar; const Length: Integer; const Quote: Boolean = False); overload;
+      procedure WriteChar(const Char: AnsiChar);
+      procedure WriteData(const Text: PChar; const Length: Integer; const Quote: Boolean = False);
       procedure WriteText(const Text: PChar; const Length: Integer); overload;
       procedure WriteText(const Text: my_char; const Length: Integer; const CodePage: Cardinal); overload;
       procedure WriteBinary(const Value: PChar; const Length: Integer); overload;
@@ -1143,6 +1144,13 @@ begin
   end;
 end;
 
+procedure TTool.TDataFileBuffer.WriteChar(const Char: AnsiChar);
+begin
+  Resize(1);
+  MoveMemory(Buffer.Write, @Char, 1);
+  Buffer.Write := @Buffer.Write[1];
+end;
+
 procedure TTool.TDataFileBuffer.WriteData(const Text: PChar; const Length: Integer; const Quote: Boolean = False);
 label
   StringL,
@@ -1963,7 +1971,7 @@ begin
           Item.RecordsDone := 0;
           while ((Success = daSuccess) and GetValues(Item, DataFileBuffer)) do
           begin
-            DataFileBuffer.Write(PAnsiChar(#10 + '_'), 1); // Two characters are needed to instruct the compiler to give a pointer - but the first character should be placed in the file only
+            DataFileBuffer.WriteChar(#10);
 
             if (DataFileBuffer.Size > NET_BUFFER_LENGTH) then
               if (not WriteFile(Pipe, DataFileBuffer.Data^, DataFileBuffer.Size, BytesWritten, nil)) then
@@ -2671,7 +2679,7 @@ begin
     for I := 0 to Length(Fields) - 1 do
     begin
       if (I > 0) then
-        DataFileBuffer.Write(PAnsiChar(',_'), 1); // Two characters are needed to instruct the compiler to give a pointer - but the first character should be placed in the file only
+        DataFileBuffer.WriteChar(',');
       if ((I >= Length(CSVValues)) or (CSVValues[CSVColumns[I]].Length = 0)) then
         DataFileBuffer.Write(PAnsiChar('NULL'), 4)
       else
@@ -3402,7 +3410,7 @@ begin
     for I := 0 to Length(Fields) - 1 do
     begin
       if (I > 0) then
-        DataFileBuffer.Write(PAnsiChar(',_'), 1); // Two characters are needed to instruct the compiler to give a pointer - but the first character should be placed in the file only
+        DataFileBuffer.WriteChar(',');
 
       case (ColumnDesc[I].SQLDataType) of
         SQL_BIT,
@@ -3782,7 +3790,7 @@ begin
       end;
 
       if (I > 0) then
-        DataFileBuffer.Write(PAnsiChar(',_'), 1); // Two characters are needed to instruct the compiler to give a pointer - but the first character should be placed in the file only
+        DataFileBuffer.WriteChar(',');
       if (not Assigned(XMLValueNode) or (XMLValueNode.text = '') and Assigned(XMLValueNode.selectSingleNode('@xsi:nil')) and (XMLValueNode.selectSingleNode('@xsi:nil').text = 'true')) then
         DataFileBuffer.Write(PAnsiChar('NULL'), 4)
       else if (Fields[I].FieldType in BinaryFieldTypes) then
@@ -7915,7 +7923,7 @@ begin
               begin
                 DestinationField := DestinationTable.Fields[I];
                 if (I > 0) then
-                  DataFileBuffer.Write(PAnsiChar(',_'), 1); // Two characters are needed to instruct the compiler to give a pointer - but the first character should be placed in the file only
+                  DataFileBuffer.WriteChar(',');
                 if (not Assigned(LibRow^[I])) then
                   DataFileBuffer.Write(PAnsiChar('NULL'), 4)
                 else if (BitField(DataSet.Fields[I])) then
@@ -7927,7 +7935,7 @@ begin
                 else
                   DataFileBuffer.Write(LibRow^[I], LibLengths^[I], not (DestinationField.FieldType in NotQuotedFieldTypes));
               end;
-              DataFileBuffer.Write(PAnsiChar(#10 + '_'), 1); // Two characters are needed to instruct the compiler to give a pointer - but the first character should be placed in the file only
+              DataFileBuffer.WriteChar(#10);
 
               if (DataFileBuffer.Size > NET_BUFFER_LENGTH) then
                 if (not WriteFile(Pipe, DataFileBuffer.Data^, DataFileBuffer.Size, WrittenSize, nil) or (Abs(WrittenSize) < DataFileBuffer.Size)) then

@@ -4371,7 +4371,7 @@ begin
 
   if (Assigned(SessionEvent)) then
   begin
-    if (SessionEvent.EventType in [etItemsValid, etItemCreated, etItemAltered, etItemDropped]) then
+    if (SessionEvent.EventType in [etItemsValid, etItemValid, etItemCreated, etItemAltered, etItemDropped]) then
       FNavigatorUpdate(SessionEvent);
 
     if (SessionEvent.EventType in [etItemsValid, etItemValid, etItemCreated, etItemAltered, etItemDropped]) then
@@ -7806,7 +7806,8 @@ procedure TFSession.FNavigatorUpdate(const SessionEvent: TSSession.TEvent);
     I: Integer;
   begin
     case (SessionEvent.EventType) of
-      etItemsValid:
+      etItemsValid,
+      etItemValid:
         begin
           Child := Node.getFirstChild();
           while (Assigned(Child)) do
@@ -14207,9 +14208,20 @@ begin
 
               List.Add(Database);
               if (not Database.Tables.Valid) then
-                Wanted.FUpdate := UpdateAfterAddressChanged;
+                Wanted.FUpdate := UpdateAfterAddressChanged
+              else
+                List.Add(Database.Tables);
+              if (Assigned(Database.Routines)) then
+                for I := 0 to Database.Routines.Count - 1 do
+                  List.Add(Database.Routines[I]);
+              if (Assigned(Database.Events)) then
+                for I := 0 to Database.Events.Count - 1 do
+                  List.Add(Database.Events[I]);
+              if (Assigned(Database.Triggers)) then
+                for I := 0 to Database.Triggers.Count - 1 do
+                  List.Add(Database.Triggers[I]);
 
-              Result := not Session.Update(List);
+              Result := not Session.Update(List, True);
 
               List.Free();
             end;

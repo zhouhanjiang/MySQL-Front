@@ -1753,6 +1753,9 @@ begin
   FErrors.Caption := '0';
   FErrorMessages.Lines.Clear();
 
+  if (not Assigned(Import)) then
+    TSJobHide(Self);
+
   Answer := IDYES;
   case (ImportType) of
     itTextFile:

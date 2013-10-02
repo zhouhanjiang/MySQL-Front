@@ -6677,7 +6677,9 @@ begin
     Result := RepairTables(RepairTableList);
   RepairTableList.Free();
 
+
   SQL := SQL + Self.Tables.SQLGetStatus(Tables);
+
   Session.SendSQL(SQL, Session.SessionResult);
 end;
 
@@ -11529,8 +11531,10 @@ begin
             Result := Stati.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
           else if (TableNameCmp(ObjectName, 'SESSION_VARIABLES') = 0) then
             Result := Variables.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
-          else if (TableNameCmp(ObjectName, 'SCHEMATA') = 0) then
-            Result := Databases.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
+          else if ((TableNameCmp(ObjectName, 'SCHEMATA') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
+            Result := Databases.Build(DataSet, True, False)
+          else if ((TableNameCmp(ObjectName, 'SCHEMATA') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'SCHEMA_NAME')) then
+            Result := Databases.Build(DataSet, True, False)
           else if ((TableNameCmp(ObjectName, 'TABLES') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
             Result := BuildTables(DataSet)
           else if ((TableNameCmp(ObjectName, 'TABLES') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'TABLE_SCHEMA') and SQLParseChar(Parse, '=')) then
