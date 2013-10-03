@@ -964,6 +964,7 @@ type
     function AddTable(const NewTable: TSBaseTable): Boolean; virtual;
     function AddTrigger(const NewTrigger: TSTrigger): Boolean; virtual;
     function AddView(const NewView: TSView): Boolean; virtual;
+    procedure Assign(const Source: TSObject); override;
     function BaseTableByName(const TableName: string): TSBaseTable; overload; virtual;
     function CheckTables(const Tables: TList): Boolean; virtual;
     function CloneRoutine(const Routine: TSRoutine; const NewRoutineName: string): Boolean; overload; virtual;
@@ -1437,7 +1438,6 @@ type
     procedure GridCanEditShow(Sender: TObject);
     function CharsetByName(const CharsetName: string): TSCharset;
     function CharsetByCollation(const Collation: string): TSCharset;
-    function CloneDatabase(const SourceDatabase, TargetDatabase: TSDatabase; const Data: Boolean): Boolean;
     function CloneUser(const User: TSUser; const NewUserName: string): Boolean;
     function CollationByName(const CollationName: string): TSCollation;
     procedure CommitTransaction(); override;
@@ -5213,7 +5213,8 @@ function TSTables.GetValidStatus(): Boolean;
 var
   I: Integer;
 begin
-  Result := Count > 0;
+  Result := True;
+
   for I := 0 to Count - 1 do
     Result := Result and (not (Table[I] is TSBaseTable) or TSBaseTable(Table[I]).ValidStatus);
 end;
@@ -6613,15 +6614,24 @@ begin
   Result := UpdateTable(nil, NewTable);
 end;
 
+function TSDatabase.AddTrigger(const NewTrigger: TSTrigger): Boolean;
+begin
+  NewTrigger.FDatabase := Self;
+  Result := UpdateTrigger(nil, NewTrigger);
+end;
+
 function TSDatabase.AddView(const NewView: TSView): Boolean;
 begin
   Result := UpdateView(nil, NewView);
 end;
 
-function TSDatabase.AddTrigger(const NewTrigger: TSTrigger): Boolean;
+procedure TSDatabase.Assign(const Source: TSObject);
 begin
-  NewTrigger.FDatabase := Self;
-  Result := UpdateTrigger(nil, NewTrigger);
+  inherited Assign(Source);
+
+  FDefaultCharset := TSDatabase(Source).DefaultCharset;
+  FDefaultCodePage := TSDatabase(Source).DefaultCodePage;
+  FCollation := TSDatabase(Source).Collation;
 end;
 
 function TSDatabase.BaseTableByName(const TableName: string): TSBaseTable;
@@ -6756,13 +6766,13 @@ var
   NewTable: TSBaseTable;
   SQL: string;
 begin
+  Session.BeginSynchron();
+
   Result := Assigned(Table);
 
   if (Result) then
   begin
-    Session.BeginSynchron();
     Table.Update();
-    Session.EndSynchron();
 
     NewTable := TSBaseTable.Create(Tables);
     NewTable.Assign(Table);
@@ -6784,16 +6794,12 @@ begin
 //    Will be handled in SQLAlterTable
 //    if (Session.DatabaseName <> Name) then
 //      SQL := SQLUse() + SQL;
-
-    Result := Session.ExecuteSQL(SQL);
   end;
 
   if (Result) then
     if ((Session.ServerVersion < 40100) and Assigned(Table.AutoIncrementField)) then
     begin
-      Session.BeginSynchron();
       BaseTableByName(NewTableName).Update();
-      Session.EndSynchron();
 
       NewTable := TSBaseTable.Create(Tables);
       NewTable.Assign(BaseTableByName(NewTableName));
@@ -6801,6 +6807,7 @@ begin
       Result := UpdateTable(BaseTableByName(NewTableName), NewTable);
       NewTable.Free();
     end;
+  Session.EndSynchron();
 end;
 
 function TSDatabase.CloneView(const View: TSView; const NewViewName: string): Boolean;
@@ -10165,18 +10172,6 @@ begin
     for I := 0 to Collations.Count - 1 do
       if (Collations[I].Name = Collation) then
         Result := Collations[I].Charset;
-end;
-
-function TSSession.CloneDatabase(const SourceDatabase, TargetDatabase: TSDatabase; const Data: Boolean): Boolean;
-var
-  I: Integer;
-begin
-  Result := True;
-
-  for I := 0 to SourceDatabase.Tables.Count - 1 do
-    if (Result) then
-      if (SourceDatabase.Tables[I] is TSBaseTable) then
-        Result := TargetDatabase.CloneTable(TSBaseTable(SourceDatabase.Tables[I]), SourceDatabase.Tables[I].Name, Data);
 end;
 
 function TSSession.CloneUser(const User: TSUser; const NewUserName: string): Boolean;

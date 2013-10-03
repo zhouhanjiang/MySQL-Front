@@ -1923,9 +1923,10 @@ var
   SQL: string;
   SQLExecuted: TEvent;
   SQLExecuteLength: Integer;
+  SQLInsertPrefix: string;
+  SQLInsertPostfix: string;
   SQLValues: TSQLStrings;
   Values: string;
-  WhereClause: string;
 begin
   BeforeExecuteData(Item);
 
@@ -2049,32 +2050,34 @@ begin
       for I := 0 to Length(Fields) - 1 do
         EscapedFieldName[I] := Session.EscapeIdentifier(Fields[I].Name);
 
+      SQLInsertPrefix := 'INSERT INTO ' + EscapedTableName;
+      if (EscapedFieldNames <> '') then
+        SQLInsertPrefix := SQLInsertPrefix + ' (' + EscapedFieldNames + ')';
+      SQLInsertPrefix := SQLInsertPrefix + ' VALUES ';
+
+      SQLInsertPostfix := ';' + #13#10;
+
       SetLength(SQLValues, Length(Fields));
       while ((Success = daSuccess) and GetValues(Item, SQLValues)) do
       begin
-        Values := ''; WhereClause := '';
+        Values := '';
         for I := 0 to Length(Fields) - 1 do
         begin
-          if (Values <> '') then Values := Values + ',';
+          if (I = 0) then Values := Values + ',';
           Values := Values + Fields[I].EscapeValue(SQLValues[I]);
         end;
 
         if (not InsertStmtInSQL) then
-        begin
-          SQL := SQL + 'INSERT INTO ' + EscapedTableName;
-          if (EscapedFieldNames <> '') then
-            SQL := SQL + ' (' + EscapedFieldNames + ')';
-          SQL := SQL + ' VALUES (' + Values + ')';
-          InsertStmtInSQL := True;
-        end
+          SQL := SQL + SQLInsertPrefix + '(' + Values + ')'
         else
           SQL := SQL + ',(' + Values + ')';
+        InsertStmtInSQL := True;
 
         if (not Session.MultiStatements or (Length(SQL) - SQLExecuteLength >= SQLPacketSize)) then
         begin
           if (InsertStmtInSQL) then
           begin
-            SQL := SQL + ';' + #13#10;
+            SQL := SQL + SQLInsertPostfix;
             InsertStmtInSQL := False;
           end;
 
@@ -2693,7 +2696,7 @@ begin
             CSVUnquoteMemSize := CSVUnquoteMemSize + 2 * (CSVValues[CSVColumns[I]].Length - CSVUnquoteMemSize);
             ReallocMem(CSVUnquoteMem, CSVUnquoteMemSize);
           end;
-          Len := CSVUnquote(CSVValues[CSVColumns[I]].Text, CSVValues[CSVColumns[I]].Length, CSVUnquoteMem, CSVUnquoteMemSize, Quoter);
+          Len := CSVUnescape(CSVValues[CSVColumns[I]].Text, CSVValues[CSVColumns[I]].Length, CSVUnquoteMem, CSVUnquoteMemSize, Quoter);
         end;
 
         if (Fields[I].FieldType in BinaryFieldTypes) then

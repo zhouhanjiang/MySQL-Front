@@ -2559,8 +2559,9 @@ begin
 
     FNavigatorMenuNode := FNavigator.Selected;
 
-    if (not (tsLoading in FrameState) and Session.InUse) then
-      Session.Terminate();
+// Removed on 03.10.2013
+//    if (not (tsLoading in FrameState) and Session.InUse) then
+//      Session.Terminate();
     Wanted.Update := UpdateAfterAddressChanged;
 
     if (tsLoading in FrameState) then
@@ -8022,7 +8023,6 @@ begin
   MainAction('aFExportPDF').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
   MainAction('aFPrint').Enabled := Assigned(Node) and ((View = vDiagram) or (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]));
   MainAction('aECopy').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiField, iiSystemViewField, iiViewField, iiUser]);
-  MainAction('aEPaste').Enabled := Assigned(Node) and ((Node.ImageIndex = iiServer) and Clipboard.HasFormat(CF_MYSQLSERVER) or (Node.ImageIndex = iiDatabase) and Clipboard.HasFormat(CF_MYSQLDATABASE) or (Node.ImageIndex = iiBaseTable) and Clipboard.HasFormat(CF_MYSQLTABLE) or (Node.ImageIndex = iiUsers) and Clipboard.HasFormat(CF_MYSQLUSERS));
   MainAction('aERename').Enabled := Assigned(Node) and ((Node.ImageIndex = iiForeignKey) and (Session.ServerVersion >= 40013) or (Node.ImageIndex in [iiBaseTable, iiView, iiEvent, iiTrigger, iiField]));
   MainAction('aDCreateDatabase').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer]) and (not Assigned(Session.UserRights) or Session.UserRights.RCreate);
   MainAction('aDCreateTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
@@ -10607,10 +10607,13 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
 
   function InsertItem(const Kind: TADesktop.TListViewKind; const Data: TObject): TListItem;
   var
+    GroupID: Integer;
+    I: Integer;
     Item: TListItem;
     Index: Integer;
     Left: Integer;
     Mid: Integer;
+    ReorderGroup: Boolean;
     Right: Integer;
   begin
     Index := 0;
@@ -10642,15 +10645,31 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
     begin
       Result := ListView.Items.Add();
       Result.Data := Data;
+      ReorderGroup := False;
     end
     else if (ListView.Items[Index].Data <> Data) then
     begin
       Result := ListView.Items.Insert(Index);
       Result.Data := Data;
+      ReorderGroup := True;
     end
     else
+    begin
       Result := ListView.Items[Index];
+      ReorderGroup := True;
+    end;
     UpdateItem(Result, Data);
+
+    if (ReorderGroup and ListView.GroupView) then
+    begin
+      GroupID := Result.GroupID;
+      for I := 0 to ListView.Items.Count - 1 do
+        if (ListView.Items[I].GroupID = GroupID) then
+        begin
+          ListView.Items[I].GroupID := 0;
+          ListView.Items[I].GroupID := GroupID; // Why is this needed (in Delphi XE2)???
+        end;
+    end;
   end;
 
   function AddItem(const Kind: TADesktop.TListViewKind; const Data: TObject): TListItem;
@@ -10983,7 +11002,6 @@ begin
             MainAction('aFExportPDF').Enabled := (ListView.SelCount = 0) or Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFPrint').Enabled := (ListView.SelCount = 0) or Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aECopy').Enabled := ListView.SelCount >= 1;
-            MainAction('aEPaste').Enabled := (not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLSERVER) or Assigned(Item) and (Item.ImageIndex = iiDatabase) and Clipboard.HasFormat(CF_MYSQLDATABASE));
             MainAction('aDCreateDatabase').Enabled := (ListView.SelCount = 0) and (not Assigned(Session.UserRights) or Session.UserRights.RCreate);
             MainAction('aDCreateTable').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aDCreateView').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase) and (Session.ServerVersion >= 50001);
@@ -12405,34 +12423,6 @@ begin
               DTransfer.DestinationTableName := '';
               DTransfer.Execute();
             end;
-          end
-          else if (DPaste.Execute()) then
-          begin
-            DDatabase.Session := Session;
-            DDatabase.Database := TSDatabase.Create(Session, Name);
-            for I := 1 to StringList.Count - 1 do
-            begin
-              SourceDatabase := SourceSession.DatabaseByName(StringList.ValueFromIndex[I]);
-
-              if (Success and Assigned(SourceDatabase)) then
-              begin
-                Name := CopyName(SourceDatabase.Name, Session.Databases);
-                if (Session.LowerCaseTableNames = 1) then
-                  Name := LowerCase(Name);
-
-                DDatabase.Database.Assign(SourceDatabase);
-                DDatabase.Database.Name := Name;
-                Success := DDatabase.Execute();
-                if (Success) then
-                begin
-                  SourceDatabase := SourceSession.DatabaseByName(StringList.ValueFromIndex[I]);
-                  Success := Session.CloneDatabase(SourceDatabase, Session.DatabaseByName(DDatabase.Name), DPaste.Data);
-                  if (Success) then
-                    Wanted.Update := Session.Update;
-                end;
-              end;
-            end;
-            DDatabase.Database.Free();
           end;
         iiDatabase:
           begin
@@ -14202,29 +14192,26 @@ begin
           begin
             Database := TSDatabase(FNavigator.Selected.Data);
 
-            if (not Database.Tables.ValidStatus) then
-            begin
-              List := TList.Create();
+            List := TList.Create();
 
-              List.Add(Database);
-              if (not Database.Tables.Valid) then
-                Wanted.FUpdate := UpdateAfterAddressChanged
-              else
-                List.Add(Database.Tables);
-              if (Assigned(Database.Routines)) then
-                for I := 0 to Database.Routines.Count - 1 do
-                  List.Add(Database.Routines[I]);
-              if (Assigned(Database.Events)) then
-                for I := 0 to Database.Events.Count - 1 do
-                  List.Add(Database.Events[I]);
-              if (Assigned(Database.Triggers)) then
-                for I := 0 to Database.Triggers.Count - 1 do
-                  List.Add(Database.Triggers[I]);
+            List.Add(Database);
+            if (not Database.Tables.Valid) then
+              Wanted.FUpdate := UpdateAfterAddressChanged
+            else
+              List.Add(Database.Tables);
+            if (Assigned(Database.Routines)) then
+              for I := 0 to Database.Routines.Count - 1 do
+                List.Add(Database.Routines[I]);
+            if (Assigned(Database.Events)) then
+              for I := 0 to Database.Events.Count - 1 do
+                List.Add(Database.Events[I]);
+            if (Assigned(Database.Triggers)) then
+              for I := 0 to Database.Triggers.Count - 1 do
+                List.Add(Database.Triggers[I]);
 
-              Result := not Session.Update(List, True);
+            Result := not Session.Update(List, True);
 
-              List.Free();
-            end;
+            List.Free();
           end;
         iiProcesses:
           begin
