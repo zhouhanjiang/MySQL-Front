@@ -87,7 +87,7 @@ type
       end;
       function GetData(): Pointer; inline;
       function GetSize(): Integer; inline;
-      procedure Resize(const NeededSize: Integer);
+      procedure Reallocate(const NeededSize: Integer);
     public
       procedure Clear();
       constructor Create(const ACodePage: Cardinal);
@@ -123,6 +123,7 @@ type
       function Read(): string;
       procedure Write(const Text: PChar; const Length: Integer); overload;
       procedure Write(const Text: string); overload; inline;
+      procedure WriteChar(const Char: AnsiChar);
       procedure WriteData(const Data: my_char; const Length: Integer; const Quote: Boolean = False; const Quoter: Char = ''''); overload;
       function WriteExternal(const Length: Integer): PChar;
       property Data: Pointer read GetData;
@@ -256,8 +257,10 @@ type
       Name: string;
       FieldTypes: set of Byte;
     end;
-    CSVUnquoteMem: PChar;
-    CSVUnquoteMemSize: Integer;
+    UnescapeBuffer: record
+      Mem: PChar;
+      MemSize: Integer;
+    end;
     function GetHeadlineNameCount(): Integer;
     function GetHeadlineName(Index: Integer): string;
   protected
@@ -1106,7 +1109,7 @@ begin
   else
     MaxCharSize := CPInfoEx.MaxCharSize;
 
-  Resize(2 * NET_BUFFER_LENGTH);
+  Reallocate(2 * NET_BUFFER_LENGTH);
 end;
 
 destructor TTool.TDataFileBuffer.Destroy();
@@ -1132,12 +1135,12 @@ procedure TTool.TDataFileBuffer.Write(const Data: Pointer; const Size: Integer; 
 begin
   if (not Quote) then
   begin
-    Resize(Size);
+    Reallocate(Size);
     MoveMemory(Buffer.Write, Data, Size); Buffer.Write := @Buffer.Write[Size];
   end
   else
   begin
-    Resize(1 + Size + 1);
+    Reallocate(1 + Size + 1);
     Buffer.Write[0] := ''''; Buffer.Write := @Buffer.Write[1];
     MoveMemory(Buffer.Write, Data, Size); Buffer.Write := @Buffer.Write[Size];
     Buffer.Write[0] := ''''; Buffer.Write := @Buffer.Write[1];
@@ -1146,7 +1149,7 @@ end;
 
 procedure TTool.TDataFileBuffer.WriteChar(const Char: AnsiChar);
 begin
-  Resize(1);
+  Reallocate(1);
   MoveMemory(Buffer.Write, @Char, 1);
   Buffer.Write := @Buffer.Write[1];
 end;
@@ -1164,7 +1167,7 @@ begin
   else
     Len := 1 + Length + 1;
 
-  Resize(Len);
+  Reallocate(Len);
 
   Write := Buffer.Write;
   asm
@@ -1220,7 +1223,7 @@ begin
     raise ERangeError.Create(SRangeError);
 
   Size := MaxCharSize * Len;
-  Resize(Size);
+  Reallocate(Size);
   Len := WideCharToAnsiChar(CodePage, PChar(Temp2.Mem), Len, Buffer.Write, Buffer.Size - Self.Size);
   Buffer.Write := @Buffer.Write[Len];
 end;
@@ -1233,7 +1236,7 @@ begin
   Size := SizeOf(Char) * Length;
   if (Size = 0) then
   begin
-    Resize(2);
+    Reallocate(2);
     Buffer.Write[0] := ''''; Buffer.Write := @Buffer.Write[1];
     Buffer.Write[0] := ''''; Buffer.Write := @Buffer.Write[1];
   end
@@ -1260,7 +1263,7 @@ var
 begin
   if (Length = 0) then
   begin
-    Resize(2);
+    Reallocate(2);
     Buffer.Write[0] := ''''; Buffer.Write := @Buffer.Write[1];
     Buffer.Write[0] := ''''; Buffer.Write := @Buffer.Write[1];
   end
@@ -1277,7 +1280,7 @@ begin
     if (Len = 0) then
       raise ERangeError.Create(SRangeError);
 
-    Resize(Len);
+    Reallocate(Len);
 
     Read := Temp1.Mem;
     Write := Buffer.Write;
@@ -1316,7 +1319,7 @@ var
 begin
   if (Length = 0) then
   begin
-    Resize(2);
+    Reallocate(2);
     Buffer.Write[0] := ''''; Buffer.Write := @Buffer.Write[1];
     Buffer.Write[0] := ''''; Buffer.Write := @Buffer.Write[1];
   end
@@ -1358,7 +1361,7 @@ begin
   end;
 end;
 
-procedure TTool.TDataFileBuffer.Resize(const NeededSize: Integer);
+procedure TTool.TDataFileBuffer.Reallocate(const NeededSize: Integer);
 var
   Len: Integer;
 begin
@@ -1516,6 +1519,13 @@ end;
 procedure TTool.TStringBuffer.Write(const Text: string);
 begin
   Write(PChar(Text), System.Length(Text));
+end;
+
+procedure TTool.TStringBuffer.WriteChar(const Char: AnsiChar);
+begin
+  Reallocate(1);
+  MoveMemory(Buffer.Write, @Char, 1);
+  Buffer.Write := @Buffer.Write[1];
 end;
 
 procedure TTool.TStringBuffer.WriteData(const Data: my_char; const Length: Integer; const Quote: Boolean = False; const Quoter: Char = '''');
@@ -2063,14 +2073,15 @@ begin
         Values := '';
         for I := 0 to Length(Fields) - 1 do
         begin
-          if (I = 0) then Values := Values + ',';
+          if (Length(Values) > 0) then Values := Values + ',';
           Values := Values + Fields[I].EscapeValue(SQLValues[I]);
         end;
+        Values := '(' + Values + ')';
 
         if (not InsertStmtInSQL) then
-          SQL := SQL + SQLInsertPrefix + '(' + Values + ')'
+          SQL := SQL + SQLInsertPrefix + Values
         else
-          SQL := SQL + ',(' + Values + ')';
+          SQL := SQL + ',' + Values;
         InsertStmtInSQL := True;
 
         if (not Session.MultiStatements or (Length(SQL) - SQLExecuteLength >= SQLPacketSize)) then
@@ -2550,14 +2561,14 @@ begin
   Data := True;
   Delimiter := ',';
   Quoter := '"';
-  CSVUnquoteMemSize := NET_BUFFER_LENGTH;
-  GetMem(CSVUnquoteMem, CSVUnquoteMemSize);
+  UnescapeBuffer.MemSize := NET_BUFFER_LENGTH;
+  GetMem(UnescapeBuffer.Mem, UnescapeBuffer.MemSize);
 end;
 
 destructor TTImportText.Destroy();
 begin
   SetLength(Fields, 0);
-  FreeMem(CSVUnquoteMem);
+  FreeMem(UnescapeBuffer.Mem);
 
   inherited;
 end;
@@ -2691,20 +2702,20 @@ begin
           Len := 0
         else
         begin
-          if (CSVValues[CSVColumns[I]].Length > CSVUnquoteMemSize) then
+          if (CSVValues[CSVColumns[I]].Length > UnescapeBuffer.MemSize) then
           begin
-            CSVUnquoteMemSize := CSVUnquoteMemSize + 2 * (CSVValues[CSVColumns[I]].Length - CSVUnquoteMemSize);
-            ReallocMem(CSVUnquoteMem, CSVUnquoteMemSize);
+            UnescapeBuffer.MemSize := UnescapeBuffer.MemSize + 2 * (CSVValues[CSVColumns[I]].Length - UnescapeBuffer.MemSize);
+            ReallocMem(UnescapeBuffer.Mem, UnescapeBuffer.MemSize);
           end;
-          Len := CSVUnescape(CSVValues[CSVColumns[I]].Text, CSVValues[CSVColumns[I]].Length, CSVUnquoteMem, CSVUnquoteMemSize, Quoter);
+          Len := CSVUnescape(CSVValues[CSVColumns[I]].Text, CSVValues[CSVColumns[I]].Length, UnescapeBuffer.Mem, UnescapeBuffer.MemSize, Quoter);
         end;
 
         if (Fields[I].FieldType in BinaryFieldTypes) then
-          DataFileBuffer.WriteBinary(CSVUnquoteMem, Len)
+          DataFileBuffer.WriteBinary(UnescapeBuffer.Mem, Len)
         else if (Fields[I].FieldType in TextFieldTypes) then
-          DataFileBuffer.WriteText(CSVUnquoteMem, Len)
+          DataFileBuffer.WriteText(UnescapeBuffer.Mem, Len)
         else
-          DataFileBuffer.WriteData(CSVUnquoteMem, Len, not (Fields[I].FieldType in NotQuotedFieldTypes));
+          DataFileBuffer.WriteData(UnescapeBuffer.Mem, Len, not (Fields[I].FieldType in NotQuotedFieldTypes));
       end;
     end;
 end;

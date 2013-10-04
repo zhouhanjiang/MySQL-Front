@@ -579,7 +579,7 @@ begin
           begin
             Session := GetSession(Node.Index);
             if (Assigned(Session)) then
-              if (not Session.Update()) then
+              if (not Session.Databases.Update()) then
                 WantedNodeExpand := Node
               else
               begin

@@ -6794,6 +6794,8 @@ begin
 //    Will be handled in SQLAlterTable
 //    if (Session.DatabaseName <> Name) then
 //      SQL := SQLUse() + SQL;
+
+    Result := Session.ExecuteSQL(SQL);
   end;
 
   if (Result) then

@@ -1833,7 +1833,7 @@ begin
             SetLength(Import.Fields, Length(Import.Fields) + 1);
             Import.Fields[Length(Import.Fields) - 1] := TSBaseTable(SObject).Fields[I];
             SetLength(Import.SourceFields, Length(Import.SourceFields) + 1);
-            Import.SourceFields[Length(Import.Fields) - 1].Name := FSourceFields[J].Text;
+            Import.SourceFields[Length(Import.SourceFields) - 1].Name := FSourceFields[J].Text;
           end;
     end;
 
