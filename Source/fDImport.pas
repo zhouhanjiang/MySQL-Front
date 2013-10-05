@@ -45,7 +45,7 @@ type
     FErrorMessages: TRichEdit;
     FErrors: TLabel;
     FExcelFile: TRadioButton;
-    FField1: TComboBox_Ext;
+    FDestinationField1: TComboBox_Ext;
     FFilename: TEdit;
     FL2RecordTag: TLabel;
     FL3RecordTag: TLabel;
@@ -61,7 +61,7 @@ type
     FLErrors: TLabel;
     FLExecution: TLabel;
     FLImportType: TLabel;
-    FLFields: TLabel;
+    FLDestinationFields: TLabel;
     FLFilename: TLabel;
     FLName: TLabel;
     FLProgressRecords: TLabel;
@@ -199,7 +199,7 @@ type
     end;
   private
     Database: TSDatabase;
-    FFields: array of TComboBox_Ext;
+    FDestinationFields: array of TComboBox_Ext;
     FLReferrers: array of TLabel;
     FSourceFields: array of TEdit;
     Import: TTImport;
@@ -354,10 +354,10 @@ var
 begin
   for I := 0 to Length(FSourceFields) - 1 do FSourceFields[I].Free();
   for I := 0 to Length(FLReferrers) - 1 do FLReferrers[I].Free();
-  for I := 0 to Length(FFields) - 1 do FFields[I].Free();
+  for I := 0 to Length(FDestinationFields) - 1 do FDestinationFields[I].Free();
   SetLength(FSourceFields, 0);
   SetLength(FLReferrers, 0);
-  SetLength(FFields, 0);
+  SetLength(FDestinationFields, 0);
 end;
 
 procedure TDImport.CMChangePreferences(var Message: TMessage);
@@ -407,7 +407,7 @@ begin
   FLRecordTag.Caption := Preferences.LoadStr(124) + ':';
 
   GFields.Caption := Preferences.LoadStr(253);
-  FLFields.Caption := Preferences.LoadStr(401) + ':';
+  FLDestinationFields.Caption := Preferences.LoadStr(401) + ':';
 
   GProgress.Caption := Preferences.LoadStr(224);
   FLEntiered.Caption := Preferences.LoadStr(211) + ':';
@@ -761,9 +761,9 @@ procedure TDImport.FFieldExit(Sender: TObject);
 var
   I: Integer;
 begin
-  for I := 0 to Length(FFields) - 1 do
-    if ((Sender is TComboBox_Ext) and (FFields[I] <> Sender) and (FFields[I].ItemIndex = TComboBox_Ext(Sender).ItemIndex)) then
-      FFields[I].ItemIndex := 0;
+  for I := 0 to Length(FDestinationFields) - 1 do
+    if ((Sender is TComboBox_Ext) and (FDestinationFields[I] <> Sender) and (FDestinationFields[I].ItemIndex = TComboBox_Ext(Sender).ItemIndex)) then
+      FDestinationFields[I].ItemIndex := 0;
 end;
 
 procedure TDImport.FFilenameChange(Sender: TObject);
@@ -948,8 +948,8 @@ begin
       SetLength(TAJobImport(PImport).FieldMappings, 0);
       if (SObject is TSTable) then
         for I := 0 to TSTable(SObject).Fields.Count - 1 do
-          for J := 0 to Length(FFields) - 1 do
-            if ((FSourceFields[J].Text <> '') and (FFields[J].ItemIndex = I + 1)) then
+          for J := 0 to Length(FDestinationFields) - 1 do
+            if ((FSourceFields[J].Text <> '') and (FDestinationFields[J].ItemIndex = I + 1)) then
             begin
               SetLength(TAJobImport(PImport).FieldMappings, Length(TAJobImport(PImport).FieldMappings) + 1);
               TAJobImport(PImport).FieldMappings[Length(TAJobImport(PImport).FieldMappings) - 1].Name := TSTable(SObject).Fields[I].Name;
@@ -1480,7 +1480,7 @@ begin
 
     SetLength(FSourceFields, FieldNames.Count);
     SetLength(FLReferrers, Length(FSourceFields));
-    SetLength(FFields, Length(FSourceFields));
+    SetLength(FDestinationFields, Length(FSourceFields));
 
     if (SObject is TSBaseTable) then
     begin
@@ -1507,28 +1507,28 @@ begin
         FLReferrers[I].Height := FLReferrer1.Height;
         FLReferrers[I].Caption := FLReferrer1.Caption;
 
-        FFields[I] := TComboBox_Ext.Create(ScrollBox);
-        FFields[I].Parent := ScrollBox;
-        FFields[I].Left := FField1.Left;
-        FFields[I].Top := FField1.Top + I * (FSourceField2.Top - FSourceField1.Top);
-        FFields[I].Width := FField1.Width;
-        FFields[I].Height := FField1.Height;
-        FFields[I].Style := FField1.Style;
-        FFields[I].Enabled := not FSourceFields[I].Enabled;
+        FDestinationFields[I] := TComboBox_Ext.Create(ScrollBox);
+        FDestinationFields[I].Parent := ScrollBox;
+        FDestinationFields[I].Left := FDestinationField1.Left;
+        FDestinationFields[I].Top := FDestinationField1.Top + I * (FSourceField2.Top - FSourceField1.Top);
+        FDestinationFields[I].Width := FDestinationField1.Width;
+        FDestinationFields[I].Height := FDestinationField1.Height;
+        FDestinationFields[I].Style := FDestinationField1.Style;
+        FDestinationFields[I].Enabled := not FSourceFields[I].Enabled;
         if (I = 0) then
         begin
-          FFields[I].Items.Add('');
+          FDestinationFields[I].Items.Add('');
           for J := 0 to TSBaseTable(SObject).Fields.Count - 1 do
-            FFields[I].Items.Add(TSBaseTable(SObject).Fields.Field[J].Name);
+            FDestinationFields[I].Items.Add(TSBaseTable(SObject).Fields.Field[J].Name);
         end
         else
-          FFields[I].Items.Text := FFields[0].Items.Text;
+          FDestinationFields[I].Items.Text := FDestinationFields[0].Items.Text;
         if ((ImportType in [itTextFile]) and FCSVHeadline.Checked or (ImportType in [itExcelFile, itAccessFile, itODBC])) then
-          FFields[I].ItemIndex := FFields[I].Items.IndexOf(FSourceFields[I].Text)
+          FDestinationFields[I].ItemIndex := FDestinationFields[I].Items.IndexOf(FSourceFields[I].Text)
         else
-          FFields[I].ItemIndex := I + 1;
-        FFields[I].OnChange := FField1.OnChange;
-        FFields[I].OnExit := FField1.OnExit;
+          FDestinationFields[I].ItemIndex := I + 1;
+        FDestinationFields[I].OnChange := FDestinationField1.OnChange;
+        FDestinationFields[I].OnExit := FDestinationField1.OnExit;
       end;
 
       ScrollBox.AutoScroll := True;
@@ -1681,7 +1681,7 @@ end;
 
 procedure TDImport.TSCSVOptionsHide(Sender: TObject);
 begin
-  if (Length(FFields) = 0) then
+  if (Length(FDestinationFields) = 0) then
     InitTSFields(Sender);
 end;
 
@@ -1817,8 +1817,8 @@ begin
   else
   begin
     Import.Data := (SObject is TSTable) or not (SObject is TSTable) and FData.Checked;
-    Import.Charset := FCharset.Text;
-    Import.Collation := FCollation.Text;
+    Import.DefaultCharset := FCharset.Text;
+    Import.DefaultCollation := FCollation.Text;
     Import.Engine := FEngine.Text;
     Import.RowType := TMySQLRowType(FRowFormat.ItemIndex);
     Import.Structure := not (SObject is TSTable) and FStructure.Checked;
@@ -1827,13 +1827,12 @@ begin
     begin
       TSBaseTable(SObject).InvalidateData();
       for I := 0 to TSBaseTable(SObject).Fields.Count - 1 do
-        for J := 0 to Length(FFields) - 1 do
-          if ((FSourceFields[J].Text <> '') and (FFields[J].ItemIndex = I + 1)) then
+        for J := 0 to Length(FDestinationFields) - 1 do
+          if ((FSourceFields[J].Text <> '') and (FDestinationFields[J].ItemIndex = I + 1)) then
           begin
-            SetLength(Import.Fields, Length(Import.Fields) + 1);
-            Import.Fields[Length(Import.Fields) - 1] := TSBaseTable(SObject).Fields[I];
-            SetLength(Import.SourceFields, Length(Import.SourceFields) + 1);
-            Import.SourceFields[Length(Import.SourceFields) - 1].Name := FSourceFields[J].Text;
+            SetLength(Import.FieldMapping, Length(Import.FieldMapping) + 1);
+            Import.FieldMapping[Length(Import.FieldMapping) - 1].DestinationField := TSBaseTable(SObject).Fields[I];
+            Import.FieldMapping[Length(Import.FieldMapping) - 1].SourceColumnName := FSourceFields[J].Text;
           end;
     end;
 
@@ -1850,8 +1849,8 @@ var
   I: Integer;
 begin
   TSExecute.Enabled := False;
-  for I := 0 to Length(FFields) - 1 do
-    if ((FSourceFields[I].Text <> '') and (FFields[I].ItemIndex > 0)) then
+  for I := 0 to Length(FDestinationFields) - 1 do
+    if ((FSourceFields[I].Text <> '') and (FDestinationFields[I].ItemIndex > 0)) then
       TSExecute.Enabled := True;
   CheckActivePageChange(TSFields.PageIndex);
 end;
@@ -1972,7 +1971,7 @@ end;
 
 procedure TDImport.TSXMLOptionsHide(Sender: TObject);
 begin
-  if (Length(FFields) = 0) then
+  if (Length(FDestinationFields) = 0) then
     InitTSFields(Sender);
 end;
 

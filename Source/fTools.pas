@@ -191,16 +191,16 @@ type
     property Session: TSSession read FSession;
     property Database: TSDatabase read FDatabase;
   public
-    Charset: string;
-    Collation: string;
-    Engine: string;
-    Fields: array of TSTableField;
+    DefaultCharset: string;
+    DefaultCollation: string;
     Data: Boolean;
+    Engine: string;
+    FieldMapping: array of record
+      DestinationField: TSTableField;
+      SourceColumnName: string;
+    end;
     Error: Boolean;
     RowType: TMySQLRowType;
-    SourceFields: array of record
-      Name: string;
-    end;
     Structure: Boolean;
     procedure Add(const TableName: string; const SourceTableName: string = '');
     constructor Create(const ASession: TSSession; const ADatabase: TSDatabase);
@@ -1728,11 +1728,11 @@ var
   I: Integer;
 begin
   EscapedFieldNames := '';
-  if (not Structure and (Length(Fields) > 0)) then
-    for I := 0 to Length(Fields) - 1 do
+  if (not Structure and (Length(FieldMapping) > 0)) then
+    for I := 0 to Length(FieldMapping) - 1 do
     begin
       if (I > 0) then EscapedFieldNames := EscapedFieldNames + ',';
-      EscapedFieldNames := EscapedFieldNames + Session.EscapeIdentifier(Fields[I].Name);
+      EscapedFieldNames := EscapedFieldNames + Session.EscapeIdentifier(FieldMapping[I].DestinationField.Name);
     end;
 end;
 
@@ -2056,25 +2056,25 @@ begin
     begin
       SQLExecuteLength := 0; InsertStmtInSQL := False;
 
-      SetLength(EscapedFieldName, Length(Fields));
-      for I := 0 to Length(Fields) - 1 do
-        EscapedFieldName[I] := Session.EscapeIdentifier(Fields[I].Name);
+      SetLength(EscapedFieldName, Length(FieldMapping));
+      for I := 0 to Length(FieldMapping) - 1 do
+        EscapedFieldName[I] := Session.EscapeIdentifier(FieldMapping[I].DestinationField.Name);
 
       SQLInsertPrefix := 'INSERT INTO ' + EscapedTableName;
-      if (EscapedFieldNames <> '') then
+      if (not Structure) then
         SQLInsertPrefix := SQLInsertPrefix + ' (' + EscapedFieldNames + ')';
       SQLInsertPrefix := SQLInsertPrefix + ' VALUES ';
 
       SQLInsertPostfix := ';' + #13#10;
 
-      SetLength(SQLValues, Length(Fields));
+      SetLength(SQLValues, Length(FieldMapping));
       while ((Success = daSuccess) and GetValues(Item, SQLValues)) do
       begin
         Values := '';
-        for I := 0 to Length(Fields) - 1 do
+        for I := 0 to Length(FieldMapping) - 1 do
         begin
           if (Length(Values) > 0) then Values := Values + ',';
-          Values := Values + Fields[I].EscapeValue(SQLValues[I]);
+          Values := Values + FieldMapping[I].DestinationField.EscapeValue(SQLValues[I]);
         end;
         Values := '(' + Values + ')';
 
@@ -2536,12 +2536,12 @@ var
 begin
   inherited;
 
-  SetLength(CSVColumns, Length(SourceFields));
-  for I := 0 to Length(SourceFields) - 1 do
+  SetLength(CSVColumns, Length(FieldMapping));
+  for I := 0 to Length(FieldMapping) - 1 do
   begin
     CSVColumns[I] := -1;
     for J := 0 to HeadlineNameCount - 1 do
-      if (SourceFields[I].Name = HeadlineNames[J]) then
+      if (FieldMapping[I].SourceColumnName = HeadlineNames[J]) then
         CSVColumns[I] := J;
   end;
 end;
@@ -2567,7 +2567,7 @@ end;
 
 destructor TTImportText.Destroy();
 begin
-  SetLength(Fields, 0);
+  SetLength(FieldMapping, 0);
   FreeMem(UnescapeBuffer.Mem);
 
   inherited;
@@ -2620,13 +2620,11 @@ begin
       DoError(DatabaseError(Session), Item, True);
     Session.EndSynchron();
 
-    SetLength(Fields, NewTable.Fields.Count);
+    SetLength(FieldMapping, NewTable.Fields.Count);
     for I := 0 to NewTable.Fields.Count - 1 do
-      Fields[I] := NewTable.Fields[I];
-
-    SetLength(SourceFields, NewTable.Fields.Count);
+      FieldMapping[I].DestinationField := NewTable.Fields[I];
     for I := 0 to HeadlineNameCount - 1 do
-      SourceFields[I].Name := HeadlineNames[I];
+      FieldMapping[I].SourceColumnName := HeadlineNames[I];
   end;
 end;
 
@@ -2690,7 +2688,7 @@ begin
 
   Result := RecordComplete;
   if (Result) then
-    for I := 0 to Length(Fields) - 1 do
+    for I := 0 to Length(FieldMapping) - 1 do
     begin
       if (I > 0) then
         DataFileBuffer.WriteChar(',');
@@ -2710,12 +2708,12 @@ begin
           Len := CSVUnescape(CSVValues[CSVColumns[I]].Text, CSVValues[CSVColumns[I]].Length, UnescapeBuffer.Mem, UnescapeBuffer.MemSize, Quoter);
         end;
 
-        if (Fields[I].FieldType in BinaryFieldTypes) then
+        if (FieldMapping[I].DestinationField.FieldType in BinaryFieldTypes) then
           DataFileBuffer.WriteBinary(UnescapeBuffer.Mem, Len)
-        else if (Fields[I].FieldType in TextFieldTypes) then
+        else if (FieldMapping[I].DestinationField.FieldType in TextFieldTypes) then
           DataFileBuffer.WriteText(UnescapeBuffer.Mem, Len)
         else
-          DataFileBuffer.WriteData(UnescapeBuffer.Mem, Len, not (Fields[I].FieldType in NotQuotedFieldTypes));
+          DataFileBuffer.WriteData(UnescapeBuffer.Mem, Len, not (FieldMapping[I].DestinationField.FieldType in NotQuotedFieldTypes));
       end;
     end;
 end;
@@ -2736,8 +2734,8 @@ begin
 
   Result := RecordComplete;
   if (Result) then
-    for I := 0 to Length(Fields) - 1 do
-      if ((I >= Length(CSVValues)) or (CSVValues[CSVColumns[I]].Length = 0)) then
+    for I := 0 to Length(FieldMapping) - 1 do
+      if ((I >= Length(CSVValues)) or (CSVValues[CSVColumns[I]].Length = 0) and (FieldMapping[I].DestinationField.FieldType in NotQuotedFieldTypes)) then
         Values[I] := 'NULL'
       else
         Values[I] := CSVUnescape(CSVValues[CSVColumns[I]].Text, CSVValues[CSVColumns[I]].Length, Quoter);
@@ -2932,13 +2930,13 @@ begin
     GetMem(ODBCData, ODBCDataSize);
 
     SQL := '';
-    if (Structure or (Length(SourceFields) = 1)) then
+    if (Structure or (Length(FieldMapping) = 1)) then
       SQL := '*'
     else
-      for I := 0 to Length(SourceFields) - 1 do
+      for I := 0 to Length(FieldMapping) - 1 do
       begin
         if (I > 0) then SQL := SQL + ',';
-        SQL := SQL + '"' + SourceFields[I].Name + '"';
+        SQL := SQL + '"' + FieldMapping[I].SourceColumnName + '"';
       end;
     SQL := 'SELECT ' + SQL + ' FROM "' + Item.SourceTableName + '"';
 
@@ -3056,11 +3054,11 @@ var
   Table: TSBaseTable;
   Unsigned: SQLINTEGER;
 begin
-  SetLength(SourceFields, 0);
+  SetLength(FieldMapping, 0);
 
   NewTable := TSBaseTable.Create(Database.Tables);
-  NewTable.DefaultCharset := Charset;
-  NewTable.Collation := Collation;
+  NewTable.DefaultCharset := DefaultCharset;
+  NewTable.Collation := DefaultCollation;
   NewTable.Engine := Session.EngineByName(Engine);
   NewTable.RowType := RowType;
 
@@ -3103,8 +3101,8 @@ begin
       while (SQL_SUCCEEDED(ODBCException(Stmt, SQLFetch(Stmt)))) do
         if (not Assigned(NewTable.FieldByName(ColumnName))) then
         begin
-          SetLength(SourceFields, Length(SourceFields) + 1);
-          SourceFields[Length(SourceFields) - 1].Name := ColumnName;
+          SetLength(FieldMapping, Length(FieldMapping) + 1);
+          FieldMapping[Length(FieldMapping) - 1].SourceColumnName := ColumnName;
 
 
           NewField := TSBaseTableField.Create(NewTable.Fields);
@@ -3291,13 +3289,10 @@ begin
 
   Table := Database.BaseTableByName(Item.TableName);
   if (not Assigned(Table)) then
-    SetLength(Fields, 0)
+    SetLength(FieldMapping, 0)
   else
-  begin
-    SetLength(Fields, Table.Fields.Count);
     for I := 0 to Table.Fields.Count - 1 do
-      Fields[I] := Table.Fields[I];
-  end;
+      FieldMapping[I].DestinationField := Table.Fields[I];
 end;
 
 function TTImportBaseODBC.GetFieldNames(const TableName: string; const FieldNames: TStrings): Boolean;
@@ -3421,7 +3416,7 @@ begin
 
   if (Result) then
   begin
-    for I := 0 to Length(Fields) - 1 do
+    for I := 0 to Length(FieldMapping) - 1 do
     begin
       if (I > 0) then
         DataFileBuffer.WriteChar(',');
@@ -3510,7 +3505,7 @@ begin
               DataFileBuffer.WriteBinary(my_char(ODBCMem), Size);
           end;
         else
-          raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Fields[I].Name, ColumnDesc[I].SQLDataType]);
+          raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [FieldMapping[I].DestinationField.Name, ColumnDesc[I].SQLDataType]);
       end;
     end;
   end;
@@ -3528,7 +3523,7 @@ var
 begin
   Result := SQL_SUCCEEDED(ODBCException(Stmt, SQLFetch(Stmt)));
   if (Result) then
-    for I := 0 to Length(Fields) - 1 do
+    for I := 0 to Length(FieldMapping) - 1 do
       case (ColumnDesc[I].SQLDataType) of
         SQL_BIT,
         SQL_TINYINT,
@@ -3542,7 +3537,7 @@ begin
           else
           begin
             SetString(S, PChar(ODBCData), cbData div SizeOf(Char));
-            Values[I] := Fields[I].EscapeValue(S);
+            Values[I] := FieldMapping[I].DestinationField.EscapeValue(S);
           end;
         SQL_DECIMAL,
         SQL_NUMERIC,
@@ -3554,7 +3549,7 @@ begin
           else if (cbData = SQL_NULL_DATA) then
             Values[I] := 'NULL'
           else
-            Values[I] := Fields[I].EscapeValue(FloatToStr(D, Session.FormatSettings));
+            Values[I] := FieldMapping[I].DestinationField.EscapeValue(FloatToStr(D, Session.FormatSettings));
         SQL_DATETIME,
         SQL_TYPE_DATE,
         SQL_TYPE_TIME,
@@ -3618,7 +3613,7 @@ begin
               SetString(Values[I], PChar(@Bytes[0]), Length(Bytes));
           end;
         else
-          raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Fields[I].Name, Ord(Fields[I].FieldType)]);
+          raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [FieldMapping[I].DestinationField.Name, Ord(FieldMapping[I].DestinationField.FieldType)]);
       end;
 end;
 
@@ -3792,14 +3787,14 @@ begin
   Result := Assigned(XMLNode);
   if (Result) then
   begin
-    for I := 0 to Length(Fields) - 1 do
+    for I := 0 to Length(FieldMapping) - 1 do
     begin
-      XMLValueNode := XMLNode.selectSingleNode('@' + SysUtils.LowerCase(SourceFields[I].Name));
+      XMLValueNode := XMLNode.selectSingleNode('@' + SysUtils.LowerCase(FieldMapping[I].SourceColumnName));
       if (not Assigned(XMLValueNode)) then
       begin
-        XMLValueNode := XMLNode.selectSingleNode(SysUtils.LowerCase(SourceFields[I].Name));
+        XMLValueNode := XMLNode.selectSingleNode(SysUtils.LowerCase(FieldMapping[I].SourceColumnName));
         for J := 0 to XMLNode.childNodes.length - 1 do
-          if (not Assigned(XMLValueNode) and (XMLNode.childNodes[J].nodeName = 'field') and Assigned(XMLNode.childNodes[J].selectSingleNode('@name')) and (lstrcmpI(PChar(XMLNode.childNodes[J].selectSingleNode('@name').text), PChar(SourceFields[I].Name)) = 0)) then
+          if (not Assigned(XMLValueNode) and (XMLNode.childNodes[J].nodeName = 'field') and Assigned(XMLNode.childNodes[J].selectSingleNode('@name')) and (lstrcmpI(PChar(XMLNode.childNodes[J].selectSingleNode('@name').text), PChar(FieldMapping[I].SourceColumnName)) = 0)) then
             XMLValueNode := XMLNode.childNodes[J];
       end;
 
@@ -3807,12 +3802,12 @@ begin
         DataFileBuffer.WriteChar(',');
       if (not Assigned(XMLValueNode) or (XMLValueNode.text = '') and Assigned(XMLValueNode.selectSingleNode('@xsi:nil')) and (XMLValueNode.selectSingleNode('@xsi:nil').text = 'true')) then
         DataFileBuffer.Write(PAnsiChar('NULL'), 4)
-      else if (Fields[I].FieldType in BinaryFieldTypes) then
+      else if (FieldMapping[I].DestinationField.FieldType in BinaryFieldTypes) then
         DataFileBuffer.WriteBinary(PChar(XMLValueNode.text), Length(XMLValueNode.text))
-      else if (Fields[I].FieldType in TextFieldTypes) then
+      else if (FieldMapping[I].DestinationField.FieldType in TextFieldTypes) then
         DataFileBuffer.WriteText(PChar(XMLValueNode.text), Length(XMLValueNode.text))
       else
-        DataFileBuffer.WriteData(PChar(XMLValueNode.text), Length(XMLValueNode.text), not (Fields[I].FieldType in NotQuotedFieldTypes));
+        DataFileBuffer.WriteData(PChar(XMLValueNode.text), Length(XMLValueNode.text), not (FieldMapping[I].DestinationField.FieldType in NotQuotedFieldTypes));
     end;
 
     repeat
@@ -3830,14 +3825,14 @@ begin
   Result := Assigned(XMLNode);
   if (Result) then
   begin
-    for I := 0 to Length(Fields) - 1 do
+    for I := 0 to Length(FieldMapping) - 1 do
     begin
-      XMLValueNode := XMLNode.selectSingleNode('@' + SysUtils.LowerCase(SourceFields[I].Name));
+      XMLValueNode := XMLNode.selectSingleNode('@' + SysUtils.LowerCase(FieldMapping[I].SourceColumnName));
       if (not Assigned(XMLValueNode)) then
       begin
-        XMLValueNode := XMLNode.selectSingleNode(SysUtils.LowerCase(SourceFields[I].Name));
+        XMLValueNode := XMLNode.selectSingleNode(SysUtils.LowerCase(FieldMapping[I].SourceColumnName));
         for J := 0 to XMLNode.childNodes.length - 1 do
-          if (not Assigned(XMLValueNode) and (XMLNode.childNodes[J].nodeName = 'field') and Assigned(XMLNode.childNodes[J].selectSingleNode('@name')) and (XMLNode.childNodes[J].selectSingleNode('@name').text = SourceFields[I].Name)) then
+          if (not Assigned(XMLValueNode) and (XMLNode.childNodes[J].nodeName = 'field') and Assigned(XMLNode.childNodes[J].selectSingleNode('@name')) and (XMLNode.childNodes[J].selectSingleNode('@name').text = FieldMapping[I].SourceColumnName)) then
             XMLValueNode := XMLNode.childNodes[J];
       end;
 

@@ -68,6 +68,10 @@ object DImport: TDImport
     object TSJob: TTabSheet
       Caption = 'TSJob'
       TabVisible = False
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -273,6 +277,10 @@ object DImport: TDImport
       ImageIndex = 9
       TabVisible = False
       OnShow = TSSelectShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GSelect: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -537,6 +545,10 @@ object DImport: TDImport
       TabVisible = False
       OnHide = TSWhatHide
       OnShow = TSWhatShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GStructure: TGroupBox_Ext
         Left = 4
         Top = 76
@@ -657,6 +669,10 @@ object DImport: TDImport
       Caption = 'TSFields'
       TabVisible = False
       OnShow = TSFieldsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GFields: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -671,12 +687,12 @@ object DImport: TDImport
           Height = 13
           Caption = 'FLSourceFields'
         end
-        object FLFields: TLabel
+        object FLDestinationFields: TLabel
           Left = 156
           Top = 24
-          Width = 39
+          Width = 92
           Height = 13
-          Caption = 'FLFields'
+          Caption = 'FLDestinationFields'
         end
         object ScrollBox: TScrollBox
           Left = 4
@@ -695,7 +711,7 @@ object DImport: TDImport
             Caption = '->'
             Visible = False
           end
-          object FField1: TComboBox_Ext
+          object FDestinationField1: TComboBox_Ext
             Left = 150
             Top = 8
             Width = 135
@@ -732,6 +748,10 @@ object DImport: TDImport
       Caption = 'TSTask'
       TabVisible = False
       OnShow = TSTaskShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -831,6 +851,10 @@ object DImport: TDImport
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GErrorMessages: TGroupBox_Ext
         Left = 4
         Top = 176

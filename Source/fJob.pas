@@ -489,8 +489,8 @@ begin
         if (Assigned(Import)) then
         begin
           Import.Data := Job.Data;
-          Import.Charset := Job.Charset;
-          Import.Collation := Job.Collation;
+          Import.DefaultCharset := Job.Charset;
+          Import.DefaultCollation := Job.Collation;
           Import.Engine := Job.Engine;
           Import.RowType := mrUnknown;
           Import.Structure := Job.Structure;
@@ -501,18 +501,15 @@ begin
             for I := 0 to Length(Job.FieldMappings) - 1 do
               if (Assigned(Import)) then
               begin
-                SetLength(Import.Fields, Length(Import.Fields) + 1);
-                Import.Fields[Length(Import.Fields) - 1] := Table.FieldByName(Job.FieldMappings[I].Name);
-                if (not Assigned(Import.Fields[Length(Import.Fields) - 1])) then
+                SetLength(Import.FieldMapping, Length(Import.FieldMapping) + 1);
+                Import.FieldMapping[Length(Import.FieldMapping) - 1].DestinationField := Table.FieldByName(Job.FieldMappings[I].Name);
+                if (not Assigned(Import.FieldMapping[Length(Import.FieldMapping) - 1].DestinationField)) then
                 begin
                   WriteLn(StdErr, 'Field not found: ' + Database.Name + '.' + Table.Name + '.' + Job.FieldMappings[I].Name);
                   FreeAndNil(Import);
                 end
                 else
-                begin
-                  SetLength(Import.SourceFields, Length(Import.SourceFields) + 1);
-                  Import.SourceFields[Length(Import.Fields) - 1].Name := Job.FieldMappings[I].SourceName;
-                end;
+                  Import.FieldMapping[Length(Import.FieldMapping) - 1].SourceColumnName := Job.FieldMappings[I].SourceName;
               end;
           end;
 
