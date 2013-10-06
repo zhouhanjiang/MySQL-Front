@@ -1460,9 +1460,6 @@ object FSession: TFSession
       object mlFImportODBC: TMenuItem
         Caption = 'aFImportODBC'
       end
-      object mlFImportXML: TMenuItem
-        Caption = 'aFImportXML'
-      end
     end
     object mlFExport: TMenuItem
       Caption = 'mlFExport'
@@ -1745,9 +1742,6 @@ object FSession: TFSession
       end
       object miNImportODBC: TMenuItem
         Caption = 'aFImportODBC'
-      end
-      object miNImportXML: TMenuItem
-        Caption = 'aFImportMXL'
       end
     end
     object miNExport: TMenuItem
@@ -2346,9 +2340,6 @@ object FSession: TFSession
       end
       object mwFImportODBC: TMenuItem
         Caption = 'aFImportODBC'
-      end
-      object mwFImportXML: TMenuItem
-        Caption = 'aFImportXML'
       end
     end
     object mwFExport: TMenuItem

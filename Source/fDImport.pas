@@ -47,8 +47,6 @@ type
     FExcelFile: TRadioButton;
     FDestinationField1: TComboBox_Ext;
     FFilename: TEdit;
-    FL2RecordTag: TLabel;
-    FL3RecordTag: TLabel;
     FLCollation: TLabel;
     FLCSVHeadline: TLabel;
     FLDataSource: TLabel;
@@ -68,7 +66,6 @@ type
     FLProgressObjects: TLabel;
     FLProgressTime: TLabel;
     FLQuoteValues: TLabel;
-    FLRecordTag: TLabel;
     FLReferrer1: TLabel;
     FLRowFormat: TLabel;
     FLSourceFields: TLabel;
@@ -81,7 +78,6 @@ type
     FQuoteChar: TEdit;
     FQuoteNothing: TRadioButton;
     FQuoteStrings: TRadioButton;
-    FRecordTag: TEdit;
     FRowFormat: TComboBox_Ext;
     FSelect: TTreeView_Ext;
     FSingle: TRadioButton;
@@ -94,7 +90,6 @@ type
     FTables: TListView;
     FTextFile: TRadioButton;
     FWeekly: TRadioButton;
-    FXMLFile: TRadioButton;
     GBasics: TGroupBox_Ext;
     GCSVHow: TGroupBox_Ext;
     GCSVPreview: TGroupBox_Ext;
@@ -106,7 +101,6 @@ type
     GSelect: TGroupBox_Ext;
     GTables: TGroupBox_Ext;
     GTask: TGroupBox_Ext;
-    GXMLHow: TGroupBox_Ext;
     OpenDialog: TOpenDialog_Ext;
     PageControl: TPageControl;
     PCSVPreview: TPanel_Ext;
@@ -126,7 +120,6 @@ type
     TSSelect: TTabSheet;
     TSTables: TTabSheet;
     TSTask: TTabSheet;
-    TSXMLOptions: TTabSheet;
     procedure FBBackClick(Sender: TObject);
     procedure FBCancelClick(Sender: TObject);
     procedure FBFilenameClick(Sender: TObject);
@@ -166,9 +159,7 @@ type
     procedure TSWhatShow(Sender: TObject);
     procedure TSTablesHide(Sender: TObject);
     procedure TSTablesShow(Sender: TObject);
-    procedure TSXMLOptionChange(Sender: TObject);
     procedure TSXMLOptionsHide(Sender: TObject);
-    procedure TSXMLOptionsShow(Sender: TObject);
     procedure FFilenameChange(Sender: TObject);
     procedure FDataSourceChange(Sender: TObject);
     procedure FBDataSourceClick(Sender: TObject);
@@ -374,7 +365,6 @@ begin
   FExcelFile.Caption := Preferences.LoadStr(801);
   FAccessFile.Caption := Preferences.LoadStr(695);
   FODBC.Caption := Preferences.LoadStr(607);
-  FXMLFile.Caption := Preferences.LoadStr(454);
   FLFilename.Caption := Preferences.LoadStr(348) + ':';
   FLDataSource.Caption := Preferences.LoadStr(38) + ':';
 
@@ -402,9 +392,6 @@ begin
   FLCharset.Caption := Preferences.LoadStr(682) + ':';
   FLCollation.Caption := Preferences.LoadStr(702) + ':';
   FLRowFormat.Caption := Preferences.LoadStr(129) + ':';
-
-  GXMLHow.Caption := Preferences.LoadStr(238);
-  FLRecordTag.Caption := Preferences.LoadStr(124) + ':';
 
   GFields.Caption := Preferences.LoadStr(253);
   FLDestinationFields.Caption := Preferences.LoadStr(401) + ':';
@@ -535,7 +522,7 @@ begin
   ModalResult := mrNone;
   PageControl.ActivePageIndex := -1;
 
-  if ((ImportType in [itSQLFile, itTextFile, itAccessFile, itExcelFile, itXMLFile]) and (Filename = '') and (DialogType = idtNormal)) then
+  if ((ImportType in [itSQLFile, itTextFile, itAccessFile, itExcelFile]) and (Filename = '') and (DialogType = idtNormal)) then
     if (not GetFilename()) then
       ModalResult := mrCancel;
   if ((ImportType in [itODBC]) and (DialogType = idtNormal)) then
@@ -812,12 +799,10 @@ begin
     ImportType := itAccessFile
   else if (FODBC.Checked) then
     ImportType := itODBC
-  else if (FXMLFile.Checked) then
-    ImportType := itXMLFile
   else
     ImportType := itUnknown;
 
-  FFilename.Visible := ImportType in [itSQLFile, itTextFile, itExcelFile, itAccessFile, itXMLFile];
+  FFilename.Visible := ImportType in [itSQLFile, itTextFile, itExcelFile, itAccessFile];
   FLFilename.Visible := FFilename.Visible;
   FBFilename.Visible := FFilename.Visible;
   FDataSource.Visible := ImportType in [itODBC];
@@ -938,11 +923,6 @@ begin
               SetLength(TAJobImport(PImport).SourceObjects, Length(TAJobImport(PImport).SourceObjects) + 1);
               TAJobImport(PImport).SourceObjects[Length(TAJobImport(PImport).SourceObjects) - 1].Name := TTableName(FTables.Items[I].Data).SourceName;
             end;
-        itXMLFile:
-          begin
-            SetLength(TAJobImport(PImport).SourceObjects, Length(TAJobImport(PImport).SourceObjects) + 1);
-            TAJobImport(PImport).SourceObjects[Length(TAJobImport(PImport).SourceObjects) - 1].Name := FRecordTag.Text;
-          end;
       end;
 
       SetLength(TAJobImport(PImport).FieldMappings, 0);
@@ -1042,7 +1022,6 @@ begin
       itAccessFile: HelpContext := 1013;
       itExcelFile: HelpContext := 1106;
       itODBC: HelpContext := 1012;
-      itXMLFile: HelpContext := 1132;
       else HelpContext := -1;
     end;
   FBHelp.Visible := HelpContext >= 0;
@@ -1081,7 +1060,6 @@ begin
     FExcelFile.Checked := False;
     FAccessFile.Checked := False;
     FODBC.Checked := False;
-    FXMLFile.Checked := False;
     FFilename.Text := '';
     FDataSource.Text := '';
     FJobOptionChange(Sender);
@@ -1109,7 +1087,6 @@ begin
       itExcelFile: FExcelFile.Checked := True;
       itAccessFile: FAccessFile.Checked := True;
       itODBC: FODBC.Checked := True;
-      itXMLFile: FXMLFile.Checked := True;
     end;
     FDataSource.Text := Job.ODBC.DataSource;
     FFilename.Text := Job.Filename;
@@ -1203,7 +1180,6 @@ begin
   TSTables.Enabled := (DialogType in [idtNormal, idtCreateJob, idtEditJob]) and (ImportType in [itAccessFile, itExcelFile, itODBC]);
   TSSelect.Enabled := DialogType in [idtEditJob];
   TSCSVOptions.Enabled := (ImportType in [itTextFile]);
-  TSXMLOptions.Enabled := (SObject is TSTable) and (ImportType in [itXMLFile]);
   TSWhat.Enabled := False;
   TSFields.Enabled := False;
   TSTask.Enabled := False;
@@ -1263,7 +1239,6 @@ begin
     SObject := TSObject(FSelect.Selected.Data);
 
   TSCSVOptions.Enabled := (ImportType in [itTextFile]);
-  TSXMLOptions.Enabled := (SObject is TSTable) and (ImportType in [itXMLFile]);
   TSWhat.Enabled := not Assigned(SObject) and (ImportType = itSQLFile) or (SObject is TSDatabase) or (SObject is TSTable) and (ImportType <> itSQLFile) and (FTables.SelCount = 1);
   TSTask.Enabled := (ImportType = itSQLFile);
 
@@ -1353,7 +1328,6 @@ procedure TDImport.FTablesChange(Sender: TObject; Item: TListItem;
 begin
   TSSelect.Enabled := (DialogType in [idtCreateJob, idtEditJob, idtExecuteJob]) and Assigned(FTables.Selected);
   TSCSVOptions.Enabled := (DialogType in [idtNormal]) and (ImportType in [itTextFile]);
-  TSXMLOptions.Enabled := (DialogType in [idtNormal]) and (SObject is TSTable) and (ImportType in [itXMLFile]);
   TSWhat.Enabled := (DialogType in [idtNormal]) and not Assigned(SObject) and (ImportType = itSQLFile) or (SObject is TSDatabase) or (SObject is TSTable) and (ImportType <> itSQLFile) and (FTables.SelCount = 1);
   TSTask.Enabled := (DialogType in [idtCreateJob, idtEditJob]) and (ImportType = itSQLFile);
 
@@ -1370,7 +1344,7 @@ end;
 procedure TDImport.FTablesSelectItem(Sender: TObject; Item: TListItem;
   Selected: Boolean);
 begin
-  TSWhat.Enabled := (FTables.SelCount > 0) and (ImportType in [itTextFile, itAccessFile, itExcelFile, itODBC, itXMLFile]) and not (SObject is TSBaseTable);
+  TSWhat.Enabled := (FTables.SelCount > 0) and (ImportType in [itTextFile, itAccessFile, itExcelFile, itODBC]) and not (SObject is TSBaseTable);
   TSFields.Enabled := (FTables.SelCount > 0) and not TSWhat.Enabled;
   CheckActivePageChange(TSTables.PageIndex);
 end;
@@ -1415,12 +1389,6 @@ begin
         else
           OpenDialog.Filter := FilterDescription('mdb') + ' (*.mdb)|*.mdb';
         OpenDialog.DefaultExt := 'mdb';
-        OpenDialog.Encodings.Clear();
-      end;
-    itXMLFile:
-      begin
-        OpenDialog.Filter := FilterDescription('xml') + ' (*.xml)|*.xml';
-        OpenDialog.DefaultExt := 'xml';
         OpenDialog.Encodings.Clear();
       end;
   end;
@@ -1469,13 +1437,6 @@ begin
         FLSourceFields.Caption := Preferences.LoadStr(400) + ':';
 
       TTImportODBC(Import).GetFieldNames(TTableName(FTables.Selected.Data).SourceName, FieldNames);
-    end
-    else if ((ImportType in [itXMLFile]) and (SObject is TSBaseTable)) then
-    begin
-      FLSourceFields.Caption := Preferences.LoadStr(400) + ':';
-
-      for I := 0 to TSBaseTable(SObject).Fields.Count - 1 do
-        FieldNames.Add(TSBaseTable(SObject).Fields[I].Name);
     end;
 
     SetLength(FSourceFields, FieldNames.Count);
@@ -1495,7 +1456,7 @@ begin
         FSourceFields[I].Top := FSourceField1.Top + I * (FSourceField2.Top - FSourceField1.Top);
         FSourceFields[I].Width := FSourceField1.Width;
         FSourceFields[I].Height := FSourceField1.Height;
-        FSourceFields[I].Enabled := ImportType = itXMLFile;
+        FSourceFields[I].Enabled := False;
         FSourceFields[I].Text := FieldNames[I];
         FSourceFields[I].OnChange := FSourceField1.OnChange;
 
@@ -1725,10 +1686,10 @@ var
 begin
   Session.UnRegisterEventProc(FormSessionEvent);
 
-  FLProgressObjects.Visible := ImportType in [itODBC, itAccessFile, itExcelFile, itXMLFile];
+  FLProgressObjects.Visible := ImportType in [itODBC, itAccessFile, itExcelFile];
   FEntieredObjects.Visible := FLProgressObjects.Visible;
   FDoneObjects.Visible := FLProgressObjects.Visible;
-  if (ImportType in [itODBC, itAccessFile, itExcelFile, itXMLFile]) then
+  if (ImportType in [itODBC, itAccessFile, itExcelFile]) then
     FLProgressRecords.Caption := Preferences.LoadStr(235) + ':'
   else
     FLProgressRecords.Caption := Preferences.LoadStr(67) + ':';
@@ -1804,11 +1765,6 @@ begin
             if (FTables.Items[I].Selected) then
               ImportAdd(TTableName(FTables.Items[I].Data).TableName, TTableName(FTables.Items[I].Data).SourceName);
       end;
-    itXMLFile:
-      if (SObject is TSBaseTable) then
-      begin
-        ImportAdd(SObject.Name, FRecordTag.Text);
-      end;
   end;
 
   Success := (Answer <> IDCANCEL);
@@ -1871,7 +1827,6 @@ begin
     itAccessFile: Import := TTImportAccess.Create(Session, Database, Filename);
     itExcelFile: Import := TTImportExcel.Create(Session, Database, Filename);
     itODBC: Import := TTImportODBC.Create(Session, Database, DODBC.DataSource, DODBC.Username, DODBC.Password);
-    itXMLFile: if (SObject is TSBaseTable) then Import := TTImportXML.Create(Filename, TSBaseTable(SObject));
   end;
 end;
 
@@ -1898,7 +1853,7 @@ end;
 
 procedure TDImport.TSTablesHide(Sender: TObject);
 begin
-  if (ImportType in [itExcelFile, itAccessFile, itODBC, itXMLFile]) then
+  if (ImportType in [itExcelFile, itAccessFile, itODBC]) then
   begin
     ClearTSFields(Sender);
     if (TSFields.Enabled) then
@@ -1962,22 +1917,10 @@ begin
   CheckActivePageChange(TSTask.PageIndex);
 end;
 
-procedure TDImport.TSXMLOptionChange(Sender: TObject);
-begin
-  TSFields.Enabled := FRecordTag.Text <> '';
-
-  CheckActivePageChange(TSXMLOptions.PageIndex);
-end;
-
 procedure TDImport.TSXMLOptionsHide(Sender: TObject);
 begin
   if (Length(FDestinationFields) = 0) then
     InitTSFields(Sender);
-end;
-
-procedure TDImport.TSXMLOptionsShow(Sender: TObject);
-begin
-  TSXMLOptionChange(Sender);
 end;
 
 initialization

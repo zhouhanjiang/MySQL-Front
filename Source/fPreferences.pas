@@ -12,7 +12,7 @@ uses
 
 type
   TPExportType = (etUnknown, etSQLFile, etTextFile, etExcelFile, etAccessFile, etODBC, etHTMLFile, etXMLFile, etPDFFile, etPrinter);
-  TPImportType = (itUnknown, itSQLFile, itTextFile, itAccessFile, itExcelFile, itODBC, itXMLFile);
+  TPImportType = (itUnknown, itSQLFile, itTextFile, itAccessFile, itExcelFile, itODBC);
   TAJobObjectType = (jotServer, jotDatabase, jotTable, jotProcedure, jotFunction, jotTrigger, jotEvent);
   TPNodeType = (ntDisabled, ntName, ntCustom);
 
@@ -1098,7 +1098,6 @@ begin
   else if (UpperCase(Str) = 'EXCELFILE') then ImportType := itExcelFile
   else if (UpperCase(Str) = 'ACCESSFILE') then ImportType := itAccessFile
   else if (UpperCase(Str) = 'ODBC') then ImportType := itODBC
-  else if (UpperCase(Str) = 'XMLFILE') then ImportType := itXMLFile
   else Result := False;
 end;
 
@@ -1110,7 +1109,6 @@ begin
     itExcelFile: Result := 'ExcelFile';
     itAccessFile: Result := 'AccessFile';
     itODBC: Result := 'ODBC';
-    itXMLFile: Result := 'XMLFile';
     else raise ERangeError.CreateFmt(SPropertyOutOfRange, ['ImportType']);
   end;
 end;

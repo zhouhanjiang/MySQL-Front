@@ -8,8 +8,8 @@ uses
   DBCtrls, DBActns, StdActns, ImgList, XMLIntf,
   ShDocVw, CommCtrl, PNGImage, GIFImg, Jpeg, ToolWin,
   MPHexEditor, MPHexEditorEx,
-  SynEdit, SynEditHighlighter, SynHighlighterSQL, SynMemo, SynEditMiscClasses, SynEditSearch,
-  SynCompletionProposal, SynEditPrint,
+  SynEdit, SynEditHighlighter, SynHighlighterSQL, SynMemo, SynEditMiscClasses,
+  SynEditSearch, SynCompletionProposal, SynEditPrint,
   acQBBase, acAST, acQBEventMetaProvider, acMYSQLSynProvider, acSQLBuilderPlainText,
   ShellControls, JAMControls, ShellLink,
   ComCtrls_Ext, StdCtrls_Ext, Dialogs_Ext, Forms_Ext, ExtCtrls_Ext,
@@ -179,7 +179,6 @@ type
     miNImportODBC: TMenuItem;
     miNImportSQL: TMenuItem;
     miNImportText: TMenuItem;
-    miNImportXML: TMenuItem;
     miNOpenInNewTab: TMenuItem;
     miNOpenInNewWinodow: TMenuItem;
     miNPaste: TMenuItem;
@@ -230,7 +229,6 @@ type
     mlFImportODBC: TMenuItem;
     mlFImportSQL: TMenuItem;
     mlFImportText: TMenuItem;
-    mlFImportXML: TMenuItem;
     MList: TPopupMenu;
     MLog: TPopupMenu;
     mlOpen: TMenuItem;
@@ -288,7 +286,6 @@ type
     mwFImportODBC: TMenuItem;
     mwFImportSQL: TMenuItem;
     mwFImportText: TMenuItem;
-    mwFImportXML: TMenuItem;
     MWorkbench: TPopupMenu;
     mwPOpenInNewTab: TMenuItem;
     mwPOpenInNewWinodw: TMenuItem;
@@ -438,7 +435,6 @@ type
     procedure aFImportODBCExecute(Sender: TObject);
     procedure aFImportSQLExecute(Sender: TObject);
     procedure aFImportTextExecute(Sender: TObject);
-    procedure aFImportXMLExecute(Sender: TObject);
     procedure aHRunClick(Sender: TObject);
     procedure aHRunExecute(Sender: TObject);
     procedure aJAddExportExecute(Sender: TObject);
@@ -3672,13 +3668,6 @@ begin
   aFImportExecute(Sender, itTextFile);
 end;
 
-procedure TFSession.aFImportXMLExecute(Sender: TObject);
-begin
-  Wanted.Clear();
-
-  aFImportExecute(Sender, itXMLFile);
-end;
-
 procedure TFSession.aFOpenExecute(Sender: TObject);
 begin
   Wanted.Clear();
@@ -4766,7 +4755,6 @@ begin
     MainAction('aFImportExcel').OnExecute := aFImportExcelExecute;
     MainAction('aFImportAccess').OnExecute := aFImportAccessExecute;
     MainAction('aFImportODBC').OnExecute := aFImportODBCExecute;
-    MainAction('aFImportXML').OnExecute := aFImportXMLExecute;
     MainAction('aFExportSQL').OnExecute := aFExportSQLExecute;
     MainAction('aFExportText').OnExecute := aFExportTextExecute;
     MainAction('aFExportExcel').OnExecute := aFExportExcelExecute;
@@ -5259,7 +5247,6 @@ begin
   miNImportExcel.Action := MainAction('aFImportExcel');
   miNImportAccess.Action := MainAction('aFImportAccess');
   miNImportODBC.Action := MainAction('aFImportODBC');
-  miNImportXML.Action := MainAction('aFImportXML');
   miNExportSQL.Action := MainAction('aFExportSQL');
   miNExportText.Action := MainAction('aFExportText');
   miNExportExcel.Action := MainAction('aFExportExcel');
@@ -5300,7 +5287,6 @@ begin
   mlFImportExcel.Action := MainAction('aFImportExcel');
   mlFImportAccess.Action := MainAction('aFImportAccess');
   mlFImportODBC.Action := MainAction('aFImportODBC');
-  mlFImportXML.Action := MainAction('aFImportXML');
   mlFExportSQL.Action := MainAction('aFExportSQL');
   mlFExportText.Action := MainAction('aFExportText');
   mlFExportExcel.Action := MainAction('aFExportExcel');
@@ -5357,7 +5343,6 @@ begin
   mwFImportExcel.Action := MainAction('aFImportExcel');
   mwFImportAccess.Action := MainAction('aFImportAccess');
   mwFImportODBC.Action := MainAction('aFImportODBC');
-  mwFImportXML.Action := MainAction('aFImportXML');
   mwFExportSQL.Action := MainAction('aFExportSQL');
   mwFExportText.Action := MainAction('aFExportText');
   mwFExportExcel.Action := MainAction('aFExportExcel');
@@ -6443,7 +6428,6 @@ begin
       MainAction('aFImportExcel').Enabled := False;
       MainAction('aFImportAccess').Enabled := False;
       MainAction('aFImportODBC').Enabled := False;
-      MainAction('aFImportXML').Enabled := False;
       MainAction('aFPrint').Enabled := False;
       MainAction('aECopyToFile').Enabled := False;
       MainAction('aEPasteFromFile').Enabled := False;
@@ -7382,7 +7366,6 @@ begin
   MainAction('aFImportExcel').Enabled := False;
   MainAction('aFImportAccess').Enabled := False;
   MainAction('aFImportODBC').Enabled := False;
-  MainAction('aFImportXML').Enabled := False;
   MainAction('aFExportSQL').Enabled := False;
   MainAction('aFExportText').Enabled := False;
   MainAction('aFExportExcel').Enabled := False;
@@ -8012,7 +7995,6 @@ begin
   MainAction('aFImportExcel').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
   MainAction('aFImportAccess').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
   MainAction('aFImportODBC').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
-  MainAction('aFImportXML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseTable]);
   MainAction('aFExportSQL').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
   MainAction('aFExportText').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseTable, iiView]);
   MainAction('aFExportExcel').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView]);
@@ -10217,7 +10199,6 @@ begin
   MainAction('aFImportExcel').Enabled := False;
   MainAction('aFImportAccess').Enabled := False;
   MainAction('aFImportODBC').Enabled := False;
-  MainAction('aFImportXML').Enabled := False;
   MainAction('aFExportSQL').Enabled := False;
   MainAction('aFExportText').Enabled := False;
   MainAction('aFExportExcel').Enabled := False;
@@ -10934,7 +10915,6 @@ begin
     MainAction('aFImportExcel').Enabled := False;
     MainAction('aFImportAccess').Enabled := False;
     MainAction('aFImportODBC').Enabled := False;
-    MainAction('aFImportXML').Enabled := False;
     MainAction('aFExportSQL').Enabled := False;
     MainAction('aFExportText').Enabled := False;
     MainAction('aFExportExcel').Enabled := False;
@@ -11053,7 +11033,6 @@ begin
             MainAction('aFImportExcel').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
             MainAction('aFImportAccess').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
             MainAction('aFImportODBC').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
-            MainAction('aFImportXML').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable);
             MainAction('aFExportSQL').Enabled := ((ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger])) and (SelectedImageIndex = iiDatabase);
             MainAction('aFExportText').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiView])) and (SelectedImageIndex = iiDatabase);
             MainAction('aFExportExcel').Enabled := ((ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiView])) and (SelectedImageIndex = iiDatabase);
@@ -11135,7 +11114,6 @@ begin
             MainAction('aFImportExcel').Enabled := (ListView.SelCount = 0);
             MainAction('aFImportAccess').Enabled := (ListView.SelCount = 0);
             MainAction('aFImportODBC').Enabled := (ListView.SelCount = 0);
-            MainAction('aFImportXML').Enabled := (ListView.SelCount = 0);
             MainAction('aFExportSQL').Enabled := (ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiTrigger]);
             MainAction('aFExportText').Enabled := (ListView.SelCount = 0);
             MainAction('aFExportExcel').Enabled := (ListView.SelCount = 0);

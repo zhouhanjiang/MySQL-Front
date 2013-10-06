@@ -109,7 +109,6 @@ type
     aFImportODBC: TAction;
     aFImportSQL: TAction;
     aFImportText: TAction;
-    aFImportXML: TAction;
     aFOpen: TAction;
     aFOpenAccount: TAction;
     aFPrint: TAction;
@@ -241,7 +240,6 @@ type
     miFImportODBC: TMenuItem;
     miFImportSQL: TMenuItem;
     miFImportText: TMenuItem;
-    miFImportXML: TMenuItem;
     miFOpen: TMenuItem;
     miFPrint: TMenuItem;
     miFReopen: TMenuItem;
@@ -981,7 +979,6 @@ begin
   aFImportExcel.Caption := Preferences.LoadStr(801) + '...';
   aFImportAccess.Caption := Preferences.LoadStr(695) + '...';
   aFImportODBC.Caption := Preferences.LoadStr(607) + '...';
-  aFImportXML.Caption := Preferences.LoadStr(454) + '...';
   miFExport.Caption := Preferences.LoadStr(200);
   aFExportSQL.Caption := Preferences.LoadStr(409) + '...';
   aFExportText.Caption := Preferences.LoadStr(410) + '...';

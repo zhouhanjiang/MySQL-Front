@@ -471,19 +471,6 @@ begin
                 for I := 0 to Length(Job.SourceObjects) - 1 do
                   ImportAdd(TableName(Job.SourceObjects[I].Name), Job.SourceObjects[I].Name);
             end;
-          itXMLFile:
-            if (Job.JobObject.ObjectType = jotTable) then
-            begin
-              Table := Database.BaseTableByName(Job.JobObject.Name);
-              if (not Assigned(Table)) then
-                WriteLn(StdErr, 'Table not found: ' + Database.Name + '.' + Job.JobObject.Name)
-              else
-              begin
-                Import := TTImportXML.Create(Job.Filename, Table);
-
-                ImportAdd(Job.JobObject.Name, Job.SourceObjects[0].Name);
-              end;
-            end;
         end;
 
         if (Assigned(Import)) then

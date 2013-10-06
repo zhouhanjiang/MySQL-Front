@@ -61,17 +61,13 @@ object DImport: TDImport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSFields
+    ActivePage = TSJob
     Style = tsButtons
     TabOrder = 0
     TabStop = False
     object TSJob: TTabSheet
       Caption = 'TSJob'
       TabVisible = False
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -121,7 +117,7 @@ object DImport: TDImport
           Width = 166
           Height = 21
           ReadOnly = True
-          TabOrder = 7
+          TabOrder = 6
           Text = 'FFilename'
           OnChange = FDataSourceChange
         end
@@ -130,7 +126,7 @@ object DImport: TDImport
           Top = 233
           Width = 166
           Height = 21
-          TabOrder = 10
+          TabOrder = 9
           Text = 'FFilename'
           OnChange = FFilenameChange
         end
@@ -193,23 +189,13 @@ object DImport: TDImport
           TabStop = True
           OnClick = FImportTypeChange
         end
-        object FXMLFile: TRadioButton
-          Left = 128
-          Top = 147
-          Width = 185
-          Height = 17
-          Caption = 'FXMLFile'
-          TabOrder = 6
-          TabStop = True
-          OnClick = FImportTypeChange
-        end
         object FBFilename: TButton
           Left = 294
           Top = 233
           Width = 21
           Height = 21
           Caption = #183#183#183
-          TabOrder = 9
+          TabOrder = 8
           OnClick = FBFilenameClick
         end
         object FBDataSource: TButton
@@ -218,7 +204,7 @@ object DImport: TDImport
           Width = 21
           Height = 21
           Caption = #183#183#183
-          TabOrder = 8
+          TabOrder = 7
           OnClick = FBDataSourceClick
         end
       end
@@ -228,10 +214,6 @@ object DImport: TDImport
       TabVisible = False
       OnHide = TSTablesHide
       OnShow = TSTablesShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GTables: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -277,10 +259,6 @@ object DImport: TDImport
       ImageIndex = 9
       TabVisible = False
       OnShow = TSSelectShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GSelect: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -328,10 +306,6 @@ object DImport: TDImport
       TabVisible = False
       OnHide = TSCSVOptionsHide
       OnShow = TSCSVOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GCSVHow: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -490,65 +464,11 @@ object DImport: TDImport
         end
       end
     end
-    object TSXMLOptions: TTabSheet
-      Caption = 'TSXMLOptions'
-      TabVisible = False
-      OnHide = TSXMLOptionsHide
-      OnShow = TSXMLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
-      object GXMLHow: TGroupBox_Ext
-        Left = 4
-        Top = 8
-        Width = 325
-        Height = 57
-        Caption = 'GXMLHow'
-        TabOrder = 0
-        object FLRecordTag: TLabel
-          Left = 8
-          Top = 25
-          Width = 66
-          Height = 13
-          Caption = 'FLRecordTag'
-          FocusControl = FRecordTag
-        end
-        object FL2RecordTag: TLabel
-          Left = 128
-          Top = 25
-          Width = 6
-          Height = 13
-          Caption = '<'
-        end
-        object FL3RecordTag: TLabel
-          Left = 191
-          Top = 25
-          Width = 6
-          Height = 13
-          Caption = '>'
-        end
-        object FRecordTag: TEdit
-          Left = 134
-          Top = 22
-          Width = 57
-          Height = 21
-          CharCase = ecLowerCase
-          TabOrder = 0
-          Text = 'row'
-          OnChange = TSXMLOptionChange
-        end
-      end
-    end
     object TSWhat: TTabSheet
       Caption = 'TSWhat'
       TabVisible = False
       OnHide = TSWhatHide
       OnShow = TSWhatShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GStructure: TGroupBox_Ext
         Left = 4
         Top = 76
@@ -669,10 +589,6 @@ object DImport: TDImport
       Caption = 'TSFields'
       TabVisible = False
       OnShow = TSFieldsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GFields: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -748,10 +664,6 @@ object DImport: TDImport
       Caption = 'TSTask'
       TabVisible = False
       OnShow = TSTaskShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -851,10 +763,6 @@ object DImport: TDImport
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GErrorMessages: TGroupBox_Ext
         Left = 4
         Top = 176

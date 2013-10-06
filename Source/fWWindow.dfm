@@ -778,13 +778,6 @@ object WWindow: TWWindow
       HelpContext = 1012
       HelpType = htContext
     end
-    object aFImportXML: TAction
-      Category = 'File'
-      Caption = 'aFImportXML'
-      Enabled = False
-      HelpContext = 1132
-      HelpType = htContext
-    end
     object aFExportSQL: TAction
       Category = 'File'
       Caption = 'aFExportSQL'
@@ -1438,9 +1431,6 @@ object WWindow: TWWindow
         end
         object miFImportODBC: TMenuItem
           Action = aFImportODBC
-        end
-        object miFImportXML: TMenuItem
-          Action = aFImportXML
         end
       end
       object miFExport: TMenuItem
