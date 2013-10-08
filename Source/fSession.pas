@@ -975,7 +975,6 @@ type
     destructor Destroy(); override;
     function EmptyTables(const Tables: TList = nil): Boolean; virtual;
     function EventByName(const EventName: string): TSEvent; virtual;
-    procedure Invalidate(); override;
     function FlushTables(const Tables: TList): Boolean; virtual;
     function FunctionByName(const FunctionName: string): TSFunction; virtual;
     function GetSourceEx(const DropBeforeCreate: Boolean = False): string; virtual;
@@ -7130,19 +7129,6 @@ begin
   end;
 end;
 
-procedure TSDatabase.Invalidate();
-begin
-  inherited Invalidate;
-
-  Tables.Invalidate();
-  if (Assigned(Routines)) then
-    Routines.Invalidate();
-  if (Assigned(Events)) then
-    Events.Invalidate();
-  if (Assigned(Triggers)) then
-    Triggers.Invalidate();
-end;
-
 function TSDatabase.OptimizeTables(const Tables: TList): Boolean;
 var
   I: Integer;
@@ -7275,6 +7261,8 @@ end;
 procedure TSDatabase.SetSource(const ADataSet: TMySQLQuery);
 begin
   SetSource(ADataSet.FieldByName('Create Database'));
+
+  ParseCreateDatabase(Source);
 
   if (Valid) then
     Session.ExecuteEvent(etItemValid, Session, Databases, Self);

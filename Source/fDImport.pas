@@ -1566,7 +1566,7 @@ begin
     FSelect.Select(Nodes);
     Nodes.Free();
 
-    Session.BeginSynchron();
+    Session.EndSynchron();
   end;
 end;
 
