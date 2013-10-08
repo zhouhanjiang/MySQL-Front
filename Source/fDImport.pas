@@ -1336,7 +1336,7 @@ procedure TDImport.FTablesChange(Sender: TObject; Item: TListItem;
 begin
   TSSelect.Enabled := (DialogType in [idtCreateJob, idtEditJob, idtExecuteJob]) and Assigned(FTables.Selected);
   TSCSVOptions.Enabled := (DialogType in [idtNormal]) and (ImportType in [itTextFile]);
-  TSWhat.Enabled := (DialogType in [idtNormal]) and not Assigned(SObject) and (ImportType = itSQLFile) or (SObject is TSDatabase) or (SObject is TSTable) and (ImportType <> itSQLFile) and (FTables.SelCount = 1);
+  TSWhat.Enabled := (DialogType in [idtNormal]) and (not Assigned(SObject) and (ImportType = itSQLFile) or (SObject is TSDatabase) or (SObject is TSTable) and (ImportType <> itSQLFile) and (FTables.SelCount = 1));
   TSTask.Enabled := (DialogType in [idtCreateJob, idtEditJob]) and (ImportType = itSQLFile);
 
   CheckActivePageChange(TSTables.PageIndex);
@@ -1352,6 +1352,7 @@ end;
 procedure TDImport.FTablesSelectItem(Sender: TObject; Item: TListItem;
   Selected: Boolean);
 begin
+
   TSWhat.Enabled := (FTables.SelCount > 0) and (ImportType in [itTextFile, itAccessFile, itExcelFile, itODBC]) and not (SObject is TSBaseTable);
   TSFields.Enabled := (FTables.SelCount > 0) and not TSWhat.Enabled;
   CheckActivePageChange(TSTables.PageIndex);
@@ -1818,7 +1819,10 @@ begin
   TSExecute.Enabled := False;
   for I := 0 to Length(FDestinationFields) - 1 do
     if ((FSourceFields[I].Text <> '') and (FDestinationFields[I].ItemIndex > 0)) then
-      TSExecute.Enabled := True;
+    begin
+      TSTask.Enabled := (DialogType in [idtCreateJob, idtEditJob, idtExecuteJob]);
+      TSExecute.Enabled := (DialogType = idtNormal);
+    end;
   CheckActivePageChange(TSFields.PageIndex);
 end;
 
@@ -1921,6 +1925,7 @@ begin
   end;
 
   FTablesSelectItem(FTables, FTables.Selected, Assigned(FTables.Selected));
+  FTablesChange(FTables, FTables.Selected, ctState);
 end;
 
 procedure TDImport.TSTaskShow(Sender: TObject);
