@@ -284,6 +284,7 @@ type
     Engine: string;
     RowType: Integer;
     Structure: Boolean;
+    procedure Assign(const Source: TPItem); override;
     constructor Create(const AAItems: TPItems = nil; const AName: string = '');
   end;
 
@@ -1742,16 +1743,36 @@ end;
 
 { TPImport ********************************************************************}
 
+procedure TPImport.Assign(const Source: TPItem);
+begin
+  Assert(Assigned(Source) and (Source.ClassType = ClassType));
+
+
+  inherited;
+
+  Charset := TPImport(Source).Charset;
+  CSV.Headline := TPImport(Source).CSV.Headline;
+  CSV.Quote := TPImport(Source).CSV.Quote;
+  CSV.QuoteChar := TPImport(Source).CSV.QuoteChar;
+  CSV.Delimiter := TPImport(Source).CSV.Delimiter;
+  CSV.DelimiterType := TPImport(Source).CSV.DelimiterType;
+  Collation := TPImport(Source).Collation;
+  Data := TPImport(Source).Data;
+  Engine := TPImport(Source).Engine;
+  RowType := TPImport(Source).RowType;
+  Structure := TPImport(Source).Structure;
+end;
+
 constructor TPImport.Create(const AAItems: TPItems = nil; const AName: string = '');
 begin
   inherited;
 
+  Charset := '';
   CSV.Headline := True;
   CSV.Quote := qtStrings;
   CSV.QuoteChar := '"';
   CSV.Delimiter := ',';
   CSV.DelimiterType := dtChar;
-  Charset := '';
   Collation := '';
   Data := True;
   Engine := '';
@@ -1781,12 +1802,12 @@ procedure TPImport.SaveToXML(const XML: IXMLNode);
 begin
   inherited;
 
-  XMLNode(XML, 'csv/headline').Attributes['enabled'] := CSV.Headline;
+  XMLNode(XML, 'csv/headline').Attributes['enabled'] := BoolToStr(CSV.Headline, True);
   XMLNode(XML, 'csv/quote/string').Text := CSV.QuoteChar;
   XMLNode(XML, 'csv/quote/type').Text := QuoteToStr(CSV.Quote);
   XMLNode(XML, 'csv/separator/character/string').Text := CSV.Delimiter;
   XMLNode(XML, 'csv/separator/character/type').Text := SeparatorTypeToStr(CSV.DelimiterType);
-  XMLNode(XML, 'data').Attributes['enabled'] := Data;
+  XMLNode(XML, 'data').Attributes['enabled'] := BoolToStr(Data);
   XMLNode(XML, 'structure').Attributes['charset'] := Charset;
   XMLNode(XML, 'structure').Attributes['collation'] := Collation;
   XMLNode(XML, 'structure').Attributes['enabled'] := Structure;
@@ -3258,7 +3279,7 @@ procedure TAJobImport.Assign(const Source: TPItem);
 begin
   Assert(Source is TAJobImport);
 
-  inherited Assign(Source);
+  inherited;
 
   CodePage := TAJobImport(Source).CodePage;
   FieldMappings := TAJobImport(Source).FieldMappings;
@@ -4585,8 +4606,10 @@ begin
 try //why is this needed? 28.09.2013
     FXMLDocument.Options := FXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
 except
-    FXMLDocument := LoadXMLDocument(Filename);
-    FXMLDocument.Options := FXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
+    FXMLDocument := NewXMLDocument();
+
+    FXMLDocument.Encoding := 'utf-8';
+    FXMLDocument.Node.AddChild('accounts').Attributes['version'] := '1.1.0';
 end;
   end;
 

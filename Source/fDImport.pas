@@ -625,7 +625,7 @@ begin
     FCSVPreview.Columns.Clear();
     FCSVPreview.Items.Clear();
 
-    if (TSFields.Enabled or TSWhat.Enabled) then
+    if (Assigned(Import) and (TSFields.Enabled or TSWhat.Enabled)) then
     begin
       if (FDelimiterTab.Checked) then
         TTImportText(Import).Delimiter := #9
@@ -1095,6 +1095,14 @@ begin
     DODBC.Username := Job.ODBC.Username;
     DODBC.Password := Job.ODBC.Password;
 
+    FCSVHeadline.Checked := Job.CSV.Headline;
+    FDelimiterTab.Checked := Job.CSV.DelimiterType = dtTab;
+    FDelimiterChar.Checked := Job.CSV.DelimiterType = dtChar;
+    FDelimiter.Text := Job.CSV.Delimiter;
+    FQuoteNothing.Checked := Job.CSV.Quote = qtNone;
+    FQuoteStrings.Checked := Job.CSV.Quote = qtStrings;
+    FQuoteChar.Text := Job.CSV.QuoteChar;
+
     FStructure.Checked := Job.Structure;
     FData.Checked := Job.Data;
     FEngine.ItemIndex := FEngine.Items.IndexOf(Job.Engine);
@@ -1179,7 +1187,7 @@ begin
   TSJob.Enabled := DialogType in [idtCreateJob, idtEditJob];
   TSTables.Enabled := (DialogType in [idtNormal, idtCreateJob, idtEditJob]) and (ImportType in [itAccessFile, itExcelFile, itODBC]);
   TSSelect.Enabled := DialogType in [idtEditJob];
-  TSCSVOptions.Enabled := (ImportType in [itTextFile]);
+  TSCSVOptions.Enabled := (DialogType in [idtNormal]) and (ImportType in [itTextFile]);
   TSWhat.Enabled := False;
   TSFields.Enabled := False;
   TSTask.Enabled := False;
@@ -1211,7 +1219,7 @@ begin
   FBCancel.Caption := Preferences.LoadStr(30);
 
   CheckActivePageChange(PageControl.ActivePageIndex);
-  if (PageControl.Visible and TSJob.Visible) then
+  if (PageControl.Visible and TSJob.Visible and FName.Enabled) then
     ActiveControl := FName
   else if (FBForward.Visible and FBForward.Enabled) then
     ActiveControl := FBForward
@@ -1796,7 +1804,10 @@ begin
     Import.OnError := OnError;
     Import.OnExecuted := OnExecuted;
     Import.OnUpdate := OnUpdate;
-    Import.Start();
+    if (Import.Items.Count = 0) then
+      OnExecuted(False)
+    else
+      Import.Start();
   end;
 end;
 

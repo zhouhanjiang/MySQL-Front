@@ -1924,15 +1924,14 @@ var
   EscapedTableName: string;
   I: Integer;
   InsertStmtInSQL: Boolean;
+  Len: Integer;
   Pipe: THandle;
   Pipename: string;
-  S: string;
   SQL: string;
   SQLExecuted: TEvent;
   SQLExecuteLength: Integer;
   SQLInsertPrefix: string;
   SQLInsertPostfix: string;
-  SQLValues: TSQLStrings;
   Values: TStringBuffer;
 begin
   BeforeExecuteData(Item);
@@ -2065,19 +2064,22 @@ begin
 
       SQLInsertPostfix := ';' + #13#10;
 
-      SetLength(SQLValues, Length(FieldMapping));
       while ((Success = daSuccess) and GetValues(Item, Values)) do
       begin
-        SetString(S, Values.Text, Values.Length); Values.Clear();
-
         if (not InsertStmtInSQL) then
-          SQL := SQL + SQLInsertPrefix
+        begin
+          SQL := SQL + SQLInsertPrefix;
+          InsertStmtInSQL := True;
+        end
         else
           SQL := SQL + ',';
-        SQL := SQL + S;
-        InsertStmtInSQL := True;
 
-        if (Length(SQL) - SQLExecuteLength >= SQLPacketSize) then
+        Len := Length(SQL);
+        SetLength(SQL, Len + Values.Length);
+        MoveMemory(@SQL[1 + Len], Values.Data, Values.Size);
+        Values.Clear();
+
+        if (Length(SQL) >= SQLPacketSize) then
         begin
           if (InsertStmtInSQL) then
           begin
@@ -2114,7 +2116,6 @@ begin
           end;
         end;
       end;
-      SetLength(SQLValues, 0);
 
       if ((Success = daSuccess) and (SQLExecuteLength > 0)) then
       begin

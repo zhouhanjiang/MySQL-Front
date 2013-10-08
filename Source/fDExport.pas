@@ -1234,7 +1234,7 @@ begin
 
   FBCancel.ModalResult := mrCancel;
 
-  if (PageControl.Visible and TSSelect.Visible) then
+  if (PageControl.Visible and TSSelect.Visible and FName.Enabled) then
     ActiveControl := FSelect
   else if (FBForward.Visible and FBForward.Enabled) then
     ActiveControl := FBForward

@@ -541,10 +541,7 @@ begin
 
   WriteLn(StdErr, Trim(ErrorMsg));
 
-  if (not ShowRetry) then
-    Success := daAbort
-  else
-    Success := daFail;
+  Success := daAbort;
 end;
 
 procedure TJobExecution.WriteLn(const Handle: THandle; const Text: string);
