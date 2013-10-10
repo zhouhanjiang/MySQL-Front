@@ -17,6 +17,7 @@ object DAccount: TDAccount
   Position = poOwnerFormCenter
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
+  OnHide = FormHide
   OnShow = FormShow
   PixelsPerInch = 106
   TextHeight = 13

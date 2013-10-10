@@ -50,6 +50,7 @@ type
     procedure FormCreate(Sender: TObject);
     procedure FormShow(Sender: TObject);
     function GetAccountName(): string;
+    procedure FormHide(Sender: TObject);
   private
     function CheckConnectInfos(): Boolean;
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
@@ -296,6 +297,12 @@ procedure TDAccount.FormCreate(Sender: TObject);
 begin
   FBDatabase.Height := FDatabase.Height; FBDatabase.Width := FBDatabase.Height;
   FBDatabase.Left := FDatabase.Left + FDatabase.Width;
+end;
+
+procedure TDAccount.FormHide(Sender: TObject);
+begin
+  if (ModalResult = mrOk) then
+    Preferences.SaveToXML();
 end;
 
 procedure TDAccount.FormShow(Sender: TObject);

@@ -1288,7 +1288,7 @@ begin
       case (Node.ImageIndex) of
         iiServer:
           begin
-            if (not Session.Update()) then
+            if (not Session.Databases.Update()) then
               WantedNodeExpand := Node
             else
             begin
@@ -1666,14 +1666,12 @@ begin
     Session.BeginSynchron();
 
     Nodes := TList.Create();
-    if (not Session.Update()) then
+    if (not Session.Databases.Update()) then
       Result := False
     else
       for I := 0 to Length(Job.JobObjects) - 1 do
         if (Job.JobObjects[I].ObjectType = jotServer) then
           Nodes.Add(FSelect.Items[0])
-        else if (not Session.Databases.Update()) then
-          Result := False
         else
         begin
           FSelect.Items[0].Expand(False);

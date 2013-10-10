@@ -8530,7 +8530,10 @@ end;
 
 procedure TFSession.FreeDBGrid(const DBGrid: TMySQLDBGrid);
 begin
+  FText.OnChange := nil;
   PBlob.Parent := PContent;
+  PBlob.Visible := False;
+  FText.OnChange := FTextChange;
 
   if (ActiveDBGrid = DBGrid) then
     ActiveDBGrid := nil;
@@ -9030,7 +9033,7 @@ end;
 
 procedure TFSession.FTextChange(Sender: TObject);
 begin
-  if (Assigned(EditorField) and Assigned(EditorField.DataSet) and FText.Modified) then
+  if (Assigned(EditorField) and EditorField.CanModify and FText.Modified) then
   begin
     if (EditorField.DataSet.State = dsBrowse) then
       EditorField.DataSet.Edit();
@@ -9107,8 +9110,8 @@ begin
       nlMacintosh: S := ReplaceStr(ReplaceStr(EditorField.AsString, #13, #13#10), #13#13#10, #13#10);
     end;
     FText.Text := S;
-    FText.Modified := False;
   end;
+  FText.Modified := False;
   if (FText.Text <> '') then
     FText.SelectAll();
 

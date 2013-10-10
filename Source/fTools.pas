@@ -2670,6 +2670,7 @@ var
   Len: Integer;
   OldFileContentIndex: Integer;
   RecordComplete: Boolean;
+  S: string;
 begin
   RecordComplete := False; EOF := False; OldFileContentIndex := FileContent.Index;
   while ((Success = daSuccess) and not RecordComplete and not EOF) do
@@ -2686,8 +2687,7 @@ begin
   if (Result) then
     for I := 0 to Length(FieldMapping) - 1 do
     begin
-      if (I > 0) then
-        Values.WriteChar(',');
+      if (I > 0) then Values.WriteChar(',');
       if ((I >= Length(CSVValues)) or (CSVValues[CSVColumns[I]].Length = 0) and (FieldMapping[I].DestinationField.FieldType in NotQuotedFieldTypes)) then
         Values.Write(PAnsiChar('NULL'), 4)
       else
@@ -2704,7 +2704,13 @@ begin
           Len := CSVUnescape(CSVValues[CSVColumns[I]].Text, CSVValues[CSVColumns[I]].Length, UnescapeBuffer.Mem, UnescapeBuffer.MemSize, Quoter);
         end;
 
-        if (FieldMapping[I].DestinationField.FieldType in BinaryFieldTypes) then
+        if (FieldMapping[I].DestinationField.FieldType = mfBit) then
+        begin
+          SetString(S, UnescapeBuffer.Mem, Len);
+          S := FieldMapping[I].DestinationField.EscapeValue(S);
+          Values.Write(PChar(S), Length(S) * SizeOf(Char));
+        end
+        else if (FieldMapping[I].DestinationField.FieldType in BinaryFieldTypes) then
           Values.WriteBinary(UnescapeBuffer.Mem, Len)
         else if (FieldMapping[I].DestinationField.FieldType in TextFieldTypes) then
           Values.WriteText(UnescapeBuffer.Mem, Len)
@@ -2959,7 +2965,7 @@ begin
     GetMem(ODBCData, ODBCDataSize);
 
     SQL := '';
-    if (Structure or (Length(FieldMapping) = 1)) then
+    if (Structure or (Length(FieldMapping) <= 1)) then
       SQL := '*'
     else
       for I := 0 to Length(FieldMapping) - 1 do

@@ -61,7 +61,7 @@ object DImport: TDImport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSTables
+    ActivePage = TSSelect
     Style = tsButtons
     TabOrder = 0
     TabStop = False
@@ -75,7 +75,7 @@ object DImport: TDImport
         Left = 4
         Top = 0
         Width = 325
-        Height = 265
+        Height = 185
         Anchors = [akLeft, akTop, akRight]
         Caption = 'GBasics'
         TabOrder = 0
@@ -97,7 +97,7 @@ object DImport: TDImport
         end
         object FLFilename: TLabel
           Left = 8
-          Top = 234
+          Top = 153
           Width = 54
           Height = 13
           Caption = 'FLFilename'
@@ -105,7 +105,7 @@ object DImport: TDImport
         end
         object FLDataSource: TLabel
           Left = 8
-          Top = 234
+          Top = 153
           Width = 69
           Height = 13
           Caption = 'FLDataSource'
@@ -113,7 +113,7 @@ object DImport: TDImport
         end
         object FDataSource: TEdit
           Left = 128
-          Top = 233
+          Top = 152
           Width = 166
           Height = 21
           ReadOnly = True
@@ -123,7 +123,7 @@ object DImport: TDImport
         end
         object FFilename: TEdit
           Left = 128
-          Top = 233
+          Top = 152
           Width = 166
           Height = 21
           TabOrder = 9
@@ -191,7 +191,7 @@ object DImport: TDImport
         end
         object FBFilename: TButton
           Left = 294
-          Top = 233
+          Top = 152
           Width = 21
           Height = 21
           Caption = #183#183#183
@@ -200,7 +200,7 @@ object DImport: TDImport
         end
         object FBDataSource: TButton
           Left = 294
-          Top = 233
+          Top = 152
           Width = 21
           Height = 21
           Caption = #183#183#183
@@ -258,6 +258,7 @@ object DImport: TDImport
       Caption = 'TSSelect'
       ImageIndex = 9
       TabVisible = False
+      OnHide = TSSelectHide
       OnShow = TSSelectShow
       object GSelect: TGroupBox_Ext
         Left = 4

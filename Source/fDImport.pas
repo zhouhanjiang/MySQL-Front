@@ -168,6 +168,7 @@ type
     procedure TSJobHide(Sender: TObject);
     procedure FTablesChange(Sender: TObject; Item: TListItem;
       Change: TItemChange);
+    procedure TSSelectHide(Sender: TObject);
   type
     TTableName = class
     private
@@ -616,7 +617,7 @@ begin
     end
     else
     begin
-      TSFields.Enabled := (SObject is TSBaseTable);
+      TSFields.Enabled := (DialogType = idtNormal) and (SObject is TSBaseTable);
       TSWhat.Enabled := not TSFields.Enabled;
     end;
 
@@ -677,8 +678,9 @@ procedure TDImport.FDataClick(Sender: TObject);
 begin
   FStructure.Checked := FStructure.Checked or FData.Checked and not (SObject is TSBaseTable);
 
-  TSFields.Enabled := FData.Checked and (SObject is TSBaseTable);
-  TSExecute.Enabled := not TSFields.Enabled and FStructure.Checked;
+  TSFields.Enabled := (DialogType = idtNormal) and FData.Checked and (SObject is TSBaseTable);
+  TSExecute.Enabled := (DialogType = idtNormal) and not TSFields.Enabled and FStructure.Checked;
+  TSTask.Enabled := (DialogType <> idtNormal) and not TSFields.Enabled and FStructure.Checked;
   CheckActivePageChange(TSWhat.PageIndex);
 
   ClearTSFields(Sender);
@@ -1247,8 +1249,9 @@ begin
     SObject := TSObject(FSelect.Selected.Data);
 
   TSCSVOptions.Enabled := (ImportType in [itTextFile]);
-  TSWhat.Enabled := not Assigned(SObject) and (ImportType = itSQLFile) or (SObject is TSDatabase) or (SObject is TSTable) and (ImportType <> itSQLFile) and (FTables.SelCount = 1);
-  TSTask.Enabled := (ImportType = itSQLFile);
+  TSWhat.Enabled := not TSCSVOptions.Enabled and (ImportType <> itSQLFile) and (SObject is TSDatabase);
+  TSFields.Enabled := (DialogType = idtNormal) and not TSCSVOptions.Enabled and not TSWhat.Enabled and (SObject is TSTable);
+  TSTask.Enabled := (DialogType <> idtNormal) and not TSCSVOptions.Enabled and not TSWhat.Enabled and (SObject is TSTable);
 
   CheckActivePageChange(TSSelect.PageIndex);
 end;
@@ -1272,7 +1275,7 @@ begin
       case (Node.ImageIndex) of
         iiServer:
           begin
-            if (not Session.Update()) then
+            if (not Session.Databases.Update()) then
               WantedNodeExpand := Node
             else
             begin
@@ -1425,7 +1428,7 @@ var
   I: Integer;
   J: Integer;
 begin
-  if (TSFields.Enabled) then
+  if (TSFields.Enabled or not Assigned(Sender)) then
   begin
     ClearTSFields(Sender);
 
@@ -1493,10 +1496,11 @@ begin
         end
         else
           FDestinationFields[I].Items.Text := FDestinationFields[0].Items.Text;
-        if ((ImportType in [itTextFile]) and FCSVHeadline.Checked or (ImportType in [itExcelFile, itAccessFile, itODBC])) then
-          FDestinationFields[I].ItemIndex := FDestinationFields[I].Items.IndexOf(FSourceFields[I].Text)
-        else
-          FDestinationFields[I].ItemIndex := I + 1;
+        if (DialogType in [idtNormal, idtCreateJob]) then
+          if ((ImportType in [itTextFile]) and FCSVHeadline.Checked or (ImportType in [itExcelFile, itAccessFile, itODBC])) then
+            FDestinationFields[I].ItemIndex := FDestinationFields[I].Items.IndexOf(FSourceFields[I].Text)
+          else
+            FDestinationFields[I].ItemIndex := I + 1;
         FDestinationFields[I].OnChange := FDestinationField1.OnChange;
         FDestinationFields[I].OnExit := FDestinationField1.OnExit;
       end;
@@ -1525,13 +1529,11 @@ begin
     Session.BeginSynchron();
 
     Nodes := TList.Create();
-    if (not Session.Update()) then
+    if (not Session.Databases.Update()) then
       Result := False
     else
       if (Job.JobObject.ObjectType = jotServer) then
         Nodes.Add(FSelect.Items[0])
-      else if (not Session.Databases.Update()) then
-        Result := False
       else if (Job.JobObject.ObjectType = jotServer) then
       begin
         FSelect.Items[0].Expand(False);
@@ -1693,6 +1695,9 @@ var
   J: Integer;
   Success: Boolean;
 begin
+  if (DialogType = idtExecuteJob) then
+    InitTSFields(nil);
+
   Session.UnRegisterEventProc(FormSessionEvent);
 
   FLProgressObjects.Visible := ImportType in [itODBC, itAccessFile, itExcelFile];
@@ -1855,10 +1860,15 @@ begin
   FStructure.Enabled := not (SObject is TSBaseTable);
   FData.Enabled := not (SObject is TSBaseTable);
 
-  TSFields.Enabled := (FStructure.Checked or FData.Checked) and (SObject is TSBaseTable);
+  TSFields.Enabled := (DialogType = idtNormal) and (FStructure.Checked or FData.Checked) and (SObject is TSBaseTable);
   TSExecute.Enabled := (DialogType = idtNormal) and (FStructure.Checked or FData.Checked) and not TSFields.Enabled;
   TSTask.Enabled := (DialogType <> idtNormal) and (FStructure.Checked or FData.Checked) and not TSFields.Enabled;
   CheckActivePageChange(TSWhat.PageIndex);
+end;
+
+procedure TDImport.TSSelectHide(Sender: TObject);
+begin
+  InitTSFields(Sender);
 end;
 
 procedure TDImport.TSSelectShow(Sender: TObject);

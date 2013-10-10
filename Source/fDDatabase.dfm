@@ -79,6 +79,10 @@ object DDatabase: TDDatabase
     TabOrder = 3
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -264,6 +268,10 @@ object DDatabase: TDDatabase
     object TSExtras: TTabSheet
       Caption = 'TSExtras'
       OnShow = TSExtrasShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -369,6 +377,10 @@ object DDatabase: TDDatabase
     object TSSource: TTabSheet
       Caption = 'TSSource'
       OnShow = TSSourceShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         297)

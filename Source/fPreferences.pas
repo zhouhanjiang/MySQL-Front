@@ -26,7 +26,7 @@ type
   TAAccount = class;
   TAAccounts = class;
 
-  TPItem = class(TObject)
+  TPItem = class
   private
     FName: string;
   protected
