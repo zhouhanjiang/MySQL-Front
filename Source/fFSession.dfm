@@ -2052,31 +2052,6 @@ object FSession: TFSession
     Left = 225
     Top = 208
   end
-  object FSQLEditorCompletion: TSynCompletionProposal
-    Options = [scoLimitToMatchedText, scoUseBuiltInTimer, scoEndCharCompletion, scoCompleteWithTab, scoCompleteWithEnter]
-    EndOfTokenChr = '()[]. '
-    TriggerChars = '._abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-    Font.Charset = DEFAULT_CHARSET
-    Font.Color = clWindowText
-    Font.Height = -11
-    Font.Name = 'MS Sans Serif'
-    Font.Style = []
-    TitleFont.Charset = DEFAULT_CHARSET
-    TitleFont.Color = clBtnText
-    TitleFont.Height = -11
-    TitleFont.Name = 'MS Sans Serif'
-    TitleFont.Style = [fsBold]
-    Columns = <>
-    OnChange = FSQLEditorCompletionChange
-    OnClose = FSQLEditorCompletionClose
-    OnExecute = FSQLEditorCompletionExecute
-    OnPaintItem = FSQLEditorCompletionPaintItem
-    OnShow = FSQLEditorCompletionShow
-    ShortCut = 16416
-    Editor = FSQLEditorSynMemo
-    Left = 257
-    Top = 208
-  end
   object MGridHeader: TPopupMenu
     OnPopup = MGridHeaderPopup
     Left = 217

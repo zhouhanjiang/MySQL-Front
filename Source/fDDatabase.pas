@@ -381,7 +381,7 @@ begin
 
   FSource.Highlighter := MainHighlighter;
 
-  PageControl.ActivePage := nil;
+  PageControl.ActivePage := TSBasics; // TSInformationsShow soll nicht vorzeitig aufgerufen werden
 end;
 
 procedure TDDatabase.FormHide(Sender: TObject);

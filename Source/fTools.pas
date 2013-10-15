@@ -168,15 +168,19 @@ type
   type
     TItem = class(TTool.TItem)
     public
+      DestinationTableName: string;
       SourceTableName: string;
-      TableName: string;
       constructor Create(const AItems: TTool.TItems);
     end;
   private
-    EscapedFieldNames: string;
+    EscapedDestinationFieldNames: string;
     FSession: TSSession;
     FDatabase: TSDatabase;
   protected
+    FieldMappings: array of record
+      DestinationField: TSTableField;
+      SourceFieldName: string;
+    end;
     procedure AfterExecute(); override;
     procedure AfterExecuteData(const Item: TItem); virtual;
     procedure BeforeExecute(); override;
@@ -196,14 +200,11 @@ type
     DefaultCollation: string;
     Data: Boolean;
     Engine: string;
-    FieldMapping: array of record
-      DestinationField: TSTableField;
-      SourceColumnName: string;
-    end;
     Error: Boolean;
     RowType: TMySQLRowType;
     Structure: Boolean;
-    procedure Add(const TableName: string; const SourceTableName: string = '');
+    procedure xAddField(const DestinationField: TSTableField; const SourceFieldName: string);
+    procedure AddTable(const DestinationTableName: string; const SourceTableName: string = '');
     constructor Create(const ASession: TSSession; const ADatabase: TSDatabase);
     destructor Destroy(); override;
     procedure Execute(); override;
@@ -1684,18 +1685,26 @@ begin
   inherited;
 
   SourceTableName := '';
-  TableName := '';
+  DestinationTableName := '';
 end;
 
 { TTImport ********************************************************************}
 
-procedure TTImport.Add(const TableName: string; const SourceTableName: string = '');
+procedure TTImport.xAddField(const DestinationField: TSTableField; const SourceFieldName: string);
+begin
+  SetLength(FieldMappings, Length(FieldMappings) + 1);
+
+  FieldMappings[Length(FieldMappings) - 1].DestinationField := DestinationField;
+  FieldMappings[Length(FieldMappings) - 1].SourceFieldName := SourceFieldName;
+end;
+
+procedure TTImport.AddTable(const DestinationTableName: string; const SourceTableName: string = '');
 var
   NewItem: TTImport.TItem;
 begin
   NewItem := TTImport.TItem.Create(Items);
 
-  NewItem.TableName := TableName;
+  NewItem.DestinationTableName := DestinationTableName;
   NewItem.SourceTableName := SourceTableName;
 
   Items.Add(NewItem);
@@ -1723,12 +1732,12 @@ procedure TTImport.BeforeExecuteData(const Item: TItem);
 var
   I: Integer;
 begin
-  EscapedFieldNames := '';
-  if (not Structure and (Length(FieldMapping) > 0)) then
-    for I := 0 to Length(FieldMapping) - 1 do
+  EscapedDestinationFieldNames := '';
+  if (not Structure and (Length(FieldMappings) > 0)) then
+    for I := 0 to Length(FieldMappings) - 1 do
     begin
-      if (I > 0) then EscapedFieldNames := EscapedFieldNames + ',';
-      EscapedFieldNames := EscapedFieldNames + Session.EscapeIdentifier(FieldMapping[I].DestinationField.Name);
+      if (I > 0) then EscapedDestinationFieldNames := EscapedDestinationFieldNames + ',';
+      EscapedDestinationFieldNames := EscapedDestinationFieldNames + Session.EscapeIdentifier(FieldMappings[I].DestinationField.Name);
     end;
 end;
 
@@ -1821,8 +1830,10 @@ procedure TTImport.Execute();
 var
   DataSet: TMySQLQuery;
   I: Integer;
+  J: Integer;
   OLD_FOREIGN_KEY_CHECKS: string;
   OLD_UNIQUE_CHECKS: string;
+  Table: TSTable;
   SQL: string;
 begin
   {$IFDEF EurekaLog}
@@ -1876,22 +1887,34 @@ begin
 
       if (Structure) then
       begin
-        if (Assigned(Database.TableByName(TTImport.TItem(Items[I]).TableName))) then
+        Table := Database.TableByName(TTImport.TItem(Items[I]).DestinationTableName);
+
+        if (Assigned(Table)) then
         begin
           Session.BeginSynchron();
-          while ((Success <> daAbort) and not Database.DeleteObject(Database.TableByName(TTImport.TItem(Items[I]).TableName))) do
+          while ((Success <> daAbort) and not Database.DeleteObject(Table)) do
             DoError(DatabaseError(Session), Items[I], True);
           Session.EndSynchron();
         end;
         if (Success = daSuccess) then
+        begin
+          SetLength(FieldMappings, 0);
           ExecuteStructure(TTImport.TItem(Items[I]));
+        end;
       end;
 
       if ((Success = daSuccess) and Data) then
       begin
-        if (not Assigned(Database.TableByName(TTImport.TItem(Items[I]).TableName))) then
-          raise Exception.Create('Table "' + TTImport.TItem(Items[I]).TableName + '" does not exists.');
-        ExecuteData(TTImport.TItem(Items[I]), Database.TableByName(TTImport.TItem(Items[I]).TableName));
+        Table := Database.TableByName(TTImport.TItem(Items[I]).DestinationTableName);
+
+        if (not Assigned(Table)) then
+          raise Exception.Create('Table "' + TTImport.TItem(Items[I]).DestinationTableName + '" does not exists.');
+
+        if ((I > 0) or (Length(FieldMappings) = 0)) then
+          for J := 0 to Table.Fields.Count - 1 do
+            xAddField(Table.Fields[J], Table.Fields[J].Name);
+
+        ExecuteData(TTImport.TItem(Items[I]), Database.TableByName(TTImport.TItem(Items[I]).DestinationTableName));
       end;
 
       Items[I].Done := True;
@@ -1967,7 +1990,7 @@ begin
         DoError(SysError(), nil, False)
       else
       begin
-        SQL := SQL + SQLLoadDataInfile(Database, Pipename, Session.Charset, Database.Name, Table.Name, EscapedFieldNames);
+        SQL := SQL + SQLLoadDataInfile(Database, Pipename, Session.Charset, Database.Name, Table.Name, EscapedDestinationFieldNames);
 
         Session.SendSQL(SQL, SQLExecuted);
 
@@ -2053,13 +2076,13 @@ begin
       SQLExecuteLength := 0; InsertStmtInSQL := False;
       Values := TStringBuffer.Create(SQLPacketSize);
 
-      SetLength(EscapedFieldName, Length(FieldMapping));
-      for I := 0 to Length(FieldMapping) - 1 do
-        EscapedFieldName[I] := Session.EscapeIdentifier(FieldMapping[I].DestinationField.Name);
+      SetLength(EscapedFieldName, Length(FieldMappings));
+      for I := 0 to Length(FieldMappings) - 1 do
+        EscapedFieldName[I] := Session.EscapeIdentifier(FieldMappings[I].DestinationField.Name);
 
       SQLInsertPrefix := 'INSERT INTO ' + EscapedTableName;
       if (not Structure) then
-        SQLInsertPrefix := SQLInsertPrefix + ' (' + EscapedFieldNames + ')';
+        SQLInsertPrefix := SQLInsertPrefix + ' (' + EscapedDestinationFieldNames + ')';
       SQLInsertPrefix := SQLInsertPrefix + ' VALUES ';
 
       SQLInsertPostfix := ';' + #13#10;
@@ -2532,12 +2555,12 @@ var
 begin
   inherited;
 
-  SetLength(CSVColumns, Length(FieldMapping));
-  for I := 0 to Length(FieldMapping) - 1 do
+  SetLength(CSVColumns, Length(FieldMappings));
+  for I := 0 to Length(FieldMappings) - 1 do
   begin
     CSVColumns[I] := -1;
     for J := 0 to HeadlineNameCount - 1 do
-      if (FieldMapping[I].SourceColumnName = HeadlineNames[J]) then
+      if (FieldMappings[I].SourceFieldName = HeadlineNames[J]) then
         CSVColumns[I] := J;
   end;
 end;
@@ -2563,7 +2586,7 @@ end;
 
 destructor TTImportText.Destroy();
 begin
-  SetLength(FieldMapping, 0);
+  SetLength(FieldMappings, 0);
   FreeMem(UnescapeBuffer.Mem);
 
   inherited;
@@ -2599,7 +2622,7 @@ begin
     NewField.Free();
   end;
 
-  NewTable.Name := Session.ApplyIdentifierName(Item.TableName);
+  NewTable.Name := Session.ApplyIdentifierName(Item.DestinationTableName);
 
   Session.BeginSynchron();
   while ((Success <> daAbort) and not Database.AddTable(NewTable)) do
@@ -2610,17 +2633,14 @@ begin
 
   if (Success = daSuccess) then
   begin
-    NewTable := Database.BaseTableByName(Item.TableName);
+    NewTable := Database.BaseTableByName(Item.DestinationTableName);
     Session.BeginSynchron();
     while ((Success <> daAbort) and not NewTable.Update()) do
       DoError(DatabaseError(Session), Item, True);
     Session.EndSynchron();
 
-    SetLength(FieldMapping, NewTable.Fields.Count);
-    for I := 0 to NewTable.Fields.Count - 1 do
-      FieldMapping[I].DestinationField := NewTable.Fields[I];
     for I := 0 to HeadlineNameCount - 1 do
-      FieldMapping[I].SourceColumnName := HeadlineNames[I];
+      xAddField(NewTable.Fields[I], HeadlineNames[I]);
   end;
 end;
 
@@ -2685,10 +2705,10 @@ begin
 
   Result := RecordComplete;
   if (Result) then
-    for I := 0 to Length(FieldMapping) - 1 do
+    for I := 0 to Length(FieldMappings) - 1 do
     begin
       if (I > 0) then Values.WriteChar(',');
-      if ((I >= Length(CSVValues)) or (CSVValues[CSVColumns[I]].Length = 0) and (FieldMapping[I].DestinationField.FieldType in NotQuotedFieldTypes)) then
+      if ((I >= Length(CSVValues)) or (CSVValues[CSVColumns[I]].Length = 0) and (FieldMappings[I].DestinationField.FieldType in NotQuotedFieldTypes)) then
         Values.Write(PAnsiChar('NULL'), 4)
       else
       begin
@@ -2704,18 +2724,18 @@ begin
           Len := CSVUnescape(CSVValues[CSVColumns[I]].Text, CSVValues[CSVColumns[I]].Length, UnescapeBuffer.Mem, UnescapeBuffer.MemSize, Quoter);
         end;
 
-        if (FieldMapping[I].DestinationField.FieldType = mfBit) then
+        if (FieldMappings[I].DestinationField.FieldType = mfBit) then
         begin
           SetString(S, UnescapeBuffer.Mem, Len);
-          S := FieldMapping[I].DestinationField.EscapeValue(S);
+          S := FieldMappings[I].DestinationField.EscapeValue(S);
           Values.Write(PChar(S), Length(S) * SizeOf(Char));
         end
-        else if (FieldMapping[I].DestinationField.FieldType in BinaryFieldTypes) then
+        else if (FieldMappings[I].DestinationField.FieldType in BinaryFieldTypes) then
           Values.WriteBinary(UnescapeBuffer.Mem, Len)
-        else if (FieldMapping[I].DestinationField.FieldType in TextFieldTypes) then
+        else if (FieldMappings[I].DestinationField.FieldType in TextFieldTypes) then
           Values.WriteText(UnescapeBuffer.Mem, Len)
         else
-          Values.WriteData(UnescapeBuffer.Mem, Len, not (FieldMapping[I].DestinationField.FieldType in NotQuotedFieldTypes));
+          Values.WriteData(UnescapeBuffer.Mem, Len, not (FieldMappings[I].DestinationField.FieldType in NotQuotedFieldTypes));
       end;
     end;
 end;
@@ -2739,11 +2759,11 @@ begin
   if (Result) then
   begin
     Values.WriteChar('(');
-    for I := 0 to Length(FieldMapping) - 1 do
+    for I := 0 to Length(FieldMappings) - 1 do
     begin
       if (I > 0) then
         Values.WriteChar(',');
-      if ((I >= Length(CSVValues)) or (CSVValues[CSVColumns[I]].Length = 0) and (FieldMapping[I].DestinationField.FieldType in NotQuotedFieldTypes)) then
+      if ((I >= Length(CSVValues)) or (CSVValues[CSVColumns[I]].Length = 0) and (FieldMappings[I].DestinationField.FieldType in NotQuotedFieldTypes)) then
         Values.Write('NULL', 4)
       else
       begin
@@ -2759,11 +2779,11 @@ begin
           Len := CSVUnescape(CSVValues[CSVColumns[I]].Text, CSVValues[CSVColumns[I]].Length, UnescapeBuffer.Mem, UnescapeBuffer.MemSize, Quoter);
         end;
 
-        if (FieldMapping[I].DestinationField.FieldType in BinaryFieldTypes) then
+        if (FieldMappings[I].DestinationField.FieldType in BinaryFieldTypes) then
           Values.Write('NULL', 4)
-        else if (FieldMapping[I].DestinationField.FieldType in TextFieldTypes) then
+        else if (FieldMappings[I].DestinationField.FieldType in TextFieldTypes) then
           Values.WriteText(UnescapeBuffer.Mem, Len)
-        else if (FieldMapping[I].DestinationField.FieldType in NotQuotedFieldTypes) then
+        else if (FieldMappings[I].DestinationField.FieldType in NotQuotedFieldTypes) then
           Values.Write(UnescapeBuffer.Mem, Len)
         else
         begin
@@ -2965,13 +2985,13 @@ begin
     GetMem(ODBCData, ODBCDataSize);
 
     SQL := '';
-    if (Structure or (Length(FieldMapping) <= 1)) then
+    if (Structure or (Length(FieldMappings) <= 1)) then
       SQL := '*'
     else
-      for I := 0 to Length(FieldMapping) - 1 do
+      for I := 0 to Length(FieldMappings) - 1 do
       begin
         if (I > 0) then SQL := SQL + ',';
-        SQL := SQL + '"' + FieldMapping[I].SourceColumnName + '"';
+        SQL := SQL + '"' + FieldMappings[I].SourceFieldName + '"';
       end;
     SQL := 'SELECT ' + SQL + ' FROM "' + Item.SourceTableName + '"';
 
@@ -3083,14 +3103,13 @@ var
   OrdinalPosition: SQLSMALLINT;
   Remarks: array [0 .. 256 - 1] of SQLTCHAR;
   S: string;
+  SourceFieldNames: array of string;
   SQLDataType: SQLSMALLINT;
   SQLDataType2: SQLSMALLINT;
   Stmt: SQLHSTMT;
   Table: TSBaseTable;
   Unsigned: SQLINTEGER;
 begin
-  SetLength(FieldMapping, 0);
-
   NewTable := TSBaseTable.Create(Database.Tables);
   NewTable.DefaultCharset := DefaultCharset;
   NewTable.Collation := DefaultCollation;
@@ -3136,9 +3155,8 @@ begin
       while (SQL_SUCCEEDED(ODBCException(Stmt, SQLFetch(Stmt)))) do
         if (not Assigned(NewTable.FieldByName(ColumnName))) then
         begin
-          SetLength(FieldMapping, Length(FieldMapping) + 1);
-          FieldMapping[Length(FieldMapping) - 1].SourceColumnName := ColumnName;
-
+          SetLength(SourceFieldNames, Length(SourceFieldNames) + 1);
+          SourceFieldNames[Length(SourceFieldNames) - 1] := StrPas(PChar(@ColumnName[0]));
 
           NewField := TSBaseTableField.Create(NewTable.Fields);
           NewField.Name := Session.ApplyIdentifierName(ColumnName);
@@ -3312,7 +3330,7 @@ begin
       Found := Found or (NewTable.Fields[I].Default = 'CURRENT_TIMESTAMP');
     end;
 
-    NewTable.Name := Session.ApplyIdentifierName(Item.TableName);
+    NewTable.Name := Session.ApplyIdentifierName(Item.DestinationTableName);
 
     Session.BeginSynchron();
     while ((Success <> daAbort) and not Database.AddTable(NewTable)) do
@@ -3322,12 +3340,10 @@ begin
 
   NewTable.Free();
 
-  Table := Database.BaseTableByName(Item.TableName);
-  if (not Assigned(Table)) then
-    SetLength(FieldMapping, 0)
-  else
+  Table := Database.BaseTableByName(Item.DestinationTableName);
+  if (Assigned(Table)) then
     for I := 0 to Table.Fields.Count - 1 do
-      FieldMapping[I].DestinationField := Table.Fields[I];
+      xAddField(Table.Fields[I], SourceFieldNames[I]);
 end;
 
 function TTImportBaseODBC.GetFieldNames(const TableName: string; const FieldNames: TStrings): Boolean;
@@ -3451,10 +3467,9 @@ begin
 
   if (Result) then
   begin
-    for I := 0 to Length(FieldMapping) - 1 do
+    for I := 0 to Length(FieldMappings) - 1 do
     begin
-      if (I > 0) then
-        Values.WriteChar(',');
+      if (I > 0) then Values.WriteChar(',');
 
       case (ColumnDesc[I].SQLDataType) of
         SQL_BIT,
@@ -3506,7 +3521,7 @@ begin
               DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
               Values.Write(PAnsiChar('NULL'), 4);
             end
-            else if ((Size = 0) and (cbData = SQL_NULL_DATA)) then
+            else if ((Size = 0) and (cbData = SQL_NULL_DATA) and FieldMappings[I].DestinationField.NullAllowed) then
               Values.Write(PAnsiChar('NULL'), 4)
             else
               Values.WriteText(PChar(ODBCMem), Size div SizeOf(Char));
@@ -3534,13 +3549,13 @@ begin
               DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
               Values.Write(PAnsiChar('NULL'), 4);
             end
-            else if (cbData = SQL_NULL_DATA) then
+            else if ((Size = 0) and (cbData = SQL_NULL_DATA) and FieldMappings[I].DestinationField.NullAllowed) then
               Values.Write(PAnsiChar('NULL'), 4)
             else
               Values.WriteBinary(my_char(ODBCMem), Size);
           end;
         else
-          raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [FieldMapping[I].DestinationField.Name, ColumnDesc[I].SQLDataType]);
+          raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [FieldMappings[I].DestinationField.Name, ColumnDesc[I].SQLDataType]);
       end;
     end;
   end;
@@ -3559,7 +3574,7 @@ begin
   begin
     Values.WriteChar('(');
 
-    for I := 0 to Length(FieldMapping) - 1 do
+    for I := 0 to Length(FieldMappings) - 1 do
     begin
       if (I > 0) then
         Values.WriteChar(',');
@@ -3586,7 +3601,7 @@ begin
           else if (cbData = SQL_NULL_DATA) then
             Values.Write('NULL', 4)
           else
-            Values.WriteData(PAnsiChar(ODBCData), cbData div SizeOf(SQLACHAR), not (FieldMapping[I].DestinationField.FieldType in NotQuotedFieldTypes));
+            Values.WriteData(PAnsiChar(ODBCData), cbData div SizeOf(SQLACHAR), not (FieldMappings[I].DestinationField.FieldType in NotQuotedFieldTypes));
         SQL_CHAR,
         SQL_VARCHAR,
         SQL_LONGVARCHAR,
@@ -3648,7 +3663,7 @@ begin
               Values.Write('NULL', 4);
           end;
         else
-          raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [FieldMapping[I].DestinationField.Name, ColumnDesc[I].SQLDataType]);
+          raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [FieldMappings[I].DestinationField.Name, ColumnDesc[I].SQLDataType]);
       end;
     end;
 
@@ -3908,8 +3923,10 @@ begin
     if (Objects.Count > 0) then
     begin
       Success := daSuccess;
+      Session.BeginSynchron();
       while ((Success = daSuccess) and not Session.Update(Objects)) do
         DoError(DatabaseError(Session), nil, True, SQL);
+      Session.EndSynchron();
     end;
     Objects.Free();
   end;
@@ -6176,7 +6193,7 @@ var
   Size: Integer;
 begin
   for I := 0 to Length(Fields) - 1 do
-    if (Fields[I].IsNull) then
+    if (not Assigned(DataSet.LibRow^[I])) then
       Parameter[I].Size := SQL_NULL_DATA
     else if (BitField(Fields[I])) then
       begin

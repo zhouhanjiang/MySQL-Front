@@ -1285,16 +1285,7 @@ object DExport: TDExport
             TabStop = False
             Align = alClient
             BorderStyle = bsNone
-            Ctl3D = True
-            Font.Charset = ANSI_CHARSET
-            Font.Color = clWindowText
-            Font.Height = -11
-            Font.Name = 'MS Sans Serif'
-            Font.Style = []
-            Lines.Strings = (
-              'FErrorMessages')
-            ParentCtl3D = False
-            ParentFont = False
+
             ReadOnly = True
             ScrollBars = ssBoth
             TabOrder = 0

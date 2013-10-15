@@ -4,7 +4,7 @@ object DOptions: TDOptions
   HelpContext = 1066
   BorderStyle = bsDialog
   Caption = 'DOptions'
-  ClientHeight = 433
+  ClientHeight = 409
   ClientWidth = 377
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -22,7 +22,7 @@ object DOptions: TDOptions
   TextHeight = 13
   object FBOk: TButton
     Left = 206
-    Top = 400
+    Top = 376
     Width = 75
     Height = 25
     Caption = 'FBOk'
@@ -32,7 +32,7 @@ object DOptions: TDOptions
   end
   object FBCancel: TButton
     Left = 294
-    Top = 400
+    Top = 376
     Width = 75
     Height = 25
     Cancel = True
@@ -44,17 +44,14 @@ object DOptions: TDOptions
     Left = 8
     Top = 8
     Width = 362
-    Height = 367
-    ActivePage = TSEditor
+    Height = 345
+    ActivePage = TSView
     HotTrack = True
     MultiLine = True
     TabOrder = 0
     object TSView: TTabSheet
       Caption = 'TSView'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+      ExplicitHeight = 321
       object GProgram: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -108,10 +105,7 @@ object DOptions: TDOptions
     end
     object TSBrowser: TTabSheet
       Caption = 'TSBrowser'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+      ExplicitHeight = 321
       object GGrid: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -275,15 +269,12 @@ object DOptions: TDOptions
     end
     object TSEditor: TTabSheet
       Caption = 'TSEditor'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+      ExplicitHeight = 321
       object GEditor: TGroupBox_Ext
         Left = 4
         Top = 4
         Width = 345
-        Height = 309
+        Height = 285
         Caption = 'GEditor'
         TabOrder = 0
         object FLEditorFont: TLabel
@@ -318,27 +309,12 @@ object DOptions: TDOptions
           Caption = 'FLEditorRightEdge'
           FocusControl = FEditorRightEdge
         end
-        object FLEditorCompletition: TLabel
-          Left = 8
-          Top = 224
-          Width = 96
-          Height = 13
-          Caption = 'FLEditorCompletition'
-          FocusControl = FEditorCompletitionEnabled
-        end
         object FLEditorCurrRowBGColor: TLabel
           Left = 8
-          Top = 252
+          Top = 229
           Width = 119
           Height = 13
           Caption = 'FLEditorCurrRowBGColor'
-        end
-        object FLEditorCompletitionTime: TLabel
-          Left = 224
-          Top = 224
-          Width = 119
-          Height = 13
-          Caption = 'FLEditorCompletitionTime'
         end
         object FLEditorAutoIndent: TLabel
           Left = 8
@@ -363,17 +339,17 @@ object DOptions: TDOptions
         end
         object FLEditorWordWrap: TLabel
           Left = 9
-          Top = 281
+          Top = 258
           Width = 91
           Height = 13
           Caption = 'FLEditorWordWrap'
         end
         object FEditorCurrRowBGColorEnabled: TCheckBox
           Left = 144
-          Top = 251
+          Top = 228
           Width = 19
           Height = 17
-          TabOrder = 12
+          TabOrder = 10
         end
         object FEditorFont: TEdit
           Left = 144
@@ -457,13 +433,6 @@ object DOptions: TDOptions
           Caption = 'FEditorTabToSpaces'
           TabOrder = 5
         end
-        object FEditorCompletitionEnabled: TCheckBox
-          Left = 144
-          Top = 223
-          Width = 19
-          Height = 17
-          TabOrder = 10
-        end
         object FEditorTabAccepted: TCheckBox
           Left = 144
           Top = 104
@@ -474,49 +443,27 @@ object DOptions: TDOptions
         end
         object PEditorCurrRowBGColor: TPanel_Ext
           Left = 162
-          Top = 250
+          Top = 226
           Width = 49
           Height = 21
           BevelOuter = bvLowered
           ParentBackground = False
-          TabOrder = 13
-          OnClick = PEditorCurrRowBGColorClick
-        end
-        object FEditorCompletitionTime: TEdit
-          Left = 162
-          Top = 221
-          Width = 41
-          Height = 21
           TabOrder = 11
-          Text = '1000'
-        end
-        object FUDEditorCompletitionTime: TUpDown
-          Left = 203
-          Top = 221
-          Width = 15
-          Height = 21
-          Associate = FEditorCompletitionTime
-          Max = 5000
-          Increment = 100
-          Position = 1000
-          TabOrder = 14
+          OnClick = PEditorCurrRowBGColorClick
         end
         object FEditorWordWrap: TCheckBox
           Left = 144
-          Top = 280
+          Top = 257
           Width = 198
           Height = 17
           Caption = 'FEditorWordWrap'
-          TabOrder = 15
+          TabOrder = 12
         end
       end
     end
     object TSLog: TTabSheet
       Caption = 'TSLog'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+      ExplicitHeight = 321
       object GLog: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -616,10 +563,7 @@ object DOptions: TDOptions
     object TSHighlighter: TTabSheet
       Caption = 'TSHighlighter'
       OnShow = TSHighlighterShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+      ExplicitHeight = 321
       object GColors: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -771,10 +715,7 @@ object DOptions: TDOptions
     end
     object TSExtras: TTabSheet
       Caption = 'TSExtras'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+      ExplicitHeight = 321
       object GAssociate: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -801,10 +742,7 @@ object DOptions: TDOptions
     end
     object TSUpdates: TTabSheet
       Caption = 'TSUpdates'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+      ExplicitHeight = 321
       object GUpdates: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -840,7 +778,7 @@ object DOptions: TDOptions
   end
   object FBHelp: TButton
     Left = 7
-    Top = 400
+    Top = 376
     Width = 75
     Height = 25
     Caption = 'FBHelp'
@@ -855,15 +793,15 @@ object DOptions: TDOptions
     Font.Style = []
     Options = [fdForceFontExist, fdNoOEMFonts]
     Left = 87
-    Top = 392
+    Top = 368
   end
   object Highlighter: TSynSQLSyn
     SQLDialect = sqlMySQL
     Left = 151
-    Top = 392
+    Top = 368
   end
   object ColorDialog: TColorDialog
     Left = 119
-    Top = 392
+    Top = 368
   end
 end

@@ -118,8 +118,6 @@ type
     procedure SaveToXML(const XML: IXMLNode); virtual;
   public
     AutoIndent: Boolean;
-    CodeCompletition: Boolean;
-    CodeCompletionTime: Integer;
     ConditionalCommentForeground, ConditionalCommentBackground: TColor;
     ConditionalCommentStyle: TFontStyles;
     CommentForeground, CommentBackground: TColor;
@@ -167,8 +165,8 @@ type
       Name: string;
     end;
     TFieldMapping = record
-      Name: string;
-      SourceName: string;
+      DestinationFieldName: string;
+      SourceFieldName: string;
     end;
     TTriggerType = (ttSingle, ttDaily, ttWeekly, ttMonthly);
   private
@@ -1532,8 +1530,6 @@ begin
   FPreferences := APreferences;
 
   AutoIndent := True;
-  CodeCompletition := True;
-  CodeCompletionTime := 1000;
   ConditionalCommentForeground := clTeal; ConditionalCommentBackground := clNone; ConditionalCommentStyle := [];
   CommentForeground := clGreen; CommentBackground := clNone; CommentStyle := [fsItalic];
   CurrRowBGColorEnabled := True; CurrRowBGColor := $C0FFFF;
@@ -1557,8 +1553,6 @@ end;
 procedure TPEditor.LoadFromXML(const XML: IXMLNode);
 begin
   if (Assigned(XMLNode(XML, 'autoindent'))) then TryStrToBool(XMLNode(XML, 'autoindent').Attributes['enabled'], AutoIndent);
-  if (Assigned(XMLNode(XML, 'autocompletition'))) then TryStrToBool(XMLNode(XML, 'autocompletition').Attributes['enabled'], CodeCompletition);
-  if (Assigned(XMLNode(XML, 'autocompletition/time'))) then TryStrToInt(XMLNode(XML, 'autocompletition/time').Text, CodeCompletionTime);
   if (Assigned(XMLNode(XML, 'currentrow/background'))) then TryStrToBool(XMLNode(XML, 'currentrow/background').Attributes['visible'], CurrRowBGColorEnabled);
   if (Assigned(XMLNode(XML, 'currentrow/background/color'))) then CurrRowBGColor := StringToColor(XMLNode(XML, 'currentrow/background/color').Text);
   if (Assigned(XMLNode(XML, 'linenumbers'))) then TryStrToBool(XMLNode(XML, 'linenumbers').Attributes['visible'], LineNumbers);
@@ -1572,8 +1566,6 @@ end;
 procedure TPEditor.SaveToXML(const XML: IXMLNode);
 begin
   XMLNode(XML, 'autoindent').Attributes['enabled'] := AutoIndent;
-  XMLNode(XML, 'autocompletition').Attributes['enabled'] := CodeCompletition;
-  XMLNode(XML, 'autocompletition/time').Text := IntToStr(CodeCompletionTime);
   XMLNode(XML, 'currentrow/background').Attributes['visible'] := CurrRowBGColorEnabled;
   XMLNode(XML, 'currentrow/background/color').Text := ColorToString(CurrRowBGColor);
   XMLNode(XML, 'linenumbers').Attributes['visible'] := LineNumbers;
@@ -3310,8 +3302,8 @@ var
 begin
   for I := 0 to Length(FieldMappings) - 1 do
   begin
-    FieldMappings[I].Name := '';
-    FieldMappings[I].SourceName := '';
+    FieldMappings[I].DestinationFieldName := '';
+    FieldMappings[I].SourceFieldName := '';
   end;
   SetLength(FieldMappings, 0);
   for I := 0 to Length(SourceObjects) - 1 do
@@ -3378,6 +3370,22 @@ begin
       Child := Child.NextSibling();
     end;
   end;
+
+  if (Assigned(XMLNode(XML, 'fields'))) then
+  begin
+    Child := XMLNode(XML, 'fields').ChildNodes.First();
+    while (Assigned(Child)) do
+    begin
+      if (Child.NodeName = 'field') then
+      begin
+        SetLength(FieldMappings, Length(FieldMappings) + 1);
+        if (Assigned(XMLNode(Child, 'source'))) then FieldMappings[Length(FieldMappings) - 1].SourceFieldName := XMLNode(Child, 'source').Text;
+        if (Assigned(XMLNode(Child, 'destination'))) then FieldMappings[Length(FieldMappings) - 1].DestinationFieldName := XMLNode(Child, 'destination').Text;
+      end;
+
+      Child := Child.NextSibling();
+    end;
+  end;
 end;
 
 procedure TAJobImport.SaveToXML(const XML: IXMLNode);
@@ -3421,6 +3429,13 @@ begin
       Child := XMLNode(XML, 'sources').AddChild('source');
       Child.Attributes['name'] := SourceObjects[I].Name;
       Child.Attributes['type'] := 'Table';
+    end;
+
+    for I := 0 to Length(FieldMappings) - 1 do
+    begin
+      Child := XMLNode(XML, 'fields').AddChild('field');
+      Child.AddChild('source').Text := FieldMappings[I].SourceFieldName;
+      Child.AddChild('destination').Text := FieldMappings[I].DestinationFieldName;
     end;
   end;
 end;
@@ -3951,9 +3966,6 @@ end;
 procedure TADesktop.SetAddress(AAddress: string);
 begin
   FPath := Account.ExtractPath(AAddress);
-
-  if (FPath = '/.') then
-    raise ERangeError.Create(SRangeError);
 end;
 
 { TAConnection ****************************************************************}

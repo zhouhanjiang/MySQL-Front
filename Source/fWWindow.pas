@@ -73,7 +73,6 @@ type
     aDEmpty: TAction;
     aDInsertRecord: TAction;
     aDPostObject: TAction;
-    aDPostObject1: TMenuItem;
     aDPostRecord: TDataSetPost;
     aDRun: TAction;
     aDRunSelection: TAction;
@@ -206,6 +205,7 @@ type
     miDProperties: TMenuItem;
     miDRun: TMenuItem;
     miDRunSelection: TMenuItem;
+    miDPostObject: TMenuItem;
     miECopy: TMenuItem;
     miECopyToFile: TMenuItem;
     miECut: TMenuItem;
@@ -848,6 +848,11 @@ begin
   tbPostRecord.Action := ActiveTab.DataSetPost;
   tbCancelRecord.Action := ActiveTab.DataSetCancel;
 
+  tbDBPrev.Hint := ActiveTab.aDPrev.Caption + ' (' + ShortCutToText(VK_UP) + ')';
+  tbDBFirst.Hint := ActiveTab.DataSetFirst.Caption + ' (' + ShortCutToText(scCtrl + VK_HOME) + ')';
+  tbDBLast.Hint := ActiveTab.DataSetLast.Caption + ' (' + ShortCutToText(scCtrl + VK_END) + ')';
+  tbDBNext.Hint := ActiveTab.aDNext.Caption + ' (' + ShortCutToText(VK_DOWN) + ')';
+
   aFClose.Enabled := True;
 
   MPrev.Items.Clear();
@@ -1113,7 +1118,6 @@ begin
   for I := 0 to ActionList.ActionCount - 1 do
     if (ActionList.Actions[I] is TCustomAction) and (TCustomAction(ActionList.Actions[I]).Hint = '') then
       TCustomAction(ActionList.Actions[I]).Hint := TCustomAction(ActionList.Actions[I]).Caption;
-
 
   mtTabs.Caption := Preferences.LoadStr(851);
 

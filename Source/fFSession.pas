@@ -9,7 +9,7 @@ uses
   ShDocVw, CommCtrl, PNGImage, GIFImg, Jpeg, ToolWin,
   MPHexEditor, MPHexEditorEx,
   SynEdit, SynEditHighlighter, SynHighlighterSQL, SynMemo, SynEditMiscClasses,
-  SynEditSearch, SynCompletionProposal, SynEditPrint,
+  SynEditSearch, SynEditPrint,
   acQBBase, acAST, acQBEventMetaProvider, acMYSQLSynProvider, acSQLBuilderPlainText,
   ShellControls, JAMControls, ShellLink,
   ComCtrls_Ext, StdCtrls_Ext, Dialogs_Ext, Forms_Ext, ExtCtrls_Ext,
@@ -89,7 +89,6 @@ type
     FQuickSearchEnabled: TToolButton;
     FRTF: TRichEdit;
     FServerListView: TListView_Ext;
-    FSQLEditorCompletion: TSynCompletionProposal;
     FSQLEditorPrint: TSynEditPrint;
     FSQLEditorSearch: TSynEditSearch;
     FSQLEditorSynMemo: TSynMemo;
@@ -560,15 +559,6 @@ type
     procedure FRTFChange(Sender: TObject);
     procedure FRTFEnter(Sender: TObject);
     procedure FRTFExit(Sender: TObject);
-    procedure FSQLEditorCompletionClose(Sender: TObject);
-    procedure FSQLEditorCompletionExecute(Kind: SynCompletionType;
-      Sender: TObject; var CurrentInput: string; var x, y: Integer;
-      var CanExecute: Boolean);
-    procedure FSQLEditorCompletionPaintItem(Sender: TObject;
-      Index: Integer; TargetCanvas: TCanvas; ItemRect: TRect;
-      var CustomDraw: Boolean);
-    procedure FSQLEditorCompletionShow(Sender: TObject);
-    procedure FSQLEditorCompletionTimerTimer(Sender: TObject);
     procedure FSQLHistoryChange(Sender: TObject; Node: TTreeNode);
     procedure FSQLHistoryChanging(Sender: TObject; Node: TTreeNode;
       var AllowChange: Boolean);
@@ -691,7 +681,6 @@ type
     procedure TreeViewMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure ToolBarResize(Sender: TObject);
-    procedure FSQLEditorCompletionChange(Sender: TObject; AIndex: Integer);
     procedure FJobsChange(Sender: TObject; Item: TListItem;
       Change: TItemChange);
     procedure mjExecuteClick(Sender: TObject);
@@ -893,7 +882,6 @@ type
     FNavigatorNodeAfterActivate: TTreeNode;
     FNavigatorNodeToExpand: TTreeNode;
     FrameState: TTabState;
-    FSQLEditorCompletionTimerCounter: Integer;
     FSQLEditorSynMemo2: TSynMemo;
     FSQLEditorSynMemo3: TSynMemo;
     FSQLHistoryMenuNode: TTreeNode;
@@ -1131,7 +1119,6 @@ const
 const
   tiNavigator = 1;
   tiStatusBar = 2;
-  tiCodeCompletion = 3;
 
 const
   giDatabases = 1;
@@ -2888,7 +2875,6 @@ begin
   if (Window.ActiveControl is TMySQLDBGrid) then
     TMySQLDBGrid(Window.ActiveControl).EditorMode := False;
 
-  FSQLEditorCompletion.CancelCompletion();
   if (Assigned(FQueryBuilderActiveSelectList())) then
     FQueryBuilderActiveSelectList().EditorMode := False;
 
@@ -2938,8 +2924,6 @@ var
   SQL: string;
 begin
   Wanted.Clear();
-
-  FSQLEditorCompletion.CancelCompletion();
 
   aDRunExecuteSelStart := ActiveSynMemo.SelStart;
   if (ActiveSynMemo.SelText = '') then
@@ -4635,12 +4619,6 @@ begin
 
   FSQLEditorPrint.Font := FSQLEditorSynMemo.Font;
 
-  FSQLEditorCompletion.Font.Name := FSQLEditorSynMemo.Font.Name;
-  FSQLEditorCompletion.Font.Style := FSQLEditorSynMemo.Font.Style;
-  FSQLEditorCompletion.Font.Color := FSQLEditorSynMemo.Font.Color;
-  FSQLEditorCompletion.Font.Size := FSQLEditorSynMemo.Font.Size;
-  FSQLEditorCompletion.Font.Charset := FSQLEditorSynMemo.Font.Charset;
-
   smEEmpty.Caption := Preferences.LoadStr(181);
 
   FNavigatorInitialize(nil);
@@ -5233,8 +5211,8 @@ begin
   tbBuilder.Action := MainAction('aVQueryBuilder'); tbBuilder.Caption := tbBuilder.Caption;
   tbDiagram.Action := MainAction('aVDiagram'); tbDiagram.Caption := tbDiagram.Caption;
   tbEditor.Action := MainAction('aVSQLEditor'); tbEditor.Caption := tbEditor.Caption;
-  tbEditor2.Action := MainAction('aVSQLEditor2'); tbEditor.Caption := tbEditor2.Caption;
-  tbEditor3.Action := MainAction('aVSQLEditor3'); tbEditor.Caption := tbEditor3.Caption;
+  tbEditor2.Action := MainAction('aVSQLEditor2'); tbEditor2.Caption := tbEditor2.Caption;
+  tbEditor3.Action := MainAction('aVSQLEditor3'); tbEditor3.Caption := tbEditor3.Caption;
 
   miSNavigator.Action := MainAction('aVNavigator');
   miSBookmarks.Action := MainAction('aVBookmarks');
@@ -8605,264 +8583,6 @@ begin
   FRTF.SelectAll();
 
   FRTF.OnChange := TempFRTFOnChange;
-end;
-
-procedure TFSession.FSQLEditorCompletionChange(Sender: TObject; AIndex: Integer);
-begin
-  FSQLEditorCompletionTimerCounter := 0;
-end;
-
-procedure TFSession.FSQLEditorCompletionClose(Sender: TObject);
-begin
-  SynMemoEnter(Sender);
-end;
-
-procedure TFSession.FSQLEditorCompletionExecute(Kind: SynCompletionType;
-  Sender: TObject; var CurrentInput: string; var x, y: Integer;
-  var CanExecute: Boolean);
-var
-  Attri: TSynHighlighterAttributes;
-  Database: TSDatabase;
-  DMLStmt: TSQLDMLStmt;
-  I: Integer;
-  Identifier: string;
-  Index: Integer;
-  J: Integer;
-  Len: Integer;
-  Owner: string;
-  Parse: TSQLParse;
-  QueryBuilder: TacQueryBuilder;
-  S: string;
-  SQL: string;
-  StringList: TStringList;
-  Table: TSTable;
-  Tables: array of TSTable;
-  Token: string;
-begin
-  SetLength(Tables, 0);
-
-  Index := 1; Len := 0;
-  try
-    SQL := ActiveSynMemo.Text; // Sometimes this forces in exception SynGetText / GetSelAvail
-    repeat
-      Len := SQLStmtLength(PChar(@SQL[Index]), (Length(SQL) - (Index - 1)));
-      Inc(Index, Len);
-    until (Index >= ActiveSynMemo.SelStart);
-    Dec(Index, Len);
-    SQL := Copy(SQL, Index, Len);
-  except
-    SQL := '';
-  end;
-
-  if ((Len <> 0) and not Session.InUse() and ActiveSynMemo.GetHighlighterAttriAtRowCol(ActiveSynMemo.WordStart(), Token, Attri)) then
-  begin
-    Index := ActiveSynMemo.SelStart - Index + 1;
-    while ((Index > 0) and (Pos(SQL[Index], FSQLEditorCompletion.EndOfTokenChr) = 0)) do Dec(Index);
-
-    Database := Session.DatabaseByName(SelectedDatabase);
-    if (Assigned(Database)) then
-    begin
-      Session.BeginSynchron();
-      if (not Database.Update()) then
-        Database := nil;
-      Session.EndSynchron();
-    end;
-
-    StringList := TStringList.Create();
-
-    if (((Index > 0) and (SQL[Index] = '.')) or (Attri = MainHighlighter.DelimitedIdentifierAttri)) then
-    begin
-      I := Index - 1;
-      Identifier := SQLUnescape(Copy(SQL, I + 1, Index - I - 1));
-      if (SQL[Index] <> '.') then
-        Owner := ''
-      else
-      begin
-        Dec(I);
-        while ((I > 0) and (Pos(SQL[I], FSQLEditorCompletion.EndOfTokenChr) = 0)) do Dec(I);
-        Owner := SQLUnescape(Copy(SQL, I + 1, Index - I - 1 - Length(Owner)));
-      end;
-
-      if (Owner <> '') then
-      begin
-        Database := Session.DatabaseByName(Owner);
-
-        if (Assigned(Database)) then
-          for I := 0 to Database.Tables.Count - 1 do
-            StringList.Add(Database.Tables[I].Name);
-      end;
-
-      Table := nil;
-      if (Owner <> '') then
-      begin
-        if (Assigned(Database)) then
-          Table := Database.BaseTableByName(Owner)
-        else if (SelectedDatabase <> '') then
-          Table := Session.DatabaseByName(SelectedDatabase).BaseTableByName(Owner);
-        if (Assigned(Table)) then
-        begin
-          SetLength(Tables, 1);
-          Tables[0] := Table;
-        end
-        else if (SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.ServerVersion) and SQLParseKeyword(Parse, 'SELECT') and (Owner <> '')) then
-        begin
-          QueryBuilder := TacQueryBuilder.Create(Window);
-          QueryBuilder.Visible := False;
-          QueryBuilder.Parent := ActiveSynMemo;
-          QueryBuilder.MetadataProvider := Session.MetadataProvider;
-          QueryBuilder.SyntaxProvider := Session.SyntaxProvider;
-          Insert('*', SQL, Index + 1);
-          try
-            QueryBuilder.SQL := SQL;
-            Application.ProcessMessages();
-            for I := 0 to QueryBuilder.QueryStatistics.UsedDatabaseObjects.Count - 1 do
-              for J := 0 to QueryBuilder.QueryStatistics.UsedDatabaseObjects[I].Aliases.Count - 1 do
-              if ((Session.LowerCaseTableNames = 0) and (lstrcmp(PChar(QueryBuilder.QueryStatistics.UsedDatabaseObjects[I].Aliases[J].Token), PChar(Owner)) = 0)
-                or (Session.LowerCaseTableNames > 0) and (lstrcmpi(PChar(QueryBuilder.QueryStatistics.UsedDatabaseObjects[I].Aliases[J].Token), PChar(Owner)) = 0)) then
-              begin
-                if (QueryBuilder.QueryStatistics.UsedDatabaseObjects[I].Database.QualifiedName = '') then
-                  Database := Session.DatabaseByName(SelectedDatabase)
-                else
-                  Database := Session.DatabaseByName(QueryBuilder.QueryStatistics.UsedDatabaseObjects[I].Database.QualifiedName);
-                if (not Assigned(Database)) then
-                  Table := nil
-                else
-                  Table := Database.TableByName(QueryBuilder.QueryStatistics.UsedDatabaseObjects[I].Name.Token);
-                if (Assigned(Table)) then
-                begin
-                  SetLength(Tables, 1);
-                  Tables[0] := Table;
-                end;
-              end;
-          except
-          end;
-          QueryBuilder.Free();
-        end;
-      end
-      else if (SQLParseDMLStmt(DMLStmt, PChar(SQL), Length(SQL), Session.ServerVersion)) then
-        for I := 0 to Length(DMLStmt.TableNames) - 1 do
-        begin
-          Database := Session.DatabaseByName(DMLStmt.DatabaseNames[I]);
-          if (Assigned(Database)) then
-          begin
-            Table := Database.TableByName(DMLStmt.TableNames[I]);
-            if (Assigned(Table)) then
-            begin
-              SetLength(Tables, Length(Tables) + 1);
-              Tables[Length(Tables) - 1] := Table;
-            end;
-          end;
-        end;
-    end
-    else
-    begin
-      if (SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.ServerVersion) and SQLParseKeyword(Parse, 'SELECT')) then
-      begin
-        QueryBuilder := TacQueryBuilder.Create(Window);
-        QueryBuilder.Visible := False;
-        QueryBuilder.Parent := ActiveSynMemo;
-        QueryBuilder.SyntaxProvider := Session.SyntaxProvider;
-        QueryBuilder.MetadataProvider := Session.MetadataProvider;
-        try
-          QueryBuilder.SQL := SQL;
-          Application.ProcessMessages();
-          for I := 0 to QueryBuilder.QueryStatistics.UsedDatabaseObjects.Count - 1 do
-          begin
-            if (QueryBuilder.QueryStatistics.UsedDatabaseObjects[I].Database.QualifiedName = '') then
-              Database := Session.DatabaseByName(SelectedDatabase)
-            else
-              Database := Session.DatabaseByName(QueryBuilder.QueryStatistics.UsedDatabaseObjects[I].Database.QualifiedName);
-            if (not Assigned(Database)) then
-              Table := nil
-            else
-              Table := Database.TableByName(QueryBuilder.QueryStatistics.UsedDatabaseObjects[I].Name.Token);
-            if (Assigned(Table)) then
-            begin
-              SetLength(Tables, Length(Tables) + 1);
-              Tables[Length(Tables) - 1] := Table;
-            end;
-          end;
-        except
-        end;
-        QueryBuilder.Free();
-      end;
-
-      StringList.Text
-        := ReplaceStr(MainHighlighter.GetKeywords(Ord(tkKey)), ',', #13#10) + #13#10
-        + ReplaceStr(MainHighlighter.GetKeywords(Ord(tkDatatype)), ',', #13#10) + #13#10
-        + ReplaceStr(MainHighlighter.GetKeywords(Ord(tkFunction)), ',', #13#10) + #13#10
-        + ReplaceStr(MainHighlighter.GetKeywords(Ord(tkPLSQL)), ',', #13#10);
-
-      for I := 0 to Session.Databases.Count - 1 do
-        StringList.Add(Session.Databases[I].Name);
-      if (Assigned(Database)) then
-        for I := 0 to Database.Tables.Count - 1 do
-          StringList.Add(Database.Tables[I].Name);
-    end;
-
-    try
-      for I := 0 to Length(Tables) - 1 do
-        if (Tables[I].Fields.Count > 0) then
-        begin
-          if (Tables[I] is TSBaseTable) then
-            for J := 0 to TSBaseTable(Tables[I]).Keys.Count - 1 do
-              if (not TSBaseTable(Tables[I]).Keys[J].Primary) then
-                StringList.Add(TSBaseTable(Tables[I]).Keys[J].Caption);
-          for J := 0 to Tables[I].Fields.Count - 1 do
-            StringList.Add(Tables[I].Fields[J].Name);
-          if (Tables[I] is TSBaseTable) then
-            for J := 0 to TSBaseTable(Tables[I]).ForeignKeys.Count - 1 do
-              StringList.Add(TSBaseTable(Tables[I]).ForeignKeys[J].Name);
-        end;
-    except
-    end;
-
-    S := Copy(ActiveSynMemo.Lines.Strings[ActiveSynMemo.WordStart().Line - 1], ActiveSynMemo.WordStart().Char, ActiveSynMemo.CharIndexToRowCol(ActiveSynMemo.SelStart).Char - ActiveSynMemo.WordStart().Char);
-
-    // avoid Popup, if a word has been typed completely
-    I := StringList.Count - 1;
-    while ((I >= 0) and (StringList.Count > 0)) do
-    begin
-      if (lstrcmpi(PChar(StringList[I]), PChar(S)) = 0) then
-        StringList.Clear();
-      Dec(I);
-    end;
-
-    StringList.Sort();
-    FSQLEditorCompletion.ItemList.Text := StringList.Text;
-
-    StringList.Free();
-  end;
-
-  CanExecute := FSQLEditorCompletion.ItemList.Count > 0;
-end;
-
-procedure TFSession.FSQLEditorCompletionPaintItem(Sender: TObject;
-  Index: Integer; TargetCanvas: TCanvas; ItemRect: TRect;
-  var CustomDraw: Boolean);
-begin
-  FSQLEditorCompletionShow(Sender);
-end;
-
-procedure TFSession.FSQLEditorCompletionShow(Sender: TObject);
-begin
-  MainAction('aDRun').Enabled := True;
-  MainAction('aDRunSelection').Enabled := True;
-
-  KillTimer(Handle, tiCodeCompletion);
-  SetTimer(Handle, tiCodeCompletion, 1000, nil);
-  FSQLEditorCompletionTimerCounter := 0;
-end;
-
-procedure TFSession.FSQLEditorCompletionTimerTimer(Sender: TObject);
-begin
-  Inc(FSQLEditorCompletionTimerCounter);
-
-  if ((FSQLEditorCompletionTimerCounter = 5) or (FSQLEditorCompletion.Form.AssignedList.Count = 0)) then
-  begin
-    FSQLEditorCompletion.CancelCompletion();
-    KillTimer(Handle, tiCodeCompletion);
-  end;
 end;
 
 procedure TFSession.FSQLHistoryChange(Sender: TObject; Node: TTreeNode);
@@ -13932,13 +13652,11 @@ end;
 
 procedure TFSession.SynMemoStatusChange(Sender: TObject; Changes: TSynStatusChanges);
 var
-  Attri: TSynHighlighterAttributes;
   DDLStmt: TSQLDDLStmt;
   Empty: Boolean;
   Parse: TSQLParse;
   SelSQL: string;
   SQL: string;
-  Token: string;
 begin
   if (not (csDestroying in ComponentState)) then
   begin
@@ -13964,14 +13682,6 @@ begin
         and ((SelectedImageIndex in [iiView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.ServerVersion) and (SQLParseKeyword(Parse, 'SELECT'))
           or (SelectedImageIndex in [iiProcedure, iiFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.ServerVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
           or (SelectedImageIndex in [iiEvent, iiTrigger]));
-    end;
-
-    FSQLEditorCompletion.TimerInterval := 0;
-    if ((View in [vEditor, vEditor2, vEditor3]) and (ActiveSynMemo.SelStart > 0)
-      and ActiveSynMemo.GetHighlighterAttriAtRowCol(ActiveSynMemo.WordStart(), Token, Attri) and (Attri <> MainHighlighter.StringAttri) and (Attri <> MainHighlighter.CommentAttri) and (Attri <> MainHighlighter.VariableAttri)) then
-    begin
-      FSQLEditorCompletion.Editor := ActiveSynMemo;
-      FSQLEditorCompletion.TimerInterval := Preferences.Editor.CodeCompletionTime;
     end;
 
     StatusBarRefresh();
@@ -14165,10 +13875,7 @@ begin
   Result := False;
 
   case (View) of
-    vObjects,
-    vEditor,
-    vEditor2,
-    vEditor3:
+    vObjects:
       case (SelectedImageIndex) of
         iiDatabase,
         iiSystemDatabase:
@@ -14296,8 +14003,7 @@ begin
         StatusBar.Panels[sbMessage].Text := '';
         StatusBarRefresh();
       end;
-    tiCodeCompletion:
-      FSQLEditorCompletionTimerTimer(Self);
+
   end;
 end;
 

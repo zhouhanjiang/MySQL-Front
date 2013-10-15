@@ -1787,7 +1787,7 @@ object WWindow: TWWindow
       object miDRunSelection: TMenuItem
         Action = aDRunSelection
       end
-      object aDPostObject1: TMenuItem
+      object miDPostObject: TMenuItem
         Action = aDPostObject
       end
       object N7: TMenuItem

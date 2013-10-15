@@ -356,7 +356,7 @@ var
   procedure ImportAdd(TableName: string; const SourceTableName: string = '');
   begin
     TableName := Session.ApplyIdentifierName(TableName);
-    Import.Add(TableName, SourceTableName);
+    Import.AddTable(TableName, SourceTableName);
   end;
 
   function TableName(const SourceName: string): string;
@@ -487,17 +487,13 @@ begin
             Table.InvalidateData();
             for I := 0 to Length(Job.FieldMappings) - 1 do
               if (Assigned(Import)) then
-              begin
-                SetLength(Import.FieldMapping, Length(Import.FieldMapping) + 1);
-                Import.FieldMapping[Length(Import.FieldMapping) - 1].DestinationField := Table.FieldByName(Job.FieldMappings[I].Name);
-                if (not Assigned(Import.FieldMapping[Length(Import.FieldMapping) - 1].DestinationField)) then
+                if (not Assigned(Table.FieldByName(Job.FieldMappings[I].DestinationFieldName))) then
                 begin
-                  WriteLn(StdErr, 'Field not found: ' + Database.Name + '.' + Table.Name + '.' + Job.FieldMappings[I].Name);
+                  WriteLn(StdErr, 'Field not found: ' + Database.Name + '.' + Table.Name + '.' + Job.FieldMappings[I].DestinationFieldName);
                   FreeAndNil(Import);
                 end
                 else
-                  Import.FieldMapping[Length(Import.FieldMapping) - 1].SourceColumnName := Job.FieldMappings[I].SourceName;
-              end;
+                  Import.xAddField(Table.FieldByName(Job.FieldMappings[I].DestinationFieldName), Job.FieldMappings[I].SourceFieldName);
           end;
 
           if (Assigned(Import)) then

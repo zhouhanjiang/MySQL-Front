@@ -127,8 +127,8 @@ type
     procedure FBHelpClick(Sender: TObject);
     procedure FCSVKeyPress(Sender: TObject; var Key: Char);
     procedure FCSVPreviewUpdate(Sender: TObject);
-    procedure FDataClick(Sender: TObject);
-    procedure FDataKeyPress(Sender: TObject; var Key: Char);
+    procedure WhatClick(Sender: TObject);
+    procedure WhatKeyPress(Sender: TObject; var Key: Char);
     procedure FCharsetChange(Sender: TObject);
     procedure FDelimiterClick(Sender: TObject);
     procedure FDelimiterKeyPress(Sender: TObject; var Key: Char);
@@ -145,8 +145,6 @@ type
     procedure FSelectGetImageIndex(Sender: TObject; Node: TTreeNode);
     procedure FSelectExpanding(Sender: TObject; Node: TTreeNode;
       var AllowExpansion: Boolean);
-    procedure FStructureClick(Sender: TObject);
-    procedure FStructureKeyPress(Sender: TObject; var Key: Char);
     procedure FTablesDblClick(Sender: TObject);
     procedure FTablesSelectItem(Sender: TObject; Item: TListItem;
       Selected: Boolean);
@@ -155,7 +153,6 @@ type
     procedure TSExecuteShow(Sender: TObject);
     procedure TSFieldsChange(Sender: TObject);
     procedure TSFieldsShow(Sender: TObject);
-    procedure TSWhatHide(Sender: TObject);
     procedure TSWhatShow(Sender: TObject);
     procedure TSTablesHide(Sender: TObject);
     procedure TSTablesShow(Sender: TObject);
@@ -169,6 +166,7 @@ type
     procedure FTablesChange(Sender: TObject; Item: TListItem;
       Change: TItemChange);
     procedure TSSelectHide(Sender: TObject);
+    procedure TSJobShow(Sender: TObject);
   type
     TTableName = class
     private
@@ -211,6 +209,7 @@ type
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
     procedure CMExecutedDone(var Message: TMessage); message CM_EXECUTIONDONE;
     procedure CMPostAfterExecuteSQL(var Message: TMessage); message CM_POST_AFTEREXECUTESQL;
+    procedure CMPostShow(var Message: TMessage); message CM_POST_SHOW;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure CMUpdateProgressInfo(var Message: TMessage); message CM_UPDATEPROGRESSINFO;
   public
@@ -478,6 +477,12 @@ begin
   end;
 end;
 
+procedure TDImport.CMPostShow(var Message: TMessage);
+begin
+  TSExecute.Enabled := True;
+  PageControl.ActivePage := TSExecute;
+end;
+
 procedure TDImport.CMSysFontChanged(var Message: TMessage);
 begin
   inherited;
@@ -672,23 +677,6 @@ begin
 
     CheckActivePageChange(TSCSVOptions.PageIndex);
   end;
-end;
-
-procedure TDImport.FDataClick(Sender: TObject);
-begin
-  FStructure.Checked := FStructure.Checked or FData.Checked and not (SObject is TSBaseTable);
-
-  TSFields.Enabled := (DialogType = idtNormal) and FData.Checked and (SObject is TSBaseTable);
-  TSExecute.Enabled := (DialogType = idtNormal) and not TSFields.Enabled and FStructure.Checked;
-  TSTask.Enabled := (DialogType <> idtNormal) and not TSFields.Enabled and FStructure.Checked;
-  CheckActivePageChange(TSWhat.PageIndex);
-
-  ClearTSFields(Sender);
-end;
-
-procedure TDImport.FDataKeyPress(Sender: TObject; var Key: Char);
-begin
-  FDataClick(Sender);
 end;
 
 procedure TDImport.FDataSourceChange(Sender: TObject);
@@ -934,8 +922,8 @@ begin
             if ((FSourceFields[J].Text <> '') and (FDestinationFields[J].ItemIndex = I + 1)) then
             begin
               SetLength(TAJobImport(PImport).FieldMappings, Length(TAJobImport(PImport).FieldMappings) + 1);
-              TAJobImport(PImport).FieldMappings[Length(TAJobImport(PImport).FieldMappings) - 1].Name := TSTable(SObject).Fields[I].Name;
-              TAJobImport(PImport).FieldMappings[Length(TAJobImport(PImport).FieldMappings) - 1].SourceName := FSourceFields[J].Text;
+              TAJobImport(PImport).FieldMappings[Length(TAJobImport(PImport).FieldMappings) - 1].DestinationFieldName := TSTable(SObject).Fields[I].Name;
+              TAJobImport(PImport).FieldMappings[Length(TAJobImport(PImport).FieldMappings) - 1].SourceFieldName := FSourceFields[J].Text;
             end;
 
       DecodeDate(FStartDate.Date, Year, Month, Day);
@@ -1193,7 +1181,10 @@ begin
   TSWhat.Enabled := False;
   TSFields.Enabled := False;
   TSTask.Enabled := False;
-  TSExecute.Enabled := (DialogType in [idtExecuteJob]) or (ImportType in [itSQLFile]);
+  TSExecute.Enabled := False;
+
+  if ((DialogType in [idtExecuteJob]) or (ImportType in [itSQLFile])) then
+    PostMessage(Handle, CM_POST_SHOW, 0, 0);
 
   if (TSFields.Enabled) then
     InitTSFields(Sender);
@@ -1250,7 +1241,7 @@ begin
 
   TSCSVOptions.Enabled := (ImportType in [itTextFile]);
   TSWhat.Enabled := not TSCSVOptions.Enabled and (ImportType <> itSQLFile) and (SObject is TSDatabase);
-  TSFields.Enabled := (DialogType = idtNormal) and not TSCSVOptions.Enabled and not TSWhat.Enabled and (SObject is TSTable);
+  TSFields.Enabled := (DialogType in [idtNormal, idtCreateJob, idtEditJob]) and not TSCSVOptions.Enabled and not TSWhat.Enabled and (SObject is TSTable);
   TSTask.Enabled := (DialogType <> idtNormal) and not TSCSVOptions.Enabled and not TSWhat.Enabled and (SObject is TSTable);
 
   CheckActivePageChange(TSSelect.PageIndex);
@@ -1318,28 +1309,12 @@ begin
   Node.SelectedIndex := Node.ImageIndex;
 end;
 
-procedure TDImport.FStructureClick(Sender: TObject);
-begin
-  FData.Checked := FData.Checked and (SObject is TSTable) or FStructure.Checked;
-
-  TSFields.Enabled := FData.Checked and (SObject is TSTable);
-  TSExecute.Enabled := not TSFields.Enabled and FStructure.Checked;
-  CheckActivePageChange(TSWhat.PageIndex);
-
-  ClearTSFields(Sender);
-end;
-
-procedure TDImport.FStructureKeyPress(Sender: TObject; var Key: Char);
-begin
-  FStructureClick(Sender);
-end;
-
 procedure TDImport.FTablesChange(Sender: TObject; Item: TListItem;
   Change: TItemChange);
 begin
   TSSelect.Enabled := (DialogType in [idtCreateJob, idtEditJob, idtExecuteJob]) and Assigned(FTables.Selected);
   TSCSVOptions.Enabled := (DialogType in [idtNormal]) and (ImportType in [itTextFile]);
-  TSWhat.Enabled := (DialogType in [idtNormal]) and (not Assigned(SObject) and (ImportType = itSQLFile) or (SObject is TSDatabase) or (SObject is TSTable) and (ImportType <> itSQLFile) and (FTables.SelCount = 1));
+  TSWhat.Enabled := (DialogType in [idtNormal, idtCreateJob, idtEditJob]) and (ImportType <> itSQLFile) and (not Assigned(SObject) or (SObject is TSDatabase));
   TSTask.Enabled := (DialogType in [idtCreateJob, idtEditJob]) and (ImportType = itSQLFile);
 
   CheckActivePageChange(TSTables.PageIndex);
@@ -1355,7 +1330,6 @@ end;
 procedure TDImport.FTablesSelectItem(Sender: TObject; Item: TListItem;
   Selected: Boolean);
 begin
-
   TSWhat.Enabled := (FTables.SelCount > 0) and (ImportType in [itTextFile, itAccessFile, itExcelFile, itODBC]) and not (SObject is TSBaseTable);
   TSFields.Enabled := (FTables.SelCount > 0) and not TSWhat.Enabled;
   CheckActivePageChange(TSTables.PageIndex);
@@ -1448,6 +1422,7 @@ begin
       else
         FLSourceFields.Caption := Preferences.LoadStr(400) + ':';
 
+      if (not Assigned(Import)) then TSJobHide(nil);
       TTImportODBC(Import).GetFieldNames(TTableName(FTables.Selected.Data).SourceName, FieldNames);
     end;
 
@@ -1457,6 +1432,10 @@ begin
 
     if (SObject is TSBaseTable) then
     begin
+      Session.BeginSynchron();
+      TSBaseTable(SObject).Update();
+      Session.EndSynchron();
+
       ScrollBox.Visible := False;
       ScrollBox.AutoScroll := False;
 
@@ -1500,7 +1479,9 @@ begin
           if ((ImportType in [itTextFile]) and FCSVHeadline.Checked or (ImportType in [itExcelFile, itAccessFile, itODBC])) then
             FDestinationFields[I].ItemIndex := FDestinationFields[I].Items.IndexOf(FSourceFields[I].Text)
           else
-            FDestinationFields[I].ItemIndex := I + 1;
+            FDestinationFields[I].ItemIndex := I + 1
+        else if (DialogType in [idtEditJob]) then
+          FDestinationFields[I].ItemIndex := FDestinationFields[I].Items.IndexOf(Job.FieldMappings[I].DestinationFieldName);
         FDestinationFields[I].OnChange := FDestinationField1.OnChange;
         FDestinationFields[I].OnExit := FDestinationField1.OnExit;
       end;
@@ -1554,7 +1535,7 @@ begin
             if (Session.Databases.NameCmp(FSelect.Items[0].Item[J].Text, Job.JobObject.DatabaseName) = 0) then
             begin
               Database := Session.DatabaseByName(Job.JobObject.DatabaseName);
-              if (not Database.Update()) then
+              if (not Database.Tables.Update()) then
                 Result := False
               else
               begin
@@ -1670,7 +1651,7 @@ begin
     end
     else
     begin
-      TSFields.Enabled := (SObject is TSBaseTable);
+      TSFields.Enabled := (SObject is TSTable);
       TSWhat.Enabled := not TSFields.Enabled;
     end;
     CheckActivePageChange(TSCSVOptions.PageIndex);
@@ -1687,12 +1668,11 @@ var
     if ((Answer <> IDYESALL) and not (SObject is TSTable) and Assigned(Database.TableByName(TableName))) then
       Answer := MsgBox(Preferences.LoadStr(700, Database.Name + '.' + TableName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);
     if (Answer in [IDYES, IDYESALL]) then
-      Import.Add(TableName, SourceTableName);
+      Import.AddTable(TableName, SourceTableName);
   end;
 
 var
   I: Integer;
-  J: Integer;
   Success: Boolean;
 begin
   if (DialogType = idtExecuteJob) then
@@ -1796,14 +1776,9 @@ begin
     if (SObject is TSBaseTable) then
     begin
       TSBaseTable(SObject).InvalidateData();
-      for I := 0 to TSBaseTable(SObject).Fields.Count - 1 do
-        for J := 0 to Length(FDestinationFields) - 1 do
-          if ((FSourceFields[J].Text <> '') and (FDestinationFields[J].ItemIndex = I + 1)) then
-          begin
-            SetLength(Import.FieldMapping, Length(Import.FieldMapping) + 1);
-            Import.FieldMapping[Length(Import.FieldMapping) - 1].DestinationField := TSBaseTable(SObject).Fields[I];
-            Import.FieldMapping[Length(Import.FieldMapping) - 1].SourceColumnName := FSourceFields[J].Text;
-          end;
+      for I := 0 to Length(FSourceFields) - 1 do
+        if (FDestinationFields[I].ItemIndex >= 0) then
+          Import.xAddField(TSBaseTable(SObject).Fields[FDestinationFields[I].ItemIndex - 1], FSourceFields[I].Text);
     end;
 
     Import.Wnd := Self.Handle;
@@ -1821,6 +1796,7 @@ procedure TDImport.TSFieldsChange(Sender: TObject);
 var
   I: Integer;
 begin
+  TSTask.Enabled := False;
   TSExecute.Enabled := False;
   for I := 0 to Length(FDestinationFields) - 1 do
     if ((FSourceFields[I].Text <> '') and (FDestinationFields[I].ItemIndex > 0)) then
@@ -1828,11 +1804,13 @@ begin
       TSTask.Enabled := (DialogType in [idtCreateJob, idtEditJob, idtExecuteJob]);
       TSExecute.Enabled := (DialogType = idtNormal);
     end;
+
   CheckActivePageChange(TSFields.PageIndex);
 end;
 
 procedure TDImport.TSFieldsShow(Sender: TObject);
 begin
+  InitTSFields(Sender);
   TSFieldsChange(Sender);
 end;
 
@@ -1850,9 +1828,9 @@ begin
   end;
 end;
 
-procedure TDImport.TSWhatHide(Sender: TObject);
+procedure TDImport.TSJobShow(Sender: TObject);
 begin
-  InitTSFields(Sender);
+  CheckActivePageChange(TSJob.PageIndex);
 end;
 
 procedure TDImport.TSWhatShow(Sender: TObject);
@@ -1878,12 +1856,12 @@ end;
 
 procedure TDImport.TSTablesHide(Sender: TObject);
 begin
-  if (ImportType in [itExcelFile, itAccessFile, itODBC]) then
-  begin
-    ClearTSFields(Sender);
-    if (TSFields.Enabled) then
-      InitTSFields(Sender);
-  end;
+//  if (TSFields.Enabled) then
+//  begin
+//    ClearTSFields(Sender);
+//    if (TSFields.Enabled) then
+//      InitTSFields(Sender);
+//  end;
 end;
 
 procedure TDImport.TSTablesShow(Sender: TObject);
@@ -1947,6 +1925,21 @@ procedure TDImport.TSXMLOptionsHide(Sender: TObject);
 begin
   if (Length(FDestinationFields) = 0) then
     InitTSFields(Sender);
+end;
+
+procedure TDImport.WhatClick(Sender: TObject);
+begin
+  FStructure.Checked := FStructure.Checked or FData.Checked and not (SObject is TSBaseTable);
+
+  TSFields.Enabled := (DialogType = idtNormal) and FData.Checked and (SObject is TSBaseTable);
+  TSExecute.Enabled := (DialogType = idtNormal) and not TSFields.Enabled and FStructure.Checked;
+  TSTask.Enabled := (DialogType <> idtNormal) and not TSFields.Enabled and FStructure.Checked;
+  CheckActivePageChange(TSWhat.PageIndex);
+end;
+
+procedure TDImport.WhatKeyPress(Sender: TObject; var Key: Char);
+begin
+  WhatClick(Sender);
 end;
 
 initialization

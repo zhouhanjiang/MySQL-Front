@@ -61,13 +61,18 @@ object DImport: TDImport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSSelect
+    ActivePage = TSFields
     Style = tsButtons
     TabOrder = 0
     TabStop = False
     object TSJob: TTabSheet
       Caption = 'TSJob'
       TabVisible = False
+      OnShow = TSJobShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -214,6 +219,10 @@ object DImport: TDImport
       TabVisible = False
       OnHide = TSTablesHide
       OnShow = TSTablesShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GTables: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -260,6 +269,10 @@ object DImport: TDImport
       TabVisible = False
       OnHide = TSSelectHide
       OnShow = TSSelectShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GSelect: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -307,6 +320,10 @@ object DImport: TDImport
       TabVisible = False
       OnHide = TSCSVOptionsHide
       OnShow = TSCSVOptionsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GCSVHow: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -468,8 +485,11 @@ object DImport: TDImport
     object TSWhat: TTabSheet
       Caption = 'TSWhat'
       TabVisible = False
-      OnHide = TSWhatHide
       OnShow = TSWhatShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GStructure: TGroupBox_Ext
         Left = 4
         Top = 76
@@ -571,8 +591,6 @@ object DImport: TDImport
           Height = 17
           Caption = 'FStructure'
           TabOrder = 0
-          OnClick = FStructureClick
-          OnKeyPress = FStructureKeyPress
         end
         object FData: TCheckBox
           Left = 128
@@ -581,8 +599,8 @@ object DImport: TDImport
           Height = 17
           Caption = 'FData'
           TabOrder = 1
-          OnClick = FDataClick
-          OnKeyPress = FDataKeyPress
+          OnClick = WhatClick
+          OnKeyPress = WhatKeyPress
         end
       end
     end
@@ -590,6 +608,10 @@ object DImport: TDImport
       Caption = 'TSFields'
       TabVisible = False
       OnShow = TSFieldsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GFields: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -665,6 +687,10 @@ object DImport: TDImport
       Caption = 'TSTask'
       TabVisible = False
       OnShow = TSTaskShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -764,6 +790,10 @@ object DImport: TDImport
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object GErrorMessages: TGroupBox_Ext
         Left = 4
         Top = 176
