@@ -7,6 +7,7 @@ uses
   Dialogs, ComCtrls, ExtCtrls, StdCtrls, DB, DBGrids,
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext, Dialogs_Ext,
   MySQLDB,
+fProfiling,
   fSession, fPreferences, fTools,
   fBase;
 
@@ -27,7 +28,7 @@ type
     FDatabaseNodeName: TRadioButton;
     FDatabaseNodeText: TEdit;
     FDataSource: TEdit;
-    FDestField1: TEdit;
+    FDestinationField1: TEdit;
     FDoneRecords: TLabel;
     FDoneObjects: TLabel;
     FDoneTime: TLabel;
@@ -39,8 +40,8 @@ type
     FErrorMessages: TRichEdit;
     FErrors: TLabel;
     FExcelFile: TRadioButton;
-    FField1: TComboBox_Ext;
-    FField2: TComboBox_Ext;
+    FSourceField1: TComboBox_Ext;
+    FSourceField2: TComboBox_Ext;
     FFieldNodeAttribute: TEdit;
     FFieldNodeCustom: TRadioButton;
     FFieldNodeName: TRadioButton;
@@ -65,7 +66,7 @@ type
     FLCSVHeadline: TLabel;
     FLDatabaseNode: TLabel;
     FLDataSource: TLabel;
-    FLDestFields: TLabel;
+    FLDestinationFields: TLabel;
     FLDone: TLabel;
     FLDrop: TLabel;
     FLEnabled: TLabel;
@@ -74,7 +75,7 @@ type
     FLExecution: TLabel;
     FLExportType: TLabel;
     FLFieldNode: TLabel;
-    FLFields: TLabel;
+    FLSourceFields: TLabel;
     FLFilename: TLabel;
     FLHTMLBGColorEnabled: TLabel;
     FLHTMLNullValues: TLabel;
@@ -164,10 +165,10 @@ type
     procedure FDatabaseDblClick(Sender: TObject);
     procedure FDatabaseNodeClick(Sender: TObject);
     procedure FDatabaseNodeKeyPress(Sender: TObject; var Key: Char);
-    procedure FDestField1Change(Sender: TObject);
+    procedure FDestinationField1Change(Sender: TObject);
     procedure FExportTypeChange(Sender: TObject);
-    procedure FField1Change(Sender: TObject);
-    procedure FField1Exit(Sender: TObject);
+    procedure FSourceField1Change(Sender: TObject);
+    procedure FSourceField1Exit(Sender: TObject);
     procedure FFieldTagClick(Sender: TObject);
     procedure FFieldTagKeyPress(Sender: TObject; var Key: Char);
     procedure FHTMLDataClick(Sender: TObject);
@@ -207,11 +208,12 @@ type
     procedure TSTaskShow(Sender: TObject);
     procedure FFilenameChange(Sender: TObject);
     procedure FBDataSourceClick(Sender: TObject);
+    procedure ScrollBoxResize(Sender: TObject);
   private
     CodePage: Cardinal;
     Export: TTExport;
-    FDestFields: array of TEdit;
-    FFields: array of TComboBox_Ext;
+    FDestinationFields: array of TEdit;
+    FSourceFields: array of TComboBox_Ext;
     Filename: string;
     FLReferrers: array of TLabel;
     FObjects: TList;
@@ -347,16 +349,30 @@ procedure TDExport.ClearTSFields();
 var
   I: Integer;
 begin
-  for I := 0 to Length(FFields) - 1 do FFields[I].Free();
-  for I := 0 to Length(FLReferrers) - 1 do FLReferrers[I].Free();
-  for I := 0 to Length(FDestFields) - 1 do FDestFields[I].Free();
-  SetLength(FFields, 0);
+  for I := 0 to Length(FSourceFields) - 1 do
+  begin
+    FSourceFields[I].Free();
+    FSourceFields[I] := nil;
+  end;
+  SetLength(FSourceFields, 0);
+  for I := 0 to Length(FLReferrers) - 1 do
+  begin
+    FLReferrers[I].Free();
+    FLReferrers[I] := nil;
+  end;
   SetLength(FLReferrers, 0);
-  SetLength(FDestFields, 0);
+  for I := 0 to Length(FDestinationFields) - 1 do
+  begin
+    FDestinationFields[I].Free();
+    FDestinationFields[I] := nil;
+  end;
+  SetLength(FDestinationFields, 0);
 end;
 
 procedure TDExport.CMChangePreferences(var Message: TMessage);
 begin
+  Preferences.SmallImages.GetIcon(iiExport, Icon);
+
   SaveDialog.EncodingLabel := Preferences.LoadStr(682) + ':';
 
   PSQLWait.Caption := Preferences.LoadStr(882);
@@ -429,8 +445,8 @@ begin
   FHTMLRowBGColor.Caption := Preferences.LoadStr(600);
 
   GFields.Caption := Preferences.LoadStr(253);
-  FLFields.Caption := Preferences.LoadStr(401) + ':';
-  FLDestFields.Caption := Preferences.LoadStr(400) + ':';
+  FLSourceFields.Caption := Preferences.LoadStr(401) + ':';
+  FLDestinationFields.Caption := Preferences.LoadStr(400) + ':';
 
   GErrors.Caption := Preferences.LoadStr(392);
 
@@ -686,7 +702,7 @@ begin
   FDatabaseNodeClick(Sender);
 end;
 
-procedure TDExport.FDestField1Change(Sender: TObject);
+procedure TDExport.FDestinationField1Change(Sender: TObject);
 var
   I: Integer;
   J: Integer;
@@ -697,13 +713,13 @@ begin
   else
     TabSheet := TSExecute;
   TabSheet.Enabled := False;
-  for I := 0 to Length(FFields) - 1 do
-    if ((FFields[I].ItemIndex > 0) and (FDestFields[I].Text <> '')) then
+  for I := 0 to Length(FSourceFields) - 1 do
+    if ((FSourceFields[I].ItemIndex > 0) and (FDestinationFields[I].Text <> '')) then
       TabSheet.Enabled := True;
 
-  for I := 0 to Length(FFields) - 1 do
+  for I := 0 to Length(FSourceFields) - 1 do
     for J := 0 to I - 1 do
-      if ((I <> J) and FDestFields[I].Enabled and FDestFields[J].Enabled and (lstrcmpi(PChar(FDestFields[J].Text), PChar(FDestFields[I].Text)) = 0)) then
+      if ((I <> J) and FDestinationFields[I].Enabled and FDestinationFields[J].Enabled and (lstrcmpi(PChar(FDestinationFields[J].Text), PChar(FDestinationFields[I].Text)) = 0)) then
         TabSheet.Enabled := False;
 
   CheckActivePageChange(TSFields.PageIndex);
@@ -717,36 +733,36 @@ begin
   FJobOptionChange(Sender);
 end;
 
-procedure TDExport.FField1Change(Sender: TObject);
+procedure TDExport.FSourceField1Change(Sender: TObject);
 var
   I: Integer;
 begin
-  for I := 0 to Length(FDestFields) - 1 do
-    if (Sender = FFields[I]) then
+  for I := 0 to Length(FDestinationFields) - 1 do
+    if (Sender = FSourceFields[I]) then
     begin
-      FDestFields[I].Enabled := (FFields[I].ItemIndex > 0) and (ExportType in [etTextFile, etExcelFile, etHTMLFile, etPDFFile, etXMLFile, etPrinter]);
-      FDestFields[I].Text := FFields[I].Text;
+      FDestinationFields[I].Enabled := (FSourceFields[I].ItemIndex > 0) and (ExportType in [etTextFile, etExcelFile, etHTMLFile, etPDFFile, etXMLFile, etPrinter]);
+      FDestinationFields[I].Text := FSourceFields[I].Text;
     end;
 
-  if (Length(FDestFields) > 0) then
-    FDestField1Change(Sender);
+  if (Length(FDestinationFields) > 0) then
+    FDestinationField1Change(Sender);
 
   FBForward.Enabled := False;
-  for I := 0 to Length(FFields) - 1 do
-    if (FFields[I].ItemIndex > 0) then
+  for I := 0 to Length(FSourceFields) - 1 do
+    if (FSourceFields[I].ItemIndex > 0) then
       FBForward.Enabled := True;
 end;
 
-procedure TDExport.FField1Exit(Sender: TObject);
+procedure TDExport.FSourceField1Exit(Sender: TObject);
 var
   I: Integer;
 begin
   if (Sender is TComboBox_Ext) then
-    for I := 0 to Length(FFields) - 1 do
-      if ((FFields[I] <> Sender) and (FFields[I].ItemIndex = TComboBox_Ext(Sender).ItemIndex)) then
+    for I := 0 to Length(FSourceFields) - 1 do
+      if ((FSourceFields[I] <> Sender) and (FSourceFields[I].ItemIndex = TComboBox_Ext(Sender).ItemIndex)) then
       begin
-        FFields[I].ItemIndex := 0;
-        FField1Change(FFields[I]);
+        FSourceFields[I].ItemIndex := 0;
+        FSourceField1Change(FSourceFields[I]);
       end;
 end;
 
@@ -869,6 +885,17 @@ end;
 
 procedure TDExport.FormCreate(Sender: TObject);
 begin
+  Constraints.MinWidth := Width;
+  Constraints.MinHeight := Height;
+
+  BorderStyle := bsSizeable;
+
+  if ((Preferences.Export.Width >= Width) and (Preferences.Export.Height >= Height)) then
+  begin
+    Width := Preferences.Export.Width;
+    Height := Preferences.Export.Height;
+  end;
+
   Export := nil;
 
   FSelect.Images := Preferences.SmallImages;
@@ -952,6 +979,9 @@ var
   Year, Month, Day: Word;
 begin
   Session.UnRegisterEventProc(FormSessionEvent);
+
+  Preferences.Export.Width := Width;
+  Preferences.Export.Height := Height;
 
   if (ModalResult = mrOk) then
   begin
@@ -1543,20 +1573,22 @@ var
 begin
   ClearTSFields();
 
-  if (SingleTable) then
-    SetLength(FFields, TSTable(SObjects[0]).Fields.Count)
-  else if (Assigned(DataSet)) then
-    SetLength(FFields, DataSet.Fields.Count);
-
-  FLDestFields.Visible :=
+  FLDestinationFields.Visible :=
     (ExportType = etTextFile) and FCSVHeadline.Checked
     or (ExportType in [etExcelFile, etXMLFile])
     or (ExportType in [etHTMLFile, etPrinter, etPDFFile]) and not FHTMLStructure.Checked;
 
-  if (FLDestFields.Visible) then
+  if (SingleTable) then
+    SetLength(FSourceFields, TSTable(SObjects[0]).Fields.Count)
+  else if (Assigned(DataSet)) then
+    SetLength(FSourceFields, DataSet.Fields.Count)
+  else
+    SetLength(FSourceFields, 0);
+
+  if (FLDestinationFields.Visible) then
   begin
-    SetLength(FLReferrers, Length(FFields));
-    SetLength(FDestFields, Length(FFields));
+    SetLength(FLReferrers, Length(FSourceFields));
+    SetLength(FDestinationFields, Length(FSourceFields));
   end;
 
   FieldNames := #13#10;
@@ -1568,48 +1600,50 @@ begin
       FieldNames := FieldNames + DataSet.Fields[J].DisplayName + #13#10;
 
   ScrollBox.DisableAlign();
-  for I := 0 to Length(FFields) - 1 do
+  for I := 0 to Length(FSourceFields) - 1 do
   begin
-    FFields[I] := TComboBox_Ext.Create(ScrollBox);
-    FFields[I].Left := FField1.Left;
-    FFields[I].Top := FField1.Top + I * (FField2.Top - FField1.Top);
-    FFields[I].Width := FField1.Width;
-    FFields[I].Height := FField1.Height;
-    FFields[I].Style := FField1.Style;
-    FFields[I].OnChange := FField1.OnChange;
-    FFields[I].OnExit := FField1.OnExit;
-    FFields[I].Parent := ScrollBox;
-    FFields[I].Items.Text := FieldNames;
-    FFields[I].ItemIndex := I + 1;
+    FSourceFields[I] := TComboBox_Ext.Create(ScrollBox);
+    FSourceFields[I].Left := FSourceField1.Left;
+    FSourceFields[I].Top := FSourceField1.Top + I * (FSourceField2.Top - FSourceField1.Top);
+    FSourceFields[I].Width := FSourceField1.Width;
+    FSourceFields[I].Height := FSourceField1.Height;
+    FSourceFields[I].Style := FSourceField1.Style;
+    FSourceFields[I].OnChange := FSourceField1.OnChange;
+    FSourceFields[I].OnExit := FSourceField1.OnExit;
+    FSourceFields[I].Parent := ScrollBox;
+    FSourceFields[I].Items.Text := FieldNames;
+    FSourceFields[I].ItemIndex := I + 1;
 
-    if (FLDestFields.Visible) then
+    if (FLDestinationFields.Visible) then
     begin
       FLReferrers[I] := TLabel.Create(ScrollBox);
       FLReferrers[I].Left := FLReferrer1.Left;
-      FLReferrers[I].Top := FLReferrer1.Top + I * (FField2.Top - FField1.Top);
+      FLReferrers[I].Top := FLReferrer1.Top + I * (FSourceField2.Top - FSourceField1.Top);
       FLReferrers[I].Width := FLReferrer1.Width;
       FLReferrers[I].Height := FLReferrer1.Height;
       FLReferrers[I].Caption := FLReferrer1.Caption;
 
-      FDestFields[I] := TEdit.Create(ScrollBox);
-      FDestFields[I].Parent := ScrollBox;
-      FDestFields[I].Left := FDestField1.Left;
-      FDestFields[I].Top := FDestField1.Top + I * (FField2.Top - FField1.Top);
-      FDestFields[I].Width := FDestField1.Width;
-      FDestFields[I].Height := FDestField1.Height;
-      FDestFields[I].Enabled := ExportType in [etTextFile, etExcelFile, etHTMLFile, etPrinter, etPDFFile, etXMLFile];
-      TEdit(FDestFields[I]).Text := FFields[I].Text;
+      FDestinationFields[I] := TEdit.Create(ScrollBox);
+      FDestinationFields[I].Parent := ScrollBox;
+      FDestinationFields[I].Left := FDestinationField1.Left;
+      FDestinationFields[I].Top := FDestinationField1.Top + I * (FSourceField2.Top - FSourceField1.Top);
+      FDestinationFields[I].Width := FDestinationField1.Width;
+      FDestinationFields[I].Height := FDestinationField1.Height;
+      FDestinationFields[I].Enabled := ExportType in [etTextFile, etExcelFile, etHTMLFile, etPrinter, etPDFFile, etXMLFile];
+      TEdit(FDestinationFields[I]).Text := FSourceFields[I].Text;
       K := 2;
       for J := 0 to I - 1 do
-        if (FFields[I].Text = FFields[J].Text) then
+        if (FSourceFields[I].Text = FSourceFields[J].Text) then
         begin
-          TEdit(FDestFields[I]).Text := FFields[J].Text + '_' + IntToStr(K);
+          TEdit(FDestinationFields[I]).Text := FSourceFields[J].Text + '_' + IntToStr(K);
           Inc(K);
         end;
-      FDestFields[I].OnChange := FDestField1.OnChange;
+      FDestinationFields[I].OnChange := FDestinationField1.OnChange;
       FLReferrers[I].Parent := ScrollBox;
     end;
   end;
+
+  ScrollBoxResize(ScrollBox);
   ScrollBox.EnableAlign();
 end;
 
@@ -1813,6 +1847,36 @@ begin
   PostMessage(Handle, CM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos));
 end;
 
+procedure TDExport.ScrollBoxResize(Sender: TObject);
+var
+  I: Integer;
+  Padding: Integer;
+begin
+  Padding := ScrollBox.Left + FSourceField1.Left;
+
+  for I := 0 to Length(FSourceFields) - 1 do
+    if ((Length(FSourceFields) > I) and Assigned(FSourceFields[I])) then
+      FSourceFields[I].Width :=
+        (ScrollBox.ClientWidth
+          - FLReferrer1.Canvas.TextWidth(FLReferrer1.Caption)
+          - 3 * Padding
+          - GetSystemMetrics(SM_CXVSCROLL)) div 2;
+
+  for I := 0 to Length(FLReferrers) - 1 do
+    if ((Length(FLReferrers) > 0) and Assigned(FLReferrers[I])) then
+      FLReferrers[I].Left := FSourceFields[I].Left + FSourceFields[I].Width + Padding;
+
+  for I := 0 to Length(FDestinationFields) - 1 do
+    if ((Length(FDestinationFields) > I) and Assigned(FDestinationFields[I]) and (Length(FLReferrers) > 0) and Assigned(FLReferrers[I]) and (Length(FSourceFields) > 0) and Assigned(FSourceFields[I])) then
+    begin
+      FDestinationFields[I].Left := FLReferrers[I].Left + FLReferrers[I].Width + Padding;
+      FDestinationFields[I].Width := FSourceFields[I].Width;
+    end;
+
+  if ((Length(FDestinationFields) > 0) and (Assigned(FDestinationFields[0]))) then
+    FLDestinationFields.Left := FDestinationFields[0].Left + 6;
+end;
+
 procedure TDExport.TSCSVOptionsShow(Sender: TObject);
 var
   TabSheet: TTabSheet;
@@ -1989,7 +2053,7 @@ begin
     begin
       Export.Add(DataSet);
 
-      if (Length(FFields) = 0) then
+      if (Length(FSourceFields) = 0) then
         for I := 0 to DataSet.Fields.Count - 1 do
         begin
           SetLength(Export.Fields, Length(Export.Fields) + 1);
@@ -1998,13 +2062,13 @@ begin
           Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := DataSet.Fields[I].Name;
         end
       else
-        for I := 0 to Length(FFields) - 1 do
-          if (FFields[I].ItemIndex > 0) then
+        for I := 0 to Length(FSourceFields) - 1 do
+          if (FSourceFields[I].ItemIndex > 0) then
           begin
             SetLength(Export.Fields, Length(Export.Fields) + 1);
-            Export.Fields[Length(Export.Fields) - 1] := DataSet.Fields[FFields[I].ItemIndex - 1];
+            Export.Fields[Length(Export.Fields) - 1] := DataSet.Fields[FSourceFields[I].ItemIndex - 1];
             SetLength(Export.DestinationFields, Length(Export.DestinationFields) + 1);
-            Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := FDestFields[I].Text;
+            Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := FDestinationFields[I].Text;
           end;
     end
     else
@@ -2013,16 +2077,16 @@ begin
         Export.Add(TSDBObject(SObjects[I]));
 
       if (SingleTable) then
-        for I := 0 to Length(FFields) - 1 do
-          if (FFields[I].ItemIndex > 0) then
+        for I := 0 to Length(FSourceFields) - 1 do
+          if (FSourceFields[I].ItemIndex > 0) then
           begin
             SetLength(Export.TableFields, Length(Export.TableFields) + 1);
-            Export.TableFields[Length(Export.TableFields) - 1] := TSTable(SObjects[0]).Fields[FFields[I].ItemIndex - 1];
+            Export.TableFields[Length(Export.TableFields) - 1] := TSTable(SObjects[0]).Fields[FSourceFields[I].ItemIndex - 1];
             SetLength(Export.DestinationFields, Length(Export.DestinationFields) + 1);
-            if (Length(FDestFields) = 0) then
-              Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := FFields[I].Text
+            if (Length(FDestinationFields) = 0) then
+              Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := FSourceFields[I].Text
             else
-              Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := Session.ApplyIdentifierName(FDestFields[I].Text);
+              Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := Session.ApplyIdentifierName(FDestinationFields[I].Text);
           end;
     end;
 

@@ -40,7 +40,7 @@ object DExport: TDExport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSJob
+    ActivePage = TSExecute
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     Style = tsFlatButtons
@@ -50,15 +50,15 @@ object DExport: TDExport
       Caption = 'TSSelect'
       TabVisible = False
       OnShow = TSSelectShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+      DesignSize = (
+        333
+        271)
       object GSelect: TGroupBox_Ext
         Left = 4
         Top = 0
         Width = 325
         Height = 265
+        Anchors = [akLeft, akTop, akRight, akBottom]
         Caption = 'GSelect'
         TabOrder = 0
         DesignSize = (
@@ -112,6 +112,9 @@ object DExport: TDExport
         Caption = 'GBasics'
         TabOrder = 0
         TabStop = True
+        DesignSize = (
+          325
+          265)
         object FLName: TLabel
           Left = 8
           Top = 17
@@ -148,6 +151,7 @@ object DExport: TDExport
           Top = 16
           Width = 187
           Height = 21
+          Anchors = [akLeft, akTop, akRight]
           TabOrder = 0
           Text = 'FName'
           OnChange = FJobOptionChange
@@ -157,6 +161,7 @@ object DExport: TDExport
           Top = 47
           Width = 185
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FSQLFile'
           TabOrder = 1
           TabStop = True
@@ -167,6 +172,7 @@ object DExport: TDExport
           Top = 67
           Width = 185
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FTextFile'
           TabOrder = 2
           TabStop = True
@@ -177,6 +183,7 @@ object DExport: TDExport
           Top = 87
           Width = 185
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FExcelFile'
           TabOrder = 3
           TabStop = True
@@ -187,6 +194,7 @@ object DExport: TDExport
           Top = 107
           Width = 185
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FAccessFile'
           TabOrder = 4
           TabStop = True
@@ -197,6 +205,7 @@ object DExport: TDExport
           Top = 127
           Width = 185
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FODBC'
           TabOrder = 5
           TabStop = True
@@ -207,6 +216,7 @@ object DExport: TDExport
           Top = 147
           Width = 185
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FHTMLFile'
           TabOrder = 6
           TabStop = True
@@ -217,6 +227,7 @@ object DExport: TDExport
           Top = 167
           Width = 185
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FXMLFile'
           TabOrder = 7
           TabStop = True
@@ -227,6 +238,7 @@ object DExport: TDExport
           Top = 187
           Width = 185
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FPDFFile'
           TabOrder = 8
           TabStop = True
@@ -237,6 +249,7 @@ object DExport: TDExport
           Top = 233
           Width = 166
           Height = 21
+          Anchors = [akLeft, akTop, akRight]
           TabOrder = 9
           Text = 'FFilename'
           OnChange = FFilenameChange
@@ -246,6 +259,7 @@ object DExport: TDExport
           Top = 233
           Width = 21
           Height = 21
+          Anchors = [akTop, akRight]
           Caption = #183#183#183
           TabOrder = 10
           OnClick = FBFilenameClick
@@ -255,6 +269,7 @@ object DExport: TDExport
           Top = 233
           Width = 166
           Height = 21
+          Anchors = [akLeft, akTop, akRight]
           ReadOnly = True
           TabOrder = 12
           Text = 'FDataSource'
@@ -265,6 +280,7 @@ object DExport: TDExport
           Top = 233
           Width = 21
           Height = 21
+          Anchors = [akTop, akRight]
           Caption = #183#183#183
           TabOrder = 11
           OnClick = FBDataSourceClick
@@ -276,10 +292,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSSQLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -291,6 +303,9 @@ object DExport: TDExport
         Anchors = [akLeft, akTop, akRight]
         Caption = 'GSQLWhat'
         TabOrder = 0
+        DesignSize = (
+          325
+          63)
         object FLSQLWhat: TLabel
           Left = 8
           Top = 17
@@ -303,6 +318,7 @@ object DExport: TDExport
           Top = 16
           Width = 193
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FSQLStructure'
           TabOrder = 0
           OnClick = FSQLOptionClick
@@ -313,6 +329,7 @@ object DExport: TDExport
           Top = 36
           Width = 193
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FSQLData'
           TabOrder = 1
           OnClick = FSQLOptionClick
@@ -324,7 +341,6 @@ object DExport: TDExport
         Top = 70
         Width = 325
         Height = 63
-        Anchors = [akLeft, akTop, akRight]
         Caption = 'GSQLOptions'
         TabOrder = 1
         object FLDrop: TLabel
@@ -361,10 +377,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSCSVOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -376,6 +388,9 @@ object DExport: TDExport
         Anchors = [akLeft, akTop, akRight]
         Caption = 'GCSVOptions'
         TabOrder = 0
+        DesignSize = (
+          325
+          197)
         object FLCSVHeadline: TLabel
           Left = 8
           Top = 17
@@ -388,9 +403,13 @@ object DExport: TDExport
           Top = 98
           Width = 317
           Height = 89
+          Anchors = [akLeft, akTop, akRight]
           BevelOuter = bvNone
           ParentBackground = False
           TabOrder = 2
+          DesignSize = (
+            317
+            89)
           object FLQuoteValues: TLabel
             Left = 4
             Top = 4
@@ -421,6 +440,7 @@ object DExport: TDExport
             Top = 3
             Width = 193
             Height = 17
+            Anchors = [akLeft, akTop, akRight]
             Caption = 'FQuoteNone'
             TabOrder = 2
             OnClick = FQuoteClick
@@ -430,6 +450,7 @@ object DExport: TDExport
             Top = 23
             Width = 193
             Height = 17
+            Anchors = [akLeft, akTop, akRight]
             Caption = 'FQuoteStrings'
             TabOrder = 1
             OnClick = FQuoteClick
@@ -439,6 +460,7 @@ object DExport: TDExport
             Top = 43
             Width = 193
             Height = 17
+            Anchors = [akLeft, akTop, akRight]
             Caption = 'FQuoteAll'
             TabOrder = 0
             OnClick = FQuoteClick
@@ -450,6 +472,7 @@ object DExport: TDExport
           Top = 16
           Width = 193
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FCSVHeadline'
           TabOrder = 0
         end
@@ -463,6 +486,9 @@ object DExport: TDExport
           ParentBackground = False
           ParentCtl3D = False
           TabOrder = 1
+          DesignSize = (
+            317
+            53)
           object FLSeparator: TLabel
             Left = 4
             Top = 6
@@ -493,6 +519,7 @@ object DExport: TDExport
             Top = 5
             Width = 193
             Height = 17
+            Anchors = [akLeft, akTop, akRight]
             Caption = 'FSeparatorTab'
             TabOrder = 0
             OnClick = FSeparatorClick
@@ -506,10 +533,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSXMLOptionsHide
       OnShow = TSXMLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -825,10 +848,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSHTMLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -840,6 +859,9 @@ object DExport: TDExport
         Anchors = [akLeft, akTop, akRight]
         Caption = 'GHTMLWhat'
         TabOrder = 0
+        DesignSize = (
+          325
+          69)
         object FLHTMLWhat: TLabel
           Left = 8
           Top = 17
@@ -853,6 +875,7 @@ object DExport: TDExport
           Top = 16
           Width = 193
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FHTMLStructure'
           TabOrder = 0
           OnClick = FHTMLStructureClick
@@ -863,6 +886,7 @@ object DExport: TDExport
           Top = 40
           Width = 193
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FHTMLData'
           TabOrder = 1
           OnClick = FHTMLDataClick
@@ -877,6 +901,9 @@ object DExport: TDExport
         Anchors = [akLeft, akTop, akRight]
         Caption = 'GHTMLOptions'
         TabOrder = 1
+        DesignSize = (
+          325
+          109)
         object FLHTMLNullValues: TLabel
           Left = 8
           Top = 17
@@ -904,6 +931,7 @@ object DExport: TDExport
           Top = 16
           Width = 193
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FHTMLNullText'
           TabOrder = 0
         end
@@ -912,6 +940,7 @@ object DExport: TDExport
           Top = 48
           Width = 193
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FHTMLMemoContent'
           TabOrder = 1
         end
@@ -920,6 +949,7 @@ object DExport: TDExport
           Top = 80
           Width = 193
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FHTMLRowBGColor'
           TabOrder = 2
         end
@@ -929,10 +959,6 @@ object DExport: TDExport
       Caption = 'TSFields'
       TabVisible = False
       OnShow = TSFieldsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -947,29 +973,30 @@ object DExport: TDExport
         DesignSize = (
           325
           265)
-        object FLFields: TLabel
+        object FLSourceFields: TLabel
           Left = 8
           Top = 24
-          Width = 39
+          Width = 73
           Height = 13
-          Caption = 'FLFields'
+          Caption = 'FLSourceFields'
         end
-        object FLDestFields: TLabel
+        object FLDestinationFields: TLabel
           Left = 172
           Top = 24
-          Width = 61
+          Width = 92
           Height = 13
-          Caption = 'FLDestFields'
+          Caption = 'FLDestinationFields'
         end
         object ScrollBox: TScrollBox
           Left = 4
           Top = 40
-          Width = 309
-          Height = 217
+          Width = 318
+          Height = 222
           Anchors = [akLeft, akTop, akRight, akBottom]
           BevelInner = bvNone
           BorderStyle = bsNone
           TabOrder = 0
+          OnResize = ScrollBoxResize
           object FLReferrer1: TLabel
             Left = 149
             Top = 11
@@ -978,7 +1005,7 @@ object DExport: TDExport
             Caption = '->'
             Visible = False
           end
-          object FField1: TComboBox_Ext
+          object FSourceField1: TComboBox_Ext
             Left = 4
             Top = 8
             Width = 135
@@ -987,10 +1014,10 @@ object DExport: TDExport
             TabOrder = 0
             TabStop = False
             Visible = False
-            OnChange = FField1Change
-            OnExit = FField1Exit
+            OnChange = FSourceField1Change
+            OnExit = FSourceField1Exit
           end
-          object FField2: TComboBox_Ext
+          object FSourceField2: TComboBox_Ext
             Left = 4
             Top = 40
             Width = 135
@@ -1000,16 +1027,16 @@ object DExport: TDExport
             TabStop = False
             Visible = False
           end
-          object FDestField1: TEdit
+          object FDestinationField1: TEdit
             Left = 168
             Top = 8
             Width = 117
             Height = 21
             TabStop = False
             TabOrder = 2
-            Text = 'FDestField1'
+            Text = 'FDestinationField1'
             Visible = False
-            OnChange = FDestField1Change
+            OnChange = FDestinationField1Change
           end
         end
       end
@@ -1019,10 +1046,6 @@ object DExport: TDExport
       ImageIndex = 9
       TabVisible = False
       OnShow = TSTaskShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -1122,10 +1145,6 @@ object DExport: TDExport
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -1134,6 +1153,7 @@ object DExport: TDExport
         Top = 0
         Width = 325
         Height = 169
+        Anchors = [akLeft, akTop, akRight]
         Caption = 'GProgress'
         TabOrder = 0
         DesignSize = (
@@ -1184,6 +1204,7 @@ object DExport: TDExport
           Width = 55
           Height = 13
           Alignment = taRightJustify
+          Anchors = [akTop, akRight]
           Caption = 'FDoneTime'
         end
         object FLDone: TLabel
@@ -1261,7 +1282,7 @@ object DExport: TDExport
         Top = 176
         Width = 325
         Height = 89
-        Anchors = [akLeft, akTop, akRight, akBottom]
+        Anchors = [akLeft, akTop, akRight]
         Caption = 'GErrors'
         TabOrder = 1
         DesignSize = (
@@ -1285,7 +1306,12 @@ object DExport: TDExport
             TabStop = False
             Align = alClient
             BorderStyle = bsNone
-
+            Font.Charset = ANSI_CHARSET
+            Font.Color = clWindowText
+            Font.Height = -12
+            Font.Name = 'MS Sans Serif'
+            Font.Style = []
+            ParentFont = False
             ReadOnly = True
             ScrollBars = ssBoth
             TabOrder = 0

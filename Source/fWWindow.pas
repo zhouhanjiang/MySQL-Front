@@ -16,9 +16,6 @@ uses
   fFSession, fBase;
 
 const
-  cWindowClassName = 'MySQL-Front.Application';
-
-const
   CM_ACTIVATETAB = WM_USER + 600;
   CM_MYSQLCLIENT_SYNCHRONIZE = WM_USER + 601;
   CM_UPDATEAVAILABLE = WM_USER + 602;
@@ -1496,7 +1493,7 @@ var
   WindowPlacement: TWindowPlacement;
   Wnd: HWND;
 begin
-  Wnd := FindWindow(PChar(cWindowClassName), nil);
+  Wnd := FindWindow('MySQL-Front.Application', nil);
 
   inherited;
 
@@ -1553,7 +1550,7 @@ procedure TWWindow.CreateParams(var Params: TCreateParams);
 begin
   inherited;
 
-  StrCopy(Params.WinClassName, cWindowClassName);
+  StrCopy(@Params.WinClassName[0], 'MySQL-Front.Application');
 end;
 
 function TWWindow.DBLogin(const Account: Pointer): Boolean;

@@ -41,6 +41,10 @@ const
   iiPartition = iiBaseTable;
   iiPlugin = 86;
   iiJob = 101;
+  iiTaskScheduler = 102;
+  iiImport = 103;
+  iiExport = 104;
+  iiTransfer = 105;
 
   crClone = 33;
 

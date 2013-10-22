@@ -2908,10 +2908,10 @@ begin
   if (csReading in ComponentState) and Value then
     inherited else
   begin
-    if Value = GetConnected then Exit;
-    if Value then
+    if (Value = GetConnected) then Exit;
+    if (Value) then
     begin
-      if Assigned(BeforeConnect) then BeforeConnect(Self);
+      if (Assigned(BeforeConnect)) then BeforeConnect(Self);
       if (not Assigned(FLib)) then
         FLib := LoadMySQLLibrary(FLibraryType, LibraryName);
       if (not Assigned(FLib)) then

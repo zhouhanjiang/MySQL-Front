@@ -229,7 +229,6 @@ object DAccount: TDAccount
       Top = 48
       Width = 113
       Height = 21
-      MaxLength = 50
       TabOrder = 1
       Text = 'FPassword'
       OnChange = FEditChange

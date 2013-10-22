@@ -85,17 +85,14 @@ type
     procedure SaveToXML(const XML: IXMLNode; const NodeName: string); virtual;
   end;
 
-  TPWindow = class
-  private
-    FPreferences: TPPreferences;
+  TPWindow = class(TPItem)
   protected
-    property Preferences: TPPreferences read FPreferences;
-    procedure LoadFromXML(const XML: IXMLNode); virtual;
-    procedure SaveToXML(const XML: IXMLNode); virtual;
+    procedure LoadFromXML(const XML: IXMLNode); override;
+    procedure SaveToXML(const XML: IXMLNode); override;
   public
     Height: Integer;
     Width: Integer;
-    constructor Create(const APreferences: TPPreferences); virtual;
+    constructor Create(); virtual;
   end;
 
   TPDatabase = class(TPWindow)
@@ -107,12 +104,10 @@ type
     Left: Integer;
     Top: Integer;
     Width: Integer;
-    constructor Create(const APreferences: TPPreferences); virtual;
+    constructor Create(); virtual;
   end;
 
   TPEditor = class
-  private
-    FPreferences: TPPreferences;
   protected
     procedure LoadFromXML(const XML: IXMLNode); virtual;
     procedure SaveToXML(const XML: IXMLNode); virtual;
@@ -148,13 +143,13 @@ type
     VariableForeground, VariableBackground: TColor;
     VariableStyle: TFontStyles;
     WordWrap: Boolean;
-    constructor Create(const APreferences: TPPreferences); virtual;
+    constructor Create(); virtual;
   end;
 
   TPEvent = class(TPWindow)
   end;
 
-  TAJob = class(TPItem)
+  TAJob = class(TPWindow)
   type
     TJobObject = record
       DatabaseName: string;
@@ -180,7 +175,7 @@ type
     Start: TDateTime;
     TriggerType: TTriggerType;
     procedure Assign(const Source: TPItem); override;
-    constructor Create(const AAItems: TPItems; const AName: string = '');
+    constructor Create(const AAItems: TPItems; const AName: string = ''); reintroduce;
     property LogFilename: TFileName read GetLogFilename;
   end;
 
@@ -254,7 +249,7 @@ type
     Left: Integer;
     Options: TOptions;
     Top: Integer;
-    constructor Create(const APreferences: TPPreferences); override;
+    constructor Create(); override;
     destructor Destroy(); override;
   end;
 
@@ -293,7 +288,7 @@ type
   public
     Left: Integer;
     Top: Integer;
-    constructor Create(const APreferences: TPPreferences); override;
+    constructor Create(); override;
   end;
 
   TPPaste = class
@@ -305,7 +300,7 @@ type
     procedure SaveToXML(const XML: IXMLNode); virtual;
   public
     Data: Boolean;
-    constructor Create(const APreferences: TPPreferences); virtual;
+    constructor Create(); virtual;
   end;
 
   TPReplace = class(TPWindow)
@@ -322,7 +317,7 @@ type
     Left: Integer;
     Options: TOptions;
     Top: Integer;
-    constructor Create(const APreferences: TPPreferences); override;
+    constructor Create(); override;
     destructor Destroy(); override;
   end;
 
@@ -333,7 +328,7 @@ type
   public
     Left: Integer;
     Top: Integer;
-    constructor Create(const APreferences: TPPreferences); override;
+    constructor Create(); override;
   end;
 
   TPSQLHelp = class(TPWindow)
@@ -343,7 +338,7 @@ type
   public
     Left: Integer;
     Top: Integer;
-    constructor Create(const APreferences: TPPreferences); override;
+    constructor Create(); override;
   end;
 
   TPAccounts = class(TPWindow)
@@ -352,7 +347,7 @@ type
     procedure SaveToXML(const XML: IXMLNode); override;
   public
     SelectOrder: Integer;
-    constructor Create(const APreferences: TPPreferences); override;
+    constructor Create(); override;
   end;
 
   TPStatement = class(TPWindow)
@@ -371,7 +366,7 @@ type
     Flush: Boolean;
     Optimize: Boolean;
     Repair: Boolean;
-    constructor Create(const APreferences: TPPreferences); override;
+    constructor Create(); override;
   end;
 
   TPTransfer = class(TPWindow)
@@ -380,10 +375,8 @@ type
     procedure SaveToXML(const XML: IXMLNode); override;
   public
     Data: Boolean;
-    Left: Integer;
     Structure: Boolean;
-    Top: Integer;
-    constructor Create(const APreferences: TPPreferences); override;
+    constructor Create(); override;
   end;
 
   TPTrigger = class(TPWindow)
@@ -1493,9 +1486,9 @@ end;
 
 { TPWindow ******************************************************************}
 
-constructor TPWindow.Create(const APreferences: TPPreferences);
+constructor TPWindow.Create();
 begin
-  FPreferences := APreferences;
+  inherited Create(nil);
 
   Height := -1;
   Width := -1;
@@ -1503,19 +1496,23 @@ end;
 
 procedure TPWindow.LoadFromXML(const XML: IXMLNode);
 begin
+  inherited;
+
   if (Assigned(XMLNode(XML, 'height'))) then TryStrToInt(XMLNode(XML, 'height').Text, Height);
   if (Assigned(XMLNode(XML, 'width'))) then TryStrToInt(XMLNode(XML, 'width').Text, Width);
 end;
 
 procedure TPWindow.SaveToXML(const XML: IXMLNode);
 begin
+  inherited;
+
   XMLNode(XML, 'height').Text := IntToStr(Height);
   XMLNode(XML, 'width').Text := IntToStr(Width);
 end;
 
 { TPDatabases *****************************************************************}
 
-constructor TPDatabases.Create(const APreferences: TPPreferences);
+constructor TPDatabases.Create();
 begin
   Height := -1;
   Left := -1;
@@ -1525,9 +1522,9 @@ end;
 
 { TPEditor ********************************************************************}
 
-constructor TPEditor.Create(const APreferences: TPPreferences);
+constructor TPEditor.Create();
 begin
-  FPreferences := APreferences;
+  inherited;
 
   AutoIndent := True;
   ConditionalCommentForeground := clTeal; ConditionalCommentBackground := clNone; ConditionalCommentStyle := [];
@@ -1690,7 +1687,7 @@ end;
 
 { TPFind **********************************************************************}
 
-constructor TPFind.Create(const APreferences: TPPreferences);
+constructor TPFind.Create();
 begin
   inherited;
 
@@ -1809,7 +1806,7 @@ end;
 
 { TPODBC **********************************************************************}
 
-constructor TPODBC.Create(const APreferences: TPPreferences);
+constructor TPODBC.Create();
 begin
   inherited;
 
@@ -1819,9 +1816,9 @@ end;
 
 { TPPaste *********************************************************************}
 
-constructor TPPaste.Create(const APreferences: TPPreferences);
+constructor TPPaste.Create();
 begin
-  FPreferences := APreferences;
+  inherited;
 
   Data := True;
 end;
@@ -1838,7 +1835,7 @@ end;
 
 { TPReplace *******************************************************************}
 
-constructor TPReplace.Create(const APreferences: TPPreferences);
+constructor TPReplace.Create();
 begin
   inherited;
 
@@ -1896,7 +1893,7 @@ end;
 
 { TPServer ********************************************************************}
 
-constructor TPServer.Create(const APreferences: TPPreferences);
+constructor TPServer.Create();
 begin
   inherited;
 
@@ -1906,7 +1903,7 @@ end;
 
 { TPSQLHelp *******************************************************************}
 
-constructor TPSQLHelp.Create(const APreferences: TPPreferences);
+constructor TPSQLHelp.Create();
 begin
   inherited;
 
@@ -1932,7 +1929,7 @@ end;
 
 { TPAccounts ******************************************************************}
 
-constructor TPAccounts.Create(const APreferences: TPPreferences);
+constructor TPAccounts.Create();
 begin
   inherited;
 
@@ -1955,7 +1952,7 @@ end;
 
 { TPTableService **************************************************************}
 
-constructor TPTableService.Create(const APreferences: TPPreferences);
+constructor TPTableService.Create();
 begin
   inherited;
 
@@ -1990,7 +1987,7 @@ end;
 
 { TPTransfer ******************************************************************}
 
-constructor TPTransfer.Create(const APreferences: TPPreferences);
+constructor TPTransfer.Create();
 begin
   inherited;
 
@@ -2217,31 +2214,31 @@ begin
       ImageList_AddIcon(FLargeImages.Handle, ImageList_GetIcon(FSmallImages.Handle, I, 0));
 
 
-  Database := TPDatabase.Create(Self);
-  Databases := TPDatabases.Create(Self);
-  Editor := TPEditor.Create(Self);
-  Event := TPEvent.Create(Self);
+  Database := TPDatabase.Create();
+  Databases := TPDatabases.Create();
+  Editor := TPEditor.Create();
+  Event := TPEvent.Create();
   Export := TPExport.Create();
-  Field := TPField.Create(Self);
-  Find := TPFind.Create(Self);
-  ForeignKey := TPForeignKey.Create(Self);
-  Host := TPHost.Create(Self);
+  Field := TPField.Create();
+  Find := TPFind.Create();
+  ForeignKey := TPForeignKey.Create();
+  Host := TPHost.Create();
   Import := TPImport.Create();
-  Index := TPIndex.Create(Self);
-  ODBC := TPODBC.Create(Self);
-  Paste := TPPaste.Create(Self);
-  Replace := TPReplace.Create(Self);
-  Routine := TPRoutine.Create(Self);
-  Server := TPServer.Create(Self);
-  Accounts := TPAccounts.Create(Self);
-  SQLHelp := TPSQLHelp.Create(Self);
-  Statement := TPStatement.Create(Self);
-  Table := TPTable.Create(Self);
-  TableService := TPTableService.Create(Self);
-  Transfer := TPTransfer.Create(Self);
-  Trigger := TPTrigger.Create(Self);
-  User := TPUser.Create(Self);
-  View := TPView.Create(Self);
+  Index := TPIndex.Create();
+  ODBC := TPODBC.Create();
+  Paste := TPPaste.Create();
+  Replace := TPReplace.Create();
+  Routine := TPRoutine.Create();
+  Server := TPServer.Create();
+  Accounts := TPAccounts.Create();
+  SQLHelp := TPSQLHelp.Create();
+  Statement := TPStatement.Create();
+  Table := TPTable.Create();
+  TableService := TPTableService.Create();
+  Transfer := TPTransfer.Create();
+  Trigger := TPTrigger.Create();
+  User := TPUser.Create();
+  View := TPView.Create();
 
   LoadFromRegistry();
   LoadFromXML();
@@ -3171,7 +3168,7 @@ end;
 
 constructor TAJob.Create(const AAItems: TPItems; const AName: string = '');
 begin
-  inherited;
+  inherited Create();
 
   Enabled := True;
   Start := Date() + 1;

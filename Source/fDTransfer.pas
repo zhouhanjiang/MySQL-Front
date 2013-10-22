@@ -73,6 +73,7 @@ type
     procedure FDataKeyPress(Sender: TObject; var Key: Char);
     procedure TSWhatShow(Sender: TObject);
     procedure TSSelectShow(Sender: TObject);
+    procedure TSSelectResize(Sender: TObject);
   private
     Sessions: array of TSSession;
     MouseDownNode: TTreeNode;
@@ -169,6 +170,8 @@ end;
 
 procedure TDTransfer.CMChangePreferences(var Message: TMessage);
 begin
+  Preferences.SmallImages.GetIcon(iiTransfer, Icon);
+
   miSelectAll.Caption := Preferences.LoadStr(572);
 
   Caption := Preferences.LoadStr(753);;
@@ -319,6 +322,14 @@ begin
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
 
+  BorderStyle := bsSizeable;
+
+  if ((Preferences.Transfer.Width >= Width) and (Preferences.Transfer.Height >= Height)) then
+  begin
+    Width := Preferences.Transfer.Width;
+    Height := Preferences.Transfer.Height;
+  end;
+
   Transfer := nil;
   BorderStyle := bsSizeable;
 
@@ -349,8 +360,6 @@ begin
 
   Preferences.Transfer.Height := Height;
   Preferences.Transfer.Width := Width;
-  Preferences.Transfer.Left := Left;
-  Preferences.Transfer.Top := Top;
 
   if (ModalResult = mrOK) then
   begin
@@ -367,20 +376,10 @@ var
 begin
   HelpContext := 1094;
 
-  if ((Preferences.Transfer.Width > 0) and (Preferences.Transfer.Height > 0)) then
+  if ((Preferences.Transfer.Width > Width) and (Preferences.Transfer.Height > Height)) then
   begin
     Width := Preferences.Transfer.Width;
     Height := Preferences.Transfer.Height;
-  end
-  else
-  begin
-    Width := Constraints.MinWidth;
-    Height := Constraints.MinHeight;
-  end;
-  if ((Preferences.Transfer.Left > 0) and (Preferences.Transfer.Top > 0)) then
-  begin
-    Left := Preferences.Transfer.Left;
-    Top := Preferences.Transfer.Top;
   end;
 
   WantedExecute := False;
@@ -777,6 +776,13 @@ begin
     if (Assigned(Transfer)) then
       Transfer.Start();
   end;
+end;
+
+procedure TDTransfer.TSSelectResize(Sender: TObject);
+begin
+  GSource.Width := (TSSelect.ClientWidth - 2 * GSource.Left - 10) div 2;
+  GDestination.Width := GSource.Width;
+  GDestination.Left := TSSelect.ClientWidth - GSource.Left;
 end;
 
 procedure TDTransfer.TSSelectShow(Sender: TObject);

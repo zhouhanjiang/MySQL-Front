@@ -27,6 +27,7 @@ object DImport: TDImport
     Top = 296
     Width = 75
     Height = 25
+    Anchors = [akRight, akBottom]
     Caption = 'FBForward'
     Default = True
     TabOrder = 3
@@ -37,6 +38,7 @@ object DImport: TDImport
     Top = 296
     Width = 75
     Height = 25
+    Anchors = [akRight, akBottom]
     Cancel = True
     Caption = 'FBCancel'
     ModalResult = 2
@@ -62,6 +64,7 @@ object DImport: TDImport
     Width = 341
     Height = 281
     ActivePage = TSFields
+    Anchors = [akLeft, akTop, akRight, akBottom]
     Style = tsButtons
     TabOrder = 0
     TabStop = False
@@ -69,10 +72,6 @@ object DImport: TDImport
       Caption = 'TSJob'
       TabVisible = False
       OnShow = TSJobShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -85,6 +84,9 @@ object DImport: TDImport
         Caption = 'GBasics'
         TabOrder = 0
         TabStop = True
+        DesignSize = (
+          325
+          185)
         object FLName: TLabel
           Left = 8
           Top = 17
@@ -131,6 +133,7 @@ object DImport: TDImport
           Top = 152
           Width = 166
           Height = 21
+          Anchors = [akLeft, akTop, akRight]
           TabOrder = 9
           Text = 'FFilename'
           OnChange = FFilenameChange
@@ -140,6 +143,7 @@ object DImport: TDImport
           Top = 16
           Width = 187
           Height = 21
+          Anchors = [akLeft, akTop, akRight]
           TabOrder = 0
           Text = 'FName'
           OnChange = FJobOptionChange
@@ -208,6 +212,7 @@ object DImport: TDImport
           Top = 152
           Width = 21
           Height = 21
+          Anchors = [akTop, akRight]
           Caption = #183#183#183
           TabOrder = 7
           OnClick = FBDataSourceClick
@@ -219,22 +224,26 @@ object DImport: TDImport
       TabVisible = False
       OnHide = TSTablesHide
       OnShow = TSTablesShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+      DesignSize = (
+        333
+        271)
       object GTables: TGroupBox_Ext
         Left = 4
         Top = 0
         Width = 325
         Height = 265
+        Anchors = [akLeft, akTop, akRight, akBottom]
         Caption = 'GTables'
         TabOrder = 0
+        DesignSize = (
+          325
+          265)
         object PTables: TPanel_Ext
           Left = 8
           Top = 16
           Width = 310
           Height = 241
+          Anchors = [akLeft, akTop, akRight, akBottom]
           BevelInner = bvRaised
           BevelOuter = bvLowered
           ParentBackground = False
@@ -269,15 +278,15 @@ object DImport: TDImport
       TabVisible = False
       OnHide = TSSelectHide
       OnShow = TSSelectShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+      DesignSize = (
+        333
+        271)
       object GSelect: TGroupBox_Ext
         Left = 4
         Top = 0
         Width = 325
         Height = 265
+        Anchors = [akLeft, akTop, akRight, akBottom]
         Caption = 'GSelect'
         TabOrder = 0
         DesignSize = (
@@ -320,17 +329,20 @@ object DImport: TDImport
       TabVisible = False
       OnHide = TSCSVOptionsHide
       OnShow = TSCSVOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+      DesignSize = (
+        333
+        271)
       object GCSVHow: TGroupBox_Ext
         Left = 4
         Top = 0
         Width = 325
         Height = 137
+        Anchors = [akLeft, akTop, akRight]
         Caption = 'GCSVHow'
         TabOrder = 1
+        DesignSize = (
+          325
+          137)
         object FLCSVHeadline: TLabel
           Left = 8
           Top = 17
@@ -343,6 +355,7 @@ object DImport: TDImport
           Top = 16
           Width = 193
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FCSVHeadline'
           TabOrder = 0
           OnClick = FCSVPreviewUpdate
@@ -353,6 +366,7 @@ object DImport: TDImport
           Top = 36
           Width = 317
           Height = 45
+          Anchors = [akLeft, akTop, akRight]
           BevelOuter = bvNone
           ParentBackground = False
           TabOrder = 1
@@ -399,6 +413,7 @@ object DImport: TDImport
           Top = 83
           Width = 317
           Height = 45
+          Anchors = [akLeft, akTop, akRight]
           BevelOuter = bvNone
           ParentBackground = False
           TabOrder = 2
@@ -454,13 +469,18 @@ object DImport: TDImport
         Top = 143
         Width = 325
         Height = 125
+        Anchors = [akLeft, akTop, akRight, akBottom]
         Caption = 'GCSVPreview'
         TabOrder = 0
+        DesignSize = (
+          325
+          125)
         object PCSVPreview: TPanel_Ext
           Left = 8
           Top = 16
           Width = 308
           Height = 99
+          Anchors = [akLeft, akTop, akRight, akBottom]
           BevelInner = bvRaised
           BevelOuter = bvLowered
           ParentBackground = False
@@ -486,15 +506,15 @@ object DImport: TDImport
       Caption = 'TSWhat'
       TabVisible = False
       OnShow = TSWhatShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+      DesignSize = (
+        333
+        271)
       object GStructure: TGroupBox_Ext
         Left = 4
         Top = 76
         Width = 325
         Height = 157
+        Anchors = [akLeft, akTop, akRight]
         Caption = 'GStructure'
         TabOrder = 1
         object FLEngine: TLabel
@@ -575,8 +595,12 @@ object DImport: TDImport
         Top = 0
         Width = 325
         Height = 71
+        Anchors = [akLeft, akTop, akRight]
         Caption = 'GWhat'
         TabOrder = 0
+        DesignSize = (
+          325
+          71)
         object FLWhat: TLabel
           Left = 8
           Top = 17
@@ -589,6 +613,7 @@ object DImport: TDImport
           Top = 16
           Width = 193
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FStructure'
           TabOrder = 0
         end
@@ -597,6 +622,7 @@ object DImport: TDImport
           Top = 42
           Width = 193
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FData'
           TabOrder = 1
           OnClick = WhatClick
@@ -608,17 +634,20 @@ object DImport: TDImport
       Caption = 'TSFields'
       TabVisible = False
       OnShow = TSFieldsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+      DesignSize = (
+        333
+        271)
       object GFields: TGroupBox_Ext
         Left = 4
         Top = 0
         Width = 325
         Height = 265
+        Anchors = [akLeft, akTop, akRight, akBottom]
         Caption = 'GFields'
         TabOrder = 0
+        DesignSize = (
+          325
+          265)
         object FLSourceFields: TLabel
           Left = 8
           Top = 24
@@ -636,10 +665,12 @@ object DImport: TDImport
         object ScrollBox: TScrollBox
           Left = 4
           Top = 40
-          Width = 309
-          Height = 217
+          Width = 318
+          Height = 223
+          Anchors = [akLeft, akTop, akRight, akBottom]
           BorderStyle = bsNone
           TabOrder = 0
+          OnResize = ScrollBoxResize
           object FLReferrer1: TLabel
             Left = 131
             Top = 11
@@ -687,10 +718,6 @@ object DImport: TDImport
       Caption = 'TSTask'
       TabVisible = False
       OnShow = TSTaskShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -702,6 +729,9 @@ object DImport: TDImport
         Anchors = [akLeft, akTop, akRight]
         Caption = 'GTask'
         TabOrder = 0
+        DesignSize = (
+          325
+          173)
         object FLEnabled: TLabel
           Left = 8
           Top = 143
@@ -730,6 +760,7 @@ object DImport: TDImport
           Top = 142
           Width = 193
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FEnabled'
           TabOrder = 6
         end
@@ -738,6 +769,7 @@ object DImport: TDImport
           Top = 54
           Width = 193
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FSingle'
           TabOrder = 2
         end
@@ -765,6 +797,7 @@ object DImport: TDImport
           Top = 74
           Width = 193
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FDaily'
           TabOrder = 3
         end
@@ -773,6 +806,7 @@ object DImport: TDImport
           Top = 94
           Width = 193
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FWeekly'
           TabOrder = 4
         end
@@ -781,6 +815,7 @@ object DImport: TDImport
           Top = 114
           Width = 193
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FMonthly'
           TabOrder = 5
         end
@@ -790,22 +825,26 @@ object DImport: TDImport
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
+      DesignSize = (
+        333
+        271)
       object GErrorMessages: TGroupBox_Ext
         Left = 4
         Top = 176
         Width = 325
         Height = 89
+        Anchors = [akLeft, akTop, akRight, akBottom]
         Caption = 'GErrorMessages'
         TabOrder = 1
+        DesignSize = (
+          325
+          89)
         object PErrorMessages: TPanel_Ext
           Left = 8
           Top = 16
           Width = 308
           Height = 65
+          Anchors = [akLeft, akTop, akRight, akBottom]
           BevelInner = bvRaised
           BevelOuter = bvLowered
           ParentBackground = False
@@ -840,8 +879,12 @@ object DImport: TDImport
         Top = 0
         Width = 325
         Height = 169
+        Anchors = [akLeft, akTop, akRight]
         Caption = 'GProgress'
         TabOrder = 0
+        DesignSize = (
+          325
+          169)
         object FLProgressTime: TLabel
           Left = 8
           Top = 88
@@ -855,6 +898,7 @@ object DImport: TDImport
           Width = 38
           Height = 13
           Alignment = taRightJustify
+          Anchors = [akTop, akRight]
           Caption = 'FLDone'
         end
         object FLEntiered: TLabel
@@ -863,6 +907,7 @@ object DImport: TDImport
           Width = 51
           Height = 13
           Alignment = taRightJustify
+          Anchors = [akTop, akRight]
           Caption = 'FLEntiered'
         end
         object FLProgressRecords: TLabel
@@ -878,6 +923,7 @@ object DImport: TDImport
           Width = 72
           Height = 13
           Alignment = taRightJustify
+          Anchors = [akTop, akRight]
           Caption = 'FDoneRecords'
         end
         object FEntieredRecords: TLabel
@@ -886,6 +932,7 @@ object DImport: TDImport
           Width = 85
           Height = 13
           Alignment = taRightJustify
+          Anchors = [akTop, akRight]
           Caption = 'FEntieredRecords'
         end
         object FDoneTime: TLabel
@@ -894,6 +941,7 @@ object DImport: TDImport
           Width = 55
           Height = 13
           Alignment = taRightJustify
+          Anchors = [akTop, akRight]
           Caption = 'FDoneTime'
         end
         object FEntieredTime: TLabel
@@ -902,6 +950,7 @@ object DImport: TDImport
           Width = 68
           Height = 13
           Alignment = taRightJustify
+          Anchors = [akTop, akRight]
           Caption = 'FEntieredTime'
         end
         object FLErrors: TLabel
@@ -917,6 +966,7 @@ object DImport: TDImport
           Width = 33
           Height = 13
           Alignment = taRightJustify
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FErrors'
         end
         object FLProgressObjects: TLabel
@@ -934,6 +984,7 @@ object DImport: TDImport
           Width = 68
           Height = 13
           Alignment = taRightJustify
+          Anchors = [akTop, akRight]
           Caption = 'FDoneObjects'
         end
         object FEntieredObjects: TLabel
@@ -942,6 +993,7 @@ object DImport: TDImport
           Width = 81
           Height = 13
           Alignment = taRightJustify
+          Anchors = [akTop, akRight]
           Caption = 'FEntieredObjects'
         end
         object FProgressBar: TProgressBar
@@ -949,6 +1001,7 @@ object DImport: TDImport
           Top = 120
           Width = 308
           Height = 16
+          Anchors = [akLeft, akTop, akRight]
           TabOrder = 0
         end
       end
@@ -959,6 +1012,7 @@ object DImport: TDImport
     Top = 296
     Width = 75
     Height = 25
+    Anchors = [akRight, akBottom]
     Caption = 'FBBack'
     TabOrder = 2
     OnClick = FBBackClick
@@ -968,6 +1022,7 @@ object DImport: TDImport
     Top = 296
     Width = 75
     Height = 25
+    Anchors = [akLeft, akBottom]
     Caption = 'FBHelp'
     TabOrder = 1
     OnClick = FBHelpClick

@@ -49,7 +49,7 @@ object DDatabases: TDDatabases
       Left = 8
       Top = 16
       Width = 226
-      Height = 154
+      Height = 162
       Anchors = [akLeft, akTop, akRight, akBottom]
       BevelKind = bkTile
       BorderStyle = bsNone

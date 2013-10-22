@@ -10058,7 +10058,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         if ((TSBaseTable(Data).DataSize + TSBaseTable(Data).IndexSize < 0)) then
           Item.SubItems.Add('')
         else
-          Item.SubItems.Add(SizeToStr(TSBaseTable(Data).DataSize + TSBaseTable(Data).IndexSize + 1))
+          Item.SubItems.Add(SizeToStr(TSBaseTable(Data).DataSize))
       else
         Item.SubItems.Add(SizeToStr(Length(TSView(TSTable(Data)).Source)));
       if (not (TSTable(Data) is TSBaseTable) or not TSBaseTable(Data).ValidStatus or (TSBaseTable(Data).Updated <= 0)) then

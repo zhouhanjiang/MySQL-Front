@@ -167,6 +167,7 @@ type
       Change: TItemChange);
     procedure TSSelectHide(Sender: TObject);
     procedure TSJobShow(Sender: TObject);
+    procedure ScrollBoxResize(Sender: TObject);
   type
     TTableName = class
     private
@@ -343,16 +344,30 @@ procedure TDImport.ClearTSFields(Sender: TObject);
 var
   I: Integer;
 begin
-  for I := 0 to Length(FSourceFields) - 1 do FSourceFields[I].Free();
-  for I := 0 to Length(FLReferrers) - 1 do FLReferrers[I].Free();
-  for I := 0 to Length(FDestinationFields) - 1 do FDestinationFields[I].Free();
+  for I := 0 to Length(FSourceFields) - 1 do
+  begin
+    FSourceFields[I].Free();
+    FSourceFields[I] := nil;
+  end;
   SetLength(FSourceFields, 0);
+  for I := 0 to Length(FLReferrers) - 1 do
+  begin
+    FLReferrers[I].Free();
+    FLReferrers[I] := nil;
+  end;
   SetLength(FLReferrers, 0);
+  for I := 0 to Length(FDestinationFields) - 1 do
+  begin
+    FDestinationFields[I].Free();
+    FDestinationFields[I] := nil;
+  end;
   SetLength(FDestinationFields, 0);
 end;
 
 procedure TDImport.CMChangePreferences(var Message: TMessage);
 begin
+  Preferences.SmallImages.GetIcon(iiImport, Icon);
+
   OpenDialog.EncodingLabel := Preferences.LoadStr(682) + ':';
 
   PSQLWait.Caption := Preferences.LoadStr(882);
@@ -819,6 +834,17 @@ end;
 
 procedure TDImport.FormCreate(Sender: TObject);
 begin
+  Constraints.MinWidth := Width;
+  Constraints.MinHeight := Height;
+
+  BorderStyle := bsSizeable;
+
+  if ((Preferences.Import.Width >= Width) and (Preferences.Import.Height >= Height)) then
+  begin
+    Width := Preferences.Import.Width;
+    Height := Preferences.Import.Height;
+  end;
+
   FSelect.Images := Preferences.SmallImages;
   FTables.SmallImages := Preferences.SmallImages;
 
@@ -847,6 +873,9 @@ var
   PImport: TPImport;
 begin
   Session.UnRegisterEventProc(FormSessionEvent);
+
+  Preferences.Import.Width := Width;
+  Preferences.Import.Height := Height;
 
   if (Assigned(Import)) then
     Import.Free();
@@ -1426,18 +1455,20 @@ begin
       TTImportODBC(Import).GetFieldNames(TTableName(FTables.Selected.Data).SourceName, FieldNames);
     end;
 
-    SetLength(FSourceFields, FieldNames.Count);
-    SetLength(FLReferrers, Length(FSourceFields));
-    SetLength(FDestinationFields, Length(FSourceFields));
-
     if (SObject is TSBaseTable) then
     begin
       Session.BeginSynchron();
       TSBaseTable(SObject).Update();
       Session.EndSynchron();
 
-      ScrollBox.Visible := False;
-      ScrollBox.AutoScroll := False;
+      ScrollBox.DisableAlign();
+
+      SetLength(FSourceFields, FieldNames.Count);
+      for I := 0 to Length(FSourceFields) - 1 do FSourceFields[I] := nil;
+      SetLength(FLReferrers, Length(FSourceFields));
+      for I := 0 to Length(FLReferrers) - 1 do FLReferrers[I] := nil;
+      SetLength(FDestinationFields, Length(FSourceFields));
+      for I := 0 to Length(FDestinationFields) - 1 do FDestinationFields[I] := nil;
 
       for I := 0 to Length(FSourceFields) - 1 do
       begin
@@ -1486,14 +1517,16 @@ begin
         FDestinationFields[I].OnExit := FDestinationField1.OnExit;
       end;
 
-      ScrollBox.AutoScroll := True;
-      ScrollBox.Visible := True;
+      ScrollBoxResize(ScrollBox);
+      ScrollBox.EnableAlign();
 
       TSFieldsChange(Sender);
       FFieldExit(Sender);
     end;
 
     FieldNames.Free();
+
+    ScrollBoxResize(ScrollBox);
   end;
 end;
 
@@ -1630,6 +1663,36 @@ begin
   MoveMemory(@ProgressInfos, @AProgressInfos, SizeOf(AProgressInfos));
 
   PostMessage(Handle, CM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos))
+end;
+
+procedure TDImport.ScrollBoxResize(Sender: TObject);
+var
+  I: Integer;
+  Padding: Integer;
+begin
+  Padding := ScrollBox.Left + FSourceField1.Left;
+
+  for I := 0 to Length(FSourceFields) - 1 do
+    if ((Length(FSourceFields) > I) and Assigned(FSourceFields[I])) then
+      FSourceFields[I].Width :=
+        (ScrollBox.ClientWidth
+          - FLReferrer1.Canvas.TextWidth(FLReferrer1.Caption)
+          - 3 * Padding
+          - GetSystemMetrics(SM_CXVSCROLL)) div 2;
+
+  for I := 0 to Length(FLReferrers) - 1 do
+    if ((Length(FLReferrers) > I) and Assigned(FLReferrers[I])) then
+      FLReferrers[I].Left := FSourceFields[I].Left + FSourceFields[I].Width + Padding;
+
+  for I := 0 to Length(FDestinationFields) - 1 do
+    if ((Length(FDestinationFields) > I) and Assigned(FDestinationFields[I]) and (Length(FLReferrers) > 0) and Assigned(FLReferrers[I]) and (Length(FSourceFields) > 0) and Assigned(FSourceFields[I])) then
+    begin
+      FDestinationFields[I].Left := FLReferrers[I].Left + FLReferrers[I].Width + Padding;
+      FDestinationFields[I].Width := FSourceFields[I].Width;
+    end;
+
+  if ((Length(FDestinationFields) > 0) and (Assigned(FDestinationFields[0]))) then
+    FLDestinationFields.Left := FDestinationFields[0].Left + 6;
 end;
 
 procedure TDImport.TSCSVOptionsHide(Sender: TObject);
