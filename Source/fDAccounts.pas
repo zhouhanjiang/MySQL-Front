@@ -102,7 +102,7 @@ end;
 procedure TDAccounts.aEditExecute(Sender: TObject);
 begin
   DAccount.Account := Accounts.AccountByName(FAccounts.Selected.Caption);
-  DAccount.Username := DAccount.Account.Connection.User;
+  DAccount.Username := DAccount.Account.Connection.Username;
   DAccount.Password := DAccount.Account.Connection.Password;
   DAccount.ShowType := stDefault;
   if (DAccount.Execute()) then

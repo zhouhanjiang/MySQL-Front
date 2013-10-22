@@ -1555,10 +1555,14 @@ end;
 
 function TWWindow.DBLogin(const Account: Pointer): Boolean;
 begin
-  DLogin.Account := Account;
-  DLogin.Filename := '';
-  DLogin.Window := Self;
+  DLogin.Username := TAAccount(Account).Connection.Username;
+  DLogin.Password := TAAccount(Account).Connection.Password;
   Result := DLogin.Execute();
+  if (Result) then
+  begin
+    TAAccount(Account).Connection.Username := DLogin.Username;
+    TAAccount(Account).Connection.Password := DLogin.Password;
+  end;
 end;
 
 destructor TWWindow.Destroy();

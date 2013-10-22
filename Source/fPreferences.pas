@@ -716,7 +716,7 @@ type
     Password: string;
     PipeName: string;
     Port: Integer;
-    User: string;
+    Username: string;
     procedure Assign(const Source: TAConnection); virtual;
     constructor Create(const AAccount: TAAccount); virtual;
     property Account: TAAccount read FAccount;
@@ -3977,7 +3977,7 @@ begin
   Password := Source.Password;
   PipeName := Source.PipeName;
   Port := Source.Port;
-  User := Source.User;
+  Username := Source.Username;
 end;
 
 constructor TAConnection.Create(const AAccount: TAAccount);
@@ -3995,7 +3995,7 @@ begin
   Password := '';
   PipeName := MYSQL_NAMEDPIPE;
   Port := MYSQL_PORT;
-  User := '';
+  Username := '';
 end;
 
 function TAConnection.GetXML(): IXMLNode;
@@ -4023,7 +4023,7 @@ begin
     if (Assigned(XMLNode(XML, 'library/tunnel_url'))) then HTTPTunnelURI := XMLNode(XML, 'library/tunnel_url').Text;
     if (Assigned(XMLNode(XML, 'password')) and (XMLNode(XML, 'password').Attributes['encode'] = 'none')) then Password := XMLNode(XML, 'password').Text;
     if (Assigned(XMLNode(XML, 'port'))) then TryStrToInt(XMLNode(XML, 'port').Text, Port);
-    if (Assigned(XMLNode(XML, 'user'))) then User := XMLNode(XML, 'user').Text;
+    if (Assigned(XMLNode(XML, 'user'))) then Username := XMLNode(XML, 'user').Text;
   end;
 end;
 
@@ -4043,7 +4043,7 @@ begin
   XMLNode(XML, 'password').Attributes['encode'] := 'none';
   XMLNode(XML, 'password').Text := Password;
   XMLNode(XML, 'port').Text := IntToStr(Port);
-  XMLNode(XML, 'user').Text := User;
+  XMLNode(XML, 'user').Text := Username;
 end;
 
 { TAAccount *******************************************************************}
@@ -4731,7 +4731,7 @@ begin
       else
         Host := LOCAL_HOST;
       if ((lstrcmpi(PChar(Host), PChar(URI.Host)) = 0) and (URI.Port = Account[I].Connection.Port)
-        and ((URI.Username = '') or (lstrcmpi(PChar(URI.Username), PChar(Account[I].Connection.User)) = 0))) then
+        and ((URI.Username = '') or (lstrcmpi(PChar(URI.Username), PChar(Account[I].Connection.Username)) = 0))) then
       begin
         Result := Account[I];
         Inc(Found);
@@ -4757,7 +4757,7 @@ begin
       NewAccount.Name := Name;
       NewAccount.Connection.Host := URI.Host;
       NewAccount.Connection.Port := URI.Port;
-      NewAccount.Connection.User := URI.Username;
+      NewAccount.Connection.Username := URI.Username;
       NewAccount.Connection.Password := URI.Password;
       NewAccount.Connection.Database := URI.Database;
       AddAccount(NewAccount);

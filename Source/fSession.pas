@@ -10708,7 +10708,7 @@ begin
   OnUpdateIndexDefs := UpdateIndexDefs;
   Password := Account.Connection.Password;
   Port := Account.Connection.Port;
-  Username := Account.Connection.User;
+  Username := Account.Connection.Username;
 
   try
     Open();
@@ -11428,9 +11428,10 @@ var
 begin
   Result := nil;
 
-  for I := 0 to Processes.Count - 1 do
-    if (Processes[I].ThreadId = ThreadId) then
-      Result := Processes[I];
+  if (Assigned(Processes)) then
+    for I := 0 to Processes.Count - 1 do
+      if (Processes[I].ThreadId = ThreadId) then
+        Result := Processes[I];
 end;
 
 procedure TSSession.RegisterEventProc(const AEventProc: TEventProc);

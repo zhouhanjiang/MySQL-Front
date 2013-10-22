@@ -2590,7 +2590,7 @@ begin
     AllowChange := False
   else if (URI.Port <> Session.Account.Connection.Port) then
     AllowChange := False
-  else if ((URI.Username <> '') and (lstrcmpi(PChar(URI.Username), PChar(Session.Account.Connection.User)) <> 0)) then
+  else if ((URI.Username <> '') and (lstrcmpi(PChar(URI.Username), PChar(Session.Account.Connection.Username)) <> 0)) then
     AllowChange := False
   else if ((URI.Password <> '') and (URI.Password <> Session.Account.Connection.Password)) then
     AllowChange := False
@@ -11790,7 +11790,7 @@ begin
   URI.Host := Session.Account.Connection.Host;
   if (Session.Account.Connection.Port <> MYSQL_PORT) then
     URI.Port := Session.Account.Connection.Port;
-  URI.Username := Session.Account.Connection.User;
+  URI.Username := Session.Account.Connection.Username;
   URI.Password := Session.Account.Connection.Password;
   if (Filename = '') then
   begin

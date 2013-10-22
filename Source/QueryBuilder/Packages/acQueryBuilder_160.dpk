@@ -64,6 +64,7 @@ contains
   acQBStrings in '..\Source\acQBStrings.pas',
   acQBXMLHelpers in '..\Source\acQBXMLHelpers.pas',
   acQueryFixup in '..\Source\acQueryFixup.pas',
+  acQueryLayout in '..\Source\acQueryLayout.pas',
   acQueryProps in '..\Source\acQueryProps.pas' {acQueryPropsForm},
   acQueryPropsAc in '..\Source\acQueryPropsAc.pas' {acQueryPropsAccessForm},
   acQueryPropsDb2 in '..\Source\acQueryPropsDb2.pas' {acQueryPropsDb2Form},
@@ -116,3 +117,4 @@ contains
   UNIVERSALscan in '..\Source\UNIVERSALscan.pas';
 
 end.
+

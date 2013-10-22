@@ -95,7 +95,7 @@ begin
   begin
     if (Assigned(Account)) then
     begin
-      Account.Connection.User := Trim(FUsername.Text);
+      Account.Connection.Username := Trim(FUsername.Text);
       Account.Connection.Password := Trim(FPassword.Text);
     end;
     Username := Trim(FUsername.Text);
@@ -112,7 +112,7 @@ begin
   end
   else
   begin
-    FUsername.Text := Account.Connection.User;
+    FUsername.Text := Account.Connection.Username;
     FPassword.Text := Account.Connection.Password;
   end;
   FBSettings.Visible := Assigned(Account);

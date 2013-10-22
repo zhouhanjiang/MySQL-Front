@@ -276,11 +276,11 @@ begin
       NewAccount.Connection.LibraryFilename := Trim(FLibraryFilename.Text);
       NewAccount.Connection.HTTPTunnelURI := Trim(FHTTPTunnelURI.Text);
 
-      NewAccount.Connection.User := Trim(FUser.Text);
+      NewAccount.Connection.Username := Trim(FUser.Text);
       NewAccount.Connection.Password := Trim(FPassword.Text);
       NewAccount.Connection.Database := ReplaceStr(Trim(FDatabase.Text), ';', ',');
 
-      Username := NewAccount.Connection.User;
+      Username := NewAccount.Connection.Username;
       Password := NewAccount.Connection.Password;
 
       if (not Assigned(Account)) then
