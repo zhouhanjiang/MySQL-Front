@@ -107,7 +107,7 @@ procedure TDLogin.FormShow(Sender: TObject);
 begin
   if (not Assigned(Account)) then
   begin
-    FUsername.Text := 'Admin';
+    FUsername.Text := '';
     FPassword.Text := '';
   end
   else

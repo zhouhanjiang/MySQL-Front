@@ -4776,7 +4776,12 @@ begin
       Data := TMySQLDataSet.PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
 
   if (not Assigned(Data^.LibRow^[Field.FieldNo - 1])) then
-    Result := 'NULL'
+    if (not Field.Required) then
+      Result := 'NULL'
+    else if (Field.DataType in NotQuotedDataTypes) then
+      Result := Field.DefaultExpression
+    else
+      Result := SQLEscape(Field.DefaultExpression)
   else if (BitField(Field)) then
     Result := 'b''' + Field.AsString + ''''
   else
@@ -5568,8 +5573,12 @@ begin
 
     if (Connection.Connected) then
       for I := 0 to Fields.Count - 1 do
+      begin
         if ((Fields[I].AutoGenerateValue = arAutoInc) and (Fields[I].IsNull or (Fields[I].AsLargeInt = 0))) then
           Fields[I].AsLargeInt := Connection.InsertId;
+        if (Fields[I].Required and (Fields[I].IsNull)) then
+          Fields[I].AsString := SQLUnescape(Fields[I].DefaultExpression);
+    end;
 
     if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData) then
       FreeMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData);

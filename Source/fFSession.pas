@@ -13235,7 +13235,7 @@ begin
           FileName := UnescapeURL(URI.Param['file']);
           if (ExtractFilePath(FileName) = '') then
             FileName := ExpandFilename(FileName);
-          if ((FileName <> SQLEditors[NewView].Filename) and FileExists(FileName)) then
+          if (Assigned(SQLEditors[NewView]) and (FileName <> SQLEditors[NewView].Filename) and FileExists(FileName)) then
             if ((URI.Param['cp'] = Null) or not TryStrToInt(URI.Param['cp'], CodePage)) then
               OpenSQLFile(FileName)
             else
