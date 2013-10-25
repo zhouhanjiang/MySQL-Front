@@ -3494,6 +3494,7 @@ begin
             Values.Write(PAnsiChar('NULL'), 4)
           else
             Values.Write(PAnsiChar(ODBCData), cbData div SizeOf(SQLACHAR), ColumnDesc[I].SQLDataType in [SQL_TYPE_DATE, SQL_TYPE_TIMESTAMP, SQL_TYPE_TIME]);
+        SQL_UNKNOWN_TYPE,
         SQL_CHAR,
         SQL_VARCHAR,
         SQL_LONGVARCHAR,
@@ -3602,6 +3603,7 @@ begin
             Values.Write('NULL', 4)
           else
             Values.WriteData(PAnsiChar(ODBCData), cbData div SizeOf(SQLACHAR), not (FieldMappings[I].DestinationField.FieldType in NotQuotedFieldTypes));
+        SQL_UNKNOWN_TYPE,
         SQL_CHAR,
         SQL_VARCHAR,
         SQL_LONGVARCHAR,
