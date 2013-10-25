@@ -202,8 +202,9 @@ type
     Engine: string;
     Error: Boolean;
     RowType: TMySQLRowType;
+    StmtType: TPStmtType;
     Structure: Boolean;
-    procedure xAddField(const DestinationField: TSTableField; const SourceFieldName: string);
+    procedure AddField(const DestinationField: TSTableField; const SourceFieldName: string);
     procedure AddTable(const DestinationTableName: string; const SourceTableName: string = '');
     constructor Create(const ASession: TSSession; const ADatabase: TSDatabase);
     destructor Destroy(); override;
@@ -269,7 +270,7 @@ type
     procedure AfterExecuteData(const Item: TTImport.TItem); override;
     procedure BeforeExecuteData(const Item: TTImport.TItem); override;
     procedure ExecuteStructure(const Item: TTImport.TItem); override;
-    function GetValues(const Item: TTImport.TItem; const Values: TTool.TDataFileBuffer): Boolean; override;
+    function GetValues(const Item: TTImport.TItem; const Values: TTool.TDataFileBuffer): Boolean; overload; override;
     function GetValues(const Item: TTImport.TItem; const Values: TTool.TStringBuffer): Boolean; overload; override;
   public
     Delimiter: Char;
@@ -892,13 +893,15 @@ begin
   Result := ReturnCode;
 end;
 
-function SQLLoadDataInfile(const Database: TSDatabase; const Filename, FileCharset, DatabaseName, TableName: string; const FieldNames: string): string;
+function SQLLoadDataInfile(const Database: TSDatabase; const Replace: Boolean; const Filename, FileCharset, DatabaseName, TableName: string; const FieldNames: string): string;
 var
   Session: TSSession;
 begin
   Session := Database.Session;
 
   Result := 'LOAD DATA LOCAL INFILE ' + SQLEscape(Filename) + #13#10;
+  if (Replace) then
+    Result := Result + '  REPLACE' + #13#10;
   Result := Result + '  INTO TABLE ' + Session.EscapeIdentifier(DatabaseName) + '.' + Session.EscapeIdentifier(TableName) + #13#10;
   if (((50038 <= Session.ServerVersion) and (Session.ServerVersion < 50100) or (50117 <= Session.ServerVersion)) and (FileCharset <> '')) then
     Result := Result + '  CHARACTER SET ' + FileCharset + #13#10;
@@ -1690,7 +1693,7 @@ end;
 
 { TTImport ********************************************************************}
 
-procedure TTImport.xAddField(const DestinationField: TSTableField; const SourceFieldName: string);
+procedure TTImport.AddField(const DestinationField: TSTableField; const SourceFieldName: string);
 begin
   SetLength(FieldMappings, Length(FieldMappings) + 1);
 
@@ -1912,7 +1915,7 @@ begin
 
         if ((I > 0) or (Length(FieldMappings) = 0)) then
           for J := 0 to Table.Fields.Count - 1 do
-            xAddField(Table.Fields[J], Table.Fields[J].Name);
+            AddField(Table.Fields[J], Table.Fields[J].Name);
 
         ExecuteData(TTImport.TItem(Items[I]), Database.TableByName(TTImport.TItem(Items[I]).DestinationTableName));
       end;
@@ -1980,7 +1983,11 @@ begin
       else
         SQL := SQL + 'START TRANSACTION;' + #13#10;
 
-    if (Session.DataFileAllowed and not Suspended) then
+    if (StmtType = stUpdate) then
+    begin
+      Write;
+    end
+    else if (Session.DataFileAllowed and not Suspended) then
     begin
       Pipename := '\\.\pipe\' + LoadStr(1000);
       Pipe := CreateNamedPipe(PChar(Pipename),
@@ -1990,7 +1997,7 @@ begin
         DoError(SysError(), nil, False)
       else
       begin
-        SQL := SQL + SQLLoadDataInfile(Database, Pipename, Session.Charset, Database.Name, Table.Name, EscapedDestinationFieldNames);
+        SQL := SQL + SQLLoadDataInfile(Database, StmtType = stReplace, Pipename, Session.Charset, Database.Name, Table.Name, EscapedDestinationFieldNames);
 
         Session.SendSQL(SQL, SQLExecuted);
 
@@ -2029,7 +2036,7 @@ begin
             SQLExecuted.WaitFor(INFINITE);
           DisconnectNamedPipe(Pipe);
 
-          if ((Success = daSuccess) and (Session.WarningCount > 0)) then
+          if ((Success = daSuccess) and (StmtType = stInsert) and (Session.WarningCount > 0)) then
           begin
             DataSet := TMySQLQuery.Create(nil);
             DataSet.Connection := Session;
@@ -2080,7 +2087,11 @@ begin
       for I := 0 to Length(FieldMappings) - 1 do
         EscapedFieldName[I] := Session.EscapeIdentifier(FieldMappings[I].DestinationField.Name);
 
-      SQLInsertPrefix := 'INSERT INTO ' + EscapedTableName;
+      if (StmtType = stInsert) then
+        SQLInsertPrefix := 'INSERT INTO '
+      else
+        SQLInsertPrefix := 'REPLACE INTO ';
+      SQLInsertPrefix := SQLInsertPrefix + EscapedTableName;
       if (not Structure) then
         SQLInsertPrefix := SQLInsertPrefix + ' (' + EscapedDestinationFieldNames + ')';
       SQLInsertPrefix := SQLInsertPrefix + ' VALUES ';
@@ -2640,7 +2651,7 @@ begin
     Session.EndSynchron();
 
     for I := 0 to HeadlineNameCount - 1 do
-      xAddField(NewTable.Fields[I], HeadlineNames[I]);
+      AddField(NewTable.Fields[I], HeadlineNames[I]);
   end;
 end;
 
@@ -3343,7 +3354,7 @@ begin
   Table := Database.BaseTableByName(Item.DestinationTableName);
   if (Assigned(Table)) then
     for I := 0 to Table.Fields.Count - 1 do
-      xAddField(Table.Fields[I], SourceFieldNames[I]);
+      AddField(Table.Fields[I], SourceFieldNames[I]);
 end;
 
 function TTImportBaseODBC.GetFieldNames(const TableName: string; const FieldNames: TStrings): Boolean;
@@ -7843,7 +7854,7 @@ begin
             SQL := SQL + 'ALTER TABLE ' + DestinationSession.EscapeIdentifier(DestinationDatabase.Name) + '.' + DestinationSession.EscapeIdentifier(DestinationTable.Name) + ' DISABLE KEYS;' + #13#10;
           if (DestinationDatabase.Name <> DestinationSession.DatabaseName) then
             SQL := SQL + DestinationDatabase.SQLUse();
-          SQL := SQL + SQLLoadDataInfile(DestinationDatabase, Pipename, DestinationSession.Charset, DestinationDatabase.Name, DestinationTable.Name, '');
+          SQL := SQL + SQLLoadDataInfile(DestinationDatabase, False, Pipename, DestinationSession.Charset, DestinationDatabase.Name, DestinationTable.Name, '');
           if ((DestinationSession.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
             SQL := SQL + 'ALTER TABLE ' + DestinationSession.EscapeIdentifier(DestinationDatabase.Name) + '.' + DestinationSession.EscapeIdentifier(DestinationTable.Name) + ' ENABLE KEYS;' + #13#10;
           if (DestinationSession.Lib.LibraryType <> ltHTTP) then

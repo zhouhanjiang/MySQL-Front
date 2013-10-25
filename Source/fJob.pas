@@ -493,7 +493,7 @@ begin
                   FreeAndNil(Import);
                 end
                 else
-                  Import.xAddField(Table.FieldByName(Job.FieldMappings[I].DestinationFieldName), Job.FieldMappings[I].SourceFieldName);
+                  Import.AddField(Table.FieldByName(Job.FieldMappings[I].DestinationFieldName), Job.FieldMappings[I].SourceFieldName);
           end;
 
           if (Assigned(Import)) then

@@ -63,7 +63,7 @@ object DImport: TDImport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSFields
+    ActivePage = TSStmtType
     Anchors = [akLeft, akTop, akRight, akBottom]
     Style = tsButtons
     TabOrder = 0
@@ -156,7 +156,7 @@ object DImport: TDImport
           Caption = 'FSQLFile'
           TabOrder = 1
           TabStop = True
-          OnClick = FImportTypeChange
+          OnClick = StmtTypeChange
         end
         object FTextFile: TRadioButton
           Left = 128
@@ -166,7 +166,7 @@ object DImport: TDImport
           Caption = 'FTextFile'
           TabOrder = 2
           TabStop = True
-          OnClick = FImportTypeChange
+          OnClick = StmtTypeChange
         end
         object FExcelFile: TRadioButton
           Left = 128
@@ -176,7 +176,7 @@ object DImport: TDImport
           Caption = 'FExcelFile'
           TabOrder = 3
           TabStop = True
-          OnClick = FImportTypeChange
+          OnClick = StmtTypeChange
         end
         object FAccessFile: TRadioButton
           Left = 128
@@ -186,7 +186,7 @@ object DImport: TDImport
           Caption = 'FAccessFile'
           TabOrder = 4
           TabStop = True
-          OnClick = FImportTypeChange
+          OnClick = StmtTypeChange
         end
         object FODBC: TRadioButton
           Left = 128
@@ -196,7 +196,7 @@ object DImport: TDImport
           Caption = 'FODBC'
           TabOrder = 5
           TabStop = True
-          OnClick = FImportTypeChange
+          OnClick = StmtTypeChange
         end
         object FBFilename: TButton
           Left = 294
@@ -711,6 +711,59 @@ object DImport: TDImport
             Text = 'FSourceField2'
             Visible = False
           end
+        end
+      end
+    end
+    object TSStmtType: TTabSheet
+      Caption = 'TSStmtType'
+      TabVisible = False
+      OnShow = TSStmtTypeShow
+      object GStmtType: TGroupBox_Ext
+        Left = 4
+        Top = 0
+        Width = 325
+        Height = 121
+        Caption = 'GStmtType'
+        TabOrder = 0
+        object FLStmtType: TLabel
+          Left = 8
+          Top = 24
+          Width = 57
+          Height = 13
+          Caption = 'FLStmtType'
+        end
+        object FInsert: TRadioButton
+          Left = 128
+          Top = 24
+          Width = 193
+          Height = 17
+          Caption = 'FInsert'
+          Checked = True
+          TabOrder = 0
+          TabStop = True
+          OnClick = FStmtTypeClick
+          OnKeyPress = FStmtTypeKeyPress
+        end
+        object FReplace: TRadioButton
+          Left = 128
+          Top = 56
+          Width = 193
+          Height = 17
+          Caption = 'FReplace'
+          TabOrder = 1
+          OnClick = FStmtTypeClick
+          OnKeyPress = FStmtTypeKeyPress
+        end
+        object FUpdate: TRadioButton
+          Left = 128
+          Top = 88
+          Width = 193
+          Height = 17
+          Caption = 'FUpdate'
+          TabOrder = 2
+          Visible = False
+          OnClick = FStmtTypeClick
+          OnKeyPress = FStmtTypeKeyPress
         end
       end
     end

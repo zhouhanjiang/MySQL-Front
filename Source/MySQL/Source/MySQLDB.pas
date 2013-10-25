@@ -4778,10 +4778,8 @@ begin
   if (not Assigned(Data^.LibRow^[Field.FieldNo - 1])) then
     if (not Field.Required) then
       Result := 'NULL'
-    else if (Field.DataType in NotQuotedDataTypes) then
-      Result := Field.DefaultExpression
     else
-      Result := SQLEscape(Field.DefaultExpression)
+      Result := 'DEFAULT'
   else if (BitField(Field)) then
     Result := 'b''' + Field.AsString + ''''
   else

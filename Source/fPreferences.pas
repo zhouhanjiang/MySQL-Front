@@ -15,6 +15,7 @@ type
   TPImportType = (itUnknown, itSQLFile, itTextFile, itAccessFile, itExcelFile, itODBC);
   TAJobObjectType = (jotServer, jotDatabase, jotTable, jotProcedure, jotFunction, jotTrigger, jotEvent);
   TPNodeType = (ntDisabled, ntName, ntCustom);
+  TPStmtType = (stInsert, stReplace, stUpdate);
 
   TPItems = class;
   TPPreferences = class;
@@ -276,6 +277,7 @@ type
     Data: Boolean;
     Engine: string;
     RowType: Integer;
+    StmtType: TPStmtType;
     Structure: Boolean;
     procedure Assign(const Source: TPItem); override;
     constructor Create(const AAItems: TPItems = nil; const AName: string = '');
@@ -956,6 +958,24 @@ begin
     ntDisabled: Result := 'Disabled';
     ntCustom: Result := 'Custom';
     else Result := 'Name';
+  end;
+end;
+
+function TryStrToStmtType(const Str: string; var StmtType: TPStmtType): Boolean;
+begin
+  Result := True;
+  if (UpperCase(Str) = 'INSERT') then StmtType := stInsert
+  else if (UpperCase(Str) = 'REPLACE') then StmtType := stReplace
+  else if (UpperCase(Str) = 'UPDATE') then StmtType := stUpdate
+  else Result := False;
+end;
+
+function StmtTypeToStr(const StmtType: TPStmtType): string;
+begin
+  case (StmtType) of
+    stReplace: Result := 'Replace';
+    stUpdate: Result := 'Update';
+    else Result := 'Insert';
   end;
 end;
 
@@ -1749,6 +1769,7 @@ begin
   Data := TPImport(Source).Data;
   Engine := TPImport(Source).Engine;
   RowType := TPImport(Source).RowType;
+  StmtType := TPImport(Source).StmtType;
   Structure := TPImport(Source).Structure;
 end;
 
@@ -1766,6 +1787,7 @@ begin
   Data := True;
   Engine := '';
   RowType := 0;
+  StmtType := stInsert;
   Structure := True;
 end;
 
@@ -1779,6 +1801,7 @@ begin
   if (Assigned(XMLNode(XML, 'csv/separator/character/string'))) then CSV.Delimiter := XMLNode(XML, 'csv/separator/character/string').Text;
   if (Assigned(XMLNode(XML, 'csv/separator/character/type'))) then TryStrToSeparatorType(XMLNode(XML, 'csv/separator/character/type').Text, CSV.DelimiterType);
   if (Assigned(XMLNode(XML, 'data')) and (XMLNode(XML, 'data').Attributes['enabled'] <> Null)) then TryStrToBool(XMLNode(XML, 'data').Attributes['enabled'], Data);
+  if (Assigned(XMLNode(XML, 'data/importtype'))) then TryStrToStmtType(XMLNode(XML, 'data/importtype').Text, StmtType);
   if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['charset'] <> Null)) then Charset := XMLNode(XML, 'structure').Attributes['charset'];
   if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['collation'] <> Null)) then Collation := XMLNode(XML, 'structure').Attributes['collation'];
   if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['enabled'] <> Null)) then TryStrToBool(XMLNode(XML, 'structure').Attributes['enabled'], Structure);
@@ -1797,6 +1820,7 @@ begin
   XMLNode(XML, 'csv/separator/character/string').Text := CSV.Delimiter;
   XMLNode(XML, 'csv/separator/character/type').Text := SeparatorTypeToStr(CSV.DelimiterType);
   XMLNode(XML, 'data').Attributes['enabled'] := BoolToStr(Data);
+  XMLNode(XML, 'data/importtype').Text := StmtTypeToStr(StmtType);
   XMLNode(XML, 'structure').Attributes['charset'] := Charset;
   XMLNode(XML, 'structure').Attributes['collation'] := Collation;
   XMLNode(XML, 'structure').Attributes['enabled'] := Structure;
