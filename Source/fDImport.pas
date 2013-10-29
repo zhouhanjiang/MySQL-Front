@@ -175,6 +175,7 @@ type
     procedure TSXMLOptionsHide(Sender: TObject);
     procedure WhatClick(Sender: TObject);
     procedure WhatKeyPress(Sender: TObject; var Key: Char);
+    procedure TSStmtTypeShow(Sender: TObject);
   type
     TTableName = class
     private
@@ -1935,9 +1936,6 @@ end;
 
 procedure TDImport.TSWhatShow(Sender: TObject);
 begin
-  FStructure.Enabled := not (SObject is TSBaseTable);
-  FData.Enabled := not (SObject is TSBaseTable);
-
   TSFields.Enabled := (DialogType = idtNormal) and (FStructure.Checked or FData.Checked) and (SObject is TSBaseTable);
   TSTask.Enabled := (DialogType <> idtNormal) and (FStructure.Checked or FData.Checked) and not TSFields.Enabled;
   TSExecute.Enabled := (DialogType = idtNormal) and (FStructure.Checked or FData.Checked) and not TSFields.Enabled;
@@ -1952,6 +1950,11 @@ end;
 procedure TDImport.TSSelectShow(Sender: TObject);
 begin
   FSelectChange(Sender, FSelect.Selected);
+end;
+
+procedure TDImport.TSStmtTypeShow(Sender: TObject);
+begin
+  FStmtTypeClick(Sender);
 end;
 
 procedure TDImport.TSTablesHide(Sender: TObject);
@@ -2029,9 +2032,12 @@ end;
 
 procedure TDImport.WhatClick(Sender: TObject);
 begin
-  FStructure.Checked := FStructure.Checked or FData.Checked and not (SObject is TSBaseTable);
+  if ((Sender = FStructure) and not FStructure.Checked) then
+    FData.Checked := False;
+  if ((Sender = FData) and FData.Checked) then
+    FStructure.Checked := True;
 
-  TSFields.Enabled := (DialogType = idtNormal) and FData.Checked and (SObject is TSBaseTable);
+  TSFields.Enabled := (DialogType = idtNormal) and FStructure.Checked and FData.Checked and (SObject is TSBaseTable);
   TSTask.Enabled := (DialogType <> idtNormal) and not TSFields.Enabled and FStructure.Checked;
   TSExecute.Enabled := (DialogType = idtNormal) and not TSFields.Enabled and FStructure.Checked;
   CheckActivePageChange(TSWhat.PageIndex);
