@@ -1,6 +1,7 @@
 object DExport: TDExport
   Left = 486
   Top = 233
+  BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'DExport'
   ClientHeight = 331
@@ -50,6 +51,9 @@ object DExport: TDExport
       Caption = 'TSSelect'
       TabVisible = False
       OnShow = TSSelectShow
+      DesignSize = (
+        333
+        271)
       object GSelect: TGroupBox_Ext
         Left = 4
         Top = 0
@@ -109,6 +113,9 @@ object DExport: TDExport
         Caption = 'GBasics'
         TabOrder = 0
         TabStop = True
+        DesignSize = (
+          325
+          265)
         object FLName: TLabel
           Left = 8
           Top = 17
@@ -1276,7 +1283,7 @@ object DExport: TDExport
         Top = 176
         Width = 325
         Height = 89
-        Anchors = [akLeft, akTop, akRight]
+        Anchors = [akLeft, akTop, akRight, akBottom]
         Caption = 'GErrors'
         TabOrder = 1
         DesignSize = (

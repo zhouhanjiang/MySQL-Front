@@ -92,7 +92,6 @@ type
     FStructure: TCheckBox;
     FTables: TListView;
     FTextFile: TRadioButton;
-    FUpdate: TRadioButton;
     FWeekly: TRadioButton;
     GBasics: TGroupBox_Ext;
     GCSVHow: TGroupBox_Ext;
@@ -169,7 +168,6 @@ type
     procedure TSJobShow(Sender: TObject);
     procedure TSSelectHide(Sender: TObject);
     procedure TSSelectShow(Sender: TObject);
-    procedure TSStmtTypeShow(Sender: TObject);
     procedure TSTablesHide(Sender: TObject);
     procedure TSTablesShow(Sender: TObject);
     procedure TSTaskShow(Sender: TObject);
@@ -424,7 +422,6 @@ begin
   FLStmtType.Caption := Preferences.LoadStr(124) + ':';
   FInsert.Caption := LowerCase(Preferences.LoadStr(880)) + ' (INSERT)';
   FReplace.Caption := LowerCase(Preferences.LoadStr(416)) + ' (REPLACE)';
-  FUpdate.Caption := LowerCase(Preferences.LoadStr(726)) + ' (UPDATE)';
 
   GProgress.Caption := Preferences.LoadStr(224);
   FLEntiered.Caption := Preferences.LoadStr(211) + ':';
@@ -947,8 +944,6 @@ begin
       TAJobImport(PImport).ODBC.DataSource := FDataSource.Text;
       if (FReplace.Checked) then
         TAJobImport(PImport).StmtType := stReplace
-      else if (FUpdate.Checked) then
-        TAJobImport(PImport).StmtType := stUpdate
       else
         TAJobImport(PImport).StmtType := stInsert;
 
@@ -1111,7 +1106,6 @@ begin
     FRowFormat.ItemIndex := Preferences.Import.RowType;
     FInsert.Checked := Preferences.Import.StmtType = stInsert;
     FReplace.Checked := Preferences.Import.StmtType = stReplace;
-    FUpdate.Checked := Preferences.Import.StmtType = stUpdate;
 
     FStartDate.Date := Now() + 1; FStartTime.Time := 0;
     FSingle.Checked := True;
@@ -1153,7 +1147,6 @@ begin
     FRowFormat.ItemIndex := Job.RowType;
     FInsert.Checked := Job.StmtType = stInsert;
     FReplace.Checked := Job.StmtType = stReplace;
-    FUpdate.Checked := Job.StmtType = stUpdate;
 
     case (Job.JobObject.ObjectType) of
       jotServer: Database := nil;
@@ -1213,7 +1206,6 @@ begin
       FRowFormat.ItemIndex := Preferences.Import.RowType;
       FInsert.Checked := Preferences.Import.StmtType = stInsert;
       FReplace.Checked := Preferences.Import.StmtType = stReplace;
-      FUpdate.Checked := Preferences.Import.StmtType = stUpdate;
     end;
 
     TSJobHide(Sender);
@@ -1371,8 +1363,8 @@ end;
 
 procedure TDImport.FStmtTypeClick(Sender: TObject);
 begin
-  TSTask.Enabled := (DialogType <> idtNormal) and (FInsert.Checked and FInsert.Enabled or FReplace.Checked and FReplace.Enabled or FUpdate.Checked and FUpdate.Enabled);
-  TSExecute.Enabled := (DialogType = idtNormal) and (FInsert.Checked and FInsert.Enabled or FReplace.Checked and FReplace.Enabled or FUpdate.Checked and FUpdate.Enabled);
+  TSTask.Enabled := (DialogType <> idtNormal) and (FInsert.Checked and FInsert.Enabled or FReplace.Checked and FReplace.Enabled);
+  TSExecute.Enabled := (DialogType = idtNormal) and (FInsert.Checked and FInsert.Enabled or FReplace.Checked and FReplace.Enabled);
   CheckActivePageChange(TSStmtType.PageIndex);
 end;
 
@@ -1880,8 +1872,6 @@ begin
       Import.StmtType := stInsert
     else if (FReplace.Checked) then
       Import.StmtType := stReplace
-    else if (FUpdate.Checked) then
-      Import.StmtType := stUpdate
     else
       Import.StmtType := stInsert;
     Import.RowType := TMySQLRowType(FRowFormat.ItemIndex);
@@ -1941,40 +1931,6 @@ end;
 procedure TDImport.TSJobShow(Sender: TObject);
 begin
   CheckActivePageChange(TSJob.PageIndex);
-end;
-
-procedure TDImport.TSStmtTypeShow(Sender: TObject);
-var
-  I: Integer;
-  J: Integer;
-  Selected: Boolean;
-begin
-  if (not (SObject is TSBaseTable) or not Assigned(TSBaseTable(SObject).Keys.PrimaryKey)) then
-    FUpdate.Enabled := False
-  else
-  begin
-    Selected := True;
-    for I := 0 to TSBaseTable(SObject).Keys.PrimaryKey.Columns.Count - 1 do
-      if (Selected) then
-      begin
-        Selected := False;
-        for J := 0 to Length(FDestinationFields) - 1 do
-          if ((FSourceFields[J].Text <> '') and (FDestinationFields[J].ItemIndex = TSBaseTable(SObject).Keys.PrimaryKey.Columns[I].Field.Index + 1)) then
-            Selected := True;
-      end;
-    if (Selected) then
-    begin
-      Selected := False;
-
-      for J := 0 to Length(FDestinationFields) - 1 do
-        if ((FSourceFields[J].Text <> '') and (FDestinationFields[J].ItemIndex > 0) and not TSBaseTable(SObject).Fields[FDestinationFields[J].ItemIndex - 1].InPrimaryKey) then
-          Selected := True;
-    end;
-
-    FUpdate.Enabled := Selected;
-  end;
-
-  FStmtTypeClick(Sender);
 end;
 
 procedure TDImport.TSWhatShow(Sender: TObject);

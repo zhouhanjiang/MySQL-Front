@@ -261,8 +261,8 @@ type
       FieldTypes: set of Byte;
     end;
     UnescapeBuffer: record
-      Mem: PChar;
-      MemSize: Integer;
+      Text: PChar;
+      Length: Integer;
     end;
     function GetHeadlineNameCount(): Integer;
     function GetHeadlineName(Index: Integer): string;
@@ -1762,6 +1762,7 @@ end;
 destructor TTImport.Destroy();
 begin
   Close();
+  SetLength(FieldMappings, 0);
 
   inherited;
 end;
@@ -1983,11 +1984,7 @@ begin
       else
         SQL := SQL + 'START TRANSACTION;' + #13#10;
 
-    if (StmtType = stUpdate) then
-    begin
-      Write;
-    end
-    else if (Session.DataFileAllowed and not Suspended) then
+    if (Session.DataFileAllowed and not Suspended) then
     begin
       Pipename := '\\.\pipe\' + LoadStr(1000);
       Pipe := CreateNamedPipe(PChar(Pipename),
@@ -2591,14 +2588,13 @@ begin
   Data := True;
   Delimiter := ',';
   Quoter := '"';
-  UnescapeBuffer.Mem := nil;
-  UnescapeBuffer.MemSize := 0;
+  UnescapeBuffer.Text := nil;
+  UnescapeBuffer.Length := 0;
 end;
 
 destructor TTImportText.Destroy();
 begin
-  SetLength(FieldMappings, 0);
-  FreeMem(UnescapeBuffer.Mem);
+  FreeMem(UnescapeBuffer.Text);
 
   inherited;
 end;
@@ -2727,26 +2723,26 @@ begin
           Len := 0
         else
         begin
-          if (CSVValues[CSVColumns[I]].Length > UnescapeBuffer.MemSize) then
+          if (UnescapeBuffer.Length < CSVValues[CSVColumns[I]].Length) then
           begin
-            UnescapeBuffer.MemSize := UnescapeBuffer.MemSize + 2 * (CSVValues[CSVColumns[I]].Length - UnescapeBuffer.MemSize);
-            ReallocMem(UnescapeBuffer.Mem, UnescapeBuffer.MemSize);
+            UnescapeBuffer.Length := CSVValues[CSVColumns[I]].Length;
+            ReallocMem(UnescapeBuffer.Text, UnescapeBuffer.Length * SizeOf(UnescapeBuffer.Text[0]));
           end;
-          Len := CSVUnescape(CSVValues[CSVColumns[I]].Text, CSVValues[CSVColumns[I]].Length, UnescapeBuffer.Mem, UnescapeBuffer.MemSize, Quoter);
+          Len := CSVUnescape(CSVValues[CSVColumns[I]].Text, CSVValues[CSVColumns[I]].Length, UnescapeBuffer.Text, UnescapeBuffer.Length, Quoter);
         end;
 
         if (FieldMappings[I].DestinationField.FieldType = mfBit) then
         begin
-          SetString(S, UnescapeBuffer.Mem, Len);
+          SetString(S, UnescapeBuffer.Text, Len);
           S := FieldMappings[I].DestinationField.EscapeValue(S);
           Values.Write(PChar(S), Length(S) * SizeOf(Char));
         end
         else if (FieldMappings[I].DestinationField.FieldType in BinaryFieldTypes) then
-          Values.WriteBinary(UnescapeBuffer.Mem, Len)
+          Values.WriteBinary(UnescapeBuffer.Text, Len)
         else if (FieldMappings[I].DestinationField.FieldType in TextFieldTypes) then
-          Values.WriteText(UnescapeBuffer.Mem, Len)
+          Values.WriteText(UnescapeBuffer.Text, Len)
         else
-          Values.WriteData(UnescapeBuffer.Mem, Len, not (FieldMappings[I].DestinationField.FieldType in NotQuotedFieldTypes));
+          Values.WriteData(UnescapeBuffer.Text, Len, not (FieldMappings[I].DestinationField.FieldType in NotQuotedFieldTypes));
       end;
     end;
 end;
@@ -2782,24 +2778,24 @@ begin
           Len := 0
         else
         begin
-          if (UnescapeBuffer.MemSize < CSVValues[CSVColumns[I]].Length * SizeOf(Char)) then
+          if (UnescapeBuffer.Length < CSVValues[CSVColumns[I]].Length) then
           begin
-            UnescapeBuffer.MemSize := CSVValues[CSVColumns[I]].Length * SizeOf(Char);
-            ReallocMem(UnescapeBuffer.Mem, UnescapeBuffer.MemSize);
+            UnescapeBuffer.Length := CSVValues[CSVColumns[I]].Length;
+            ReallocMem(UnescapeBuffer.Text, UnescapeBuffer.Length * SizeOf(UnescapeBuffer.Text[0]));
           end;
-          Len := CSVUnescape(CSVValues[CSVColumns[I]].Text, CSVValues[CSVColumns[I]].Length, UnescapeBuffer.Mem, UnescapeBuffer.MemSize, Quoter);
+          Len := CSVUnescape(CSVValues[CSVColumns[I]].Text, CSVValues[CSVColumns[I]].Length, UnescapeBuffer.Text, UnescapeBuffer.Length, Quoter);
         end;
 
         if (FieldMappings[I].DestinationField.FieldType in BinaryFieldTypes) then
           Values.Write('NULL', 4)
         else if (FieldMappings[I].DestinationField.FieldType in TextFieldTypes) then
-          Values.WriteText(UnescapeBuffer.Mem, Len)
+          Values.WriteText(UnescapeBuffer.Text, Len)
         else if (FieldMappings[I].DestinationField.FieldType in NotQuotedFieldTypes) then
-          Values.Write(UnescapeBuffer.Mem, Len)
+          Values.Write(UnescapeBuffer.Text, Len)
         else
         begin
-          Len := SQLEscape(UnescapeBuffer.Mem, Len, nil, 0);
-          SQLEscape(UnescapeBuffer.Mem, Len, Values.WriteExternal(Len), Len);
+          Len := SQLEscape(UnescapeBuffer.Text, Len, nil, 0);
+          SQLEscape(UnescapeBuffer.Text, Len, Values.WriteExternal(Len), Len);
         end;
       end;
     end;

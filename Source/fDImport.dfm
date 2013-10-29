@@ -1,6 +1,7 @@
 object DImport: TDImport
   Left = 734
   Top = 156
+  BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'DImport'
   ClientHeight = 331
@@ -72,6 +73,10 @@ object DImport: TDImport
       Caption = 'TSJob'
       TabVisible = False
       OnShow = TSJobShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -224,6 +229,10 @@ object DImport: TDImport
       TabVisible = False
       OnHide = TSTablesHide
       OnShow = TSTablesShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -278,6 +287,10 @@ object DImport: TDImport
       TabVisible = False
       OnHide = TSSelectHide
       OnShow = TSSelectShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -329,6 +342,10 @@ object DImport: TDImport
       TabVisible = False
       OnHide = TSCSVOptionsHide
       OnShow = TSCSVOptionsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -506,6 +523,10 @@ object DImport: TDImport
       Caption = 'TSWhat'
       TabVisible = False
       OnShow = TSWhatShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -634,6 +655,10 @@ object DImport: TDImport
       Caption = 'TSFields'
       TabVisible = False
       OnShow = TSFieldsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -717,12 +742,11 @@ object DImport: TDImport
     object TSStmtType: TTabSheet
       Caption = 'TSStmtType'
       TabVisible = False
-      OnShow = TSStmtTypeShow
       object GStmtType: TGroupBox_Ext
         Left = 4
         Top = 0
         Width = 325
-        Height = 121
+        Height = 90
         Caption = 'GStmtType'
         TabOrder = 0
         object FLStmtType: TLabel
@@ -754,23 +778,16 @@ object DImport: TDImport
           OnClick = FStmtTypeClick
           OnKeyPress = FStmtTypeKeyPress
         end
-        object FUpdate: TRadioButton
-          Left = 128
-          Top = 88
-          Width = 193
-          Height = 17
-          Caption = 'FUpdate'
-          TabOrder = 2
-          Visible = False
-          OnClick = FStmtTypeClick
-          OnKeyPress = FStmtTypeKeyPress
-        end
       end
     end
     object TSTask: TTabSheet
       Caption = 'TSTask'
       TabVisible = False
       OnShow = TSTaskShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -878,6 +895,10 @@ object DImport: TDImport
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
