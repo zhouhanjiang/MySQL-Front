@@ -48,7 +48,7 @@ object DTransfer: TDTransfer
     Top = 0
     Width = 444
     Height = 289
-    ActivePage = TSSelect
+    ActivePage = TSExecute
     Anchors = [akLeft, akTop, akRight, akBottom]
     Style = tsFlatButtons
     TabOrder = 0
@@ -268,7 +268,7 @@ object DTransfer: TDTransfer
           Caption = 'FLDone'
         end
         object FLEntiered: TLabel
-          Left = 368
+          Left = 366
           Top = 16
           Width = 51
           Height = 13
@@ -277,7 +277,7 @@ object DTransfer: TDTransfer
           Caption = 'FLEntiered'
         end
         object FEntieredObjects: TLabel
-          Left = 338
+          Left = 336
           Top = 40
           Width = 81
           Height = 13
@@ -286,7 +286,7 @@ object DTransfer: TDTransfer
           Caption = 'FEntieredObjects'
         end
         object FEntieredRecords: TLabel
-          Left = 334
+          Left = 332
           Top = 64
           Width = 85
           Height = 13
@@ -295,7 +295,7 @@ object DTransfer: TDTransfer
           Caption = 'FEntieredRecords'
         end
         object FEntieredTime: TLabel
-          Left = 351
+          Left = 349
           Top = 88
           Width = 68
           Height = 13
@@ -311,7 +311,7 @@ object DTransfer: TDTransfer
           Caption = 'FLErrors'
         end
         object FErrors: TLabel
-          Left = 387
+          Left = 385
           Top = 148
           Width = 33
           Height = 13

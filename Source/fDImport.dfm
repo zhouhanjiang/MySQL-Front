@@ -64,7 +64,7 @@ object DImport: TDImport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSStmtType
+    ActivePage = TSExecute
     Anchors = [akLeft, akTop, akRight, akBottom]
     Style = tsButtons
     TabOrder = 0
@@ -721,13 +721,20 @@ object DImport: TDImport
       Caption = 'TSStmtType'
       TabVisible = False
       OnShow = TSStmtTypeShow
+      DesignSize = (
+        333
+        271)
       object GStmtType: TGroupBox_Ext
         Left = 4
         Top = 0
         Width = 325
         Height = 90
+        Anchors = [akLeft, akTop, akRight]
         Caption = 'GStmtType'
         TabOrder = 0
+        DesignSize = (
+          325
+          90)
         object FLStmtType: TLabel
           Left = 8
           Top = 24
@@ -740,6 +747,7 @@ object DImport: TDImport
           Top = 24
           Width = 193
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FInsert'
           Checked = True
           TabOrder = 0
@@ -752,6 +760,7 @@ object DImport: TDImport
           Top = 56
           Width = 193
           Height = 17
+          Anchors = [akLeft, akTop, akRight]
           Caption = 'FReplace'
           TabOrder = 1
           OnClick = FStmtTypeClick
@@ -947,7 +956,7 @@ object DImport: TDImport
           Caption = 'FLDone'
         end
         object FLEntiered: TLabel
-          Left = 265
+          Left = 263
           Top = 16
           Width = 51
           Height = 13
@@ -972,7 +981,7 @@ object DImport: TDImport
           Caption = 'FDoneRecords'
         end
         object FEntieredRecords: TLabel
-          Left = 232
+          Left = 230
           Top = 64
           Width = 85
           Height = 13
@@ -990,7 +999,7 @@ object DImport: TDImport
           Caption = 'FDoneTime'
         end
         object FEntieredTime: TLabel
-          Left = 249
+          Left = 247
           Top = 88
           Width = 68
           Height = 13
@@ -1006,7 +1015,7 @@ object DImport: TDImport
           Caption = 'FLErrors'
         end
         object FErrors: TLabel
-          Left = 283
+          Left = 281
           Top = 148
           Width = 33
           Height = 13
@@ -1033,7 +1042,7 @@ object DImport: TDImport
           Caption = 'FDoneObjects'
         end
         object FEntieredObjects: TLabel
-          Left = 236
+          Left = 234
           Top = 40
           Width = 81
           Height = 13

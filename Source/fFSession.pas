@@ -12071,6 +12071,7 @@ var
   NewForeignKey: TSForeignKey;
   NewKey: TSKey;
   NewTable: TSBaseTable;
+  NewTrigger: TSTrigger;
   SourceSession: TSSession;
   SourceDatabase: TSDatabase;
   SourceRoutine: TSRoutine;
@@ -12300,6 +12301,19 @@ begin
                   NewForeignKey.Name := Name;
                   NewTable.ForeignKeys.AddForeignKey(NewForeignKey);
                   NewForeignKey.Free();
+                end;
+
+              for I := 1 to StringList.Count - 1 do
+                if (StringList.Names[I] = 'Trigger') then
+                begin
+                  Name := CopyName(StringList.ValueFromIndex[I], Database.Triggers);
+
+                  NewTrigger := TSTrigger.Create(Database.Triggers);
+                  NewTrigger.Assign(SourceDatabase.TriggerByName(StringList.ValueFromIndex[I]));
+                  NewTrigger.Name := Name;
+                  NewTrigger.TableName := NewTable.Name;
+                  Database.AddTrigger(NewTrigger);
+                  NewTrigger.Free();
                 end;
 
               Database.UpdateTable(Table, NewTable);

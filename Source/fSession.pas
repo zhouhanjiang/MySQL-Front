@@ -171,7 +171,6 @@ type
     procedure SetSource(const ASource: string); overload; virtual;
     property ValidSource: Boolean read GetValidSource;
   public
-    procedure Assign(const Source: TSObject); reintroduce; virtual;
     constructor Create(const ACItems: TSItems; const AName: string = ''); reintroduce; virtual;
     destructor Destroy(); override;
     procedure Invalidate(); virtual;
@@ -964,7 +963,7 @@ type
     function AddTable(const NewTable: TSBaseTable): Boolean; virtual;
     function AddTrigger(const NewTrigger: TSTrigger): Boolean; virtual;
     function AddView(const NewView: TSView): Boolean; virtual;
-    procedure Assign(const Source: TSObject); override;
+    procedure Assign(const Source: TSObject); reintroduce; virtual;
     function BaseTableByName(const TableName: string): TSBaseTable; overload; virtual;
     function CheckTables(const Tables: TList): Boolean; virtual;
     function CloneRoutine(const Routine: TSRoutine; const NewRoutineName: string): Boolean; overload; virtual;
@@ -1912,14 +1911,6 @@ begin
 end;
 
 { TSObject ********************************************************************}
-
-procedure TSObject.Assign(const Source: TSObject);
-begin
-  inherited Assign(Source);
-
-  FValidSource := Source.ValidSource;
-  FSource := Source.FSource;
-end;
 
 constructor TSObject.Create(const ACItems: TSItems; const AName: string = '');
 begin
@@ -6790,9 +6781,8 @@ begin
       else
         SQL := 'DROP VIEW ' + Session.EscapeIdentifier(NewTableName) + ';' + #13#10 + SQL;
 
-//    Will be handled in SQLAlterTable
-//    if (Session.DatabaseName <> Name) then
-//      SQL := SQLUse() + SQL;
+    if (Session.DatabaseName <> Name) then
+      SQL := SQLUse() + SQL;
 
     Result := Session.ExecuteSQL(SQL);
   end;

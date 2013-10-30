@@ -1218,7 +1218,7 @@ object DExport: TDExport
           Caption = 'FLDone'
         end
         object FLEntiered: TLabel
-          Left = 265
+          Left = 263
           Top = 16
           Width = 51
           Height = 13
@@ -1227,7 +1227,7 @@ object DExport: TDExport
           Caption = 'FLEntiered'
         end
         object FEntieredObjects: TLabel
-          Left = 236
+          Left = 234
           Top = 40
           Width = 81
           Height = 13
@@ -1236,7 +1236,7 @@ object DExport: TDExport
           Caption = 'FEntieredObjects'
         end
         object FEntieredRecords: TLabel
-          Left = 232
+          Left = 230
           Top = 64
           Width = 85
           Height = 13
@@ -1245,7 +1245,7 @@ object DExport: TDExport
           Caption = 'FEntieredRecords'
         end
         object FEntieredTime: TLabel
-          Left = 249
+          Left = 247
           Top = 88
           Width = 68
           Height = 13
@@ -1261,7 +1261,7 @@ object DExport: TDExport
           Caption = 'FLErrors'
         end
         object FErrors: TLabel
-          Left = 283
+          Left = 281
           Top = 148
           Width = 33
           Height = 13

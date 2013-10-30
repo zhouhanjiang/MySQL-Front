@@ -7734,25 +7734,23 @@ begin
 
       if (Success = daSuccess) then
         Item.RecordsSum := Item.RecordsDone;
-
-      SourceDatabase := Item.DBObject.Database;
-      SourceTable := TSBaseTable(Item.DBObject);
-      if (Assigned(SourceDatabase.Triggers) and Assigned(DestinationDatabase.Triggers)) then
-        for I := 0 to SourceDatabase.Triggers.Count - 1 do
-          if ((Success = daSuccess) and (SourceDatabase.Triggers[I].Table = SourceTable) and not Assigned(DestinationDatabase.TriggerByName(SourceDatabase.Triggers[I].Name))) then
-          begin
-            NewTrigger := TSTrigger.Create(DestinationDatabase.Tables);
-            NewTrigger.Assign(SourceDatabase.Triggers[I]);
-            while (Success <> daAbort) do
-            begin
-              DestinationDatabase.AddTrigger(NewTrigger);
-              if (DestinationSession.ErrorCode <> 0) then
-                DoError(DatabaseError(DestinationSession), Item, True);
-            end;
-            NewTrigger.Free();
-          end;
     end;
   end;
+
+  SourceDatabase := Item.DBObject.Database;
+  SourceTable := TSBaseTable(Item.DBObject);
+  if (Assigned(SourceDatabase.Triggers) and Assigned(DestinationDatabase.Triggers)) then
+    for I := 0 to SourceDatabase.Triggers.Count - 1 do
+      if ((Success = daSuccess) and (SourceDatabase.Triggers[I].Table = SourceTable) and not Assigned(DestinationDatabase.TriggerByName(SourceDatabase.Triggers[I].Name))) then
+      begin
+        NewTrigger := TSTrigger.Create(DestinationDatabase.Tables);
+        NewTrigger.Assign(SourceDatabase.Triggers[I]);
+        DestinationSession.BeginSynchron();
+        while ((Success <> daAbort) and not DestinationDatabase.AddTrigger(NewTrigger)) do
+          DoError(DatabaseError(DestinationSession), Item, True);
+        DestinationSession.EndSynchron();
+        NewTrigger.Free();
+      end;
 
   Item.Done := Success = daSuccess;
   DoUpdateGUI();
