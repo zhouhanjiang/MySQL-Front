@@ -2607,10 +2607,13 @@ begin
 
   if (AllowChange) then
   begin
-    if ((URI.Database = '') and not Session.Update()) then
-      AllowChange := False
-    else if ((URI.Database <> '') and not Session.Databases.Update()) then
-      AllowChange := False
+    if (URI.Database = '') then
+    begin
+      if ((ParamToView(URI.Param['view']) = vObjects) and not Session.Update()) then
+        AllowChange := False
+      else if ((ParamToView(URI.Param['view']) <> vObjects) and not Session.Databases.Update()) then
+        AllowChange := False
+    end
     else if (URI.Database <> '') then
     begin
       Database := Session.DatabaseByName(URI.Database);
@@ -8142,7 +8145,7 @@ begin
       etItemCreated,
       etItemAltered,
       etItemDropped:
-        SessionUpdate(Event);
+;//        SessionUpdate(Event);
       etMonitor:
         Perform(CM_POST_MONITOR, 0, 0);
       etBeforeExecuteSQL:
