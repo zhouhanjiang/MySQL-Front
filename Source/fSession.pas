@@ -977,6 +977,7 @@ type
     function FlushTables(const Tables: TList): Boolean; virtual;
     function FunctionByName(const FunctionName: string): TSFunction; virtual;
     function GetSourceEx(const DropBeforeCreate: Boolean = False): string; virtual;
+    procedure Invalidate(); override;
     function OptimizeTables(const Tables: TList): Boolean; virtual;
     procedure PushBuildEvents(); virtual;
     function ProcedureByName(const ProcedureName: string): TSProcedure;
@@ -7119,6 +7120,16 @@ begin
   end;
 end;
 
+procedure TSDatabase.Invalidate();
+begin
+  inherited;
+
+  Tables.Invalidate();
+  if (Assigned(Routines)) then Routines.Invalidate();
+  if (Assigned(Triggers)) then Triggers.Invalidate();
+  if (Assigned(Events)) then Events.Invalidate();
+end;
+
 function TSDatabase.OptimizeTables(const Tables: TList): Boolean;
 var
   I: Integer;
@@ -11950,8 +11961,8 @@ begin
       end;
       Database := TSDBObject(List[I]).Database;
 
-      if (not TSDBObject(List[I]).ValidSource) then
-        SQL := SQL + TSDBObject(List[I]).SQLGetSource();
+//      if (not TSDBObject(List[I]).ValidSource) then
+//        SQL := SQL + TSDBObject(List[I]).SQLGetSource();
       if ((TSDBObject(List[I]) is TSBaseTable) and not TSBaseTable(List[I]).ValidStatus) then
         Tables.Add(List[I])
       else if ((TSObject(List[I]) is TSView) and not TSView(List[I]).ValidFields) then

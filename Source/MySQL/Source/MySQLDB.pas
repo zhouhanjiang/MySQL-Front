@@ -77,7 +77,7 @@ type
     mysql_warning_count: Tmysql_warning_count;
     constructor Create(const ALibraryType: TLibraryType; const AFilename: TFileName); virtual;
     destructor Destroy(); override;
-    function Field(const RawField: MYSQL_FIELD): TMYSQL_FIELD; virtual;
+    procedure SetField(const RawField: MYSQL_FIELD; out Field: TMYSQL_FIELD); inline;
     property Filename: TFileName read FFilename;
     property Handle: HModule read FHandle;
     property LibraryType: TLibraryType read FLibraryType;
@@ -330,7 +330,7 @@ type
     property TerminateCS: TCriticalSection read FTerminateCS;
     property TerminatedThreads: TTerminatedThreads read FTerminatedThreads;
   public
-    function LibDecode(const Data: my_char; const Length: my_int = -1): string; virtual;
+    function LibDecode(const Text: my_char; const Length: my_int = -1): string; virtual;
     procedure BeginSilent(); virtual;
     procedure BeginSynchron(); virtual;
     function CanShutdown(): Boolean; virtual;
@@ -1486,102 +1486,104 @@ begin
   inherited;
 end;
 
-function TMySQLLibrary.Field(const RawField: MYSQL_FIELD): TMYSQL_FIELD;
+procedure TMySQLLibrary.SetField(const RawField: MYSQL_FIELD; out Field: TMYSQL_FIELD);
 begin
+  ZeroMemory(@Field, SizeOf(Field));
+
   if (Version >= 40101) then
   begin
-    Result.name := MYSQL_FIELD_40101(RawField)^.name;
-    Result.org_name := MYSQL_FIELD_40101(RawField)^.org_name;
-    Result.table := MYSQL_FIELD_40101(RawField)^.table;
-    Result.org_table := MYSQL_FIELD_40101(RawField)^.org_table;
-    Result.db := MYSQL_FIELD_40101(RawField)^.db;
-    Result.catalog := MYSQL_FIELD_40101(RawField)^.catalog;
-    Result.def := MYSQL_FIELD_40101(RawField)^.def;
-    Result.length := MYSQL_FIELD_40101(RawField)^.length;
-    Result.max_length := MYSQL_FIELD_40101(RawField)^.max_length;
-    Result.name_length := MYSQL_FIELD_40101(RawField)^.name_length;
-    Result.org_name_length := MYSQL_FIELD_40101(RawField)^.org_name_length;
-    Result.table_length := MYSQL_FIELD_40101(RawField)^.table_length;
-    Result.org_table_length := MYSQL_FIELD_40101(RawField)^.org_table_length;
-    Result.db_length := MYSQL_FIELD_40101(RawField)^.db_length;
-    Result.catalog_length := MYSQL_FIELD_40101(RawField)^.catalog_length;
-    Result.def_length := MYSQL_FIELD_40101(RawField)^.def_length;
-    Result.flags := MYSQL_FIELD_40101(RawField)^.flags;
-    Result.decimals := MYSQL_FIELD_40101(RawField)^.decimals;
-    Result.charsetnr := MYSQL_FIELD_40101(RawField)^.charsetnr;
-    Result.field_type := MYSQL_FIELD_40101(RawField)^.field_type;
+    Field.name := MYSQL_FIELD_40101(RawField)^.name;
+    Field.org_name := MYSQL_FIELD_40101(RawField)^.org_name;
+    Field.table := MYSQL_FIELD_40101(RawField)^.table;
+    Field.org_table := MYSQL_FIELD_40101(RawField)^.org_table;
+    Field.db := MYSQL_FIELD_40101(RawField)^.db;
+    Field.catalog := MYSQL_FIELD_40101(RawField)^.catalog;
+    Field.def := MYSQL_FIELD_40101(RawField)^.def;
+    Field.length := MYSQL_FIELD_40101(RawField)^.length;
+    Field.max_length := MYSQL_FIELD_40101(RawField)^.max_length;
+    Field.name_length := MYSQL_FIELD_40101(RawField)^.name_length;
+    Field.org_name_length := MYSQL_FIELD_40101(RawField)^.org_name_length;
+    Field.table_length := MYSQL_FIELD_40101(RawField)^.table_length;
+    Field.org_table_length := MYSQL_FIELD_40101(RawField)^.org_table_length;
+    Field.db_length := MYSQL_FIELD_40101(RawField)^.db_length;
+    Field.catalog_length := MYSQL_FIELD_40101(RawField)^.catalog_length;
+    Field.def_length := MYSQL_FIELD_40101(RawField)^.def_length;
+    Field.flags := MYSQL_FIELD_40101(RawField)^.flags;
+    Field.decimals := MYSQL_FIELD_40101(RawField)^.decimals;
+    Field.charsetnr := MYSQL_FIELD_40101(RawField)^.charsetnr;
+    Field.field_type := MYSQL_FIELD_40101(RawField)^.field_type;
   end
   else if (Version >= 40100) then
   begin
-    Result.name := MYSQL_FIELD_40100(RawField)^.name;
-    Result.org_name := MYSQL_FIELD_40100(RawField)^.org_name;
-    Result.table := MYSQL_FIELD_40100(RawField)^.table;
-    Result.org_table := MYSQL_FIELD_40100(RawField)^.org_table;
-    Result.db := MYSQL_FIELD_40100(RawField)^.db;
-    Result.catalog := nil;
-    Result.def := MYSQL_FIELD_40100(RawField)^.def;
-    Result.length := MYSQL_FIELD_40100(RawField)^.length;
-    Result.max_length := MYSQL_FIELD_40100(RawField)^.max_length;
-    Result.name_length := MYSQL_FIELD_40100(RawField)^.name_length;
-    Result.org_name_length := MYSQL_FIELD_40100(RawField)^.org_name_length;
-    Result.table_length := MYSQL_FIELD_40100(RawField)^.table_length;
-    Result.org_table_length := MYSQL_FIELD_40100(RawField)^.org_table_length;
-    Result.db_length := MYSQL_FIELD_40100(RawField)^.db_length;
-    Result.catalog_length := 0;
-    Result.def_length := MYSQL_FIELD_40100(RawField)^.def_length;
-    Result.flags := MYSQL_FIELD_40100(RawField)^.flags;
-    Result.decimals := MYSQL_FIELD_40100(RawField)^.decimals;
-    Result.charsetnr := MYSQL_FIELD_40100(RawField)^.charsetnr;
-    Result.field_type := MYSQL_FIELD_40100(RawField)^.field_type;
+    Field.name := MYSQL_FIELD_40100(RawField)^.name;
+    Field.org_name := MYSQL_FIELD_40100(RawField)^.org_name;
+    Field.table := MYSQL_FIELD_40100(RawField)^.table;
+    Field.org_table := MYSQL_FIELD_40100(RawField)^.org_table;
+    Field.db := MYSQL_FIELD_40100(RawField)^.db;
+    Field.catalog := nil;
+    Field.def := MYSQL_FIELD_40100(RawField)^.def;
+    Field.length := MYSQL_FIELD_40100(RawField)^.length;
+    Field.max_length := MYSQL_FIELD_40100(RawField)^.max_length;
+    Field.name_length := MYSQL_FIELD_40100(RawField)^.name_length;
+    Field.org_name_length := MYSQL_FIELD_40100(RawField)^.org_name_length;
+    Field.table_length := MYSQL_FIELD_40100(RawField)^.table_length;
+    Field.org_table_length := MYSQL_FIELD_40100(RawField)^.org_table_length;
+    Field.db_length := MYSQL_FIELD_40100(RawField)^.db_length;
+    Field.catalog_length := 0;
+    Field.def_length := MYSQL_FIELD_40100(RawField)^.def_length;
+    Field.flags := MYSQL_FIELD_40100(RawField)^.flags;
+    Field.decimals := MYSQL_FIELD_40100(RawField)^.decimals;
+    Field.charsetnr := MYSQL_FIELD_40100(RawField)^.charsetnr;
+    Field.field_type := MYSQL_FIELD_40100(RawField)^.field_type;
   end
   else if (Version >= 40000) then
   begin
-    Result.name := MYSQL_FIELD_40000(RawField)^.name;
-    Result.org_name := nil;
-    Result.table := MYSQL_FIELD_40000(RawField)^.table;
-    Result.org_table := MYSQL_FIELD_40000(RawField)^.org_table;
+    Field.name := MYSQL_FIELD_40000(RawField)^.name;
+    Field.org_name := nil;
+    Field.table := MYSQL_FIELD_40000(RawField)^.table;
+    Field.org_table := MYSQL_FIELD_40000(RawField)^.org_table;
     if (Version = 40017) then
-      Result.db := nil // libMySQL.dll 4.0.17 gibt db einen fehlerhaften Zeiger zurück.
+      Field.db := nil // libMySQL.dll 4.0.17 gibt db einen fehlerhaften Zeiger zurück.
     else
-      Result.db := MYSQL_FIELD_40000(RawField)^.db;
-    Result.catalog := nil;
-    Result.def := MYSQL_FIELD_40000(RawField)^.def;
-    Result.length := MYSQL_FIELD_40000(RawField)^.length;
-    Result.max_length := MYSQL_FIELD_40000(RawField)^.max_length;
-    Result.name_length := 0;
-    Result.org_name_length := 0;
-    Result.table_length := 0;
-    Result.org_table_length := 0;
-    Result.db_length := 0;
-    Result.catalog_length := 0;
-    Result.def_length := 0;
-    Result.flags := MYSQL_FIELD_40000(RawField)^.flags;
-    Result.decimals := MYSQL_FIELD_40000(RawField)^.decimals;
-    Result.charsetnr := 0;
-    Result.field_type := MYSQL_FIELD_40000(RawField)^.field_type;
+      Field.db := MYSQL_FIELD_40000(RawField)^.db;
+    Field.catalog := nil;
+    Field.def := MYSQL_FIELD_40000(RawField)^.def;
+    Field.length := MYSQL_FIELD_40000(RawField)^.length;
+    Field.max_length := MYSQL_FIELD_40000(RawField)^.max_length;
+    Field.name_length := 0;
+    Field.org_name_length := 0;
+    Field.table_length := 0;
+    Field.org_table_length := 0;
+    Field.db_length := 0;
+    Field.catalog_length := 0;
+    Field.def_length := 0;
+    Field.flags := MYSQL_FIELD_40000(RawField)^.flags;
+    Field.decimals := MYSQL_FIELD_40000(RawField)^.decimals;
+    Field.charsetnr := 0;
+    Field.field_type := MYSQL_FIELD_40000(RawField)^.field_type;
   end
   else
   begin
-    Result.name := MYSQL_FIELD_32300(RawField)^.name;
-    Result.org_name := nil;
-    Result.table := MYSQL_FIELD_32300(RawField)^.table;
-    Result.org_table := nil;
-    Result.db := nil;
-    Result.catalog := nil;
-    Result.def := MYSQL_FIELD_32300(RawField)^.def;
-    Result.length := MYSQL_FIELD_32300(RawField)^.length;
-    Result.max_length := MYSQL_FIELD_32300(RawField)^.max_length;
-    Result.name_length := 0;
-    Result.org_name_length := 0;
-    Result.table_length := 0;
-    Result.org_table_length := 0;
-    Result.db_length := 0;
-    Result.catalog_length := 0;
-    Result.def_length := 0;
-    Result.flags := MYSQL_FIELD_32300(RawField)^.flags;
-    Result.decimals := MYSQL_FIELD_32300(RawField)^.decimals;
-    Result.charsetnr := 0;
-    Result.field_type := MYSQL_FIELD_32300(RawField)^.field_type;
+    Field.name := MYSQL_FIELD_32300(RawField)^.name;
+    Field.org_name := nil;
+    Field.table := MYSQL_FIELD_32300(RawField)^.table;
+    Field.org_table := nil;
+    Field.db := nil;
+    Field.catalog := nil;
+    Field.def := MYSQL_FIELD_32300(RawField)^.def;
+    Field.length := MYSQL_FIELD_32300(RawField)^.length;
+    Field.max_length := MYSQL_FIELD_32300(RawField)^.max_length;
+    Field.name_length := 0;
+    Field.org_name_length := 0;
+    Field.table_length := 0;
+    Field.org_table_length := 0;
+    Field.db_length := 0;
+    Field.catalog_length := 0;
+    Field.def_length := 0;
+    Field.flags := MYSQL_FIELD_32300(RawField)^.flags;
+    Field.decimals := MYSQL_FIELD_32300(RawField)^.decimals;
+    Field.charsetnr := 0;
+    Field.field_type := MYSQL_FIELD_32300(RawField)^.field_type;
   end
 end;
 
@@ -2626,7 +2628,7 @@ begin
   TerminateCS.Leave(); // Why is this needed here?
 end;
 
-function TMySQLConnection.LibDecode(const Data: my_char; const Length: my_int = -1): string;
+function TMySQLConnection.LibDecode(const Text: my_char; const Length: my_int = -1): string;
 label
   StringL;
 var
@@ -2634,13 +2636,13 @@ var
 begin
   if (Length >= 0) then
     Len := Length
-  else if (Assigned(Data)) then
-    Len := lstrlenA(Data)
+  else if (Assigned(Text)) then
+    Len := lstrlenA(Text)
   else
     Len := 0;
-  SetLength(Result, AnsiCharToWideChar(CodePage, Data, Len, nil, 0));
+  SetLength(Result, AnsiCharToWideChar(CodePage, Text, Len, nil, 0));
   if (Len > 0) then
-    SetLength(Result, AnsiCharToWideChar(CodePage, Data, Len, PChar(Result), System.Length(Result)));
+    SetLength(Result, AnsiCharToWideChar(CodePage, Text, Len, PChar(Result), System.Length(Result)));
 end;
 
 function TMySQLConnection.LibEncode(const Value: string): RawByteString;
@@ -4353,7 +4355,8 @@ var
   Field: TField;
   I: Integer;
   Len: Longword;
-  LibField: MYSQL_FIELD;
+  LibField: TMYSQL_FIELD;
+  RawField: MYSQL_FIELD;
   S: string;
   UniqueDatabaseName: Boolean;
   UniqueTableName: Boolean;
@@ -4372,62 +4375,64 @@ begin
       UniqueDatabaseName := True; UniqueTableName := True;
 
       repeat
-        LibField := MYSQL_FIELD(Connection.Lib.mysql_fetch_field(Handle));
+        RawField := MYSQL_FIELD(Connection.Lib.mysql_fetch_field(Handle));
 
-        if (Assigned(LibField)) then
+        if (Assigned(RawField)) then
         begin
+          Connection.Lib.SetField(RawField, LibField);
+
           if ((Connection.ServerVersion < 40101) or (Connection.Lib.Version < 40101)) then
           begin
-            Binary := Connection.Lib.Field(LibField).flags and BINARY_FLAG <> 0;
-            if (not (Connection.Lib.Field(LibField).field_type in [MYSQL_TYPE_ENUM, MYSQL_TYPE_SET, MYSQL_TYPE_TINY_BLOB, MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_LONG_BLOB, MYSQL_TYPE_BLOB, MYSQL_TYPE_VAR_STRING, MYSQL_TYPE_STRING]) or (Connection.Lib.Field(LibField).flags and BINARY_FLAG <> 0)) then
-              Len := Connection.Lib.Field(LibField).length
+            Binary := LibField.flags and BINARY_FLAG <> 0;
+            if (not (LibField.field_type in [MYSQL_TYPE_ENUM, MYSQL_TYPE_SET, MYSQL_TYPE_TINY_BLOB, MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_LONG_BLOB, MYSQL_TYPE_BLOB, MYSQL_TYPE_VAR_STRING, MYSQL_TYPE_STRING]) or (LibField.flags and BINARY_FLAG <> 0)) then
+              Len := LibField.length
             else if (Connection.ServerVersion <= 40109) then // In 40109 this is needed. In 40122 and higher the problem is fixed. What is the exact ServerVersion?
-              Len := Connection.Lib.Field(LibField).length
+              Len := LibField.length
             else
             begin
               if (MySQL_Character_Sets[Connection.CharsetNr].MaxLen = 0) then
                 raise ERangeError.CreateFmt(SPropertyOutOfRange + ' - Charset: %s', ['MaxLen', MySQL_Character_Sets[Connection.CharsetNr].CharsetName])
               else
-                Len := Connection.Lib.Field(LibField).length div MySQL_Character_Sets[Connection.CharsetNr].MaxLen;
+                Len := LibField.length div MySQL_Character_Sets[Connection.CharsetNr].MaxLen;
             end;
           end
           else
           begin
-            Binary := Connection.Lib.Field(LibField).charsetnr = 63;
-            Len := Connection.Lib.Field(LibField).length;
+            Binary := LibField.charsetnr = 63;
+            Len := LibField.length;
             if (not Binary and (Connection.ServerVersion > 40109)) then // In 40109 this is needed. In 40122 and higher the problem is fixed. What is the exact ServerVersion?
               for I := 0 to Length(MySQL_Collations) - 1 do
-                if (MySQL_Collations[I].CharsetNr = Connection.Lib.Field(LibField).charsetnr) then
+                if (MySQL_Collations[I].CharsetNr = LibField.charsetnr) then
                   if (MySQL_Collations[I].MaxLen = 0) then
                     raise ERangeError.CreateFmt(SPropertyOutOfRange + ' - CharsetNr: %d', ['MaxLen', MySQL_Collations[I].CharsetNr])
                   else
-                    Len := Connection.Lib.Field(LibField).length div MySQL_Collations[I].MaxLen;
+                    Len := LibField.length div MySQL_Collations[I].MaxLen;
           end;
           Len := Len and $7FFFFFFF;
 
-          case (Connection.Lib.Field(LibField).field_type) of
+          case (LibField.field_type) of
             MYSQL_TYPE_NULL:
               Field := TField.Create(Self);
             MYSQL_TYPE_BIT:
               begin Field := TMySQLBitField.Create(Self); Field.Tag := ftBitField; end;
             MYSQL_TYPE_TINY:
-              if (Connection.Lib.Field(LibField).flags and UNSIGNED_FLAG = 0) then
+              if (LibField.flags and UNSIGNED_FLAG = 0) then
                 Field := TShortIntField.Create(Self)
               else
                 Field := TByteField.Create(Self);
             MYSQL_TYPE_SHORT:
-              if (Connection.Lib.Field(LibField).flags and UNSIGNED_FLAG = 0) then
+              if (LibField.flags and UNSIGNED_FLAG = 0) then
                 Field := TSmallIntField.Create(Self)
               else
                 Field := TWordField.Create(Self);
             MYSQL_TYPE_INT24,
             MYSQL_TYPE_LONG:
-              if (Connection.Lib.Field(LibField).flags and UNSIGNED_FLAG = 0) then
+              if (LibField.flags and UNSIGNED_FLAG = 0) then
                 Field := TIntegerField.Create(Self)
               else
                 Field := TLongWordField.Create(Self);
             MYSQL_TYPE_LONGLONG:
-              if (Connection.Lib.Field(LibField).flags and UNSIGNED_FLAG = 0) then
+              if (LibField.flags and UNSIGNED_FLAG = 0) then
                 Field := TLargeintField.Create(Self)
               else
                 Field := TLargeWordField.Create(Self);
@@ -4482,40 +4487,32 @@ begin
             MYSQL_TYPE_GEOMETRY:
               begin Field := TMySQLBlobField.Create(Self); Field.Size := Len; Field.Tag := ftGeometryField; end;
             else
-              raise EDatabaseError.CreateFMT(SBadFieldType + ' (%d)', [Connection.Lib.Field(LibField).name, Byte(Connection.Lib.Field(LibField).field_type)]);
+              raise EDatabaseError.CreateFMT(SBadFieldType + ' (%d)', [LibField.name, Byte(LibField.field_type)]);
           end;
 
-          Field.FieldName := Connection.LibDecode(Connection.Lib.Field(LibField).name);
-          if (FieldDefs.IndexOf(Field.FieldName) >= 0) then
-          begin
-            I := 2;
-            while (FieldDefs.IndexOf(Field.FieldName + '_' + IntToStr(I)) >= 0) do Inc(I);
-            Field.FieldName := Field.FieldName + '_' + IntToStr(I);
-          end;
-
-          case (Connection.Lib.Field(LibField).field_type) of
+          case (LibField.field_type) of
             MYSQL_TYPE_TINY:  // 8 bit
-              if (Connection.Lib.Field(LibField).flags and UNSIGNED_FLAG = 0) then
+              if (LibField.flags and UNSIGNED_FLAG = 0) then
                 begin TShortIntField(Field).MinValue := -$80; TShortIntField(Field).MaxValue := $7F; end
               else
                 begin TByteField(Field).MinValue := 0; TByteField(Field).MaxValue := $FF; end;
             MYSQL_TYPE_SHORT: // 16 bit
-              if (Connection.Lib.Field(LibField).flags and UNSIGNED_FLAG = 0) then
+              if (LibField.flags and UNSIGNED_FLAG = 0) then
                 begin TSmallIntField(Field).MinValue := -$8000; TSmallIntField(Field).MaxValue := $7FFF; end
               else
                 begin TWordField(Field).MinValue := 0; TWordField(Field).MaxValue := $FFFF; end;
             MYSQL_TYPE_INT24: // 24 bit
-              if (Connection.Lib.Field(LibField).flags and UNSIGNED_FLAG = 0) then
+              if (LibField.flags and UNSIGNED_FLAG = 0) then
                 begin TIntegerField(Field).MinValue := -$800000; TIntegerField(Field).MaxValue := $7FFFFF; end
               else
                 begin TLongWordField(Field).MinValue := 0; TLongWordField(Field).MaxValue := $FFFFFF; end;
             MYSQL_TYPE_LONG: // 32 bit
-              if (Connection.Lib.Field(LibField).flags and UNSIGNED_FLAG = 0) then
+              if (LibField.flags and UNSIGNED_FLAG = 0) then
                 begin TIntegerField(Field).MinValue := -$80000000; TIntegerField(Field).MaxValue := $7FFFFFFF; end
               else
                 begin TLongWordField(Field).MinValue := 0; TLongWordField(Field).MaxValue := $FFFFFFFF; end;
             MYSQL_TYPE_LONGLONG: // 64 bit
-              if (Connection.Lib.Field(LibField).flags and UNSIGNED_FLAG = 0) then
+              if (LibField.flags and UNSIGNED_FLAG = 0) then
                 begin TLargeintField(Field).MinValue := -$8000000000000000; TLargeintField(Field).MaxValue := $7FFFFFFFFFFFFFFF; end
               else
                 begin TLargeWordField(Field).MinValue := 0; TLargeWordField(Field).MaxValue := $FFFFFFFFFFFFFFFF; end;
@@ -4526,39 +4523,47 @@ begin
                 begin TWordField(Field).MinValue := 1901; TWordField(Field).MaxValue := 2155; end
           end;
 
-          Field.Required := Connection.Lib.Field(LibField).flags and NOT_NULL_FLAG <> 0;
+          Field.FieldName := Connection.LibDecode(LibField.name);
+          if (Assigned(FindField(Field.FieldName))) then
+          begin
+            I := 2;
+            while (Assigned(FindField(Field.FieldName + '_' + IntToStr(I)))) do Inc(I);
+            Field.FieldName := Field.FieldName + '_' + IntToStr(I);
+          end;
+
+          Field.Required := LibField.flags and NOT_NULL_FLAG <> 0;
 
           CreateField := Pos('.', Field.Origin) = 0;
           if (CreateField) then
           begin
-            if ((Connection.Lib.Version >= 40100) and (Connection.Lib.Field(LibField).org_name_length > 0)) then
-              Field.Origin := '"' + Connection.LibDecode(Connection.Lib.Field(LibField).org_name) + '"'
-            else if (Connection.Lib.Field(LibField).name_length > 0) then
-              Field.Origin := '"' + Connection.LibDecode(Connection.Lib.Field(LibField).name) + '"'
+            if ((Connection.Lib.Version >= 40100) and (LibField.org_name_length > 0)) then
+              Field.Origin := '"' + Connection.LibDecode(LibField.org_name) + '"'
+            else if (LibField.name_length > 0) then
+              Field.Origin := '"' + Connection.LibDecode(LibField.name) + '"'
             else
               Field.Origin := '';
             if (Field.Origin <> '') then
-              if ((Connection.Lib.Version >= 40000) and (Connection.Lib.Field(LibField).org_table_length > 0)) then
+              if ((Connection.Lib.Version >= 40000) and (LibField.org_table_length > 0)) then
               begin
-                Field.Origin := '"' + Connection.LibDecode(Connection.Lib.Field(LibField).org_table) + '".' + Field.Origin;
-                if ((Connection.Lib.Version >= 40101) and (Connection.Lib.Field(LibField).db_length > 0)) then
-                  Field.Origin := '"' + Connection.LibDecode(Connection.Lib.Field(LibField).db) + '".' + Field.Origin;
+                Field.Origin := '"' + Connection.LibDecode(LibField.org_table) + '".' + Field.Origin;
+                if ((Connection.Lib.Version >= 40101) and (LibField.db_length > 0)) then
+                  Field.Origin := '"' + Connection.LibDecode(LibField.db) + '".' + Field.Origin;
               end
-              else if (Connection.Lib.Field(LibField).table_length > 0) then
-                Field.Origin := '"' + Connection.LibDecode(Connection.Lib.Field(LibField).table) + '".' + Field.Origin;
+              else if (LibField.table_length > 0) then
+                Field.Origin := '"' + Connection.LibDecode(LibField.table) + '".' + Field.Origin;
             Field.ReadOnly := Field.Origin = '';
-            if ((Connection.Lib.Version >= 40101) and (Connection.Lib.Field(LibField).db_length > 0)) then
+            if ((Connection.Lib.Version >= 40101) and (LibField.db_length > 0)) then
               if (DName = '') then
-                DName := Connection.LibDecode(Connection.Lib.Field(LibField).db)
+                DName := Connection.LibDecode(LibField.db)
               else
-                UniqueDatabaseName := UniqueDatabaseName and (Connection.LibDecode(Connection.Lib.Field(LibField).db) = DName);
-            if (Connection.Lib.Field(LibField).table_length > 0) then
+                UniqueDatabaseName := UniqueDatabaseName and (Connection.LibDecode(LibField.db) = DName);
+            if (LibField.table_length > 0) then
               if (FTableName = '') then
-                FTableName := Connection.LibDecode(Connection.Lib.Field(LibField).table)
+                FTableName := Connection.LibDecode(LibField.table)
               else
-                UniqueTableName := UniqueTableName and (Connection.LibDecode(Connection.Lib.Field(LibField).table) = FTableName);
+                UniqueTableName := UniqueTableName and (Connection.LibDecode(LibField.table) = FTableName);
 
-            if (Connection.Lib.Field(LibField).flags and (AUTO_INCREMENT_FLAG) <> 0) then
+            if (LibField.flags and (AUTO_INCREMENT_FLAG) <> 0) then
               Field.AutoGenerateValue := arAutoInc
             else
               Field.AutoGenerateValue := arNone;
@@ -4588,11 +4593,11 @@ begin
                 begin
                   if (Len = 0) then
                     S := '0'
-                  else if (BitField(Field) or (Connection.Lib.Field(LibField).flags and ZEROFILL_FLAG <> 0)) then
+                  else if (BitField(Field) or (LibField.flags and ZEROFILL_FLAG <> 0)) then
                     S := StringOfChar('0', Len)
                   else
                     S := StringOfChar('#', Len - 1) + '0';
-                  Decimals := Connection.Lib.Field(LibField).decimals;
+                  Decimals := LibField.decimals;
                   if (Decimals > Len) then Decimals := Len;
                   if ((Field.DataType in [ftSingle, ftFloat, ftExtended]) and (Decimals > 0)) then
                   begin
@@ -4611,7 +4616,7 @@ begin
 
             if (Assigned(Handle)) then
             begin
-              Field.DisplayLabel := Connection.LibDecode(Connection.Lib.Field(LibField).name);
+              Field.DisplayLabel := Connection.LibDecode(LibField.name);
               case (Field.DataType) of
                 ftBlob: Field.DisplayWidth := 7;
                 ftWideMemo: Field.DisplayWidth := 8;
@@ -4632,7 +4637,7 @@ begin
               Field.FieldName := Field.Name;
 
 
-            if (Connection.Lib.Field(LibField).flags and PRI_KEY_FLAG = 0) then
+            if (LibField.flags and PRI_KEY_FLAG = 0) then
               Field.ProviderFlags := Field.ProviderFlags - [pfInKey]
             else
               Field.ProviderFlags := Field.ProviderFlags + [pfInKey];
@@ -4646,7 +4651,7 @@ begin
               FreeAndNil(Field)
           end;
         end;
-      until (not Assigned(LibField));
+      until (not Assigned(RawField));
 
       if (UniqueDatabaseName and (DName <> '')) then
         FDatabaseName := DName;

@@ -4418,12 +4418,16 @@ begin
 
     if (ForceDirectories(DataPath)) then
     begin
-      if (Assigned(DesktopXMLDocument) and DesktopXMLDocument.Modified) then
-        if (ForceDirectories(ExtractFilePath(DesktopFilename))) then
-          DesktopXMLDocument.SaveToFile(DesktopFilename);
-      if (Assigned(HistoryXMLDocument) and HistoryXMLDocument.Modified) then
-        if (ForceDirectories(ExtractFilePath(HistoryFilename))) then
-          HistoryXMLDocument.SaveToFile(HistoryFilename);
+      try
+        if (Assigned(DesktopXMLDocument) and DesktopXMLDocument.Modified) then
+          if (ForceDirectories(ExtractFilePath(DesktopFilename))) then
+            DesktopXMLDocument.SaveToFile(DesktopFilename);
+        if (Assigned(HistoryXMLDocument) and HistoryXMLDocument.Modified) then
+          if (ForceDirectories(ExtractFilePath(HistoryFilename))) then
+            HistoryXMLDocument.SaveToFile(HistoryFilename);
+      except
+        // Do not inform user about problems while saving file
+      end;
     end;
 
     Modified := False;
