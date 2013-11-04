@@ -8145,7 +8145,7 @@ begin
       etItemCreated,
       etItemAltered,
       etItemDropped:
-;//        SessionUpdate(Event);
+        SessionUpdate(Event);
       etMonitor:
         Perform(CM_POST_MONITOR, 0, 0);
       etBeforeExecuteSQL:
