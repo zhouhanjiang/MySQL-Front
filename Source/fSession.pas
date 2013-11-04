@@ -11961,8 +11961,8 @@ begin
       end;
       Database := TSDBObject(List[I]).Database;
 
-//      if (not TSDBObject(List[I]).ValidSource) then
-//        SQL := SQL + TSDBObject(List[I]).SQLGetSource();
+      if (not TSDBObject(List[I]).ValidSource) then
+        SQL := SQL + TSDBObject(List[I]).SQLGetSource();
       if ((TSDBObject(List[I]) is TSBaseTable) and not TSBaseTable(List[I]).ValidStatus) then
         Tables.Add(List[I])
       else if ((TSObject(List[I]) is TSView) and not TSView(List[I]).ValidFields) then
