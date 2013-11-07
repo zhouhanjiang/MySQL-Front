@@ -1722,6 +1722,7 @@ end;
 
 procedure TTImport.AfterExecuteData(const Item: TItem);
 begin
+  SetLength(FieldMappings, 0);
 end;
 
 procedure TTImport.BeforeExecute();
@@ -1762,7 +1763,6 @@ end;
 destructor TTImport.Destroy();
 begin
   Close();
-  SetLength(FieldMappings, 0);
 
   inherited;
 end;
@@ -1834,7 +1834,6 @@ procedure TTImport.Execute();
 var
   DataSet: TMySQLQuery;
   I: Integer;
-  J: Integer;
   OLD_FOREIGN_KEY_CHECKS: string;
   OLD_UNIQUE_CHECKS: string;
   Table: TSTable;
@@ -1913,10 +1912,6 @@ begin
 
         if (not Assigned(Table)) then
           raise Exception.Create('Table "' + TTImport.TItem(Items[I]).DestinationTableName + '" does not exists.');
-
-        if ((I > 0) or (Length(FieldMappings) = 0)) then
-          for J := 0 to Table.Fields.Count - 1 do
-            AddField(Table.Fields[J], Table.Fields[J].Name);
 
         ExecuteData(TTImport.TItem(Items[I]), Database.TableByName(TTImport.TItem(Items[I]).DestinationTableName));
       end;
@@ -2938,6 +2933,8 @@ begin
     FreeMem(ODBCData);
   if (Stmt <> SQL_NULL_HANDLE) then
     SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
+
+  inherited;
 end;
 
 procedure TTImportBaseODBC.BeforeExecute();
@@ -3477,7 +3474,8 @@ begin
     for I := 0 to Length(FieldMappings) - 1 do
     begin
       if (I > 0) then Values.WriteChar(',');
-
+      if (I >= Length(ColumnDesc)) then
+        Write;
       case (ColumnDesc[I].SQLDataType) of
         SQL_BIT,
         SQL_TINYINT,

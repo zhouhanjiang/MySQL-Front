@@ -2617,7 +2617,9 @@ begin
     else if (URI.Database <> '') then
     begin
       Database := Session.DatabaseByName(URI.Database);
-      if (not Assigned(Database)) then
+      if ((URI.Database <> '') and not Session.Databases.Update()) then
+        AllowChange := False
+      else if (not Assigned(Database)) then
         NotFound := True
       else if ((ParamToView(URI.Param['view']) in [vEditor, vEditor2, vEditor3]) and not Database.Update((URI.Table = '') and (URI.Param['object'] = Null) and (URI.Param['view'] = NULL)) and ((URI.Table <> '') or (URI.Param['object'] <> Null))) then
         AllowChange := False
@@ -9736,6 +9738,8 @@ begin
     end;
   end;
 
+  ListView.Groups.EndUpdate();
+
   if (ListView = FServerListView) then
   begin
     ListView.Columns[0].Caption := Preferences.LoadStr(38);
@@ -9753,8 +9757,7 @@ begin
         iiVariables: ListView.Items[I].Caption := Preferences.LoadStr(22);
         else Dec(Count);
       end;
-
-    SetListViewGroupHeader(ListView, 1, Preferences.LoadStr(12) + ' (' + IntToStr(Count) + ')');
+    SetListViewGroupHeader(ListView, giSystemTools, Preferences.LoadStr(12) + ' (' + IntToStr(Count) + ')');
   end
   else if (TObject(ListView.Tag) is TSDatabase) then
   begin
@@ -9809,8 +9812,6 @@ begin
     ListView.Columns[0].Caption := Preferences.LoadStr(267);
     ListView.Columns[1].Caption := Preferences.LoadStr(268);
   end;
-
-  ListView.Groups.EndUpdate();
 end;
 
 procedure TFSession.ListViewKeyDown(Sender: TObject; var Key: Word;
@@ -10371,10 +10372,10 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
     if (ReorderGroup and ListView.GroupView) then
     begin
       GroupID := Result.GroupID;
-      for I := 0 to ListView.Items.Count - 1 do
+      for I := Result.Index + 1 to ListView.Items.Count - 1 do
         if (ListView.Items[I].GroupID = GroupID) then
         begin
-          ListView.Items[I].GroupID := 0;
+          ListView.Items[I].GroupID := -1;
           ListView.Items[I].GroupID := GroupID; // Why is this needed (in Delphi XE2)???
         end;
     end;

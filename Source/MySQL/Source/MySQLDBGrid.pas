@@ -934,7 +934,7 @@ begin
                 end;
 
                 for I := 0 to Min(Length(Values), DataLink.DataSet.FieldCount) - 1 do
-                  if ((Values[I].Length = 0) or (DataLink.DataSet.Fields[I].AutoGenerateValue = arAutoInc)) then
+                  if (Values[I].Length = 0) then
                     DataLink.DataSet.Fields[I].Clear()
                   else
                   try

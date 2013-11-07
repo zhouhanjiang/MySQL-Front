@@ -5504,8 +5504,7 @@ begin
     Inc(InternRecordBuffers.FilteredRecordCount);
 
   for I := 0 to FieldCount - 1 do
-    if (Fields[I].AutoGenerateValue = arAutoInc) then
-    else if (Fields[I].DefaultExpression <> '') then
+    if (Fields[I].DefaultExpression <> '') then
     begin
       RBS := Connection.LibEncode(SQLUnescape(Fields[I].DefaultExpression));
       SetFieldData(Fields[I], @RBS[1], Length(RBS));
