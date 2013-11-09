@@ -497,7 +497,12 @@ begin
   repeat
     Result := InternetReadFile(Request, @my_char(@Buffer)[BytesRead], BytesToRead - BytesRead, Size);
     if (not Result) then
-      Seterror(CR_SERVER_LOST)
+      RaiseLastOSError()
+    else if (Size = 0) then
+    begin
+      Seterror(CR_SERVER_LOST);
+      Result := False;
+    end
     else
       Inc(BytesRead, Size);
   until (not Result or (BytesRead = BytesToRead));
