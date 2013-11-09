@@ -101,7 +101,7 @@ object DIndex: TDIndex
       Enabled = False
     end
     object FLComment: TLabel
-      Left = 3
+      Left = 8
       Top = 268
       Width = 56
       Height = 13

@@ -7,7 +7,6 @@ uses
   Dialogs, ComCtrls, StdCtrls, Mask, ExtCtrls,
   ComCtrls_Ext, StdCtrls_Ext, Forms_Ext,
   MySQLDB,
-SysConst,
   fSession,
   fBase;
 
@@ -87,6 +86,8 @@ type
     procedure FFormatTimestampChange(Sender: TObject);
     procedure FFormatUnionChange(Sender: TObject);
     procedure FFormatYearChange(Sender: TObject);
+    procedure FormCanResize(Sender: TObject; var NewWidth, NewHeight: Integer;
+      var Resize: Boolean);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormCreate(Sender: TObject);
     procedure FormHide(Sender: TObject);
@@ -575,6 +576,12 @@ begin
     GAttributes.Visible := GBasics.Visible;
     PSQLWait.Visible := not GBasics.Visible;
   end;
+end;
+
+procedure TDField.FormCanResize(Sender: TObject; var NewWidth,
+  NewHeight: Integer; var Resize: Boolean);
+begin
+  NewHeight := Height;
 end;
 
 procedure TDField.FormCloseQuery(Sender: TObject; var CanClose: Boolean);

@@ -343,6 +343,9 @@ type
     constructor Create(); override;
   end;
 
+  TPAccount = class(TPWindow)
+  end;
+
   TPAccounts = class(TPWindow)
   protected
     procedure LoadFromXML(const XML: IXMLNode); override;
@@ -450,6 +453,7 @@ type
     Routine: TPRoutine;
     Server: TPServer;
     SQLHelp: TPSQLHelp;
+    Account: TPAccount;
     Accounts: TPAccounts;
     Statement: TPStatement;
     Table: TPTable;
@@ -2252,6 +2256,7 @@ begin
   Replace := TPReplace.Create();
   Routine := TPRoutine.Create();
   Server := TPServer.Create();
+  Account := TPAccount.Create();
   Accounts := TPAccounts.Create();
   SQLHelp := TPSQLHelp.Create();
   Statement := TPStatement.Create();
@@ -2286,6 +2291,7 @@ begin
   Replace.Free();
   Routine.Free();
   Server.Free();
+  Account.Free();
   Accounts.Free();
   SQLHelp.Free();
   Statement.Free();
@@ -2585,6 +2591,7 @@ begin
   Replace.LoadFromXML(XMLNode(XML, 'replace'));
   Routine.LoadFromXML(XMLNode(XML, 'routine'));
   Server.LoadFromXML(XMLNode(XML, 'server'));
+  Account.LoadFromXML(XMLNode(XML, 'account'));
   Accounts.LoadFromXML(XMLNode(XML, 'accounts'));
   SQLHelp.LoadFromXML(XMLNode(XML, 'sqlhelp'));
   Statement.LoadFromXML(XMLNode(XML, 'statement'));
@@ -2782,6 +2789,7 @@ begin
   Replace.SaveToXML(XMLNode(XML, 'replace'));
   Routine.SaveToXML(XMLNode(XML, 'routine'));
   Server.SaveToXML(XMLNode(XML, 'server'));
+  Account.SaveToXML(XMLNode(XML, 'account'));
   Accounts.SaveToXML(XMLNode(XML, 'accounts'));
   SQLHelp.SaveToXML(XMLNode(XML, 'sqlhelp'));
   Statement.SaveToXML(XMLNode(XML, 'statement'));

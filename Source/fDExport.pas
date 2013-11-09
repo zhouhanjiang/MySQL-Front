@@ -7,7 +7,6 @@ uses
   Dialogs, ComCtrls, ExtCtrls, StdCtrls, DB, DBGrids,
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext, Dialogs_Ext,
   MySQLDB,
-fProfiling,
   fSession, fPreferences, fTools,
   fBase;
 

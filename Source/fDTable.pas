@@ -1358,7 +1358,7 @@ begin
       FreeAndNil(NewField);
 
       NewKey := TSKey.Create(NewTable.Keys);
-      NewKey.Primary := True;
+      NewKey.PrimaryKey := True;
 
       NewKeyColumn := TSKeyColumn.Create(NewKey.Columns);
       NewKeyColumn.Field := TSBaseTableField(NewTable.Fields[0]);

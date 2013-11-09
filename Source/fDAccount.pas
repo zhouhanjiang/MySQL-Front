@@ -51,6 +51,9 @@ type
     procedure FormShow(Sender: TObject);
     function GetAccountName(): string;
     procedure FormHide(Sender: TObject);
+    procedure FormResize(Sender: TObject);
+    procedure FormCanResize(Sender: TObject; var NewWidth, NewHeight: Integer;
+      var Resize: Boolean);
   private
     function CheckConnectInfos(): Boolean;
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
@@ -109,6 +112,8 @@ end;
 
 procedure TDAccount.CMChangePreferences(var Message: TMessage);
 begin
+  Preferences.SmallImages.GetIcon(iiServer, Icon);
+
   GBasics.Caption := Preferences.LoadStr(85);
   FLName.Caption := Preferences.LoadStr(35) + ':';
 
@@ -236,6 +241,12 @@ begin
     FHTTPTunnelURI.Text := 'http://' + Trim(FHost.Text) + '/libMySQL.php';
 end;
 
+procedure TDAccount.FormCanResize(Sender: TObject; var NewWidth,
+  NewHeight: Integer; var Resize: Boolean);
+begin
+  NewHeight := Height;
+end;
+
 procedure TDAccount.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 var
   NewAccount: TAAccount;
@@ -295,14 +306,33 @@ end;
 
 procedure TDAccount.FormCreate(Sender: TObject);
 begin
-  FBDatabase.Height := FDatabase.Height; FBDatabase.Width := FBDatabase.Height;
-  FBDatabase.Left := FDatabase.Left + FDatabase.Width;
+  Constraints.MinWidth := Width;
+  Constraints.MinHeight := Height;
+
+  BorderStyle := bsSizeable;
+
+  if ((Preferences.Database.Width >= Width) and (Preferences.Database.Height >= Height)) then
+  begin
+    Width := Preferences.Account.Width;
+    Height := Preferences.Account.Height;
+  end;
+
+  FormResize(Sender);
 end;
 
 procedure TDAccount.FormHide(Sender: TObject);
 begin
+  Preferences.Account.Width := Width;
+  Preferences.Account.Height := Height;
+
   if (ModalResult = mrOk) then
     Preferences.SaveToXML();
+end;
+
+procedure TDAccount.FormResize(Sender: TObject);
+begin
+  FBDatabase.Height := FDatabase.Height; FBDatabase.Width := FBDatabase.Height;
+  FBDatabase.Left := FDatabase.Left + FDatabase.Width;
 end;
 
 procedure TDAccount.FormShow(Sender: TObject);

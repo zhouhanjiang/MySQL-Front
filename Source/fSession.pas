@@ -286,7 +286,7 @@ type
     Comment: string;
     Fulltext: Boolean;
     IndexType: string;
-    Primary: Boolean;
+    PrimaryKey: Boolean;
     Unique: Boolean;
     procedure Assign(const Source: TSKey); reintroduce; virtual;
     procedure Clear(); virtual;
@@ -2332,7 +2332,7 @@ begin
   Comment := Source.Comment;
   Fulltext := Source.Fulltext;
   IndexType := Source.IndexType;
-  Primary := Source.Primary;
+  PrimaryKey := Source.PrimaryKey;
   Unique := Source.Unique;
 end;
 
@@ -2377,13 +2377,13 @@ begin
     FColumns.Clear();
   Comment := '';
   Fulltext := False;
-  Primary := False;
+  PrimaryKey := False;
   Unique := False;
 end;
 
 function TSKey.GetCaption(): string;
 begin
-  if (Primary) then
+  if (PrimaryKey) then
     Result := Preferences.LoadStr(154)
   else
     Result := Name;
@@ -2439,7 +2439,7 @@ begin
   Result := Result and (BlockSize = Second.BlockSize);
   Result := Result and (Comment = Second.Comment);
   Result := Result and (Fulltext = Second.Fulltext);
-  Result := Result and (Primary = Second.Primary);
+  Result := Result and (PrimaryKey = Second.PrimaryKey);
   Result := Result and (Unique = Second.Unique);
 end;
 
@@ -2476,7 +2476,7 @@ procedure TSKeys.AddKey(const NewKey: TSKey);
 var
   Index: Integer;
 begin
-  if (NewKey.Primary) then
+  if (NewKey.PrimaryKey) then
     Index := 0
   else
     Index := Count;
@@ -2497,7 +2497,7 @@ procedure TSKeys.DeleteKey(const AKey: TSKey);
 var
   I: Integer;
 begin
-  if (AKey.Primary) then
+  if (AKey.PrimaryKey) then
     for I := 0 to Table.Fields.Count - 1 do
       if (Table.Fields[I] is TSBaseTableField) then
         TSBaseTableField(Table.Fields[I]).AutoIncrement := False;
@@ -4322,7 +4322,7 @@ begin
         FKeys.Add(TSKey.Create(FKeys, Name));
       NewKey := FKeys[Index];
 
-      NewKey.Primary := Primary;
+      NewKey.PrimaryKey := Primary;
       NewKey.Unique := Unique;
       NewKey.Fulltext := FullText;
 
@@ -4358,7 +4358,7 @@ begin
           SQLParseValue(Parse);
       end;
 
-      NewKey.Unique := NewKey.Unique or NewKey.Primary;
+      NewKey.Unique := NewKey.Unique or NewKey.PrimaryKey;
 
 
       SQLParseChar(Parse, ',');
@@ -4652,7 +4652,7 @@ begin
                 TSBaseTableField(FFields.Field[I]).FInUniqueKey := True;
       end;
 
-    if ((FKeys.Count >= 1) and (FKeys[0].Primary)) then
+    if ((FKeys.Count >= 1) and (FKeys[0].PrimaryKey)) then
       for J := 0 to FKeys.Key[0].Columns.Count - 1 do
         FKeys.Key[0].Columns.Column[J].Field.FInPrimaryKey := True;
 
@@ -7297,7 +7297,7 @@ begin
       AutoIncrementField := TSBaseTableField(NewTable.Fields[I]);
   Found := False;
   for I := 0 to NewTable.Keys.Count - 1 do
-    if (NewTable.Keys[I].Primary) then
+    if (NewTable.Keys[I].PrimaryKey) then
       for J := 0 to NewTable.Keys[I].Columns.Count - 1 do
         if (NewTable.Keys[I].Columns[J].Field = AutoIncrementField) then
           Found := True;
@@ -7305,7 +7305,7 @@ begin
     if (not Assigned(NewTable.PrimaryKey)) then
     begin
       NewKey := TSKey.Create(NewTable.Keys);
-      NewKey.Primary := True;
+      NewKey.PrimaryKey := True;
       NewKeyColumn := TSKeyColumn.Create(NewKey.Columns);
       NewKeyColumn.Field := AutoIncrementField;
       NewKey.Columns.AddColumn(NewKeyColumn);
@@ -7378,7 +7378,7 @@ begin
       SQLPart := '';
       SQLPart := SQLPart + '  ';
       if (Assigned(Table)) then SQLPart := SQLPart + 'ADD ';
-      if (NewKey.Primary) then
+      if (NewKey.PrimaryKey) then
         SQLPart := SQLPart + 'PRIMARY KEY'
       else if (NewKey.Unique) then
         SQLPart := SQLPart + 'UNIQUE INDEX'
@@ -12099,7 +12099,7 @@ begin
         begin
           IndexDef := IndexDefs.AddIndexDef();
           IndexDef.Name := Table.Keys[I].Name;
-          if (Table.Keys[I].Primary) then
+          if (Table.Keys[I].PrimaryKey) then
             IndexDef.Options := [ixPrimary, ixUnique]
           else if (Table.Keys[I].Unique) then
             IndexDef.Options := [ixUnique];

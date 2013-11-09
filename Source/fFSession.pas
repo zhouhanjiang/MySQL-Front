@@ -5516,6 +5516,7 @@ begin
     FFolders.BorderStyle := bsNone;
     FFolders.ParentFont := True;
     FFolders.ShowLines := False;
+    FFolders.ShowNetHood := False;
     FFolders.ShowRecycleBin := False;
     FFolders.Visible := True;
     FFolders.OnChange := FFoldersChange;
@@ -6596,7 +6597,7 @@ begin
     begin
       MenuItem := TMenuItem.Create(Self);
       MenuItem.Caption := TSBaseTable(Table).Keys[I].Caption;
-      MenuItem.Default := TSBaseTable(Table).Keys[I].Primary;
+      MenuItem.Default := TSBaseTable(Table).Keys[I].PrimaryKey;
       MenuItem.Tag := I;
       MenuItem.RadioItem := True;
       MenuItem.OnClick := MGridHeaderMenuOrderClick;
@@ -7126,7 +7127,7 @@ procedure TFSession.FNavigatorAdvancedCustomDrawItem(Sender: TCustomTreeView;
   var PaintImages, DefaultDraw: Boolean);
 begin
   if ((Stage = cdPrePaint) and Assigned(Node)
-    and ((Node.ImageIndex = iiKey) and TSKey(Node.Data).Primary or (Node.ImageIndex = iiField) and TSTableField(Node.Data).InPrimaryKey)) then
+    and ((Node.ImageIndex = iiKey) and TSKey(Node.Data).PrimaryKey or (Node.ImageIndex = iiField) and TSTableField(Node.Data).InPrimaryKey)) then
     Sender.Canvas.Font.Style := Sender.Canvas.Font.Style + [fsBold]
   else
     Sender.Canvas.Font.Style := Sender.Canvas.Font.Style - [fsBold];
@@ -9322,7 +9323,7 @@ procedure TFSession.ListViewAdvancedCustomDrawItem(
   Stage: TCustomDrawStage; var DefaultDraw: Boolean);
 begin
   if ((Stage = cdPrePaint) and Assigned(Item)
-    and ((Item.ImageIndex = iiKey) and TSKey(Item.Data).Primary or (Item.ImageIndex = iiField) and TSTableField(Item.Data).InPrimaryKey)) then
+    and ((Item.ImageIndex = iiKey) and TSKey(Item.Data).PrimaryKey or (Item.ImageIndex = iiField) and TSTableField(Item.Data).InPrimaryKey)) then
     Sender.Canvas.Font.Style := [fsBold]
   else
     Sender.Canvas.Font.Style := [];
@@ -13686,7 +13687,7 @@ begin
       Empty := ((ActiveSynMemo.Lines.Count <= 1) and (ActiveSynMemo.Text = '')); // Benötigt bei vielen Zeilen Zeit
 
       MainAction('aFSave').Enabled := not Empty and ((View in [vEditor, vEditor2, vEditor3]) and (SQLEditors[View].Filename = '') or ActiveSynMemo.Modified);
-      MainAction('aFSaveAs').Enabled := not Empty;
+      MainAction('aFSaveAs').Enabled := not Empty and (View in [vEditor, vEditor2, vEditor3]);
       MainAction('aFPrint').Enabled := (View in [vEditor, vEditor2, vEditor3]) and not Empty;
       MainAction('aERedo').Enabled := ActiveSynMemo.CanRedo;
       MainAction('aECopyToFile').Enabled := (SelSQL <> '');

@@ -72,6 +72,8 @@ type
     procedure TSExtrasShow(Sender: TObject);
     procedure FBCheckClick(Sender: TObject);
     procedure FBFlushClick(Sender: TObject);
+    procedure FormCanResize(Sender: TObject; var NewWidth, NewHeight: Integer;
+      var Resize: Boolean);
   private
     procedure Built();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
@@ -327,6 +329,12 @@ begin
     PageControl.Visible := True;
     PSQLWait.Visible := not PageControl.Visible;
   end;
+end;
+
+procedure TDDatabase.FormCanResize(Sender: TObject; var NewWidth,
+  NewHeight: Integer; var Resize: Boolean);
+begin
+  NewHeight := Height;
 end;
 
 procedure TDDatabase.FormCloseQuery(Sender: TObject;

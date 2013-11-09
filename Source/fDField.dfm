@@ -13,6 +13,7 @@ object DField: TDField
   Font.Style = []
   OldCreateOrder = False
   Position = poOwnerFormCenter
+  OnCanResize = FormCanResize
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
   OnHide = FormHide
@@ -386,6 +387,7 @@ object DField: TDField
       Top = 185
       Width = 188
       Height = 17
+      Anchors = [akLeft, akTop, akRight]
       Caption = 'FRDefaultAutoIncrement'
       TabOrder = 15
       OnClick = FRDefaultClick

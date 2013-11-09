@@ -15,10 +15,15 @@ object DAccount: TDAccount
   Font.Style = []
   OldCreateOrder = False
   Position = poOwnerFormCenter
+  OnCanResize = FormCanResize
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
   OnHide = FormHide
+  OnResize = FormResize
   OnShow = FormShow
+  DesignSize = (
+    313
+    362)
   PixelsPerInch = 106
   TextHeight = 13
   object FBOk: TButton
@@ -26,6 +31,7 @@ object DAccount: TDAccount
     Top = 328
     Width = 75
     Height = 25
+    Anchors = [akRight, akBottom]
     Caption = 'FBOk'
     Default = True
     ModalResult = 1
@@ -36,6 +42,7 @@ object DAccount: TDAccount
     Top = 328
     Width = 75
     Height = 25
+    Anchors = [akRight, akBottom]
     Cancel = True
     Caption = 'FBCancel'
     ModalResult = 2
@@ -46,8 +53,12 @@ object DAccount: TDAccount
     Top = 4
     Width = 297
     Height = 47
+    Anchors = [akLeft, akTop, akRight]
     Caption = 'GBasics'
     TabOrder = 4
+    DesignSize = (
+      297
+      47)
     object FLName: TLabel
       Left = 8
       Top = 19
@@ -60,6 +71,7 @@ object DAccount: TDAccount
       Top = 16
       Width = 157
       Height = 21
+      Anchors = [akLeft, akTop, akRight]
       MaxLength = 50
       TabOrder = 0
       Text = 'FName'
@@ -71,8 +83,12 @@ object DAccount: TDAccount
     Top = 55
     Width = 297
     Height = 130
+    Anchors = [akLeft, akTop, akRight]
     Caption = 'GConnection'
     TabOrder = 5
+    DesignSize = (
+      297
+      130)
     object FLHost: TLabel
       Left = 8
       Top = 19
@@ -120,6 +136,7 @@ object DAccount: TDAccount
       Top = 96
       Width = 161
       Height = 21
+      Anchors = [akLeft, akTop, akRight]
       TabOrder = 5
       Text = 'FHTTPTunnelURI'
       Visible = False
@@ -131,6 +148,7 @@ object DAccount: TDAccount
       Top = 16
       Width = 157
       Height = 21
+      Anchors = [akLeft, akTop, akRight]
       TabOrder = 0
       Text = 'FHost'
       OnChange = FEditChange
@@ -151,6 +169,7 @@ object DAccount: TDAccount
       Width = 129
       Height = 21
       Style = csDropDownList
+      Anchors = [akLeft, akTop, akRight]
       TabOrder = 3
       OnChange = FConnectionTypeChange
     end
@@ -159,6 +178,7 @@ object DAccount: TDAccount
       Top = 96
       Width = 97
       Height = 21
+      Anchors = [akLeft, akTop, akRight]
       TabOrder = 4
       Text = 'FLibraryFilename'
       Visible = False
@@ -179,8 +199,12 @@ object DAccount: TDAccount
     Top = 191
     Width = 297
     Height = 117
+    Anchors = [akLeft, akTop, akRight]
     Caption = 'GLogin'
     TabOrder = 0
+    DesignSize = (
+      297
+      117)
     object FLDatabase: TLabel
       Left = 8
       Top = 87
@@ -210,6 +234,7 @@ object DAccount: TDAccount
       Top = 84
       Width = 137
       Height = 21
+      Anchors = [akLeft, akTop, akRight]
       TabOrder = 2
       Text = 'FDatabase'
       OnChange = FEditChange
@@ -219,6 +244,7 @@ object DAccount: TDAccount
       Top = 16
       Width = 113
       Height = 21
+      Anchors = [akLeft, akTop, akRight]
       MaxLength = 50
       TabOrder = 0
       Text = 'FUser'
@@ -229,6 +255,7 @@ object DAccount: TDAccount
       Top = 48
       Width = 113
       Height = 21
+      Anchors = [akLeft, akTop, akRight]
       TabOrder = 1
       Text = 'FPassword'
       OnChange = FEditChange
@@ -238,6 +265,7 @@ object DAccount: TDAccount
       Top = 84
       Width = 21
       Height = 21
+      Anchors = [akTop, akRight]
       Caption = #183#183#183
       TabOrder = 3
       OnClick = FBDatabaseClick
@@ -248,6 +276,7 @@ object DAccount: TDAccount
     Top = 328
     Width = 75
     Height = 25
+    Anchors = [akLeft, akBottom]
     Caption = 'FBHelp'
     TabOrder = 1
     OnClick = FBHelpClick

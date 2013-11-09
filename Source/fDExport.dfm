@@ -41,7 +41,7 @@ object DExport: TDExport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSExecute
+    ActivePage = TSSQLOptions
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     Style = tsFlatButtons
@@ -342,6 +342,7 @@ object DExport: TDExport
         Top = 70
         Width = 325
         Height = 63
+        Anchors = [akLeft, akTop, akRight]
         Caption = 'GSQLOptions'
         TabOrder = 1
         object FLDrop: TLabel

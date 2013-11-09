@@ -181,7 +181,7 @@ begin
       FBOk.Enabled := FBOk.Enabled and not Assigned(Table.PrimaryKey)
     else
       for I := 0 to Table.Keys.Count - 1 do
-        if (not Table.Keys[I].Primary and (Table.Keys.NameCmp(Table.Keys[I].Name, FName.Text) = 0)) then
+        if (not Table.Keys[I].PrimaryKey and (Table.Keys.NameCmp(Table.Keys[I].Name, FName.Text) = 0)) then
           FBOk.Enabled := False;
 end;
 
@@ -308,8 +308,8 @@ begin
     if (Assigned(Key)) then
       NewKey.Assign(Key);
 
-    NewKey.Primary := FPrimary.Checked;
-    if (not NewKey.Primary) then
+    NewKey.PrimaryKey := FPrimary.Checked;
+    if (not NewKey.PrimaryKey) then
       NewKey.Name := Trim(FName.Text);
 
     NewKey.Columns.Clear();
@@ -451,7 +451,7 @@ begin
 
   if (not Assigned(Key)) then
   begin
-    FPrimary.Enabled := (Table.Keys.Count = 0) or not Table.Keys[0].Primary;
+    FPrimary.Enabled := (Table.Keys.Count = 0) or not Table.Keys[0].PrimaryKey;
     FPrimary.Checked := FPrimary.Enabled;
     FOther.Checked := not FPrimary.Checked;
 
@@ -464,8 +464,8 @@ begin
   end
   else
   begin
-    FPrimary.Enabled := Key.Primary or (Table.Keys.Count = 0) or not Table.Keys[0].Primary;
-    FPrimary.Checked := Key.Primary;
+    FPrimary.Enabled := Key.PrimaryKey or (Table.Keys.Count = 0) or not Table.Keys[0].PrimaryKey;
+    FPrimary.Checked := Key.PrimaryKey;
     FOther.Checked := not FPrimary.Checked;
     if (FOther.Checked) then FName.Text := Key.Name else FName.Text := '';
 

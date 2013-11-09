@@ -3282,14 +3282,14 @@ begin
           Key := NewTable.Keys[I];
       if (Assigned(Key)) then
       begin
-        Key.Primary := True;
+        Key.PrimaryKey := True;
         Key.Name := '';
       end;
     end;
 
-    if ((NewTable.Keys.Count > 0) and not NewTable.Keys[0].Primary and NewTable.Keys[0].Unique) then
+    if ((NewTable.Keys.Count > 0) and not NewTable.Keys[0].PrimaryKey and NewTable.Keys[0].Unique) then
     begin
-      NewTable.Keys[0].Primary := True;
+      NewTable.Keys[0].PrimaryKey := True;
       NewTable.Keys[0].Name := '';
     end;
 
@@ -3297,7 +3297,7 @@ begin
       if ((NewTable.Keys.Count = 0) and NewTable.Fields[I].AutoIncrement) then
       begin
         Key := TSKey.Create(NewTable.Keys);
-        Key.Primary := True;
+        Key.PrimaryKey := True;
         NewTable.Keys.AddKey(Key);
         Key.Free();
 
@@ -5245,7 +5245,7 @@ begin
         Content := Content + '</tr>' + #13#10;
         for I := 0 to TSBaseTable(Table).Keys.Count - 1 do
         begin
-          if (TSBaseTable(Table).Keys[I].Primary) then
+          if (TSBaseTable(Table).Keys[I].PrimaryKey) then
             ClassAttr := ' class="PrimaryKey"'
           else
             ClassAttr := '';
@@ -6034,7 +6034,7 @@ begin
 
     if (Table is TSBaseTable) then
       for I := 0 to TSBaseTable(Table).Keys.Count - 1 do
-        if (not TSBaseTable(Table).Keys[I].Primary) then
+        if (not TSBaseTable(Table).Keys[I].PrimaryKey) then
         begin
           SQL := 'CREATE';
           if (TSBaseTable(Table).Keys[I].Unique) then
@@ -6825,7 +6825,7 @@ begin
             GridData[I][J].Gray := False;
           end;
 
-          GridData[I][0].Bold := TSBaseTable(Table).Keys[I].Primary;
+          GridData[I][0].Bold := TSBaseTable(Table).Keys[I].PrimaryKey;
           GridData[I][0].Text := TSBaseTable(Table).Keys[I].Caption;
           S := '';
           for K := 0 to TSBaseTable(Table).Keys[I].Columns.Count - 1 do
