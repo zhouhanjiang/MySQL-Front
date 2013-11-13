@@ -92,6 +92,7 @@ type
     FStructure: TCheckBox;
     FTables: TListView;
     FTextFile: TRadioButton;
+    FUpdate: TRadioButton;
     FWeekly: TRadioButton;
     GBasics: TGroupBox_Ext;
     GCSVHow: TGroupBox_Ext;
@@ -423,6 +424,7 @@ begin
   FLStmtType.Caption := Preferences.LoadStr(124) + ':';
   FInsert.Caption := LowerCase(Preferences.LoadStr(880)) + ' (INSERT)';
   FReplace.Caption := LowerCase(Preferences.LoadStr(416)) + ' (REPLACE)';
+  FUpdate.Caption := LowerCase(Preferences.LoadStr(726)) + ' (UPDATE)';
 
   GProgress.Caption := Preferences.LoadStr(224);
   FLEntiered.Caption := Preferences.LoadStr(211) + ':';
@@ -922,6 +924,13 @@ begin
         end;
     end;
 
+    if (FReplace.Checked) then
+      TAJobImport(PImport).StmtType := stReplace
+    else if (FUpdate.Checked) then
+      TAJobImport(PImport).StmtType := stUpdate
+    else
+      TAJobImport(PImport).StmtType := stInsert;
+
     if (DialogType in [idtCreateJob, idtEditJob]) then
     begin
       if (Assigned(FSelect.Selected)) then
@@ -943,10 +952,6 @@ begin
       TAJobImport(PImport).ImportType := ImportType;
       TAJobImport(PImport).Filename := FFilename.Text;
       TAJobImport(PImport).ODBC.DataSource := FDataSource.Text;
-      if (FReplace.Checked) then
-        TAJobImport(PImport).StmtType := stReplace
-      else
-        TAJobImport(PImport).StmtType := stInsert;
 
       SetLength(TAJobImport(PImport).SourceObjects, 0);
       case (ImportType) of
@@ -1084,6 +1089,8 @@ begin
   FCharset.Visible := Session.ServerVersion >= 40101; FLCharset.Visible := FCharset.Visible;
   FCollation.Visible := Session.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
 
+  FUpdate.Enabled := (SObject is TSBaseTable) and Assigned(TSBaseTable(SObject).PrimaryKey);
+
   if (DialogType = idtCreateJob) then
   begin
     Node := FSelect.Items.Add(nil, Session.Caption);
@@ -1105,8 +1112,11 @@ begin
     FEngine.ItemIndex := FEngine.Items.IndexOf(Preferences.Import.Engine);
     FCharset.ItemIndex := FCharset.Items.IndexOf(Preferences.Import.Charset);
     FRowFormat.ItemIndex := Preferences.Import.RowType;
-    FInsert.Checked := Preferences.Import.StmtType = stInsert;
-    FReplace.Checked := Preferences.Import.StmtType = stReplace;
+    case (Preferences.Import.StmtType) of
+      stReplace: FReplace.Checked := True;
+      stUpdate: FUpdate.Checked := True;
+      else FInsert.Checked := True;
+    end;
 
     FStartDate.Date := Now() + 1; FStartTime.Time := 0;
     FSingle.Checked := True;
@@ -1146,8 +1156,11 @@ begin
     FEngine.ItemIndex := FEngine.Items.IndexOf(Job.Engine);
     FCharset.ItemIndex := FCharset.Items.IndexOf(Job.Charset);
     FRowFormat.ItemIndex := Job.RowType;
-    FInsert.Checked := Job.StmtType = stInsert;
-    FReplace.Checked := Job.StmtType = stReplace;
+    case (Job.StmtType) of
+      stReplace: FReplace.Checked := True;
+      stUpdate: FUpdate.Checked := True;
+      else FInsert.Checked := True;
+    end;
 
     case (Job.JobObject.ObjectType) of
       jotServer: Database := nil;
@@ -1205,8 +1218,11 @@ begin
       FEngine.ItemIndex := FEngine.Items.IndexOf(Preferences.Import.Engine);
       FCharset.ItemIndex := FCharset.Items.IndexOf(Preferences.Import.Charset);
       FRowFormat.ItemIndex := Preferences.Import.RowType;
-      FInsert.Checked := Preferences.Import.StmtType = stInsert;
-      FReplace.Checked := Preferences.Import.StmtType = stReplace;
+      case (Preferences.Import.StmtType) of
+        stReplace: FReplace.Checked := True;
+        stUpdate: FUpdate.Checked := True;
+        else FInsert.Checked := True;
+      end;
     end;
 
     TSJobHide(Sender);
@@ -1364,8 +1380,8 @@ end;
 
 procedure TDImport.FStmtTypeClick(Sender: TObject);
 begin
-  TSTask.Enabled := (DialogType <> idtNormal) and (FInsert.Checked and FInsert.Enabled or FReplace.Checked and FReplace.Enabled);
-  TSExecute.Enabled := (DialogType = idtNormal) and (FInsert.Checked and FInsert.Enabled or FReplace.Checked and FReplace.Enabled);
+  TSTask.Enabled := (DialogType <> idtNormal) and (FInsert.Checked and FInsert.Enabled or FReplace.Checked and FReplace.Enabled or FUpdate.Checked and FUpdate.Enabled);
+  TSExecute.Enabled := (DialogType = idtNormal) and (FInsert.Checked and FInsert.Enabled or FReplace.Checked and FReplace.Enabled or FUpdate.Checked and FUpdate.Enabled);
   CheckActivePageChange(TSStmtType.PageIndex);
 end;
 
@@ -1873,6 +1889,8 @@ begin
       Import.StmtType := stInsert
     else if (FReplace.Checked) then
       Import.StmtType := stReplace
+    else if (FUpdate.Checked and FUpdate.Enabled) then
+      Import.StmtType := stUpdate
     else
       Import.StmtType := stInsert;
     Import.RowType := TMySQLRowType(FRowFormat.ItemIndex);

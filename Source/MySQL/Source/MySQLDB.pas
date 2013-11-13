@@ -1434,10 +1434,7 @@ begin
     mysql_num_fields := Tmysql_num_fields(@MySQLClient.mysql_num_fields);
     mysql_num_rows := Tmysql_num_rows(@MySQLClient.mysql_num_rows);
     mysql_options := Tmysql_options(@MySQLClient.mysql_options);
-    if (LibraryType = ltHTTP) then
-      mysql_ping := nil
-    else
-      mysql_ping := Tmysql_ping(@MySQLClient.mysql_ping);
+    mysql_ping := Tmysql_ping(@MySQLClient.mysql_ping);
     mysql_real_connect := Tmysql_real_connect(@MySQLClient.mysql_real_connect);
     mysql_real_escape_string := Tmysql_real_escape_string(@MySQLClient.mysql_real_escape_string);
     mysql_real_query := Tmysql_real_query(@MySQLClient.mysql_real_query);
@@ -1879,7 +1876,6 @@ begin
   try
   {$ENDIF}
 
-  WaitForSynchronizeStarted := False;
   while (not Terminated) do
   begin
     if ((Connection.ServerTimeout = 0) or (Connection.LibraryType = ltHTTP)) then
@@ -1891,7 +1887,7 @@ begin
     if (not Terminated) then
       if (WaitResult = wrTimeout) then
       begin
-        if (not Assigned(DataSet) and not WaitForSynchronizeStarted and (not Assigned(Connection.Lib.mysql_more_results) or (Connection.Lib.mysql_more_results(LibHandle) = 0))) then
+        if (not Assigned(DataSet) and (State = ssReady) and (not Assigned(Connection.Lib.mysql_more_results) or (Connection.Lib.mysql_more_results(LibHandle) = 0))) then
           Connection.SyncPing(Self);
       end
       else
@@ -2224,6 +2220,7 @@ begin
   FOnUpdateIndexDefs := nil;
   FPassword := '';
   FPort := MYSQL_PORT;
+  FServerTimeout := 0;
   FSilentCount := 0;
   FTerminateCS := TCriticalSection.Create();
   FTerminatedThreads := TTerminatedThreads.Create(Self);
@@ -2365,7 +2362,7 @@ end;
 
 function TMySQLConnection.EscapeIdentifier(const Identifier: string): string;
 begin
-  Result := IdentifierQuoter + ReplaceStr(Identifier, IdentifierQuoter, IdentifierQuoter + IdentifierQuoter) + IdentifierQuoter;
+  Result := IdentifierQuoter + Identifier + IdentifierQuoter;
 end;
 
 function TMySQLConnection.ExecuteSQL(const SQL: string; const OnResult: TResultEvent = nil): Boolean;
@@ -3554,8 +3551,7 @@ end;
 
 procedure TMySQLConnection.SyncPing(const LibraryThread: TLibraryThread);
 begin
-  if (Assigned(Lib.mysql_ping)) then
-    Lib.mysql_ping(LibraryThread.LibHandle);
+  Lib.mysql_ping(LibraryThread.LibHandle);
 end;
 
 procedure TMySQLConnection.SyncReceivingResult(LibraryThread: TLibraryThread);

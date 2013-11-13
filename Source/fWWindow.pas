@@ -16,6 +16,9 @@ uses
   fFSession, fBase;
 
 const
+  cWindowClassName = 'MySQL-Front.Application';
+
+const
   CM_ACTIVATETAB = WM_USER + 600;
   CM_MYSQLCLIENT_SYNCHRONIZE = WM_USER + 601;
   CM_UPDATEAVAILABLE = WM_USER + 602;
@@ -198,11 +201,11 @@ type
     miDEditView: TMenuItem;
     miDEmpty: TMenuItem;
     miDInsertRecord: TMenuItem;
+    miDPostObject: TMenuItem;
     miDPostRecord: TMenuItem;
     miDProperties: TMenuItem;
     miDRun: TMenuItem;
     miDRunSelection: TMenuItem;
-    miDPostObject: TMenuItem;
     miECopy: TMenuItem;
     miECopyToFile: TMenuItem;
     miECut: TMenuItem;
@@ -1493,7 +1496,7 @@ var
   WindowPlacement: TWindowPlacement;
   Wnd: HWND;
 begin
-  Wnd := FindWindow('MySQL-Front.Application', nil);
+  Wnd := FindWindow(PChar(cWindowClassName), nil);
 
   inherited;
 
@@ -1550,7 +1553,7 @@ procedure TWWindow.CreateParams(var Params: TCreateParams);
 begin
   inherited;
 
-  StrCopy(@Params.WinClassName[0], 'MySQL-Front.Application');
+  StrCopy(Params.WinClassName, cWindowClassName);
 end;
 
 function TWWindow.DBLogin(const Account: Pointer): Boolean;

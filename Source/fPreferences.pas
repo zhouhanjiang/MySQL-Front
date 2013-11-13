@@ -15,7 +15,7 @@ type
   TPImportType = (itUnknown, itSQLFile, itTextFile, itAccessFile, itExcelFile, itODBC);
   TAJobObjectType = (jotServer, jotDatabase, jotTable, jotProcedure, jotFunction, jotTrigger, jotEvent);
   TPNodeType = (ntDisabled, ntName, ntCustom);
-  TPStmtType = (stInsert, stReplace);
+  TPStmtType = (stInsert, stReplace, stUpdate);
 
   TPItems = class;
   TPPreferences = class;
@@ -970,6 +970,7 @@ begin
   Result := True;
   if (UpperCase(Str) = 'INSERT') then StmtType := stInsert
   else if (UpperCase(Str) = 'REPLACE') then StmtType := stReplace
+  else if (UpperCase(Str) = 'UPDATE') then StmtType := stUpdate
   else Result := False;
 end;
 
@@ -977,6 +978,7 @@ function StmtTypeToStr(const StmtType: TPStmtType): string;
 begin
   case (StmtType) of
     stReplace: Result := 'Replace';
+    stUpdate: Result := 'Update';
     else Result := 'Insert';
   end;
 end;

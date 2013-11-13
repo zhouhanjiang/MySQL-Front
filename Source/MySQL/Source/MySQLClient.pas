@@ -1721,13 +1721,8 @@ begin
   Offset := 0;
   repeat
     PartSize := Size - Offset;
-try
     if (PartSize > $FFFFFF - (PacketBuffer.Size - (PacketBuffer.Offset + NET_HEADER_SIZE))) then
       PartSize := $FFFFFF - (PacketBuffer.Size - (PacketBuffer.Offset + NET_HEADER_SIZE));
-except
-  on E: Exception do  // Debug: 07.10.2013
-    Exception.CreateFmt(E.Message + ' PartSize: %d, Size: %d, Offset: %d', [PartSize, PacketBuffer.Size, PacketBuffer.Offset]);
-end;
 
     Result := ReallocBuffer(PacketBuffer, PartSize);
 

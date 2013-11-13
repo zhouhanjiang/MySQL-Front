@@ -171,6 +171,7 @@ type
     procedure SetSource(const ASource: string); overload; virtual;
     property ValidSource: Boolean read GetValidSource;
   public
+    procedure Assign(const Source: TSObject); reintroduce; virtual;
     constructor Create(const ACItems: TSItems; const AName: string = ''); reintroduce; virtual;
     destructor Destroy(); override;
     procedure Invalidate(); virtual;
@@ -1912,6 +1913,15 @@ begin
 end;
 
 { TSObject ********************************************************************}
+
+procedure TSObject.Assign(const Source: TSObject);
+begin
+  Assert(Assigned(Source));
+
+  inherited Assign(TSItem(Source));
+
+  FSource := Source.Source;
+end;
 
 constructor TSObject.Create(const ACItems: TSItems; const AName: string = '');
 begin
@@ -8433,7 +8443,7 @@ begin
     if (Assigned(Session.VariableByName('sql_quote_show_create'))) then
       Session.IdentifierQuoted := Session.VariableByName('sql_quote_show_create').AsBoolean;
 
-    if (Assigned(Session.VariableByName('wait_timeout'))) then
+    if ((Session.Account.Connection.LibraryType <> ltHTTP) and Assigned(Session.VariableByName('wait_timeout'))) then
       if (Session.VariableByName('wait_timeout').AsInteger >= 4) then
         Session.ServerTimeout := Session.VariableByName('wait_timeout').AsInteger - 3
       else if (Session.VariableByName('wait_timeout').AsInteger >= 60) then

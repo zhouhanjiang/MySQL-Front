@@ -172,15 +172,16 @@ type
       SourceTableName: string;
       constructor Create(const AItems: TTool.TItems);
     end;
+    TFieldMapping = record
+      DestinationField: TSTableField;
+      SourceFieldName: string;
+    end;
   private
     EscapedDestinationFieldNames: string;
     FSession: TSSession;
     FDatabase: TSDatabase;
   protected
-    FieldMappings: array of record
-      DestinationField: TSTableField;
-      SourceFieldName: string;
-    end;
+    FieldMappings: array of TFieldMapping;
     procedure AfterExecute(); override;
     procedure AfterExecuteData(const Item: TItem); virtual;
     procedure BeforeExecute(); override;
@@ -191,7 +192,7 @@ type
     procedure ExecuteData(const Item: TItem; const Table: TSTable); virtual;
     procedure ExecuteStructure(const Item: TItem); virtual;
     function GetValues(const Item: TItem; const Values: TTool.TDataFileBuffer): Boolean; overload; virtual;
-    function GetValues(const Item: TItem; const Values: TTool.TStringBuffer): Boolean; overload; virtual;
+    function GetValues(const Item: TItem; const Values: TTool.TStringBuffer; const Update: Boolean): Boolean; overload; virtual;
     procedure Open(); virtual;
     property Session: TSSession read FSession;
     property Database: TSDatabase read FDatabase;
@@ -270,8 +271,8 @@ type
     procedure AfterExecuteData(const Item: TTImport.TItem); override;
     procedure BeforeExecuteData(const Item: TTImport.TItem); override;
     procedure ExecuteStructure(const Item: TTImport.TItem); override;
-    function GetValues(const Item: TTImport.TItem; const Values: TTool.TDataFileBuffer): Boolean; overload; override;
-    function GetValues(const Item: TTImport.TItem; const Values: TTool.TStringBuffer): Boolean; overload; override;
+    function GetValues(const Item: TTImport.TItem; const Values: TTool.TDataFileBuffer): Boolean; override;
+    function GetValues(const Item: TTImport.TItem; const Values: TTool.TStringBuffer; const Update: Boolean): Boolean; override;
   public
     Delimiter: Char;
     Quoter: Char;
@@ -306,7 +307,7 @@ type
     procedure BeforeExecute(); override;
     procedure BeforeExecuteData(const Item: TTImport.TItem); override;
     function GetValues(const Item: TTImport.TItem; const Values: TTool.TDataFileBuffer): Boolean; override;
-    function GetValues(const Item: TTImport.TItem; const Values: TTool.TStringBuffer): Boolean; overload; override;
+    function GetValues(const Item: TTImport.TItem; const Values: TTool.TStringBuffer; const Update: Boolean): Boolean; override;
     procedure ExecuteStructure(const Item: TTImport.TItem); override;
     function ODBCStmtException(const AStmt: SQLHSTMT): Exception;
     property Handle: SQLHDBC read FHandle;
@@ -1979,7 +1980,7 @@ begin
       else
         SQL := SQL + 'START TRANSACTION;' + #13#10;
 
-    if (Session.DataFileAllowed and not Suspended) then
+    if ((StmtType <> stUpdate) and Session.DataFileAllowed and not Suspended) then
     begin
       Pipename := '\\.\pipe\' + LoadStr(1000);
       Pipe := CreateNamedPipe(PChar(Pipename),
@@ -2079,25 +2080,31 @@ begin
       for I := 0 to Length(FieldMappings) - 1 do
         EscapedFieldName[I] := Session.EscapeIdentifier(FieldMappings[I].DestinationField.Name);
 
-      if (StmtType = stInsert) then
-        SQLInsertPrefix := 'INSERT INTO '
-      else
-        SQLInsertPrefix := 'REPLACE INTO ';
+      case (StmtType) of
+        stInsert: SQLInsertPrefix := 'INSERT INTO ';
+        stReplace: SQLInsertPrefix := 'REPLACE INTO ';
+        stUpdate: SQLInsertPrefix := 'UPDATE ';
+      end;
       SQLInsertPrefix := SQLInsertPrefix + EscapedTableName;
-      if (not Structure) then
-        SQLInsertPrefix := SQLInsertPrefix + ' (' + EscapedDestinationFieldNames + ')';
-      SQLInsertPrefix := SQLInsertPrefix + ' VALUES ';
+      if (StmtType = stUpdate) then
+        SQLInsertPrefix := SQLInsertPrefix + ' SET '
+      else
+      begin
+        if (not Structure) then
+          SQLInsertPrefix := SQLInsertPrefix + ' (' + EscapedDestinationFieldNames + ')';
+        SQLInsertPrefix := SQLInsertPrefix + ' VALUES ';
+      end;
 
       SQLInsertPostfix := ';' + #13#10;
 
-      while ((Success = daSuccess) and GetValues(Item, Values)) do
+      while ((Success = daSuccess) and GetValues(Item, Values, StmtType = stUpdate)) do
       begin
-        if (not InsertStmtInSQL) then
+        if ((StmtType = stUpdate) or not InsertStmtInSQL) then
         begin
           SQL := SQL + SQLInsertPrefix;
           InsertStmtInSQL := True;
         end
-        else
+        else if (StmtType in [stInsert, stReplace]) then
           SQL := SQL + ',';
 
         Len := Length(SQL);
@@ -2105,9 +2112,12 @@ begin
         MoveMemory(@SQL[1 + Len], Values.Data, Values.Size);
         Values.Clear();
 
+        if (StmtType = stUpdate) then
+          SQL := SQL + SQLInsertPostfix;
+
         if (Length(SQL) >= SQLPacketSize) then
         begin
-          if (InsertStmtInSQL) then
+          if ((StmtType <> stUpdate) and InsertStmtInSQL) then
           begin
             SQL := SQL + SQLInsertPostfix;
             InsertStmtInSQL := False;
@@ -2151,7 +2161,7 @@ begin
           DoError(DatabaseError(Session), Item, False, SQL);
       end;
 
-      if (InsertStmtInSQL) then
+      if ((StmtType <> stUpdate) and InsertStmtInSQL) then
         SQL := SQL + SQLInsertPostfix;
       if (Structure) then
       begin
@@ -2183,7 +2193,7 @@ begin
   Result := False;
 end;
 
-function TTImport.GetValues(const Item: TItem; const Values: TTool.TStringBuffer): Boolean;
+function TTImport.GetValues(const Item: TItem; const Values: TTool.TStringBuffer; const Update: Boolean): Boolean;
 begin
   Result := False;
 end;
@@ -2742,12 +2752,48 @@ begin
     end;
 end;
 
-function TTImportText.GetValues(const Item: TTImport.TItem; const Values: TTool.TStringBuffer): Boolean;
+function TTImportText.GetValues(const Item: TTImport.TItem; const Values: TTool.TStringBuffer; const Update: Boolean): Boolean;
+
+  procedure GetValue(const Index: Integer);
+  var
+    Len: Integer;
+  begin
+    if ((Index >= Length(CSVValues)) or (CSVValues[CSVColumns[Index]].Length = 0) and (FieldMappings[Index].DestinationField.FieldType in NotQuotedFieldTypes)) then
+      Values.Write('NULL', 4)
+    else
+    begin
+      if (not Assigned(CSVValues[CSVColumns[Index]].Text) or (CSVValues[CSVColumns[Index]].Length = 0)) then
+        Len := 0
+      else
+      begin
+        if (UnescapeBuffer.Length < CSVValues[CSVColumns[Index]].Length) then
+        begin
+          UnescapeBuffer.Length := CSVValues[CSVColumns[Index]].Length;
+          ReallocMem(UnescapeBuffer.Text, UnescapeBuffer.Length * SizeOf(UnescapeBuffer.Text[0]));
+        end;
+        Len := CSVUnescape(CSVValues[CSVColumns[Index]].Text, CSVValues[CSVColumns[Index]].Length, UnescapeBuffer.Text, UnescapeBuffer.Length, Quoter);
+      end;
+
+      if (FieldMappings[Index].DestinationField.FieldType in BinaryFieldTypes) then
+        Values.Write('NULL', 4)
+      else if (FieldMappings[Index].DestinationField.FieldType in TextFieldTypes) then
+        Values.WriteText(UnescapeBuffer.Text, Len)
+      else if (FieldMappings[Index].DestinationField.FieldType in NotQuotedFieldTypes) then
+        Values.Write(UnescapeBuffer.Text, Len)
+      else
+      begin
+        Len := SQLEscape(UnescapeBuffer.Text, Len, nil, 0);
+        SQLEscape(UnescapeBuffer.Text, Len, Values.WriteExternal(Len), Len);
+      end;
+    end;
+  end;
+
 var
   Eof: Boolean;
+  First: Boolean;
   I: Integer;
-  Len: Integer;
   RecordComplete: Boolean;
+  S: string;
 begin
   RecordComplete := False; Eof := False;
   while ((Success = daSuccess) and not RecordComplete and not Eof) do
@@ -2759,43 +2805,42 @@ begin
 
   Result := RecordComplete;
   if (Result) then
-  begin
-    Values.WriteChar('(');
-    for I := 0 to Length(FieldMappings) - 1 do
+    if (not Update) then
     begin
-      if (I > 0) then
-        Values.WriteChar(',');
-      if ((I >= Length(CSVValues)) or (CSVValues[CSVColumns[I]].Length = 0) and (FieldMappings[I].DestinationField.FieldType in NotQuotedFieldTypes)) then
-        Values.Write('NULL', 4)
-      else
+      Values.WriteChar('(');
+      for I := 0 to Length(FieldMappings) - 1 do
       begin
-        if (not Assigned(CSVValues[CSVColumns[I]].Text) or (CSVValues[CSVColumns[I]].Length = 0)) then
-          Len := 0
-        else
+        if (I > 0) then Values.WriteChar(',');
+        GetValue(I);
+      end;
+      Values.WriteChar(')');
+    end
+    else
+    begin
+      First := True;
+      for I := 0 to Length(FieldMappings) - 1 do
+        if (not FieldMappings[I].DestinationField.InPrimaryKey) then
         begin
-          if (UnescapeBuffer.Length < CSVValues[CSVColumns[I]].Length) then
-          begin
-            UnescapeBuffer.Length := CSVValues[CSVColumns[I]].Length;
-            ReallocMem(UnescapeBuffer.Text, UnescapeBuffer.Length * SizeOf(UnescapeBuffer.Text[0]));
-          end;
-          Len := CSVUnescape(CSVValues[CSVColumns[I]].Text, CSVValues[CSVColumns[I]].Length, UnescapeBuffer.Text, UnescapeBuffer.Length, Quoter);
+          if (First) then First := False else Values.WriteChar(',');
+          S := Session.EscapeIdentifier(FieldMappings[I].DestinationField.Name);
+          Values.Write(PChar(S), Length(S));
+          Values.WriteChar('=');
+          GetValue(I);
         end;
 
-        if (FieldMappings[I].DestinationField.FieldType in BinaryFieldTypes) then
-          Values.Write('NULL', 4)
-        else if (FieldMappings[I].DestinationField.FieldType in TextFieldTypes) then
-          Values.WriteText(UnescapeBuffer.Text, Len)
-        else if (FieldMappings[I].DestinationField.FieldType in NotQuotedFieldTypes) then
-          Values.Write(UnescapeBuffer.Text, Len)
-        else
+      Values.Write(' WHERE ', 7);
+
+      First := True;
+      for I := 0 to Length(FieldMappings) - 1 do
+        if (FieldMappings[I].DestinationField.InPrimaryKey) then
         begin
-          Len := SQLEscape(UnescapeBuffer.Text, Len, nil, 0);
-          SQLEscape(UnescapeBuffer.Text, Len, Values.WriteExternal(Len), Len);
+          if (First) then First := False else Values.Write(' AND ', 5);
+          S := Session.EscapeIdentifier(FieldMappings[I].DestinationField.Name);
+          Values.Write(PChar(S), Length(S));
+          Values.WriteChar('=');
+          GetValue(I);
         end;
-      end;
     end;
-    Values.WriteChar(')');
-  end;
 end;
 
 procedure TTImportText.Open();
@@ -3474,8 +3519,6 @@ begin
     for I := 0 to Length(FieldMappings) - 1 do
     begin
       if (I > 0) then Values.WriteChar(',');
-      if (I >= Length(ColumnDesc)) then
-        Write;
       case (ColumnDesc[I].SQLDataType) of
         SQL_BIT,
         SQL_TINYINT,
@@ -3567,115 +3610,147 @@ begin
   end;
 end;
 
-function TTImportBaseODBC.GetValues(const Item: TTImport.TItem; const Values: TTool.TStringBuffer): Boolean;
-var
-  cbData: SQLINTEGER;
-  I: Integer;
-  ReturnCode: SQLRETURN;
-  Size: Integer;
-begin
-  Result := SQL_SUCCEEDED(ODBCException(Stmt, SQLFetch(Stmt)));
+function TTImportBaseODBC.GetValues(const Item: TTImport.TItem; const Values: TTool.TStringBuffer; const Update: Boolean): Boolean;
 
-  if (Result) then
+  procedure GetValue(const Index: Integer);
+  var
+    cbData: SQLINTEGER;
+    ReturnCode: SQLRETURN;
+    Size: Integer;
   begin
-    Values.WriteChar('(');
-
-    for I := 0 to Length(FieldMappings) - 1 do
-    begin
-      if (I > 0) then
-        Values.WriteChar(',');
-
-      case (ColumnDesc[I].SQLDataType) of
-        SQL_BIT,
-        SQL_TINYINT,
-        SQL_SMALLINT,
-        SQL_INTEGER,
-        SQL_BIGINT,
-        SQL_DECIMAL,
-        SQL_NUMERIC,
-        SQL_REAL,
-        SQL_FLOAT,
-        SQL_DOUBLE,
-        SQL_TYPE_DATE,
-        SQL_TYPE_TIME,
-        SQL_TYPE_TIMESTAMP:
-          if (not SQL_SUCCEEDED(SQLGetData(Stmt, I + 1, SQL_C_CHAR, ODBCData, ODBCDataSize, @cbData))) then
+    case (ColumnDesc[Index].SQLDataType) of
+      SQL_BIT,
+      SQL_TINYINT,
+      SQL_SMALLINT,
+      SQL_INTEGER,
+      SQL_BIGINT,
+      SQL_DECIMAL,
+      SQL_NUMERIC,
+      SQL_REAL,
+      SQL_FLOAT,
+      SQL_DOUBLE,
+      SQL_TYPE_DATE,
+      SQL_TYPE_TIME,
+      SQL_TYPE_TIMESTAMP:
+        if (not SQL_SUCCEEDED(SQLGetData(Stmt, Index + 1, SQL_C_CHAR, ODBCData, ODBCDataSize, @cbData))) then
+        begin
+          DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
+          Values.Write('NULL', 4)
+        end
+        else if (cbData = SQL_NULL_DATA) then
+          Values.Write('NULL', 4)
+        else
+          Values.WriteData(PAnsiChar(ODBCData), cbData div SizeOf(SQLACHAR), not (FieldMappings[Index].DestinationField.FieldType in NotQuotedFieldTypes));
+      SQL_UNKNOWN_TYPE,
+      SQL_CHAR,
+      SQL_VARCHAR,
+      SQL_LONGVARCHAR,
+      SQL_WCHAR,
+      SQL_WVARCHAR,
+      SQL_WLONGVARCHAR,
+      SQL_GUID:
+        begin
+          Size := 0;
+          repeat
+            ReturnCode := SQLGetData(Stmt, Index + 1, SQL_C_WCHAR, ODBCData, ODBCDataSize, @cbData);
+            if ((cbData <> SQL_NULL_DATA) and (cbData > 0)) then
+            begin
+              if (ODBCMemSize < Size + cbData) then
+              begin
+                ODBCMemSize := ODBCMemSize + 2 * (Size + cbData - ODBCMemSize);
+                ReallocMem(ODBCMem, ODBCMemSize);
+              end;
+              MoveMemory(@PAnsiChar(ODBCMem)[Size], ODBCData, cbData);
+              Inc(Size, cbData);
+            end;
+          until (ReturnCode <> SQL_SUCCESS_WITH_INFO);
+          if (not SQL_SUCCEEDED(ReturnCode)) then
           begin
             DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
+            Values.Write('NULL', 4);
+          end
+          else if ((Size = 0) and (cbData = SQL_NULL_DATA)) then
             Values.Write('NULL', 4)
+          else
+            Values.WriteText(PChar(ODBCMem), Size div SizeOf(Char));
+        end;
+      SQL_BINARY,
+      SQL_VARBINARY,
+      SQL_LONGVARBINARY:
+        begin
+          Size := 0;
+          repeat
+            ReturnCode := SQLGetData(Stmt, Index + 1, SQL_C_BINARY, ODBCData, ODBCDataSize, @cbData);
+            if ((cbData <> SQL_NULL_DATA) and (cbData > 0)) then
+            begin
+              if (ODBCMemSize < Size + cbData) then
+              begin
+                ODBCMemSize := ODBCMemSize + 2 * (Size + cbData - ODBCMemSize);
+                ReallocMem(ODBCMem, ODBCMemSize);
+              end;
+              MoveMemory(@PAnsiChar(ODBCMem)[Size], ODBCData, cbData);
+              Inc(Size, cbData);
+            end;
+          until (ReturnCode <> SQL_SUCCESS_WITH_INFO);
+          if (not SQL_SUCCEEDED(ReturnCode)) then
+          begin
+            DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
+            Values.Write('NULL', 4);
           end
           else if (cbData = SQL_NULL_DATA) then
             Values.Write('NULL', 4)
           else
-            Values.WriteData(PAnsiChar(ODBCData), cbData div SizeOf(SQLACHAR), not (FieldMappings[I].DestinationField.FieldType in NotQuotedFieldTypes));
-        SQL_UNKNOWN_TYPE,
-        SQL_CHAR,
-        SQL_VARCHAR,
-        SQL_LONGVARCHAR,
-        SQL_WCHAR,
-        SQL_WVARCHAR,
-        SQL_WLONGVARCHAR,
-        SQL_GUID:
-          begin
-            Size := 0;
-            repeat
-              ReturnCode := SQLGetData(Stmt, I + 1, SQL_C_WCHAR, ODBCData, ODBCDataSize, @cbData);
-              if ((cbData <> SQL_NULL_DATA) and (cbData > 0)) then
-              begin
-                if (ODBCMemSize < Size + cbData) then
-                begin
-                  ODBCMemSize := ODBCMemSize + 2 * (Size + cbData - ODBCMemSize);
-                  ReallocMem(ODBCMem, ODBCMemSize);
-                end;
-                MoveMemory(@PAnsiChar(ODBCMem)[Size], ODBCData, cbData);
-                Inc(Size, cbData);
-              end;
-            until (ReturnCode <> SQL_SUCCESS_WITH_INFO);
-            if (not SQL_SUCCEEDED(ReturnCode)) then
-            begin
-              DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
-              Values.Write('NULL', 4);
-            end
-            else if ((Size = 0) and (cbData = SQL_NULL_DATA)) then
-              Values.Write('NULL', 4)
-            else
-              Values.WriteText(PChar(ODBCMem), Size div SizeOf(Char));
-          end;
-        SQL_BINARY,
-        SQL_VARBINARY,
-        SQL_LONGVARBINARY:
-          begin
-            Size := 0;
-            repeat
-              ReturnCode := SQLGetData(Stmt, I + 1, SQL_C_BINARY, ODBCData, ODBCDataSize, @cbData);
-              if ((cbData <> SQL_NULL_DATA) and (cbData > 0)) then
-              begin
-                if (ODBCMemSize < Size + cbData) then
-                begin
-                  ODBCMemSize := ODBCMemSize + 2 * (Size + cbData - ODBCMemSize);
-                  ReallocMem(ODBCMem, ODBCMemSize);
-                end;
-                MoveMemory(@PAnsiChar(ODBCMem)[Size], ODBCData, cbData);
-                Inc(Size, cbData);
-              end;
-            until (ReturnCode <> SQL_SUCCESS_WITH_INFO);
-            if (not SQL_SUCCEEDED(ReturnCode)) then
-            begin
-              DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
-              Values.Write('NULL', 4);
-            end
-            else if (cbData = SQL_NULL_DATA) then
-              Values.Write('NULL', 4)
-            else
-              Values.Write('NULL', 4);
-          end;
-        else
-          raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [FieldMappings[I].DestinationField.Name, ColumnDesc[I].SQLDataType]);
-      end;
+            Values.Write('NULL', 4);
+        end;
+      else
+        raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [FieldMappings[Index].DestinationField.Name, ColumnDesc[Index].SQLDataType]);
     end;
-
-    Values.WriteChar(')');
   end;
+
+var
+  First: Boolean;
+  I: Integer;
+  S: string;
+begin
+  Result := SQL_SUCCEEDED(ODBCException(Stmt, SQLFetch(Stmt)));
+
+  if (Result) then
+    if (not Update) then
+    begin
+      Values.WriteChar('(');
+      for I := 0 to Length(FieldMappings) - 1 do
+      begin
+        if (I > 0) then Values.WriteChar(',');
+        GetValue(I);
+      end;
+      Values.WriteChar(')');
+    end
+    else
+    begin
+      First := True;
+      for I := 0 to Length(FieldMappings) - 1 do
+        if (not FieldMappings[I].DestinationField.InPrimaryKey) then
+        begin
+          if (First) then First := False else Values.WriteChar(',');
+          S := Session.EscapeIdentifier(FieldMappings[I].DestinationField.Name);
+          Values.Write(PChar(S), Length(S));
+          Values.WriteChar('=');
+          GetValue(I);
+        end;
+
+      Values.Write(' WHERE ', 7);
+
+      First := True;
+      for I := 0 to Length(FieldMappings) - 1 do
+        if (FieldMappings[I].DestinationField.InPrimaryKey) then
+        begin
+          if (First) then First := False else Values.Write(' AND ', 5);
+          S := Session.EscapeIdentifier(FieldMappings[I].DestinationField.Name);
+          Values.Write(PChar(S), Length(S));
+          Values.WriteChar('=');
+          GetValue(I);
+        end;
+    end;
 end;
 
 function TTImportBaseODBC.ODBCStmtException(const AStmt: SQLHSTMT): Exception;

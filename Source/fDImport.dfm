@@ -64,7 +64,7 @@ object DImport: TDImport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSExecute
+    ActivePage = TSStmtType
     Anchors = [akLeft, akTop, akRight, akBottom]
     Style = tsButtons
     TabOrder = 0
@@ -728,13 +728,13 @@ object DImport: TDImport
         Left = 4
         Top = 0
         Width = 325
-        Height = 90
+        Height = 122
         Anchors = [akLeft, akTop, akRight]
         Caption = 'GStmtType'
         TabOrder = 0
         DesignSize = (
           325
-          90)
+          122)
         object FLStmtType: TLabel
           Left = 8
           Top = 24
@@ -763,6 +763,17 @@ object DImport: TDImport
           Anchors = [akLeft, akTop, akRight]
           Caption = 'FReplace'
           TabOrder = 1
+          OnClick = FStmtTypeClick
+          OnKeyPress = FStmtTypeKeyPress
+        end
+        object FUpdate: TRadioButton
+          Left = 128
+          Top = 88
+          Width = 193
+          Height = 17
+          Anchors = [akLeft, akTop, akRight]
+          Caption = 'FUpdate'
+          TabOrder = 2
           OnClick = FStmtTypeClick
           OnKeyPress = FStmtTypeKeyPress
         end

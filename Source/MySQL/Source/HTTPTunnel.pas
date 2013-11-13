@@ -125,7 +125,11 @@ begin
     InternetCloseHandle(Handle);
   end;
 
-  ReallocBuffer(SendBuffer, 0);
+  if (Assigned(SendBuffer.Mem)) then
+  begin
+    FreeMem(SendBuffer.Mem);
+    ZeroMemory(@SendBuffer, SizeOf(SendBuffer));
+  end;
 
   SID := '';
 
@@ -443,48 +447,43 @@ var
   SQLIndex: Integer;
   SQLLen: Integer;
 begin
-  if (Command = COM_PING) then
+  SendBuffer.Offset := 0;
+  SendBuffer.Size := 0;
+
+  Seterror(0);
+  next_command();
+
+  if (Command = COM_QUERY) then
+  begin
+    SQL := DecodeString(Bin); SQLIndex := 1;
+    Index := 0;
+    while (Index < Size) do
+    begin
+      SQLLen := SQLStmtLength(@SQL[SQLIndex], Length(SQL) - (SQLIndex - 1));
+      Len := WideCharToMultiByte(CodePage, 0, PChar(@SQL[SQLIndex]), SQLLen, nil, 0, nil, nil);
+
+      if (GetPacketSize() > 0) then
+        SetPacketPointer(1, PACKET_CURRENT);
+      WritePacket(@Command, 1);
+
+      WritePacket(my_char(@Bin[Index]), Len);
+
+      Inc(SQLIndex, SQLLen);
+      Inc(Index, Len);
+    end;
+  end
+  else
+  begin
+    WritePacket(Bin, Size);
+  end;
+
+  if ((FlushPacketBuffers() or (errno() = CR_SERVER_GONE_ERROR)) and ExecuteHTTPRequest(False) and (next_result() <= 0)) then
     Result := 0
   else
   begin
-    SendBuffer.Offset := 0;
-    SendBuffer.Size := 0;
-
-    Seterror(0);
-    next_command();
-
-    if (Command <> COM_QUERY) then
-    begin
-      WritePacket(Bin, Size);
-    end
-    else
-    begin
-      SQL := DecodeString(Bin); SQLIndex := 1;
-      Index := 0;
-      while (Index < Size) do
-      begin
-        SQLLen := SQLStmtLength(@SQL[SQLIndex], Length(SQL) - (SQLIndex - 1));
-        Len := WideCharToMultiByte(CodePage, 0, PChar(@SQL[SQLIndex]), SQLLen, nil, 0, nil, nil);
-
-        if (GetPacketSize() > 0) then
-          SetPacketPointer(1, PACKET_CURRENT);
-        WritePacket(@Command, 1);
-
-        WritePacket(my_char(@Bin[Index]), Len);
-
-        Inc(SQLIndex, SQLLen);
-        Inc(Index, Len);
-      end;
-    end;
-
-    if ((FlushPacketBuffers() or (errno() = CR_SERVER_GONE_ERROR)) and ExecuteHTTPRequest(False) and (next_result() <= 0)) then
-      Result := 0
-    else
-    begin
-      if (errno() = 0) then
-        Seterror(CR_SERVER_LOST);
-      Result := 1;
-    end;
+    if (errno() = 0) then
+      Seterror(CR_SERVER_LOST);
+    Result := 1;
   end;
 end;
 
@@ -510,7 +509,8 @@ end;
 
 function MYSQL.Send(const Buffer; const BytesToWrite: my_uint): Boolean;
 begin
-  Result := (SendBuffer.Size + BytesToWrite <= SendBuffer.MemSize) or ReallocBuffer(SendBuffer, SendBuffer.Size + BytesToWrite);
+  Result := (SendBuffer.Size + BytesToWrite <= SendBuffer.MemSize)
+    or ReallocBuffer(SendBuffer, SendBuffer.Size + BytesToWrite);
 
   if (Result) then
   begin
