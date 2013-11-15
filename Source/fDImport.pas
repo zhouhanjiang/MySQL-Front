@@ -48,6 +48,7 @@ type
     FExcelFile: TRadioButton;
     FFilename: TEdit;
     FInsert: TRadioButton;
+    FInsertOrUpdate: TRadioButton;
     FLCharset: TLabel;
     FLCollation: TLabel;
     FLCSVHeadline: TLabel;
@@ -126,6 +127,7 @@ type
     TSTables: TTabSheet;
     TSTask: TTabSheet;
     TSWhat: TTabSheet;
+    FLInsertUpdate: TLabel;
     procedure FBBackClick(Sender: TObject);
     procedure FBCancelClick(Sender: TObject);
     procedure FBDataSourceClick(Sender: TObject);
@@ -425,6 +427,8 @@ begin
   FInsert.Caption := LowerCase(Preferences.LoadStr(880)) + ' (INSERT)';
   FReplace.Caption := LowerCase(Preferences.LoadStr(416)) + ' (REPLACE)';
   FUpdate.Caption := LowerCase(Preferences.LoadStr(726)) + ' (UPDATE)';
+  FInsertOrUpdate.Caption := LowerCase(Preferences.LoadStr(910));
+  FLInsertUpdate.Caption := '(INSERT / UPDATE)';
 
   GProgress.Caption := Preferences.LoadStr(224);
   FLEntiered.Caption := Preferences.LoadStr(211) + ':';
@@ -928,6 +932,8 @@ begin
       TAJobImport(PImport).StmtType := stReplace
     else if (FUpdate.Checked) then
       TAJobImport(PImport).StmtType := stUpdate
+    else if (FInsertOrUpdate.Checked) then
+      TAJobImport(PImport).StmtType := stInsertOrUpdate
     else
       TAJobImport(PImport).StmtType := stInsert;
 
@@ -1090,6 +1096,7 @@ begin
   FCollation.Visible := Session.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
 
   FUpdate.Enabled := (SObject is TSBaseTable) and Assigned(TSBaseTable(SObject).PrimaryKey);
+  FInsertOrUpdate.Enabled := FUpdate.Enabled;
 
   if (DialogType = idtCreateJob) then
   begin
@@ -1115,6 +1122,7 @@ begin
     case (Preferences.Import.StmtType) of
       stReplace: FReplace.Checked := True;
       stUpdate: FUpdate.Checked := True;
+      stInsertOrUpdate: FInsertOrUpdate.Checked := True;
       else FInsert.Checked := True;
     end;
 
@@ -1159,6 +1167,7 @@ begin
     case (Job.StmtType) of
       stReplace: FReplace.Checked := True;
       stUpdate: FUpdate.Checked := True;
+      stInsertOrUpdate: FInsertOrUpdate.Checked := True;
       else FInsert.Checked := True;
     end;
 
@@ -1221,6 +1230,7 @@ begin
       case (Preferences.Import.StmtType) of
         stReplace: FReplace.Checked := True;
         stUpdate: FUpdate.Checked := True;
+        stInsertOrUpdate: FInsertOrUpdate.Checked := True;
         else FInsert.Checked := True;
       end;
     end;
@@ -1380,8 +1390,8 @@ end;
 
 procedure TDImport.FStmtTypeClick(Sender: TObject);
 begin
-  TSTask.Enabled := (DialogType <> idtNormal) and (FInsert.Checked and FInsert.Enabled or FReplace.Checked and FReplace.Enabled or FUpdate.Checked and FUpdate.Enabled);
-  TSExecute.Enabled := (DialogType = idtNormal) and (FInsert.Checked and FInsert.Enabled or FReplace.Checked and FReplace.Enabled or FUpdate.Checked and FUpdate.Enabled);
+  TSTask.Enabled := (DialogType <> idtNormal) and (FInsert.Checked and FInsert.Enabled or FReplace.Checked and FReplace.Enabled or FUpdate.Checked and FUpdate.Enabled or FInsertOrUpdate.Checked and FInsertOrUpdate.Enabled);
+  TSExecute.Enabled := (DialogType = idtNormal) and (FInsert.Checked and FInsert.Enabled or FReplace.Checked and FReplace.Enabled or FUpdate.Checked and FUpdate.Enabled or FInsertOrUpdate.Checked and FInsertOrUpdate.Enabled);
   CheckActivePageChange(TSStmtType.PageIndex);
 end;
 
@@ -1891,6 +1901,8 @@ begin
       Import.StmtType := stReplace
     else if (FUpdate.Checked and FUpdate.Enabled) then
       Import.StmtType := stUpdate
+    else if (FInsertOrUpdate.Checked and FInsertOrUpdate.Enabled) then
+      Import.StmtType := stInsertOrUpdate
     else
       Import.StmtType := stInsert;
     Import.RowType := TMySQLRowType(FRowFormat.ItemIndex);
@@ -1917,12 +1929,25 @@ end;
 
 procedure TDImport.TSFieldsChange(Sender: TObject);
 var
+  Found: Boolean;
   I: Integer;
+  J: Integer;
 begin
   TSStmtType.Enabled := False;
   for I := 0 to Length(FDestinationFields) - 1 do
     if ((FSourceFields[I].Text <> '') and (FDestinationFields[I].ItemIndex > 0)) then
       TSStmtType.Enabled := True;
+
+  FUpdate.Enabled := (SObject is TSBaseTable);
+  if (FUpdate.Enabled) then
+    for J := 0 to TSBaseTable(SObject).PrimaryKey.Columns.Count - 1 do
+    begin
+      Found := False;
+      for I := 0 to Length(FDestinationFields) - 1 do
+        Found := Found or (TSBaseTable(SObject).Database.Tables.NameCmp(FDestinationFields[I].Text, TSBaseTable(SObject).PrimaryKey.Columns[J].Field.Name) = 0);
+      FUpdate.Enabled := FUpdate.Enabled and Found;
+    end;
+  FInsertOrUpdate.Enabled := FUpdate.Enabled;
 
   CheckActivePageChange(TSFields.PageIndex);
 end;

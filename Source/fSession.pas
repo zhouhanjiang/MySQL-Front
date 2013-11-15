@@ -7955,7 +7955,6 @@ var
   SQL: string;
 begin
   if (Assigned(Table)) then
-  begin
     for I := 0 to NewTable.Fields.Count - 1 do
       if (NewTable.Fields[I].FieldType in TextFieldTypes) then
       begin
@@ -7964,8 +7963,6 @@ begin
         if ((NewTable.Fields[I].Collation = Table.Collation) or (NewTable.Fields[I].Collation = '') and (NewTable.Collation <> Table.Collation)) then
           NewTable.Fields[I].Collation := NewTable.Collation;
       end;
-//    Table.InvalidateData();
-  end;
 
   List := TList.Create();
   List.Add(Table);

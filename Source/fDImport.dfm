@@ -728,19 +728,27 @@ object DImport: TDImport
         Left = 4
         Top = 0
         Width = 325
-        Height = 122
+        Height = 170
         Anchors = [akLeft, akTop, akRight]
         Caption = 'GStmtType'
         TabOrder = 0
         DesignSize = (
           325
-          122)
+          170)
         object FLStmtType: TLabel
           Left = 8
           Top = 24
           Width = 57
           Height = 13
           Caption = 'FLStmtType'
+        end
+        object FLInsertUpdate: TLabel
+          Left = 152
+          Top = 144
+          Width = 169
+          Height = 13
+          AutoSize = False
+          Caption = 'FLInsertUpdate'
         end
         object FInsert: TRadioButton
           Left = 128
@@ -774,6 +782,17 @@ object DImport: TDImport
           Anchors = [akLeft, akTop, akRight]
           Caption = 'FUpdate'
           TabOrder = 2
+          OnClick = FStmtTypeClick
+          OnKeyPress = FStmtTypeKeyPress
+        end
+        object FInsertOrUpdate: TRadioButton
+          Left = 128
+          Top = 120
+          Width = 193
+          Height = 17
+          Anchors = [akLeft, akTop, akRight]
+          Caption = 'FInsertOrUpdate'
+          TabOrder = 3
           OnClick = FStmtTypeClick
           OnKeyPress = FStmtTypeKeyPress
         end

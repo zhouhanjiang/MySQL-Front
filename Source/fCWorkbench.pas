@@ -2166,7 +2166,7 @@ begin
   if (not Assigned(Point)) then
     raise Exception.Create('Point is not assigned')
   else if (not (Point is TWLink)) then
-    raise Exception.Create('Point is not TWLink')
+    raise Exception.CreateFmt('Point is not TWLink  (%s)', [Point.ClassName])
   else
     Result := TWLink(Point);
 end;

@@ -7328,6 +7328,7 @@ begin
       List := TList.Create();
       List.Add(Field);
       Table.EmptyFields(List);
+      Table.Update();
       List.Free();
     end;
   end;
