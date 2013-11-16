@@ -1939,7 +1939,7 @@ begin
       TSStmtType.Enabled := True;
 
   FUpdate.Enabled := (SObject is TSBaseTable);
-  if (FUpdate.Enabled) then
+  if (FUpdate.Enabled and Assigned(TSBaseTable(SObject).PrimaryKey)) then
     for J := 0 to TSBaseTable(SObject).PrimaryKey.Columns.Count - 1 do
     begin
       Found := False;

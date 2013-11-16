@@ -9193,10 +9193,10 @@ end;
 
 function TFSession.GetWindow(): TForm_Ext;
 begin
-  if (not Assigned(Owner)) then
-    raise Exception.Create('Owner not set');
-
-  Result := TForm_Ext(Owner);
+  if (not (Owner is TForm_Ext)) then
+    raise Exception.Create('Owner not set')
+  else
+    Result := TForm_Ext(Owner);
 end;
 
 procedure TFSession.gmFilterClearClick(Sender: TObject);
@@ -13687,7 +13687,7 @@ begin
 
       Empty := ((ActiveSynMemo.Lines.Count <= 1) and (ActiveSynMemo.Text = '')); // Benötigt bei vielen Zeilen Zeit
 
-      MainAction('aFSave').Enabled := not Empty and ((View in [vEditor, vEditor2, vEditor3]) and (SQLEditors[View].Filename = '') or ActiveSynMemo.Modified);
+      MainAction('aFSave').Enabled := not Empty and (View in [vEditor, vEditor2, vEditor3]) and (SQLEditors[View].Filename = '');
       MainAction('aFSaveAs').Enabled := not Empty and (View in [vEditor, vEditor2, vEditor3]);
       MainAction('aFPrint').Enabled := (View in [vEditor, vEditor2, vEditor3]) and not Empty;
       MainAction('aERedo').Enabled := ActiveSynMemo.CanRedo;
