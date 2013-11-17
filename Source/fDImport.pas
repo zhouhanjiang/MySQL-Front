@@ -1912,7 +1912,7 @@ begin
     begin
       TSBaseTable(SObject).InvalidateData();
       for I := 0 to Length(FSourceFields) - 1 do
-        if (FDestinationFields[I].ItemIndex >= 0) then
+        if (FDestinationFields[I].ItemIndex > 0) then
           Import.AddField(TSBaseTable(SObject).Fields[FDestinationFields[I].ItemIndex - 1], FSourceFields[I].Text);
     end;
 
