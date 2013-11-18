@@ -635,7 +635,7 @@ type
     procedure mwDCreateForeignKeyClick(Sender: TObject);
     procedure mwDCreateTableClick(Sender: TObject);
     procedure mwEPasteClick(Sender: TObject);
-    procedure mwERemoveClick(Sender: TObject);
+    procedure mwEDeleteClick(Sender: TObject);
     procedure MWorkbenchPopup(Sender: TObject);
     procedure PanelMouseDown(Sender: TObject;
       Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -11622,7 +11622,7 @@ begin
   end;
 end;
 
-procedure TFSession.mwERemoveClick(Sender: TObject);
+procedure TFSession.mwEDeleteClick(Sender: TObject);
 begin
   MainAction('aEDelete').Execute();
 end;
@@ -11641,7 +11641,7 @@ begin
   mwEPaste.Enabled := MainAction('aEPaste').Enabled;
 
   ActiveWorkbench.UpdateAction(MainAction('aEDelete'));
-  mwEDelete.Enabled := MainAction('aEDelete').Enabled;
+  mwEDelete.Enabled := not (ActiveWorkbench.Selected is TWForeignKey);
   if ((ActiveWorkbench.Selected is TWTable)) then
     mwEDelete.Caption := Preferences.LoadStr(559)
   else

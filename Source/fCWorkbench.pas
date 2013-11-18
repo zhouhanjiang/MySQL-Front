@@ -3668,6 +3668,9 @@ begin
 
   Sections.LoadFromXML(XML);
 
+  Database.Session.BeginSynchron();
+  Database.Tables.Update();
+  Database.Session.EndSynchron();
   List := TList.Create();
   for I := 0 to XML.ChildNodes.Count - 1 do
     if (XML.ChildNodes.Nodes[I].NodeName = 'table') then
