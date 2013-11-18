@@ -43,6 +43,8 @@ type
     procedure FMatchFullKeyPress(Sender: TObject; var Key: Char);
     procedure FMatchPartialClick(Sender: TObject);
     procedure FMatchPartialKeyPress(Sender: TObject; var Key: Char);
+    procedure FOnDeleteChange(Sender: TObject);
+    procedure FOnUpdateChange(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormCreate(Sender: TObject);
     procedure FormHide(Sender: TObject);
@@ -109,19 +111,19 @@ begin
   GAttributes.Caption := Preferences.LoadStr(86);
   FLOnDelete.Caption := Preferences.LoadStr(260) + ' ...';
   FOnDelete.Items.Clear();
+  FOnDelete.Items.Add('<' + Preferences.LoadStr(259) + '>');
   FOnDelete.Items.Add(Preferences.LoadStr(255));
   FOnDelete.Items.Add(Preferences.LoadStr(256));
   FOnDelete.Items.Add(Preferences.LoadStr(257));
   FOnDelete.Items.Add(Preferences.LoadStr(258));
-  FOnDelete.Items.Add(Preferences.LoadStr(259));
 
   FLOnUpdate.Caption := Preferences.LoadStr(261) + ' ...';
   FOnUpdate.Items.Clear();
+  FOnUpdate.Items.Add('<' + Preferences.LoadStr(259) + '>');
   FOnUpdate.Items.Add(Preferences.LoadStr(255));
   FOnUpdate.Items.Add(Preferences.LoadStr(256));
   FOnUpdate.Items.Add(Preferences.LoadStr(257));
   FOnUpdate.Items.Add(Preferences.LoadStr(258));
-  FOnUpdate.Items.Add(Preferences.LoadStr(259));
 
   FLMatch.Caption := Preferences.LoadStr(364) + ':';
   FMatchFull.Caption := Preferences.LoadStr(365);
@@ -152,6 +154,15 @@ procedure TDForeignKey.FMatchFullClick(Sender: TObject);
 begin
   if (FMatchFull.Checked) then FMatchPartial.Checked := False;
 
+  FOnDelete.OnClick := nil;
+  FOnUpdate.OnClick := nil;
+
+  FOnDelete.ItemIndex := 0;
+  FOnUpdate.ItemIndex := 0;
+
+  FOnDelete.OnClick := FOnDeleteChange;
+  FOnUpdate.OnClick := FOnUpdateChange;
+
   FBOkCheckEnabled(Sender);
 end;
 
@@ -164,12 +175,55 @@ procedure TDForeignKey.FMatchPartialClick(Sender: TObject);
 begin
   if (FMatchPartial.Checked) then FMatchFull.Checked := False;
 
+  FOnDelete.OnClick := nil;
+  FOnUpdate.OnClick := nil;
+
+  FOnDelete.ItemIndex := 0;
+  FOnUpdate.ItemIndex := 0;
+
+  FOnDelete.OnClick := FOnDeleteChange;
+  FOnUpdate.OnClick := FOnUpdateChange;
+
   FBOkCheckEnabled(Sender);
 end;
 
 procedure TDForeignKey.FMatchPartialKeyPress(Sender: TObject; var Key: Char);
 begin
   FMatchPartialClick(Sender);
+end;
+
+procedure TDForeignKey.FOnDeleteChange(Sender: TObject);
+begin
+  if (FOnDelete.ItemIndex > 0) then
+  begin
+    FMatchFull.OnClick := nil;
+    FMatchPartial.OnClick := nil;
+
+    FMatchFull.Checked := False;
+    FMatchPartial.Checked := False;
+
+    FMatchFull.OnClick := FMatchFullClick;
+    FMatchPartial.OnClick := FMatchPartialClick;
+  end;
+
+  FBOkCheckEnabled(Sender);
+end;
+
+procedure TDForeignKey.FOnUpdateChange(Sender: TObject);
+begin
+  if (FOnUpdate.ItemIndex > 0) then
+  begin
+    FMatchFull.OnClick := nil;
+    FMatchPartial.OnClick := nil;
+
+    FMatchFull.Checked := False;
+    FMatchPartial.Checked := False;
+
+    FMatchFull.OnClick := FMatchFullClick;
+    FMatchPartial.OnClick := FMatchPartialClick;
+  end;
+
+  FBOkCheckEnabled(Sender);
 end;
 
 procedure TDForeignKey.FormSessionEvent(const Event: TSSession.TEvent);
@@ -227,15 +281,20 @@ begin
     else NewForeignKey.Match := mtNo;
 
     NewForeignKey.OnDelete := dtRestrict;
-    if (FOnDelete.ItemIndex = 1) then NewForeignKey.OnDelete := dtCascade;
-    if (FOnDelete.ItemIndex = 2) then NewForeignKey.OnDelete := dtSetNull;
-    if (FOnDelete.ItemIndex = 3) then NewForeignKey.OnDelete := dtSetDefault;
-    if (FOnDelete.ItemIndex = 4) then NewForeignKey.OnDelete := dtNoAction;
-    NewForeignKey.OnUpdate := utRestrict;
-    if (FOnUpdate.ItemIndex = 1) then NewForeignKey.OnUpdate := utCascade;
-    if (FOnUpdate.ItemIndex = 2) then NewForeignKey.OnUpdate := utSetNull;
-    if (FOnUpdate.ItemIndex = 3) then NewForeignKey.OnUpdate := utSetDefault;
-    if (FOnUpdate.ItemIndex = 4) then NewForeignKey.OnUpdate := utNoAction;
+    case (FOnDelete.ItemIndex) of
+      0: NewForeignKey.OnDelete := dtNoAction;
+      1: NewForeignKey.OnDelete := dtRestrict;
+      2: NewForeignKey.OnDelete := dtCascade;
+      3: NewForeignKey.OnDelete := dtSetNull;
+      4: NewForeignKey.OnDelete := dtSetDefault;
+    end;
+    case (FOnUpdate.ItemIndex) of
+      0: NewForeignKey.OnUpdate := utNoAction;
+      1: NewForeignKey.OnUpdate := utRestrict;
+      2: NewForeignKey.OnUpdate := utCascade;
+      3: NewForeignKey.OnUpdate := utSetNull;
+      4: NewForeignKey.OnUpdate := utSetDefault;
+    end;
 
     if (not Assigned(Database)) then
     begin
@@ -355,8 +414,8 @@ begin
     FMatchFull.Checked := False;
     FMatchPartial.Checked := False;
 
-    FOnDelete.ItemIndex := -1;
-    FOnUpdate.ItemIndex := -1;
+    FOnDelete.ItemIndex := 0;
+    FOnUpdate.ItemIndex := 0;
   end
   else
   begin
@@ -373,23 +432,25 @@ begin
     FParentTable.ItemIndex := FParentTable.Items.IndexOf(ForeignKey.Parent.TableName);
     FParentTableChange(Sender);
 
-    FMatchFull.Checked := ForeignKey.Match = mtFull;
-    FMatchPartial.Checked := ForeignKey.Match = mtFull;
+    FMatchFull.Checked := ForeignKey.Match = mtFull; FMatchFull.OnClick(Self);
+    FMatchPartial.Checked := ForeignKey.Match = mtPartial; FMatchPartial.OnClick(Self);
 
     case (ForeignKey.OnDelete) of
-      dtCascade: FOnDelete.ItemIndex := 1;
-      dtSetNull: FOnDelete.ItemIndex := 2;
-      dtSetDefault: FOnDelete.ItemIndex := 3;
-      dtNoAction: FOnDelete.ItemIndex := 4;
-      else FOnDelete.ItemIndex := 0;
+      dtNoAction: FOnDelete.ItemIndex := 0;
+      dtRestrict: FOnDelete.ItemIndex := 1;
+      dtCascade: FOnDelete.ItemIndex := 2;
+      dtSetNull: FOnDelete.ItemIndex := 3;
+      dtSetDefault: FOnDelete.ItemIndex := 4;
     end;
+    FOnDeleteChange(Self);
     case (ForeignKey.OnUpdate) of
-      utCascade: FOnUpdate.ItemIndex := 1;
-      utSetNull: FOnUpdate.ItemIndex := 2;
-      utSetDefault: FOnUpdate.ItemIndex := 3;
-      utNoAction: FOnUpdate.ItemIndex := 4;
-      else FOnUpdate.ItemIndex := 0;
+      utNoAction: FOnUpdate.ItemIndex := 0;
+      utRestrict: FOnUpdate.ItemIndex := 1;
+      utCascade: FOnUpdate.ItemIndex := 2;
+      utSetNull: FOnUpdate.ItemIndex := 3;
+      utSetDefault: FOnUpdate.ItemIndex := 4;
     end;
+    FOnUpdateChange(Self);
   end;
 
   FName.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013);

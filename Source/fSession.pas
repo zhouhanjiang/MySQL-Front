@@ -7463,7 +7463,7 @@ begin
       if (NewForeignKey.Match = mtFull) then
         SQLPart := SQLPart + ' MATCH FULL'
       else if (NewForeignKey.Match = mtPartial) then
-        SQLPart := SQLPart + ' MATCH Partial';
+        SQLPart := SQLPart + ' MATCH PARTIAL';
 
       if (NewForeignKey.OnDelete = dtNoAction) then SQLPart := SQLPart + ' ON DELETE NO ACTION';
       if (NewForeignKey.OnDelete = dtCascade) then SQLPart := SQLPart + ' ON DELETE CASCADE';

@@ -233,7 +233,7 @@ object DForeignKey: TDForeignKey
       Height = 21
       Style = csDropDownList
       TabOrder = 2
-      OnChange = FBOkCheckEnabled
+      OnChange = FOnDeleteChange
     end
     object FOnUpdate: TComboBox_Ext
       Left = 120
@@ -242,7 +242,7 @@ object DForeignKey: TDForeignKey
       Height = 21
       Style = csDropDownList
       TabOrder = 3
-      OnChange = FBOkCheckEnabled
+      OnChange = FOnUpdateChange
     end
     object FMatchFull: TCheckBox
       Left = 120
