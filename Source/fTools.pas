@@ -7727,8 +7727,10 @@ begin
     if (Structure and not Assigned(DestinationDatabase)) then
     begin
       DestinationDatabase := TSDatabase.Create(DestinationSession, TItem(Item).DestinationDatabaseName);
+      DestinationSession.BeginSynchron();
       while ((Success <> daAbort) and not DestinationSession.AddDatabase(DestinationDatabase)) do
         DoError(DatabaseError(DestinationSession), Item, True);
+      DestinationSession.EndSynchron();
       DestinationDatabase.Free();
 
       DestinationDatabase := DestinationSession.DatabaseByName(TItem(Item).DestinationDatabaseName);
