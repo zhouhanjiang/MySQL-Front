@@ -1023,6 +1023,7 @@ type
     procedure PropertiesServerExecute(Sender: TObject);
     procedure PSQLEditorUpdate();
     function RenameCItem(const CItem: TSItem; const NewName: string): Boolean;
+    procedure SaveDiagram(const Filename: string);
     procedure SaveSQLFile(Sender: TObject);
     procedure SBResultRefresh(const DataSet: TMySQLDataSet);
     procedure SendQuery(Sender: TObject; const SQL: string);
@@ -1086,6 +1087,7 @@ type
     procedure CrashRescue();
     procedure miBookmarkClick(Sender: TObject);
     procedure MoveToAddress(const ADiff: Integer);
+    procedure OpenDiagram();
     procedure OpenSQLFile(const AFilename: TFileName; const CodePage: Cardinal = 0; const Insert: Boolean = False);
     procedure StatusBarRefresh(const Immediately: Boolean = False);
     property Address: string read FAddress write SetAddress;
@@ -2516,9 +2518,9 @@ begin
     Empty := not Assigned(ActiveSynMemo) or (ActiveSynMemo.Lines.Count <= 1) and (ActiveSynMemo.Text = ''); // Takes a lot of time
     if (not Empty and (View = vIDE)) then SQL := ActiveSynMemo.Text else SQL := '';
 
-    MainAction('aFOpen').Enabled := View in [vEditor, vEditor2, vEditor3];
-    MainAction('aFSave').Enabled := (View in [vEditor, vEditor2, vEditor3]) and not Empty and ((SQLEditors[View].Filename = '') or ActiveSynMemo.Modified);
-    MainAction('aFSaveAs').Enabled := (View in [vEditor, vEditor2, vEditor3]) and not Empty;
+    MainAction('aFOpen').Enabled := (View = vDiagram) or (View in [vEditor, vEditor2, vEditor3]);
+    MainAction('aFSave').Enabled := (View = vDiagram) or (View in [vEditor, vEditor2, vEditor3]) and not Empty and ((SQLEditors[View].Filename = '') or ActiveSynMemo.Modified);
+    MainAction('aFSaveAs').Enabled := (View = vDiagram) or (View in [vEditor, vEditor2, vEditor3]) and not Empty;
     MainAction('aVObjectBrowser').Enabled := True;
     MainAction('aVDataBrowser').Enabled := (SelectedImageIndex in [iiBaseTable, iiSystemView, iiView, iiTrigger]) or ((LastSelectedDatabase <> '') and (LastSelectedDatabase = SelectedDatabase) and (LastSelectedTable <> ''));
     MainAction('aVObjectIDE').Enabled := (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]) or (LastObjectIDEAddress <> '');
@@ -3661,7 +3663,9 @@ procedure TFSession.aFOpenExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  if (Boolean(Perform(CM_CLOSE_TAB_QUERY, 0, 0))) then
+  if (View = vDiagram) then
+    OpenDiagram()
+  else if (Boolean(Perform(CM_CLOSE_TAB_QUERY, 0, 0))) then
     OpenSQLFile('');
 end;
 
@@ -3681,14 +3685,20 @@ procedure TFSession.aFSaveAsExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  SaveSQLFile(Sender);
+  if (View = vDiagram) then
+    SaveDiagram('')
+  else
+    SaveSQLFile(Sender);
 end;
 
 procedure TFSession.aFSaveExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  SaveSQLFile(Sender);
+  if (View = vDiagram) then
+    SaveDiagram(SelectedDatabase + '.xml')
+  else
+    SaveSQLFile(Sender);
 end;
 
 procedure TFSession.AfterConnect(Sender: TObject);
@@ -11827,6 +11837,20 @@ begin
   URI.Free();
 end;
 
+procedure TFSession.OpenDiagram();
+begin
+  OpenDialog.Title := Preferences.LoadStr(581);
+  OpenDialog.InitialDir := Path;
+  OpenDialog.FileName := '';
+  OpenDialog.DefaultExt := 'xml';
+  OpenDialog.Filter := FilterDescription('xml') + ' (*.xml)|*.xml|' + FilterDescription('*') + ' (*.*)|*.*';
+  OpenDialog.Encodings.Text := '';
+  OpenDialog.EncodingIndex := -1;
+
+  if (OpenDialog.Execute()) then
+    ActiveWorkbench.LoadFromFile(OpenDialog.FileName);
+end;
+
 procedure TFSession.OpenSQLFile(const AFilename: TFileName; const CodePage: Cardinal = 0; const Insert: Boolean = False);
 var
   Answer: Integer;
@@ -12886,6 +12910,22 @@ begin
 
   if (Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and Result) then
     ActiveDBGrid.DataSource.DataSet.Close();
+end;
+
+procedure TFSession.SaveDiagram(const Filename: string);
+begin
+  SaveDialog.Title := Preferences.LoadStr(582);
+  SaveDialog.InitialDir := Path;
+  SaveDialog.Encodings.Text := '';
+  SaveDialog.EncodingIndex := -1;
+  if (Filename = '') then
+    SaveDialog.FileName := SelectedDatabase + '.xml'
+  else
+    SaveDialog.FileName := Filename;
+  SaveDialog.DefaultExt := 'xml';
+  OpenDialog.Filter := FilterDescription('xml') + ' (*.xml)|*.xml|' + FilterDescription('*') + ' (*.*)|*.*';
+  if (SaveDialog.Execute()) then
+    ActiveWorkbench.SaveToFile(SaveDialog.FileName);
 end;
 
 procedure TFSession.SaveSQLFile(Sender: TObject);

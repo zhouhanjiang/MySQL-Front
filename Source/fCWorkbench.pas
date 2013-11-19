@@ -3666,11 +3666,11 @@ begin
 
   Clear();
 
+  Database.Session.BeginSynchron();
+
   Sections.LoadFromXML(XML);
 
-  Database.Session.BeginSynchron();
   Database.Tables.Update();
-  Database.Session.EndSynchron();
   List := TList.Create();
   for I := 0 to XML.ChildNodes.Count - 1 do
     if (XML.ChildNodes.Nodes[I].NodeName = 'table') then
@@ -3682,8 +3682,13 @@ begin
         else
           List.Add(BaseTable);
     end;
-  Database.Session.Update(List);
+  if (Database.Session.Update(List)) then
+    for I := 0 to List.Count - 1 do
+      if (TObject(List[I]) is TSBaseTable) then
+        TSBaseTable(List[I]).PushBuildEvent();
   List.Free();
+
+  Database.Session.EndSynchron();
 
   FModified := False;
 end;
