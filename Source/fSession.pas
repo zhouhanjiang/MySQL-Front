@@ -8440,7 +8440,7 @@ begin
     if (Assigned(Session.VariableByName('sql_quote_show_create'))) then
       Session.IdentifierQuoted := Session.VariableByName('sql_quote_show_create').AsBoolean;
 
-    if ((Session.Account.Connection.LibraryType <> ltHTTP) and Assigned(Session.VariableByName('wait_timeout'))) then
+    if (Assigned(Session.VariableByName('wait_timeout'))) then
       if (Session.VariableByName('wait_timeout').AsInteger >= 4) then
         Session.ServerTimeout := Session.VariableByName('wait_timeout').AsInteger - 3
       else if (Session.VariableByName('wait_timeout').AsInteger >= 60) then
@@ -8582,7 +8582,8 @@ end;
 
 function TSEngine.GetIsInnoDB(): Boolean;
 begin
-  Result := (Engines.NameCmp(Name, 'InnoDB') = 0);
+  Result := (Engines.NameCmp(Name, 'InnoDB') = 0)
+    or (Engines.NameCmp(Name, 'MyISAM') = 0);
 end;
 
 function TSEngine.GetIsMerge(): Boolean;

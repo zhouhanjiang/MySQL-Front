@@ -276,9 +276,12 @@ begin
         NewForeignKey.Parent.FieldNames[Length(NewForeignKey.Parent.FieldNames) - 1] := FParentFields.Items.Strings[I];
       end;
 
-    if (FMatchFull.Checked) then NewForeignKey.Match := mtFull
-    else if (FMatchPartial.Checked) then NewForeignKey.Match := mtPartial
-    else NewForeignKey.Match := mtNo;
+    if (FMatchFull.Checked) then
+      NewForeignKey.Match := mtFull
+    else if (FMatchPartial.Checked) then
+      NewForeignKey.Match := mtPartial
+    else
+      NewForeignKey.Match := mtNo;
 
     NewForeignKey.OnDelete := dtRestrict;
     case (FOnDelete.ItemIndex) of

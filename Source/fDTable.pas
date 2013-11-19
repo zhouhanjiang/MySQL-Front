@@ -655,7 +655,7 @@ begin
   TSFields.TabVisible := not Assigned(Tables);
   TSKeys.TabVisible := not Assigned(Tables);
   TSTriggers.TabVisible := Assigned(Table)  and Assigned(Database.Triggers);
-  TSReferenced.TabVisible := Assigned(Table) and Assigned(NewTable.Engine) and NewTable.Engine.IsInnoDB;
+  TSReferenced.TabVisible := Assigned(Table) and Assigned(NewTable.Engine);
   TSPartitions.TabVisible := not Assigned(Tables) and Assigned(NewTable.Partitions);
   TSExtras.TabVisible := Assigned(Table) or Assigned(Tables);
   TSSource.TabVisible := Assigned(Table) or Assigned(Tables);
@@ -1432,7 +1432,7 @@ begin
   TSForeignKeys.TabVisible := not Assigned(Tables);
   TSKeys.TabVisible := not Assigned(Tables);
   TSTriggers.TabVisible := Assigned(Table)  and Assigned(Database.Triggers);
-  TSReferenced.TabVisible := Assigned(Table) and Assigned(NewTable.Engine) and NewTable.Engine.IsInnoDB;
+  TSReferenced.TabVisible := Assigned(Table) and Assigned(NewTable.Engine);
   TSPartitions.TabVisible := not Assigned(Tables) and Assigned(NewTable.Partitions);
   TSExtras.TabVisible := Assigned(Table) or Assigned(Tables);
   TSSource.TabVisible := Assigned(Table) or Assigned(Tables);

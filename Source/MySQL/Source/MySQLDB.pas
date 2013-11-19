@@ -3551,7 +3551,8 @@ end;
 
 procedure TMySQLConnection.SyncPing(const LibraryThread: TLibraryThread);
 begin
-  Lib.mysql_ping(LibraryThread.LibHandle);
+  if (Lib.LibraryType <> ltHTTP) then
+    Lib.mysql_ping(LibraryThread.LibHandle);
 end;
 
 procedure TMySQLConnection.SyncReceivingResult(LibraryThread: TLibraryThread);
