@@ -28,7 +28,6 @@ const
   sbMessage = 0;
   sbNavigation = 1;
   sbSummarize = 2;
-  sbConnected = 3;
 
 type
   TSynMemoBeforeDrag = record SelStart: Integer; SelLength: Integer; end;
@@ -1023,7 +1022,7 @@ type
     procedure PropertiesServerExecute(Sender: TObject);
     procedure PSQLEditorUpdate();
     function RenameCItem(const CItem: TSItem; const NewName: string): Boolean;
-    procedure SaveDiagram(const Filename: string);
+    procedure SaveDiagram(Sender: TObject);
     procedure SaveSQLFile(Sender: TObject);
     procedure SBResultRefresh(const DataSet: TMySQLDataSet);
     procedure SendQuery(Sender: TObject; const SQL: string);
@@ -2611,7 +2610,7 @@ begin
   begin
     if (URI.Database = '') then
     begin
-      if ((ParamToView(URI.Param['view']) = vObjects) and not Session.Update()) then
+      if ((ParamToView(URI.Param['view']) = vObjects) and not Session.UpdateAll()) then
         AllowChange := False
       else if ((ParamToView(URI.Param['view']) <> vObjects) and not Session.Databases.Update()) then
         AllowChange := False
@@ -3526,13 +3525,13 @@ begin
   else if (FocusedCItem is TSDatabase) then
   begin
     Database := TSDatabase(FocusedCItem);
-    if ((Session.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
+    if (not (Database is TSSystemDatabase)) then
       DExport.SObjects.Add(Database);
   end
   else if (FocusedCItem is TSDBObject) then
   begin
     Database := TSDBObject(FocusedCItem).Database;
-    if ((Session.TableNameCmp(Database.Name, 'mysql') <> 0) and not (Database is TSSystemDatabase)) then
+    if (not (Database is TSSystemDatabase)) then
       DExport.SObjects.Add(FocusedCItem);
   end
   else
@@ -3686,7 +3685,7 @@ begin
   Wanted.Clear();
 
   if (View = vDiagram) then
-    SaveDiagram('')
+    SaveDiagram(Sender)
   else
     SaveSQLFile(Sender);
 end;
@@ -3696,7 +3695,7 @@ begin
   Wanted.Clear();
 
   if (View = vDiagram) then
-    SaveDiagram(SelectedDatabase + '.xml')
+    SaveDiagram(Sender)
   else
     SaveSQLFile(Sender);
 end;
@@ -12912,19 +12911,20 @@ begin
     ActiveDBGrid.DataSource.DataSet.Close();
 end;
 
-procedure TFSession.SaveDiagram(const Filename: string);
+procedure TFSession.SaveDiagram(Sender: TObject);
 begin
   SaveDialog.Title := Preferences.LoadStr(582);
   SaveDialog.InitialDir := Path;
   SaveDialog.Encodings.Text := '';
   SaveDialog.EncodingIndex := -1;
-  if (Filename = '') then
+  if ((Sender = MainAction('aFSaveAs')) or (ActiveWorkbench.Filename = '')) then
     SaveDialog.FileName := SelectedDatabase + '.xml'
   else
-    SaveDialog.FileName := Filename;
+    SaveDialog.FileName := ActiveWorkbench.Filename;
   SaveDialog.DefaultExt := 'xml';
   OpenDialog.Filter := FilterDescription('xml') + ' (*.xml)|*.xml|' + FilterDescription('*') + ' (*.*)|*.*';
-  if (SaveDialog.Execute()) then
+
+  if ((Sender = MainAction('aFSave')) and (ActiveWorkbench.Filename <> '') or SaveDialog.Execute()) then
     ActiveWorkbench.SaveToFile(SaveDialog.FileName);
 end;
 
@@ -13509,12 +13509,6 @@ begin
       StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(687, IntToStr(Count))
     else
       StatusBar.Panels[sbSummarize].Text := '';
-
-
-    if (not Session.Connected) then
-      StatusBar.Panels[sbConnected].Text := ''
-    else
-      StatusBar.Panels[sbConnected].Text := Preferences.LoadStr(519) + ': ' + FormatDateTime(FormatSettings.ShortTimeFormat, Session.LatestConnect);
   end;
 end;
 

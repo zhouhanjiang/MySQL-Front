@@ -652,8 +652,9 @@ begin
   PSQLWait.Visible := not PageControl.Visible;
 
   TSInformation.TabVisible := Assigned(Table) and (Table.DataSize >= 0) or Assigned(Tables);
-  TSFields.TabVisible := not Assigned(Tables);
   TSKeys.TabVisible := not Assigned(Tables);
+  TSFields.TabVisible := not Assigned(Tables);
+  TSForeignKeys.TabVisible := Assigned(Table);
   TSTriggers.TabVisible := Assigned(Table)  and Assigned(Database.Triggers);
   TSReferenced.TabVisible := Assigned(Table) and Assigned(NewTable.Engine);
   TSPartitions.TabVisible := not Assigned(Tables) and Assigned(NewTable.Partitions);
@@ -1428,9 +1429,9 @@ begin
   GRecords.Visible := Assigned(Table);
 
   TSInformation.TabVisible := Assigned(Table) and (Table.DataSize >= 0) or Assigned(Tables);
-  TSFields.TabVisible := not Assigned(Tables);
-  TSForeignKeys.TabVisible := not Assigned(Tables);
   TSKeys.TabVisible := not Assigned(Tables);
+  TSFields.TabVisible := not Assigned(Tables);
+  TSForeignKeys.TabVisible := Assigned(Table);
   TSTriggers.TabVisible := Assigned(Table)  and Assigned(Database.Triggers);
   TSReferenced.TabVisible := Assigned(Table) and Assigned(NewTable.Engine);
   TSPartitions.TabVisible := not Assigned(Tables) and Assigned(NewTable.Partitions);

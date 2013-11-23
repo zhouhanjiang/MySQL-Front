@@ -3,13 +3,13 @@ object DForeignKey: TDForeignKey
   Top = 175
   BorderStyle = bsDialog
   Caption = 'DForeignKey'
-  ClientHeight = 476
-  ClientWidth = 404
+  ClientHeight = 461
+  ClientWidth = 435
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -12
-  Font.Name = 'MS Sans Serif'
+  Font.Name = 'Tahoma'
   Font.Style = []
   OldCreateOrder = False
   Position = poOwnerFormCenter
@@ -19,15 +19,15 @@ object DForeignKey: TDForeignKey
   OnResize = FormResize
   OnShow = FormShow
   DesignSize = (
-    404
-    476)
+    435
+    461)
   PixelsPerInch = 106
-  TextHeight = 13
+  TextHeight = 14
   object PSQLWait: TPanel
-    Left = 8
-    Top = 8
-    Width = 389
-    Height = 413
+    Left = 9
+    Top = 9
+    Width = 419
+    Height = 393
     Cursor = crHourGlass
     Anchors = [akLeft, akTop, akRight, akBottom]
     BevelOuter = bvNone
@@ -36,10 +36,10 @@ object DForeignKey: TDForeignKey
     Visible = False
   end
   object FBOk: TButton
-    Left = 234
-    Top = 443
-    Width = 75
-    Height = 25
+    Left = 252
+    Top = 425
+    Width = 81
+    Height = 27
     Anchors = [akRight, akBottom]
     Caption = 'FBOk'
     Default = True
@@ -47,10 +47,10 @@ object DForeignKey: TDForeignKey
     TabOrder = 2
   end
   object FBCancel: TButton
-    Left = 322
-    Top = 443
-    Width = 75
-    Height = 25
+    Left = 347
+    Top = 425
+    Width = 81
+    Height = 27
     Anchors = [akRight, akBottom]
     Cancel = True
     Caption = 'FBCancel'
@@ -58,108 +58,108 @@ object DForeignKey: TDForeignKey
     TabOrder = 3
   end
   object GBasics: TGroupBox_Ext
-    Left = 8
-    Top = 8
-    Width = 389
-    Height = 277
+    Left = 9
+    Top = 9
+    Width = 419
+    Height = 298
     Anchors = [akLeft, akTop, akRight, akBottom]
     Caption = 'GBasics'
     TabOrder = 4
     DesignSize = (
-      389
-      277)
+      419
+      298)
     object FLTable: TLabel
-      Left = 8
-      Top = 111
-      Width = 39
-      Height = 13
+      Left = 9
+      Top = 120
+      Width = 42
+      Height = 14
       Caption = 'FLTable'
       FocusControl = FParentTable
     end
     object FLFields: TLabel
-      Left = 8
-      Top = 143
-      Width = 39
-      Height = 13
+      Left = 9
+      Top = 154
+      Width = 41
+      Height = 14
       Caption = 'FLFields'
       FocusControl = FParentFields
     end
     object FLChild: TLabel
-      Left = 120
-      Top = 56
-      Width = 35
-      Height = 13
+      Left = 129
+      Top = 60
+      Width = 37
+      Height = 14
       Caption = 'FLChild'
     end
     object FLParent: TLabel
-      Left = 256
-      Top = 56
-      Width = 43
-      Height = 13
+      Left = 276
+      Top = 60
+      Width = 48
+      Height = 14
       Caption = 'FLParent'
     end
     object FLName: TLabel
-      Left = 8
-      Top = 19
-      Width = 40
-      Height = 13
+      Left = 9
+      Top = 20
+      Width = 43
+      Height = 14
       Caption = 'FLName'
       FocusControl = FName
     end
     object FLDatabase: TLabel
-      Left = 8
-      Top = 79
-      Width = 58
-      Height = 13
+      Left = 9
+      Top = 85
+      Width = 62
+      Height = 14
       Caption = 'FLDatabase'
       FocusControl = FParentDatabase
     end
     object FParentTable: TComboBox_Ext
-      Left = 256
-      Top = 108
-      Width = 121
-      Height = 21
+      Left = 276
+      Top = 116
+      Width = 130
+      Height = 22
       Style = csDropDownList
-      TabOrder = 3
+      TabOrder = 5
       OnChange = FParentTableChange
     end
     object FFields: TListBox
-      Left = 120
-      Top = 140
-      Width = 121
-      Height = 125
+      Left = 129
+      Top = 151
+      Width = 131
+      Height = 134
       Anchors = [akLeft, akTop, akBottom]
-      ItemHeight = 13
+      ItemHeight = 14
       MultiSelect = True
-      TabOrder = 2
+      TabOrder = 3
       OnClick = FBOkCheckEnabled
     end
     object FParentFields: TListBox
-      Left = 256
-      Top = 140
-      Width = 121
-      Height = 125
+      Left = 276
+      Top = 151
+      Width = 130
+      Height = 134
       Anchors = [akLeft, akTop, akBottom]
-      ItemHeight = 13
+      ItemHeight = 14
       MultiSelect = True
-      TabOrder = 4
+      TabOrder = 6
       OnClick = FBOkCheckEnabled
     end
     object FTable: TEdit
-      Left = 120
-      Top = 108
-      Width = 121
-      Height = 21
+      Left = 129
+      Top = 116
+      Width = 131
+      Height = 22
       Enabled = False
-      TabOrder = 1
+      TabOrder = 2
       Text = 'FTable'
       OnChange = FTableChange
     end
     object FName: TEdit
-      Left = 120
-      Top = 16
-      Width = 145
-      Height = 21
+      Left = 129
+      Top = 17
+      Width = 156
+      Height = 22
       Anchors = [akLeft, akTop, akRight]
       MaxLength = 64
       TabOrder = 0
@@ -167,102 +167,75 @@ object DForeignKey: TDForeignKey
       OnChange = FBOkCheckEnabled
     end
     object FDatabase: TEdit
-      Left = 120
-      Top = 76
-      Width = 121
-      Height = 21
+      Left = 129
+      Top = 82
+      Width = 131
+      Height = 22
       Enabled = False
-      TabOrder = 5
+      TabOrder = 1
       Text = 'FDatabase'
     end
     object FParentDatabase: TComboBox_Ext
-      Left = 256
-      Top = 76
-      Width = 121
-      Height = 21
+      Left = 276
+      Top = 82
+      Width = 130
+      Height = 22
       Style = csDropDownList
-      TabOrder = 6
+      TabOrder = 4
       OnChange = FParentDatabaseChange
     end
   end
   object FBHelp: TButton
-    Left = 8
-    Top = 443
-    Width = 75
-    Height = 25
+    Left = 9
+    Top = 425
+    Width = 80
+    Height = 27
     Anchors = [akLeft, akBottom]
     Caption = 'FBHelp'
     TabOrder = 1
     OnClick = FBHelpClick
   end
   object GAttributes: TGroupBox_Ext
-    Left = 8
-    Top = 292
-    Width = 389
-    Height = 129
+    Left = 9
+    Top = 314
+    Width = 419
+    Height = 88
     Anchors = [akLeft, akRight, akBottom]
     Caption = 'GAttributes'
     TabOrder = 5
-    object FLMatch: TLabel
-      Left = 8
-      Top = 24
-      Width = 42
-      Height = 13
-      Caption = 'FLMatch'
-    end
     object FLOnDelete: TLabel
-      Left = 8
-      Top = 68
-      Width = 57
-      Height = 13
+      Left = 9
+      Top = 22
+      Width = 64
+      Height = 14
       Caption = 'FLOnDelete'
       FocusControl = FOnDelete
     end
     object FLOnUpdate: TLabel
-      Left = 8
-      Top = 100
-      Width = 61
-      Height = 13
+      Left = 9
+      Top = 56
+      Width = 68
+      Height = 14
       Caption = 'FLOnUpdate'
       FocusControl = FOnUpdate
     end
     object FOnDelete: TComboBox_Ext
-      Left = 120
-      Top = 64
-      Width = 121
-      Height = 21
+      Left = 129
+      Top = 17
+      Width = 131
+      Height = 22
       Style = csDropDownList
-      TabOrder = 2
-      OnChange = FOnDeleteChange
+      TabOrder = 0
+      OnChange = FBOkCheckEnabled
     end
     object FOnUpdate: TComboBox_Ext
-      Left = 120
-      Top = 96
-      Width = 121
-      Height = 21
+      Left = 129
+      Top = 52
+      Width = 131
+      Height = 22
       Style = csDropDownList
-      TabOrder = 3
-      OnChange = FOnUpdateChange
-    end
-    object FMatchFull: TCheckBox
-      Left = 120
-      Top = 24
-      Width = 73
-      Height = 17
-      Caption = 'FMatchFull'
-      TabOrder = 0
-      OnClick = FMatchFullClick
-      OnKeyPress = FMatchFullKeyPress
-    end
-    object FMatchPartial: TCheckBox
-      Left = 200
-      Top = 24
-      Width = 73
-      Height = 17
-      Caption = 'FMatchPartial'
       TabOrder = 1
-      OnClick = FMatchPartialClick
-      OnKeyPress = FMatchPartialKeyPress
+      OnChange = FBOkCheckEnabled
     end
   end
 end

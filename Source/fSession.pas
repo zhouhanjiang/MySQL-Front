@@ -1082,6 +1082,7 @@ type
     FComment: string;
     FDefault: Boolean;
     function GetEngines(): TSEngines; inline;
+    function GetForeignKeyAllowed(): Boolean; inline;
     function GetIsInnoDB(): Boolean; inline;
     function GetIsMerge(): Boolean; inline;
     function GetIsMyISAM(): Boolean; inline;
@@ -1092,7 +1093,7 @@ type
     function ApplyMySQLFieldType(const MySQLFieldType: TMySQLFieldType; const MySQLFieldSize: Integer): TMySQLFieldType; virtual;
     property Comment: string read FComment write FComment;
     property Default: Boolean read FDefault;
-    property ForeignKeyAllowed: Boolean read GetIsInnoDB;
+    property ForeignKeyAllowed: Boolean read GetForeignKeyAllowed;
     property IsInnoDB: Boolean read GetIsInnoDB;
     property IsMerge: Boolean read GetIsMerge;
     property IsMyISAM: Boolean read GetIsMyISAM;
@@ -1474,6 +1475,7 @@ type
     function UnecapeRightIdentifier(const Identifier: string): string;
     function Update(): Boolean; overload;
     function Update(const Objects: TList; const Status: Boolean = False): Boolean; overload;
+    function UpdateAll(): Boolean; virtual;
     function UpdateDatabase(const Database, NewDatabase: TSDatabase): Boolean;
     function UpdateUser(const User, NewUser: TSUser): Boolean;
     function UpdateVariable(const Variable, NewVariable: TSVariable; const UpdateModes: TSVariable.TUpdateModes): Boolean;
@@ -4432,34 +4434,37 @@ begin
       until (SQLParseChar(Parse, ')'));
 
       if (not SQLParseKeyword(Parse, 'MATCH')) then
-        if (not SQLParseKeyword(Parse, 'FULL')) then
-          NewForeignKey.Match := mtFull
-        else if (not SQLParseKeyword(Parse, 'PARTIAL')) then
-          NewForeignKey.Match := mtPartial;
+        NewForeignKey.Match := mtNo
+      else if (not SQLParseKeyword(Parse, 'FULL')) then
+        NewForeignKey.Match := mtFull
+      else if (not SQLParseKeyword(Parse, 'PARTIAL')) then
+        NewForeignKey.Match := mtPartial;
 
-      if (SQLParseKeyword(Parse, 'ON DELETE')) then
-        if (SQLParseKeyword(Parse, 'RESTRICT')) then
-          NewForeignKey.OnDelete := dtRestrict
-        else if (SQLParseKeyword(Parse, 'CASCADE')) then
-          NewForeignKey.OnDelete := dtCascade
-        else if (SQLParseKeyword(Parse, 'SET NULL')) then
-          NewForeignKey.OnDelete := dtSetNull
-        else if (SQLParseKeyword(Parse, 'SET DEFAULT')) then
-          NewForeignKey.OnDelete := dtSetDefault
-        else if (SQLParseKeyword(Parse, 'NO ACTION')) then
-          NewForeignKey.OnDelete := dtNoAction;
+      if (not SQLParseKeyword(Parse, 'ON DELETE')) then
+        NewForeignKey.OnDelete := dtRestrict
+      else if (SQLParseKeyword(Parse, 'RESTRICT')) then
+        NewForeignKey.OnDelete := dtRestrict
+      else if (SQLParseKeyword(Parse, 'CASCADE')) then
+        NewForeignKey.OnDelete := dtCascade
+      else if (SQLParseKeyword(Parse, 'SET NULL')) then
+        NewForeignKey.OnDelete := dtSetNull
+      else if (SQLParseKeyword(Parse, 'SET DEFAULT')) then
+        NewForeignKey.OnDelete := dtSetDefault
+      else if (SQLParseKeyword(Parse, 'NO ACTION')) then
+        NewForeignKey.OnDelete := dtNoAction;
 
-      if (SQLParseKeyword(Parse, 'ON UPDATE')) then
-        if (SQLParseKeyword(Parse, 'RESTRICT')) then
-          NewForeignKey.OnUpdate := utRestrict
-        else if (SQLParseKeyword(Parse, 'CASCADE')) then
-          NewForeignKey.OnUpdate := utCascade
-        else if (SQLParseKeyword(Parse, 'SET NULL')) then
-          NewForeignKey.OnUpdate := utSetNull
-        else if (SQLParseKeyword(Parse, 'SET DEFAULT')) then
-          NewForeignKey.OnUpdate := utSetDefault
-        else if (SQLParseKeyword(Parse, 'NO ACTION')) then
-          NewForeignKey.OnUpdate := utNoAction;
+      if (not SQLParseKeyword(Parse, 'ON UPDATE')) then
+        NewForeignKey.OnUpdate := utRestrict
+      else if (SQLParseKeyword(Parse, 'RESTRICT')) then
+        NewForeignKey.OnUpdate := utRestrict
+      else if (SQLParseKeyword(Parse, 'CASCADE')) then
+        NewForeignKey.OnUpdate := utCascade
+      else if (SQLParseKeyword(Parse, 'SET NULL')) then
+        NewForeignKey.OnUpdate := utSetNull
+      else if (SQLParseKeyword(Parse, 'SET DEFAULT')) then
+        NewForeignKey.OnUpdate := utSetDefault
+      else if (SQLParseKeyword(Parse, 'NO ACTION')) then
+        NewForeignKey.OnUpdate := utNoAction;
 
       Inc(Index);
       SQLParseChar(Parse, ',');
@@ -7466,10 +7471,12 @@ begin
         SQLPart := SQLPart + ' MATCH PARTIAL';
 
       if (NewForeignKey.OnDelete = dtNoAction) then SQLPart := SQLPart + ' ON DELETE NO ACTION';
+      if (NewForeignKey.OnDelete = dtRestrict) then SQLPart := SQLPart + ' ON DELETE RESTRICT';
       if (NewForeignKey.OnDelete = dtCascade) then SQLPart := SQLPart + ' ON DELETE CASCADE';
       if (NewForeignKey.OnDelete = dtSetNull) then SQLPart := SQLPart + ' ON DELETE SET NULL';
       if (NewForeignKey.OnDelete = dtSetDefault) then SQLPart := SQLPart + ' ON DELETE SET DEFAULT';
       if (NewForeignKey.OnUpdate = utNoAction) then SQLPart := SQLPart + ' ON UPDATE NO ACTION';
+      if (NewForeignKey.OnUpdate = utRestrict) then SQLPart := SQLPart + ' ON UPDATE RESTRICT';
       if (NewForeignKey.OnUpdate = utCascade) then SQLPart := SQLPart + ' ON UPDATE CASCADE';
       if (NewForeignKey.OnUpdate = utSetNull) then SQLPart := SQLPart + ' ON UPDATE SET NULL';
       if (NewForeignKey.OnUpdate = utSetDefault) then SQLPart := SQLPart + ' ON UPDATE SET DEFAULT';
@@ -8582,8 +8589,12 @@ end;
 
 function TSEngine.GetIsInnoDB(): Boolean;
 begin
-  Result := (Engines.NameCmp(Name, 'InnoDB') = 0)
-    or (Engines.NameCmp(Name, 'MyISAM') = 0);
+  Result := Engines.NameCmp(Name, 'InnoDB') = 0;
+end;
+
+function TSEngine.GetForeignKeyAllowed(): Boolean;
+begin
+  Result := IsInnoDB or IsMyISAM and (Engines.Session.ServerVersion >= 50200);
 end;
 
 function TSEngine.GetIsMerge(): Boolean;
@@ -11929,7 +11940,8 @@ begin
   if (Assigned(Databases) and not Databases.Valid) then List.Add(Databases);
   if (Assigned(Users) and not Users.Valid) then List.Add(Users);
 
-  List.Assign(Objects, laOr);
+  if (Assigned(Objects)) then
+    List.Assign(Objects, laOr);
   if (Assigned(InvalidObjects) and (InvalidObjects.Count < 10)) then
     List.Assign(InvalidObjects, laOr);
   List.Sort(Compare);
@@ -11999,19 +12011,28 @@ begin
         SQL := SQL + TSDatabase(List[I]).Tables.SQLGetStatus(TSDatabase(List[I]).Tables);
     end;
 
-  if (not Valid and (Objects.Count = 0) and (ServerVersion > 50002)) then
+
+  Tables.Free();
+  if (Assigned(InvalidObjects)) then
+    InvalidObjects.Clear();
+  List.Free();
+
+  Result := (SQL = '') or SendSQL(SQL, SessionResult);
+end;
+
+function TSSession.UpdateAll(): Boolean;
+var
+  SQL: string;
+begin
+  SQL := '';
+
+  if (not Valid and (ServerVersion > 50002)) then
   begin
     SQL := SQL + 'SELECT * FROM `information_schema`.`TABLES`;' + #13#10;
     if (ServerVersion >= 50010) then SQL := SQL + 'SELECT * FROM `information_schema`.`TRIGGERS`;' + #13#10;
     if (ServerVersion >= 50004) then SQL := SQL + 'SELECT * FROM `information_schema`.`ROUTINES`;' + #13#10;
     if (ServerVersion >= 50106) then SQL := SQL + 'SELECT * FROM `information_schema`.`EVENTS`;' + #13#10;
   end;
-
-
-  Tables.Free();
-  if (Assigned(InvalidObjects)) then
-    InvalidObjects.Clear();
-  List.Free();
 
   Result := (SQL = '') or SendSQL(SQL, SessionResult);
 end;

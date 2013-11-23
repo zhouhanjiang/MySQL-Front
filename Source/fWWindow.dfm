@@ -158,10 +158,6 @@ object WWindow: TWWindow
         Width = 50
       end
       item
-        Text = 'sbConnected'
-        Width = 50
-      end
-      item
         Bevel = pbNone
         Text = 'sbEdge'
         Width = 23

@@ -375,6 +375,7 @@ type
     procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); virtual;
     procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); virtual;
     procedure ExecuteTrigger(const Trigger: TSTrigger); virtual;
+    procedure ExecuteView(const View: TSView); virtual;
   public
     Data: Boolean;
     DestinationFields: array of record
@@ -407,7 +408,8 @@ type
     Values: TTool.TStringBuffer;
     procedure Flush();
   protected
-    procedure CloseFile(); virtual;
+    procedure AfterExecute(); override;
+    procedure BeforeExecute(); override;
     procedure DoFileCreate(const Filename: TFileName); virtual;
     function FileCreate(const Filename: TFileName; out Error: TTool.TError): Boolean; virtual;
     procedure WriteContent(const Content: string); virtual;
@@ -434,6 +436,7 @@ type
     procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTrigger(const Trigger: TSTrigger); override;
+    procedure ExecuteView(const View: TSView); override;
     function FileCreate(const Filename: TFileName; out Error: TTool.TError): Boolean; override;
   public
     DropStmts: Boolean;
@@ -445,7 +448,6 @@ type
   private
     TempFilename: string;
   protected
-    procedure ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     function FileCreate(const Filename: TFileName; out Error: TTool.TError): Boolean; override;
@@ -524,6 +526,7 @@ type
   protected
     FHandle: SQLHDBC;
     TableName: string;
+    procedure AfterExecute(); override;
     constructor Create(const ASession: TSSession; const AHandle: SQLHDBC = SQL_NULL_HANDLE); overload;
     procedure ExecuteFooter(); override;
     procedure ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
@@ -550,6 +553,8 @@ type
   private
     Filename: TFileName;
   protected
+    procedure AfterExecute(); override;
+    procedure BeforeExecute(); override;
     procedure ExecuteFooter(); override;
     procedure ExecuteHeader(); override;
   public
@@ -562,7 +567,8 @@ type
     Filename: TFileName;
     Sheet: Integer;
   protected
-    procedure ExecuteFooter(); override;
+    procedure AfterExecute(); override;
+    procedure BeforeExecute(); override;
     procedure ExecuteHeader(); override;
     procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
   public
@@ -660,11 +666,10 @@ type
     Filename: TFileName;
   protected
     procedure AddPage(const NewPageRow: Boolean); override;
-    procedure ExecuteHeader(); override;
-    procedure ExecuteFooter(); override;
+    procedure AfterExecute(); override;
+    procedure BeforeExecute(); override;
   public
     constructor Create(const ASession: TSSession; const AFilename: TFileName);
-    destructor Destroy(); override;
   end;
 
   TTTransfer = class(TTExport)
@@ -4288,9 +4293,13 @@ procedure TTExport.ExecuteTrigger(const Trigger: TSTrigger);
 begin
 end;
 
+procedure TTExport.ExecuteView(const View: TSView);
+begin
+end;
+
 { TTExportFile ****************************************************************}
 
-procedure TTExportFile.CloseFile();
+procedure TTExportFile.AfterExecute();
 begin
   if (Handle <> INVALID_HANDLE_VALUE) then
   begin
@@ -4299,6 +4308,19 @@ begin
     CloseHandle(Handle);
     Handle := INVALID_HANDLE_VALUE;
   end;
+
+  if (Success = daAbort) then
+    DeleteFile(Filename);
+
+  inherited;
+end;
+
+procedure TTExportFile.BeforeExecute();
+begin
+  inherited;
+
+  while (FileExists(Filename) and not DeleteFile(Filename)) do
+    DoError(SysError(), nil, True);
 end;
 
 constructor TTExportFile.Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
@@ -4326,7 +4348,6 @@ end;
 
 destructor TTExportFile.Destroy();
 begin
-  CloseFile();
   if (Assigned(FileBuffer.Mem)) then
     FreeMem(FileBuffer.Mem);
   ContentBuffer.Free();
@@ -4335,9 +4356,6 @@ begin
   Values.Free();
 
   inherited;
-
-  if (Success = daAbort) then
-    DeleteFile(FFilename);
 end;
 
 procedure TTExportFile.DoFileCreate(const Filename: TFileName);
@@ -4581,13 +4599,6 @@ begin
       Content := Content + '#' + #13#10;
       Content := Content + '# Structure for table "' + Table.Name + '"' + #13#10;
       Content := Content + '#' + #13#10;
-    end
-    else if (Table is TSView) then
-    begin
-      Content := Content + #13#10;
-      Content := Content + '#' + #13#10;
-      Content := Content + '# View "' + Table.Name + '"' + #13#10;
-      Content := Content + '#' + #13#10;
     end;
     Content := Content + '' + #13#10;
 
@@ -4712,6 +4723,20 @@ begin
   WriteContent(Content);
 end;
 
+procedure TTExportSQL.ExecuteView(const View: TSView);
+var
+  Content: string;
+begin
+  Content := #13#10;
+  Content := Content + '#' + #13#10;
+  Content := Content + '# View "' + View.Name + '"' + #13#10;
+  Content := Content + '#' + #13#10;
+  Content := Content + #13#10;
+  Content := Content + View.GetSourceEx(DropStmts, False);
+
+  WriteContent(Content);
+end;
+
 function TTExportSQL.FileCreate(const Filename: TFileName; out Error: TTool.TError): Boolean;
 var
   Size: DWord;
@@ -4748,11 +4773,6 @@ begin
   SetLength(TableFields, 0);
 
   inherited;
-end;
-
-procedure TTExportText.ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
-begin
-  CloseFile();
 end;
 
 procedure TTExportText.ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
@@ -4811,9 +4831,7 @@ begin
       Values.Write(CSVEscape('BINARY', Quoter, QuoteValues <> qtNone))
     else if (Field.DataType = ftBlob) then
       Values.Write(CSVEscape('BLOB', Quoter, QuoteValues <> qtNone))
-    else if (Field.DataType = ftWideMemo) then
-      Values.Write(CSVEscape('MEMO', Quoter, QuoteValues <> qtNone))
-    else if (Field.DataType = ftWideString) then
+    else if (Field.DataType in TextDataTypes) then
     begin
       Len := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], nil, 0);
       if (Len * SizeOf(ValueBuffer.Mem[0]) > ValueBuffer.MemSize) then
@@ -4826,8 +4844,6 @@ begin
       LenEscaped := CSVEscape(ValueBuffer.Mem, Len, nil, 0, Quoter, (QuoteValues <> qtNone));
       CSVEscape(ValueBuffer.Mem, Len, Values.WriteExternal(LenEscaped), LenEscaped, Quoter, QuoteValues <> qtNone);
     end
-    else if (Field.DataType = ftWideMemo) then
-      Values.Write(CSVEscape('TEXT', Quoter, QuoteValues <> qtNone))
     else
       Values.WriteData(DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], QuoteValues = qtAll, Quoter);
   end;
@@ -5922,6 +5938,17 @@ end;
 
 { TTExportBaseODBC ************************************************************}
 
+procedure TTExportBaseODBC.AfterExecute();
+begin
+  inherited;
+
+  if (FHandle <> SQL_NULL_HANDLE) then
+  begin
+    SQLDisconnect(FHandle);
+    SQLFreeHandle(SQL_HANDLE_DBC, FHandle); FHandle := SQL_NULL_HANDLE;
+  end;
+end;
+
 constructor TTExportBaseODBC.Create(const ASession: TSSession; const AHandle: SQLHDBC);
 begin
   inherited Create(ASession);
@@ -5936,12 +5963,6 @@ procedure TTExportBaseODBC.ExecuteFooter();
 begin
   if (FStmt <> SQL_NULL_HANDLE) then
     begin SQLFreeHandle(SQL_HANDLE_STMT, FStmt); FStmt := SQL_NULL_HANDLE; end;
-
-  if (FHandle <> SQL_NULL_HANDLE) then
-  begin
-    SQLDisconnect(FHandle);
-    SQLFreeHandle(SQL_HANDLE_DBC, FHandle); FHandle := SQL_NULL_HANDLE;
-  end;
 
   inherited;
 end;
@@ -6159,7 +6180,7 @@ begin
         ftTime:
           begin
             ValueType := SQL_C_CHAR;
-            ParameterType := -154; // SQL_SS_TIME2
+            ParameterType := SQL_TYPE_TIME;
             ColumnSize := 8; // 'hh:mm:ss'
             Parameter[I].BufferSize := ColumnSize;
           end;
@@ -6384,6 +6405,22 @@ end;
 
 { TTExportAccess **************************************************************}
 
+procedure TTExportAccess.AfterExecute();
+begin
+  inherited;
+
+  if (Success = daAbort) then
+    DeleteFile(Filename);
+end;
+
+procedure TTExportAccess.BeforeExecute();
+begin
+  inherited;
+
+  while (FileExists(Filename) and not DeleteFile(Filename)) do
+    DoError(SysError(), nil, True);
+end;
+
 constructor TTExportAccess.Create(const ASession: TSSession; const AFilename: TFileName);
 begin
   inherited Create(ASession);
@@ -6399,10 +6436,7 @@ begin
     and (Success = daSuccess)) then
     DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False);
 
-  inherited ExecuteFooter;
-
-  if (Success = daAbort) then
-    DeleteFile(Filename);
+  inherited;
 end;
 
 procedure TTExportAccess.ExecuteHeader();
@@ -6424,9 +6458,6 @@ begin
     ConnStrIn := 'Driver={' + DriverAccess12 + '};DBQ=' + Filename + ';READONLY=FALSE';
     Attributes := 'CREATE_DBV12=' + Filename + ' General';
   end;
-
-  while (FileExists(Filename) and not DeleteFile(Filename)) do
-    DoError(SysError(), nil, True);
 
   if (Success = daSuccess) then
   begin
@@ -6457,6 +6488,22 @@ end;
 
 { TTExportExcel ***************************************************************}
 
+procedure TTExportExcel.AfterExecute();
+begin
+  inherited;
+
+  if (Success = daAbort) then
+    DeleteFile(Filename);
+end;
+
+procedure TTExportExcel.BeforeExecute();
+begin
+  inherited;
+
+  while (FileExists(Filename) and not DeleteFile(Filename)) do
+    DoError(SysError(), nil, True);
+end;
+
 constructor TTExportExcel.Create(const ASession: TSSession; const AFilename: TFileName);
 begin
   inherited Create(ASession);
@@ -6471,15 +6518,12 @@ procedure TTExportExcel.ExecuteHeader();
 var
   ConnStrIn: string;
 begin
-  while (FileExists(Filename) and not DeleteFile(Filename)) do
-    DoError(SysError(), nil, True);
-
   if (Success = daSuccess) then
   begin
     if (not Excel2007) then
-      ConnStrIn := 'Driver={' + DriverExcel + '};DBQ=' + Filename + ';READONLY=FALSE'
+      ConnStrIn := 'Driver={' + DriverExcel + '};DBQ=' + Filename + ';ReadOnly=False'
     else
-      ConnStrIn := 'Driver={' + DriverExcel12 + '};DBQ=' + Filename + ';READONLY=FALSE';
+      ConnStrIn := 'Driver={' + DriverExcel12 + '};DBQ=' + Filename + ';ReadOnly=False';
 
     if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @Handle))) then
       DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False)
@@ -6490,14 +6534,6 @@ begin
   end;
 
   inherited;
-end;
-
-procedure TTExportExcel.ExecuteFooter();
-begin
-  inherited;
-
-  if (Success = daAbort) then
-    DeleteFile(Filename);
 end;
 
 procedure TTExportExcel.ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
@@ -7560,6 +7596,27 @@ begin
   Canvas := PDF.VCLCanvas;
 end;
 
+procedure TTExportPDF.AfterExecute();
+begin
+  while ((Success <> daAbort) and not PDF.SaveToFile(Filename)) do
+    DoError(SysError(), nil, True);
+
+  PDF.Free();
+
+  if (Success = daAbort) then
+    DeleteFile(Filename);
+
+  inherited;
+end;
+
+procedure TTExportPDF.BeforeExecute();
+begin
+  inherited;
+
+  while (FileExists(Filename) and not DeleteFile(Filename)) do
+    DoError(SysError(), nil, True);
+end;
+
 constructor TTExportPDF.Create(const ASession: TSSession; const AFilename: TFileName);
 begin
   PDF := TPDFDocumentGDI.Create(False, CP_UTF8, False);
@@ -7583,29 +7640,6 @@ begin
   inherited Create(ASession);
 
   Filename := AFilename;
-end;
-
-destructor TTExportPDF.Destroy();
-begin
-  inherited;
-
-  PDF.Free();
-end;
-
-procedure TTExportPDF.ExecuteFooter();
-begin
-  inherited;
-
-  while ((Success <> daAbort) and not PDF.SaveToFile(Filename)) do
-    DoError(SysError(), nil, True);
-end;
-
-procedure TTExportPDF.ExecuteHeader();
-begin
-  while (FileExists(Filename) and not DeleteFile(Filename)) do
-    DoError(SysError(), nil, True);
-
-  inherited;
 end;
 
 { TTTransfer.TItem ************************************************************}

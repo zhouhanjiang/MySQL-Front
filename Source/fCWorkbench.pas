@@ -324,6 +324,7 @@ type
     CreatedTable: TWTable;
     FDatabase: TSDatabase;
     FHideSelection: Boolean;
+    FFilename: string;
     FLinks: TWLinks;
     FMultiSelect: Boolean;
     FOnChange: TWWorkbenchChangeEvent;
@@ -375,15 +376,16 @@ type
     procedure CreateNewTable(const X, Y: Integer); virtual;
     procedure KeyPress(var Key: Char); override;
     function LinkByCaption(const Caption: string): TWLink; virtual;
-    procedure LoadFromFile(const FileName: string); virtual;
+    procedure LoadFromFile(const AFilename: string); virtual;
     procedure Print(const Title: string); virtual;
     procedure SaveToBMP(const FileName: string); virtual;
-    procedure SaveToFile(const FileName: string); virtual;
+    procedure SaveToFile(const AFilename: string); virtual;
     function TableAt(const Position: TCoord): TWTable;
     function TableByBaseTable(const ATable: TSBaseTable): TWTable; virtual;
     function TableByCaption(const Caption: string): TWTable; virtual;
     function UpdateAction(Action: TBasicAction): Boolean; override;
     property Database: TSDatabase read FDatabase;
+    property Filename: string read FFilename;
     property HideSelection: Boolean read FHideSelection write FHideSelection default False;
     property Links: TWLinks read FLinks;
     property Modified: Boolean read FModified;
@@ -3655,13 +3657,15 @@ begin
         Result := Links[I];
 end;
 
-procedure TWWorkbench.LoadFromFile(const FileName: string);
+procedure TWWorkbench.LoadFromFile(const AFilename: string);
 var
   BaseTable: TSBaseTable;
   I: Integer;
   List: TList;
 begin
-  XMLDocument := LoadXMLDocument(FileName);
+  FFilename := AFilename;
+
+  XMLDocument := LoadXMLDocument(AFilename);
   XML := XMLDocument.DocumentElement;
 
   Clear();
@@ -3812,10 +3816,12 @@ begin
   end;
 end;
 
-procedure TWWorkbench.SaveToFile(const FileName: string);
+procedure TWWorkbench.SaveToFile(const AFilename: string);
 var
   XMLDocument: IXMLDocument;
 begin
+  FFilename := AFilename;
+
   if (FileExists(FileName)) then
     XMLDocument := LoadXMLDocument(FileName)
   else
