@@ -2610,7 +2610,7 @@ begin
   begin
     if (URI.Database = '') then
     begin
-      if ((ParamToView(URI.Param['view']) = vObjects) and not Session.Update()) then
+      if ((ParamToView(URI.Param['view']) = vObjects) and Session.Update(nil, True)) then
         AllowChange := False
       else if ((ParamToView(URI.Param['view']) <> vObjects) and not Session.Databases.Update()) then
         AllowChange := False

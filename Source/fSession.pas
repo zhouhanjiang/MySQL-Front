@@ -1475,7 +1475,6 @@ type
     function UnecapeRightIdentifier(const Identifier: string): string;
     function Update(): Boolean; overload;
     function Update(const Objects: TList; const Status: Boolean = False): Boolean; overload;
-    function UpdateAll(): Boolean; virtual;
     function UpdateDatabase(const Database, NewDatabase: TSDatabase): Boolean;
     function UpdateUser(const User, NewUser: TSUser): Boolean;
     function UpdateVariable(const Variable, NewVariable: TSVariable; const UpdateModes: TSVariable.TUpdateModes): Boolean;
@@ -9900,12 +9899,12 @@ function Compare(Item1, Item2: Pointer): Integer;
   begin
     if (Item is TSVariables) then Result := 0
     else if (Item is TSStati) then Result := 1
-    else if (Item is TSCharsets) then Result := 2
-    else if (Item is TSCollations) then Result := 3
-    else if (Item is TSEngines) then Result := 4
-    else if (Item is TSDatabases) then Result := 5
-    else if (Item is TSPlugins) then Result := 6
-    else if (Item is TSUsers) then Result := 7
+    else if (Item is TSEngines) then Result := 2
+    else if (Item is TSCharsets) then Result := 3
+    else if (Item is TSCollations) then Result := 4
+    else if (Item is TSPlugins) then Result := 5
+    else if (Item is TSUsers) then Result := 6
+    else if (Item is TSDatabases) then Result := 7
     else if (Item is TSTable) then Result := 8
     else if (Item is TSProcedure) then Result := 9
     else if (Item is TSFunction) then Result := 10
@@ -11937,8 +11936,8 @@ begin
   if (Assigned(Engines) and not Engines.Valid) then List.Add(Engines);
   if (Assigned(Charsets) and not Charsets.Valid) then List.Add(Charsets);
   if (Assigned(Collations) and not Collations.Valid) then List.Add(Collations);
-  if (Assigned(Databases) and not Databases.Valid) then List.Add(Databases);
   if (Assigned(Users) and not Users.Valid) then List.Add(Users);
+  if (Assigned(Databases) and not Databases.Valid) then List.Add(Databases);
 
   if (Assigned(Objects)) then
     List.Assign(Objects, laOr);
@@ -12011,28 +12010,19 @@ begin
         SQL := SQL + TSDatabase(List[I]).Tables.SQLGetStatus(TSDatabase(List[I]).Tables);
     end;
 
-
-  Tables.Free();
-  if (Assigned(InvalidObjects)) then
-    InvalidObjects.Clear();
-  List.Free();
-
-  Result := (SQL = '') or SendSQL(SQL, SessionResult);
-end;
-
-function TSSession.UpdateAll(): Boolean;
-var
-  SQL: string;
-begin
-  SQL := '';
-
-  if (not Valid and (ServerVersion > 50002)) then
+  if (not Assigned(Objects) and Status and (ServerVersion >= 50002)) then
   begin
     SQL := SQL + 'SELECT * FROM `information_schema`.`TABLES`;' + #13#10;
     if (ServerVersion >= 50010) then SQL := SQL + 'SELECT * FROM `information_schema`.`TRIGGERS`;' + #13#10;
     if (ServerVersion >= 50004) then SQL := SQL + 'SELECT * FROM `information_schema`.`ROUTINES`;' + #13#10;
     if (ServerVersion >= 50106) then SQL := SQL + 'SELECT * FROM `information_schema`.`EVENTS`;' + #13#10;
   end;
+
+
+  Tables.Free();
+  if (Assigned(InvalidObjects)) then
+    InvalidObjects.Clear();
+  List.Free();
 
   Result := (SQL = '') or SendSQL(SQL, SessionResult);
 end;

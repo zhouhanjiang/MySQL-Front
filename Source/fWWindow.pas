@@ -482,7 +482,7 @@ type
     property ActiveTab: TFSession read GetActiveTab write SetActiveTab;
   protected
     procedure ApplicationException(Sender: TObject; E: Exception);
-    procedure CreateParams(var Params: TCreateParams); override;
+//    procedure CreateParams(var Params: TCreateParams); override;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy(); override;
@@ -1549,12 +1549,13 @@ begin
   end;
 end;
 
-procedure TWWindow.CreateParams(var Params: TCreateParams);
-begin
-  inherited;
-
-  StrCopy(Params.WinClassName, cWindowClassName);
-end;
+// Debug 26.11.13
+//procedure TWWindow.CreateParams(var Params: TCreateParams);
+//begin
+//  inherited;
+//
+//  StrCopy(Params.WinClassName, cWindowClassName);
+//end;
 
 function TWWindow.DBLogin(const Account: Pointer): Boolean;
 begin
