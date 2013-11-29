@@ -2128,10 +2128,12 @@ begin
 
       while ((Success = daSuccess) and NextRecord()) do
       begin
-        if ((StmtType = stUpdate) or not SQLStmtPrefixInSQLStmt) then
+        if (SQLStmtPrefixInSQLStmt) then
+          SQLStmt.WriteChar(',')
+        else if ((StmtType = stUpdate) or not SQLStmtPrefixInSQLStmt) then
         begin
-          SQLStmtPrefixInSQLStmt := True;
           SQLStmt.Write(PChar(SQLStmtPrefix), Length(SQLStmtPrefix));
+          SQLStmtPrefixInSQLStmt := True;
         end;
 
         if (StmtType in [stInsert, stReplace, stInsertOrUpdate]) then
@@ -2174,18 +2176,16 @@ begin
           end;
         end;
 
-        if ((StmtType in [stUpdate, stInsertOrUpdate]) or (SQLStmt.Length > SQLPacketSize)) then
-        begin
-          SQLStmt.Write(PChar(SQLStmtDelimiter), Length(SQLStmtDelimiter));
-          SQLStmtPrefixInSQLStmt := False;
-        end
-        else
-          SQLStmt.WriteChar(',');
-
         Len := Length(SQL);
         SetLength(SQL, Len + SQLStmt.Length);
         MoveMemory(@SQL[1 + Len], SQLStmt.Data, SQLStmt.Size);
         SQLStmt.Clear();
+
+        if ((StmtType in [stUpdate, stInsertOrUpdate]) or (Length(SQL) > SQLPacketSize)) then
+        begin
+          SQL := SQL + SQLStmtDelimiter;
+          SQLStmtPrefixInSQLStmt := False;
+        end;
 
         if (Length(SQL) >= SQLPacketSize) then
         begin
@@ -2227,7 +2227,7 @@ begin
           DoError(DatabaseError(Session), Item, False, SQL);
       end;
 
-      if ((StmtType <> stUpdate) and SQLStmtPrefixInSQLStmt) then
+      if (SQLStmtPrefixInSQLStmt) then
         SQL := SQL + SQLStmtDelimiter;
       if (Structure) then
       begin
@@ -3346,12 +3346,6 @@ begin
         Key.PrimaryKey := True;
         Key.Name := '';
       end;
-    end;
-
-    if ((NewTable.Keys.Count > 0) and not NewTable.Keys[0].PrimaryKey and NewTable.Keys[0].Unique) then
-    begin
-      NewTable.Keys[0].PrimaryKey := True;
-      NewTable.Keys[0].Name := '';
     end;
 
     for I := 0 to NewTable.Fields.Count -1 do

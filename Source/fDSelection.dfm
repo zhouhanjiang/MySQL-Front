@@ -49,6 +49,7 @@ object DSelection: TDSelection
     Top = 8
     Width = 233
     Height = 213
+    Anchors = [akLeft, akTop, akRight, akBottom]
     Columns = <
       item
         AutoSize = True
@@ -69,6 +70,7 @@ object DSelection: TDSelection
     Top = 240
     Width = 233
     Height = 21
+    Anchors = [akLeft, akBottom]
     TabOrder = 1
     Text = 'FManual'
   end
