@@ -440,6 +440,7 @@ type
     function FileCreate(const Filename: TFileName; out Error: TTool.TError): Boolean; override;
   public
     DropStmts: Boolean;
+    ExtendedInsert: Boolean;
     ReplaceData: Boolean;
     constructor Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
   end;
@@ -4678,7 +4679,7 @@ begin
   end;
   Values.Write(')');
 
-  if ((SQLInsertLen > 0) and (SQLInsertLen + 1 + Values.Length + Length(SQLInsertPrefix) > SQLPacketSize)) then
+  if (not ExtendedInsert and (SQLInsertLen > 0) or (SQLInsertLen > 0) and (SQLInsertLen + 1 + Values.Length + Length(SQLInsertPrefix) > SQLPacketSize)) then
   begin
     ContentBuffer.Write(SQLInsertPostfix);
     SQLInsertLen := 0;
@@ -8017,7 +8018,7 @@ begin
           SQL := SQL + DestinationDatabase.SQLUse();
 
         repeat
-          if (SQLInsertLen = 0) then
+          if ((SQLInsertLen = 0)) then
           begin
             SQL := SQL + SQLInsertPrefix;
             SQLInsertLen := Length(SQLInsertPrefix);

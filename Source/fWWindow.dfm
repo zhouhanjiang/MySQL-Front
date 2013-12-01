@@ -133,8 +133,8 @@ object WWindow: TWWindow
         Left = 541
         Top = 0
         Caption = 'aVAddress'
+        Enabled = False
         ImageIndex = 21
-        Visible = False
         OnClick = aVAddressExecute
       end
     end

@@ -51,6 +51,10 @@ object DExport: TDExport
       Caption = 'TSSelect'
       TabVisible = False
       OnShow = TSSelectShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -101,6 +105,10 @@ object DExport: TDExport
       Caption = 'TSJob'
       TabVisible = False
       OnShow = TSJobShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -341,7 +349,7 @@ object DExport: TDExport
         Left = 4
         Top = 70
         Width = 325
-        Height = 63
+        Height = 91
         Anchors = [akLeft, akTop, akRight]
         Caption = 'GSQLOptions'
         TabOrder = 1
@@ -351,6 +359,14 @@ object DExport: TDExport
           Width = 35
           Height = 13
           Caption = 'FLDrop'
+        end
+        object FLExtendedInsert: TLabel
+          Left = 8
+          Top = 65
+          Width = 83
+          Height = 13
+          Caption = 'FLExtendedInsert'
+          FocusControl = FExtendedInsert
         end
         object FDropStmts: TCheckBox
           Left = 128
@@ -372,6 +388,16 @@ object DExport: TDExport
           OnClick = FSQLOptionClick
           OnKeyPress = FSQLOptionKeyPress
         end
+        object FExtendedInsert: TCheckBox
+          Left = 128
+          Top = 64
+          Width = 193
+          Height = 17
+          Caption = 'FExtendedInsert'
+          TabOrder = 2
+          OnClick = FSQLOptionClick
+          OnKeyPress = FSQLOptionKeyPress
+        end
       end
     end
     object TSCSVOptions: TTabSheet
@@ -379,6 +405,10 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSCSVOptionsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -535,6 +565,10 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSXMLOptionsHide
       OnShow = TSXMLOptionsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -850,6 +884,10 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSHTMLOptionsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -961,6 +999,10 @@ object DExport: TDExport
       Caption = 'TSFields'
       TabVisible = False
       OnShow = TSFieldsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -1048,6 +1090,10 @@ object DExport: TDExport
       ImageIndex = 9
       TabVisible = False
       OnShow = TSTaskShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -1147,6 +1193,10 @@ object DExport: TDExport
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         271)

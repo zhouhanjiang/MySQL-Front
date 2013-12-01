@@ -52,6 +52,7 @@ type
     FHTMLNullText: TCheckBox;
     FHTMLRowBGColor: TCheckBox;
     FHTMLStructure: TCheckBox;
+    FExtendedInsert: TCheckBox;
     FL1DatabaseTagFree: TLabel;
     FL1FieldNodeCustom: TLabel;
     FL1TableNodeCustom: TLabel;
@@ -80,6 +81,7 @@ type
     FLHTMLNullValues: TLabel;
     FLHTMLViewDatas: TLabel;
     FLHTMLWhat: TLabel;
+    FLExtendedInsert: TLabel;
     FLName: TLabel;
     FLProgressRecords: TLabel;
     FLProgressObjects: TLabel;
@@ -401,6 +403,8 @@ begin
   FLDrop.Caption := Preferences.LoadStr(242) + ':';
   FDropStmts.Caption := Preferences.LoadStr(243);
   FReplaceData.Caption := LowerCase(Preferences.LoadStr(416));
+  FLExtendedInsert.Caption := 'INSERT' + ':';
+  FExtendedInsert.Caption := Preferences.LoadStr(911);
 
   GCSVOptions.Caption := Preferences.LoadStr(238);
   FLCSVHeadline.Caption := Preferences.LoadStr(393) + ':';
@@ -914,6 +918,7 @@ begin
   FSQLData.Checked := Preferences.Export.SQL.Data;
   FDropStmts.Checked := Preferences.Export.SQL.DropStmts;
   FReplaceData.Checked := Preferences.Export.SQL.ReplaceData;
+  FExtendedInsert.Checked := Preferences.Export.SQL.ExtendedInsert;
 
   FSQLOptionClick(Sender);
 
@@ -994,6 +999,7 @@ begin
         begin
           Export.SQL.Structure := FSQLStructure.Checked;
           Export.SQL.Data := FSQLData.Checked;
+          Export.SQL.ExtendedInsert := FExtendedInsert.Checked;
           Export.SQL.DropStmts := FDropStmts.Checked;
           Export.SQL.ReplaceData := FReplaceData.Checked;
         end;
@@ -1933,6 +1939,7 @@ begin
         Export := TTExportSQL.Create(Session, Filename, CodePage);
         TTExportSQL(Export).Data := FSQLData.Checked;
         TTExportSQL(Export).DropStmts := FDropStmts.Checked;
+        TTExportSQL(Export).ExtendedInsert := FExtendedInsert.Checked;
         TTExportSQL(Export).ReplaceData := FReplaceData.Checked;
         TTExportSQL(Export).Structure := FSQLStructure.Checked;
       end;

@@ -29,7 +29,6 @@ requires
   rtl;
 
 contains
-  SQLite3Pages in '..\Source\SQLite3Pages.pas',
   SynPdf in '..\Source\SynPdf.pas',
   SynCommons in '..\Source\SynCommons.pas',
   SynGdiPlus in '..\Source\SynGdiPlus.pas',
