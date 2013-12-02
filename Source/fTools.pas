@@ -440,7 +440,6 @@ type
     function FileCreate(const Filename: TFileName; out Error: TTool.TError): Boolean; override;
   public
     DropStmts: Boolean;
-    ExtendedInsert: Boolean;
     ReplaceData: Boolean;
     constructor Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
   end;
@@ -774,7 +773,7 @@ resourcestring
   SInvalidQuoter = 'Quoter "%s" not supported for SQL Values import';
 
 const
-  SQLPacketSize = 100 * 1024;
+  SQLPacketSize = 32768;
   FilePacketSize = 32768;
   ODBCDataSize = 65536;
 
@@ -2129,9 +2128,7 @@ begin
 
       while ((Success = daSuccess) and NextRecord()) do
       begin
-        if (SQLStmtPrefixInSQLStmt) then
-          SQLStmt.WriteChar(',')
-        else if ((StmtType = stUpdate) or not SQLStmtPrefixInSQLStmt) then
+        if ((StmtType = stUpdate) or not SQLStmtPrefixInSQLStmt) then
         begin
           SQLStmt.Write(PChar(SQLStmtPrefix), Length(SQLStmtPrefix));
           SQLStmtPrefixInSQLStmt := True;
@@ -4476,7 +4473,6 @@ begin
   inherited;
 
   DropStmts := False;
-  ExtendedInsert := True;
   ReplaceData := False;
   UseDatabaseStmts := False;
 end;
@@ -4681,7 +4677,7 @@ begin
   end;
   Values.Write(')');
 
-  if (not ExtendedInsert and (SQLInsertLen > 0) or (SQLInsertLen > 0) and (SQLInsertLen + 1 + Values.Length + Length(SQLInsertPrefix) > SQLPacketSize)) then
+  if ((SQLInsertLen > 0) and (SQLInsertLen + 1 + Values.Length + Length(SQLInsertPrefix) > SQLPacketSize)) then
   begin
     ContentBuffer.Write(SQLInsertPostfix);
     SQLInsertLen := 0;

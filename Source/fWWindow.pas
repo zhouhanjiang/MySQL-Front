@@ -416,6 +416,7 @@ type
     procedure tbPropertiesClick(Sender: TObject);
     procedure CAddressBarResize(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
+    procedure FAddressChange(Sender: TObject);
     procedure TabControlMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
   const
@@ -1652,6 +1653,11 @@ begin
   end;
 end;
 {$ENDIF}
+
+procedure TWWindow.FAddressChange(Sender: TObject);
+begin
+  FAddressApply.Enabled := True;
+end;
 
 procedure TWWindow.FAddressDropDown(Sender: TObject);
 var

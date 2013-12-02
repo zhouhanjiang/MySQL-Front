@@ -125,7 +125,6 @@ begin
           Export := TTExportSQL.Create(Session, Job.Filename, Job.CodePage);
           TTExportSQL(Export).Data := Job.SQL.Data;
           TTExportSQL(Export).DropStmts := Job.SQL.DropStmts;
-          TTExportSQL(Export).ExtendedInsert := Job.SQL.ExtendedInsert;
           TTExportSQL(Export).ReplaceData := Job.SQL.ReplaceData;
           TTExportSQL(Export).Structure := Job.SQL.Structure;
         end;

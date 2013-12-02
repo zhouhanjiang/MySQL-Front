@@ -125,6 +125,7 @@ object WWindow: TWWindow
         Anchors = [akLeft, akTop, akRight]
         Constraints.MinWidth = 300
         TabOrder = 0
+        OnChange = FAddressChange
         OnDropDown = FAddressDropDown
         OnKeyPress = FAddressKeyPress
         OnSelect = FAddressSelect
@@ -1871,6 +1872,9 @@ object WWindow: TWWindow
     end
   end
   object Highlighter: TSynSQLSyn
+    Options.AutoDetectEnabled = False
+    Options.AutoDetectLineLimit = 0
+    Options.Visible = False
     SQLDialect = sqlMySQL
     Left = 144
     Top = 288

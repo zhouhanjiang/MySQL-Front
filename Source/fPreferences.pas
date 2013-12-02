@@ -205,7 +205,6 @@ type
     SQL: record
       Data: Boolean;
       DropStmts: Boolean;
-      ExtendedInsert: Boolean;
       ReplaceData: Boolean;
       Structure: Boolean;
     end;
@@ -1633,7 +1632,6 @@ begin
   HTML.Structure := False;
   SQL.Data := True;
   SQL.DropStmts := True;
-  SQL.ExtendedInsert := True;
   SQL.Structure := True;
   SQL.ReplaceData := False;
   XML.Database.NodeType := ntDisabled;
@@ -1666,7 +1664,6 @@ begin
   if (Assigned(XMLNode(XML, 'html/structure'))) then TryStrToBool(XMLNode(XML, 'html/structure').Attributes['enabled'], HTML.Structure);
   if (Assigned(XMLNode(XML, 'sql/data'))) then TryStrToBool(XMLNode(XML, 'sql/data').Attributes['enabled'], SQL.Data);
   if (Assigned(XMLNode(XML, 'sql/data'))) then TryStrToBool(XMLNode(XML, 'sql/data').Attributes['replace'], SQL.ReplaceData);
-  if (Assigned(XMLNode(XML, 'sql/insert'))) then TryStrToBool(XMLNode(XML, 'sql/insert').Attributes['extended'], SQL.ExtendedInsert);
   if (Assigned(XMLNode(XML, 'sql/structure'))) then TryStrToBool(XMLNode(XML, 'sql/structure').Attributes['enabled'], SQL.Structure);
   if (Assigned(XMLNode(XML, 'sql/structure'))) then TryStrToBool(XMLNode(XML, 'sql/structure').Attributes['drop'], SQL.DropStmts);
   if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/database').Attributes['type'], Self.XML.Database.NodeType);
@@ -1699,7 +1696,6 @@ begin
   XMLNode(XML, 'html/structure').Attributes['enabled'] := HTML.Structure;
   XMLNode(XML, 'sql/data').Attributes['enabled'] := SQL.Data;
   XMLNode(XML, 'sql/data').Attributes['replace'] := SQL.ReplaceData;
-  XMLNode(XML, 'sql/insert').Attributes['extended'] := SQL.ExtendedInsert;
   XMLNode(XML, 'sql/structure').Attributes['enabled'] := SQL.Structure;
   XMLNode(XML, 'sql/structure').Attributes['drop'] := SQL.DropStmts;
   XMLNode(XML, 'xml/database').Text := Self.XML.Database.NodeText;
