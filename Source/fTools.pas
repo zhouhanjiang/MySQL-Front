@@ -4476,6 +4476,8 @@ begin
   inherited;
 
   DropStmts := False;
+  ExtendedInsert := True;
+  ReplaceData := False;
   UseDatabaseStmts := False;
 end;
 
