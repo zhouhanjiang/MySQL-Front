@@ -2145,6 +2145,7 @@ begin
                else
                  Result := Result + 'Server 2008 R2';
             2: Result := Result + '8';
+            3: Result := Result + '8.1';
            else
              Result := Result + IntToStr(Win32MajorVersion) + '.' + IntToStr(Win32MinorVersion);
            end;

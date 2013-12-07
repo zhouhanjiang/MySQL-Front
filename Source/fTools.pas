@@ -519,8 +519,8 @@ type
   private
     FStmt: SQLHSTMT;
     Parameter: array of record
-      Buffer: SQLPOINTER;
-      BufferSize: SQLINTEGER;
+      Mem: SQLPOINTER;
+      MemSize: SQLINTEGER;
       Size: SQLINTEGER;
     end;
   protected
@@ -2385,7 +2385,6 @@ end;
 function TTImportFile.ReadContent(const NewFilePos: TLargeInteger = -1): Boolean;
 var
   DistanceToMove: TLargeInteger;
-  Error: TTool.TError;
   Index: Integer;
   Len: Integer;
   ReadSize: DWord;
@@ -2457,15 +2456,7 @@ begin
 
           if (BytesPerSector + ReadSize - FileBuffer.Index > 0) then
           begin
-            try
-              Len := AnsiCharToWideChar(CodePage, @FileBuffer.Mem[FileBuffer.Index], BytesPerSector + ReadSize - UTF8Bytes - FileBuffer.Index, nil, 0);
-            except
-              Len := 0;
-              Error.ErrorType := TE_File;
-              Error.ErrorCode := GetLastError();
-              Error.ErrorMessage := Preferences.LoadStr(895, Filename);
-              DoError(Error, nil, False);
-            end;
+            Len := AnsiCharToWideChar(CodePage, @FileBuffer.Mem[FileBuffer.Index], BytesPerSector + ReadSize - UTF8Bytes - FileBuffer.Index, nil, 0);
             if (Len > 0) then
             begin
               SetLength(FileContent.Str, Length(FileContent.Str) + Len);
@@ -2784,15 +2775,10 @@ begin
 
     if (FieldMappings[Index].DestinationField.FieldType in BinaryFieldTypes) then
       Values.Write('NULL', 4)
-    else if (FieldMappings[Index].DestinationField.FieldType in TextFieldTypes) then
-      Values.WriteText(UnescapeBuffer.Text, Len)
     else if (FieldMappings[Index].DestinationField.FieldType in NotQuotedFieldTypes) then
       Values.Write(UnescapeBuffer.Text, Len)
     else
-    begin
-      Len := SQLEscape(UnescapeBuffer.Text, Len, nil, 0);
-      SQLEscape(UnescapeBuffer.Text, Len, Values.WriteExternal(Len), Len);
-    end;
+      Values.WriteText(UnescapeBuffer.Text, Len);
   end;
 end;
 
@@ -4661,13 +4647,13 @@ begin
     end
     else if (Field.DataType in TextDataTypes) then
     begin
-      Len := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], nil, 0);
+      Len := DataSet.LibLengths^[Field.FieldNo - 1];
       if (Len * SizeOf(ValueBuffer.Mem[0]) > ValueBuffer.MemSize) then
       begin
         ValueBuffer.MemSize := Len * SizeOf(ValueBuffer.Mem[0]);
         ReallocMem(ValueBuffer.Mem, ValueBuffer.MemSize);
       end;
-      AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
+      Len := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
 
       LenEscaped := SQLEscape(ValueBuffer.Mem, Len, nil, 0);
       SQLEscape(ValueBuffer.Mem, Len, Values.WriteExternal(LenEscaped), LenEscaped);
@@ -4826,13 +4812,13 @@ begin
       Values.Write(CSVEscape('BLOB', Quoter, QuoteValues <> qtNone))
     else if (Field.DataType in TextDataTypes) then
     begin
-      Len := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], nil, 0);
+      Len := DataSet.LibLengths^[Field.FieldNo - 1];
       if (Len * SizeOf(ValueBuffer.Mem[0]) > ValueBuffer.MemSize) then
       begin
         ValueBuffer.MemSize := Len * SizeOf(ValueBuffer.Mem[0]);
         ReallocMem(ValueBuffer.Mem, ValueBuffer.MemSize);
       end;
-      AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
+      Len := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
 
       LenEscaped := CSVEscape(ValueBuffer.Mem, Len, nil, 0, Quoter, (QuoteValues <> qtNone));
       CSVEscape(ValueBuffer.Mem, Len, Values.WriteExternal(LenEscaped), LenEscaped, Quoter, QuoteValues <> qtNone);
@@ -5502,13 +5488,13 @@ begin
         Values.Write('&lt;MEMO&gt;')
       else if (Field.DataType in TextDataTypes) then
       begin
-        Len := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], nil, 0);
+        Len := DataSet.LibLengths^[Field.FieldNo - 1];
         if (Len * SizeOf(ValueBuffer.Mem[0]) > ValueBuffer.MemSize) then
         begin
           ValueBuffer.MemSize := Len * SizeOf(ValueBuffer.Mem[0]);
           ReallocMem(ValueBuffer.Mem, ValueBuffer.MemSize);
         end;
-        AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
+        Len := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
 
         LenEscaped := HTMLEscape(ValueBuffer.Mem, Len, nil, 0);
         HTMLEscape(ValueBuffer.Mem, Len, Values.WriteExternal(LenEscaped), LenEscaped);
@@ -5902,13 +5888,13 @@ begin
         Values.Write('BLOB')
       else if (Field.DataType = ftWideString) then
       begin
-        Len := AnsiCharToWideChar(CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], nil, 0);
+        Len := DataSet.LibLengths^[Field.FieldNo - 1];
         if (Len * SizeOf(ValueBuffer.Mem[0]) > ValueBuffer.MemSize) then
         begin
           ValueBuffer.MemSize := Len * SizeOf(ValueBuffer.Mem[0]);
           ReallocMem(ValueBuffer.Mem, ValueBuffer.MemSize);
         end;
-        AnsiCharToWideChar(CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
+        Len := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
 
         LenEscaped := XMLEscape(ValueBuffer.Mem, Len, nil, 0);
         XMLEscape(ValueBuffer.Mem, Len, Values.WriteExternal(LenEscaped), LenEscaped);
@@ -5967,7 +5953,7 @@ begin
   TableName := '';
 
   for I := 0 to Length(Parameter) - 1 do
-    FreeMem(Parameter[I].Buffer);
+    FreeMem(Parameter[I].Mem);
   SetLength(Parameter, 0);
 
   inherited;
@@ -6116,7 +6102,7 @@ begin
         ValueType := SQL_C_ULONG;
         ParameterType := SQL_INTEGER;
         ColumnSize := 8;
-        Parameter[I].BufferSize := Fields[I].DataSize;
+        Parameter[I].MemSize := Fields[I].DataSize;
       end
     else
       case (Fields[I].DataType) of
@@ -6125,7 +6111,7 @@ begin
             ValueType := SQL_C_BINARY;
             ParameterType := SQL_BINARY;
             ColumnSize := Fields[I].Size;
-            Parameter[I].BufferSize := ColumnSize;
+            Parameter[I].MemSize := ColumnSize;
           end;
         ftShortInt,
         ftByte,
@@ -6138,7 +6124,7 @@ begin
             ValueType := SQL_C_CHAR;
             ParameterType := SQL_CHAR;
             ColumnSize := 100;
-            Parameter[I].BufferSize := ColumnSize;
+            Parameter[I].MemSize := ColumnSize;
           end;
         ftSingle,
         ftFloat,
@@ -6147,35 +6133,35 @@ begin
             ValueType := SQL_C_CHAR;
             ParameterType := SQL_C_DOUBLE;
             ColumnSize := 100;
-            Parameter[I].BufferSize := ColumnSize;
+            Parameter[I].MemSize := ColumnSize;
           end;
         ftTimestamp:
           begin
             ValueType := SQL_C_CHAR;
             ParameterType := SQL_CHAR;
             ColumnSize := 100;
-            Parameter[I].BufferSize := ColumnSize;
+            Parameter[I].MemSize := ColumnSize;
           end;
         ftDate:
           begin
             ValueType := SQL_C_CHAR;
             ParameterType := SQL_TYPE_DATE;
             ColumnSize := 10; // 'yyyy-mm-dd'
-            Parameter[I].BufferSize := ColumnSize;
+            Parameter[I].MemSize := ColumnSize;
           end;
         ftDateTime:
           begin
             ValueType := SQL_C_CHAR;
             ParameterType := SQL_TYPE_TIMESTAMP;
             ColumnSize := 19; // 'yyyy-mm-dd hh:hh:ss'
-            Parameter[I].BufferSize := ColumnSize;
+            Parameter[I].MemSize := ColumnSize;
           end;
         ftTime:
           begin
             ValueType := SQL_C_CHAR;
             ParameterType := SQL_TYPE_TIME;
             ColumnSize := 8; // 'hh:mm:ss'
-            Parameter[I].BufferSize := ColumnSize;
+            Parameter[I].MemSize := ColumnSize;
           end;
         ftWideString:
           begin
@@ -6184,14 +6170,14 @@ begin
               ValueType := SQL_C_WCHAR;
               ParameterType := SQL_WCHAR;
               ColumnSize := Fields[I].Size;
-              Parameter[I].BufferSize := ColumnSize * SizeOf(Char);
+              Parameter[I].MemSize := ColumnSize * SizeOf(Char);
             end
             else
             begin
               ValueType := SQL_C_WCHAR;
               ParameterType := SQL_WLONGVARCHAR;
               ColumnSize := Fields[I].Size;
-              Parameter[I].BufferSize := ODBCDataSize;
+              Parameter[I].MemSize := ODBCDataSize;
             end;
           end;
         ftWideMemo:
@@ -6199,22 +6185,22 @@ begin
             ValueType := SQL_C_WCHAR;
             ParameterType := SQL_WLONGVARCHAR;
             ColumnSize := Fields[I].Size;
-            Parameter[I].BufferSize := ODBCDataSize;
+            Parameter[I].MemSize := ODBCDataSize;
           end;
         ftBlob:
           begin
             ValueType := SQL_C_BINARY;
             ParameterType := SQL_LONGVARBINARY;
             ColumnSize := Fields[I].Size;
-            Parameter[I].BufferSize := ODBCDataSize;
+            Parameter[I].MemSize := ODBCDataSize;
           end;
         else
           raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Fields[I].DisplayName, Ord(Fields[I].DataType)]);
       end;
-    GetMem(Parameter[I].Buffer, Parameter[I].BufferSize);
+    GetMem(Parameter[I].Mem, Parameter[I].MemSize);
 
     if ((Success = daSuccess) and not SQL_SUCCEEDED(SQLBindParameter(Stmt, 1 + I, SQL_PARAM_INPUT, ValueType, ParameterType,
-      ColumnSize, 0, Parameter[I].Buffer, Parameter[I].BufferSize, @Parameter[I].Size))) then
+      ColumnSize, 0, Parameter[I].Mem, Parameter[I].MemSize, @Parameter[I].Size))) then
     begin
       Error := ODBCError(SQL_HANDLE_STMT, Stmt);
       Error.ErrorMessage := Error.ErrorMessage;
@@ -6258,14 +6244,14 @@ begin
       begin
         L := Fields[I].AsLargeInt;
         Parameter[I].Size := SizeOf(L);
-        MoveMemory(Parameter[I].Buffer, @L, Parameter[I].Size);
+        MoveMemory(Parameter[I].Mem, @L, Parameter[I].Size);
       end
     else
       case (Fields[I].DataType) of
         ftString:
           begin
-            Parameter[I].Size := Min(Parameter[I].BufferSize, DataSet.LibLengths^[I]);
-            MoveMemory(Parameter[I].Buffer, DataSet.LibRow^[I], Parameter[I].Size);
+            Parameter[I].Size := Min(Parameter[I].MemSize, DataSet.LibLengths^[I]);
+            MoveMemory(Parameter[I].Mem, DataSet.LibRow^[I], Parameter[I].Size);
           end;
         ftShortInt,
         ftByte,
@@ -6279,8 +6265,8 @@ begin
         ftExtended,
         ftTimestamp:
           begin
-            Parameter[I].Size := Min(Parameter[I].BufferSize, DataSet.LibLengths^[I]);
-            MoveMemory(Parameter[I].Buffer, DataSet.LibRow^[I], Parameter[I].Size);
+            Parameter[I].Size := Min(Parameter[I].MemSize, DataSet.LibLengths^[I]);
+            MoveMemory(Parameter[I].Mem, DataSet.LibRow^[I], Parameter[I].Size);
           end;
         ftDate,
         ftTime,
@@ -6291,24 +6277,24 @@ begin
               Parameter[I].Size := SQL_NULL_DATA        // Handle them as NULL values
             else
             begin
-              Parameter[I].Size := Min(Parameter[I].BufferSize, DataSet.LibLengths^[I]);
-              MoveMemory(Parameter[I].Buffer, DataSet.LibRow^[I], Parameter[I].Size);
+              Parameter[I].Size := Min(Parameter[I].MemSize, DataSet.LibLengths^[I]);
+              MoveMemory(Parameter[I].Mem, DataSet.LibRow^[I], Parameter[I].Size);
             end;
           end;
         ftWideString,
         ftWideMemo:
           begin
             Size := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], nil, 0) * SizeOf(Char);
-            if (Size < Parameter[I].BufferSize div SizeOf(Char)) then
-              Parameter[I].Size := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], Parameter[I].Buffer, Parameter[I].BufferSize div SizeOf(Char)) * SizeOf(Char)
+            if (Size < Parameter[I].MemSize div SizeOf(Char)) then
+              Parameter[I].Size := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], Parameter[I].Mem, Parameter[I].MemSize div SizeOf(Char)) * SizeOf(Char)
             else
               Parameter[I].Size := SQL_LEN_DATA_AT_EXEC(Size * SizeOf(Char));
           end;
         ftBlob:
-          if (DataSet.LibLengths^[I] <= Parameter[I].BufferSize) then
+          if (DataSet.LibLengths^[I] <= Parameter[I].MemSize) then
           begin
             Parameter[I].Size := DataSet.LibLengths^[I];
-            MoveMemory(Parameter[I].Buffer, DataSet.LibRow^[I], Parameter[I].Size);
+            MoveMemory(Parameter[I].Mem, DataSet.LibRow^[I], Parameter[I].Size);
           end
           else
             Parameter[I].Size := SQL_LEN_DATA_AT_EXEC(DataSet.LibLengths^[I]);
@@ -6331,7 +6317,7 @@ begin
     ReturnCode := SQLParamData(Stmt, @Buffer);
     if (ReturnCode = SQL_NEED_DATA) then
       for I := 0 to Length(Fields) - 1 do
-        if (Buffer = Parameter[I].Buffer) then
+        if (Buffer = Parameter[I].Mem) then
         begin
           case (Fields[I].DataType) of
             ftWideString,
@@ -8042,13 +8028,13 @@ begin
             end
             else if (Fields[I].DataType in TextDataTypes) then
             begin
-              Len := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], nil, 0);
+              Len := DataSet.LibLengths^[Fields[I].FieldNo - 1];
               if (Len * SizeOf(ValueBuffer.Mem[0]) > ValueBuffer.MemSize) then
               begin
                 ValueBuffer.MemSize := Len * SizeOf(ValueBuffer.Mem[0]);
                 ReallocMem(ValueBuffer.Mem, ValueBuffer.MemSize);
               end;
-              AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], ValueBuffer.Mem, Len);
+              Len := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], ValueBuffer.Mem, Len);
 
               LenEscaped := SQLEscape(ValueBuffer.Mem, Len, nil, 0);
               SQLEscape(ValueBuffer.Mem, Len, ValuesBuffer.WriteExternal(LenEscaped), LenEscaped);

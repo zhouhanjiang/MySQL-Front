@@ -54,11 +54,13 @@ Inno Setup:
 http://www.jrsoftware.org/isinfo.php
 
 
-Debugging:
-==========
+Developing the program:
+=======================
 
-Inside Delphi first of all, all packages has to be built (Menu: Project -> Build
-All Project).
+Inside Delphi first of all, you have to download all packages from the given
+URLs. Store the source code into a new folder "Source" inside the file system.
+A new folder called "Resource" need the .res and .dfm files. After this, you 
+have to built all packages inside Delphi (Menu: Project -> Build All Project).
 
 All Designtime packages needs to be installed. This will be done inside the
 IDE with the project manager (Menu: View -> Project Manager). For each
