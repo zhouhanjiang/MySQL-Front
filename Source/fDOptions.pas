@@ -22,7 +22,9 @@ type
     FBackground: TCheckBox;
     FBBackground: TButton;
     FBCancel: TButton;
+    FBEditorFont: TButton;
     FBForeground: TButton;
+    FBGridFont: TButton;
     FBHelp: TButton;
     FBOk: TButton;
     FBold: TCheckBox;
@@ -35,6 +37,7 @@ type
     FEditorTabToSpaces: TCheckBox;
     FEditorTabWidth: TEdit;
     FEditorTabWidthCharacters: TLabel;
+    FEditorWordWrap: TCheckBox;
     FForeground: TCheckBox;
     FGridCurrRowBGColorEnabled: TCheckBox;
     FGridFont: TEdit;
@@ -52,6 +55,7 @@ type
     FLEditorRightEdge: TLabel;
     FLEditorRightEdgeCharacters: TLabel;
     FLEditorTabWidth: TLabel;
+    FLEditorWordWrap: TLabel;
     FLGridBGColorEnabled: TLabel;
     FLGridCurrRowBGColor: TLabel;
     FLGridFont: TLabel;
@@ -107,8 +111,7 @@ type
     TSLog: TTabSheet;
     TSUpdates: TTabSheet;
     TSView: TTabSheet;
-    FEditorWordWrap: TCheckBox;
-    FLEditorWordWrap: TLabel;
+    FBLogFont: TButton;
     procedure FBackgroundClick(Sender: TObject);
     procedure FBackgroundKeyPress(Sender: TObject; var Key: Char);
     procedure FBBackgroundClick(Sender: TObject);
@@ -137,6 +140,11 @@ type
     procedure PGridCurrRowBGColorClick(Sender: TObject);
     procedure PGridNullBGColorClick(Sender: TObject);
     procedure TSHighlighterShow(Sender: TObject);
+    procedure TSBrowserResize(Sender: TObject);
+    procedure TSEditorResize(Sender: TObject);
+    procedure FBGridFontKeyPress(Sender: TObject; var Key: Char);
+    procedure TSLogResize(Sender: TObject);
+    procedure FBLogFontKeyPress(Sender: TObject; var Key: Char);
   private
     LineNumbersAttri: TSynHighlighterAttributes;
     function Attribute(const Caption: string): TSynHighlighterAttributes;
@@ -145,7 +153,6 @@ type
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
     Languages: array of TIniFileRecord;
-    Skins: array of TIniFileRecord;
     function Execute(): Boolean;
   end;
 
@@ -387,6 +394,11 @@ begin
   end;
 end;
 
+procedure TDOptions.FBGridFontKeyPress(Sender: TObject; var Key: Char);
+begin
+  FBGridFontClick(Sender);
+end;
+
 procedure TDOptions.FBHelpClick(Sender: TObject);
 begin
   Application.HelpContext(HelpContext);
@@ -401,6 +413,11 @@ begin
     FLogFont.Text := FontDialog.Font.Name;
     PLogFont.Font := FontDialog.Font;
   end;
+end;
+
+procedure TDOptions.FBLogFontKeyPress(Sender: TObject; var Key: Char);
+begin
+  FBLogFontClick(Sender);
 end;
 
 procedure TDOptions.FBoldClick(Sender: TObject);
@@ -777,6 +794,18 @@ begin
     PGridNullBGColor.Color := ColorDialog.Color;
 end;
 
+procedure TDOptions.TSBrowserResize(Sender: TObject);
+begin
+  FBGridFont.Left := FGridFont.Left + FGridFont.Width;
+  FBGridFont.Height := FGridFont.Height;
+end;
+
+procedure TDOptions.TSEditorResize(Sender: TObject);
+begin
+  FBEditorFont.Left := FEditorFont.Left + FEditorFont.Width;
+  FBEditorFont.Height := FEditorFont.Height;
+end;
+
 procedure TDOptions.TSHighlighterShow(Sender: TObject);
 begin
   FPreview.Font := PEditorFont.Font;
@@ -785,6 +814,12 @@ begin
   FStyles.Selected := FStyles.Items.Item[0];
   FStyles.ItemFocused := FStyles.Selected;
   ActiveControl := FStyles;
+end;
+
+procedure TDOptions.TSLogResize(Sender: TObject);
+begin
+  FBLogFont.Left := FLogFont.Left + FLogFont.Width;
+  FBLogFont.Height := FLogFont.Height;
 end;
 
 initialization

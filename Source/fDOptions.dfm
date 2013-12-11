@@ -45,13 +45,12 @@ object DOptions: TDOptions
     Top = 8
     Width = 362
     Height = 345
-    ActivePage = TSView
+    ActivePage = TSLog
     HotTrack = True
     MultiLine = True
     TabOrder = 0
     object TSView: TTabSheet
       Caption = 'TSView'
-      ExplicitHeight = 321
       object GProgram: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -105,7 +104,7 @@ object DOptions: TDOptions
     end
     object TSBrowser: TTabSheet
       Caption = 'TSBrowser'
-      ExplicitHeight = 321
+      OnResize = TSBrowserResize
       object GGrid: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -170,7 +169,7 @@ object DOptions: TDOptions
           Top = 50
           Width = 33
           Height = 21
-          TabOrder = 2
+          TabOrder = 3
           Text = '100'
         end
         object FUDMaxColumnWidth: TUpDown
@@ -183,7 +182,7 @@ object DOptions: TDOptions
           Max = 1024
           Increment = 10
           Position = 100
-          TabOrder = 3
+          TabOrder = 4
         end
         object FGridFont: TEdit
           Left = 144
@@ -213,7 +212,7 @@ object DOptions: TDOptions
           Width = 169
           Height = 17
           Caption = 'FGridNullText'
-          TabOrder = 7
+          TabOrder = 8
         end
         object FGridShowMemoContent: TCheckBox
           Left = 144
@@ -221,14 +220,14 @@ object DOptions: TDOptions
           Width = 169
           Height = 17
           Caption = 'FGridShowMemoContent'
-          TabOrder = 4
+          TabOrder = 5
         end
         object PGridNullBGColorEnabled: TCheckBox
           Left = 144
           Top = 120
           Width = 30
           Height = 17
-          TabOrder = 5
+          TabOrder = 6
         end
         object PGridNullBGColor: TPanel_Ext
           Left = 162
@@ -237,7 +236,7 @@ object DOptions: TDOptions
           Height = 21
           BevelOuter = bvLowered
           ParentBackground = False
-          TabOrder = 6
+          TabOrder = 7
           OnClick = PGridNullBGColorClick
         end
         object FGridRowBGColorEnabled: TCheckBox
@@ -246,14 +245,14 @@ object DOptions: TDOptions
           Width = 169
           Height = 17
           Caption = 'FGridRowBGColorEnabled'
-          TabOrder = 8
+          TabOrder = 9
         end
         object FGridCurrRowBGColorEnabled: TCheckBox
           Left = 144
           Top = 208
           Width = 30
           Height = 17
-          TabOrder = 9
+          TabOrder = 10
         end
         object PGridCurrRowBGColor: TPanel_Ext
           Left = 162
@@ -262,14 +261,24 @@ object DOptions: TDOptions
           Height = 21
           BevelOuter = bvLowered
           ParentBackground = False
-          TabOrder = 10
+          TabOrder = 11
           OnClick = PGridCurrRowBGColorClick
+        end
+        object FBGridFont: TButton
+          Left = 265
+          Top = 16
+          Width = 21
+          Height = 21
+          Caption = #183#183#183
+          TabOrder = 2
+          OnClick = FBGridFontClick
+          OnKeyPress = FBGridFontKeyPress
         end
       end
     end
     object TSEditor: TTabSheet
       Caption = 'TSEditor'
-      ExplicitHeight = 321
+      OnResize = TSEditorResize
       object GEditor: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -349,7 +358,7 @@ object DOptions: TDOptions
           Top = 228
           Width = 19
           Height = 17
-          TabOrder = 10
+          TabOrder = 11
         end
         object FEditorFont: TEdit
           Left = 144
@@ -379,14 +388,14 @@ object DOptions: TDOptions
           Width = 193
           Height = 17
           Caption = 'FEditorLinenumbers'
-          TabOrder = 2
+          TabOrder = 3
         end
         object FEditorTabWidth: TEdit
           Left = 144
           Top = 156
           Width = 25
           Height = 21
-          TabOrder = 6
+          TabOrder = 7
           Text = '4'
         end
         object FEditorAutoIndent: TCheckBox
@@ -395,14 +404,14 @@ object DOptions: TDOptions
           Width = 193
           Height = 17
           Caption = 'FEditorAutoIndent'
-          TabOrder = 3
+          TabOrder = 4
         end
         object FEditorRightEdge: TEdit
           Left = 144
           Top = 190
           Width = 41
           Height = 21
-          TabOrder = 8
+          TabOrder = 9
           Text = '80'
         end
         object FUDEditorRightEdge: TUpDown
@@ -413,7 +422,7 @@ object DOptions: TDOptions
           Associate = FEditorRightEdge
           Max = 1024
           Position = 80
-          TabOrder = 9
+          TabOrder = 10
         end
         object FUDEditorTabWidth: TUpDown
           Left = 169
@@ -423,7 +432,7 @@ object DOptions: TDOptions
           Associate = FEditorTabWidth
           Min = 1
           Position = 4
-          TabOrder = 7
+          TabOrder = 8
         end
         object FEditorTabToSpaces: TCheckBox
           Left = 144
@@ -431,7 +440,7 @@ object DOptions: TDOptions
           Width = 193
           Height = 17
           Caption = 'FEditorTabToSpaces'
-          TabOrder = 5
+          TabOrder = 6
         end
         object FEditorTabAccepted: TCheckBox
           Left = 144
@@ -439,7 +448,7 @@ object DOptions: TDOptions
           Width = 193
           Height = 17
           Caption = 'FEditorTabAccepted'
-          TabOrder = 4
+          TabOrder = 5
         end
         object PEditorCurrRowBGColor: TPanel_Ext
           Left = 162
@@ -448,7 +457,7 @@ object DOptions: TDOptions
           Height = 21
           BevelOuter = bvLowered
           ParentBackground = False
-          TabOrder = 11
+          TabOrder = 12
           OnClick = PEditorCurrRowBGColorClick
         end
         object FEditorWordWrap: TCheckBox
@@ -457,13 +466,23 @@ object DOptions: TDOptions
           Width = 198
           Height = 17
           Caption = 'FEditorWordWrap'
-          TabOrder = 12
+          TabOrder = 13
+        end
+        object FBEditorFont: TButton
+          Left = 265
+          Top = 16
+          Width = 21
+          Height = 21
+          Caption = #183#183#183
+          TabOrder = 2
+          OnClick = FBEditorFontClick
+          OnKeyPress = FEditorFontKeyPress
         end
       end
     end
     object TSLog: TTabSheet
       Caption = 'TSLog'
-      ExplicitHeight = 321
+      OnResize = TSLogResize
       object GLog: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -528,7 +547,7 @@ object DOptions: TDOptions
           Top = 108
           Width = 43
           Height = 21
-          TabOrder = 4
+          TabOrder = 5
           Text = '100'
         end
         object FLogTime: TCheckBox
@@ -537,7 +556,7 @@ object DOptions: TDOptions
           Width = 198
           Height = 17
           Caption = 'FLogTime'
-          TabOrder = 2
+          TabOrder = 3
         end
         object FLogResult: TCheckBox
           Left = 144
@@ -545,7 +564,7 @@ object DOptions: TDOptions
           Width = 198
           Height = 17
           Caption = 'FLogResult'
-          TabOrder = 3
+          TabOrder = 4
         end
         object FUDLogSize: TUpDown
           Left = 187
@@ -556,14 +575,23 @@ object DOptions: TDOptions
           Max = 1000
           Increment = 100
           Position = 100
-          TabOrder = 5
+          TabOrder = 6
+        end
+        object FBLogFont: TButton
+          Left = 265
+          Top = 16
+          Width = 21
+          Height = 21
+          Caption = #183#183#183
+          TabOrder = 2
+          OnClick = FBLogFontClick
+          OnKeyPress = FBLogFontKeyPress
         end
       end
     end
     object TSHighlighter: TTabSheet
       Caption = 'TSHighlighter'
       OnShow = TSHighlighterShow
-      ExplicitHeight = 321
       object GColors: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -622,11 +650,12 @@ object DOptions: TDOptions
               '  `name` char(64) binary NULL'
               ') TYPE=MyISAM COMMENT='#39'Test'#39';'
               '/*!40100 SET NAMES latin1;*/'
-              'SELECT UPPER(@TestVar);')
+              'SELECT Upper(@TestVar);')
             Options = [eoAutoIndent, eoDragDropEditing, eoGroupUndo, eoHideShowScrollbars, eoSmartTabDelete, eoSmartTabs, eoTabsToSpaces, eoTrimTrailingSpaces]
             ReadOnly = True
             RightEdge = -1
             ScrollHintFormat = shfTopToBottom
+            FontSmoothing = fsmNone
           end
         end
         object FStyles: TListView
@@ -715,7 +744,6 @@ object DOptions: TDOptions
     end
     object TSExtras: TTabSheet
       Caption = 'TSExtras'
-      ExplicitHeight = 321
       object GAssociate: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -742,7 +770,6 @@ object DOptions: TDOptions
     end
     object TSUpdates: TTabSheet
       Caption = 'TSUpdates'
-      ExplicitHeight = 321
       object GUpdates: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -796,6 +823,9 @@ object DOptions: TDOptions
     Top = 368
   end
   object Highlighter: TSynSQLSyn
+    Options.AutoDetectEnabled = False
+    Options.AutoDetectLineLimit = 0
+    Options.Visible = False
     SQLDialect = sqlMySQL
     Left = 151
     Top = 368

@@ -5846,7 +5846,7 @@ begin
         else
           RoutineType := rtFunction;
       end
-      else if (DataSet.FieldByName('ROUTINE_SCHEMA').AsString = Database.Name) then
+      else if (Session.Databases.NameCmp(DataSet.FieldByName('ROUTINE_SCHEMA').AsString, Database.Name) = 0) then
       begin
         Name := DataSet.FieldByName('ROUTINE_NAME').AsString;
         if (UpperCase(DataSet.FieldByName('ROUTINE_TYPE').AsString) = 'PROCEDURE') then
@@ -6195,65 +6195,68 @@ begin
     repeat
       if (not UseInformationSchema) then
         Name := DataSet.FieldByName('Name').AsString
-      else if (DataSet.FieldByName('TRIGGER_SCHEMA').AsString = Database.Name) then
+      else if (Session.Databases.NameCmp(DataSet.FieldByName('TRIGGER_SCHEMA').AsString, Database.Name) = 0) then
         Name := DataSet.FieldByName('TRIGGER_NAME').AsString
       else
-        raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Name']);
+        Name := '';
 
-      if (InsertIndex(Name, Index)) then
-        if (Index < Count) then
-          Insert(Index, TSTrigger.Create(Self, Name))
-        else
-          Add(TSTrigger.Create(Self, Name))
-      else if (DeleteList.IndexOf(Items[Index]) >= 0) then
-        DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
+      if (Name <> '') then
+      begin
+        if (InsertIndex(Name, Index)) then
+          if (Index < Count) then
+            Insert(Index, TSTrigger.Create(Self, Name))
+          else
+            Add(TSTrigger.Create(Self, Name))
+        else if (DeleteList.IndexOf(Items[Index]) >= 0) then
+          DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
 
-      if (not UseInformationSchema) then
-      begin
-        if (UpperCase(DataSet.FieldByName('Event').AsString) = 'INSERT') then
-          Trigger[Index].FEvent := teInsert
-        else if (UpperCase(DataSet.FieldByName('Event').AsString) = 'UPDATE') then
-          Trigger[Index].FEvent := teUpdate
-        else if (UpperCase(DataSet.FieldByName('Event').AsString) = 'DELETE') then
-          Trigger[Index].FEvent := teDelete;
-        if (not Assigned(DataSet.FindField('Definer'))) then
-          Trigger[Index].FDefiner := ''
+        if (not UseInformationSchema) then
+        begin
+          if (UpperCase(DataSet.FieldByName('Event').AsString) = 'INSERT') then
+            Trigger[Index].FEvent := teInsert
+          else if (UpperCase(DataSet.FieldByName('Event').AsString) = 'UPDATE') then
+            Trigger[Index].FEvent := teUpdate
+          else if (UpperCase(DataSet.FieldByName('Event').AsString) = 'DELETE') then
+            Trigger[Index].FEvent := teDelete;
+          if (not Assigned(DataSet.FindField('Definer'))) then
+            Trigger[Index].FDefiner := ''
+          else
+            Trigger[Index].FDefiner := DataSet.FieldByName('Definer').AsString;
+          Trigger[Index].FStmt := DataSet.FieldByName('Statement').AsString + ';';
+          Trigger[Index].FTableName := DataSet.FieldByName('Table').AsString;
+          if (UpperCase(DataSet.FieldByName('Timing').AsString) = 'BEFORE') then
+            Trigger[Index].FTiming := ttBefore
+          else if (UpperCase(DataSet.FieldByName('Timing').AsString) = 'AFTER') then
+            Trigger[Index].FTiming := ttAfter;
+        end
         else
-          Trigger[Index].FDefiner := DataSet.FieldByName('Definer').AsString;
-        Trigger[Index].FStmt := DataSet.FieldByName('Statement').AsString + ';';
-        Trigger[Index].FTableName := DataSet.FieldByName('Table').AsString;
-        if (UpperCase(DataSet.FieldByName('Timing').AsString) = 'BEFORE') then
-          Trigger[Index].FTiming := ttBefore
-        else if (UpperCase(DataSet.FieldByName('Timing').AsString) = 'AFTER') then
-          Trigger[Index].FTiming := ttAfter;
-      end
-      else
-      begin
-        if (UpperCase(DataSet.FieldByName('EVENT_MANIPULATION').AsString) = 'INSERT') then
-          Trigger[Index].FEvent := teInsert
-        else if (UpperCase(DataSet.FieldByName('EVENT_MANIPULATION').AsString) = 'UPDATE') then
-          Trigger[Index].FEvent := teUpdate
-        else if (UpperCase(DataSet.FieldByName('EVENT_MANIPULATION').AsString) = 'DELETE') then
-          Trigger[Index].FEvent := teDelete;
-        Trigger[Index].FName := DataSet.FieldByName('TRIGGER_NAME').AsString;
-        if (not Assigned(DataSet.FindField('DEFINER'))) then
-          Trigger[Index].FDefiner := ''
-        else
-          Trigger[Index].FDefiner := DataSet.FieldByName('DEFINER').AsString;
-        Trigger[Index].FStmt := DataSet.FieldByName('ACTION_STATEMENT').AsString + ';';
-        Trigger[Index].FTableName := DataSet.FieldByName('EVENT_OBJECT_TABLE').AsString;
-        if (UpperCase(DataSet.FieldByName('ACTION_TIMING').AsString) = 'BEFORE') then
-          Trigger[Index].FTiming := ttBefore
-        else if (UpperCase(DataSet.FieldByName('ACTION_TIMING').AsString) = 'AFTER') then
-          Trigger[Index].FTiming := ttAfter;
+        begin
+          if (UpperCase(DataSet.FieldByName('EVENT_MANIPULATION').AsString) = 'INSERT') then
+            Trigger[Index].FEvent := teInsert
+          else if (UpperCase(DataSet.FieldByName('EVENT_MANIPULATION').AsString) = 'UPDATE') then
+            Trigger[Index].FEvent := teUpdate
+          else if (UpperCase(DataSet.FieldByName('EVENT_MANIPULATION').AsString) = 'DELETE') then
+            Trigger[Index].FEvent := teDelete;
+          Trigger[Index].FName := DataSet.FieldByName('TRIGGER_NAME').AsString;
+          if (not Assigned(DataSet.FindField('DEFINER'))) then
+            Trigger[Index].FDefiner := ''
+          else
+            Trigger[Index].FDefiner := DataSet.FieldByName('DEFINER').AsString;
+          Trigger[Index].FStmt := DataSet.FieldByName('ACTION_STATEMENT').AsString + ';';
+          Trigger[Index].FTableName := DataSet.FieldByName('EVENT_OBJECT_TABLE').AsString;
+          if (UpperCase(DataSet.FieldByName('ACTION_TIMING').AsString) = 'BEFORE') then
+            Trigger[Index].FTiming := ttBefore
+          else if (UpperCase(DataSet.FieldByName('ACTION_TIMING').AsString) = 'AFTER') then
+            Trigger[Index].FTiming := ttAfter;
+        end;
+        Trigger[Index].FValid := True;
+
+        if (Database.Session.ServerVersion < 50121) then
+          Trigger[Index].SetSource(Trigger[Index].GetSourceEx());
+
+        if (Filtered and SessionEvents) then
+          Session.ExecuteEvent(etItemValid, Session, Self, Trigger[Index]);
       end;
-      Trigger[Index].FValid := True;
-
-      if (Database.Session.ServerVersion < 50121) then
-        Trigger[Index].SetSource(Trigger[Index].GetSourceEx());
-
-      if (Filtered and SessionEvents) then
-        Session.ExecuteEvent(etItemValid, Session, Self, Trigger[Index]);
     until (not DataSet.FindNext() or (Session.Databases.NameCmp(DataSet.FieldByName('TRIGGER_SCHEMA').AsString, Database.Name) <> 0));
 
   Result := inherited;
@@ -6513,7 +6516,8 @@ begin
   if (not DataSet.IsEmpty()) then
     repeat
       if ((not UseInformationSchema and (DataSet.FieldByName('Db').AsString = Database.Name))
-        or (UseInformationSchema and (DataSet.FieldByName('EVENT_SCHEMA').AsString = Database.Name))) then
+        or (UseInformationSchema and (Session.Databases.NameCmp(DataSet.FieldByName('EVENT_SCHEMA').AsString, Database.Name) = 0))) then
+      else if (Session.Databases.NameCmp(DataSet.FieldByName('ROUTINE_SCHEMA').AsString, Database.Name) = 0) then
       begin
         if (not UseInformationSchema) then
           Name := DataSet.FieldByName('Name').AsString

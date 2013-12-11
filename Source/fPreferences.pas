@@ -4650,14 +4650,7 @@ begin
       FXMLDocument.Node.AddChild('accounts').Attributes['version'] := '1.1.0';
     end;
 
-    try //why is this needed? 28.09.2013
-      FXMLDocument.Options := FXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
-    except
-      FXMLDocument := NewXMLDocument();
-
-      FXMLDocument.Encoding := 'utf-8';
-      FXMLDocument.Node.AddChild('accounts').Attributes['version'] := '1.1.0';
-    end;
+    FXMLDocument.Options := FXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
   end;
 
   Result := FXMLDocument.DocumentElement;
