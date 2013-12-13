@@ -443,6 +443,7 @@ type
     TabControlRepaint: TList;
     UniqueTabNameCounter: Integer;
     UpdateAvailable: Boolean;
+    UpdateExecution: Boolean;
     procedure ApplicationActivate(Sender: TObject);
     procedure ApplicationDeactivate(Sender: TObject);
     procedure ApplicationMessage(var Msg: TMsg; var Handled: Boolean);
@@ -601,6 +602,7 @@ begin
   aFCloseAllExecute(Sender);
   if (not Assigned(ActiveTab)) then
   begin
+    UpdateExecution := True;
     DInstallUpdate.Silent := False;
     Preferences.SetupProgramExecute := DInstallUpdate.Execute();
     if (Preferences.SetupProgramExecute) then
@@ -1197,7 +1199,8 @@ end;
 
 procedure TWWindow.CMMySQLClientSynchronize(var Message: TMessage);
 begin
-  MySQLDB.MySQLConnectionSynchronize(Pointer(Message.LParam));
+  if (not UpdateExecution) then
+    MySQLDB.MySQLConnectionSynchronize(Pointer(Message.LParam));
 end;
 
 procedure TWWindow.CMCloseTab(var Message: TMessage);
@@ -1716,6 +1719,7 @@ begin
   QuitAfterShow := False;
   UniqueTabNameCounter := 0;
   UpdateAvailable := False;
+  UpdateExecution := False;
 
   MySQLDB.MySQLConnectionOnSynchronize := MySQLConnectionSynchronize;
 

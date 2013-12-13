@@ -27,6 +27,7 @@ type
   const
     tiShowHint = 1;
     tiHideHint = 2;
+    CF_MYSQLRECORD = CF_PRIVATEFIRST + 80;
   private
     FIgnoreKeyPress: Boolean;
     FindNext: Boolean;
@@ -131,7 +132,11 @@ begin
   inherited;
 
   if (Accept and Modified) then
+  begin
+    TMySQLDBGrid(Grid).SelectedField.AsString := Text;
     TMySQLDBGrid(Grid).DataLink.Modified();
+    TMySQLDBGrid(Grid).DataSource.DataSet.Edit();
+  end;
 end;
 
 constructor TMySQLDBGrid.TDBMySQLInplaceEdit.Create(Owner: TComponent);
@@ -302,6 +307,8 @@ var
   ClipboardData: HGLOBAL;
   Content: string;
   FormatSettings: TFormatSettings;
+  I: Integer;
+  J: Integer;
   Len: Cardinal;
   OldRecNo: Integer;
 begin
@@ -334,7 +341,6 @@ begin
       DataLink.DataSet.DisableControls();
       OldRecNo := DataLink.DataSet.RecNo;
 
-
       Content := SelText;
 
       Len := WideCharToAnsiChar(GetACP(), PChar(Content), Length(Content), nil, 0);
@@ -342,6 +348,25 @@ begin
       WideCharToAnsiChar(GetACP(), PChar(Content), Length(Content), GlobalLock(ClipboardData), Len);
       PAnsiChar(GlobalLock(ClipboardData))[Len] := #0;
       SetClipboardData(CF_DSPTEXT, ClipboardData);
+      GlobalUnlock(ClipboardData);
+
+      Content := '';
+      for I := 0 to SelectedRows.Count - 1 do
+      begin
+        for J := 0 to Columns.Count - 1 do
+          if (Columns[J].Visible and not (Columns[J].Field.DataType = ftBlob)) then
+          begin
+            if (J > 0) then Content := Content + #9;
+            Content := Content + '"' + TMySQLDataSet(DataLink.DataSet).GetAsString(Columns[J].Field) + '"';
+          end;
+        Content := Content + #13#10;
+      end;
+      Len := Length(Content);
+
+      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Len + 1) * SizeOf(Char));
+      Move(PChar(Content)^, GlobalLock(ClipboardData)^, (Len + 1) * SizeOf(Char));
+      PAnsiChar(GlobalLock(ClipboardData))[Len] := #0;
+      SetClipboardData(CF_MYSQLRECORD, ClipboardData);
       GlobalUnlock(ClipboardData);
 
       DataLink.DataSet.RecNo := OldRecNo;
@@ -884,19 +909,25 @@ begin
     else if ((DataLink.DataSet is TMySQLDataSet) and (Clipboard.HasFormat(CF_TEXT) or Clipboard.HasFormat(CF_UNICODETEXT)) and OpenClipboard(Handle)) then
     begin
       try
-        if (not Clipboard.HasFormat(CF_UNICODETEXT)) then
+        if (Clipboard.HasFormat(CF_MYSQLRECORD)) then
+        begin
+          ClipboardData := GetClipboardData(CF_MYSQLRECORD);
+          S := PChar(GlobalLock(ClipboardData));
+          GlobalUnlock(ClipboardData);
+        end
+        else if (Clipboard.HasFormat(CF_UNICODETEXT)) then
+        begin
+          ClipboardData := GetClipboardData(CF_UNICODETEXT);
+          S := PChar(GlobalLock(ClipboardData));
+          GlobalUnlock(ClipboardData);
+        end
+        else
         begin
           ClipboardData := GetClipboardData(CF_TEXT);
           Str := PAnsiChar(GlobalLock(ClipboardData));
           SetLength(S, AnsiCharToWideChar(GetACP(), Str, StrLen(Str), nil, 0));
           if (Length(S) > 0) then
             SetLength(S, AnsiCharToWideChar(GetACP(), Str, StrLen(Str), PChar(S), Length(S)));
-          GlobalUnlock(ClipboardData);
-        end
-        else
-        begin
-          ClipboardData := GetClipboardData(CF_UNICODETEXT);
-          S := PChar(GlobalLock(ClipboardData));
           GlobalUnlock(ClipboardData);
         end;
       finally
@@ -936,13 +967,13 @@ begin
                 for I := 0 to Min(Length(Values), DataLink.DataSet.FieldCount) - 1 do
                   if (Values[I].Length = 0) then
                     DataLink.DataSet.Fields[I].Clear()
-                  else
-                  try
-                    DataLink.DataSet.Fields[I].AsString := CSVUnescape(Values[I].Text, Values[I].Length);
-                  except
-                    MessageBeep(MB_ICONERROR);
-                    DataLink.DataSet.Fields[I].Clear();
-                  end;
+                  else if (not DataLink.DataSet.Fields[I].IsIndexField) then
+                    try
+                      DataLink.DataSet.Fields[I].AsString := CSVUnescape(Values[I].Text, Values[I].Length);
+                    except
+                      MessageBeep(MB_ICONERROR);
+                      DataLink.DataSet.Fields[I].Clear();
+                    end;
 
                 if ((RecNo > 0) or (Index <= Length(S))) then
                   try
