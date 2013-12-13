@@ -967,7 +967,7 @@ begin
                 for I := 0 to Min(Length(Values), DataLink.DataSet.FieldCount) - 1 do
                   if (Values[I].Length = 0) then
                     DataLink.DataSet.Fields[I].Clear()
-                  else if (not DataLink.DataSet.Fields[I].IsIndexField) then
+                  else if (DataLink.DataSet.Fields[I].AutoGenerateValue <> arAutoInc) then
                     try
                       DataLink.DataSet.Fields[I].AsString := CSVUnescape(Values[I].Text, Values[I].Length);
                     except
