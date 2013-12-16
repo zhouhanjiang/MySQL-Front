@@ -357,7 +357,7 @@ begin
           if (Columns[J].Visible and not (Columns[J].Field.DataType = ftBlob)) then
           begin
             if (J > 0) then Content := Content + #9;
-            Content := Content + '"' + TMySQLDataSet(DataLink.DataSet).GetAsString(Columns[J].Field) + '"';
+            Content := Content + CSVEscape(TMySQLDataSet(DataLink.DataSet).GetAsString(Columns[J].Field));
           end;
         Content := Content + #13#10;
       end;
