@@ -10083,9 +10083,6 @@ begin
   else
     Users.Add(FUser);
 
-  if (not Assigned(Processes) and ((ServerVersion < 50000) or not Assigned(UserRights) or UserRights.RProcess)) then
-    FProcesses := TSProcesses.Create(Self);
-
   ExecuteEvent(etItemValid, Self, Users, User);
 end;
 
@@ -10105,6 +10102,7 @@ begin
     if (not Assigned(FFieldTypes)) then FFieldTypes := TSFieldTypes.Create(Self);
     if (not Assigned(FEngines)) then FEngines := TSEngines.Create(Self);
     if (not Assigned(FPlugins) and (ServerVersion >= 50105)) then FPlugins := TSPlugins.Create(Self);
+    if (not Assigned(FProcesses)) then FProcesses := TSProcesses.Create(Self);
     if (not Assigned(FStati)) then FStati := TSStati.Create(Self);
     if (not Assigned(FUsers)) then FUsers := TSUsers.Create(Self);
 

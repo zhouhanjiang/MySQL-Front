@@ -2608,7 +2608,13 @@ begin
 
   if (AllowChange) then
   begin
-    if (URI.Database = '') then
+    if (URI.Param['system'] = 'processes') then
+    else if (URI.Param['system'] = 'stati') then
+    else if (URI.Param['system'] = 'users') then
+    else if (URI.Param['system'] = 'variables') then
+    else if (URI.Param['system'] <> Null) then
+      AllowChange := False
+    else if (URI.Database = '') then
     begin
       if ((ParamToView(URI.Param['view']) = vObjects) and Session.Update(nil, True)) then
         AllowChange := False
@@ -4635,8 +4641,6 @@ begin
 
   smEEmpty.Caption := Preferences.LoadStr(181);
 
-  FNavigatorInitialize(nil);
-
   BINSERT.Font := FSQLEditorSynMemo.Font;
   BINSERT.Font.Style := [fsBold];
   BREPLACE.Font := BINSERT.Font;
@@ -4944,6 +4948,7 @@ end;
 
 procedure TFSession.CMPostShow(var Message: TMessage);
 var
+  Node: TTreeNode;
   URI: TUURI;
 begin
   PNavigator.Visible := Session.Account.Desktop.NavigatorVisible;
@@ -4981,6 +4986,39 @@ begin
   FormResize(nil);
 
   Perform(CM_ACTIVATEFRAME, 0, 0);
+
+
+  Node := FNavigator.Items.Add(nil, Session.Caption);
+  Node.Data := Session;
+  Node.HasChildren := True;
+  Node.ImageIndex := iiServer;
+
+  if (Assigned(Session.Processes)) then
+  begin
+    Node := FNavigator.Items.AddChild(FNavigator.Items.GetFirstNode(), Preferences.LoadStr(24));
+    Node.Data := Session.Processes;
+    Node.ImageIndex := iiProcesses;
+  end;
+  if (Assigned(Session.Stati)) then
+  begin
+    Node := FNavigator.Items.AddChild(FNavigator.Items.GetFirstNode(), Preferences.LoadStr(23));
+    Node.Data := Session.Stati;
+    Node.ImageIndex := iiStati;
+  end;
+  if (Assigned(Session.Users)) then
+  begin
+    Node := FNavigator.Items.AddChild(FNavigator.Items.GetFirstNode(), Preferences.LoadStr(561));
+    Node.Data := Session.Users;
+    Node.ImageIndex := iiUsers;
+  end;
+  if (Assigned(Session.Variables)) then
+  begin
+    Node := FNavigator.Items.AddChild(FNavigator.Items.GetFirstNode(), Preferences.LoadStr(22));
+    Node.Data := Session.Variables;
+    Node.ImageIndex := iiVariables;
+  end;
+
+  FNavigatorInitialize(nil);
 
 
   if (Copy(Param, 1, 8) = 'mysql://') then
@@ -5157,7 +5195,6 @@ end;
 constructor TFSession.Create(const AOwner: TComponent; const AParent: TWinControl; const ASession: TSSession; const AParam: string);
 var
   Kind: TADesktop.TListViewKind;
-  Node: TTreeNode;
   NonClientMetrics: TNonClientMetrics;
 begin
   inherited Create(AOwner);
@@ -5397,11 +5434,6 @@ begin
 
   FNavigator.RowSelect := CheckWin32Version(6, 1);
   FSQLHistory.RowSelect := CheckWin32Version(6, 1);
-
-  Node := FNavigator.Items.Add(nil, Session.Caption);
-  Node.Data := Session;
-  Node.HasChildren := True;
-  Node.ImageIndex := iiServer;
 
   PListView.Align := alClient;
   PSynMemo.Align := alClient;
@@ -7877,15 +7909,7 @@ begin
     FNavigator.Items.BeginUpdate();
 
     if (not Assigned(Node.getFirstChild())) then
-    begin
-      if (Assigned(Session.Processes)) then
-        InsertChild(Node, Session.Processes);
-      InsertChild(Node, Session.Stati);
-      if (Assigned(Session.Users)) then
-        InsertChild(Node, Session.Users);
-      InsertChild(Node, Session.Variables);
       Node.Expand(False);
-    end;
 
     if (SessionEvent.SItems is TSDatabases) then
       UpdateGroup(Node, giDatabases, SessionEvent.SItems);
