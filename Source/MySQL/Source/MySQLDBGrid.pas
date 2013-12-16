@@ -906,7 +906,7 @@ begin
       InplaceEditor.PasteFromClipboard();
       Result := True;
     end
-    else if ((DataLink.DataSet is TMySQLDataSet) and (Clipboard.HasFormat(CF_TEXT) or Clipboard.HasFormat(CF_UNICODETEXT)) and OpenClipboard(Handle)) then
+    else if ((DataLink.DataSet is TMySQLDataSet) and (Clipboard.HasFormat(CF_MYSQLRECORD) or Clipboard.HasFormat(CF_TEXT) or Clipboard.HasFormat(CF_UNICODETEXT)) and OpenClipboard(Handle)) then
     begin
       try
         if (Clipboard.HasFormat(CF_MYSQLRECORD)) then

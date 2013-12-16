@@ -9227,7 +9227,7 @@ begin
         Process[Index].FSQL := DataSet.FieldByName('INFO').AsString;
       end;
 
-      if (not Filtered) then
+      if (Filtered and SessionEvents) then
         Session.ExecuteEvent(etItemValid, Session, Self, Process[Index]);
     until (not DataSet.FindNext());
 
