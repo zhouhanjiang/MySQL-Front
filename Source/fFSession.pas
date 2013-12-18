@@ -2543,9 +2543,6 @@ begin
 
     FNavigatorMenuNode := FNavigator.Selected;
 
-// Removed on 03.10.2013
-//    if (not (tsLoading in FrameState) and Session.InUse) then
-//      Session.Terminate();
     Wanted.Update := UpdateAfterAddressChanged;
 
     if (tsLoading in FrameState) then
@@ -2609,14 +2606,21 @@ begin
   if (AllowChange) then
   begin
     if (URI.Param['system'] = 'processes') then
+    begin
+      Session.Processes.Invalidate();
+      Session.Processes.Update();
+    end
     else if (URI.Param['system'] = 'stati') then
+      Session.Stati.Update()
     else if (URI.Param['system'] = 'users') then
+      Session.Users.Update()
     else if (URI.Param['system'] = 'variables') then
+      Session.Variables.Update()
     else if (URI.Param['system'] <> Null) then
       AllowChange := False
     else if (URI.Database = '') then
     begin
-      if ((ParamToView(URI.Param['view']) = vObjects) and Session.Update(nil, True)) then
+      if ((ParamToView(URI.Param['view']) = vObjects) and (not Session.Valid and not Session.Update(nil, True))) then
         AllowChange := False
       else if ((ParamToView(URI.Param['view']) <> vObjects) and not Session.Databases.Update()) then
         AllowChange := False
@@ -4990,7 +4994,6 @@ begin
 
   Node := FNavigator.Items.Add(nil, Session.Caption);
   Node.Data := Session;
-  Node.HasChildren := True;
   Node.ImageIndex := iiServer;
 
   if (Assigned(Session.Processes)) then
@@ -5017,6 +5020,8 @@ begin
     Node.Data := Session.Variables;
     Node.ImageIndex := iiVariables;
   end;
+
+  FNavigator.Items.GetFirstNode().Expand(False);
 
   FNavigatorInitialize(nil);
 
@@ -13981,17 +13986,6 @@ begin
 
             List.Free();
           end;
-        iiProcesses:
-          begin
-            Session.Processes.Invalidate();
-            Session.Processes.Update();
-          end;
-        iiStati:
-          Session.Stati.Update();
-        iiUsers:
-          Session.Users.Update();
-        iiVariables:
-          Session.Variables.Update();
       end;
     vBrowser:
       if ((TObject(FNavigator.Selected.Data) is TSTable) and not TSTable(FNavigator.Selected.Data).ValidData) then

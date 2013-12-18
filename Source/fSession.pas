@@ -12012,7 +12012,7 @@ begin
         SQL := SQL + TSDatabase(List[I]).Tables.SQLGetStatus(TSDatabase(List[I]).Tables);
     end;
 
-  if (not Assigned(Objects) and Status and (ServerVersion >= 50002)) then
+  if (not Assigned(Objects) and Status and (ServerVersion >= 50002) and not Valid) then
   begin
     SQL := SQL + 'SELECT * FROM `information_schema`.`TABLES`;' + #13#10;
     if (ServerVersion >= 50010) then SQL := SQL + 'SELECT * FROM `information_schema`.`TRIGGERS`;' + #13#10;
