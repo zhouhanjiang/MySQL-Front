@@ -12077,7 +12077,7 @@ begin
     OriginalDatabaseName := DataSet.DatabaseName;
     OriginalTableName := DataSet.CommandText;
   end
-  else
+  else if (Assigned(DataSet)) then
   begin
     OriginalTableName := ''; UniqueTable := True;
     for I := 0 to DataSet.FieldCount - 1 do
@@ -12385,7 +12385,7 @@ begin
   if (not Assigned(User) and (NewUser.NewPassword <> '') or Assigned(User) and (NewUser.NewPassword <> User.RawPassword) and (NewUser.RightCount > 0)) then
     SQL := SQL + 'SET PASSWORD FOR ' + EscapeUser(NewUser.Name) + '=PASSWORD(' + SQLEscape(NewUser.NewPassword) + ');' + #13#10;
 
-  Result := ExecuteSQL(SQL);
+  Result := (SQL = '') or ExecuteSQL(SQL);
 end;
 
 function TSSession.UpdateVariable(const Variable, NewVariable: TSVariable; const UpdateModes: TSVariable.TUpdateModes): Boolean;
