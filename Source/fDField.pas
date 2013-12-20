@@ -786,8 +786,22 @@ begin
 
   FFieldType.Clear();
   for I := 0 to Table.Database.Session.FieldTypes.Count - 1 do
+  begin
+    // Debug 20.12.
+    if (not Assigned(Table)) then
+      raise Exception.Create('Invalid Table')
+    else if (not Assigned(Table)) then
+      raise Exception.Create('Invalid Engine')
+    else if (not Assigned(Table.Database)) then
+      raise Exception.Create('Invalid Database')
+    else if (not Assigned(Table.Database.Session)) then
+      raise Exception.Create('Invalid Session')
+    else if (not Assigned(Table.Database.Session.FieldTypes[I])) then
+      raise Exception.Create('Invalid FieldTypes[I]')
+    else
     if (Table.Engine.FieldAvailable(Table.Database.Session.FieldTypes[I].MySQLFieldType)) then
       FFieldType.Items.Add(Table.Database.Session.FieldTypes[I].Caption);
+  end;
 
   FPosition.Items.Clear();
   FPosition.Items.Add(Preferences.LoadStr(95));
