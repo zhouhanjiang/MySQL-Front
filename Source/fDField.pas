@@ -787,10 +787,10 @@ begin
   FFieldType.Clear();
   for I := 0 to Table.Database.Session.FieldTypes.Count - 1 do
   begin
-    // Debug 20.12.
+    // Debug 20.12.2013
     if (not Assigned(Table)) then
       raise Exception.Create('Invalid Table')
-    else if (not Assigned(Table)) then
+    else if (not Assigned(Table.Engine)) then
       raise Exception.Create('Invalid Engine')
     else if (not Assigned(Table.Database)) then
       raise Exception.Create('Invalid Database')
