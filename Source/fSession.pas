@@ -10613,6 +10613,10 @@ begin
     Result := nil
   else
     Result := Engines[Index];
+
+  // Debug 20.12.2013
+  if (not Assigned(Result)) then
+    raise Exception.CreateFmt('Unknown Engine type: %s', [EngineName]);
 end;
 
 function TSSession.EscapeRightIdentifier(const Identifier: string; const IdentifierQuoting: Boolean = False): string;
