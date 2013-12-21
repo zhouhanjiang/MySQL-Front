@@ -1023,7 +1023,8 @@ begin
           TAJobExport(Export).ODBC.Password := DODBC.Password;
           TAJobExport(Export).ODBC.Username := DODBC.Username;
         end;
-      etHTMLFile:
+      etHTMLFile,
+      etPDFFile:
         begin
           Export.HTML.Data := FHTMLData.Checked;
           Export.HTML.MemoContent := FHTMLMemoContent.Checked;
