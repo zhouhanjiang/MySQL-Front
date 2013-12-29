@@ -281,21 +281,24 @@ end;
 
 procedure TDDatabase.FDefaultCharsetChange(Sender: TObject);
 var
-  Charset: TSCharset;
+  DefaultCharset: TSCharset;
   I: Integer;
 begin
-  Charset := Session.CharsetByName(FDefaultCharset.Text);
+  DefaultCharset := Session.CharsetByName(FDefaultCharset.Text);
 
   FCollation.Items.Clear();
   FCollation.Items.Add('');
   if (Assigned(Session.Collations)) then
+  begin
     for I := 0 to Session.Collations.Count - 1 do
-      if (Session.Collations[I].Charset = Charset) then
-      begin
+      if (Assigned(DefaultCharset) and (Session.Collations[I].Charset = DefaultCharset)) then
         FCollation.Items.Add(Session.Collations[I].Name);
-        if (Session.Collations[I].Default) then
-          FCollation.ItemIndex := FCollation.Items.Count - 1;
-      end;
+    for I := 1 to FCollation.Items.Count - 1 do
+      if (Session.CollationByName(FCollation.Items[I]).Default) then
+        FCollation.ItemIndex := I;
+  end;
+
+  FCollationChange(Sender);
 
   FCollation.Enabled := FDefaultCharset.Text <> ''; FLCollation.Enabled := FCollation.Enabled;
 
@@ -430,7 +433,6 @@ begin
   FDefaultCharset.Items.Add('');
   for I := 0 to Session.Charsets.Count - 1 do
     FDefaultCharset.Items.Add(Session.Charsets[I].Name);
-  FDefaultCharset.Text := ''; FDefaultCharsetChange(Sender);
 
   if (not Assigned(Database)) then
   begin
@@ -445,7 +447,6 @@ begin
     end;
 
     FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf(Session.DefaultCharset); FDefaultCharsetChange(Sender);
-    FCollation.ItemIndex := -1;
 
     TSSource.TabVisible := False;
 
@@ -520,6 +521,10 @@ end;
 
 procedure TDDatabase.TSInformationsShow(Sender: TObject);
 begin
+  Session.BeginSynchron();
+  Database.Update(True);
+  Session.EndSynchron();
+
   FCreated.Caption := '???';
   FUpdated.Caption := '???';
   FIndexSize.Caption := '???';

@@ -627,17 +627,7 @@ begin
     for I := 1 to Tables.Count - 1 do
       if ((Index >= 0) and (Database.Session.Charsets.NameCmp(FDefaultCharset.Items[Index], TSBaseTable(Tables[I]).DefaultCharset) <> 0)) then
         Index := -1;
-    FTablesCharset.ItemIndex := Index;
-
-    Index := -1;
-    for I := 0 to FCollation.Items.Count - 1 do
-      if (Database.Session.Collations.NameCmp(FCollation.Items[I], TSBaseTable(Tables[0]).Collation) = 0) then
-        Index := FCollation.Items.IndexOf(FCollation.Items[I]);
-    for I := 1 to Tables.Count - 1 do
-      if ((Index >= 0) and (Database.Session.Collations.NameCmp(FCollation.Items[Index], TSBaseTable(Tables[I]).Collation) <> 0)) then
-        Index := -1;
-    if (Assigned(Database.Session.CharsetByName(FTablesCharset.Text)) and Assigned(Database.Session.CharsetByName(FTablesCharset.Text).DefaultCollation) and (FTablesCollation.Items[Index] <> Database.Session.CharsetByName(FTablesCharset.Text).DefaultCollation.Name)) then
-      FTablesCollation.ItemIndex := Index;
+    FTablesCharset.ItemIndex := Index; FTablesCharsetChange(nil);
 
     Index := FTablesRowType.Items.IndexOf(TSBaseTable(Tables[0]).DBRowTypeStr());
     for I := 1 to Tables.Count - 1 do
@@ -922,23 +912,22 @@ end;
 
 procedure TDTable.FDefaultCharsetChange(Sender: TObject);
 var
-  Charset: TSCharset;
+  DefaultCharset: TSCharset;
   I: Integer;
 begin
-  Charset := Database.Session.CharsetByName(FDefaultCharset.Text);
-  if (Assigned(Charset)) then
-    NewTable.DefaultCharset := Charset.Name;
+  DefaultCharset := Database.Session.CharsetByName(FDefaultCharset.Text);
 
   FCollation.Items.Clear();
   FCollation.Items.Add('');
   if (Assigned(Database.Session.Collations)) then
+  begin
     for I := 0 to Database.Session.Collations.Count - 1 do
-      if (Assigned(Charset) and (Database.Session.Collations[I].Charset = Charset)) then
-      begin
+      if (Assigned(DefaultCharset) and (Database.Session.Collations[I].Charset = DefaultCharset)) then
         FCollation.Items.Add(Database.Session.Collations[I].Name);
-        if (Database.Session.Collations[I].Default) then
-          FCollation.ItemIndex := FCollation.Items.Count - 1;
-      end;
+    for I := 1 to FCollation.Items.Count - 1 do
+      if (Database.Session.CollationByName(FCollation.Items[I]).Default) then
+        FCollation.ItemIndex := I;
+  end;
 
   FCollationChange(Sender);
 end;
@@ -1319,7 +1308,7 @@ begin
   FDefaultCharset.Items.Add('');
   for I := 0 to Database.Session.Charsets.Count - 1 do
     FDefaultCharset.Items.Add(Database.Session.Charsets[I].Name);
-  FDefaultCharset.Text := ''; FDefaultCharsetChange(Sender);
+  FDefaultCharset.ItemIndex := -1; FDefaultCharsetChange(Sender);
 
   FCollation.Text := '';
 
@@ -1539,17 +1528,25 @@ end;
 
 procedure TDTable.FTablesCharsetChange(Sender: TObject);
 var
-  Charset: TSCharset;
+  DefaultCharset: TSCharset;
   I: Integer;
 begin
-  Charset := Database.Session.CharsetByName(FDefaultCharset.Text);
+  DefaultCharset := Database.Session.CharsetByName(FTablesCharset.Text);
 
   FTablesCollation.Items.Clear();
   FTablesCollation.Items.Add('');
   if (Assigned(Database.Session.Collations)) then
+  begin
     for I := 0 to Database.Session.Collations.Count - 1 do
-      if (Assigned(Charset) and (Database.Session.Collations[I].Charset = Charset)) then
+      if (Assigned(DefaultCharset) and (Database.Session.Collations[I].Charset = DefaultCharset)) then
         FTablesCollation.Items.Add(Database.Session.Collations[I].Name);
+    for I := 1 to FTablesCollation.Items.Count - 1 do
+      if (Database.Session.CollationByName(FTablesCollation.Items[I]).Default) then
+        FTablesCollation.ItemIndex := I;
+  end;
+
+  FTablesCollation.Enabled := FTablesCharset.Text <> ''; FLTablesCollation.Enabled := FTablesCollation.Enabled;
+
 
   FBOkCheckEnabled(Sender);
 end;

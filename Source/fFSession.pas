@@ -9782,7 +9782,7 @@ begin
 
   if (ListView = FServerListView) then
   begin
-    ListView.Columns[0].Caption := Preferences.LoadStr(38);
+    ListView.Columns[0].Caption := Preferences.LoadStr(35);
     ListView.Columns[1].Caption := Preferences.LoadStr(76);
     ListView.Columns[2].Caption := Preferences.LoadStr(67);
     ListView.Columns[3].Caption := Preferences.LoadStr(77);

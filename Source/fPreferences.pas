@@ -4638,14 +4638,12 @@ function TAAccounts.GetXML(): IXMLNode;
 begin
   if (not Assigned(FXMLDocument)) then
   begin
-
     if (FileExists(Filename)) then
       FXMLDocument := LoadXMLDocument(Filename);
 
     if (not Assigned(FXMLDocument) or not Assigned(FXMLDocument.DocumentElement)) then
     begin
       FXMLDocument := NewXMLDocument();
-
       FXMLDocument.Encoding := 'utf-8';
       FXMLDocument.Node.AddChild('accounts').Attributes['version'] := '1.1.0';
     end;

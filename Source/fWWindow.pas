@@ -603,7 +603,6 @@ begin
   if (not Assigned(ActiveTab)) then
   begin
     UpdateExecution := True;
-    DInstallUpdate.Silent := False;
     Preferences.SetupProgramExecute := DInstallUpdate.Execute();
     if (Preferences.SetupProgramExecute) then
       Close();

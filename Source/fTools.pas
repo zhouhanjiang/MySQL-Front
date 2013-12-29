@@ -445,9 +445,8 @@ type
   end;
 
   TTExportText = class(TTExportFile)
-  private
-    TempFilename: string;
   protected
+    procedure ExecuteHeader(); override;
     procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     function FileCreate(const Filename: TFileName; out Error: TTool.TError): Boolean; override;
@@ -773,7 +772,7 @@ resourcestring
   SInvalidQuoter = 'Quoter "%s" not supported for SQL Values import';
 
 const
-  SQLPacketSize = 32768;
+  SQLPacketSize = 100 * 1024;
   FilePacketSize = 32768;
   ODBCDataSize = 65536;
 
@@ -785,16 +784,6 @@ const
   DriverAccess12 = 'Microsoft Access Driver (*.mdb, *.accdb)';
   DriverExcel = 'Microsoft Excel Driver (*.xls)';
   DriverExcel12 = 'Microsoft Excel Driver (*.xls, *.xlsx, *.xlsm, *.xlsb)';
-
-function GetTempFileName(): string;
-var
-  FilenameP: array [0 .. MAX_PATH] of Char;
-begin
-  if ((GetTempPath(MAX_PATH, @FilenameP) > 0) and (Windows.GetTempFileName(FilenameP, '~MF', 0, FilenameP) <> 0)) then
-    Result := StrPas(PChar(@FilenameP[0]))
-  else
-    Result := '';
-end;
 
 function GetUTCDateTime(Date: TDateTime): string;
 const
@@ -3526,6 +3515,11 @@ begin
       end
       else if (cbData = SQL_NULL_DATA) then
         Values.Write('NULL', 4)
+      else if (ColumnDesc[Index].SQLDataType = SQL_BIT) then
+        if (PAnsiChar(ODBCData) = '0') then
+          Values.WriteChar(#0)
+        else
+          Values.WriteChar(#1)
       else
         Values.WriteData(PAnsiChar(ODBCData), cbData div SizeOf(SQLACHAR), not (FieldMappings[Index].DestinationField.FieldType in NotQuotedFieldTypes));
     SQL_UNKNOWN_TYPE,
@@ -3625,6 +3619,11 @@ begin
         end
         else if (cbData = SQL_NULL_DATA) then
           Values.Write(PAnsiChar('NULL'), 4)
+        else if (ColumnDesc[I].SQLDataType = SQL_BIT) then
+          if (PAnsiChar(ODBCData) = '0') then
+            Values.WriteChar(#0)
+          else
+            Values.WriteChar(#1)
         else
           Values.Write(PAnsiChar(ODBCData), cbData div SizeOf(SQLACHAR), ColumnDesc[I].SQLDataType in [SQL_TYPE_DATE, SQL_TYPE_TIMESTAMP, SQL_TYPE_TIME]);
       SQL_UNKNOWN_TYPE,
@@ -4754,20 +4753,19 @@ begin
   inherited;
 end;
 
+procedure TTExportText.ExecuteHeader();
+begin
+  inherited;
+
+  DoFileCreate(Filename);
+end;
+
 procedure TTExportText.ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
   Content: string;
   I: Integer;
   Value: string;
 begin
-  if (Items.Count = 1) then
-    DoFileCreate(Filename)
-  else
-  begin
-    TempFilename := GetTempFileName();
-    DoFileCreate(TempFilename);
-  end;
-
   if ((Success = daSuccess) and Structure) then
   begin
     Content := '';
@@ -5186,9 +5184,6 @@ begin
   Content := Content + #9#9 + 'th,' + #13#10;
   Content := Content + #9#9 + 'td {font-size: ' + IntToStr(-Font.Height) + 'px; border-color: #000000; border-style: solid; border-width: 1px; padding: 1px; font-weight: normal;}' + #13#10;
   Content := Content + #9#9 + 'code {font-size: ' + IntToStr(-SQLFont.Height) + 'px;}' + #13#10;
-//  Content := Content + #9#9 + 'code.sql1-reservedword ' + AttriToCSS(MainHighlighter.KeyAttri) + #13#10;
-//  Content := Content + #9#9 + 'code.sql1-number ' + AttriToCSS(MainHighlighter.NumberAttri) + #13#10;
-//  Content := Content + #9#9 + 'code.sql1-symbol ' + AttriToCSS(MainHighlighter.SymbolAttri) + #13#10;
   Content := Content + #9#9 + '.TableObject {border-collapse: collapse; border-color: #000000; font-family: ' + HTMLEscape(Font.Name) + '}' + #13#10;
   Content := Content + #9#9 + '.TableData {border-collapse: collapse; border-color: #000000; font-family: ' + HTMLEscape(Font.Name) + '}' + #13#10;
   Content := Content + #9#9 + '.TableHeader {border-color: #000000; text-decoration: bold; background-color: #e0e0e0;}' + #13#10;
@@ -5252,14 +5247,12 @@ begin
       Content := Content + '<p>' + Preferences.LoadStr(111) + ': ' + HTMLEscape(TSBaseTable(Table).Comment) + '</p>' + #13#10;
   end
   else if (Table is TSView) then
-    Content := '<h2>' + Preferences.LoadStr(738) + ': ' + HTMLEscape(Table.Name) + '</h2>' + #13#10
-  else if (Structure) then
-    Content := Content + '<h2>' + Preferences.LoadStr(216) + ':</h2>' + #13#10;
+    Content := '<h2>' + Preferences.LoadStr(738) + ': ' + HTMLEscape(Table.Name) + '</h2>' + #13#10;
 
   if (Structure) then
     if (DataSet is TMySQLDataSet) then
     begin
-      Content := Content + '<h2>' + Preferences.LoadStr(794) + ':</h2>' + #13#10;
+      Content := Content + '<h3>' + Preferences.LoadStr(794) + ':</h3>' + #13#10;
       Content := Content + EscapeSQL(DataSet.CommandText);
     end
     else
@@ -5334,7 +5327,7 @@ begin
         if (Table.Fields[I].AutoIncrement) then
           Content := Content + '<td>&lt;auto_increment&gt;</td>'
         else if (Table.Fields[I].Default = 'NULL') then
-          Content := Content + '<td class="Null">&lt;' + Preferences.LoadStr(71) + '&gt;</td>'
+          Content := Content + '<td>&lt;' + Preferences.LoadStr(71) + '&gt;</td>'
         else if (Table.Fields[I].Default = 'CURRENT_TIMESTAMP') then
           Content := Content + '<td>&lt;INSERT-TimeStamp&gt;</td>'
         else if (Table.Fields[I].Default <> '') then

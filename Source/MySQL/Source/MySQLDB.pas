@@ -3546,7 +3546,10 @@ begin
   end;
 
   LibraryThread.ErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);
-  LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
+  if (LibraryThread.ErrorCode = 0) then
+    LibraryThread.ErrorMessage := ''
+  else
+    LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
 end;
 
 procedure TMySQLConnection.SyncPing(const LibraryThread: TLibraryThread);

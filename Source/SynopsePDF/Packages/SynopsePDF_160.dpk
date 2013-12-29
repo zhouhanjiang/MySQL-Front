@@ -32,6 +32,7 @@ contains
   SynPdf in '..\Source\SynPdf.pas',
   SynCommons in '..\Source\SynCommons.pas',
   SynGdiPlus in '..\Source\SynGdiPlus.pas',
+  SynCrypto in '..\Source\SynCrypto.pas',
   SynLZ in '..\Source\SynLZ.pas',
   SynZip in '..\Source\SynZip.pas';
 
