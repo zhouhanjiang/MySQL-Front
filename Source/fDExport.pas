@@ -1925,9 +1925,6 @@ begin
   FBCancel.Default := True;
   ActiveControl := FBCancel;
 
-  FErrors.Caption := '0';
-  FErrorMessages.Lines.Clear();
-
   case (ExportType) of
     etSQLFile:
       begin

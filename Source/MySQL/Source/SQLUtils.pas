@@ -782,12 +782,42 @@ begin
 end;
 
 function SQLCreateParse(out Handle: TSQLParse; const SQL: PChar; const Len: Integer; const Version: Integer; const InCondCode: Boolean = False): Boolean;
+var
+  L: Integer;
+  Pos: PChar;
 begin
   Result := Assigned(SQL) and (Len > 0);
   if (Result) then
   begin
-    Handle.Pos := SQL;
-    Handle.Len := Len;
+    asm
+        PUSH ES
+        PUSH ESI
+        PUSH EDI
+        PUSH EBX
+
+        PUSH DS                          // string operations uses ES
+        POP ES
+        CLD                              // string operations uses forward direction
+
+        MOV ESI,PChar(SQL)               // Scan characters from SQL
+        MOV ECX,Len
+
+        MOV EDI,0
+        MOV EDX,Version
+
+        CALL Trim
+
+        MOV Pos,ESI
+        MOV L,ECX
+
+        POP EBX
+        POP EDI
+        POP ESI
+        POP ES
+    end;
+
+    Handle.Pos := Pos;
+    Handle.Len := L;
     Handle.EDX := Version;
     Handle.Start := Handle.Pos;
     if (InCondCode) then
@@ -3046,7 +3076,5 @@ begin
   Result := StrPas(P);
 end;
 
-begin
-  SQLEscape('');
 end.
 

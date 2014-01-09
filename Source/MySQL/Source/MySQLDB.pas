@@ -3031,7 +3031,10 @@ begin
   else if (Lib.mysql_shutdown(LibraryThread.LibHandle, SHUTDOWN_DEFAULT) <> 0) then
   begin
     FErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);
-    FErrorMessage := ErrorMsg(LibraryThread.LibHandle);
+    if (FErrorCode = 0) then
+      FErrorMessage := ''
+    else
+      FErrorMessage := ErrorMsg(LibraryThread.LibHandle);
     DoError(FErrorCode, FErrorMessage);
     Result := False;
   end
@@ -3129,7 +3132,10 @@ begin
     LibraryThread.LibThreadId := Lib.mysql_thread_id(LibraryThread.LibHandle);
 
   LibraryThread.ErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);
-  LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
+  if (LibraryThread.ErrorCode = 0) then
+    LibraryThread.ErrorMessage := ''
+  else
+    LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
 
   if (ThreadId > 0) then
   begin
@@ -3228,7 +3234,10 @@ begin
   else
   begin
     LibraryThread.ErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);
-    LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
+    if (LibraryThread.ErrorCode = 0) then
+      LibraryThread.ErrorMessage := ''
+    else
+      LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
 
     Lib.mysql_close(LibraryThread.LibHandle);
     LibraryThread.LibHandle := nil;
@@ -3335,7 +3344,10 @@ begin
   if (Assigned(LibraryThread.LibHandle)) then
   begin
     LibraryThread.ErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);
-    LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
+    if (LibraryThread.ErrorCode = 0) then
+      LibraryThread.ErrorMessage := ''
+    else
+      LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
   end;
 end;
 
@@ -3580,7 +3592,10 @@ begin
       if (not LibraryThread.Success) then
       begin
         LibraryThread.ErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);
-        LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
+        if (LibraryThread.ErrorCode = 0) then
+          LibraryThread.ErrorMessage := ''
+        else
+          LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
       end;
     end;
 
@@ -4298,7 +4313,10 @@ begin
     else if (Connection.Lib.mysql_errno(Connection.LibraryThread.LibHandle) <> 0) then
     begin
       LibraryThread.ErrorCode := Connection.Lib.mysql_errno(Connection.LibraryThread.LibHandle);
-      LibraryThread.ErrorMessage := Connection.ErrorMsg(Connection.LibraryThread.LibHandle);
+      if (LibraryThread.ErrorCode = 0) then
+        LibraryThread.ErrorMessage := ''
+      else
+        LibraryThread.ErrorMessage := Connection.ErrorMsg(Connection.LibraryThread.LibHandle);
       Result := grError;
     end
     else

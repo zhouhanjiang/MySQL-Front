@@ -177,7 +177,6 @@ type
       SourceFieldName: string;
     end;
   private
-    EscapedDestinationFieldNames: string;
     FSession: TSSession;
     FDatabase: TSDatabase;
   protected
@@ -913,7 +912,7 @@ begin
   if (Length(FieldNames) > 0) then
   begin
     Result := Result + '  (';
-    for I := 0 to Length(FieldNames) do
+    for I := 0 to Length(FieldNames) - 1 do
     begin
       if (I > 0) then Result := Result + ',';
       Result := Result + FieldNames[I];
@@ -1740,16 +1739,7 @@ begin
 end;
 
 procedure TTImport.BeforeExecuteData(const Item: TItem);
-var
-  I: Integer;
 begin
-  EscapedDestinationFieldNames := '';
-  if (not Structure and (Length(FieldMappings) > 0)) then
-    for I := 0 to Length(FieldMappings) - 1 do
-    begin
-      if (I > 0) then EscapedDestinationFieldNames := EscapedDestinationFieldNames + ',';
-      EscapedDestinationFieldNames := EscapedDestinationFieldNames + Session.EscapeIdentifier(FieldMappings[I].DestinationField.Name);
-    end;
 end;
 
 procedure TTImport.Close();
@@ -1969,6 +1959,10 @@ begin
 
   EscapedTableName := Session.EscapeIdentifier(Table.Name);
 
+  SetLength(EscapedDestinationFieldNames, Length(FieldMappings));
+  for I := 0 to Length(FieldMappings) - 1 do
+    EscapedDestinationFieldNames[I] := Session.EscapeIdentifier(FieldMappings[I].DestinationField.Name);
+
   if (Success = daSuccess) then
   begin
     SQLExecuted := TEvent.Create(nil, False, False, '');
@@ -2051,7 +2045,7 @@ begin
               Error.ErrorType := TE_Warning;
               Error.ErrorCode := 1;
               repeat
-                Error.ErrorMessage := Error.ErrorMessage + SysUtils.Trim(DataSet.FieldByName('Message').AsString) + #13#10;
+                Error.ErrorMessage := Error.ErrorMessage + Trim(DataSet.FieldByName('Message').AsString) + #13#10;
               until (not DataSet.FindNext());
               DoError(Error, Item, False);
             end;
@@ -2085,10 +2079,6 @@ begin
     begin
       SQLExecuteLength := 0; SQLStmtPrefixInSQLStmt := False;
       SQLStmt := TStringBuffer.Create(SQLPacketSize);
-
-      SetLength(EscapedDestinationFieldNames, Length(FieldMappings));
-      for I := 0 to Length(FieldMappings) - 1 do
-        EscapedDestinationFieldNames[I] := Session.EscapeIdentifier(FieldMappings[I].DestinationField.Name);
 
       case (StmtType) of
         stInsert,

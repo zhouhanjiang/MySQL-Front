@@ -8573,11 +8573,7 @@ begin
   ListView.Items.BeginUpdate();
   ListView.Items.Clear();
   ListView.Items.EndUpdate();
-  try
-    ListView.Free();
-  except
-    // Sometimes, this gives an System Error 5 (Access denied) - but why???
-  end;
+  ListView.Free();
 end;
 
 procedure TFSession.FRTFChange(Sender: TObject);

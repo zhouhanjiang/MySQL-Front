@@ -1830,9 +1830,6 @@ begin
 
   ActiveControl := FBCancel;
 
-  FErrors.Caption := '0';
-  FErrorMessages.Lines.Clear();
-
   if (not Assigned(Import)) then
     TSJobHide(Self);
 

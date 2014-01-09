@@ -306,6 +306,7 @@ procedure TMySQLDBGrid.CopyToClipboard();
 var
   ClipboardData: HGLOBAL;
   Content: string;
+  FirstContent: Boolean;
   FormatSettings: TFormatSettings;
   I: Integer;
   J: Integer;
@@ -350,13 +351,16 @@ begin
       SetClipboardData(CF_DSPTEXT, ClipboardData);
       GlobalUnlock(ClipboardData);
 
+
       Content := '';
       for I := 0 to SelectedRows.Count - 1 do
       begin
+        DataLink.DataSet.Bookmark := SelectedRows.Items[I];
+        FirstContent := True;
         for J := 0 to Columns.Count - 1 do
-          if (Columns[J].Visible and not (Columns[J].Field.DataType = ftBlob)) then
+          if (Columns[J].Visible) then
           begin
-            if (J > 0) then Content := Content + #9;
+            if (not FirstContent) then begin Content := Content + #9; FirstContent := False; end;
             Content := Content + CSVEscape(TMySQLDataSet(DataLink.DataSet).GetAsString(Columns[J].Field));
           end;
         Content := Content + #13#10;
@@ -659,6 +663,7 @@ end;
 
 function TMySQLDBGrid.GetSelText(): string;
 var
+  FirstContent: Boolean;
   FormatSettings: TFormatSettings;
   I: Integer;
   J: Integer;
@@ -675,11 +680,12 @@ begin
 
     for I := 0 to SelectedRows.Count - 1 do
     begin
+      FirstContent := True;
       DataLink.DataSet.Bookmark := SelectedRows.Items[I];
       for J := 0 to Columns.Count - 1 do
-        if (Columns[J].Visible and not (Columns[J].Field.DataType = ftBlob)) then
+        if (Columns[J].Visible) then
         begin
-          if (J > 0) then Result := Result + #9;
+          if (not FirstContent) then begin Result := Result + #9; FirstContent := False; end;
           Result := Result + TMySQLDataSet(DataLink.DataSet).GetAsString(Columns[J].Field);
         end;
       Result := Result + #13#10;
