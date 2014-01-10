@@ -38,7 +38,7 @@ procedure Register();
 implementation {***************************************************************}
 
 uses
-  ComCtrls, CommCtrl, Consts, Themes, UxTheme, StdCtrls, Buttons, RichEdit,
+  ComCtrls, CommCtrl, Consts, Themes, UxTheme, StdCtrls, Buttons,
   ExtCtrls, Grids,
   CommCtrl_Ext;
 
@@ -112,10 +112,6 @@ begin
           TToolBar(Control).Buttons[I].Enabled := False;
           TToolBar(Control).Buttons[I].Style := tbsButton;
         end;
-  end
-  else if (Control is TRichEdit) then
-  begin
-    SendMessage(TRichEdit(Control).Handle, EM_SETLANGOPTIONS, 0, SendMessage(TRichEdit(Control).Handle, EM_GETLANGOPTIONS, 0, 0) and not IMF_AUTOFONT);
   end;
 end;
 

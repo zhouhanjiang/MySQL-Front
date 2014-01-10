@@ -5438,6 +5438,11 @@ begin
           mfDecimal: Field := TFloatField.Create(nil);
           mfDate: Field := TMySQLDateField.Create(nil);
           mfDateTime: Field := TMySQLDateTimeField.Create(nil);
+          mfTimeStamp:
+            if (Session.ServerVersion < 40100) then
+              Field := TMySQLTimeStampField.Create(nil)
+            else
+              Field := TMySQLDateTimeField.Create(nil);
           mfTime: Field := TMySQLTimeField.Create(nil);
           mfYear: Field := TSmallIntField.Create(nil);
           mfChar,
