@@ -63,7 +63,6 @@ type
     FLEngine: TLabel;
     FLIndexSize: TLabel;
     FLinear: TCheckBox;
-    FLMaxDataSize: TLabel;
     FLName: TLabel;
     FLPartitionCount: TLabel;
     FLPartitionExpr: TLabel;
@@ -78,7 +77,6 @@ type
     FLTablesRowType: TLabel;
     FLUnusedSize: TLabel;
     FLUpdated: TLabel;
-    FMaxDataSize: TLabel;
     FName: TEdit;
     FPartitionCount: TEdit;
     FPartitionExpr: TEdit;
@@ -694,7 +692,6 @@ begin
   GSize.Caption := Preferences.LoadStr(125);
   FLIndexSize.Caption := Preferences.LoadStr(163) + ':';
   FLDataSize.Caption := Preferences.LoadStr(127) + ':';
-  FLMaxDataSize.Caption := Preferences.LoadStr(844) + ':';
   GRecordCount.Caption := Preferences.LoadStr(170);
   FLRecordCount.Caption := Preferences.LoadStr(116) + ':';
 
@@ -1762,7 +1759,6 @@ begin
   FUpdated.Caption := '???';
   FIndexSize.Caption := '???';
   FDataSize.Caption := '???';
-  FMaxDataSize.Caption := '???';
   FRecordCount.Caption := '???';
 
   if (not Assigned(Tables)) then
@@ -1772,9 +1768,6 @@ begin
 
     FIndexSize.Caption := SizeToStr(NewTable.IndexSize);
     FDataSize.Caption := SizeToStr(NewTable.DataSize);
-    FMaxDataSize.Visible := NewTable.MaxDataSize > 0; FLMaxDataSize.Visible := FMaxDataSize.Visible;
-    if (FMaxDataSize.Visible) then
-      FMaxDataSize.Caption := SizeToStr(NewTable.MaxDataSize);
 
     if (RecordCount < 0) then RecordCount := NewTable.CountRecords();
 
@@ -1803,8 +1796,6 @@ begin
     for I := 0 to Tables.Count - 1 do
       Inc(Size, TSBaseTable(Tables[I]).DataSize);
     FDataSize.Caption := SizeToStr(Size);
-
-    FMaxDataSize.Visible := False; FLMaxDataSize.Visible := FMaxDataSize.Visible;
 
     if (RecordCount < 0) then
     begin

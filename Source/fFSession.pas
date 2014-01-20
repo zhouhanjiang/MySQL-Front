@@ -7317,7 +7317,7 @@ begin
         iiField: Accept := (TargetNode.ImageIndex = iiBaseTable) and (TargetNode <> SourceNode.Parent);
       end;
   end
-  else if ((Source is TListView) and (TListView(Source).Parent.Name = PListView.Name)) then
+  else if ((Source is TListView) and (TListView(Source).Parent.Name = PListView.Name) and Assigned(TargetNode)) then
   begin
     SourceItem := TListView(Source).Selected;
     case (SourceItem.ImageIndex) of
@@ -8573,7 +8573,11 @@ begin
   ListView.Items.BeginUpdate();
   ListView.Items.Clear();
   ListView.Items.EndUpdate();
-  ListView.Free();
+  try
+    ListView.Free();
+  except
+    // Without this, sometimes there is a #5 Access Denied error...
+  end;
 end;
 
 procedure TFSession.FRTFChange(Sender: TObject);

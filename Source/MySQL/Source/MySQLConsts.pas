@@ -428,7 +428,7 @@ type
     MaxLen: Byte;
   end;
 const
-  MySQL_Collations: array[0 .. 195 - 1] of TMySQL_Collations = (
+  MySQL_Collations: array[0 .. 199 - 1] of TMySQL_Collations = (
     (CharsetNr:   1; CharsetName: 'big5';    Default: True ; CodePage: 65000; MaxLen: 2; ),
     (CharsetNr:   2; CharsetName: 'latin2';  Default: False; CodePage: 28592; MaxLen: 1; ),
     (CharsetNr:   3; CharsetName: 'dec8';    Default: True ; CodePage:     0; MaxLen: 0; ),
@@ -604,26 +604,30 @@ const
     (CharsetNr: 209; CharsetName: 'utf8mb3'; Default: False; CodePage: 65001; MaxLen: 3; ),
     (CharsetNr: 210; CharsetName: 'utf8mb3'; Default: False; CodePage: 65001; MaxLen: 3; ),
     (CharsetNr: 211; CharsetName: 'utf8mb3'; Default: False; CodePage: 65001; MaxLen: 3; ),
-    (CharsetNr: 224; CharsetName: 'utf8';    Default: False; CodePage: 65001; MaxLen: 3; ),
-    (CharsetNr: 225; CharsetName: 'utf8';    Default: False; CodePage: 65001; MaxLen: 3; ),
-    (CharsetNr: 226; CharsetName: 'utf8';    Default: False; CodePage: 65001; MaxLen: 3; ),
-    (CharsetNr: 227; CharsetName: 'utf8';    Default: False; CodePage: 65001; MaxLen: 3; ),
-    (CharsetNr: 228; CharsetName: 'utf8';    Default: False; CodePage: 65001; MaxLen: 3; ),
-    (CharsetNr: 229; CharsetName: 'utf8';    Default: False; CodePage: 65001; MaxLen: 3; ),
-    (CharsetNr: 230; CharsetName: 'utf8';    Default: False; CodePage: 65001; MaxLen: 3; ),
-    (CharsetNr: 231; CharsetName: 'utf8';    Default: False; CodePage: 65001; MaxLen: 3; ),
-    (CharsetNr: 232; CharsetName: 'utf8';    Default: False; CodePage: 65001; MaxLen: 3; ),
-    (CharsetNr: 233; CharsetName: 'utf8';    Default: False; CodePage: 65001; MaxLen: 3; ),
-    (CharsetNr: 234; CharsetName: 'utf8';    Default: False; CodePage: 65001; MaxLen: 3; ),
-    (CharsetNr: 235; CharsetName: 'utf8';    Default: False; CodePage: 65001; MaxLen: 3; ),
-    (CharsetNr: 236; CharsetName: 'utf8';    Default: False; CodePage: 65001; MaxLen: 3; ),
-    (CharsetNr: 237; CharsetName: 'utf8';    Default: False; CodePage: 65001; MaxLen: 3; ),
-    (CharsetNr: 238; CharsetName: 'utf8';    Default: False; CodePage: 65001; MaxLen: 3; ),
-    (CharsetNr: 239; CharsetName: 'utf8';    Default: False; CodePage: 65001; MaxLen: 3; ),
-    (CharsetNr: 240; CharsetName: 'utf8';    Default: False; CodePage: 65001; MaxLen: 3; ),
-    (CharsetNr: 241; CharsetName: 'utf8';    Default: False; CodePage: 65001; MaxLen: 3; ),
-    (CharsetNr: 242; CharsetName: 'utf8';    Default: False; CodePage: 65001; MaxLen: 3; ),
-    (CharsetNr: 243; CharsetName: 'utf8';    Default: False; CodePage: 65001; MaxLen: 3; )
+    (CharsetNr: 224; CharsetName: 'utf8mb4'; Default: False; CodePage: 65001; MaxLen: 3; ),
+    (CharsetNr: 225; CharsetName: 'utf8mb4'; Default: False; CodePage: 65001; MaxLen: 3; ),
+    (CharsetNr: 226; CharsetName: 'utf8mb4'; Default: False; CodePage: 65001; MaxLen: 3; ),
+    (CharsetNr: 227; CharsetName: 'utf8mb4'; Default: False; CodePage: 65001; MaxLen: 3; ),
+    (CharsetNr: 228; CharsetName: 'utf8mb4'; Default: False; CodePage: 65001; MaxLen: 3; ),
+    (CharsetNr: 229; CharsetName: 'utf8mb4'; Default: False; CodePage: 65001; MaxLen: 3; ),
+    (CharsetNr: 230; CharsetName: 'utf8mb4'; Default: False; CodePage: 65001; MaxLen: 3; ),
+    (CharsetNr: 231; CharsetName: 'utf8mb4'; Default: False; CodePage: 65001; MaxLen: 3; ),
+    (CharsetNr: 232; CharsetName: 'utf8mb4'; Default: False; CodePage: 65001; MaxLen: 3; ),
+    (CharsetNr: 233; CharsetName: 'utf8mb4'; Default: False; CodePage: 65001; MaxLen: 3; ),
+    (CharsetNr: 234; CharsetName: 'utf8mb4'; Default: False; CodePage: 65001; MaxLen: 3; ),
+    (CharsetNr: 235; CharsetName: 'utf8mb4'; Default: False; CodePage: 65001; MaxLen: 3; ),
+    (CharsetNr: 236; CharsetName: 'utf8mb4'; Default: False; CodePage: 65001; MaxLen: 3; ),
+    (CharsetNr: 237; CharsetName: 'utf8mb4'; Default: False; CodePage: 65001; MaxLen: 3; ),
+    (CharsetNr: 238; CharsetName: 'utf8mb4'; Default: False; CodePage: 65001; MaxLen: 3; ),
+    (CharsetNr: 239; CharsetName: 'utf8mb4'; Default: False; CodePage: 65001; MaxLen: 3; ),
+    (CharsetNr: 240; CharsetName: 'utf8mb4'; Default: False; CodePage: 65001; MaxLen: 3; ),
+    (CharsetNr: 241; CharsetName: 'utf8mb4'; Default: False; CodePage: 65001; MaxLen: 3; ),
+    (CharsetNr: 242; CharsetName: 'utf8mb4'; Default: False; CodePage: 65001; MaxLen: 3; ),
+    (CharsetNr: 243; CharsetName: 'utf8mb4'; Default: False; CodePage: 65001; MaxLen: 3; ),
+    (CharsetNr: 244; CharsetName: 'utf8mb4'; Default: False; CodePage: 65001; MaxLen: 3; ),
+    (CharsetNr: 245; CharsetName: 'utf8mb4'; Default: False; CodePage: 65001; MaxLen: 3; ),
+    (CharsetNr: 246; CharsetName: 'utf8mb4'; Default: False; CodePage: 65001; MaxLen: 3; ),
+    (CharsetNr: 247; CharsetName: 'utf8mb4'; Default: False; CodePage: 65001; MaxLen: 3; )
   );
 const
   EE_CANTCREATEFILE                          =    1;

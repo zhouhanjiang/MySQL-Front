@@ -29,11 +29,9 @@ type
     FLDataSize: TLabel;
     FLDefaultCharset: TLabel;
     FLIndexSize: TLabel;
-    FLMaxDataSize: TLabel;
     FLName: TLabel;
     FLUnusedSize: TLabel;
     FLUpdated: TLabel;
-    FMaxDataSize: TLabel;
     FName: TEdit;
     FSource: TSynMemo;
     FUnusedSize: TLabel;
@@ -149,7 +147,6 @@ begin
   GSize.Caption := Preferences.LoadStr(125);
   FLIndexSize.Caption := Preferences.LoadStr(163) + ':';
   FLDataSize.Caption := Preferences.LoadStr(127) + ':';
-  FLMaxDataSize.Caption := Preferences.LoadStr(844) + ':';
 
   TSExtras.Caption := Preferences.LoadStr(73);
   GOptimize.Caption := Preferences.LoadStr(171);
@@ -536,7 +533,6 @@ begin
 
   FIndexSize.Caption := SizeToStr(Database.DataSize);
   FDataSize.Caption := SizeToStr(Database.IndexSize);
-  FMaxDataSize.Caption := SizeToStr(Database.MaxDataSize);
 end;
 
 procedure TDDatabase.TSSourceShow(Sender: TObject);

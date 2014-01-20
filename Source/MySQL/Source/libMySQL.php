@@ -1,7 +1,7 @@
 <?php
 	#
 	# HTTP tunneling script
-	# This script will be used by the Windows GUI "{BuildName}"
+	# This script will be used by the Windows application "{BuildName}"
 	# {BuildInternetHomepage}
 	# {BuildName} Version {BuildVerStrFull}
 	#
@@ -230,8 +230,10 @@
 		set_time_limit($_SESSION['timeout']);
 	} else if (isset($_SESSION['host']))
 		set_time_limit(0);
-	else
+	else {
+		echo 'This script will be used by the Windows application <a href="http://www.mysqlfront.de/">MySQL-Front</a>';
 		exit;
+	}
 
 	/****************************************************************************/
 

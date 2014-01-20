@@ -9912,8 +9912,8 @@ function Compare(Item1, Item2: Pointer): Integer;
     else if (Item is TSCharsets) then Result := 3
     else if (Item is TSCollations) then Result := 4
     else if (Item is TSPlugins) then Result := 5
-    else if (Item is TSUsers) then Result := 6
-    else if (Item is TSDatabases) then Result := 7
+    else if (Item is TSDatabases) then Result := 6
+    else if (Item is TSUsers) then Result := 7
     else if (Item is TSTable) then Result := 8
     else if (Item is TSProcedure) then Result := 9
     else if (Item is TSFunction) then Result := 10
@@ -11689,7 +11689,7 @@ begin
           DatabaseName := Self.DatabaseName
         else
           DatabaseName := SQLParseValue(Parse);
-        Result := DatabaseByName(DatabaseName).Tables.Build(DataSet, False, not SQLParseChar(Parse, ';') and not SQLParseEnd(Parse));
+        Result := Assigned(DatabaseByName(DatabaseName)) and DatabaseByName(DatabaseName).Tables.Build(DataSet, False, not SQLParseChar(Parse, ';') and not SQLParseEnd(Parse));
       end
       else if (SQLParseKeyword(Parse, 'TABLE STATUS')) then
       begin

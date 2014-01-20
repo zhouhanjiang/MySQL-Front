@@ -3438,6 +3438,8 @@ begin
         while (SQL_SUCCEEDED(ODBCException(Stmt, SQLFetch(Stmt)))) do
           if ((lstrcmpi(PChar(TABLE_TYPE), 'TABLE') = 0) or (Self is TTImportExcel) and ((lstrcmpi(PChar(TABLE_TYPE), 'TABLE') = 0) or (lstrcmpi(PChar(TABLE_TYPE), 'SYSTEM TABLE') = 0)))  then
           begin
+            if (cbTABLE_NAME div SizeOf(SQLTCHAR) > TABLE_NAME_LEN) then
+              raise ERangeError.Create(SRangeError);
             SetString(TableName, PChar(TABLE_NAME), cbTABLE_NAME div SizeOf(SQLTCHAR));
             TableNames.Add(TableName);
           end;
@@ -3453,6 +3455,8 @@ begin
             while (SQL_SUCCEEDED(ODBCException(Stmt, SQLFetch(Stmt)))) do
               if (lstrcmpi(PChar(TABLE_TYPE), 'TABLE') = 0)  then
               begin
+                if (cbTABLE_NAME div SizeOf(SQLTCHAR) > TABLE_NAME_LEN) then
+                  raise ERangeError.Create(SRangeError);
                 SetString(TableName, PChar(TABLE_NAME), cbTABLE_NAME div SizeOf(SQLTCHAR));
                 TableNames.Add(TableName);
               end;

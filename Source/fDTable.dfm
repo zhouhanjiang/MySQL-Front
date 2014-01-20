@@ -65,7 +65,7 @@ object DTable: TDTable
     Top = 8
     Width = 321
     Height = 325
-    ActivePage = TSTables
+    ActivePage = TSInformation
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
@@ -407,13 +407,13 @@ object DTable: TDTable
         Left = 8
         Top = 88
         Width = 297
-        Height = 95
+        Height = 71
         Anchors = [akLeft, akTop, akRight]
         Caption = 'GSize'
         TabOrder = 1
         DesignSize = (
           297
-          95)
+          71)
         object FLIndexSize: TLabel
           Left = 8
           Top = 20
@@ -446,26 +446,10 @@ object DTable: TDTable
           Anchors = [akTop, akRight]
           Caption = 'FDataSize'
         end
-        object FLMaxDataSize: TLabel
-          Left = 8
-          Top = 68
-          Width = 75
-          Height = 13
-          Caption = 'FLMaxDataSize'
-        end
-        object FMaxDataSize: TLabel
-          Left = 220
-          Top = 68
-          Width = 69
-          Height = 13
-          Alignment = taRightJustify
-          Anchors = [akTop, akRight]
-          Caption = 'FMaxDataSize'
-        end
       end
       object GRecordCount: TGroupBox_Ext
         Left = 8
-        Top = 193
+        Top = 169
         Width = 297
         Height = 47
         Anchors = [akLeft, akTop, akRight]

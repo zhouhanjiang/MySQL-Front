@@ -161,13 +161,13 @@ object DDatabase: TDDatabase
         Left = 8
         Top = 8
         Width = 297
-        Height = 73
+        Height = 71
         Anchors = [akLeft, akTop, akRight]
         Caption = 'GDates'
         TabOrder = 0
         DesignSize = (
           297
-          73)
+          71)
         object FLCreated: TLabel
           Left = 8
           Top = 20
@@ -205,13 +205,13 @@ object DDatabase: TDDatabase
         Left = 8
         Top = 88
         Width = 297
-        Height = 95
+        Height = 75
         Anchors = [akLeft, akTop, akRight]
         Caption = 'GSize'
         TabOrder = 1
         DesignSize = (
           297
-          95)
+          75)
         object FLIndexSize: TLabel
           Left = 8
           Top = 20
@@ -243,22 +243,6 @@ object DDatabase: TDDatabase
           Alignment = taRightJustify
           Anchors = [akTop, akRight]
           Caption = 'FDataSize'
-        end
-        object FLMaxDataSize: TLabel
-          Left = 8
-          Top = 68
-          Width = 75
-          Height = 13
-          Caption = 'FLMaxDataSize'
-        end
-        object FMaxDataSize: TLabel
-          Left = 220
-          Top = 68
-          Width = 69
-          Height = 13
-          Alignment = taRightJustify
-          Anchors = [akTop, akRight]
-          Caption = 'FMaxDataSize'
         end
       end
     end

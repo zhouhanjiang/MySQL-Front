@@ -35,6 +35,7 @@ object DODBC: TDODBC
       item
         AutoSize = True
       end>
+    Ctl3D = True
     ReadOnly = True
     RowSelect = True
     ShowColumnHeaders = False
