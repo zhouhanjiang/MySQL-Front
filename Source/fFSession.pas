@@ -1368,7 +1368,11 @@ var
 begin
   for I := 0 to PDBGrid.ControlCount - 1 do
     if (PDBGrid.Controls[I] is TMySQLDBGrid) then
+    begin
       PDBGrid.Controls[I].Visible := TMySQLDBGrid(PDBGrid.Controls[I]).Tag = TCResult.TabIndex;
+      if (PDBGrid.Controls[I].Visible) then
+        FSession.ActiveDBGrid := GetActiveDBGrid();
+    end;
 end;
 
 { TFSession.TCObjectDesktop ****************************************************}
