@@ -349,12 +349,12 @@ type
 
   TTExport = class(TTool)
   type
-    TDataSetItem = class(TTool.TItem)
+    TDBGridItem = class(TTool.TItem)
     private
-      FDataSet: TMySQLDataSet;
+      FDBGrid: TDBGrid;
     public
-      constructor Create(const AItems: TTool.TItems; const ADataSet: TMySQLDataSet);
-      property DataSet: TMySQLDataSet read FDataSet;
+      constructor Create(const AItems: TTool.TItems; const ADBGrid: TDBGrid);
+      property DBGrid: TDBGrid read FDBGrid;
     end;
   private
     FSession: TSSession;
@@ -364,7 +364,7 @@ type
     procedure DoUpdateGUI(); override;
     procedure ExecuteDatabaseFooter(const Database: TSDatabase); virtual;
     procedure ExecuteDatabaseHeader(const Database: TSDatabase); virtual;
-    procedure ExecuteDataSet(const Item: TDataSetItem); virtual;
+    procedure ExecuteDataDBGrid(const Item: TDBGridItem); virtual;
     procedure ExecuteEvent(const Event: TSEvent); virtual;
     procedure ExecuteFooter(); virtual;
     procedure ExecuteHeader(); virtual;
@@ -383,7 +383,7 @@ type
     Fields: array of TField;
     Structure: Boolean;
     TableFields: array of TSTableField;
-    procedure Add(const ADataSet: TMySQLDataSet); overload; virtual;
+    procedure Add(const ADBGrid: TDBGrid); overload; virtual;
     procedure Add(const ADBObject: TSDBObject); overload; inline;
     constructor Create(const ASession: TSSession);
     procedure Execute(); override;
@@ -948,11 +948,11 @@ begin
 
   if (Item1 <> Item2) then
   begin
-    if (TTool.TItem(Item1) is TTExport.TDataSetItem) then
+    if (TTool.TItem(Item1) is TTExport.TDBGridItem) then
       Index1 := 0
     else
       Index1 := 1;
-    if (TTool.TItem(Item2) is TTExport.TDataSetItem) then
+    if (TTool.TItem(Item2) is TTExport.TDBGridItem) then
       Index2 := 0
     else
       Index2 := 1;
@@ -1000,11 +1000,11 @@ begin
 
   if (Item1 <> Item2) then
   begin
-    if (TTool.TItem(Item1) is TTExport.TDataSetItem) then
+    if (TTool.TItem(Item1) is TTExport.TDBGridItem) then
       Index1 := 0
     else
       Index1 := 1;
-    if (TTool.TItem(Item2) is TTExport.TDataSetItem) then
+    if (TTool.TItem(Item2) is TTExport.TDBGridItem) then
       Index2 := 0
     else
       Index2 := 1;
@@ -1053,8 +1053,8 @@ begin
     end;
 
     if (Result = 0) then
-      if (TTool.TItem(Item1) is TTExport.TDataSetItem) then
-        Result := Sign(TTExport.TDataSetItem(Item1).Index - TTExport.TDataSetItem(Item2).Index)
+      if (TTool.TItem(Item1) is TTExport.TDBGridItem) then
+        Result := Sign(TTExport.TDBGridItem(Item1).Index - TTExport.TDBGridItem(Item2).Index)
       else
         Result := Sign(TTExport.TDBObjectItem(Item1).DBObject.Index - TTExport.TDBObjectItem(Item2).DBObject.Index);
   end;
@@ -3798,20 +3798,20 @@ end;
 
 { TTExport.TDataSetItem *******************************************************}
 
-constructor TTExport.TDataSetItem.Create(const AItems: TTool.TItems; const ADataSet: TMySQLDataSet);
+constructor TTExport.TDBGridItem.Create(const AItems: TTool.TItems; const ADBGrid: TDBGrid);
 begin
   inherited Create(AItems);
 
-  FDataSet := ADataSet;
+  FDBGrid := ADBGrid;
 end;
 
 { TTExport ********************************************************************}
 
-procedure TTExport.Add(const ADataSet: TMySQLDataSet);
+procedure TTExport.Add(const ADBGrid: TDBGrid);
 var
-  NewItem: TDataSetItem;
+  NewItem: TDBGridItem;
 begin
-  NewItem := TDataSetItem.Create(Items, ADataSet);
+  NewItem := TDBGridItem.Create(Items, ADBGrid);
   Items.Add(NewItem);
 end;
 
@@ -3828,8 +3828,8 @@ var
   I: Integer;
 begin
   for I := 0 to Items.Count - 1 do
-    if (Items[I] is TDataSetItem) then
-      TDataSetItem(Items[I]).DataSet.EnableControls();
+    if (Items[I] is TDBGridItem) then
+      TDBGridItem(Items[I]).DBGrid.DataSource.DataSet.EnableControls();
 
   FSession.EndSilent();
 
@@ -3845,8 +3845,8 @@ begin
   FSession.BeginSilent();
 
   for I := 0 to Items.Count - 1 do
-    if (Items[I] is TDataSetItem) then
-      TDataSetItem(Items[I]).DataSet.DisableControls();
+    if (Items[I] is TDBGridItem) then
+      TDBGridItem(Items[I]).DBGrid.DataSource.DataSet.DisableControls();
 
   if ((Self is TTExportSQL) or (Self is TTTransfer)) then
     Items.Sort(TToolItemCompareForSQL)
@@ -3958,8 +3958,11 @@ begin
   if ((Success = daSuccess) and Data) then
   begin
     for I := 0 to Items.Count - 1 do
-      if (Items[I] is TDataSetItem) then
-        TDataSetItem(Items[I]).RecordsSum := TDataSetItem(Items[I]).DataSet.RecordCount
+      if (Items[I] is TDBGridItem) then
+        if (TDBGridItem(Items[I]).DBGrid.SelectedRows.Count > 0) then
+          TDBGridItem(Items[I]).RecordsSum := TDBGridItem(Items[I]).DBGrid.SelectedRows.Count
+        else
+          TDBGridItem(Items[I]).RecordsSum := TDBGridItem(Items[I]).DBGrid.DataSource.DataSet.RecordCount
       else if ((Items[I] is TDBObjectItem)
         and (TDBObjectItem(Items[I]).DBObject is TSBaseTable)
         and not TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine.IsMerge
@@ -4023,8 +4026,8 @@ begin
         begin
           Success := daSuccess;
 
-          if (Items[I] is TDataSetItem) then
-            ExecuteDataSet(TDataSetItem(Items[I]))
+          if (Items[I] is TDBGridItem) then
+            ExecuteDataDBGrid(TDBGridItem(Items[I]))
           else if (Items[I] is TDBObjectItem) then
           begin
             DataTablesIndex := DataTables.IndexOf(TDBObjectItem(Items[I]).DBObject);
@@ -4097,16 +4100,17 @@ procedure TTExport.ExecuteDatabaseHeader(const Database: TSDatabase);
 begin
 end;
 
-procedure TTExport.ExecuteDataSet(const Item: TDataSetItem);
+procedure TTExport.ExecuteDataDBGrid(const Item: TDBGridItem);
 var
   Database: TSDatabase;
   DataSet: TMySQLDataSet;
+  I: Integer;
   OldBookmark: TBookmark;
   OldLoadNextRecords: Boolean;
   Table: TSTable;
 begin
-  DataSet := TMySQLDataSet(Item.DataSet);
-  if (Item.DataSet is TMySQLTable) then
+  DataSet := TMySQLDataSet(TDBGridItem(Item).DBGrid.DataSource.DataSet);
+  if (DataSet is TMySQLTable) then
   begin
     Database := Session.DatabaseByName(TMySQLTable(DataSet).DatabaseName);
     Table := Database.BaseTableByName(TMySQLTable(DataSet).TableName);
@@ -4135,19 +4139,35 @@ begin
     ExecuteTableHeader(Table, Fields, DataSet);
   end;
 
-  if ((Success <> daAbort) and DataSet.FindFirst()) then
-    repeat
-      ExecuteTableRecord(Table, Fields, DataSet);
-
-      Inc(Item.RecordsDone);
-      if (Item.RecordsDone mod 10 = 0) then
+  if (Success <> daAbort) then
+    if (TDBGridItem(Item).DBGrid.SelectedRows.Count > 0) then
+      for I := 0 to TDBGridItem(Item).DBGrid.SelectedRows.Count - 1 do
       begin
-        if (Item.RecordsDone mod 100 = 0) then
-          DoUpdateGUI();
-        if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
-          Success := daAbort;
-      end;
-    until ((Success = daAbort) or not DataSet.FindNext());
+        DataSet.Bookmark := TDBGridItem(Item).DBGrid.SelectedRows[I];
+        ExecuteTableRecord(Table, Fields, DataSet);
+
+        Inc(Item.RecordsDone);
+        if (Item.RecordsDone mod 10 = 0) then
+        begin
+          if (Item.RecordsDone mod 100 = 0) then
+            DoUpdateGUI();
+          if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
+            Success := daAbort;
+        end;
+      end
+    else if (DataSet.FindFirst()) then
+      repeat
+        ExecuteTableRecord(Table, Fields, DataSet);
+
+        Inc(Item.RecordsDone);
+        if (Item.RecordsDone mod 10 = 0) then
+        begin
+          if (Item.RecordsDone mod 100 = 0) then
+            DoUpdateGUI();
+          if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
+            Success := daAbort;
+        end;
+      until ((Success = daAbort) or not DataSet.FindNext());
 
   if (Success = daSuccess) then
     Item.RecordsSum := Item.RecordsDone;

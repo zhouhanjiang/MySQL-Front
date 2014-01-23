@@ -3485,7 +3485,7 @@ var
   I: Integer;
 begin
   DExport.Session := Session;
-  DExport.DataSet := nil;
+  DExport.DBGrid := nil;
   DExport.DialogType := edtNormal;
   DExport.ExportType := ExportType;
   DExport.Job := nil;
@@ -3493,7 +3493,7 @@ begin
   DExport.Window := Window;
 
   if (Window.ActiveControl = ActiveDBGrid) then
-    DExport.DataSet := TMySQLDataSet(ActiveDBGrid.DataSource.DataSet)
+    DExport.DBGrid := ActiveDBGrid
   else if (Window.ActiveControl = ActiveWorkbench) then
   begin
     Database := TSDatabase(FNavigator.Selected.Data);
@@ -3842,7 +3842,7 @@ end;
 procedure TFSession.aJAddExportExecute(Sender: TObject);
 begin
   DExport.Session := Session;
-  DExport.DataSet := nil;
+  DExport.DBGrid := nil;
   DExport.DialogType := edtCreateJob;
   DExport.Job := nil;
   DExport.SObjects.Clear();
@@ -3894,7 +3894,7 @@ begin
   else if (Job is TAJobExport) then
   begin
     DExport.Session := Session;
-    DExport.DataSet := nil;
+    DExport.DBGrid := nil;
     DExport.DialogType := edtEditJob;
     DExport.Job := TAJobExport(Job);
     DExport.SObjects.Clear();
@@ -11413,7 +11413,7 @@ begin
   else
   begin
     DExport.Session := Session;
-    DExport.DataSet := nil;
+    DExport.DBGrid := nil;
     DExport.DialogType := edtExecuteJob;
     DExport.Job := TAJobExport(Job);
     DExport.SObjects.Clear();

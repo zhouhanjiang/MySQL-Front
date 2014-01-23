@@ -10698,8 +10698,6 @@ begin
       Result := FieldTypeByMySQLFieldType(mfTinyInt)
     else if (UpperCase(Caption) = 'INTEGER') then
       Result := FieldTypeByMySQLFieldType(mfInt)
-    else if (UpperCase(Caption) = 'BIGINT') then
-      Result := FieldTypeByMySQLFieldType(mfBigInt)
     else if (UpperCase(Caption) = 'DEC') then
       Result := FieldTypeByMySQLFieldType(mfDecimal)
     else if (UpperCase(Caption) = 'NVARCHAR') then

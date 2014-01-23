@@ -240,7 +240,7 @@ type
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure CMUpdateProgressInfo(var Message: TMessage); message CM_UPDATEPROGRESSINFO;
   public
-    DataSet: TMySQLDataSet;
+    DBGrid: TDBGrid;
     DialogType: (edtNormal, edtCreateJob, edtEditJob, edtExecuteJob);
     ExportType: TPExportType;
     Job: TAJobExport;
@@ -300,7 +300,7 @@ begin
         break;
       end;
 
-  if (Assigned(DataSet)) then
+  if (Assigned(DBGrid)) then
     Title := Preferences.LoadStr(362)
   else if (SingleTable) then
     Title := TSObject(SObjects[0]).Name
@@ -606,7 +606,7 @@ begin
   Title := '';
   SingleTable := (SObjects.Count = 1) and (TSObject(SObjects[0]) is TSTable);
 
-  if ((Assigned(DataSet) or (SObjects.Count > 0)) and (DialogType = edtNormal)) then
+  if ((Assigned(DBGrid) or (SObjects.Count > 0)) and (DialogType = edtNormal)) then
     case (ExportType) of
       etODBC:
         if (not GetDataSource()) then
@@ -1227,7 +1227,7 @@ begin
     FJobOptionChange(nil);
   FName.Enabled := DialogType = edtCreateJob;
 
-  if (Assigned(DataSet)) then
+  if (Assigned(DBGrid)) then
     FHTMLStructure.Caption := Preferences.LoadStr(794)
   else
     FHTMLStructure.Caption := Preferences.LoadStr(215);
@@ -1236,9 +1236,9 @@ begin
   TSJob.Enabled := False;
   TSSQLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etSQLFile]);
   TSCSVOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etTextFile]);
-  TSXMLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etXMLFile]) and not Assigned(DataSet);
+  TSXMLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etXMLFile]) and not Assigned(DBGrid);
   TSHTMLOptions.Enabled := (DialogType in [edtNormal]) and (ExportType in [etHTMLFile, etPrinter, etPDFFile]);
-  TSFields.Enabled := (DialogType in [edtNormal]) and (ExportType in [etExcelFile, etODBC]) and (SingleTable and (TObject(SObjects[0]) is TSTable) or Assigned(DataSet)) or (ExportType in [etXMLFile]) and Assigned(DataSet);
+  TSFields.Enabled := (DialogType in [edtNormal]) and (ExportType in [etExcelFile, etODBC]) and (SingleTable and (TObject(SObjects[0]) is TSTable) or Assigned(DBGrid)) or (ExportType in [etXMLFile]) and Assigned(DBGrid);
   TSTask.Enabled := False;
   TSExecute.Enabled := not TSSQLOptions.Enabled and not TSCSVOptions.Enabled and not TSHTMLOptions.Enabled and not TSFields.Enabled;
 
@@ -1580,8 +1580,8 @@ begin
 
   if (SingleTable) then
     SetLength(FSourceFields, TSTable(SObjects[0]).Fields.Count)
-  else if (Assigned(DataSet)) then
-    SetLength(FSourceFields, DataSet.Fields.Count)
+  else if (Assigned(DBGrid)) then
+    SetLength(FSourceFields, DBGrid.DataSource.DataSet.FieldCount)
   else
     SetLength(FSourceFields, 0);
 
@@ -1595,9 +1595,9 @@ begin
   if (SingleTable) then
     for J := 0 to TSTable(SObjects[0]).Fields.Count - 1 do
       FieldNames := FieldNames + TSTable(SObjects[0]).Fields[J].Name + #13#10
-  else if (Assigned(DataSet)) then
-    for J := 0 to DataSet.Fields.Count - 1 do
-      FieldNames := FieldNames + DataSet.Fields[J].DisplayName + #13#10;
+  else if (Assigned(DBGrid)) then
+    for J := 0 to DBGrid.FieldCount - 1 do
+      FieldNames := FieldNames + DBGrid.DataSource.DataSet.Fields[J].DisplayName + #13#10;
 
   ScrollBox.DisableAlign();
   for I := 0 to Length(FSourceFields) - 1 do
@@ -2046,24 +2046,24 @@ begin
 
   if (Assigned(Export)) then
   begin
-    if (Assigned(DataSet)) then
+    if (Assigned(DBGrid)) then
     begin
-      Export.Add(DataSet);
+      Export.Add(DBGrid);
 
       if (Length(FSourceFields) = 0) then
-        for I := 0 to DataSet.Fields.Count - 1 do
+        for I := 0 to DBGrid.FieldCount - 1 do
         begin
           SetLength(Export.Fields, Length(Export.Fields) + 1);
-          Export.Fields[Length(Export.Fields) - 1] := DataSet.Fields[I];
+          Export.Fields[Length(Export.Fields) - 1] := DBGrid.Fields[I];
           SetLength(Export.DestinationFields, Length(Export.DestinationFields) + 1);
-          Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := DataSet.Fields[I].Name;
+          Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := DBGrid.Fields[I].Name;
         end
       else
         for I := 0 to Length(FSourceFields) - 1 do
           if (FSourceFields[I].ItemIndex > 0) then
           begin
             SetLength(Export.Fields, Length(Export.Fields) + 1);
-            Export.Fields[Length(Export.Fields) - 1] := DataSet.Fields[FSourceFields[I].ItemIndex - 1];
+            Export.Fields[Length(Export.Fields) - 1] := DBGrid.Fields[FSourceFields[I].ItemIndex - 1];
             SetLength(Export.DestinationFields, Length(Export.DestinationFields) + 1);
             Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := FDestinationFields[I].Text;
           end;
@@ -2110,7 +2110,7 @@ end;
 
 procedure TDExport.TSHTMLOptionsShow(Sender: TObject);
 begin
-  FHTMLStructure.Enabled := not Assigned(DataSet) or not (DataSet is TMySQLTable);
+  FHTMLStructure.Enabled := not Assigned(DBGrid) or not (DBGrid.DataSource.DataSet is TMySQLTable);
   FHTMLStructure.Checked := FHTMLStructure.Checked and FHTMLStructure.Enabled;
   FHTMLStructureClick(Sender);
   FHTMLDataClick(Sender);
@@ -2142,11 +2142,11 @@ end;
 
 procedure TDExport.TSSQLOptionsShow(Sender: TObject);
 begin
-  FSQLStructure.Enabled := not Assigned(DataSet) or (DataSet.TableName <> '');
-  FSQLData.Enabled := not Assigned(DataSet);
+  FSQLStructure.Enabled := not Assigned(DBGrid) or (TMySQLDataSet(DBGrid.DataSource.DataSet).TableName <> '');
+  FSQLData.Enabled := not Assigned(DBGrid);
 
   FSQLStructure.Checked := FSQLStructure.Checked and FSQLStructure.Enabled;
-  FSQLData.Checked := FSQLData.Checked or Assigned(DataSet);
+  FSQLData.Checked := FSQLData.Checked or Assigned(DBGrid);
 
   FBForward.Default := True;
 
