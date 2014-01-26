@@ -3612,6 +3612,9 @@ begin
     end;
   until (not LibraryThread.Success or not Assigned(LibRow));
 
+  if (not LibraryThread.Success) then
+    LibraryThread.State := ssError;
+
   DataSet.InternAddRecord(nil, nil);
 end;
 
@@ -3623,10 +3626,6 @@ begin
 
   if (Assigned(LibraryThread)) then
   begin
-    {$IFDEF Debug}
-      MessageBox(Application.Handle, 'Terminate required!', 'Debug', MB_OK);
-    {$ENDIF}
-
     if (LibraryThread.IsRunning) then
     begin
       if (ThreadId = 0) then

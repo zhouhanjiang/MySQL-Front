@@ -1548,8 +1548,9 @@ const
   InParameterCaption = '<IN>';
 
 resourcestring
-  SUnknownRoutineType = 'Unknown Routine Type (%s)';
+  SUnknownRoutineType = 'Unknown Routine type (%s)';
   SUnknownSQLStmt = 'Unknow SQL Stmt (%s)';
+  SUnknownEngineType = 'Unknown Engine type (%s)';
   SSourceParseError = 'Source code of "%s" cannot be analyzed:' + #10#10 + '%s';
 
 type
@@ -10615,12 +10616,9 @@ var
 begin
   Index := Engines.IndexByName(EngineName);
   if (Index < 0) then
-    Result := nil
+    raise Exception.CreateFmt(SUnknownEngineType, [EngineName])
   else
     Result := Engines[Index];
-
-  if (not Assigned(Result)) then
-    raise Exception.CreateFmt('Unknown Engine type: %s', [EngineName]);
 end;
 
 function TSSession.EscapeRightIdentifier(const Identifier: string; const IdentifierQuoting: Boolean = False): string;
@@ -12107,7 +12105,7 @@ begin
     end;
   end;
 
-  if (Assigned(DatabaseByName(OriginalDatabaseName))) then
+  if (Assigned(DataSet) and Assigned(DatabaseByName(OriginalDatabaseName))) then
   begin
     Table := DatabaseByName(OriginalDatabaseName).BaseTableByName(OriginalTableName);
     if (Assigned(Table)) then
