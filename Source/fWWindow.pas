@@ -606,6 +606,7 @@ begin
     Preferences.SetupProgramExecute := DInstallUpdate.Execute();
     if (Preferences.SetupProgramExecute) then
       Close();
+    UpdateExecution := False;
   end;
 end;
 

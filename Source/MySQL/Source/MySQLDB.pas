@@ -3221,7 +3221,8 @@ begin
 
   if (Connected) then
     SendConnectEvent(True);
-  if Assigned(AfterConnect) then AfterConnect(Self);
+  if Assigned(AfterConnect) then
+    AfterConnect(Self);
 end;
 
 procedure TMySQLConnection.SyncDisconnecting(const LibraryThread: TLibraryThread);

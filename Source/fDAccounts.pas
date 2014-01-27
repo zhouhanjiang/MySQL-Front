@@ -182,11 +182,9 @@ begin
   begin
     Session := TSSession.Create(Sessions, Accounts.AccountByName(FAccounts.Selected.Caption));
     DConnecting.Session := Session;
-    if (not DConnecting.Execute()) then
-    begin
+    CanClose := DConnecting.Execute();
+    if (not CanClose) then
       FreeAndNil(Session);
-      CanClose := False;
-    end;
   end;
 end;
 

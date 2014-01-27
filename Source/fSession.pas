@@ -3749,13 +3749,20 @@ begin
 end;
 
 procedure TSBaseTable.BuildStatus(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean);
+var
+  EngineName: string;
 begin
   if (not UseInformationSchema) then
   begin
     if (Assigned(DataSet.FindField('Type'))) then // MySQL < 4.1.2 and 5.0.0???
-      FEngine := Database.Session.EngineByName(DataSet.FieldByName('Type').AsString)
+      EngineName := DataSet.FieldByName('Type').AsString
     else
-      FEngine := Database.Session.EngineByName(DataSet.FieldByName('Engine').AsString);
+      EngineName := DataSet.FieldByName('Engine').AsString;
+    try
+      FEngine := Database.Session.EngineByName(EngineName);
+    except
+      raise ERangeError.CreateFmt('Unknown Engine "%s" for table "%s.%s"', [EngineName, Database.Name, Name]);
+    end;
     FRowType := StrToMySQLRowType(DataSet.FieldByName('Row_format').AsString);
     if (Self is TSSystemView) then
       FRows := -1
@@ -3774,7 +3781,12 @@ begin
   end
   else
   begin
-    FEngine := Database.Session.EngineByName(DataSet.FieldByName('ENGINE').AsString);
+    EngineName := DataSet.FieldByName('ENGINE').AsString;
+    try
+      FEngine := Database.Session.EngineByName(EngineName);
+    except
+      raise ERangeError.CreateFmt('Unknown Engine "%s" for table "%s.%s"', [EngineName, Database.Name, Name]);
+    end;
     RowType := StrToMySQLRowType(DataSet.FieldByName('ROW_FORMAT').AsString);
     if (Self is TSSystemView) then
       FRows := -1
