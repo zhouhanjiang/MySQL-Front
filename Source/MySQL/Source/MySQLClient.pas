@@ -296,8 +296,6 @@ const
 
   AF_INET6 = 23;
 
-  ctSHA1HashSize = 20;
-
 type
   TWSAConnectByNameA = function(
     s: TSocket;
@@ -310,47 +308,38 @@ type
     timeout: PTimeVal;
     Reserved: POverlapped): Boolean; stdcall;
 
-  TSHA1Context = record
-    FLength: int64;
-    FInterimHash: array[0..4] of Longint;
-    FComputed: boolean;
-    FCorrupted: boolean;
-    FMsgBlockIndex: byte;
-    FMsgBlock: array[0..63] of Byte
-  end;
-
 var
   WSAData: WinSock.WSADATA;
   WS2_32: THandle;
   WSAConnectByNameA: TWSAConnectByNameA;
 
-{$Q-}
-
 function Scramble(const Password: my_char; const Salt: my_char): RawByteString;
 
-  procedure hashPassword(const pass: my_char; var res0, res1: my_int);
+  procedure HashPassword(const Password: my_char; var Result_0, Result_1: my_int);
   var
-    nr, add, nr2, tmp: my_ulonglong;
-    I: my_int;
+    add: my_ulonglong;
     e1: my_ulonglong;
-    len: my_int;
+    I: Integer;
+    nr: my_ulonglong;
+    nr2: my_ulonglong;
+    tmp: my_ulonglong;
   begin
     nr := 1345345333;
-    add := 7;
     nr2 := $12345671;
-    len := Length(pass)-1;
-    for I := 0 to len do
-    begin
-      if (Pass[I] = #20) or (Pass[I] = #9)then
-        continue;
-      tmp := $ff and Byte(Pass[I]);
-      e1 := (((nr and 63) +add)*tmp)+(nr shl 8);
-      nr := nr xor e1;
-      nr2 := nr2+((nr2 shl 8) xor nr);
-      add := add+tmp;
-    end;
-    res0 := nr and $7fffffff;
-    res1 := nr2 and $7fffffff;
+    add := 7;
+
+    for I := 0 to StrLen(Password) - 1 do
+      if ((Password[I] <> #9) and (Password[I] <> ' ')) then
+      begin
+        tmp := $ff and Byte(Password[I]);
+        e1 := (((nr and 63) + add) * tmp) + (nr shl 8);
+        nr := nr xor e1;
+        nr2 := nr2 + ((nr2 shl 8) xor nr);
+        add := add + tmp;
+      end;
+
+    Result_0 := nr and $7fffffff;
+    Result_1 := nr2 and $7fffffff;
   end;
 
   function Floor(X: Extended): my_int;
@@ -360,42 +349,51 @@ function Scramble(const Password: my_char; const Salt: my_char): RawByteString;
       Dec(Result);
   end;
 
+const
+  MaxValue = $3FFFFFFF;
 var
-  dRes: Double;
   e: Byte;
   hm0: my_int;
   hm1: my_int;
   hp0: my_int;
   hp1: my_int;
   I: my_int;
-  maxValue: my_ulonglong;
   Scramled: array [0..7] of AnsiChar;
   Seed: my_ulonglong;
   Seed2: my_ulonglong;
 begin
-  hashPassword(Password, hp0, hp1);
-  hashPassword(Salt, hm0, hm1);
-  MaxValue := $3FFFFFFF;
-  Seed  := (hp0 xor hm0) mod maxValue ;
-  Seed2 := (hp1 xor hm1) mod maxValue ;
+  HashPassword(Password, hp0, hp1);
+  HashPassword(Salt, hm0, hm1);
+  Seed  := (hp0 xor hm0) mod MaxValue;
+  Seed2 := (hp1 xor hm1) mod MaxValue;
   for I := 0 to StrLen(Salt) - 1 do
   begin
     Seed  := (Seed * 3 + Seed2) mod MaxValue;
     Seed2 := (Seed + Seed2 + 33) mod MaxValue;
-    dRes := Seed / maxValue;
-    Scramled[I] := AnsiChar(Floor(dRes * 31) + 64);
+    Scramled[I] := AnsiChar(Floor((Seed / MaxValue) * 31) + 64);
   end;
-  dRes := (Seed * 3 + Seed2) mod MaxValue / MaxValue;
-  e := Floor(dRes * 31);
+
+  e := Floor(((Seed * 3 + Seed2) mod MaxValue / MaxValue) * 31);
   for I := 0 to StrLen(Salt) - 1 do
     Scramled[I] := AnsiChar(Byte(Scramled[I]) xor e);
-
   SetString(Result, PAnsiChar(@Scramled), StrLen(Salt));
 end;
 
+{$Q-}
+
 function SecureScramble(const Password: my_char; const Salt: my_char): RawByteString;
 
-  procedure sha1_ProcessMessageBlock(var Context: TSHA1Context);
+  type
+    TSHA1Context = record
+      FLength: Int64;
+      FInterimHash: array[0..4] of Longint;
+      FComputed: Boolean;
+      FCorrupted: Boolean;
+      FMsgBlockIndex: byte;
+      FMsgBlock: array[0..63] of Byte
+    end;
+
+  procedure SHA1_ProcessMessageBlock(var Context: TSHA1Context);
   const
     ctKeys: array[0..3] of Longint =
       (Longint($5A827999), Longint($6ED9EBA1), Longint($8F1BBCDC), Longint($CA62C1D6));
@@ -472,7 +470,7 @@ function SecureScramble(const Password: my_char; const Salt: my_char): RawByteSt
     Context.FMsgBlockIndex := 0;
   end;
 
-  procedure sha1_reset(var context: TSHA1Context);
+  procedure SHA1_Reset(var context: TSHA1Context);
   const
     ctSHAKeys: array[0..4] of Longint =
       (Longint($67452301), Longint($EFCDAB89), Longint($98BADCFE), Longint($10325476), Longint($C3D2E1F0));
@@ -489,7 +487,7 @@ function SecureScramble(const Password: my_char; const Salt: my_char): RawByteSt
     FillChar(context.FMsgBlock[0], 64, #0);
   end;
 
-  procedure sha1_input(var context: TSHA1Context; msgArray :PAnsiChar; msgLen:cardinal);
+  procedure SHA1_Input(var context: TSHA1Context; msgArray :PAnsiChar; msgLen:cardinal);
   begin
     Assert(Assigned(msgArray), 'Empty array paased to sha1Input');
 
@@ -502,87 +500,90 @@ function SecureScramble(const Password: my_char; const Salt: my_char): RawByteSt
         Inc(context.FMsgBlockIndex);
         context.FLength := context.FLength+8;
         if (context.FMsgBlockIndex = 64) then
-          sha1_ProcessMessageBlock(context);
+          SHA1_ProcessMessageBlock(context);
         Dec(msgLen);
         Inc(msgArray);
       end;
   end;
 
-  procedure sha1_result(var context: TSHA1Context; msgDigest: PAnsiChar);
+  procedure SHA1_Result(var Context: TSHA1Context; const MsgDigest: PAnsiChar; const HashSize: Integer);
   var
     I: Integer;
   begin
-    Assert(Assigned(msgDigest), 'Empty array passed to sha1Result');
+    Assert(Assigned(MsgDigest), 'Empty array passed to sha1Result');
 
-    if (not context.FCorrupted) then
+    if (not Context.FCorrupted) then
     begin
-      if (not context.FComputed) then
+      if (not Context.FComputed) then
       begin
-        I := context.FMsgBlockIndex;
+        I := Context.FMsgBlockIndex;
         if (I <= 55) then
         begin
-          context.FMsgBlock[I] := $80;
+          Context.FMsgBlock[I] := $80;
           Inc(I);
-          FillChar(context.FMsgBlock[I], (56-I), #0);
-          context.FMsgBlockIndex := 56;
+          FillChar(Context.FMsgBlock[I], (56-I), #0);
+          Context.FMsgBlockIndex := 56;
         end
         else
         begin
-          context.FMsgBlock[I] := $80;
+          Context.FMsgBlock[I] := $80;
           Inc(I);
-          FillChar(context.FMsgBlock[I], (64-I), #0);
-          context.FMsgBlockIndex := 64;
-          sha1_ProcessMessageBlock(context);
-          FillChar(context.FMsgBlock[0], 56, #0);
-          context.FMsgBlockIndex := 56;
+          FillChar(Context.FMsgBlock[I], (64-I), #0);
+          Context.FMsgBlockIndex := 64;
+          SHA1_ProcessMessageBlock(Context);
+          FillChar(Context.FMsgBlock[0], 56, #0);
+          Context.FMsgBlockIndex := 56;
         end;
-        context.FMsgBlock[56] := (context.FLength shr 56) and $FF;
-        context.FMsgBlock[57] := (context.FLength shr 48) and $FF;
-        context.FMsgBlock[58] := (context.FLength shr 40) and $FF;
-        context.FMsgBlock[59] := (context.FLength shr 32) and $FF;
-        context.FMsgBlock[60] := (context.FLength shr 24) and $FF;
-        context.FMsgBlock[61] := (context.FLength shr 16) and $FF;
-        context.FMsgBlock[62] := (context.FLength shr  8) and $FF;
-        context.FMsgBlock[63] := (context.FLength       ) and $FF;
+        Context.FMsgBlock[56] := (Context.FLength shr 56) and $FF;
+        Context.FMsgBlock[57] := (Context.FLength shr 48) and $FF;
+        Context.FMsgBlock[58] := (Context.FLength shr 40) and $FF;
+        Context.FMsgBlock[59] := (Context.FLength shr 32) and $FF;
+        Context.FMsgBlock[60] := (Context.FLength shr 24) and $FF;
+        Context.FMsgBlock[61] := (Context.FLength shr 16) and $FF;
+        Context.FMsgBlock[62] := (Context.FLength shr  8) and $FF;
+        Context.FMsgBlock[63] := (Context.FLength       ) and $FF;
 
-        sha1_ProcessMessageBlock(context);
+        SHA1_ProcessMessageBlock(Context);
 
-        FillChar(context.FMsgBlock, SizeOf(context.FMsgBlock), #0);
-        context.FLength := 0;
-        context.FComputed := True;
+        FillChar(Context.FMsgBlock, SizeOf(Context.FMsgBlock), #0);
+        Context.FLength := 0;
+        Context.FComputed := True;
       end;
 
-      for I := 0 to ctSHA1HashSize -1 do
-        msgDigest[I] := AnsiChar(context.FInterimHash[I shr 2] shr (8 * (3 - (I and 3))) and $FF);
+      for I := 0 to HashSize -1 do
+        MsgDigest[I] := AnsiChar(Context.FInterimHash[I shr 2] shr (8 * (3 - (I and 3))) and $FF);
     end;
   end;
 
+const
+  HashSize = 20;
 var
-  hash_stage1: array [0 .. ctSHA1HashSize - 1] of AnsiChar;
-  hash_stage2: array [0 .. ctSHA1HashSize - 1] of AnsiChar;
+  hash_stage1: array [0 .. HashSize - 1] of AnsiChar;
+  hash_stage2: array [0 .. HashSize - 1] of AnsiChar;
   I: my_int;
-  Scramled: array [0 .. ctSHA1HashSize - 1] of AnsiChar;
-  sha1_context: TSHA1Context;
+  Scramled: array [0 .. HashSize - 1] of AnsiChar;
+  Context: TSHA1Context;
 begin
-  sha1_reset(sha1_context);
   //* stage 1: hash Password */
-  sha1_input(sha1_context, Password, StrLen(Password));
-  sha1_result(sha1_context, @hash_stage1[0]);
+  SHA1_Reset(Context);
+  SHA1_Input(Context, Password, StrLen(Password));
+  SHA1_Result(Context, @hash_stage1[0], HashSize);
+
   //* stage 2: hash stage 1; note that hash_stage2 is stored in the database */
-  sha1_reset(sha1_context);
-  sha1_input(sha1_context, @hash_stage1[0], ctSHA1HashSize);
-  sha1_result(sha1_context, @hash_stage2[0]);
+  SHA1_Reset(Context);
+  SHA1_Input(Context, @hash_stage1[0], HashSize);
+  SHA1_Result(Context, @hash_stage2[0], HashSize);
+
   //* create crypt AnsiString as sha1(message, hash_stage2) */;
-  sha1_reset(sha1_context);
-  sha1_input(sha1_context, PAnsiChar(Salt), ctSHA1HashSize);
-  sha1_input(sha1_context, @hash_stage2[0], ctSHA1HashSize);
+  SHA1_Reset(Context);
+  SHA1_Input(Context, PAnsiChar(Salt), HashSize);
+  SHA1_Input(Context, @hash_stage2[0], HashSize);
   //* xor allows 'from' and 'to' overlap: lets take advantage of it */
-  sha1_result(sha1_context, @scramled);
+  SHA1_Result(Context, @Scramled, HashSize);
 
-  for I := 0 to ctSHA1HashSize - 1 do
+  for I := 0 to HashSize - 1 do
     Scramled[I] := AnsiChar(Byte(Scramled[I]) xor Byte(hash_stage1[I]));
-
-  SetString(Result, PAnsiChar(@Scramled), ctSHA1HashSize);
+  SetString(Result, PAnsiChar(@Scramled), HashSize);
 end;
 
 {$Q+}
@@ -1721,10 +1722,11 @@ begin
 
   Offset := 0;
   repeat
-    if (Size < Offset) then // Debug 28.01.14
-      raise Exception.CreateFmt('Size (%d) < Offset (%d)', [Size, Offset]);
-
+try
     PartSize := Size - Offset;
+except
+    raise Exception.CreateFmt('Size (%d) < Offset (%d)', [Size, Offset]);
+end;
     if (PartSize > $FFFFFF - (PacketBuffer.Size - (PacketBuffer.Offset + NET_HEADER_SIZE))) then
       PartSize := $FFFFFF - (PacketBuffer.Size - (PacketBuffer.Offset + NET_HEADER_SIZE));
 
