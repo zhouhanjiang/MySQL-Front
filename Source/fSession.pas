@@ -3758,11 +3758,7 @@ begin
       EngineName := DataSet.FieldByName('Type').AsString
     else
       EngineName := DataSet.FieldByName('Engine').AsString;
-    try
-      FEngine := Database.Session.EngineByName(EngineName);
-    except  // Debug 25.01.14
-      raise ERangeError.CreateFmt('Unknown Engine "%s" for table "%s.%s"', [EngineName, Database.Name, Name]);
-    end;
+    FEngine := Database.Session.EngineByName(EngineName);
     FRowType := StrToMySQLRowType(DataSet.FieldByName('Row_format').AsString);
     if (Self is TSSystemView) then
       FRows := -1
@@ -3782,12 +3778,9 @@ begin
   else
   begin
     EngineName := DataSet.FieldByName('ENGINE').AsString;
-    try
-      FEngine := Database.Session.EngineByName(EngineName);
-    except  // Debug 25.01.14
-      raise ERangeError.CreateFmt('Unknown Engine "%s" for table "%s.%s"', [EngineName, Database.Name, Name]);
-    end;
-    RowType := StrToMySQLRowType(DataSet.FieldByName('ROW_FORMAT').AsString);
+    if ((Database = Session.PerformanceSchema)) then
+      EngineName := 'PERFORMANCE_SCHEMA';
+    FEngine := Database.Session.EngineByName(EngineName);
     if (Self is TSSystemView) then
       FRows := -1
     else
