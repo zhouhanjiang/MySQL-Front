@@ -28,7 +28,7 @@ type
     procedure Close(); virtual;
     function DecodeString(const Str: RawByteString): string; virtual;
     function EncodeString(const Str: string): RawByteString; virtual;
-    function Open(const AType: TType; const Host, PipeName: RawByteString;
+    function Open(const AIOType: TType; const Host, PipeName: RawByteString;
       const Port, Timeout: my_uint): Boolean; virtual;
     function Receive(var Buffer; const BytesToRead: my_uint): Boolean; virtual;
     function Send(const Buffer; const BytesToWrite: my_uint): Boolean; virtual;
@@ -591,9 +591,7 @@ begin
   SetString(Result, PAnsiChar(@Scramled), SCRAMBLE_LENGTH);
 end;
 
-{$IFDEF Debug}
 {$Q+}
-{$ENDIF}
 
 { C API functions *************************************************************}
 
@@ -938,7 +936,7 @@ begin
   end;
 end;
 
-function TMySQL_IO.Open(const AType: TMYSQL_IO.TType;
+function TMySQL_IO.Open(const AIOType: TMYSQL_IO.TType;
   const Host, PipeName: RawByteString; const Port, Timeout: my_uint): Boolean;
 var
   Filename: string;
@@ -953,7 +951,7 @@ var
 begin
   Seterror(0);
 
-  case (AType) of
+  case (AIOType) of
     itNamedPipe:
       begin
         if (Host = LOCAL_HOST) then
@@ -1732,7 +1730,7 @@ begin
 try
     PartSize := Size - Offset;
 except
-    raise Exception.CreateFmt('Size (%d) < Offset (%d)', [Size, Offset]);
+    raise Exception.CreateFmt('Size (%d) < Offset (%d), Type: %d', [Size, Offset, Ord(IOType)]);
 end;
     if (PartSize > $FFFFFF - (PacketBuffer.Size - (PacketBuffer.Offset + NET_HEADER_SIZE))) then
       PartSize := $FFFFFF - (PacketBuffer.Size - (PacketBuffer.Offset + NET_HEADER_SIZE));
