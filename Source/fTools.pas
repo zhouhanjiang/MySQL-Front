@@ -1153,7 +1153,7 @@ end;
 
 procedure TTool.TDataFileBuffer.WriteData(const Text: PChar; const Length: Integer; const Quote: Boolean = False);
 label
-  StringL,
+  StringL, StringE,
   Finish;
 var
   Len: Integer;
@@ -1186,10 +1186,14 @@ begin
         STOSB                            //   into Write
 
       StringL:
+        CMP ECX,0
+        JE StringE
         LODSW                            // Load WideChar from Text
         STOSB                            // Store AnsiChar into Buffer.Mem
-        LOOP StringL                     // Repeat for all characters
+        DEC ECX
+        JMP StringL                     // Repeat for all characters
 
+      StringE:
         CMP Quote,False                  // Quote Value?
         JE Finish                        // No!
         MOV AL,''''                      // Ending quoter
@@ -2797,7 +2801,11 @@ begin
       else if (FieldMappings[I].DestinationField.FieldType in TextFieldTypes) then
         Values.WriteText(UnescapeBuffer.Text, Len)
       else
+try
         Values.WriteData(UnescapeBuffer.Text, Len, not (FieldMappings[I].DestinationField.FieldType in NotQuotedFieldTypes));
+except
+        Values.WriteData(UnescapeBuffer.Text, Len, not (FieldMappings[I].DestinationField.FieldType in NotQuotedFieldTypes));
+end;
     end;
   end;
 end;
