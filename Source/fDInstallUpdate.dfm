@@ -4,7 +4,7 @@ object DInstallUpdate: TDInstallUpdate
   BorderIcons = []
   BorderStyle = bsDialog
   Caption = 'DInstallUpdate'
-  ClientHeight = 161
+  ClientHeight = 169
   ClientWidth = 345
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -21,7 +21,7 @@ object DInstallUpdate: TDInstallUpdate
   TextHeight = 13
   object FBCancel: TButton
     Left = 262
-    Top = 123
+    Top = 131
     Width = 75
     Height = 25
     Cancel = True
@@ -61,7 +61,7 @@ object DInstallUpdate: TDInstallUpdate
   end
   object FBOk: TButton
     Left = 173
-    Top = 123
+    Top = 131
     Width = 75
     Height = 25
     Caption = 'FBOk'

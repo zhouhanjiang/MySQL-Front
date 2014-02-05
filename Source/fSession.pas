@@ -3760,7 +3760,7 @@ begin
       EngineName := DataSet.FieldByName('Engine').AsString;
     try
       FEngine := Database.Session.EngineByName(EngineName);
-    except
+    except  // Debug 25.01.14
       raise ERangeError.CreateFmt('Unknown Engine "%s" for table "%s.%s"', [EngineName, Database.Name, Name]);
     end;
     FRowType := StrToMySQLRowType(DataSet.FieldByName('Row_format').AsString);
@@ -3784,7 +3784,7 @@ begin
     EngineName := DataSet.FieldByName('ENGINE').AsString;
     try
       FEngine := Database.Session.EngineByName(EngineName);
-    except
+    except  // Debug 25.01.14
       raise ERangeError.CreateFmt('Unknown Engine "%s" for table "%s.%s"', [EngineName, Database.Name, Name]);
     end;
     RowType := StrToMySQLRowType(DataSet.FieldByName('ROW_FORMAT').AsString);

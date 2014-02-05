@@ -7,7 +7,6 @@ const
   MYSQL_PORT            = 3306;
   LOCAL_HOST_NAMEDPIPE  = '.';
   MYSQL_NAMEDPIPE       = 'MySQL';
-  PROTOCOL_VERSION      = 10;
   NET_READ_TIMEOUT      = 30;
   NET_WRITE_TIMEOUT     = 60;
   NET_WAIT_TIMEOUT      = 8*60*60;
@@ -16,16 +15,10 @@ const
   HOSTNAME_LENGTH       = 60;
   USERNAME_LENGTH       = 16;
   MYSQL_ERRMSG_SIZE     = 512;
-  SQLSTATE_LENGTH       = 5;
-  SERVER_VERSION_LENGTH = 60;
-  SCRAMBLE_LENGTH       = 20;
-  SCRAMBLE_LENGTH_323   = 8;
   MAX_PACKET_LENGTH     = $FFFFFE;
   MAX_ALLOWED_PACKET    = $1000000;
   NET_BUFFER_LENGTH     = $8000;
-  MIN_COMPRESS_LENGTH   = 50;
-  NET_HEADER_SIZE       = 4;
-  COMP_HEADER_SIZE      = 3;
+  SERVER_VERSION_LENGTH = 60;
   RETRY_COUNT           = 2;
   PACKET_ERROR          = -1;
 
@@ -42,25 +35,26 @@ const
   SERVER_STATUS_NO_BACKSLASH_ESCAPES = $0200;
 
   //client flags
-  CLIENT_LONG_PASSWORD     = $00001;    // new more secure passwords
-  CLIENT_FOUND_ROWS        = $00002;    // Found instead of affected rows
-  CLIENT_LONG_FLAG         = $00004;    // Get all column flags
-  CLIENT_CONNECT_WITH_DB   = $00008;    // One can specify db on connect
-  CLIENT_NO_SCHEMA         = $00010;    // Don't allow database.table.column
-  CLIENT_COMPRESS          = $00020;    // Can use compression protocol
-  CLIENT_ODBC              = $00040;    // Odbc client
-  CLIENT_LOCAL_FILES       = $00080;    // Can use LOAD DATA LOCAL
-  CLIENT_IGNORE_SPACE      = $00100;    // Ignore spaces before '('
-  CLIENT_PROTOCOL_41       = $00200;    // New 4.1 protocol
-  CLIENT_INTERACTIVE       = $00400;    // This is an interactive client
-  CLIENT_SSL               = $00800;    // Switch to SSL after handshake
-  CLIENT_IGNORE_SIGPIPE    = $01000;    // IGNORE sigpipes
-  CLIENT_TRANSACTIONS      = $02000;    // Client knows about transactions
-  CLIENT_RESERVED          = $04000;    // Old flag for 4.1 protocol
-  CLIENT_SECURE_CONNECTION = $08000;    // New 4.1 authentication
-  CLIENT_MULTI_STATEMENTS  = $10000;    // Enable/disable multi-stmt support
-  CLIENT_MULTI_RESULTS     = $20000;    // Enable/disable multi-results
-  CLIENT_REMEMBER_OPTIONS  = $80000000;
+  CLIENT_LONG_PASSWORD          = $00001;    // new more secure passwords
+  CLIENT_FOUND_ROWS             = $00002;    // Found instead of affected rows
+  CLIENT_LONG_FLAG              = $00004;    // Get all column flags
+  CLIENT_CONNECT_WITH_DB        = $00008;    // One can specify db on connect
+  CLIENT_NO_SCHEMA              = $00010;    // Don't allow database.table.column
+  CLIENT_COMPRESS               = $00020;    // Can use compression protocol
+  CLIENT_ODBC                   = $00040;    // Odbc client
+  CLIENT_LOCAL_FILES            = $00080;    // Can use LOAD DATA LOCAL
+  CLIENT_IGNORE_SPACE           = $00100;    // Ignore spaces before '('
+  CLIENT_PROTOCOL_41            = $00200;    // New 4.1 protocol
+  CLIENT_INTERACTIVE            = $00400;    // This is an interactive client
+  CLIENT_SSL                    = $00800;    // Switch to SSL after handshake
+  CLIENT_IGNORE_SIGPIPE         = $01000;    // IGNORE sigpipes
+  CLIENT_TRANSACTIONS           = $02000;    // Client knows about transactions
+  CLIENT_RESERVED               = $04000;    // Old flag for 4.1 protocol
+  CLIENT_SECURE_CONNECTION      = $08000;    // New 4.1 authentication
+  CLIENT_MULTI_STATEMENTS       = $10000;    // Enable/disable multi-stmt support
+  CLIENT_MULTI_RESULTS          = $20000;    // Enable/disable multi-results
+  CLIENT_SSL_VERIFY_SERVER_CERT = $4000000;
+  CLIENT_REMEMBER_OPTIONS       = $80000000;
 
   //field flags
   NOT_NULL_FLAG            = $000001;   // Field can't be NULL
@@ -1285,71 +1279,96 @@ const
   ER_ERROR_LAST                              = 1621;
 
 
-  CR_MIN_ERROR                               = 2000;
-  CR_UNKNOWN_ERROR                           = 2000;
-  CR_SOCKET_CREATE_ERROR                     = 2001;
-  CR_CONNECTION_ERROR                        = 2002;
-  CR_CONN_HOST_ERROR                         = 2003;
-  CR_IPSOCK_ERROR                            = 2004;
-  CR_UNKNOWN_HOST                            = 2005;
-  CR_SERVER_GONE_ERROR                       = 2006;
-  CR_VERSION_ERROR                           = 2007;
-  CR_OUT_OF_MEMORY                           = 2008;
-  CR_WRONG_HOST_INFO                         = 2009;
-  CR_LOCALHOST_CONNECTION                    = 2010;
-  CR_TCP_CONNECTION                          = 2011;
-  CR_SERVER_HANDSHAKE_ERR                    = 2012;
-  CR_SERVER_LOST                             = 2013;
-  CR_COMMANDS_OUT_OF_SYNC                    = 2014;
-  CR_NAMEDPIPE_CONNECTION                    = 2015;
-  CR_NAMEDPIPEWAIT_ERROR                     = 2016;
-  CR_NAMEDPIPEOPEN_ERROR                     = 2017;
-  CR_NAMEDPIPESETSTATE_ERROR                 = 2018;
-  CR_CANT_READ_CHARSET                       = 2019;
-  CR_NET_PACKET_TOO_LARGE                    = 2020;
-  CR_EMBEDDED_CONNECTION                     = 2021;
-  CR_PROBE_SLAVE_STATUS                      = 2022;
-  CR_PROBE_SLAVE_HOSTS                       = 2023;
-  CR_PROBE_SLAVE_CONNECT                     = 2024;
-  CR_PROBE_MASTER_CONNECT                    = 2025;
-  CR_SSL_CONNECTION_ERROR                    = 2026;
-  CR_MALFORMED_PACKET                        = 2027;
-  CR_WRONG_LICENSE                           = 2028;
-  CR_NULL_POINTER                            = 2029;
-  CR_NO_PREPARE_STMT                         = 2030;
-  CR_PARAMS_NOT_BOUND                        = 2031;
-  CR_DATA_TRUNCATED                          = 2032;
-  CR_NO_PARAMETERS_EXISTS                    = 2033;
-  CR_INVALID_PARAMETER_NO                    = 2034;
-  CR_INVALID_BUFFER_USE                      = 2035;
-  CR_UNSUPPORTED_PARAM_TYPE                  = 2036;
+  CR_MIN_ERROR                             = 2000;
+  CR_UNKNOWN_ERROR                         = 2000;
+  CR_SOCKET_CREATE_ERROR                   = 2001;
+  CR_CONNECTION_ERROR                      = 2002;
+  CR_CONN_HOST_ERROR                       = 2003;
+  CR_IPSOCK_ERROR                          = 2004;
+  CR_UNKNOWN_HOST                          = 2005;
+  CR_SERVER_GONE_ERROR                     = 2006;
+  CR_VERSION_ERROR                         = 2007;
+  CR_OUT_OF_MEMORY                         = 2008;
+  CR_WRONG_HOST_INFO                       = 2009;
+  CR_LOCALHOST_CONNECTION                  = 2010;
+  CR_TCP_CONNECTION                        = 2011;
+  CR_SERVER_HANDSHAKE_ERR                  = 2012;
+  CR_SERVER_LOST                           = 2013;
+  CR_COMMANDS_OUT_OF_SYNC                  = 2014;
+  CR_NAMEDPIPE_CONNECTION                  = 2015;
+  CR_NAMEDPIPEWAIT_ERROR                   = 2016;
+  CR_NAMEDPIPEOPEN_ERROR                   = 2017;
+  CR_NAMEDPIPESETSTATE_ERROR               = 2018;
+  CR_CANT_READ_CHARSET                     = 2019;
+  CR_NET_PACKET_TOO_LARGE                  = 2020;
+  CR_EMBEDDED_CONNECTION                   = 2021;
+  CR_PROBE_SLAVE_STATUS                    = 2022;
+  CR_PROBE_SLAVE_HOSTS                     = 2023;
+  CR_PROBE_SLAVE_CONNECT                   = 2024;
+  CR_PROBE_MASTER_CONNECT                  = 2025;
+  CR_SSL_CONNECTION_ERROR                  = 2026;
+  CR_MALFORMED_PACKET                      = 2027;
+  CR_WRONG_LICENSE                         = 2028;
+  CR_NULL_POINTER                          = 2029;
+  CR_NO_PREPARE_STMT                       = 2030;
+  CR_PARAMS_NOT_BOUND                      = 2031;
+  CR_DATA_TRUNCATED                        = 2032;
+  CR_NO_PARAMETERS_EXISTS                  = 2033;
+  CR_INVALID_PARAMETER_NO                  = 2034;
+  CR_INVALID_BUFFER_USE                    = 2035;
+  CR_UNSUPPORTED_PARAM_TYPE                = 2036;
+  CR_SHARED_MEMORY_CONNECTION              = 2037;
+  CR_SHARED_MEMORY_CONNECT_REQUEST_ERROR   = 2038;
+  CR_SHARED_MEMORY_CONNECT_ANSWER_ERROR    = 2039;
+  CR_SHARED_MEMORY_CONNECT_FILE_MAP_ERROR  = 2040;
+  CR_SHARED_MEMORY_CONNECT_MAP_ERROR       = 2041;
+  CR_SHARED_MEMORY_FILE_MAP_ERROR          = 2042;
+  CR_SHARED_MEMORY_MAP_ERROR               = 2043;
+  CR_SHARED_MEMORY_EVENT_ERROR             = 2044;
+  CR_SHARED_MEMORY_CONNECT_ABANDONED_ERROR = 2045;
+  CR_SHARED_MEMORY_CONNECT_SET_ERROR       = 2046;
+  CR_CONN_UNKNOW_PROTOCOL                  = 2047;
+  CR_INVALID_CONN_HANDLE                   = 2048;
+  CR_SECURE_AUTH                           = 2049;
+  CR_FETCH_CANCELED                        = 2050;
+  CR_NO_DATA                               = 2051;
+  CR_NO_STMT_METADATA                      = 2052;
+  CR_NO_RESULT_SET                         = 2053;
+  CR_NOT_IMPLEMENTED                       = 2054;
+  CR_SERVER_LOST_EXTENDED                  = 2055;
+  CR_STMT_CLOSED                           = 2056;
+  CR_NEW_STMT_METADATA                     = 2057;
+  CR_ALREADY_CONNECTED                     = 2058;
+  CR_AUTH_PLUGIN_CANNOT_LOAD               = 2059;
+  CR_DUPLICATE_CONNECTION_ATTR             = 2060;
+  CR_AUTH_PLUGIN_ERR                       = 2061;
 
 const
   ER_EMPTY_QUERY_MSG = 'Query was empty';
 
 var
   CLIENT_ERRORS: array [0..20] of PChar = (
-    'Unknown MySQL error',                                                   {0}
-    'Can''t create UNIX socket (%d)',                                        {1}
-    'Can''t connect to local MySQL server through socket ''%-.64s'' (%d)',   {2}
-    'Can''t connect to MySQL server on ''%-.64s'' (%d)',                     {3}
-    'Can''t create TCP/IP socket (%d)',                                      {4}
-    'Unknown MySQL Server Host ''%-.64s'' (%d)',                             {5}
-    'MySQL server has gone away',                                            {6}
-    'Protocol mismatch. Server Version = %d Client Version = %d',            {7}
-    'MySQL client run out of memory',                                        {8}
-    'Wrong host info',                                                       {9}
-    'Localhost via UNIX socket',                                            {10}
-    '%-.64s via TCP/IP',                                                    {11}
-    'Error in server handshake',                                            {12}
-    'Lost connection to MySQL server during query',                         {13}
-    'Commands out of sync;  You can''t run this command now',               {14}
-    '%-.64s via named pipe',                                                {15}
-    'Can''t wait for named pipe to host: %-.64s  pipe: %-.32s (%u)',        {16}
-    'Can''t open named pipe to host: %-.64s  pipe: %-.32s (%u)',            {17}
-    'Can''t set state of named pipe to host: %-.64s  pipe: %-.32s (%u)',    {18}
-    'Can''t initialize character set %-.64s',                               {19}
-    'Got packet bigger than ''max_allowed_packet'''                         {20}
+    'Unknown MySQL error',
+    'Can''t create UNIX socket (%d)',
+    'Can''t connect to local MySQL server through socket ''%-.64s'' (%d)',
+    'Can''t connect to MySQL server on ''%-.64s'' (%d)',
+    'Can''t create TCP/IP socket (%d)',
+    'Unknown MySQL Server Host ''%-.64s'' (%d)',
+    'MySQL server has gone away',
+    'Protocol mismatch. Server Version = %d Client Version = %d',
+    'MySQL client run out of memory',
+    'Wrong host info',
+    'Localhost via UNIX socket',
+    '%-.64s via TCP/IP',
+    'Error in server handshake',
+    'Lost connection to MySQL server during query',
+    'Commands out of sync;  You can''t run this command now',
+    '%-.64s via named pipe',
+    'Can''t wait for named pipe to host: %-.64s  pipe: %-.32s (%u)',
+    'Can''t open named pipe to host: %-.64s  pipe: %-.32s (%u)',
+    'Can''t set state of named pipe to host: %-.64s  pipe: %-.32s (%u)',
+    'Can''t initialize character set %-.64s',
+    'Got packet bigger than ''max_allowed_packet'''
   );
   
 implementation {***************************************************************}

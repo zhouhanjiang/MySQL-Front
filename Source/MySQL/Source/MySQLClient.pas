@@ -119,6 +119,8 @@ type
   end;
 
   MYSQL = class (TMySQL_Packet)
+  private const
+    SQLSTATE_LENGTH = 5;
   private
     CriticalSection: TCriticalSection;
     FieldCount: my_uint;
@@ -285,16 +287,23 @@ uses
   ZLib, StrUtils;
 
 const
-  MYSQL_CLIENT_INFO    = '4.1.1';
-  MYSQL_CLIENT_VERSION = 40101;
+  AF_INET6 = 23;
+
+  COMP_HEADER_SIZE      = 3;
+  MIN_COMPRESS_LENGTH   = 50;
+  MYSQL_CLIENT_INFO     = '4.1.1';
+  MYSQL_CLIENT_VERSION  = 40101;
+  NET_HEADER_SIZE       = 4;
+  PROTOCOL_VERSION      = 10;
+  SCRAMBLE_LENGTH       = 20;
+  SCRAMBLE_LENGTH_323   = 8;
+
   CLIENT_CAPABILITIES  = CLIENT_LONG_PASSWORD or
                          CLIENT_LONG_FLAG or
                          CLIENT_LOCAL_FILES or
                          CLIENT_PROTOCOL_41 or
                          CLIENT_TRANSACTIONS or
                          CLIENT_SECURE_CONNECTION;
-
-  AF_INET6 = 23;
 
 type
   TWSAConnectByNameA = function(
@@ -308,38 +317,209 @@ type
     timeout: PTimeVal;
     Reserved: POverlapped): Boolean; stdcall;
 
+  TSHA1Context = record
+    FLength: int64;
+    FInterimHash: array[0..4] of Longint;
+    FComputed: boolean;
+    FCorrupted: boolean;
+    FMsgBlockIndex: byte;
+    FMsgBlock: array[0..63] of Byte
+  end;
+
 var
   WSAData: WinSock.WSADATA;
   WS2_32: THandle;
   WSAConnectByNameA: TWSAConnectByNameA;
 
+{$Q-}
+
+procedure sha1_ProcessMessageBlock(var Context: TSHA1Context);
+const
+  ctKeys: array[0..3] of Longint =
+    (Longint($5A827999), Longint($6ED9EBA1), Longint($8F1BBCDC), Longint($CA62C1D6));
+var
+  A: Longint;
+  B: Longint;
+  C: Longint;
+  D: Longint;
+  E: Longint;
+  I: Integer;
+  J: Integer;
+  Temp: Longint;
+  W: array [0..79] of Longint;
+begin
+  for I := 0 to 15 do
+  begin
+    J := I * 4;
+    W[I] :=         Context.FMsgBlock[J + 0] shl 24;
+    W[I] := W[I] or Context.FMsgBlock[J + 1] shl 16;
+    W[I] := W[I] or Context.FMsgBlock[J + 2] shl 8;
+    W[I] := W[I] or Context.FMsgBlock[J + 3];
+  end;
+  for I := 16 to 79 do
+  begin
+    W[I] := W[I-3] xor W[I-8] xor W[I-14] xor W[I-16];
+    W[I] := (W[I] shl 1) or (W[I] shr 31);
+  end;
+  A := Context.FInterimHash[0];
+  B := Context.FInterimHash[1];
+  C := Context.FInterimHash[2];
+  D := Context.FInterimHash[3];
+  E := Context.FInterimHash[4];
+  for I := 0 to 19 do
+  begin
+    Temp := ((A shl 5) or (A shr 27)) + ((B and C) or ((not B) and D)) + E + W[I] + ctKeys[0];
+    E := D;
+    D := C;
+    C := (B shl 30) or (B shr 2);
+    B := A;
+    A := Temp;
+  end;
+  for I := 20 to 39 do
+  begin
+    Temp := ((A shl 5) or (A shr 27)) + (B xor C xor D) + E + W[I] + ctKeys[1];
+    E := D;
+    D := C;
+    C := (B shl 30) or (B shr 2);
+    B := A;
+    A := Temp;
+  end;
+  for I := 40 to 59 do
+  begin
+    Temp := ((A shl 5) or (A shr 27)) + ((B and C) or (B and D) or (C and D)) + E + W[I] + ctKeys[2];
+    E := D;
+    D := C;
+    C := (B shl 30) or (B shr 2);
+    B := A;
+    A := Temp;
+  end;
+  for I := 60 to 79 do
+  begin
+    Temp := ((A shl 5) or (A shr 27)) + (B xor C xor D) + E + W[I] + ctKeys[3];
+    E := D;
+    D := C;
+    C := (B shl 30) or (B shr 2);
+    B := A;
+    A := Temp;
+  end;
+  Context.FInterimHash[0] := Context.FInterimHash[0] + A;
+  Context.FInterimHash[1] := Context.FInterimHash[1] + B;
+  Context.FInterimHash[2] := Context.FInterimHash[2] + C;
+  Context.FInterimHash[3] := Context.FInterimHash[3] + D;
+  Context.FInterimHash[4] := Context.FInterimHash[4] + E;
+  Context.FMsgBlockIndex := 0;
+end;
+
+procedure sha1_reset(var context: TSHA1Context);
+const
+  ctSHAKeys: array[0..4] of Longint =
+    (Longint($67452301), Longint($EFCDAB89), Longint($98BADCFE), Longint($10325476), Longint($C3D2E1F0));
+begin
+  context.FLength := 0;
+  context.FMsgBlockIndex := 0;
+  context.FInterimHash[0] := ctSHAKeys[0];
+  context.FInterimHash[1] := ctSHAKeys[1];
+  context.FInterimHash[2] := ctSHAKeys[2];
+  context.FInterimHash[3] := ctSHAKeys[3];
+  context.FInterimHash[4] := ctSHAKeys[4];
+  context.FComputed := false;
+  context.FCorrupted := false;
+  FillChar(context.FMsgBlock[0], 64, #0);
+end;
+
+procedure sha1_input(var context: TSHA1Context; msgArray :PAnsiChar; msgLen:cardinal);
+begin
+  Assert(Assigned(msgArray), 'Empty array paased to sha1Input');
+
+  if (context.FComputed) then
+    context.FCorrupted := True;
+  if (not context.FCorrupted) then
+    while (msgLen > 0) do
+    begin
+      context.FMsgBlock[context.FMsgBlockIndex] := byte(msgArray[0]);
+      Inc(context.FMsgBlockIndex);
+      context.FLength := context.FLength+8;
+      if (context.FMsgBlockIndex = 64) then
+        sha1_ProcessMessageBlock(context);
+      Dec(msgLen);
+      Inc(msgArray);
+    end;
+end;
+
+procedure sha1_result(var context: TSHA1Context; msgDigest: PAnsiChar);
+var
+  I: Integer;
+begin
+  Assert(Assigned(msgDigest), 'Empty array passed to sha1Result');
+
+  if (not context.FCorrupted) then
+  begin
+    if (not context.FComputed) then
+    begin
+      I := context.FMsgBlockIndex;
+      if (I <= 55) then
+      begin
+        context.FMsgBlock[I] := $80;
+        Inc(I);
+        FillChar(context.FMsgBlock[I], (56-I), #0);
+        context.FMsgBlockIndex := 56;
+      end
+      else
+      begin
+        context.FMsgBlock[I] := $80;
+        Inc(I);
+        FillChar(context.FMsgBlock[I], (64-I), #0);
+        context.FMsgBlockIndex := 64;
+        sha1_ProcessMessageBlock(context);
+        FillChar(context.FMsgBlock[0], 56, #0);
+        context.FMsgBlockIndex := 56;
+      end;
+      context.FMsgBlock[56] := (context.FLength shr 56) and $FF;
+      context.FMsgBlock[57] := (context.FLength shr 48) and $FF;
+      context.FMsgBlock[58] := (context.FLength shr 40) and $FF;
+      context.FMsgBlock[59] := (context.FLength shr 32) and $FF;
+      context.FMsgBlock[60] := (context.FLength shr 24) and $FF;
+      context.FMsgBlock[61] := (context.FLength shr 16) and $FF;
+      context.FMsgBlock[62] := (context.FLength shr  8) and $FF;
+      context.FMsgBlock[63] := (context.FLength       ) and $FF;
+
+      sha1_ProcessMessageBlock(context);
+
+      FillChar(context.FMsgBlock, SizeOf(context.FMsgBlock), #0);
+      context.FLength := 0;
+      context.FComputed := True;
+    end;
+
+    for I := 0 to SCRAMBLE_LENGTH -1 do
+      msgDigest[I] := AnsiChar(context.FInterimHash[I shr 2] shr (8 * (3 - (I and 3))) and $FF);
+  end;
+end;
+
 function Scramble(const Password: my_char; const Salt: my_char): RawByteString;
 
-  procedure HashPassword(const Password: my_char; var Result_0, Result_1: my_int);
+  procedure hashPassword(const pass: my_char; var res0, res1: my_int);
   var
-    add: my_ulonglong;
+    nr, add, nr2, tmp: my_ulonglong;
+    I: my_int;
     e1: my_ulonglong;
-    I: Integer;
-    nr: my_ulonglong;
-    nr2: my_ulonglong;
-    tmp: my_ulonglong;
+    len: my_int;
   begin
     nr := 1345345333;
-    nr2 := $12345671;
     add := 7;
-
-    for I := 0 to StrLen(Password) - 1 do
-      if ((Password[I] <> #9) and (Password[I] <> ' ')) then
-      begin
-        tmp := $ff and Byte(Password[I]);
-        e1 := (((nr and 63) + add) * tmp) + (nr shl 8);
-        nr := nr xor e1;
-        nr2 := nr2 + ((nr2 shl 8) xor nr);
-        add := add + tmp;
-      end;
-
-    Result_0 := nr and $7fffffff;
-    Result_1 := nr2 and $7fffffff;
+    nr2 := $12345671;
+    len := Length(pass)-1;
+    for I := 0 to len do
+    begin
+      if (Pass[I] = #20) or (Pass[I] = #9)then
+        continue;
+      tmp := $ff and Byte(Pass[I]);
+      e1 := (((nr and 63) +add)*tmp)+(nr shl 8);
+      nr := nr xor e1;
+      nr2 := nr2+((nr2 shl 8) xor nr);
+      add := add+tmp;
+    end;
+    res0 := nr and $7fffffff;
+    res1 := nr2 and $7fffffff;
   end;
 
   function Floor(X: Extended): my_int;
@@ -349,244 +529,71 @@ function Scramble(const Password: my_char; const Salt: my_char): RawByteString;
       Dec(Result);
   end;
 
-const
-  MaxValue = $3FFFFFFF;
 var
+  dRes: Double;
   e: Byte;
   hm0: my_int;
   hm1: my_int;
   hp0: my_int;
   hp1: my_int;
   I: my_int;
+  maxValue: my_ulonglong;
   Scramled: array [0..7] of AnsiChar;
   Seed: my_ulonglong;
   Seed2: my_ulonglong;
 begin
-  HashPassword(Password, hp0, hp1);
-  HashPassword(Salt, hm0, hm1);
-  Seed  := (hp0 xor hm0) mod MaxValue;
-  Seed2 := (hp1 xor hm1) mod MaxValue;
+  hashPassword(Password, hp0, hp1);
+  hashPassword(Salt, hm0, hm1);
+  MaxValue := $3FFFFFFF;
+  Seed  := (hp0 xor hm0) mod maxValue ;
+  Seed2 := (hp1 xor hm1) mod maxValue ;
   for I := 0 to StrLen(Salt) - 1 do
   begin
     Seed  := (Seed * 3 + Seed2) mod MaxValue;
     Seed2 := (Seed + Seed2 + 33) mod MaxValue;
-    Scramled[I] := AnsiChar(Floor((Seed / MaxValue) * 31) + 64);
+    dRes := Seed / maxValue;
+    Scramled[I] := AnsiChar(Floor(dRes * 31) + 64);
   end;
-
-  e := Floor(((Seed * 3 + Seed2) mod MaxValue / MaxValue) * 31);
+  dRes := (Seed * 3 + Seed2) mod MaxValue / MaxValue;
+  e := Floor(dRes * 31);
   for I := 0 to StrLen(Salt) - 1 do
     Scramled[I] := AnsiChar(Byte(Scramled[I]) xor e);
+
   SetString(Result, PAnsiChar(@Scramled), StrLen(Salt));
 end;
 
-{$Q-}
-
 function SecureScramble(const Password: my_char; const Salt: my_char): RawByteString;
-
-  type
-    TSHA1Context = record
-      FLength: Int64;
-      FInterimHash: array[0..4] of Longint;
-      FComputed: Boolean;
-      FCorrupted: Boolean;
-      FMsgBlockIndex: byte;
-      FMsgBlock: array[0..63] of Byte
-    end;
-
-  procedure SHA1_ProcessMessageBlock(var Context: TSHA1Context);
-  const
-    ctKeys: array[0..3] of Longint =
-      (Longint($5A827999), Longint($6ED9EBA1), Longint($8F1BBCDC), Longint($CA62C1D6));
-  var
-    A: Longint;
-    B: Longint;
-    C: Longint;
-    D: Longint;
-    E: Longint;
-    I: Integer;
-    J: Integer;
-    Temp: Longint;
-    W: array [0..79] of Longint;
-  begin
-    for I := 0 to 15 do
-    begin
-      J := I * 4;
-      W[I] :=         Context.FMsgBlock[J + 0] shl 24;
-      W[I] := W[I] or Context.FMsgBlock[J + 1] shl 16;
-      W[I] := W[I] or Context.FMsgBlock[J + 2] shl 8;
-      W[I] := W[I] or Context.FMsgBlock[J + 3];
-    end;
-    for I := 16 to 79 do
-    begin
-      W[I] := W[I-3] xor W[I-8] xor W[I-14] xor W[I-16];
-      W[I] := (W[I] shl 1) or (W[I] shr 31);
-    end;
-    A := Context.FInterimHash[0];
-    B := Context.FInterimHash[1];
-    C := Context.FInterimHash[2];
-    D := Context.FInterimHash[3];
-    E := Context.FInterimHash[4];
-    for I := 0 to 19 do
-    begin
-      Temp := ((A shl 5) or (A shr 27)) + ((B and C) or ((not B) and D)) + E + W[I] + ctKeys[0];
-      E := D;
-      D := C;
-      C := (B shl 30) or (B shr 2);
-      B := A;
-      A := Temp;
-    end;
-    for I := 20 to 39 do
-    begin
-      Temp := ((A shl 5) or (A shr 27)) + (B xor C xor D) + E + W[I] + ctKeys[1];
-      E := D;
-      D := C;
-      C := (B shl 30) or (B shr 2);
-      B := A;
-      A := Temp;
-    end;
-    for I := 40 to 59 do
-    begin
-      Temp := ((A shl 5) or (A shr 27)) + ((B and C) or (B and D) or (C and D)) + E + W[I] + ctKeys[2];
-      E := D;
-      D := C;
-      C := (B shl 30) or (B shr 2);
-      B := A;
-      A := Temp;
-    end;
-    for I := 60 to 79 do
-    begin
-      Temp := ((A shl 5) or (A shr 27)) + (B xor C xor D) + E + W[I] + ctKeys[3];
-      E := D;
-      D := C;
-      C := (B shl 30) or (B shr 2);
-      B := A;
-      A := Temp;
-    end;
-    Context.FInterimHash[0] := Context.FInterimHash[0] + A;
-    Context.FInterimHash[1] := Context.FInterimHash[1] + B;
-    Context.FInterimHash[2] := Context.FInterimHash[2] + C;
-    Context.FInterimHash[3] := Context.FInterimHash[3] + D;
-    Context.FInterimHash[4] := Context.FInterimHash[4] + E;
-    Context.FMsgBlockIndex := 0;
-  end;
-
-  procedure SHA1_Reset(var context: TSHA1Context);
-  const
-    ctSHAKeys: array[0..4] of Longint =
-      (Longint($67452301), Longint($EFCDAB89), Longint($98BADCFE), Longint($10325476), Longint($C3D2E1F0));
-  begin
-    context.FLength := 0;
-    context.FMsgBlockIndex := 0;
-    context.FInterimHash[0] := ctSHAKeys[0];
-    context.FInterimHash[1] := ctSHAKeys[1];
-    context.FInterimHash[2] := ctSHAKeys[2];
-    context.FInterimHash[3] := ctSHAKeys[3];
-    context.FInterimHash[4] := ctSHAKeys[4];
-    context.FComputed := false;
-    context.FCorrupted := false;
-    FillChar(context.FMsgBlock[0], 64, #0);
-  end;
-
-  procedure SHA1_Input(var context: TSHA1Context; msgArray :PAnsiChar; msgLen:cardinal);
-  begin
-    Assert(Assigned(msgArray), 'Empty array paased to sha1Input');
-
-    if (context.FComputed) then
-      context.FCorrupted := True;
-    if (not context.FCorrupted) then
-      while (msgLen > 0) do
-      begin
-        context.FMsgBlock[context.FMsgBlockIndex] := byte(msgArray[0]);
-        Inc(context.FMsgBlockIndex);
-        context.FLength := context.FLength+8;
-        if (context.FMsgBlockIndex = 64) then
-          SHA1_ProcessMessageBlock(context);
-        Dec(msgLen);
-        Inc(msgArray);
-      end;
-  end;
-
-  procedure SHA1_Result(var Context: TSHA1Context; const MsgDigest: PAnsiChar; const HashSize: Integer);
-  var
-    I: Integer;
-  begin
-    Assert(Assigned(MsgDigest), 'Empty array passed to sha1Result');
-
-    if (not Context.FCorrupted) then
-    begin
-      if (not Context.FComputed) then
-      begin
-        I := Context.FMsgBlockIndex;
-        if (I <= 55) then
-        begin
-          Context.FMsgBlock[I] := $80;
-          Inc(I);
-          FillChar(Context.FMsgBlock[I], (56-I), #0);
-          Context.FMsgBlockIndex := 56;
-        end
-        else
-        begin
-          Context.FMsgBlock[I] := $80;
-          Inc(I);
-          FillChar(Context.FMsgBlock[I], (64-I), #0);
-          Context.FMsgBlockIndex := 64;
-          SHA1_ProcessMessageBlock(Context);
-          FillChar(Context.FMsgBlock[0], 56, #0);
-          Context.FMsgBlockIndex := 56;
-        end;
-        Context.FMsgBlock[56] := (Context.FLength shr 56) and $FF;
-        Context.FMsgBlock[57] := (Context.FLength shr 48) and $FF;
-        Context.FMsgBlock[58] := (Context.FLength shr 40) and $FF;
-        Context.FMsgBlock[59] := (Context.FLength shr 32) and $FF;
-        Context.FMsgBlock[60] := (Context.FLength shr 24) and $FF;
-        Context.FMsgBlock[61] := (Context.FLength shr 16) and $FF;
-        Context.FMsgBlock[62] := (Context.FLength shr  8) and $FF;
-        Context.FMsgBlock[63] := (Context.FLength       ) and $FF;
-
-        SHA1_ProcessMessageBlock(Context);
-
-        FillChar(Context.FMsgBlock, SizeOf(Context.FMsgBlock), #0);
-        Context.FLength := 0;
-        Context.FComputed := True;
-      end;
-
-      for I := 0 to HashSize -1 do
-        MsgDigest[I] := AnsiChar(Context.FInterimHash[I shr 2] shr (8 * (3 - (I and 3))) and $FF);
-    end;
-  end;
-
-const
-  HashSize = 20;
 var
-  hash_stage1: array [0 .. HashSize - 1] of AnsiChar;
-  hash_stage2: array [0 .. HashSize - 1] of AnsiChar;
+  hash_stage1: array [0 .. SCRAMBLE_LENGTH - 1] of AnsiChar;
+  hash_stage2: array [0 .. SCRAMBLE_LENGTH - 1] of AnsiChar;
   I: my_int;
-  Scramled: array [0 .. HashSize - 1] of AnsiChar;
-  Context: TSHA1Context;
+  Scramled: array [0 .. SCRAMBLE_LENGTH - 1] of AnsiChar;
+  sha1_context: TSHA1Context;
 begin
+  sha1_reset(sha1_context);
   //* stage 1: hash Password */
-  SHA1_Reset(Context);
-  SHA1_Input(Context, Password, StrLen(Password));
-  SHA1_Result(Context, @hash_stage1[0], HashSize);
-
+  sha1_input(sha1_context, Password, StrLen(Password));
+  sha1_result(sha1_context, @hash_stage1[0]);
   //* stage 2: hash stage 1; note that hash_stage2 is stored in the database */
-  SHA1_Reset(Context);
-  SHA1_Input(Context, @hash_stage1[0], HashSize);
-  SHA1_Result(Context, @hash_stage2[0], HashSize);
-
+  sha1_reset(sha1_context);
+  sha1_input(sha1_context, @hash_stage1[0], SCRAMBLE_LENGTH);
+  sha1_result(sha1_context, @hash_stage2[0]);
   //* create crypt AnsiString as sha1(message, hash_stage2) */;
-  SHA1_Reset(Context);
-  SHA1_Input(Context, PAnsiChar(Salt), HashSize);
-  SHA1_Input(Context, @hash_stage2[0], HashSize);
+  sha1_reset(sha1_context);
+  sha1_input(sha1_context, PAnsiChar(Salt), SCRAMBLE_LENGTH);
+  sha1_input(sha1_context, @hash_stage2[0], SCRAMBLE_LENGTH);
   //* xor allows 'from' and 'to' overlap: lets take advantage of it */
-  SHA1_Result(Context, @Scramled, HashSize);
+  sha1_result(sha1_context, @scramled);
 
-  for I := 0 to HashSize - 1 do
+  for I := 0 to SCRAMBLE_LENGTH - 1 do
     Scramled[I] := AnsiChar(Byte(Scramled[I]) xor Byte(hash_stage1[I]));
-  SetString(Result, PAnsiChar(@Scramled), HashSize);
+
+  SetString(Result, PAnsiChar(@Scramled), SCRAMBLE_LENGTH);
 end;
 
+{$IFDEF Debug}
 {$Q+}
+{$ENDIF}
 
 { C API functions *************************************************************}
 

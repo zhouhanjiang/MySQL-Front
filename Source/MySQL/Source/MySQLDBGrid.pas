@@ -685,7 +685,7 @@ begin
       for J := 0 to Columns.Count - 1 do
         if (Columns[J].Visible) then
         begin
-          if (not FirstContent) then begin Result := Result + #9; FirstContent := False; end;
+          if (not FirstContent) then Result := Result + #9; FirstContent := False;
           Result := Result + TMySQLDataSet(DataLink.DataSet).GetAsString(Columns[J].Field);
         end;
       Result := Result + #13#10;
@@ -750,10 +750,7 @@ begin
   else if ((Key = VK_DOWN) and (Shift = [ssAlt]) and (Columns[SelectedIndex].ButtonStyle = cbsEllipsis)) then
     EditButtonClick()
   else
-  begin
-    SelectedField.Text;
     inherited;
-  end;
 end;
 
 procedure TMySQLDBGrid.KeyPress(var Key: Char);
