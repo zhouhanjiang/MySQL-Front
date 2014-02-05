@@ -4027,7 +4027,10 @@ begin
         begin
           Success := daSuccess;
 
-          ExecuteDatabaseHeader(TDBObjectItem(Items[I]).DBObject.Database);
+          if (Items[I] is TDBGridItem) then
+            ExecuteDatabaseHeader(Session.DatabaseByName(TMySQLDataSet(TDBGridItem(Items[I]).DBGrid.DataSource.DataSet).DatabaseName))
+          else if (Items[I] is TDBObjectItem) then
+            ExecuteDatabaseHeader(TDBObjectItem(Items[I]).DBObject.Database);
         end;
 
         if (Success <> daAbort) then
