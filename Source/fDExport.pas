@@ -2056,7 +2056,7 @@ begin
           SetLength(Export.Fields, Length(Export.Fields) + 1);
           Export.Fields[Length(Export.Fields) - 1] := DBGrid.Fields[I];
           SetLength(Export.DestinationFields, Length(Export.DestinationFields) + 1);
-          Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := DBGrid.Fields[I].Name;
+          Export.DestinationFields[Length(Export.DestinationFields) - 1].Name := DBGrid.Fields[I].DisplayName;
         end
       else
         for I := 0 to Length(FSourceFields) - 1 do

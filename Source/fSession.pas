@@ -3778,7 +3778,7 @@ begin
   else
   begin
     EngineName := DataSet.FieldByName('ENGINE').AsString;
-    if ((Database = Session.PerformanceSchema)) then
+    if ((EngineName = '') and (Database = Session.PerformanceSchema)) then
       EngineName := 'PERFORMANCE_SCHEMA';
     FEngine := Database.Session.EngineByName(EngineName);
     if (Self is TSSystemView) then
@@ -8683,43 +8683,60 @@ begin
       for I := 0 to TList(Self).Count - 1 do
         Engine[I].FDefault := UpperCase(Engine[I].Name) = UpperCase(Session.VariableByName('storage_engine').Value);
   end
-  else if (not DataSet.IsEmpty()) then
-    repeat
-      if ((not UseInformationSchema and (UpperCase(DataSet.FieldByName('Support').AsString) <> 'NO') and (UpperCase(DataSet.FieldByName('Support').AsString) <> 'DISABLED'))
-        or (UseInformationSchema and (UpperCase(DataSet.FieldByName('SUPPORT').AsString) <> 'NO') and (UpperCase(DataSet.FieldByName('SUPPORT').AsString) <> 'DISABLED'))) then
-      begin
-        if (not UseInformationSchema) then
-          Name := DataSet.FieldByName('Engine').AsString
-        else
-          Name := DataSet.FieldByName('ENGINE').AsString;
-
-        if (InsertIndex(Name, Index)) then
+  else
+  begin
+    if (not DataSet.IsEmpty()) then
+      repeat
+        if ((not UseInformationSchema and (UpperCase(DataSet.FieldByName('Support').AsString) <> 'NO') and (UpperCase(DataSet.FieldByName('Support').AsString) <> 'DISABLED'))
+          or (UseInformationSchema and (UpperCase(DataSet.FieldByName('SUPPORT').AsString) <> 'NO') and (UpperCase(DataSet.FieldByName('SUPPORT').AsString) <> 'DISABLED'))) then
         begin
-          if (UpperCase(Name) = 'PERFORMANCE_SCHEMA') then
-            NewEngine := TSSystemEngine.Create(Self, Name)
+          if (not UseInformationSchema) then
+            Name := DataSet.FieldByName('Engine').AsString
           else
-            NewEngine := TSEngine.Create(Self, Name);
+            Name := DataSet.FieldByName('ENGINE').AsString;
 
-          if (Index < Count) then
-            Insert(Index, NewEngine)
+          if (InsertIndex(Name, Index)) then
+          begin
+            if (UpperCase(Name) = 'PERFORMANCE_SCHEMA') then
+              NewEngine := TSSystemEngine.Create(Self, Name)
+            else
+              NewEngine := TSEngine.Create(Self, Name);
+
+            if (Index < Count) then
+              Insert(Index, NewEngine)
+            else
+              Add(NewEngine);
+          end
+          else if (DeleteList.IndexOf(Items[Index]) >= 0) then
+            DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
+
+          if (not UseInformationSchema) then
+          begin
+            Engine[Index].FComment := DataSet.FieldByName('Comment').AsString;
+            Engine[Index].FDefault := UpperCase(DataSet.FieldByName('Support').AsString) = 'DEFAULT';
+          end
           else
-            Add(NewEngine);
-        end
-        else if (DeleteList.IndexOf(Items[Index]) >= 0) then
-          DeleteList.Delete(DeleteList.IndexOf(Items[Index]));
-
-        if (not UseInformationSchema) then
-        begin
-          Engine[Index].FComment := DataSet.FieldByName('Comment').AsString;
-          Engine[Index].FDefault := UpperCase(DataSet.FieldByName('Support').AsString) = 'DEFAULT';
-        end
-        else
-        begin
-          Engine[Index].FComment := DataSet.FieldByName('COMMENT').AsString;
-          Engine[Index].FDefault := UpperCase(DataSet.FieldByName('SUPPORT').AsString) = 'DEFAULT';
+          begin
+            Engine[Index].FComment := DataSet.FieldByName('COMMENT').AsString;
+            Engine[Index].FDefault := UpperCase(DataSet.FieldByName('SUPPORT').AsString) = 'DEFAULT';
+          end;
         end;
-      end;
-    until (not DataSet.FindNext());
+      until (not DataSet.FindNext());
+    if ((Session.ServerVersion >= 50503) and (not Assigned(Session.EngineByName('PERFORMANCE_SCHEMA')))) then
+    begin
+      Name := 'PERFORMANCE_SCHEMA';
+
+      if (InsertIndex(Name, Index)) then
+      begin
+        NewEngine := TSSystemEngine.Create(Self, Name);
+
+        if (Index < Count) then
+          Insert(Index, NewEngine)
+        else
+          Add(NewEngine);
+      end
+    end;
+  end;
 
   Result := inherited;
 

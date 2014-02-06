@@ -4076,7 +4076,10 @@ begin
         begin
           Success := daSuccess;
 
-          ExecuteDatabaseFooter(TDBObjectItem(Items[I]).DBObject.Database);
+          if (Items[I] is TDBGridItem) then
+            ExecuteDatabaseFooter(Session.DatabaseByName(TMySQLDataSet(TDBGridItem(Items[I]).DBGrid.DataSource.DataSet).DatabaseName))
+          else if (Items[I] is TDBObjectItem) then
+            ExecuteDatabaseFooter(TDBObjectItem(Items[I]).DBObject.Database);
         end;
 
         TItem(Items[I]).Done := True;
