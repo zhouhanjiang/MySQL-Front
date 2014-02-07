@@ -9689,18 +9689,24 @@ begin
     else if (TObject(ListView.Tag) is TSDatabase) then
     begin
       ListView.Columns.Add();
-      ListView.Columns.Add();
-      ListView.Columns.Add();
-      ListView.Columns.Add();
-      ListView.Columns.Add();
-      ListView.Columns.Add();
-      ListView.Columns.Add();
+      if (not (TObject(ListView.Tag) is TSSystemDatabase)) then
+      begin
+        ListView.Columns.Add();
+        ListView.Columns.Add();
+        ListView.Columns.Add();
+        ListView.Columns.Add();
+        ListView.Columns.Add();
+        ListView.Columns.Add();
+      end;
       ListView.Columns.EndUpdate();
       SetColumnWidths(ListView, lkDatabase);
-      if (ListView.Column[1].Width > 2 * Preferences.GridMaxColumnWidth) then
-        ListView.Column[1].Width := 2 * Preferences.GridMaxColumnWidth;
-      ListView.Columns[2].Alignment := taRightJustify;
-      ListView.Columns[3].Alignment := taRightJustify;
+      if (not (TObject(ListView.Tag) is TSSystemDatabase)) then
+      begin
+        if (ListView.Column[1].Width > 2 * Preferences.GridMaxColumnWidth) then
+          ListView.Column[1].Width := 2 * Preferences.GridMaxColumnWidth;
+        ListView.Columns[2].Alignment := taRightJustify;
+        ListView.Columns[3].Alignment := taRightJustify;
+      end;
 
       ListView.Groups.Add().GroupID := giTables;
       ListView.Groups.Add().GroupID := giRoutines;
@@ -9806,12 +9812,15 @@ begin
   else if (TObject(ListView.Tag) is TSDatabase) then
   begin
     ListView.Columns[0].Caption := Preferences.LoadStr(35);
-    ListView.Columns[1].Caption := Preferences.LoadStr(69);
-    ListView.Columns[2].Caption := Preferences.LoadStr(66);
-    ListView.Columns[3].Caption := Preferences.LoadStr(67);
-    ListView.Columns[4].Caption := Preferences.LoadStr(68);
-    ListView.Columns[5].Caption := Preferences.LoadStr(73);
-    ListView.Columns[6].Caption := Preferences.LoadStr(111);
+    if (not (TObject(ListView.Tag) is TSSystemDatabase)) then
+    begin
+      ListView.Columns[1].Caption := Preferences.LoadStr(69);
+      ListView.Columns[2].Caption := Preferences.LoadStr(66);
+      ListView.Columns[3].Caption := Preferences.LoadStr(67);
+      ListView.Columns[4].Caption := Preferences.LoadStr(68);
+      ListView.Columns[5].Caption := Preferences.LoadStr(73);
+      ListView.Columns[6].Caption := Preferences.LoadStr(111);
+    end;
   end
   else if (TObject(ListView.Tag) is TSBaseTable) then
   begin
