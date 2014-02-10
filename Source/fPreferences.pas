@@ -3697,6 +3697,8 @@ var
 begin
   if (not Assigned(TaskService)) then
     Result := nil
+  else if (not Assigned(Account)) then
+    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Account'])
   else if (Failed(TaskService.GetFolder(TBStr('\' + SysUtils.LoadStr(1006) + '\Accounts\' + Account.Name), Result))) then
     if (not AutoCreate
       or Failed(TaskService.GetFolder('\', RootFolder)))

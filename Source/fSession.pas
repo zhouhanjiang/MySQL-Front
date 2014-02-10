@@ -11548,7 +11548,7 @@ begin
             Result := Databases.Build(DataSet, True, False)
           else if ((TableNameCmp(ObjectName, 'SCHEMATA') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'SCHEMA_NAME')) then
             Result := Databases.Build(DataSet, True, False)
-          else if ((TableNameCmp(ObjectName, 'TABLES') = 0) and (SQLParseEnd(Parse) or SQLParseChar(Parse, ';'))) then
+          else if ((TableNameCmp(ObjectName, 'TABLES') = 0) and SQLParseKeyword(Parse, 'ORDER')) then
             Result := BuildTables(DataSet)
           else if ((TableNameCmp(ObjectName, 'TABLES') = 0) and SQLParseKeyword(Parse, 'WHERE') and (UpperCase(SQLParseValue(Parse)) = 'TABLE_SCHEMA') and SQLParseChar(Parse, '=')) then
           begin
@@ -12020,10 +12020,10 @@ begin
 
   if (not Assigned(Objects) and Status and (ServerVersion >= 50002) and not Valid) then
   begin
-    SQL := SQL + 'SELECT * FROM `information_schema`.`TABLES`;' + #13#10;
-    if (ServerVersion >= 50010) then SQL := SQL + 'SELECT * FROM `information_schema`.`TRIGGERS`;' + #13#10;
-    if (ServerVersion >= 50004) then SQL := SQL + 'SELECT * FROM `information_schema`.`ROUTINES`;' + #13#10;
-    if (ServerVersion >= 50106) then SQL := SQL + 'SELECT * FROM `information_schema`.`EVENTS`;' + #13#10;
+    SQL := SQL + 'SELECT * FROM ' + EscapeIdentifier('information_schema') + '.' + EscapeIdentifier('TABLES') + ' ORDER BY ' + EscapeIdentifier('TABLE_SCHEMA') + ',' + EscapeIdentifier('TABLE_NAME') + ';' + #13#10;
+    if (ServerVersion >= 50010) then SQL := SQL + 'SELECT * FROM ' + EscapeIdentifier('information_schema') + '.' + EscapeIdentifier('TRIGGERS') + ';' + #13#10;
+    if (ServerVersion >= 50004) then SQL := SQL + 'SELECT * FROM ' + EscapeIdentifier('information_schema') + '.' + EscapeIdentifier('ROUTINES') + ';' + #13#10;
+    if (ServerVersion >= 50106) then SQL := SQL + 'SELECT * FROM ' + EscapeIdentifier('information_schema') + '.' + EscapeIdentifier('EVENTS') + ';' + #13#10;
   end;
 
 
