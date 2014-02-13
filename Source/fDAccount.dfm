@@ -169,7 +169,6 @@ object DAccount: TDAccount
       Width = 129
       Height = 21
       Style = csDropDownList
-      Anchors = [akLeft, akTop, akRight]
       TabOrder = 3
       OnChange = FConnectionTypeChange
     end
