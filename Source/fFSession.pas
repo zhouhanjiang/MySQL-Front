@@ -7176,11 +7176,11 @@ procedure TFSession.FNavigatorAdvancedCustomDrawItem(Sender: TCustomTreeView;
   Node: TTreeNode; State: TCustomDrawState; Stage: TCustomDrawStage;
   var PaintImages, DefaultDraw: Boolean);
 begin
-  if ((Stage = cdPrePaint) and Assigned(Node)
-    and ((Node.ImageIndex = iiKey) and TSKey(Node.Data).PrimaryKey or (Node.ImageIndex = iiField) and TSTableField(Node.Data).InPrimaryKey)) then
-    Sender.Canvas.Font.Style := Sender.Canvas.Font.Style + [fsBold]
-  else
-    Sender.Canvas.Font.Style := Sender.Canvas.Font.Style - [fsBold];
+//  if ((Stage = cdPrePaint) and Assigned(Node)
+//    and ((Node.ImageIndex = iiKey) and TSKey(Node.Data).PrimaryKey or (Node.ImageIndex = iiField) and TSTableField(Node.Data).InPrimaryKey)) then
+//    Sender.Canvas.Font.Style := Sender.Canvas.Font.Style + [fsBold]
+//  else
+//    Sender.Canvas.Font.Style := Sender.Canvas.Font.Style - [fsBold];
 end;
 
 procedure TFSession.FNavigatorChange(Sender: TObject; Node: TTreeNode);
@@ -7626,6 +7626,23 @@ end;
 
 procedure TFSession.FNavigatorUpdate(const SessionEvent: TSSession.TEvent);
 
+  procedure SetNodeBoldState(Node: TTreeNode; Value: Boolean);
+  var
+    TVItem: TTVItem;
+  begin
+    if not Assigned(Node) then Exit;
+    with TVItem do
+    begin
+      mask := TVIF_STATE or TVIF_HANDLE;
+      hItem := Node.ItemId;
+      stateMask := TVIS_BOLD;
+      if Value then state := TVIS_BOLD
+      else
+        state := 0;
+      TreeView_SetItem(Node.Handle, TVItem);
+    end;
+  end;
+
   function GroupIDByImageIndex(const ImageIndex: Integer): Integer;
   begin
     case (ImageIndex) of
@@ -7773,6 +7790,8 @@ procedure TFSession.FNavigatorUpdate(const SessionEvent: TSSession.TEvent);
     Child.Text := Text;
     if (Added and (Child.ImageIndex in [iiDatabase, iiSystemDatabase, iiSystemView, iiBaseTable, iiView])) then
       Child.HasChildren := True;
+    if (Assigned(Child)) then
+      SetNodeBoldState(Child, (Child.ImageIndex = iiKey) and TSKey(Child.Data).PrimaryKey or (Child.ImageIndex = iiField) and TSTableField(Child.Data).InPrimaryKey);
   end;
 
   procedure AddChild(const Node: TTreeNode; const Data: TObject);
@@ -7799,6 +7818,8 @@ procedure TFSession.FNavigatorUpdate(const SessionEvent: TSSession.TEvent);
     Child.Text := Text;
     if (Child.ImageIndex in [iiDatabase, iiSystemDatabase, iiSystemView, iiBaseTable, iiView]) then
       Child.HasChildren := True;
+    if (Assigned(Child)) then
+      SetNodeBoldState(Child, (Child.ImageIndex = iiKey) and TSKey(Child.Data).PrimaryKey or (Child.ImageIndex = iiField) and TSTableField(Child.Data).InPrimaryKey);
   end;
 
   procedure DeleteNode(const Node: TTreeNode);
@@ -7867,6 +7888,8 @@ procedure TFSession.FNavigatorUpdate(const SessionEvent: TSSession.TEvent);
             else
               Child.MoveTo(Node, naAddChild);
           end;
+          if (Assigned(Child)) then
+            SetNodeBoldState(Child, (Child.ImageIndex = iiKey) and TSKey(Child.Data).PrimaryKey or (Child.ImageIndex = iiField) and TSTableField(Child.Data).InPrimaryKey);
         end;
       etItemDropped:
         begin

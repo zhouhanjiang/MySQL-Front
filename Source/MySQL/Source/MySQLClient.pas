@@ -591,7 +591,9 @@ begin
   SetString(Result, PAnsiChar(@Scramled), SCRAMBLE_LENGTH);
 end;
 
+{$IFDEF Debug}
 {$Q+}
+{$ENDIF}
 
 { C API functions *************************************************************}
 
@@ -1723,15 +1725,11 @@ var
   PartSize: my_uint;
 begin
   Assert(Direction = idWrite);
-  
+
 
   Offset := 0;
   repeat
-try
     PartSize := Size - Offset;
-except
-    raise Exception.CreateFmt('Size (%d) < Offset (%d), Type: %d', [Size, Offset, Ord(IOType)]);
-end;
     if (PartSize > $FFFFFF - (PacketBuffer.Size - (PacketBuffer.Offset + NET_HEADER_SIZE))) then
       PartSize := $FFFFFF - (PacketBuffer.Size - (PacketBuffer.Offset + NET_HEADER_SIZE));
 

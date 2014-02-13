@@ -12020,7 +12020,7 @@ begin
 
   if (not Assigned(Objects) and Status and (ServerVersion >= 50002) and not Valid) then
   begin
-    SQL := SQL + 'SELECT * FROM ' + EscapeIdentifier('information_schema') + '.' + EscapeIdentifier('TABLES');
+    SQL := SQL + 'SELECT * FROM ' + EscapeIdentifier('information_schema') + '.' + EscapeIdentifier('TABLES') + ';' + #13#10;
     if (ServerVersion >= 50010) then SQL := SQL + 'SELECT * FROM ' + EscapeIdentifier('information_schema') + '.' + EscapeIdentifier('TRIGGERS') + ';' + #13#10;
     if (ServerVersion >= 50004) then SQL := SQL + 'SELECT * FROM ' + EscapeIdentifier('information_schema') + '.' + EscapeIdentifier('ROUTINES') + ';' + #13#10;
     if (ServerVersion >= 50106) then SQL := SQL + 'SELECT * FROM ' + EscapeIdentifier('information_schema') + '.' + EscapeIdentifier('EVENTS') + ';' + #13#10;
