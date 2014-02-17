@@ -8319,7 +8319,10 @@ begin
         if (I > 0) then Result := Result + ',';
         Result := Result + SQLEscape(DatabaseNames[I]);
       end;
-      Result := Result + ',' + SQLEscape(information_schema) + ')';
+      Result := Result + ',' + SQLEscape(information_schema);
+      if (Session.ServerVersion >= 50503) then
+        Result := Result + ',' + SQLEscape(performance_schema);
+      Result := Result + ')';
 
       SetLength(DatabaseNames, 0);
     end;
@@ -12107,10 +12110,9 @@ begin
 
   if (Assigned(DataSet) and Assigned(DatabaseByName(OriginalDatabaseName))) then
   begin
+    IndexDefs.Clear();
     Table := DatabaseByName(OriginalDatabaseName).BaseTableByName(OriginalTableName);
-    if (Assigned(Table)) then
-    begin
-      IndexDefs.Clear();
+    if (Assigned(Table) and (Table.Keys.Count > 0)) then
       for I := 0 to Table.Keys.Count - 1 do
       begin
         Found := True;
@@ -12146,7 +12148,6 @@ begin
           end;
         end;
       end;
-    end;
   end;
 
   for I := 0 to DataSet.FieldCount - 1 do

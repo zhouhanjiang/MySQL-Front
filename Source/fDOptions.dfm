@@ -45,7 +45,7 @@ object DOptions: TDOptions
     Top = 8
     Width = 362
     Height = 345
-    ActivePage = TSLog
+    ActivePage = TSView
     HotTrack = True
     MultiLine = True
     TabOrder = 0
@@ -207,7 +207,7 @@ object DOptions: TDOptions
           Visible = False
         end
         object FGridNullText: TCheckBox
-          Left = 162
+          Left = 144
           Top = 146
           Width = 169
           Height = 17

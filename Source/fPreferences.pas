@@ -4636,35 +4636,32 @@ end;
 
 function TAAccounts.GetXML(): IXMLNode;
 begin
-  if (not Assigned(FXMLDocument)) then
+  if (not Assigned(FXMLDocument) and FileExists(Filename)) then
   begin
-    if (FileExists(Filename)) then
-    begin
-      FXMLDocument := LoadXMLDocument(Filename);
-
-      if (not Assigned(FXMLDocument)) then
-        raise Exception.Create('Error Message 1');
-    end;
-
-    if (not Assigned(FXMLDocument) or not Assigned(FXMLDocument.DocumentElement)) then
-    begin
-      FXMLDocument := NewXMLDocument();
-
-      if (not Assigned(FXMLDocument)) then
-        raise Exception.Create('Error Message 2');
-
-      FXMLDocument.Encoding := 'utf-8';
-      FXMLDocument.Node.AddChild('accounts').Attributes['version'] := '1.1.0';
-
-      if (not Assigned(FXMLDocument)) then
-        raise Exception.Create('Error Message 3');
-    end;
-
+    FXMLDocument := LoadXMLDocument(Filename);
     if (not Assigned(FXMLDocument)) then
-      raise Exception.Create('Error Message 4');
-    FXMLDocument.Options := FXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
+      raise Exception.Create('Error Message 1');
   end;
 
+  if (not Assigned(FXMLDocument) or not Assigned(FXMLDocument.DocumentElement)) then
+  begin
+    FXMLDocument := NewXMLDocument();
+    if (not Assigned(FXMLDocument)) then
+      raise Exception.Create('Error Message 2');
+
+    FXMLDocument.Encoding := 'utf-8';
+    FXMLDocument.Node.AddChild('accounts').Attributes['version'] := '1.1.0';
+
+    if (not Assigned(FXMLDocument)) then
+      raise Exception.Create('Error Message 3');
+  end;
+
+  if (not Assigned(FXMLDocument)) then
+    raise Exception.Create('Error Message 4');
+  FXMLDocument.Options := FXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
+
+  if (not Assigned(FXMLDocument)) then
+    raise Exception.Create('Error Message 5');
   Result := FXMLDocument.DocumentElement;
 end;
 
