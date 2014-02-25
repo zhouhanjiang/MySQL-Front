@@ -2004,10 +2004,10 @@ procedure TSObject.SetSource(const AField: TField);
 var
   SQL: string;
 begin
-  if (AField.DataType <> ftBlob) then
-    SQL := Trim(AField.AsString)
+  if (AField.DataType = ftBlob) then
+    SQL := Trim(Session.LibDecode(my_char(AField.AsAnsiString)))
   else
-    SQL := Trim(Session.LibDecode(my_char(AField.AsAnsiString)));
+    SQL := Trim(AField.AsString);
   if ((SQL <> '') and (Copy(SQL, Length(SQL), 1) <> ';')) then
     SQL := SQL + ';';
   SetSource(SQL);

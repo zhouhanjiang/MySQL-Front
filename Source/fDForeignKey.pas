@@ -139,7 +139,7 @@ end;
 
 procedure TDForeignKey.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = etItemsValid) and (Event.Sender = Database.Tables)) then
+  if ((Event.EventType = etItemsValid) and Assigned(Database) and (Event.Sender = Database.Tables)) then
     FTableChange(Event.Sender)
   else if ((Event.EventType = etItemsValid) and (Event.Sender = Table.Session.Databases)) then
     FParentDatabaseChange(Event.Sender)

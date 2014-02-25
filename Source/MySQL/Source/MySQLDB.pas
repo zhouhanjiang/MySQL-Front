@@ -310,7 +310,7 @@ type
     procedure SyncConnecting(const LibraryThread: TLibraryThread); virtual;
     procedure SyncConnected(const LibraryThread: TLibraryThread); virtual;
     procedure SyncDisconnecting(const LibraryThread: TLibraryThread); virtual;
-    procedure SyncDisconncted(const LibraryThread: TLibraryThread); virtual;
+    procedure SyncDisconnected(const LibraryThread: TLibraryThread); virtual;
     procedure SyncExecutedSQL(const LibraryThread: TLibraryThread); virtual;
     procedure SyncExecutingSQL(const LibraryThread: TLibraryThread); virtual;
     procedure SyncHandleResult(const LibraryThread: TLibraryThread); virtual;
@@ -2009,7 +2009,7 @@ begin
       ssDisconnecting:
         begin
           Connection.SyncDisconnecting(Self);
-          Connection.SyncDisconncted(Self);
+          Connection.SyncDisconnected(Self);
         end;
     end
   else
@@ -2053,7 +2053,7 @@ begin
       ssCancel:
         Connection.SyncExecutedSQL(Self);
       ssDisconnecting:
-        Connection.SyncDisconncted(Self);
+        Connection.SyncDisconnected(Self);
     end;
 end;
 
@@ -2310,7 +2310,7 @@ begin
   FErrorCode := DS_ASYNCHRON; FErrorMessage := '';
 
   if (not Assigned(LibraryThread)) then
-    SyncDisconncted(nil)
+    SyncDisconnected(nil)
   else
     LibraryThread.RunAction(ssDisconnecting, not UseLibraryThread());
 end;
@@ -2325,7 +2325,7 @@ begin
     or (AErrorCode = CR_SERVER_GONE_ERROR)
     or (AErrorCode = CR_SERVER_HANDSHAKE_ERR)
     or (AErrorCode = CR_SERVER_LOST)) then
-    SyncDisconncted(nil);
+    SyncDisconnected(nil);
 
   FErrorCode := AErrorCode; FErrorMessage := AErrorMessage;
 
@@ -3040,7 +3040,7 @@ begin
   end
   else
   begin
-    SyncDisconncted(nil);
+    SyncDisconnected(nil);
     Result := True;
   end;
 end;
@@ -3245,7 +3245,7 @@ begin
   end;
 end;
 
-procedure TMySQLConnection.SyncDisconncted(const LibraryThread: TLibraryThread);
+procedure TMySQLConnection.SyncDisconnected(const LibraryThread: TLibraryThread);
 begin
   FThreadId := 0;
   FConnected := False;
@@ -4321,6 +4321,8 @@ begin
         LibraryThread.ErrorMessage := ''
       else
         LibraryThread.ErrorMessage := Connection.ErrorMsg(Connection.LibraryThread.LibHandle);
+      if (LibraryThread.ErrorCode = CR_SERVER_LOST) then
+        LibraryThread.State := ssError;
       Result := grError;
     end
     else
