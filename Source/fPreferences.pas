@@ -4639,37 +4639,17 @@ begin
   if (not Assigned(FXMLDocument) and FileExists(Filename)) then
   begin
     FXMLDocument := LoadXMLDocument(Filename);
-    if (not Assigned(FXMLDocument)) then
-      raise Exception.Create('Error Message 1');
-    if (not Assigned(FXMLDocument.DocumentElement)) then
-      raise Exception.Create('Error Message 1a');
+    FXMLDocument.Options := FXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
   end;
 
   if (not Assigned(FXMLDocument) or not Assigned(FXMLDocument.DocumentElement)) then
   begin
     FXMLDocument := NewXMLDocument();
-    if (not Assigned(FXMLDocument)) then
-      raise Exception.Create('Error Message 2');
-
+    FXMLDocument.Options := FXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
     FXMLDocument.Encoding := 'utf-8';
     FXMLDocument.Node.AddChild('accounts').Attributes['version'] := '1.1.0';
-
-    if (not Assigned(FXMLDocument)) then
-      raise Exception.Create('Error Message 3');
-    if (not Assigned(FXMLDocument.DocumentElement)) then
-      raise Exception.Create('Error Message 3a');
   end;
 
-  if (not Assigned(FXMLDocument)) then
-    raise Exception.Create('Error Message 4');
-  if (not Assigned(FXMLDocument.DocumentElement)) then
-    raise Exception.Create('Error Message 4a');
-  FXMLDocument.Options := FXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
-
-  if (not Assigned(FXMLDocument)) then
-    raise Exception.Create('Error Message 5');
-  if (not Assigned(FXMLDocument.DocumentElement)) then
-    raise Exception.Create('Error Message 5a');
   Result := FXMLDocument.DocumentElement;
 end;
 
@@ -4717,7 +4697,7 @@ begin
       Account[I].SaveToXML();
 
   if (Assigned(XML)) then
-    XMLNode(XML, 'default', True).Text := DefaultAccountName;
+    XMLNode(XML, 'default').Text := DefaultAccountName;
 
   XML.OwnerDocument.Options := XML.OwnerDocument.Options - [doNodeAutoCreate];
 
