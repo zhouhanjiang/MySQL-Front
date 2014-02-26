@@ -4641,6 +4641,8 @@ begin
     FXMLDocument := LoadXMLDocument(Filename);
     if (not Assigned(FXMLDocument)) then
       raise Exception.Create('Error Message 1');
+    if (not Assigned(FXMLDocument.DocumentElement)) then
+      raise Exception.Create('Error Message 1a');
   end;
 
   if (not Assigned(FXMLDocument) or not Assigned(FXMLDocument.DocumentElement)) then
@@ -4654,14 +4656,20 @@ begin
 
     if (not Assigned(FXMLDocument)) then
       raise Exception.Create('Error Message 3');
+    if (not Assigned(FXMLDocument.DocumentElement)) then
+      raise Exception.Create('Error Message 3a');
   end;
 
   if (not Assigned(FXMLDocument)) then
     raise Exception.Create('Error Message 4');
+  if (not Assigned(FXMLDocument.DocumentElement)) then
+    raise Exception.Create('Error Message 4a');
   FXMLDocument.Options := FXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
 
   if (not Assigned(FXMLDocument)) then
     raise Exception.Create('Error Message 5');
+  if (not Assigned(FXMLDocument.DocumentElement)) then
+    raise Exception.Create('Error Message 5a');
   Result := FXMLDocument.DocumentElement;
 end;
 
