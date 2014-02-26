@@ -4717,7 +4717,7 @@ begin
       Account[I].SaveToXML();
 
   if (Assigned(XML)) then
-    XMLNode(XML, 'default').Text := DefaultAccountName;
+    XMLNode(XML, 'default', True).Text := DefaultAccountName;
 
   XML.OwnerDocument.Options := XML.OwnerDocument.Options - [doNodeAutoCreate];
 
