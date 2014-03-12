@@ -3549,7 +3549,7 @@ begin
         until (ReturnCode <> SQL_SUCCESS_WITH_INFO);
         if (not SQL_SUCCEEDED(ReturnCode)) then
         begin
-raise Exception.CreateFmt('Marco Bug SQLDataType=%d, ReturnCode=%d, Size=%d, cbData=%d', [ColumnDesc[Index].SQLDataType, ReturnCode, Size, cbData]);
+//raise Exception.CreateFmt('Marco Bug SQLDataType=%d, ReturnCode=%d, Size=%d, cbData=%d', [ColumnDesc[Index].SQLDataType, ReturnCode, Size, cbData]);
           DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
           Values.Write('NULL', 4);
         end

@@ -26,6 +26,9 @@ type
     procedure FormShow(Sender: TObject);
     procedure FSessionClick(Sender: TObject);
     procedure FormHide(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
+    procedure FormCanResize(Sender: TObject; var NewWidth, NewHeight: Integer;
+      var Resize: Boolean);
   private
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
@@ -62,6 +65,8 @@ end;
 
 procedure TDVariable.CMChangePreferences(var Message: TMessage);
 begin
+  Preferences.SmallImages.GetIcon(iiVariable, Icon);
+
   PSQLWait.Caption := Preferences.LoadStr(882);
 
   GroupBox.Caption := Preferences.LoadStr(342);
@@ -102,6 +107,12 @@ begin
   end;
 end;
 
+procedure TDVariable.FormCanResize(Sender: TObject; var NewWidth,
+  NewHeight: Integer; var Resize: Boolean);
+begin
+  NewHeight := Height;
+end;
+
 procedure TDVariable.FormCloseQuery(Sender: TObject;
   var CanClose: Boolean);
 var
@@ -131,6 +142,14 @@ begin
 
     FBOk.Enabled := False;
   end;
+end;
+
+procedure TDVariable.FormCreate(Sender: TObject);
+begin
+  Constraints.MinWidth := Width;
+  Constraints.MinHeight := Height;
+
+  BorderStyle := bsSizeable;
 end;
 
 procedure TDVariable.FormHide(Sender: TObject);

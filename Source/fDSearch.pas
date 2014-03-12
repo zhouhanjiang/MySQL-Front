@@ -86,7 +86,6 @@ type
     procedure FRRegExprClick(Sender: TObject);
     procedure FRRegExprKeyPress(Sender: TObject; var Key: Char);
     procedure FSelectChange(Sender: TObject; Node: TTreeNode);
-    procedure FSelectDblClick(Sender: TObject);
     procedure FSelectExpanding(Sender: TObject; Node: TTreeNode;
       var AllowExpansion: Boolean);
     procedure FTablesDblClick(Sender: TObject);
@@ -358,7 +357,7 @@ procedure TDSearch.FormHide(Sender: TObject);
 var
   I: Integer;
 begin
-  FSelect.Selected := nil; // Make sure, not to call FSelectedChange with a selcted node
+  FSelect.Selected := nil; // Make sure, not to call FSelectedChange with a selected node
   FSelect.Items.BeginUpdate();
   FSelect.Items.Clear();
   FSelect.Items.EndUpdate();
@@ -386,6 +385,8 @@ begin
     Preferences.Replace.Left := Left;
     Preferences.Replace.Top := Top;
   end;
+
+  PageControl.ActivePage := nil; // Make sure, not ___OnShowPage will be executed
 end;
 
 procedure TDSearch.FormShow(Sender: TObject);
@@ -583,12 +584,6 @@ begin
     FSelect.MultiSelect := Assigned(Node.Parent);
 
   FBForward.Enabled := Assigned(FSelect.Selected);
-end;
-
-procedure TDSearch.FSelectDblClick(Sender: TObject);
-begin
-  if (FBForward.Enabled) then
-    FBForward.Click();
 end;
 
 procedure TDSearch.FSelectExpanding(Sender: TObject; Node: TTreeNode;
@@ -1080,7 +1075,8 @@ procedure TDSearch.TSSelectShow(Sender: TObject);
 begin
   FBBack.Enabled := False;
   FBForward.Caption := Preferences.LoadStr(229) + ' >';
-  FBForward.Enabled := True;
+
+  FSelectChange(Sender, FSelect.Selected);
 end;
 
 initialization

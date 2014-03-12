@@ -2,6 +2,7 @@ object DVariable: TDVariable
   Left = 433
   Top = 187
   HelpContext = 1060
+  BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'DVariable'
   ClientHeight = 153
@@ -14,7 +15,9 @@ object DVariable: TDVariable
   Font.Style = []
   OldCreateOrder = False
   Position = poOwnerFormCenter
+  OnCanResize = FormCanResize
   OnCloseQuery = FormCloseQuery
+  OnCreate = FormCreate
   OnHide = FormHide
   OnShow = FormShow
   DesignSize = (
@@ -39,6 +42,7 @@ object DVariable: TDVariable
     Top = 120
     Width = 75
     Height = 25
+    Anchors = [akTop, akRight]
     Caption = 'FBOk'
     Default = True
     ModalResult = 1
@@ -49,6 +53,7 @@ object DVariable: TDVariable
     Top = 120
     Width = 75
     Height = 25
+    Anchors = [akTop, akRight]
     Cancel = True
     Caption = 'FBCancel'
     ModalResult = 2
@@ -59,8 +64,12 @@ object DVariable: TDVariable
     Top = 8
     Width = 233
     Height = 89
+    Anchors = [akLeft, akTop, akRight]
     Caption = 'GroupBox'
     TabOrder = 1
+    DesignSize = (
+      233
+      89)
     object FLValue: TLabel
       Left = 8
       Top = 16
@@ -99,6 +108,7 @@ object DVariable: TDVariable
       Top = 32
       Width = 217
       Height = 21
+      Anchors = [akLeft, akTop, akRight]
       TabOrder = 0
       Text = 'FValue'
       OnChange = FBOkButtonEnable

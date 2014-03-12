@@ -1862,7 +1862,12 @@ end;
 function MYSQL.ExecuteCommand(const Command: enum_server_command;
   const Bin: my_char; const Size: my_int; const Retry: Boolean): my_int;
 begin
-  if ((fclient_status <> MYSQL_STATUS_READY) or (more_results() <> 0)) then
+  if (fclient_status <> MYSQL_STATUS_READY) then
+  begin
+    Seterror(CR_COMMANDS_OUT_OF_SYNC);
+    Result := -1;
+  end
+  else if (more_results() <> 0) then
   begin
     Seterror(CR_COMMANDS_OUT_OF_SYNC);
     Result := -1;
@@ -1967,6 +1972,8 @@ begin
 end;
 
 function MYSQL.more_results(): my_bool;
+//  0  No more results
+//  1  More results
 begin
   if ((fclient_capabilities and CLIENT_MULTI_RESULTS = 0) or (fserver_status and SERVER_MORE_RESULTS_EXISTS = 0)) then
     Result := 0
@@ -2669,7 +2676,7 @@ begin
 
   {$IFDEF EurekaLog}
     if (AErrNo = CR_COMMANDS_OUT_OF_SYNC) then
-      raise Exception.CreateFmt('%s  (Id: %d, ClientStatus: %d)', [DecodeString(error()), fthread_id, Byte(fclient_status)]);
+      raise Exception.CreateFmt('%s  (Id: %d, ClientStatus: %d, ServerStatus: %d)', [DecodeString(error()), fthread_id, Byte(fclient_status), fserver_status]);
   {$ENDIF}
 end;
 

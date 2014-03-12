@@ -351,7 +351,7 @@ begin
     Handle := InternetOpen(PChar(Agent), INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);
 
     if (not Assigned(Handle)) then
-      Seterror(CR_SOCKET_CREATE_ERROR)
+      RaiseLastOSError()
     else
     begin
       InternetSetStatusCallback(Handle, @InternetStatusCallback);
