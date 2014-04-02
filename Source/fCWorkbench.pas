@@ -360,13 +360,12 @@ type
     procedure UpdateControl(const Control: TWControl); virtual;
   public
     procedure AddExistingTable(const X, Y: Integer; const ABaseTable: TSBaseTable); virtual;
-    constructor Create(AOwner: TComponent); overload; override;
-    constructor Create(const AOwner: TComponent; const ADatabase: TSDatabase); reintroduce; overload; virtual;
-    destructor Destroy(); override;
     procedure BeginUpdate(); virtual;
     procedure CalcRange(const Reset: Boolean); virtual;
     procedure Clear(); virtual;
-    procedure ClientUpdate(const Event: TSSession.TEvent);
+    constructor Create(AOwner: TComponent); overload; override;
+    constructor Create(const AOwner: TComponent; const ADatabase: TSDatabase); reintroduce; overload; virtual;
+    destructor Destroy(); override;
     procedure EndUpdate(); virtual;
     function ExecuteAction(Action: TBasicAction): Boolean; override;
     function ForeignKeyByBaseForeignKey(const BaseForeignKey: TSForeignKey): TWForeignKey; virtual;
@@ -380,6 +379,7 @@ type
     procedure Print(const Title: string); virtual;
     procedure SaveToBMP(const FileName: string); virtual;
     procedure SaveToFile(const AFilename: string); virtual;
+    procedure SessionEvent(const Event: TSSession.TEvent);
     function TableAt(const Position: TCoord): TWTable;
     function TableByBaseTable(const ATable: TSBaseTable): TWTable; virtual;
     function TableByCaption(const Caption: string): TWTable; virtual;
@@ -3311,145 +3311,6 @@ begin
   EndUpdate();
 end;
 
-procedure TWWorkbench.ClientUpdate(const Event: TSSession.TEvent);
-var
-  BaseTable: TSBaseTable;
-  ChildTable: TWTable;
-  I: Integer;
-  J: Integer;
-  Link: TWLink;
-  OldModified: Boolean;
-  ParentTable: TWTable;
-  S: string;
-  Table: TWTable;
-begin
-  if ((Event.EventType = etItemsValid) and (Event.Sender = Database) and (Event.SItems is TSTables)) then
-  begin
-    for I := Tables.Count - 1 downto 0 do
-      if (Database.Tables.IndexOf(Tables[I].BaseTable) < 0) then
-        Tables.Delete(I);
-  end
-  else if ((Event.EventType = etItemValid) and (Event.Sender = Database) and (Event.SItem is TSBaseTable)) then
-  begin
-    BaseTable := TSBaseTable(Event.SItem);
-
-    for I := Links.Count - 1 downto 0 do
-      if ((Links[I] is TWForeignKey)
-        and Assigned(Links[I].ChildTable) and (Links[I].ChildTable.BaseTable = BaseTable)
-        and (Links[I].ChildTable.BaseTable.ForeignKeys.IndexOf(TWForeignKey(Links[I]).BaseForeignKey) < 0)) then
-          Links.Delete(I);
-
-    if (Assigned(CreatedTable)) then
-    begin
-      CreatedTable.FBaseTable := TSBaseTable(Event.SItem);
-      Tables.Add(CreatedTable);
-      Selected := CreatedTable;
-
-      CreatedTable := nil;
-      OldModified := True;
-    end
-    else if (Assigned(CreatedLink) and (CreatedLink is TWForeignKey)) then
-    begin
-      for J := 0 to BaseTable.ForeignKeys.Count - 1 do
-        if (not Assigned(LinkByCaption(BaseTable.ForeignKeys[J].Name))) then
-          TWForeignKey(CreatedLink).BaseForeignKey := BaseTable.ForeignKeys[J];
-      if (not Assigned(TWForeignKey(CreatedLink).BaseForeignKey)) then
-        FreeAndNil(CreatedLink)
-      else
-      begin
-        Links.Add(CreatedLink);
-        Selected := CreatedLink;
-
-        CreatedLink := nil;
-        OldModified := True;
-      end;
-    end
-    else if (Assigned(TableByBaseTable(BaseTable))) then
-    begin
-      Table := TableByBaseTable(BaseTable);
-      if (Assigned(Table)) then
-      begin
-        Table.Invalidate();
-        if (not Assigned(Selected) and Table.Selected) then
-          Selected := Table;
-      end;
-    end
-    else if (Assigned(XML)) then
-    begin
-      OldModified := FModified;
-
-      for I := 0 to XML.ChildNodes.Count - 1 do
-        if ((XML.ChildNodes.Nodes[I].NodeName = 'table') and (Database.Tables.NameCmp(XML.ChildNodes.Nodes[I].Attributes['name'], BaseTable.Name) = 0)) then
-        begin
-          Table := TWTable.Create(Tables, Coord(-1, -1), BaseTable);
-          Table.LoadFromXML(XML.ChildNodes.Nodes[I]);
-          Tables.Add(Table);
-
-          for J := 0 to XML.ChildNodes.Count - 1 do
-            if ((XML.ChildNodes.Nodes[J].NodeName = 'foreignkey')
-              and Assigned(XMLNode(XML.ChildNodes.Nodes[J], 'tables/child')) and (XMLNode(XML.ChildNodes.Nodes[J], 'tables/child').Attributes['name'] <> Null)
-              and Assigned(XMLNode(XML.ChildNodes.Nodes[J], 'tables/parent')) and (XMLNode(XML.ChildNodes.Nodes[J], 'tables/parent').Attributes['name'] <> Null)) then
-            begin
-              ChildTable := TableByCaption(XMLNode(XML.ChildNodes.Nodes[J], 'tables/child').Attributes['name']);
-              ParentTable := TableByCaption(XMLNode(XML.ChildNodes.Nodes[J], 'tables/parent').Attributes['name']);
-              if (((Table = ChildTable) or (Table = ParentTable))
-                and Assigned(ChildTable) and Assigned(ChildTable.BaseTable)
-                and Assigned(ParentTable) and Assigned(ParentTable.BaseTable)) then
-              begin
-                if (XML.ChildNodes.Nodes[J].Attributes['name'] = Null) then
-                  Link := TWLink.Create(Self, Coord(-1, -1))
-                else if (not Assigned(LinkByCaption(XML.ChildNodes.Nodes[J].Attributes['name']))
-                  and Assigned(ChildTable.BaseTable.ForeignKeyByName(XML.ChildNodes.Nodes[J].Attributes['name']))) then
-                begin
-                  S := XML.ChildNodes.Nodes[J].Attributes['name'];
-                  Link := TWForeignKey.Create(Self, Coord(-1, -1));
-                  TWForeignKey(Link).BaseForeignKey := ChildTable.BaseTable.ForeignKeyByName(XML.ChildNodes.Nodes[J].Attributes['name']);
-                end
-                else
-                  Link := nil;
-                if (Assigned(Link)) then
-                begin
-                  Link.LoadFromXML(XML.ChildNodes.Nodes[J]);
-                  Links.Add(Link);
-                end;
-              end;
-            end;
-        end;
-
-      FModified := OldModified;
-    end;
-
-    for J := 0 to BaseTable.ForeignKeys.Count - 1 do
-      if (not Assigned(LinkByCaption(BaseTable.ForeignKeys[J].Name))
-        and Assigned(TableByCaption(BaseTable.ForeignKeys[J].Parent.TableName))) then
-        begin
-          Link := TWForeignKey.Create(Self, Coord(-1, -1));
-          TWForeignKey(Link).BaseForeignKey := BaseTable.ForeignKeys[J];
-          Link.ChildTable := TableByBaseTable(BaseTable);
-          Link.ParentTable := TableByCaption(BaseTable.ForeignKeys[J].Parent.TableName);
-          Links.Add(Link);
-        end;
-
-    for I := 0 to Tables.Count - 1 do
-      for J := 0 to Tables[I].BaseTable.ForeignKeys.Count - 1 do
-        if ((Database.Tables.NameCmp(Tables[I].BaseTable.ForeignKeys[J].Parent.TableName, BaseTable.Name) = 0)
-          and not Assigned(LinkByCaption(Tables[I].BaseTable.ForeignKeys[J].Name))) then
-        begin
-          Link := TWForeignKey.Create(Self, Coord(-1, -1));
-          TWForeignKey(Link).BaseForeignKey := Tables[I].BaseTable.ForeignKeys[J];
-          Link.ChildTable := Tables[I];
-          Link.ParentTable := TableByBaseTable(BaseTable);
-          Links.Add(Link);
-        end;
-  end
-  else if ((Event.EventType = etItemDropped) and (Event.Sender = Database) and (Event.SItem is TSBaseTable)) then
-  begin
-    for I := Tables.Count - 1 downto 0 do
-      if (Tables[I].BaseTable = Event.SItem) then
-        Tables.Delete(I);
-  end;
-end;
-
 procedure TWWorkbench.CMEndLasso(var Message: TMessage);
 begin
   FreeAndNil(Lasso);
@@ -3490,6 +3351,8 @@ begin
   Create(AOwner);
 
   FDatabase := ADatabase;
+
+  Database.Session.RegisterEventProc(SessionEvent);
 end;
 
 procedure TWWorkbench.CreateNewForeignKey(const X, Y: Integer);
@@ -3548,6 +3411,8 @@ end;
 
 destructor TWWorkbench.Destroy();
 begin
+  Database.Session.UnRegisterEventProc(SessionEvent);
+
   Clear();
 
   Links.Free();
@@ -3670,6 +3535,7 @@ begin
 
   Clear();
 
+  Database.Session.UnRegisterEventProc(SessionEvent);
   Database.Session.BeginSynchron();
 
   Sections.LoadFromXML(XML);
@@ -3681,18 +3547,20 @@ begin
     begin
       BaseTable := Database.BaseTableByName(XML.ChildNodes.Nodes[I].Attributes['name']);
       if (Assigned(BaseTable)) then
-        if (BaseTable.Valid) then
-          BaseTable.PushBuildEvent()
-        else
-          List.Add(BaseTable);
+        List.Add(BaseTable);
     end;
-  if (Database.Session.Update(List)) then
-    for I := 0 to List.Count - 1 do
-      if (TObject(List[I]) is TSBaseTable) then
-        TSBaseTable(List[I]).PushBuildEvent();
+  Database.Session.Update(List);
   List.Free();
 
   Database.Session.EndSynchron();
+  Database.Session.RegisterEventProc(SessionEvent);
+
+  for I := 0 to XML.ChildNodes.Count - 1 do
+    if (XML.ChildNodes.Nodes[I].NodeName = 'table') then
+    begin
+      BaseTable := Database.BaseTableByName(XML.ChildNodes.Nodes[I].Attributes['name']);
+      BaseTable.PushBuildEvent();
+    end;
 
   FModified := False;
 end;
@@ -3842,6 +3710,145 @@ begin
     XMLDocument.SaveToFile(FileName);
 
   FModified := False;
+end;
+
+procedure TWWorkbench.SessionEvent(const Event: TSSession.TEvent);
+var
+  BaseTable: TSBaseTable;
+  ChildTable: TWTable;
+  I: Integer;
+  J: Integer;
+  Link: TWLink;
+  OldModified: Boolean;
+  ParentTable: TWTable;
+  S: string;
+  Table: TWTable;
+begin
+  if ((Event.EventType = etItemsValid) and (Event.Sender = Database) and (Event.SItems is TSTables)) then
+  begin
+    for I := Tables.Count - 1 downto 0 do
+      if (Database.Tables.IndexOf(Tables[I].BaseTable) < 0) then
+        Tables.Delete(I);
+  end
+  else if ((Event.EventType = etItemValid) and (Event.Sender = Database) and (Event.SItem is TSBaseTable)) then
+  begin
+    BaseTable := TSBaseTable(Event.SItem);
+
+    for I := Links.Count - 1 downto 0 do
+      if ((Links[I] is TWForeignKey)
+        and Assigned(Links[I].ChildTable) and (Links[I].ChildTable.BaseTable = BaseTable)
+        and (Links[I].ChildTable.BaseTable.ForeignKeys.IndexOf(TWForeignKey(Links[I]).BaseForeignKey) < 0)) then
+          Links.Delete(I);
+
+    if (Assigned(CreatedTable)) then
+    begin
+      CreatedTable.FBaseTable := TSBaseTable(Event.SItem);
+      Tables.Add(CreatedTable);
+      Selected := CreatedTable;
+
+      CreatedTable := nil;
+      OldModified := True;
+    end
+    else if (Assigned(CreatedLink) and (CreatedLink is TWForeignKey)) then
+    begin
+      for J := 0 to BaseTable.ForeignKeys.Count - 1 do
+        if (not Assigned(LinkByCaption(BaseTable.ForeignKeys[J].Name))) then
+          TWForeignKey(CreatedLink).BaseForeignKey := BaseTable.ForeignKeys[J];
+      if (not Assigned(TWForeignKey(CreatedLink).BaseForeignKey)) then
+        FreeAndNil(CreatedLink)
+      else
+      begin
+        Links.Add(CreatedLink);
+        Selected := CreatedLink;
+
+        CreatedLink := nil;
+        OldModified := True;
+      end;
+    end
+    else if (Assigned(TableByBaseTable(BaseTable))) then
+    begin
+      Table := TableByBaseTable(BaseTable);
+      if (Assigned(Table)) then
+      begin
+        Table.Invalidate();
+        if (not Assigned(Selected) and Table.Selected) then
+          Selected := Table;
+      end;
+    end
+    else if (Assigned(XML)) then
+    begin
+      OldModified := FModified;
+
+      for I := 0 to XML.ChildNodes.Count - 1 do
+        if ((XML.ChildNodes.Nodes[I].NodeName = 'table') and (Database.Tables.NameCmp(XML.ChildNodes.Nodes[I].Attributes['name'], BaseTable.Name) = 0)) then
+        begin
+          Table := TWTable.Create(Tables, Coord(-1, -1), BaseTable);
+          Table.LoadFromXML(XML.ChildNodes.Nodes[I]);
+          Tables.Add(Table);
+
+          for J := 0 to XML.ChildNodes.Count - 1 do
+            if ((XML.ChildNodes.Nodes[J].NodeName = 'foreignkey')
+              and Assigned(XMLNode(XML.ChildNodes.Nodes[J], 'tables/child')) and (XMLNode(XML.ChildNodes.Nodes[J], 'tables/child').Attributes['name'] <> Null)
+              and Assigned(XMLNode(XML.ChildNodes.Nodes[J], 'tables/parent')) and (XMLNode(XML.ChildNodes.Nodes[J], 'tables/parent').Attributes['name'] <> Null)) then
+            begin
+              ChildTable := TableByCaption(XMLNode(XML.ChildNodes.Nodes[J], 'tables/child').Attributes['name']);
+              ParentTable := TableByCaption(XMLNode(XML.ChildNodes.Nodes[J], 'tables/parent').Attributes['name']);
+              if (((Table = ChildTable) or (Table = ParentTable))
+                and Assigned(ChildTable) and Assigned(ChildTable.BaseTable)
+                and Assigned(ParentTable) and Assigned(ParentTable.BaseTable)) then
+              begin
+                if (XML.ChildNodes.Nodes[J].Attributes['name'] = Null) then
+                  Link := TWLink.Create(Self, Coord(-1, -1))
+                else if (not Assigned(LinkByCaption(XML.ChildNodes.Nodes[J].Attributes['name']))
+                  and Assigned(ChildTable.BaseTable.ForeignKeyByName(XML.ChildNodes.Nodes[J].Attributes['name']))) then
+                begin
+                  S := XML.ChildNodes.Nodes[J].Attributes['name'];
+                  Link := TWForeignKey.Create(Self, Coord(-1, -1));
+                  TWForeignKey(Link).BaseForeignKey := ChildTable.BaseTable.ForeignKeyByName(XML.ChildNodes.Nodes[J].Attributes['name']);
+                end
+                else
+                  Link := nil;
+                if (Assigned(Link)) then
+                begin
+                  Link.LoadFromXML(XML.ChildNodes.Nodes[J]);
+                  Links.Add(Link);
+                end;
+              end;
+            end;
+        end;
+
+      FModified := OldModified;
+    end;
+
+    for J := 0 to BaseTable.ForeignKeys.Count - 1 do
+      if (not Assigned(LinkByCaption(BaseTable.ForeignKeys[J].Name))
+        and Assigned(TableByCaption(BaseTable.ForeignKeys[J].Parent.TableName))) then
+        begin
+          Link := TWForeignKey.Create(Self, Coord(-1, -1));
+          TWForeignKey(Link).BaseForeignKey := BaseTable.ForeignKeys[J];
+          Link.ChildTable := TableByBaseTable(BaseTable);
+          Link.ParentTable := TableByCaption(BaseTable.ForeignKeys[J].Parent.TableName);
+          Links.Add(Link);
+        end;
+
+    for I := 0 to Tables.Count - 1 do
+      for J := 0 to Tables[I].BaseTable.ForeignKeys.Count - 1 do
+        if ((Database.Tables.NameCmp(Tables[I].BaseTable.ForeignKeys[J].Parent.TableName, BaseTable.Name) = 0)
+          and not Assigned(LinkByCaption(Tables[I].BaseTable.ForeignKeys[J].Name))) then
+        begin
+          Link := TWForeignKey.Create(Self, Coord(-1, -1));
+          TWForeignKey(Link).BaseForeignKey := Tables[I].BaseTable.ForeignKeys[J];
+          Link.ChildTable := Tables[I];
+          Link.ParentTable := TableByBaseTable(BaseTable);
+          Links.Add(Link);
+        end;
+  end
+  else if ((Event.EventType = etItemDropped) and (Event.Sender = Database) and (Event.SItem is TSBaseTable)) then
+  begin
+    for I := Tables.Count - 1 downto 0 do
+      if (Tables[I].BaseTable = Event.SItem) then
+        Tables.Delete(I);
+  end;
 end;
 
 procedure TWWorkbench.SetMultiSelect(AMultiSelect: Boolean);

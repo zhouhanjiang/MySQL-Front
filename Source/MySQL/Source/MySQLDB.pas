@@ -2047,7 +2047,7 @@ begin
           if (Mode in [smSQL, smDataSet]) then
             if (State in [ssNextResult, ssExecutingSQL]) then
               RunExecute.SetEvent()
-            else if (State in [ssReady, ssError]) then
+            else if (State in [ssReady]) then
               Connection.SyncExecutedSQL(Self);
         end;
       ssCancel:

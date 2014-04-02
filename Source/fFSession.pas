@@ -4399,15 +4399,11 @@ begin
           for I := 0 to TSTriggers(SessionEvent.SItems).Count - 1 do
             if (Assigned(TSTriggers(SessionEvent.SItems)[I].Table)) then
               ListViewUpdate(SessionEvent, Desktop(TSTriggers(SessionEvent.SItems)[I].Table).ListView);
-        if (Assigned(Desktop(TSDatabase(SessionEvent.Sender)).Workbench)) then
-          Desktop(TSDatabase(SessionEvent.Sender)).Workbench.ClientUpdate(SessionEvent);
       end
       else if (SessionEvent.Sender is TSTable) then
       begin
         ListViewUpdate(SessionEvent, Desktop(TSTable(SessionEvent.Sender).Database).ListView);
         ListViewUpdate(SessionEvent, Desktop(TSTable(SessionEvent.Sender)).ListView);
-        if ((SessionEvent.Sender is TSBaseTable) and Assigned(Desktop(TSBaseTable(SessionEvent.Sender).Database).Workbench)) then
-          Desktop(TSBaseTable(SessionEvent.Sender).Database).Workbench.ClientUpdate(SessionEvent);
       end;
     end;
 
@@ -12477,6 +12473,7 @@ begin
     if (PResult.Align = alBottom) then
       PResultHeight := PResult.Height;
 
+    EditorField := nil;
     OldActiveControl := Window.ActiveControl;
     DisableAligns(PContent);
 
