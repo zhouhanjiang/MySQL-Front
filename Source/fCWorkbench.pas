@@ -3559,7 +3559,8 @@ begin
     if (XML.ChildNodes.Nodes[I].NodeName = 'table') then
     begin
       BaseTable := Database.BaseTableByName(XML.ChildNodes.Nodes[I].Attributes['name']);
-      BaseTable.PushBuildEvent();
+      if (Assigned(BaseTable)) then
+        BaseTable.PushBuildEvent();
     end;
 
   FModified := False;
