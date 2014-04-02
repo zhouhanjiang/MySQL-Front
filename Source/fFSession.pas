@@ -12473,7 +12473,7 @@ begin
     if (PResult.Align = alBottom) then
       PResultHeight := PResult.Height;
 
-    EditorField := nil;
+//    EditorField := nil;
     OldActiveControl := Window.ActiveControl;
     DisableAligns(PContent);
 
