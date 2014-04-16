@@ -4627,9 +4627,10 @@ begin
   if (not Assigned(FXMLDocument)) then
   begin
     if (FileExists(Filename)) then
+    begin
       FXMLDocument := LoadXMLDocument(Filename);
-
-    if (not Assigned(FXMLDocument) or not Assigned(FXMLDocument.DocumentElement)) then
+    end
+    else
     begin
       FXMLDocument := NewXMLDocument();
       FXMLDocument.Encoding := 'utf-8';
