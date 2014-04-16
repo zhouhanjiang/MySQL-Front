@@ -1439,7 +1439,6 @@ type
     procedure GridCanEditShow(Sender: TObject);
     function CharsetByName(const CharsetName: string): TSCharset;
     function CharsetByCollation(const Collation: string): TSCharset;
-    function CloneUser(const User: TSUser; const NewUserName: string): Boolean;
     function CollationByName(const CollationName: string): TSCollation;
     procedure CommitTransaction(); override;
     procedure FirstConnect(); overload;
@@ -10192,26 +10191,6 @@ begin
     for I := 0 to Collations.Count - 1 do
       if (Collations[I].Name = Collation) then
         Result := Collations[I].Charset;
-end;
-
-function TSSession.CloneUser(const User: TSUser; const NewUserName: string): Boolean;
-var
-  Index: Integer;
-  SQL: string;
-begin
-  SQL := User.Source;
-
-  while (Pos(SQLEscape(User.Name), SQL) > 0) do
-  begin
-    Index := Pos(SQLEscape(User.Name), SQL);
-    Delete(SQL, Index, Length(SQLEscape(User.Name)));
-    Insert(SQLEscape(NewUserName), SQL, Index);
-  end;
-
-  Result := ExecuteSQL(SQL);
-
-  if (Result) then
-    ExecuteSQL('FLUSH PRIVILEGES;');
 end;
 
 function TSSession.CollationByName(const CollationName: string): TSCollation;

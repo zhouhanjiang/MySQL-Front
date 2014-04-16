@@ -7118,6 +7118,8 @@ procedure TTExportCanvas.ExecuteTableRecord(const Table: TSTable; const Fields: 
       Result := '<NULL>'
     else if (GeometryField(Field)) then
       Result := '<GEO>'
+    else if ((Field.DataType = ftWideMemo) and not Preferences.GridMemoContent) then
+      Result := '<MEMO>'
     else if (Field.DataType = ftString) then
       Result := '<BINARY>'
     else if (Field.DataType = ftBlob) then

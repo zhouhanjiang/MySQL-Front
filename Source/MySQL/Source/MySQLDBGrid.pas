@@ -484,11 +484,11 @@ end;
 
 destructor TMySQLDBGrid.Destroy();
 begin
-//  if (Assigned(FHintWindow)) then
-//    FHintWindow.Free();
+  if (Assigned(FHintWindow)) then
+    FreeAndNil(FHintWindow);
 
   if (Assigned(TitleBoldFont)) then
-    TitleBoldFont.Free();
+    FreeAndNil(TitleBoldFont);
 
   inherited;
 end;

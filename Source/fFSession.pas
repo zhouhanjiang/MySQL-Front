@@ -1450,8 +1450,7 @@ begin
   if (not Assigned(ListView)) then
   begin
     ListView := FSession.CreateListView(Database);
-    if (Database.Valid) then
-      Database.PushBuildEvents();
+    Database.PushBuildEvents();
   end;
 
   Result := ListView;
@@ -6688,9 +6687,13 @@ begin
   Window.ActiveControl := nil;
   OnResize := nil;
 
-  FNavigator.Items.BeginUpdate();
-  FNavigator.Items.Clear();
-  FNavigator.Items.EndUpdate();
+  try
+    FNavigator.Items.BeginUpdate();
+    FNavigator.Items.Clear();
+    FNavigator.Items.EndUpdate();
+  except
+    // Here an exception occured sometimes - but it's not interested to get informed
+  end;
 
   try
     if (Assigned(ShellLink)) then ShellLink.Free();
@@ -8050,7 +8053,7 @@ begin
   MainAction('aFExportHTML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
   MainAction('aFExportPDF').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
   MainAction('aFPrint').Enabled := Assigned(Node) and ((View = vDiagram) or (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]));
-  MainAction('aECopy').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiField, iiSystemViewField, iiViewField, iiUser]);
+  MainAction('aECopy').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiField, iiSystemViewField, iiViewField]);
   MainAction('aEPaste').Enabled := Assigned(Node) and ((Node.ImageIndex = iiServer) and Clipboard.HasFormat(CF_MYSQLSERVER) or (Node.ImageIndex = iiDatabase) and Clipboard.HasFormat(CF_MYSQLDATABASE) or (Node.ImageIndex = iiBaseTable) and Clipboard.HasFormat(CF_MYSQLTABLE) or (Node.ImageIndex = iiUsers) and Clipboard.HasFormat(CF_MYSQLUSERS));
   MainAction('aERename').Enabled := Assigned(Node) and ((Node.ImageIndex = iiForeignKey) and (Session.ServerVersion >= 40013) or (Node.ImageIndex in [iiBaseTable, iiView, iiEvent, iiTrigger, iiField]));
   MainAction('aDCreateDatabase').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer]) and (not Assigned(Session.UserRights) or Session.UserRights.RCreate);
@@ -10128,7 +10131,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         Item.SubItems.Add(FormatFloat('#,##0', TSBaseTable(Data).Rows, LocaleFormatSettings))
       else
         Item.SubItems.Add('');
-      if ((TSTable(Data) is TSBaseTable) and not TSBaseTable(Data).ValidStatus) then
+      if ((TSTable(Data) is TSBaseTable) and not TSBaseTable(Data).ValidStatus or (TSTable(Data) is TSView)) then
         Item.SubItems.Add('')
       else if (TSTable(Data) is TSBaseTable) then
         if ((TSBaseTable(Data).DataSize + TSBaseTable(Data).IndexSize < 0)) then
@@ -10998,7 +11001,6 @@ begin
           end;
         iiUsers:
           begin
-            MainAction('aECopy').Enabled := (ListView.SelCount >= 1);
             MainAction('aEPaste').Enabled := not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLUSERS);
             MainAction('aDCreateUser').Enabled := (ListView.SelCount = 0);
             MainAction('aDDeleteUser').Enabled := (ListView.SelCount >= 1);
@@ -12410,21 +12412,6 @@ begin
               NewTable.Free();
             end;
           end;
-        iiUsers:
-          for I := 1 to StringList.Count - 1 do
-            if (Success and (StringList.Names[I] = 'User')) then
-            begin
-              SourceUser := SourceSession.UserByName(StringList.ValueFromIndex[I]);
-
-              if (not Assigned(SourceUser)) then
-                MessageBeep(MB_ICONERROR)
-              else
-              begin
-                Name := CopyName(SourceUser.Name, Session.Users);
-
-                Success := Session.CloneUser(SourceUser, Name);
-              end;
-            end;
       end;
     end;
 

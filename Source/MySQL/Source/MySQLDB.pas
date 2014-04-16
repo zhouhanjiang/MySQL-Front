@@ -7025,9 +7025,13 @@ initialization
   LocaleFormatSettings := TFormatSettings.Create(LOCALE_USER_DEFAULT);
   SetLength(MySQLLibraries, 0);
 finalization
+try
   SynchronizingThreadsCS.Free();
   SynchronizingThreads.Free();
 
   FreeMySQLLibraries();
+except
+  raise Exception.Create('Error Message');
+end;
 end.
 

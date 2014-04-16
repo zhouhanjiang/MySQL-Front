@@ -754,7 +754,6 @@ type
     function GetDesktopXML(): IXMLNode;
     function GetHistoryFilename(): TFileName;
     function GetHistoryXML(): IXMLNode;
-    function GetIconFilename(): TFileName;
     function GetJobs(): TAJobs;
     function GetName(): string;
     function GetXML(): IXMLNode;
@@ -793,7 +792,6 @@ type
     property DesktopCount: Integer read GetDesktopCount;
     property DesktopXML: IXMLNode read GetDesktopXML;
     property HistoryXML: IXMLNode read GetHistoryXML;
-    property IconFilename: TFileName read GetIconFilename;
     property Index: Integer read GetIndex;
     property Jobs: TAJobs read GetJobs;
     property LastLogin: TDateTime read FLastLogin write SetLastLogin;
@@ -3695,7 +3693,7 @@ var
   AppFolder: ITaskFolder;
   RootFolder: ITaskFolder;
 begin
-  if (not Assigned(TaskService)) then
+  if (not Assigned(TaskService) or not Assigned(Account)) then
     Result := nil
   else if (Failed(TaskService.GetFolder(TBStr('\' + SysUtils.LoadStr(1006) + '\Accounts\' + Account.Name), Result))) then
     if (not AutoCreate
@@ -4330,14 +4328,6 @@ begin
   Result := FHistoryXMLDocument.DocumentElement;
 end;
 
-function TAAccount.GetIconFilename(): TFileName;
-begin
-  if (not ForceDirectories(DataPath)) then
-    Result := ''
-  else
-    Result := DataPath + 'favicon.ico';
-end;
-
 function TAAccount.GetIndex(): Integer;
 begin
   Result := Accounts.IndexOf(Self);
@@ -4576,8 +4566,6 @@ begin
     DeleteFile(PChar(AAccount.DesktopFilename));
   if (FileExists(AAccount.HistoryFilename)) then
     DeleteFile(PChar(AAccount.HistoryFilename));
-  if (FileExists(AAccount.IconFilename)) then
-    DeleteFile(PChar(AAccount.IconFilename));
   if (DirectoryExists(AAccount.DataPath)) then
     RemoveDirectory(PChar(AAccount.DataPath));
 
