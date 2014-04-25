@@ -6690,21 +6690,26 @@ begin
       if (SQL <> '') then SQL := SQL + ',';
       SQL := SQL + Session.EscapeIdentifier(Name) + '.' + Session.EscapeIdentifier(TSBaseTable(Tables[I]).Name);
     end;
-  SQL := 'CHECK TABLE ' + SQL + ';' + #13#10;
 
-  if (Session.DatabaseName <> Name) then
-    SQL := SQLUse() + SQL;
+  Result := SQL <> '';
+  if (Result) then
+  begin
+    SQL := 'CHECK TABLE ' + SQL + ';' + #13#10;
 
-  RepairTableList := TList.Create();
-  Result := Session.ExecuteSQL(SQL, CheckTableEvent);
-  if (Result and (RepairTableList.Count > 0)) then
-    Result := RepairTables(RepairTableList);
-  RepairTableList.Free();
+    if (Session.DatabaseName <> Name) then
+      SQL := SQLUse() + SQL;
+
+    RepairTableList := TList.Create();
+    Result := Session.ExecuteSQL(SQL, CheckTableEvent);
+    if (Result and (RepairTableList.Count > 0)) then
+      Result := RepairTables(RepairTableList);
+    RepairTableList.Free();
 
 
-  SQL := SQL + Self.Tables.SQLGetStatus(Tables);
+    SQL := SQL + Self.Tables.SQLGetStatus(Tables);
 
-  Session.SendSQL(SQL, Session.SessionResult);
+    Session.SendSQL(SQL, Session.SessionResult);
+  end;
 end;
 
 function TSDatabase.CheckTableEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
@@ -7165,14 +7170,19 @@ begin
       if (SQL <> '') then SQL := SQL + ',';
       SQL := SQL + Session.EscapeIdentifier(Name) + '.' + Session.EscapeIdentifier(TSBaseTable(Tables[I]).Name);
     end;
-  SQL := 'OPTIMIZE TABLE ' + SQL + ';' + #13#10;
 
-  SQL := SQL + Self.Tables.SQLGetStatus(Tables);
+  Result := SQL <> '';
+  if (Result) then
+  begin
+    SQL := 'OPTIMIZE TABLE ' + SQL + ';' + #13#10;
 
-  if (Session.DatabaseName <> Name) then
-    SQL := SQLUse() + SQL;
+    SQL := SQL + Self.Tables.SQLGetStatus(Tables);
 
-  Result := Session.SendSQL(SQL, Session.SessionResult);
+    if (Session.DatabaseName <> Name) then
+      SQL := SQLUse() + SQL;
+
+    Result := Session.SendSQL(SQL, Session.SessionResult);
+  end;
 end;
 
 procedure TSDatabase.ParseCreateDatabase(const SQL: string);

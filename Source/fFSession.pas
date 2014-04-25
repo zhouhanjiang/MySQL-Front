@@ -6687,12 +6687,11 @@ begin
   Window.ActiveControl := nil;
   OnResize := nil;
 
-  try
+  if (FNavigator is TTreeView) then // sometimes an Access violation occurs. Why?
+  begin
     FNavigator.Items.BeginUpdate();
     FNavigator.Items.Clear();
     FNavigator.Items.EndUpdate();
-  except
-    // Here an exception occured sometimes - but it's not interested to get informed
   end;
 
   try
