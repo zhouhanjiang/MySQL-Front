@@ -490,16 +490,15 @@ begin
   if (Assigned(TitleBoldFont)) then
     FreeAndNil(TitleBoldFont);
 
+  if (FHeader > 0) then
+  begin
+    CloseWindow(FHeader);
+    FHeader := 0;
+  end;
+
   try
     inherited;
   except
-    on E: EOSError do
-      if (E.ErrorCode = ERROR_ACCESS_DENIED) then
-        // Sometimes there is a ERROR_ACCESS_DENIED - but it's uninteressed to know...
-      else
-        raise E;
-    on E: Exception do
-      raise E;
   end;
 end;
 

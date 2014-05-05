@@ -434,11 +434,25 @@ end;
 
 procedure TDUserRight.FormHide(Sender: TObject);
 begin
+  FDatabases.Items.BeginUpdate();
   FDatabases.Items.Clear();
+  FDatabases.Items.EndUpdate();
+
+  FTables.Items.BeginUpdate();
   FTables.Items.Clear();
+  FTables.Items.EndUpdate();
+
+  FFields.Items.BeginUpdate();
   FFields.Items.Clear();
+  FFields.Items.EndUpdate();
+
+  FProcedures.Items.BeginUpdate();
   FProcedures.Items.Clear();
+  FProcedures.Items.EndUpdate();
+
+  FFunctions.Items.BeginUpdate();
   FFunctions.Items.Clear();
+  FFunctions.Items.EndUpdate();
 end;
 
 procedure TDUserRight.FormShow(Sender: TObject);
@@ -458,12 +472,14 @@ begin
 
   FAlterRoutine.Visible := Session.ServerVersion >= 50003;
   FCreateRoutine.Visible := Session.ServerVersion >= 50003;
+  FCreateTableSpace.Visible := Session.ServerVersion >= 50500;
   FCreateTempTable.Visible := Session.ServerVersion >= 40002;
   FCreateUser.Visible := Session.ServerVersion >= 50003;
   FCreateView.Visible := Session.ServerVersion >= 50001;
   FEvent.Visible := Session.ServerVersion >= 50106;
   FExecute.Visible := Session.ServerVersion >= 50003;
   FLockTable.Visible := Session.ServerVersion >= 40002;
+  FProxy.Visible := Session.ServerVersion >= 50507;
   FReplClient.Visible := Session.ServerVersion >= 40002;
   FReplSlave.Visible := Session.ServerVersion >= 40002;
   FShowDatabase.Visible := Session.ServerVersion >= 40002;

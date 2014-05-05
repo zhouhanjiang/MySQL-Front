@@ -411,6 +411,7 @@ object DUserRight: TDUserRight
       Height = 17
       Caption = 'FProxy'
       TabOrder = 29
+      OnClick = FBOkCheckEnabled
     end
     object FCreateTableSpace: TCheckBox
       Left = 216
@@ -419,6 +420,7 @@ object DUserRight: TDUserRight
       Height = 17
       Caption = 'FCreateTableSpace'
       TabOrder = 20
+      OnClick = FBOkCheckEnabled
     end
   end
 end

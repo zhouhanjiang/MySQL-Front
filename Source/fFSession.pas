@@ -6687,12 +6687,9 @@ begin
   Window.ActiveControl := nil;
   OnResize := nil;
 
-  if (FNavigator is TTreeView) then // sometimes an Access violation occurs. Why?
-  begin
-    FNavigator.Items.BeginUpdate();
-    FNavigator.Items.Clear();
-    FNavigator.Items.EndUpdate();
-  end;
+  FNavigator.Items.BeginUpdate();
+  FNavigator.Items.Clear();
+  FNavigator.Items.EndUpdate();
 
   try
     if (Assigned(ShellLink)) then ShellLink.Free();

@@ -4150,21 +4150,14 @@ begin
         try
           Len := AnsiCharToWideChar(Connection.CodePage, PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], nil, 0);
         except
-          on E: EOSError do
-            if (E.ErrorCode = ERROR_NO_UNICODE_TRANSLATION) then
-              raise Exception.Create(E.Message + '  (Field: ' + Field.FieldName + ')')
-            else
-              raise E;
           on E: Exception do
-            raise E;
+            raise Exception.CreateFmt(E.Message + '  (Query: [%s], FieldName: %s)', [TMySQLQuery(Field.DataSet).CommandText, Field.FieldName])
         end;
-        if (Len > Field.DataSize) then
-          DatabaseErrorFmt(SInvalidFieldSize + ' (Fieldname: %s, Len: %d, Field.DataSize: %d, Value: %s)', [Field.DisplayName, Len, Field.DataSize, SQLEscapeBin(PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], True)]);
         AnsiCharToWideChar(Connection.CodePage, PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], PChar(Dest), Field.DataSize);
         PChar(Dest)[Len] := #0;
       end;
     else
-      inherited DataConvert(Field, Source, Dest, ToNative);
+      inherited;
   end;
 end;
 
