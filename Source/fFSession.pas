@@ -1634,16 +1634,19 @@ end;
 
 destructor TFSession.TTableDesktop.Destroy();
 begin
-  if (Assigned(ListView)) then
-    FSession.FreeListView(ListView);
-  if (Assigned(DBGrid)) then
-    FSession.FreeDBGrid(DBGrid);
-  if (Assigned(DataSource)) then
-    DataSource.Free();
-  if (Assigned(PDBGrid)) then
-    PDBGrid.Free();
+  if (GetCurrentThreadId() = MainThreadID) then
+  begin
+    if (Assigned(ListView)) then
+      FSession.FreeListView(ListView);
+    if (Assigned(DBGrid)) then
+      FSession.FreeDBGrid(DBGrid);
+    if (Assigned(DataSource)) then
+      DataSource.Free();
+    if (Assigned(PDBGrid)) then
+      PDBGrid.Free();
 
-  inherited;
+    inherited;
+  end;
 end;
 
 function TFSession.TTableDesktop.GetFilter(Index: Integer): string;

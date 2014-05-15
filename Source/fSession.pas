@@ -2056,9 +2056,9 @@ begin
 
   if (Index >= 0) then
   begin
-    TList(Self).Delete(Index);
-
     Session.ExecuteEvent(etItemDropped, Session, Self, AEntity);
+
+    TList(Self).Delete(Index);
 
     AEntity.Free();
   end;
@@ -2258,9 +2258,9 @@ begin
 
   if (Index >= 0) then
   begin
-    TList(Self).Delete(Index);
-
     Session.ExecuteEvent(etItemDropped, Database, Self, AEntity);
+
+    TList(Self).Delete(Index);
 
     AEntity.Free();
   end;

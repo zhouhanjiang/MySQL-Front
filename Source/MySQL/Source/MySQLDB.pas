@@ -4151,7 +4151,7 @@ begin
           Len := AnsiCharToWideChar(Connection.CodePage, PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], nil, 0);
         except
           on E: Exception do
-            raise Exception.CreateFmt(E.Message + '  (Query: [%s], FieldName: %s)', [TMySQLQuery(Field.DataSet).CommandText, Field.FieldName])
+            raise Exception.CreateFmt(E.Message + '  (Query: %s, FieldName: %s)', [TMySQLQuery(Field.DataSet).CommandText, Field.FieldName])
         end;
         AnsiCharToWideChar(Connection.CodePage, PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], PChar(Dest), Field.DataSize);
         PChar(Dest)[Len] := #0;
