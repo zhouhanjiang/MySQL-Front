@@ -1634,6 +1634,10 @@ end;
 
 destructor TFSession.TTableDesktop.Destroy();
 begin
+  // The import runs in a separated thread. Because if this, a DROP inside
+  // the .sql import executes this call from a different thread - that
+  // forces a Access Denied (5).
+  // This work-a-round hides error notification
   if (GetCurrentThreadId() = MainThreadID) then
   begin
     if (Assigned(ListView)) then

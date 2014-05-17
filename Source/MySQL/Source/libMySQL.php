@@ -8,7 +8,7 @@
 
 	/****************************************************************************/
 
-	define('MF_VERSION', 15);
+	define('MF_VERSION', 16);
 
 	define('MIN_COMPRESS_LENGTH', 50);
 	define('NET_BUFFER_LENGTH', 0x4000);
@@ -416,19 +416,19 @@
 							if (! isset($Field->table))
 								$Packet .= "\xFB";
 							else
-								$Packet .= pack('C', strlen($Field->table)) . $Field->table;
+								$Packet .= PackLength(strlen($Field->table)) . $Field->table;
 							if (! isset($Field->org_table))
 								$Packet .= "\xFB";
 							else
-								$Packet .= pack('C', strlen($Field->org_table)) . $Field->org_table;
+								$Packet .= PackLength(strlen($Field->org_table)) . $Field->org_table;
 							if (! isset($Field->name))
 								$Packet .= "\xFB";
 							else
-								$Packet .= pack('C', strlen($Field->name)) . $Field->name;
+								$Packet .= PackLength(strlen($Field->name)) . $Field->name;
 							if (! isset($Field->org_name))
 								$Packet .= "\xFB";
 							else
-								$Packet .= pack('C', strlen($Field->org_name)) . $Field->org_name;
+								$Packet .= PackLength(strlen($Field->org_name)) . $Field->org_name;
 							$Packet .= "\x0A";
 							if (in_array($FieldType, array(247, 248, 249, 250, 251, 252, 253, 254)) && ! ($Flags & 0x80))
 								$Packet .= pack('v', $_SESSION['charsetnr']);
@@ -455,10 +455,8 @@
 							for ($i = 0; $i < mysql_num_fields($result); $i++)
 								if (! isset($Row[$i]))
 									$Packet .= "\xFB";
-								else {
-									$Packet .= PackLength($Lengths[$i]);
-								$Packet .= $Row[$i];
-								}
+								else
+									$Packet .= PackLength($Lengths[$i]) . $Row[$i];
 							SendPacket($Packet);
 						}
 
@@ -617,27 +615,27 @@
 									if (! isset($Field->catalog))
 										$Packet .= "\xFB";
 									else
-										$Packet .= pack('C', strlen($Field->catalog)) . $Field->catalog;
+										$Packet .= PackLength(strlen($Field->catalog)) . $Field->catalog;
 									if (! isset($Field->db))
 										$Packet .= "\xFB";
 									else
-										$Packet .= pack('C', strlen($Field->db)) . $Field->db;
+										$Packet .= PackLength(strlen($Field->db)) . $Field->db;
 									if (! isset($Field->table))
 										$Packet .= "\xFB";
 									else
-										$Packet .= pack('C', strlen($Field->table)) . $Field->table;
+										$Packet .= PackLength(strlen($Field->table)) . $Field->table;
 									if (! isset($Field->org_table))
 										$Packet .= "\xFB";
 									else
-										$Packet .= pack('C', strlen($Field->org_table)) . $Field->org_table;
+										$Packet .= PackLength(strlen($Field->org_table)) . $Field->org_table;
 									if (! isset($Field->name))
 										$Packet .= "\xFB";
 									else
-										$Packet .= pack('C', strlen($Field->name)) . $Field->name;
+										$Packet .= PackLength(strlen($Field->name)) . $Field->name;
 									if (! isset($Field->org_name))
 										$Packet .= "\xFB";
 									else
-										$Packet .= pack('C', strlen($Field->org_name)) . $Field->org_name;
+										$Packet .= PackLength(strlen($Field->org_name)) . $Field->org_name;
 									$Packet .= "\x0A";
 									$Packet .= pack('v', $Field->charsetnr);
 									$Packet .= pack('V', $Field->length);
@@ -661,10 +659,8 @@
 									for ($i = 0; $i < mysqli_num_fields($result); $i++)
 										if (! isset($Row[$i]))
 											$Packet .= "\xFB";
-										else {
-											$Packet .= PackLength($Lengths[$i]);
-											$Packet .= $Row[$i];
-										}
+										else
+											$Packet .= PackLength($Lengths[$i]) . $Row[$i];
 									SendPacket($Packet);
 								}
 								$Packet = '';
