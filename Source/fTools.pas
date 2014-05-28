@@ -6564,11 +6564,11 @@ begin
       if (Assigned(Table) and (Table.Fields[I].Size = 1)) then
         SQL := SQL + 'BIT'
       else
-        SQL := SQL + 'NUMERIC'
+        SQL := SQL + 'NUMBER'
     else
     case (Fields[I].DataType) of
       ftString:
-        SQL := SQL + 'STRING';
+        SQL := SQL + 'TEXT';
       ftShortInt,
       ftByte,
       ftSmallInt,
@@ -6579,7 +6579,7 @@ begin
       ftSingle,
       ftFloat,
       ftExtended:
-        SQL := SQL + 'NUMERIC';
+        SQL := SQL + 'NUMBER';
       ftDate,
       ftDateTime,
       ftTimestamp,
@@ -6588,7 +6588,7 @@ begin
       ftWideString,
       ftWideMemo,
       ftBlob:
-        SQL := SQL + 'STRING';
+        SQL := SQL + 'TEXT';
       else
         raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Fields[I].DisplayName, Ord(Fields[I].DataType)]);
     end;

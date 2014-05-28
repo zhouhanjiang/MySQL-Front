@@ -319,7 +319,7 @@
 					session_destroy();
 				} else if (substr($Packet, 0, 1) == "\x03") { // COM_QUERY
 					$Query = substr($Packet, 1);
-					$result = mysql_query($Query, $mysql);
+					$result = mysql_unbuffered_query($Query, $mysql);
 
 					if (mysql_errno($mysql)) {
 						$Packet = "\xFF";

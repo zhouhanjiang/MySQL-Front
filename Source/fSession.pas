@@ -10207,7 +10207,10 @@ function TSSession.CollationByName(const CollationName: string): TSCollation;
 var
   Index: Integer;
 begin
-  Index := Collations.IndexByName(CollationName);
+  if (not Assigned(Collations)) then
+    Index := -1
+  else
+    Index := Collations.IndexByName(CollationName);
   if (Index < 0) then
     Result := nil
   else
