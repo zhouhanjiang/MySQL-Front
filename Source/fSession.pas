@@ -2683,7 +2683,7 @@ begin
   else if (FieldType in [mfLongText, mfLongBlob]) then
     Size := (1 shl 32) - 1;
 
-  if (SQLParseKeyword(Parse, 'CHARACTER')) then
+  if (SQLParseKeyword(Parse, 'CHARACTER') or SQLParseKeyword(Parse, 'CHAR')) then
   begin
     SQLParseKeyword(Parse, 'SET');
     Charset := SQLParseValue(Parse);
