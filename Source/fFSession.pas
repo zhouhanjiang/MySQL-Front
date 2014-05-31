@@ -2646,6 +2646,12 @@ begin
         AllowChange := False
       else if ((URI.Table <> '') and not Database.Tables.Update()) then
         AllowChange := False
+      else if (((URI.Param['objecttype'] = 'procedure') or (URI.Param['objecttype'] = 'function')) and (URI.Param['object'] <> Null) and not Database.Routines.Update()) then
+        AllowChange := False
+      else if ((URI.Param['objecttype'] = 'trigger') and (URI.Param['object'] <> Null) and not Database.Triggers.Update()) then
+        AllowChange := False
+      else if ((URI.Param['objecttype'] = 'event') and (URI.Param['object'] <> Null) and not Database.Events.Update()) then
+        AllowChange := False
       else if ((URI.Table <> '') or (URI.Param['object'] <> Null)) then
       begin
         if (URI.Table <> '') then
