@@ -3202,6 +3202,9 @@ constructor TAJob.Create(const AAItems: TPItems; const AName: string = '');
 begin
   inherited Create();
 
+  FAItems := AAItems;
+  FName := AName;
+
   Enabled := True;
   Start := Date() + 1;
   TriggerType := ttSingle;

@@ -4731,7 +4731,7 @@ begin
     StmtLength := SQLTrimStmt(FCommandText, 1, Length(FCommandText), StartingCommentLength, EndingCommentLength);
     Index := 1 + StartingCommentLength + StmtLength - 1;
     if ((1 <= Index) and (FCommandText[Index] = ';')) then Dec(StmtLength);
-    FCommandText := Trim(Copy(FCommandText, StartingCommentLength, StmtLength));
+    FCommandText := Trim(Copy(FCommandText, 1 + StartingCommentLength, StmtLength));
 
     FDatabaseName := Connection.DatabaseName;
   end;

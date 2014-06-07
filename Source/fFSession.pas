@@ -1011,7 +1011,7 @@ type
     procedure ListViewEmpty(Sender: TObject);
     procedure ListViewInitialize(const ListView: TListView);
     procedure ListViewUpdate(const SessionEvent: TSSession.TEvent; const ListView: TListView; const Data: TCustomData = nil);
-    procedure MGridHeaderMenuOrderClick(Sender: TObject);
+    procedure MGridHeaderClick(Sender: TObject);
     function NavigatorNodeToAddress(const Node: TTreeNode): string;
     procedure OnConvertError(Sender: TObject; Text: string);
     procedure OpenInNewTabExecute(const DatabaseName, TableName: string; const OpenNewWindow: Boolean = False; const Filename: TFileName = '');
@@ -6632,8 +6632,6 @@ end;
 procedure TFSession.DBGridInitialize(const DBGrid: TMySQLDBGrid);
 var
   I: Integer;
-  MenuItem: TMenuItem;
-  Table: TSBaseTable;
 begin
   DBGrid.DataSource.DataSet.AfterClose := DataSetAfterClose;
   DBGrid.DataSource.DataSet.AfterScroll := DataSetAfterScroll;
@@ -6644,29 +6642,7 @@ begin
   DBGrid.DataSource.DataSet.OnDeleteError := SQLError;
   DBGrid.DataSource.DataSet.OnEditError := SQLError;
   DBGrid.DataSource.DataSet.OnPostError := SQLError;
-
-  MGridHeader.Items.Clear();
-
-  if ((View = vBrowser) and (SelectedImageIndex in [iiBaseTable, iiSystemView])) then
-  begin
-    Table := TSBaseTable(FNavigator.Selected.Data);
-
-    for I := 0 to Table.Keys.Count - 1 do
-    begin
-      MenuItem := TMenuItem.Create(Self);
-      MenuItem.Caption := TSBaseTable(Table).Keys[I].Caption;
-      MenuItem.Default := TSBaseTable(Table).Keys[I].PrimaryKey;
-      MenuItem.Tag := I;
-      MenuItem.RadioItem := True;
-      MenuItem.OnClick := MGridHeaderMenuOrderClick;
-      MGridHeader.Items.Add(MenuItem);
-    end;
-  end;
-
   DBGrid.DataSource.Enabled := True;
-
-  if (not Assigned(DBGrid.SelectedField)) then
-    raise ERangeError.Create(SRangeError);
 
   DBGrid.Columns.BeginUpdate();
   for I := 0 to DBGrid.Columns.Count - 1 do
@@ -11190,7 +11166,7 @@ begin
   FFiles.Selected.EditCaption();
 end;
 
-procedure TFSession.MGridHeaderMenuOrderClick(Sender: TObject);
+procedure TFSession.MGridHeaderClick(Sender: TObject);
 var
   MenuItem: TMenuItem;
   SortDef: TIndexDef;
@@ -11202,14 +11178,11 @@ begin
     MenuItem := TMenuItem(Sender);
 
     SortDef := TIndexDef.Create(nil, '', '', []);
-    if (MenuItem.Checked) then
-      MenuItem.Checked := False
-    else if ((View = vBrowser) and (SelectedImageIndex in [iiBaseTable, iiSystemView])) then
-      TSBaseTable(FNavigator.Selected.Data).Keys[MenuItem.Tag].GetSortDef(SortDef);
-
+    TSBaseTable(FNavigator.Selected.Data).Keys[MenuItem.Tag].GetSortDef(SortDef);
     TMySQLDataSet(ActiveDBGrid.DataSource.DataSet).Sort(SortDef);
-    ActiveDBGrid.UpdateHeader();
     SortDef.Free();
+
+    ActiveDBGrid.UpdateHeader();
   end;
 
   IgnoreFGridTitleClick := False;
@@ -11219,12 +11192,34 @@ procedure TFSession.MGridHeaderPopup(Sender: TObject);
 var
   I: Integer;
   Key: TSKey;
+  MenuItem: TMenuItem;
+  SortDef: TIndexDef;
   SortMenuItem: TMenuItem;
   Table: TSBaseTable;
 begin
+  MGridHeader.Items.Clear();
+
   if (SelectedImageIndex in [iiBaseTable, iiSystemView]) then
   begin
     Table := TSBaseTable(FNavigator.Selected.Data);
+
+    SortDef := TIndexDef.Create(nil, '', '', []);
+
+    for I := 0 to Table.Keys.Count - 1 do
+    begin
+      Table.Keys[I].GetSortDef(SortDef);
+
+      MenuItem := TMenuItem.Create(Self);
+      MenuItem.Caption := Table.Keys[I].Caption;
+      MenuItem.Checked := (SortDef.Fields = Table.DataSet.SortDef.Fields) and (SortDef.DescFields = Table.DataSet.SortDef.DescFields);
+      MenuItem.Default := Table.Keys[I].PrimaryKey;
+      MenuItem.Tag := I;
+      MenuItem.RadioItem := True;
+      MenuItem.OnClick := MGridHeaderClick;
+      MGridHeader.Items.Add(MenuItem);
+    end;
+
+    SortDef.Free();
 
     SortMenuItem := nil;
     for I := 0 to MGridHeader.Items.Count - 1 do

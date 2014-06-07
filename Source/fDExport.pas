@@ -1666,9 +1666,9 @@ begin
 
   FSQLFile.Enabled := True;
   FTextFile.Enabled := False;
-  FExcelFile.Enabled := False;
-  FAccessFile.Enabled := False;
-  FODBC.Enabled := False;
+  FExcelFile.Enabled := (SObjects.Count = 1) and (TObject(SObjects[0]) is TSDatabase);
+  FAccessFile.Enabled := (SObjects.Count = 1) and (TObject(SObjects[0]) is TSDatabase);
+  FODBC.Enabled := (SObjects.Count = 1) and (TObject(SObjects[0]) is TSDatabase);
   FHTMLFile.Enabled := True;
   FXMLFile.Enabled := True;
   FPDFFile.Enabled := True;
