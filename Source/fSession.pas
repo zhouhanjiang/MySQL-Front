@@ -4707,19 +4707,15 @@ end;
 
 procedure TSBaseTable.SetSource(const ADataSet: TMySQLQuery);
 var
-  I: Integer;
-  Len: Integer;
   S: string;
 begin
   try
-    SetSource(ADataSet.FieldByName('Create Table').AsString);
+    SetSource(ADataSet.FieldByName('Create Table'));
   except
     // Sometimes, the MySQL server sends invalid field comments
     // This code allow the user to handle this table - but the comments are wrong.
-    Len := ADataSet.LibLengths[ADataSet.FieldByName('Create Table').FieldNo - 1];
-    SetLength(S, Len);
-    for I := 0 to Len - 1 do
-      S[I + 1] := Chr(Byte(ADataSet.LibRow[ADataSet.FieldByName('Create Table').FieldNo - 1][I]));
+    SetLength(S, ADataSet.LibLengths[ADataSet.FieldByName('Create Table').FieldNo - 1]);
+    AnsiCharToWideChar(CP_ACP, ADataSet.LibRow[ADataSet.FieldByName('Create Table').FieldNo - 1], ADataSet.LibLengths[ADataSet.FieldByName('Create Table').FieldNo - 1], @S[1], Length(S));
     SetSource(S);
   end;
 
