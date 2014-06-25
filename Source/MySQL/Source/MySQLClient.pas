@@ -1078,9 +1078,6 @@ begin
   Result := errno() = 0;
 end;
 
-var
-  Nils: Boolean = False;
-
 function TMySQL_IO.Receive(var Buffer; const BytesToRead: my_uint): Boolean;
 var
   arg: u_long;
@@ -1098,7 +1095,7 @@ begin
           Result := ReadFile(Pipe, PAnsiChar(@AnsiChar(Buffer))[BytesRead], BytesToRead - BytesRead, Size, nil) and (Size > 0);
           if (Result) then
             Inc(BytesRead, Size)
-          else if Nils or (GetLastError() = ERROR_PIPE_NOT_CONNECTED) then
+          else if (GetLastError() = ERROR_PIPE_NOT_CONNECTED) then
             Seterror(CR_SERVER_LOST)
           else
             RaiseLastOSError();

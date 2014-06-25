@@ -3297,7 +3297,7 @@ begin
         end;
 
         NewKeyColumn := TSKeyColumn.Create(Key.Columns);
-        NewKeyColumn.Field := NewTable.FieldByName(ColumnName);
+        NewKeyColumn.Field := NewTable.FieldByName(Session.ApplyIdentifierName(ColumnName));
         NewKeyColumn.Ascending := AscOrDesc[0] = 'A';
         Key.Columns.AddColumn(NewKeyColumn);
         FreeAndNil(NewKeyColumn);
