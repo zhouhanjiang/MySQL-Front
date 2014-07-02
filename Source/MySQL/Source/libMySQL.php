@@ -1,19 +1,14 @@
 <?php
 	#
 	# HTTP tunneling script
-	# This script will be used by the Windows application "{BuildName}"
+	# This script is used by the Windows application {BuildName}
 	# {BuildInternetHomepage}
 	# {BuildName} Version {BuildVerStrFull}
 	#
 
 	/****************************************************************************/
 
-	define('MF_VERSION', 16);
-
-	define('MIN_COMPRESS_LENGTH', 50);
-	define('NET_BUFFER_LENGTH', 0x4000);
-	define('NET_HEADER_SIZE', 4);
-	define('COMP_HEADER_SIZE', 3);
+	define('MF_VERSION', 17);
 
 	$Charsets = array(
 		'big5' => 1,
@@ -71,23 +66,23 @@
 	}
 
 	function ReceivePacket(&$Packet, &$MorePackets) {
-		global $ReceivePacketBuffer;
-		global $ReceivePacketBufferOffset;
+		global $PostData;
+		global $PostDataOffset;
 
-		if ($ReceivePacketBufferOffset >= strlen($ReceivePacketBuffer)) {
+		if ($PostDataOffset >= strlen($PostData)) {
 			return FALSE;
 		} else {
 			$Packet = '';
 			do {
-				$a = unpack('V', substr($ReceivePacketBuffer, $ReceivePacketBufferOffset + 0, 3) . "\x00"); $Size = $a[1];
-				$a = unpack('C', substr($ReceivePacketBuffer, $ReceivePacketBufferOffset + 3, 1)); $Nr = $a[1];
+				$a = unpack('V', substr($PostData, $PostDataOffset + 0, 3) . "\x00"); $Size = $a[1];
+				$a = unpack('C', substr($PostData, $PostDataOffset + 3, 1)); $Nr = $a[1];
 
-				$Packet .= substr($ReceivePacketBuffer, $ReceivePacketBufferOffset + 4, $Size);
+				$Packet .= substr($PostData, $PostDataOffset + 4, $Size);
 
-				$ReceivePacketBufferOffset += 4 + $Size;
+				$PostDataOffset += 4 + $Size;
 			} while ($Size == 0xFFFFFF);
 
-			$MorePackets = $ReceivePacketBufferOffset < strlen($ReceivePacketBuffer);
+			$MorePackets = $PostDataOffset < strlen($PostData);
 
 			return TRUE;
 		}
@@ -96,7 +91,7 @@
 	function SendCompressedPacket($Packet) {
 		global $PacketNr;
 
-		if (strlen($Packet) >= MIN_COMPRESS_LENGTH)
+		if (strlen($Packet) >= 50)
 			$CompressedPacket = gzcompress($Packet);
 
 		if ((! isset($CompressedPacket)) || (strlen($CompressedPacket) >= strlen($Packet)))
@@ -128,7 +123,7 @@
 			echo($SendPacketBuffer);
 			$SendPacketBuffer = '';
 		} else {
-			while (strlen($SendPacketBuffer) > NET_BUFFER_LENGTH) {
+			while (strlen($SendPacketBuffer) > 0x4000) {
 				if (strlen($SendPacketBuffer) > 0xFFFFFF) {
 					SendCompressedPacket(substr($SendPacketBuffer, 0, 0xFFFFFF));
 					$SendPacketBuffer = substr($SendPacketBuffer, 0xFFFFFF);
@@ -178,45 +173,44 @@
 
 	error_reporting(E_ERROR | E_PARSE);
 
+	if ($_SERVER['REQUEST_METHOD'] == 'GET')
+		exit('<!DOCTYPE html><html><head></head><body>This script is used by the Windows application <a href="{BuildInternetHomepage}">{BuildName}</a>.</body></html>');
+
 	if (isset($_GET['SID']))
 		session_id($_GET['SID']);
-	session_start();
+	$SessionStarted = session_start() xor (version_compare(phpversion(), '5.3.0') < 0);
 
-	$Offset = 0;
-	while ($Offset < strlen($HTTP_RAW_POST_DATA)) {
-		$a = unpack('V', substr($HTTP_RAW_POST_DATA, $Offset + 0, 3) . "\x00"); $Size = $a[1];
-		$a = unpack('C', substr($HTTP_RAW_POST_DATA, $Offset + 3, 1)); $PacketNr = $a[1];
-		$Offset += NET_HEADER_SIZE + $Size;
-	}
-	$PacketNr++;
 
-	$Offset = 0;
-	if (! $_SESSION['compress']) {
-		while ($Offset < strlen($HTTP_RAW_POST_DATA)) {
-			$a = unpack('V', substr($HTTP_RAW_POST_DATA, $Offset + 0, 3) . "\x00"); $Size = $a[1];
-			$a = unpack('C', substr($HTTP_RAW_POST_DATA, $Offset + 3, 1)); $Nr = $a[1];
-			$Offset += NET_HEADER_SIZE + $Size;
-		}
+	$PostData = ''; $PostDataOffset = 0; $PacketNr = 0; $HandshakeError = FALSE;
+	$Input = fopen('php://input', 'br');
+	while (! feof($Input)) {
+		if (! $_SESSION['compress'])
+			$Header = fread($Input, 4);
+		else
+			$Header = fread($Input, 7);
+		$a = unpack('V', substr($Header, 0, 3) . "\x00"); $Size = $a[1];
+		$a = unpack('C', substr($Header, 3, 1)); $Nr = $a[1];
+		if ($_SESSION['compress'])
+			$a = unpack('V', substr($Header, 4, 3) . "\x00"); $UncompressedSize = $a[1];
 
-		$ReceivePacketBuffer = $HTTP_RAW_POST_DATA;
-	} else {
-		while ($Offset < strlen($HTTP_RAW_POST_DATA)) {
-			$a = unpack('V', substr($HTTP_RAW_POST_DATA, $Offset + 0, 3) . "\x00"); $Size = $a[1];
-			$a = unpack('C', substr($HTTP_RAW_POST_DATA, $Offset + 3, 1)); $Nr = $a[1];
-			$a = unpack('V', substr($HTTP_RAW_POST_DATA, $Offset + 4, 3) . "\x00"); $UncompressedSize = $a[1];
+		$HandshakeError = $HandshakeError || ($Nr != $PacketNr);
 
-			if ($UncompressedSize == 0)
-				$ReceivePacketBuffer .= substr($HTTP_RAW_POST_DATA, $Offset + 7, $Size);
+		if (! $HandshakeError) {
+			if (! $_SESSION['compress'])
+				$PostData .= $Header . fread($Input, $Size);
+			else if ($UncompressedSize == 0)
+				$PostData .= fread($Input, $Size);
 			else
-				$ReceivePacketBuffer .= gzuncompress(substr($HTTP_RAW_POST_DATA, $Offset + 7, $Size), $UncompressedSize);
-
-			$Offset += NET_HEADER_SIZE + COMP_HEADER_SIZE + $Size;
+				$PostData .= gzuncompress(fread($Input, $Size), $UncompressedSize);
 		}
+
+		$PacketNr = ($PacketNr + 1) & 0xFF;
 	}
-	$ReceivePacketBufferOffset = 0;
+	fclose($Input);
+
 
 	$Connect = ! $_SESSION['host'];
-	if ($Connect && ReceivePacket($Packet, $MorePackets) && (substr($Packet, 0, 1) == "\x0B")) {
+	if (! $HandshakeError && $Connect && ReceivePacket($Packet, $MorePackets) && (substr($Packet, 0, 1) == "\x0B")) {
 		$Offset = 1;
 		while (substr($Packet, $Offset, 1) != "\x00") $_SESSION['host'] .= substr($Packet, $Offset++, 1); $Offset++;
 		while (substr($Packet, $Offset, 1) != "\x00") $_SESSION['user'] .= substr($Packet, $Offset++, 1); $Offset++;
@@ -228,12 +222,8 @@
 		$a = unpack('v', substr($Packet, $Offset, 2)); $_SESSION['timeout'] = $a[1]; $Offset += 2;
 
 		set_time_limit($_SESSION['timeout']);
-	} else if (isset($_SESSION['host']))
+	} else
 		set_time_limit(0);
-	else {
-		echo 'This script will be used by the Windows application <a href="http://www.mysqlfront.de/">MySQL-Front</a>';
-		exit;
-	}
 
 	/****************************************************************************/
 
@@ -245,16 +235,24 @@
 		header('MF-SID: ' . session_id());
 	}
 
-	if (($_GET['library'] == 'mysql')
-		or ! extension_loaded('mysqli')
-		or ! ($mysqli = mysqli_init())
-		or ! mysqli_real_connect($mysqli, $_SESSION['host'], $_SESSION['user'], $_SESSION['password'], $_SESSION['database'], $_SESSION['port'], '', $_SESSION['client_flag']))
-	{
+	if (! $SessionStarted) {
+		$Packet = "\xFF";
+		$Packet .= pack('v', 2200);
+		$Packet .= "HTTP Tunnel: session_start() failed\x00";
+		SendPacket($Packet);
+		exit(2200);
+	} else if ($HandshakeError) {
+		$Packet = "\xFF";
+		$Packet .= pack('v', 2200);
+		$Packet .= "HTTP Tunnel: Error in client handshake\x00";
+		SendPacket($Packet);
+		exit(2200);
+	} else if (! extension_loaded('mysqli') || ($_GET['library'] == 'mysql')) {
 		if (version_compare(phpversion(), '4.3.0') < 0)
 			$mysql = mysql_connect($_SESSION['host'] . ':' . $_SESSION['port'], $_SESSION['user'], $_SESSION['password']);
 		else
 			$mysql = mysql_connect($_SESSION['host'] . ':' . $_SESSION['port'], $_SESSION['user'], $_SESSION['password'], true, $_SESSION['client_flag'] & 0x0125);
- 		if ($mysql && ! mysql_errno($mysql) && $_SESSION['database'])
+		if ($mysql && ! mysql_errno($mysql) && $_SESSION['database'])
 			mysql_select_db($_SESSION['database'], $mysql);
 
 		if ($mysql && ! mysql_errno($mysql) && $_SESSION['charset'] && version_compare(ereg_replace("-.*$", "", mysql_get_server_info($mysql)), '4.1.1') >= 0)
@@ -333,9 +331,9 @@
 						$Packet .= PackLength(mysql_affected_rows($mysql));
 						$Packet .= PackLength(mysql_insert_id($mysql));
 						if ($MorePackets)
-							$Packet .= pack('v', 8); // Server Status
+							$Packet .= pack('v', 0x0008); // Server Status
 						else
-							$Packet .= pack('v', 0); // Server Status
+							$Packet .= pack('v', 0x0000); // Server Status
 						$Packet .= pack('v', 0); // WarningCount
 						if ((version_compare(phpversion(), '4.3.0') >= 0) && mysql_info($mysql))
 							$Packet .= PackLength(strlen(mysql_info($mysql))) . mysql_info($mysql);
@@ -444,9 +442,9 @@
 						$Packet .= "\xFE";
 						$Packet .= pack('v', 0); // WarningCount
 						if ($MorePackets)
-							$Packet .= pack('v', 8); // Server Status
+							$Packet .= pack('v', 0x0008); // Server Status
 						else
-							$Packet .= pack('v', 0); // Server Status
+							$Packet .= pack('v', 0x0000); // Server Status
 						SendPacket($Packet);
 
 						while ($Row = mysql_fetch_array($result, MYSQL_NUM)) {
@@ -466,9 +464,9 @@
 						$Packet .= "\xFE";
 						$Packet .= pack('v', 0); // WarningCount
 						if ($MorePackets)
-							$Packet .= pack('v', 8); // Server Status
+							$Packet .= pack('v', 0x0008); // Server Status
 						else
-							$Packet .= pack('v', 0); // Server Status
+							$Packet .= pack('v', 0x0000); // Server Status
 						SendPacket($Packet);
 						FlushPackets();
 					}
@@ -479,6 +477,17 @@
 		mysql_close($mysql);
 
 	} else { /*******************************************************************/
+
+		$mysqli = mysqli_init();
+		if (! $mysqli) {
+			$Packet = "\xFF";
+			$Packet .= pack('v', 2200);
+			$Packet .= "HTTP Tunnel: mysqli_init() failed\x00";
+			SendPacket($Packet);
+			exit(2200);
+		}
+
+		mysqli_real_connect($mysqli, $_SESSION['host'], $_SESSION['user'], $_SESSION['password'], $_SESSION['database'], $_SESSION['port'], '', $_SESSION['client_flag']);
 
 		if (! mysqli_errno($mysqli) && $_SESSION['charset'] && version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '4.1.1') >= 0)
 			if ((version_compare(phpversion(), '5.2.3') < 0) || (version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '5.0.7') < 0))
@@ -567,10 +576,10 @@
 						$Packet .= PackLength(0); // Number of fields
 						$Packet .= PackLength(mysqli_affected_rows($mysqli));
 						$Packet .= PackLength(mysqli_insert_id($mysqli));
-						if ($MorePackets)
-							$Packet .= pack('v', 8); // Server Status
+						if ($MorePackets || mysqli_more_results($mysqli))
+							$Packet .= pack('v', 0x0008); // Server Status
 						else
-							$Packet .= pack('v', 0); // Server Status
+							$Packet .= pack('v', 0x0000); // Server Status
 						$Packet .= pack('v', mysqli_warning_count($mysqli));
 						if ((version_compare(phpversion(), '4.3.0') >= 0) && mysqli_info($mysqli))
 							$Packet .= PackLength(strlen(mysqli_info($mysqli))) . mysqli_info($mysqli);
@@ -597,10 +606,10 @@
 								$Packet = "\x00";
 								$Packet .= PackLength(mysqli_affected_rows($mysqli));
 								$Packet .= PackLength(mysqli_insert_id($mysqli));
-								if ($MorePackets)
-									$Packet .= pack('v', 8); // Server Status
+								if ($MorePackets || mysqli_more_results($mysqli))
+									$Packet .= pack('v', 0x0008); // Server Status
 								else
-									$Packet .= pack('v', 0); // Server Status
+									$Packet .= pack('v', 0x0000); // Server Status
 								$Packet .= pack('v', mysqli_warning_count($mysqli));
 								if ((version_compare(phpversion(), '4.3.0') >= 0) && mysqli_info($mysqli))
 									$Packet .= PackLength(strlen(mysqli_info($mysqli))) . mysqli_info($mysqli);
@@ -647,10 +656,10 @@
 								$Packet = '';
 								$Packet .= "\xFE";
 								$Packet .= pack('v', mysqli_warning_count($mysqli));
-								if ($MorePackets)
-									$Packet .= pack('v', 8); // Server Status
+								if ($MorePackets || mysqli_more_results($mysqli))
+									$Packet .= pack('v', 0x0008); // Server Status
 								else
-									$Packet .= pack('v', 0); // Server Status
+									$Packet .= pack('v', 0x0000); // Server Status
 								SendPacket($Packet);
 
 								while ($Row = mysqli_fetch_array($result, MYSQL_NUM)) {
@@ -666,10 +675,10 @@
 								$Packet = '';
 								$Packet .= "\xFE";
 								$Packet .= pack('v', mysqli_warning_count($mysqli));
-								if ($MorePackets)
-									$Packet .= pack('v', 8); // Server Status
+								if ($MorePackets || mysqli_more_results($mysqli))
+									$Packet .= pack('v', 0x0008); // Server Status
 								else
-									$Packet .= pack('v', 0); // Server Status
+									$Packet .= pack('v', 0x0000); // Server Status
 								SendPacket($Packet);
 								FlushPackets();
 
@@ -687,4 +696,5 @@
 
 	if ($Connect)
 		$_SESSION['compress'] = ($_SESSION['client_flag'] & 0x0020) && function_exists('gzcompress');
+	exit(0);
 ?>

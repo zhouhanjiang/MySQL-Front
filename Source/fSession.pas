@@ -7953,6 +7953,11 @@ begin
 
     if (not Result and Assigned(Routine)) then
       Session.ExecuteSQL(Routine.Source);
+    if (Result) then
+    begin
+      SQL := Routines.SQLGetItems();
+      Session.SendSQL(SQL, Session.SessionResult);
+    end;
   end;
 end;
 
@@ -9980,9 +9985,9 @@ begin
   Result := AIdentifierName;
 
   Result := ReplaceStr(Result, #0, '_');
-  Result := ReplaceStr(Result, ' ', '_');
   if (ServerVersion < 50106) then
   begin
+    Result := ReplaceStr(Result, ' ', '_');
     Result := ReplaceStr(Result, '/', '_');
     Result := ReplaceStr(Result, '\', '_');
     Result := ReplaceStr(Result, '.', '_');

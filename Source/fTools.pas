@@ -853,6 +853,7 @@ begin
       begin
         GetMem(MessageText, (cbMessageText + 1) * SizeOf(SQLTCHAR));
         SQLGetDiagRec(HandleType, Handle, 1, nil, nil, MessageText, cbMessageText + 1, nil);
+raise Exception.Create(PChar(MessageText) + ' (' + SQLState + ')');
         Result.ErrorMessage := PChar(MessageText) + ' (' + SQLState + ')';
         FreeMem(MessageText);
       end;
