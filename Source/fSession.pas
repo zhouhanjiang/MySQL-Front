@@ -2592,6 +2592,8 @@ begin
     Result := Result + '(' + IntToStr(Size) + ',' + IntToStr(Decimals) + ')'
   else if (FieldType in [mfChar, mfVarChar, mfBinary, mfVarBinary]) then
     Result := Result + '(' + IntToStr(Size) + ')'
+  else if ((FieldType in [mfTime, mfDateTime, mfTimeStamp]) and (Size > 0) and (FieldTypes.Session.ServerVersion >= 50604)) then
+    Result := Result + '(' + IntToStr(Size) + ')'
   else if (FieldType in [mfTinyText, mfText, mfMediumText, mfLongText, mfTinyBlob, mfBlob, mfMediumBlob, mfLongBlob]) then
   else if (FieldType in [mfGeometry, mfPoint, mfLineString, mfPolygon, mfMultiPoint,  mfMultiLineString, mfMultiPolygon, mfGeometryCollection]) then
   else if (FieldType in [mfDate, mfDateTime, mfTime]) then
@@ -2656,7 +2658,7 @@ begin
       else
         Decimals := StrToInt(SQLParseValue(Parse));
     end
-    else if (FieldType in [mfTinyText, mfText, mfMediumText, mfLongText]) then
+    else if ((FieldType in [mfTinyText, mfText, mfMediumText, mfLongText]) or (FieldTypes.Session.ServerVersion >= 50604) and (FieldType in [mfTime, mfDateTime, mfTimeStamp])) then
     begin
       S := SQLParseValue(Parse);
       if (not TryStrToInt(S, Size)) then

@@ -54,6 +54,22 @@ object DField: TDField
       Caption = 'FLFormatDecimals'
       FocusControl = FFormatSize
     end
+    object FLFormatSize: TLabel
+      Left = 8
+      Top = 116
+      Width = 64
+      Height = 13
+      Caption = 'FLFormatSize'
+      FocusControl = FFormatSize
+    end
+    object FLFormatFSP: TLabel
+      Left = 8
+      Top = 116
+      Width = 64
+      Height = 13
+      Caption = 'FLFormatFSP'
+      FocusControl = FFormatSize
+    end
     object FLFormat: TLabel
       Left = 8
       Top = 116
@@ -76,14 +92,6 @@ object DField: TDField
       Height = 13
       Caption = 'FLType'
       FocusControl = FFieldType
-    end
-    object FLFormatSize: TLabel
-      Left = 8
-      Top = 116
-      Width = 64
-      Height = 13
-      Caption = 'FLFormatSize'
-      FocusControl = FFormatSize
     end
     object FLDefault: TLabel
       Left = 8

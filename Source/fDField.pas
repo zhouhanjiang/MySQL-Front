@@ -41,6 +41,7 @@ type
     FLDefault: TLabel;
     FLFormat: TLabel;
     FLFormatDecimals: TLabel;
+    FLFormatFSP: TLabel;
     FLFormatSize: TLabel;
     FLName: TLabel;
     FLPosition: TLabel;
@@ -181,6 +182,7 @@ begin
   FLName.Caption := Preferences.LoadStr(35) + ':';
   FLType.Caption := Preferences.LoadStr(91) + ':';
   FLFormatSize.Caption := Preferences.LoadStr(104) + ':';
+  FLFormatFSP.Caption := Preferences.LoadStr(911) + ':';
   FLFormatDecimals.Caption := Preferences.LoadStr(78) + ':';
   FLFormat.Caption := Preferences.LoadStr(93) + ':';
   FLDefault.Caption := Preferences.LoadStr(92) + ':';
@@ -284,6 +286,8 @@ begin
     FDefault.MaxLength := FUDFormatSize.Position
   else if ((GetType() = mfTimeStamp) and (Table.Database.Session.ServerVersion < 40100)) then
     FDefault.MaxLength := Length(FFormatTimestamp.Text)
+  else if ((GetType() in [mfTime, mfDateTime, mfTimeStamp]) and (Table.Database.Session.ServerVersion >= 50604)) then
+    FDefault.MaxLength := 6
   else
     FDefault.MaxLength := 0;
 
@@ -310,8 +314,10 @@ var
   I: Integer;
   J: Integer;
 begin
-  FFormatSize.Visible := (GetType() = mfBit) or IsIntType() or IsFloatType() or IsCharType() or IsBinaryType(); FUDFormatSize.Visible := FFormatSize.Visible;
+  FFormatSize.Visible := (GetType() = mfBit) or IsIntType() or IsFloatType() or IsCharType() or IsBinaryType() or (GetType() in [mfTime, mfDateTime, mfTimeStamp]) and (Table.Session.ServerVersion >= 50604);
   FLFormatSize.Visible := (GetType() = mfBit) or IsIntType() or IsCharType() or IsBinaryType();
+  FLFormatFSP.Visible := (GetType() in [mfTime, mfDateTime, mfTimeStamp]) and (Table.Session.ServerVersion >= 50604);
+  FUDFormatSize.Visible := FLFormatSize.Visible or FLFormatFSP.Visible;
   FFormatDecimals.Visible := IsFloatType(); FUDFormatDecimals.Visible := FFormatDecimals.Visible;
   FLFormatDecimals.Visible := IsFloatType();
   FFormatDate.Visible := GetType() = mfTime;
@@ -624,7 +630,8 @@ begin
       NewField.FieldType := GetType();
       if ((GetType() = mfBit) or IsIntType() or IsFloatType() or IsCharType() or IsBinaryType()) then
         if (FUDFormatSize.Position = 0) then NewField.Size := -1 else NewField.Size := FUDFormatSize.Position
-      else if (NewField.FieldType = mfTimeStamp) then NewField.Size := Length(FFormatTimestamp.Text)
+      else if ((NewField.FieldType = mfTimeStamp) and (Table.Session.ServerVersion < 50604)) then NewField.Size := Length(FFormatTimestamp.Text)
+      else if ((NewField.FieldType in [mfTime, mfDateTime, mfTimeStamp]) and (Table.Session.ServerVersion >= 50604)) then NewField.Size := FUDFormatSize.Position
       else if (NewField.FieldType = mfYear) then NewField.Size := Length(FFormatYear.Text)
       else NewField.Size := 0;
       if (IsFloatType()) then NewField.Decimals := FUDFormatDecimals.Position else NewField.Decimals := 0;
@@ -1020,7 +1027,9 @@ begin
     mfDouble: Result := 24;
     mfDecimal: Result := 254;
 
-    mfTime: Result := 10;
+    mfTime: if (Table.Session.ServerVersion < 50604) then Result := 10 else Result := 6;
+    mfDateTime,
+    mfTimeStamp: Result := 6;
     mfYear: Result := 4;
 
     mfChar,
