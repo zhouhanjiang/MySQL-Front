@@ -700,7 +700,7 @@ type
     procedure SetDataSet(ADataSet: TDataSet); override;
   end;
 
-  TMySQLDateTimeField = class(TDateTimeField)
+  TMySQLDateTimeField = class(TSQLTimeStampField)
   private
     ZeroDateString: string;
   protected
@@ -789,8 +789,8 @@ var
 implementation {***************************************************************}
 
 uses
-  DBConsts, Forms, Variants, DateUtils, Registry, ActiveX,
-  RTLConsts, Consts, SysConst, Masks, Controls, Math, StrUtils,
+  DBConsts, Forms, Variants, ActiveX,
+  RTLConsts, Consts, SysConst, Math, StrUtils,
   {$IFDEF EurekaLog}
   ExceptionLog,
   {$ENDIF}
