@@ -6089,162 +6089,161 @@ begin
       Error.ErrorMessage := Error.ErrorMessage + ' - ' + SQL;
       DoError(Error, nil, True);
     end;
+  end;
 
-
-    if (Success = daSuccess) then
-    begin
-      if (Table is TSBaseTable) then
-        for I := 0 to TSBaseTable(Table).Keys.Count - 1 do
-          if (not TSBaseTable(Table).Keys[I].PrimaryKey) then
+  if (Success = daSuccess) then
+  begin
+    if (Table is TSBaseTable) then
+      for I := 0 to TSBaseTable(Table).Keys.Count - 1 do
+        if (not TSBaseTable(Table).Keys[I].PrimaryKey) then
+        begin
+          SQL := 'CREATE';
+          if (TSBaseTable(Table).Keys[I].Unique) then
+            SQL := SQL + ' UNIQUE';
+          SQL := SQL + ' INDEX "' + TSBaseTable(Table).Keys[I].Name + '"';
+          SQL := SQL + ' ON "' + Table.Name + '"';
+          SQL := SQL + ' (';
+          for J := 0 to TSBaseTable(Table).Keys[I].Columns.Count - 1 do
           begin
-            SQL := 'CREATE';
-            if (TSBaseTable(Table).Keys[I].Unique) then
-              SQL := SQL + ' UNIQUE';
-            SQL := SQL + ' INDEX "' + TSBaseTable(Table).Keys[I].Name + '"';
-            SQL := SQL + ' ON "' + Table.Name + '"';
-            SQL := SQL + ' (';
-            for J := 0 to TSBaseTable(Table).Keys[I].Columns.Count - 1 do
-            begin
-              if (J > 0) then SQL := SQL + ',';
-              SQL := SQL + '"' + TSBaseTable(Table).Keys[I].Columns[J].Field.Name + '"';
-            end;
-            SQL := SQL + ');';
-
-            // Execute silent, since some ODBC drivers doesn't support keys
-            // and the user does not need to know this...
-            SQLExecDirect(Stmt, PSQLTCHAR(SQL), SQL_NTS);
+            if (J > 0) then SQL := SQL + ',';
+            SQL := SQL + '"' + TSBaseTable(Table).Keys[I].Columns[J].Field.Name + '"';
           end;
+          SQL := SQL + ');';
+
+          // Execute silent, since some ODBC drivers doesn't support keys
+          // and the user does not need to know this...
+          SQLExecDirect(Stmt, PSQLTCHAR(SQL), SQL_NTS);
+        end;
 
 
-      SetLength(Parameter, Length(Fields));
+    SetLength(Parameter, Length(Fields));
 
-      for I := 0 to Length(Fields) - 1 do
-      begin
-        if (BitField(Fields[I])) then
-          begin
-            ValueType := SQL_C_ULONG;
-            ParameterType := SQL_INTEGER;
-            ColumnSize := 8;
-            Parameter[I].MemSize := Fields[I].DataSize;
-          end
-        else
-          case (Fields[I].DataType) of
-            ftString:
+    for I := 0 to Length(Fields) - 1 do
+    begin
+      if (BitField(Fields[I])) then
+        begin
+          ValueType := SQL_C_ULONG;
+          ParameterType := SQL_INTEGER;
+          ColumnSize := 8;
+          Parameter[I].MemSize := Fields[I].DataSize;
+        end
+      else
+        case (Fields[I].DataType) of
+          ftString:
+            begin
+              ValueType := SQL_C_BINARY;
+              ParameterType := SQL_BINARY;
+              ColumnSize := Fields[I].Size;
+              Parameter[I].MemSize := ColumnSize;
+            end;
+          ftShortInt,
+          ftByte,
+          ftSmallInt,
+          ftWord,
+          ftInteger,
+          ftLongWord,
+          ftLargeint:
+            begin
+              ValueType := SQL_C_CHAR;
+              ParameterType := SQL_CHAR;
+              ColumnSize := 100;
+              Parameter[I].MemSize := ColumnSize;
+            end;
+          ftSingle,
+          ftFloat,
+          ftExtended:
+            begin
+              ValueType := SQL_C_CHAR;
+              ParameterType := SQL_C_DOUBLE;
+              ColumnSize := 100;
+              Parameter[I].MemSize := ColumnSize;
+            end;
+          ftTimestamp:
+            begin
+              ValueType := SQL_C_CHAR;
+              ParameterType := SQL_CHAR;
+              ColumnSize := 100;
+              Parameter[I].MemSize := ColumnSize;
+            end;
+          ftDate:
+            begin
+              ValueType := SQL_C_CHAR;
+              ParameterType := SQL_TYPE_DATE;
+              ColumnSize := 10; // 'yyyy-mm-dd'
+              Parameter[I].MemSize := ColumnSize;
+            end;
+          ftDateTime:
+            begin
+              ValueType := SQL_C_CHAR;
+              ParameterType := SQL_TYPE_TIMESTAMP;
+              ColumnSize := 19; // 'yyyy-mm-dd hh:hh:ss'
+              Parameter[I].MemSize := ColumnSize;
+            end;
+          ftTime:
+            begin
+              ValueType := SQL_C_CHAR;
+              ParameterType := SQL_TYPE_TIME;
+              ColumnSize := 8; // 'hh:mm:ss'
+              Parameter[I].MemSize := ColumnSize;
+            end;
+          ftWideString:
+            begin
+              if (Fields[I].Size < 256) then
               begin
-                ValueType := SQL_C_BINARY;
-                ParameterType := SQL_BINARY;
+                ValueType := SQL_C_WCHAR;
+                ParameterType := SQL_WCHAR;
                 ColumnSize := Fields[I].Size;
-                Parameter[I].MemSize := ColumnSize;
-              end;
-            ftShortInt,
-            ftByte,
-            ftSmallInt,
-            ftWord,
-            ftInteger,
-            ftLongWord,
-            ftLargeint:
-              begin
-                ValueType := SQL_C_CHAR;
-                ParameterType := SQL_CHAR;
-                ColumnSize := 100;
-                Parameter[I].MemSize := ColumnSize;
-              end;
-            ftSingle,
-            ftFloat,
-            ftExtended:
-              begin
-                ValueType := SQL_C_CHAR;
-                ParameterType := SQL_C_DOUBLE;
-                ColumnSize := 100;
-                Parameter[I].MemSize := ColumnSize;
-              end;
-            ftTimestamp:
-              begin
-                ValueType := SQL_C_CHAR;
-                ParameterType := SQL_CHAR;
-                ColumnSize := 100;
-                Parameter[I].MemSize := ColumnSize;
-              end;
-            ftDate:
-              begin
-                ValueType := SQL_C_CHAR;
-                ParameterType := SQL_TYPE_DATE;
-                ColumnSize := 10; // 'yyyy-mm-dd'
-                Parameter[I].MemSize := ColumnSize;
-              end;
-            ftDateTime:
-              begin
-                ValueType := SQL_C_CHAR;
-                ParameterType := SQL_TYPE_TIMESTAMP;
-                ColumnSize := 19; // 'yyyy-mm-dd hh:hh:ss'
-                Parameter[I].MemSize := ColumnSize;
-              end;
-            ftTime:
-              begin
-                ValueType := SQL_C_CHAR;
-                ParameterType := SQL_TYPE_TIME;
-                ColumnSize := 8; // 'hh:mm:ss'
-                Parameter[I].MemSize := ColumnSize;
-              end;
-            ftWideString:
-              begin
-                if (Fields[I].Size < 256) then
-                begin
-                  ValueType := SQL_C_WCHAR;
-                  ParameterType := SQL_WCHAR;
-                  ColumnSize := Fields[I].Size;
-                  Parameter[I].MemSize := ColumnSize * SizeOf(Char);
-                end
-                else
-                begin
-                  ValueType := SQL_C_WCHAR;
-                  ParameterType := SQL_WLONGVARCHAR;
-                  ColumnSize := Fields[I].Size;
-                  Parameter[I].MemSize := ODBCDataSize;
-                end;
-              end;
-            ftWideMemo:
+                Parameter[I].MemSize := ColumnSize * SizeOf(Char);
+              end
+              else
               begin
                 ValueType := SQL_C_WCHAR;
                 ParameterType := SQL_WLONGVARCHAR;
                 ColumnSize := Fields[I].Size;
                 Parameter[I].MemSize := ODBCDataSize;
               end;
-            ftBlob:
-              begin
-                ValueType := SQL_C_BINARY;
-                ParameterType := SQL_LONGVARBINARY;
-                ColumnSize := Fields[I].Size;
-                Parameter[I].MemSize := ODBCDataSize;
-              end;
-            else
-              raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Fields[I].DisplayName, Ord(Fields[I].DataType)]);
-          end;
-        GetMem(Parameter[I].Mem, Parameter[I].MemSize);
-
-        if ((Success = daSuccess) and not SQL_SUCCEEDED(SQLBindParameter(Stmt, 1 + I, SQL_PARAM_INPUT, ValueType, ParameterType,
-          ColumnSize, 0, Parameter[I].Mem, Parameter[I].MemSize, @Parameter[I].Size))) then
-        begin
-          Error := ODBCError(SQL_HANDLE_STMT, Stmt);
-          Error.ErrorMessage := Error.ErrorMessage;
-          DoError(Error, nil, False);
+            end;
+          ftWideMemo:
+            begin
+              ValueType := SQL_C_WCHAR;
+              ParameterType := SQL_WLONGVARCHAR;
+              ColumnSize := Fields[I].Size;
+              Parameter[I].MemSize := ODBCDataSize;
+            end;
+          ftBlob:
+            begin
+              ValueType := SQL_C_BINARY;
+              ParameterType := SQL_LONGVARBINARY;
+              ColumnSize := Fields[I].Size;
+              Parameter[I].MemSize := ODBCDataSize;
+            end;
+          else
+            raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Fields[I].DisplayName, Ord(Fields[I].DataType)]);
         end;
-      end;
+      GetMem(Parameter[I].Mem, Parameter[I].MemSize);
 
-      SQL := 'INSERT INTO "' + TableName + '" VALUES (';
-      for I := 0 to Length(Fields) - 1 do
-      begin
-        if (I > 0) then SQL := SQL + ',';
-        SQL := SQL + '?';
-      end;
-      SQL := SQL + ')';
-
-      if ((Success = daSuccess) and not SQL_SUCCEEDED(SQLPrepare(Stmt, PSQLTCHAR(SQL), SQL_NTS))) then
+      if ((Success = daSuccess) and not SQL_SUCCEEDED(SQLBindParameter(Stmt, 1 + I, SQL_PARAM_INPUT, ValueType, ParameterType,
+        ColumnSize, 0, Parameter[I].Mem, Parameter[I].MemSize, @Parameter[I].Size))) then
       begin
         Error := ODBCError(SQL_HANDLE_STMT, Stmt);
-        Error.ErrorMessage := Error.ErrorMessage + ' - ' + SQL;
+        Error.ErrorMessage := Error.ErrorMessage;
         DoError(Error, nil, False);
       end;
+    end;
+
+    SQL := 'INSERT INTO "' + TableName + '" VALUES (';
+    for I := 0 to Length(Fields) - 1 do
+    begin
+      if (I > 0) then SQL := SQL + ',';
+      SQL := SQL + '?';
+    end;
+    SQL := SQL + ')';
+
+    if ((Success = daSuccess) and not SQL_SUCCEEDED(SQLPrepare(Stmt, PSQLTCHAR(SQL), SQL_NTS))) then
+    begin
+      Error := ODBCError(SQL_HANDLE_STMT, Stmt);
+      Error.ErrorMessage := Error.ErrorMessage + ' - ' + SQL;
+      DoError(Error, nil, False);
     end;
   end;
 end;
