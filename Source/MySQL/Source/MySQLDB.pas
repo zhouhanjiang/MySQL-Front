@@ -4185,10 +4185,11 @@ end;
 
 function TMySQLQuery.GetAsString(const Field: TField): string;
 begin
-  if (not Assigned(LibRow^[Field.FieldNo - 1]) or (LibLengths^[Field.FieldNo - 1] = 0)) then
-    Result := ''
+  if (not Assigned(LibRow^[Field.FieldNo - 1])) then
   else if (BitField(Field)) then
     Result := Field.AsString
+  else if (LibLengths^[Field.FieldNo - 1] = 0) then
+    Result := ''
   else if (Field.DataType = ftString) then
     Result := '<Binary>'
   else if (Field.DataType = ftBlob) then
