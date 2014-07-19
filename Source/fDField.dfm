@@ -145,7 +145,7 @@ object DField: TDField
       Width = 189
       Height = 21
       Style = csDropDownList
-      TabOrder = 17
+      TabOrder = 16
       OnChange = FBOkCheckEnabled
     end
     object FDefaultSet: TListBox
@@ -156,7 +156,7 @@ object DField: TDField
       Anchors = [akLeft, akTop, akRight]
       ItemHeight = 13
       MultiSelect = True
-      TabOrder = 18
+      TabOrder = 17
       OnClick = FBOkCheckEnabled
     end
     object FRDefaultNull: TRadioButton
@@ -166,7 +166,7 @@ object DField: TDField
       Height = 17
       Anchors = [akLeft, akTop, akRight]
       Caption = 'FRDefaultNull'
-      TabOrder = 11
+      TabOrder = 10
       OnClick = FRDefaultClick
     end
     object FFormatTimestamp: TComboBox_Ext
@@ -175,7 +175,7 @@ object DField: TDField
       Width = 137
       Height = 21
       Style = csDropDownList
-      TabOrder = 8
+      TabOrder = 7
       OnChange = FFormatTimestampChange
       Items.Strings = (
         'YYYYMMDDHHMMSS'
@@ -189,19 +189,11 @@ object DField: TDField
       Width = 174
       Height = 21
       Anchors = [akLeft, akTop, akRight]
-      TabOrder = 13
+      TabOrder = 12
       Text = 'FDefault'
       OnChange = FDefaultChange
       OnEnter = FDefaultEnter
       OnExit = FDefaultExit
-    end
-    object FFormatDate: TEdit
-      Left = 120
-      Top = 112
-      Width = 137
-      Height = 21
-      TabOrder = 7
-      Text = 'FFormatDateTime'
     end
     object FFormatUnion: TEdit
       Left = 120
@@ -209,7 +201,7 @@ object DField: TDField
       Width = 189
       Height = 21
       Anchors = [akLeft, akTop, akRight]
-      TabOrder = 10
+      TabOrder = 9
       OnChange = FFormatUnionChange
     end
     object FFormatYear: TComboBox_Ext
@@ -218,7 +210,7 @@ object DField: TDField
       Width = 57
       Height = 21
       Style = csDropDownList
-      TabOrder = 9
+      TabOrder = 8
       OnChange = FFormatYearChange
       Items.Strings = (
         'YYYY'
@@ -341,7 +333,7 @@ object DField: TDField
       Height = 21
       Anchors = [akLeft, akTop, akRight]
       MaxLength = 256
-      TabOrder = 21
+      TabOrder = 20
       Text = 'FComment'
       OnChange = FBOkCheckEnabled
     end
@@ -351,7 +343,7 @@ object DField: TDField
       Width = 89
       Height = 21
       Style = csDropDownList
-      TabOrder = 19
+      TabOrder = 18
       OnChange = FCharsetChange
     end
     object FCollation: TComboBox_Ext
@@ -360,7 +352,7 @@ object DField: TDField
       Width = 145
       Height = 21
       Style = csDropDownList
-      TabOrder = 20
+      TabOrder = 19
       OnChange = FBOkCheckEnabled
       OnDropDown = FCollationDropDown
     end
@@ -369,7 +361,7 @@ object DField: TDField
       Top = 166
       Width = 14
       Height = 17
-      TabOrder = 12
+      TabOrder = 11
       OnClick = FRDefaultClick
     end
     object FRDefaultInsertTime: TRadioButton
@@ -378,7 +370,7 @@ object DField: TDField
       Width = 188
       Height = 17
       Caption = 'FRDefaultInsertTime'
-      TabOrder = 14
+      TabOrder = 13
       OnClick = FRDefaultClick
     end
     object FUpdateTime: TCheckBox
@@ -387,7 +379,7 @@ object DField: TDField
       Width = 188
       Height = 17
       Caption = 'FUpdateTime'
-      TabOrder = 16
+      TabOrder = 15
       OnClick = FRDefaultClick
     end
     object FRDefaultAutoIncrement: TRadioButton
@@ -397,7 +389,7 @@ object DField: TDField
       Height = 17
       Anchors = [akLeft, akTop, akRight]
       Caption = 'FRDefaultAutoIncrement'
-      TabOrder = 15
+      TabOrder = 14
       OnClick = FRDefaultClick
       OnKeyDown = FRDefaultNullKeyDown
     end

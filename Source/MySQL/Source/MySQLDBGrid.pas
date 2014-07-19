@@ -360,9 +360,8 @@ begin
         for J := 0 to Columns.Count - 1 do
           if (Columns[J].Visible) then
           begin
-            if (not FirstContent) then Content := Content + #9;
+            if (FirstContent) then FirstContent := False else Content := Content + #9;
             Content := Content + CSVEscape(TMySQLDataSet(DataLink.DataSet).GetAsString(Columns[J].Field));
-            FirstContent := False;
           end;
         Content := Content + #13#10;
       end;

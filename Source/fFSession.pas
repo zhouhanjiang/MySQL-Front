@@ -6042,7 +6042,7 @@ begin
       FText.OnChange := nil;
 
       EditorField := nil;
-      if (DBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) then
+      if (DBGrid.SelectedField.DataType in [ftString, ftWideMemo, ftBlob]) then
         EditorField := DBGrid.SelectedField;
       if (Assigned(EditorField) xor PBlob.Visible) then
       begin
@@ -6970,10 +6970,15 @@ procedure TFSession.FHexEditorShow(Sender: TObject);
 var
   Stream: TStream;
 begin
-  FHexEditor.UnicodeChars := False;
-  if (not EditorField.IsNull and (EditorField.DataType = ftBlob)) then
+  if (not EditorField.IsNull and (EditorField.DataType in [ftString, ftBlob])) then
   begin
-    Stream := EditorField.DataSet.CreateBlobStream(EditorField, bmRead);
+    if (EditorField.DataType = ftString) then
+    begin
+      Stream := TMemoryStream.Create();
+      TMemoryStream(Stream).Write(EditorField.AsAnsiString[1], Length(EditorField.AsAnsiString));
+    end
+    else
+      Stream := EditorField.DataSet.CreateBlobStream(EditorField, bmRead);
     FHexEditor.BytesPerColumn := 1;
   end
   else if (not EditorField.IsNull and (EditorField.DataType = ftWideMemo)) then
@@ -6985,7 +6990,10 @@ begin
     Stream := nil;
 
   if (not Assigned(Stream)) then
-    FHexEditor.DataSize := 0
+  begin
+    FHexEditor.DataSize := 0;
+    FHexEditor.UnicodeChars := False;
+  end
   else
   begin
     FHexEditor.LoadFromStream(Stream);

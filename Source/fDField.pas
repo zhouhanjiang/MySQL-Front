@@ -29,7 +29,6 @@ type
     FFlagUnicode: TCheckBox;
     FFlagUnsigned: TCheckBox;
     FFlagZerofill: TCheckBox;
-    FFormatDate: TEdit;
     FFormatDecimals: TEdit;
     FFormatSize: TEdit;
     FFormatTimestamp: TComboBox_Ext;
@@ -320,11 +319,10 @@ begin
   FUDFormatSize.Visible := FLFormatSize.Visible or FLFormatFSP.Visible;
   FFormatDecimals.Visible := IsFloatType(); FUDFormatDecimals.Visible := FFormatDecimals.Visible;
   FLFormatDecimals.Visible := IsFloatType();
-  FFormatDate.Visible := GetType() = mfTime;
   FFormatYear.Visible := GetType() = mfYear;
   FFormatTimestamp.Visible := (GetType() = mfTimestamp) and (Table.Database.Session.ServerVersion < 40100);
   FFormatUnion.Visible := IsUnionType();
-  FLFormat.Visible := FFormatTimestamp.Visible or FFormatYear.Visible or FFormatDate.Visible or FFormatUnion.Visible;
+  FLFormat.Visible := FFormatTimestamp.Visible or FFormatYear.Visible or FFormatUnion.Visible;
   FDefault.Visible := ((GetType() = mfBit) or IsIntType() or IsFloatType() or IsCharType() or IsBinaryType() or IsDateType());
   FRDefaultNull.Visible := FDefault.Visible;
   FRDefault.Visible := FDefault.Visible;
@@ -361,10 +359,6 @@ begin
     FRDefaultAutoIncrement.Enabled := False;
 
   FUpdateTime.Enabled := FDefault.Enabled; FLUpdateTime.Enabled := FUpdateTime.Enabled;
-
-  if (GetType() = mfDate) then FFormatDate.Text := UpperCase(Table.Database.Session.FormatSettings.ShortDateFormat);
-  if (GetType() = mfDateTime) then FFormatDate.Text := UpperCase(Table.Database.Session.FormatSettings.ShortDateFormat + ' ' + Table.Database.Session.FormatSettings.LongTimeFormat);
-  if (GetType() = mfTime) then FFormatDate.Text := UpperCase(Table.Database.Session.FormatSettings.LongTimeFormat);
 
   if ((GetType() = mfBit) or IsFloatType() or (IsIntType() or IsCharType() or IsBinaryType()) and (FUDFormatSize.Position = 0)) then FUDFormatSize.Position := GetDefaultSize();
   if (IsFloatType()) then FUDFormatDecimals.Position := GetDefaultDecimals();

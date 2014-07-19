@@ -7848,6 +7848,7 @@ var
   FilenameP: array [0 .. MAX_PATH] of Char;
   I: Integer;
   J: Integer;
+  L: LargeInt;
   Len: Integer;
   LenEscaped: Integer;
   LibLengths: MYSQL_LENGTHS;
@@ -7949,7 +7950,7 @@ begin
                 if (not Assigned(LibRow^[I])) then
                   DataFileBuffer.Write(PAnsiChar('NULL'), 4)
                 else if (BitField(DataSet.Fields[I])) then
-                  begin S := UInt64ToStr(DataSet.Fields[I].AsLargeInt); DataFileBuffer.WriteData(PChar(S), Length(S)); end
+                  begin L := DataSet.Fields[I].AsLargeInt; S := DataSet.Fields[I].AsString; DataFileBuffer.WriteBinary(PAnsiChar(@L), Length(S) div 8 + 1); end
                 else if (DestinationTable.Fields[I].FieldType in BinaryFieldTypes) then
                   DataFileBuffer.WriteBinary(LibRow^[I], LibLengths^[I])
                 else if (DestinationField.FieldType in TextFieldTypes) then

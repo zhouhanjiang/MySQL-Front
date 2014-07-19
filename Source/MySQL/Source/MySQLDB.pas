@@ -4,7 +4,7 @@ interface {********************************************************************}
 
 uses
   Classes, SysUtils, Windows, SyncObjs,
-  DB, DBTables, DBCommon, SqlTimSt,
+  DB, DBCommon, SqlTimSt,
   MySQLConsts;
 
 const
@@ -700,7 +700,7 @@ type
     procedure SetDataSet(ADataSet: TDataSet); override;
   end;
 
-  TMySQLDateTimeField = class(TSQLTimeStampField)
+  TMySQLDateTimeField = class(TDateTimeField)
   private
     ZeroDateString: string;
   protected
@@ -789,7 +789,7 @@ var
 implementation {***************************************************************}
 
 uses
-  DBConsts, Forms, Variants, ActiveX,
+  DBConsts, Forms, Variants,
   RTLConsts, Consts, SysConst, Math, StrUtils,
   {$IFDEF EurekaLog}
   ExceptionLog,
@@ -4473,15 +4473,23 @@ begin
             MYSQL_TYPE_TIMESTAMP:
               if (Len in [2, 4, 6, 8, 10, 12, 14]) then
                 Field := TMySQLTimeStampField.Create(Self)
+              else if (Integer(Len) <= Length(Connection.FormatSettings.LongDateFormat + ' ' + Connection.FormatSettings.LongTimeFormat)) then
+                Field := TMySQLDateTimeField.Create(Self)
               else
-                Field := TMySQLDateTimeField.Create(Self);
+                begin Field := TMySQLWideStringField.Create(Self); Field.Size := Len; end;
             MYSQL_TYPE_DATE:
               Field := TMySQLDateField.Create(Self);
             MYSQL_TYPE_TIME:
-              Field := TMySQLTimeField.Create(Self);
+              if (Integer(Len - 2) <= Length(Connection.FormatSettings.LongTimeFormat)) then
+                Field := TMySQLTimeField.Create(Self)
+              else
+                begin Field := TMySQLWideStringField.Create(Self); Field.Size := Len; end;
             MYSQL_TYPE_DATETIME,
             MYSQL_TYPE_NEWDATE:
-              Field := TMySQLDateTimeField.Create(Self);
+              if (Integer(Len) <= Length(Connection.FormatSettings.LongDateFormat + ' ' + Connection.FormatSettings.LongTimeFormat)) then
+                Field := TMySQLDateTimeField.Create(Self)
+              else
+                begin Field := TMySQLWideStringField.Create(Self); Field.Size := Len; end;
             MYSQL_TYPE_YEAR:
               if (Len = 2) then
                 Field := TByteField.Create(Self)
