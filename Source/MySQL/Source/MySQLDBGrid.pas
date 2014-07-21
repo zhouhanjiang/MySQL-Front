@@ -367,10 +367,9 @@ begin
       end;
       Len := Length(Content);
 
-      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Len + 1) * SizeOf(Char));
-      Move(PChar(Content)^, GlobalLock(ClipboardData)^, (Len + 1) * SizeOf(Char));
-      PAnsiChar(GlobalLock(ClipboardData))[Len] := #0;
+      ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, Len * SizeOf(Char));
       SetClipboardData(CF_MYSQLRECORD, ClipboardData);
+      Move(PChar(Content)^, GlobalLock(ClipboardData)^, Len * SizeOf(Char));
       GlobalUnlock(ClipboardData);
 
       DataLink.DataSet.RecNo := OldRecNo;
@@ -903,10 +902,11 @@ function TMySQLDBGrid.PasteFromClipboard(): Boolean;
 var
   Bookmarks: array of TBookmark;
   ClipboardData: HGLOBAL;
+  Content: string;
   I: Integer;
   Index: Integer;
   RecNo: Integer;
-  S: string;
+  S: AnsiString;
   Str: PAnsiChar;
   Values: TCSVValues;
 begin
@@ -924,22 +924,22 @@ begin
         if (Clipboard.HasFormat(CF_MYSQLRECORD)) then
         begin
           ClipboardData := GetClipboardData(CF_MYSQLRECORD);
-          S := PChar(GlobalLock(ClipboardData));
+          SetString(Content, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(Content[1]));
           GlobalUnlock(ClipboardData);
         end
         else if (Clipboard.HasFormat(CF_UNICODETEXT)) then
         begin
           ClipboardData := GetClipboardData(CF_UNICODETEXT);
-          S := PChar(GlobalLock(ClipboardData));
+          SetString(Content, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(Content[1]));
           GlobalUnlock(ClipboardData);
         end
         else
         begin
           ClipboardData := GetClipboardData(CF_TEXT);
-          Str := PAnsiChar(GlobalLock(ClipboardData));
-          SetLength(S, AnsiCharToWideChar(GetACP(), Str, StrLen(Str), nil, 0));
-          if (Length(S) > 0) then
-            SetLength(S, AnsiCharToWideChar(GetACP(), Str, StrLen(Str), PChar(S), Length(S)));
+          SetString(S, PAnsiChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData));
+          SetLength(Content, AnsiCharToWideChar(GetACP(), Str, StrLen(Str), nil, 0));
+          if (Length(Content) > 0) then
+            SetLength(Content, AnsiCharToWideChar(GetACP(), Str, StrLen(Str), PChar(Content), Length(Content)));
           GlobalUnlock(ClipboardData);
         end;
       finally
@@ -947,7 +947,7 @@ begin
       end;
 
       Index := 1;
-      if (CSVSplitValues(S, Index, #9, '"', Values) and ((Length(Values) > 1) or (Index <= Length(S)))) then
+      if (CSVSplitValues(Content, Index, #9, '"', Values) and ((Length(Values) > 1) or (Index <= Length(Content)))) then
       begin
         if (DataLink.DataSet.State <> dsInsert) then
           DataLink.DataSet.CheckBrowseMode();
@@ -987,7 +987,7 @@ begin
                       DataLink.DataSet.Fields[I].Clear();
                     end;
 
-                if ((RecNo > 0) or (Index <= Length(S))) then
+                if ((RecNo > 0) or (Index <= Length(Content))) then
                   try
                     DataLink.DataSet.Post();
                   except
@@ -999,7 +999,7 @@ begin
                   end;
                 Inc(RecNo);
               end;
-            until (not CSVSplitValues(S, Index, #9, '"', Values) or (Length(Values) = 0));
+            until (not CSVSplitValues(Content, Index, #9, '"', Values) or (Length(Values) = 0));
           finally
             SetLength(Values, 0);
           end;
@@ -1015,7 +1015,7 @@ begin
         else
         begin
           DataLink.DataSet.Edit();
-          SelectedField.AsString := S;
+          SelectedField.AsString := Content;
         end;
       end;
     end

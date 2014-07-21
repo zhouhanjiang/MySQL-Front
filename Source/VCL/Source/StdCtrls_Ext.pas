@@ -88,12 +88,13 @@ end;
 procedure TComboBox_Ext.PasteFromClipboard();
 var
   ClipboardData: HGLOBAL;
+  S: string;
 begin
   if (OpenClipboard(Handle)) then
   begin
     ClipboardData := GetClipboardData(CF_UNICODETEXT);
-    if (ClipboardData <> 0) then
-      SelText := PChar(GlobalLock(ClipboardData));
+    SetString(S, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(S[1]));
+    SelText := S;
     GlobalUnlock(ClipboardData);
     CloseClipboard();
   end;

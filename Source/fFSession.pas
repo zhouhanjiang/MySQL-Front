@@ -3259,7 +3259,7 @@ begin
       end
       else
       begin
-        S := Trim(PChar(GlobalLock(ClipboardData)));;
+        SetString(S, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(S[1]));
         GlobalUnlock(ClipboardData);
         CloseClipboard();
 
@@ -14148,7 +14148,7 @@ begin
   else
   begin
     ClipboardData := GetClipboardData(CF_MYSQLTABLE);
-    S := PChar(GlobalLock(ClipboardData));
+    SetString(S, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(S[1]));
     GlobalUnlock(ClipboardData);
     CloseClipboard();
 
@@ -14328,7 +14328,7 @@ begin
   else
   begin
     ClipboardData := GetClipboardData(CF_MYSQLTABLE);
-    S := PChar(GlobalLock(ClipboardData));
+    SetString(S, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(S[1]));
     GlobalUnlock(ClipboardData);
     CloseClipboard();
 

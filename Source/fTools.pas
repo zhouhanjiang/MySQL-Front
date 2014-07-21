@@ -7950,7 +7950,7 @@ begin
                 if (not Assigned(LibRow^[I])) then
                   DataFileBuffer.Write(PAnsiChar('NULL'), 4)
                 else if (BitField(DataSet.Fields[I])) then
-                  begin L := DataSet.Fields[I].AsLargeInt; S := DataSet.Fields[I].AsString; DataFileBuffer.WriteBinary(PAnsiChar(@L), Length(S) div 8 + 1); end
+                  begin L := DataSet.Fields[I].AsLargeInt; DataFileBuffer.WriteBinary(PAnsiChar(@L), L div 1 + 1); end
                 else if (DestinationTable.Fields[I].FieldType in BinaryFieldTypes) then
                   DataFileBuffer.WriteBinary(LibRow^[I], LibLengths^[I])
                 else if (DestinationField.FieldType in TextFieldTypes) then
