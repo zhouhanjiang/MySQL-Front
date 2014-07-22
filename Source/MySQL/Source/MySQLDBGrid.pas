@@ -693,7 +693,7 @@ begin
       for J := 0 to Columns.Count - 1 do
         if (Columns[J].Visible) then
         begin
-          if (not FirstContent) then FirstContent := False else Result := Result + #9;
+          if (FirstContent) then FirstContent := False else Result := Result + #9;
           Result := Result + TMySQLDataSet(DataLink.DataSet).GetAsString(Columns[J].Field);
         end;
       Result := Result + #13#10;
