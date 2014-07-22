@@ -344,9 +344,9 @@ begin
 
       Content := SelText;
 
-      Len := WideCharToAnsiChar(GetACP(), PChar(Content), Length(Content), nil, 0);
+      Len := WideCharToAnsiChar(CP_ACP, PChar(Content), Length(Content), nil, 0);
       ClipboardData := GlobalAlloc(GMEM_MOVEABLE + GMEM_DDESHARE, (Len + 1));
-      WideCharToAnsiChar(GetACP(), PChar(Content), Length(Content), GlobalLock(ClipboardData), Len);
+      WideCharToAnsiChar(CP_ACP, PChar(Content), Length(Content), GlobalLock(ClipboardData), Len);
       PAnsiChar(GlobalLock(ClipboardData))[Len] := #0;
       SetClipboardData(CF_DSPTEXT, ClipboardData);
       GlobalUnlock(ClipboardData);
@@ -693,7 +693,7 @@ begin
       for J := 0 to Columns.Count - 1 do
         if (Columns[J].Visible) then
         begin
-          if (not FirstContent) then Result := Result + #9; FirstContent := False;
+          if (not FirstContent) then FirstContent := False else Result := Result + #9;
           Result := Result + TMySQLDataSet(DataLink.DataSet).GetAsString(Columns[J].Field);
         end;
       Result := Result + #13#10;
@@ -907,7 +907,6 @@ var
   Index: Integer;
   RecNo: Integer;
   S: AnsiString;
-  Str: PAnsiChar;
   Values: TCSVValues;
 begin
   Result := not ReadOnly;
@@ -936,10 +935,10 @@ begin
         else
         begin
           ClipboardData := GetClipboardData(CF_TEXT);
-          SetString(S, PAnsiChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData));
-          SetLength(Content, AnsiCharToWideChar(GetACP(), Str, StrLen(Str), nil, 0));
+          SetString(S, PAnsiChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(S[1]));
+          SetLength(Content, AnsiCharToWideChar(CP_ACP, PAnsiChar(S), Length(S), nil, 0));
           if (Length(Content) > 0) then
-            SetLength(Content, AnsiCharToWideChar(GetACP(), Str, StrLen(Str), PChar(Content), Length(Content)));
+            SetLength(Content, AnsiCharToWideChar(CP_ACP, PAnsiChar(S), Length(S), PChar(Content), Length(Content)));
           GlobalUnlock(ClipboardData);
         end;
       finally

@@ -4186,6 +4186,7 @@ end;
 function TMySQLQuery.GetAsString(const Field: TField): string;
 begin
   if (not Assigned(LibRow^[Field.FieldNo - 1])) then
+    Result := ''
   else if (BitField(Field)) then
     Result := Field.AsString
   else if (LibLengths^[Field.FieldNo - 1] = 0) then
