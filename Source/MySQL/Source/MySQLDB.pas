@@ -4475,8 +4475,8 @@ begin
             MYSQL_TYPE_TIMESTAMP:
               if (Len in [2, 4, 6, 8, 10, 12, 14]) then
                 Field := TMySQLTimeStampField.Create(Self)
-//              else if (Integer(Len) <= Length(Connection.FormatSettings.LongDateFormat + ' ' + Connection.FormatSettings.LongTimeFormat)) then
-//                Field := TMySQLDateTimeField.Create(Self)
+              else if ((Connection.ServerVersion < 50604) or (Integer(Len) <= Length(Connection.FormatSettings.LongDateFormat + ' ' + Connection.FormatSettings.LongTimeFormat))) then
+                Field := TMySQLDateTimeField.Create(Self)
               else
                 begin Field := TMySQLWideStringField.Create(Self); Field.Size := Len; end;
             MYSQL_TYPE_DATE:
@@ -4488,10 +4488,10 @@ begin
                 begin Field := TMySQLWideStringField.Create(Self); Field.Size := Len; end;
             MYSQL_TYPE_DATETIME,
             MYSQL_TYPE_NEWDATE:
-//              if (Integer(Len) <= Length(Connection.FormatSettings.LongDateFormat + ' ' + Connection.FormatSettings.LongTimeFormat)) then
-                Field := TMySQLDateTimeField.Create(Self);
-//              else
-//                begin Field := TMySQLWideStringField.Create(Self); Field.Size := Len; end;
+              if (Integer(Len) <= Length(Connection.FormatSettings.LongDateFormat + ' ' + Connection.FormatSettings.LongTimeFormat)) then
+                Field := TMySQLDateTimeField.Create(Self)
+              else
+                begin Field := TMySQLWideStringField.Create(Self); Field.Size := Len; end;
             MYSQL_TYPE_YEAR:
               if (Len = 2) then
                 Field := TByteField.Create(Self)
