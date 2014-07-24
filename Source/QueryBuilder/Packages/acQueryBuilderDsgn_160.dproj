@@ -42,8 +42,8 @@
 			<DCC_DcpOutput>..\Bin</DCC_DcpOutput>
 			<DCC_DcuOutput>..\Bin</DCC_DcuOutput>
 			<DCC_Description>Active Query Builder Core</DCC_Description>
-			<DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
 			<DCC_DebugInformation>false</DCC_DebugInformation>
+			<DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
 			<DCC_AssertionsAtRuntime>false</DCC_AssertionsAtRuntime>
 			<DCC_IOChecking>false</DCC_IOChecking>
 		</PropertyGroup>
