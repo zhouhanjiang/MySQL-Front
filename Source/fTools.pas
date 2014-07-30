@@ -3296,6 +3296,9 @@ begin
           Key := NewTable.IndexByName(S);
         end;
 
+        if (not Assigned(Key)) then // Debug 30.07.14
+          raise Exception.Create('Key not assigned');
+
         NewKeyColumn := TSKeyColumn.Create(Key.Columns);
         NewKeyColumn.Field := NewTable.FieldByName(Session.ApplyIdentifierName(ColumnName));
         NewKeyColumn.Ascending := AscOrDesc[0] = 'A';
@@ -4619,8 +4622,8 @@ begin
     Content := Content + '#' + #13#10;
     Content := Content + #13#10;
 
-if (not Assigned(TSBaseTable(Table).Engine)) then
-  raise Exception.CreateFmt('Unknown Engine in Table "%s" (%s)', [Table.Name, Table.Source]);
+    if (not Assigned(TSBaseTable(Table).Engine)) then // Debug 25.07.14
+      raise Exception.CreateFmt('Unknown Engine in Table "%s" (%s)', [Table.Name, Table.Source]);
 
     if (DropStmts and TSBaseTable(Table).Engine.IsMyISAM) then
       Content := Content + '/*!40000 ALTER TABLE ' + Session.EscapeIdentifier(Table.Name) + ' DISABLE KEYS */;' + #13#10;
