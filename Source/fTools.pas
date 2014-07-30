@@ -3131,6 +3131,7 @@ var
   IndexType: SQLSMALLINT;
   J: Integer;
   Len: SQLINTEGER;
+  Name: string;
   NewKeyColumn: TSKeyColumn;
   NewField: TSBaseTableField;
   NewTable: TSBaseTable;
@@ -3281,29 +3282,28 @@ begin
     while (SQL_SUCCEEDED(ODBCException(Stmt, SQLFetch(Stmt)))) do
       if ((IndexType in [SQL_INDEX_CLUSTERED, SQL_INDEX_HASHED, SQL_INDEX_OTHER])) then
       begin
-        Key := NewTable.IndexByName(IndexName);
+        Name := Session.ApplyIdentifierName(IndexName);
+        Key := NewTable.IndexByName(Name);
 
         if (not Assigned(Key)) then
         begin
-          S := Session.ApplyIdentifierName(IndexName);
-
           Key := TSKey.Create(NewTable.Keys);
-          Key.Name := S;
+          Key.Name := Name;
           Key.Unique := NonUnique = SQL_FALSE;
           NewTable.Keys.AddKey(Key);
           Key.Free();
 
-          Key := NewTable.IndexByName(S);
+          Key := NewTable.IndexByName(Name);
         end;
 
-        if (not Assigned(Key)) then // Debug 30.07.14
-          raise Exception.Create('Key not assigned');
-
-        NewKeyColumn := TSKeyColumn.Create(Key.Columns);
-        NewKeyColumn.Field := NewTable.FieldByName(Session.ApplyIdentifierName(ColumnName));
-        NewKeyColumn.Ascending := AscOrDesc[0] = 'A';
-        Key.Columns.AddColumn(NewKeyColumn);
-        FreeAndNil(NewKeyColumn);
+        if (Assigned(Key)) then
+        begin
+          NewKeyColumn := TSKeyColumn.Create(Key.Columns);
+          NewKeyColumn.Field := NewTable.FieldByName(Session.ApplyIdentifierName(ColumnName));
+          NewKeyColumn.Ascending := AscOrDesc[0] = 'A';
+          Key.Columns.AddColumn(NewKeyColumn);
+          FreeAndNil(NewKeyColumn);
+        end;
       end;
 
     SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
