@@ -2205,8 +2205,7 @@ end;
 
 procedure TSDBObject.SetSource(const ASource: string);
 begin
-  FValidSource := True;
-  FSource := ASource;
+  inherited;
 
   PushBuildEvent();
 end;
@@ -3792,7 +3791,11 @@ begin
     FChecked := DataSet.FieldByName('CHECK_TIME').AsDateTime;
     if (Assigned(DataSet.FindField('TABLE_COLLATION'))) then
       Collation := LowerCase(DataSet.FieldByName('TABLE_COLLATION').AsString);
-    FComment := DataSet.FieldByName('TABLE_COMMENT').AsString;
+    try
+      FComment := DataSet.FieldByName('TABLE_COMMENT').AsString;
+    except
+      FComment := string(DataSet.FieldByName('TABLE_COMMENT').AsAnsiString);
+    end;
 
     if (not Assigned(Database.Session.CharsetByCollation(FCollation))) then
       DefaultCharset := ''

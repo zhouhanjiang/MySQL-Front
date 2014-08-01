@@ -4840,9 +4840,7 @@ begin
     else if (BitField(Field)) then
       Values.Write(CSVEscape(Field.AsString, Quoter, QuoteValues <> qtNone))
     else if (Field.DataType = ftString) then
-      Values.Write(CSVEscape('<Binary>', Quoter, QuoteValues <> qtNone))
     else if (Field.DataType = ftBlob) then
-      Values.Write(CSVEscape('<Blob>', Quoter, QuoteValues <> qtNone))
     else if (Field.DataType in TextDataTypes) then
     begin
       Len := DataSet.LibLengths^[Field.FieldNo - 1];
