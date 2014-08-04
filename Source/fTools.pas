@@ -3760,11 +3760,11 @@ begin
     Connected := False;
     while ((Success <> daAbort) and not Connected) do
     begin
-      ConnStrIn := 'Driver={Microsoft Access Driver (*.mdb, *.accdb)};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
+      ConnStrIn := 'Driver={' + DriverAccess12 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
       Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
       if (not Connected) then
       begin
-        ConnStrIn := 'Driver={Microsoft Access Driver (*.mdb)};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
+        ConnStrIn := 'Driver={' + DriverAccess + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
         Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
       end;
       if (not Connected) then
@@ -3795,11 +3795,11 @@ begin
     Connected := False;
     while ((Success <> daAbort) and not Connected) do
     begin
-      ConnStrIn := 'Driver={Microsoft Excel Driver (*.xls, *.xlsx, *.xlsm, *.xlsb)};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
+      ConnStrIn := 'Driver={' + DriverExcel12 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
       Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
       if (not Connected) then
       begin
-        ConnStrIn := 'Driver={Microsoft Excel Driver (*.xls)};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
+        ConnStrIn := 'Driver={' + DriverExcel + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
         Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
       end;
       if (not Connected) then

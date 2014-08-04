@@ -2665,14 +2665,9 @@ end;
 
 function MYSQL.Seterror(const AErrNo: my_uint; const AError: RawByteString = ''): my_uint;
 begin
-  Result := inherited Seterror(AErrNo, AError);
+  Result := inherited;
 
   FillChar(FSQLState, SizeOf(FSQLState), #0);
-
-  {$IFDEF EurekaLog}
-    if (AErrNo = CR_COMMANDS_OUT_OF_SYNC) then
-      raise Exception.CreateFmt('%s  (Id: %d, ClientStatus: %d, ServerStatus: %d)', [DecodeString(error()), fthread_id, Byte(fclient_status), fserver_status]);
-  {$ENDIF}
 end;
 
 function MYSQL.set_character_set(const csname: my_char): my_int;

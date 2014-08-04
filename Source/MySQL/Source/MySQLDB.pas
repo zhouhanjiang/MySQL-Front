@@ -2050,6 +2050,8 @@ begin
             else if (State in [ssReady]) then
               Connection.SyncExecutedSQL(Self);
         end;
+      ssError:
+        Connection.DoError(ErrorCode, ErrorMessage);
       ssCancel:
         Connection.SyncExecutedSQL(Self);
       ssDisconnecting:
@@ -3277,7 +3279,10 @@ begin
   if (FErrorCode = 0) then
     LibraryThread.SQL := '';
 
-  LibraryThread.State := ssReady;
+  if (LibraryThread.Success) then
+    LibraryThread.State := ssReady
+  else
+    LibraryThread.State := ssError;
 
   DoAfterExecuteSQL();
 
@@ -4083,16 +4088,20 @@ end;
 { TMySQLQuery *****************************************************************}
 
 function TMySQLQuery.AllocRecordBuffer(): TRecordBuffer;
-var
-  Data: PRecordBufferData;
 begin
-  New(Data);
-  Data^.LibLengths := nil;
-  Data^.LibRow := nil;
+  try
+    New(PRecordBufferData(Result));
+  except
+    Result := nil;
+  end;
 
-  Result := TRecordBuffer(Data);
+  if (Assigned(Result)) then
+  begin
+    PRecordBufferData(Result)^.LibLengths := nil;
+    PRecordBufferData(Result)^.LibRow := nil;
 
-  InitRecord(Result);
+    InitRecord(Result);
+  end;
 end;
 
 constructor TMySQLQuery.Create(AOwner: TComponent);
@@ -4996,7 +5005,11 @@ end;
 
 function TMySQLDataSet.AllocRecordBuffer(): TRecordBuffer;
 begin
-  New(PExternRecordBuffer(Result));
+  try
+    New(PExternRecordBuffer(Result));
+  except
+    Result := nil;
+  end;
 
   PExternRecordBuffer(Result)^.InternRecordBuffer := nil;
   PExternRecordBuffer(Result)^.Index := -1;
@@ -5371,7 +5384,9 @@ begin
     InternRecordBuffer := AllocInternRecordBuffer();
     Result := Assigned(InternRecordBuffer);
 
-    if (Result) then
+    if (not Result) then
+      LibraryThread.Success := False
+    else
     begin
       Data.LibLengths := LibLengths;
       Data.LibRow := LibRow;
@@ -5404,7 +5419,7 @@ begin
   begin
     if ((Self is TMySQLTable) and Assigned(LibraryThread)) then
       TMySQLTable(Self).FLimitedDataReceived :=
-        LibraryThread.Success and (Connection.Lib.mysql_num_rows(LibraryThread.ResHandle) = TMySQLTable(Self).RequestedRecordCount);
+        Result and (Connection.Lib.mysql_num_rows(LibraryThread.ResHandle) = TMySQLTable(Self).RequestedRecordCount);
 
     RecordsReceived.SetEvent();
   end;
