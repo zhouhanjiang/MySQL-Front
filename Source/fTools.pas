@@ -2111,6 +2111,8 @@ begin
 
       while ((Success = daSuccess) and NextRecord()) do
       begin
+        if (SQLStmtPrefixInSQLStmt) then SQLStmt.WriteChar(',');
+
         if ((StmtType = stUpdate) or not SQLStmtPrefixInSQLStmt) then
         begin
           SQLStmt.Write(PChar(SQLStmtPrefix), Length(SQLStmtPrefix));
