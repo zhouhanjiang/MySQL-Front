@@ -1941,7 +1941,6 @@ var
   BytesWritten: DWord;
   DataSet: TMySQLQuery;
   DataFileBuffer: TDataFileBuffer;
-  DBValues: RawByteString;
   Error: TTool.TError;
   EscapedDestinationFieldNames: array of string;
   EscapedTableName: string;
@@ -2033,7 +2032,7 @@ begin
             else
               DataFileBuffer.Clear();
 
-          if (FlushFileBuffers(Pipe) and WriteFile(Pipe, PAnsiChar(DBValues)^, 0, BytesWritten, nil) and FlushFileBuffers(Pipe)) then
+          if (FlushFileBuffers(Pipe) and WriteFile(Pipe, PAnsiChar(#0)^, 0, BytesWritten, nil) and FlushFileBuffers(Pipe)) then
             SQLExecuted.WaitFor(INFINITE);
           DisconnectNamedPipe(Pipe);
 

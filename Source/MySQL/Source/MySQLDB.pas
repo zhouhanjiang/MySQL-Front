@@ -2397,7 +2397,7 @@ begin
   if (InMonitor) then
     raise Exception.Create(SOutOfSync + ' (in Monitor): ' + CommandText);
 
-  if (Assigned(LibraryThread) and not (LibraryThread.State in [ssClose, ssReady])) then
+  if (Assigned(LibraryThread) and not (LibraryThread.State in [ssClose, ssReady, ssError])) then
     Terminate();
   if (not Assigned(LibraryThread)) then
     FLibraryThread := TLibraryThread.Create(Self);
