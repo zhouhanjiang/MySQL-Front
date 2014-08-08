@@ -6279,7 +6279,7 @@ begin
     SaveDialog.Encodings.Text := EncodingCaptions();
     SaveDialog.EncodingIndex := SaveDialog.Encodings.IndexOf(CodePageToEncoding(Session.CodePage));
   end
-  else if (ActiveDBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) then
+  else if (ActiveDBGrid.SelectedField.DataType = ftBlob) then
   begin
     SaveDialog.FileName := ActiveDBGrid.SelectedField.DisplayName;
     SaveDialog.DefaultExt := '';

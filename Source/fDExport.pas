@@ -1488,8 +1488,8 @@ begin
       begin
         SaveDialog.Filter := '';
         if (odExcel2007 in ODBCDrivers) then
-          SaveDialog.Filter := SaveDialog.Filter + FilterDescription('xlsx') + ' (*.xls;*.xlsx;*.xlsm;*.xlsb)|*.xls;*.xlsx;*.xlsm;*.xlsb';
-        if (odExcel in ODBCDrivers) then
+          SaveDialog.Filter := SaveDialog.Filter + FilterDescription('xlsx') + ' (*.xls;*.xlsx;*.xlsm;*.xlsb)|*.xls;*.xlsx;*.xlsm;*.xlsb'
+        else if (odExcel in ODBCDrivers) then
         begin
           if (SaveDialog.Filter <> '') then SaveDialog.Filter := SaveDialog.Filter + '|';
           SaveDialog.Filter := SaveDialog.Filter + FilterDescription('xls') + ' (*.xls)|*.xls';

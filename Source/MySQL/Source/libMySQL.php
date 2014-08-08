@@ -1,14 +1,19 @@
 <?php
 	#
 	# HTTP tunneling script
-	# This script is used by the Windows application {BuildName}
+	# This script will be used by the Windows application "{BuildName}"
 	# {BuildInternetHomepage}
 	# {BuildName} Version {BuildVerStrFull}
 	#
 
 	/****************************************************************************/
 
-	$MF_VERSION = 17;
+	define('MF_VERSION', 16);
+
+	define('MIN_COMPRESS_LENGTH', 50);
+	define('NET_BUFFER_LENGTH', 0x4000);
+	define('NET_HEADER_SIZE', 4);
+	define('COMP_HEADER_SIZE', 3);
 
 	$Charsets = array(
 		'big5' => 1,
@@ -66,23 +71,23 @@
 	}
 
 	function ReceivePacket(&$Packet, &$MorePackets) {
-		global $PostData;
-		global $PostDataOffset;
+		global $ReceivePacketBuffer;
+		global $ReceivePacketBufferOffset;
 
-		if ($PostDataOffset >= strlen($PostData)) {
+		if ($ReceivePacketBufferOffset >= strlen($ReceivePacketBuffer)) {
 			return FALSE;
 		} else {
 			$Packet = '';
 			do {
-				$a = unpack('V', substr($PostData, $PostDataOffset + 0, 3) . "\x00"); $Size = $a[1];
-				$a = unpack('C', substr($PostData, $PostDataOffset + 3, 1)); $Nr = $a[1];
+				$a = unpack('V', substr($ReceivePacketBuffer, $ReceivePacketBufferOffset + 0, 3) . "\x00"); $Size = $a[1];
+				$a = unpack('C', substr($ReceivePacketBuffer, $ReceivePacketBufferOffset + 3, 1)); $Nr = $a[1];
 
-				$Packet .= substr($PostData, $PostDataOffset + 4, $Size);
+				$Packet .= substr($ReceivePacketBuffer, $ReceivePacketBufferOffset + 4, $Size);
 
-				$PostDataOffset += 4 + $Size;
+				$ReceivePacketBufferOffset += 4 + $Size;
 			} while ($Size == 0xFFFFFF);
 
-			$MorePackets = $PostDataOffset < strlen($PostData);
+			$MorePackets = $ReceivePacketBufferOffset < strlen($ReceivePacketBuffer);
 
 			return TRUE;
 		}
@@ -91,7 +96,7 @@
 	function SendCompressedPacket($Packet) {
 		global $PacketNr;
 
-		if (strlen($Packet) >= 50)
+		if (strlen($Packet) >= MIN_COMPRESS_LENGTH)
 			$CompressedPacket = gzcompress($Packet);
 
 		if ((! isset($CompressedPacket)) || (strlen($CompressedPacket) >= strlen($Packet)))
@@ -123,7 +128,7 @@
 			echo($SendPacketBuffer);
 			$SendPacketBuffer = '';
 		} else {
-			while (strlen($SendPacketBuffer) > 0x4000) {
+			while (strlen($SendPacketBuffer) > NET_BUFFER_LENGTH) {
 				if (strlen($SendPacketBuffer) > 0xFFFFFF) {
 					SendCompressedPacket(substr($SendPacketBuffer, 0, 0xFFFFFF));
 					$SendPacketBuffer = substr($SendPacketBuffer, 0xFFFFFF);
@@ -173,44 +178,45 @@
 
 	error_reporting(E_ERROR | E_PARSE);
 
-	if ($_SERVER['REQUEST_METHOD'] == 'GET')
-		exit('<!DOCTYPE html><html><head></head><body>This script is used by the Windows application <a href="{BuildInternetHomepage}">{BuildName}</a>.</body></html>');
-
 	if (isset($_GET['SID']))
 		session_id($_GET['SID']);
-	$SessionStarted = session_start() xor (version_compare(phpversion(), '5.3.0') < 0);
+	session_start();
 
+	$Offset = 0;
+	while ($Offset < strlen($HTTP_RAW_POST_DATA)) {
+		$a = unpack('V', substr($HTTP_RAW_POST_DATA, $Offset + 0, 3) . "\x00"); $Size = $a[1];
+		$a = unpack('C', substr($HTTP_RAW_POST_DATA, $Offset + 3, 1)); $PacketNr = $a[1];
+		$Offset += NET_HEADER_SIZE + $Size;
+	}
+	$PacketNr++;
 
-	$PostData = ''; $PostDataOffset = 0; $PacketNr = 0; $HandshakeError = FALSE;
-	$Input = fopen('php://input', 'br');
-	while (! feof($Input)) {
-		if (! $_SESSION['compress'])
-			$Header = fread($Input, 4);
-		else
-			$Header = fread($Input, 7);
-		$a = unpack('V', substr($Header, 0, 3) . "\x00"); $Size = $a[1];
-		$a = unpack('C', substr($Header, 3, 1)); $Nr = $a[1];
-		if ($_SESSION['compress'])
-			$a = unpack('V', substr($Header, 4, 3) . "\x00"); $UncompressedSize = $a[1];
-
-		$HandshakeError = $HandshakeError || ($Nr != $PacketNr);
-
-		if (! $HandshakeError) {
-			if (! $_SESSION['compress'])
-				$PostData .= $Header . fread($Input, $Size);
-			else if ($UncompressedSize == 0)
-				$PostData .= fread($Input, $Size);
-			else
-				$PostData .= gzuncompress(fread($Input, $Size), $UncompressedSize);
+	$Offset = 0;
+	if (! $_SESSION['compress']) {
+		while ($Offset < strlen($HTTP_RAW_POST_DATA)) {
+			$a = unpack('V', substr($HTTP_RAW_POST_DATA, $Offset + 0, 3) . "\x00"); $Size = $a[1];
+			$a = unpack('C', substr($HTTP_RAW_POST_DATA, $Offset + 3, 1)); $Nr = $a[1];
+			$Offset += NET_HEADER_SIZE + $Size;
 		}
 
-		$PacketNr = ($PacketNr + 1) & 0xFF;
-	}
-	fclose($Input);
+		$ReceivePacketBuffer = $HTTP_RAW_POST_DATA;
+	} else {
+		while ($Offset < strlen($HTTP_RAW_POST_DATA)) {
+			$a = unpack('V', substr($HTTP_RAW_POST_DATA, $Offset + 0, 3) . "\x00"); $Size = $a[1];
+			$a = unpack('C', substr($HTTP_RAW_POST_DATA, $Offset + 3, 1)); $Nr = $a[1];
+			$a = unpack('V', substr($HTTP_RAW_POST_DATA, $Offset + 4, 3) . "\x00"); $UncompressedSize = $a[1];
 
+			if ($UncompressedSize == 0)
+				$ReceivePacketBuffer .= substr($HTTP_RAW_POST_DATA, $Offset + 7, $Size);
+			else
+				$ReceivePacketBuffer .= gzuncompress(substr($HTTP_RAW_POST_DATA, $Offset + 7, $Size), $UncompressedSize);
+
+			$Offset += NET_HEADER_SIZE + COMP_HEADER_SIZE + $Size;
+		}
+	}
+	$ReceivePacketBufferOffset = 0;
 
 	$Connect = ! $_SESSION['host'];
-	if (! $HandshakeError && $Connect && ReceivePacket($Packet, $MorePackets) && (substr($Packet, 0, 1) == "\x0B")) {
+	if ($Connect && ReceivePacket($Packet, $MorePackets) && (substr($Packet, 0, 1) == "\x0B")) {
 		$Offset = 1;
 		while (substr($Packet, $Offset, 1) != "\x00") $_SESSION['host'] .= substr($Packet, $Offset++, 1); $Offset++;
 		while (substr($Packet, $Offset, 1) != "\x00") $_SESSION['user'] .= substr($Packet, $Offset++, 1); $Offset++;
@@ -222,8 +228,12 @@
 		$a = unpack('v', substr($Packet, $Offset, 2)); $_SESSION['timeout'] = $a[1]; $Offset += 2;
 
 		set_time_limit($_SESSION['timeout']);
-	} else
+	} else if (isset($_SESSION['host']))
 		set_time_limit(0);
+	else {
+		echo 'This script will be used by the Windows application <a href="http://www.mysqlfront.de/">MySQL-Front</a>';
+		exit;
+	}
 
 	/****************************************************************************/
 
@@ -231,253 +241,20 @@
 	header('Content-Transfer-Encoding: binary');
 	if ($Connect)
 	{
-		header('MF-Version: ' . $MF_VERSION);
+		header('MF-Version: ' . MF_VERSION);
 		header('MF-SID: ' . session_id());
 	}
 
-	if (! $SessionStarted) {
-
-		$Packet = "\xFF";
-		$Packet .= pack('v', 2200);
-		$Packet .= "HTTP Tunnel: session_start() failed\x00";
-		SendPacket($Packet);
-		FlushPackets();
-		exit(2200);
-
-	} else if ($HandshakeError) {
-
-		$Packet = "\xFF";
-		$Packet .= pack('v', 2200);
-		$Packet .= "HTTP Tunnel: Error in client handshake\x00";
-		SendPacket($Packet);
-		FlushPackets();
-		exit(2200);
-
-	} else if (extension_loaded('mysqli')) { /***********************************/
-
-		$mysqli = mysqli_init();
-		if (! $mysqli) {
-			$Packet = "\xFF";
-			$Packet .= pack('v', 2200);
-			$Packet .= "HTTP Tunnel: mysqli_init() failed\x00";
-			SendPacket($Packet);
-			FlushPackets();
-			exit(2200);
-		}
-
-		mysqli_real_connect($mysqli, $_SESSION['host'], $_SESSION['user'], $_SESSION['password'], $_SESSION['database'], $_SESSION['port'], '', $_SESSION['client_flag']);
-
-		if (! mysqli_errno($mysqli) && $_SESSION['charset'] && version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '4.1.1') >= 0)
-			if ((version_compare(phpversion(), '5.2.3') < 0) || (version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '5.0.7') < 0))
-				mysqli_query($mysqli, 'SET NAMES ' . $_SESSION['charset'] . ';', MYSQLI_USE_RESULT);
-			else
-				mysqli_set_charset($mysqli, $_SESSION['charset']);
-
-		if (mysqli_errno($mysqli)) {
-			$Packet = "\xFF";
-			$Packet .= pack('v', mysqli_errno($mysqli));
-			$Packet .= mysqli_error($mysqli) . "\x00";
-			SendPacket($Packet);
-		} else if ($Connect) {
-			if (version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '4.1.1') < 0) {
-				$result = mysqli_query($mysqli, "SHOW VARIABLES LIKE 'character_set';", MYSQLI_USE_RESULT);
-				if ($Row = mysqli_fetch_array($result))
-					$_SESSION['charset'] = $Row['Value'];
-				mysqli_free_result($result);
-			} else if ((version_compare(phpversion(), '5.2.3') < 0) || version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '5.0.7')) {
-				$result = mysqli_query($mysqli, "SHOW VARIABLES LIKE 'character_set_client';", MYSQLI_USE_RESULT);
-				if ($Row = mysqli_fetch_array($result))
-					$_SESSION['charset'] = $Row['Value'];
-				mysqli_free_result($result);
-			} else
-				$_SESSION['charset'] = mysqli_character_set_name($mysqli);
-
-			if (version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '4.1.1') < 0) {
-				$CharsetNr = $Charsets[$_SESSION['charset']];
-			} else if (version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '5.0.0') < 0) {
-				$result = mysqli_query($mysqli, 'SHOW COLLATION;', MYSQLI_USE_RESULT);
-				while ($Row = mysqli_fetch_array($result))
-					if ($Row['Charset'] == $_SESSION['charset'] && $Row['Default'] == 'Yes')
-						$CharsetNr = (int) $Row['Id'];
-				mysqli_free_result($result);
-			} else {
-				$result = mysqli_query($mysqli, "SHOW COLLATION WHERE `Charset`='" . $_SESSION['charset'] . "' AND `Default`='Yes';", MYSQLI_USE_RESULT);
-				if ($Row = mysqli_fetch_array($result))
-					$CharsetNr = (int) $Row['Id'];
-				mysqli_free_result($result);
-			}
-
-			$Packet = '';
-			$Packet .= pack('C', 10); // Protocol
-			$Packet .= mysqli_get_server_info($mysqli) . "\x00";
-			$Packet .= pack('V', 0); // Thread Id
-			$Packet .= "00000000\x00"; // Salt
-			if (function_exists('gzcompress'))
-				$Packet .= pack('v', 0x422C); // Server Capabilities
-			else
-				$Packet .= pack('v', 0x420C); // Server Capabilities
-			$Packet .= pack('C', $CharsetNr);
-			$Packet .= pack('v', 0x0000); // Server Status
-			$Packet .= pack('a13', 1); // unused
-			SendPacket($Packet);
-
-			$PacketNr++;
-
-			$Packet = '';
-			$Packet .= pack('C', 0);
-			$Packet .= PackLength(0); // Affected Rows
-			$Packet .= PackLength(0); // Insert Id
-			$Packet .= pack('v', 0x0000); // Server Status
-			$Packet .= pack('v', 0x0000); // Warning Count
-			SendPacket($Packet);
-
-			FlushPackets();
-		} else {
-			while (ReceivePacket($Packet, $MorePackets)) {
-				if (substr($Packet, 0, 1) == "\x01") { // COM_QUIT
-					session_destroy();
-				} else if (substr($Packet, 0, 1) == "\x03") { // COM_QUERY
-					$Query = substr($Packet, 1);
-					mysqli_real_query($mysqli, $Query);
-
-					if (mysqli_errno($mysqli)) {
-						$Packet = "\xFF";
-						$Packet .= pack('v', mysqli_errno($mysqli));
-						$Packet .= mysqli_error($mysqli) . "\x00";
-						SendPacket($Packet);
-						FlushPackets();
-						break;
-					}	else if (eregi("^USE[| |\t|\n|\r][| |\t|\n|\r]*", $Query) || eregi("^SET[| |\t|\n|\r][| |\t|\n|\r]*NAMES[| |\t|\n|\r]", $Query)) {
-						// on some PHP versions mysqli_use_result just ignores "USE Database;"
-						// statements. So it has to be handled separately:
-						$Packet = '';
-						$Packet .= PackLength(0); // Number of fields
-						$Packet .= PackLength(mysqli_affected_rows($mysqli));
-						$Packet .= PackLength(mysqli_insert_id($mysqli));
-						if ($MorePackets || mysqli_more_results($mysqli))
-							$Packet .= pack('v', 0x0008); // Server Status
-						else
-							$Packet .= pack('v', 0x0000); // Server Status
-						$Packet .= pack('v', mysqli_warning_count($mysqli));
-						if ((version_compare(phpversion(), '4.3.0') >= 0) && mysqli_info($mysqli))
-							$Packet .= PackLength(strlen(mysqli_info($mysqli))) . mysqli_info($mysqli);
-						SendPacket($Packet);
-						FlushPackets();
-
-						if (eregi("^USE[| |\t|\n|\r]*", $Query))
-							$_SESSION['database'] = eregi_replace("[|`|\"| *;|;|\t|\n|\r]", "", eregi_replace("^USE[| |\t|\n|\r]*", "", $Query));
-						else if (eregi("^SET[| |\t|\n|\r]*NAMES[| |\t|\n|\r]", $Query)) {
-							$_SESSION['charset'] = eregi_replace("[|`|\"| *;|;|\t|\n|\r]", "", eregi_replace("^NAMES[| |\t|\n|\r]*", "", eregi_replace("^SET[| |\t|\n|\r]*", "", $Query)));
-						}
-					} else {
-						do {
-							$result = mysqli_use_result($mysqli);
-
-							if (mysqli_errno($mysqli)) {
-								$Packet = "\xFF";
-								$Packet .= pack('v', mysqli_errno($mysqli));
-								$Packet .= mysqli_error($mysqli) . "\x00";
-								SendPacket($Packet);
-								FlushPackets();
-								break 2;
-							}	else if (! $result) {
-								$Packet = "\x00";
-								$Packet .= PackLength(mysqli_affected_rows($mysqli));
-								$Packet .= PackLength(mysqli_insert_id($mysqli));
-								if ($MorePackets || mysqli_more_results($mysqli))
-									$Packet .= pack('v', 0x0008); // Server Status
-								else
-									$Packet .= pack('v', 0x0000); // Server Status
-								$Packet .= pack('v', mysqli_warning_count($mysqli));
-								if ((version_compare(phpversion(), '4.3.0') >= 0) && mysqli_info($mysqli))
-									$Packet .= PackLength(strlen(mysqli_info($mysqli))) . mysqli_info($mysqli);
-								SendPacket($Packet);
-								FlushPackets();
-							} else {
-								$Packet = PackLength(mysqli_num_fields($result));
-								SendPacket($Packet);
-
-								while ($Field = mysqli_fetch_field($result)) {
-									$Packet = '';
-									if (! isset($Field->catalog))
-										$Packet .= "\xFB";
-									else
-										$Packet .= PackLength(strlen($Field->catalog)) . $Field->catalog;
-									if (! isset($Field->db))
-										$Packet .= "\xFB";
-									else
-										$Packet .= PackLength(strlen($Field->db)) . $Field->db;
-									if (! isset($Field->table))
-										$Packet .= "\xFB";
-									else
-										$Packet .= PackLength(strlen($Field->table)) . $Field->table;
-									if (! isset($Field->org_table))
-										$Packet .= "\xFB";
-									else
-										$Packet .= PackLength(strlen($Field->org_table)) . $Field->org_table;
-									if (! isset($Field->name))
-										$Packet .= "\xFB";
-									else
-										$Packet .= PackLength(strlen($Field->name)) . $Field->name;
-									if (! isset($Field->org_name))
-										$Packet .= "\xFB";
-									else
-										$Packet .= PackLength(strlen($Field->org_name)) . $Field->org_name;
-									$Packet .= "\x0A";
-									$Packet .= pack('v', $Field->charsetnr);
-									$Packet .= pack('V', $Field->length);
-									$Packet .= pack('C', $Field->type);
-									$Packet .= pack('v', $Field->flags);
-									$Packet .= pack('C', $Field->decimals);
-									SendPacket($Packet);
-								}
-								$Packet = '';
-								$Packet .= "\xFE";
-								$Packet .= pack('v', mysqli_warning_count($mysqli));
-								if ($MorePackets || mysqli_more_results($mysqli))
-									$Packet .= pack('v', 0x0008); // Server Status
-								else
-									$Packet .= pack('v', 0x0000); // Server Status
-								SendPacket($Packet);
-
-								while ($Row = mysqli_fetch_array($result, MYSQL_NUM)) {
-									$Packet = '';
-									$Lengths = mysqli_fetch_lengths($result);
-									for ($i = 0; $i < mysqli_num_fields($result); $i++)
-										if (! isset($Row[$i]))
-											$Packet .= "\xFB";
-										else
-											$Packet .= PackLength($Lengths[$i]) . $Row[$i];
-									SendPacket($Packet);
-								}
-								$Packet = '';
-								$Packet .= "\xFE";
-								$Packet .= pack('v', mysqli_warning_count($mysqli));
-								if ($MorePackets || mysqli_more_results($mysqli))
-									$Packet .= pack('v', 0x0008); // Server Status
-								else
-									$Packet .= pack('v', 0x0000); // Server Status
-								SendPacket($Packet);
-								FlushPackets();
-
-								mysqli_free_result($result);
-							}
-
-						} while (mysqli_next_result($mysqli));
-					}
-				}
-			}
-		}
-
-		mysqli_close($mysqli);
-
-	} else if (extension_loaded('mysql')) { /************************************/
-
+	if (($_GET['library'] == 'mysql')
+		or ! extension_loaded('mysqli')
+		or ! ($mysqli = mysqli_init())
+		or ! mysqli_real_connect($mysqli, $_SESSION['host'], $_SESSION['user'], $_SESSION['password'], $_SESSION['database'], $_SESSION['port'], '', $_SESSION['client_flag']))
+	{
 		if (version_compare(phpversion(), '4.3.0') < 0)
 			$mysql = mysql_connect($_SESSION['host'] . ':' . $_SESSION['port'], $_SESSION['user'], $_SESSION['password']);
 		else
 			$mysql = mysql_connect($_SESSION['host'] . ':' . $_SESSION['port'], $_SESSION['user'], $_SESSION['password'], true, $_SESSION['client_flag'] & 0x0125);
-		if ($mysql && ! mysql_errno($mysql) && $_SESSION['database'])
+ 		if ($mysql && ! mysql_errno($mysql) && $_SESSION['database'])
 			mysql_select_db($_SESSION['database'], $mysql);
 
 		if ($mysql && ! mysql_errno($mysql) && $_SESSION['charset'] && version_compare(ereg_replace("-.*$", "", mysql_get_server_info($mysql)), '4.1.1') >= 0)
@@ -556,9 +333,9 @@
 						$Packet .= PackLength(mysql_affected_rows($mysql));
 						$Packet .= PackLength(mysql_insert_id($mysql));
 						if ($MorePackets)
-							$Packet .= pack('v', 0x0008); // Server Status
+							$Packet .= pack('v', 8); // Server Status
 						else
-							$Packet .= pack('v', 0x0000); // Server Status
+							$Packet .= pack('v', 0); // Server Status
 						$Packet .= pack('v', 0); // WarningCount
 						if ((version_compare(phpversion(), '4.3.0') >= 0) && mysql_info($mysql))
 							$Packet .= PackLength(strlen(mysql_info($mysql))) . mysql_info($mysql);
@@ -667,9 +444,9 @@
 						$Packet .= "\xFE";
 						$Packet .= pack('v', 0); // WarningCount
 						if ($MorePackets)
-							$Packet .= pack('v', 0x0008); // Server Status
+							$Packet .= pack('v', 8); // Server Status
 						else
-							$Packet .= pack('v', 0x0000); // Server Status
+							$Packet .= pack('v', 0); // Server Status
 						SendPacket($Packet);
 
 						while ($Row = mysql_fetch_array($result, MYSQL_NUM)) {
@@ -689,9 +466,9 @@
 						$Packet .= "\xFE";
 						$Packet .= pack('v', 0); // WarningCount
 						if ($MorePackets)
-							$Packet .= pack('v', 0x0008); // Server Status
+							$Packet .= pack('v', 8); // Server Status
 						else
-							$Packet .= pack('v', 0x0000); // Server Status
+							$Packet .= pack('v', 0); // Server Status
 						SendPacket($Packet);
 						FlushPackets();
 					}
@@ -701,18 +478,213 @@
 
 		mysql_close($mysql);
 
-	} else {
+	} else { /*******************************************************************/
 
-		$Packet = "\xFF";
-		$Packet .= pack('v', 2200);
-		$Packet .= "HTTP Tunnel: No MySQL support\x00";
-		SendPacket($Packet);
-		FlushPackets();
-		exit(2200);
+		if (! mysqli_errno($mysqli) && $_SESSION['charset'] && version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '4.1.1') >= 0)
+			if ((version_compare(phpversion(), '5.2.3') < 0) || (version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '5.0.7') < 0))
+				mysqli_query($mysqli, 'SET NAMES ' . $_SESSION['charset'] . ';', MYSQLI_USE_RESULT);
+			else
+				mysqli_set_charset($mysqli, $_SESSION['charset']);
 
+		if (mysqli_errno($mysqli)) {
+			$Packet = "\xFF";
+			$Packet .= pack('v', mysqli_errno($mysqli));
+			$Packet .= mysqli_error($mysqli) . "\x00";
+			SendPacket($Packet);
+		} else if ($Connect) {
+			if (version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '4.1.1') < 0) {
+				$result = mysqli_query($mysqli, "SHOW VARIABLES LIKE 'character_set';", MYSQLI_USE_RESULT);
+				if ($Row = mysqli_fetch_array($result))
+					$_SESSION['charset'] = $Row['Value'];
+				mysqli_free_result($result);
+			} else if ((version_compare(phpversion(), '5.2.3') < 0) || version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '5.0.7')) {
+				$result = mysqli_query($mysqli, "SHOW VARIABLES LIKE 'character_set_client';", MYSQLI_USE_RESULT);
+				if ($Row = mysqli_fetch_array($result))
+					$_SESSION['charset'] = $Row['Value'];
+				mysqli_free_result($result);
+			} else
+				$_SESSION['charset'] = mysqli_character_set_name($mysqli);
+
+			if (version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '4.1.1') < 0) {
+				$CharsetNr = $Charsets[$_SESSION['charset']];
+			} else if (version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '5.0.0') < 0) {
+				$result = mysqli_query($mysqli, 'SHOW COLLATION;', MYSQLI_USE_RESULT);
+				while ($Row = mysqli_fetch_array($result))
+					if ($Row['Charset'] == $_SESSION['charset'] && $Row['Default'] == 'Yes')
+						$CharsetNr = (int) $Row['Id'];
+				mysqli_free_result($result);
+			} else {
+				$result = mysqli_query($mysqli, "SHOW COLLATION WHERE `Charset`='" . $_SESSION['charset'] . "' AND `Default`='Yes';", MYSQLI_USE_RESULT);
+				if ($Row = mysqli_fetch_array($result))
+					$CharsetNr = (int) $Row['Id'];
+				mysqli_free_result($result);
+			}
+
+			$Packet = '';
+			$Packet .= pack('C', 10); // Protocol
+			$Packet .= mysqli_get_server_info($mysqli) . "\x00";
+			$Packet .= pack('V', 0); // Thread Id
+			$Packet .= "00000000\x00"; // Salt
+			if (function_exists('gzcompress'))
+				$Packet .= pack('v', 0x422C); // Server Capabilities
+			else
+				$Packet .= pack('v', 0x420C); // Server Capabilities
+			$Packet .= pack('C', $CharsetNr);
+			$Packet .= pack('v', 0x0000); // Server Status
+			$Packet .= pack('a13', 1); // unused
+			SendPacket($Packet);
+
+			$PacketNr++;
+
+			$Packet = '';
+			$Packet .= pack('C', 0);
+			$Packet .= PackLength(0); // Affected Rows
+			$Packet .= PackLength(0); // Insert Id
+			$Packet .= pack('v', 0x0000); // Server Status
+			$Packet .= pack('v', 0x0000); // Warning Count
+			SendPacket($Packet);
+
+			FlushPackets();
+		} else {
+			while (ReceivePacket($Packet, $MorePackets)) {
+				if (substr($Packet, 0, 1) == "\x01") { // COM_QUIT
+					session_destroy();
+				} else if (substr($Packet, 0, 1) == "\x03") { // COM_QUERY
+					$Query = substr($Packet, 1);
+					mysqli_real_query($mysqli, $Query);
+
+					if (mysqli_errno($mysqli)) {
+						$Packet = "\xFF";
+						$Packet .= pack('v', mysqli_errno($mysqli));
+						$Packet .= mysqli_error($mysqli) . "\x00";
+						SendPacket($Packet);
+						FlushPackets();
+						break;
+					}	else if (eregi("^USE[| |\t|\n|\r][| |\t|\n|\r]*", $Query) || eregi("^SET[| |\t|\n|\r][| |\t|\n|\r]*NAMES[| |\t|\n|\r]", $Query)) {
+						// on some PHP versions mysqli_use_result just ignores "USE Database;"
+						// statements. So it has to be handled separately:
+						$Packet = '';
+						$Packet .= PackLength(0); // Number of fields
+						$Packet .= PackLength(mysqli_affected_rows($mysqli));
+						$Packet .= PackLength(mysqli_insert_id($mysqli));
+						if ($MorePackets)
+							$Packet .= pack('v', 8); // Server Status
+						else
+							$Packet .= pack('v', 0); // Server Status
+						$Packet .= pack('v', mysqli_warning_count($mysqli));
+						if ((version_compare(phpversion(), '4.3.0') >= 0) && mysqli_info($mysqli))
+							$Packet .= PackLength(strlen(mysqli_info($mysqli))) . mysqli_info($mysqli);
+						SendPacket($Packet);
+						FlushPackets();
+
+						if (eregi("^USE[| |\t|\n|\r]*", $Query))
+							$_SESSION['database'] = eregi_replace("[|`|\"| *;|;|\t|\n|\r]", "", eregi_replace("^USE[| |\t|\n|\r]*", "", $Query));
+						else if (eregi("^SET[| |\t|\n|\r]*NAMES[| |\t|\n|\r]", $Query)) {
+							$_SESSION['charset'] = eregi_replace("[|`|\"| *;|;|\t|\n|\r]", "", eregi_replace("^NAMES[| |\t|\n|\r]*", "", eregi_replace("^SET[| |\t|\n|\r]*", "", $Query)));
+						}
+					} else {
+						do {
+							$result = mysqli_use_result($mysqli);
+
+							if (mysqli_errno($mysqli)) {
+								$Packet = "\xFF";
+								$Packet .= pack('v', mysqli_errno($mysqli));
+								$Packet .= mysqli_error($mysqli) . "\x00";
+								SendPacket($Packet);
+								FlushPackets();
+								break 2;
+							}	else if (! $result) {
+								$Packet = "\x00";
+								$Packet .= PackLength(mysqli_affected_rows($mysqli));
+								$Packet .= PackLength(mysqli_insert_id($mysqli));
+								if ($MorePackets)
+									$Packet .= pack('v', 8); // Server Status
+								else
+									$Packet .= pack('v', 0); // Server Status
+								$Packet .= pack('v', mysqli_warning_count($mysqli));
+								if ((version_compare(phpversion(), '4.3.0') >= 0) && mysqli_info($mysqli))
+									$Packet .= PackLength(strlen(mysqli_info($mysqli))) . mysqli_info($mysqli);
+								SendPacket($Packet);
+								FlushPackets();
+							} else {
+								$Packet = PackLength(mysqli_num_fields($result));
+								SendPacket($Packet);
+
+								while ($Field = mysqli_fetch_field($result)) {
+									$Packet = '';
+									if (! isset($Field->catalog))
+										$Packet .= "\xFB";
+									else
+										$Packet .= PackLength(strlen($Field->catalog)) . $Field->catalog;
+									if (! isset($Field->db))
+										$Packet .= "\xFB";
+									else
+										$Packet .= PackLength(strlen($Field->db)) . $Field->db;
+									if (! isset($Field->table))
+										$Packet .= "\xFB";
+									else
+										$Packet .= PackLength(strlen($Field->table)) . $Field->table;
+									if (! isset($Field->org_table))
+										$Packet .= "\xFB";
+									else
+										$Packet .= PackLength(strlen($Field->org_table)) . $Field->org_table;
+									if (! isset($Field->name))
+										$Packet .= "\xFB";
+									else
+										$Packet .= PackLength(strlen($Field->name)) . $Field->name;
+									if (! isset($Field->org_name))
+										$Packet .= "\xFB";
+									else
+										$Packet .= PackLength(strlen($Field->org_name)) . $Field->org_name;
+									$Packet .= "\x0A";
+									$Packet .= pack('v', $Field->charsetnr);
+									$Packet .= pack('V', $Field->length);
+									$Packet .= pack('C', $Field->type);
+									$Packet .= pack('v', $Field->flags);
+									$Packet .= pack('C', $Field->decimals);
+									SendPacket($Packet);
+								}
+								$Packet = '';
+								$Packet .= "\xFE";
+								$Packet .= pack('v', mysqli_warning_count($mysqli));
+								if ($MorePackets)
+									$Packet .= pack('v', 8); // Server Status
+								else
+									$Packet .= pack('v', 0); // Server Status
+								SendPacket($Packet);
+
+								while ($Row = mysqli_fetch_array($result, MYSQL_NUM)) {
+									$Packet = '';
+									$Lengths = mysqli_fetch_lengths($result);
+									for ($i = 0; $i < mysqli_num_fields($result); $i++)
+										if (! isset($Row[$i]))
+											$Packet .= "\xFB";
+										else
+											$Packet .= PackLength($Lengths[$i]) . $Row[$i];
+									SendPacket($Packet);
+								}
+								$Packet = '';
+								$Packet .= "\xFE";
+								$Packet .= pack('v', mysqli_warning_count($mysqli));
+								if ($MorePackets)
+									$Packet .= pack('v', 8); // Server Status
+								else
+									$Packet .= pack('v', 0); // Server Status
+								SendPacket($Packet);
+								FlushPackets();
+
+								mysqli_free_result($result);
+							}
+
+						} while (mysqli_next_result($mysqli));
+					}
+				}
+			}
+		}
+
+		mysqli_close($mysqli);
 	}
 
 	if ($Connect)
 		$_SESSION['compress'] = ($_SESSION['client_flag'] & 0x0020) && function_exists('gzcompress');
-	exit(0);
 ?>
