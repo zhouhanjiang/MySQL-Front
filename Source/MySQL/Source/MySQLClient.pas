@@ -764,7 +764,7 @@ end;
 
 function mysql_query(mysql: MYSQL; const q: my_char): my_int; stdcall;
 begin
-  Result := mysql_real_query(mysql, q, StrLen(q));
+  Result := mysql.real_query(q, StrLen(q));
 end;
 
 function mysql_real_connect(mysql: MYSQL; host, user, passwd, db: my_char; port: my_uint; unix_socket: my_char; client_flag: my_uint): MYSQL; stdcall;

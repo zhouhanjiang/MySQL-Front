@@ -403,7 +403,7 @@ begin
           if (ExecuteHTTPRequest(True)) then
           begin
             StrPCopy(@Buffer, 'MF-Version'); Size := SizeOf(Buffer); Index := 0;
-            if (not HttpQueryInfo(Request, HTTP_QUERY_CUSTOM, @Buffer, Size, Index) or (StrToInt(Buffer) < RequiredMFVersion)) then
+            if (not HttpQueryInfo(Request, HTTP_QUERY_CUSTOM, @Buffer, Size, Index) or (StrToInt(Buffer) < RequiredMFVersion) or (StrToInt(Buffer) = 17)) then
               Seterror(CR_HTTPTUNNEL_OLD, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_OLD - CR_HTTPTUNNEL_UNKNOWN_ERROR], [URL])))
             else
             begin
