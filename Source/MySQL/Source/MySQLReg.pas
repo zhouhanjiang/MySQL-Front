@@ -24,7 +24,7 @@ begin
   RegisterComponents('MySQL', [TMySQLConnection, TMySQLQuery, TMySQLDataSet, TMySQLTable, TMySQLMonitor, TMySQLDBGrid]);
 end;
 
-{ TLibraryNameProperty ****************************Ü***************************}
+{ TLibraryNameProperty ********************************************************}
 
 procedure TLibraryNameProperty.GetValueList(List: TStrings);
 begin
