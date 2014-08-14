@@ -4852,7 +4852,7 @@ begin
       end;
       Len := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
 
-      LenEscaped := CSVEscape(ValueBuffer.Mem, Len, nil, 0, Quoter, (QuoteValues <> qtNone));
+      LenEscaped := CSVEscape(ValueBuffer.Mem, Len, nil, 0, Quoter, QuoteValues <> qtNone);
       CSVEscape(ValueBuffer.Mem, Len, Values.WriteExternal(LenEscaped), LenEscaped, Quoter, QuoteValues <> qtNone);
     end
     else

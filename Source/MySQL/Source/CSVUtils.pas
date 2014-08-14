@@ -225,9 +225,6 @@ begin
         MOV ECX,ValueLen                 // Length of Value string
         MOV EDX,EscapedLen               // Length of Escaped
 
-        CMP ECX,0                        // Empty string?
-        JE Error                         // Yes!
-
       // -------------------
 
         CMP Quote,False                  // Quote value?

@@ -1487,13 +1487,6 @@ function TMySQL_Packet.ReallocBuffer(var Buffer: TBuffer; const NeededSize: my_u
 begin
   Result := True;
 
-  if ((Buffer.Offset > 0) and (Buffer.Size > Buffer.Offset) and (Buffer.Size + NeededSize > Buffer.MemSize)) then
-  begin
-    Dec(Buffer.Size, Buffer.Offset);
-    Move(Buffer.Mem[Buffer.Offset], Buffer.Mem[0], Buffer.Size);
-    Buffer.Offset := 0;
-  end;
-
   if (Buffer.Size + NeededSize > Buffer.MemSize) then
   begin
     Buffer.MemSize := (((Buffer.Size + NeededSize - 1) div NET_BUFFER_LENGTH) + 1) * NET_BUFFER_LENGTH;
