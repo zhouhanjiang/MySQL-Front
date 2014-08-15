@@ -1635,11 +1635,16 @@ begin
         ListItem.SubItems.Add('<INSERT-TimeStamp>')
       else
         ListItem.SubItems.Add(NewTable.Fields[I].UnescapeValue(NewTable.Fields[I].Default));
-      S := NewTable.Fields[I].Charset;
-      if (NewTable.Fields[I].Collation <> '') then
+      if (not (NewTable.Fields[I].FieldType in TextFieldTypes)) then
+        S := ''
+      else
       begin
-        if (S <> '') then S := S + ', ';
-        S := S + NewTable.Fields[I].Collation;
+        S := NewTable.Fields[I].Charset;
+        if (NewTable.Fields[I].Collation <> '') then
+        begin
+          if (S <> '') then S := S + ', ';
+          S := S + NewTable.Fields[I].Collation;
+        end;
       end;
       ListItem.SubItems.Add(S);
       ListItem.SubItems.Add(NewTable.Fields[I].Comment);

@@ -1935,7 +1935,7 @@ begin
     if ((FSourceFields[I].Text <> '') and (FDestinationFields[I].ItemIndex > 0)) then
       TSStmtType.Enabled := True;
 
-  FUpdate.Enabled := (SObject is TSBaseTable);
+  FUpdate.Enabled := (SObject is TSBaseTable) and Assigned(TSBaseTable(SObject).PrimaryKey);
   if (FUpdate.Enabled and Assigned(TSBaseTable(SObject).PrimaryKey)) then
     for J := 0 to TSBaseTable(SObject).PrimaryKey.Columns.Count - 1 do
     begin

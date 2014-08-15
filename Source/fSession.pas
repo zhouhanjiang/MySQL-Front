@@ -7211,10 +7211,16 @@ begin
     FName := SQLParseValue(Parse);
 
     if (SQLParseKeyword(Parse, 'DEFAULT CHARACTER SET') or SQLParseKeyword(Parse, 'CHARACTER SET')) then
-      FDefaultCharset := LowerCase(SQLParseValue(Parse));
+      FDefaultCharset := LowerCase(SQLParseValue(Parse))
+    else
+      FDefaultCharset := '';
 
     if (SQLParseKeyword(Parse, 'DEFAULT COLLATION') or SQLParseKeyword(Parse, 'COLLATION')) then
-      Collation := LowerCase(SQLParseValue(Parse));
+      FCollation := LowerCase(SQLParseValue(Parse))
+    else if (FDefaultCharset <> '') then
+      FCollation := Session.CharsetByName(FDefaultCharset).DefaultCollation.Caption
+    else
+      FCollation := '';
   end;
 end;
 

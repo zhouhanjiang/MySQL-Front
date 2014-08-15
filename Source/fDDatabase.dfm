@@ -74,7 +74,7 @@ object DDatabase: TDDatabase
     Top = 8
     Width = 321
     Height = 325
-    ActivePage = TSInformations
+    ActivePage = TSBasics
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     TabOrder = 3
