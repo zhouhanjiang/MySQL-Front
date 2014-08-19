@@ -1075,9 +1075,7 @@ begin
     else if (Reg.ValueExists('BodyCharset')) then
       Result := Reg.ReadString('BodyCharset');
     Reg.CloseKey();
-  end
-else
-MessageBox(0, PChar('No Key for ' + '\MIME\Database\Codepage\' + IntToStr(Codepage)), 'Debug', MB_OK);
+  end;
 
   Reg.Free();
 end;

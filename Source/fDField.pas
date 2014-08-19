@@ -245,13 +245,18 @@ begin
   FCollation.Items.Clear();
   FCollation.Items.Add('');
   if (Assigned(Charset) and Assigned(Table.Database.Session.Collations)) then
+  begin
     for I := 0 to Table.Database.Session.Collations.Count - 1 do
       if (Table.Database.Session.Collations[I].Charset = Charset) then
-      begin
         FCollation.Items.Add(Table.Database.Session.Collations[I].Name);
-        if (Table.Database.Session.Collations[I].Default) then
-          FCollation.ItemIndex := FCollation.Items.Count - 1;
-      end;
+
+    if (not Assigned(Charset)) then
+      FCollation.ItemIndex := 0
+    else if (Assigned(Field) and (Field.Collation <> '')) then
+      FCollation.ItemIndex := FCollation.Items.IndexOf(Field.Collation)
+    else
+      FCollation.ItemIndex := FCollation.Items.IndexOf(Charset.DefaultCollation.Caption);
+  end;
 
   FBOkCheckEnabled(Sender);
 end;
