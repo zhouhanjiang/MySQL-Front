@@ -7215,7 +7215,7 @@ begin
     else
       FDefaultCharset := '';
 
-    if (SQLParseKeyword(Parse, 'DEFAULT COLLATION') or SQLParseKeyword(Parse, 'COLLATION')) then
+    if (SQLParseKeyword(Parse, 'DEFAULT COLLATE') or SQLParseKeyword(Parse, 'COLLATE')) then
       FCollation := LowerCase(SQLParseValue(Parse))
     else if (FDefaultCharset <> '') then
       FCollation := Session.CharsetByName(FDefaultCharset).DefaultCollation.Caption

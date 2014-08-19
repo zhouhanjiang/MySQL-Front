@@ -6360,7 +6360,7 @@ begin
   Wanted.Clear();
 
   if (ActiveDBGrid.DataSource.DataSet.CanModify) then
-    if (not (ActiveDBGrid.SelectedField.DataType in [ftWideMemo, ftBlob])) then
+    if (not Assigned(ActiveDBGrid.SelectedField) or not (ActiveDBGrid.SelectedField.DataType in [ftWideMemo, ftBlob])) then
       ActiveDBGrid.EditorMode := True
     else if (aVBlobText.Visible) then
     begin

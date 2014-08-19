@@ -1322,7 +1322,8 @@ begin
             CDDS_ITEMPREPAINT:
               if ((Columns.Count <= LeftCol + Integer(HDCustomDraw^.dwItemSpec)) or not Assigned(Columns[LeftCol + Integer(HDCustomDraw^.dwItemSpec)])) then
                 inherited
-              else if (Columns[LeftCol + Integer(HDCustomDraw^.dwItemSpec)].Field.IsIndexField
+              else if ((LeftCol + Integer(HDCustomDraw^.dwItemSpec) < Columns.Count)
+                and Columns[LeftCol + Integer(HDCustomDraw^.dwItemSpec)].Field.IsIndexField
                 and (Assigned(TitleBoldFont) or (GetObject(TitleFont.Handle, SizeOf(LogFont), @LogFont) <> 0))) then
               begin
                 if (not Assigned(TitleBoldFont)) then

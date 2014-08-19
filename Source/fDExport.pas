@@ -1458,12 +1458,12 @@ var
 begin
   Database := BuildTitle();
 
-  if (Assigned(Session) and (Session.Charset <> '')) then
-    CodePage := Session.CharsetToCodePage(Session.Charset)
-  else if (SingleTable and (TObject(DExport.SObjects[0]) is TSBaseTable)) then
+  if (SingleTable and (TObject(DExport.SObjects[0]) is TSBaseTable)) then
     CodePage := Session.CharsetToCodePage(TSBaseTable(DExport.SObjects[0]).DefaultCharset)
   else if (Assigned(Database)) then
     CodePage := Session.CharsetToCodePage(Database.DefaultCharset)
+  else if (Assigned(Session) and (Session.Charset <> '')) then
+    CodePage := Session.CharsetToCodePage(Session.Charset)
   else
     CodePage := Session.CodePage;
 
