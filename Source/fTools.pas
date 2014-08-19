@@ -1075,7 +1075,10 @@ begin
     else if (Reg.ValueExists('BodyCharset')) then
       Result := Reg.ReadString('BodyCharset');
     Reg.CloseKey();
-  end;
+  end
+else
+MessageBox(0, PChar('No Key for ' + '\MIME\Database\Codepage\' + IntToStr(Codepage)), 'Debug', MB_OK);
+
   Reg.Free();
 end;
 
@@ -5206,6 +5209,7 @@ begin
   Content := Content + '<html>' + #13#10;
   Content := Content + '<head>' + #13#10;
   Content := Content + #9 + '<title>' + HTMLEscape(Title) + '</title>' + #13#10;
+MessageBox(Handle, PChar('CodePage: ' + IntToStr(CodePage)), 'Debug', MB_OK);
   if (UMLEncoding(CodePage) <> '') then
     Content := Content + #9 + '<meta http-equiv="Content-Type" content="text/html; charset=' + UMLEncoding(CodePage) + '">' + #13#10;
   Content := Content + #9 + '<meta name="date" content="' + GetUTCDateTime(Now()) + '">' + #13#10;

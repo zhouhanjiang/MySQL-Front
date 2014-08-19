@@ -921,11 +921,11 @@ begin
     for I := 0 to Database.Session.Collations.Count - 1 do
       if (Assigned(DefaultCharset) and (Database.Session.Collations[I].Charset = DefaultCharset)) then
         FCollation.Items.Add(Database.Session.Collations[I].Name);
-    for I := 1 to FCollation.Items.Count - 1 do
-      if (Database.Session.CollationByName(FCollation.Items[I]).Default) then
-        FCollation.ItemIndex := I;
+    if (not Assigned(DefaultCharset) or not Assigned(NewTable)) then
+      FCollation.ItemIndex := 0
+    else
+      FCollation.ItemIndex := FCollation.Items.IndexOf(NewTable.Collation);
   end;
-
   FCollationChange(Sender);
 end;
 

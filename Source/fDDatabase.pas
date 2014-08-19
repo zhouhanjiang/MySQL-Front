@@ -290,7 +290,10 @@ begin
     for I := 0 to Session.Collations.Count - 1 do
       if (Assigned(DefaultCharset) and (Session.Collations[I].Charset = DefaultCharset)) then
         FCollation.Items.Add(Session.Collations[I].Name);
-    FCollation.ItemIndex := FCollation.Items.IndexOf(DefaultCharset.DefaultCollation.Caption);
+    if (not Assigned(DefaultCharset) or not Assigned(Database)) then
+      FCollation.ItemIndex := 0
+    else
+      FCollation.ItemIndex := FCollation.Items.IndexOf(DefaultCharset.DefaultCollation.Caption);
   end;
   FCollationChange(Sender);
 

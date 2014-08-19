@@ -1553,6 +1553,7 @@ begin
       CodePage := GetACP()
     else
       CodePage := EncodingToCodePage(SaveDialog.Encodings[SaveDialog.EncodingIndex]);
+MessageBox(Handle, PChar('CodePage: ' + IntToStr(CodePage)), 'Debug', MB_OK);
     Filename := SaveDialog.FileName;
   end;
 end;
