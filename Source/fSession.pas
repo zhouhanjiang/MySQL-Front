@@ -4044,7 +4044,7 @@ end;
 
 function TSBaseTable.GetValid(): Boolean;
 begin
-  Result := inherited and ValidStatus;
+  Result := inherited and (Fields.Count > 0) and ValidStatus;
 end;
 
 function TSBaseTable.KeyByCaption(const Caption: string): TSKey;
@@ -7394,8 +7394,7 @@ begin
           if ((NewField.Charset <> '')
             and (not Assigned(OldField) and (NewField.Charset <> '') and (NewField.Charset <> NewTable.DefaultCharset) or Assigned(OldField) and (NewField.Charset <> OldField.Charset))) then
             SQLPart := SQLPart + ' CHARACTER SET ' + NewField.Charset;
-          if ((NewField.Collation <> '')
-            and (not Assigned(OldField) and (NewField.Collation <> '') and (NewField.Collation <> NewTable.FCollation) or Assigned(OldField) and (NewField.Collation <> OldField.Collation))) then
+          if ((NewField.Collation <> '') and (NewField.Collation <> NewTable.FCollation) and Assigned(OldField)) then
             SQLPart := SQLPart + ' COLLATE ' + NewField.Collation;
         end;
         if (not NewField.NullAllowed) then SQLPart := SQLPart + ' NOT'; SQLPart := SQLPart + ' NULL';

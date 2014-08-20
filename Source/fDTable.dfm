@@ -65,7 +65,7 @@ object DTable: TDTable
     Top = 8
     Width = 321
     Height = 325
-    ActivePage = TSFields
+    ActivePage = TSTable
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
@@ -1072,6 +1072,15 @@ object DTable: TDTable
   object MList: TPopupMenu
     Left = 72
     Top = 336
+    object aPUp1: TMenuItem
+      Action = aPUp
+    end
+    object aPDown1: TMenuItem
+      Action = aPDown
+    end
+    object N2: TMenuItem
+      Caption = '-'
+    end
     object mlDCreate: TMenuItem
       Caption = 'aDCreate'
     end
@@ -1080,15 +1089,6 @@ object DTable: TDTable
     end
     object mlDProperties: TMenuItem
       Caption = 'aDProperties'
-    end
-    object N2: TMenuItem
-      Caption = '-'
-    end
-    object aPUp1: TMenuItem
-      Action = aPUp
-    end
-    object aPDown1: TMenuItem
-      Action = aPDown
     end
   end
   object ActionList: TActionList

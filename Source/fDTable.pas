@@ -1242,12 +1242,15 @@ begin
   if (not Assigned(Tables) and (Event.EventType = etItemValid) and (Event.SItem = Table)
     or Assigned(Tables) and (Event.EventType = etAfterExecuteSQL)) then
     if (not PageControl.Visible) then
-      Built()
+    begin
+      NewTable.Assign(Table);
+      Built();
+    end
     else
       TSExtrasShow(nil)
   else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is fSession.TSTable)) then
-    ModalResult := mrOk;
-  if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
+    ModalResult := mrOk
+  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
   begin
     PageControl.Visible := True;
     PSQLWait.Visible := not PageControl.Visible;

@@ -855,15 +855,14 @@ begin
       if (FUDFormatSize.Position = Length(FFormatYear.Items.Strings[I])) then
         FFormatYear.ItemIndex := I;
 
-    if (Field.Charset <> '') then
+    if (Field.Charset = '') then
     begin
-      FCharset.ItemIndex := FCharset.Items.IndexOf(Field.Charset);
-      FCharsetChange(Sender);
+      FCharset.ItemIndex := FCharset.Items.IndexOf(Table.DefaultCharset); FCharsetChange(Sender);
       FCollation.ItemIndex := FCollation.Items.IndexOf(Field.Collation);
     end
     else
     begin
-      FCharset.ItemIndex := FCharset.Items.IndexOf(Table.DefaultCharset); FCharsetChange(Sender);
+      FCharset.ItemIndex := FCharset.Items.IndexOf(Field.Charset); FCharsetChange(Sender);
       FCollation.ItemIndex := FCollation.Items.IndexOf(Field.Collation);
     end;
 
