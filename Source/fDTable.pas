@@ -588,7 +588,7 @@ begin
     FName.Text := NewTable.Name;
 
     FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf(NewTable.DefaultCharset); FDefaultCharsetChange(Self);
-    FCollation.ItemIndex := FCollation.Items.IndexOf(NewTable.Collation);
+    FCollation.ItemIndex := FCollation.Items.IndexOf(NewTable.Collation); FCollationChange(Self);
 
     FComment.Text := SQLUnwrapStmt(NewTable.Comment);
 
@@ -915,18 +915,14 @@ begin
   DefaultCharset := Database.Session.CharsetByName(FDefaultCharset.Text);
 
   FCollation.Items.Clear();
-  FCollation.Items.Add('');
   if (Assigned(Database.Session.Collations)) then
   begin
+    FCollation.Items.Add('');
     for I := 0 to Database.Session.Collations.Count - 1 do
       if (Assigned(DefaultCharset) and (Database.Session.Collations[I].Charset = DefaultCharset)) then
         FCollation.Items.Add(Database.Session.Collations[I].Name);
-    if (not Assigned(DefaultCharset) or not Assigned(NewTable)) then
-      FCollation.ItemIndex := 0
-    else
-      FCollation.ItemIndex := FCollation.Items.IndexOf(NewTable.Collation);
   end;
-  FCollationChange(Sender);
+  FCollation.Enabled := Assigned(DefaultCharset); FLCollation.Enabled := FCollation.Enabled;
 end;
 
 procedure TDTable.FDefaultCharsetExit(Sender: TObject);

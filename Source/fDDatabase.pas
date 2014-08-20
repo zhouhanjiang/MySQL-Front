@@ -115,7 +115,7 @@ begin
   FName.Text := Database.Name;
 
   FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf(Database.DefaultCharset); FDefaultCharsetChange(nil);
-  FCollation.ItemIndex := FCollation.Items.IndexOf(Database.Collation);
+  FCollation.ItemIndex := FCollation.Items.IndexOf(Database.Collation); FCollationChange(nil);
 
   FSource.Lines.Text := Database.Source;
 
@@ -284,19 +284,13 @@ begin
   DefaultCharset := Session.CharsetByName(FDefaultCharset.Text);
 
   FCollation.Items.Clear();
-  FCollation.Items.Add('');
   if (Assigned(Session.Collations)) then
   begin
+    FCollation.Items.Add('');
     for I := 0 to Session.Collations.Count - 1 do
       if (Assigned(DefaultCharset) and (Session.Collations[I].Charset = DefaultCharset)) then
         FCollation.Items.Add(Session.Collations[I].Name);
-    if (not Assigned(DefaultCharset) or not Assigned(Database)) then
-      FCollation.ItemIndex := 0
-    else
-      FCollation.ItemIndex := FCollation.Items.IndexOf(DefaultCharset.DefaultCollation.Caption);
   end;
-  FCollationChange(Sender);
-
   FCollation.Enabled := FDefaultCharset.Text <> ''; FLCollation.Enabled := FCollation.Enabled;
 
   FBOkCheckEnabled(Sender);

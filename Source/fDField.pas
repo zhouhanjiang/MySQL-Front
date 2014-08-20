@@ -233,30 +233,17 @@ var
   Charset: TSCharset;
   I: Integer;
 begin
-  if (FCharset.Text <> '') then
-    Charset := Table.Database.Session.CharsetByName(FCharset.Text)
-  else if (Assigned(Table) and (Table.DefaultCharset <> '')) then
-    Charset := Table.Database.Session.CharsetByName(Table.DefaultCharset)
-  else if (Assigned(Table) and (Table.Database.DefaultCharset <> '')) then
-    Charset := Table.Database.Session.CharsetByName(Table.Database.DefaultCharset)
-  else
-    Charset := nil;
+  Charset := Table.Session.CharsetByName(FCharset.Text);
 
   FCollation.Items.Clear();
-  FCollation.Items.Add('');
-  if (Assigned(Charset) and Assigned(Table.Database.Session.Collations)) then
+  if (Assigned(Charset) and Assigned(Table.Session.Collations)) then
   begin
-    for I := 0 to Table.Database.Session.Collations.Count - 1 do
-      if (Table.Database.Session.Collations[I].Charset = Charset) then
-        FCollation.Items.Add(Table.Database.Session.Collations[I].Name);
-
-    if (not Assigned(Charset)) then
-      FCollation.ItemIndex := 0
-    else if (Assigned(Field) and (Field.Collation <> '')) then
-      FCollation.ItemIndex := FCollation.Items.IndexOf(Field.Collation)
-    else
-      FCollation.ItemIndex := FCollation.Items.IndexOf(Charset.DefaultCollation.Caption);
+    FCollation.Items.Add('');
+    for I := 0 to Table.Session.Collations.Count - 1 do
+      if (Table.Session.Collations[I].Charset = Charset) then
+        FCollation.Items.Add(Table.Session.Collations[I].Name);
   end;
+  FCollation.Enabled := Assigned(Charset); FLCollation.Enabled := FCollation.Enabled;
 
   FBOkCheckEnabled(Sender);
 end;
@@ -804,8 +791,8 @@ begin
 
   FCharset.Items.Clear();
   FCharset.Items.Add('');
-  for I := 0 to Table.Database.Session.Charsets.Count - 1 do
-    FCharset.Items.Add(Table.Database.Session.Charsets[I].Name);
+  for I := 0 to Table.Session.Charsets.Count - 1 do
+    FCharset.Items.Add(Table.Session.Charsets[I].Name);
 
   if (not Assigned(Field)) then
     FPosition.ItemIndex := FPosition.Items.Count - 1
@@ -876,8 +863,8 @@ begin
     end
     else
     begin
-      FCharset.ItemIndex := FCharset.Items.IndexOf(Table.DefaultCharset);
-      FCharsetChange(Sender);
+      FCharset.ItemIndex := FCharset.Items.IndexOf(Table.DefaultCharset); FCharsetChange(Sender);
+      FCollation.ItemIndex := FCollation.Items.IndexOf(Field.Collation);
     end;
 
     FFlagUnsigned.Checked := Field.Unsigned;

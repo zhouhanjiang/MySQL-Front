@@ -1075,7 +1075,9 @@ begin
     else if (Reg.ValueExists('BodyCharset')) then
       Result := Reg.ReadString('BodyCharset');
     Reg.CloseKey();
-  end;
+  end
+  else if (Codepage = CP_UTF8) then
+    Result := 'utf-8';
 
   Reg.Free();
 end;
