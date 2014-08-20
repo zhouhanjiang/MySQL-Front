@@ -1635,8 +1635,11 @@ begin
         S := ''
       else
       begin
-        S := NewTable.Fields[I].Charset;
-        if (NewTable.Fields[I].Collation <> '') then
+        if (NewTable.Fields[I].Charset = NewTable.DefaultCharset) then
+          S := ''
+        else
+          S := NewTable.Fields[I].Charset;
+        if (NewTable.Fields[I].Collation <> NewTable.Collation) then
         begin
           if (S <> '') then S := S + ', ';
           S := S + NewTable.Fields[I].Collation;
