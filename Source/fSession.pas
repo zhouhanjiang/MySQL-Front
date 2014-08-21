@@ -7389,12 +7389,12 @@ begin
         else
           SQLPart := SQLPart + 'CHANGE COLUMN ' + Session.EscapeIdentifier(OldField.Name) + ' ' + Session.EscapeIdentifier(NewField.Name);
         SQLPart := SQLPart + ' ' + NewField.DBTypeStr();
-        if ((NewField.FieldType in [mfChar, mfVarChar, mfTinyText, mfText, mfMediumText, mfLongText, mfSet, mfEnum]) and (Session.ServerVersion >= 40101)) then
+        if ((NewField.FieldType in TextFieldTypes) and (Session.ServerVersion >= 40101)) then
         begin
           if ((NewField.Charset <> '')
-            and (not Assigned(OldField) and (NewField.Charset <> '') and (NewField.Charset <> NewTable.DefaultCharset) or Assigned(OldField) and (NewField.Charset <> OldField.Charset))) then
+            and ((NewField.Charset <> '') and (NewField.Charset <> NewTable.DefaultCharset))) then
             SQLPart := SQLPart + ' CHARACTER SET ' + NewField.Charset;
-          if ((NewField.Collation <> '') and (NewField.Collation <> NewTable.FCollation) and Assigned(OldField)) then
+          if ((NewField.Collation <> '') and (NewField.Collation <> NewTable.FCollation)) then
             SQLPart := SQLPart + ' COLLATE ' + NewField.Collation;
         end;
         if (not NewField.NullAllowed) then SQLPart := SQLPart + ' NOT'; SQLPart := SQLPart + ' NULL';
