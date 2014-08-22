@@ -145,8 +145,8 @@ begin
     FParentDatabaseChange(Event.Sender)
   else if ((Event.EventType = etItemValid) and (Event.SItem = SelectedParentTable)) then
     FParentTableChange(Event.Sender)
-  else if ((Event.EventType = etItemAltered) and (Event.SItem = Table)) then
-    ModalResult := mrOk
+  else if ((Event.EventType = etItemValid) and (Event.SItem = Table)) then
+    FTableChange(Event.Sender)
   else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
   begin
     GBasics.Visible := True;

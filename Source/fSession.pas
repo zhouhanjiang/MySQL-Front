@@ -7618,12 +7618,12 @@ begin
   end;
   if (Session.ServerVersion >= 40100) then
   begin
-    if ((NewTable.FDefaultCharset <> '') and (not Assigned(Table) and (NewTable.FDefaultCharset <> DefaultCharset) or Assigned(Table) and (NewTable.FDefaultCharset <> Table.DefaultCharset))) then
+    if (NewTable.FDefaultCharset <> '') then
     begin
       if (Assigned(Table) and (SQL <> '')) then SQL := SQL + ',' + #13#10;
       SQL := SQL + ' DEFAULT CHARSET=' + NewTable.FDefaultCharset;
     end;
-    if ((NewTable.FCollation <> '') and (not Assigned(Table) and (NewTable.FCollation <> Collation) or Assigned(Table) and (NewTable.FCollation <> Table.Collation))) then
+    if (NewTable.FCollation <> '') then
     begin
       if (Assigned(Table) and (SQL <> '')) then SQL := SQL + ',' + #13#10;
       SQL := SQL + ' COLLATE ' + NewTable.FCollation;
@@ -12062,9 +12062,9 @@ begin
   SQL := '';
   if (ServerVersion >= 40101) then
   begin
-    if ((NewDatabase.FDefaultCharset <> '') and (not Assigned(Database) and (NewDatabase.FDefaultCharset <> DefaultCharset) or Assigned(Database) and (NewDatabase.FDefaultCharset <> Database.DefaultCharset))) then
+    if (NewDatabase.FDefaultCharset <> '') then
       SQL := SQL + ' DEFAULT CHARACTER SET ' + NewDatabase.FDefaultCharset;
-    if ((NewDatabase.FCollation <> '') and (not Assigned(Database) and (NewDatabase.FCollation <> Collation) or Assigned(Database) and (NewDatabase.FCollation <> Database.Collation))) then
+    if (NewDatabase.FCollation <> '') then
       SQL := SQL + ' DEFAULT COLLATE ' + NewDatabase.FCollation;
   end;
 

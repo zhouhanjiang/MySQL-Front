@@ -242,6 +242,7 @@ begin
     for I := 0 to Table.Session.Collations.Count - 1 do
       if (Table.Session.Collations[I].Charset = Charset) then
         FCollation.Items.Add(Table.Session.Collations[I].Name);
+    FCollation.ItemIndex := FCollation.Items.IndexOf(Charset.DefaultCollation.Caption);
   end;
   FCollation.Enabled := Assigned(Charset); FLCollation.Enabled := FCollation.Enabled;
 

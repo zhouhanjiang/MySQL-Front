@@ -8058,7 +8058,7 @@ begin
   MainAction('aDCreateTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable) and Assigned(TSDatabase(Node.Parent.Data).Triggers);
   MainAction('aDCreateKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
   MainAction('aDCreateField').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
-  MainAction('aDCreateForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseTable]) and Assigned(TSBaseTable(Node.Data).Engine) and TSBaseTable(Node.Data).Engine.ForeignKeyAllowed;
+  MainAction('aDCreateForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseTable]);
   MainAction('aDCreateUser').Enabled := Assigned(Node) and (Node.ImageIndex = iiUsers);
   MainAction('aDDeleteDatabase').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
   MainAction('aDDeleteTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiBaseTable);
@@ -10847,7 +10847,7 @@ begin
             MainAction('aDCreateEvent').Enabled := (ListView.SelCount = 0) and (SelectedImageIndex = iiDatabase) and Assigned(Database.Events);
             MainAction('aDCreateKey').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable);
             MainAction('aDCreateField').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable);
-            MainAction('aDCreateForeignKey').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable) and Assigned(TSBaseTable(Item.Data).Engine) and TSBaseTable(Item.Data).Engine.ForeignKeyAllowed;
+            MainAction('aDCreateForeignKey').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable);
             MainAction('aDCreateTrigger').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable) and Assigned(Database.Triggers);
             MainAction('aDDeleteTable').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable);
             MainAction('aDDeleteView').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiView);
@@ -10923,7 +10923,7 @@ begin
             MainAction('aERename').Enabled := Assigned(Item) and (ListView.SelCount = 1) and ((Item.ImageIndex in [iiField, iiTrigger]) or (Item.ImageIndex = iiForeignKey) and (Session.ServerVersion >= 40013));
             MainAction('aDCreateKey').Enabled := (ListView.SelCount = 0);
             MainAction('aDCreateField').Enabled := (ListView.SelCount = 0);
-            MainAction('aDCreateForeignKey').Enabled := (ListView.SelCount = 0) and Assigned(BaseTable.Engine) and BaseTable.Engine.ForeignKeyAllowed;
+            MainAction('aDCreateForeignKey').Enabled := (ListView.SelCount = 0);
             MainAction('aDCreateTrigger').Enabled := (ListView.SelCount = 0) and Assigned(BaseTable.Database.Triggers);
             MainAction('aDDeleteKey').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiKey);
             MainAction('aDDeleteField').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiField) and (BaseTable.Fields.Count > ListView.SelCount);
@@ -14188,8 +14188,7 @@ begin
       Table := Session.DatabaseByName(SelectedDatabase).BaseTableByName(TableName);
 
       aEPasteEnabled := (AccountName = Session.Account.Name) and (DatabaseName = SelectedDatabase)
-        and Assigned(Table) and Assigned(Table.Engine) and Table.Engine.ForeignKeyAllowed
-        and not Assigned(ActiveWorkbench.TableByCaption(Table.Name));
+        and Assigned(Table) and not Assigned(ActiveWorkbench.TableByCaption(Table.Name));
     end;
 
     Values.Free();
@@ -14215,7 +14214,7 @@ begin
   mwDCreateTable.Enabled := MainAction('aDCreateTable').Enabled;
   MainAction('aDCreateKey').Enabled := Control is TWTable;
   MainAction('aDCreateField').Enabled := Control is TWTable;
-  MainAction('aDCreateForeignKey').Enabled := (Control is TWTable) and Assigned(TWTable(Control).BaseTable.Engine) and TWTable(Control).BaseTable.Engine.ForeignKeyAllowed;
+  MainAction('aDCreateForeignKey').Enabled := (Control is TWTable);
   mwCreateSection.Enabled := not Assigned(Control);
   mwCreateLink.Enabled := Control is TWTable;
   MainAction('aDCreateTrigger').Enabled := (Control is TWTable) and Assigned(TWTable(Control).BaseTable) and Assigned(Database.Triggers);
