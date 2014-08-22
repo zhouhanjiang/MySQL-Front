@@ -7618,12 +7618,12 @@ begin
   end;
   if (Session.ServerVersion >= 40100) then
   begin
-    if (NewTable.FDefaultCharset <> '') then
+    if ((NewTable.FDefaultCharset <> '') and (not Assigned(Table) or (NewTable.FDefaultCharset <> Table.DefaultCharset))) then
     begin
       if (Assigned(Table) and (SQL <> '')) then SQL := SQL + ',' + #13#10;
       SQL := SQL + ' DEFAULT CHARSET=' + NewTable.FDefaultCharset;
     end;
-    if (NewTable.FCollation <> '') then
+    if ((NewTable.FCollation <> '') and (not Assigned(Table) or (NewTable.FCollation <> Table.Collation))) then
     begin
       if (Assigned(Table) and (SQL <> '')) then SQL := SQL + ',' + #13#10;
       SQL := SQL + ' COLLATE ' + NewTable.FCollation;
