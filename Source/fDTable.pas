@@ -164,7 +164,6 @@ type
     procedure FBHelpClick(Sender: TObject);
     procedure FBOkCheckEnabled(Sender: TObject);
     procedure FBOptimizeClick(Sender: TObject);
-    procedure FCollationDropDown(Sender: TObject);
     procedure FDefaultCharsetChange(Sender: TObject);
     procedure FDefaultCharsetExit(Sender: TObject);
     procedure FEngineChange(Sender: TObject);
@@ -894,19 +893,6 @@ begin
   FBOkCheckEnabled(Sender);
 end;
 
-procedure TDTable.FCollationDropDown(Sender: TObject);
-var
-  I: Integer;
-  J: Integer;
-begin
-  if (Assigned(Database.Session.Collations) and (FCollation.ItemIndex < 0)) then
-    for I := 0 to Database.Session.Collations.Count - 1 do
-      if ((lstrcmpi(PChar(Database.Session.Collations[I].Charset.Name), PChar(FDefaultCharset.Text)) = 0) and Database.Session.Collations[I].Default) then
-        for J := 1 to FCollation.Items.Count - 1 do
-          if (lstrcmpi(PChar(FCollation.Items[J]), PChar(Database.Session.Collations[I].Name)) = 0) then
-            FCollation.ItemIndex := FCollation.Items.IndexOf(FCollation.Items[J]);
-end;
-
 procedure TDTable.FDefaultCharsetChange(Sender: TObject);
 var
   DefaultCharset: TSCharset;
@@ -917,7 +903,6 @@ begin
   FCollation.Items.Clear();
   if (Assigned(Database.Session.Collations)) then
   begin
-    FCollation.Items.Add('');
     for I := 0 to Database.Session.Collations.Count - 1 do
       if (Assigned(DefaultCharset) and (Database.Session.Collations[I].Charset = DefaultCharset)) then
         FCollation.Items.Add(Database.Session.Collations[I].Name);
@@ -1303,7 +1288,6 @@ begin
     FTablesEngine.Items.Add(Database.Session.Engines[I].Name);
 
   FDefaultCharset.Items.Clear();
-  FDefaultCharset.Items.Add('');
   for I := 0 to Database.Session.Charsets.Count - 1 do
     FDefaultCharset.Items.Add(Database.Session.Charsets[I].Name);
   FDefaultCharset.ItemIndex := -1; FDefaultCharsetChange(Sender);
@@ -1529,22 +1513,18 @@ var
   DefaultCharset: TSCharset;
   I: Integer;
 begin
-  DefaultCharset := Database.Session.CharsetByName(FTablesCharset.Text);
+  DefaultCharset := Database.Session.CharsetByName(FDefaultCharset.Text);
 
   FTablesCollation.Items.Clear();
-  FTablesCollation.Items.Add('');
   if (Assigned(Database.Session.Collations)) then
   begin
     for I := 0 to Database.Session.Collations.Count - 1 do
       if (Assigned(DefaultCharset) and (Database.Session.Collations[I].Charset = DefaultCharset)) then
         FTablesCollation.Items.Add(Database.Session.Collations[I].Name);
-    for I := 1 to FTablesCollation.Items.Count - 1 do
-      if (Database.Session.CollationByName(FTablesCollation.Items[I]).Default) then
-        FTablesCollation.ItemIndex := I;
+    if (Assigned(DefaultCharset)) then
+      FTablesCollation.ItemIndex := FTablesCollation.Items.IndexOf(DefaultCharset.DefaultCollation.Caption);
   end;
-
-  FTablesCollation.Enabled := FTablesCharset.Text <> ''; FLTablesCollation.Enabled := FTablesCollation.Enabled;
-
+  FTablesCollation.Enabled := FDefaultCharset.Text <> ''; FLTablesCollation.Enabled := FTablesCollation.Enabled;
 
   FBOkCheckEnabled(Sender);
 end;

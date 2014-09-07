@@ -142,7 +142,7 @@ procedure TDIndex.FAvailableFieldsChange(Sender: TObject; Item: TListItem;
   Change: TItemChange);
 begin
   tbAddAll.Enabled := FAvailableFields.Items.Count > 0;
-  tbAddOne.Enabled := Item.Selected;
+  tbAddOne.Enabled := Assigned(Item) and Item.Selected;
 
   FAvailableFields.Enabled := FAvailableFields.Items.Count > 0; FLAvailableFields.Enabled := FAvailableFields.Enabled;
 end;

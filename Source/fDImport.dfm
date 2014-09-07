@@ -64,7 +64,7 @@ object DImport: TDImport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSStmtType
+    ActivePage = TSJob
     Anchors = [akLeft, akTop, akRight, akBottom]
     Style = tsButtons
     TabOrder = 0
@@ -73,10 +73,6 @@ object DImport: TDImport
       Caption = 'TSJob'
       TabVisible = False
       OnShow = TSJobShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -128,6 +124,7 @@ object DImport: TDImport
           Top = 152
           Width = 166
           Height = 21
+          Anchors = [akLeft, akTop, akRight]
           ReadOnly = True
           TabOrder = 6
           Text = 'FFilename'
@@ -208,6 +205,7 @@ object DImport: TDImport
           Top = 152
           Width = 21
           Height = 21
+          Anchors = [akTop, akRight]
           Caption = #183#183#183
           TabOrder = 8
           OnClick = FBFilenameClick
@@ -229,10 +227,6 @@ object DImport: TDImport
       TabVisible = False
       OnHide = TSTablesHide
       OnShow = TSTablesShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -287,10 +281,6 @@ object DImport: TDImport
       TabVisible = False
       OnHide = TSSelectHide
       OnShow = TSSelectShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -342,10 +332,6 @@ object DImport: TDImport
       TabVisible = False
       OnHide = TSCSVOptionsHide
       OnShow = TSCSVOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -523,10 +509,6 @@ object DImport: TDImport
       Caption = 'TSWhat'
       TabVisible = False
       OnShow = TSWhatShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -534,10 +516,13 @@ object DImport: TDImport
         Left = 4
         Top = 76
         Width = 325
-        Height = 157
+        Height = 161
         Anchors = [akLeft, akTop, akRight]
         Caption = 'GStructure'
         TabOrder = 1
+        DesignSize = (
+          325
+          161)
         object FLEngine: TLabel
           Left = 8
           Top = 23
@@ -548,7 +533,7 @@ object DImport: TDImport
         end
         object FLCharset: TLabel
           Left = 8
-          Top = 61
+          Top = 59
           Width = 48
           Height = 13
           Caption = 'FLCharset'
@@ -556,7 +541,7 @@ object DImport: TDImport
         end
         object FLCollation: TLabel
           Left = 8
-          Top = 87
+          Top = 95
           Width = 52
           Height = 13
           Caption = 'FLCollation'
@@ -564,7 +549,7 @@ object DImport: TDImport
         end
         object FLRowFormat: TLabel
           Left = 8
-          Top = 125
+          Top = 131
           Width = 66
           Height = 13
           Caption = 'FLRowFormat'
@@ -573,15 +558,15 @@ object DImport: TDImport
         object FEngine: TComboBox_Ext
           Left = 128
           Top = 20
-          Width = 89
+          Width = 113
           Height = 21
           Style = csDropDownList
           TabOrder = 0
         end
         object FCharset: TComboBox_Ext
           Left = 128
-          Top = 58
-          Width = 89
+          Top = 56
+          Width = 113
           Height = 21
           Style = csDropDownList
           TabOrder = 1
@@ -589,15 +574,16 @@ object DImport: TDImport
         end
         object FCollation: TComboBox_Ext
           Left = 128
-          Top = 84
+          Top = 92
           Width = 145
           Height = 21
           Style = csDropDownList
+          Anchors = [akLeft, akTop, akRight]
           TabOrder = 2
         end
         object FRowFormat: TComboBox_Ext
           Left = 128
-          Top = 122
+          Top = 128
           Width = 121
           Height = 21
           Style = csDropDownList
@@ -657,10 +643,6 @@ object DImport: TDImport
       Caption = 'TSFields'
       TabVisible = False
       OnShow = TSFieldsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -826,10 +808,6 @@ object DImport: TDImport
       Caption = 'TSTask'
       TabVisible = False
       OnShow = TSTaskShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -937,10 +915,6 @@ object DImport: TDImport
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)

@@ -340,7 +340,7 @@ object DField: TDField
     object FCharset: TComboBox_Ext
       Left = 120
       Top = 198
-      Width = 89
+      Width = 113
       Height = 21
       Style = csDropDownList
       TabOrder = 18
@@ -352,9 +352,9 @@ object DField: TDField
       Width = 145
       Height = 21
       Style = csDropDownList
+      Anchors = [akLeft, akTop, akRight]
       TabOrder = 19
       OnChange = FBOkCheckEnabled
-      OnDropDown = FCollationDropDown
     end
     object FRDefault: TRadioButton
       Left = 120

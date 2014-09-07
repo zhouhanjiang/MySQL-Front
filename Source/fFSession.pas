@@ -8580,7 +8580,11 @@ begin
   if (ActiveDBGrid = DBGrid) then
     ActiveDBGrid := nil;
 
-  DBGrid.Free();
+  try
+    DBGrid.Free();
+  except // Debug 04.09.14
+    // Error messages are not welcome
+  end;
 end;
 
 procedure TFSession.FreeListView(const ListView: TListView);

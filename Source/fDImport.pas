@@ -740,20 +740,20 @@ end;
 
 procedure TDImport.FCharsetChange(Sender: TObject);
 var
+  Charset: TSCharset;
   I: Integer;
 begin
+  Charset := Session.CharsetByName(FCharset.Text);
+
   FCollation.Items.Clear();
-  FCollation.Items.Add('');
   if (Assigned(Session.Collations)) then
+  begin
     for I := 0 to Session.Collations.Count - 1 do
-    begin
-      if (lstrcmpi(PChar(Session.Collations[I].Charset.Name), PChar(FCharset.Text)) = 0) then
-      begin
+      if (Assigned(Charset) and (Session.Collations[I].Charset = Charset)) then
         FCollation.Items.Add(Session.Collations[I].Name);
-        if (Session.Collations[I].Default) then
-          FCollation.ItemIndex := FCollation.Items.Count - 1;
-      end;
-    end;
+    if (Assigned(Charset)) then
+      FCollation.ItemIndex := FCollation.Items.IndexOf(Charset.DefaultCollation.Caption);
+  end;
   FCollation.Enabled := FCharset.Text <> ''; FLCollation.Enabled := FCollation.Enabled;
 end;
 
@@ -1093,6 +1093,16 @@ begin
       FCharset.Items.Add(Session.Charsets.Charset[I].Name);
   end;
   FCharset.Visible := Session.ServerVersion >= 40101; FLCharset.Visible := FCharset.Visible;
+
+  FCollation.Items.Clear();
+  if (Session.Charsets.Count = 0) then
+    FCollation.Style := csDropDown
+  else
+  begin
+    FCollation.Style := csDropDownList;
+    for I := 0 to Session.Charsets.Count - 1 do
+      FCollation.Items.Add(Session.Charsets.Charset[I].Name);
+  end;
   FCollation.Visible := Session.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
 
   FUpdate.Enabled := (SObject is TSBaseTable) and Assigned(TSBaseTable(SObject).PrimaryKey);
@@ -1241,6 +1251,7 @@ begin
 
   if ((FEngine.ItemIndex < 0) and Assigned(Session.Engines.DefaultEngine)) then
     FEngine.ItemIndex := FEngine.Items.IndexOf(Session.Engines.DefaultEngine.Name);
+
   if (FCharset.ItemIndex < 0) then
     if (SObject is TSDatabase) then
       FCharset.ItemIndex := FCharset.Items.IndexOf(TSDatabase(SObject).DefaultCharset)

@@ -495,10 +495,7 @@ begin
     FHeader := 0;
   end;
 
-  try
-    inherited;
-  except
-  end;
+  inherited;
 end;
 
 procedure TMySQLDBGrid.DoEnter();

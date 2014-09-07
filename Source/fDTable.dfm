@@ -72,10 +72,6 @@ object DTable: TDTable
     TabOrder = 1
     object TSTable: TTabSheet
       Caption = 'TSTable'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -156,7 +152,7 @@ object DTable: TDTable
         end
         object FLComment: TLabel
           Left = 8
-          Top = 137
+          Top = 139
           Width = 56
           Height = 13
           Caption = 'FLComment'
@@ -170,7 +166,7 @@ object DTable: TDTable
         end
         object FLCollation: TLabel
           Left = 8
-          Top = 105
+          Top = 109
           Width = 52
           Height = 13
           Caption = 'FLCollation'
@@ -198,7 +194,7 @@ object DTable: TDTable
         end
         object FComment: TEdit
           Left = 120
-          Top = 134
+          Top = 136
           Width = 169
           Height = 21
           Anchors = [akLeft, akTop, akRight]
@@ -210,7 +206,7 @@ object DTable: TDTable
         object FDefaultCharset: TComboBox_Ext
           Left = 120
           Top = 76
-          Width = 89
+          Width = 113
           Height = 21
           Style = csDropDownList
           TabOrder = 2
@@ -219,22 +215,18 @@ object DTable: TDTable
         end
         object FCollation: TComboBox_Ext
           Left = 120
-          Top = 102
+          Top = 106
           Width = 145
           Height = 21
           Style = csDropDownList
+          Anchors = [akLeft, akTop, akRight]
           TabOrder = 3
           OnChange = FCollationChange
-          OnDropDown = FCollationDropDown
         end
       end
     end
     object TSTables: TTabSheet
       Caption = 'TSTables'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -315,7 +307,9 @@ object DTable: TDTable
           Width = 145
           Height = 21
           Style = csDropDownList
+          Anchors = [akLeft, akTop, akRight]
           TabOrder = 2
+          OnChange = FBOkCheckEnabled
         end
         object FDatabase: TEdit
           Left = 120
@@ -364,10 +358,6 @@ object DTable: TDTable
     object TSInformation: TTabSheet
       Caption = 'TSInformation'
       OnShow = TSInformationShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -491,10 +481,6 @@ object DTable: TDTable
     object TSKeys: TTabSheet
       Caption = 'TSKeys'
       OnShow = TSKeysShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -560,10 +546,6 @@ object DTable: TDTable
     object TSFields: TTabSheet
       Caption = 'TSFields'
       OnShow = TSFieldsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -656,10 +638,6 @@ object DTable: TDTable
     object TSForeignKeys: TTabSheet
       Caption = 'TSForeignKeys'
       OnShow = TSForeignKeysShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -722,10 +700,6 @@ object DTable: TDTable
     object TSTriggers: TTabSheet
       Caption = 'TSTriggers'
       OnShow = TSTriggersShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -759,10 +733,6 @@ object DTable: TDTable
     object TSReferenced: TTabSheet
       Caption = 'TSReferenced'
       OnShow = TSReferencedShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -795,10 +765,6 @@ object DTable: TDTable
     object TSPartitions: TTabSheet
       Caption = 'TSPartitions'
       OnShow = TSPartitionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -943,10 +909,6 @@ object DTable: TDTable
     object TSExtras: TTabSheet
       Caption = 'TSExtras'
       OnShow = TSExtrasShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -1052,10 +1014,6 @@ object DTable: TDTable
     object TSSource: TTabSheet
       Caption = 'TSSource'
       OnShow = TSSourceShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         261)

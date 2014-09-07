@@ -61,7 +61,6 @@ type
     procedure FBHelpClick(Sender: TObject);
     procedure FBOkCheckEnabled(Sender: TObject);
     procedure FCharsetChange(Sender: TObject);
-    procedure FCollationDropDown(Sender: TObject);
     procedure FDefaultChange(Sender: TObject);
     procedure FDefaultEnter(Sender: TObject);
     procedure FDefaultExit(Sender: TObject);
@@ -238,7 +237,6 @@ begin
   FCollation.Items.Clear();
   if (Assigned(Charset) and Assigned(Table.Session.Collations)) then
   begin
-    FCollation.Items.Add('');
     for I := 0 to Table.Session.Collations.Count - 1 do
       if (Table.Session.Collations[I].Charset = Charset) then
         FCollation.Items.Add(Table.Session.Collations[I].Name);
@@ -248,19 +246,6 @@ begin
   FCollation.Enabled := Assigned(Charset); FLCollation.Enabled := FCollation.Enabled;
 
   FBOkCheckEnabled(Sender);
-end;
-
-procedure TDField.FCollationDropDown(Sender: TObject);
-var
-  I: Integer;
-  J: Integer;
-begin
-  if (Assigned(Table.Database.Session.Collations) and (FCollation.ItemIndex < 0)) then
-    for I := 0 to Table.Database.Session.Collations.Count - 1 do
-      if ((lstrcmpi(PChar(Table.Database.Session.Collations[I].Charset.Name), PChar(FCharset.Text)) = 0) and Table.Database.Session.Collations[I].Default) then
-        for J := 1 to FCollation.Items.Count - 1 do
-          if (lstrcmpi(PChar(FCollation.Items[J]), PChar(Table.Database.Session.Collations[I].Name)) = 0) then
-            FCollation.ItemIndex := FCollation.Items.IndexOf(FCollation.Items[J]);
 end;
 
 procedure TDField.FDefaultChange(Sender: TObject);
@@ -792,7 +777,6 @@ begin
   FPosition.Enabled := not Assigned(Field) or (Table.Database.Session.ServerVersion >= 40001);
 
   FCharset.Items.Clear();
-  FCharset.Items.Add('');
   for I := 0 to Table.Session.Charsets.Count - 1 do
     FCharset.Items.Add(Table.Session.Charsets[I].Name);
 

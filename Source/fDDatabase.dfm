@@ -87,13 +87,13 @@ object DDatabase: TDDatabase
         Left = 8
         Top = 8
         Width = 297
-        Height = 114
+        Height = 124
         Anchors = [akLeft, akTop, akRight]
         Caption = 'GBasics'
         TabOrder = 0
         DesignSize = (
           297
-          114)
+          124)
         object FLName: TLabel
           Left = 8
           Top = 23
@@ -112,7 +112,7 @@ object DDatabase: TDDatabase
         end
         object FLCollation: TLabel
           Left = 8
-          Top = 85
+          Top = 95
           Width = 52
           Height = 13
           Caption = 'FLCollation'
@@ -132,7 +132,7 @@ object DDatabase: TDDatabase
         object FDefaultCharset: TComboBox_Ext
           Left = 120
           Top = 56
-          Width = 89
+          Width = 113
           Height = 21
           Style = csDropDownList
           TabOrder = 1
@@ -141,23 +141,19 @@ object DDatabase: TDDatabase
         end
         object FCollation: TComboBox_Ext
           Left = 120
-          Top = 82
+          Top = 92
           Width = 145
           Height = 21
           Style = csDropDownList
+          Anchors = [akLeft, akTop, akRight]
           TabOrder = 2
           OnChange = FCollationChange
-          OnDropDown = FCollationDropDown
         end
       end
     end
     object TSInformations: TTabSheet
       Caption = 'TSInformations'
       OnShow = TSInformationsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -253,10 +249,6 @@ object DDatabase: TDDatabase
     object TSExtras: TTabSheet
       Caption = 'TSExtras'
       OnShow = TSExtrasShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -362,10 +354,6 @@ object DDatabase: TDDatabase
     object TSSource: TTabSheet
       Caption = 'TSSource'
       OnShow = TSSourceShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)

@@ -3604,7 +3604,7 @@ begin
   Linear := Source.Linear;
   PartitionType := Source.PartitionType;
 
-  for I := 0 to Source.Count - 1 do
+  for I := 0 to TList(Source).Count - 1 do
     AddPartition(Source.Partition[I]);
 end;
 
@@ -7626,7 +7626,7 @@ begin
     if ((NewTable.FCollation <> '') and (not Assigned(Table) or (NewTable.FCollation <> Table.Collation))) then
     begin
       if (Assigned(Table) and (SQL <> '')) then SQL := SQL + ',' + #13#10;
-      SQL := SQL + ' COLLATE ' + NewTable.FCollation;
+      SQL := SQL + ' COLLATE=' + NewTable.FCollation;
     end;
   end;
   if ((not Assigned(Table) and NewTable.DelayKeyWrite or Assigned(Table) and (NewTable.DelayKeyWrite <> Table.DelayKeyWrite))) then
@@ -12065,7 +12065,7 @@ begin
     if (NewDatabase.FDefaultCharset <> '') then
       SQL := SQL + ' DEFAULT CHARACTER SET ' + NewDatabase.FDefaultCharset;
     if (NewDatabase.FCollation <> '') then
-      SQL := SQL + ' DEFAULT COLLATE ' + NewDatabase.FCollation;
+      SQL := SQL + ' COLLATE ' + NewDatabase.FCollation;
   end;
 
   if (not Assigned(Database)) then
