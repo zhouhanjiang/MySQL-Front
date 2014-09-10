@@ -65,13 +65,17 @@ object DTable: TDTable
     Top = 8
     Width = 321
     Height = 325
-    ActivePage = TSTable
+    ActivePage = TSPartitions
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
     TabOrder = 1
     object TSTable: TTabSheet
       Caption = 'TSTable'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -227,6 +231,10 @@ object DTable: TDTable
     end
     object TSTables: TTabSheet
       Caption = 'TSTables'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -238,6 +246,9 @@ object DTable: TDTable
         Anchors = [akLeft, akTop, akRight]
         Caption = 'GTablesBasics'
         TabOrder = 0
+        DesignSize = (
+          297
+          169)
         object FLDatabase: TLabel
           Left = 8
           Top = 44
@@ -358,6 +369,10 @@ object DTable: TDTable
     object TSInformation: TTabSheet
       Caption = 'TSInformation'
       OnShow = TSInformationShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -481,6 +496,10 @@ object DTable: TDTable
     object TSKeys: TTabSheet
       Caption = 'TSKeys'
       OnShow = TSKeysShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -546,6 +565,10 @@ object DTable: TDTable
     object TSFields: TTabSheet
       Caption = 'TSFields'
       OnShow = TSFieldsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -638,6 +661,10 @@ object DTable: TDTable
     object TSForeignKeys: TTabSheet
       Caption = 'TSForeignKeys'
       OnShow = TSForeignKeysShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -700,6 +727,10 @@ object DTable: TDTable
     object TSTriggers: TTabSheet
       Caption = 'TSTriggers'
       OnShow = TSTriggersShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -733,6 +764,10 @@ object DTable: TDTable
     object TSReferenced: TTabSheet
       Caption = 'TSReferenced'
       OnShow = TSReferencedShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -765,6 +800,10 @@ object DTable: TDTable
     object TSPartitions: TTabSheet
       Caption = 'TSPartitions'
       OnShow = TSPartitionsShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -787,13 +826,13 @@ object DTable: TDTable
           Caption = 'FLPartitionType'
           FocusControl = FPartitionType
         end
-        object FLPartitionCount: TLabel
+        object FLPartitionsNumber: TLabel
           Left = 8
           Top = 107
-          Width = 78
+          Width = 92
           Height = 13
-          Caption = 'FLPartitionCount'
-          FocusControl = FPartitionCount
+          Caption = 'FLPartitionsNumber'
+          FocusControl = FPartitionsNumber
         end
         object FLPartitions: TLabel
           Left = 8
@@ -814,27 +853,27 @@ object DTable: TDTable
         object FPartitionType: TComboBox_Ext
           Left = 120
           Top = 16
-          Width = 73
+          Width = 100
           Height = 21
           Style = csDropDownList
           TabOrder = 0
           OnChange = FPartitionTypeChange
         end
-        object FPartitionCount: TEdit
+        object FPartitionsNumber: TEdit
           Left = 120
           Top = 104
           Width = 33
           Height = 21
           TabOrder = 3
           Text = '0'
-          OnChange = FPartitionCountChange
+          OnChange = FPartitionsNumberChange
         end
-        object FUDPartitionCount: TUpDown
+        object FUDPartitionsNumber: TUpDown
           Left = 153
           Top = 104
           Width = 15
           Height = 21
-          Associate = FPartitionCount
+          Associate = FPartitionsNumber
           TabOrder = 4
         end
         object FPartitionExpr: TEdit
@@ -909,6 +948,10 @@ object DTable: TDTable
     object TSExtras: TTabSheet
       Caption = 'TSExtras'
       OnShow = TSExtrasShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -1014,6 +1057,10 @@ object DTable: TDTable
     object TSSource: TTabSheet
       Caption = 'TSSource'
       OnShow = TSSourceShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         261)

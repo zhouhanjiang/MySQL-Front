@@ -64,7 +64,7 @@ type
     FLIndexSize: TLabel;
     FLinear: TCheckBox;
     FLName: TLabel;
-    FLPartitionCount: TLabel;
+    FLPartitionsNumber: TLabel;
     FLPartitionExpr: TLabel;
     FLPartitions: TLabel;
     FLPartitionType: TLabel;
@@ -78,7 +78,7 @@ type
     FLUnusedSize: TLabel;
     FLUpdated: TLabel;
     FName: TEdit;
-    FPartitionCount: TEdit;
+    FPartitionsNumber: TEdit;
     FPartitionExpr: TEdit;
     FPartitions: TListView_Ext;
     FPartitionType: TComboBox_Ext;
@@ -92,7 +92,7 @@ type
     FTablesEngine: TComboBox_Ext;
     FTablesRowType: TComboBox_Ext;
     FTriggers: TListView;
-    FUDPartitionCount: TUpDown;
+    FUDPartitionsNumber: TUpDown;
     FUnusedSize: TLabel;
     FUpdated: TLabel;
     GBasics: TGroupBox_Ext;
@@ -185,7 +185,7 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure FormHide(Sender: TObject);
     procedure FormShow(Sender: TObject);
-    procedure FPartitionCountChange(Sender: TObject);
+    procedure FPartitionsNumberChange(Sender: TObject);
     procedure FPartitionExprChange(Sender: TObject);
     procedure FPartitionsChange(Sender: TObject; Item: TListItem;
       Change: TItemChange);
@@ -601,6 +601,17 @@ begin
     FAutoIncrement.Visible := NewTable.AutoIncrement > 0; FLAutoIncrement.Visible := FAutoIncrement.Visible;
     FAutoIncrement.Text := IntToStr(NewTable.AutoIncrement);
 
+    case (NewTable.Partitions.PartitionType) of
+      ptHash: FPartitionType.ItemIndex := 1;
+      ptKey: FPartitionType.ItemIndex := 2;
+      ptRange: FPartitionType.ItemIndex := 3;
+      ptList: FPartitionType.ItemIndex := 4;
+      else FPartitionType.ItemIndex := 0
+    end; FPartitionTypeChange(nil);
+    FLinear.Checked := NewTable.Partitions.Linear;
+    FPartitionExpr.Text := NewTable.Partitions.Expression;
+    FUDPartitionsNumber.Position := NewTable.Partitions.PartitionsNumber;
+
     PageControl.ActivePage := TSTable;
   end
   else
@@ -737,13 +748,14 @@ begin
   GPartitions.Caption := Preferences.LoadStr(85);
   FLPartitionType.Caption := Preferences.LoadStr(110) + ':';
   FPartitionType.Items.Clear();
+  FPartitionType.Items.Add('<' + Preferences.LoadStr(912) + '>');
   FPartitionType.Items.Add(Preferences.LoadStr(831));
   FPartitionType.Items.Add(Preferences.LoadStr(832));
   FPartitionType.Items.Add(Preferences.LoadStr(833));
   FPartitionType.Items.Add(Preferences.LoadStr(834));
   FLinear.Caption := Preferences.LoadStr(835);
   FLPartitionExpr.Caption := Preferences.LoadStr(836) + ':';
-  FLPartitionCount.Caption := Preferences.LoadStr(617) + ':';
+  FLPartitionsNumber.Caption := Preferences.LoadStr(617) + ':';
   FLPartitions.Caption := Preferences.LoadStr(830) + ':';
 //  tbPartitionUp.Hint := Preferences.LoadStr(545);
 //  tbPartitionDown.Hint := Preferences.LoadStr(547);
@@ -1298,7 +1310,7 @@ begin
   FTablesCharset.Text := ''; FTablesCharsetChange(Sender);
   FTablesCollation.Text := '';
 
-  FPartitionType.ItemIndex := -1;
+  FPartitionType.ItemIndex := 0;
 
 
   FBOptimize.Enabled := True;
@@ -1420,17 +1432,21 @@ begin
       ActiveControl := FTablesEngine;
 end;
 
-procedure TDTable.FPartitionCountChange(Sender: TObject);
+procedure TDTable.FPartitionsNumberChange(Sender: TObject);
 begin
+  NewTable.Partitions.PartitionsNumber := FUDPartitionsNumber.Position;
+
   FPartitionExpr.Enabled := FPartitions.Items.Count = 0;
   FLPartitionExpr.Enabled := FPartitionExpr.Enabled;
 
   FPartitionType.Enabled := FPartitions.Items.Count = 0;
   FLPartitionType.Enabled := FPartitionType.Enabled;
 
-  FPartitionCount.Enabled := FPartitions.Items.Count = 0;
-  FUDPartitionCount.Enabled := FPartitionCount.Enabled;
-  FLPartitionCount.Enabled := FPartitionCount.Enabled;
+  FPartitionsNumber.Enabled := FPartitions.Items.Count = 0;
+  FUDPartitionsNumber.Enabled := FPartitionsNumber.Enabled;
+  FLPartitionsNumber.Enabled := FPartitionsNumber.Enabled;
+
+  FBOkCheckEnabled(Sender);
 end;
 
 procedure TDTable.FPartitionExprChange(Sender: TObject);
@@ -1441,9 +1457,9 @@ end;
 procedure TDTable.FPartitionsChange(Sender: TObject; Item: TListItem;
   Change: TItemChange);
 begin
-  FPartitionCountChange(Sender);
+  FPartitionsNumberChange(Sender);
 
-  FUDPartitionCount.Position := FPartitions.Items.Count;
+  FBOkCheckEnabled(Sender);
 end;
 
 procedure TDTable.FPartitionsRefresh(Sender: TObject);
@@ -1492,20 +1508,27 @@ end;
 procedure TDTable.FPartitionTypeChange(Sender: TObject);
 begin
   case (FPartitionType.ItemIndex) of
-    0: NewTable.Partitions.PartitionType := ptHash;
-    1: NewTable.Partitions.PartitionType := ptKey;
-    2: NewTable.Partitions.PartitionType := ptRange;
-    3: NewTable.Partitions.PartitionType := ptList;
-    else NewTable.Partitions.PartitionType := ptUnknown;
+    1: NewTable.Partitions.PartitionType := ptHash;
+    2: NewTable.Partitions.PartitionType := ptKey;
+    3: NewTable.Partitions.PartitionType := ptRange;
+    4: NewTable.Partitions.PartitionType := ptList;
+    else NewTable.Partitions.PartitionType := ptNone;
   end;
 
-  FLinear.Enabled := NewTable.Partitions.PartitionType in [ptHash, ptKey];
+  FLinear.Visible := NewTable.Partitions.PartitionType in [ptHash, ptKey];
 
-  FPartitionExpr.Text := '';
+  FPartitionExpr.Visible := NewTable.Partitions.PartitionType in [ptHash, ptRange, ptList];
+  FLPartitionExpr.Visible := FPartitionExpr.Visible;
+
+  FPartitionsNumber.Visible := NewTable.Partitions.PartitionType in [ptHash, ptKey, ptRange, ptList];
+  FLPartitionsNumber.Visible := FPartitionsNumber.Visible;
+  FUDPartitionsNumber.Visible := FPartitionsNumber.Visible;
 
   FPartitions.Items.Clear(); FPartitionsChange(Sender, nil, ctState);
-  FPartitions.Enabled := FPartitionType.ItemIndex in [2, 3];
-  FLPartitions.Enabled := FPartitions.Enabled;
+  FPartitions.Visible := NewTable.Partitions.PartitionType in [ptKey, ptRange, ptList];
+  FLPartitions.Visible := FPartitions.Visible;
+
+  FBOkCheckEnabled(Sender);
 end;
 
 procedure TDTable.FTablesCharsetChange(Sender: TObject);
@@ -1806,29 +1829,6 @@ begin
   mlDDelete.Caption := Preferences.LoadStr(28);
   mlDCreate.ShortCut := VK_INSERT;
   mlDDelete.ShortCut := VK_DELETE;
-
-  if (FPartitionType.ItemIndex < 0) then
-  begin
-    FPartitionType.OnChange := nil;
-    FPartitionExpr.OnChange := nil;
-
-    case (NewTable.Partitions.PartitionType) of
-      ptHash: FPartitionType.ItemIndex := 0;
-      ptKey: FPartitionType.ItemIndex := 1;
-      ptRange: FPartitionType.ItemIndex := 2;
-      ptList: FPartitionType.ItemIndex := 3;
-      else FPartitionType.ItemIndex := -1
-    end; FPartitionTypeChange(Sender);
-    FLinear.Checked := NewTable.Partitions.Linear;
-
-    FPartitionExpr.Text := NewTable.Partitions.Expression;
-    FUDPartitionCount.Position := NewTable.Partitions.Count;
-
-    FPartitionsRefresh(Sender);
-
-    FPartitionType.OnChange := FPartitionTypeChange;
-    FPartitionExpr.OnChange := FPartitionExprChange;
-  end;
 
   FListSelectItem(FPartitions, FPartitions.Selected, Assigned(FPartitions.Selected));
 end;

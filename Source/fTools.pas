@@ -6,11 +6,11 @@ interface {********************************************************************}
 
 uses
   Windows, XMLDoc, XMLIntf, DBGrids, WinSpool,
-  SysUtils, DB, Classes, Graphics, SyncObjs,
+  SysUtils, DB, Classes, Graphics, SyncObjs, ComObj,
   {$IFDEF EurekaLog}
   ExceptionLog,
   {$ENDIF}
-  ODBCAPI,
+  ODBCAPI, MLang,
   SynEditHighlighter,
   SynPDF,
   MySQLConsts, MySQLDB, SQLUtils, CSVUtils,
@@ -784,6 +784,9 @@ const
   DriverExcel = 'Microsoft Excel Driver (*.xls)';
   DriverExcel12 = 'Microsoft Excel Driver (*.xls, *.xlsx, *.xlsm, *.xlsb)';
 
+var
+  MultiLanguage: IMultiLanguage2;
+
 function GetUTCDateTime(Date: TDateTime): string;
 const
   EnglishShortMonthNames : array[1..12] of string
@@ -1062,24 +1065,12 @@ end;
 
 function UMLEncoding(const Codepage: Cardinal): string;
 var
-  Reg: TRegistry;
+  MimeCPInfo: tagMIMECPINFO;
 begin
-  Result := '';
-
-  Reg := TRegistry.Create();
-  Reg.RootKey := HKEY_CLASSES_ROOT;
-  if (Reg.OpenKey('\MIME\Database\Codepage\' + IntToStr(Codepage), False)) then
-  begin
-    if (Reg.ValueExists('WebCharset')) then
-      Result := Reg.ReadString('WebCharset')
-    else if (Reg.ValueExists('BodyCharset')) then
-      Result := Reg.ReadString('BodyCharset');
-    Reg.CloseKey();
-  end
-  else if (Codepage = CP_UTF8) then
-    Result := 'utf-8';
-
-  Reg.Free();
+  if (not Assigned(MultiLanguage) or (MultiLanguage.GetCodePageInfo(Codepage, 0, MimeCPInfo) <> S_OK)) then
+    Result := ''
+  else
+    Result := StrPas(MimeCPInfo.wszWebCharset);
 end;
 
 { TTool.TDataFileBuffer *******************************************************}
@@ -8820,6 +8811,8 @@ end;
 var
   Driver: array [0 .. STR_LEN] of SQLTCHAR;
 initialization
+  MultiLanguage := CreateComObject(CLASS_CMultiLanguage) as IMultiLanguage2;
+
   ODBCDrivers := [];
   if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, @ODBCEnv))) then
     ODBCEnv := SQL_NULL_HANDLE

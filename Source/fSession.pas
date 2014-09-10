@@ -22,7 +22,7 @@ type
     mfChar, mfVarChar, mfTinyText, mfText, mfMediumText, mfLongText, mfEnum, mfSet,
     mfBinary, mfVarBinary, mfTinyBlob, mfBlob, mfMediumBlob, mfLongBlob,
     mfGeometry, mfPoint, mfLineString, mfPolygon, mfMultiPoint, mfMultiLineString, mfMultiPolygon, mfGeometryCollection);
-  TMySQLPartitionType = (ptUnknown, ptHash, ptKey, ptRange, ptList);
+  TMySQLPartitionType = (ptNone, ptHash, ptKey, ptRange, ptList);
   TMySQLRowType = (mrUnknown, mrFixed, mrDynamic, mrCompressed, mrRedundant, mrCompact);
   TMySQLForeignKeyDeleteType = (dtNoAction, dtCascade, dtSetNull, dtSetDefault, dtRestrict);
   TMySQLForeignKeyUpdateType = (utNoAction, utCascade, utSetNull, utSetDefault, utRestrict);
@@ -544,14 +544,12 @@ type
 
   TSPartitions = class(TSItems)
   private
-    FCount: Integer;
     FTable: TSBaseTable;
     function GetPartition(Index: Integer): TSPartition;
-  protected
-    function GetCount(): Integer; override;
   public
     Expression: string;
     Linear: Boolean;
+    PartitionsNumber: Integer;
     PartitionType: TMySQLPartitionType;
     procedure AddPartition(const NewPartition: TSPartition); virtual;
     procedure Assign(const Source: TSPartitions); virtual;
@@ -1608,7 +1606,7 @@ begin
   else if (UpperCase(Str) = 'KEY') then Result := ptKey
   else if (UpperCase(Str) = 'RANGE') then Result := ptRange
   else if (UpperCase(Str) = 'LIST') then Result := ptList
-  else Result := ptUnknown;
+  else Result := ptNone;
 end;
 
 function StrToEventType(const Str: string): TMySQLEventType;
@@ -3600,8 +3598,8 @@ begin
   if (Assigned(Source.FTable)) then FTable := Source.FTable;
 
   Expression := Source.Expression;
-  FCount := Source.FCount;
   Linear := Source.Linear;
+  PartitionsNumber := Source.PartitionsNumber;
   PartitionType := Source.PartitionType;
 
   for I := 0 to TList(Source).Count - 1 do
@@ -3611,9 +3609,9 @@ end;
 procedure TSPartitions.Clear();
 begin
   Expression := '';
-  FCount := -1;
   Linear := False;
-  PartitionType := ptUnknown;
+  PartitionsNumber := -1;
+  PartitionType := ptNone;
 
   inherited;
 end;
@@ -3633,11 +3631,6 @@ begin
 
   Partition[Index].Free();
   Delete(Index);
-end;
-
-function TSPartitions.GetCount(): Integer;
-begin
-  Result := Max(FCount, TList(Self).Count);
 end;
 
 function TSPartitions.GetPartition(Index: Integer): TSPartition;
@@ -4580,7 +4573,7 @@ begin
           end;
 
           if (SQLParseKeyword(Parse, 'PARTITIONS')) then
-            FPartitions.FCount := StrToInt(SQLParseValue(Parse));
+            FPartitions.PartitionsNumber := StrToInt(SQLParseValue(Parse));
 
           if (SQLParseChar(Parse, '(')) then
           begin
@@ -7676,11 +7669,11 @@ begin
     SQL := SQL + ' ROW_FORMAT=' + NewTable.DBRowTypeStr();
   end;
 
-  if (Assigned(Table) and Assigned(Table.Partitions) and (Table.Partitions.Count > 0) and Assigned(NewTable.Partitions) and (NewTable.Partitions.Count = 0)) then
+  if (Assigned(Table) and (Table.Partitions.PartitionType <> ptNone) and (NewTable.Partitions.PartitionType = ptNone)) then
     SQL := SQL + ' REMOVE PARTITIONING'
-  else if (Assigned(NewTable.Partitions) and (NewTable.Partitions.Count > 0)) then
+  else if (Assigned(NewTable.Partitions) and (NewTable.Partitions.PartitionType <> ptNone)) then
   begin
-    if (not Assigned(Table) or (NewTable.Partitions.PartitionType <> Table.Partitions.PartitionType) or (NewTable.Partitions.Expression <> Table.Partitions.Expression)) then
+    if (not Assigned(Table) or (NewTable.Partitions.PartitionType <> Table.Partitions.PartitionType) or (NewTable.Partitions.Expression <> Table.Partitions.Expression) or (NewTable.Partitions.PartitionsNumber <> Table.Partitions.PartitionsNumber)) then
     begin
       if (Assigned(Table) and (SQL <> '')) then SQL := SQL + #13#10;
       SQL := SQL + ' PARTITION BY ';
@@ -7688,21 +7681,23 @@ begin
         SQL := SQL + 'LINEAR ';
       case (NewTable.Partitions.PartitionType) of
         ptHash: SQL := SQL + 'HASH(' + NewTable.Partitions.Expression + ')';
-        ptKey: SQL := SQL + 'KEY(' + NewTable.Partitions.Expression + ')';
+        ptKey: SQL := SQL + 'KEY';
         ptRange: SQL := SQL + 'RANGE(' + NewTable.Partitions.Expression + ')';
         ptList: SQL := SQL + 'LIST(' + NewTable.Partitions.Expression + ')';
       end;
+      if (NewTable.Partitions.PartitionsNumber > 0) then
+        SQL := SQL + ' PARTITIONS ' + IntToStr(NewTable.Partitions.PartitionsNumber);
     end;
 
     if (NewTable.Partitions.PartitionType in [ptHash, ptKey]) then
     begin
       if (not Assigned(Table) or (NewTable.Partitions.Count <> Table.Partitions.Count) and (NewTable.Partitions.Count > 0)) then
       begin
-        if (Assigned(Table) and (SQL <> '')) then SQL := SQL + #13#10;
-        if (not Assigned(Table)) then
-          SQL := SQL + ' PARTITIONS ' + IntToStr(NewTable.Partitions.Count)
-        else
-          SQL := SQL + ' COALESCE PARTITION ' + IntToStr(NewTable.Partitions.Count);
+//        if (Assigned(Table) and (SQL <> '')) then SQL := SQL + #13#10;
+//        if (Assigned(Table)) then
+//          SQL := SQL + ' PARTITIONS ' + IntToStr(NewTable.Partitions.Count)
+//        else
+//          SQL := SQL + ' COALESCE PARTITION ' + IntToStr(NewTable.Partitions.Count);
       end;
     end
     else if (NewTable.Partitions.PartitionType in [ptRange, ptList]) then

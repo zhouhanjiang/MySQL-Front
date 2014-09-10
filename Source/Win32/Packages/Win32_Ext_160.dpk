@@ -30,6 +30,7 @@ requires
 contains
   WinCred in '..\Source\WinCred.pas',
   ODBCAPI in '..\Source\ODBCAPI.pas',
+  MLang in '..\Source\MLang.pas',
   Taskschd in '..\Source\Taskschd.pas';
 
 end.
