@@ -1517,7 +1517,7 @@ begin
       begin
         SaveDialog.Filter := FilterDescription('html') + ' (*.html;*.htm)|*.html;*.htm';
         SaveDialog.DefaultExt := '.html';
-        SaveDialog.Encodings.Text := EncodingCaptions(True);
+        SaveDialog.Encodings.Clear();
       end;
     etPDFFile:
       begin
@@ -1529,7 +1529,7 @@ begin
       begin
         SaveDialog.Filter := FilterDescription('xml') + ' (*.xml)|*.xml';
         SaveDialog.DefaultExt := '.xml';
-        SaveDialog.Encodings.Text := EncodingCaptions(True);
+        SaveDialog.Encodings.Clear();
       end;
   end;
   SaveDialog.Filter := SaveDialog.Filter + '|' + FilterDescription('*') + ' (*.*)|*.*';
@@ -1976,7 +1976,7 @@ begin
       end;
     etHTMLFile:
       begin
-        Export := TTExportHTML.Create(Session, Filename, CodePage);
+        Export := TTExportHTML.Create(Session, Filename);
         TTExportHTML(Export).Data := FHTMLData.Checked;
         TTExportHTML(Export).TextContent := FHTMLMemoContent.Checked;
         TTExportHTML(Export).NULLText := FHTMLNullText.Checked;
@@ -1985,7 +1985,7 @@ begin
       end;
     etXMLFile:
       begin
-        Export := TTExportXML.Create(Session, Filename, CodePage);
+        Export := TTExportXML.Create(Session, Filename);
         TTExportXML(Export).Data := True;
         if (FDatabaseNodeName.Checked) then
         begin

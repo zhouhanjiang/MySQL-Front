@@ -6,11 +6,11 @@ interface {********************************************************************}
 
 uses
   Windows, XMLDoc, XMLIntf, DBGrids, WinSpool,
-  SysUtils, DB, Classes, Graphics, SyncObjs, ComObj,
+  SysUtils, DB, Classes, Graphics, SyncObjs,
   {$IFDEF EurekaLog}
   ExceptionLog,
   {$ENDIF}
-  ODBCAPI, MLang,
+  ODBCAPI,
   SynEditHighlighter,
   SynPDF,
   MySQLConsts, MySQLDB, SQLUtils, CSVUtils,
@@ -484,7 +484,7 @@ type
     TextContent: Boolean;
     NULLText: Boolean;
     RowBackground: Boolean;
-    constructor Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
+    constructor Create(const ASession: TSSession; const AFilename: TFileName);
     destructor Destroy(); override;
   end;
 
@@ -510,7 +510,7 @@ type
     RecoreNodeText: string;
     RootNodeText: string;
     TableNodeText, TableNodeAttribute: string;
-    constructor Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
+    constructor Create(const ASession: TSSession; const AFilename: TFileName);
   end;
 
   TTExportBaseODBC = class(TTExport)
@@ -783,9 +783,6 @@ const
   DriverAccess12 = 'Microsoft Access Driver (*.mdb, *.accdb)';
   DriverExcel = 'Microsoft Excel Driver (*.xls)';
   DriverExcel12 = 'Microsoft Excel Driver (*.xls, *.xlsx, *.xlsm, *.xlsb)';
-
-var
-  MultiLanguage: IMultiLanguage2;
 
 function GetUTCDateTime(Date: TDateTime): string;
 const
@@ -1061,16 +1058,6 @@ begin
       else
         Result := Sign(TTExport.TDBObjectItem(Item1).DBObject.Index - TTExport.TDBObjectItem(Item2).DBObject.Index);
   end;
-end;
-
-function UMLEncoding(const Codepage: Cardinal): string;
-var
-  MimeCPInfo: tagMIMECPINFO;
-begin
-  if (not Assigned(MultiLanguage) or (MultiLanguage.GetCodePageInfo(Codepage, 0, MimeCPInfo) <> S_OK)) then
-    Result := ''
-  else
-    Result := StrPas(MimeCPInfo.wszWebCharset);
 end;
 
 { TTool.TDataFileBuffer *******************************************************}
@@ -5068,9 +5055,9 @@ begin
     HTMLEscape(PChar(Value), Length(Value), PChar(Result), Len);
 end;
 
-constructor TTExportHTML.Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
+constructor TTExportHTML.Create(const ASession: TSSession; const AFilename: TFileName);
 begin
-  inherited;
+  inherited Create(ASession, AFilename, CP_UTF8);
 
   TextContent := False;
   NULLText := True;
@@ -5200,9 +5187,7 @@ begin
   Content := Content + '<html>' + #13#10;
   Content := Content + '<head>' + #13#10;
   Content := Content + #9 + '<title>' + HTMLEscape(Title) + '</title>' + #13#10;
-MessageBox(Handle, PChar('CodePage: ' + IntToStr(CodePage)), 'Debug', MB_OK);
-  if (UMLEncoding(CodePage) <> '') then
-    Content := Content + #9 + '<meta http-equiv="Content-Type" content="text/html; charset=' + UMLEncoding(CodePage) + '">' + #13#10;
+  Content := Content + #9 + '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">' + #13#10;
   Content := Content + #9 + '<meta name="date" content="' + GetUTCDateTime(Now()) + '">' + #13#10;
   Content := Content + #9 + '<meta name="generator" content="' + LoadStr(1000) + ' ' + Preferences.VersionStr + '">' + #13#10;
   Content := Content + #9 + '<style type="text/css"><!--' + #13#10;
@@ -5777,9 +5762,9 @@ begin
   RecordClosing := '</' + RecoreNodeText + '>' + #13#10;
 end;
 
-constructor TTExportXML.Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
+constructor TTExportXML.Create(const ASession: TSSession; const AFilename: TFileName);
 begin
-  inherited;
+  inherited Create(ASession, AFilename, CP_UTF8);
 
   DatabaseNodeText := '';
   RecoreNodeText := 'row';
@@ -5814,10 +5799,7 @@ procedure TTExportXML.ExecuteHeader();
 begin
   DoFileCreate(FFilename);
 
-  if (UMLEncoding(CodePage) = '') then
-    WriteContent('<?xml version="1.0"?>' + #13#10)
-  else
-    WriteContent('<?xml version="1.0" encoding="' + UMLEncoding(CodePage) + '"?>' + #13#10);
+  WriteContent('<?xml version="1.0" encoding="utf-8"?>' + #13#10);
   WriteContent('<' + RootNodeText + ' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">' + #13#10);
 end;
 
@@ -8811,8 +8793,6 @@ end;
 var
   Driver: array [0 .. STR_LEN] of SQLTCHAR;
 initialization
-  MultiLanguage := CreateComObject(CLASS_CMultiLanguage) as IMultiLanguage2;
-
   ODBCDrivers := [];
   if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, @ODBCEnv))) then
     ODBCEnv := SQL_NULL_HANDLE

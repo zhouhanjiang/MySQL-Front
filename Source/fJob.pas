@@ -161,7 +161,7 @@ begin
         end;
       etHTMLFile:
         begin
-          Export := TTExportHTML.Create(Session, Job.Filename, Job.CodePage);
+          Export := TTExportHTML.Create(Session, Job.Filename);
           TTExportHTML(Export).Data := Job.HTML.Data;
           TTExportHTML(Export).TextContent := Job.HTML.MemoContent;
           TTExportHTML(Export).NULLText := Job.HTML.NULLText;
@@ -170,7 +170,7 @@ begin
         end;
       etXMLFile:
         begin
-          Export := TTExportXML.Create(Session, Job.Filename, Job.CodePage);
+          Export := TTExportXML.Create(Session, Job.Filename);
           TTExportXML(Export).Data := True;
           case (Job.XML.Database.NodeType) of
             ntDisabled:
