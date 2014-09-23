@@ -6499,7 +6499,7 @@ begin
     MainAction('aDDeleteRecord').Execute();
     Key := 0;
   end
-  else if (ActiveDBGrid.SelectedField.DataType in [ftWideMemo, ftBlob]) then
+  else if (Assigned(ActiveDBGrid.SelectedField) and (ActiveDBGrid.SelectedField.DataType in [ftWideMemo, ftBlob])) then
     if ((Key = VK_RETURN) and not aVBlobText.Visible and not aVBlobImage.Visible) then
     begin
       aVBlobHexEditor.Checked := True;
@@ -13798,7 +13798,7 @@ begin
         or ((View  = vBuilder) and FQueryBuilder.Visible)
         or ((View = vIDE) and SQLSingleStmt(SQL) and (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent]))) and not Empty;
       MainAction('aDRunSelection').Enabled := (((View in [vEditor, vEditor2, vEditor3]) and not Empty) or Assigned(ActiveSynMemo) and (ActiveSynMemo.SelText <> ''));
-      MainAction('aDPostObject').Enabled := (View = vIDE) and ActiveSynMemo.Modified and SQLSingleStmt(SQL)
+      MainAction('aDPostObject').Enabled := (View = vIDE) and ActiveSynMemo.Modified
         and ((SelectedImageIndex in [iiView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.ServerVersion) and (SQLParseKeyword(Parse, 'SELECT'))
           or (SelectedImageIndex in [iiProcedure, iiFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.ServerVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
           or (SelectedImageIndex in [iiEvent, iiTrigger]));

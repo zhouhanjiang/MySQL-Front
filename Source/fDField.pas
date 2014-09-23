@@ -581,7 +581,7 @@ begin
       NewTable.Assign(Table);
     end;
 
-    if (IsIntType()) or (GetType() = mfTimestamp) then
+    if (IsIntType() or (GetType() = mfTimestamp)) then
       for I := 1 to Length(FDefault.Text) do
         if (not CharInSet(FDefault.Text[I], ['0'..'9', FormatSettings.DecimalSeparator]) and (FDefault.Text[I] = '-') and FFlagUnsigned.Checked) then
           begin MessageBeep(MB_ICONERROR); ActiveControl := FDefault; CanClose := False; end;

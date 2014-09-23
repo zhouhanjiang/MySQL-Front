@@ -3187,7 +3187,7 @@ begin
             NewField.FieldType := SQLDataTypeToMySQLType(SQLDataType2, ColumnSize, NewField.Name)
           else
             raise EODBCError.CreateFMT(SUnknownFieldType + ' (%d)', [ColumnName, SQLDataType]);
-          if (not (NewField.FieldType in [mfFloat, mfDouble, mfDecimal]) or (DecimalDigits > 0)) then
+          if ((not (NewField.FieldType in [mfFloat, mfDouble, mfDecimal]) or (DecimalDigits > 0)) and not (NewField.FieldType in [mfDate, mfDateTime, mfTime, mfDateTime])) then
           begin
             NewField.Size := ColumnSize;
             NewField.Decimals := DecimalDigits;
