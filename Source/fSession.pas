@@ -7669,7 +7669,7 @@ begin
     SQL := SQL + ' ROW_FORMAT=' + NewTable.DBRowTypeStr();
   end;
 
-  if (Assigned(Table) and (Table.Partitions.PartitionType <> ptNone) and (NewTable.Partitions.PartitionType = ptNone)) then
+  if (Assigned(Table) and Assigned(Table.Partitions) and (Table.Partitions.PartitionType <> ptNone) and (NewTable.Partitions.PartitionType = ptNone)) then
     SQL := SQL + ' REMOVE PARTITIONING'
   else if (Assigned(NewTable.Partitions) and (NewTable.Partitions.PartitionType <> ptNone)) then
   begin
