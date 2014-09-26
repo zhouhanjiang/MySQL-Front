@@ -9219,6 +9219,7 @@ begin
         Name := DataSet.FieldByName('Id').AsString
       else
         Name := DataSet.FieldByName('ID').AsString;
+      Name := SQLUnescape(Name);
 
       if (InsertIndex(Name, Index)) then
         if (Index < Count) then
