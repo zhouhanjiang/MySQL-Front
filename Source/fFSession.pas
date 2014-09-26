@@ -13560,7 +13560,7 @@ begin
         else
           StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(889, IntToStr(Count), '~' + IntToStr(TSBaseTable(FNavigator.Selected.Data).Rows))
       end
-      else if (Assigned(ActiveDBGrid)) then
+      else if (Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet)) then
         StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(887, IntToStr(ActiveDBGrid.DataSource.DataSet.RecordCount))
     else if (SelCount > 0) then
       StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(688, IntToStr(SelCount))
