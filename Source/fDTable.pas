@@ -601,16 +601,19 @@ begin
     FAutoIncrement.Visible := NewTable.AutoIncrement > 0; FLAutoIncrement.Visible := FAutoIncrement.Visible;
     FAutoIncrement.Text := IntToStr(NewTable.AutoIncrement);
 
-    case (NewTable.Partitions.PartitionType) of
-      ptHash: FPartitionType.ItemIndex := 1;
-      ptKey: FPartitionType.ItemIndex := 2;
-      ptRange: FPartitionType.ItemIndex := 3;
-      ptList: FPartitionType.ItemIndex := 4;
-      else FPartitionType.ItemIndex := 0
-    end; FPartitionTypeChange(nil);
-    FLinear.Checked := NewTable.Partitions.Linear;
-    FPartitionExpr.Text := NewTable.Partitions.Expression;
-    FUDPartitionsNumber.Position := NewTable.Partitions.PartitionsNumber;
+    if (Assigned(NewTable.Partitions)) then
+    begin
+      case (NewTable.Partitions.PartitionType) of
+        ptHash: FPartitionType.ItemIndex := 1;
+        ptKey: FPartitionType.ItemIndex := 2;
+        ptRange: FPartitionType.ItemIndex := 3;
+        ptList: FPartitionType.ItemIndex := 4;
+        else FPartitionType.ItemIndex := 0
+      end; FPartitionTypeChange(nil);
+      FLinear.Checked := NewTable.Partitions.Linear;
+      FPartitionExpr.Text := NewTable.Partitions.Expression;
+      FUDPartitionsNumber.Position := NewTable.Partitions.PartitionsNumber;
+    end;
 
     PageControl.ActivePage := TSTable;
   end
