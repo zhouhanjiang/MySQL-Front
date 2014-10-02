@@ -139,6 +139,37 @@ object DField: TDField
       Height = 13
       Caption = 'FLUpdateTime'
     end
+    object FFormatUnion: TEdit
+      Left = 120
+      Top = 112
+      Width = 189
+      Height = 21
+      Anchors = [akLeft, akTop, akRight]
+      TabOrder = 9
+      OnChange = FFormatUnionChange
+    end
+    object FFormatYear: TComboBox_Ext
+      Left = 120
+      Top = 112
+      Width = 57
+      Height = 21
+      Style = csDropDownList
+      TabOrder = 8
+      OnChange = FFormatYearChange
+      Items.Strings = (
+        'YYYY'
+        'YY')
+    end
+    object FFormatSize: TEdit
+      Left = 120
+      Top = 112
+      Width = 41
+      Height = 21
+      TabOrder = 3
+      Text = '0'
+      OnChange = FFormatSizeChange
+      OnExit = FFormatSizeExit
+    end
     object FDefaultEnum: TComboBox_Ext
       Left = 120
       Top = 144
@@ -195,37 +226,6 @@ object DField: TDField
       OnEnter = FDefaultEnter
       OnExit = FDefaultExit
     end
-    object FFormatUnion: TEdit
-      Left = 120
-      Top = 112
-      Width = 189
-      Height = 21
-      Anchors = [akLeft, akTop, akRight]
-      TabOrder = 9
-      OnChange = FFormatUnionChange
-    end
-    object FFormatYear: TComboBox_Ext
-      Left = 120
-      Top = 112
-      Width = 57
-      Height = 21
-      Style = csDropDownList
-      TabOrder = 8
-      OnChange = FFormatYearChange
-      Items.Strings = (
-        'YYYY'
-        'YY')
-    end
-    object FFormatSize: TEdit
-      Left = 120
-      Top = 112
-      Width = 41
-      Height = 21
-      TabOrder = 3
-      Text = '0'
-      OnChange = FFormatSizeChange
-      OnExit = FFormatSizeExit
-    end
     object FUDFormatSize: TUpDown
       Left = 161
       Top = 112
@@ -252,7 +252,7 @@ object DField: TDField
       Width = 15
       Height = 21
       Associate = FFormatDecimals
-      Max = 5
+      Max = 10
       TabOrder = 6
       Thousands = False
       OnClick = FUDClick

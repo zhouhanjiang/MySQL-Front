@@ -295,7 +295,7 @@ begin
   FFormatSize.Visible := (GetType() = mfBit) or IsIntType() or IsFloatType() or IsCharType() or IsBinaryType() or (GetType() in [mfTime, mfDateTime, mfTimeStamp]) and (Table.Session.ServerVersion >= 50604);
   FLFormatSize.Visible := (GetType() = mfBit) or IsIntType() or IsCharType() or IsBinaryType();
   FLFormatFSP.Visible := (GetType() in [mfTime, mfDateTime, mfTimeStamp]) and (Table.Session.ServerVersion >= 50604);
-  FUDFormatSize.Visible := FLFormatSize.Visible or FLFormatFSP.Visible;
+  FUDFormatSize.Visible := FFormatSize.Visible or FLFormatSize.Visible or FLFormatFSP.Visible;
   FFormatDecimals.Visible := IsFloatType(); FUDFormatDecimals.Visible := FFormatDecimals.Visible;
   FLFormatDecimals.Visible := IsFloatType();
   FFormatYear.Visible := GetType() = mfYear;

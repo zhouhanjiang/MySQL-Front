@@ -4524,7 +4524,7 @@ begin
             MYSQL_TYPE_STRING:
               if (Binary) then
                 begin Field := TMySQLStringField.Create(Self); if (Connection.ServerVersion < 40100) then Field.Size := Len + 1 else Field.Size := Len; end
-              else if ((Len <= $FF)  and (Connection.ServerVersion < 50000)) { ENum} then
+              else if ((Len <= $FF)  and (Connection.ServerVersion < 50000)) { ENum&Set are not marked as MYSQL_TYPE_ENUM & MYSQL_TYPE_SET in older MySQL versions} then
                 begin Field := TMySQLWideStringField.Create(Self); Field.Size := $FF; end
               else if ((Len <= $5555) and (Connection.ServerVersion >= 50000)) then
                 begin Field := TMySQLWideStringField.Create(Self); Field.Size := 65535; end
