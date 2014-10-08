@@ -3913,6 +3913,7 @@ end;
 procedure TTExport.Execute();
 var
   DataHandle: TMySQLConnection.TDataResult;
+  DataTable: Boolean;
   DataTables: TList;
   DataTablesIndex: Integer;
   FieldNames: string;
@@ -3921,7 +3922,7 @@ var
   J: Integer;
   Objects: TList;
   SQL: string;
-  Table: TSBaseTable;
+  Table: TSTable;
 begin
   {$IFDEF EurekaLog}
   try
@@ -3957,13 +3958,22 @@ begin
           TDBGridItem(Items[I]).RecordsSum := TDBGridItem(Items[I]).DBGrid.SelectedRows.Count
         else
           TDBGridItem(Items[I]).RecordsSum := TDBGridItem(Items[I]).DBGrid.DataSource.DataSet.RecordCount
-      else if ((Items[I] is TDBObjectItem)
-        and (TDBObjectItem(Items[I]).DBObject is TSBaseTable)
-        and not TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine.IsMerge
-        and (not (Self is TTTransfer) or (TTTransfer(Self).DestinationSession <> Session))) then
+      else if (Items[I] is TDBObjectItem) then
       begin
-        TDBObjectItem(Items[I]).RecordsSum := TSBaseTable(TDBObjectItem(Items[I]).DBObject).Rows;
-        DataTables.Add(TSBaseTable(TDBObjectItem(Items[I]).DBObject));
+        if (Self is TTExportSQL) then
+          DataTable := TDBObjectItem(Items[I]).DBObject is TSBaseTable and not TSBaseTable(TDBObjectItem(Items[I]).DBObject).Engine.IsMerge
+        else if (Self is TTTransfer) then
+          DataTable := TDBObjectItem(Items[I]).DBObject is TSBaseTable and (TTTransfer(Self).DestinationSession <> Session)
+        else
+          DataTable := TDBObjectItem(Items[I]).DBObject is TSTable;
+        if (DataTable) then
+        begin
+          if (TDBObjectItem(Items[I]).DBObject is TSBaseTable) then
+            TDBObjectItem(Items[I]).RecordsSum := TSBaseTable(TDBObjectItem(Items[I]).DBObject).Rows
+          else
+            TDBObjectItem(Items[I]).RecordsSum := -1;
+          DataTables.Add(TSBaseTable(TDBObjectItem(Items[I]).DBObject));
+        end;
       end;
 
     for I := 0 to DataTables.Count - 1 do
@@ -3983,6 +3993,7 @@ begin
       end;
 
       SQL := SQL + 'SELECT ' + FieldNames + ' FROM ' + Session.EscapeIdentifier(Table.Database.Name) + '.' + Session.EscapeIdentifier(Table.Name);
+
       if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).PrimaryKey)) then
       begin
         SQL := SQL + ' ORDER BY ';
