@@ -1488,12 +1488,8 @@ begin
       begin
         SaveDialog.Filter := '';
         if (odExcel2007 in ODBCDrivers) then
-          SaveDialog.Filter := SaveDialog.Filter + FilterDescription('xlsx') + ' (*.xls;*.xlsx;*.xlsm;*.xlsb)|*.xls;*.xlsx;*.xlsm;*.xlsb'
-        else if (odExcel in ODBCDrivers) then
-        begin
-          if (SaveDialog.Filter <> '') then SaveDialog.Filter := SaveDialog.Filter + '|';
-          SaveDialog.Filter := SaveDialog.Filter + FilterDescription('xls') + ' (*.xls)|*.xls';
-        end;
+          SaveDialog.Filter := SaveDialog.Filter + FilterDescription('xlsx') + ' (*.xls;*.xlsx;*.xlsm;*.xlsb)|*.xls;*.xlsx;*.xlsm;*.xlsb|';
+        SaveDialog.Filter := SaveDialog.Filter + FilterDescription('xls') + ' (*.xls)|*.xls';
         SaveDialog.DefaultExt := '.xls';
         SaveDialog.Encodings.Clear();
       end;
@@ -1501,15 +1497,11 @@ begin
       begin
         SaveDialog.Filter := '';
         if (odAccess2007 in ODBCDrivers) then
-          SaveDialog.Filter := FilterDescription('accdb') + ' (*.accdb)|*.accdb';
-        if (odAccess in ODBCDrivers) then
-        begin
-          if (SaveDialog.Filter <> '') then SaveDialog.Filter := SaveDialog.Filter + '|';
-          SaveDialog.Filter := SaveDialog.Filter + FilterDescription('mdb') + ' (*.mdb)|*.mdb';
-        end;
+          SaveDialog.Filter := FilterDescription('accdb') + ' (*.accdb)|*.accdb|';
+        SaveDialog.Filter := SaveDialog.Filter + FilterDescription('mdb') + ' (*.mdb)|*.mdb';
         if (odAccess2007 in ODBCDrivers) then
           SaveDialog.DefaultExt := '.accdb'
-        else if (odAccess in ODBCDrivers) then
+        else
           SaveDialog.DefaultExt := '.mdb';
         SaveDialog.Encodings.Clear();
       end;
