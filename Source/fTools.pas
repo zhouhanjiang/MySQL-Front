@@ -374,7 +374,6 @@ type
     procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); virtual;
     procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); virtual;
     procedure ExecuteTrigger(const Trigger: TSTrigger); virtual;
-    procedure ExecuteView(const View: TSView); virtual;
   public
     Data: Boolean;
     DestinationFields: array of record
@@ -435,7 +434,6 @@ type
     procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTrigger(const Trigger: TSTrigger); override;
-    procedure ExecuteView(const View: TSView); override;
     function FileCreate(const Filename: TFileName; out Error: TTool.TError): Boolean; override;
   public
     DropStmts: Boolean;
@@ -4295,10 +4293,6 @@ procedure TTExport.ExecuteTrigger(const Trigger: TSTrigger);
 begin
 end;
 
-procedure TTExport.ExecuteView(const View: TSView);
-begin
-end;
-
 { TTExportFile ****************************************************************}
 
 procedure TTExportFile.AfterExecute();
@@ -4596,16 +4590,16 @@ begin
 
   if (Structure) then
   begin
-    if (Table is TSBaseTable) then
-    begin
-      Content := Content + #13#10;
-      Content := Content + '#' + #13#10;
-      Content := Content + '# Structure for table "' + Table.Name + '"' + #13#10;
-      Content := Content + '#' + #13#10;
-    end;
-    Content := Content + '' + #13#10;
+    Content := Content + #13#10;
+    Content := Content + '#' + #13#10;
+    Content := Content + '# Structure for table "' + Table.Name + '"' + #13#10;
+    Content := Content + '#' + #13#10;
+    Content := Content + #13#10;
 
-    Content := Content + Table.GetSourceEx(DropStmts, False);
+    if (Table is TSBaseTable) then
+      Content := Content + TSBaseTable(Table).GetSourceEx(DropStmts, False)
+    else if (Table is TSView) then
+      Content := Content + AnsiReplaceStr(TSView(Table).GetSourceEx(DropStmts, False), Session.EscapeIdentifier(Table.Database.Name) + '.', '');
   end;
 
   if ((Table is TSBaseTable) and Assigned(DataSet)) then
@@ -4627,7 +4621,7 @@ begin
     WriteContent(Content);
 
 
-  if (Data and Assigned(Table)) then
+  if (Data and (Table is TSBaseTable)) then
   begin
     if (ReplaceData) then
       SQLInsertPrefix := 'REPLACE INTO '
@@ -4725,20 +4719,6 @@ begin
   Content := Content + '#' + #13#10;
   Content := Content + #13#10;
   Content := Content + Trigger.GetSourceEx(DropStmts, False);
-
-  WriteContent(Content);
-end;
-
-procedure TTExportSQL.ExecuteView(const View: TSView);
-var
-  Content: string;
-begin
-  Content := #13#10;
-  Content := Content + '#' + #13#10;
-  Content := Content + '# View "' + View.Name + '"' + #13#10;
-  Content := Content + '#' + #13#10;
-  Content := Content + #13#10;
-  Content := Content + View.GetSourceEx(DropStmts, False);
 
   WriteContent(Content);
 end;

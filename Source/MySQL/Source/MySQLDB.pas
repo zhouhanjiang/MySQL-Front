@@ -4228,7 +4228,7 @@ var
   DT: TDateTime;
   S: string;
 begin
-  Result := Assigned(Data) and (Field.FieldNo > 0) and Assigned(Data^.LibRow^[Field.FieldNo - 1]);
+  Result := Assigned(Field) and (Field.FieldNo > 0) and Assigned(Data) and Assigned(Data^.LibRow^[Field.FieldNo - 1]);
   if (Result and Assigned(Buffer)) then
     try
       if (BitField(Field)) then

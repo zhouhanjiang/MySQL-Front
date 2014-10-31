@@ -4478,7 +4478,7 @@ begin
 
     if (not SQLParseChar(Parse, ')')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
-    while (not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';')) do
+    while (not SQLParseChar(Parse, ')') and not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';')) do
     begin
       if (SQLParseKeyword(Parse, 'TYPE') or SQLParseKeyword(Parse, 'ENGINE')) then
       begin
