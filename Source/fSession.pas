@@ -4705,6 +4705,7 @@ end;
 
 procedure TSBaseTable.SetSource(const ADataSet: TMySQLQuery);
 var
+  RBS: RawByteString;
   S: string;
 begin
   try
@@ -4717,7 +4718,8 @@ begin
       AnsiCharToWideChar(CP_ACP, ADataSet.LibRow[ADataSet.FieldByName('Create Table').FieldNo - 1], ADataSet.LibLengths[ADataSet.FieldByName('Create Table').FieldNo - 1], @S[1], Length(S));
       SetSource(S);
     except
-      SetSource(string(ADataSet.FieldByName('Create Table').AsString));
+      SetString(RBS, ADataSet.LibRow[ADataSet.FieldByName('Create Table').FieldNo - 1], ADataSet.LibLengths[ADataSet.FieldByName('Create Table').FieldNo - 1]);
+      SetSource(string(RBS));
     end;
   end;
 
