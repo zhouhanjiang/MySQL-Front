@@ -4713,8 +4713,12 @@ begin
     // Sometimes, the MySQL server sends invalid field comments
     // This code allow the user to handle this table - but the comments are wrong.
     SetLength(S, ADataSet.LibLengths[ADataSet.FieldByName('Create Table').FieldNo - 1]);
-    AnsiCharToWideChar(CP_ACP, ADataSet.LibRow[ADataSet.FieldByName('Create Table').FieldNo - 1], ADataSet.LibLengths[ADataSet.FieldByName('Create Table').FieldNo - 1], @S[1], Length(S));
-    SetSource(S);
+    try
+      AnsiCharToWideChar(CP_ACP, ADataSet.LibRow[ADataSet.FieldByName('Create Table').FieldNo - 1], ADataSet.LibLengths[ADataSet.FieldByName('Create Table').FieldNo - 1], @S[1], Length(S));
+      SetSource(S);
+    except
+      SetSource(string(ADataSet.FieldByName('Create Table').AsString));
+    end;
   end;
 
   if (Source <> '') then
