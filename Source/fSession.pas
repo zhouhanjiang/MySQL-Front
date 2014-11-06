@@ -4568,8 +4568,8 @@ begin
           FPartitions.PartitionType := StrToPartitionType(SQLParseValue(Parse));
           if (SQLParseChar(Parse, '(')) then
           begin
-            FPartitions.Expression := Trim(SQLParseValue(Parse));
-            SQLParseChar(Parse, ')');
+            FPartitions.Expression := SQLParseBracketContent(Parse);
+            if (not SQLParseChar(Parse, ')')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
           end;
 
           if (SQLParseKeyword(Parse, 'PARTITIONS')) then
@@ -8470,7 +8470,7 @@ begin
       Session.Charset := Session.VariableByName('character_set').Value;
     end
     else if (UpperCase(Session.VariableByName('character_set_client').Value) <> UpperCase(Session.VariableByName('character_set_results').Value)) then
-      raise ERangeError.CreateFmt(SPropertyOutOfRange + ': %s (%s) <> %s (%s)', ['Charset', 'character_set_client', Session.VariableByName('character_set_client').Value, Session.Charset, 'character_set_results', Session.VariableByName('character_set_results').Value])
+      raise ERangeError.CreateFmt(SPropertyOutOfRange + ': character_set_client (%s) <> character_set_results (%s)', ['Charset', Session.VariableByName('character_set_client').Value, Session.VariableByName('character_set_results').Value])
     else
       Session.Charset := Session.VariableByName('character_set_client').Value;
 

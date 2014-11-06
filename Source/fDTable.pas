@@ -603,16 +603,20 @@ begin
 
     if (Assigned(NewTable.Partitions)) then
     begin
+      FPartitionsNumber.OnChange := nil;
       case (NewTable.Partitions.PartitionType) of
         ptHash: FPartitionType.ItemIndex := 1;
         ptKey: FPartitionType.ItemIndex := 2;
         ptRange: FPartitionType.ItemIndex := 3;
         ptList: FPartitionType.ItemIndex := 4;
         else FPartitionType.ItemIndex := 0
-      end; FPartitionTypeChange(nil);
+      end;
       FLinear.Checked := NewTable.Partitions.Linear;
       FPartitionExpr.Text := NewTable.Partitions.Expression;
+      FPartitionsNumber.OnChange := FPartitionsNumberChange;
       FUDPartitionsNumber.Position := NewTable.Partitions.PartitionsNumber;
+
+      FPartitionTypeChange(nil);
     end;
 
     PageControl.ActivePage := TSTable;
@@ -1242,7 +1246,7 @@ end;
 procedure TDTable.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if (not Assigned(Tables) and (Event.EventType = etItemValid) and (Event.SItem = Table)
-    or Assigned(Tables) and (Event.EventType = etAfterExecuteSQL)) then
+    or (Event.EventType = etAfterExecuteSQL)) then
     if (not PageControl.Visible) then
     begin
       NewTable.Assign(Table);
@@ -1527,9 +1531,11 @@ begin
   FLPartitionsNumber.Visible := FPartitionsNumber.Visible;
   FUDPartitionsNumber.Visible := FPartitionsNumber.Visible;
 
-  FPartitions.Items.Clear(); FPartitionsChange(Sender, nil, ctState);
+  FPartitions.Items.Clear();
   FPartitions.Visible := NewTable.Partitions.PartitionType in [ptKey, ptRange, ptList];
   FLPartitions.Visible := FPartitions.Visible;
+
+  FPartitionsChange(Sender, nil, ctState);
 
   FBOkCheckEnabled(Sender);
 end;
