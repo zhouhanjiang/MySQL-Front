@@ -11637,7 +11637,7 @@ begin
           until (not SQLParseChar(Parse, ','));
       end;
     end
-    else if (SQLParseKeyword(Parse, 'SHOW') and (DataHandle.Connection.ErrorCode = 0)) then
+    else if (SQLParseKeyword(Parse, 'SHOW')) then
     begin
       DataSet.Open(DataHandle);
       DatabaseName := DataSet.DatabaseName;
@@ -11647,7 +11647,28 @@ begin
         Result := Collations.Build(DataSet, False, not SQLParseEnd(Parse))
       else if (SQLParseKeyword(Parse, 'CREATE')) then
       begin
-        if (DataSet.Active) then
+        if (not DataSet.Active) then
+        begin
+          SObject := nil;
+          if (SQLParseKeyword(Parse, 'DATABASE')) then
+            SObject := DatabaseByName(SQLParseValue(Parse))
+          else if (SQLParseKeyword(Parse, 'EVENT')) then
+            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then SObject := DatabaseByName(DatabaseName).EventByName(ObjectName); end
+          else if (SQLParseKeyword(Parse, 'FUNCTION')) then
+            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then SObject := DatabaseByName(DatabaseName).FunctionByName(ObjectName); end
+          else if (SQLParseKeyword(Parse, 'PROCEDURE')) then
+            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then SObject := DatabaseByName(DatabaseName).ProcedureByName(ObjectName); end
+          else if (SQLParseKeyword(Parse, 'TABLE')) then
+            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then SObject := DatabaseByName(DatabaseName).TableByName(ObjectName); end
+          else if (SQLParseKeyword(Parse, 'TRIGGER')) then
+            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then SObject := DatabaseByName(DatabaseName).TriggerByName(ObjectName); end
+          else if (SQLParseKeyword(Parse, 'VIEW')) then
+            begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then SObject := DatabaseByName(DatabaseName).TableByName(ObjectName); end;
+          if (Assigned(SObject)) then
+            SObject.FInvalid := True;
+        end
+        else
+        begin
           if (SQLParseKeyword(Parse, 'DATABASE')) then
             DatabaseByName(SQLParseValue(Parse)).SetSource(DataSet)
           else if (SQLParseKeyword(Parse, 'EVENT')) then
@@ -11662,6 +11683,7 @@ begin
             begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).TriggerByName(ObjectName).SetSource(DataSet); end
           else if (SQLParseKeyword(Parse, 'VIEW')) then
             begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then DatabaseByName(DatabaseName).TableByName(ObjectName).SetSource(DataSet); end;
+        end;
       end
       else if (SQLParseKeyword(Parse, 'DATABASES')) then
         Result := Databases.Build(DataSet, False, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
