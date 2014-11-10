@@ -156,6 +156,7 @@ type
   private
     function GetObjects(): TSObjects; inline;
   protected
+    FInvalid: Boolean;
     FDesktop: TDesktop;
     FSession: TSSession;
     FSource: string;
@@ -177,6 +178,7 @@ type
     procedure Invalidate(); virtual;
     function Update(): Boolean; virtual;
     property Desktop: TDesktop read GetDesktop;
+    property Invalid: Boolean read FInvalid;
     property Objects: TSObjects read GetObjects;
     property Session: TSSession read FSession;
     property Source: string read GetSource;
@@ -1919,13 +1921,16 @@ begin
 
   inherited Assign(TSItem(Source));
 
+  FInvalid := Source.Invalid;
   FSource := Source.Source;
+  FValidSource := Source.ValidSource;
 end;
 
 constructor TSObject.Create(const ACItems: TSItems; const AName: string = '');
 begin
   inherited Create(ACItems, AName);
 
+  FInvalid := False;
   FSession := ACItems.Session;
   FSource := '';
   FValidSource := False;
@@ -1985,6 +1990,7 @@ begin
   if (Valid and Assigned(Session.InvalidObjects) and (Session.InvalidObjects.IndexOf(Self) < 0)) then
     Session.InvalidObjects.Add(Self);
 
+  FInvalid := False;
   FSource := '';
   FValidSource := False;
 end;
@@ -11519,6 +11525,7 @@ var
   FunctionName: string;
   ObjectName: string;
   Parse: TSQLParse;
+  SObject: TSObject;
   SQL: string;
   Table: TSTable;
 begin

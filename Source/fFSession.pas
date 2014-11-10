@@ -2669,7 +2669,7 @@ begin
 
         if (not Assigned(DBObject)) then
           NotFound := True
-        else if (not DBObject.Update()) then
+        else if (DBObject.Invalid or not DBObject.Update()) then
           AllowChange := False
         else if ((URI.Param['objecttype'] = 'trigger') and (URI.Param['object'] <> Null) and not Assigned(Database.TriggerByName(URI.Param['object']))) then
           NotFound := True
@@ -14018,6 +14018,10 @@ begin
             if (Assigned(Database.Triggers)) then
               for I := 0 to Database.Triggers.Count - 1 do
                 List.Add(Database.Triggers[I]);
+
+            for I := List.Count - 1 downto 0 do
+              if ((TObject(List[I]) is TSObject) and TSObject(List[I]).Invalid) then
+                List.Delete(I);
 
             Result := not Session.Update(List, True);
 
