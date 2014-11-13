@@ -1287,12 +1287,14 @@ begin
     if ((CodePage <> CP_UTF8) or not CheckWin32Version(6)) then Flags := 0 else Flags := WC_ERR_INVALID_CHARS;
     Result := WideCharToMultiByte(CodePage, Flags, lpWideCharStr, cchWideChar, lpMultiByteStr, cchMultiByte, nil, nil);
     if (Result = 0) then
-    begin
-      Index := cchMultiByte - 1;
-      while ((Index > 0) and (WideCharToMultiByte(CodePage, Flags, lpWideCharStr, Index, nil, 0, nil, nil) = 0)) do
-        Dec(Index);
-      raise EOSError.CreateFmt(SOSError + ' near "%s" (CodePage: %d)', [GetLastError(), SysErrorMessage(GetLastError()), Copy(StrPas(lpWideCharStr), 1 + Index, 20), CodePage]);
-    end;
+      try
+        Index := cchMultiByte - 1;
+        while ((Index > 0) and (WideCharToMultiByte(CodePage, Flags, lpWideCharStr, Index, nil, 0, nil, nil) = 0)) do
+          Dec(Index);
+        raise EOSError.CreateFmt(SOSError + ' near "%s" (CodePage: %d)', [GetLastError(), SysErrorMessage(GetLastError()), Copy(StrPas(lpWideCharStr), 1 + Index, 20), CodePage]);
+      except
+        raise EOSError.CreateFmt(SOSError, [GetLastError()]);
+      end;
   end;
 end;
 
