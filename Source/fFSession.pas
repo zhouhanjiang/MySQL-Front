@@ -113,13 +113,6 @@ type
     gmFExportText: TMenuItem;
     gmFExportXML: TMenuItem;
     gmFilter: TMenuItem;
-    mbAdd: TMenuItem;
-    mbDelete: TMenuItem;
-    mbEdit: TMenuItem;
-    MBookmarks: TPopupMenu;
-    mbOpen: TMenuItem;
-    mbOpenInNewTab: TMenuItem;
-    mbOpenInNewWindow: TMenuItem;
     mfDelete: TMenuItem;
     mfFilter: TMenuItem;
     mfFilterAccess: TMenuItem;
@@ -308,7 +301,6 @@ type
     N18: TMenuItem;
     N19: TMenuItem;
     N2: TMenuItem;
-    N20: TMenuItem;
     N21: TMenuItem;
     N22: TMenuItem;
     N23: TMenuItem;
@@ -374,7 +366,6 @@ type
     tbBlobRTF: TToolButton;
     tbBlobSpacer: TPanel_Ext;
     tbBlobText: TToolButton;
-    tbBookmarks: TToolButton;
     tbBrowser: TToolButton;
     tbBuilder: TToolButton;
     tbDiagram: TToolButton;
@@ -397,9 +388,6 @@ type
     tmEPaste: TMenuItem;
     tmESelectAll: TMenuItem;
     ToolBar: TToolBar;
-    procedure aBAddExecute(Sender: TObject);
-    procedure aBDeleteExecute(Sender: TObject);
-    procedure aBEditExecute(Sender: TObject);
     procedure aDCreateDatabaseExecute(Sender: TObject);
     procedure aDCreateEventExecute(Sender: TObject);
     procedure aDCreateExecute(Sender: TObject);
@@ -486,13 +474,6 @@ type
     procedure FBlobResize(Sender: TObject);
     procedure FBlobSearchChange(Sender: TObject);
     procedure FBlobSearchKeyPress(Sender: TObject; var Key: Char);
-    procedure FBookmarksChange(Sender: TObject; Item: TListItem;
-      Change: TItemChange);
-    procedure FBookmarksDragDrop(Sender, Source: TObject; X, Y: Integer);
-    procedure FBookmarksDragOver(Sender, Source: TObject; X, Y: Integer;
-      State: TDragState; var Accept: Boolean);
-    procedure FBookmarksEnter(Sender: TObject);
-    procedure FBookmarksExit(Sender: TObject);
     procedure PDataBrowserResize(Sender: TObject);
     procedure FFilesEnter(Sender: TObject);
     procedure FFilterChange(Sender: TObject);
@@ -598,8 +579,6 @@ type
       Shift: TShiftState);
     procedure ListViewSelectItem(Sender: TObject; Item: TListItem;
       Selected: Boolean);
-    procedure mbOpenClick(Sender: TObject);
-    procedure MBookmarksPopup(Sender: TObject);
     procedure MetadataProviderGetSQLFieldNames(Sender: TacBaseMetadataProvider;
       const ASQL: WideString; AFields: TacFieldsList);
     procedure mfOpenClick(Sender: TObject);
@@ -1108,7 +1087,7 @@ uses
   CommCtrl_Ext, StdActns_Ext,
   MySQLConsts, SQLUtils,
   fDField, fDKey, fDTable, fDVariable, fDDatabase, fDForeignKey, fDUser,
-  fDQuickFilter, fDSQLHelp, fDTransfer, fDSearch, fDServer, fDBookmark, fDGoto,
+  fDQuickFilter, fDSQLHelp, fDTransfer, fDSearch, fDServer, fDGoto,
   fURI, fDView, fDRoutine, fDTrigger, fDStatement, fDEvent, fDPaste, fDSegment,
   fDConnecting;
 
@@ -2015,38 +1994,6 @@ begin
 end;
 
 { TFSession ********************************************************************}
-
-procedure TFSession.aBAddExecute(Sender: TObject);
-begin
-  Wanted.Clear();
-
-  DBookmark.Bookmarks := Session.Account.Desktop.Bookmarks;
-  DBookmark.Bookmark := nil;
-  DBookmark.NewCaption := AddressToCaption(Address);
-  DBookmark.NewURI := Address;
-  if (DBookmark.Execute() and not MainAction('aVBookmarks').Checked) then
-  begin
-    FBookmarks.Selected := FBookmarks.Items[FBookmarks.Items.Count - 1];
-    MainAction('aVBookmarks').Checked := True;
-    aVSideBarExecute(MainAction('aVBookmarks'));
-  end;
-end;
-
-procedure TFSession.aBDeleteExecute(Sender: TObject);
-begin
-  Wanted.Clear();
-
-  Session.Account.Desktop.Bookmarks.DeleteBookmark(Session.Account.Desktop.Bookmarks.ByCaption(FBookmarks.Selected.Caption));
-end;
-
-procedure TFSession.aBEditExecute(Sender: TObject);
-begin
-  Wanted.Clear();
-
-  DBookmark.Bookmarks := Session.Account.Desktop.Bookmarks;
-  DBookmark.Bookmark := Session.Account.Desktop.Bookmarks.ByCaption(FBookmarks.Selected.Caption);
-  DBookmark.Execute();
-end;
 
 procedure TFSession.aDCancelExecute(Sender: TObject);
 begin
@@ -3955,11 +3902,6 @@ begin
     OpenInNewTabExecute(TSDatabase(FocusedCItem).Name, '')
   else if (FocusedCItem is TSTable) then
     OpenInNewTabExecute(TSTable(FocusedCItem).Database.Name, TSTable(FocusedCItem).Name)
-  else if (Window.ActiveControl = FBookmarks) then
-  begin
-    if (Assigned(FBookmarks.Selected)) then
-      Window.Perform(CM_ADDTAB, 0, LPARAM(PChar(string(Session.Account.Desktop.Bookmarks.ByCaption(FBookmarks.Selected.Caption).URI))));
-  end
   else if (Window.ActiveControl = FFiles) then
     if (LowerCase(ExtractFileExt(Path + PathDelim + FFiles.Selected.Caption)) = '.sql') then
       OpenInNewTabExecute(SelectedDatabase, '', False, Path + PathDelim + FFiles.Selected.Caption);
@@ -3971,11 +3913,6 @@ begin
     OpenInNewTabExecute(TSDatabase(FocusedCItem).Name, '', True)
   else if (FocusedCItem is TSTable) then
     OpenInNewTabExecute(TSTable(FocusedCItem).Database.Name, TSTable(FocusedCItem).Name, True)
-  else if (Window.ActiveControl = FBookmarks) then
-  begin
-    if (Assigned(FBookmarks.Selected)) then
-      ShellExecute(Application.Handle, 'open', PChar(TFileName(Application.ExeName)), PChar(string(Session.Account.Desktop.Bookmarks.ByCaption(FBookmarks.Selected.Caption).URI)), '', SW_SHOW);
-  end
   else if (Window.ActiveControl = FFiles) then
     if (LowerCase(ExtractFileExt(Path + PathDelim + FFiles.Selected.Caption)) = '.sql') then
       OpenInNewTabExecute(SelectedDatabase, '', True, Path + PathDelim + FFiles.Selected.Caption);
@@ -4548,8 +4485,6 @@ begin
   miNCreate.Caption := Preferences.LoadStr(26);
   miNDelete.Caption := Preferences.LoadStr(28);
 
-  mbOpen.Caption := Preferences.LoadStr(581);
-
   mjExecute.Caption := Preferences.LoadStr(174);
   mjAdd.Caption := Preferences.LoadStr(26);
 
@@ -4798,9 +4733,6 @@ begin
     MainAction('aVSQLLog').OnExecute := aVSQLLogExecute;
     MainAction('aVRefresh').OnExecute := aVRefreshExecute;
     MainAction('aVRefreshAll').OnExecute := aVRefreshAllExecute;
-    MainAction('aBAdd').OnExecute := aBAddExecute;
-    MainAction('aBDelete').OnExecute := aBDeleteExecute;
-    MainAction('aBEdit').OnExecute := aBEditExecute;
     MainAction('aDCancel').OnExecute := aDCancelExecute;
     MainAction('aDCreateDatabase').OnExecute := aDCreateDatabaseExecute;
     MainAction('aDCreateTable').OnExecute := aDCreateTableExecute;
@@ -4866,7 +4798,6 @@ begin
     MainAction('aVSQLLog').Enabled := True;
     MainAction('aVRefresh').Enabled := True;
     MainAction('aVRefreshAll').Enabled := True;
-    MainAction('aBAdd').Enabled := True;
     MainAction('aDCancel').Enabled := Session.InUse();
     MainAction('aJAddImport').Enabled := CheckWin32Version(6);
     MainAction('aJAddExport').Enabled := CheckWin32Version(6);
@@ -4884,7 +4815,6 @@ begin
       else if (Window.ActiveControl = FLog) then FLogEnter(FLog)
       else if (Window.ActiveControl is TSynMemo) then SynMemoEnter(Window.ActiveControl)
       else if (Window.ActiveControl = ActiveDBGrid) then DBGridEnter(ActiveDBGrid)
-      else if (Window.ActiveControl = FBookmarks) then FBookmarksEnter(FBookmarks)
       else if (Window.ActiveControl = FJobs) then FJobsEnter(FJobs);
 
     if (Assigned(FNavigatorNodeAfterActivate)) then
@@ -4921,7 +4851,6 @@ begin
   MainAction('aVSQLLog').Enabled := False;
   MainAction('aVRefresh').Enabled := False;
   MainAction('aVRefreshAll').Enabled := False;
-  MainAction('aBAdd').Enabled := False;
   MainAction('aDCancel').Enabled := False;
   MainAction('aHSQL').Enabled := False;
   MainAction('aHManual').Enabled := False;
@@ -5268,7 +5197,6 @@ begin
   FLimit.HandleNeeded();
 
   tbNavigator.Action := MainAction('aVNavigator');
-  tbBookmarks.Action := MainAction('aVBookmarks');
   tbExplorer.Action := MainAction('aVExplorer');
   tbJobs.Action := MainAction('aVJobs');
   tbSQLHistory.Action := MainAction('aVSQLHistory');
@@ -5316,10 +5244,6 @@ begin
   miNCreateEvent.Action := MainAction('aDCreateEvent');
   miNCreateUser.Action := MainAction('aDCreateUser');
   miNEmpty.Action := MainAction('aDEmpty');
-
-  mbAdd.Action := MainAction('aBAdd');
-  mbDelete.Action := MainAction('aBDelete');
-  mbEdit.Action := MainAction('aBEdit');
 
   mjAddImport.Action := MainAction('aJAddImport');
   mjAddExport.Action := MainAction('aJAddExport');
@@ -5512,8 +5436,6 @@ begin
   ToolBarData.AddressMRU.Assign(Session.Account.Desktop.AddressMRU);
   FilterMRU := TMRUList.Create(100);
   ToolBarData.CurrentAddress := -1;
-
-  FormAccountEvent(Session.Account.Desktop.Bookmarks.ClassType);
 
 
   CloseButton := TPicture.Create();
@@ -6803,59 +6725,6 @@ begin
     FBlobSearchChange(nil);
     Key := #0;
   end;
-end;
-
-procedure TFSession.FBookmarksChange(Sender: TObject; Item: TListItem;
-  Change: TItemChange);
-begin
-  mbOpen.Enabled := Assigned(Item) and Item.Selected;
-  aPOpenInNewWindow.Enabled := Assigned(Item) and Item.Selected;
-  aPOpenInNewTab.Enabled := Assigned(Item) and Item.Selected;
-  MainAction('aBDelete').Enabled := Assigned(Item) and Item.Selected;
-  MainAction('aBEdit').Enabled := Assigned(Item) and Item.Selected;
-
-  mbOpen.Default := mbOpen.Enabled;
-end;
-
-procedure TFSession.FBookmarksDragDrop(Sender, Source: TObject; X,
-  Y: Integer);
-var
-  TargetItem: TListItem;
-begin
-  TargetItem := TListView(Sender).GetItemAt(X, Y);
-
-  Session.Account.Desktop.Bookmarks.MoveBookmark(Session.Account.Desktop.Bookmarks.ByCaption(FBookmarks.Selected.Caption), FBookmarks.Items.IndexOf(TargetItem));
-end;
-
-procedure TFSession.FBookmarksDragOver(Sender, Source: TObject; X,
-  Y: Integer; State: TDragState; var Accept: Boolean);
-var
-  TargetItem: TListItem;
-begin
-  TargetItem := TListView(Sender).GetItemAt(X, Y);
-
-  Accept := (Sender = Source) and (TargetItem <> FBookmarks.Selected);
-end;
-
-procedure TFSession.FBookmarksEnter(Sender: TObject);
-begin
-  mbOpen.ShortCut := VK_RETURN;
-  MainAction('aBDelete').ShortCut := VK_DELETE;
-  MainAction('aBEdit').ShortCut := ShortCut(VK_RETURN, [ssAlt]);
-
-  FBookmarksChange(Sender, FBookmarks.Selected, ctState);
-end;
-
-procedure TFSession.FBookmarksExit(Sender: TObject);
-begin
-  mbOpen.ShortCut := 0;
-  MainAction('aBDelete').ShortCut := 0;
-  MainAction('aBEdit').ShortCut := 0;
-
-  aPOpenInNewWindow.Enabled := False;
-  aPOpenInNewTab.Enabled := False;
-  MainAction('aBDelete').Enabled := False;
-  MainAction('aBEdit').Enabled := False;
 end;
 
 procedure TFSession.FFilesEnter(Sender: TObject);
@@ -8172,19 +8041,7 @@ var
   I: Integer;
   NewListItem: TListItem;
 begin
-  if (ClassType = Session.Account.Desktop.Bookmarks.ClassType) then
-  begin
-    FBookmarks.Items.Clear();
-    for I := 0 to Session.Account.Desktop.Bookmarks.Count - 1 do
-    begin
-      NewListItem := FBookmarks.Items.Add();
-      NewListItem.Caption := Session.Account.Desktop.Bookmarks[I].Caption;
-      NewListItem.ImageIndex := 73;
-    end;
-
-    Window.Perform(CM_BOOKMARKCHANGED, 0, 0);
-  end
-  else if (ClassType = Session.Account.Jobs.ClassType) then
+  if (ClassType = Session.Account.Jobs.ClassType) then
   begin
     FJobs.Items.Clear();
     for I := 0 to Session.Account.Jobs.Count - 1 do
@@ -11029,14 +10886,6 @@ begin
   end;
 end;
 
-procedure TFSession.mbOpenClick(Sender: TObject);
-begin
-  Wanted.Clear();
-
-  if (Assigned(FBookmarks.Selected)) then
-    Address := Session.Account.Desktop.Bookmarks.ByCaption(FBookmarks.Selected.Caption).URI;
-end;
-
 procedure TFSession.MetadataProviderGetSQLFieldNames(
   Sender: TacBaseMetadataProvider; const ASQL: WideString;
   AFields: TacFieldsList);
@@ -11075,11 +10924,6 @@ begin
       end;
     end;
   end;
-end;
-
-procedure TFSession.MBookmarksPopup(Sender: TObject);
-begin
-  ShowEnabledItems(MBookmarks.Items);
 end;
 
 procedure TFSession.mfDeleteClick(Sender: TObject);
@@ -11352,9 +11196,6 @@ end;
 
 procedure TFSession.miBookmarkClick(Sender: TObject);
 begin
-  Wanted.Clear();
-
-  Address := Session.Account.Desktop.Bookmarks.ByCaption(TMenuItem(Sender).Caption).URI;
 end;
 
 procedure TFSession.miHOpenClick(Sender: TObject);
@@ -12714,7 +12555,6 @@ end;
 
 procedure TFSession.PJobsEnter(Sender: TObject);
 begin
-  mbOpen.ShortCut := VK_RETURN;
   MainAction('aJDelete').ShortCut := VK_DELETE;
   MainAction('aJEdit').ShortCut := ShortCut(VK_RETURN, [ssAlt]);
 
@@ -12723,7 +12563,6 @@ end;
 
 procedure TFSession.PJobsExit(Sender: TObject);
 begin
-  mbOpen.ShortCut := 0;
   MainAction('aJDelete').ShortCut := 0;
   MainAction('aJEdit').ShortCut := 0;
 

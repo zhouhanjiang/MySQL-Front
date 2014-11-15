@@ -19,7 +19,6 @@ type
 
   TPItems = class;
   TPPreferences = class;
-  TABookmarks = class;
   TAFiles = class;
   TAJobs = class;
   TADesktop = class;
@@ -521,51 +520,6 @@ type
     procedure SaveToXML(); virtual;
   end;
 
-  TABookmark = class
-  private
-    FBookmarks: TABookmarks;
-    FXML: IXMLNode;
-    function GetXML(): IXMLNode;
-  protected
-    property Bookmarks: TABookmarks read FBookmarks;
-    property XML: IXMLNode read GetXML;
-  public
-    Caption: string;
-    URI: string;
-    procedure Assign(const Source: TABookmark); virtual;
-    constructor Create(const ABookmarks: TABookmarks; const AXML: IXMLNode = nil);
-    procedure LoadFromXML(); virtual;
-    procedure SaveToXML(); virtual;
-  end;
-
-  TABookmarks = class
-  private
-    FXML: IXMLNode;
-    FBookmarks: array of TABookmark;
-    FDesktop: TADesktop;
-    function GetBookmark(Index: Integer): TABookmark;
-    function GetDataPath(): TFileName;
-    function GetXML(): IXMLNode;
-  protected
-    property Desktop: TADesktop read FDesktop;
-    property XML: IXMLNode read GetXML;
-  public
-    function AddBookmark(const NewBookmark: TABookmark): Boolean; virtual;
-    function ByCaption(const Caption: string): TABookmark; virtual;
-    procedure Clear(); virtual;
-    constructor Create(const ADesktop: TADesktop);
-    function Count(): Integer; virtual;
-    function DeleteBookmark(const Bookmark: TABookmark): Boolean; virtual;
-    destructor Destroy(); override;
-    function IndexOf(const Bookmark: TABookmark): Integer; virtual;
-    procedure LoadFromXML(); virtual;
-    procedure MoveBookmark(const Bookmark: TABookmark; const NewIndex: Integer); virtual;
-    procedure SaveToXML(); virtual;
-    function UpdateBookmark(const Bookmark, NewBookmark: TABookmark): Boolean; virtual;
-    property Bookmark[Index: Integer]: TABookmark read GetBookmark; default;
-    property DataPath: TFileName read GetDataPath;
-  end;
-
   TAFile = class
   private
     FFiles: TAFiles;
@@ -668,7 +622,6 @@ type
     TListViewKind = (lkServer, lkDatabase, lkTable, lkProcesses, lkStati, lkUsers, lkVariables);
   private
     FAccount: TAAccount;
-    FBookmarks: TABookmarks;
     FFiles: TAFiles;
     FPath: string;
     FXML: IXMLNode;
@@ -699,7 +652,6 @@ type
     constructor Create(const AAccount: TAAccount); overload; virtual;
     destructor Destroy(); override;
     property Address: string read GetAddress write SetAddress;
-    property Bookmarks: TABookmarks read FBookmarks;
     property Files: TAFiles read FFiles;
   end;
 
@@ -2806,254 +2758,6 @@ begin
     try XML.OwnerDocument.SaveToFile(Filename); except end; // We do not know about problems.
 end;
 
-{ TABookmark ******************************************************************}
-
-procedure TABookmark.Assign(const Source: TABookmark);
-begin
-  if (not Assigned(Bookmarks) and Assigned(Source.Bookmarks)) then
-    FBookmarks := Source.Bookmarks;
-
-  Caption := Source.Caption;
-  URI := Source.URI;
-
-  if (Assigned(XML)) then
-    XML.Attributes['name'] := Caption;
-end;
-
-constructor TABookmark.Create(const ABookmarks: TABookmarks; const AXML: IXMLNode = nil);
-begin
-  FBookmarks := ABookmarks;
-  FXML := AXML;
-
-  Caption := '';
-  URI := '';
-end;
-
-function TABookmark.GetXML(): IXMLNode;
-var
-  I: Integer;
-begin
-  if (not Assigned(FXML)) then
-    for I := 0 to Bookmarks.XML.ChildNodes.Count - 1 do
-      if ((Bookmarks.XML.ChildNodes[I].NodeName = 'bookmark') and (lstrcmpi(PChar(string(Bookmarks.XML.ChildNodes[I].Attributes['name'])), PChar(Caption)) = 0)) then
-        FXML := Bookmarks.XML.ChildNodes[I];
-
-  Result := FXML;
-end;
-
-procedure TABookmark.LoadFromXML();
-begin
-  if (Assigned(XML)) then
-  begin
-    Caption := XML.Attributes['name'];
-    if (Assigned(XMLNode(XML, 'uri'))) then URI := Bookmarks.Desktop.Account.ExpandAddress(XMLNode(XML, 'uri').Text);
-  end;
-end;
-
-procedure TABookmark.SaveToXML();
-begin
-  XML.OwnerDocument.Options := XML.OwnerDocument.Options + [doNodeAutoCreate];
-
-  XML.Attributes['name'] := Caption;
-  XMLNode(XML, 'uri').Text := Bookmarks.Desktop.Account.ExtractPath(URI);
-
-  XML.OwnerDocument.Options := XML.OwnerDocument.Options - [doNodeAutoCreate];
-end;
-
-{ TABookmarks *****************************************************************}
-
-function TABookmarks.AddBookmark(const NewBookmark: TABookmark): Boolean;
-begin
-  Result := IndexOf(NewBookmark) < 0;
-
-  if (Result) then
-  begin
-    SetLength(FBookmarks, Count + 1);
-
-    FBookmarks[Count - 1] := TABookmark.Create(Self, XML.AddChild('bookmark'));
-    FBookmarks[Count - 1].Assign(NewBookmark);
-
-    Desktop.Account.AccountEvent(ClassType);
-  end;
-end;
-
-function TABookmarks.ByCaption(const Caption: string): TABookmark;
-var
-  I: Integer;
-begin
-  Result := nil;
-
-  for I := 0 to Count - 1 do
-    if (lstrcmpi(PChar(FBookmarks[I].Caption), PChar(Caption)) = 0) then
-      Result := FBookmarks[I];
-end;
-
-procedure TABookmarks.Clear();
-var
-  I: Integer;
-begin
-  for I := 0 to Count - 1 do
-    FBookmarks[I].Free();
-  SetLength(FBookmarks, 0);
-end;
-
-function TABookmarks.Count(): Integer;
-begin
-  Result := Length(FBookmarks);
-end;
-
-constructor TABookmarks.Create(const ADesktop: TADesktop);
-begin
-  inherited Create();
-
-  FDesktop := ADesktop;
-
-  FXML := nil;
-  SetLength(FBookmarks, 0);
-end;
-
-function TABookmarks.DeleteBookmark(const Bookmark: TABookmark): Boolean;
-var
-  I: Integer;
-  Index: Integer;
-begin
-  Index := IndexOf(ByCaption(Bookmark.Caption));
-
-  Result := Index >= 0;
-  if (Result) then
-  begin
-    XML.ChildNodes.Delete(XML.ChildNodes.IndexOf(Bookmark.XML));
-
-    FBookmarks[Index].Free();
-    for I := Index to Count - 2 do
-      FBookmarks[I] := FBookmarks[I + 1];
-
-    SetLength(FBookmarks, Count - 1);
-
-    Desktop.Account.AccountEvent(ClassType);
-  end;
-end;
-
-destructor TABookmarks.Destroy();
-begin
-  Clear();
-
-  inherited;
-end;
-
-function TABookmarks.GetBookmark(Index: Integer): TABookmark;
-begin
-  Result := FBookmarks[Index];
-end;
-
-function TABookmarks.GetDataPath(): TFileName;
-begin
-  Result := Desktop.Account.DataPath;
-end;
-
-function TABookmarks.GetXML(): IXMLNode;
-begin
-  if (not Assigned(FXML) and Assigned(Desktop.XML)) then
-    FXML := XMLNode(Desktop.XML, 'bookmarks', True);
-
-  Result := FXML;
-end;
-
-function TABookmarks.IndexOf(const Bookmark: TABookmark): Integer;
-var
-  I: Integer;
-begin
-  Result := -1;
-
-  if (Assigned(Bookmark)) then
-    for I := 0 to Count - 1 do
-      if (lstrcmpi(PChar(FBookmarks[I].Caption), PChar(Bookmark.Caption)) = 0) then
-        Result := I;
-end;
-
-procedure TABookmarks.LoadFromXML();
-var
-  I: Integer;
-begin
-  Clear();
-
-  if (Assigned(XML)) then
-    for I := 0 to XML.ChildNodes.Count - 1 do
-      if ((XML.ChildNodes[I].NodeName = 'bookmark') and not Assigned(ByCaption(XML.ChildNodes[I].Attributes['name']))) then
-      begin
-        SetLength(FBookmarks, Count + 1);
-        FBookmarks[Count - 1] := TABookmark.Create(Self, XML.ChildNodes[I]);
-
-        FBookmarks[Count - 1].LoadFromXML();
-      end;
-end;
-
-procedure TABookmarks.MoveBookmark(const Bookmark: TABookmark; const NewIndex: Integer);
-var
-  I: Integer;
-  Index: Integer;
-  TempBookmark: TABookmark;
-begin
-  Index := IndexOf(Bookmark);
-  TempBookmark := FBookmarks[Index];
-
-  if (NewIndex <> Index) then
-  begin
-    XML.ChildNodes.Remove(Bookmark.XML);
-
-    if (NewIndex < 0) then
-    begin
-      for I := Index to Count - 2 do
-        FBookmarks[I] := FBookmarks[I + 1];
-
-      XML.ChildNodes.Insert(0, Bookmark.XML);
-    end
-    else if (NewIndex < Index) then
-    begin
-      for I := Index downto NewIndex + 1 do
-        FBookmarks[I] := FBookmarks[I - 1];
-
-      XML.ChildNodes.Insert(NewIndex, Bookmark.XML);
-    end
-    else
-    begin
-      for I := Index to NewIndex - 1 do
-        FBookmarks[I] := FBookmarks[I + 1];
-
-      XML.ChildNodes.Insert(NewIndex, Bookmark.XML);
-    end;
-    if (NewIndex < 0) then
-      FBookmarks[Count - 1] := TempBookmark
-    else
-      FBookmarks[NewIndex] := TempBookmark;
-
-    Desktop.Account.AccountEvent(ClassType);
-  end;
-end;
-
-procedure TABookmarks.SaveToXML();
-var
-  I: Integer;
-begin
-  for I := 0 to Count - 1 do
-    Bookmark[I].SaveToXML();
-end;
-
-function TABookmarks.UpdateBookmark(const Bookmark, NewBookmark: TABookmark): Boolean;
-begin
-  Result := Assigned(Bookmark) and Assigned(NewBookmark);
-
-  if (Result) then
-  begin
-    if (Assigned(Bookmark.XML)) then
-      Bookmark.XML.Attributes['name'] := NewBookmark.Caption;
-
-    Bookmark.Assign(NewBookmark);
-
-    Desktop.Account.AccountEvent(ClassType);
-  end;
-end;
-
 { TAFile **********************************************************************}
 
 constructor TAFile.Create(const AFiles: TAFiles);
@@ -3838,14 +3542,12 @@ begin
   SelectorWitdth := 150;
   SQLHistoryVisible := False;
 
-  FBookmarks := TABookmarks.Create(Self);
   FFiles := TAFiles.Create(Self, 10);
 end;
 
 destructor TADesktop.Destroy();
 begin
   AddressMRU.Free();
-  FBookmarks.Free();
   FFiles.Free();
 
   inherited;
@@ -3921,7 +3623,6 @@ begin
       SQLHistoryVisible := not NavigatorVisible and not BookmarksVisible and not ExplorerVisible and not JobsVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'SQL HISTORY');
     end;
 
-    Bookmarks.LoadFromXML();
     Files.LoadFromXML();
   end;
 end;
@@ -3989,7 +3690,6 @@ begin
   else
     XMLNode(XML, 'sidebar/visible').Text := BoolToStr(False, True);
 
-  Bookmarks.SaveToXML();
   Files.SaveToXML();
 
   XML.OwnerDocument.Options := XML.OwnerDocument.Options - [doNodeAutoCreate];

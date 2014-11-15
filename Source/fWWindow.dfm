@@ -22,7 +22,6 @@ object WWindow: TWWindow
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnHide = FormHide
-  OnKeyDown = FormKeyDown
   OnResize = FormResize
   OnShow = FormShow
   PixelsPerInch = 106
@@ -68,77 +67,10 @@ object WWindow: TWWindow
     Height = 23
     BandBorderStyle = bsNone
     BandMaximize = bmNone
-    Bands = <
-      item
-        Break = False
-        Control = TBAddressBar
-        FixedSize = True
-        ImageIndex = -1
-        MinHeight = 22
-        Width = 691
-      end>
+    Bands = <>
     EdgeInner = esNone
     EdgeOuter = esNone
     Visible = False
-    OnResize = CAddressBarResize
-    object TBAddressBar: TToolBar
-      Left = 0
-      Top = 0
-      Width = 691
-      Height = 22
-      TabOrder = 0
-      Transparent = True
-      OnResize = TBAddressBarResize
-      DesignSize = (
-        691
-        22)
-      object tbPrev: TToolButton
-        Left = 0
-        Top = 0
-        Action = aVPrev
-        DropdownMenu = MPrev
-        Enabled = False
-        PopupMenu = MPrev
-        Style = tbsDropDown
-      end
-      object tbNext: TToolButton
-        Left = 38
-        Top = 0
-        Action = aVNext
-        DropdownMenu = MNext
-        Enabled = False
-        PopupMenu = MNext
-        Style = tbsDropDown
-      end
-      object ToolButton26: TToolButton
-        Left = 76
-        Top = 0
-        Width = 8
-        Caption = 'ToolButton26'
-        Style = tbsSeparator
-      end
-      object FAddress: TComboBox_Ext
-        Left = 84
-        Top = 0
-        Width = 457
-        Height = 22
-        Anchors = [akLeft, akTop, akRight]
-        Constraints.MinWidth = 300
-        TabOrder = 0
-        OnChange = FAddressChange
-        OnDropDown = FAddressDropDown
-        OnKeyPress = FAddressKeyPress
-        OnSelect = FAddressSelect
-      end
-      object FAddressApply: TToolButton
-        Left = 541
-        Top = 0
-        Caption = 'aVAddress'
-        Enabled = False
-        ImageIndex = 21
-        OnClick = aVAddressExecute
-      end
-    end
   end
   object StatusBar: TStatusBar
     Left = 0
@@ -488,16 +420,6 @@ object WWindow: TWWindow
       ImageIndex = 15
     end
   end
-  object MPrev: TPopupMenu
-    OnPopup = MPrevPopup
-    Left = 16
-    Top = 147
-  end
-  object MNext: TPopupMenu
-    OnPopup = MNextPopup
-    Left = 64
-    Top = 147
-  end
   object ActionList: TActionList
     Left = 80
     Top = 240
@@ -621,7 +543,6 @@ object WWindow: TWWindow
       HelpContext = 1081
       HelpType = htContext
       ShortCut = 16460
-      OnExecute = aVAddressBarExecute
     end
     object aVNavigator: TAction
       Category = 'View'
@@ -697,14 +618,12 @@ object WWindow: TWWindow
       Caption = 'aVPrev'
       ImageIndex = 92
       ShortCut = 32805
-      OnExecute = aVPrevExecute
     end
     object aVNext: TAction
       Category = 'View'
       Caption = 'aVNext'
       ImageIndex = 93
       ShortCut = 32807
-      OnExecute = aVNextExecute
     end
     object aFOpenAccount: TAction
       Category = 'File'
@@ -1581,10 +1500,6 @@ object WWindow: TWWindow
       object N12: TMenuItem
         Caption = '-'
       end
-      object miVAddressBar: TMenuItem
-        Action = aVAddressBar
-        AutoCheck = True
-      end
       object miVSidebar: TMenuItem
         Caption = 'miVSidebar'
         object miVNavigator: TMenuItem
@@ -1622,22 +1537,6 @@ object WWindow: TWWindow
       object miVRefreshAll: TMenuItem
         Action = aVRefreshAll
         HelpContext = 1041
-      end
-    end
-    object miBookmarks: TMenuItem
-      Caption = 'miBookmarks'
-      GroupIndex = 3
-      object miBAdd: TMenuItem
-        Action = aBAdd
-      end
-      object miBDelete: TMenuItem
-        Action = aBDelete
-      end
-      object miBEdit: TMenuItem
-        Action = aBEdit
-      end
-      object miBSeparator: TMenuItem
-        Caption = '-'
       end
     end
     object miDatabase: TMenuItem

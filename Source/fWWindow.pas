@@ -136,10 +136,8 @@ type
     aVExplorer: TAction;
     aVJobs: TAction;
     aVNavigator: TAction;
-    aVNext: TAction;
     aVObjectBrowser: TAction;
     aVObjectIDE: TAction;
-    aVPrev: TAction;
     aVQueryBuilder: TAction;
     aVRefresh: TAction;
     aVRefreshAll: TAction;
@@ -150,15 +148,8 @@ type
     aVSQLLog: TAction;
     CAddressBar: TCoolBar;
     CToolBar: TCoolBar;
-    FAddress: TComboBox_Ext;
-    FAddressApply: TToolButton;
     Highlighter: TSynSQLSyn;
     MainMenu: TMainMenu;
-    miBAdd: TMenuItem;
-    miBDelete: TMenuItem;
-    miBEdit: TMenuItem;
-    miBookmarks: TMenuItem;
-    miBSeparator: TMenuItem;
     miDatabase: TMenuItem;
     miDCancelRecord: TMenuItem;
     miDCreate: TMenuItem;
@@ -264,7 +255,6 @@ type
     miSSearchFind: TMenuItem;
     miSSearchNext: TMenuItem;
     miSSearchReplace: TMenuItem;
-    miVAddressBar: TMenuItem;
     miVBookmarks: TMenuItem;
     miVBrowser: TMenuItem;
     miVDiagram: TMenuItem;
@@ -282,8 +272,6 @@ type
     miVSQLEditor: TMenuItem;
     miVSQLHistory: TMenuItem;
     miVSQLLog: TMenuItem;
-    MNext: TPopupMenu;
-    MPrev: TPopupMenu;
     MTabControl: TPopupMenu;
     mtFClose: TMenuItem;
     mtFCloseAll: TMenuItem;
@@ -312,7 +300,6 @@ type
     PWorkSpace: TPanel_Ext;
     StatusBar: TStatusBar;
     TabControl: TTabControl;
-    TBAddressBar: TToolBar;
     tbCancelRecord: TToolButton;
     tbCreateDatabase: TToolButton;
     tbCreateField: TToolButton;
@@ -335,11 +322,9 @@ type
     tbECut: TToolButton;
     tbEDelete: TToolButton;
     tbEPaste: TToolButton;
-    tbNext: TToolButton;
     tbOpen: TToolButton;
     tbPostObject: TToolButton;
     tbPostRecord: TToolButton;
-    tbPrev: TToolButton;
     tbProperties: TToolButton;
     tbRedo: TToolButton;
     tbRun: TToolButton;
@@ -361,7 +346,6 @@ type
     ToolButton16: TToolButton;
     ToolButton2: TToolButton;
     ToolButton23: TToolButton;
-    ToolButton26: TToolButton;
     ToolButton30: TToolButton;
     ToolButton4: TToolButton;
     ToolButton5: TToolButton;
@@ -379,25 +363,13 @@ type
     procedure aHUpdateExecute(Sender: TObject);
     procedure aOGlobalsExecute(Sender: TObject);
     procedure aOAccountsExecute(Sender: TObject);
-    procedure aSAddressExecute(Sender: TObject);
     procedure aSSearchFindNotFound(Sender: TObject);
-    procedure aVAddressBarExecute(Sender: TObject);
-    procedure aVAddressExecute(Sender: TObject);
-    procedure aVNextExecute(Sender: TObject);
-    procedure aVPrevExecute(Sender: TObject);
-    procedure FAddressDropDown(Sender: TObject);
-    procedure FAddressKeyPress(Sender: TObject; var Key: Char);
-    procedure FAddressSelect(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormCreate(Sender: TObject);
     procedure FormHide(Sender: TObject);
-    procedure FormKeyDown(Sender: TObject; var Key: Word;
-      Shift: TShiftState);
     procedure FormResize(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure HandleParam(const AParam: string);
-    procedure MNextPopup(Sender: TObject);
-    procedure MPrevPopup(Sender: TObject);
     procedure TabControlChange(Sender: TObject);
     procedure TabControlChanging(Sender: TObject;
       var AllowChange: Boolean);
@@ -412,11 +384,8 @@ type
     procedure TabControlResize(Sender: TObject);
     procedure TabControlStartDrag(Sender: TObject;
       var DragObject: TDragObject);
-    procedure TBAddressBarResize(Sender: TObject);
     procedure tbPropertiesClick(Sender: TObject);
-    procedure CAddressBarResize(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure FAddressChange(Sender: TObject);
     procedure TabControlMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
   const
@@ -432,7 +401,6 @@ type
     {$IFDEF EurekaLog}
     EurekaLog: TEurekaLog;
     {$ENDIF}
-    FAddressDroppedDown: Boolean;
     FSessions: TList;
     MouseDownPoint: TPoint;
     Param: string; // erforderlich für PostMessage
@@ -460,15 +428,12 @@ type
     function GetNewTabIndex(Sender: TObject; X, Y: Integer): Integer;
     procedure InformUpdateAvailable();
     procedure miFReopenClick(Sender: TObject);
-    procedure MNextItemClick(Sender: TObject);
-    procedure MPrevItemClick(Sender: TObject);
     procedure mtTabsClick(Sender: TObject);
     procedure MySQLConnectionSynchronize(const Data: Pointer); inline;
     procedure SetActiveTab(const FSession: TFSession);
     procedure SQLError(const Connection: TMySQLConnection; const ErrorCode: Integer; const ErrorMessage: string);
     procedure CMActivateTab(var Message: TMessage); message CM_ACTIVATETAB;
     procedure CMAddTab(var Message: TMessage); message CM_ADDTAB;
-    procedure CMBookmarkChanged(var Message: TMessage); message CM_BOOKMARKCHANGED;
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
     procedure CMMySQLClientSynchronize(var Message: TMessage); message CM_MYSQLCLIENT_SYNCHRONIZE;
     procedure CMCloseTab(var Message: TMessage); message CM_CLOSE_TAB;
@@ -752,14 +717,6 @@ begin
   end;
 end;
 
-procedure TWWindow.aSAddressExecute(Sender: TObject);
-begin
-  if (not aVAddressBar.Checked) then
-    aVAddressBar.Execute();
-
-  ActiveControl := FAddress;
-end;
-
 procedure TWWindow.aSSearchFindNotFound(Sender: TObject);
 var
   FindText: string;
@@ -773,66 +730,6 @@ begin
   MsgBox(Preferences.LoadStr(533, FindText), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
 end;
 
-procedure TWWindow.aVAddressBarExecute(Sender: TObject);
-begin
-  CAddressBar.Visible := aVAddressBar.Checked;
-  if (not CAddressBar.Visible) then
-    CAddressBar.Top := 0 // Workaround for Wine 1.4. Without this, the CAddressBar is visible
-  else
-  begin
-    CAddressBar.Top := CToolBar.Height;
-    ActiveControl := FAddress;
-  end;
-
-  TabControlResize(nil);
-end;
-
-procedure TWWindow.aVAddressExecute(Sender: TObject);
-var
-  OldAddress: string;
-begin
-  if (FAddress.Text = 'debug-raise') then
-    raise Exception.Create('Debug Exception')
-  else if (not PathIsURL(PChar(Trim(FAddress.Text)))) then
-  begin
-    ActiveControl := FAddress;
-    MessageBeep(MB_ICONERROR);
-  end
-  else if (Pos('mysql://', Trim(FAddress.Text)) <> 1) then
-    ShellExecute(Application.Handle, 'open', PChar(Trim(FAddress.Text)), '', '', SW_SHOW)
-  else if (Assigned(ActiveTab)) then
-  begin
-    OldAddress := ActiveTab.Address;
-    ActiveTab.Address := FAddress.Text;
-
-    FAddress.Items.Clear();
-  end
-  else
-    Perform(CM_ADDTAB, 0, WPARAM(PChar(FAddress.Text)));
-
-  ActiveControl := FAddress;
-end;
-
-procedure TWWindow.aVNextExecute(Sender: TObject);
-begin
-  MNextPopup(Sender);
-  if (MNext.Items.Count > 0) then MNext.Items[0].Click();
-end;
-
-procedure TWWindow.aVPrevExecute(Sender: TObject);
-begin
-  MPrevPopup(Sender);
-  if (MPrev.Items.Count > 0) then MPrev.Items[0].Click();
-end;
-
-procedure TWWindow.CAddressBarResize(Sender: TObject);
-begin
-  FAddress.Width := CAddressBar.ClientWidth - FAddress.Left - FAddressApply.Width - 4;
-  TBAddressBar.Width := CAddressBar.ClientWidth;
-
-  TBAddressBar.ClientHeight := FAddress.Height;
-end;
-
 procedure TWWindow.CMActivateTab(var Message: TMessage);
 begin
   ActiveTab := TFSession(Message.LParam);
@@ -841,8 +738,6 @@ begin
 
   if (ActiveTab.Visible) then
     SendMessage(ActiveTab.Handle, CM_ACTIVATEFRAME, 0, 0);
-
-  Perform(CM_BOOKMARKCHANGED, 0, 0);
 
   tbDBPrev.Action := ActiveTab.aDPrev;
   tbDBFirst.Action := ActiveTab.DataSetFirst;
@@ -857,9 +752,6 @@ begin
   tbDBNext.Hint := ActiveTab.aDNext.Caption + ' (' + ShortCutToText(VK_DOWN) + ')';
 
   aFClose.Enabled := True;
-
-  MPrev.Items.Clear();
-  MNext.Items.Clear();
 
   Perform(CM_UPDATETOOLBAR, 0, Message.LParam);
 
@@ -930,46 +822,20 @@ begin
   Message.Result := LRESULT(Assigned(FSession));
 end;
 
-procedure TWWindow.CMBookmarkChanged(var Message: TMessage);
-var
-  I: Integer;
-  Index: Integer;
-  NewMenuItem: TMenuItem;
-begin
-  Index := miBookmarks.IndexOf(miBSeparator) + 1;
-  while (miBookmarks.Count > Index) do
-    miBookmarks.Items[Index].Free();
-  if (Assigned(ActiveTab)) then
-    for I := 0 to ActiveTab.Session.Account.Desktop.Bookmarks.Count - 1 do
-    begin
-      NewMenuItem := TMenuItem.Create(Self);
-      NewMenuItem.Caption := ActiveTab.Session.Account.Desktop.Bookmarks[I].Caption;
-      NewMenuItem.OnClick := ActiveTab.miBookmarkClick;
-      miBookmarks.Add(NewMenuItem);
-    end;
-end;
-
 procedure TWWindow.CMChangePreferences(var Message: TMessage);
 var
   I: Integer;
 begin
   ToolBar.Images := Preferences.LargeImages;
-  TBAddressBar.Images := Preferences.SmallImages;
   TabControl.Images := Preferences.SmallImages;
   TBTabControl.Images := Preferences.SmallImages;
 
   Perform(CM_SYSFONTCHANGED, 0, 0);
 
   if (not CheckWin32Version(6)) then
-  begin
-    ToolBar.BorderWidth := 0;
-    TBAddressBar.BorderWidth := 0;
-  end
+    ToolBar.BorderWidth := 0
   else
-  begin
     ToolBar.BorderWidth := 2;
-    TBAddressBar.BorderWidth := 2;
-  end;
 
   TabControl.Canvas.Font := Font;
 
@@ -1039,11 +905,6 @@ begin
   aVSQLLog.Caption := Preferences.LoadStr(11);
   aVRefresh.Caption := Preferences.LoadStr(41);
   aVRefreshAll.Caption := Preferences.LoadStr(623);
-
-  miBookmarks.Caption := Preferences.LoadStr(727);
-  aBAdd.Caption := Preferences.LoadStr(728) + '...';
-  aBDelete.Caption := Preferences.LoadStr(28);
-  aBEdit.Caption := Preferences.LoadStr(97) + '...';
 
   miDatabase.Caption := Preferences.LoadStr(38);
   miDCreate.Caption := Preferences.LoadStr(26);
@@ -1138,12 +999,6 @@ begin
   tbProperties.Hint := Preferences.LoadStr(97) + '...';
   tbPostRecord.Hint := Preferences.LoadStr(516);
   tbCancelRecord.Hint := Preferences.LoadStr(517);
-
-
-  tbPrev.Hint := Preferences.LoadStr(512);
-  tbNext.Hint := Preferences.LoadStr(513);
-  FAddress.Hint := Preferences.LoadStr(730);
-  FAddressApply.Hint := Preferences.LoadStr(676);
 
 
   SetToolBarHints(TBTabControl);
@@ -1245,7 +1100,6 @@ end;
 procedure TWWindow.CMDeactivateTab(var Message: TMessage);
 var
   I: Integer;
-  Index: Integer;
 begin
   if (Assigned(ActiveTab)) then
   begin
@@ -1257,9 +1111,6 @@ begin
 
     aFClose.Enabled := False;
 
-    Index := miBookmarks.IndexOf(miBSeparator) + 1;
-    while (miBookmarks.Count > Index) do
-      miBookmarks.Items[Index].Free();
 
     aVObjectBrowser.Checked := False;
     aVDataBrowser.Checked := False;
@@ -1305,10 +1156,6 @@ begin
 
     miVRefresh.Enabled := False;
     miVRefreshAll.Enabled := False;
-
-    tbPrev.Enabled := False;
-    tbNext.Enabled := False;
-    FAddress.Clear();
   end;
 
   Perform(CM_UPDATETOOLBAR, 0, 0);
@@ -1338,17 +1185,11 @@ begin
   inherited;
 
   if (StyleServices.Enabled or not CheckWin32Version(6)) then
-  begin
-    ToolBar.BorderWidth := 0;
-    TBAddressBar.BorderWidth := 0;
-  end
+    ToolBar.BorderWidth := 0
   else
-  begin
     ToolBar.BorderWidth := 2;
-    TBAddressBar.BorderWidth := 2;
-  end;
 
-  if (Assigned(ToolBar.Images) and Assigned(TBAddressBar.Images)) then
+  if (Assigned(ToolBar.Images)) then
   begin
     // Recalculate height of Toolbars:
     CToolBar.AutoSize := False;
@@ -1358,15 +1199,6 @@ begin
     ToolBar.ButtonWidth := ToolBar.Images.Width + 7;
     ToolBar.AutoSize := True;
     CToolBar.AutoSize := True;
-
-    CAddressBar.AutoSize := False;
-    TBAddressBar.AutoSize := False;
-    TBAddressBar.ButtonHeight := 0;
-    TBAddressBar.ButtonHeight := TBAddressBar.Images.Height + 6;
-    TBAddressBar.ButtonWidth := TBAddressBar.Images.Width + 7;
-    if (TBAddressBar.ClientHeight < FAddress.Height) then
-      TBAddressBar.ClientHeight := FAddress.Height;
-    CAddressBar.ClientHeight := TBAddressBar.Height;
   end;
 
   TabControl.Canvas.Font.Style := [fsBold];
@@ -1418,15 +1250,6 @@ begin
     tbProperties.Action := Tab.ToolBarData.tbPropertiesAction;
     tbProperties.Caption := Preferences.LoadStr(97) + '...';
     tbProperties.ImageIndex := 11;
-
-    FAddress.Items.Clear();
-    FAddress.Text := UnescapeURL(Tab.ToolBarData.Address);
-
-    aVPrev.Enabled := Tab.ToolBarData.CurrentAddress > 0;
-    aVNext.Enabled := Assigned(Tab.ToolBarData.Addresses) and (Tab.ToolBarData.CurrentAddress < Tab.ToolBarData.Addresses.Count - 1);
-
-    MPrev.Items.Clear();
-    MNext.Items.Clear();
   end;
 
   tbCreateDatabase.Visible   := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects]);
@@ -1657,52 +1480,6 @@ begin
 end;
 {$ENDIF}
 
-procedure TWWindow.FAddressChange(Sender: TObject);
-begin
-  FAddressApply.Enabled := True;
-end;
-
-procedure TWWindow.FAddressDropDown(Sender: TObject);
-var
-  I: Integer;
-begin
-  FAddressDroppedDown := True;
-
-  if ((FAddress.Items.Count = 0) and Assigned(ActiveTab)) then
-    for I := 0 to ActiveTab.ToolBarData.AddressMRU.Count - 1 do
-      FAddress.Items.Add(ActiveTab.ToolBarData.AddressMRU.Values[I]);
-end;
-
-procedure TWWindow.FAddressKeyPress(Sender: TObject; var Key: Char);
-begin
-  if (Ord(Key) = VK_RETURN) then
-  begin
-    ActiveControl := nil;
-    FAddressApply.Click();
-    Key := #0;
-  end
-  else if ((Ord(Key) = VK_ESCAPE) and not Assigned(ActiveTab)) then
-  begin
-    FAddress.Text := '';
-    Key := #0;
-  end
-  else if ((Ord(Key) = VK_ESCAPE) and Assigned(ActiveTab)) then
-  begin
-    FAddress.Text := ActiveTab.Address;
-    ActiveControl := nil;
-    ActiveControl := FAddress;
-    Key := #0;
-  end;
-end;
-
-procedure TWWindow.FAddressSelect(Sender: TObject);
-begin
-  if (FAddressDroppedDown) then
-    FAddressApply.Click();
-
-  FAddressDroppedDown := False;
-end;
-
 procedure TWWindow.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   aFCloseAllExecute(Sender);
@@ -1745,7 +1522,6 @@ begin
   MainHighlighter := Highlighter;
 
 
-  TBAddressBar.Images := Preferences.SmallImages;
   TabControl.Images := Preferences.SmallImages;
   TBTabControl.Images := Preferences.SmallImages;
 
@@ -1775,9 +1551,6 @@ begin
   miJobs.Visible := CheckWin32Version(6);
   aHIndex.Enabled := FileExists(Application.HelpFile);
   aHUpdate.Enabled := IsConnectedToInternet() and (Preferences.SetupProgram = '');
-
-  aVAddressBar.Checked := Preferences.AddressBarVisible;
-  aVAddressBarExecute(Self);
 
   Perform(CM_UPDATETOOLBAR, 0, 0);
 
@@ -1831,13 +1604,6 @@ begin
     begin Preferences.Top := Top; Preferences.Left := Left; Preferences.Height := Height; Preferences.Width := Width; end;
 
   Preferences.AddressBarVisible := aVAddressBar.Checked;
-end;
-
-procedure TWWindow.FormKeyDown(Sender: TObject; var Key: Word;
-  Shift: TShiftState);
-begin
-  if ((ShortCut(Key, Shift) = aVPrev.ShortCut) and not aVPrev.Enabled) then Key := 0;
-  if ((ShortCut(Key, Shift) = aVNext.ShortCut) and not aVNext.Enabled) then Key := 0;
 end;
 
 procedure TWWindow.FormResize(Sender: TObject);
@@ -1916,62 +1682,6 @@ end;
 procedure TWWindow.miFReopenClick(Sender: TObject);
 begin
   ActiveTab.OpenSQLFile(ActiveTab.Session.Account.Desktop.Files[TMenuItem(Sender).Tag].Filename, ActiveTab.Session.Account.Desktop.Files[TMenuItem(Sender).Tag].CodePage);
-end;
-
-procedure TWWindow.MNextItemClick(Sender: TObject);
-var
-  Diff: Integer;
-  I: Integer;
-begin
-  Diff := 0;
-  for I := 0 to MNext.Items.Count - 1 do
-    if (MNext.Items[I] = Sender) then
-      Diff := I + 1;
-
-  ActiveTab.MoveToAddress(Diff);
-end;
-
-procedure TWWindow.MNextPopup(Sender: TObject);
-var
-  I: Integer;
-  MenuItem: TMenuItem;
-begin
-  if (Assigned(ActiveTab) and (MNext.Items.Count = 0)) then
-    for I := ActiveTab.ToolBarData.CurrentAddress + 1 to ActiveTab.ToolBarData.Addresses.Count - 1 do
-    begin
-      MenuItem := TMenuItem.Create(Self);
-      MenuItem.Caption := ActiveTab.AddressToCaption(ActiveTab.ToolBarData.Addresses[I]);
-      MenuItem.OnClick := MNextItemClick;
-      MNext.Items.Add(MenuItem);
-    end;
-end;
-
-procedure TWWindow.MPrevItemClick(Sender: TObject);
-var
-  Diff: Integer;
-  I: Integer;
-begin
-  Diff := 0;
-  for I := 0 to MPrev.Items.Count - 1 do
-    if (MPrev.Items[I] = Sender) then
-      Diff := I + 1;
-
-  ActiveTab.MoveToAddress(- Diff);
-end;
-
-procedure TWWindow.MPrevPopup(Sender: TObject);
-var
-  I: Integer;
-  MenuItem: TMenuItem;
-begin
-  if (Assigned(ActiveTab) and (MPrev.Items.Count = 0)) then
-    for I := 0 to ActiveTab.ToolBarData.CurrentAddress - 1 do
-    begin
-      MenuItem := TMenuItem.Create(Self);
-      MenuItem.Caption := ActiveTab.AddressToCaption(ActiveTab.ToolBarData.Addresses[I]);
-      MenuItem.OnClick := MPrevItemClick;
-      MPrev.Items.Insert(0, MenuItem);
-    end;
 end;
 
 procedure TWWindow.mtTabsClick(Sender: TObject);
@@ -2197,18 +1907,6 @@ procedure TWWindow.TabControlStartDrag(Sender: TObject;
 begin
   TabControlDragStartTabIndex := TabControl.TabIndex;
   TabControlDragMarkedTabIndex := -1;
-end;
-
-procedure TWWindow.TBAddressBarResize(Sender: TObject);
-var
-  I: Integer;
-  Widths: Integer;
-begin
-  Widths := 2 * TBAddressBar.BorderWidth + 4;
-  for I := 0 to TBAddressBar.ControlCount - 1 do
-    if (TBAddressBar.Controls[I].Visible and (TBAddressBar.Controls[I] <> FAddress)) then
-      Inc(Widths, TBAddressBar.Controls[I].Width);
-  FAddress.Width := TBAddressBar.Width - Widths;
 end;
 
 procedure TWWindow.tbPropertiesClick(Sender: TObject);

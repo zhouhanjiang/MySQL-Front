@@ -218,16 +218,10 @@ object FSession: TFSession
         DragMode = dmAutomatic
         ReadOnly = True
         RowSelect = True
-        PopupMenu = MBookmarks
         ShowColumnHeaders = False
         TabOrder = 0
         ViewStyle = vsReport
-        OnChange = FBookmarksChange
         OnDblClick = ListViewDblClick
-        OnEnter = FBookmarksEnter
-        OnExit = FBookmarksExit
-        OnDragDrop = FBookmarksDragDrop
-        OnDragOver = FBookmarksDragOver
       end
     end
     object PNavigator: TPanel_Ext
@@ -1297,7 +1291,7 @@ object FSession: TFSession
     object TBSideBar: TToolBar
       Left = 2
       Top = 0
-      Width = 115
+      Width = 92
       Height = 22
       Align = alNone
       AutoSize = True
@@ -1312,29 +1306,22 @@ object FSession: TFSession
         Grouped = True
         Style = tbsCheck
       end
-      object tbBookmarks: TToolButton
-        Left = 23
-        Top = 0
-        Caption = 'tbBookmarks'
-        Grouped = True
-        Style = tbsCheck
-      end
       object tbExplorer: TToolButton
-        Left = 46
+        Left = 23
         Top = 0
         Caption = 'tbExplorer'
         Grouped = True
         Style = tbsCheck
       end
       object tbJobs: TToolButton
-        Left = 69
+        Left = 46
         Top = 0
         Caption = 'tbJobs'
         Grouped = True
         Style = tbsCheck
       end
       object tbSQLHistory: TToolButton
-        Left = 92
+        Left = 69
         Top = 0
         Caption = 'tbSQLHistory'
         Grouped = True
@@ -2059,33 +2046,9 @@ object FSession: TFSession
     Left = 217
     Top = 472
   end
-  object MBookmarks: TPopupMenu
-    OnPopup = MBookmarksPopup
+  object TPopupMenu
     Left = 8
     Top = 212
-    object mbOpen: TMenuItem
-      Caption = 'miBOpen'
-      Default = True
-      OnClick = mbOpenClick
-    end
-    object mbOpenInNewWindow: TMenuItem
-      Action = aPOpenInNewWindow
-    end
-    object mbOpenInNewTab: TMenuItem
-      Action = aPOpenInNewTab
-    end
-    object N20: TMenuItem
-      Caption = '-'
-    end
-    object mbAdd: TMenuItem
-      Caption = 'aBAdd'
-    end
-    object mbDelete: TMenuItem
-      Caption = 'aBDelete'
-    end
-    object mbEdit: TMenuItem
-      Caption = 'aBEdit'
-    end
   end
   object MSideBar: TPopupMenu
     Left = 8
