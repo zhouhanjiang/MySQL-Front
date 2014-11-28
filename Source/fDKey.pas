@@ -10,7 +10,7 @@ uses
   fBase;
 
 type
-  TDIndex = class (TForm_Ext)
+  TDKey = class (TForm_Ext)
     FAvailableFields: TListView;
     FBCancel: TButton;
     FBHelp: TButton;
@@ -83,7 +83,7 @@ type
     function Execute(): Boolean;
   end;
 
-function DIndex(): TDIndex;
+function DKey(): TDKey;
 
 implementation {***************************************************************}
 
@@ -94,22 +94,22 @@ uses
   MySQLDB;
 
 var
-  FIndex: TDIndex;
+  FKey: TDKey;
 
-function DIndex(): TDIndex;
+function DKey(): TDKey;
 begin
-  if (not Assigned(FIndex)) then
+  if (not Assigned(FKey)) then
   begin
-    Application.CreateForm(TDIndex, FIndex);
-    FIndex.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    Application.CreateForm(TDKey, FKey);
+    FKey.Perform(CM_CHANGEPREFERENCES, 0, 0);
   end;
 
-  Result := FIndex;
+  Result := FKey;
 end;
 
 { TDIndex *********************************************************************}
 
-procedure TDIndex.CMChangePreferences(var Message: TMessage);
+procedure TDKey.CMChangePreferences(var Message: TMessage);
 begin
   Preferences.SmallImages.GetIcon(iiKey, Icon);
 
@@ -132,13 +132,13 @@ begin
   FBCancel.Caption := Preferences.LoadStr(30)
 end;
 
-function TDIndex.Execute(): Boolean;
+function TDKey.Execute(): Boolean;
 begin
   ShowModal();
   Result := ModalResult = mrOk;
 end;
 
-procedure TDIndex.FAvailableFieldsChange(Sender: TObject; Item: TListItem;
+procedure TDKey.FAvailableFieldsChange(Sender: TObject; Item: TListItem;
   Change: TItemChange);
 begin
   tbAddAll.Enabled := FAvailableFields.Items.Count > 0;
@@ -147,29 +147,29 @@ begin
   FAvailableFields.Enabled := FAvailableFields.Items.Count > 0; FLAvailableFields.Enabled := FAvailableFields.Enabled;
 end;
 
-procedure TDIndex.FAvailableFieldsDeletion(Sender: TObject; Item: TListItem);
+procedure TDKey.FAvailableFieldsDeletion(Sender: TObject; Item: TListItem);
 begin
   FAvailableFields.Enabled := FAvailableFields.Items.Count > 1; FLAvailableFields.Enabled := FAvailableFields.Enabled;
   tbAddAll.Enabled := FAvailableFields.Enabled;
 end;
 
-procedure TDIndex.FAvailableFieldsEnter(Sender: TObject);
+procedure TDKey.FAvailableFieldsEnter(Sender: TObject);
 begin
   FAvailableFieldsChange(Sender, FAvailableFields.Selected, ctState);
 end;
 
-procedure TDIndex.FAvailableFieldsExit(Sender: TObject);
+procedure TDKey.FAvailableFieldsExit(Sender: TObject);
 begin
   tbAddAll.Enabled := False;
   tbAddOne.Enabled := False;
 end;
 
-procedure TDIndex.FBHelpClick(Sender: TObject);
+procedure TDKey.FBHelpClick(Sender: TObject);
 begin
   Application.HelpContext(HelpContext);
 end;
 
-procedure TDIndex.FBOkCheckEnabled(Sender: TObject);
+procedure TDKey.FBOkCheckEnabled(Sender: TObject);
 var
   I: Integer;
 begin
@@ -185,7 +185,7 @@ begin
           FBOk.Enabled := False;
 end;
 
-procedure TDIndex.FFulltextClick(Sender: TObject);
+procedure TDKey.FFulltextClick(Sender: TObject);
 begin
   if (FFulltext.Checked) then
     FUnique.Checked := False;
@@ -193,7 +193,7 @@ begin
   FBOkCheckEnabled(Sender);
 end;
 
-procedure TDIndex.FIndexedFieldsChange(Sender: TObject; Item: TListItem;
+procedure TDKey.FIndexedFieldsChange(Sender: TObject; Item: TListItem;
   Change: TItemChange);
 var
   Field: TSBaseTableField;
@@ -245,18 +245,18 @@ begin
   FBOkCheckEnabled(Sender);
 end;
 
-procedure TDIndex.FIndexedFieldsDeletion(Sender: TObject; Item: TListItem);
+procedure TDKey.FIndexedFieldsDeletion(Sender: TObject; Item: TListItem);
 begin
   tbRemoveAll.Enabled := FIndexedFields.Enabled;
   FBOkCheckEnabled(Sender);
 end;
 
-procedure TDIndex.FIndexedFieldsEnter(Sender: TObject);
+procedure TDKey.FIndexedFieldsEnter(Sender: TObject);
 begin
   FIndexedFieldsChange(Sender, FIndexedFields.Selected, ctState);
 end;
 
-procedure TDIndex.FIndexedFieldsExit(Sender: TObject);
+procedure TDKey.FIndexedFieldsExit(Sender: TObject);
 begin
   tbUp.Enabled := False;
   tbDown.Enabled := False;
@@ -265,13 +265,13 @@ begin
   tbRemoveOne.Enabled := False;
 end;
 
-procedure TDIndex.FLengthExit(Sender: TObject);
+procedure TDKey.FLengthExit(Sender: TObject);
 begin
   if (Assigned(FIndexedFields.Selected)) then
     Lengths[Table.Fields.IndexOf(Table.FieldByName(FIndexedFields.Selected.Caption))] := FLengthUD.Position;
 end;
 
-procedure TDIndex.FNameChange(Sender: TObject);
+procedure TDKey.FNameChange(Sender: TObject);
 begin
   if (FName.Text <> '') then
     FOther.Checked := True
@@ -281,23 +281,22 @@ begin
   FBOkCheckEnabled(Sender);
 end;
 
-procedure TDIndex.FormSessionEvent(const Event: TSSession.TEvent);
+procedure TDKey.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = etItemAltered) and (Event.SItem = Table)) then
-    if (ModalResult = mrNone) then
-    begin
-      GBasics.Visible := True;
-      GAttributes.Visible := GBasics.Visible;
-      PSQLWait.Visible := not GBasics.Visible;
-    end
-    else
-    begin
-      ModalResult := mrOk;
-      Close();
-    end;
+  begin
+    ModalResult := mrOk;
+    Close();
+  end
+  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
+  begin
+    GBasics.Visible := True;
+    GAttributes.Visible := GBasics.Visible;
+    PSQLWait.Visible := not GBasics.Visible;
+  end;
 end;
 
-procedure TDIndex.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+procedure TDKey.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 var
   I: Integer;
   NewKey: TSKey;
@@ -369,7 +368,7 @@ begin
   end;
 end;
 
-procedure TDIndex.FormCreate(Sender: TObject);
+procedure TDKey.FormCreate(Sender: TObject);
 begin
   Constraints.MinWidth := Width;
   Constraints.MinHeight := Height;
@@ -394,7 +393,7 @@ begin
   Panel.Height := FAvailableFields.Height;
 end;
 
-procedure TDIndex.FormHide(Sender: TObject);
+procedure TDKey.FormHide(Sender: TObject);
 begin
   Table.Session.UnRegisterEventProc(FormSessionEvent);
 
@@ -407,7 +406,7 @@ begin
   FIndexedFields.Items.Clear();
 end;
 
-procedure TDIndex.FormResize(Sender: TObject);
+procedure TDKey.FormResize(Sender: TObject);
 begin
   DisableAlign();
 
@@ -422,7 +421,7 @@ begin
   EnableAlign();
 end;
 
-procedure TDIndex.FormShow(Sender: TObject);
+procedure TDKey.FormShow(Sender: TObject);
 var
   Found: Boolean;
   I: Integer;
@@ -518,7 +517,7 @@ begin
   ActiveControl := FLName.FocusControl;
 end;
 
-procedure TDIndex.FUniqueClick(Sender: TObject);
+procedure TDKey.FUniqueClick(Sender: TObject);
 begin
   if (FUnique.Checked) then
     FFulltext.Checked := False;
@@ -526,7 +525,7 @@ begin
   FBOkCheckEnabled(Sender);
 end;
 
-procedure TDIndex.IndexTypeChange(Sender: TObject);
+procedure TDKey.IndexTypeChange(Sender: TObject);
 begin
   if (FPrimary.Checked) then
     FLName.FocusControl := FPrimary
@@ -539,7 +538,7 @@ begin
   FBOkCheckEnabled(Sender);
 end;
 
-procedure TDIndex.tbAddAllClick(Sender: TObject);
+procedure TDKey.tbAddAllClick(Sender: TObject);
 begin
   while (FAvailableFields.Items.Count > 0) do
   begin
@@ -548,7 +547,7 @@ begin
   end;
 end;
 
-procedure TDIndex.tbAddOneClick(Sender: TObject);
+procedure TDKey.tbAddOneClick(Sender: TObject);
 var
   Index: Integer;
   Item: TListItem;
@@ -570,7 +569,7 @@ begin
   end;
 end;
 
-procedure TDIndex.tbRemoveAllClick(Sender: TObject);
+procedure TDKey.tbRemoveAllClick(Sender: TObject);
 begin
   while (FIndexedFields.Items.Count > 0) do
   begin
@@ -579,7 +578,7 @@ begin
   end;
 end;
 
-procedure TDIndex.tbRemoveOneClick(Sender: TObject);
+procedure TDKey.tbRemoveOneClick(Sender: TObject);
 var
   Field: TSTableField;
   I: Integer;
@@ -609,7 +608,7 @@ begin
   end;
 end;
 
-procedure TDIndex.tbUpDownClick(Sender: TObject);
+procedure TDKey.tbUpDownClick(Sender: TObject);
 var
   Index: Integer;
   OldCaption: string;
@@ -630,6 +629,6 @@ begin
 end;
 
 initialization
-  FIndex := nil;
+  FKey := nil;
 end.
 

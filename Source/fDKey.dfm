@@ -1,8 +1,8 @@
-object DIndex: TDIndex
+object DKey: TDKey
   Left = 713
   Top = 298
   BorderStyle = bsDialog
-  Caption = 'DIndex'
+  Caption = 'DKey'
   ClientHeight = 441
   ClientWidth = 337
   Color = clBtnFace

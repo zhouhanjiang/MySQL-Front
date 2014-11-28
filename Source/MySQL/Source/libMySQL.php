@@ -8,7 +8,7 @@
 
 	/****************************************************************************/
 
-	$MF_VERSION = 18;
+	$MF_VERSION = 19;
 
 	$Charsets = array(
 		'big5' => 1,
@@ -70,7 +70,7 @@
 		else if ($Length <= 0xFFFFFF)
 			return "\xFD" . substr(pack('V', $Length), 0, 3);
 		else
-			return "\xFE" . pack('V', $Length) . pack('V', 0);
+			return "\xFE" . pack('V', $Length & 0xFFFFFFFF) . pack('V', $Length >> 32);
 	}
 
 	function ReceivePacket(&$Packet, &$MorePackets) {

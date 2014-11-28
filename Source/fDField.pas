@@ -548,17 +548,16 @@ end;
 procedure TDField.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType = etItemAltered) and (Event.SItem = Table)) then
-    if (ModalResult = mrNone) then
-    begin
-      GBasics.Visible := True;
-      GAttributes.Visible := GBasics.Visible;
-      PSQLWait.Visible := not GBasics.Visible;
-    end
-    else
-    begin
-      ModalResult := mrOk;
-      Close();
-    end;
+  begin
+    ModalResult := mrOk;
+    Close();
+  end
+  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
+  begin
+    GBasics.Visible := True;
+    GAttributes.Visible := GBasics.Visible;
+    PSQLWait.Visible := not GBasics.Visible;
+  end;
 end;
 
 procedure TDField.FormCanResize(Sender: TObject; var NewWidth,

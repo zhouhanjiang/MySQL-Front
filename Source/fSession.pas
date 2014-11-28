@@ -12156,7 +12156,7 @@ begin
     end;
   end;
 
-  if (Assigned(DataSet) and Assigned(DatabaseByName(OriginalDatabaseName))) then
+  if (Assigned(DataSet) and (DataSet.FieldCount > 0) and Assigned(DatabaseByName(OriginalDatabaseName))) then
   begin
     IndexDefs.Clear();
     Table := DatabaseByName(OriginalDatabaseName).BaseTableByName(OriginalTableName);

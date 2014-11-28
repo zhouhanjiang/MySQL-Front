@@ -47,7 +47,7 @@ object DTable: TDTable
     Caption = 'FBOk'
     Default = True
     ModalResult = 1
-    TabOrder = 3
+    TabOrder = 2
   end
   object FBCancel: TButton
     Left = 255
@@ -58,20 +58,34 @@ object DTable: TDTable
     Cancel = True
     Caption = 'FBCancel'
     ModalResult = 2
-    TabOrder = 4
+    TabOrder = 3
+  end
+  object FBHelp: TButton
+    Left = 8
+    Top = 344
+    Width = 75
+    Height = 25
+    Anchors = [akLeft, akBottom]
+    Caption = 'FBHelp'
+    TabOrder = 1
+    OnClick = FBHelpClick
   end
   object PageControl: TPageControl
     Left = 8
     Top = 8
     Width = 321
     Height = 325
-    ActivePage = TSPartitions
+    ActivePage = TSBasics
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     MultiLine = True
-    TabOrder = 1
-    object TSTable: TTabSheet
-      Caption = 'TSTable'
+    TabOrder = 4
+    object TSBasics: TTabSheet
+      Caption = 'TSBasics'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         313
         261)
@@ -222,139 +236,6 @@ object DTable: TDTable
           Anchors = [akLeft, akTop, akRight]
           TabOrder = 3
           OnChange = FCollationChange
-        end
-      end
-    end
-    object TSTables: TTabSheet
-      Caption = 'TSTables'
-      DesignSize = (
-        313
-        261)
-      object GTablesBasics: TGroupBox_Ext
-        Left = 8
-        Top = 8
-        Width = 297
-        Height = 169
-        Anchors = [akLeft, akTop, akRight]
-        Caption = 'GTablesBasics'
-        TabOrder = 0
-        DesignSize = (
-          297
-          169)
-        object FLDatabase: TLabel
-          Left = 8
-          Top = 44
-          Width = 58
-          Height = 13
-          Caption = 'FLDatabase'
-        end
-        object FLTablesEngine: TLabel
-          Left = 8
-          Top = 79
-          Width = 77
-          Height = 13
-          Caption = 'FLTablesEngine'
-          FocusControl = FTablesEngine
-        end
-        object FLTablesCount: TLabel
-          Left = 8
-          Top = 20
-          Width = 72
-          Height = 13
-          Caption = 'FLTablesCount'
-        end
-        object FTablesCount: TLabel
-          Left = 120
-          Top = 20
-          Width = 66
-          Height = 13
-          Caption = 'FTablesCount'
-        end
-        object FLTablesCharset: TLabel
-          Left = 8
-          Top = 109
-          Width = 80
-          Height = 13
-          Caption = 'FLTablesCharset'
-          FocusControl = FTablesCharset
-        end
-        object FLTablesCollation: TLabel
-          Left = 8
-          Top = 135
-          Width = 84
-          Height = 13
-          Caption = 'FLTablesCollation'
-          FocusControl = FTablesCollation
-        end
-        object FTablesEngine: TComboBox_Ext
-          Left = 120
-          Top = 76
-          Width = 113
-          Height = 21
-          Style = csDropDownList
-          TabOrder = 0
-          OnChange = FBOkCheckEnabled
-        end
-        object FTablesCharset: TComboBox_Ext
-          Left = 120
-          Top = 106
-          Width = 89
-          Height = 21
-          Style = csDropDownList
-          TabOrder = 1
-          OnChange = FTablesCharsetChange
-        end
-        object FTablesCollation: TComboBox_Ext
-          Left = 120
-          Top = 132
-          Width = 145
-          Height = 21
-          Style = csDropDownList
-          Anchors = [akLeft, akTop, akRight]
-          TabOrder = 2
-          OnChange = FBOkCheckEnabled
-        end
-        object FDatabase: TEdit
-          Left = 120
-          Top = 44
-          Width = 145
-          Height = 21
-          Enabled = False
-          TabOrder = 3
-          Text = 'FDatabase'
-        end
-      end
-      object GTablesRecords: TGroupBox_Ext
-        Left = 8
-        Top = 184
-        Width = 297
-        Height = 49
-        Anchors = [akLeft, akTop, akRight]
-        Caption = 'GTablesRecords'
-        TabOrder = 1
-        object FLTablesRowType: TLabel
-          Left = 8
-          Top = 19
-          Width = 90
-          Height = 13
-          Caption = 'FLTablesRowType'
-          FocusControl = FTablesRowType
-        end
-        object FTablesRowType: TComboBox_Ext
-          Left = 120
-          Top = 16
-          Width = 97
-          Height = 21
-          Style = csDropDownList
-          TabOrder = 0
-          OnChange = FBOkCheckEnabled
-          Items.Strings = (
-            ''
-            'Fixed'
-            'Dynamic'
-            'Compressed'
-            'Redundant'
-            'Compact')
         end
       end
     end
@@ -1049,16 +930,6 @@ object DTable: TDTable
         FontSmoothing = fsmNone
       end
     end
-  end
-  object FBHelp: TButton
-    Left = 8
-    Top = 344
-    Width = 75
-    Height = 25
-    Anchors = [akLeft, akBottom]
-    Caption = 'FBHelp'
-    TabOrder = 2
-    OnClick = FBHelpClick
   end
   object MSource: TPopupMenu
     Left = 104

@@ -636,7 +636,6 @@ type
     property XML: IXMLNode read GetXML;
   public
     AddressMRU: TMRUList;
-    BookmarksVisible: Boolean;
     ColumnWidths: array [lkServer .. lkVariables] of array [0..7] of Integer;
     DataHeight, BlobHeight: Integer;
     EditorContent: array [ttEditor .. ttEditor3] of string;
@@ -698,7 +697,6 @@ type
     FXML: IXMLNode;
     FAccounts: TAAccounts;
     Modified: Boolean;
-    function GetBookmarksFilename(): TFileName;
     function GetDataPath(): TFileName;
     function GetDesktop(): TADesktop;
     function GetDesktopCount(): Integer;
@@ -718,7 +716,6 @@ type
     procedure SaveToXML(); virtual;
     procedure AccountEvent(const ClassType: TClass); virtual;
     function ValidDatabaseName(const ADatabaseName: string): Boolean;
-    property BookmarksFilename: TFileName read GetBookmarksFilename;
     property DesktopFilename: TFileName read GetDesktopFilename;
     property DesktopXMLDocument: IXMLDocument read FDesktopXMLDocument;
     property HistoryFilename: TFileName read GetHistoryFilename;
@@ -3494,7 +3491,6 @@ var
 begin
   Address := Account.ExpandAddress(Source.Account.ExtractPath(Source.Address));
   BlobHeight := Source.BlobHeight;
-  BookmarksVisible := Source.BookmarksVisible;
   for Kind := lkServer to lkVariables do
     for I := 0 to Length(ColumnWidths[Kind]) - 1 do
       ColumnWidths[Kind, I] := Source.ColumnWidths[Kind, I];
@@ -3523,7 +3519,6 @@ begin
 
   AddressMRU := TMRUList.Create(10);
   BlobHeight := 100;
-  BookmarksVisible := False;
   for Kind := lkServer to lkVariables do
     for I := 0 to Length(ColumnWidths[Kind]) - 1 do
       ColumnWidths[Kind][I] := ColumnTextWidth;
@@ -3617,10 +3612,9 @@ begin
     if (Assigned(XMLNode(XML, 'sidebar/visible'))) then
     begin
       NavigatorVisible := UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'NAVIGATOR';
-      BookmarksVisible := not NavigatorVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'BOOKMARKS');
-      ExplorerVisible := not NavigatorVisible and not BookmarksVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'EXPLORER');
-      JobsVisible := not NavigatorVisible and not BookmarksVisible and not ExplorerVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'JOBS');
-      SQLHistoryVisible := not NavigatorVisible and not BookmarksVisible and not ExplorerVisible and not JobsVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'SQL HISTORY');
+      ExplorerVisible := not NavigatorVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'EXPLORER');
+      JobsVisible := not NavigatorVisible and not ExplorerVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'JOBS');
+      SQLHistoryVisible := not NavigatorVisible and not ExplorerVisible and not JobsVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'SQL HISTORY');
     end;
 
     Files.LoadFromXML();
@@ -3679,8 +3673,6 @@ begin
   XMLNode(XML, 'sidebar/width').Text := IntToStr(SelectorWitdth);
   if (NavigatorVisible) then
     XMLNode(XML, 'sidebar/visible').Text := 'Navigator'
-  else if (BookmarksVisible) then
-    XMLNode(XML, 'sidebar/visible').Text := 'Bookmarks'
   else if (ExplorerVisible) then
     XMLNode(XML, 'sidebar/visible').Text := 'Explorer'
   else if (JobsVisible) then
@@ -3871,14 +3863,6 @@ begin
     Result := nil
   else
     Result := FDesktops[0].Control;
-end;
-
-function TAAccount.GetBookmarksFilename(): TFileName;
-begin
-  if (not DirectoryExists(DataPath)) then
-    Result := ''
-  else
-    Result := DataPath + 'Bookmarks.xml';
 end;
 
 function TAAccount.GetDataPath(): TFileName;
@@ -4342,6 +4326,9 @@ begin
 
     FXMLDocument.Options := FXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
   end;
+
+  if (not Assigned(FXMLDocument)) then
+    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['FXMLDocument']);
 
   Result := FXMLDocument.DocumentElement;
 end;

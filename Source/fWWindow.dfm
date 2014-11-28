@@ -554,16 +554,6 @@ object WWindow: TWWindow
       ImageIndex = 94
       ShortCut = 122
     end
-    object aVBookmarks: TAction
-      Category = 'View'
-      AutoCheck = True
-      Caption = 'aVBookmarks'
-      Enabled = False
-      HelpContext = 1082
-      HelpType = htContext
-      ImageIndex = 73
-      ShortCut = 32890
-    end
     object aVExplorer: TAction
       Category = 'View'
       AutoCheck = True
@@ -753,13 +743,6 @@ object WWindow: TWWindow
       Caption = 'aFExportBitmap'
       Enabled = False
     end
-    object aFPrint: TAction
-      Category = 'File'
-      Caption = 'aFPrint'
-      Enabled = False
-      HelpContext = 1019
-      HelpType = htContext
-    end
     object aESelectAll: TEditSelectAll
       Category = 'Edit'
       Caption = 'aESelectAll'
@@ -806,25 +789,6 @@ object WWindow: TWWindow
       Caption = 'aSGoto'
       Enabled = False
       ShortCut = 16455
-    end
-    object aBAdd: TAction
-      Category = 'Bookmark'
-      Caption = 'aBAdd'
-      Enabled = False
-      HelpContext = 1087
-      HelpType = htContext
-    end
-    object aBDelete: TAction
-      Category = 'Bookmark'
-      Caption = 'aBDelete'
-      Enabled = False
-    end
-    object aBEdit: TAction
-      Category = 'Bookmark'
-      Caption = 'aBEdit'
-      Enabled = False
-      HelpContext = 1088
-      HelpType = htContext
     end
     object aDCreateDatabase: TAction
       Category = 'Database'
@@ -1271,10 +1235,6 @@ object WWindow: TWWindow
       HelpType = htContext
       OnExecute = aETransferExecute
     end
-    object aBookmark: TAction
-      Category = 'Bookmark'
-      Caption = 'aBookmark'
-    end
     object aJDelete: TAction
       Category = 'Jobs'
       Caption = 'aJDelete'
@@ -1384,20 +1344,8 @@ object WWindow: TWWindow
         Caption = '-'
         GroupIndex = 1
       end
-      object miFPrint: TMenuItem
-        Action = aFPrint
-        GroupIndex = 1
-      end
-      object N17: TMenuItem
-        Caption = '-'
-        GroupIndex = 1
-      end
       object miFClose: TMenuItem
         Action = aFClose
-        GroupIndex = 1
-      end
-      object miFCloseAll: TMenuItem
-        Action = aFCloseAll
         GroupIndex = 1
       end
       object N1: TMenuItem
@@ -1504,10 +1452,6 @@ object WWindow: TWWindow
         Caption = 'miVSidebar'
         object miVNavigator: TMenuItem
           Action = aVNavigator
-          AutoCheck = True
-        end
-        object miVBookmarks: TMenuItem
-          Action = aVBookmarks
           AutoCheck = True
         end
         object miVExplorer: TMenuItem

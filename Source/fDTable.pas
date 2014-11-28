@@ -33,79 +33,9 @@ type
     aPEditTrigger: TAction;
     aPUp: TAction;
     aPUp1: TMenuItem;
-    FAutoIncrement: TEdit;
     FBCancel: TButton;
-    FBCheck: TButton;
-    FBFlush: TButton;
     FBHelp: TButton;
     FBOk: TButton;
-    FBOptimize: TButton;
-    FChecked: TLabel;
-    FCollation: TComboBox_Ext;
-    FComment: TEdit;
-    FCreated: TLabel;
-    FDatabase: TEdit;
-    FDataSize: TLabel;
-    FDefaultCharset: TComboBox_Ext;
-    FEngine: TComboBox_Ext;
-    FFields: TListView;
-    FForeignKeys: TListView;
-    FIndexSize: TLabel;
-    FKeys: TListView;
-    FLAutoIncrement: TLabel;
-    FLChecked: TLabel;
-    FLCollation: TLabel;
-    FLComment: TLabel;
-    FLCreated: TLabel;
-    FLDatabase: TLabel;
-    FLDataSize: TLabel;
-    FLDefaultCharset: TLabel;
-    FLEngine: TLabel;
-    FLIndexSize: TLabel;
-    FLinear: TCheckBox;
-    FLName: TLabel;
-    FLPartitionsNumber: TLabel;
-    FLPartitionExpr: TLabel;
-    FLPartitions: TLabel;
-    FLPartitionType: TLabel;
-    FLRecordCount: TLabel;
-    FLRowType: TLabel;
-    FLTablesCharset: TLabel;
-    FLTablesCollation: TLabel;
-    FLTablesCount: TLabel;
-    FLTablesEngine: TLabel;
-    FLTablesRowType: TLabel;
-    FLUnusedSize: TLabel;
-    FLUpdated: TLabel;
-    FName: TEdit;
-    FPartitionsNumber: TEdit;
-    FPartitionExpr: TEdit;
-    FPartitions: TListView_Ext;
-    FPartitionType: TComboBox_Ext;
-    FRecordCount: TLabel;
-    FReferenced: TListView;
-    FRowType: TComboBox_Ext;
-    FSource: TSynMemo;
-    FTablesCharset: TComboBox_Ext;
-    FTablesCollation: TComboBox_Ext;
-    FTablesCount: TLabel;
-    FTablesEngine: TComboBox_Ext;
-    FTablesRowType: TComboBox_Ext;
-    FTriggers: TListView;
-    FUDPartitionsNumber: TUpDown;
-    FUnusedSize: TLabel;
-    FUpdated: TLabel;
-    GBasics: TGroupBox_Ext;
-    GCheck: TGroupBox_Ext;
-    GDates: TGroupBox_Ext;
-    GFlush: TGroupBox_Ext;
-    GOptimize: TGroupBox_Ext;
-    GPartitions: TGroupBox_Ext;
-    GRecordCount: TGroupBox_Ext;
-    GRecords: TGroupBox_Ext;
-    GSize: TGroupBox_Ext;
-    GTablesBasics: TGroupBox_Ext;
-    GTablesRecords: TGroupBox_Ext;
     mlDCreate: TMenuItem;
     mlDDelete: TMenuItem;
     mlDProperties: TMenuItem;
@@ -115,35 +45,90 @@ type
     msSelectAll: TMenuItem;
     N1: TMenuItem;
     N2: TMenuItem;
-    PageControl: TPageControl;
-    PPartitions: TPanel_Ext;
-    tbCreateField: TToolButton;
-    tbCreateForeignKey: TToolButton;
-    tbCreateKey: TToolButton;
-    tbDeleteField: TToolButton;
-    tbDeleteForeignKey: TToolButton;
-    tbDeleteKey: TToolButton;
-    tbFieldDown: TToolButton;
-    TBFields: TToolBar;
-    tbFieldUp: TToolButton;
-    TBForeignKeys: TToolBar;
-    TBIndices: TToolBar;
-    tbPropertiesField: TToolButton;
-    tbPropertiesForeignKey: TToolButton;
-    tbPropertiesKey: TToolButton;
-    tbSeparator: TToolButton;
-    TSExtras: TTabSheet;
-    TSFields: TTabSheet;
-    TSForeignKeys: TTabSheet;
-    TSKeys: TTabSheet;
-    TSInformation: TTabSheet;
-    TSPartitions: TTabSheet;
-    TSReferenced: TTabSheet;
-    TSSource: TTabSheet;
-    TSTable: TTabSheet;
-    TSTables: TTabSheet;
-    TSTriggers: TTabSheet;
     PSQLWait: TPanel;
+    PageControl: TPageControl;
+    TSBasics: TTabSheet;
+    GRecords: TGroupBox_Ext;
+    FLRowType: TLabel;
+    FLAutoIncrement: TLabel;
+    FRowType: TComboBox_Ext;
+    FAutoIncrement: TEdit;
+    GBasics: TGroupBox_Ext;
+    FLName: TLabel;
+    FLEngine: TLabel;
+    FLComment: TLabel;
+    FLDefaultCharset: TLabel;
+    FLCollation: TLabel;
+    FName: TEdit;
+    FEngine: TComboBox_Ext;
+    FComment: TEdit;
+    FDefaultCharset: TComboBox_Ext;
+    FCollation: TComboBox_Ext;
+    TSInformation: TTabSheet;
+    GDates: TGroupBox_Ext;
+    FLCreated: TLabel;
+    FLUpdated: TLabel;
+    FCreated: TLabel;
+    FUpdated: TLabel;
+    GSize: TGroupBox_Ext;
+    FLIndexSize: TLabel;
+    FLDataSize: TLabel;
+    FIndexSize: TLabel;
+    FDataSize: TLabel;
+    GRecordCount: TGroupBox_Ext;
+    FLRecordCount: TLabel;
+    FRecordCount: TLabel;
+    TSKeys: TTabSheet;
+    FKeys: TListView;
+    TBIndices: TToolBar;
+    tbCreateKey: TToolButton;
+    tbDeleteKey: TToolButton;
+    tbPropertiesKey: TToolButton;
+    TSFields: TTabSheet;
+    FFields: TListView;
+    TBFields: TToolBar;
+    tbCreateField: TToolButton;
+    tbDeleteField: TToolButton;
+    tbPropertiesField: TToolButton;
+    tbSeparator: TToolButton;
+    tbFieldUp: TToolButton;
+    tbFieldDown: TToolButton;
+    TSForeignKeys: TTabSheet;
+    FForeignKeys: TListView;
+    TBForeignKeys: TToolBar;
+    tbCreateForeignKey: TToolButton;
+    tbDeleteForeignKey: TToolButton;
+    tbPropertiesForeignKey: TToolButton;
+    TSTriggers: TTabSheet;
+    FTriggers: TListView;
+    TSReferenced: TTabSheet;
+    FReferenced: TListView;
+    TSPartitions: TTabSheet;
+    GPartitions: TGroupBox_Ext;
+    FLPartitionType: TLabel;
+    FLPartitionsNumber: TLabel;
+    FLPartitions: TLabel;
+    FLPartitionExpr: TLabel;
+    FPartitionType: TComboBox_Ext;
+    FPartitionsNumber: TEdit;
+    FUDPartitionsNumber: TUpDown;
+    FPartitionExpr: TEdit;
+    FLinear: TCheckBox;
+    PPartitions: TPanel_Ext;
+    FPartitions: TListView_Ext;
+    TSExtras: TTabSheet;
+    GOptimize: TGroupBox_Ext;
+    FLUnusedSize: TLabel;
+    FUnusedSize: TLabel;
+    FBOptimize: TButton;
+    GCheck: TGroupBox_Ext;
+    FLChecked: TLabel;
+    FChecked: TLabel;
+    FBCheck: TButton;
+    GFlush: TGroupBox_Ext;
+    FBFlush: TButton;
+    TSSource: TTabSheet;
+    FSource: TSynMemo;
     procedure aPCreateFieldExecute(Sender: TObject);
     procedure aPCreateForeignKeyExecute(Sender: TObject);
     procedure aPCreateKeyExecute(Sender: TObject);
@@ -190,7 +175,6 @@ type
     procedure FPartitionsChange(Sender: TObject; Item: TListItem;
       Change: TItemChange);
     procedure FPartitionTypeChange(Sender: TObject);
-    procedure FTablesCharsetChange(Sender: TObject);
     procedure FTriggersChange(Sender: TObject; Item: TListItem;
       Change: TItemChange);
     procedure FTriggersEnter(Sender: TObject);
@@ -223,7 +207,6 @@ type
     Engine: string;
     RowType: TMySQLRowType;
     Table: TSBaseTable;
-    Tables: TList;
     function Execute(): Boolean;
     property CreatedName: string read FCreatedName;
   end;
@@ -286,10 +269,10 @@ end;
 
 procedure TDTable.aPCreateKeyExecute(Sender: TObject);
 begin
-  DIndex.Database := nil;
-  DIndex.Table := NewTable;
-  DIndex.Key := nil;
-  if (DIndex.Execute()) then
+  DKey.Database := nil;
+  DKey.Table := NewTable;
+  DKey.Key := nil;
+  if (DKey.Execute()) then
   begin
     FIndicesRefresh(Sender);
 
@@ -483,10 +466,10 @@ end;
 
 procedure TDTable.aPEditKeyExecute(Sender: TObject);
 begin
-  DIndex.Database := nil;
-  DIndex.Table := NewTable;
-  DIndex.Key := NewTable.Keys[FKeys.ItemIndex];
-  if (DIndex.Execute()) then
+  DKey.Database := nil;
+  DKey.Table := NewTable;
+  DKey.Key := NewTable.Keys[FKeys.ItemIndex];
+  if (DKey.Execute()) then
   begin
     FIndicesRefresh(Sender);
 
@@ -575,101 +558,61 @@ begin
 end;
 
 procedure TDTable.Built();
-var
-  Engine: TSEngine;
-  I: Integer;
-  Index: Integer;
 begin
-  if (not Assigned(Tables)) then
-  begin
-    NewTable.Assign(Table);
+  NewTable.Assign(Table);
 
-    FName.Text := NewTable.Name;
+  FName.Text := NewTable.Name;
 
-    FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf(NewTable.DefaultCharset); FDefaultCharsetChange(Self);
-    FCollation.ItemIndex := FCollation.Items.IndexOf(NewTable.Collation); FCollationChange(Self);
+  FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf(NewTable.DefaultCharset); FDefaultCharsetChange(Self);
+  FCollation.ItemIndex := FCollation.Items.IndexOf(NewTable.Collation); FCollationChange(Self);
 
-    FComment.Text := SQLUnwrapStmt(NewTable.Comment);
+  FComment.Text := SQLUnwrapStmt(NewTable.Comment);
 
-    if (not Assigned(NewTable.Engine)) then
-      FEngine.ItemIndex := -1
-    else
-      FEngine.ItemIndex := FEngine.Items.IndexOf(NewTable.Engine.Name);
-    FEngineChange(Self);
-
-    FRowType.ItemIndex := Integer(NewTable.RowType);
-    FAutoIncrement.Visible := NewTable.AutoIncrement > 0; FLAutoIncrement.Visible := FAutoIncrement.Visible;
-    FAutoIncrement.Text := IntToStr(NewTable.AutoIncrement);
-
-    if (Assigned(NewTable.Partitions)) then
-    begin
-      FPartitionsNumber.OnChange := nil;
-      case (NewTable.Partitions.PartitionType) of
-        ptHash: FPartitionType.ItemIndex := 1;
-        ptKey: FPartitionType.ItemIndex := 2;
-        ptRange: FPartitionType.ItemIndex := 3;
-        ptList: FPartitionType.ItemIndex := 4;
-        else FPartitionType.ItemIndex := 0
-      end;
-      FLinear.Checked := NewTable.Partitions.Linear;
-      FPartitionExpr.Text := NewTable.Partitions.Expression;
-      FPartitionsNumber.OnChange := FPartitionsNumberChange;
-      FUDPartitionsNumber.Position := NewTable.Partitions.PartitionsNumber;
-
-      FPartitionTypeChange(nil);
-    end;
-
-    PageControl.ActivePage := TSTable;
-  end
+  if (not Assigned(NewTable.Engine)) then
+    FEngine.ItemIndex := -1
   else
+    FEngine.ItemIndex := FEngine.Items.IndexOf(NewTable.Engine.Name);
+  FEngineChange(Self);
+
+  FRowType.ItemIndex := Integer(NewTable.RowType);
+  FAutoIncrement.Visible := NewTable.AutoIncrement > 0; FLAutoIncrement.Visible := FAutoIncrement.Visible;
+  FAutoIncrement.Text := IntToStr(NewTable.AutoIncrement);
+
+  if (Assigned(NewTable.Partitions)) then
   begin
-    FTablesCount.Caption := IntToStr(Tables.Count);
-    FDatabase.Text := Database.Name;
+    FPartitionsNumber.OnChange := nil;
+    case (NewTable.Partitions.PartitionType) of
+      ptHash: FPartitionType.ItemIndex := 1;
+      ptKey: FPartitionType.ItemIndex := 2;
+      ptRange: FPartitionType.ItemIndex := 3;
+      ptList: FPartitionType.ItemIndex := 4;
+      else FPartitionType.ItemIndex := 0
+    end;
+    FLinear.Checked := NewTable.Partitions.Linear;
+    FPartitionExpr.Text := NewTable.Partitions.Expression;
+    FPartitionsNumber.OnChange := FPartitionsNumberChange;
+    FUDPartitionsNumber.Position := NewTable.Partitions.PartitionsNumber;
 
-    Engine := TSBaseTable(Tables[0]).Engine;
-    for I := 1 to Tables.Count - 1 do
-      if (TSBaseTable(Tables[I]).Engine <> Engine) then
-        Engine := nil;
-    if (FTablesEngine.Style = csDropDown) then
-      FTablesEngine.Text := NewTable.Engine.Name
-    else if (Assigned(Engine)) then
-      FTablesEngine.ItemIndex := FTablesEngine.Items.IndexOf(Engine.Name);
-
-    Index := -1;
-    for I := 0 to FDefaultCharset.Items.Count - 1 do
-      if (Database.Session.Charsets.NameCmp(FDefaultCharset.Items[I], TSBaseTable(Tables[0]).DefaultCharset) = 0) then
-        Index := I;
-    for I := 1 to Tables.Count - 1 do
-      if ((Index >= 0) and (Database.Session.Charsets.NameCmp(FDefaultCharset.Items[Index], TSBaseTable(Tables[I]).DefaultCharset) <> 0)) then
-        Index := -1;
-    FTablesCharset.ItemIndex := Index; FTablesCharsetChange(nil);
-
-    Index := FTablesRowType.Items.IndexOf(TSBaseTable(Tables[0]).DBRowTypeStr());
-    for I := 1 to Tables.Count - 1 do
-      if (FTablesRowType.Items.IndexOf(TSBaseTable(Tables[I]).DBRowTypeStr()) <> Index) then
-        Index := 0;
-    FTablesRowType.ItemIndex := Index;
-
-    PageControl.ActivePage := TSTables;
+    FPartitionTypeChange(nil);
   end;
+
+
+  TSInformation.TabVisible := Assigned(Table);
+  TSKeys.TabVisible := True;
+  TSFields.TabVisible := True;
+  TSForeignKeys.TabVisible := Assigned(Table);
+  TSTriggers.TabVisible := Assigned(Table) and Assigned(Database.Triggers);
+  TSReferenced.TabVisible := Assigned(Table) and Assigned(NewTable.Engine);
+  TSPartitions.TabVisible := Assigned(Table) and Assigned(NewTable.Partitions);
+  TSExtras.TabVisible := Assigned(Table);
+  TSSource.TabVisible := Assigned(Table);
+
+  PageControl.ActivePage := TSBasics;
 
   PageControl.Visible := True;
   PSQLWait.Visible := not PageControl.Visible;
 
-  TSInformation.TabVisible := Assigned(Table) and (Table.DataSize >= 0) or Assigned(Tables);
-  TSKeys.TabVisible := not Assigned(Tables);
-  TSFields.TabVisible := not Assigned(Tables);
-  TSForeignKeys.TabVisible := Assigned(Table);
-  TSTriggers.TabVisible := Assigned(Table)  and Assigned(Database.Triggers);
-  TSReferenced.TabVisible := Assigned(Table) and Assigned(NewTable.Engine);
-  TSPartitions.TabVisible := not Assigned(Tables) and Assigned(NewTable.Partitions);
-  TSExtras.TabVisible := Assigned(Table) or Assigned(Tables);
-  TSSource.TabVisible := Assigned(Table) or Assigned(Tables);
-
-  if (not Assigned(Tables)) then
-    ActiveControl := FName
-  else
-    ActiveControl := FTablesEngine;
+  ActiveControl := FName;
 end;
 
 procedure TDTable.CMChangePreferences(var Message: TMessage);
@@ -681,7 +624,7 @@ begin
   aPUp.Caption := Preferences.LoadStr(563);
   aPDown.Caption := Preferences.LoadStr(564);
 
-  TSTable.Caption := Preferences.LoadStr(108);
+  TSBasics.Caption := Preferences.LoadStr(108);
   GBasics.Caption := Preferences.LoadStr(85);
   FLName.Caption := Preferences.LoadStr(35) + ':';
   FLEngine.Caption := Preferences.LoadStr(110) + ':';
@@ -691,16 +634,6 @@ begin
   GRecords.Caption := Preferences.LoadStr(124);
   FLAutoIncrement.Caption := Preferences.LoadStr(117) + ':';
   FLRowType.Caption := Preferences.LoadStr(129) + ':';
-
-  TSTables.Caption := Preferences.LoadStr(108);
-  GTablesBasics.Caption := Preferences.LoadStr(85);
-  FLTablesCount.Caption := Preferences.LoadStr(617) + ':';
-  FLDatabase.Caption := Preferences.LoadStr(38) + ':';
-  FLTablesEngine.Caption := Preferences.LoadStr(110) + ':';
-  FLTablesCharset.Caption := Preferences.LoadStr(682) + ':';
-  FLTablesCollation.Caption := Preferences.LoadStr(702) + ':';
-  GTablesRecords.Caption := Preferences.LoadStr(124);
-  FLTablesRowType.Caption := Preferences.LoadStr(129) + ':';
 
   TSInformation.Caption := Preferences.LoadStr(121);
   GDates.Caption := Preferences.LoadStr(122);
@@ -840,10 +773,7 @@ var
   List: TList;
 begin
   List := TList.Create();
-  if (not Assigned(Tables)) then
-    List.Add(NewTable)
-  else
-    List.Assign(Tables);
+  List.Add(NewTable);
   Database.CheckTables(List);
   List.Free();
 
@@ -858,10 +788,7 @@ var
   List: TList;
 begin
   List := TList.Create();
-  if (not Assigned(Tables)) then
-    List.Add(NewTable)
-  else
-    List.Assign(Tables);
+  List.Add(NewTable);
   Database.FlushTables(List);
   List.Free();
 
@@ -888,10 +815,7 @@ var
   List: TList;
 begin
   List := TList.Create();
-  if (not Assigned(Tables)) then
-    List.Add(NewTable)
-  else
-    List.Assign(Tables);
+  List.Add(NewTable);
   Database.OptimizeTables(List);
   List.Free();
 
@@ -929,6 +853,8 @@ begin
       FCollation.ItemIndex := FCollation.Items.IndexOf(DefaultCharset.DefaultCollation.Caption);
   end;
   FCollation.Enabled := Assigned(DefaultCharset); FLCollation.Enabled := FCollation.Enabled;
+
+  FBOkCheckEnabled(Sender);
 end;
 
 procedure TDTable.FDefaultCharsetExit(Sender: TObject);
@@ -1114,63 +1040,48 @@ end;
 
 procedure TDTable.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 var
-  I: Integer;
   I64: Int64;
-  UpdateTableNames: TStringList;
 begin
   if ((ModalResult = mrOk) and PageControl.Visible) then
-    if (not Assigned(Tables)) then
+  begin
+    NewTable.Name := Trim(FName.Text);
+    NewTable.DefaultCharset := Trim(FDefaultCharset.Text);
+    NewTable.Collation := Trim(FCollation.Text);
+    if (not Assigned(Table) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewTable.Comment))) then
+      NewTable.Comment := Trim(FComment.Text);
+
+    if (GRecords.Visible) then
     begin
-      NewTable.Name := Trim(FName.Text);
-      NewTable.DefaultCharset := Trim(FDefaultCharset.Text);
-      NewTable.Collation := Trim(FCollation.Text);
-      if (not Assigned(Table) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewTable.Comment))) then
-        NewTable.Comment := Trim(FComment.Text);
-
-      if (GRecords.Visible) then
-      begin
-        NewTable.RowType := TMySQLRowType(FRowType.ItemIndex);
-        if (TryStrToInt64(FAutoIncrement.Text, I64)) then NewTable.AutoIncrement := I64;
-      end
-      else
-      begin
-        NewTable.RowType := mrUnknown;
-        NewTable.AutoIncrement := 0;
-      end;
-
-      if (not Assigned(Table)) then
-        CanClose := Database.AddTable(NewTable)
-      else
-        CanClose := Database.UpdateTable(Table, NewTable);
-
-      if (Assigned(Table) or not CanClose) then
-        FCreatedName := ''
-      else
-        FCreatedName := NewTable.Name;
-
-      PageControl.Visible := CanClose;
-      PSQLWait.Visible := not PageControl.Visible;
-      if (not CanClose) then
-        ModalResult := mrNone;
-
-      FBOk.Enabled := False;
+      NewTable.RowType := TMySQLRowType(FRowType.ItemIndex);
+      if (TryStrToInt64(FAutoIncrement.Text, I64)) then NewTable.AutoIncrement := I64;
     end
     else
     begin
-      UpdateTableNames := TStringList.Create();
-      for I := 0 to Tables.Count - 1 do
-        UpdateTableNames.Add(TSBaseTable(Tables[I]).Name);
-
-      CanClose := Database.UpdateTables(UpdateTableNames, FTablesCharset.Text, FTablesCollation.Text, FTablesEngine.Text, TMySQLRowType(FTablesRowType.ItemIndex));
-
-      UpdateTableNames.Free();
+      NewTable.RowType := mrUnknown;
+      NewTable.AutoIncrement := 0;
     end;
+
+    if (not Assigned(Table)) then
+      CanClose := Database.AddTable(NewTable)
+    else
+      CanClose := Database.UpdateTable(Table, NewTable);
+
+    if (Assigned(Table) or not CanClose) then
+      FCreatedName := ''
+    else
+      FCreatedName := NewTable.Name;
+
+    PageControl.Visible := CanClose;
+    PSQLWait.Visible := not PageControl.Visible;
+    if (not CanClose) then
+      ModalResult := mrNone;
+
+    FBOk.Enabled := False;
+  end;
 end;
 
 procedure TDTable.FormCreate(Sender: TObject);
 begin
-  Tables := nil;
-
   FFields.SmallImages := Preferences.SmallImages;
   FKeys.SmallImages := Preferences.SmallImages;
   FForeignKeys.SmallImages := Preferences.SmallImages;
@@ -1218,8 +1129,6 @@ begin
 
   if (Assigned(NewTable)) then
     FreeAndNil(NewTable);
-  if (Assigned(Tables)) then
-    FreeAndNil(Tables);
 
   Preferences.Table.Width := Width;
   Preferences.Table.Height := Height;
@@ -1245,7 +1154,7 @@ end;
 
 procedure TDTable.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if (not Assigned(Tables) and (Event.EventType = etItemValid) and (Event.SItem = Table)
+  if ((Event.EventType = etItemValid) and (Event.SItem = Table)
     or (Event.EventType = etAfterExecuteSQL)) then
     if (not PageControl.Visible) then
     begin
@@ -1273,12 +1182,7 @@ var
 begin
   Database.Session.RegisterEventProc(FormSessionEvent);
 
-  if (Assigned(Tables)) then
-  begin
-    Caption := Preferences.LoadStr(107);
-    HelpContext := 1054;
-  end
-  else if (not Assigned(Table)) then
+  if (not Assigned(Table)) then
   begin
     Caption := Preferences.LoadStr(383);
     HelpContext := 1045;
@@ -1301,21 +1205,12 @@ begin
     if (not (Database.Session.Engines[I] is TSSystemEngine)) then
       FEngine.Items.Add(Database.Session.Engines[I].Name);
 
-  FTablesEngine.Items.Clear();
-  FTablesEngine.Items.Add('');
-  for I := 0 to Database.Session.Engines.Count - 1 do
-    FTablesEngine.Items.Add(Database.Session.Engines[I].Name);
-
   FDefaultCharset.Items.Clear();
   for I := 0 to Database.Session.Charsets.Count - 1 do
     FDefaultCharset.Items.Add(Database.Session.Charsets[I].Name);
   FDefaultCharset.ItemIndex := -1; FDefaultCharsetChange(Sender);
 
   FCollation.Text := '';
-
-  FTablesCharset.Items.Text := FDefaultCharset.Items.Text;
-  FTablesCharset.Text := ''; FTablesCharsetChange(Sender);
-  FTablesCollation.Text := '';
 
   FPartitionType.ItemIndex := 0;
 
@@ -1324,87 +1219,71 @@ begin
   FBCheck.Enabled := True;
   FBFlush.Enabled := True;
 
-  if (not Assigned(Tables)) then
+  NewTable := TSBaseTable.Create(Database.Tables);
+
+  PageControl.ActivePage := TSBasics;
+
+  if (not Assigned(Table)) then
   begin
-    NewTable := TSBaseTable.Create(Database.Tables);
+    NewTable.DefaultCharset := Database.DefaultCharset;
+    NewTable.Collation := Database.Collation;
+    NewTable.Engine := Database.Session.Engines.DefaultEngine;
 
-    TSTable.TabVisible := not Assigned(Tables);
-    TSTables.TabVisible := not TSTable.TabVisible;
-    PageControl.ActivePage := TSTable;
+    NewField := TSBaseTableField.Create(NewTable.Fields);
+    NewField.Name := 'Id';
+    NewField.FieldType := mfInt;
+    NewField.Size := 11;
+    NewField.Unsigned := False;
+    NewField.NullAllowed := False;
+    NewField.AutoIncrement := True;
+    NewTable.Fields.AddField(NewField);
+    FreeAndNil(NewField);
 
-    if (not Assigned(Table)) then
-    begin
-      NewTable.DefaultCharset := Database.DefaultCharset;
-      NewTable.Collation := Database.Collation;
-      NewTable.Engine := Database.Session.Engines.DefaultEngine;
+    NewKey := TSKey.Create(NewTable.Keys);
+    NewKey.PrimaryKey := True;
 
-      NewField := TSBaseTableField.Create(NewTable.Fields);
-      NewField.Name := 'Id';
-      NewField.FieldType := mfInt;
-      NewField.Size := 11;
-      NewField.Unsigned := False;
-      NewField.NullAllowed := False;
-      NewField.AutoIncrement := True;
-      NewTable.Fields.AddField(NewField);
-      FreeAndNil(NewField);
+    NewKeyColumn := TSKeyColumn.Create(NewKey.Columns);
+    NewKeyColumn.Field := TSBaseTableField(NewTable.Fields[0]);
+    NewKey.Columns.AddColumn(NewKeyColumn);
+    FreeAndNil(NewKeyColumn);
 
-      NewKey := TSKey.Create(NewTable.Keys);
-      NewKey.PrimaryKey := True;
+    NewTable.Keys.AddKey(NewKey);
+    FreeAndNil(NewKey);
 
-      NewKeyColumn := TSKeyColumn.Create(NewKey.Columns);
-      NewKeyColumn.Field := TSBaseTableField(NewTable.Fields[0]);
-      NewKey.Columns.AddColumn(NewKeyColumn);
-      FreeAndNil(NewKeyColumn);
-
-      NewTable.Keys.AddKey(NewKey);
-      FreeAndNil(NewKey);
-
-      if (NewTable.Name = '') then
-        FName.Text := Preferences.LoadStr(114)
-      else
-        FName.Text := NewTable.Name;
-      while (Assigned(Database.TableByName(FName.Text))) do
-      begin
-        TableName := FName.Text;
-        Delete(TableName, 1, Length(Preferences.LoadStr(114)));
-        if (TableName = '') then TableName := '1';
-        TableName := Preferences.LoadStr(114) + IntToStr(StrToInt(TableName) + 1);
-        FName.Text := TableName;
-      end;
-
-      FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf(Database.DefaultCharset); FDefaultCharsetChange(Sender);
-      FCollation.ItemIndex := FCollation.Items.IndexOf(Database.Collation);
-
-      FComment.Text := '';
-
-      if (not Assigned(NewTable.Engine)) then
-        FEngine.ItemIndex := -1
-      else
-        FEngine.ItemIndex := FEngine.Items.IndexOf(NewTable.Engine.Name);
-      FEngineChange(Sender);
-
-      FRowType.ItemIndex := Integer(NewTable.RowType);
-      FAutoIncrement.Visible := NewTable.AutoIncrement > 0; FLAutoIncrement.Visible := FAutoIncrement.Visible;
-      FAutoIncrement.Text := IntToStr(NewTable.AutoIncrement);
-
-      PageControl.Visible := True;
-      PSQLWait.Visible := not PageControl.Visible;
-    end
+    if (NewTable.Name = '') then
+      FName.Text := Preferences.LoadStr(114)
     else
+      FName.Text := NewTable.Name;
+    while (Assigned(Database.TableByName(FName.Text))) do
     begin
-      PageControl.Visible := Table.Update();
-      PSQLWait.Visible := not PageControl.Visible;
-
-      if (PageControl.Visible) then
-        Built();
+      TableName := FName.Text;
+      Delete(TableName, 1, Length(Preferences.LoadStr(114)));
+      if (TableName = '') then TableName := '1';
+      TableName := Preferences.LoadStr(114) + IntToStr(StrToInt(TableName) + 1);
+      FName.Text := TableName;
     end;
+
+    FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf(Database.DefaultCharset); FDefaultCharsetChange(Sender);
+    FCollation.ItemIndex := FCollation.Items.IndexOf(Database.Collation);
+
+    FComment.Text := '';
+
+    if (not Assigned(NewTable.Engine)) then
+      FEngine.ItemIndex := -1
+    else
+      FEngine.ItemIndex := FEngine.Items.IndexOf(NewTable.Engine.Name);
+    FEngineChange(Sender);
+
+    FRowType.ItemIndex := Integer(NewTable.RowType);
+    FAutoIncrement.Visible := NewTable.AutoIncrement > 0; FLAutoIncrement.Visible := FAutoIncrement.Visible;
+    FAutoIncrement.Text := IntToStr(NewTable.AutoIncrement);
+
+    PageControl.Visible := True;
+    PSQLWait.Visible := not PageControl.Visible;
   end
   else
   begin
-    TSTable.TabVisible := (not Assigned(Tables));
-    TSTables.TabVisible := not TSTable.TabVisible;
-    PageControl.ActivePage := TSTables;
-    PageControl.Visible := Database.Session.Update(Tables);
+    PageControl.Visible := Table.Update();
     PSQLWait.Visible := not PageControl.Visible;
 
     if (PageControl.Visible) then
@@ -1414,29 +1293,24 @@ begin
 
   FDefaultCharset.Visible := Database.Session.ServerVersion >= 40101; FLDefaultCharset.Visible := FDefaultCharset.Visible;
   FCollation.Visible := Database.Session.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
-  FTablesCharset.Visible := Database.Session.ServerVersion >= 40101; FLTablesCharset.Visible := FTablesCharset.Visible;
-  FTablesCollation.Visible := Database.Session.ServerVersion >= 40101; FLTablesCollation.Visible := FTablesCollation.Visible;
   GRecords.Visible := Assigned(Table);
 
-  TSInformation.TabVisible := Assigned(Table) and (Table.DataSize >= 0) or Assigned(Tables);
-  TSKeys.TabVisible := not Assigned(Tables);
-  TSFields.TabVisible := not Assigned(Tables);
+  TSInformation.TabVisible := Assigned(Table);
+  TSKeys.TabVisible := True;
+  TSFields.TabVisible := True;
   TSForeignKeys.TabVisible := Assigned(Table);
-  TSTriggers.TabVisible := Assigned(Table)  and Assigned(Database.Triggers);
+  TSTriggers.TabVisible := Assigned(Table) and Assigned(Database.Triggers);
   TSReferenced.TabVisible := Assigned(Table) and Assigned(NewTable.Engine);
-  TSPartitions.TabVisible := not Assigned(Tables) and Assigned(NewTable.Partitions);
-  TSExtras.TabVisible := Assigned(Table) or Assigned(Tables);
-  TSSource.TabVisible := Assigned(Table) or Assigned(Tables);
+  TSPartitions.TabVisible := Assigned(Table) and Assigned(NewTable.Partitions);
+  TSExtras.TabVisible := Assigned(Table);
+  TSSource.TabVisible := Assigned(Table);
 
-  FBOk.Enabled := PageControl.Visible and not Assigned(Tables) and not Assigned(Table);
+  FBOk.Enabled := PageControl.Visible and not Assigned(Table);
   FBCancel.Caption := Preferences.LoadStr(30);
 
   ActiveControl := FBCancel;
   if (PageControl.Visible) then
-    if (not Assigned(Tables)) then
-      ActiveControl := FName
-    else
-      ActiveControl := FTablesEngine;
+    ActiveControl := FName;
 end;
 
 procedure TDTable.FPartitionsNumberChange(Sender: TObject);
@@ -1540,27 +1414,6 @@ begin
   FBOkCheckEnabled(Sender);
 end;
 
-procedure TDTable.FTablesCharsetChange(Sender: TObject);
-var
-  DefaultCharset: TSCharset;
-  I: Integer;
-begin
-  DefaultCharset := Database.Session.CharsetByName(FDefaultCharset.Text);
-
-  FTablesCollation.Items.Clear();
-  if (Assigned(Database.Session.Collations)) then
-  begin
-    for I := 0 to Database.Session.Collations.Count - 1 do
-      if (Assigned(DefaultCharset) and (Database.Session.Collations[I].Charset = DefaultCharset)) then
-        FTablesCollation.Items.Add(Database.Session.Collations[I].Name);
-    if (Assigned(DefaultCharset)) then
-      FTablesCollation.ItemIndex := FTablesCollation.Items.IndexOf(DefaultCharset.DefaultCollation.Caption);
-  end;
-  FTablesCollation.Enabled := FDefaultCharset.Text <> ''; FLTablesCollation.Enabled := FTablesCollation.Enabled;
-
-  FBOkCheckEnabled(Sender);
-end;
-
 procedure TDTable.FTriggersChange(Sender: TObject; Item: TListItem;
   Change: TItemChange);
 begin
@@ -1579,36 +1432,13 @@ begin
 end;
 
 procedure TDTable.TSExtrasShow(Sender: TObject);
-var
-  DateTime: TDateTime;
-  I: Integer;
-  Size: Int64;
 begin
-  if (not Assigned(Tables)) then
-  begin
-    FUnusedSize.Caption := SizeToStr(NewTable.UnusedSize);
+  FUnusedSize.Caption := SizeToStr(NewTable.UnusedSize);
 
-    if (NewTable.Checked <= 0) then
-      FChecked.Caption := '???'
-    else
-      FChecked.Caption := SysUtils.DateTimeToStr(NewTable.Checked, LocaleFormatSettings);
-  end
+  if (NewTable.Checked <= 0) then
+    FChecked.Caption := '???'
   else
-  begin
-    Size := 0;
-    for I := 0 to Tables.Count - 1 do
-      Inc(Size, TSBaseTable(Tables[I]).UnusedSize);
-    FUnusedSize.Caption := SizeToStr(Size);
-
-    DateTime := Now();
-    for I := 0 to Tables.Count - 1 do
-      if (TSBaseTable(Tables[I]).Checked < DateTime) then
-        DateTime := TSBaseTable(Tables[I]).Checked;
-    if (DateTime <= 0) then
-      FChecked.Caption := '???'
-    else
-      FChecked.Caption := SysUtils.DateTimeToStr(DateTime, LocaleFormatSettings);
-  end;
+    FChecked.Caption := SysUtils.DateTimeToStr(NewTable.Checked, LocaleFormatSettings);
 end;
 
 procedure TDTable.TSFieldsShow(Sender: TObject);
@@ -1771,10 +1601,6 @@ begin
 end;
 
 procedure TDTable.TSInformationShow(Sender: TObject);
-var
-  DateTime: TDateTime;
-  I: Integer;
-  Size: Int64;
 begin
   FCreated.Caption := '???';
   FUpdated.Caption := '???';
@@ -1782,50 +1608,15 @@ begin
   FDataSize.Caption := '???';
   FRecordCount.Caption := '???';
 
-  if (not Assigned(Tables)) then
-  begin
-    if (NewTable.Created = 0) then FCreated.Caption := '???' else FCreated.Caption := SysUtils.DateTimeToStr(NewTable.Created, LocaleFormatSettings);
-    if (NewTable.Updated = 0) then FUpdated.Caption := '???' else FUpdated.Caption := SysUtils.DateTimeToStr(NewTable.Updated, LocaleFormatSettings);
+  if (NewTable.Created = 0) then FCreated.Caption := '???' else FCreated.Caption := SysUtils.DateTimeToStr(NewTable.Created, LocaleFormatSettings);
+  if (NewTable.Updated = 0) then FUpdated.Caption := '???' else FUpdated.Caption := SysUtils.DateTimeToStr(NewTable.Updated, LocaleFormatSettings);
 
-    FIndexSize.Caption := SizeToStr(NewTable.IndexSize);
-    FDataSize.Caption := SizeToStr(NewTable.DataSize);
+  FIndexSize.Caption := SizeToStr(NewTable.IndexSize);
+  FDataSize.Caption := SizeToStr(NewTable.DataSize);
 
-    if (RecordCount < 0) then RecordCount := NewTable.CountRecords();
+  if (RecordCount < 0) then RecordCount := NewTable.CountRecords();
 
-    FRecordCount.Caption := FormatFloat('#,##0', RecordCount, LocaleFormatSettings);
-  end
-  else
-  begin
-    DateTime := Now();
-    for I := 0 to Tables.Count - 1 do
-      if (TSBaseTable(Tables[I]).Created < DateTime) then
-        DateTime := TSBaseTable(Tables[I]).Created;
-    if (DateTime <= 0) then FCreated.Caption := '???' else FCreated.Caption := SysUtils.DateTimeToStr(DateTime, LocaleFormatSettings);
-
-    DateTime := 0;
-    for I := 0 to Tables.Count - 1 do
-      if (TSBaseTable(Tables[I]).Updated > DateTime) then
-        DateTime := TSBaseTable(Tables[I]).Updated;
-    if (DateTime = 0) then FUpdated.Caption := '???' else FUpdated.Caption := SysUtils.DateTimeToStr(DateTime, LocaleFormatSettings);
-
-    Size := 0;
-    for I := 0 to Tables.Count - 1 do
-      Inc(Size, TSBaseTable(Tables[I]).IndexSize);
-    FIndexSize.Caption := SizeToStr(Size);
-
-    Size := 0;
-    for I := 0 to Tables.Count - 1 do
-      Inc(Size, TSBaseTable(Tables[I]).DataSize);
-    FDataSize.Caption := SizeToStr(Size);
-
-    if (RecordCount < 0) then
-    begin
-      RecordCount := 0;
-      for I := 0 to Tables.Count - 1 do
-        Inc(RecordCount, TSBaseTable(Tables[I]).CountRecords());
-    end;
-    FRecordCount.Caption := FormatFloat('#,##0', RecordCount, LocaleFormatSettings);
-  end;
+  FRecordCount.Caption := FormatFloat('#,##0', RecordCount, LocaleFormatSettings);
 end;
 
 procedure TDTable.TSPartitionsShow(Sender: TObject);
@@ -1921,18 +1712,10 @@ begin
 end;
 
 procedure TDTable.TSSourceShow(Sender: TObject);
-var
-  I: Integer;
 begin
   if (FSource.Lines.Count = 0) then
-    if (not Assigned(Tables) and Assigned(NewTable)) then
-      FSource.Lines.Text := NewTable.Source + #13#10
-    else if (Assigned(Tables)) then
-      for I := 0 to Tables.Count - 1 do
-      begin
-        if (I > 0) then FSource.Lines.Text := FSource.Lines.Text + #13#10;
-        FSource.Lines.Text := FSource.Lines.Text + TSBaseTable(Tables[I]).Source + #13#10;
-      end;
+    if (Assigned(NewTable)) then
+      FSource.Lines.Text := NewTable.Source + #13#10;
 end;
 
 procedure TDTable.TSTriggersShow(Sender: TObject);

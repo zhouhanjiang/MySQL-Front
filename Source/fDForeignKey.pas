@@ -139,26 +139,25 @@ end;
 
 procedure TDForeignKey.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = etItemAltered) and (Event.SItem = Table)) then
-    if (ModalResult = mrNone) then
-    begin
-      GBasics.Visible := True;
-      GAttributes.Visible := GBasics.Visible;
-      PSQLWait.Visible := not GBasics.Visible;
-    end
-    else
-    begin
-      ModalResult := mrOk;
-      Close();
-    end
-  else if ((Event.EventType = etItemsValid) and Assigned(Database) and (Event.Sender = Database.Tables)) then
+  if ((Event.EventType = etItemsValid) and Assigned(Database) and (Event.Sender = Database.Tables)) then
     FTableChange(Event.Sender)
   else if ((Event.EventType = etItemsValid) and (Event.Sender = Table.Session.Databases)) then
     FParentDatabaseChange(Event.Sender)
   else if ((Event.EventType = etItemValid) and (Event.SItem = SelectedParentTable)) then
     FParentTableChange(Event.Sender)
   else if ((Event.EventType = etItemValid) and (Event.SItem = Table)) then
-    FTableChange(Event.Sender);
+    FTableChange(Event.Sender)
+  else if ((Event.EventType = etItemAltered) and (Event.SItem = Table)) then
+  begin
+    ModalResult := mrOk;
+    Close();
+  end
+  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
+  begin
+    GBasics.Visible := True;
+    GAttributes.Visible := GBasics.Visible;
+    PSQLWait.Visible := not GBasics.Visible;
+  end;
 end;
 
 procedure TDForeignKey.FormCloseQuery(Sender: TObject;

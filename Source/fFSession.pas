@@ -69,7 +69,6 @@ type
     DataSetLast: TDataSetLast;
     DataSetPost: TDataSetPost;
     FBlobSearch: TEdit;
-    FBookmarks: TListView;
     FFilter: TComboBox_Ext;
     FFilterEnabled: TToolButton;
     FGridDataSource: TDataSource;
@@ -175,8 +174,6 @@ type
     miNPaste: TMenuItem;
     miNProperties: TMenuItem;
     miNRename: TMenuItem;
-    miSBookmarks: TMenuItem;
-    miSExplorer: TMenuItem;
     miSJobs: TMenuItem;
     miSNavigator: TMenuItem;
     miSSQLHistory: TMenuItem;
@@ -318,7 +315,6 @@ type
     OpenDialog: TOpenDialog_Ext;
     PBlob: TPanel_Ext;
     PBlobSpacer: TPanel_Ext;
-    PBookmarks: TPanel_Ext;
     PBuilder: TPanel_Ext;
     PBuilderQuery: TPanel_Ext;
     PContent: TPanel_Ext;
@@ -672,11 +668,7 @@ type
     TTabState = set of (tsLoading, tsActive);
     TView = (vObjects, vBrowser, vIDE, vBuilder, vDiagram, vEditor, vEditor2, vEditor3);
     TToolBarData = record
-      Address: string;
-      Addresses: TStringList;
-      AddressMRU: TMRUList;
       Caption: string;
-      CurrentAddress: Integer;
       tbPropertiesAction: TBasicAction;
       View: TView;
     end;
@@ -910,7 +902,6 @@ type
     procedure aFExportExecute(const Sender: TObject; const ExportType: TPExportType);
     procedure aFImportExecute(const Sender: TObject; const ImportType: TPImportType);
     procedure aFOpenExecute(Sender: TObject);
-    procedure aFPrintExecute(Sender: TObject);
     procedure aFSaveAsExecute(Sender: TObject);
     procedure aFSaveExecute(Sender: TObject);
     procedure AfterConnect(Sender: TObject);
@@ -1011,7 +1002,6 @@ type
     procedure SetPath(const APath: TFileName);
     procedure SQLError(DataSet: TDataSet; E: EDatabaseError; var Action: TDataAction);
     procedure SynMemoApllyPreferences(const SynMemo: TSynMemo);
-    procedure SynMemoPrintExecute(Sender: TObject);
     procedure TableOpen(Sender: TObject);
     function UpdateAfterAddressChanged(): Boolean; virtual;
     function ViewToParam(const AView: TView): Variant;
@@ -1025,7 +1015,6 @@ type
     procedure WorkbenchEnter(Sender: TObject);
     procedure WorkbenchExit(Sender: TObject);
     procedure WorkbenchPasteExecute(Sender: TObject);
-    procedure WorkbenchPrintExecute(Sender: TObject);
     function WorkbenchValidateControl(Sender: TObject; Control: TWControl): Boolean;
     procedure CMActivateDBGrid(var Message: TMessage); message CM_ACTIVATE_DBGRID;
     procedure CMActivateFText(var Message: TMessage); message CM_ACTIVATEFTEXT;
@@ -1063,8 +1052,6 @@ type
     procedure aEReplaceExecute(Sender: TObject);
     procedure aETransferExecute(Sender: TObject);
     procedure CrashRescue();
-    procedure miBookmarkClick(Sender: TObject);
-    procedure MoveToAddress(const ADiff: Integer);
     procedure OpenDiagram();
     procedure OpenSQLFile(const AFilename: TFileName; const CodePage: Cardinal = 0; const Insert: Boolean = False);
     procedure StatusBarRefresh(const Immediately: Boolean = False);
@@ -1086,8 +1073,8 @@ uses
   acQBLocalizer, acQBStrings,
   CommCtrl_Ext, StdActns_Ext,
   MySQLConsts, SQLUtils,
-  fDField, fDKey, fDTable, fDVariable, fDDatabase, fDForeignKey, fDUser,
-  fDQuickFilter, fDSQLHelp, fDTransfer, fDSearch, fDServer, fDGoto,
+  fDField, fDKey, fDTable, fDTables, fDVariable, fDDatabase, fDForeignKey,
+  fDUser, fDQuickFilter, fDSQLHelp, fDTransfer, fDSearch, fDServer, fDGoto,
   fURI, fDView, fDRoutine, fDTrigger, fDStatement, fDEvent, fDPaste, fDSegment,
   fDConnecting;
 
@@ -2083,10 +2070,10 @@ begin
 
   if (FocusedCItem is TSBaseTable) then
   begin
-    DIndex.Table := TSBaseTable(FocusedCItem);
-    DIndex.Database := DIndex.Table.Database;
-    DIndex.Key := nil;
-    if (DIndex.Execute()) then
+    DKey.Table := TSBaseTable(FocusedCItem);
+    DKey.Database := DKey.Table.Database;
+    DKey.Key := nil;
+    if (DKey.Execute()) then
       Wanted.Update := Session.Update;
   end;
 end;
@@ -2120,7 +2107,6 @@ begin
   begin
     DTable.Database := TSDatabase(FocusedCItem);
     DTable.Table := nil;
-    DTable.Tables := nil;
     if (DTable.Execute()) then
       Wanted.Update := Session.Update;
   end;
@@ -2376,25 +2362,6 @@ begin
 
     ToolBarData.View := View;
 
-    if (Address <> ToolBarData.Address) then
-    begin
-      ToolBarData.Address := Address;
-
-      if (not MovingToAddress) then
-      begin
-        while (ToolBarData.Addresses.Count > ToolBarData.CurrentAddress + 1) do
-          ToolBarData.Addresses.Delete(ToolBarData.CurrentAddress + 1);
-        ToolBarData.Addresses.Add(Address);
-
-        while (ToolBarData.Addresses.Count > 30) do
-          ToolBarData.Addresses.Delete(0);
-
-        ToolBarData.CurrentAddress := ToolBarData.Addresses.Count - 1;
-      end;
-
-      Window.Perform(CM_UPDATETOOLBAR, 0, LPARAM(Self));
-    end;
-
     if (Assigned(FNavigator.Selected) and (FNavigator.Selected <> LastFNavigatorSelected)) then
     begin
       if (FNavigator.AutoExpand and Assigned(FNavigator.Selected)) then
@@ -2414,7 +2381,7 @@ begin
         end;
       end;
 
-      if ((tsActive in FrameState) and (ToolBarData.CurrentAddress > 0) and Wanted.Nothing) then
+      if ((tsActive in FrameState) and not (tsLoading in FrameState) and Wanted.Nothing) then
         PlaySound(PChar(Preferences.SoundFileNavigating), Handle, SND_FILENAME or SND_ASYNC);
 
       if ((View = vBrowser) and (FNavigator.Selected.ImageIndex in [iiBaseTable, iiSystemView, iiView])) then
@@ -2507,7 +2474,6 @@ begin
       if (PSideBar.Visible) then
       begin
         if (PNavigator.Visible) then Window.ActiveControl := FNavigator
-        else if (PBookmarks.Visible) then Window.ActiveControl := FBookmarks
         else if (PListView.Visible) then Window.ActiveControl := ActiveListView
         else if (PBuilder.Visible) then Window.ActiveControl := FQueryBuilder
         else if (PSynMemo.Visible) then Window.ActiveControl := ActiveSynMemo
@@ -2722,15 +2688,13 @@ begin
 
   if ((Window.ActiveControl = ActiveListView) and (SelectedImageIndex in [iiDatabase, iiSystemDatabase]) and (ActiveListView.SelCount > 1)) then
   begin
-    DTable.Tables := TList.Create();
+    DTables.Tables := TList.Create();
     for I := 0 to ActiveListView.Items.Count - 1 do
       if (ActiveListView.Items[I].Selected and (ActiveListView.Items[I].ImageIndex = iiBaseTable)) then
-        DTable.Tables.Add(ActiveListView.Items[I].Data);
-
-    DTable.Database := TSDatabase(FNavigator.Selected.Data);
-    DTable.Table := nil;
-    if (DTable.Execute()) then
+        DTables.Tables.Add(ActiveListView.Items[I].Data);
+    if (DTables.Execute()) then
       Wanted.Update := Session.Update;
+    FreeAndNil(DTables.Tables);
   end
   else if ((Window.ActiveControl = ActiveWorkbench) and (ActiveWorkbench.Selected is TWSection)) then
   begin
@@ -2752,7 +2716,6 @@ begin
     begin
       DTable.Database := TSBaseTable(CItem).Database;
       DTable.Table := TSBaseTable(CItem);
-      DTable.Tables := nil;
       Execute := DTable.Execute;
     end
     else if (CItem is TSView) then
@@ -2787,10 +2750,10 @@ begin
     end
     else if (CItem is TSKey) then
     begin
-      DIndex.Database := TSKey(CItem).Table.Database;
-      DIndex.Table := TSKey(CItem).Table;
-      DIndex.Key := TSKey(CItem);
-      Execute := DIndex.Execute;
+      DKey.Database := TSKey(CItem).Table.Database;
+      DKey.Table := TSKey(CItem).Table;
+      DKey.Key := TSKey(CItem);
+      Execute := DKey.Execute;
     end
     else if (CItem is TSBaseTableField) then
     begin
@@ -3641,18 +3604,6 @@ begin
     OpenSQLFile('');
 end;
 
-procedure TFSession.aFPrintExecute(Sender: TObject);
-begin
-  Wanted.Clear();
-
-  if ((Window.ActiveControl = ActiveSynMemo) or (Window.ActiveControl = FLog)) then
-    SynMemoPrintExecute(Sender)
-  else if (Window.ActiveControl = ActiveWorkbench) then
-    WorkbenchPrintExecute(Sender)
-  else
-    aFExportExecute(Sender, etPrinter);
-end;
-
 procedure TFSession.aFSaveAsExecute(Sender: TObject);
 begin
   Wanted.Clear();
@@ -4160,13 +4111,11 @@ begin
   PSideBar.DisableAlign();
 
   MainAction('aVNavigator').Checked := (Sender = MainAction('aVNavigator')) and MainAction('aVNavigator').Checked;
-  MainAction('aVBookmarks').Checked := (Sender = MainAction('aVBookmarks')) and MainAction('aVBookmarks').Checked;
   MainAction('aVExplorer').Checked := (Sender = MainAction('aVExplorer')) and MainAction('aVExplorer').Checked;
   MainAction('aVJobs').Checked := (Sender = MainAction('aVJobs')) and MainAction('aVJobs').Checked;
   MainAction('aVSQLHistory').Checked := (Sender = MainAction('aVSQLHistory')) and MainAction('aVSQLHistory').Checked;
 
   PNavigator.Visible := MainAction('aVNavigator').Checked;
-  PBookmarks.Visible := MainAction('aVBookmarks').Checked;
   PExplorer.Visible := MainAction('aVExplorer').Checked;
   PJobs.Visible := MainAction('aVJobs').Checked;
   PSQLHistory.Visible := MainAction('aVSQLHistory').Checked;
@@ -4178,7 +4127,7 @@ begin
   else if (PSQLHistory.Visible) then
     FSQLHistoryRefresh(Sender);
 
-  SSideBar.Visible := PNavigator.Visible or PBookmarks.Visible or PExplorer.Visible or PJobs.Visible or PSQLHistory.Visible;
+  SSideBar.Visible := PNavigator.Visible or PExplorer.Visible or PJobs.Visible or PSQLHistory.Visible;
   if (SSideBar.Visible) then
   begin
     SSideBar.Left := PNavigator.Width;
@@ -4196,8 +4145,6 @@ begin
 
     if (MainAction('aVNavigator').Checked) then
       Window.ActiveControl := FNavigator
-    else if (MainAction('aVBookmarks').Checked) then
-      Window.ActiveControl := FBookmarks
     else if (MainAction('aVExplorer').Checked) then
       Window.ActiveControl := FFolders
     else if (MainAction('aVJobs').Checked) then
@@ -4688,7 +4635,6 @@ begin
   if (Assigned(MainActionList)) then
   begin
     MainAction('aVNavigator').Checked := PNavigator.Visible;
-    MainAction('aVBookmarks').Checked := PBookmarks.Visible;
     MainAction('aVExplorer').Checked := PExplorer.Visible;
     MainAction('aVJobs').Checked := PJobs.Visible;
     MainAction('aVSQLHistory').Checked := PSQLHistory.Visible;
@@ -4711,7 +4657,6 @@ begin
     MainAction('aFExportHTML').OnExecute := aFExportHTMLExecute;
     MainAction('aFExportPDF').OnExecute := aFExportPDFExecute;
     MainAction('aFExportBitmap').OnExecute := aFExportBitmapExecute;
-    MainAction('aFPrint').OnExecute := aFPrintExecute;
     MainAction('aERedo').OnExecute := aERedoExecute;
     MainAction('aECopy').OnExecute := aECopyExecute;
     MainAction('aEPaste').OnExecute := aEPasteExecute;
@@ -4726,7 +4671,6 @@ begin
     MainAction('aVSQLEditor3').OnExecute := aViewExecute;
     MainAction('aVDiagram').OnExecute := aViewExecute;
     MainAction('aVNavigator').OnExecute := aVSideBarExecute;
-    MainAction('aVBookmarks').OnExecute := aVSideBarExecute;
     MainAction('aVExplorer').OnExecute := aVSideBarExecute;
     MainAction('aVJobs').OnExecute := aVSideBarExecute;
     MainAction('aVSQLHistory').OnExecute := aVSideBarExecute;
@@ -4791,7 +4735,6 @@ begin
     MainAction('aVSQLEditor3').Enabled := True;
     MainAction('aVDiagram').Enabled := (LastSelectedDatabase <> '');
     MainAction('aVNavigator').Enabled := True;
-    MainAction('aVBookmarks').Enabled := True;
     MainAction('aVExplorer').Enabled := True;
     MainAction('aVJobs').Enabled := True;
     MainAction('aVSQLHistory').Enabled := True;
@@ -4844,7 +4787,6 @@ begin
   MainAction('aVSQLEditor3').Enabled := False;
   MainAction('aVDiagram').Enabled := False;
   MainAction('aVNavigator').Enabled := False;
-  MainAction('aVBookmarks').Enabled := False;
   MainAction('aVExplorer').Enabled := False;
   MainAction('aVJobs').Enabled := False;
   MainAction('aVSQLHistory').Enabled := False;
@@ -4897,11 +4839,10 @@ var
   URI: TUURI;
 begin
   PNavigator.Visible := Session.Account.Desktop.NavigatorVisible;
-  PBookmarks.Visible := Session.Account.Desktop.BookmarksVisible;
   PExplorer.Visible := Session.Account.Desktop.ExplorerVisible;
   PJobs.Visible := Session.Account.Desktop.JobsVisible;
   PSQLHistory.Visible := Session.Account.Desktop.SQLHistoryVisible;
-  PSideBar.Visible := PNavigator.Visible or PBookmarks.Visible or PExplorer.Visible or PJobs.Visible or PSQLHistory.Visible; SSideBar.Visible := PSideBar.Visible;
+  PSideBar.Visible := PNavigator.Visible or PExplorer.Visible or PJobs.Visible or PSQLHistory.Visible; SSideBar.Visible := PSideBar.Visible;
 
   if (PExplorer.Visible) then
     CreateExplorer()
@@ -5183,7 +5124,6 @@ begin
   TBSideBar.Images := Preferences.SmallImages;
   ToolBar.Images := Preferences.SmallImages;
   FNavigator.Images := Preferences.SmallImages;
-  FBookmarks.SmallImages := Preferences.SmallImages;
   FJobs.SmallImages := Preferences.SmallImages;
   FSQLHistory.Images := Preferences.SmallImages;
   TBLimitEnabled.Images := Preferences.SmallImages;
@@ -5211,8 +5151,6 @@ begin
   tbEditor3.Action := MainAction('aVSQLEditor3'); tbEditor3.Caption := tbEditor3.Caption;
 
   miSNavigator.Action := MainAction('aVNavigator');
-  miSBookmarks.Action := MainAction('aVBookmarks');
-  miSExplorer.Action := MainAction('aVExplorer');
   miSJobs.Action := MainAction('aVJobs');
   miSSQLHistory.Action := MainAction('aVSQLHistory');
 
@@ -5341,7 +5279,6 @@ begin
   if (not StyleServices.Enabled and not CheckWin32Version(6)) then
   begin
     PNavigator.BevelInner := bvRaised; PNavigator.BevelOuter := bvLowered;
-    PBookmarks.BevelInner := bvRaised; PBookmarks.BevelOuter := bvLowered;
     PExplorer.BevelInner := bvRaised; PExplorer.BevelOuter := bvLowered;
     PJobs.BevelInner := bvRaised; PJobs.BevelOuter := bvLowered;
     PSQLHistory.BevelInner := bvRaised; PSQLHistory.BevelOuter := bvLowered;
@@ -5358,7 +5295,6 @@ begin
   else
   begin
     PNavigator.BevelInner := bvNone; PNavigator.BevelOuter := bvNone;
-    PBookmarks.BevelInner := bvNone; PBookmarks.BevelOuter := bvNone;
     PExplorer.BevelInner := bvNone; PExplorer.BevelOuter := bvNone;
     PJobs.BevelInner := bvNone; PJobs.BevelOuter := bvNone;
     PFolders.BevelInner := bvNone; PNavigator.BevelOuter := bvNone;
@@ -5431,11 +5367,7 @@ begin
 
   Wanted := TWanted.Create(Self);
 
-  ToolBarData.Addresses := TStringList.Create();
-  ToolBarData.AddressMRU := TMRUList.Create(0);
-  ToolBarData.AddressMRU.Assign(Session.Account.Desktop.AddressMRU);
   FilterMRU := TMRUList.Create(100);
-  ToolBarData.CurrentAddress := -1;
 
 
   CloseButton := TPicture.Create();
@@ -6345,7 +6277,6 @@ begin
     MainAction('aFExportXML').Enabled := True;
     MainAction('aFExportHTML').Enabled := True;
     MainAction('aFExportPDF').Enabled := True;
-    MainAction('aFPrint').Enabled := True;
     MainAction('aECopyToFile').OnExecute := DBGridCopyToExecute;
     MainAction('aEPasteFromFile').OnExecute := aEPasteFromFileExecute;
     MainAction('aSGoto').Enabled := True;
@@ -6392,7 +6323,6 @@ begin
       MainAction('aFImportExcel').Enabled := False;
       MainAction('aFImportAccess').Enabled := False;
       MainAction('aFImportODBC').Enabled := False;
-      MainAction('aFPrint').Enabled := False;
       MainAction('aECopyToFile').Enabled := False;
       MainAction('aEPasteFromFile').Enabled := False;
       MainAction('aSGoto').Enabled := False;
@@ -6625,7 +6555,6 @@ begin
       // There is a bug inside ShellBrowser.pas ver. 7.3 - but it's not interested to be informed
     end;
   Session.Account.Desktop.NavigatorVisible := PNavigator.Visible;
-  Session.Account.Desktop.BookmarksVisible := PBookmarks.Visible;
   Session.Account.Desktop.ExplorerVisible := PExplorer.Visible;
   Session.Account.Desktop.JobsVisible := PJobs.Visible;
   Session.Account.Desktop.SQLHistoryVisible := PSQLHistory.Visible;
@@ -6653,7 +6582,6 @@ begin
           DatabasesXML.ChildNodes.Delete(I);
   end;
 
-  Session.Account.Desktop.AddressMRU.Assign(ToolBarData.AddressMRU);
   Session.Account.UnRegisterDesktop(Self);
 
   FServerListView.OnChanging := nil;
@@ -6679,8 +6607,6 @@ begin
   FreeAndNil(CloseButton);
 
   FreeAndNil(FilterMRU);
-  FreeAndNil(ToolBarData.AddressMRU);
-  FreeAndNil(ToolBarData.Addresses);
   FreeAndNil(Wanted);
 
   inherited;
@@ -7006,7 +6932,6 @@ procedure TFSession.FLogEnter(Sender: TObject);
 begin
   MainAction('aECopyToFile').OnExecute := SaveSQLFile;
 
-  MainAction('aFPrint').Enabled := True;
   MainAction('aSSearchReplace').Enabled := False;
 
   MainAction('aHIndex').ShortCut := 0;
@@ -7018,7 +6943,6 @@ end;
 
 procedure TFSession.FLogExit(Sender: TObject);
 begin
-  MainAction('aFPrint').Enabled := False;
   MainAction('aECopyToFile').Enabled := False;
 
   MainAction('aHIndex').ShortCut := ShortCut(VK_F1, []);
@@ -7270,7 +7194,6 @@ begin
   MainAction('aFExportXML').Enabled := False;
   MainAction('aFExportHTML').Enabled := False;
   MainAction('aFExportPDF').Enabled := False;
-  MainAction('aFPrint').Enabled := False;
   MainAction('aECopy').Enabled := False;
   MainAction('aEPaste').Enabled := False;
   MainAction('aERename').Enabled := False;
@@ -7914,7 +7837,6 @@ begin
   MainAction('aFExportXML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView]);
   MainAction('aFExportHTML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
   MainAction('aFExportPDF').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-  MainAction('aFPrint').Enabled := Assigned(Node) and ((View = vDiagram) or (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]));
   MainAction('aECopy').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiField, iiSystemViewField, iiViewField]);
   MainAction('aEPaste').Enabled := Assigned(Node) and ((Node.ImageIndex = iiServer) and Clipboard.HasFormat(CF_MYSQLSERVER) or (Node.ImageIndex = iiDatabase) and Clipboard.HasFormat(CF_MYSQLDATABASE) or (Node.ImageIndex = iiBaseTable) and Clipboard.HasFormat(CF_MYSQLTABLE) or (Node.ImageIndex = iiUsers) and Clipboard.HasFormat(CF_MYSQLUSERS));
   MainAction('aERename').Enabled := Assigned(Node) and ((Node.ImageIndex = iiForeignKey) and (Session.ServerVersion >= 40013) or (Node.ImageIndex in [iiBaseTable, iiView, iiEvent, iiTrigger, iiField]));
@@ -9863,7 +9785,6 @@ begin
   MainAction('aFExportXML').Enabled := False;
   MainAction('aFExportHTML').Enabled := False;
   MainAction('aFExportPDF').Enabled := False;
-  MainAction('aFPrint').Enabled := False;
   MainAction('aERename').Enabled := False;
   MainAction('aDCreateDatabase').Enabled := False;
   MainAction('aDCreateTable').Enabled := False;
@@ -10579,7 +10500,6 @@ begin
     MainAction('aFExportXML').Enabled := False;
     MainAction('aFExportHTML').Enabled := False;
     MainAction('aFExportPDF').Enabled := False;
-    MainAction('aFPrint').Enabled := False;
     MainAction('aECopy').Enabled := False;
     MainAction('aEPaste').Enabled := False;
     MainAction('aERename').Enabled := False;
@@ -10637,7 +10557,6 @@ begin
             MainAction('aFExportXML').Enabled := (ListView.SelCount = 0) or Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFExportHTML').Enabled := (ListView.SelCount = 0) or Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFExportPDF').Enabled := (ListView.SelCount = 0) or Assigned(Item) and (Item.ImageIndex = iiDatabase);
-            MainAction('aFPrint').Enabled := (ListView.SelCount = 0) or Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aECopy').Enabled := ListView.SelCount >= 1;
             MainAction('aEPaste').Enabled := (not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLSERVER) or Assigned(Item) and (Item.ImageIndex = iiDatabase) and Clipboard.HasFormat(CF_MYSQLDATABASE));
             MainAction('aDCreateDatabase').Enabled := (ListView.SelCount = 0) and (not Assigned(Session.UserRights) or Session.UserRights.RCreate);
@@ -10662,7 +10581,6 @@ begin
                 MainAction('aFExportXML').Enabled := MainAction('aFExportXML').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
                 MainAction('aFExportHTML').Enabled := MainAction('aFExportHTML').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
                 MainAction('aFExportPDF').Enabled := MainAction('aFExportPDF').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
-                MainAction('aFPrint').Enabled := MainAction('aFPrint').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
                 MainAction('aECopy').Enabled := MainAction('aECopy').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
                 MainAction('aDDeleteDatabase').Enabled := MainAction('aDDeleteDatabase').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
                 MainAction('aDEditDatabase').Enabled := MainAction('aDEditDatabase').Enabled and (ListView.Items[I].ImageIndex in [iiDatabase]);
@@ -10697,7 +10615,6 @@ begin
             MainAction('aFExportXML').Enabled := ((ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiView])) and (SelectedImageIndex = iiDatabase);
             MainAction('aFExportHTML').Enabled := SelectedImageIndex = iiDatabase;
             MainAction('aFExportPDF').Enabled := SelectedImageIndex = iiDatabase;
-            MainAction('aFPrint').Enabled := SelectedImageIndex = iiDatabase;
             MainAction('aECopy').Enabled := ListView.SelCount >= 1;
             MainAction('aEPaste').Enabled := (not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLDATABASE) or Assigned(Item) and ((Item.ImageIndex = iiBaseTable) and Clipboard.HasFormat(CF_MYSQLTABLE) or (Item.ImageIndex = iiView) and Clipboard.HasFormat(CF_MYSQLVIEW)));
             MainAction('aERename').Enabled := Assigned(Item) and (ListView.SelCount = 1) and (Item.ImageIndex in [iiBaseTable, iiView, iiEvent]);
@@ -10732,7 +10649,6 @@ begin
                 MainAction('aFExportXML').Enabled := MainAction('aFExportXML').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView]);
                 MainAction('aFExportHTML').Enabled := MainAction('aFExportHTML').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
                 MainAction('aFExportPDF').Enabled := MainAction('aFExportPDF').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-                MainAction('aFPrint').Enabled := MainAction('aFPrint').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
                 MainAction('aECopy').Enabled := MainAction('aECopy').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent]);
                 MainAction('aDDeleteTable').Enabled := MainAction('aDDeleteTable').Enabled and (ListView.Items[I].ImageIndex in [iiBaseTable]);
                 MainAction('aDDeleteView').Enabled := MainAction('aDDeleteView').Enabled and (ListView.Items[I].ImageIndex in [iiView]);
@@ -10778,7 +10694,6 @@ begin
             MainAction('aFExportXML').Enabled := (ListView.SelCount = 0);
             MainAction('aFExportHTML').Enabled := (ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiTrigger]);
             MainAction('aFExportPDF').Enabled := (ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiTrigger]);
-            MainAction('aFPrint').Enabled := (ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiTrigger]);
             MainAction('aECopy').Enabled := (ListView.SelCount >= 1);
             MainAction('aEPaste').Enabled := not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLTABLE);
             MainAction('aERename').Enabled := Assigned(Item) and (ListView.SelCount = 1) and ((Item.ImageIndex in [iiField, iiTrigger]) or (Item.ImageIndex = iiForeignKey) and (Session.ServerVersion >= 40013));
@@ -10804,7 +10719,6 @@ begin
                 MainAction('aFExportSQL').Enabled := MainAction('aFExportSQL').Enabled and (ListView.Items[I].ImageIndex in [iiTrigger]);
                 MainAction('aFExportHTML').Enabled := MainAction('aFExportHTML').Enabled and (ListView.Items[I].ImageIndex in [iiTrigger]);
                 MainAction('aFExportPDF').Enabled := MainAction('aFExportPDF').Enabled and (ListView.Items[I].ImageIndex in [iiTrigger]);
-                MainAction('aFPrint').Enabled := MainAction('aFPrint').Enabled and (ListView.Items[I].ImageIndex in [iiTrigger]);
                 MainAction('aDDeleteKey').Enabled := MainAction('aDDeleteKey').Enabled and (ListView.Items[I].ImageIndex in [iiKey]);
                 MainAction('aDDeleteField').Enabled := MainAction('aDDeleteField').Enabled and (ListView.Items[I].ImageIndex in [iiField]);
                 MainAction('aDDeleteForeignKey').Enabled := MainAction('aDDeleteForeignKey').Enabled and (ListView.Items[I].ImageIndex in [iiForeignKey]);
@@ -11194,10 +11108,6 @@ begin
   end;
 end;
 
-procedure TFSession.miBookmarkClick(Sender: TObject);
-begin
-end;
-
 procedure TFSession.miHOpenClick(Sender: TObject);
 begin
   Wanted.Clear();
@@ -11389,17 +11299,6 @@ begin
     FNavigatorMenuNode := FNavigator.Selected;
 
   FNavigatorSetMenuItems(Sender, FNavigatorMenuNode);
-end;
-
-procedure TFSession.MoveToAddress(const ADiff: Integer);
-begin
-  if (ADiff <> 0) then
-  begin
-    MovingToAddress := True;
-    ToolBarData.CurrentAddress := ToolBarData.CurrentAddress + ADiff;
-    Address := ToolBarData.Addresses[ToolBarData.CurrentAddress];
-    MovingToAddress := False;
-  end;
 end;
 
 procedure TFSession.MSQLEditorPopup(Sender: TObject);
@@ -12558,7 +12457,7 @@ begin
   MainAction('aJDelete').ShortCut := VK_DELETE;
   MainAction('aJEdit').ShortCut := ShortCut(VK_RETURN, [ssAlt]);
 
-  FJobsChange(Sender, FBookmarks.Selected, ctState);
+  FJobsChange(Sender, nil, ctState);
 end;
 
 procedure TFSession.PJobsExit(Sender: TObject);
@@ -12566,7 +12465,7 @@ begin
   MainAction('aJDelete').ShortCut := 0;
   MainAction('aJEdit').ShortCut := 0;
 
-  FJobsChange(Sender, FBookmarks.Selected, ctState);
+  FJobsChange(Sender, nil, ctState);
 end;
 
 procedure TFSession.PLogResize(Sender: TObject);
@@ -13541,72 +13440,12 @@ procedure TFSession.SynMemoExit(Sender: TObject);
 begin
   MainAction('aFImportSQL').Enabled := False;
   MainAction('aFExportSQL').Enabled := False;
-  MainAction('aFPrint').Enabled := False;
   MainAction('aERedo').Enabled := False;
   MainAction('aECopyToFile').Enabled := False;
   MainAction('aEPasteFromFile').Enabled := False;
 
   MainAction('aHIndex').ShortCut := ShortCut(VK_F1, []);
   MainAction('aHSQL').ShortCut := 0;
-end;
-
-procedure TFSession.SynMemoPrintExecute(Sender: TObject);
-var
-  I: Integer;
-  SynEdit: TSynEdit;
-begin
-  Wanted.Clear();
-
-  if (Window.ActiveControl is TSynMemo) then
-  begin
-    SynEdit := TSynMemo(Window.ActiveControl);
-
-    FSQLEditorPrint.SynEdit := SynEdit;
-    FSQLEditorPrint.Highlight := Assigned(SynEdit.Highlighter);
-    FSQLEditorPrint.LineNumbers := SynEdit.Gutter.Visible;
-    FSQLEditorPrint.TabWidth := SynEdit.TabWidth;
-
-    PrintDialog.Copies := 1;
-    PrintDialog.FromPage := 1;
-    PrintDialog.ToPage := FSQLEditorPrint.PageCount;
-    PrintDialog.MinPage := 1;
-    PrintDialog.MaxPage := FSQLEditorPrint.PageCount;
-    if (FSQLEditorPrint.PageCount = 1) then
-      PrintDialog.Options := PrintDialog.Options - [poPageNums]
-    else
-      PrintDialog.Options := PrintDialog.Options + [poPageNums];
-    if (SynEdit.SelText = '') then
-    begin
-      PrintDialog.Options := PrintDialog.Options - [poSelection];
-      PrintDialog.PrintRange := prAllPages;
-    end
-    else
-    begin
-      PrintDialog.Options := PrintDialog.Options + [poSelection];
-      PrintDialog.PrintRange := prSelection;
-    end;
-    if (PrintDialog.Execute()) then
-    begin
-      FSQLEditorPrint.Copies := PrintDialog.Copies;
-      if (SQLEditors[View].Filename <> '') then
-        FSQLEditorPrint.Title := ExtractFileName(SQLEditors[View].Filename)
-      else
-        FSQLEditorPrint.Title := Preferences.LoadStr(6);
-      FSQLEditorPrint.Header.Clear();
-      FSQLEditorPrint.Header.Add('$TITLE$', nil, taLeftJustify, 1);
-      FSQLEditorPrint.Header.Add('$PAGENUM$ / $PAGECOUNT$', nil, taRightJustify, 1);
-      FSQLEditorPrint.Footer.Clear();
-      FSQLEditorPrint.Footer.Add(Address, nil, taLeftJustify, 1);
-      FSQLEditorPrint.Footer.Add(SysUtils.DateTimeToStr(Now(), LocaleFormatSettings), nil, taRightJustify, 1);
-      case (PrintDialog.PrintRange) of
-        prAllPages,
-        prSelection: begin FSQLEditorPrint.SelectedOnly := PrintDialog.PrintRange = prSelection; FSQLEditorPrint.Print(); end;
-        prPageNums:
-          for I := 0 to PrintDialog.PageRangesCount - 1 do
-            FSQLEditorPrint.PrintRange(PrintDialog.PageRanges[I].FromPage, PrintDialog.PageRanges[I].ToPage);
-      end;
-    end;
-  end;
 end;
 
 procedure TFSession.SynMemoStatusChange(Sender: TObject; Changes: TSynStatusChanges);
@@ -13628,7 +13467,6 @@ begin
 
       MainAction('aFSave').Enabled := not Empty and (View in [vEditor, vEditor2, vEditor3]) and (SQLEditors[View].Filename = '');
       MainAction('aFSaveAs').Enabled := not Empty and (View in [vEditor, vEditor2, vEditor3]);
-      MainAction('aFPrint').Enabled := (View in [vEditor, vEditor2, vEditor3]) and not Empty;
       MainAction('aERedo').Enabled := ActiveSynMemo.CanRedo;
       MainAction('aECopyToFile').Enabled := (SelSQL <> '');
       MainAction('aEPasteFromFile').Enabled := (View in [vEditor, vEditor2, vEditor3]);
@@ -14054,7 +13892,6 @@ begin
   MainAction('aFExportHTML').Enabled := not Assigned(Control) or (Control is TWTable);
   MainAction('aFExportPDF').Enabled := not Assigned(Control) or (Control is TWTable);
   MainAction('aFExportBitmap').Enabled := not Assigned(Control) and Assigned(ActiveWorkbench) and (ActiveWorkbench.ControlCount > 0);
-  MainAction('aFPrint').Enabled := Assigned(ActiveWorkbench) and (ActiveWorkbench.ControlCount > 0);
   MainAction('aECopy').Enabled := Assigned(Control) and (not (Control is TWLink) or (Control is TWForeignKey));
   MainAction('aEPaste').Enabled := aEPasteEnabled;
   MainAction('aDCreateTable').Enabled := not Assigned(Control) or (Control is TWSection);
@@ -14137,7 +13974,6 @@ begin
   MainAction('aFExportHTML').Enabled := False;
   MainAction('aFExportPDF').Enabled := False;
   MainAction('aFExportBitmap').Enabled := False;
-  MainAction('aFPrint').Enabled := False;
   MainAction('aECopy').Enabled := False;
   MainAction('aDCreateTable').Enabled := False;
   MainAction('aDCreateView').Enabled := False;
@@ -14228,24 +14064,6 @@ begin
   end;
 end;
 
-procedure TFSession.WorkbenchPrintExecute(Sender: TObject);
-begin
-  Wanted.Clear();
-
-  PrintDialog.FromPage := 1;
-  PrintDialog.ToPage := 1;
-  PrintDialog.MinPage := 1;
-  PrintDialog.MaxPage := 1;
-  if (FSQLEditorPrint.PageCount = 1) then
-    PrintDialog.Options := PrintDialog.Options - [poPageNums]
-  else
-    PrintDialog.Options := PrintDialog.Options + [poPageNums];
-  PrintDialog.Options := PrintDialog.Options - [poSelection];
-  PrintDialog.PrintRange := prAllPages;
-  if (PrintDialog.Execute()) then
-    ActiveWorkbench.Print(SelectedDatabase);
-end;
-
 function TFSession.WorkbenchValidateControl(Sender: TObject; Control: TWControl): Boolean;
 var
   ChildTable: TSBaseTable;
@@ -14259,7 +14077,6 @@ begin
     begin
       DTable.Database := Control.Workbench.Database;
       DTable.Table := nil;
-      DTable.Tables := nil;
       Result := DTable.Execute();
       if (Result) then
         Wanted.Update := Session.Update;

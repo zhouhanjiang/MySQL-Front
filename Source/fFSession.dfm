@@ -114,7 +114,7 @@ object FSession: TFSession
       BevelOuter = bvLowered
       Caption = 'PJobs'
       ParentBackground = False
-      TabOrder = 4
+      TabOrder = 2
       Visible = False
       OnEnter = PJobsEnter
       OnExit = PJobsExit
@@ -155,7 +155,7 @@ object FSession: TFSession
       BevelInner = bvRaised
       BevelOuter = bvLowered
       ParentBackground = False
-      TabOrder = 2
+      TabOrder = 1
       Visible = False
       object FSQLHistory: TTreeView_Ext
         Left = 2
@@ -189,39 +189,6 @@ object FSession: TFSession
         OnKeyPress = FSQLHistoryKeyPress
         OnMouseDown = FSQLHistoryMouseDown
         OnMouseUp = TreeViewMouseUp
-      end
-    end
-    object PBookmarks: TPanel_Ext
-      Left = 0
-      Top = 0
-      Width = 120
-      Height = 234
-      Align = alClient
-      BevelInner = bvRaised
-      BevelOuter = bvLowered
-      ParentBackground = False
-      TabOrder = 1
-      Visible = False
-      object FBookmarks: TListView
-        Left = 2
-        Top = 2
-        Width = 116
-        Height = 230
-        HelpContext = 1082
-        Align = alClient
-        BorderStyle = bsNone
-        Columns = <
-          item
-            AutoSize = True
-          end>
-        ColumnClick = False
-        DragMode = dmAutomatic
-        ReadOnly = True
-        RowSelect = True
-        ShowColumnHeaders = False
-        TabOrder = 0
-        ViewStyle = vsReport
-        OnDblClick = ListViewDblClick
       end
     end
     object PNavigator: TPanel_Ext
@@ -2056,17 +2023,11 @@ object FSession: TFSession
     object miSNavigator: TMenuItem
       Caption = 'miSNavigator'
     end
-    object miSBookmarks: TMenuItem
-      Caption = 'miSBookmarks'
-    end
     object miSJobs: TMenuItem
       Caption = 'miSJobs'
     end
     object miSSQLHistory: TMenuItem
       Caption = 'miSSQLHistory'
-    end
-    object miSExplorer: TMenuItem
-      Caption = 'miSExplorer'
     end
   end
   object PrintDialog: TPrintDialog_Ext

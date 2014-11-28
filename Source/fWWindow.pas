@@ -25,10 +25,6 @@ const
 
 type
   TWWindow = class (TForm_Ext)
-    aBAdd: TAction;
-    aBDelete: TAction;
-    aBEdit: TAction;
-    aBookmark: TAction;
     ActionList: TActionList;
     aDCancel: TAction;
     aDCancelRecord: TDataSetCancel;
@@ -110,7 +106,6 @@ type
     aFImportText: TAction;
     aFOpen: TAction;
     aFOpenAccount: TAction;
-    aFPrint: TAction;
     aFSave: TAction;
     aFSaveAs: TAction;
     aHIndex: TAction;
@@ -130,7 +125,6 @@ type
     aSSearchNext: TSearchFindNext;
     aSSearchReplace: TSearchReplace_Ext;
     aVAddressBar: TAction;
-    aVBookmarks: TAction;
     aVDataBrowser: TAction;
     aVDiagram: TAction;
     aVExplorer: TAction;
@@ -212,7 +206,6 @@ type
     miEUndo: TMenuItem;
     miExtras: TMenuItem;
     miFClose: TMenuItem;
-    miFCloseAll: TMenuItem;
     miFConnect: TMenuItem;
     miFExit: TMenuItem;
     miFExport: TMenuItem;
@@ -232,7 +225,6 @@ type
     miFImportSQL: TMenuItem;
     miFImportText: TMenuItem;
     miFOpen: TMenuItem;
-    miFPrint: TMenuItem;
     miFReopen: TMenuItem;
     miFSave: TMenuItem;
     miFSaveAs: TMenuItem;
@@ -255,7 +247,6 @@ type
     miSSearchFind: TMenuItem;
     miSSearchNext: TMenuItem;
     miSSearchReplace: TMenuItem;
-    miVBookmarks: TMenuItem;
     miVBrowser: TMenuItem;
     miVDiagram: TMenuItem;
     miVExplorer: TMenuItem;
@@ -281,7 +272,6 @@ type
     N12: TMenuItem;
     N15: TMenuItem;
     N16: TMenuItem;
-    N17: TMenuItem;
     N18: TMenuItem;
     N19: TMenuItem;
     N2: TMenuItem;
@@ -863,9 +853,7 @@ begin
   aFExportXML.Caption := Preferences.LoadStr(454) + '...';
   aFExportPDF.Caption := Preferences.LoadStr(890) + '...';
   aFExportBitmap.Caption := Preferences.LoadStr(868) + '...';
-  aFPrint.Caption := Preferences.LoadStr(577) + '...';
   aFClose.Caption := Preferences.LoadStr(7);
-  aFCloseAll.Caption := Preferences.LoadStr(590);
   aFExit.Caption := Preferences.LoadStr(8);
 
   miEdit.Caption := Preferences.LoadStr(62);
@@ -898,7 +886,6 @@ begin
   aVAddressBar.Caption := Preferences.LoadStr(731);
   miVSidebar.Caption := Preferences.LoadStr(736);
   aVNavigator.Caption := Preferences.LoadStr(10);
-  aVBookmarks.Caption := Preferences.LoadStr(727);
   aVExplorer.Caption := Preferences.LoadStr(435);
   aVJobs.Caption := Preferences.LoadStr(896);
   aVSQLHistory.Caption := Preferences.LoadStr(807);
@@ -1120,7 +1107,6 @@ begin
     aVSQLEditor2.Checked := False;
     aVSQLEditor3.Checked := False;
     aVNavigator.Checked := False;
-    aVBookmarks.Checked := False;
     aVExplorer.Checked := False;
     aVJobs.Checked := False;
     aVSQLHistory.Checked := False;
@@ -1141,12 +1127,10 @@ begin
     aVSQLEditor2.Enabled := False;
     aVSQLEditor3.Enabled := False;
     aVNavigator.Enabled := False;
-    aVBookmarks.Enabled := False;
     aVExplorer.Enabled := False;
     aVJobs.Enabled := False;
     aVSQLHistory.Enabled := False;
     aVSQLLog.Enabled := False;
-    aBAdd.Enabled := False;
     aDCancel.Enabled := False;
     aDInsertRecord.Enabled := False;
     aDDeleteRecord.Enabled := False;
@@ -1540,7 +1524,6 @@ begin
   TBTabControl.Visible := Preferences.TabsVisible;
   TabControlRepaint := TList.Create();
 
-  miFPrint.Visible := False;
   aFImportAccess.Visible := (odAccess in ODBCDrivers) or (odAccess2007 in ODBCDrivers);
   aFImportExcel.Visible := (odExcel in ODBCDrivers) or (odExcel2007 in ODBCDrivers);
   aFImportODBC.Visible := ODBCEnv <> SQL_NULL_HANDLE;
@@ -1911,8 +1894,7 @@ end;
 
 procedure TWWindow.tbPropertiesClick(Sender: TObject);
 begin
-  if (ActiveTab.Address = ActiveTab.ToolBarData.Address) then
-    ActiveTab.ToolBarData.tbPropertiesAction.Execute();
+  ActiveTab.ToolBarData.tbPropertiesAction.Execute();
 end;
 
 procedure TWWindow.WMCopyData(var Message: TWMCopyData);
