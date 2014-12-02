@@ -265,7 +265,6 @@ type
     miVSQLLog: TMenuItem;
     MTabControl: TPopupMenu;
     mtFClose: TMenuItem;
-    mtFCloseAll: TMenuItem;
     mtFOpenAccount: TMenuItem;
     mtTabs: TMenuItem;
     N10: TMenuItem;

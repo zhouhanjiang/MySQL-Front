@@ -1728,9 +1728,6 @@ object WWindow: TWWindow
     object mtFClose: TMenuItem
       Action = aFClose
     end
-    object mtFCloseAll: TMenuItem
-      Action = aFCloseAll
-    end
     object N30: TMenuItem
       Caption = '-'
     end

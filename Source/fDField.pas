@@ -552,7 +552,7 @@ begin
     ModalResult := mrOk;
     Close();
   end
-  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
+  else if ((Event.EventType = etError) and (Event.Session.ErrorCode <> 0)) then
   begin
     GBasics.Visible := True;
     GAttributes.Visible := GBasics.Visible;

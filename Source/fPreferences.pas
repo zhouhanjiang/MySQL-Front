@@ -4327,7 +4327,7 @@ begin
     FXMLDocument.Options := FXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
   end;
 
-  if (not Assigned(FXMLDocument)) then
+  if (not Assigned(FXMLDocument)) then // Debug 20.11.14
     raise ERangeError.CreateFmt(SPropertyOutOfRange, ['FXMLDocument']);
 
   Result := FXMLDocument.DocumentElement;

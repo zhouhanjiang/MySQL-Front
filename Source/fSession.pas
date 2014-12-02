@@ -12156,7 +12156,7 @@ begin
     end;
   end;
 
-  if (Assigned(DataSet) and (DataSet.FieldCount > 0) and Assigned(DatabaseByName(OriginalDatabaseName))) then
+  if (Assigned(DataSet) and Assigned(DatabaseByName(OriginalDatabaseName))) then
   begin
     IndexDefs.Clear();
     Table := DatabaseByName(OriginalDatabaseName).BaseTableByName(OriginalTableName);
@@ -12164,15 +12164,14 @@ begin
       for I := 0 to Table.Keys.Count - 1 do
       begin
         Found := True;
-        if (Assigned(Table.Keys[I].Columns)) then
-          for J := 0 to Table.Keys[I].Columns.Count - 1 do
-            if (Found and Assigned(DataSet.Fields[J])) then
-            begin
-              Found := False;
-              for K := 0 to DataSet.FieldCount - 1 do
-                if (GetFieldInfo(DataSet.Fields[K].Origin, FieldInfo)) then
-                  Found := Found or (FieldInfo.OriginalFieldName = Table.Keys[I].Columns[J].Field.Name);
-            end;
+        for J := 0 to Table.Keys[I].Columns.Count - 1 do
+          if (Found) then
+          begin
+            Found := False;
+            for K := 0 to DataSet.FieldCount - 1 do
+              if (GetFieldInfo(DataSet.Fields[K].Origin, FieldInfo)) then
+                Found := Found or (FieldInfo.OriginalFieldName = Table.Keys[I].Columns[J].Field.Name);
+          end;
         if (Found) then
         begin
           IndexDef := IndexDefs.AddIndexDef();
