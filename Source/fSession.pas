@@ -1296,13 +1296,13 @@ type
 
   TSUser = class(TSObject)
   private
-    FConnectionsPerHour: Integer;
+    FConnectionsPerHour: Int64;
     FNewPassword: string;
-    FQueriesPerHour: Integer;
+    FQueriesPerHour: Int64;
     FRawPassword: string;
     FRights: TList;
-    FUserConnections: Integer;
-    FUpdatesPerHour: Integer;
+    FUserConnections: Int64;
+    FUpdatesPerHour: Int64;
     function GetHost(): string;
     function GetLogin(): string;
     function GetRight(Index: Integer): TSUserRight; inline;
@@ -1328,18 +1328,18 @@ type
     function RightByCaption(const Caption: string): TSUserRight;
     function Update(): Boolean; override;
     function UpdateRight(const UserRight,  NewUserRight: TSUserRight): Boolean;
-    property ConnectionsPerHour: Integer read FConnectionsPerHour write FConnectionsPerHour;
+    property ConnectionsPerHour: Int64 read FConnectionsPerHour write FConnectionsPerHour;
     property Host: string read GetHost;
     property Login: string read GetLogin;
     property NewPassword: string read FNewPassword write FNewPassword;
-    property QueriesPerHour: Integer read FQueriesPerHour write FQueriesPerHour;
+    property QueriesPerHour: Int64 read FQueriesPerHour write FQueriesPerHour;
     property RawPassword: string read FRawPassword write FRawPassword;
     property Right[Index: Integer]: TSUserRight read GetRight;
     property RightCount: Integer read GetRightCount;
     property SlowSQLLog: string read GetSlowSQLLog;
     property SQLLog: string read GetSQLLog;
-    property UpdatesPerHour: Integer read FUpdatesPerHour write FUpdatesPerHour;
-    property UserConnections: Integer read FUserConnections write FUserConnections;
+    property UpdatesPerHour: Int64 read FUpdatesPerHour write FUpdatesPerHour;
+    property UserConnections: Int64 read FUserConnections write FUserConnections;
     property Users: TSUsers read GetUsers;
   end;
 
@@ -9758,13 +9758,13 @@ begin
           if (SQLParseKeyword(Parse, 'GRANT OPTION')) then
             Grant := True
           else if (SQLParseKeyword(Parse, 'MAX_QUERIES_PER_HOUR')) then
-            QueriesPerHour := StrToInt(SQLParseValue(Parse))
+            QueriesPerHour := StrToInt64(SQLParseValue(Parse))
           else if (SQLParseKeyword(Parse, 'MAX_UPDATES_PER_HOUR')) then
-            UpdatesPerHour := StrToInt(SQLParseValue(Parse))
+            UpdatesPerHour := StrToInt64(SQLParseValue(Parse))
           else if (SQLParseKeyword(Parse, 'MAX_CONNECTIONS_PER_HOUR')) then
-            ConnectionsPerHour := StrToInt(SQLParseValue(Parse))
+            ConnectionsPerHour := StrToInt64(SQLParseValue(Parse))
           else if (SQLParseKeyword(Parse, 'MAX_USER_CONNECTIONS')) then
-            UserConnections := StrToInt(SQLParseValue(Parse))
+            UserConnections := StrToInt64(SQLParseValue(Parse))
           else
             SQLParseValue(Parse);
         until (SQLParseChar(Parse, ';', False) or SQLParseEnd(Parse));
