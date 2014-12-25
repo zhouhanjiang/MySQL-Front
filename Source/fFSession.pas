@@ -2359,8 +2359,8 @@ begin
     end;
 
     ToolBarData.Caption := AddressToCaption(Address);
-
     ToolBarData.View := View;
+    Window.Perform(CM_UPDATETOOLBAR, 0, LPARAM(Self));
 
     if (Assigned(FNavigator.Selected) and (FNavigator.Selected <> LastFNavigatorSelected)) then
     begin

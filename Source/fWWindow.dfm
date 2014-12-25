@@ -781,6 +781,7 @@ object WWindow: TWWindow
       Caption = 'aSSearchFindNext'
       Enabled = False
       HelpContext = 1034
+      HelpType = htContext
       SearchFind = aSSearchFind
       ShortCut = 114
     end
@@ -788,6 +789,8 @@ object WWindow: TWWindow
       Category = 'Search'
       Caption = 'aSGoto'
       Enabled = False
+      HelpContext = 1149
+      HelpType = htContext
       ShortCut = 16455
     end
     object aDCreateDatabase: TAction
