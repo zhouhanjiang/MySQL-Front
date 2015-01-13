@@ -47,9 +47,9 @@
 
 	function FileRead($Handle, $Length) {
 		$Data = '';
-		while ((strlen($Data) < $Length) && ! feof($Input))
+		while ((strlen($Data) < $Length) && ! feof($Handle))
 			$Data .= fread($Handle, $Length - strlen($Data));
-			
+
 		return $Data;
 	}
 
