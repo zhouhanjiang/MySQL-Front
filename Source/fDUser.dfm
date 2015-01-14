@@ -352,6 +352,7 @@ object DUser: TDUser
         RightEdgeColor = clWindow
         ScrollHintFormat = shfTopToBottom
         WantReturns = False
+        FontSmoothing = fsmNone
       end
     end
     object TSSlowSQLLog: TTabSheet
@@ -389,6 +390,7 @@ object DUser: TDUser
         RightEdgeColor = clWindow
         ScrollHintFormat = shfTopToBottom
         WantReturns = False
+        FontSmoothing = fsmNone
       end
     end
     object TSSource: TTabSheet
@@ -426,6 +428,7 @@ object DUser: TDUser
         RightEdgeColor = clWindow
         ScrollHintFormat = shfTopToBottom
         WantReturns = False
+        FontSmoothing = fsmNone
       end
     end
   end

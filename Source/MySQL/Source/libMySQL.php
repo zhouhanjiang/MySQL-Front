@@ -8,7 +8,7 @@
 
 	/****************************************************************************/
 
-	$MF_VERSION = 19;
+	$MF_VERSION = 20;
 
 	$Charsets = array(
 		'big5' => 1,
@@ -49,7 +49,7 @@
 		$Data = '';
 		while ((strlen($Data) < $Length) && ! feof($Handle))
 			$Data .= fread($Handle, $Length - strlen($Data));
-
+		
 		return $Data;
 	}
 

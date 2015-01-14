@@ -308,6 +308,7 @@ object DRoutine: TDRoutine
         Options = [eoDragDropEditing, eoGroupUndo, eoHideShowScrollbars, eoShowScrollHint, eoSmartTabDelete, eoTabIndent, eoTabsToSpaces]
         ScrollHintFormat = shfTopToBottom
         OnChange = FSourceChange
+        FontSmoothing = fsmNone
       end
     end
   end

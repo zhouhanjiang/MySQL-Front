@@ -343,8 +343,6 @@ begin
 
     NewDatabase.Free();
 
-    PageControl.Visible := CanClose;
-    PSQLWait.Visible := not PageControl.Visible;
     if (not CanClose) then
       ModalResult := mrNone;
 

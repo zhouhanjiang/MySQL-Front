@@ -3948,7 +3948,11 @@ begin
   if (not Assigned(FDesktopXMLDocument)) then
   begin
     if (FileExists(DesktopFilename)) then
-      FDesktopXMLDocument := LoadXMLDocument(DesktopFilename);
+      try
+        FDesktopXMLDocument := LoadXMLDocument(DesktopFilename);
+      except
+        FDesktopXMLDocument := nil;
+      end;
 
     if (not Assigned(FDesktopXMLDocument) or not Assigned(FDesktopXMLDocument.DocumentElement)) then
     begin

@@ -188,6 +188,7 @@ var
   InternetError: Longint;
   ObjectName: string;
   pvData: Pointer;
+  QueryInfo: array [0..2048] of Char;
   S: string;
   Size: DWord;
   StatusCode: array [0..4] of Char;
@@ -264,17 +265,17 @@ begin
               HTTP_STATUS_FORBIDDEN:
                 begin
                   Seterror(CR_HTTPTUNNEL_ACCESS_DENIED_ERROR, RawByteString(StatusCode));
-                  Size := SizeOf(Buffer); Index := 0;
-                  if (HttpQueryInfo(Request, HTTP_QUERY_STATUS_TEXT, @Buffer, Size, Index)) then
-                    Seterror(CR_HTTPTUNNEL_ACCESS_DENIED_ERROR, error() + ' ' + RawByteString(Buffer));
+                  Size := SizeOf(QueryInfo); Index := 0;
+                  if (HttpQueryInfo(Request, HTTP_QUERY_STATUS_TEXT, @QueryInfo, Size, Index)) then
+                    Seterror(CR_HTTPTUNNEL_ACCESS_DENIED_ERROR, error() + ' ' + RawByteString(QueryInfo));
                 end;
               HTTP_STATUS_REDIRECT,
               HTTP_STATUS_REDIRECT_METHOD:
                 begin
-                  Size := SizeOf(Buffer); Index := 0;
-                  if (HttpQueryInfo(Request, HTTP_QUERY_LOCATION, @Buffer, Size, Index)) then
+                  Size := SizeOf(QueryInfo); Index := 0;
+                  if (HttpQueryInfo(Request, HTTP_QUERY_LOCATION, @QueryInfo, Size, Index)) then
                   begin
-                    SetString(ObjectName, PChar(@Buffer), Size);
+                    SetString(ObjectName, PChar(@QueryInfo), Size);
                     SetString(S, URLComponents.lpszExtraInfo, URLComponents.dwExtraInfoLength);
                     if (S <> '') then
                       ObjectName := ObjectName + S;
@@ -285,10 +286,10 @@ begin
                 Seterror(CR_HTTPTUNNEL_NOT_FOUND, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_NOT_FOUND - CR_HTTPTUNNEL_UNKNOWN_ERROR], [ObjectName])));
               HTTP_STATUS_OK:
                 begin
-                  Size := SizeOf(Buffer);
-                  if (HttpQueryInfo(Request, HTTP_QUERY_CONTENT_TYPE, @Buffer, Size, Index) and (LowerCase(Buffer) <> 'application/mysql-front')) then
+                  Size := SizeOf(QueryInfo);
+                  if (HttpQueryInfo(Request, HTTP_QUERY_CONTENT_TYPE, @QueryInfo, Size, Index) and (LowerCase(QueryInfo) <> 'application/mysql-front')) then
                     if (not Receive(Buffer, SizeOf(Buffer)) or (Size = 0)) then
-                      Seterror(CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR - CR_HTTPTUNNEL_UNKNOWN_ERROR], [Buffer])))
+                      Seterror(CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR - CR_HTTPTUNNEL_UNKNOWN_ERROR], [QueryInfo])))
                     else
                     begin
                       SetString(S, PChar(@Buffer), Size);
@@ -297,11 +298,11 @@ begin
                 end;
               else
                 begin
-                  Size := SizeOf(Buffer); Index := 0;
-                  if (not HttpQueryInfo(Request, HTTP_QUERY_STATUS_TEXT, @Buffer, Size, Index)) then
+                  Size := SizeOf(QueryInfo); Index := 0;
+                  if (not HttpQueryInfo(Request, HTTP_QUERY_STATUS_TEXT, @QueryInfo, Size, Index)) then
                     Seterror(CR_HTTPTUNNEL_SERVER_ERROR, RawByteString(StatusCode))
                   else
-                    Seterror(CR_HTTPTUNNEL_SERVER_ERROR, RawByteString(StatusCode) + ' ' + RawByteString(Buffer));
+                    Seterror(CR_HTTPTUNNEL_SERVER_ERROR, RawByteString(StatusCode) + ' ' + RawByteString(QueryInfo));
                 end;
             end;
           end;

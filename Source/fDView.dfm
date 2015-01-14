@@ -135,6 +135,7 @@ object DView: TDView
           RightEdgeColor = clWindow
           ScrollHintFormat = shfTopToBottom
           OnChange = FStmtChange
+          FontSmoothing = fsmNone
         end
         object FCheckOptionCascade: TCheckBox
           Left = 136
@@ -354,6 +355,7 @@ object DView: TDView
         WantReturns = False
         OnChange = FSourceChange
         OnStatusChange = FSourceStatusChange
+        FontSmoothing = fsmNone
       end
     end
   end

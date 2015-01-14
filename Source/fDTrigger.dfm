@@ -197,6 +197,7 @@ object DTrigger: TDTrigger
           Options = [eoAutoIndent, eoDragDropEditing, eoGroupUndo, eoHideShowScrollbars, eoShowScrollHint, eoSmartTabDelete, eoSmartTabs, eoTabsToSpaces, eoTrimTrailingSpaces]
           RightEdgeColor = clWindow
           OnChange = FStatementChange
+          FontSmoothing = fsmNone
         end
       end
     end
@@ -300,6 +301,7 @@ object DTrigger: TDTrigger
         RightEdgeColor = clWindow
         ScrollHintFormat = shfTopToBottom
         WantReturns = False
+        FontSmoothing = fsmNone
       end
     end
   end

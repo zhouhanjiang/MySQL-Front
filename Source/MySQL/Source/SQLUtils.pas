@@ -2277,9 +2277,9 @@ end;
 
 function SQLStmtLength(const SQL: PChar; const Length: Integer; const Delimited: PBoolean = nil): Integer;
 label
-  Start,
+  Start, Start2,
   StmtL, StmtLE,
-  Body, Body2, BodyL, BodyCase, BodyIf, BodyLoop, BodyRepeat, BodyWhile, BodyEnd,
+  Body, BodyL, BodyCase, BodyIf, BodyLoop, BodyRepeat, BodyWhile, BodyEnd,
   BodyChar, BodyCharTL, BodyCharE,
   BodyEndCase, BodyEndIf, BodyEndLoop, BodyEndRepeat, BodyEndWhile, BodyEndCompound, BodyLE,
   Complete, Complete2, Complete3, Complete4,
@@ -2326,7 +2326,12 @@ begin
       // -------------------
 
       Start:
+        MOV CaseDeep,0
         MOV CompoundDeep,0
+        MOV IfDeep,0
+        MOV LoopDeep,0
+        MOV RepeatDeep,0
+        MOV WhileDeep,0
 
         CALL Trim
         CMP ECX,0                        // End of SQL?
@@ -2337,11 +2342,17 @@ begin
         MOV EAX,[KCreate]
         CALL CompareKeyword              // 'CREATE'?
         JE Body
+        MOV EAX,[KIf]
+        CALL CompareKeyword              // 'IF'?
+        JNE Start2
+        MOV IfDeep,1
+        JMP Body
+      Start2:
         MOV EAX,[KBegin]
         CALL CompareKeyword              // 'BEGIN'?
         JNE StmtL                        // No!
         MOV CompoundDeep,1
-        JMP Body2
+        JMP BodyL
 
       // -------------------
 
@@ -2367,15 +2378,8 @@ begin
         CALL CompareKeyword              // 'TABLE'?
         JE StmtL
         MOV EAX,[KDatabase]
-        CALL CompareKeyword              // 'TABLE'?
+        CALL CompareKeyword              // 'DATABASE'?
         JE StmtL
-
-      Body2:
-        MOV CaseDeep,0
-        MOV IfDeep,0
-        MOV LoopDeep,0
-        MOV RepeatDeep,0
-        MOV WhileDeep,0
 
       BodyL:
         CALL Trim                        // Empty characters?

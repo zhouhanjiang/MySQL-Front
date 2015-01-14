@@ -229,6 +229,7 @@ object DEvent: TDEvent
           RightEdgeColor = clWindow
           ScrollHintFormat = shfTopToBottom
           OnChange = FBOkCheckEnabled
+          FontSmoothing = fsmNone
         end
         object FEnabled: TCheckBox
           Left = 152
@@ -632,6 +633,7 @@ object DEvent: TDEvent
         RightEdgeColor = clWindow
         ScrollHintFormat = shfTopToBottom
         WantReturns = False
+        FontSmoothing = fsmNone
       end
     end
   end
