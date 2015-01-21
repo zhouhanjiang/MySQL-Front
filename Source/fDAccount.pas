@@ -17,11 +17,13 @@ type
     FBDatabase: TButton;
     FBHelp: TButton;
     FBOk: TButton;
+    FCharset: TComboBox;
     FConnectionType: TComboBox_Ext;
     FDatabase: TEdit;
     FHost: TEdit;
     FHTTPTunnelURI: TEdit;
     FLConnectionType: TLabel;
+    FLCharset: TLabel;
     FLDatabase: TLabel;
     FLHost: TLabel;
     FLHTTPTunnelURI: TLabel;
@@ -54,6 +56,7 @@ type
     procedure FormResize(Sender: TObject);
     procedure FormCanResize(Sender: TObject; var NewWidth, NewHeight: Integer;
       var Resize: Boolean);
+    procedure FCharsetDropDown(Sender: TObject);
   private
     function CheckConnectInfos(): Boolean;
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
@@ -130,6 +133,7 @@ begin
   FLUser.Caption := Preferences.LoadStr(561) + ':';
   FLPassword.Caption := Preferences.LoadStr(40) + ':';
   FLDatabase.Caption := Preferences.LoadStr(38) + ':';
+  FLCharset.Caption := Preferences.LoadStr(682) + ':';
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBOk.Caption := Preferences.LoadStr(29);
@@ -188,6 +192,44 @@ end;
 procedure TDAccount.FBHelpClick(Sender: TObject);
 begin
   Application.HelpContext(HelpContext)
+end;
+
+procedure TDAccount.FCharsetDropDown(Sender: TObject);
+var
+  I: Integer;
+  LibraryName: string;
+  Session: TSSession;
+begin
+  if ((FCharset.Items.Count = 0) and CheckConnectInfos()) then
+  begin
+    Session := TSSession.Create(Sessions);
+    if (Assigned(Session)) then
+    begin
+      case (FConnectionType.ItemIndex) of
+        0: LibraryName := '';
+        1: LibraryName := FLibraryFilename.Text;
+        2: LibraryName := FHTTPTunnelURI.Text;
+      end;
+
+      Session.BeginSilent();
+      Session.BeginSynchron();
+      Session.FirstConnect(FConnectionType.ItemIndex, LibraryName, FHost.Text, FUser.Text, FPassword.Text, '', FUDPort.Position, True);
+      if (Session.ErrorCode <> 0) then
+        Session.OnSQLError(Session, Session.ErrorCode, Session.ErrorMessage)
+      else if (Session.Connected and Session.Update()) then
+      begin
+        for I := 0 to Session.Charsets.Count - 1 do
+          FCharset.Items.Add(Session.Charsets.Charset[I].Name);
+        FCharset.ItemIndex := FCharset.Items.IndexOf(Session.Charset);
+      end;
+      Session.EndSynchron();
+      Session.EndSilent();
+
+      Session.Free();
+    end;
+
+    ActiveControl := FCharset;
+  end;
 end;
 
 procedure TDAccount.FConnectionTypeChange(Sender: TObject);
@@ -290,6 +332,7 @@ begin
       NewAccount.Connection.Username := Trim(FUser.Text);
       NewAccount.Connection.Password := Trim(FPassword.Text);
       NewAccount.Connection.Database := ReplaceStr(Trim(FDatabase.Text), ';', ',');
+      NewAccount.Connection.Charset := Trim(FCharset.Text);
 
       Username := NewAccount.Connection.Username;
       Password := NewAccount.Connection.Password;
@@ -357,6 +400,7 @@ begin
     FUser.Text := 'root';
     FPassword.Text := '';
     FDatabase.Text := '';
+    FCharset.Text := '';
   end
   else
   begin
@@ -382,6 +426,7 @@ begin
     FUser.Text := Username;
     FPassword.Text := Password;
     FDatabase.Text := Account.Connection.Database;
+    FCharset.Text := Account.Connection.Charset;
   end;
 
 

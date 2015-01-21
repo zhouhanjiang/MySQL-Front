@@ -1858,7 +1858,7 @@ begin
       DataSet.Free();
     end;
 
-    SQL := 'SET UNIQUE_CHECKS=0,FOREIGN_KEY_CHECKS=0;';
+    SQL := 'SET UNIQUE_CHECKS=OFF,FOREIGN_KEY_CHECKS=OFF;';
     while ((Success <> daAbort) and not Session.ExecuteSQL(SQL)) do
       DoError(DatabaseError(Session), nil, True, SQL);
   end;
@@ -7693,7 +7693,7 @@ begin
       DataSet.Free();
     end;
 
-    SQL := 'SET UNIQUE_CHECKS=0, FOREIGN_KEY_CHECKS=0;';
+    SQL := 'SET UNIQUE_CHECKS=OFF, FOREIGN_KEY_CHECKS=OFF;';
     while ((Success <> daAbort) and not DestinationSession.ExecuteSQL(SQL)) do
       DoError(DatabaseError(DestinationSession), nil, True, SQL);
   end;

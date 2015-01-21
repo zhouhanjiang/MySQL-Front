@@ -5670,7 +5670,9 @@ begin
         Parameter.ParseFieldType(Parse);
 
         if (SQLParseKeyword(Parse, 'CHARSET')) then
-          Parameter.Charset := SQLParseValue(Parse);
+          Parameter.Charset := SQLParseValue(Parse)
+        else if (SQLParseKeyword(Parse, 'BINARY')) then
+          Parameter.Charset := 'BINARY';
 
         SQLParseChar(Parse, ',');
       end;
@@ -10751,6 +10753,7 @@ begin
   Connected := False;
 
   Asynchron := True;
+  Charset := Account.Connection.Charset;
   FDatabaseName := Account.GetDefaultDatabase();
   case (Account.Connection.LibraryType) of
     ltBuiltIn: LibraryName := '';

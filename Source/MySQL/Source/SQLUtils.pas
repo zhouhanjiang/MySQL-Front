@@ -2277,8 +2277,8 @@ end;
 
 function SQLStmtLength(const SQL: PChar; const Length: Integer; const Delimited: PBoolean = nil): Integer;
 label
-  Start, Start2,
-  StmtL, StmtLE,
+  Start, StartCase, StartIf, StartLoop, StartRepeat, StartWhile, StartCompound,
+  SimpelStmtL, SimpelStmtLE,
   Body, BodyL, BodyCase, BodyIf, BodyLoop, BodyRepeat, BodyWhile, BodyEnd,
   BodyChar, BodyCharTL, BodyCharE,
   BodyEndCase, BodyEndIf, BodyEndLoop, BodyEndRepeat, BodyEndWhile, BodyEndCompound, BodyLE,
@@ -2333,7 +2333,7 @@ begin
         MOV RepeatDeep,0
         MOV WhileDeep,0
 
-        CALL Trim
+        CALL Trim                        // Ignore empty characters
         CMP ECX,0                        // End of SQL?
         JE Finish                        // Yes!
         MOV EAX,[KAlter]
@@ -2342,32 +2342,57 @@ begin
         MOV EAX,[KCreate]
         CALL CompareKeyword              // 'CREATE'?
         JE Body
-        MOV EAX,[KIf]
-        CALL CompareKeyword              // 'IF'?
-        JNE Start2
-        MOV IfDeep,1
-        JMP Body
-      Start2:
+
         MOV EAX,[KBegin]
         CALL CompareKeyword              // 'BEGIN'?
-        JNE StmtL                        // No!
+        JNE StartCase                    // No!
         MOV CompoundDeep,1
+        JMP BodyL
+      StartCase:
+        MOV EAX,[KCase]
+        CALL CompareKeyword              // 'CASE'?
+        JNE StartIf                      // No!
+        MOV CaseDeep,1
+        JMP BodyL
+      StartIf:
+        MOV EAX,[KIf]
+        CALL CompareKeyword              // 'IF'?
+        JNE StartLoop                    // No!
+        MOV IfDeep,1
+        JMP BodyL
+      StartLoop:
+        MOV EAX,[KLoop]
+        CALL CompareKeyword              // 'LOOP'?
+        JNE StartRepeat                  // No!
+        MOV LoopDeep,1
+        JMP BodyL
+      StartRepeat:
+        MOV EAX,[KRepeat]
+        CALL CompareKeyword              // 'REPEAT'?
+        JNE StartWhile                   // No!
+        MOV RepeatDeep,1
+        JMP BodyL
+      StartWhile:
+        MOV EAX,[KWhile]
+        CALL CompareKeyword              // 'WHILE'?
+        JNE SimpelStmtL                  // No!
+        MOV WhileDeep,1
         JMP BodyL
 
       // -------------------
 
-      StmtL:
+      SimpelStmtL:
         CALL Trim                        // Empty characters?
-        JE StmtLE                        // Yes!
+        JE SimpelStmtLE                  // Yes!
         CALL MoveString                  // Quoted string?
-        JE StmtLE                        // Yes!
+        JE SimpelStmtLE                  // Yes!
         LODSW                            // Character -> AX
         DEC ECX                          // One character handled
         CMP AX,';'                       // SQL Delimiter?
         JE Complete                      // Yes!
-      StmtLE:
+      SimpelStmtLE:
         CMP ECX,0                        // All characters handled?
-        JNZ StmtL                        // No!
+        JNZ SimpelStmtL                  // No!
         JMP Finish
 
       // -------------------
@@ -2376,10 +2401,10 @@ begin
         CALL Trim                        // Empty characters?
         MOV EAX,[KTable]
         CALL CompareKeyword              // 'TABLE'?
-        JE StmtL
+        JE SimpelStmtL                   // Yes!
         MOV EAX,[KDatabase]
         CALL CompareKeyword              // 'DATABASE'?
-        JE StmtL
+        JE SimpelStmtL                   // Yes!
 
       BodyL:
         CALL Trim                        // Empty characters?

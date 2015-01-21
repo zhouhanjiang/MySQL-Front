@@ -1540,7 +1540,7 @@ begin
     Field.table := MYSQL_FIELD_40000(RawField)^.table;
     Field.org_table := MYSQL_FIELD_40000(RawField)^.org_table;
     if (Version = 40017) then
-      Field.db := nil // libMySQL.dll 4.0.17 gibt db einen fehlerhaften Zeiger zurück.
+      Field.db := nil // libMySQL.dll 4.0.17 gives back an invalid pointer 
     else
       Field.db := MYSQL_FIELD_40000(RawField)^.db;
     Field.catalog := nil;

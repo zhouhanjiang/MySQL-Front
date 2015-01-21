@@ -665,6 +665,7 @@ type
     procedure SaveToXML(); virtual;
     property XML: IXMLNode read GetXML;
   public
+    Charset: string;
     Database: string;
     Host: string;
     HTTPTunnelURI: string;
@@ -3696,6 +3697,7 @@ end;
 
 procedure TAConnection.Assign(const Source: TAConnection);
 begin
+  Charset := Source.Charset;
   Database := Source.Database;
   Host := Source.Host;
   HTTPTunnelURI := Source.HTTPTunnelURI;
@@ -3714,6 +3716,7 @@ begin
   FAccount := AAccount;
   FXML := nil;
 
+  Charset := '';
   Database := '';
   Host := '';
   HTTPTunnelURI := '';
@@ -3737,6 +3740,7 @@ procedure TAConnection.LoadFromXML();
 begin
   if (Assigned(XML)) then
   begin
+    if (Assigned(XMLNode(XML, 'charset'))) then Charset := XMLNode(XML, 'charset').Text;
     if (Assigned(XMLNode(XML, 'database'))) then Database := XMLNode(XML, 'database').Text;
     if (Assigned(XMLNode(XML, 'host'))) then Host := XMLNode(XML, 'host').Text;
     if (Assigned(XMLNode(XML, 'library/type'))) then
@@ -3756,6 +3760,7 @@ end;
 
 procedure TAConnection.SaveToXML();
 begin
+  XMLNode(XML, 'charset').Text := Charset;
   XMLNode(XML, 'database').Text := Database;
   XMLNode(XML, 'host').Text := Host;
   case (LibraryType) of
