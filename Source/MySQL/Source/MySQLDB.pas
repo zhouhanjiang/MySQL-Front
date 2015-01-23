@@ -3084,6 +3084,7 @@ end;
 procedure TMySQLConnection.SyncConnecting(const LibraryThread: TLibraryThread);
 var
   ClientFlag: my_uint;
+  S: string;
   SQL: string;
 begin
   if (not Assigned(LibraryThread.LibHandle)) then
@@ -3148,6 +3149,21 @@ begin
 
     if (Lib.mysql_real_query(LibraryThread.LibHandle, my_char(AnsiString(SQL)), Length(SQL)) = 0) then
       Lib.mysql_use_result(LibraryThread.LibHandle);
+  end;
+
+  if (Lib.mysql_get_server_version(LibraryThread.LibHandle) >= 50503) then
+  begin
+    S := '# ' + SysUtils.DateTimeToStr(Now() + TimeDiff, FormatSettings);
+    WriteMonitor(PChar(S), Length(S), ttTime);
+
+    SQL := 'SET NAMES utf8mb4';
+    WriteMonitor(PChar(SQL), Length(SQL), ttRequest);
+    if (Lib.mysql_real_query(LibraryThread.LibHandle, my_char(AnsiString(SQL)), Length(SQL)) = 0) then
+    begin
+      Lib.mysql_use_result(LibraryThread.LibHandle);
+      S := '--> Character set selected: utf8mb4';
+      WriteMonitor(PChar(S), Length(S), ttInfo);
+    end;
   end;
 end;
 

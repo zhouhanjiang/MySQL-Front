@@ -5,7 +5,7 @@ object DAccount: TDAccount
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'DAccount'
-  ClientHeight = 393
+  ClientHeight = 362
   ClientWidth = 313
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -23,12 +23,12 @@ object DAccount: TDAccount
   OnShow = FormShow
   DesignSize = (
     313
-    393)
+    362)
   PixelsPerInch = 106
   TextHeight = 13
   object FBOk: TButton
     Left = 142
-    Top = 360
+    Top = 328
     Width = 75
     Height = 25
     Anchors = [akRight, akBottom]
@@ -39,7 +39,7 @@ object DAccount: TDAccount
   end
   object FBCancel: TButton
     Left = 230
-    Top = 360
+    Top = 328
     Width = 75
     Height = 25
     Anchors = [akRight, akBottom]
@@ -82,13 +82,13 @@ object DAccount: TDAccount
     Left = 8
     Top = 55
     Width = 297
-    Height = 162
+    Height = 130
     Anchors = [akLeft, akTop, akRight]
     Caption = 'GConnection'
     TabOrder = 5
     DesignSize = (
       297
-      162)
+      130)
     object FLHost: TLabel
       Left = 8
       Top = 19
@@ -131,18 +131,10 @@ object DAccount: TDAccount
       FocusControl = FLibraryFilename
       Visible = False
     end
-    object FLCharset: TLabel
-      Left = 8
-      Top = 131
-      Width = 48
-      Height = 13
-      Caption = 'FLCharset'
-      FocusControl = FCharset
-    end
     object FHTTPTunnelURI: TEdit
       Left = 128
       Top = 96
-      Width = 157
+      Width = 161
       Height = 21
       Anchors = [akLeft, akTop, akRight]
       TabOrder = 5
@@ -200,18 +192,10 @@ object DAccount: TDAccount
       TabOrder = 2
       Thousands = False
     end
-    object FCharset: TComboBox
-      Left = 128
-      Top = 128
-      Width = 157
-      Height = 21
-      TabOrder = 6
-      OnDropDown = FCharsetDropDown
-    end
   end
   object GLogin: TGroupBox_Ext
     Left = 8
-    Top = 223
+    Top = 191
     Width = 297
     Height = 117
     Anchors = [akLeft, akTop, akRight]
@@ -288,7 +272,7 @@ object DAccount: TDAccount
   end
   object FBHelp: TButton
     Left = 8
-    Top = 360
+    Top = 328
     Width = 75
     Height = 25
     Anchors = [akLeft, akBottom]

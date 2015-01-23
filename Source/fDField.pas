@@ -846,13 +846,13 @@ begin
 
     if (Field.Charset = '') then
     begin
-      FCharset.ItemIndex := FCharset.Items.IndexOf(Table.DefaultCharset); FCharsetChange(Sender);
-      FCollation.ItemIndex := FCollation.Items.IndexOf(Field.Collation);
+      FCharset.ItemIndex := FCharset.Items.IndexOf(Table.DefaultCharset);
+      FCharsetChange(Sender);
     end
     else
     begin
-      FCharset.ItemIndex := FCharset.Items.IndexOf(Field.Charset); FCharsetChange(Sender);
-      FCollation.ItemIndex := FCollation.Items.IndexOf(Field.Collation);
+      FCharset.ItemIndex := FCharset.Items.IndexOf(Field.Charset);
+      FCharsetChange(Sender);
     end;
 
     FFlagUnsigned.Checked := Field.Unsigned;

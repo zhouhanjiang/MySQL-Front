@@ -2605,7 +2605,7 @@ begin
       Result := Result + '(' + IntToStr(Size) + ')'
     else
   else
-    if (Size > 0)then Result := Result + '(' + IntToStr(Size) + ')';
+    if (Size > 0) then Result := Result + '(' + IntToStr(Size) + ')';
 
   if (FieldType in [mfTinyInt, mfSmallInt, mfMediumInt, mfInt, mfBigInt, mfFloat, mfDouble, mfDecimal]) then
     if (Unsigned) then Result := Result + ' unsigned';
@@ -10753,7 +10753,6 @@ begin
   Connected := False;
 
   Asynchron := True;
-  Charset := Account.Connection.Charset;
   FDatabaseName := Account.GetDefaultDatabase();
   case (Account.Connection.LibraryType) of
     ltBuiltIn: LibraryName := '';
