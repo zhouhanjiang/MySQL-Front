@@ -192,6 +192,7 @@ type
     function next_result(): my_int; override;
     function options(option: enum_mysql_option; const arg: my_char): my_int; virtual;
     function ping(): my_int; virtual;
+    function query(const q: my_char): my_int;
     function real_connect(host, user, passwd, db: my_char; port: my_uint; unix_socket: my_char; client_flag: my_uint): MYSQL; virtual;
     function real_escape_string(_to: my_char; const from: my_char; length: my_uint): my_uint; virtual;
     function real_query(query: my_char; length: my_int): my_int; virtual;
@@ -764,7 +765,7 @@ end;
 
 function mysql_query(mysql: MYSQL; const q: my_char): my_int; stdcall;
 begin
-  Result := mysql.real_query(q, StrLen(q));
+  Result := mysql.query(q);
 end;
 
 function mysql_real_connect(mysql: MYSQL; host, user, passwd, db: my_char; port: my_uint; unix_socket: my_char; client_flag: my_uint): MYSQL; stdcall;
@@ -2257,6 +2258,11 @@ begin
   until ((errno() <> 0) or not Assigned(Ares.CurrentRow));
 end;
 
+function MYSQL.query(const q: my_char): my_int;
+begin
+  Result := real_query(q, StrLen(q));
+end;
+
 function MYSQL.real_connect(host, user, passwd, db: my_char; port: my_uint; unix_socket: my_char; client_flag: my_uint): MYSQL;
 var
   CharsetNr: my_uint;
@@ -2664,27 +2670,13 @@ begin
 end;
 
 function MYSQL.set_character_set(const csname: my_char): my_int;
-var
-  I: my_int;
-  SQL: RawByteString;
 begin
-  if (get_server_version() < 40101) then
+  if ((get_server_version() < 40101) or (fcharacter_set_name = csname)) then
     Result := 0
   else
   begin
-    SQL := '';
-    for I := 0 to Length(MySQL_Collations) - 1 do
-      if ((lstrcmpiA(MySQL_Collations[I].CharsetName, PAnsiChar(fcharacter_set_name)) = 0) and MySQL_Collations[I].Default) then
-        SQL := MySQL_Collations[I].CharsetName;
-
-    if (SQL = '') then
-      Seterror(CR_CANT_READ_CHARSET, RawByteString(Format(CLIENT_ERRORS[CR_CANT_READ_CHARSET - CR_MIN_ERROR], [csname])))
-    else
-    begin
-      SQL := 'SET NAMES ' + SQL + ';';
-      if (real_query(my_char(RawByteString(SQL)), Length(SQL)) = 0) then
-        fcharacter_set_name := RawByteString(LowerCase(string(csname)));
-    end;
+    if (query(my_char(RawByteString('SET NAMES ') + RawByteString(csname))) = 0) then
+      fcharacter_set_name := RawByteString(LowerCase(string(csname)));
 
     Result := errno();
   end;

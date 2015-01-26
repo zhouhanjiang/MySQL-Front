@@ -3084,7 +3084,6 @@ end;
 procedure TMySQLConnection.SyncConnecting(const LibraryThread: TLibraryThread);
 var
   ClientFlag: my_uint;
-  S: string;
   SQL: string;
 begin
   if (not Assigned(LibraryThread.LibHandle)) then
@@ -3140,7 +3139,10 @@ begin
   else
     LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
 
-  if (ThreadId > 0) then
+  if ((LibraryThread.ErrorCode = 0) and Assigned(Lib.mysql_set_character_set) and (Lib.mysql_get_server_version(LibraryThread.LibHandle) >= 50503)) then
+    mysql_set_character_set(LibraryThread.LibHandle, 'utf8mb4');
+
+  if ((LibraryThread.ErrorCode = 0) and (ThreadId > 0)) then
   begin
     if (ServerVersion < 50000) then
       SQL := 'KILL ' + IntToStr(ThreadId)
@@ -3149,21 +3151,6 @@ begin
 
     if (Lib.mysql_real_query(LibraryThread.LibHandle, my_char(AnsiString(SQL)), Length(SQL)) = 0) then
       Lib.mysql_use_result(LibraryThread.LibHandle);
-  end;
-
-  if (Lib.mysql_get_server_version(LibraryThread.LibHandle) >= 50503) then
-  begin
-    S := '# ' + SysUtils.DateTimeToStr(Now() + TimeDiff, FormatSettings);
-    WriteMonitor(PChar(S), Length(S), ttTime);
-
-    SQL := 'SET NAMES utf8mb4';
-    WriteMonitor(PChar(SQL), Length(SQL), ttRequest);
-    if (Lib.mysql_real_query(LibraryThread.LibHandle, my_char(AnsiString(SQL)), Length(SQL)) = 0) then
-    begin
-      Lib.mysql_use_result(LibraryThread.LibHandle);
-      S := '--> Character set selected: utf8mb4';
-      WriteMonitor(PChar(S), Length(S), ttInfo);
-    end;
   end;
 end;
 
@@ -3225,12 +3212,6 @@ begin
 
         FHostInfo := LibDecode(Lib.mysql_get_host_info(LibraryThread.LibHandle));
         FMultiStatements := FMultiStatements and Assigned(Lib.mysql_more_results) and Assigned(Lib.mysql_next_result) and ((ServerVersion > 40100) or (Lib.FLibraryType = ltHTTP)) and not ((50000 <= ServerVersion) and (ServerVersion < 50007));
-
-        if (ThreadId = 0) then
-          S := '# ' + SysUtils.DateTimeToStr(FLatestConnect + TimeDiff, FormatSettings) + ': Connected'
-        else
-          S := '# ' + SysUtils.DateTimeToStr(FLatestConnect + TimeDiff, FormatSettings) + ': Connected (Id: ' + IntToStr(ThreadId) + ')';
-        WriteMonitor(PChar(S), Length(S), ttInfo);
       end;
     end;
   end;

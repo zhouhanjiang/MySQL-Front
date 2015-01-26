@@ -668,7 +668,7 @@ var
   ActivePageIndex: Integer;
 begin
   if (PageControl.ActivePageIndex = TSTask.PageIndex) then
-    ModalResult := mrOk
+    Close()
   else
     for ActivePageIndex := PageControl.ActivePageIndex + 1 to PageControl.PageCount - 1 do
       if (PageControl.Pages[ActivePageIndex].Enabled) then

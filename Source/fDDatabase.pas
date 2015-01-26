@@ -301,7 +301,7 @@ begin
     else
       TSExtrasShow(nil)
   else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is TSDatabase)) then
-    ModalResult := mrOk
+    Close()
   else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
   begin
     PageControl.Visible := True;

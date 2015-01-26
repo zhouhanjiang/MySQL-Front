@@ -99,7 +99,7 @@ end;
 procedure TDVariable.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType in [etItemAltered]) and (Event.SItem is TSVariable)) then
-    ModalResult := mrOk
+    Close()
   else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
   begin
     GroupBox.Visible := True;
