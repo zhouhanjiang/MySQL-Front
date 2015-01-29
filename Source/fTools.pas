@@ -3532,7 +3532,6 @@ begin
         until (ReturnCode <> SQL_SUCCESS_WITH_INFO);
         if (not SQL_SUCCEEDED(ReturnCode)) then
         begin
-raise Exception.CreateFmt('SQLDataType: %d, ReturnCode: %d', [ColumnDesc[Index].SQLDataType, ReturnCode]);
           DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
           Values.Write('NULL', 4);
         end

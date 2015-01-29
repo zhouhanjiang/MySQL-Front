@@ -13615,7 +13615,7 @@ end;
 procedure TFSession.TreeViewCollapsing(Sender: TObject;
   Node: TTreeNode; var AllowCollapse: Boolean);
 begin
-  if ((Sender is TTreeView_Ext) and Assigned(TTreeView_Ext(Sender).OnChange)) then
+  if ((Sender is TTreeView_Ext) and Assigned(TTreeView_Ext(Sender).Selected) and Assigned(TTreeView_Ext(Sender).OnChange)) then
   begin
     if ((View = vBrowser) and not (Node.ImageIndex in [iiBaseTable, iiSystemView, iiView]) and (Node = TTreeView_Ext(Sender).Selected.Parent)) then
       TTreeView_Ext(Sender).Selected := Node;

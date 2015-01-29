@@ -278,9 +278,12 @@ begin
     else
       CanClose := Database.UpdateRoutine(Routine, Trim(FSource.Text));
 
-
     if (not CanClose) then
+    begin
       ModalResult := mrNone;
+      PageControl.Visible := CanClose;
+      PSQLWait.Visible := not PageControl.Visible;
+    end;
 
     FBOk.Enabled := False;
   end;

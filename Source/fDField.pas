@@ -709,11 +709,13 @@ begin
 
         CanClose := Database.UpdateTable(Table, NewTable);
 
-        GBasics.Visible := CanClose;
-        GAttributes.Visible := GBasics.Visible;
-        PSQLWait.Visible := not GBasics.Visible;
         if (not CanClose) then
+        begin
           ModalResult := mrNone;
+          GBasics.Visible := CanClose;
+          GAttributes.Visible := GBasics.Visible;
+          PSQLWait.Visible := not GBasics.Visible;
+        end;
 
         FBOk.Enabled := False;
       end;
