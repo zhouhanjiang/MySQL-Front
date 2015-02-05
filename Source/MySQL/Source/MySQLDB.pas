@@ -3140,7 +3140,7 @@ begin
     LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
 
   if ((LibraryThread.ErrorCode = 0) and Assigned(Lib.mysql_set_character_set) and (Lib.mysql_get_server_version(LibraryThread.LibHandle) >= 50503)) then
-    mysql_set_character_set(LibraryThread.LibHandle, 'utf8mb4');
+    Lib.mysql_set_character_set(LibraryThread.LibHandle, 'utf8mb4');
 
   if ((LibraryThread.ErrorCode = 0) and (ThreadId > 0)) then
   begin

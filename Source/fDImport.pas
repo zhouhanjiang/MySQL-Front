@@ -1106,7 +1106,7 @@ begin
   FCollation.Visible := Session.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
 
   FUpdate.Enabled := (SObject is TSBaseTable) and Assigned(TSBaseTable(SObject).PrimaryKey);
-  FInsertOrUpdate.Enabled := FUpdate.Enabled; FLInsertUpdate.Enabled := FInsertOrUpdate.Enabled;
+  FInsertOrUpdate.Enabled := (ImportType = itTextFile) and FUpdate.Enabled; FLInsertUpdate.Enabled := FInsertOrUpdate.Enabled;
 
   if (DialogType = idtCreateJob) then
   begin
@@ -1955,7 +1955,7 @@ begin
         Found := Found or (TSBaseTable(SObject).Database.Tables.NameCmp(FDestinationFields[I].Text, TSBaseTable(SObject).PrimaryKey.Columns[J].Field.Name) = 0);
       FUpdate.Enabled := FUpdate.Enabled and Found;
     end;
-  FInsertOrUpdate.Enabled := FUpdate.Enabled; FLInsertUpdate.Enabled := FInsertOrUpdate.Enabled;
+  FInsertOrUpdate.Enabled := (ImportType = itTextFile) and FUpdate.Enabled; FLInsertUpdate.Enabled := FInsertOrUpdate.Enabled;
 
   CheckActivePageChange(TSFields.PageIndex);
 end;
