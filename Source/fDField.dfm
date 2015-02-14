@@ -139,6 +139,29 @@ object DField: TDField
       Height = 13
       Caption = 'FLUpdateTime'
     end
+    object FDefaultSet: TListBox
+      Left = 120
+      Top = 144
+      Width = 189
+      Height = 41
+      Anchors = [akLeft, akTop, akRight]
+      ItemHeight = 13
+      MultiSelect = True
+      TabOrder = 17
+      OnClick = FBOkCheckEnabled
+    end
+    object FDefault: TEdit
+      Left = 135
+      Top = 164
+      Width = 174
+      Height = 21
+      Anchors = [akLeft, akTop, akRight]
+      TabOrder = 12
+      Text = 'FDefault'
+      OnChange = FDefaultChange
+      OnEnter = FDefaultEnter
+      OnExit = FDefaultExit
+    end
     object FFormatUnion: TEdit
       Left = 120
       Top = 112
@@ -179,17 +202,6 @@ object DField: TDField
       TabOrder = 16
       OnChange = FBOkCheckEnabled
     end
-    object FDefaultSet: TListBox
-      Left = 120
-      Top = 144
-      Width = 189
-      Height = 41
-      Anchors = [akLeft, akTop, akRight]
-      ItemHeight = 13
-      MultiSelect = True
-      TabOrder = 17
-      OnClick = FBOkCheckEnabled
-    end
     object FRDefaultNull: TRadioButton
       Left = 120
       Top = 147
@@ -213,18 +225,6 @@ object DField: TDField
         'YYMMDDHHMMSS'
         'YYYYMMDD'
         'YYMMDD')
-    end
-    object FDefault: TEdit
-      Left = 135
-      Top = 164
-      Width = 174
-      Height = 21
-      Anchors = [akLeft, akTop, akRight]
-      TabOrder = 12
-      Text = 'FDefault'
-      OnChange = FDefaultChange
-      OnEnter = FDefaultEnter
-      OnExit = FDefaultExit
     end
     object FUDFormatSize: TUpDown
       Left = 161

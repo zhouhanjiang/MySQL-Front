@@ -524,7 +524,7 @@ asm
         JNE String1                      // No!
         CMP ECX,1                        // Last character?
         JE StringE                       // Yes!
-        CMP WORD PTR [ESI],DX            // Two quoter?
+        CMP WORD PTR [ESI],DX            // Two quoters?
         JNE StringE                      // No!
         ADD ESI,2                        // Step over quoter
         DEC ECX                          // One character handled
@@ -532,6 +532,8 @@ asm
       String1:
         CMP AX,'\'                       // Escaped character?
         JNE StringLE                     // No!
+        CMP ECX,1                        // Last character?
+        JE StringE                       // Yes!
         LODSW                            // Load next character from ESI
         DEC ECX                          // Ignore Escaper
         CMP AX,'0'                       // '\0'?
@@ -3193,37 +3195,5 @@ begin
   Result := StrPas(P);
 end;
 
-//var
-//  Dest: string;
-//  Len: Integer;
-//  Text: string;
-//begin
-//  Text := '''root''@''localhost'';';
-//  Len := Length(Text);
-//  SetLength(Dest, Len);
-//  asm
-//        PUSH ES
-//        PUSH ESI
-//        PUSH EDI
-//        PUSH EBX
-//
-//        PUSH DS                          // string operations uses ES
-//        POP ES
-//        CLD                              // string operations uses forward direction
-//
-//        MOV ESI,PChar(Text)
-//        MOV ECX,Len
-//        MOV EDI,PChar(Dest)
-//
-//        MOV BL,True
-//        CALL UnescapeString              // Unquote and unescape string
-//
-//        POP EBX
-//        POP EDI
-//        POP ESI
-//        POP ES
-//  end;
-//
-//  Write;
 end.
 

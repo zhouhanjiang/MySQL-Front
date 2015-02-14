@@ -527,7 +527,7 @@ begin
   if (FFlagNullAllowed.Checked) then
     FDefaultEnum.Items.Add('<' + Preferences.LoadStr(71) + '>');
   for I := 0 to Length(Values) - 1 do
-    FDefaultEnum.Items.Add(SQLUnescape(Values[I]));
+    FDefaultEnum.Items.Add(SQLUnescape(Values[I], False));
 
   if (FDefaultEnum.Items.IndexOf(OldText) < 0) then
     FDefaultEnum.ItemIndex := 0
@@ -535,7 +535,7 @@ begin
     FDefaultEnum.ItemIndex := FDefaultEnum.Items.IndexOf(OldText);
 
   for I := 0 to Length(Values) - 1 do
-    FDefaultSet.Items.Add(SQLUnescape(Values[I]));
+    FDefaultSet.Items.Add(SQLUnescape(Values[I], False));
 
   FBOkCheckEnabled(Sender);
 end;

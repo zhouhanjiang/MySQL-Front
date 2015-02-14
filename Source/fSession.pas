@@ -2587,7 +2587,7 @@ begin
     for I := 0 to Length(Items) - 1 do
     begin
       if (I > 0) then Result := Result + ',';
-      Result := Result + EscapeValue(Items[I]);
+      Result := Result + Items[I];
     end;
     Result := Result + ')';
   end
