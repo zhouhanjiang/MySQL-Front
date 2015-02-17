@@ -329,7 +329,7 @@ type
     Charset: string;
     Decimals: Integer;
     FieldType: TMySQLFieldType;
-    Items: array of string;
+    xItems: array of string;
     National: Boolean;
     Size: Integer;
     Unsigned: Boolean;
@@ -2545,7 +2545,7 @@ begin
   Charset := Source.Charset;
   Decimals := Source.Decimals;
   FieldType := Source.FieldType;
-  Items := TSTableField(Source).Items;
+  xItems := TSTableField(Source).xItems;
   National := TSTableField(Source).National;
   Size := Source.Size;
   Unsigned := TSTableField(Source).Unsigned;
@@ -2556,7 +2556,7 @@ begin
   Charset := '';
   Decimals := 0;
   FieldType := mfUnknown;
-  SetLength(Items, 0);
+  SetLength(xItems, 0);
   FName := '';
   National := False;
   Size := 0;
@@ -2584,10 +2584,10 @@ begin
   if (FieldType in [mfEnum, mfSet]) then
   begin
     Result := Result + '(';
-    for I := 0 to Length(Items) - 1 do
+    for I := 0 to Length(xItems) - 1 do
     begin
       if (I > 0) then Result := Result + ',';
-      Result := Result + Items[I];
+      Result := Result + SQLEscape(xItems[I]);
     end;
     Result := Result + ')';
   end
@@ -2646,10 +2646,10 @@ begin
   begin
     if (FieldType in [mfEnum, mfSet]) then
     begin
-      SetLength(Items, 0);
+      SetLength(xItems, 0);
       repeat
-        SetLength(Items, Length(Items) + 1);
-        Items[Length(Items) - 1] := SQLParseValue(Parse);
+        SetLength(xItems, Length(xItems) + 1);
+        xItems[Length(xItems) - 1] := SQLParseValue(Parse);
       until (not SQLParseChar(Parse, ','));
     end
     else if (FieldType in [mfFloat, mfDouble, mfDecimal]) then
@@ -2782,10 +2782,10 @@ begin
   Result := Result and (FieldType = Second.FieldType);
   Result := Result and (Name = Second.Name);
   Result := Result and (NullAllowed = Second.NullAllowed);
-  Result := Result and (Length(Items) = Length(Second.Items));
+  Result := Result and (Length(xItems) = Length(Second.xItems));
   if (Result) then
-    for I := 0 to Length(Items) - 1 do
-      Result := Result and (Items[I] = Second.Items[I]);
+    for I := 0 to Length(xItems) - 1 do
+      Result := Result and (xItems[I] = Second.xItems[I]);
   Result := Result and (Size = Second.Size);
   Result := Result and (Unicode = Second.Unicode);
   Result := Result and (Unsigned = Second.Unsigned);
@@ -10997,8 +10997,8 @@ begin
             begin
               Grid.Columns[I].PickList.Clear();
               if (Field.FieldType = mfEnum) then
-                for J := 0 to Length(Field.Items) - 1 do
-                  Grid.Columns[I].PickList.Add(Field.Items[J]);
+                for J := 0 to Length(Field.xItems) - 1 do
+                  Grid.Columns[I].PickList.Add(Field.xItems[J]);
 
               Grid.Columns[I].ButtonStyle := cbsAuto;
             end;

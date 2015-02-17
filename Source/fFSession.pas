@@ -8741,8 +8741,8 @@ begin
 
         for I := 0 to Routine.ParameterCount - 1 do
           if (Routine.Parameter[I].FieldType = mfEnum) then
-            for J := 0 to Length(Routine.Parameter[I].Items) - 1 do
-              FObjectIDEGrid.Columns[I].PickList.Add(Routine.Parameter[I].Items[J]);
+            for J := 0 to Length(Routine.Parameter[I].xItems) - 1 do
+              FObjectIDEGrid.Columns[I].PickList.Add(Routine.Parameter[I].xItems[J]);
       end;
     iiTrigger:
       FObjectIDEGrid.DataSource.DataSet := TSTrigger(FNavigator.Selected.Data).InputDataSet;
@@ -10009,7 +10009,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
       else
         Item.ImageIndex := iiField;
       Item.Caption := TSBaseTableField(Data).Caption;
-      Item.SubItems.Add(TSBaseTableField(Data).DBTypeStr());
+      Item.SubItems.Add(SQLUnescape(TSBaseTableField(Data).DBTypeStr()));
       if (TSBaseTableField(Data).NullAllowed) then
         Item.SubItems.Add(Preferences.LoadStr(74))
       else

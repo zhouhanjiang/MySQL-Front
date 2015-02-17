@@ -252,7 +252,7 @@ asm
         JE EndOfStatement                // Yes!
         CMP ECX,2                        // Are there two characters left in SQL?
         JB Finish                        // No!
-        CMP LongWord PTR [ESI],$002D002D // End of line comment ("--") in SQL?
+        CMP LONGWORD PTR [ESI],$002D002D // End of line comment ("--") in SQL?
         JNE StringL2                     // No!
         CMP ECX,3                        // Thre characters inside SQL?
         JB StringL2                      // No!
@@ -265,11 +265,11 @@ asm
         CMP WORD PTR [ESI + 4],' '       // Space?
         JE LineComment                   // Yes!
       StringL2:
-        CMP LongWord PTR [ESI],$002A002F // Start of "/*" comment in SQL?
+        CMP LONGWORD PTR [ESI],$002A002F // Start of "/*" comment in SQL?
         JE EnclosedComment               // Yes!
         TEST EDX,$80000000               // Are we inside cond. MySQL code?
         JZ Finish                        // No!
-        CMP LongWord PTR [ESI],$002F002A // End of "*/" comment in SQL?
+        CMP LONGWORD PTR [ESI],$002F002A // End of "*/" comment in SQL?
         JE CondCodeEnd                   // Yes!
         JMP Finish
 
@@ -361,7 +361,7 @@ asm
       EnclosedCommentL:
         CMP ECX,2                        // Are there two characters left in SQL?
         JB EnclosedCommentLE             // No!
-        CMP LongWord PTR [ESI],$002F002A    // "*/" in SQL?
+        CMP LONGWORD PTR [ESI],$002F002A    // "*/" in SQL?
         JE EnclosedCommentE              // Yes!
       EnclosedCommentLE:
         ADD ESI,2                        // Step over commenct character in SQL
@@ -460,7 +460,7 @@ asm
         JZ KeywordNotFound               // No!
         CMP ECX,2                        // End of SQL?
         JB KeywordNotFound               // Yes!
-        CMP LongWord PTR [ESI],$002F002A    // End of "*/" comment in SQL?
+        CMP LONGWORD PTR [ESI],$002F002A    // End of "*/" comment in SQL?
         JE KeywordFound                  // Yes!
 
       // -------------------
@@ -661,9 +661,9 @@ begin
         ADD ESI,ECX
         SUB ESI,2
 
-        MOV LongWord PTR [EDI],0         // Clear Result
+        MOV LONGWORD PTR [EDI],0         // Clear Result
         ADD EDI,4
-        MOV LongWord PTR [EDI],0
+        MOV LONGWORD PTR [EDI],0
         SUB EDI,4
 
         MOV EDX,0                        // Bit
@@ -678,7 +678,7 @@ begin
         MOV EBX,1
         SHL EBX,CL                       // Result := Result or 1 shl Bit
         POP ECX
-        OR LongWord PTR [EDI],EBX
+        OR LONGWORD PTR [EDI],EBX
       StringLE:
         INC DX                           // Inc(Bit)
         CMP EDX,32                       // We're using 32 Bit compiler
@@ -710,8 +710,8 @@ label
   Calc,
   Finish;
 var
-  Hi: LongWord;
-  Lo: LongWord;
+  Hi: LONGWORD;
+  Lo: LONGWORD;
   P: PChar;
   Str: array [0..64] of Char;
 begin
@@ -2968,9 +2968,9 @@ label
   Finish;
 var
   Error: Boolean;
-  Hi: LongWord;
-  Len: LongWord;
-  Lo: LongWord;
+  Hi: LONGWORD;
+  Len: LONGWORD;
+  Lo: LONGWORD;
 begin
   Hi := 0;
   Lo := 0;
@@ -3140,8 +3140,8 @@ function UInt64ToStr(const Value: UInt64): string;
 label
   ValueL, ValueS;
 var
-  Hi: LongWord;
-  Lo: LongWord;
+  Hi: LONGWORD;
+  Lo: LONGWORD;
   P: PChar;
   Str: array[0..20] of Char;
 begin
