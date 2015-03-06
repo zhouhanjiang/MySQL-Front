@@ -5323,7 +5323,7 @@ begin
 
         Content := Content + #9 + '<tr class="Structure">';
         Content := Content + '<td' + ClassAttr + '>' + HTMLEscape(Table.Fields[I].Name) + '</td>';
-        Content := Content + '<td>' + HTMLEscape(Table.Fields[I].DBTypeStr()) + '</td>';
+        Content := Content + '<td>' + HTMLEscape(SQLUnescape(Table.Fields[I].DBTypeStr())) + '</td>';
         if (Table.Fields[I].NullAllowed) then
           Content := Content + '<td>' + HTMLEscape(Preferences.LoadStr(74)) + '</td>'
         else
@@ -6928,7 +6928,7 @@ begin
 
         GridData[I][0].Bold := Table.Fields[I].InPrimaryKey;
         GridData[I][0].Text := Table.Fields[I].Name;
-        GridData[I][1].Text := Table.Fields[I].DBTypeStr();
+        GridData[I][1].Text := SQLUnescape(Table.Fields[I].DBTypeStr());
         if (Table.Fields[I].NullAllowed) then
           GridData[I][2].Text := Preferences.LoadStr(74)
         else
@@ -7789,6 +7789,8 @@ begin
 
   SourceDatabase := Item.DBObject.Database;
   SourceTable := TSBaseTable(Item.DBObject);
+  if (not Assigned(SourceDatabase)) then // Debug 18.02.2015
+    raise ERangeError.Create(SRangeError);
   if (Assigned(SourceDatabase.Triggers) and Assigned(DestinationDatabase.Triggers)) then
     for I := 0 to SourceDatabase.Triggers.Count - 1 do
       if ((Success = daSuccess) and (SourceDatabase.Triggers[I].Table = SourceTable) and not Assigned(DestinationDatabase.TriggerByName(SourceDatabase.Triggers[I].Name))) then

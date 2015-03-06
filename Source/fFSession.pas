@@ -8741,8 +8741,8 @@ begin
 
         for I := 0 to Routine.ParameterCount - 1 do
           if (Routine.Parameter[I].FieldType = mfEnum) then
-            for J := 0 to Length(Routine.Parameter[I].xItems) - 1 do
-              FObjectIDEGrid.Columns[I].PickList.Add(Routine.Parameter[I].xItems[J]);
+            for J := 0 to Length(Routine.Parameter[I].Items) - 1 do
+              FObjectIDEGrid.Columns[I].PickList.Add(Routine.Parameter[I].Items[J]);
       end;
     iiTrigger:
       FObjectIDEGrid.DataSource.DataSet := TSTrigger(FNavigator.Selected.Data).InputDataSet;

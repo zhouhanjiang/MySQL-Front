@@ -329,7 +329,7 @@ type
     Charset: string;
     Decimals: Integer;
     FieldType: TMySQLFieldType;
-    xItems: array of string;
+    Items: array of string;
     National: Boolean;
     Size: Integer;
     Unsigned: Boolean;
@@ -2545,7 +2545,7 @@ begin
   Charset := Source.Charset;
   Decimals := Source.Decimals;
   FieldType := Source.FieldType;
-  xItems := TSTableField(Source).xItems;
+  Items := TSTableField(Source).Items;
   National := TSTableField(Source).National;
   Size := Source.Size;
   Unsigned := TSTableField(Source).Unsigned;
@@ -2556,7 +2556,7 @@ begin
   Charset := '';
   Decimals := 0;
   FieldType := mfUnknown;
-  SetLength(xItems, 0);
+  SetLength(Items, 0);
   FName := '';
   National := False;
   Size := 0;
@@ -2584,10 +2584,10 @@ begin
   if (FieldType in [mfEnum, mfSet]) then
   begin
     Result := Result + '(';
-    for I := 0 to Length(xItems) - 1 do
+    for I := 0 to Length(Items) - 1 do
     begin
       if (I > 0) then Result := Result + ',';
-      Result := Result + SQLEscape(xItems[I]);
+      Result := Result + SQLEscape(Items[I]);
     end;
     Result := Result + ')';
   end
@@ -2646,10 +2646,10 @@ begin
   begin
     if (FieldType in [mfEnum, mfSet]) then
     begin
-      SetLength(xItems, 0);
+      SetLength(Items, 0);
       repeat
-        SetLength(xItems, Length(xItems) + 1);
-        xItems[Length(xItems) - 1] := SQLParseValue(Parse);
+        SetLength(Items, Length(Items) + 1);
+        Items[Length(Items) - 1] := SQLParseValue(Parse);
       until (not SQLParseChar(Parse, ','));
     end
     else if (FieldType in [mfFloat, mfDouble, mfDecimal]) then
@@ -2782,10 +2782,10 @@ begin
   Result := Result and (FieldType = Second.FieldType);
   Result := Result and (Name = Second.Name);
   Result := Result and (NullAllowed = Second.NullAllowed);
-  Result := Result and (Length(xItems) = Length(Second.xItems));
+  Result := Result and (Length(Items) = Length(Second.Items));
   if (Result) then
-    for I := 0 to Length(xItems) - 1 do
-      Result := Result and (xItems[I] = Second.xItems[I]);
+    for I := 0 to Length(Items) - 1 do
+      Result := Result and (Items[I] = Second.Items[I]);
   Result := Result and (Size = Second.Size);
   Result := Result and (Unicode = Second.Unicode);
   Result := Result and (Unsigned = Second.Unsigned);
@@ -10997,8 +10997,8 @@ begin
             begin
               Grid.Columns[I].PickList.Clear();
               if (Field.FieldType = mfEnum) then
-                for J := 0 to Length(Field.xItems) - 1 do
-                  Grid.Columns[I].PickList.Add(Field.xItems[J]);
+                for J := 0 to Length(Field.Items) - 1 do
+                  Grid.Columns[I].PickList.Add(Field.Items[J]);
 
               Grid.Columns[I].ButtonStyle := cbsAuto;
             end;
@@ -11209,7 +11209,7 @@ begin
                       and (NextDDLStmt.ObjectType = DDLStmt.ObjectType)
                       and ((NextDDLStmt.DatabaseName = DDLStmt.DatabaseName) or (NextDDLStmt.DatabaseName = ''))
                       and (NextDDLStmt.ObjectName = DDLStmt.ObjectName)) then
-                      // will be handled as ceItemAltered within the next Stmt
+                      // will be handled as etItemAltered within the next Stmt
                     else
                     begin
                       if (DDLStmt.ObjectType = otProcedure) then
@@ -11259,7 +11259,7 @@ begin
                       and (NextDDLStmt.ObjectType = DDLStmt.ObjectType)
                       and ((NextDDLStmt.DatabaseName = DDLStmt.DatabaseName) or (NextDDLStmt.DatabaseName = ''))
                       and (NextDDLStmt.ObjectName = DDLStmt.ObjectName)) then
-                      // will be handled as ceItemAltered within the next Stmt
+                      // will be handled as etItemAltered within the next Stmt
                     else
                       Database.Triggers.Delete(Database.TriggerByName(DDLStmt.ObjectName));
                   end;
