@@ -841,6 +841,7 @@ type
     ActiveListView: TListView;
     ActiveWorkbench: TWWorkbench;
     aDRunExecuteSelStart: Integer;
+    BMPImage: TBitmap;
     CloseButton: TPicture;
     EditorField: TField;
     FAddress: string;
@@ -5338,6 +5339,7 @@ begin
 
 
   FText.Modified := False;
+  BMPImage := TBitmap.Create();
   GIFImage := TGIFImage.Create();
   PNGImage := TPNGImage.Create();
   JPEGImage := TJPEGImage.Create();
@@ -6601,6 +6603,7 @@ begin
   FreeAndNil(JPEGImage);
   FreeAndNil(PNGImage);
   FreeAndNil(GIFImage);
+  FreeAndNil(BMPImage);
 
   FLog.Lines.Clear();
 
@@ -6774,6 +6777,7 @@ begin
     end
     else
       Stream := EditorField.DataSet.CreateBlobStream(EditorField, bmRead);
+    FHexEditor.UnicodeChars := False;
     FHexEditor.BytesPerColumn := 1;
   end
   else if (not EditorField.IsNull and (EditorField.DataType = ftWideMemo)) then
@@ -6875,7 +6879,9 @@ begin
     begin Size := Stream.Read(Buffer, Length(Buffer)); Stream.Seek(0, soFromBeginning); end;
 
   try
-    if ((Size > 3) and (Buffer[0] = 'G') and (Buffer[1] = 'I') and (Buffer[2] = 'F')) then
+    if ((Size > 2) and (Buffer[0] = 'B') and (Buffer[1] = 'M')) then
+      try BMPImage.LoadFromStream(Stream); FImage.Picture.Graphic := BMPImage; except FImage.Picture.Graphic := nil; end
+    else if ((Size > 3) and (Buffer[0] = 'G') and (Buffer[1] = 'I') and (Buffer[2] = 'F')) then
       try GIFImage.LoadFromStream(Stream); FImage.Picture.Graphic := GIFImage; except FImage.Picture.Graphic := nil; end
     else if ((Size >= 10) and (Buffer[6] = 'J') and (Buffer[7] = 'F') and (Buffer[8] = 'I') and (Buffer[9] = 'F')) then
       try JPEGImage.LoadFromStream(Stream); FImage.Picture.Graphic := JPEGImage; except FImage.Picture.Graphic := nil; end
@@ -8358,6 +8364,7 @@ begin
 
   if (ActiveDBGrid = DBGrid) then
     ActiveDBGrid := nil;
+  EditorField := nil;
 
   try
     DBGrid.Free();

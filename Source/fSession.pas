@@ -11656,6 +11656,8 @@ begin
           SObject := nil;
           if (SQLParseKeyword(Parse, 'DATABASE')) then
             SObject := DatabaseByName(SQLParseValue(Parse))
+          else if (not Assigned(DatabaseByName(DatabaseName))) then
+            SObject := nil
           else if (SQLParseKeyword(Parse, 'EVENT')) then
             begin if (SQLParseObjectName(Parse, DatabaseName, ObjectName)) then SObject := DatabaseByName(DatabaseName).EventByName(ObjectName); end
           else if (SQLParseKeyword(Parse, 'FUNCTION')) then

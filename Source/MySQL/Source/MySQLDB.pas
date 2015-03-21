@@ -4225,7 +4225,7 @@ var
   DT: TDateTime;
   S: string;
 begin
-  Result := Assigned(Field) and (Field.FieldNo > 0) and Assigned(Data) and Assigned(Data^.LibRow^[Field.FieldNo - 1]);
+  Result := Assigned(Field) and (Field.FieldNo > 0) and Assigned(Data) and Assigned(Data^.LibRow) and Assigned(Data^.LibRow^[Field.FieldNo - 1]);
   if (Result and Assigned(Buffer)) then
     try
       if (BitField(Field)) then
@@ -5201,7 +5201,8 @@ end;
 
 function TMySQLDataSet.GetFieldData(Field: TField; Buffer: Pointer): Boolean;
 begin
-  Result := Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
+  Result := Assigned(ActiveBuffer())
+    and Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)
     and GetFieldData(Field, Buffer, PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData);
 end;
 
