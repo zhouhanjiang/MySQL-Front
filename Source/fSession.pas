@@ -4494,7 +4494,7 @@ begin
       else if (SQLParseKeyword(Parse, 'AUTO_INCREMENT')) then
       begin
         SQLParseChar(Parse, '=');
-        FAutoIncrement := StrToInt64(SQLParseValue(Parse));
+        FAutoIncrement := StrToUInt64(SQLParseValue(Parse));
       end
       else if (SQLParseKeyword(Parse, 'CHECKSUM')) then
       begin
