@@ -5830,7 +5830,7 @@ begin
     if (InputDataSet.Fields[I].Value = Null) then
       Result := Result + 'NULL'
     else
-      Result := Result + Parameter[I].EscapeValue(InputDataSet.Fields[I].Value);
+      Result := Result + Parameter[I].EscapeValue(InputDataSet.Fields[I].AsString);
   end;
   Result := Result + ');';
 end;
