@@ -5764,10 +5764,7 @@ begin
     if (Parameter[I].ParameterType in [ptInOut]) then
     begin
       if (Result <> '') then Result := Result + ',';
-      if (InputDataSet.Fields[I].Value = Null) then
-        Result := '@' + ObjectIDEParameterName + Parameter[I].Name + '=NULL'
-      else
-        Result := '@' + ObjectIDEParameterName + Parameter[I].Name + '=' + Parameter[I].EscapeValue(InputDataSet.Fields[I].Value);
+      Result := '@' + ObjectIDEParameterName + Parameter[I].Name + '=' + InputDataSet.SQLFieldValue(InputDataSet.Fields[I]);
     end;
   if (Result <> '') then
     Result := 'SET ' + Result + ';' + #13#10;
@@ -5778,10 +5775,8 @@ begin
     if (I > 0) then Result := Result + ',';
     if (Parameter[I].ParameterType <> ptIn) then
       Result := Result + '@' + ObjectIDEParameterName + Parameter[I].Name
-    else if (InputDataSet.Fields[I].Value = Null) then
-      Result := Result + 'NULL'
     else
-      Result := Result + Parameter[I].EscapeValue(InputDataSet.Fields[I].Value);
+      Result := Result + InputDataSet.SQLFieldValue(InputDataSet.Fields[I]);
   end;
   Result := Result + ');' + #13#10;
 
@@ -5830,7 +5825,7 @@ begin
     if (InputDataSet.Fields[I].Value = Null) then
       Result := Result + 'NULL'
     else
-      Result := Result + Parameter[I].EscapeValue(InputDataSet.Fields[I].AsString);
+      Result := Result + InputDataSet.SQLFieldValue(InputDataSet.Fields[I]);
   end;
   Result := Result + ');';
 end;

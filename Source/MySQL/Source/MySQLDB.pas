@@ -4823,7 +4823,7 @@ begin
     else
       Data := TMySQLDataSet.PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
 
-  if (not Assigned(Data^.LibRow^[Field.FieldNo - 1])) then
+  if (not Assigned(Data) or not Assigned(Data^.LibRow^[Field.FieldNo - 1])) then
     if (not Field.Required) then
       Result := 'NULL'
     else
@@ -5907,12 +5907,17 @@ var
   MemSize: Integer;
   NewData: TMySQLQuery.PRecordBufferData;
   OldData: TMySQLQuery.PRecordBufferData;
+  U: UInt64;
 begin
   OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
 
   MemSize := SizeOf(NewData^) + FieldCount * (SizeOf(NewData^.LibLengths^[0]) + SizeOf(NewData^.LibLengths^[0]));
   for I := 0 to FieldCount - 1 do
-    if (I = Field.FieldNo - 1) then
+    if (not Assigned(Buffer)) then
+      // no data
+    else if (BitField(Field)) then
+      Inc(MemSize, SizeOf(U))
+    else if (I = Field.FieldNo - 1) then
       Inc(MemSize, Size)
     else if (Assigned(OldData)) then
       Inc(MemSize, OldData^.LibLengths^[I]);
@@ -5928,6 +5933,14 @@ begin
       begin
         NewData^.LibLengths^[I] := 0;
         NewData^.LibRow^[I] := nil;
+      end
+      else if (BitField(Field)) then
+      begin
+        U := StrToUInt64(string(PAnsiChar(Buffer)));
+        NewData^.LibLengths^[I] := SizeOf(U);
+        NewData^.LibRow^[I] := Pointer(@PAnsiChar(NewData)[Index]);
+        MoveMemory(NewData^.LibRow^[I], @U, SizeOf(U));
+        Inc(Index, NewData^.LibLengths^[I]);
       end
       else
       begin

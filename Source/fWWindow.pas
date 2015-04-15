@@ -1359,14 +1359,6 @@ begin
   end;
 end;
 
-// Debug 26.11.13
-//procedure TWWindow.CreateParams(var Params: TCreateParams);
-//begin
-//  inherited;
-//
-//  StrCopy(Params.WinClassName, cWindowClassName);
-//end;
-
 function TWWindow.DBLogin(const Account: Pointer): Boolean;
 begin
   DLogin.Username := TAAccount(Account).Connection.Username;

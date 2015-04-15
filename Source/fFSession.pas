@@ -5968,6 +5968,8 @@ procedure TFSession.DBGridColExit(Sender: TObject);
 var
   Trigger: TSTrigger;
 begin
+  EditorField := nil;
+
   MainAction('aECopyToFile').Enabled := False;
   MainAction('aEPasteFromFile').Enabled := False;
   MainAction('aDCreateField').Enabled := False;
@@ -8364,13 +8366,8 @@ begin
 
   if (ActiveDBGrid = DBGrid) then
     ActiveDBGrid := nil;
-  EditorField := nil;
 
-  try
-    DBGrid.Free();
-  except // Debug 04.09.14
-    // Error messages are not welcome
-  end;
+  DBGrid.Free();
 end;
 
 procedure TFSession.FreeListView(const ListView: TListView);

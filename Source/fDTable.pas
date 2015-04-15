@@ -1457,7 +1457,7 @@ begin
   mlDDelete.Action := aPDeleteField;
   mlDProperties.Action := aPEditField;
 
-  mlDCreate.Caption := Preferences.LoadStr(26);
+  mlDCreate.Caption := Preferences.LoadStr(26) + '...';
   mlDDelete.Caption := Preferences.LoadStr(28);
   mlDCreate.ShortCut := VK_INSERT;
   mlDDelete.ShortCut := VK_DELETE;
@@ -1520,7 +1520,7 @@ begin
   mlDDelete.Action := aPDeleteForeignKey;
   mlDProperties.Action := aPEditForeignKey;
 
-  mlDCreate.Caption := Preferences.LoadStr(26);
+  mlDCreate.Caption := Preferences.LoadStr(26) + '...';
   mlDDelete.Caption := Preferences.LoadStr(28);
 
   mlDCreate.ShortCut := VK_INSERT;
@@ -1572,7 +1572,7 @@ begin
   mlDDelete.Action := aPDeleteKey;
   mlDProperties.Action := aPEditKey;
 
-  mlDCreate.Caption := Preferences.LoadStr(26);
+  mlDCreate.Caption := Preferences.LoadStr(26) + '...';
   mlDDelete.Caption := Preferences.LoadStr(28);
   mlDCreate.ShortCut := VK_INSERT;
   mlDDelete.ShortCut := VK_DELETE;
@@ -1627,7 +1627,7 @@ begin
   mlDDelete.Action := aPDeletePartition;
   mlDProperties.Action := aPEditPartition;
 
-  mlDCreate.Caption := Preferences.LoadStr(26);
+  mlDCreate.Caption := Preferences.LoadStr(26) + '...';
   mlDDelete.Caption := Preferences.LoadStr(28);
   mlDCreate.ShortCut := VK_INSERT;
   mlDDelete.ShortCut := VK_DELETE;
@@ -1653,7 +1653,7 @@ begin
   mlDDelete.Action := aPDeleteForeignKey;
   mlDProperties.Action := aPEditForeignKey;
 
-  mlDCreate.Caption := Preferences.LoadStr(26);
+  mlDCreate.Caption := Preferences.LoadStr(26) + '...';
   mlDDelete.Caption := Preferences.LoadStr(28);
 
   mlDCreate.ShortCut := VK_INSERT;
@@ -1734,7 +1734,7 @@ begin
   mlDDelete.Action := aPDeleteTrigger;
   mlDProperties.Action := aPEditTrigger;
 
-  mlDCreate.Caption := Preferences.LoadStr(26);
+  mlDCreate.Caption := Preferences.LoadStr(26) + '...';
   mlDDelete.Caption := Preferences.LoadStr(28);
   mlDCreate.ShortCut := VK_INSERT;
   mlDDelete.ShortCut := VK_DELETE;
