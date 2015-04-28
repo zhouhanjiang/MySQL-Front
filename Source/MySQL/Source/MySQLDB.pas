@@ -5916,7 +5916,7 @@ begin
     if (not Assigned(Buffer)) then
       // no data
     else if (BitField(Field)) then
-      Inc(MemSize, SizeOf(U))
+      Inc(MemSize, Field.DataSize)
     else if (I = Field.FieldNo - 1) then
       Inc(MemSize, Size)
     else if (Assigned(OldData)) then
@@ -5937,9 +5937,9 @@ begin
       else if (BitField(Field)) then
       begin
         U := StrToUInt64(string(PAnsiChar(Buffer)));
-        NewData^.LibLengths^[I] := SizeOf(U);
+        NewData^.LibLengths^[I] := Field.DataSize;
         NewData^.LibRow^[I] := Pointer(@PAnsiChar(NewData)[Index]);
-        MoveMemory(NewData^.LibRow^[I], @U, SizeOf(U));
+        MoveMemory(NewData^.LibRow^[I], @U, Field.DataSize);
         Inc(Index, NewData^.LibLengths^[I]);
       end
       else

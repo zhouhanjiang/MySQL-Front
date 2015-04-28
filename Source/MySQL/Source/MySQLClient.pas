@@ -2329,9 +2329,9 @@ begin
         S := DecodeString(fserver_info);
         if (Pos('-', S) > 0) then
           S := copy(S, 1, Pos('-', S) - 1);
-        if (S[2] = '.') and (S[4] = '.') then
+        if ((S <> '') and (S[2] = '.') and (S[4] = '.')) then
           Insert('0', S, 3);
-        if (S[2] = '.') and (Length(S) = 6) then
+        if ((S <> '') and (S[2] = '.') and (Length(S) = 6)) then
           Insert('0', S, 6);
         Val(StringReplace(S, '.', '', [rfReplaceAll	]), fserver_version, I);
 
