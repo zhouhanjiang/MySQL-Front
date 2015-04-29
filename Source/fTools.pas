@@ -3270,6 +3270,7 @@ begin
         begin
           Key := TSKey.Create(NewTable.Keys);
           Key.Name := Name;
+          Key.PrimaryKey := Name = '';
           Key.Unique := NonUnique = SQL_FALSE;
           NewTable.Keys.AddKey(Key);
           Key.Free();
