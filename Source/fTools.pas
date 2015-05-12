@@ -3263,7 +3263,7 @@ begin
       if ((IndexType in [SQL_INDEX_CLUSTERED, SQL_INDEX_HASHED, SQL_INDEX_OTHER])) then
       begin
         Name := Session.ApplyIdentifierName(IndexName);
-        if (UpperCase(Name) = 'PRIMARY') then Name := '';
+        if ((UpperCase(Name) = 'PRIMARY') or (UpperCase(Name) = 'PRIMARYKEY')) then Name := '';
         Key := NewTable.IndexByName(Name);
 
         if (not Assigned(Key)) then
@@ -3295,7 +3295,7 @@ begin
     begin
       Key := nil;
       for I := NewTable.Keys.Count - 1 downto 0 do
-        if ((SysUtils.UpperCase(NewTable.Keys[I].Name) = 'PRIMARYKEY') and NewTable.Keys[0].Unique) then
+        if (((UpperCase(NewTable.Keys[I].Name) = 'PRIMARY') or (UpperCase(NewTable.Keys[I].Name) = 'PRIMARYKEY')) and NewTable.Keys[0].Unique) then
           Key := NewTable.Keys[I];
       if (Assigned(Key)) then
       begin

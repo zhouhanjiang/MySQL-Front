@@ -1332,7 +1332,7 @@ begin
   TSCSVOptions.Enabled := (ImportType in [itTextFile]);
   TSWhat.Enabled := not TSCSVOptions.Enabled and (ImportType <> itSQLFile) and (SObject is TSDatabase);
   TSFields.Enabled := (DialogType in [idtNormal, idtCreateJob, idtEditJob]) and not TSCSVOptions.Enabled and not TSWhat.Enabled and (SObject is TSTable);
-  TSTask.Enabled := (DialogType <> idtNormal) and not TSCSVOptions.Enabled and not TSWhat.Enabled and (SObject is TSTable);
+  TSTask.Enabled := (DialogType <> idtNormal) and not (TSCSVOptions.Enabled or TSWhat.Enabled or TSFields.Enabled);
 
   CheckActivePageChange(TSSelect.PageIndex);
 end;
