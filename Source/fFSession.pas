@@ -5887,8 +5887,6 @@ procedure TFSession.DBGridColEnter(Sender: TObject);
 var
   DBGrid: TMySQLDBGrid;
 begin
-  EditorField := nil;
-
   if (Sender is TMySQLDBGrid) then
   begin
     DBGrid := TMySQLDBGrid(Sender);
