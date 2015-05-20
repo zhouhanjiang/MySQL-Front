@@ -5887,6 +5887,8 @@ procedure TFSession.DBGridColEnter(Sender: TObject);
 var
   DBGrid: TMySQLDBGrid;
 begin
+  EditorField := nil;
+
   if (Sender is TMySQLDBGrid) then
   begin
     DBGrid := TMySQLDBGrid(Sender);
@@ -5897,7 +5899,6 @@ begin
     begin
       FText.OnChange := nil;
 
-      EditorField := nil;
       if (DBGrid.SelectedField.DataType in [ftString, ftWideMemo, ftBlob]) then
         EditorField := DBGrid.SelectedField;
       if (Assigned(EditorField) xor PBlob.Visible) then
@@ -5968,8 +5969,6 @@ procedure TFSession.DBGridColExit(Sender: TObject);
 var
   Trigger: TSTrigger;
 begin
-  EditorField := nil;
-
   MainAction('aECopyToFile').Enabled := False;
   MainAction('aEPasteFromFile').Enabled := False;
   MainAction('aDCreateField').Enabled := False;
