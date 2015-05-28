@@ -13089,7 +13089,13 @@ begin
             if (TryStrToInt(URI.Param['offset'], Position)) then FUDOffset.Position := Position else FUDOffset.Position := 0;
             FLimitEnabled.Down := URI.Param['offset'] <> '';
           end;
-          if (URI.Param['filter'] <> Null) then
+          if (URI.Param['filter'] = Null) then
+          begin
+            FFilter.Text := '';
+            FFilterEnabled.Down := False;
+            FFilterEnabled.Enabled := FFilterEnabled.Down;
+          end
+          else
           begin
             FFilter.Text := URI.Param['filter'];
             FFilterEnabled.Down := URI.Param['filter'] <> '';
