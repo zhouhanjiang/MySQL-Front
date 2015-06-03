@@ -1355,7 +1355,8 @@ begin
     tiShowHint:
       begin
         KillTimer(Handle, Message.TimerID);
-        ActivateHint();
+        if (Visible) then
+          ActivateHint();
       end;
     tiHideHint:
       begin

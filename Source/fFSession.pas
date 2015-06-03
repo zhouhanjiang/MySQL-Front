@@ -6602,10 +6602,13 @@ begin
   if (Assigned(FSQLEditorSynMemo2)) then FSQLEditorSynMemo2.Free();
   if (Assigned(FSQLEditorSynMemo3)) then FSQLEditorSynMemo3.Free();
 
-  FreeAndNil(JPEGImage);
-  FreeAndNil(PNGImage);
-  FreeAndNil(GIFImage);
-  FreeAndNil(BMPImage);
+  try
+    FreeAndNil(JPEGImage);
+    FreeAndNil(PNGImage); // Sometimes, this forces a bug (XE2)
+    FreeAndNil(GIFImage);
+    FreeAndNil(BMPImage);
+  except
+  end;
 
   FLog.Lines.Clear();
 
