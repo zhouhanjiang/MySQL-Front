@@ -1,5 +1,7 @@
 ﻿package acQueryBuilder_160;
 
+{$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
 {$ALIGN 8}
 {$ASSERTIONS OFF}
 {$BOOLEVAL OFF}
@@ -21,14 +23,17 @@
 {$WRITEABLECONST OFF}
 {$MINENUMSIZE 1}
 {$IMAGEBASE $400000}
+{$ENDIF IMPLICITBUILDING}
 {$DESCRIPTION 'Active Query Builder Core'}
 {$RUNONLY}
+{$IMPLICITBUILD ON}
 
 requires
   rtl,
   dbrtl,
   vcl,
-  vclx;
+  vclx,
+  acQueryBuilderDsgn_160;
 
 contains
   acACCESSSynProvider in '..\Source\acACCESSSynProvider.pas',

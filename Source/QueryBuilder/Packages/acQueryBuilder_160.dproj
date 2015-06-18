@@ -41,6 +41,7 @@
 			<DCCReference Include="dbrtl.dcp"/>
 			<DCCReference Include="vcl.dcp"/>
 			<DCCReference Include="vclx.dcp"/>
+			<DCCReference Include="acQueryBuilderDsgn_160.dcp"/>
 			<DCCReference Include="..\Source\acACCESSSynProvider.pas"/>
 			<DCCReference Include="..\Source\acAddObject.pas">
 				<Form>acAddObjectForm</Form>
