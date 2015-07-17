@@ -19,7 +19,7 @@ type
   TMySQLFieldType = (mfUnknown,
     mfBit, mfTinyInt, mfSmallInt, mfMediumInt, mfInt, mfBigInt,
     mfFloat, mfDouble, mfDecimal, mfDate, mfDateTime, mfTimeStamp, mfTime, mfYear,
-    mfChar, mfVarChar, mfTinyText, mfText, mfMediumText, mfLongText, mfEnum, mfSet,
+    mfChar, mfVarChar, mfTinyText, mfText, mfMediumText, mfLongText, mfJSON, mfEnum, mfSet,
     mfBinary, mfVarBinary, mfTinyBlob, mfBlob, mfMediumBlob, mfLongBlob,
     mfGeometry, mfPoint, mfLineString, mfPolygon, mfMultiPoint, mfMultiLineString, mfMultiPolygon, mfGeometryCollection);
   TMySQLPartitionType = (ptNone, ptHash, ptKey, ptRange, ptList);
@@ -5498,6 +5498,7 @@ begin
               Field := TMySQLBlobField.Create(nil);
               if (Parameter[I].Size > 0) then Field.Size := Parameter[I].Size and $7FFFFFFF;
             end;
+          mfJSON,
           mfEnum,
           mfSet:
             begin
@@ -8907,6 +8908,7 @@ begin
   else
     case (MySQLFieldType) of
       mfBit: Result := mfBigInt;
+      mfJSON: Result := mfVarChar;
       mfGeometry,
       mfPoint,
       mfLineString,
@@ -8953,6 +8955,7 @@ begin
   Add(mfText, 'Text', True);
   Add(mfMediumText, 'MediumText', False);
   Add(mfLongText, 'LongText', False);
+  Add(mfJSON, 'JSON', False);
   Add(mfEnum, 'Enum', False);
   Add(mfSet, 'Set', False);
   Add(mfGeometry, 'Geometry', False);
@@ -8970,6 +8973,7 @@ begin
   case (MySQLFieldType) of
     mfUnknown: Result := False;
     mfBit: Result := Assigned(Engine) and ((Session.ServerVersion >= 50003) and (Engine.Name = 'MyISAM') or (Session.ServerVersion >= 50005) and ((Engine.Name = 'MEMORY') or Engine.IsInnoDB or (Engine.Name = 'BDB')));
+    mfJSON: Result := Pos('JSON', UpperCase(Session.ServerVersionStr)) > 0;
     mfBinary,
     mfVarBinary: Result := Session.ServerVersion >= 40102;
     mfGeometry,

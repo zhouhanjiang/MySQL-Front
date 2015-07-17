@@ -4623,9 +4623,6 @@ begin
                 14: TMySQLTimeStampField(Field).SQLFormat := '%Y%m%d%H%i%s';
               end;
 
-            if (BitField(Field)) then
-              TMySQLBitField(Field).DisplayFormat := StringOfChar('0', LibField.length)
-            else
             case (Field.DataType) of
               ftShortInt,
               ftByte,
@@ -5865,7 +5862,7 @@ begin
     U := SwapUInt64(U);
     Len := SizeOf(U);
     while ((Len > 0) and (PAnsiChar(@U)[SizeOf(U) - Len] = #0)) do Dec(Len);
-    SetFieldData(Field, @PAnsiChar(@U)[SizeOf(U) - Len], Len);
+    SetFieldData(Field, @PAnsiChar(@U)[SizeOf(U) - Len], Len)
   end
   else
   begin
@@ -5910,6 +5907,7 @@ var
   MemSize: Integer;
   NewData: TMySQLQuery.PRecordBufferData;
   OldData: TMySQLQuery.PRecordBufferData;
+  U: UInt64;
 begin
   OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
 
@@ -5935,6 +5933,14 @@ begin
       begin
         NewData^.LibLengths^[I] := 0;
         NewData^.LibRow^[I] := nil;
+      end
+      else if (BitField(Field)) then
+      begin
+        U := StrToUInt64(string(PAnsiChar(Buffer)));
+        NewData^.LibLengths^[I] := Field.DataSize;
+        NewData^.LibRow^[I] := Pointer(@PAnsiChar(NewData)[Index]);
+        MoveMemory(NewData^.LibRow^[I], @U, Field.DataSize);
+        Inc(Index, NewData^.LibLengths^[I]);
       end
       else
       begin
