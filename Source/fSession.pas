@@ -19,9 +19,10 @@ type
   TMySQLFieldType = (mfUnknown,
     mfBit, mfTinyInt, mfSmallInt, mfMediumInt, mfInt, mfBigInt,
     mfFloat, mfDouble, mfDecimal, mfDate, mfDateTime, mfTimeStamp, mfTime, mfYear,
-    mfChar, mfVarChar, mfTinyText, mfText, mfMediumText, mfLongText, mfJSON, mfEnum, mfSet,
+    mfChar, mfVarChar, mfTinyText, mfText, mfMediumText, mfLongText, mfEnum, mfSet,
     mfBinary, mfVarBinary, mfTinyBlob, mfBlob, mfMediumBlob, mfLongBlob,
-    mfGeometry, mfPoint, mfLineString, mfPolygon, mfMultiPoint, mfMultiLineString, mfMultiPolygon, mfGeometryCollection);
+    mfGeometry, mfPoint, mfLineString, mfPolygon, mfMultiPoint, mfMultiLineString, mfMultiPolygon, mfGeometryCollection,
+    mfJSON);
   TMySQLPartitionType = (ptNone, ptHash, ptKey, ptRange, ptList);
   TMySQLRowType = (mrUnknown, mrFixed, mrDynamic, mrCompressed, mrRedundant, mrCompact);
   TMySQLForeignKeyDeleteType = (dtNoAction, dtCascade, dtSetNull, dtSetDefault, dtRestrict);
@@ -31,7 +32,7 @@ type
 const
   NotQuotedFieldTypes = [mfBit, mfTinyInt, mfSmallInt, mfMediumInt, mfInt, mfBigInt, mfFloat, mfDouble, mfDecimal, mfYear];
   BinaryFieldTypes = [mfBinary, mfVarBinary, mfTinyBlob, mfBlob, mfMediumBlob, mfLongBlob];
-  TextFieldTypes = [mfChar, mfVarChar, mfTinyText, mfText, mfMediumText, mfLongText, mfEnum, mfSet];
+  TextFieldTypes = [mfChar, mfVarChar, mfTinyText, mfText, mfMediumText, mfLongText, mfEnum, mfSet, mfJSON];
   LOBFieldTypes = [mfTinyText, mfText, mfMediumText, mfLongText, mfTinyBlob, mfBlob, mfMediumBlob, mfLongBlob];
 
 type
@@ -5498,7 +5499,6 @@ begin
               Field := TMySQLBlobField.Create(nil);
               if (Parameter[I].Size > 0) then Field.Size := Parameter[I].Size and $7FFFFFFF;
             end;
-          mfJSON,
           mfEnum,
           mfSet:
             begin
@@ -5518,6 +5518,12 @@ begin
               Field := TMySQLBlobField.Create(nil);
               Field.Size := Parameter[I].Size and $7FFFFFFF;
               Field.Tag := ftGeometryField;
+            end;
+          mfJSON:
+            begin
+              Field := TMySQLWideStringField.Create(nil);
+              if (Parameter[I].Size > 0) then Field.Size := Parameter[I].Size;
+              Field.Tag := Database.DefaultCodePage;
             end;
           else raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%s)', [Parameter[I].Name, Database.Session.FieldTypeByMySQLFieldType(Parameter[I].FieldType).Caption]);
         end;
@@ -8908,7 +8914,6 @@ begin
   else
     case (MySQLFieldType) of
       mfBit: Result := mfBigInt;
-      mfJSON: Result := mfVarChar;
       mfGeometry,
       mfPoint,
       mfLineString,
@@ -8917,6 +8922,7 @@ begin
       mfMultiLineString,
       mfMultiPolygon,
       mfGeometryCollection: Result := mfBlob;
+      mfJSON: Result := mfVarChar;
       else Result := MySQLFieldType;
     end;
 end;
@@ -8955,7 +8961,6 @@ begin
   Add(mfText, 'Text', True);
   Add(mfMediumText, 'MediumText', False);
   Add(mfLongText, 'LongText', False);
-  Add(mfJSON, 'JSON', False);
   Add(mfEnum, 'Enum', False);
   Add(mfSet, 'Set', False);
   Add(mfGeometry, 'Geometry', False);
@@ -8966,6 +8971,7 @@ begin
   Add(mfMultiLineString, 'MultiLineString', False);
   Add(mfMultiPolygon, 'MultiPolygon', False);
   Add(mfGeometryCollection, 'GeometryCollection', False);
+  Add(mfJSON, 'JSON', False);
 end;
 
 function TSFieldTypes.FieldAvailable(const Engine: TSEngine; const MySQLFieldType: TMySQLFieldType): Boolean;
@@ -8973,7 +8979,6 @@ begin
   case (MySQLFieldType) of
     mfUnknown: Result := False;
     mfBit: Result := Assigned(Engine) and ((Session.ServerVersion >= 50003) and (Engine.Name = 'MyISAM') or (Session.ServerVersion >= 50005) and ((Engine.Name = 'MEMORY') or Engine.IsInnoDB or (Engine.Name = 'BDB')));
-    mfJSON: Result := Pos('JSON', UpperCase(Session.ServerVersionStr)) > 0;
     mfBinary,
     mfVarBinary: Result := Session.ServerVersion >= 40102;
     mfGeometry,
@@ -8984,6 +8989,7 @@ begin
     mfMultiLineString,
     mfMultiPolygon,
     mfGeometryCollection: Result := Assigned(Engine) and (Assigned(Session.VariableByName('have_geometry')) and Session.VariableByName('have_geometry').AsBoolean and ((Engine.Name = 'MyISAM') or (Session.ServerVersion >= 50016) and (Engine.IsInnoDB or (Engine.Name = 'NDB') or (Engine.Name = 'BDB') or (Engine.Name = 'ARCHIVE'))));
+    mfJSON: Result := Pos('JSON', UpperCase(Session.ServerVersionStr)) > 0;
     else Result := True;
   end;
 end;

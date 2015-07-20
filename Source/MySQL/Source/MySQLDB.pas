@@ -5623,7 +5623,7 @@ begin
         InternRecordBuffers.Index := InternRecordBuffers.Add(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
     end;
 
-    if (Connection.Connected) then
+    if (not CachedUpdates and Connection.Connected) then
       for I := 0 to Fields.Count - 1 do
       begin
         if ((Fields[I].AutoGenerateValue = arAutoInc) and (Fields[I].IsNull or (Fields[I].AsLargeInt = 0))) then
