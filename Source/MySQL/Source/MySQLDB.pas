@@ -4517,6 +4517,7 @@ begin
                 begin Field := TMySQLBlobField.Create(Self); Field.Size := Len; end
               else
                 begin Field := TMySQLWideMemoField.Create(Self); Field.Size := Len; end;
+            MYSQL_TYPE_IPV6,
             MYSQL_TYPE_VAR_STRING,
             MYSQL_TYPE_STRING:
               if (Binary) then
@@ -5623,7 +5624,7 @@ begin
         InternRecordBuffers.Index := InternRecordBuffers.Add(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer);
     end;
 
-    if (not CachedUpdates and Connection.Connected) then
+    if (Connection.Connected) then
       for I := 0 to Fields.Count - 1 do
       begin
         if ((Fields[I].AutoGenerateValue = arAutoInc) and (Fields[I].IsNull or (Fields[I].AsLargeInt = 0))) then
@@ -5909,65 +5910,77 @@ var
   OldData: TMySQLQuery.PRecordBufferData;
   U: UInt64;
 begin
-  OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
+  if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData = PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData) then
+    NewData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData
+  else
+    NewData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
 
-  MemSize := SizeOf(NewData^) + FieldCount * (SizeOf(NewData^.LibLengths^[0]) + SizeOf(NewData^.LibLengths^[0]));
-  for I := 0 to FieldCount - 1 do
-    if (not Assigned(Buffer)) then
-      // no data
-    else if (BitField(Field)) then
-      Inc(MemSize, Field.DataSize)
-    else if (I = Field.FieldNo - 1) then
-      Inc(MemSize, Size)
-    else if (Assigned(OldData)) then
-      Inc(MemSize, OldData^.LibLengths^[I]);
-  GetMem(NewData, MemSize);
+  if (Assigned(NewData)) then
+  begin
+    OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
 
-  NewData^.LibLengths := Pointer(@PAnsiChar(NewData)[SizeOf(NewData^)]);
-  NewData^.LibRow := Pointer(@PAnsiChar(NewData)[SizeOf(NewData^) + FieldCount * SizeOf(NewData^.LibLengths^[0])]);
+    if ((NewData^.LibLengths^[Field.FieldNo - 1] <> OldData^.LibLengths^[Field.FieldNo - 1])
+      and (CompareMem(NewData^.LibRow^[Field.FieldNo - 1], OldData^.LibRow^[Field.FieldNo - 1], NewData^.LibLengths^[Field.FieldNo - 1]))) then
+    begin
+      MemSize := SizeOf(NewData^) + FieldCount * (SizeOf(NewData^.LibLengths^[0]) + SizeOf(NewData^.LibLengths^[0]));
+      for I := 0 to FieldCount - 1 do
+        if (not Assigned(Buffer)) then
+          // no data
+        else if (BitField(Field)) then
+          Inc(MemSize, Field.DataSize)
+        else if (I = Field.FieldNo - 1) then
+          Inc(MemSize, Size)
+        else if (Assigned(OldData)) then
+          Inc(MemSize, OldData^.LibLengths^[I]);
+      GetMem(NewData, MemSize);
 
-  Index := SizeOf(NewData^) + FieldCount * (SizeOf(NewData^.LibLengths^[0]) + SizeOf(NewData^.LibRow^[0]));
-  for I := 0 to FieldCount - 1 do
-    if (I = Field.FieldNo - 1) then
-      if (not Assigned(Buffer)) then
-      begin
-        NewData^.LibLengths^[I] := 0;
-        NewData^.LibRow^[I] := nil;
-      end
-      else if (BitField(Field)) then
-      begin
-        U := StrToUInt64(string(PAnsiChar(Buffer)));
-        NewData^.LibLengths^[I] := Field.DataSize;
-        NewData^.LibRow^[I] := Pointer(@PAnsiChar(NewData)[Index]);
-        MoveMemory(NewData^.LibRow^[I], @U, Field.DataSize);
-        Inc(Index, NewData^.LibLengths^[I]);
-      end
-      else
-      begin
-        NewData^.LibLengths^[I] := Size;
-        NewData^.LibRow^[I] := Pointer(@PAnsiChar(NewData)[Index]);
-        MoveMemory(NewData^.LibRow^[I], Buffer, Size);
-        Inc(Index, NewData^.LibLengths^[I]);
-      end
-    else
-      if (not Assigned(OldData) or not Assigned(OldData^.LibRow^[I])) then
-      begin
-        NewData^.LibLengths^[I] := 0;
-        NewData^.LibRow^[I] := nil;
-      end
-      else
-      begin
-        NewData^.LibLengths^[I] := OldData^.LibLengths^[I];
-        NewData^.LibRow^[I] := Pointer(@PAnsiChar(NewData)[Index]);
-        MoveMemory(NewData^.LibRow^[I], OldData^.LibRow^[I], NewData^.LibLengths^[I]);
-        Inc(Index, NewData^.LibLengths^[I]);
-      end;
+      NewData^.LibLengths := Pointer(@PAnsiChar(NewData)[SizeOf(NewData^)]);
+      NewData^.LibRow := Pointer(@PAnsiChar(NewData)[SizeOf(NewData^) + FieldCount * SizeOf(NewData^.LibLengths^[0])]);
 
-  if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
-    PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := AllocInternRecordBuffer()
-  else if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData) then
-    FreeMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData);
-  PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData := NewData;
+      Index := SizeOf(NewData^) + FieldCount * (SizeOf(NewData^.LibLengths^[0]) + SizeOf(NewData^.LibRow^[0]));
+      for I := 0 to FieldCount - 1 do
+        if (I = Field.FieldNo - 1) then
+          if (not Assigned(Buffer)) then
+          begin
+            NewData^.LibLengths^[I] := 0;
+            NewData^.LibRow^[I] := nil;
+          end
+          else if (BitField(Field)) then
+          begin
+            U := StrToUInt64(string(PAnsiChar(Buffer)));
+            NewData^.LibLengths^[I] := Field.DataSize;
+            NewData^.LibRow^[I] := Pointer(@PAnsiChar(NewData)[Index]);
+            MoveMemory(NewData^.LibRow^[I], @U, Field.DataSize);
+            Inc(Index, NewData^.LibLengths^[I]);
+          end
+          else
+          begin
+            NewData^.LibLengths^[I] := Size;
+            NewData^.LibRow^[I] := Pointer(@PAnsiChar(NewData)[Index]);
+            MoveMemory(NewData^.LibRow^[I], Buffer, Size);
+            Inc(Index, NewData^.LibLengths^[I]);
+          end
+        else
+          if (not Assigned(OldData) or not Assigned(OldData^.LibRow^[I])) then
+          begin
+            NewData^.LibLengths^[I] := 0;
+            NewData^.LibRow^[I] := nil;
+          end
+          else
+          begin
+            NewData^.LibLengths^[I] := OldData^.LibLengths^[I];
+            NewData^.LibRow^[I] := Pointer(@PAnsiChar(NewData)[Index]);
+            MoveMemory(NewData^.LibRow^[I], OldData^.LibRow^[I], NewData^.LibLengths^[I]);
+            Inc(Index, NewData^.LibLengths^[I]);
+          end;
+
+      if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
+        PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := AllocInternRecordBuffer()
+      else if (PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData <> PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.OldData) then
+        FreeMem(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData);
+      PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData := NewData;
+    end;
+  end;
 end;
 
 procedure TMySQLDataSet.SetFieldsSortTag();
