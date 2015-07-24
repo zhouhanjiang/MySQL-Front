@@ -9753,7 +9753,8 @@ begin
       if (SQLParseKeyword(Parse, 'IDENTIFIED BY')) then
       begin
         SQLParseKeyword(Parse, 'PASSWORD');
-        RawPassword := SQLParseValue(Parse);
+        if (SQLParseChar(Parse, '''', False)) then
+          RawPassword := SQLParseValue(Parse);
       end;
 
       if (SQLParseKeyword(Parse, 'REQUIRE')) then

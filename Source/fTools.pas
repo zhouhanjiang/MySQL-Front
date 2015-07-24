@@ -6033,7 +6033,7 @@ begin
           mfGeometry, mfPoint, mfLineString, mfPolygon, mfMultiPoint, mfMultiLineString, mfMultiPolygon, mfGeometryCollection:
             SQL := SQL + 'LONGBINARY';
           mfJSON:
-            SQL := SQL + 'LONGTEXT';
+            SQL := SQL + 'BINARY';
           else
             raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Table.Fields[I].Name, Ord(Table.Fields[I].FieldType)]);
         end;
