@@ -9754,7 +9754,9 @@ begin
       begin
         SQLParseKeyword(Parse, 'PASSWORD');
         if (SQLParseChar(Parse, '''', False)) then
-          RawPassword := SQLParseValue(Parse);
+          RawPassword := SQLParseValue(Parse)
+        else if (SQLParseChar(Parse, '<', False)) then
+          SQLParseValue(Parse);
       end;
 
       if (SQLParseKeyword(Parse, 'REQUIRE')) then

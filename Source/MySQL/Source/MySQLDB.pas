@@ -3555,16 +3555,16 @@ begin
   LibraryThread.Success := MultiStatements and (Lib.mysql_next_result(LibraryThread.LibHandle) <= 0);
   LibraryThread.Time := LibraryThread.Time + Now() - Time;
   if (LibraryThread.Success) then
-  begin
     LibraryThread.ResHandle := Lib.mysql_use_result(LibraryThread.LibHandle);
-    LibraryThread.Success := Assigned(LibraryThread.ResHandle);
-  end;
 
   LibraryThread.ErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);
   if (LibraryThread.ErrorCode = 0) then
     LibraryThread.ErrorMessage := ''
   else
+  begin
+    LibraryThread.Success := False;
     LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
+  end;
 end;
 
 procedure TMySQLConnection.SyncPing(const LibraryThread: TLibraryThread);
@@ -5913,16 +5913,16 @@ var
 begin
   OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
 
-  MemSize := SizeOf(NewData^) + FieldCount * (SizeOf(NewData^.LibLengths^[0]) + SizeOf(NewData^.LibLengths^[0]));
+  MemSize := SizeOf(NewData^) + FieldCount * (SizeOf(NewData^.LibLengths^[0]) + SizeOf(NewData^.LibRow^[0]));
   for I := 0 to FieldCount - 1 do
-    if (not Assigned(Buffer)) then
-      // no data
-    else if (BitField(Field)) then
-      Inc(MemSize, Field.DataSize)
-    else if (I = Field.FieldNo - 1) then
-      Inc(MemSize, Size)
+    if (I = Field.FieldNo - 1) then
+      if (not Assigned(Buffer)) then
+        // no data
+      else
+        Inc(MemSize, Size)
     else if (Assigned(OldData)) then
       Inc(MemSize, OldData^.LibLengths^[I]);
+
   GetMem(NewData, MemSize);
 
   NewData^.LibLengths := Pointer(@PAnsiChar(NewData)[SizeOf(NewData^)]);
@@ -5941,7 +5941,7 @@ begin
         U := StrToUInt64(string(PAnsiChar(Buffer)));
         NewData^.LibLengths^[I] := Field.DataSize;
         NewData^.LibRow^[I] := Pointer(@PAnsiChar(NewData)[Index]);
-        MoveMemory(NewData^.LibRow^[I], @U, Field.DataSize);
+        MoveMemory(NewData^.LibRow^[I], @U, NewData^.LibLengths^[I]);
         Inc(Index, NewData^.LibLengths^[I]);
       end
       else
