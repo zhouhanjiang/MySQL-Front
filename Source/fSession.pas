@@ -12115,6 +12115,7 @@ begin
 
   if (not Assigned(Database)) then
     SQL := 'CREATE DATABASE ' + EscapeIdentifier(NewDatabase.Name) + SQL + ';' + #13#10
+      + NewDatabase.SQLGetSource()
   else if (SQL <> '') then
     if (ServerVersion < 40108) then
     begin
@@ -12125,7 +12126,7 @@ begin
     else
       SQL := 'ALTER DATABASE ' + EscapeIdentifier(Database.Name) + SQL + ';' + #13#10;
 
-  Result := (SQL = '') or SendSQL(SQL);
+  Result := (SQL = '') or SendSQL(SQL, SessionResult);
 end;
 
 procedure TSSession.UpdateIndexDefs(const DataSet: TMySQLQuery; const IndexDefs: TIndexDefs);
