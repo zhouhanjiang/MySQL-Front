@@ -11629,9 +11629,17 @@ end;
 procedure TFSession.OpenInNewTabExecute(const DatabaseName, TableName: string; const OpenNewWindow: Boolean = False; const Filename: TFileName = '');
 var
   URI: TUURI;
+  CurrentURI: TUURI;
 begin
   URI := TUURI.Create('');
-  URI.Host := Session.Account.Connection.Host;
+  if (Session.Account.Connection.Host <> LOCAL_HOST) then
+    URI.Host := Session.Account.Connection.Host
+  else
+  begin
+    CurrentURI := TUURI.Create(Session.Account.Connection.HTTPTunnelURI);
+    URI.Host := CurrentURI.Host;
+    CurrentURI.Free();
+  end;
   if (Session.Account.Connection.Port <> MYSQL_PORT) then
     URI.Port := Session.Account.Connection.Port;
   URI.Username := Session.Account.Connection.Username;
