@@ -6176,11 +6176,12 @@ begin
   Result := 'UPDATE ' + Database.Session.EscapeIdentifier(Database.Name) + '.' + Database.Session.EscapeIdentifier(FTableName);
   Result := Result + ' SET ';
   for I := 0 to InputDataSet.FieldCount - 1 do
-  begin
-    if (I > 0) then Result := Result + ',';
-    Result := Result + Database.Session.EscapeIdentifier(InputDataSet.Fields[I].FieldName);
-    Result := Result + '=' + InputDataSet.SQLFieldValue(InputDataSet.Fields[I]);
-  end;
+    if (InputDataSet.Fields[I].Required) then
+    begin
+      if (I > 0) then Result := Result + ',';
+      Result := Result + Database.Session.EscapeIdentifier(InputDataSet.Fields[I].FieldName);
+      Result := Result + '=' + InputDataSet.SQLFieldValue(InputDataSet.Fields[I]);
+    end;
   Result := Result + ' WHERE ';
   for I := 0 to InputDataSet.FieldCount - 1 do
   begin
