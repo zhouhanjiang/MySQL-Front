@@ -6171,37 +6171,45 @@ end;
 
 function TSTrigger.SQLUpdate(): string;
 var
+  Valid: Boolean;
   I: Integer;
   SetClause: string;
   TableClause: string;
   WhereClause: string;
 begin
   TableClause := Database.Session.EscapeIdentifier(Database.Name) + '.' + Database.Session.EscapeIdentifier(FTableName);
-
   SetClause := '';
+  WhereClause := '';
+
   for I := 0 to InputDataSet.FieldCount - 1 do
-    if (not (pfInKey in InputDataSet.Fields[I].ProviderFlags)) then
+    if (not (pfInWhere in InputDataSet.Fields[I].ProviderFlags) and (not InputDataSet.Fields[I].Required or not InputDataSet.Fields[I].IsNull)) then
     begin
       if (SetClause <> '') then SetClause := SetClause + ',';
       SetClause := SetClause + Database.Session.EscapeIdentifier(InputDataSet.Fields[I].FieldName)
         + '=' + InputDataSet.SQLFieldValue(InputDataSet.Fields[I]);
     end;
 
-  if (SetClause = '') then
+  Valid := SetClause <> '';
+  if (Valid) then
+  begin
+    for I := 0 to InputDataSet.FieldCount - 1 do
+      if (pfInWhere in InputDataSet.Fields[I].ProviderFlags) then
+        Valid := Valid and not InputDataSet.Fields[I].IsNull;
+
+    if (Valid) then
+      for I := 0 to InputDataSet.FieldCount - 1 do
+        if ((pfInWhere in InputDataSet.Fields[I].ProviderFlags)) then
+        begin
+          if (WhereClause <> '') then WhereClause := WhereClause + ' AND ';
+          WhereClause := WhereClause + Database.Session.EscapeIdentifier(InputDataSet.Fields[I].FieldName)
+            + '=' + InputDataSet.SQLFieldValue(InputDataSet.Fields[I]);
+        end;
+  end;
+
+  if (not Valid) then
     Result := ''
   else
-  begin
-    WhereClause := '';
-    for I := 0 to InputDataSet.FieldCount - 1 do
-      if (pfInKey in InputDataSet.Fields[I].ProviderFlags) then
-      begin
-        if (WhereClause <> '') then WhereClause := WhereClause + ' AND ';
-        WhereClause := WhereClause + Database.Session.EscapeIdentifier(InputDataSet.Fields[I].FieldName)
-          + '=' + InputDataSet.SQLFieldValue(InputDataSet.Fields[I]);
-      end;
-
     Result := 'UPDATE ' + TableClause + ' SET ' + SetClause + ' WHERE ' + WhereClause + ';' + #13#10;
-  end;
 end;
 
 { TSTriggers ******************************************************************}

@@ -5190,15 +5190,10 @@ end;
 
 function TMySQLDataSet.GetCanModify(): Boolean;
 begin
-  if (CachedUpdates) then
-    Result := True
-  else
-  begin
-    if (not IndexDefs.Updated) then
-      UpdateIndexDefs();
+  if (not IndexDefs.Updated) then
+    UpdateIndexDefs();
 
-    Result := FCanModify;
-  end;
+  Result := CachedUpdates or FCanModify;
 end;
 
 function TMySQLDataSet.GetFieldData(Field: TField; Buffer: Pointer): Boolean;
