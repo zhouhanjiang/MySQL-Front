@@ -6187,16 +6187,21 @@ begin
         + '=' + InputDataSet.SQLFieldValue(InputDataSet.Fields[I]);
     end;
 
-  WhereClause := '';
-  for I := 0 to InputDataSet.FieldCount - 1 do
-    if (pfInKey in InputDataSet.Fields[I].ProviderFlags) then
-    begin
-      if (WhereClause <> '') then WhereClause := WhereClause + ' AND ';
-      WhereClause := WhereClause + Database.Session.EscapeIdentifier(InputDataSet.Fields[I].FieldName)
-        + '=' + InputDataSet.SQLFieldValue(InputDataSet.Fields[I]);
-    end;
+  if (SetClause = '') then
+    Result := ''
+  else
+  begin
+    WhereClause := '';
+    for I := 0 to InputDataSet.FieldCount - 1 do
+      if (pfInKey in InputDataSet.Fields[I].ProviderFlags) then
+      begin
+        if (WhereClause <> '') then WhereClause := WhereClause + ' AND ';
+        WhereClause := WhereClause + Database.Session.EscapeIdentifier(InputDataSet.Fields[I].FieldName)
+          + '=' + InputDataSet.SQLFieldValue(InputDataSet.Fields[I]);
+      end;
 
-  Result := 'UPDATE ' + TableClause + ' SET ' + SetClause + ' WHERE ' + WhereClause + ';' + #13#10;
+    Result := 'UPDATE ' + TableClause + ' SET ' + SetClause + ' WHERE ' + WhereClause + ';' + #13#10;
+  end;
 end;
 
 { TSTriggers ******************************************************************}
