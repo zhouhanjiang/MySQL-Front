@@ -6172,24 +6172,31 @@ end;
 function TSTrigger.SQLUpdate(): string;
 var
   I: Integer;
+  SetClause: string;
+  TableClause: string;
+  WhereClause: string;
 begin
-  Result := 'UPDATE ' + Database.Session.EscapeIdentifier(Database.Name) + '.' + Database.Session.EscapeIdentifier(FTableName);
-  Result := Result + ' SET ';
+  TableClause := Database.Session.EscapeIdentifier(Database.Name) + '.' + Database.Session.EscapeIdentifier(FTableName);
+
+  SetClause := '';
   for I := 0 to InputDataSet.FieldCount - 1 do
-    if (InputDataSet.Fields[I].Required) then
+    if (not (pfInKey in InputDataSet.Fields[I].ProviderFlags)) then
     begin
-      if (I > 0) then Result := Result + ',';
-      Result := Result + Database.Session.EscapeIdentifier(InputDataSet.Fields[I].FieldName);
-      Result := Result + '=' + InputDataSet.SQLFieldValue(InputDataSet.Fields[I]);
+      if (SetClause <> '') then SetClause := SetClause + ',';
+      SetClause := SetClause + Database.Session.EscapeIdentifier(InputDataSet.Fields[I].FieldName)
+        + '=' + InputDataSet.SQLFieldValue(InputDataSet.Fields[I]);
     end;
-  Result := Result + ' WHERE ';
+
+  WhereClause := '';
   for I := 0 to InputDataSet.FieldCount - 1 do
-  begin
-    if (I > 0) then Result := Result + ' AND ';
-    Result := Result + Database.Session.EscapeIdentifier(InputDataSet.Fields[I].FieldName);
-    Result := Result + '=' + InputDataSet.SQLFieldValue(InputDataSet.Fields[I]);
-  end;
-  Result := Result + ';' + #13#10;
+    if (pfInKey in InputDataSet.Fields[I].ProviderFlags) then
+    begin
+      if (WhereClause <> '') then WhereClause := WhereClause + ' AND ';
+      WhereClause := WhereClause + Database.Session.EscapeIdentifier(InputDataSet.Fields[I].FieldName)
+        + '=' + InputDataSet.SQLFieldValue(InputDataSet.Fields[I]);
+    end;
+
+  Result := 'UPDATE ' + TableClause + ' SET ' + SetClause + ' WHERE ' + WhereClause + ';' + #13#10;
 end;
 
 { TSTriggers ******************************************************************}
