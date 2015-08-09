@@ -5904,7 +5904,6 @@ var
   MemSize: Integer;
   NewData: TMySQLQuery.PRecordBufferData;
   OldData: TMySQLQuery.PRecordBufferData;
-  U: UInt64;
 begin
   OldData := PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer^.NewData;
 
@@ -5933,11 +5932,10 @@ begin
       end
       else if (BitField(Field)) then
       begin
-        U := StrToUInt64(string(PAnsiChar(Buffer)));
-        NewData^.LibLengths^[I] := Field.DataSize;
+        NewData^.LibLengths^[I] := Size;
         NewData^.LibRow^[I] := Pointer(@PAnsiChar(NewData)[Index]);
-        MoveMemory(NewData^.LibRow^[I], @U, NewData^.LibLengths^[I]);
-        Inc(Index, NewData^.LibLengths^[I]);
+        MoveMemory(NewData^.LibRow^[I], Buffer, NewData^.LibLengths^[I]);
+        Inc(Index, Size);
       end
       else
       begin
