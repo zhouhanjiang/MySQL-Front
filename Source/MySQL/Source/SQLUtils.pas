@@ -2393,6 +2393,8 @@ begin
       SimpelStmtL:
         CALL Trim                        // Empty characters?
         JE SimpelStmtLE                  // Yes!
+        CMP ECX,0                        // All characters handled?
+        JZ Finish                        // Yes!
         CALL MoveString                  // Quoted string?
         JE SimpelStmtLE                  // Yes!
         LODSW                            // Character -> AX
@@ -2400,9 +2402,7 @@ begin
         CMP AX,';'                       // SQL Delimiter?
         JE Complete                      // Yes!
       SimpelStmtLE:
-        CMP ECX,0                        // All characters handled?
-        JNZ SimpelStmtL                  // No!
-        JMP Finish
+        JMP SimpelStmtL
 
       // -------------------
 

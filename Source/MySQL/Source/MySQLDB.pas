@@ -5924,25 +5924,18 @@ begin
 
   Index := SizeOf(NewData^) + FieldCount * (SizeOf(NewData^.LibLengths^[0]) + SizeOf(NewData^.LibRow^[0]));
   for I := 0 to FieldCount - 1 do
+  begin
     if (I = Field.FieldNo - 1) then
       if (not Assigned(Buffer)) then
       begin
         NewData^.LibLengths^[I] := 0;
         NewData^.LibRow^[I] := nil;
       end
-      else if (BitField(Field)) then
-      begin
-        NewData^.LibLengths^[I] := Size;
-        NewData^.LibRow^[I] := Pointer(@PAnsiChar(NewData)[Index]);
-        MoveMemory(NewData^.LibRow^[I], Buffer, NewData^.LibLengths^[I]);
-        Inc(Index, Size);
-      end
       else
       begin
         NewData^.LibLengths^[I] := Size;
         NewData^.LibRow^[I] := Pointer(@PAnsiChar(NewData)[Index]);
         MoveMemory(NewData^.LibRow^[I], Buffer, Size);
-        Inc(Index, NewData^.LibLengths^[I]);
       end
     else
       if (not Assigned(OldData) or not Assigned(OldData^.LibRow^[I])) then
@@ -5954,9 +5947,10 @@ begin
       begin
         NewData^.LibLengths^[I] := OldData^.LibLengths^[I];
         NewData^.LibRow^[I] := Pointer(@PAnsiChar(NewData)[Index]);
-        MoveMemory(NewData^.LibRow^[I], OldData^.LibRow^[I], NewData^.LibLengths^[I]);
-        Inc(Index, NewData^.LibLengths^[I]);
+        MoveMemory(NewData^.LibRow^[I], OldData^.LibRow^[I], OldData^.LibLengths^[I]);
       end;
+    Inc(Index, NewData^.LibLengths^[I]);
+  end;
 
   if (not Assigned(PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer)) then
     PExternRecordBuffer(ActiveBuffer())^.InternRecordBuffer := AllocInternRecordBuffer()
