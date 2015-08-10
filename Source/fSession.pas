@@ -8553,7 +8553,7 @@ end;
 
 function TSVariables.SQLGetItems(const Name: string = ''): string;
 begin
-  if (Session.ServerVersion < 50112) then
+//  if (Session.ServerVersion < 50112) then
   begin
     if (Session.ServerVersion < 40003) then
       Result := 'SHOW VARIABLES'
@@ -8563,13 +8563,13 @@ begin
       Result := Result + ' LIKE ' + SQLEscape(Name);
     Result := Result + ';' + #13#10;
   end
-  else
-  begin
-    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(information_schema) + '.' + Session.EscapeIdentifier('SESSION_VARIABLES');
-    if (Name <> '') then
-      Result := Result + ' WHERE ' + Session.EscapeIdentifier('VARIABLE_NAME') + '=' + SQLEscape(Name);
-    Result := Result + ';' + #13#10;
-  end;
+//  else
+//  begin
+//    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(information_schema) + '.' + Session.EscapeIdentifier('SESSION_VARIABLES');
+//    if (Name <> '') then
+//      Result := Result + ' WHERE ' + Session.EscapeIdentifier('VARIABLE_NAME') + '=' + SQLEscape(Name);
+//    Result := Result + ';' + #13#10;
+//  end;
 end;
 
 { TSStati *********************************************************************}

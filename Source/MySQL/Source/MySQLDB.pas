@@ -3713,8 +3713,15 @@ begin
 end;
 
 procedure TMySQLBitField.SetAsString(const Value: string);
+var
+  Error: Boolean;
+  L: LargeInt;
 begin
-  SetAsLargeInt(BitStringToInt(PChar(Value), Length(Value)));
+  L := BitStringToInt(PChar(Value), Length(Value), @Error);
+  if (Error) then
+    raise EConvertError.CreateFmt(SInvalidBinary, [Value])
+  else
+    SetAsLargeInt(L);
 end;
 
 { TLargeWordField *************************************************************}

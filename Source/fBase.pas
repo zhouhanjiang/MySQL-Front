@@ -154,7 +154,9 @@ begin
   if (Msg <> '') then
     Msg := '  (' + Msg + ')' + #13#10 + #13#10;
 
-  if (Sender is TLargeintField) then
+  if (Sender is TMySQLBitField) then
+    Msg := Preferences.LoadStr(866, Text) + Msg
+  else if (Sender is TLargeintField) then
     Msg := Preferences.LoadStr(867, Text) + Msg
   else if (Sender is TMySQLBitField) then
     Msg := Preferences.LoadStr(866, Text) + Msg

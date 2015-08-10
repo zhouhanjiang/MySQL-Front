@@ -687,6 +687,7 @@ begin
         MOV EDX,0
       StringLE2:
         LOOP StringL
+        JMP Finish
 
       Err:
         MOV EDI,Error                    // Error = nil?
