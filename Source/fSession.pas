@@ -8553,6 +8553,9 @@ end;
 
 function TSVariables.SQLGetItems(const Name: string = ''): string;
 begin
+  // Sometimes, the `information_schema`.`SESSION_VARIABLES` gives back an empty
+  // result. Seems to be independed of the MySQL version.
+
 //  if (Session.ServerVersion < 50112) then
   begin
     if (Session.ServerVersion < 40003) then
