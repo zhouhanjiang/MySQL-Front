@@ -1456,7 +1456,6 @@ type
     procedure EmptyDatabases(const Databases: TList);
     function EncodeInterval(const Year, Month, Day, Quarter, Week, Hour, Minute, Second, MSec: Word; var Value: string; var IntervalType: TMySQLIntervalType): Boolean;
     function EngineByName(const EngineName: string): TSEngine;
-    function EscapeIdentifier(const Identifier: string; const ApplyTableName: Boolean = False): string; reintroduce; virtual;
     function EscapeRightIdentifier(const Identifier: string; const IdentifierQuoting: Boolean = False): string;
     function EscapeUser(const User: string; const IdentifierQuoting: Boolean = False): string;
     function FieldTypeByCaption(const Caption: string): TSFieldType;
@@ -1544,7 +1543,7 @@ uses
 
 const
   INFORMATION_SCHEMA = 'INFORMATION_SCHEMA';
-  performance_schema = 'performance_schema';
+  PERFORMANCE_SCHEMA = 'PERFORMANCE_SCHEMA';
   OutParameterCaption = '<OUT>';
   InParameterCaption = '<IN>';
 
@@ -5290,12 +5289,12 @@ begin
           Result := Result + SQLEscape(TSBaseTable(Tables[I]).Name);
         end;
       if (Result <> '') then
-        Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA, True) + '.' + Session.EscapeIdentifier('TABLES', True)
+        Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.EscapeIdentifier('TABLES')
           + ' WHERE ' + Session.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name)
           + ' AND ' + Session.EscapeIdentifier('TABLE_NAME') + ' IN (' + Result + ');' + #13#10;
     end
     else if (not ValidStatus) then
-      Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA, True) + '.' + Session.EscapeIdentifier('TABLES', True)
+      Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.EscapeIdentifier('TABLES')
         + ' WHERE ' + Session.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ';' + #13#10;
   end;
 end;
@@ -5317,10 +5316,10 @@ begin
         SQL := SQL + SQLEscape(TSView(Tables[I]).Name);
       end;
     if (SQL <> '') then
-      SQL := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA, True) + '.' + Session.EscapeIdentifier('COLUMNS', True) + ' WHERE ' + Session.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ' AND ' + Session.EscapeIdentifier('TABLE_NAME') + ' IN (' + SQL + ') ORDER BY ' + Session.EscapeIdentifier('TABLE_NAME') + ',' + Session.EscapeIdentifier('ORDINAL_POSITION') + ';' + #13#10;
+      SQL := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.EscapeIdentifier('COLUMNS') + ' WHERE ' + Session.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ' AND ' + Session.EscapeIdentifier('TABLE_NAME') + ' IN (' + SQL + ') ORDER BY ' + Session.EscapeIdentifier('TABLE_NAME') + ',' + Session.EscapeIdentifier('ORDINAL_POSITION') + ';' + #13#10;
   end
   else
-    SQL := SQL + 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA, True) + '.' + Session.EscapeIdentifier('COLUMNS', True) + ' WHERE ' + Session.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ' ORDER BY ' + Session.EscapeIdentifier('TABLE_NAME') + ',' + Session.EscapeIdentifier('ORDINAL_POSITION') + ';' + #13#10;
+    SQL := SQL + 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.EscapeIdentifier('COLUMNS') + ' WHERE ' + Session.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ' ORDER BY ' + Session.EscapeIdentifier('TABLE_NAME') + ',' + Session.EscapeIdentifier('ORDINAL_POSITION') + ';' + #13#10;
 
   Result := SQL;
 end;
@@ -5959,7 +5958,7 @@ end;
 
 function TSRoutines.SQLGetItems(const Name: string = ''): string;
 begin
-  Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA, True) + '.' + Session.EscapeIdentifier('ROUTINES', True)
+  Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.EscapeIdentifier('ROUTINES')
     + ' WHERE ' + Session.EscapeIdentifier('ROUTINE_SCHEMA') + '=' + SQLEscape(Database.Name) + ';' + #13#10;
 end;
 
@@ -6367,7 +6366,7 @@ end;
 
 function TSTriggers.SQLGetItems(const Name: string = ''): string;
 begin
-  Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA, True) + '.' + Session.EscapeIdentifier('TRIGGERS', True)
+  Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.EscapeIdentifier('TRIGGERS')
     + ' WHERE ' + Session.EscapeIdentifier('EVENT_OBJECT_SCHEMA') + '=' + SQLEscape(Database.Name);
   if (Name <> '') then
     Result := Result + ' AND ' + Session.EscapeIdentifier('TRIGGER_NAME') + '=' + SQLEscape(Name);
@@ -6651,7 +6650,7 @@ end;
 
 function TSEvents.SQLGetItems(const Name: string = ''): string;
 begin
-  Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA, True) + '.' + Session.EscapeIdentifier('EVENTS', True)
+  Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.EscapeIdentifier('EVENTS')
     + ' WHERE ' + Session.EscapeIdentifier('EVENT_SCHEMA') + '=' + SQLEscape(Database.Name) + ';' + #13#10;
 end;
 
@@ -8232,7 +8231,7 @@ begin
         Name := DataSet.FieldByName('SCHEMA_NAME').AsString;
 
       Found := ((Session.TableNameCmp(Name, INFORMATION_SCHEMA) = 0)
-        or (NameCmp(Name, performance_schema) = 0));
+        or (NameCmp(Name, PERFORMANCE_SCHEMA) = 0));
       for I := 0 to Length(DatabaseNames) - 1 do
         if (NameCmp(Name, DatabaseNames[I]) = 0) then
           Found := True;
@@ -8246,7 +8245,7 @@ begin
             NewDatabase := TSSystemDatabase.Create(Session, Name);
             Session.FInformationSchema := NewDatabase;
           end
-          else if (NameCmp(Name, performance_schema) = 0) then
+          else if (NameCmp(Name, PERFORMANCE_SCHEMA) = 0) then
           begin
             NewDatabase := TSSystemDatabase.Create(Session, Name);
             Session.FPerformanceSchema := NewDatabase;
@@ -8285,7 +8284,7 @@ begin
         Index := Add(TSSystemDatabase.Create(Session, Name));
         Session.FInformationSchema := Database[Index];
       end
-      else if (Session.TableNameCmp(Name, performance_schema) = 0) then
+      else if (Session.TableNameCmp(Name, PERFORMANCE_SCHEMA) = 0) then
       begin
         Index := Add(TSSystemDatabase.Create(Session, Name));
         Session.FInformationSchema := Database[Index];
@@ -8374,7 +8373,7 @@ begin
     Result := 'SHOW DATABASES;' + #13#10
   else
   begin
-    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA, True) + '.' + Session.EscapeIdentifier('SCHEMATA', True);
+    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.EscapeIdentifier('SCHEMATA');
     if (Assigned(Session.Account) and (Session.Account.Connection.Database <> '')) then
     begin
       Result := Result + ' WHERE ' + Session.EscapeIdentifier('SCHEMA_NAME') + ' IN (';
@@ -8388,7 +8387,7 @@ begin
       end;
       Result := Result + ',' + SQLEscape(INFORMATION_SCHEMA);
       if (Session.ServerVersion >= 50503) then
-        Result := Result + ',' + SQLEscape(performance_schema);
+        Result := Result + ',' + SQLEscape(PERFORMANCE_SCHEMA);
       Result := Result + ')';
 
       SetLength(DatabaseNames, 0);
@@ -8554,29 +8553,19 @@ end;
 
 function TSVariables.SQLGetItems(const Name: string = ''): string;
 begin
+  // In 5.7.8 INFORMATION_SCHEMA.SESSION_VARIABLES is empty. Instead of it,
+  // PERFORMANCE_SCHEMA.SESSION_VARIABLES shows the variables. But only,
+  // if SHOW_COMPATIBILITY_56 = OFF.
+
   if (Session.ServerVersion < 40003) then
-    Result := 'SHOW VARIABLES'
-  else // if (Session.ServerVersion < 50112) then
+    Result := 'SHOW VARIABLES;' + #13#10
+  else
   begin
     Result := 'SHOW SESSION VARIABLES';
     if (Name <> '') then
       Result := Result + ' LIKE ' + SQLEscape(Name);
     Result := Result + ';' + #13#10;
-  end
-//  else if (Session.ServerVersion < 50708) then
-//  begin
-//    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA, True) + '.' + Session.EscapeIdentifier('SESSION_VARIABLES', True);
-//    if (Name <> '') then
-//      Result := Result + ' WHERE ' + Session.EscapeIdentifier('VARIABLE_NAME') + '=' + SQLEscape(Name);
-//    Result := Result + ';' + #13#10;
-//  end
-//  else
-//  begin
-//    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(PERFORMANCE_SCHEMA, True) + '.' + Session.EscapeIdentifier('SESSION_VARIABLES', True);
-//    if (Name <> '') then
-//      Result := Result + ' WHERE ' + Session.EscapeIdentifier('VARIABLE_NAME') + '=' + SQLEscape(Name);
-//    Result := Result + ';' + #13#10;
-//  end;
+  end;
 end;
 
 { TSStati *********************************************************************}
@@ -8649,16 +8638,12 @@ end;
 
 function TSStati.SQLGetItems(const Name: string = ''): string;
 begin
-  // See comment in TSVariables.SQLGetItems
+  // See comment in TSVariables.SQLGetItems.
 
   if (Session.ServerVersion < 50002) then
     Result := 'SHOW STATUS;' + #13#10
-  else // if (Session.ServerVersion < 50112) then
+  else
     Result := 'SHOW SESSION STATUS;' + #13#10
-//  else if (Session.ServerVersion < 50708) then
-//    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFOFMATION_SCHEMA, True) + '.' + Session.EscapeIdentifier('SESSION_STATUS', True) + ';' + #13#10
-//  else
-//    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(performance_schema) + '.' + Session.EscapeIdentifier('SESSION_STATUS') + ';' + #13#10;
 end;
 
 { TSEngine ********************************************************************}
@@ -8831,7 +8816,7 @@ begin
   else if (Session.ServerVersion < 50105) then
     Result := 'SHOW ENGINES;' + #13#10
   else
-    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA, True) + '.' + Session.EscapeIdentifier('ENGINES', True) + ';' + #13#10;
+    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.EscapeIdentifier('ENGINES') + ';' + #13#10;
 end;
 
 function TSEngines.Update(): Boolean;
@@ -8912,7 +8897,7 @@ begin
   else if (Session.ServerVersion < 50105) then
     Result := 'SHOW PLUGINS;' + #13#10
   else
-    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA, True) + '.' + Session.EscapeIdentifier('PLUGINS', True) + ';' + #13#10;
+    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.EscapeIdentifier('PLUGINS') + ';' + #13#10;
 end;
 
 { TSFieldType *****************************************************************}
@@ -9146,7 +9131,7 @@ begin
   else if (Session.ServerVersion < 50006) then
     Result := 'SHOW CHARACTER SET;' + #13#10
   else
-    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA, True) + '.' + Session.EscapeIdentifier('CHARACTER_SETS', True) + ';' + #13#10;
+    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.EscapeIdentifier('CHARACTER_SETS') + ';' + #13#10;
 end;
 
 function TSCharsets.Update(): Boolean;
@@ -9233,7 +9218,7 @@ begin
   if (Session.ServerVersion < 50006) then
     Result := 'SHOW COLLATION;' + #13#10
   else
-    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA, True) + '.' + Session.EscapeIdentifier('COLLATIONS', True) + ';' + #13#10;
+    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.EscapeIdentifier('COLLATIONS') + ';' + #13#10;
 end;
 
 { TSProcesse ******************************************************************}
@@ -9366,7 +9351,7 @@ begin
   if (Session.ServerVersion < 50107) then
     Result := 'SHOW FULL PROCESSLIST;' + #13#10
   else
-    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA, True) + '.' + Session.EscapeIdentifier('PROCESSLIST', True) + ';' + #13#10;
+    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.EscapeIdentifier('PROCESSLIST') + ';' + #13#10;
 end;
 
 { TSUserRight *****************************************************************}
@@ -9972,7 +9957,7 @@ begin
   if (Session.ServerVersion < 50002) then
     Result := 'SELECT * FROM ' + Session.EscapeIdentifier('mysql') + '.' + Session.EscapeIdentifier('user') + ';' + #13#10
   else
-    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA, True) + '.' + Session.EscapeIdentifier('USER_PRIVILEGES', True) + ' GROUP BY ' + Session.EscapeIdentifier('GRANTEE') + ';' + #13#10;
+    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.EscapeIdentifier('USER_PRIVILEGES') + ' GROUP BY ' + Session.EscapeIdentifier('GRANTEE') + ';' + #13#10;
 end;
 
 { TSSession.TEvent ************************************************************}
@@ -10689,14 +10674,6 @@ begin
     Result := nil
   else
     Result := Engines[Index];
-end;
-
-function TSSession.EscapeIdentifier(const Identifier: string; const ApplyTableName: Boolean = False): string;
-begin
-  if (not ApplyTableName) then
-    Result := inherited EscapeIdentifier(Identifier)
-  else
-    Result := inherited EscapeIdentifier(TableName(Identifier));
 end;
 
 function TSSession.EscapeRightIdentifier(const Identifier: string; const IdentifierQuoting: Boolean = False): string;
@@ -11648,8 +11625,9 @@ begin
           else
             raise EConvertError.CreateFmt(SUnknownSQLStmt, [CommandText]);
         end
-        else if (Databases.NameCmp(DatabaseName, performance_schema) = 0) then
+        else if (Databases.NameCmp(DatabaseName, PERFORMANCE_SCHEMA) = 0) then
         begin
+          DataSet.Open(DataHandle);
           if (TableNameCmp(ObjectName, 'SESSION_STATUS') = 0) then
             Result := Stati.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'))
           else if (TableNameCmp(ObjectName, 'SESSION_VARIABLES') = 0) then
@@ -12132,10 +12110,10 @@ begin
 
   if (not Assigned(Objects) and Status and (ServerVersion >= 50002) and not Valid) then
   begin
-    SQL := SQL + 'SELECT * FROM ' + EscapeIdentifier(INFORMATION_SCHEMA, True) + '.' + EscapeIdentifier('TABLES', True) + ';' + #13#10;
-    if (ServerVersion >= 50010) then SQL := SQL + 'SELECT * FROM ' + EscapeIdentifier(INFORMATION_SCHEMA, True) + '.' + EscapeIdentifier('TRIGGERS', True) + ';' + #13#10;
-    if (ServerVersion >= 50004) then SQL := SQL + 'SELECT * FROM ' + EscapeIdentifier(INFORMATION_SCHEMA, True) + '.' + EscapeIdentifier('ROUTINES', True) + ';' + #13#10;
-    if (ServerVersion >= 50106) then SQL := SQL + 'SELECT * FROM ' + EscapeIdentifier(INFORMATION_SCHEMA, True) + '.' + EscapeIdentifier('EVENTS', True) + ';' + #13#10;
+    SQL := SQL + 'SELECT * FROM ' + EscapeIdentifier(INFORMATION_SCHEMA) + '.' + EscapeIdentifier('TABLES') + ';' + #13#10;
+    if (ServerVersion >= 50010) then SQL := SQL + 'SELECT * FROM ' + EscapeIdentifier(INFORMATION_SCHEMA) + '.' + EscapeIdentifier('TRIGGERS') + ';' + #13#10;
+    if (ServerVersion >= 50004) then SQL := SQL + 'SELECT * FROM ' + EscapeIdentifier(INFORMATION_SCHEMA) + '.' + EscapeIdentifier('ROUTINES') + ';' + #13#10;
+    if (ServerVersion >= 50106) then SQL := SQL + 'SELECT * FROM ' + EscapeIdentifier(INFORMATION_SCHEMA) + '.' + EscapeIdentifier('EVENTS') + ';' + #13#10;
   end;
 
 
