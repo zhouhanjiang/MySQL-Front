@@ -223,7 +223,10 @@ begin
     if (FLengthUD.Position = 0) then
       FLength.Text := '';
 
-    FFulltext.Enabled := not Assigned(Table.Engine) or (UpperCase(Table.Engine.Name) = 'MYISAM') and (FIndexedFields.Items.Count > 0) and (Table.Database.Session.ServerVersion >= 32323);
+    FFulltext.Enabled :=
+      not Assigned(Table.Engine)
+        or (UpperCase(Table.Engine.Name) = 'INNODB') and (FIndexedFields.Items.Count > 0) and (Table.Session.ServerVersion >= 50600)
+        or (UpperCase(Table.Engine.Name) = 'MYISAM') and (FIndexedFields.Items.Count > 0) and (Table.Session.ServerVersion >= 32323);
   end
   else
   begin

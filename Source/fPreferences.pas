@@ -2139,6 +2139,8 @@ begin
   begin
     if (ValueExists('')) then
       SoundFileNavigating := ReplaceEnviromentVariables(ReadString(''));
+    if (not FileExists(SoundFileNavigating)) then
+      SoundFileNavigating := '';
 
     CloseKey();
   end;

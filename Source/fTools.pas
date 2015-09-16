@@ -50,7 +50,7 @@ type
       property Item[Index: Integer]: TItem read GetItem; default;
       property Tool: TTool read FTool;
     end;
-    TErrorType = (TE_Database, TE_NoPrimaryIndex, TE_File, TE_ODBC, TE_XML, TE_Warning, TE_Printer);
+    TErrorType = (TE_Database, TE_NoPrimaryIndex, TE_File, TE_ODBC, TE_XML, TE_Warning, TE_Printer, TE_OutOfMemory);
     TError = record
       ErrorType: TErrorType;
       ErrorCode: Integer;
@@ -2465,6 +2465,7 @@ var
   CLStmt: TSQLCLStmt;
   CompleteStmt: Boolean;
   Eof: Boolean;
+  Error: TTool.TError;
   Index: Integer;
   Len: Integer;
   SetNames: Boolean;
@@ -2523,7 +2524,20 @@ begin
     if ((Index > 1) and (SetNames or (Index - 1 + Len >= SQLPacketSize))) then
     begin
       if (Assigned(Text)) then
-        Text^ := Text^ + Copy(FileContent.Str, 1, Index - 1)
+      begin
+        try
+          Text^ := Text^ + Copy(FileContent.Str, 1, Index - 1)
+        except
+          on E: EOutOfMemory do
+          begin
+            Error.ErrorType := TE_OutOfMemory;
+            Error.ErrorCode := 0;
+            Error.ErrorMessage := E.Message;
+            Error.Session := nil;
+            DoError(Error, Items[0], False);
+          end;
+        end;
+      end
       else
       begin
         SQL := Copy(FileContent.Str, 1, Index - 1);
