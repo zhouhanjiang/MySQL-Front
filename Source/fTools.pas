@@ -2917,10 +2917,10 @@ function SQLDataTypeToMySQLType(const SQLType: SQLSMALLINT; const Size: Integer;
 begin
   case (SQLType) of
     SQL_CHAR: Result := mfChar;
-    SQL_VARCHAR: Result := mfText;
+    SQL_VARCHAR: Result := mfVarChar;
     SQL_LONGVARCHAR: Result := mfText;
     SQL_WCHAR: Result := mfChar;
-    SQL_WVARCHAR: Result := mfText;
+    SQL_WVARCHAR: Result := mfVarChar;
     SQL_WLONGVARCHAR: Result := mfText;
     SQL_DECIMAL: Result := mfDecimal;
     SQL_NUMERIC: Result := mfDecimal;

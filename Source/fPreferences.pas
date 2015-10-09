@@ -4006,7 +4006,12 @@ begin
   if (not Assigned(FHistoryXMLDocument)) then
   begin
     if (FileExists(HistoryFilename)) then
-      FHistoryXMLDocument := LoadXMLDocument(HistoryFilename);
+      try
+        FHistoryXMLDocument := LoadXMLDocument(HistoryFilename);
+      except
+        // If there are errors inside the History.xml the user should not bothered with it...
+        FHistoryXMLDocument := nil;
+      end;
 
     if (not Assigned(FHistoryXMLDocument) or not Assigned(FHistoryXMLDocument.DocumentElement)) then
     begin
