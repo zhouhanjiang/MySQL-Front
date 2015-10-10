@@ -6101,8 +6101,6 @@ begin
 
     DatabaseName := Database.Name;
     if (not SQLParseObjectName(Parse, DatabaseName, FName)) then
-      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL])
-    else if (Session.Databases.NameCmp(DatabaseName, Database.Name) <> 0) then
       raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
     if (SQLParseKeyword(Parse, 'BEFORE')) then
