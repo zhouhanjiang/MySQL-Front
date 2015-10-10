@@ -7810,6 +7810,7 @@ begin
       begin
         NewTrigger := TSTrigger.Create(DestinationDatabase.Tables);
         NewTrigger.Assign(SourceDatabase.Triggers[I]);
+        NewTrigger.Stmt := AnsiReplaceStr(NewTrigger.Stmt, SourceDatabase.Session.EscapeIdentifier(SourceDatabase.Name) + '.', '');
         DestinationSession.BeginSynchron();
         while ((Success <> daAbort) and not DestinationDatabase.AddTrigger(NewTrigger)) do
           DoError(DatabaseError(DestinationSession), Item, True);
