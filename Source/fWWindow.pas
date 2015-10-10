@@ -377,6 +377,8 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure TabControlMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
+    procedure TabControlMouseMove(Sender: TObject; Shift: TShiftState; X,
+      Y: Integer);
   const
     tiDeactivate = 1;
   type
@@ -1849,6 +1851,22 @@ begin
           TabControlChange(Sender);
         end;
       end;
+end;
+
+procedure TWWindow.TabControlMouseMove(Sender: TObject; Shift: TShiftState; X,
+  Y: Integer);
+var
+  S: string;
+  Tab: TFSession;
+begin
+  Tab := TFSession(FSessions[TabControl.IndexOfTabAt(X, Y)]);
+
+  S := Tab.Session.Account.Connection.Host;
+  if (Tab.Session.Account.Connection.Port <> MYSQL_PORT) then
+    S := S + ':' + IntToStr(Tab.Session.Account.Connection.Port);
+  if (Tab.ToolBarData.Caption <> '') then
+    S := S + ' - ' + Tab.ToolBarData.Caption;
+  TabControl.Hint := S;
 end;
 
 procedure TWWindow.TabControlResize(Sender: TObject);
