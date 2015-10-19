@@ -8373,7 +8373,8 @@ begin
     ActiveDBGrid := nil;
   EditorField := nil;
 
-  DBGrid.Free();
+  if (Assigned(DBGrid)) then // Debug 13.10.15 ... is this needed?
+    DBGrid.Free();
 end;
 
 procedure TFSession.FreeListView(const ListView: TListView);
@@ -12707,7 +12708,7 @@ begin
 
     NewBaseTable := TSBaseTable.Create(BaseTable.Database.Tables);
     NewBaseTable.Assign(BaseTable);
-    NewBaseTable.FieldByName(CItem.Name).Name := NewName;
+    NewBaseTable.ForeignKeyByName(CItem.Name).Name := NewName;
     Result := BaseTable.Database.UpdateTable(BaseTable, NewBaseTable);
     NewBaseTable.Free();
   end

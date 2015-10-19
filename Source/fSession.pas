@@ -6565,7 +6565,6 @@ begin
     repeat
       if ((not UseInformationSchema and (DataSet.FieldByName('Db').AsString = Database.Name))
         or (UseInformationSchema and (Session.Databases.NameCmp(DataSet.FieldByName('EVENT_SCHEMA').AsString, Database.Name) = 0))) then
-      else if (Session.Databases.NameCmp(DataSet.FieldByName('ROUTINE_SCHEMA').AsString, Database.Name) = 0) then
       begin
         if (not UseInformationSchema) then
           Name := DataSet.FieldByName('Name').AsString

@@ -4728,7 +4728,7 @@ begin
   Content := Content + '# Trigger "' + Trigger.Name + '"' + #13#10;
   Content := Content + '#' + #13#10;
   Content := Content + #13#10;
-  Content := Content + Trigger.GetSourceEx(DropStmts, False);
+  Content := Content + AnsiReplaceStr(Trigger.GetSourceEx(DropStmts, False), Trigger.Session.EscapeIdentifier(Trigger.Database.Name) + '.', '');
 
   WriteContent(Content);
 end;
