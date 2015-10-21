@@ -10746,6 +10746,8 @@ begin
   if (not Assigned(Result)) then
     if ((UpperCase(Caption) = 'BOOL') or (UpperCase(Caption) = 'BOOLEAN')) then
       Result := FieldTypeByMySQLFieldType(mfTinyInt)
+    else if (UpperCase(Caption) = 'INT4') then
+      Result := FieldTypeByMySQLFieldType(mfMediumInt)
     else if (UpperCase(Caption) = 'INTEGER') then
       Result := FieldTypeByMySQLFieldType(mfInt)
     else if (UpperCase(Caption) = 'LONG') then
