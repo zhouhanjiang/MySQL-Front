@@ -992,7 +992,7 @@ type
     function PostObject(Sender: TObject): Boolean;
     procedure PropertiesServerExecute(Sender: TObject);
     procedure PSQLEditorUpdate();
-    function RenameCItem(const CItem: TSItem; const NewName: string): Boolean;
+    function RenameCItem(const SItem: TSItem; const NewName: string): Boolean;
     procedure SaveDiagram(Sender: TObject);
     procedure SaveSQLFile(Sender: TObject);
     procedure SBResultRefresh(const DataSet: TMySQLDataSet);
@@ -12642,7 +12642,7 @@ begin
   end;
 end;
 
-function TFSession.RenameCItem(const CItem: TSItem; const NewName: string): Boolean;
+function TFSession.RenameCItem(const SItem: TSItem; const NewName: string): Boolean;
 var
   BaseTable: TSBaseTable;
   Event: TSEvent;
@@ -12654,17 +12654,17 @@ var
   Trigger: TSTrigger;
   User: TSUser;
 begin
-  if (CItem is TSTable) then
+  if (SItem is TSTable) then
   begin
-    Table := TSTable(CItem);
+    Table := TSTable(SItem);
 
     Table.Database.RenameTable(Table, NewName);
 
     Result := False;
   end
-  else if (CItem is TSTrigger) then
+  else if (SItem is TSTrigger) then
   begin
-    Trigger := TSTrigger(CItem);
+    Trigger := TSTrigger(SItem);
 
     NewTrigger := TSTrigger.Create(Trigger.Database.Triggers);
     NewTrigger.Assign(Trigger);
@@ -12672,9 +12672,9 @@ begin
     Result := Trigger.Database.UpdateTrigger(Trigger, NewTrigger);
     NewTrigger.Free();
   end
-  else if (CItem is TSEvent) then
+  else if (SItem is TSEvent) then
   begin
-    Event := TSEvent(CItem);
+    Event := TSEvent(SItem);
 
     NewEvent := TSEvent.Create(Event.Database.Events);
     NewEvent.Assign(Event);
@@ -12682,39 +12682,39 @@ begin
     Result := Event.Database.UpdateEvent(Event, NewEvent);
     NewEvent.Free();
   end
-  else if (CItem is TSKey) then
+  else if (SItem is TSKey) then
   begin
-    BaseTable := TSBaseTableField(CItem).Table;
+    BaseTable := TSBaseTableField(SItem).Table;
 
     NewBaseTable := TSBaseTable.Create(BaseTable.Database.Tables);
     NewBaseTable.Assign(BaseTable);
-    NewBaseTable.KeyByCaption(CItem.Caption).Name := NewName;
+    NewBaseTable.KeyByCaption(SItem.Caption).Name := NewName;
     Result := BaseTable.Database.UpdateTable(BaseTable, NewBaseTable);
     NewBaseTable.Free();
   end
-  else if (CItem is TSBaseTableField) then
+  else if (SItem is TSBaseTableField) then
   begin
-    BaseTable := TSBaseTableField(CItem).Table;
+    BaseTable := TSBaseTableField(SItem).Table;
 
     NewBaseTable := TSBaseTable.Create(BaseTable.Database.Tables);
     NewBaseTable.Assign(BaseTable);
-    NewBaseTable.FieldByName(CItem.Name).Name := NewName;
+    NewBaseTable.FieldByName(SItem.Name).Name := NewName;
     Result := BaseTable.Database.UpdateTable(BaseTable, NewBaseTable);
     NewBaseTable.Free();
   end
-  else if (CItem is TSForeignKey) then
+  else if (SItem is TSForeignKey) then
   begin
-    BaseTable := TSForeignKey(CItem).Table;
+    BaseTable := TSForeignKey(SItem).Table;
 
     NewBaseTable := TSBaseTable.Create(BaseTable.Database.Tables);
     NewBaseTable.Assign(BaseTable);
-    NewBaseTable.ForeignKeyByName(CItem.Name).Name := NewName;
+    NewBaseTable.ForeignKeyByName(SItem.Name).Name := NewName;
     Result := BaseTable.Database.UpdateTable(BaseTable, NewBaseTable);
     NewBaseTable.Free();
   end
-  else if (CItem is TSUser) then
+  else if (SItem is TSUser) then
   begin
-    User := TSUser(CItem);
+    User := TSUser(SItem);
 
     NewUser := TSUser.Create(Session.Users);
     NewUser.Assign(User);
