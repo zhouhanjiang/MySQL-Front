@@ -319,7 +319,7 @@ begin
   begin
     EmptyClipboard();
 
-    if (SelectedRows.Count = 0) then
+    if (not Assigned(SelectedField) or (SelectedRows.Count = 0)) then
     begin
       Content := SelectedField.AsString;
 
