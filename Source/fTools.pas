@@ -7805,6 +7805,11 @@ begin
   if (not Assigned(SourceDatabase)) then // Debug 18.02.2015
     raise ERangeError.Create(SRangeError);
   if (Assigned(SourceDatabase.Triggers) and Assigned(DestinationDatabase.Triggers)) then
+  begin
+    SourceDatabase.Session.BeginSynchron();
+    SourceDatabase.Triggers.Update();
+    SourceDatabase.Session.EndSynchron();
+
     for I := 0 to SourceDatabase.Triggers.Count - 1 do
       if ((Success = daSuccess) and (SourceDatabase.Triggers[I].Table = SourceTable) and not Assigned(DestinationDatabase.TriggerByName(SourceDatabase.Triggers[I].Name))) then
       begin
@@ -7817,6 +7822,7 @@ begin
         DestinationSession.EndSynchron();
         NewTrigger.Free();
       end;
+  end;
 
   Item.Done := Success = daSuccess;
   DoUpdateGUI();

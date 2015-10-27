@@ -10372,16 +10372,16 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         giEvents:
           SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(876) + ' (' + IntToStr(SessionEvent.SItems.Count) + ')');
         giKeys:
-          SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(458) + ' (' + IntToStr(TSBaseTable(SessionEvent.Sender).Keys.Count) + ')');
+          SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(458) + ' (' + IntToStr(TSBaseTable(ListView.Tag).Keys.Count) + ')');
         giFields:
-          SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(253) + ' (' + IntToStr(TSTable(SessionEvent.Sender).Fields.Count) + ')');
+          SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(253) + ' (' + IntToStr(TSTable(ListView.Tag).Fields.Count) + ')');
         giForeignKeys:
-          SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(459) + ' (' + IntToStr(TSBaseTable(SessionEvent.Sender).ForeignKeys.Count) + ')');
+          SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(459) + ' (' + IntToStr(TSBaseTable(ListView.Tag).ForeignKeys.Count) + ')');
         giTriggers:
           begin
             Count := 0;
             for I := 0 to TSTriggers(SItems).Count - 1 do
-              if (TSTriggers(SItems)[I].Table = TSBaseTable(SessionEvent.Sender)) then
+              if (TSTriggers(SItems)[I].Table = TObject(ListView.Tag)) then
               begin
                 InsertItem(Kind, TSTriggers(SItems)[I]);
                 Inc(Count);
