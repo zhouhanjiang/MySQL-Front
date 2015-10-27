@@ -10249,7 +10249,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
     UpdateItem(Result, Data);
   end;
 
-  procedure UpdateGroup(const Kind: TADesktop.TListViewKind; const GroupID: Integer; const CItems: TSItems);
+  procedure UpdateGroup(const Kind: TADesktop.TListViewKind; const GroupID: Integer; const SItems: TSItems);
   var
     Add: Boolean;
     ColumnWidths: array [0..7] of Integer;
@@ -10278,16 +10278,16 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
           end;
 
           for I := ListView.Items.Count - 1 downto 0 do
-            if ((ListView.Items[I].GroupID = GroupID) and (CItems.IndexOf(ListView.Items[I].Data) < 0)) then
+            if ((ListView.Items[I].GroupID = GroupID) and (SItems.IndexOf(ListView.Items[I].Data) < 0)) then
               begin ListView.Items[I].Data := nil; ListView.Items.Delete(I); end;
 
           Add := (ListView.Items.Count = 0) and (ListViewSortData[Kind].Index = 0) and (ListViewSortData[Kind].Order = 1);
-          for I := 0 to CItems.Count - 1 do
-            if (not (CItems is TSTriggers) or (TSTriggers(CItems)[I].Table = SessionEvent.Sender)) then
+          for I := 0 to SItems.Count - 1 do
+            if (not (SItems is TSTriggers) or (TSTriggers(SItems)[I].Table = TObject(ListView.Tag))) then
               if (not Add) then
-                InsertItem(Kind, CItems[I])
+                InsertItem(Kind, SItems[I])
               else
-                AddItem(Kind, CItems[I]);
+                AddItem(Kind, SItems[I]);
 
           for I := 0 to ListView.Columns.Count - 1 do
             if ((Kind = lkProcesses) and (I = 5)) then
@@ -10380,10 +10380,10 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         giTriggers:
           begin
             Count := 0;
-            for I := 0 to TSTriggers(CItems).Count - 1 do
-              if (TSTriggers(CItems)[I].Table = TSBaseTable(SessionEvent.Sender)) then
+            for I := 0 to TSTriggers(SItems).Count - 1 do
+              if (TSTriggers(SItems)[I].Table = TSBaseTable(SessionEvent.Sender)) then
               begin
-                InsertItem(Kind, TSTriggers(CItems)[I]);
+                InsertItem(Kind, TSTriggers(SItems)[I]);
                 Inc(Count);
               end;
             SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(797) + ' (' + IntToStr(Count) + ')');
@@ -10460,7 +10460,7 @@ begin
             if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).Database.Triggers)) then
               UpdateGroup(Kind, giTriggers, TSBaseTable(Table).Database.Triggers);
           end
-          else if ((SessionEvent.Sender is TSDatabase) and (SessionEvent.SItem is TSTrigger)) then
+          else if ((SessionEvent.Sender is TSDatabase) and (SessionEvent.SItems is TSTriggers)) then
             UpdateGroup(Kind, giTriggers, SessionEvent.SItems);
         end;
       lkProcesses:
