@@ -9957,8 +9957,7 @@ begin
   begin
     // If "only_full_group_by" is set in the sql_mode, the column of the GROUP BY clause is required in the column clause
     // Since only GRANTEE is used in the Build methode the other columns are not needed
-//    Result := 'SELECT ' + Session.EscapeIdentifier('GRANTEE') + ' FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.EscapeIdentifier('USER_PRIVILEGES') + ' GROUP BY ' + Session.EscapeIdentifier('GRANTEE') + ';' + #13#10;
-    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.EscapeIdentifier('USER_PRIVILEGES') + ' GROUP BY ' + Session.EscapeIdentifier('GRANTEE') + ';' + #13#10;
+    Result := 'SELECT ' + Session.EscapeIdentifier('GRANTEE') + ' FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.EscapeIdentifier('USER_PRIVILEGES') + ' GROUP BY ' + Session.EscapeIdentifier('GRANTEE') + ';' + #13#10;
   end;
 end;
 
@@ -11571,7 +11570,7 @@ begin
     if (SQLParseKeyword(Parse, 'SELECT')) then
     begin
       DatabaseName := Self.DatabaseName;
-      if (SQLParseChar(Parse, '*') and SQLParseKeyword(Parse, 'FROM') and SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
+      if ((SQLParseChar(Parse, '*') or (SQLParseValue(Parse) = 'GRANTEE')) and SQLParseKeyword(Parse, 'FROM') and SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
       begin
         if (TableNameCmp(DatabaseName, INFORMATION_SCHEMA) = 0) then
         begin
