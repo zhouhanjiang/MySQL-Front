@@ -9954,7 +9954,11 @@ begin
   if (Session.ServerVersion < 50002) then
     Result := 'SELECT * FROM ' + Session.EscapeIdentifier('mysql') + '.' + Session.EscapeIdentifier('user') + ';' + #13#10
   else
-    Result := 'SELECT * FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.EscapeIdentifier('USER_PRIVILEGES') + ' GROUP BY ' + Session.EscapeIdentifier('GRANTEE') + ';' + #13#10;
+  begin
+    // If "only_full_group_by" is set in the sql_mode, the column of the GROUP BY clause is required in the column clause
+    // Since only GRANTEE is used in the Build methode the other columns are not needed
+    Result := 'SELECT ' + Session.EscapeIdentifier('GRANTEE') + ' FROM ' + Session.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.EscapeIdentifier('USER_PRIVILEGES') + ' GROUP BY ' + Session.EscapeIdentifier('GRANTEE') + ';' + #13#10;
+  end;
 end;
 
 { TSSession.TEvent ************************************************************}

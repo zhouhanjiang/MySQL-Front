@@ -559,7 +559,7 @@ end;
 
 procedure TDTable.Built();
 begin
-  NewTable.Assign(Table);
+  if (Assigned(Table)) then NewTable.Assign(Table);
 
   FName.Text := NewTable.Name;
 
@@ -1160,7 +1160,7 @@ begin
     or (Event.EventType = etAfterExecuteSQL)) then
     if (not PageControl.Visible) then
     begin
-      NewTable.Assign(Table);
+      if (Assigned(Table)) then NewTable.Assign(Table);
       Built();
     end
     else

@@ -3946,7 +3946,11 @@ begin
     Objects := TList.Create();
     for I := 0 to Items.Count - 1 do
       if (Items[I] is TDBObjectItem) then
+      begin
         Objects.Add(TDBObjectItem(Items[I]).DBObject);
+        if ((TDBObjectItem(Items[I]).DBObject is TSBaseTable) and Assigned(TDBObjectItem(Items[I]).DBObject.Database.Triggers) and (Objects.IndexOf(TDBObjectItem(Items[I]).DBObject.Database.Triggers) < 0)) then
+          Objects.Add(TDBObjectItem(Items[I]).DBObject.Database.Triggers);
+      end;
     if (Objects.Count > 0) then
     begin
       Success := daSuccess;
@@ -7805,11 +7809,6 @@ begin
   if (not Assigned(SourceDatabase)) then // Debug 18.02.2015
     raise ERangeError.Create(SRangeError);
   if (Assigned(SourceDatabase.Triggers) and Assigned(DestinationDatabase.Triggers)) then
-  begin
-    SourceDatabase.Session.BeginSynchron();
-    SourceDatabase.Triggers.Update();
-    SourceDatabase.Session.EndSynchron();
-
     for I := 0 to SourceDatabase.Triggers.Count - 1 do
       if ((Success = daSuccess) and (SourceDatabase.Triggers[I].Table = SourceTable) and not Assigned(DestinationDatabase.TriggerByName(SourceDatabase.Triggers[I].Name))) then
       begin
@@ -7822,7 +7821,6 @@ begin
         DestinationSession.EndSynchron();
         NewTrigger.Free();
       end;
-  end;
 
   Item.Done := Success = daSuccess;
   DoUpdateGUI();

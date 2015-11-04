@@ -138,10 +138,14 @@ begin
   FBefore.Caption := Preferences.LoadStr(791);
   FAfter.Caption := Preferences.LoadStr(792);
   FLEvent.Caption := Preferences.LoadStr(793) + ':';
-  FInsert.Caption := Preferences.LoadStr(308);
-  FUpdate.Caption := Preferences.LoadStr(309);
-  FDelete.Caption := Preferences.LoadStr(310);
+  FInsert.Caption := 'INSERT';
+  FUpdate.Caption := 'UPDATE';
+  FDelete.Caption := 'DELETE';
   FLStatement.Caption := Preferences.LoadStr(794) + ':';
+
+  FInsert.Font.Name := Preferences.SQLFontName;
+  FUpdate.Font.Name := Preferences.SQLFontName;
+  FDelete.Font.Name := Preferences.SQLFontName;
 
   FStatement.Font.Name := Preferences.SQLFontName;
   FStatement.Font.Style := Preferences.SQLFontStyle;
