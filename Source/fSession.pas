@@ -2662,7 +2662,7 @@ begin
       else
         Decimals := StrToInt(SQLParseValue(Parse));
     end
-    else if ((FieldType in [mfTinyText, mfText, mfMediumText, mfLongText]) or (FieldTypes.Session.ServerVersion >= 50604) and (FieldType in [mfTime, mfDateTime, mfTimeStamp])) then
+    else if (FieldType in [mfTinyText, mfText, mfMediumText, mfLongText, mfTime, mfDateTime, mfTimeStamp]) then
     begin
       S := SQLParseValue(Parse);
       if (not TryStrToInt(S, Size)) then

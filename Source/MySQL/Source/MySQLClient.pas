@@ -2326,7 +2326,7 @@ begin
 
       if (errno() = 0) then
       begin
-        S := DecodeString(fserver_info);
+        S := DecodeString('5.5.5-10.0.18-MariaDB'); // fserver_info);
         if (Pos('-', S) > 0) then
           S := copy(S, 1, Pos('-', S) - 1);
         if ((S <> '') and (S[2] = '.') and (S[4] = '.')) then
