@@ -4489,9 +4489,9 @@ begin
             MYSQL_TYPE_TIMESTAMP:
               if (Len in [2, 4, 6, 8, 10, 12, 14]) then
                 Field := TMySQLTimeStampField.Create(Self)
-              else if ((Connection.ServerVersion < 50604) or (Integer(Len) <= Length(Connection.FormatSettings.LongDateFormat + ' ' + Connection.FormatSettings.LongTimeFormat))) then
+              else if ((Integer(Len) <= Length(Connection.FormatSettings.LongDateFormat + ' ' + Connection.FormatSettings.LongTimeFormat))) then
                 Field := TMySQLDateTimeField.Create(Self)
-              else
+              else // Fractal seconds
                 begin Field := TMySQLWideStringField.Create(Self); Field.Size := Len; end;
             MYSQL_TYPE_DATE:
               Field := TMySQLDateField.Create(Self);
