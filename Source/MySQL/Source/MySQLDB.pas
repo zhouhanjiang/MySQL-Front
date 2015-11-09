@@ -4502,7 +4502,7 @@ begin
                 begin Field := TMySQLWideStringField.Create(Self); Field.Size := Len; end;
             MYSQL_TYPE_DATETIME,
             MYSQL_TYPE_NEWDATE:
-              if ((Connection.ServerVersion < 50604) or (Integer(Len) <= Length(Connection.FormatSettings.LongDateFormat + ' ' + Connection.FormatSettings.LongTimeFormat))) then
+              if ((Integer(Len) <= Length(Connection.FormatSettings.LongDateFormat + ' ' + Connection.FormatSettings.LongTimeFormat))) then
                 Field := TMySQLDateTimeField.Create(Self)
               else
                 begin Field := TMySQLWideStringField.Create(Self); Field.Size := Len; end;
