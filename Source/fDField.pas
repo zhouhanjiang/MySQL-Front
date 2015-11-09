@@ -262,12 +262,18 @@ begin
     FDefault.MaxLength := 30
   else if (IsCharType() or IsBinaryType()) then
     FDefault.MaxLength := FUDFormatSize.Position
-  else if ((GetType() = mfTimeStamp) and (Table.Database.Session.ServerVersion < 40100)) then
+  else if ((GetType() = mfTimeStamp) and (Table.Session.ServerVersion < 40100)) then
     FDefault.MaxLength := Length(FFormatTimestamp.Text)
-  else if ((GetType() in [mfTime, mfDateTime, mfTimeStamp]) and (Table.Database.Session.ServerVersion >= 50604)) then
-    FDefault.MaxLength := 6
-  else
-    FDefault.MaxLength := 0;
+  else if (GetType() = mfTime) then
+    if (not FUDFormatSize.Visible) then
+      FDefault.MaxLength := Length(Table.Session.FormatSettings.LongTimeFormat)
+    else
+      FDefault.MaxLength := Length(Table.Session.FormatSettings.LongTimeFormat) + Length(' ') + FUDFormatSize.Position
+  else if ((GetType() = mfDateTime) or (Table.Session.ServerVersion >= 40100) and (GetType() = mfTimeStamp)) then
+    if (not FUDFormatSize.Visible) then
+      FDefault.MaxLength := Length(Table.Session.FormatSettings.LongDateFormat)
+    else
+      FDefault.MaxLength := Length(Table.Session.FormatSettings.LongDateFormat) + Length(' ') + Length(Table.Session.FormatSettings.LongTimeFormat) + Length(' ') + FUDFormatSize.Position;
 
   if (FUDFormatDecimals.Position > 0) and (FUDFormatDecimals.Visible) then
     FDefault.MaxLength := FDefault.MaxLength + 1 + FUDFormatDecimals.Position;
@@ -299,26 +305,26 @@ begin
   FFormatDecimals.Visible := IsFloatType(); FUDFormatDecimals.Visible := FFormatDecimals.Visible;
   FLFormatDecimals.Visible := IsFloatType();
   FFormatYear.Visible := GetType() = mfYear;
-  FFormatTimestamp.Visible := (GetType() = mfTimestamp) and (Table.Database.Session.ServerVersion < 40100);
+  FFormatTimestamp.Visible := (GetType() = mfTimestamp) and (Table.Session.ServerVersion < 40100);
   FFormatUnion.Visible := IsUnionType();
   FLFormat.Visible := FFormatTimestamp.Visible or FFormatYear.Visible or FFormatUnion.Visible;
   FDefault.Visible := ((GetType() = mfBit) or IsIntType() or IsFloatType() or IsCharType() or IsBinaryType() or IsDateType());
   FRDefaultNull.Visible := FDefault.Visible;
   FRDefault.Visible := FDefault.Visible;
-  FRDefaultInsertTime.Visible := FDefault.Visible and (GetType() = mfTimeStamp) and (Table.Database.Session.ServerVersion >= 40102);
+  FRDefaultInsertTime.Visible := FDefault.Visible and (GetType() = mfTimeStamp) and (Table.Session.ServerVersion >= 40102);
   FRDefaultAutoIncrement.Visible := IsIntType();
-  FUpdateTime.Visible := FDefault.Visible and (GetType() = mfTimeStamp) and (Table.Database.Session.ServerVersion >= 40102); FLUpdateTime.Visible := FUpdateTime.Visible;
+  FUpdateTime.Visible := FDefault.Visible and (GetType() = mfTimeStamp) and (Table.Session.ServerVersion >= 40102); FLUpdateTime.Visible := FUpdateTime.Visible;
   FDefaultEnum.Visible := GetType() = mfEnum;
   FDefaultSet.Visible := GetType() = mfSet;
   FLDefault.Visible := FDefault.Visible or FDefaultEnum.Visible or FDefaultSet.Visible;
-  FCharset.Visible := (IsCharType() or IsMemoType() or (GetType() in [mfEnum, mfSet])) and (Table.Database.Session.ServerVersion >= 40101); FLCharset.Visible := FCharset.Visible;
-  FCollation.Visible := (IsCharType() or IsMemoType() or (GetType() in [mfEnum, mfSet])) and (Table.Database.Session.ServerVersion >= 40101); FLCollation.Visible := FCollation.Visible;
-  FFlagBinary.Visible := IsCharType() and (Table.Database.Session.ServerVersion < 40101);
-  FFlagNational.Visible := IsCharType() and (Table.Database.Session.ServerVersion < 40101);
+  FCharset.Visible := (IsCharType() or IsMemoType() or (GetType() in [mfEnum, mfSet])) and (Table.Session.ServerVersion >= 40101); FLCharset.Visible := FCharset.Visible;
+  FCollation.Visible := (IsCharType() or IsMemoType() or (GetType() in [mfEnum, mfSet])) and (Table.Session.ServerVersion >= 40101); FLCollation.Visible := FCollation.Visible;
+  FFlagBinary.Visible := IsCharType() and (Table.Session.ServerVersion < 40101);
+  FFlagNational.Visible := IsCharType() and (Table.Session.ServerVersion < 40101);
   FFlagUnsigned.Visible := IsIntType() or IsFloatType();
   FFlagZerofill.Visible := IsIntType();
-  FFlagAscii.Visible := (GetType() = mfChar) and (Table.Database.Session.ServerVersion < 40101);
-  FFlagUnicode.Visible := (GetType() = mfChar) and (Table.Database.Session.ServerVersion < 40101);
+  FFlagAscii.Visible := (GetType() = mfChar) and (Table.Session.ServerVersion < 40101);
+  FFlagUnicode.Visible := (GetType() = mfChar) and (Table.Session.ServerVersion < 40101);
 
   FDefault.Enabled := True; FLDefault.Enabled := FDefault.Enabled;
   FRDefaultNull.Enabled := FDefault.Enabled;
@@ -360,7 +366,7 @@ begin
   begin
     ComboBox := TComboBox(Control);
 
-    if (not (odComboBoxEdit in State) and Table.Database.Session.FieldTypeByCaption(ComboBox.Items[Index]).Highlighted) then
+    if (not (odComboBoxEdit in State) and Table.Session.FieldTypeByCaption(ComboBox.Items[Index]).Highlighted) then
       ComboBox.Canvas.Font.Style := ComboBox.Canvas.Font.Style + [fsBold];
     ComboBox.Canvas.TextRect(Rect, Rect.Left + 2, Rect.Top, ComboBox.Items[Index]);
     ComboBox.Canvas.Font.Style := ComboBox.Canvas.Font.Style - [fsBold];
@@ -770,16 +776,16 @@ begin
   end;
 
   FFieldType.Clear();
-  for I := 0 to Table.Database.Session.FieldTypes.Count - 1 do
-    if (not Assigned(Table.Engine) or Table.Engine.FieldAvailable(Table.Database.Session.FieldTypes[I].MySQLFieldType)) then
-      FFieldType.Items.Add(Table.Database.Session.FieldTypes[I].Caption);
+  for I := 0 to Table.Session.FieldTypes.Count - 1 do
+    if (not Assigned(Table.Engine) or Table.Engine.FieldAvailable(Table.Session.FieldTypes[I].MySQLFieldType)) then
+      FFieldType.Items.Add(Table.Session.FieldTypes[I].Caption);
 
   FPosition.Items.Clear();
   FPosition.Items.Add(Preferences.LoadStr(95));
   for I := 0 to Table.Fields.Count - 1 do
     if (not Assigned(Field) or (Table.Fields[I].Name <> Field.Name)) then
       FPosition.Items.Add(Preferences.LoadStr(96) + ' "' + Table.Fields[I].Name + '"');
-  FPosition.Enabled := not Assigned(Field) or (Table.Database.Session.ServerVersion >= 40001);
+  FPosition.Enabled := not Assigned(Field) or (Table.Session.ServerVersion >= 40001);
 
   FCharset.Items.Clear();
   for I := 0 to Table.Session.Charsets.Count - 1 do
@@ -804,7 +810,7 @@ begin
       FName.Text := S;
     end;
 
-    FFieldType.ItemIndex := FFieldType.Items.IndexOf(Table.Database.Session.FieldTypeByMySQLFieldType(mfVarChar).Caption); FFieldTypeChange(Sender); FFieldTypeExit(Sender);
+    FFieldType.ItemIndex := FFieldType.Items.IndexOf(Table.Session.FieldTypeByMySQLFieldType(mfVarChar).Caption); FFieldTypeChange(Sender); FFieldTypeExit(Sender);
     FUDFormatSize.Position := 255; FFormatSizeChange(Sender);
 
     FFormatUnion.Text := '';
@@ -819,7 +825,7 @@ begin
 
     FFlagBinary.Checked := False; FFlagCharClick(Sender);
     FFlagNullAllowed.Checked := True; FFlagNullAllowedClick(Sender);
-    FFlagNational.Checked := Table.Database.Session.ServerVersion < 40101;
+    FFlagNational.Checked := Table.Session.ServerVersion < 40101;
     FFlagAscii.Checked := False; FFlagCharClick(Sender);
     FFlagUnicode.Checked := False; FFlagCharClick(Sender);
   end
@@ -827,7 +833,7 @@ begin
   begin
     FName.Text := Field.Name;
 
-    FFieldType.ItemIndex := FFieldType.Items.IndexOf(Table.Database.Session.FieldTypeByMySQLFieldType(Field.FieldType).Caption); FFieldTypeChange(Sender); FFieldTypeExit(Sender);
+    FFieldType.ItemIndex := FFieldType.Items.IndexOf(Table.Session.FieldTypeByMySQLFieldType(Field.FieldType).Caption); FFieldTypeChange(Sender); FFieldTypeExit(Sender);
     if (Field.Size >= 0) then FUDFormatSize.Position := Field.Size; FFormatSizeChange(Sender);
     if (Field.Decimals >= 0) then FUDFormatDecimals.Position := Field.Decimals; FFormatDecimalsChange(Sender);
 
@@ -897,7 +903,7 @@ begin
     FComment.Text := SQLUnwrapStmt(Field.Comment);
   end;
 
-  FComment.Visible := Table.Database.Session.ServerVersion >= 40100; FLComment.Visible := FComment.Visible;
+  FComment.Visible := Table.Session.ServerVersion >= 40100; FLComment.Visible := FComment.Visible;
 
   GBasics.Visible := True;
   GAttributes.Visible := GBasics.Visible;
@@ -950,10 +956,10 @@ begin
   if ((IsIntType() or IsFloatType()) and not FRDefaultAutoIncrement.Checked) then Result := '0';
   if (IsCharType() or IsBinaryType()) then Result := '';
   if (GetType() = mfYear) then Result := IntToStr(Year);
-  if (GetType() = mfDate) then Result := MySQLDB.DateToStr(MySQLZeroDate, Table.Database.Session.FormatSettings);
-  if (GetType() = mfDateTime) then Result := MySQLDB.DateTimeToStr(MySQLZeroDate, Table.Database.Session.FormatSettings);
-  if (GetType() = mfTime) then Result := TimeToStr(0, Table.Database.Session.FormatSettings);
-  if (GetType() = mfTimeStamp) then if (Table.Database.Session.ServerVersion >= 40100) then Result := MySQLDB.DateTimeToStr(MySQLZeroDate, Table.Database.Session.FormatSettings);
+  if (GetType() = mfDate) then Result := MySQLDB.DateToStr(MySQLZeroDate, Table.Session.FormatSettings);
+  if (GetType() = mfDateTime) then Result := MySQLDB.DateTimeToStr(MySQLZeroDate, Table.Session.FormatSettings);
+  if (GetType() = mfTime) then Result := TimeToStr(0, Table.Session.FormatSettings);
+  if (GetType() = mfTimeStamp) then if (Table.Session.ServerVersion >= 40100) then Result := MySQLDB.DateTimeToStr(MySQLZeroDate, Table.Session.FormatSettings);
 end;
 
 function TDField.GetDefaultDecimals(): Integer;
@@ -980,6 +986,10 @@ begin
     mfDouble: Result := 0;
     mfDecimal: Result := 10;
 
+    mfDateTime: Result := 26;
+    mfTimeStamp: Result := 26;
+    mfTime: Result := 26;
+
     mfChar,
     mfBinary: Result := 1;
     mfVarChar,
@@ -1003,15 +1013,24 @@ begin
     mfDouble: Result := 24;
     mfDecimal: Result := 254;
 
-    mfTime: if (Table.Session.ServerVersion < 50604) then Result := 10 else Result := 6;
+    mfTime:
+      if (not FUDFormatSize.Visible) then
+        Result := Length(Table.Session.FormatSettings.LongTimeFormat)
+      else
+        Result := Length(Table.Session.FormatSettings.LongTimeFormat) + Length(' ') + FUDFormatSize.Position;
     mfDateTime,
-    mfTimeStamp: Result := 6;
+    mfTimeStamp:
+      if (not FUDFormatSize.Visible) then
+        Result := Length(Table.Session.FormatSettings.LongDateFormat)
+      else
+        Result := Length(Table.Session.FormatSettings.LongDateFormat) + Length(' ') + Length(Table.Session.FormatSettings.LongTimeFormat) + Length(' ') + FUDFormatSize.Position;
+
     mfYear: Result := 4;
 
     mfChar,
     mfBinary,
     mfVarChar,
-    mfVarBinary: if (Table.Database.Session.ServerVersion < 50003) then Result := 255 else Result := 65535;
+    mfVarBinary: if (Table.Session.ServerVersion < 50003) then Result := 255 else Result := 65535;
   end
 end;
 
@@ -1020,7 +1039,7 @@ begin
   if (FFieldType.ItemIndex < 0) then
     Result := mfUnknown
   else
-    Result := Table.Database.Session.FieldTypeByCaption(FFieldType.Text).MySQLFieldType;
+    Result := Table.Session.FieldTypeByCaption(FFieldType.Text).MySQLFieldType;
 end;
 
 function TDField.IsBinaryType(): Boolean;

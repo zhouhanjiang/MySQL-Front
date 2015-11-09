@@ -4496,7 +4496,7 @@ begin
             MYSQL_TYPE_DATE:
               Field := TMySQLDateField.Create(Self);
             MYSQL_TYPE_TIME:
-              if ((Connection.ServerVersion < 50604) or (Integer(Len - 2) <= Length(Connection.FormatSettings.LongTimeFormat))) then
+              if (Integer(Len - 2) <= Length(Connection.FormatSettings.LongTimeFormat)) then
                 Field := TMySQLTimeField.Create(Self)
               else
                 begin Field := TMySQLWideStringField.Create(Self); Field.Size := Len; end;
