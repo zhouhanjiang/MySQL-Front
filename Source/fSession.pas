@@ -2839,7 +2839,7 @@ begin
       Result := ReplaceStr(Fields.Table.Database.Session.UnescapeValue(Value, FieldType), '''''', '''');
     else
       try
-        Result := Fields.Table.Database.Session.UnescapeValue(Value, FieldType);
+        Result := Fields.Session.UnescapeValue(Value, FieldType);
       except
         on E: EConvertError do
           Fields.Table.Database.Session.DoConvertError(Self, Value, E);
@@ -11903,72 +11903,13 @@ begin
 end;
 
 function TSSession.UnescapeValue(const Value: string; const FieldType: TMySQLFieldType = mfVarChar): string;
-var
-  DateTime: TDateTime;
-  Len: Byte;
-  S: string;
 begin
-  Len := Length(Result);
   Result := SQLUnescape(Value);
 
   if (FieldType in [mfFloat, mfDouble, mfDecimal]) then
     Result := ReplaceStr(Result, '.', FormatSettings.DecimalSeparator)
-  else if ((FieldType = mfTimeStamp) and (UpperCase(Value) = 'CURRENT_TIMESTAMP')) then
-    Result := Value
-  else if (FieldType in [mfTimeStamp]) then
-    Result := Result
-  else if (FieldType in [mfDate, mfTime, mfDateTime]) then
-  begin
-    if (FieldType = mfTimeStamp) then
-      case (Len) of
-        2: if (Result = '00') then Result := '0000-00-00 00:00:00' else Result := Copy(Result, 1, 2) + '-01-01 00:00:00';
-        4: if (Result = '0000') then Result := '0000-00-00 00:00:00' else Result := Copy(Result, 1, 2) + '-' + Copy(Result, 3, 2) + '-01 00:00:00';
-        6: if (Result = '000000') then Result := '0000-00-00 00:00:00' else Result := Copy(Result, 1, 2) + '-' + Copy(Result, 3, 2) + '-' + Copy(Result, 5, 2) + ' 00:00:00';
-        10: Result := Copy(Result, 1, 2) + '-' + Copy(Result, 3, 2) + '-' + Copy(Result, 5, 2) + ' ' + Copy(Result, 7, 2) + ':' + Copy(Result, 9, 2);
-        12: Result := Copy(Result, 1, 2) + '-' + Copy(Result, 3, 2) + '-' + Copy(Result, 5, 2) + ' ' + Copy(Result, 7, 2) + ':' + Copy(Result, 9, 2) + ':' + Copy(Result, 11, 2);
-        14: Result := Copy(Result, 1, 4) + '-' + Copy(Result, 5, 2) + '-' + Copy(Result, 7, 2) + ' ' + Copy(Result, 9, 2) + ':' + Copy(Result, 11, 2) + ':' + Copy(Result, 13, 2);
-      end;
-    if (FieldType = mfDate) then Result := Result + ' 00:00:00';
-    if (FieldType = mfTime) then Result := '0000-00-00 ' + Result;
-    if (Pos('-', Result) = 3) then
-      if (StrToInt(Copy(Result, 1, 2)) <= 69) then
-        Result := '19' + Result
-      else
-        Result := '20' + Result;
-    if (Length(Result) = 16) then Result := Result + ':00';
-
-    if (Result <> '') then
-    begin
-      if ((Copy(Result, 1, 10) = '0000-00-00') or (Length(Result) < 10)) then
-        DateTime := MySQLZeroDate
-      else
-        DateTime := EncodeDate(StrToInt(Copy(Result, 1, 4)), StrToInt(Copy(Result, 6, 2)), StrToInt(Copy(Result, 9, 2)));
-      if (Length(Result) = 19) then
-        DateTime := DateTime + Sign(DateTime) * EncodeTime(StrToInt(Copy(Result, 12, 2)), StrToInt(Copy(Result, 15, 2)), StrToInt(Copy(Result, 18, 2)), 0);
-
-      case (FieldType) of
-        mfDate: Result := MySQLDB.DateToStr(DateTime, FormatSettings);
-        mfTime: Result := TimeToStr(DateTime);
-        mfDateTime: Result := MySQLDB.DateTimeToStr(DateTime, FormatSettings);
-        mfTimeStamp:
-          if (DateTime = 0) then
-            Result := StringOfChar('0', Len)
-          else
-          begin
-            case (Len) of
-              2: DateTimeToString(S, 'yy', DateTime, FormatSettings);
-              4: DateTimeToString(S, 'yymm', DateTime, FormatSettings);
-              6: DateTimeToString(S, 'yymmdd', DateTime, FormatSettings);
-              10: DateTimeToString(S, 'yymmddhhmm', DateTime, FormatSettings);
-              12: DateTimeToString(S, 'yymmddhhmmss', DateTime, FormatSettings);
-              14: DateTimeToString(S, 'yyyymmddhhmmss', DateTime, FormatSettings);
-              else S := Value;
-            end;
-            Result := S;
-          end;
-      end;
-    end;
-  end;
+  else
+    Result := Value;
 end;
 
 function TSSession.UnecapeRightIdentifier(const Identifier: string): string;
