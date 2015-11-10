@@ -11909,7 +11909,7 @@ begin
   if (FieldType in [mfFloat, mfDouble, mfDecimal]) then
     Result := ReplaceStr(Result, '.', FormatSettings.DecimalSeparator)
   else
-    Result := Value;
+    Result := SQLUnescape(Value);
 end;
 
 function TSSession.UnecapeRightIdentifier(const Identifier: string): string;
