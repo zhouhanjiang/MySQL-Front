@@ -1013,18 +1013,10 @@ begin
     mfDouble: Result := 24;
     mfDecimal: Result := 254;
 
-    mfTime:
-      if (not FUDFormatSize.Visible) then
-        Result := Length(Table.Session.FormatSettings.LongTimeFormat)
-      else
-        Result := Length(Table.Session.FormatSettings.LongTimeFormat) + Length(' ') + FUDFormatSize.Position;
+    mfTime,
     mfDateTime,
     mfTimeStamp:
-      if (not FUDFormatSize.Visible) then
-        Result := Length(Table.Session.FormatSettings.LongDateFormat)
-      else
-        Result := Length(Table.Session.FormatSettings.LongDateFormat) + Length(' ') + Length(Table.Session.FormatSettings.LongTimeFormat) + Length(' ') + FUDFormatSize.Position;
-
+      Result := 6;
     mfYear: Result := 4;
 
     mfChar,
