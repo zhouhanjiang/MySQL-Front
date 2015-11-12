@@ -8503,9 +8503,7 @@ begin
 // Debug für Boris
 if (not Assigned(Session.VariableByName('character_set'))) then
 begin
-  for Index := 0 to Count - 1 do
-    if (lstrcmpi(PChar(Variable[Index].Name), 'character_set') = 0) then
-      MessageBox(0, PChar('Variable "character_set" gefunden.' + IntToStr(Index)), 'Debug', MB_OK);
+  MessageBox(0, PChar(DataSet.CommandText), 'Debug', MB_OK);
 end;
 
       Session.Charsets.Build(nil, False);
