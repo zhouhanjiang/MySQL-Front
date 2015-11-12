@@ -8500,6 +8500,10 @@ begin
   begin
     if (Session.ServerVersion < 40101) then
     begin
+// Debug für Boris
+if (not Assigned(Session.VariableByName('character_set'))) then
+  MessageBox(0, PChar('Variable "character_set" nicht gefunden. (' + IntToStr(Session.Variables.Count) + ' Variablen)'), 'Debug', MB_OK);
+
       Session.Charsets.Build(nil, False);
       Session.Charset := Session.VariableByName('character_set').Value;
     end
