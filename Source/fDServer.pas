@@ -323,8 +323,9 @@ begin
   PageControl.ActivePage := TSBasics;
 
   List := TList.Create();
-  List.Add(Session.Stati);
-  if (Assigned(Session.Plugins)) then
+  if (not Session.Stati.Valid) then
+    List.Add(Session.Stati);
+  if (Assigned(Session.Plugins) and not Session.Plugins.Valid) then
     List.Add(Session.Plugins);
   PageControl.Visible := Session.Update(List);
   PSQLWait.Visible := not PageControl.Visible;
