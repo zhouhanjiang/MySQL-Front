@@ -1040,15 +1040,18 @@ type
     function GetAsBoolean(): Boolean;
     function GetAsFloat(): Double;
     function GetAsInteger(): Integer;
+    function GetAsString(): string;
     function GetVariables(): TSVariables; inline;
     procedure SetAsBoolean(const AAsBoolean: Boolean);
     procedure SetAsFloat(const AAsFloat: Double);
     procedure SetAsInteger(const AAsInteger: Integer);
+    procedure SetAsString(const AAsString: string);
   public
     procedure Assign(const Source: TSVariable); reintroduce; virtual;
     property AsBoolean: Boolean read GetAsBoolean write SetAsBoolean;
     property AsFloat: Double read GetAsFloat write SetAsFloat;
     property AsInteger: Integer read GetAsInteger write SetAsInteger;
+    property AsString: string read GetAsString write SetAsString;
     property Value: string read FValue write FValue;
     property Variables: TSVariables read GetVariables;
   end;
@@ -8426,6 +8429,11 @@ begin
       EConvertError.CreateFmt(SConvStrParseError + '(' + Value + ')', ['"' + Name + '"']);
 end;
 
+function TSVariable.GetAsString(): string;
+begin
+  Result := Value;
+end;
+
 function TSVariable.GetVariables(): TSVariables;
 begin
   Assert(CItems is TSVariables);
@@ -8459,6 +8467,11 @@ begin
   Value := IntToStr(AAsInteger);
 end;
 
+procedure TSVariable.SetAsString(const AAsString: string);
+begin
+  Value := AAsString;
+end;
+
 { TSVariables *****************************************************************}
 
 function TSVariables.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
@@ -8466,6 +8479,7 @@ var
   DeleteList: TList;
   Index: Integer;
   Name: string;
+  S: string;
 begin
   DeleteList := TList.Create();
   DeleteList.Assign(Self);
@@ -8498,6 +8512,19 @@ begin
 
   if (Count > 0) then
   begin
+    if (Assigned(Session.VariableByName('version'))) then
+    begin
+      S := Session.VariableByName('version').AsString;
+      if (Pos('-', S) > 0) then
+        S := Copy(S, 1, Pos('-', S) - 1);
+      if ((S <> '') and (S[2] = '.') and (S[4] = '.')) then
+        System.Insert('0', S, 3);
+      if ((S <> '') and (S[2] = '.') and (Length(S) = 6)) then
+        System.Insert('0', S, 6);
+      S := StringReplace(S, '.', '', [rfReplaceAll	]);
+      Session.FServerVersion := StrToInt(S);
+    end;
+
     if (not Assigned(Session.VariableByName('character_set_client'))) then
     begin
       Session.Charsets.Build(nil, False);

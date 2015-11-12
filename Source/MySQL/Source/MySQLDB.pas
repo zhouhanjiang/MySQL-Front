@@ -248,7 +248,6 @@ type
     FPort: Word;
     FResultCount: Integer;
     FServerTimeout: Word;
-    FServerVersion: Integer;
     FServerVersionStr: string;
     FSilentCount: Integer;
     FSynchronCount: Integer;
@@ -285,6 +284,7 @@ type
     FLib: TMySQLLibrary;
     FMultiStatements: Boolean;
     FRowsAffected: Integer;
+    FServerVersion: Integer;
     FWarningCount: Integer;
     TimeDiff: TDateTime;
     procedure DoAfterExecuteSQL(); virtual;
@@ -2571,9 +2571,9 @@ begin
     Result := Copy(LibraryThread.SQL, LibraryThread.SQLStmtIndex, Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]));
 end;
 
-function TMySQLConnection.GetServerDateTime(): TDateTime;
+function TMySQLConnection.GetDataFileAllowed(): Boolean;
 begin
-  Result := Now() + TimeDiff;
+  Result := Assigned(Lib) and not (Lib.FLibraryType in [ltHTTP]);
 end;
 
 function TMySQLConnection.GetHandle(): MySQLConsts.MYSQL;
@@ -2609,15 +2609,15 @@ begin
     Result := Lib.mysql_insert_id(Handle);
 end;
 
-function TMySQLConnection.GetDataFileAllowed(): Boolean;
-begin
-  Result := Assigned(Lib) and not (Lib.FLibraryType in [ltHTTP]);
-end;
-
 function TMySQLConnection.GetMaxAllowedPacket(): Integer;
 begin
   // MAX_ALLOWED_PACKET Constante of the Server - SizeOf(COM_QUERY)
   Result := 1 * 1024 * 1024 - 1;
+end;
+
+function TMySQLConnection.GetServerDateTime(): TDateTime;
+begin
+  Result := Now() + TimeDiff;
 end;
 
 function TMySQLConnection.InUse(): Boolean;
