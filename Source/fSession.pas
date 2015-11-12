@@ -8498,14 +8498,8 @@ begin
 
   if (Count > 0) then
   begin
-    if (Session.ServerVersion < 40101) then
+    if (not Assigned(Session.VariableByName('character_set_client'))) then
     begin
-// Debug für Boris
-if (not Assigned(Session.VariableByName('character_set'))) then
-begin
-  MessageBox(0, PChar(DataSet.CommandText), 'Debug', MB_OK);
-end;
-
       Session.Charsets.Build(nil, False);
       Session.Charset := Session.VariableByName('character_set').Value;
     end
