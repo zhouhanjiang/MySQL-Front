@@ -25,11 +25,9 @@ type
     procedure FormShow(Sender: TObject);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
   public
-    Filename: TFileName;
     Password: string;
     Account: TAAccount;
     Username: string;
-    Window: TForm;
     function Execute(): Boolean;
   end;
 

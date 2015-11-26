@@ -3176,7 +3176,7 @@ begin
     begin
       FLatestConnect := Now();
 
-      if (ServerVersionStr = '') then
+      if ((ServerVersionStr = '') and (Lib.mysql_get_server_info(LibraryThread.LibHandle) <> '')) then
       begin
         FServerVersionStr := string(Lib.mysql_get_server_info(LibraryThread.LibHandle));
         if (Assigned(Lib.mysql_get_server_version)) then
@@ -3194,7 +3194,7 @@ begin
         end;
       end;
 
-      if (ServerVersion < 32320) then
+      if ((0 < ServerVersion) and (ServerVersion < 32320)) then
         DoError(DS_SERVER_OLD, StrPas(DATASET_ERRORS[DS_SERVER_OLD - DS_MIN_ERROR]))
       else
       begin

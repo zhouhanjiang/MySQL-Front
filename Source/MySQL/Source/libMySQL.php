@@ -202,7 +202,7 @@
 			$a = unpack('V', substr($Header, 4, 3) . "\x00"); $UncompressedSize = $a[1];
 
 		if ($Nr != $PacketNr)
-			exit(1);
+			exit('Invalid packet number');
 		else if (! $_SESSION['compress'])
 			$PostData .= $Header . FileRead($Input, $Size);
 		else if ($UncompressedSize == 0)
@@ -260,11 +260,20 @@
 			SendPacket($Packet);
 			FlushPackets();
 			exit(2200);
-		}
+		};
 
 		mysqli_real_connect($mysqli, $_SESSION['host'], $_SESSION['user'], $_SESSION['password'], $_SESSION['database'], $_SESSION['port'], '', $_SESSION['client_flag']);
 
-		if (! mysqli_errno($mysqli) && $_SESSION['charset'] && version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '4.1.1') >= 0)
+		if (mysqli_connect_errno($mysqli)) {
+			$Packet = "\xFF";
+			$Packet .= pack('v', mysqli_connect_errno($mysqli));
+			$Packet .= mysqli_connect_error($mysqli) . "\x00";
+			SendPacket($Packet);
+			FlushPackets();
+			exit(2200);
+		};
+
+		if (! mysqli_connect_errno($mysqli) && $_SESSION['charset'] && version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '4.1.1') >= 0)
 			if ((version_compare(phpversion(), '5.2.3') < 0) || (version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '5.0.7') < 0))
 				mysqli_query($mysqli, 'SET NAMES ' . $_SESSION['charset'] . ';', MYSQLI_USE_RESULT);
 			else
@@ -275,6 +284,7 @@
 			$Packet .= pack('v', mysqli_errno($mysqli));
 			$Packet .= mysqli_error($mysqli) . "\x00";
 			SendPacket($Packet);
+			FlushPackets();
 		} else if ($Connect) {
 			if (version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '4.1.1') < 0) {
 				$result = mysqli_query($mysqli, "SHOW VARIABLES LIKE 'character_set';", MYSQLI_USE_RESULT);

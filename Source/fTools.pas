@@ -839,6 +839,7 @@ function ODBCError(const HandleType: SQLSMALLINT; const Handle: SQLHANDLE): TToo
 var
   cbMessageText: SQLSMALLINT;
   MessageText: PSQLTCHAR;
+  S: string;
   SQLState: array [0 .. SQL_SQLSTATE_SIZE] of SQLTCHAR;
 begin
   Result.ErrorType := TE_ODBC;
@@ -857,7 +858,10 @@ begin
     SQL_INVALID_HANDLE:
       Result.ErrorMessage := 'Invalid ODBC Handle.';
     SQL_NO_DATA:
-      raise Exception.Create('Unknown ODBC Error (No Data)');
+      begin
+        SetString(S, PChar(@SQLState[0]), SQL_SQLSTATE_SIZE);
+        raise Exception.CreateFMT('Unknown ODBC Error (No Data, SQLState: %s)', [S]);
+      end;
   end;
 end;
 

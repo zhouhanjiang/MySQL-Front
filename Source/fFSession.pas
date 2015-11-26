@@ -8611,7 +8611,7 @@ end;
 
 procedure TFSession.FTextChange(Sender: TObject);
 begin
-  if (Assigned(EditorField) and EditorField.CanModify and Assigned(FText) and FText.Modified) then
+  if (Assigned(EditorField) and EditorField.CanModify and FText.Modified) then
   begin
     if (EditorField.DataSet.State = dsBrowse) then
       EditorField.DataSet.Edit();
