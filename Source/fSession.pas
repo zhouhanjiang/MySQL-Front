@@ -8479,7 +8479,6 @@ var
   DeleteList: TList;
   Index: Integer;
   Name: string;
-  S: string;
 begin
   DeleteList := TList.Create();
   DeleteList.Assign(Self);
@@ -8512,20 +8511,7 @@ begin
 
   if (Count > 0) then
   begin
-    if (Assigned(Session.VariableByName('version'))) then
-    begin
-      S := Session.VariableByName('version').AsString;
-      if (Pos('-', S) > 0) then
-        S := Copy(S, 1, Pos('-', S) - 1);
-      if ((S <> '') and (S[2] = '.') and (S[4] = '.')) then
-        System.Insert('0', S, 3);
-      if ((S <> '') and (S[2] = '.') and (Length(S) = 6)) then
-        System.Insert('0', S, 6);
-      S := StringReplace(S, '.', '', [rfReplaceAll	]);
-      Session.FServerVersion := StrToInt(S);
-    end;
-
-    if (not Assigned(Session.VariableByName('character_set_client'))) then
+    if (Session.ServerVersion < 40101) then
     begin
       Session.Charsets.Build(nil, False);
       Session.Charset := Session.VariableByName('character_set').Value;
