@@ -8511,15 +8511,18 @@ begin
 
   if (Count > 0) then
   begin
-    if (Session.ServerVersion < 40101) then
+    if (Assigned(Session.VariableByName('character_set'))) then
     begin
       Session.Charsets.Build(nil, False);
       Session.Charset := Session.VariableByName('character_set').Value;
     end
-    else if (UpperCase(Session.VariableByName('character_set_client').Value) <> UpperCase(Session.VariableByName('character_set_results').Value)) then
-      raise ERangeError.CreateFmt(SPropertyOutOfRange + ': character_set_client (%s) <> character_set_results (%s)', ['Charset', Session.VariableByName('character_set_client').Value, Session.VariableByName('character_set_results').Value])
-    else
-      Session.Charset := Session.VariableByName('character_set_client').Value;
+    else if (Assigned(Session.VariableByName('character_set_client'))) then
+    begin
+      if (UpperCase(Session.VariableByName('character_set_client').Value) <> UpperCase(Session.VariableByName('character_set_results').Value)) then
+        raise ERangeError.CreateFmt(SPropertyOutOfRange + ': character_set_client (%s) <> character_set_results (%s)', ['Charset', Session.VariableByName('character_set_client').Value, Session.VariableByName('character_set_results').Value])
+      else
+        Session.Charset := Session.VariableByName('character_set_client').Value;
+    end;
 
     if (Session.ServerVersion < 40102) then
       Session.Engines.Build(nil, False);

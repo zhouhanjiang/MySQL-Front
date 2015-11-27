@@ -248,6 +248,7 @@ type
     FPort: Word;
     FResultCount: Integer;
     FServerTimeout: Word;
+    FServerVersion: Integer;
     FServerVersionStr: string;
     FSilentCount: Integer;
     FSynchronCount: Integer;
@@ -284,7 +285,6 @@ type
     FLib: TMySQLLibrary;
     FMultiStatements: Boolean;
     FRowsAffected: Integer;
-    FServerVersion: Integer;
     FWarningCount: Integer;
     TimeDiff: TDateTime;
     procedure DoAfterExecuteSQL(); virtual;
