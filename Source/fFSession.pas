@@ -13314,6 +13314,7 @@ begin
       SelCount := ActiveDBGrid.SelectedRows.Count;
 
     if (((View = vBrowser) or (Window.ActiveControl = ActiveDBGrid)) and Assigned(ActiveDBGrid)) then
+    begin
       if (SelCount > 0) then
         StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(888, IntToStr(SelCount))
       else if ((View = vBrowser) and (SelectedImageIndex in [iiBaseTable, iiSystemView]) and not Session.InUse() and TSBaseTable(FNavigator.Selected.Data).ValidData and TSBaseTable(FNavigator.Selected.Data).DataSet.LimitedDataReceived and (TSBaseTable(FNavigator.Selected.Data).Rows >= 0)) then
@@ -13324,7 +13325,8 @@ begin
           StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(889, IntToStr(Count), '~' + IntToStr(TSBaseTable(FNavigator.Selected.Data).Rows))
       end
       else if (Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet)) then
-        StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(887, IntToStr(ActiveDBGrid.DataSource.DataSet.RecordCount))
+        StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(887, IntToStr(ActiveDBGrid.DataSource.DataSet.RecordCount));
+    end
     else if (SelCount > 0) then
       StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(688, IntToStr(SelCount))
     else if (Assigned(ActiveSynMemo) and (Window.ActiveControl = ActiveSynMemo) and (Count >= 0)) then
