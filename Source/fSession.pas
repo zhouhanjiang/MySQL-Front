@@ -10874,7 +10874,7 @@ end;
 
 function TSSession.GetDefaultCharset(): string;
 begin
-  if (ServerVersion < 40101) then
+  if (not Assigned(VariableByName('character_set_server'))) then
     Result := VariableByName('character_set').Value
   else
     Result := VariableByName('character_set_server').Value;
