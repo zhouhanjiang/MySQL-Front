@@ -1287,7 +1287,7 @@ begin
           try
             ZCompress(@PacketBuffer.Mem[Offset], Size, CompressBuffer, CompressedSize);
           except
-            Seterror(CR_UNKNOWN_ERROR); Result := False;
+            Seterror(CR_UNKNOWN_ERROR, 'ZCompress Error'); Result := False;
             CompressBuffer := nil;
           end;
 
@@ -1576,7 +1576,7 @@ function TMySQL_Packet.ReceivePacket(): Boolean;
                   try
                     ZDecompress(CompressedBuffer.Mem, CompressedBuffer.Size, Pointer(DecompressedBuffer.Mem), DecompressedSize);
                   except
-                    Result := Seterror(CR_UNKNOWN_ERROR) = 0;
+                    Result := Seterror(CR_UNKNOWN_ERROR, 'ZDecompress Error') = 0;
                   end;
                 end;
 

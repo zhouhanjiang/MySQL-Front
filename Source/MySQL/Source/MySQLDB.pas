@@ -5246,7 +5246,7 @@ end;
 
 function TMySQLDataSet.GetRecNo(): Integer;
 begin
-  if (Assigned(ActiveBuffer()) and (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag <> bfCurrent)) then
+  if (PExternRecordBuffer(ActiveBuffer())^.BookmarkFlag <> bfCurrent) then
     Result := -1
   else
     Result := PExternRecordBuffer(ActiveBuffer())^.Index;
