@@ -10866,18 +10866,20 @@ end;
 
 function TSSession.GetCollation(): string;
 begin
-  if (not Assigned(VariableByName('collation_server'))) then
-    Result := ''
+  if (Assigned(VariableByName('collation_server'))) then
+    Result := VariableByName('collation_server').Value
   else
-    Result := VariableByName('collation_server').Value;
+    Result := '';
 end;
 
 function TSSession.GetDefaultCharset(): string;
 begin
-  if (not Assigned(VariableByName('character_set_server'))) then
+  if (Assigned(VariableByName('character_set'))) then
     Result := VariableByName('character_set').Value
+  else if (Assigned(VariableByName('character_set_server'))) then
+    Result := VariableByName('character_set_server').Value
   else
-    Result := VariableByName('character_set_server').Value;
+    Result := 'latin1';
 end;
 
 function TSSession.GetDataFileAllowed(): Boolean;
