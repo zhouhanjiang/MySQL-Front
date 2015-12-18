@@ -1856,17 +1856,24 @@ end;
 procedure TWWindow.TabControlMouseMove(Sender: TObject; Shift: TShiftState; X,
   Y: Integer);
 var
+  Index: Integer;
   S: string;
   Tab: TFSession;
 begin
-  Tab := TFSession(FSessions[TabControl.IndexOfTabAt(X, Y)]);
+  Index := TabControl.IndexOfTabAt(X, Y);
+  if ((Index < 0) or (FSessions.Count <= Index)) then
+    TabControl.Hint := ''
+  else
+  begin
+    Tab := TFSession(FSessions[Index]);
 
-  S := Tab.Session.Account.Connection.Host;
-  if (Tab.Session.Account.Connection.Port <> MYSQL_PORT) then
-    S := S + ':' + IntToStr(Tab.Session.Account.Connection.Port);
-  if (Tab.ToolBarData.Caption <> '') then
-    S := S + ' - ' + Tab.ToolBarData.Caption;
-  TabControl.Hint := S;
+    S := Tab.Session.Account.Connection.Host;
+    if (Tab.Session.Account.Connection.Port <> MYSQL_PORT) then
+      S := S + ':' + IntToStr(Tab.Session.Account.Connection.Port);
+    if (Tab.ToolBarData.Caption <> '') then
+      S := S + ' - ' + Tab.ToolBarData.Caption;
+    TabControl.Hint := S;
+  end;
 end;
 
 procedure TWWindow.TabControlResize(Sender: TObject);

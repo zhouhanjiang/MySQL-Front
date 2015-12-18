@@ -1016,7 +1016,7 @@ begin
     mfTime,
     mfDateTime,
     mfTimeStamp:
-      Result := 6;
+      Result := 0;
     mfYear: Result := 4;
 
     mfChar,
