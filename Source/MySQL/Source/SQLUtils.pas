@@ -1193,7 +1193,7 @@ end;
 
 function SQLParseBracketContent(var Handle: TSQLParse): string;
 label
-  StringL, String2, StringE,
+  StringL, String2, StringE, StringEndBracket,
   Finish;
 var
   Len: Integer;
@@ -1240,8 +1240,12 @@ begin
       StringE:
         LODSW                            // Load character from SQL
         STOSW                            // Store WideChar into Result
+        CMP EBX,0                        // BracketDeep = 0
+        JE StringEndBracket              // Yes!
         DEC ECX                          // One character handled
         JMP StringL
+      StringEndBracket:
+        CALL Trim                        // Trim SQL
 
       Finish:
         MOV EBX,Handle

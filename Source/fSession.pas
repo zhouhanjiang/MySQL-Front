@@ -16,6 +16,8 @@ type
     itMinute, itWeek, itSecond, itMicrosecond, itYearMonth, itDayHour,
     itDayMinute, itDaySecond, itHourMinute, itHourSecond, itMinuteSecond,
     itDayMicrosecond, itHourMicrosecond, itMinuteMicrosecond, itSecondMicrosecond);
+  TMySQLFieldKind = (mkUnknown, mkReal, mkVirtual);
+  TMySQLFieldStored = (msUnknown, msVirtual, msStored);
   TMySQLFieldType = (mfUnknown,
     mfBit, mfTinyInt, mfSmallInt, mfMediumInt, mfInt, mfBigInt,
     mfFloat, mfDouble, mfDecimal, mfDate, mfDateTime, mfTimeStamp, mfTime, mfYear,
@@ -329,10 +331,14 @@ type
   public
     Charset: string;
     Decimals: Integer;
+    Expression: string;
+    FieldKind: TMySQLFieldKind;
     FieldType: TMySQLFieldType;
+    GeneratedAlways: Boolean;
     Items: array of string;
     National: Boolean;
     Size: Integer;
+    Stored: TMySQLFieldStored;
     Unsigned: Boolean;
     procedure Assign(const Source: TSField); reintroduce; virtual;
     procedure Clear(); virtual;
@@ -2548,10 +2554,14 @@ begin
 
   Charset := Source.Charset;
   Decimals := Source.Decimals;
+  Expression := Source.Expression;
+  FieldKind := Source.FieldKind;
   FieldType := Source.FieldType;
+  GeneratedAlways := Source.GeneratedAlways;
   Items := TSTableField(Source).Items;
   National := TSTableField(Source).National;
   Size := Source.Size;
+  Stored := Source.Stored;
   Unsigned := TSTableField(Source).Unsigned;
 end;
 
@@ -2559,11 +2569,15 @@ procedure TSField.Clear();
 begin
   Charset := '';
   Decimals := 0;
+  Expression := '';
+  FieldKind := mkUnknown;
   FieldType := mfUnknown;
+  GeneratedAlways := False;
   SetLength(Items, 0);
   FName := '';
   National := False;
   Size := 0;
+  Stored := msUnknown;
   Unsigned := False;
 end;
 
@@ -4243,50 +4257,82 @@ begin
 
       NewField.ParseFieldType(Parse);
 
+      NewField.GeneratedAlways := SQLParseKeyword(Parse, 'GENERATED ALWAYS');
+
       while (not SQLParseChar(Parse, ',', False) and not SQLParseChar(Parse, ')', False)) do
-      begin
-        if (SQLParseKeyword(Parse, 'CHARACTER SET')) then
-          NewField.Charset := SQLParseValue(Parse)
-        else if (SQLParseKeyword(Parse, 'COLLATE')) then
-          NewField.Collation := LowerCase(SQLParseValue(Parse))
-        else if (SQLParseKeyword(Parse, 'NOT NULL')) then
-          NewField.NullAllowed := False
-        else if (SQLParseKeyword(Parse, 'NULL')) then
-          NewField.NullAllowed := True
-        else if (SQLParseKeyword(Parse, 'DEFAULT')) then
+        if (not SQLParseKeyword(Parse, 'AS', False)) then
         begin
-          if (SQLParseKeyword(Parse, 'NULL')) then
-            NewField.Default := 'NULL'
-          else if (SQLParseKeyword(Parse, 'CURRENT_TIMESTAMP')) then
-            NewField.Default := 'CURRENT_TIMESTAMP'
-          else if (NewField.FieldType = mfBit) then
+          NewField.FieldKind := mkReal;
+
+          if (SQLParseKeyword(Parse, 'CHARACTER SET')) then
+            NewField.Charset := SQLParseValue(Parse)
+          else if (SQLParseKeyword(Parse, 'COLLATE')) then
+            NewField.Collation := LowerCase(SQLParseValue(Parse))
+          else if (SQLParseKeyword(Parse, 'NOT NULL')) then
+            NewField.NullAllowed := False
+          else if (SQLParseKeyword(Parse, 'NULL')) then
+            NewField.NullAllowed := True
+          else if (SQLParseKeyword(Parse, 'DEFAULT')) then
           begin
-            S := SQLParseValue(Parse);
-            if (LowerCase(Copy(S, 1, 1)) <> 'b') then
+            if (SQLParseKeyword(Parse, 'NULL')) then
+              NewField.Default := 'NULL'
+            else if (SQLParseKeyword(Parse, 'CURRENT_TIMESTAMP')) then
+              NewField.Default := 'CURRENT_TIMESTAMP'
+            else if (NewField.FieldType = mfBit) then
             begin
-              MoveMemory(@L, PAnsiChar(RawByteString(S)), Length(S));
-              NewField.Default := IntToBitString(L, NewField.Size);
+              S := SQLParseValue(Parse);
+              if (LowerCase(Copy(S, 1, 1)) <> 'b') then
+              begin
+                MoveMemory(@L, PAnsiChar(RawByteString(S)), Length(S));
+                NewField.Default := IntToBitString(L, NewField.Size);
+              end
+              else
+              begin
+                Delete(S, 1, 1);
+                NewField.Default := SQLUnescape(S);
+              end;
             end
             else
-            begin
-              Delete(S, 1, 1);
-              NewField.Default := SQLUnescape(S);
-            end;
+              NewField.Default := SQLEscape(SQLParseValue(Parse));
+            if (SQLParseKeyword(Parse, 'ON UPDATE')) then
+              NewField.OnUpdate := SQLParseValue(Parse);
           end
+          else if (SQLParseKeyword(Parse, 'AUTO_INCREMENT')) then
+            NewField.AutoIncrement := True
+          else if (SQLParseKeyword(Parse, 'COMMENT')) then
+            NewField.Comment := SQLParseValue(Parse)
+          else if (SQLParseKeyword(Parse, 'COLUMN_FORMAT')) then
+            NewField.Format := StrToMySQLRowType(SQLParseValue(Parse))
           else
-            NewField.Default := SQLEscape(SQLParseValue(Parse));
-          if (SQLParseKeyword(Parse, 'ON UPDATE')) then
-            NewField.OnUpdate := SQLParseValue(Parse);
+            raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
         end
-        else if (SQLParseKeyword(Parse, 'AUTO_INCREMENT')) then
-          NewField.AutoIncrement := True
-        else if (SQLParseKeyword(Parse, 'COMMENT')) then
-          NewField.Comment := SQLParseValue(Parse)
-        else if (SQLParseKeyword(Parse, 'COLUMN_FORMAT')) then
-          NewField.Format := StrToMySQLRowType(SQLParseValue(Parse))
+        else if (SQLParseKeyword(Parse, 'AS')) then
+        begin
+          NewField.FieldKind := mkVirtual;
+
+          NewField.Expression := SQLParseBracketContent(Parse);
+
+          if (SQLParseKeyword(Parse, 'VIRTUAL')) then
+            NewField.Stored := msVirtual
+          else if (SQLParseKeyword(Parse, 'STORED')) then
+            NewField.Stored := msStored;
+
+          if (SQLParseKeyword(Parse, 'UNIQUE KEY')) then
+            NewField.FInUniqueKey := True;
+
+          if (SQLParseKeyword(Parse, 'COMMENT')) then
+            NewField.Comment := SQLParseValue(Parse);
+
+          if (SQLParseKeyword(Parse, 'NOT NULL')) then
+            NewField.NullAllowed := False
+          else if (SQLParseKeyword(Parse, 'NULL')) then
+            NewField.NullAllowed := True;
+
+          if (SQLParseKeyword(Parse, 'PRIMARY KEY')) then
+            NewField.FInPrimaryKey := True;
+        end
         else
           SQLParseValue(Parse);
-      end;
 
       if (Moved and not FirstParse) then
       begin
