@@ -3,7 +3,7 @@ object DField: TDField
   Top = 341
   BorderStyle = bsDialog
   Caption = 'DField'
-  ClientHeight = 433
+  ClientHeight = 463
   ClientWidth = 337
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -20,14 +20,14 @@ object DField: TDField
   OnShow = FormShow
   DesignSize = (
     337
-    433)
+    463)
   PixelsPerInch = 106
   TextHeight = 13
   object PSQLWait: TPanel
     Left = 8
     Top = 8
     Width = 321
-    Height = 373
+    Height = 403
     Cursor = crHourGlass
     Anchors = [akLeft, akTop, akRight, akBottom]
     BevelOuter = bvNone
@@ -39,16 +39,16 @@ object DField: TDField
     Left = 8
     Top = 8
     Width = 321
-    Height = 289
+    Height = 319
     Anchors = [akLeft, akTop, akRight]
     Caption = 'GBasics'
     TabOrder = 1
     DesignSize = (
       321
-      289)
+      319)
     object FLFormatDecimals: TLabel
       Left = 8
-      Top = 116
+      Top = 146
       Width = 87
       Height = 13
       Caption = 'FLFormatDecimals'
@@ -56,7 +56,7 @@ object DField: TDField
     end
     object FLFormatSize: TLabel
       Left = 8
-      Top = 116
+      Top = 146
       Width = 64
       Height = 13
       Caption = 'FLFormatSize'
@@ -64,7 +64,7 @@ object DField: TDField
     end
     object FLFormatFSP: TLabel
       Left = 8
-      Top = 116
+      Top = 146
       Width = 64
       Height = 13
       Caption = 'FLFormatFSP'
@@ -72,7 +72,7 @@ object DField: TDField
     end
     object FLFormat: TLabel
       Left = 8
-      Top = 116
+      Top = 146
       Width = 44
       Height = 13
       Caption = 'FLFormat'
@@ -87,7 +87,7 @@ object DField: TDField
     end
     object FLType: TLabel
       Left = 8
-      Top = 84
+      Top = 114
       Width = 36
       Height = 13
       Caption = 'FLType'
@@ -95,7 +95,7 @@ object DField: TDField
     end
     object FLDefault: TLabel
       Left = 8
-      Top = 148
+      Top = 178
       Width = 46
       Height = 13
       Caption = 'FLDefault'
@@ -111,14 +111,14 @@ object DField: TDField
     end
     object FLComment: TLabel
       Left = 8
-      Top = 259
+      Top = 289
       Width = 56
       Height = 13
       Caption = 'FLComment'
     end
     object FLCharset: TLabel
       Left = 8
-      Top = 201
+      Top = 231
       Width = 48
       Height = 13
       Caption = 'FLCharset'
@@ -126,7 +126,7 @@ object DField: TDField
     end
     object FLCollation: TLabel
       Left = 8
-      Top = 227
+      Top = 257
       Width = 52
       Height = 13
       Caption = 'FLCollation'
@@ -134,29 +134,50 @@ object DField: TDField
     end
     object FLUpdateTime: TLabel
       Left = 8
-      Top = 213
+      Top = 243
       Width = 70
       Height = 13
       Caption = 'FLUpdateTime'
     end
+    object FLKind: TLabel
+      Left = 8
+      Top = 81
+      Width = 33
+      Height = 13
+      Caption = 'FLKind'
+    end
+    object FLExpression: TLabel
+      Left = 8
+      Top = 178
+      Width = 63
+      Height = 13
+      Caption = 'FLExpression'
+    end
+    object FLStored: TLabel
+      Left = 8
+      Top = 206
+      Width = 43
+      Height = 13
+      Caption = 'FLStored'
+    end
     object FDefaultSet: TListBox
       Left = 120
-      Top = 144
+      Top = 204
       Width = 189
       Height = 41
       Anchors = [akLeft, akTop, akRight]
       ItemHeight = 13
       MultiSelect = True
-      TabOrder = 17
+      TabOrder = 21
       OnClick = FBOkCheckEnabled
     end
     object FDefault: TEdit
       Left = 135
-      Top = 164
+      Top = 194
       Width = 174
       Height = 21
       Anchors = [akLeft, akTop, akRight]
-      TabOrder = 12
+      TabOrder = 13
       Text = 'FDefault'
       OnChange = FDefaultChange
       OnEnter = FDefaultEnter
@@ -164,20 +185,20 @@ object DField: TDField
     end
     object FFormatUnion: TEdit
       Left = 120
-      Top = 112
+      Top = 142
       Width = 189
       Height = 21
       Anchors = [akLeft, akTop, akRight]
-      TabOrder = 9
+      TabOrder = 10
       OnChange = FFormatUnionChange
     end
     object FFormatYear: TComboBox_Ext
       Left = 120
-      Top = 112
+      Top = 142
       Width = 57
       Height = 21
       Style = csDropDownList
-      TabOrder = 8
+      TabOrder = 9
       OnChange = FFormatYearChange
       Items.Strings = (
         'YYYY'
@@ -185,41 +206,41 @@ object DField: TDField
     end
     object FFormatSize: TEdit
       Left = 120
-      Top = 112
+      Top = 142
       Width = 41
       Height = 21
-      TabOrder = 3
+      TabOrder = 4
       Text = '0'
       OnChange = FFormatSizeChange
       OnExit = FFormatSizeExit
     end
     object FDefaultEnum: TComboBox_Ext
       Left = 120
-      Top = 144
+      Top = 174
       Width = 189
       Height = 21
       Style = csDropDownList
-      TabOrder = 16
+      TabOrder = 20
       OnChange = FBOkCheckEnabled
     end
     object FRDefaultNull: TRadioButton
       Left = 120
-      Top = 147
+      Top = 177
       Width = 188
       Height = 17
       Anchors = [akLeft, akTop, akRight]
       Caption = 'FRDefaultNull'
-      TabOrder = 10
+      TabOrder = 11
       OnClick = FRDefaultClick
     end
     object FFormatTimestamp: TComboBox_Ext
       Left = 120
-      Top = 112
+      Top = 142
       Width = 137
       Height = 21
       Style = csDropDownList
-      TabOrder = 7
-      OnChange = FFormatTimestampChange
+      TabOrder = 8
+      OnChange = FBOkCheckEnabled
       Items.Strings = (
         'YYYYMMDDHHMMSS'
         'YYMMDDHHMMSS'
@@ -228,43 +249,43 @@ object DField: TDField
     end
     object FUDFormatSize: TUpDown
       Left = 161
-      Top = 112
+      Top = 142
       Width = 16
       Height = 21
       Associate = FFormatSize
       Max = 30
-      TabOrder = 4
+      TabOrder = 5
       Thousands = False
       OnClick = FUDClick
     end
     object FFormatDecimals: TEdit
       Left = 184
-      Top = 112
+      Top = 142
       Width = 33
       Height = 21
-      TabOrder = 5
+      TabOrder = 6
       Text = '0'
       OnChange = FFormatDecimalsChange
     end
     object FUDFormatDecimals: TUpDown
       Left = 217
-      Top = 112
+      Top = 142
       Width = 15
       Height = 21
       Associate = FFormatDecimals
       Max = 10
-      TabOrder = 6
+      TabOrder = 7
       Thousands = False
       OnClick = FUDClick
     end
     object FFieldType: TComboBox_Ext
       Left = 120
-      Top = 80
+      Top = 110
       Width = 129
       Height = 21
       Style = csDropDownList
       DropDownCount = 15
-      TabOrder = 2
+      TabOrder = 3
       OnChange = FFieldTypeChange
       OnDrawItem = FFieldTypeDrawItem
       OnExit = FFieldTypeExit
@@ -328,75 +349,137 @@ object DField: TDField
     end
     object FComment: TEdit
       Left = 120
-      Top = 256
+      Top = 286
       Width = 189
       Height = 21
       Anchors = [akLeft, akTop, akRight]
       MaxLength = 256
-      TabOrder = 20
+      TabOrder = 19
       Text = 'FComment'
       OnChange = FBOkCheckEnabled
     end
     object FCharset: TComboBox_Ext
       Left = 120
-      Top = 198
+      Top = 228
       Width = 113
       Height = 21
       Style = csDropDownList
-      TabOrder = 18
+      TabOrder = 22
       OnChange = FCharsetChange
     end
     object FCollation: TComboBox_Ext
       Left = 120
-      Top = 224
+      Top = 254
       Width = 145
       Height = 21
       Style = csDropDownList
       Anchors = [akLeft, akTop, akRight]
-      TabOrder = 19
+      TabOrder = 23
       OnChange = FBOkCheckEnabled
     end
     object FRDefault: TRadioButton
       Left = 120
-      Top = 166
+      Top = 196
       Width = 14
       Height = 17
-      TabOrder = 11
+      TabOrder = 12
       OnClick = FRDefaultClick
     end
     object FRDefaultInsertTime: TRadioButton
       Left = 120
-      Top = 185
+      Top = 215
       Width = 188
       Height = 17
       Caption = 'FRDefaultInsertTime'
-      TabOrder = 13
+      TabOrder = 14
       OnClick = FRDefaultClick
     end
     object FUpdateTime: TCheckBox
       Left = 120
-      Top = 212
+      Top = 242
       Width = 188
       Height = 17
       Caption = 'FUpdateTime'
-      TabOrder = 15
+      TabOrder = 16
       OnClick = FRDefaultClick
     end
     object FRDefaultAutoIncrement: TRadioButton
       Left = 120
-      Top = 185
+      Top = 215
       Width = 188
       Height = 17
       Anchors = [akLeft, akTop, akRight]
       Caption = 'FRDefaultAutoIncrement'
-      TabOrder = 14
+      TabOrder = 15
       OnClick = FRDefaultClick
       OnKeyDown = FRDefaultNullKeyDown
+    end
+    object FKind: TPanel
+      Left = 120
+      Top = 80
+      Width = 189
+      Height = 20
+      BevelOuter = bvNone
+      TabOrder = 2
+      object FKindReal: TRadioButton
+        Left = 0
+        Top = 1
+        Width = 90
+        Height = 17
+        Caption = 'FKindReal'
+        TabOrder = 0
+      end
+      object FKindVirtual: TRadioButton
+        Left = 100
+        Top = 1
+        Width = 90
+        Height = 17
+        Caption = 'FKindVirtual'
+        TabOrder = 1
+        OnClick = FFieldTypeChange
+      end
+    end
+    object FExpression: TEdit
+      Left = 120
+      Top = 174
+      Width = 189
+      Height = 21
+      Anchors = [akLeft, akTop, akRight]
+      TabOrder = 17
+      Text = 'FExpression'
+      OnChange = FBOkCheckEnabled
+    end
+    object FStored: TPanel
+      Left = 120
+      Top = 206
+      Width = 188
+      Height = 41
+      BevelOuter = bvNone
+      FullRepaint = False
+      TabOrder = 18
+      object FStoredStored: TRadioButton
+        Left = 0
+        Top = 0
+        Width = 188
+        Height = 17
+        Caption = 'FStoredStored'
+        TabOrder = 0
+        OnClick = FBOkCheckEnabled
+      end
+      object FStoredVirtual: TRadioButton
+        Left = 0
+        Top = 20
+        Width = 188
+        Height = 17
+        Caption = 'FStoredVirtual'
+        TabOrder = 1
+        OnClick = FBOkCheckEnabled
+      end
     end
   end
   object FBOk: TButton
     Left = 168
-    Top = 400
+    Top = 430
     Width = 75
     Height = 25
     Anchors = [akRight, akBottom]
@@ -407,7 +490,7 @@ object DField: TDField
   end
   object FBCancel: TButton
     Left = 256
-    Top = 400
+    Top = 430
     Width = 75
     Height = 25
     Anchors = [akRight, akBottom]
@@ -418,7 +501,7 @@ object DField: TDField
   end
   object GAttributes: TGroupBox_Ext
     Left = 8
-    Top = 300
+    Top = 330
     Width = 321
     Height = 81
     Anchors = [akLeft, akTop, akRight]
@@ -497,7 +580,7 @@ object DField: TDField
   end
   object FBHelp: TButton
     Left = 8
-    Top = 400
+    Top = 430
     Width = 75
     Height = 25
     Anchors = [akLeft, akBottom]

@@ -45,6 +45,7 @@ const
   iiImport = 103;
   iiExport = 104;
   iiTransfer = 105;
+  iiVirtualField = 106;
 
   crClone = 33;
 

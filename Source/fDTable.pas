@@ -1472,32 +1472,42 @@ begin
         ListItem.SubItems.Add(Preferences.LoadStr(74))
       else
         ListItem.SubItems.Add(Preferences.LoadStr(75));
-      if (NewTable.Fields[I].AutoIncrement) then
-        ListItem.SubItems.Add('<auto_increment>')
-      else if (NewTable.Fields[I].Default = 'NULL') then
-        ListItem.SubItems.Add('<' + Preferences.LoadStr(71) + '>')
-      else if (NewTable.Fields[I].Default = 'CURRENT_TIMESTAMP') then
-        ListItem.SubItems.Add('<INSERT-TimeStamp>')
-      else
-        ListItem.SubItems.Add(NewTable.Fields[I].UnescapeValue(NewTable.Fields[I].Default));
-      if (not (NewTable.Fields[I].FieldType in TextFieldTypes)) then
-        S := ''
-      else
+      if (NewTable.Fields[I].FieldKind = mkReal) then
       begin
-        if (NewTable.Fields[I].Charset = NewTable.DefaultCharset) then
+        if (NewTable.Fields[I].AutoIncrement) then
+          ListItem.SubItems.Add('<auto_increment>')
+        else if (NewTable.Fields[I].Default = 'NULL') then
+          ListItem.SubItems.Add('<' + Preferences.LoadStr(71) + '>')
+        else if (NewTable.Fields[I].Default = 'CURRENT_TIMESTAMP') then
+          ListItem.SubItems.Add('<INSERT-TimeStamp>')
+        else
+          ListItem.SubItems.Add(NewTable.Fields[I].UnescapeValue(NewTable.Fields[I].Default));
+        if (not (NewTable.Fields[I].FieldType in TextFieldTypes)) then
           S := ''
         else
-          S := NewTable.Fields[I].Charset;
-        if (NewTable.Fields[I].Collation <> NewTable.Collation) then
         begin
-          if (S <> '') then S := S + ', ';
-          S := S + NewTable.Fields[I].Collation;
+          if (NewTable.Fields[I].Charset = NewTable.DefaultCharset) then
+            S := ''
+          else
+            S := NewTable.Fields[I].Charset;
+          if (NewTable.Fields[I].Collation <> NewTable.Collation) then
+          begin
+            if (S <> '') then S := S + ', ';
+            S := S + NewTable.Fields[I].Collation;
+          end;
         end;
+        ListItem.SubItems.Add(S);
+        if (Table.Session.ServerVersion >= 40100) then
+          ListItem.SubItems.Add(NewTable.Fields[I].Comment);
+        ListItem.ImageIndex := iiField;
+      end
+      else if (NewTable.Fields[I].FieldKind = mkVirtual) then
+      begin
+        ListItem.SubItems.Add(NewTable.Fields[I].Expression);
+        ListItem.SubItems.Add('');
+        ListItem.SubItems.Add(NewTable.Fields[I].Comment);
+        ListItem.ImageIndex := iiField;
       end;
-      ListItem.SubItems.Add(S);
-      ListItem.SubItems.Add(NewTable.Fields[I].Comment);
-
-      ListItem.ImageIndex := iiField;
     end;
 
   FListSelectItem(FFields, FFields.Selected, Assigned(FFields.Selected));

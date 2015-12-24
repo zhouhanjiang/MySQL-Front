@@ -334,7 +334,6 @@ type
     Expression: string;
     FieldKind: TMySQLFieldKind;
     FieldType: TMySQLFieldType;
-    GeneratedAlways: Boolean;
     Items: array of string;
     National: Boolean;
     Size: Integer;
@@ -2557,7 +2556,6 @@ begin
   Expression := Source.Expression;
   FieldKind := Source.FieldKind;
   FieldType := Source.FieldType;
-  GeneratedAlways := Source.GeneratedAlways;
   Items := TSTableField(Source).Items;
   National := TSTableField(Source).National;
   Size := Source.Size;
@@ -2572,7 +2570,6 @@ begin
   Expression := '';
   FieldKind := mkUnknown;
   FieldType := mfUnknown;
-  GeneratedAlways := False;
   SetLength(Items, 0);
   FName := '';
   National := False;
@@ -2850,7 +2847,7 @@ begin
     mfFloat, mfDouble, mfDecimal:
       begin
         Result := ReplaceStr(Fields.Table.Database.Session.UnescapeValue(Value, FieldType), '.', FormatSettings.DecimalSeparator);
-        if (Result = '') then Result := 'NULL';
+        if ((Result = '') and (FieldKind = mkReal)) then Result := 'NULL';
       end;
     mfEnum, mfSet:
       Result := ReplaceStr(Fields.Table.Database.Session.UnescapeValue(Value, FieldType), '''''', '''');
@@ -4257,7 +4254,7 @@ begin
 
       NewField.ParseFieldType(Parse);
 
-      NewField.GeneratedAlways := SQLParseKeyword(Parse, 'GENERATED ALWAYS');
+      SQLParseKeyword(Parse, 'GENERATED ALWAYS');
 
       while (not SQLParseChar(Parse, ',', False) and not SQLParseChar(Parse, ')', False)) do
         if (not SQLParseKeyword(Parse, 'AS', False)) then
@@ -4317,7 +4314,7 @@ begin
           else if (SQLParseKeyword(Parse, 'STORED')) then
             NewField.Stored := msStored;
 
-          if (SQLParseKeyword(Parse, 'UNIQUE KEY')) then
+          if (SQLParseKeyword(Parse, 'UNIQUE KEY') or SQLParseKeyword(Parse, 'UNIQUE')) then
             NewField.FInUniqueKey := True;
 
           if (SQLParseKeyword(Parse, 'COMMENT')) then
@@ -4328,7 +4325,7 @@ begin
           else if (SQLParseKeyword(Parse, 'NULL')) then
             NewField.NullAllowed := True;
 
-          if (SQLParseKeyword(Parse, 'PRIMARY KEY')) then
+          if (SQLParseKeyword(Parse, 'PRIMARY KEY') or SQLParseKeyword(Parse, 'PRIMARY')) then
             NewField.FInPrimaryKey := True;
         end
         else
@@ -4624,7 +4621,7 @@ begin
           FPartitions.PartitionType := StrToPartitionType(SQLParseValue(Parse));
           if (SQLParseChar(Parse, '(')) then
           begin
-            FPartitions.Expression := SQLParseBracketContent(Parse);
+            FPartitions.Expression := '(' + SQLParseBracketContent(Parse) + ')';
             if (not SQLParseChar(Parse, ')')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
           end;
 
@@ -7465,21 +7462,43 @@ begin
         else
           SQLPart := SQLPart + 'CHANGE COLUMN ' + Session.EscapeIdentifier(OldField.Name) + ' ' + Session.EscapeIdentifier(NewField.Name);
         SQLPart := SQLPart + ' ' + NewField.DBTypeStr();
-        if ((NewField.FieldType in TextFieldTypes) and (Session.ServerVersion >= 40101)) then
+
+        if (NewField.FieldKind = mkReal) then
         begin
-          if ((NewField.Charset <> '')
-            and ((NewField.Charset <> '') and (NewField.Charset <> NewTable.DefaultCharset))) then
-            SQLPart := SQLPart + ' CHARACTER SET ' + NewField.Charset;
-          if ((NewField.Collation <> '') and (NewField.Collation <> NewTable.FCollation)) then
-            SQLPart := SQLPart + ' COLLATE ' + NewField.Collation;
-        end;
-        if (not NewField.NullAllowed) then SQLPart := SQLPart + ' NOT'; SQLPart := SQLPart + ' NULL';
-        if (NewField.AutoIncrement) then
-          SQLPart := SQLPart + ' AUTO_INCREMENT'
-        else if ((NewField.Default <> '') and not (NewField.FieldType in [mfTinyText, mfText, mfMediumText, mfLongText, mfTinyBlob, mfBlob, mfMediumBlob, mfLongBlob])) then
-          SQLPart := SQLPart + ' DEFAULT ' + NewField.Default;
-        if ((NewField.OnUpdate <> '') and (NewField.FieldType = mfTimeStamp)) then
-          SQLPart := SQLPart + ' ON UPDATE ' + NewField.OnUpdate;
+          if ((NewField.FieldType in TextFieldTypes) and (Session.ServerVersion >= 40101)) then
+          begin
+            if ((NewField.Charset <> '')
+              and ((NewField.Charset <> '') and (NewField.Charset <> NewTable.DefaultCharset))) then
+              SQLPart := SQLPart + ' CHARACTER SET ' + NewField.Charset;
+            if ((NewField.Collation <> '') and (NewField.Collation <> NewTable.FCollation)) then
+              SQLPart := SQLPart + ' COLLATE ' + NewField.Collation;
+          end;
+          if (not NewField.NullAllowed) then SQLPart := SQLPart + ' NOT'; SQLPart := SQLPart + ' NULL';
+          if (NewField.AutoIncrement) then
+            SQLPart := SQLPart + ' AUTO_INCREMENT'
+          else if ((NewField.Default <> '') and not (NewField.FieldType in [mfTinyText, mfText, mfMediumText, mfLongText, mfTinyBlob, mfBlob, mfMediumBlob, mfLongBlob])) then
+            SQLPart := SQLPart + ' DEFAULT ' + NewField.Default;
+          if ((NewField.OnUpdate <> '') and (NewField.FieldType = mfTimeStamp)) then
+            SQLPart := SQLPart + ' ON UPDATE ' + NewField.OnUpdate;
+          if ((Session.ServerVersion >= 40100) and (NewField.Comment <> '')) then
+            SQLPart := SQLPart + ' COMMENT ' + SQLEscape(NewField.Comment);
+        end
+        else if (NewField.FieldKind = mkVirtual) then
+        begin
+          SQLPart := SQLPart + ' AS (' + NewField.Expression + ')';
+          if (NewField.Stored = msVirtual) then
+            SQLPart := SQLPart + ' VIRTUAL'
+          else if (NewField.Stored = msStored) then
+            SQLPart := SQLPart + ' STORED';
+          if (NewField.InUniqueKey) then
+            SQLPart := SQLPart + ' UNIQUE KEY';
+          if (NewField.Comment <> '') then
+            SQLPart := SQLPart + ' COMMENT ' + SQLEscape(NewField.Comment);
+          if (NewField.InPrimaryKey) then
+            SQLPart := SQLPart + ' PRIMARY KEY';
+        end
+        else
+          raise ERangeError.Create(SRangeError);
         if ((Session.ServerVersion >= 40100) and (NewField.Comment <> '')) then
           SQLPart := SQLPart + ' COMMENT ' + SQLEscape(NewField.Comment);
         if (Assigned(Table) and (not Assigned(OldField) or (Session.ServerVersion >= 40001))) then
@@ -12261,6 +12280,7 @@ begin
           Field := Table.FieldByName(FieldInfo.OriginalFieldName);
           if (Assigned(Field) and not Field.AutoIncrement and (Field.Default <> 'NULL') and (Copy(Field.Default, 1, 17) <> 'CURRENT_TIMESTAMP')) then
             DataSet.Fields[I].DefaultExpression := Field.UnescapeValue(Field.Default);
+          DataSet.Fields[I].ReadOnly := DataSet.Fields[I].ReadOnly or (Field.FieldKind = mkVirtual);
         end;
       end;
     end;

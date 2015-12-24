@@ -58,6 +58,16 @@ type
     GAttributes: TGroupBox_Ext;
     GBasics: TGroupBox_Ext;
     PSQLWait: TPanel;
+    FKindReal: TRadioButton;
+    FKindVirtual: TRadioButton;
+    FLKind: TLabel;
+    FKind: TPanel;
+    FLExpression: TLabel;
+    FExpression: TEdit;
+    FStored: TPanel;
+    FStoredStored: TRadioButton;
+    FStoredVirtual: TRadioButton;
+    FLStored: TLabel;
     procedure FBHelpClick(Sender: TObject);
     procedure FBOkCheckEnabled(Sender: TObject);
     procedure FCharsetChange(Sender: TObject);
@@ -82,7 +92,6 @@ type
     procedure FFormatDecimalsChange(Sender: TObject);
     procedure FFormatSizeChange(Sender: TObject);
     procedure FFormatSizeExit(Sender: TObject);
-    procedure FFormatTimestampChange(Sender: TObject);
     procedure FFormatUnionChange(Sender: TObject);
     procedure FFormatYearChange(Sender: TObject);
     procedure FormCanResize(Sender: TObject; var NewWidth, NewHeight: Integer;
@@ -178,6 +187,9 @@ begin
 
   GBasics.Caption := Preferences.LoadStr(85);
   FLName.Caption := Preferences.LoadStr(35) + ':';
+  FLKind.Caption := Preferences.LoadStr(913) + ':';
+  FKindReal.Caption := Preferences.LoadStr(914);
+  FKindVirtual.Caption := Preferences.LoadStr(915);
   FLType.Caption := Preferences.LoadStr(91) + ':';
   FLFormatSize.Caption := Preferences.LoadStr(104) + ':';
   FLFormatFSP.Caption := Preferences.LoadStr(911) + ':';
@@ -191,6 +203,10 @@ begin
   FLPosition.Caption := Preferences.LoadStr(79) + ':';
   FLCharset.Caption := Preferences.LoadStr(682) + ':';
   FLCollation.Caption := Preferences.LoadStr(702) + ':';
+  FLExpression.Caption := Preferences.LoadStr(916) + ':';
+  FLStored.Caption := Preferences.LoadStr(917) + ':';
+  FStoredStored.Caption := Preferences.LoadStr(918);
+  FStoredVirtual.Caption := Preferences.LoadStr(919);
   FLComment.Caption := Preferences.LoadStr(111) + ':';
 
   GAttributes.Caption := Preferences.LoadStr(86);
@@ -308,23 +324,27 @@ begin
   FFormatTimestamp.Visible := (GetType() = mfTimestamp) and (Table.Session.ServerVersion < 40100);
   FFormatUnion.Visible := IsUnionType();
   FLFormat.Visible := FFormatTimestamp.Visible or FFormatYear.Visible or FFormatUnion.Visible;
-  FDefault.Visible := ((GetType() = mfBit) or IsIntType() or IsFloatType() or IsCharType() or IsBinaryType() or IsDateType());
+  FDefault.Visible := FKindReal.Checked and ((GetType() = mfBit) or IsIntType() or IsFloatType() or IsCharType() or IsBinaryType() or IsDateType());
   FRDefaultNull.Visible := FDefault.Visible;
   FRDefault.Visible := FDefault.Visible;
   FRDefaultInsertTime.Visible := FDefault.Visible and (GetType() = mfTimeStamp) and (Table.Session.ServerVersion >= 40102);
-  FRDefaultAutoIncrement.Visible := IsIntType();
+  FRDefaultAutoIncrement.Visible := FDefault.Visible and IsIntType();
   FUpdateTime.Visible := FDefault.Visible and (GetType() = mfTimeStamp) and (Table.Session.ServerVersion >= 40102); FLUpdateTime.Visible := FUpdateTime.Visible;
-  FDefaultEnum.Visible := GetType() = mfEnum;
-  FDefaultSet.Visible := GetType() = mfSet;
+  FDefaultEnum.Visible := FKindReal.Checked and (GetType() = mfEnum);
+  FDefaultSet.Visible := FKindReal.Checked and (GetType() = mfSet);
   FLDefault.Visible := FDefault.Visible or FDefaultEnum.Visible or FDefaultSet.Visible;
-  FCharset.Visible := (IsCharType() or IsMemoType() or (GetType() in [mfEnum, mfSet])) and (Table.Session.ServerVersion >= 40101); FLCharset.Visible := FCharset.Visible;
-  FCollation.Visible := (IsCharType() or IsMemoType() or (GetType() in [mfEnum, mfSet])) and (Table.Session.ServerVersion >= 40101); FLCollation.Visible := FCollation.Visible;
-  FFlagBinary.Visible := IsCharType() and (Table.Session.ServerVersion < 40101);
-  FFlagNational.Visible := IsCharType() and (Table.Session.ServerVersion < 40101);
-  FFlagUnsigned.Visible := IsIntType() or IsFloatType();
-  FFlagZerofill.Visible := IsIntType();
-  FFlagAscii.Visible := (GetType() = mfChar) and (Table.Session.ServerVersion < 40101);
-  FFlagUnicode.Visible := (GetType() = mfChar) and (Table.Session.ServerVersion < 40101);
+  FCharset.Visible := FKindReal.Checked and (IsCharType() or IsMemoType() or (GetType() in [mfEnum, mfSet])) and (Table.Session.ServerVersion >= 40101); FLCharset.Visible := FCharset.Visible;
+  FCollation.Visible := FKindReal.Checked and (IsCharType() or IsMemoType() or (GetType() in [mfEnum, mfSet])) and (Table.Session.ServerVersion >= 40101); FLCollation.Visible := FCollation.Visible;
+
+  FLExpression.Visible := FKindVirtual.Checked; FExpression.Visible := FLExpression.Visible;
+  FStored.Visible := FKindVirtual.Checked; FLStored.Visible := FKindVirtual.Checked;
+
+  FFlagBinary.Visible := FKindReal.Checked and IsCharType() and (Table.Session.ServerVersion < 40101);
+  FFlagNational.Visible := FKindReal.Checked and IsCharType() and (Table.Session.ServerVersion < 40101);
+  FFlagUnsigned.Visible := FKindReal.Checked and (IsIntType() or IsFloatType());
+  FFlagZerofill.Visible := FKindReal.Checked and IsIntType();
+  FFlagAscii.Visible := FKindReal.Checked and (GetType() = mfChar) and (Table.Session.ServerVersion < 40101);
+  FFlagUnicode.Visible := FKindReal.Checked and (GetType() = mfChar) and (Table.Session.ServerVersion < 40101);
 
   FDefault.Enabled := True; FLDefault.Enabled := FDefault.Enabled;
   FRDefaultNull.Enabled := FDefault.Enabled;
@@ -350,7 +370,7 @@ begin
   if (GetType() = mfChar) then FUDFormatSize.Position := 1;
 
   case (GetType()) of
-    mfTimestamp: FFormatTimestampChange(Sender);
+    mfTimestamp: FBOkCheckEnabled(Sender);
     mfYear: FFormatYearChange(Sender);
   end;
 
@@ -515,11 +535,6 @@ begin
     FUDFormatSize.Position := GetDefaultSize();
 end;
 
-procedure TDField.FFormatTimestampChange(Sender: TObject);
-begin
-  FBOkCheckEnabled(Sender);
-end;
-
 procedure TDField.FFormatUnionChange(Sender: TObject);
 var
   I: Integer;
@@ -665,6 +680,12 @@ begin
       else
         NewField.OnUpdate := '';
 
+      NewField.Expression := Trim(FExpression.Text);
+      if (FStoredStored.Checked) then
+        NewField.Stored := msStored
+      else
+        NewField.Stored := msVirtual;
+
       NewField.NullAllowed := FFlagNullAllowed.Checked;
       NewField.Unsigned := FFlagUnsigned.Checked and (IsIntType() or IsFloatType());
       NewField.Zerofill := FFlagZerofill.Checked and (IsIntType() or IsFloatType());
@@ -801,6 +822,8 @@ begin
   else
     FPosition.ItemIndex := 0;
 
+  FKind.Visible := Table.Session.ServerVersion >= 50506; FLKind.Visible := FKind.Visible;
+
   if (not Assigned(Field)) then
   begin
     FName.Text := Preferences.LoadStr(105);
@@ -813,6 +836,8 @@ begin
       FName.Text := S;
     end;
 
+    FKindReal.Checked := True;
+
     FFieldType.ItemIndex := FFieldType.Items.IndexOf(Table.Session.FieldTypeByMySQLFieldType(mfVarChar).Caption); FFieldTypeChange(Sender); FFieldTypeExit(Sender);
     FUDFormatSize.Position := 255; FFormatSizeChange(Sender);
 
@@ -823,6 +848,9 @@ begin
 
     FCharset.ItemIndex := FCharset.Items.IndexOf(Table.DefaultCharset); FCharsetChange(Sender);
     FCollation.ItemIndex := FCollation.Items.IndexOf(Table.Collation);
+
+    FExpression.Text := '';
+    FStoredVirtual.Checked := True;
 
     FComment.Text := '';
 
@@ -835,6 +863,9 @@ begin
   else
   begin
     FName.Text := Field.Name;
+
+    FKindReal.Checked := Field.FieldKind <> mkVirtual;
+    FKindVirtual.Checked := Field.FieldKind = mkVirtual;
 
     FFieldType.ItemIndex := FFieldType.Items.IndexOf(Table.Session.FieldTypeByMySQLFieldType(Field.FieldType).Caption); FFieldTypeChange(Sender); FFieldTypeExit(Sender);
     if (Field.Size >= 0) then FUDFormatSize.Position := Field.Size; FFormatSizeChange(Sender);
@@ -865,6 +896,10 @@ begin
       FCharset.ItemIndex := FCharset.Items.IndexOf(Field.Charset);
       FCharsetChange(Sender);
     end;
+
+    FExpression.Text := Field.Expression;
+    FStoredStored.Checked := Field.Stored = msStored;
+    FStoredVirtual.Checked := Field.Stored = msVirtual;
 
     FFlagUnsigned.Checked := Field.Unsigned;
     FFlagZerofill.Checked := Field.Zerofill;

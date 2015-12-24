@@ -2935,6 +2935,7 @@ begin
         iiKey:        Data := Data + 'Index='       + FNavigatorMenuNode.Text + #13#10;
         iiSystemViewField,
         iiField,
+        iiVirtualField,
         iiViewField:  Data := Data + 'Field='       + FNavigatorMenuNode.Text + #13#10;
         iiForeignKey: Data := Data + 'ForeignKey='  + FNavigatorMenuNode.Text + #13#10;
         iiTrigger:    Data := Data + 'Trigger='     + FNavigatorMenuNode.Text + #13#10;
@@ -2959,6 +2960,7 @@ begin
           iiEvent:      Data := Data + 'Event='      + ActiveListView.Items[I].Caption + #13#10;
           iiKey:        Data := Data + 'Key='        + TSKey(ActiveListView.Items[I].Data).Name + #13#10;
           iiField,
+          iiVirtualField,
           iiViewField:  Data := Data + 'Field='      + ActiveListView.Items[I].Caption + #13#10;
           iiForeignKey: Data := Data + 'ForeignKey=' + ActiveListView.Items[I].Caption + #13#10;
           iiTrigger:    Data := Data + 'Trigger='    + ActiveListView.Items[I].Caption + #13#10;
@@ -3083,7 +3085,7 @@ begin
     DSearch.TableName := FNavigator.Selected.Text;
     DSearch.FieldName := '';
     for I := 0 to ActiveListView.Items.Count - 1 do
-      if (ActiveListView.Items[I].Selected and (ActiveListView.Items[I].ImageIndex in [iiField, iiSystemViewField, iiViewField])) then
+      if (ActiveListView.Items[I].Selected and (ActiveListView.Items[I].ImageIndex in [iiField, iiVirtualField, iiSystemViewField, iiViewField])) then
       begin
         if (DSearch.FieldName <> '') then
           DSearch.FieldName := DSearch.FieldName + ',';
@@ -3323,7 +3325,7 @@ begin
     DSearch.TableName := FNavigator.Selected.Text;
     DSearch.FieldName := '';
     for I := 0 to ActiveListView.Items.Count - 1 do
-      if (ActiveListView.Items[I].Selected and (ActiveListView.Items[I].ImageIndex in [iiField, iiSystemViewField, iiViewField])) then
+      if (ActiveListView.Items[I].Selected and (ActiveListView.Items[I].ImageIndex in [iiField, iiVirtualField, iiSystemViewField, iiViewField])) then
       begin
         if (DSearch.FieldName <> '') then
           DSearch.FieldName := DSearch.FieldName + ',';
@@ -7012,7 +7014,7 @@ procedure TFSession.FNavigatorChanging(Sender: TObject; Node: TTreeNode;
 begin
   AllowChange := AllowChange
     and not Dragging(Sender)
-    and not (Assigned(Node) and (Node.ImageIndex in [iiKey, iiField, iiSystemViewField, iiViewField, iiForeignKey]));
+    and not (Assigned(Node) and (Node.ImageIndex in [iiKey, iiField, iiVirtualField, iiSystemViewField, iiViewField, iiForeignKey]));
 
   if (AllowChange and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then
     try
@@ -7055,6 +7057,7 @@ begin
       iiEvent:      Objects := Objects + 'Event='       + SourceNode.Text + #13#10;
       iiKey:        Objects := Objects + 'Index='       + SourceNode.Text + #13#10;
       iiField,
+      iiVirtualField,
       iiViewField:  Objects := Objects + 'Field='       + SourceNode.Text + #13#10;
       iiForeignKey: Objects := Objects + 'ForeignKey='  + SourceNode.Text + #13#10;
       iiTrigger:    Objects := Objects + 'Trigger='     + SourceNode.Text + #13#10;
@@ -7079,6 +7082,7 @@ begin
           iiEvent:      Objects := Objects + 'Event='      + TListView(Source).Items[I].Caption + #13#10;
           iiKey:        Objects := Objects + 'Key='        + TSKey(TListView(Source).Items[I].Data).Name + #13#10;
           iiField,
+          iiVirtualField,
           iiViewField:  Objects := Objects + 'Field='      + TListView(Source).Items[I].Caption + #13#10;
           iiForeignKey: Objects := Objects + 'ForeignKey=' + TListView(Source).Items[I].Caption + #13#10;
           iiTrigger:    Objects := Objects + 'Trigger='    + TListView(Source).Items[I].Caption + #13#10;
@@ -7114,7 +7118,8 @@ begin
         iiBaseTable: Accept := (TargetNode.ImageIndex = iiDatabase) and (TargetNode <> SourceNode.Parent);
         iiProcedure,
         iiFunction: Accept := (TargetNode.ImageIndex = iiDatabase) and (TargetNode <> SourceNode.Parent);
-        iiField: Accept := (TargetNode.ImageIndex = iiBaseTable) and (TargetNode <> SourceNode.Parent);
+        iiField,
+        iiVirtualField: Accept := (TargetNode.ImageIndex = iiBaseTable) and (TargetNode <> SourceNode.Parent);
       end;
   end
   else if ((Source is TListView) and (TListView(Source).Parent.Name = PListView.Name) and Assigned(TargetNode)) then
@@ -7125,7 +7130,8 @@ begin
       iiBaseTable: Accept := (TargetNode.ImageIndex = iiDatabase) and (TargetNode <> TFSession(TListView(Source).Owner).FNavigator.Selected);
       iiProcedure,
       iiFunction: Accept := (TargetNode.ImageIndex = iiDatabase) and (TargetNode <> TFSession(TListView(Source).Owner).FNavigator.Selected);
-      iiField: Accept := (TargetNode.ImageIndex = iiBaseTable) and (TargetNode <> TFSession(TListView(Source).Owner).FNavigator.Selected);
+      iiField,
+      iiVirtualField: Accept := (TargetNode.ImageIndex = iiBaseTable) and (TargetNode <> TFSession(TListView(Source).Owner).FNavigator.Selected);
     end;
   end;
 end;
@@ -7139,7 +7145,7 @@ end;
 procedure TFSession.FNavigatorEditing(Sender: TObject; Node: TTreeNode;
   var AllowEdit: Boolean);
 begin
-  AllowEdit := (Node.ImageIndex = iiDatabase) and (Session.ServerVersion >= 50107) or (Node.ImageIndex = iiForeignKey) and (Session.ServerVersion >= 40013) or (Node.ImageIndex in [iiBaseTable, iiView, iiEvent, iiTrigger, iiField]);
+  AllowEdit := (Node.ImageIndex = iiDatabase) and (Session.ServerVersion >= 50107) or (Node.ImageIndex = iiForeignKey) and (Session.ServerVersion >= 40013) or (Node.ImageIndex in [iiBaseTable, iiView, iiEvent, iiTrigger, iiField, iiVirtualField]);
 end;
 
 procedure TFSession.FNavigatorEmptyExecute(Sender: TObject);
@@ -7457,6 +7463,7 @@ procedure TFSession.FNavigatorUpdate(const SessionEvent: TSSession.TEvent);
       iiKey:
         Result := giKeys;
       iiField,
+      iiVirtualField,
       iiSystemViewField,
       iiViewField:
         Result := giFields;
@@ -7586,7 +7593,7 @@ procedure TFSession.FNavigatorUpdate(const SessionEvent: TSSession.TEvent);
     if (Added and (Child.ImageIndex in [iiDatabase, iiSystemDatabase, iiSystemView, iiBaseTable, iiView])) then
       Child.HasChildren := True;
     if (Assigned(Child)) then
-      SetNodeBoldState(Child, (Child.ImageIndex = iiKey) and TSKey(Child.Data).PrimaryKey or (Child.ImageIndex = iiField) and TSTableField(Child.Data).InPrimaryKey);
+      SetNodeBoldState(Child, (Child.ImageIndex = iiKey) and TSKey(Child.Data).PrimaryKey or (Child.ImageIndex in [iiField, iiVirtualField]) and TSTableField(Child.Data).InPrimaryKey);
   end;
 
   procedure AddChild(const Node: TTreeNode; const Data: TObject);
@@ -7614,7 +7621,7 @@ procedure TFSession.FNavigatorUpdate(const SessionEvent: TSSession.TEvent);
     if (Child.ImageIndex in [iiDatabase, iiSystemDatabase, iiSystemView, iiBaseTable, iiView]) then
       Child.HasChildren := True;
     if (Assigned(Child)) then
-      SetNodeBoldState(Child, (Child.ImageIndex = iiKey) and TSKey(Child.Data).PrimaryKey or (Child.ImageIndex = iiField) and TSTableField(Child.Data).InPrimaryKey);
+      SetNodeBoldState(Child, (Child.ImageIndex = iiKey) and TSKey(Child.Data).PrimaryKey or (Child.ImageIndex in [iiField, iiVirtualField]) and TSTableField(Child.Data).InPrimaryKey);
   end;
 
   procedure DeleteNode(const Node: TTreeNode);
@@ -7684,7 +7691,7 @@ procedure TFSession.FNavigatorUpdate(const SessionEvent: TSSession.TEvent);
               Child.MoveTo(Node, naAddChild);
           end;
           if (Assigned(Child)) then
-            SetNodeBoldState(Child, (Child.ImageIndex = iiKey) and TSKey(Child.Data).PrimaryKey or (Child.ImageIndex = iiField) and TSTableField(Child.Data).InPrimaryKey);
+            SetNodeBoldState(Child, (Child.ImageIndex = iiKey) and TSKey(Child.Data).PrimaryKey or (Child.ImageIndex in [iiField, iiVirtualField]) and TSTableField(Child.Data).InPrimaryKey);
         end;
       etItemDropped:
         begin
@@ -7848,9 +7855,9 @@ begin
   MainAction('aFExportXML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView]);
   MainAction('aFExportHTML').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
   MainAction('aFExportPDF').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer, iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]);
-  MainAction('aECopy').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiField, iiSystemViewField, iiViewField]);
+  MainAction('aECopy').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiField, iiVirtualField, iiSystemViewField, iiViewField]);
   MainAction('aEPaste').Enabled := Assigned(Node) and ((Node.ImageIndex = iiServer) and Clipboard.HasFormat(CF_MYSQLSERVER) or (Node.ImageIndex = iiDatabase) and Clipboard.HasFormat(CF_MYSQLDATABASE) or (Node.ImageIndex = iiBaseTable) and Clipboard.HasFormat(CF_MYSQLTABLE) or (Node.ImageIndex = iiUsers) and Clipboard.HasFormat(CF_MYSQLUSERS));
-  MainAction('aERename').Enabled := Assigned(Node) and ((Node.ImageIndex = iiForeignKey) and (Session.ServerVersion >= 40013) or (Node.ImageIndex in [iiBaseTable, iiView, iiEvent, iiTrigger, iiField]));
+  MainAction('aERename').Enabled := Assigned(Node) and ((Node.ImageIndex = iiForeignKey) and (Session.ServerVersion >= 40013) or (Node.ImageIndex in [iiBaseTable, iiView, iiEvent, iiTrigger, iiField, iiVirtualField]));
   MainAction('aDCreateDatabase').Enabled := Assigned(Node) and (Node.ImageIndex in [iiServer]) and (not Assigned(Session.UserRights) or Session.UserRights.RCreate);
   MainAction('aDCreateTable').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase);
   MainAction('aDCreateView').Enabled := Assigned(Node) and (Node.ImageIndex = iiDatabase) and (Session.ServerVersion >= 50001);
@@ -7868,7 +7875,7 @@ begin
   MainAction('aDDeleteRoutine').Enabled := Assigned(Node) and (Node.ImageIndex in [iiProcedure, iiFunction]);
   MainAction('aDDeleteEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiEvent);
   MainAction('aDDeleteKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiKey);
-  MainAction('aDDeleteField').Enabled := Assigned(Node) and (Node.ImageIndex = iiField) and (TObject(Node.Data) is TSTableField) and (TSTableField(Node.Data).Fields.Count > 1);
+  MainAction('aDDeleteField').Enabled := Assigned(Node) and (Node.ImageIndex in [iiField, iiVirtualField]) and (TObject(Node.Data) is TSTableField) and (TSTableField(Node.Data).Fields.Count > 1);
   MainAction('aDDeleteForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiForeignKey) and (Session.ServerVersion >= 40013);
   MainAction('aDDeleteTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiTrigger);
   MainAction('aDDeleteProcess').Enabled := False;
@@ -7879,10 +7886,10 @@ begin
   MainAction('aDEditRoutine').Enabled := Assigned(Node) and (Node.ImageIndex in [iiProcedure, iiFunction]);
   MainAction('aDEditEvent').Enabled := Assigned(Node) and (Node.ImageIndex = iiEvent);
   MainAction('aDEditKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiKey);
-  MainAction('aDEditField').Enabled := Assigned(Node) and (Node.ImageIndex = iiField);
+  MainAction('aDEditField').Enabled := Assigned(Node) and (Node.ImageIndex in [iiField, iiVirtualField]);
   MainAction('aDEditForeignKey').Enabled := Assigned(Node) and (Node.ImageIndex = iiForeignKey);
   MainAction('aDEditTrigger').Enabled := Assigned(Node) and (Node.ImageIndex = iiTrigger);
-  MainAction('aDEmpty').Enabled := Assigned(Node) and ((Node.ImageIndex = iiDatabase) or (Node.ImageIndex = iiBaseTable) or ((Node.ImageIndex = iiField) and TSTableField(Node.Data).NullAllowed));
+  MainAction('aDEmpty').Enabled := Assigned(Node) and ((Node.ImageIndex = iiDatabase) or (Node.ImageIndex = iiBaseTable) or ((Node.ImageIndex in [iiField]) and TSTableField(Node.Data).NullAllowed));
 
   miNExpand.Default := aPExpand.Enabled;
   miNCollapse.Default := aPCollapse.Enabled;
@@ -7908,7 +7915,8 @@ begin
       iiEvent: miNProperties.Action := MainAction('aDEditEvent');
       iiTrigger: miNProperties.Action := MainAction('aDEditTrigger');
       iiKey: miNProperties.Action := MainAction('aDEditKey');
-      iiField: miNProperties.Action := MainAction('aDEditField');
+      iiField,
+      iiVirtualField: miNProperties.Action := MainAction('aDEditField');
       iiForeignKey: miNProperties.Action := MainAction('aDEditForeignKey');
       iiProcess: miNProperties.Action := MainAction('aDEditProcess');
       iiVariable: miNProperties.Action := MainAction('aDEditVariable');
@@ -9143,10 +9151,12 @@ begin
   else if (TObject(Data) is TSTableField) then
     if (TSTableField(Data).Table is TSSystemView) then
       Result := iiSystemViewField
-    else if (TSTableField(Data).Table is TSBaseTable) then
-      Result := iiField
-    else
+    else if (TSTableField(Data).Table is TSView) then
       Result := iiViewField
+    else if (TSTableField(Data).FieldKind = mkVirtual) then
+      Result := iiVirtualField
+    else
+      Result := iiField
   else if (TObject(Data) is TSForeignKey) then
     Result := iiForeignKey
   else if (TObject(Data) is TSTrigger) then
@@ -9175,7 +9185,7 @@ procedure TFSession.ListViewAdvancedCustomDrawItem(
   Stage: TCustomDrawStage; var DefaultDraw: Boolean);
 begin
   if ((Stage = cdPrePaint) and Assigned(Item)
-    and ((Item.ImageIndex = iiKey) and TSKey(Item.Data).PrimaryKey or (Item.ImageIndex = iiField) and TSTableField(Item.Data).InPrimaryKey)) then
+    and ((Item.ImageIndex = iiKey) and TSKey(Item.Data).PrimaryKey or (Item.ImageIndex in [iiField, iiVirtualField]) and TSTableField(Item.Data).InPrimaryKey)) then
     Sender.Canvas.Font.Style := [fsBold]
   else
     Sender.Canvas.Font.Style := [];
@@ -9410,12 +9420,13 @@ begin
         iiBaseTable,
         iiProcedure,
         iiFunction,
-        iiField: Accept := (SourceNode.Parent.ImageIndex = SelectedImageIndex) and (SourceNode.Parent <> FNavigator.Selected);
+        iiField,
+        iiVirtualField: Accept := (SourceNode.Parent.ImageIndex = SelectedImageIndex) and (SourceNode.Parent <> FNavigator.Selected);
       end
     else if (((TargetItem.Caption <> SourceNode.Text) or (SourceNode.Parent <> FNavigator.Selected)) and (SourceNode.Parent.Text <> TargetItem.Caption)) then
       case (TargetItem.ImageIndex) of
         iiDatabase: Accept := (SourceNode.ImageIndex in [iiDatabase, iiBaseTable, iiProcedure, iiFunction]);
-        iiBaseTable: Accept := SourceNode.ImageIndex in [iiField];
+        iiBaseTable: Accept := SourceNode.ImageIndex in [iiField, iiVirtualField];
       end;
   end
   else if ((Source is TListView) and (TListView(Source).SelCount = 1) and (TListView(Source).Parent.Name = PListView.Name)) then
@@ -9451,7 +9462,7 @@ end;
 procedure TFSession.ListViewEditing(Sender: TObject; Item: TListItem;
   var AllowEdit: Boolean);
 begin
-  AllowEdit := (Item.ImageIndex = iiDatabase) and (Session.ServerVersion >= 50107) or (Item.ImageIndex = iiForeignKey) and (Session.ServerVersion >= 40013) or (Item.ImageIndex in [iiBaseTable, iiView, iiEvent, iiField, iiTrigger,
+  AllowEdit := (Item.ImageIndex = iiDatabase) and (Session.ServerVersion >= 50107) or (Item.ImageIndex = iiForeignKey) and (Session.ServerVersion >= 40013) or (Item.ImageIndex in [iiBaseTable, iiView, iiEvent, iiField, iiVirtualField, iiTrigger,
   iiUser]);
 end;
 
@@ -9740,7 +9751,7 @@ begin
         if (MsgBox(Preferences.LoadStr(407), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES) then
         begin
           for I := 0 to ActiveListView.Items.Count - 1 do
-            if (ActiveListView.Items[I].Selected and (ActiveListView.Items[I].ImageIndex = iiField)) then
+            if (ActiveListView.Items[I].Selected and (ActiveListView.Items[I].ImageIndex in [iiField, iiVirtualField])) then
               List.Add(ActiveListView.Items[I].Data);
           TSBaseTable(FNavigator.Selected.Data).EmptyFields(List);
         end;
@@ -10015,38 +10026,48 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
     else if (Data is TSBaseTableField) then
     begin
       Item.GroupID := giFields;
-      if (TSBaseTableField(Data).Table is TSSystemView) then
-        Item.ImageIndex := iiSystemViewField
-      else
-        Item.ImageIndex := iiField;
       Item.Caption := TSBaseTableField(Data).Caption;
       Item.SubItems.Add(SQLUnescape(TSBaseTableField(Data).DBTypeStr()));
       if (TSBaseTableField(Data).NullAllowed) then
         Item.SubItems.Add(Preferences.LoadStr(74))
       else
         Item.SubItems.Add(Preferences.LoadStr(75));
-      if (TSBaseTableField(Data).AutoIncrement) then
-        Item.SubItems.Add('<auto_increment>')
-      else if (TSBaseTableField(Data).Default = 'NULL') then
-        Item.SubItems.Add('<' + Preferences.LoadStr(71) + '>')
-      else if (TSBaseTableField(Data).Default = 'CURRENT_TIMESTAMP') then
-        Item.SubItems.Add('<INSERT-TimeStamp>')
-      else
-        Item.SubItems.Add(TSBaseTableField(Data).UnescapeValue(TSBaseTableField(Data).Default));
-      S := '';
-      if (TSBaseTableField(Data).FieldType in TextFieldTypes) then
+      if (TSBaseTableField(Data).FieldKind = mkReal) then
       begin
-        if ((TSBaseTableField(Data).Charset <> '') and (TSBaseTableField(Data).Charset <> TSBaseTableField(Data).Table.DefaultCharset)) then
-          S := S + TSBaseTableField(Data).Charset;
-        if ((TSBaseTableField(Data).Collation <> '') and (TSBaseTableField(Data).Collation <> TSBaseTableField(Data).Table.Collation)) then
+        if (TSBaseTableField(Data).AutoIncrement) then
+          Item.SubItems.Add('<auto_increment>')
+        else if (TSBaseTableField(Data).Default = 'NULL') then
+          Item.SubItems.Add('<' + Preferences.LoadStr(71) + '>')
+        else if (TSBaseTableField(Data).Default = 'CURRENT_TIMESTAMP') then
+          Item.SubItems.Add('<INSERT-TimeStamp>')
+        else
+          Item.SubItems.Add(TSBaseTableField(Data).UnescapeValue(TSBaseTableField(Data).Default));
+        S := '';
+        if (TSBaseTableField(Data).FieldType in TextFieldTypes) then
         begin
-          if (S <> '') then S := S + ', ';
-          S := S + TSBaseTableField(Data).Collation;
+          if ((TSBaseTableField(Data).Charset <> '') and (TSBaseTableField(Data).Charset <> TSBaseTableField(Data).Table.DefaultCharset)) then
+            S := S + TSBaseTableField(Data).Charset;
+          if ((TSBaseTableField(Data).Collation <> '') and (TSBaseTableField(Data).Collation <> TSBaseTableField(Data).Table.Collation)) then
+          begin
+            if (S <> '') then S := S + ', ';
+            S := S + TSBaseTableField(Data).Collation;
+          end;
         end;
-      end;
-      Item.SubItems.Add(S);
-      if (Session.ServerVersion >= 40100) then
+        Item.SubItems.Add(S);
+        if (Session.ServerVersion >= 40100) then
+          Item.SubItems.Add(TSBaseTableField(Data).Comment);
+        if (TSBaseTableField(Data).Table is TSSystemView) then
+          Item.ImageIndex := iiSystemViewField
+        else
+          Item.ImageIndex := iiField;
+      end
+      else if (TSBaseTableField(Data).FieldKind = mkVirtual) then
+      begin
+        Item.SubItems.Add(TSBaseTableField(Data).Expression);
+        Item.SubItems.Add('');
         Item.SubItems.Add(TSBaseTableField(Data).Comment);
+        Item.ImageIndex := iiVirtualField;
+      end;
     end
     else if (Data is TSForeignKey) then
     begin
@@ -10707,21 +10728,21 @@ begin
             MainAction('aFExportPDF').Enabled := (ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiTrigger]);
             MainAction('aECopy').Enabled := (ListView.SelCount >= 1);
             MainAction('aEPaste').Enabled := not Assigned(Item) and Clipboard.HasFormat(CF_MYSQLTABLE);
-            MainAction('aERename').Enabled := Assigned(Item) and (ListView.SelCount = 1) and ((Item.ImageIndex in [iiField, iiTrigger]) or (Item.ImageIndex = iiForeignKey) and (Session.ServerVersion >= 40013));
+            MainAction('aERename').Enabled := Assigned(Item) and (ListView.SelCount = 1) and ((Item.ImageIndex in [iiField, iiVirtualField, iiTrigger]) or (Item.ImageIndex = iiForeignKey) and (Session.ServerVersion >= 40013));
             MainAction('aDCreateKey').Enabled := (ListView.SelCount = 0);
             MainAction('aDCreateField').Enabled := (ListView.SelCount = 0);
             MainAction('aDCreateForeignKey').Enabled := (ListView.SelCount = 0);
             MainAction('aDCreateTrigger').Enabled := (ListView.SelCount = 0) and Assigned(BaseTable.Database.Triggers);
             MainAction('aDDeleteKey').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiKey);
-            MainAction('aDDeleteField').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiField) and (BaseTable.Fields.Count > ListView.SelCount);
+            MainAction('aDDeleteField').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiField, iiVirtualField]) and (BaseTable.Fields.Count > ListView.SelCount);
             MainAction('aDDeleteForeignKey').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiForeignKey) and (Session.ServerVersion >= 40013);
             MainAction('aDDeleteTrigger').Enabled := (ListView.SelCount >= 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiTrigger);
             MainAction('aDEditTable').Enabled := (ListView.SelCount = 0);
             MainAction('aDEditKey').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiKey);
-            MainAction('aDEditField').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiField);
+            MainAction('aDEditField').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiField, iiVirtualField]);
             MainAction('aDEditForeignKey').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiForeignKey);
             MainAction('aDEditTrigger').Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiTrigger);
-            MainAction('aDEmpty').Enabled := (ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex = iiField) and TSBaseTableField(Item.Data).NullAllowed;
+            MainAction('aDEmpty').Enabled := (ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiField]) and TSBaseTableField(Item.Data).NullAllowed;
             aDDelete.Enabled := (ListView.SelCount >= 1);
 
             for I := 0 to ListView.Items.Count - 1 do
@@ -10731,10 +10752,10 @@ begin
                 MainAction('aFExportHTML').Enabled := MainAction('aFExportHTML').Enabled and (ListView.Items[I].ImageIndex in [iiTrigger]);
                 MainAction('aFExportPDF').Enabled := MainAction('aFExportPDF').Enabled and (ListView.Items[I].ImageIndex in [iiTrigger]);
                 MainAction('aDDeleteKey').Enabled := MainAction('aDDeleteKey').Enabled and (ListView.Items[I].ImageIndex in [iiKey]);
-                MainAction('aDDeleteField').Enabled := MainAction('aDDeleteField').Enabled and (ListView.Items[I].ImageIndex in [iiField]);
+                MainAction('aDDeleteField').Enabled := MainAction('aDDeleteField').Enabled and (ListView.Items[I].ImageIndex in [iiField, iiVirtualField]);
                 MainAction('aDDeleteForeignKey').Enabled := MainAction('aDDeleteForeignKey').Enabled and (ListView.Items[I].ImageIndex in [iiForeignKey]);
                 MainAction('aDEditKey').Enabled := MainAction('aDEditKey').Enabled and (ListView.Items[I].ImageIndex in [iiKey]);
-                MainAction('aDEditField').Enabled := MainAction('aDEditField').Enabled and (ListView.Items[I].ImageIndex in [iiField]);
+                MainAction('aDEditField').Enabled := MainAction('aDEditField').Enabled and (ListView.Items[I].ImageIndex in [iiField, iiVirtualField]);
                 MainAction('aDEditForeignKey').Enabled := MainAction('aDEditForeignKey').Enabled and (ListView.Items[I].ImageIndex in [iiForeignKey]);
                 MainAction('aDEditTrigger').Enabled := MainAction('aDEditTrigger').Enabled and (ListView.Items[I].ImageIndex in [iiTrigger]);
                 MainAction('aDEmpty').Enabled := MainAction('aDEmpty').Enabled and (ListView.Items[I].ImageIndex in [iiField]);
@@ -10747,7 +10768,8 @@ begin
             else
               case (Item.ImageIndex) of
                 iiKey: mlEProperties.Action := MainAction('aDEditKey');
-                iiField: mlEProperties.Action := MainAction('aDEditField');
+                iiField,
+                iiVirtualField: mlEProperties.Action := MainAction('aDEditField');
                 iiForeignKey: mlEProperties.Action := MainAction('aDEditForeignKey');
                 iiTrigger: mlEProperties.Action := MainAction('aDEditTrigger');
               end;
@@ -12424,7 +12446,7 @@ begin
     else
       PSynMemo.Visible := False;
 
-    if ((View = vObjects) and not (SelectedImageIndex in [iiKey, iiField, iiForeignKey]) or ((View = vBrowser) and (SelectedImageIndex = iiServer))) then
+    if ((View = vObjects) and not (SelectedImageIndex in [iiKey, iiField, iiVirtualField, iiForeignKey]) or ((View = vBrowser) and (SelectedImageIndex = iiServer))) then
     begin
       PListView.Align := alClient;
       PListView.Visible := True;
@@ -13424,7 +13446,7 @@ procedure TFSession.SynMemoDragOver(Sender, Source: TObject; X, Y: Integer;
   State: TDragState; var Accept: Boolean);
 begin
   if (Source = FNavigator) then
-    Accept := MouseDownNode.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiSystemView, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiKey, iiField, iiSystemViewField, iiViewField, iiForeignKey]
+    Accept := MouseDownNode.ImageIndex in [iiDatabase, iiSystemDatabase, iiBaseTable, iiSystemView, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger, iiKey, iiField, iiVirtualField, iiSystemViewField, iiViewField, iiForeignKey]
   else if (Source = FSQLHistory) then
     Accept := MouseDownNode.ImageIndex in [iiStatement, iiQuery, iiClock]
   else if (Source = ActiveDBGrid) then

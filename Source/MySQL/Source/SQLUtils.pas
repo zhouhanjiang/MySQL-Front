@@ -1266,6 +1266,7 @@ begin
     end;
 
   SetLength(Result, Len);
+  Delete(Result, 1, 1); Delete(Result, Length(Result), 1);
 end;
 
 function SQLParseCallStmt(const SQL: PChar; const Len: Integer; out ProcedureName: string; const Version: Integer): Boolean;
