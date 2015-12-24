@@ -336,10 +336,8 @@ type
     FieldType: TMySQLFieldType;
     Items: array of string;
     National: Boolean;
-    PrimaryKey: Boolean;
     Size: Integer;
     Stored: TMySQLFieldStored;
-    UniqueKey: Boolean;
     Unsigned: Boolean;
     procedure Assign(const Source: TSField); reintroduce; virtual;
     procedure Clear(); virtual;
@@ -2560,10 +2558,8 @@ begin
   FieldType := Source.FieldType;
   Items := TSTableField(Source).Items;
   National := TSTableField(Source).National;
-  PrimaryKey := TSTableField(Source).PrimaryKey;
   Size := Source.Size;
   Stored := Source.Stored;
-  UniqueKey := TSTableField(Source).UniqueKey;
   Unsigned := TSTableField(Source).Unsigned;
 end;
 
@@ -2577,10 +2573,8 @@ begin
   SetLength(Items, 0);
   FName := '';
   National := False;
-  PrimaryKey := False;
   Size := 0;
   Stored := msUnknown;
-  UniqueKey := False;
   Unsigned := False;
 end;
 
@@ -4320,9 +4314,6 @@ begin
           else if (SQLParseKeyword(Parse, 'STORED')) then
             NewField.Stored := msStored;
 
-          if (SQLParseKeyword(Parse, 'UNIQUE KEY') or SQLParseKeyword(Parse, 'UNIQUE')) then
-            NewField.UniqueKey := True;
-
           if (SQLParseKeyword(Parse, 'COMMENT')) then
             NewField.Comment := SQLParseValue(Parse);
 
@@ -4330,9 +4321,6 @@ begin
             NewField.NullAllowed := False
           else if (SQLParseKeyword(Parse, 'NULL')) then
             NewField.NullAllowed := True;
-
-          if (SQLParseKeyword(Parse, 'PRIMARY KEY') or SQLParseKeyword(Parse, 'PRIMARY')) then
-            NewField.PrimaryKey := True;
         end
         else
           SQLParseValue(Parse);
@@ -7496,14 +7484,10 @@ begin
             SQLPart := SQLPart + ' VIRTUAL'
           else if (NewField.Stored = msStored) then
             SQLPart := SQLPart + ' STORED';
-          if (NewField.UniqueKey) then
-            SQLPart := SQLPart + ' UNIQUE KEY';
           if (NewField.Comment <> '') then
             SQLPart := SQLPart + ' COMMENT ' + SQLEscape(NewField.Comment);
           if (not NewField.NullAllowed) then
             SQLPart := SQLPart + ' NOT NULL';
-          if (NewField.PrimaryKey) then
-            SQLPart := SQLPart + ' PRIMARY KEY';
         end
         else
           raise ERangeError.Create(SRangeError);

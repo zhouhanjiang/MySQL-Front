@@ -68,8 +68,6 @@ type
     FStoredStored: TRadioButton;
     FStoredVirtual: TRadioButton;
     FLStored: TLabel;
-    FFlagPrimaryKey: TCheckBox;
-    FFlagUniqueKey: TCheckBox;
     procedure FBHelpClick(Sender: TObject);
     procedure FBOkCheckEnabled(Sender: TObject);
     procedure FCharsetChange(Sender: TObject);
@@ -106,7 +104,6 @@ type
     procedure FRDefaultNullKeyDown(Sender: TObject; var Key: Word;
       Shift: TShiftState);
     procedure FUDClick(Sender: TObject; Button: TUDBtnType);
-    procedure FFlagKeyClick(Sender: TObject);
   private
     function GetDefault(): string;
     function GetDefaultDecimals(): Integer;
@@ -221,8 +218,6 @@ begin
   FRDefaultAutoIncrement.Caption := Preferences.LoadStr(84);
   FFlagAscii.Caption := Preferences.LoadStr(669);
   FFlagUnicode.Caption := Preferences.LoadStr(683);
-  FFlagPrimaryKey.Caption := Preferences.LoadStr(154);
-  FFlagUniqueKey.Caption := Preferences.LoadStr(920);
 
   FBHelp.Caption := Preferences.LoadStr(167);
   FBOk.Caption := Preferences.LoadStr(29);
@@ -351,8 +346,6 @@ begin
   FFlagZerofill.Visible := FKindReal.Checked and IsIntType();
   FFlagAscii.Visible := FKindReal.Checked and (GetType() = mfChar) and (Table.Session.ServerVersion < 40101);
   FFlagUnicode.Visible := FKindReal.Checked and (GetType() = mfChar) and (Table.Session.ServerVersion < 40101);
-  FFlagPrimaryKey.Visible := FKindVirtual.Checked;
-  FFlagUniqueKey.Visible := FKindVirtual.Checked;
 
   FDefault.Enabled := True; FLDefault.Enabled := FDefault.Enabled;
   FRDefaultNull.Enabled := FDefault.Enabled;
@@ -452,22 +445,6 @@ end;
 procedure TDField.FFlagNullAllowedKeyPress(Sender: TObject; var Key: Char);
 begin
   FFlagNullAllowedClick(Sender);
-end;
-
-procedure TDField.FFlagKeyClick(Sender: TObject);
-begin
-  FFlagPrimaryKey.OnClick := nil;
-  FFlagUniqueKey.OnClick := nil;
-
-  if (Sender = FFlagPrimaryKey) then
-    FFlagUniqueKey.Checked := False
-  else if (Sender = FFlagUniqueKey) then
-    FFlagPrimaryKey.Checked := False;
-
-  FFlagPrimaryKey.OnClick := FFlagKeyClick;
-  FFlagUniqueKey.OnClick := FFlagKeyClick;
-
-  FBOkCheckEnabled(Sender);
 end;
 
 procedure TDField.FFlagUnsignedClick(Sender: TObject);
@@ -723,8 +700,6 @@ begin
       NewField.AutoIncrement := FRDefaultAutoIncrement.Checked and IsIntType();
       NewField.Ascii := FFlagAscii.Checked and (GetType() = mfChar);
       NewField.Unicode := FFlagUnicode.Checked and (GetType() = mfChar);
-      NewField.PrimaryKey := FFlagPrimaryKey.Checked;
-      NewField.UniqueKey := FFlagUniqueKey.Checked;
 
       NewField.Moved := NewField.Moved or (FPosition.ItemIndex <> NewTable.Fields.IndexOf(NewField.FieldBefore) + 1);
       if (FPosition.ItemIndex = 0) then
@@ -891,9 +866,6 @@ begin
     FFlagNational.Checked := Table.Session.ServerVersion < 40101;
     FFlagAscii.Checked := False; FFlagCharClick(Sender);
     FFlagUnicode.Checked := False; FFlagCharClick(Sender);
-
-    FFlagPrimaryKey.Checked := False; FFlagKeyClick(Sender);
-    FFlagUniqueKey.Checked := False; FFlagKeyClick(Sender);
   end
   else
   begin
@@ -943,8 +915,6 @@ begin
     FFlagNational.Checked := Field.National;
     FFlagAscii.Checked := Field.Ascii; FFlagCharClick(Sender);
     FFlagUnicode.Checked := Field.Unicode; FFlagCharClick(Sender);
-    FFlagPrimaryKey.Checked := Field.PrimaryKey; FFlagKeyClick(Sender);
-    FFlagUniqueKey.Checked := Field.UniqueKey; FFlagKeyClick(Sender);
 
     FDefault.Text := '';
     if (Field.AutoIncrement) then
