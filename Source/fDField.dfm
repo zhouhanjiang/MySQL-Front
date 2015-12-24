@@ -428,6 +428,7 @@ object DField: TDField
         Height = 17
         Caption = 'FKindReal'
         TabOrder = 0
+        OnClick = FFieldTypeChange
       end
       object FKindVirtual: TRadioButton
         Left = 100
@@ -576,6 +577,24 @@ object DField: TDField
       TabOrder = 6
       OnClick = FFlagCharClick
       OnKeyPress = FFlagCharPress
+    end
+    object FFlagPrimaryKey: TCheckBox
+      Left = 160
+      Top = 16
+      Width = 145
+      Height = 17
+      Caption = 'FFlagPrimaryKey'
+      TabOrder = 7
+      OnClick = FFlagKeyClick
+    end
+    object FFlagUniqueKey: TCheckBox
+      Left = 160
+      Top = 36
+      Width = 145
+      Height = 17
+      Caption = 'FFlagUniqueKey'
+      TabOrder = 8
+      OnClick = FFlagKeyClick
     end
   end
   object FBHelp: TButton

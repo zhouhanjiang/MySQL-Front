@@ -1233,6 +1233,7 @@ begin
 
     NewField := TSBaseTableField.Create(NewTable.Fields);
     NewField.Name := 'Id';
+    NewField.FieldKind := mkReal;
     NewField.FieldType := mfInt;
     NewField.Size := 11;
     NewField.Unsigned := False;
@@ -1497,7 +1498,7 @@ begin
           end;
         end;
         ListItem.SubItems.Add(S);
-        if (Table.Session.ServerVersion >= 40100) then
+        if (NewTable.Session.ServerVersion >= 40100) then
           ListItem.SubItems.Add(NewTable.Fields[I].Comment);
         ListItem.ImageIndex := iiField;
       end
