@@ -450,9 +450,9 @@ begin
 
   SetLength(Lengths, Table.Fields.Count);
   for I := 0 to Length(Lengths) - 1 do
-    if (Table.Fields.Field[I].FieldType in [mfChar, mfVarChar]) then
-      Lengths[I] := Table.Fields.Field[I].Size
-    else if (Table.Fields.Field[I].FieldType in [mfTinyText, mfText, mfMediumText, mfLongText, mfTinyBlob, mfBlob, mfMediumBlob, mfLongBlob]) then
+    if (Table.Fields[I].FieldType in [mfChar, mfVarChar]) then
+      Lengths[I] := Table.Fields[I].Size
+    else if (Table.Fields[I].FieldType in [mfTinyText, mfText, mfMediumText, mfLongText, mfTinyBlob, mfBlob, mfMediumBlob, mfLongBlob]) then
       Lengths[I] := 10
     else
       Lengths[I] := 0;
@@ -499,10 +499,10 @@ begin
     Found := False;
     if (Assigned(Key)) then
       for J := 0 to Key.Columns.Count - 1 do
-        if (Key.Columns.Column[J].Field = Table.Fields.Field[I]) then
+        if ((Key.Columns.Column[J].Field = Table.Fields[I])) then
           Found := True;
-    if (not Found) then
-      FAvailableFields.Items.Add().Caption := Table.Fields.Field[I].Name;
+    if (not Found and ((Table.Fields[I].FieldKind <> mkVirtual) or (Table.Fields[I].Stored = msStored))) then
+      FAvailableFields.Items.Add().Caption := Table.Fields[I].Name;
   end;
   if (Assigned(FAvailableFields.Items[0])) then
     FAvailableFields.Items[0].Selected := True;

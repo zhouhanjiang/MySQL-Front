@@ -34,7 +34,6 @@ uses
   fBase in 'fBase.pas',
   fDAccount in 'fDAccount.pas' {DAccount},
   fDAccounts in 'fDAccounts.pas' {DAccounts},
-  fDBookmark in 'fDBookmark.pas' {DBookmark},
   fDConnecting in 'fDConnecting.pas' {DConnecting},
   fDDatabase in 'fDDatabase.pas' {DDatabase},
   fDDatabases in 'fDDatabases.pas' {DDatabases},

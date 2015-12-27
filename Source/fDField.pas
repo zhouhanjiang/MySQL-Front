@@ -209,6 +209,12 @@ begin
   FStoredVirtual.Caption := Preferences.LoadStr(919);
   FLComment.Caption := Preferences.LoadStr(111) + ':';
 
+  FExpression.Font.Name := Preferences.SQLFontName;
+  FExpression.Font.Style := Preferences.SQLFontStyle;
+  FExpression.Font.Color := Preferences.SQLFontColor;
+  FExpression.Font.Size := Preferences.SQLFontSize;
+  FExpression.Font.Charset := Preferences.SQLFontCharset;
+
   GAttributes.Caption := Preferences.LoadStr(86);
   FFlagBinary.Caption := Preferences.LoadStr(80);
   FFlagUnsigned.Caption := Preferences.LoadStr(81);
@@ -338,7 +344,8 @@ begin
   FCollation.Visible := FKindReal.Checked and (IsCharType() or IsMemoType() or (GetType() in [mfEnum, mfSet])) and (Table.Session.ServerVersion >= 40101); FLCollation.Visible := FCollation.Visible;
 
   FLExpression.Visible := FKindVirtual.Checked; FExpression.Visible := FLExpression.Visible;
-  FStored.Visible := FKindVirtual.Checked; FLStored.Visible := FKindVirtual.Checked;
+  FStored.Visible := FKindVirtual.Checked; FLStored.Visible := FStored.Visible;
+  FLStored.Enabled := FStored.Visible and not Assigned(Field); FStoredStored.Enabled := FLStored.Enabled; FStoredVirtual.Enabled := FLStored.Enabled;
 
   FFlagBinary.Visible := FKindReal.Checked and IsCharType() and (Table.Session.ServerVersion < 40101);
   FFlagNational.Visible := FKindReal.Checked and IsCharType() and (Table.Session.ServerVersion < 40101);
@@ -842,6 +849,8 @@ begin
       FName.Text := S;
     end;
 
+    FLKind.Visible := Table.Session.ServerVersion >= 50706;
+    FKind.Visible := FLKind.Visible;
     FKindReal.Checked := True;
 
     FFieldType.ItemIndex := FFieldType.Items.IndexOf(Table.Session.FieldTypeByMySQLFieldType(mfVarChar).Caption); FFieldTypeChange(Sender); FFieldTypeExit(Sender);
@@ -855,7 +864,7 @@ begin
     FCharset.ItemIndex := FCharset.Items.IndexOf(Table.DefaultCharset); FCharsetChange(Sender);
     FCollation.ItemIndex := FCollation.Items.IndexOf(Table.Collation);
 
-    FExpression.Text := '';
+    FExpression.Text := '1';
     FStoredStored.Checked := False;
     FStoredVirtual.Checked := True;
 

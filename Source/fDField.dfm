@@ -1,6 +1,6 @@
 object DField: TDField
   Left = 764
-  Top = 341
+  Top = 340
   BorderStyle = bsDialog
   Caption = 'DField'
   ClientHeight = 463
@@ -148,14 +148,14 @@ object DField: TDField
     end
     object FLExpression: TLabel
       Left = 8
-      Top = 178
+      Top = 177
       Width = 63
       Height = 13
       Caption = 'FLExpression'
     end
     object FLStored: TLabel
       Left = 8
-      Top = 206
+      Top = 205
       Width = 43
       Height = 13
       Caption = 'FLStored'
@@ -452,7 +452,7 @@ object DField: TDField
     end
     object FStored: TPanel
       Left = 120
-      Top = 206
+      Top = 205
       Width = 188
       Height = 41
       BevelOuter = bvNone

@@ -1575,7 +1575,8 @@ begin
         begin
           FDestinationFields[I].Items.Add('');
           for J := 0 to TSBaseTable(SObject).Fields.Count - 1 do
-            FDestinationFields[I].Items.Add(TSBaseTable(SObject).Fields.Field[J].Name);
+            if (TSBaseTable(SObject).Fields[J].FieldKind = mkReal) then
+              FDestinationFields[I].Items.Add(TSBaseTable(SObject).Fields.Field[J].Name);
         end
         else
           FDestinationFields[I].Items.Text := FDestinationFields[0].Items.Text;

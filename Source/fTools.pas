@@ -4234,6 +4234,7 @@ var
   DataSet: TMySQLQuery;
   Fields: array of TField;
   I: Integer;
+  IndexDefs: TIndexDefs;
   SQL: string;
   Table: TSTable;
 begin
@@ -4253,6 +4254,14 @@ begin
 
     if (Success = daSuccess) then
     begin
+      if (Assigned(Session.OnUpdateIndexDefs)) then
+      begin
+        // Set Field[I].ReadOnly for virtual fields
+        IndexDefs := TIndexDefs.Create(DataSet);
+        Session.OnUpdateIndexDefs(DataSet, IndexDefs);
+        IndexDefs.Free();
+      end;
+
       SetLength(Fields, DataSet.FieldCount);
       for I := 0 to DataSet.FieldCount - 1 do
         Fields[I] := DataSet.Fields[I];
@@ -4605,7 +4614,9 @@ end;
 procedure TTExportSQL.ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
 var
   Content: string;
+  First: Boolean;
   I: Integer;
+  ReadOnlyFields: Boolean;
 begin
   Content := '';
 
@@ -4638,9 +4649,13 @@ begin
   if (Content <> '') then
     WriteContent(Content);
 
-
   if (Data and (Table is TSBaseTable)) then
   begin
+    ReadOnlyFields := False;
+    for I := 0 to Length(Fields) - 1 do
+      if (Fields[I].ReadOnly) then
+        ReadOnlyFields := True;;
+
     if (ReplaceData) then
       SQLInsertPrefix := 'REPLACE INTO '
     else
@@ -4648,14 +4663,16 @@ begin
 
     SQLInsertPrefix := SQLInsertPrefix + Session.EscapeIdentifier(Table.Name);
 
-    if (not Structure) then
+    if (not Structure or ReadOnlyFields) then
     begin
       SQLInsertPrefix := SQLInsertPrefix + ' (';
+      First := True;
       for I := 0 to Length(Fields) - 1 do
-      begin
-        if (I > 0) then SQLInsertPrefix := SQLInsertPrefix + ',';
-        SQLInsertPrefix := SQLInsertPrefix + Session.EscapeIdentifier(Fields[I].FieldName);
-      end;
+        if (not Fields[I].ReadOnly) then
+        begin
+          if (First) then First:= False else SQLInsertPrefix := SQLInsertPrefix + ',';
+          SQLInsertPrefix := SQLInsertPrefix + Session.EscapeIdentifier(Fields[I].FieldName);
+        end;
       SQLInsertPrefix := SQLInsertPrefix + ')';
     end;
 
@@ -4673,33 +4690,34 @@ var
 begin
   Values.Write('(');
   for Field in Fields do
-  begin
-    if (Values.Length > 1) then Values.Write(',');
-    if (not Assigned(DataSet.LibRow^[Field.FieldNo - 1])) then
-      Values.Write('NULL')
-    else if (BitField(Field)) then
-      Values.Write('b''' + Field.AsString + '''')
-    else if (Field.DataType in BinaryDataTypes) then
+    if (not (Table is TSBaseTable) or not Field.ReadOnly) then
     begin
-      LenEscaped := SQLEscapeBin(DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], nil, 0, False);
-      SQLEscapeBin(DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], Values.WriteExternal(LenEscaped), LenEscaped, False);
-    end
-    else if (Field.DataType in TextDataTypes) then
-    begin
-      Len := DataSet.LibLengths^[Field.FieldNo - 1];
-      if (Len * SizeOf(ValueBuffer.Mem[0]) > ValueBuffer.MemSize) then
+      if (Values.Length > 1) then Values.Write(',');
+      if (not Assigned(DataSet.LibRow^[Field.FieldNo - 1])) then
+        Values.Write('NULL')
+      else if (BitField(Field)) then
+        Values.Write('b''' + Field.AsString + '''')
+      else if (Field.DataType in BinaryDataTypes) then
       begin
-        ValueBuffer.MemSize := Len * SizeOf(ValueBuffer.Mem[0]);
-        ReallocMem(ValueBuffer.Mem, ValueBuffer.MemSize);
-      end;
-      Len := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
+        LenEscaped := SQLEscapeBin(DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], nil, 0, False);
+        SQLEscapeBin(DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], Values.WriteExternal(LenEscaped), LenEscaped, False);
+      end
+      else if (Field.DataType in TextDataTypes) then
+      begin
+        Len := DataSet.LibLengths^[Field.FieldNo - 1];
+        if (Len * SizeOf(ValueBuffer.Mem[0]) > ValueBuffer.MemSize) then
+        begin
+          ValueBuffer.MemSize := Len * SizeOf(ValueBuffer.Mem[0]);
+          ReallocMem(ValueBuffer.Mem, ValueBuffer.MemSize);
+        end;
+        Len := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
 
-      LenEscaped := SQLEscape(ValueBuffer.Mem, Len, nil, 0);
-      SQLEscape(ValueBuffer.Mem, Len, Values.WriteExternal(LenEscaped), LenEscaped);
-    end
-    else
-      Values.WriteData(DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], not (Field.DataType in NotQuotedDataTypes));
-  end;
+        LenEscaped := SQLEscape(ValueBuffer.Mem, Len, nil, 0);
+        SQLEscape(ValueBuffer.Mem, Len, Values.WriteExternal(LenEscaped), LenEscaped);
+      end
+      else
+        Values.WriteData(DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], not (Field.DataType in NotQuotedDataTypes));
+    end;
   Values.Write(')');
 
   if ((SQLInsertLen > 0) and (SQLInsertLen + 1 + Values.Length + Length(SQLInsertPrefix) > SQLPacketSize)) then

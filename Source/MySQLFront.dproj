@@ -62,9 +62,6 @@
 			<DCCReference Include="fDAccounts.pas">
 				<Form>DAccounts</Form>
 			</DCCReference>
-			<DCCReference Include="fDBookmark.pas">
-				<Form>DBookmark</Form>
-			</DCCReference>
 			<DCCReference Include="fDConnecting.pas">
 				<Form>DConnecting</Form>
 			</DCCReference>
