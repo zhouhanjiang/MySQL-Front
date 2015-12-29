@@ -1223,28 +1223,25 @@ begin
       StringL:
         CMP ECX,0                        // End of SQL?
         JE Finish                        // Yes!
-        CALL Trim                        // Empty characters in SQL?
-        JZ StringL                       // Yes!
         CALL MoveString                  // String in SQL?
         JZ StringL                       // Yes!
         CMP WORD PTR [ESI],'('           // Open Bracket?
         JNE String2                      // Yes!
-        INC EBX                          // New Bracket
+        INC EBX                          // Additional Bracket
         JMP StringE
       String2:
         CMP WORD PTR [ESI],')'           // Closing Bracket?
-        JNE StringE                      // Yes!
-        CMP EBX,0                        // BracketDeep = 0
-        JE Finish                        // Yes!
+        JNE StringE                      // No!
         DEC EBX                          // Bracket Deep - 1
+        JZ StringEndBracket              // BracketDeep = 0!
       StringE:
         LODSW                            // Load character from SQL
         STOSW                            // Store WideChar into Result
-        CMP EBX,0                        // BracketDeep = 0
-        JE StringEndBracket              // Yes!
         DEC ECX                          // One character handled
         JMP StringL
       StringEndBracket:
+        LODSW                            // Load character from SQL
+        STOSW                            // Store WideChar into Result
         CALL Trim                        // Trim SQL
 
       Finish:
@@ -1266,7 +1263,7 @@ begin
     end;
 
   SetLength(Result, Len);
-  Delete(Result, 1, 1); Delete(Result, Length(Result), 1);
+  Result := SysUtils.Trim(Copy(Result, 2, Length(Result) - 2));
 end;
 
 function SQLParseCallStmt(const SQL: PChar; const Len: Integer; out ProcedureName: string; const Version: Integer): Boolean;
