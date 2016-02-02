@@ -835,7 +835,7 @@ begin
   else
     FPosition.ItemIndex := 0;
 
-  FKind.Visible := Table.Session.ServerVersion >= 50506; FLKind.Visible := FKind.Visible;
+  FKind.Visible := Table.Session.ServerVersion >= 50706; FLKind.Visible := FKind.Visible;
 
   if (not Assigned(Field)) then
   begin
@@ -849,8 +849,6 @@ begin
       FName.Text := S;
     end;
 
-    FLKind.Visible := Table.Session.ServerVersion >= 50706;
-    FKind.Visible := FLKind.Visible;
     FKindReal.Checked := True;
 
     FFieldType.ItemIndex := FFieldType.Items.IndexOf(Table.Session.FieldTypeByMySQLFieldType(mfVarChar).Caption); FFieldTypeChange(Sender); FFieldTypeExit(Sender);

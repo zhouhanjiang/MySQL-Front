@@ -3195,6 +3195,7 @@ begin
 
           NewField := TSBaseTableField.Create(NewTable.Fields);
           NewField.Name := Session.ApplyIdentifierName(ColumnName);
+          NewField.FieldKind := mkReal;
           if (NewTable.Fields.Count > 0) then
             NewField.FieldBefore := NewTable.Fields[NewTable.Fields.Count - 1];
           if (SQLDataType <> SQL_UNKNOWN_TYPE) then
@@ -6327,13 +6328,22 @@ begin
               Parameter[I].Size := SQL_LEN_DATA_AT_EXEC(Size * SizeOf(Char));
           end;
         ftBlob:
-          if (DataSet.LibLengths^[I] <= Parameter[I].MemSize) then
           begin
-            Parameter[I].Size := DataSet.LibLengths^[I];
-            MoveMemory(Parameter[I].Mem, DataSet.LibRow^[I], Parameter[I].Size);
-          end
-          else
-            Parameter[I].Size := SQL_LEN_DATA_AT_EXEC(DataSet.LibLengths^[I]);
+            Size := 0;
+
+            repeat
+              if (DataSet.LibLengths^[I] <= Size + Parameter[I].MemSize) then
+                Parameter[I].Size := DataSet.LibLengths^[I] - Size
+              else
+              begin
+                Parameter[I].Size := Parameter[I].MemSize;
+                raise ERangeError.Create(SRangeError); // How does it works with multiple parts???
+              end;
+              MoveMemory(Parameter[I].Mem, DataSet.LibRow^[I] + Size, Parameter[I].Size);
+
+              Inc(Size, Parameter[I].Size);
+            until (Size = DataSet.LibLengths^[I]);
+          end;
         else
           raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Fields[I].DisplayName, Ord(Fields[I].DataType)]);
       end;

@@ -1193,7 +1193,7 @@ end;
 
 function SQLParseBracketContent(var Handle: TSQLParse): string;
 label
-  StringL, String2, StringE, StringEndBracket,
+  StringL, String2, StringE,
   Finish;
 var
   Len: Integer;
@@ -1233,16 +1233,17 @@ begin
         CMP WORD PTR [ESI],')'           // Closing Bracket?
         JNE StringE                      // No!
         DEC EBX                          // Bracket Deep - 1
-        JZ StringEndBracket              // BracketDeep = 0!
+        JNZ StringE                      // BracketDeep > 0!
+        LODSW                            // Load character from SQL
+        STOSW                            // Store WideChar into Result
+        DEC ECX                          // One character handled
+        CALL Trim                        // Trim SQL
+        JMP Finish
       StringE:
         LODSW                            // Load character from SQL
         STOSW                            // Store WideChar into Result
         DEC ECX                          // One character handled
         JMP StringL
-      StringEndBracket:
-        LODSW                            // Load character from SQL
-        STOSW                            // Store WideChar into Result
-        CALL Trim                        // Trim SQL
 
       Finish:
         MOV EBX,Handle

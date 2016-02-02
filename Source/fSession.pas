@@ -12269,6 +12269,9 @@ begin
         Table := Database.BaseTableByName(FieldInfo.TableName);
         if (Assigned(Table)) then
         begin
+          Table.Session.BeginSynchron();
+          Table.Update();
+          Table.Session.EndSynchron();
           Field := Table.FieldByName(FieldInfo.OriginalFieldName);
           if (Assigned(Field) and not Field.AutoIncrement and (Field.Default <> 'NULL') and (Copy(Field.Default, 1, 17) <> 'CURRENT_TIMESTAMP')) then
             DataSet.Fields[I].DefaultExpression := Field.UnescapeValue(Field.Default);
