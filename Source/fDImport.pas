@@ -224,6 +224,7 @@ type
     procedure CMPostShow(var Message: TMessage); message CM_POST_SHOW;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure CMUpdateProgressInfo(var Message: TMessage); message CM_UPDATEPROGRESSINFO;
+    procedure WMHelp(var Message: TWMHelp); message WM_HELP;
   public
     CodePage: Cardinal;
     DialogType: (idtNormal, idtCreateJob, idtEditJob, idtExecuteJob);
@@ -1672,14 +1673,17 @@ begin
     TE_Database:
       begin
         Msg := Preferences.LoadStr(165, IntToStr(Error.Session.ErrorCode), Error.Session.ErrorMessage);
-        ErrorMsg := Error.Session.ErrorMessage;
-        if (Error.Session.ErrorCode > 0) then
+        ErrorMsg := Error.ErrorMessage;
+        if (Error.ErrorCode > 0) then
           ErrorMsg := ErrorMsg + ' (#' + IntToStr(Error.Session.ErrorCode) + ')';
+        ErrorMsg := ErrorMsg + ' - ' + Trim(Session.CommandText);
       end;
     TE_File:
       begin
-        Msg := Error.ErrorMessage + ' (#' + IntToStr(Error.ErrorCode) + ')';
+        Msg := Error.ErrorMessage;
         ErrorMsg := Msg;
+        if (Error.ErrorCode = ERROR_NO_UNICODE_TRANSLATION) then
+          MsgBoxHelpContext := 1150;
       end;
     TE_ODBC:
       begin
@@ -1709,6 +1713,9 @@ begin
       Flags := MB_OK + MB_ICONERROR
     else
       Flags := MB_CANCELTRYCONTINUE + MB_ICONERROR;
+    if (MsgBoxHelpContext <> 0) then
+      Flags := Flags or MB_HELP;
+    DisableApplicationActivate := True;
     case (MsgBox(Msg, Preferences.LoadStr(45), Flags, Handle)) of
       IDOK,
       IDCANCEL,
@@ -1718,6 +1725,7 @@ begin
       IDCONTINUE,
       IDIGNORE: Success := daFail;
     end;
+    DisableApplicationActivate := False;
   end;
 
   if (((Success in [daAbort, daFail]) or (Error.ErrorType = TE_Warning)) and (ErrorMsg <> '')) then
@@ -1956,7 +1964,7 @@ begin
         Found := Found or (TSBaseTable(SObject).Database.Tables.NameCmp(FDestinationFields[I].Text, TSBaseTable(SObject).PrimaryKey.Columns[J].Field.Name) = 0);
       FUpdate.Enabled := FUpdate.Enabled and Found;
     end;
-  FInsertOrUpdate.Enabled := (ImportType = itTextFile) and FUpdate.Enabled; FLInsertUpdate.Enabled := FInsertOrUpdate.Enabled;
+  FInsertOrUpdate.Enabled := (ImportType in [itTextFile, itExcelFile]) and FUpdate.Enabled; FLInsertUpdate.Enabled := FInsertOrUpdate.Enabled;
 
   CheckActivePageChange(TSFields.PageIndex);
 end;
@@ -2098,6 +2106,14 @@ end;
 procedure TDImport.WhatKeyPress(Sender: TObject; var Key: Char);
 begin
   WhatClick(Sender);
+end;
+
+procedure TDImport.WMHelp(var Message: TWMHelp);
+begin
+  if (Message.HelpInfo.iContextType = HELPINFO_MENUITEM) then
+    inherited
+  else if (MsgBoxHelpContext <> 0) then
+    Application.HelpCommand(HELP_CONTEXT, MsgBoxHelpContext);
 end;
 
 initialization

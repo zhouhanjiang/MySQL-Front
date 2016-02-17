@@ -13307,7 +13307,7 @@ begin
       vObjects:
         if (Assigned(ActiveListView)) then Count := ActiveListView.Items.Count;
       vBrowser:
-        if (Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then Count := ActiveDBGrid.DataSource.DataSet.RecordCount;
+        if (Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then Count := ActiveDBGrid.DataSource.DataSet.RecordCount + 1;
       vIDE,
       vBuilder:
         if (Assigned(FQueryBuilderEditorPageControl())) then

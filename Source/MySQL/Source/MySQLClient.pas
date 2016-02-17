@@ -1191,7 +1191,7 @@ begin
     FError := '';
 
   {$IFDEF EurekaLog}
-    if ((AErrNo = CR_UNKNOWN_ERROR) or (AErrNo = CR_SERVER_HANDSHAKE_ERR)) then
+    if ((AErrNo = CR_UNKNOWN_ERROR) or (AErrNo = CR_SERVER_HANDSHAKE_ERR) or (AErrNo = CR_COMMANDS_OUT_OF_SYNC)) then
       raise Exception.Create(DecodeString(error()));
   {$ENDIF}
 

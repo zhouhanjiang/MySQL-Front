@@ -50,7 +50,7 @@ type
       property Item[Index: Integer]: TItem read GetItem; default;
       property Tool: TTool read FTool;
     end;
-    TErrorType = (TE_Database, TE_NoPrimaryIndex, TE_File, TE_ODBC, TE_XML, TE_Warning, TE_Printer, TE_OutOfMemory);
+    TErrorType = (TE_Database, TE_NoPrimaryIndex, TE_File, TE_ODBC, TE_XML, TE_Warning, TE_Printer, TE_OutOfMemory, TE_CharacterSet);
     TError = record
       ErrorType: TErrorType;
       ErrorCode: Integer;
@@ -2019,7 +2019,7 @@ begin
             SQLExecuted.WaitFor(INFINITE);
           DisconnectNamedPipe(Pipe);
 
-          if ((Success = daSuccess) and (StmtType = stInsert) and (Session.WarningCount > 0)) then
+          if ((Success = daSuccess) and (Session.WarningCount > 0)) then
           begin
             DataSet := TMySQLQuery.Create(nil);
             DataSet.Connection := Session;
@@ -2159,6 +2159,26 @@ begin
             SQLExecuted.WaitFor(INFINITE);
             Delete(SQL, 1, Session.ExecutedSQLLength);
             SQLExecuteLength := 0;
+
+            if ((Success = daSuccess) and (Session.WarningCount > 0)) then
+            begin
+              DataSet := TMySQLQuery.Create(nil);
+              DataSet.Connection := Session;
+              DataSet.CommandText := 'SHOW WARNINGS';
+
+              DataSet.Open();
+              if (DataSet.Active and not DataSet.IsEmpty()) then
+              begin
+                Error.ErrorType := TE_Warning;
+                Error.ErrorCode := 1;
+                repeat
+                  Error.ErrorMessage := Error.ErrorMessage + Trim(DataSet.FieldByName('Message').AsString) + #13#10;
+                until (not DataSet.FindNext());
+                DoError(Error, Item, False);
+              end;
+              DataSet.Free();
+            end;
+
             if (Session.ErrorCode <> 0) then
               DoError(DatabaseError(Session), Item, True, SQL);
           end;
@@ -2352,6 +2372,7 @@ end;
 function TTImportFile.ReadContent(const NewFilePos: TLargeInteger = -1): Boolean;
 var
   DistanceToMove: TLargeInteger;
+  Error: TTool.TError;
   Index: Integer;
   Len: Integer;
   ReadSize: DWord;
@@ -2423,11 +2444,22 @@ begin
 
           if (BytesPerSector + ReadSize - FileBuffer.Index > 0) then
           begin
-            Len := AnsiCharToWideChar(CodePage, @FileBuffer.Mem[FileBuffer.Index], BytesPerSector + ReadSize - UTF8Bytes - FileBuffer.Index, nil, 0);
-            if (Len > 0) then
-            begin
-              SetLength(FileContent.Str, Length(FileContent.Str) + Len);
-              AnsiCharToWideChar(CodePage, @FileBuffer.Mem[FileBuffer.Index], BytesPerSector + ReadSize - UTF8Bytes - FileBuffer.Index, @FileContent.Str[Length(FileContent.Str) - Len + 1], Len)
+            try
+              Len := AnsiCharToWideChar(CodePage, @FileBuffer.Mem[FileBuffer.Index], BytesPerSector + ReadSize - UTF8Bytes - FileBuffer.Index, nil, 0);
+              if (Len > 0) then
+              begin
+                SetLength(FileContent.Str, Length(FileContent.Str) + Len);
+                AnsiCharToWideChar(CodePage, @FileBuffer.Mem[FileBuffer.Index], BytesPerSector + ReadSize - UTF8Bytes - FileBuffer.Index, @FileContent.Str[Length(FileContent.Str) - Len + 1], Len)
+              end;
+            except
+              on E: EOSError do
+                begin
+                  Error.ErrorType := TE_File;
+                  Error.ErrorCode := GetLastError();
+                  Error.ErrorMessage := E.Message;
+                  Error.Session := nil;
+                  DoError(Error, nil, False);
+                end;
             end;
           end;
 
@@ -2577,7 +2609,7 @@ begin
     else
     begin
       SQL := FileContent.Str;
-      while ((Success <> daAbort) and not DoExecuteSQL(TTImport.TItem(Items[0]), SQL)) do
+      while ((SQL <> '') and (Success <> daAbort) and not DoExecuteSQL(TTImport.TItem(Items[0]), SQL)) do
         DoError(DatabaseError(Session), Items[0], True, SQL);
     end;
 

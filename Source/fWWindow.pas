@@ -1716,7 +1716,6 @@ begin
 
   if (Msg <> '') then
   begin
-    Flags := MB_OK + MB_ICONERROR;
     case (ErrorCode) of
       ER_DBACCESS_DENIED_ERROR,
       ER_ACCESS_DENIED_ERROR: MsgBoxHelpContext := 1145;
@@ -1724,8 +1723,9 @@ begin
       CR_UNKNOWN_HOST: MsgBoxHelpContext := 1144;
       else MsgBoxHelpContext := 0;
     end;
+    Flags := MB_OK + MB_ICONERROR;
     if (MsgBoxHelpContext <> 0) then
-      Flags := Flags + MB_HELP;
+      Flags := Flags or MB_HELP;
 
     DisableApplicationActivate := True;
     MsgBox(Msg, Preferences.LoadStr(45), Flags, Handle);
