@@ -3423,18 +3423,6 @@ begin
         S := '--> Ok';
         WriteMonitor(PChar(S), Length(S), ttInfo);
       end;
-
-      if ((ServerVersion > 40100) and Assigned(Lib.mysql_warning_count)) then
-      begin
-        if (FWarningCount < 0) then FWarningCount := 0;
-        Inc(FWarningCount, Lib.mysql_warning_count(LibraryThread.LibHandle));
-
-        if (Lib.mysql_warning_count(LibraryThread.LibHandle) > 0) then
-        begin
-          S := '--> ' + IntToStr(Lib.mysql_warning_count(LibraryThread.LibHandle)) + ' warning(s) available';
-          WriteMonitor(PChar(S), Length(S), ttInfo);
-        end;
-      end;
     end;
   end;
 

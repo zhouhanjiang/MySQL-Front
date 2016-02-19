@@ -1929,11 +1929,9 @@ var
   EscapedTableName: string;
   First: Boolean;
   I: Integer;
-  SQLStmtPrefixInSQLStmt: Boolean;
   Len: Integer;
   Pipe: THandle;
   Pipename: string;
-  S: string;
   SQL: string;
   SQLExecuted: TEvent;
   SQLExecuteLength: Integer;
@@ -2063,7 +2061,6 @@ begin
     end
     else
     begin
-      SQLExecuteLength := 0; SQLStmtPrefixInSQLStmt := False;
       SQLStmt := TStringBuffer.Create(SQLPacketSize);
 
       case (StmtType) of
@@ -2093,127 +2090,103 @@ begin
 
       while ((Success = daSuccess) and NextRecord()) do
       begin
-        if (SQLStmtPrefixInSQLStmt) then SQLStmt.WriteChar(',');
+        First := True;
 
-        if ((StmtType = stUpdate) or not SQLStmtPrefixInSQLStmt) then
-        begin
-          SQLStmt.Write(PChar(SQLStmtPrefix), Length(SQLStmtPrefix));
-          SQLStmtPrefixInSQLStmt := True;
-        end;
-
-        if (StmtType in [stInsert, stReplace, stInsertOrUpdate]) then
-        begin
-          SQLStmt.WriteChar('(');
-          for I := 0 to Length(FieldMappings) - 1 do
+        repeat
+          if (First) then
           begin
-            if (I > 0) then SQLStmt.WriteChar(',');
-            GetValue(Item, I, SQLStmt);
-          end;
-          SQLStmt.WriteChar(')');
-          if (StmtType = stInsertOrUpdate) then
-            SQLStmt.Write(' ON DUPLICATE KEY UPDATE ', 25);
-        end;
+            SQLStmt.Write(PChar(SQLStmtPrefix), Length(SQLStmtPrefix));
+            First := False;
+          end
+          else
+            SQLStmt.WriteChar(',');
 
-        if (StmtType in [stUpdate, stInsertOrUpdate]) then
-        begin
-          First := True;
-          for I := 0 to Length(FieldMappings) - 1 do
-            if (not FieldMappings[I].DestinationField.InPrimaryKey) then
+          if (StmtType in [stInsert, stReplace, stInsertOrUpdate]) then
+          begin
+            SQLStmt.WriteChar('(');
+            for I := 0 to Length(FieldMappings) - 1 do
             begin
-              if (First) then First := False else SQLStmt.WriteChar(',');
-              SQLStmt.Write(PChar(EscapedDestinationFieldNames[I]), Length(EscapedDestinationFieldNames[I]));
-              SQLStmt.WriteChar('=');
+              if (I > 0) then SQLStmt.WriteChar(',');
               GetValue(Item, I, SQLStmt);
             end;
-          if (StmtType in [stUpdate]) then
-          begin
-            SQLStmt.Write(' WHERE ', 7);
+            SQLStmt.WriteChar(')');
+            if (StmtType = stInsertOrUpdate) then
+              SQLStmt.Write(' ON DUPLICATE KEY UPDATE ', 25);
+          end;
 
+          if (StmtType in [stUpdate, stInsertOrUpdate]) then
+          begin
             First := True;
             for I := 0 to Length(FieldMappings) - 1 do
-              if (FieldMappings[I].DestinationField.InPrimaryKey) then
+              if (not FieldMappings[I].DestinationField.InPrimaryKey) then
               begin
-                if (First) then First := False else SQLStmt.Write(' AND ', 5);
+                if (First) then First := False else SQLStmt.WriteChar(',');
                 SQLStmt.Write(PChar(EscapedDestinationFieldNames[I]), Length(EscapedDestinationFieldNames[I]));
                 SQLStmt.WriteChar('=');
                 GetValue(Item, I, SQLStmt);
               end;
+            if (StmtType in [stUpdate]) then
+            begin
+              SQLStmt.Write(' WHERE ', 7);
+
+              First := True;
+              for I := 0 to Length(FieldMappings) - 1 do
+                if (FieldMappings[I].DestinationField.InPrimaryKey) then
+                begin
+                  if (First) then First := False else SQLStmt.Write(' AND ', 5);
+                  SQLStmt.Write(PChar(EscapedDestinationFieldNames[I]), Length(EscapedDestinationFieldNames[I]));
+                  SQLStmt.WriteChar('=');
+                  GetValue(Item, I, SQLStmt);
+                end;
+            end;
           end;
-        end;
+
+          Inc(Item.RecordsDone);
+          if (Item.RecordsDone mod 10 = 0) then
+          begin
+            if (Item.RecordsDone mod 100 = 0) then
+              DoUpdateGUI();
+            if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
+            begin
+              if (SQL <> '') then
+                Session.Terminate();
+              Success := daAbort;
+            end;
+          end;
+        until ((StmtType in [stUpdate, stInsertOrUpdate]) or (SQLStmt.Length > SQLPacketSize) or not NextRecord());
 
         Len := Length(SQL);
         SetLength(SQL, Len + SQLStmt.Length);
         MoveMemory(@SQL[1 + Len], SQLStmt.Data, SQLStmt.Size);
         SQLStmt.Clear();
 
-        if ((StmtType in [stUpdate, stInsertOrUpdate]) or (Length(SQL) > SQLPacketSize)) then
+        if (not Session.ExecuteSQL(SQL)) then
+          Success := daAbort;
+
+        if ((Success = daSuccess) and (Session.WarningCount > 0)) then
         begin
-          SQL := SQL + SQLStmtDelimiter;
-          SQLStmtPrefixInSQLStmt := False;
+          DataSet := TMySQLQuery.Create(nil);
+          DataSet.Connection := Session;
+          DataSet.CommandText := 'SHOW WARNINGS';
+
+          DataSet.Open();
+          if (DataSet.Active and not DataSet.IsEmpty()) then
+          begin
+            Error.ErrorType := TE_Warning;
+            Error.ErrorCode := 1;
+            repeat
+              Error.ErrorMessage := Error.ErrorMessage + Trim(DataSet.FieldByName('Message').AsString) + #13#10;
+            until (not DataSet.FindNext());
+            DoError(Error, Item, False);
+          end;
+          DataSet.Free();
         end;
 
-        if (Length(SQL) >= SQLPacketSize) then
-        begin
-          if (SQLExecuteLength > 0) then
-          begin
-            SQLExecuted.WaitFor(INFINITE);
-            Delete(SQL, 1, Session.ExecutedSQLLength);
-            SQLExecuteLength := 0;
-
-            if ((Success = daSuccess) and (Session.WarningCount > 0)) then
-            begin
-              DataSet := TMySQLQuery.Create(nil);
-              DataSet.Connection := Session;
-              DataSet.CommandText := 'SHOW WARNINGS';
-
-              DataSet.Open();
-              if (DataSet.Active and not DataSet.IsEmpty()) then
-              begin
-                Error.ErrorType := TE_Warning;
-                Error.ErrorCode := 1;
-                repeat
-                  Error.ErrorMessage := Error.ErrorMessage + Trim(DataSet.FieldByName('Message').AsString) + #13#10;
-                until (not DataSet.FindNext());
-                DoError(Error, Item, False);
-              end;
-              DataSet.Free();
-            end;
-
-            if (Session.ErrorCode <> 0) then
-              DoError(DatabaseError(Session), Item, True, SQL);
-          end;
-
-          if (SQL <> '') then
-          begin
-            Session.SendSQL(SQL, SQLExecuted);
-            SQLExecuteLength := Length(SQL);
-          end;
-        end;
-
-        Inc(Item.RecordsDone);
-        if (Item.RecordsDone mod 10 = 0) then
-        begin
-          if (Item.RecordsDone mod 100 = 0) then
-            DoUpdateGUI();
-          if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
-          begin
-            if (SQL <> '') then
-              Session.Terminate();
-            Success := daAbort;
-          end;
-        end;
-      end;
-
-      if ((Success = daSuccess) and (SQLExecuteLength > 0)) then
-      begin
-        SQLExecuted.WaitFor(INFINITE);
-        Delete(SQL, 1, Session.ExecutedSQLLength);
         if (Session.ErrorCode <> 0) then
-          DoError(DatabaseError(Session), Item, False, SQL);
+          DoError(DatabaseError(Session), Item, True, SQL);
       end;
 
-      if (SQLStmtPrefixInSQLStmt) then
-        SQL := SQL + SQLStmtDelimiter;
+      SQL := SQL + SQLStmtDelimiter;
       if (Structure) then
       begin
         if ((Session.ServerVersion >= 40000) and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
