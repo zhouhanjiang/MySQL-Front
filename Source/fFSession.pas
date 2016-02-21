@@ -1326,6 +1326,9 @@ begin
     FSession.SBResultRefresh(TResult(Item^).DataSet);
   end;
 
+  if (DataHandle.Connection.WarningCount > 0) then
+    MsgBox(IntToStr(DataHandle.Connection.WarningCount) + ' Unknown Warning(s)', Preferences.LoadStr(47), MB_OK + MB_ICONWARNING);
+
   Result := False;
 end;
 

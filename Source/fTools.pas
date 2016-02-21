@@ -1925,6 +1925,7 @@ var
   DataSet: TMySQLQuery;
   DataFileBuffer: TDataFileBuffer;
   Error: TTool.TError;
+  EqualFieldNames: Boolean;
   EscapedDestinationFieldNames: array of string;
   EscapedTableName: string;
   First: Boolean;
@@ -1934,10 +1935,10 @@ var
   Pipename: string;
   SQL: string;
   SQLExecuted: TEvent;
-  SQLExecuteLength: Integer;
   SQLStmtPrefix: string;
   SQLStmtDelimiter: string;
   SQLStmt: TStringBuffer;
+  WarningCount: Integer;
 begin
   BeforeExecuteData(Item);
 
@@ -2069,9 +2070,13 @@ begin
         stReplace: SQLStmtPrefix := 'REPLACE INTO ' + EscapedTableName;
         stUpdate: SQLStmtPrefix := 'UPDATE ' + EscapedTableName;
       end;
+
       if ((StmtType in [stInsert, stReplace, stInsertOrUpdate])) then
       begin
-        if (not Structure and (Length(FieldMappings) <> Table.Fields.Count)) then
+        EqualFieldNames := Length(FieldMappings) = Table.Fields.Count;
+        for I := 0 to Length(FieldMappings) - 1 do
+          EqualFieldNames := EqualFieldNames and (lstrcmpi(PChar(FieldMappings[0].DestinationField.Name), PChar(Table.Fields[0].Name)) = 0);
+        if (not Structure and not EqualFieldNames) then
         begin
           SQLStmtPrefix := SQLStmtPrefix + ' (';
           for I := 0 to Length(EscapedDestinationFieldNames) - 1 do
@@ -2090,16 +2095,8 @@ begin
 
       while ((Success = daSuccess) and NextRecord()) do
       begin
-        First := True;
-
         repeat
-          if (First) then
-          begin
-            SQLStmt.Write(PChar(SQLStmtPrefix), Length(SQLStmtPrefix));
-            First := False;
-          end
-          else
-            SQLStmt.WriteChar(',');
+          SQLStmt.Write(PChar(SQLStmtPrefix), Length(SQLStmtPrefix));
 
           if (StmtType in [stInsert, stReplace, stInsertOrUpdate]) then
           begin
@@ -2140,6 +2137,7 @@ begin
                 end;
             end;
           end;
+          SQLStmt.Write(SQLStmtDelimiter);
 
           Inc(Item.RecordsDone);
           if (Item.RecordsDone mod 10 = 0) then
@@ -2160,33 +2158,35 @@ begin
         MoveMemory(@SQL[1 + Len], SQLStmt.Data, SQLStmt.Size);
         SQLStmt.Clear();
 
-        if (not Session.ExecuteSQL(SQL)) then
-          Success := daAbort;
+        while ((Success <> daAbort) and (SQL <> '') and not DoExecuteSQL(Item, SQL)) do
+          DoError(DatabaseError(Session), Item, True, SQL);
+
+        Delete(SQL, 1, Session.ExecutedSQLLength);
 
         if ((Success = daSuccess) and (Session.WarningCount > 0)) then
         begin
+          WarningCount := Session.WarningCount; // With the SHOW WARNINGS statement, the Session.WarningCount will be resetted
+
           DataSet := TMySQLQuery.Create(nil);
           DataSet.Connection := Session;
           DataSet.CommandText := 'SHOW WARNINGS';
 
           DataSet.Open();
-          if (DataSet.Active and not DataSet.IsEmpty()) then
           begin
             Error.ErrorType := TE_Warning;
             Error.ErrorCode := 1;
-            repeat
-              Error.ErrorMessage := Error.ErrorMessage + Trim(DataSet.FieldByName('Message').AsString) + #13#10;
-            until (not DataSet.FindNext());
-            DoError(Error, Item, False);
+            if (not DataSet.Active or DataSet.IsEmpty()) then
+              Error.ErrorMessage := Error.ErrorMessage + IntToStr(WarningCount) + ' Unknown Warning(s)'
+            else
+              repeat
+                Error.ErrorMessage := Error.ErrorMessage + Trim(DataSet.FieldByName('Message').AsString) + #13#10;
+              until (not DataSet.FindNext());
+            DoError(Error, Item, False, SQL);
           end;
           DataSet.Free();
         end;
-
-        if (Session.ErrorCode <> 0) then
-          DoError(DatabaseError(Session), Item, True, SQL);
       end;
 
-      SQL := SQL + SQLStmtDelimiter;
       if (Structure) then
       begin
         if ((Session.ServerVersion >= 40000) and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
@@ -2196,7 +2196,7 @@ begin
       if (Session.Lib.LibraryType <> ltHTTP) then
         SQL := SQL + 'COMMIT;' + #13#10;
 
-      while ((Success <> daAbort) and not DoExecuteSQL(Item, SQL)) do
+      while ((Success <> daAbort) and (SQL <> '') and not DoExecuteSQL(Item, SQL)) do
         DoError(DatabaseError(Session), Item, True, SQL);
 
       SQLStmt.Free();
