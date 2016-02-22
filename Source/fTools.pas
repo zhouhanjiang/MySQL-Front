@@ -177,8 +177,9 @@ type
       SourceFieldName: string;
     end;
   private
-    FSession: TSSession;
     FDatabase: TSDatabase;
+    FSession: TSSession;
+    FWarningCount: Integer;
   protected
     FieldMappings: array of TFieldMapping;
     procedure AfterExecute(); override;
@@ -194,8 +195,9 @@ type
     procedure GetValues(const Item: TItem; const Values: TTool.TDataFileBuffer); virtual;
     function NextRecord(): Boolean; virtual;
     procedure Open(); virtual;
-    property Session: TSSession read FSession;
     property Database: TSDatabase read FDatabase;
+    property Session: TSSession read FSession;
+    property WarningCount: Integer read FWarningCount;
   public
     DefaultCharset: string;
     DefaultCollation: string;
@@ -1727,6 +1729,7 @@ end;
 
 procedure TTImport.BeforeExecuteData(const Item: TItem);
 begin
+  FWarningCount := 0;
 end;
 
 procedure TTImport.Close();
@@ -1737,8 +1740,9 @@ constructor TTImport.Create(const ASession: TSSession; const ADatabase: TSDataba
 begin
   inherited Create();
 
-  FSession := ASession;
   FDatabase := ADatabase;
+  FSession := ASession;
+  FWarningCount := 0;
 
   Data := False;
   Structure := False;
@@ -1754,6 +1758,7 @@ end;
 function TTImport.DoExecuteSQL(const Item: TItem; var SQL: string): Boolean;
 begin
   Result := Session.ExecuteSQL(SQL);
+  Inc(FWarningCount, Session.WarningCount);
   if (Result) then
     SQL := ''
   else
@@ -1924,8 +1929,8 @@ var
   BytesWritten: DWord;
   DataSet: TMySQLQuery;
   DataFileBuffer: TDataFileBuffer;
-  Error: TTool.TError;
   EqualFieldNames: Boolean;
+  Error: TTool.TError;
   EscapedDestinationFieldNames: array of string;
   EscapedTableName: string;
   First: Boolean;
@@ -1938,7 +1943,6 @@ var
   SQLStmtPrefix: string;
   SQLStmtDelimiter: string;
   SQLStmt: TStringBuffer;
-  WarningCount: Integer;
 begin
   BeforeExecuteData(Item);
 
@@ -2162,29 +2166,6 @@ begin
           DoError(DatabaseError(Session), Item, True, SQL);
 
         Delete(SQL, 1, Session.ExecutedSQLLength);
-
-        if ((Success = daSuccess) and (Session.WarningCount > 0)) then
-        begin
-          WarningCount := Session.WarningCount; // With the SHOW WARNINGS statement, the Session.WarningCount will be resetted
-
-          DataSet := TMySQLQuery.Create(nil);
-          DataSet.Connection := Session;
-          DataSet.CommandText := 'SHOW WARNINGS';
-
-          DataSet.Open();
-          begin
-            Error.ErrorType := TE_Warning;
-            Error.ErrorCode := 1;
-            if (not DataSet.Active or DataSet.IsEmpty()) then
-              Error.ErrorMessage := Error.ErrorMessage + IntToStr(WarningCount) + ' Unknown Warning(s)'
-            else
-              repeat
-                Error.ErrorMessage := Error.ErrorMessage + Trim(DataSet.FieldByName('Message').AsString) + #13#10;
-              until (not DataSet.FindNext());
-            DoError(Error, Item, False, SQL);
-          end;
-          DataSet.Free();
-        end;
       end;
 
       if (Structure) then
@@ -2198,6 +2179,14 @@ begin
 
       while ((Success <> daAbort) and (SQL <> '') and not DoExecuteSQL(Item, SQL)) do
         DoError(DatabaseError(Session), Item, True, SQL);
+
+      if (WarningCount > 0) then
+      begin
+        Error.ErrorType := TE_Warning;
+        Error.ErrorCode := 1;
+        Error.ErrorMessage := Error.ErrorMessage + IntToStr(WarningCount) + ' Unknown Warning(s)';
+        DoError(Error, Item, False);
+      end;
 
       SQLStmt.Free();
     end;
