@@ -12278,7 +12278,7 @@ begin
           Field := Table.FieldByName(FieldInfo.OriginalFieldName);
           if (Assigned(Field) and not Field.AutoIncrement and (Field.Default <> 'NULL') and (Copy(Field.Default, 1, 17) <> 'CURRENT_TIMESTAMP')) then
             DataSet.Fields[I].DefaultExpression := Field.UnescapeValue(Field.Default);
-          DataSet.Fields[I].ReadOnly := DataSet.Fields[I].ReadOnly or (Field.FieldKind = mkVirtual);
+          DataSet.Fields[I].ReadOnly := DataSet.Fields[I].ReadOnly or Assigned(Field) and (Field.FieldKind = mkVirtual);
         end;
       end;
     end;
