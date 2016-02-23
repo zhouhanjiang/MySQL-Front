@@ -910,6 +910,10 @@ begin
       FCharset.ItemIndex := FCharset.Items.IndexOf(Field.Charset);
       FCharsetChange(Sender);
     end;
+    if (Field.Collation = '') then
+      FCollation.ItemIndex := FCollation.Items.IndexOf(Table.Collation)
+    else
+      FCollation.ItemIndex := FCollation.Items.IndexOf(Field.Collation);
 
     FExpression.Text := Field.Expression;
     FStoredStored.Checked := Field.Stored <> msVirtual;
