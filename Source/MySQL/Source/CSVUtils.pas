@@ -496,6 +496,8 @@ begin
       end;
     until (EOL or not Result);
 
+    Result := Result or (Value > 0) and EOL;
+
     if (Value <> Length(Values)) then
       SetLength(Values, Value);
   end;

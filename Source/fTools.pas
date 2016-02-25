@@ -2805,7 +2805,7 @@ end;
 function TTImportText.NextRecord(): Boolean;
 var
   EOF: Boolean;
-  OldFileContentIndex: Integer;
+  OldFileContentIndex: Int64;
   RecordComplete: Boolean;
 begin
   RecordComplete := False; EOF := False; OldFileContentIndex := FileContent.Index;
@@ -2819,7 +2819,7 @@ begin
     end;
   end;
 
-  Result := RecordComplete;
+  Result := RecordComplete or not EOF;
 end;
 
 procedure TTImportText.Open();
