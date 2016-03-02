@@ -2650,6 +2650,7 @@ begin
     NewField := TSBaseTableField.Create(NewTable.Fields);
 
     NewField.Name := Session.ApplyIdentifierName(HeadlineNames[I]);
+    NewField.FieldKind := mkReal;
 
     if (SQL_INTEGER in FileFields[I].FieldTypes) then
       NewField.FieldType := mfInt

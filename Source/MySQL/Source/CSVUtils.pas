@@ -303,7 +303,7 @@ end;
 
 function CSVSplitValues(const Text: string; var Index: Integer; const Delimiter, Quoter: Char; var Values: TCSVValues): Boolean; overload;
 label
-  StartL, StartL2, StartLE, StartE,
+  StartL, StartL2, StartL3, StartLE, StartE,
   Unquoted, UnquotedL, UnquotedE,
   Quoted, QuotedL, QuotedLE, QuotedE, QuotedE2,
   IgnoreL,
@@ -354,11 +354,10 @@ begin
         JE StartLE                       // Yes!
         CMP AX,13                        // Character in Text = Carrige Return?
         JE StartLE                       // Yes!
-        CMP AX,26                        // Character in Text = EndOfFile?
-        JNE StartL2                      // No!
-        MOV EOF,True
-        JMP FinishE
       StartL2:
+        CMP AX,26                        // Character in Text = EndOfFile?
+        JE StartLE                       // Yes!
+      StartL3:
         CMP AX,Quoter                    // Character in Text = Quoter?
         JE Quoted                        // Yes!
         JMP Unquoted
@@ -470,7 +469,7 @@ begin
         JMP FinishE
       Finish4:
         CMP AX,10                        // LineFeed?
-        JNE Finish4
+        JNE FinishE
         ADD ESI,2                        // Step over LineFeed
         DEC ECX                          // Ignore LineFeed
         MOV EOL,True
@@ -494,7 +493,7 @@ begin
         Values[Value].Length := ValueLength;
         Inc(Value);
       end;
-    until (EOL or not Result);
+    until (EOL or EOF or not Result);
 
     Result := Result or (Value > 0) and EOL;
 

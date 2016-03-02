@@ -11923,7 +11923,7 @@ begin
   inherited;
 
   if (Assigned(Variables) and Variables.Valid) then
-    if (ServerVersion < 40101) then
+    if (Assigned(VariableByName('character_set'))) then
       VariableByName('character_set').Value := Charset
     else
     begin
