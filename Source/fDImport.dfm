@@ -64,7 +64,7 @@ object DImport: TDImport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSTask
+    ActivePage = TSFields
     Anchors = [akLeft, akTop, akRight, akBottom]
     Style = tsButtons
     TabOrder = 0
@@ -663,10 +663,6 @@ object DImport: TDImport
       Caption = 'TSFields'
       TabVisible = False
       OnShow = TSFieldsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)

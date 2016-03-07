@@ -217,6 +217,7 @@ type
   TTImportFile = class(TTImport)
   private
     BytesPerSector: DWord;
+    FEOF: Boolean;
     FFilename: TFileName;
     FileBuffer: record
       Mem: PAnsiChar;
@@ -237,6 +238,7 @@ type
     function ReadContent(const NewFilePos: TLargeInteger = -1): Boolean; virtual;
     procedure DoUpdateGUI(); override;
     procedure Open(); override;
+    property EOF: Boolean read FEOF;
     property FileSize: DWord read FFileSize;
   public
     procedure Close(); override;
@@ -1959,17 +1961,20 @@ begin
     SQL := '';
     if (Session.Databases.NameCmp(Session.DatabaseName, Database.Name) <> 0) then
       SQL := SQL + Database.SQLUse() + #13#10;
-    if (Structure) then
+    if (Session.Lib.LibraryType <> ltHTTP) then
     begin
-      SQL := SQL + 'LOCK TABLES ' + Session.EscapeIdentifier(Database.Name) + '.' + EscapedTableName + ' WRITE;' + #13#10;
-      if ((Session.ServerVersion >= 40000) and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
-        SQL := SQL + 'ALTER TABLE ' + Session.EscapeIdentifier(Database.Name) + '.' + EscapedTableName + ' DISABLE KEYS;' + #13#10;
-    end;
+      if (Structure) then
+      begin
+        SQL := SQL + 'LOCK TABLES ' + Session.EscapeIdentifier(Database.Name) + '.' + EscapedTableName + ' WRITE;' + #13#10;
+        if ((Session.ServerVersion >= 40000) and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
+          SQL := SQL + 'ALTER TABLE ' + Session.EscapeIdentifier(Database.Name) + '.' + EscapedTableName + ' DISABLE KEYS;' + #13#10;
+      end;
     if (Session.Lib.LibraryType <> ltHTTP) then
       if (Session.ServerVersion < 40011) then
         SQL := SQL + 'BEGIN;' + #13#10
       else
         SQL := SQL + 'START TRANSACTION;' + #13#10;
+    end;
 
     if ((StmtType in [stInsert, stReplace]) and Session.DataFileAllowed and not Suspended) then
     begin
@@ -1993,7 +1998,6 @@ begin
           while ((Success = daSuccess) and NextRecord()) do
           begin
             GetValues(Item, DataFileBuffer);
-
             DataFileBuffer.WriteChar(#10);
 
             if (DataFileBuffer.Size > NET_BUFFER_LENGTH) then
@@ -2043,20 +2047,6 @@ begin
 
           if (Session.ErrorCode <> 0) then
             DoError(DatabaseError(Session), Item, False, SQL);
-
-          SQL := '';
-          if (Structure) then
-          begin
-            if ((Session.ServerVersion >= 40000) and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
-              SQL := SQL + 'ALTER TABLE ' + Session.EscapeIdentifier(Database.Name) + '.' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
-            SQL := SQL + 'UNLOCK TABLES;' + #13#10;
-          end;
-          if (Session.Lib.LibraryType <> ltHTTP) then
-            if (Session.ErrorCode <> 0) then
-              SQL := SQL + 'ROLLBACK;' + #13#10
-            else
-              SQL := SQL + 'COMMIT;' + #13#10;
-          Session.ExecuteSQL(SQL);
 
           DataFileBuffer.Free();
         end;
@@ -2168,15 +2158,6 @@ begin
         Delete(SQL, 1, Session.ExecutedSQLLength);
       end;
 
-      if (Structure) then
-      begin
-        if ((Session.ServerVersion >= 40000) and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
-          SQL := SQL + 'ALTER TABLE ' + Session.EscapeIdentifier(Database.Name) + '.' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
-        SQL := SQL + 'UNLOCK TABLES;' + #13#10;
-      end;
-      if (Session.Lib.LibraryType <> ltHTTP) then
-        SQL := SQL + 'COMMIT;' + #13#10;
-
       while ((Success <> daAbort) and (SQL <> '') and not DoExecuteSQL(Item, SQL)) do
         DoError(DatabaseError(Session), Item, True, SQL);
 
@@ -2189,6 +2170,22 @@ begin
       end;
 
       SQLStmt.Free();
+    end;
+
+    if (Session.Lib.LibraryType <> ltHTTP) then
+    begin
+      SQL := '';
+      if (Structure) then
+      begin
+        if ((Session.ServerVersion >= 40000) and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
+          SQL := SQL + 'ALTER TABLE ' + Session.EscapeIdentifier(Database.Name) + '.' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
+        SQL := SQL + 'UNLOCK TABLES;' + #13#10;
+      end;
+      if (Session.ErrorCode <> 0) then
+        SQL := SQL + 'ROLLBACK;' + #13#10
+      else
+        SQL := SQL + 'COMMIT;' + #13#10;
+      Session.ExecuteSQL(SQL);
     end;
 
     SQLExecuted.Free();
@@ -2243,6 +2240,7 @@ begin
 
   FFilename := AFilename;
   FCodePage := ACodePage;
+  FEOF := False;
 
   FilePos := 0;
   FileBuffer.Mem := nil;
@@ -2361,75 +2359,80 @@ begin
   end;
   FileContent.Index := 1;
 
-  if ((Success = daSuccess) and ReadFile(Handle, FileBuffer.Mem[BytesPerSector], FileBuffer.Size - BytesPerSector, ReadSize, nil) and (ReadSize > 0)) then
+  if (Success = daSuccess) then
   begin
-    if (FilePos = 0) then
+    FEOF := not ReadFile(Handle, FileBuffer.Mem[BytesPerSector], FileBuffer.Size - BytesPerSector, ReadSize, nil) or (ReadSize = 0);
+    if (not FEOF) then
     begin
-      if (CompareMem(@FileBuffer.Mem[FileBuffer.Index + 0], BOM_UTF8, Length(BOM_UTF8))) then
+      FEOF := ReadSize = 0;
+      if (FilePos = 0) then
       begin
-        BOMLength := Length(BOM_UTF8);
-        FCodePage := CP_UTF8;
-      end
-      else if (CompareMem(@FileBuffer.Mem[FileBuffer.Index + 0], BOM_UNICODE_LE, Length(BOM_UNICODE_LE))) then
-      begin
-        BOMLength := Length(BOM_UNICODE_LE);
-        FCodePage := CP_UNICODE;
-      end
-      else
-        BOMLength := 0;
-
-      FilePos := BOMLength;
-      Inc(FileBuffer.Index, FilePos);
-    end;
-    Inc(FilePos, ReadSize);
-
-    case (CodePage) of
-      CP_UNICODE:
+        if (CompareMem(@FileBuffer.Mem[FileBuffer.Index + 0], BOM_UTF8, Length(BOM_UTF8))) then
         begin
-          Index := 1 + Length(FileContent.Str);
-          Len := Integer(ReadSize - (FileBuffer.Index - BytesPerSector));
-          SetLength(FileContent.Str, Length(FileContent.Str) + Len div SizeOf(Char));
-          MoveMemory(@FileContent.Str[Index], @FileBuffer.Mem[FileBuffer.Index], Len);
-          FileBuffer.Index := BytesPerSector;
-        end;
-      else
+          BOMLength := Length(BOM_UTF8);
+          FCodePage := CP_UTF8;
+        end
+        else if (CompareMem(@FileBuffer.Mem[FileBuffer.Index + 0], BOM_UNICODE_LE, Length(BOM_UNICODE_LE))) then
         begin
-          // UTF-8 coded bytes has to be separated well for the
-          // MultiByteToWideChar function.
-          UTF8Bytes := 0;
-          if ((CodePage = CP_UTF8) and (Byte(FileBuffer.Mem[BytesPerSector + ReadSize - UTF8Bytes - 1]) and $80 <> 0)) then
-            repeat
-              Inc(UTF8Bytes);
-            until ((BytesPerSector + ReadSize - UTF8Bytes - 1 = 0)
-              or (Byte(FileBuffer.Mem[BytesPerSector + ReadSize - UTF8Bytes]) and $C0 = 0)
-              or (Byte(FileBuffer.Mem[BytesPerSector + ReadSize - UTF8Bytes]) and $C0 <> $80));
+          BOMLength := Length(BOM_UNICODE_LE);
+          FCodePage := CP_UNICODE;
+        end
+        else
+          BOMLength := 0;
 
-          if (BytesPerSector + ReadSize - FileBuffer.Index > 0) then
+        FilePos := BOMLength;
+        Inc(FileBuffer.Index, FilePos);
+      end;
+      Inc(FilePos, ReadSize);
+
+      case (CodePage) of
+        CP_UNICODE:
           begin
-            try
-              Len := AnsiCharToWideChar(CodePage, @FileBuffer.Mem[FileBuffer.Index], BytesPerSector + ReadSize - UTF8Bytes - FileBuffer.Index, nil, 0);
-              if (Len > 0) then
-              begin
-                SetLength(FileContent.Str, Length(FileContent.Str) + Len);
-                AnsiCharToWideChar(CodePage, @FileBuffer.Mem[FileBuffer.Index], BytesPerSector + ReadSize - UTF8Bytes - FileBuffer.Index, @FileContent.Str[Length(FileContent.Str) - Len + 1], Len)
-              end;
-            except
-              on E: EOSError do
-                begin
-                  Error.ErrorType := TE_File;
-                  Error.ErrorCode := GetLastError();
-                  Error.ErrorMessage := E.Message;
-                  Error.Session := nil;
-                  DoError(Error, nil, False);
-                end;
-            end;
+            Index := 1 + Length(FileContent.Str);
+            Len := Integer(ReadSize - (FileBuffer.Index - BytesPerSector));
+            SetLength(FileContent.Str, Length(FileContent.Str) + Len div SizeOf(Char));
+            MoveMemory(@FileContent.Str[Index], @FileBuffer.Mem[FileBuffer.Index], Len);
+            FileBuffer.Index := BytesPerSector;
           end;
+        else
+          begin
+            // UTF-8 coded bytes has to be separated well for the
+            // MultiByteToWideChar function.
+            UTF8Bytes := 0;
+            if ((CodePage = CP_UTF8) and (Byte(FileBuffer.Mem[BytesPerSector + ReadSize - UTF8Bytes - 1]) and $80 <> 0)) then
+              repeat
+                Inc(UTF8Bytes);
+              until ((BytesPerSector + ReadSize - UTF8Bytes - 1 = 0)
+                or (Byte(FileBuffer.Mem[BytesPerSector + ReadSize - UTF8Bytes]) and $C0 = 0)
+                or (Byte(FileBuffer.Mem[BytesPerSector + ReadSize - UTF8Bytes]) and $C0 <> $80));
 
-          if (UTF8Bytes > 0) then
-            MoveMemory(@FileBuffer.Mem[BytesPerSector - UTF8Bytes], @FileBuffer.Mem[BytesPerSector + ReadSize - UTF8Bytes], UTF8Bytes);
+            if (BytesPerSector + ReadSize - FileBuffer.Index > 0) then
+            begin
+              try
+                Len := AnsiCharToWideChar(CodePage, @FileBuffer.Mem[FileBuffer.Index], BytesPerSector + ReadSize - UTF8Bytes - FileBuffer.Index, nil, 0);
+                if (Len > 0) then
+                begin
+                  SetLength(FileContent.Str, Length(FileContent.Str) + Len);
+                  AnsiCharToWideChar(CodePage, @FileBuffer.Mem[FileBuffer.Index], BytesPerSector + ReadSize - UTF8Bytes - FileBuffer.Index, @FileContent.Str[Length(FileContent.Str) - Len + 1], Len)
+                end;
+              except
+                on E: EOSError do
+                  begin
+                    Error.ErrorType := TE_File;
+                    Error.ErrorCode := GetLastError();
+                    Error.ErrorMessage := E.Message;
+                    Error.Session := nil;
+                    DoError(Error, nil, False);
+                  end;
+              end;
+            end;
 
-          FileBuffer.Index := BytesPerSector - UTF8Bytes;
-        end;
+            if (UTF8Bytes > 0) then
+              MoveMemory(@FileBuffer.Mem[BytesPerSector - UTF8Bytes], @FileBuffer.Mem[BytesPerSector + ReadSize - UTF8Bytes], UTF8Bytes);
+
+            FileBuffer.Index := BytesPerSector - UTF8Bytes;
+          end;
+      end;
     end;
   end;
 
@@ -2602,6 +2605,7 @@ begin
   inherited;
 
   SetLength(CSVColumns, Length(FieldMappings));
+
   for I := 0 to Length(FieldMappings) - 1 do
   begin
     CSVColumns[I] := -1;
@@ -2702,19 +2706,18 @@ end;
 
 function TTImportText.GetPreviewValues(var Values: TSQLStrings): Boolean;
 var
-  Eof: Boolean;
   I: Integer;
-  RecordComplete: Boolean;
+  ValuesComplete: Boolean;
 begin
-  RecordComplete := False; Eof := False;
-  while ((Success = daSuccess) and not RecordComplete and not Eof) do
+  ValuesComplete := False;
+  while (not ValuesComplete and (not EOF or (FileContent.Index <= Length(FileContent.Str)))) do
   begin
-    RecordComplete := CSVSplitValues(FileContent.Str, FileContent.Index, Delimiter, Quoter, CSVValues);
-    if (not RecordComplete) then
-      Eof := not ReadContent();
+    ValuesComplete := CSVSplitValues(FileContent.Str, FileContent.Index, Delimiter, Quoter, CSVValues, EOF);
+    if (not ValuesComplete and not EOF) then
+      ReadContent();
   end;
 
-  Result := (Success = daSuccess) and RecordComplete;
+  Result := (Success = daSuccess) and ValuesComplete;
   if (Result) then
   begin
     SetLength(Values, Length(CSVValues));
@@ -2794,39 +2797,30 @@ begin
       else if (FieldMappings[I].DestinationField.FieldType in TextFieldTypes) then
         Values.WriteText(UnescapeBuffer.Text, Len)
       else
-try
         Values.WriteData(UnescapeBuffer.Text, Len, not (FieldMappings[I].DestinationField.FieldType in NotQuotedFieldTypes));
-except
-        Values.WriteData(UnescapeBuffer.Text, Len, not (FieldMappings[I].DestinationField.FieldType in NotQuotedFieldTypes));
-end;
     end;
   end;
 end;
+
 
 function TTImportText.NextRecord(): Boolean;
 var
-  EOF: Boolean;
-  OldFileContentIndex: Int64;
-  RecordComplete: Boolean;
+  ValuesComplete: Boolean;
 begin
-  RecordComplete := False; EOF := False; OldFileContentIndex := FileContent.Index;
-  while ((Success = daSuccess) and not RecordComplete and not EOF) do
-  begin
-    RecordComplete := CSVSplitValues(FileContent.Str, FileContent.Index, Delimiter, Quoter, CSVValues);
-    if (not RecordComplete) then
-    begin
-      FileContent.Index := OldFileContentIndex;
-      EOF := not ReadContent();
-    end;
-  end;
+  repeat
+    ValuesComplete := CSVSplitValues(FileContent.Str, FileContent.Index, Delimiter, Quoter, CSVValues, EOF);
+    if (Length(CSVValues) <> Length(FieldMappings)) then
+      raise ERangeError.Create(SRangeError);
+    if (not ValuesComplete and not EOF) then
+      ReadContent();
+  until (ValuesComplete or (EOF and (FileContent.Index >= Length(FileContent.Str))));
 
-  Result := RecordComplete or not EOF;
+  Result := ValuesComplete;
 end;
 
 procedure TTImportText.Open();
 var
   DT: TDateTime;
-  EOF: Boolean;
   F: Double;
   FirstRecordFilePos: Integer;
   I: Integer;
@@ -2834,7 +2828,7 @@ var
   OldSuccess: TDataAction;
   OldFileContentIndex: Integer;
   RecNo: Integer;
-  RecordComplete: Boolean;
+  ValuesComplete: Boolean;
   Value: string;
 begin
   inherited;
@@ -2842,13 +2836,11 @@ begin
   OldSuccess := Success; OldFileContentIndex := FileContent.Index;
   FirstRecordFilePos := BOMLength;
 
-  RecordComplete := False; Eof := False;
-  while (not RecordComplete and not Eof) do
-  begin
-    RecordComplete := CSVSplitValues(FileContent.Str, FileContent.Index, Delimiter, Quoter, CSVValues);
-    if (not RecordComplete) then
-      Eof := not ReadContent();
-  end;
+  repeat
+    ValuesComplete := CSVSplitValues(FileContent.Str, FileContent.Index, Delimiter, Quoter, CSVValues, EOF);
+    if (not ValuesComplete and not EOF) then
+      ReadContent();
+  until (ValuesComplete or (EOF and (FileContent.Index >= Length(FileContent.Str))));
 
   if (UseHeadline) then
   begin
@@ -2873,18 +2865,18 @@ begin
   for I := 0 to Length(FileFields) - 1 do
     FileFields[I].FieldTypes := [SQL_INTEGER, SQL_FLOAT, SQL_DATE, Byte(SQL_LONGVARCHAR)];
 
-  RecNo := 0; EOF := False;
-  while ((RecNo < 20) and not EOF and RecordComplete) do
+  RecNo := 0;
+  while ((RecNo < 20) and (ValuesComplete or (EOF and (FileContent.Index > Length(FileContent.Str))))) do
   begin
-    RecordComplete := (RecNo = 0) and not UseHeadline;
-    while (not RecordComplete and not Eof) do
+    ValuesComplete := (RecNo = 0) and not UseHeadline;
+    while (not ValuesComplete and (not EOF or (FileContent.Index <= Length(FileContent.Str)))) do
     begin
-      RecordComplete := CSVSplitValues(FileContent.Str, FileContent.Index, Delimiter, Quoter, CSVValues);
-      if (not RecordComplete) then
-        Eof := not ReadContent();
+      ValuesComplete := CSVSplitValues(FileContent.Str, FileContent.Index, Delimiter, Quoter, CSVValues, EOF);
+      if (not ValuesComplete and not EOF) then
+        ReadContent();
     end;
 
-    if (RecordComplete and (Length(CSVValues) = Length(FileFields))) then
+    if ((ValuesComplete or EOF) and (Length(CSVValues) = Length(FileFields))) then
     begin
       for I := 0 to Length(CSVValues) - 1 do
         if (CSVValues[I].Length > 0) then

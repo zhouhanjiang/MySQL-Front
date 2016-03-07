@@ -11,18 +11,19 @@ type
 
 function CSVBinary(const Data: PChar; const Length: Integer; const Quoter: Char = '"'): RawByteString;
 function CSVEscape(const Bin: PAnsiChar; const Length: Integer; const Quoter: Char = '"'; const Quote: Boolean = True): string; overload;
-function CSVEscape(const Value: PChar; const ValueLen: Integer; const Escaped: PChar; const EscapedLen: Integer; const Quoter: Char = '"'; const Quote: Boolean = True): Integer; overload;
+function CSVEscape(const Value: PChar; const Length: Integer; const Escaped: PChar; const EscapedLen: Integer; const Quoter: Char = '"'; const Quote: Boolean = True): Integer; overload;
 function CSVEscape(const Value: string; const Quoter: Char = '"'; const Quote: Boolean = True): string; overload;
 procedure CSVSplitValues(const TextLine: string; const Delimiter, Quoter: Char; var Values: TCSVStrings); overload;
-function CSVSplitValues(const Text: string; var Index: Integer; const Delimiter, Quoter: Char; var Values: TCSVValues): Boolean; overload;
+function CSVSplitValues(const Text: string; var Index: Integer; const Delimiter, Quoter: Char; var Values: TCSVValues; const TextComplete: Boolean = True): Boolean; overload;
 function CSVUnescape(const Text: string; const Quoter: Char = '"'): string; overload;
-function CSVUnescape(const Value: PChar; const ValueLen: Integer; const Quoter: Char = '"'): string; overload;
-function CSVUnescape(const Value: PChar; const ValueLen: Integer; const Unescaped: PChar; const UnescapedLen: Integer; const Quoter: Char = '"'): Integer; overload;
+function CSVUnescape(const Text: PChar; const Length: Integer; const Quoter: Char = '"'): string; overload;
+function CSVUnescape(const Text: PChar; const Length: Integer; const Unescaped: PChar; const UnescapedLen: Integer; const Quoter: Char = '"'): Integer; overload;
 
 implementation {***************************************************************}
 
 uses
-  Windows;
+  Windows,
+  SysUtils, SysConst;
 
 function CSVBinary(const Data: PChar; const Length: Integer; const Quoter: Char = '"'): RawByteString;
 label
@@ -201,7 +202,7 @@ begin
   CSVEscape(PChar(Value), Length(Value), PChar(Result), Len, '"', Quote);
 end;
 
-function CSVEscape(const Value: PChar; const ValueLen: Integer; const Escaped: PChar; const EscapedLen: Integer; const Quoter: Char = '"'; const Quote: Boolean = True): Integer;
+function CSVEscape(const Value: PChar; const Length: Integer; const Escaped: PChar; const EscapedLen: Integer; const Quoter: Char = '"'; const Quote: Boolean = True): Integer;
 label
   ValueL, ValueQuot, ValueLE, ValueE,
 
@@ -222,7 +223,7 @@ begin
 
         MOV ESI,PChar(Value)             // Copy characters from Value
         MOV EDI,Escaped                  //   to Escaped
-        MOV ECX,ValueLen                 // Length of Value string
+        MOV ECX,Length                   // Length of Value string
         MOV EDX,EscapedLen               // Length of Escaped
 
       // -------------------
@@ -301,31 +302,35 @@ begin
   end;
 end;
 
-function CSVSplitValues(const Text: string; var Index: Integer; const Delimiter, Quoter: Char; var Values: TCSVValues): Boolean; overload;
+function CSVSplitValues(const Text: string; var Index: Integer; const Delimiter, Quoter: Char; var Values: TCSVValues; const TextComplete: Boolean = True): Boolean; overload;
 label
-  StartL, StartL2, StartL3, StartLE, StartE,
+  Quoted, QuotedL, QuotedLE, QuotedE,
   Unquoted, UnquotedL, UnquotedE,
-  Quoted, QuotedL, QuotedLE, QuotedE, QuotedE2,
-  IgnoreL,
-  Finish, Finish1, Finish2, Finish3, Finish4, FinishE;
+  Finish, FinishL, Finish2, Finish3, Finish4, Finish5, FinishE, FinishE2, FinishE3;
 var
-  Value, Len, ValueLength: Integer;
-  ValueData: PChar;
-  EOL, EOF: LongBool;
+  EOF: LongBool;
+  EOL: LongBool;
+  NewIndex: Integer;
+  Len: Integer;
+  Value: Integer;
+  ValueLength: Integer;
+  ValueText: PChar;
 begin
+  Result := False;
   if (Index > Length(Text)) then
-  begin
-    SetLength(Values, 0);
-    Result := False;
-  end
+    SetLength(Values, 0)
   else
   begin
+    Len := Length(Text) - (Index - 1);
+    NewIndex := Index;
     Value := 0;
+    EOL := False;
+    EOF := False;
+
     repeat
       if (Value >= Length(Values)) then
         SetLength(Values, 2 * Value + 1);
 
-      Len := Length(Text) - (Index - 1);
       asm
         PUSH ES
         PUSH ESI
@@ -333,169 +338,137 @@ begin
         PUSH EBX
 
         MOV ESI,PChar(Text)              // Get character from Text
-        MOV EBX,Index
-        ADD ESI,[EBX]                    // Add Index twice
-        ADD ESI,[EBX]                    //   since character = 2 byte
+        ADD ESI,NewIndex                 // Add Index twice
+        ADD ESI,NewIndex                 //   since 1 character = 2 byte
         SUB ESI,2                        // Index based on "1" in string
 
-        MOV ECX,Len
-        MOV EOF,False
-        MOV BYTE PTR [Result],True
+        MOV ECX,Len                      // Numbers of character in Text
 
-      // -------------------
-
-        CMP ECX,0                        // End of Text?
-        JE Finish                        // Yes!
-      StartL:
+        MOV ValueText,ESI                // Start of value
         MOV AX,[ESI]                     // Get character from Text
-        CMP Value,0                      // First value?
-        JNE StartL2                      // No!
-        CMP AX,10                        // Character in Text = NewLine?
-        JE StartLE                       // Yes!
-        CMP AX,13                        // Character in Text = Carrige Return?
-        JE StartLE                       // Yes!
-      StartL2:
-        CMP AX,26                        // Character in Text = EndOfFile?
-        JE StartLE                       // Yes!
-      StartL3:
         CMP AX,Quoter                    // Character in Text = Quoter?
-        JE Quoted                        // Yes!
+        JE Quoted                        // No!
         JMP Unquoted
-      StartLE:
-        ADD ESI,2                        // Step over Line Break
-        DEC Len                          // Ignore the Line Break
-        LOOP StartL
-      StartE:
-        MOV EOF,True
-        JMP Finish
 
       // -------------------
 
       Unquoted:
-        MOV ValueData,ESI                // Start of value
+        CMP ECX,0                        // End of Text?
+        JE Finish                        // Yes!
       UnquotedL:
         MOV AX,[ESI]                     // Get character from Text
         CMP AX,Delimiter                 // Character = Delimiter?
         JE UnquotedE                     // Yes!
-        CMP AX,13                        // Character = CarrigeReturn?
-        JE UnquotedE                     // Yes!
         CMP AX,10                        // Character = NewLine?
+        JE UnquotedE                     // Yes!
+        CMP AX,13                        // Character = CarrigeReturn?
         JE UnquotedE                     // Yes!
         CMP AX,26                        // Character = EndOfFile?
         JE UnquotedE                     // Yes!
-        ADD ESI,2                        // Next character!
-        LOOP UnquotedL
+        ADD ESI,2                        // One character handled!
+        LOOP UnquotedL                   // Next character, if available
+        CMP TextComplete,True            // Text completely handled?
+        JNE FinishE                      // No!
+        MOV EOF,True
       UnquotedE:
-        MOV EAX,ESI                      // Calculate length of Values[Value]
-        SUB EAX,ValueData
-        SHR EAX,1                        // 2 bytes = 1 character
-        MOV ValueLength,EAX
         JMP Finish
 
       // -------------------
 
       Quoted:
-        MOV ValueData,ESI                // Start of value
         ADD ESI,2                        // Step over starting Quoter
-        DEC ECX                          // Starting Quoter handled
+        DEC ECX                          // Quoter handled
         JZ QuotedE                       // End of Text!
       QuotedL:
         MOV AX,[ESI]                     // Get character from Text
-        CMP AX,Quoter                    // Character = Quoter?
+        CMP AX,Quoter                    // Character = (first) Quoter?
         JNE QuotedLE                     // No!
         ADD ESI,2                        // Step over Quoter
-        DEC ECX                          // Quoter handled in Text
+        DEC ECX                          // Ending Quoter handled
         JZ QuotedE                       // End of Text!
         MOV AX,[ESI]                     // Get character from Text
-        CMP AX,Quoter                    // Character = second Quoter?
+        CMP AX,Quoter                    // Character = (second) Quoter?
         JNE QuotedE                      // No!
       QuotedLE:
-        ADD ESI,2                        // Next character!
-        LOOP QuotedL
+        ADD ESI,2                        // One character handled!
+        LOOP QuotedL                     // Next character, if available
+        CMP TextComplete,True            // Text completely handled?
+        JNE FinishE                      // No!
+        MOV EOF,True
       QuotedE:
-        MOV EAX,ESI                      // Calculate length of Values[Value]
-        SUB EAX,ValueData
-        SHR EAX,1                        // 2 bytes = 1 character
-        MOV ValueLength,EAX
-        CMP ECX,0                        // Further character in Text?
-        JE Finish                        // No!
-
-      IgnoreL:
-        MOV AX,WORD PTR [ESI]            // Get next character
-        CMP AX,Delimiter                 // Next character = Delimiter?
-        JE Finish                        // Yes!
-        CMP AX,10                        // Next character = NewLine?
-        JE Finish                        // Yes!
-        CMP AX,13                        // Next character = CarrigeReturn?
-        JE Finish                        // Yes!
-        CMP AX,26                        // Next character = EndOfFile?
-        JE Finish                        // Yes!
-        ADD ESI,2                        // Ignore character
-        LOOP IgnoreL
+        JMP Finish
 
       // -------------------
 
       Finish:
+        MOV EAX,ESI                      // Calculate length of Values[Value]
+        SUB EAX,ValueText
+        SHR EAX,1                        // 2 bytes = 1 character
+        MOV ValueLength,EAX
+
+      FinishL:
         CMP ECX,1                        // Is there one characters left in SQL?
-        JGE Finish1                      // Yes!
-        MOV BYTE PTR [Result],False
-        JMP FinishE
-      Finish1:
-        MOV AX,[ESI]
-        CMP AX,Delimiter                 // Delimiter?
-        JNE Finish2
-        ADD ESI,2                        // Step over Delimiter
-        DEC ECX                          // Ignore Delimiter
-        MOV EOL,False
-        JMP FinishE
-      Finish2:
-        CMP ECX,2                        // Are there two characters left in SQL?
-        JB Finish3                       // No!
-        MOV EAX,[ESI]
-        CMP EAX,$000A000D                // CarriageReturn + LineFeed?
-        JNE Finish3
-        ADD ESI,4                        // Step over CarriageReturn + LineFeed
-        SUB ECX,2                        // Ignore CarriageReturn + LineFeed
-        MOV EOL,True
-        JMP FinishE
-      Finish3:
-        CMP ECX,1                        // Are there one characters left in SQL?
         JB FinishE                       // No!
-        CMP AX,13                        // CarriageReturn?
-        JNE Finish4
-        ADD ESI,2                        // Step over CarriageReturn
-        DEC ECX                          // Ignore CarriageReturn
+        MOV AX,[ESI]                     // Current character in Text
+      Finish2:
+        CMP AX,10                        // Character = NewLine?
+        JNE Finish3                      // No!
         MOV EOL,True
-        JMP FinishE
-      Finish4:
-        CMP AX,10                        // LineFeed?
-        JNE FinishE
         ADD ESI,2                        // Step over LineFeed
-        DEC ECX                          // Ignore LineFeed
+        DEC ECX                          // One character handled
+        JMP FinishL
+      Finish3:
+        CMP AX,13                        // Character = CarrigeReturn?
+        JNE Finish4                      // No!
         MOV EOL,True
+        ADD ESI,2                        // Step over CarrigeReturn
+        DEC ECX                          // One character handled
+        JMP FinishL
+      Finish4:
+        CMP AX,26                        // Character = EndOfFile?
+        JNE Finish5                      // Yes!
+        MOV EOF,True
         JMP FinishE
+      Finish5:
+        CMP AX,Delimiter                 // Character = Delimter?
+        JNE FinishE                      // No!
+        ADD ESI,2                        // Step over Delimiter
+        DEC ECX                          // One character handled (Delimiter)
+        JMP FinishE
+
       FinishE:
+        MOV Len,ECX
+
+        CMP EOL,True
+        JE FinishE2
+        CMP EOF,True
+        JE FinishE2
+        CMP TextComplete,True
+        JNE FinishE3
+        CMP ECX,0
+        JA FinishE3
+      FinishE2:
+        MOV @Result,True
         MOV EAX,ESI                      // Calculate new Index in Text
         SUB EAX,PChar(Text)
         SHR EAX,1                        // 2 bytes = 1 character
         INC EAX                          // Index based on "1" in string
-        MOV [EBX],EAX
+        MOV NewIndex,EAX                 // Index in Text
 
+      FinishE3:
         POP EBX
         POP EDI
         POP ESI
         POP ES
       end;
 
-      if (not EOF) then
-      begin
-        Values[Value].Text := ValueData;
-        Values[Value].Length := ValueLength;
-        Inc(Value);
-      end;
-    until (EOL or EOF or not Result);
+      Values[Value].Text := ValueText;
+      Values[Value].Length := ValueLength;
+      Inc(Value);
+    until (Result or (Len = 0));
 
-    Result := Result or (Value > 0) and EOL;
+    if (Result) then
+      Index := NewIndex;
 
     if (Value <> Length(Values)) then
       SetLength(Values, Value);
@@ -511,16 +484,16 @@ begin
   CSVUnescape(PChar(Text), Length(Text), PChar(Result), Length(Result), Quoter);
 end;
 
-function CSVUnescape(const Value: PChar; const ValueLen: Integer; const Quoter: Char = '"'): string;
+function CSVUnescape(const Text: PChar; const Length: Integer; const Quoter: Char = '"'): string;
 var
   Len: Integer;
 begin
-  Len := CSVUnescape(Value, ValueLen, nil, 0, Quoter);
+  Len := CSVUnescape(Text, Length, nil, 0, Quoter);
   SetLength(Result, Len);
-  CSVUnescape(Value, ValueLen, PChar(Result), Length(Result), Quoter);
+  CSVUnescape(Text, Length, PChar(Result), System.Length(Result), Quoter);
 end;
 
-function CSVUnescape(const Value: PChar; const ValueLen: Integer; const Unescaped: PChar; const UnescapedLen: Integer; const Quoter: Char = '"'): Integer;
+function CSVUnescape(const Text: PChar; const Length: Integer; const Unescaped: PChar; const UnescapedLen: Integer; const Quoter: Char = '"'): Integer;
 label
   StringL, StringS, StringQ, StringLE,
   Error, Finish;
@@ -537,9 +510,9 @@ begin
         POP ES
         CLD                              // string operations uses forward direction
 
-        MOV ESI,Value                    // Copy characters from Value
+        MOV ESI,Text                     // Copy characters from Text
         MOV EDI,Unescaped                //   to Unescaped
-        MOV ECX,ValueLen                 // Length of Value string
+        MOV ECX,Length                   // Length of Text string
         MOV EDX,UnescapedLen             // Length of Unescaped
 
         MOV EBX,0                        // Result
@@ -572,7 +545,7 @@ begin
         CMP AX,Quoter                    // Second Quoter
         JE StringS                       // Yes!
         MOV @Result,EBX
-        JMP Finish                       //
+        JMP Finish
 
       StringS:
         INC EBX                          // One character needed
@@ -681,3 +654,4 @@ asm
 end;
 
 end.
+

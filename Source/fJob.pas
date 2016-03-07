@@ -482,9 +482,8 @@ begin
           Import.RowType := mrUnknown;
           Import.Structure := Job.Structure;
 
-          if (Assigned(Table)) then
+          if (Assigned(Table) and Table.Update()) then
           begin
-            Table.InvalidateData();
             for I := 0 to Length(Job.FieldMappings) - 1 do
               if (Assigned(Import)) then
                 if (not Assigned(Table.FieldByName(Job.FieldMappings[I].DestinationFieldName))) then
