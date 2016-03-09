@@ -424,7 +424,6 @@ begin
           itTextFile:
             begin
               Import := TTImportText.Create(Job.Filename, Job.CodePage, Session, Database);
-
               case (Job.CSV.DelimiterType) of
                 dtTab: TTImportText(Import).Delimiter := #9;
                 dtChar: TTImportText(Import).Delimiter := Job.CSV.Delimiter[1];
@@ -484,6 +483,7 @@ begin
 
           if (Assigned(Table) and Table.Update()) then
           begin
+            Table.InvalidateData();
             for I := 0 to Length(Job.FieldMappings) - 1 do
               if (Assigned(Import)) then
                 if (not Assigned(Table.FieldByName(Job.FieldMappings[I].DestinationFieldName))) then

@@ -2802,17 +2802,16 @@ begin
   end;
 end;
 
-
 function TTImportText.NextRecord(): Boolean;
 var
   ValuesComplete: Boolean;
 begin
   repeat
     ValuesComplete := CSVSplitValues(FileContent.Str, FileContent.Index, Delimiter, Quoter, CSVValues, EOF);
-    if (Length(CSVValues) <> Length(FieldMappings)) then
-      raise ERangeError.Create(SRangeError);
     if (not ValuesComplete and not EOF) then
-      ReadContent();
+      ReadContent()
+    else if ((Length(CSVValues) <> Length(FieldMappings)) and (not EOF or (FileContent.Index < Length(FileContent.Str)))) then
+      raise ERangeError.Create(SRangeError);
   until (ValuesComplete or (EOF and (FileContent.Index >= Length(FileContent.Str))));
 
   Result := ValuesComplete;

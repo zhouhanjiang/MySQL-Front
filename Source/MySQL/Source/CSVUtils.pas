@@ -304,6 +304,7 @@ end;
 
 function CSVSplitValues(const Text: string; var Index: Integer; const Delimiter, Quoter: Char; var Values: TCSVValues; const TextComplete: Boolean = True): Boolean; overload;
 label
+  StartL, Start2, Start3, StartE,
   Quoted, QuotedL, QuotedLE, QuotedE,
   Unquoted, UnquotedL, UnquotedE,
   Finish, FinishL, Finish2, Finish3, Finish4, Finish5, FinishE, FinishE2, FinishE3;
@@ -344,9 +345,26 @@ begin
 
         MOV ECX,Len                      // Numbers of character in Text
 
-        MOV ValueText,ESI                // Start of value
+      // -------------------
+
+      StartL:
+        CMP ECX,0                        // On character in Text?
+        JE Finish                        // No!
         MOV AX,[ESI]                     // Get character from Text
-        CMP AX,Quoter                    // Character in Text = Quoter?
+        CMP AX,10                        // Character = LineFeed?
+        JNE Start2                       // No!
+        ADD ESI,2                        // Step over LineFeed
+        LOOP StartL                      // Next character
+        JMP Finish
+      Start2:
+        CMP AX,13                        // Character = CarrigeReturn?
+        JNE StartE                       // No!
+        ADD ESI,2                        // Step over LineFeed
+        LOOP StartL                      // Next character
+        JMP Finish
+      StartE:
+        MOV ValueText,ESI                // Start of value
+        CMP AX,Quoter                    // Character = Quoter?
         JE Quoted                        // No!
         JMP Unquoted
 
@@ -437,25 +455,26 @@ begin
         JMP FinishE
 
       FinishE:
-        MOV Len,ECX
+        MOV Len,ECX                      // Length of Text
 
-        CMP EOL,True
-        JE FinishE2
-        CMP EOF,True
-        JE FinishE2
-        CMP TextComplete,True
-        JNE FinishE3
-        CMP ECX,0
-        JA FinishE3
+        CMP EOL,True                     // Current character = EndOfLine?
+        JE FinishE2                      // Yes!
+        CMP EOF,True                     // Current character = EndOfFile?
+        JE FinishE2                      // Yes!
+        CMP TextComplete,True            // Text complete?
+        JNE FinishE3                     // No!
+        CMP ECX,0                        // All characters handled?
+        JA FinishE3                      // No!
       FinishE2:
-        MOV @Result,True
+        MOV @Result,True                 // Result := EOL or EOF or all character handled
+
+      FinishE3:
         MOV EAX,ESI                      // Calculate new Index in Text
         SUB EAX,PChar(Text)
         SHR EAX,1                        // 2 bytes = 1 character
         INC EAX                          // Index based on "1" in string
         MOV NewIndex,EAX                 // Index in Text
 
-      FinishE3:
         POP EBX
         POP EDI
         POP ESI
