@@ -2707,17 +2707,17 @@ end;
 function TTImportText.GetPreviewValues(var Values: TSQLStrings): Boolean;
 var
   I: Integer;
-  ValuesComplete: Boolean;
+  RecordComplete: Boolean;
 begin
-  ValuesComplete := False;
-  while (not ValuesComplete and (not EOF or (FileContent.Index <= Length(FileContent.Str)))) do
+  RecordComplete := False;
+  while (not RecordComplete and (not EOF or (FileContent.Index <= Length(FileContent.Str)))) do
   begin
-    ValuesComplete := CSVSplitValues(FileContent.Str, FileContent.Index, Delimiter, Quoter, CSVValues, EOF);
-    if (not ValuesComplete and not EOF) then
+    RecordComplete := CSVSplitValues(FileContent.Str, FileContent.Index, Delimiter, Quoter, CSVValues, EOF);
+    if (not RecordComplete and not EOF) then
       ReadContent();
   end;
 
-  Result := (Success = daSuccess) and ValuesComplete;
+  Result := (Success = daSuccess) and RecordComplete;
   if (Result) then
   begin
     SetLength(Values, Length(CSVValues));
@@ -2804,17 +2804,17 @@ end;
 
 function TTImportText.NextRecord(): Boolean;
 var
-  ValuesComplete: Boolean;
+  RecordComplete: Boolean;
 begin
   repeat
-    ValuesComplete := CSVSplitValues(FileContent.Str, FileContent.Index, Delimiter, Quoter, CSVValues, EOF);
-    if (not ValuesComplete and not EOF) then
+    RecordComplete := CSVSplitValues(FileContent.Str, FileContent.Index, Delimiter, Quoter, CSVValues, EOF);
+    if (not RecordComplete and not EOF) then
       ReadContent()
-    else if ((Length(CSVValues) <> Length(FieldMappings)) and (not EOF or (FileContent.Index < Length(FileContent.Str)))) then
-      raise ERangeError.Create(SRangeError);
-  until (ValuesComplete or (EOF and (FileContent.Index >= Length(FileContent.Str))));
+    else if ((Length(CSVValues) < Length(FieldMappings)) and (not EOF or (FileContent.Index < Length(FileContent.Str)))) then
+      raise ERangeError.CreateFmt(SRangeError + ' (%d <> %d)', [Length(CSVValues), Length(FieldMappings)]);
+  until (RecordComplete or (EOF and (FileContent.Index >= Length(FileContent.Str))));
 
-  Result := ValuesComplete;
+  Result := RecordComplete;
 end;
 
 procedure TTImportText.Open();
@@ -2827,7 +2827,7 @@ var
   OldSuccess: TDataAction;
   OldFileContentIndex: Integer;
   RecNo: Integer;
-  ValuesComplete: Boolean;
+  RecordComplete: Boolean;
   Value: string;
 begin
   inherited;
@@ -2836,10 +2836,10 @@ begin
   FirstRecordFilePos := BOMLength;
 
   repeat
-    ValuesComplete := CSVSplitValues(FileContent.Str, FileContent.Index, Delimiter, Quoter, CSVValues, EOF);
-    if (not ValuesComplete and not EOF) then
+    RecordComplete := CSVSplitValues(FileContent.Str, FileContent.Index, Delimiter, Quoter, CSVValues, EOF);
+    if (not RecordComplete and not EOF) then
       ReadContent();
-  until (ValuesComplete or (EOF and (FileContent.Index >= Length(FileContent.Str))));
+  until (RecordComplete or (EOF and (FileContent.Index >= Length(FileContent.Str))));
 
   if (UseHeadline) then
   begin
@@ -2865,17 +2865,17 @@ begin
     FileFields[I].FieldTypes := [SQL_INTEGER, SQL_FLOAT, SQL_DATE, Byte(SQL_LONGVARCHAR)];
 
   RecNo := 0;
-  while ((RecNo < 20) and (ValuesComplete or (EOF and (FileContent.Index > Length(FileContent.Str))))) do
+  while ((RecNo < 20) and (RecordComplete or (EOF and (FileContent.Index > Length(FileContent.Str))))) do
   begin
-    ValuesComplete := (RecNo = 0) and not UseHeadline;
-    while (not ValuesComplete and (not EOF or (FileContent.Index <= Length(FileContent.Str)))) do
+    RecordComplete := (RecNo = 0) and not UseHeadline;
+    while (not RecordComplete and (not EOF or (FileContent.Index <= Length(FileContent.Str)))) do
     begin
-      ValuesComplete := CSVSplitValues(FileContent.Str, FileContent.Index, Delimiter, Quoter, CSVValues, EOF);
-      if (not ValuesComplete and not EOF) then
+      RecordComplete := CSVSplitValues(FileContent.Str, FileContent.Index, Delimiter, Quoter, CSVValues, EOF);
+      if (not RecordComplete and not EOF) then
         ReadContent();
     end;
 
-    if ((ValuesComplete or EOF) and (Length(CSVValues) = Length(FileFields))) then
+    if ((RecordComplete or EOF) and (Length(CSVValues) = Length(FileFields))) then
     begin
       for I := 0 to Length(CSVValues) - 1 do
         if (CSVValues[I].Length > 0) then
