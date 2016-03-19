@@ -269,7 +269,7 @@ end;
 procedure TDEvent.FBOkCheckEnabled(Sender: TObject);
 var
   I: Integer;
-  IntervalType: TMySQLIntervalType;
+  IntervalType: TSEvent.TIntervalType;
   Value: string;
 begin
   FBOk.Enabled := (FName.Text <> '') and SQLSingleStmt(FStatement.Text);
@@ -336,7 +336,7 @@ end;
 
 procedure TDEvent.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 var
-  IntervalType: TMySQLIntervalType;
+  IntervalType: TSEvent.TIntervalType;
   IntervalValue: string;
   NewEvent: TSEvent;
 begin
@@ -352,7 +352,7 @@ begin
     else if (FMultipleExecution.Checked) then
       NewEvent.EventType := etMultiple
     else
-      NewEvent.EventType := TMySQLEventType.etUnknown;
+      NewEvent.EventType := TSEvent.TEventType.etUnknown;
 
     if (NewEvent.EventType <> etSingle) then
       NewEvent.Execute := 0

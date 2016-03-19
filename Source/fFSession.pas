@@ -965,7 +965,7 @@ type
     function GetActiveListView(): TListView;
     function GetActiveSynMemo(): TSynMemo;
     function GetActiveWorkbench(): TWWorkbench;
-    function GetFocusedCItem(): TSItem;
+    function GetFocusedSItem(): TSItem;
     function GetFocusedDatabaseNames(): string;
     function GetFocusedTableName(): string;
     function GetPath(): TFileName; inline;
@@ -992,7 +992,7 @@ type
     function PostObject(Sender: TObject): Boolean;
     procedure PropertiesServerExecute(Sender: TObject);
     procedure PSQLEditorUpdate();
-    function RenameCItem(const SItem: TSItem; const NewName: string): Boolean;
+    function RenameSItem(const SItem: TSItem; const NewName: string): Boolean;
     procedure SaveDiagram(Sender: TObject);
     procedure SaveSQLFile(Sender: TObject);
     procedure SBResultRefresh(const DataSet: TMySQLDataSet);
@@ -1033,7 +1033,7 @@ type
     procedure WMParentNotify(var Message: TWMParentNotify); message WM_PARENTNOTIFY;
     procedure WMTimer(var Message: TWMTimer); message WM_TIMER;
     property ActiveSynMemo: TSynMemo read GetActiveSynMemo;
-    property FocusedCItem: TSItem read GetFocusedCItem;
+    property FocusedSItem: TSItem read GetFocusedSItem;
     property FocusedDatabaseNames: string read GetFocusedDatabaseNames;
     property FocusedTableNames: string read GetFocusedTableName;
     property MenuDatabase: TSDatabase read GetMenuDatabase;
@@ -2012,9 +2012,9 @@ procedure TFSession.aDCreateEventExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  if (FocusedCItem is TSDatabase) then
+  if (FocusedSItem is TSDatabase) then
   begin
-    DEvent.Database := TSDatabase(FocusedCItem);
+    DEvent.Database := TSDatabase(FocusedSItem);
     DEvent.Event := nil;
     if (DEvent.Execute()) then
       Wanted.Update := Session.Update;
@@ -2043,9 +2043,9 @@ procedure TFSession.aDCreateFieldExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  if (FocusedCItem is TSBaseTable) then
+  if (FocusedSItem is TSBaseTable) then
   begin
-    DField.Table := TSBaseTable(FocusedCItem);
+    DField.Table := TSBaseTable(FocusedSItem);
     DField.Database := DField.Table.Database;
     DField.Field := nil;
     if (DField.Execute()) then
@@ -2057,9 +2057,9 @@ procedure TFSession.aDCreateForeignKeyExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  if (FocusedCItem is TSBaseTable) then
+  if (FocusedSItem is TSBaseTable) then
   begin
-    DForeignKey.Table := TSBaseTable(FocusedCItem);
+    DForeignKey.Table := TSBaseTable(FocusedSItem);
     DForeignKey.Database := DForeignKey.Table.Database;
     DForeignKey.ParentTable := nil;
     DForeignKey.ForeignKey := nil;
@@ -2072,9 +2072,9 @@ procedure TFSession.aDCreateIndexExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  if (FocusedCItem is TSBaseTable) then
+  if (FocusedSItem is TSBaseTable) then
   begin
-    DKey.Table := TSBaseTable(FocusedCItem);
+    DKey.Table := TSBaseTable(FocusedSItem);
     DKey.Database := DKey.Table.Database;
     DKey.Key := nil;
     if (DKey.Execute()) then
@@ -2086,9 +2086,9 @@ procedure TFSession.aDCreateRoutineExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  if (FocusedCItem is TSDatabase) then
+  if (FocusedSItem is TSDatabase) then
   begin
-    DRoutine.Database := TSDatabase(FocusedCItem);
+    DRoutine.Database := TSDatabase(FocusedSItem);
     if (Sender = MainAction('aDCreateProcedure')) then
       DRoutine.RoutineType := rtProcedure
     else if (Sender = MainAction('aDCreateFunction')) then
@@ -2107,9 +2107,9 @@ begin
 
   if ((Window.ActiveControl = ActiveWorkbench) and Assigned(ActiveWorkbench) and (FNavigator.Selected.ImageIndex = iiDatabase) and (View = vDiagram)) then
     ActiveWorkbench.CreateNewTable(0, 0)
-  else if (FocusedCItem is TSDatabase) then
+  else if (FocusedSItem is TSDatabase) then
   begin
-    DTable.Database := TSDatabase(FocusedCItem);
+    DTable.Database := TSDatabase(FocusedSItem);
     DTable.Table := nil;
     if (DTable.Execute()) then
       Wanted.Update := Session.Update;
@@ -2120,9 +2120,9 @@ procedure TFSession.aDCreateTriggerExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  if (FocusedCItem is TSBaseTable) then
+  if (FocusedSItem is TSBaseTable) then
   begin
-    DTrigger.Table := TSBaseTable(FocusedCItem);
+    DTrigger.Table := TSBaseTable(FocusedSItem);
     DTrigger.Trigger := nil;
     if (DTrigger.Execute()) then
       Wanted.Update := Session.Update;
@@ -2143,9 +2143,9 @@ procedure TFSession.aDCreateViewExecute(Sender: TObject);
 begin
   Wanted.Clear();
 
-  if (FocusedCItem is TSDatabase) then
+  if (FocusedSItem is TSDatabase) then
   begin
-    DView.Database := TSDatabase(FocusedCItem);
+    DView.Database := TSDatabase(FocusedSItem);
     DView.View := nil;
     if (DView.Execute()) then
       Wanted.Update := Session.Update;
@@ -2154,7 +2154,7 @@ end;
 
 procedure TFSession.aDDeleteExecute(Sender: TObject);
 var
-  CItems: TList;
+  SItems: TList;
   I: Integer;
   List: TList;
   Msg: string;
@@ -2164,41 +2164,41 @@ var
 begin
   Wanted.Clear();
 
-  CItems := TList.Create();
+  SItems := TList.Create();
 
   if ((Window.ActiveControl = ActiveListView) and (ActiveListView.SelCount > 1)) then
   begin
     for I := 0 to ActiveListView.Items.Count - 1 do
       if (ActiveListView.Items[I].Selected) then
-        CItems.Add(ActiveListView.Items[I].Data);
+        SItems.Add(ActiveListView.Items[I].Data);
   end
   else if ((Window.ActiveControl = ActiveWorkbench) and (ActiveWorkbench.SelCount > 1)) then
   begin
     for I := 0 to ActiveWorkbench.ControlCount - 1 do
       if ((ActiveWorkbench.Controls[I] is TWTable) and (TWTable(ActiveWorkbench.Controls[I]).Selected)) then
-        CItems.Add(TWTable(ActiveWorkbench.Controls[I]).BaseTable)
+        SItems.Add(TWTable(ActiveWorkbench.Controls[I]).BaseTable)
       else if ((ActiveWorkbench.Controls[I] is TWForeignKey) and (TWForeignKey(ActiveWorkbench.Controls[I]).Selected)) then
-        CItems.Add(TWForeignKey(ActiveWorkbench.Controls[I]).BaseForeignKey);
+        SItems.Add(TWForeignKey(ActiveWorkbench.Controls[I]).BaseForeignKey);
   end
-  else if (Assigned(FocusedCItem)) then
-    CItems.Add(FocusedCItem);
+  else if (Assigned(FocusedSItem)) then
+    SItems.Add(FocusedSItem);
 
-  if (CItems.Count > 1) then
+  if (SItems.Count > 1) then
     Msg := Preferences.LoadStr(413)
-  else if (CItems.Count = 1) then
+  else if (SItems.Count = 1) then
   begin
-    if (TSItem(CItems[0]) is TSDatabase) then Msg := Preferences.LoadStr(146, TSItem(CItems[0]).Caption)
-    else if (TSItem(CItems[0]) is TSBaseTable) then Msg := Preferences.LoadStr(113, TSItem(CItems[0]).Caption)
-    else if (TSItem(CItems[0]) is TSView) then Msg := Preferences.LoadStr(748, TSItem(CItems[0]).Caption)
-    else if (TSItem(CItems[0]) is TSProcedure) then Msg := Preferences.LoadStr(772, TSItem(CItems[0]).Caption)
-    else if (TSItem(CItems[0]) is TSFunction) then Msg := Preferences.LoadStr(773, TSItem(CItems[0]).Caption)
-    else if (TSItem(CItems[0]) is TSEvent) then Msg := Preferences.LoadStr(813, TSItem(CItems[0]).Caption)
-    else if (TSItem(CItems[0]) is TSTrigger) then Msg := Preferences.LoadStr(787, TSItem(CItems[0]).Caption)
-    else if (TSItem(CItems[0]) is TSKey) then Msg := Preferences.LoadStr(162, TSItem(CItems[0]).Caption)
-    else if (TSItem(CItems[0]) is TSField) then Msg := Preferences.LoadStr(100, TSItem(CItems[0]).Caption)
-    else if (TSItem(CItems[0]) is TSForeignKey) then Msg := Preferences.LoadStr(692, TSItem(CItems[0]).Caption)
-    else if (TSItem(CItems[0]) is TSUser) then Msg := Preferences.LoadStr(428, TSItem(CItems[0]).Caption)
-    else if (TSItem(CItems[0]) is TSProcess) then Msg := Preferences.LoadStr(534, TSItem(CItems[0]).Caption);
+    if (TSItem(SItems[0]) is TSDatabase) then Msg := Preferences.LoadStr(146, TSItem(SItems[0]).Caption)
+    else if (TSItem(SItems[0]) is TSBaseTable) then Msg := Preferences.LoadStr(113, TSItem(SItems[0]).Caption)
+    else if (TSItem(SItems[0]) is TSView) then Msg := Preferences.LoadStr(748, TSItem(SItems[0]).Caption)
+    else if (TSItem(SItems[0]) is TSProcedure) then Msg := Preferences.LoadStr(772, TSItem(SItems[0]).Caption)
+    else if (TSItem(SItems[0]) is TSFunction) then Msg := Preferences.LoadStr(773, TSItem(SItems[0]).Caption)
+    else if (TSItem(SItems[0]) is TSEvent) then Msg := Preferences.LoadStr(813, TSItem(SItems[0]).Caption)
+    else if (TSItem(SItems[0]) is TSTrigger) then Msg := Preferences.LoadStr(787, TSItem(SItems[0]).Caption)
+    else if (TSItem(SItems[0]) is TSKey) then Msg := Preferences.LoadStr(162, TSItem(SItems[0]).Caption)
+    else if (TSItem(SItems[0]) is TSField) then Msg := Preferences.LoadStr(100, TSItem(SItems[0]).Caption)
+    else if (TSItem(SItems[0]) is TSForeignKey) then Msg := Preferences.LoadStr(692, TSItem(SItems[0]).Caption)
+    else if (TSItem(SItems[0]) is TSUser) then Msg := Preferences.LoadStr(428, TSItem(SItems[0]).Caption)
+    else if (TSItem(SItems[0]) is TSProcess) then Msg := Preferences.LoadStr(534, TSItem(SItems[0]).Caption);
   end
   else
     Msg := '';
@@ -2210,43 +2210,43 @@ begin
     Success := True;
 
     List.Clear();
-    for I := 0 to CItems.Count - 1 do
-      if ((TSItem(CItems[I]) is TSDatabase) or (TSItem(CItems[I]) is TSDBObject) or (TSItem(CItems[I]) is TSProcess)) then
+    for I := 0 to SItems.Count - 1 do
+      if ((TSItem(SItems[I]) is TSDatabase) or (TSItem(SItems[I]) is TSDBObject) or (TSItem(SItems[I]) is TSProcess)) then
       begin
-        List.Add(TSEntity(CItems[I]));
-        CItems[I] := nil;
+        List.Add(TSEntity(SItems[I]));
+        SItems[I] := nil;
       end;
     if (Success and (List.Count > 0)) then
       Success := Session.DeleteEntities(List);
 
     Table := nil;
-    for I := 0 to CItems.Count - 1 do
-      if (TSItem(CItems[I]) is TSKey) then
-        Table := TSKey(CItems[I]).Table
-      else if (TSItem(CItems[I]) is TSBaseTableField) then
-        Table := TSBaseTableField(CItems[I]).Table
-      else if (TSItem(CItems[I]) is TSForeignKey) then
-        Table := TSForeignKey(CItems[I]).Table;
+    for I := 0 to SItems.Count - 1 do
+      if (TSItem(SItems[I]) is TSKey) then
+        Table := TSKey(SItems[I]).Table
+      else if (TSItem(SItems[I]) is TSBaseTableField) then
+        Table := TSBaseTableField(SItems[I]).Table
+      else if (TSItem(SItems[I]) is TSForeignKey) then
+        Table := TSForeignKey(SItems[I]).Table;
     if (Success and Assigned(Table)) then
     begin
       NewTable := TSBaseTable.Create(Table.Database.Tables);
       NewTable.Assign(Table);
 
-      for I := CItems.Count - 1 downto 0 do
-        if ((TSItem(CItems[I]) is TSKey) and (TSKey(CItems[I]).Table = Table)) then
+      for I := SItems.Count - 1 downto 0 do
+        if ((TSItem(SItems[I]) is TSKey) and (TSKey(SItems[I]).Table = Table)) then
         begin
-          NewTable.Keys.DeleteKey(NewTable.Keys[TSKey(CItems[I]).Index]);
-          CItems[I] := nil;
+          NewTable.Keys.DeleteKey(NewTable.Keys[TSKey(SItems[I]).Index]);
+          SItems[I] := nil;
         end
-        else if ((TSItem(CItems[I]) is TSBaseTableField) and (TSBaseTableField(CItems[I]).Table = Table)) then
+        else if ((TSItem(SItems[I]) is TSBaseTableField) and (TSBaseTableField(SItems[I]).Table = Table)) then
         begin
-          NewTable.Fields.DeleteField(NewTable.Fields[TSBaseTableField(CItems[I]).Index]);
-          CItems[I] := nil;
+          NewTable.Fields.DeleteField(NewTable.Fields[TSBaseTableField(SItems[I]).Index]);
+          SItems[I] := nil;
         end
-        else if ((TSItem(CItems[I]) is TSForeignKey) and (TSForeignKey(CItems[I]).Table = Table)) then
+        else if ((TSItem(SItems[I]) is TSForeignKey) and (TSForeignKey(SItems[I]).Table = Table)) then
         begin
-          NewTable.ForeignKeys.DeleteForeignKey(NewTable.ForeignKeys[TSForeignKey(CItems[I]).Index]);
-          CItems[I] := nil;
+          NewTable.ForeignKeys.DeleteForeignKey(NewTable.ForeignKeys[TSForeignKey(SItems[I]).Index]);
+          SItems[I] := nil;
         end;
 
       if (NewTable.Fields.Count = 0) then
@@ -2258,11 +2258,11 @@ begin
     end;
 
     List.Clear();
-    for I := 0 to CItems.Count - 1 do
-      if (TSItem(CItems[I]) is TSUser) then
+    for I := 0 to SItems.Count - 1 do
+      if (TSItem(SItems[I]) is TSUser) then
       begin
-        List.Add(TSUser(CItems[I]));
-        CItems[I] := nil;
+        List.Add(TSUser(SItems[I]));
+        SItems[I] := nil;
       end;
     if (Success and (List.Count > 0)) then
       Session.DeleteUsers(List);
@@ -2270,7 +2270,7 @@ begin
     List.Free();
   end;
 
-  CItems.Free();
+  SItems.Free();
 end;
 
 procedure TFSession.aDDeleteRecordExecute(Sender: TObject);
@@ -2683,7 +2683,7 @@ procedure TFSession.aDPropertiesExecute(Sender: TObject);
 type
   TExecute = function(): Boolean of Object;
 var
-  CItem: TSItem;
+  SItem: TSItem;
   Execute: TExecute;
   I: Integer;
   Process: TSProcess;
@@ -2708,73 +2708,73 @@ begin
   end
   else
   begin
-    CItem := FocusedCItem;
+    SItem := FocusedSItem;
 
-    if (CItem is TSDatabase) then
+    if (SItem is TSDatabase) then
     begin
       DDatabase.Session := Session;
-      DDatabase.Database := TSDatabase(CItem);
+      DDatabase.Database := TSDatabase(SItem);
       Execute := DDatabase.Execute;
     end
-    else if (CItem is TSBaseTable) then
+    else if (SItem is TSBaseTable) then
     begin
-      DTable.Database := TSBaseTable(CItem).Database;
-      DTable.Table := TSBaseTable(CItem);
+      DTable.Database := TSBaseTable(SItem).Database;
+      DTable.Table := TSBaseTable(SItem);
       Execute := DTable.Execute;
     end
-    else if (CItem is TSView) then
+    else if (SItem is TSView) then
     begin
-      DView.Database := TSView(CItem).Database;
-      DView.View := TSView(CItem);
+      DView.Database := TSView(SItem).Database;
+      DView.View := TSView(SItem);
       Execute := DView.Execute;
     end
-    else if (CItem is TSProcedure) then
+    else if (SItem is TSProcedure) then
     begin
-      DRoutine.Database := TSRoutine(CItem).Database;
-      DRoutine.Routine := TSRoutine(CItem);
+      DRoutine.Database := TSRoutine(SItem).Database;
+      DRoutine.Routine := TSRoutine(SItem);
       Execute := DRoutine.Execute;
     end
-    else if (CItem is TSFunction) then
+    else if (SItem is TSFunction) then
     begin
-      DRoutine.Database := TSRoutine(CItem).Database;
-      DRoutine.Routine := TSRoutine(CItem);
+      DRoutine.Database := TSRoutine(SItem).Database;
+      DRoutine.Routine := TSRoutine(SItem);
       Execute := DRoutine.Execute;
     end
-    else if (CItem is TSTrigger) then
+    else if (SItem is TSTrigger) then
     begin
-      DTrigger.Table := TSTrigger(CItem).Table;
-      DTrigger.Trigger := TSTrigger(CItem);
+      DTrigger.Table := TSTrigger(SItem).Table;
+      DTrigger.Trigger := TSTrigger(SItem);
       Execute := DTrigger.Execute;
     end
-    else if (CItem is TSEvent) then
+    else if (SItem is TSEvent) then
     begin
-      DEvent.Database := TSEvent(CItem).Database;
-      DEvent.Event := TSEvent(CItem);
+      DEvent.Database := TSEvent(SItem).Database;
+      DEvent.Event := TSEvent(SItem);
       Execute := DEvent.Execute;
     end
-    else if (CItem is TSKey) then
+    else if (SItem is TSKey) then
     begin
-      DKey.Database := TSKey(CItem).Table.Database;
-      DKey.Table := TSKey(CItem).Table;
-      DKey.Key := TSKey(CItem);
+      DKey.Database := TSKey(SItem).Table.Database;
+      DKey.Table := TSKey(SItem).Table;
+      DKey.Key := TSKey(SItem);
       Execute := DKey.Execute;
     end
-    else if (CItem is TSBaseTableField) then
+    else if (SItem is TSBaseTableField) then
     begin
-      DField.Database := TSBaseTableField(CItem).Table.Database;
-      DField.Table := TSBaseTable(TSBaseTableField(CItem).Table);
-      DField.Field := TSBaseTableField(CItem);
+      DField.Database := TSBaseTableField(SItem).Table.Database;
+      DField.Table := TSBaseTable(TSBaseTableField(SItem).Table);
+      DField.Field := TSBaseTableField(SItem);
       Execute := DField.Execute;
     end
-    else if (CItem is TSForeignKey) then
+    else if (SItem is TSForeignKey) then
     begin
-      DForeignKey.Database := TSForeignKey(CItem).Table.Database;
-      DForeignKey.Table := TSForeignKey(CItem).Table;
+      DForeignKey.Database := TSForeignKey(SItem).Table.Database;
+      DForeignKey.Table := TSForeignKey(SItem).Table;
       DForeignKey.ParentTable := nil;
-      DForeignKey.ForeignKey := TSForeignKey(CItem);
+      DForeignKey.ForeignKey := TSForeignKey(SItem);
       Execute := DForeignKey.Execute;
     end
-    else if (CItem is TSProcess) then
+    else if (SItem is TSProcess) then
     begin
       Process := Session.ProcessByThreadId(SysUtils.StrToInt(ActiveListView.Selected.Caption));
 
@@ -2792,16 +2792,16 @@ begin
 
       Execute := DStatement.Execute;
     end
-    else if (CItem is TSUser) then
+    else if (SItem is TSUser) then
     begin
       DUser.Session := Session;
-      DUser.User := TSUser(CItem);
+      DUser.User := TSUser(SItem);
       Execute := DUser.Execute;
     end
-    else if (CItem is TSVariable) then
+    else if (SItem is TSVariable) then
     begin
       DVariable.Session := Session;
-      DVariable.Variable := TSVariable(CItem);
+      DVariable.Variable := TSVariable(SItem);
       Execute := DVariable.Execute;
     end
     else
@@ -3464,17 +3464,17 @@ begin
         end;
     end
   end
-  else if (FocusedCItem is TSDatabase) then
+  else if (FocusedSItem is TSDatabase) then
   begin
-    Database := TSDatabase(FocusedCItem);
+    Database := TSDatabase(FocusedSItem);
     if (not (Database is TSSystemDatabase)) then
       DExport.SObjects.Add(Database);
   end
-  else if (FocusedCItem is TSDBObject) then
+  else if (FocusedSItem is TSDBObject) then
   begin
-    Database := TSDBObject(FocusedCItem).Database;
+    Database := TSDBObject(FocusedSItem).Database;
     if (not (Database is TSSystemDatabase)) then
-      DExport.SObjects.Add(FocusedCItem);
+      DExport.SObjects.Add(FocusedSItem);
   end
   else
   begin
@@ -3544,17 +3544,17 @@ end;
 
 procedure TFSession.aFImportExecute(const Sender: TObject; const ImportType: TPImportType);
 var
-  CItem: TSItem;
+  SItem: TSItem;
 begin
-  CItem := FocusedCItem;
+  SItem := FocusedSItem;
 
-  if ((Sender is TAction) and ((CItem is TSDatabase) and not TSDatabase(CItem).Update()) or ((CItem is TSTable) and not TSTable(CItem).Update())) then
+  if ((Sender is TAction) and ((SItem is TSDatabase) and not TSDatabase(SItem).Update()) or ((SItem is TSTable) and not TSTable(SItem).Update())) then
     Wanted.Action := TAction(Sender)
   else
   begin
     DImport.Session := Session;
-    if (CItem is TSObject) then
-      DImport.SObject := TSObject(CItem)
+    if (SItem is TSObject) then
+      DImport.SObject := TSObject(SItem)
     else
       DImport.SObject := nil;
     DImport.DialogType := idtNormal;
@@ -3573,8 +3573,8 @@ begin
 
   DImport.Window := Window;
   DImport.Session := Session;
-  if (FocusedCItem is TSObject) then
-    DImport.SObject := TSObject(FocusedCItem)
+  if (FocusedSItem is TSObject) then
+    DImport.SObject := TSObject(FocusedSItem)
   else
     DImport.SObject := nil;
   DImport.DialogType := idtNormal;
@@ -3855,10 +3855,10 @@ end;
 
 procedure TFSession.aPOpenInNewTabExecute(Sender: TObject);
 begin
-  if (FocusedCItem is TSDatabase) then
-    OpenInNewTabExecute(TSDatabase(FocusedCItem).Name, '')
-  else if (FocusedCItem is TSTable) then
-    OpenInNewTabExecute(TSTable(FocusedCItem).Database.Name, TSTable(FocusedCItem).Name)
+  if (FocusedSItem is TSDatabase) then
+    OpenInNewTabExecute(TSDatabase(FocusedSItem).Name, '')
+  else if (FocusedSItem is TSTable) then
+    OpenInNewTabExecute(TSTable(FocusedSItem).Database.Name, TSTable(FocusedSItem).Name)
   else if (Window.ActiveControl = FFiles) then
     if (LowerCase(ExtractFileExt(Path + PathDelim + FFiles.Selected.Caption)) = '.sql') then
       OpenInNewTabExecute(SelectedDatabase, '', False, Path + PathDelim + FFiles.Selected.Caption);
@@ -3866,10 +3866,10 @@ end;
 
 procedure TFSession.aPOpenInNewWindowExecute(Sender: TObject);
 begin
-  if (FocusedCItem is TSDatabase) then
-    OpenInNewTabExecute(TSDatabase(FocusedCItem).Name, '', True)
-  else if (FocusedCItem is TSTable) then
-    OpenInNewTabExecute(TSTable(FocusedCItem).Database.Name, TSTable(FocusedCItem).Name, True)
+  if (FocusedSItem is TSDatabase) then
+    OpenInNewTabExecute(TSDatabase(FocusedSItem).Name, '', True)
+  else if (FocusedSItem is TSTable) then
+    OpenInNewTabExecute(TSTable(FocusedSItem).Database.Name, TSTable(FocusedSItem).Name, True)
   else if (Window.ActiveControl = FFiles) then
     if (LowerCase(ExtractFileExt(Path + PathDelim + FFiles.Selected.Caption)) = '.sql') then
       OpenInNewTabExecute(SelectedDatabase, '', True, Path + PathDelim + FFiles.Selected.Caption);
@@ -7141,7 +7141,7 @@ end;
 
 procedure TFSession.FNavigatorEdited(Sender: TObject; Node: TTreeNode; var S: string);
 begin
-  if (not RenameCItem(FocusedCItem, S)) then
+  if (not RenameSItem(FocusedSItem, S)) then
     S := Node.Text;
 end;
 
@@ -7160,23 +7160,23 @@ var
 begin
   Wanted.Clear();
 
-  if ((FocusedCItem is TSDatabase) and (Sender is TAction)) then
+  if ((FocusedSItem is TSDatabase) and (Sender is TAction)) then
   begin
-    Database := TSDatabase(FocusedCItem);
+    Database := TSDatabase(FocusedSItem);
     if (not Database.Update()) then
       Wanted.Action := TAction(Sender)
     else if (MsgBox(Preferences.LoadStr(374, Database.Name), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES) then
       Database.EmptyTables();
   end
-  else if (FocusedCItem is TSBaseTable) then
+  else if (FocusedSItem is TSBaseTable) then
   begin
-    Table := TSBaseTable(FocusedCItem);
+    Table := TSBaseTable(FocusedSItem);
     if (MsgBox(Preferences.LoadStr(375, Table.Name), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES) then
       Table.Empty();
   end
-  else if (FocusedCItem is TSBaseTableField) then
+  else if (FocusedSItem is TSBaseTableField) then
   begin
-    Field := TSBaseTableField(FocusedCItem);
+    Field := TSBaseTableField(FocusedSItem);
     Table := Field.Table;
     if (Assigned(Field) and (MsgBox(Preferences.LoadStr(376, Field.Name), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES)) then
     begin
@@ -7642,7 +7642,7 @@ procedure TFSession.FNavigatorUpdate(const SessionEvent: TSSession.TEvent);
     Node.Delete();
   end;
 
-  procedure UpdateGroup(const Node: TTreeNode; const GroupID: Integer; const CItems: TSItems);
+  procedure UpdateGroup(const Node: TTreeNode; const GroupID: Integer; const SItems: TSItems);
   var
     Add: Boolean;
     Child: TTreeNode;
@@ -7656,7 +7656,7 @@ procedure TFSession.FNavigatorUpdate(const SessionEvent: TSSession.TEvent);
         begin
           Child := Node.getFirstChild();
           while (Assigned(Child)) do
-            if ((GroupIDByImageIndex(Child.ImageIndex) <> GroupID) or (CItems.IndexOf(Child.Data) >= 0)) then
+            if ((GroupIDByImageIndex(Child.ImageIndex) <> GroupID) or (SItems.IndexOf(Child.Data) >= 0)) then
               Child := Child.getNextSibling()
             else
             begin
@@ -7668,12 +7668,12 @@ procedure TFSession.FNavigatorUpdate(const SessionEvent: TSSession.TEvent);
             end;
 
           Add := not Assigned(Node.getFirstChild());
-          for I := 0 to CItems.Count - 1 do
-            if (not (CItems is TSTriggers) or (TSTriggers(CItems)[I].Table = SessionEvent.Sender)) then
+          for I := 0 to SItems.Count - 1 do
+            if (not (SItems is TSTriggers) or (TSTriggers(SItems)[I].Table = SessionEvent.Sender)) then
               if (not Add) then
-                InsertChild(Node, CItems[I])
+                InsertChild(Node, SItems[I])
               else
-                AddChild(Node, CItems[I]);
+                AddChild(Node, SItems[I]);
         end;
       etItemCreated:
         InsertChild(Node, SessionEvent.SItem);
@@ -8926,7 +8926,7 @@ begin
       PWorkbench.Controls[I].Visible := PWorkbench.Controls[I] = Result;
 end;
 
-function TFSession.GetFocusedCItem(): TSItem;
+function TFSession.GetFocusedSItem(): TSItem;
 begin
   if ((Window.ActiveControl = ActiveListView) and Assigned(ActiveListView.Selected)) then
     if ((ActiveListView.SelCount > 1) or not (TSObject(ActiveListView.Selected.Data) is TSItem)) then
@@ -9458,7 +9458,7 @@ end;
 procedure TFSession.ListViewEdited(Sender: TObject; Item: TListItem;
   var S: string);
 begin
-  if (not RenameCItem(FocusedCItem, S)) then
+  if (not RenameSItem(FocusedSItem, S)) then
     S := Item.Caption;
 end;
 
@@ -10475,7 +10475,6 @@ begin
           if (SessionEvent.Sender is TSTable) then
           begin
             Table := TSTable(SessionEvent.Sender);
-
             if (Table is TSBaseTable) then
               UpdateGroup(Kind, giKeys, TSBaseTable(Table).Keys);
             UpdateGroup(Kind, giFields, Table.Fields);
@@ -10954,12 +10953,12 @@ end;
 
 procedure TFSession.mfOpenInNewTabClick(Sender: TObject);
 begin
-  OpenInNewTabExecute(TSDatabase(FocusedCItem).Name, '', False, FFolders.SelectedFolder + PathDelim + FFiles.Selected.Caption)
+  OpenInNewTabExecute(TSDatabase(FocusedSItem).Name, '', False, FFolders.SelectedFolder + PathDelim + FFiles.Selected.Caption)
 end;
 
 procedure TFSession.mfOpenInNewWindowClick(Sender: TObject);
 begin
-  OpenInNewTabExecute(TSDatabase(FocusedCItem).Name, '', True, FFolders.SelectedFolder + PathDelim + FFiles.Selected.Caption)
+  OpenInNewTabExecute(TSDatabase(FocusedSItem).Name, '', True, FFolders.SelectedFolder + PathDelim + FFiles.Selected.Caption)
 end;
 
 procedure TFSession.mfPropertiesClick(Sender: TObject);
@@ -12213,10 +12212,10 @@ begin
             end;
           end;
       end;
-    end;
 
-    SourceURI.Free();
-    Session.EndSynchron();
+      SourceURI.Free();
+      Session.EndSynchron();
+    end;
   end;
   StringList.Free();
 end;
@@ -12667,7 +12666,7 @@ begin
   end;
 end;
 
-function TFSession.RenameCItem(const SItem: TSItem; const NewName: string): Boolean;
+function TFSession.RenameSItem(const SItem: TSItem; const NewName: string): Boolean;
 var
   BaseTable: TSBaseTable;
   Event: TSEvent;

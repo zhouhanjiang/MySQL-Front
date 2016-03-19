@@ -286,14 +286,8 @@ begin
     Compare := Sign(lstrcmpi(PChar(Item1.Caption), PChar(Item2.Caption)))
   else
   begin
-    if (Item1.SubItems[Column.Index - 1] = '???') then
-      DateTime1 := 0
-    else
-      DateTime1 := StrToDateTime(Item1.SubItems[Column.Index - 1], LocaleFormatSettings);
-    if (Item2.SubItems[Column.Index - 1] = '???') then
-      DateTime2 := 0
-    else
-      DateTime2 := StrToDateTime(Item2.SubItems[Column.Index - 1], LocaleFormatSettings);
+    DateTime1 := Accounts.AccountByName(Item1.Caption).LastLogin;
+    DateTime2 := Accounts.AccountByName(Item2.Caption).LastLogin;
     Compare := Sign(DateTime1 - DateTime2);
   end;
 

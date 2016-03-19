@@ -205,7 +205,7 @@ type
     Collation: string;
     Database: TSDatabase;
     Engine: string;
-    RowType: TMySQLRowType;
+    RowType: TSTableField.TRowType;
     Table: TSBaseTable;
     function Execute(): Boolean;
     property CreatedName: string read FCreatedName;
@@ -1052,7 +1052,7 @@ begin
 
     if (GRecords.Visible) then
     begin
-      NewTable.RowType := TMySQLRowType(FRowType.ItemIndex);
+      NewTable.RowType := TSTableField.TRowType(FRowType.ItemIndex);
       if (TryStrToInt64(FAutoIncrement.Text, I64)) then NewTable.AutoIncrement := I64;
     end
     else

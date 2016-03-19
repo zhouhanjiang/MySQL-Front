@@ -216,10 +216,10 @@ type
     procedure InitTSFields(Sender: TObject);
     function InitTSSelect(): Boolean;
     procedure OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
-    procedure OnExecuted(const ASuccess: Boolean);
+    procedure OnTerminate(Sender: TObject);
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
-    procedure CMExecutedDone(var Message: TMessage); message CM_EXECUTIONDONE;
+    procedure CMTerminate(var Message: TMessage); message CM_TERMINATE;
     procedure CMPostAfterExecuteSQL(var Message: TMessage); message CM_POST_AFTEREXECUTESQL;
     procedure CMPostShow(var Message: TMessage); message CM_POST_SHOW;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
@@ -456,7 +456,7 @@ begin
   FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
-procedure TDImport.CMExecutedDone(var Message: TMessage);
+procedure TDImport.CMTerminate(var Message: TMessage);
 var
   Success: Boolean;
 begin
@@ -475,16 +475,19 @@ begin
 
   FBBack.Enabled := True;
   FBForward.Enabled := False;
+  FBCancel.Enabled := True;
 
   FBCancel.Caption := Preferences.LoadStr(231);
-
   if (Success) then
     FBCancel.ModalResult := mrOk
   else
     FBCancel.ModalResult := mrCancel;
 
   if (Assigned(Import)) then
+  begin
+    Import.WaitFor();
     FreeAndNil(Import);
+  end;
 end;
 
 procedure TDImport.CMPostAfterExecuteSQL(var Message: TMessage);
@@ -590,11 +593,10 @@ end;
 
 procedure TDImport.FBCancelClick(Sender: TObject);
 begin
-  if (Assigned(Import) and not Import.Suspended) then
+  if (Assigned(Import)) then
   begin
-    Import.UserAbort.SetEvent();
-    Import.WaitFor();
-    FreeAndNil(Import);
+    Import.Terminate();
+    FBCancel.Enabled := False;
   end;
 end;
 
@@ -685,7 +687,7 @@ begin
         FCSVPreview.Columns.Add().Caption := TTImportText(Import).HeadlineNames[I];
 
       Item := nil;
-      while ((FCSVPreview.Items.Count < 10) and TTImportText(Import).GetPreviewValues(Values)) do
+      while ((FCSVPreview.Items.Count < 10) and TTImportText(Import).GetPreviewValues(nil, Values)) do
         for I := 0 to Min(Length(Values), FCSVPreview.Columns.Count) - 1 do
           if (I = 0) then
           begin
@@ -1735,9 +1737,9 @@ begin
   end;
 end;
 
-procedure TDImport.OnExecuted(const ASuccess: Boolean);
+procedure TDImport.OnTerminate(Sender: TObject);
 begin
-  PostMessage(Handle, CM_EXECUTIONDONE, WPARAM(ASuccess), 0);
+  PostMessage(Handle, CM_TERMINATE, WPARAM(not Import.Terminated), 0);
 end;
 
 procedure TDImport.OnUpdate(const AProgressInfos: TTool.TProgressInfos);
@@ -1847,6 +1849,7 @@ begin
   FBForward.Enabled := False;
   FBForward.Default := False;
   FBCancel.Default := True;
+  FBCancel.ModalResult := mrNone;
 
   ActiveControl := FBCancel;
 
@@ -1905,7 +1908,7 @@ begin
 
   Success := (Answer <> IDCANCEL);
   if (not Success) then
-    SendMessage(Self.Handle, CM_EXECUTIONDONE, WPARAM(Success), 0)
+    SendMessage(Self.Handle, CM_TERMINATE, WPARAM(Success), 0)
   else
   begin
     Import.Data := (SObject is TSTable) or not (SObject is TSTable) and FData.Checked;
@@ -1922,7 +1925,7 @@ begin
       Import.StmtType := stInsertOrUpdate
     else
       Import.StmtType := stInsert;
-    Import.RowType := TMySQLRowType(FRowFormat.ItemIndex);
+    Import.RowType := TSTableField.TRowType(FRowFormat.ItemIndex);
     Import.Structure := not (SObject is TSTable) and FStructure.Checked;
 
     if (SObject is TSBaseTable) then
@@ -1935,12 +1938,9 @@ begin
 
     Import.Wnd := Self.Handle;
     Import.OnError := OnError;
-    Import.OnExecuted := OnExecuted;
+    Import.OnTerminate := OnTerminate;
     Import.OnUpdate := OnUpdate;
-    if (Import.Items.Count = 0) then
-      OnExecuted(False)
-    else
-      Import.Start();
+    Import.Start();
   end;
 end;
 

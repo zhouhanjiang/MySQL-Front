@@ -28,7 +28,7 @@ type
       property Items: TItems read FItems;
     public
       Done: Boolean;
-      RecordsDone: Integer;
+      RecordsDone: Int64;
       RecordsSum: Int64;
       constructor Create(const AItems: TTool.TItems);
       property Index: Integer read GetIndex;
@@ -58,7 +58,6 @@ type
       Session: TSSession;
     end;
     TErrorEvent = procedure(const Sender: TObject; const Error: TError; const Item: TItem; const ShowRetry: Boolean; var Success: TDataAction) of object;
-    TOnExecuted = procedure(const Success: Boolean) of object;
     PProgressInfos = ^TProgressInfos;
     TProgressInfos = record
       ObjectsDone, ObjectsSum: Integer;
@@ -138,9 +137,7 @@ type
     FErrorCount: Integer;
     FItems: TItems;
     FOnError: TErrorEvent;
-    FOnExecuted: TOnExecuted;
     FOnUpdate: TOnUpdate;
-    FUserAbort: TEvent;
     ProgressInfos: TProgressInfos;
   protected
     StartTime: TDateTime;
@@ -159,9 +156,8 @@ type
     property ErrorCount: Integer read FErrorCount;
     property Items: TItems read FItems;
     property OnError: TErrorEvent read FOnError write FOnError;
-    property OnExecuted: TOnExecuted read FOnExecuted write FOnExecuted;
     property OnUpdate: TOnUpdate read FOnUpdate write FOnUpdate;
-    property UserAbort: TEvent read FUserAbort;
+    property Terminated;
   end;
 
   TTImport = class(TTool)
@@ -180,6 +176,8 @@ type
     FDatabase: TSDatabase;
     FSession: TSSession;
     FWarningCount: Integer;
+    OLD_FOREIGN_KEY_CHECKS: string;
+    OLD_UNIQUE_CHECKS: string;
   protected
     FieldMappings: array of TFieldMapping;
     procedure AfterExecute(); override;
@@ -193,7 +191,7 @@ type
     procedure ExecuteStructure(const Item: TItem); virtual;
     procedure GetValue(const Item: TItem; const Index: Integer; const Values: TTool.TStringBuffer); virtual;
     procedure GetValues(const Item: TItem; const Values: TTool.TDataFileBuffer); virtual;
-    function NextRecord(): Boolean; virtual;
+    function NextRecord(const Item: TItem): Boolean; virtual;
     procedure Open(); virtual;
     property Database: TSDatabase read FDatabase;
     property Session: TSSession read FSession;
@@ -204,7 +202,7 @@ type
     Data: Boolean;
     Engine: string;
     Error: Boolean;
-    RowType: TMySQLRowType;
+    RowType: TSTableField.TRowType;
     StmtType: TPStmtType;
     Structure: Boolean;
     procedure AddField(const DestinationField: TSTableField; const SourceFieldName: string);
@@ -261,10 +259,12 @@ type
   private
     CSVColumns: array of Integer;
     CSVValues: TCSVValues;
+    FCSVValueCount: Integer;
     FileFields: array of record
       Name: string;
       FieldTypes: set of Byte;
     end;
+    FRecNo: Int64;
     UnescapeBuffer: record
       Text: PChar;
       Length: Integer;
@@ -277,7 +277,9 @@ type
     procedure ExecuteStructure(const Item: TTImport.TItem); override;
     procedure GetValue(const Item: TTImport.TItem; const Index: Integer; const Values: TTool.TStringBuffer); override;
     procedure GetValues(const Item: TTImport.TItem; const Values: TTool.TDataFileBuffer); override;
-    function NextRecord(): Boolean; override;
+    function NextRecord(const Item: TTImport.TItem): Boolean; override;
+    property CSVValueCount: Integer read FCSVValueCount;
+    property RecNo: Int64 read FRecNo;
   public
     Delimiter: Char;
     Quoter: Char;
@@ -285,7 +287,7 @@ type
     procedure Close(); override;
     constructor Create(const AFilename: TFileName; const ACodePage: Cardinal; const ASession: TSSession; const ADatabase: TSDatabase);
     destructor Destroy(); override;
-    function GetPreviewValues(var Values: TSQLStrings): Boolean; virtual;
+    function GetPreviewValues(const Item: TTImport.TItem; var Values: TSQLStrings): Boolean; virtual;
     procedure Open(); override;
     procedure Reset();
     property HeadlineNameCount: Integer read GetHeadlineNameCount;
@@ -314,7 +316,7 @@ type
     procedure ExecuteStructure(const Item: TTImport.TItem); override;
     procedure GetValue(const Item: TTImport.TItem; const Index: Integer; const Values: TTool.TStringBuffer); override;
     procedure GetValues(const Item: TTImport.TItem; const Values: TTool.TDataFileBuffer); override;
-    function NextRecord(): Boolean; override;
+    function NextRecord(const Item: TTImport.TItem): Boolean; override;
     function ODBCStmtException(const AStmt: SQLHSTMT): Exception;
     property Handle: SQLHDBC read FHandle;
   public
@@ -448,6 +450,7 @@ type
   TTExportText = class(TTExportFile)
   protected
     procedure ExecuteHeader(); override;
+    procedure ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     function FileCreate(const Filename: TFileName; out Error: TTool.TError): Boolean; override;
@@ -1602,9 +1605,6 @@ end;
 procedure TTool.AfterExecute();
 begin
   DoUpdateGUI();
-
-  if (Assigned(OnExecuted)) then
-    OnExecuted(Success = daSuccess);
 end;
 
 procedure TTool.BeforeExecute();
@@ -1624,7 +1624,6 @@ begin
   CriticalSection := TCriticalSection.Create();
   FErrorCount := 0;
   FItems := TItems.Create(Self);
-  FUserAbort := TEvent.Create(nil, True, False, '');
 end;
 
 function TTool.DatabaseError(const Session: TSSession): TTool.TError;
@@ -1639,7 +1638,6 @@ destructor TTool.Destroy();
 begin
   CriticalSection.Free();
   FItems.Free();
-  FUserAbort.Free();
 
   inherited;
 end;
@@ -1711,10 +1709,21 @@ begin
 end;
 
 procedure TTImport.AfterExecute();
+var
+  SQL: string;
 begin
+  if (Data and (Session.ServerVersion >= 40014)) then
+  begin
+    SQL := 'SET UNIQUE_CHECKS=' + OLD_UNIQUE_CHECKS + ',FOREIGN_KEY_CHECKS=' + OLD_FOREIGN_KEY_CHECKS + ';' + #13#10;
+    while (not Session.ExecuteSQL(SQL) and (Success = daSuccess)) do
+      DoError(DatabaseError(Session), nil, True, SQL);
+  end;
+
   Session.EndSilent();
 
   inherited;
+
+  ReturnValue := Integer(True);
 end;
 
 procedure TTImport.AfterExecuteData(const Item: TItem);
@@ -1723,10 +1732,49 @@ begin
 end;
 
 procedure TTImport.BeforeExecute();
+var
+  DataSet: TMySQLQuery;
+  SQL: string;
 begin
   inherited;
 
   Session.BeginSilent();
+
+  if (Data and (Session.ServerVersion >= 40014)) then
+  begin
+    if (Assigned(Session.VariableByName('UNIQUE_CHECKS'))
+      and Assigned(Session.VariableByName('FOREIGN_KEY_CHECKS'))) then
+    begin
+      OLD_UNIQUE_CHECKS := Session.VariableByName('UNIQUE_CHECKS').Value;
+      OLD_FOREIGN_KEY_CHECKS := Session.VariableByName('FOREIGN_KEY_CHECKS').Value;
+    end
+    else
+    begin
+      DataSet := TMySQLQuery.Create(nil);
+      DataSet.Connection := Session;
+      DataSet.CommandText := 'SELECT @@UNIQUE_CHECKS,@@FOREIGN_KEY_CHECKS';
+
+      while ((Success <> daAbort) and not DataSet.Active) do
+      begin
+        DataSet.Open();
+        if (Session.ErrorCode > 0) then
+          DoError(DatabaseError(Session), nil, True, SQL);
+      end;
+
+      if (DataSet.Active) then
+      begin
+        OLD_UNIQUE_CHECKS := DataSet.Fields[0].AsString;
+        OLD_FOREIGN_KEY_CHECKS := DataSet.Fields[1].AsString;
+        DataSet.Close();
+      end;
+
+      DataSet.Free();
+    end;
+
+    SQL := 'SET UNIQUE_CHECKS=OFF,FOREIGN_KEY_CHECKS=OFF;';
+    while ((Success <> daAbort) and not Session.ExecuteSQL(SQL)) do
+      DoError(DatabaseError(Session), nil, True, SQL);
+  end;
 end;
 
 procedure TTImport.BeforeExecuteData(const Item: TItem);
@@ -1823,12 +1871,8 @@ end;
 
 procedure TTImport.Execute();
 var
-  DataSet: TMySQLQuery;
   I: Integer;
-  OLD_FOREIGN_KEY_CHECKS: string;
-  OLD_UNIQUE_CHECKS: string;
   Table: TSTable;
-  SQL: string;
 begin
   {$IFDEF EurekaLog}
   try
@@ -1837,42 +1881,6 @@ begin
   BeforeExecute();
 
   Open();
-
-  if (Data and (Session.ServerVersion >= 40014)) then
-  begin
-    if (Assigned(Session.VariableByName('UNIQUE_CHECKS'))
-      and Assigned(Session.VariableByName('FOREIGN_KEY_CHECKS'))) then
-    begin
-      OLD_UNIQUE_CHECKS := Session.VariableByName('UNIQUE_CHECKS').Value;
-      OLD_FOREIGN_KEY_CHECKS := Session.VariableByName('FOREIGN_KEY_CHECKS').Value;
-    end
-    else
-    begin
-      DataSet := TMySQLQuery.Create(nil);
-      DataSet.Connection := Session;
-      DataSet.CommandText := 'SELECT @@UNIQUE_CHECKS,@@FOREIGN_KEY_CHECKS';
-
-      while ((Success <> daAbort) and not DataSet.Active) do
-      begin
-        DataSet.Open();
-        if (Session.ErrorCode > 0) then
-          DoError(DatabaseError(Session), nil, True, SQL);
-      end;
-
-      if (DataSet.Active) then
-      begin
-        OLD_UNIQUE_CHECKS := DataSet.Fields[0].AsString;
-        OLD_FOREIGN_KEY_CHECKS := DataSet.Fields[1].AsString;
-        DataSet.Close();
-      end;
-
-      DataSet.Free();
-    end;
-
-    SQL := 'SET UNIQUE_CHECKS=OFF,FOREIGN_KEY_CHECKS=OFF;';
-    while ((Success <> daAbort) and not Session.ExecuteSQL(SQL)) do
-      DoError(DatabaseError(Session), nil, True, SQL);
-  end;
 
   for I := 0 to Items.Count - 1 do
     if (Success <> daAbort) then
@@ -1910,13 +1918,6 @@ begin
       Items[I].Done := True;
     end;
 
-  if (Data and (Session.ServerVersion >= 40014)) then
-  begin
-    SQL := 'SET UNIQUE_CHECKS=' + OLD_UNIQUE_CHECKS + ',FOREIGN_KEY_CHECKS=' + OLD_FOREIGN_KEY_CHECKS + ';' + #13#10;
-    while (not Session.ExecuteSQL(SQL) and (Success = daSuccess)) do
-      DoError(DatabaseError(Session), nil, True, SQL);
-  end;
-
   AfterExecute();
 
   {$IFDEF EurekaLog}
@@ -1945,6 +1946,7 @@ var
   SQLStmtPrefix: string;
   SQLStmtDelimiter: string;
   SQLStmt: TStringBuffer;
+List: TList;
 begin
   BeforeExecuteData(Item);
 
@@ -1969,14 +1971,15 @@ begin
         if ((Session.ServerVersion >= 40000) and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
           SQL := SQL + 'ALTER TABLE ' + Session.EscapeIdentifier(Database.Name) + '.' + EscapedTableName + ' DISABLE KEYS;' + #13#10;
       end;
-    if (Session.Lib.LibraryType <> ltHTTP) then
       if (Session.ServerVersion < 40011) then
         SQL := SQL + 'BEGIN;' + #13#10
       else
         SQL := SQL + 'START TRANSACTION;' + #13#10;
     end;
+    while ((Success <> daAbort) and not DoExecuteSQL(Item, SQL)) do
+      DoError(DatabaseError(Session), Item, True, SQL);
 
-    if ((StmtType in [stInsert, stReplace]) and Session.DataFileAllowed and not Suspended) then
+    if ((StmtType in [stInsert, stReplace]) and Session.DataFileAllowed) then
     begin
       Pipename := '\\.\pipe\' + LoadStr(1000);
       Pipe := CreateNamedPipe(PChar(Pipename),
@@ -1986,7 +1989,7 @@ begin
         DoError(SysError(), nil, False)
       else
       begin
-        SQL := SQL + SQLLoadDataInfile(Database, StmtType = stReplace, Pipename, Session.Charset, Database.Name, Table.Name, EscapedDestinationFieldNames);
+        SQL := SQLLoadDataInfile(Database, StmtType = stReplace, Pipename, Session.Charset, Database.Name, Table.Name, EscapedDestinationFieldNames);
 
         Session.SendSQL(SQL, SQLExecuted);
 
@@ -1995,7 +1998,7 @@ begin
           DataFileBuffer := TDataFileBuffer.Create(Session.CodePage);
 
           Item.RecordsDone := 0;
-          while ((Success = daSuccess) and NextRecord()) do
+          while ((Success = daSuccess) and NextRecord(Item)) do
           begin
             GetValues(Item, DataFileBuffer);
             DataFileBuffer.WriteChar(#10);
@@ -2006,17 +2009,17 @@ begin
               else
                 DataFileBuffer.Clear();
 
+            if (Terminated) then
+              Success := daAbort;
+
             Inc(Item.RecordsDone);
-            if (Item.RecordsDone mod 10 = 0) then
-            begin
-              if (Item.RecordsDone mod 100 = 0) then
-                DoUpdateGUI();
-              if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
-                Success := daAbort;
-            end;
+            if (Item.RecordsDone mod 100 = 0) then
+              DoUpdateGUI();
           end;
 
-          if (DataFileBuffer.Size > 0) then
+          DoUpdateGUI();
+
+          if (not Terminated and (DataFileBuffer.Size > 0)) then
             if (not WriteFile(Pipe, DataFileBuffer.Data^, DataFileBuffer.Size, BytesWritten, nil)) then
               DoError(SysError(), nil, False)
             else
@@ -2025,6 +2028,9 @@ begin
           if (FlushFileBuffers(Pipe) and WriteFile(Pipe, PAnsiChar(#0)^, 0, BytesWritten, nil) and FlushFileBuffers(Pipe)) then
             SQLExecuted.WaitFor(INFINITE);
           DisconnectNamedPipe(Pipe);
+
+          if ((Success <> daSuccess) or (Session.ErrorCode > 0))  then
+            DoError(DatabaseError(Session), Item, False);
 
           if ((Success = daSuccess) and (Session.WarningCount > 0)) then
           begin
@@ -2044,9 +2050,6 @@ begin
             end;
             DataSet.Free();
           end;
-
-          if (Session.ErrorCode <> 0) then
-            DoError(DatabaseError(Session), Item, False, SQL);
 
           DataFileBuffer.Free();
         end;
@@ -2087,7 +2090,7 @@ begin
 
       SQLStmtDelimiter := ';' + #13#10;
 
-      while ((Success = daSuccess) and NextRecord()) do
+      while ((Success = daSuccess) and NextRecord(Item)) do
       begin
         repeat
           SQLStmt.Write(PChar(SQLStmtPrefix), Length(SQLStmtPrefix));
@@ -2133,19 +2136,15 @@ begin
           end;
           SQLStmt.Write(SQLStmtDelimiter);
 
+          if (Terminated) then
+            Success := daAbort;
+
           Inc(Item.RecordsDone);
-          if (Item.RecordsDone mod 10 = 0) then
-          begin
-            if (Item.RecordsDone mod 100 = 0) then
-              DoUpdateGUI();
-            if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
-            begin
-              if (SQL <> '') then
-                Session.Terminate();
-              Success := daAbort;
-            end;
-          end;
-        until ((StmtType in [stUpdate, stInsertOrUpdate]) or (SQLStmt.Length > SQLPacketSize) or not NextRecord());
+          if (Item.RecordsDone mod 100 = 0) then
+            DoUpdateGUI();
+        until ((Success = daAbort) or (StmtType in [stUpdate, stInsertOrUpdate]) or (SQLStmt.Length > SQLPacketSize) or not NextRecord(Item));
+
+        DoUpdateGUI();
 
         Len := Length(SQL);
         SetLength(SQL, Len + SQLStmt.Length);
@@ -2181,14 +2180,24 @@ begin
           SQL := SQL + 'ALTER TABLE ' + Session.EscapeIdentifier(Database.Name) + '.' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
         SQL := SQL + 'UNLOCK TABLES;' + #13#10;
       end;
-      if (Session.ErrorCode <> 0) then
+      if ((Success = daAbort) or (Session.ErrorCode <> 0)) then
         SQL := SQL + 'ROLLBACK;' + #13#10
       else
         SQL := SQL + 'COMMIT;' + #13#10;
-      Session.ExecuteSQL(SQL);
+
+      if (not DoExecuteSQL(Item, SQL)) then
+        DoError(DatabaseError(Session), Item, True, SQL);
     end;
 
     SQLExecuted.Free();
+  end;
+
+  if (Table is TSBaseTable) then
+  begin
+    Session.BeginSynchron(); // Must be synchron, since the next table will be handled immediately
+    TSBaseTable(Table).InvalidateStatus();
+    TSBaseTable(Table).Update();
+    Session.EndSynchron();
   end;
 
   AfterExecuteData(Item);
@@ -2206,7 +2215,7 @@ procedure TTImport.GetValues(const Item: TItem; const Values: TTool.TDataFileBuf
 begin
 end;
 
-function TTImport.NextRecord(): Boolean;
+function TTImport.NextRecord(const Item: TItem): Boolean;
 begin
   Result := False;
 end;
@@ -2564,7 +2573,7 @@ begin
         Inc(Index, Len);
     end;
 
-    if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
+    if (Terminated) then
       Success := daAbort;
   end;
 
@@ -2619,6 +2628,9 @@ procedure TTImportText.Close();
 begin
   inherited;
 
+  FCSVValueCount := 0;
+  FRecNo := 0;
+
   SetLength(FileFields, 0);
 end;
 
@@ -2627,6 +2639,8 @@ begin
   inherited Create(AFilename, ACodePage, ASession, ADatabase);
 
   SetLength(CSVValues, 0);
+  FCSVValueCount := 0;
+  FRecNo := 0;
   Data := True;
   Delimiter := ',';
   Quoter := '"';
@@ -2704,20 +2718,11 @@ begin
   Result := FileFields[Index].Name;
 end;
 
-function TTImportText.GetPreviewValues(var Values: TSQLStrings): Boolean;
+function TTImportText.GetPreviewValues(const Item: TTImport.TItem; var Values: TSQLStrings): Boolean;
 var
   I: Integer;
-  RecordComplete: Boolean;
 begin
-  RecordComplete := False;
-  while (not RecordComplete and (not EOF or (FileContent.Index <= Length(FileContent.Str)))) do
-  begin
-    RecordComplete := CSVSplitValues(FileContent.Str, FileContent.Index, Delimiter, Quoter, CSVValues, EOF);
-    if (not RecordComplete and not EOF) then
-      ReadContent();
-  end;
-
-  Result := (Success = daSuccess) and RecordComplete;
+  Result := (Success = daSuccess) and NextRecord(Item);
   if (Result) then
   begin
     SetLength(Values, Length(CSVValues));
@@ -2802,17 +2807,29 @@ begin
   end;
 end;
 
-function TTImportText.NextRecord(): Boolean;
+function TTImportText.NextRecord(const Item: TTImport.TItem): Boolean;
 var
+  Error: TTool.TError;
   RecordComplete: Boolean;
 begin
   repeat
     RecordComplete := CSVSplitValues(FileContent.Str, FileContent.Index, Delimiter, Quoter, CSVValues, EOF);
     if (not RecordComplete and not EOF) then
       ReadContent()
-    else if ((Length(CSVValues) < Length(FieldMappings)) and (not EOF or (FileContent.Index < Length(FileContent.Str)))) then
-      raise ERangeError.CreateFmt(SRangeError + ' (%d <> %d)', [Length(CSVValues), Length(FieldMappings)]);
-  until (RecordComplete or (EOF and (FileContent.Index >= Length(FileContent.Str))));
+    else if (RecordComplete) then
+      Inc(FRecNo)
+    else if ((not EOF or (FileContent.Index <= Length(FileContent.Str))) and (CSVValueCount > 0) and (CSVValueCount <> Length(CSVValues))) then
+    begin
+      Error.ErrorType := TE_File;
+      Error.ErrorCode := 0;
+      if (CSVValueCount < Length(CSVValues)) then
+        Error.ErrorMessage := 'Too less values in record ' + IntToStr(RecNo)
+      else
+        Error.ErrorMessage := 'Too many values in record ' + IntToStr(RecNo);
+      Error.Session := Session;
+      DoError(Error, Item, False);
+    end;
+  until ((Success <> daSuccess) or RecordComplete or (EOF and (FileContent.Index >= Length(FileContent.Str))));
 
   Result := RecordComplete;
 end;
@@ -2826,8 +2843,8 @@ var
   Int: Integer;
   OldSuccess: TDataAction;
   OldFileContentIndex: Integer;
-  RecNo: Integer;
   RecordComplete: Boolean;
+  RecordNumber: Integer;
   Value: string;
 begin
   inherited;
@@ -2835,14 +2852,14 @@ begin
   OldSuccess := Success; OldFileContentIndex := FileContent.Index;
   FirstRecordFilePos := BOMLength;
 
-  repeat
-    RecordComplete := CSVSplitValues(FileContent.Str, FileContent.Index, Delimiter, Quoter, CSVValues, EOF);
-    if (not RecordComplete and not EOF) then
-      ReadContent();
-  until (RecordComplete or (EOF and (FileContent.Index >= Length(FileContent.Str))));
+  RecordComplete := NextRecord(nil);
+
+  if (RecordComplete) then
+    FCSVValueCount := Length(CSVValues);
 
   if (UseHeadline) then
   begin
+    FRecNo := 0;
     if (FileContent.Str = '') then
       FirstRecordFilePos := SizeOf(Char)
     else
@@ -2864,16 +2881,10 @@ begin
   for I := 0 to Length(FileFields) - 1 do
     FileFields[I].FieldTypes := [SQL_INTEGER, SQL_FLOAT, SQL_DATE, Byte(SQL_LONGVARCHAR)];
 
-  RecNo := 0;
-  while ((RecNo < 20) and (RecordComplete or (EOF and (FileContent.Index > Length(FileContent.Str))))) do
+  RecordNumber := 0;
+  while ((RecordNumber < 20) and (RecordComplete or (EOF and (FileContent.Index > Length(FileContent.Str))))) do
   begin
-    RecordComplete := (RecNo = 0) and not UseHeadline;
-    while (not RecordComplete and (not EOF or (FileContent.Index <= Length(FileContent.Str)))) do
-    begin
-      RecordComplete := CSVSplitValues(FileContent.Str, FileContent.Index, Delimiter, Quoter, CSVValues, EOF);
-      if (not RecordComplete and not EOF) then
-        ReadContent();
-    end;
+    RecordComplete := (RecordNumber = 0) and not UseHeadline and NextRecord(nil);
 
     if ((RecordComplete or EOF) and (Length(CSVValues) = Length(FileFields))) then
     begin
@@ -2889,7 +2900,7 @@ begin
             Exclude(FileFields[I].FieldTypes, SQL_DATE);
         end;
 
-      Inc(RecNo);
+      Inc(RecordNumber);
     end;
   end;
 
@@ -2903,7 +2914,7 @@ end;
 
 { TTImportBaseODBC ************************************************************}
 
-function SQLDataTypeToMySQLType(const SQLType: SQLSMALLINT; const Size: Integer; const FieldName: string): TMySQLFieldType;
+function SQLDataTypeToMySQLType(const SQLType: SQLSMALLINT; const Size: Integer; const FieldName: string): TSField.TFieldType;
 begin
   case (SQLType) of
     SQL_CHAR: Result := mfChar;
@@ -2985,7 +2996,6 @@ procedure TTImportBaseODBC.BeforeExecuteData(const Item: TTImport.TItem);
 var
   cbColumnName: SQLSMALLINT;
   ColumnNums: SQLSMALLINT;
-  Error: TTool.TError;
   I: Integer;
   SQL: string;
   Unsigned: SQLINTEGER;
@@ -2994,8 +3004,7 @@ begin
 
   if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, FHandle, @Stmt))) then
   begin
-    Error := ODBCError(SQL_HANDLE_DBC, FHandle);
-    DoError(Error, Item, False);
+    DoError(ODBCError(SQL_HANDLE_DBC, FHandle), Item, False);
     Stmt := SQL_NULL_HANDLE;
     ODBCData := nil;
     SetLength(ColumnDesc, 0);
@@ -3683,7 +3692,7 @@ begin
   end;
 end;
 
-function TTImportBaseODBC.NextRecord(): Boolean;
+function TTImportBaseODBC.NextRecord(const Item: TTImport.TItem): Boolean;
 begin
   Result := SQL_SUCCEEDED(ODBCException(Stmt, SQLFetch(Stmt)));
 end;
@@ -3830,6 +3839,9 @@ begin
   FSession.EndSilent();
 
   inherited;
+
+  if (Terminated) then
+    Session.Terminate();
 end;
 
 procedure TTExport.BeforeExecute();
@@ -4088,7 +4100,7 @@ begin
         TItem(Items[I]).Done := True;
       end;
 
-    if (Assigned(DataHandle)) then
+    if ((Success <> daAbort) and Assigned(DataHandle)) then
       Session.CloseResult(DataHandle);
   end;
 
@@ -4141,9 +4153,8 @@ begin
       Table := Database.TableByName(DataSet.TableName);
   end;
 
-  if (not (DataSet is TMySQLTable)) then
-    OldLoadNextRecords := False // hide compiler warning
-  else
+  OldLoadNextRecords := False;
+  if (DataSet is TMySQLTable) then
   begin
     OldLoadNextRecords := TMySQLTable(DataSet).AutomaticLoadNextRecords;
     TMySQLTable(DataSet).AutomaticLoadNextRecords := False;
@@ -4160,34 +4171,32 @@ begin
     if (TDBGridItem(Item).DBGrid.SelectedRows.Count > 0) then
       for I := 0 to TDBGridItem(Item).DBGrid.SelectedRows.Count - 1 do
       begin
-        DataSet.Bookmark := TDBGridItem(Item).DBGrid.SelectedRows[I];
-        ExecuteTableRecord(Table, Fields, DataSet);
-
-        Inc(Item.RecordsDone);
-        if (Item.RecordsDone mod 10 = 0) then
+        if (Success <> daAbort) then
         begin
+          DataSet.Bookmark := TDBGridItem(Item).DBGrid.SelectedRows[I];
+          ExecuteTableRecord(Table, Fields, DataSet);
+
+          if (Terminated) then
+            Success := daAbort;
+
+          Inc(Item.RecordsDone);
           if (Item.RecordsDone mod 100 = 0) then
             DoUpdateGUI();
-          if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
-            Success := daAbort;
         end;
       end
     else if (DataSet.FindFirst()) then
       repeat
         ExecuteTableRecord(Table, Fields, DataSet);
 
+        if (Terminated) then
+          Success := daAbort;
+
         Inc(Item.RecordsDone);
-        if (Item.RecordsDone mod 10 = 0) then
-        begin
-          if (Item.RecordsDone mod 100 = 0) then
-            DoUpdateGUI();
-          if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
-            Success := daAbort;
-        end;
+        if (Item.RecordsDone mod 100 = 0) then
+          DoUpdateGUI();
       until ((Success = daAbort) or not DataSet.FindNext());
 
-  if (Success = daSuccess) then
-    Item.RecordsSum := Item.RecordsDone;
+  Item.RecordsSum := Item.RecordsDone;
 
   if (Success <> daAbort) then
   begin
@@ -4265,16 +4274,13 @@ begin
       repeat
         ExecuteTableRecord(Table, Fields, DataSet);
 
-        Inc(Item.RecordsDone);
-        if (Item.RecordsDone mod 10 = 0) then
-        begin
-          if (Item.RecordsDone mod 100 = 0) then
-            DoUpdateGUI();
-          if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
-            Success := daAbort;
-        end;
+        if (Terminated) then
+          Success := daAbort;
 
-      until ((Success <> daSuccess) or not DataSet.FindNext());
+        Inc(Item.RecordsDone);
+        if (Item.RecordsDone mod 100 = 0) then
+          DoUpdateGUI();
+      until ((Success = daAbort) or not DataSet.FindNext());
 
     if (Success <> daAbort) then
       Success := daSuccess;
@@ -4542,7 +4548,7 @@ begin
   Content := Content + '# Host: ' + Session.Host;
   if (Session.Port <> MYSQL_PORT) then
     Content := Content + ':' + IntToStr(Session.Port);
-  Content := Content + '  (Version: ' + Session.ServerVersionStr + ')' + #13#10;
+  Content := Content + '  (Version ' + Session.ServerVersionStr + ')' + #13#10;
   Content := Content + '# Date: ' + MySQLDB.DateTimeToStr(Now(), Session.FormatSettings) + #13#10;
   Content := Content + '# Generator: ' + LoadStr(1000) + ' ' + Preferences.VersionStr + #13#10;
   Content := Content + #13#10;
@@ -4789,6 +4795,13 @@ begin
   inherited;
 
   DoFileCreate(Filename);
+end;
+
+procedure TTExportText.ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
+begin
+  inherited;
+
+  WriteContent(#26); // EndOfFile
 end;
 
 procedure TTExportText.ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
@@ -7809,7 +7822,7 @@ begin
           ExecuteTableStructure(TItem(Item));
           DestinationTable := DestinationDatabase.BaseTableByName(SourceTable.Name);
 
-          if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
+          if (Terminated) then
             Success := daAbort;
         end;
 
@@ -7977,14 +7990,12 @@ begin
                 else
                  DataFileBuffer.Clear();
 
+              if (Terminated) then
+                Success := daAbort;
+
               Inc(Item.RecordsDone);
-              if (Item.RecordsDone mod 10 = 0) then
-              begin
-                if (Item.RecordsDone mod 100 = 0) then
-                  DoUpdateGUI();
-                if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
-                  Success := daAbort;
-              end;
+              if (Item.RecordsDone mod 100 = 0) then
+                DoUpdateGUI();
             until ((Success <> daSuccess) or not DataSet.FindNext());
 
             if (DataFileBuffer.Size > 0) then
@@ -8110,18 +8121,16 @@ begin
             end;
           end;
 
-          Inc(Item.RecordsDone);
-          if (Item.RecordsDone mod 10 = 0) then
+          if (Terminated) then
           begin
-            if (Item.RecordsDone mod 100 = 0) then
-              DoUpdateGUI();
-            if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
-            begin
-              if (SQL <> '') then
-                DestinationSession.Terminate();
-              Success := daAbort;
-            end;
+            if (SQL <> '') then
+              DestinationSession.Terminate();
+            Success := daAbort;
           end;
+
+          Inc(Item.RecordsDone);
+          if (Item.RecordsDone mod 100 = 0) then
+            DoUpdateGUI();
         until ((Success <> daSuccess) or not DataSet.FindNext());
 
         if ((Success = daSuccess) and (SQLExecuteLength > 0)) then
@@ -8346,7 +8355,6 @@ begin
   BeforeExecute();
 
   for I := 0 to Items.Count - 1 do
-  begin
     if (Success = daSuccess) then
     begin
       Table := Session.DatabaseByName(TItem(Items[I]).DatabaseName).BaseTableByName(TItem(Items[I]).TableName);
@@ -8365,7 +8373,6 @@ begin
 
       DoUpdateGUI();
     end;
-  end;
 
   for I := 0 to Items.Count - 1 do
   begin
@@ -8394,9 +8401,12 @@ begin
       if ((TItem(Items[I]).Done) and Assigned(FOnSearched)) then
         FOnSearched(TItem(Items[I]));
 
-      if (Success = daFail) then Success := daSuccess;
-
       DoUpdateGUI();
+
+      if (Terminated) then
+        Success := daAbort;
+
+      if (Success = daFail) then Success := daSuccess;
     end;
   end;
 
@@ -8606,14 +8616,12 @@ begin
               end;
             end;
 
+          if (Terminated) then
+            Success := daAbort;
+
           Inc(Item.RecordsDone);
-          if (Item.RecordsDone mod 10 = 0) then
-          begin
-            if (Item.RecordsDone mod 100 = 0) then
-              DoUpdateGUI();
-            if (UserAbort.WaitFor(IGNORE) = wrSignaled) then
-              Success := daAbort;
-          end;
+          if (Item.RecordsDone mod 100 = 0) then
+            DoUpdateGUI();
         until ((Success <> daSuccess) or not DataSet.FindNext());
 
         if (Assigned(Buffer)) then

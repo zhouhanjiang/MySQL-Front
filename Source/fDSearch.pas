@@ -108,11 +108,11 @@ type
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     function GetSession(const Index: Integer): TSSession;
     procedure OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
-    procedure OnExecuted(const ASuccess: Boolean);
     procedure OnSearched(const AItem: TTSearch.TItem);
+    procedure OnTerminate(Sender: TObject);
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
-    procedure CMExecutedDone(var Message: TMessage); message CM_EXECUTIONDONE;
+    procedure CMTerminate(var Message: TMessage); message CM_TERMINATE;
     procedure CMUpdateProgressInfo(var Message: TMessage); message CM_UPDATEPROGRESSINFO;
   public
     Session: TSSession;
@@ -194,23 +194,37 @@ begin
   FBBack.Caption := '< ' + Preferences.LoadStr(228);
 end;
 
-procedure TDSearch.CMExecutedDone(var Message: TMessage);
+procedure TDSearch.CMTerminate(var Message: TMessage);
+var
+  Success: Boolean;
 begin
-  if (SearchOnly and (FTables.Items.Count = 0)) then
+  Success := Boolean(Message.WParam);
+
+  if (Success and SearchOnly and (FTables.Items.Count = 0)) then
     MsgBox(Preferences.LoadStr(533, Search.FindText), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
 
-  FreeAndNil(Search);
   if (Assigned(ExecuteSession)) then
     ExecuteSession := nil;
   if (Assigned(ReplaceSession)) then
     FreeAndNil(ReplaceSession);
 
-  ModalResult := mrNone;
+  FBBack.Enabled := True;
+  FBForward.Enabled := False;
+  FBCancel.Enabled := True;
 
   FBCancel.Caption := Preferences.LoadStr(231);
-  FBCancel.ModalResult := mrOk;
+  if (Success) then
+    FBCancel.ModalResult := mrOk
+  else
+    FBCancel.ModalResult := mrCancel;
 
   ActiveControl := FBCancel;
+
+  if (Assigned(Search)) then
+  begin
+    Search.WaitFor();
+    FreeAndNil(Search);
+  end;
 end;
 
 procedure TDSearch.CMUpdateProgressInfo(var Message: TMessage);
@@ -263,9 +277,8 @@ procedure TDSearch.FBCancelClick(Sender: TObject);
 begin
   if (Assigned(Search)) then
   begin
-    Search.UserAbort.SetEvent();
-    if (not Search.Suspended) then
-      Search.WaitFor();
+    Search.Terminate();
+    FBCancel.Enabled := False;
   end;
 end;
 
@@ -797,11 +810,6 @@ begin
   end;
 end;
 
-procedure TDSearch.OnExecuted(const ASuccess: Boolean);
-begin
-  PostMessage(Handle, CM_EXECUTIONDONE, WPARAM(ASuccess), 0);
-end;
-
 procedure TDSearch.OnSearched(const AItem: TTSearch.TItem);
 var
   Found: Boolean;
@@ -830,6 +838,11 @@ begin
       Item.Caption := Item.Caption + AItem.TableName + ' (' + IntToStr(AItem.RecordsFound) + ')';
     end;
   end;
+end;
+
+procedure TDSearch.OnTerminate(Sender: TObject);
+begin
+  PostMessage(Handle, CM_TERMINATE, WPARAM(not Search.Terminated), 0);
 end;
 
 procedure TDSearch.OnUpdate(const AProgressInfos: TTool.TProgressInfos);
@@ -916,10 +929,11 @@ begin
   FErrors.Caption := '0';
   FErrorMessages.Lines.Clear();
 
+  FBBack.Enabled := False;
   FBForward.Enabled := False;
-  FBForward.Default := False;
   FBCancel.Default := True;
-
+  FBCancel.ModalResult := mrNone;
+  ActiveControl := FBCancel;
 
   Node := FSelect.Selected;
   while (Assigned(Node.Parent)) do Node := Node.Parent;
@@ -985,8 +999,8 @@ begin
         TTReplace(Search).Backup := FBackup.Checked;
       end;
     end;
-    Search.OnExecuted := OnExecuted;
     Search.OnSearched := OnSearched;
+    Search.OnTerminate := OnTerminate;
     Search.OnUpdate := OnUpdate;
 
     List := TList.Create();

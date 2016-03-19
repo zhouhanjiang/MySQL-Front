@@ -232,10 +232,10 @@ type
     function InitTSSelect(): Boolean;
     function ObjectsFromFSelect(): Boolean;
     procedure OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
-    procedure OnExecuted(const ASuccess: Boolean);
+    procedure OnTerminate(Sender: TObject);
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
-    procedure CMExecutionDone(var Message: TMessage); message CM_EXECUTIONDONE;
+    procedure CMTerminate(var Message: TMessage); message CM_TERMINATE;
     procedure CMPostAfterExecuteSQL(var Message: TMessage); message CM_POST_AFTEREXECUTESQL;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure CMUpdateProgressInfo(var Message: TMessage); message CM_UPDATEPROGRESSINFO;
@@ -463,24 +463,27 @@ begin
   FBBack.Caption := '< ' + Preferences.LoadStr(228);
 end;
 
-procedure TDExport.CMExecutionDone(var Message: TMessage);
+procedure TDExport.CMTerminate(var Message: TMessage);
 var
   Success: Boolean;
 begin
   Success := Boolean(Message.WParam);
 
-  if (Assigned(Export)) then
-    FreeAndNil(Export);
-
   FBBack.Enabled := True;
-  FBCancel.Caption := Preferences.LoadStr(231);
+  FBForward.Enabled := False;
+  FBCancel.Enabled := True;
 
+  FBCancel.Caption := Preferences.LoadStr(231);
   if (Success) then
     FBCancel.ModalResult := mrOk
   else
     FBCancel.ModalResult := mrCancel;
 
-  ActiveControl := FBCancel;
+  if (Assigned(Export)) then
+  begin
+    Export.WaitFor();
+    FreeAndNil(Export);
+  end;
 end;
 
 procedure TDExport.CMPostAfterExecuteSQL(var Message: TMessage);
@@ -636,11 +639,10 @@ end;
 
 procedure TDExport.FBCancelClick(Sender: TObject);
 begin
-  if (Assigned(Export) and not Export.Suspended) then
+  if (Assigned(Export)) then
   begin
-    Export.UserAbort.SetEvent();
-    if (not Export.Suspended) then
-      Export.WaitFor();
+    Export.Terminate();
+    FBCancel.Enabled := False;
   end;
 end;
 
@@ -1827,9 +1829,9 @@ begin
   end;
 end;
 
-procedure TDExport.OnExecuted(const ASuccess: Boolean);
+procedure TDExport.OnTerminate(Sender: TObject);
 begin
-  PostMessage(Handle, CM_EXECUTIONDONE, WPARAM(ASuccess), 0);
+  PostMessage(Handle, CM_TERMINATE, WPARAM(not Export.Terminated), 0);
 end;
 
 procedure TDExport.OnUpdate(const AProgressInfos: TTool.TProgressInfos);
@@ -1915,6 +1917,7 @@ begin
 
   FBForward.Default := False;
   FBCancel.Default := True;
+  FBCancel.ModalResult := mrNone;
   ActiveControl := FBCancel;
 
   case (ExportType) of
@@ -2080,8 +2083,8 @@ begin
     end;
 
     Export.Wnd := Handle;
+    Export.OnTerminate := OnTerminate;
     Export.OnUpdate := OnUpdate;
-    Export.OnExecuted := OnExecuted;
     Export.OnError := OnError;
     Export.Start()
   end;

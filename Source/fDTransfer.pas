@@ -54,26 +54,26 @@ type
     procedure FBCancelClick(Sender: TObject);
     procedure FBForwardClick(Sender: TObject);
     procedure FBHelpClick(Sender: TObject);
+    procedure FDataClick(Sender: TObject);
+    procedure FDataKeyPress(Sender: TObject; var Key: Char);
     procedure FormCreate(Sender: TObject);
     procedure FormHide(Sender: TObject);
     procedure FormShow(Sender: TObject);
+    procedure FStructureClick(Sender: TObject);
+    procedure FStructureKeyPress(Sender: TObject; var Key: Char);
     procedure miSelectAllClick(Sender: TObject);
     procedure MSourcePopup(Sender: TObject);
     procedure PageControlResize(Sender: TObject);
     procedure TreeViewChange(Sender: TObject; Node: TTreeNode);
     procedure TreeViewExpanding(Sender: TObject; Node: TTreeNode;
       var AllowExpansion: Boolean);
+    procedure TreeViewGetSelectedIndex(Sender: TObject; Node: TTreeNode);
     procedure TreeViewMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure TSExecuteShow(Sender: TObject);
-    procedure TreeViewGetSelectedIndex(Sender: TObject; Node: TTreeNode);
-    procedure FStructureClick(Sender: TObject);
-    procedure FStructureKeyPress(Sender: TObject; var Key: Char);
-    procedure FDataClick(Sender: TObject);
-    procedure FDataKeyPress(Sender: TObject; var Key: Char);
-    procedure TSWhatShow(Sender: TObject);
-    procedure TSSelectShow(Sender: TObject);
     procedure TSSelectResize(Sender: TObject);
+    procedure TSSelectShow(Sender: TObject);
+    procedure TSWhatShow(Sender: TObject);
   private
     Sessions: array of TSSession;
     MouseDownNode: TTreeNode;
@@ -85,10 +85,10 @@ type
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     function GetSession(const Index: Integer): TSSession;
     procedure OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
-    procedure OnExecuted(const ASuccess: Boolean);
+    procedure OnTerminate(Sender: TObject);
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
-    procedure CMExecutedDone(var Message: TMessage); message CM_EXECUTIONDONE;
+    procedure CMTerminate(var Message: TMessage); message CM_TERMINATE;
     procedure CMUpdateProgressInfo(var Message: TMessage); message CM_UPDATEPROGRESSINFO;
   public
     SourceSession: TSSession;
@@ -198,13 +198,11 @@ begin
   FBBack.Caption := '< ' + Preferences.LoadStr(228);
 end;
 
-procedure TDTransfer.CMExecutedDone(var Message: TMessage);
+procedure TDTransfer.CMTerminate(var Message: TMessage);
 var
   Success: Boolean;
 begin
   Success := Boolean(Message.WParam);
-
-  FreeAndNil(Transfer);
 
   FSource.Items.BeginUpdate();
   FSource.Items.Clear();
@@ -213,10 +211,19 @@ begin
   FDestination.Items.Clear();
   FDestination.Items.EndUpdate();
 
+  FBBack.Enabled := True;
+  FBCancel.Enabled := True;
+
+  FBCancel.Caption := Preferences.LoadStr(231);
   if (Success) then
+    FBCancel.ModalResult := mrOk
+  else
+    FBCancel.ModalResult := mrCancel;
+
+  if (Assigned(Transfer)) then
   begin
-    FBCancel.Caption := Preferences.LoadStr(231);
-    FBCancel.ModalResult := mrOk;
+    Transfer.WaitFor();
+    FreeAndNil(Transfer);
   end;
 end;
 
@@ -272,9 +279,8 @@ procedure TDTransfer.FBCancelClick(Sender: TObject);
 begin
   if (Assigned(Transfer)) then
   begin
-    Transfer.UserAbort.SetEvent();
-    if (not Transfer.Suspended) then
-      Transfer.WaitFor();
+    Transfer.Terminate();
+    FBCancel.Enabled := False;
   end;
 end;
 
@@ -516,9 +522,9 @@ begin
   end;
 end;
 
-procedure TDTransfer.OnExecuted(const ASuccess: Boolean);
+procedure TDTransfer.OnTerminate(Sender: TObject);
 begin
-  PostMessage(Handle, CM_EXECUTIONDONE, WPARAM(ASuccess), 0);
+  PostMessage(Handle, CM_TERMINATE, WPARAM(not Transfer.Terminated), 0);
 end;
 
 procedure TDTransfer.OnUpdate(const AProgressInfos: TTool.TProgressInfos);
@@ -727,8 +733,10 @@ begin
   FErrors.Caption := '0';
   FErrorMessages.Lines.Clear();
 
+  FBBack.Enabled := False;
   FBForward.Enabled := False;
   FBCancel.Default := True;
+  FBCancel.ModalResult := mrNone;
   ActiveControl := FBCancel;
 
   Node := FSource.Selected;
@@ -755,7 +763,7 @@ begin
     Transfer.Data := FData.Checked;
     Transfer.Structure := FStructure.Checked;
     Transfer.OnError := OnError;
-    Transfer.OnExecuted := OnExecuted;
+    Transfer.OnTerminate := OnTerminate;
     Transfer.OnUpdate := OnUpdate;
 
     for I := 0 to FSource.Selected.Parent.Count - 1 do

@@ -109,7 +109,7 @@ type
     function GetDefaultDecimals(): Integer;
     function GetDefaultSize(): Integer;
     function GetMaxLength(): Integer;
-    function GetType(): TMySQLFieldType;
+    function GetType(): TSField.TFieldType;
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     function IsBinaryType(): Boolean;
     function IsCharType(): Boolean;
@@ -1082,7 +1082,7 @@ begin
   end
 end;
 
-function TDField.GetType(): TMySQLFieldType;
+function TDField.GetType(): TSField.TFieldType;
 begin
   if (FFieldType.ItemIndex < 0) then
     Result := mfUnknown
