@@ -1175,7 +1175,7 @@ begin
   end;
 end;
 
-{ TFSession.TSQLEditorDesktop **************************************************}
+{ TFSession.TSQLEditorDesktop *************************************************}
 
 procedure TFSession.TSQLEditor.CloseResult();
 var
@@ -1345,7 +1345,7 @@ begin
     end;
 end;
 
-{ TFSession.TCObjectDesktop ****************************************************}
+{ TFSession.TCObjectDesktop ***************************************************}
 
 constructor TFSession.TSObjectDesktop.Create(const AFClient: TFSession; const ACObject: TSObject);
 begin
@@ -1354,7 +1354,7 @@ begin
   inherited Create(ACObject);
 end;
 
-{ TFSession.TDatabaseDesktop ***************************************************}
+{ TFSession.TDatabaseDesktop **************************************************}
 
 function TFSession.TDatabaseDesktop.BuilderResultEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
 begin
@@ -1492,7 +1492,7 @@ begin
   Result := FXML;
 end;
 
-{ TFSession.TTableDesktop ******************************************************}
+{ TFSession.TTableDesktop *****************************************************}
 
 procedure TFSession.TTableDesktop.AddFilter(const AFilter: string);
 var
@@ -1713,7 +1713,7 @@ begin
   XMLNode(XML, 'limit', True).Attributes['used'] := BoolToStr(ALimited, True);
 end;
 
-{ TFSession.TViewDesktop *******************************************************}
+{ TFSession.TViewDesktop ******************************************************}
 
 constructor TFSession.TViewDesktop.Create(const AFClient: TFSession; const AView: TSView);
 begin
@@ -1742,7 +1742,7 @@ begin
   inherited;
 end;
 
-{ TFSession.TRoutineDesktop *******************************************************}
+{ TFSession.TRoutineDesktop ***************************************************}
 
 procedure TFSession.TRoutineDesktop.CloseIDEResult();
 var
@@ -1855,7 +1855,7 @@ begin
       PDBGrid.Controls[I].Visible := TMySQLDBGrid(PDBGrid.Controls[I]).Tag = TCResult.TabIndex;
 end;
 
-{ TFSession.TEventDesktop ******************************************************}
+{ TFSession.TEventDesktop *****************************************************}
 
 constructor TFSession.TEventDesktop.Create(const AFClient: TFSession; const AEvent: TSEvent);
 begin
@@ -1880,7 +1880,7 @@ begin
     SynMemo.Free();
 end;
 
-{ TFSession.TTriggerDesktop *******************************************************}
+{ TFSession.TTriggerDesktop ***************************************************}
 
 constructor TFSession.TTriggerDesktop.Create(const AFClient: TFSession; const ATrigger: TSTrigger);
 begin
@@ -1905,7 +1905,7 @@ begin
     SynMemo.Free();
 end;
 
-{ TFSession.TWanted ************************************************************}
+{ TFSession.TWanted ***********************************************************}
 
 procedure TFSession.TWanted.Clear();
 begin
@@ -1984,7 +1984,7 @@ begin
   end;
 end;
 
-{ TFSession ********************************************************************}
+{ TFSession *******************************************************************}
 
 procedure TFSession.aDCancelExecute(Sender: TObject);
 begin
@@ -2681,7 +2681,7 @@ end;
 
 procedure TFSession.aDPropertiesExecute(Sender: TObject);
 type
-  TExecute = function(): Boolean of Object;
+  TExecute = function (): Boolean of object;
 var
   SItem: TSItem;
   Execute: TExecute;

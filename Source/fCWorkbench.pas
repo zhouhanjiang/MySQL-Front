@@ -316,7 +316,7 @@ type
 
   TWWorkbenchChangeEvent = procedure(Sender: TObject; Control: TWControl) of object;
   TWWorkbenchCursorMoveEvent = procedure(Sender: TObject; X, Y: Integer) of object;
-  TWWorkbenchValidateControlEvent = function(Sender: TObject; Control: TWControl): Boolean of Object;
+  TWWorkbenchValidateControlEvent = function(Sender: TObject; Control: TWControl): Boolean of object;
 
   TWWorkbench = class(TScrollBox)
   private

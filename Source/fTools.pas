@@ -157,6 +157,7 @@ type
     property Items: TItems read FItems;
     property OnError: TErrorEvent read FOnError write FOnError;
     property OnUpdate: TOnUpdate read FOnUpdate write FOnUpdate;
+    // TThread properties
     property Terminated;
   end;
 

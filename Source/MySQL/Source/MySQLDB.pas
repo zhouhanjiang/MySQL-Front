@@ -85,7 +85,6 @@ type
     property VersionStr: string read GetVersionStr;
   end;
 
-  EMySQLUserAbort = class(EAbort);
   EDatabasePostError = class(EDatabaseError);
 
   EMySQLError = class(EDatabaseError)
@@ -122,7 +121,6 @@ type
     procedure SetConnection(const AConnection: TMySQLConnection);
     procedure SetCacheSize(const ACacheSize: Integer);
     procedure SetOnMonitor(const AOnMonitor: TMySQLOnMonitor);
-  protected
   public
     property CacheText: string read GetCacheText;
     procedure Clear(); virtual;
@@ -145,7 +143,7 @@ type
     TConvertErrorNotifyEvent = procedure (Sender: TObject; Text: string) of object;
     TErrorEvent = procedure (const Connection: TMySQLConnection; const ErrorCode: Integer; const ErrorMessage: string) of object;
     TOnUpdateIndexDefsEvent = procedure (const DataSet: TMySQLQuery; const IndexDefs: TIndexDefs) of object;
-    TResultEvent = function (const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean of object;
+    TResultEvent = function (const DataHandle: TDataResult; const Data: Boolean): Boolean of object;
     TSynchronizeEvent = procedure (const Data: Pointer) of object;
 
     TLibraryDataType = (ldtConnecting, ldtExecutingSQL, ldtDisconnecting);

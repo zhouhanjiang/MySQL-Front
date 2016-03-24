@@ -510,8 +510,8 @@ begin
   if (Database.Created = 0) then FCreated.Caption := '???' else FCreated.Caption := SysUtils.DateTimeToStr(Database.Created, LocaleFormatSettings);
   if (Database.Updated = 0) then FUpdated.Caption := '???' else FUpdated.Caption := SysUtils.DateTimeToStr(Database.Updated, LocaleFormatSettings);
 
-  FIndexSize.Caption := SizeToStr(Database.DataSize);
-  FDataSize.Caption := SizeToStr(Database.IndexSize);
+  FIndexSize.Caption := SizeToStr(Database.IndexSize);
+  FDataSize.Caption := SizeToStr(Database.DataSize);
 end;
 
 procedure TDDatabase.TSSourceShow(Sender: TObject);

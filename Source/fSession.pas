@@ -347,6 +347,7 @@ type
     Binary: Boolean;
     Comment: string;
     Default: string;
+    DefaultSize: Integer;
     FieldBefore: TSTableField;
     Format: TSTableField.TRowType;
     NullAllowed: Boolean;
@@ -376,6 +377,7 @@ type
   public
     Moved: Boolean;
     OnUpdate: string;
+    OnUpdateSize: Integer;
     OriginalName: string;
     procedure Assign(const Source: TSField); override;
     procedure Clear(); override;
@@ -1362,7 +1364,7 @@ type
   TSSession = class(TMySQLConnection)
   type
     TEventType = (etItemsValid, etItemValid, etItemCreated, etItemDropped, etItemAltered, etBeforeExecuteSQL, etAfterExecuteSQL, etMonitor, etError);
-    TUpdate = function(): Boolean of object;
+    TUpdate = function (): Boolean of object;
     TEvent = class
       Session: TSSession;
       EventType: TEventType;
@@ -1372,7 +1374,7 @@ type
       Update: TUpdate;
       constructor Create(const ASession: TSSession);
     end;
-    TCreateDesktop = function (const CObject: TSObject): TSObject.TDesktop of Object;
+    TCreateDesktop = function (const CObject: TSObject): TSObject.TDesktop of object;
     TEventProc = procedure (const AEvent: TEvent) of object;
   private
     AutoCommitBeforeTransaction: Boolean;
@@ -2070,9 +2072,9 @@ begin
 
   if (Index >= 0) then
   begin
-    Session.ExecuteEvent(etItemDropped, Session, Self, AEntity);
-
     TList(Self).Delete(Index);
+
+    Session.ExecuteEvent(etItemDropped, Session, Self, AEntity);
 
     AEntity.Free();
   end;
@@ -2271,9 +2273,9 @@ begin
 
   if (Index >= 0) then
   begin
-    Session.ExecuteEvent(etItemDropped, Database, Self, AEntity);
-
     TList(Self).Delete(Index);
+
+    Session.ExecuteEvent(etItemDropped, Database, Self, AEntity);
 
     AEntity.Free();
   end;
@@ -2726,6 +2728,7 @@ begin
   Comment := TSTableField(Source).Comment;
   FCollation := TSTableField(Source).FCollation;
   Default := TSTableField(Source).Default;
+  DefaultSize := TSTableField(Source).DefaultSize;
   FieldBefore := nil;
   FInPrimaryKey := TSTableField(Source).InPrimaryKey;
   FInUniqueKey := TSTableField(Source).InUniqueKey;
@@ -2745,6 +2748,7 @@ begin
     Collation := TSBaseTable(Table).FCollation;
   Comment := '';
   Default := '';
+  DefaultSize := 0;
   FieldBefore := nil;
   NullAllowed := True;
   Unicode := False;
@@ -2795,6 +2799,7 @@ begin
   Result := Result and (Comment = Second.Comment);
   Result := Result and (Decimals = Second.Decimals);
   Result := Result and (Default = Second.Default);
+  Result := Result and (DefaultSize = Second.DefaultSize);
   Result := Result and (Charset = Second.Charset);
   Result := Result and (FieldType = Second.FieldType);
   Result := Result and (Name = Second.Name);
@@ -2874,7 +2879,10 @@ begin
   if (Fields.Table.Database.Session.ServerVersion < 40102) then
     OnUpdate := ''
   else
+  begin
     OnUpdate := TSBaseTableField(TSTableField(Source)).OnUpdate;
+    OnUpdateSize := TSBaseTableField(TSTableField(Source)).OnUpdateSize;
+  end;
 
   OriginalName := TSBaseTableField(TSTableField(Source)).OriginalName;
   Moved := TSBaseTableField(TSTableField(Source)).Moved;
@@ -2886,6 +2894,7 @@ begin
   FCollation := '';
 
   OnUpdate := '';
+  OnUpdateSize := 0;
   Moved := False;
 
   inherited;
@@ -3418,7 +3427,7 @@ begin
   end;
   SQL := SQL + ');';
 
-  Result := Database.Session.ExecuteSQL(SQL);
+  Result := Session.ExecuteSQL(SQL);
 
   if (Result) then
     InvalidateData();
@@ -3933,7 +3942,7 @@ begin
   begin
     SQL := 'UPDATE ' + Session.EscapeIdentifier(Database.Name) + '.' + Session.EscapeIdentifier(Name) + ' SET ' + SQL + ';';
 
-    Result := Database.Session.ExecuteSQL(SQL);
+    Result := Session.ExecuteSQL(SQL);
 
     if (Result) then
       InvalidateData();
@@ -4314,7 +4323,14 @@ begin
               if (SQLParseKeyword(Parse, 'NULL')) then
                 NewField.Default := 'NULL'
               else if (SQLParseKeyword(Parse, 'CURRENT_TIMESTAMP')) then
-                NewField.Default := 'CURRENT_TIMESTAMP'
+              begin
+                NewField.Default := 'CURRENT_TIMESTAMP';
+                if (SQLParseChar(Parse, '(')) then
+                begin
+                  NewField.DefaultSize := StrToInt(SQLParseValue(Parse));
+                  SQLParseChar(Parse, ')');
+                end;
+              end
               else if (NewField.FieldType = mfBit) then
               begin
                 S := SQLParseValue(Parse);
@@ -4332,7 +4348,19 @@ begin
               else
                 NewField.Default := SQLEscape(SQLParseValue(Parse));
               if (SQLParseKeyword(Parse, 'ON UPDATE')) then
-                NewField.OnUpdate := SQLParseValue(Parse);
+              begin
+                if (SQLParseKeyword(Parse, 'CURRENT_TIMESTAMP')) then
+                begin
+                  NewField.OnUpdate := 'CURRENT_TIMESTAMP';
+                  if (SQLParseChar(Parse, '(')) then
+                  begin
+                    NewField.OnUpdateSize := StrToInt(SQLParseValue(Parse));
+                    SQLParseChar(Parse, ')');
+                  end;
+                end
+                else
+                  NewField.OnUpdate := SQLParseValue(Parse);
+              end;
             end
             else if (SQLParseKeyword(Parse, 'AUTO_INCREMENT')) then
               NewField.AutoIncrement := True
@@ -4763,7 +4791,7 @@ end;
 
 function TSBaseTable.Repair(): Boolean;
 begin
-  Result := Database.Session.ExecuteSQL('REPAIR TABLE ' + Session.EscapeIdentifier(Database.Name) + '.' + Session.EscapeIdentifier(Name) + ';');
+  Result := Session.ExecuteSQL('REPAIR TABLE ' + Session.EscapeIdentifier(Database.Name) + '.' + Session.EscapeIdentifier(Name) + ';');
 end;
 
 procedure TSBaseTable.PushBuildEvent(const SItemsEvents: Boolean = True);
@@ -6414,7 +6442,6 @@ var
 begin
   Assert(AEntity is TSTrigger);
 
-
   Index := IndexOf(AEntity);
 
   if (Index >= 0) then
@@ -6958,21 +6985,20 @@ begin
       Result := Session.ExecuteSQL(SQL, Session.SessionResult);
   end;
 
-  if (Result) then
-    if ((Session.ServerVersion < 40100) and Assigned(Table.AutoIncrementField)) then
-    begin
-      BaseTableByName(NewTableName).Update();
+  if (Result and (Session.ServerVersion < 40100) and Assigned(Table.AutoIncrementField)) then
+  begin
+    Session.BeginSynchron();
+    BaseTableByName(NewTableName).Update();
+    Session.EndSynchron();
 
-      NewTable := TSBaseTable.Create(Tables);
-      NewTable.Assign(BaseTableByName(NewTableName));
-      NewTable.FieldByName(Table.AutoIncrementField.Name).AutoIncrement := True;
-      Session.BeginSynchron();
-      Result := UpdateTable(BaseTableByName(NewTableName), NewTable);
-      Session.EndSynchron();
-      NewTable.Free();
-    end;
-
-  Session.EndSynchron();
+    NewTable := TSBaseTable.Create(Tables);
+    NewTable.Assign(BaseTableByName(NewTableName));
+    NewTable.FieldByName(Table.AutoIncrementField.Name).AutoIncrement := True;
+    Session.BeginSynchron();
+    Result := UpdateTable(BaseTableByName(NewTableName), NewTable);
+    Session.EndSynchron();
+    NewTable.Free();
+  end;
 end;
 
 function TSDatabase.CloneView(const View: TSView; const NewViewName: string): Boolean;
@@ -6987,7 +7013,7 @@ begin
   if (Session.DatabaseName <> Name) then
     SQL := SQLUse() + SQL;
 
-  Result := Session.ExecuteSQL(SQL);
+  Result := Session.SendSQL(SQL);
 end;
 
 constructor TSDatabase.Create(const ASession: TSSession = nil; const AName: string = '');
@@ -7534,9 +7560,17 @@ begin
           if (NewField.AutoIncrement) then
             SQLPart := SQLPart + ' AUTO_INCREMENT'
           else if ((NewField.Default <> '') and not (NewField.FieldType in [mfTinyText, mfText, mfMediumText, mfLongText, mfTinyBlob, mfBlob, mfMediumBlob, mfLongBlob])) then
+          begin
             SQLPart := SQLPart + ' DEFAULT ' + NewField.Default;
+            if (NewField.DefaultSize > 0) then
+              SQLPart := SQLPart + '(' + IntToStr(NewField.DefaultSize) + ')';
+          end;
           if ((NewField.OnUpdate <> '') and (NewField.FieldType = mfTimeStamp)) then
+          begin
             SQLPart := SQLPart + ' ON UPDATE ' + NewField.OnUpdate;
+            if (NewField.OnUpdateSize > 0) then
+              SQLPart := SQLPart + '(' + IntToStr(NewField.OnUpdateSize) + ')';
+          end;
           if ((Session.ServerVersion >= 40100) and (NewField.Comment <> '')) then
             SQLPart := SQLPart + ' COMMENT ' + SQLEscape(NewField.Comment);
         end
@@ -10118,28 +10152,26 @@ function Compare(Item1, Item2: Pointer): Integer;
 
   function ClassOrder(const Item: TObject): Integer;
   begin
-    if (Item is TSVariables) then Result := 0
-    else if (Item is TSStati) then Result := 1
-    else if (Item is TSEngines) then Result := 2
-    else if (Item is TSCharsets) then Result := 3
-    else if (Item is TSCollations) then Result := 4
-    else if (Item is TSPlugins) then Result := 5
-    else if (Item is TSDatabases) then Result := 6
+    if (Item is TSUser) then Result := 0
+    else if (Item is TSVariables) then Result := 1
+    else if (Item is TSStati) then Result := 2
+    else if (Item is TSEngines) then Result := 3
+    else if (Item is TSCharsets) then Result := 4
+    else if (Item is TSCollations) then Result := 5
+    else if (Item is TSPlugins) then Result := 6
     else if (Item is TSUsers) then Result := 7
-    else if (Item is TSTable) then Result := 8
-    else if (Item is TSProcedure) then Result := 9
-    else if (Item is TSFunction) then Result := 10
-    else if (Item is TSTrigger) then Result := 11
-    else if (Item is TSEvent) then Result := 12
-    else if (Item is TSDatabase) then Result := 13
-    else if (Item is TSVariable) then Result := 14
-    else if (Item is TSStatus) then Result := 15
-    else if (Item is TSEngine) then Result := 16
-    else if (Item is TSCharset) then Result := 17
-    else if (Item is TSCollation) then Result := 18
-    else if (Item is TSPlugin) then Result := 19
-    else if (Item is TSProcess) then Result := 20
-    else if (Item is TSUser) then Result := 21
+    else if (Item is TSProcesses) then Result := 8
+    else if (Item is TSDatabases) then Result := 9
+    else if (Item is TSDatabase) then Result := 10
+    else if (Item is TSTables) then Result := 11
+    else if (Item is TSRoutines) then Result := 12
+    else if (Item is TSEvents) then Result := 13
+    else if (Item is TSTriggers) then Result := 14
+    else if (Item is TSTable) then Result := 15
+    else if (Item is TSProcedure) then Result := 16
+    else if (Item is TSFunction) then Result := 17
+    else if (Item is TSTrigger) then Result := 18
+    else if (Item is TSEvent) then Result := 19
     else Result := -1;
   end;
 
