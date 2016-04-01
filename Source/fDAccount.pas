@@ -4,9 +4,10 @@ interface {********************************************************************}
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ComCtrls, ExtCtrls,
+  Dialogs, StdCtrls, ComCtrls, ExtCtrls, Menus,
+  SynEdit, SynMemo,
   ComCtrls_Ext, Forms_Ext, StdCtrls_Ext, ExtCtrls_Ext,
-  fPreferences, fBase, fSession, SynEdit, SynMemo, Menus;
+  fPreferences, fBase, fSession;
 
 type
   TDAccountShowType = (stDefault, stLogin);

@@ -113,8 +113,8 @@ procedure TDDatabase.Built();
 begin
   FName.Text := Database.Name;
 
-  FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf(Database.DefaultCharset); FDefaultCharsetChange(nil);
-  FCollation.ItemIndex := FCollation.Items.IndexOf(Database.Collation); FCollationChange(nil);
+//  FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf(Database.DefaultCharset); FDefaultCharsetChange(nil);
+//  FCollation.ItemIndex := FCollation.Items.IndexOf(Database.Collation); FCollationChange(nil); Nils
 
   FSource.Lines.Text := Database.Source;
 

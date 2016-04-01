@@ -7088,8 +7088,6 @@ begin
           Columns[J].Width := Canvas.TextWidth('<GEO>')
         else if (Fields[J].DataType = ftWideMemo) then
           Columns[J].Width := Canvas.TextWidth('<MEMO>')
-        else if (Fields[J].DataType = ftString) then
-          Columns[J].Width := Canvas.TextWidth('<BINARY>')
         else if (Fields[J].DataType = ftBlob) then
           Columns[J].Width := Canvas.TextWidth('<BLOB>')
         else
@@ -7145,8 +7143,6 @@ procedure TTExportCanvas.ExecuteTableRecord(const Table: TSTable; const Fields: 
       Result := '<GEO>'
     else if ((Field.DataType = ftWideMemo) and not Preferences.GridMemoContent) then
       Result := '<MEMO>'
-    else if (Field.DataType = ftString) then
-      Result := '<BINARY>'
     else if (Field.DataType = ftBlob) then
       Result := '<BLOB>'
     else

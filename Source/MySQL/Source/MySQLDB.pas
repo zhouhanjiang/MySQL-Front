@@ -1401,56 +1401,56 @@ begin
   else
   begin
     my_init := nil;
-    mysql_affected_rows := Tmysql_affected_rows(@MySQLClient.mysql_affected_rows);
-    mysql_character_set_name := Tmysql_character_set_name(@MySQLClient.mysql_character_set_name);
-    mysql_close := Tmysql_close(@MySQLClient.mysql_close);
-    mysql_errno := Tmysql_errno(@MySQLClient.mysql_errno);
-    mysql_error := Tmysql_error(@MySQLClient.mysql_error);
-    mysql_fetch_field := Tmysql_fetch_field(@MySQLClient.mysql_fetch_field);
-    mysql_fetch_fields := nil; // Tmysql_fetch_fields(@MySQLClient.mysql_fetch_fields);
-    mysql_fetch_field_direct := Tmysql_fetch_field_direct(@MySQLClient.mysql_fetch_field_direct);
-    mysql_fetch_lengths := Tmysql_fetch_lengths(@MySQLClient.mysql_fetch_lengths);
-    mysql_fetch_row := Tmysql_fetch_row(@MySQLClient.mysql_fetch_row);
-    mysql_field_count := Tmysql_field_count(@MySQLClient.mysql_field_count);
-    mysql_free_result := Tmysql_free_result(@MySQLClient.mysql_free_result);
-    mysql_get_client_info := Tmysql_get_client_info(@MySQLClient.mysql_get_client_info);
-    mysql_get_client_version := Tmysql_get_client_version(@MySQLClient.mysql_get_client_version);
-    mysql_get_host_info := Tmysql_get_host_info(@MySQLClient.mysql_get_host_info);
-    mysql_get_server_info := Tmysql_get_server_info(@MySQLClient.mysql_get_server_info);
-    mysql_get_server_status := Tmysql_get_server_status(@MySQLClient.mysql_get_server_status);
-    mysql_get_server_version := Tmysql_get_server_version(@MySQLClient.mysql_get_server_version);
-    mysql_info := Tmysql_info(@MySQLClient.mysql_info);
+    mysql_affected_rows := @MySQLClient.mysql_affected_rows;
+    mysql_character_set_name := @MySQLClient.mysql_character_set_name;
+    mysql_close := @MySQLClient.mysql_close;
+    mysql_errno := @MySQLClient.mysql_errno;
+    mysql_error := @MySQLClient.mysql_error;
+    mysql_fetch_field := @MySQLClient.mysql_fetch_field;
+    mysql_fetch_fields := @MySQLClient.mysql_fetch_fields;
+    mysql_fetch_field_direct := @MySQLClient.mysql_fetch_field_direct;
+    mysql_fetch_lengths := @MySQLClient.mysql_fetch_lengths;
+    mysql_fetch_row := @MySQLClient.mysql_fetch_row;
+    mysql_field_count := @MySQLClient.mysql_field_count;
+    mysql_free_result := @MySQLClient.mysql_free_result;
+    mysql_get_client_info := @MySQLClient.mysql_get_client_info;
+    mysql_get_client_version := @MySQLClient.mysql_get_client_version;
+    mysql_get_host_info := @MySQLClient.mysql_get_host_info;
+    mysql_get_server_info := @MySQLClient.mysql_get_server_info;
+    mysql_get_server_status := @MySQLClient.mysql_get_server_status;
+    mysql_get_server_version := @MySQLClient.mysql_get_server_version;
+    mysql_info := @MySQLClient.mysql_info;
     if (LibraryType <> ltHTTP) then
-      mysql_init := Tmysql_init(@MySQLClient.mysql_init)
+      mysql_init := @MySQLClient.mysql_init
     else
-      mysql_init := Tmysql_init(@HTTPTunnel.mysql_init);
-    mysql_insert_id := Tmysql_insert_id(@MySQLClient.mysql_insert_id);
-    mysql_more_results := Tmysql_more_results(@MySQLClient.mysql_more_results);
-    mysql_next_result := Tmysql_next_result(@MySQLClient.mysql_next_result);
+      mysql_init := @HTTPTunnel.mysql_init;
+    mysql_insert_id := @MySQLClient.mysql_insert_id;
+    mysql_more_results := @MySQLClient.mysql_more_results;
+    mysql_next_result := @MySQLClient.mysql_next_result;
     mysql_library_end := nil;
     mysql_library_init := nil;
-    mysql_num_fields := Tmysql_num_fields(@MySQLClient.mysql_num_fields);
-    mysql_num_rows := Tmysql_num_rows(@MySQLClient.mysql_num_rows);
-    mysql_options := Tmysql_options(@MySQLClient.mysql_options);
-    mysql_ping := Tmysql_ping(@MySQLClient.mysql_ping);
-    mysql_real_connect := Tmysql_real_connect(@MySQLClient.mysql_real_connect);
-    mysql_real_escape_string := Tmysql_real_escape_string(@MySQLClient.mysql_real_escape_string);
-    mysql_real_query := Tmysql_real_query(@MySQLClient.mysql_real_query);
-    mysql_set_character_set := Tmysql_set_character_set(@MySQLClient.mysql_set_character_set);
-    mysql_set_local_infile_default := Tmysql_set_local_infile_default(@MySQLClient.mysql_set_local_infile_default);
-    mysql_set_local_infile_handler := Tmysql_set_local_infile_handler(@MySQLClient.mysql_set_local_infile_handler);
-    mysql_set_server_option := Tmysql_set_server_option(@MySQLClient.mysql_set_server_option);
+    mysql_num_fields := @MySQLClient.mysql_num_fields;
+    mysql_num_rows := @MySQLClient.mysql_num_rows;
+    mysql_options := @MySQLClient.mysql_options;
+    mysql_ping := @MySQLClient.mysql_ping;
+    mysql_real_connect := @MySQLClient.mysql_real_connect;
+    mysql_real_escape_string := @MySQLClient.mysql_real_escape_string;
+    mysql_real_query := @MySQLClient.mysql_real_query;
+    mysql_set_character_set := @MySQLClient.mysql_set_character_set;
+    mysql_set_local_infile_default := @MySQLClient.mysql_set_local_infile_default;
+    mysql_set_local_infile_handler := @MySQLClient.mysql_set_local_infile_handler;
+    mysql_set_server_option := @MySQLClient.mysql_set_server_option;
     if (LibraryType <> ltHTTP) then
-      mysql_shutdown := Tmysql_shutdown(@MySQLClient.mysql_shutdown)
+      mysql_shutdown := @MySQLClient.mysql_shutdown
     else
       mysql_shutdown := nil;
-    mysql_store_result := Tmysql_store_result(@MySQLClient.mysql_store_result);
+    mysql_store_result := @MySQLClient.mysql_store_result;
     mysql_thread_end := nil;
-    mysql_thread_id := Tmysql_thread_id(@MySQLClient.mysql_thread_id);
+    mysql_thread_id := @MySQLClient.mysql_thread_id;
     mysql_thread_init := nil;
     mysql_thread_save := nil;
-    mysql_use_result := Tmysql_use_result(@MySQLClient.mysql_use_result);
-    mysql_warning_count := Tmysql_warning_count(@MySQLClient.mysql_warning_count);
+    mysql_use_result := @MySQLClient.mysql_use_result;
+    mysql_warning_count := @MySQLClient.mysql_warning_count;
   end;
 
   if (Assigned(mysql_library_init)) then
@@ -3093,7 +3093,7 @@ begin
       Lib.mysql_set_local_infile_handler(LibraryThread.LibHandle, @MySQLDB.local_infile_init, @MySQLDB.local_infile_read, @MySQLDB.local_infile_end, @MySQLDB.local_infile_error, Self);
   end;
 
-  ClientFlag := CLIENT_INTERACTIVE or CLIENT_LOCAL_FILES;
+  ClientFlag := CLIENT_INTERACTIVE or CLIENT_LOCAL_FILES or CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS;
   if (DatabaseName <> '') then
     ClientFlag := ClientFlag or CLIENT_CONNECT_WITH_DB;
   if (Assigned(Lib.mysql_more_results) and Assigned(Lib.mysql_next_result)) then
@@ -3147,8 +3147,7 @@ begin
     else
       SQL := 'KILL CONNECTION ' + IntToStr(ThreadId);
 
-    if (Lib.mysql_real_query(LibraryThread.LibHandle, my_char(AnsiString(SQL)), Length(SQL)) = 0) then
-      Lib.mysql_use_result(LibraryThread.LibHandle);
+    Lib.mysql_real_query(LibraryThread.LibHandle, my_char(AnsiString(SQL)), Length(SQL));
   end;
 end;
 
@@ -3295,8 +3294,10 @@ var
   LibSQL: AnsiString;
   NeedReconnect: Boolean;
   PacketLength: Integer;
+  ResetPassword: Boolean;
   Retry: Integer;
   StartTime: TDateTime;
+  Stmt: RawByteString;
   Success: Boolean;
   TrimmedPacketLength: Integer;
 begin
@@ -3321,6 +3322,7 @@ begin
       SyncConnecting(LibraryThread);
       Success := Assigned(LibraryThread) and LibraryThread.Success;
     end;
+    ResetPassword := False;
 
     if (not LibraryThread.Terminated and Success) then
     begin
@@ -3328,22 +3330,30 @@ begin
       LibraryThread.Success := Lib.mysql_real_query(LibraryThread.LibHandle, my_char(LibSQL), LibLength) = 0;
       LibraryThread.Time := LibraryThread.Time + Now() - StartTime;
 
-      NeedReconnect := not Assigned(LibraryThread.LibHandle)
-        or (Lib.mysql_errno(LibraryThread.LibHandle) = CR_SERVER_GONE_ERROR)
-        or (Lib.mysql_errno(LibraryThread.LibHandle) = CR_SERVER_LOST)
-        or (Lib.mysql_errno(LibraryThread.LibHandle) = CR_SERVER_HANDSHAKE_ERR);
-      if (NeedReconnect) then
-        SyncDisconnecting(LibraryThread);
+      if (Lib.mysql_errno(LibraryThread.LibHandle) = ER_MUST_CHANGE_PASSWORD) then
+      begin
+        Stmt := LibEncode('SET PASSWORD=Password(' + SQLEscape(Password) + ')');
+        ResetPassword := Lib.mysql_real_query(LibraryThread.LibHandle, my_char(Stmt), Length(Stmt)) = 0;
+      end
+      else
+      begin
+        NeedReconnect := not Assigned(LibraryThread.LibHandle)
+          or (Lib.mysql_errno(LibraryThread.LibHandle) = CR_SERVER_GONE_ERROR)
+          or (Lib.mysql_errno(LibraryThread.LibHandle) = CR_SERVER_LOST)
+          or (Lib.mysql_errno(LibraryThread.LibHandle) = CR_SERVER_HANDSHAKE_ERR);
+        if (NeedReconnect) then
+          SyncDisconnecting(LibraryThread);
+      end;
     end;
 
     Inc(Retry);
-  until (not NeedReconnect or (Retry > RETRY_COUNT));
-
-  if (LibraryThread.Success and not LibraryThread.Terminated) then
-    LibraryThread.ResHandle := Lib.mysql_use_result(LibraryThread.LibHandle);
+  until ((not ResetPassword and not NeedReconnect) or (Retry > RETRY_COUNT));
 
   if (Assigned(LibraryThread.LibHandle)) then
   begin
+    if (LibraryThread.Success and not LibraryThread.Terminated) then
+      LibraryThread.ResHandle := Lib.mysql_use_result(LibraryThread.LibHandle);
+
     LibraryThread.ErrorCode := Lib.mysql_errno(LibraryThread.LibHandle);
     if (LibraryThread.ErrorCode = 0) then
       LibraryThread.ErrorMessage := ''
@@ -4202,8 +4212,6 @@ begin
     Result := Field.AsString
   else if (LibLengths^[Field.FieldNo - 1] = 0) then
     Result := ''
-  else if (Field.DataType = ftString) then
-    Result := '<Binary>'
   else if (Field.DataType = ftBlob) then
     Result := '<Blob>'
   else if (Field.DataType in NotQuotedDataTypes) then

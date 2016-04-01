@@ -1711,7 +1711,11 @@ begin
     DS_SET_NAMES: Msg := Preferences.LoadStr(878, ErrorMessage);
     DS_SERVER_OLD: Msg := Preferences.LoadStr(696, '3.23.20');
     DS_OUT_OF_MEMORY: Msg := Preferences.LoadStr(733);
-    else Msg := Preferences.LoadStr(165, IntToStr(ErrorCode), ErrorMessage);
+    else
+      if ((CR_MIN_ERROR <= ErrorCode) and (ErrorCode <= CR_MAX_ERROR)) then
+        Msg := ErrorMessage
+      else
+        Msg := Preferences.LoadStr(165, IntToStr(ErrorCode), ErrorMessage);
   end;
 
   if (Msg <> '') then

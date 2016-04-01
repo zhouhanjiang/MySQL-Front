@@ -4175,8 +4175,8 @@ var
   K: Integer;
   L: Largeint;
   Moved: Boolean;
-  Name: string;
   NewField: TSBaseTableField;
+  NewName: string;
   NewForeignKey: TSForeignKey;
   NewKey: TSKey;
   NewKeyColumn: TSKeyColumn;
@@ -4204,17 +4204,19 @@ begin
 
     Temporary := SQLParseKeyword(Parse, 'TEMPORARY');
 
-    if (not SQLParseKeyword(Parse, 'TABLE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+    if (not SQLParseKeyword(Parse, 'TABLE')) then
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
-    Name := SQLParseValue(Parse);
+    NewName := SQLParseValue(Parse);
     if (SQLParseChar(Parse, '.')) then
     begin
-      if (Database.Session.TableNameCmp(Database.Name, Name) <> 0) then
+      if (Database.Session.TableNameCmp(Database.Name, NewName) <> 0) then
         raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
-      Name := SQLParseValue(Parse);
+      NewName := SQLParseValue(Parse);
     end;
 
-    if (not SQLParseChar(Parse, '(')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+    if (not SQLParseChar(Parse, '(')) then
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
     if (not Assigned(Database.Session.VariableByName('sql_quote_show_create'))) then
     begin
@@ -4242,9 +4244,9 @@ begin
       and not SQLParseKeyword(TempParse, 'CONSTRAINT', False)
       and not SQLParseKeyword(TempParse, 'FOREIGN KEY', False)) do
     begin
-      Name := SQLParseValue(TempParse);
+      NewName := SQLParseValue(TempParse);
       for I := DeleteList.Count - 1 downto 0 do
-        if (Fields.NameCmp(TSField(DeleteList[I]).Name, Name) = 0) then
+        if (Fields.NameCmp(TSField(DeleteList[I]).Name, NewName) = 0) then
           DeleteList.Delete(I);
     end;
     for I := DeleteList.Count - 1 downto 0 do
@@ -4271,24 +4273,24 @@ begin
     begin
       Assert(FFields is TSBaseTableFields);
 
-      Name := SQLParseValue(Parse);
+      NewName := SQLParseValue(Parse);
 
       Moved := False;
       if (Index = FFields.Count) then
-        Index := FFields.Add(TSBaseTableField.Create(TSBaseTableFields(FFields), Name))
-      else if (Index < FFields.IndexByName(Name)) then
+        Index := FFields.Add(TSBaseTableField.Create(TSBaseTableFields(FFields), NewName))
+      else if (Index < FFields.IndexByName(NewName)) then
       begin
-        FFields.Move(FFields.IndexByName(Name), Index);
+        FFields.Move(FFields.IndexByName(NewName), Index);
         TSBaseTableField(FFields[Index]).Clear();
-        TSBaseTableField(FFields[Index]).FName := Name;
+        TSBaseTableField(FFields[Index]).FName := NewName;
         Moved := True;
       end
-      else if (Fields.NameCmp(Name, FFields[Index].Name) <> 0) then
-        FFields.Insert(Index, TSBaseTableField.Create(TSBaseTableFields(FFields), Name))
+      else if (Fields.NameCmp(NewName, FFields[Index].Name) <> 0) then
+        FFields.Insert(Index, TSBaseTableField.Create(TSBaseTableFields(FFields), NewName))
       else
       begin
         TSBaseTableField(FFields[Index]).Clear();
-        TSBaseTableField(FFields[Index]).FName := Name;
+        TSBaseTableField(FFields[Index]).FName := NewName;
       end;
 
       NewField := TSBaseTableField(FFields[Index]);
@@ -4369,7 +4371,7 @@ begin
             else if (SQLParseKeyword(Parse, 'COLUMN_FORMAT')) then
               NewField.Format := StrToMySQLRowType(SQLParseValue(Parse))
             else
-              raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+              raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name + '.' + NewField.Name, SQL]);
           end
           else if (SQLParseKeyword(Parse, 'AS')) then
           begin
@@ -4430,20 +4432,20 @@ begin
       SQLParseKeyword(Parse, 'INDEX');
 
       if (Primary or SQLParseKeyword(Parse, 'TYPE', False) or SQLParseKeyword(Parse, 'USING', False) or SQLParseChar(Parse, '(', False)) then
-        Name := ''
+        NewName := ''
       else
-        Name := SQLParseValue(Parse);
+        NewName := SQLParseValue(Parse);
 
 
-      if (not FKeys.InsertIndex(Name, Index)) then
+      if (not FKeys.InsertIndex(NewName, Index)) then
       begin
         DeleteList.Delete(DeleteList.IndexOf(FKeys[Index]));
         FKeys[Index].Clear();
       end
       else if (Index < FKeys.Count) then
-        FKeys.Insert(Index, TSKey.Create(FKeys, Name))
+        FKeys.Insert(Index, TSKey.Create(FKeys, NewName))
       else
-        FKeys.Add(TSKey.Create(FKeys, Name));
+        FKeys.Add(TSKey.Create(FKeys, NewName));
       NewKey := FKeys[Index];
 
       NewKey.PrimaryKey := Primary;
@@ -4500,28 +4502,30 @@ begin
     while (SQLParseKeyword(Parse, 'CONSTRAINT', False) or SQLParseKeyword(Parse, 'FOREIGN KEY', False)) do
     begin
       if (not SQLParseKeyword(Parse, 'CONSTRAINT')) then
-        Name := ''
+        NewName := ''
       else
-        Name := SQLParseValue(Parse);// Symbol Name
+        NewName := SQLParseValue(Parse);// Symbol Name
 
-      if (not SQLParseKeyword(Parse, 'FOREIGN KEY')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+      if (not SQLParseKeyword(Parse, 'FOREIGN KEY')) then
+        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
       if (not SQLParseChar(Parse, '(', False)) then
-        Name := SQLParseValue(Parse); // Index Name
+        NewName := SQLParseValue(Parse); // Index Name
 
 
-      if (not FForeignKeys.InsertIndex(Name, Index)) then
+      if (not FForeignKeys.InsertIndex(NewName, Index)) then
       begin
         DeleteList.Delete(DeleteList.IndexOf(FForeignKeys.Items[Index]));
         FForeignKeys[Index].Clear();
       end
       else if (Index < FForeignKeys.Count) then
-        FForeignKeys.Insert(Index, TSForeignKey.Create(FForeignKeys, Name))
+        FForeignKeys.Insert(Index, TSForeignKey.Create(FForeignKeys, NewName))
       else
-        FForeignKeys.Add(TSForeignKey.Create(FForeignKeys, Name));
+        FForeignKeys.Add(TSForeignKey.Create(FForeignKeys, NewName));
       NewForeignKey := FForeignKeys[Index];
 
-      if (not SQLParseChar(Parse, '(')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+      if (not SQLParseChar(Parse, '(')) then
+        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
       repeat
         SetLength(NewForeignKey.Fields, Length(NewForeignKey.Fields) + 1);
         NewForeignKey.Fields[Length(NewForeignKey.Fields) - 1] := FieldByName(SQLParseValue(Parse));
@@ -4529,14 +4533,17 @@ begin
         SQLParseChar(Parse, ',');
       until (SQLParseChar(Parse, ')'));
 
-      if (not SQLParseKeyword(Parse, 'REFERENCES')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+      if (not SQLParseKeyword(Parse, 'REFERENCES')) then
+        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
       NewForeignKey.Parent.DatabaseName := Database.Name;
-      if (not SQLParseObjectName(Parse, NewForeignKey.Parent.DatabaseName, NewForeignKey.Parent.TableName)) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+      if (not SQLParseObjectName(Parse, NewForeignKey.Parent.DatabaseName, NewForeignKey.Parent.TableName)) then
+        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
       NewForeignKey.Parent.TableName := Session.TableName(NewForeignKey.Parent.TableName); // Sometimes MySQL reports parent table name in wrong case sensitive
 
-      if (not SQLParseChar(Parse, '(')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+      if (not SQLParseChar(Parse, '(')) then
+        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
       repeat
         FieldName := SQLParseValue(Parse);
         SetLength(NewForeignKey.Parent.FieldNames, Length(NewForeignKey.Parent.FieldNames) + 1);
@@ -4591,7 +4598,8 @@ begin
     DeleteList.Free();
 
 
-    if (not SQLParseChar(Parse, ')')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+    if (not SQLParseChar(Parse, ')')) then
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
     while (not SQLParseChar(Parse, ')') and not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';')) do
     begin
@@ -4684,7 +4692,8 @@ begin
           if (SQLParseChar(Parse, '(')) then
           begin
             FPartitions.Expression := '(' + SQLParseBracketContent(Parse) + ')';
-            if (not SQLParseChar(Parse, ')')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+            if (not SQLParseChar(Parse, ')')) then
+              raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
           end;
 
           if (SQLParseKeyword(Parse, 'PARTITIONS')) then

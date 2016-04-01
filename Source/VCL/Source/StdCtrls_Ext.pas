@@ -3,7 +3,7 @@ unit StdCtrls_Ext;
 interface {********************************************************************}
 
 uses
-  SysUtils, Classes, Controls, StdCtrls, Messages, Windows;
+  SysUtils, Classes, Controls, StdCtrls, Messages, Windows, ActnList;
 
 type
   TComboBox_Ext = class(TComboBox)
@@ -35,7 +35,7 @@ procedure Register();
 implementation {***************************************************************}
 
 uses
-  StdActns, Clipbrd;
+  StdActns, Clipbrd, StrUtils;
 
 procedure Register();
 begin
@@ -88,15 +88,21 @@ end;
 procedure TComboBox_Ext.PasteFromClipboard();
 var
   ClipboardData: HGLOBAL;
+  I: Integer;
   S: string;
 begin
   if (OpenClipboard(Handle)) then
   begin
     ClipboardData := GetClipboardData(CF_UNICODETEXT);
     SetString(S, PChar(GlobalLock(ClipboardData)), GlobalSize(ClipboardData) div SizeOf(S[1]));
-    SelText := S;
     GlobalUnlock(ClipboardData);
     CloseClipboard();
+
+    for I := 0 to 31 do
+      S := ReplaceStr(S, Chr(I), '');
+    if (S[Length(S)] = #0) then
+      Delete(S, Length(S), 1);
+    SelText := S;
   end;
 end;
 

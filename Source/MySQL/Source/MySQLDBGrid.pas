@@ -904,6 +904,8 @@ var
   Index: Integer;
   RecNo: Integer;
   S: AnsiString;
+  Start: Integer;
+  Value: Integer;
   Values: TCSVValues;
 begin
   Result := not ReadOnly;
@@ -972,16 +974,23 @@ begin
                   DataLink.DataSet.Insert();
                 end;
 
-                for I := 0 to Min(Length(Values), DataLink.DataSet.FieldCount) - 1 do
-                  if (Values[I].Length = 0) then
-                    DataLink.DataSet.Fields[I].Clear()
-                  else if (DataLink.DataSet.Fields[I].AutoGenerateValue <> arAutoInc) then
+                Value := 0; Start := 0;
+                for I := 0 to Columns.Count - 1 do
+                  if (Columns[I].Field = SelectedField) then
+                    Start := I;
+                for I := Start to Start + Min(Length(Values), Columns.Count - Start) - 1 do
+                begin
+                  if (Values[Value].Length = 0) then
+                    Columns[I].Field.Clear()
+                  else if (Columns[I].Field.AutoGenerateValue <> arAutoInc) then
                     try
-                      DataLink.DataSet.Fields[I].AsString := CSVUnescape(Values[I].Text, Values[I].Length);
+                      Columns[I].Field.AsString := CSVUnescape(Values[Value].Text, Values[Value].Length);
                     except
                       MessageBeep(MB_ICONERROR);
                       DataLink.DataSet.Fields[I].Clear();
                     end;
+                  Inc(Value);
+                end;
 
                 if ((RecNo > 0) or (Index <= Length(Content))) then
                   try

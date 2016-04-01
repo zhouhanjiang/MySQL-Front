@@ -2972,6 +2972,16 @@ begin
     if (Data <> '') then
       Data := 'Address=' + NavigatorNodeToAddress(FNavigator.Selected) + #13#10 + Data;
   end
+  else if (Assigned(ActiveDBGrid) and (Window.ActiveControl = ActiveDBGrid)) then
+  begin
+    ImageIndex := 8;
+    if (not Assigned(EditorField)) then
+      ActiveDBGrid.CopyToClipboard()
+    else if (FText.Visible) then
+      FText.CopyToClipboard()
+    else if (FRTF.Visible) then
+      FRTF.CopyToClipboard();
+  end
   else if (Window.ActiveControl = ActiveWorkbench) then
   begin
     if ((ActiveWorkbench.Selected is TWSection) and OpenClipboard(Handle)) then
@@ -3187,6 +3197,8 @@ begin
     ActiveSynMemo.PasteFromClipboard()
   else if (Assigned(ActiveWorkbench) and (Window.ActiveControl = ActiveWorkbench)) then
     WorkbenchPasteExecute(Sender)
+  else if (Window.ActiveControl = FFilter) then
+    FFilter.PasteFromClipboard()
   else
     MessageBeep(MB_ICONERROR);
 end;
@@ -12273,7 +12285,8 @@ begin
     PSynMemo.Align := alNone;
     SResult.Align := alNone;
     PResult.Align := alNone;
-    SBlob.Align := alNone;
+    if (Assigned(SBlob)) then // Why is it unassigned sometimes???
+      SBlob.Align := alNone;
     PBlob.Align := alNone;
 
     PBlob.Visible := False;
@@ -12357,18 +12370,19 @@ begin
     end;
     FText.OnChange := FTextChange;
 
-    if (PBlob.Visible) then
-    begin
-      SBlob.Parent := PBlob.Parent;
-      SBlob.Top := PBlob.Top - SBlob.Height;
-      SBlob.Align := alBottom;
-      SBlob.Visible := True;
-    end
-    else
-    begin
-      SBlob.Visible := False;
-      SBlob.Parent := nil;
-    end;
+    if (Assigned(SBlob)) then
+      if (PBlob.Visible) then
+      begin
+        SBlob.Parent := PBlob.Parent;
+        SBlob.Top := PBlob.Top - SBlob.Height;
+        SBlob.Align := alBottom;
+        SBlob.Visible := True;
+      end
+      else
+      begin
+        SBlob.Visible := False;
+        SBlob.Parent := nil;
+      end;
 
     if ((Sender is TMySQLDataSet) and Assigned(ActiveDBGrid) and (ActiveDBGrid = SQLEditors[View].ActiveDBGrid)) then
     begin

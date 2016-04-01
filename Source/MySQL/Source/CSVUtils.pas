@@ -428,6 +428,11 @@ begin
         CMP ECX,1                        // Is there one characters left in SQL?
         JB FinishE                       // No!
         MOV AX,[ESI]                     // Current character in Text
+        CMP AX,0                         // Character = EOS?
+        JNE Finish2                      // No!
+        ADD ESI,2                        // Step over LineFeed
+        DEC ECX                          // One character handled
+        JMP FinishL
       Finish2:
         CMP AX,10                        // Character = NewLine?
         JNE Finish3                      // No!
