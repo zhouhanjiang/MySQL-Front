@@ -178,7 +178,7 @@ end;
 
 procedure TDSQLHelp.CMSendSQL(var Message: TMessage);
 begin
-  Session.SendSQL('HELP ' + SQLEscape(Keyword), ClientResult);
+  Session.Connection.SendSQL('HELP ' + SQLEscape(Keyword), ClientResult);
 end;
 
 procedure TDSQLHelp.CMSysFontChanged(var Message: TMessage);

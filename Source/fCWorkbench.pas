@@ -3536,7 +3536,7 @@ begin
   Clear();
 
   Database.Session.UnRegisterEventProc(SessionEvent);
-  Database.Session.BeginSynchron();
+  Database.Session.Connection.BeginSynchron();
 
   Sections.LoadFromXML(XML);
 
@@ -3552,7 +3552,7 @@ begin
   Database.Session.Update(List);
   List.Free();
 
-  Database.Session.EndSynchron();
+  Database.Session.Connection.EndSynchron();
   Database.Session.RegisterEventProc(SessionEvent);
 
   for I := 0 to XML.ChildNodes.Count - 1 do

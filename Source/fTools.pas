@@ -743,7 +743,7 @@ type
     FReplaceSession: TSSession;
   protected
     procedure ExecuteMatchCase(const Item: TTSearch.TItem; const Table: TSBaseTable); override;
-    property ReplaceConnection: TSSession read FReplaceSession;
+    property ReplaceSession: TSSession read FReplaceSession;
   public
     ReplaceText: string;
     Backup: Boolean;
@@ -910,8 +910,8 @@ begin
   Result := 'LOAD DATA LOCAL INFILE ' + SQLEscape(Filename) + #13#10;
   if (Replace) then
     Result := Result + '  REPLACE' + #13#10;
-  Result := Result + '  INTO TABLE ' + Session.EscapeIdentifier(DatabaseName) + '.' + Session.EscapeIdentifier(TableName) + #13#10;
-  if (((50038 <= Session.ServerVersion) and (Session.ServerVersion < 50100) or (50117 <= Session.ServerVersion)) and (FileCharset <> '')) then
+  Result := Result + '  INTO TABLE ' + Session.Connection.EscapeIdentifier(DatabaseName) + '.' + Session.Connection.EscapeIdentifier(TableName) + #13#10;
+  if (((50038 <= Session.Connection.ServerVersion) and (Session.Connection.ServerVersion < 50100) or (50117 <= Session.Connection.ServerVersion)) and (FileCharset <> '')) then
     Result := Result + '  CHARACTER SET ' + FileCharset + #13#10;
   Result := Result + '  FIELDS' + #13#10;
   Result := Result + '    TERMINATED BY ' + SQLEscape(',') + #13#10;
@@ -931,10 +931,10 @@ begin
   end;
   Result := SysUtils.Trim(Result) + ';' + #13#10;
 
-  if (((Session.ServerVersion < 50038) or (50100 <= Session.ServerVersion)) and (Session.ServerVersion < 50117) and (FileCharset <> '')) then
-    if ((Session.ServerVersion < 40100) or not Assigned(Session.VariableByName('character_set_database'))) then
-      Session.Charset := FileCharset
-    else if ((Session.VariableByName('character_set_database').Value <> FileCharset) and (Session.LibraryType <> ltHTTP)) then
+  if (((Session.Connection.ServerVersion < 50038) or (50100 <= Session.Connection.ServerVersion)) and (Session.Connection.ServerVersion < 50117) and (FileCharset <> '')) then
+    if ((Session.Connection.ServerVersion < 40100) or not Assigned(Session.VariableByName('character_set_database'))) then
+      Session.Connection.Charset := FileCharset
+    else if ((Session.VariableByName('character_set_database').Value <> FileCharset) and (Session.Connection.LibraryType <> ltHTTP)) then
       Result :=
         'SET SESSION character_set_database=' + SQLEscape(FileCharset) + ';' + #13#10
         + Result
@@ -1630,8 +1630,8 @@ end;
 function TTool.DatabaseError(const Session: TSSession): TTool.TError;
 begin
   Result.ErrorType := TE_Database;
-  Result.ErrorCode := Session.ErrorCode;
-  Result.ErrorMessage := Session.ErrorMessage;
+  Result.ErrorCode := Session.Connection.ErrorCode;
+  Result.ErrorMessage := Session.Connection.ErrorMessage;
   Result.Session := Session;
 end;
 
@@ -1713,14 +1713,14 @@ procedure TTImport.AfterExecute();
 var
   SQL: string;
 begin
-  if (Data and (Session.ServerVersion >= 40014)) then
+  if (Data and (Session.Connection.ServerVersion >= 40014)) then
   begin
     SQL := 'SET UNIQUE_CHECKS=' + OLD_UNIQUE_CHECKS + ',FOREIGN_KEY_CHECKS=' + OLD_FOREIGN_KEY_CHECKS + ';' + #13#10;
-    while (not Session.ExecuteSQL(SQL) and (Success = daSuccess)) do
+    while (not Session.Connection.ExecuteSQL(SQL) and (Success = daSuccess)) do
       DoError(DatabaseError(Session), nil, True, SQL);
   end;
 
-  Session.EndSilent();
+  Session.Connection.EndSilent();
 
   inherited;
 
@@ -1739,9 +1739,9 @@ var
 begin
   inherited;
 
-  Session.BeginSilent();
+  Session.Connection.BeginSilent();
 
-  if (Data and (Session.ServerVersion >= 40014)) then
+  if (Data and (Session.Connection.ServerVersion >= 40014)) then
   begin
     if (Assigned(Session.VariableByName('UNIQUE_CHECKS'))
       and Assigned(Session.VariableByName('FOREIGN_KEY_CHECKS'))) then
@@ -1752,13 +1752,13 @@ begin
     else
     begin
       DataSet := TMySQLQuery.Create(nil);
-      DataSet.Connection := Session;
+      DataSet.Connection := Session.Connection;
       DataSet.CommandText := 'SELECT @@UNIQUE_CHECKS,@@FOREIGN_KEY_CHECKS';
 
       while ((Success <> daAbort) and not DataSet.Active) do
       begin
         DataSet.Open();
-        if (Session.ErrorCode > 0) then
+        if (Session.Connection.ErrorCode > 0) then
           DoError(DatabaseError(Session), nil, True, SQL);
       end;
 
@@ -1773,7 +1773,7 @@ begin
     end;
 
     SQL := 'SET UNIQUE_CHECKS=OFF,FOREIGN_KEY_CHECKS=OFF;';
-    while ((Success <> daAbort) and not Session.ExecuteSQL(SQL)) do
+    while ((Success <> daAbort) and not Session.Connection.ExecuteSQL(SQL)) do
       DoError(DatabaseError(Session), nil, True, SQL);
   end;
 end;
@@ -1808,13 +1808,13 @@ end;
 
 function TTImport.DoExecuteSQL(const Item: TItem; var SQL: string): Boolean;
 begin
-  Result := Session.ExecuteSQL(SQL);
-  Inc(FWarningCount, Session.WarningCount);
+  Result := Session.Connection.ExecuteSQL(SQL);
+  Inc(FWarningCount, Session.Connection.WarningCount);
   if (Result) then
     SQL := ''
   else
   begin
-    Delete(SQL, 1, Session.ExecutedSQLLength);
+    Delete(SQL, 1, Session.Connection.ExecutedSQLLength);
     SQL := SysUtils.Trim(SQL);
   end;
 end;
@@ -1894,10 +1894,10 @@ begin
 
         if (Assigned(Table)) then
         begin
-          Session.BeginSynchron();
+          Session.Connection.BeginSynchron();
           while ((Success <> daAbort) and not Database.DeleteObject(Table)) do
             DoError(DatabaseError(Session), Items[I], True);
-          Session.EndSynchron();
+          Session.Connection.EndSynchron();
         end;
         if (Success = daSuccess) then
         begin
@@ -1951,28 +1951,28 @@ List: TList;
 begin
   BeforeExecuteData(Item);
 
-  EscapedTableName := Session.EscapeIdentifier(Table.Name);
+  EscapedTableName := Session.Connection.EscapeIdentifier(Table.Name);
 
   SetLength(EscapedDestinationFieldNames, Length(FieldMappings));
   for I := 0 to Length(FieldMappings) - 1 do
-    EscapedDestinationFieldNames[I] := Session.EscapeIdentifier(FieldMappings[I].DestinationField.Name);
+    EscapedDestinationFieldNames[I] := Session.Connection.EscapeIdentifier(FieldMappings[I].DestinationField.Name);
 
   if (Success = daSuccess) then
   begin
     SQLExecuted := TEvent.Create(nil, False, False, '');
 
     SQL := '';
-    if (Session.Databases.NameCmp(Session.DatabaseName, Database.Name) <> 0) then
+    if (Session.Databases.NameCmp(Session.Connection.DatabaseName, Database.Name) <> 0) then
       SQL := SQL + Database.SQLUse() + #13#10;
-    if (Session.Lib.LibraryType <> ltHTTP) then
+    if (Session.Connection.Lib.LibraryType <> ltHTTP) then
     begin
       if (Structure) then
       begin
-        SQL := SQL + 'LOCK TABLES ' + Session.EscapeIdentifier(Database.Name) + '.' + EscapedTableName + ' WRITE;' + #13#10;
-        if ((Session.ServerVersion >= 40000) and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
-          SQL := SQL + 'ALTER TABLE ' + Session.EscapeIdentifier(Database.Name) + '.' + EscapedTableName + ' DISABLE KEYS;' + #13#10;
+        SQL := SQL + 'LOCK TABLES ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + EscapedTableName + ' WRITE;' + #13#10;
+        if ((Session.Connection.ServerVersion >= 40000) and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
+          SQL := SQL + 'ALTER TABLE ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + EscapedTableName + ' DISABLE KEYS;' + #13#10;
       end;
-      if (Session.ServerVersion < 40011) then
+      if (Session.Connection.ServerVersion < 40011) then
         SQL := SQL + 'BEGIN;' + #13#10
       else
         SQL := SQL + 'START TRANSACTION;' + #13#10;
@@ -1980,7 +1980,7 @@ begin
     while ((Success <> daAbort) and not DoExecuteSQL(Item, SQL)) do
       DoError(DatabaseError(Session), Item, True, SQL);
 
-    if ((StmtType in [stInsert, stReplace]) and Session.DataFileAllowed) then
+    if ((StmtType in [stInsert, stReplace]) and Session.Connection.DataFileAllowed) then
     begin
       Pipename := '\\.\pipe\' + LoadStr(1000);
       Pipe := CreateNamedPipe(PChar(Pipename),
@@ -1990,13 +1990,13 @@ begin
         DoError(SysError(), nil, False)
       else
       begin
-        SQL := SQLLoadDataInfile(Database, StmtType = stReplace, Pipename, Session.Charset, Database.Name, Table.Name, EscapedDestinationFieldNames);
+        SQL := SQLLoadDataInfile(Database, StmtType = stReplace, Pipename, Session.Connection.Charset, Database.Name, Table.Name, EscapedDestinationFieldNames);
 
-        Session.SendSQL(SQL, SQLExecuted);
+        Session.Connection.SendSQL(SQL, SQLExecuted);
 
         if (ConnectNamedPipe(Pipe, nil)) then
         begin
-          DataFileBuffer := TDataFileBuffer.Create(Session.CodePage);
+          DataFileBuffer := TDataFileBuffer.Create(Session.Connection.CodePage);
 
           Item.RecordsDone := 0;
           while ((Success = daSuccess) and NextRecord(Item)) do
@@ -2030,13 +2030,13 @@ begin
             SQLExecuted.WaitFor(INFINITE);
           DisconnectNamedPipe(Pipe);
 
-          if ((Success <> daSuccess) or (Session.ErrorCode > 0))  then
+          if ((Success <> daSuccess) or (Session.Connection.ErrorCode > 0))  then
             DoError(DatabaseError(Session), Item, False);
 
-          if ((Success = daSuccess) and (Session.WarningCount > 0)) then
+          if ((Success = daSuccess) and (Session.Connection.WarningCount > 0)) then
           begin
             DataSet := TMySQLQuery.Create(nil);
-            DataSet.Connection := Session;
+            DataSet.Connection := Session.Connection;
             DataSet.CommandText := 'SHOW WARNINGS';
 
             DataSet.Open();
@@ -2155,7 +2155,7 @@ begin
         while ((Success <> daAbort) and (SQL <> '') and not DoExecuteSQL(Item, SQL)) do
           DoError(DatabaseError(Session), Item, True, SQL);
 
-        Delete(SQL, 1, Session.ExecutedSQLLength);
+        Delete(SQL, 1, Session.Connection.ExecutedSQLLength);
       end;
 
       while ((Success <> daAbort) and (SQL <> '') and not DoExecuteSQL(Item, SQL)) do
@@ -2172,16 +2172,16 @@ begin
       SQLStmt.Free();
     end;
 
-    if (Session.Lib.LibraryType <> ltHTTP) then
+    if (Session.Connection.Lib.LibraryType <> ltHTTP) then
     begin
       SQL := '';
       if (Structure) then
       begin
-        if ((Session.ServerVersion >= 40000) and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
-          SQL := SQL + 'ALTER TABLE ' + Session.EscapeIdentifier(Database.Name) + '.' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
+        if ((Session.Connection.ServerVersion >= 40000) and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
+          SQL := SQL + 'ALTER TABLE ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
         SQL := SQL + 'UNLOCK TABLES;' + #13#10;
       end;
-      if ((Success = daAbort) or (Session.ErrorCode <> 0)) then
+      if ((Success = daAbort) or (Session.Connection.ErrorCode <> 0)) then
         SQL := SQL + 'ROLLBACK;' + #13#10
       else
         SQL := SQL + 'COMMIT;' + #13#10;
@@ -2195,10 +2195,10 @@ begin
 
   if (Table is TSBaseTable) then
   begin
-    Session.BeginSynchron(); // Must be synchron, since the next table will be handled immediately
+    Session.Connection.BeginSynchron(); // Must be synchron, since the next table will be handled immediately
     TSBaseTable(Table).InvalidateStatus();
     TSBaseTable(Table).Update();
-    Session.EndSynchron();
+    Session.Connection.EndSynchron();
   end;
 
   AfterExecuteData(Item);
@@ -2494,7 +2494,7 @@ begin
 
   if (Assigned(Text)) then
     Text^ := ''
-  else if ((Success = daSuccess) and Assigned(Database) and (Session.Databases.NameCmp(Session.DatabaseName, Database.Name) <> 0)) then
+  else if ((Success = daSuccess) and Assigned(Database) and (Session.Databases.NameCmp(Session.Connection.DatabaseName, Database.Name) <> 0)) then
   begin
     SQL := Database.SQLUse();
     while ((Success <> daAbort) and not DoExecuteSQL(TTImport.TItem(Items[0]), SQL)) do
@@ -2529,7 +2529,7 @@ begin
       end;
 
     SetNames := not EOF
-      and SQLParseCLStmt(CLStmt, @FileContent.Str[Index], Length(FileContent.Str), Session.ServerVersion)
+      and SQLParseCLStmt(CLStmt, @FileContent.Str[Index], Length(FileContent.Str), Session.Connection.ServerVersion)
       and (CLStmt.CommandType in [ctSetNames, ctSetCharacterSet]);
 
     if ((Index > 1) and (SetNames or (Index - 1 + Len >= SQLPacketSize))) then
@@ -2566,7 +2566,7 @@ begin
       begin
         FSetNamesApplied := True;
 
-        FCodePage := Session.CharsetToCodePage(CLStmt.ObjectName);
+        FCodePage := Session.Connection.CharsetToCodePage(CLStmt.ObjectName);
 
         ReadContent(SQLFilePos); // Clear FileContent
       end
@@ -2689,20 +2689,20 @@ begin
 
   NewTable.Name := Session.ApplyIdentifierName(Item.DestinationTableName);
 
-  Session.BeginSynchron();
+  Session.Connection.BeginSynchron();
   while ((Success <> daAbort) and not Database.AddTable(NewTable)) do
     DoError(DatabaseError(Session), Item, True);
-  Session.EndSynchron();
+  Session.Connection.EndSynchron();
 
   NewTable.Free();
 
   if (Success = daSuccess) then
   begin
     NewTable := Database.BaseTableByName(Item.DestinationTableName);
-    Session.BeginSynchron();
+    Session.Connection.BeginSynchron();
     while ((Success <> daAbort) and not NewTable.Update()) do
       DoError(DatabaseError(Session), Item, True);
-    Session.EndSynchron();
+    Session.Connection.EndSynchron();
 
     for I := 0 to HeadlineNameCount - 1 do
       AddField(NewTable.Fields[I], HeadlineNames[I]);
@@ -2895,9 +2895,9 @@ begin
           Value := CSVUnescape(CSVValues[I].Text, CSVValues[I].Length, Quoter);
           if ((SQL_INTEGER in FileFields[I].FieldTypes) and not TryStrToInt(Value, Int)) then
             Exclude(FileFields[I].FieldTypes, SQL_INTEGER);
-          if ((SQL_FLOAT in FileFields[I].FieldTypes) and not TryStrToFloat(Value, F, Session.FormatSettings)) then
+          if ((SQL_FLOAT in FileFields[I].FieldTypes) and not TryStrToFloat(Value, F, Session.Connection.FormatSettings)) then
             Exclude(FileFields[I].FieldTypes, SQL_FLOAT);
-          if ((SQL_DATE in FileFields[I].FieldTypes) and (not TryStrToDate(Value, DT, Session.FormatSettings) or (DT < EncodeDate(1900, 1, 1)))) then
+          if ((SQL_DATE in FileFields[I].FieldTypes) and (not TryStrToDate(Value, DT, Session.Connection.FormatSettings) or (DT < EncodeDate(1900, 1, 1)))) then
             Exclude(FileFields[I].FieldTypes, SQL_DATE);
         end;
 
@@ -3362,10 +3362,10 @@ begin
 
     NewTable.Name := Session.ApplyIdentifierName(Item.DestinationTableName);
 
-    Session.BeginSynchron();
+    Session.Connection.BeginSynchron();
     while ((Success <> daAbort) and not Database.AddTable(NewTable)) do
       DoError(DatabaseError(Session), Item, True);
-    Session.EndSynchron();
+    Session.Connection.EndSynchron();
   end;
 
   NewTable.Free();
@@ -3837,12 +3837,12 @@ begin
     if (Items[I] is TDBGridItem) then
       TDBGridItem(Items[I]).DBGrid.DataSource.DataSet.EnableControls();
 
-  FSession.EndSilent();
+  FSession.Connection.EndSilent();
 
   inherited;
 
   if (Terminated) then
-    Session.Terminate();
+    Session.Connection.Terminate();
 end;
 
 procedure TTExport.BeforeExecute();
@@ -3851,7 +3851,7 @@ var
 begin
   inherited;
 
-  FSession.BeginSilent();
+  FSession.Connection.BeginSilent();
 
   for I := 0 to Items.Count - 1 do
     if (Items[I] is TDBGridItem) then
@@ -3958,10 +3958,10 @@ begin
     if (Objects.Count > 0) then
     begin
       Success := daSuccess;
-      Session.BeginSynchron();
+      Session.Connection.BeginSynchron();
       while ((Success = daSuccess) and not Session.Update(Objects)) do
         DoError(DatabaseError(Session), nil, True, SQL);
-      Session.EndSynchron();
+      Session.Connection.EndSynchron();
     end;
     Objects.Free();
   end;
@@ -4007,11 +4007,11 @@ begin
         for J := 0 to Length(TableFields) - 1 do
         begin
           if (FieldNames <> '') then FieldNames := FieldNames + ',';
-          FieldNames := FieldNames + Session.EscapeIdentifier(TableFields[J].Name);
+          FieldNames := FieldNames + Session.Connection.EscapeIdentifier(TableFields[J].Name);
         end;
       end;
 
-      SQL := SQL + 'SELECT ' + FieldNames + ' FROM ' + Session.EscapeIdentifier(Table.Database.Name) + '.' + Session.EscapeIdentifier(Table.Name);
+      SQL := SQL + 'SELECT ' + FieldNames + ' FROM ' + Session.Connection.EscapeIdentifier(Table.Database.Name) + '.' + Session.Connection.EscapeIdentifier(Table.Name);
 
       if ((Table is TSBaseTable) and Assigned(TSBaseTable(Table).PrimaryKey)) then
       begin
@@ -4019,7 +4019,7 @@ begin
         for J := 0 to TSBaseTable(Table).PrimaryKey.Columns.Count - 1 do
         begin
           if (J > 0) then SQL := SQL + ',';
-          SQL := SQL + Session.EscapeIdentifier(TSBaseTable(Table).PrimaryKey.Columns[J].Field.Name);
+          SQL := SQL + Session.Connection.EscapeIdentifier(TSBaseTable(Table).PrimaryKey.Columns[J].Field.Name);
         end;
       end;
       SQL := SQL + ';' + #13#10;
@@ -4061,10 +4061,10 @@ begin
             case (DataTablesIndex) of
               -1: ;
               0:
-                while ((Success = daSuccess) and not Session.FirstResult(DataHandle, SQL)) do
+                while ((Success = daSuccess) and not Session.Connection.FirstResult(DataHandle, SQL)) do
                   DoError(DatabaseError(Session), nil, True, SQL);
               else
-                if ((Success = daSuccess) and not Session.NextResult(DataHandle)) then
+                if ((Success = daSuccess) and not Session.Connection.NextResult(DataHandle)) then
                   DoError(DatabaseError(Session), nil, False);
             end;
 
@@ -4102,7 +4102,7 @@ begin
       end;
 
     if ((Success <> daAbort) and Assigned(DataHandle)) then
-      Session.CloseResult(DataHandle);
+      Session.Connection.CloseResult(DataHandle);
   end;
 
   if (Success <> daAbort) then
@@ -4251,11 +4251,11 @@ begin
 
     if (Success = daSuccess) then
     begin
-      if (Assigned(Session.OnUpdateIndexDefs)) then
+      if (Assigned(Session.Connection.OnUpdateIndexDefs)) then
       begin
         // Set Field[I].ReadOnly for virtual fields
         IndexDefs := TIndexDefs.Create(DataSet);
-        Session.OnUpdateIndexDefs(DataSet, IndexDefs);
+        Session.Connection.OnUpdateIndexDefs(DataSet, IndexDefs);
         IndexDefs.Free();
       end;
 
@@ -4516,7 +4516,7 @@ begin
     Content := Content + '# Database "' + Database.Name + '"' + #13#10;
     Content := Content + '#' + #13#10;
     Content := Content + #13#10;
-    Content := Content + 'CREATE DATABASE IF NOT EXISTS ' + Session.EscapeIdentifier(Database.Name);
+    Content := Content + 'CREATE DATABASE IF NOT EXISTS ' + Session.Connection.EscapeIdentifier(Database.Name);
     if ((Database.DefaultCharset <> '') and (Database.Collation <> '')) then
       Content := Content + ' /*!40100 DEFAULT CHARACTER SET ' + Database.DefaultCharset + ' COLLATE ' + Database.Collation + ' */';
     Content := Content + ';' + #13#10;
@@ -4546,16 +4546,16 @@ var
 begin
   DoFileCreate(Filename);
 
-  Content := Content + '# Host: ' + Session.Host;
-  if (Session.Port <> MYSQL_PORT) then
-    Content := Content + ':' + IntToStr(Session.Port);
-  Content := Content + '  (Version ' + Session.ServerVersionStr + ')' + #13#10;
-  Content := Content + '# Date: ' + MySQLDB.DateTimeToStr(Now(), Session.FormatSettings) + #13#10;
+  Content := Content + '# Host: ' + Session.Connection.Host;
+  if (Session.Connection.Port <> MYSQL_PORT) then
+    Content := Content + ':' + IntToStr(Session.Connection.Port);
+  Content := Content + '  (Version ' + Session.Connection.ServerVersionStr + ')' + #13#10;
+  Content := Content + '# Date: ' + MySQLDB.DateTimeToStr(Now(), Session.Connection.FormatSettings) + #13#10;
   Content := Content + '# Generator: ' + LoadStr(1000) + ' ' + Preferences.VersionStr + #13#10;
   Content := Content + #13#10;
 
-  if ((CodePage <> CP_UNICODE) and (Session.CodePageToCharset(CodePage) <> '') and (Session.ServerVersion >= 40101)) then
-    Content := Content + '/*!40101 SET NAMES ' + Session.CodePageToCharset(CodePage) + ' */;' + #13#10;
+  if ((CodePage <> CP_UNICODE) and (Session.Connection.CodePageToCharset(CodePage) <> '') and (Session.Connection.ServerVersion >= 40101)) then
+    Content := Content + '/*!40101 SET NAMES ' + Session.Connection.CodePageToCharset(CodePage) + ' */;' + #13#10;
 
   WriteContent(Content);
 end;
@@ -4598,7 +4598,7 @@ begin
     Content := '';
 
     if (DropStmts and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
-      Content := Content + '/*!40000 ALTER TABLE ' + Session.EscapeIdentifier(Table.Name) + ' ENABLE KEYS */;' + #13#10;
+      Content := Content + '/*!40000 ALTER TABLE ' + Session.Connection.EscapeIdentifier(Table.Name) + ' ENABLE KEYS */;' + #13#10;
 
     if (Content <> '') then
       WriteContent(Content);
@@ -4625,7 +4625,7 @@ begin
     if (Table is TSBaseTable) then
       Content := Content + TSBaseTable(Table).GetSourceEx(DropStmts, False)
     else if (Table is TSView) then
-      Content := Content + AnsiReplaceStr(TSView(Table).GetSourceEx(DropStmts, False), Session.EscapeIdentifier(Table.Database.Name) + '.', '');
+      Content := Content + AnsiReplaceStr(TSView(Table).GetSourceEx(DropStmts, False), Session.Connection.EscapeIdentifier(Table.Database.Name) + '.', '');
   end;
 
   if ((Table is TSBaseTable) and Assigned(DataSet)) then
@@ -4637,7 +4637,7 @@ begin
     Content := Content + #13#10;
 
     if (DropStmts and TSBaseTable(Table).Engine.IsMyISAM) then
-      Content := Content + '/*!40000 ALTER TABLE ' + Session.EscapeIdentifier(Table.Name) + ' DISABLE KEYS */;' + #13#10;
+      Content := Content + '/*!40000 ALTER TABLE ' + Session.Connection.EscapeIdentifier(Table.Name) + ' DISABLE KEYS */;' + #13#10;
   end;
 
   if (Content <> '') then
@@ -4655,7 +4655,7 @@ begin
     else
       SQLInsertPrefix := 'INSERT INTO ';
 
-    SQLInsertPrefix := SQLInsertPrefix + Session.EscapeIdentifier(Table.Name);
+    SQLInsertPrefix := SQLInsertPrefix + Session.Connection.EscapeIdentifier(Table.Name);
 
     if (not Structure or ReadOnlyFields) then
     begin
@@ -4665,7 +4665,7 @@ begin
         if (not Fields[I].ReadOnly) then
         begin
           if (First) then First:= False else SQLInsertPrefix := SQLInsertPrefix + ',';
-          SQLInsertPrefix := SQLInsertPrefix + Session.EscapeIdentifier(Fields[I].FieldName);
+          SQLInsertPrefix := SQLInsertPrefix + Session.Connection.EscapeIdentifier(Fields[I].FieldName);
         end;
       SQLInsertPrefix := SQLInsertPrefix + ')';
     end;
@@ -4704,7 +4704,7 @@ begin
           ValueBuffer.MemSize := Len * SizeOf(ValueBuffer.Mem[0]);
           ReallocMem(ValueBuffer.Mem, ValueBuffer.MemSize);
         end;
-        Len := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
+        Len := AnsiCharToWideChar(Session.Connection.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
 
         LenEscaped := SQLEscape(ValueBuffer.Mem, Len, nil, 0);
         SQLEscape(ValueBuffer.Mem, Len, Values.WriteExternal(LenEscaped), LenEscaped);
@@ -4748,7 +4748,7 @@ begin
   Content := Content + '# Trigger "' + Trigger.Name + '"' + #13#10;
   Content := Content + '#' + #13#10;
   Content := Content + #13#10;
-  Content := Content + AnsiReplaceStr(Trigger.GetSourceEx(DropStmts, False), Trigger.Session.EscapeIdentifier(Trigger.Database.Name) + '.', '');
+  Content := Content + AnsiReplaceStr(Trigger.GetSourceEx(DropStmts, False), Trigger.Session.Connection.EscapeIdentifier(Trigger.Database.Name) + '.', '');
 
   WriteContent(Content);
 end;
@@ -4859,7 +4859,7 @@ begin
         ValueBuffer.MemSize := Len * SizeOf(ValueBuffer.Mem[0]);
         ReallocMem(ValueBuffer.Mem, ValueBuffer.MemSize);
       end;
-      Len := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
+      Len := AnsiCharToWideChar(Session.Connection.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
 
       LenEscaped := CSVEscape(ValueBuffer.Mem, Len, nil, 0, Quoter, QuoteValues <> qtNone);
       CSVEscape(ValueBuffer.Mem, Len, Values.WriteExternal(LenEscaped), LenEscaped, Quoter, QuoteValues <> qtNone);
@@ -5308,7 +5308,7 @@ begin
         Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(35)) + '</th>';
         Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(69)) + '</th>';
         Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(73)) + '</th>';
-        if (Session.ServerVersion >= 50503) then
+        if (Session.Connection.ServerVersion >= 50503) then
           Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(111)) + '</th>';
         Content := Content + '</tr>' + #13#10;
         for I := 0 to TSBaseTable(Table).Keys.Count - 1 do
@@ -5333,7 +5333,7 @@ begin
             Content := Content + '<td>fulltext</td>'
           else
             Content := Content + '<td>&nbsp;</td>';
-          if (Session.ServerVersion >= 50503) then
+          if (Session.Connection.ServerVersion >= 50503) then
             Content := Content + '<td>' + HTMLEscape(TSBaseTable(Table).Keys[I].Comment) + '</td>';
           Content := Content + '</tr>' + #13#10;
         end;
@@ -5349,7 +5349,7 @@ begin
       Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(71)) + '</th>';
       Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(72)) + '</th>';
       Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(73)) + '</th>';
-      if (Session.ServerVersion >= 40100) then
+      if (Session.Connection.ServerVersion >= 40100) then
         Content := Content + '<th>' + HTMLEscape(Preferences.LoadStr(111)) + '</th>';
       Content := Content + '</tr>' + #13#10;
       for I := 0 to Table.Fields.Count - 1 do
@@ -5391,7 +5391,7 @@ begin
           Content := Content + '<td>' + HTMLEscape(S) + '</td>'
         else
           Content := Content + '<td>&nbsp;</td>';
-        if (Session.ServerVersion >= 40100) then
+        if (Session.Connection.ServerVersion >= 40100) then
           if (TSBaseTableField(Table.Fields[I]).Comment <> '') then
             Content := Content + '<td>' + HTMLEscape(TSBaseTableField(Table.Fields[I]).Comment) + '</td>'
           else
@@ -5529,7 +5529,7 @@ begin
           ValueBuffer.MemSize := Len * SizeOf(ValueBuffer.Mem[0]);
           ReallocMem(ValueBuffer.Mem, ValueBuffer.MemSize);
         end;
-        Len := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
+        Len := AnsiCharToWideChar(Session.Connection.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
 
         LenEscaped := HTMLEscape(ValueBuffer.Mem, Len, nil, 0);
         HTMLEscape(ValueBuffer.Mem, Len, Values.WriteExternal(LenEscaped), LenEscaped);
@@ -5926,7 +5926,7 @@ begin
           ValueBuffer.MemSize := Len * SizeOf(ValueBuffer.Mem[0]);
           ReallocMem(ValueBuffer.Mem, ValueBuffer.MemSize);
         end;
-        Len := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
+        Len := AnsiCharToWideChar(Session.Connection.CodePage, DataSet.LibRow^[Field.FieldNo - 1], DataSet.LibLengths^[Field.FieldNo - 1], ValueBuffer.Mem, Len);
 
         LenEscaped := XMLEscape(ValueBuffer.Mem, Len, nil, 0);
         XMLEscape(ValueBuffer.Mem, Len, Values.WriteExternal(LenEscaped), LenEscaped);
@@ -6321,9 +6321,9 @@ begin
         ftWideString,
         ftWideMemo:
           begin
-            Size := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], nil, 0) * SizeOf(Char);
+            Size := AnsiCharToWideChar(Session.Connection.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], nil, 0) * SizeOf(Char);
             if (Size < Parameter[I].MemSize div SizeOf(Char)) then
-              Parameter[I].Size := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], Parameter[I].Mem, Parameter[I].MemSize div SizeOf(Char)) * SizeOf(Char)
+              Parameter[I].Size := AnsiCharToWideChar(Session.Connection.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], Parameter[I].Mem, Parameter[I].MemSize div SizeOf(Char)) * SizeOf(Char)
             else
               Parameter[I].Size := SQL_LEN_DATA_AT_EXEC(Size * SizeOf(Char));
           end;
@@ -6678,12 +6678,12 @@ begin
           if (Table.Fields[J].FieldType in LOBFieldTypes) then
             SQL := SQL + '0'
           else if (Table.Fields[J].FieldType = mfBit) then
-            SQL := SQL + 'CHAR_LENGTH(CONV(MAX(' + Session.EscapeIdentifier(Table.Fields[J].Name) + ')+0,8,2))'
+            SQL := SQL + 'CHAR_LENGTH(CONV(MAX(' + Session.Connection.EscapeIdentifier(Table.Fields[J].Name) + ')+0,8,2))'
           else
-            SQL := SQL + 'MAX(CHAR_LENGTH(' + Session.EscapeIdentifier(Table.Fields[J].Name) + '))';
-          SQL := SQL + ' AS ' + Session.EscapeIdentifier(Table.Fields[J].Name);
+            SQL := SQL + 'MAX(CHAR_LENGTH(' + Session.Connection.EscapeIdentifier(Table.Fields[J].Name) + '))';
+          SQL := SQL + ' AS ' + Session.Connection.EscapeIdentifier(Table.Fields[J].Name);
         end;
-        SQL := SQL + ' FROM ' + Session.EscapeIdentifier(Table.Database.Name) + '.' + Session.EscapeIdentifier(Table.Name) + ';' + #13#10;
+        SQL := SQL + ' FROM ' + Session.Connection.EscapeIdentifier(Table.Database.Name) + '.' + Session.Connection.EscapeIdentifier(Table.Name) + ';' + #13#10;
       end;
 
     if ((Success = daSuccess) and (Tables.Count > 0)) then
@@ -6692,10 +6692,10 @@ begin
         if (Success = daSuccess) then
         begin
           if (J = 0) then
-            while ((Success <> daAbort) and not Session.FirstResult(DataHandle, SQL)) do
+            while ((Success <> daAbort) and not Session.Connection.FirstResult(DataHandle, SQL)) do
               DoError(DatabaseError(Session), nil, True, SQL)
           else
-            if ((Success = daSuccess) and not Session.NextResult(DataHandle)) then
+            if ((Success = daSuccess) and not Session.Connection.NextResult(DataHandle)) then
               DoError(DatabaseError(Session), nil, False);
           if (Success = daSuccess) then
             for I := 0 to Items.Count - 1 do
@@ -6711,7 +6711,7 @@ begin
                 DataSet.Free();
               end;
         end;
-      Session.CloseResult(DataHandle);
+      Session.Connection.CloseResult(DataHandle);
     end;
 
     Tables.Free();
@@ -6754,7 +6754,7 @@ var
 begin
   inherited Create(ASession);
 
-  DateTime := Session.ServerDateTime;
+  DateTime := Session.Connection.ServerDateTime;
   ContentFont := TFont.Create();
   GridFont := TFont.Create();
   IndexBackground := False;
@@ -6903,14 +6903,14 @@ begin
         SetFont(ContentFont, ContentFont.Size + 2, ContentFont.Style + [fsBold]);
         ContentTextOut(Preferences.LoadStr(458) + ':', Padding);
 
-        if (Session.ServerVersion < 50503) then
+        if (Session.Connection.ServerVersion < 50503) then
           SetLength(Columns, 3)
         else
           SetLength(Columns, 4);
         Columns[0].HeaderText := Preferences.LoadStr(35);
         Columns[1].HeaderText := Preferences.LoadStr(69);
         Columns[2].HeaderText := Preferences.LoadStr(73);
-        if (Session.ServerVersion >= 50503) then
+        if (Session.Connection.ServerVersion >= 50503) then
           Columns[3].HeaderText := Preferences.LoadStr(111);
 
         SetLength(GridData, TSBaseTable(Table).Keys.Count);
@@ -6939,7 +6939,7 @@ begin
             GridData[I][2].Text := 'fulltext'
           else
             GridData[I][2].Text := '';
-          if (Session.ServerVersion >= 50503) then
+          if (Session.Connection.ServerVersion >= 50503) then
             GridData[I][3].Text := TSBaseTable(Table).Keys[I].Comment;
         end;
 
@@ -6951,7 +6951,7 @@ begin
       SetFont(ContentFont, ContentFont.Size + 2, ContentFont.Style + [fsBold]);
       ContentTextOut(Preferences.LoadStr(253) + ':', Padding);
 
-      if (Session.ServerVersion < 40100) then
+      if (Session.Connection.ServerVersion < 40100) then
         SetLength(Columns, 5)
       else
         SetLength(Columns, 6);
@@ -6960,7 +6960,7 @@ begin
       Columns[2].HeaderText := Preferences.LoadStr(71);
       Columns[3].HeaderText := Preferences.LoadStr(72);
       Columns[4].HeaderText := Preferences.LoadStr(73);
-      if (Session.ServerVersion >= 40100) then
+      if (Session.Connection.ServerVersion >= 40100) then
         Columns[5].HeaderText := Preferences.LoadStr(111);
 
 
@@ -7007,7 +7007,7 @@ begin
           end;
         end;
         GridData[I][4].Text := S;
-        if (Session.ServerVersion >= 40100) then
+        if (Session.Connection.ServerVersion >= 40100) then
           GridData[I][5].Text := TSBaseTableField(Table.Fields[I]).Comment;
       end;
 
@@ -7454,7 +7454,7 @@ begin
   Text := Session.Account.Connection.Host;
   if (Session.Account.Connection.Port <> MYSQL_PORT) then
     Text := Text + ':' + IntToStr(Session.Account.Connection.Port);
-  Text := Text + '  (MySQL: ' + ReplaceStr(Session.ServerVersionStr, '&', '&&') + ')';
+  Text := Text + '  (MySQL: ' + ReplaceStr(Session.Connection.ServerVersionStr, '&', '&&') + ')';
   Canvas.TextRect(R, Text, [tfCenter, tfNoPrefix]);
 
   R := Rect(ContentArea.Left, Y, ContentArea.Right, PageHeight);
@@ -7689,10 +7689,10 @@ procedure TTTransfer.AfterExecute();
 var
   SQL: string;
 begin
-  if (Data and (DestinationSession.ServerVersion >= 40014)) then
+  if (Data and (DestinationSession.Connection.ServerVersion >= 40014)) then
   begin
     SQL := 'SET UNIQUE_CHECKS=' + OLD_UNIQUE_CHECKS + ', FOREIGN_KEY_CHECKS=' + OLD_FOREIGN_KEY_CHECKS + ';' + #13#10;
-    while ((Success <> daRetry) and not DestinationSession.ExecuteSQL(SQL)) do
+    while ((Success <> daRetry) and not DestinationSession.Connection.ExecuteSQL(SQL)) do
       DoError(DatabaseError(DestinationSession), nil, True, SQL);
   end;
 
@@ -7706,7 +7706,7 @@ var
 begin
   inherited;
 
-  if (Data and (DestinationSession.ServerVersion >= 40014)) then
+  if (Data and (DestinationSession.Connection.ServerVersion >= 40014)) then
   begin
     if (Assigned(DestinationSession.VariableByName('UNIQUE_CHECKS'))
       and Assigned(DestinationSession.VariableByName('FOREIGN_KEY_CHECKS'))) then
@@ -7717,13 +7717,13 @@ begin
     else
     begin
       DataSet := TMySQLQuery.Create(nil);
-      DataSet.Connection := DestinationSession;
+      DataSet.Connection := DestinationSession.Connection;
       DataSet.CommandText := 'SELECT @@UNIQUE_CHECKS, @@FOREIGN_KEY_CHECKS';
 
       while ((Success <> daAbort) and not DataSet.Active) do
       begin
         DataSet.Open();
-        if (DestinationSession.ErrorCode > 0) then
+        if (DestinationSession.Connection.ErrorCode > 0) then
           DoError(DatabaseError(DestinationSession), nil, True, SQL);
       end;
 
@@ -7738,7 +7738,7 @@ begin
     end;
 
     SQL := 'SET UNIQUE_CHECKS=OFF, FOREIGN_KEY_CHECKS=OFF;';
-    while ((Success <> daAbort) and not DestinationSession.ExecuteSQL(SQL)) do
+    while ((Success <> daAbort) and not DestinationSession.Connection.ExecuteSQL(SQL)) do
       DoError(DatabaseError(DestinationSession), nil, True, SQL);
   end;
 end;
@@ -7752,8 +7752,8 @@ end;
 
 function TTTransfer.DoExecuteSQL(const Session: TSSession; var SQL: string): Boolean;
 begin
-  Result := (Success = daSuccess) and Session.ExecuteSQL(SQL);
-  Delete(SQL, 1, Session.ExecutedSQLLength);
+  Result := (Success = daSuccess) and Session.Connection.ExecuteSQL(SQL);
+  Delete(SQL, 1, Session.Connection.ExecutedSQLLength);
   SQL := SysUtils.Trim(SQL);
 end;
 
@@ -7783,11 +7783,11 @@ begin
   begin
     if (Structure and not Assigned(DestinationDatabase)) then
     begin
-      DestinationDatabase := TSDatabase.Create(DestinationSession, TItem(Item).DestinationDatabaseName);
-      DestinationSession.BeginSynchron();
+      DestinationDatabase := TSDatabase.Create(DestinationSession.Databases, TItem(Item).DestinationDatabaseName);
+      DestinationSession.Connection.BeginSynchron();
       while ((Success <> daAbort) and not DestinationSession.AddDatabase(DestinationDatabase)) do
         DoError(DatabaseError(DestinationSession), Item, True);
-      DestinationSession.EndSynchron();
+      DestinationSession.Connection.EndSynchron();
       DestinationDatabase.Free();
 
       DestinationDatabase := DestinationSession.DatabaseByName(TItem(Item).DestinationDatabaseName);
@@ -7800,10 +7800,10 @@ begin
 
       if (Structure and Data and not Assigned(DestinationTable) and (Session = DestinationSession)) then
       begin
-        DestinationSession.BeginSynchron();
+        DestinationSession.Connection.BeginSynchron();
         while ((Success <> daAbort) and not DestinationDatabase.CloneTable(SourceTable, SourceTable.Name, True)) do
           DoError(DatabaseError(DestinationSession), Item, True);
-        DestinationSession.EndSynchron();
+        DestinationSession.Connection.EndSynchron();
 
         if (Success = daSuccess) then
         begin
@@ -7842,11 +7842,11 @@ begin
       begin
         NewTrigger := TSTrigger.Create(DestinationDatabase.Tables);
         NewTrigger.Assign(SourceDatabase.Triggers[I]);
-        NewTrigger.Stmt := AnsiReplaceStr(NewTrigger.Stmt, SourceDatabase.Session.EscapeIdentifier(SourceDatabase.Name) + '.', '');
-        DestinationSession.BeginSynchron();
+        NewTrigger.Stmt := AnsiReplaceStr(NewTrigger.Stmt, SourceDatabase.Session.Connection.EscapeIdentifier(SourceDatabase.Name) + '.', '');
+        DestinationSession.Connection.BeginSynchron();
         while ((Success <> daAbort) and not DestinationDatabase.AddTrigger(NewTrigger)) do
           DoError(DatabaseError(DestinationSession), Item, True);
-        DestinationSession.EndSynchron();
+        DestinationSession.Connection.EndSynchron();
         NewTrigger.Free();
       end;
 
@@ -7925,7 +7925,7 @@ begin
     begin
       SQLExecuted := TEvent.Create(nil, False, False, '');
 
-      if (DestinationSession.DataFileAllowed) then
+      if (DestinationSession.Connection.DataFileAllowed) then
       begin
         Pipename := '\\.\pipe\' + LoadStr(1000);
         Pipe := CreateNamedPipe(PChar(Pipename),
@@ -7936,28 +7936,28 @@ begin
         else
         begin
           SQL := '';
-          if (DestinationSession.Lib.LibraryType <> ltHTTP) then
-            if (DestinationSession.ServerVersion < 40011) then
+          if (DestinationSession.Connection.Lib.LibraryType <> ltHTTP) then
+            if (DestinationSession.Connection.ServerVersion < 40011) then
               SQL := SQL + 'BEGIN;' + #13#10
             else
               SQL := SQL + 'START TRANSACTION;' + #13#10;
-          if (DestinationSession.Databases.NameCmp(DestinationSession.DatabaseName, DestinationDatabase.Name) <> 0) then
+          if (DestinationSession.Databases.NameCmp(DestinationSession.Connection.DatabaseName, DestinationDatabase.Name) <> 0) then
             SQL := SQL + DestinationDatabase.SQLUse();
-          if ((DestinationSession.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
-            SQL := SQL + 'ALTER TABLE ' + DestinationSession.EscapeIdentifier(DestinationDatabase.Name) + '.' + DestinationSession.EscapeIdentifier(DestinationTable.Name) + ' DISABLE KEYS;' + #13#10;
-          if (DestinationDatabase.Name <> DestinationSession.DatabaseName) then
+          if ((DestinationSession.Connection.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
+            SQL := SQL + 'ALTER TABLE ' + DestinationSession.Connection.EscapeIdentifier(DestinationDatabase.Name) + '.' + DestinationSession.Connection.EscapeIdentifier(DestinationTable.Name) + ' DISABLE KEYS;' + #13#10;
+          if (DestinationDatabase.Name <> DestinationSession.Connection.DatabaseName) then
             SQL := SQL + DestinationDatabase.SQLUse();
-          SQL := SQL + SQLLoadDataInfile(DestinationDatabase, False, Pipename, DestinationSession.Charset, DestinationDatabase.Name, DestinationTable.Name, []);
-          if ((DestinationSession.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
-            SQL := SQL + 'ALTER TABLE ' + DestinationSession.EscapeIdentifier(DestinationDatabase.Name) + '.' + DestinationSession.EscapeIdentifier(DestinationTable.Name) + ' ENABLE KEYS;' + #13#10;
-          if (DestinationSession.Lib.LibraryType <> ltHTTP) then
+          SQL := SQL + SQLLoadDataInfile(DestinationDatabase, False, Pipename, DestinationSession.Connection.Charset, DestinationDatabase.Name, DestinationTable.Name, []);
+          if ((DestinationSession.Connection.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
+            SQL := SQL + 'ALTER TABLE ' + DestinationSession.Connection.EscapeIdentifier(DestinationDatabase.Name) + '.' + DestinationSession.Connection.EscapeIdentifier(DestinationTable.Name) + ' ENABLE KEYS;' + #13#10;
+          if (DestinationSession.Connection.Lib.LibraryType <> ltHTTP) then
             SQL := SQL + 'COMMIT;' + #13#10;
 
-          DestinationSession.SendSQL(SQL, SQLExecuted);
+          DestinationSession.Connection.SendSQL(SQL, SQLExecuted);
 
           if (ConnectNamedPipe(Pipe, nil)) then
           begin
-            DataFileBuffer := TDataFileBuffer.Create(DestinationSession.CodePage);
+            DataFileBuffer := TDataFileBuffer.Create(DestinationSession.Connection.CodePage);
 
             repeat
               LibLengths := DataSet.LibLengths;
@@ -7975,7 +7975,7 @@ begin
                 else if (DestinationTable.Fields[I].FieldType in BinaryFieldTypes) then
                   DataFileBuffer.WriteBinary(LibRow^[I], LibLengths^[I])
                 else if (DestinationField.FieldType in TextFieldTypes) then
-                  DataFileBuffer.WriteText(LibRow^[I], LibLengths^[I], Session.CodePage)
+                  DataFileBuffer.WriteText(LibRow^[I], LibLengths^[I], Session.Connection.CodePage)
                 else
                   DataFileBuffer.Write(LibRow^[I], LibLengths^[I], not (DestinationField.FieldType in NotQuotedFieldTypes));
               end;
@@ -8011,7 +8011,7 @@ begin
 
             DisconnectNamedPipe(Pipe);
 
-            if (DestinationSession.ErrorCode <> 0) then
+            if (DestinationSession.Connection.ErrorCode <> 0) then
               DoError(DatabaseError(DestinationSession), Item, False, SQL);
 
             DataFileBuffer.Free();
@@ -8028,23 +8028,23 @@ begin
         ValuesBuffer := TStringBuffer.Create(SQLPacketSize);
         SQLInsertLen := 0;
 
-        EscapedTableName := Session.EscapeIdentifier(DestinationDatabase.Name) + '.' + DestinationSession.EscapeIdentifier(DestinationTable.Name);
+        EscapedTableName := Session.Connection.EscapeIdentifier(DestinationDatabase.Name) + '.' + DestinationSession.Connection.EscapeIdentifier(DestinationTable.Name);
         SetLength(EscapedFieldName, DestinationTable.Fields.Count);
         for I := 0 to DestinationTable.Fields.Count - 1 do
-           EscapedFieldName[I] := DestinationSession.EscapeIdentifier(DestinationTable.Fields[I].Name);
+           EscapedFieldName[I] := DestinationSession.Connection.EscapeIdentifier(DestinationTable.Fields[I].Name);
         SQLInsertPrefix := 'INSERT INTO ' + EscapedTableName + ' VALUES ';
         SQLInsertPostfix := ';' + #13#10;
 
-        if (DestinationSession.Lib.LibraryType <> ltHTTP) then
-          if (DestinationSession.ServerVersion < 40011) then
+        if (DestinationSession.Connection.Lib.LibraryType <> ltHTTP) then
+          if (DestinationSession.Connection.ServerVersion < 40011) then
             SQL := SQL + 'BEGIN;' + #13#10
           else
             SQL := SQL + 'START TRANSACTION;' + #13#10;
         SQL := SQL + 'LOCK TABLES ' + EscapedTableName + ' WRITE;' + #13#10;
-        if ((DestinationSession.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
+        if ((DestinationSession.Connection.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
           SQL := SQL + 'ALTER TABLE ' + EscapedTableName + ' DISABLE KEYS;' + #13#10;
 
-        if (DestinationSession.Databases.NameCmp(DestinationSession.DatabaseName, DestinationDatabase.Name) <> 0) then
+        if (DestinationSession.Databases.NameCmp(DestinationSession.Connection.DatabaseName, DestinationDatabase.Name) <> 0) then
           SQL := SQL + DestinationDatabase.SQLUse();
 
         repeat
@@ -8080,7 +8080,7 @@ begin
                 ValueBuffer.MemSize := Len * SizeOf(ValueBuffer.Mem[0]);
                 ReallocMem(ValueBuffer.Mem, ValueBuffer.MemSize);
               end;
-              Len := AnsiCharToWideChar(Session.CodePage, DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], ValueBuffer.Mem, Len);
+              Len := AnsiCharToWideChar(Session.Connection.CodePage, DataSet.LibRow^[Fields[I].FieldNo - 1], DataSet.LibLengths^[Fields[I].FieldNo - 1], ValueBuffer.Mem, Len);
 
               LenEscaped := SQLEscape(ValueBuffer.Mem, Len, nil, 0);
               SQLEscape(ValueBuffer.Mem, Len, ValuesBuffer.WriteExternal(LenEscaped), LenEscaped);
@@ -8105,15 +8105,15 @@ begin
             if (SQLExecuteLength > 0) then
             begin
               SQLExecuted.WaitFor(INFINITE);
-              Delete(SQL, 1, DestinationSession.ExecutedSQLLength);
+              Delete(SQL, 1, DestinationSession.Connection.ExecutedSQLLength);
               SQLExecuteLength := 0;
-              if (DestinationSession.ErrorCode <> 0) then
+              if (DestinationSession.Connection.ErrorCode <> 0) then
                 DoError(DatabaseError(DestinationSession), Item, False, SQL);
             end;
 
             if (SQL <> '') then
             begin
-              DestinationSession.SendSQL(SQL, SQLExecuted);
+              DestinationSession.Connection.SendSQL(SQL, SQLExecuted);
               SQLExecuteLength := Length(SQL);
             end;
           end;
@@ -8121,7 +8121,7 @@ begin
           if (Terminated) then
           begin
             if (SQL <> '') then
-              DestinationSession.Terminate();
+              DestinationSession.Connection.Terminate();
             Success := daAbort;
           end;
 
@@ -8133,8 +8133,8 @@ begin
         if ((Success = daSuccess) and (SQLExecuteLength > 0)) then
         begin
           SQLExecuted.WaitFor(INFINITE);
-          Delete(SQL, 1, DestinationSession.ExecutedSQLLength);
-          if (DestinationSession.ErrorCode <> 0) then
+          Delete(SQL, 1, DestinationSession.Connection.ExecutedSQLLength);
+          if (DestinationSession.Connection.ErrorCode <> 0) then
             DoError(DatabaseError(DestinationSession), Item, False, SQL);
         end;
 
@@ -8143,10 +8143,10 @@ begin
           SQL := SQL + SQLInsertPostfix;
           Inc(SQLInsertLen, Length(SQLInsertPostfix));
         end;
-        if ((DestinationSession.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
+        if ((DestinationSession.Connection.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
           SQL := SQL + 'ALTER TABLE ' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
         SQL := SQL + 'UNLOCK TABLES;' + #13#10;
-        if (DestinationSession.Lib.LibraryType <> ltHTTP) then
+        if (DestinationSession.Connection.Lib.LibraryType <> ltHTTP) then
           SQL := SQL + 'COMMIT;' + #13#10;
 
         while ((Success <> daAbort) and not DoExecuteSQL(DestinationSession, SQL)) do
@@ -8160,10 +8160,10 @@ begin
       if (Success <> daSuccess) then
       begin
         SQL := '';
-        if ((DestinationSession.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
+        if ((DestinationSession.Connection.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
           SQL := SQL + 'ALTER TABLE ' + EscapedTableName + ' ENABLE KEYS;' + #13#10;
         SQL := SQL + 'UNLOCK TABLES;' + #13#10;
-        if (DestinationSession.Lib.LibraryType <> ltHTTP) then
+        if (DestinationSession.Connection.Lib.LibraryType <> ltHTTP) then
           SQL := SQL + 'ROLLBACK;' + #13#10;
         DoExecuteSQL(DestinationSession, SQL);
       end;
@@ -8195,10 +8195,10 @@ begin
 
   if (Assigned(DestinationTable)) then
   begin
-    DestinationSession.BeginSynchron();
+    DestinationSession.Connection.BeginSynchron();
     while ((Success <> daAbort) and not DestinationDatabase.DeleteObject(DestinationTable)) do
       DoError(DatabaseError(DestinationSession), Item, True);
-    DestinationSession.EndSynchron();
+    DestinationSession.Connection.EndSynchron();
   end;
 
   NewDestinationTable := TSBaseTable.Create(DestinationDatabase.Tables);
@@ -8214,10 +8214,10 @@ begin
 
   NewDestinationTable.AutoIncrement := 0;
 
-  DestinationSession.BeginSynchron();
+  DestinationSession.Connection.BeginSynchron();
   while ((Success <> daAbort) and not DestinationDatabase.AddTable(NewDestinationTable)) do
     DoError(DatabaseError(DestinationSession), Item, True);
-  DestinationSession.EndSynchron();
+  DestinationSession.Connection.EndSynchron();
 
   NewDestinationTable.Free();
 end;
@@ -8271,8 +8271,8 @@ end;
 
 procedure TTSearch.AfterExecute();
 begin
-  Session.EndSilent();
-  Session.EndSynchron();
+  Session.Connection.EndSilent();
+  Session.Connection.EndSynchron();
 
   inherited;
 end;
@@ -8294,17 +8294,17 @@ begin
 
       if (Assigned(Database.BaseTableByName(NewTableName))) then
       begin
-        Session.BeginSynchron();
+        Session.Connection.BeginSynchron();
         while ((Success <> daAbort) and not Database.DeleteObject(Database.BaseTableByName(NewTableName))) do
           DoError(DatabaseError(Session), Item, True);
-        Session.EndSynchron();
+        Session.Connection.EndSynchron();
       end;
 
       if (Rename) then
         while (Success <> daAbort) do
         begin
           Database.RenameTable(Table, NewTableName);
-          if (Session.ErrorCode <> 0) then
+          if (Session.Connection.ErrorCode <> 0) then
             DoError(DatabaseError(Session), Item, True)
         end
       else
@@ -8318,8 +8318,8 @@ procedure TTSearch.BeforeExecute();
 begin
   inherited;
 
-  Session.BeginSilent();
-  Session.BeginSynchron(); // We're still in a thread
+  Session.Connection.BeginSilent();
+  Session.Connection.BeginSynchron(); // We're still in a thread
 end;
 
 constructor TTSearch.Create(const ASession: TSSession);
@@ -8333,8 +8333,8 @@ end;
 
 function TTSearch.DoExecuteSQL(const Session: TSSession; const Item: TItem; var SQL: string): Boolean;
 begin
-  Result := (Success = daSuccess) and Session.ExecuteSQL(SQL);
-  Delete(SQL, 1, Session.ExecutedSQLLength);
+  Result := (Success = daSuccess) and Session.Connection.ExecuteSQL(SQL);
+  Delete(SQL, 1, Session.Connection.ExecutedSQLLength);
   SQL := SysUtils.Trim(SQL);
 end;
 
@@ -8444,14 +8444,14 @@ begin
         if (Table.Fields[I].InPrimaryKey) then
         begin
           if (SQL <> '') then SQL := SQL + ',';
-          SQL := SQL + Session.EscapeIdentifier(Table.Fields[I].Name);
+          SQL := SQL + Session.Connection.EscapeIdentifier(Table.Fields[I].Name);
         end
         else
           for J := 0 to Length(Item.FieldNames) - 1 do
             if (Item.FieldNames[J] = Table.Fields[I].Name) then
             begin
               if (SQL <> '') then SQL := SQL + ',';
-              SQL := SQL + Session.EscapeIdentifier(Table.Fields[J].Name);
+              SQL := SQL + Session.Connection.EscapeIdentifier(Table.Fields[J].Name);
             end;
     end;
 
@@ -8460,14 +8460,14 @@ begin
     begin
       if (I > 0) then WhereClause := WhereClause + ' OR ';
       if (not RegExpr) then
-        WhereClause := WhereClause + Session.EscapeIdentifier(Item.FieldNames[I]) + ' LIKE ' + SQLEscape('%' + FindText + '%')
+        WhereClause := WhereClause + Session.Connection.EscapeIdentifier(Item.FieldNames[I]) + ' LIKE ' + SQLEscape('%' + FindText + '%')
       else
-        WhereClause := WhereClause + Session.EscapeIdentifier(Item.FieldNames[I]) + ' REGEXP ' + SQLEscape(FindText);
+        WhereClause := WhereClause + Session.Connection.EscapeIdentifier(Item.FieldNames[I]) + ' REGEXP ' + SQLEscape(FindText);
     end;
-    SQL := 'SELECT ' + SQL + ' FROM ' + Session.EscapeIdentifier(Item.DatabaseName) + '.' + Session.EscapeIdentifier(Item.TableName) + ' WHERE ' + WhereClause;
+    SQL := 'SELECT ' + SQL + ' FROM ' + Session.Connection.EscapeIdentifier(Item.DatabaseName) + '.' + Session.Connection.EscapeIdentifier(Item.TableName) + ' WHERE ' + WhereClause;
 
     DataSet := TMySQLQuery.Create(nil);
-    DataSet.Connection := Session;
+    DataSet.Connection := Session.Connection;
     DataSet.CommandText := SQL;
 
     while ((Success <> daAbort) and not DataSet.Active) do
@@ -8513,12 +8513,12 @@ begin
           Buffer := nil
         else
         begin
-          TTReplace(Self).ReplaceConnection.StartTransaction();
+          TTReplace(Self).ReplaceSession.Connection.StartTransaction();
 
           Buffer := TStringBuffer.Create(SQLPacketSize);
 
-          if (Item.DatabaseName <> TTReplace(Self).ReplaceConnection.DatabaseName) then
-            Buffer.Write(TTReplace(Self).ReplaceConnection.SQLUse(Item.DatabaseName));
+          if (Item.DatabaseName <> TTReplace(Self).ReplaceSession.Connection.DatabaseName) then
+            Buffer.Write(TTReplace(Self).ReplaceSession.Connection.SQLUse(Item.DatabaseName));
 
           for I := 0 to DataSet.FieldCount - 1 do
             UseIndexFields := UseIndexFields or Fields[I].IsIndexField;
@@ -8559,7 +8559,7 @@ begin
                 if (Found) then
                 begin
                   if (SQL <> '') then SQL := SQL + ',';
-                  SQL := SQL + Session.EscapeIdentifier(Fields[I].FieldName) + '=';
+                  SQL := SQL + Session.Connection.EscapeIdentifier(Fields[I].FieldName) + '=';
                   if (BitField(Fields[I])) then
                     SQL := SQL + NewValue
                   else if (Fields[I].DataType in NotQuotedDataTypes + [ftTimestamp]) then
@@ -8582,13 +8582,13 @@ begin
             begin
               Inc(Item.RecordsFound);
 
-              SQL := 'UPDATE ' + Session.EscapeIdentifier(Item.TableName) + ' SET ' + SQL + ' WHERE ';
+              SQL := 'UPDATE ' + Session.Connection.EscapeIdentifier(Item.TableName) + ' SET ' + SQL + ' WHERE ';
               Found := False;
               for I := 0 to Length(Fields) - 1 do
                 if (not UseIndexFields or Fields[I].IsIndexField) then
                 begin
                   if (Found) then SQL := SQL + ' AND ';
-                  SQL := SQL + Session.EscapeIdentifier(Fields[I].FieldName) + '=';
+                  SQL := SQL + Session.Connection.EscapeIdentifier(Fields[I].FieldName) + '=';
                   if (not Assigned(DataSet.LibRow^[I])) then
                     SQL := SQL + 'NULL'
                   else if (BitField(Fields[I])) then
@@ -8605,10 +8605,10 @@ begin
 
               Buffer.Write(SQL);
 
-              if ((Buffer.Size > 0) and (not Session.MultiStatements or (Buffer.Size >= SQLPacketSize))) then
+              if ((Buffer.Size > 0) and (not Session.Connection.MultiStatements or (Buffer.Size >= SQLPacketSize))) then
               begin
                 SQL := Buffer.Read();
-                DoExecuteSQL(TTReplace(Self).ReplaceConnection, Item, SQL);
+                DoExecuteSQL(TTReplace(Self).ReplaceSession, Item, SQL);
                 Buffer.Write(SQL);
               end;
             end;
@@ -8626,7 +8626,7 @@ begin
           if (Buffer.Size > 0) then
           begin
             SQL := Buffer.Read();
-            DoExecuteSQL(TTReplace(Self).ReplaceConnection, Item, SQL);
+            DoExecuteSQL(TTReplace(Self).ReplaceSession, Item, SQL);
           end;
 
           Buffer.Free();
@@ -8635,9 +8635,9 @@ begin
         if (Self is TTReplace) then
         begin
           if (Success = daSuccess) then
-            TTReplace(Self).ReplaceConnection.CommitTransaction()
+            TTReplace(Self).ReplaceSession.Connection.CommitTransaction()
           else
-            TTReplace(Self).ReplaceConnection.RollbackTransaction();
+            TTReplace(Self).ReplaceSession.Connection.RollbackTransaction();
         end;
 
         if (Assigned(PerlRegEx)) then
@@ -8659,17 +8659,17 @@ begin
   for I := 0 to Length(Item.FieldNames) - 1 do
   begin
     if (I > 0) then SQL := SQL + ' OR ';
-    SQL := SQL + 'BINARY(' + Session.EscapeIdentifier(Item.FieldNames[I]) + ') LIKE BINARY(' + SQLEscape('%' + FindText + '%') + ')';
+    SQL := SQL + 'BINARY(' + Session.Connection.EscapeIdentifier(Item.FieldNames[I]) + ') LIKE BINARY(' + SQLEscape('%' + FindText + '%') + ')';
   end;
-  SQL := 'SELECT COUNT(*) FROM ' + Session.EscapeIdentifier(Table.Database.Name) + '.' + Session.EscapeIdentifier(Table.Name) + ' WHERE ' + SQL;
+  SQL := 'SELECT COUNT(*) FROM ' + Session.Connection.EscapeIdentifier(Table.Database.Name) + '.' + Session.Connection.EscapeIdentifier(Table.Name) + ' WHERE ' + SQL;
 
   DataSet := TMySQLQuery.Create(nil);
-  DataSet.Connection := Session;
+  DataSet.Connection := Session.Connection;
   DataSet.CommandText := SQL;
   while ((Success <> daAbort) and not DataSet.Active) do
   begin
     DataSet.Open();
-    if (Session.ErrorCode > 0) then
+    if (Session.Connection.ErrorCode > 0) then
       DoError(DatabaseError(Session), Item, True, SQL);
   end;
 
@@ -8690,20 +8690,20 @@ begin
   begin
     if (I > 0) then SQL := SQL + ' OR ';
     if (MatchCase) then
-      SQL := SQL + 'BINARY(' + Session.EscapeIdentifier(Item.FieldNames[I]) + ')=BINARY(' + SQLEscape(FindText) + ')'
+      SQL := SQL + 'BINARY(' + Session.Connection.EscapeIdentifier(Item.FieldNames[I]) + ')=BINARY(' + SQLEscape(FindText) + ')'
     else
-      SQL := SQL + Session.EscapeIdentifier(Item.FieldNames[I]) + '=' + SQLEscape(FindText)
+      SQL := SQL + Session.Connection.EscapeIdentifier(Item.FieldNames[I]) + '=' + SQLEscape(FindText)
   end;
-  SQL := 'SELECT COUNT(*) FROM ' + Session.EscapeIdentifier(Table.Database.Name) + '.' + Session.EscapeIdentifier(Table.Name) + ' WHERE ' + SQL;
+  SQL := 'SELECT COUNT(*) FROM ' + Session.Connection.EscapeIdentifier(Table.Database.Name) + '.' + Session.Connection.EscapeIdentifier(Table.Name) + ' WHERE ' + SQL;
 
   DataSet := TMySQLQuery.Create(nil);
-  DataSet.Connection := Session;
+  DataSet.Connection := Session.Connection;
   DataSet.CommandText := SQL;
 
   while ((Success <> daAbort) and not DataSet.Active) do
   begin
     DataSet.Open();
-    if (Session.ErrorCode > 0) then
+    if (Session.Connection.ErrorCode > 0) then
       DoError(DatabaseError(Session), Item, True, SQL);
   end;
 
@@ -8715,24 +8715,24 @@ begin
   if (Self is TTReplace) then
   begin
     SQL := '';
-    if (Session.Databases.NameCmp(Session.DatabaseName, Table.Database.Name) <> 0) then
+    if (Session.Databases.NameCmp(Session.Connection.DatabaseName, Table.Database.Name) <> 0) then
       SQL := SQL + Table.Database.SQLUse();
 
     for I := 0 to Length(Item.FieldNames) - 1 do
     begin
-      SQL := SQL + 'UPDATE ' + Session.EscapeIdentifier(Table.Database.Name) + '.' + Session.EscapeIdentifier(Item.TableName);
-      SQL := SQL + ' SET ' + Session.EscapeIdentifier(Item.FieldNames[I]) + '=' + SQLEscape(TTReplace(Self).ReplaceText);
+      SQL := SQL + 'UPDATE ' + Session.Connection.EscapeIdentifier(Table.Database.Name) + '.' + Session.Connection.EscapeIdentifier(Item.TableName);
+      SQL := SQL + ' SET ' + Session.Connection.EscapeIdentifier(Item.FieldNames[I]) + '=' + SQLEscape(TTReplace(Self).ReplaceText);
       if (MatchCase) then
-        SQL := SQL + ' WHERE BINARY(' + Session.EscapeIdentifier(Item.FieldNames[I]) + ')=BINARY(' + SQLEscape(FindText) + ')'
+        SQL := SQL + ' WHERE BINARY(' + Session.Connection.EscapeIdentifier(Item.FieldNames[I]) + ')=BINARY(' + SQLEscape(FindText) + ')'
       else
-        SQL := SQL + ' WHERE ' + Session.EscapeIdentifier(Item.FieldNames[I]) + '=' + SQLEscape(FindText);
+        SQL := SQL + ' WHERE ' + Session.Connection.EscapeIdentifier(Item.FieldNames[I]) + '=' + SQLEscape(FindText);
       SQL := SQL + ';' + #13#10;
     end;
 
-    while ((Success <> daAbort) and not DoExecuteSQL(TTReplace(Self).ReplaceConnection, Item, SQL)) do
-      if (Session.ErrorCode = ER_TRUNCATED_WRONG_VALUE) then
+    while ((Success <> daAbort) and not DoExecuteSQL(TTReplace(Self).ReplaceSession, Item, SQL)) do
+      if (Session.Connection.ErrorCode = ER_TRUNCATED_WRONG_VALUE) then
       begin
-        Delete(SQL, 1, Length(Session.CommandText));
+        Delete(SQL, 1, Length(Session.Connection.CommandText));
         Success := daSuccess;
       end
       else
@@ -8810,14 +8810,14 @@ begin
   for I := 0 to Length(Item.FieldNames) - 1 do
   begin
     if (I > 0) then SQL := SQL + ',';
-    SQL := SQL + Session.EscapeIdentifier(Item.FieldNames[I]) + '=REPLACE(' + Session.EscapeIdentifier(Item.FieldNames[I]) + ',' + SQLEscape(FindText) + ',' + SQLEscape(ReplaceText) + ')';
+    SQL := SQL + Session.Connection.EscapeIdentifier(Item.FieldNames[I]) + '=REPLACE(' + Session.Connection.EscapeIdentifier(Item.FieldNames[I]) + ',' + SQLEscape(FindText) + ',' + SQLEscape(ReplaceText) + ')';
   end;
-  SQL := 'UPDATE ' + Session.EscapeIdentifier(Item.DatabaseName) + '.' + Session.EscapeIdentifier(Item.TableName) + ' SET ' + SQL + ';';
+  SQL := 'UPDATE ' + Session.Connection.EscapeIdentifier(Item.DatabaseName) + '.' + Session.Connection.EscapeIdentifier(Item.TableName) + ' SET ' + SQL + ';';
 
-  while ((Success <> daAbort) and not Session.ExecuteSQL(SQL)) do
+  while ((Success <> daAbort) and not Session.Connection.ExecuteSQL(SQL)) do
     DoError(DatabaseError(Session), Item, True, SQL);
 
-  Item.RecordsDone := Session.RowsAffected;
+  Item.RecordsDone := Session.Connection.RowsAffected;
   Item.RecordsSum := Item.RecordsDone;
 end;
 

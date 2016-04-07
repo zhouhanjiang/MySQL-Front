@@ -398,10 +398,10 @@ begin
   if (PageControl.Visible) then
     Built();
 
-  FDefaultCharset.Visible := Database.Session.ServerVersion >= 40101; FLDefaultCharset.Visible := FDefaultCharset.Visible;
-  FCollation.Visible := Database.Session.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
-  FDefaultCharset.Visible := Database.Session.ServerVersion >= 40101; FLDefaultCharset.Visible := FDefaultCharset.Visible;
-  FCollation.Visible := Database.Session.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
+  FDefaultCharset.Visible := Database.Session.Connection.ServerVersion >= 40101; FLDefaultCharset.Visible := FDefaultCharset.Visible;
+  FCollation.Visible := Database.Session.Connection.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
+  FDefaultCharset.Visible := Database.Session.Connection.ServerVersion >= 40101; FLDefaultCharset.Visible := FDefaultCharset.Visible;
+  FCollation.Visible := Database.Session.Connection.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
 
   FBOk.Enabled := PageControl.Visible;
   FBCancel.Caption := Preferences.LoadStr(30);

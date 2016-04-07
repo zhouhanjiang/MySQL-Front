@@ -166,18 +166,18 @@ begin
         2: LibraryName := FHTTPTunnelURI.Text;
       end;
 
-      Session.BeginSilent();
-      Session.FirstConnect(FConnectionType.ItemIndex, LibraryName, FHost.Text, FUser.Text, FPassword.Text, '', FUDPort.Position, True);
-      if (Session.ErrorCode <> 0) then
-        Session.OnSQLError(Session, Session.ErrorCode, Session.ErrorMessage)
-      else if (Session.Connected) then
+      Session.Connection.BeginSilent();
+      Session.Connection.Connect(FConnectionType.ItemIndex, LibraryName, FHost.Text, FUser.Text, FPassword.Text, '', FUDPort.Position, True);
+      if (Session.Connection.ErrorCode <> 0) then
+        Session.Connection.OnSQLError(Session.Connection, Session.Connection.ErrorCode, Session.Connection.ErrorMessage)
+      else if (Session.Connection.Connected) then
       begin
         DDatabases.Session := Session;
         DDatabases.SelectedDatabases := FDatabase.Text;
         if (DDatabases.Execute()) then
           FDatabase.Text := DDatabases.SelectedDatabases;
       end;
-      Session.EndSilent();
+      Session.Connection.EndSilent();
 
       Session.Free();
     end;

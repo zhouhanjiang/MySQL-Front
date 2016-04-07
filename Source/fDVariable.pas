@@ -100,7 +100,7 @@ procedure TDVariable.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType in [etItemAltered]) and (Event.SItem is TSVariable)) then
     Close()
-  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
+  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.Connection.ErrorCode <> 0)) then
   begin
     GroupBox.Visible := True;
     PSQLWait.Visible := not GroupBox.Visible;
@@ -169,8 +169,8 @@ begin
   FGlobal.Checked := False;
   FSession.Checked := True;
 
-  FGlobal.Visible := Session.ServerVersion >= 40003;
-  FSession.Visible := Session.ServerVersion >= 40003;
+  FGlobal.Visible := Session.Connection.ServerVersion >= 40003;
+  FSession.Visible := Session.Connection.ServerVersion >= 40003;
 
   FGlobal.Enabled := not Assigned(Session.UserRights) or Session.UserRights.RSuper;
 

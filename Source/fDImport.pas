@@ -1095,7 +1095,7 @@ begin
     for I := 0 to Session.Charsets.Count - 1 do
       FCharset.Items.Add(Session.Charsets.Charset[I].Name);
   end;
-  FCharset.Visible := Session.ServerVersion >= 40101; FLCharset.Visible := FCharset.Visible;
+  FCharset.Visible := Session.Connection.ServerVersion >= 40101; FLCharset.Visible := FCharset.Visible;
 
   FCollation.Items.Clear();
   if (Session.Charsets.Count = 0) then
@@ -1106,7 +1106,7 @@ begin
     for I := 0 to Session.Charsets.Count - 1 do
       FCollation.Items.Add(Session.Charsets.Charset[I].Name);
   end;
-  FCollation.Visible := Session.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
+  FCollation.Visible := Session.Connection.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
 
   FUpdate.Enabled := (SObject is TSBaseTable) and Assigned(TSBaseTable(SObject).PrimaryKey);
   FInsertOrUpdate.Enabled := (ImportType = itTextFile) and FUpdate.Enabled; FLInsertUpdate.Enabled := FInsertOrUpdate.Enabled;
@@ -1260,7 +1260,7 @@ begin
       FCharset.ItemIndex := FCharset.Items.IndexOf(TSDatabase(SObject).DefaultCharset)
     else if (SObject is TSDBObject) then
       FCharset.ItemIndex := FCharset.Items.IndexOf(TSDBObject(SObject).Database.DefaultCharset)
-    else if (Session.ServerVersion < 40101) then
+    else if (Session.Connection.ServerVersion < 40101) then
       FCharset.ItemIndex := FCharset.Items.IndexOf(Session.DefaultCharset)
     else
       FCharset.ItemIndex := FCharset.Items.IndexOf('utf8');
@@ -1364,7 +1364,7 @@ begin
             else
             begin
               for I := 0 to Session.Databases.Count - 1 do
-                if (((Session.Databases.NameCmp(Session.Databases[I].Name, 'mysql') <> 0) or (Session.Databases.NameCmp(Session.Databases[I].Name, 'sys') <> 0) and (Session.ServerVersion >= 50707)) and not (Session.Databases[I] is TSSystemDatabase)) then
+                if (((Session.Databases.NameCmp(Session.Databases[I].Name, 'mysql') <> 0) or (Session.Databases.NameCmp(Session.Databases[I].Name, 'sys') <> 0) and (Session.Connection.ServerVersion >= 50707)) and not (Session.Databases[I] is TSSystemDatabase)) then
                 begin
                   NewNode := TreeView.Items.AddChild(Node, Session.Databases[I].Name);
                   NewNode.ImageIndex := iiDatabase;
@@ -1533,9 +1533,9 @@ begin
 
     if (SObject is TSBaseTable) then
     begin
-      Session.BeginSynchron();
+      Session.Connection.BeginSynchron();
       TSBaseTable(SObject).Update();
-      Session.EndSynchron();
+      Session.Connection.EndSynchron();
 
       ScrollBox.DisableAlign();
 
@@ -1617,7 +1617,7 @@ begin
   Result := True;
   if (FSelect.Items[0].Count = 0) then
   begin
-    Session.BeginSynchron();
+    Session.Connection.BeginSynchron();
 
     Nodes := TList.Create();
     if (not Session.Databases.Update()) then
@@ -1660,7 +1660,7 @@ begin
     FSelect.Select(Nodes);
     Nodes.Free();
 
-    Session.EndSynchron();
+    Session.Connection.EndSynchron();
   end;
 end;
 
@@ -1674,11 +1674,11 @@ begin
   case (Error.ErrorType) of
     TE_Database:
       begin
-        Msg := Preferences.LoadStr(165, IntToStr(Error.Session.ErrorCode), Error.Session.ErrorMessage);
+        Msg := Preferences.LoadStr(165, IntToStr(Error.Session.Connection.ErrorCode), Error.Session.Connection.ErrorMessage);
         ErrorMsg := Error.ErrorMessage;
         if (Error.ErrorCode > 0) then
-          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Error.Session.ErrorCode) + ')';
-        ErrorMsg := ErrorMsg + ' - ' + Trim(Session.CommandText);
+          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Error.Session.Connection.ErrorCode) + ')';
+        ErrorMsg := ErrorMsg + ' - ' + Trim(Session.Connection.CommandText);
       end;
     TE_File:
       begin

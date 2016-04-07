@@ -152,7 +152,7 @@ begin
     ModalResult := mrOk;
     Close();
   end
-  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
+  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.Connection.ErrorCode <> 0)) then
   begin
     GBasics.Visible := True;
     GAttributes.Visible := GBasics.Visible;
@@ -360,21 +360,21 @@ begin
     end;
   end;
 
-  FName.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013);
-  FLName.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013);
-  FLTable.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013);
-  FLFields.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013);
-  FLChild.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013);
-  FLParent.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013);
-  FFields.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013);
-  FOnDelete.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013); FLOnDelete.Enabled := FOnDelete.Enabled;
-  FOnUpdate.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013); FLOnUpdate.Enabled := FOnUpdate.Enabled;
+  FName.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013);
+  FLName.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013);
+  FLTable.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013);
+  FLFields.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013);
+  FLChild.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013);
+  FLParent.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013);
+  FFields.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013);
+  FOnDelete.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013); FLOnDelete.Enabled := FOnDelete.Enabled;
+  FOnUpdate.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013); FLOnUpdate.Enabled := FOnUpdate.Enabled;
 
   GBasics.Visible := True;
   GAttributes.Visible := GBasics.Visible;
   PSQLWait.Visible := not GBasics.Visible;
 
-  FBOk.Visible := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013);
+  FBOk.Visible := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013);
   if (FBOk.Visible) then
     FBCancel.Caption := Preferences.LoadStr(30)
   else
@@ -407,7 +407,7 @@ begin
       if (SelectedParentDatabase.Tables.Table[I] is TSBaseTable) then
         FParentTable.Items.Add(SelectedParentDatabase.Tables.Table[I].Name);
 
-    FParentTable.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013);
+    FParentTable.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013);
     FBOkCheckEnabled(Sender);
   end;
 end;
@@ -434,7 +434,7 @@ begin
           if (lstrcmpi(PChar(FParentFields.Items.Strings[I]), PChar(ForeignKey.Parent.FieldNames[J])) = 0) then
             FParentFields.Selected[I] := True;
 
-    FParentFields.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.ServerVersion >= 40013);
+    FParentFields.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013);
     FBOkCheckEnabled(Sender);
   end;
 end;

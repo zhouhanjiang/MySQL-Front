@@ -178,7 +178,7 @@ type
       LibThreadId: my_uint;
       Mode: TMode;
       OnResult: TResultEvent;
-      ResHandle: MySQLConsts.MYSQL_RES;
+      ResHandle: MYSQL_RES;
       SQL: string;
       SQLCLStmts: TList;
       SQLLastStmtInPacket: Integer;
@@ -248,8 +248,6 @@ type
     FServerTimeout: Word;
     FServerVersion: Integer;
     FServerVersionStr: string;
-    FSilentCount: Integer;
-    FSynchronCount: Integer;
     FSQLMonitors: array of TMySQLMonitor;
     FLibraryThread: TLibraryThread;
     FTerminateCS: TCriticalSection;
@@ -259,9 +257,11 @@ type
     FUsername: string;
     InMonitor: Boolean;
     InOnResult: Boolean;
-    local_infile: Plocal_infile;
+    SilentCount: Integer;
+    SynchronCount: Integer;
     function GetCommandText(): string;
     function UseCompression(): Boolean; inline;
+    function GetNextCommandText(): string;
     function GetServerDateTime(): TDateTime;
     function GetHandle(): MySQLConsts.MYSQL;
     function GetInfo(): string;
@@ -298,12 +298,15 @@ type
     function GetInsertId(): my_ulonglong; virtual;
     function GetDataFileAllowed(): Boolean; virtual;
     function GetMaxAllowedPacket(): Integer; virtual;
-    function LibUnpack(const Data: my_char; const Length: my_int = -1): string; virtual;
-    function NextCommandText(): string;
+    procedure local_infile_end(const local_infile: Plocal_infile); virtual;
+    function local_infile_error(const local_infile: Plocal_infile; const error_msg: my_char; const error_msg_len: my_uint): my_int; virtual;
+    function local_infile_init(out local_infile: Plocal_infile; const filename: my_char): my_int; virtual;
+    function local_infile_read(const local_infile: Plocal_infile; buf: my_char; const buf_len: my_uint): my_int; virtual;
     procedure RegisterSQLMonitor(const AMySQLMonitor: TMySQLMonitor); virtual;
     procedure SetAutoCommit(const AAutoCommit: Boolean); virtual;
     procedure SetCharset(const ACharset: string); virtual;
     procedure SetConnected(Value: Boolean); override;
+    function SQLUse(const DatabaseName: string): string; virtual;
     procedure SyncCancel(const LibraryThread: TLibraryThread); virtual;
     procedure SyncConnecting(const LibraryThread: TLibraryThread); virtual;
     procedure SyncConnected(const LibraryThread: TLibraryThread); virtual;
@@ -324,11 +327,9 @@ type
     property IdentifierQuoter: Char read FIdentifierQuoter;
     property IdentifierQuoted: Boolean read FIdentifierQuoted write FIdentifierQuoted;
     property LibraryThread: TLibraryThread read FLibraryThread;
-    property SilentCount: Integer read FSilentCount;
     property TerminateCS: TCriticalSection read FTerminateCS;
     property TerminatedThreads: TTerminatedThreads read FTerminatedThreads;
   public
-    function LibDecode(const Text: my_char; const Length: my_int = -1): string; virtual;
     procedure BeginSilent(); virtual;
     procedure BeginSynchron(); virtual;
     function CanShutdown(): Boolean; virtual;
@@ -345,18 +346,15 @@ type
     function ExecuteSQL(const SQL: string; const OnResult: TResultEvent = nil): Boolean; overload; virtual;
     function FirstResult(out DataHandle: TDataResult; const SQL: string): Boolean; virtual;
     function InUse(): Boolean; virtual;
+    function LibDecode(const Text: my_char; const Length: my_int = -1): string; virtual;
     function LibEncode(const Value: string): RawByteString; virtual;
     function LibPack(const Value: string): RawByteString; virtual;
-    procedure local_infile_end(const local_infile: Plocal_infile); virtual;
-    function local_infile_error(const local_infile: Plocal_infile; const error_msg: my_char; const error_msg_len: my_uint): my_int; virtual;
-    function local_infile_init(var local_infile: Plocal_infile; const filename: my_char): my_int; virtual;
-    function local_infile_read(const local_infile: Plocal_infile; buf: my_char; const buf_len: my_uint): my_int; virtual;
+    function LibUnpack(const Data: my_char; const Length: my_int = -1): string; virtual;
     function NextResult(const DataHandle: TDataResult): Boolean; virtual;
     procedure RollbackTransaction(); virtual;
     function SendSQL(const SQL: string; const Done: TEvent): Boolean; overload; virtual;
     function SendSQL(const SQL: string; const OnResult: TResultEvent = nil): Boolean; overload; virtual;
     function Shutdown(): Boolean; virtual;
-    function SQLUse(const DatabaseName: string): string; virtual;
     procedure StartTransaction(); virtual;
     procedure Terminate(); virtual;
     property AnsiQuotes: Boolean read FAnsiQuotes write SetAnsiQuotes;
@@ -364,6 +362,7 @@ type
     property BugMonitor: TMySQLMonitor read FBugMonitor;
     property CodePage: Cardinal read FCodePage;
     property CommandText: string read GetCommandText;
+    property DataFileAllowed: Boolean read GetDataFileAllowed;
     property HostInfo: string read FHostInfo;
     property HTTPAgent: string read FHTTPAgent write FHTTPAgent;
     property ErrorCode: Integer read FErrorCode;
@@ -375,7 +374,7 @@ type
     property Info: string read GetInfo;
     property LatestConnect: TDateTime read FLatestConnect;
     property Lib: TMySQLLibrary read FLib;
-    property DataFileAllowed: Boolean read GetDataFileAllowed;
+    property NextCommandText: string read GetNextCommandText;
     property MaxAllowedPacket: Integer read GetMaxAllowedPacket;
     property MultiStatements: Boolean read FMultiStatements;
     property ResultCount: Integer read FResultCount;
@@ -1316,7 +1315,7 @@ begin
   Result := local_infile^.Connection.local_infile_error(local_infile, error_msg, error_msg_len);
 end;
 
-function local_infile_init(var local_infile: TMySQLConnection.Plocal_infile; filename: my_char; userdata: Pointer): my_int; cdecl;
+function local_infile_init(out local_infile: TMySQLConnection.Plocal_infile; filename: my_char; userdata: Pointer): my_int; cdecl;
 begin
   Result := TMySQLConnection(userdata).local_infile_init(local_infile, filename);
 end;
@@ -2087,12 +2086,12 @@ end;
 
 procedure TMySQLConnection.BeginSilent();
 begin
-  Inc(FSilentCount);
+  Inc(SilentCount);
 end;
 
 procedure TMySQLConnection.BeginSynchron();
 begin
-  Inc(FSynchronCount);
+  Inc(SynchronCount);
 end;
 
 function TMySQLConnection.CanShutdown(): Boolean;
@@ -2221,7 +2220,6 @@ begin
   FPassword := '';
   FPort := MYSQL_PORT;
   FServerTimeout := 0;
-  FSilentCount := 0;
   FTerminateCS := TCriticalSection.Create();
   FTerminatedThreads := TTerminatedThreads.Create(Self);
   FThreadDeep := 0;
@@ -2229,8 +2227,8 @@ begin
   FUserName := '';
   InMonitor := False;
   InOnResult := False;
-  local_infile := nil;
   TimeDiff := 0;
+  SilentCount := 0;
 
   FBugMonitor := TMySQLMonitor.Create(nil);
   FBugMonitor.Connection := Self;
@@ -2338,14 +2336,14 @@ end;
 
 procedure TMySQLConnection.EndSilent();
 begin
-  if (FSilentCount > 0) then
-    Dec(FSilentCount);
+  if (SilentCount > 0) then
+    Dec(SilentCount);
 end;
 
 procedure TMySQLConnection.EndSynchron();
 begin
-  if (FSynchronCount > 0) then
-    Dec(FSynchronCount);
+  if (SynchronCount > 0) then
+    Dec(SynchronCount);
 end;
 
 function TMySQLConnection.ErrorMsg(const AHandle: MySQLConsts.MYSQL): string;
@@ -2613,6 +2611,23 @@ begin
   Result := 1 * 1024 * 1024 - 1;
 end;
 
+function TMySQLConnection.GetNextCommandText(): string;
+var
+  EndingCommentLength: Integer;
+  Len: Integer;
+  StartingCommentLength: Integer;
+  StmtLength: Integer;
+begin
+  if (not InUse() or not Assigned(LibraryThread) or (LibraryThread.SQLStmt = LibraryThread.SQLLastStmtInPacket)) then
+    Result := ''
+  else
+  begin
+    StmtLength := Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt + 1]);
+    Len := SQLTrimStmt(LibraryThread.SQL, LibraryThread.SQLStmtIndex, StmtLength, StartingCommentLength, EndingCommentLength);
+    Result := copy(LibraryThread.SQL, LibraryThread.SQLStmtIndex + Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]) + StartingCommentLength, Len);
+  end;
+end;
+
 function TMySQLConnection.GetServerDateTime(): TDateTime;
 begin
   Result := Now() + TimeDiff;
@@ -2738,7 +2753,6 @@ begin
   if (Assigned(local_infile^.Buffer)) then
     VirtualFree(local_infile^.Buffer, local_infile^.BufferSize, MEM_RELEASE);
 
-  Self.local_infile := nil;
   FreeMem(local_infile);
 end;
 
@@ -2760,11 +2774,9 @@ begin
   Result := local_infile^.ErrorCode;
 end;
 
-function TMySQLConnection.local_infile_init(var local_infile: Plocal_infile; const filename: my_char): my_int;
+function TMySQLConnection.local_infile_init(out local_infile: Plocal_infile; const filename: my_char): my_int;
 begin
   GetMem(local_infile, SizeOf(local_infile^));
-  Self.local_infile := local_infile;
-
   ZeroMemory(local_infile, SizeOf(local_infile^));
   local_infile^.Buffer := nil;
   local_infile^.Connection := Self;
@@ -2772,8 +2784,8 @@ begin
 
   if ((AnsiCharToWideChar(CodePage, filename, lstrlenA(filename), @local_infile^.Filename, Length(local_infile^.Filename)) = 0) and (GetLastError() <> 0)) then
   begin
-    local_infile^.LastError := GetLastError();
     local_infile^.ErrorCode := EE_FILENOTFOUND;
+    local_infile^.LastError := GetLastError();
   end
   else
   begin
@@ -2830,23 +2842,6 @@ begin
   end;
 end;
 
-function TMySQLConnection.NextCommandText(): string;
-var
-  EndingCommentLength: Integer;
-  Len: Integer;
-  StartingCommentLength: Integer;
-  StmtLength: Integer;
-begin
-  if (not InUse() or not Assigned(LibraryThread) or (LibraryThread.SQLStmt = LibraryThread.SQLLastStmtInPacket)) then
-    Result := ''
-  else
-  begin
-    StmtLength := Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt + 1]);
-    Len := SQLTrimStmt(LibraryThread.SQL, LibraryThread.SQLStmtIndex, StmtLength, StartingCommentLength, EndingCommentLength);
-    Result := copy(LibraryThread.SQL, LibraryThread.SQLStmtIndex + Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]) + StartingCommentLength, Len);
-  end;
-end;
-
 function TMySQLConnection.NextResult(const DataHandle: TMySQLConnection.TDataResult): Boolean;
 begin
   SyncNextResult(DataHandle);
@@ -2872,6 +2867,16 @@ begin
 
     FInTransaction := False;
   end;
+end;
+
+function TMySQLConnection.SendSQL(const SQL: string; const Done: TEvent): Boolean;
+begin
+  Result := ExecuteSQL(smSQL, False, SQL, TResultEvent(nil), Done) and not UseLibraryThread();
+end;
+
+function TMySQLConnection.SendSQL(const SQL: string; const OnResult: TResultEvent = nil): Boolean;
+begin
+  Result := ExecuteSQL(smSQL, False, SQL, OnResult) and not UseLibraryThread();
 end;
 
 procedure TMySQLConnection.SetAnsiQuotes(const AAnsiQuotes: Boolean);
@@ -2964,16 +2969,6 @@ begin
 
 
   FLibraryType := ALibraryType;
-end;
-
-function TMySQLConnection.SendSQL(const SQL: string; const Done: TEvent): Boolean;
-begin
-  Result := ExecuteSQL(smSQL, False, SQL, TResultEvent(nil), Done) and not UseLibraryThread();
-end;
-
-function TMySQLConnection.SendSQL(const SQL: string; const OnResult: TResultEvent = nil): Boolean;
-begin
-  Result := ExecuteSQL(smSQL, False, SQL, OnResult) and not UseLibraryThread();
 end;
 
 procedure TMySQLConnection.SetPassword(const APassword: string);
@@ -3678,7 +3673,7 @@ end;
 
 function TMySQLConnection.UseLibraryThread(): Boolean;
 begin
-  Result := Asynchron and Assigned(MySQLConnectionOnSynchronize) and (FSynchronCount = 0);
+  Result := Asynchron and Assigned(MySQLConnectionOnSynchronize) and (SynchronCount = 0);
 end;
 
 procedure TMySQLConnection.WriteMonitor(const AText: PChar; const Length: Integer; const ATraceType: TMySQLMonitor.TTraceType);

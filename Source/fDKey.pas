@@ -225,8 +225,8 @@ begin
 
     FFulltext.Enabled :=
       not Assigned(Table.Engine)
-        or (UpperCase(Table.Engine.Name) = 'INNODB') and (FIndexedFields.Items.Count > 0) and (Table.Session.ServerVersion >= 50600)
-        or (UpperCase(Table.Engine.Name) = 'MYISAM') and (FIndexedFields.Items.Count > 0) and (Table.Session.ServerVersion >= 32323);
+        or (UpperCase(Table.Engine.Name) = 'INNODB') and (FIndexedFields.Items.Count > 0) and (Table.Session.Connection.ServerVersion >= 50600)
+        or (UpperCase(Table.Engine.Name) = 'MYISAM') and (FIndexedFields.Items.Count > 0) and (Table.Session.Connection.ServerVersion >= 32323);
   end
   else
   begin
@@ -291,7 +291,7 @@ begin
     ModalResult := mrOk;
     Close();
   end
-  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
+  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.Connection.ErrorCode <> 0)) then
   begin
     GBasics.Visible := True;
     GAttributes.Visible := GBasics.Visible;
@@ -446,7 +446,7 @@ begin
   end;
 
   FIndexedFields.Items.Clear();
-  FComment.Visible := Table.Session.ServerVersion >= 50503; FLComment.Visible := FComment.Visible;
+  FComment.Visible := Table.Session.Connection.ServerVersion >= 50503; FLComment.Visible := FComment.Visible;
 
   SetLength(Lengths, Table.Fields.Count);
   for I := 0 to Length(Lengths) - 1 do

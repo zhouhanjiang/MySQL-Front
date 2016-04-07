@@ -229,7 +229,7 @@ begin
     Built()
   else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is TSTrigger)) then
     Close()
-  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
+  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.Connection.ErrorCode <> 0)) then
   begin
     PageControl.Visible := True;
     PSQLWait.Visible := not PageControl.Visible;

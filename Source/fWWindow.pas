@@ -1407,16 +1407,16 @@ var
   Start: Integer;
 begin
   for I := 0 to Sessions.Count - 1 do
-    if (Sessions[I].Connected) then
+    if (Sessions[I].Connection.Connected) then
       if (Assigned(ActiveTab) and (Sessions[I] = ActiveTab.Session)) then
-        DataFields.Add('MySQL Version=' + Sessions[I].ServerVersionStr + ' (Id*: ' + IntToStr(Sessions[I].ThreadId) + ')')
+        DataFields.Add('MySQL Version=' + Sessions[I].Connection.ServerVersionStr + ' (Id*: ' + IntToStr(Sessions[I].Connection.ThreadId) + ')')
       else
-        DataFields.Add('MySQL Version=' + Sessions[I].ServerVersionStr + ' (Id: ' + IntToStr(Sessions[I].ThreadId) + ')');
+        DataFields.Add('MySQL Version=' + Sessions[I].Connection.ServerVersionStr + ' (Id: ' + IntToStr(Sessions[I].Connection.ThreadId) + ')');
 
   if (Assigned(ActiveTab)) then
   begin
     Log := TStringList.Create();
-    Log.Text := ActiveTab.Session.BugMonitor.CacheText;
+    Log.Text := ActiveTab.Session.Connection.BugMonitor.CacheText;
     if (Log.Count < 10) then Start := 0 else Start := Log.Count - 10;
     for I := Start to Log.Count - 1 do
       DataFields.Add('Log_' + IntToStr(I - Start + 1) + '=' + Log[I]);
@@ -1736,9 +1736,9 @@ begin
     DisableApplicationActivate := False;
   end;
 
-  if ((ErrorCode = CR_SERVER_GONE_ERROR) and (Connection is TSSession)) then
+  if ((ErrorCode = CR_SERVER_GONE_ERROR) and (Connection is TSConnection)) then
   begin
-    Tab := TFSession(TSSession(Connection).Account.Frame);
+    Tab := TFSession(TSConnection(Connection).Session.Account.Frame);
     if (Boolean(SendMessage(Tab.Handle, CM_CLOSE_TAB_QUERY, 0, 0))) then
       Perform(CM_CLOSE_TAB, 0, LPARAM(Tab));
   end;

@@ -94,9 +94,9 @@ end;
 procedure TJobExecution.Execute();
 begin
   Session := TSSession.Create(Sessions, Account);
-  Session.FirstConnect();
-  if (not Session.Connected) then
-    WriteLn(StdErr, Session.ErrorMessage)
+  Session.Connection.Connect();
+  if (not Session.Connection.Connected) then
+    WriteLn(StdErr, Session.Connection.ErrorMessage)
   else if (Job is TAJobImport) then
     ExecuteImport(TAJobImport(Job))
   else if (Job is TAJobExport) then
@@ -115,7 +115,7 @@ var
 begin
   Result := 1;
   if (not Session.Update()) then
-    WriteLn(StdErr, Session.ErrorMessage)
+    WriteLn(StdErr, Session.Connection.ErrorMessage)
   else
   begin
     Export := nil;
@@ -247,7 +247,7 @@ begin
           begin
             Database := Session.Databases[J];
             if (not Database.Update()) then
-              WriteLn(StdErr, Session.ErrorMessage)
+              WriteLn(StdErr, Session.Connection.ErrorMessage)
             else
             begin
               for K := 0 to Database.Tables.Count - 1 do
@@ -266,7 +266,7 @@ begin
           if (not Assigned(Database)) then
             WriteLn(StdErr, 'Database not found: ' + Job.JobObjects[I].Name)
           else if (not Database.Update()) then
-            WriteLn(StdErr, Session.ErrorMessage)
+            WriteLn(StdErr, Session.Connection.ErrorMessage)
           else
           begin
             for K := 0 to Database.Tables.Count - 1 do
@@ -286,7 +286,7 @@ begin
           if (not Assigned(Database)) then
             WriteLn(StdErr, 'Database not found: ' + Job.JobObjects[I].DatabaseName)
           else if (not Database.Update()) then
-            WriteLn(StdErr, Session.ErrorMessage)
+            WriteLn(StdErr, Session.Connection.ErrorMessage)
           else
             case (Job.JobObjects[I].ObjectType) of
               jotTable:
@@ -378,7 +378,7 @@ var
 begin
   Result := 1;
   if (not Session.Update()) then
-    WriteLn(StdErr, Session.ErrorMessage)
+    WriteLn(StdErr, Session.Connection.ErrorMessage)
   else
   begin
     case (Job.JobObject.ObjectType) of
@@ -401,7 +401,7 @@ begin
         jotEvent: WriteLn(StdErr, 'Database not found: ' + Job.JobObject.DatabaseName);
       end
     else if (not Assigned(Database) or not Database.Update()) then
-      WriteLn(StdErr, Session.ErrorMessage)
+      WriteLn(StdErr, Session.Connection.ErrorMessage)
     else
     begin
       if (Job.JobObject.ObjectType <> jotTable) then
@@ -518,10 +518,10 @@ begin
   case (Error.ErrorType) of
     TE_Database:
       begin
-        ErrorMsg := SQLUnwrapStmt(Session.ErrorMessage);
-        if (Session.ErrorCode > 0) then
-          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Session.ErrorCode) + ')';
-        ErrorMsg := ErrorMsg + '  -  ' + SQLUnwrapStmt(Session.CommandText);
+        ErrorMsg := SQLUnwrapStmt(Session.Connection.ErrorMessage);
+        if (Session.Connection.ErrorCode > 0) then
+          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Session.Connection.ErrorCode) + ')';
+        ErrorMsg := ErrorMsg + '  -  ' + SQLUnwrapStmt(Session.Connection.CommandText);
       end;
     TE_File:
       ErrorMsg := Error.ErrorMessage + ' (#' + IntToStr(Error.ErrorCode) + ')';

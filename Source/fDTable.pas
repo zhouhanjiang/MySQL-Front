@@ -1030,8 +1030,8 @@ begin
   aPDeletePartition.Enabled := Selected and (ListView.SelCount >= 1);
   aPEditPartition.Enabled := Selected and (ListView.SelCount = 1) and (Page = TSPartitions);
 
-  aPUp.Enabled := Selected and (ListView = FFields) and not ListView.Items[0].Selected and (NewTable.Database.Session.ServerVersion >= 40001);
-  aPDown.Enabled := Selected and (ListView = FFields) and not ListView.Items[ListView.Items.Count - 1].Selected and (NewTable.Database.Session.ServerVersion >= 40001);
+  aPUp.Enabled := Selected and (ListView = FFields) and not ListView.Items[0].Selected and (NewTable.Database.Session.Connection.ServerVersion >= 40001);
+  aPDown.Enabled := Selected and (ListView = FFields) and not ListView.Items[ListView.Items.Count - 1].Selected and (NewTable.Database.Session.Connection.ServerVersion >= 40001);
 
   ShowEnabledItems(MList.Items);
 
@@ -1167,7 +1167,7 @@ begin
       TSExtrasShow(nil)
   else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is fSession.TSTable)) then
     Close()
-  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
+  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.Connection.ErrorCode <> 0)) then
   begin
     PageControl.Visible := True;
     PSQLWait.Visible := not PageControl.Visible;
@@ -1294,8 +1294,8 @@ begin
   end;
 
 
-  FDefaultCharset.Visible := Database.Session.ServerVersion >= 40101; FLDefaultCharset.Visible := FDefaultCharset.Visible;
-  FCollation.Visible := Database.Session.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
+  FDefaultCharset.Visible := Database.Session.Connection.ServerVersion >= 40101; FLDefaultCharset.Visible := FDefaultCharset.Visible;
+  FCollation.Visible := Database.Session.Connection.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
   GRecords.Visible := Assigned(Table);
 
   TSInformation.TabVisible := Assigned(Table);
@@ -1498,7 +1498,7 @@ begin
           end;
         end;
         ListItem.SubItems.Add(S);
-        if (NewTable.Session.ServerVersion >= 40100) then
+        if (NewTable.Session.Connection.ServerVersion >= 40100) then
           ListItem.SubItems.Add(NewTable.Fields[I].Comment);
         ListItem.ImageIndex := iiField;
       end
@@ -1603,7 +1603,7 @@ begin
         ListItem.SubItems.Add('fulltext')
       else
         ListItem.SubItems.Add('');
-      if (Database.Session.ServerVersion >= 50503) then
+      if (Database.Session.Connection.ServerVersion >= 50503) then
         ListItem.SubItems.Add(NewTable.Keys[I].Comment);
       ListItem.ImageIndex := iiKey;
     end;

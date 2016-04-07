@@ -221,12 +221,12 @@ procedure TDServer.FBShutdownClick(Sender: TObject);
 var
   Host: string;
 begin
-  Host := Session.Host;
-  if (Session.Port <> MYSQL_PORT) then
-    Host := Host + ':' + IntToStr(Session.Port);
+  Host := Session.Connection.Host;
+  if (Session.Connection.Port <> MYSQL_PORT) then
+    Host := Host + ':' + IntToStr(Session.Connection.Port);
   if (MsgBox(Preferences.LoadStr(679, Host), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES) then
     if (Boolean(SendMessage(Tab.Handle, CM_CLOSE_TAB_QUERY, 0, 0))) then
-      if (Session.Shutdown()) then
+      if (Session.Connection.Shutdown()) then
       begin
         PostMessage(TForm(Tab.Owner).Handle, CM_CLOSE_TAB, 0, LPARAM(Tab));
         FBCancel.Click();
@@ -240,7 +240,7 @@ begin
   if ((Event.EventType = etItemsValid) and (Assigned(Session.Plugins) and (Event.SItems = Session.Plugins))
     and (not Assigned(Session.Plugins) or Session.Plugins.Valid)) then
     Built()
-  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
+  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.Connection.ErrorCode <> 0)) then
   begin
     PageControl.Visible := True;
     PSQLWait.Visible := not PageControl.Visible;
@@ -293,24 +293,24 @@ begin
 
   Caption := Preferences.LoadStr(842, Session.Caption);
 
-  FHost.Caption := Session.HostInfo;
-  FVersion.Caption := Session.ServerVersionStr;
+  FHost.Caption := Session.Connection.HostInfo;
+  FVersion.Caption := Session.Connection.ServerVersionStr;
   FComment.Visible := Assigned(Session.VariableByName('version_comment'));
   FLComment.Visible := FComment.Visible;
   if (FComment.Visible) then
     FComment.Caption := Session.VariableByName('version_comment').Value;
-  if (Session.LibraryType = ltDLL) then
-    FLibVersion.Caption := Session.Lib.VersionStr
+  if (Session.Connection.LibraryType = ltDLL) then
+    FLibVersion.Caption := Session.Connection.Lib.VersionStr
   else
     FLibVersion.Caption := Preferences.LoadStr(649);
   if (Session.CurrentUser = '') then
     FUser.Caption := '???'
   else
     FUser.Caption := Session.CurrentUser;
-  FCharacterSet.Caption := Session.Charset;
-  FThreadId.Visible := Session.ThreadId > 0;
+  FCharacterSet.Caption := Session.Connection.Charset;
+  FThreadId.Visible := Session.Connection.ThreadId > 0;
   FLThreadId.Visible := FThreadId.Visible;
-  FThreadId.Caption := IntToStr(Session.ThreadId);
+  FThreadId.Caption := IntToStr(Session.Connection.ThreadId);
   FUptime.Caption := '???';
 
   FStartup.Lines.Clear();
@@ -434,7 +434,7 @@ procedure TDServer.TSExtrasShow(Sender: TObject);
 begin
   FUptime.Caption := SysUtils.DateTimeToStr(Session.StartTime, LocaleFormatSettings);
 
-  FBShutdown.Enabled := Session.CanShutdown and (not Assigned(Session.UserRights) or Session.UserRights.RShutdown);
+  FBShutdown.Enabled := Session.Connection.CanShutdown and (not Assigned(Session.UserRights) or Session.UserRights.RShutdown);
 end;
 
 procedure TDServer.TSPluginsShow(Sender: TObject);

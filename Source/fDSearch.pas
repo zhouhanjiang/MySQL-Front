@@ -486,7 +486,7 @@ begin
 
   if (Assigned(Session)) then
   begin
-    Session.BeginSynchron();
+    Session.Connection.BeginSynchron();
 
     SelectedNodes := TList.Create();
     DatabaseNames := TStringList.Create();
@@ -557,7 +557,7 @@ begin
     TableNames.Free();
     FieldNames.Free();
 
-    Session.EndSynchron();
+    Session.Connection.EndSynchron();
   end;
 
   FFFindText.Text := '';
@@ -773,10 +773,10 @@ begin
   case (Error.ErrorType) of
     TE_Database:
       begin
-        Msg := Preferences.LoadStr(165, IntToStr(Error.Session.ErrorCode), Error.Session.ErrorMessage);
-        ErrorMsg := SQLUnwrapStmt(Error.Session.ErrorMessage);
-        if (Error.Session.ErrorCode > 0) then
-          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Error.Session.ErrorCode) + ')';
+        Msg := Preferences.LoadStr(165, IntToStr(Error.Session.Connection.ErrorCode), Error.Session.Connection.ErrorMessage);
+        ErrorMsg := SQLUnwrapStmt(Error.Session.Connection.ErrorMessage);
+        if (Error.Session.Connection.ErrorCode > 0) then
+          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Error.Session.Connection.ErrorCode) + ')';
       end;
     TE_File:
       begin

@@ -467,25 +467,25 @@ begin
   FFields.Clear();
 
 
-  FProcedure.Visible := Session.ServerVersion >= 50006; FProcedures.Visible := FProcedure.Visible;
-  FFunction.Visible := Session.ServerVersion >= 50006; FFunctions.Visible := FFunction.Visible;
+  FProcedure.Visible := Session.Connection.ServerVersion >= 50006; FProcedures.Visible := FProcedure.Visible;
+  FFunction.Visible := Session.Connection.ServerVersion >= 50006; FFunctions.Visible := FFunction.Visible;
 
-  FAlterRoutine.Visible := Session.ServerVersion >= 50003;
-  FCreateRoutine.Visible := Session.ServerVersion >= 50003;
-  FCreateTableSpace.Visible := Session.ServerVersion >= 50500;
-  FCreateTempTable.Visible := Session.ServerVersion >= 40002;
-  FCreateUser.Visible := Session.ServerVersion >= 50003;
-  FCreateView.Visible := Session.ServerVersion >= 50001;
-  FEvent.Visible := Session.ServerVersion >= 50106;
-  FExecute.Visible := Session.ServerVersion >= 50003;
-  FLockTable.Visible := Session.ServerVersion >= 40002;
-  FProxy.Visible := Session.ServerVersion >= 50507;
-  FReplClient.Visible := Session.ServerVersion >= 40002;
-  FReplSlave.Visible := Session.ServerVersion >= 40002;
-  FShowDatabase.Visible := Session.ServerVersion >= 40002;
-  FShowView.Visible := Session.ServerVersion >= 50001;
-  FSuper.Visible := Session.ServerVersion >= 40002;
-  FTrigger.Visible := Session.ServerVersion >= 50106;
+  FAlterRoutine.Visible := Session.Connection.ServerVersion >= 50003;
+  FCreateRoutine.Visible := Session.Connection.ServerVersion >= 50003;
+  FCreateTableSpace.Visible := Session.Connection.ServerVersion >= 50500;
+  FCreateTempTable.Visible := Session.Connection.ServerVersion >= 40002;
+  FCreateUser.Visible := Session.Connection.ServerVersion >= 50003;
+  FCreateView.Visible := Session.Connection.ServerVersion >= 50001;
+  FEvent.Visible := Session.Connection.ServerVersion >= 50106;
+  FExecute.Visible := Session.Connection.ServerVersion >= 50003;
+  FLockTable.Visible := Session.Connection.ServerVersion >= 40002;
+  FProxy.Visible := Session.Connection.ServerVersion >= 50507;
+  FReplClient.Visible := Session.Connection.ServerVersion >= 40002;
+  FReplSlave.Visible := Session.Connection.ServerVersion >= 40002;
+  FShowDatabase.Visible := Session.Connection.ServerVersion >= 40002;
+  FShowView.Visible := Session.Connection.ServerVersion >= 50001;
+  FSuper.Visible := Session.Connection.ServerVersion >= 40002;
+  FTrigger.Visible := Session.Connection.ServerVersion >= 50106;
 
 
   FAll.Checked := not Assigned(UserRight) or (UserRight.DatabaseName = '');

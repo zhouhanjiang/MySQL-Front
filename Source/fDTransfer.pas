@@ -480,10 +480,10 @@ begin
   case (Error.ErrorType) of
     TE_Database:
       begin
-        Msg := Preferences.LoadStr(165, IntToStr(Error.Session.ErrorCode), Error.Session.ErrorMessage);
-        ErrorMsg := SQLUnwrapStmt(Error.Session.ErrorMessage);
-        if (Error.Session.ErrorCode > 0) then
-          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Error.Session.ErrorCode) + ')';
+        Msg := Preferences.LoadStr(165, IntToStr(Error.Session.Connection.ErrorCode), Error.Session.Connection.ErrorMessage);
+        ErrorMsg := SQLUnwrapStmt(Error.Session.Connection.ErrorMessage);
+        if (Error.Session.Connection.ErrorCode > 0) then
+          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Error.Session.Connection.ErrorCode) + ')';
       end;
     TE_File:
       begin
@@ -649,10 +649,10 @@ var
       DestinationTableName := DestinationSession.TableName(SourceTable.Name);
       if (Assigned(DestinationDatabase)) then
       begin
-        DestinationSession.BeginSynchron();
+        DestinationSession.Connection.BeginSynchron();
         if (DestinationDatabase.Update() and Assigned(DestinationDatabase.TableByName(DestinationTableName))) then
           Answer := MsgBox(Preferences.LoadStr(700, DestinationDatabase.Name + '.' + DestinationTableName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);
-        DestinationSession.EndSynchron();
+        DestinationSession.Connection.EndSynchron();
       end;
     end;
 
@@ -831,7 +831,7 @@ begin
 
   if (Assigned(SourceSession)) then
   begin
-    SourceSession.BeginSynchron();
+    SourceSession.Connection.BeginSynchron();
 
     SelectedNodes := TList.Create();
     DatabaseNames := TStringList.Create();
@@ -883,13 +883,13 @@ begin
 
     DatabaseNames.Free();
     TableNames.Free();
-    SourceSession.EndSynchron();
+    SourceSession.Connection.EndSynchron();
 
     SelectedNodes.Clear();
 
     if (Assigned(DestinationSession)) then
     begin
-      DestinationSession.BeginSynchron();
+      DestinationSession.Connection.BeginSynchron();
 
       AccountNode := FDestination.Items[0];
       while (Assigned(AccountNode)) do
@@ -932,7 +932,7 @@ begin
       else if (Assigned(AccountNode)) then
         AccountNode.Selected := True;
 
-      DestinationSession.EndSynchron();
+      DestinationSession.Connection.EndSynchron();
     end;
 
     SelectedNodes.Free();

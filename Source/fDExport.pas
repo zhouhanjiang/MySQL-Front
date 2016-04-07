@@ -1325,7 +1325,7 @@ begin
             else
             begin
               for I := 0 to Session.Databases.Count - 1 do
-                if (((Session.Databases.NameCmp(Session.Databases[I].Name, 'mysql') <> 0) or (Session.Databases.NameCmp(Session.Databases[I].Name, 'sys') <> 0) and (Session.ServerVersion >= 50707)) and not (Session.Databases[I] is TSSystemDatabase)) then
+                if (((Session.Databases.NameCmp(Session.Databases[I].Name, 'mysql') <> 0) or (Session.Databases.NameCmp(Session.Databases[I].Name, 'sys') <> 0) and (Session.Connection.ServerVersion >= 50707)) and not (Session.Databases[I] is TSSystemDatabase)) then
                 begin
                   NewNode := TreeView.Items.AddChild(Node, Session.Databases[I].Name);
                   NewNode.ImageIndex := iiDatabase;
@@ -1461,13 +1461,13 @@ begin
   Database := BuildTitle();
 
   if (SingleTable and (TObject(DExport.SObjects[0]) is TSBaseTable)) then
-    CodePage := Session.CharsetToCodePage(TSBaseTable(DExport.SObjects[0]).DefaultCharset)
+    CodePage := Session.Connection.CharsetToCodePage(TSBaseTable(DExport.SObjects[0]).DefaultCharset)
   else if (Assigned(Database)) then
-    CodePage := Session.CharsetToCodePage(Database.DefaultCharset)
-  else if (Assigned(Session) and (Session.Charset <> '')) then
-    CodePage := Session.CharsetToCodePage(Session.Charset)
+    CodePage := Session.Connection.CharsetToCodePage(Database.DefaultCharset)
+  else if (Assigned(Session) and (Session.Connection.Charset <> '')) then
+    CodePage := Session.Connection.CharsetToCodePage(Session.Connection.Charset)
   else
-    CodePage := Session.CodePage;
+    CodePage := Session.Connection.CodePage;
 
   SaveDialog.Title := Preferences.LoadStr(582);
   SaveDialog.InitialDir := Preferences.Path;
@@ -1691,7 +1691,7 @@ begin
   Result := True;
   if (FSelect.Items[0].Count = 0) then
   begin
-    Session.BeginSynchron();
+    Session.Connection.BeginSynchron();
 
     Nodes := TList.Create();
     if (not Session.Databases.Update()) then
@@ -1746,7 +1746,7 @@ begin
     FSelect.Select(Nodes);
     Nodes.Free();
 
-    Session.EndSynchron();
+    Session.Connection.EndSynchron();
   end;
 end;
 
@@ -1783,10 +1783,10 @@ begin
   case (Error.ErrorType) of
     TE_Database:
       begin
-        Msg := Preferences.LoadStr(165, IntToStr(Session.ErrorCode), Session.ErrorMessage);
-        ErrorMsg := SQLUnwrapStmt(Session.ErrorMessage);
-        if (Session.ErrorCode > 0) then
-          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Session.ErrorCode) + ')';
+        Msg := Preferences.LoadStr(165, IntToStr(Session.Connection.ErrorCode), Session.Connection.ErrorMessage);
+        ErrorMsg := SQLUnwrapStmt(Session.Connection.ErrorMessage);
+        if (Session.Connection.ErrorCode > 0) then
+          ErrorMsg := ErrorMsg + ' (#' + IntToStr(Session.Connection.ErrorCode) + ')';
       end;
     TE_File:
       begin

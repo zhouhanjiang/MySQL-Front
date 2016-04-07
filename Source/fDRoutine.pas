@@ -217,7 +217,7 @@ begin
 
   FBOk.Enabled := (not Assigned(Routine) or Assigned(Routine) and (Routine.Source <> ''))
     and (not TSBasics.Visible or not Assigned(Routine) or (FName.Text <> '') and ((lstrcmpi(PChar(FName.Text), PChar(Routine.Name)) = 0) or ((Routine.RoutineType = rtProcedure) and not Assigned(Database.ProcedureByName(FName.Text)) or ((Routine.RoutineType = rtFunction) and not Assigned(Database.FunctionByName(FName.Text))))))
-    and (not TSSource.Visible or SQLSingleStmt(FSource.Text) and SQLParseDDLStmt(DDLStmt, PChar(FSource.Text), Length(FSource.Text), Database.Session.ServerVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction]) and ((DDLStmt.DatabaseName = '') or (Database.Session.DatabaseByName(DDLStmt.DatabaseName) = Database)));
+    and (not TSSource.Visible or SQLSingleStmt(FSource.Text) and SQLParseDDLStmt(DDLStmt, PChar(FSource.Text), Length(FSource.Text), Database.Session.Connection.ServerVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction]) and ((DDLStmt.DatabaseName = '') or (Database.Session.DatabaseByName(DDLStmt.DatabaseName) = Database)));
 
   TSInformations.TabVisible := False;
 end;
@@ -242,7 +242,7 @@ begin
     Built()
   else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is TSRoutine)) then
     Close()
-  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
+  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.Connection.ErrorCode <> 0)) then
   begin
     PageControl.Visible := True;
     PSQLWait.Visible := not PageControl.Visible;
@@ -355,7 +355,7 @@ begin
       end;
 
       FSource.Lines.Clear();
-      FSource.Lines.Add('CREATE PROCEDURE ' + Database.Session.EscapeIdentifier(RoutineName) + '(' + Database.Session.EscapeIdentifier('Param') + ' int(11))');
+      FSource.Lines.Add('CREATE PROCEDURE ' + Database.Session.Connection.EscapeIdentifier(RoutineName) + '(' + Database.Session.Connection.EscapeIdentifier('Param') + ' int(11))');
       FSource.Lines.Add('BEGIN');
       FSource.Lines.Add('END;');
     end
@@ -370,7 +370,7 @@ begin
       end;
 
       FSource.Lines.Clear();
-      FSource.Lines.Add('CREATE FUNCTION ' + Database.Session.EscapeIdentifier(RoutineName) + '(' + Database.Session.EscapeIdentifier('Param') + ' int(11)) RETURNS int(11)');
+      FSource.Lines.Add('CREATE FUNCTION ' + Database.Session.Connection.EscapeIdentifier(RoutineName) + '(' + Database.Session.Connection.EscapeIdentifier('Param') + ' int(11)) RETURNS int(11)');
       FSource.Lines.Add('BEGIN');
       FSource.Lines.Add('  RETURN Param;');
       FSource.Lines.Add('END;');

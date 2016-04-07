@@ -302,7 +302,7 @@ begin
       TSExtrasShow(nil)
   else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is TSDatabase)) then
     Close()
-  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.ErrorCode <> 0)) then
+  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.Connection.ErrorCode <> 0)) then
   begin
     PageControl.Visible := True;
     PSQLWait.Visible := not PageControl.Visible;
@@ -322,7 +322,7 @@ var
 begin
   if ((ModalResult = mrOk) and PageControl.Visible) then
   begin
-    NewDatabase := TSDatabase.Create(Session);
+    NewDatabase := TSDatabase.Create(Session.Databases);
     if (Assigned(Database)) then
       NewDatabase.Assign(Database);
 
@@ -439,8 +439,8 @@ begin
   end;
 
   FName.Enabled := not Assigned(Database) or not Assigned(Session.DatabaseByName(Database.Name));
-  FDefaultCharset.Visible := Session.ServerVersion >= 40101; FLDefaultCharset.Visible := FDefaultCharset.Visible;
-  FCollation.Visible := Session.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
+  FDefaultCharset.Visible := Session.Connection.ServerVersion >= 40101; FLDefaultCharset.Visible := FDefaultCharset.Visible;
+  FCollation.Visible := Session.Connection.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
 
   FBOptimize.Enabled := True;
   FBCheck.Enabled := True;
@@ -497,9 +497,9 @@ end;
 
 procedure TDDatabase.TSInformationsShow(Sender: TObject);
 begin
-  Session.BeginSynchron();
+  Session.Connection.BeginSynchron();
   Database.Update(True);
-  Session.EndSynchron();
+  Session.Connection.EndSynchron();
 
   FCreated.Caption := '???';
   FUpdated.Caption := '???';

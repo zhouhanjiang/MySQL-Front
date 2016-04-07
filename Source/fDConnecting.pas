@@ -52,9 +52,9 @@ end;
 
 procedure TDConnecting.AfterConnect(Sender: TObject);
 begin
-  if (Session.Connected) then
+  if (Session.Connection.Connected) then
     ModalResult := mrOk
-  else if (((Session.ErrorCode = ER_ACCESS_DENIED_ERROR) or (Session.ErrorCode = ER_DBACCESS_DENIED_ERROR)) and Accounts.DBLogin(Session.Account)) then
+  else if (((Session.Connection.ErrorCode = ER_ACCESS_DENIED_ERROR) or (Session.Connection.ErrorCode = ER_DBACCESS_DENIED_ERROR)) and Accounts.DBLogin(Session.Account)) then
     PostMessage(Handle, CM_POST_SHOW, 0, 0)
   else
     ModalResult := mrCancel;
@@ -69,12 +69,12 @@ end;
 
 procedure TDConnecting.CMPostShow(var Message: TMessage);
 begin
-  Session.FirstConnect();
+  Session.Connection.Connect();
 end;
 
 procedure TDConnecting.FBCancelClick(Sender: TObject);
 begin
-  Session.Terminate();
+  Session.Connection.Terminate();
   ModalResult := mrCancel;
 end;
 
@@ -86,7 +86,7 @@ end;
 
 procedure TDConnecting.FormHide(Sender: TObject);
 begin
-  Session.AfterConnect := nil;
+  Session.Connection.AfterConnect := nil;
   Session := nil;
 end;
 
@@ -94,7 +94,7 @@ procedure TDConnecting.FormShow(Sender: TObject);
 begin
   Caption := Session.Account.Name;
 
-  Session.AfterConnect := AfterConnect;
+  Session.Connection.AfterConnect := AfterConnect;
 
   PostMessage(Handle, CM_POST_SHOW, 0, 0);
 end;
