@@ -4332,7 +4332,11 @@ begin
 
     if ((SessionEvent.EventType = etItemAltered) and (SessionEvent.SItem is TSTable)
       and Assigned(Desktop(TSTable(SessionEvent.SItem)).DBGrid)) then
-      Desktop(TSTable(SessionEvent.SItem)).DBGrid.DataSource.DataSet.Close();
+    begin
+      Wanted.Update := TSTable(SessionEvent.SItem).Update;
+      FFilter.Text := '';
+      FFilterEnabled.Down := False;
+    end;
   end;
 
   if (PContent.Visible and Assigned(TempActiveControl) and TempActiveControl.Visible) then

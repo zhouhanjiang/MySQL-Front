@@ -411,14 +411,15 @@ begin
       PageControl.ActivePageIndex := I;
   CheckActivePageChange(PageControl.ActivePageIndex);
 
+  FBCancel.Caption := Preferences.LoadStr(30);
+  FBCancel.Enabled := True;
+  FBCancel.ModalResult := mrCancel;
+  FBCancel.Default := False;
+
   if (Assigned(SourceSession)) then
     ActiveControl := FSource
   else
     ActiveControl := FBCancel;
-
-  FBCancel.Caption := Preferences.LoadStr(30);
-  FBCancel.ModalResult := mrCancel;
-  FBCancel.Default := False;
 end;
 
 procedure TDTransfer.FStructureClick(Sender: TObject);

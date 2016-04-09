@@ -2197,7 +2197,6 @@ begin
   begin
     Session.Connection.BeginSynchron(); // Must be synchron, since the next table will be handled immediately
     TSBaseTable(Table).InvalidateStatus();
-    TSBaseTable(Table).Update();
     Session.Connection.EndSynchron();
   end;
 

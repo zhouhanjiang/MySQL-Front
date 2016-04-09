@@ -1264,6 +1264,7 @@ begin
       PageControl.ActivePageIndex := I;
   CheckActivePageChange(PageControl.ActivePageIndex);
 
+  FBCancel.Enabled := True;
   FBCancel.ModalResult := mrCancel;
 
   if (PageControl.Visible and TSSelect.Visible and FName.Enabled) then

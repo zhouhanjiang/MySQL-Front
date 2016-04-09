@@ -1301,6 +1301,7 @@ begin
 
   FBBack.Visible := (DialogType in [idtNormal, idtCreateJob, idtEditJob]) and not (ImportType in [itSQLFile]);
   FBForward.Visible := FBBack.Visible;
+  FBCancel.Enabled := True;
   FBCancel.ModalResult := mrCancel;
   FBCancel.Caption := Preferences.LoadStr(30);
 

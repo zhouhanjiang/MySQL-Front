@@ -570,6 +570,7 @@ begin
   FBForward.Default := True;
 
   FBCancel.Caption := Preferences.LoadStr(30);
+  FBCancel.Enabled := True;
   FBCancel.ModalResult := mrCancel;
   FBCancel.Default := False;
 

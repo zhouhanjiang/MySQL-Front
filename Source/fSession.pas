@@ -4709,12 +4709,8 @@ begin
           FPartitions.Linear := SQLParseKeyword(Parse, 'LINEAR');
 
           FPartitions.PartitionType := StrToPartitionType(SQLParseValue(Parse));
-          if (SQLParseChar(Parse, '(')) then
-          begin
+          if (SQLParseChar(Parse, '(', False)) then
             FPartitions.Expression := '(' + SQLParseBracketContent(Parse) + ')';
-            if (not SQLParseChar(Parse, ')')) then
-              raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
-          end;
 
           if (SQLParseKeyword(Parse, 'PARTITIONS')) then
             FPartitions.PartitionsNumber := StrToInt(SQLParseValue(Parse));

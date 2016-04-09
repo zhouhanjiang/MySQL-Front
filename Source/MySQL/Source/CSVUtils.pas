@@ -450,6 +450,8 @@ begin
       Finish4:
         CMP AX,26                        // Character = EndOfFile?
         JNE Finish5                      // Yes!
+        ADD ESI,2                        // Step over CarrigeReturn
+        DEC ECX                          // One character handled
         MOV EOF,True
         JMP FinishE
       Finish5:
@@ -486,9 +488,14 @@ begin
         POP ES
       end;
 
-      Values[Value].Text := ValueText;
-      Values[Value].Length := ValueLength;
-      Inc(Value);
+      if (ValueText = #26 {EndOfFile}) then
+        SetLength(Values, 0)
+      else
+      begin
+        Values[Value].Text := ValueText;
+        Values[Value].Length := ValueLength;
+        Inc(Value);
+      end;
     until (Result or (Len = 0));
 
     if (Result) then
