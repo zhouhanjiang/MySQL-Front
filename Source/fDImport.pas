@@ -1849,6 +1849,7 @@ begin
   FBBack.Enabled := False;
   FBForward.Enabled := False;
   FBForward.Default := False;
+  FBCancel.Enabled := True;
   FBCancel.Default := True;
   FBCancel.ModalResult := mrNone;
 

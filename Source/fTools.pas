@@ -4596,7 +4596,7 @@ begin
   begin
     Content := '';
 
-    if (DropStmts and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
+    if (DropStmts and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM and not DataSet.IsEmpty()) then
       Content := Content + '/*!40000 ALTER TABLE ' + Session.Connection.EscapeIdentifier(Table.Name) + ' ENABLE KEYS */;' + #13#10;
 
     if (Content <> '') then
@@ -4635,7 +4635,7 @@ begin
     Content := Content + '#' + #13#10;
     Content := Content + #13#10;
 
-    if (DropStmts and TSBaseTable(Table).Engine.IsMyISAM) then
+    if (DropStmts and TSBaseTable(Table).Engine.IsMyISAM and not DataSet.IsEmpty()) then
       Content := Content + '/*!40000 ALTER TABLE ' + Session.Connection.EscapeIdentifier(Table.Name) + ' DISABLE KEYS */;' + #13#10;
   end;
 
@@ -6704,7 +6704,7 @@ begin
                 SetLength(MaxFieldsCharLengths[Length(MaxFieldsCharLengths) - 1], TSTable(Tables[J]).Fields.Count);
                 DataSet := TMySQLQuery.Create(nil);
                 DataSet.Open(DataHandle);
-                if (not DataSet.IsEmpty) then
+                if (not DataSet.IsEmpty()) then
                   for K := 0 to DataSet.FieldCount - 1 do
                     MaxFieldsCharLengths[Length(MaxFieldsCharLengths) - 1][K] := DataSet.Fields[K].AsInteger;
                 DataSet.Free();
@@ -7942,12 +7942,12 @@ begin
               SQL := SQL + 'START TRANSACTION;' + #13#10;
           if (DestinationSession.Databases.NameCmp(DestinationSession.Connection.DatabaseName, DestinationDatabase.Name) <> 0) then
             SQL := SQL + DestinationDatabase.SQLUse();
-          if ((DestinationSession.Connection.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
+          if ((DestinationSession.Connection.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM and not DataSet.IsEmpty()) then
             SQL := SQL + 'ALTER TABLE ' + DestinationSession.Connection.EscapeIdentifier(DestinationDatabase.Name) + '.' + DestinationSession.Connection.EscapeIdentifier(DestinationTable.Name) + ' DISABLE KEYS;' + #13#10;
           if (DestinationDatabase.Name <> DestinationSession.Connection.DatabaseName) then
             SQL := SQL + DestinationDatabase.SQLUse();
           SQL := SQL + SQLLoadDataInfile(DestinationDatabase, False, Pipename, DestinationSession.Connection.Charset, DestinationDatabase.Name, DestinationTable.Name, []);
-          if ((DestinationSession.Connection.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM) then
+          if ((DestinationSession.Connection.ServerVersion >= 40000) and DestinationTable.Engine.IsMyISAM and not DataSet.IsEmpty()) then
             SQL := SQL + 'ALTER TABLE ' + DestinationSession.Connection.EscapeIdentifier(DestinationDatabase.Name) + '.' + DestinationSession.Connection.EscapeIdentifier(DestinationTable.Name) + ' ENABLE KEYS;' + #13#10;
           if (DestinationSession.Connection.Lib.LibraryType <> ltHTTP) then
             SQL := SQL + 'COMMIT;' + #13#10;

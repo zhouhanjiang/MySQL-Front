@@ -736,6 +736,7 @@ begin
 
   FBBack.Enabled := False;
   FBForward.Enabled := False;
+  FBCancel.Enabled := True;
   FBCancel.Default := True;
   FBCancel.ModalResult := mrNone;
   ActiveControl := FBCancel;
