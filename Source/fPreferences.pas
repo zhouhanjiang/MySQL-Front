@@ -1033,7 +1033,8 @@ end;
 function TryStrToObjectType(const Str: string; var ObjectType: TAJobObjectType): Boolean;
 begin
   Result := True;
-  if (UpperCase(Str) = 'DATABASE') then ObjectType := jotDatabase
+  if (UpperCase(Str) = 'SERVER') then ObjectType := jotDatabase
+  else if (UpperCase(Str) = 'DATABASE') then ObjectType := jotDatabase
   else if (UpperCase(Str) = 'TABLE') then ObjectType := jotTable
   else if (UpperCase(Str) = 'PROCEDURE') then ObjectType := jotProcedure
   else if (UpperCase(Str) = 'FUNCTION') then ObjectType := jotFunction
@@ -1045,6 +1046,7 @@ end;
 function ObjectTypeToStr(const ObjectType: TAJobObjectType): string;
 begin
   case (ObjectType) of
+    jotServer: Result := 'Server';
     jotDatabase: Result := 'Database';
     jotTable: Result := 'Table';
     jotProcedure: Result := 'Procedure';

@@ -3199,6 +3199,8 @@ begin
     WorkbenchPasteExecute(Sender)
   else if (Window.ActiveControl = FFilter) then
     FFilter.PasteFromClipboard()
+  else if (Window.ActiveControl = FText) then
+    FText.PasteFromClipboard
   else
     MessageBeep(MB_ICONERROR);
 end;
