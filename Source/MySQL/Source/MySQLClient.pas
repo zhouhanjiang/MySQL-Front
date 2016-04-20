@@ -13,7 +13,7 @@ type
 
   TMySQL_IO = class
   type
-    TType = (itNone, itNamedPipe, itTCPIP, itHTTP);
+    TType = (itNone, itNamedPipe, itTCPIP);
     TDirection = (idRead, idWrite);
   private
     FErrNo: my_uint;
@@ -2295,14 +2295,12 @@ begin
     if (fdb = '') then
       fclient_capabilities := fclient_capabilities and not CLIENT_CONNECT_WITH_DB;
 
-    if ((host <> '') and (host <> LOCAL_HOST_NAMEDPIPE)) then
-      CreatePacket(itTCPIP, fhost, fport, ftimeout)
-    else if (host = LOCAL_HOST_NAMEDPIPE) then
-      CreatePacket(itNamedPipe, host, fport, ftimeout)
+    if (host = LOCAL_HOST_NAMEDPIPE) then
+      CreatePacket(itNamedPipe, fhost, fport, ftimeout)
     else if (unix_socket = LOCAL_HOST_NAMEDPIPE) then
-      CreatePacket(itHTTP, LOCAL_HOST_NAMEDPIPE, fport, ftimeout)
+      CreatePacket(itTCPIP, LOCAL_HOST_NAMEDPIPE, fport, ftimeout)
     else
-      CreatePacket(itHTTP, host, fport, ftimeout);
+      CreatePacket(itTCPIP, host, fport, ftimeout);
 
 
     if (IOType = itNone) then

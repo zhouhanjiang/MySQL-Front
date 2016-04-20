@@ -479,15 +479,13 @@
 	} else if (extension_loaded('mysql')) { /************************************/
 
 		if ($_SESSION['host'] == '.')
-      if (version_compare(phpversion(), '4.3.0') < 0)
-				$mysql = mysql_connect($MYSQL_SOCKET, $_SESSION['user'], $_SESSION['password']);
-			else
-				$mysql = mysql_connect($MYSQL_SOCKET, $_SESSION['user'], $_SESSION['password'], true, $_SESSION['client_flag'] & 0x0125);
+      $Host = $MYSQL_SOCKET;
+    else
+      $Host = $_SESSION['host'] . ':' . $_SESSION['port'];  
+		if (version_compare(phpversion(), '4.3.0') < 0)
+			$mysql = mysql_connect($Host, $_SESSION['user'], $_SESSION['password']);
 		else
-			if (version_compare(phpversion(), '4.3.0') < 0)
-				$mysql = mysql_connect($_SESSION['host'] . ':' . $_SESSION['port'], $_SESSION['user'], $_SESSION['password']);
-			else
-				$mysql = mysql_connect($_SESSION['host'] . ':' . $_SESSION['port'], $_SESSION['user'], $_SESSION['password'], true, $_SESSION['client_flag'] & 0x0125);
+			$mysql = mysql_connect($Host, $_SESSION['user'], $_SESSION['password'], true, $_SESSION['client_flag'] & 0x0125);
 		if ($mysql && ! mysql_errno($mysql) && $_SESSION['database'])
 			mysql_select_db($_SESSION['database'], $mysql);
 

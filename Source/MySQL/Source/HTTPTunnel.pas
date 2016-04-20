@@ -347,7 +347,7 @@ var
   L: Longint;
   Size: DWord;
 begin
-  Result := AType in [itTCPIP, itHTTP];
+  Result := AType = itTCPIP;
   if (Result) then
   begin
     Handle := InternetOpen(PChar(Agent), INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);

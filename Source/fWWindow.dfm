@@ -1059,6 +1059,7 @@ object WWindow: TWWindow
       HelpContext = 1062
       HelpType = htContext
       ImageIndex = 20
+      ShortCut = 16430
     end
     object aDEditRecord: TAction
       Category = 'Database'
