@@ -8,7 +8,7 @@
 
 	/****************************************************************************/
 
-	$MF_VERSION = 20;
+	$MF_VERSION = 21;
 
 	$Charsets = array(
 		'big5' => 1,
@@ -44,14 +44,6 @@
 		'latin1_de' => 31);
 
 	/****************************************************************************/
-
-	function FileRead($Handle, $Length) {
-		$Data = '';
-		while ((strlen($Data) < $Length) && ! feof($Handle))
-			$Data .= fread($Handle, $Length - strlen($Data));
-		
-		return $Data;
-	}
 
 	function FlushPackets() {
 		global $SendPacketBuffer;
@@ -189,30 +181,33 @@
 	$SessionStarted = session_start() xor (version_compare(phpversion(), '5.3.0') < 0);
 
 
+	if ($HTTP_RAW_POST_DATA == '')
+		exit('No request');
+
 	$PostData = ''; $PostDataOffset = 0; $PacketNr = 0;
-	$Input = fopen('php://input', 'br');
-	while (! feof($Input)) {
-		if (! $_SESSION['compress'])
-			$Header = FileRead($Input, 4);
-		else
-			$Header = FileRead($Input, 7);
-		$a = unpack('V', substr($Header, 0, 3) . "\x00"); $Size = $a[1];
-		$a = unpack('C', substr($Header, 3, 1)); $Nr = $a[1];
-		if ($_SESSION['compress'])
-			$a = unpack('V', substr($Header, 4, 3) . "\x00"); $UncompressedSize = $a[1];
+	while ($PostDataOffset < strlen($HTTP_RAW_POST_DATA)) {
+		$a = unpack('V', substr($HTTP_RAW_POST_DATA, $PostDataOffset + 0, 3) . "\x00"); $Size = $a[1];
+		$a = unpack('C', substr($HTTP_RAW_POST_DATA, $PostDataOffset + 3, 1)); $Nr = $a[1];
+		if ($_SESSION['compress']) {
+			$a = unpack('V', substr($HTTP_RAW_POST_DATA, $PostDataOffset + 4, 3) . "\x00"); $UncompressedSize = $a[1];
+		}
 
 		if ($Nr != $PacketNr)
 			exit('Invalid packet number');
 		else if (! $_SESSION['compress'])
-			$PostData .= $Header . FileRead($Input, $Size);
+			$PostData .= substr($HTTP_RAW_POST_DATA, $PostDataOffset, 4 + $Size);
 		else if ($UncompressedSize == 0)
-			$PostData .= FileRead($Input, $Size);
+			$PostData .= substr($HTTP_RAW_POST_DATA, $PostDataOffset + 7, $Size);
 		else
-			$PostData .= gzuncompress(FileRead($Input, $Size), $UncompressedSize);
+			$PostData .= gzuncompress(substr($HTTP_RAW_POST_DATA, $PostDataOffset + 7, $Size), $UncompressedSize);
 
+		if (! $_SESSION['compress'])
+			$PostDataOffset += 4 + $Size;
+		else
+			$PostDataOffset += 7 + $Size;
 		$PacketNr = ($PacketNr + 1) & 0xFF;
 	}
-	fclose($Input);
+	$PostDataOffset = 0;
 
 
 	$Connect = ! $_SESSION['host'];
@@ -262,7 +257,10 @@
 			exit(2200);
 		};
 
-		mysqli_real_connect($mysqli, $_SESSION['host'], $_SESSION['user'], $_SESSION['password'], $_SESSION['database'], $_SESSION['port'], '', $_SESSION['client_flag']);
+  	if ($_SESSION['host'] == '.')
+    	mysqli_real_connect($mysqli, '', $_SESSION['user'], $_SESSION['password'], $_SESSION['database'], 0, $MYSQLI_SOCKET, $_SESSION['client_flag']);
+    else
+  		mysqli_real_connect($mysqli, $_SESSION['host'], $_SESSION['user'], $_SESSION['password'], $_SESSION['database'], $_SESSION['port'], '', $_SESSION['client_flag']);
 
 		if (mysqli_connect_errno($mysqli)) {
 			$Packet = "\xFF";
@@ -480,10 +478,16 @@
 
 	} else if (extension_loaded('mysql')) { /************************************/
 
-		if (version_compare(phpversion(), '4.3.0') < 0)
-			$mysql = mysql_connect($_SESSION['host'] . ':' . $_SESSION['port'], $_SESSION['user'], $_SESSION['password']);
+		if ($_SESSION['host'] == '.')
+      if (version_compare(phpversion(), '4.3.0') < 0)
+				$mysql = mysql_connect($MYSQL_SOCKET, $_SESSION['user'], $_SESSION['password']);
+			else
+				$mysql = mysql_connect($MYSQL_SOCKET, $_SESSION['user'], $_SESSION['password'], true, $_SESSION['client_flag'] & 0x0125);
 		else
-			$mysql = mysql_connect($_SESSION['host'] . ':' . $_SESSION['port'], $_SESSION['user'], $_SESSION['password'], true, $_SESSION['client_flag'] & 0x0125);
+			if (version_compare(phpversion(), '4.3.0') < 0)
+				$mysql = mysql_connect($_SESSION['host'] . ':' . $_SESSION['port'], $_SESSION['user'], $_SESSION['password']);
+			else
+				$mysql = mysql_connect($_SESSION['host'] . ':' . $_SESSION['port'], $_SESSION['user'], $_SESSION['password'], true, $_SESSION['client_flag'] & 0x0125);
 		if ($mysql && ! mysql_errno($mysql) && $_SESSION['database'])
 			mysql_select_db($_SESSION['database'], $mysql);
 

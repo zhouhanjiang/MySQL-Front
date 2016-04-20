@@ -268,22 +268,12 @@ begin
         NewAccount.Assign(Account);
 
       NewAccount.Name := Trim(FName.Text);
-      if (Trim(FHost.Text) = LOCAL_HOST_NAMEDPIPE) then
-      begin
-        NewAccount.Connection.Host := LOCAL_HOST;
-        NewAccount.Connection.Port := MYSQL_PORT;
-        NewAccount.Connection.PipeName := MYSQL_NAMEDPIPE;
-        NewAccount.Connection.LibraryType := ltNamedPipe;
-      end
-      else
-      begin
-        NewAccount.Connection.Host := Trim(FHost.Text);
-        NewAccount.Connection.Port := FUDPort.Position;
-        case (FConnectionType.ItemIndex) of
-          0: NewAccount.Connection.LibraryType := ltBuiltIn;
-          1: NewAccount.Connection.LibraryType := ltDLL;
-          2: NewAccount.Connection.LibraryType := ltHTTP;
-        end;
+      NewAccount.Connection.Host := Trim(FHost.Text);
+      NewAccount.Connection.Port := FUDPort.Position;
+      case (FConnectionType.ItemIndex) of
+        0: NewAccount.Connection.LibraryType := ltBuiltIn;
+        1: NewAccount.Connection.LibraryType := ltDLL;
+        2: NewAccount.Connection.LibraryType := ltHTTP;
       end;
       NewAccount.Connection.LibraryFilename := Trim(FLibraryFilename.Text);
       NewAccount.Connection.HTTPTunnelURI := Trim(FHTTPTunnelURI.Text);
@@ -363,10 +353,7 @@ begin
   begin
     FName.Text := Account.Name;
 
-    if (Account.Connection.LibraryType = ltNamedPipe) then
-      FHost.Text := LOCAL_HOST_NAMEDPIPE
-    else
-      FHost.Text := Account.Connection.Host;
+    FHost.Text := Account.Connection.Host;
     if (Account.Connection.Port = 0) then
       FUDPort.Position := MYSQL_PORT
     else
@@ -375,7 +362,6 @@ begin
       ltBuiltIn: FConnectionType.ItemIndex := 0;
       ltDLL: FConnectionType.ItemIndex := 1;
       ltHTTP: FConnectionType.ItemIndex := 2;
-      ltNamedPipe: FConnectionType.ItemIndex := 0;
     end;
     FLibraryFilename.Text := Account.Connection.LibraryFilename;
     FHTTPTunnelURI.Text := Account.Connection.HTTPTunnelURI;

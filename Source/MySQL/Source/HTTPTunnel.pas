@@ -45,7 +45,7 @@ type
     procedure Close(); override;
     function ExecuteCommand(const Command: enum_server_command;
       const Bin: my_char; const Size: my_int; const Retry: Boolean): my_int; override;
-    function Open(const AType: TMYSQL_IO.TType; const AHost, AUnixSocket: RawByteString;
+    function Open(const AType: TMYSQL_IO.TType; const AHost: RawByteString;
       const APort, ATimeout: my_uint): Boolean; override;
     function Receive(var Buffer; const BytesToRead: my_uint): Boolean; override;
     function Send(const Buffer; const BytesToWrite: my_uint): Boolean; override;
@@ -180,7 +180,7 @@ end;
 
 function MYSQL.ExecuteHTTPRequest(const Connect: Boolean): Boolean;
 var
-  Buffer: array [0..2048] of Char;
+  Buffer: array [0..2048] of AnsiChar;
   Flags: Cardinal;
   Headers: string;
   HttpRequestError: Longint;
@@ -189,6 +189,7 @@ var
   ObjectName: string;
   pvData: Pointer;
   QueryInfo: array [0..2048] of Char;
+  RBS: RawByteString;
   S: string;
   Size: DWord;
   StatusCode: array [0..4] of Char;
@@ -292,8 +293,8 @@ begin
                       Seterror(CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR - CR_HTTPTUNNEL_UNKNOWN_ERROR], [QueryInfo])))
                     else
                     begin
-                      SetString(S, PChar(@Buffer), Size);
-                      Seterror(CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE - CR_HTTPTUNNEL_UNKNOWN_ERROR], [ObjectName, S])));
+                      SetString(RBS, PAnsiChar(@Buffer), Size);
+                      Seterror(CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE - CR_HTTPTUNNEL_UNKNOWN_ERROR], [ObjectName, string(RBS)])));
                     end;
                 end;
               else
@@ -337,7 +338,7 @@ begin
   Result := my_char(fhost_info);
 end;
 
-function MYSQL.Open(const AType: TMYSQL_IO.TType; const AHost, AUnixSocket: RawByteString;
+function MYSQL.Open(const AType: TMYSQL_IO.TType; const AHost: RawByteString;
   const APort, ATimeout: my_uint): Boolean;
 var
   Buffer: array [0..127] of Char;
@@ -346,7 +347,7 @@ var
   L: Longint;
   Size: DWord;
 begin
-  Result := AType = itTCPIP;
+  Result := AType = itHTTP;
   if (Result) then
   begin
     Handle := InternetOpen(PChar(Agent), INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);
@@ -388,10 +389,10 @@ begin
 
           Command := AnsiChar(COM_CONNECT);
           WritePacket(@Command, SizeOf(Command));
-          if (lstrcmpi(URLComponents.lpszHostName, PChar(string(fhost))) = 0) then
+          if (lstrcmpi(URLComponents.lpszHostName, PChar(string(AHost))) = 0) then
             WritePacket(LOCAL_HOST)
           else
-            WritePacket(RawByteString(fhost));
+            WritePacket(RawByteString(AHost));
           WritePacket(RawByteString(fuser));
           WritePacket(RawByteString(fpasswd));
           WritePacket(RawByteString(fdb));

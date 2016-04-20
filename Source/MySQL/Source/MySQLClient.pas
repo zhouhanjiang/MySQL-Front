@@ -13,7 +13,7 @@ type
 
   TMySQL_IO = class
   type
-    TType = (itNone, itNamedPipe, itTCPIP);
+    TType = (itNone, itNamedPipe, itTCPIP, itHTTP);
     TDirection = (idRead, idWrite);
   private
     FErrNo: my_uint;
@@ -28,7 +28,7 @@ type
     procedure Close(); virtual;
     function DecodeString(const Str: RawByteString): string; virtual;
     function EncodeString(const Str: string): RawByteString; virtual;
-    function Open(const AIOType: TType; const Host, PipeName: RawByteString;
+    function Open(const AIOType: TType; const Host: RawByteString;
       const Port, Timeout: my_uint): Boolean; virtual;
     function Receive(var Buffer; const BytesToRead: my_uint): Boolean; virtual;
     function Send(const Buffer; const BytesToWrite: my_uint): Boolean; virtual;
@@ -61,7 +61,7 @@ type
     function ReceivePacket(): Boolean;
   protected
     function CreatePacket(const AIOType: TMySQL_IO.TType;
-      const Host, UnixSocket: RawByteString; const Port, Timeout: my_uint): Boolean; virtual;
+      const Host: RawByteString; const Port, Timeout: my_uint): Boolean; virtual;
     procedure ClosePacket(); virtual;
     function FlushPacketBuffers(): Boolean; virtual;
     procedure FreeBuffer(var Buffer: TBuffer); virtual;
@@ -940,7 +940,7 @@ begin
 end;
 
 function TMySQL_IO.Open(const AIOType: TMYSQL_IO.TType;
-  const Host, PipeName: RawByteString; const Port, Timeout: my_uint): Boolean;
+  const Host: RawByteString; const Port, Timeout: my_uint): Boolean;
 var
   Filename: string;
   HostEnt: PHostEnt;
@@ -958,22 +958,22 @@ begin
     itNamedPipe:
       begin
         if (Host = LOCAL_HOST) then
-          Filename := DecodeString('\\' + LOCAL_HOST_NAMEDPIPE + '\pipe\' + PipeName)
+          Filename := DecodeString('\\' + LOCAL_HOST_NAMEDPIPE + '\pipe\' + MYSQL_NAMEDPIPE)
         else
-          Filename := DecodeString('\\' + Host + '\pipe\' + PipeName);
+          Filename := DecodeString('\\' + Host + '\pipe\' + MYSQL_NAMEDPIPE);
         if (not WaitNamedPipe(PChar(Filename), Timeout * 1000)) then
           if (GetLastError() = 2) then
-            Seterror(CR_NAMEDPIPEOPEN_ERROR, EncodeString(Format(CLIENT_ERRORS[CR_NAMEDPIPEOPEN_ERROR - CR_MIN_ERROR], [LOCAL_HOST, PipeName, GetLastError()])))
+            Seterror(CR_NAMEDPIPEOPEN_ERROR, EncodeString(Format(CLIENT_ERRORS[CR_NAMEDPIPEOPEN_ERROR - CR_MIN_ERROR], [LOCAL_HOST, MYSQL_NAMEDPIPE, GetLastError()])))
           else
-            Seterror(CR_NAMEDPIPEWAIT_ERROR, EncodeString(Format(CLIENT_ERRORS[CR_NAMEDPIPEWAIT_ERROR - CR_MIN_ERROR], [LOCAL_HOST, PipeName, GetLastError()])))
+            Seterror(CR_NAMEDPIPEWAIT_ERROR, EncodeString(Format(CLIENT_ERRORS[CR_NAMEDPIPEWAIT_ERROR - CR_MIN_ERROR], [LOCAL_HOST, MYSQL_NAMEDPIPE, GetLastError()])))
         else
         begin
           Pipe := CreateFile(PChar(Filename), GENERIC_READ or GENERIC_WRITE, 0, nil, OPEN_EXISTING, FILE_FLAG_WRITE_THROUGH, 0);
           if (Pipe = INVALID_HANDLE_VALUE) then
             if (GetLastError() = ERROR_PIPE_BUSY) then
-              Seterror(CR_NAMEDPIPEWAIT_ERROR, EncodeString(Format(CLIENT_ERRORS[CR_NAMEDPIPEWAIT_ERROR - CR_MIN_ERROR], [LOCAL_HOST, PipeName, GetLastError()])))
+              Seterror(CR_NAMEDPIPEWAIT_ERROR, EncodeString(Format(CLIENT_ERRORS[CR_NAMEDPIPEWAIT_ERROR - CR_MIN_ERROR], [LOCAL_HOST, MYSQL_NAMEDPIPE, GetLastError()])))
             else
-              Seterror(CR_NAMEDPIPEOPEN_ERROR, EncodeString(Format(CLIENT_ERRORS[CR_NAMEDPIPEOPEN_ERROR - CR_MIN_ERROR], [LOCAL_HOST, PipeName, GetLastError()])))
+              Seterror(CR_NAMEDPIPEOPEN_ERROR, EncodeString(Format(CLIENT_ERRORS[CR_NAMEDPIPEOPEN_ERROR - CR_MIN_ERROR], [LOCAL_HOST, MYSQL_NAMEDPIPE, GetLastError()])))
           else
           begin
             Mode := PIPE_READMODE_BYTE or PIPE_WAIT;
@@ -981,7 +981,7 @@ begin
             begin
               CloseHandle(Pipe); Pipe := INVALID_HANDLE_VALUE;
 
-              Seterror(CR_NAMEDPIPESETSTATE_ERROR, EncodeString(Format(CLIENT_ERRORS[CR_NAMEDPIPESETSTATE_ERROR - CR_MIN_ERROR], [Host, PipeName, GetLastError()])));
+              Seterror(CR_NAMEDPIPESETSTATE_ERROR, EncodeString(Format(CLIENT_ERRORS[CR_NAMEDPIPESETSTATE_ERROR - CR_MIN_ERROR], [Host, MYSQL_NAMEDPIPE, GetLastError()])));
             end
             else
               IOType := itNamedPipe;
@@ -1235,7 +1235,7 @@ begin
 end;
 
 function TMySQL_Packet.CreatePacket(const AIOType: TMYSQL_IO.TType;
-  const Host, UnixSocket: RawByteString; const Port, Timeout: my_uint): Boolean;
+  const Host: RawByteString; const Port, Timeout: my_uint): Boolean;
 begin
   Result := IOType = itNone;
   if (Result) then
@@ -1247,7 +1247,7 @@ begin
     CompPacketNr := 0;
     PacketNr := 0;
 
-    Result := Open(AIOType, Host, UnixSocket, Port, Timeout);
+    Result := Open(AIOType, Host, Port, Timeout);
   end;
 end;
 
@@ -2295,10 +2295,15 @@ begin
     if (fdb = '') then
       fclient_capabilities := fclient_capabilities and not CLIENT_CONNECT_WITH_DB;
 
-    if ((host = LOCAL_HOST_NAMEDPIPE) or (StrLen(unix_socket) > 0)) then
-      CreatePacket(itNamedPipe, host, fpipe_name, fport, ftimeout)
+    if ((host <> '') and (host <> LOCAL_HOST_NAMEDPIPE)) then
+      CreatePacket(itTCPIP, fhost, fport, ftimeout)
+    else if (host = LOCAL_HOST_NAMEDPIPE) then
+      CreatePacket(itNamedPipe, host, fport, ftimeout)
+    else if (unix_socket = LOCAL_HOST_NAMEDPIPE) then
+      CreatePacket(itHTTP, LOCAL_HOST_NAMEDPIPE, fport, ftimeout)
     else
-      CreatePacket(itTCPIP, fhost, '', fport, ftimeout);
+      CreatePacket(itHTTP, host, fport, ftimeout);
+
 
     if (IOType = itNone) then
       // errno() has been set by CreateFile()

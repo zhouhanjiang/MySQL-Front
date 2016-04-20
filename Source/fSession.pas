@@ -10205,7 +10205,6 @@ begin
     ltBuiltIn: LibraryName := '';
     ltDLL: LibraryName := Session.Account.Connection.LibraryFilename;
     ltHTTP: LibraryName := Session.Account.Connection.HTTPTunnelURI;
-    ltNamedPipe: LibraryName := Session.Account.Connection.PipeName;
   end;
   Host := Session.Account.Connection.Host;
   HTTPAgent := Preferences.InternetAgent;
@@ -10236,7 +10235,6 @@ begin
     0: LibraryType := ltBuiltIn;
     1: LibraryType := ltDLL;
     2: LibraryType := ltHTTP;
-    3: LibraryType := ltNamedPipe;
   end;
   LoginPrompt := False;
   FMultiStatements := True;
@@ -11142,8 +11140,19 @@ begin
 end;
 
 function TSSession.GetCaption(): string;
+var
+  URI: TUURI;
 begin
-  Result := Connection.Host;
+  if (Connection.Host <> LOCAL_HOST_NAMEDPIPE) then
+    Result := Connection.Host
+  else if (Connection.LibraryType = ltHTTP) then
+  begin
+    URI := TUURI.Create(Connection.LibraryName);
+    Result := URI.Host;
+    URI.Free();
+  end
+  else
+    Result := LOCAL_HOST;
   if (Connection.Port <> MYSQL_PORT) then
     Result := Result + ':' + IntToStr(Connection.Port);
 end;

@@ -671,7 +671,6 @@ type
     LibraryFilename: TFileName;
     LibraryType: TMySQLLibrary.TLibraryType;
     Password: string;
-    PipeName: string;
     Port: Integer;
     Username: string;
     procedure Assign(const Source: TAConnection); virtual;
@@ -3706,7 +3705,6 @@ begin
   LibraryFilename := Source.LibraryFilename;
   LibraryType := Source.LibraryType;
   Password := Source.Password;
-  PipeName := Source.PipeName;
   Port := Source.Port;
   Username := Source.Username;
 end;
@@ -3724,7 +3722,6 @@ begin
   LibraryFilename := 'libMySQL.dll';
   LibraryType := ltBuiltIn;
   Password := '';
-  PipeName := MYSQL_NAMEDPIPE;
   Port := MYSQL_PORT;
   Username := '';
 end;
@@ -3747,10 +3744,8 @@ begin
       if (UpperCase(XMLNode(XML, 'library/type').Text) = 'FILE') then LibraryType := ltDLL
       else if (UpperCase(XMLNode(XML, 'library/type').Text) = 'TUNNEL') then LibraryType := ltHTTP
       else if (UpperCase(XMLNode(XML, 'library/type').Text) = 'HTTPTUNNEL') then LibraryType := ltHTTP
-      else if (UpperCase(XMLNode(XML, 'library/type').Text) = 'NAMEDPIPE') then LibraryType := ltNamedPipe
       else LibraryType := ltBuiltIn;
     if (Assigned(XMLNode(XML, 'library/filename'))) then LibraryFilename := XMLNode(XML, 'library/filename').Text;
-    if (Assigned(XMLNode(XML, 'library/pipename'))) then PipeName := XMLNode(XML, 'library/pipename').Text;
     if (Assigned(XMLNode(XML, 'library/tunnel_url'))) then HTTPTunnelURI := XMLNode(XML, 'library/tunnel_url').Text;
     if (Assigned(XMLNode(XML, 'password')) and (XMLNode(XML, 'password').Attributes['encode'] = 'none')) then Password := XMLNode(XML, 'password').Text;
     if (Assigned(XMLNode(XML, 'port'))) then TryStrToInt(XMLNode(XML, 'port').Text, Port);
@@ -3765,11 +3760,9 @@ begin
   case (LibraryType) of
     ltDLL: XMLNode(XML, 'library/type').Text := 'File';
     ltHTTP: XMLNode(XML, 'library/type').Text := 'HTTPTunnel';
-    ltNamedPipe: XMLNode(XML, 'library/type').Text := 'NamedPipe';
     else XMLNode(XML, 'library').ChildNodes.Delete('type');
   end;
   XMLNode(XML, 'library/filename').Text := LibraryFilename;
-  XMLNode(XML, 'library/pipename').Text := PipeName;
   XMLNode(XML, 'library/tunnel_url').Text := HTTPTunnelURI;
   XMLNode(XML, 'password').Attributes['encode'] := 'none';
   XMLNode(XML, 'password').Text := Password;

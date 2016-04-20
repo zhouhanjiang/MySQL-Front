@@ -22,7 +22,7 @@ type
 
   TMySQLLibrary = class
   type
-    TLibraryType = (ltBuiltIn, ltDLL, ltHTTP, ltNamedPipe);
+    TLibraryType = (ltBuiltIn, ltDLL, ltHTTP);
   private
     FHandle: HModule;
     FLibraryType: TLibraryType;
@@ -3108,19 +3108,24 @@ begin
       Lib.mysql_options(LibraryThread.LibHandle, enum_mysql_option(MYSQL_OPT_HTTPTUNNEL_AGENT), my_char(LibEncode(HTTPAgent)));
   end;
 
-  if (LibraryType <> ltNamedPipe) then
+  if (Host <> LOCAL_HOST_NAMEDPIPE) then
     LibraryThread.Success := Assigned(Lib.mysql_real_connect(LibraryThread.LibHandle,
       my_char(LibEncode(Host)),
       my_char(LibEncode(Username)), my_char(LibEncode(Password)),
       my_char(LibEncode(DatabaseName)), Port, '', ClientFlag))
-  else
+  else if (LibraryType in [ltBuiltIn, ltDLL]) then
   begin
     Lib.mysql_options(LibraryThread.LibHandle, enum_mysql_option(MYSQL_OPT_NAMED_PIPE), nil);
     LibraryThread.Success := Assigned(Lib.mysql_real_connect(LibraryThread.LibHandle,
       my_char(LibEncode(LOCAL_HOST_NAMEDPIPE)),
       my_char(LibEncode(Username)), my_char(LibEncode(Password)),
       my_char(LibEncode(DatabaseName)), Port, '', ClientFlag));
-  end;
+  end
+  else
+    LibraryThread.Success := Assigned(Lib.mysql_real_connect(LibraryThread.LibHandle,
+      '',
+      my_char(LibEncode(Username)), my_char(LibEncode(Password)),
+      my_char(LibEncode(DatabaseName)), Port, LOCAL_HOST_NAMEDPIPE, ClientFlag));
   if ((Lib.mysql_errno(LibraryThread.LibHandle) <> 0) or (Lib.LibraryType = ltHTTP)) then
     LibraryThread.LibThreadId := 0
   else
@@ -3668,7 +3673,7 @@ end;
 
 function TMySQLConnection.UseCompression(): Boolean;
 begin
-  Result := LibraryType <> ltNamedPipe;
+  Result := (Host <> LOCAL_HOST_NAMEDPIPE) or (LibraryType = ltHTTP);
 end;
 
 function TMySQLConnection.UseLibraryThread(): Boolean;
