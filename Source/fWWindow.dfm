@@ -1060,6 +1060,8 @@ object WWindow: TWWindow
       HelpType = htContext
       ImageIndex = 20
       ShortCut = 16430
+      SecondaryShortCuts.Strings = (
+        'Ctrl+X')
     end
     object aDEditRecord: TAction
       Category = 'Database'
@@ -1176,6 +1178,8 @@ object WWindow: TWWindow
       HelpType = htContext
       ImageIndex = 10
       ShortCut = 16430
+      SecondaryShortCuts.Strings = (
+        'Ctrl+X')
     end
     object aECopy: TEditCopy
       Category = 'Edit'

@@ -8412,7 +8412,7 @@ begin
       else
         Name := DataSet.FieldByName('SCHEMA_NAME').AsString;
 
-      Found := ((Session.TableNameCmp(Name, INFORMATION_SCHEMA) = 0)
+      Found := ((NameCmp(Name, INFORMATION_SCHEMA) = 0)
         or (NameCmp(Name, PERFORMANCE_SCHEMA) = 0));
       for I := 0 to Length(DatabaseNames) - 1 do
         if (NameCmp(Name, DatabaseNames[I]) = 0) then
@@ -8422,7 +8422,7 @@ begin
       begin
         if (InsertIndex(Name, Index)) then
         begin
-          if (Session.TableNameCmp(Name, INFORMATION_SCHEMA) = 0) then
+          if (NameCmp(Name, INFORMATION_SCHEMA) = 0) then
           begin
             NewDatabase := TSSystemDatabase.Create(Self, Name);
             Session.FInformationSchema := NewDatabase;
@@ -8540,7 +8540,11 @@ end;
 
 function TSDatabases.NameCmp(const Name1, Name2: string): Integer;
 begin
-  if (Session.LowerCaseTableNames = 0) then
+  if ((UpperCase(Name1) = INFORMATION_SCHEMA) and (UpperCase(Name2) = INFORMATION_SCHEMA)) then
+    Result := 0
+  else if ((UpperCase(Name1) = PERFORMANCE_SCHEMA) and (UpperCase(Name2) = PERFORMANCE_SCHEMA)) then
+    Result := 0
+  else if (Session.LowerCaseTableNames = 0) then
     Result := lstrcmp(PChar(Name1), PChar(Name2))
   else
     Result := lstrcmpi(PChar(Name1), PChar(Name2));
@@ -12227,7 +12231,7 @@ begin
       SQL := SQL + TSEntities(List[I]).SQLGetItems()
     else if (TObject(List[I]) is TSDatabase) then
     begin
-      if (not TSDatabase(List[I]).ValidSource) then
+      if (not TSDatabase(List[I]).ValidSource and not (TObject(List[I]) is TSSystemDatabase)) then
         SQL := SQL + TSDatabase(List[I]).SQLGetSource();
       if (not TSDatabase(List[I]).Tables.Valid) then
         SQL := SQL + TSDatabase(List[I]).Tables.SQLGetItems();

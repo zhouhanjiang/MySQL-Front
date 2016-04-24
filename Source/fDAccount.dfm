@@ -151,7 +151,7 @@ object DAccount: TDAccount
       Anchors = [akLeft, akTop, akRight]
       TabOrder = 0
       Text = 'FHost'
-      OnChange = FEditChange
+      OnChange = FHostChange
       OnExit = FHostExit
     end
     object FPort: TEdit

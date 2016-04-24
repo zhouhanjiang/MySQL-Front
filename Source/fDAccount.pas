@@ -55,6 +55,7 @@ type
     procedure FormResize(Sender: TObject);
     procedure FormCanResize(Sender: TObject; var NewWidth, NewHeight: Integer;
       var Resize: Boolean);
+    procedure FHostChange(Sender: TObject);
   private
     function CheckConnectInfos(): Boolean;
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
@@ -213,6 +214,15 @@ begin
   FBOk.Enabled := (FHost.Text <> '')
     and (not Assigned(Accounts.AccountByName(Name)) or Assigned(Account) and (Accounts.AccountByName(Name) = Account));
   FBDatabase.Enabled := FHost.Text <> '';
+end;
+
+procedure TDAccount.FHostChange(Sender: TObject);
+begin
+  FPort.Visible := Trim(FHost.Text) <> LOCAL_HOST_NAMEDPIPE;
+  FUDPort.Visible := FPort.Visible;
+  FLPort.Visible := FPort.Visible;
+
+  FEditChange(Sender);
 end;
 
 procedure TDAccount.FHostExit(Sender: TObject);

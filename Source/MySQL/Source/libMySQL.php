@@ -135,6 +135,15 @@
 		}
 	}
 
+	function SendErrorMessage($ErrorCode, $ErrorMessage) {
+		$Packet = "\xFF";
+		$Packet .= pack('v', $ErrorCode);
+		$Packet .= "HTTP Tunnel: $ErrorMessage\x00";
+		SendPacket($Packet);
+		FlushPackets();
+		exit(1);
+	}
+
 	function SetCharsetNr($mysql) {
 		$_SESSION['MBCLen'] = 1;
 
@@ -173,16 +182,18 @@
 
 	error_reporting(E_ERROR | E_PARSE);
 
-	if ($_SERVER['REQUEST_METHOD'] == 'GET')
+	if ($_SERVER['REQUEST_METHOD'] != 'POST')
 		exit('<!DOCTYPE html><html><head></head><body>This script is used by the Windows application <a href="{BuildInternetHomepage}">{BuildName}</a>.</body></html>');
 
 	if (isset($_GET['SID']))
 		session_id($_GET['SID']);
 	$SessionStarted = session_start() xor (version_compare(phpversion(), '5.3.0') < 0);
+	if (! $SessionStarted)
+		exit('HTTP Tunnel: session_start() failed');
 
 
 	if ($HTTP_RAW_POST_DATA == '')
-		exit('No request');
+		exit('HTTP Tunnel: No post data');
 
 	$PostData = ''; $PostDataOffset = 0; $PacketNr = 0;
 	while ($PostDataOffset < strlen($HTTP_RAW_POST_DATA)) {
@@ -193,7 +204,7 @@
 		}
 
 		if ($Nr != $PacketNr)
-			exit('Invalid packet number');
+			exit('HTTP Tunnel: Invalid packet number');
 		else if (! $_SESSION['compress'])
 			$PostData .= substr($HTTP_RAW_POST_DATA, $PostDataOffset, 4 + $Size);
 		else if ($UncompressedSize == 0)
@@ -236,40 +247,31 @@
 		header('MF-SID: ' . session_id());
 	}
 
-	if (! $SessionStarted) {
 
-		$Packet = "\xFF";
-		$Packet .= pack('v', 2200);
-		$Packet .= "HTTP Tunnel: session_start() failed\x00";
-		SendPacket($Packet);
-		FlushPackets();
-		exit(2200);
-
-	} else if (extension_loaded('mysqli')) { /***********************************/
+	if (extension_loaded('mysqli')) { /******************************************/
 
 		$mysqli = mysqli_init();
-		if (! $mysqli) {
-			$Packet = "\xFF";
-			$Packet .= pack('v', 2200);
-			$Packet .= "HTTP Tunnel: mysqli_init() failed\x00";
-			SendPacket($Packet);
-			FlushPackets();
-			exit(2200);
-		};
+		if (! $mysqli)
+			SendErrorMessage(2200, 'mysqli_init() failed');
 
-  	if ($_SESSION['host'] == '.')
-    	mysqli_real_connect($mysqli, '', $_SESSION['user'], $_SESSION['password'], $_SESSION['database'], 0, $MYSQLI_SOCKET, $_SESSION['client_flag']);
-    else
-  		mysqli_real_connect($mysqli, $_SESSION['host'], $_SESSION['user'], $_SESSION['password'], $_SESSION['database'], $_SESSION['port'], '', $_SESSION['client_flag']);
+		if ($_SESSION['host'] != '.')
+			mysqli_real_connect($mysqli, $_SESSION['host'], $_SESSION['user'], $_SESSION['password'], $_SESSION['database'], $_SESSION['port'], '', $_SESSION['client_flag']);
+		else if (ini_get('mysqli.default_socket'))
+			mysqli_real_connect($mysqli, '', $_SESSION['user'], $_SESSION['password'], $_SESSION['database'], 0, ini_get('mysqli.default_socket'), $_SESSION['client_flag']);
+		else
+			SendErrorMessage(2200, 'No default socket (mysqli)');
 
-		if (mysqli_connect_errno($mysqli)) {
+		if (mysqli_connect_errno()) {
 			$Packet = "\xFF";
-			$Packet .= pack('v', mysqli_connect_errno($mysqli));
-			$Packet .= mysqli_connect_error($mysqli) . "\x00";
+			if ($Connect) {
+				$Packet .= pack('v', mysqli_connect_errno());
+				$Packet .= mysqli_connect_error() . "\x00";
+			} else {
+				$Packet .= pack('v', 2006);
+				$Packet .= "MySQL server has gone away\x00";
+			}
 			SendPacket($Packet);
-			FlushPackets();
-			exit(2200);
-		};
+		}
 
 		if (! mysqli_connect_errno($mysqli) && $_SESSION['charset'] && version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '4.1.1') >= 0)
 			if ((version_compare(phpversion(), '5.2.3') < 0) || (version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '5.0.7') < 0))
@@ -282,7 +284,6 @@
 			$Packet .= pack('v', mysqli_errno($mysqli));
 			$Packet .= mysqli_error($mysqli) . "\x00";
 			SendPacket($Packet);
-			FlushPackets();
 		} else if ($Connect) {
 			if (version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '4.1.1') < 0) {
 				$result = mysqli_query($mysqli, "SHOW VARIABLES LIKE 'character_set';", MYSQLI_USE_RESULT);
@@ -352,7 +353,7 @@
 						SendPacket($Packet);
 						FlushPackets();
 						break;
-					}	else if (eregi("^USE[| |\t|\n|\r][| |\t|\n|\r]*", $Query) || eregi("^SET[| |\t|\n|\r][| |\t|\n|\r]*NAMES[| |\t|\n|\r]", $Query)) {
+					} else if (eregi("^USE[| |\t|\n|\r][| |\t|\n|\r]*", $Query) || eregi("^SET[| |\t|\n|\r][| |\t|\n|\r]*NAMES[| |\t|\n|\r]", $Query)) {
 						// on some PHP versions mysqli_use_result just ignores "USE Database;"
 						// statements. So it has to be handled separately:
 						$Packet = '';
@@ -478,14 +479,16 @@
 
 	} else if (extension_loaded('mysql')) { /************************************/
 
-		if ($_SESSION['host'] == '.')
-      $Host = $MYSQL_SOCKET;
-    else
-      $Host = $_SESSION['host'] . ':' . $_SESSION['port'];  
+		if ($_SESSION['host'] != '.')
+			$Host = $_SESSION['host'] . ':' . $_SESSION['port'];
+		else if (ini_get('mysql.default_socket'))
+			$Host = 'localhost:' . ini_get('mysql.default_socket');
+		else
+			SendErrorMessage(2200, 'No default socket (mysql)');
 		if (version_compare(phpversion(), '4.3.0') < 0)
 			$mysql = mysql_connect($Host, $_SESSION['user'], $_SESSION['password']);
 		else
-			$mysql = mysql_connect($Host, $_SESSION['user'], $_SESSION['password'], true, $_SESSION['client_flag'] & 0x0125);
+			$mysql = mysql_connect($Host, $_SESSION['user'], $_SESSION['password'], TRUE, $_SESSION['client_flag'] & 0x0125);
 		if ($mysql && ! mysql_errno($mysql) && $_SESSION['database'])
 			mysql_select_db($_SESSION['database'], $mysql);
 
@@ -497,8 +500,13 @@
 
 		if (! $mysql) {
 			$Packet = "\xFF";
-			$Packet .= pack('v', mysql_errno());
-			$Packet .= mysql_error() . "\x00";
+			if ($Connect) {
+				$Packet .= pack('v', mysql_errno());
+				$Packet .= mysql_error() . "\x00";
+			} else {
+				$Packet .= pack('v', 2006);
+				$Packet .= "MySQL server has gone away\x00";
+			}
 			SendPacket($Packet);
 		} else if (mysql_errno($mysql)) {
 			$Packet = "\xFF";
@@ -712,12 +720,7 @@
 
 	} else {
 
-		$Packet = "\xFF";
-		$Packet .= pack('v', 2200);
-		$Packet .= "HTTP Tunnel: No MySQL support\x00";
-		SendPacket($Packet);
-		FlushPackets();
-		exit(2200);
+		SendErrorMessage(2200, 'No MySQL extension');
 
 	}
 

@@ -1224,7 +1224,7 @@ begin
   end
   else if (Tab = ActiveTab) then
   begin
-    S := Tab.Session.Account.Connection.Host;
+    S := Tab.Session.Caption;
     if (Tab.Session.Account.Connection.Port <> MYSQL_PORT) then
       S := S + ':' + IntToStr(Tab.Session.Account.Connection.Port);
     if (Tab.ToolBarData.Caption <> '') then
@@ -1696,7 +1696,7 @@ begin
     CR_COMMANDS_OUT_OF_SYNC: Msg := 'Internal bug: ' + ErrorMessage;
     CR_CONN_HOST_ERROR: if (Connection.Port = MYSQL_PORT) then Msg := Preferences.LoadStr(495, Connection.Host) else Msg := Preferences.LoadStr(495, Connection.Host + ':' + IntToStr(Connection.Port));
     CR_SERVER_GONE_ERROR: if (Connection.Port = MYSQL_PORT) then Msg := Preferences.LoadStr(881, Connection.Host) else Msg := Preferences.LoadStr(881, Connection.Host + ':' + IntToStr(Connection.Port));
-    CR_UNKNOWN_HOST: if (Connection.Host <> '') then Msg := Preferences.LoadStr(706, Connection.Host) else Msg := Preferences.LoadStr(706);
+    CR_UNKNOWN_HOST: if (ErrorMessage <> '') then Msg := ErrorMessage else if (Connection.Host <> '') then Msg := Preferences.LoadStr(706, Connection.Host) else Msg := Preferences.LoadStr(706);
     CR_OUT_OF_MEMORY: Msg := Preferences.LoadStr(733);
     CR_SERVER_LOST: Msg := Preferences.LoadStr(806, Connection.Host);
     CR_HTTPTUNNEL_UNKNOWN_ERROR: Msg := ErrorMessage + #10#10 + Preferences.LoadStr(652) + ': ' + Connection.LibraryName;
@@ -1706,7 +1706,6 @@ begin
     CR_HTTPTUNNEL_NOT_FOUND: Msg := Preferences.LoadStr(523, Connection.LibraryName);
     CR_HTTPTUNNEL_SERVER_ERROR: Msg := Preferences.LoadStr(860, Preferences.LoadStr(859), Copy(ErrorMessage, 1, Pos(' ', ErrorMessage) - 1)) + ':' + #10#10 + ErrorMessage  + #10#10 + ' (' + Connection.LibraryName + ')';
     CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE,
-    CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR,
     CR_IPSOCK_ERROR: Msg := ErrorMessage;
     DS_SET_NAMES: Msg := Preferences.LoadStr(878, ErrorMessage);
     DS_SERVER_OLD: Msg := Preferences.LoadStr(696, '3.23.20');

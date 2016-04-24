@@ -48,6 +48,7 @@ type
     function Open(const AType: TMYSQL_IO.TType; const AHost: RawByteString;
       const APort, ATimeout: my_uint): Boolean; override;
     function Receive(var Buffer; const BytesToRead: my_uint): Boolean; override;
+    function ReceiveExitText(out Text: RawByteString): Boolean; virtual;
     function Send(const Buffer; const BytesToWrite: my_uint): Boolean; override;
   public
     constructor Create(); override;
@@ -180,7 +181,6 @@ end;
 
 function MYSQL.ExecuteHTTPRequest(const Connect: Boolean): Boolean;
 var
-  Buffer: array [0..2048] of AnsiChar;
   Flags: Cardinal;
   Headers: string;
   HttpRequestError: Longint;
@@ -289,13 +289,10 @@ begin
                 begin
                   Size := SizeOf(QueryInfo);
                   if (HttpQueryInfo(Request, HTTP_QUERY_CONTENT_TYPE, @QueryInfo, Size, Index) and (LowerCase(QueryInfo) <> 'application/mysql-front')) then
-                    if (not Receive(Buffer, SizeOf(Buffer)) or (Size = 0)) then
+                    if (not ReceiveExitText(RBS)) then
                       Seterror(CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR - CR_HTTPTUNNEL_UNKNOWN_ERROR], [QueryInfo])))
                     else
-                    begin
-                      SetString(RBS, PAnsiChar(@Buffer), Size);
                       Seterror(CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE - CR_HTTPTUNNEL_UNKNOWN_ERROR], [ObjectName, string(RBS)])));
-                    end;
                 end;
               else
                 begin
@@ -507,6 +504,31 @@ begin
     else
       Inc(BytesRead, Size);
   until (not Result or (BytesRead = BytesToRead));
+end;
+
+function MYSQL.ReceiveExitText(out Text: RawByteString): Boolean;
+var
+  Buffer: array[0..199] of AnsiChar;
+  BytesRead: my_uint;
+  S: AnsiString;
+  Size: DWord;
+begin
+  BytesRead := 0; Text := '';
+  repeat
+    Result := InternetReadFile(Request, @my_char(@Buffer)[BytesRead], SizeOf(Buffer), Size);
+    if (not Result) then
+      RaiseLastOSError()
+    else if (Size = 0) then
+    begin
+      Seterror(CR_SERVER_LOST);
+      Result := False;
+    end
+    else
+    begin
+      SetString(S, Buffer, Size);
+      Text := Text + S;
+    end;
+  until (not Result or (Size < SizeOf(Buffer)));
 end;
 
 function MYSQL.Send(const Buffer; const BytesToWrite: my_uint): Boolean;

@@ -2643,22 +2643,22 @@ end;
 
 function MYSQL.ServerError(): Boolean;
 var
-  I: my_uint;
-  RBS: RawByteString;
+  ErrorCode: my_uint;
+  ErrorMessage: RawByteString;
 begin
   Result := Byte(PacketBuffer.Mem[PacketBuffer.Offset]) = $FF;
 
   if (Result) then
   begin
     SetPacketPointer(1, FILE_CURRENT);
-    ReadPacket(I, 2);
-    ReadPacket(RBS);
-    if ((Length(RBS) < 6) or (RBS[1] <> '#')) then
-      Seterror(I, RBS)
+    ReadPacket(ErrorCode, 2);
+    ReadPacket(ErrorMessage);
+    if ((Length(ErrorMessage) < 6) or (ErrorMessage[1] <> '#')) then
+      Seterror(ErrorCode, ErrorMessage)
     else
     begin
-      Move(PAnsiChar(RawByteString(Copy(RBS, 2, SQLSTATE_LENGTH)))^, FSQLState, SQLSTATE_LENGTH);
-      Seterror(I, Copy(RBS, 7, Length(RBS) - SQLSTATE_LENGTH - 1));
+      Move(PAnsiChar(RawByteString(Copy(ErrorMessage, 2, SQLSTATE_LENGTH)))^, FSQLState, SQLSTATE_LENGTH);
+      Seterror(ErrorCode, Copy(ErrorMessage, 7, Length(ErrorMessage) - SQLSTATE_LENGTH - 1));
     end;
 
     fserver_status := fserver_status and not SERVER_MORE_RESULTS_EXISTS;
