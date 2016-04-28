@@ -59,7 +59,7 @@ type
   private
     FName: string;
     FSItems: TSItems;
-    function GetSession(): TSSession;
+    function GetSession(): TSSession; inline;
   protected
     function GetCaption(): string; virtual;
     function GetIndex(): Integer; virtual;
@@ -2235,7 +2235,7 @@ procedure TSDBObject.SetSource(const ASource: string);
 begin
   inherited;
 
-  PushBuildEvent();
+  PushBuildEvent(False);
 end;
 
 function TSDBObject.Update(): Boolean;
@@ -3212,7 +3212,7 @@ begin
   Result := Result and (lstrcmpi(PChar(Name), PChar(Second.Name)) = 0);
   Result := Result and (OnDelete = Second.OnDelete);
   Result := Result and (OnUpdate = Second.OnUpdate);
-  Result := Result and (Session.TableNameCmp(Parent.DatabaseName, Second.Parent.DatabaseName) = 0);
+  Result := Result and (Session.Databases.NameCmp(Parent.DatabaseName, Second.Parent.DatabaseName) = 0);
   Result := Result and ((Session.TableNameCmp(Parent.TableName, Second.Parent.TableName) = 0)
                      or (Session.TableNameCmp(Parent.TableName, Second.Parent.TableName) = 0));
   Result := Result and (Length(Parent.FieldNames) = Length(Second.Parent.FieldNames));
@@ -4230,7 +4230,7 @@ begin
     NewName := SQLParseValue(Parse);
     if (SQLParseChar(Parse, '.')) then
     begin
-      if (Session.TableNameCmp(Database.Name, NewName) <> 0) then
+      if (Session.Databases.NameCmp(Database.Name, NewName) <> 0) then
         raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
       NewName := SQLParseValue(Parse);
     end;
@@ -5080,7 +5080,7 @@ begin
     FName := SQLParseValue(Parse);
     if (SQLParseChar(Parse, '.')) then
     begin
-      if (Session.TableNameCmp(Database.Name, FName) <> 0) then
+      if (Session.Databases.NameCmp(Database.Name, FName) <> 0) then
         raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + FName, SQL]);
       FName := SQLParseValue(Parse);
     end;
@@ -5786,7 +5786,7 @@ begin
     FName := SQLParseValue(Parse);
     if (SQLParseChar(Parse, '.')) then
     begin
-      if (Session.TableNameCmp(Database.Name, FName) <> 0) then
+      if (Session.Databases.NameCmp(Database.Name, FName) <> 0) then
         raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + FName, SQL]);
       FName := SQLParseValue(Parse);
     end;
@@ -5850,11 +5850,7 @@ procedure TSRoutine.SetSource(const ASource: string);
 begin
   inherited;
 
-  try
   ParseCreateRoutine(FSource);
-  except
-  ParseCreateRoutine(FSource);
-  end;
 end;
 
 function TSRoutine.SQLGetSource(): string;
@@ -5875,8 +5871,8 @@ begin
 
   if (Valid) then
   begin
-    Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
-    Session.ExecuteEvent(etItemValid, Database, Routines, Self);
+//    Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
+//    Session.ExecuteEvent(etItemValid, Database, Routines, Self);
   end;
 end;
 
@@ -5944,8 +5940,8 @@ begin
 
   if (Valid) then
   begin
-    Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
-    Session.ExecuteEvent(etItemValid, Database, Routines, Self);
+//    Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
+//    Session.ExecuteEvent(etItemValid, Database, Routines, Self);
   end;
 end;
 
@@ -6605,7 +6601,7 @@ begin
     FName := SQLParseValue(Parse);
     if (SQLParseChar(Parse, '.')) then
     begin
-      if (Session.TableNameCmp(Database.Name, FName) = 0) then
+      if (Session.Databases.NameCmp(Database.Name, FName) = 0) then
         raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + FName, SQL]);
       FName := SQLParseValue(Parse);
     end;
@@ -8461,12 +8457,12 @@ begin
     begin
       Name := DatabaseNames[I];
 
-      if (Session.TableNameCmp(Name, INFORMATION_SCHEMA) = 0) then
+      if (Session.Databases.NameCmp(Name, INFORMATION_SCHEMA) = 0) then
       begin
         Index := Add(TSSystemDatabase.Create(Self, Name));
         Session.FInformationSchema := Database[Index];
       end
-      else if (Session.TableNameCmp(Name, PERFORMANCE_SCHEMA) = 0) then
+      else if (Session.Databases.NameCmp(Name, PERFORMANCE_SCHEMA) = 0) then
       begin
         Index := Add(TSSystemDatabase.Create(Self, Name));
         Session.FInformationSchema := Database[Index];
@@ -11637,7 +11633,7 @@ begin
     else if (SQLParseDMLStmt(DMLStmt, Text, Len, Connection.ServerVersion)) then
     begin
       if ((Length(DMLStmt.DatabaseNames) = 1) and (Length(DMLStmt.TableNames) = 1)
-        and (TableNameCmp(DMLStmt.DatabaseNames[0], 'mysql') = 0) and (TableNameCmp(DMLStmt.TableNames[0], 'user') = 0)) then
+        and (Databases.NameCmp(DMLStmt.DatabaseNames[0], 'mysql') = 0) and (TableNameCmp(DMLStmt.TableNames[0], 'user') = 0)) then
         Users.Invalidate();
       if ((DMLStmt.ManipulationType = mtDelete) and SQLParseKeyword(Parse, 'DELETE FROM')) then
       begin
@@ -11866,7 +11862,7 @@ begin
       DatabaseName := Connection.DatabaseName;
       if ((SQLParseChar(Parse, '*') or (SQLParseValue(Parse) = 'GRANTEE')) and SQLParseKeyword(Parse, 'FROM') and SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
       begin
-        if (TableNameCmp(DatabaseName, INFORMATION_SCHEMA) = 0) then
+        if (Databases.NameCmp(DatabaseName, INFORMATION_SCHEMA) = 0) then
         begin
           DataSet.Open(DataHandle);
           if (TableNameCmp(ObjectName, 'CHARACTER_SETS') = 0) then
@@ -12362,7 +12358,7 @@ begin
         if (OriginalDatabaseName = '') then
           OriginalDatabaseName := FieldInfo.DatabaseName
         else
-          UniqueTable := UniqueTable and (TableNameCmp(FieldInfo.DatabaseName, OriginalDatabaseName) = 0);
+          UniqueTable := UniqueTable and (Databases.NameCmp(FieldInfo.DatabaseName, OriginalDatabaseName) = 0);
         if (OriginalTableName = '') then
           OriginalTableName := FieldInfo.TableName
         else
@@ -12541,7 +12537,7 @@ begin
     OldRight := nil;
     if (Assigned(User)) then
       for J := 0 to User.RightCount - 1 do
-        if   ((TableNameCmp(User.Right[J].DatabaseName , NewRight.DatabaseName ) = 0)
+        if   ((Databases.NameCmp(User.Right[J].DatabaseName , NewRight.DatabaseName ) = 0)
           and (TableNameCmp(User.Right[J].TableName    , NewRight.TableName    ) = 0)
           and (lstrcmpi(PChar(User.Right[J].ProcedureName), PChar(NewRight.ProcedureName)) = 0)
           and (lstrcmpi(PChar(User.Right[J].FunctionName ), PChar(NewRight.FunctionName )) = 0)
@@ -12621,7 +12617,7 @@ begin
       NewRight := nil;
       if (Assigned(NewUser)) then
         for J := 0 to NewUser.RightCount - 1 do
-          if   ((TableNameCmp(NewUser.Right[J].DatabaseName , OldRight.DatabaseName ) = 0)
+          if   ((Databases.NameCmp(NewUser.Right[J].DatabaseName , OldRight.DatabaseName ) = 0)
             and (TableNameCmp(NewUser.Right[J].TableName    , OldRight.TableName    ) = 0)
             and (TableNameCmp(NewUser.Right[J].ProcedureName, OldRight.ProcedureName) = 0)
             and (TableNameCmp(NewUser.Right[J].FunctionName , OldRight.FunctionName ) = 0)

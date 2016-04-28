@@ -2395,6 +2395,7 @@ begin
 
   if (Assigned(LibraryThread) and not (LibraryThread.State in [ssClose, ssReady, ssError])) then
     Terminate();
+
   if (not Assigned(LibraryThread)) then
     FLibraryThread := TLibraryThread.Create(Self);
 
@@ -3632,12 +3633,16 @@ end;
 procedure TMySQLConnection.Terminate();
 var
   S: string;
+  TempLibraryThread: TLibraryThread;
 begin
   TerminateCS.Enter();
 
-  if (Assigned(LibraryThread)) then
+  TempLibraryThread := FLibraryThread;
+  FLibraryThread := nil;
+
+  if (Assigned(TempLibraryThread)) then
   begin
-    if (LibraryThread.IsRunning) then
+    if (TempLibraryThread.IsRunning) then
     begin
       if (ThreadId = 0) then
         S := '----> Connection Terminated <----'
@@ -3645,8 +3650,7 @@ begin
         S := '----> Connection Terminated (Id: ' + IntToStr(ThreadId) +') <----';
       WriteMonitor(PChar(S), Length(S), ttInfo);
     end;
-    LibraryThread.Terminate();
-    FLibraryThread := nil;
+    TempLibraryThread.Terminate();
   end;
 
   TerminateCS.Leave();

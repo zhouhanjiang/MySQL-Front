@@ -1704,6 +1704,7 @@ begin
     CR_HTTPTUNNEL_CONN_ERROR: Msg := ErrorMessage;
     CR_HTTPTUNNEL_ACCESS_DENIED_ERROR: Msg := Preferences.LoadStr(860, Preferences.LoadStr(859), Copy(ErrorMessage, 1, Pos(' ', ErrorMessage) - 1)) + ':' + #10#10 + ErrorMessage  + #10#10 + ' (' + Connection.LibraryName + ')';
     CR_HTTPTUNNEL_NOT_FOUND: Msg := Preferences.LoadStr(523, Connection.LibraryName);
+    CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR: Msg := ErrorMessage;
     CR_HTTPTUNNEL_SERVER_ERROR: Msg := Preferences.LoadStr(860, Preferences.LoadStr(859), Copy(ErrorMessage, 1, Pos(' ', ErrorMessage) - 1)) + ':' + #10#10 + ErrorMessage  + #10#10 + ' (' + Connection.LibraryName + ')';
     CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE,
     CR_IPSOCK_ERROR: Msg := ErrorMessage;

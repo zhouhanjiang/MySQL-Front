@@ -3199,6 +3199,8 @@ begin
     WorkbenchPasteExecute(Sender)
   else if (Window.ActiveControl = FFilter) then
     FFilter.PasteFromClipboard()
+  else if (Window.ActiveControl = FQuickSearch) then
+    FQuickSearch.PasteFromClipboard()
   else if (Window.ActiveControl = FText) then
     FText.PasteFromClipboard
   else
@@ -3443,7 +3445,7 @@ begin
   else if (Window.ActiveControl = ActiveWorkbench) then
   begin
     Database := TSDatabase(FNavigator.Selected.Data);
-    if (((Session.TableNameCmp(Database.Name, 'mysql') <> 0) or (Session.TableNameCmp(Database.Name, 'sys') <> 0) and (Session.Connection.ServerVersion >= 50707)) and not (Database is TSSystemDatabase)) then
+    if (((Session.Databases.NameCmp(Database.Name, 'mysql') <> 0) and (Session.Databases.NameCmp(Database.Name, 'sys') <> 0) and (Session.Connection.ServerVersion >= 50707)) and not (Database is TSSystemDatabase)) then
       for I := 0 to ActiveWorkbench.Tables.Count - 1 do
         if (not Assigned(ActiveWorkbench.Selected) or ActiveWorkbench.Tables[I].Selected) then
           DExport.SObjects.Add(ActiveWorkbench.Tables[I].BaseTable);
@@ -3456,14 +3458,14 @@ begin
           if (ActiveListView.Items[I].Selected) then
           begin
             Database := TSDatabase(ActiveListView.Items[I].Data);
-            if (((Session.TableNameCmp(Database.Name, 'mysql') <> 0) or (Session.TableNameCmp(Database.Name, 'sys') <> 0) and (Session.Connection.ServerVersion >= 50707)) and not (Database is TSSystemDatabase)) then
+            if (((Session.Databases.NameCmp(Database.Name, 'mysql') <> 0) and (Session.Databases.NameCmp(Database.Name, 'sys') <> 0) and (Session.Connection.ServerVersion >= 50707)) and not (Database is TSSystemDatabase)) then
               DExport.SObjects.Add(Database);
           end;
 
       iiDatabase:
         begin
           Database := TSDatabase(FNavigator.Selected.Data);
-          if (((Session.TableNameCmp(Database.Name, 'mysql') <> 0) or (Session.TableNameCmp(Database.Name, 'sys') <> 0) and (Session.Connection.ServerVersion >= 50707)) and not (Database is TSSystemDatabase)) then
+          if (not (Database is TSSystemDatabase)) then
             for I := 0 to ActiveListView.Items.Count - 1 do
               if (ActiveListView.Items[I].Selected) then
                 DExport.SObjects.Add(TSDBObject(ActiveListView.Items[I].Data));
@@ -3471,7 +3473,7 @@ begin
       iiBaseTable:
         begin
           Database := TSDatabase(FNavigator.Selected.Parent.Data);
-          if (((Session.TableNameCmp(Database.Name, 'mysql') <> 0) or (Session.TableNameCmp(Database.Name, 'sys') <> 0) and (Session.Connection.ServerVersion >= 50707)) and not (Database is TSSystemDatabase)) then
+          if (not (Database is TSSystemDatabase)) then
             for I := 0 to ActiveListView.Items.Count - 1 do
               if (ActiveListView.Items[I].Selected and (ActiveListView.Items[I].ImageIndex = iiTrigger)) then
                 DExport.SObjects.Add(TSDBObject(ActiveListView.Items[I].Data));
@@ -3493,7 +3495,7 @@ begin
   else
   begin
     for I := 0 to DExport.Session.Databases.Count - 1 do
-      if (((Session.TableNameCmp(Session.Databases[I].Name, 'mysql') <> 0) or (Session.TableNameCmp(Session.Databases[I].Name, 'sys') <> 0) and (Session.Connection.ServerVersion >= 50707)) and not (Session.Databases[I] is TSSystemDatabase)) then
+      if (((Session.Databases.NameCmp(Session.Databases[I].Name, 'mysql') <> 0) and (Session.Databases.NameCmp(Session.Databases[I].Name, 'sys') <> 0) and (Session.Connection.ServerVersion >= 50707)) and not (Session.Databases[I] is TSSystemDatabase)) then
         DExport.SObjects.Add(Session.Databases[I]);
   end;
 
