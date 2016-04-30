@@ -2295,11 +2295,13 @@ label
   Body, BodyL, BodyCase, BodyIf, BodyLoop, BodyRepeat, BodyWhile, BodyEnd,
   BodyChar, BodyCharTL, BodyCharE,
   BodyEndCase, BodyEndIf, BodyEndLoop, BodyEndRepeat, BodyEndWhile, BodyEndCompound, BodyLE,
+  BodyBracket, BodyBracketL, BodyBracketLE,
   Complete, Complete2, Complete3, Complete4,
   Finish;
 const
   Terminators: PChar = #9#10#13#32'"''(),.:;=`'; // Characters terminating the identifier
 var
+  BracketDeep: Integer;
   CaseDeep: Integer;
   CompoundDeep: Integer;
   IfDeep: Integer;
@@ -2339,6 +2341,7 @@ begin
       // -------------------
 
       Start:
+        MOV BracketDeep,0
         MOV CaseDeep,0
         MOV CompoundDeep,0
         MOV IfDeep,0
@@ -2412,6 +2415,8 @@ begin
 
       Body:
         CALL Trim                        // Empty characters?
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
         MOV EAX,[KTable]
         CALL CompareKeyword              // 'TABLE'?
         JE SimpelStmtL                   // Yes!
@@ -2531,6 +2536,8 @@ begin
         JE BodyLE                        // Yes!
         LODSW                            // Character -> AX
         DEC ECX                          // One character handled
+        CMP AX,'('                       // Bracket in SQL?
+        JE BodyBracket                   // Yes!
         MOV EBX,[Terminators]            // Terminating characters
       BodyCharTL:
         CMP WORD PTR [EBX],0             // All terminators checked?
@@ -2555,6 +2562,25 @@ begin
         CMP WhileDeep,0                  // Still inside WHILE?
         JNE BodyLE                       // Yes!
         JMP Complete
+
+      BodyBracket:
+        INC BracketDeep                  // One open bracket found
+      BodyBracketL:
+        CALL Trim                        // Step over empty characters
+        CMP ECX,0                        // All characters handled?
+        JZ BodyLE                        // Yes!
+        CALL MoveString                  // Step over quoted string
+        CMP ECX,0                        // All characters handled?
+        JZ BodyLE                        // Yes!
+        LODSW                            // Character -> AX
+        DEC ECX                          // One character handled
+        CMP AX,'('                       // Another open bracket?
+        JE BodyBracket                   // Yes!
+        CMP AX,')'                       // Closing bracket?
+        JNE BodyBracketL                 // No!
+        DEC BracketDeep                  // One bracket closed
+        CMP BracketDeep,0                // All brackets are closed?
+        JNE BodyBracketL                 // No!
 
       BodyLE:
         CMP ECX,0                        // All characters handled?

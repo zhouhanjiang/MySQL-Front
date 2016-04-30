@@ -353,8 +353,10 @@ type
     procedure aOGlobalsExecute(Sender: TObject);
     procedure aOAccountsExecute(Sender: TObject);
     procedure aSSearchFindNotFound(Sender: TObject);
+    procedure FormActivate(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormCreate(Sender: TObject);
+    procedure FormDeactivate(Sender: TObject);
     procedure FormHide(Sender: TObject);
     procedure FormResize(Sender: TObject);
     procedure FormShow(Sender: TObject);
@@ -1187,11 +1189,11 @@ begin
   end;
 
   TabControl.Canvas.Font.Style := [fsBold];
-  TabControl.TabHeight := TabControl.Canvas.TextHeight('I') + 10;
-  if (not StyleServices.Enabled) then
-    TabControl.Height := TabControl.TabHeight + 1
-  else
-    TabControl.Height := TabControl.TabHeight + 2;
+//  TabControl.TabHeight := TabControl.Canvas.TextHeight('I') + 10;
+//  if (not StyleServices.Enabled) then
+//    TabControl.Height := TabControl.TabHeight + 1
+//  else
+//    TabControl.Height := TabControl.TabHeight + 2;
 
   StatusBar.ClientHeight := StatusBar.Canvas.TextHeight('I') + 5;
 end;
@@ -1457,6 +1459,12 @@ begin
 end;
 {$ENDIF}
 
+procedure TWWindow.FormActivate(Sender: TObject);
+begin
+  if (Assigned(ActiveTab)) then
+    ActiveTab.Perform(CM_ACTIVATEFRAME, 0, 0);
+end;
+
 procedure TWWindow.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   aFCloseAllExecute(Sender);
@@ -1550,6 +1558,12 @@ begin
 
   for I := 0 to StatusBar.Panels.Count - 1 do
     StatusBar.Panels[I].Text := '';
+end;
+
+procedure TWWindow.FormDeactivate(Sender: TObject);
+begin
+  if (Assigned(ActiveTab)) then
+    ActiveTab.Perform(CM_DEACTIVATEFRAME, 0, 0);
 end;
 
 procedure TWWindow.FormDestroy(Sender: TObject);

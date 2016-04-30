@@ -3203,6 +3203,8 @@ begin
     FQuickSearch.PasteFromClipboard()
   else if (Window.ActiveControl = FText) then
     FText.PasteFromClipboard
+  else if (Window.ActiveControl = ActiveSynMemo) then
+    ActiveSynMemo.PasteFromClipboard()
   else
     MessageBeep(MB_ICONERROR);
 end;
