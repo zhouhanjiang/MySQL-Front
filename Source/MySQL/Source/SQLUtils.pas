@@ -2353,44 +2353,44 @@ begin
         CMP ECX,0                        // End of SQL?
         JE Finish                        // Yes!
         MOV EAX,[KAlter]
-        CALL CompareKeyword              // 'ALTER'?
+        CALL CompareKeyword              // 'ALTER' in SQL?
         JE Body
         MOV EAX,[KCreate]
-        CALL CompareKeyword              // 'CREATE'?
+        CALL CompareKeyword              // 'CREATE' in SQL?
         JE Body
 
         MOV EAX,[KBegin]
-        CALL CompareKeyword              // 'BEGIN'?
+        CALL CompareKeyword              // 'BEGIN' in SQL?
         JNE StartCase                    // No!
         MOV CompoundDeep,1
         JMP BodyL
       StartCase:
         MOV EAX,[KCase]
-        CALL CompareKeyword              // 'CASE'?
+        CALL CompareKeyword              // 'CASE' in SQL?
         JNE StartIf                      // No!
         MOV CaseDeep,1
         JMP BodyL
       StartIf:
         MOV EAX,[KIf]
-        CALL CompareKeyword              // 'IF'?
+        CALL CompareKeyword              // 'IF' in SQL?
         JNE StartLoop                    // No!
         MOV IfDeep,1
         JMP BodyL
       StartLoop:
         MOV EAX,[KLoop]
-        CALL CompareKeyword              // 'LOOP'?
+        CALL CompareKeyword              // 'LOOP' in SQL?
         JNE StartRepeat                  // No!
         MOV LoopDeep,1
         JMP BodyL
       StartRepeat:
         MOV EAX,[KRepeat]
-        CALL CompareKeyword              // 'REPEAT'?
+        CALL CompareKeyword              // 'REPEAT' in SQL?
         JNE StartWhile                   // No!
         MOV RepeatDeep,1
         JMP BodyL
       StartWhile:
         MOV EAX,[KWhile]
-        CALL CompareKeyword              // 'WHILE'?
+        CALL CompareKeyword              // 'WHILE' in SQL?
         JNE SimpelStmtL                  // No!
         MOV WhileDeep,1
         JMP BodyL

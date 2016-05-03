@@ -1,7 +1,6 @@
 object DSQLHelp: TDSQLHelp
   Left = 603
   Top = 315
-  BorderIcons = [biSystemMenu]
   Caption = 'DSQLHelp'
   ClientHeight = 567
   ClientWidth = 500

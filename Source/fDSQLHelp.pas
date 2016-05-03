@@ -46,6 +46,8 @@ type
     procedure CMSendSQL(var Message: TMessage); message CM_SEND_SQL;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure WMNotify(var Message: TWMNotify); message WM_NOTIFY;
+  protected
+    procedure CreateParams(var Params: TCreateParams); override;
   public
     Session: TSSession;
     Keyword: string;
@@ -125,6 +127,8 @@ begin
         SetLength(DSelection.Values, Length(DSelection.Values) + 1);
         DSelection.Values[Length(DSelection.Values) - 1] := DataSet.FieldByName('name').AsString;
       until (not DataSet.FindNext());
+      DSelection.Left := Left + Width div 2 - DSelection.Width div 2;
+      DSelection.Top := Top + Height div 2 - DSelection.Height div 2;
       if (DSelection.Execute()) then
       begin
         Keyword := DSelection.Selected;
@@ -144,6 +148,13 @@ begin
   end;
 
   Result := False;
+end;
+
+procedure TDSQLHelp.CreateParams(var Params: TCreateParams);
+begin
+  inherited;
+
+  Params.ExStyle   := Params.ExStyle or WS_EX_APPWINDOW;
 end;
 
 procedure TDSQLHelp.CMChangePreferences(var Message: TMessage);

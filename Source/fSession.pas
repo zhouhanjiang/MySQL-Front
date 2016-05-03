@@ -4369,20 +4369,6 @@ begin
               end
               else
                 NewField.Default := SQLEscape(SQLParseValue(Parse));
-              if (SQLParseKeyword(Parse, 'ON UPDATE')) then
-              begin
-                if (SQLParseKeyword(Parse, 'CURRENT_TIMESTAMP')) then
-                begin
-                  NewField.OnUpdate := 'CURRENT_TIMESTAMP';
-                  if (SQLParseChar(Parse, '(')) then
-                  begin
-                    NewField.OnUpdateSize := StrToInt(SQLParseValue(Parse));
-                    SQLParseChar(Parse, ')');
-                  end;
-                end
-                else
-                  NewField.OnUpdate := SQLParseValue(Parse);
-              end;
             end
             else if (SQLParseKeyword(Parse, 'AUTO_INCREMENT')) then
               NewField.AutoIncrement := True
@@ -4390,6 +4376,20 @@ begin
               NewField.Comment := SQLParseValue(Parse)
             else if (SQLParseKeyword(Parse, 'COLUMN_FORMAT')) then
               NewField.Format := StrToMySQLRowType(SQLParseValue(Parse))
+            else if (SQLParseKeyword(Parse, 'ON UPDATE')) then
+            begin
+              if (SQLParseKeyword(Parse, 'CURRENT_TIMESTAMP')) then
+              begin
+                NewField.OnUpdate := 'CURRENT_TIMESTAMP';
+                if (SQLParseChar(Parse, '(')) then
+                begin
+                  NewField.OnUpdateSize := StrToInt(SQLParseValue(Parse));
+                  SQLParseChar(Parse, ')');
+                end;
+              end
+              else
+                NewField.OnUpdate := SQLParseValue(Parse);
+            end
             else
               raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name + '.' + NewField.Name, SQL]);
           end

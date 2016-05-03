@@ -13,7 +13,6 @@ object DSelection: TDSelection
   Font.Name = 'MS Sans Serif'
   Font.Style = []
   OldCreateOrder = False
-  Position = poOwnerFormCenter
   OnCreate = FormCreate
   OnHide = FormHide
   OnShow = FormShow

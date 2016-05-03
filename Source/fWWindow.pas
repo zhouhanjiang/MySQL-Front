@@ -442,7 +442,6 @@ type
     property ActiveTab: TFSession read GetActiveTab write SetActiveTab;
   protected
     procedure ApplicationException(Sender: TObject; E: Exception);
-//    procedure CreateParams(var Params: TCreateParams); override;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy(); override;
@@ -564,7 +563,6 @@ begin
     Preferences.SetupProgramExecute := DInstallUpdate.Execute();
     if (Preferences.SetupProgramExecute) then
       Close();
-    UpdateExecution := False;
   end;
 end;
 
@@ -1686,7 +1684,8 @@ end;
 
 procedure TWWindow.MySQLConnectionSynchronize(const Data: Pointer);
 begin
-  PostMessage(Handle, CM_MYSQLCLIENT_SYNCHRONIZE, 0, LPARAM(Data));
+  if (not UpdateExecution) then
+    PostMessage(Handle, CM_MYSQLCLIENT_SYNCHRONIZE, 0, LPARAM(Data));
 end;
 
 procedure TWWindow.SetActiveTab(const FSession: TFSession);
