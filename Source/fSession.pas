@@ -10870,7 +10870,7 @@ begin
   if (FlushPrivileges) then
     SQL := SQL + 'FLUSH PRIVILEGES;' + #13#10;
 
-  Result := Connection.ExecuteSQL(SQL);
+  Result := Connection.SendSQL(SQL);
 end;
 
 function TSSession.DeleteProcess(const Process: TSProcess): Boolean;

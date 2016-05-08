@@ -2490,11 +2490,10 @@ begin
   if (PacketComplete in [pcNo, pcExclusiveCurrentStmt]) then
     LibraryThread.SQLStmtsInPackets.Add(Pointer(LibraryThread.SQLStmt > OldStmt));
 
-  if (LibraryThread.SQLStmtLengths.Count = 0) then
-  begin
-    DoError(ER_EMPTY_QUERY, ER_EMPTY_QUERY_MSG);
-    Result := False;
-  end
+  if (SQL = '') then
+    raise EDatabaseError.Create('Empy query')
+  else if (LibraryThread.SQLStmtLengths.Count = 0) then
+    raise EDatabaseError.Create('No query')
   else if (SetNames) then
   begin
     DoError(DS_SET_NAMES, StrPas(DATASET_ERRORS[DS_SET_NAMES - DS_MIN_ERROR]));

@@ -70,7 +70,7 @@ const
   RequiredMFVersion = 15;
 
 const
-  HTTPTTUNNEL_ERRORS: array [0..9] of PChar = (
+  HTTPTTUNNEL_ERRORS: array [0..11] of PChar = (
     'Unknown HTTP Tunnel error (# %d)',                                      {0}
     'HTTP Tunnel script (%s) is too old - please update',                    {1}
     'Can''t connect to MySQL server through HTTP Tunnel ''%s'' (# %d)',      {2}
@@ -80,7 +80,9 @@ const
     'Invalid HTTP content type (''%s'').',                                   {6}
     'The HTTP server response could not be parsed (%s):' + #10#10 + '%s',    {7}
     '%-.64s via HTTP',                                                       {8}
-    'Unknown PHP Session ID'                                                 {9}
+    'Unknown PHP Session ID',                                                {9}
+    'HTTP server error (500)',                                              {10}
+    'HTTP redirects are not supported'                                      {11}
   );
 
 {******************************************************************************}
@@ -342,6 +344,9 @@ var
   Command: AnsiChar;
   Index: DWord;
   L: Longint;
+  ObjectName: string;
+  QueryInfo: array [0..2048] of Char;
+  RBS: RawByteString;
   Size: DWord;
 begin
   Result := AType = itTCPIP;
@@ -402,7 +407,19 @@ begin
           if (ExecuteHTTPRequest(True)) then
           begin
             StrPCopy(@Buffer, 'MF-Version'); Size := SizeOf(Buffer); Index := 0;
-            if (not HttpQueryInfo(Request, HTTP_QUERY_CUSTOM, @Buffer, Size, Index) or (StrToInt(Buffer) < RequiredMFVersion) or (StrToInt(Buffer) = 17)) then
+            if (not HttpQueryInfo(Request, HTTP_QUERY_CUSTOM, @Buffer, Size, Index)) then
+              if (not ReceiveExitText(RBS)) then
+                Seterror(CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_CONTENT_TYPE_ERROR - CR_HTTPTUNNEL_UNKNOWN_ERROR], [QueryInfo])))
+              else
+              begin
+                ObjectName := '';
+                if (URLComponents.dwUrlPathLength > 0) then
+                  ObjectName := ObjectName + URLComponents.lpszUrlPath;
+                if (URLComponents.dwExtraInfoLength > 0) then
+                  ObjectName := ObjectName + URLComponents.lpszExtraInfo;
+                Seterror(CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_INVALID_SERVER_RESPONSE - CR_HTTPTUNNEL_UNKNOWN_ERROR], [ObjectName, string(RBS)])));
+              end
+            else if ((StrToInt(Buffer) < RequiredMFVersion) or (StrToInt(Buffer) = 17)) then
               Seterror(CR_HTTPTUNNEL_OLD, RawByteString(Format(HTTPTTUNNEL_ERRORS[CR_HTTPTUNNEL_OLD - CR_HTTPTUNNEL_UNKNOWN_ERROR], [URL])))
             else
             begin
@@ -440,11 +457,17 @@ end;
 
 function MYSQL.ExecuteCommand(const Command: enum_server_command; const Bin: my_char; const Size: my_int; const Retry: Boolean): my_int;
 var
-  Index: Integer;
-  Len: Integer;
-  SQL: string;
+  EndingCommentLength: Integer;
+  Packet: my_char;
+  PacketBuffer: array [0..32768 - 1] of AnsiChar;
+  PacketLen: Integer;
+  SQL: PChar;
+  SQLBuffer: array [0..32768 - 1] of Char;
   SQLIndex: Integer;
   SQLLen: Integer;
+  SQLStmtLen: Integer;
+  StartingCommentLength: Integer;
+  StmtLen: Integer;
 begin
   SendBuffer.Offset := 0;
   SendBuffer.Size := 0;
@@ -454,22 +477,52 @@ begin
 
   if (Command = COM_QUERY) then
   begin
-    SQL := DecodeString(Bin); SQLIndex := 1;
-    Index := 0;
-    while (Index < Size) do
+    SQLLen := MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, Bin, Size, nil, 0);
+
+    if (SQLLen < Length(SQLBuffer)) then
+      SQL := @SQLBuffer[0]
+    else
+      GetMem(SQL, SQLLen);
+
+    MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, Bin, Size, SQL, SQLLen);
+
+    SQLIndex := 0;
+    while (SQLIndex < SQLLen) do
     begin
-      SQLLen := SQLStmtLength(@SQL[SQLIndex], Length(SQL) - (SQLIndex - 1));
-      Len := WideCharToMultiByte(CodePage, 0, PChar(@SQL[SQLIndex]), SQLLen, nil, 0, nil, nil);
+      SQLStmtLen := SQLStmtLength(@SQL[SQLIndex], SQLLen - SQLIndex);
+      StmtLen := SQLTrimStmt(@SQL[SQLIndex], SQLStmtLen, StartingCommentLength, EndingCommentLength);
+      if ((StmtLen > 0) and (SQL[SQLIndex + StartingCommentLength + StmtLen - 1] = ';')) then
+      begin
+        Inc(EndingCommentLength);
+        Dec(StmtLen);
+      end;
 
-      if (GetPacketSize() > 0) then
-        SetPacketPointer(1, PACKET_CURRENT);
-      WritePacket(@Command, 1);
+      if (StmtLen > 0) then
+      begin
+        PacketLen := WideCharToMultiByte(CodePage, 0, PChar(@SQL[SQLIndex + StartingCommentLength]), StmtLen, nil, 0, nil, nil);
 
-      WritePacket(my_char(@Bin[Index]), Len);
+        if (PacketLen < Length(PacketBuffer)) then
+          Packet := @PacketBuffer[0]
+        else
+          GetMem(Packet, PacketLen);
 
-      Inc(SQLIndex, SQLLen);
-      Inc(Index, Len);
+        WideCharToMultiByte(CodePage, 0, PChar(@SQL[SQLIndex + StartingCommentLength]), StmtLen, Packet, PacketLen, nil, nil);
+
+        if (GetPacketSize() > 0) then
+          SetPacketPointer(1, PACKET_CURRENT);
+        WritePacket(@Command, 1);
+
+        WritePacket(Packet, PacketLen);
+
+        if (Packet <> @PacketBuffer[0]) then
+          FreeMem(Packet);
+      end;
+
+      Inc(SQLIndex, SQLStmtLen);
     end;
+
+    if (SQL <> @SQLBuffer[0]) then
+      FreeMem(SQL);
   end
   else
   begin

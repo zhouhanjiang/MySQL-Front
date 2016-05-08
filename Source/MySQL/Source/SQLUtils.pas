@@ -66,7 +66,8 @@ procedure SQLSplitValues(const Text: string; out Values: TSQLStrings);
 function SQLStmtLength(const SQL: PChar; const Length: Integer; const Delimited: PBoolean = nil): Integer;
 function SQLStmtToCaption(const SQL: string; const Len: Integer = 50): string;
 function SQLTrimStmt(const SQL: string): string; overload;
-function SQLTrimStmt(const SQL: string; const Index, Length: Integer; var StartingCommentLength, EndingCommentLength: Integer): Integer; overload;
+function SQLTrimStmt(const SQL: string; const Index, Length: Integer; var StartingCommentLength, EndingCommentLength: Integer): Integer; overload; inline;
+function SQLTrimStmt(const SQL: PChar; const Length: Integer; out StartingCommentLength, EndingCommentLength: Integer): Integer; overload;
 function SQLUnescape(const Value: PAnsiChar; const RemoveQuoter: Boolean = True): RawByteString; overload;
 function SQLUnescape(const Value: string; const RemoveQuoter: Boolean = True): string; overload;
 function SQLWrapStmt(const SQL: string; const WrapStrs: array of string; const Indent: Integer): string;
@@ -2652,72 +2653,77 @@ begin
   Result := Copy(SQL, 1 + StartingCommentLen, Len);
 end;
 
-function SQLTrimStmt(const SQL: string; const Index, Length: Integer; var StartingCommentLength, EndingCommentLength: Integer): Integer; overload;
+function SQLTrimStmt(const SQL: string; const Index, Length: Integer; var StartingCommentLength, EndingCommentLength: Integer): Integer;
+begin
+  Result := SQLTrimStmt(PChar(@SQL[Index]), Length, StartingCommentLength, EndingCommentLength);
+end;
+
+function SQLTrimStmt(const SQL: PChar; const Length: Integer; out StartingCommentLength, EndingCommentLength: Integer): Integer; overload;
 label
-  StringL, StringLE,
+  EndL, EndLE, EndE,
   Finish;
 var
-  First: Integer;
-  Last: Integer;
+  ECL: Integer;
+  SCL: Integer;
 begin
-  if (SQL = '') then
+  if (not Assigned(SQL) or (Length = 0)) then
   begin
     StartingCommentLength := 0;
     EndingCommentLength := 0;
-    Result := 1;
+    Result := 0;
   end
   else
   begin
-    Last := SQLStmtLength(@SQL[Index], Length - (Index - 1));
     asm
         PUSH ES
         PUSH ESI
         PUSH EDI
         PUSH EBX
 
-        MOV ESI,PChar(SQL)               // Read characters from SQL
-        ADD ESI,Index                    // Add Index twice
-        ADD ESI,Index                    //   since 1 character = 2 byte
-        SUB ESI,2                        // Index based on "1" in string
-
-        MOV ECX,Length
-
-        MOV EDI,ESI
-        ADD EDI,Length                   // EDI := SQL[Index - 1 + Length]
-        ADD EDI,Length
-        SUB EDI,2
+        MOV ESI,SQL                      // Read characters from SQL
+        MOV ECX,Length                   // Count of characters
+        MOV EDI,0                        // Do not copy characters in Trim
+        MOV EDX,0                        // MySQL version in Trim
 
       // -------------------
 
         CALL Trim                        // Step over empty characters
+        MOV EBX,ESI
+        SUB EBX,SQL
+        SHR EBX,1                        // 2 bytes = 1 character
+        MOV SCL,EBX                      // StartingCommentLength
 
-        MOV EAX,ESI                      // Calculate Result:
-        SUB EAX,PChar(SQL)               //   Result := (ESI - @SQL) DIV SizeOf(Char)
-        SHR EAX,1                        // 2 bytes = 1 character
-        INC EAX                          // Index based on "1" in string
-        MOV First,EAX
+        MOV ESI,SQL                      // Read characters from SQL
+        MOV EAX,Length
+        DEC EAX                          // Last character in SQL
+        SHL EAX,1                        // 1 character = 2 bytes
+        ADD ESI,EAX
+        MOV ECX,Length
+        SUB ECX,EBX                      // Length of SQL - StartingCommentLength
 
-      StringL:
-        CMP EDI,ESI                      // Begin of Statement?
-        JE Finish                        // Yes!
-        CMP WORD PTR [EDI],9             // Tabulator?
-        JE StringLE                      // Yes!
-        CMP WORD PTR [EDI],10            // New Line?
-        JE StringLE                      // Yes!
-        CMP WORD PTR [EDI],13            // Carrige Return?
-        JE StringLE                      // Yes!
-        CMP WORD PTR [EDI],' '           // Space
-        JE StringLE                      // Yes!
-        ADD EDI,2                        // Next character
+      EndL:
+        MOV AX,[ESI]                     // Character in SQL
+        CMP EAX,9                        // Tabulator?
+        JE EndLE                         // Yes!
+        CMP EAX,10                       // New Line?
+        JE EndLE                         // Yes!
+        CMP EAX,13                       // Carrige Return?
+        JE EndLE                         // Yes!
+        CMP EAX,' '                      // Space
+        JE EndLE                         // Yes!
         JMP Finish
-      StringLE:
-        SUB EDI,2                        // Previous character
-        JMP StringL
+      EndLE:
+        SUB ESI,2                        // Previous character
+        DEC ECX                          // One character handled
+      EndE:
+        CMP ECX,0                        // All characters handled?
+        JNE EndL
 
       Finish:
-        SUB EDI,PChar(SQL)               // Last := Len - (EDI - @SQL[Index]) DIV SizeOf(Char)
-        SHR EDI,1                        // 2 bytes = 1 character
-        MOV Last,EDI
+        MOV EAX,Length                   // Calc EndingCommentLength
+        SUB EAX,SCL
+        SUB EAX,ECX
+        MOV ECL,EAX
 
         POP EBX
         POP EDI
@@ -2725,8 +2731,8 @@ begin
         POP ES
     end;
 
-    StartingCommentLength := First - Index;
-    EndingCommentLength := Index - 1 + Length - Last;
+    StartingCommentLength := SCL;
+    EndingCommentLength := ECL;
     Result := Length - StartingCommentLength - EndingCommentLength;
   end;
 end;

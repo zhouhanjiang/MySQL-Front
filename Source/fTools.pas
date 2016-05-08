@@ -2876,15 +2876,21 @@ begin
     SetLength(FileFields, Length(CSVValues));
     for I := 0 to Length(FileFields) - 1 do
       FileFields[I].Name := 'Field_' + IntToStr(I);
+
+    ReadContent(0);
   end;
 
   for I := 0 to Length(FileFields) - 1 do
     FileFields[I].FieldTypes := [SQL_INTEGER, SQL_FLOAT, SQL_DATE, Byte(SQL_LONGVARCHAR)];
 
-  RecordNumber := 0;
-  while ((RecordNumber < 20) and (RecordComplete or (EOF and (FileContent.Index > Length(FileContent.Str))))) do
+  RecordNumber := 0; RecordComplete := False;
+  while ((RecordNumber < 20) and (RecordComplete or not EOF or (FileContent.Index < Length(FileContent.Str)))) do
   begin
-    RecordComplete := (RecordNumber = 0) and not UseHeadline and NextRecord(nil);
+    repeat
+      RecordComplete := NextRecord(nil);
+      if (not RecordComplete) then
+        FEOF := not ReadContent();
+    until (RecordComplete or EOF);
 
     if ((RecordComplete or EOF) and (Length(CSVValues) = Length(FileFields))) then
     begin

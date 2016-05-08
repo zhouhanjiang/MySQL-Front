@@ -1713,9 +1713,6 @@ const
   CR_INSECURE_API_ERR = 2062;                       // Insecure API function call: '%s' Use instead: '%s'
   CR_MAX_ERROR = 2062;
 
-const
-  ER_EMPTY_QUERY_MSG = 'Query was empty';
-
 var
   CLIENT_ERRORS: array [0..62] of PChar = (
     'Unknown MySQL error',

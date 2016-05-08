@@ -10219,7 +10219,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
     Item.SubItems.EndUpdate();
   end;
 
-  function InsertItem(const Kind: TADesktop.TListViewKind; const Data: TObject): TListItem;
+  function InsertOrUpdateItem(const Kind: TADesktop.TListViewKind; const Data: TObject): TListItem;
   var
     GroupID: Integer;
     I: Integer;
@@ -10234,7 +10234,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
     while ((Index < ListView.Items.Count) and (ListView.Items[Index].Data <> Data)) do
       Inc(Index);
 
-    if ((Index = ListView.Items.Count) and (ListView.Items.Count > 0)) then
+    if ((0 < ListView.Items.Count) and (ListView.Items.Count = Index)) then
     begin
       Item := TListItem.Create(ListView.Items);
       Item.Data := Data;
@@ -10329,7 +10329,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
           for I := 0 to SItems.Count - 1 do
             if (not (SItems is TSTriggers) or (TSTriggers(SItems)[I].Table = TObject(ListView.Tag))) then
               if (not Add) then
-                InsertItem(Kind, SItems[I])
+                InsertOrUpdateItem(Kind, SItems[I])
               else
                 AddItem(Kind, SItems[I]);
 
@@ -10353,7 +10353,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
             UpdateItem(ListView.Items[I], SessionEvent.SItem);
       etItemCreated:
         begin
-          Item := InsertItem(Kind, SessionEvent.SItem);
+          Item := InsertOrUpdateItem(Kind, SessionEvent.SItem);
           if (not Assigned(ListView.Selected)) then
           begin
             Item.Selected := True;
@@ -10366,7 +10366,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
           while ((Index < ListView.Items.Count) and (ListView.Items[Index].Data <> SessionEvent.SItem)) do
             Inc(Index);
           if (Index = ListView.Items.Count) then
-            InsertItem(Kind, SessionEvent.SItem)
+            InsertOrUpdateItem(Kind, SessionEvent.SItem)
           else if (ListView.Items[Index].Caption = SessionEvent.SItem.Caption) then
             UpdateItem(ListView.Items[Index], SessionEvent.SItem)
           else
@@ -10374,7 +10374,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
             ItemSelected := ListView.Items[Index].Selected;
             ItemFocused := ListView.Items[Index].Focused;
             ListView.Items.Delete(Index);
-            Item := InsertItem(Kind, SessionEvent.SItem);
+            Item := InsertOrUpdateItem(Kind, SessionEvent.SItem);
             Item.Selected := ItemSelected;
             Item.Focused := ItemFocused;
           end;
@@ -10427,7 +10427,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
             for I := 0 to TSTriggers(SItems).Count - 1 do
               if (TSTriggers(SItems)[I].Table = TObject(ListView.Tag)) then
               begin
-                InsertItem(Kind, TSTriggers(SItems)[I]);
+                InsertOrUpdateItem(Kind, TSTriggers(SItems)[I]);
                 Inc(Count);
               end;
             SetListViewGroupHeader(ListView, GroupID, Preferences.LoadStr(797) + ' (' + IntToStr(Count) + ')');
@@ -10462,13 +10462,13 @@ begin
           if (ListView.Items.Count = 0) then
           begin
             if (Assigned(Session.Processes)) then
-              InsertItem(Kind, Session.Processes);
+              InsertOrUpdateItem(Kind, Session.Processes);
             if (Assigned(Session.Stati)) then
-              InsertItem(Kind, Session.Stati);
+              InsertOrUpdateItem(Kind, Session.Stati);
             if (Assigned(Session.Users)) then
-              InsertItem(Kind, Session.Users);
+              InsertOrUpdateItem(Kind, Session.Users);
             if (Assigned(Session.Variables)) then
-              InsertItem(Kind, Session.Variables);
+              InsertOrUpdateItem(Kind, Session.Variables);
             ListViewInitialize(ListView);
           end;
 
