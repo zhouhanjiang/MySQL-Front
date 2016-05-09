@@ -482,7 +482,7 @@ begin
     if (SQLLen < Length(SQLBuffer)) then
       SQL := @SQLBuffer
     else
-      GetMem(SQL, SQLLen);
+      GetMem(SQL, SQLLen * SizeOf(SQL[0]));
 
     MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, Bin, Size, SQL, SQLLen);
 
