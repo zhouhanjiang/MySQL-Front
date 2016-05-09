@@ -480,7 +480,7 @@ begin
     SQLLen := MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, Bin, Size, nil, 0);
 
     if (SQLLen < Length(SQLBuffer)) then
-      SQL := @SQLBuffer[0]
+      SQL := @SQLBuffer
     else
       GetMem(SQL, SQLLen);
 
@@ -490,6 +490,7 @@ begin
     while (SQLIndex < SQLLen) do
     begin
       SQLStmtLen := SQLStmtLength(@SQL[SQLIndex], SQLLen - SQLIndex);
+
       StmtLen := SQLTrimStmt(@SQL[SQLIndex], SQLStmtLen, StartingCommentLength, EndingCommentLength);
       if ((StmtLen > 0) and (SQL[SQLIndex + StartingCommentLength + StmtLen - 1] = ';')) then
       begin
@@ -502,7 +503,7 @@ begin
         PacketLen := WideCharToMultiByte(CodePage, 0, PChar(@SQL[SQLIndex + StartingCommentLength]), StmtLen, nil, 0, nil, nil);
 
         if (PacketLen < Length(PacketBuffer)) then
-          Packet := @PacketBuffer[0]
+          Packet := @PacketBuffer
         else
           GetMem(Packet, PacketLen);
 
@@ -511,17 +512,16 @@ begin
         if (GetPacketSize() > 0) then
           SetPacketPointer(1, PACKET_CURRENT);
         WritePacket(@Command, 1);
-
         WritePacket(Packet, PacketLen);
 
-        if (Packet <> @PacketBuffer[0]) then
+        if (Packet <> @PacketBuffer) then
           FreeMem(Packet);
       end;
 
       Inc(SQLIndex, SQLStmtLen);
     end;
 
-    if (SQL <> @SQLBuffer[0]) then
+    if (SQL <> @SQLBuffer) then
       FreeMem(SQL);
   end
   else

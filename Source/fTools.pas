@@ -1977,8 +1977,9 @@ begin
       else
         SQL := SQL + 'START TRANSACTION;' + #13#10;
     end;
-    while ((Success <> daAbort) and not DoExecuteSQL(Item, SQL)) do
-      DoError(DatabaseError(Session), Item, True, SQL);
+    if (SQL <> '') then
+      while ((Success <> daAbort) and not DoExecuteSQL(Item, SQL)) do
+        DoError(DatabaseError(Session), Item, True, SQL);
 
     if ((StmtType in [stInsert, stReplace]) and Session.Connection.DataFileAllowed) then
     begin
