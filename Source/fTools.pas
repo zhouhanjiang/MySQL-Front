@@ -1942,12 +1942,12 @@ var
   Len: Integer;
   Pipe: THandle;
   Pipename: string;
+  SQLStmtPrefixInSQLStmt: Boolean;
   SQL: string;
   SQLExecuted: TEvent;
   SQLStmtPrefix: string;
   SQLStmtDelimiter: string;
   SQLStmt: TStringBuffer;
-List: TList;
 begin
   BeforeExecuteData(Item);
 
@@ -2087,15 +2087,22 @@ begin
         end;
         SQLStmtPrefix := SQLStmtPrefix + ' VALUES ';
       end
-      else
+      else // StmtType = stUpdate
         SQLStmtPrefix := SQLStmtPrefix + ' SET ';
 
       SQLStmtDelimiter := ';' + #13#10;
 
+      SQLStmtPrefixInSQLStmt := False;
       while ((Success = daSuccess) and NextRecord(Item)) do
       begin
         repeat
-          SQLStmt.Write(PChar(SQLStmtPrefix), Length(SQLStmtPrefix));
+          if (not SQLStmtPrefixInSQLStmt) then
+          begin
+            SQLStmt.Write(PChar(SQLStmtPrefix), Length(SQLStmtPrefix));
+            SQLStmtPrefixInSQLStmt := True;
+          end
+          else
+            SQLStmt.WriteChar(',');
 
           if (StmtType in [stInsert, stReplace, stInsertOrUpdate]) then
           begin
@@ -2136,7 +2143,11 @@ begin
                 end;
             end;
           end;
-          SQLStmt.Write(SQLStmtDelimiter);
+          if ((StmtType in [stUpdate, stInsertOrUpdate]) or (SQLStmt.Length >= SQLPacketSize)) then
+          begin
+            SQLStmt.Write(SQLStmtDelimiter);
+            SQLStmtPrefixInSQLStmt := False;
+          end;
 
           if (Terminated) then
             Success := daAbort;
@@ -2145,6 +2156,12 @@ begin
           if (Item.RecordsDone mod 100 = 0) then
             DoUpdateGUI();
         until ((Success = daAbort) or (StmtType in [stUpdate, stInsertOrUpdate]) or (SQLStmt.Length > SQLPacketSize) or not NextRecord(Item));
+
+        if (SQLStmtPrefixInSQLStmt) then
+        begin
+          SQLStmt.Write(SQLStmtDelimiter);
+          SQLStmtPrefixInSQLStmt := False;
+        end;
 
         DoUpdateGUI();
 
@@ -2195,11 +2212,7 @@ begin
   end;
 
   if (Table is TSBaseTable) then
-  begin
-    Session.Connection.BeginSynchron(); // Must be synchron, since the next table will be handled immediately
     TSBaseTable(Table).InvalidateStatus();
-    Session.Connection.EndSynchron();
-  end;
 
   AfterExecuteData(Item);
 end;

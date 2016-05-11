@@ -459,10 +459,8 @@ function MYSQL.ExecuteCommand(const Command: enum_server_command; const Bin: my_
 var
   EndingCommentLength: Integer;
   Packet: my_char;
-  PacketBuffer: array [0..32768 - 1] of AnsiChar;
   PacketLen: Integer;
   SQL: PChar;
-  SQLBuffer: array [0..32768 - 1] of Char;
   SQLIndex: Integer;
   SQLLen: Integer;
   SQLStmtLen: Integer;
@@ -477,12 +475,11 @@ begin
 
   if (Command = COM_QUERY) then
   begin
+    GetMem(Packet, Size);
+
     SQLLen := MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, Bin, Size, nil, 0);
 
-    if (SQLLen < Length(SQLBuffer)) then
-      SQL := @SQLBuffer
-    else
-      GetMem(SQL, SQLLen * SizeOf(SQL[0]));
+    GetMem(SQL, SQLLen * SizeOf(SQL[0]));
 
     MultiByteToWideChar(CodePage, MB_ERR_INVALID_CHARS, Bin, Size, SQL, SQLLen);
 
@@ -500,29 +497,19 @@ begin
 
       if (StmtLen > 0) then
       begin
-        PacketLen := WideCharToMultiByte(CodePage, 0, PChar(@SQL[SQLIndex + StartingCommentLength]), StmtLen, nil, 0, nil, nil);
-
-        if (PacketLen < Length(PacketBuffer)) then
-          Packet := @PacketBuffer
-        else
-          GetMem(Packet, PacketLen);
-
-        WideCharToMultiByte(CodePage, 0, PChar(@SQL[SQLIndex + StartingCommentLength]), StmtLen, Packet, PacketLen, nil, nil);
+        PacketLen := WideCharToMultiByte(CodePage, 0, PChar(@SQL[SQLIndex + StartingCommentLength]), StmtLen, Packet, Size, nil, nil);
 
         if (GetPacketSize() > 0) then
           SetPacketPointer(1, PACKET_CURRENT);
         WritePacket(@Command, 1);
         WritePacket(Packet, PacketLen);
-
-        if (Packet <> @PacketBuffer) then
-          FreeMem(Packet);
       end;
 
       Inc(SQLIndex, SQLStmtLen);
     end;
 
-    if (SQL <> @SQLBuffer) then
-      FreeMem(SQL);
+    FreeMem(SQL);
+    FreeMem(Packet);
   end
   else
   begin

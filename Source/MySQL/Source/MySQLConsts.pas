@@ -1779,6 +1779,7 @@ var
     'Authentication plugin ''%s'' reported error: %s',
     'Insecure API function call: ''%s'' Use instead: ''%s'''
   );
+
 implementation {***************************************************************}
 
 end.
