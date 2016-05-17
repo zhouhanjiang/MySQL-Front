@@ -76,6 +76,7 @@ type
     Lengths: array of Integer;
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
   public
     Database: TSDatabase;
     Key: TSKey;
@@ -90,7 +91,7 @@ implementation {***************************************************************}
 {$R *.dfm}
 
 uses
-  StrUtils,
+  StrUtils, Math,
   MySQLDB;
 
 var
@@ -130,6 +131,32 @@ begin
   FBHelp.Caption := Preferences.LoadStr(167);
   FBOk.Caption := Preferences.LoadStr(29);
   FBCancel.Caption := Preferences.LoadStr(30)
+end;
+
+procedure TDKey.CMSysFontChanged(var Message: TMessage);
+
+ procedure Change(const ToolBar: TToolBar);
+ begin
+  if (Assigned(ToolBar.Images)) then
+  begin
+    // Recalculate height of Toolbars:
+    ToolBar.AutoSize := False;
+    ToolBar.ButtonHeight := 0;
+    ToolBar.ButtonHeight := Max(ToolBar.Images.Height + 6, ToolBar.Canvas.TextHeight('I') + 10);
+    ToolBar.ButtonWidth := ToolBar.Images.Width + 7;
+    ToolBar.AutoSize := True;
+  end;
+ end;
+
+begin
+  inherited;
+
+  Change(ToolBar1);
+  Change(ToolBar2); ToolBar2.Top := ToolBar1.Top + ToolBar1.Height;
+  Change(ToolBar3); ToolBar3.Top := ToolBar2.Top + ToolBar2.Height + 13;
+  Change(ToolBar4); ToolBar4.Top := ToolBar3.Top + ToolBar3.Height;
+  Change(ToolBar5); ToolBar5.Top := ToolBar4.Top + ToolBar4.Height + 13;
+  Change(ToolBar6); ToolBar6.Top := ToolBar5.Top + ToolBar5.Height;
 end;
 
 function TDKey.Execute(): Boolean;
@@ -380,10 +407,10 @@ begin
 
   BorderStyle := bsSizeable;
 
-  if ((Preferences.Index.Width >= Width) and (Preferences.Index.Height >= Height)) then
+  if ((Preferences.Key.Width >= Width) and (Preferences.Key.Height >= Height)) then
   begin
-    Width := Preferences.Index.Width;
-    Height := Preferences.Index.Height;
+    Width := Preferences.Key.Width;
+    Height := Preferences.Key.Height;
   end;
 
   ToolBar1.Images := Preferences.SmallImages;
@@ -402,8 +429,8 @@ procedure TDKey.FormHide(Sender: TObject);
 begin
   Table.Session.UnRegisterEventProc(FormSessionEvent);
 
-  Preferences.Index.Width := Width;
-  Preferences.Index.Height := Height;
+  Preferences.Key.Width := Width;
+  Preferences.Key.Height := Height;
 
   SetLength(Lengths, 0);
   Table := nil;

@@ -140,7 +140,6 @@ type
     aVSQLEditor3: TAction;
     aVSQLHistory: TAction;
     aVSQLLog: TAction;
-    CAddressBar: TCoolBar;
     CToolBar: TCoolBar;
     Highlighter: TSynSQLSyn;
     MainMenu: TMainMenu;
@@ -457,7 +456,7 @@ implementation {***************************************************************}
 
 uses
   ShellApi, ShlObj, DBConsts, CommCtrl, StrUtils, ShLwApi, IniFiles, Themes,
-  Variants, WinINet, SysConst,
+  Variants, WinINet, SysConst, Math,
   ODBCAPI,
   acQBLocalizer,
   MySQLConsts, HTTPTunnel,
@@ -1176,7 +1175,7 @@ begin
 
   if (Assigned(ToolBar.Images)) then
   begin
-    // Recalculate height of Toolbars:
+    // Recalculate height of Toolbar:
     CToolBar.AutoSize := False;
     ToolBar.AutoSize := False;
     ToolBar.ButtonHeight := 0;
@@ -1509,15 +1508,9 @@ begin
   TBTabControl.Images := Preferences.SmallImages;
 
   if (not CheckWin32Version(6)) then
-  begin
-    CToolBar.EdgeBorders := [ebTop,ebBottom];
-    CAddressBar.EdgeBorders := [ebBottom];
-  end
+    CToolBar.EdgeBorders := [ebTop,ebBottom]
   else
-  begin
     CToolBar.EdgeBorders := [];
-    CAddressBar.EdgeBorders := [];
-  end;
 
   FSessions := TList.Create();
   TBTabControl.Visible := Preferences.TabsVisible;
@@ -1900,13 +1893,6 @@ begin
     TBTabControl.Left := TabControl.TabRect(TabControl.Tabs.Count - 1).Right + 5;
     TBTabControl.Top := TabControl.Top + 1;
     TBTabControl.Width := TabControl.Width - TBTabControl.Left;
-    TBTabControl.Height := TabControl.Height - 3;
-  end
-  else if (CAddressBar.Visible) then
-  begin
-    TBTabControl.Left := CAddressBar.Left;
-    TBTabControl.Top := CAddressBar.Top + CAddressBar.Height;
-    TBTabControl.Width := CAddressBar.Width;
     TBTabControl.Height := TabControl.Height - 3;
   end
   else

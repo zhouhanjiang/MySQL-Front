@@ -473,10 +473,10 @@ begin
     inherited
   else
   begin
-    if ((DataLink.DataSet is TMySQLDataSet) and (DataCol >= 0) and not (Columns.Items[DataCol].Field.DataType in [ftWideMemo, ftBlob])) then
+    if ((DataLink.DataSet is TMySQLDataSet) and (DataCol >= 0) and not (Columns[DataCol].Field.DataType in [ftWideMemo, ftBlob])) then
     begin
-      Canvas.Font := Columns.Items[DataCol].Font;
-      Columns.Items[DataCol].Width := TMySQLDataSet(DataLink.DataSet).GetMaxTextWidth(Columns.Items[DataCol].Field, CanvasTextWidth) + 5;
+      Canvas.Font := Columns[DataCol].Font;
+      Columns[DataCol].Width := TMySQLDataSet(DataLink.DataSet).GetMaxTextWidth(Columns[DataCol].Field, CanvasTextWidth) + 5;
     end;
   end;
 end;

@@ -282,7 +282,7 @@ type
     constructor Create(const AAItems: TPItems = nil; const AName: string = '');
   end;
 
-  TPIndex = class(TPWindow)
+  TPKey = class(TPWindow)
   end;
 
   TPODBC = class(TPWindow)
@@ -445,7 +445,7 @@ type
     ForeignKey: TPForeignKey;
     Host: TPHost;
     Import: TPImport;
-    Index: TPIndex;
+    Key: TPKey;
     ODBC: TPODBC;
     Paste: TPPaste;
     Replace: TPReplace;
@@ -2184,8 +2184,8 @@ begin
 
   FLargeImages := TImageList.Create(nil);
   FLargeImages.ColorDepth := cd32Bit;
-  FLargeImages.Height := 24;
-  FLargeImages.Width := 24;
+  FLargeImages.Height := GetSystemMetrics(SM_CYSMICON);
+  FLargeImages.Width := GetSystemMetrics(SM_CXSMICON);
 
   for I := 0 to MaxIconIndex do
     if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then
@@ -2204,7 +2204,7 @@ begin
   ForeignKey := TPForeignKey.Create();
   Host := TPHost.Create();
   Import := TPImport.Create();
-  Index := TPIndex.Create();
+  Key := TPKey.Create();
   ODBC := TPODBC.Create();
   Paste := TPPaste.Create();
   Replace := TPReplace.Create();
@@ -2239,7 +2239,7 @@ begin
   ForeignKey.Free();
   Host.Free();
   Import.Free();
-  Index.Free();
+  Key.Free();
   ODBC.Free();
   Paste.Free();
   Replace.Free();
@@ -2539,7 +2539,7 @@ begin
   ForeignKey.LoadFromXML(XMLNode(XML, 'foreignkey'));
   Host.LoadFromXML(XMLNode(XML, 'host'));
   Import.LoadFromXML(XMLNode(XML, 'import'));
-  Index.LoadFromXML(XMLNode(XML, 'index'));
+  Key.LoadFromXML(XMLNode(XML, 'index'));
   ODBC.LoadFromXML(XMLNode(XML, 'odbc'));
   Paste.LoadFromXML(XMLNode(XML, 'paste'));
   Replace.LoadFromXML(XMLNode(XML, 'replace'));
@@ -2737,7 +2737,7 @@ begin
   ForeignKey.SaveToXML(XMLNode(XML, 'foreignkey'));
   Host.SaveToXML(XMLNode(XML, 'host'));
   Import.SaveToXML(XMLNode(XML, 'import'));
-  Index.SaveToXML(XMLNode(XML, 'index'));
+  Key.SaveToXML(XMLNode(XML, 'index'));
   ODBC.SaveToXML(XMLNode(XML, 'odbc'));
   Paste.SaveToXML(XMLNode(XML, 'paste'));
   Replace.SaveToXML(XMLNode(XML, 'replace'));

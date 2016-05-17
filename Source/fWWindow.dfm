@@ -30,18 +30,20 @@ object WWindow: TWWindow
   TextHeight = 14
   object PWorkSpace: TPanel_Ext
     Left = 0
-    Top = 103
+    Top = 80
     Width = 683
-    Height = 325
+    Height = 348
     Align = alClient
     BevelOuter = bvNone
     Color = clAppWorkSpace
     ParentBackground = False
-    TabOrder = 5
+    TabOrder = 2
+    ExplicitTop = 103
+    ExplicitHeight = 325
   end
   object TabControl: TTabControl
     Left = 0
-    Top = 75
+    Top = 52
     Width = 683
     Height = 28
     Align = alTop
@@ -62,18 +64,6 @@ object WWindow: TWWindow
     OnMouseMove = TabControlMouseMove
     OnResize = TabControlResize
     OnStartDrag = TabControlStartDrag
-  end
-  object CAddressBar: TCoolBar
-    Left = 0
-    Top = 52
-    Width = 683
-    Height = 23
-    BandBorderStyle = bsNone
-    BandMaximize = bmNone
-    Bands = <>
-    EdgeInner = esNone
-    EdgeOuter = esNone
-    Visible = False
   end
   object StatusBar: TStatusBar
     Left = 0

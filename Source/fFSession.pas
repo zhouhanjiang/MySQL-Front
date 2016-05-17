@@ -1566,8 +1566,11 @@ begin
 
   DBGrid.Columns.BeginUpdate();
   for I := 0 to DBGrid.Columns.Count - 1 do
+  begin
+    DBGrid.Columns[I].Width := DBGrid.Canvas.TextWidth(StringOfChar('e', DBGrid.Columns[I].Field.DisplayWidth)) + 5;
     if ((DBGrid.Columns[I].Width > Preferences.GridMaxColumnWidth) and not (DBGrid.Columns[I].Field.DataType in [ftSmallint, ftInteger, ftLargeint, ftWord, ftFloat, ftDate, ftDateTime, ftTime, ftCurrency])) then
       DBGrid.Columns[I].Width := Preferences.GridMaxColumnWidth;
+  end;
   DBGrid.Columns.EndUpdate();
 end;
 
@@ -6529,6 +6532,7 @@ begin
   for I := 0 to DBGrid.Columns.Count - 1 do
     if (Assigned(DBGrid.Columns[I].Field)) then
     begin
+      DBGrid.Columns[I].Width := DBGrid.Canvas.TextWidth(StringOfChar('e', DBGrid.Columns[I].Field.DisplayWidth)) + 5;
       if ((DBGrid.Columns[I].Width > Preferences.GridMaxColumnWidth) and not (DBGrid.Columns[I].Field.DataType in [ftSmallint, ftInteger, ftLargeint, ftWord, ftFloat, ftDate, ftDateTime, ftTime, ftCurrency])) then
         DBGrid.Columns[I].Width := Preferences.GridMaxColumnWidth;
 
@@ -12674,8 +12678,12 @@ begin
   Inc(Widths, PBlobSpacer.Height + GetSystemMetrics(SM_CXVSCROLL));
   tbBlobSpacer.Width := TBBlob.Width - Widths;
 
-  TBBlob.Height := TBBlob.ButtonHeight;
-  PToolBarBlob.ClientHeight := TBBlob.Height;
+  if (Assigned(ToolBar.Images)) then
+  begin
+    TBBlob.ButtonHeight := Max(ToolBar.Images.Height + 6, ToolBar.Canvas.TextHeight('I') + 10);
+    TBBlob.Height := TBBlob.ButtonHeight;
+    PToolBarBlob.ClientHeight := TBBlob.Height;
+  end;
 end;
 
 procedure TFSession.PViewPaint(Sender: TObject);
