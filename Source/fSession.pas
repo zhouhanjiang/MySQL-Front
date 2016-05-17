@@ -1700,7 +1700,7 @@ end;
 
 procedure TSItem.Assign(const Source: TSItem);
 begin
-  Assert(Assigned(Source) and (Source.ClassType = ClassType));
+  Assert(Assigned(Source) and (Source is TSItem));
 
 
   FName := Source.Name;
@@ -2571,7 +2571,7 @@ end;
 
 procedure TSField.Assign(const Source: TSField);
 begin
-  Assert(Source is TSTableField);
+  Assert(Source is TSField);
 
   inherited Assign(Source);
 
@@ -4993,7 +4993,7 @@ begin
 
       if (not SQLParseKeyword(Parse, 'AS')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
-      SQLTrimStmt(FSource, SQLParseGetIndex(Parse), Length(FSource) - (SQLParseGetIndex(Parse) - 1), StartingCommentLen, EndingCommentLen);
+      SQLTrimStmt(FSource, SQLParseGetIndex(Parse), Length(FSource) - (SQLParseGetIndex(Parse) - 1), Session.Connection.ServerVersion, StartingCommentLen, EndingCommentLen);
       if (Copy(SQL, Length(SQL) - EndingCommentLen, 1) = ';') then
         Inc(EndingCommentLen);
 
@@ -5087,7 +5087,7 @@ begin
 
     if (not SQLParseKeyword(Parse, 'AS')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
-    Len := SQLTrimStmt(SQL, SQLParseGetIndex(Parse), Length(SQL) - (SQLParseGetIndex(Parse) - 1), StartingCommentLen, EndingCommentLen);
+    Len := SQLTrimStmt(SQL, SQLParseGetIndex(Parse), Length(SQL) - (SQLParseGetIndex(Parse) - 1), Session.Connection.ServerVersion, StartingCommentLen, EndingCommentLen);
     if (Copy(SQL, Length(SQL) - EndingCommentLen, 1) = ';') then
     begin
       Dec(Len);
@@ -5871,8 +5871,8 @@ begin
 
   if (Valid) then
   begin
-//    Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
-//    Session.ExecuteEvent(etItemValid, Database, Routines, Self);
+    Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
+    Session.ExecuteEvent(etItemValid, Database, Routines, Self);
   end;
 end;
 
@@ -6736,7 +6736,7 @@ begin
           Event[Index].FIntervalValue := DataSet.FieldByName('INTERVAL_VALUE').AsString;
           Event[Index].FPreserve := DataSet.FieldByName('ON_COMPLETION').AsString = 'PRESERVE';
           Event[Index].FStartDateTime := DataSet.FieldByName('STARTS').AsDateTime;
-          Event[Index].FStmt := SQLTrimStmt(DataSet.FieldByName('EVENT_DEFINITION').AsString);
+          Event[Index].FStmt := SQLTrimStmt(DataSet.FieldByName('EVENT_DEFINITION').AsString, Session.Connection.ServerVersion);
           Event[Index].FUpdated := DataSet.FieldByName('LAST_ALTERED').AsDateTime;
         end;
 
@@ -8114,9 +8114,9 @@ begin
   if (not Assigned(Event) and (NewEvent.Comment <> '') or Assigned(Event) and (NewEvent.Comment <> Event.Comment))then
     SQL := SQL + '  COMMENT ' + SQLEscape(NewEvent.Comment) + #13#10;
 
-  if (not Assigned(Event) and (SQLTrimStmt(NewEvent.Stmt) <> '') or Assigned(Event) and (SQLTrimStmt(NewEvent.Stmt) <> SQLTrimStmt(Event.Stmt)))then
+  if (not Assigned(Event) and (SQLTrimStmt(NewEvent.Stmt, Session.Connection.ServerVersion) <> '') or Assigned(Event) and (SQLTrimStmt(NewEvent.Stmt, Session.Connection.ServerVersion) <> SQLTrimStmt(Event.Stmt, Session.Connection.ServerVersion)))then
   begin
-    SQL := SQL + '  DO ' + SQLTrimStmt(NewEvent.Stmt);
+    SQL := SQL + '  DO ' + SQLTrimStmt(NewEvent.Stmt, Session.Connection.ServerVersion);
     if (SQL[Length(SQL)] = ';') then Delete(SQL, Length(SQL), 1);
   end;
 
@@ -8330,7 +8330,7 @@ begin
     end;
   end;
   SQL := SQL + 'VIEW ' + Session.Connection.EscapeIdentifier(NewView.Database.Name) + '.' + Session.Connection.EscapeIdentifier(NewView.Name);
-  SQL := SQL + ' AS ' + SQLTrimStmt(NewView.Stmt);
+  SQL := SQL + ' AS ' + SQLTrimStmt(NewView.Stmt, Session.Connection.ServerVersion);
   if (SQL[Length(SQL)] = ';') then
     Delete(SQL, Length(SQL), 1);
   case (NewView.CheckOption) of

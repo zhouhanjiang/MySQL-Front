@@ -566,7 +566,7 @@ begin
   FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf(NewTable.DefaultCharset); FDefaultCharsetChange(Self);
   FCollation.ItemIndex := FCollation.Items.IndexOf(NewTable.Collation); FCollationChange(Self);
 
-  FComment.Text := SQLUnwrapStmt(NewTable.Comment);
+  FComment.Text := SQLUnwrapStmt(NewTable.Comment, Database.Session.Connection.ServerVersion);
 
   if (not Assigned(NewTable.Engine)) then
     FEngine.ItemIndex := -1
@@ -1047,7 +1047,7 @@ begin
     NewTable.Name := Trim(FName.Text);
     NewTable.DefaultCharset := Trim(FDefaultCharset.Text);
     NewTable.Collation := Trim(FCollation.Text);
-    if (not Assigned(Table) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewTable.Comment))) then
+    if (not Assigned(Table) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewTable.Comment, Database.Session.Connection.ServerVersion))) then
       NewTable.Comment := Trim(FComment.Text);
 
     if (GRecords.Visible) then

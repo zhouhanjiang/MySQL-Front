@@ -727,7 +727,7 @@ begin
         NewField.Collation := Trim(FCollation.Text)
       else
         NewField.Collation := '';
-      if (not Assigned(Field) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewField.Comment))) then
+      if (not Assigned(Field) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewField.Comment, Table.Session.Connection.ServerVersion))) then
         NewField.Comment := Trim(FComment.Text);
 
       if (not Assigned(Database)) then
@@ -956,7 +956,7 @@ begin
     end;
     FRDefaultClick(Sender);
 
-    FComment.Text := SQLUnwrapStmt(Field.Comment);
+    FComment.Text := SQLUnwrapStmt(Field.Comment, Table.Session.Connection.ServerVersion);
   end;
 
   FComment.Visible := Table.Session.Connection.ServerVersion >= 40100; FLComment.Visible := FComment.Visible;

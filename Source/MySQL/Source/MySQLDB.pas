@@ -2623,7 +2623,7 @@ begin
   else
   begin
     StmtLength := Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt + 1]);
-    Len := SQLTrimStmt(LibraryThread.SQL, LibraryThread.SQLStmtIndex, StmtLength, StartingCommentLength, EndingCommentLength);
+    Len := SQLTrimStmt(LibraryThread.SQL, LibraryThread.SQLStmtIndex, StmtLength, ServerVersion, StartingCommentLength, EndingCommentLength);
     Result := copy(LibraryThread.SQL, LibraryThread.SQLStmtIndex + Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]) + StartingCommentLength, Len);
   end;
 end;
@@ -4764,7 +4764,7 @@ begin
   if (CommandType = ctQuery) then
   begin
     FCommandText := Connection.CommandText;
-    StmtLength := SQLTrimStmt(FCommandText, 1, Length(FCommandText), StartingCommentLength, EndingCommentLength);
+    StmtLength := SQLTrimStmt(FCommandText, 1, Length(FCommandText), Connection.ServerVersion, StartingCommentLength, EndingCommentLength);
     Index := 1 + StartingCommentLength + StmtLength - 1;
     if ((1 <= Index) and (FCommandText[Index] = ';')) then Dec(StmtLength);
     FCommandText := Trim(Copy(FCommandText, 1 + StartingCommentLength, StmtLength));

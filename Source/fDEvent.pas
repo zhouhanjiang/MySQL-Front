@@ -169,7 +169,7 @@ begin
 
   FEnabled.Checked := Event.Enabled;
   FPreserve.Checked := Event.Preserve;
-  FComment.Text := SQLUnwrapStmt(Event.Comment);
+  FComment.Text := SQLUnwrapStmt(Event.Comment, Database.Session.Connection.ServerVersion);
   FStatement.Lines.Text := Event.Stmt;
 
   FDefiner.Caption := Event.Definer;
@@ -380,7 +380,7 @@ begin
     end;
     NewEvent.Enabled := FEnabled.Checked;
     NewEvent.Preserve := FPreserve.Checked;
-    if (not Assigned(Event) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewEvent.Comment))) then
+    if (not Assigned(Event) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewEvent.Comment, Database.Session.Connection.ServerVersion))) then
       NewEvent.Comment := Trim(FComment.Text);
     NewEvent.Stmt := FStatement.Lines.Text;
 

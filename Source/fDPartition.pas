@@ -114,7 +114,7 @@ begin
       NewPartition.MaxRows := -1
     else
       NewPartition.MaxRows := FUDMaxRows.Position;
-    if (not Assigned(Partition) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewPartition.Comment))) then
+    if (not Assigned(Partition) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewPartition.Comment, Table.Session.Connection.ServerVersion))) then
       NewPartition.Comment := Trim(FComment.Text);
 
     if (not Assigned(Partition)) then
@@ -167,7 +167,7 @@ begin
       FMaxRows.Text := ''
     else
       FUDMaxRows.Position := Partition.MaxRows;
-    FComment.Text := SQLUnwrapStmt(Partition.Comment);
+    FComment.Text := SQLUnwrapStmt(Partition.Comment, Table.Session.Connection.ServerVersion);
   end;
 
   FBOk.Enabled := False;

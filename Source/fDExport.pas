@@ -1785,7 +1785,7 @@ begin
     TE_Database:
       begin
         Msg := Preferences.LoadStr(165, IntToStr(Session.Connection.ErrorCode), Session.Connection.ErrorMessage);
-        ErrorMsg := SQLUnwrapStmt(Session.Connection.ErrorMessage);
+        ErrorMsg := SQLUnwrapStmt(Session.Connection.ErrorMessage, Session.Connection.ServerVersion);
         if (Session.Connection.ErrorCode > 0) then
           ErrorMsg := ErrorMsg + ' (#' + IntToStr(Session.Connection.ErrorCode) + ')';
       end;

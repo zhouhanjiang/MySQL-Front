@@ -518,10 +518,10 @@ begin
   case (Error.ErrorType) of
     TE_Database:
       begin
-        ErrorMsg := SQLUnwrapStmt(Session.Connection.ErrorMessage);
+        ErrorMsg := SQLUnwrapStmt(Session.Connection.ErrorMessage, Session.Connection.ServerVersion);
         if (Session.Connection.ErrorCode > 0) then
           ErrorMsg := ErrorMsg + ' (#' + IntToStr(Session.Connection.ErrorCode) + ')';
-        ErrorMsg := ErrorMsg + '  -  ' + SQLUnwrapStmt(Session.Connection.CommandText);
+        ErrorMsg := ErrorMsg + '  -  ' + SQLUnwrapStmt(Session.Connection.CommandText, Session.Connection.ServerVersion);
       end;
     TE_File:
       ErrorMsg := Error.ErrorMessage + ' (#' + IntToStr(Error.ErrorCode) + ')';

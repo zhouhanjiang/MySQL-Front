@@ -211,7 +211,7 @@ function TDSQLHelp.Execute(): Boolean;
 begin
   Show();
 
-  Keyword := Trim(SQLUnwrapStmt(Keyword));
+  Keyword := Trim(SQLUnwrapStmt(Keyword, Session.Connection.ServerVersion));
   if (Keyword = '') then
     Keyword := 'Contents';
   Perform(CM_SEND_SQL, 0, 0);

@@ -106,7 +106,7 @@ begin
     seDefiner: FSecurityDefiner.Checked := True;
     seInvoker: FSecurityInvoker.Checked := True;
   end;
-  FComment.Text := SQLUnwrapStmt(Routine.Comment);
+  FComment.Text := SQLUnwrapStmt(Routine.Comment, Database.Session.Connection.ServerVersion);
 
   if (Double(Routine.Created) = 0) then FCreated.Caption := '???' else FCreated.Caption := SysUtils.DateTimeToStr(Routine.Created, LocaleFormatSettings);
   if (Double(Routine.Modified) = 0) then FUpdated.Caption := '???' else FUpdated.Caption := SysUtils.DateTimeToStr(Routine.Modified, LocaleFormatSettings);
@@ -255,7 +255,11 @@ var
 begin
   if ((ModalResult = mrOk) and PageControl.Visible) then
   begin
-    if (Assigned(Routine) and (Trim(FSource.Text) = Trim(Routine.Source) + #13#10)) then
+    if (not Assigned(Routine)) then
+      CanClose := Database.AddRoutine(Trim(FSource.Text))
+    else if (TSSource.Visible) then
+      CanClose := Database.UpdateRoutine(Routine, Trim(FSource.Text))
+    else
     begin
       NewRoutine := TSRoutine.Create(Database.Routines);
       if (Assigned(Routine)) then
@@ -266,17 +270,13 @@ begin
         NewRoutine.Security := seDefiner
       else if (FSecurityInvoker.Checked) then
         NewRoutine.Security := seInvoker;
-      if (not Assigned(Routine) or (Trim(FComment.Text) <> SQLUnwrapStmt(Routine.Comment))) then
+      if (not Assigned(Routine) or (Trim(FComment.Text) <> SQLUnwrapStmt(Routine.Comment, Database.Session.Connection.ServerVersion))) then
         NewRoutine.Comment := Trim(FComment.Text);
 
       CanClose := Database.UpdateRoutine(Routine, NewRoutine);
 
       NewRoutine.Free();
-    end
-    else if (not Assigned(Routine)) then
-      CanClose := Database.AddRoutine(Trim(FSource.Text))
-    else
-      CanClose := Database.UpdateRoutine(Routine, Trim(FSource.Text));
+    end;
 
     if (not CanClose) then
     begin

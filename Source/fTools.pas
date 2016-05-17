@@ -4565,9 +4565,7 @@ var
 begin
   DoFileCreate(Filename);
 
-  Content := Content + '# Host: ' + Session.Connection.Host;
-  if (Session.Connection.Port <> MYSQL_PORT) then
-    Content := Content + ':' + IntToStr(Session.Connection.Port);
+  Content := Content + '# Host: ' + Session.Caption;
   Content := Content + '  (Version ' + Session.Connection.ServerVersionStr + ')' + #13#10;
   Content := Content + '# Date: ' + MySQLDB.DateTimeToStr(Now(), Session.Connection.FormatSettings) + #13#10;
   Content := Content + '# Generator: ' + LoadStr(1000) + ' ' + Preferences.VersionStr + #13#10;
@@ -7470,10 +7468,7 @@ begin
   Canvas.TextRect(R, Text, [tfNoPrefix]);
 
   R := Rect(ContentArea.Left, Y, ContentArea.Right, PageHeight);
-  Text := Session.Account.Connection.Host;
-  if (Session.Account.Connection.Port <> MYSQL_PORT) then
-    Text := Text + ':' + IntToStr(Session.Account.Connection.Port);
-  Text := Text + '  (MySQL: ' + ReplaceStr(Session.Connection.ServerVersionStr, '&', '&&') + ')';
+  Text := Session.Caption + '  (MySQL: ' + ReplaceStr(Session.Connection.ServerVersionStr, '&', '&&') + ')';
   Canvas.TextRect(R, Text, [tfCenter, tfNoPrefix]);
 
   R := Rect(ContentArea.Left, Y, ContentArea.Right, PageHeight);

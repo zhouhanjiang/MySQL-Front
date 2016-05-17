@@ -1278,7 +1278,7 @@ begin
     begin
       SQL := DataHandle.Connection.CommandText;
       Len := SQLStmtLength(PChar(SQL), Length(SQL));
-      SQLTrimStmt(DataHandle.Connection.CommandText, 1, Len, StartingCommentLength, EndingCommentLength);
+      SQLTrimStmt(DataHandle.Connection.CommandText, 1, Len, FSession.Session.Connection.ServerVersion, StartingCommentLength, EndingCommentLength);
       FSynMemo.SelStart := FSession.aDRunExecuteSelStart + DataHandle.Connection.ExecutedSQLLength + StartingCommentLength;
       FSynMemo.SelLength := Len - StartingCommentLength - EndingCommentLength;
     end
@@ -6296,7 +6296,7 @@ var
 begin
   if (Sender is TMySQLDBGrid) then
   begin
-    if (View = vIDE) then SQL := SQLTrimStmt(ActiveSynMemo.Text) else SQL := '';
+    if (View = vIDE) then SQL := SQLTrimStmt(ActiveSynMemo.Text, Session.Connection.ServerVersion) else SQL := '';
 
     DBGrid := TMySQLDBGrid(Sender);
 
@@ -8318,7 +8318,7 @@ begin
     FQueryBuilderSynMemo.Lines.Text := ''
   else
   begin
-    if (Length(SQL) < 80) then SQL := SQLUnwrapStmt(SQL);
+    if ((Length(SQL) < 80) and Assigned(Session)) then SQL := SQLUnwrapStmt(SQL, Session.Connection.ServerVersion);
     if (SQL = '') then
       FQueryBuilderSynMemo.Lines.Clear()
     else

@@ -488,7 +488,7 @@ begin
     begin
       SQLStmtLen := SQLStmtLength(@SQL[SQLIndex], SQLLen - SQLIndex);
 
-      StmtLen := SQLTrimStmt(@SQL[SQLIndex], SQLStmtLen, StartingCommentLength, EndingCommentLength);
+      StmtLen := SQLTrimStmt(@SQL[SQLIndex], SQLStmtLen, get_server_version(), StartingCommentLength, EndingCommentLength);
       if ((StmtLen > 0) and (SQL[SQLIndex + StartingCommentLength + StmtLen - 1] = ';')) then
       begin
         Inc(EndingCommentLength);

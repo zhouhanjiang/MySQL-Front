@@ -65,13 +65,13 @@ function SQLSingleStmt(const SQL: string): Boolean;
 procedure SQLSplitValues(const Text: string; out Values: TSQLStrings);
 function SQLStmtLength(const SQL: PChar; const Length: Integer; const Delimited: PBoolean = nil): Integer;
 function SQLStmtToCaption(const SQL: string; const Len: Integer = 50): string;
-function SQLTrimStmt(const SQL: string): string; overload;
-function SQLTrimStmt(const SQL: string; const Index, Length: Integer; var StartingCommentLength, EndingCommentLength: Integer): Integer; overload; inline;
-function SQLTrimStmt(const SQL: PChar; const Length: Integer; out StartingCommentLength, EndingCommentLength: Integer): Integer; overload;
+function SQLTrimStmt(const SQL: string; const Version: Integer): string; overload;
+function SQLTrimStmt(const SQL: string; const Index, Length: Integer; const Version: Integer; var StartingCommentLength, EndingCommentLength: Integer): Integer; overload; inline;
+function SQLTrimStmt(const SQL: PChar; const Length: Integer; const Version: Integer; out StartingCommentLength, EndingCommentLength: Integer): Integer; overload;
 function SQLUnescape(const Value: PAnsiChar; const RemoveQuoter: Boolean = True): RawByteString; overload;
 function SQLUnescape(const Value: string; const RemoveQuoter: Boolean = True): string; overload;
 function SQLWrapStmt(const SQL: string; const WrapStrs: array of string; const Indent: Integer): string;
-function SQLUnwrapStmt(const SQL: string): string;
+function SQLUnwrapStmt(const SQL: string; const Version: Integer): string;
 function StrToUInt64(const S: string): UInt64;
 function UInt64ToStr(const Value: UInt64): string;
 
@@ -1289,6 +1289,7 @@ begin
 
         MOV ESI,PChar(SQL)               // Scan characters from SQL
         MOV ECX,Len
+        MOV EDX,Version                  // Version of MySQL conditional Code
 
       // -------------------
 
@@ -1397,11 +1398,10 @@ begin
         MOV @Result,False
 
         MOV ESI,PChar(SQL)               // Scan characters from SQL
+        MOV EDX,Version                  // Version of MySQL conditional Code
 
         MOV ECX,Len                      // Length
         JECXZ Finish                     // Empty SQL!
-
-        MOV EDX,Version
 
       // -------------------
 
@@ -2643,22 +2643,22 @@ begin
     Result := copy(SQL, 1, Len) + '...';
 end;
 
-function SQLTrimStmt(const SQL: string): string;
+function SQLTrimStmt(const SQL: string; const Version: Integer): string;
 var
   EndingCommentLen: Integer;
   Len: Integer;
   StartingCommentLen: Integer;
 begin
-  Len := SQLTrimStmt(SQL, 1, Length(SQL), StartingCommentLen, EndingCommentLen);
+  Len := SQLTrimStmt(SQL, 1, Length(SQL), Version, StartingCommentLen, EndingCommentLen);
   Result := Copy(SQL, 1 + StartingCommentLen, Len);
 end;
 
-function SQLTrimStmt(const SQL: string; const Index, Length: Integer; var StartingCommentLength, EndingCommentLength: Integer): Integer;
+function SQLTrimStmt(const SQL: string; const Index, Length: Integer; const Version: Integer; var StartingCommentLength, EndingCommentLength: Integer): Integer;
 begin
-  Result := SQLTrimStmt(PChar(@SQL[Index]), Length, StartingCommentLength, EndingCommentLength);
+  Result := SQLTrimStmt(PChar(@SQL[Index]), Length, Version, StartingCommentLength, EndingCommentLength);
 end;
 
-function SQLTrimStmt(const SQL: PChar; const Length: Integer; out StartingCommentLength, EndingCommentLength: Integer): Integer; overload;
+function SQLTrimStmt(const SQL: PChar; const Length: Integer; const Version: Integer; out StartingCommentLength, EndingCommentLength: Integer): Integer; overload;
 label
   EndL, EndLE, EndE,
   Finish;
@@ -2683,7 +2683,7 @@ begin
         MOV ESI,SQL                      // Read characters from SQL
         MOV ECX,Length                   // Count of characters
         MOV EDI,0                        // Do not copy characters in Trim
-        MOV EDX,0                        // MySQL version in Trim
+        MOV EDX,Version                  // Version of MySQL conditional Code
 
       // -------------------
 
@@ -2920,7 +2920,7 @@ begin
   end;
 end;
 
-function SQLUnwrapStmt(const SQL: string): string;
+function SQLUnwrapStmt(const SQL: string; const Version: Integer): string;
 label
   StringL, String2, StringC, StringLE,
   Finish;
@@ -2992,7 +2992,7 @@ begin
 
     if (Len <> Length(Result)) then
       SetLength(Result, Len);
-    Result := SQLTrimStmt(Result);
+    Result := SQLTrimStmt(Result, Version);
   end;
 end;
 
