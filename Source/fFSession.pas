@@ -1555,23 +1555,12 @@ begin
 end;
 
 procedure TFSession.TTableDesktop.DataSetAfterOpen(DataSet: TDataSet);
-var
-  I: Integer;
 begin
   DBGrid.DataSource.DataSet := DataSet;
 
   FSession.DataSetAfterOpen(DataSet);
 
   DBGrid.ReadOnly := Table is TSSystemView;
-
-  DBGrid.Columns.BeginUpdate();
-  for I := 0 to DBGrid.Columns.Count - 1 do
-  begin
-    DBGrid.Columns[I].Width := DBGrid.Canvas.TextWidth(StringOfChar('e', DBGrid.Columns[I].Field.DisplayWidth)) + 5;
-    if ((DBGrid.Columns[I].Width > Preferences.GridMaxColumnWidth) and not (DBGrid.Columns[I].Field.DataType in [ftSmallint, ftInteger, ftLargeint, ftWord, ftFloat, ftDate, ftDateTime, ftTime, ftCurrency])) then
-      DBGrid.Columns[I].Width := Preferences.GridMaxColumnWidth;
-  end;
-  DBGrid.Columns.EndUpdate();
 end;
 
 procedure TFSession.TTableDesktop.DataSetAfterRefresh(DataSet: TDataSet);
@@ -6532,10 +6521,8 @@ begin
   for I := 0 to DBGrid.Columns.Count - 1 do
     if (Assigned(DBGrid.Columns[I].Field)) then
     begin
-      DBGrid.Columns[I].Width := DBGrid.Canvas.TextWidth(StringOfChar('e', DBGrid.Columns[I].Field.DisplayWidth)) + 5;
-      if ((DBGrid.Columns[I].Width > Preferences.GridMaxColumnWidth) and not (DBGrid.Columns[I].Field.DataType in [ftSmallint, ftInteger, ftLargeint, ftWord, ftFloat, ftDate, ftDateTime, ftTime, ftCurrency])) then
+      if ((DBGrid.Columns[I].Width > Preferences.GridMaxColumnWidth) and not (DBGrid.Columns[I].Field.DataType in [ftSmallint, ftInteger, ftLargeint, ftWord, ftLongWord, ftFloat, ftDate, ftDateTime, ftTime, ftCurrency])) then
         DBGrid.Columns[I].Width := Preferences.GridMaxColumnWidth;
-
       DBGrid.Columns[I].Field.OnSetText := FieldSetText;
     end;
   DBGrid.Columns.EndUpdate();

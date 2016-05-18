@@ -90,11 +90,6 @@ type
     procedure TitleClick(Column: TColumn); override;
     procedure TopLeftChanged(); override;
   public
-    property CurrentRow: Boolean read GetCurrentRow;
-    property Header: HWND read GetHeader;
-    property KeyDownShiftState: TShiftState read FKeyDownShiftState;
-    property MouseDownShiftState: TShiftState read FMouseDownShiftState;
-    property SelText: string read GetSelText;
     procedure CopyToClipboard(); virtual;
     constructor Create(AOwner: TComponent); override;
     destructor Destroy(); override;
@@ -104,6 +99,11 @@ type
     procedure SelectAll(); virtual;
     function UpdateAction(Action: TBasicAction): Boolean; override;
     procedure UpdateHeader(); virtual;
+    property CurrentRow: Boolean read GetCurrentRow;
+    property Header: HWND read GetHeader;
+    property KeyDownShiftState: TShiftState read FKeyDownShiftState;
+    property MouseDownShiftState: TShiftState read FMouseDownShiftState;
+    property SelText: string read GetSelText;
     property DefaultRowHeight;
     property GridLineWidth;
     property InplaceEditor;

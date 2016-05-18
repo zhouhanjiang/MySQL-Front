@@ -5613,17 +5613,22 @@ begin
     else
       SQL := SQLInsert();
 
-    if (Connection.DatabaseName <> DatabaseName) then
-      SQL := Connection.SQLUse(DatabaseName) + SQL;
-    Connection.BeginSilent();
-    try
-      Success := Connection.ExecuteSQL(SQL);
-      if (not Success) then
-        raise EMySQLError.Create(Connection.ErrorMessage, Connection.ErrorCode, Connection)
-      else if (Update and (Connection.RowsAffected = 0)) then
-        raise EDatabasePostError.Create(SRecordChanged);
-    finally
-      Connection.EndSilent();
+    if (SQL = '') then
+      Success := False
+    else
+    begin
+      if (Connection.DatabaseName <> DatabaseName) then
+        SQL := Connection.SQLUse(DatabaseName) + SQL;
+      Connection.BeginSilent();
+      try
+        Success := Connection.ExecuteSQL(SQL);
+        if (not Success) then
+          raise EMySQLError.Create(Connection.ErrorMessage, Connection.ErrorCode, Connection)
+        else if (Update and (Connection.RowsAffected = 0)) then
+          raise EDatabasePostError.Create(SRecordChanged);
+      finally
+        Connection.EndSilent();
+      end;
     end;
   end;
 
