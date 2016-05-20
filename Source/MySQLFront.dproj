@@ -162,6 +162,10 @@
 			<DCCReference Include="fFSession.pas">
 				<Form>FSession</Form>
 			</DCCReference>
+			<DCCReference Include="fPDataBrowserDummy.pas">
+				<Form>PDataBrowserDummy</Form>
+				<FormType>dfm</FormType>
+			</DCCReference>
 			<DCCReference Include="fWWindow.pas">
 				<Form>WWindow</Form>
 			</DCCReference>

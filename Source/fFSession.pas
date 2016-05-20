@@ -1077,7 +1077,7 @@ uses
   fDField, fDKey, fDTable, fDTables, fDVariable, fDDatabase, fDForeignKey,
   fDUser, fDQuickFilter, fDSQLHelp, fDTransfer, fDSearch, fDServer, fDGoto,
   fURI, fDView, fDRoutine, fDTrigger, fDStatement, fDEvent, fDPaste, fDSegment,
-  fDConnecting;
+  fDConnecting, fPDataBrowserDummy;
 
 const
   nlHost = 0;
@@ -5004,7 +5004,7 @@ begin
   FormResize(nil);
 
   PDataBrowserSpacer.Top := FFilter.Height;
-  PDataBrowser.ClientHeight := PDataBrowserSpacer.Top + PDataBrowserSpacer.Height;
+  PDataBrowser.ClientHeight := FFilter.Height + PDataBrowserSpacer.Height;
 
   FSQLEditorSynMemo.Font.Name := Preferences.SQLFontName;
   FSQLEditorSynMemo.Font.Style := Preferences.SQLFontStyle;
@@ -12237,7 +12237,8 @@ procedure TFSession.PContentChange(Sender: TObject);
   var
     I: Integer;
   begin
-    with Control do SendMessage(Handle, WM_MOVE, 0, MAKELPARAM(Left, Top));
+    if (Control.Top < 0) then Control.Top := 0;
+    SendMessage(Control.Handle, WM_MOVE, 0, MAKELPARAM(Control.Left, Control.Top));
     Control.DisableAlign();
     for I := 0 to Control.ControlCount - 1 do
       if (Control.Controls[I] is TWinControl) then
@@ -12492,14 +12493,34 @@ procedure TFSession.PDataBrowserResize(Sender: TObject);
 var
   I: Integer;
 begin
-  TBQuickSearchEnabled.Left := PDataBrowser.ClientWidth - TBQuickSearchEnabled.Width - GetSystemMetrics(SM_CXVSCROLL);
-  FQuickSearch.Left := TBQuickSearchEnabled.Left - FQuickSearch.Width;
+  // With higher DPI system, the width of the following components are not
+  // applyed in a frame (Delphi X2). So there is a PDataBrowserDummy as
+  // a form to get the correct values...
+
+  FOffset.Left := PDataBrowserDummy.FOffset.Left;
+  FOffset.Width := PDataBrowserDummy.FOffset.Width;
+  FUDOffset.Left := FOffset.Left + FOffset.Width;
+  FUDOffset.Width := PDataBrowserDummy.FUDOffset.Width;
+  FLimit.Left := FUDOffset.Left + FUDOffset.Width;
+  FLimit.Width := PDataBrowserDummy.FLimit.Width;
+  FUDLimit.Left := FLimit.Left + FLimit.Width;
+  FUDLimit.Width := PDataBrowserDummy.FUDLimit.Width;
+  TBLimitEnabled.Left := FUDLimit.Left + FUDLimit.Width;
+  TBLimitEnabled.Width := 2 * TBLimitEnabled.Height;
+
+  TBQuickSearchEnabled.Left := PDataBrowser.ClientWidth - PDataBrowserDummy.TBQuickSearchEnabled.Width - GetSystemMetrics(SM_CXVSCROLL);
+  TBQuickSearchEnabled.Width := PDataBrowserDummy.TBQuickSearchEnabled.Width;
+  TBFilterEnabled.Width := 2 * TBFilterEnabled.Height;
+  FQuickSearch.Left := TBQuickSearchEnabled.Left - PDataBrowserDummy.FQuickSearch.Width;
+  FQuickSearch.Width := PDataBrowserDummy.FQuickSearch.Width;
+  TBFilterEnabled.Width := 2 * TBFilterEnabled.Height;
   TBFilterEnabled.Left := FQuickSearch.Left - TBFilterEnabled.Width;
+  FFilter.Left := PDataBrowserDummy.FFilter.Left;
   FFilter.Width := TBFilterEnabled.Left - FFilter.Left;
 
   for I := 0 to PDataBrowser.ControlCount - 1 do
-    if ((PDataBrowser.Controls[I] <> FFilter) and (PDataBrowser.Controls[I] <> PDataBrowserSpacer)) then
-      PDataBrowser.Controls[I].Height := FFilter.Height;
+    if (PDataBrowser.Controls[I] <> PDataBrowserSpacer) then
+      PDataBrowser.Controls[I].Height := PDataBrowser.ClientHeight;
 end;
 
 procedure TFSession.PGridResize(Sender: TObject);

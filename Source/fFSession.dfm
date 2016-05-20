@@ -743,19 +743,6 @@ object FSession: TFSession
       TabOrder = 0
       Visible = False
       OnResize = PDataBrowserResize
-      DesignSize = (
-        467
-        25)
-      object PDataBrowserSpacer: TPanel_Ext
-        Left = 0
-        Top = 23
-        Width = 467
-        Height = 2
-        Align = alBottom
-        BevelOuter = bvNone
-        ParentBackground = False
-        TabOrder = 9
-      end
       object FOffset: TEdit
         Left = 0
         Top = 0
@@ -830,12 +817,11 @@ object FSession: TFSession
         OnKeyPress = FFilterKeyPress
       end
       object TBFilterEnabled: TToolBar
-        Left = 836
+        Left = 340
         Top = 0
         Width = 31
         Height = 23
         Align = alNone
-        Anchors = [akTop]
         Caption = 'TBFilterEnabled'
         TabOrder = 6
         Transparent = False
@@ -849,23 +835,21 @@ object FSession: TFSession
         end
       end
       object FQuickSearch: TEdit
-        Left = 855
+        Left = 380
         Top = 0
         Width = 136
         Height = 21
-        Anchors = [akTop, akRight]
         AutoSize = False
         TabOrder = 7
         OnChange = FQuickSearchChange
         OnKeyPress = FQuickSearchKeyPress
       end
       object TBQuickSearchEnabled: TToolBar
-        Left = 1236
+        Left = 516
         Top = 0
         Width = 23
         Height = 22
         Align = alNone
-        Anchors = [akTop]
         AutoSize = True
         TabOrder = 8
         Transparent = False
@@ -878,6 +862,16 @@ object FSession: TFSession
           Style = tbsCheck
           OnClick = FQuickSearchEnabledClick
         end
+      end
+      object PDataBrowserSpacer: TPanel_Ext
+        Left = 0
+        Top = 23
+        Width = 467
+        Height = 2
+        Align = alBottom
+        BevelOuter = bvNone
+        ParentBackground = False
+        TabOrder = 9
       end
     end
     object PObjectIDE: TPanel_Ext

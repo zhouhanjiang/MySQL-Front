@@ -68,6 +68,7 @@ uses
   fDView in 'fDView.pas' {DView},
   fCWorkbench in 'fCWorkbench.pas',
   fFSession in 'fFSession.pas' {FSession},
+  fPDataBrowserDummy in 'fPDataBrowserDummy.pas' {PDataBrowserDummy},
   fWWindow in 'fWWindow.pas' {WWindow};
 
 {$R *.res}
@@ -132,6 +133,7 @@ begin
           Application.Icon.Handle := LoadImage(hInstance, PChar('..\Images\MySQLFront.ico'), IMAGE_ICON, Application.Icon.Height, Application.Icon.Height, LR_DEFAULTCOLOR + LR_LOADFROMFILE);
       {$ENDIF}
       Application.CreateForm(TWWindow, WWindow);
+      Application.CreateForm(TPDataBrowserDummy, PDataBrowserDummy);
       Application.MainForm.Perform(CM_CHANGEPREFERENCES, 0, 0);
       GetClassName(Application.MainForm.Handle, PChar(SetupProgram), 100);
       Application.Run();

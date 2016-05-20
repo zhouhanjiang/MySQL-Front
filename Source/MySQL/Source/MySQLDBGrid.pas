@@ -315,7 +315,9 @@ var
 begin
   FormatSettings := TFormatSettings.Create(LOCALE_USER_DEFAULT);
 
-  if (OpenClipboard(Handle)) then
+  if (Assigned(InplaceEditor) and InplaceEditor.Visible) then
+    InplaceEditor.CopyToClipboard()
+  else if (OpenClipboard(Handle)) then
   begin
     EmptyClipboard();
 
