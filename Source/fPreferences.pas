@@ -2184,16 +2184,8 @@ begin
 
   FLargeImages := TImageList.Create(nil);
   FLargeImages.ColorDepth := cd32Bit;
-  if ((GetSystemMetrics(SM_CYSMICON) = 16) and (GetSystemMetrics(SM_CYICON) <= 35)) then
-  begin
-    FLargeImages.Height := 24;
-    FLargeImages.Width := 24;
-  end
-  else
-  begin
-    FLargeImages.Height := GetSystemMetrics(SM_CYSMICON);
-    FLargeImages.Width := GetSystemMetrics(SM_CXSMICON);
-  end;
+  FLargeImages.Height := (GetSystemMetrics(SM_CYICON) + GetSystemMetrics(SM_CYSMICON)) div 2;
+  FLargeImages.Width := (GetSystemMetrics(SM_CXICON) + GetSystemMetrics(SM_CXSMICON)) div 2;
 
   for I := 0 to MaxIconIndex do
     if (FindResource(HInstance, MAKEINTRESOURCE(10000 + I), RT_GROUP_ICON) > 0) then

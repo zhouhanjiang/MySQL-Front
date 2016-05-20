@@ -2,48 +2,48 @@ object PDataBrowserDummy: TPDataBrowserDummy
   Left = 0
   Top = 0
   Caption = 'PDataBrowserDummy'
-  ClientHeight = 31
-  ClientWidth = 527
+  ClientHeight = 26
+  ClientWidth = 510
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
-  Font.Height = -11
+  Font.Height = -12
   Font.Name = 'Tahoma'
   Font.Style = []
   OldCreateOrder = False
-  PixelsPerInch = 96
-  TextHeight = 13
+  PixelsPerInch = 106
+  TextHeight = 14
   object FOffset: TEdit
     Left = 0
     Top = 0
-    Width = 40
-    Height = 21
+    Width = 43
+    Height = 22
     TabOrder = 0
     Text = '0'
   end
   object FUDOffset: TUpDown
-    Left = 40
+    Left = 43
     Top = 0
-    Width = 14
-    Height = 21
+    Width = 15
+    Height = 22
     Associate = FOffset
     Max = 2147483647
     TabOrder = 1
     Thousands = False
   end
   object FLimit: TEdit
-    Left = 55
+    Left = 59
     Top = 0
-    Width = 33
-    Height = 21
+    Width = 36
+    Height = 22
     TabOrder = 2
     Text = '100'
   end
   object FUDLimit: TUpDown
-    Left = 88
+    Left = 95
     Top = 0
-    Width = 14
-    Height = 21
+    Width = 15
+    Height = 22
     Associate = FLimit
     Min = 1
     Max = 2147483647
@@ -69,11 +69,11 @@ object PDataBrowserDummy: TPDataBrowserDummy
     end
   end
   object FFilter: TComboBox_Ext
-    Left = 132
+    Left = 142
     Top = 0
-    Width = 184
-    Height = 21
-    Constraints.MinWidth = 93
+    Width = 198
+    Height = 22
+    Constraints.MinWidth = 100
     TabOrder = 5
   end
   object TBFilterEnabled: TToolBar
@@ -94,11 +94,10 @@ object PDataBrowserDummy: TPDataBrowserDummy
     end
   end
   object FQuickSearch: TEdit
-    Left = 357
+    Left = 353
     Top = 0
-    Width = 126
-    Height = 20
-    AutoSize = False
+    Width = 136
+    Height = 22
     TabOrder = 7
   end
   object TBQuickSearchEnabled: TToolBar

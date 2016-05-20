@@ -3,11 +3,11 @@ unit fPDataBrowserDummy;
 interface
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics,
-  Controls, Forms, Dialogs, StdCtrls, Vcl.ComCtrls, Vcl.ToolWin, StdCtrls_Ext;
+  ToolWin, Classes, Controls, StdCtrls, ComCtrls,
+  StdCtrls_Ext, Forms_Ext;
 
 type
-  TPDataBrowserDummy = class(TForm)
+  TPDataBrowserDummy = class(TForm_Ext)
     FOffset: TEdit;
     FUDOffset: TUpDown;
     FLimit: TEdit;
@@ -20,8 +20,6 @@ type
     FQuickSearch: TEdit;
     TBQuickSearchEnabled: TToolBar;
     FQuickSearchEnabled: TToolButton;
-  private
-  public
   end;
 
 var
