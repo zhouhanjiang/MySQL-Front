@@ -5733,6 +5733,8 @@ end;
 
 function TFSession.CreateWorkbench(const ADatabase: TSDatabase): TWWorkbench;
 begin
+//  raise Exception.Create('No Diagram allowed');
+
   Result := TWWorkbench.Create(Owner, ADatabase);
 
   Result.Left := 0;
@@ -14205,4 +14207,3 @@ begin
 end;
 
 end.
-

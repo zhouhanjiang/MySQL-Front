@@ -73,13 +73,14 @@ type
     property Workbench: TWWorkbench read FWorkbench;
   end;
 
-  TWAreaResizeMode = (rmNone, rmCreate, rmNW, rmN, rmNE, rmE, rmSE, rmS, rmSW, rmW);
 
   TWArea = class(TWControl)
+  type
+    TResizeMode = (rmNone, rmCreate, rmNW, rmN, rmNE, rmE, rmSE, rmS, rmSW, rmW);
   private
     FSize: TSize;
     FMouseDownSize: TSize;
-    FResizeMode: TWAreaResizeMode;
+    FResizeMode: TResizeMode;
     function GetArea(): TRect;
   protected
     procedure ApplyPosition(); override;
@@ -87,16 +88,16 @@ type
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     property MouseDownSize: TSize read FMouseDownSize;
-    property ResizeMode: TWAreaResizeMode read FResizeMode;
+    property ResizeMode: TResizeMode read FResizeMode;
   public
     constructor Create(const AWorkbench: TWWorkbench; const APosition: TCoord); override;
     property Area: TRect read GetArea;
     property Size: TSize read FSize;
   end;
 
-  TWPointMoveState = (msNormal, msFixed, msAutomatic);
-
   TWPoint = class(TWControl)
+  type
+    TMoveState = (msNormal, msFixed, msAutomatic);
   private
     function GetLastPoint(): TWPoint;
     function GetLineA(): TWLine;
@@ -107,7 +108,7 @@ type
     ControlA: TWControl;
     ControlB: TWControl;
     Center: TPoint;
-    MoveState: TWPointMoveState;
+    MoveState: TMoveState;
     procedure ApplyPosition(); override;
     function ControlAlign(const Control: TWControl): TAlign; virtual;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
@@ -122,15 +123,15 @@ type
     destructor Destroy(); override;
   end;
 
-  TWLineOrientation = (foHorizontal, foVertical, foNone);
-
   TWLine = class(TWControl)
+  type
+    TOrientation = (foHorizontal, foVertical, foNone);
   private
-    FOrientation: TWLineOrientation;
+    FOrientation: TOrientation;
     FPointA: TWPoint;
     FPointB: TWPoint;
     function GetLength(): Integer;
-    function GetOrientation(): TWLineOrientation;
+    function GetOrientation(): TOrientation;
     procedure SetPointA(APointA: TWPoint);
     procedure SetPointB(APointB: TWPoint);
   protected
@@ -139,7 +140,7 @@ type
     procedure PaintTo(const Canvas: TCanvas; const X, Y: Integer); override;
     procedure SetSelected(ASelected: Boolean); override;
     property Length: Integer read GetLength;
-    property Orientation: TWLineOrientation read GetOrientation;
+    property Orientation: TOrientation read GetOrientation;
     property PointA: TWPoint read FPointA write SetPointA;
     property PointB: TWPoint read FPointB write SetPointB;
   public
@@ -312,13 +313,12 @@ type
     constructor Create(const AWorkbench: TWWorkbench; const APosition: TCoord); reintroduce; virtual;
   end;
 
-  TMWorkbenchState = (wsNormal, wsCreateLink, wsCreateForeignKey, wsCreateSection, wsCreateTable, wsLoading, wsAutoCreate);
-
-  TWWorkbenchChangeEvent = procedure(Sender: TObject; Control: TWControl) of object;
-  TWWorkbenchCursorMoveEvent = procedure(Sender: TObject; X, Y: Integer) of object;
-  TWWorkbenchValidateControlEvent = function(Sender: TObject; Control: TWControl): Boolean of object;
-
   TWWorkbench = class(TScrollBox)
+  type
+    TState = (wsNormal, wsCreateLink, wsCreateForeignKey, wsCreateSection, wsCreateTable, wsLoading, wsAutoCreate);
+    TChangeEvent = procedure(Sender: TObject; Control: TWControl) of object;
+    TCursorMoveEvent = procedure(Sender: TObject; X, Y: Integer) of object;
+    TValidateControlEvent = function(Sender: TObject; Control: TWControl): Boolean of object;
   private
     CreatedLink: TWLink;
     CreatedTable: TWTable;
@@ -327,9 +327,9 @@ type
     FFilename: string;
     FLinks: TWLinks;
     FMultiSelect: Boolean;
-    FOnChange: TWWorkbenchChangeEvent;
-    FOnCursorMove: TWWorkbenchCursorMoveEvent;
-    FOnValidateControl: TWWorkbenchValidateControlEvent;
+    FOnChange: TChangeEvent;
+    FOnCursorMove: TCursorMoveEvent;
+    FOnValidateControl: TValidateControlEvent;
     FSections: TWSections;
     FSelected: TWControl;
     FTableFocused: TWTable;
@@ -348,7 +348,7 @@ type
     procedure CMEndLasso(var Message: TMessage); message CM_ENDLASSO;
   protected
     FModified: Boolean;
-    State: TMWorkbenchState;
+    State: TState;
     procedure Change(); virtual;
     procedure CursorMove(const X, Y: Integer); virtual;
     procedure DoEnter(); override;
@@ -391,9 +391,9 @@ type
     property Modified: Boolean read FModified;
     property MultiSelect: Boolean read FMultiSelect write SetMultiSelect default False;
     property ObjectCount: Integer read GetObjectCount;
-    property OnChange: TWWorkbenchChangeEvent read FOnChange write FOnChange;
-    property OnCursorMove: TWWorkbenchCursorMoveEvent read FOnCursorMove write FOnCursorMove;
-    property OnValidateControl: TWWorkbenchValidateControlEvent read FOnValidateControl write FOnValidateControl;
+    property OnChange: TChangeEvent read FOnChange write FOnChange;
+    property OnCursorMove: TCursorMoveEvent read FOnCursorMove write FOnCursorMove;
+    property OnValidateControl: TValidateControlEvent read FOnValidateControl write FOnValidateControl;
     property Sections: TWSections read FSections;
     property SelCount: Integer read GetSelCount;
     property Selected: TWControl read FSelected write SetSelected;
@@ -409,10 +409,14 @@ uses
 
 const
   BorderSize = 1;
-  LineWidth = 1; // nur ungerade Werte
+  LineWidth = 2; // nur ungerade Werte
   ConnectorSize = LineWidth + 6; // nur gerade Werte
   PointSize = LineWidth + 2; // nur gerade Werte
   Padding = 2;
+
+  PaintLines = True;
+  PaintPoints = True;
+  PaintLinkPoints = True;
 
 function TryStrToAlign(const Str: string; var Align: TAlign): Boolean;
 begin
@@ -449,7 +453,7 @@ end;
 function CreateSegment(const Sender: TWControl; const APosition: TCoord; const Point: TWPoint; const CreateBefore: Boolean = True): TWPoint;
 var
   Line: TWLine;
-  OldMoveState: TWPointMoveState;
+  OldMoveState: TWPoint.TMoveState;
 begin
   OldMoveState := Point.MoveState;
   if (Point.MoveState = msNormal) then
@@ -519,9 +523,19 @@ begin
   Result.Y := Y;
 end;
 
-function CoordInArea(const Position: TCoord; const Area: TRect): Boolean;
+function CoordInArea(const Position: TCoord; const Area: TRect): Boolean; inline;
 begin
   Result := PtInRect(Rect(Area.Left, Area.Top, Area.Right, Area.Bottom), Point(Position.X, Position.Y));
+end;
+
+procedure ChangePen(const Pen: TPen); inline;
+var
+  LogBrush: TLogBrush;
+begin
+  LogBrush.lbStyle := BS_SOLID;
+  LogBrush.lbColor := ColorToRGB(Pen.Color);
+  LogBrush.lbHatch := 0;
+  Pen.Handle := ExtCreatePen(PS_GEOMETRIC OR PS_ENDCAP_SQUARE or PS_JOIN_MITER, Pen.Width, LogBrush, 0, nil);
 end;
 
 { TWObjects *******************************************************************}
@@ -1326,7 +1340,7 @@ var
   NewPoint: TWPoint;
   NewPoint2: TWPoint;
   OrgNewPosition: TCoord;
-  TempOrientation: TWLineOrientation;
+  TempOrientation: TWLine.TOrientation;
 begin
   if (NewPosition <> Position) then
   begin
@@ -1437,18 +1451,20 @@ procedure TWPoint.PaintTo(const Canvas: TCanvas; const X, Y: Integer);
 
   procedure PaintToControl(const Control: TWControl; const Left, Top: Integer);
   begin
-    if (Assigned(Control)) then
-      case (ControlAlign(Control)) of
-        alLeft:   begin Canvas.MoveTo(Left +        0, Top + Center.Y); Canvas.LineTo(Left + Center.X + 1, Top + Center.Y    ); end;
-        alTop:    begin Canvas.MoveTo(Left + Center.X, Top +        0); Canvas.LineTo(Left + Center.X    , Top + Center.Y + 1); end;
-        alRight:  begin Canvas.MoveTo(Left + Center.X, Top + Center.Y); Canvas.LineTo(Left + Width       , Top + Center.Y    ); end;
-        alBottom: begin Canvas.MoveTo(Left + Center.X, Top + Center.Y); Canvas.LineTo(Left + Center.X    , Top + Height      ); end;
-      end;
+    Canvas.MoveTo(Left + Center.X, Top + Center.Y);
+    case (ControlAlign(Control)) of
+      alLeft:   Canvas.LineTo(Left           , Top + Center.Y);
+      alTop:    Canvas.LineTo(Left + Center.X, Top           );
+      alRight:  Canvas.LineTo(Left + Width   , Top + Center.Y);
+      alBottom: Canvas.LineTo(Left + Center.X, Top + Height  );
+    end;
   end;
 
 var
   Rect: TRect;
 begin
+  if (not PaintPoints) then Exit;
+
   Rect := GetClientRect();
   OffsetRect(Rect, X, Y);
 
@@ -1475,11 +1491,16 @@ begin
   else
     Canvas.Pen.Color := clWindowText;
 
-  if (ControlA is TWLine) then
-    PaintToControl(ControlA, Rect.Left, Rect.Top);
+  ChangePen(Canvas.Pen);
 
-  if (ControlB is TWLine) then
-    PaintToControl(ControlB, Rect.Left, Rect.Top);
+Canvas.Brush.Color := clGreen;
+Canvas.FillRect(ClientRect);
+
+//  if (ControlA is TWLine) then
+//    PaintToControl(ControlA, Rect.Left, Rect.Top);
+//
+//  if (ControlB is TWLine) then
+//    PaintToControl(ControlB, Rect.Left, Rect.Top);
 end;
 
 procedure TWPoint.SetLineA(ALineA: TWLine);
@@ -1577,7 +1598,7 @@ begin
   Result := Max(Abs(PointA.Position.X - PointB.Position.X), Abs(PointA.Position.Y - PointB.Position.Y));
 end;
 
-function TWLine.GetOrientation(): TWLineOrientation;
+function TWLine.GetOrientation(): TOrientation;
 begin
   if (Assigned(PointA) and Assigned(PointB)) then
     if ((PointA.Position.X = PointB.Position.X) and (PointA.Position.Y = PointB.Position.Y)) then
@@ -1661,6 +1682,8 @@ procedure TWLine.PaintTo(const Canvas: TCanvas; const X, Y: Integer);
 var
   Rect: TRect;
 begin
+  if (not PaintLines) then Exit;
+
   Rect := GetClientRect();
   OffsetRect(Rect, X, Y);
 
@@ -1681,18 +1704,21 @@ begin
     Canvas.Brush.Color := clWindow;
   end;
 
-  case (Orientation) of
-    foHorizontal:
-      begin
-        Canvas.MoveTo(Rect.Left +     0, Rect.Top + (Height - 1) div 2);
-        Canvas.LineTo(Rect.Left + Width, Rect.Top + (Height - 1) div 2);
-      end;
-    foVertical:
-      begin
-        Canvas.MoveTo(Rect.Left + (Width - 1) div 2, Rect.Top +      0);
-        Canvas.LineTo(Rect.Left + (Width - 1) div 2, Rect.Top + Height);
-      end;
-  end;
+Canvas.Brush.Color := clRed;
+Canvas.FillRect(ClientRect);
+
+//  case (Orientation) of
+//    foHorizontal:
+//      begin
+//        Canvas.MoveTo(Rect.Left        , Rect.Top + (Height - 1) div 2);
+//        Canvas.LineTo(Rect.Left + Width + 1, Rect.Top + (Height - 1) div 2);
+//      end;
+//    foVertical:
+//      begin
+//        Canvas.MoveTo(Rect.Left + (Width - 1) div 2, Rect.Top +      0);
+//        Canvas.LineTo(Rect.Left + (Width - 1) div 2, Rect.Top + Height);
+//      end;
+//  end;
 end;
 
 procedure TWLine.SetPointA(APointA: TWPoint);
@@ -1917,10 +1943,9 @@ begin
     Canvas.Font.Color := clWindowText;
 
     Canvas.Pen.Color := clWindowText;
-    Canvas.Pen.Style := psSolid;  
+    Canvas.Pen.Style := psSolid;
     Canvas.Brush.Color := clWindow;
     Canvas.Brush.Style := bsSolid;
-    Canvas.Rectangle(Rect);
   end
   else if (not Workbench.Focused() and Workbench.HideSelection) then
   begin
@@ -1930,7 +1955,6 @@ begin
     Canvas.Pen.Style := psSolid;
     Canvas.Brush.Color := clBtnFace;
     Canvas.Brush.Style := bsSolid;
-    Canvas.Rectangle(Rect);
   end
   else
   begin
@@ -1940,8 +1964,9 @@ begin
     Canvas.Pen.Style := psSolid;
     Canvas.Brush.Color := clHighlight;
     Canvas.Brush.Style := bsSolid;
-    Canvas.Rectangle(Rect);
   end;
+
+  Canvas.Rectangle(Rect);
 
   if (Workbench.Focused() and Focused) then
   begin
@@ -2294,6 +2319,8 @@ procedure TWLinkPoint.PaintTo(const Canvas: TCanvas; const X, Y: Integer);
 begin
   inherited;
 
+  if (not PaintLinkPoints) then Exit;
+
   if (Assigned(TableA) and ((MoveState <> msFixed) or Assigned(Link.ParentTable))) then
     case (ControlAlign(TableA)) of
       alLeft:
@@ -2478,6 +2505,10 @@ begin
       begin
         NextPoint.TableB := Point.TableB;
         Point := NextPoint;
+        if (not Assigned(Point.LineB)) then
+          raise Exception.Create('LineB not assigned')
+        else if (not Assigned(Point.LineB.PointB)) then
+          raise Exception.Create('LineB.PointB not assigned');
         FreeSegment(Point.LineB.PointB, Point.LineB);
       end
       else
