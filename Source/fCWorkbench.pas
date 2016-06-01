@@ -11,10 +11,9 @@ const
   CM_ENDLASSO = WM_USER + 400;
 
 type
-  TWLine = class;
-  TWLinkPoint = class;
   TWLinkLine = class;
   TWLink = class;
+  TWTable = class;
   TWTables = class;
   TWWorkbench = class;
 
@@ -69,7 +68,6 @@ type
     property Workbench: TWWorkbench read FWorkbench;
   end;
 
-
   TWArea = class(TWControl)
   type
     TResizeMode = (rmNone, rmCreate, rmNW, rmN, rmNE, rmE, rmSE, rmS, rmSW, rmW);
@@ -91,15 +89,21 @@ type
     property Size: TSize read FSize;
   end;
 
-  TWPoint = class(TWControl)
+  TWLinkPoint = class(TWControl)
   type
     TMoveState = (msNormal, msFixed, msAutomatic);
   private
-    function GetLastPoint(): TWPoint;
-    function GetLineA(): TWLine;
-    function GetLineB(): TWLine;
-    procedure SetLineA(ALineA: TWLine);
-    procedure SetLineB(ALineB: TWLine);
+    function GetIndex(): Integer;
+    function GetLastPoint(): TWLinkPoint;
+    function GetLineA(): TWLinkLine;
+    function GetLineB(): TWLinkLine;
+    procedure SetLineA(ALineA: TWLinkLine);
+    procedure SetLineB(ALineB: TWLinkLine);
+    function GetLink(): TWLink;
+    function GetTableA(): TWTable;
+    function GetTableB(): TWTable;
+    procedure SetTableA(ATableA: TWTable);
+    procedure SetTableB(ATableB: TWTable);
   protected
     ControlA: TWControl;
     ControlB: TWControl;
@@ -108,28 +112,35 @@ type
     procedure ApplyPosition(); override;
     function ControlAlign(const Control: TWControl): TAlign; virtual;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
+    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MoveTo(const Sender: TWControl; const Shift: TShiftState; NewPosition: TCoord); override;
+    procedure Moving(const Sender: TWControl; const Shift: TShiftState; var NewPosition: TCoord); override;
     procedure PaintTo(const Canvas: TCanvas; const X, Y: Integer); override;
     procedure SetSelected(ASelected: Boolean); override;
-    property LastPoint: TWPoint read GetLastPoint;
-    property LineA: TWLine read GetLineA write SetLineA;
-    property LineB: TWLine read GetLineB write SetLineB;
+    property Index: Integer read GetIndex;
+    property LastPoint: TWLinkPoint read GetLastPoint;
+    property LineA: TWLinkLine read GetLineA write SetLineA;
+    property LineB: TWLinkLine read GetLineB write SetLineB;
+    property Link: TWLink read GetLink;
+    property TableA: TWTable read GetTableA write SetTableA;
+    property TableB: TWTable read GetTableB write SetTableB;
   public
-    constructor Create(const AWorkbench: TWWorkbench; const APosition: TCoord; const PreviousPoint: TWPoint = nil); reintroduce; virtual;
+    constructor Create(const AWorkbench: TWWorkbench; const APosition: TCoord; const APreviousPoint: TWLinkPoint = nil); reintroduce; virtual;
     destructor Destroy(); override;
   end;
 
-  TWLine = class(TWControl)
+  TWLinkLine = class(TWControl)
   type
     TOrientation = (foHorizontal, foVertical, foNone);
   private
     FOrientation: TOrientation;
-    FPointA: TWPoint;
-    FPointB: TWPoint;
+    FPointA: TWLinkPoint;
+    FPointB: TWLinkPoint;
     function GetLength(): Integer;
+    function GetLink(): TWLink;
     function GetOrientation(): TOrientation;
-    procedure SetPointA(APointA: TWPoint);
-    procedure SetPointB(APointB: TWPoint);
+    procedure SetPointA(APointA: TWLinkPoint);
+    procedure SetPointB(APointB: TWLinkPoint);
   protected
     procedure ApplyPosition(); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
@@ -137,11 +148,12 @@ type
     procedure SetSelected(ASelected: Boolean); override;
     property Length: Integer read GetLength;
     property Orientation: TOrientation read GetOrientation;
-    property PointA: TWPoint read FPointA write SetPointA;
-    property PointB: TWPoint read FPointB write SetPointB;
+    property PointA: TWLinkPoint read FPointA write SetPointA;
+    property PointB: TWLinkPoint read FPointB write SetPointB;
   public
-    constructor Create(const AWorkbench: TWWorkbench; const APointA, APointB: TWPoint); reintroduce; virtual;
+    constructor Create(const AWorkbench: TWWorkbench; const APointA, APointB: TWLinkPoint); reintroduce; virtual;
     destructor Destroy(); override;
+    property Link: TWLink read GetLink;
   end;
 
   TWTable = class(TWArea)
@@ -164,8 +176,8 @@ type
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
     procedure PaintTo(const Canvas: TCanvas; const X, Y: Integer); override;
-    procedure RegisterLinkPoint(const ALinkPoint: TWLinkPoint); virtual;
-    procedure ReleaseLinkPoint(const ALinkPoint: TWLinkPoint); virtual;
+    procedure RegisterLinkPoint(const APoint: TWLinkPoint); virtual;
+    procedure ReleaseLinkPoint(const APoint: TWLinkPoint); virtual;
     property LinkPoint[Index: Integer]: TWLinkPoint read GetLinkPoint;
     property LinkPointCount: Integer read GetLinkPointCount;
   public
@@ -190,37 +202,6 @@ type
     property Table[Index: Integer]: TWTable read GetTable; default;
   end;
 
-  TWLinkPoint = class(TWPoint)
-  private
-    function GetIndex(): Integer;
-    function GetLink(): TWLink;
-    function GetTableA(): TWTable;
-    function GetTableB(): TWTable;
-    procedure SetTableA(ATableA: TWTable);
-    procedure SetTableB(ATableB: TWTable);
-  protected
-    procedure ApplyPosition(); override;
-    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
-    procedure Moving(const Sender: TWControl; const Shift: TShiftState; var NewPosition: TCoord); override;
-    procedure PaintTo(const Canvas: TCanvas; const X, Y: Integer); override;
-    property Index: Integer read GetIndex;
-    property TableA: TWTable read GetTableA write SetTableA;
-    property TableB: TWTable read GetTableB write SetTableB;
-  public
-    constructor Create(const AWorkbench: TWWorkbench; const APosition: TCoord; const APreviousPoint: TWPoint = nil); reintroduce; virtual;
-    destructor Destroy(); override;
-    property Link: TWLink read GetLink;
-  end;
-
-  TWLinkLine = class(TWLine)
-  private
-    function GetLink(): TWLink;
-  protected
-    procedure ApplyPosition(); override;
-  public
-    property Link: TWLink read GetLink;
-  end;
-
   TWLink = class(TWLinkPoint)
   private
     FCaption: TCaption;
@@ -238,7 +219,7 @@ type
     procedure SetCaption(const ACaption: TCaption); virtual;
     property Points[Index: Integer]: TWLinkPoint read GetPoint;
   public
-    constructor Create(const AWorkbench: TWWorkbench; const APosition: TCoord; const PreviousPoint: TWPoint = nil); override;
+    constructor Create(const AWorkbench: TWWorkbench; const APosition: TCoord; const PreviousPoint: TWLinkPoint = nil); override;
     destructor Destroy(); override;
     property Caption: TCaption read GetCaption write SetCaption;
     property ChildTable: TWTable index 0 read GetTable write SetTable;
@@ -254,7 +235,7 @@ type
     function GetCaption(): TCaption; override;
     procedure SetCaption(const ACaption: TCaption); override;
   public
-    constructor Create(const AWorkbench: TWWorkbench; const APosition: TCoord; const PreviousPoint: TWPoint = nil); override;
+    constructor Create(const AWorkbench: TWWorkbench; const APosition: TCoord; const PreviousPoint: TWLinkPoint = nil); override;
     property BaseForeignKey: TSForeignKey read FBaseForeignKey write FBaseForeignKey;
   end;
 
@@ -442,10 +423,10 @@ begin
   end;
 end;
 
-function CreateSegment(const Sender: TWControl; const APosition: TCoord; const Point: TWPoint; const CreateBefore: Boolean = True): TWPoint;
+function CreateSegment(const Sender: TWControl; const APosition: TCoord; const Point: TWLinkPoint; const CreateBefore: Boolean = True): TWLinkPoint;
 var
-  Line: TWLine;
-  OldMoveState: TWPoint.TMoveState;
+  Line: TWLinkLine;
+  OldMoveState: TWLinkPoint.TMoveState;
 begin
   OldMoveState := Point.MoveState;
   if (Point.MoveState = msNormal) then
@@ -453,10 +434,7 @@ begin
 
   if (CreateBefore) then
   begin
-    if (Point is TWLinkPoint) then
-      Result := TWLinkPoint.Create(Point.Workbench, Point.Position, nil)
-    else
-      Result := TWPoint.Create(Point.Workbench, Point.Position, nil);
+    Result := TWLinkPoint.Create(Point.Workbench, Point.Position, nil);
     Result.LineA := Point.LineA;
 
     TWLinkLine.Create(Point.Workbench, Result, Point);
@@ -468,10 +446,7 @@ begin
     if (Assigned(Line)) then
       Line.PointA := nil;
 
-    if (Point is TWLinkPoint) then
-      Result := TWLinkPoint.Create(Point.Workbench, Point.Position, Point)
-    else
-      Result := TWPoint.Create(Point.Workbench, Point.Position, Point);
+    Result := TWLinkPoint.Create(Point.Workbench, Point.Position, Point);
     Result.LineB := Line;
   end;
 
@@ -481,9 +456,9 @@ begin
   Result.Selected := Point.Selected;
 end;
 
-procedure FreeSegment(const Point: TWPoint; const Line: TWLine);
+procedure FreeSegment(const Point: TWLinkPoint; const Line: TWLinkLine);
 var
-  TempPoint: TWPoint;
+  TempPoint: TWLinkPoint;
 begin
   if (Line = Point.LineA) then
   begin
@@ -886,7 +861,7 @@ begin
       Workbench.BeginUpdate();
 
       for I := 0 to Workbench.ControlCount - 1 do
-        if ((Workbench.Controls[I] is TWControl) and not (Workbench.Controls[I] is TWLine) and TWControl(Workbench.Controls[I]).Selected) then
+        if ((Workbench.Controls[I] is TWControl) and not (Workbench.Controls[I] is TWLinkLine) and TWControl(Workbench.Controls[I]).Selected) then
         begin
           WantedNewPosition.X := TWControl(Workbench.Controls[I]).Position.X + NewPosition.X - Position.X;
           WantedNewPosition.Y := TWControl(Workbench.Controls[I]).Position.Y + NewPosition.Y - Position.Y;
@@ -1103,662 +1078,6 @@ begin
 
   Moving(Sender, Shift, NewPosition);
   MoveTo(Self, Shift, NewPosition);
-end;
-
-{ TWPoint *********************************************************************}
-
-procedure TWPoint.ApplyPosition();
-begin
-  SetBounds(
-    Position.X - (PointSize - 1) div 2 - Workbench.HorzScrollBar.Position,
-    Position.Y - (PointSize - 1) div 2 - Workbench.VertScrollBar.Position,
-    PointSize,
-    PointSize);
-
-  Center.X := PointSize div 2;
-  Center.Y := PointSize div 2;
-end;
-
-function TWPoint.ControlAlign(const Control: TWControl): TAlign;
-var
-  ControlPosition: TCoord;
-begin
-  if (not Assigned(Control)) then
-    Result := alNone
-  else if (Control is TWTable) then
-  begin
-    if (Position.X > TWTable(Control).Area.Right) then
-      Result := alLeft
-    else if (Position.Y > TWTable(Control).Area.Bottom) then
-      Result := alTop
-    else if (Position.X < TWTable(Control).Area.Left) then
-      Result := alRight
-    else if (Position.Y < TWTable(Control).Area.Top) then
-      Result := alBottom
-    else
-      Result := alNone;
-  end
-  else
-  begin
-    if (Control is TWPoint) then
-      ControlPosition := Control.Position
-    else if ((Control is TWLine) and Assigned(TWLine(Control).PointA) and (TWLine(Control).PointA <> Self)) then
-      ControlPosition := TWLine(Control).PointA.Position
-    else if ((Control is TWLine) and Assigned(TWLine(Control).PointB) and (TWLine(Control).PointB <> Self)) then
-      ControlPosition := TWLine(Control).PointB.Position
-    else
-      begin ControlPosition.X := -1; ControlPosition.Y := -1; end;
-
-    if ((ControlPosition.X < 0) or (ControlPosition.Y < 0)) then
-      Result := alNone
-    else if ((ControlPosition.X < Position.X) and (ControlPosition.Y = Position.Y)) then
-      Result := alLeft
-    else if ((ControlPosition.Y < Position.Y) and (ControlPosition.X = Position.X)) then
-      Result := alTop
-    else if ((ControlPosition.X > Position.X) and (ControlPosition.Y = Position.Y)) then
-      Result := alRight
-    else if ((ControlPosition.Y > Position.Y) and (ControlPosition.X = Position.X)) then
-      Result := alBottom
-    else
-      Result := alNone;
-  end;
-end;
-
-constructor TWPoint.Create(const AWorkbench: TWWorkbench; const APosition: TCoord; const PreviousPoint: TWPoint = nil);
-begin
-  inherited Create(AWorkbench, APosition);
-  Parent := AWorkbench;
-
-  ControlA := nil;
-  ControlB := nil;
-  MoveState := msNormal;
-
-  Canvas.Pen.Width := LineWidth;
-  Canvas.Brush.Style := bsClear;
-
-  if (Assigned(PreviousPoint)) then
-    FSelected := PreviousPoint.Selected;
-
-  MoveTo(nil, [], APosition);
-
-  Workbench.UpdateControl(Self);
-end;
-
-destructor TWPoint.Destroy();
-begin
-  if (Assigned(LineB)) then
-    LineB.Free();
-
-  inherited;
-end;
-
-function TWPoint.GetLastPoint(): TWPoint;
-begin
-  Result := Self;
-  while (Assigned(Result) and Assigned(Result.LineB) and Assigned(Result.LineB.PointB)) do
-    Result := Result.LineB.PointB;
-end;
-
-function TWPoint.GetLineA(): TWLine;
-begin
-  if (not (ControlA is TWLine)) then
-    Result := nil
-  else
-    Result := TWLine(ControlA);
-end;
-
-function TWPoint.GetLineB(): TWLine;
-begin
-  if (not (ControlB is TWLine)) then
-    Result := nil
-  else
-    Result := TWLine(ControlB);
-end;
-
-procedure TWPoint.MouseMove(Shift: TShiftState; X, Y: Integer);
-begin
-  if (Workbench.State in [wsCreateLink, wsCreateForeignKey, wsCreateSection]) then
-    Cursor := crDefault
-  else if ((ssLeft in Shift) or not Assigned(ControlA) or not Assigned(ControlB)) then
-    Cursor := crCross
-  else if (ControlAlign(ControlA) = ControlAlign(ControlB)) then
-    Cursor := crSizeAll
-  else if ((ControlA is TWTable) and (ControlAlign(ControlA) in [alTop, alBottom]) or (ControlB is TWTable) and (ControlAlign(ControlB) in [alTop, alBottom])) then
-    Cursor := crSizeWE
-  else if ((ControlA is TWTable) and (ControlAlign(ControlA) in [alLeft, alRight]) or (ControlB is TWTable) and (ControlAlign(ControlB) in [alLeft, alRight])) then
-    Cursor := crSizeNS
-  else if ((ControlAlign(ControlA) in [alTop, alBottom]) and (ControlAlign(ControlB) in [alTop, alBottom])) then
-    Cursor := crSizeWE
-  else if ((ControlAlign(ControlA) in [alLeft, alRight]) and (ControlAlign(ControlB) in [alLeft, alRight])) then
-    Cursor := crSizeNS
-  else if ((ControlAlign(ControlA) = alBottom) and (ControlAlign(ControlB) = alLeft)
-         or (ControlAlign(ControlA) = alTop) and (ControlAlign(ControlB) = alRight)
-         or (ControlAlign(ControlA) = alRight) and (ControlAlign(ControlB) = alTop)
-         or (ControlAlign(ControlA) = alLeft) and (ControlAlign(ControlB) = alBottom)) then
-    Cursor := crSizeNESW
-  else if ((ControlAlign(ControlA) = alBottom) and (ControlAlign(ControlB) = alRight)
-         or (ControlAlign(ControlA) = alTop) and (ControlAlign(ControlB) = alLeft)
-         or (ControlAlign(ControlA) = alRight) and (ControlAlign(ControlB) = alBottom)
-         or (ControlAlign(ControlA) = alLeft) and (ControlAlign(ControlB) = alTop)) then
-    Cursor := crSizeNWSE
-  else
-    Cursor := crDefault;
-
-  inherited;
-end;
-
-procedure TWPoint.MoveTo(const Sender: TWControl; const Shift: TShiftState; NewPosition: TCoord);
-
-  procedure MovePointTo(const Point: TWLinkPoint);
-  var
-    Control, AntiControl: TWControl;
-    Line, NextLine, AntiLine: TWLine;
-    NextPoint: TWPoint;
-  begin
-    if (Assigned(LineA) and (Point = LineA.PointA)) then
-    begin
-      Control := ControlA;
-      AntiControl := ControlB;
-      Line := LineA;
-      NextLine := Point.LineA;
-      AntiLine := LineB;
-      if (not Assigned(NextLine)) then
-        NextPoint := nil
-      else
-        NextPoint := NextLine.PointA;
-    end
-    else
-    begin
-      Control := ControlB;
-      AntiControl := ControlA;
-      Line := LineB;
-      NextLine := Point.LineB;
-      AntiLine := LineA;
-      if (not Assigned(NextLine)) then
-        NextPoint := nil
-      else
-        NextPoint := NextLine.PointB;
-    end;
-
-    // move a point in a different orientation away from a line or from a fixed point
-    if (Assigned(Sender) and (Sender <> Self)
-      and (ControlAlign(Control) in [alTop, alBottom]) and (NewPosition.X < Point.Position.X) and (MoveState = msNormal)
-      and ((ControlAlign(Sender) = alLeft) or (Point.MoveState = msFixed) or (Sender = AntiLine))) then
-    begin
-      CreateSegment(Self, Coord(Point.Position.X, NewPosition.Y), Self, (Line = LineA) and not Assigned(AntiLine));
-      MoveState := msNormal;
-      if (Assigned(AntiLine)) then
-        NewPosition.X := Position.X;
-    end
-    else if (Assigned(Sender) and (Sender <> Self)
-      and (ControlAlign(Control) in [alLeft, alRight]) and (NewPosition.Y < Point.Position.Y) and (MoveState = msNormal)
-      and ((ControlAlign(Sender) = alTop) or (Point.MoveState = msFixed) or (Sender = AntiLine))) then
-    begin
-      CreateSegment(Self, Coord(NewPosition.X, Point.Position.Y), Self, (Line = LineA) and not Assigned(AntiLine));
-      MoveState := msNormal;
-      if (Assigned(AntiLine)) then
-        NewPosition.Y := Position.Y;
-    end
-    else if (Assigned(Sender) and (Sender <> Self)
-      and (ControlAlign(Control) in [alTop, alBottom]) and (NewPosition.X > Point.Position.X) and (MoveState = msNormal)
-      and ((ControlAlign(Sender) = alRight) or (Point.MoveState = msFixed) or (Sender = AntiLine))) then
-    begin
-      CreateSegment(Self, Coord(Point.Position.X, NewPosition.Y), Self, (Line = LineA) and not Assigned(AntiLine));
-      MoveState := msNormal;
-      if (Assigned(AntiLine)) then
-        NewPosition.X := Position.X;
-    end
-    else if (Assigned(Sender) and (Sender <> Self)
-      and (ControlAlign(Control) in [alLeft, alRight]) and (NewPosition.Y > Point.Position.Y) and (MoveState = msNormal)
-      and ((ControlAlign(Sender) = alBottom) or (Point.MoveState = msFixed) or (Sender = AntiLine))) then
-    begin
-      CreateSegment(Self, Coord(NewPosition.X, Point.Position.Y), Self, (Line = LineA) and not Assigned(AntiLine));
-      MoveState := msNormal;
-      if (Assigned(AntiLine)) then
-        NewPosition.Y := Position.Y;
-    end
-
-    // move line away from a moved table
-    else if (Assigned(NextLine) and (Point.MoveState <> msFixed) and
-      ((ControlAlign(Line) = alLeft) and ((NewPosition.X = Point.Position.X) or (NewPosition.X <= Point.Position.X) and ((ControlAlign(AntiControl) = alRight)))
-      or (ControlAlign(Line) = alTop) and ((NewPosition.Y = Point.Position.Y) or (NewPosition.Y <= Point.Position.Y) and ((ControlAlign(AntiControl) = alBottom)))
-      or (ControlAlign(Line) = alRight) and ((NewPosition.X = Point.Position.X) or (NewPosition.X >= Point.Position.X) and ((ControlAlign(AntiControl) = alLeft)))
-      or (ControlAlign(Line) = alBottom) and ((NewPosition.Y = Point.Position.Y) or (NewPosition.Y >= Point.Position.Y) and ((ControlAlign(AntiControl) = alTop))))) then
-      Point.MoveTo(Self, Shift, NewPosition)
-
-    // adjust other end of a line
-    else if ((Sender <> Point) and (Self is TWLinkPoint) and Assigned(TWLinkPoint(Self).Link.ParentTable) and (Point.MoveState = msNormal)
-      and ((ControlAlign(Line) in [alLeft, alRight]) or (Point.ControlAlign(NextLine) in [alTop, alBottom]) and (Point.Position.Y = Position.Y) and (Point.Position.X = Position.X))) then
-      Point.MoveTo(Self, Shift, Coord(Point.Position.X, NewPosition.Y))
-    else if ((Sender <> Point) and (Self is TWLinkPoint) and Assigned(TWLinkPoint(Self).Link.ParentTable) and (Point.MoveState = msNormal)
-      and ((ControlAlign(Line) in [alTop, alBottom]) or (Point.ControlAlign(NextLine) in [alLeft, alRight]) and (Point.Position.X = Position.X) and (Point.Position.Y = Position.Y))) then
-      Point.MoveTo(Self, Shift, Coord(NewPosition.X, Point.Position.Y));
-
-    // remove a crushed line
-    if ((Sender <> Self)
-      and (Self is TWLinkPoint) and Assigned(TWLinkPoint(Self).Link.ParentTable)
-      and Assigned(NextPoint) and (Point.Position.X = NextPoint.Position.X) and (Point.Position.Y = NextPoint.Position.Y)
-      and (MoveState <> msAutomatic)) then
-      FreeSegment(Point, NextLine);
-  end;
-
-var
-  NewPoint: TWPoint;
-  NewPoint2: TWPoint;
-  OrgNewPosition: TCoord;
-  TempOrientation: TWLine.TOrientation;
-begin
-  if (NewPosition <> Position) then
-  begin
-    NewPoint := nil;
-    if ((Sender <> Self) and (MoveState <> msFixed)) then
-    begin
-      OrgNewPosition := NewPosition;
-      Moving(Sender, Shift, NewPosition);
-      if (NewPosition <> OrgNewPosition) then
-        NewPoint := CreateSegment(Sender, OrgNewPosition, Self, Assigned(LineA) and ((Sender = LineA) or (Sender = LineA.PointA)));
-    end;
-
-    // Align "automatic" point
-    if ((Sender = Self) and Assigned(LineA) and Assigned(LineA.PointA.LineA) and (LineA.PointA.MoveState = msAutomatic)) then
-    begin
-      if (ControlAlign(LineB) in [alLeft, alRight]) then
-        TempOrientation := foVertical
-      else if (ControlAlign(LineB) in [alTop, alBottom]) then
-        TempOrientation := foHorizontal
-      else if (Assigned(LineA.PointA.LineA.PointA.LineA)
-        and (LineA.PointA.LineA.PointA.ControlAlign(LineA.PointA.LineA.PointA.LineA) = alLeft)
-        and (NewPosition.X < LineA.PointA.LineA.PointA.Position.X)) then
-        TempOrientation := foHorizontal
-      else if (Assigned(LineA.PointA.LineA.PointA.LineA)
-        and (LineA.PointA.LineA.PointA.ControlAlign(LineA.PointA.LineA.PointA.LineA) = alTop)
-        and (NewPosition.Y < LineA.PointA.LineA.PointA.Position.Y)) then
-        TempOrientation := foVertical
-      else if (Assigned(LineA.PointA.LineA.PointA.LineA)
-        and (LineA.PointA.LineA.PointA.ControlAlign(LineA.PointA.LineA.PointA.LineA) = alRight)
-        and (NewPosition.X > LineA.PointA.LineA.PointA.Position.X)) then
-        TempOrientation := foHorizontal
-      else if (Assigned(LineA.PointA.LineA.PointA.LineA)
-        and (LineA.PointA.LineA.PointA.ControlAlign(LineA.PointA.LineA.PointA.LineA) = alBottom)
-        and (NewPosition.Y > LineA.PointA.LineA.PointA.Position.Y)) then
-        TempOrientation := foVertical
-      else if (Abs(NewPosition.X - LineA.PointA.LineA.PointA.Position.X) >= Abs(NewPosition.Y - LineA.PointA.LineA.PointA.Position.Y)) then
-        TempOrientation := foVertical
-      else
-        TempOrientation := foHorizontal;
-
-      case (TempOrientation) of
-        foHorizontal: LineA.PointA.MoveTo(Self, [], Coord(LineA.PointA.LineA.PointA.Position.X, NewPosition.Y));
-        foVertical: LineA.PointA.MoveTo(Self, [], Coord(NewPosition.X, LineA.PointA.LineA.PointA.Position.Y));
-        else raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Orientation']);
-      end;
-    end
-
-    // build new point while creating a Foreign Key / or while inserting new point manually
-    else if ((Sender = Self) and (Self is TWLinkPoint) and (Workbench.State <> wsLoading)
-      and ((MoveState = msFixed)
-      or (MoveState = msNormal) and (ssShift in Shift)
-      or (MoveState = msAutomatic) and (Sender = Self) and (ControlAlign(LineA) in [alLeft, alRight]) and ((ControlAlign(LineA) in [alLeft, alTop]) and (NewPosition.X <> Position.X) or (ControlAlign(LineA) in [alTop, alBottom]) and (NewPosition.X <> Position.X)))) then
-    begin
-      if (Abs(NewPosition.X - Position.X) >= Abs(NewPosition.Y - Position.Y)) then
-        NewPoint := CreateSegment(Self, Coord(NewPosition.X, Position.Y), Self, Assigned(TWLinkPoint(Self).Link.ParentTable) and Assigned(LineA) and not Assigned(LineB))
-      else
-        NewPoint := CreateSegment(Self, Coord(Position.X, NewPosition.Y), Self, Assigned(TWLinkPoint(Self).Link.ParentTable) and Assigned(LineA) and not Assigned(LineB));
-      NewPoint.MouseDown(mbLeft, [], (PointSize - 1) div 2, (PointSize - 1) div 2);
-      NewPoint.MoveState := msAutomatic;
-
-      if ((not Assigned(TWLinkPoint(Self).Link.ParentTable) or Assigned(LineB))
-        and ((NewPosition.X <> NewPoint.Position.X) or (NewPosition.Y <> NewPoint.Position.Y))) then
-      begin
-        NewPoint2 := CreateSegment(Self, NewPosition, NewPoint, Assigned(TWLinkPoint(Self).Link.ParentTable) and Assigned(LineA) and not Assigned(LineB));
-        NewPoint2.MouseDown(mbLeft, [], (PointSize - 1) div 2, (PointSize - 1) div 2);
-        NewPosition := Position;
-      end
-      else if (Abs(NewPosition.X - Position.X) >= Abs(NewPosition.Y - Position.Y)) then
-        NewPosition.X := Position.X
-      else
-        NewPosition.Y := Position.Y;
-    end
-
-    // move a point away from a fixed point
-    else if ((Sender = Self) and Assigned(LineA) and (NewPosition.Y <> Position.Y) and (LineA.Orientation = foHorizontal) and (LineA.PointA.MoveState = msFixed)) then
-    begin
-      NewPoint := CreateSegment(Self, Coord(Position.X, NewPosition.Y), Self, False);
-      NewPoint.MouseDown(mbLeft, [], (PointSize - 1) div 2, (PointSize - 1) div 2);
-    end
-    else if ((Sender = Self) and Assigned(LineA) and (NewPosition.X <> Position.X) and (LineA.Orientation = foVertical) and (LineA.PointA.MoveState = msFixed)) then
-    begin
-      NewPoint := CreateSegment(Self, Coord(NewPosition.X, Position.Y), Self, False);
-      NewPoint.MouseDown(mbLeft, [], (PointSize - 1) div 2, (PointSize - 1) div 2);
-    end
-
-    else if (Assigned(LineA) and (Sender <> LineA.PointA) and (Assigned(Sender) or not LineA.PointA.Selected)) then
-      MovePointTo(TWLinkPoint(LineA.PointA));
-
-    if (Assigned(LineB) and (Sender <> LineB.PointB) and (Assigned(Sender) or not LineB.PointB.Selected)) then
-      MovePointTo(TWLinkPoint(LineB.PointB));
-
-    if (Assigned(NewPoint) and (NewPoint.MoveState = msFixed)) then
-      NewPoint.MoveState := msNormal;
-
-    if ((NewPosition.X <> Position.X) or (NewPosition.Y <> Position.Y)) then
-    begin
-      inherited;
-
-      if (Assigned(LineA)) then
-        Workbench.UpdateControl(LineA);
-      if (Assigned(LineB)) then
-        Workbench.UpdateControl(LineB);
-    end;
-  end;
-end;
-
-procedure TWPoint.PaintTo(const Canvas: TCanvas; const X, Y: Integer);
-
-  procedure PaintToControl(const Control: TWControl; const Left, Top: Integer);
-  begin
-    Canvas.MoveTo(Left + Center.X, Top + Center.Y);
-    case (ControlAlign(Control)) of
-      alLeft:   Canvas.LineTo(Left            , Top + Center.Y );
-      alTop:    Canvas.LineTo(Left + Center.X , Top            );
-      alRight:  Canvas.LineTo(Left + Width - 1, Top + Center.Y );
-      alBottom: Canvas.LineTo(Left + Center.X , Top + Height - 1);
-    end;
-  end;
-
-var
-  Rect: TRect;
-begin
-  Assert(Self is TWLinkPoint);
-
-  Rect := ClientRect;
-  OffsetRect(Rect, X, Y);
-
-  if ((MoveState <> msFixed) and ((ControlAlign(LineA) = InvertAlign(ControlAlign(LineB))) and (ControlAlign(LineA) <> alNone)
-    or not Assigned(ControlA) or not Assigned(ControlB)
-    or Assigned(LineA) and (ControlAlign(LineA) = alNone)
-    or Assigned(LineB) and (ControlAlign(LineB) = alNone))) then
-  begin
-    Canvas.Brush.Color := clRed;
-    Canvas.FillRect(Rect);
-  end
-  else if (not Selected) then
-    Canvas.Brush.Color := clWindow
-  else
-  begin
-    Canvas.Brush.Color := clHighlight;
-    Canvas.FillRect(Rect);
-  end;
-
-  if (Selected) then
-    Canvas.Pen.Color := clHighlightText
-  else if ((Self is TWLinkPoint) and Assigned(TWLinkPoint(Self).Link) and not (TWLinkPoint(Self).Link is TWForeignKey)) then
-    Canvas.Pen.Color := clGrayText
-  else
-    Canvas.Pen.Color := clWindowText;
-
-  SetEndCaps(Canvas.Pen, PS_ENDCAP_SQUARE);
-
-  if (ControlA is TWLinkLine) then
-    PaintToControl(ControlA, Rect.Left, Rect.Top);
-
-  if (ControlB is TWLinkLine) then
-    PaintToControl(ControlB, Rect.Left, Rect.Top);
-end;
-
-procedure TWPoint.SetLineA(ALineA: TWLine);
-begin
-  if (Assigned(LineA)) then
-    LineA.PointB := nil;
-
-  ControlA := ALineA;
-
-  if (Assigned(LineA)) then
-  begin
-    LineA.PointB := Self;
-    if ((Workbench.SelCount = 1) or (Self is TWLinkPoint) and TWLinkPoint(Self).Link.LinkSelected and (Workbench.SelCount = TWLinkPoint(Self).Link.PointCount * 2 - 1)) then
-      Selected := LineA.PointA.Selected;
-    Workbench.UpdateControl(LineA);
-  end;
-end;
-
-procedure TWPoint.SetLineB(ALineB: TWLine);
-begin
-  if (Assigned(LineB)) then
-    LineB.PointA := nil;
-
-  ControlB := ALineB;
-
-  if (Assigned(LineB)) then
-    LineB.PointA := Self;
-end;
-
-procedure TWPoint.SetSelected(ASelected: Boolean);
-begin
-  inherited;
-
-  if (Assigned(LineA) and (LineA.PointA.Selected = Selected) and (LineA.Selected <> Selected)) then
-    LineA.Selected := Selected;
-  if (Assigned(LineB) and (LineB.PointB.Selected = Selected) and (LineB.Selected <> Selected)) then
-    LineB.Selected := Selected;
-end;
-
-{ TWLine **********************************************************************}
-
-procedure TWLine.ApplyPosition();
-begin
-  if ((FPointB.Position.X >= 0) and (FPointB.Position.Y >= 0) and (FPointB.Position.X >= 0) and (FPointB.Position.Y >= 0)) then
-    case (Orientation) of
-      foHorizontal:
-        SetBounds(
-          Min(PointA.Position.X, PointB.Position.X) + (PointSize - 1) div 2 - Workbench.HorzScrollBar.Position,
-          PointA.Position.Y - (LineWidth - 1) div 2 - Workbench.VertScrollBar.Position,
-          Length - PointSize + 1,
-          LineWidth
-        );
-      foVertical:
-        SetBounds(
-          PointA.Position.X - (LineWidth - 1) div 2 - Workbench.HorzScrollBar.Position,
-          Min(PointA.Position.Y, PointB.Position.Y) + (PointSize - 1) div 2 - Workbench.VertScrollBar.Position,
-          LineWidth,
-          Length - PointSize + 1
-        );
-    end;
-end;
-
-constructor TWLine.Create(const AWorkbench: TWWorkbench; const APointA, APointB: TWPoint);
-begin
-  Assert(Assigned(APointA) and Assigned(APointB));
-
-  inherited Create(AWorkbench, APointA.Position);
-  Parent := AWorkbench;
-
-  FWorkbench := AWorkbench;
-  FPointA := APointA;
-  FPointB := APointB;
-
-  FPointA.ControlB := Self;
-  FPointB.ControlA := Self;
-
-  Canvas.Pen.Width := LineWidth;
-
-  if (Assigned(PointA)) then
-    FSelected := PointA.Selected;
-
-  Workbench.UpdateControl(Self);
-end;
-
-destructor TWLine.Destroy();
-begin
-  if (Assigned(PointB)) then
-    PointB.Free();
-  if (Assigned(PointA)) then
-    PointA.ControlB := nil;
-
-  inherited;
-end;
-
-function TWLine.GetLength(): Integer;
-begin
-  Result := Max(Abs(PointA.Position.X - PointB.Position.X), Abs(PointA.Position.Y - PointB.Position.Y));
-end;
-
-function TWLine.GetOrientation(): TOrientation;
-begin
-  if (Assigned(PointA) and Assigned(PointB)) then
-    if ((PointA.Position.X = PointB.Position.X) and (PointA.Position.Y = PointB.Position.Y)) then
-      FOrientation := foNone
-    else if (PointA.Position.Y = PointB.Position.Y) then
-      FOrientation := foHorizontal
-    else if (PointA.Position.X = PointB.Position.X) then
-      FOrientation := foVertical
-    else
-      FOrientation := foNone;
-
-  Result := FOrientation;
-end;
-
-procedure TWLine.MouseMove(Shift: TShiftState; X, Y: Integer);
-var
-  DiffPoint: TPoint;
-  NewPosition: TCoord;
-  NewPoint: TWPoint;
-  PointANewPosition: TCoord;
-begin
-  if (Workbench.State in [wsCreateLink, wsCreateForeignKey, wsCreateSection]) then
-    Cursor := crNo
-  else if (Orientation = foHorizontal) then
-    Cursor := crSizeNS
-  else if (Orientation = foVertical) then
-    Cursor := crSizeWE
-  else
-    Cursor := crDefault;
-
-  if (not (ssLeft in Shift)) then
-    inherited
-  else
-  begin
-    DiffPoint := Point(
-      Workbench.HorzScrollBar.Position + Left + X - MouseDownPoint.X,
-      Workbench.VertScrollBar.Position + Top + Y - MouseDownPoint.Y);
-    PointANewPosition := Coord(
-      MouseDownPosition.X + DiffPoint.X,
-      MouseDownPosition.Y + DiffPoint.Y);
-
-    if (PointANewPosition.X < 0) then
-      PointANewPosition.X := 0;
-    if (PointANewPosition.Y < 0) then
-      PointANewPosition.Y := 0;
-
-    if ((ssShift in Shift) and (Self is TWLinkLine) and (PointA is TWLinkPoint)) then
-    begin
-      if ((Orientation = foHorizontal) and (PointANewPosition.Y <> PointA.Position.Y)
-        or (Orientation = foVertical) and (PointANewPosition.X <> PointA.Position.X)) then
-      begin
-        MouseCapture := False;
-
-        NewPosition := Workbench.Position(Left + X, Top + Y);
-
-        TWLinkPoint(PointA).MoveState := msFixed;
-        if (Orientation = foHorizontal) then
-          NewPoint := CreateSegment(Self, Coord(NewPosition.X, PointA.Position.Y), PointA, False)
-        else
-          NewPoint := CreateSegment(Self, Coord(PointA.Position.X, NewPosition.Y), PointA, False);
-        NewPoint.MoveState := msAutomatic;
-        NewPoint := CreateSegment(Self, NewPosition, NewPoint, False);
-        NewPoint.MouseDown(mbLeft, [], (PointSize - 1) div 2, (PointSize - 1) div 2);
-      end;
-    end
-    else if ((Self is TWLinkLine) and (Workbench.SelCount <> TWLinkLine(Self).Link.PointCount * 2 - 1) and (Workbench.Links.SelCount <> 1)) then
-      PointA.Move(Self, Shift, PointANewPosition)
-    else
-      case (Orientation) of
-        foHorizontal:
-          PointA.MoveTo(Self, Shift, Coord(PointA.Position.X, PointANewPosition.Y));
-        foVertical:
-          PointA.MoveTo(Self, Shift, Coord(PointANewPosition.X, PointA.Position.Y));
-      end;
-  end;
-
-  Workbench.CursorMove(Workbench.HorzScrollBar.Position + Left + X, Workbench.VertScrollBar.Position + Top + Y);
-end;
-
-procedure TWLine.PaintTo(const Canvas: TCanvas; const X, Y: Integer);
-var
-  Rect: TRect;
-begin
-  Rect := GetClientRect();
-  OffsetRect(Rect, X, Y);
-
-  if (Selected) then
-  begin
-    Canvas.Pen.Color := clWindow;
-    Canvas.Brush.Color := clHighlight;
-    Canvas.FillRect(Rect);
-  end
-  else if ((Self is TWLinkLine) and not (TWLinkLine(Self).Link is TWForeignKey)) then
-  begin
-    Canvas.Pen.Color := clGrayText;
-    Canvas.Brush.Color := clWindow;
-  end
-  else
-  begin
-    Canvas.Pen.Color := clWindowText;
-    Canvas.Brush.Color := clWindow;
-  end;
-
-  SetEndCaps(Canvas.Pen, PS_ENDCAP_SQUARE);
-
-  case (Orientation) of
-    foHorizontal:
-      begin
-        Canvas.MoveTo(Rect.Left +     0, Rect.Top + Height div 2);
-        Canvas.LineTo(Rect.Left + Width, Rect.Top + Height div 2);
-      end;
-    foVertical:
-      begin
-        Canvas.MoveTo(Rect.Left + Width div 2, Rect.Top +      0);
-        Canvas.LineTo(Rect.Left + Width div 2, Rect.Top + Height);
-      end;
-  end;
-end;
-
-procedure TWLine.SetPointA(APointA: TWPoint);
-begin
-  if (Assigned(PointA)) then
-    PointA.ControlB := nil;
-
-  FPointA := APointA;
-
-  if (Assigned(PointA)) then
-  begin
-    Workbench.UpdateControl(PointA);
-    Workbench.UpdateControl(Self);
-  end;
-end;
-
-procedure TWLine.SetPointB(APointB: TWPoint);
-begin
-  if (Assigned(PointB)) then
-    PointB.ControlA := nil;
-
-  FPointB := APointB;
-
-  if (Assigned(PointB)) then
-  begin
-    Workbench.UpdateControl(PointB);
-    Workbench.UpdateControl(Self);
-  end;
-end;
-
-procedure TWLine.SetSelected(ASelected: Boolean);
-begin
-  inherited;
-
-  if (Assigned(PointA) and (PointA.Selected <> Selected)) then
-    PointA.Selected := FSelected;
-  if (Assigned(PointB) and (PointB.Selected <> Selected)) then
-    PointB.Selected := FSelected;
 end;
 
 { TWTable *********************************************************************}
@@ -2012,30 +1331,30 @@ begin
   end;
 end;
 
-procedure TWTable.RegisterLinkPoint(const ALinkPoint: TWLinkPoint);
+procedure TWTable.RegisterLinkPoint(const APoint: TWLinkPoint);
 var
   Found: Boolean;
   I: Integer;
 begin
   Found := False;
   for I := 0 to Length(FLinkPoints) - 1 do
-    Found := Found or (FLinkPoints[I] = ALinkPoint);
+    Found := Found or (FLinkPoints[I] = APoint);
 
   if (not Found) then
   begin
     SetLength(FLinkPoints, Length(FLinkPoints) + 1);
-    FLinkPoints[Length(FLinkPoints) - 1] := ALinkPoint;
+    FLinkPoints[Length(FLinkPoints) - 1] := APoint;
   end;
 end;
 
-procedure TWTable.ReleaseLinkPoint(const ALinkPoint: TWLinkPoint);
+procedure TWTable.ReleaseLinkPoint(const APoint: TWLinkPoint);
 var
   I: Integer;
   Index: Integer;
 begin
   Index := -1;
   for I := 0 to Length(FLinkPoints) - 1 do
-    if (FLinkPoints[I] = ALinkPoint) then
+    if (FLinkPoints[I] = APoint) then
       Index := I;
 
   if (Index >= 0) then
@@ -2097,7 +1416,7 @@ begin
   end;
 end;
 
-{ TWLinkPoint ***********************************************************}
+{ TWLinkPoint *****************************************************************}
 
 procedure TWLinkPoint.ApplyPosition();
 var
@@ -2165,38 +1484,83 @@ begin
   );
 end;
 
-constructor TWLinkPoint.Create(const AWorkbench: TWWorkbench; const APosition: TCoord; const APreviousPoint: TWPoint = nil);
+function TWLinkPoint.ControlAlign(const Control: TWControl): TAlign;
+var
+  ControlPosition: TCoord;
 begin
-  inherited Create(AWorkbench, APosition, APreviousPoint);
+  if (not Assigned(Control)) then
+    Result := alNone
+  else if (Control is TWTable) then
+  begin
+    if (Position.X > TWTable(Control).Area.Right) then
+      Result := alLeft
+    else if (Position.Y > TWTable(Control).Area.Bottom) then
+      Result := alTop
+    else if (Position.X < TWTable(Control).Area.Left) then
+      Result := alRight
+    else if (Position.Y < TWTable(Control).Area.Top) then
+      Result := alBottom
+    else
+      Result := alNone;
+  end
+  else
+  begin
+    if (Control is TWLinkPoint) then
+      ControlPosition := Control.Position
+    else if ((Control is TWLinkLine) and Assigned(TWLinkLine(Control).PointA) and (TWLinkLine(Control).PointA <> Self)) then
+      ControlPosition := TWLinkLine(Control).PointA.Position
+    else if ((Control is TWLinkLine) and Assigned(TWLinkLine(Control).PointB) and (TWLinkLine(Control).PointB <> Self)) then
+      ControlPosition := TWLinkLine(Control).PointB.Position
+    else
+      begin ControlPosition.X := -1; ControlPosition.Y := -1; end;
 
-  if (APreviousPoint is TWLinkPoint) then
-    LineA := TWLinkLine.Create(Workbench, TWLinkPoint(APreviousPoint), Self);
+    if ((ControlPosition.X < 0) or (ControlPosition.Y < 0)) then
+      Result := alNone
+    else if ((ControlPosition.X < Position.X) and (ControlPosition.Y = Position.Y)) then
+      Result := alLeft
+    else if ((ControlPosition.Y < Position.Y) and (ControlPosition.X = Position.X)) then
+      Result := alTop
+    else if ((ControlPosition.X > Position.X) and (ControlPosition.Y = Position.Y)) then
+      Result := alRight
+    else if ((ControlPosition.Y > Position.Y) and (ControlPosition.X = Position.X)) then
+      Result := alBottom
+    else
+      Result := alNone;
+  end;
+end;
+
+constructor TWLinkPoint.Create(const AWorkbench: TWWorkbench; const APosition: TCoord; const APreviousPoint: TWLinkPoint = nil);
+begin
+  inherited Create(AWorkbench, APosition);
+  Parent := AWorkbench;
+
+  ControlA := nil;
+  ControlB := nil;
+  MoveState := msNormal;
+
+  Canvas.Pen.Width := LineWidth;
+  Canvas.Brush.Style := bsClear;
+
+  if (Assigned(APreviousPoint)) then
+    LineA := TWLinkLine.Create(Workbench, APreviousPoint, Self);
+
+  if (Assigned(APreviousPoint)) then
+    FSelected := APreviousPoint.Selected;
+
+  MoveTo(nil, [], APosition);
 
   Workbench.UpdateControl(Self);
 end;
 
 destructor TWLinkPoint.Destroy();
 begin
+  if (Assigned(LineB)) then
+    LineB.Free();
+
   TableA := nil;
   TableB := nil;
 
   inherited;
-end;
-
-function TWLinkPoint.GetLink(): TWLink;
-var
-  Point: TWLinkPoint;
-begin
-  Point := Self;
-  while (Assigned(Point.LineA) and (Point.LineA.PointA is TWLinkPoint)) do
-    Point := TWLinkPoint(Point.LineA.PointA);
-
-  if (not Assigned(Point)) then
-    raise Exception.Create('Point is not assigned')
-  else if (not (Point is TWLink)) then
-    raise Exception.CreateFmt('Point is not TWLink  (%s)', [Point.ClassName])
-  else
-    Result := TWLink(Point);
 end;
 
 function TWLinkPoint.GetIndex(): Integer;
@@ -2208,6 +1572,45 @@ begin
   for I := 0 to Link.PointCount - 1 do
     if (Self = Link.Points[I]) then
       Result := I;
+end;
+
+function TWLinkPoint.GetLastPoint(): TWLinkPoint;
+begin
+  Result := Self;
+  while (Assigned(Result) and Assigned(Result.LineB) and Assigned(Result.LineB.PointB)) do
+    Result := Result.LineB.PointB;
+end;
+
+function TWLinkPoint.GetLineA(): TWLinkLine;
+begin
+  if (not (ControlA is TWLinkLine)) then
+    Result := nil
+  else
+    Result := TWLinkLine(ControlA);
+end;
+
+function TWLinkPoint.GetLineB(): TWLinkLine;
+begin
+  if (not (ControlB is TWLinkLine)) then
+    Result := nil
+  else
+    Result := TWLinkLine(ControlB);
+end;
+
+function TWLinkPoint.GetLink(): TWLink;
+var
+  Point: TWLinkPoint;
+begin
+  Point := Self;
+  while (Assigned(Point.LineA)) do
+    Point := Point.LineA.PointA;
+
+  if (not Assigned(Point)) then
+    raise Exception.Create('Point is not assigned')
+  else if (not (Point is TWLink)) then
+    raise Exception.CreateFmt('Point is not TWLink  (%s)', [Point.ClassName])
+  else
+    Result := TWLink(Point);
 end;
 
 function TWLinkPoint.GetTableA(): TWTable;
@@ -2224,6 +1627,274 @@ begin
     Result := nil
   else
     Result := TWTable(ControlB);
+end;
+
+procedure TWLinkPoint.MouseMove(Shift: TShiftState; X, Y: Integer);
+begin
+  if (Workbench.State in [wsCreateLink, wsCreateForeignKey, wsCreateSection]) then
+    Cursor := crDefault
+  else if ((ssLeft in Shift) or not Assigned(ControlA) or not Assigned(ControlB)) then
+    Cursor := crCross
+  else if (ControlAlign(ControlA) = ControlAlign(ControlB)) then
+    Cursor := crSizeAll
+  else if ((ControlA is TWTable) and (ControlAlign(ControlA) in [alTop, alBottom]) or (ControlB is TWTable) and (ControlAlign(ControlB) in [alTop, alBottom])) then
+    Cursor := crSizeWE
+  else if ((ControlA is TWTable) and (ControlAlign(ControlA) in [alLeft, alRight]) or (ControlB is TWTable) and (ControlAlign(ControlB) in [alLeft, alRight])) then
+    Cursor := crSizeNS
+  else if ((ControlAlign(ControlA) in [alTop, alBottom]) and (ControlAlign(ControlB) in [alTop, alBottom])) then
+    Cursor := crSizeWE
+  else if ((ControlAlign(ControlA) in [alLeft, alRight]) and (ControlAlign(ControlB) in [alLeft, alRight])) then
+    Cursor := crSizeNS
+  else if ((ControlAlign(ControlA) = alBottom) and (ControlAlign(ControlB) = alLeft)
+         or (ControlAlign(ControlA) = alTop) and (ControlAlign(ControlB) = alRight)
+         or (ControlAlign(ControlA) = alRight) and (ControlAlign(ControlB) = alTop)
+         or (ControlAlign(ControlA) = alLeft) and (ControlAlign(ControlB) = alBottom)) then
+    Cursor := crSizeNESW
+  else if ((ControlAlign(ControlA) = alBottom) and (ControlAlign(ControlB) = alRight)
+         or (ControlAlign(ControlA) = alTop) and (ControlAlign(ControlB) = alLeft)
+         or (ControlAlign(ControlA) = alRight) and (ControlAlign(ControlB) = alBottom)
+         or (ControlAlign(ControlA) = alLeft) and (ControlAlign(ControlB) = alTop)) then
+    Cursor := crSizeNWSE
+  else
+    Cursor := crDefault;
+
+  inherited;
+end;
+
+procedure TWLinkPoint.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+begin
+  if (not Assigned(Link.ParentTable) and (Link.PointCount > 1)) then
+    TableB := Workbench.TableAt(Coord(Position.X, Position.Y));
+
+  inherited;
+
+  if (not Assigned(Link.ParentTable)) then
+  begin
+    MouseDown(Button, Shift, X, Y);
+    MoveState := msFixed;
+    if ((Link.PointCount = 2) and not Assigned(Link.ParentTable) and Assigned(LineA)
+      and (Workbench.TableAt(Position) = Link.ChildTable)) then
+    begin
+      LineA.PointA.MoveState := msFixed;
+      MoveState := msAutomatic;
+    end;
+  end
+  else if (Link = Workbench.CreatedLink) then
+  begin
+    if (not Workbench.OnValidateControl(Workbench, Workbench.CreatedLink)) then
+      FreeAndNil(Workbench.CreatedLink)
+    else if ((Workbench.CreatedLink is TWLink) and not (Workbench.CreatedLink is TWForeignKey)) then
+    begin
+      Workbench.Links.Add(Workbench.CreatedLink);
+      Workbench.CreatedLink := nil;
+    end;
+  end;
+end;
+
+procedure TWLinkPoint.MoveTo(const Sender: TWControl; const Shift: TShiftState; NewPosition: TCoord);
+
+  procedure MovePointTo(const Point: TWLinkPoint);
+  var
+    Control, AntiControl: TWControl;
+    Line, NextLine, AntiLine: TWLinkLine;
+    NextPoint: TWLinkPoint;
+  begin
+    if (Assigned(LineA) and (Point = LineA.PointA)) then
+    begin
+      Control := ControlA;
+      AntiControl := ControlB;
+      Line := LineA;
+      NextLine := Point.LineA;
+      AntiLine := LineB;
+      if (not Assigned(NextLine)) then
+        NextPoint := nil
+      else
+        NextPoint := NextLine.PointA;
+    end
+    else
+    begin
+      Control := ControlB;
+      AntiControl := ControlA;
+      Line := LineB;
+      NextLine := Point.LineB;
+      AntiLine := LineA;
+      if (not Assigned(NextLine)) then
+        NextPoint := nil
+      else
+        NextPoint := NextLine.PointB;
+    end;
+
+    // move a point in a different orientation away from a line or from a fixed point
+    if (Assigned(Sender) and (Sender <> Self)
+      and (ControlAlign(Control) in [alTop, alBottom]) and (NewPosition.X < Point.Position.X) and (MoveState = msNormal)
+      and ((ControlAlign(Sender) = alLeft) or (Point.MoveState = msFixed) or (Sender = AntiLine))) then
+    begin
+      CreateSegment(Self, Coord(Point.Position.X, NewPosition.Y), Self, (Line = LineA) and not Assigned(AntiLine));
+      MoveState := msNormal;
+      if (Assigned(AntiLine)) then
+        NewPosition.X := Position.X;
+    end
+    else if (Assigned(Sender) and (Sender <> Self)
+      and (ControlAlign(Control) in [alLeft, alRight]) and (NewPosition.Y < Point.Position.Y) and (MoveState = msNormal)
+      and ((ControlAlign(Sender) = alTop) or (Point.MoveState = msFixed) or (Sender = AntiLine))) then
+    begin
+      CreateSegment(Self, Coord(NewPosition.X, Point.Position.Y), Self, (Line = LineA) and not Assigned(AntiLine));
+      MoveState := msNormal;
+      if (Assigned(AntiLine)) then
+        NewPosition.Y := Position.Y;
+    end
+    else if (Assigned(Sender) and (Sender <> Self)
+      and (ControlAlign(Control) in [alTop, alBottom]) and (NewPosition.X > Point.Position.X) and (MoveState = msNormal)
+      and ((ControlAlign(Sender) = alRight) or (Point.MoveState = msFixed) or (Sender = AntiLine))) then
+    begin
+      CreateSegment(Self, Coord(Point.Position.X, NewPosition.Y), Self, (Line = LineA) and not Assigned(AntiLine));
+      MoveState := msNormal;
+      if (Assigned(AntiLine)) then
+        NewPosition.X := Position.X;
+    end
+    else if (Assigned(Sender) and (Sender <> Self)
+      and (ControlAlign(Control) in [alLeft, alRight]) and (NewPosition.Y > Point.Position.Y) and (MoveState = msNormal)
+      and ((ControlAlign(Sender) = alBottom) or (Point.MoveState = msFixed) or (Sender = AntiLine))) then
+    begin
+      CreateSegment(Self, Coord(NewPosition.X, Point.Position.Y), Self, (Line = LineA) and not Assigned(AntiLine));
+      MoveState := msNormal;
+      if (Assigned(AntiLine)) then
+        NewPosition.Y := Position.Y;
+    end
+
+    // move line away from a moved table
+    else if (Assigned(NextLine) and (Point.MoveState <> msFixed) and
+      ((ControlAlign(Line) = alLeft) and ((NewPosition.X = Point.Position.X) or (NewPosition.X <= Point.Position.X) and ((ControlAlign(AntiControl) = alRight)))
+      or (ControlAlign(Line) = alTop) and ((NewPosition.Y = Point.Position.Y) or (NewPosition.Y <= Point.Position.Y) and ((ControlAlign(AntiControl) = alBottom)))
+      or (ControlAlign(Line) = alRight) and ((NewPosition.X = Point.Position.X) or (NewPosition.X >= Point.Position.X) and ((ControlAlign(AntiControl) = alLeft)))
+      or (ControlAlign(Line) = alBottom) and ((NewPosition.Y = Point.Position.Y) or (NewPosition.Y >= Point.Position.Y) and ((ControlAlign(AntiControl) = alTop))))) then
+      Point.MoveTo(Self, Shift, NewPosition)
+
+    // adjust other end of a line
+    else if ((Sender <> Point) and Assigned(Link.ParentTable) and (Point.MoveState = msNormal)
+      and ((ControlAlign(Line) in [alLeft, alRight]) or (Point.ControlAlign(NextLine) in [alTop, alBottom]) and (Point.Position.Y = Position.Y) and (Point.Position.X = Position.X))) then
+      Point.MoveTo(Self, Shift, Coord(Point.Position.X, NewPosition.Y))
+    else if ((Sender <> Point) and Assigned(Link.ParentTable) and (Point.MoveState = msNormal)
+      and ((ControlAlign(Line) in [alTop, alBottom]) or (Point.ControlAlign(NextLine) in [alLeft, alRight]) and (Point.Position.X = Position.X) and (Point.Position.Y = Position.Y))) then
+      Point.MoveTo(Self, Shift, Coord(NewPosition.X, Point.Position.Y));
+
+    // remove a crushed line
+    if ((Sender <> Self)
+      and Assigned(Link.ParentTable)
+      and Assigned(NextPoint) and (Point.Position.X = NextPoint.Position.X) and (Point.Position.Y = NextPoint.Position.Y)
+      and (MoveState <> msAutomatic)) then
+      FreeSegment(Point, NextLine);
+  end;
+
+var
+  NewPoint: TWLinkPoint;
+  NewPoint2: TWLinkPoint;
+  OrgNewPosition: TCoord;
+  TempOrientation: TWLinkLine.TOrientation;
+begin
+  if (NewPosition <> Position) then
+  begin
+    NewPoint := nil;
+    if ((Sender <> Self) and (MoveState <> msFixed)) then
+    begin
+      OrgNewPosition := NewPosition;
+      Moving(Sender, Shift, NewPosition);
+      if (NewPosition <> OrgNewPosition) then
+        NewPoint := CreateSegment(Sender, OrgNewPosition, Self, Assigned(LineA) and ((Sender = LineA) or (Sender = LineA.PointA)));
+    end;
+
+    // Align "automatic" point
+    if ((Sender = Self) and Assigned(LineA) and Assigned(LineA.PointA.LineA) and (LineA.PointA.MoveState = msAutomatic)) then
+    begin
+      if (ControlAlign(LineB) in [alLeft, alRight]) then
+        TempOrientation := foVertical
+      else if (ControlAlign(LineB) in [alTop, alBottom]) then
+        TempOrientation := foHorizontal
+      else if (Assigned(LineA.PointA.LineA.PointA.LineA)
+        and (LineA.PointA.LineA.PointA.ControlAlign(LineA.PointA.LineA.PointA.LineA) = alLeft)
+        and (NewPosition.X < LineA.PointA.LineA.PointA.Position.X)) then
+        TempOrientation := foHorizontal
+      else if (Assigned(LineA.PointA.LineA.PointA.LineA)
+        and (LineA.PointA.LineA.PointA.ControlAlign(LineA.PointA.LineA.PointA.LineA) = alTop)
+        and (NewPosition.Y < LineA.PointA.LineA.PointA.Position.Y)) then
+        TempOrientation := foVertical
+      else if (Assigned(LineA.PointA.LineA.PointA.LineA)
+        and (LineA.PointA.LineA.PointA.ControlAlign(LineA.PointA.LineA.PointA.LineA) = alRight)
+        and (NewPosition.X > LineA.PointA.LineA.PointA.Position.X)) then
+        TempOrientation := foHorizontal
+      else if (Assigned(LineA.PointA.LineA.PointA.LineA)
+        and (LineA.PointA.LineA.PointA.ControlAlign(LineA.PointA.LineA.PointA.LineA) = alBottom)
+        and (NewPosition.Y > LineA.PointA.LineA.PointA.Position.Y)) then
+        TempOrientation := foVertical
+      else if (Abs(NewPosition.X - LineA.PointA.LineA.PointA.Position.X) >= Abs(NewPosition.Y - LineA.PointA.LineA.PointA.Position.Y)) then
+        TempOrientation := foVertical
+      else
+        TempOrientation := foHorizontal;
+
+      case (TempOrientation) of
+        foHorizontal: LineA.PointA.MoveTo(Self, [], Coord(LineA.PointA.LineA.PointA.Position.X, NewPosition.Y));
+        foVertical: LineA.PointA.MoveTo(Self, [], Coord(NewPosition.X, LineA.PointA.LineA.PointA.Position.Y));
+        else raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Orientation']);
+      end;
+    end
+
+    // build new point while creating a Foreign Key / or while inserting new point manually
+    else if ((Sender = Self) and (Workbench.State <> wsLoading)
+      and ((MoveState = msFixed)
+      or (MoveState = msNormal) and (ssShift in Shift)
+      or (MoveState = msAutomatic) and (Sender = Self) and (ControlAlign(LineA) in [alLeft, alRight]) and ((ControlAlign(LineA) in [alLeft, alTop]) and (NewPosition.X <> Position.X) or (ControlAlign(LineA) in [alTop, alBottom]) and (NewPosition.X <> Position.X)))) then
+    begin
+      if (Abs(NewPosition.X - Position.X) >= Abs(NewPosition.Y - Position.Y)) then
+        NewPoint := CreateSegment(Self, Coord(NewPosition.X, Position.Y), Self, Assigned(Link.ParentTable) and Assigned(LineA) and not Assigned(LineB))
+      else
+        NewPoint := CreateSegment(Self, Coord(Position.X, NewPosition.Y), Self, Assigned(Link.ParentTable) and Assigned(LineA) and not Assigned(LineB));
+      NewPoint.MouseDown(mbLeft, [], (PointSize - 1) div 2, (PointSize - 1) div 2);
+      NewPoint.MoveState := msAutomatic;
+
+      if ((not Assigned(Link.ParentTable) or Assigned(LineB))
+        and ((NewPosition.X <> NewPoint.Position.X) or (NewPosition.Y <> NewPoint.Position.Y))) then
+      begin
+        NewPoint2 := CreateSegment(Self, NewPosition, NewPoint, Assigned(Link.ParentTable) and Assigned(LineA) and not Assigned(LineB));
+        NewPoint2.MouseDown(mbLeft, [], (PointSize - 1) div 2, (PointSize - 1) div 2);
+        NewPosition := Position;
+      end
+      else if (Abs(NewPosition.X - Position.X) >= Abs(NewPosition.Y - Position.Y)) then
+        NewPosition.X := Position.X
+      else
+        NewPosition.Y := Position.Y;
+    end
+
+    // move a point away from a fixed point
+    else if ((Sender = Self) and Assigned(LineA) and (NewPosition.Y <> Position.Y) and (LineA.Orientation = foHorizontal) and (LineA.PointA.MoveState = msFixed)) then
+    begin
+      NewPoint := CreateSegment(Self, Coord(Position.X, NewPosition.Y), Self, False);
+      NewPoint.MouseDown(mbLeft, [], (PointSize - 1) div 2, (PointSize - 1) div 2);
+    end
+    else if ((Sender = Self) and Assigned(LineA) and (NewPosition.X <> Position.X) and (LineA.Orientation = foVertical) and (LineA.PointA.MoveState = msFixed)) then
+    begin
+      NewPoint := CreateSegment(Self, Coord(NewPosition.X, Position.Y), Self, False);
+      NewPoint.MouseDown(mbLeft, [], (PointSize - 1) div 2, (PointSize - 1) div 2);
+    end
+
+    else if (Assigned(LineA) and (Sender <> LineA.PointA) and (Assigned(Sender) or not LineA.PointA.Selected)) then
+      MovePointTo(LineA.PointA);
+
+    if (Assigned(LineB) and (Sender <> LineB.PointB) and (Assigned(Sender) or not LineB.PointB.Selected)) then
+      MovePointTo(LineB.PointB);
+
+    if (Assigned(NewPoint) and (NewPoint.MoveState = msFixed)) then
+      NewPoint.MoveState := msNormal;
+
+    if ((NewPosition.X <> Position.X) or (NewPosition.Y <> Position.Y)) then
+    begin
+      inherited;
+
+      if (Assigned(LineA)) then
+        Workbench.UpdateControl(LineA);
+      if (Assigned(LineB)) then
+        Workbench.UpdateControl(LineB);
+    end;
+  end;
 end;
 
 procedure TWLinkPoint.Moving(const Sender: TWControl; const Shift: TShiftState; var NewPosition: TCoord);
@@ -2286,39 +1957,56 @@ begin
     MovingConnector(Sender, Shift, TableB, NewPosition);
 end;
 
-procedure TWLinkPoint.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
-begin
-  if (not Assigned(Link.ParentTable) and (Link.PointCount > 1)) then
-    TableB := Workbench.TableAt(Coord(Position.X, Position.Y));
+procedure TWLinkPoint.PaintTo(const Canvas: TCanvas; const X, Y: Integer);
 
-  inherited;
-
-  if (not Assigned(Link.ParentTable)) then
+  procedure PaintToControl(const Control: TWControl; const Left, Top: Integer);
   begin
-    MouseDown(Button, Shift, X, Y);
-    MoveState := msFixed;
-    if ((Link.PointCount = 2) and not Assigned(Link.ParentTable) and Assigned(LineA)
-      and (Workbench.TableAt(Position) = Link.ChildTable)) then
-    begin
-      LineA.PointA.MoveState := msFixed;
-      MoveState := msAutomatic;
-    end;
-  end
-  else if (Link = Workbench.CreatedLink) then
-  begin
-    if (not Workbench.OnValidateControl(Workbench, Workbench.CreatedLink)) then
-      FreeAndNil(Workbench.CreatedLink)
-    else if ((Workbench.CreatedLink is TWLink) and not (Workbench.CreatedLink is TWForeignKey)) then
-    begin
-      Workbench.Links.Add(Workbench.CreatedLink);
-      Workbench.CreatedLink := nil;
+    Canvas.MoveTo(Left + Center.X, Top + Center.Y);
+    case (ControlAlign(Control)) of
+      alLeft:   Canvas.LineTo(Left            , Top + Center.Y );
+      alTop:    Canvas.LineTo(Left + Center.X , Top            );
+      alRight:  Canvas.LineTo(Left + Width - 1, Top + Center.Y );
+      alBottom: Canvas.LineTo(Left + Center.X , Top + Height - 1);
     end;
   end;
-end;
 
-procedure TWLinkPoint.PaintTo(const Canvas: TCanvas; const X, Y: Integer);
+var
+  Rect: TRect;
 begin
-  inherited;
+  Rect := ClientRect;
+  OffsetRect(Rect, X, Y);
+
+  if ((MoveState <> msFixed) and ((ControlAlign(LineA) = InvertAlign(ControlAlign(LineB))) and (ControlAlign(LineA) <> alNone)
+    or not Assigned(ControlA) or not Assigned(ControlB)
+    or Assigned(LineA) and (ControlAlign(LineA) = alNone)
+    or Assigned(LineB) and (ControlAlign(LineB) = alNone))) then
+  begin
+    Canvas.Brush.Color := clRed;
+    Canvas.FillRect(Rect);
+  end
+  else if (not Selected) then
+    Canvas.Brush.Color := clWindow
+  else
+  begin
+    Canvas.Brush.Color := clHighlight;
+    Canvas.FillRect(Rect);
+  end;
+
+  if (Selected) then
+    Canvas.Pen.Color := clHighlightText
+  else if (Assigned(Link) and not (Link is TWForeignKey)) then
+    Canvas.Pen.Color := clGrayText
+  else
+    Canvas.Pen.Color := clWindowText;
+
+  SetEndCaps(Canvas.Pen, PS_ENDCAP_SQUARE);
+
+  if (ControlA is TWLinkLine) then
+    PaintToControl(ControlA, Rect.Left, Rect.Top);
+
+  if (ControlB is TWLinkLine) then
+    PaintToControl(ControlB, Rect.Left, Rect.Top);
+
 
   if (Assigned(TableA) and ((MoveState <> msFixed) or Assigned(Link.ParentTable))) then
     case (ControlAlign(TableA)) of
@@ -2377,6 +2065,43 @@ begin
     end;
 end;
 
+procedure TWLinkPoint.SetLineA(ALineA: TWLinkLine);
+begin
+  if (Assigned(LineA)) then
+    LineA.PointB := nil;
+
+  ControlA := ALineA;
+
+  if (Assigned(LineA)) then
+  begin
+    LineA.PointB := Self;
+    if ((Workbench.SelCount = 1) or Link.LinkSelected and (Workbench.SelCount = Link.PointCount * 2 - 1)) then
+      Selected := LineA.PointA.Selected;
+    Workbench.UpdateControl(LineA);
+  end;
+end;
+
+procedure TWLinkPoint.SetLineB(ALineB: TWLinkLine);
+begin
+  if (Assigned(LineB)) then
+    LineB.PointA := nil;
+
+  ControlB := ALineB;
+
+  if (Assigned(LineB)) then
+    LineB.PointA := Self;
+end;
+
+procedure TWLinkPoint.SetSelected(ASelected: Boolean);
+begin
+  inherited;
+
+  if (Assigned(LineA) and (LineA.PointA.Selected = Selected) and (LineA.Selected <> Selected)) then
+    LineA.Selected := Selected;
+  if (Assigned(LineB) and (LineB.PointB.Selected = Selected) and (LineB.Selected <> Selected)) then
+    LineB.Selected := Selected;
+end;
+
 procedure TWLinkPoint.SetTableA(ATableA: TWTable);
 begin
   if (ControlA is TWTable) then
@@ -2399,7 +2124,7 @@ begin
     TableB.RegisterLinkPoint(Self);
 end;
 
-{ TWLinkLine ************************************************************}
+{ TWLinkLine ******************************************************************}
 
 procedure TWLinkLine.ApplyPosition();
 begin
@@ -2422,12 +2147,207 @@ begin
     end;
 end;
 
+constructor TWLinkLine.Create(const AWorkbench: TWWorkbench; const APointA, APointB: TWLinkPoint);
+begin
+  Assert(Assigned(APointA) and Assigned(APointB));
+
+  inherited Create(AWorkbench, APointA.Position);
+  Parent := AWorkbench;
+
+  FWorkbench := AWorkbench;
+  FPointA := APointA;
+  FPointB := APointB;
+
+  FPointA.ControlB := Self;
+  FPointB.ControlA := Self;
+
+  Canvas.Pen.Width := LineWidth;
+
+  if (Assigned(PointA)) then
+    FSelected := PointA.Selected;
+
+  Workbench.UpdateControl(Self);
+end;
+
+destructor TWLinkLine.Destroy();
+begin
+  if (Assigned(PointB)) then
+    PointB.Free();
+  if (Assigned(PointA)) then
+    PointA.ControlB := nil;
+
+  inherited;
+end;
+
+function TWLinkLine.GetLength(): Integer;
+begin
+  Result := Max(Abs(PointA.Position.X - PointB.Position.X), Abs(PointA.Position.Y - PointB.Position.Y));
+end;
+
 function TWLinkLine.GetLink(): TWLink;
 begin
-  if (not (PointA is TWLinkPoint)) then
+  if (not Assigned(PointA)) then
     raise Exception.Create('No PointA')
   else
-    Result := TWLinkPoint(PointA).Link;
+    Result := PointA.Link;
+end;
+
+function TWLinkLine.GetOrientation(): TOrientation;
+begin
+  if (Assigned(PointA) and Assigned(PointB)) then
+    if ((PointA.Position.X = PointB.Position.X) and (PointA.Position.Y = PointB.Position.Y)) then
+      FOrientation := foNone
+    else if (PointA.Position.Y = PointB.Position.Y) then
+      FOrientation := foHorizontal
+    else if (PointA.Position.X = PointB.Position.X) then
+      FOrientation := foVertical
+    else
+      FOrientation := foNone;
+
+  Result := FOrientation;
+end;
+
+procedure TWLinkLine.MouseMove(Shift: TShiftState; X, Y: Integer);
+var
+  DiffPoint: TPoint;
+  NewPosition: TCoord;
+  NewPoint: TWLinkPoint;
+  PointANewPosition: TCoord;
+begin
+  if (Workbench.State in [wsCreateLink, wsCreateForeignKey, wsCreateSection]) then
+    Cursor := crNo
+  else if (Orientation = foHorizontal) then
+    Cursor := crSizeNS
+  else if (Orientation = foVertical) then
+    Cursor := crSizeWE
+  else
+    Cursor := crDefault;
+
+  if (not (ssLeft in Shift)) then
+    inherited
+  else
+  begin
+    DiffPoint := Point(
+      Workbench.HorzScrollBar.Position + Left + X - MouseDownPoint.X,
+      Workbench.VertScrollBar.Position + Top + Y - MouseDownPoint.Y);
+    PointANewPosition := Coord(
+      MouseDownPosition.X + DiffPoint.X,
+      MouseDownPosition.Y + DiffPoint.Y);
+
+    if (PointANewPosition.X < 0) then
+      PointANewPosition.X := 0;
+    if (PointANewPosition.Y < 0) then
+      PointANewPosition.Y := 0;
+
+    if ((ssShift in Shift) and Assigned(PointA)) then
+    begin
+      if ((Orientation = foHorizontal) and (PointANewPosition.Y <> PointA.Position.Y)
+        or (Orientation = foVertical) and (PointANewPosition.X <> PointA.Position.X)) then
+      begin
+        MouseCapture := False;
+
+        NewPosition := Workbench.Position(Left + X, Top + Y);
+
+        PointA.MoveState := msFixed;
+        if (Orientation = foHorizontal) then
+          NewPoint := CreateSegment(Self, Coord(NewPosition.X, PointA.Position.Y), PointA, False)
+        else
+          NewPoint := CreateSegment(Self, Coord(PointA.Position.X, NewPosition.Y), PointA, False);
+        NewPoint.MoveState := msAutomatic;
+        NewPoint := CreateSegment(Self, NewPosition, NewPoint, False);
+        NewPoint.MouseDown(mbLeft, [], (PointSize - 1) div 2, (PointSize - 1) div 2);
+      end;
+    end
+    else if ((Self is TWLinkLine) and (Workbench.SelCount <> TWLinkLine(Self).Link.PointCount * 2 - 1) and (Workbench.Links.SelCount <> 1)) then
+      PointA.Move(Self, Shift, PointANewPosition)
+    else
+      case (Orientation) of
+        foHorizontal:
+          PointA.MoveTo(Self, Shift, Coord(PointA.Position.X, PointANewPosition.Y));
+        foVertical:
+          PointA.MoveTo(Self, Shift, Coord(PointANewPosition.X, PointA.Position.Y));
+      end;
+  end;
+
+  Workbench.CursorMove(Workbench.HorzScrollBar.Position + Left + X, Workbench.VertScrollBar.Position + Top + Y);
+end;
+
+procedure TWLinkLine.PaintTo(const Canvas: TCanvas; const X, Y: Integer);
+var
+  Rect: TRect;
+begin
+  Rect := GetClientRect();
+  OffsetRect(Rect, X, Y);
+
+  if (Selected) then
+  begin
+    Canvas.Pen.Color := clWindow;
+    Canvas.Brush.Color := clHighlight;
+    Canvas.FillRect(Rect);
+  end
+  else if ((Self is TWLinkLine) and not (TWLinkLine(Self).Link is TWForeignKey)) then
+  begin
+    Canvas.Pen.Color := clGrayText;
+    Canvas.Brush.Color := clWindow;
+  end
+  else
+  begin
+    Canvas.Pen.Color := clWindowText;
+    Canvas.Brush.Color := clWindow;
+  end;
+
+  SetEndCaps(Canvas.Pen, PS_ENDCAP_SQUARE);
+
+  case (Orientation) of
+    foHorizontal:
+      begin
+        Canvas.MoveTo(Rect.Left +     0, Rect.Top + Height div 2);
+        Canvas.LineTo(Rect.Left + Width, Rect.Top + Height div 2);
+      end;
+    foVertical:
+      begin
+        Canvas.MoveTo(Rect.Left + Width div 2, Rect.Top +      0);
+        Canvas.LineTo(Rect.Left + Width div 2, Rect.Top + Height);
+      end;
+  end;
+end;
+
+procedure TWLinkLine.SetPointA(APointA: TWLinkPoint);
+begin
+  if (Assigned(PointA)) then
+    PointA.ControlB := nil;
+
+  FPointA := APointA;
+
+  if (Assigned(PointA)) then
+  begin
+    Workbench.UpdateControl(PointA);
+    Workbench.UpdateControl(Self);
+  end;
+end;
+
+procedure TWLinkLine.SetPointB(APointB: TWLinkPoint);
+begin
+  if (Assigned(PointB)) then
+    PointB.ControlA := nil;
+
+  FPointB := APointB;
+
+  if (Assigned(PointB)) then
+  begin
+    Workbench.UpdateControl(PointB);
+    Workbench.UpdateControl(Self);
+  end;
+end;
+
+procedure TWLinkLine.SetSelected(ASelected: Boolean);
+begin
+  inherited;
+
+  if (Assigned(PointA) and (PointA.Selected <> Selected)) then
+    PointA.Selected := FSelected;
+  if (Assigned(PointB) and (PointB.Selected <> Selected)) then
+    PointB.Selected := FSelected;
 end;
 
 { TWLink ****************************************************************}
@@ -2450,8 +2370,8 @@ procedure TWLink.Cleanup(const Sender: TWControl);
 
   procedure FixPointAlign(const Point: TWLinkPoint; const Table: TWTable);
   var
-    Line: TWLine;
-    LinePoint: TWPoint;
+    Line: TWLinkLine;
+    LinePoint: TWLinkPoint;
     NewPosition: TCoord;
   begin
     if (Table = Point.TableA) then
@@ -2491,10 +2411,10 @@ begin
     Points[I].MouseDownPoint := Types.Point(-1, -1);
   end;
 
-  Point := TWLinkPoint(LastPoint);
+  Point := LastPoint;
   while (Assigned(Point) and (Point <> Self)) do
   begin
-    NextPoint := TWLinkPoint(Point.LineA.PointA);
+    NextPoint := Point.LineA.PointA;
 
     if ((Workbench.TableAt(NextPoint.Position) = ParentTable)
       and (Assigned(ParentTable) and (ParentTable <> ChildTable))) then
@@ -2514,16 +2434,16 @@ begin
         FreeSegment(Point.LineA.PointA, Point.LineA);
     end;
 
-    if (not Assigned(Point.LineA) or not (Point.LineA.PointA is TWLinkPoint)) then
+    if (not Assigned(Point.LineA)) then
       Point := nil
     else
-      Point := TWLinkPoint(Point.LineA.PointA);
+      Point := Point.LineA.PointA;
   end;
 
   Point := Self;
   while (Assigned(Point) and (Point <> LastPoint)) do
   begin
-    NextPoint := TWLinkPoint(Point.LineB.PointB);
+    NextPoint := Point.LineB.PointB;
 
     if ((Workbench.TableAt(NextPoint.Position) = ChildTable)
       and (Assigned(ParentTable) and (ParentTable <> ChildTable) or (Point.Index > 2))) then
@@ -2541,17 +2461,17 @@ begin
         FreeSegment(Point.LineB.PointB, Point.LineB);
     end;
 
-    if (not Assigned(Point.LineB) or not (Point.LineB.PointB is TWLinkPoint)) then
+    if (not Assigned(Point.LineB)) then
       Point := nil
     else
-      Point := TWLinkPoint(Point.LineB.PointB);
+      Point := Point.LineB.PointB;
   end;
 
   Point := Self;
   repeat
-    if (Assigned(Point.LineB) and (Point.LineB.PointB is TWLinkPoint)) then
+    if (Assigned(Point.LineB) and Assigned(Point.LineB.PointB)) then
     begin
-      NextPoint := TWLinkPoint(Point.LineB.PointB);
+      NextPoint := Point.LineB.PointB;
 
       if ((NextPoint.ControlAlign(NextPoint.LineA) = InvertAlign(NextPoint.ControlAlign(NextPoint.LineB)))
         or (NextPoint.Position.X = Point.Position.X) and (NextPoint.Position.Y = Point.Position.Y)
@@ -2570,16 +2490,16 @@ begin
       end;
     end;
 
-    if (not Assigned(Point.LineB) or not (Point.LineB.PointB is TWLinkPoint)) then
+    if (not Assigned(Point.LineB) or not Assigned(Point.LineB.PointB)) then
       Point := nil
     else
-      Point := TWLinkPoint(Point.LineB.PointB);
+      Point := Point.LineB.PointB;
   until (not Assigned(Point));
 
   if (Assigned(Self.TableA) and Assigned(Self.LineB)) then
     FixPointAlign(Self, Self.TableA);
-  if ((LastPoint is TWLinkPoint) and Assigned(TWLinkPoint(LastPoint).TableB) and Assigned(LastPoint.LineA)) then
-    FixPointAlign(TWLinkPoint(LastPoint), TWLinkPoint(LastPoint).TableB);
+  if (Assigned(LastPoint) and Assigned(LastPoint.TableB) and Assigned(LastPoint.LineA)) then
+    FixPointAlign(LastPoint, LastPoint.TableB);
 
   for I := 1 to PointCount - 1 do
   begin
@@ -2593,11 +2513,11 @@ begin
     Points[I].Hint := Caption;
   end;
 
-  if ((LastPoint is TWLinkPoint) and not Assigned(TWLinkPoint(LastPoint).Link)) then
+  if (Assigned(LastPoint) and not Assigned(LastPoint.Link)) then
     raise Exception.Create('Unknown Link');
 end;
 
-constructor TWLink.Create(const AWorkbench: TWWorkbench; const APosition: TCoord; const PreviousPoint: TWPoint = nil);
+constructor TWLink.Create(const AWorkbench: TWWorkbench; const APosition: TCoord; const PreviousPoint: TWLinkPoint = nil);
 begin
   inherited;
 
@@ -2606,7 +2526,7 @@ end;
 
 destructor TWLink.Destroy();
 var
-  Point: TWPoint;
+  Point: TWLinkPoint;
 begin
   Point := LastPoint;
   while (Assigned(Point) and Assigned(Point.LineA)) do
@@ -2640,15 +2560,15 @@ begin
   Result := Self;
   for I := 0 to Index - 1 do
     if (Assigned(Result)) then
-      if (not Assigned(Result.LineB) or not (Result.LineB.PointB is TWLinkPoint)) then
+      if (not Assigned(Result.LineB)) then
         Result := nil
       else
-        Result := TWLinkPoint(Result.LineB.PointB);
+        Result := Result.LineB.PointB;
 end;
 
 function TWLink.GetPointCount(): Integer;
 var
-  Point: TWPoint;
+  Point: TWLinkPoint;
 begin
   Result := 1;
 
@@ -2666,10 +2586,10 @@ begin
   case (Index) of
     0: Result := TableA;
     1:
-      if (LastPoint is TWLinkPoint) then
-        Result := TWLinkPoint(LastPoint).TableB
+      if (not Assigned(LastPoint)) then
+        Result := nil
       else
-        Result := nil;
+        Result := LastPoint.TableB;
     else raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Index']);
   end;
 end;
@@ -2794,12 +2714,12 @@ begin
   end;
 
   XMLNode(XML, 'tables/parent').Attributes['name'] := ParentTable.Caption;
-  XMLNode(XML, 'tables/parent/align').Text := AlignToStr(InvertAlign(LastPoint.ControlAlign(TWLinkPoint(LastPoint).TableB)));
-  case (InvertAlign(LastPoint.ControlAlign(TWLinkPoint(LastPoint).TableB))) of
+  XMLNode(XML, 'tables/parent/align').Text := AlignToStr(InvertAlign(LastPoint.ControlAlign(LastPoint.TableB)));
+  case (InvertAlign(LastPoint.ControlAlign(LastPoint.TableB))) of
     alLeft, alRight:
-      XMLNode(XML, 'tables/parent/position').Text := IntToStr(LastPoint.Position.Y - TWLinkPoint(LastPoint).TableB.Position.Y);
+      XMLNode(XML, 'tables/parent/position').Text := IntToStr(LastPoint.Position.Y - LastPoint.TableB.Position.Y);
     alTop, alBottom:
-      XMLNode(XML, 'tables/parent/position').Text := IntToStr(LastPoint.Position.X - TWLinkPoint(LastPoint).TableB.Position.X);
+      XMLNode(XML, 'tables/parent/position').Text := IntToStr(LastPoint.Position.X - LastPoint.TableB.Position.X);
   end;
 
   PointsNode := XMLNode(XML, 'points');
@@ -2857,7 +2777,7 @@ begin
       end;
     1:
       begin
-        if (Assigned(ATable) and (LastPoint is TWLinkPoint)) then
+        if (Assigned(ATable) and Assigned(LastPoint)) then
         begin
           if (ChildTable = ATable) then
           begin
@@ -2874,7 +2794,7 @@ begin
             LastPoint.MoveState := msFixed;
             LastPoint.MoveTo(Self, [], Coord(ATable.Position.X + (ATable.Area.Right - ATable.Area.Left) div 2, ATable.Position.Y + (ATable.Area.Bottom - ATable.Area.Top) div 2));
           end;
-          TWLinkPoint(LastPoint).TableB := ATable;
+          LastPoint.TableB := ATable;
         end;
       end;
     else raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Index']);
@@ -2887,7 +2807,7 @@ end;
 
 { TWForeignKey ****************************************************************}
 
-constructor TWForeignKey.Create(const AWorkbench: TWWorkbench; const APosition: TCoord; const PreviousPoint: TWPoint = nil);
+constructor TWForeignKey.Create(const AWorkbench: TWWorkbench; const APosition: TCoord; const PreviousPoint: TWLinkPoint = nil);
 begin
   inherited;
 
@@ -3217,8 +3137,8 @@ begin
       TWSection(Workbench.Controls[I]).Selected := PtInRect(LassoRect, TWSection(Workbench.Controls[I]).Area.TopLeft) and PtInRect(LassoRect, TWSection(Workbench.Controls[I]).Area.BottomRight)
     else if (Workbench.Controls[I] is TWArea) then
       TWArea(Workbench.Controls[I]).Selected := IntersectRect(R, LassoRect, TWArea(Workbench.Controls[I]).Area)
-    else if (Workbench.Controls[I] is TWPoint) then
-      TWPoint(Workbench.Controls[I]).Selected := CoordInArea(TWPoint(Workbench.Controls[I]).Position, LassoRect);
+    else if (Workbench.Controls[I] is TWLinkPoint) then
+      TWLinkPoint(Workbench.Controls[I]).Selected := CoordInArea(TWLinkPoint(Workbench.Controls[I]).Position, LassoRect);
 
   BringToFront();
 
@@ -3538,7 +3458,7 @@ procedure TWWorkbench.KeyPress(var Key: Char);
 begin
   if ((Key = Chr(VK_ESCAPE)) and Assigned(Lasso)) then
     Perform(CM_ENDLASSO, 0, 0)
-  else if ((Key = Chr(VK_ESCAPE)) and (Selected is TWLinkPoint) and Assigned(CreatedLink)) then
+  else if ((Key = Chr(VK_ESCAPE)) and Assigned(Selected) and Assigned(CreatedLink)) then
     FreeAndNil(CreatedLink)
   else if ((Key = Chr(VK_ESCAPE)) and (Selected is TWSection) and (TWSection(Selected).ResizeMode = rmCreate)) then
     Sections.Delete(Sections.IndexOf(Selected))
@@ -3912,8 +3832,8 @@ begin
 
   if (ASelected is TWLinkPoint) then
     FSelected := TWLinkPoint(ASelected).Link
-  else if ((ASelected is TWLinkLine) and (TWLinkLine(ASelected).PointA is TWLinkPoint)) then
-    FSelected := TWLinkPoint(TWLinkLine(ASelected).PointA).Link
+  else if ((ASelected is TWLinkLine) and Assigned(TWLinkLine(ASelected).PointA)) then
+    FSelected := TWLinkLine(ASelected).PointA.Link
   else if (not (ASelected is TWLasso)) then
     FSelected := ASelected;
 
@@ -4018,7 +3938,14 @@ end;
 
 end.
 
-Aufräumen:
-- TWLine und TWLinkLine zusammenziehen?
-- TWPoint und TWLinkPoint zusammenziehen?
-- Alte Diagram.xml automatisch Punkte entfernen
+
+   X
+  XXX
+  XXX
+ X X X
+ X X X
+X  X  X
+X  X  X
+   X
+   X
+   XXXX
