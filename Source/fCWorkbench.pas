@@ -11,15 +11,11 @@ const
   CM_ENDLASSO = WM_USER + 400;
 
 type
-  TWPoint = class;
   TWLine = class;
-  TWTable = class;
-  TWTables = class;
   TWLinkPoint = class;
+  TWLinkLine = class;
   TWLink = class;
-  TWForeignKey = class;
-  TWLinks = class;
-  TWSection = class;
+  TWTables = class;
   TWWorkbench = class;
 
   TCoord = TPoint;
@@ -408,15 +404,11 @@ uses
   fPreferences;
 
 const
-  BorderSize = 1;
-  LineWidth = 2; // nur ungerade Werte
+  BorderWidth = 1;
+  LineWidth = 1;
   ConnectorSize = LineWidth + 6; // nur gerade Werte
-  PointSize = LineWidth + 2; // nur gerade Werte
+  PointSize = 3 * LineWidth;
   Padding = 2;
-
-  PaintLines = True;
-  PaintPoints = True;
-  PaintLinkPoints = True;
 
 function TryStrToAlign(const Str: string; var Align: TAlign): Boolean;
 begin
@@ -528,7 +520,7 @@ begin
   Result := PtInRect(Rect(Area.Left, Area.Top, Area.Right, Area.Bottom), Point(Position.X, Position.Y));
 end;
 
-procedure ChangePen(const Pen: TPen); inline;
+procedure SetEndCaps(const Pen: TPen; const EndCap: DWord); inline;
 var
   LogBrush: TLogBrush;
 begin
@@ -554,6 +546,8 @@ end;
 
 constructor TWControls.Create(const AWorkbench: TWWorkbench);
 begin
+  Assert(Assigned(AWorkbench));
+
   inherited Create();
 
   FWorkbench := AWorkbench;
@@ -591,6 +585,8 @@ end;
 
 constructor TWControl.Create(const AWorkbench: TWWorkbench; const APosition: TCoord);
 begin
+  Assert(Assigned(AWorkbench));
+
   inherited Create(AWorkbench);
   Parent := AWorkbench;
 
@@ -730,11 +726,11 @@ begin
           rmNW, rmW, rmSW:
             begin
               X := Max(X, MouseDownPoint.X - MouseDownPosition.X);
-              X := Min(X, MouseDownPosition.X + TWArea(Self).MouseDownSize.cx + (MouseDownPoint.X - MouseDownPosition.X) - 2 * (BorderSize + Padding));
+              X := Min(X, MouseDownPosition.X + TWArea(Self).MouseDownSize.cx + (MouseDownPoint.X - MouseDownPosition.X) - 2 * (BorderWidth + Padding));
             end;
           rmNE, rmE, rmSE:
             begin
-              X := Max(X, MouseDownPosition.X + 2 * (BorderSize + Padding) - (MouseDownPosition.X + TWArea(Self).MouseDownSize.cx - MouseDownPoint.X));
+              X := Max(X, MouseDownPosition.X + 2 * (BorderWidth + Padding) - (MouseDownPosition.X + TWArea(Self).MouseDownSize.cx - MouseDownPoint.X));
               X := Min(X, Max(Workbench.HorzScrollBar.Position + Workbench.ClientWidth, Workbench.HorzScrollBar.Range) - (MouseDownPosition.X + TWArea(Self).MouseDownSize.cx - MouseDownPoint.X));
             end;
         end;
@@ -772,11 +768,11 @@ begin
           rmNW, rmN, rmNE:
             begin
               Y := Max(Y, MouseDownPoint.Y - MouseDownPosition.Y);
-              Y := Min(Y, MouseDownPosition.Y + TWArea(Self).MouseDownSize.cy + (MouseDownPoint.Y - MouseDownPosition.Y) - 2 * (BorderSize + Padding));
+              Y := Min(Y, MouseDownPosition.Y + TWArea(Self).MouseDownSize.cy + (MouseDownPoint.Y - MouseDownPosition.Y) - 2 * (BorderWidth + Padding));
             end;
           rmSW, rmS, rmSE:
             begin
-              Y := Max(Y, MouseDownPosition.Y + 2 * (BorderSize + Padding) - (MouseDownPosition.Y + TWArea(Self).MouseDownSize.cy - MouseDownPoint.Y));
+              Y := Max(Y, MouseDownPosition.Y + 2 * (BorderWidth + Padding) - (MouseDownPosition.Y + TWArea(Self).MouseDownSize.cy - MouseDownPoint.Y));
               Y := Min(Y, Max(Workbench.VertScrollBar.Position + Workbench.ClientHeight, Workbench.VertScrollBar.Range) - (MouseDownPosition.Y + TWArea(Self).MouseDownSize.cy - MouseDownPoint.Y));
             end;
         end;
@@ -928,10 +924,13 @@ procedure TWControl.MoveTo(const Sender: TWControl; const Shift: TShiftState; Ne
 begin
   FPosition := NewPosition;
 
-  Workbench.UpdateControl(Self);
+  if ((Position.X >= 0) or (Position.Y >= 0)) then
+  begin
+    Workbench.UpdateControl(Self);
 
-  if (Workbench.State <> wsLoading) then
-    Workbench.FModified := True;
+    if (Workbench.State <> wsLoading) then
+      Workbench.FModified := True;
+  end;
 end;
 
 procedure TWControl.Moving(const Sender: TWControl; const Shift: TShiftState; var NewPosition: TCoord);
@@ -988,12 +987,19 @@ end;
 
 procedure TWArea.ApplyPosition();
 begin
-  SetBounds(
-    Position.X - Workbench.HorzScrollBar.Position,
-    Position.Y - Workbench.VertScrollBar.Position,
-    Size.cx,
-    Size.cy
-  );
+  if ((Position.X >= 0) or (Position.Y >= 0)) then
+    SetBounds(
+      Position.X + (BorderWidth + 1) mod 2 - Workbench.HorzScrollBar.Position,
+      Position.Y + (BorderWidth + 1) mod 2 - Workbench.VertScrollBar.Position,
+      Size.cx,
+      Size.cy
+    );
+//  SetBounds(
+//    Position.X - Workbench.HorzScrollBar.Position,
+//    Position.Y - Workbench.VertScrollBar.Position,
+//    Size.cx,
+//    Size.cy
+//  );
 end;
 
 constructor TWArea.Create(const AWorkbench: TWWorkbench; const APosition: TCoord);
@@ -1109,8 +1115,8 @@ begin
     PointSize,
     PointSize);
 
-  Center.X := (PointSize - 1) div 2;
-  Center.Y := (PointSize - 1) div 2;
+  Center.X := PointSize div 2;
+  Center.Y := PointSize div 2;
 end;
 
 function TWPoint.ControlAlign(const Control: TWControl): TAlign;
@@ -1453,19 +1459,19 @@ procedure TWPoint.PaintTo(const Canvas: TCanvas; const X, Y: Integer);
   begin
     Canvas.MoveTo(Left + Center.X, Top + Center.Y);
     case (ControlAlign(Control)) of
-      alLeft:   Canvas.LineTo(Left           , Top + Center.Y);
-      alTop:    Canvas.LineTo(Left + Center.X, Top           );
-      alRight:  Canvas.LineTo(Left + Width   , Top + Center.Y);
-      alBottom: Canvas.LineTo(Left + Center.X, Top + Height  );
+      alLeft:   Canvas.LineTo(Left            , Top + Center.Y );
+      alTop:    Canvas.LineTo(Left + Center.X , Top            );
+      alRight:  Canvas.LineTo(Left + Width - 1, Top + Center.Y );
+      alBottom: Canvas.LineTo(Left + Center.X , Top + Height - 1);
     end;
   end;
 
 var
   Rect: TRect;
 begin
-  if (not PaintPoints) then Exit;
+  Assert(Self is TWLinkPoint);
 
-  Rect := GetClientRect();
+  Rect := ClientRect;
   OffsetRect(Rect, X, Y);
 
   if ((MoveState <> msFixed) and ((ControlAlign(LineA) = InvertAlign(ControlAlign(LineB))) and (ControlAlign(LineA) <> alNone)
@@ -1491,16 +1497,13 @@ begin
   else
     Canvas.Pen.Color := clWindowText;
 
-  ChangePen(Canvas.Pen);
+  SetEndCaps(Canvas.Pen, PS_ENDCAP_SQUARE);
 
-Canvas.Brush.Color := clGreen;
-Canvas.FillRect(ClientRect);
+  if (ControlA is TWLinkLine) then
+    PaintToControl(ControlA, Rect.Left, Rect.Top);
 
-//  if (ControlA is TWLine) then
-//    PaintToControl(ControlA, Rect.Left, Rect.Top);
-//
-//  if (ControlB is TWLine) then
-//    PaintToControl(ControlB, Rect.Left, Rect.Top);
+  if (ControlB is TWLinkLine) then
+    PaintToControl(ControlB, Rect.Left, Rect.Top);
 end;
 
 procedure TWPoint.SetLineA(ALineA: TWLine);
@@ -1565,6 +1568,8 @@ end;
 
 constructor TWLine.Create(const AWorkbench: TWWorkbench; const APointA, APointB: TWPoint);
 begin
+  Assert(Assigned(APointA) and Assigned(APointB));
+
   inherited Create(AWorkbench, APointA.Position);
   Parent := AWorkbench;
 
@@ -1682,8 +1687,6 @@ procedure TWLine.PaintTo(const Canvas: TCanvas; const X, Y: Integer);
 var
   Rect: TRect;
 begin
-  if (not PaintLines) then Exit;
-
   Rect := GetClientRect();
   OffsetRect(Rect, X, Y);
 
@@ -1704,21 +1707,20 @@ begin
     Canvas.Brush.Color := clWindow;
   end;
 
-Canvas.Brush.Color := clRed;
-Canvas.FillRect(ClientRect);
+  SetEndCaps(Canvas.Pen, PS_ENDCAP_SQUARE);
 
-//  case (Orientation) of
-//    foHorizontal:
-//      begin
-//        Canvas.MoveTo(Rect.Left        , Rect.Top + (Height - 1) div 2);
-//        Canvas.LineTo(Rect.Left + Width + 1, Rect.Top + (Height - 1) div 2);
-//      end;
-//    foVertical:
-//      begin
-//        Canvas.MoveTo(Rect.Left + (Width - 1) div 2, Rect.Top +      0);
-//        Canvas.LineTo(Rect.Left + (Width - 1) div 2, Rect.Top + Height);
-//      end;
-//  end;
+  case (Orientation) of
+    foHorizontal:
+      begin
+        Canvas.MoveTo(Rect.Left +     0, Rect.Top + Height div 2);
+        Canvas.LineTo(Rect.Left + Width, Rect.Top + Height div 2);
+      end;
+    foVertical:
+      begin
+        Canvas.MoveTo(Rect.Left + Width div 2, Rect.Top +      0);
+        Canvas.LineTo(Rect.Left + Width div 2, Rect.Top + Height);
+      end;
+  end;
 end;
 
 procedure TWLine.SetPointA(APointA: TWPoint);
@@ -1789,9 +1791,9 @@ begin
       NewWidth := Max(NewWidth, Canvas.TextWidth(BaseTable.Fields[I].Name));
     end;
 
-    Inc(NewWidth, 2 * BorderSize + 2 * (Width - ClientWidth + Padding));
+    Inc(NewWidth, 2 * BorderWidth + 2 * (Width - ClientWidth + Padding));
 
-    NewHeight := 3 * BorderSize + (1 + BaseTable.Fields.Count) * -Canvas.Font.Height + (4 + BaseTable.Fields.Count) * Padding;
+    NewHeight := 3 * BorderWidth + (1 + BaseTable.Fields.Count) * -Canvas.Font.Height + (4 + BaseTable.Fields.Count) * Padding;
   end;
 end;
 
@@ -1801,15 +1803,14 @@ begin
 
   FBaseTable := ABaseTable;
 
-  if (Assigned(BaseTable)) then
-
-  Hint := BaseTable.Comment;
-
   FDoubleBuffered := True;
   SetLength(FLinkPoints, 0);
 
   Canvas.Font := Font;
   Canvas.Font.Color := Font.Color;
+
+  if (Assigned(BaseTable)) then
+    Hint := BaseTable.Comment;
 end;
 
 destructor TWTable.Destroy();
@@ -1935,38 +1936,35 @@ var
   I: Integer;
   Rect: TRect;
 begin
-  Rect := ClientRect;
-  OffsetRect(Rect, X, Y);
+  Canvas.Pen.Width := BorderWidth;
+  Canvas.Pen.Color := clWindowText;
+  Canvas.Pen.Style := psSolid;
+  Canvas.Brush.Style := bsSolid;
 
   if (not Selected) then
   begin
     Canvas.Font.Color := clWindowText;
-
-    Canvas.Pen.Color := clWindowText;
-    Canvas.Pen.Style := psSolid;
     Canvas.Brush.Color := clWindow;
-    Canvas.Brush.Style := bsSolid;
   end
-  else if (not Workbench.Focused() and Workbench.HideSelection) then
+  else if (Workbench.Focused() or not Workbench.HideSelection) then
   begin
     Canvas.Font.Color := clWindowText;
-
-    Canvas.Pen.Color := clWindowText;
-    Canvas.Pen.Style := psSolid;
     Canvas.Brush.Color := clBtnFace;
-    Canvas.Brush.Style := bsSolid;
   end
   else
   begin
     Canvas.Font.Color := clHighlightText;
-
-    Canvas.Pen.Color := clWindowText;
-    Canvas.Pen.Style := psSolid;
     Canvas.Brush.Color := clHighlight;
-    Canvas.Brush.Style := bsSolid;
   end;
 
+  Rect := ClientRect;
+  OffsetRect(Rect, X, Y);
+  Rect.Left := Rect.Left + BorderWidth div 2;
+  Rect.Top := Rect.Top + BorderWidth div 2;
+  Rect.Right := Rect.Right - BorderWidth div 2 + (BorderWidth + 1) mod 2;
+  Rect.Bottom := Rect.Bottom - BorderWidth div 2 + (BorderWidth + 1) mod 2;
   Canvas.Rectangle(Rect);
+
 
   if (Workbench.Focused() and Focused) then
   begin
@@ -1980,23 +1978,26 @@ begin
     Canvas.Pen.Mode := pmCopy;
   end;
 
-  Canvas.Brush.Style := bsClear;
+  Rect := ClientRect;
+  OffsetRect(Rect, X, Y);
 
   Canvas.Pen.Color := Canvas.Font.Color;
   Canvas.Pen.Style := psSolid;
-  for I := 0 to BorderSize - 1 do
-  begin
-    Canvas.MoveTo(Rect.Left + BorderSize, Rect.Top + BorderSize + 2 * Padding + -Canvas.Font.Height + I);
-    Canvas.LineTo(Rect.Left + ClientWidth - BorderSize, Rect.Top + BorderSize + 2 * Padding + -Canvas.Font.Height + I);
-  end;
+  Canvas.Brush.Style := bsClear;
+  SetEndCaps(Canvas.Pen, PS_ENDCAP_FLAT);
+  Canvas.MoveTo(Rect.Left, Rect.Top + BorderWidth + 2 * Padding + -Canvas.Font.Height + BorderWidth div 2);
+  Canvas.LineTo(Rect.Right, Rect.Top + BorderWidth + 2 * Padding + -Canvas.Font.Height + BorderWidth div 2);
 
-  Inc(Rect.Left, BorderSize + Padding); Dec(Rect.Right, BorderSize - 1 + Padding);
-  Inc(Rect.Top, BorderSize - 1 + Padding); Dec(Rect.Bottom, BorderSize - 1 + Padding);
+
+  Rect := ClientRect;
+  OffsetRect(Rect, X, Y);
+  Inc(Rect.Left, BorderWidth + Padding); Dec(Rect.Right, BorderWidth - 1 + Padding);
+  Inc(Rect.Top, BorderWidth - 1 + Padding); Dec(Rect.Bottom, BorderWidth - 1 + Padding);
 
   Flags := DrawTextBiDiModeFlags(DT_CENTER) + DT_NOPREFIX;
   Canvas.Font.Style := [fsBold];
   DrawText(Canvas.Handle, PChar(Caption), -1, Rect, Flags);
-  Inc(Rect.Top, 2 * BorderSize + 2 * Padding + -Canvas.Font.Height);
+  Inc(Rect.Top, BorderWidth + 1 + 2 * Padding + -Canvas.Font.Height);
 
   Flags := DrawTextBiDiModeFlags(0) + DT_NOPREFIX;
 
@@ -2077,15 +2078,15 @@ var
   Node: IXMLNode;
 begin
   for I := XML.ChildNodes.Count - 1 downto 0 do
-    if (XML.ChildNodes.Nodes[I].NodeName = 'table') and not Assigned(Workbench.TableByCaption(XML.ChildNodes.Nodes[I].Attributes['name'])) then
+    if (XML.ChildNodes[I].NodeName = 'table') and not Assigned(Workbench.TableByCaption(XML.ChildNodes[I].Attributes['name'])) then
       XML.ChildNodes.Delete(I);
 
   for I := 0 to Count - 1 do
   begin
     Node := nil;
     for J := 0 to XML.ChildNodes.Count - 1 do
-      if ((XML.ChildNodes.Nodes[J].NodeName = 'table') and (Workbench.TableByCaption(XML.ChildNodes.Nodes[J].Attributes['name']) = Table[I])) then
-        Node := XML.ChildNodes.Nodes[J];
+      if ((XML.ChildNodes[J].NodeName = 'table') and (Workbench.TableByCaption(XML.ChildNodes[J].Attributes['name']) = Table[I])) then
+        Node := XML.ChildNodes[J];
     if (not Assigned(Node)) then
     begin
       Node := XML.AddChild('table');
@@ -2110,48 +2111,48 @@ var
     case (ControlAlign(Table)) of
       alLeft:
         begin
-          Center.X   := Max(Center.X, ConnectorSize + (PointSize - 1) div 2);
-          Center.Y   := Max(Center.Y, (ConnectorSize - 1) div 2            );
+          Center.X   := Max(Center.X, ConnectorSize + (PointSize - 1)    div 2);
+          Center.Y   := Max(Center.Y, ConnectorSize                      div 2);
 
           TempLeft   := Min(TempLeft  , Position.X - (ConnectorSize + 1)      );
           TempTop    := Min(TempTop   , Position.Y - (ConnectorSize - 1) div 2);
-          TempBottom := Max(TempBottom, Position.Y + (ConnectorSize - 1) div 2);
+          TempBottom := Max(TempBottom, Position.Y + (ConnectorSize    ) div 2);
         end;
       alTop:
         begin
-          Center.X   := Max(Center.X, (ConnectorSize - 1) div 2            );
-          Center.Y   := Max(Center.Y, ConnectorSize + (PointSize - 1) div 2);
+          Center.X   := Max(Center.X, ConnectorSize                      div 2);
+          Center.Y   := Max(Center.Y, ConnectorSize + (PointSize - 1)    div 2);
 
           TempLeft   := Min(TempLeft  , Position.X - (ConnectorSize - 1) div 2);
           TempTop    := Min(TempTop   , Position.Y - (ConnectorSize + 1)      );
-          TempRight  := Max(TempRight , Position.X + (ConnectorSize - 1) div 2);
+          TempRight  := Max(TempRight , Position.X + (ConnectorSize    ) div 2);
         end;
       alRight:
         begin
-          Center.Y   := Max(Center.Y, (ConnectorSize - 1) div 2);
+          Center.Y   := Max(Center.Y, ConnectorSize                      div 2);
 
           TempTop    := Min(TempTop   , Position.Y - (ConnectorSize - 1) div 2);
           TempRight  := Max(TempRight , Position.X + (ConnectorSize + 1)      );
-          TempBottom := Max(TempBottom, Position.Y + (ConnectorSize - 1) div 2);
+          TempBottom := Max(TempBottom, Position.Y + (ConnectorSize    ) div 2);
         end;
       alBottom:
         begin
-          Center.X   := Max(Center.X, (ConnectorSize - 1) div 2);
+          Center.X   := Max(Center.X, ConnectorSize                      div 2);
 
           TempLeft   := Min(TempLeft  , Position.X - (ConnectorSize - 1) div 2);
-          TempRight  := Max(TempRight , Position.X + (ConnectorSize - 1) div 2);
+          TempRight  := Max(TempRight , Position.X + (ConnectorSize    ) div 2);
           TempBottom := Max(TempBottom, Position.Y + (ConnectorSize + 1)      );
         end;
     end;
   end;
 
 begin
-  Center := Point((PointSize - 1) div 2, (PointSize - 1) div 2);
+  Center := Point(PointSize div 2, PointSize div 2);
 
   TempLeft   := Position.X - (PointSize - 1) div 2;
   TempTop    := Position.Y - (PointSize - 1) div 2;
-  TempRight  := Position.X + (PointSize - 1) div 2;
-  TempBottom := Position.Y + (PointSize - 1) div 2;
+  TempRight  := Position.X + (PointSize + 0) div 2;
+  TempBottom := Position.Y + (PointSize + 0) div 2;
 
   ExpandTableAlign(TableA);
   ExpandTableAlign(TableB);
@@ -2318,8 +2319,6 @@ end;
 procedure TWLinkPoint.PaintTo(const Canvas: TCanvas; const X, Y: Integer);
 begin
   inherited;
-
-  if (not PaintLinkPoints) then Exit;
 
   if (Assigned(TableA) and ((MoveState <> msFixed) or Assigned(Link.ParentTable))) then
     case (ControlAlign(TableA)) of
@@ -2939,15 +2938,15 @@ var
   Node: IXMLNode;
 begin
   for I := XML.ChildNodes.Count - 1 downto 0 do
-    if (XML.ChildNodes.Nodes[I].NodeName = 'foreignkey') and not Assigned(Workbench.LinkByCaption(XML.ChildNodes.Nodes[I].Attributes['name'])) then
+    if (XML.ChildNodes[I].NodeName = 'foreignkey') and not Assigned(Workbench.LinkByCaption(XML.ChildNodes[I].Attributes['name'])) then
       XML.ChildNodes.Delete(I);
 
   for I := 0 to Count - 1 do
   begin
     Node := nil;
     for J := 0 to XML.ChildNodes.Count - 1 do
-      if ((XML.ChildNodes.Nodes[J].NodeName = 'foreignkey') and (Workbench.LinkByCaption(XML.ChildNodes.Nodes[J].Attributes['name']) = Link[I])) then
-        Node := XML.ChildNodes.Nodes[J];
+      if ((XML.ChildNodes[J].NodeName = 'foreignkey') and (Workbench.LinkByCaption(XML.ChildNodes[J].Attributes['name']) = Link[I])) then
+        Node := XML.ChildNodes[J];
     if (not Assigned(Node)) then
     begin
       Node := XML.AddChild('foreignkey');
@@ -3002,13 +3001,13 @@ begin
       FResizeMode := rmSE
     else if ((X <= PointSize) and (ClientHeight - PointSize - 1 <= Y)) then
       FResizeMode := rmSW
-    else if (Y <= BorderSize) then
+    else if (Y <= BorderWidth) then
       FResizeMode := rmN
-    else if (ClientHeight - BorderSize - 1 <= Y) then
+    else if (ClientHeight - BorderWidth - 1 <= Y) then
       FResizeMode := rmS
-    else if (ClientWidth - BorderSize - 1 <= X) then
+    else if (ClientWidth - BorderWidth - 1 <= X) then
       FResizeMode := rmE
-    else if (X <= BorderSize) then
+    else if (X <= BorderWidth) then
       FResizeMode := rmW
     else
       FResizeMode := rmNone;
@@ -3032,9 +3031,9 @@ begin
       Cursor := crSizeNWSE
     else if ((ClientWidth - PointSize - 1 <= X) and (Y <= PointSize) or (X <= PointSize) and (ClientHeight - PointSize - 1 <= Y)) then
       Cursor := crSizeNESW
-    else if ((X <= BorderSize) or (ClientWidth - BorderSize - 1 <= X)) then
+    else if ((X <= BorderWidth) or (ClientWidth - BorderWidth - 1 <= X)) then
       Cursor := crSizeWE
-    else if ((Y <= BorderSize) or (ClientHeight - BorderSize - 1 <= Y)) then
+    else if ((Y <= BorderWidth) or (ClientHeight - BorderWidth - 1 <= Y)) then
       Cursor := crSizeNS
     else
       Cursor := crDefault;
@@ -3092,11 +3091,17 @@ begin
 
   Rect := ClientRect;
   OffsetRect(Rect, X, Y);
+  Rect.Left := Rect.Left + BorderWidth div 2;
+  Rect.Top := Rect.Top + BorderWidth div 2;
+  Rect.Right := Rect.Right - BorderWidth div 2 + (BorderWidth + 1) mod 2;
+  Rect.Bottom := Rect.Bottom - BorderWidth div 2 + (BorderWidth + 1) mod 2;
 
+  Canvas.Pen.Width := BorderWidth;
   Canvas.Rectangle(Rect);
 
-  Inc(Rect.Left, BorderSize + Padding); Dec(Rect.Right, BorderSize + 1 + Padding);
-  Rect.Top := Rect.Bottom + Canvas.Font.Height - BorderSize - 1 - Padding;
+
+  Inc(Rect.Left, BorderWidth + Padding); Dec(Rect.Right, BorderWidth + 1 + Padding);
+  Rect.Top := Rect.Bottom + Canvas.Font.Height - BorderWidth - 1 - Padding;
 
   Flags := DrawTextBiDiModeFlags(DT_RIGHT) + DT_NOPREFIX;
   Canvas.Font.Color := Canvas.Pen.Color;
@@ -3160,10 +3165,10 @@ var
 begin
   Workbench.State := wsLoading;
   for I := 0 to XML.ChildNodes.Count - 1 do
-    if (XML.ChildNodes.Nodes[I].NodeName = 'section') then
+    if (XML.ChildNodes[I].NodeName = 'section') then
     begin
       Section := TWSection.Create(Workbench, Coord(-1, -1));
-      Section.LoadFromXML(XML.ChildNodes.Nodes[I]);
+      Section.LoadFromXML(XML.ChildNodes[I]);
       Add(Section);
     end;
   Workbench.State := wsNormal;
@@ -3174,7 +3179,7 @@ var
   I: Integer;
 begin
   for I := XML.ChildNodes.Count - 1 downto 0 do
-    if (XML.ChildNodes.Nodes[I].NodeName = 'section') then
+    if (XML.ChildNodes[I].NodeName = 'section') then
       XML.ChildNodes.Delete(I);
 
   for I := 0 to Count - 1 do
@@ -3566,17 +3571,18 @@ begin
 
   Clear();
 
+  Sections.LoadFromXML(XML);
+
+
   Database.Session.UnRegisterEventProc(SessionEvent);
   Database.Session.Connection.BeginSynchron();
-
-  Sections.LoadFromXML(XML);
 
   Database.Tables.Update();
   List := TList.Create();
   for I := 0 to XML.ChildNodes.Count - 1 do
-    if (XML.ChildNodes.Nodes[I].NodeName = 'table') then
+    if (XML.ChildNodes[I].NodeName = 'table') then
     begin
-      BaseTable := Database.BaseTableByName(XML.ChildNodes.Nodes[I].Attributes['name']);
+      BaseTable := Database.BaseTableByName(XML.ChildNodes[I].Attributes['name']);
       if (Assigned(BaseTable)) then
         List.Add(BaseTable);
     end;
@@ -3586,10 +3592,11 @@ begin
   Database.Session.Connection.EndSynchron();
   Database.Session.RegisterEventProc(SessionEvent);
 
+
   for I := 0 to XML.ChildNodes.Count - 1 do
-    if (XML.ChildNodes.Nodes[I].NodeName = 'table') then
+    if (XML.ChildNodes[I].NodeName = 'table') then
     begin
-      BaseTable := Database.BaseTableByName(XML.ChildNodes.Nodes[I].Attributes['name']);
+      BaseTable := Database.BaseTableByName(XML.ChildNodes[I].Attributes['name']);
       if (Assigned(BaseTable)) then
         BaseTable.PushBuildEvent();
     end;
@@ -3812,37 +3819,37 @@ begin
       OldModified := FModified;
 
       for I := 0 to XML.ChildNodes.Count - 1 do
-        if ((XML.ChildNodes.Nodes[I].NodeName = 'table') and (Database.Tables.NameCmp(XML.ChildNodes.Nodes[I].Attributes['name'], BaseTable.Name) = 0)) then
+        if ((XML.ChildNodes[I].NodeName = 'table') and (Database.Tables.NameCmp(XML.ChildNodes[I].Attributes['name'], BaseTable.Name) = 0)) then
         begin
           Table := TWTable.Create(Tables, Coord(-1, -1), BaseTable);
-          Table.LoadFromXML(XML.ChildNodes.Nodes[I]);
+          Table.LoadFromXML(XML.ChildNodes[I]);
           Tables.Add(Table);
 
           for J := 0 to XML.ChildNodes.Count - 1 do
-            if ((XML.ChildNodes.Nodes[J].NodeName = 'foreignkey')
-              and Assigned(XMLNode(XML.ChildNodes.Nodes[J], 'tables/child')) and (XMLNode(XML.ChildNodes.Nodes[J], 'tables/child').Attributes['name'] <> Null)
-              and Assigned(XMLNode(XML.ChildNodes.Nodes[J], 'tables/parent')) and (XMLNode(XML.ChildNodes.Nodes[J], 'tables/parent').Attributes['name'] <> Null)) then
+            if ((XML.ChildNodes[J].NodeName = 'foreignkey')
+              and Assigned(XMLNode(XML.ChildNodes[J], 'tables/child')) and (XMLNode(XML.ChildNodes[J], 'tables/child').Attributes['name'] <> Null)
+              and Assigned(XMLNode(XML.ChildNodes[J], 'tables/parent')) and (XMLNode(XML.ChildNodes[J], 'tables/parent').Attributes['name'] <> Null)) then
             begin
-              ChildTable := TableByCaption(XMLNode(XML.ChildNodes.Nodes[J], 'tables/child').Attributes['name']);
-              ParentTable := TableByCaption(XMLNode(XML.ChildNodes.Nodes[J], 'tables/parent').Attributes['name']);
+              ChildTable := TableByCaption(XMLNode(XML.ChildNodes[J], 'tables/child').Attributes['name']);
+              ParentTable := TableByCaption(XMLNode(XML.ChildNodes[J], 'tables/parent').Attributes['name']);
               if (((Table = ChildTable) or (Table = ParentTable))
                 and Assigned(ChildTable) and Assigned(ChildTable.BaseTable)
                 and Assigned(ParentTable) and Assigned(ParentTable.BaseTable)) then
               begin
-                if (XML.ChildNodes.Nodes[J].Attributes['name'] = Null) then
+                if (XML.ChildNodes[J].Attributes['name'] = Null) then
                   Link := TWLink.Create(Self, Coord(-1, -1))
-                else if (not Assigned(LinkByCaption(XML.ChildNodes.Nodes[J].Attributes['name']))
-                  and Assigned(ChildTable.BaseTable.ForeignKeyByName(XML.ChildNodes.Nodes[J].Attributes['name']))) then
+                else if (not Assigned(LinkByCaption(XML.ChildNodes[J].Attributes['name']))
+                  and Assigned(ChildTable.BaseTable.ForeignKeyByName(XML.ChildNodes[J].Attributes['name']))) then
                 begin
-                  S := XML.ChildNodes.Nodes[J].Attributes['name'];
+                  S := XML.ChildNodes[J].Attributes['name'];
                   Link := TWForeignKey.Create(Self, Coord(-1, -1));
-                  TWForeignKey(Link).BaseForeignKey := ChildTable.BaseTable.ForeignKeyByName(XML.ChildNodes.Nodes[J].Attributes['name']);
+                  TWForeignKey(Link).BaseForeignKey := ChildTable.BaseTable.ForeignKeyByName(XML.ChildNodes[J].Attributes['name']);
                 end
                 else
                   Link := nil;
                 if (Assigned(Link)) then
                 begin
-                  Link.LoadFromXML(XML.ChildNodes.Nodes[J]);
+                  Link.LoadFromXML(XML.ChildNodes[J]);
                   Links.Add(Link);
                 end;
               end;
@@ -4011,3 +4018,7 @@ end;
 
 end.
 
+Aufräumen:
+- TWLine und TWLinkLine zusammenziehen?
+- TWPoint und TWLinkPoint zusammenziehen?
+- Alte Diagram.xml automatisch Punkte entfernen
