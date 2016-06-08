@@ -1333,10 +1333,10 @@ begin
   else
     SObject := TSObject(FSelect.Selected.Data);
 
-  TSCSVOptions.Enabled := (ImportType in [itTextFile]);
+  TSCSVOptions.Enabled := (ImportType in [itTextFile]) and ((SObject is TSDatabase) or (SObject is TSTable));
   TSWhat.Enabled := not TSCSVOptions.Enabled and (ImportType <> itSQLFile) and (SObject is TSDatabase);
   TSFields.Enabled := (DialogType in [idtNormal, idtCreateJob, idtEditJob]) and not TSCSVOptions.Enabled and not TSWhat.Enabled and (SObject is TSTable);
-  TSTask.Enabled := (DialogType <> idtNormal) and not (TSCSVOptions.Enabled or TSWhat.Enabled or TSFields.Enabled);
+  TSTask.Enabled := (DialogType <> idtNormal) and (ImportType in [itSQLFile]) and not (TSCSVOptions.Enabled or TSWhat.Enabled or TSFields.Enabled);
 
   CheckActivePageChange(TSSelect.PageIndex);
 end;

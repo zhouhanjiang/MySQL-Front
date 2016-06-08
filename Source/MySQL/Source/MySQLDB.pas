@@ -4217,12 +4217,10 @@ begin
     Result := ''
   else if (Field.DataType = ftBlob) then
     Result := '<Blob>'
-  else if (Field.DataType in NotQuotedDataTypes) then
-    Result := Connection.LibUnpack(LibRow^[Field.FieldNo - 1], LibLengths^[Field.FieldNo - 1])
-  else if (Field.DataType = ftString) then
-    Result := Connection.LibUnpack(LibRow^[Field.FieldNo - 1], LibLengths^[Field.FieldNo - 1])
+  else if (Field.DataType in TextDataTypes) then
+    Result := Connection.LibDecode(LibRow^[Field.FieldNo - 1], LibLengths^[Field.FieldNo - 1])
   else
-    Result := Connection.LibDecode(LibRow^[Field.FieldNo - 1], LibLengths^[Field.FieldNo - 1]);
+    Result := Connection.LibUnpack(LibRow^[Field.FieldNo - 1], LibLengths^[Field.FieldNo - 1]);
 end;
 
 function TMySQLQuery.GetCanModify(): Boolean;

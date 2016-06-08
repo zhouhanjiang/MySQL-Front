@@ -8,7 +8,7 @@
 
 	/****************************************************************************/
 
-	$MF_VERSION = 21;
+	$MF_VERSION = 22;
 
 	$Charsets = array(
 		'big5' => 1,
@@ -192,25 +192,30 @@
 		exit('HTTP Tunnel: session_start() failed');
 
 
-	if ($HTTP_RAW_POST_DATA == '')
+	if ($HTTP_RAW_POST_DATA)
+		$RawPostData = $HTTP_RAW_POST_DATA; 
+	else
+		$RawPostData .= file_get_contents("php://input");
+
+	if (strlen($RawPostData) < 4)
 		exit('HTTP Tunnel: No post data');
 
 	$PostData = ''; $PostDataOffset = 0; $PacketNr = 0;
-	while ($PostDataOffset < strlen($HTTP_RAW_POST_DATA)) {
-		$a = unpack('V', substr($HTTP_RAW_POST_DATA, $PostDataOffset + 0, 3) . "\x00"); $Size = $a[1];
-		$a = unpack('C', substr($HTTP_RAW_POST_DATA, $PostDataOffset + 3, 1)); $Nr = $a[1];
+	while ($PostDataOffset < strlen($RawPostData)) {
+		$a = unpack('V', substr($RawPostData, $PostDataOffset + 0, 3) . "\x00"); $Size = $a[1];
+		$a = unpack('C', substr($RawPostData, $PostDataOffset + 3, 1)); $Nr = $a[1];
 		if ($_SESSION['compress']) {
-			$a = unpack('V', substr($HTTP_RAW_POST_DATA, $PostDataOffset + 4, 3) . "\x00"); $UncompressedSize = $a[1];
+			$a = unpack('V', substr($RawPostData, $PostDataOffset + 4, 3) . "\x00"); $UncompressedSize = $a[1];
 		}
 
 		if ($Nr != $PacketNr)
 			exit('HTTP Tunnel: Invalid packet number');
 		else if (! $_SESSION['compress'])
-			$PostData .= substr($HTTP_RAW_POST_DATA, $PostDataOffset, 4 + $Size);
+			$PostData .= substr($RawPostData, $PostDataOffset, 4 + $Size);
 		else if ($UncompressedSize == 0)
-			$PostData .= substr($HTTP_RAW_POST_DATA, $PostDataOffset + 7, $Size);
+			$PostData .= substr($RawPostData, $PostDataOffset + 7, $Size);
 		else
-			$PostData .= gzuncompress(substr($HTTP_RAW_POST_DATA, $PostDataOffset + 7, $Size), $UncompressedSize);
+			$PostData .= gzuncompress(substr($RawPostData, $PostDataOffset + 7, $Size), $UncompressedSize);
 
 		if (! $_SESSION['compress'])
 			$PostDataOffset += 4 + $Size;

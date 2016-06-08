@@ -330,7 +330,6 @@ type
   protected
     FModified: Boolean;
     State: TState;
-    function ApplyCoordByPixelsPerInch(const Position: TCoord): TCoord; virtual;
     procedure CalcRange(const Reset: Boolean); virtual;
     procedure Clear(); virtual;
     procedure Change(); virtual;
@@ -528,7 +527,11 @@ begin
   NewPosition := Position;
   if (Assigned(XMLNode(XML, 'coord/x'))) then TryStrToInt(XMLNode(XML, 'coord/x').Text, NewPosition.X);
   if (Assigned(XMLNode(XML, 'coord/y'))) then TryStrToInt(XMLNode(XML, 'coord/y').Text, NewPosition.Y);
-  MoveTo(Self, [], Workbench.ApplyCoordByPixelsPerInch(NewPosition));
+
+  NewPosition.X := (NewPosition.X * Screen.PixelsPerInch) div Workbench.FilePixelsPerInch;
+  NewPosition.Y := (NewPosition.Y * Screen.PixelsPerInch) div Workbench.FilePixelsPerInch;
+
+  MoveTo(Self, [], NewPosition);
 
   Workbench.CalcRange(False);
 end;
@@ -906,8 +909,8 @@ procedure TWArea.ApplyPosition();
 begin
   if ((Position.X >= 0) or (Position.Y >= 0)) then
     SetBounds(
-      Position.X + (BorderWidth + 1) mod 2 - Workbench.HorzScrollBar.Position,
-      Position.Y + (BorderWidth + 1) mod 2 - Workbench.VertScrollBar.Position,
+      Position.X - (BorderWidth - 1) div 2 - Workbench.HorzScrollBar.Position,
+      Position.Y - (BorderWidth - 1) div 2 - Workbench.VertScrollBar.Position,
       Size.cx,
       Size.cy
     );
@@ -1033,7 +1036,7 @@ var
           Center.X   := Max(Center.X, ConnectorLength + (PointSize - 1)    div 2);
           Center.Y   := Max(Center.Y, ConnectorLength                      div 2);
 
-          NewLeft   := Position.X - ConnectorLength - (PointSize - 1) div 2 + (LineWidth + 1) mod 2;
+          NewLeft   := Position.X - ConnectorLength - (PointSize - 1) div 2 - (LineWidth - 1) div 2;
 
           NewTop    := Min(NewTop   , Position.Y - (ConnectorLength - 1) div 2);
           NewBottom := Max(NewBottom, Position.Y + (ConnectorLength    ) div 2);
@@ -1043,7 +1046,7 @@ var
           Center.X   := Max(Center.X, ConnectorLength                      div 2);
           Center.Y   := Max(Center.Y, ConnectorLength + (PointSize - 1)    div 2);
 
-          NewTop    := Position.Y - ConnectorLength - (PointSize - 1) div 2 + (LineWidth + 1) mod 2;
+          NewTop    := Position.Y - ConnectorLength - (PointSize - 1) div 2 - (LineWidth - 1) div 2;
 
           NewLeft   := Min(NewLeft  , Position.X - (ConnectorLength - 1) div 2);
           NewRight  := Max(NewRight , Position.X + (ConnectorLength    ) div 2);
@@ -1052,7 +1055,7 @@ var
         begin
           Center.Y   := Max(Center.Y, ConnectorLength                      div 2);
 
-          NewRight  := Position.X + ConnectorLength + (PointSize - 1) div 2 + (LineWidth + 1) mod 2;
+          NewRight  := Position.X + ConnectorLength + (PointSize - 1) div 2 - (LineWidth - 1) div 2;
 
           NewTop    := Min(NewTop   , Position.Y - (ConnectorLength - 1) div 2);
           NewBottom := Max(NewBottom, Position.Y + (ConnectorLength    ) div 2);
@@ -1061,7 +1064,7 @@ var
         begin
           Center.X   := Max(Center.X, ConnectorLength                      div 2);
 
-          NewBottom := Position.Y + ConnectorLength + (PointSize - 1) div 2 + (LineWidth + 1) mod 2;
+          NewBottom := Position.Y + ConnectorLength + (PointSize - 1) div 2 - (LineWidth - 1) div 2;
 
           NewLeft   := Min(NewLeft  , Position.X - (ConnectorLength - 1) div 2);
           NewRight  := Max(NewRight , Position.X + (ConnectorLength    ) div 2);
@@ -1612,9 +1615,12 @@ begin
 
   SetEndCaps(Canvas.Pen, PS_ENDCAP_FLAT);
 
+
+  // Draw "center" of the point
   for I := -(LineWidth - 1) div 2 - (LineWidth + 1) mod 2 to LineWidth div 2 - (LineWidth + 1) mod 2 do
     for J := -(LineWidth - 1) div 2 - (LineWidth + 1) mod 2 to LineWidth div 2 - (LineWidth + 1) mod 2 do
       Canvas.Pixels[X + Center.X + I, Y + Center.Y + J] := Canvas.Pen.Color;
+
 
   if (ControlA is TWLinkLine) then
     PaintToLinkLine(ControlA)
@@ -1680,10 +1686,10 @@ begin
           for I := 0 to ConnectorLength - 2 do
             for J := -(LineWidth - 1) div 2 to LineWidth div 2 do
             begin
-              Canvas.Pixels[Width - (X + I), Y + Center.Y - I div 2 - (LineWidth + 1) mod 2 + J] := Canvas.Pen.Color;
-              Canvas.Pixels[Width - (X + I), Y + Center.Y - I div 2 - (LineWidth + 1) mod 2 + J] := Canvas.Pen.Color;
-              Canvas.Pixels[Width - (X + I), Y + Center.Y + I div 2 - (LineWidth + 1) mod 2 + J] := Canvas.Pen.Color;
-              Canvas.Pixels[Width - (X + I), Y + Center.Y + I div 2 - (LineWidth + 1) mod 2 + J] := Canvas.Pen.Color;
+              Canvas.Pixels[X + Width - I, Y + Center.Y - I div 2 - (LineWidth + 1) mod 2 + J] := Canvas.Pen.Color;
+              Canvas.Pixels[X + Width - I, Y + Center.Y - I div 2 - (LineWidth + 1) mod 2 + J] := Canvas.Pen.Color;
+              Canvas.Pixels[X + Width - I, Y + Center.Y + I div 2 - (LineWidth + 1) mod 2 + J] := Canvas.Pen.Color;
+              Canvas.Pixels[X + Width - I, Y + Center.Y + I div 2 - (LineWidth + 1) mod 2 + J] := Canvas.Pen.Color;
             end;
         end;
       alBottom:
@@ -1692,10 +1698,10 @@ begin
           for I := 0 to ConnectorLength - 2 do
             for J := -(LineWidth - 1) div 2 to LineWidth div 2 do
             begin
-              Canvas.Pixels[X + Center.X - I div 2 - (LineWidth + 1) mod 2 + J, Height - (Y + I)] := Canvas.Pen.Color;
-              Canvas.Pixels[X + Center.X - I div 2 - (LineWidth + 1) mod 2 + J, Height - (Y + I)] := Canvas.Pen.Color;
-              Canvas.Pixels[X + Center.X + I div 2 - (LineWidth + 1) mod 2 + J, Height - (Y + I)] := Canvas.Pen.Color;
-              Canvas.Pixels[X + Center.X + I div 2 - (LineWidth + 1) mod 2 + J, Height - (Y + I)] := Canvas.Pen.Color;
+              Canvas.Pixels[X + Center.X - I div 2 - (LineWidth + 1) mod 2 + J, Y + Height - I] := Canvas.Pen.Color;
+              Canvas.Pixels[X + Center.X - I div 2 - (LineWidth + 1) mod 2 + J, Y + Height - I] := Canvas.Pen.Color;
+              Canvas.Pixels[X + Center.X + I div 2 - (LineWidth + 1) mod 2 + J, Y + Height - I] := Canvas.Pen.Color;
+              Canvas.Pixels[X + Center.X + I div 2 - (LineWidth + 1) mod 2 + J, Y + Height - I] := Canvas.Pen.Color;
             end;
         end;
     end;
@@ -2115,7 +2121,7 @@ begin
         else if (not Assigned(NextPoint.TableB)) then
           NextPoint.MoveTo(nil, [], Coord(Point.Position.X, NextPoint.Position.Y))
         else
-          CreateSegment(Self, Coord(Point.Position.X, NextPoint.Position.Y), Point)
+          CreateSegment(Self, Coord(Point.Position.X, NextPoint.Position.Y), Point, False)
       else if ((NextPoint.ControlAlign(NextPoint.LineA) = InvertAlign(NextPoint.ControlAlign(NextPoint.LineB)))
         or (NextPoint.Position.X = Point.Position.X) and (NextPoint.Position.Y = Point.Position.Y)
         or Assigned(Point.TableB) and not Assigned(ParentTable)) then
@@ -2376,8 +2382,10 @@ begin
               and Assigned(XMLNode(PointsNode.ChildNodes[J], 'coord/x')) and TryStrToInt(XMLNode(PointsNode.ChildNodes[J], 'coord/x').Text, PointPosition.X)
               and Assigned(XMLNode(PointsNode.ChildNodes[J], 'coord/y')) and TryStrToInt(XMLNode(PointsNode.ChildNodes[J], 'coord/y').Text, PointPosition.Y)) then
             begin
+              PointPosition.X := (PointPosition.X * Screen.PixelsPerInch) div Workbench.FilePixelsPerInch;
+              PointPosition.Y := (PointPosition.Y * Screen.PixelsPerInch) div Workbench.FilePixelsPerInch;
               Point := TWLinkPoint.Create(Workbench, Coord(-1, -1), LastPoint);
-              Point.MoveTo(nil, [], Workbench.ApplyCoordByPixelsPerInch(PointPosition));
+              Point.MoveTo(nil, [], PointPosition);
             end;
           Inc(PointIndex);
         until (PointCount < PointIndex);
@@ -2504,7 +2512,7 @@ begin
     else raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Index']);
   end;
 
-//  Cleanup(Self);
+  Cleanup(Self);
 
   Workbench.State := wsNormal;
 end;
@@ -2747,9 +2755,9 @@ var
   procedure AdjustColors(Bevel: TPanelBevel);
   begin
     TopColor := clBtnHighlight;
-    if Bevel = bvLowered then TopColor := clBtnShadow;
+    if (Bevel = bvLowered) then TopColor := clBtnShadow;
     BottomColor := clBtnShadow;
-    if Bevel = bvLowered then BottomColor := clBtnHighlight;
+    if (Bevel = bvLowered) then BottomColor := clBtnHighlight;
   end;
 
 var
@@ -2939,15 +2947,14 @@ begin
 end;
 
 procedure TWSection.LoadFromXML(const XML: IXMLNode);
-var
-  Size: TCoord;
 begin
-  if (Assigned(XMLNode(XML, 'size/x'))) then TryStrToInt(XMLNode(XML, 'size/x').Text, Size.X);
-  if (Assigned(XMLNode(XML, 'size/y'))) then TryStrToInt(XMLNode(XML, 'size/y').Text, Size.Y);
-  Size := Workbench.ApplyCoordByPixelsPerInch(Size);
-  FSize.cx := Size.X; FSize.cy := Size.Y;
+  if (Assigned(XMLNode(XML, 'size/x'))) then TryStrToInt(XMLNode(XML, 'size/x').Text, FSize.cx);
+  if (Assigned(XMLNode(XML, 'size/y'))) then TryStrToInt(XMLNode(XML, 'size/y').Text, FSize.cy);
   if (Assigned(XMLNode(XML, 'caption'))) then Caption := XMLNode(XML, 'caption').Text;
   if (Assigned(XMLNode(XML, 'color'))) then FColor := StringToColor(XMLNode(XML, 'color').Text);
+
+  FSize.cx := (FSize.cx * Screen.PixelsPerInch) div Workbench.FilePixelsPerInch;
+  FSize.cy := (FSize.cy * Screen.PixelsPerInch) div Workbench.FilePixelsPerInch;
 
   inherited;
 
@@ -3266,12 +3273,6 @@ begin
       Selected := Table;
     FModified := True;
   end;
-end;
-
-function TWWorkbench.ApplyCoordByPixelsPerInch(const Position: TCoord): TCoord;
-begin
-  Result.X := (Position.X * Screen.PixelsPerInch) div FilePixelsPerInch;
-  Result.Y := (Position.Y * Screen.PixelsPerInch) div FilePixelsPerInch;
 end;
 
 procedure TWWorkbench.BeginUpdate();
@@ -3713,9 +3714,9 @@ begin
     XMLDocument.Node.AddChild('workbench').Attributes['version'] := '1.0.0';
   end;
 
-  if (VersionStrToVersion(XMLDocument.DocumentElement.Attributes['version']) < 10001)  then
+  if (VersionStrToVersion(XMLDocument.DocumentElement.Attributes['version']) < 10100)  then
   begin
-    XMLDocument.DocumentElement.Attributes['version'] := '1.0.1';
+    XMLDocument.DocumentElement.Attributes['version'] := '1.1.0';
   end;
 
   XMLDocument.Options := XMLDocument.Options - [doAttrNull];
@@ -3999,7 +4000,7 @@ begin
 end;
 
 initialization
-  LineWidth := Trunc(Screen.PixelsPerInch / 96 + 0.5);
+  LineWidth := Trunc(Screen.PixelsPerInch / USER_DEFAULT_SCREEN_DPI + 0.5);
   BorderWidth := LineWidth;
   ConnectorLength := 7 * LineWidth;
   PointSize := 3 * LineWidth;
