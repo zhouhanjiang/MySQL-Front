@@ -1911,9 +1911,17 @@ begin
     if (SObject is TSBaseTable) then
     begin
       TSBaseTable(SObject).InvalidateData();
-      for I := 0 to Length(FSourceFields) - 1 do
-        if (FDestinationFields[I].ItemIndex > 0) then
-          Import.AddField(TSBaseTable(SObject).Fields[FDestinationFields[I].ItemIndex - 1], FSourceFields[I].Text);
+      if (DialogType = idtNormal) then
+      begin
+        for I := 0 to Length(FSourceFields) - 1 do
+          if (FDestinationFields[I].ItemIndex > 0) then
+            Import.AddField(TSBaseTable(SObject).Fields[FDestinationFields[I].ItemIndex - 1], FSourceFields[I].Text);
+      end
+      else if (DialogType = idtExecuteJob) then
+      begin
+        for I := 0 to Length(Job.FieldMappings) - 1 do
+          Import.AddField(TSBaseTable(SObject).FieldByName(Job.FieldMappings[I].DestinationFieldName), Job.FieldMappings[I].SourceFieldName);
+      end;
     end;
 
     Import.Wnd := Self.Handle;
