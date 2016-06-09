@@ -163,7 +163,6 @@ type
       Selected: Boolean);
     procedure ScrollBoxResize(Sender: TObject);
     procedure TSCSVOptionsHide(Sender: TObject);
-    procedure TSCSVOptionsShow(Sender: TObject);
     procedure TSExecuteShow(Sender: TObject);
     procedure TSFieldsChange(Sender: TObject);
     procedure TSFieldsShow(Sender: TObject);
@@ -652,23 +651,11 @@ var
 begin
   if (Visible) then
   begin
-    if (not FDelimiterTab.Checked and (FDelimiter.Text = '') or not FQuoteNothing.Checked and (FQuoteChar.Text = '')) then
-    begin
-      TSFields.Enabled := False;
-      TSWhat.Enabled := False;
-    end
-    else
-    begin
-      TSFields.Enabled := (DialogType = idtNormal) and (SObject is TSBaseTable);
-      TSWhat.Enabled := not TSFields.Enabled;
-    end;
-
-
     FCSVPreview.DisableAlign(); FCSVPreview.Items.BeginUpdate();
     FCSVPreview.Columns.Clear();
     FCSVPreview.Items.Clear();
 
-    if (Assigned(Import) and (TSFields.Enabled or TSWhat.Enabled)) then
+    if (Assigned(Import)) then
     begin
       if (FDelimiterTab.Checked) then
         TTImportText(Import).Delimiter := #9
@@ -711,6 +698,17 @@ begin
     FTables.Items.BeginUpdate();
     FTables.Items.Clear();
     FTables.Items.EndUpdate();
+
+    if (not FDelimiterTab.Checked and (FDelimiter.Text = '') or not FQuoteNothing.Checked and (FQuoteChar.Text = '')) then
+    begin
+      TSFields.Enabled := False;
+      TSWhat.Enabled := False;
+    end
+    else
+    begin
+      TSFields.Enabled := (SObject is TSBaseTable);
+      TSWhat.Enabled := not TSFields.Enabled;
+    end;
 
     CheckActivePageChange(TSCSVOptions.PageIndex);
   end;
@@ -1333,8 +1331,8 @@ begin
   else
     SObject := TSObject(FSelect.Selected.Data);
 
-  TSCSVOptions.Enabled := (ImportType in [itTextFile]) and ((SObject is TSDatabase) or (SObject is TSTable));
-  TSWhat.Enabled := not TSCSVOptions.Enabled and (ImportType <> itSQLFile) and (SObject is TSDatabase);
+  TSCSVOptions.Enabled := (ImportType in [itTextFile]) and (SObject is TSTable);
+  TSWhat.Enabled := (ImportType in [itTextFile, itAccessFile, itExcelFile, itODBC]) and (SObject is TSDatabase) and not TSCSVOptions.Enabled;
   TSFields.Enabled := (DialogType in [idtNormal, idtCreateJob, idtEditJob]) and not TSCSVOptions.Enabled and not TSWhat.Enabled and (SObject is TSTable);
   TSTask.Enabled := (DialogType <> idtNormal) and (ImportType in [itSQLFile]) and not (TSCSVOptions.Enabled or TSWhat.Enabled or TSFields.Enabled);
 
@@ -1419,8 +1417,8 @@ procedure TDImport.FTablesChange(Sender: TObject; Item: TListItem;
   Change: TItemChange);
 begin
   TSSelect.Enabled := (DialogType in [idtCreateJob, idtEditJob, idtExecuteJob]) and Assigned(FTables.Selected);
-  TSCSVOptions.Enabled := (DialogType in [idtNormal]) and (ImportType in [itTextFile]);
-  TSWhat.Enabled := (DialogType in [idtNormal, idtCreateJob, idtEditJob]) and (ImportType <> itSQLFile) and (not Assigned(SObject) or (SObject is TSDatabase));
+  TSCSVOptions.Enabled := (ImportType in [itTextFile]) and (SObject is TSTable);
+  TSWhat.Enabled := (ImportType in [itTextFile, itAccessFile, itExcelFile, itODBC]) and (SObject is TSDatabase) and not TSCSVOptions.Enabled;
   TSTask.Enabled := (DialogType in [idtCreateJob, idtEditJob]) and (ImportType = itSQLFile);
 
   CheckActivePageChange(TSTables.PageIndex);
@@ -1784,26 +1782,6 @@ procedure TDImport.TSCSVOptionsHide(Sender: TObject);
 begin
   if (Length(FDestinationFields) = 0) then
     InitTSFields(Sender);
-end;
-
-procedure TDImport.TSCSVOptionsShow(Sender: TObject);
-begin
-  if (FCSVPreview.Items.Count = 0) then
-    FCSVPreviewUpdate(Sender)
-  else
-  begin
-    if (not FDelimiterTab.Checked and (FDelimiter.Text = '') or not FQuoteNothing.Checked and (FQuoteChar.Text = '')) then
-    begin
-      TSFields.Enabled := False;
-      TSWhat.Enabled := False;
-    end
-    else
-    begin
-      TSFields.Enabled := (SObject is TSTable);
-      TSWhat.Enabled := not TSFields.Enabled;
-    end;
-    CheckActivePageChange(TSCSVOptions.PageIndex);
-  end;
 end;
 
 procedure TDImport.TSExecuteShow(Sender: TObject);

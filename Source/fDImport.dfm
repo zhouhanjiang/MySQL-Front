@@ -64,7 +64,7 @@ object DImport: TDImport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSWhat
+    ActivePage = TSCSVOptions
     Anchors = [akLeft, akTop, akRight, akBottom]
     Style = tsButtons
     TabOrder = 0
@@ -331,7 +331,7 @@ object DImport: TDImport
       Caption = 'TSCSVOptions'
       TabVisible = False
       OnHide = TSCSVOptionsHide
-      OnShow = TSCSVOptionsShow
+      OnShow = FCSVPreviewUpdate
       DesignSize = (
         333
         271)
