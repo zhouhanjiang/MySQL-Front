@@ -6922,6 +6922,7 @@ procedure TFSession.FJobsChange(Sender: TObject; Item: TListItem;
   Change: TItemChange);
 begin
   mjExecute.Enabled := Assigned(Item) and Item.Selected;
+  mjExecute.Default := True;
   MainAction('aJAddImport').Enabled := CheckWin32Version(6) and (not Assigned(Item) or not Item.Selected);
   MainAction('aJAddExport').Enabled := CheckWin32Version(6) and (not Assigned(Item) or not Item.Selected);
   MainAction('aJDelete').Enabled := Assigned(Item) and Item.Selected;

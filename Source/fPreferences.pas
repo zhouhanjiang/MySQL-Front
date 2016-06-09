@@ -3004,13 +3004,17 @@ end;
 { TAJobImport *****************************************************************}
 
 procedure TAJobImport.Assign(const Source: TPItem);
+var
+  I: Integer;
 begin
   Assert(Source is TAJobImport);
 
   inherited;
 
   CodePage := TAJobImport(Source).CodePage;
-  FieldMappings := TAJobImport(Source).FieldMappings;
+  SetLength(FieldMappings, Length(TAJobImport(Source).FieldMappings));
+  for I := 0 to Length(FieldMappings) - 1 do
+    FieldMappings[I] := TAJobImport(Source).FieldMappings[I];
   Filename := TAJobImport(Source).Filename;
   ImportType := TAJobImport(Source).ImportType;
   JobObject := TAJobImport(Source).JobObject;

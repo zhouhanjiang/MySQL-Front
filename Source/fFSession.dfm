@@ -2007,10 +2007,6 @@ object FSession: TFSession
     Left = 217
     Top = 472
   end
-  object TPopupMenu
-    Left = 8
-    Top = 212
-  end
   object MSideBar: TPopupMenu
     Left = 8
     Top = 73
@@ -2117,7 +2113,7 @@ object FSession: TFSession
   object MJobs: TPopupMenu
     OnPopup = MJobsPopup
     Left = 8
-    Top = 242
+    Top = 218
     object mjExecute: TMenuItem
       Caption = 'mjExecute'
       Default = True
@@ -2145,7 +2141,7 @@ object FSession: TFSession
   object MSQLHistory: TPopupMenu
     OnPopup = MSQLHistoryPopup
     Left = 8
-    Top = 272
+    Top = 256
     object miHStatementIntoSQLEditor: TMenuItem
       Caption = 'miHStatementIntoSQLEditor'
       OnClick = miHStatementIntoSQLEditorClick
