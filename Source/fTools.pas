@@ -3318,6 +3318,10 @@ begin
           NewKeyColumn.Field := NewTable.FieldByName(Session.ApplyIdentifierName(ColumnName));
           NewKeyColumn.Ascending := AscOrDesc[0] = 'A';
           Key.Columns.AddColumn(NewKeyColumn);
+
+          if (Key.PrimaryKey) then
+            NewKeyColumn.Field.NullAllowed := False;
+
           FreeAndNil(NewKeyColumn);
         end;
       end;
@@ -3774,7 +3778,11 @@ begin
     while ((Success <> daAbort) and not Connected) do
     begin
       ConnStrIn := 'Driver={' + DriverAccess12 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
-      Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
+      try
+        Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
+      except
+        Connected := False;
+      end;
       if (not Connected) then
       begin
         ConnStrIn := 'Driver={' + DriverAccess + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';

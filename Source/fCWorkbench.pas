@@ -209,6 +209,7 @@ type
   TWTable = class(TWArea)
   private
     FData: TCustomData;
+    FilePosition: TPoint;
     FFocused: Boolean;
     FLinkPoints: array of TWLinkPoint;
     function GetCaption(): TCaption;
@@ -330,6 +331,7 @@ type
   protected
     FModified: Boolean;
     State: TState;
+    function CalcPosition(const FilePosition: Integer): Integer; virtual;
     procedure CalcRange(const Reset: Boolean); virtual;
     procedure Clear(); virtual;
     procedure Change(); virtual;
@@ -528,8 +530,9 @@ begin
   if (Assigned(XMLNode(XML, 'coord/x'))) then TryStrToInt(XMLNode(XML, 'coord/x').Text, NewPosition.X);
   if (Assigned(XMLNode(XML, 'coord/y'))) then TryStrToInt(XMLNode(XML, 'coord/y').Text, NewPosition.Y);
 
-  NewPosition.X := (NewPosition.X * Screen.PixelsPerInch) div Workbench.FilePixelsPerInch;
-  NewPosition.Y := (NewPosition.Y * Screen.PixelsPerInch) div Workbench.FilePixelsPerInch;
+
+  NewPosition.X := Workbench.CalcPosition(NewPosition.X);
+  NewPosition.Y := Workbench.CalcPosition(NewPosition.Y);
 
   MoveTo(Self, [], NewPosition);
 
@@ -2122,7 +2125,8 @@ begin
           NextPoint.MoveTo(nil, [], Coord(Point.Position.X, NextPoint.Position.Y))
         else
           CreateSegment(Self, Coord(Point.Position.X, NextPoint.Position.Y), Point, False)
-      else if ((NextPoint.ControlAlign(NextPoint.LineA) = InvertAlign(NextPoint.ControlAlign(NextPoint.LineB)))
+      else if ((NextPoint.ControlAlign(NextPoint.LineA) = NextPoint.ControlAlign(NextPoint.LineB))
+        or (NextPoint.ControlAlign(NextPoint.LineA) = InvertAlign(NextPoint.ControlAlign(NextPoint.LineB)))
         or (NextPoint.Position.X = Point.Position.X) and (NextPoint.Position.Y = Point.Position.Y)
         or Assigned(Point.TableB) and not Assigned(ParentTable)) then
       begin
@@ -2371,7 +2375,15 @@ begin
         and TryStrToAlign(XMLNode(XML, 'tables/child/align').Text, Align)
         and Assigned(XMLNode(XML, 'tables/child/position'))
         and TryStrToInt(XMLNode(XML, 'tables/child/position').Text, Position)) then
-        MoveTo(Self, [], ConnectorPosition(TableA, Align, (Position * Screen.PixelsPerInch) div Workbench.FilePixelsPerInch));
+      begin
+        case (Align) of
+          alLeft,
+          alRight: Position := Workbench.CalcPosition(TableA.FilePosition.Y + Position) - TableA.Position.Y;
+          alTop,
+          alBottom: Position := Workbench.CalcPosition(TableA.FilePosition.X + Position) - TableA.Position.X;
+        end;
+        MoveTo(Self, [], ConnectorPosition(TableA, Align, Position));
+      end;
 
       PointIndex := 0;
       PointsNode := XMLNode(XML, 'points');
@@ -2382,8 +2394,8 @@ begin
               and Assigned(XMLNode(PointsNode.ChildNodes[J], 'coord/x')) and TryStrToInt(XMLNode(PointsNode.ChildNodes[J], 'coord/x').Text, PointPosition.X)
               and Assigned(XMLNode(PointsNode.ChildNodes[J], 'coord/y')) and TryStrToInt(XMLNode(PointsNode.ChildNodes[J], 'coord/y').Text, PointPosition.Y)) then
             begin
-              PointPosition.X := (PointPosition.X * Screen.PixelsPerInch) div Workbench.FilePixelsPerInch;
-              PointPosition.Y := (PointPosition.Y * Screen.PixelsPerInch) div Workbench.FilePixelsPerInch;
+              PointPosition.X := Workbench.CalcPosition(PointPosition.X);
+              PointPosition.Y := Workbench.CalcPosition(PointPosition.Y);
               Point := TWLinkPoint.Create(Workbench, Coord(-1, -1), LastPoint);
               Point.MoveTo(nil, [], PointPosition);
             end;
@@ -2396,7 +2408,15 @@ begin
         and TryStrToAlign(XMLNode(XML, 'tables/parent/align').Text, Align)
         and Assigned(XMLNode(XML, 'tables/parent/position'))
         and TryStrToInt(XMLNode(XML, 'tables/parent/position').Text, Position)) then
-        Point.MoveTo(nil, [], ConnectorPosition(Table, Align, (Position * Screen.PixelsPerInch) div Workbench.FilePixelsPerInch));
+      begin
+        case (Align) of
+          alLeft,
+          alRight: Position := Workbench.CalcPosition(Table.FilePosition.Y + Position) - Table.Position.Y;
+          alTop,
+          alBottom: Position := Workbench.CalcPosition(Table.FilePosition.X + Position) - Table.Position.X;
+        end;
+        Point.MoveTo(nil, [], ConnectorPosition(Table, Align, Position));
+      end;
 
       Cleanup(Self);
     end;
@@ -2436,21 +2456,12 @@ begin
 
   PointsNode := XMLNode(XML, 'points');
 
-  for I := PointsNode.ChildNodes.Count - 1 downto 0 do
-    if ((PointsNode.ChildNodes[I].NodeName = 'point') and (TryStrToInt(PointsNode.ChildNodes[I].Attributes['index'], Index) and ((Index < 1) or (PointCount - 2 < Index)))) then
-      PointsNode.ChildNodes.Delete(I);
+  while (PointsNode.ChildNodes.Delete('point') >= 0) do ;
 
   for I := 1 to PointCount - 2 do
   begin
-    Node := nil;
-    for J := 0 to PointsNode.ChildNodes.Count - 1 do
-      if ((PointsNode.ChildNodes[J].NodeName = 'point') and (TryStrToInt(PointsNode.ChildNodes[J].Attributes['index'], Index) and (Index = I - 1))) then
-        Node := PointsNode.ChildNodes[J];
-    if (not Assigned(Node)) then
-    begin
-      Node := PointsNode.AddChild('point');
-      Node.Attributes['index'] := IntToStr(I - 1);
-    end;
+    Node := PointsNode.AddChild('point');
+    Node.Attributes['index'] := IntToStr(I - 1);
 
     Points[I].SaveToXML(Node);
   end;
@@ -2632,6 +2643,7 @@ begin
 
   FBaseTable := ABaseTable;
 
+  FilePosition := Point(-1, -1);
   FDoubleBuffered := True;
   SetLength(FLinkPoints, 0);
 
@@ -2687,6 +2699,9 @@ end;
 procedure TWTable.LoadFromXML(const XML: IXMLNode);
 begin
   inherited;
+
+  if (Assigned(XMLNode(XML, 'coord/x'))) then TryStrToInt(XMLNode(XML, 'coord/x').Text, FilePosition.X);
+  if (Assigned(XMLNode(XML, 'coord/y'))) then TryStrToInt(XMLNode(XML, 'coord/y').Text, FilePosition.Y);
 
   Workbench.UpdateControl(Self);
 end;
@@ -2953,8 +2968,8 @@ begin
   if (Assigned(XMLNode(XML, 'caption'))) then Caption := XMLNode(XML, 'caption').Text;
   if (Assigned(XMLNode(XML, 'color'))) then FColor := StringToColor(XMLNode(XML, 'color').Text);
 
-  FSize.cx := (FSize.cx * Screen.PixelsPerInch) div Workbench.FilePixelsPerInch;
-  FSize.cy := (FSize.cy * Screen.PixelsPerInch) div Workbench.FilePixelsPerInch;
+  FSize.cx := Workbench.CalcPosition(FSize.cx);
+  FSize.cy := Workbench.CalcPosition(FSize.cy);
 
   inherited;
 
@@ -3278,6 +3293,11 @@ end;
 procedure TWWorkbench.BeginUpdate();
 begin
   Inc(UpdateCount);
+end;
+
+function TWWorkbench.CalcPosition(const FilePosition: Integer): Integer;
+begin
+  Result := (FilePosition * Screen.PixelsPerInch) div FilePixelsPerInch;
 end;
 
 procedure TWWorkbench.CalcRange(const Reset: Boolean);
