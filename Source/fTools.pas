@@ -3797,9 +3797,9 @@ MessageBox(0, 'odAccess2007', 'Debug', MB_OK + MB_ICONINFORMATION);
         ConnStrIn := 'Driver={' + DriverAccess12 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
         Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, @ConnStrOutLength, SQL_DRIVER_COMPLETE));
 if (Connected) then
-  MessageBox(0, 'Connected', 'Debug', MB_OK + MB_ICONINFORMATION)
+  MessageBox(0, '2007: Connected', 'Debug', MB_OK + MB_ICONINFORMATION)
 else
-  MessageBox(0, 'Not connected', 'Debug', MB_OK + MB_ICONINFORMATION);
+  MessageBox(0, '2007: Not connected', 'Debug', MB_OK + MB_ICONINFORMATION);
       end;
       if (not Connected) then
       begin
@@ -3807,9 +3807,9 @@ MessageBox(0, 'odAccess', 'Debug', MB_OK + MB_ICONINFORMATION);
         ConnStrIn := 'Driver={' + DriverAccess + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
         Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, @ConnStrOutLength, SQL_DRIVER_COMPLETE));
 if (Connected) then
-  MessageBox(0, 'Connected', 'Debug', MB_OK + MB_ICONINFORMATION)
+  MessageBox(0, 'Old: Connected', 'Debug', MB_OK + MB_ICONINFORMATION)
 else
-  MessageBox(0, 'Not connected', 'Debug', MB_OK + MB_ICONINFORMATION);
+  MessageBox(0, 'Old: Not connected', 'Debug', MB_OK + MB_ICONINFORMATION);
       end;
       if (not Connected) then
         DoError(ODBCError(SQL_HANDLE_DBC, FHandle), nil, True);
