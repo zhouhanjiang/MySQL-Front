@@ -3458,6 +3458,7 @@ begin
 
   Open();
 
+MessageBox(0, '1', 'Debug', MB_OK + MB_ICONINFORMATION);
   Result := False;
   if (Success = daSuccess) then
     if (not SQL_SUCCEEDED(SQLGetInfo(Handle, SQL_MAX_TABLE_NAME_LEN, @TABLE_NAME_LEN, SizeOf(TABLE_NAME_LEN), nil))) then
@@ -3466,6 +3467,7 @@ begin
       raise ERangeError.Create(SRangeError)
     else
     begin
+MessageBox(0, '2', 'Debug', MB_OK + MB_ICONINFORMATION);
       GetMem(TABLE_NAME, (TABLE_NAME_LEN + 1) * SizeOf(SQLWCHAR));
       GetMem(TABLE_TYPE, (TABLE_TYPE_LEN + 1) * SizeOf(SQLWCHAR));
 
@@ -3475,6 +3477,7 @@ begin
         DoError(ODBCError(SQL_HANDLE_STMT, Stmt), nil, False)
       else
       begin
+MessageBox(0, '3', 'Debug', MB_OK + MB_ICONINFORMATION);
         while (SQL_SUCCEEDED(ODBCException(Stmt, SQLFetch(Stmt)))) do
           if ((lstrcmpi(PChar(TABLE_TYPE), 'TABLE') = 0) or (Self is TTImportExcel) and ((lstrcmpi(PChar(TABLE_TYPE), 'TABLE') = 0) or (lstrcmpi(PChar(TABLE_TYPE), 'SYSTEM TABLE') = 0)))  then
           begin
@@ -3482,6 +3485,7 @@ begin
             TableNames.Add(TableName);
           end;
         SQLFreeStmt(Stmt, SQL_CLOSE);
+MessageBox(0, '4', 'Debug', MB_OK + MB_ICONINFORMATION);
 
         if ((Self is TTImportExcel) and (TableNames.Count = 0)) then
           if (not SQL_SUCCEEDED(SQLTables(Stmt, nil, 0, nil, 0, nil, 0, nil, 0))
@@ -3490,6 +3494,7 @@ begin
             raise ERangeError.Create(SRangeError)
           else
           begin
+MessageBox(0, '5', 'Debug', MB_OK + MB_ICONINFORMATION);
             while (SQL_SUCCEEDED(ODBCException(Stmt, SQLFetch(Stmt)))) do
               if (lstrcmpi(PChar(TABLE_TYPE), 'TABLE') = 0)  then
               begin
@@ -3501,6 +3506,7 @@ begin
             SQLFreeStmt(Stmt, SQL_CLOSE);
           end;
 
+MessageBox(0, '6', 'Debug', MB_OK + MB_ICONINFORMATION);
         if (Self is TTImportExcel) then
         begin
           Found := False;
@@ -3518,6 +3524,7 @@ begin
       FreeMem(TABLE_TYPE);
       SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
     end;
+MessageBox(0, '7', 'Debug', MB_OK + MB_ICONINFORMATION);
 end;
 
 procedure TTImportBaseODBC.GetValue(const Item: TTImport.TItem; const Index: Integer; const Values: TTool.TStringBuffer);
@@ -3781,7 +3788,6 @@ procedure TTImportAccess.Open();
 var
   Connected: Boolean;
   ConnStrIn: string;
-  ConnStrOutLength: SQLSMALLINT;
 begin
   if (FHandle = SQL_NULL_HANDLE) then
   begin
@@ -3793,35 +3799,21 @@ begin
     begin
       if (odAccess2007 in ODBCDrivers) then
       begin
-MessageBox(0, '1', 'Debug', MB_OK + MB_ICONINFORMATION);
         ConnStrIn := 'Driver={' + DriverAccess12 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
         try
-          Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, @ConnStrOutLength, SQL_DRIVER_COMPLETE));
+          Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
         except
           Connected := False;
         end;
-if (Connected) then
-  MessageBox(0, '2', 'Debug', MB_OK + MB_ICONINFORMATION)
-else
-  MessageBox(0, '3', 'Debug', MB_OK + MB_ICONINFORMATION);
       end;
       if (not Connected) then
       begin
-MessageBox(0, '4', 'Debug', MB_OK + MB_ICONINFORMATION);
         ConnStrIn := 'Driver={' + DriverAccess + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
-        Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, @ConnStrOutLength, SQL_DRIVER_COMPLETE));
-if (Connected) then
-  MessageBox(0, '5', 'Debug', MB_OK + MB_ICONINFORMATION)
-else
-  MessageBox(0, '6', 'Debug', MB_OK + MB_ICONINFORMATION);
+        Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
       end;
       if (not Connected) then
         DoError(ODBCError(SQL_HANDLE_DBC, FHandle), nil, True);
     end;
-if (Connected) then
-  MessageBox(0, '7', 'Debug', MB_OK + MB_ICONINFORMATION)
-else
-  MessageBox(0, '8', 'Debug', MB_OK + MB_ICONINFORMATION);
   end;
 end;
 
@@ -3838,7 +3830,6 @@ procedure TTImportExcel.Open();
 var
   Connected: Boolean;
   ConnStrIn: string;
-  ConnStrOutLength: SQLSMALLINT;
 begin
   if (FHandle = SQL_NULL_HANDLE) then
   begin
@@ -3851,12 +3842,12 @@ begin
       if (odExcel2007 in ODBCDrivers) then
       begin
         ConnStrIn := 'Driver={' + DriverExcel12 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
-        Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, @ConnStrOutLength, SQL_DRIVER_COMPLETE));
+        Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
       end;
       if (not Connected) then
       begin
         ConnStrIn := 'Driver={' + DriverExcel + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
-        Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, @ConnStrOutLength, SQL_DRIVER_COMPLETE));
+        Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
       end;
       if (not Connected) then
         DoError(ODBCError(SQL_HANDLE_DBC, FHandle), nil, True);
@@ -6524,7 +6515,6 @@ procedure TTExportAccess.ExecuteHeader();
 var
   Attributes: string;
   ConnStrIn: string;
-  ConnStrOutLength: SQLSMALLINT;
   Error: TTool.TError;
   ErrorCode: DWord;
   ErrorMsg: PChar;
@@ -6557,7 +6547,7 @@ begin
     end
     else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @Handle))) then
       DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False)
-    else if (not SQL_SUCCEEDED(SQLDriverConnect(Handle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, @ConnStrOutLength, SQL_DRIVER_COMPLETE))) then
+    else if (not SQL_SUCCEEDED(SQLDriverConnect(Handle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE))) then
       DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False)
     else if (not SQL_SUCCEEDED(SQLSetConnectAttr(Handle, SQL_ATTR_AUTOCOMMIT, SQLPOINTER(SQL_AUTOCOMMIT_OFF), 1))) then
       DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False)
@@ -6599,7 +6589,6 @@ end;
 procedure TTExportExcel.ExecuteHeader();
 var
   ConnStrIn: string;
-  ConnStrOutLength: SQLSMALLINT;
 begin
   if (Success = daSuccess) then
   begin
@@ -6610,7 +6599,7 @@ begin
 
     if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @Handle))) then
       DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False)
-    else if (not SQL_SUCCEEDED(SQLDriverConnect(Handle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, @ConnStrOutLength, SQL_DRIVER_COMPLETE))) then
+    else if (not SQL_SUCCEEDED(SQLDriverConnect(Handle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE))) then
       DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False)
     else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, Handle, @Stmt))) then
       DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False);
