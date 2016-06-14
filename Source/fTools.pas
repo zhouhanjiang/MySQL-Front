@@ -50,7 +50,7 @@ type
       property Item[Index: Integer]: TItem read GetItem; default;
       property Tool: TTool read FTool;
     end;
-    TErrorType = (TE_Database, TE_NoPrimaryIndex, TE_File, TE_ODBC, TE_XML, TE_Warning, TE_Printer, TE_OutOfMemory, TE_CharacterSet);
+    TErrorType = (TE_Database, TE_NoPrimaryIndex, TE_File, TE_ODBC, TE_XML, TE_Warning, TE_Printer, TE_OutOfMemory, TE_CharacterSet, TE_Other);
     TError = record
       ErrorType: TErrorType;
       ErrorCode: Integer;
@@ -1966,16 +1966,16 @@ begin
       SQL := SQL + Database.SQLUse() + #13#10;
     if (Session.Connection.Lib.LibraryType <> ltHTTP) then
     begin
+      if (Session.Connection.ServerVersion < 40011) then
+        SQL := SQL + 'BEGIN;' + #13#10
+      else
+        SQL := SQL + 'START TRANSACTION;' + #13#10;
       if (Structure) then
       begin
         SQL := SQL + 'LOCK TABLES ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + EscapedTableName + ' WRITE;' + #13#10;
         if ((Session.Connection.ServerVersion >= 40000) and (Table is TSBaseTable) and TSBaseTable(Table).Engine.IsMyISAM) then
           SQL := SQL + 'ALTER TABLE ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + EscapedTableName + ' DISABLE KEYS;' + #13#10;
       end;
-      if (Session.Connection.ServerVersion < 40011) then
-        SQL := SQL + 'BEGIN;' + #13#10
-      else
-        SQL := SQL + 'START TRANSACTION;' + #13#10;
     end;
     if (SQL <> '') then
       while ((Success <> daAbort) and not DoExecuteSQL(Item, SQL)) do
@@ -2033,6 +2033,15 @@ begin
 
           if ((Success <> daSuccess) or (Session.Connection.ErrorCode > 0))  then
             DoError(DatabaseError(Session), Item, False);
+
+          if ((Success = daSuccess) and (Session.Connection.RowsAffected <> Item.RecordsDone)) then
+          begin
+            // In MySQL 5.7 sometimes Blob values are ignored. The user should be informed about this.
+            Error.ErrorType := TE_Other;
+            Error.ErrorCode := 1;
+            Error.ErrorMessage := 'Lost records while LOAD DATA INFILE' + #13#10;
+            DoError(Error, Item, False);
+          end;
 
           if ((Success = daSuccess) and (Session.Connection.WarningCount > 0)) then
           begin
@@ -3515,6 +3524,7 @@ procedure TTImportBaseODBC.GetValue(const Item: TTImport.TItem; const Index: Int
 var
   cbData: SQLINTEGER;
   ReturnCode: SQLRETURN;
+  S: string;
   Size: Integer;
 begin
   case (ColumnDesc[Index].SQLDataType) of
@@ -3561,11 +3571,11 @@ begin
           begin
             if (ODBCMemSize < Size + cbData) then
             begin
-              ODBCMemSize := ODBCMemSize + 2 * (Size + cbData - ODBCMemSize);
+              ODBCMemSize := ODBCMemSize + (Size + cbData - ODBCMemSize);
               ReallocMem(ODBCMem, ODBCMemSize);
             end;
-            MoveMemory(@PAnsiChar(ODBCMem)[Size], ODBCData, cbData);
-            Inc(Size, cbData);
+            MoveMemory(@PAnsiChar(ODBCMem)[Size], ODBCData, Min(ODBCDataSize, cbData));
+            Inc(Size, Min(ODBCDataSize, cbData));
           end;
         until (ReturnCode <> SQL_SUCCESS_WITH_INFO);
         if (not SQL_SUCCEEDED(ReturnCode)) then
@@ -3589,11 +3599,11 @@ begin
           begin
             if (ODBCMemSize < Size + cbData) then
             begin
-              ODBCMemSize := ODBCMemSize + 2 * (Size + cbData - ODBCMemSize);
+              ODBCMemSize := ODBCMemSize + (Size + cbData - ODBCMemSize);
               ReallocMem(ODBCMem, ODBCMemSize);
             end;
-            MoveMemory(@PAnsiChar(ODBCMem)[Size], ODBCData, cbData);
-            Inc(Size, cbData);
+            MoveMemory(@PAnsiChar(ODBCMem)[Size], ODBCData, Min(ODBCDataSize, cbData));
+            Inc(Size, Min(ODBCDataSize, cbData));
           end;
         until (ReturnCode <> SQL_SUCCESS_WITH_INFO);
         if (not SQL_SUCCEEDED(ReturnCode)) then
@@ -3604,7 +3614,10 @@ begin
         else if (cbData = SQL_NULL_DATA) then
           Values.Write('NULL', 4)
         else
-          Values.Write('NULL', 4);
+        begin
+          S := SQLEscapeBin(ODBCMem, Size, False);
+          Values.Write(PChar(S), Length(S));
+        end;
       end;
     else
       raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [FieldMappings[Index].DestinationField.Name, ColumnDesc[Index].SQLDataType]);
@@ -3696,8 +3709,8 @@ begin
                 ODBCMemSize := ODBCMemSize + 2 * (Size + cbData - ODBCMemSize);
                 ReallocMem(ODBCMem, ODBCMemSize);
               end;
-              MoveMemory(@PAnsiChar(ODBCMem)[Size], ODBCData, cbData);
-              Inc(Size, cbData);
+              MoveMemory(@PAnsiChar(ODBCMem)[Size], ODBCData, Min(ODBCDataSize, cbData));
+              Inc(Size, Min(ODBCDataSize, cbData));
             end;
           until (ReturnCode <> SQL_SUCCESS_WITH_INFO);
           if (not SQL_SUCCEEDED(ReturnCode)) then
@@ -3768,6 +3781,7 @@ procedure TTImportAccess.Open();
 var
   Connected: Boolean;
   ConnStrIn: string;
+  ConnStrOutLength: SQLSMALLINT;
 begin
   if (FHandle = SQL_NULL_HANDLE) then
   begin
@@ -3777,20 +3791,33 @@ begin
     Connected := False;
     while ((Success <> daAbort) and not Connected) do
     begin
-      ConnStrIn := 'Driver={' + DriverAccess12 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
-      try
-        Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
-      except
-        Connected := False;
+      if (odAccess2007 in ODBCDrivers) then
+      begin
+MessageBox(0, 'odAccess2007', 'Debug', MB_OK + MB_ICONINFORMATION);
+        ConnStrIn := 'Driver={' + DriverAccess12 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
+        Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, @ConnStrOutLength, SQL_DRIVER_COMPLETE));
+if (Connected) then
+  MessageBox(0, 'Connected', 'Debug', MB_OK + MB_ICONINFORMATION)
+else
+  MessageBox(0, 'Not connected', 'Debug', MB_OK + MB_ICONINFORMATION);
       end;
       if (not Connected) then
       begin
+MessageBox(0, 'odAccess', 'Debug', MB_OK + MB_ICONINFORMATION);
         ConnStrIn := 'Driver={' + DriverAccess + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
-        Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
+        Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, @ConnStrOutLength, SQL_DRIVER_COMPLETE));
+if (Connected) then
+  MessageBox(0, 'Connected', 'Debug', MB_OK + MB_ICONINFORMATION)
+else
+  MessageBox(0, 'Not connected', 'Debug', MB_OK + MB_ICONINFORMATION);
       end;
       if (not Connected) then
         DoError(ODBCError(SQL_HANDLE_DBC, FHandle), nil, True);
     end;
+if (Connected) then
+  MessageBox(0, 'Open: Connected', 'Debug', MB_OK + MB_ICONINFORMATION)
+else
+  MessageBox(0, 'Open: Not connected', 'Debug', MB_OK + MB_ICONINFORMATION);
   end;
 end;
 
@@ -3807,6 +3834,7 @@ procedure TTImportExcel.Open();
 var
   Connected: Boolean;
   ConnStrIn: string;
+  ConnStrOutLength: SQLSMALLINT;
 begin
   if (FHandle = SQL_NULL_HANDLE) then
   begin
@@ -3816,12 +3844,15 @@ begin
     Connected := False;
     while ((Success <> daAbort) and not Connected) do
     begin
-      ConnStrIn := 'Driver={' + DriverExcel12 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
-      Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
+      if (odExcel2007 in ODBCDrivers) then
+      begin
+        ConnStrIn := 'Driver={' + DriverExcel12 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
+        Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, @ConnStrOutLength, SQL_DRIVER_COMPLETE));
+      end;
       if (not Connected) then
       begin
         ConnStrIn := 'Driver={' + DriverExcel + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
-        Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
+        Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, @ConnStrOutLength, SQL_DRIVER_COMPLETE));
       end;
       if (not Connected) then
         DoError(ODBCError(SQL_HANDLE_DBC, FHandle), nil, True);
@@ -6348,26 +6379,22 @@ begin
           begin
             Size := AnsiCharToWideChar(Session.Connection.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], nil, 0) * SizeOf(Char);
             if (Size < Parameter[I].MemSize div SizeOf(Char)) then
-              Parameter[I].Size := AnsiCharToWideChar(Session.Connection.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], Parameter[I].Mem, Parameter[I].MemSize div SizeOf(Char)) * SizeOf(Char)
+            begin
+              Parameter[I].Size := AnsiCharToWideChar(Session.Connection.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], Parameter[I].Mem, Parameter[I].MemSize div SizeOf(Char)) * SizeOf(Char);
+              MoveMemory(Parameter[I].Mem, DataSet.LibRow^[I], Parameter[I].Size);
+            end
             else
               Parameter[I].Size := SQL_LEN_DATA_AT_EXEC(Size * SizeOf(Char));
           end;
         ftBlob:
           begin
-            Size := 0;
-
-            repeat
-              if (DataSet.LibLengths^[I] <= Size + Parameter[I].MemSize) then
-                Parameter[I].Size := DataSet.LibLengths^[I] - Size
-              else
-              begin
-                Parameter[I].Size := Parameter[I].MemSize;
-                raise ERangeError.Create(SRangeError); // How does it works with multiple parts???
-              end;
-              MoveMemory(Parameter[I].Mem, DataSet.LibRow^[I] + Size, Parameter[I].Size);
-
-              Inc(Size, Parameter[I].Size);
-            until (Size = DataSet.LibLengths^[I]);
+            if (DataSet.LibLengths^[I] <= Parameter[I].MemSize) then
+            begin
+              Parameter[I].Size := DataSet.LibLengths^[I];
+              MoveMemory(Parameter[I].Mem, DataSet.LibRow^[I], Parameter[I].Size);
+            end
+            else
+              Parameter[I].Size := SQL_LEN_DATA_AT_EXEC(DataSet.LibLengths^[I]);
           end;
         else
           raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Fields[I].DisplayName, Ord(Fields[I].DataType)]);
@@ -6493,6 +6520,7 @@ procedure TTExportAccess.ExecuteHeader();
 var
   Attributes: string;
   ConnStrIn: string;
+  ConnStrOutLength: SQLSMALLINT;
   Error: TTool.TError;
   ErrorCode: DWord;
   ErrorMsg: PChar;
@@ -6525,7 +6553,7 @@ begin
     end
     else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @Handle))) then
       DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False)
-    else if (not SQL_SUCCEEDED(SQLDriverConnect(Handle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE))) then
+    else if (not SQL_SUCCEEDED(SQLDriverConnect(Handle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, @ConnStrOutLength, SQL_DRIVER_COMPLETE))) then
       DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False)
     else if (not SQL_SUCCEEDED(SQLSetConnectAttr(Handle, SQL_ATTR_AUTOCOMMIT, SQLPOINTER(SQL_AUTOCOMMIT_OFF), 1))) then
       DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False)
@@ -6567,6 +6595,7 @@ end;
 procedure TTExportExcel.ExecuteHeader();
 var
   ConnStrIn: string;
+  ConnStrOutLength: SQLSMALLINT;
 begin
   if (Success = daSuccess) then
   begin
@@ -6577,7 +6606,7 @@ begin
 
     if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @Handle))) then
       DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False)
-    else if (not SQL_SUCCEEDED(SQLDriverConnect(Handle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE))) then
+    else if (not SQL_SUCCEEDED(SQLDriverConnect(Handle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, @ConnStrOutLength, SQL_DRIVER_COMPLETE))) then
       DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False)
     else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, Handle, @Stmt))) then
       DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False);

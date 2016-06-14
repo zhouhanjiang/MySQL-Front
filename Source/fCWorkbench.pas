@@ -2431,8 +2431,6 @@ end;
 procedure TWLink.SaveToXML(const XML: IXMLNode);
 var
   I: Integer;
-  Index: Integer;
-  J: Integer;
   Node: IXMLNode;
   PointsNode: IXMLNode;
 begin

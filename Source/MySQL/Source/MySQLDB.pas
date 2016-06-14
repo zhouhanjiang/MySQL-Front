@@ -282,7 +282,7 @@ type
     FFormatSettings: TFormatSettings;
     FLib: TMySQLLibrary;
     FMultiStatements: Boolean;
-    FRowsAffected: Integer;
+    FRowsAffected: Int64;
     FWarningCount: Integer;
     TimeDiff: TDateTime;
     procedure DoAfterExecuteSQL(); virtual;
@@ -378,7 +378,7 @@ type
     property MaxAllowedPacket: Integer read GetMaxAllowedPacket;
     property MultiStatements: Boolean read FMultiStatements;
     property ResultCount: Integer read FResultCount;
-    property RowsAffected: Integer read FRowsAffected;
+    property RowsAffected: Int64 read FRowsAffected;
     property ServerDateTime: TDateTime read GetServerDateTime;
     property ServerVersion: Integer read FServerVersion;
     property ServerVersionStr: string read FServerVersionStr;
@@ -801,6 +801,7 @@ resourcestring
   SLibraryNotAvailable = 'Library can not be loaded ("%s")';
   SOutOfSync = 'Thread synchronization error';
   SWrongDataSet = 'Field doesn''t attached to a "%s" DataSet';
+  SEmpyUpdate = 'Empty update statement';
 
 const
   DATASET_ERRORS: array [0..2] of PChar = (
@@ -6389,6 +6390,8 @@ begin
       Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + '=' + SQLFieldValue(Fields[I], Buffer);
       ValueHandled := True;
     end;
+  if (not ValueHandled) then
+    raise Exception.Create(SEmpyUpdate);
   Result := Result + ' WHERE ';
   ValueHandled := False;
   for I := 0 to FieldCount - 1 do

@@ -5733,8 +5733,6 @@ end;
 
 function TFSession.CreateWorkbench(const ADatabase: TSDatabase): TWWorkbench;
 begin
-//  raise Exception.Create('No Diagram allowed');
-
   Result := TWWorkbench.Create(Owner, ADatabase);
 
   Result.Left := 0;
@@ -12359,10 +12357,12 @@ begin
       NewTop := PBlob.Parent.ClientHeight - PBlob.Height;
       for I := 0 to PBlob.Parent.ControlCount - 1 do
         case (PBlob.Parent.Controls[I].Align) of
-          alClient: Max(NewTop, PBlob.Parent.Controls[I].Constraints.MinHeight);
+          alClient: NewTop := Max(NewTop, PBlob.Parent.Controls[I].Constraints.MinHeight);
           alBottom: Dec(NewTop, PBlob.Parent.Controls[I].Height);
         end;
+      NewTop := Max(NewTop, PResult.Constraints.MinHeight);
       PBlob.Top := NewTop;
+      PBlob.Height := PBlob.Parent.ClientHeight - PBlob.Top;
       PBlob.Align := alBottom;
       PBlob.Visible := True;
     end
