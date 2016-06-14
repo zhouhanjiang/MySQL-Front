@@ -3793,31 +3793,35 @@ begin
     begin
       if (odAccess2007 in ODBCDrivers) then
       begin
-MessageBox(0, 'odAccess2007', 'Debug', MB_OK + MB_ICONINFORMATION);
+MessageBox(0, '1', 'Debug', MB_OK + MB_ICONINFORMATION);
         ConnStrIn := 'Driver={' + DriverAccess12 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
-        Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, @ConnStrOutLength, SQL_DRIVER_COMPLETE));
+        try
+          Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, @ConnStrOutLength, SQL_DRIVER_COMPLETE));
+        except
+          Connected := False;
+        end;
 if (Connected) then
-  MessageBox(0, '2007: Connected', 'Debug', MB_OK + MB_ICONINFORMATION)
+  MessageBox(0, '2', 'Debug', MB_OK + MB_ICONINFORMATION)
 else
-  MessageBox(0, '2007: Not connected', 'Debug', MB_OK + MB_ICONINFORMATION);
+  MessageBox(0, '3', 'Debug', MB_OK + MB_ICONINFORMATION);
       end;
       if (not Connected) then
       begin
-MessageBox(0, 'odAccess', 'Debug', MB_OK + MB_ICONINFORMATION);
+MessageBox(0, '4', 'Debug', MB_OK + MB_ICONINFORMATION);
         ConnStrIn := 'Driver={' + DriverAccess + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
         Connected := SQL_SUCCEEDED(SQLDriverConnect(FHandle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, @ConnStrOutLength, SQL_DRIVER_COMPLETE));
 if (Connected) then
-  MessageBox(0, 'Old: Connected', 'Debug', MB_OK + MB_ICONINFORMATION)
+  MessageBox(0, '5', 'Debug', MB_OK + MB_ICONINFORMATION)
 else
-  MessageBox(0, 'Old: Not connected', 'Debug', MB_OK + MB_ICONINFORMATION);
+  MessageBox(0, '6', 'Debug', MB_OK + MB_ICONINFORMATION);
       end;
       if (not Connected) then
         DoError(ODBCError(SQL_HANDLE_DBC, FHandle), nil, True);
     end;
 if (Connected) then
-  MessageBox(0, 'Open: Connected', 'Debug', MB_OK + MB_ICONINFORMATION)
+  MessageBox(0, '7', 'Debug', MB_OK + MB_ICONINFORMATION)
 else
-  MessageBox(0, 'Open: Not connected', 'Debug', MB_OK + MB_ICONINFORMATION);
+  MessageBox(0, '8', 'Debug', MB_OK + MB_ICONINFORMATION);
   end;
 end;
 
