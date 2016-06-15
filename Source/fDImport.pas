@@ -1751,31 +1751,35 @@ end;
 procedure TDImport.ScrollBoxResize(Sender: TObject);
 var
   I: Integer;
+  Msg: TMsg;
   Padding: Integer;
 begin
-  Padding := ScrollBox.Left + FSourceField1.Left;
+  if (not (PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (Msg.wParam = MK_LBUTTON))) then
+  begin
+    Padding := ScrollBox.Left + FSourceField1.Left;
 
-  for I := 0 to Length(FSourceFields) - 1 do
-    if ((Length(FSourceFields) > I) and Assigned(FSourceFields[I])) then
-      FSourceFields[I].Width :=
-        (ScrollBox.ClientWidth
-          - FLReferrer1.Canvas.TextWidth(FLReferrer1.Caption)
-          - 3 * Padding
-          - GetSystemMetrics(SM_CXVSCROLL)) div 2;
+    for I := 0 to Length(FSourceFields) - 1 do
+      if ((Length(FSourceFields) > I) and Assigned(FSourceFields[I])) then
+        FSourceFields[I].Width :=
+          (ScrollBox.ClientWidth
+            - FLReferrer1.Canvas.TextWidth(FLReferrer1.Caption)
+            - 3 * Padding
+            - GetSystemMetrics(SM_CXVSCROLL)) div 2;
 
-  for I := 0 to Length(FLReferrers) - 1 do
-    if ((Length(FLReferrers) > I) and Assigned(FLReferrers[I])) then
-      FLReferrers[I].Left := FSourceFields[I].Left + FSourceFields[I].Width + Padding;
+    for I := 0 to Length(FLReferrers) - 1 do
+      if ((Length(FLReferrers) > I) and Assigned(FLReferrers[I])) then
+        FLReferrers[I].Left := FSourceFields[I].Left + FSourceFields[I].Width + Padding;
 
-  for I := 0 to Length(FDestinationFields) - 1 do
-    if ((Length(FDestinationFields) > I) and Assigned(FDestinationFields[I]) and (Length(FLReferrers) > 0) and Assigned(FLReferrers[I]) and (Length(FSourceFields) > 0) and Assigned(FSourceFields[I])) then
-    begin
-      FDestinationFields[I].Left := FLReferrers[I].Left + FLReferrers[I].Width + Padding;
-      FDestinationFields[I].Width := FSourceFields[I].Width;
-    end;
+    for I := 0 to Length(FDestinationFields) - 1 do
+      if ((Length(FDestinationFields) > I) and Assigned(FDestinationFields[I]) and (Length(FLReferrers) > 0) and Assigned(FLReferrers[I]) and (Length(FSourceFields) > 0) and Assigned(FSourceFields[I])) then
+      begin
+        FDestinationFields[I].Left := FLReferrers[I].Left + FLReferrers[I].Width + Padding;
+        FDestinationFields[I].Width := FSourceFields[I].Width;
+      end;
 
-  if ((Length(FDestinationFields) > 0) and (Assigned(FDestinationFields[0]))) then
-    FLDestinationFields.Left := FDestinationFields[0].Left + 6;
+    if ((Length(FDestinationFields) > 0) and (Assigned(FDestinationFields[0]))) then
+      FLDestinationFields.Left := FDestinationFields[0].Left + 6;
+  end;
 end;
 
 procedure TDImport.TSCSVOptionsHide(Sender: TObject);

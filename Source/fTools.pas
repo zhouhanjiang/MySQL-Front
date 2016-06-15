@@ -50,7 +50,7 @@ type
       property Item[Index: Integer]: TItem read GetItem; default;
       property Tool: TTool read FTool;
     end;
-    TErrorType = (TE_Database, TE_NoPrimaryIndex, TE_File, TE_ODBC, TE_XML, TE_Warning, TE_Printer, TE_OutOfMemory, TE_CharacterSet, TE_Other);
+    TErrorType = (TE_Database, TE_NoPrimaryIndex, TE_File, TE_ODBC, TE_XML, TE_Warning, TE_Printer, TE_OutOfMemory, TE_CharacterSet);
     TError = record
       ErrorType: TErrorType;
       ErrorCode: Integer;
@@ -1879,17 +1879,22 @@ begin
   try
   {$ENDIF}
 
+MessageBox(0, '1', 'Debug', MB_OK + MB_ICONINFORMATION);
   BeforeExecute();
 
+MessageBox(0, '2', 'Debug', MB_OK + MB_ICONINFORMATION);
   Open();
 
+MessageBox(0, '3', 'Debug', MB_OK + MB_ICONINFORMATION);
   for I := 0 to Items.Count - 1 do
     if (Success <> daAbort) then
     begin
       Success := daSuccess;
 
+MessageBox(0, '4', 'Debug', MB_OK + MB_ICONINFORMATION);
       if (Structure) then
       begin
+MessageBox(0, '5', 'Debug', MB_OK + MB_ICONINFORMATION);
         Table := Database.TableByName(TTImport.TItem(Items[I]).DestinationTableName);
 
         if (Assigned(Table)) then
@@ -1904,22 +1909,28 @@ begin
           SetLength(FieldMappings, 0);
           ExecuteStructure(TTImport.TItem(Items[I]));
         end;
+MessageBox(0, '6', 'Debug', MB_OK + MB_ICONINFORMATION);
       end;
 
       if ((Success = daSuccess) and Data) then
       begin
+MessageBox(0, '7', 'Debug', MB_OK + MB_ICONINFORMATION);
         Table := Database.TableByName(TTImport.TItem(Items[I]).DestinationTableName);
 
         if (not Assigned(Table)) then
           raise Exception.Create('Table "' + TTImport.TItem(Items[I]).DestinationTableName + '" does not exists.');
 
+MessageBox(0, '8', 'Debug', MB_OK + MB_ICONINFORMATION);
         ExecuteData(TTImport.TItem(Items[I]), Database.TableByName(TTImport.TItem(Items[I]).DestinationTableName));
+MessageBox(0, '9', 'Debug', MB_OK + MB_ICONINFORMATION);
       end;
 
       Items[I].Done := True;
     end;
 
+MessageBox(0, '10', 'Debug', MB_OK + MB_ICONINFORMATION);
   AfterExecute();
+MessageBox(0, '11', 'Debug', MB_OK + MB_ICONINFORMATION);
 
   {$IFDEF EurekaLog}
   except
@@ -2033,15 +2044,6 @@ begin
 
           if ((Success <> daSuccess) or (Session.Connection.ErrorCode > 0))  then
             DoError(DatabaseError(Session), Item, False);
-
-          if ((Success = daSuccess) and (Session.Connection.RowsAffected <> Item.RecordsDone)) then
-          begin
-            // In MySQL 5.7 sometimes Blob values are ignored. The user should be informed about this.
-            Error.ErrorType := TE_Other;
-            Error.ErrorCode := 1;
-            Error.ErrorMessage := 'Lost records while LOAD DATA INFILE' + #13#10;
-            DoError(Error, Item, False);
-          end;
 
           if ((Success = daSuccess) and (Session.Connection.WarningCount > 0)) then
           begin
@@ -3458,7 +3460,6 @@ begin
 
   Open();
 
-MessageBox(0, '1', 'Debug', MB_OK + MB_ICONINFORMATION);
   Result := False;
   if (Success = daSuccess) then
     if (not SQL_SUCCEEDED(SQLGetInfo(Handle, SQL_MAX_TABLE_NAME_LEN, @TABLE_NAME_LEN, SizeOf(TABLE_NAME_LEN), nil))) then
@@ -3467,7 +3468,6 @@ MessageBox(0, '1', 'Debug', MB_OK + MB_ICONINFORMATION);
       raise ERangeError.Create(SRangeError)
     else
     begin
-MessageBox(0, '2', 'Debug', MB_OK + MB_ICONINFORMATION);
       GetMem(TABLE_NAME, (TABLE_NAME_LEN + 1) * SizeOf(SQLWCHAR));
       GetMem(TABLE_TYPE, (TABLE_TYPE_LEN + 1) * SizeOf(SQLWCHAR));
 
@@ -3477,7 +3477,6 @@ MessageBox(0, '2', 'Debug', MB_OK + MB_ICONINFORMATION);
         DoError(ODBCError(SQL_HANDLE_STMT, Stmt), nil, False)
       else
       begin
-MessageBox(0, '3', 'Debug', MB_OK + MB_ICONINFORMATION);
         while (SQL_SUCCEEDED(ODBCException(Stmt, SQLFetch(Stmt)))) do
           if ((lstrcmpi(PChar(TABLE_TYPE), 'TABLE') = 0) or (Self is TTImportExcel) and ((lstrcmpi(PChar(TABLE_TYPE), 'TABLE') = 0) or (lstrcmpi(PChar(TABLE_TYPE), 'SYSTEM TABLE') = 0)))  then
           begin
@@ -3485,7 +3484,6 @@ MessageBox(0, '3', 'Debug', MB_OK + MB_ICONINFORMATION);
             TableNames.Add(TableName);
           end;
         SQLFreeStmt(Stmt, SQL_CLOSE);
-MessageBox(0, '4', 'Debug', MB_OK + MB_ICONINFORMATION);
 
         if ((Self is TTImportExcel) and (TableNames.Count = 0)) then
           if (not SQL_SUCCEEDED(SQLTables(Stmt, nil, 0, nil, 0, nil, 0, nil, 0))
@@ -3494,7 +3492,6 @@ MessageBox(0, '4', 'Debug', MB_OK + MB_ICONINFORMATION);
             raise ERangeError.Create(SRangeError)
           else
           begin
-MessageBox(0, '5', 'Debug', MB_OK + MB_ICONINFORMATION);
             while (SQL_SUCCEEDED(ODBCException(Stmt, SQLFetch(Stmt)))) do
               if (lstrcmpi(PChar(TABLE_TYPE), 'TABLE') = 0)  then
               begin
@@ -3506,7 +3503,6 @@ MessageBox(0, '5', 'Debug', MB_OK + MB_ICONINFORMATION);
             SQLFreeStmt(Stmt, SQL_CLOSE);
           end;
 
-MessageBox(0, '6', 'Debug', MB_OK + MB_ICONINFORMATION);
         if (Self is TTImportExcel) then
         begin
           Found := False;
@@ -3524,7 +3520,6 @@ MessageBox(0, '6', 'Debug', MB_OK + MB_ICONINFORMATION);
       FreeMem(TABLE_TYPE);
       SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
     end;
-MessageBox(0, '7', 'Debug', MB_OK + MB_ICONINFORMATION);
 end;
 
 procedure TTImportBaseODBC.GetValue(const Item: TTImport.TItem; const Index: Integer; const Values: TTool.TStringBuffer);

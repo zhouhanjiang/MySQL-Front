@@ -63,7 +63,6 @@ type
     procedure FStructureKeyPress(Sender: TObject; var Key: Char);
     procedure miSelectAllClick(Sender: TObject);
     procedure MSourcePopup(Sender: TObject);
-    procedure PageControlResize(Sender: TObject);
     procedure TreeViewChange(Sender: TObject; Node: TTreeNode);
     procedure TreeViewExpanding(Sender: TObject; Node: TTreeNode;
       var AllowExpansion: Boolean);
@@ -535,13 +534,6 @@ begin
   PostMessage(Handle, CM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos));
 end;
 
-procedure TDTransfer.PageControlResize(Sender: TObject);
-begin
-  GSource.Width := PageControl.Width div 2 - 3 * GSource.Left;
-  GDestination.Width := GSource.Width;
-  GDestination.Left := PageControl.Width - GDestination.Width - 3 * GSource.Left;
-end;
-
 procedure TDTransfer.TreeViewChange(Sender: TObject; Node: TTreeNode);
 begin
   if (ModalResult = mrNone) then
@@ -789,10 +781,15 @@ begin
 end;
 
 procedure TDTransfer.TSSelectResize(Sender: TObject);
+var
+  Msg: TMsg;
 begin
-  GSource.Width := (TSSelect.ClientWidth - 2 * GSource.Left - 10) div 2;
-  GDestination.Width := GSource.Width;
-  GDestination.Left := TSSelect.ClientWidth - GSource.Left;
+  if (not (PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) and (Msg.Message = WM_MOUSEMOVE) and (Msg.wParam = MK_LBUTTON))) then
+  begin
+    GSource.Width := PageControl.Width div 2 - 3 * GSource.Left;
+    GDestination.Width := GSource.Width;
+    GDestination.Left := PageControl.Width - GDestination.Width - 3 * GSource.Left;
+  end;
 end;
 
 procedure TDTransfer.TSSelectShow(Sender: TObject);

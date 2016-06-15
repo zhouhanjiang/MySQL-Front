@@ -53,16 +53,11 @@ object DTransfer: TDTransfer
     Style = tsFlatButtons
     TabOrder = 0
     TabStop = False
-    OnResize = PageControlResize
     object TSSelect: TTabSheet
       Caption = 'TSSelect'
       TabVisible = False
       OnResize = TSSelectResize
       OnShow = TSSelectShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         436
         279)
@@ -156,10 +151,6 @@ object DTransfer: TDTransfer
       ImageIndex = 2
       TabVisible = False
       OnShow = TSWhatShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         436
         279)
