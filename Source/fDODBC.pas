@@ -53,7 +53,7 @@ type
     UsernameC: array [0 .. CRED_MAX_USERNAME_LENGTH] of Char;
     procedure FBOkCheckEnabled(Sender: TObject);
     procedure FDataSourcesUpdate();
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     DataSource: string;
     Password: string;
@@ -89,18 +89,6 @@ begin
 end;
 
 { TDODBC *****************************************************************}
-
-procedure TDODBC.CMChangePreferences(var Message: TMessage);
-begin
-  Preferences.SmallImages.GetIcon(iiODBC, Icon);
-
-  Caption := Preferences.LoadStr(907);
-
-  FBManage.Caption := Preferences.LoadStr(13) + '...';
-
-  FBOk.Caption := Preferences.LoadStr(29);
-  FBCancel.Caption := Preferences.LoadStr(30);
-end;
 
 function TDODBC.Execute(): Boolean;
 begin
@@ -288,6 +276,18 @@ begin
 
   FBOkCheckEnabled(Sender);
   ActiveControl := FDataSources;
+end;
+
+procedure TDODBC.UMChangePreferences(var Message: TMessage);
+begin
+  Preferences.SmallImages.GetIcon(iiODBC, Icon);
+
+  Caption := Preferences.LoadStr(907);
+
+  FBManage.Caption := Preferences.LoadStr(13) + '...';
+
+  FBOk.Caption := Preferences.LoadStr(29);
+  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 initialization

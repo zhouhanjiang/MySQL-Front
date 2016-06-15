@@ -23,7 +23,8 @@ type
     procedure FBSettingsClick(Sender: TObject);
     procedure FormHide(Sender: TObject);
     procedure FormShow(Sender: TObject);
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+  private
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Password: string;
     Account: TAAccount;
@@ -55,19 +56,6 @@ begin
 end;
 
 { TDLogin *********************************************************************}
-
-procedure TDLogin.CMChangePreferences(var Message: TMessage);
-begin
-  Caption := Preferences.LoadStr(49);
-
-  GAccount.Caption := Preferences.LoadStr(34);
-  FLUsername.Caption := Preferences.LoadStr(561) + ':';
-  FLPassword.Caption := Preferences.LoadStr(40) + ':';
-  FBSettings.Caption := Preferences.LoadStr(27) + '...';
-
-  FBOk.Caption := Preferences.LoadStr(29);
-  FBCancel.Caption := Preferences.LoadStr(30);
-end;
 
 function TDLogin.Execute(): Boolean;
 begin
@@ -120,6 +108,19 @@ begin
     ActiveControl := FUsername
   else
     ActiveControl := FPassword;
+end;
+
+procedure TDLogin.UMChangePreferences(var Message: TMessage);
+begin
+  Caption := Preferences.LoadStr(49);
+
+  GAccount.Caption := Preferences.LoadStr(34);
+  FLUsername.Caption := Preferences.LoadStr(561) + ':';
+  FLPassword.Caption := Preferences.LoadStr(40) + ':';
+  FBSettings.Caption := Preferences.LoadStr(27) + '...';
+
+  FBOk.Caption := Preferences.LoadStr(29);
+  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 initialization

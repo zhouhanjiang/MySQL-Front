@@ -42,9 +42,9 @@ type
   private
     ManualURL: string;
     function ClientResult(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
-    procedure CMSendSQL(var Message: TMessage); message UM_SEND_SQL;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMSendSQL(var Message: TMessage); message UM_SEND_SQL;
     procedure WMNotify(var Message: TWMNotify); message WM_NOTIFY;
   protected
     procedure CreateParams(var Params: TCreateParams); override;
@@ -81,6 +81,21 @@ begin
 end;
 
 { TDSQLHelp *******************************************************************}
+
+procedure TDSQLHelp.CMSysFontChanged(var Message: TMessage);
+begin
+  inherited;
+
+  FBContent.Width := Canvas.TextWidth(FBContent.Caption) + 2 * (FBContent.Height - Canvas.TextHeight(FBContent.Caption));
+  FBDescription.Left := FBContent.Left + FBContent.Width;
+  FBDescription.Width := Canvas.TextWidth(FBDescription.Caption) + 2 * (FBDescription.Height - Canvas.TextHeight(FBDescription.Caption));
+  FBExample.Left := FBDescription.Left + FBDescription.Width;
+  FBExample.Width := Canvas.TextWidth(FBExample.Caption) + 2 * (FBExample.Height - Canvas.TextHeight(FBExample.Caption));
+  FBManual.Left := FBExample.Left + FBExample.Width;
+  FBManual.Width := Canvas.TextWidth(FBManual.Caption) + 2 * (FBManual.Height - Canvas.TextHeight(FBManual.Caption));
+
+  Constraints.MinWidth := 2 * GetSystemMetrics(SM_CXFRAME) + FBDescription.Width + FBExample.Width + FBManual.Width + FQuickSearch.Width + TBQuickSearchEnabled.Width + 50;
+end;
 
 function TDSQLHelp.ClientResult(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
 var
@@ -155,56 +170,6 @@ begin
   inherited;
 
   Params.ExStyle   := Params.ExStyle or WS_EX_APPWINDOW;
-end;
-
-procedure TDSQLHelp.CMChangePreferences(var Message: TMessage);
-begin
-  Preferences.SmallImages.GetIcon(14, Icon);
-
-  msCopy.Action := MainAction('aECopy'); msCopy.ShortCut := 0;
-  msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;
-
-  FBContent.Caption := Preferences.LoadStr(653);
-  FBDescription.Caption := Preferences.LoadStr(85);
-  FBExample.Caption := Preferences.LoadStr(849);
-  FBManual.Caption := Preferences.LoadStr(573);
-  FQuickSearch.Hint := Preferences.LoadStr(424);
-  if (CheckWin32Version(6)) then
-    SendMessage(FQuickSearch.Handle, EM_SETCUEBANNER, 0, LParam(PChar(Preferences.LoadStr(424))));
-  FQuickSearchEnabled.Hint := Preferences.LoadStr(424);
-
-  FDescription.Font.Name := Preferences.SQLFontName;
-  FDescription.Font.Style := Preferences.SQLFontStyle;
-  FDescription.Font.Size := Preferences.SQLFontSize;
-  FDescription.Font.Charset := Preferences.SQLFontCharset;
-  FQuickSearch.Font := FDescription.Font;
-
-  FExample.Font.Name := Preferences.SQLFontName;
-  FExample.Font.Style := Preferences.SQLFontStyle;
-  FExample.Font.Size := Preferences.SQLFontSize;
-  FExample.Font.Charset := Preferences.SQLFontCharset;
-
-  Perform(CM_SYSFONTCHANGED, 0, 0);
-end;
-
-procedure TDSQLHelp.CMSendSQL(var Message: TMessage);
-begin
-  Session.Connection.SendSQL('HELP ' + SQLEscape(Keyword), ClientResult);
-end;
-
-procedure TDSQLHelp.CMSysFontChanged(var Message: TMessage);
-begin
-  inherited;
-
-  FBContent.Width := Canvas.TextWidth(FBContent.Caption) + 2 * (FBContent.Height - Canvas.TextHeight(FBContent.Caption));
-  FBDescription.Left := FBContent.Left + FBContent.Width;
-  FBDescription.Width := Canvas.TextWidth(FBDescription.Caption) + 2 * (FBDescription.Height - Canvas.TextHeight(FBDescription.Caption));
-  FBExample.Left := FBDescription.Left + FBDescription.Width;
-  FBExample.Width := Canvas.TextWidth(FBExample.Caption) + 2 * (FBExample.Height - Canvas.TextHeight(FBExample.Caption));
-  FBManual.Left := FBExample.Left + FBExample.Width;
-  FBManual.Width := Canvas.TextWidth(FBManual.Caption) + 2 * (FBManual.Height - Canvas.TextHeight(FBManual.Caption));
-
-  Constraints.MinWidth := 2 * GetSystemMetrics(SM_CXFRAME) + FBDescription.Width + FBExample.Width + FBManual.Width + FQuickSearch.Width + TBQuickSearchEnabled.Width + 50;
 end;
 
 function TDSQLHelp.Execute(): Boolean;
@@ -348,6 +313,41 @@ begin
       ShellExecute(Handle, 'open', PChar(URL), nil, nil, SW_SHOWNORMAL);
     end
   end
+end;
+
+procedure TDSQLHelp.UMChangePreferences(var Message: TMessage);
+begin
+  Preferences.SmallImages.GetIcon(14, Icon);
+
+  msCopy.Action := MainAction('aECopy'); msCopy.ShortCut := 0;
+  msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;
+
+  FBContent.Caption := Preferences.LoadStr(653);
+  FBDescription.Caption := Preferences.LoadStr(85);
+  FBExample.Caption := Preferences.LoadStr(849);
+  FBManual.Caption := Preferences.LoadStr(573);
+  FQuickSearch.Hint := Preferences.LoadStr(424);
+  if (CheckWin32Version(6)) then
+    SendMessage(FQuickSearch.Handle, EM_SETCUEBANNER, 0, LParam(PChar(Preferences.LoadStr(424))));
+  FQuickSearchEnabled.Hint := Preferences.LoadStr(424);
+
+  FDescription.Font.Name := Preferences.SQLFontName;
+  FDescription.Font.Style := Preferences.SQLFontStyle;
+  FDescription.Font.Size := Preferences.SQLFontSize;
+  FDescription.Font.Charset := Preferences.SQLFontCharset;
+  FQuickSearch.Font := FDescription.Font;
+
+  FExample.Font.Name := Preferences.SQLFontName;
+  FExample.Font.Style := Preferences.SQLFontStyle;
+  FExample.Font.Size := Preferences.SQLFontSize;
+  FExample.Font.Charset := Preferences.SQLFontCharset;
+
+  Perform(CM_SYSFONTCHANGED, 0, 0);
+end;
+
+procedure TDSQLHelp.UMSendSQL(var Message: TMessage);
+begin
+  Session.Connection.SendSQL('HELP ' + SQLEscape(Keyword), ClientResult);
 end;
 
 initialization

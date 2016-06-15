@@ -21,7 +21,7 @@ type
     procedure FormShow(Sender: TObject);
     procedure FURIClick(Sender: TObject);
   private
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     function Execute(): Boolean;
   end;
@@ -53,19 +53,6 @@ begin
 end;
 
 { TDInfo **********************************************************************}
-
-procedure TDInfo.CMChangePreferences(var Message: TMessage);
-begin
-  Caption := Preferences.LoadStr(367) + ' ' + LoadStr(1000);
-
-  FVersion.Caption := Preferences.LoadStr(169) + ' ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor);
-  FBuild.Caption := '(' + Preferences.LoadStr(737) + ': ' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + ')';
-  FVersion.Left := FBuild.Left - FVersion.Width - 8;
-
-  FURI.Caption := SysUtils.LoadStr(1004);
-
-  FBOk.Caption := Preferences.LoadStr(231);
-end;
 
 function TDInfo.Execute(): Boolean;
 begin
@@ -100,6 +87,19 @@ end;
 procedure TDInfo.FURIClick(Sender: TObject);
 begin
   ShellExecute(Application.Handle, 'open', PChar(FURI.Caption), '', '', SW_SHOW);
+end;
+
+procedure TDInfo.UMChangePreferences(var Message: TMessage);
+begin
+  Caption := Preferences.LoadStr(367) + ' ' + LoadStr(1000);
+
+  FVersion.Caption := Preferences.LoadStr(169) + ' ' + IntToStr(Preferences.VerMajor) + '.' + IntToStr(Preferences.VerMinor);
+  FBuild.Caption := '(' + Preferences.LoadStr(737) + ': ' + IntToStr(Preferences.VerPatch) + '.' + IntToStr(Preferences.VerBuild) + ')';
+  FVersion.Left := FBuild.Left - FVersion.Width - 8;
+
+  FURI.Caption := SysUtils.LoadStr(1004);
+
+  FBOk.Caption := Preferences.LoadStr(231);
 end;
 
 initialization

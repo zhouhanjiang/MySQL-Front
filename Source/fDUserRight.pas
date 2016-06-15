@@ -77,8 +77,7 @@ type
     procedure FTablesDropDown(Sender: TObject);
   private
     procedure EnableElements(Sender: TObject);
-  protected
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Session: TSSession;
     User: TSUser;
@@ -111,53 +110,6 @@ begin
 end;
 
 { TDUserRight *****************************************************************}
-
-procedure TDUserRight.CMChangePreferences(var Message: TMessage);
-begin
-  GWhat.Caption := Preferences.LoadStr(299);
-  FAll.Caption := Preferences.LoadStr(300);
-  FDatabase.Caption := Preferences.LoadStr(301) + ':';
-  FTable.Caption := Preferences.LoadStr(302) + ':';
-  FField.Caption := Preferences.LoadStr(164) + ':';
-  FProcedure.Caption := Preferences.LoadStr(768) + ':';
-  FFunction.Caption := Preferences.LoadStr(769) + ':';
-
-  GRights.Caption := Preferences.LoadStr(284);
-
-  FAlter.Caption := Preferences.LoadStr(313);
-  FAlterRoutine.Caption := Preferences.LoadStr(766);
-  FCreate.Caption := Preferences.LoadStr(311);
-  FCreateRoutine.Caption := Preferences.LoadStr(765);
-  FCreateTableSpace.Caption := Preferences.LoadStr(893);
-  FCreateTempTable.Caption := Preferences.LoadStr(318);
-  FCreateUser.Caption := Preferences.LoadStr(767);
-  FCreateView.Caption := Preferences.LoadStr(763);
-  FDelete.Caption := Preferences.LoadStr(310);
-  FDrop.Caption := Preferences.LoadStr(312);
-  FEvent.Caption := Preferences.LoadStr(809);
-  FExecute.Caption := Preferences.LoadStr(317);
-  FFile.Caption := Preferences.LoadStr(324);
-  FGrant.Caption := Preferences.LoadStr(332);
-  FIndex.Caption := Preferences.LoadStr(314);
-  FInsert.Caption := Preferences.LoadStr(308);
-  FLockTable.Caption := Preferences.LoadStr(316);
-  FProcess.Caption := Preferences.LoadStr(320);
-  FProxy.Caption := Preferences.LoadStr(894);
-  FReferences.Caption := Preferences.LoadStr(315);
-  FReload.Caption := Preferences.LoadStr(321);
-  FReplClient.Caption := Preferences.LoadStr(325);
-  FReplSlave.Caption := Preferences.LoadStr(326);
-  FSelect.Caption := Preferences.LoadStr(307);
-  FShowDatabase.Caption := Preferences.LoadStr(319);
-  FShowView.Caption := Preferences.LoadStr(764);
-  FShutdown.Caption := Preferences.LoadStr(323);
-  FSuper.Caption := Preferences.LoadStr(322);
-  FTrigger.Caption := Preferences.LoadStr(810);
-  FUpdate.Caption := Preferences.LoadStr(309);
-
-  FBOk.Caption := Preferences.LoadStr(29);
-  FBCancel.Caption := Preferences.LoadStr(30);
-end;
 
 procedure TDUserRight.EnableElements(Sender: TObject);
 begin
@@ -630,6 +582,53 @@ begin
       FTables.Items.EndUpdate();
     end;
   end;
+end;
+
+procedure TDUserRight.UMChangePreferences(var Message: TMessage);
+begin
+  GWhat.Caption := Preferences.LoadStr(299);
+  FAll.Caption := Preferences.LoadStr(300);
+  FDatabase.Caption := Preferences.LoadStr(301) + ':';
+  FTable.Caption := Preferences.LoadStr(302) + ':';
+  FField.Caption := Preferences.LoadStr(164) + ':';
+  FProcedure.Caption := Preferences.LoadStr(768) + ':';
+  FFunction.Caption := Preferences.LoadStr(769) + ':';
+
+  GRights.Caption := Preferences.LoadStr(284);
+
+  FAlter.Caption := Preferences.LoadStr(313);
+  FAlterRoutine.Caption := Preferences.LoadStr(766);
+  FCreate.Caption := Preferences.LoadStr(311);
+  FCreateRoutine.Caption := Preferences.LoadStr(765);
+  FCreateTableSpace.Caption := Preferences.LoadStr(893);
+  FCreateTempTable.Caption := Preferences.LoadStr(318);
+  FCreateUser.Caption := Preferences.LoadStr(767);
+  FCreateView.Caption := Preferences.LoadStr(763);
+  FDelete.Caption := Preferences.LoadStr(310);
+  FDrop.Caption := Preferences.LoadStr(312);
+  FEvent.Caption := Preferences.LoadStr(809);
+  FExecute.Caption := Preferences.LoadStr(317);
+  FFile.Caption := Preferences.LoadStr(324);
+  FGrant.Caption := Preferences.LoadStr(332);
+  FIndex.Caption := Preferences.LoadStr(314);
+  FInsert.Caption := Preferences.LoadStr(308);
+  FLockTable.Caption := Preferences.LoadStr(316);
+  FProcess.Caption := Preferences.LoadStr(320);
+  FProxy.Caption := Preferences.LoadStr(894);
+  FReferences.Caption := Preferences.LoadStr(315);
+  FReload.Caption := Preferences.LoadStr(321);
+  FReplClient.Caption := Preferences.LoadStr(325);
+  FReplSlave.Caption := Preferences.LoadStr(326);
+  FSelect.Caption := Preferences.LoadStr(307);
+  FShowDatabase.Caption := Preferences.LoadStr(319);
+  FShowView.Caption := Preferences.LoadStr(764);
+  FShutdown.Caption := Preferences.LoadStr(323);
+  FSuper.Caption := Preferences.LoadStr(322);
+  FTrigger.Caption := Preferences.LoadStr(810);
+  FUpdate.Caption := Preferences.LoadStr(309);
+
+  FBOk.Caption := Preferences.LoadStr(29);
+  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 initialization

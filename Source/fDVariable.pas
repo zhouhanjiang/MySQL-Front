@@ -31,7 +31,7 @@ type
       var Resize: Boolean);
   private
     procedure FormSessionEvent(const Event: TSSession.TEvent);
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Session: TSSession;
     Variable: TSVariable;
@@ -62,22 +62,6 @@ begin
 end;
 
 { TDVariable ******************************************************************}
-
-procedure TDVariable.CMChangePreferences(var Message: TMessage);
-begin
-  Preferences.SmallImages.GetIcon(iiVariable, Icon);
-
-  PSQLWait.Caption := Preferences.LoadStr(882);
-
-  GroupBox.Caption := Preferences.LoadStr(342);
-  FLValue.Caption := Preferences.LoadStr(343) + ':';
-  FLModify.Caption := Preferences.LoadStr(344) + ':';
-  FGlobal.Caption := Preferences.LoadStr(345);
-  FSession.Caption := Preferences.LoadStr(346);
-
-  FBOk.Caption := Preferences.LoadStr(29);
-  FBCancel.Caption := Preferences.LoadStr(30);
-end;
 
 function TDVariable.Execute(): Boolean;
 begin
@@ -187,6 +171,22 @@ procedure TDVariable.FSessionClick(Sender: TObject);
 begin
   if (FSession.Checked) then FGlobal.Checked := False;
   FBOkButtonEnable(Sender);
+end;
+
+procedure TDVariable.UMChangePreferences(var Message: TMessage);
+begin
+  Preferences.SmallImages.GetIcon(iiVariable, Icon);
+
+  PSQLWait.Caption := Preferences.LoadStr(882);
+
+  GroupBox.Caption := Preferences.LoadStr(342);
+  FLValue.Caption := Preferences.LoadStr(343) + ':';
+  FLModify.Caption := Preferences.LoadStr(344) + ':';
+  FGlobal.Caption := Preferences.LoadStr(345);
+  FSession.Caption := Preferences.LoadStr(346);
+
+  FBOk.Caption := Preferences.LoadStr(29);
+  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 initialization

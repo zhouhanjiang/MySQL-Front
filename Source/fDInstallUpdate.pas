@@ -67,10 +67,10 @@ type
     HTTPThread: THTTPMessagedThread;
     PAD_Stream: TStringStream;
     SetupPrgFilename: TFileName;
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
-    procedure CMPADFileReceived(var Message: TMessage); message UM_PAD_FILE_RECEIVED;
-    procedure CMProgramFileReceived(var Message: TMessage); message UM_PROGRAM_FILE_RECEIVED;
-    procedure CMUpdateProgressBarReceived(var Message: TMessage); message UM_UPDATE_PROGRESSBAR;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPADFileReceived(var Message: TMessage); message UM_PAD_FILE_RECEIVED;
+    procedure UMProgramFileReceived(var Message: TMessage); message UM_PROGRAM_FILE_RECEIVED;
+    procedure UMUpdateProgressBarReceived(var Message: TMessage); message UM_UPDATE_PROGRESSBAR;
   public
     function Execute(): Boolean;
   end;
@@ -363,86 +363,6 @@ begin
   CoUninitialize();
 end;
 
-procedure TDInstallUpdate.CMChangePreferences(var Message: TMessage);
-begin
-  Caption := ReplaceStr(Preferences.LoadStr(666), '&', '');
-
-  GroupBox.Caption := ReplaceStr(Preferences.LoadStr(224), '&', '');
-
-  FBOk.Caption := Preferences.LoadStr(230);
-  FBCancel.Caption := Preferences.LoadStr(30);
-end;
-
-procedure TDInstallUpdate.CMPadFileReceived(var Message: TMessage);
-var
-  UpdateAvailable: Boolean;
-  Version: string;
-begin
-  Preferences.UpdateChecked := Now();
-
-  HTTPThread.WaitFor();
-  FreeAndNil(HTTPThread);
-
-  SendMessage(Handle, UM_UPDATE_PROGRESSBAR, PAD_Stream.Position, PAD_Stream.Size);
-
-  if (not CheckActualVersion(PAD_Stream, Version, UpdateAvailable, EXE_URI)) then
-  begin
-    FVersionInfo.Caption := Preferences.LoadStr(663) + ': ' + Preferences.LoadStr(384);
-    MsgBox(Preferences.LoadStr(508), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
-    FBCancel.Click();
-  end
-  else
-  begin
-    FVersionInfo.Caption := Preferences.LoadStr(663) + ': ' + Version;
-
-    if (not UpdateAvailable) then
-    begin
-      MsgBox(Preferences.LoadStr(507), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
-      FBCancel.Click();
-    end
-    else
-    begin
-      SendMessage(Handle, UM_UPDATE_PROGRESSBAR, 0, 0);
-
-      FBOk.Enabled := True;
-      FBCancel.OnClick := nil;
-      ActiveControl := FBOk;
-    end;
-  end;
-end;
-
-procedure TDInstallUpdate.CMProgramFileReceived(var Message: TMessage);
-begin
-  HTTPThread.WaitFor();
-  FreeAndNil(HTTPThread);
-
-  SendMessage(Handle, UM_UPDATE_PROGRESSBAR, EXE_Stream.Position, EXE_Stream.Size);
-
-  FProgram.Caption := Preferences.LoadStr(665) + ': ' + Preferences.LoadStr(138);
-  FBCancel.OnClick := nil;
-
-  FreeAndNil(EXE_Stream);
-
-  Preferences.SetupProgram := SetupPrgFilename;
-  Preferences.SetupProgramInstalled := False;
-
-  ModalResult := mrOk;
-end;
-
-procedure TDInstallUpdate.CMUpdateProgressBarReceived(var Message: TMessage);
-begin
-  if (Message.LParam <= 0) then
-  begin
-    FProgressBar.Position := 0;
-    FProgressBar.Max := 0;
-  end
-  else
-  begin
-    FProgressBar.Position := Integer(Message.WParam * 100) div Integer(Message.LParam);
-    FProgressBar.Max := 100;
-  end;
-end;
-
 function TDInstallUpdate.Execute(): Boolean;
 begin
   Result := ShowModal() = mrOk;
@@ -546,6 +466,86 @@ begin
   SendMessage(Handle, UM_UPDATE_PROGRESSBAR, 10, 100);
 
   HTTPThread.Start();
+end;
+
+procedure TDInstallUpdate.UMChangePreferences(var Message: TMessage);
+begin
+  Caption := ReplaceStr(Preferences.LoadStr(666), '&', '');
+
+  GroupBox.Caption := ReplaceStr(Preferences.LoadStr(224), '&', '');
+
+  FBOk.Caption := Preferences.LoadStr(230);
+  FBCancel.Caption := Preferences.LoadStr(30);
+end;
+
+procedure TDInstallUpdate.UMPADFileReceived(var Message: TMessage);
+var
+  UpdateAvailable: Boolean;
+  Version: string;
+begin
+  Preferences.UpdateChecked := Now();
+
+  HTTPThread.WaitFor();
+  FreeAndNil(HTTPThread);
+
+  SendMessage(Handle, UM_UPDATE_PROGRESSBAR, PAD_Stream.Position, PAD_Stream.Size);
+
+  if (not CheckActualVersion(PAD_Stream, Version, UpdateAvailable, EXE_URI)) then
+  begin
+    FVersionInfo.Caption := Preferences.LoadStr(663) + ': ' + Preferences.LoadStr(384);
+    MsgBox(Preferences.LoadStr(508), Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
+    FBCancel.Click();
+  end
+  else
+  begin
+    FVersionInfo.Caption := Preferences.LoadStr(663) + ': ' + Version;
+
+    if (not UpdateAvailable) then
+    begin
+      MsgBox(Preferences.LoadStr(507), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
+      FBCancel.Click();
+    end
+    else
+    begin
+      SendMessage(Handle, UM_UPDATE_PROGRESSBAR, 0, 0);
+
+      FBOk.Enabled := True;
+      FBCancel.OnClick := nil;
+      ActiveControl := FBOk;
+    end;
+  end;
+end;
+
+procedure TDInstallUpdate.UMProgramFileReceived(var Message: TMessage);
+begin
+  HTTPThread.WaitFor();
+  FreeAndNil(HTTPThread);
+
+  SendMessage(Handle, UM_UPDATE_PROGRESSBAR, EXE_Stream.Position, EXE_Stream.Size);
+
+  FProgram.Caption := Preferences.LoadStr(665) + ': ' + Preferences.LoadStr(138);
+  FBCancel.OnClick := nil;
+
+  FreeAndNil(EXE_Stream);
+
+  Preferences.SetupProgram := SetupPrgFilename;
+  Preferences.SetupProgramInstalled := False;
+
+  ModalResult := mrOk;
+end;
+
+procedure TDInstallUpdate.UMUpdateProgressBarReceived(var Message: TMessage);
+begin
+  if (Message.LParam <= 0) then
+  begin
+    FProgressBar.Position := 0;
+    FProgressBar.Max := 0;
+  end
+  else
+  begin
+    FProgressBar.Position := Integer(Message.WParam * 100) div Integer(Message.LParam);
+    FProgressBar.Max := 100;
+  end;
 end;
 
 initialization

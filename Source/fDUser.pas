@@ -81,7 +81,7 @@ type
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure FRightsRefresh(Sender: TObject);
     procedure ListViewShowSortDirection(const ListView: TListView);
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Session: TSSession;
     User: TSUser;
@@ -140,88 +140,6 @@ begin
   PSQLWait.Visible := not PageControl.Visible;
 
   ActiveControl := FName;
-end;
-
-procedure TDUser.CMChangePreferences(var Message: TMessage);
-begin
-  Preferences.SmallImages.GetIcon(iiUser, Icon);
-
-  PSQLWait.Caption := Preferences.LoadStr(882);
-
-  TSBasics.Caption := Preferences.LoadStr(108);
-  GBasics.Caption := Preferences.LoadStr(85);
-  FLUser.Caption := Preferences.LoadStr(561) + ':';
-  FLHost.Caption := Preferences.LoadStr(289) + ':';
-  FLPassword.Caption := Preferences.LoadStr(283) + ':';
-
-  TSRights.Caption := Preferences.LoadStr(284);
-  FBRightsNew.Caption := Preferences.LoadStr(26) + '...';
-  FBRightsEdit.Caption := Preferences.LoadStr(97) + '...';
-  FBRightsDelete.Caption := Preferences.LoadStr(28);
-
-  TSLimits.Caption := Preferences.LoadStr(294);
-  GLimits.Caption := Preferences.LoadStr(294);
-  FLConnectionsPerHour.Caption := Preferences.LoadStr(292) + ':';
-  FLQueriesPerHour.Caption := Preferences.LoadStr(290) + ':';
-  FLUpdatesPerHour.Caption := Preferences.LoadStr(291) + ':';
-  FLUserConnections.Caption := Preferences.LoadStr(871) + ':';
-
-  TSSQLLog.Caption := Preferences.LoadStr(11);
-  FSQLLog.Font.Name := Preferences.SQLFontName;
-  FSQLLog.Font.Style := Preferences.SQLFontStyle;
-  FSQLLog.Font.Color := Preferences.SQLFontColor;
-  FSQLLog.Font.Size := Preferences.SQLFontSize;
-  FSQLLog.Font.Charset := Preferences.SQLFontCharset;
-  if (Preferences.Editor.LineNumbersForeground = clNone) then
-    FSQLLog.Gutter.Font.Color := clWindowText
-  else
-    FSQLLog.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
-  if (Preferences.Editor.LineNumbersBackground = clNone) then
-    FSQLLog.Gutter.Color := clBtnFace
-  else
-    FSQLLog.Gutter.Color := Preferences.Editor.LineNumbersBackground;
-  FSQLLog.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
-
-  TSSlowSQLLog.Caption := Preferences.LoadStr(847);
-  FSlowSQLLog.Font.Name := Preferences.SQLFontName;
-  FSlowSQLLog.Font.Style := Preferences.SQLFontStyle;
-  FSlowSQLLog.Font.Color := Preferences.SQLFontColor;
-  FSlowSQLLog.Font.Size := Preferences.SQLFontSize;
-  FSlowSQLLog.Font.Charset := Preferences.SQLFontCharset;
-  if (Preferences.Editor.LineNumbersForeground = clNone) then
-    FSlowSQLLog.Gutter.Font.Color := clWindowText
-  else
-    FSlowSQLLog.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
-  if (Preferences.Editor.LineNumbersBackground = clNone) then
-    FSlowSQLLog.Gutter.Color := clBtnFace
-  else
-    FSlowSQLLog.Gutter.Color := Preferences.Editor.LineNumbersBackground;
-  FSlowSQLLog.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
-
-  TSSource.Caption := Preferences.LoadStr(198);
-  FSource.Font.Name := Preferences.SQLFontName;
-  FSource.Font.Style := Preferences.SQLFontStyle;
-  FSource.Font.Color := Preferences.SQLFontColor;
-  FSource.Font.Size := Preferences.SQLFontSize;
-  FSource.Font.Charset := Preferences.SQLFontCharset;
-  if (Preferences.Editor.LineNumbersForeground = clNone) then
-    FSource.Gutter.Font.Color := clWindowText
-  else
-    FSource.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
-  if (Preferences.Editor.LineNumbersBackground = clNone) then
-    FSource.Gutter.Color := clBtnFace
-  else
-    FSource.Gutter.Color := Preferences.Editor.LineNumbersBackground;
-  FSource.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
-
-  msCopy.Action := MainAction('aECopy'); msCopy.ShortCut := 0;
-  msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;
-
-  FBOk.Enabled := False;
-
-  FBHelp.Caption := Preferences.LoadStr(167);
-  FBOk.Caption := Preferences.LoadStr(29);
-  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 function TDUser.Execute(): Boolean;
@@ -606,6 +524,88 @@ procedure TDUser.TSSQLLogShow(Sender: TObject);
 begin
   if (FSQLLog.Lines.Text = '') then
     FSQLLog.Text := User.SQLLog;
+end;
+
+procedure TDUser.UMChangePreferences(var Message: TMessage);
+begin
+  Preferences.SmallImages.GetIcon(iiUser, Icon);
+
+  PSQLWait.Caption := Preferences.LoadStr(882);
+
+  TSBasics.Caption := Preferences.LoadStr(108);
+  GBasics.Caption := Preferences.LoadStr(85);
+  FLUser.Caption := Preferences.LoadStr(561) + ':';
+  FLHost.Caption := Preferences.LoadStr(289) + ':';
+  FLPassword.Caption := Preferences.LoadStr(283) + ':';
+
+  TSRights.Caption := Preferences.LoadStr(284);
+  FBRightsNew.Caption := Preferences.LoadStr(26) + '...';
+  FBRightsEdit.Caption := Preferences.LoadStr(97) + '...';
+  FBRightsDelete.Caption := Preferences.LoadStr(28);
+
+  TSLimits.Caption := Preferences.LoadStr(294);
+  GLimits.Caption := Preferences.LoadStr(294);
+  FLConnectionsPerHour.Caption := Preferences.LoadStr(292) + ':';
+  FLQueriesPerHour.Caption := Preferences.LoadStr(290) + ':';
+  FLUpdatesPerHour.Caption := Preferences.LoadStr(291) + ':';
+  FLUserConnections.Caption := Preferences.LoadStr(871) + ':';
+
+  TSSQLLog.Caption := Preferences.LoadStr(11);
+  FSQLLog.Font.Name := Preferences.SQLFontName;
+  FSQLLog.Font.Style := Preferences.SQLFontStyle;
+  FSQLLog.Font.Color := Preferences.SQLFontColor;
+  FSQLLog.Font.Size := Preferences.SQLFontSize;
+  FSQLLog.Font.Charset := Preferences.SQLFontCharset;
+  if (Preferences.Editor.LineNumbersForeground = clNone) then
+    FSQLLog.Gutter.Font.Color := clWindowText
+  else
+    FSQLLog.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
+  if (Preferences.Editor.LineNumbersBackground = clNone) then
+    FSQLLog.Gutter.Color := clBtnFace
+  else
+    FSQLLog.Gutter.Color := Preferences.Editor.LineNumbersBackground;
+  FSQLLog.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
+
+  TSSlowSQLLog.Caption := Preferences.LoadStr(847);
+  FSlowSQLLog.Font.Name := Preferences.SQLFontName;
+  FSlowSQLLog.Font.Style := Preferences.SQLFontStyle;
+  FSlowSQLLog.Font.Color := Preferences.SQLFontColor;
+  FSlowSQLLog.Font.Size := Preferences.SQLFontSize;
+  FSlowSQLLog.Font.Charset := Preferences.SQLFontCharset;
+  if (Preferences.Editor.LineNumbersForeground = clNone) then
+    FSlowSQLLog.Gutter.Font.Color := clWindowText
+  else
+    FSlowSQLLog.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
+  if (Preferences.Editor.LineNumbersBackground = clNone) then
+    FSlowSQLLog.Gutter.Color := clBtnFace
+  else
+    FSlowSQLLog.Gutter.Color := Preferences.Editor.LineNumbersBackground;
+  FSlowSQLLog.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
+
+  TSSource.Caption := Preferences.LoadStr(198);
+  FSource.Font.Name := Preferences.SQLFontName;
+  FSource.Font.Style := Preferences.SQLFontStyle;
+  FSource.Font.Color := Preferences.SQLFontColor;
+  FSource.Font.Size := Preferences.SQLFontSize;
+  FSource.Font.Charset := Preferences.SQLFontCharset;
+  if (Preferences.Editor.LineNumbersForeground = clNone) then
+    FSource.Gutter.Font.Color := clWindowText
+  else
+    FSource.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
+  if (Preferences.Editor.LineNumbersBackground = clNone) then
+    FSource.Gutter.Color := clBtnFace
+  else
+    FSource.Gutter.Color := Preferences.Editor.LineNumbersBackground;
+  FSource.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
+
+  msCopy.Action := MainAction('aECopy'); msCopy.ShortCut := 0;
+  msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;
+
+  FBOk.Enabled := False;
+
+  FBHelp.Caption := Preferences.LoadStr(167);
+  FBOk.Caption := Preferences.LoadStr(29);
+  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 initialization

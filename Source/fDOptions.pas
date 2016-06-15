@@ -149,8 +149,7 @@ type
     LineNumbersAttri: TSynHighlighterAttributes;
     function Attribute(const Caption: string): TSynHighlighterAttributes;
     procedure FPreviewRefresh();
-  protected
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Languages: array of TIniFileRecord;
     function Execute(): Boolean;
@@ -195,104 +194,6 @@ begin
   if (Caption = Preferences.LoadStr(469)) then Result := Highlighter.VariableAttri;
   if (Caption = Preferences.LoadStr(735)) then Result := Highlighter.ConditionalCommentAttri;
   if (Caption = Preferences.LoadStr(526)) then Result := LineNumbersAttri;
-end;
-
-procedure TDOptions.CMChangePreferences(var Message: TMessage);
-begin
-  Canvas.Font := Font;
-
-  Caption := Preferences.LoadStr(52);
-
-  TSView.Caption := Preferences.LoadStr(491);
-  GProgram.Caption := Preferences.LoadStr(52);
-  FLLanguage.Caption := Preferences.LoadStr(32) + ':';
-  GTabs.Caption := Preferences.LoadStr(851);
-  FLTabsVisible.Caption := Preferences.LoadStr(851) + ':';
-  FTabsVisible.Caption := LowerCase(Preferences.LoadStr(699));
-
-  TSExtras.Caption := Preferences.LoadStr(73);
-  GAssociate.Caption := Preferences.LoadStr(108);
-  FLAssociate.Caption := Preferences.LoadStr(566) + ':';
-  FAssociateSQL.Caption := '.sql';
-
-  TSBrowser.Caption := Preferences.LoadStr(739);
-  GGrid.Caption := Preferences.LoadStr(17);
-  FLGridFont.Caption := Preferences.LoadStr(430) + ':';
-  FLGridNullValues.Caption := Preferences.LoadStr(498) + ':';
-  FGridNullText.Caption := Preferences.LoadStr(499);
-  FLMaxColumnWidth.Caption := Preferences.LoadStr(208) + ':';
-  FLMaxColumnWidthCharacters.Caption := Preferences.LoadStr(869);
-  FLMaxColumnWidthCharacters.Left := FUDMaxColumnWidth.Left + FUDMaxColumnWidth.Width + Canvas.TextWidth('  ');
-  FLViewDatas.Caption := Preferences.LoadStr(574) + ':';
-  FGridShowMemoContent.Caption := Preferences.LoadStr(575);
-  FLGridBGColorEnabled.Caption := Preferences.LoadStr(740) + ':';
-  FGridRowBGColorEnabled.Caption := Preferences.LoadStr(600);
-  FLGridCurrRowBGColor.Caption := Preferences.LoadStr(784) + ':';
-
-  TSEditor.Caption := Preferences.LoadStr(473);
-  GEditor.Caption := Preferences.LoadStr(473);
-  FLEditorFont.Caption := Preferences.LoadStr(439) + ':';
-  FLEditorLinenumbers.Caption := Preferences.LoadStr(527) + ':';
-  FEditorLinenumbers.Caption := Preferences.LoadStr(526);
-  FLEditorAutoIndent.Caption := Preferences.LoadStr(529) + ':';
-  FEditorAutoIndent.Caption := Preferences.LoadStr(756);
-  FEditorTabAccepted.Caption := Preferences.LoadStr(776);
-  FEditorTabToSpaces.Caption := Preferences.LoadStr(759);
-  FLEditorTabWidth.Caption := Preferences.LoadStr(757) + ':';
-  FLEditorRightEdge.Caption := Preferences.LoadStr(758) + ':';
-  FEditorTabWidthCharacters.Caption := Preferences.LoadStr(395);
-  FEditorTabWidthCharacters.Left := FUDEditorTabWidth.Left + FUDEditorTabWidth.Width + Canvas.TextWidth('  ');
-  FLEditorRightEdgeCharacters.Caption := Preferences.LoadStr(395);
-  FLEditorRightEdgeCharacters.Left := FUDEditorRightEdge.Left + FUDEditorRightEdge.Width + Canvas.TextWidth('  ');
-  FLEditorCurrRowBGColor.Caption := Preferences.LoadStr(784) + ':';
-  FLEditorCurrRowBGColor.Caption := Preferences.LoadStr(784) + ':';
-  FLEditorWordWrap.Caption := Preferences.LoadStr(891) + ':';
-  FEditorWordWrap.Caption := Preferences.LoadStr(892);
-
-  TSHighlighter.Caption := Preferences.LoadStr(528);
-  GColors.Caption := Preferences.LoadStr(474);
-  FStyles.Items.Clear();
-  FStyles.Items.Add().Caption := Preferences.LoadStr(461);
-  FStyles.Items.Add().Caption := Preferences.LoadStr(462);
-  FStyles.Items.Add().Caption := Preferences.LoadStr(463);
-  FStyles.Items.Add().Caption := Preferences.LoadStr(464);
-  FStyles.Items.Add().Caption := Preferences.LoadStr(465);
-  FStyles.Items.Add().Caption := Preferences.LoadStr(466);
-  FStyles.Items.Add().Caption := Preferences.LoadStr(467);
-  FStyles.Items.Add().Caption := Preferences.LoadStr(468);
-  FStyles.Items.Add().Caption := Preferences.LoadStr(469);
-  FStyles.Items.Add().Caption := Preferences.LoadStr(735);
-  FStyles.Items.Add().Caption := Preferences.LoadStr(526);
-  FStyles.SortType := Comctrls.stText;
-  FBold.Caption := Preferences.LoadStr(477);
-  FItalic.Caption := Preferences.LoadStr(478);
-  FUnderline.Caption := Preferences.LoadStr(479);
-  FForeground.Caption := Preferences.LoadStr(475);
-  FForeground.Width := Sizer.Width + Canvas.TextWidth(FForeground.Caption);
-  FBForeground.Left := FForeground.Left + FForeground.Width + 8;
-  FBackground.Caption := Preferences.LoadStr(476);
-  FBackground.Width := Sizer.Width + Canvas.TextWidth(FBackground.Caption);
-  FBBackground.Left := FBackground.Left + FBackground.Width + 8;
-
-  TSLog.Caption := Preferences.LoadStr(524);
-  GLog.Caption := Preferences.LoadStr(524);
-  FLLogFont.Caption := Preferences.LoadStr(525) + ':';
-  FLLogLinenumbers.Caption := Preferences.LoadStr(527) + ':';
-  FLogTime.Caption := Preferences.LoadStr(661);
-  FLogResult.Caption := Preferences.LoadStr(662);
-  FLLogSize.Caption := Preferences.LoadStr(844) + ':';
-  FL2LogSize.Caption := 'KB';
-
-  TSUpdates.Caption := Preferences.LoadStr(592);
-  GUpdates.Caption := Preferences.LoadStr(592);
-  FLUpdateCheck.Caption := Preferences.LoadStr(509) + ':';
-  FUpdateCheckNever.Caption := Preferences.LoadStr(638);
-  FUpdateCheckDaily.Caption := Preferences.LoadStr(640);
-
-
-  FBHelp.Caption := Preferences.LoadStr(167);
-  FBOk.Caption := Preferences.LoadStr(29);
-  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 function TDOptions.Execute(): Boolean;
@@ -820,6 +721,104 @@ procedure TDOptions.TSLogResize(Sender: TObject);
 begin
   FBLogFont.Left := FLogFont.Left + FLogFont.Width;
   FBLogFont.Height := FLogFont.Height;
+end;
+
+procedure TDOptions.UMChangePreferences(var Message: TMessage);
+begin
+  Canvas.Font := Font;
+
+  Caption := Preferences.LoadStr(52);
+
+  TSView.Caption := Preferences.LoadStr(491);
+  GProgram.Caption := Preferences.LoadStr(52);
+  FLLanguage.Caption := Preferences.LoadStr(32) + ':';
+  GTabs.Caption := Preferences.LoadStr(851);
+  FLTabsVisible.Caption := Preferences.LoadStr(851) + ':';
+  FTabsVisible.Caption := LowerCase(Preferences.LoadStr(699));
+
+  TSExtras.Caption := Preferences.LoadStr(73);
+  GAssociate.Caption := Preferences.LoadStr(108);
+  FLAssociate.Caption := Preferences.LoadStr(566) + ':';
+  FAssociateSQL.Caption := '.sql';
+
+  TSBrowser.Caption := Preferences.LoadStr(739);
+  GGrid.Caption := Preferences.LoadStr(17);
+  FLGridFont.Caption := Preferences.LoadStr(430) + ':';
+  FLGridNullValues.Caption := Preferences.LoadStr(498) + ':';
+  FGridNullText.Caption := Preferences.LoadStr(499);
+  FLMaxColumnWidth.Caption := Preferences.LoadStr(208) + ':';
+  FLMaxColumnWidthCharacters.Caption := Preferences.LoadStr(869);
+  FLMaxColumnWidthCharacters.Left := FUDMaxColumnWidth.Left + FUDMaxColumnWidth.Width + Canvas.TextWidth('  ');
+  FLViewDatas.Caption := Preferences.LoadStr(574) + ':';
+  FGridShowMemoContent.Caption := Preferences.LoadStr(575);
+  FLGridBGColorEnabled.Caption := Preferences.LoadStr(740) + ':';
+  FGridRowBGColorEnabled.Caption := Preferences.LoadStr(600);
+  FLGridCurrRowBGColor.Caption := Preferences.LoadStr(784) + ':';
+
+  TSEditor.Caption := Preferences.LoadStr(473);
+  GEditor.Caption := Preferences.LoadStr(473);
+  FLEditorFont.Caption := Preferences.LoadStr(439) + ':';
+  FLEditorLinenumbers.Caption := Preferences.LoadStr(527) + ':';
+  FEditorLinenumbers.Caption := Preferences.LoadStr(526);
+  FLEditorAutoIndent.Caption := Preferences.LoadStr(529) + ':';
+  FEditorAutoIndent.Caption := Preferences.LoadStr(756);
+  FEditorTabAccepted.Caption := Preferences.LoadStr(776);
+  FEditorTabToSpaces.Caption := Preferences.LoadStr(759);
+  FLEditorTabWidth.Caption := Preferences.LoadStr(757) + ':';
+  FLEditorRightEdge.Caption := Preferences.LoadStr(758) + ':';
+  FEditorTabWidthCharacters.Caption := Preferences.LoadStr(395);
+  FEditorTabWidthCharacters.Left := FUDEditorTabWidth.Left + FUDEditorTabWidth.Width + Canvas.TextWidth('  ');
+  FLEditorRightEdgeCharacters.Caption := Preferences.LoadStr(395);
+  FLEditorRightEdgeCharacters.Left := FUDEditorRightEdge.Left + FUDEditorRightEdge.Width + Canvas.TextWidth('  ');
+  FLEditorCurrRowBGColor.Caption := Preferences.LoadStr(784) + ':';
+  FLEditorCurrRowBGColor.Caption := Preferences.LoadStr(784) + ':';
+  FLEditorWordWrap.Caption := Preferences.LoadStr(891) + ':';
+  FEditorWordWrap.Caption := Preferences.LoadStr(892);
+
+  TSHighlighter.Caption := Preferences.LoadStr(528);
+  GColors.Caption := Preferences.LoadStr(474);
+  FStyles.Items.Clear();
+  FStyles.Items.Add().Caption := Preferences.LoadStr(461);
+  FStyles.Items.Add().Caption := Preferences.LoadStr(462);
+  FStyles.Items.Add().Caption := Preferences.LoadStr(463);
+  FStyles.Items.Add().Caption := Preferences.LoadStr(464);
+  FStyles.Items.Add().Caption := Preferences.LoadStr(465);
+  FStyles.Items.Add().Caption := Preferences.LoadStr(466);
+  FStyles.Items.Add().Caption := Preferences.LoadStr(467);
+  FStyles.Items.Add().Caption := Preferences.LoadStr(468);
+  FStyles.Items.Add().Caption := Preferences.LoadStr(469);
+  FStyles.Items.Add().Caption := Preferences.LoadStr(735);
+  FStyles.Items.Add().Caption := Preferences.LoadStr(526);
+  FStyles.SortType := Comctrls.stText;
+  FBold.Caption := Preferences.LoadStr(477);
+  FItalic.Caption := Preferences.LoadStr(478);
+  FUnderline.Caption := Preferences.LoadStr(479);
+  FForeground.Caption := Preferences.LoadStr(475);
+  FForeground.Width := Sizer.Width + Canvas.TextWidth(FForeground.Caption);
+  FBForeground.Left := FForeground.Left + FForeground.Width + 8;
+  FBackground.Caption := Preferences.LoadStr(476);
+  FBackground.Width := Sizer.Width + Canvas.TextWidth(FBackground.Caption);
+  FBBackground.Left := FBackground.Left + FBackground.Width + 8;
+
+  TSLog.Caption := Preferences.LoadStr(524);
+  GLog.Caption := Preferences.LoadStr(524);
+  FLLogFont.Caption := Preferences.LoadStr(525) + ':';
+  FLLogLinenumbers.Caption := Preferences.LoadStr(527) + ':';
+  FLogTime.Caption := Preferences.LoadStr(661);
+  FLogResult.Caption := Preferences.LoadStr(662);
+  FLLogSize.Caption := Preferences.LoadStr(844) + ':';
+  FL2LogSize.Caption := 'KB';
+
+  TSUpdates.Caption := Preferences.LoadStr(592);
+  GUpdates.Caption := Preferences.LoadStr(592);
+  FLUpdateCheck.Caption := Preferences.LoadStr(509) + ':';
+  FUpdateCheckNever.Caption := Preferences.LoadStr(638);
+  FUpdateCheckDaily.Caption := Preferences.LoadStr(640);
+
+
+  FBHelp.Caption := Preferences.LoadStr(167);
+  FBOk.Caption := Preferences.LoadStr(29);
+  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 initialization

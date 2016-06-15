@@ -86,9 +86,9 @@ type
     procedure OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure OnTerminate(Sender: TObject);
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
-    procedure CMTerminate(var Message: TMessage); message UM_TERMINATE;
-    procedure CMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
+    procedure UMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
   public
     SourceSession: TSSession;
     SourceDatabaseName: string;
@@ -165,95 +165,6 @@ begin
 
   FBCancel.Caption := Preferences.LoadStr(30);
   FBCancel.Default := False;
-end;
-
-procedure TDTransfer.CMChangePreferences(var Message: TMessage);
-begin
-  Preferences.SmallImages.GetIcon(iiTransfer, Icon);
-
-  miSelectAll.Caption := Preferences.LoadStr(572);
-
-  Caption := Preferences.LoadStr(753);;
-
-  GSource.Caption := Preferences.LoadStr(754);
-  GDestination.Caption := Preferences.LoadStr(755);
-
-  GWhat.Caption := Preferences.LoadStr(227);
-  FLWhat.Caption := Preferences.LoadStr(218) + ':';
-  FStructure.Caption := Preferences.LoadStr(215);
-  FData.Caption := Preferences.LoadStr(216);
-
-  GProgress.Caption := Preferences.LoadStr(224);
-  FLEntiered.Caption := Preferences.LoadStr(211) + ':';
-  FLDone.Caption := Preferences.LoadStr(232) + ':';
-  FLProgressObjects.Caption := Preferences.LoadStr(234) + ':';
-  FLProgressRecords.Caption := Preferences.LoadStr(235) + ':';
-  FLProgressTime.Caption := Preferences.LoadStr(661) + ':';
-  FLErrors.Caption := Preferences.LoadStr(391) + ':';
-
-  GErrorMessages.Caption := Preferences.LoadStr(392);
-
-  FBHelp.Caption := Preferences.LoadStr(167);
-  FBBack.Caption := '< ' + Preferences.LoadStr(228);
-end;
-
-procedure TDTransfer.CMTerminate(var Message: TMessage);
-var
-  Success: Boolean;
-begin
-  Success := Boolean(Message.WParam);
-
-  FSource.Items.BeginUpdate();
-  FSource.Items.Clear();
-  FSource.Items.EndUpdate();
-  FDestination.Items.BeginUpdate();
-  FDestination.Items.Clear();
-  FDestination.Items.EndUpdate();
-
-  FBBack.Enabled := True;
-  FBCancel.Enabled := True;
-
-  FBCancel.Caption := Preferences.LoadStr(231);
-  if (Success) then
-    FBCancel.ModalResult := mrOk
-  else
-    FBCancel.ModalResult := mrCancel;
-
-  if (Assigned(Transfer)) then
-  begin
-    Transfer.WaitFor();
-    FreeAndNil(Transfer);
-  end;
-end;
-
-procedure TDTransfer.CMUpdateProgressInfo(var Message: TMessage);
-var
-  Infos: TTool.PProgressInfos;
-begin
-  Infos := TTool.PProgressInfos(Message.LParam);
-
-  if (Infos^.ObjectsSum < 0) then
-    FEntieredObjects.Caption := '???'
-  else
-    FEntieredObjects.Caption := FormatFloat('#,##0', Infos^.ObjectsSum, LocaleFormatSettings);
-  if (Infos^.ObjectsDone < 0) then
-    FDoneObjects.Caption := '???'
-  else
-    FDoneObjects.Caption := FormatFloat('#,##0', Infos^.ObjectsDone, LocaleFormatSettings);
-
-  if (Infos^.RecordsSum < 0) then
-    FEntieredRecords.Caption := '???'
-  else
-    FEntieredRecords.Caption := FormatFloat('#,##0', Infos^.RecordsSum, LocaleFormatSettings);
-  if (Infos^.RecordsDone < 0) then
-    FDoneRecords.Caption := '???'
-  else
-    FDoneRecords.Caption := FormatFloat('#,##0', Infos^.RecordsDone, LocaleFormatSettings);
-
-  FEntieredTime.Caption := TimeToStr(Infos^.TimeSum, DurationFormatSettings);
-  FDoneTime.Caption := TimeToStr(Infos^.TimeDone, DurationFormatSettings);
-
-  FProgressBar.Position := Infos^.Progress;
 end;
 
 function TDTransfer.Execute(): Boolean;
@@ -952,6 +863,95 @@ procedure TDTransfer.TSWhatShow(Sender: TObject);
 begin
   TSExecute.Enabled := FStructure.Checked or FData.Checked;
   CheckActivePageChange(TSWhat.PageIndex);
+end;
+
+procedure TDTransfer.UMChangePreferences(var Message: TMessage);
+begin
+  Preferences.SmallImages.GetIcon(iiTransfer, Icon);
+
+  miSelectAll.Caption := Preferences.LoadStr(572);
+
+  Caption := Preferences.LoadStr(753);;
+
+  GSource.Caption := Preferences.LoadStr(754);
+  GDestination.Caption := Preferences.LoadStr(755);
+
+  GWhat.Caption := Preferences.LoadStr(227);
+  FLWhat.Caption := Preferences.LoadStr(218) + ':';
+  FStructure.Caption := Preferences.LoadStr(215);
+  FData.Caption := Preferences.LoadStr(216);
+
+  GProgress.Caption := Preferences.LoadStr(224);
+  FLEntiered.Caption := Preferences.LoadStr(211) + ':';
+  FLDone.Caption := Preferences.LoadStr(232) + ':';
+  FLProgressObjects.Caption := Preferences.LoadStr(234) + ':';
+  FLProgressRecords.Caption := Preferences.LoadStr(235) + ':';
+  FLProgressTime.Caption := Preferences.LoadStr(661) + ':';
+  FLErrors.Caption := Preferences.LoadStr(391) + ':';
+
+  GErrorMessages.Caption := Preferences.LoadStr(392);
+
+  FBHelp.Caption := Preferences.LoadStr(167);
+  FBBack.Caption := '< ' + Preferences.LoadStr(228);
+end;
+
+procedure TDTransfer.UMTerminate(var Message: TMessage);
+var
+  Success: Boolean;
+begin
+  Success := Boolean(Message.WParam);
+
+  FSource.Items.BeginUpdate();
+  FSource.Items.Clear();
+  FSource.Items.EndUpdate();
+  FDestination.Items.BeginUpdate();
+  FDestination.Items.Clear();
+  FDestination.Items.EndUpdate();
+
+  FBBack.Enabled := True;
+  FBCancel.Enabled := True;
+
+  FBCancel.Caption := Preferences.LoadStr(231);
+  if (Success) then
+    FBCancel.ModalResult := mrOk
+  else
+    FBCancel.ModalResult := mrCancel;
+
+  if (Assigned(Transfer)) then
+  begin
+    Transfer.WaitFor();
+    FreeAndNil(Transfer);
+  end;
+end;
+
+procedure TDTransfer.UMUpdateProgressInfo(var Message: TMessage);
+var
+  Infos: TTool.PProgressInfos;
+begin
+  Infos := TTool.PProgressInfos(Message.LParam);
+
+  if (Infos^.ObjectsSum < 0) then
+    FEntieredObjects.Caption := '???'
+  else
+    FEntieredObjects.Caption := FormatFloat('#,##0', Infos^.ObjectsSum, LocaleFormatSettings);
+  if (Infos^.ObjectsDone < 0) then
+    FDoneObjects.Caption := '???'
+  else
+    FDoneObjects.Caption := FormatFloat('#,##0', Infos^.ObjectsDone, LocaleFormatSettings);
+
+  if (Infos^.RecordsSum < 0) then
+    FEntieredRecords.Caption := '???'
+  else
+    FEntieredRecords.Caption := FormatFloat('#,##0', Infos^.RecordsSum, LocaleFormatSettings);
+  if (Infos^.RecordsDone < 0) then
+    FDoneRecords.Caption := '???'
+  else
+    FDoneRecords.Caption := FormatFloat('#,##0', Infos^.RecordsDone, LocaleFormatSettings);
+
+  FEntieredTime.Caption := TimeToStr(Infos^.TimeSum, DurationFormatSettings);
+  FDoneTime.Caption := TimeToStr(Infos^.TimeDone, DurationFormatSettings);
+
+  FProgressBar.Position := Infos^.Progress;
 end;
 
 initialization

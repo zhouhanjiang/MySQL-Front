@@ -74,9 +74,9 @@ type
     procedure tbUpDownClick(Sender: TObject);
   private
     Lengths: array of Integer;
-    procedure FormSessionEvent(const Event: TSSession.TEvent);
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
+    procedure FormSessionEvent(const Event: TSSession.TEvent);
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Database: TSDatabase;
     Key: TSKey;
@@ -109,29 +109,6 @@ begin
 end;
 
 { TDIndex *********************************************************************}
-
-procedure TDKey.CMChangePreferences(var Message: TMessage);
-begin
-  Preferences.SmallImages.GetIcon(iiKey, Icon);
-
-  PSQLWait.Caption := Preferences.LoadStr(882);
-
-  GBasics.Caption := Preferences.LoadStr(85);
-  FLName.Caption := Preferences.LoadStr(35) + ':';
-  FPrimary.Caption := Preferences.LoadStr(154);
-  FLIndexedFields.Caption := Preferences.LoadStr(155) + ':';
-  FLLength.Caption := Preferences.LoadStr(630) + ':';
-  FLAvailableFields.Caption := Preferences.LoadStr(156) + ':';
-  FLComment.Caption := Preferences.LoadStr(111) + ':';
-
-  GAttributes.Caption := Preferences.LoadStr(157);
-  FUnique.Caption := Preferences.LoadStr(158);
-  FFulltext.Caption := Preferences.LoadStr(159);
-
-  FBHelp.Caption := Preferences.LoadStr(167);
-  FBOk.Caption := Preferences.LoadStr(29);
-  FBCancel.Caption := Preferences.LoadStr(30)
-end;
 
 procedure TDKey.CMSysFontChanged(var Message: TMessage);
 
@@ -658,6 +635,29 @@ begin
   FIndexedFields.Items.Insert(Index).Caption := OldCaption;
   FIndexedFields.Selected := FIndexedFields.Items[Index];
   FIndexedFields.ItemFocused := FIndexedFields.Selected;
+end;
+
+procedure TDKey.UMChangePreferences(var Message: TMessage);
+begin
+  Preferences.SmallImages.GetIcon(iiKey, Icon);
+
+  PSQLWait.Caption := Preferences.LoadStr(882);
+
+  GBasics.Caption := Preferences.LoadStr(85);
+  FLName.Caption := Preferences.LoadStr(35) + ':';
+  FPrimary.Caption := Preferences.LoadStr(154);
+  FLIndexedFields.Caption := Preferences.LoadStr(155) + ':';
+  FLLength.Caption := Preferences.LoadStr(630) + ':';
+  FLAvailableFields.Caption := Preferences.LoadStr(156) + ':';
+  FLComment.Caption := Preferences.LoadStr(111) + ':';
+
+  GAttributes.Caption := Preferences.LoadStr(157);
+  FUnique.Caption := Preferences.LoadStr(158);
+  FFulltext.Caption := Preferences.LoadStr(159);
+
+  FBHelp.Caption := Preferences.LoadStr(167);
+  FBOk.Caption := Preferences.LoadStr(29);
+  FBCancel.Caption := Preferences.LoadStr(30)
 end;
 
 initialization

@@ -23,7 +23,7 @@ type
       Data: Integer; var Compare: Integer);
     procedure FSelectionDblClick(Sender: TObject);
   protected
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Selected: string;
     Values: array of string;
@@ -56,17 +56,6 @@ begin
 end;
 
 { TDSelect ********************************************************************}
-
-procedure TDSelection.CMChangePreferences(var Message: TMessage);
-begin
-  Caption := Preferences.LoadStr(721);
-
-  if (CheckWin32Version(6)) then
-    SendMessage(FManual.Handle, EM_SETCUEBANNER, 0, LParam(PChar(Preferences.LoadStr(424))));
-
-  FBOk.Caption := Preferences.LoadStr(29);
-  FBCancel.Caption := Preferences.LoadStr(30);
-end;
 
 function TDSelection.Execute(): Boolean;
 begin
@@ -125,6 +114,17 @@ procedure TDSelection.FSelectionDblClick(Sender: TObject);
 begin
   if (FBOk.Enabled) then
     FBOk.Click();
+end;
+
+procedure TDSelection.UMChangePreferences(var Message: TMessage);
+begin
+  Caption := Preferences.LoadStr(721);
+
+  if (CheckWin32Version(6)) then
+    SendMessage(FManual.Handle, EM_SETCUEBANNER, 0, LParam(PChar(Preferences.LoadStr(424))));
+
+  FBOk.Caption := Preferences.LoadStr(29);
+  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 initialization

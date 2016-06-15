@@ -25,7 +25,7 @@ type
     procedure FormShow(Sender: TObject);
     procedure PColorClick(Sender: TObject);
   private
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Section: TWSection;
     function Execute(): Boolean;
@@ -55,18 +55,6 @@ begin
 end;
 
 { TDSegment *******************************************************************}
-
-procedure TDSegment.CMChangePreferences(var Message: TMessage);
-begin
-  Caption := Preferences.LoadStr(842, Preferences.LoadStr(877));
-
-  GBasics.Caption := Preferences.LoadStr(85);
-  FLName.Caption := Preferences.LoadStr(35) + ':';
-  FLColor.Caption := Preferences.LoadStr(740) + ':';
-
-  FBOk.Caption := Preferences.LoadStr(29);
-  FBCancel.Caption := Preferences.LoadStr(30);
-end;
 
 function TDSegment.Execute(): Boolean;
 begin
@@ -127,6 +115,18 @@ end;
 procedure TDSegment.PColorClick(Sender: TObject);
 begin
   FColor.Click();
+end;
+
+procedure TDSegment.UMChangePreferences(var Message: TMessage);
+begin
+  Caption := Preferences.LoadStr(842, Preferences.LoadStr(877));
+
+  GBasics.Caption := Preferences.LoadStr(85);
+  FLName.Caption := Preferences.LoadStr(35) + ':';
+  FLColor.Caption := Preferences.LoadStr(740) + ':';
+
+  FBOk.Caption := Preferences.LoadStr(29);
+  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 end.

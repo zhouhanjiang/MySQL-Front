@@ -199,7 +199,7 @@ type
     procedure FIndicesRefresh(Sender: TObject);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure FPartitionsRefresh(Sender: TObject);
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Charset: string;
     Collation: string;
@@ -613,145 +613,6 @@ begin
   PSQLWait.Visible := not PageControl.Visible;
 
   ActiveControl := FName;
-end;
-
-procedure TDTable.CMChangePreferences(var Message: TMessage);
-begin
-  Preferences.SmallImages.GetIcon(iiBaseTable, Icon);
-
-  PSQLWait.Caption := Preferences.LoadStr(882);
-
-  aPUp.Caption := Preferences.LoadStr(563);
-  aPDown.Caption := Preferences.LoadStr(564);
-
-  TSBasics.Caption := Preferences.LoadStr(108);
-  GBasics.Caption := Preferences.LoadStr(85);
-  FLName.Caption := Preferences.LoadStr(35) + ':';
-  FLEngine.Caption := Preferences.LoadStr(110) + ':';
-  FLDefaultCharset.Caption := Preferences.LoadStr(682) + ':';
-  FLCollation.Caption := Preferences.LoadStr(702) + ':';
-  FLComment.Caption := Preferences.LoadStr(111) + ':';
-  GRecords.Caption := Preferences.LoadStr(124);
-  FLAutoIncrement.Caption := Preferences.LoadStr(117) + ':';
-  FLRowType.Caption := Preferences.LoadStr(129) + ':';
-
-  TSInformation.Caption := Preferences.LoadStr(121);
-  GDates.Caption := Preferences.LoadStr(122);
-  FLCreated.Caption := Preferences.LoadStr(118) + ':';
-  FLUpdated.Caption := Preferences.LoadStr(119) + ':';
-  GSize.Caption := Preferences.LoadStr(125);
-  FLIndexSize.Caption := Preferences.LoadStr(163) + ':';
-  FLDataSize.Caption := Preferences.LoadStr(127) + ':';
-  GRecordCount.Caption := Preferences.LoadStr(170);
-  FLRecordCount.Caption := Preferences.LoadStr(116) + ':';
-
-  TSFields.Caption := Preferences.LoadStr(253);
-  tbCreateField.Hint := Preferences.LoadStr(87) + '...';
-  tbDeleteField.Hint := Preferences.LoadStr(28);
-  tbPropertiesField.Hint := Preferences.LoadStr(97) + '...';
-  tbFieldUp.Hint := Preferences.LoadStr(545);
-  tbFieldDown.Hint := Preferences.LoadStr(547);
-  FFields.Column[0].Caption := Preferences.LoadStr(35);
-  FFields.Column[1].Caption := Preferences.LoadStr(69);
-  FFields.Column[2].Caption := Preferences.LoadStr(71);
-  FFields.Column[3].Caption := Preferences.LoadStr(72);
-  FFields.Column[4].Caption := Preferences.LoadStr(73);
-  FFields.Column[5].Caption := Preferences.LoadStr(111);
-
-  TSKeys.Caption := Preferences.LoadStr(458);
-  tbCreateKey.Hint := Preferences.LoadStr(160) + '...';
-  tbDeleteKey.Hint := Preferences.LoadStr(28);
-  tbPropertiesKey.Hint := Preferences.LoadStr(97) + '...';
-  FKeys.Column[0].Caption := Preferences.LoadStr(35);
-  FKeys.Column[1].Caption := Preferences.LoadStr(69);
-  FKeys.Column[2].Caption := Preferences.LoadStr(73);
-  FKeys.Column[3].Caption := Preferences.LoadStr(111);
-
-  TSForeignKeys.Caption := Preferences.LoadStr(459);
-  tbCreateForeignKey.Hint := Preferences.LoadStr(249) + '...';
-  tbDeleteForeignKey.Hint := Preferences.LoadStr(28);
-  tbPropertiesForeignKey.Hint := Preferences.LoadStr(97) + '...';
-  FForeignKeys.Column[0].Caption := Preferences.LoadStr(35);
-  FForeignKeys.Column[1].Caption := Preferences.LoadStr(69);
-  FForeignKeys.Column[2].Caption := Preferences.LoadStr(73);
-
-  TSTriggers.Caption := Preferences.LoadStr(797);
-  FTriggers.Column[0].Caption := Preferences.LoadStr(35);
-  FTriggers.Column[1].Caption := Preferences.LoadStr(69);
-
-  TSReferenced.Caption := Preferences.LoadStr(782);
-  FReferenced.Column[0].Caption := Preferences.LoadStr(35);
-  FReferenced.Column[1].Caption := Preferences.LoadStr(69);
-  FReferenced.Column[2].Caption := Preferences.LoadStr(73);
-
-  TSPartitions.Caption := Preferences.LoadStr(830);
-  GPartitions.Caption := Preferences.LoadStr(85);
-  FLPartitionType.Caption := Preferences.LoadStr(110) + ':';
-  FPartitionType.Items.Clear();
-  FPartitionType.Items.Add('<' + Preferences.LoadStr(912) + '>');
-  FPartitionType.Items.Add(Preferences.LoadStr(831));
-  FPartitionType.Items.Add(Preferences.LoadStr(832));
-  FPartitionType.Items.Add(Preferences.LoadStr(833));
-  FPartitionType.Items.Add(Preferences.LoadStr(834));
-  FLinear.Caption := Preferences.LoadStr(835);
-  FLPartitionExpr.Caption := Preferences.LoadStr(836) + ':';
-  FLPartitionsNumber.Caption := Preferences.LoadStr(617) + ':';
-  FLPartitions.Caption := Preferences.LoadStr(830) + ':';
-//  tbPartitionUp.Hint := Preferences.LoadStr(545);
-//  tbPartitionDown.Hint := Preferences.LoadStr(547);
-  FPartitions.Column[0].Caption := Preferences.LoadStr(35);
-  FPartitions.Column[1].Caption := Preferences.LoadStr(836);
-  FPartitions.Column[2].Caption := Preferences.LoadStr(837);
-  FPartitions.Column[3].Caption := Preferences.LoadStr(838);
-  FPartitions.Column[4].Caption := Preferences.LoadStr(111);
-
-  TSExtras.Caption := Preferences.LoadStr(73);
-  GOptimize.Caption := Preferences.LoadStr(171);
-  FLUnusedSize.Caption := Preferences.LoadStr(128) + ':';
-  FBOptimize.Caption := Preferences.LoadStr(130);
-  GCheck.Caption := Preferences.LoadStr(172);
-  FLChecked.Caption := Preferences.LoadStr(120) + ':';
-  FBCheck.Caption := Preferences.LoadStr(131);
-  GFlush.Caption := Preferences.LoadStr(328);
-  FBFlush.Caption := Preferences.LoadStr(329);
-
-  TSSource.Caption := Preferences.LoadStr(198);
-  FSource.Font.Name := Preferences.SQLFontName;
-  FSource.Font.Style := Preferences.SQLFontStyle;
-  FSource.Font.Color := Preferences.SQLFontColor;
-  FSource.Font.Size := Preferences.SQLFontSize;
-  FSource.Font.Charset := Preferences.SQLFontCharset;
-  if (Preferences.Editor.LineNumbersForeground = clNone) then
-    FSource.Gutter.Font.Color := clWindowText
-  else
-    FSource.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
-  if (Preferences.Editor.LineNumbersBackground = clNone) then
-    FSource.Gutter.Color := clBtnFace
-  else
-    FSource.Gutter.Color := Preferences.Editor.LineNumbersBackground;
-  FSource.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
-
-  aPCreateKey.Caption := Preferences.LoadStr(26) + '...';
-  aPDeleteKey.Caption := Preferences.LoadStr(28);
-  aPEditKey.Caption := Preferences.LoadStr(97) + '...';
-  aPCreateField.Caption := Preferences.LoadStr(26) + '...';
-  aPDeleteField.Caption := Preferences.LoadStr(28);
-  aPEditField.Caption := Preferences.LoadStr(97) + '...';
-  aPCreateForeignKey.Caption := Preferences.LoadStr(26) + '...';
-  aPDeleteForeignKey.Caption := Preferences.LoadStr(28);
-  aPEditForeignKey.Caption := Preferences.LoadStr(97) + '...';
-  aPCreateTrigger.Caption := Preferences.LoadStr(26) + '...';
-  aPDeleteTrigger.Caption := Preferences.LoadStr(28);
-  aPEditTrigger.Caption := Preferences.LoadStr(97) + '...';
-  aPCreatePartition.Caption := Preferences.LoadStr(26) + '...';
-  aPDeletePartition.Caption := Preferences.LoadStr(28);
-  aPEditPartition.Caption := Preferences.LoadStr(97) + '...';
-
-  msCopy.Action := MainAction('aECopy');
-  msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;
-
-  FBHelp.Caption := Preferences.LoadStr(167);
-  FBOk.Caption := Preferences.LoadStr(29);
 end;
 
 function TDTable.Execute(): Boolean;
@@ -1773,6 +1634,145 @@ begin
   FListSelectItem(FTriggers, FTriggers.Selected, Assigned(FTriggers.Selected));
 
   FTriggers.OnChange := TempOnChange;
+end;
+
+procedure TDTable.UMChangePreferences(var Message: TMessage);
+begin
+  Preferences.SmallImages.GetIcon(iiBaseTable, Icon);
+
+  PSQLWait.Caption := Preferences.LoadStr(882);
+
+  aPUp.Caption := Preferences.LoadStr(563);
+  aPDown.Caption := Preferences.LoadStr(564);
+
+  TSBasics.Caption := Preferences.LoadStr(108);
+  GBasics.Caption := Preferences.LoadStr(85);
+  FLName.Caption := Preferences.LoadStr(35) + ':';
+  FLEngine.Caption := Preferences.LoadStr(110) + ':';
+  FLDefaultCharset.Caption := Preferences.LoadStr(682) + ':';
+  FLCollation.Caption := Preferences.LoadStr(702) + ':';
+  FLComment.Caption := Preferences.LoadStr(111) + ':';
+  GRecords.Caption := Preferences.LoadStr(124);
+  FLAutoIncrement.Caption := Preferences.LoadStr(117) + ':';
+  FLRowType.Caption := Preferences.LoadStr(129) + ':';
+
+  TSInformation.Caption := Preferences.LoadStr(121);
+  GDates.Caption := Preferences.LoadStr(122);
+  FLCreated.Caption := Preferences.LoadStr(118) + ':';
+  FLUpdated.Caption := Preferences.LoadStr(119) + ':';
+  GSize.Caption := Preferences.LoadStr(125);
+  FLIndexSize.Caption := Preferences.LoadStr(163) + ':';
+  FLDataSize.Caption := Preferences.LoadStr(127) + ':';
+  GRecordCount.Caption := Preferences.LoadStr(170);
+  FLRecordCount.Caption := Preferences.LoadStr(116) + ':';
+
+  TSFields.Caption := Preferences.LoadStr(253);
+  tbCreateField.Hint := Preferences.LoadStr(87) + '...';
+  tbDeleteField.Hint := Preferences.LoadStr(28);
+  tbPropertiesField.Hint := Preferences.LoadStr(97) + '...';
+  tbFieldUp.Hint := Preferences.LoadStr(545);
+  tbFieldDown.Hint := Preferences.LoadStr(547);
+  FFields.Column[0].Caption := Preferences.LoadStr(35);
+  FFields.Column[1].Caption := Preferences.LoadStr(69);
+  FFields.Column[2].Caption := Preferences.LoadStr(71);
+  FFields.Column[3].Caption := Preferences.LoadStr(72);
+  FFields.Column[4].Caption := Preferences.LoadStr(73);
+  FFields.Column[5].Caption := Preferences.LoadStr(111);
+
+  TSKeys.Caption := Preferences.LoadStr(458);
+  tbCreateKey.Hint := Preferences.LoadStr(160) + '...';
+  tbDeleteKey.Hint := Preferences.LoadStr(28);
+  tbPropertiesKey.Hint := Preferences.LoadStr(97) + '...';
+  FKeys.Column[0].Caption := Preferences.LoadStr(35);
+  FKeys.Column[1].Caption := Preferences.LoadStr(69);
+  FKeys.Column[2].Caption := Preferences.LoadStr(73);
+  FKeys.Column[3].Caption := Preferences.LoadStr(111);
+
+  TSForeignKeys.Caption := Preferences.LoadStr(459);
+  tbCreateForeignKey.Hint := Preferences.LoadStr(249) + '...';
+  tbDeleteForeignKey.Hint := Preferences.LoadStr(28);
+  tbPropertiesForeignKey.Hint := Preferences.LoadStr(97) + '...';
+  FForeignKeys.Column[0].Caption := Preferences.LoadStr(35);
+  FForeignKeys.Column[1].Caption := Preferences.LoadStr(69);
+  FForeignKeys.Column[2].Caption := Preferences.LoadStr(73);
+
+  TSTriggers.Caption := Preferences.LoadStr(797);
+  FTriggers.Column[0].Caption := Preferences.LoadStr(35);
+  FTriggers.Column[1].Caption := Preferences.LoadStr(69);
+
+  TSReferenced.Caption := Preferences.LoadStr(782);
+  FReferenced.Column[0].Caption := Preferences.LoadStr(35);
+  FReferenced.Column[1].Caption := Preferences.LoadStr(69);
+  FReferenced.Column[2].Caption := Preferences.LoadStr(73);
+
+  TSPartitions.Caption := Preferences.LoadStr(830);
+  GPartitions.Caption := Preferences.LoadStr(85);
+  FLPartitionType.Caption := Preferences.LoadStr(110) + ':';
+  FPartitionType.Items.Clear();
+  FPartitionType.Items.Add('<' + Preferences.LoadStr(912) + '>');
+  FPartitionType.Items.Add(Preferences.LoadStr(831));
+  FPartitionType.Items.Add(Preferences.LoadStr(832));
+  FPartitionType.Items.Add(Preferences.LoadStr(833));
+  FPartitionType.Items.Add(Preferences.LoadStr(834));
+  FLinear.Caption := Preferences.LoadStr(835);
+  FLPartitionExpr.Caption := Preferences.LoadStr(836) + ':';
+  FLPartitionsNumber.Caption := Preferences.LoadStr(617) + ':';
+  FLPartitions.Caption := Preferences.LoadStr(830) + ':';
+//  tbPartitionUp.Hint := Preferences.LoadStr(545);
+//  tbPartitionDown.Hint := Preferences.LoadStr(547);
+  FPartitions.Column[0].Caption := Preferences.LoadStr(35);
+  FPartitions.Column[1].Caption := Preferences.LoadStr(836);
+  FPartitions.Column[2].Caption := Preferences.LoadStr(837);
+  FPartitions.Column[3].Caption := Preferences.LoadStr(838);
+  FPartitions.Column[4].Caption := Preferences.LoadStr(111);
+
+  TSExtras.Caption := Preferences.LoadStr(73);
+  GOptimize.Caption := Preferences.LoadStr(171);
+  FLUnusedSize.Caption := Preferences.LoadStr(128) + ':';
+  FBOptimize.Caption := Preferences.LoadStr(130);
+  GCheck.Caption := Preferences.LoadStr(172);
+  FLChecked.Caption := Preferences.LoadStr(120) + ':';
+  FBCheck.Caption := Preferences.LoadStr(131);
+  GFlush.Caption := Preferences.LoadStr(328);
+  FBFlush.Caption := Preferences.LoadStr(329);
+
+  TSSource.Caption := Preferences.LoadStr(198);
+  FSource.Font.Name := Preferences.SQLFontName;
+  FSource.Font.Style := Preferences.SQLFontStyle;
+  FSource.Font.Color := Preferences.SQLFontColor;
+  FSource.Font.Size := Preferences.SQLFontSize;
+  FSource.Font.Charset := Preferences.SQLFontCharset;
+  if (Preferences.Editor.LineNumbersForeground = clNone) then
+    FSource.Gutter.Font.Color := clWindowText
+  else
+    FSource.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
+  if (Preferences.Editor.LineNumbersBackground = clNone) then
+    FSource.Gutter.Color := clBtnFace
+  else
+    FSource.Gutter.Color := Preferences.Editor.LineNumbersBackground;
+  FSource.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
+
+  aPCreateKey.Caption := Preferences.LoadStr(26) + '...';
+  aPDeleteKey.Caption := Preferences.LoadStr(28);
+  aPEditKey.Caption := Preferences.LoadStr(97) + '...';
+  aPCreateField.Caption := Preferences.LoadStr(26) + '...';
+  aPDeleteField.Caption := Preferences.LoadStr(28);
+  aPEditField.Caption := Preferences.LoadStr(97) + '...';
+  aPCreateForeignKey.Caption := Preferences.LoadStr(26) + '...';
+  aPDeleteForeignKey.Caption := Preferences.LoadStr(28);
+  aPEditForeignKey.Caption := Preferences.LoadStr(97) + '...';
+  aPCreateTrigger.Caption := Preferences.LoadStr(26) + '...';
+  aPDeleteTrigger.Caption := Preferences.LoadStr(28);
+  aPEditTrigger.Caption := Preferences.LoadStr(97) + '...';
+  aPCreatePartition.Caption := Preferences.LoadStr(26) + '...';
+  aPDeletePartition.Caption := Preferences.LoadStr(28);
+  aPEditPartition.Caption := Preferences.LoadStr(97) + '...';
+
+  msCopy.Action := MainAction('aECopy');
+  msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;
+
+  FBHelp.Caption := Preferences.LoadStr(167);
+  FBOk.Caption := Preferences.LoadStr(29);
 end;
 
 initialization

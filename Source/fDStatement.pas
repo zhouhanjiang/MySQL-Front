@@ -49,8 +49,8 @@ type
     procedure FormCreate(Sender: TObject);
     procedure FormHide(Sender: TObject);
     procedure FormShow(Sender: TObject);
-  protected
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+  private
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     DatabaseName: string;
     DateTime: TDateTime;
@@ -90,46 +90,6 @@ begin
 end;
 
 { TDStatement *****************************************************************}
-
-procedure TDStatement.CMChangePreferences(var Message: TMessage);
-begin
-  TSInformations.Caption := Preferences.LoadStr(121);
-  GBasics.Caption := Preferences.LoadStr(85);
-  FLExecutionTime.Caption := Preferences.LoadStr(520) + ':';
-  FLDatabase.Caption := Preferences.LoadStr(38) + ':';
-
-  GStatement.Caption := Preferences.LoadStr(662);
-  FLStatementTime.Caption := Preferences.LoadStr(661) + ':';
-  FLRowsAffected.Caption := Preferences.LoadStr(808) + ':';
-  FLInfo.Caption := Preferences.LoadStr(274) + ':';
-  FLInsertId.Caption := Preferences.LoadStr(84) + ':';
-
-  GQuery.Caption := Preferences.LoadStr(662);
-  FLQueryTime.Caption := Preferences.LoadStr(661) + ':';
-
-  GProcess.Caption := Preferences.LoadStr(684);
-  FLId.Caption := Preferences.LoadStr(269) + ':';
-  FLUser.Caption := Preferences.LoadStr(561) + ':';
-  FLHost.Caption := Preferences.LoadStr(271) + ':';
-
-  TSSource.Caption := Preferences.LoadStr(198);
-  FSource.Font.Name := Preferences.SQLFontName;
-  FSource.Font.Style := Preferences.SQLFontStyle;
-  FSource.Font.Color := Preferences.SQLFontColor;
-  FSource.Font.Size := Preferences.SQLFontSize;
-  FSource.Font.Charset := Preferences.SQLFontCharset;
-  if (Preferences.Editor.LineNumbersForeground = clNone) then
-    FSource.Gutter.Font.Color := clWindowText
-  else
-    FSource.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
-  if (Preferences.Editor.LineNumbersBackground = clNone) then
-    FSource.Gutter.Color := clBtnFace
-  else
-    FSource.Gutter.Color := Preferences.Editor.LineNumbersBackground;
-  FSource.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
-
-  FBClose.Caption := Preferences.LoadStr(231);
-end;
 
 function TDStatement.Execute(): Boolean;
 begin
@@ -220,6 +180,46 @@ begin
 
   PageControl.ActivePage := TSInformations;
   ActiveControl := FBClose;
+end;
+
+procedure TDStatement.UMChangePreferences(var Message: TMessage);
+begin
+  TSInformations.Caption := Preferences.LoadStr(121);
+  GBasics.Caption := Preferences.LoadStr(85);
+  FLExecutionTime.Caption := Preferences.LoadStr(520) + ':';
+  FLDatabase.Caption := Preferences.LoadStr(38) + ':';
+
+  GStatement.Caption := Preferences.LoadStr(662);
+  FLStatementTime.Caption := Preferences.LoadStr(661) + ':';
+  FLRowsAffected.Caption := Preferences.LoadStr(808) + ':';
+  FLInfo.Caption := Preferences.LoadStr(274) + ':';
+  FLInsertId.Caption := Preferences.LoadStr(84) + ':';
+
+  GQuery.Caption := Preferences.LoadStr(662);
+  FLQueryTime.Caption := Preferences.LoadStr(661) + ':';
+
+  GProcess.Caption := Preferences.LoadStr(684);
+  FLId.Caption := Preferences.LoadStr(269) + ':';
+  FLUser.Caption := Preferences.LoadStr(561) + ':';
+  FLHost.Caption := Preferences.LoadStr(271) + ':';
+
+  TSSource.Caption := Preferences.LoadStr(198);
+  FSource.Font.Name := Preferences.SQLFontName;
+  FSource.Font.Style := Preferences.SQLFontStyle;
+  FSource.Font.Color := Preferences.SQLFontColor;
+  FSource.Font.Size := Preferences.SQLFontSize;
+  FSource.Font.Charset := Preferences.SQLFontCharset;
+  if (Preferences.Editor.LineNumbersForeground = clNone) then
+    FSource.Gutter.Font.Color := clWindowText
+  else
+    FSource.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
+  if (Preferences.Editor.LineNumbersBackground = clNone) then
+    FSource.Gutter.Color := clBtnFace
+  else
+    FSource.Gutter.Color := Preferences.Editor.LineNumbersBackground;
+  FSource.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
+
+  FBClose.Caption := Preferences.LoadStr(231);
 end;
 
 initialization

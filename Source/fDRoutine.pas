@@ -63,7 +63,7 @@ type
   private
     procedure Built();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Database: TSDatabase;
     Routine: TSRoutine;
@@ -129,72 +129,6 @@ begin
     PageControl.ActivePage := TSBasics;
     ActiveControl := FName;
   end;
-end;
-
-procedure TDRoutine.CMChangePreferences(var Message: TMessage);
-begin
-  PSQLWait.Caption := Preferences.LoadStr(882);
-
-  TSBasics.Caption := Preferences.LoadStr(108);
-  GBasics.Caption := Preferences.LoadStr(85);
-  FLName.Caption := Preferences.LoadStr(35) + ':';
-  FLSecurity.Caption := Preferences.LoadStr(798) + ':';
-  FSecurityDefiner.Caption := Preferences.LoadStr(799);
-  FSecurityInvoker.Caption := Preferences.LoadStr(561);
-  FLComment.Caption := Preferences.LoadStr(111) + ':';
-
-  TSInformations.Caption := Preferences.LoadStr(121);
-  GDates.Caption := Preferences.LoadStr(122);
-  FLCreated.Caption := Preferences.LoadStr(118) + ':';
-  FLUpdated.Caption := Preferences.LoadStr(119) + ':';
-  GDefiner.Caption := Preferences.LoadStr(561);
-  FLDefiner.Caption := Preferences.LoadStr(799) + ':';
-  GSize.Caption := Preferences.LoadStr(67);
-  FLSize.Caption := Preferences.LoadStr(67) + ':';
-
-  TSSource.Caption := Preferences.LoadStr(198);
-  if (not Preferences.Editor.CurrRowBGColorEnabled) then
-    FSource.ActiveLineColor := clNone
-  else
-    FSource.ActiveLineColor := Preferences.Editor.CurrRowBGColor;
-  FSource.Font.Name := Preferences.SQLFontName;
-  FSource.Font.Style := Preferences.SQLFontStyle;
-  FSource.Font.Color := Preferences.SQLFontColor;
-  FSource.Font.Size := Preferences.SQLFontSize;
-  FSource.Font.Charset := Preferences.SQLFontCharset;
-  if (Preferences.Editor.LineNumbersForeground = clNone) then
-    FSource.Gutter.Font.Color := clWindowText
-  else
-    FSource.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
-  if (Preferences.Editor.LineNumbersBackground = clNone) then
-    FSource.Gutter.Color := clBtnFace
-  else
-    FSource.Gutter.Color := Preferences.Editor.LineNumbersBackground;
-  FSource.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
-  FSource.Gutter.Visible := Preferences.Editor.LineNumbers;
-  if (Preferences.Editor.AutoIndent) then
-    FSource.Options := FSource.Options + [eoAutoIndent, eoSmartTabs]
-  else
-    FSource.Options := FSource.Options - [eoAutoIndent, eoSmartTabs];
-  if (Preferences.Editor.TabToSpaces) then
-    FSource.Options := FSource.Options + [eoTabsToSpaces]
-  else
-    FSource.Options := FSource.Options - [eoTabsToSpaces];
-  FSource.TabWidth := Preferences.Editor.TabWidth;
-  FSource.RightEdge := Preferences.Editor.RightEdge;
-  FSource.WantTabs := Preferences.Editor.TabAccepted;
-  FSource.WordWrap := Preferences.Editor.WordWrap;
-
-  msUndo.Action := MainAction('aEUndo'); msCut.ShortCut := 0;
-  msCut.Action := MainAction('aECut'); msCut.ShortCut := 0;
-  msCopy.Action := MainAction('aECopy'); msCopy.ShortCut := 0;
-  msPaste.Action := MainAction('aEPaste'); msPaste.ShortCut := 0;
-  msDelete.Action := MainAction('aEDelete'); msDelete.ShortCut := 0;
-  msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;
-
-  FBHelp.Caption := Preferences.LoadStr(167);
-  FBOk.Caption := Preferences.LoadStr(29);
-  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 function TDRoutine.Execute(): Boolean;
@@ -435,6 +369,72 @@ begin
   TSInformations.TabVisible := False;
 
   FBOkCheckEnabled(Sender);
+end;
+
+procedure TDRoutine.UMChangePreferences(var Message: TMessage);
+begin
+  PSQLWait.Caption := Preferences.LoadStr(882);
+
+  TSBasics.Caption := Preferences.LoadStr(108);
+  GBasics.Caption := Preferences.LoadStr(85);
+  FLName.Caption := Preferences.LoadStr(35) + ':';
+  FLSecurity.Caption := Preferences.LoadStr(798) + ':';
+  FSecurityDefiner.Caption := Preferences.LoadStr(799);
+  FSecurityInvoker.Caption := Preferences.LoadStr(561);
+  FLComment.Caption := Preferences.LoadStr(111) + ':';
+
+  TSInformations.Caption := Preferences.LoadStr(121);
+  GDates.Caption := Preferences.LoadStr(122);
+  FLCreated.Caption := Preferences.LoadStr(118) + ':';
+  FLUpdated.Caption := Preferences.LoadStr(119) + ':';
+  GDefiner.Caption := Preferences.LoadStr(561);
+  FLDefiner.Caption := Preferences.LoadStr(799) + ':';
+  GSize.Caption := Preferences.LoadStr(67);
+  FLSize.Caption := Preferences.LoadStr(67) + ':';
+
+  TSSource.Caption := Preferences.LoadStr(198);
+  if (not Preferences.Editor.CurrRowBGColorEnabled) then
+    FSource.ActiveLineColor := clNone
+  else
+    FSource.ActiveLineColor := Preferences.Editor.CurrRowBGColor;
+  FSource.Font.Name := Preferences.SQLFontName;
+  FSource.Font.Style := Preferences.SQLFontStyle;
+  FSource.Font.Color := Preferences.SQLFontColor;
+  FSource.Font.Size := Preferences.SQLFontSize;
+  FSource.Font.Charset := Preferences.SQLFontCharset;
+  if (Preferences.Editor.LineNumbersForeground = clNone) then
+    FSource.Gutter.Font.Color := clWindowText
+  else
+    FSource.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
+  if (Preferences.Editor.LineNumbersBackground = clNone) then
+    FSource.Gutter.Color := clBtnFace
+  else
+    FSource.Gutter.Color := Preferences.Editor.LineNumbersBackground;
+  FSource.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
+  FSource.Gutter.Visible := Preferences.Editor.LineNumbers;
+  if (Preferences.Editor.AutoIndent) then
+    FSource.Options := FSource.Options + [eoAutoIndent, eoSmartTabs]
+  else
+    FSource.Options := FSource.Options - [eoAutoIndent, eoSmartTabs];
+  if (Preferences.Editor.TabToSpaces) then
+    FSource.Options := FSource.Options + [eoTabsToSpaces]
+  else
+    FSource.Options := FSource.Options - [eoTabsToSpaces];
+  FSource.TabWidth := Preferences.Editor.TabWidth;
+  FSource.RightEdge := Preferences.Editor.RightEdge;
+  FSource.WantTabs := Preferences.Editor.TabAccepted;
+  FSource.WordWrap := Preferences.Editor.WordWrap;
+
+  msUndo.Action := MainAction('aEUndo'); msCut.ShortCut := 0;
+  msCut.Action := MainAction('aECut'); msCut.ShortCut := 0;
+  msCopy.Action := MainAction('aECopy'); msCopy.ShortCut := 0;
+  msPaste.Action := MainAction('aEPaste'); msPaste.ShortCut := 0;
+  msDelete.Action := MainAction('aEDelete'); msDelete.ShortCut := 0;
+  msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;
+
+  FBHelp.Caption := Preferences.LoadStr(167);
+  FBOk.Caption := Preferences.LoadStr(29);
+  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 initialization

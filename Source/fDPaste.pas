@@ -16,8 +16,8 @@ type
     FStructure: TCheckBox;
     procedure FormHide(Sender: TObject);
     procedure FormShow(Sender: TObject);
-  protected
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+  private
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Data: Boolean;
     Structure: Boolean;
@@ -50,17 +50,6 @@ end;
 
 { TDPaste *********************************************************************}
 
-procedure TDPaste.CMChangePreferences(var Message: TMessage);
-begin
-  Caption := Preferences.LoadStr(65);
-
-  FStructure.Caption := Preferences.LoadStr(215);
-  FData.Caption := Preferences.LoadStr(216);
-
-  FBOk.Caption := Preferences.LoadStr(29);
-  FBCancel.Caption := Preferences.LoadStr(30);
-end;
-
 function TDPaste.Execute(): Boolean;
 begin
   ShowModal();
@@ -83,6 +72,17 @@ begin
   FData.Checked := Preferences.Paste.Data;
 
   ActiveControl := FData;
+end;
+
+procedure TDPaste.UMChangePreferences(var Message: TMessage);
+begin
+  Caption := Preferences.LoadStr(65);
+
+  FStructure.Caption := Preferences.LoadStr(215);
+  FData.Caption := Preferences.LoadStr(216);
+
+  FBOk.Caption := Preferences.LoadStr(29);
+  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 initialization

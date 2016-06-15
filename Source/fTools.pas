@@ -2987,7 +2987,7 @@ end;
 procedure TTImportBaseODBC.BeforeExecute();
 var
   cbRecordsSum: SQLINTEGER;
-  Handle: SQLHSTMT;
+  CountStmt: SQLHSTMT;
   I: Integer;
   RecordsSum: array [0..20] of SQLTCHAR;
   SQL: string;
@@ -3004,26 +3004,27 @@ MessageBox(0, 'a', 'Debug', MB_OK + MB_ICONINFORMATION);
 MessageBox(0, 'b', 'Debug', MB_OK + MB_ICONINFORMATION);
       Success := daSuccess;
 
-      if (SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, FHandle, @Handle))) then
+      if (SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, FHandle, @CountStmt))) then
       begin
 MessageBox(0, 'c', 'Debug', MB_OK + MB_ICONINFORMATION);
         SQL := 'SELECT COUNT(*) FROM "' + TTImport.TItem(Items[I]).SourceTableName + '"';
 MessageBox(0, 'd', 'Debug', MB_OK + MB_ICONINFORMATION);
-        Nils := SQL_SUCCEEDED(SQLExecDirect(Handle, PSQLTCHAR(SQL), SQL_NTS));
+        Nils := SQL_SUCCEEDED(SQLExecDirect(CountStmt, PSQLTCHAR(SQL), SQL_NTS));
 MessageBox(0, 'e', 'Debug', MB_OK + MB_ICONINFORMATION);
-        Nils := Nils and SQL_SUCCEEDED(SQLFetch(Handle));
+        Nils := Nils and SQL_SUCCEEDED(SQLFetch(CountStmt));
 MessageBox(0, 'f', 'Debug', MB_OK + MB_ICONINFORMATION);
-        Nils := Nils and SQL_SUCCEEDED(SQLGetData(Handle, 1, SQL_C_WCHAR, @RecordsSum, SizeOf(RecordsSum) - 1, @cbRecordsSum));
+        Nils := Nils and SQL_SUCCEEDED(SQLGetData(CountStmt, 1, SQL_C_WCHAR, @RecordsSum, SizeOf(RecordsSum) - 1, @cbRecordsSum));
 MessageBox(0, 'g', 'Debug', MB_OK + MB_ICONINFORMATION);
         if (Nils) then
             Items[I].RecordsSum := StrToInt(PChar(@RecordsSum));
 MessageBox(0, 'h', 'Debug', MB_OK + MB_ICONINFORMATION);
 
-        SQLFreeHandle(SQL_HANDLE_STMT, Handle);
+        SQLFreeHandle(SQL_HANDLE_STMT, CountStmt);
 MessageBox(0, 'i', 'Debug', MB_OK + MB_ICONINFORMATION);
       end;
-    end;
 MessageBox(0, 'j', 'Debug', MB_OK + MB_ICONINFORMATION);
+    end;
+MessageBox(0, 'k', 'Debug', MB_OK + MB_ICONINFORMATION);
 end;
 
 procedure TTImportBaseODBC.BeforeExecuteData(const Item: TTImport.TItem);

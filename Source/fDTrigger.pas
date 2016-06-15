@@ -67,8 +67,7 @@ type
     procedure Built();
     procedure FBOkCheckEnabled(Sender: TObject);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
-  protected
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Table: TSBaseTable;
     Trigger: TSTrigger;
@@ -123,65 +122,6 @@ begin
   PSQLWait.Visible := not PageControl.Visible;
 
   ActiveControl := FName;
-end;
-
-procedure TDTrigger.CMChangePreferences(var Message: TMessage);
-begin
-  Preferences.SmallImages.GetIcon(iiTrigger, Icon);
-
-  PSQLWait.Caption := Preferences.LoadStr(882);
-
-  TSBasics.Caption := Preferences.LoadStr(108);
-  GBasics.Caption := Preferences.LoadStr(85);
-  FLName.Caption := Preferences.LoadStr(35) + ':';
-  FLTiming.Caption := Preferences.LoadStr(790) + ':';
-  FBefore.Caption := Preferences.LoadStr(791);
-  FAfter.Caption := Preferences.LoadStr(792);
-  FLEvent.Caption := Preferences.LoadStr(793) + ':';
-  FInsert.Caption := 'INSERT';
-  FUpdate.Caption := 'UPDATE';
-  FDelete.Caption := 'DELETE';
-  FLStatement.Caption := Preferences.LoadStr(794) + ':';
-
-  FInsert.Font.Name := Preferences.SQLFontName;
-  FUpdate.Font.Name := Preferences.SQLFontName;
-  FDelete.Font.Name := Preferences.SQLFontName;
-
-  FStatement.Font.Name := Preferences.SQLFontName;
-  FStatement.Font.Style := Preferences.SQLFontStyle;
-  FStatement.Font.Color := Preferences.SQLFontColor;
-  FStatement.Font.Size := Preferences.SQLFontSize;
-  FStatement.Font.Charset := Preferences.SQLFontCharset;
-  if (Preferences.Editor.AutoIndent) then
-    FStatement.Options := FStatement.Options + [eoAutoIndent, eoSmartTabs]
-  else
-    FStatement.Options := FStatement.Options - [eoAutoIndent, eoSmartTabs];
-  if (Preferences.Editor.TabToSpaces) then
-    FStatement.Options := FStatement.Options + [eoTabsToSpaces]
-  else
-    FStatement.Options := FStatement.Options - [eoTabsToSpaces];
-  FStatement.RightEdge := Preferences.Editor.RightEdge;
-  if (not Preferences.Editor.CurrRowBGColorEnabled) then
-    FStatement.ActiveLineColor := clNone
-  else
-    FStatement.ActiveLineColor := Preferences.Editor.CurrRowBGColor;
-
-  TSInformations.Caption := Preferences.LoadStr(121);
-  GDefiner.Caption := Preferences.LoadStr(561);
-  FLDefiner.Caption := Preferences.LoadStr(799) + ':';
-  GSize.Caption := Preferences.LoadStr(67);
-  FLSize.Caption := Preferences.LoadStr(67) + ':';
-
-  TSSource.Caption := Preferences.LoadStr(198);
-  FSource.Font.Name := Preferences.SQLFontName;
-  FSource.Font.Style := Preferences.SQLFontStyle;
-  FSource.Font.Color := Preferences.SQLFontColor;
-  FSource.Font.Size := Preferences.SQLFontSize;
-  FSource.Font.Charset := Preferences.SQLFontCharset;
-
-  FBHelp.Caption := Preferences.LoadStr(167);
-  FBOk.Caption := Preferences.LoadStr(29);
-  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 function TDTrigger.Execute(): Boolean;
@@ -391,6 +331,65 @@ end;
 procedure TDTrigger.HideTSSource(Sender: TObject);
 begin
   TSSource.TabVisible := False;
+end;
+
+procedure TDTrigger.UMChangePreferences(var Message: TMessage);
+begin
+  Preferences.SmallImages.GetIcon(iiTrigger, Icon);
+
+  PSQLWait.Caption := Preferences.LoadStr(882);
+
+  TSBasics.Caption := Preferences.LoadStr(108);
+  GBasics.Caption := Preferences.LoadStr(85);
+  FLName.Caption := Preferences.LoadStr(35) + ':';
+  FLTiming.Caption := Preferences.LoadStr(790) + ':';
+  FBefore.Caption := Preferences.LoadStr(791);
+  FAfter.Caption := Preferences.LoadStr(792);
+  FLEvent.Caption := Preferences.LoadStr(793) + ':';
+  FInsert.Caption := 'INSERT';
+  FUpdate.Caption := 'UPDATE';
+  FDelete.Caption := 'DELETE';
+  FLStatement.Caption := Preferences.LoadStr(794) + ':';
+
+  FInsert.Font.Name := Preferences.SQLFontName;
+  FUpdate.Font.Name := Preferences.SQLFontName;
+  FDelete.Font.Name := Preferences.SQLFontName;
+
+  FStatement.Font.Name := Preferences.SQLFontName;
+  FStatement.Font.Style := Preferences.SQLFontStyle;
+  FStatement.Font.Color := Preferences.SQLFontColor;
+  FStatement.Font.Size := Preferences.SQLFontSize;
+  FStatement.Font.Charset := Preferences.SQLFontCharset;
+  if (Preferences.Editor.AutoIndent) then
+    FStatement.Options := FStatement.Options + [eoAutoIndent, eoSmartTabs]
+  else
+    FStatement.Options := FStatement.Options - [eoAutoIndent, eoSmartTabs];
+  if (Preferences.Editor.TabToSpaces) then
+    FStatement.Options := FStatement.Options + [eoTabsToSpaces]
+  else
+    FStatement.Options := FStatement.Options - [eoTabsToSpaces];
+  FStatement.RightEdge := Preferences.Editor.RightEdge;
+  if (not Preferences.Editor.CurrRowBGColorEnabled) then
+    FStatement.ActiveLineColor := clNone
+  else
+    FStatement.ActiveLineColor := Preferences.Editor.CurrRowBGColor;
+
+  TSInformations.Caption := Preferences.LoadStr(121);
+  GDefiner.Caption := Preferences.LoadStr(561);
+  FLDefiner.Caption := Preferences.LoadStr(799) + ':';
+  GSize.Caption := Preferences.LoadStr(67);
+  FLSize.Caption := Preferences.LoadStr(67) + ':';
+
+  TSSource.Caption := Preferences.LoadStr(198);
+  FSource.Font.Name := Preferences.SQLFontName;
+  FSource.Font.Style := Preferences.SQLFontStyle;
+  FSource.Font.Color := Preferences.SQLFontColor;
+  FSource.Font.Size := Preferences.SQLFontSize;
+  FSource.Font.Charset := Preferences.SQLFontCharset;
+
+  FBHelp.Caption := Preferences.LoadStr(167);
+  FBOk.Caption := Preferences.LoadStr(29);
+  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 initialization

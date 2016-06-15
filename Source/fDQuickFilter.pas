@@ -16,8 +16,8 @@ type
     FValue: TEdit;
     procedure FormShow(Sender: TObject);
     procedure FormHide(Sender: TObject);
-  protected
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+  private
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Data: string;
     function Execute(): Boolean;
@@ -48,16 +48,6 @@ end;
 
 { TDQuickFilter ***************************************************************}
 
-procedure TDQuickFilter.CMChangePreferences(var Message: TMessage);
-begin
-  Caption := Preferences.LoadStr(489);
-
-  FLValue.Caption := Preferences.LoadStr(490) + ':';
-
-  FBOk.Caption := Preferences.LoadStr(29);
-  FBCancel.Caption := Preferences.LoadStr(30);
-end;
-
 function TDQuickFilter.Execute(): Boolean;
 begin
   ShowModal();
@@ -78,6 +68,16 @@ begin
   begin
     Data := Trim(FValue.Text);
   end;
+end;
+
+procedure TDQuickFilter.UMChangePreferences(var Message: TMessage);
+begin
+  Caption := Preferences.LoadStr(489);
+
+  FLValue.Caption := Preferences.LoadStr(490) + ':';
+
+  FBOk.Caption := Preferences.LoadStr(29);
+  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 initialization

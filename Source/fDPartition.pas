@@ -31,8 +31,7 @@ type
     procedure FBOkCheckEnabled(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormShow(Sender: TObject);
-  protected
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Partition: TSPartition;
     Table: TSBaseTable;
@@ -65,20 +64,6 @@ begin
 end;
 
 { TDPartition *****************************************************************}
-
-procedure TDPartition.CMChangePreferences(var Message: TMessage);
-begin
-  GBasics.Caption := Preferences.LoadStr(85);
-  FLName.Caption := Preferences.LoadStr(35) + ':';
-  FLEngine.Caption := Preferences.LoadStr(110) + ':';
-  FLExpression.Caption := Preferences.LoadStr(836) + ':';
-  FLMinRows.Caption := Preferences.LoadStr(837);
-  FLMaxRows.Caption := Preferences.LoadStr(838);
-  FLComment.Caption := Preferences.LoadStr(111) + ':';
-
-  FBOk.Caption := Preferences.LoadStr(29);
-  FBCancel.Caption := Preferences.LoadStr(30);
-end;
 
 function TDPartition.Execute(): Boolean;
 begin
@@ -174,6 +159,20 @@ begin
 
   ActiveControl := FBCancel;
   ActiveControl := FName;
+end;
+
+procedure TDPartition.UMChangePreferences(var Message: TMessage);
+begin
+  GBasics.Caption := Preferences.LoadStr(85);
+  FLName.Caption := Preferences.LoadStr(35) + ':';
+  FLEngine.Caption := Preferences.LoadStr(110) + ':';
+  FLExpression.Caption := Preferences.LoadStr(836) + ':';
+  FLMinRows.Caption := Preferences.LoadStr(837);
+  FLMaxRows.Caption := Preferences.LoadStr(838);
+  FLComment.Caption := Preferences.LoadStr(111) + ':';
+
+  FBOk.Caption := Preferences.LoadStr(29);
+  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 initialization

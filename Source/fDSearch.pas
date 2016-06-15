@@ -111,9 +111,9 @@ type
     procedure OnSearched(const AItem: TTSearch.TItem);
     procedure OnTerminate(Sender: TObject);
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
-    procedure CMTerminate(var Message: TMessage); message UM_TERMINATE;
-    procedure CMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
+    procedure UMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
   public
     Session: TSSession;
     DatabaseName: string;
@@ -151,111 +151,6 @@ begin
 end;
 
 { TDSearch ********************************************************************}
-
-procedure TDSearch.CMChangePreferences(var Message: TMessage);
-begin
-  GSelect.Caption := Preferences.LoadStr(721);
-
-  GFWhat.Caption := Preferences.LoadStr(227);
-  FLFFindText.Caption := Preferences.LoadStr(719) + ':';
-
-  GFOptions.Caption := Preferences.LoadStr(238);
-  FLFSearchOptions.Caption := Preferences.LoadStr(715) + ':';
-  FFMatchCase.Caption := Preferences.LoadStr(716);
-  FFWholeValue.Caption := Preferences.LoadStr(717);
-  FFRegExpr.Caption := Preferences.LoadStr(718);
-
-  GRWhat.Caption := Preferences.LoadStr(227);
-  FLRFindText.Caption := Preferences.LoadStr(719) + ':';
-  FLRFindText.Caption := Preferences.LoadStr(719) + ':';
-  FLReplaceText.Caption := Preferences.LoadStr(720) + ':';
-
-  GROptions.Caption := Preferences.LoadStr(238);
-  FLRSearchOptions.Caption := Preferences.LoadStr(715) + ':';
-  FRMatchCase.Caption := Preferences.LoadStr(716);
-  FRWholeValue.Caption := Preferences.LoadStr(717);
-  FRRegExpr.Caption := Preferences.LoadStr(718);
-
-  GBackup.Caption := Preferences.LoadStr(713);
-  FLBackup.Caption := Preferences.LoadStr(713) + ':';
-  FBackup.Caption := Preferences.LoadStr(714);
-
-  GProgress.Caption := Preferences.LoadStr(224);
-  FLEntiered.Caption := Preferences.LoadStr(211);
-  FLDone.Caption := Preferences.LoadStr(232);
-  FLProgressTables.Caption := Preferences.LoadStr(234) + ':';
-  FLProgressRecords.Caption := Preferences.LoadStr(235) + ':';
-  FLProgressTime.Caption := Preferences.LoadStr(661) + ':';
-  FLErrors.Caption := Preferences.LoadStr(391) + ':';
-
-  mtCopy.Caption := MainAction('aECopy').Caption;
-
-  FBHelp.Caption := Preferences.LoadStr(167);
-  FBBack.Caption := '< ' + Preferences.LoadStr(228);
-end;
-
-procedure TDSearch.CMTerminate(var Message: TMessage);
-var
-  Success: Boolean;
-begin
-  Success := Boolean(Message.WParam);
-
-  if (Success and SearchOnly and (FTables.Items.Count = 0)) then
-    MsgBox(Preferences.LoadStr(533, Search.FindText), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
-
-  if (Assigned(ExecuteSession)) then
-    ExecuteSession := nil;
-  if (Assigned(ReplaceSession)) then
-    FreeAndNil(ReplaceSession);
-
-  FBBack.Enabled := True;
-  FBForward.Enabled := False;
-  FBCancel.Enabled := True;
-
-  FBCancel.Caption := Preferences.LoadStr(231);
-  if (Success) then
-    FBCancel.ModalResult := mrOk
-  else
-    FBCancel.ModalResult := mrCancel;
-
-  ActiveControl := FBCancel;
-
-  if (Assigned(Search)) then
-  begin
-    Search.WaitFor();
-    FreeAndNil(Search);
-  end;
-end;
-
-procedure TDSearch.CMUpdateProgressInfo(var Message: TMessage);
-var
-  Infos: TTool.PProgressInfos;
-begin
-  Infos := TTool.PProgressInfos(Message.LParam);
-
-  if (Infos.ObjectsSum < 0) then
-    FEntieredTables.Caption := '???'
-  else
-    FEntieredTables.Caption := FormatFloat('#,##0', Infos.ObjectsSum, LocaleFormatSettings);
-  if (Infos.ObjectsDone < 0) then
-    FDoneTables.Caption := '???'
-  else
-    FDoneTables.Caption := FormatFloat('#,##0', Infos.ObjectsDone, LocaleFormatSettings);
-
-  if (Infos.RecordsSum < 0) then
-    FEntieredRecords.Caption := '???'
-  else
-    FEntieredRecords.Caption := FormatFloat('#,##0', Infos.RecordsSum, LocaleFormatSettings);
-  if (Infos.RecordsDone < 0) then
-    FDoneRecords.Caption := '???'
-  else
-    FDoneRecords.Caption := FormatFloat('#,##0', Infos.RecordsDone, LocaleFormatSettings);
-
-  FEntieredTime.Caption := TimeToStr(Infos.TimeSum, DurationFormatSettings);
-  FDoneTime.Caption := TimeToStr(Infos.TimeDone, DurationFormatSettings);
-
-  FProgressBar.Position := Infos.Progress;
-end;
 
 function TDSearch.Execute(): Boolean;
 begin
@@ -1092,6 +987,111 @@ begin
   FBForward.Caption := Preferences.LoadStr(229) + ' >';
 
   FSelectChange(Sender, FSelect.Selected);
+end;
+
+procedure TDSearch.UMChangePreferences(var Message: TMessage);
+begin
+  GSelect.Caption := Preferences.LoadStr(721);
+
+  GFWhat.Caption := Preferences.LoadStr(227);
+  FLFFindText.Caption := Preferences.LoadStr(719) + ':';
+
+  GFOptions.Caption := Preferences.LoadStr(238);
+  FLFSearchOptions.Caption := Preferences.LoadStr(715) + ':';
+  FFMatchCase.Caption := Preferences.LoadStr(716);
+  FFWholeValue.Caption := Preferences.LoadStr(717);
+  FFRegExpr.Caption := Preferences.LoadStr(718);
+
+  GRWhat.Caption := Preferences.LoadStr(227);
+  FLRFindText.Caption := Preferences.LoadStr(719) + ':';
+  FLRFindText.Caption := Preferences.LoadStr(719) + ':';
+  FLReplaceText.Caption := Preferences.LoadStr(720) + ':';
+
+  GROptions.Caption := Preferences.LoadStr(238);
+  FLRSearchOptions.Caption := Preferences.LoadStr(715) + ':';
+  FRMatchCase.Caption := Preferences.LoadStr(716);
+  FRWholeValue.Caption := Preferences.LoadStr(717);
+  FRRegExpr.Caption := Preferences.LoadStr(718);
+
+  GBackup.Caption := Preferences.LoadStr(713);
+  FLBackup.Caption := Preferences.LoadStr(713) + ':';
+  FBackup.Caption := Preferences.LoadStr(714);
+
+  GProgress.Caption := Preferences.LoadStr(224);
+  FLEntiered.Caption := Preferences.LoadStr(211);
+  FLDone.Caption := Preferences.LoadStr(232);
+  FLProgressTables.Caption := Preferences.LoadStr(234) + ':';
+  FLProgressRecords.Caption := Preferences.LoadStr(235) + ':';
+  FLProgressTime.Caption := Preferences.LoadStr(661) + ':';
+  FLErrors.Caption := Preferences.LoadStr(391) + ':';
+
+  mtCopy.Caption := MainAction('aECopy').Caption;
+
+  FBHelp.Caption := Preferences.LoadStr(167);
+  FBBack.Caption := '< ' + Preferences.LoadStr(228);
+end;
+
+procedure TDSearch.UMTerminate(var Message: TMessage);
+var
+  Success: Boolean;
+begin
+  Success := Boolean(Message.WParam);
+
+  if (Success and SearchOnly and (FTables.Items.Count = 0)) then
+    MsgBox(Preferences.LoadStr(533, Search.FindText), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
+
+  if (Assigned(ExecuteSession)) then
+    ExecuteSession := nil;
+  if (Assigned(ReplaceSession)) then
+    FreeAndNil(ReplaceSession);
+
+  FBBack.Enabled := True;
+  FBForward.Enabled := False;
+  FBCancel.Enabled := True;
+
+  FBCancel.Caption := Preferences.LoadStr(231);
+  if (Success) then
+    FBCancel.ModalResult := mrOk
+  else
+    FBCancel.ModalResult := mrCancel;
+
+  ActiveControl := FBCancel;
+
+  if (Assigned(Search)) then
+  begin
+    Search.WaitFor();
+    FreeAndNil(Search);
+  end;
+end;
+
+procedure TDSearch.UMUpdateProgressInfo(var Message: TMessage);
+var
+  Infos: TTool.PProgressInfos;
+begin
+  Infos := TTool.PProgressInfos(Message.LParam);
+
+  if (Infos.ObjectsSum < 0) then
+    FEntieredTables.Caption := '???'
+  else
+    FEntieredTables.Caption := FormatFloat('#,##0', Infos.ObjectsSum, LocaleFormatSettings);
+  if (Infos.ObjectsDone < 0) then
+    FDoneTables.Caption := '???'
+  else
+    FDoneTables.Caption := FormatFloat('#,##0', Infos.ObjectsDone, LocaleFormatSettings);
+
+  if (Infos.RecordsSum < 0) then
+    FEntieredRecords.Caption := '???'
+  else
+    FEntieredRecords.Caption := FormatFloat('#,##0', Infos.RecordsSum, LocaleFormatSettings);
+  if (Infos.RecordsDone < 0) then
+    FDoneRecords.Caption := '???'
+  else
+    FDoneRecords.Caption := FormatFloat('#,##0', Infos.RecordsDone, LocaleFormatSettings);
+
+  FEntieredTime.Caption := TimeToStr(Infos.TimeSum, DurationFormatSettings);
+  FDoneTime.Caption := TimeToStr(Infos.TimeDone, DurationFormatSettings);
+
+  FProgressBar.Position := Infos.Progress;
 end;
 
 initialization
