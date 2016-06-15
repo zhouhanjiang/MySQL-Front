@@ -26,8 +26,7 @@ type
     procedure Built();
     procedure FBOkCheckEnabled(Sender: TObject);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
-  protected
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Session: TSSession;
     SelectedDatabases: string;
@@ -101,20 +100,6 @@ begin
   FBOkCheckEnabled(nil);
 
   ActiveControl := FDatabases;
-end;
-
-procedure TDDatabases.CMChangePreferences(var Message: TMessage);
-begin
-  Preferences.SmallImages.GetIcon(iiServer, Icon);
-
-  Caption := Preferences.LoadStr(264);
-
-  PSQLWait.Caption := Preferences.LoadStr(882);
-
-  GroupBox.Caption := Preferences.LoadStr(265) + ':';
-
-  FBOk.Caption := Preferences.LoadStr(29);
-  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 function TDDatabases.Execute(): Boolean;
@@ -260,6 +245,20 @@ begin
     ActiveControl := FBCancel
   else
     ActiveControl := FDatabases;
+end;
+
+procedure TDDatabases.UMChangePreferences(var Message: TMessage);
+begin
+  Preferences.SmallImages.GetIcon(iiServer, Icon);
+
+  Caption := Preferences.LoadStr(264);
+
+  PSQLWait.Caption := Preferences.LoadStr(882);
+
+  GroupBox.Caption := Preferences.LoadStr(265) + ':';
+
+  FBOk.Caption := Preferences.LoadStr(29);
+  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 initialization

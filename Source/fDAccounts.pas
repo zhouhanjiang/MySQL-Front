@@ -50,8 +50,8 @@ type
   private
     procedure ListViewShowSortDirection(const ListView: TListView);
     procedure SetFAccounts(const ASelected: TAAccount);
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
-    procedure CMPostShow(var Message: TMessage); message UM_POST_SHOW;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
   public
     Account: TAAccount;
     Session: TSSession;
@@ -135,28 +135,6 @@ begin
   else
     if (Boolean(SendMessage(Application.MainForm.Handle, UM_ADDTAB, 0, LPARAM(Accounts.AccountByName(FAccounts.Selected.Caption).Desktop.Address)))) then
       FBOk.Click();
-end;
-
-procedure TDAccounts.CMChangePreferences(var Message: TMessage);
-begin
-  FAccounts.Canvas.Font := Font;
-
-  Preferences.SmallImages.GetIcon(40, Icon);
-
-  GAccounts.Caption := Preferences.LoadStr(25);
-  FAccounts.Columns.Items[0].Caption := Preferences.LoadStr(35);
-  FAccounts.Columns.Items[1].Caption := Preferences.LoadStr(693);
-  aOpen.Caption := Preferences.LoadStr(581);
-  aNew.Caption := Preferences.LoadStr(26) + '...';
-  aEdit.Caption := Preferences.LoadStr(97) + '...';
-  aDelete.Caption := Preferences.LoadStr(28);
-
-  FBOk.Caption := Preferences.LoadStr(581);
-end;
-
-procedure TDAccounts.CMPostShow(var Message: TMessage);
-begin
-  ListViewShowSortDirection(FAccounts);
 end;
 
 function TDAccounts.Execute(): Boolean;
@@ -411,6 +389,28 @@ begin
   FAccountsResize(nil);
 
   FAccounts.EnableAlign(); FAccounts.Items.EndUpdate();
+end;
+
+procedure TDAccounts.UMChangePreferences(var Message: TMessage);
+begin
+  FAccounts.Canvas.Font := Font;
+
+  Preferences.SmallImages.GetIcon(40, Icon);
+
+  GAccounts.Caption := Preferences.LoadStr(25);
+  FAccounts.Columns.Items[0].Caption := Preferences.LoadStr(35);
+  FAccounts.Columns.Items[1].Caption := Preferences.LoadStr(693);
+  aOpen.Caption := Preferences.LoadStr(581);
+  aNew.Caption := Preferences.LoadStr(26) + '...';
+  aEdit.Caption := Preferences.LoadStr(97) + '...';
+  aDelete.Caption := Preferences.LoadStr(28);
+
+  FBOk.Caption := Preferences.LoadStr(581);
+end;
+
+procedure TDAccounts.UMPostShow(var Message: TMessage);
+begin
+  ListViewShowSortDirection(FAccounts);
 end;
 
 initialization

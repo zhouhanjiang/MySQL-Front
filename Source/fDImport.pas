@@ -209,6 +209,7 @@ type
     WantedNodeExpand: TTreeNode;
     procedure CheckActivePageChange(const ActivePageIndex: Integer);
     procedure ClearTSFields(Sender: TObject);
+    procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     function GetDataSource(): Boolean;
     function GetFilename(): Boolean;
@@ -217,12 +218,11 @@ type
     procedure OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure OnTerminate(Sender: TObject);
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
-    procedure CMTerminate(var Message: TMessage); message UM_TERMINATE;
-    procedure CMPostAfterExecuteSQL(var Message: TMessage); message UM_POST_AFTEREXECUTESQL;
-    procedure CMPostShow(var Message: TMessage); message UM_POST_SHOW;
-    procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
-    procedure CMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPostAfterExecuteSQL(var Message: TMessage); message UM_POST_AFTEREXECUTESQL;
+    procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
+    procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
+    procedure UMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
     procedure WMHelp(var Message: TWMHelp); message WM_HELP;
   public
     CodePage: Cardinal;
@@ -375,151 +375,6 @@ begin
   SetLength(FDestinationFields, 0);
 end;
 
-procedure TDImport.CMChangePreferences(var Message: TMessage);
-begin
-  Preferences.SmallImages.GetIcon(iiImport, Icon);
-
-  OpenDialog.EncodingLabel := Preferences.LoadStr(682) + ':';
-
-  PSQLWait.Caption := Preferences.LoadStr(882);
-
-  GBasics.Caption := Preferences.LoadStr(85);
-  FLName.Caption := Preferences.LoadStr(35) + ':';
-  FLImportType.Caption := Preferences.LoadStr(371) + ':';
-  FSQLFile.Caption := Preferences.LoadStr(409);
-  FTextFile.Caption := Preferences.LoadStr(410);
-  FExcelFile.Caption := Preferences.LoadStr(801);
-  FAccessFile.Caption := Preferences.LoadStr(695);
-  FODBC.Caption := Preferences.LoadStr(607);
-  FLFilename.Caption := Preferences.LoadStr(348) + ':';
-  FLDataSource.Caption := Preferences.LoadStr(38) + ':';
-
-  GSelect.Caption := Preferences.LoadStr(755);
-
-  GTables.Caption := Preferences.LoadStr(234);
-
-  GCSVHow.Caption := Preferences.LoadStr(238);
-  FLCSVHeadline.Caption := Preferences.LoadStr(393) + ':';
-  FCSVHeadline.Caption := Preferences.LoadStr(398);
-  FLDelimiter.Caption := Preferences.LoadStr(352) + ':';
-  FDelimiterTab.Caption := Preferences.LoadStr(394);
-  FDelimiterChar.Caption := Preferences.LoadStr(355) + ':';
-  FLQuoteValues.Caption := Preferences.LoadStr(353) + ':';
-  FQuoteNothing.Caption := Preferences.LoadStr(396);
-  FQuoteStrings.Caption := Preferences.LoadStr(397) + ':';
-  GCSVPreview.Caption := Preferences.LoadStr(423);
-
-  GWhat.Caption := Preferences.LoadStr(227);
-  FLWhat.Caption := Preferences.LoadStr(218) + ':';
-  FStructure.Caption := Preferences.LoadStr(215);
-  FData.Caption := Preferences.LoadStr(216);
-  GStructure.Caption := Preferences.LoadStr(238);
-  FLEngine.Caption := Preferences.LoadStr(110) + ':';
-  FLCharset.Caption := Preferences.LoadStr(682) + ':';
-  FLCollation.Caption := Preferences.LoadStr(702) + ':';
-  FLRowFormat.Caption := Preferences.LoadStr(129) + ':';
-
-  GFields.Caption := Preferences.LoadStr(253);
-  FLDestinationFields.Caption := Preferences.LoadStr(401) + ':';
-
-  GStmtType.Caption := Preferences.LoadStr(238);
-  FLStmtType.Caption := Preferences.LoadStr(124) + ':';
-  FInsert.Caption := LowerCase(Preferences.LoadStr(880)) + ' (INSERT)';
-  FReplace.Caption := LowerCase(Preferences.LoadStr(416)) + ' (REPLACE)';
-  FUpdate.Caption := LowerCase(Preferences.LoadStr(726)) + ' (UPDATE)';
-  FInsertOrUpdate.Caption := LowerCase(Preferences.LoadStr(910));
-  FLInsertUpdate.Caption := '(INSERT / UPDATE)';
-
-  GProgress.Caption := Preferences.LoadStr(224);
-  FLEntiered.Caption := Preferences.LoadStr(211) + ':';
-  FLDone.Caption := Preferences.LoadStr(232) + ':';
-  FLProgressObjects.Caption := Preferences.LoadStr(234) + ':';
-  FLProgressTime.Caption := Preferences.LoadStr(661) + ':';
-  FLErrors.Caption := Preferences.LoadStr(391) + ':';
-
-  GTask.Caption := Preferences.LoadStr(661);
-  FLStart.Caption := Preferences.LoadStr(817) + ':';
-  FLExecution.Caption := Preferences.LoadStr(174) + ':';
-  FSingle.Caption := Preferences.LoadStr(902);
-  FDaily.Caption := Preferences.LoadStr(903);
-  FWeekly.Caption := Preferences.LoadStr(904);
-  FMonthly.Caption := Preferences.LoadStr(905);
-  FLEnabled.Caption := Preferences.LoadStr(812) + ':';
-  FEnabled.Caption := Preferences.LoadStr(529);
-
-  GErrorMessages.Caption := Preferences.LoadStr(392);
-
-  FBHelp.Caption := Preferences.LoadStr(167);
-  FBBack.Caption := '< ' + Preferences.LoadStr(228);
-  FBForward.Caption := Preferences.LoadStr(229) + ' >';
-  FBCancel.Caption := Preferences.LoadStr(30);
-end;
-
-procedure TDImport.CMTerminate(var Message: TMessage);
-var
-  Success: Boolean;
-begin
-  Success := Boolean(Message.WParam);
-
-  GProgress.Enabled := True;
-  FLEntiered.Enabled := True;
-  FLDone.Enabled := True;
-  FLProgressRecords.Enabled := True;
-  FEntieredRecords.Enabled := True;
-  FDoneRecords.Enabled := True;
-  FLProgressTime.Enabled := True;
-  FEntieredTime.Enabled := True;
-  FDoneTime.Enabled := True;
-  FProgressBar.Enabled := True;
-
-  FBBack.Enabled := True;
-  FBForward.Enabled := False;
-  FBCancel.Enabled := True;
-
-  FBCancel.Caption := Preferences.LoadStr(231);
-  if (Success) then
-    FBCancel.ModalResult := mrOk
-  else
-    FBCancel.ModalResult := mrCancel;
-
-  if (Assigned(Import)) then
-  begin
-    Import.WaitFor();
-    FreeAndNil(Import);
-  end;
-end;
-
-procedure TDImport.CMPostAfterExecuteSQL(var Message: TMessage);
-begin
-  if (((DialogType = idtNormal) or (DialogType in [idtEditJob, idtExecuteJob]) and InitTSSelect()) and Assigned(FSelect.Selected)) then
-    SObject := TSObject(FSelect.Selected.Data);
-
-  Message.Result := LRESULT(not Assigned(SObject) or SObject.Update());
-  if (Boolean(Message.Result)) then
-  begin
-    if (Assigned(WantedNodeExpand)) then
-      WantedNodeExpand.Expand(False)
-    else
-    begin
-      if (not PageControl.Visible) then
-      begin
-        PageControl.Visible := True;
-        PSQLWait.Visible := not PageControl.Visible;
-      end;
-
-      if (TSFields.Enabled) then
-        InitTSFields(nil);
-      CheckActivePageChange(PageControl.ActivePageIndex);
-    end;
-  end;
-end;
-
-procedure TDImport.CMPostShow(var Message: TMessage);
-begin
-  TSExecute.Enabled := True;
-  PageControl.ActivePage := TSExecute;
-end;
-
 procedure TDImport.CMSysFontChanged(var Message: TMessage);
 begin
   inherited;
@@ -529,35 +384,6 @@ begin
 
   FDelimiter.Left := FDelimiterChar.Left + Sizer.Width + PageControl.Canvas.TextWidth(FDelimiterChar.Caption);
   FQuoteChar.Left := FQuoteStrings.Left + Sizer.Width + PageControl.Canvas.TextWidth(FQuoteStrings.Caption);
-end;
-
-procedure TDImport.CMUpdateProgressInfo(var Message: TMessage);
-var
-  Infos: TTool.PProgressInfos;
-begin
-  Infos := TTool.PProgressInfos(Message.LParam);
-
-  if (Infos^.ObjectsSum < 0) then
-    FEntieredObjects.Caption := '???'
-  else
-    FEntieredObjects.Caption := FormatFloat('#,##0', Infos^.ObjectsSum, LocaleFormatSettings);
-  if (Infos^.ObjectsDone < 0) then
-    FDoneObjects.Caption := '???'
-  else
-    FDoneObjects.Caption := FormatFloat('#,##0', Infos^.ObjectsDone, LocaleFormatSettings);
-
-  if (Infos^.RecordsSum < 0) then
-    FEntieredRecords.Caption := '???'
-  else
-    FEntieredRecords.Caption := FormatFloat('#,##0', Infos^.RecordsSum, LocaleFormatSettings);
-  if (Infos^.RecordsDone < 0) then
-    FDoneRecords.Caption := '???'
-  else
-    FDoneRecords.Caption := FormatFloat('#,##0', Infos^.RecordsDone, LocaleFormatSettings);
-  FEntieredTime.Caption := TimeToStr(Infos^.TimeSum, DurationFormatSettings);
-  FDoneTime.Caption := TimeToStr(Infos^.TimeDone, DurationFormatSettings);
-
-  FProgressBar.Position := Infos^.Progress;
 end;
 
 function TDImport.Execute(): Boolean;
@@ -2080,6 +1906,180 @@ procedure TDImport.TSXMLOptionsHide(Sender: TObject);
 begin
   if (Length(FDestinationFields) = 0) then
     InitTSFields(Sender);
+end;
+
+procedure TDImport.UMChangePreferences(var Message: TMessage);
+begin
+  Preferences.SmallImages.GetIcon(iiImport, Icon);
+
+  OpenDialog.EncodingLabel := Preferences.LoadStr(682) + ':';
+
+  PSQLWait.Caption := Preferences.LoadStr(882);
+
+  GBasics.Caption := Preferences.LoadStr(85);
+  FLName.Caption := Preferences.LoadStr(35) + ':';
+  FLImportType.Caption := Preferences.LoadStr(371) + ':';
+  FSQLFile.Caption := Preferences.LoadStr(409);
+  FTextFile.Caption := Preferences.LoadStr(410);
+  FExcelFile.Caption := Preferences.LoadStr(801);
+  FAccessFile.Caption := Preferences.LoadStr(695);
+  FODBC.Caption := Preferences.LoadStr(607);
+  FLFilename.Caption := Preferences.LoadStr(348) + ':';
+  FLDataSource.Caption := Preferences.LoadStr(38) + ':';
+
+  GSelect.Caption := Preferences.LoadStr(755);
+
+  GTables.Caption := Preferences.LoadStr(234);
+
+  GCSVHow.Caption := Preferences.LoadStr(238);
+  FLCSVHeadline.Caption := Preferences.LoadStr(393) + ':';
+  FCSVHeadline.Caption := Preferences.LoadStr(398);
+  FLDelimiter.Caption := Preferences.LoadStr(352) + ':';
+  FDelimiterTab.Caption := Preferences.LoadStr(394);
+  FDelimiterChar.Caption := Preferences.LoadStr(355) + ':';
+  FLQuoteValues.Caption := Preferences.LoadStr(353) + ':';
+  FQuoteNothing.Caption := Preferences.LoadStr(396);
+  FQuoteStrings.Caption := Preferences.LoadStr(397) + ':';
+  GCSVPreview.Caption := Preferences.LoadStr(423);
+
+  GWhat.Caption := Preferences.LoadStr(227);
+  FLWhat.Caption := Preferences.LoadStr(218) + ':';
+  FStructure.Caption := Preferences.LoadStr(215);
+  FData.Caption := Preferences.LoadStr(216);
+  GStructure.Caption := Preferences.LoadStr(238);
+  FLEngine.Caption := Preferences.LoadStr(110) + ':';
+  FLCharset.Caption := Preferences.LoadStr(682) + ':';
+  FLCollation.Caption := Preferences.LoadStr(702) + ':';
+  FLRowFormat.Caption := Preferences.LoadStr(129) + ':';
+
+  GFields.Caption := Preferences.LoadStr(253);
+  FLDestinationFields.Caption := Preferences.LoadStr(401) + ':';
+
+  GStmtType.Caption := Preferences.LoadStr(238);
+  FLStmtType.Caption := Preferences.LoadStr(124) + ':';
+  FInsert.Caption := LowerCase(Preferences.LoadStr(880)) + ' (INSERT)';
+  FReplace.Caption := LowerCase(Preferences.LoadStr(416)) + ' (REPLACE)';
+  FUpdate.Caption := LowerCase(Preferences.LoadStr(726)) + ' (UPDATE)';
+  FInsertOrUpdate.Caption := LowerCase(Preferences.LoadStr(910));
+  FLInsertUpdate.Caption := '(INSERT / UPDATE)';
+
+  GProgress.Caption := Preferences.LoadStr(224);
+  FLEntiered.Caption := Preferences.LoadStr(211) + ':';
+  FLDone.Caption := Preferences.LoadStr(232) + ':';
+  FLProgressObjects.Caption := Preferences.LoadStr(234) + ':';
+  FLProgressTime.Caption := Preferences.LoadStr(661) + ':';
+  FLErrors.Caption := Preferences.LoadStr(391) + ':';
+
+  GTask.Caption := Preferences.LoadStr(661);
+  FLStart.Caption := Preferences.LoadStr(817) + ':';
+  FLExecution.Caption := Preferences.LoadStr(174) + ':';
+  FSingle.Caption := Preferences.LoadStr(902);
+  FDaily.Caption := Preferences.LoadStr(903);
+  FWeekly.Caption := Preferences.LoadStr(904);
+  FMonthly.Caption := Preferences.LoadStr(905);
+  FLEnabled.Caption := Preferences.LoadStr(812) + ':';
+  FEnabled.Caption := Preferences.LoadStr(529);
+
+  GErrorMessages.Caption := Preferences.LoadStr(392);
+
+  FBHelp.Caption := Preferences.LoadStr(167);
+  FBBack.Caption := '< ' + Preferences.LoadStr(228);
+  FBForward.Caption := Preferences.LoadStr(229) + ' >';
+  FBCancel.Caption := Preferences.LoadStr(30);
+end;
+
+procedure TDImport.UMPostAfterExecuteSQL(var Message: TMessage);
+begin
+  if (((DialogType = idtNormal) or (DialogType in [idtEditJob, idtExecuteJob]) and InitTSSelect()) and Assigned(FSelect.Selected)) then
+    SObject := TSObject(FSelect.Selected.Data);
+
+  Message.Result := LRESULT(not Assigned(SObject) or SObject.Update());
+  if (Boolean(Message.Result)) then
+  begin
+    if (Assigned(WantedNodeExpand)) then
+      WantedNodeExpand.Expand(False)
+    else
+    begin
+      if (not PageControl.Visible) then
+      begin
+        PageControl.Visible := True;
+        PSQLWait.Visible := not PageControl.Visible;
+      end;
+
+      if (TSFields.Enabled) then
+        InitTSFields(nil);
+      CheckActivePageChange(PageControl.ActivePageIndex);
+    end;
+  end;
+end;
+
+procedure TDImport.UMPostShow(var Message: TMessage);
+begin
+  TSExecute.Enabled := True;
+  PageControl.ActivePage := TSExecute;
+end;
+
+procedure TDImport.UMTerminate(var Message: TMessage);
+var
+  Success: Boolean;
+begin
+  Success := Boolean(Message.WParam);
+
+  GProgress.Enabled := True;
+  FLEntiered.Enabled := True;
+  FLDone.Enabled := True;
+  FLProgressRecords.Enabled := True;
+  FEntieredRecords.Enabled := True;
+  FDoneRecords.Enabled := True;
+  FLProgressTime.Enabled := True;
+  FEntieredTime.Enabled := True;
+  FDoneTime.Enabled := True;
+  FProgressBar.Enabled := True;
+
+  FBBack.Enabled := True;
+  FBForward.Enabled := False;
+  FBCancel.Enabled := True;
+
+  FBCancel.Caption := Preferences.LoadStr(231);
+  if (Success) then
+    FBCancel.ModalResult := mrOk
+  else
+    FBCancel.ModalResult := mrCancel;
+
+  if (Assigned(Import)) then
+  begin
+    Import.WaitFor();
+    FreeAndNil(Import);
+  end;
+end;
+
+procedure TDImport.UMUpdateProgressInfo(var Message: TMessage);
+var
+  Infos: TTool.PProgressInfos;
+begin
+  Infos := TTool.PProgressInfos(Message.LParam);
+
+  if (Infos^.ObjectsSum < 0) then
+    FEntieredObjects.Caption := '???'
+  else
+    FEntieredObjects.Caption := FormatFloat('#,##0', Infos^.ObjectsSum, LocaleFormatSettings);
+  if (Infos^.ObjectsDone < 0) then
+    FDoneObjects.Caption := '???'
+  else
+    FDoneObjects.Caption := FormatFloat('#,##0', Infos^.ObjectsDone, LocaleFormatSettings);
+
+  if (Infos^.RecordsSum < 0) then
+    FEntieredRecords.Caption := '???'
+  else
+    FEntieredRecords.Caption := FormatFloat('#,##0', Infos^.RecordsSum, LocaleFormatSettings);
+  if (Infos^.RecordsDone < 0) then
+    FDoneRecords.Caption := '???'
+  else
+    FDoneRecords.Caption := FormatFloat('#,##0', Infos^.RecordsDone, LocaleFormatSettings);
+  FEntieredTime.Caption := TimeToStr(Infos^.TimeSum, DurationFormatSettings);
+  FDoneTime.Caption := TimeToStr(Infos^.TimeDone, DurationFormatSettings);
+
+  FProgressBar.Position := Infos^.Progress;
 end;
 
 procedure TDImport.WhatClick(Sender: TObject);

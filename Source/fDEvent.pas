@@ -99,7 +99,7 @@ type
   private
     procedure Built();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Database: TSDatabase;
     Event: TSEvent;
@@ -180,79 +180,6 @@ begin
   PSQLWait.Visible := not PageControl.Visible;
 
   ActiveControl := FName;
-end;
-
-procedure TDEvent.CMChangePreferences(var Message: TMessage);
-begin
-  Preferences.SmallImages.GetIcon(iiEvent, Icon);
-
-  PSQLWait.Caption := Preferences.LoadStr(882);
-
-  TSBasics.Caption := Preferences.LoadStr(108);
-  GBasics.Caption := Preferences.LoadStr(85);
-  FLName.Caption := Preferences.LoadStr(35) + ':';
-  FLSingleExecution.Caption := Preferences.LoadStr(174) + ':';
-  FSingleExecution.Caption := Preferences.LoadStr(815) + ' ...';
-  FLExecuteDateTime.Caption := Preferences.LoadStr(520) + ':';
-  FMultipleExecution.Caption := Preferences.LoadStr(816) + ' ...';
-  FLMultipleExecution.Caption := Preferences.LoadStr(174) + ':';
-  FLIntervalDate.Caption := Preferences.LoadStr(822) + ' / ' + Preferences.LoadStr(823) + ' / ' + Preferences.LoadStr(824) + ':';
-  FLIntervalWeeks.Caption := Preferences.LoadStr(825) + ' / ' + Preferences.LoadStr(826) + ':';
-  FLIntervalTime.Caption := Preferences.LoadStr(827) + ' / ' + Preferences.LoadStr(828) + ' / ' + Preferences.LoadStr(829) + ':';
-  FLStartDateTime.Caption := Preferences.LoadStr(817) + ':';
-  FLEndDateTime.Caption := Preferences.LoadStr(818) + ':';
-  FLEnabled.Caption := Preferences.LoadStr(812) + ':';
-  FEnabled.Caption := Preferences.LoadStr(529);
-  FLPreserve.Caption := Preferences.LoadStr(819) + ':';
-  FPreserve.Caption := Preferences.LoadStr(884);
-  FLComment.Caption := Preferences.LoadStr(111) + ':';
-  FLStatement.Caption := Preferences.LoadStr(794) + ':';
-
-  FStatement.Font.Name := Preferences.SQLFontName;
-  FStatement.Font.Style := Preferences.SQLFontStyle;
-  FStatement.Font.Color := Preferences.SQLFontColor;
-  FStatement.Font.Size := Preferences.SQLFontSize;
-  FStatement.Font.Charset := Preferences.SQLFontCharset;
-  if (Preferences.Editor.LineNumbersForeground = clNone) then
-    FStatement.Gutter.Font.Color := clWindowText
-  else
-    FStatement.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
-  if (Preferences.Editor.LineNumbersBackground = clNone) then
-    FStatement.Gutter.Color := clBtnFace
-  else
-    FStatement.Gutter.Color := Preferences.Editor.LineNumbersBackground;
-  FStatement.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
-  if (Preferences.Editor.AutoIndent) then
-    FStatement.Options := FStatement.Options + [eoAutoIndent, eoSmartTabs]
-  else
-    FStatement.Options := FStatement.Options - [eoAutoIndent, eoSmartTabs];
-  if (Preferences.Editor.TabToSpaces) then
-    FStatement.Options := FStatement.Options + [eoTabsToSpaces]
-  else
-    FStatement.Options := FStatement.Options - [eoTabsToSpaces];
-  FStatement.RightEdge := Preferences.Editor.RightEdge;
-  if (not Preferences.Editor.CurrRowBGColorEnabled) then
-    FStatement.ActiveLineColor := clNone
-  else
-    FStatement.ActiveLineColor := Preferences.Editor.CurrRowBGColor;
-
-  TSInformations.Caption := Preferences.LoadStr(121);
-  GDefiner.Caption := Preferences.LoadStr(561);
-  FLDefiner.Caption := Preferences.LoadStr(799) + ':';
-  GDates.Caption := Preferences.LoadStr(122);
-  FLCreated.Caption := Preferences.LoadStr(118) + ':';
-  FLUpdated.Caption := Preferences.LoadStr(119) + ':';
-
-  TSSource.Caption := Preferences.LoadStr(198);
-  FSource.Font.Name := Preferences.SQLFontName;
-  FSource.Font.Style := Preferences.SQLFontStyle;
-  FSource.Font.Color := Preferences.SQLFontColor;
-  FSource.Font.Size := Preferences.SQLFontSize;
-  FSource.Font.Charset := Preferences.SQLFontCharset;
-
-  FBHelp.Caption := Preferences.LoadStr(167);
-  FBOk.Caption := Preferences.LoadStr(29);
-  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 function TDEvent.Execute(): Boolean;
@@ -529,6 +456,79 @@ procedure TDEvent.TSSourceShow(Sender: TObject);
 begin
   if (FSource.Lines.Count = 0) then
     FSource.Lines.Text := Event.Source + #13#10
+end;
+
+procedure TDEvent.UMChangePreferences(var Message: TMessage);
+begin
+  Preferences.SmallImages.GetIcon(iiEvent, Icon);
+
+  PSQLWait.Caption := Preferences.LoadStr(882);
+
+  TSBasics.Caption := Preferences.LoadStr(108);
+  GBasics.Caption := Preferences.LoadStr(85);
+  FLName.Caption := Preferences.LoadStr(35) + ':';
+  FLSingleExecution.Caption := Preferences.LoadStr(174) + ':';
+  FSingleExecution.Caption := Preferences.LoadStr(815) + ' ...';
+  FLExecuteDateTime.Caption := Preferences.LoadStr(520) + ':';
+  FMultipleExecution.Caption := Preferences.LoadStr(816) + ' ...';
+  FLMultipleExecution.Caption := Preferences.LoadStr(174) + ':';
+  FLIntervalDate.Caption := Preferences.LoadStr(822) + ' / ' + Preferences.LoadStr(823) + ' / ' + Preferences.LoadStr(824) + ':';
+  FLIntervalWeeks.Caption := Preferences.LoadStr(825) + ' / ' + Preferences.LoadStr(826) + ':';
+  FLIntervalTime.Caption := Preferences.LoadStr(827) + ' / ' + Preferences.LoadStr(828) + ' / ' + Preferences.LoadStr(829) + ':';
+  FLStartDateTime.Caption := Preferences.LoadStr(817) + ':';
+  FLEndDateTime.Caption := Preferences.LoadStr(818) + ':';
+  FLEnabled.Caption := Preferences.LoadStr(812) + ':';
+  FEnabled.Caption := Preferences.LoadStr(529);
+  FLPreserve.Caption := Preferences.LoadStr(819) + ':';
+  FPreserve.Caption := Preferences.LoadStr(884);
+  FLComment.Caption := Preferences.LoadStr(111) + ':';
+  FLStatement.Caption := Preferences.LoadStr(794) + ':';
+
+  FStatement.Font.Name := Preferences.SQLFontName;
+  FStatement.Font.Style := Preferences.SQLFontStyle;
+  FStatement.Font.Color := Preferences.SQLFontColor;
+  FStatement.Font.Size := Preferences.SQLFontSize;
+  FStatement.Font.Charset := Preferences.SQLFontCharset;
+  if (Preferences.Editor.LineNumbersForeground = clNone) then
+    FStatement.Gutter.Font.Color := clWindowText
+  else
+    FStatement.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
+  if (Preferences.Editor.LineNumbersBackground = clNone) then
+    FStatement.Gutter.Color := clBtnFace
+  else
+    FStatement.Gutter.Color := Preferences.Editor.LineNumbersBackground;
+  FStatement.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
+  if (Preferences.Editor.AutoIndent) then
+    FStatement.Options := FStatement.Options + [eoAutoIndent, eoSmartTabs]
+  else
+    FStatement.Options := FStatement.Options - [eoAutoIndent, eoSmartTabs];
+  if (Preferences.Editor.TabToSpaces) then
+    FStatement.Options := FStatement.Options + [eoTabsToSpaces]
+  else
+    FStatement.Options := FStatement.Options - [eoTabsToSpaces];
+  FStatement.RightEdge := Preferences.Editor.RightEdge;
+  if (not Preferences.Editor.CurrRowBGColorEnabled) then
+    FStatement.ActiveLineColor := clNone
+  else
+    FStatement.ActiveLineColor := Preferences.Editor.CurrRowBGColor;
+
+  TSInformations.Caption := Preferences.LoadStr(121);
+  GDefiner.Caption := Preferences.LoadStr(561);
+  FLDefiner.Caption := Preferences.LoadStr(799) + ':';
+  GDates.Caption := Preferences.LoadStr(122);
+  FLCreated.Caption := Preferences.LoadStr(118) + ':';
+  FLUpdated.Caption := Preferences.LoadStr(119) + ':';
+
+  TSSource.Caption := Preferences.LoadStr(198);
+  FSource.Font.Name := Preferences.SQLFontName;
+  FSource.Font.Style := Preferences.SQLFontStyle;
+  FSource.Font.Color := Preferences.SQLFontColor;
+  FSource.Font.Size := Preferences.SQLFontSize;
+  FSource.Font.Charset := Preferences.SQLFontCharset;
+
+  FBHelp.Caption := Preferences.LoadStr(167);
+  FBOk.Caption := Preferences.LoadStr(29);
+  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 initialization

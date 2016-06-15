@@ -1737,16 +1737,12 @@ var
   DataSet: TMySQLQuery;
   SQL: string;
 begin
-MessageBox(0, 'A', 'Debug', MB_OK + MB_ICONINFORMATION);
   inherited;
-MessageBox(0, 'B', 'Debug', MB_OK + MB_ICONINFORMATION);
 
   Session.Connection.BeginSilent();
-MessageBox(0, 'C', 'Debug', MB_OK + MB_ICONINFORMATION);
 
   if (Data and (Session.Connection.ServerVersion >= 40014)) then
   begin
-MessageBox(0, 'D', 'Debug', MB_OK + MB_ICONINFORMATION);
     if (Assigned(Session.VariableByName('UNIQUE_CHECKS'))
       and Assigned(Session.VariableByName('FOREIGN_KEY_CHECKS'))) then
     begin
@@ -1755,7 +1751,6 @@ MessageBox(0, 'D', 'Debug', MB_OK + MB_ICONINFORMATION);
     end
     else
     begin
-MessageBox(0, 'E', 'Debug', MB_OK + MB_ICONINFORMATION);
       DataSet := TMySQLQuery.Create(nil);
       DataSet.Connection := Session.Connection;
       DataSet.CommandText := 'SELECT @@UNIQUE_CHECKS,@@FOREIGN_KEY_CHECKS';
@@ -1775,14 +1770,11 @@ MessageBox(0, 'E', 'Debug', MB_OK + MB_ICONINFORMATION);
       end;
 
       DataSet.Free();
-MessageBox(0, 'F', 'Debug', MB_OK + MB_ICONINFORMATION);
     end;
 
-MessageBox(0, 'G', 'Debug', MB_OK + MB_ICONINFORMATION);
     SQL := 'SET UNIQUE_CHECKS=OFF,FOREIGN_KEY_CHECKS=OFF;';
     while ((Success <> daAbort) and not Session.Connection.ExecuteSQL(SQL)) do
       DoError(DatabaseError(Session), nil, True, SQL);
-MessageBox(0, 'H', 'Debug', MB_OK + MB_ICONINFORMATION);
   end;
 end;
 
@@ -1887,22 +1879,17 @@ begin
   try
   {$ENDIF}
 
-MessageBox(0, '1', 'Debug', MB_OK + MB_ICONINFORMATION);
   BeforeExecute();
 
-MessageBox(0, '2', 'Debug', MB_OK + MB_ICONINFORMATION);
   Open();
 
-MessageBox(0, '3', 'Debug', MB_OK + MB_ICONINFORMATION);
   for I := 0 to Items.Count - 1 do
     if (Success <> daAbort) then
     begin
       Success := daSuccess;
 
-MessageBox(0, '4', 'Debug', MB_OK + MB_ICONINFORMATION);
       if (Structure) then
       begin
-MessageBox(0, '5', 'Debug', MB_OK + MB_ICONINFORMATION);
         Table := Database.TableByName(TTImport.TItem(Items[I]).DestinationTableName);
 
         if (Assigned(Table)) then
@@ -1917,28 +1904,22 @@ MessageBox(0, '5', 'Debug', MB_OK + MB_ICONINFORMATION);
           SetLength(FieldMappings, 0);
           ExecuteStructure(TTImport.TItem(Items[I]));
         end;
-MessageBox(0, '6', 'Debug', MB_OK + MB_ICONINFORMATION);
       end;
 
       if ((Success = daSuccess) and Data) then
       begin
-MessageBox(0, '7', 'Debug', MB_OK + MB_ICONINFORMATION);
         Table := Database.TableByName(TTImport.TItem(Items[I]).DestinationTableName);
 
         if (not Assigned(Table)) then
           raise Exception.Create('Table "' + TTImport.TItem(Items[I]).DestinationTableName + '" does not exists.');
 
-MessageBox(0, '8', 'Debug', MB_OK + MB_ICONINFORMATION);
         ExecuteData(TTImport.TItem(Items[I]), Database.TableByName(TTImport.TItem(Items[I]).DestinationTableName));
-MessageBox(0, '9', 'Debug', MB_OK + MB_ICONINFORMATION);
       end;
 
       Items[I].Done := True;
     end;
 
-MessageBox(0, '10', 'Debug', MB_OK + MB_ICONINFORMATION);
   AfterExecute();
-MessageBox(0, '11', 'Debug', MB_OK + MB_ICONINFORMATION);
 
   {$IFDEF EurekaLog}
   except
@@ -3010,25 +2991,39 @@ var
   I: Integer;
   RecordsSum: array [0..20] of SQLTCHAR;
   SQL: string;
+
+Nils: Boolean;
+
 begin
   inherited;
 
+MessageBox(0, 'a', 'Debug', MB_OK + MB_ICONINFORMATION);
   for I := 0 to Items.Count - 1 do
     if ((Success <> daAbort) and Data) then
     begin
+MessageBox(0, 'b', 'Debug', MB_OK + MB_ICONINFORMATION);
       Success := daSuccess;
 
       if (SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, FHandle, @Handle))) then
       begin
+MessageBox(0, 'c', 'Debug', MB_OK + MB_ICONINFORMATION);
         SQL := 'SELECT COUNT(*) FROM "' + TTImport.TItem(Items[I]).SourceTableName + '"';
-        if (SQL_SUCCEEDED(SQLExecDirect(Handle, PSQLTCHAR(SQL), SQL_NTS))
-          and SQL_SUCCEEDED(SQLFetch(Handle))
-          and SQL_SUCCEEDED(SQLGetData(Handle, 1, SQL_C_WCHAR, @RecordsSum, SizeOf(RecordsSum) - 1, @cbRecordsSum))) then
+MessageBox(0, 'd', 'Debug', MB_OK + MB_ICONINFORMATION);
+        Nils := SQL_SUCCEEDED(SQLExecDirect(Handle, PSQLTCHAR(SQL), SQL_NTS));
+MessageBox(0, 'e', 'Debug', MB_OK + MB_ICONINFORMATION);
+        Nils := Nils and SQL_SUCCEEDED(SQLFetch(Handle));
+MessageBox(0, 'f', 'Debug', MB_OK + MB_ICONINFORMATION);
+        Nils := Nils and SQL_SUCCEEDED(SQLGetData(Handle, 1, SQL_C_WCHAR, @RecordsSum, SizeOf(RecordsSum) - 1, @cbRecordsSum));
+MessageBox(0, 'g', 'Debug', MB_OK + MB_ICONINFORMATION);
+        if (Nils) then
             Items[I].RecordsSum := StrToInt(PChar(@RecordsSum));
+MessageBox(0, 'h', 'Debug', MB_OK + MB_ICONINFORMATION);
 
         SQLFreeHandle(SQL_HANDLE_STMT, Handle);
+MessageBox(0, 'i', 'Debug', MB_OK + MB_ICONINFORMATION);
       end;
     end;
+MessageBox(0, 'j', 'Debug', MB_OK + MB_ICONINFORMATION);
 end;
 
 procedure TTImportBaseODBC.BeforeExecuteData(const Item: TTImport.TItem);

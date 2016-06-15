@@ -409,6 +409,7 @@ type
     procedure ApplicationMessage(var Msg: TMsg; var Handled: Boolean);
     procedure ApplicationModalBegin(Sender: TObject);
     procedure ApplicationModalEnd(Sender: TObject);
+    procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure EmptyWorkingMem();
     {$IFDEF EurekaLog}
     procedure EurekaLogCustomDataRequest(
@@ -424,16 +425,15 @@ type
     procedure MySQLConnectionSynchronize(const Data: Pointer); inline;
     procedure SetActiveTab(const FSession: TFSession);
     procedure SQLError(const Connection: TMySQLConnection; const ErrorCode: Integer; const ErrorMessage: string);
-    procedure CMActivateTab(var Message: TMessage); message UM_ACTIVATETAB;
+    procedure UMActivateTab(var Message: TMessage); message UM_ACTIVATETAB;
     procedure UMAddTab(var Message: TMessage); message UM_ADDTAB;
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
-    procedure CMMySQLClientSynchronize(var Message: TMessage); message UM_MYSQLCLIENT_SYNCHRONIZE;
-    procedure CMCloseTab(var Message: TMessage); message UM_CLOSE_TAB;
-    procedure CMDeactivateTab(var Message: TMessage); message UM_DEACTIVATETAB;
-    procedure CMPostShow(var Message: TMessage); message UM_POST_SHOW;
-    procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
-    procedure CMUpdateAvailable(var Message: TMessage); message UM_UPDATEAVAILABLE;
-    procedure CMUpdateToolbar(var Message: TMessage); message UM_UPDATETOOLBAR;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMMySQLClientSynchronize(var Message: TMessage); message UM_MYSQLCLIENT_SYNCHRONIZE;
+    procedure UMCloseTab(var Message: TMessage); message UM_CLOSE_TAB;
+    procedure UMDeactivateTab(var Message: TMessage); message UM_DEACTIVATETAB;
+    procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
+    procedure UMUpdateAvailable(var Message: TMessage); message UM_UPDATEAVAILABLE;
+    procedure UMUpdateToolbar(var Message: TMessage); message UM_UPDATETOOLBAR;
     procedure WMCopyData(var Message: TWMCopyData); message WM_COPYDATA;
     procedure WMDrawItem(var Message: TWMDrawItem); message WM_DRAWITEM;
     procedure WMHelp(var Message: TWMHelp); message WM_HELP;
@@ -720,450 +720,6 @@ begin
   MsgBox(Preferences.LoadStr(533, FindText), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
 end;
 
-procedure TWWindow.CMActivateTab(var Message: TMessage);
-begin
-  ActiveTab := TFSession(Message.LParam);
-
-  Color := clBtnFace;
-
-  if (ActiveTab.Visible) then
-    SendMessage(ActiveTab.Handle, UM_ACTIVATEFRAME, 0, 0);
-
-  tbDBPrev.Action := ActiveTab.aDPrev;
-  tbDBFirst.Action := ActiveTab.DataSetFirst;
-  tbDBLast.Action := ActiveTab.DataSetLast;
-  tbDBNext.Action := ActiveTab.aDNext;
-  tbPostRecord.Action := ActiveTab.DataSetPost;
-  tbCancelRecord.Action := ActiveTab.DataSetCancel;
-
-  tbDBPrev.Hint := ActiveTab.aDPrev.Caption + ' (' + ShortCutToText(VK_UP) + ')';
-  tbDBFirst.Hint := ActiveTab.DataSetFirst.Caption + ' (' + ShortCutToText(scCtrl + VK_HOME) + ')';
-  tbDBLast.Hint := ActiveTab.DataSetLast.Caption + ' (' + ShortCutToText(scCtrl + VK_END) + ')';
-  tbDBNext.Hint := ActiveTab.aDNext.Caption + ' (' + ShortCutToText(VK_DOWN) + ')';
-
-  aFClose.Enabled := True;
-
-  Perform(UM_UPDATETOOLBAR, 0, Message.LParam);
-
-  Message.Result := 1;
-end;
-
-procedure TWWindow.UMAddTab(var Message: TMessage);
-var
-  FSession: TFSession;
-begin
-  DAccounts.Open := True;
-  DAccounts.Account := nil;
-  DAccounts.Session := nil;
-  if (Copy(StrPas(PChar(Message.LParam)), 1, 8) = 'mysql://') then
-  begin
-    DAccounts.Account := Accounts.AccountByURI(PChar(Message.LParam));
-    if (Assigned(DAccounts.Account)) then
-    begin
-      DAccounts.Session := TSSession.Create(Sessions, DAccounts.Account);
-      DConnecting.Session := DAccounts.Session;
-      if (not DConnecting.Execute()) then
-        FreeAndNil(DConnecting.Session);
-    end;
-  end;
-  if (not Assigned(DAccounts.Session) and not DAccounts.Execute()) then
-    FSession := nil
-  else
-  begin
-    Perform(UM_DEACTIVATETAB, 0, 0);
-
-    if (FSessions.Count = 0) then
-    begin
-      TabControl.Tabs.Add(DAccounts.Session.Account.Name);
-      TabControl.Visible := Preferences.TabsVisible;
-      if (TabControl.Visible) then
-        TabControlResize(nil);
-    end
-    else
-    begin
-      TabControl.Tabs.Add(DAccounts.Session.Account.Name);
-      if (TabControl.Tabs.Count < 0) then
-        raise ERangeError.Create(SRangeError);
-      TabControl.TabIndex := TabControl.Tabs.Count - 1;
-      if (not TabControl.Visible) then
-      begin
-        TabControl.Visible := True;
-        TabControlResize(nil);
-      end;
-    end;
-
-    FSession := TFSession.Create(Self, PWorkSpace, DAccounts.Session, PChar(Message.LParam));
-    FSession.Visible := True;
-
-    Inc(UniqueTabNameCounter);
-    FSession.Name := FSession.ClassName + '_' + IntToStr(UniqueTabNameCounter);
-
-    FSession.StatusBar := StatusBar;
-
-    aFCloseAll.Enabled := True;
-
-    FSessions.Add(FSession);
-
-    Perform(UM_ACTIVATETAB, 0, LPARAM(FSession));
-
-    TBTabControl.Visible := TabControl.Visible;
-  end;
-
-  Message.Result := LRESULT(Assigned(FSession));
-end;
-
-procedure TWWindow.CMChangePreferences(var Message: TMessage);
-var
-  I: Integer;
-begin
-  ToolBar.Images := Preferences.LargeImages;
-  TabControl.Images := Preferences.SmallImages;
-  TBTabControl.Images := Preferences.SmallImages;
-
-  Perform(CM_SYSFONTCHANGED, 0, 0);
-
-  if (not CheckWin32Version(6)) then
-    ToolBar.BorderWidth := 0
-  else
-    ToolBar.BorderWidth := 2;
-
-  TabControl.Canvas.Font := Font;
-
-  Caption := LoadStr(1000);
-
-  miFile.Caption := Preferences.LoadStr(3);
-  aFOpenAccount.Caption := Preferences.LoadStr(1) + '...';
-  aFOpen.Caption := Preferences.LoadStr(581) + '...';
-  aFSave.Caption := Preferences.LoadStr(582);
-  aFSaveAs.Caption := Preferences.LoadStr(583) + '...';
-  miFReopen.Caption := Preferences.LoadStr(885);
-  miFImport.Caption := Preferences.LoadStr(371);
-  aFImportSQL.Caption := Preferences.LoadStr(409) + '...';
-  aFImportText.Caption := Preferences.LoadStr(410) + '...';
-  aFImportExcel.Caption := Preferences.LoadStr(801) + '...';
-  aFImportAccess.Caption := Preferences.LoadStr(695) + '...';
-  aFImportODBC.Caption := Preferences.LoadStr(607) + '...';
-  miFExport.Caption := Preferences.LoadStr(200);
-  aFExportSQL.Caption := Preferences.LoadStr(409) + '...';
-  aFExportText.Caption := Preferences.LoadStr(410) + '...';
-  aFExportExcel.Caption := Preferences.LoadStr(801) + '...';
-  aFExportAccess.Caption := Preferences.LoadStr(695) + '...';
-  aFExportODBC.Caption := Preferences.LoadStr(607) + '...';
-  aFExportHTML.Caption := Preferences.LoadStr(453) + '...';
-  aFExportXML.Caption := Preferences.LoadStr(454) + '...';
-  aFExportPDF.Caption := Preferences.LoadStr(890) + '...';
-  aFExportBitmap.Caption := Preferences.LoadStr(868) + '...';
-  aFClose.Caption := Preferences.LoadStr(7);
-  aFExit.Caption := Preferences.LoadStr(8);
-
-  miEdit.Caption := Preferences.LoadStr(62);
-  aEUndo.Caption := Preferences.LoadStr(425);
-  aERedo.Caption := Preferences.LoadStr(705);
-  aECut.Caption := Preferences.LoadStr(63) + #9 + ShortCutToText(scCtrl + Ord('X'));
-  aECopy.Caption := Preferences.LoadStr(64) + #9 + ShortCutToText(scCtrl + Ord('C'));
-  aEPaste.Caption := Preferences.LoadStr(65) + #9 + ShortCutToText(scCtrl + Ord('V'));
-  aEDelete.Caption := Preferences.LoadStr(28) + #9 + ShortCutToText(VK_DELETE);
-  aESelectAll.Caption := Preferences.LoadStr(572) + #9 + ShortCutToText(scCtrl + Ord('A'));
-  aECopyToFile.Caption := Preferences.LoadStr(182) + '...';
-  aEPasteFromFile.Caption := Preferences.LoadStr(183) + '...';
-  aERename.Caption := Preferences.LoadStr(98);
-
-  miSearch.Caption := Preferences.LoadStr(424);
-  aSSearchFind.Caption := Preferences.LoadStr(187) + '...';
-  aSSearchReplace.Caption := Preferences.LoadStr(416) + '...';
-  aSSearchNext.Caption := Preferences.LoadStr(188);
-  aSGoto.Caption := Preferences.LoadStr(676) + '...';
-
-  miView.Caption := Preferences.LoadStr(9);
-  aVObjectBrowser.Caption := Preferences.LoadStr(4);
-  aVDataBrowser.Caption := Preferences.LoadStr(5);
-  aVObjectIDE.Caption := Preferences.LoadStr(865);
-  aVQueryBuilder.Caption := Preferences.LoadStr(852);
-  aVDiagram.Caption := Preferences.LoadStr(800);
-  aVSQLEditor.Caption := Preferences.LoadStr(6);
-  aVSQLEditor2.Caption := Preferences.LoadStr(6) + ' #2';
-  aVSQLEditor3.Caption := Preferences.LoadStr(6) + ' #3';
-  aVAddressBar.Caption := Preferences.LoadStr(731);
-  miVSidebar.Caption := Preferences.LoadStr(736);
-  aVNavigator.Caption := Preferences.LoadStr(10);
-  aVExplorer.Caption := Preferences.LoadStr(435);
-  aVJobs.Caption := Preferences.LoadStr(896);
-  aVSQLHistory.Caption := Preferences.LoadStr(807);
-  aVSQLLog.Caption := Preferences.LoadStr(11);
-  aVRefresh.Caption := Preferences.LoadStr(41);
-  aVRefreshAll.Caption := Preferences.LoadStr(623);
-
-  miDatabase.Caption := Preferences.LoadStr(38);
-  miDCreate.Caption := Preferences.LoadStr(26);
-  aDCreateDatabase.Caption := Preferences.LoadStr(38) + '...';
-  aDCreateTable.Caption := Preferences.LoadStr(302) + '...';
-  aDCreateView.Caption := Preferences.LoadStr(738) + '...';
-  aDCreateProcedure.Caption := Preferences.LoadStr(768) + '...';
-  aDCreateFunction.Caption := Preferences.LoadStr(769) + '...';
-  aDCreateTrigger.Caption := Preferences.LoadStr(788) + '...';
-  aDCreateEvent.Caption := Preferences.LoadStr(812) + '...';
-  aDCreateKey.Caption := Preferences.LoadStr(163) + '...';
-  aDCreateField.Caption := Preferences.LoadStr(164) + '...';
-  aDCreateForeignKey.Caption := Preferences.LoadStr(248) + '...';
-  aDCreateUser.Caption := Preferences.LoadStr(561) + '...';
-  miDDelete.Caption := Preferences.LoadStr(28);
-  aDDeleteDatabase.Caption := Preferences.LoadStr(38);
-  aDDeleteTable.Caption := Preferences.LoadStr(302);
-  aDDeleteView.Caption := Preferences.LoadStr(738);
-  aDDeleteRoutine.Caption := Preferences.LoadStr(774);
-  aDDeleteKey.Caption := Preferences.LoadStr(163);
-  aDDeleteField.Caption := Preferences.LoadStr(164);
-  aDDeleteForeignKey.Caption := Preferences.LoadStr(248);
-  aDDeleteTrigger.Caption := Preferences.LoadStr(788);
-  aDDeleteEvent.Caption := Preferences.LoadStr(812);
-  aDDeleteUser.Caption := Preferences.LoadStr(561);
-  aDDeleteProcess.Caption := Preferences.LoadStr(562);
-  miDProperties.Caption := Preferences.LoadStr(97);
-  aDEditServer.Caption := Preferences.LoadStr(37) + '...';
-  aDEditDatabase.Caption := Preferences.LoadStr(38) + '...';
-  aDEditTable.Caption := Preferences.LoadStr(302) + '...';
-  aDEditView.Caption := Preferences.LoadStr(738) + '...';
-  aDEditRoutine.Caption := Preferences.LoadStr(774) + '...';
-  aDEditKey.Caption := Preferences.LoadStr(163) + '...';
-  aDEditField.Caption := Preferences.LoadStr(164) + '...';
-  aDEditForeignKey.Caption := Preferences.LoadStr(248) + '...';
-  aDEditTrigger.Caption := Preferences.LoadStr(788) + '...';
-  aDEditEvent.Caption := Preferences.LoadStr(812) + '...';
-  aDEditProcess.Caption := Preferences.LoadStr(562) + '...';
-  aDEditUser.Caption := Preferences.LoadStr(561) + '...';
-  aDEditVariable.Caption := Preferences.LoadStr(267) + '...';
-  aDInsertRecord.Caption := Preferences.LoadStr(179) + #9 + ShortCutToText(VK_INSERT);
-  aDDeleteRecord.Caption := Preferences.LoadStr(178) + #9 + ShortCutToText(scCtrl + VK_DELETE);
-  aDEditRecord.Caption := Preferences.LoadStr(500);
-  aDPostRecord.Caption := Preferences.LoadStr(516);
-  aDCancelRecord.Caption := Preferences.LoadStr(517);
-  aDCancel.Caption := Preferences.LoadStr(517);
-  aDRun.Caption := Preferences.LoadStr(174);
-  aDRunSelection.Caption := Preferences.LoadStr(175);
-  aDPostObject.Caption := Preferences.LoadStr(582);
-  aDEmpty.Caption := Preferences.LoadStr(181);
-
-  miOptions.Caption := Preferences.LoadStr(13);
-  aOGlobals.Caption := Preferences.LoadStr(52) + '...';
-  aOAccounts.Caption := Preferences.LoadStr(25) + '...';
-
-  miExtras.Caption := Preferences.LoadStr(707);
-  aEFind.Caption := Preferences.LoadStr(187) + '...';
-  aEReplace.Caption := Preferences.LoadStr(416) + '...';
-  aETransfer.Caption := Preferences.LoadStr(753) + '...';
-
-  miJobs.Caption := Preferences.LoadStr(896);
-  miJAdd.Caption := Preferences.LoadStr(26);
-  aJAddImport.Caption := Preferences.LoadStr(371) + '...';
-  aJAddExport.Caption := Preferences.LoadStr(200) + '...';
-  aJDelete.Caption := Preferences.LoadStr(28);
-  aJEdit.Caption := Preferences.LoadStr(97) + '...';
-
-  miHelp.Caption := Preferences.LoadStr(167);
-  aHIndex.Caption := Preferences.LoadStr(653) + '...';
-  aHSQL.Caption := Preferences.LoadStr(883) + '...';
-  aHManual.Caption := Preferences.LoadStr(573);
-  aHUpdate.Caption := Preferences.LoadStr(666) + '...';
-  aHInfo.Caption := Preferences.LoadStr(168) + '...';
-
-  for I := 0 to ActionList.ActionCount - 1 do
-    if (ActionList.Actions[I] is TCustomAction) and (TCustomAction(ActionList.Actions[I]).Hint = '') then
-      TCustomAction(ActionList.Actions[I]).Hint := TCustomAction(ActionList.Actions[I]).Caption;
-
-  mtTabs.Caption := Preferences.LoadStr(851);
-
-  SetToolBarHints(ToolBar);
-  tbCreateDatabase.Hint := Preferences.LoadStr(147) + '...';
-  tbDeleteDatabase.Hint := Preferences.LoadStr(28);
-  tbCreateTable.Hint := Preferences.LoadStr(383) + '...';
-  tbDeleteTable.Hint := Preferences.LoadStr(28);
-  tbCreateIndex.Hint := Preferences.LoadStr(160) + '...';
-  tbDeleteIndex.Hint := Preferences.LoadStr(28);
-  tbCreateField.Hint := Preferences.LoadStr(87) + '...';
-  tbDeleteField.Hint := Preferences.LoadStr(28);
-  tbCreateForeignKey.Hint := Preferences.LoadStr(249) + '...';
-  tbDeleteForeignKey.Hint := Preferences.LoadStr(28);
-  tbProperties.Hint := Preferences.LoadStr(97) + '...';
-  tbPostRecord.Hint := Preferences.LoadStr(516);
-  tbCancelRecord.Hint := Preferences.LoadStr(517);
-
-
-  SetToolBarHints(TBTabControl);
-
-
-  Highlighter.CommentAttri.Foreground := Preferences.Editor.CommentForeground;
-  Highlighter.CommentAttri.Background := Preferences.Editor.CommentBackground;
-  Highlighter.CommentAttri.Style := Preferences.Editor.CommentStyle;
-  Highlighter.ConditionalCommentAttri.Foreground := Preferences.Editor.ConditionalCommentForeground;
-  Highlighter.ConditionalCommentAttri.Background := Preferences.Editor.ConditionalCommentBackground;
-  Highlighter.ConditionalCommentAttri.Style := Preferences.Editor.ConditionalCommentStyle;
-  Highlighter.DataTypeAttri.Foreground := Preferences.Editor.DataTypeForeground;
-  Highlighter.DataTypeAttri.Background := Preferences.Editor.DataTypeBackground;
-  Highlighter.DataTypeAttri.Style := Preferences.Editor.DataTypeStyle;
-  Highlighter.DelimitedIdentifierAttri.Foreground := Preferences.Editor.IdentifierForeground;
-  Highlighter.DelimitedIdentifierAttri.Background := Preferences.Editor.IdentifierBackground;
-  Highlighter.DelimitedIdentifierAttri.Style := Preferences.Editor.IdentifierStyle;
-  Highlighter.FunctionAttri.Foreground := Preferences.Editor.FunctionForeground;
-  Highlighter.FunctionAttri.Background := Preferences.Editor.FunctionBackground;
-  Highlighter.FunctionAttri.Style := Preferences.Editor.FunctionStyle;
-  Highlighter.IdentifierAttri.Foreground := Preferences.Editor.IdentifierForeground;
-  Highlighter.IdentifierAttri.Background := Preferences.Editor.IdentifierBackground;
-  Highlighter.IdentifierAttri.Style := Preferences.Editor.IdentifierStyle;
-  Highlighter.KeyAttri.Foreground := Preferences.Editor.KeywordForeground;
-  Highlighter.KeyAttri.Background := Preferences.Editor.KeywordBackground;
-  Highlighter.KeyAttri.Style := Preferences.Editor.KeywordStyle;
-  Highlighter.NumberAttri.Foreground := Preferences.Editor.NumberForeground;
-  Highlighter.NumberAttri.Background := Preferences.Editor.NumberBackground;
-  Highlighter.NumberAttri.Style := Preferences.Editor.NumberStyle;
-  Highlighter.PLSQLAttri.Foreground := Preferences.Editor.KeywordForeground;
-  Highlighter.PLSQLAttri.Background := Preferences.Editor.KeywordBackground;
-  Highlighter.PLSQLAttri.Style := Preferences.Editor.KeywordStyle;
-  Highlighter.StringAttri.Foreground := Preferences.Editor.StringForeground;
-  Highlighter.StringAttri.Background := Preferences.Editor.StringBackground;
-  Highlighter.StringAttri.Style := Preferences.Editor.StringStyle;
-  Highlighter.VariableAttri.Foreground := Preferences.Editor.VariableForeground;
-  Highlighter.VariableAttri.Background := Preferences.Editor.VariableBackground;
-  Highlighter.VariableAttri.Style := Preferences.Editor.VariableStyle;
-
-  try
-    acQBLanguageManager.CurrentLanguageIndex := -1;
-    for I := 0 to acQBLanguageManager.LanguagesCount - 1 do
-      if (lstrcmpi(PChar(acQBLanguageManager.Language[i].LanguageName), PChar(Preferences.Language.ActiveQueryBuilderLanguageName)) = 0) then
-        acQBLanguageManager.CurrentLanguageIndex := I;
-  except
-    // There is a bug inside acQBLocalizer.pas ver. 1.18 - but it's not interested to get informed
-  end;
-
-  if (Assigned(FSessions)) then
-    for I := 0 to FSessions.Count - 1 do
-      SendMessage(TFSession(FSessions[0]).Handle, Message.Msg, Message.WParam, Message.LParam);
-end;
-
-procedure TWWindow.CMMySQLClientSynchronize(var Message: TMessage);
-begin
-  if (not UpdateExecution) then
-    MySQLDB.MySQLConnectionSynchronize(Pointer(Message.LParam));
-end;
-
-procedure TWWindow.CMCloseTab(var Message: TMessage);
-var
-  Session: TSSession;
-  NewTabIndex: Integer;
-begin
-  Perform(UM_DEACTIVATETAB, 0, 0);
-
-  NewTabIndex := FSessions.IndexOf(TFSession(Message.LParam));
-
-  if (0 <= NewTabIndex) and (NewTabIndex < TabControl.Tabs.Count) then
-  begin
-    TabControl.Tabs.Delete(NewTabIndex);
-    FSessions.Delete(FSessions.IndexOf(TFSession(Message.LParam)));
-    if (TabControl.TabIndex < 0) then
-      TabControl.TabIndex := FSessions.Count - 1;
-
-    Dec(NewTabIndex, 1);
-    if ((NewTabIndex < 0) and (FSessions.Count > 0)) then
-      NewTabIndex := 0;
-    if (NewTabIndex >= 0) then
-      Perform(UM_ACTIVATETAB, 0, LPARAM(FSessions[NewTabIndex]));
-
-    Session := TFSession(Message.LParam).Session;
-
-    TFSession(Message.LParam).Visible := False;
-    TFSession(Message.LParam).Free();
-
-    Session.Free();
-
-    TBTabControl.Visible := Preferences.TabsVisible or not Preferences.TabsVisible and (FSessions.Count >= 2);
-    TabControl.Visible := TBTabControl.Visible;
-    TabControlResize(nil);
-
-    aFCloseAll.Enabled := FSessions.Count > 0;
-  end;
-
-  Perform(UM_UPDATETOOLBAR, 0, 0);
-end;
-
-procedure TWWindow.CMDeactivateTab(var Message: TMessage);
-var
-  I: Integer;
-begin
-  if (Assigned(ActiveTab)) then
-  begin
-    SendMessage(ActiveTab.Handle, UM_DEACTIVATEFRAME, 0, 0);
-
-    TabControl.TabIndex := -1;
-
-    Caption := LoadStr(1000);
-
-    aFClose.Enabled := False;
-
-
-    aVObjectBrowser.Checked := False;
-    aVDataBrowser.Checked := False;
-    aVObjectIDE.Checked := False;
-    aVQueryBuilder.Checked := False;
-    aVSQLEditor.Checked := False;
-    aVSQLEditor2.Checked := False;
-    aVSQLEditor3.Checked := False;
-    aVNavigator.Checked := False;
-    aVExplorer.Checked := False;
-    aVJobs.Checked := False;
-    aVSQLHistory.Checked := False;
-    aVSQLLog.Checked := False;
-    tbVRefresh.Enabled := False;
-
-    aFOpen.Enabled := False;
-    aFSave.Enabled := False;
-    aFSaveAs.Enabled := False;
-    aECopy.Enabled := False;
-    aEPaste.Enabled := False;
-    aVObjectBrowser.Enabled := False;
-    aVDataBrowser.Enabled := False;
-    aVObjectIDE.Enabled := False;
-    aVQueryBuilder.Enabled := False;
-    aVDiagram.Enabled := False;
-    aVSQLEditor.Enabled := False;
-    aVSQLEditor2.Enabled := False;
-    aVSQLEditor3.Enabled := False;
-    aVNavigator.Enabled := False;
-    aVExplorer.Enabled := False;
-    aVJobs.Enabled := False;
-    aVSQLHistory.Enabled := False;
-    aVSQLLog.Enabled := False;
-    aDCancel.Enabled := False;
-    aDInsertRecord.Enabled := False;
-    aDDeleteRecord.Enabled := False;
-    aDRun.Enabled := False;
-    aDRunSelection.Enabled := False;
-    aHManual.Enabled := False;
-
-    miVRefresh.Enabled := False;
-    miVRefreshAll.Enabled := False;
-  end;
-
-  Perform(UM_UPDATETOOLBAR, 0, 0);
-  for I := 0 to StatusBar.Panels.Count - 1 do
-    StatusBar.Panels[I].Text := '';
-end;
-
-procedure TWWindow.CMPostShow(var Message: TMessage);
-var
-  ExecutePostShow: Boolean;
-  I: Integer;
-begin
-  ExecutePostShow := False;
-
-  if (ParamCount() = 0) then
-    Perform(UM_ADDTAB, 0, 0)
-  else
-    for I := 1 to ParamCount() do
-      HandleParam(ParamStr(I));
-
-  if (ExecutePostShow and (FSessions.Count = 1)) then
-    PostMessage(TFSession(FSessions[0]).Handle, UM_EXECUTE, 0, 0);
-end;
-
 procedure TWWindow.CMSysFontChanged(var Message: TMessage);
 begin
   inherited;
@@ -1193,113 +749,6 @@ begin
 //    TabControl.Height := TabControl.TabHeight + 2;
 
   StatusBar.ClientHeight := StatusBar.Canvas.TextHeight('I') + 5;
-end;
-
-procedure TWWindow.CMUpdateAvailable(var Message: TMessage);
-begin
-  if (Screen.ActiveForm <> Self) then
-    UpdateAvailable := True
-  else
-    InformUpdateAvailable();
-end;
-
-procedure TWWindow.CMUpdateToolbar(var Message: TMessage);
-var
-  Found: Boolean;
-  I: Integer;
-  MenuItem: TMenuItem;
-  S: string;
-  Tab: TFSession;
-begin
-  Tab := TFSession(Message.LParam);
-
-  for I := ToolBar.ButtonCount - 1 downto ToolButton11.Index do
-    ToolBar.Buttons[I].Visible := False;
-
-  if (not Assigned(Tab)) then
-  begin
-    Caption := LoadStr(1000);
-    Application.Title := Caption;
-  end
-  else if (Tab = ActiveTab) then
-  begin
-    S := Tab.Session.Caption;
-    if (Tab.Session.Account.Connection.Port <> MYSQL_PORT) then
-      S := S + ':' + IntToStr(Tab.Session.Account.Connection.Port);
-    if (Tab.ToolBarData.Caption <> '') then
-      S := S + ' - ' + Tab.ToolBarData.Caption;
-    Caption := S + ' - ' + LoadStr(1000);
-    Application.Title := Caption;
-
-    tbProperties.Action := Tab.ToolBarData.tbPropertiesAction;
-    tbProperties.Caption := Preferences.LoadStr(97) + '...';
-    tbProperties.ImageIndex := 11;
-  end;
-
-  tbCreateDatabase.Visible   := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects]);
-  tbDeleteDatabase.Visible   := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects]);
-  tbCreateTable.Visible      := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vDiagram]);
-  tbDeleteTable.Visible      := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vDiagram]);
-  tbCreateIndex.Visible      := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects]);
-  tbDeleteIndex.Visible      := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects]);
-  tbCreateField.Visible      := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects]);
-  tbDeleteField.Visible      := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects]);
-  tbCreateForeignKey.Visible := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vDiagram]);
-  tbDeleteForeignKey.Visible := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vDiagram]);
-  tbProperties.Visible       := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vDiagram]);
-
-  tbOpen.Visible             := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor, vEditor2, vEditor3]);
-  tbSave.Visible             := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor, vEditor2, vEditor3]);
-  tbUndo.Visible             := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor, vEditor2, vEditor3]);
-  tbRedo.Visible             := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor, vEditor2, vEditor3]);
-  tbSearchFind.Visible       := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor, vEditor2, vEditor3]);
-  tbSearchReplace.Visible    := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor, vEditor2, vEditor3]);
-  tbRun.Visible              := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor, vEditor2, vEditor3]);
-  tbRunSelection.Visible     := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vEditor, vEditor2, vEditor3]);
-  tbPostObject.Visible       := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE]);
-
-  tbDBFirst.Visible          := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser, vBuilder, vEditor, vEditor2, vEditor3]);
-  tbDBPrev.Visible           := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser]);
-  tbDBNext.Visible           := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser]);
-  tbDBLast.Visible           := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser, vBuilder, vEditor, vEditor2, vEditor3]);
-  tbDInsertRecord.Visible    := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser, vBuilder, vEditor, vEditor2, vEditor3]);
-  tbDDeleteRecord.Visible    := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser, vBuilder, vEditor, vEditor2, vEditor3]);
-  tbPostRecord.Visible       := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser]);
-  tbCancelRecord.Visible     := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser]);
-
-  // Auto hide unneeded separator buttons
-  Found := False;
-  for I := ToolBar.ButtonCount - 1 downto ToolButton11.Index do
-    if (ToolBar.Buttons[I].ImageIndex >= 0) then
-      Found := Found or ToolBar.Buttons[I].Visible
-    else
-    begin
-      ToolBar.Buttons[I].Visible := Found;
-      Found := False;
-    end;
-
-  Found := False;
-  for I := ToolBar.ButtonCount - 1 downto ToolButton11.Index do
-    Found := Found or ToolBar.Buttons[I].Visible and (ToolBar.Buttons[I].ImageIndex >= 0) and (ToolBar.Buttons[I].Width <> ToolBar.ButtonWidth);
-  if (Found) then
-    Toolbar.ButtonWidth := 0; // Without this, the Buttons are too small. Why??? A Delphi bug?
-
-  while (miFReopen.Count > 1) do
-    miFReopen.Delete(0);
-  miFReopen.Enabled := Assigned(Tab) and (Tab.ToolBarData.View in [vEditor, vEditor2, vEditor3]) and (Tab.Session.Account.Desktop.Files.Count > 0);
-  if (miFReopen.Enabled) then
-  begin
-    for I := 0 to Tab.Session.Account.Desktop.Files.Count - 1 do
-    begin
-      MenuItem := TMenuItem.Create(Owner);
-      MenuItem.Caption := '&' + IntToStr(miFReopen.Count) + ' ' + Tab.Session.Account.Desktop.Files[I].Filename;
-      MenuItem.Enabled := FileExists(Tab.Session.Account.Desktop.Files[I].Filename);
-      MenuItem.OnClick := miFReopenClick;
-      MenuItem.Tag := I;
-      miFReopen.Add(MenuItem);
-    end;
-    miFReopen.Delete(0);
-  end;
 end;
 
 constructor TWWindow.Create(AOwner: TComponent);
@@ -1914,6 +1363,557 @@ end;
 procedure TWWindow.tbPropertiesClick(Sender: TObject);
 begin
   ActiveTab.ToolBarData.tbPropertiesAction.Execute();
+end;
+
+procedure TWWindow.UMActivateTab(var Message: TMessage);
+begin
+  ActiveTab := TFSession(Message.LParam);
+
+  Color := clBtnFace;
+
+  if (ActiveTab.Visible) then
+    SendMessage(ActiveTab.Handle, UM_ACTIVATEFRAME, 0, 0);
+
+  tbDBPrev.Action := ActiveTab.aDPrev;
+  tbDBFirst.Action := ActiveTab.DataSetFirst;
+  tbDBLast.Action := ActiveTab.DataSetLast;
+  tbDBNext.Action := ActiveTab.aDNext;
+  tbPostRecord.Action := ActiveTab.DataSetPost;
+  tbCancelRecord.Action := ActiveTab.DataSetCancel;
+
+  tbDBPrev.Hint := ActiveTab.aDPrev.Caption + ' (' + ShortCutToText(VK_UP) + ')';
+  tbDBFirst.Hint := ActiveTab.DataSetFirst.Caption + ' (' + ShortCutToText(scCtrl + VK_HOME) + ')';
+  tbDBLast.Hint := ActiveTab.DataSetLast.Caption + ' (' + ShortCutToText(scCtrl + VK_END) + ')';
+  tbDBNext.Hint := ActiveTab.aDNext.Caption + ' (' + ShortCutToText(VK_DOWN) + ')';
+
+  aFClose.Enabled := True;
+
+  Perform(UM_UPDATETOOLBAR, 0, Message.LParam);
+
+  Message.Result := 1;
+end;
+
+procedure TWWindow.UMAddTab(var Message: TMessage);
+var
+  FSession: TFSession;
+begin
+  DAccounts.Open := True;
+  DAccounts.Account := nil;
+  DAccounts.Session := nil;
+  if (Copy(StrPas(PChar(Message.LParam)), 1, 8) = 'mysql://') then
+  begin
+    DAccounts.Account := Accounts.AccountByURI(PChar(Message.LParam));
+    if (Assigned(DAccounts.Account)) then
+    begin
+      DAccounts.Session := TSSession.Create(Sessions, DAccounts.Account);
+      DConnecting.Session := DAccounts.Session;
+      if (not DConnecting.Execute()) then
+        FreeAndNil(DConnecting.Session);
+    end;
+  end;
+  if (not Assigned(DAccounts.Session) and not DAccounts.Execute()) then
+    FSession := nil
+  else
+  begin
+    Perform(UM_DEACTIVATETAB, 0, 0);
+
+    if (FSessions.Count = 0) then
+    begin
+      TabControl.Tabs.Add(DAccounts.Session.Account.Name);
+      TabControl.Visible := Preferences.TabsVisible;
+      if (TabControl.Visible) then
+        TabControlResize(nil);
+    end
+    else
+    begin
+      TabControl.Tabs.Add(DAccounts.Session.Account.Name);
+      if (TabControl.Tabs.Count < 0) then
+        raise ERangeError.Create(SRangeError);
+      TabControl.TabIndex := TabControl.Tabs.Count - 1;
+      if (not TabControl.Visible) then
+      begin
+        TabControl.Visible := True;
+        TabControlResize(nil);
+      end;
+    end;
+
+    FSession := TFSession.Create(Self, PWorkSpace, DAccounts.Session, PChar(Message.LParam));
+    FSession.Visible := True;
+
+    Inc(UniqueTabNameCounter);
+    FSession.Name := FSession.ClassName + '_' + IntToStr(UniqueTabNameCounter);
+
+    FSession.StatusBar := StatusBar;
+
+    aFCloseAll.Enabled := True;
+
+    FSessions.Add(FSession);
+
+    Perform(UM_ACTIVATETAB, 0, LPARAM(FSession));
+
+    TBTabControl.Visible := TabControl.Visible;
+  end;
+
+  Message.Result := LRESULT(Assigned(FSession));
+end;
+
+procedure TWWindow.UMChangePreferences(var Message: TMessage);
+var
+  I: Integer;
+begin
+  ToolBar.Images := Preferences.LargeImages;
+  TabControl.Images := Preferences.SmallImages;
+  TBTabControl.Images := Preferences.SmallImages;
+
+  Perform(CM_SYSFONTCHANGED, 0, 0);
+
+  if (not CheckWin32Version(6)) then
+    ToolBar.BorderWidth := 0
+  else
+    ToolBar.BorderWidth := 2;
+
+  TabControl.Canvas.Font := Font;
+
+  Caption := LoadStr(1000);
+
+  miFile.Caption := Preferences.LoadStr(3);
+  aFOpenAccount.Caption := Preferences.LoadStr(1) + '...';
+  aFOpen.Caption := Preferences.LoadStr(581) + '...';
+  aFSave.Caption := Preferences.LoadStr(582);
+  aFSaveAs.Caption := Preferences.LoadStr(583) + '...';
+  miFReopen.Caption := Preferences.LoadStr(885);
+  miFImport.Caption := Preferences.LoadStr(371);
+  aFImportSQL.Caption := Preferences.LoadStr(409) + '...';
+  aFImportText.Caption := Preferences.LoadStr(410) + '...';
+  aFImportExcel.Caption := Preferences.LoadStr(801) + '...';
+  aFImportAccess.Caption := Preferences.LoadStr(695) + '...';
+  aFImportODBC.Caption := Preferences.LoadStr(607) + '...';
+  miFExport.Caption := Preferences.LoadStr(200);
+  aFExportSQL.Caption := Preferences.LoadStr(409) + '...';
+  aFExportText.Caption := Preferences.LoadStr(410) + '...';
+  aFExportExcel.Caption := Preferences.LoadStr(801) + '...';
+  aFExportAccess.Caption := Preferences.LoadStr(695) + '...';
+  aFExportODBC.Caption := Preferences.LoadStr(607) + '...';
+  aFExportHTML.Caption := Preferences.LoadStr(453) + '...';
+  aFExportXML.Caption := Preferences.LoadStr(454) + '...';
+  aFExportPDF.Caption := Preferences.LoadStr(890) + '...';
+  aFExportBitmap.Caption := Preferences.LoadStr(868) + '...';
+  aFClose.Caption := Preferences.LoadStr(7);
+  aFExit.Caption := Preferences.LoadStr(8);
+
+  miEdit.Caption := Preferences.LoadStr(62);
+  aEUndo.Caption := Preferences.LoadStr(425);
+  aERedo.Caption := Preferences.LoadStr(705);
+  aECut.Caption := Preferences.LoadStr(63) + #9 + ShortCutToText(scCtrl + Ord('X'));
+  aECopy.Caption := Preferences.LoadStr(64) + #9 + ShortCutToText(scCtrl + Ord('C'));
+  aEPaste.Caption := Preferences.LoadStr(65) + #9 + ShortCutToText(scCtrl + Ord('V'));
+  aEDelete.Caption := Preferences.LoadStr(28) + #9 + ShortCutToText(VK_DELETE);
+  aESelectAll.Caption := Preferences.LoadStr(572) + #9 + ShortCutToText(scCtrl + Ord('A'));
+  aECopyToFile.Caption := Preferences.LoadStr(182) + '...';
+  aEPasteFromFile.Caption := Preferences.LoadStr(183) + '...';
+  aERename.Caption := Preferences.LoadStr(98);
+
+  miSearch.Caption := Preferences.LoadStr(424);
+  aSSearchFind.Caption := Preferences.LoadStr(187) + '...';
+  aSSearchReplace.Caption := Preferences.LoadStr(416) + '...';
+  aSSearchNext.Caption := Preferences.LoadStr(188);
+  aSGoto.Caption := Preferences.LoadStr(676) + '...';
+
+  miView.Caption := Preferences.LoadStr(9);
+  aVObjectBrowser.Caption := Preferences.LoadStr(4);
+  aVDataBrowser.Caption := Preferences.LoadStr(5);
+  aVObjectIDE.Caption := Preferences.LoadStr(865);
+  aVQueryBuilder.Caption := Preferences.LoadStr(852);
+  aVDiagram.Caption := Preferences.LoadStr(800);
+  aVSQLEditor.Caption := Preferences.LoadStr(6);
+  aVSQLEditor2.Caption := Preferences.LoadStr(6) + ' #2';
+  aVSQLEditor3.Caption := Preferences.LoadStr(6) + ' #3';
+  aVAddressBar.Caption := Preferences.LoadStr(731);
+  miVSidebar.Caption := Preferences.LoadStr(736);
+  aVNavigator.Caption := Preferences.LoadStr(10);
+  aVExplorer.Caption := Preferences.LoadStr(435);
+  aVJobs.Caption := Preferences.LoadStr(896);
+  aVSQLHistory.Caption := Preferences.LoadStr(807);
+  aVSQLLog.Caption := Preferences.LoadStr(11);
+  aVRefresh.Caption := Preferences.LoadStr(41);
+  aVRefreshAll.Caption := Preferences.LoadStr(623);
+
+  miDatabase.Caption := Preferences.LoadStr(38);
+  miDCreate.Caption := Preferences.LoadStr(26);
+  aDCreateDatabase.Caption := Preferences.LoadStr(38) + '...';
+  aDCreateTable.Caption := Preferences.LoadStr(302) + '...';
+  aDCreateView.Caption := Preferences.LoadStr(738) + '...';
+  aDCreateProcedure.Caption := Preferences.LoadStr(768) + '...';
+  aDCreateFunction.Caption := Preferences.LoadStr(769) + '...';
+  aDCreateTrigger.Caption := Preferences.LoadStr(788) + '...';
+  aDCreateEvent.Caption := Preferences.LoadStr(812) + '...';
+  aDCreateKey.Caption := Preferences.LoadStr(163) + '...';
+  aDCreateField.Caption := Preferences.LoadStr(164) + '...';
+  aDCreateForeignKey.Caption := Preferences.LoadStr(248) + '...';
+  aDCreateUser.Caption := Preferences.LoadStr(561) + '...';
+  miDDelete.Caption := Preferences.LoadStr(28);
+  aDDeleteDatabase.Caption := Preferences.LoadStr(38);
+  aDDeleteTable.Caption := Preferences.LoadStr(302);
+  aDDeleteView.Caption := Preferences.LoadStr(738);
+  aDDeleteRoutine.Caption := Preferences.LoadStr(774);
+  aDDeleteKey.Caption := Preferences.LoadStr(163);
+  aDDeleteField.Caption := Preferences.LoadStr(164);
+  aDDeleteForeignKey.Caption := Preferences.LoadStr(248);
+  aDDeleteTrigger.Caption := Preferences.LoadStr(788);
+  aDDeleteEvent.Caption := Preferences.LoadStr(812);
+  aDDeleteUser.Caption := Preferences.LoadStr(561);
+  aDDeleteProcess.Caption := Preferences.LoadStr(562);
+  miDProperties.Caption := Preferences.LoadStr(97);
+  aDEditServer.Caption := Preferences.LoadStr(37) + '...';
+  aDEditDatabase.Caption := Preferences.LoadStr(38) + '...';
+  aDEditTable.Caption := Preferences.LoadStr(302) + '...';
+  aDEditView.Caption := Preferences.LoadStr(738) + '...';
+  aDEditRoutine.Caption := Preferences.LoadStr(774) + '...';
+  aDEditKey.Caption := Preferences.LoadStr(163) + '...';
+  aDEditField.Caption := Preferences.LoadStr(164) + '...';
+  aDEditForeignKey.Caption := Preferences.LoadStr(248) + '...';
+  aDEditTrigger.Caption := Preferences.LoadStr(788) + '...';
+  aDEditEvent.Caption := Preferences.LoadStr(812) + '...';
+  aDEditProcess.Caption := Preferences.LoadStr(562) + '...';
+  aDEditUser.Caption := Preferences.LoadStr(561) + '...';
+  aDEditVariable.Caption := Preferences.LoadStr(267) + '...';
+  aDInsertRecord.Caption := Preferences.LoadStr(179) + #9 + ShortCutToText(VK_INSERT);
+  aDDeleteRecord.Caption := Preferences.LoadStr(178) + #9 + ShortCutToText(scCtrl + VK_DELETE);
+  aDEditRecord.Caption := Preferences.LoadStr(500);
+  aDPostRecord.Caption := Preferences.LoadStr(516);
+  aDCancelRecord.Caption := Preferences.LoadStr(517);
+  aDCancel.Caption := Preferences.LoadStr(517);
+  aDRun.Caption := Preferences.LoadStr(174);
+  aDRunSelection.Caption := Preferences.LoadStr(175);
+  aDPostObject.Caption := Preferences.LoadStr(582);
+  aDEmpty.Caption := Preferences.LoadStr(181);
+
+  miOptions.Caption := Preferences.LoadStr(13);
+  aOGlobals.Caption := Preferences.LoadStr(52) + '...';
+  aOAccounts.Caption := Preferences.LoadStr(25) + '...';
+
+  miExtras.Caption := Preferences.LoadStr(707);
+  aEFind.Caption := Preferences.LoadStr(187) + '...';
+  aEReplace.Caption := Preferences.LoadStr(416) + '...';
+  aETransfer.Caption := Preferences.LoadStr(753) + '...';
+
+  miJobs.Caption := Preferences.LoadStr(896);
+  miJAdd.Caption := Preferences.LoadStr(26);
+  aJAddImport.Caption := Preferences.LoadStr(371) + '...';
+  aJAddExport.Caption := Preferences.LoadStr(200) + '...';
+  aJDelete.Caption := Preferences.LoadStr(28);
+  aJEdit.Caption := Preferences.LoadStr(97) + '...';
+
+  miHelp.Caption := Preferences.LoadStr(167);
+  aHIndex.Caption := Preferences.LoadStr(653) + '...';
+  aHSQL.Caption := Preferences.LoadStr(883) + '...';
+  aHManual.Caption := Preferences.LoadStr(573);
+  aHUpdate.Caption := Preferences.LoadStr(666) + '...';
+  aHInfo.Caption := Preferences.LoadStr(168) + '...';
+
+  for I := 0 to ActionList.ActionCount - 1 do
+    if (ActionList.Actions[I] is TCustomAction) and (TCustomAction(ActionList.Actions[I]).Hint = '') then
+      TCustomAction(ActionList.Actions[I]).Hint := TCustomAction(ActionList.Actions[I]).Caption;
+
+  mtTabs.Caption := Preferences.LoadStr(851);
+
+  SetToolBarHints(ToolBar);
+  tbCreateDatabase.Hint := Preferences.LoadStr(147) + '...';
+  tbDeleteDatabase.Hint := Preferences.LoadStr(28);
+  tbCreateTable.Hint := Preferences.LoadStr(383) + '...';
+  tbDeleteTable.Hint := Preferences.LoadStr(28);
+  tbCreateIndex.Hint := Preferences.LoadStr(160) + '...';
+  tbDeleteIndex.Hint := Preferences.LoadStr(28);
+  tbCreateField.Hint := Preferences.LoadStr(87) + '...';
+  tbDeleteField.Hint := Preferences.LoadStr(28);
+  tbCreateForeignKey.Hint := Preferences.LoadStr(249) + '...';
+  tbDeleteForeignKey.Hint := Preferences.LoadStr(28);
+  tbProperties.Hint := Preferences.LoadStr(97) + '...';
+  tbPostRecord.Hint := Preferences.LoadStr(516);
+  tbCancelRecord.Hint := Preferences.LoadStr(517);
+
+
+  SetToolBarHints(TBTabControl);
+
+
+  Highlighter.CommentAttri.Foreground := Preferences.Editor.CommentForeground;
+  Highlighter.CommentAttri.Background := Preferences.Editor.CommentBackground;
+  Highlighter.CommentAttri.Style := Preferences.Editor.CommentStyle;
+  Highlighter.ConditionalCommentAttri.Foreground := Preferences.Editor.ConditionalCommentForeground;
+  Highlighter.ConditionalCommentAttri.Background := Preferences.Editor.ConditionalCommentBackground;
+  Highlighter.ConditionalCommentAttri.Style := Preferences.Editor.ConditionalCommentStyle;
+  Highlighter.DataTypeAttri.Foreground := Preferences.Editor.DataTypeForeground;
+  Highlighter.DataTypeAttri.Background := Preferences.Editor.DataTypeBackground;
+  Highlighter.DataTypeAttri.Style := Preferences.Editor.DataTypeStyle;
+  Highlighter.DelimitedIdentifierAttri.Foreground := Preferences.Editor.IdentifierForeground;
+  Highlighter.DelimitedIdentifierAttri.Background := Preferences.Editor.IdentifierBackground;
+  Highlighter.DelimitedIdentifierAttri.Style := Preferences.Editor.IdentifierStyle;
+  Highlighter.FunctionAttri.Foreground := Preferences.Editor.FunctionForeground;
+  Highlighter.FunctionAttri.Background := Preferences.Editor.FunctionBackground;
+  Highlighter.FunctionAttri.Style := Preferences.Editor.FunctionStyle;
+  Highlighter.IdentifierAttri.Foreground := Preferences.Editor.IdentifierForeground;
+  Highlighter.IdentifierAttri.Background := Preferences.Editor.IdentifierBackground;
+  Highlighter.IdentifierAttri.Style := Preferences.Editor.IdentifierStyle;
+  Highlighter.KeyAttri.Foreground := Preferences.Editor.KeywordForeground;
+  Highlighter.KeyAttri.Background := Preferences.Editor.KeywordBackground;
+  Highlighter.KeyAttri.Style := Preferences.Editor.KeywordStyle;
+  Highlighter.NumberAttri.Foreground := Preferences.Editor.NumberForeground;
+  Highlighter.NumberAttri.Background := Preferences.Editor.NumberBackground;
+  Highlighter.NumberAttri.Style := Preferences.Editor.NumberStyle;
+  Highlighter.PLSQLAttri.Foreground := Preferences.Editor.KeywordForeground;
+  Highlighter.PLSQLAttri.Background := Preferences.Editor.KeywordBackground;
+  Highlighter.PLSQLAttri.Style := Preferences.Editor.KeywordStyle;
+  Highlighter.StringAttri.Foreground := Preferences.Editor.StringForeground;
+  Highlighter.StringAttri.Background := Preferences.Editor.StringBackground;
+  Highlighter.StringAttri.Style := Preferences.Editor.StringStyle;
+  Highlighter.VariableAttri.Foreground := Preferences.Editor.VariableForeground;
+  Highlighter.VariableAttri.Background := Preferences.Editor.VariableBackground;
+  Highlighter.VariableAttri.Style := Preferences.Editor.VariableStyle;
+
+  try
+    acQBLanguageManager.CurrentLanguageIndex := -1;
+    for I := 0 to acQBLanguageManager.LanguagesCount - 1 do
+      if (lstrcmpi(PChar(acQBLanguageManager.Language[i].LanguageName), PChar(Preferences.Language.ActiveQueryBuilderLanguageName)) = 0) then
+        acQBLanguageManager.CurrentLanguageIndex := I;
+  except
+    // There is a bug inside acQBLocalizer.pas ver. 1.18 - but it's not interested to get informed
+  end;
+
+  if (Assigned(FSessions)) then
+    for I := 0 to FSessions.Count - 1 do
+      SendMessage(TFSession(FSessions[0]).Handle, Message.Msg, Message.WParam, Message.LParam);
+end;
+
+procedure TWWindow.UMCloseTab(var Message: TMessage);
+var
+  Session: TSSession;
+  NewTabIndex: Integer;
+begin
+  Perform(UM_DEACTIVATETAB, 0, 0);
+
+  NewTabIndex := FSessions.IndexOf(TFSession(Message.LParam));
+
+  if (0 <= NewTabIndex) and (NewTabIndex < TabControl.Tabs.Count) then
+  begin
+    TabControl.Tabs.Delete(NewTabIndex);
+    FSessions.Delete(FSessions.IndexOf(TFSession(Message.LParam)));
+    if (TabControl.TabIndex < 0) then
+      TabControl.TabIndex := FSessions.Count - 1;
+
+    Dec(NewTabIndex, 1);
+    if ((NewTabIndex < 0) and (FSessions.Count > 0)) then
+      NewTabIndex := 0;
+    if (NewTabIndex >= 0) then
+      Perform(UM_ACTIVATETAB, 0, LPARAM(FSessions[NewTabIndex]));
+
+    Session := TFSession(Message.LParam).Session;
+
+    TFSession(Message.LParam).Visible := False;
+    TFSession(Message.LParam).Free();
+
+    Session.Free();
+
+    TBTabControl.Visible := Preferences.TabsVisible or not Preferences.TabsVisible and (FSessions.Count >= 2);
+    TabControl.Visible := TBTabControl.Visible;
+    TabControlResize(nil);
+
+    aFCloseAll.Enabled := FSessions.Count > 0;
+  end;
+
+  Perform(UM_UPDATETOOLBAR, 0, 0);
+end;
+
+procedure TWWindow.UMDeactivateTab(var Message: TMessage);
+var
+  I: Integer;
+begin
+  if (Assigned(ActiveTab)) then
+  begin
+    SendMessage(ActiveTab.Handle, UM_DEACTIVATEFRAME, 0, 0);
+
+    TabControl.TabIndex := -1;
+
+    Caption := LoadStr(1000);
+
+    aFClose.Enabled := False;
+
+
+    aVObjectBrowser.Checked := False;
+    aVDataBrowser.Checked := False;
+    aVObjectIDE.Checked := False;
+    aVQueryBuilder.Checked := False;
+    aVSQLEditor.Checked := False;
+    aVSQLEditor2.Checked := False;
+    aVSQLEditor3.Checked := False;
+    aVNavigator.Checked := False;
+    aVExplorer.Checked := False;
+    aVJobs.Checked := False;
+    aVSQLHistory.Checked := False;
+    aVSQLLog.Checked := False;
+    tbVRefresh.Enabled := False;
+
+    aFOpen.Enabled := False;
+    aFSave.Enabled := False;
+    aFSaveAs.Enabled := False;
+    aECopy.Enabled := False;
+    aEPaste.Enabled := False;
+    aVObjectBrowser.Enabled := False;
+    aVDataBrowser.Enabled := False;
+    aVObjectIDE.Enabled := False;
+    aVQueryBuilder.Enabled := False;
+    aVDiagram.Enabled := False;
+    aVSQLEditor.Enabled := False;
+    aVSQLEditor2.Enabled := False;
+    aVSQLEditor3.Enabled := False;
+    aVNavigator.Enabled := False;
+    aVExplorer.Enabled := False;
+    aVJobs.Enabled := False;
+    aVSQLHistory.Enabled := False;
+    aVSQLLog.Enabled := False;
+    aDCancel.Enabled := False;
+    aDInsertRecord.Enabled := False;
+    aDDeleteRecord.Enabled := False;
+    aDRun.Enabled := False;
+    aDRunSelection.Enabled := False;
+    aHManual.Enabled := False;
+
+    miVRefresh.Enabled := False;
+    miVRefreshAll.Enabled := False;
+  end;
+
+  Perform(UM_UPDATETOOLBAR, 0, 0);
+  for I := 0 to StatusBar.Panels.Count - 1 do
+    StatusBar.Panels[I].Text := '';
+end;
+
+procedure TWWindow.UMPostShow(var Message: TMessage);
+var
+  ExecutePostShow: Boolean;
+  I: Integer;
+begin
+  ExecutePostShow := False;
+
+  if (ParamCount() = 0) then
+    Perform(UM_ADDTAB, 0, 0)
+  else
+    for I := 1 to ParamCount() do
+      HandleParam(ParamStr(I));
+
+  if (ExecutePostShow and (FSessions.Count = 1)) then
+    PostMessage(TFSession(FSessions[0]).Handle, UM_EXECUTE, 0, 0);
+end;
+
+procedure TWWindow.UMMySQLClientSynchronize(var Message: TMessage);
+begin
+  if (not UpdateExecution) then
+    MySQLDB.MySQLConnectionSynchronize(Pointer(Message.LParam));
+end;
+
+procedure TWWindow.UMUpdateAvailable(var Message: TMessage);
+begin
+  if (Screen.ActiveForm <> Self) then
+    UpdateAvailable := True
+  else
+    InformUpdateAvailable();
+end;
+
+procedure TWWindow.UMUpdateToolbar(var Message: TMessage);
+var
+  Found: Boolean;
+  I: Integer;
+  MenuItem: TMenuItem;
+  S: string;
+  Tab: TFSession;
+begin
+  Tab := TFSession(Message.LParam);
+
+  for I := ToolBar.ButtonCount - 1 downto ToolButton11.Index do
+    ToolBar.Buttons[I].Visible := False;
+
+  if (not Assigned(Tab)) then
+  begin
+    Caption := LoadStr(1000);
+    Application.Title := Caption;
+  end
+  else if (Tab = ActiveTab) then
+  begin
+    S := Tab.Session.Caption;
+    if (Tab.Session.Account.Connection.Port <> MYSQL_PORT) then
+      S := S + ':' + IntToStr(Tab.Session.Account.Connection.Port);
+    if (Tab.ToolBarData.Caption <> '') then
+      S := S + ' - ' + Tab.ToolBarData.Caption;
+    Caption := S + ' - ' + LoadStr(1000);
+    Application.Title := Caption;
+
+    tbProperties.Action := Tab.ToolBarData.tbPropertiesAction;
+    tbProperties.Caption := Preferences.LoadStr(97) + '...';
+    tbProperties.ImageIndex := 11;
+  end;
+
+  tbCreateDatabase.Visible   := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects]);
+  tbDeleteDatabase.Visible   := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects]);
+  tbCreateTable.Visible      := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vDiagram]);
+  tbDeleteTable.Visible      := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vDiagram]);
+  tbCreateIndex.Visible      := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects]);
+  tbDeleteIndex.Visible      := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects]);
+  tbCreateField.Visible      := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects]);
+  tbDeleteField.Visible      := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects]);
+  tbCreateForeignKey.Visible := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vDiagram]);
+  tbDeleteForeignKey.Visible := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vDiagram]);
+  tbProperties.Visible       := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vObjects, vDiagram]);
+
+  tbOpen.Visible             := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor, vEditor2, vEditor3]);
+  tbSave.Visible             := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor, vEditor2, vEditor3]);
+  tbUndo.Visible             := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor, vEditor2, vEditor3]);
+  tbRedo.Visible             := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor, vEditor2, vEditor3]);
+  tbSearchFind.Visible       := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor, vEditor2, vEditor3]);
+  tbSearchReplace.Visible    := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor, vEditor2, vEditor3]);
+  tbRun.Visible              := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor, vEditor2, vEditor3]);
+  tbRunSelection.Visible     := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vEditor, vEditor2, vEditor3]);
+  tbPostObject.Visible       := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE]);
+
+  tbDBFirst.Visible          := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser, vBuilder, vEditor, vEditor2, vEditor3]);
+  tbDBPrev.Visible           := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser]);
+  tbDBNext.Visible           := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser]);
+  tbDBLast.Visible           := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser, vBuilder, vEditor, vEditor2, vEditor3]);
+  tbDInsertRecord.Visible    := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser, vBuilder, vEditor, vEditor2, vEditor3]);
+  tbDDeleteRecord.Visible    := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser, vBuilder, vEditor, vEditor2, vEditor3]);
+  tbPostRecord.Visible       := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser]);
+  tbCancelRecord.Visible     := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser]);
+
+  // Auto hide unneeded separator buttons
+  Found := False;
+  for I := ToolBar.ButtonCount - 1 downto ToolButton11.Index do
+    if (ToolBar.Buttons[I].ImageIndex >= 0) then
+      Found := Found or ToolBar.Buttons[I].Visible
+    else
+    begin
+      ToolBar.Buttons[I].Visible := Found;
+      Found := False;
+    end;
+
+  Found := False;
+  for I := ToolBar.ButtonCount - 1 downto ToolButton11.Index do
+    Found := Found or ToolBar.Buttons[I].Visible and (ToolBar.Buttons[I].ImageIndex >= 0) and (ToolBar.Buttons[I].Width <> ToolBar.ButtonWidth);
+  if (Found) then
+    Toolbar.ButtonWidth := 0; // Without this, the Buttons are too small. Why??? A Delphi bug?
+
+  while (miFReopen.Count > 1) do
+    miFReopen.Delete(0);
+  miFReopen.Enabled := Assigned(Tab) and (Tab.ToolBarData.View in [vEditor, vEditor2, vEditor3]) and (Tab.Session.Account.Desktop.Files.Count > 0);
+  if (miFReopen.Enabled) then
+  begin
+    for I := 0 to Tab.Session.Account.Desktop.Files.Count - 1 do
+    begin
+      MenuItem := TMenuItem.Create(Owner);
+      MenuItem.Caption := '&' + IntToStr(miFReopen.Count) + ' ' + Tab.Session.Account.Desktop.Files[I].Filename;
+      MenuItem.Enabled := FileExists(Tab.Session.Account.Desktop.Files[I].Filename);
+      MenuItem.OnClick := miFReopenClick;
+      MenuItem.Tag := I;
+      miFReopen.Add(MenuItem);
+    end;
+    miFReopen.Delete(0);
+  end;
 end;
 
 procedure TWWindow.WMCopyData(var Message: TWMCopyData);

@@ -224,6 +224,7 @@ type
     procedure CheckActivePageChange(const ActivePageIndex: Integer);
     procedure ClearTSFields();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
+    procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     function GetDataSource(): Boolean;
     function GetFilename(): Boolean;
     function GetPrinter(): Boolean;
@@ -234,11 +235,10 @@ type
     procedure OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure OnTerminate(Sender: TObject);
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
-    procedure CMTerminate(var Message: TMessage); message UM_TERMINATE;
-    procedure CMPostAfterExecuteSQL(var Message: TMessage); message UM_POST_AFTEREXECUTESQL;
-    procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
-    procedure CMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPostAfterExecuteSQL(var Message: TMessage); message UM_POST_AFTEREXECUTESQL;
+    procedure UMTerminate(var Message: TMessage); message UM_TERMINATE;
+    procedure UMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
   public
     DBGrid: TDBGrid;
     DialogType: (edtNormal, edtCreateJob, edtEditJob, edtExecuteJob);
@@ -368,189 +368,6 @@ begin
   SetLength(FDestinationFields, 0);
 end;
 
-procedure TDExport.CMChangePreferences(var Message: TMessage);
-begin
-  Preferences.SmallImages.GetIcon(iiExport, Icon);
-
-  SaveDialog.EncodingLabel := Preferences.LoadStr(682) + ':';
-
-  PSQLWait.Caption := Preferences.LoadStr(882);
-
-  GSelect.Caption := Preferences.LoadStr(721);
-
-  GBasics.Caption := Preferences.LoadStr(85);
-  FLName.Caption := Preferences.LoadStr(35) + ':';
-  FLExportType.Caption := Preferences.LoadStr(200) + ':';
-  FSQLFile.Caption := Preferences.LoadStr(409);
-  FTextFile.Caption := Preferences.LoadStr(410);
-  FExcelFile.Caption := Preferences.LoadStr(801);
-  FAccessFile.Caption := Preferences.LoadStr(695);
-  FODBC.Caption := Preferences.LoadStr(607);
-  FHTMLFile.Caption := Preferences.LoadStr(453);
-  FXMLFile.Caption := Preferences.LoadStr(454);
-  FPDFFile.Caption := Preferences.LoadStr(890);
-  FLFilename.Caption := Preferences.LoadStr(348) + ':';
-  FLDataSource.Caption := Preferences.LoadStr(38) + ':';
-
-  GSQLWhat.Caption := Preferences.LoadStr(227);
-  FLSQLWhat.Caption := Preferences.LoadStr(218) + ':';
-  FSQLStructure.Caption := Preferences.LoadStr(215);
-  FSQLData.Caption := Preferences.LoadStr(216);
-
-  GSQLOptions.Caption := Preferences.LoadStr(238);
-  FLDrop.Caption := Preferences.LoadStr(242) + ':';
-  FDropStmts.Caption := Preferences.LoadStr(243);
-  FReplaceData.Caption := LowerCase(Preferences.LoadStr(416));
-
-  GCSVOptions.Caption := Preferences.LoadStr(238);
-  FLCSVHeadline.Caption := Preferences.LoadStr(393) + ':';
-  FCSVHeadline.Caption := Preferences.LoadStr(408);
-  FLSeparator.Caption := Preferences.LoadStr(352) + ':';
-  FSeparatorTab.Caption := Preferences.LoadStr(354);
-  FSeparatorChar.Caption := Preferences.LoadStr(355) + ':';
-  FLQuoteValues.Caption := Preferences.LoadStr(353) + ':';
-  FQuoteNone.Caption := Preferences.LoadStr(359);
-  FQuoteStrings.Caption := Preferences.LoadStr(360);
-  FQuoteAll.Caption := Preferences.LoadStr(361);
-  FLQuoteChar.Caption := Preferences.LoadStr(356) + ':';
-
-  GProgress.Caption := Preferences.LoadStr(224);
-  FLEntiered.Caption := Preferences.LoadStr(211) + ':';
-  FLDone.Caption := Preferences.LoadStr(232) + ':';
-  FLProgressObjects.Caption := Preferences.LoadStr(909) + ':';
-  FLProgressRecords.Caption := Preferences.LoadStr(235) + ':';
-  FLProgressTime.Caption := Preferences.LoadStr(661) + ':';
-  FLErrors.Caption := Preferences.LoadStr(391) + ':';
-
-  GXMLHow.Caption := Preferences.LoadStr(238);
-  FLRootNode.Caption := 'Root:';
-  FLDatabaseNode.Caption := Preferences.LoadStr(265) + ':';
-  FDatabaseNodeDisabled.Caption := Preferences.LoadStr(554);
-  FLTableNode.Caption := Preferences.LoadStr(234) + ':';
-  FTableNodeDisabled.Caption := Preferences.LoadStr(554);
-  FLRecordNode.Caption := Preferences.LoadStr(124) + ':';
-  FLFieldNode.Caption := Preferences.LoadStr(253) + ':';
-
-  GHTMLWhat.Caption := Preferences.LoadStr(227);
-  FLHTMLWhat.Caption := Preferences.LoadStr(218) + ':';
-  FHTMLData.Caption := Preferences.LoadStr(216);
-
-  GHTMLOptions.Caption := Preferences.LoadStr(238);
-  FLHTMLNullValues.Caption := Preferences.LoadStr(498) + ':';
-  FHTMLNullText.Caption := Preferences.LoadStr(499);
-  FLHTMLViewDatas.Caption := Preferences.LoadStr(574) + ':';
-  FHTMLMemoContent.Caption := Preferences.LoadStr(575);
-  FLHTMLBGColorEnabled.Caption := Preferences.LoadStr(740) + ':';
-  FHTMLRowBGColor.Caption := Preferences.LoadStr(600);
-
-  GFields.Caption := Preferences.LoadStr(253);
-  FLSourceFields.Caption := Preferences.LoadStr(401) + ':';
-  FLDestinationFields.Caption := Preferences.LoadStr(400) + ':';
-
-  GErrors.Caption := Preferences.LoadStr(392);
-
-  GTask.Caption := Preferences.LoadStr(661);
-  FLStart.Caption := Preferences.LoadStr(817) + ':';
-  FLExecution.Caption := Preferences.LoadStr(174) + ':';
-  FSingle.Caption := Preferences.LoadStr(902);
-  FDaily.Caption := Preferences.LoadStr(903);
-  FWeekly.Caption := Preferences.LoadStr(904);
-  FMonthly.Caption := Preferences.LoadStr(905);
-  FLEnabled.Caption := Preferences.LoadStr(812) + ':';
-  FEnabled.Caption := Preferences.LoadStr(529);
-
-  FBHelp.Caption := Preferences.LoadStr(167);
-  FBBack.Caption := '< ' + Preferences.LoadStr(228);
-end;
-
-procedure TDExport.CMTerminate(var Message: TMessage);
-var
-  Success: Boolean;
-begin
-  Success := Boolean(Message.WParam);
-
-  FBBack.Enabled := True;
-  FBForward.Enabled := False;
-  FBCancel.Enabled := True;
-
-  FBCancel.Caption := Preferences.LoadStr(231);
-  if (Success) then
-    FBCancel.ModalResult := mrOk
-  else
-    FBCancel.ModalResult := mrCancel;
-
-  if (Assigned(Export)) then
-  begin
-    Export.WaitFor();
-    FreeAndNil(Export);
-  end;
-end;
-
-procedure TDExport.CMPostAfterExecuteSQL(var Message: TMessage);
-var
-  Database: TSDatabase;
-  I: Integer;
-  J: Integer;
-  Table: TSBaseTable;
-begin
-  if ((DialogType in [edtEditJob, edtExecuteJob]) and InitTSSelect() and (DialogType in [edtExecuteJob]) and ObjectsFromFSelect()
-    or (DialogType = edtNormal)) then
-  begin
-    I := 0;
-    while (I < SObjects.Count) do
-      if (TObject(SObjects[I]) is TSDatabase) then
-      begin
-        Database := TSDatabase(SObjects[I]);
-        if (not Database.Valid) then
-          Inc(I)
-        else
-        begin
-          for J := 0 to Database.Tables.Count - 1 do
-            if (SObjects.IndexOf(Database.Tables[J]) < 0) then
-              SObjects.Add(Database.Tables[J]);
-          if (Assigned(Database.Routines)) then
-            for J := 0 to Database.Routines.Count - 1 do
-              if (SObjects.IndexOf(Database.Routines[J]) < 0) then
-                SObjects.Add(Database.Routines[J]);
-          SObjects.Delete(I);
-        end;
-      end
-      else if (TObject(SObjects[I]) is TSBaseTable) then
-      begin
-        Table := TSBaseTable(SObjects[I]);
-        if (Assigned(Table.Database.Triggers)) then
-          for J := 0 to Table.TriggerCount - 1 do
-            if (SObjects.IndexOf(Table.Triggers[J]) < 0) then
-              SObjects.Add(Table.Triggers[J]);
-        Inc(I);
-      end
-      else
-        Inc(I);
-  end;
-
-  BuildTitle();
-
-
-  Message.Result := LRESULT(Session.Update(SObjects));
-  if (Boolean(Message.Result)) then
-    if (Assigned(WantedNodeExpand)) then
-      WantedNodeExpand.Expand(False)
-    else
-    begin
-      if (not PageControl.Visible) then
-      begin
-        PageControl.Visible := True;
-        PSQLWait.Visible := not PageControl.Visible;
-      end;
-
-      if (TSFields.Enabled) then
-        InitTSFields();
-      if (TSJob.Enabled and (DialogType = edtCreateJob)) then
-        InitTSJob();
-      CheckActivePageChange(PageControl.ActivePageIndex);
-    end;
-end;
-
 procedure TDExport.CMSysFontChanged(var Message: TMessage);
 begin
   inherited;
@@ -568,36 +385,6 @@ begin
   FFieldNodeText.Left := FL1FieldNodeCustom.Left + FL1FieldNodeCustom.Width;
   FFieldNodeAttribute.Left := FFieldNodeText.Left + FFieldNodeText.Width + PFieldNode.Canvas.TextWidth('  ') + 2;
   FL2FieldNodeCustom.Left := FFieldNodeAttribute.Left + FFieldNodeAttribute.Width + 1;
-end;
-
-procedure TDExport.CMUpdateProgressInfo(var Message: TMessage);
-var
-  Infos: TTool.PProgressInfos;
-begin
-  Infos := TTool.PProgressInfos(Message.LParam);
-
-  if (Infos^.ObjectsSum < 0) then
-    FEntieredObjects.Caption := '???'
-  else
-    FEntieredObjects.Caption := FormatFloat('#,##0', Infos^.ObjectsSum, LocaleFormatSettings);
-  if (Infos^.ObjectsDone < 0) then
-    FDoneObjects.Caption := '???'
-  else
-    FDoneObjects.Caption := FormatFloat('#,##0', Infos^.ObjectsDone, LocaleFormatSettings);
-
-  if (Infos^.RecordsSum < 0) then
-    FEntieredRecords.Caption := '???'
-  else
-    FEntieredRecords.Caption := FormatFloat('#,##0', Infos^.RecordsSum, LocaleFormatSettings);
-  if (Infos^.RecordsDone < 0) then
-    FDoneRecords.Caption := '???'
-  else
-    FDoneRecords.Caption := FormatFloat('#,##0', Infos^.RecordsDone, LocaleFormatSettings);
-
-  FEntieredTime.Caption := TimeToStr(Infos^.TimeSum, DurationFormatSettings);
-  FDoneTime.Caption := TimeToStr(Infos^.TimeDone, DurationFormatSettings);
-
-  FProgressBar.Position := Infos^.Progress;
 end;
 
 function TDExport.Execute(): Boolean;
@@ -2224,6 +2011,219 @@ begin
 
   CheckActivePageChange(TSXMLOptions.PageIndex);
   TSXMLOptionChange(Sender);
+end;
+
+procedure TDExport.UMChangePreferences(var Message: TMessage);
+begin
+  Preferences.SmallImages.GetIcon(iiExport, Icon);
+
+  SaveDialog.EncodingLabel := Preferences.LoadStr(682) + ':';
+
+  PSQLWait.Caption := Preferences.LoadStr(882);
+
+  GSelect.Caption := Preferences.LoadStr(721);
+
+  GBasics.Caption := Preferences.LoadStr(85);
+  FLName.Caption := Preferences.LoadStr(35) + ':';
+  FLExportType.Caption := Preferences.LoadStr(200) + ':';
+  FSQLFile.Caption := Preferences.LoadStr(409);
+  FTextFile.Caption := Preferences.LoadStr(410);
+  FExcelFile.Caption := Preferences.LoadStr(801);
+  FAccessFile.Caption := Preferences.LoadStr(695);
+  FODBC.Caption := Preferences.LoadStr(607);
+  FHTMLFile.Caption := Preferences.LoadStr(453);
+  FXMLFile.Caption := Preferences.LoadStr(454);
+  FPDFFile.Caption := Preferences.LoadStr(890);
+  FLFilename.Caption := Preferences.LoadStr(348) + ':';
+  FLDataSource.Caption := Preferences.LoadStr(38) + ':';
+
+  GSQLWhat.Caption := Preferences.LoadStr(227);
+  FLSQLWhat.Caption := Preferences.LoadStr(218) + ':';
+  FSQLStructure.Caption := Preferences.LoadStr(215);
+  FSQLData.Caption := Preferences.LoadStr(216);
+
+  GSQLOptions.Caption := Preferences.LoadStr(238);
+  FLDrop.Caption := Preferences.LoadStr(242) + ':';
+  FDropStmts.Caption := Preferences.LoadStr(243);
+  FReplaceData.Caption := LowerCase(Preferences.LoadStr(416));
+
+  GCSVOptions.Caption := Preferences.LoadStr(238);
+  FLCSVHeadline.Caption := Preferences.LoadStr(393) + ':';
+  FCSVHeadline.Caption := Preferences.LoadStr(408);
+  FLSeparator.Caption := Preferences.LoadStr(352) + ':';
+  FSeparatorTab.Caption := Preferences.LoadStr(354);
+  FSeparatorChar.Caption := Preferences.LoadStr(355) + ':';
+  FLQuoteValues.Caption := Preferences.LoadStr(353) + ':';
+  FQuoteNone.Caption := Preferences.LoadStr(359);
+  FQuoteStrings.Caption := Preferences.LoadStr(360);
+  FQuoteAll.Caption := Preferences.LoadStr(361);
+  FLQuoteChar.Caption := Preferences.LoadStr(356) + ':';
+
+  GProgress.Caption := Preferences.LoadStr(224);
+  FLEntiered.Caption := Preferences.LoadStr(211) + ':';
+  FLDone.Caption := Preferences.LoadStr(232) + ':';
+  FLProgressObjects.Caption := Preferences.LoadStr(909) + ':';
+  FLProgressRecords.Caption := Preferences.LoadStr(235) + ':';
+  FLProgressTime.Caption := Preferences.LoadStr(661) + ':';
+  FLErrors.Caption := Preferences.LoadStr(391) + ':';
+
+  GXMLHow.Caption := Preferences.LoadStr(238);
+  FLRootNode.Caption := 'Root:';
+  FLDatabaseNode.Caption := Preferences.LoadStr(265) + ':';
+  FDatabaseNodeDisabled.Caption := Preferences.LoadStr(554);
+  FLTableNode.Caption := Preferences.LoadStr(234) + ':';
+  FTableNodeDisabled.Caption := Preferences.LoadStr(554);
+  FLRecordNode.Caption := Preferences.LoadStr(124) + ':';
+  FLFieldNode.Caption := Preferences.LoadStr(253) + ':';
+
+  GHTMLWhat.Caption := Preferences.LoadStr(227);
+  FLHTMLWhat.Caption := Preferences.LoadStr(218) + ':';
+  FHTMLData.Caption := Preferences.LoadStr(216);
+
+  GHTMLOptions.Caption := Preferences.LoadStr(238);
+  FLHTMLNullValues.Caption := Preferences.LoadStr(498) + ':';
+  FHTMLNullText.Caption := Preferences.LoadStr(499);
+  FLHTMLViewDatas.Caption := Preferences.LoadStr(574) + ':';
+  FHTMLMemoContent.Caption := Preferences.LoadStr(575);
+  FLHTMLBGColorEnabled.Caption := Preferences.LoadStr(740) + ':';
+  FHTMLRowBGColor.Caption := Preferences.LoadStr(600);
+
+  GFields.Caption := Preferences.LoadStr(253);
+  FLSourceFields.Caption := Preferences.LoadStr(401) + ':';
+  FLDestinationFields.Caption := Preferences.LoadStr(400) + ':';
+
+  GErrors.Caption := Preferences.LoadStr(392);
+
+  GTask.Caption := Preferences.LoadStr(661);
+  FLStart.Caption := Preferences.LoadStr(817) + ':';
+  FLExecution.Caption := Preferences.LoadStr(174) + ':';
+  FSingle.Caption := Preferences.LoadStr(902);
+  FDaily.Caption := Preferences.LoadStr(903);
+  FWeekly.Caption := Preferences.LoadStr(904);
+  FMonthly.Caption := Preferences.LoadStr(905);
+  FLEnabled.Caption := Preferences.LoadStr(812) + ':';
+  FEnabled.Caption := Preferences.LoadStr(529);
+
+  FBHelp.Caption := Preferences.LoadStr(167);
+  FBBack.Caption := '< ' + Preferences.LoadStr(228);
+end;
+
+procedure TDExport.UMPostAfterExecuteSQL(var Message: TMessage);
+var
+  Database: TSDatabase;
+  I: Integer;
+  J: Integer;
+  Table: TSBaseTable;
+begin
+  if ((DialogType in [edtEditJob, edtExecuteJob]) and InitTSSelect() and (DialogType in [edtExecuteJob]) and ObjectsFromFSelect()
+    or (DialogType = edtNormal)) then
+  begin
+    I := 0;
+    while (I < SObjects.Count) do
+      if (TObject(SObjects[I]) is TSDatabase) then
+      begin
+        Database := TSDatabase(SObjects[I]);
+        if (not Database.Valid) then
+          Inc(I)
+        else
+        begin
+          for J := 0 to Database.Tables.Count - 1 do
+            if (SObjects.IndexOf(Database.Tables[J]) < 0) then
+              SObjects.Add(Database.Tables[J]);
+          if (Assigned(Database.Routines)) then
+            for J := 0 to Database.Routines.Count - 1 do
+              if (SObjects.IndexOf(Database.Routines[J]) < 0) then
+                SObjects.Add(Database.Routines[J]);
+          SObjects.Delete(I);
+        end;
+      end
+      else if (TObject(SObjects[I]) is TSBaseTable) then
+      begin
+        Table := TSBaseTable(SObjects[I]);
+        if (Assigned(Table.Database.Triggers)) then
+          for J := 0 to Table.TriggerCount - 1 do
+            if (SObjects.IndexOf(Table.Triggers[J]) < 0) then
+              SObjects.Add(Table.Triggers[J]);
+        Inc(I);
+      end
+      else
+        Inc(I);
+  end;
+
+  BuildTitle();
+
+
+  Message.Result := LRESULT(Session.Update(SObjects));
+  if (Boolean(Message.Result)) then
+    if (Assigned(WantedNodeExpand)) then
+      WantedNodeExpand.Expand(False)
+    else
+    begin
+      if (not PageControl.Visible) then
+      begin
+        PageControl.Visible := True;
+        PSQLWait.Visible := not PageControl.Visible;
+      end;
+
+      if (TSFields.Enabled) then
+        InitTSFields();
+      if (TSJob.Enabled and (DialogType = edtCreateJob)) then
+        InitTSJob();
+      CheckActivePageChange(PageControl.ActivePageIndex);
+    end;
+end;
+
+procedure TDExport.UMTerminate(var Message: TMessage);
+var
+  Success: Boolean;
+begin
+  Success := Boolean(Message.WParam);
+
+  FBBack.Enabled := True;
+  FBForward.Enabled := False;
+  FBCancel.Enabled := True;
+
+  FBCancel.Caption := Preferences.LoadStr(231);
+  if (Success) then
+    FBCancel.ModalResult := mrOk
+  else
+    FBCancel.ModalResult := mrCancel;
+
+  if (Assigned(Export)) then
+  begin
+    Export.WaitFor();
+    FreeAndNil(Export);
+  end;
+end;
+
+procedure TDExport.UMUpdateProgressInfo(var Message: TMessage);
+var
+  Infos: TTool.PProgressInfos;
+begin
+  Infos := TTool.PProgressInfos(Message.LParam);
+
+  if (Infos^.ObjectsSum < 0) then
+    FEntieredObjects.Caption := '???'
+  else
+    FEntieredObjects.Caption := FormatFloat('#,##0', Infos^.ObjectsSum, LocaleFormatSettings);
+  if (Infos^.ObjectsDone < 0) then
+    FDoneObjects.Caption := '???'
+  else
+    FDoneObjects.Caption := FormatFloat('#,##0', Infos^.ObjectsDone, LocaleFormatSettings);
+
+  if (Infos^.RecordsSum < 0) then
+    FEntieredRecords.Caption := '???'
+  else
+    FEntieredRecords.Caption := FormatFloat('#,##0', Infos^.RecordsSum, LocaleFormatSettings);
+  if (Infos^.RecordsDone < 0) then
+    FDoneRecords.Caption := '???'
+  else
+    FDoneRecords.Caption := FormatFloat('#,##0', Infos^.RecordsDone, LocaleFormatSettings);
+
+  FEntieredTime.Caption := TimeToStr(Infos^.TimeSum, DurationFormatSettings);
+  FDoneTime.Caption := TimeToStr(Infos^.TimeDone, DurationFormatSettings);
+
+  FProgressBar.Position := Infos^.Progress;
 end;
 
 initialization

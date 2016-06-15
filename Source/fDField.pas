@@ -118,7 +118,7 @@ type
     function IsIntType(): Boolean;
     function IsMemoType(): Boolean;
     function IsUnionType(): Boolean;
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Database: TSDatabase;
     Field: TSBaseTableField;
@@ -177,57 +177,6 @@ begin
       Insert('\', Result, I);
     Dec(I);
   end;
-end;
-
-procedure TDField.CMChangePreferences(var Message: TMessage);
-begin
-  Preferences.SmallImages.GetIcon(iiField, Icon);
-
-  PSQLWait.Caption := Preferences.LoadStr(882);
-
-  GBasics.Caption := Preferences.LoadStr(85);
-  FLName.Caption := Preferences.LoadStr(35) + ':';
-  FLKind.Caption := Preferences.LoadStr(913) + ':';
-  FKindReal.Caption := Preferences.LoadStr(914);
-  FKindVirtual.Caption := Preferences.LoadStr(915);
-  FLType.Caption := Preferences.LoadStr(91) + ':';
-  FLFormatSize.Caption := Preferences.LoadStr(104) + ':';
-  FLFormatFSP.Caption := Preferences.LoadStr(911) + ':';
-  FLFormatDecimals.Caption := Preferences.LoadStr(78) + ':';
-  FLFormat.Caption := Preferences.LoadStr(93) + ':';
-  FLDefault.Caption := Preferences.LoadStr(92) + ':';
-  FRDefaultNull.Caption := '<' + Preferences.LoadStr(71) + '>';
-  FRDefaultInsertTime.Caption := '<INSERT-TimeStamp>';
-  FLUpdateTime.Caption := Preferences.LoadStr(261) + ':';
-  FUpdateTime.Caption := '<UPDATE-TimeStamp>';
-  FLPosition.Caption := Preferences.LoadStr(79) + ':';
-  FLCharset.Caption := Preferences.LoadStr(682) + ':';
-  FLCollation.Caption := Preferences.LoadStr(702) + ':';
-  FLExpression.Caption := Preferences.LoadStr(916) + ':';
-  FLStored.Caption := Preferences.LoadStr(917) + ':';
-  FStoredStored.Caption := Preferences.LoadStr(918);
-  FStoredVirtual.Caption := Preferences.LoadStr(919);
-  FLComment.Caption := Preferences.LoadStr(111) + ':';
-
-  FExpression.Font.Name := Preferences.SQLFontName;
-  FExpression.Font.Style := Preferences.SQLFontStyle;
-  FExpression.Font.Color := Preferences.SQLFontColor;
-  FExpression.Font.Size := Preferences.SQLFontSize;
-  FExpression.Font.Charset := Preferences.SQLFontCharset;
-
-  GAttributes.Caption := Preferences.LoadStr(86);
-  FFlagBinary.Caption := Preferences.LoadStr(80);
-  FFlagUnsigned.Caption := Preferences.LoadStr(81);
-  FFlagNational.Caption := Preferences.LoadStr(94);
-  FFlagZerofill.Caption := Preferences.LoadStr(82);
-  FFlagNullAllowed.Caption := Preferences.LoadStr(83);
-  FRDefaultAutoIncrement.Caption := Preferences.LoadStr(84);
-  FFlagAscii.Caption := Preferences.LoadStr(669);
-  FFlagUnicode.Caption := Preferences.LoadStr(683);
-
-  FBHelp.Caption := Preferences.LoadStr(167);
-  FBOk.Caption := Preferences.LoadStr(29);
-  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 function TDField.Execute(): Boolean;
@@ -1123,6 +1072,57 @@ end;
 function TDField.IsUnionType(): Boolean;
 begin
   Result := GetType() in [mfEnum, mfSet];
+end;
+
+procedure TDField.UMChangePreferences(var Message: TMessage);
+begin
+  Preferences.SmallImages.GetIcon(iiField, Icon);
+
+  PSQLWait.Caption := Preferences.LoadStr(882);
+
+  GBasics.Caption := Preferences.LoadStr(85);
+  FLName.Caption := Preferences.LoadStr(35) + ':';
+  FLKind.Caption := Preferences.LoadStr(913) + ':';
+  FKindReal.Caption := Preferences.LoadStr(914);
+  FKindVirtual.Caption := Preferences.LoadStr(915);
+  FLType.Caption := Preferences.LoadStr(91) + ':';
+  FLFormatSize.Caption := Preferences.LoadStr(104) + ':';
+  FLFormatFSP.Caption := Preferences.LoadStr(911) + ':';
+  FLFormatDecimals.Caption := Preferences.LoadStr(78) + ':';
+  FLFormat.Caption := Preferences.LoadStr(93) + ':';
+  FLDefault.Caption := Preferences.LoadStr(92) + ':';
+  FRDefaultNull.Caption := '<' + Preferences.LoadStr(71) + '>';
+  FRDefaultInsertTime.Caption := '<INSERT-TimeStamp>';
+  FLUpdateTime.Caption := Preferences.LoadStr(261) + ':';
+  FUpdateTime.Caption := '<UPDATE-TimeStamp>';
+  FLPosition.Caption := Preferences.LoadStr(79) + ':';
+  FLCharset.Caption := Preferences.LoadStr(682) + ':';
+  FLCollation.Caption := Preferences.LoadStr(702) + ':';
+  FLExpression.Caption := Preferences.LoadStr(916) + ':';
+  FLStored.Caption := Preferences.LoadStr(917) + ':';
+  FStoredStored.Caption := Preferences.LoadStr(918);
+  FStoredVirtual.Caption := Preferences.LoadStr(919);
+  FLComment.Caption := Preferences.LoadStr(111) + ':';
+
+  FExpression.Font.Name := Preferences.SQLFontName;
+  FExpression.Font.Style := Preferences.SQLFontStyle;
+  FExpression.Font.Color := Preferences.SQLFontColor;
+  FExpression.Font.Size := Preferences.SQLFontSize;
+  FExpression.Font.Charset := Preferences.SQLFontCharset;
+
+  GAttributes.Caption := Preferences.LoadStr(86);
+  FFlagBinary.Caption := Preferences.LoadStr(80);
+  FFlagUnsigned.Caption := Preferences.LoadStr(81);
+  FFlagNational.Caption := Preferences.LoadStr(94);
+  FFlagZerofill.Caption := Preferences.LoadStr(82);
+  FFlagNullAllowed.Caption := Preferences.LoadStr(83);
+  FRDefaultAutoIncrement.Caption := Preferences.LoadStr(84);
+  FFlagAscii.Caption := Preferences.LoadStr(669);
+  FFlagUnicode.Caption := Preferences.LoadStr(683);
+
+  FBHelp.Caption := Preferences.LoadStr(167);
+  FBOk.Caption := Preferences.LoadStr(29);
+  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 initialization

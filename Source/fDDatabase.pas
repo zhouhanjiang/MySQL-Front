@@ -75,7 +75,7 @@ type
     procedure Built();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     function GetName(): string;
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Session: TSSession;
     Database: TSDatabase;
@@ -125,61 +125,6 @@ begin
 
   if (FDefaultCharset.Visible) then
     ActiveControl := FDefaultCharset;
-end;
-
-procedure TDDatabase.CMChangePreferences(var Message: TMessage);
-begin
-  Preferences.SmallImages.GetIcon(iiDatabase, Icon);
-
-  PSQLWait.Caption := Preferences.LoadStr(882);
-
-  TSBasics.Caption := Preferences.LoadStr(108);
-  GBasics.Caption := Preferences.LoadStr(85);
-  FLName.Caption := Preferences.LoadStr(35) + ':';
-  FLDefaultCharset.Caption := Preferences.LoadStr(682) + ':';
-  FLCollation.Caption := Preferences.LoadStr(702) + ':';
-
-  TSInformations.Caption := Preferences.LoadStr(121);
-  GDates.Caption := Preferences.LoadStr(122);
-  FLCreated.Caption := Preferences.LoadStr(118) + ':';
-  FLUpdated.Caption := Preferences.LoadStr(119) + ':';
-  GSize.Caption := Preferences.LoadStr(125);
-  FLIndexSize.Caption := Preferences.LoadStr(163) + ':';
-  FLDataSize.Caption := Preferences.LoadStr(127) + ':';
-
-  TSExtras.Caption := Preferences.LoadStr(73);
-  GOptimize.Caption := Preferences.LoadStr(171);
-  FLUnusedSize.Caption := Preferences.LoadStr(128) + ':';
-  FBOptimize.Caption := Preferences.LoadStr(130);
-  GCheck.Caption := Preferences.LoadStr(172);
-  FLChecked.Caption := Preferences.LoadStr(120) + ':';
-  FBCheck.Caption := Preferences.LoadStr(131);
-  GFlush.Caption := Preferences.LoadStr(328);
-  FBFlush.Caption := Preferences.LoadStr(329);
-
-  TSSource.Caption := Preferences.LoadStr(198);
-  FSource.Font.Name := Preferences.SQLFontName;
-  FSource.Font.Style := Preferences.SQLFontStyle;
-  FSource.Font.Color := Preferences.SQLFontColor;
-  FSource.Font.Size := Preferences.SQLFontSize;
-  FSource.Font.Charset := Preferences.SQLFontCharset;
-  if (Preferences.Editor.LineNumbersForeground = clNone) then
-    FSource.Gutter.Font.Color := clWindowText
-  else
-    FSource.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
-  if (Preferences.Editor.LineNumbersBackground = clNone) then
-    FSource.Gutter.Color := clBtnFace
-  else
-    FSource.Gutter.Color := Preferences.Editor.LineNumbersBackground;
-  FSource.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
-
-  msCopy.Caption := Preferences.LoadStr(64) + #9 + ShortCutToText(scCtrl + Ord('C'));
-
-  msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;
-
-  FBHelp.Caption := Preferences.LoadStr(167);
-  FBOk.Caption := Preferences.LoadStr(29);
-  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 function TDDatabase.Execute(): Boolean;
@@ -518,6 +463,61 @@ procedure TDDatabase.TSSourceShow(Sender: TObject);
 begin
   if (FSource.Lines.Count = 0) then
     FSource.Lines.Text := Database.Source + #13#10;
+end;
+
+procedure TDDatabase.UMChangePreferences(var Message: TMessage);
+begin
+  Preferences.SmallImages.GetIcon(iiDatabase, Icon);
+
+  PSQLWait.Caption := Preferences.LoadStr(882);
+
+  TSBasics.Caption := Preferences.LoadStr(108);
+  GBasics.Caption := Preferences.LoadStr(85);
+  FLName.Caption := Preferences.LoadStr(35) + ':';
+  FLDefaultCharset.Caption := Preferences.LoadStr(682) + ':';
+  FLCollation.Caption := Preferences.LoadStr(702) + ':';
+
+  TSInformations.Caption := Preferences.LoadStr(121);
+  GDates.Caption := Preferences.LoadStr(122);
+  FLCreated.Caption := Preferences.LoadStr(118) + ':';
+  FLUpdated.Caption := Preferences.LoadStr(119) + ':';
+  GSize.Caption := Preferences.LoadStr(125);
+  FLIndexSize.Caption := Preferences.LoadStr(163) + ':';
+  FLDataSize.Caption := Preferences.LoadStr(127) + ':';
+
+  TSExtras.Caption := Preferences.LoadStr(73);
+  GOptimize.Caption := Preferences.LoadStr(171);
+  FLUnusedSize.Caption := Preferences.LoadStr(128) + ':';
+  FBOptimize.Caption := Preferences.LoadStr(130);
+  GCheck.Caption := Preferences.LoadStr(172);
+  FLChecked.Caption := Preferences.LoadStr(120) + ':';
+  FBCheck.Caption := Preferences.LoadStr(131);
+  GFlush.Caption := Preferences.LoadStr(328);
+  FBFlush.Caption := Preferences.LoadStr(329);
+
+  TSSource.Caption := Preferences.LoadStr(198);
+  FSource.Font.Name := Preferences.SQLFontName;
+  FSource.Font.Style := Preferences.SQLFontStyle;
+  FSource.Font.Color := Preferences.SQLFontColor;
+  FSource.Font.Size := Preferences.SQLFontSize;
+  FSource.Font.Charset := Preferences.SQLFontCharset;
+  if (Preferences.Editor.LineNumbersForeground = clNone) then
+    FSource.Gutter.Font.Color := clWindowText
+  else
+    FSource.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
+  if (Preferences.Editor.LineNumbersBackground = clNone) then
+    FSource.Gutter.Color := clBtnFace
+  else
+    FSource.Gutter.Color := Preferences.Editor.LineNumbersBackground;
+  FSource.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
+
+  msCopy.Caption := Preferences.LoadStr(64) + #9 + ShortCutToText(scCtrl + Ord('C'));
+
+  msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;
+
+  FBHelp.Caption := Preferences.LoadStr(167);
+  FBOk.Caption := Preferences.LoadStr(29);
+  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 initialization

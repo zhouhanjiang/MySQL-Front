@@ -50,7 +50,7 @@ type
     function GetParentTable(): TSBaseTable;
     property SelectedParentDatabase: TSDatabase read GetParentDatabase;
     property SelectedParentTable: TSBaseTable read GetParentTable;
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Database: TSDatabase;
     ForeignKey: TSForeignKey;
@@ -84,41 +84,6 @@ begin
 end;
 
 { TDForeignKey ****************************************************************}
-
-procedure TDForeignKey.CMChangePreferences(var Message: TMessage);
-begin
-  Preferences.SmallImages.GetIcon(iiForeignKey, Icon);
-
-  PSQLWait.Caption := Preferences.LoadStr(882);
-
-  GBasics.Caption := Preferences.LoadStr(85);
-  FLName.Caption := Preferences.LoadStr(35) + ':';
-  FLDatabase.Caption := Preferences.LoadStr(38) + ':';
-  FLTable.Caption := Preferences.LoadStr(302) + ':';
-  FLFields.Caption := Preferences.LoadStr(253) + ':';
-  FLChild.Caption := Preferences.LoadStr(254) + ':';
-  FLParent.Caption := Preferences.LoadStr(263) + ':';
-
-  GAttributes.Caption := Preferences.LoadStr(86);
-  FLOnDelete.Caption := Preferences.LoadStr(260) + ' ...';
-  FOnDelete.Items.Clear();
-  FOnDelete.Items.Add(Preferences.LoadStr(255));
-  FOnDelete.Items.Add(Preferences.LoadStr(256));
-  FOnDelete.Items.Add(Preferences.LoadStr(257));
-  FOnDelete.Items.Add(Preferences.LoadStr(258));
-  FOnDelete.Items.Add('<' + Preferences.LoadStr(259) + '>');
-
-  FLOnUpdate.Caption := Preferences.LoadStr(261) + ' ...';
-  FOnUpdate.Items.Clear();
-  FOnUpdate.Items.Add(Preferences.LoadStr(255));
-  FOnUpdate.Items.Add(Preferences.LoadStr(256));
-  FOnUpdate.Items.Add(Preferences.LoadStr(257));
-  FOnUpdate.Items.Add(Preferences.LoadStr(258));
-  FOnUpdate.Items.Add('<' + Preferences.LoadStr(259) + '>');
-
-  FBHelp.Caption := Preferences.LoadStr(167);
-  FBOk.Caption := Preferences.LoadStr(29);
-end;
 
 function TDForeignKey.Execute(): Boolean;
 begin
@@ -471,6 +436,41 @@ begin
     Result := nil
   else
     Result := SelectedParentDatabase.BaseTableByName(FParentTable.Text);
+end;
+
+procedure TDForeignKey.UMChangePreferences(var Message: TMessage);
+begin
+  Preferences.SmallImages.GetIcon(iiForeignKey, Icon);
+
+  PSQLWait.Caption := Preferences.LoadStr(882);
+
+  GBasics.Caption := Preferences.LoadStr(85);
+  FLName.Caption := Preferences.LoadStr(35) + ':';
+  FLDatabase.Caption := Preferences.LoadStr(38) + ':';
+  FLTable.Caption := Preferences.LoadStr(302) + ':';
+  FLFields.Caption := Preferences.LoadStr(253) + ':';
+  FLChild.Caption := Preferences.LoadStr(254) + ':';
+  FLParent.Caption := Preferences.LoadStr(263) + ':';
+
+  GAttributes.Caption := Preferences.LoadStr(86);
+  FLOnDelete.Caption := Preferences.LoadStr(260) + ' ...';
+  FOnDelete.Items.Clear();
+  FOnDelete.Items.Add(Preferences.LoadStr(255));
+  FOnDelete.Items.Add(Preferences.LoadStr(256));
+  FOnDelete.Items.Add(Preferences.LoadStr(257));
+  FOnDelete.Items.Add(Preferences.LoadStr(258));
+  FOnDelete.Items.Add('<' + Preferences.LoadStr(259) + '>');
+
+  FLOnUpdate.Caption := Preferences.LoadStr(261) + ' ...';
+  FOnUpdate.Items.Clear();
+  FOnUpdate.Items.Add(Preferences.LoadStr(255));
+  FOnUpdate.Items.Add(Preferences.LoadStr(256));
+  FOnUpdate.Items.Add(Preferences.LoadStr(257));
+  FOnUpdate.Items.Add(Preferences.LoadStr(258));
+  FOnUpdate.Items.Add('<' + Preferences.LoadStr(259) + '>');
+
+  FBHelp.Caption := Preferences.LoadStr(167);
+  FBOk.Caption := Preferences.LoadStr(29);
 end;
 
 initialization

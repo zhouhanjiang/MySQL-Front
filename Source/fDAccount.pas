@@ -58,8 +58,8 @@ type
     procedure FHostChange(Sender: TObject);
   private
     function CheckConnectInfos(): Boolean;
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Password: string;
     Account: TAAccount;
@@ -110,32 +110,6 @@ begin
     begin MessageBeep(MB_ICONERROR); ActiveControl := FHTTPTunnelURI; end
   else
     Result := True;
-end;
-
-procedure TDAccount.CMChangePreferences(var Message: TMessage);
-begin
-  Preferences.SmallImages.GetIcon(iiServer, Icon);
-
-  GBasics.Caption := Preferences.LoadStr(85);
-  FLName.Caption := Preferences.LoadStr(35) + ':';
-
-  GConnection.Caption := Preferences.LoadStr(486);
-  FLHost.Caption := Preferences.LoadStr(906) + ':';
-  FLPort.Caption := Preferences.LoadStr(436) + ':';
-  FLConnectionType.Caption := Preferences.LoadStr(648) + ':';
-  FConnectionType.Items.Text := '';
-  FConnectionTypeChange(nil);
-  FLLibraryFilename.Caption := Preferences.LoadStr(568) + ':';
-  FLHTTPTunnelURI.Caption := Preferences.LoadStr(652) + ':';
-
-  GLogin.Caption := Preferences.LoadStr(34);
-  FLUser.Caption := Preferences.LoadStr(561) + ':';
-  FLPassword.Caption := Preferences.LoadStr(40) + ':';
-  FLDatabase.Caption := Preferences.LoadStr(38) + ':';
-
-  FBHelp.Caption := Preferences.LoadStr(167);
-  FBOk.Caption := Preferences.LoadStr(29);
-  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 procedure TDAccount.CMSysFontChanged(var Message: TMessage);
@@ -395,6 +369,32 @@ end;
 function TDAccount.GetAccountName(): string;
 begin
   Result := Trim(FName.Text);
+end;
+
+procedure TDAccount.UMChangePreferences(var Message: TMessage);
+begin
+  Preferences.SmallImages.GetIcon(iiServer, Icon);
+
+  GBasics.Caption := Preferences.LoadStr(85);
+  FLName.Caption := Preferences.LoadStr(35) + ':';
+
+  GConnection.Caption := Preferences.LoadStr(486);
+  FLHost.Caption := Preferences.LoadStr(906) + ':';
+  FLPort.Caption := Preferences.LoadStr(436) + ':';
+  FLConnectionType.Caption := Preferences.LoadStr(648) + ':';
+  FConnectionType.Items.Text := '';
+  FConnectionTypeChange(nil);
+  FLLibraryFilename.Caption := Preferences.LoadStr(568) + ':';
+  FLHTTPTunnelURI.Caption := Preferences.LoadStr(652) + ':';
+
+  GLogin.Caption := Preferences.LoadStr(34);
+  FLUser.Caption := Preferences.LoadStr(561) + ':';
+  FLPassword.Caption := Preferences.LoadStr(40) + ':';
+  FLDatabase.Caption := Preferences.LoadStr(38) + ':';
+
+  FBHelp.Caption := Preferences.LoadStr(167);
+  FBOk.Caption := Preferences.LoadStr(29);
+  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 initialization

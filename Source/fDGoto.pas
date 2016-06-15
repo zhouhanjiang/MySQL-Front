@@ -19,8 +19,8 @@ type
     procedure FFieldChange(Sender: TObject);
     procedure FFieldDrawItem(Control: TWinControl; Index: Integer; Rect: TRect;
       State: TOwnerDrawState);
-  protected
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+  private
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Captions: string;
     DBGrid: TDBGrid;
@@ -52,16 +52,6 @@ begin
 end;
 
 { TDGoto **********************************************************************}
-
-procedure TDGoto.CMChangePreferences(var Message: TMessage);
-begin
-  Caption := Preferences.LoadStr(676);
-
-  FLField.Caption := Preferences.LoadStr(164) + ':';
-
-  FBOk.Caption := Preferences.LoadStr(29);
-  FBCancel.Caption := Preferences.LoadStr(30);
-end;
 
 function TDGoto.Execute(): Boolean;
 begin
@@ -117,6 +107,16 @@ begin
   ActiveControl := FField;
 
   FBOk.Enabled := FField.ItemIndex >= 0;
+end;
+
+procedure TDGoto.UMChangePreferences(var Message: TMessage);
+begin
+  Caption := Preferences.LoadStr(676);
+
+  FLField.Caption := Preferences.LoadStr(164) + ':';
+
+  FBOk.Caption := Preferences.LoadStr(29);
+  FBCancel.Caption := Preferences.LoadStr(30);
 end;
 
 initialization

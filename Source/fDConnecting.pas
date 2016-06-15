@@ -15,9 +15,10 @@ type
     procedure AfterConnect(Sender: TObject);
     procedure FBCancelClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
-    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
-    procedure CMPostShow(var Message: TMessage); message UM_POST_SHOW;
     procedure FormHide(Sender: TObject);
+  private
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
   public
     Session: TSSession;
     function Execute(): Boolean;
@@ -60,18 +61,6 @@ begin
     ModalResult := mrCancel;
 end;
 
-procedure TDConnecting.CMChangePreferences(var Message: TMessage);
-begin
-  FInfo.Caption := Preferences.LoadStr(195) + '...';
-
-  FBCancel.Caption := Preferences.LoadStr(30);
-end;
-
-procedure TDConnecting.CMPostShow(var Message: TMessage);
-begin
-  Session.Connection.Connect();
-end;
-
 procedure TDConnecting.FBCancelClick(Sender: TObject);
 begin
   Session.Connection.Terminate();
@@ -97,6 +86,18 @@ begin
   Session.Connection.AfterConnect := AfterConnect;
 
   PostMessage(Handle, UM_POST_SHOW, 0, 0);
+end;
+
+procedure TDConnecting.UMChangePreferences(var Message: TMessage);
+begin
+  FInfo.Caption := Preferences.LoadStr(195) + '...';
+
+  FBCancel.Caption := Preferences.LoadStr(30);
+end;
+
+procedure TDConnecting.UMPostShow(var Message: TMessage);
+begin
+  Session.Connection.Connect();
 end;
 
 initialization
