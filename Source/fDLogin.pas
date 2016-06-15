@@ -23,7 +23,7 @@ type
     procedure FBSettingsClick(Sender: TObject);
     procedure FormHide(Sender: TObject);
     procedure FormShow(Sender: TObject);
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Password: string;
     Account: TAAccount;
@@ -48,7 +48,7 @@ begin
   if (not Assigned(FLogin)) then
   begin
     Application.CreateForm(TDLogin, FLogin);
-    FLogin.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FLogin.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FLogin;

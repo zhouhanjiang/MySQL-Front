@@ -32,7 +32,7 @@ type
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormShow(Sender: TObject);
   protected
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Partition: TSPartition;
     Table: TSBaseTable;
@@ -58,7 +58,7 @@ begin
   if (not Assigned(FPartition)) then
   begin
     Application.CreateForm(TDPartition, FPartition);
-    FPartition.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FPartition.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FPartition;

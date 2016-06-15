@@ -86,9 +86,9 @@ type
     procedure OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure OnTerminate(Sender: TObject);
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
-    procedure CMTerminate(var Message: TMessage); message CM_TERMINATE;
-    procedure CMUpdateProgressInfo(var Message: TMessage); message CM_UPDATEPROGRESSINFO;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure CMTerminate(var Message: TMessage); message UM_TERMINATE;
+    procedure CMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
   public
     SourceSession: TSSession;
     SourceDatabaseName: string;
@@ -119,7 +119,7 @@ begin
   if (not Assigned(FTransfer)) then
   begin
     Application.CreateForm(TDTransfer, FTransfer);
-    FTransfer.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FTransfer.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FTransfer;
@@ -524,14 +524,14 @@ end;
 
 procedure TDTransfer.OnTerminate(Sender: TObject);
 begin
-  PostMessage(Handle, CM_TERMINATE, WPARAM(not Transfer.Terminated), 0);
+  PostMessage(Handle, UM_TERMINATE, WPARAM(not Transfer.Terminated), 0);
 end;
 
 procedure TDTransfer.OnUpdate(const AProgressInfos: TTool.TProgressInfos);
 begin
   MoveMemory(@ProgressInfos, @AProgressInfos, SizeOf(AProgressInfos));
 
-  PostMessage(Handle, CM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos));
+  PostMessage(Handle, UM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos));
 end;
 
 procedure TDTransfer.TreeViewChange(Sender: TObject; Node: TTreeNode);

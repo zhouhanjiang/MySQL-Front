@@ -75,7 +75,7 @@ type
     procedure Built();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     function GetName(): string;
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Session: TSSession;
     Database: TSDatabase;
@@ -101,7 +101,7 @@ begin
   if (not Assigned(FDatabase)) then
   begin
     Application.CreateForm(TDDatabase, FDatabase);
-    FDatabase.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FDatabase.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FDatabase;

@@ -84,7 +84,7 @@ type
     RecordCount: Integer;
     procedure Built();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Tables: TList;
     function Execute(): Boolean;
@@ -109,7 +109,7 @@ begin
   if (not Assigned(FTables)) then
   begin
     Application.CreateForm(TDTables, FTables);
-    FTables.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FTables.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FTables;
@@ -151,67 +151,6 @@ begin
   PSQLWait.Visible := not PageControl.Visible;
 
   ActiveControl := FEngine;
-end;
-
-procedure TDTables.CMChangePreferences(var Message: TMessage);
-begin
-  Preferences.SmallImages.GetIcon(iiBaseTable, Icon);
-
-  Caption := Preferences.LoadStr(107);
-
-  PSQLWait.Caption := Preferences.LoadStr(882);
-
-  TSTables.Caption := Preferences.LoadStr(108);
-  GBasics.Caption := Preferences.LoadStr(85);
-  FLTablesCount.Caption := Preferences.LoadStr(617) + ':';
-  FLDatabase.Caption := Preferences.LoadStr(38) + ':';
-  FLEngine.Caption := Preferences.LoadStr(110) + ':';
-  FLDefaultCharset.Caption := Preferences.LoadStr(682) + ':';
-  FLCollation.Caption := Preferences.LoadStr(702) + ':';
-  GRecords.Caption := Preferences.LoadStr(124);
-  FLRowType.Caption := Preferences.LoadStr(129) + ':';
-
-  TSInformation.Caption := Preferences.LoadStr(121);
-  GDates.Caption := Preferences.LoadStr(122);
-  FLCreated.Caption := Preferences.LoadStr(118) + ':';
-  FLUpdated.Caption := Preferences.LoadStr(119) + ':';
-  GSize.Caption := Preferences.LoadStr(125);
-  FLIndexSize.Caption := Preferences.LoadStr(163) + ':';
-  FLDataSize.Caption := Preferences.LoadStr(127) + ':';
-  GRecordCount.Caption := Preferences.LoadStr(170);
-  FLRecordCount.Caption := Preferences.LoadStr(116) + ':';
-
-  TSExtras.Caption := Preferences.LoadStr(73);
-  GOptimize.Caption := Preferences.LoadStr(171);
-  FLUnusedSize.Caption := Preferences.LoadStr(128) + ':';
-  FBOptimize.Caption := Preferences.LoadStr(130);
-  GCheck.Caption := Preferences.LoadStr(172);
-  FLChecked.Caption := Preferences.LoadStr(120) + ':';
-  FBCheck.Caption := Preferences.LoadStr(131);
-  GFlush.Caption := Preferences.LoadStr(328);
-  FBFlush.Caption := Preferences.LoadStr(329);
-
-  TSSource.Caption := Preferences.LoadStr(198);
-  FSource.Font.Name := Preferences.SQLFontName;
-  FSource.Font.Style := Preferences.SQLFontStyle;
-  FSource.Font.Color := Preferences.SQLFontColor;
-  FSource.Font.Size := Preferences.SQLFontSize;
-  FSource.Font.Charset := Preferences.SQLFontCharset;
-  if (Preferences.Editor.LineNumbersForeground = clNone) then
-    FSource.Gutter.Font.Color := clWindowText
-  else
-    FSource.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
-  if (Preferences.Editor.LineNumbersBackground = clNone) then
-    FSource.Gutter.Color := clBtnFace
-  else
-    FSource.Gutter.Color := Preferences.Editor.LineNumbersBackground;
-  FSource.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
-
-  msCopy.Action := MainAction('aECopy');
-  msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;
-
-  FBHelp.Caption := Preferences.LoadStr(167);
-  FBOk.Caption := Preferences.LoadStr(29);
 end;
 
 function TDTables.Execute(): Boolean;
@@ -512,6 +451,67 @@ begin
       if (I > 0) then FSource.Lines.Text := FSource.Lines.Text + #13#10;
       FSource.Lines.Text := FSource.Lines.Text + TSBaseTable(Tables[I]).Source + #13#10;
     end;
+end;
+
+procedure TDTables.UMChangePreferences(var Message: TMessage);
+begin
+  Preferences.SmallImages.GetIcon(iiBaseTable, Icon);
+
+  Caption := Preferences.LoadStr(107);
+
+  PSQLWait.Caption := Preferences.LoadStr(882);
+
+  TSTables.Caption := Preferences.LoadStr(108);
+  GBasics.Caption := Preferences.LoadStr(85);
+  FLTablesCount.Caption := Preferences.LoadStr(617) + ':';
+  FLDatabase.Caption := Preferences.LoadStr(38) + ':';
+  FLEngine.Caption := Preferences.LoadStr(110) + ':';
+  FLDefaultCharset.Caption := Preferences.LoadStr(682) + ':';
+  FLCollation.Caption := Preferences.LoadStr(702) + ':';
+  GRecords.Caption := Preferences.LoadStr(124);
+  FLRowType.Caption := Preferences.LoadStr(129) + ':';
+
+  TSInformation.Caption := Preferences.LoadStr(121);
+  GDates.Caption := Preferences.LoadStr(122);
+  FLCreated.Caption := Preferences.LoadStr(118) + ':';
+  FLUpdated.Caption := Preferences.LoadStr(119) + ':';
+  GSize.Caption := Preferences.LoadStr(125);
+  FLIndexSize.Caption := Preferences.LoadStr(163) + ':';
+  FLDataSize.Caption := Preferences.LoadStr(127) + ':';
+  GRecordCount.Caption := Preferences.LoadStr(170);
+  FLRecordCount.Caption := Preferences.LoadStr(116) + ':';
+
+  TSExtras.Caption := Preferences.LoadStr(73);
+  GOptimize.Caption := Preferences.LoadStr(171);
+  FLUnusedSize.Caption := Preferences.LoadStr(128) + ':';
+  FBOptimize.Caption := Preferences.LoadStr(130);
+  GCheck.Caption := Preferences.LoadStr(172);
+  FLChecked.Caption := Preferences.LoadStr(120) + ':';
+  FBCheck.Caption := Preferences.LoadStr(131);
+  GFlush.Caption := Preferences.LoadStr(328);
+  FBFlush.Caption := Preferences.LoadStr(329);
+
+  TSSource.Caption := Preferences.LoadStr(198);
+  FSource.Font.Name := Preferences.SQLFontName;
+  FSource.Font.Style := Preferences.SQLFontStyle;
+  FSource.Font.Color := Preferences.SQLFontColor;
+  FSource.Font.Size := Preferences.SQLFontSize;
+  FSource.Font.Charset := Preferences.SQLFontCharset;
+  if (Preferences.Editor.LineNumbersForeground = clNone) then
+    FSource.Gutter.Font.Color := clWindowText
+  else
+    FSource.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
+  if (Preferences.Editor.LineNumbersBackground = clNone) then
+    FSource.Gutter.Color := clBtnFace
+  else
+    FSource.Gutter.Color := Preferences.Editor.LineNumbersBackground;
+  FSource.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
+
+  msCopy.Action := MainAction('aECopy');
+  msSelectAll.Action := MainAction('aESelectAll'); msSelectAll.ShortCut := 0;
+
+  FBHelp.Caption := Preferences.LoadStr(167);
+  FBOk.Caption := Preferences.LoadStr(29);
 end;
 
 initialization

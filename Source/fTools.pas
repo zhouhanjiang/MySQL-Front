@@ -1737,12 +1737,16 @@ var
   DataSet: TMySQLQuery;
   SQL: string;
 begin
+MessageBox(0, 'A', 'Debug', MB_OK + MB_ICONINFORMATION);
   inherited;
+MessageBox(0, 'B', 'Debug', MB_OK + MB_ICONINFORMATION);
 
   Session.Connection.BeginSilent();
+MessageBox(0, 'C', 'Debug', MB_OK + MB_ICONINFORMATION);
 
   if (Data and (Session.Connection.ServerVersion >= 40014)) then
   begin
+MessageBox(0, 'D', 'Debug', MB_OK + MB_ICONINFORMATION);
     if (Assigned(Session.VariableByName('UNIQUE_CHECKS'))
       and Assigned(Session.VariableByName('FOREIGN_KEY_CHECKS'))) then
     begin
@@ -1751,6 +1755,7 @@ begin
     end
     else
     begin
+MessageBox(0, 'E', 'Debug', MB_OK + MB_ICONINFORMATION);
       DataSet := TMySQLQuery.Create(nil);
       DataSet.Connection := Session.Connection;
       DataSet.CommandText := 'SELECT @@UNIQUE_CHECKS,@@FOREIGN_KEY_CHECKS';
@@ -1770,11 +1775,14 @@ begin
       end;
 
       DataSet.Free();
+MessageBox(0, 'F', 'Debug', MB_OK + MB_ICONINFORMATION);
     end;
 
+MessageBox(0, 'G', 'Debug', MB_OK + MB_ICONINFORMATION);
     SQL := 'SET UNIQUE_CHECKS=OFF,FOREIGN_KEY_CHECKS=OFF;';
     while ((Success <> daAbort) and not Session.Connection.ExecuteSQL(SQL)) do
       DoError(DatabaseError(Session), nil, True, SQL);
+MessageBox(0, 'H', 'Debug', MB_OK + MB_ICONINFORMATION);
   end;
 end;
 

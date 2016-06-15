@@ -53,7 +53,7 @@ type
     UsernameC: array [0 .. CRED_MAX_USERNAME_LENGTH] of Char;
     procedure FBOkCheckEnabled(Sender: TObject);
     procedure FDataSourcesUpdate();
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     DataSource: string;
     Password: string;
@@ -82,7 +82,7 @@ begin
   if (not Assigned(FODBC)) then
   begin
     Application.CreateForm(TDODBC, FODBC);
-    FODBC.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FODBC.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FODBC;

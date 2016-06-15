@@ -76,7 +76,7 @@ type
     procedure Built();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure ListViewShowSortDirection(const ListView: TListView);
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Session: TSSession;
     Tab: TCustomFrame;
@@ -104,7 +104,7 @@ begin
   if (not Assigned(FServer)) then
   begin
     Application.CreateForm(TDServer, FServer);
-    FServer.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FServer.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FServer;
@@ -225,10 +225,10 @@ begin
   if (Session.Connection.Port <> MYSQL_PORT) then
     Host := Host + ':' + IntToStr(Session.Connection.Port);
   if (MsgBox(Preferences.LoadStr(679, Host), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES) then
-    if (Boolean(SendMessage(Tab.Handle, CM_CLOSE_TAB_QUERY, 0, 0))) then
+    if (Boolean(SendMessage(Tab.Handle, UM_CLOSE_TAB_QUERY, 0, 0))) then
       if (Session.Connection.Shutdown()) then
       begin
-        PostMessage(TForm(Tab.Owner).Handle, CM_CLOSE_TAB, 0, LPARAM(Tab));
+        PostMessage(TForm(Tab.Owner).Handle, UM_CLOSE_TAB, 0, LPARAM(Tab));
         FBCancel.Click();
       end;
 

@@ -75,7 +75,7 @@ type
   private
     Lengths: array of Integer;
     procedure FormSessionEvent(const Event: TSSession.TEvent);
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
   public
     Database: TSDatabase;
@@ -102,7 +102,7 @@ begin
   if (not Assigned(FKey)) then
   begin
     Application.CreateForm(TDKey, FKey);
-    FKey.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FKey.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FKey;

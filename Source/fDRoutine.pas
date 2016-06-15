@@ -63,7 +63,7 @@ type
   private
     procedure Built();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Database: TSDatabase;
     Routine: TSRoutine;
@@ -90,7 +90,7 @@ begin
   if (not Assigned(FRoutine)) then
   begin
     Application.CreateForm(TDRoutine, FRoutine);
-    FRoutine.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FRoutine.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FRoutine;

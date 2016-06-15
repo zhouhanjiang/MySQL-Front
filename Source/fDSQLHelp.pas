@@ -11,7 +11,7 @@ uses
   fBase;
 
 const
-  CM_SEND_SQL = WM_USER + 301;
+  UM_SEND_SQL = WM_USER + 301;
 
 type
   TDSQLHelp = class(TForm_Ext)
@@ -42,8 +42,8 @@ type
   private
     ManualURL: string;
     function ClientResult(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
-    procedure CMSendSQL(var Message: TMessage); message CM_SEND_SQL;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure CMSendSQL(var Message: TMessage); message UM_SEND_SQL;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     procedure WMNotify(var Message: TWMNotify); message WM_NOTIFY;
   protected
@@ -74,7 +74,7 @@ begin
   if (not Assigned(FSQLHelp)) then
   begin
     Application.CreateForm(TDSQLHelp, FSQLHelp);
-    FSQLHelp.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FSQLHelp.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FSQLHelp;
@@ -132,7 +132,7 @@ begin
       if (DSelection.Execute()) then
       begin
         Keyword := DSelection.Selected;
-        PostMessage(Handle, CM_SEND_SQL, 0, 0);
+        PostMessage(Handle, UM_SEND_SQL, 0, 0);
       end
       else if (FDescription.Lines.Count < 1) then
         Hide();
@@ -214,7 +214,7 @@ begin
   Keyword := Trim(SQLUnwrapStmt(Keyword, Session.Connection.ServerVersion));
   if (Keyword = '') then
     Keyword := 'Contents';
-  Perform(CM_SEND_SQL, 0, 0);
+  Perform(UM_SEND_SQL, 0, 0);
 
   Result := False;
 end;
@@ -222,7 +222,7 @@ end;
 procedure TDSQLHelp.FBContentClick(Sender: TObject);
 begin
   Keyword := 'Contents';
-  Perform(CM_SEND_SQL, 0, 0);
+  Perform(UM_SEND_SQL, 0, 0);
 end;
 
 procedure TDSQLHelp.FBDescriptionClick(Sender: TObject);
@@ -307,7 +307,7 @@ end;
 procedure TDSQLHelp.FQuickSearchEnabledClick(Sender: TObject);
 begin
   Keyword := Trim(FQuickSearch.Text);
-  Perform(CM_SEND_SQL, 0, 0);
+  Perform(UM_SEND_SQL, 0, 0);
 end;
 
 procedure TDSQLHelp.FQuickSearchKeyPress(Sender: TObject; var Key: Char);

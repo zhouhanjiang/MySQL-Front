@@ -50,8 +50,8 @@ type
   private
     procedure ListViewShowSortDirection(const ListView: TListView);
     procedure SetFAccounts(const ASelected: TAAccount);
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
-    procedure CMPostShow(var Message: TMessage); message CM_POST_SHOW;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure CMPostShow(var Message: TMessage); message UM_POST_SHOW;
   public
     Account: TAAccount;
     Session: TSSession;
@@ -79,7 +79,7 @@ begin
   if (not Assigned(FAccounts)) then
   begin
     Application.CreateForm(TDAccounts, FAccounts);
-    FAccounts.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FAccounts.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FAccounts;
@@ -133,7 +133,7 @@ begin
   if (Open) then
     FBOk.Click()
   else
-    if (Boolean(SendMessage(Application.MainForm.Handle, CM_ADDTAB, 0, LPARAM(Accounts.AccountByName(FAccounts.Selected.Caption).Desktop.Address)))) then
+    if (Boolean(SendMessage(Application.MainForm.Handle, UM_ADDTAB, 0, LPARAM(Accounts.AccountByName(FAccounts.Selected.Caption).Desktop.Address)))) then
       FBOk.Click();
 end;
 
@@ -246,7 +246,7 @@ begin
 
   FBOkEnabledCheck(Sender);
 
-  PostMessage(Handle, CM_POST_SHOW, 0, 0);
+  PostMessage(Handle, UM_POST_SHOW, 0, 0);
 end;
 
 procedure TDAccounts.FAccountsColumnClick(Sender: TObject;

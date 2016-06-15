@@ -21,7 +21,7 @@ type
     procedure FormShow(Sender: TObject);
     procedure FURIClick(Sender: TObject);
   private
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     function Execute(): Boolean;
   end;
@@ -46,7 +46,7 @@ begin
   if (not Assigned(FInfo)) then
   begin
     Application.CreateForm(TDInfo, FInfo);
-    FInfo.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FInfo.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FInfo;

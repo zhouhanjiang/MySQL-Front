@@ -99,7 +99,7 @@ type
   private
     procedure Built();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Database: TSDatabase;
     Event: TSEvent;
@@ -125,7 +125,7 @@ begin
   if (not Assigned(FEvent)) then
   begin
     Application.CreateForm(TDEvent, FEvent);
-    FEvent.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FEvent.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FEvent;

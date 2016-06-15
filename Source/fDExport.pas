@@ -234,11 +234,11 @@ type
     procedure OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure OnTerminate(Sender: TObject);
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
-    procedure CMTerminate(var Message: TMessage); message CM_TERMINATE;
-    procedure CMPostAfterExecuteSQL(var Message: TMessage); message CM_POST_AFTEREXECUTESQL;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure CMTerminate(var Message: TMessage); message UM_TERMINATE;
+    procedure CMPostAfterExecuteSQL(var Message: TMessage); message UM_POST_AFTEREXECUTESQL;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
-    procedure CMUpdateProgressInfo(var Message: TMessage); message CM_UPDATEPROGRESSINFO;
+    procedure CMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
   public
     DBGrid: TDBGrid;
     DialogType: (edtNormal, edtCreateJob, edtEditJob, edtExecuteJob);
@@ -269,7 +269,7 @@ begin
   if (not Assigned(FExport)) then
   begin
     Application.CreateForm(TDExport, FExport);
-    FExport.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FExport.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FExport;
@@ -1129,7 +1129,7 @@ end;
 procedure TDExport.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if (Event.EventType = etAfterExecuteSQL) then
-    PostMessage(Handle, CM_POST_AFTEREXECUTESQL, 0, 0);
+    PostMessage(Handle, UM_POST_AFTEREXECUTESQL, 0, 0);
 end;
 
 procedure TDExport.FormShow(Sender: TObject);
@@ -1249,14 +1249,14 @@ begin
 
   if (DialogType in [edtCreateJob, edtEditJob]) then
   begin
-    PageControl.Visible := Session.Databases.Update() and Boolean(Perform(CM_POST_AFTEREXECUTESQL, 0, 0));
+    PageControl.Visible := Session.Databases.Update() and Boolean(Perform(UM_POST_AFTEREXECUTESQL, 0, 0));
     if (PageControl.Visible) then
       FSelect.Items.GetFirstNode().Expand(False)
     else
       WantedNodeExpand := FSelect.Items.GetFirstNode();
   end
   else
-    PageControl.Visible := Boolean(Perform(CM_POST_AFTEREXECUTESQL, 0, 0));
+    PageControl.Visible := Boolean(Perform(UM_POST_AFTEREXECUTESQL, 0, 0));
   PSQLWait.Visible := not PageControl.Visible;
 
   for I := 0 to PageControl.PageCount - 1 do
@@ -1832,14 +1832,14 @@ end;
 
 procedure TDExport.OnTerminate(Sender: TObject);
 begin
-  PostMessage(Handle, CM_TERMINATE, WPARAM(not Export.Terminated), 0);
+  PostMessage(Handle, UM_TERMINATE, WPARAM(not Export.Terminated), 0);
 end;
 
 procedure TDExport.OnUpdate(const AProgressInfos: TTool.TProgressInfos);
 begin
   MoveMemory(@ProgressInfos, @AProgressInfos, SizeOf(AProgressInfos));
 
-  PostMessage(Handle, CM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos));
+  PostMessage(Handle, UM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos));
 end;
 
 procedure TDExport.ScrollBoxResize(Sender: TObject);
@@ -2123,7 +2123,7 @@ procedure TDExport.TSJobShow(Sender: TObject);
 begin
   ObjectsFromFSelect();
 
-  PageControl.Visible := Boolean(Perform(CM_POST_AFTEREXECUTESQL, 0, 0));
+  PageControl.Visible := Boolean(Perform(UM_POST_AFTEREXECUTESQL, 0, 0));
   PSQLWait.Visible := not PageControl.Visible;
 
   FJobOptionChange(Sender);

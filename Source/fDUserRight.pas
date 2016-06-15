@@ -78,7 +78,7 @@ type
   private
     procedure EnableElements(Sender: TObject);
   protected
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Session: TSSession;
     User: TSUser;
@@ -104,7 +104,7 @@ begin
   if (not Assigned(FUserRight)) then
   begin
     Application.CreateForm(TDUserRight, FUserRight);
-    FUserRight.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FUserRight.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FUserRight;

@@ -68,7 +68,7 @@ type
     procedure FBOkCheckEnabled(Sender: TObject);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
   protected
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Table: TSBaseTable;
     Trigger: TSTrigger;
@@ -93,7 +93,7 @@ begin
   if (not Assigned(FTrigger)) then
   begin
     Application.CreateForm(TDTrigger, FTrigger);
-    FTrigger.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FTrigger.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FTrigger;

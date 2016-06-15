@@ -19,9 +19,9 @@ const
   cWindowClassName = 'MySQL-Front.Application';
 
 const
-  CM_ACTIVATETAB = WM_USER + 600;
-  CM_MYSQLCLIENT_SYNCHRONIZE = WM_USER + 601;
-  CM_UPDATEAVAILABLE = WM_USER + 602;
+  UM_ACTIVATETAB = WM_USER + 600;
+  UM_MYSQLCLIENT_SYNCHRONIZE = WM_USER + 601;
+  UM_UPDATEAVAILABLE = WM_USER + 602;
 
 type
   TWWindow = class (TForm_Ext)
@@ -424,16 +424,16 @@ type
     procedure MySQLConnectionSynchronize(const Data: Pointer); inline;
     procedure SetActiveTab(const FSession: TFSession);
     procedure SQLError(const Connection: TMySQLConnection; const ErrorCode: Integer; const ErrorMessage: string);
-    procedure CMActivateTab(var Message: TMessage); message CM_ACTIVATETAB;
-    procedure CMAddTab(var Message: TMessage); message CM_ADDTAB;
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
-    procedure CMMySQLClientSynchronize(var Message: TMessage); message CM_MYSQLCLIENT_SYNCHRONIZE;
-    procedure CMCloseTab(var Message: TMessage); message CM_CLOSE_TAB;
-    procedure CMDeactivateTab(var Message: TMessage); message CM_DEACTIVATETAB;
-    procedure CMPostShow(var Message: TMessage); message CM_POST_SHOW;
+    procedure CMActivateTab(var Message: TMessage); message UM_ACTIVATETAB;
+    procedure UMAddTab(var Message: TMessage); message UM_ADDTAB;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure CMMySQLClientSynchronize(var Message: TMessage); message UM_MYSQLCLIENT_SYNCHRONIZE;
+    procedure CMCloseTab(var Message: TMessage); message UM_CLOSE_TAB;
+    procedure CMDeactivateTab(var Message: TMessage); message UM_DEACTIVATETAB;
+    procedure CMPostShow(var Message: TMessage); message UM_POST_SHOW;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
-    procedure CMUpdateAvailable(var Message: TMessage); message CM_UPDATEAVAILABLE;
-    procedure CMUpdateToolbar(var Message: TMessage); message CM_UPDATETOOLBAR;
+    procedure CMUpdateAvailable(var Message: TMessage); message UM_UPDATEAVAILABLE;
+    procedure CMUpdateToolbar(var Message: TMessage); message UM_UPDATETOOLBAR;
     procedure WMCopyData(var Message: TWMCopyData); message WM_COPYDATA;
     procedure WMDrawItem(var Message: TWMDrawItem); message WM_DRAWITEM;
     procedure WMHelp(var Message: TWMHelp); message WM_HELP;
@@ -518,16 +518,16 @@ begin
   if (CanClose) then
     for I := FSessions.Count - 1 downto 0 do
     begin
-      CanClose := CanClose and (SendMessage(TFSession(FSessions[I]).Handle, CM_CLOSE_TAB_QUERY, 0, 0) = 1);
+      CanClose := CanClose and (SendMessage(TFSession(FSessions[I]).Handle, UM_CLOSE_TAB_QUERY, 0, 0) = 1);
       if (CanClose) then
-        Perform(CM_CLOSE_TAB, 0, LPARAM(TFSession(FSessions[I])));
+        Perform(UM_CLOSE_TAB, 0, LPARAM(TFSession(FSessions[I])));
     end;
 end;
 
 procedure TWWindow.aFCloseExecute(Sender: TObject);
 begin
-  if (Assigned(ActiveTab) and Boolean(SendMessage(ActiveTab.Handle, CM_CLOSE_TAB_QUERY, 0, 0))) then
-    Perform(CM_CLOSE_TAB, 0, LPARAM(ActiveTab));
+  if (Assigned(ActiveTab) and Boolean(SendMessage(ActiveTab.Handle, UM_CLOSE_TAB_QUERY, 0, 0))) then
+    Perform(UM_CLOSE_TAB, 0, LPARAM(ActiveTab));
 end;
 
 procedure TWWindow.aFExitExecute(Sender: TObject);
@@ -537,7 +537,7 @@ end;
 
 procedure TWWindow.aFOpenAccountExecute(Sender: TObject);
 begin
-  Perform(CM_ADDTAB, 0, 0);
+  Perform(UM_ADDTAB, 0, 0);
 end;
 
 procedure TWWindow.aHIndexExecute(Sender: TObject);
@@ -578,7 +578,7 @@ begin
     TabControl.Visible := Preferences.TabsVisible or not Preferences.TabsVisible and (FSessions.Count >= 2);
     TBTabControl.Visible := Preferences.TabsVisible;
     for I := 0 to Screen.FormCount - 1 do
-      PostMessage(Screen.Forms[I].Handle, CM_CHANGEPREFERENCES, 0, 0);
+      PostMessage(Screen.Forms[I].Handle, UM_CHANGEPREFERENCES, 0, 0);
 
     Screen.Cursor := TempCursor;
   end;
@@ -626,7 +626,7 @@ begin
     MsgBox(Msg, Preferences.LoadStr(45), MB_OK + MB_ICONERROR);
 
     if (AvailableUpdate > Preferences.Version) then
-      PostMessage(Handle, CM_UPDATEAVAILABLE, 0, 0);
+      PostMessage(Handle, UM_UPDATEAVAILABLE, 0, 0);
 
     DisableApplicationActivate := False;
   end;
@@ -665,8 +665,8 @@ begin
 
       if (NewTabIndex <> TabControl.TabIndex) then
       begin
-        Perform(CM_DEACTIVATETAB, 0, 0);
-        Perform(CM_ACTIVATETAB, 0, LPARAM(FSessions[NewTabIndex]));
+        Perform(UM_DEACTIVATETAB, 0, 0);
+        Perform(UM_ACTIVATETAB, 0, LPARAM(FSessions[NewTabIndex]));
       end;
     end;
   end;
@@ -680,7 +680,7 @@ begin
     PreviousForm := Screen.ActiveForm;
 
     if ((Screen.ActiveForm = Self) and Assigned(ActiveTab)) then
-      SendMessage(ActiveTab.Handle, CM_DEACTIVATEFRAME, 0, 0);
+      SendMessage(ActiveTab.Handle, UM_DEACTIVATEFRAME, 0, 0);
   end
   else
     PreviousForm := nil;
@@ -702,7 +702,7 @@ begin
       end;
 
       if (Assigned(ActiveTab)) then
-        PostMessage(ActiveTab.Handle, CM_ACTIVATEFRAME, 0, 0);
+        PostMessage(ActiveTab.Handle, UM_ACTIVATEFRAME, 0, 0);
     end;
   end;
 end;
@@ -727,7 +727,7 @@ begin
   Color := clBtnFace;
 
   if (ActiveTab.Visible) then
-    SendMessage(ActiveTab.Handle, CM_ACTIVATEFRAME, 0, 0);
+    SendMessage(ActiveTab.Handle, UM_ACTIVATEFRAME, 0, 0);
 
   tbDBPrev.Action := ActiveTab.aDPrev;
   tbDBFirst.Action := ActiveTab.DataSetFirst;
@@ -743,12 +743,12 @@ begin
 
   aFClose.Enabled := True;
 
-  Perform(CM_UPDATETOOLBAR, 0, Message.LParam);
+  Perform(UM_UPDATETOOLBAR, 0, Message.LParam);
 
   Message.Result := 1;
 end;
 
-procedure TWWindow.CMAddTab(var Message: TMessage);
+procedure TWWindow.UMAddTab(var Message: TMessage);
 var
   FSession: TFSession;
 begin
@@ -770,7 +770,7 @@ begin
     FSession := nil
   else
   begin
-    Perform(CM_DEACTIVATETAB, 0, 0);
+    Perform(UM_DEACTIVATETAB, 0, 0);
 
     if (FSessions.Count = 0) then
     begin
@@ -804,7 +804,7 @@ begin
 
     FSessions.Add(FSession);
 
-    Perform(CM_ACTIVATETAB, 0, LPARAM(FSession));
+    Perform(UM_ACTIVATETAB, 0, LPARAM(FSession));
 
     TBTabControl.Visible := TabControl.Visible;
   end;
@@ -1050,7 +1050,7 @@ var
   Session: TSSession;
   NewTabIndex: Integer;
 begin
-  Perform(CM_DEACTIVATETAB, 0, 0);
+  Perform(UM_DEACTIVATETAB, 0, 0);
 
   NewTabIndex := FSessions.IndexOf(TFSession(Message.LParam));
 
@@ -1065,7 +1065,7 @@ begin
     if ((NewTabIndex < 0) and (FSessions.Count > 0)) then
       NewTabIndex := 0;
     if (NewTabIndex >= 0) then
-      Perform(CM_ACTIVATETAB, 0, LPARAM(FSessions[NewTabIndex]));
+      Perform(UM_ACTIVATETAB, 0, LPARAM(FSessions[NewTabIndex]));
 
     Session := TFSession(Message.LParam).Session;
 
@@ -1081,7 +1081,7 @@ begin
     aFCloseAll.Enabled := FSessions.Count > 0;
   end;
 
-  Perform(CM_UPDATETOOLBAR, 0, 0);
+  Perform(UM_UPDATETOOLBAR, 0, 0);
 end;
 
 procedure TWWindow.CMDeactivateTab(var Message: TMessage);
@@ -1090,7 +1090,7 @@ var
 begin
   if (Assigned(ActiveTab)) then
   begin
-    SendMessage(ActiveTab.Handle, CM_DEACTIVATEFRAME, 0, 0);
+    SendMessage(ActiveTab.Handle, UM_DEACTIVATEFRAME, 0, 0);
 
     TabControl.TabIndex := -1;
 
@@ -1142,7 +1142,7 @@ begin
     miVRefreshAll.Enabled := False;
   end;
 
-  Perform(CM_UPDATETOOLBAR, 0, 0);
+  Perform(UM_UPDATETOOLBAR, 0, 0);
   for I := 0 to StatusBar.Panels.Count - 1 do
     StatusBar.Panels[I].Text := '';
 end;
@@ -1155,13 +1155,13 @@ begin
   ExecutePostShow := False;
 
   if (ParamCount() = 0) then
-    Perform(CM_ADDTAB, 0, 0)
+    Perform(UM_ADDTAB, 0, 0)
   else
     for I := 1 to ParamCount() do
       HandleParam(ParamStr(I));
 
   if (ExecutePostShow and (FSessions.Count = 1)) then
-    PostMessage(TFSession(FSessions[0]).Handle, CM_EXECUTE, 0, 0);
+    PostMessage(TFSession(FSessions[0]).Handle, UM_EXECUTE, 0, 0);
 end;
 
 procedure TWWindow.CMSysFontChanged(var Message: TMessage);
@@ -1459,7 +1459,7 @@ end;
 procedure TWWindow.FormActivate(Sender: TObject);
 begin
   if (Assigned(ActiveTab)) then
-    ActiveTab.Perform(CM_ACTIVATEFRAME, 0, 0);
+    ActiveTab.Perform(UM_ACTIVATEFRAME, 0, 0);
 end;
 
 procedure TWWindow.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
@@ -1527,7 +1527,7 @@ begin
   aHIndex.Enabled := FileExists(Application.HelpFile);
   aHUpdate.Enabled := IsConnectedToInternet() and (Preferences.SetupProgram = '');
 
-  Perform(CM_UPDATETOOLBAR, 0, 0);
+  Perform(UM_UPDATETOOLBAR, 0, 0);
 
 
   CloseButton := TPicture.Create();
@@ -1554,7 +1554,7 @@ end;
 procedure TWWindow.FormDeactivate(Sender: TObject);
 begin
   if (Assigned(ActiveTab)) then
-    ActiveTab.Perform(CM_DEACTIVATEFRAME, 0, 0);
+    ActiveTab.Perform(UM_DEACTIVATEFRAME, 0, 0);
 end;
 
 procedure TWWindow.FormDestroy(Sender: TObject);
@@ -1617,11 +1617,11 @@ begin
     CheckUpdateThread.FreeOnTerminate := True;
     CheckUpdateThread.Stream := TStringStream.Create('');
     CheckUpdateThread.Wnd := Handle;
-    CheckUpdateThread.SuccessMessage := CM_UPDATEAVAILABLE;
+    CheckUpdateThread.SuccessMessage := UM_UPDATEAVAILABLE;
     CheckUpdateThread.Start();
   end;
 
-  PostMessage(Handle, CM_POST_SHOW, 0, 0);
+  PostMessage(Handle, UM_POST_SHOW, 0, 0);
 end;
 
 function TWWindow.GetActiveTab(): TFSession;
@@ -1650,7 +1650,7 @@ begin
   if (Copy(AParam, 1, 1) <> '/') then
   begin
     Param := AParam;
-    Perform(CM_ADDTAB, 0, WPARAM(PChar(Param)));
+    Perform(UM_ADDTAB, 0, WPARAM(PChar(Param)));
   end;
 end;
 
@@ -1670,15 +1670,15 @@ begin
   if (Sender is TMenuItem) then
   begin
     if (Assigned(ActiveTab)) then
-      Perform(CM_DEACTIVATETAB, 0, 0);
-    Perform(CM_ACTIVATETAB, 0, LPARAM(TFSession(FSessions[TMenuItem(Sender).Parent.IndexOf(TMenuItem(Sender))])));
+      Perform(UM_DEACTIVATETAB, 0, 0);
+    Perform(UM_ACTIVATETAB, 0, LPARAM(TFSession(FSessions[TMenuItem(Sender).Parent.IndexOf(TMenuItem(Sender))])));
   end;
 end;
 
 procedure TWWindow.MySQLConnectionSynchronize(const Data: Pointer);
 begin
   if (not UpdateExecution) then
-    PostMessage(Handle, CM_MYSQLCLIENT_SYNCHRONIZE, 0, LPARAM(Data));
+    PostMessage(Handle, UM_MYSQLCLIENT_SYNCHRONIZE, 0, LPARAM(Data));
 end;
 
 procedure TWWindow.SetActiveTab(const FSession: TFSession);
@@ -1745,8 +1745,8 @@ begin
   if ((ErrorCode = CR_SERVER_GONE_ERROR) and (Connection is TSConnection)) then
   begin
     Tab := TFSession(TSConnection(Connection).Session.Account.Frame);
-    if (Boolean(SendMessage(Tab.Handle, CM_CLOSE_TAB_QUERY, 0, 0))) then
-      Perform(CM_CLOSE_TAB, 0, LPARAM(Tab));
+    if (Boolean(SendMessage(Tab.Handle, UM_CLOSE_TAB_QUERY, 0, 0))) then
+      Perform(UM_CLOSE_TAB, 0, LPARAM(Tab));
   end;
 end;
 
@@ -1758,7 +1758,7 @@ begin
   begin
     Tab := TFSession(FSessions[TabControl.TabIndex]);
 
-    Perform(CM_ACTIVATETAB, 0, LPARAM(Tab));
+    Perform(UM_ACTIVATETAB, 0, LPARAM(Tab));
   end;
 end;
 
@@ -1766,7 +1766,7 @@ procedure TWWindow.TabControlChanging(Sender: TObject;
   var AllowChange: Boolean);
 begin
   if (Assigned(ActiveTab)) then
-    Perform(CM_DEACTIVATETAB, 0, 0);
+    Perform(UM_DEACTIVATETAB, 0, 0);
 end;
 
 procedure TWWindow.TabControlContextPopup(Sender: TObject; MousePos: TPoint;

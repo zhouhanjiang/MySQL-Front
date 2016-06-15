@@ -81,7 +81,7 @@ type
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure FRightsRefresh(Sender: TObject);
     procedure ListViewShowSortDirection(const ListView: TListView);
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Session: TSSession;
     User: TSUser;
@@ -108,7 +108,7 @@ begin
   if (not Assigned(FUser)) then
   begin
     Application.CreateForm(TDUser, FUser);
-    FUser.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FUser.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FUser;
@@ -457,7 +457,7 @@ begin
   if (PageControl.Visible) then
     ActiveControl := FName;
 
-  PostMessage(Self.Handle, CM_POST_SHOW, 0, 0);
+  PostMessage(Self.Handle, UM_POST_SHOW, 0, 0);
 end;
 
 procedure TDUser.FRightsDblClick(Sender: TObject);

@@ -217,12 +217,12 @@ type
     procedure OnError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
     procedure OnTerminate(Sender: TObject);
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
-    procedure CMTerminate(var Message: TMessage); message CM_TERMINATE;
-    procedure CMPostAfterExecuteSQL(var Message: TMessage); message CM_POST_AFTEREXECUTESQL;
-    procedure CMPostShow(var Message: TMessage); message CM_POST_SHOW;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure CMTerminate(var Message: TMessage); message UM_TERMINATE;
+    procedure CMPostAfterExecuteSQL(var Message: TMessage); message UM_POST_AFTEREXECUTESQL;
+    procedure CMPostShow(var Message: TMessage); message UM_POST_SHOW;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
-    procedure CMUpdateProgressInfo(var Message: TMessage); message CM_UPDATEPROGRESSINFO;
+    procedure CMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
     procedure WMHelp(var Message: TWMHelp); message WM_HELP;
   public
     CodePage: Cardinal;
@@ -259,7 +259,7 @@ begin
   if (not Assigned(FImport)) then
   begin
     Application.CreateForm(TDImport, FImport);
-    FImport.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FImport.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FImport;
@@ -1028,7 +1028,7 @@ end;
 procedure TDImport.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if (Event.EventType = etAfterExecuteSQL) then
-    PostMessage(Handle, CM_POST_AFTEREXECUTESQL, 0, 0);
+    PostMessage(Handle, UM_POST_AFTEREXECUTESQL, 0, 0);
 end;
 
 procedure TDImport.FormShow(Sender: TObject);
@@ -1275,7 +1275,7 @@ begin
   TSExecute.Enabled := False;
 
   if ((DialogType in [idtExecuteJob]) or (ImportType in [itSQLFile])) then
-    PostMessage(Handle, CM_POST_SHOW, 0, 0);
+    PostMessage(Handle, UM_POST_SHOW, 0, 0);
 
   if (TSFields.Enabled) then
     InitTSFields(Sender);
@@ -1287,14 +1287,14 @@ begin
 
   if (DialogType in [idtCreateJob, idtEditJob]) then
   begin
-    PageControl.Visible := Session.Databases.Update() and Boolean(Perform(CM_POST_AFTEREXECUTESQL, 0, 0));
+    PageControl.Visible := Session.Databases.Update() and Boolean(Perform(UM_POST_AFTEREXECUTESQL, 0, 0));
     if (PageControl.Visible) then
       FSelect.Items.GetFirstNode().Expand(False)
     else
       WantedNodeExpand := FSelect.Items.GetFirstNode();
   end
   else
-    PageControl.Visible := Boolean(Perform(CM_POST_AFTEREXECUTESQL, 0, 0));
+    PageControl.Visible := Boolean(Perform(UM_POST_AFTEREXECUTESQL, 0, 0));
   PSQLWait.Visible := not PageControl.Visible;
 
   FBBack.Visible := (DialogType in [idtNormal, idtCreateJob, idtEditJob]) and not (ImportType in [itSQLFile]);
@@ -1738,14 +1738,14 @@ end;
 
 procedure TDImport.OnTerminate(Sender: TObject);
 begin
-  PostMessage(Handle, CM_TERMINATE, WPARAM(not Import.Terminated), 0);
+  PostMessage(Handle, UM_TERMINATE, WPARAM(not Import.Terminated), 0);
 end;
 
 procedure TDImport.OnUpdate(const AProgressInfos: TTool.TProgressInfos);
 begin
   MoveMemory(@ProgressInfos, @AProgressInfos, SizeOf(AProgressInfos));
 
-  PostMessage(Handle, CM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos))
+  PostMessage(Handle, UM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos))
 end;
 
 procedure TDImport.ScrollBoxResize(Sender: TObject);
@@ -1892,7 +1892,7 @@ begin
 
   Success := (Answer <> IDCANCEL);
   if (not Success) then
-    SendMessage(Self.Handle, CM_TERMINATE, WPARAM(Success), 0)
+    SendMessage(Self.Handle, UM_TERMINATE, WPARAM(Success), 0)
   else
   begin
     Import.Data := (SObject is TSTable) or not (SObject is TSTable) and FData.Checked;

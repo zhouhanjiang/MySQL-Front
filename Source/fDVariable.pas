@@ -31,7 +31,7 @@ type
       var Resize: Boolean);
   private
     procedure FormSessionEvent(const Event: TSSession.TEvent);
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Session: TSSession;
     Variable: TSVariable;
@@ -55,7 +55,7 @@ begin
   if (not Assigned(FVariable)) then
   begin
     Application.CreateForm(TDVariable, FVariable);
-    FVariable.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FVariable.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FVariable;

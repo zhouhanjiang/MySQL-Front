@@ -199,7 +199,7 @@ type
     procedure FIndicesRefresh(Sender: TObject);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     procedure FPartitionsRefresh(Sender: TObject);
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Charset: string;
     Collation: string;
@@ -231,7 +231,7 @@ begin
   if (not Assigned(FTable)) then
   begin
     Application.CreateForm(TDTable, FTable);
-    FTable.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FTable.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FTable;

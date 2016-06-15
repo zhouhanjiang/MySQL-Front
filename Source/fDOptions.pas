@@ -150,7 +150,7 @@ type
     function Attribute(const Caption: string): TSynHighlighterAttributes;
     procedure FPreviewRefresh();
   protected
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Languages: array of TIniFileRecord;
     function Execute(): Boolean;
@@ -174,7 +174,7 @@ begin
   if (not Assigned(FOptions)) then
   begin
     Application.CreateForm(TDOptions, FOptions);
-    FOptions.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FOptions.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FOptions;

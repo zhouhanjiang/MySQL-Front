@@ -18,11 +18,11 @@ uses
   fDExport, fDImport, fCWorkbench;
 
 const
-  CM_ACTIVATE_DBGRID = WM_USER + 500;
-  CM_ACTIVATEFTEXT = WM_USER + 501;
-  CM_POST_BUILDER_QUERY_CHANGE = WM_USER + 502;
-  CM_POST_MONITOR = WM_USER + 503;
-  CM_WANTED_SYNCHRONIZE = WM_USER + 504;
+  UM_ACTIVATE_DBGRID = WM_USER + 500;
+  UM_ACTIVATEFTEXT = WM_USER + 501;
+  UM_POST_BUILDER_QUERY_CHANGE = WM_USER + 502;
+  UM_POST_MONITOR = WM_USER + 503;
+  UM_WANTED_SYNCHRONIZE = WM_USER + 504;
 
 const
   sbMessage = 0;
@@ -920,6 +920,7 @@ type
     procedure BeginEditLabel(Sender: TObject);
     procedure SessionUpdate(const SessionEvent: TSSession.TEvent);
     function ColumnWidthKindFromImageIndex(const AImageIndex: Integer): TADesktop.TListViewKind;
+    procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     function CreateDesktop(const CObject: TSObject): TSObject.TDesktop;
     procedure CreateExplorer();
     function CreateDBGrid(const PDBGrid: TPanel_Ext; const DataSource: TDataSource): TMySQLDBGrid;
@@ -1017,18 +1018,17 @@ type
     procedure WorkbenchExit(Sender: TObject);
     procedure WorkbenchPasteExecute(Sender: TObject);
     function WorkbenchValidateControl(Sender: TObject; Control: TWControl): Boolean;
-    procedure CMActivateDBGrid(var Message: TMessage); message CM_ACTIVATE_DBGRID;
-    procedure CMActivateFText(var Message: TMessage); message CM_ACTIVATEFTEXT;
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
-    procedure CMCloseTabQuery(var Message: TMessage); message CM_CLOSE_TAB_QUERY;
-    procedure CMExecute(var Message: TMessage); message CM_EXECUTE;
-    procedure CMFrameActivate(var Message: TMessage); message CM_ACTIVATEFRAME;
-    procedure CMFrameDeactivate(var Message: TMessage); message CM_DEACTIVATEFRAME;
-    procedure CMPostBuilderQueryChange(var Message: TMessage); message CM_POST_BUILDER_QUERY_CHANGE;
-    procedure CMPostMonitor(var Message: TMessage); message CM_POST_MONITOR;
-    procedure CMPostShow(var Message: TMessage); message CM_POST_SHOW;
-    procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
-    procedure CMWantedSynchronize(var Message: TMessage); message CM_WANTED_SYNCHRONIZE;
+    procedure UMActivateDBGrid(var Message: TMessage); message UM_ACTIVATE_DBGRID;
+    procedure UMActivateFText(var Message: TMessage); message UM_ACTIVATEFTEXT;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMCloseTabQuery(var Message: TMessage); message UM_CLOSE_TAB_QUERY;
+    procedure UMExecute(var Message: TMessage); message UM_EXECUTE;
+    procedure UMFrameActivate(var Message: TMessage); message UM_ACTIVATEFRAME;
+    procedure UMFrameDeactivate(var Message: TMessage); message UM_DEACTIVATEFRAME;
+    procedure UMPostBuilderQueryChange(var Message: TMessage); message UM_POST_BUILDER_QUERY_CHANGE;
+    procedure UMPostMonitor(var Message: TMessage); message UM_POST_MONITOR;
+    procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
+    procedure UMWantedSynchronize(var Message: TMessage); message UM_WANTED_SYNCHRONIZE;
     procedure WMNotify(var Message: TWMNotify); message WM_NOTIFY;
     procedure WMParentNotify(var Message: TWMParentNotify); message WM_PARENTNOTIFY;
     procedure WMTimer(var Message: TWMTimer); message WM_TIMER;
@@ -1915,7 +1915,7 @@ end;
 
 procedure TFSession.TWanted.Execute();
 begin
-  PostMessage(FSession.Handle, CM_WANTED_SYNCHRONIZE, 0, 0);
+  PostMessage(FSession.Handle, UM_WANTED_SYNCHRONIZE, 0, 0);
 end;
 
 function TFSession.TWanted.GetNothing(): Boolean;
@@ -2344,19 +2344,19 @@ begin
 
 
     case (View) of
-      vObjects: if (not (ttObjects in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttObjects); PostMessage(Window.Handle, CM_CHANGEPREFERENCES, 0, 0); end;
-      vBrowser: if (not (ttBrowser in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttBrowser); PostMessage(Window.Handle, CM_CHANGEPREFERENCES, 0, 0); end;
-      vIDE: if (not (ttIDE in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttIDE); PostMessage(Window.Handle, CM_CHANGEPREFERENCES, 0, 0); end;
-      vBuilder: if (not (ttBuilder in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttBuilder); PostMessage(Window.Handle, CM_CHANGEPREFERENCES, 0, 0); end;
-      vDiagram: if (not (ttDiagram in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttDiagram); PostMessage(Window.Handle, CM_CHANGEPREFERENCES, 0, 0); end;
-      vEditor: if (not (ttEditor in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttEditor); PostMessage(Window.Handle, CM_CHANGEPREFERENCES, 0, 0); end;
-      vEditor2: if (not (ttEditor2 in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttEditor2); PostMessage(Window.Handle, CM_CHANGEPREFERENCES, 0, 0); end;
-      vEditor3: if (not (ttEditor3 in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttEditor3); PostMessage(Window.Handle, CM_CHANGEPREFERENCES, 0, 0); end;
+      vObjects: if (not (ttObjects in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttObjects); PostMessage(Window.Handle, UM_CHANGEPREFERENCES, 0, 0); end;
+      vBrowser: if (not (ttBrowser in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttBrowser); PostMessage(Window.Handle, UM_CHANGEPREFERENCES, 0, 0); end;
+      vIDE: if (not (ttIDE in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttIDE); PostMessage(Window.Handle, UM_CHANGEPREFERENCES, 0, 0); end;
+      vBuilder: if (not (ttBuilder in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttBuilder); PostMessage(Window.Handle, UM_CHANGEPREFERENCES, 0, 0); end;
+      vDiagram: if (not (ttDiagram in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttDiagram); PostMessage(Window.Handle, UM_CHANGEPREFERENCES, 0, 0); end;
+      vEditor: if (not (ttEditor in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttEditor); PostMessage(Window.Handle, UM_CHANGEPREFERENCES, 0, 0); end;
+      vEditor2: if (not (ttEditor2 in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttEditor2); PostMessage(Window.Handle, UM_CHANGEPREFERENCES, 0, 0); end;
+      vEditor3: if (not (ttEditor3 in Preferences.ToolbarTabs)) then begin Include(Preferences.ToolbarTabs, ttEditor3); PostMessage(Window.Handle, UM_CHANGEPREFERENCES, 0, 0); end;
     end;
 
     ToolBarData.Caption := AddressToCaption(Address);
     ToolBarData.View := View;
-    Window.Perform(CM_UPDATETOOLBAR, 0, LPARAM(Self));
+    Window.Perform(UM_UPDATETOOLBAR, 0, LPARAM(Self));
 
     if (Assigned(FNavigator.Selected) and (FNavigator.Selected <> LastFNavigatorSelected)) then
     begin
@@ -3614,7 +3614,7 @@ begin
 
   if (View = vDiagram) then
     OpenDiagram()
-  else if (Boolean(Perform(CM_CLOSE_TAB_QUERY, 0, 0))) then
+  else if (Boolean(Perform(UM_CLOSE_TAB_QUERY, 0, 0))) then
     OpenSQLFile('');
 end;
 
@@ -4209,7 +4209,7 @@ begin
     SLog.Top := 0;
     SLog.Align := alBottom;
 
-    Perform(CM_POST_MONITOR, 0, 0);
+    Perform(UM_POST_MONITOR, 0, 0);
   end
   else
     SendMessage(FLog.Handle, WM_SETTEXT, 0, 0);
@@ -4349,13 +4349,13 @@ begin
     Wanted.Update := Session.Update;
 end;
 
-procedure TFSession.CMActivateDBGrid(var Message: TMessage);
+procedure TFSession.UMActivateDBGrid(var Message: TMessage);
 begin
   Window.ActiveControl := TWinControl(Message.LParam);
   ActiveDBGrid.EditorMode := False;
 end;
 
-procedure TFSession.CMActivateFText(var Message: TMessage);
+procedure TFSession.UMActivateFText(var Message: TMessage);
 const
   KEYEVENTF_UNICODE = 4;
 var
@@ -4373,7 +4373,7 @@ begin
   FText.SelStart := Length(FText.Text);
 end;
 
-procedure TFSession.CMChangePreferences(var Message: TMessage);
+procedure TFSession.UMChangePreferences(var Message: TMessage);
 var
   I: Integer;
 begin
@@ -4584,7 +4584,7 @@ begin
   PasteMode := False;
 end;
 
-procedure TFSession.CMCloseTabQuery(var Message: TMessage);
+procedure TFSession.UMCloseTabQuery(var Message: TMessage);
 var
   CanClose: Boolean;
   Node: TTreeNode;
@@ -4625,14 +4625,14 @@ begin
     Message.Result := 1;
 end;
 
-procedure TFSession.CMExecute(var Message: TMessage);
+procedure TFSession.UMExecute(var Message: TMessage);
 begin
   MainAction('aDRun').Execute();
 
   Window.Close();
 end;
 
-procedure TFSession.CMFrameActivate(var Message: TMessage);
+procedure TFSession.UMFrameActivate(var Message: TMessage);
 begin
   Include(FrameState, tsActive);
 
@@ -4789,7 +4789,7 @@ begin
     StatusBarRefresh(True);
 end;
 
-procedure TFSession.CMFrameDeactivate(var Message: TMessage);
+procedure TFSession.UMFrameDeactivate(var Message: TMessage);
 begin
   KillTimer(Handle, tiNavigator);
   KillTimer(Handle, tiStatusBar);
@@ -4833,12 +4833,12 @@ begin
   Include(FrameState, tsActive);
 end;
 
-procedure TFSession.CMPostBuilderQueryChange(var Message: TMessage);
+procedure TFSession.UMPostBuilderQueryChange(var Message: TMessage);
 begin
   FQueryBuilderEditorPageControlCheckStyle();
 end;
 
-procedure TFSession.CMPostMonitor(var Message: TMessage);
+procedure TFSession.UMPostMonitor(var Message: TMessage);
 var
   Text: string;
 begin
@@ -4851,7 +4851,7 @@ begin
   end;
 end;
 
-procedure TFSession.CMPostShow(var Message: TMessage);
+procedure TFSession.UMPostShow(var Message: TMessage);
 var
   Node: TTreeNode;
   URI: TUURI;
@@ -4889,7 +4889,7 @@ begin
 
   FormResize(nil);
 
-  Perform(CM_ACTIVATEFRAME, 0, 0);
+  Perform(UM_ACTIVATEFRAME, 0, 0);
 
 
   Node := FNavigator.Items.Add(nil, Session.Caption);
@@ -4952,104 +4952,7 @@ begin
     Address := Session.Account.Desktop.Address;
 end;
 
-procedure TFSession.CMSysFontChanged(var Message: TMessage);
-var
-  Color: TColor;
-  LogFont: TLogFont;
-  NonClientMetrics: TNonClientMetrics;
-begin
-  inherited;
-
-  Font := Window.Font;
-
-  ToolBar.AutoSize := False;
-  ToolBar.ButtonHeight := Max(ToolBar.Images.Height + 6, ToolBar.Canvas.TextHeight('I') + 10);
-  ToolBar.ButtonWidth := ToolBar.Images.Width + 7;
-  ToolBar.AutoSize := True;
-
-  TBSideBar.Left := 0;
-  TBSideBar.Top := 0;
-  TBSideBar.ButtonHeight := ToolBar.ButtonHeight;
-
-  PView.ClientHeight := ToolBar.Height + 1;
-  if (not StyleServices.Enabled or not StyleServices.GetElementColor(StyleServices.GetElementDetails(ttTopTabItemSelected), ecGlowColor, Color)) then
-    PView.Color := clBtnFace
-  else
-    PView.Color := Color;
-
-  if (not StyleServices.Enabled or not StyleServices.GetElementColor(StyleServices.GetElementDetails(tebNormalGroupHead),
-    ecGradientColor2, Color)) then
-  begin
-    SplitColor := clBtnFace;
-    SSideBar.Color := clBtnFace;
-  end
-  else
-  begin
-    SplitColor := Color;
-    SSideBar.Color := clWindow;
-    SSideBar.ActiveBorderColor := Color;
-    SLog.ActiveBorderColor := Color;
-    SExplorer.ActiveBorderColor := Color;
-    SResult.ActiveBorderColor := Color;
-    SBlob.ActiveBorderColor := Color;
-    SBuilderQuery.ActiveBorderColor := Color;
-  end;
-
-  PResultHeader.Width := CloseButton.Bitmap.Width + 2 * GetSystemMetrics(SM_CXEDGE);
-  PLogHeader.Width := CloseButton.Bitmap.Width + 2 * GetSystemMetrics(SM_CXEDGE);
-
-  if (Assigned(ActiveDBGrid) and (ActiveDBGrid.DataSource.DataSet is TMySQLDataSet)) then
-    SBResultRefresh(TMySQLDataSet(ActiveDBGrid.DataSource.DataSet));
-
-  FormResize(nil);
-
-  PDataBrowserSpacer.Top := FFilter.Height;
-  PDataBrowser.ClientHeight := FFilter.Height + PDataBrowserSpacer.Height;
-
-  FSQLEditorSynMemo.Font.Name := Preferences.SQLFontName;
-  FSQLEditorSynMemo.Font.Style := Preferences.SQLFontStyle;
-  FSQLEditorSynMemo.Font.Color := Preferences.SQLFontColor;
-  FSQLEditorSynMemo.Font.Size := Preferences.SQLFontSize;
-  FSQLEditorSynMemo.Font.Charset := Preferences.SQLFontCharset;
-  FSQLEditorSynMemo.Gutter.Font := FSQLEditorSynMemo.Font;
-  if (Preferences.Editor.LineNumbersForeground = clNone) then
-    FSQLEditorSynMemo.Gutter.Font.Color := clWindowText
-  else
-    FSQLEditorSynMemo.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
-
-  FText.Font.Name := Preferences.GridFontName;
-  FText.Font.Style := Preferences.GridFontStyle;
-  FText.Font.Color := Preferences.GridFontColor;
-  FText.Font.Size := Preferences.GridFontSize;
-  FText.Font.Charset := Preferences.GridFontCharset;
-  NonClientMetrics.cbSize := SizeOf(NonClientMetrics);
-  if (SystemParametersInfo(SPI_GETNONCLIENTMETRICS, SizeOf(NonClientMetrics), @NonClientMetrics, 0)
-    and (GetObject(FText.Font.Handle, SizeOf(LogFont), @LogFont) <> 0)) then
-  begin
-    LogFont.lfQuality  := NonClientMetrics.lfMessageFont.lfQuality;
-    FText.Font.Handle := CreateFontIndirect(LogFont);
-  end;
-  FText.WantTabs := Preferences.Editor.TabAccepted;
-
-  FRTF.Font := FText.Font;
-
-  FHexEditor.Font := FSQLEditorSynMemo.Font;
-  if (Preferences.Editor.LineNumbersForeground = clNone) then
-    FHexEditor.Colors.Offset := clWindowText
-  else
-    FHexEditor.Colors.Offset := Preferences.Editor.LineNumbersForeground;
-  if (Preferences.Editor.LineNumbersBackground = clNone) then
-    FHexEditor.Colors.OffsetBackground := clBtnFace
-  else
-    FHexEditor.Colors.OffsetBackground := Preferences.Editor.LineNumbersBackground;
-
-  SBResult.ClientHeight := SBResult.Canvas.TextHeight('I') + 5;
-
-  SendMessage(FLog.Handle, EM_SETTEXTMODE, TM_PLAINTEXT, 0);
-  SendMessage(FLog.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
-end;
-
-procedure TFSession.CMWantedSynchronize(var Message: TMessage);
+procedure TFSession.UMWantedSynchronize(var Message: TMessage);
 begin
   if (not (csDestroying in ComponentState)) then
     Wanted.Synchronize();
@@ -5396,7 +5299,7 @@ begin
 
   FOffset.Constraints.MaxWidth := FOffset.Width;
 
-  Perform(CM_CHANGEPREFERENCES, 0, 0);
+  Perform(UM_CHANGEPREFERENCES, 0, 0);
   Window.Perform(CM_SYSFONTCHANGED, 0, 0);
 
   NonClientMetrics.cbSize := SizeOf(NonClientMetrics);
@@ -5404,7 +5307,104 @@ begin
     Window.ApplyWinAPIUpdates(Self, NonClientMetrics.lfStatusFont);
 
 
-  PostMessage(Handle, CM_POST_SHOW, 0, 0);
+  PostMessage(Handle, UM_POST_SHOW, 0, 0);
+end;
+
+procedure TFSession.CMSysFontChanged(var Message: TMessage);
+var
+  Color: TColor;
+  LogFont: TLogFont;
+  NonClientMetrics: TNonClientMetrics;
+begin
+  inherited;
+
+  Font := Window.Font;
+
+  ToolBar.AutoSize := False;
+  ToolBar.ButtonHeight := Max(ToolBar.Images.Height + 6, ToolBar.Canvas.TextHeight('I') + 10);
+  ToolBar.ButtonWidth := ToolBar.Images.Width + 7;
+  ToolBar.AutoSize := True;
+
+  TBSideBar.Left := 0;
+  TBSideBar.Top := 0;
+  TBSideBar.ButtonHeight := ToolBar.ButtonHeight;
+
+  PView.ClientHeight := ToolBar.Height + 1;
+  if (not StyleServices.Enabled or not StyleServices.GetElementColor(StyleServices.GetElementDetails(ttTopTabItemSelected), ecGlowColor, Color)) then
+    PView.Color := clBtnFace
+  else
+    PView.Color := Color;
+
+  if (not StyleServices.Enabled or not StyleServices.GetElementColor(StyleServices.GetElementDetails(tebNormalGroupHead),
+    ecGradientColor2, Color)) then
+  begin
+    SplitColor := clBtnFace;
+    SSideBar.Color := clBtnFace;
+  end
+  else
+  begin
+    SplitColor := Color;
+    SSideBar.Color := clWindow;
+    SSideBar.ActiveBorderColor := Color;
+    SLog.ActiveBorderColor := Color;
+    SExplorer.ActiveBorderColor := Color;
+    SResult.ActiveBorderColor := Color;
+    SBlob.ActiveBorderColor := Color;
+    SBuilderQuery.ActiveBorderColor := Color;
+  end;
+
+  PResultHeader.Width := CloseButton.Bitmap.Width + 2 * GetSystemMetrics(SM_CXEDGE);
+  PLogHeader.Width := CloseButton.Bitmap.Width + 2 * GetSystemMetrics(SM_CXEDGE);
+
+  if (Assigned(ActiveDBGrid) and (ActiveDBGrid.DataSource.DataSet is TMySQLDataSet)) then
+    SBResultRefresh(TMySQLDataSet(ActiveDBGrid.DataSource.DataSet));
+
+  FormResize(nil);
+
+  PDataBrowserSpacer.Top := FFilter.Height;
+  PDataBrowser.ClientHeight := FFilter.Height + PDataBrowserSpacer.Height;
+
+  FSQLEditorSynMemo.Font.Name := Preferences.SQLFontName;
+  FSQLEditorSynMemo.Font.Style := Preferences.SQLFontStyle;
+  FSQLEditorSynMemo.Font.Color := Preferences.SQLFontColor;
+  FSQLEditorSynMemo.Font.Size := Preferences.SQLFontSize;
+  FSQLEditorSynMemo.Font.Charset := Preferences.SQLFontCharset;
+  FSQLEditorSynMemo.Gutter.Font := FSQLEditorSynMemo.Font;
+  if (Preferences.Editor.LineNumbersForeground = clNone) then
+    FSQLEditorSynMemo.Gutter.Font.Color := clWindowText
+  else
+    FSQLEditorSynMemo.Gutter.Font.Color := Preferences.Editor.LineNumbersForeground;
+
+  FText.Font.Name := Preferences.GridFontName;
+  FText.Font.Style := Preferences.GridFontStyle;
+  FText.Font.Color := Preferences.GridFontColor;
+  FText.Font.Size := Preferences.GridFontSize;
+  FText.Font.Charset := Preferences.GridFontCharset;
+  NonClientMetrics.cbSize := SizeOf(NonClientMetrics);
+  if (SystemParametersInfo(SPI_GETNONCLIENTMETRICS, SizeOf(NonClientMetrics), @NonClientMetrics, 0)
+    and (GetObject(FText.Font.Handle, SizeOf(LogFont), @LogFont) <> 0)) then
+  begin
+    LogFont.lfQuality  := NonClientMetrics.lfMessageFont.lfQuality;
+    FText.Font.Handle := CreateFontIndirect(LogFont);
+  end;
+  FText.WantTabs := Preferences.Editor.TabAccepted;
+
+  FRTF.Font := FText.Font;
+
+  FHexEditor.Font := FSQLEditorSynMemo.Font;
+  if (Preferences.Editor.LineNumbersForeground = clNone) then
+    FHexEditor.Colors.Offset := clWindowText
+  else
+    FHexEditor.Colors.Offset := Preferences.Editor.LineNumbersForeground;
+  if (Preferences.Editor.LineNumbersBackground = clNone) then
+    FHexEditor.Colors.OffsetBackground := clBtnFace
+  else
+    FHexEditor.Colors.OffsetBackground := Preferences.Editor.LineNumbersBackground;
+
+  SBResult.ClientHeight := SBResult.Canvas.TextHeight('I') + 5;
+
+  SendMessage(FLog.Handle, EM_SETTEXTMODE, TM_PLAINTEXT, 0);
+  SendMessage(FLog.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
 end;
 
 function TFSession.CreateDesktop(const CObject: TSObject): TSObject.TDesktop;
@@ -6384,12 +6384,12 @@ begin
       if (Key = VK_RETURN) then
       begin
         SendMessage(FText.Handle, WM_VSCROLL, SB_BOTTOM, 0);
-        PostMessage(Handle, CM_ACTIVATEFTEXT, 0, 0);
+        PostMessage(Handle, UM_ACTIVATEFTEXT, 0, 0);
       end
       else if (Key = VK_DELETE) then
         SendMessage(FText.Handle, WM_CLEAR, 0, 0)
       else
-        PostMessage(Handle, CM_ACTIVATEFTEXT, Key, 0);
+        PostMessage(Handle, UM_ACTIVATEFTEXT, Key, 0);
 
       Key := 0;
     end;
@@ -7942,7 +7942,7 @@ begin
   miNProperties.ShortCut := ShortCut(VK_RETURN, [ssAlt]);
 
   ToolBarData.tbPropertiesAction := miNProperties.Action;
-  Window.Perform(CM_UPDATETOOLBAR, 0, LPARAM(Self));
+  Window.Perform(UM_UPDATETOOLBAR, 0, LPARAM(Self));
 
   ShowEnabledItems(MNavigator.Items);
 
@@ -8021,7 +8021,7 @@ begin
       etItemDropped:
         SessionUpdate(Event);
       etMonitor:
-        Perform(CM_POST_MONITOR, 0, 0);
+        Perform(UM_POST_MONITOR, 0, 0);
       etBeforeExecuteSQL:
         BeforeExecuteSQL(Event);
       etAfterExecuteSQL:
@@ -8148,7 +8148,7 @@ begin
   FQueryBuilder.Enabled := True;
   try
     FQueryBuilder.SQL := FQueryBuilderSynMemo.Lines.Text;
-    PostMessage(Handle, CM_POST_BUILDER_QUERY_CHANGE, 0, 0);
+    PostMessage(Handle, UM_POST_BUILDER_QUERY_CHANGE, 0, 0);
 
     FQueryBuilderEditorPageControlCheckStyle();
 
@@ -10838,7 +10838,7 @@ begin
     mlEProperties.ShortCut := ShortCut(VK_RETURN, [ssAlt]);
 
     ToolBarData.tbPropertiesAction := mlEProperties.Action;
-    Window.Perform(CM_UPDATETOOLBAR, 0, LPARAM(Self));
+    Window.Perform(UM_UPDATETOOLBAR, 0, LPARAM(Self));
 
     ShowEnabledItems(MList.Items);
 
@@ -10956,7 +10956,7 @@ begin
   begin
     View := vEditor;
 
-    if (Boolean(Perform(CM_CLOSE_TAB_QUERY, 0, 0))) then
+    if (Boolean(Perform(UM_CLOSE_TAB_QUERY, 0, 0))) then
       OpenSQLFile(FFolders.SelectedFolder + PathDelim + FFiles.Selected.Caption);
   end
   else
@@ -11160,7 +11160,7 @@ begin
   Wanted.Clear();
 
   if (Assigned(FSQLHistoryMenuNode) and (FSQLHistoryMenuNode.ImageIndex in [iiStatement, iiQuery, iiClock])
-    and Boolean(Perform(CM_CLOSE_TAB_QUERY, 0, 0))) then
+    and Boolean(Perform(UM_CLOSE_TAB_QUERY, 0, 0))) then
   begin
     if (not (View in [vEditor, vEditor2, vEditor3])) then
       View := vEditor;
@@ -11703,7 +11703,7 @@ begin
   end;
 
   if (not OpenNewWindow) then
-    Window.Perform(CM_ADDTAB, 0, LPARAM(PChar(string(URI.Address))))
+    Window.Perform(UM_ADDTAB, 0, LPARAM(PChar(string(URI.Address))))
   else
     ShellExecute(Application.Handle, 'open', PChar(TFileName(Application.ExeName)), PChar(URI.Address), '', SW_SHOW);
 
@@ -11811,14 +11811,14 @@ begin
           AddressChanged(nil);
           URI.Free();
           Session.Account.Desktop.Files.Add(SQLEditors[View].Filename, SQLEditors[View].FileCodePage);
-          Window.Perform(CM_UPDATETOOLBAR, 0, LPARAM(Self));
+          Window.Perform(UM_UPDATETOOLBAR, 0, LPARAM(Self));
         end;
         if (Length(ActiveSynMemo.Lines.Text) < LargeSQLScriptSize) then
           ActiveSynMemo.Options := ActiveSynMemo.Options - [eoScrollPastEol];  // Slow down the performance on large content
         ActiveSynMemo.ClearUndo();
         ActiveSynMemo.Modified := Import.SetNamesApplied;
 
-        Window.Perform(CM_UPDATETOOLBAR, 0, LPARAM(Self));
+        Window.Perform(UM_UPDATETOOLBAR, 0, LPARAM(Self));
       end;
 
       Import.Free();
@@ -12924,7 +12924,7 @@ begin
         AddressChanged(nil);
         URI.Free();
         Session.Account.Desktop.Files.Add(SQLEditors[View].Filename, SQLEditors[View].FileCodePage);
-        Window.Perform(CM_UPDATETOOLBAR, 0, LPARAM(Self));
+        Window.Perform(UM_UPDATETOOLBAR, 0, LPARAM(Self));
       end;
 
       CloseHandle(Handle);
@@ -13295,7 +13295,7 @@ begin
   Flags := MB_CANCELTRYCONTINUE + MB_ICONERROR;
   case (MsgBox(Msg, Preferences.LoadStr(45), Flags, Handle)) of
     IDCANCEL,
-    IDABORT: begin Action := daAbort; PostMessage(Handle, CM_ACTIVATE_DBGRID, 0, LPARAM(ActiveDBGrid)); end;
+    IDABORT: begin Action := daAbort; PostMessage(Handle, UM_ACTIVATE_DBGRID, 0, LPARAM(ActiveDBGrid)); end;
     IDRETRY,
     IDTRYAGAIN: Action := daRetry;
     IDCONTINUE,
@@ -13689,7 +13689,7 @@ begin
     else
       Include(Preferences.ToolbarTabs, ttEditor3);
 
-  PostMessage(Handle, CM_CHANGEPREFERENCES, 0, 0);
+  PostMessage(Handle, UM_CHANGEPREFERENCES, 0, 0);
 end;
 
 procedure TFSession.ToolButtonStyleClick(Sender: TObject);

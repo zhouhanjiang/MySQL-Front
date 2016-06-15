@@ -58,7 +58,7 @@ type
     procedure FHostChange(Sender: TObject);
   private
     function CheckConnectInfos(): Boolean;
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
   public
     Password: string;
@@ -90,7 +90,7 @@ begin
   if (not Assigned(FAccount)) then
   begin
     Application.CreateForm(TDAccount, FAccount);
-    FAccount.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FAccount.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FAccount;

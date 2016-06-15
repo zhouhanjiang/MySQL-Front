@@ -20,7 +20,7 @@ type
     procedure FFieldDrawItem(Control: TWinControl; Index: Integer; Rect: TRect;
       State: TOwnerDrawState);
   protected
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Captions: string;
     DBGrid: TDBGrid;
@@ -45,7 +45,7 @@ begin
   if (not Assigned(FGoto)) then
   begin
     Application.CreateForm(TDGoto, FGoto);
-    FGoto.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FGoto.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FGoto;

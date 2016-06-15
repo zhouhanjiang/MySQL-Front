@@ -15,8 +15,8 @@ type
     procedure AfterConnect(Sender: TObject);
     procedure FBCancelClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
-    procedure CMPostShow(var Message: TMessage); message CM_POST_SHOW;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure CMPostShow(var Message: TMessage); message UM_POST_SHOW;
     procedure FormHide(Sender: TObject);
   public
     Session: TSSession;
@@ -42,7 +42,7 @@ begin
   if (not Assigned(FConnecting)) then
   begin
     Application.CreateForm(TDConnecting, FConnecting);
-    FConnecting.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FConnecting.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FConnecting;
@@ -55,7 +55,7 @@ begin
   if (Session.Connection.Connected) then
     ModalResult := mrOk
   else if (((Session.Connection.ErrorCode = ER_ACCESS_DENIED_ERROR) or (Session.Connection.ErrorCode = ER_DBACCESS_DENIED_ERROR)) and Accounts.DBLogin(Session.Account)) then
-    PostMessage(Handle, CM_POST_SHOW, 0, 0)
+    PostMessage(Handle, UM_POST_SHOW, 0, 0)
   else
     ModalResult := mrCancel;
 end;
@@ -96,7 +96,7 @@ begin
 
   Session.Connection.AfterConnect := AfterConnect;
 
-  PostMessage(Handle, CM_POST_SHOW, 0, 0);
+  PostMessage(Handle, UM_POST_SHOW, 0, 0);
 end;
 
 initialization

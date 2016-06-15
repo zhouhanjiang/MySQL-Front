@@ -118,7 +118,7 @@ type
     function IsIntType(): Boolean;
     function IsMemoType(): Boolean;
     function IsUnionType(): Boolean;
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Database: TSDatabase;
     Field: TSBaseTableField;
@@ -145,7 +145,7 @@ begin
   if (not Assigned(FField)) then
   begin
     Application.CreateForm(TDField, FField);
-    FField.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FField.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FField;

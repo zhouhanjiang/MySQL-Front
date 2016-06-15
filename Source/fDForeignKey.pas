@@ -50,7 +50,7 @@ type
     function GetParentTable(): TSBaseTable;
     property SelectedParentDatabase: TSDatabase read GetParentDatabase;
     property SelectedParentTable: TSBaseTable read GetParentTable;
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Database: TSDatabase;
     ForeignKey: TSForeignKey;
@@ -77,7 +77,7 @@ begin
   if (not Assigned(FForeignKey)) then
   begin
     Application.CreateForm(TDForeignKey, FForeignKey);
-    FForeignKey.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FForeignKey.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FForeignKey;

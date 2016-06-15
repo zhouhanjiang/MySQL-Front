@@ -17,7 +17,7 @@ type
     procedure FormHide(Sender: TObject);
     procedure FormShow(Sender: TObject);
   protected
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Data: Boolean;
     Structure: Boolean;
@@ -42,7 +42,7 @@ begin
   if (not Assigned(FPaste)) then
   begin
     Application.CreateForm(TDPaste, FPaste);
-    FPaste.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FPaste.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FPaste;

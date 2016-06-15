@@ -50,7 +50,7 @@ type
     procedure FormHide(Sender: TObject);
     procedure FormShow(Sender: TObject);
   protected
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     DatabaseName: string;
     DateTime: TDateTime;
@@ -83,7 +83,7 @@ begin
   if (not Assigned(FStatement)) then
   begin
     Application.CreateForm(TDStatement, FStatement);
-    FStatement.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FStatement.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FStatement;

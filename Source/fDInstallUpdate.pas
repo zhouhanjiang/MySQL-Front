@@ -9,9 +9,9 @@ uses
   fBase;
 
 const
-  CM_PAD_FILE_RECEIVED = WM_USER + 200;
-  CM_PROGRAM_FILE_RECEIVED = WM_USER + 202;
-  CM_UPDATE_PROGRESSBAR = WM_USER + 203;
+  UM_PAD_FILE_RECEIVED = WM_USER + 200;
+  UM_PROGRAM_FILE_RECEIVED = WM_USER + 202;
+  UM_UPDATE_PROGRESSBAR = WM_USER + 203;
 
 type
   THTTPThread = class (TThread)
@@ -67,10 +67,10 @@ type
     HTTPThread: THTTPMessagedThread;
     PAD_Stream: TStringStream;
     SetupPrgFilename: TFileName;
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
-    procedure CMPADFileReceived(var Message: TMessage); message CM_PAD_FILE_RECEIVED;
-    procedure CMProgramFileReceived(var Message: TMessage); message CM_PROGRAM_FILE_RECEIVED;
-    procedure CMUpdateProgressBarReceived(var Message: TMessage); message CM_UPDATE_PROGRESSBAR;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure CMPADFileReceived(var Message: TMessage); message UM_PAD_FILE_RECEIVED;
+    procedure CMProgramFileReceived(var Message: TMessage); message UM_PROGRAM_FILE_RECEIVED;
+    procedure CMUpdateProgressBarReceived(var Message: TMessage); message UM_UPDATE_PROGRESSBAR;
   public
     function Execute(): Boolean;
   end;
@@ -102,7 +102,7 @@ begin
   if (not Assigned(FInstallUpdate)) then
   begin
     Application.CreateForm(TDInstallUpdate, FInstallUpdate);
-    FInstallUpdate.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FInstallUpdate.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FInstallUpdate;
@@ -270,7 +270,7 @@ begin
               if (Success and (Size > 0)) then
                 Stream.Write(Buffer^, Size);
 
-              PostMessage(Wnd, CM_UPDATE_PROGRESSBAR, Stream.Size, FSize);
+              PostMessage(Wnd, UM_UPDATE_PROGRESSBAR, Stream.Size, FSize);
             until (Terminated or (Success and (Size = 0)));
 
             FSize := Stream.Size;
@@ -383,7 +383,7 @@ begin
   HTTPThread.WaitFor();
   FreeAndNil(HTTPThread);
 
-  SendMessage(Handle, CM_UPDATE_PROGRESSBAR, PAD_Stream.Position, PAD_Stream.Size);
+  SendMessage(Handle, UM_UPDATE_PROGRESSBAR, PAD_Stream.Position, PAD_Stream.Size);
 
   if (not CheckActualVersion(PAD_Stream, Version, UpdateAvailable, EXE_URI)) then
   begin
@@ -402,7 +402,7 @@ begin
     end
     else
     begin
-      SendMessage(Handle, CM_UPDATE_PROGRESSBAR, 0, 0);
+      SendMessage(Handle, UM_UPDATE_PROGRESSBAR, 0, 0);
 
       FBOk.Enabled := True;
       FBCancel.OnClick := nil;
@@ -416,7 +416,7 @@ begin
   HTTPThread.WaitFor();
   FreeAndNil(HTTPThread);
 
-  SendMessage(Handle, CM_UPDATE_PROGRESSBAR, EXE_Stream.Position, EXE_Stream.Size);
+  SendMessage(Handle, UM_UPDATE_PROGRESSBAR, EXE_Stream.Position, EXE_Stream.Size);
 
   FProgram.Caption := Preferences.LoadStr(665) + ': ' + Preferences.LoadStr(138);
   FBCancel.OnClick := nil;
@@ -491,9 +491,9 @@ begin
     HTTPThread.URI := PChar(EXE_URI);
     HTTPThread.Stream := EXE_Stream;
     HTTPThread.Wnd := Handle;
-    HTTPThread.SuccessMessage := CM_PROGRAM_FILE_RECEIVED;
+    HTTPThread.SuccessMessage := UM_PROGRAM_FILE_RECEIVED;
 
-    SendMessage(Handle, CM_UPDATE_PROGRESSBAR, 2, 100);
+    SendMessage(Handle, UM_UPDATE_PROGRESSBAR, 2, 100);
 
     HTTPThread.Start();
   end;
@@ -527,7 +527,7 @@ begin
   FProgram.Caption := Preferences.LoadStr(665);
   FProgram.Enabled := False;
 
-  SendMessage(Handle, CM_UPDATE_PROGRESSBAR, 0, 100);
+  SendMessage(Handle, UM_UPDATE_PROGRESSBAR, 0, 100);
 
   PAD_Stream := TStringStream.Create('');
   EXE_Stream := nil;
@@ -541,9 +541,9 @@ begin
   HTTPThread.URI := SysUtils.LoadStr(1005);
   HTTPThread.Stream := PAD_Stream;
   HTTPThread.Wnd := Handle;
-  HTTPThread.SuccessMessage := CM_PAD_FILE_RECEIVED;
+  HTTPThread.SuccessMessage := UM_PAD_FILE_RECEIVED;
 
-  SendMessage(Handle, CM_UPDATE_PROGRESSBAR, 10, 100);
+  SendMessage(Handle, UM_UPDATE_PROGRESSBAR, 10, 100);
 
   HTTPThread.Start();
 end;

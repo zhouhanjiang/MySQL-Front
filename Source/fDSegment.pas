@@ -25,7 +25,7 @@ type
     procedure FormShow(Sender: TObject);
     procedure PColorClick(Sender: TObject);
   private
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Section: TWSection;
     function Execute(): Boolean;
@@ -48,7 +48,7 @@ begin
   if (not Assigned(FSegment)) then
   begin
     Application.CreateForm(TDSegment, FSegment);
-    FSegment.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FSegment.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FSegment;

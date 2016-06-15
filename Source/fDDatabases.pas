@@ -27,7 +27,7 @@ type
     procedure FBOkCheckEnabled(Sender: TObject);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
   protected
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Session: TSSession;
     SelectedDatabases: string;
@@ -54,7 +54,7 @@ begin
   if (not Assigned(FDatabases)) then
   begin
     Application.CreateForm(TDDatabases, FDatabases);
-    FDatabases.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FDatabases.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FDatabases;

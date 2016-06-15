@@ -23,7 +23,7 @@ type
       Data: Integer; var Compare: Integer);
     procedure FSelectionDblClick(Sender: TObject);
   protected
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Selected: string;
     Values: array of string;
@@ -49,7 +49,7 @@ begin
   if (not Assigned(FSelection)) then
   begin
     Application.CreateForm(TDSelection, FSelection);
-    FSelection.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FSelection.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FSelection;

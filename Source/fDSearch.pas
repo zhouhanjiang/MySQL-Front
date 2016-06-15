@@ -111,9 +111,9 @@ type
     procedure OnSearched(const AItem: TTSearch.TItem);
     procedure OnTerminate(Sender: TObject);
     procedure OnUpdate(const AProgressInfos: TTool.TProgressInfos);
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
-    procedure CMTerminate(var Message: TMessage); message CM_TERMINATE;
-    procedure CMUpdateProgressInfo(var Message: TMessage); message CM_UPDATEPROGRESSINFO;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure CMTerminate(var Message: TMessage); message UM_TERMINATE;
+    procedure CMUpdateProgressInfo(var Message: TMessage); message UM_UPDATEPROGRESSINFO;
   public
     Session: TSSession;
     DatabaseName: string;
@@ -144,7 +144,7 @@ begin
   if (not Assigned(FSearch)) then
   begin
     Application.CreateForm(TDSearch, FSearch);
-    FSearch.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FSearch.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FSearch;
@@ -715,7 +715,7 @@ begin
     if (Assigned(ViewFrame)) then
       ViewFrame.Address := URI.Address
     else
-      Result := Boolean(SendMessage(Application.MainForm.Handle, CM_ADDTAB, 0, LPARAM(URI.Address)));
+      Result := Boolean(SendMessage(Application.MainForm.Handle, UM_ADDTAB, 0, LPARAM(URI.Address)));
 
     URI.Free();
 
@@ -843,14 +843,14 @@ end;
 
 procedure TDSearch.OnTerminate(Sender: TObject);
 begin
-  PostMessage(Handle, CM_TERMINATE, WPARAM(not Search.Terminated), 0);
+  PostMessage(Handle, UM_TERMINATE, WPARAM(not Search.Terminated), 0);
 end;
 
 procedure TDSearch.OnUpdate(const AProgressInfos: TTool.TProgressInfos);
 begin
   MoveMemory(@ProgressInfos, @AProgressInfos, SizeOf(AProgressInfos));
 
-  PostMessage(Handle, CM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos))
+  PostMessage(Handle, UM_UPDATEPROGRESSINFO, 0, LPARAM(@ProgressInfos))
 end;
 
 procedure TDSearch.TSExecuteShow(Sender: TObject);

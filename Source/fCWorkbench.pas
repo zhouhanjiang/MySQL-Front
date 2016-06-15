@@ -8,7 +8,7 @@ uses
   fSession;
 
 const
-  CM_ENDLASSO = WM_USER + 400;
+  UM_ENDLASSO = WM_USER + 400;
 
 type
   TWLinkLine = class;
@@ -327,7 +327,7 @@ type
     procedure SetMultiSelect(AMultiSelect: Boolean);
     procedure SetSelected(ASelected: TWControl);
     procedure SetTableFocused(ATableFocused: TWTable);
-    procedure CMEndLasso(var Message: TMessage); message CM_ENDLASSO;
+    procedure CMEndLasso(var Message: TMessage); message UM_ENDLASSO;
   protected
     FModified: Boolean;
     State: TState;
@@ -3211,7 +3211,7 @@ end;
 
 procedure TWLasso.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
-  PostMessage(Workbench.Handle, CM_ENDLASSO, 0, 0);
+  PostMessage(Workbench.Handle, UM_ENDLASSO, 0, 0);
 end;
 
 procedure TWLasso.PaintTo(const Canvas: TCanvas; const X, Y: Integer);
@@ -3526,7 +3526,7 @@ end;
 procedure TWWorkbench.KeyPress(var Key: Char);
 begin
   if ((Key = Chr(VK_ESCAPE)) and Assigned(Lasso)) then
-    Perform(CM_ENDLASSO, 0, 0)
+    Perform(UM_ENDLASSO, 0, 0)
   else if ((Key = Chr(VK_ESCAPE)) and Assigned(Selected) and Assigned(CreatedLink)) then
     FreeAndNil(CreatedLink)
   else if ((Key = Chr(VK_ESCAPE)) and (Selected is TWSection) and (TWSection(Selected).ResizeMode = rmCreate)) then

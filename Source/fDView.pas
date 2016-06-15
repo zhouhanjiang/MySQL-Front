@@ -77,7 +77,7 @@ type
     procedure Built();
     procedure FBOkCheckEnabled(Sender: TObject);
     procedure FormSessionEvent(const Event: TSSession.TEvent);
-    procedure CMChangePreferences(var Message: TMessage); message CM_CHANGEPREFERENCES;
+    procedure CMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Database: TSDatabase;
     View: TSView;
@@ -102,7 +102,7 @@ begin
   if (not Assigned(FView)) then
   begin
     Application.CreateForm(TDView, FView);
-    FView.Perform(CM_CHANGEPREFERENCES, 0, 0);
+    FView.Perform(UM_CHANGEPREFERENCES, 0, 0);
   end;
 
   Result := FView;
