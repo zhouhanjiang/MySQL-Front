@@ -327,7 +327,7 @@ type
     procedure SetMultiSelect(AMultiSelect: Boolean);
     procedure SetSelected(ASelected: TWControl);
     procedure SetTableFocused(ATableFocused: TWTable);
-    procedure CMEndLasso(var Message: TMessage); message UM_ENDLASSO;
+    procedure UMEndLasso(var Message: TMessage); message UM_ENDLASSO;
   protected
     FModified: Boolean;
     State: TState;
@@ -3336,11 +3336,6 @@ begin
   EndUpdate();
 end;
 
-procedure TWWorkbench.CMEndLasso(var Message: TMessage);
-begin
-  FreeAndNil(Lasso);
-end;
-
 constructor TWWorkbench.Create(AOwner: TComponent);
 begin
   inherited;
@@ -3979,6 +3974,11 @@ begin
   for I := 0 to Tables.Count - 1 do
     if (Database.Tables.NameCmp(Tables[I].Caption, Caption) = 0) then
       Result := Tables[I];
+end;
+
+procedure TWWorkbench.UMEndLasso(var Message: TMessage);
+begin
+  FreeAndNil(Lasso);
 end;
 
 function TWWorkbench.UpdateAction(Action: TBasicAction): Boolean;

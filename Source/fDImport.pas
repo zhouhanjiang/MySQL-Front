@@ -2006,8 +2006,6 @@ begin
         PSQLWait.Visible := not PageControl.Visible;
       end;
 
-      if (TSFields.Enabled) then
-        InitTSFields(nil);
       CheckActivePageChange(PageControl.ActivePageIndex);
     end;
   end;

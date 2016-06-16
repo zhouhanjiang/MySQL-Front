@@ -1003,7 +1003,7 @@ type
     procedure SetListViewGroupHeader(const ListView: TListView; const GroupID: Integer; const NewHeader: string);
     procedure SetPath(const APath: TFileName);
     procedure SQLError(DataSet: TDataSet; E: EDatabaseError; var Action: TDataAction);
-    procedure SynMemoApllyPreferences(const SynMemo: TSynMemo);
+    procedure SynMemoApplyPreferences(const SynMemo: TSynMemo);
     procedure TableOpen(Sender: TObject);
     function UpdateAfterAddressChanged(): Boolean; virtual;
     function ViewToParam(const AView: TView): Variant;
@@ -4549,9 +4549,9 @@ begin
 
   for I := 0 to PSynMemo.ControlCount - 1 do
     if (PSynMemo.Controls[I] is TSynMemo) then
-      SynMemoApllyPreferences(TSynMemo(PSynMemo.Controls[I]));
+      SynMemoApplyPreferences(TSynMemo(PSynMemo.Controls[I]));
 
-  SynMemoApllyPreferences(FQueryBuilderSynMemo);
+  SynMemoApplyPreferences(FQueryBuilderSynMemo);
 
   FSQLEditorPrint.Font := FSQLEditorSynMemo.Font;
 
@@ -5687,9 +5687,9 @@ begin
   Result.ScrollHintFormat := FSQLEditorSynMemo.ScrollHintFormat;
   Result.SearchEngine := FSQLEditorSynMemo.SearchEngine;
 
-  SynMemoApllyPreferences(Result);
-
   Result.Parent := PSynMemo;
+
+  SynMemoApplyPreferences(Result);
 
   Result.Perform(CM_PARENTCOLORCHANGED, 0, 0);
   Result.Perform(CM_PARENTFONTCHANGED, 0, 0);
@@ -13412,7 +13412,7 @@ begin
   end;
 end;
 
-procedure TFSession.SynMemoApllyPreferences(const SynMemo: TSynMemo);
+procedure TFSession.SynMemoApplyPreferences(const SynMemo: TSynMemo);
 begin
   if (SynMemo <> FSQLEditorSynMemo) then
   begin
