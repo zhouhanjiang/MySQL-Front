@@ -3,417 +3,403 @@ unit fPreferences;
 interface {********************************************************************}
 
 uses
-  Controls, Forms, Graphics, Windows, XMLDoc, XMLIntf,
-  ExtCtrls, Classes, SysUtils, Registry, IniFiles,
-  ComCtrls,
+  Controls, Forms, Graphics, Windows, XMLDoc, XMLIntf, Classes, SysUtils,
+  Registry, IniFiles, ComCtrls,
   TaskSchd,
   SynEditHighlighter, SynHighlighterSQL,
   MySQLDB;
 
 type
-  TPExportType = (etUnknown, etSQLFile, etTextFile, etExcelFile, etAccessFile, etODBC, etHTMLFile, etXMLFile, etPDFFile, etPrinter);
-  TPImportType = (itUnknown, itSQLFile, itTextFile, itAccessFile, itExcelFile, itODBC);
-  TAJobObjectType = (jotServer, jotDatabase, jotTable, jotProcedure, jotFunction, jotTrigger, jotEvent);
-  TPNodeType = (ntDisabled, ntName, ntCustom);
-  TPStmtType = (stInsert, stReplace, stUpdate, stInsertOrUpdate);
-
-  TPItems = class;
   TPPreferences = class;
-  TAFiles = class;
-  TAJobs = class;
-  TADesktop = class;
-  TAConnection = class;
   TAAccount = class;
   TAAccounts = class;
 
-  TPItem = class
-  private
-    FName: string;
-  protected
-    FAItems: TPItems;
-    FXML: IXMLNode;
-    function GetIndex(): Integer; inline;
-    function GetXML(): IXMLNode; virtual;
-    procedure LoadFromXML(const XML: IXMLNode); virtual; abstract;
-    procedure SaveToXML(const XML: IXMLNode); virtual; abstract;
-    property XML: IXMLNode read GetXML;
-  public
-    procedure Assign(const Source: TPItem); virtual;
-    constructor Create(const AAItems: TPItems; const AName: string = '');
-    property AItems: TPItems read FAItems;
-    property Index: Integer read GetIndex;
-    property Name: string read FName write FName;
-  end;
-
-  TPItems = class(TList)
-  private
-    function GetItem(Index: Integer): TPItem; inline;
-  protected
-    function GetXML(): IXMLNode; virtual;
-    function InsertIndex(const Name: string; out Index: Integer): Boolean; virtual;
-    property XML: IXMLNode read GetXML;
-  public
-    function Add(const AItem: TPItem): Integer; overload; virtual;
-    procedure Clear(); override;
-    function IndexByName(const Name: string): Integer; virtual;
-    property Item[Index: Integer]: TPItem read GetItem; default;
-  end;
-
-  TPImportStmt = (isInsert, isReplace, isUpdate);
-  TPDelimiterType = (dtTab, dtChar);
-  TPQuotingType = (qtNone, qtStrings, qtAll);
-  TPUpdateCheckType = (utNever, utDaily);
-
-  TMRUList = class
-  private
-    FMaxCount: Integer;
-    FValues: array of string;
-    function GetCount(): Integer;
-    function GetValue(Index: Integer): string;
-  public
-    property Count: Integer read GetCount;
-    property MaxCount: Integer read FMaxCount;
-    property Values[Index: Integer]: string read GetValue; default;
-    procedure Add(const Value: string); virtual;
-    procedure Assign(const Source: TMRUList); virtual;
-    procedure Clear(); virtual;
-    constructor Create(const AMaxCount: Integer); virtual;
-    procedure Delete(const Index: Integer);
-    destructor Destroy(); override;
-    function IndexOf(const Value: string): Integer; virtual;
-    procedure LoadFromXML(const XML: IXMLNode; const NodeName: string); virtual;
-    procedure SaveToXML(const XML: IXMLNode; const NodeName: string); virtual;
-  end;
-
-  TPWindow = class(TPItem)
-  protected
-    procedure LoadFromXML(const XML: IXMLNode); override;
-    procedure SaveToXML(const XML: IXMLNode); override;
-  public
-    Height: Integer;
-    Width: Integer;
-    constructor Create(); virtual;
-  end;
-
-  TPDatabase = class(TPWindow)
-  end;
-
-  TPDatabases = class
-  public
-    Height: Integer;
-    Left: Integer;
-    Top: Integer;
-    Width: Integer;
-    constructor Create(); virtual;
-  end;
-
-  TPEditor = class
-  protected
-    procedure LoadFromXML(const XML: IXMLNode); virtual;
-    procedure SaveToXML(const XML: IXMLNode); virtual;
-  public
-    AutoIndent: Boolean;
-    ConditionalCommentForeground, ConditionalCommentBackground: TColor;
-    ConditionalCommentStyle: TFontStyles;
-    CommentForeground, CommentBackground: TColor;
-    CommentStyle: TFontStyles;
-    CurrRowBGColorEnabled: Boolean;
-    CurrRowBGColor: TColor;
-    DataTypeForeground, DataTypeBackground: TColor;
-    DataTypeStyle: TFontStyles;
-    FunctionForeground, FunctionBackground: TColor;
-    FunctionStyle: TFontStyles;
-    IdentifierForeground, IdentifierBackground: TColor;
-    IdentifierStyle: TFontStyles;
-    KeywordForeground, KeywordBackground: TColor;
-    KeywordStyle: TFontStyles;
-    NumberForeground, NumberBackground: TColor;
-    NumberStyle: TFontStyles;
-    LineNumbers: Boolean;
-    LineNumbersForeground, LineNumbersBackground: TColor;
-    LineNumbersStyle: TFontStyles;
-    RightEdge: Integer;
-    StringForeground, StringBackground: TColor;
-    StringStyle: TFontStyles;
-    SymbolForeground, SymbolBackground: TColor;
-    SymbolStyle: TFontStyles;
-    TabAccepted: Boolean;
-    TabToSpaces: Boolean;
-    TabWidth: Integer;
-    VariableForeground, VariableBackground: TColor;
-    VariableStyle: TFontStyles;
-    WordWrap: Boolean;
-    constructor Create(); virtual;
-  end;
-
-  TPEvent = class(TPWindow)
-  end;
-
-  TAJob = class(TPWindow)
-  type
-    TJobObject = record
-      DatabaseName: string;
-      Name: string;
-      ObjectType: TAJobObjectType;
-    end;
-    TSourceObject = record
-      Name: string;
-    end;
-    TFieldMapping = record
-      DestinationFieldName: string;
-      SourceFieldName: string;
-    end;
-    TTriggerType = (ttSingle, ttDaily, ttWeekly, ttMonthly);
-  private
-    function GetJobs(): TAJobs; inline;
-    function GetLogFilename(): TFileName;
-  protected
-    function Save(const Update: Boolean): Boolean; virtual;
-    property Jobs: TAJobs read GetJobs;
-  public
-    Enabled: Boolean;
-    Start: TDateTime;
-    TriggerType: TTriggerType;
-    procedure Assign(const Source: TPItem); override;
-    constructor Create(const AAItems: TPItems; const AName: string = ''); reintroduce;
-    property LogFilename: TFileName read GetLogFilename;
-  end;
-
-  TPExport = class(TAJob)
-  protected
-    procedure LoadFromXML(const XML: IXMLNode); override;
-    procedure SaveToXML(const XML: IXMLNode); override;
-  public
-    CSV: record
-      Headline: Boolean;
-      QuoteValues: TPQuotingType;
-      Quoter: Char;
-      Delimiter: string;
-      DelimiterType: TPDelimiterType;
-    end;
-    Excel: record
-      Excel2007: Boolean;
-    end;
-    HTML: record
-      Data: Boolean;
-      NULLText: Boolean;
-      MemoContent: Boolean;
-      RowBGColor: Boolean;
-      Structure: Boolean;
-    end;
-    SQL: record
-      Data: Boolean;
-      DropStmts: Boolean;
-      ReplaceData: Boolean;
-      Structure: Boolean;
-    end;
-    XML: record
-      Database: record
-        NodeType: TPNodeType;
-        NodeText: string;
-        NodeAttribute: string;
-      end;
-      Field: record
-        NodeType: TPNodeType;
-        NodeText: string;
-        NodeAttribute: string;
-      end;
-      Row: record
-        NodeText: string;
-      end;
-      Root: record
-        NodeText: string;
-      end;
-      Table: record
-        NodeType: TPNodeType;
-        NodeText: string;
-        NodeAttribute: string;
-      end;
-    end;
-    procedure Assign(const Source: TPItem); override;
-    constructor Create(const AAItems: TPItems = nil; const AName: string = '');
-  end;
-
-  TPField = class(TPWindow)
-  end;
-
-  TPFind = class(TPWindow)
-  type
-    TOption = (foMatchCase, foWholeValue, foRegExpr);
-    TOptions = set of TOption;
-  protected
-    procedure LoadFromXML(const XML: IXMLNode); override;
-    procedure SaveToXML(const XML: IXMLNode); override;
-  public
-    FindTextMRU: TMRUList;
-    Left: Integer;
-    Options: TOptions;
-    Top: Integer;
-    constructor Create(); override;
-    destructor Destroy(); override;
-  end;
-
-  TPHost = class(TPWindow)
-  end;
-
-  TPForeignKey = class(TPWindow)
-  end;
-
-  TPImport = class(TAJob)
-  protected
-    procedure LoadFromXML(const XML: IXMLNode); override;
-    procedure SaveToXML(const XML: IXMLNode); override;
-  public
-    CSV: record
-      Headline: Boolean;
-      Quote: TPQuotingType;
-      QuoteChar: string;
-      Delimiter: string;
-      DelimiterType: TPDelimiterType;
-    end;
-    Charset: string;
-    Collation: string;
-    Data: Boolean;
-    Engine: string;
-    RowType: Integer;
-    StmtType: TPStmtType;
-    Structure: Boolean;
-    procedure Assign(const Source: TPItem); override;
-    constructor Create(const AAItems: TPItems = nil; const AName: string = '');
-  end;
-
-  TPKey = class(TPWindow)
-  end;
-
-  TPODBC = class(TPWindow)
-  public
-    Left: Integer;
-    Top: Integer;
-    constructor Create(); override;
-  end;
-
-  TPPaste = class
-  private
-    FPreferences: TPPreferences;
-  protected
-    property Preferences: TPPreferences read FPreferences;
-    procedure LoadFromXML(const XML: IXMLNode); virtual;
-    procedure SaveToXML(const XML: IXMLNode); virtual;
-  public
-    Data: Boolean;
-    constructor Create(); virtual;
-  end;
-
-  TPReplace = class(TPWindow)
-  type
-    TOption = (roMatchCase, roWholeValue, roRegExpr);
-    TOptions = set of TOption;
-  protected
-    procedure LoadFromXML(const XML: IXMLNode); override;
-    procedure SaveToXML(const XML: IXMLNode); override;
-  public
-    FindTextMRU: TMRUList;
-    ReplaceTextMRU: TMRUList;
-    Backup: Boolean;
-    Left: Integer;
-    Options: TOptions;
-    Top: Integer;
-    constructor Create(); override;
-    destructor Destroy(); override;
-  end;
-
-  TPRoutine = class(TPWindow)
-  end;
-
-  TPServer = class(TPWindow)
-  public
-    Left: Integer;
-    Top: Integer;
-    constructor Create(); override;
-  end;
-
-  TPSQLHelp = class(TPWindow)
-  protected
-    procedure LoadFromXML(const XML: IXMLNode); override;
-    procedure SaveToXML(const XML: IXMLNode); override;
-  public
-    Left: Integer;
-    Top: Integer;
-    constructor Create(); override;
-  end;
-
-  TPAccount = class(TPWindow)
-  end;
-
-  TPAccounts = class(TPWindow)
-  protected
-    procedure LoadFromXML(const XML: IXMLNode); override;
-    procedure SaveToXML(const XML: IXMLNode); override;
-  public
-    SelectOrder: Integer;
-    constructor Create(); override;
-  end;
-
-  TPStatement = class(TPWindow)
-  end;
-
-  TPTable = class(TPWindow)
-  end;
-
-  TPTableService = class(TPWindow)
-  protected
-    procedure LoadFromXML(const XML: IXMLNode); override;
-    procedure SaveToXML(const XML: IXMLNode); override;
-  public
-    Analyze: Boolean;
-    Check: Boolean;
-    Flush: Boolean;
-    Optimize: Boolean;
-    Repair: Boolean;
-    constructor Create(); override;
-  end;
-
-  TPTransfer = class(TPWindow)
-  protected
-    procedure LoadFromXML(const XML: IXMLNode); override;
-    procedure SaveToXML(const XML: IXMLNode); override;
-  public
-    Data: Boolean;
-    Structure: Boolean;
-    constructor Create(); override;
-  end;
-
-  TPTrigger = class(TPWindow)
-  end;
-
-  TPUser = class(TPWindow)
-  end;
-
-  TPView = class(TPWindow)
-  end;
-
-  TPLanguage = class(TMemIniFile)
-  private
-    FActiveQueryBuilderLanguageName: string;
-    FLanguageId: Integer;
-    FStrs: array of string;
-    function GetStr(Index: Integer): string;
-  protected
-    property Strs[Index: Integer]: string read GetStr;
-  public
-    property ActiveQueryBuilderLanguageName: string read FActiveQueryBuilderLanguageName;
-    property LanguageId: Integer read FLanguageId;
-    constructor Create(const FileName: string); reintroduce;
-    destructor Destroy(); override;
-  end;
-
   TPPreferences = class(TRegistry)
   type
+    TItems = class;
+    TJobs = class;
+
+    TItem = class
+    private
+      FName: string;
+    protected
+      FAItems: TItems;
+      function GetIndex(): Integer; inline;
+      procedure LoadFromXML(const XML: IXMLNode); virtual; abstract;
+      procedure SaveToXML(const XML: IXMLNode); virtual; abstract;
+    public
+      procedure Assign(const Source: TItem); virtual;
+      constructor Create(const AAItems: TItems; const AName: string = '');
+      property AItems: TItems read FAItems;
+      property Index: Integer read GetIndex;
+      property Name: string read FName write FName;
+    end;
+
+    TItems = class(TList)
+    private
+      function GetItem(Index: Integer): TItem; inline;
+    protected
+      function InsertIndex(const Name: string; out Index: Integer): Boolean; virtual;
+    public
+      function Add(const AItem: TItem): Integer; overload; virtual;
+      procedure Clear(); override;
+      function IndexByName(const Name: string): Integer; virtual;
+      property Item[Index: Integer]: TItem read GetItem; default;
+    end;
+
+    TMRUList = class
+    private
+      FMaxCount: Integer;
+      FValues: array of string;
+      function GetCount(): Integer;
+      function GetValue(Index: Integer): string;
+    public
+      property Count: Integer read GetCount;
+      property MaxCount: Integer read FMaxCount;
+      property Values[Index: Integer]: string read GetValue; default;
+      procedure Add(const Value: string); virtual;
+      procedure Assign(const Source: TMRUList); virtual;
+      procedure Clear(); virtual;
+      constructor Create(const AMaxCount: Integer); virtual;
+      procedure Delete(const Index: Integer);
+      destructor Destroy(); override;
+      function IndexOf(const Value: string): Integer; virtual;
+      procedure LoadFromXML(const XML: IXMLNode; const NodeName: string); virtual;
+      procedure SaveToXML(const XML: IXMLNode; const NodeName: string); virtual;
+    end;
+
+    TWindow = class(TItem)
+    protected
+      procedure LoadFromXML(const XML: IXMLNode); override;
+      procedure SaveToXML(const XML: IXMLNode); override;
+    public
+      Height: Integer;
+      Width: Integer;
+      constructor Create(); virtual;
+    end;
+
+    TDatabase = class(TWindow);
+
+    TDatabases = class(TWindow)
+      Left: Integer;
+      Top: Integer;
+    end;
+
+    TEditor = class
+    protected
+      procedure LoadFromXML(const XML: IXMLNode); virtual;
+      procedure SaveToXML(const XML: IXMLNode); virtual;
+    public
+      AutoIndent: Boolean;
+      ConditionalCommentForeground, ConditionalCommentBackground: TColor;
+      ConditionalCommentStyle: TFontStyles;
+      CommentForeground, CommentBackground: TColor;
+      CommentStyle: TFontStyles;
+      CurrRowBGColorEnabled: Boolean;
+      CurrRowBGColor: TColor;
+      DataTypeForeground, DataTypeBackground: TColor;
+      DataTypeStyle: TFontStyles;
+      FunctionForeground, FunctionBackground: TColor;
+      FunctionStyle: TFontStyles;
+      IdentifierForeground, IdentifierBackground: TColor;
+      IdentifierStyle: TFontStyles;
+      KeywordForeground, KeywordBackground: TColor;
+      KeywordStyle: TFontStyles;
+      NumberForeground, NumberBackground: TColor;
+      NumberStyle: TFontStyles;
+      LineNumbers: Boolean;
+      LineNumbersForeground, LineNumbersBackground: TColor;
+      LineNumbersStyle: TFontStyles;
+      RightEdge: Integer;
+      StringForeground, StringBackground: TColor;
+      StringStyle: TFontStyles;
+      SymbolForeground, SymbolBackground: TColor;
+      SymbolStyle: TFontStyles;
+      TabAccepted: Boolean;
+      TabToSpaces: Boolean;
+      TabWidth: Integer;
+      VariableForeground, VariableBackground: TColor;
+      VariableStyle: TFontStyles;
+      WordWrap: Boolean;
+      constructor Create(); virtual;
+    end;
+
+    TEvent = class(TWindow);
+
+    TJob = class(TWindow)
+    type
+      TDelimiterType = (dtTab, dtChar);
+      TObjectType = (jotServer, jotDatabase, jotTable, jotProcedure, jotFunction, jotTrigger, jotEvent);
+      TQuotingType = (qtNone, qtStrings, qtAll);
+      TJobObject = record
+        DatabaseName: string;
+        Name: string;
+        ObjectType: TObjectType;
+      end;
+      TSourceObject = record
+        Name: string;
+      end;
+      TFieldMapping = record
+        DestinationFieldName: string;
+        SourceFieldName: string;
+      end;
+      TTriggerType = (ttSingle, ttDaily, ttWeekly, ttMonthly);
+    private
+      function GetJobs(): TJobs; inline;
+      function GetLogFilename(): TFileName;
+    protected
+      function Save(const Update: Boolean): Boolean; virtual;
+      property Jobs: TJobs read GetJobs;
+    public
+      Enabled: Boolean;
+      Start: TDateTime;
+      TriggerType: TTriggerType;
+      procedure Assign(const Source: TItem); override;
+      constructor Create(const AAItems: TItems; const AName: string = ''); reintroduce;
+      property LogFilename: TFileName read GetLogFilename;
+    end;
+
+    TJobs = class(TItems)
+    private
+      FAccount: TAAccount;
+      function GetJob(Index: Integer): TPPreferences.TJob; inline;
+      function GetTaskFolder(const AutoCreate: Boolean = False): ITaskFolder;
+      function GetTaskService(): ITaskService; inline;
+    protected
+      property Account: TAAccount read FAccount;
+      property TaskService: ITaskService read GetTaskService;
+    public
+      function AddJob(const NewJob: TPPreferences.TJob): Boolean; virtual;
+      constructor Create(const AAccount: TAAccount);
+      procedure DeleteJob(const Job: TPPreferences.TJob); overload; virtual;
+      destructor Destroy(); override;
+      procedure Load(); virtual;
+      function UpdateJob(const Job, NewJob: TPPreferences.TJob): Boolean; virtual;
+      property Job[Index: Integer]: TPPreferences.TJob read GetJob; default;
+    end;
+
+    TExport = class(TJob)
+    type
+      TNodeType = (ntDisabled, ntName, ntCustom);
+    protected
+      procedure LoadFromXML(const XML: IXMLNode); override;
+      procedure SaveToXML(const XML: IXMLNode); override;
+    public
+      CSV: record
+        Headline: Boolean;
+        QuoteValues: TQuotingType;
+        Quoter: Char;
+        Delimiter: string;
+        DelimiterType: TDelimiterType;
+      end;
+      Excel: record
+        Excel2007: Boolean;
+      end;
+      HTML: record
+        Data: Boolean;
+        NULLText: Boolean;
+        MemoContent: Boolean;
+        RowBGColor: Boolean;
+        Structure: Boolean;
+      end;
+      SQL: record
+        Data: Boolean;
+        DropStmts: Boolean;
+        ReplaceData: Boolean;
+        Structure: Boolean;
+      end;
+      XML: record
+        Database: record
+          NodeType: TNodeType;
+          NodeText: string;
+          NodeAttribute: string;
+        end;
+        Field: record
+          NodeType: TNodeType;
+          NodeText: string;
+          NodeAttribute: string;
+        end;
+        Row: record
+          NodeText: string;
+        end;
+        Root: record
+          NodeText: string;
+        end;
+        Table: record
+          NodeType: TNodeType;
+          NodeText: string;
+          NodeAttribute: string;
+        end;
+      end;
+      procedure Assign(const Source: TItem); override;
+      constructor Create(const AAItems: TItems = nil; const AName: string = '');
+    end;
+
+    TField = class(TWindow);
+
+    TFind = class(TWindow)
+    type
+      TOption = (foMatchCase, foWholeValue, foRegExpr);
+      TOptions = set of TOption;
+    protected
+      procedure LoadFromXML(const XML: IXMLNode); override;
+      procedure SaveToXML(const XML: IXMLNode); override;
+    public
+      FindTextMRU: TMRUList;
+      Left: Integer;
+      Options: TOptions;
+      Top: Integer;
+      constructor Create(); override;
+      destructor Destroy(); override;
+    end;
+
+    THost = class(TWindow);
+
+    TForeignKey = class(TWindow);
+
+    TImport = class(TJob)
+    type
+      TStmtType = (stInsert, stReplace, stUpdate, stInsertOrUpdate);
+    protected
+      procedure LoadFromXML(const XML: IXMLNode); override;
+      procedure SaveToXML(const XML: IXMLNode); override;
+    public
+      CSV: record
+        Headline: Boolean;
+        Quote: TQuotingType;
+        QuoteChar: string;
+        Delimiter: string;
+        DelimiterType: TDelimiterType;
+      end;
+      Charset: string;
+      Collation: string;
+      Data: Boolean;
+      Engine: string;
+      RowType: Integer;
+      StmtType: TStmtType;
+      Structure: Boolean;
+      procedure Assign(const Source: TItem); override;
+      constructor Create(const AAItems: TItems = nil; const AName: string = '');
+    end;
+
+    TKey = class(TWindow);
+
+    TODBC = class(TWindow)
+    public
+      Left: Integer;
+      Top: Integer;
+      constructor Create(); override;
+    end;
+
+    TPaste = class
+    private
+      FPreferences: TPPreferences;
+    protected
+      property Preferences: TPPreferences read FPreferences;
+      procedure LoadFromXML(const XML: IXMLNode); virtual;
+      procedure SaveToXML(const XML: IXMLNode); virtual;
+    public
+      Data: Boolean;
+      constructor Create(); virtual;
+    end;
+
+    TReplace = class(TWindow)
+    type
+      TOption = (roMatchCase, roWholeValue, roRegExpr);
+      TOptions = set of TOption;
+    protected
+      procedure LoadFromXML(const XML: IXMLNode); override;
+      procedure SaveToXML(const XML: IXMLNode); override;
+    public
+      FindTextMRU: TMRUList;
+      ReplaceTextMRU: TMRUList;
+      Backup: Boolean;
+      Left: Integer;
+      Options: TOptions;
+      Top: Integer;
+      constructor Create(); override;
+      destructor Destroy(); override;
+    end;
+
+    TRoutine = class(TWindow);
+
+    TServer = class(TWindow);
+
+    TSQLHelp = class(TWindow)
+    protected
+      procedure LoadFromXML(const XML: IXMLNode); override;
+      procedure SaveToXML(const XML: IXMLNode); override;
+    public
+      Left: Integer;
+      Top: Integer;
+      constructor Create(); override;
+    end;
+
+    TAccount = class(TWindow);
+
+    TAccounts = class(TWindow)
+    protected
+      procedure LoadFromXML(const XML: IXMLNode); override;
+      procedure SaveToXML(const XML: IXMLNode); override;
+    public
+      SelectOrder: Integer;
+      constructor Create(); override;
+    end;
+
+    TStatement = class(TWindow);
+
+    TTable = class(TWindow);
+
+    TTableService = class(TWindow)
+    protected
+      procedure LoadFromXML(const XML: IXMLNode); override;
+      procedure SaveToXML(const XML: IXMLNode); override;
+    public
+      Analyze: Boolean;
+      Check: Boolean;
+      Flush: Boolean;
+      Optimize: Boolean;
+      Repair: Boolean;
+      constructor Create(); override;
+    end;
+
+    TTransfer = class(TWindow)
+    protected
+      procedure LoadFromXML(const XML: IXMLNode); override;
+      procedure SaveToXML(const XML: IXMLNode); override;
+    public
+      Data: Boolean;
+      Structure: Boolean;
+      constructor Create(); override;
+    end;
+
+    TTrigger = class(TWindow);
+
+    TUser = class(TWindow);
+
+    TPView = class(TWindow);
+
+    TLanguage = class(TMemIniFile)
+    private
+      FActiveQueryBuilderLanguageName: string;
+      FLanguageId: Integer;
+      FStrs: array of string;
+      function GetStr(Index: Integer): string;
+    protected
+      property Strs[Index: Integer]: string read GetStr;
+    public
+      property ActiveQueryBuilderLanguageName: string read FActiveQueryBuilderLanguageName;
+      property LanguageId: Integer read FLanguageId;
+      constructor Create(const FileName: string); reintroduce;
+      destructor Destroy(); override;
+    end;
+
     TToolbarTab = (ttObjects, ttBrowser, ttIDE, ttBuilder, ttDiagram, ttEditor, ttEditor2, ttEditor3);
     TToolbarTabs = set of TToolbarTab;
+    TUpdateCheckType = (utNever, utDaily);
   private
     FInternetAgent: string;
-    FLanguage: TPLanguage;
+    FLanguage: TLanguage;
     FLargeImages: TImageList;
     FSmallImages: TImageList;
     FTaskService: ITaskService;
@@ -422,7 +408,7 @@ type
     OldAssociateSQL: Boolean;
     procedure LoadFromRegistry();
     function GetFilename(): TFileName;
-    function GetLanguage(): TPLanguage;
+    function GetLanguage(): TLanguage;
     function GetLanguagePath(): TFileName;
     function GetTaskService(): ITaskService;
     function GetVersion(var VerMajor, VerMinor, VerPatch, VerBuild: Integer): Boolean;
@@ -435,74 +421,83 @@ type
     property TaskService: ITaskService read GetTaskService;
     property XML: IXMLNode read GetXML;
   public
-    Database: TPDatabase;
-    Databases: TPDatabases;
-    Editor: TPEditor;
-    Event: TPEvent;
-    Export: TPExport;
-    Field: TPField;
-    Find: TPFind;
-    ForeignKey: TPForeignKey;
-    Host: TPHost;
-    Import: TPImport;
-    Key: TPKey;
-    ODBC: TPODBC;
-    Paste: TPPaste;
-    Replace: TPReplace;
-    Routine: TPRoutine;
-    Server: TPServer;
-    SQLHelp: TPSQLHelp;
-    Account: TPAccount;
-    Accounts: TPAccounts;
-    Statement: TPStatement;
-    Table: TPTable;
-    TableService: TPTableService;
-    Transfer: TPTransfer;
-    Trigger: TPTrigger;
-    User: TPUser;
-    View: TPView;
-    SoundFileNavigating: string;
-    LanguageFilename: TFileName;
-    WindowState: TWindowState;
-    Left, Top, Width, Height: Integer;
-    AddressBarVisible: Boolean;
-    GridFontName: TFontName;
-    GridFontStyle: TFontStyles;
-    GridFontColor: TColor;
-    GridFontSize, GridFontCharset: Integer;
-    GridMaxColumnWidth: Integer;
-    GridRowBGColor: Boolean;
-    GridCurrRowBGColorEnabled: Boolean;
+    Account: TAccount;
+    Accounts: TAccounts;
+    AssociateSQL: Boolean;
+    Database: TDatabase;
+    Databases: TDatabases;
+    Editor: TEditor;
+    Event: TEvent;
+    Export: TExport;
+    Field: TField;
+    Find: TFind;
+    ForeignKey: TForeignKey;
     GridCurrRowBGColor: TColor;
-    GridNullBGColorEnabled: Boolean;
-    GridNullBGColor: TColor;
-    GridNullText: Boolean;
-    GridMemoContent: Boolean;
+    GridCurrRowBGColorEnabled: Boolean;
     GridDefaultSorting: Boolean;
-    SQLFontName: TFontName;
-    SQLFontStyle: TFontStyles;
-    SQLFontColor: TColor;
-    SQLFontSize, SQLFontCharset: Integer;
-    LogFontName: TFontName;
-    LogFontStyle: TFontStyles;
+    GridFontColor: TColor;
+    GridFontName: TFontName;
+    GridFontSize, GridFontCharset: Integer;
+    GridFontStyle: TFontStyles;
+    GridMaxColumnWidth: Integer;
+    GridMemoContent: Boolean;
+    GridNullBGColor: TColor;
+    GridNullBGColorEnabled: Boolean;
+    GridNullText: Boolean;
+    GridRowBGColor: Boolean;
+    Height: Integer;
+    Host: THost;
+    Import: TImport;
+    Key: TKey;
+    LanguageFilename: TFileName;
+    Left: Integer;
     LogFontColor: TColor;
+    LogFontName: TFontName;
     LogFontSize, LogFontCharset: Integer;
+    LogFontStyle: TFontStyles;
     LogHighlighting: Boolean;
-    LogTime: Boolean;
     LogResult: Boolean;
     LogSize: Integer;
+    LogTime: Boolean;
+    ODBC: TODBC;
+    Paste: TPaste;
     Path: TFileName;
-    UserPath: TFileName;
-    AssociateSQL: Boolean;
-    TabsVisible: Boolean;
-    ToolbarTabs: TToolbarTabs;
-    UpdateCheck: TPUpdateCheckType;
-    UpdateChecked: TDateTime;
+    Replace: TReplace;
+    Routine: TRoutine;
+    Server: TServer;
     SetupProgram: TFileName;
     SetupProgramExecute: Boolean;
     SetupProgramInstalled: Boolean;
+    SoundFileNavigating: string;
+    SQLFontCharset: Integer;
+    SQLFontColor: TColor;
+    SQLFontName: TFontName;
+    SQLFontSize: Integer;
+    SQLFontStyle: TFontStyles;
+    SQLHelp: TSQLHelp;
+    Statement: TStatement;
+    Table: TTable;
+    TableService: TTableService;
+    TabsVisible: Boolean;
+    ToolbarTabs: TToolbarTabs;
+    Top: Integer;
+    Transfer: TTransfer;
+    Trigger: TTrigger;
+    User: TUser;
+    View: TPView;
+    Width: Integer;
+    WindowState: TWindowState;
+    UpdateCheck: TUpdateCheckType;
+    UpdateChecked: TDateTime;
+    UserPath: TFileName;
+    constructor Create(); virtual;
+    destructor Destroy(); override;
+    procedure LoadFromXML(); virtual;
+    function LoadStr(const Index: Integer; const Param1: string = ''; const Param2: string = ''; const Param3: string = ''): string; overload; virtual;
+    procedure SaveToRegistry(); virtual;
+    procedure SaveToXML(); virtual;
     property InternetAgent: string read FInternetAgent;
-    property Language: TPLanguage read GetLanguage;
+    property Language: TLanguage read GetLanguage;
     property LanguagePath: TFileName read GetLanguagePath;
     property LargeImages: TImageList read FLargeImages;
     property SmallImages: TImageList read FSmallImages;
@@ -512,198 +507,166 @@ type
     property VerBuild: Integer read FVerBuild;
     property Version: Integer read GetVersionInfo;
     property VersionStr: string read GetVersionStr;
-    constructor Create(); virtual;
-    destructor Destroy(); override;
-    procedure LoadFromXML(); virtual;
-    function LoadStr(const Index: Integer; const Param1: string = ''; const Param2: string = ''; const Param3: string = ''): string; overload; virtual;
-    procedure SaveToRegistry(); virtual;
-    procedure SaveToXML(); virtual;
-  end;
-
-  TAFile = class
-  private
-    FFiles: TAFiles;
-  protected
-    FCodePage: Cardinal;
-    FFilename: TFileName;
-    procedure LoadFromXML(const XML: IXMLNode); virtual;
-    procedure SaveToXML(const XML: IXMLNode); virtual;
-    property Files: TAFiles read FFiles;
-  public
-    constructor Create(const AFiles: TAFiles);
-    property CodePage: Cardinal read FCodePage write FCodePage;
-    property Filename: TFileName read FFilename write FFilename;
-  end;
-
-  TAFiles = class(TList)
-  private
-    FDesktop: TADesktop;
-    FMaxCount: Integer;
-    FXML: IXMLNode;
-    function Get(Index: Integer): TAFile; inline;
-    function GetXML(): IXMLNode;
-  protected
-    procedure LoadFromXML(); virtual;
-    procedure SaveToXML(); virtual;
-    property Desktop: TADesktop read FDesktop;
-    property MaxCount: Integer read FMaxCount;
-    property XML: IXMLNode read GetXML;
-  public
-    procedure Add(const AFilename: TFileName; const ACodePage: Cardinal); reintroduce; virtual;
-    procedure Clear(); override;
-    constructor Create(const ADesktop: TADesktop; const AMaxCount: Integer);
-    property Files[Index: Integer]: TAFile read Get; default;
-  end;
-
-  TAJobImport = class(TPImport)
-  protected
-    function GetXML(): IXMLNode; override;
-    procedure LoadFromXML(const XML: IXMLNode); override;
-    procedure SaveToXML(const XML: IXMLNode); override;
-  public
-    CodePage: Integer;
-    ImportType: TPImportType;
-    JobObject: TAJob.TJobObject;
-    FieldMappings: array of TAJob.TFieldMapping;
-    Filename: TFileName;
-    ODBC: record
-      DataSource: string;
-      Username: string;
-      Password: string;
-    end;
-    SourceObjects: array of TAJob.TSourceObject;
-    procedure Assign(const Source: TPItem); override;
-    constructor Create(const AAItems: TPItems = nil; const AName: string = '');
-    destructor Destroy(); override;
-  end;
-
-  TAJobExport = class(TPExport)
-  protected
-    function GetXML(): IXMLNode; override;
-    procedure LoadFromXML(const XML: IXMLNode); override;
-    procedure SaveToXML(const XML: IXMLNode); override;
-  public
-    CodePage: Integer;
-    ExportType: TPExportType;
-    Filename: TFileName;
-    JobObjects: array of TAJob.TJobObject;
-    ODBC: record
-      DataSource: string;
-      Password: string;
-      Username: string;
-    end;
-    procedure Assign(const Source: TPItem); override;
-    procedure ClearObjects(); virtual;
-    constructor Create(const AAItems: TPItems = nil; const AName: string = '');
-    destructor Destroy(); override;
-  end;
-
-  TAJobs = class(TPItems)
-  private
-    FAccount: TAAccount;
-    function GetJob(Index: Integer): TAJob; inline;
-    function GetTaskFolder(const AutoCreate: Boolean = False): ITaskFolder;
-    function GetTaskService(): ITaskService; inline;
-  protected
-    property Account: TAAccount read FAccount;
-    property TaskService: ITaskService read GetTaskService;
-  public
-    function AddJob(const NewJob: TAJob): Boolean; virtual;
-    constructor Create(const AAccount: TAAccount);
-    procedure DeleteJob(const Job: TAJob); overload; virtual;
-    destructor Destroy(); override;
-    procedure Load(); virtual;
-    function UpdateJob(const Job, NewJob: TAJob): Boolean; virtual;
-    property Job[Index: Integer]: TAJob read GetJob; default;
-  end;
-
-  TADesktop = class
-  type
-    TListViewKind = (lkServer, lkDatabase, lkTable, lkProcesses, lkStati, lkUsers, lkVariables);
-  private
-    FAccount: TAAccount;
-    FFiles: TAFiles;
-    FPath: string;
-    FXML: IXMLNode;
-    function GetAddress(): string;
-    function GetXML(): IXMLNode;
-    procedure SetAddress(AAddress: string);
-  protected
-    procedure Assign(const Source: TADesktop); virtual;
-    procedure LoadFromXML(); virtual;
-    procedure SaveToXML(); virtual;
-    property Account: TAAccount read FAccount;
-    property XML: IXMLNode read GetXML;
-  public
-    AddressMRU: TMRUList;
-    ColumnWidths: array [lkServer .. lkVariables] of array [0..7] of Integer;
-    DataHeight, BlobHeight: Integer;
-    EditorContent: array [ttEditor .. ttEditor3] of string;
-    ExplorerVisible: Boolean;
-    FilesFilter: string;
-    FoldersHeight: Integer;
-    JobsVisible: Boolean;
-    LogHeight: Integer;
-    LogVisible: Boolean;
-    NavigatorVisible: Boolean;
-    SelectorWitdth: Integer;
-    SQLHistoryVisible: Boolean;
-    constructor Create(const AAccount: TAAccount); overload; virtual;
-    destructor Destroy(); override;
-    property Address: string read GetAddress write SetAddress;
-    property Files: TAFiles read FFiles;
-  end;
-
-  TAConnection = class
-  private
-    FXML: IXMLNode;
-    FAccount: TAAccount;
-    function GetXML(): IXMLNode;
-  protected
-    Section: string;
-    procedure LoadFromXML(); virtual;
-    procedure SaveToXML(); virtual;
-    property XML: IXMLNode read GetXML;
-  public
-    Database: string;
-    Host: string;
-    HTTPTunnelURI: string;
-    LibraryFilename: TFileName;
-    LibraryType: TMySQLLibrary.TLibraryType;
-    Password: string;
-    Port: Integer;
-    Username: string;
-    procedure Assign(const Source: TAConnection); virtual;
-    constructor Create(const AAccount: TAAccount); virtual;
-    property Account: TAAccount read FAccount;
   end;
 
   TAAccount = class
   type
+    TFiles = class;
+    TDesktop = class;
+
     TEventProc = procedure (const ClassType: TClass) of object;
-    TDesktop = record
-      Control: Pointer;
-      AccountEventProc: TEventProc;
+
+    TFile = class
+    private
+      FFiles: TFiles;
+    protected
+      FCodePage: Cardinal;
+      FFilename: TFileName;
+      procedure LoadFromXML(const XML: IXMLNode); virtual;
+      procedure SaveToXML(const XML: IXMLNode); virtual;
+      property Files: TFiles read FFiles;
+    public
+      constructor Create(const AFiles: TFiles);
+      property CodePage: Cardinal read FCodePage write FCodePage;
+      property Filename: TFileName read FFilename write FFilename;
     end;
+
+    TFiles = class(TList)
+    private
+      FDesktop: TDesktop;
+      FMaxCount: Integer;
+      function GetFile(Index: Integer): TFile; inline;
+    protected
+      procedure LoadFromXML(const XML: IXMLNode); virtual;
+      procedure SaveToXML(const XML: IXMLNode); virtual;
+      property Desktop: TDesktop read FDesktop;
+      property MaxCount: Integer read FMaxCount;
+    public
+      procedure Add(const AFilename: TFileName; const ACodePage: Cardinal); reintroduce; virtual;
+      procedure Clear(); override;
+      constructor Create(const ADesktop: TDesktop; const AMaxCount: Integer);
+      property Files[Index: Integer]: TFile read GetFile; default;
+    end;
+
+    TJobImport = class(TPPreferences.TImport)
+    type
+      TImportType = (itUnknown, itSQLFile, itTextFile, itAccessFile, itExcelFile, itODBC);
+    protected
+      procedure LoadFromXML(const XML: IXMLNode); override;
+      procedure SaveToXML(const XML: IXMLNode); override;
+    public
+      CodePage: Integer;
+      ImportType: TImportType;
+      JobObject: TPPreferences.TJob.TJobObject;
+      FieldMappings: array of TPPreferences.TJob.TFieldMapping;
+      Filename: TFileName;
+      ODBC: record
+        DataSource: string;
+        Username: string;
+        Password: string;
+      end;
+      SourceObjects: array of TPPreferences.TJob.TSourceObject;
+      procedure Assign(const Source: TPPreferences.TItem); override;
+      constructor Create(const AAItems: TPPreferences.TItems = nil; const AName: string = '');
+      destructor Destroy(); override;
+    end;
+
+    TJobExport = class(TPPreferences.TExport)
+    type
+      TExportType = (etUnknown, etSQLFile, etTextFile, etExcelFile, etAccessFile, etODBC, etHTMLFile, etXMLFile, etPDFFile, etPrinter);
+    protected
+      procedure LoadFromXML(const XML: IXMLNode); override;
+      procedure SaveToXML(const XML: IXMLNode); override;
+    public
+      CodePage: Integer;
+      ExportType: TExportType;
+      Filename: TFileName;
+      JobObjects: array of TPPreferences.TJob.TJobObject;
+      ODBC: record
+        DataSource: string;
+        Password: string;
+        Username: string;
+      end;
+      procedure Assign(const Source: TPPreferences.TItem); override;
+      procedure ClearObjects(); virtual;
+      constructor Create(const AAItems: TPPreferences.TItems = nil; const AName: string = '');
+      destructor Destroy(); override;
+    end;
+
+    TDesktop = class
+    type
+      TListViewKind = (lkServer, lkDatabase, lkTable, lkProcesses, lkStati, lkUsers, lkVariables);
+    private
+      FAccount: TAAccount;
+      FFiles: TFiles;
+      FPath: string;
+      function GetAddress(): string;
+      procedure SetAddress(AAddress: string);
+    protected
+      procedure Assign(const Source: TDesktop); virtual;
+      procedure LoadFromXML(const XML: IXMLNode); virtual;
+      procedure SaveToXML(const XML: IXMLNode); virtual;
+      property Account: TAAccount read FAccount;
+    public
+      AddressMRU: TPPreferences.TMRUList;
+      ColumnWidths: array [lkServer .. lkVariables] of array [0..7] of Integer;
+      DataHeight, BlobHeight: Integer;
+      EditorContent: array [ttEditor .. ttEditor3] of string;
+      ExplorerVisible: Boolean;
+      FilesFilter: string;
+      FoldersHeight: Integer;
+      JobsVisible: Boolean;
+      LogHeight: Integer;
+      LogVisible: Boolean;
+      NavigatorVisible: Boolean;
+      SelectorWitdth: Integer;
+      SQLHistoryVisible: Boolean;
+      constructor Create(const AAccount: TAAccount); overload; virtual;
+      destructor Destroy(); override;
+      property Address: string read GetAddress write SetAddress;
+      property Files: TFiles read FFiles;
+    end;
+
+    TConnection = class
+    private
+      FAccount: TAAccount;
+    protected
+      Section: string;
+      procedure LoadFromXML(const XML: IXMLNode); virtual;
+      procedure SaveToXML(const XML: IXMLNode); virtual;
+    public
+      Database: string;
+      Host: string;
+      HTTPTunnelURI: string;
+      LibraryFilename: TFileName;
+      LibraryType: TMySQLLibrary.TLibraryType;
+      Password: string;
+      Port: Integer;
+      Username: string;
+      procedure Assign(const Source: TConnection); virtual;
+      constructor Create(const AAccount: TAAccount); virtual;
+      property Account: TAAccount read FAccount;
+    end;
+
   private
-    FDesktop: TADesktop;
+    FAccounts: TAAccounts;
+    FDesktop: TDesktop;
+    FDesktops: array of record Control: Pointer; AccountEventProc: TEventProc; end;
     FDesktopXMLDocument: IXMLDocument;
     FHistoryXMLDocument: IXMLDocument;
-    FJobs: TAJobs;
+    FJobs: TPPreferences.TJobs;
     FLastLogin: TDateTime;
     FName: string;
-    FDesktops: array of TDesktop;
     FXML: IXMLNode;
-    FAccounts: TAAccounts;
     Modified: Boolean;
     function GetDataPath(): TFileName;
-    function GetDesktop(): TADesktop;
+    function GetDesktop(): TDesktop;
     function GetDesktopCount(): Integer;
     function GetDesktopFilename(): TFileName;
     function GetDesktopXML(): IXMLNode;
     function GetHistoryFilename(): TFileName;
     function GetHistoryXML(): IXMLNode;
-    function GetJobs(): TAJobs;
+    function GetJobs(): TPPreferences.TJobs;
     function GetName(): string;
     function GetXML(): IXMLNode;
     procedure SetLastLogin(const ALastLogin: TDateTime);
@@ -721,7 +684,7 @@ type
     property HistoryXMLDocument: IXMLDocument read FHistoryXMLDocument;
     property XML: IXMLNode read GetXML;
   public
-    Connection: TAConnection;
+    Connection: TConnection;
     ManualURL: string;
     ManualURLFetched: Boolean;
     procedure Assign(const Source: TAAccount); virtual;
@@ -731,17 +694,17 @@ type
     function ExpandAddress(const APath: string): string; virtual;
     function Frame(): Pointer; virtual;
     function GetDefaultDatabase(): string; virtual;
-    function JobByName(const Name: string): TAJob; virtual;
+    function JobByName(const Name: string): TPPreferences.TJob; virtual;
     procedure RegisterDesktop(const AControl: Pointer; const AEventProc: TEventProc); virtual;
     procedure UnRegisterDesktop(const AControl: Pointer); virtual;
     property Accounts: TAAccounts read FAccounts;
     property DataPath: TFileName read GetDataPath;
-    property Desktop: TADesktop read GetDesktop;
+    property Desktop: TDesktop read GetDesktop;
     property DesktopCount: Integer read GetDesktopCount;
     property DesktopXML: IXMLNode read GetDesktopXML;
     property HistoryXML: IXMLNode read GetHistoryXML;
     property Index: Integer read GetIndex;
-    property Jobs: TAJobs read GetJobs;
+    property Jobs: TPPreferences.TJobs read GetJobs;
     property LastLogin: TDateTime read FLastLogin write SetLastLogin;
     property Name: string read GetName write SetName;
   end;
@@ -799,10 +762,8 @@ var
 implementation {***************************************************************}
 
 uses
-  Consts, CommCtrl, SHFolder, WinInet, ShellAPI, ImgList, ShlObj,
-  StrUtils, Variants, Math,
-  SysConst, ActiveX,
-  RTLConsts, WinSock,
+  Consts, CommCtrl, SHFolder, WinInet, ShellAPI, ImgList, ShlObj, StrUtils,
+  Variants, Math, SysConst, ActiveX, RTLConsts,
   MySQLConsts,
   CSVUtils,
   fURI;
@@ -859,7 +820,7 @@ begin
   end;
 end;
 
-function TryStrToQuote(const Str: string; var Quote: TPQuotingType): Boolean;
+function TryStrToQuote(const Str: string; var Quote: TPPreferences.TJob.TQuotingType): Boolean;
 begin
   Result := True;
   if (UpperCase(Str) = 'NOTHING') then Quote := qtNone
@@ -868,7 +829,7 @@ begin
   else Result := False;
 end;
 
-function QuoteToStr(const Quote: TPQuotingType): string;
+function QuoteToStr(const Quote: TPPreferences.TJob.TQuotingType): string;
 begin
   case Quote of
     qtStrings: Result := 'Stings';
@@ -877,7 +838,7 @@ begin
   end;
 end;
 
-function TryStrToSeparatorType(const Str: string; var SeparatorType: TPDelimiterType): Boolean;
+function TryStrToSeparatorType(const Str: string; var SeparatorType: TPPreferences.TJob.TDelimiterType): Boolean;
 begin
   Result := True;
   if (UpperCase(Str) = 'STANDARD') then SeparatorType := dtChar
@@ -885,7 +846,7 @@ begin
   else Result := False;
 end;
 
-function SeparatorTypeToStr(const SeparatorType: TPDelimiterType): string;
+function SeparatorTypeToStr(const SeparatorType: TPPreferences.TJob.TDelimiterType): string;
 begin
   case (SeparatorType) of
     dtTab: Result := 'Tab';
@@ -893,7 +854,7 @@ begin
   end;
 end;
 
-function TryStrToNodeType(const Str: string; var NodeType: TPNodeType): Boolean;
+function TryStrToNodeType(const Str: string; var NodeType: TPPreferences.TExport.TNodeType): Boolean;
 begin
   Result := True;
   if (UpperCase(Str) = 'DISABLED') then NodeType := ntDisabled
@@ -902,7 +863,7 @@ begin
   else Result := False;
 end;
 
-function NodeTypeToStr(const NodeType: TPNodeType): string;
+function NodeTypeToStr(const NodeType: TPPreferences.TExport.TNodeType): string;
 begin
   case (NodeType) of
     ntDisabled: Result := 'Disabled';
@@ -911,7 +872,7 @@ begin
   end;
 end;
 
-function TryStrToStmtType(const Str: string; var StmtType: TPStmtType): Boolean;
+function TryStrToStmtType(const Str: string; var StmtType: TPPreferences.TImport.TStmtType): Boolean;
 begin
   Result := True;
   if (UpperCase(Str) = 'INSERT') then StmtType := stInsert
@@ -921,7 +882,7 @@ begin
   else Result := False;
 end;
 
-function StmtTypeToStr(const StmtType: TPStmtType): string;
+function StmtTypeToStr(const StmtType: TPPreferences.TImport.TStmtType): string;
 begin
   case (StmtType) of
     stReplace: Result := 'Replace';
@@ -950,7 +911,7 @@ begin
   if (fsStrikeOut in Style) then begin if (Result <> '') then Result := Result + ','; Result := Result + 'StrikeOut'; end;
 end;
 
-function StrToFindOptions(const Str: string): TPFind.TOptions;
+function StrToFindOptions(const Str: string): TPPreferences.TFind.TOptions;
 begin
   Result := [];
   if (Pos('MATCHCASE', UpperCase(Str)) > 0) then Result := Result + [foMatchCase];
@@ -958,7 +919,7 @@ begin
   if (Pos('REGEXPR', UpperCase(Str)) > 0) then Result := Result + [foRegExpr];
 end;
 
-function FindOptionsToStr(const FindOptions: TPFind.TOptions): string;
+function FindOptionsToStr(const FindOptions: TPPreferences.TFind.TOptions): string;
 begin
   Result := '';
 
@@ -967,7 +928,7 @@ begin
   if (foRegExpr in FindOptions) then begin if (Result <> '') then Result := Result + ','; Result := Result + 'RegExpr'; end;
 end;
 
-function TryStrToUpdateCheck(const Str: string; var UpdateCheckType: TPUpdateCheckType): Boolean;
+function TryStrToUpdateCheck(const Str: string; var UpdateCheckType: TPPreferences.TUpdateCheckType): Boolean;
 begin
   Result := True;
   if (UpperCase(Str) = 'NEVER') then UpdateCheckType := utNever
@@ -975,7 +936,7 @@ begin
   else Result := False;
 end;
 
-function UpdateCheckToStr(const UpdateCheck: TPUpdateCheckType): string;
+function UpdateCheckToStr(const UpdateCheck: TPPreferences.TUpdateCheckType): string;
 begin
   case (UpdateCheck) of
     utDaily: Result := 'Daily';
@@ -1012,7 +973,7 @@ begin
   Result := AMajor * 100000000 + AMinor * 1000000 + APatch * 10000 + ABuild;
 end;
 
-function StrToReplaceOptions(const Str: string): TPReplace.TOptions;
+function StrToReplaceOptions(const Str: string): TPPreferences.TReplace.TOptions;
 begin
   Result := [];
   if (Pos('MATCHCASE', UpperCase(Str)) > 0) then Result := Result + [roMatchCase];
@@ -1020,7 +981,7 @@ begin
   if (Pos('REGEXPR', UpperCase(Str)) > 0) then Result := Result + [roRegExpr];
 end;
 
-function ReplaceOptionsToStr(const Options: TPReplace.TOptions): string;
+function ReplaceOptionsToStr(const Options: TPPreferences.TReplace.TOptions): string;
 begin
   Result := '';
 
@@ -1029,7 +990,7 @@ begin
   if (roRegExpr in Options) then begin if (Result <> '') then Result := Result + ','; Result := Result + 'RegExpr'; end;
 end;
 
-function TryStrToObjectType(const Str: string; var ObjectType: TAJobObjectType): Boolean;
+function TryStrToObjectType(const Str: string; var ObjectType: TPPreferences.TJob.TObjectType): Boolean;
 begin
   Result := True;
   if (UpperCase(Str) = 'SERVER') then ObjectType := jotDatabase
@@ -1042,7 +1003,7 @@ begin
   else Result := False;
 end;
 
-function ObjectTypeToStr(const ObjectType: TAJobObjectType): string;
+function ObjectTypeToStr(const ObjectType: TPPreferences.TJob.TObjectType): string;
 begin
   case (ObjectType) of
     jotServer: Result := 'Server';
@@ -1056,7 +1017,7 @@ begin
   end;
 end;
 
-function TryStrToImportType(const Str: string; var ImportType: TPImportType): Boolean;
+function TryStrToImportType(const Str: string; var ImportType: TAAccount.TJobImport.TImportType): Boolean;
 begin
   Result := True;
   if (UpperCase(Str) = 'SQLFILE') then ImportType := itSQLFile
@@ -1067,7 +1028,7 @@ begin
   else Result := False;
 end;
 
-function ImportTypeToStr(const ImportType: TPImportType): string;
+function ImportTypeToStr(const ImportType: TAAccount.TJobImport.TImportType): string;
 begin
   case (ImportType) of
     itSQLFile: Result := 'SQLFile';
@@ -1079,7 +1040,7 @@ begin
   end;
 end;
 
-function TryStrToExportType(const Str: string; var ExportType: TPExportType): Boolean;
+function TryStrToExportType(const Str: string; var ExportType: TAAccount.TJobExport.TExportType): Boolean;
 begin
   Result := True;
   if (UpperCase(Str) = 'SQLFILE') then ExportType := etSQLFile
@@ -1094,7 +1055,7 @@ begin
   else Result := False;
 end;
 
-function ExportTypeToStr(const ExportType: TPExportType): string;
+function ExportTypeToStr(const ExportType: TAAccount.TJobExport.TExportType): string;
 begin
   case (ExportType) of
     etSQLFile: Result := 'SQLFile';
@@ -1235,9 +1196,9 @@ begin
   end;
 end;
 
-{ TPItem **********************************************************************}
+{ TPreferences.TItem **********************************************************}
 
-procedure TPItem.Assign(const Source: TPItem);
+procedure TPPreferences.TItem.Assign(const Source: TItem);
 begin
   Assert(Assigned(Source) and (Source.ClassType = ClassType));
 
@@ -1245,7 +1206,7 @@ begin
   FName := Source.Name;
 end;
 
-constructor TPItem.Create(const AAItems: TPItems; const AName: string = '');
+constructor TPPreferences.TItem.Create(const AAItems: TItems; const AName: string = '');
 begin
   inherited Create();
 
@@ -1253,19 +1214,14 @@ begin
   FName := AName;
 end;
 
-function TPItem.GetIndex(): Integer;
+function TPPreferences.TItem.GetIndex(): Integer;
 begin
   Result := AItems.IndexOf(Self);
 end;
 
-function TPItem.GetXML(): IXMLNode;
-begin
- raise EAbstractError.Create(SAbstractError);
-end;
+{ TItems **********************************************************************}
 
-{ TPItems *********************************************************************}
-
-function TPItems.Add(const AItem: TPItem): Integer;
+function TPPreferences.TItems.Add(const AItem: TItem): Integer;
 begin
   if (InsertIndex(AItem.Name, Result)) then
     if (Result < TList(Self).Count) then
@@ -1274,7 +1230,7 @@ begin
       TList(Self).Add(AItem);
 end;
 
-procedure TPItems.Clear();
+procedure TPPreferences.TItems.Clear();
 var
   I: Integer;
 begin
@@ -1284,17 +1240,12 @@ begin
   inherited;
 end;
 
-function TPItems.GetItem(Index: Integer): TPItem;
+function TPPreferences.TItems.GetItem(Index: Integer): TItem;
 begin
-  Result := TPItem(Items[Index]);
+  Result := TItem(Items[Index]);
 end;
 
-function TPItems.GetXML(): IXMLNode;
-begin
-  Result := nil;
-end;
-
-function TPItems.IndexByName(const Name: string): Integer;
+function TPPreferences.TItems.IndexByName(const Name: string): Integer;
 var
   Left: Integer;
   Mid: Integer;
@@ -1315,7 +1266,7 @@ begin
   end;
 end;
 
-function TPItems.InsertIndex(const Name: string; out Index: Integer): Boolean;
+function TPPreferences.TItems.InsertIndex(const Name: string; out Index: Integer): Boolean;
 var
   Left: Integer;
   Mid: Integer;
@@ -1344,9 +1295,9 @@ begin
   end;
 end;
 
-{ TMRUList ********************************************************************}
+{ TPreferences.TMRUList *******************************************************}
 
-procedure TMRUList.Add(const Value: string);
+procedure TPPreferences.TMRUList.Add(const Value: string);
 var
   I: Integer;
   Index: Integer;
@@ -1368,7 +1319,7 @@ begin
   end;
 end;
 
-procedure TMRUList.Assign(const Source: TMRUList);
+procedure TPPreferences.TMRUList.Assign(const Source: TMRUList);
 var
   I: Integer;
 begin
@@ -1382,19 +1333,19 @@ begin
   end;
 end;
 
-procedure TMRUList.Clear();
+procedure TPPreferences.TMRUList.Clear();
 begin
   SetLength(FValues, 0);
 end;
 
-constructor TMRUList.Create(const AMaxCount: Integer);
+constructor TPPreferences.TMRUList.Create(const AMaxCount: Integer);
 begin
   FMaxCount := AMaxCount;
 
   Clear();
 end;
 
-procedure TMRUList.Delete(const Index: Integer);
+procedure TPPreferences.TMRUList.Delete(const Index: Integer);
 var
   I: Integer;
 begin
@@ -1406,24 +1357,24 @@ begin
   SetLength(FValues, Length(FValues) - 1);
 end;
 
-destructor TMRUList.Destroy();
+destructor TPPreferences.TMRUList.Destroy();
 begin
   Clear();
 
   inherited;
 end;
 
-function TMRUList.GetCount(): Integer;
+function TPPreferences.TMRUList.GetCount(): Integer;
 begin
   Result := Length(FValues);
 end;
 
-function TMRUList.GetValue(Index: Integer): string;
+function TPPreferences.TMRUList.GetValue(Index: Integer): string;
 begin
   Result := FValues[Index];
 end;
 
-function TMRUList.IndexOf(const Value: string): Integer;
+function TPPreferences.TMRUList.IndexOf(const Value: string): Integer;
 var
   I: Integer;
 begin
@@ -1434,7 +1385,7 @@ begin
       Result := I;
 end;
 
-procedure TMRUList.LoadFromXML(const XML: IXMLNode; const NodeName: string);
+procedure TPPreferences.TMRUList.LoadFromXML(const XML: IXMLNode; const NodeName: string);
 var
   I: Integer;
 begin
@@ -1447,7 +1398,7 @@ begin
     end;
 end;
 
-procedure TMRUList.SaveToXML(const XML: IXMLNode; const NodeName: string);
+procedure TPPreferences.TMRUList.SaveToXML(const XML: IXMLNode; const NodeName: string);
 var
   I: Integer;
 begin
@@ -1458,9 +1409,9 @@ begin
     XML.AddChild(NodeName).Text := Values[I];
 end;
 
-{ TPWindow ******************************************************************}
+{ TPreferences.TWindow ********************************************************}
 
-constructor TPWindow.Create();
+constructor TPPreferences.TWindow.Create();
 begin
   inherited Create(nil);
 
@@ -1468,7 +1419,7 @@ begin
   Width := -1;
 end;
 
-procedure TPWindow.LoadFromXML(const XML: IXMLNode);
+procedure TPPreferences.TWindow.LoadFromXML(const XML: IXMLNode);
 begin
   inherited;
 
@@ -1476,7 +1427,7 @@ begin
   if (Assigned(XMLNode(XML, 'width'))) then TryStrToInt(XMLNode(XML, 'width').Text, Width);
 end;
 
-procedure TPWindow.SaveToXML(const XML: IXMLNode);
+procedure TPPreferences.TWindow.SaveToXML(const XML: IXMLNode);
 begin
   inherited;
 
@@ -1484,19 +1435,11 @@ begin
   XMLNode(XML, 'width').Text := IntToStr(Width);
 end;
 
-{ TPDatabases *****************************************************************}
+{ TPreferences.TDatabases *****************************************************}
 
-constructor TPDatabases.Create();
-begin
-  Height := -1;
-  Left := -1;
-  Top := -1;
-  Width := -1;
-end;
+{ TPreferences.TEditor ********************************************************}
 
-{ TPEditor ********************************************************************}
-
-constructor TPEditor.Create();
+constructor TPPreferences.TEditor.Create();
 begin
   inherited;
 
@@ -1521,7 +1464,7 @@ begin
   WordWrap := False;
 end;
 
-procedure TPEditor.LoadFromXML(const XML: IXMLNode);
+procedure TPPreferences.TEditor.LoadFromXML(const XML: IXMLNode);
 begin
   if (Assigned(XMLNode(XML, 'autoindent'))) then TryStrToBool(XMLNode(XML, 'autoindent').Attributes['enabled'], AutoIndent);
   if (Assigned(XMLNode(XML, 'currentrow/background'))) then TryStrToBool(XMLNode(XML, 'currentrow/background').Attributes['visible'], CurrRowBGColorEnabled);
@@ -1534,7 +1477,7 @@ begin
   if (Assigned(XMLNode(XML, 'wordwrap'))) then TryStrToBool(XMLNode(XML, 'wordwrap').Text, WordWrap);
 end;
 
-procedure TPEditor.SaveToXML(const XML: IXMLNode);
+procedure TPPreferences.TEditor.SaveToXML(const XML: IXMLNode);
 begin
   XMLNode(XML, 'autoindent').Attributes['enabled'] := AutoIndent;
   XMLNode(XML, 'currentrow/background').Attributes['visible'] := CurrRowBGColorEnabled;
@@ -1548,22 +1491,22 @@ begin
   XMLNode(XML, 'wordwrap').Text := BoolToStr(WordWrap, True);
 end;
 
-{ TPExport ********************************************************************}
+{ TPreferences.TExport ********************************************************}
 
-procedure TPExport.Assign(const Source: TPItem);
+procedure TPPreferences.TExport.Assign(const Source: TItem);
 begin
-  Assert(Source is TPExport);
+  Assert(Source is TExport);
 
   inherited Assign(Source);
 
-  CSV := TPExport(Source).CSV;
-  Excel := TPExport(Source).Excel;
-  HTML := TPExport(Source).HTML;
-  SQL := TPExport(Source).SQL;
-  XML := TPExport(Source).XML;
+  CSV := TExport(Source).CSV;
+  Excel := TExport(Source).Excel;
+  HTML := TExport(Source).HTML;
+  SQL := TExport(Source).SQL;
+  XML := TExport(Source).XML;
 end;
 
-constructor TPExport.Create(const AAItems: TPItems = nil; const AName: string = '');
+constructor TPPreferences.TExport.Create(const AAItems: TItems = nil; const AName: string = '');
 begin
   inherited;
 
@@ -1595,7 +1538,7 @@ begin
   XML.Table.NodeAttribute := 'name';
 end;
 
-procedure TPExport.LoadFromXML(const XML: IXMLNode);
+procedure TPPreferences.TExport.LoadFromXML(const XML: IXMLNode);
 begin
   inherited;
 
@@ -1627,7 +1570,7 @@ begin
   if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Attributes['attribute'] <> Null)) then Self.XML.Table.NodeAttribute := XMLNode(XML, 'xml/table').Attributes['attribute'];
 end;
 
-procedure TPExport.SaveToXML(const XML: IXMLNode);
+procedure TPPreferences.TExport.SaveToXML(const XML: IXMLNode);
 begin
   inherited;
 
@@ -1659,26 +1602,26 @@ begin
   XMLNode(XML, 'xml/table').Attributes['attribute'] := Self.XML.Table.NodeAttribute;
 end;
 
-{ TPFind **********************************************************************}
+{ TPreferences.TFind **********************************************************}
 
-constructor TPFind.Create();
+constructor TPPreferences.TFind.Create();
 begin
   inherited;
 
-  FindTextMRU := TMRUList.Create(10);
+  FindTextMRU := TPPreferences.TMRUList.Create(10);
   Left := -1;
   Options := [foMatchCase];
   Top := -1;
 end;
 
-destructor TPFind.Destroy();
+destructor TPPreferences.TFind.Destroy();
 begin
   FindTextMRU.Free();
 
   inherited;
 end;
 
-procedure TPFind.LoadFromXML(const XML: IXMLNode);
+procedure TPPreferences.TFind.LoadFromXML(const XML: IXMLNode);
 var
   I: Integer;
 begin
@@ -1692,7 +1635,7 @@ begin
   if (Assigned(XMLNode(XML, 'options'))) then Options := StrToFindOptions(XMLNode(XML, 'options').Text);
 end;
 
-procedure TPFind.SaveToXML(const XML: IXMLNode);
+procedure TPPreferences.TFind.SaveToXML(const XML: IXMLNode);
 var
   I: Integer;
 begin
@@ -1704,30 +1647,30 @@ begin
   XMLNode(XML, 'options').Text := FindOptionsToStr(Options);
 end;
 
-{ TPImport ********************************************************************}
+{ TPreferences.TImport ********************************************************}
 
-procedure TPImport.Assign(const Source: TPItem);
+procedure TPPreferences.TImport.Assign(const Source: TItem);
 begin
   Assert(Assigned(Source) and (Source.ClassType = ClassType));
 
 
   inherited;
 
-  Charset := TPImport(Source).Charset;
-  CSV.Headline := TPImport(Source).CSV.Headline;
-  CSV.Quote := TPImport(Source).CSV.Quote;
-  CSV.QuoteChar := TPImport(Source).CSV.QuoteChar;
-  CSV.Delimiter := TPImport(Source).CSV.Delimiter;
-  CSV.DelimiterType := TPImport(Source).CSV.DelimiterType;
-  Collation := TPImport(Source).Collation;
-  Data := TPImport(Source).Data;
-  Engine := TPImport(Source).Engine;
-  RowType := TPImport(Source).RowType;
-  StmtType := TPImport(Source).StmtType;
-  Structure := TPImport(Source).Structure;
+  Charset := TImport(Source).Charset;
+  CSV.Headline := TImport(Source).CSV.Headline;
+  CSV.Quote := TImport(Source).CSV.Quote;
+  CSV.QuoteChar := TImport(Source).CSV.QuoteChar;
+  CSV.Delimiter := TImport(Source).CSV.Delimiter;
+  CSV.DelimiterType := TImport(Source).CSV.DelimiterType;
+  Collation := TImport(Source).Collation;
+  Data := TImport(Source).Data;
+  Engine := TImport(Source).Engine;
+  RowType := TImport(Source).RowType;
+  StmtType := TImport(Source).StmtType;
+  Structure := TImport(Source).Structure;
 end;
 
-constructor TPImport.Create(const AAItems: TPItems = nil; const AName: string = '');
+constructor TPPreferences.TImport.Create(const AAItems: TItems = nil; const AName: string = '');
 begin
   inherited;
 
@@ -1745,7 +1688,7 @@ begin
   Structure := True;
 end;
 
-procedure TPImport.LoadFromXML(const XML: IXMLNode);
+procedure TPPreferences.TImport.LoadFromXML(const XML: IXMLNode);
 begin
   inherited;
 
@@ -1764,7 +1707,7 @@ begin
   if (Assigned(XMLNode(XML, 'rowtype'))) then TryStrToRowType(XMLNode(XML, 'rowtype').Text, RowType);
 end;
 
-procedure TPImport.SaveToXML(const XML: IXMLNode);
+procedure TPPreferences.TImport.SaveToXML(const XML: IXMLNode);
 begin
   inherited;
 
@@ -1782,9 +1725,9 @@ begin
   XMLNode(XML, 'structure').Attributes['rowtype'] := RowTypeToStr(RowType);
 end;
 
-{ TPODBC **********************************************************************}
+{ TPreferences.TODBC **********************************************************}
 
-constructor TPODBC.Create();
+constructor TPPreferences.TODBC.Create();
 begin
   inherited;
 
@@ -1792,40 +1735,40 @@ begin
   Top := -1;
 end;
 
-{ TPPaste *********************************************************************}
+{ TPreferences.TPaste *********************************************************}
 
-constructor TPPaste.Create();
+constructor TPPreferences.TPaste.Create();
 begin
   inherited;
 
   Data := True;
 end;
 
-procedure TPPaste.LoadFromXML(const XML: IXMLNode);
+procedure TPPreferences.TPaste.LoadFromXML(const XML: IXMLNode);
 begin
   if (Assigned(XMLNode(XML, 'data'))) then TryStrToBool(XMLNode(XML, 'data').Text, Data);
 end;
 
-procedure TPPaste.SaveToXML(const XML: IXMLNode);
+procedure TPPreferences.TPaste.SaveToXML(const XML: IXMLNode);
 begin
   XMLNode(XML, 'data').Text := BoolToStr(Data, True);
 end;
 
-{ TPReplace *******************************************************************}
+{ TPreferences.TReplace *******************************************************}
 
-constructor TPReplace.Create();
+constructor TPPreferences.TReplace.Create();
 begin
   inherited;
 
-  FindTextMRU := TMRUList.Create(10);
-  ReplaceTextMRU := TMRUList.Create(10);
+  FindTextMRU := TPPreferences.TMRUList.Create(10);
+  ReplaceTextMRU := TPPreferences.TMRUList.Create(10);
   Backup := True;
   Left := -1;
   Options := [roMatchCase];
   Top := -1;
 end;
 
-destructor TPReplace.Destroy();
+destructor TPPreferences.TReplace.Destroy();
 begin
   FindTextMRU.Free();
   ReplaceTextMRU.Free();
@@ -1833,7 +1776,7 @@ begin
   inherited;
 end;
 
-procedure TPReplace.LoadFromXML(const XML: IXMLNode);
+procedure TPPreferences.TReplace.LoadFromXML(const XML: IXMLNode);
 var
   I: Integer;
 begin
@@ -1853,7 +1796,7 @@ begin
         ReplaceTextMRU.Add(XMLNode(XML, 'replacetext/mru').ChildNodes[I].Text);
 end;
 
-procedure TPReplace.SaveToXML(const XML: IXMLNode);
+procedure TPPreferences.TReplace.SaveToXML(const XML: IXMLNode);
 var
   I: Integer;
 begin
@@ -1869,9 +1812,11 @@ begin
     XMLNode(XML, 'replacetext/mru').AddChild('text').Text := ReplaceTextMRU.Values[I];
 end;
 
-{ TPServer ********************************************************************}
+{ TPreferences.TServer ********************************************************}
 
-constructor TPServer.Create();
+{ TPreferences.TSQLHelp *******************************************************}
+
+constructor TPPreferences.TSQLHelp.Create();
 begin
   inherited;
 
@@ -1879,17 +1824,7 @@ begin
   Top := -1;
 end;
 
-{ TPSQLHelp *******************************************************************}
-
-constructor TPSQLHelp.Create();
-begin
-  inherited;
-
-  Left := -1;
-  Top := -1;
-end;
-
-procedure TPSQLHelp.LoadFromXML(const XML: IXMLNode);
+procedure TPPreferences.TSQLHelp.LoadFromXML(const XML: IXMLNode);
 begin
   inherited;
 
@@ -1897,7 +1832,7 @@ begin
   if (Assigned(XMLNode(XML, 'top'))) then TryStrToInt(XMLNode(XML, 'top').Text, Top);
 end;
 
-procedure TPSQLHelp.SaveToXML(const XML: IXMLNode);
+procedure TPPreferences.TSQLHelp.SaveToXML(const XML: IXMLNode);
 begin
   inherited;
 
@@ -1905,32 +1840,32 @@ begin
   XMLNode(XML, 'top').Text := IntToStr(Top);
 end;
 
-{ TPAccounts ******************************************************************}
+{ TPreferences.TAccounts ******************************************************}
 
-constructor TPAccounts.Create();
+constructor TPPreferences.TAccounts.Create();
 begin
   inherited;
 
   SelectOrder := 0;
 end;
 
-procedure TPAccounts.LoadFromXML(const XML: IXMLNode);
+procedure TPPreferences.TAccounts.LoadFromXML(const XML: IXMLNode);
 begin
   inherited;
 
   if (Assigned(XMLNode(XML, 'selectorder'))) then TryStrToInt(XMLNode(XML, 'selectorder').Text, SelectOrder);
 end;
 
-procedure TPAccounts.SaveToXML(const XML: IXMLNode);
+procedure TPPreferences.TAccounts.SaveToXML(const XML: IXMLNode);
 begin
   inherited;
 
   XMLNode(XML, 'selectorder').Text := IntToStr(SelectOrder);
 end;
 
-{ TPTableService **************************************************************}
+{ TPreferences.TTableService **************************************************}
 
-constructor TPTableService.Create();
+constructor TPPreferences.TTableService.Create();
 begin
   inherited;
 
@@ -1941,7 +1876,7 @@ begin
   Repair := False;
 end;
 
-procedure TPTableService.LoadFromXML(const XML: IXMLNode);
+procedure TPPreferences.TTableService.LoadFromXML(const XML: IXMLNode);
 begin
   inherited;
 
@@ -1952,7 +1887,7 @@ begin
   if (Assigned(XMLNode(XML, 'repair'))) then TryStrToBool(XMLNode(XML, 'repair').Attributes['enabled'], Repair);
 end;
 
-procedure TPTableService.SaveToXML(const XML: IXMLNode);
+procedure TPPreferences.TTableService.SaveToXML(const XML: IXMLNode);
 begin
   inherited;
 
@@ -1963,9 +1898,9 @@ begin
   XMLNode(XML, 'repair').Attributes['enabled'] := Repair;
 end;
 
-{ TPTransfer ******************************************************************}
+{ TPreferences.TTransfer ******************************************************}
 
-constructor TPTransfer.Create();
+constructor TPPreferences.TTransfer.Create();
 begin
   inherited;
 
@@ -1973,7 +1908,7 @@ begin
   Structure := False;
 end;
 
-procedure TPTransfer.LoadFromXML(const XML: IXMLNode);
+procedure TPPreferences.TTransfer.LoadFromXML(const XML: IXMLNode);
 begin
   inherited;
 
@@ -1981,7 +1916,7 @@ begin
   if (Assigned(XMLNode(XML, 'structure'))) then TryStrToBool(XMLNode(XML, 'structure').Attributes['enabled'], Structure);
 end;
 
-procedure TPTransfer.SaveToXML(const XML: IXMLNode);
+procedure TPPreferences.TTransfer.SaveToXML(const XML: IXMLNode);
 begin
   inherited;
 
@@ -1989,9 +1924,9 @@ begin
   XMLNode(XML, 'structure').Attributes['enabled'] := Structure;
 end;
 
-{ TPLanguage ******************************************************************}
+{ TPreferences.TLanguage ******************************************************}
 
-constructor TPLanguage.Create(const FileName: string);
+constructor TPPreferences.TLanguage.Create(const FileName: string);
 var
   I: Integer;
   Item: Integer;
@@ -2027,14 +1962,14 @@ begin
   end;
 end;
 
-destructor TPLanguage.Destroy();
+destructor TPPreferences.TLanguage.Destroy();
 begin
   SetLength(FStrs, 0);
 
   inherited;
 end;
 
-function TPLanguage.GetStr(Index: Integer): string;
+function TPPreferences.TLanguage.GetStr(Index: Integer): string;
 begin
   if ((Index >= Length(FStrs)) or (FStrs[Index] = '')) then
     Result := SysUtils.LoadStr(10000 + Index)
@@ -2044,7 +1979,7 @@ begin
   Result := ReplaceStr(ReplaceStr(Trim(Result), '\n', #10), '\r', #13);
 end;
 
-{ TPPreferences ***************************************************************}
+{ TPreferences ****************************************************************}
 
 constructor TPPreferences.Create();
 var
@@ -2078,7 +2013,6 @@ begin
   Left := 0;
   Height := 0;
   Width := 0;
-  AddressBarVisible := False;
   GridFontName := 'Microsoft Sans Serif';
   GridFontColor := clWindowText;
   GridFontStyle := [];
@@ -2194,31 +2128,31 @@ begin
       ImageList_AddIcon(FLargeImages.Handle, ImageList_GetIcon(FSmallImages.Handle, I, 0));
 
 
-  Database := TPDatabase.Create();
-  Databases := TPDatabases.Create();
-  Editor := TPEditor.Create();
-  Event := TPEvent.Create();
-  Export := TPExport.Create();
-  Field := TPField.Create();
-  Find := TPFind.Create();
-  ForeignKey := TPForeignKey.Create();
-  Host := TPHost.Create();
-  Import := TPImport.Create();
-  Key := TPKey.Create();
-  ODBC := TPODBC.Create();
-  Paste := TPPaste.Create();
-  Replace := TPReplace.Create();
-  Routine := TPRoutine.Create();
-  Server := TPServer.Create();
-  Account := TPAccount.Create();
-  Accounts := TPAccounts.Create();
-  SQLHelp := TPSQLHelp.Create();
-  Statement := TPStatement.Create();
-  Table := TPTable.Create();
-  TableService := TPTableService.Create();
-  Transfer := TPTransfer.Create();
-  Trigger := TPTrigger.Create();
-  User := TPUser.Create();
+  Database := TDatabase.Create();
+  Databases := TDatabases.Create();
+  Editor := TPPreferences.TEditor.Create();
+  Event := TEvent.Create();
+  Export := TPPreferences.TExport.Create();
+  Field := TField.Create();
+  Find := TPPreferences.TFind.Create();
+  ForeignKey := TForeignKey.Create();
+  Host := THost.Create();
+  Import := TPPreferences.TImport.Create();
+  Key := TKey.Create();
+  ODBC := TODBC.Create();
+  Paste := TPPreferences.TPaste.Create();
+  Replace := TPPreferences.TReplace.Create();
+  Routine := TRoutine.Create();
+  Server := TServer.Create();
+  Account := TAccount.Create();
+  Accounts := TPPreferences.TAccounts.Create();
+  SQLHelp := TPPreferences.TSQLHelp.Create();
+  Statement := TStatement.Create();
+  Table := TTable.Create();
+  TableService := TPPreferences.TTableService.Create();
+  Transfer := TPPreferences.TTransfer.Create();
+  Trigger := TTrigger.Create();
+  User := TUser.Create();
   View := TPView.Create();
 
   LoadFromRegistry();
@@ -2270,10 +2204,10 @@ begin
   Result := UserPath + 'Desktop.xml';
 end;
 
-function TPPreferences.GetLanguage(): TPLanguage;
+function TPPreferences.GetLanguage(): TLanguage;
 begin
   if (not Assigned(FLanguage)) then
-    FLanguage := TPLanguage.Create(LanguagePath + LanguageFilename);
+    FLanguage := TPPreferences.TLanguage.Create(LanguagePath + LanguageFilename);
 
   Result := FLanguage;
 end;
@@ -2443,7 +2377,6 @@ var
 begin
   XML.OwnerDocument.Options := XML.OwnerDocument.Options - [doNodeAutoCreate];
 
-  if (Assigned(XMLNode(XML, 'addressbar'))) then TryStrToBool(XMLNode(XML, 'addressbar').Attributes['visible'], AddressBarVisible);
   if (Assigned(XMLNode(XML, 'grid/currentrow/background'))) then TryStrToBool(XMLNode(XML, 'grid/currentrow/background').Attributes['visible'], GridCurrRowBGColorEnabled);
   if (Assigned(XMLNode(XML, 'grid/currentrow/background/color'))) then GridCurrRowBGColor := StringToColor(XMLNode(XML, 'grid/currentrow/background/color').Text);
   if (Assigned(XMLNode(XML, 'grid/font/charset'))) then TryStrToInt(XMLNode(XML, 'grid/font/charset').Text, GridFontCharset);
@@ -2648,7 +2581,6 @@ begin
 
   XML.OwnerDocument.Options := XML.OwnerDocument.Options + [doNodeAutoCreate];
 
-  XMLNode(XML, 'addressbar').Attributes['visible'] := AddressBarVisible;
   XMLNode(XML, 'grid/currentrow/background').Attributes['visible'] := GridCurrRowBGColorEnabled;
   XMLNode(XML, 'grid/currentrow/background/color').Text := ColorToString(GridCurrRowBGColor);
   XMLNode(XML, 'grid/font/charset').Text := IntToStr(GridFontCharset);
@@ -2728,46 +2660,46 @@ begin
   XMLNode(XML, 'updates/lastcheck').Text := SysUtils.DateToStr(UpdateChecked, FileFormatSettings);
   XMLNode(XML, 'width').Text := IntToStr(Width);
 
-  Database.SaveToXML(XMLNode(XML, 'database'));
-  Editor.SaveToXML(XMLNode(XML, 'editor'));
-  Event.SaveToXML(XMLNode(XML, 'event'));
-  Export.SaveToXML(XMLNode(XML, 'export'));
-  Field.SaveToXML(XMLNode(XML, 'field'));
-  Find.SaveToXML(XMLNode(XML, 'find'));
-  ForeignKey.SaveToXML(XMLNode(XML, 'foreignkey'));
-  Host.SaveToXML(XMLNode(XML, 'host'));
-  Import.SaveToXML(XMLNode(XML, 'import'));
-  Key.SaveToXML(XMLNode(XML, 'index'));
-  ODBC.SaveToXML(XMLNode(XML, 'odbc'));
-  Paste.SaveToXML(XMLNode(XML, 'paste'));
-  Replace.SaveToXML(XMLNode(XML, 'replace'));
-  Routine.SaveToXML(XMLNode(XML, 'routine'));
-  Server.SaveToXML(XMLNode(XML, 'server'));
-  Account.SaveToXML(XMLNode(XML, 'account'));
-  Accounts.SaveToXML(XMLNode(XML, 'accounts'));
-  SQLHelp.SaveToXML(XMLNode(XML, 'sqlhelp'));
-  Statement.SaveToXML(XMLNode(XML, 'statement'));
-  Table.SaveToXML(XMLNode(XML, 'table'));
-  TableService.SaveToXML(XMLNode(XML, 'tableservice'));
-  Transfer.SaveToXML(XMLNode(XML, 'transfer'));
-  Trigger.SaveToXML(XMLNode(XML, 'trigger'));
-  User.SaveToXML(XMLNode(XML, 'user'));
-  View.SaveToXML(XMLNode(XML, 'view'));
+  Database.SaveToXML(XMLNode(XML, 'database', True));
+  Editor.SaveToXML(XMLNode(XML, 'editor', True));
+  Event.SaveToXML(XMLNode(XML, 'event', True));
+  Export.SaveToXML(XMLNode(XML, 'export', True));
+  Field.SaveToXML(XMLNode(XML, 'field', True));
+  Find.SaveToXML(XMLNode(XML, 'find', True));
+  ForeignKey.SaveToXML(XMLNode(XML, 'foreignkey', True));
+  Host.SaveToXML(XMLNode(XML, 'host', True));
+  Import.SaveToXML(XMLNode(XML, 'import', True));
+  Key.SaveToXML(XMLNode(XML, 'index', True));
+  ODBC.SaveToXML(XMLNode(XML, 'odbc', True));
+  Paste.SaveToXML(XMLNode(XML, 'paste', True));
+  Replace.SaveToXML(XMLNode(XML, 'replace', True));
+  Routine.SaveToXML(XMLNode(XML, 'routine', True));
+  Server.SaveToXML(XMLNode(XML, 'server', True));
+  Account.SaveToXML(XMLNode(XML, 'account', True));
+  Accounts.SaveToXML(XMLNode(XML, 'accounts, True'));
+  SQLHelp.SaveToXML(XMLNode(XML, 'sqlhelp', True));
+  Statement.SaveToXML(XMLNode(XML, 'statement', True));
+  Table.SaveToXML(XMLNode(XML, 'table', True));
+  TableService.SaveToXML(XMLNode(XML, 'tableservice', True));
+  Transfer.SaveToXML(XMLNode(XML, 'transfer', True));
+  Trigger.SaveToXML(XMLNode(XML, 'trigger', True));
+  User.SaveToXML(XMLNode(XML, 'user', True));
+  View.SaveToXML(XMLNode(XML, 'view', True));
 
   if (XML.OwnerDocument.Modified and ForceDirectories(ExtractFilePath(Filename))) then
     try XML.OwnerDocument.SaveToFile(Filename); except end; // We do not know about problems.
 end;
 
-{ TAFile **********************************************************************}
+{ TAAccount.TFile *************************************************************}
 
-constructor TAFile.Create(const AFiles: TAFiles);
+constructor TAAccount.TFile.Create(const AFiles: TAAccount.TFiles);
 begin
   inherited Create();
 
   FFiles := AFiles;
 end;
 
-procedure TAFile.LoadFromXML(const XML: IXMLNode);
+procedure TAAccount.TFile.LoadFromXML(const XML: IXMLNode);
 var
   CodePage: Integer;
 begin
@@ -2778,7 +2710,7 @@ begin
   end;
 end;
 
-procedure TAFile.SaveToXML(const XML: IXMLNode);
+procedure TAAccount.TFile.SaveToXML(const XML: IXMLNode);
 begin
   XML.OwnerDocument.Options := XML.OwnerDocument.Options + [doNodeAutoCreate];
 
@@ -2791,9 +2723,9 @@ begin
   XML.OwnerDocument.Options := XML.OwnerDocument.Options - [doNodeAutoCreate];
 end;
 
-{ TAFiles *********************************************************************}
+{ TAAccount.TFiles ************************************************************}
 
-procedure TAFiles.Add(const AFilename: TFileName; const ACodePage: Cardinal);
+procedure TAAccount.TFiles.Add(const AFilename: TFileName; const ACodePage: Cardinal);
 var
   I: Integer;
   Index: Integer;
@@ -2810,7 +2742,7 @@ begin
   if (Index < 0) then
   begin
     Index := 0;
-    Insert(Index, TAFile.Create(Self));
+    Insert(Index, TAAccount.TFile.Create(Self));
 
     while (Count > MaxCount) do
     begin
@@ -2825,7 +2757,7 @@ begin
   Files[0].FCodePage := ACodePage
 end;
 
-procedure TAFiles.Clear();
+procedure TAAccount.TFiles.Clear();
 begin
   while (Count > 0) do
   begin
@@ -2836,30 +2768,21 @@ begin
   inherited;
 end;
 
-constructor TAFiles.Create(const ADesktop: TADesktop; const AMaxCount: Integer);
+constructor TAAccount.TFiles.Create(const ADesktop: TDesktop; const AMaxCount: Integer);
 begin
   inherited Create();
 
   FDesktop := ADesktop;
 
   FMaxCount := AMaxCount;
-  FXML := nil;
 end;
 
-function TAFiles.Get(Index: Integer): TAFile;
+function TAAccount.TFiles.GetFile(Index: Integer): TAAccount.TFile;
 begin
-  Result := TAFile(Items[Index]);
+  Result := TAAccount.TFile(Items[Index]);
 end;
 
-function TAFiles.GetXML(): IXMLNode;
-begin
-  if (not Assigned(FXML) and Assigned(Desktop.XML)) then
-    FXML := XMLNode(Desktop.XML, 'editor/files', True);
-
-  Result := FXML;
-end;
-
-procedure TAFiles.LoadFromXML();
+procedure TAAccount.TFiles.LoadFromXML(const XML: IXMLNode);
 var
   I: Integer;
 begin
@@ -2868,12 +2791,12 @@ begin
   for I := 0 to XML.ChildNodes.Count - 1 do
     if (XML.ChildNodes[I].NodeName = 'file') then
     begin
-      inherited Add(TAFile.Create(Self));
+      inherited Add(TAAccount.TFile.Create(Self));
       Files[Count - 1].LoadFromXML(XML.ChildNodes[I]);
     end;
 end;
 
-procedure TAFiles.SaveToXML();
+procedure TAAccount.TFiles.SaveToXML(const XML: IXMLNode);
 var
   I: Integer;
   Node: IXMLNode;
@@ -2888,21 +2811,21 @@ begin
   end;
 end;
 
-{ TAJob ***********************************************************************}
+{ TPreferences.TJob ***********************************************************}
 
-procedure TAJob.Assign(const Source: TPItem);
+procedure TPPreferences.TJob.Assign(const Source: TItem);
 begin
   Assert(Assigned(Source) and (Source.ClassType = ClassType));
 
 
   inherited;
 
-  Enabled := TAJob(Source).Enabled;
-  Start := TAJob(Source).Start;
-  TriggerType := TAJob(Source).TriggerType;
+  Enabled := TJob(Source).Enabled;
+  Start := TJob(Source).Start;
+  TriggerType := TJob(Source).TriggerType;
 end;
 
-constructor TAJob.Create(const AAItems: TPItems; const AName: string = '');
+constructor TPPreferences.TJob.Create(const AAItems: TItems; const AName: string = '');
 begin
   inherited Create();
 
@@ -2914,19 +2837,19 @@ begin
   TriggerType := ttSingle;
 end;
 
-function TAJob.GetJobs(): TAJobs;
+function TPPreferences.TJob.GetJobs(): TPPreferences.TJobs;
 begin
-  Assert(AItems is TAJobs);
+  Assert(AItems is TPPreferences.TJobs);
 
-  Result := TAJobs(AItems);
+  Result := TPPreferences.TJobs(AItems);
 end;
 
-function TAJob.GetLogFilename(): TFileName;
+function TPPreferences.TJob.GetLogFilename(): TFileName;
 begin
   Result := Jobs.Account.DataPath + 'Jobs' + PathDelim + Name + '.err';
 end;
 
-function TAJob.Save(const Update: Boolean): Boolean;
+function TPPreferences.TJob.Save(const Update: Boolean): Boolean;
 var
   Action: IAction;
   DailyTrigger: IDailyTrigger;
@@ -3001,30 +2924,30 @@ begin
   end;
 end;
 
-{ TAJobImport *****************************************************************}
+{ TAAccount.TJobImport ********************************************************}
 
-procedure TAJobImport.Assign(const Source: TPItem);
+procedure TAAccount.TJobImport.Assign(const Source: TPPreferences.TItem);
 var
   I: Integer;
 begin
-  Assert(Source is TAJobImport);
+  Assert(Source is TAAccount.TJobImport);
 
   inherited;
 
-  CodePage := TAJobImport(Source).CodePage;
-  SetLength(FieldMappings, Length(TAJobImport(Source).FieldMappings));
+  CodePage := TAAccount.TJobImport(Source).CodePage;
+  SetLength(FieldMappings, Length(TAAccount.TJobImport(Source).FieldMappings));
   for I := 0 to Length(FieldMappings) - 1 do
-    FieldMappings[I] := TAJobImport(Source).FieldMappings[I];
-  Filename := TAJobImport(Source).Filename;
-  ImportType := TAJobImport(Source).ImportType;
-  JobObject := TAJobImport(Source).JobObject;
-  ODBC.DataSource := TAJobImport(Source).ODBC.DataSource;
-  ODBC.Username := TAJobImport(Source).ODBC.Username;
-  ODBC.Password := TAJobImport(Source).ODBC.Password;
-  SourceObjects := TAJobImport(Source).SourceObjects;
+    FieldMappings[I] := TAAccount.TJobImport(Source).FieldMappings[I];
+  Filename := TAAccount.TJobImport(Source).Filename;
+  ImportType := TAAccount.TJobImport(Source).ImportType;
+  JobObject := TAAccount.TJobImport(Source).JobObject;
+  ODBC.DataSource := TAAccount.TJobImport(Source).ODBC.DataSource;
+  ODBC.Username := TAAccount.TJobImport(Source).ODBC.Username;
+  ODBC.Password := TAAccount.TJobImport(Source).ODBC.Password;
+  SourceObjects := TAAccount.TJobImport(Source).SourceObjects;
 end;
 
-constructor TAJobImport.Create(const AAItems: TPItems = nil; const AName: string = '');
+constructor TAAccount.TJobImport.Create(const AAItems: TPPreferences.TItems = nil; const AName: string = '');
 begin
   inherited;
 
@@ -3036,7 +2959,7 @@ begin
   SetLength(SourceObjects, 0);
 end;
 
-destructor TAJobImport.Destroy();
+destructor TAAccount.TJobImport.Destroy();
 var
   I: Integer;
 begin
@@ -3053,30 +2976,10 @@ begin
   inherited;
 end;
 
-function TAJobImport.GetXML(): IXMLNode;
-var
-  I: Integer;
-begin
-  if (not Assigned(FXML)) then
-  begin
-    for I := 0 to AItems.XML.ChildNodes.Count - 1 do
-      if ((AItems.XML.ChildNodes[I].NodeName = 'job') and (lstrcmpi(PChar(string(AItems.XML.ChildNodes[I].Attributes['name'])), PChar(Name)) = 0)) then
-        FXML := AItems.XML.ChildNodes[I];
-
-    if (not Assigned(FXML) and (doNodeAutoCreate in AItems.XML.OwnerDocument.Options)) then
-    begin
-      FXML := AItems.XML.AddChild('job');
-      FXML.Attributes['name'] := Name;
-    end;
-  end;
-
-  Result := FXML;
-end;
-
-procedure TAJobImport.LoadFromXML(const XML: IXMLNode);
+procedure TAAccount.TJobImport.LoadFromXML(const XML: IXMLNode);
 var
   Child: IXMLNode;
-  ObjectType: TAJobObjectType;
+  ObjectType: TPPreferences.TJob.TObjectType;
 begin
   inherited;
 
@@ -3128,7 +3031,7 @@ begin
   end;
 end;
 
-procedure TAJobImport.SaveToXML(const XML: IXMLNode);
+procedure TAAccount.TJobImport.SaveToXML(const XML: IXMLNode);
 var
   Child: IXMLNode;
   RemoveChild: IXMLNode;
@@ -3180,33 +3083,33 @@ begin
   end;
 end;
 
-{ TAJobExport *****************************************************************}
+{ TAAccount.TJobExport. *****************************************************************}
 
-procedure TAJobExport.Assign(const Source: TPItem);
+procedure TAAccount.TJobExport.Assign(const Source: TPPreferences.TItem);
 var
   I: Integer;
 begin
-  Assert(Source is TAJobExport);
+  Assert(Source is TAAccount.TJobExport);
 
   inherited Assign(Source);
 
-  CodePage := TAJobExport(Source).CodePage;
-  ExportType := TAJobExport(Source).ExportType;
-  Filename := TAJobExport(Source).Filename;
-  ODBC.DataSource := TAJobExport(Source).ODBC.DataSource;
-  ODBC.Password := TAJobExport(Source).ODBC.Password;
-  ODBC.Username := TAJobExport(Source).ODBC.Username;
+  CodePage := TAAccount.TJobExport(Source).CodePage;
+  ExportType := TAAccount.TJobExport(Source).ExportType;
+  Filename := TAAccount.TJobExport(Source).Filename;
+  ODBC.DataSource := TAAccount.TJobExport(Source).ODBC.DataSource;
+  ODBC.Password := TAAccount.TJobExport(Source).ODBC.Password;
+  ODBC.Username := TAAccount.TJobExport(Source).ODBC.Username;
   ClearObjects();
-  SetLength(JobObjects, Length(TAJobExport(Source).JobObjects));
+  SetLength(JobObjects, Length(TAAccount.TJobExport(Source).JobObjects));
   for I := 0 to Length(JobObjects) - 1 do
   begin
-    JobObjects[I].ObjectType := TAJobExport(Source).JobObjects[I].ObjectType;
-    JobObjects[I].Name := TAJobExport(Source).JobObjects[I].Name;
-    JobObjects[I].DatabaseName := TAJobExport(Source).JobObjects[I].DatabaseName;
+    JobObjects[I].ObjectType := TAAccount.TJobExport(Source).JobObjects[I].ObjectType;
+    JobObjects[I].Name := TAAccount.TJobExport(Source).JobObjects[I].Name;
+    JobObjects[I].DatabaseName := TAAccount.TJobExport(Source).JobObjects[I].DatabaseName;
   end;
 end;
 
-procedure TAJobExport.ClearObjects();
+procedure TAAccount.TJobExport.ClearObjects();
 var
   I: Integer;
 begin
@@ -3218,7 +3121,7 @@ begin
   SetLength(JobObjects, 0);
 end;
 
-constructor TAJobExport.Create(const AAItems: TPItems = nil; const AName: string = '');
+constructor TAAccount.TJobExport.Create(const AAItems: TPPreferences.TItems = nil; const AName: string = '');
 begin
   inherited;
 
@@ -3227,37 +3130,17 @@ begin
   SetLength(JobObjects, 0);
 end;
 
-destructor TAJobExport.Destroy();
+destructor TAAccount.TJobExport.Destroy();
 begin
   ClearObjects();
 
   inherited;
 end;
 
-function TAJobExport.GetXML(): IXMLNode;
-var
-  I: Integer;
-begin
-  if (not Assigned(FXML)) then
-  begin
-    for I := 0 to AItems.XML.ChildNodes.Count - 1 do
-      if ((AItems.XML.ChildNodes[I].NodeName = 'job') and (lstrcmpi(PChar(string(AItems.XML.ChildNodes[I].Attributes['name'])), PChar(Name)) = 0)) then
-        FXML := AItems.XML.ChildNodes[I];
-
-    if (not Assigned(FXML) and (doNodeAutoCreate in AItems.XML.OwnerDocument.Options)) then
-    begin
-      FXML := AItems.XML.AddChild('job');
-      FXML.Attributes['name'] := Name;
-    end;
-  end;
-
-  Result := FXML;
-end;
-
-procedure TAJobExport.LoadFromXML(const XML: IXMLNode);
+procedure TAAccount.TJobExport.LoadFromXML(const XML: IXMLNode);
 var
   Child: IXMLNode;
-  ObjectType: TAJobObjectType;
+  ObjectType: TPPreferences.TJob.TObjectType;
 begin
   inherited;
 
@@ -3288,7 +3171,7 @@ begin
   end;
 end;
 
-procedure TAJobExport.SaveToXML(const XML: IXMLNode);
+procedure TAAccount.TJobExport.SaveToXML(const XML: IXMLNode);
 var
   Child: IXMLNode;
   RemoveChild: IXMLNode;
@@ -3330,19 +3213,19 @@ begin
   end;
 end;
 
-{ TAJobs **********************************************************************}
+{ TAAccount.TJobs *************************************************************}
 
-function TAJobs.AddJob(const NewJob: TAJob): Boolean;
+function TPPreferences.TJobs.AddJob(const NewJob: TPPreferences.TJob): Boolean;
 var
-  Job: TAJob;
+  Job: TPPreferences.TJob;
 begin
   Result := IndexByName(NewJob.Name) < 0;
   if (Result) then
   begin
-    if (NewJob is TAJobImport) then
-      Job := TAJobImport.Create(Self, NewJob.Name)
-    else if (NewJob is TAJobExport) then
-      Job := TAJobExport.Create(Self, NewJob.Name)
+    if (NewJob is TAAccount.TJobImport) then
+      Job := TAAccount.TJobImport.Create(Self, NewJob.Name)
+    else if (NewJob is TAAccount.TJobExport) then
+      Job := TAAccount.TJobExport.Create(Self, NewJob.Name)
     else
       raise ERangeError.Create(SRangeError);
     Job.Assign(NewJob);
@@ -3357,14 +3240,14 @@ begin
   end;
 end;
 
-constructor TAJobs.Create(const AAccount: TAAccount);
+constructor TPPreferences.TJobs.Create(const AAccount: TAAccount);
 begin
   inherited Create();
 
   FAccount := AAccount;
 end;
 
-procedure TAJobs.DeleteJob(const Job: TAJob);
+procedure TPPreferences.TJobs.DeleteJob(const Job: TPPreferences.TJob);
 var
   Index: Integer;
   TaskFolder: ITaskFolder;
@@ -3385,21 +3268,21 @@ begin
   Account.AccountEvent(ClassType);
 end;
 
-destructor TAJobs.Destroy();
+destructor TPPreferences.TJobs.Destroy();
 begin
   Clear();
 
   inherited;
 end;
 
-function TAJobs.GetJob(Index: Integer): TAJob;
+function TPPreferences.TJobs.GetJob(Index: Integer): TPPreferences.TJob;
 begin
-  Assert(Item[Index] is TAJob);
+  Assert(Item[Index] is TPPreferences.TJob);
 
-  Result := TAJob(Item[Index]);
+  Result := TPPreferences.TJob(Item[Index]);
 end;
 
-function TAJobs.GetTaskFolder(const AutoCreate: Boolean = False): ITaskFolder;
+function TPPreferences.TJobs.GetTaskFolder(const AutoCreate: Boolean = False): ITaskFolder;
 var
   AppFolder: ITaskFolder;
   RootFolder: ITaskFolder;
@@ -3414,15 +3297,15 @@ begin
       Result := nil;
 end;
 
-function TAJobs.GetTaskService(): ITaskService;
+function TPPreferences.TJobs.GetTaskService(): ITaskService;
 begin
   Result := Preferences.TaskService;
 end;
 
-procedure TAJobs.Load();
+procedure TPPreferences.TJobs.Load();
 var
   I: Integer;
-  Job: TAJob;
+  Job: TPPreferences.TJob;
   S: string;
   RegisteredTask: IRegisteredTask;
   TaskFolder: ITaskFolder;
@@ -3440,9 +3323,9 @@ begin
       RegisteredTask := Tasks.Item[1 + I];
       XMLDocument.LoadFromXML(StrPas(RegisteredTask.Definition.Data));
       if (XMLDocument.DocumentElement.Attributes['type'] = 'import') then
-        Job := TAJobImport.Create(Self, StrPas(RegisteredTask.Name))
+        Job := TAAccount.TJobImport.Create(Self, StrPas(RegisteredTask.Name))
       else if (XMLDocument.DocumentElement.Attributes['type'] = 'export') then
-        Job := TAJobExport.Create(Self, StrPas(RegisteredTask.Name))
+        Job := TAAccount.TJobExport.Create(Self, StrPas(RegisteredTask.Name))
       else
         Job := nil;
       if (Assigned(Job)) then
@@ -3472,7 +3355,7 @@ begin
   end;
 end;
 
-function TAJobs.UpdateJob(const Job, NewJob: TAJob): Boolean;
+function TPPreferences.TJobs.UpdateJob(const Job, NewJob: TPPreferences.TJob): Boolean;
 begin
   Result := (IndexOf(Job) >= 0) and ((IndexByName(NewJob.Name) = IndexOf(Job)) or (IndexByName(NewJob.Name) < 0));
   if (Result) then
@@ -3489,9 +3372,9 @@ begin
   end;
 end;
 
-{ TADesktop *******************************************************************}
+{ TAAccount.TDesktop **********************************************************}
 
-procedure TADesktop.Assign(const Source: TADesktop);
+procedure TAAccount.TDesktop.Assign(const Source: TDesktop);
 var
   I: Integer;
   Kind: TListViewKind;
@@ -3514,7 +3397,7 @@ begin
   SQLHistoryVisible := Source.SQLHistoryVisible;
 end;
 
-constructor TADesktop.Create(const AAccount: TAAccount);
+constructor TAAccount.TDesktop.Create(const AAccount: TAAccount);
 var
   I: Integer;
   Kind: TListViewKind;
@@ -3522,9 +3405,8 @@ begin
   inherited Create();
 
   FAccount := AAccount;
-  FXML := nil;
 
-  AddressMRU := TMRUList.Create(10);
+  AddressMRU := TPPreferences.TMRUList.Create(10);
   BlobHeight := 100;
   for Kind := lkServer to lkVariables do
     for I := 0 to Length(ColumnWidths[Kind]) - 1 do
@@ -3544,10 +3426,10 @@ begin
   SelectorWitdth := 150;
   SQLHistoryVisible := False;
 
-  FFiles := TAFiles.Create(Self, 10);
+  FFiles := TAAccount.TFiles.Create(Self, 10);
 end;
 
-destructor TADesktop.Destroy();
+destructor TAAccount.TDesktop.Destroy();
 begin
   AddressMRU.Free();
   FFiles.Free();
@@ -3555,20 +3437,12 @@ begin
   inherited;
 end;
 
-function TADesktop.GetAddress(): string;
+function TAAccount.TDesktop.GetAddress(): string;
 begin
   Result := Account.ExpandAddress(FPath);
 end;
 
-function TADesktop.GetXML(): IXMLNode;
-begin
-  if (not Assigned(FXML)) then
-    FXML := Account.DesktopXML;
-
-  Result := FXML;
-end;
-
-procedure TADesktop.LoadFromXML();
+procedure TAAccount.TDesktop.LoadFromXML(const XML: IXMLNode);
 begin
   if (Assigned(XML)) then
   begin
@@ -3624,11 +3498,11 @@ begin
       SQLHistoryVisible := not NavigatorVisible and not ExplorerVisible and not JobsVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'SQL HISTORY');
     end;
 
-    Files.LoadFromXML();
+    Files.LoadFromXML(XMLNode(XML, 'editor/files'));
   end;
 end;
 
-procedure TADesktop.SaveToXML();
+procedure TAAccount.TDesktop.SaveToXML(const XML: IXMLNode);
 begin
   XML.OwnerDocument.Options := XML.OwnerDocument.Options + [doNodeAutoCreate];
 
@@ -3689,19 +3563,19 @@ begin
   else
     XMLNode(XML, 'sidebar/visible').Text := BoolToStr(False, True);
 
-  Files.SaveToXML();
+  Files.SaveToXML(XMLNode(XML, 'editor/files', True));
 
   XML.OwnerDocument.Options := XML.OwnerDocument.Options - [doNodeAutoCreate];
 end;
 
-procedure TADesktop.SetAddress(AAddress: string);
+procedure TAAccount.TDesktop.SetAddress(AAddress: string);
 begin
   FPath := Account.ExtractPath(AAddress);
 end;
 
-{ TAConnection ****************************************************************}
+{ TAAccount.TConnection *******************************************************}
 
-procedure TAConnection.Assign(const Source: TAConnection);
+procedure TAAccount.TConnection.Assign(const Source: TConnection);
 begin
   Database := Source.Database;
   Host := Source.Host;
@@ -3713,12 +3587,11 @@ begin
   Username := Source.Username;
 end;
 
-constructor TAConnection.Create(const AAccount: TAAccount);
+constructor TAAccount.TConnection.Create(const AAccount: TAAccount);
 begin
   inherited Create();
 
   FAccount := AAccount;
-  FXML := nil;
 
   Database := '';
   Host := '';
@@ -3730,15 +3603,7 @@ begin
   Username := '';
 end;
 
-function TAConnection.GetXML(): IXMLNode;
-begin
-  if (not Assigned(FXML) and Assigned(Account.XML)) then
-    FXML := XMLNode(Account.XML, 'connection');
-
-  Result := FXML;
-end;
-
-procedure TAConnection.LoadFromXML();
+procedure TAAccount.TConnection.LoadFromXML(const XML: IXMLNode);
 begin
   if (Assigned(XML)) then
   begin
@@ -3757,7 +3622,7 @@ begin
   end;
 end;
 
-procedure TAConnection.SaveToXML();
+procedure TAAccount.TConnection.SaveToXML(const XML: IXMLNode);
 begin
   XMLNode(XML, 'database').Text := Database;
   XMLNode(XML, 'host').Text := Host;
@@ -3813,7 +3678,7 @@ begin
   ManualURLFetched := False;
   Modified := False;
 
-  Connection := TAConnection.Create(Self);
+  Connection := TAAccount.TConnection.Create(Self);
   FDesktop := nil;
   FJobs := nil;
 end;
@@ -3921,10 +3786,10 @@ begin
   end;
 end;
 
-function TAAccount.GetDesktop(): TADesktop;
+function TAAccount.GetDesktop(): TDesktop;
 begin
   if (not Assigned(FDesktop) and Assigned(DesktopXML)) then
-    FDesktop := TADesktop.Create(Self);
+    FDesktop := TDesktop.Create(Self);
 
   Result := FDesktop;
 end;
@@ -4030,11 +3895,11 @@ begin
   Result := Accounts.IndexOf(Self);
 end;
 
-function TAAccount.GetJobs(): TAJobs;
+function TAAccount.GetJobs(): TPPreferences.TJobs;
 begin
   if (not Assigned(FJobs) and CheckWin32Version(6)) then
   begin
-    FJobs := TAJobs.Create(Self);
+    FJobs := TPPreferences.TJobs.Create(Self);
     FJobs.Load();
   end;
 
@@ -4068,7 +3933,7 @@ begin
   Result := FXML;
 end;
 
-function TAAccount.JobByName(const Name: string): TAJob;
+function TAAccount.JobByName(const Name: string): TPPreferences.TJob;
 var
   Index: Integer;
 begin
@@ -4090,9 +3955,9 @@ begin
 
     Modified := False;
 
-    Connection.LoadFromXML();
+    Connection.LoadFromXML(XMLNode(XML, 'connection'));
     if (Assigned(Desktop)) then
-      Desktop.LoadFromXML(); // Session muss geladen sein, damit FullAddress funktioniert
+      Desktop.LoadFromXML(DesktopXML); // Session muss geladen sein, damit FullAddress funktioniert
   end;
 end;
 
@@ -4111,9 +3976,10 @@ begin
     XMLNode(XML, 'manualurl').Text := ManualURL;
     XMLNode(XML, 'manualurlfetched').Text := BoolToStr(ManualURLFetched, True);
 
-    Connection.SaveToXML();
+    Connection.SaveToXML(XMLNode(XML, 'connection', True));
+
     if (Assigned(Desktop)) then
-      Desktop.SaveToXML();
+      Desktop.SaveToXML(DesktopXML);
 
     if (ForceDirectories(DataPath)) then
     begin
@@ -4501,7 +4367,7 @@ end;
 procedure TAAccounts.UpdateAccount(const Account, NewAccount: TAAccount);
 var
   I: Integer;
-  NewJob: TAJob;
+  NewJob: TPPreferences.TJob;
   TaskFolder: ITaskFolder;
 begin
   if (Assigned(Account) and Assigned(NewAccount) and (not Assigned(AccountByName(NewAccount.Name)) or (NewAccount.Name = Account.Name))) then
@@ -4517,8 +4383,8 @@ begin
       if (Assigned(Account.Jobs)) then
         for I := Account.Jobs.Count - 1 downto 0 do
         begin
-          if (Account.Jobs[I] is TAJobExport) then
-            NewJob := TAJobExport.Create(NewAccount.Jobs, Account.Jobs[I].Name)
+          if (Account.Jobs[I] is TAAccount.TJobExport) then
+            NewJob := TAAccount.TJobExport.Create(NewAccount.Jobs, Account.Jobs[I].Name)
           else
             NewJob := nil;
           NewJob.Assign(Account.Jobs[I]);
