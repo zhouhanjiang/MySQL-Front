@@ -6268,10 +6268,7 @@ begin
   SetSource(ADataSet.FieldByName('SQL Original Statement'));
 
   if (Valid) then
-  begin
     Session.ExecuteEvent(etItemsValid, Session.Databases);
-    Session.ExecuteEvent(etItemValid, Database, Triggers, Self);
-  end;
 end;
 
 function TSTrigger.SQLDelete(): string;
@@ -6419,7 +6416,8 @@ begin
             Trigger[Index].FDefiner := ''
           else
             Trigger[Index].FDefiner := DataSet.FieldByName('DEFINER').AsString;
-          Trigger[Index].FStmt := DataSet.FieldByName('ACTION_STATEMENT').AsString + ';';
+          Trigger[Index].FStmt := Trim(DataSet.FieldByName('ACTION_STATEMENT').AsString);
+          if (RightStr(Trigger[Index].FStmt, 1) <> ';') then Trigger[Index].FStmt := Trigger[Index].FStmt + ';';
           Trigger[Index].FTableName := DataSet.FieldByName('EVENT_OBJECT_TABLE').AsString;
           if (UpperCase(DataSet.FieldByName('ACTION_TIMING').AsString) = 'BEFORE') then
             Trigger[Index].FTiming := ttBefore
@@ -8298,8 +8296,9 @@ begin
     SQL := SQL + 'DROP TRIGGER IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(Trigger.Name) + ';' + #13#10;
 
   SQL := SQL + NewTrigger.GetSourceEx();
+  SQL := SQL + NewTrigger.SQLGetSource();
 
-  Result := Session.Connection.ExecuteSQL(SQL);
+  Result := Session.Connection.ExecuteSQL(SQL, Session.SessionResult);
 
   // Warum verliert die MySQL Datenbank den Multi Stmt Status ??? (Fixed in 5.0.67 - auch schon vorher?)
   if (Session.Connection.Connected and Session.Connection.MultiStatements and Assigned(Session.Connection.Lib.mysql_set_server_option)) then
@@ -9426,7 +9425,7 @@ end;
 
 function TSProcess.GetThreadId(): Longword;
 begin
-  Result := StrToInt(Name);
+  Result := StrToUInt64(Name);
 end;
 
 procedure TSProcess.SetThreadId(AThreadId: Longword);

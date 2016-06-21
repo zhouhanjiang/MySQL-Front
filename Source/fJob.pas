@@ -10,13 +10,13 @@ type
   TJobExecution = class(TObject)
   private
     Account: TAAccount;
-    Job: TAJob;
+    Job: TAAccount.TJob;
     ErrorLogFile: THandle;
     Session: TSSession;
     StdErr: THandle;
     StdOut: THandle;
-    function ExecuteExport(const Job: TAJobExport): Integer;
-    function ExecuteImport(const Job: TAJobImport): Integer;
+    function ExecuteExport(const Job: TAAccount.TJobExport): Integer;
+    function ExecuteImport(const Job: TAAccount.TJobImport): Integer;
     procedure ExportError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
   public
     constructor Create(const AccountName, JobName: string);
@@ -97,14 +97,14 @@ begin
   Session.Connection.Connect();
   if (not Session.Connection.Connected) then
     WriteLn(StdErr, Session.Connection.ErrorMessage)
-  else if (Job is TAJobImport) then
-    ExecuteImport(TAJobImport(Job))
-  else if (Job is TAJobExport) then
-    ExecuteExport(TAJobExport(Job));
+  else if (Job is TAAccount.TJobImport) then
+    ExecuteImport(TAAccount.TJobImport(Job))
+  else if (Job is TAAccount.TJobExport) then
+    ExecuteExport(TAAccount.TJobExport(Job));
   Session.Free();
 end;
 
-function TJobExecution.ExecuteExport(const Job: TAJobExport): Integer;
+function TJobExecution.ExecuteExport(const Job: TAAccount.TJobExport): Integer;
 var
   Database: TSDatabase;
   DBObject: TSDBObject;
@@ -348,7 +348,7 @@ begin
   end;
 end;
 
-function TJobExecution.ExecuteImport(const Job: TAJobImport): Integer;
+function TJobExecution.ExecuteImport(const Job: TAAccount.TJobImport): Integer;
 var
   Database: TSDatabase;
   Import: TTImport;

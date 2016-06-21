@@ -228,8 +228,8 @@ type
     CodePage: Cardinal;
     DialogType: (idtNormal, idtCreateJob, idtEditJob, idtExecuteJob);
     Filename: TFileName;
-    ImportType: TPImportType;
-    Job: TAJobImport;
+    ImportType: TAAccount.TJobImport.TImportType;
+    Job: TAAccount.TJobImport;
     Session: TSSession;
     SObject: TSObject;
     Window: TForm;
@@ -716,7 +716,7 @@ var
   Year, Month, Day: Word;
   I: Integer;
   J: Integer;
-  PImport: TPImport;
+  NewJob: TAAccount.TJobImport;
 begin
   Session.UnRegisterEventProc(FormSessionEvent);
 
@@ -727,109 +727,140 @@ begin
     Import.Free();
 
   if (ModalResult = mrOk) then
-  begin
-    if (DialogType in [idtCreateJob, idtEditJob]) then
-      PImport := TAJobImport.Create(Session.Account.Jobs, Trim(FName.Text))
-    else
-      PImport := Preferences.Import;
-
-    case (ImportType) of
-      itTextFile:
-        begin
-          PImport.CSV.Headline := FCSVHeadline.Checked;
-          if (FDelimiterTab.Checked) then
-            PImport.CSV.DelimiterType := dtTab
-          else if (FDelimiterChar.Checked) then
-            PImport.CSV.DelimiterType := dtChar;
-          PImport.CSV.Delimiter := FDelimiter.Text;
-          PImport.CSV.QuoteChar := FQuoteChar.Text;
-          if (FQuoteNothing.Checked) then
-            PImport.CSV.Quote := qtNone
-          else
-            PImport.CSV.Quote := qtStrings;
-        end;
-      itODBC:
-        begin
-          PImport.Structure := FStructure.Checked;
-          PImport.Data := FData.Checked;
-        end;
-    end;
-
-    if (FReplace.Checked) then
-      TAJobImport(PImport).StmtType := stReplace
-    else if (FUpdate.Checked) then
-      TAJobImport(PImport).StmtType := stUpdate
-    else if (FInsertOrUpdate.Checked) then
-      TAJobImport(PImport).StmtType := stInsertOrUpdate
-    else
-      TAJobImport(PImport).StmtType := stInsert;
-
-    if (DialogType in [idtCreateJob, idtEditJob]) then
+    if (DialogType in [idtNormal]) then
     begin
-      if (Assigned(FSelect.Selected)) then
-        if (not Assigned(FSelect.Selected.Parent)) then
-          TAJobImport(PImport).JobObject.ObjectType := jotServer
-        else if (TObject(FSelect.Selected.Data) is TSDatabase) then
-        begin
-          TAJobImport(PImport).JobObject.ObjectType := jotDatabase;
-          TAJobImport(PImport).JobObject.Name := TSDatabase(FSelect.Selected.Data).Name;
-        end
-        else if (TObject(FSelect.Selected.Data) is TSDBObject) then
-        begin
-          if (TObject(FSelect.Selected.Data) is TSTable) then
-            TAJobImport(PImport).JobObject.ObjectType := jotTable;
-          TAJobImport(PImport).JobObject.Name := TSDBObject(FSelect.Selected.Data).Name;
-          TAJobImport(PImport).JobObject.DatabaseName := TSDBObject(FSelect.Selected.Data).Database.Name;
-        end;
-      TAJobImport(PImport).CodePage := CodePage;
-      TAJobImport(PImport).ImportType := ImportType;
-      TAJobImport(PImport).Filename := FFilename.Text;
-      TAJobImport(PImport).ODBC.DataSource := FDataSource.Text;
-
-      SetLength(TAJobImport(PImport).SourceObjects, 0);
       case (ImportType) of
-        itAccessFile,
-        itExcelFile,
+        itTextFile:
+          begin
+            Preferences.Import.CSV.Headline := FCSVHeadline.Checked;
+            if (FDelimiterTab.Checked) then
+              Preferences.Import.CSV.DelimiterType := dtTab
+            else if (FDelimiterChar.Checked) then
+              Preferences.Import.CSV.DelimiterType := dtChar;
+            Preferences.Import.CSV.Delimiter := FDelimiter.Text;
+            Preferences.Import.CSV.QuoteChar := FQuoteChar.Text;
+            if (FQuoteNothing.Checked) then
+              Preferences.Import.CSV.Quote := qtNone
+            else
+              Preferences.Import.CSV.Quote := qtStrings;
+          end;
         itODBC:
-          for I := 0 to FTables.Items.Count - 1 do
-            if (FTables.Items[I].Selected) then
-            begin
-              SetLength(TAJobImport(PImport).SourceObjects, Length(TAJobImport(PImport).SourceObjects) + 1);
-              TAJobImport(PImport).SourceObjects[Length(TAJobImport(PImport).SourceObjects) - 1].Name := TTableName(FTables.Items[I].Data).SourceName;
-            end;
+          begin
+            Preferences.Import.Structure := FStructure.Checked;
+            Preferences.Import.Data := FData.Checked;
+          end;
       end;
 
-      SetLength(TAJobImport(PImport).FieldMappings, 0);
-      if (SObject is TSTable) then
-        for I := 0 to TSTable(SObject).Fields.Count - 1 do
-          for J := 0 to Length(FDestinationFields) - 1 do
-            if ((FSourceFields[J].Text <> '') and (FDestinationFields[J].ItemIndex = I + 1)) then
-            begin
-              SetLength(TAJobImport(PImport).FieldMappings, Length(TAJobImport(PImport).FieldMappings) + 1);
-              TAJobImport(PImport).FieldMappings[Length(TAJobImport(PImport).FieldMappings) - 1].DestinationFieldName := TSTable(SObject).Fields[I].Name;
-              TAJobImport(PImport).FieldMappings[Length(TAJobImport(PImport).FieldMappings) - 1].SourceFieldName := FSourceFields[J].Text;
-            end;
-
-      DecodeDate(FStartDate.Date, Year, Month, Day);
-      DecodeTime(FStartTime.Time, Hour, Min, Sec, MSec);
-      TAJobImport(PImport).Start := EncodeDate(Year, Month, Day) + EncodeTime(Hour, Min, Sec, MSec);
-      if (FDaily.Checked) then
-        TAJobImport(PImport).TriggerType := ttDaily
-      else if (FWeekly.Checked) then
-        TAJobImport(PImport).TriggerType := ttWeekly
-      else if (FMonthly.Checked) then
-        TAJobImport(PImport).TriggerType := ttMonthly
+      if (FReplace.Checked) then
+        Preferences.Import.StmtType := stReplace
+      else if (FUpdate.Checked) then
+        Preferences.Import.StmtType := stUpdate
+      else if (FInsertOrUpdate.Checked) then
+        Preferences.Import.StmtType := stInsertOrUpdate
       else
-        TAJobImport(PImport).TriggerType := ttSingle;
-      TAJobImport(PImport).Enabled := FEnabled.Checked;
+        Preferences.Import.StmtType := stInsert;
+    end
+    else
+    begin
+      NewJob := TAAccount.TJobImport.Create(Session.Account.Jobs, Trim(FName.Text));
 
-      if (DialogType = idtCreateJob) then
-        Session.Account.Jobs.AddJob(PImport)
-      else if (DialogType = idtEditJob) then
-        Session.Account.Jobs.UpdateJob(Job, PImport);
-      PImport.Free();
+      case (ImportType) of
+        itTextFile:
+          begin
+            NewJob.CSV.Headline := FCSVHeadline.Checked;
+            if (FDelimiterTab.Checked) then
+              NewJob.CSV.DelimiterType := dtTab
+            else if (FDelimiterChar.Checked) then
+              NewJob.CSV.DelimiterType := dtChar;
+            NewJob.CSV.Delimiter := FDelimiter.Text;
+            NewJob.CSV.QuoteChar := FQuoteChar.Text;
+            if (FQuoteNothing.Checked) then
+              NewJob.CSV.Quote := qtNone
+            else
+              NewJob.CSV.Quote := qtStrings;
+          end;
+        itODBC:
+          begin
+            NewJob.Structure := FStructure.Checked;
+            NewJob.Data := FData.Checked;
+          end;
+      end;
+
+      if (FReplace.Checked) then
+        NewJob.StmtType := stReplace
+      else if (FUpdate.Checked) then
+        NewJob.StmtType := stUpdate
+      else if (FInsertOrUpdate.Checked) then
+        NewJob.StmtType := stInsertOrUpdate
+      else
+        NewJob.StmtType := stInsert;
+
+      if (DialogType in [idtCreateJob, idtEditJob]) then
+      begin
+        if (Assigned(FSelect.Selected)) then
+          if (not Assigned(FSelect.Selected.Parent)) then
+            NewJob.JobObject.ObjectType := jotServer
+          else if (TObject(FSelect.Selected.Data) is TSDatabase) then
+          begin
+            NewJob.JobObject.ObjectType := jotDatabase;
+            NewJob.JobObject.Name := TSDatabase(FSelect.Selected.Data).Name;
+          end
+          else if (TObject(FSelect.Selected.Data) is TSDBObject) then
+          begin
+            if (TObject(FSelect.Selected.Data) is TSTable) then
+              NewJob.JobObject.ObjectType := jotTable;
+            NewJob.JobObject.Name := TSDBObject(FSelect.Selected.Data).Name;
+            NewJob.JobObject.DatabaseName := TSDBObject(FSelect.Selected.Data).Database.Name;
+          end;
+        NewJob.CodePage := CodePage;
+        NewJob.ImportType := ImportType;
+        NewJob.Filename := FFilename.Text;
+        NewJob.ODBC.DataSource := FDataSource.Text;
+
+        SetLength(NewJob.SourceObjects, 0);
+        case (ImportType) of
+          itAccessFile,
+          itExcelFile,
+          itODBC:
+            for I := 0 to FTables.Items.Count - 1 do
+              if (FTables.Items[I].Selected) then
+              begin
+                SetLength(NewJob.SourceObjects, Length(NewJob.SourceObjects) + 1);
+                NewJob.SourceObjects[Length(NewJob.SourceObjects) - 1].Name := TTableName(FTables.Items[I].Data).SourceName;
+              end;
+        end;
+
+        SetLength(NewJob.FieldMappings, 0);
+        if (SObject is TSTable) then
+          for I := 0 to TSTable(SObject).Fields.Count - 1 do
+            for J := 0 to Length(FDestinationFields) - 1 do
+              if ((FSourceFields[J].Text <> '') and (FDestinationFields[J].ItemIndex = I + 1)) then
+              begin
+                SetLength(NewJob.FieldMappings, Length(NewJob.FieldMappings) + 1);
+                NewJob.FieldMappings[Length(NewJob.FieldMappings) - 1].DestinationFieldName := TSTable(SObject).Fields[I].Name;
+                NewJob.FieldMappings[Length(NewJob.FieldMappings) - 1].SourceFieldName := FSourceFields[J].Text;
+              end;
+
+        DecodeDate(FStartDate.Date, Year, Month, Day);
+        DecodeTime(FStartTime.Time, Hour, Min, Sec, MSec);
+        NewJob.Start := EncodeDate(Year, Month, Day) + EncodeTime(Hour, Min, Sec, MSec);
+        if (FDaily.Checked) then
+          NewJob.TriggerType := ttDaily
+        else if (FWeekly.Checked) then
+          NewJob.TriggerType := ttWeekly
+        else if (FMonthly.Checked) then
+          NewJob.TriggerType := ttMonthly
+        else
+          NewJob.TriggerType := ttSingle;
+        NewJob.Enabled := FEnabled.Checked;
+
+        if (DialogType = idtCreateJob) then
+          Session.Account.Jobs.AddJob(NewJob)
+        else if (DialogType = idtEditJob) then
+          Session.Account.Jobs.UpdateJob(Job, NewJob);
+        NewJob.Free();
+      end;
     end;
-  end;
 
   FDataSource.Text := '';
   FFilename.Text := '';

@@ -31,7 +31,7 @@ const
 
 type
   TSynMemoBeforeDrag = record SelStart: Integer; SelLength: Integer; end;
-  TListViewSortRec = record Kind: TADesktop.TListViewKind; Index: Integer; Order: Integer; end;
+  TListViewSortRec = record Kind: TAAccount.TDesktop.TListViewKind; Index: Integer; Order: Integer; end;
   TListViewSortData = array [lkServer .. lkVariables] of TListViewSortRec;
 
 type
@@ -848,7 +848,7 @@ type
     FFiles: TJamShellList;
     FFolders: TJamShellTree;
     FHTML: TWebBrowser;
-    FilterMRU: TMRUList;
+    FilterMRU: TPPreferences.TMRUList;
     FNavigatorMenuNode: TTreeNode;
     FNavigatorNodeAfterActivate: TTreeNode;
     FNavigatorNodeToExpand: TTreeNode;
@@ -900,8 +900,8 @@ type
     procedure aERedoExecute(Sender: TObject);
     procedure aERenameExecute(Sender: TObject);
     procedure aESelectAllExecute(Sender: TObject);
-    procedure aFExportExecute(const Sender: TObject; const ExportType: TPExportType);
-    procedure aFImportExecute(const Sender: TObject; const ImportType: TPImportType);
+    procedure aFExportExecute(const Sender: TObject; const ExportType: TAAccount.TJobExport.TExportType);
+    procedure aFImportExecute(const Sender: TObject; const ImportType: TAAccount.TJobImport.TImportType);
     procedure aFOpenExecute(Sender: TObject);
     procedure aFSaveAsExecute(Sender: TObject);
     procedure aFSaveExecute(Sender: TObject);
@@ -919,7 +919,7 @@ type
     procedure BeforeExecuteSQL(Sender: TObject);
     procedure BeginEditLabel(Sender: TObject);
     procedure SessionUpdate(const SessionEvent: TSSession.TEvent);
-    function ColumnWidthKindFromImageIndex(const AImageIndex: Integer): TADesktop.TListViewKind;
+    function ColumnWidthKindFromImageIndex(const AImageIndex: Integer): TAAccount.TDesktop.TListViewKind;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     function CreateDesktop(const CObject: TSObject): TSObject.TDesktop;
     procedure CreateExplorer();
@@ -1005,7 +1005,8 @@ type
     procedure SQLError(DataSet: TDataSet; E: EDatabaseError; var Action: TDataAction);
     procedure SynMemoApplyPreferences(const SynMemo: TSynMemo);
     procedure TableOpen(Sender: TObject);
-    function UpdateAfterAddressChanged(): Boolean; virtual;
+    procedure TCResultMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
+    function UpdateAfterAddressChanged(): Boolean;
     function ViewToParam(const AView: TView): Variant;
     procedure WorkbenchAddTable(Sender: TObject);
     procedure WorkbenchChange(Sender: TObject; Control: TWControl);
@@ -1300,6 +1301,8 @@ begin
       TCResult := FSession.CreateTCResult(PDBGrid);
       TCResult.Tabs.Add(Preferences.LoadStr(861, IntToStr(Results.Count)));
       TCResult.OnChange := TCResultChange;
+      TCResult.OnMouseMove := FSession.TCResultMouseMove;
+      TCResult.Tag := NativeInt(Self);
     end;
 
     GetMem(Item, SizeOf(TResult));
@@ -3419,7 +3422,7 @@ begin
   aFExportExecute(Sender, etExcelFile);
 end;
 
-procedure TFSession.aFExportExecute(const Sender: TObject; const ExportType: TPExportType);
+procedure TFSession.aFExportExecute(const Sender: TObject; const ExportType: TAAccount.TJobExport.TExportType);
 var
   Database: TSDatabase;
   I: Integer;
@@ -3550,7 +3553,7 @@ begin
   aFImportExecute(Sender, itExcelFile);
 end;
 
-procedure TFSession.aFImportExecute(const Sender: TObject; const ImportType: TPImportType);
+procedure TFSession.aFImportExecute(const Sender: TObject; const ImportType: TAAccount.TJobImport.TImportType);
 var
   SItem: TSItem;
 begin
@@ -3805,26 +3808,26 @@ end;
 
 procedure TFSession.aJEditExecute(Sender: TObject);
 var
-  Job: TAJob;
+  Job: TAAccount.TJob;
 begin
   Job := Session.Account.JobByName(FJobs.Selected.Caption);
 
-  if (Job is TAJobImport) then
+  if (Job is TAAccount.TJobImport) then
   begin
     DImport.Session := Session;
     DImport.SObject := nil;
     DImport.DialogType := idtEditJob;
     DImport.Filename := '';
     DImport.Window := Window;
-    DImport.Job := TAJobImport(Job);
+    DImport.Job := TAAccount.TJobImport(Job);
     DImport.Execute();
   end
-  else if (Job is TAJobExport) then
+  else if (Job is TAAccount.TJobExport) then
   begin
     DExport.Session := Session;
     DExport.DBGrid := nil;
     DExport.DialogType := edtEditJob;
-    DExport.Job := TAJobExport(Job);
+    DExport.Job := TAAccount.TJobExport(Job);
     DExport.SObjects.Clear();
     DExport.Window := Window;
     DExport.Execute();
@@ -4958,7 +4961,7 @@ begin
     Wanted.Synchronize();
 end;
 
-function TFSession.ColumnWidthKindFromImageIndex(const AImageIndex: Integer): TADesktop.TListViewKind;
+function TFSession.ColumnWidthKindFromImageIndex(const AImageIndex: Integer): TAAccount.TDesktop.TListViewKind;
 begin
   case (AImageIndex) of
     iiServer: Result := lkServer;
@@ -5002,7 +5005,7 @@ end;
 
 constructor TFSession.Create(const AOwner: TComponent; const AParent: TWinControl; const ASession: TSSession; const AParam: string);
 var
-  Kind: TADesktop.TListViewKind;
+  Kind: TAAccount.TDesktop.TListViewKind;
   NonClientMetrics: TNonClientMetrics;
 begin
   inherited Create(AOwner);
@@ -5289,7 +5292,7 @@ begin
 
   Wanted := TWanted.Create(Self);
 
-  FilterMRU := TMRUList.Create(100);
+  FilterMRU := TPPreferences.TMRUList.Create(100);
 
 
   CloseButton := TPicture.Create();
@@ -9218,7 +9221,7 @@ procedure TFSession.ListViewColumnClick(Sender: TObject; Column: TListColumn);
 var
   HDItem: THDItem;
   I: Integer;
-  Kind: TADesktop.TListViewKind;
+  Kind: TAAccount.TDesktop.TListViewKind;
 begin
   Kind := ColumnWidthKindFromImageIndex(SelectedImageIndex);
 
@@ -9483,7 +9486,7 @@ end;
 
 procedure TFSession.ListViewInitialize(const ListView: TListView);
 
-  procedure SetColumnWidths(const ListView: TListView; const Kind: TADesktop.TListViewKind);
+  procedure SetColumnWidths(const ListView: TListView; const Kind: TAAccount.TDesktop.TListViewKind);
   var
     I: Integer;
   begin
@@ -9864,7 +9867,7 @@ end;
 
 procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const ListView: TListView; const Data: TCustomData = nil);
 
-  function Compare(const Kind: TADesktop.TListViewKind; const Item1, Item2: TListItem): Integer;
+  function Compare(const Kind: TAAccount.TDesktop.TListViewKind; const Item1, Item2: TListItem): Integer;
   begin
     ListViewCompare(nil, Item1, Item2, LPARAM(@ListViewSortData[Kind]), Result);
   end;
@@ -10211,7 +10214,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
     Item.SubItems.EndUpdate();
   end;
 
-  function InsertOrUpdateItem(const Kind: TADesktop.TListViewKind; const Data: TObject): TListItem;
+  function InsertOrUpdateItem(const Kind: TAAccount.TDesktop.TListViewKind; const Data: TObject): TListItem;
   var
     GroupID: Integer;
     I: Integer;
@@ -10278,14 +10281,14 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
     end;
   end;
 
-  function AddItem(const Kind: TADesktop.TListViewKind; const Data: TObject): TListItem;
+  function AddItem(const Kind: TAAccount.TDesktop.TListViewKind; const Data: TObject): TListItem;
   begin
     Result := ListView.Items.Add();
     Result.Data := Data;
     UpdateItem(Result, Data);
   end;
 
-  procedure UpdateGroup(const Kind: TADesktop.TListViewKind; const GroupID: Integer; const SItems: TSItems);
+  procedure UpdateGroup(const Kind: TAAccount.TDesktop.TListViewKind; const GroupID: Integer; const SItems: TSItems);
   var
     Add: Boolean;
     ColumnWidths: array [0..7] of Integer;
@@ -10438,7 +10441,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
 var
   ChangingEvent: TLVChangingEvent;
   I: Integer;
-  Kind: TADesktop.TListViewKind;
+  Kind: TAAccount.TDesktop.TListViewKind;
   Table: TSTable;
 begin
   if (Assigned(ListView) and (Assigned(SessionEvent.SItems) or (SessionEvent.Sender is TSTable))) then
@@ -11243,11 +11246,11 @@ end;
 
 procedure TFSession.mjExecuteClick(Sender: TObject);
 var
-  Job: TAJob;
+  Job: TAAccount.TJob;
 begin
   Job := Session.Account.JobByName(FJobs.Selected.Caption);
 
-  if (Job is TAJobImport) then
+  if (Job is TAAccount.TJobImport) then
   begin
     DImport.Session := Session;
     DImport.SObject := nil;
@@ -11255,7 +11258,7 @@ begin
     DImport.Filename := '';
     DImport.Window := Window;
     DImport.ImportType := itUnknown;
-    DImport.Job := TAJobImport(Job);
+    DImport.Job := TAAccount.TJobImport(Job);
     DImport.Execute();
   end
   else
@@ -11263,7 +11266,7 @@ begin
     DExport.Session := Session;
     DExport.DBGrid := nil;
     DExport.DialogType := edtExecuteJob;
-    DExport.Job := TAJobExport(Job);
+    DExport.Job := TAAccount.TJobExport(Job);
     DExport.SObjects.Clear();
     DExport.Window := Window;
     DExport.ExportType := etUnknown;
@@ -13201,7 +13204,8 @@ begin
 
     URI.Free();
 
-    AddressChanged(nil);
+    if (AllowChange) then
+      AddressChanged(nil);
   end;
 end;
 
@@ -13636,6 +13640,26 @@ begin
   end;
 
   SortDef.Free();
+end;
+
+procedure TFSession.TCResultMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
+var
+  Index: Integer;
+  SQLEditor: TSQLEditor;
+  TabControl: TTabControl;
+begin
+  if ((Sender is TTabControl) and (Shift = [])) then
+  begin
+    TabControl := TTabControl(Sender);
+
+    if (TObject(TabControl.Tag) is TSQLEditor) then
+    begin
+      SQLEditor := TSQLEditor(TabControl.Tag);
+      Index := TabControl.IndexOfTabAt(X, Y);
+
+      TabControl.Hint := TSQLEditor.TResult(SQLEditor.Results[Index]^).DataSet.CommandText;
+    end;
+  end;
 end;
 
 procedure TFSession.ToolBarResize(Sender: TObject);

@@ -124,7 +124,6 @@ type
     aSSearchFind: TSearchFind_Ext;
     aSSearchNext: TSearchFindNext;
     aSSearchReplace: TSearchReplace_Ext;
-    aVAddressBar: TAction;
     aVDataBrowser: TAction;
     aVDiagram: TAction;
     aVExplorer: TAction;
@@ -561,7 +560,9 @@ begin
     UpdateExecution := True;
     Preferences.SetupProgramExecute := DInstallUpdate.Execute();
     if (Preferences.SetupProgramExecute) then
-      Close();
+      Close()
+    else
+      UpdateExecution := False;
   end;
 end;
 
@@ -1032,8 +1033,6 @@ begin
   Preferences.WindowState := WindowState;
   if (WindowState = wsNormal) then
     begin Preferences.Top := Top; Preferences.Left := Left; Preferences.Height := Height; Preferences.Width := Width; end;
-
-  Preferences.AddressBarVisible := aVAddressBar.Checked;
 end;
 
 procedure TWWindow.FormResize(Sender: TObject);
@@ -1528,7 +1527,6 @@ begin
   aVSQLEditor.Caption := Preferences.LoadStr(6);
   aVSQLEditor2.Caption := Preferences.LoadStr(6) + ' #2';
   aVSQLEditor3.Caption := Preferences.LoadStr(6) + ' #3';
-  aVAddressBar.Caption := Preferences.LoadStr(731);
   miVSidebar.Caption := Preferences.LoadStr(736);
   aVNavigator.Caption := Preferences.LoadStr(10);
   aVExplorer.Caption := Preferences.LoadStr(435);

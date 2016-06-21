@@ -242,8 +242,8 @@ type
   public
     DBGrid: TDBGrid;
     DialogType: (edtNormal, edtCreateJob, edtEditJob, edtExecuteJob);
-    ExportType: TPExportType;
-    Job: TAJobExport;
+    ExportType: TAAccount.TJobExport.TExportType;
+    Job: TAAccount.TJobExport;
     Session: TSSession;
     Window: TForm;
     function Execute(): Boolean;
@@ -761,8 +761,8 @@ end;
 
 procedure TDExport.FormHide(Sender: TObject);
 var
-  Export: TPExport;
   I: Integer;
+  NewJob: TAAccount.TJobExport;
   Hour, Min, Sec, MSec: Word;
   Year, Month, Day: Word;
 begin
@@ -772,137 +772,202 @@ begin
   Preferences.Export.Height := Height;
 
   if (ModalResult = mrOk) then
-  begin
-    if (DialogType in [edtCreateJob, edtEditJob]) then
-      Export := TAJobExport.Create(Session.Account.Jobs, Trim(FName.Text))
-    else
-      Export := Preferences.Export;
-
-    case (ExportType) of
-      etSQLFile:
-        begin
-          Export.SQL.Structure := FSQLStructure.Checked;
-          Export.SQL.Data := FSQLData.Checked;
-          Export.SQL.DropStmts := FDropStmts.Checked;
-          Export.SQL.ReplaceData := FReplaceData.Checked;
-        end;
-      etTextFile:
-        begin
-          Export.CSV.Headline := FCSVHeadline.Checked;
-          if (FSeparatorTab.Checked) then
-            Export.CSV.DelimiterType := dtTab
-          else if (FSeparatorChar.Checked) then
-            Export.CSV.DelimiterType := dtChar;
-          Export.CSV.Delimiter := FSeparator.Text;
-          if (FQuoteNone.Checked) then
-            Export.CSV.QuoteValues := qtNone
-          else if (FQuoteAll.Checked) then
-            Export.CSV.QuoteValues := qtAll
-          else
-            Export.CSV.QuoteValues := qtStrings;
-          if (FQuoteChar.Text <> '') then
-            Export.CSV.Quoter := FQuoteChar.Text[1];
-        end;
-      etExcelFile:
-        Export.Excel.Excel2007 := (odExcel2007 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
-      etODBC:
-        if (Export is TAJobExport) then
-        begin
-          TAJobExport(Export).ODBC.DataSource := DODBC.DataSource;
-          TAJobExport(Export).ODBC.Password := DODBC.Password;
-          TAJobExport(Export).ODBC.Username := DODBC.Username;
-        end;
-      etHTMLFile,
-      etPDFFile:
-        begin
-          Export.HTML.Data := FHTMLData.Checked;
-          Export.HTML.MemoContent := FHTMLMemoContent.Checked;
-          Export.HTML.NULLText := FHTMLNullText.Checked;
-          Export.HTML.RowBGColor := FHTMLRowBGColor.Checked;
-          Export.HTML.Structure := FHTMLStructure.Checked;
-        end;
-      etXMLFile:
-        begin
-          Export.XML.Root.NodeText := Trim(FRootNodeText.Text);
-          if (FDatabaseNodeDisabled.Checked) then
-            Export.XML.Database.NodeType := ntDisabled
-          else if (FDatabaseNodeName.Checked) then
-            Export.XML.Database.NodeType := ntName
-          else
-            Export.XML.Database.NodeType := ntCustom;
-          Export.XML.Database.NodeText := Trim(FDatabaseNodeText.Text);
-          Export.XML.Database.NodeAttribute := Trim(FDatabaseNodeAttribute.Text);
-          if (FTableNodeDisabled.Checked) then
-            Export.XML.Table.NodeType := ntDisabled
-          else if (FTableNodeName.Checked) then
-            Export.XML.Table.NodeType := ntName
-          else
-            Export.XML.Table.NodeType := ntCustom;
-          Export.XML.Table.NodeText := Trim(FTableNodeText.Text);
-          Export.XML.Table.NodeAttribute := Trim(FTableNodeAttribute.Text);
-          Export.XML.Row.NodeText := Trim(FRecordNodeText.Text);
-          if (FFieldNodeName.Checked) then
-            Export.XML.Field.NodeType := ntName
-          else
-            Export.XML.Field.NodeType := ntCustom;
-          Export.XML.Field.NodeText := Trim(FFieldNodeText.Text);
-          Export.XML.Field.NodeAttribute := Trim(FFieldNodeAttribute.Text);
-        end;
-    end;
-
-    if (DialogType in [edtCreateJob, edtEditJob]) then
+    if (DialogType in [edtNormal]) then
     begin
-      TAJobExport(Export).ClearObjects();
+      case (ExportType) of
+        etSQLFile:
+          begin
+            Preferences.Export.SQL.Structure := FSQLStructure.Checked;
+            Preferences.Export.SQL.Data := FSQLData.Checked;
+            Preferences.Export.SQL.DropStmts := FDropStmts.Checked;
+            Preferences.Export.SQL.ReplaceData := FReplaceData.Checked;
+          end;
+        etTextFile:
+          begin
+            Preferences.Export.CSV.Headline := FCSVHeadline.Checked;
+            if (FSeparatorTab.Checked) then
+              Preferences.Export.CSV.DelimiterType := dtTab
+            else if (FSeparatorChar.Checked) then
+              Preferences.Export.CSV.DelimiterType := dtChar;
+            Preferences.Export.CSV.Delimiter := FSeparator.Text;
+            if (FQuoteNone.Checked) then
+              Preferences.Export.CSV.QuoteValues := qtNone
+            else if (FQuoteAll.Checked) then
+              Preferences.Export.CSV.QuoteValues := qtAll
+            else
+              Preferences.Export.CSV.QuoteValues := qtStrings;
+            if (FQuoteChar.Text <> '') then
+              Preferences.Export.CSV.Quoter := FQuoteChar.Text[1];
+          end;
+        etExcelFile:
+          Preferences.Export.Excel.Excel2007 := (odExcel2007 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
+        etODBC:
+          begin
+            Preferences.Export.ODBC.DataSource := DODBC.DataSource;
+          end;
+        etHTMLFile,
+        etPDFFile:
+          begin
+            Preferences.Export.HTML.Data := FHTMLData.Checked;
+            Preferences.Export.HTML.MemoContent := FHTMLMemoContent.Checked;
+            Preferences.Export.HTML.NULLText := FHTMLNullText.Checked;
+            Preferences.Export.HTML.RowBGColor := FHTMLRowBGColor.Checked;
+            Preferences.Export.HTML.Structure := FHTMLStructure.Checked;
+          end;
+        etXMLFile:
+          begin
+            Preferences.Export.XML.Root.NodeText := Trim(FRootNodeText.Text);
+            if (FDatabaseNodeDisabled.Checked) then
+              Preferences.Export.XML.Database.NodeType := ntDisabled
+            else if (FDatabaseNodeName.Checked) then
+              Preferences.Export.XML.Database.NodeType := ntName
+            else
+              Preferences.Export.XML.Database.NodeType := ntCustom;
+            Preferences.Export.XML.Database.NodeText := Trim(FDatabaseNodeText.Text);
+            Preferences.Export.XML.Database.NodeAttribute := Trim(FDatabaseNodeAttribute.Text);
+            if (FTableNodeDisabled.Checked) then
+              Preferences.Export.XML.Table.NodeType := ntDisabled
+            else if (FTableNodeName.Checked) then
+              Preferences.Export.XML.Table.NodeType := ntName
+            else
+              Preferences.Export.XML.Table.NodeType := ntCustom;
+            Preferences.Export.XML.Table.NodeText := Trim(FTableNodeText.Text);
+            Preferences.Export.XML.Table.NodeAttribute := Trim(FTableNodeAttribute.Text);
+            Preferences.Export.XML.Row.NodeText := Trim(FRecordNodeText.Text);
+            if (FFieldNodeName.Checked) then
+              Preferences.Export.XML.Field.NodeType := ntName
+            else
+              Preferences.Export.XML.Field.NodeType := ntCustom;
+            Preferences.Export.XML.Field.NodeText := Trim(FFieldNodeText.Text);
+            Preferences.Export.XML.Field.NodeAttribute := Trim(FFieldNodeAttribute.Text);
+          end;
+      end;
+    end
+    else
+    begin
+      NewJob := TAAccount.TJobExport.Create(Session.Account.Jobs, Trim(FName.Text));
+
+      case (ExportType) of
+        etSQLFile:
+          begin
+            NewJob.SQL.Structure := FSQLStructure.Checked;
+            NewJob.SQL.Data := FSQLData.Checked;
+            NewJob.SQL.DropStmts := FDropStmts.Checked;
+            NewJob.SQL.ReplaceData := FReplaceData.Checked;
+          end;
+        etTextFile:
+          begin
+            NewJob.CSV.Headline := FCSVHeadline.Checked;
+            if (FSeparatorTab.Checked) then
+              NewJob.CSV.DelimiterType := dtTab
+            else if (FSeparatorChar.Checked) then
+              NewJob.CSV.DelimiterType := dtChar;
+            NewJob.CSV.Delimiter := FSeparator.Text;
+            if (FQuoteNone.Checked) then
+              NewJob.CSV.QuoteValues := qtNone
+            else if (FQuoteAll.Checked) then
+              NewJob.CSV.QuoteValues := qtAll
+            else
+              NewJob.CSV.QuoteValues := qtStrings;
+            if (FQuoteChar.Text <> '') then
+              NewJob.CSV.Quoter := FQuoteChar.Text[1];
+          end;
+        etExcelFile:
+          NewJob.Excel.Excel2007 := (odExcel2007 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
+        etODBC:
+          begin
+            NewJob.ODBC.DataSource := DODBC.DataSource;
+            NewJob.ODBC.Password := DODBC.Password;
+            NewJob.ODBC.Username := DODBC.Username;
+          end;
+        etHTMLFile,
+        etPDFFile:
+          begin
+            NewJob.HTML.Data := FHTMLData.Checked;
+            NewJob.HTML.MemoContent := FHTMLMemoContent.Checked;
+            NewJob.HTML.NULLText := FHTMLNullText.Checked;
+            NewJob.HTML.RowBGColor := FHTMLRowBGColor.Checked;
+            NewJob.HTML.Structure := FHTMLStructure.Checked;
+          end;
+        etXMLFile:
+          begin
+            NewJob.XML.Root.NodeText := Trim(FRootNodeText.Text);
+            if (FDatabaseNodeDisabled.Checked) then
+              NewJob.XML.Database.NodeType := ntDisabled
+            else if (FDatabaseNodeName.Checked) then
+              NewJob.XML.Database.NodeType := ntName
+            else
+              NewJob.XML.Database.NodeType := ntCustom;
+            NewJob.XML.Database.NodeText := Trim(FDatabaseNodeText.Text);
+            NewJob.XML.Database.NodeAttribute := Trim(FDatabaseNodeAttribute.Text);
+            if (FTableNodeDisabled.Checked) then
+              NewJob.XML.Table.NodeType := ntDisabled
+            else if (FTableNodeName.Checked) then
+              NewJob.XML.Table.NodeType := ntName
+            else
+              NewJob.XML.Table.NodeType := ntCustom;
+            NewJob.XML.Table.NodeText := Trim(FTableNodeText.Text);
+            NewJob.XML.Table.NodeAttribute := Trim(FTableNodeAttribute.Text);
+            NewJob.XML.Row.NodeText := Trim(FRecordNodeText.Text);
+            if (FFieldNodeName.Checked) then
+              NewJob.XML.Field.NodeType := ntName
+            else
+              NewJob.XML.Field.NodeType := ntCustom;
+            NewJob.XML.Field.NodeText := Trim(FFieldNodeText.Text);
+            NewJob.XML.Field.NodeAttribute := Trim(FFieldNodeAttribute.Text);
+          end;
+      end;
+
+      NewJob.ClearObjects();
       for I := 0 to FSelect.Items.Count - 1 do
         if (FSelect.Items[I].Selected) then
         begin
-          SetLength(TAJobExport(Export).JobObjects, Length(TAJobExport(Export).JobObjects) + 1);
+          SetLength(NewJob.JobObjects, Length(NewJob.JobObjects) + 1);
           if (not Assigned(FSelect.Items[I].Parent)) then
-            TAJobExport(Export).JobObjects[Length(TAJobExport(Export).JobObjects) - 1].ObjectType := jotServer
+            NewJob.JobObjects[Length(NewJob.JobObjects) - 1].ObjectType := jotServer
           else if (TObject(FSelect.Items[I].Data) is TSDatabase) then
           begin
-            TAJobExport(Export).JobObjects[Length(TAJobExport(Export).JobObjects) - 1].ObjectType := jotDatabase;
-            TAJobExport(Export).JobObjects[Length(TAJobExport(Export).JobObjects) - 1].Name := TSDatabase(FSelect.Items[I].Data).Name;
+            NewJob.JobObjects[Length(NewJob.JobObjects) - 1].ObjectType := jotDatabase;
+            NewJob.JobObjects[Length(NewJob.JobObjects) - 1].Name := TSDatabase(FSelect.Items[I].Data).Name;
           end
           else if (TObject(FSelect.Items[I].Data) is TSDBObject) then
           begin
             if (TObject(FSelect.Items[I].Data) is TSTable) then
-              TAJobExport(Export).JobObjects[Length(TAJobExport(Export).JobObjects) - 1].ObjectType := jotTable
+              NewJob.JobObjects[Length(NewJob.JobObjects) - 1].ObjectType := jotTable
             else if (TObject(FSelect.Items[I].Data) is TSProcedure) then
-              TAJobExport(Export).JobObjects[Length(TAJobExport(Export).JobObjects) - 1].ObjectType := jotProcedure
+              NewJob.JobObjects[Length(NewJob.JobObjects) - 1].ObjectType := jotProcedure
             else if (TObject(FSelect.Items[I].Data) is TSFunction) then
-              TAJobExport(Export).JobObjects[Length(TAJobExport(Export).JobObjects) - 1].ObjectType := jotFunction
+              NewJob.JobObjects[Length(NewJob.JobObjects) - 1].ObjectType := jotFunction
             else if (TObject(FSelect.Items[I].Data) is TSTrigger) then
-              TAJobExport(Export).JobObjects[Length(TAJobExport(Export).JobObjects) - 1].ObjectType := jotTrigger
+              NewJob.JobObjects[Length(NewJob.JobObjects) - 1].ObjectType := jotTrigger
             else if (TObject(FSelect.Items[I].Data) is TSEvent) then
-              TAJobExport(Export).JobObjects[Length(TAJobExport(Export).JobObjects) - 1].ObjectType := jotEvent;
-            TAJobExport(Export).JobObjects[Length(TAJobExport(Export).JobObjects) - 1].Name := TSDBObject(FSelect.Items[I].Data).Name;
-            TAJobExport(Export).JobObjects[Length(TAJobExport(Export).JobObjects) - 1].DatabaseName := TSDBObject(FSelect.Items[I].Data).Database.Name;
+              NewJob.JobObjects[Length(NewJob.JobObjects) - 1].ObjectType := jotEvent;
+            NewJob.JobObjects[Length(NewJob.JobObjects) - 1].Name := TSDBObject(FSelect.Items[I].Data).Name;
+            NewJob.JobObjects[Length(NewJob.JobObjects) - 1].DatabaseName := TSDBObject(FSelect.Items[I].Data).Database.Name;
           end;
         end;
-      TAJobExport(Export).CodePage := CodePage;
-      TAJobExport(Export).ExportType := ExportType;
-      TAJobExport(Export).Filename := FFilename.Text;
+      NewJob.CodePage := CodePage;
+      NewJob.ExportType := ExportType;
+      NewJob.Filename := FFilename.Text;
       DecodeDate(FStartDate.Date, Year, Month, Day);
       DecodeTime(FStartTime.Time, Hour, Min, Sec, MSec);
-      TAJobExport(Export).Start := EncodeDate(Year, Month, Day) + EncodeTime(Hour, Min, Sec, MSec);
+      NewJob.Start := EncodeDate(Year, Month, Day) + EncodeTime(Hour, Min, Sec, MSec);
       if (FDaily.Checked) then
-        TAJobExport(Export).TriggerType := ttDaily
+        NewJob.TriggerType := ttDaily
       else if (FWeekly.Checked) then
-        TAJobExport(Export).TriggerType := ttWeekly
+        NewJob.TriggerType := ttWeekly
       else if (FMonthly.Checked) then
-        TAJobExport(Export).TriggerType := ttMonthly
+        NewJob.TriggerType := ttMonthly
       else
-        TAJobExport(Export).TriggerType := ttSingle;
-      TAJobExport(Export).Enabled := FEnabled.Checked;
+        NewJob.TriggerType := ttSingle;
+      NewJob.Enabled := FEnabled.Checked;
 
       if (DialogType = edtCreateJob) then
-        Session.Account.Jobs.AddJob(Export)
+        Session.Account.Jobs.AddJob(NewJob)
       else if (DialogType = edtEditJob) then
-        Session.Account.Jobs.UpdateJob(Job, Export);
+        Session.Account.Jobs.UpdateJob(Job, NewJob);
       Export.Free();
     end;
-  end;
 
   FSelect.Selected := nil; // Make sure, not to call FSelectedChange with a selected node
   FSelect.Items.BeginUpdate();

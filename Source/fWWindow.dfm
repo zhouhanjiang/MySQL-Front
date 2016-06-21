@@ -38,8 +38,6 @@ object WWindow: TWWindow
     Color = clAppWorkSpace
     ParentBackground = False
     TabOrder = 2
-    ExplicitTop = 103
-    ExplicitHeight = 325
   end
   object TabControl: TTabControl
     Left = 0
@@ -528,14 +526,6 @@ object WWindow: TWWindow
       HelpContext = 1135
       HelpType = htContext
       ImageIndex = 14
-    end
-    object aVAddressBar: TAction
-      Category = 'View'
-      AutoCheck = True
-      Caption = 'aVAddressBar'
-      HelpContext = 1081
-      HelpType = htContext
-      ShortCut = 16460
     end
     object aVNavigator: TAction
       Category = 'View'

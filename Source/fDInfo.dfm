@@ -10,7 +10,7 @@ object DInfo: TDInfo
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -12
-  Font.Name = 'MS Sans Serif'
+  Font.Name = 'Tahoma'
   Font.Style = []
   OldCreateOrder = False
   Position = poOwnerFormCenter
@@ -18,14 +18,13 @@ object DInfo: TDInfo
   OnDestroy = FormDestroy
   OnShow = FormShow
   PixelsPerInch = 106
-  TextHeight = 13
-  object Image: TImage
+  TextHeight = 14
+  object FImage: TImage
     Left = 0
     Top = 0
     Width = 500
     Height = 300
     HelpContext = 1075
-    AutoSize = True
   end
   object FVersion: TLabel
     Left = 344
@@ -36,23 +35,23 @@ object DInfo: TDInfo
     Caption = 'FVersion'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
-    Font.Height = -17
+    Font.Height = -16
     Font.Name = 'MS Sans Serif'
     Font.Style = [fsBold]
     ParentFont = False
     Transparent = True
   end
   object FURI: TLabel
-    Left = 434
+    Left = 440
     Top = 112
-    Width = 31
-    Height = 16
+    Width = 25
+    Height = 13
     Cursor = crHandPoint
     Alignment = taRightJustify
     Caption = 'FURI'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clBlue
-    Font.Height = -13
+    Font.Height = -12
     Font.Name = 'MS Sans Serif'
     Font.Style = [fsUnderline]
     ParentFont = False
@@ -60,15 +59,15 @@ object DInfo: TDInfo
     OnClick = FURIClick
   end
   object FBuild: TLabel
-    Left = 428
+    Left = 437
     Top = 83
-    Width = 38
-    Height = 16
+    Width = 29
+    Height = 13
     Alignment = taRightJustify
     Caption = 'FBuild'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
-    Font.Height = -13
+    Font.Height = -12
     Font.Name = 'MS Sans Serif'
     Font.Style = []
     ParentFont = False

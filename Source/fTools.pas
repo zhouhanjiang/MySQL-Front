@@ -204,7 +204,7 @@ type
     Engine: string;
     Error: Boolean;
     RowType: TSTableField.TRowType;
-    StmtType: TPStmtType;
+    StmtType: TPPreferences.TStmtType;
     Structure: Boolean;
     procedure AddField(const DestinationField: TSTableField; const SourceFieldName: string);
     procedure AddTable(const DestinationTableName: string; const SourceTableName: string = '');
@@ -457,7 +457,7 @@ type
   public
     Quoter: Char;
     Delimiter: string;
-    QuoteValues: TPQuotingType;
+    QuoteValues: TPPreferences.TQuotingType;
     constructor Create(const ASession: TSSession; const AFilename: TFileName; const ACodePage: Cardinal);
     destructor Destroy(); override;
   end;

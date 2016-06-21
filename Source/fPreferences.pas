@@ -17,7 +17,11 @@ type
   TPPreferences = class(TRegistry)
   type
     TItems = class;
-    TJobs = class;
+
+    TDelimiterType = (dtTab, dtChar);
+    TNodeType = (ntDisabled, ntName, ntCustom);
+    TStmtType = (stInsert, stReplace, stUpdate, stInsertOrUpdate);
+    TQuotingType = (qtNone, qtStrings, qtAll);
 
     TItem = class
     private
@@ -126,61 +130,7 @@ type
 
     TEvent = class(TWindow);
 
-    TJob = class(TWindow)
-    type
-      TDelimiterType = (dtTab, dtChar);
-      TObjectType = (jotServer, jotDatabase, jotTable, jotProcedure, jotFunction, jotTrigger, jotEvent);
-      TQuotingType = (qtNone, qtStrings, qtAll);
-      TJobObject = record
-        DatabaseName: string;
-        Name: string;
-        ObjectType: TObjectType;
-      end;
-      TSourceObject = record
-        Name: string;
-      end;
-      TFieldMapping = record
-        DestinationFieldName: string;
-        SourceFieldName: string;
-      end;
-      TTriggerType = (ttSingle, ttDaily, ttWeekly, ttMonthly);
-    private
-      function GetJobs(): TJobs; inline;
-      function GetLogFilename(): TFileName;
-    protected
-      function Save(const Update: Boolean): Boolean; virtual;
-      property Jobs: TJobs read GetJobs;
-    public
-      Enabled: Boolean;
-      Start: TDateTime;
-      TriggerType: TTriggerType;
-      procedure Assign(const Source: TItem); override;
-      constructor Create(const AAItems: TItems; const AName: string = ''); reintroduce;
-      property LogFilename: TFileName read GetLogFilename;
-    end;
-
-    TJobs = class(TItems)
-    private
-      FAccount: TAAccount;
-      function GetJob(Index: Integer): TPPreferences.TJob; inline;
-      function GetTaskFolder(const AutoCreate: Boolean = False): ITaskFolder;
-      function GetTaskService(): ITaskService; inline;
-    protected
-      property Account: TAAccount read FAccount;
-      property TaskService: ITaskService read GetTaskService;
-    public
-      function AddJob(const NewJob: TPPreferences.TJob): Boolean; virtual;
-      constructor Create(const AAccount: TAAccount);
-      procedure DeleteJob(const Job: TPPreferences.TJob); overload; virtual;
-      destructor Destroy(); override;
-      procedure Load(); virtual;
-      function UpdateJob(const Job, NewJob: TPPreferences.TJob): Boolean; virtual;
-      property Job[Index: Integer]: TPPreferences.TJob read GetJob; default;
-    end;
-
-    TExport = class(TJob)
-    type
-      TNodeType = (ntDisabled, ntName, ntCustom);
+    TExport = class(TWindow)
     protected
       procedure LoadFromXML(const XML: IXMLNode); override;
       procedure SaveToXML(const XML: IXMLNode); override;
@@ -201,6 +151,9 @@ type
         MemoContent: Boolean;
         RowBGColor: Boolean;
         Structure: Boolean;
+      end;
+      ODBC: record
+        DataSource: string;
       end;
       SQL: record
         Data: Boolean;
@@ -232,7 +185,7 @@ type
         end;
       end;
       procedure Assign(const Source: TItem); override;
-      constructor Create(const AAItems: TItems = nil; const AName: string = '');
+      constructor Create(const AAItems: TItems = nil; const AName: string = ''); reintroduce; virtual;
     end;
 
     TField = class(TWindow);
@@ -257,9 +210,7 @@ type
 
     TForeignKey = class(TWindow);
 
-    TImport = class(TJob)
-    type
-      TStmtType = (stInsert, stReplace, stUpdate, stInsertOrUpdate);
+    TImport = class(TWindow)
     protected
       procedure LoadFromXML(const XML: IXMLNode); override;
       procedure SaveToXML(const XML: IXMLNode); override;
@@ -279,7 +230,7 @@ type
       StmtType: TStmtType;
       Structure: Boolean;
       procedure Assign(const Source: TItem); override;
-      constructor Create(const AAItems: TItems = nil; const AName: string = '');
+      constructor Create(const AAItems: TItems = nil; const AName: string = ''); reintroduce; virtual;
     end;
 
     TKey = class(TWindow);
@@ -511,10 +462,66 @@ type
 
   TAAccount = class
   type
+    TJobs = class;
     TFiles = class;
     TDesktop = class;
 
     TEventProc = procedure (const ClassType: TClass) of object;
+
+    TJob = class
+    type
+      TObjectType = (jotServer, jotDatabase, jotTable, jotProcedure, jotFunction, jotTrigger, jotEvent);
+      TJobObject = record
+        DatabaseName: string;
+        Name: string;
+        ObjectType: TObjectType;
+      end;
+      TSourceObject = record
+        Name: string;
+      end;
+      TFieldMapping = record
+        DestinationFieldName: string;
+        SourceFieldName: string;
+      end;
+      TTriggerType = (ttSingle, ttDaily, ttWeekly, ttMonthly);
+    private
+      FJobs: TJobs;
+      FName: string;
+      function GetLogFilename(): TFileName;
+    protected
+      procedure LoadFromXML(const XML: IXMLNode); virtual; abstract;
+      procedure SaveToXML(const XML: IXMLNode); virtual; abstract;
+      function Save(const Update: Boolean): Boolean; virtual;
+      property Jobs: TJobs read FJobs;
+    public
+      Enabled: Boolean;
+      Start: TDateTime;
+      TriggerType: TTriggerType;
+      procedure Assign(const Source: TJob); virtual;
+      constructor Create(const AJobs: TJobs; const AName: string = ''); reintroduce;
+      property LogFilename: TFileName read GetLogFilename;
+      property Name: string read FName;
+    end;
+
+    TJobs = class(TList)
+    private
+      FAccount: TAAccount;
+      function GetJob(Index: Integer): TJob; inline;
+      function GetTaskFolder(const AutoCreate: Boolean = False): ITaskFolder;
+      function GetTaskService(): ITaskService; inline;
+    protected
+      function IndexByName(const Name: string): Integer; virtual;
+      property Account: TAAccount read FAccount;
+      property TaskService: ITaskService read GetTaskService;
+    public
+      function AddJob(const NewJob: TJob): Boolean; virtual;
+      constructor Create(const AAccount: TAAccount);
+      procedure DeleteJob(const Job: TJob); overload; virtual;
+      destructor Destroy(); override;
+      procedure Load(); virtual;
+      function UpdateJob(const Job, NewJob: TJob): Boolean; virtual;
+      property Job[Index: Integer]: TJob read GetJob; default;
+    end;
 
     TFile = class
     private
@@ -548,30 +555,44 @@ type
       property Files[Index: Integer]: TFile read GetFile; default;
     end;
 
-    TJobImport = class(TPPreferences.TImport)
+    TJobImport = class(TJob)
     type
       TImportType = (itUnknown, itSQLFile, itTextFile, itAccessFile, itExcelFile, itODBC);
     protected
       procedure LoadFromXML(const XML: IXMLNode); override;
       procedure SaveToXML(const XML: IXMLNode); override;
     public
+      CSV: record
+        Headline: Boolean;
+        Quote: TPPreferences.TQuotingType;
+        QuoteChar: string;
+        Delimiter: string;
+        DelimiterType: TPPreferences.TDelimiterType;
+      end;
+      Charset: string;
       CodePage: Integer;
+      Collation: string;
+      Data: Boolean;
+      Engine: string;
       ImportType: TImportType;
-      JobObject: TPPreferences.TJob.TJobObject;
-      FieldMappings: array of TPPreferences.TJob.TFieldMapping;
+      JobObject: TJob.TJobObject;
+      FieldMappings: array of TJob.TFieldMapping;
       Filename: TFileName;
       ODBC: record
         DataSource: string;
         Username: string;
         Password: string;
       end;
-      SourceObjects: array of TPPreferences.TJob.TSourceObject;
-      procedure Assign(const Source: TPPreferences.TItem); override;
-      constructor Create(const AAItems: TPPreferences.TItems = nil; const AName: string = '');
+      RowType: Integer;
+      SourceObjects: array of TJob.TSourceObject;
+      StmtType: TPPreferences.TStmtType;
+      Structure: Boolean;
+      procedure Assign(const Source: TJob); override;
+      constructor Create(const AJobs: TJobs = nil; const AName: string = '');
       destructor Destroy(); override;
     end;
 
-    TJobExport = class(TPPreferences.TExport)
+    TJobExport = class(TJob)
     type
       TExportType = (etUnknown, etSQLFile, etTextFile, etExcelFile, etAccessFile, etODBC, etHTMLFile, etXMLFile, etPDFFile, etPrinter);
     protected
@@ -579,17 +600,63 @@ type
       procedure SaveToXML(const XML: IXMLNode); override;
     public
       CodePage: Integer;
+      CSV: record
+        Headline: Boolean;
+        QuoteValues: TPPreferences.TQuotingType;
+        Quoter: Char;
+        Delimiter: string;
+        DelimiterType: TPPreferences.TDelimiterType;
+      end;
+      Excel: record
+        Excel2007: Boolean;
+      end;
       ExportType: TExportType;
+      HTML: record
+        Data: Boolean;
+        NULLText: Boolean;
+        MemoContent: Boolean;
+        RowBGColor: Boolean;
+        Structure: Boolean;
+      end;
       Filename: TFileName;
-      JobObjects: array of TPPreferences.TJob.TJobObject;
+      JobObjects: array of TJob.TJobObject;
       ODBC: record
         DataSource: string;
         Password: string;
         Username: string;
       end;
-      procedure Assign(const Source: TPPreferences.TItem); override;
+      SQL: record
+        Data: Boolean;
+        DropStmts: Boolean;
+        ReplaceData: Boolean;
+        Structure: Boolean;
+      end;
+      XML: record
+        Database: record
+          NodeType: TPPreferences.TNodeType;
+          NodeText: string;
+          NodeAttribute: string;
+        end;
+        Field: record
+          NodeType: TPPreferences.TNodeType;
+          NodeText: string;
+          NodeAttribute: string;
+        end;
+        Row: record
+          NodeText: string;
+        end;
+        Root: record
+          NodeText: string;
+        end;
+        Table: record
+          NodeType: TPPreferences.TNodeType;
+          NodeText: string;
+          NodeAttribute: string;
+        end;
+      end;
+      procedure Assign(const Source: TJob); override;
       procedure ClearObjects(); virtual;
-      constructor Create(const AAItems: TPPreferences.TItems = nil; const AName: string = '');
+      constructor Create(const AJobs: TJobs = nil; const AName: string = '');
       destructor Destroy(); override;
     end;
 
@@ -654,7 +721,7 @@ type
     FDesktops: array of record Control: Pointer; AccountEventProc: TEventProc; end;
     FDesktopXMLDocument: IXMLDocument;
     FHistoryXMLDocument: IXMLDocument;
-    FJobs: TPPreferences.TJobs;
+    FJobs: TJobs;
     FLastLogin: TDateTime;
     FName: string;
     FXML: IXMLNode;
@@ -666,7 +733,7 @@ type
     function GetDesktopXML(): IXMLNode;
     function GetHistoryFilename(): TFileName;
     function GetHistoryXML(): IXMLNode;
-    function GetJobs(): TPPreferences.TJobs;
+    function GetJobs(): TJobs;
     function GetName(): string;
     function GetXML(): IXMLNode;
     procedure SetLastLogin(const ALastLogin: TDateTime);
@@ -694,7 +761,7 @@ type
     function ExpandAddress(const APath: string): string; virtual;
     function Frame(): Pointer; virtual;
     function GetDefaultDatabase(): string; virtual;
-    function JobByName(const Name: string): TPPreferences.TJob; virtual;
+    function JobByName(const Name: string): TJob; virtual;
     procedure RegisterDesktop(const AControl: Pointer; const AEventProc: TEventProc); virtual;
     procedure UnRegisterDesktop(const AControl: Pointer); virtual;
     property Accounts: TAAccounts read FAccounts;
@@ -704,7 +771,7 @@ type
     property DesktopXML: IXMLNode read GetDesktopXML;
     property HistoryXML: IXMLNode read GetHistoryXML;
     property Index: Integer read GetIndex;
-    property Jobs: TPPreferences.TJobs read GetJobs;
+    property Jobs: TJobs read GetJobs;
     property LastLogin: TDateTime read FLastLogin write SetLastLogin;
     property Name: string read GetName write SetName;
   end;
@@ -820,7 +887,7 @@ begin
   end;
 end;
 
-function TryStrToQuote(const Str: string; var Quote: TPPreferences.TJob.TQuotingType): Boolean;
+function TryStrToQuote(const Str: string; var Quote: TPPreferences.TQuotingType): Boolean;
 begin
   Result := True;
   if (UpperCase(Str) = 'NOTHING') then Quote := qtNone
@@ -829,7 +896,7 @@ begin
   else Result := False;
 end;
 
-function QuoteToStr(const Quote: TPPreferences.TJob.TQuotingType): string;
+function QuoteToStr(const Quote: TPPreferences.TQuotingType): string;
 begin
   case Quote of
     qtStrings: Result := 'Stings';
@@ -838,7 +905,7 @@ begin
   end;
 end;
 
-function TryStrToSeparatorType(const Str: string; var SeparatorType: TPPreferences.TJob.TDelimiterType): Boolean;
+function TryStrToSeparatorType(const Str: string; var SeparatorType: TPPreferences.TDelimiterType): Boolean;
 begin
   Result := True;
   if (UpperCase(Str) = 'STANDARD') then SeparatorType := dtChar
@@ -846,7 +913,7 @@ begin
   else Result := False;
 end;
 
-function SeparatorTypeToStr(const SeparatorType: TPPreferences.TJob.TDelimiterType): string;
+function SeparatorTypeToStr(const SeparatorType: TPPreferences.TDelimiterType): string;
 begin
   case (SeparatorType) of
     dtTab: Result := 'Tab';
@@ -854,7 +921,7 @@ begin
   end;
 end;
 
-function TryStrToNodeType(const Str: string; var NodeType: TPPreferences.TExport.TNodeType): Boolean;
+function TryStrToNodeType(const Str: string; var NodeType: TPPreferences.TNodeType): Boolean;
 begin
   Result := True;
   if (UpperCase(Str) = 'DISABLED') then NodeType := ntDisabled
@@ -863,7 +930,7 @@ begin
   else Result := False;
 end;
 
-function NodeTypeToStr(const NodeType: TPPreferences.TExport.TNodeType): string;
+function NodeTypeToStr(const NodeType: TPPreferences.TNodeType): string;
 begin
   case (NodeType) of
     ntDisabled: Result := 'Disabled';
@@ -872,7 +939,7 @@ begin
   end;
 end;
 
-function TryStrToStmtType(const Str: string; var StmtType: TPPreferences.TImport.TStmtType): Boolean;
+function TryStrToStmtType(const Str: string; var StmtType: TPPreferences.TStmtType): Boolean;
 begin
   Result := True;
   if (UpperCase(Str) = 'INSERT') then StmtType := stInsert
@@ -882,7 +949,7 @@ begin
   else Result := False;
 end;
 
-function StmtTypeToStr(const StmtType: TPPreferences.TImport.TStmtType): string;
+function StmtTypeToStr(const StmtType: TPPreferences.TStmtType): string;
 begin
   case (StmtType) of
     stReplace: Result := 'Replace';
@@ -990,7 +1057,7 @@ begin
   if (roRegExpr in Options) then begin if (Result <> '') then Result := Result + ','; Result := Result + 'RegExpr'; end;
 end;
 
-function TryStrToObjectType(const Str: string; var ObjectType: TPPreferences.TJob.TObjectType): Boolean;
+function TryStrToObjectType(const Str: string; var ObjectType: TAAccount.TJob.TObjectType): Boolean;
 begin
   Result := True;
   if (UpperCase(Str) = 'SERVER') then ObjectType := jotDatabase
@@ -1003,7 +1070,7 @@ begin
   else Result := False;
 end;
 
-function ObjectTypeToStr(const ObjectType: TPPreferences.TJob.TObjectType): string;
+function ObjectTypeToStr(const ObjectType: TAAccount.TJob.TObjectType): string;
 begin
   case (ObjectType) of
     jotServer: Result := 'Server';
@@ -1196,7 +1263,7 @@ begin
   end;
 end;
 
-{ TPreferences.TItem **********************************************************}
+{ TPPreferences.TItem *********************************************************}
 
 procedure TPPreferences.TItem.Assign(const Source: TItem);
 begin
@@ -1219,7 +1286,7 @@ begin
   Result := AItems.IndexOf(Self);
 end;
 
-{ TItems **********************************************************************}
+{ TPPreferences.TItems ********************************************************}
 
 function TPPreferences.TItems.Add(const AItem: TItem): Integer;
 begin
@@ -1295,7 +1362,7 @@ begin
   end;
 end;
 
-{ TPreferences.TMRUList *******************************************************}
+{ TPPreferences.TMRUList ******************************************************}
 
 procedure TPPreferences.TMRUList.Add(const Value: string);
 var
@@ -1409,7 +1476,7 @@ begin
     XML.AddChild(NodeName).Text := Values[I];
 end;
 
-{ TPreferences.TWindow ********************************************************}
+{ TPPreferences.TWindow *******************************************************}
 
 constructor TPPreferences.TWindow.Create();
 begin
@@ -1435,9 +1502,9 @@ begin
   XMLNode(XML, 'width').Text := IntToStr(Width);
 end;
 
-{ TPreferences.TDatabases *****************************************************}
+{ TPPreferences.TDatabases ****************************************************}
 
-{ TPreferences.TEditor ********************************************************}
+{ TPPreferences.TEditor *******************************************************}
 
 constructor TPPreferences.TEditor.Create();
 begin
@@ -1491,7 +1558,7 @@ begin
   XMLNode(XML, 'wordwrap').Text := BoolToStr(WordWrap, True);
 end;
 
-{ TPreferences.TExport ********************************************************}
+{ TPPreferences.TExport *******************************************************}
 
 procedure TPPreferences.TExport.Assign(const Source: TItem);
 begin
@@ -1508,7 +1575,7 @@ end;
 
 constructor TPPreferences.TExport.Create(const AAItems: TItems = nil; const AName: string = '');
 begin
-  inherited;
+  inherited Create();
 
   CSV.Headline := True;
   CSV.QuoteValues := qtStrings;
@@ -1553,6 +1620,7 @@ begin
   if (Assigned(XMLNode(XML, 'html/null')) and (XMLNode(XML, 'html/null').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/null').Attributes['visible'], HTML.NULLText);
   if (Assigned(XMLNode(XML, 'html/row/background')) and (XMLNode(XML, 'html/row/background').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/row/background').Attributes['visible'], HTML.RowBGColor);
   if (Assigned(XMLNode(XML, 'html/structure'))) then TryStrToBool(XMLNode(XML, 'html/structure').Attributes['enabled'], HTML.Structure);
+  if (Assigned(XMLNode(XML, 'odbc/datasource'))) then ODBC.DataSource := XMLNode(XML, 'odbc/datasource').Text;
   if (Assigned(XMLNode(XML, 'sql/data'))) then TryStrToBool(XMLNode(XML, 'sql/data').Attributes['enabled'], SQL.Data);
   if (Assigned(XMLNode(XML, 'sql/data'))) then TryStrToBool(XMLNode(XML, 'sql/data').Attributes['replace'], SQL.ReplaceData);
   if (Assigned(XMLNode(XML, 'sql/structure'))) then TryStrToBool(XMLNode(XML, 'sql/structure').Attributes['enabled'], SQL.Structure);
@@ -1585,6 +1653,7 @@ begin
   XMLNode(XML, 'html/null').Attributes['visible'] := HTML.NullText;
   XMLNode(XML, 'grid/row/background').Attributes['visible'] := HTML.RowBGColor;
   XMLNode(XML, 'html/structure').Attributes['enabled'] := HTML.Structure;
+  XMLNode(XML, 'odbc/datasource').Text := ODBC.DataSource;
   XMLNode(XML, 'sql/data').Attributes['enabled'] := SQL.Data;
   XMLNode(XML, 'sql/data').Attributes['replace'] := SQL.ReplaceData;
   XMLNode(XML, 'sql/structure').Attributes['enabled'] := SQL.Structure;
@@ -1602,7 +1671,7 @@ begin
   XMLNode(XML, 'xml/table').Attributes['attribute'] := Self.XML.Table.NodeAttribute;
 end;
 
-{ TPreferences.TFind **********************************************************}
+{ TPPreferences.TFind *********************************************************}
 
 constructor TPPreferences.TFind.Create();
 begin
@@ -1647,7 +1716,7 @@ begin
   XMLNode(XML, 'options').Text := FindOptionsToStr(Options);
 end;
 
-{ TPreferences.TImport ********************************************************}
+{ TPPreferences.TImport *******************************************************}
 
 procedure TPPreferences.TImport.Assign(const Source: TItem);
 begin
@@ -1672,7 +1741,7 @@ end;
 
 constructor TPPreferences.TImport.Create(const AAItems: TItems = nil; const AName: string = '');
 begin
-  inherited;
+  inherited Create();
 
   Charset := '';
   CSV.Headline := True;
@@ -1699,12 +1768,12 @@ begin
   if (Assigned(XMLNode(XML, 'csv/separator/character/type'))) then TryStrToSeparatorType(XMLNode(XML, 'csv/separator/character/type').Text, CSV.DelimiterType);
   if (Assigned(XMLNode(XML, 'data')) and (XMLNode(XML, 'data').Attributes['enabled'] <> Null)) then TryStrToBool(XMLNode(XML, 'data').Attributes['enabled'], Data);
   if (Assigned(XMLNode(XML, 'data/importtype'))) then TryStrToStmtType(XMLNode(XML, 'data/importtype').Text, StmtType);
+  if (Assigned(XMLNode(XML, 'rowtype'))) then TryStrToRowType(XMLNode(XML, 'rowtype').Text, RowType);
   if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['charset'] <> Null)) then Charset := XMLNode(XML, 'structure').Attributes['charset'];
   if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['collation'] <> Null)) then Collation := XMLNode(XML, 'structure').Attributes['collation'];
   if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['enabled'] <> Null)) then TryStrToBool(XMLNode(XML, 'structure').Attributes['enabled'], Structure);
   if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['engine'] <> Null)) then Engine := XMLNode(XML, 'structure').Attributes['engine'];
   if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['rowtype'] <> Null)) then TryStrToRowType(XMLNode(XML, 'structure').Attributes['rowtype'], RowType);
-  if (Assigned(XMLNode(XML, 'rowtype'))) then TryStrToRowType(XMLNode(XML, 'rowtype').Text, RowType);
 end;
 
 procedure TPPreferences.TImport.SaveToXML(const XML: IXMLNode);
@@ -1718,6 +1787,7 @@ begin
   XMLNode(XML, 'csv/separator/character/type').Text := SeparatorTypeToStr(CSV.DelimiterType);
   XMLNode(XML, 'data').Attributes['enabled'] := BoolToStr(Data);
   XMLNode(XML, 'data/importtype').Text := StmtTypeToStr(StmtType);
+  XMLNode(XML, 'rowtype').Text := RowTypeToStr(RowType);
   XMLNode(XML, 'structure').Attributes['charset'] := Charset;
   XMLNode(XML, 'structure').Attributes['collation'] := Collation;
   XMLNode(XML, 'structure').Attributes['enabled'] := Structure;
@@ -1725,7 +1795,7 @@ begin
   XMLNode(XML, 'structure').Attributes['rowtype'] := RowTypeToStr(RowType);
 end;
 
-{ TPreferences.TODBC **********************************************************}
+{ TPPreferences.TODBC *********************************************************}
 
 constructor TPPreferences.TODBC.Create();
 begin
@@ -1735,7 +1805,7 @@ begin
   Top := -1;
 end;
 
-{ TPreferences.TPaste *********************************************************}
+{ TPPreferences.TPaste ********************************************************}
 
 constructor TPPreferences.TPaste.Create();
 begin
@@ -1754,7 +1824,7 @@ begin
   XMLNode(XML, 'data').Text := BoolToStr(Data, True);
 end;
 
-{ TPreferences.TReplace *******************************************************}
+{ TPPreferences.TReplace ******************************************************}
 
 constructor TPPreferences.TReplace.Create();
 begin
@@ -1812,9 +1882,9 @@ begin
     XMLNode(XML, 'replacetext/mru').AddChild('text').Text := ReplaceTextMRU.Values[I];
 end;
 
-{ TPreferences.TServer ********************************************************}
+{ TPPreferences.TServer *******************************************************}
 
-{ TPreferences.TSQLHelp *******************************************************}
+{ TPPreferences.TSQLHelp ******************************************************}
 
 constructor TPPreferences.TSQLHelp.Create();
 begin
@@ -1840,7 +1910,7 @@ begin
   XMLNode(XML, 'top').Text := IntToStr(Top);
 end;
 
-{ TPreferences.TAccounts ******************************************************}
+{ TPPreferences.TAccounts *****************************************************}
 
 constructor TPPreferences.TAccounts.Create();
 begin
@@ -1863,7 +1933,7 @@ begin
   XMLNode(XML, 'selectorder').Text := IntToStr(SelectOrder);
 end;
 
-{ TPreferences.TTableService **************************************************}
+{ TPPreferences.TTableService *************************************************}
 
 constructor TPPreferences.TTableService.Create();
 begin
@@ -1898,7 +1968,7 @@ begin
   XMLNode(XML, 'repair').Attributes['enabled'] := Repair;
 end;
 
-{ TPreferences.TTransfer ******************************************************}
+{ TPPreferences.TTransfer *****************************************************}
 
 constructor TPPreferences.TTransfer.Create();
 begin
@@ -1924,7 +1994,7 @@ begin
   XMLNode(XML, 'structure').Attributes['enabled'] := Structure;
 end;
 
-{ TPreferences.TLanguage ******************************************************}
+{ TPPreferences.TLanguage *****************************************************}
 
 constructor TPPreferences.TLanguage.Create(const FileName: string);
 var
@@ -1979,7 +2049,7 @@ begin
   Result := ReplaceStr(ReplaceStr(Trim(Result), '\n', #10), '\r', #13);
 end;
 
-{ TPreferences ****************************************************************}
+{ TPPreferences ***************************************************************}
 
 constructor TPPreferences.Create();
 var
@@ -2676,7 +2746,7 @@ begin
   Routine.SaveToXML(XMLNode(XML, 'routine', True));
   Server.SaveToXML(XMLNode(XML, 'server', True));
   Account.SaveToXML(XMLNode(XML, 'account', True));
-  Accounts.SaveToXML(XMLNode(XML, 'accounts, True'));
+  Accounts.SaveToXML(XMLNode(XML, 'accounts', True));
   SQLHelp.SaveToXML(XMLNode(XML, 'sqlhelp', True));
   Statement.SaveToXML(XMLNode(XML, 'statement', True));
   Table.SaveToXML(XMLNode(XML, 'table', True));
@@ -2811,9 +2881,9 @@ begin
   end;
 end;
 
-{ TPreferences.TJob ***********************************************************}
+{ TPPreferences.TJob **********************************************************}
 
-procedure TPPreferences.TJob.Assign(const Source: TItem);
+procedure TAAccount.TJob.Assign(const Source: TJob);
 begin
   Assert(Assigned(Source) and (Source.ClassType = ClassType));
 
@@ -2825,11 +2895,11 @@ begin
   TriggerType := TJob(Source).TriggerType;
 end;
 
-constructor TPPreferences.TJob.Create(const AAItems: TItems; const AName: string = '');
+constructor TAAccount.TJob.Create(const AJobs: TJobs; const AName: string = '');
 begin
   inherited Create();
 
-  FAItems := AAItems;
+  FJobs := AJobs;
   FName := AName;
 
   Enabled := True;
@@ -2837,19 +2907,12 @@ begin
   TriggerType := ttSingle;
 end;
 
-function TPPreferences.TJob.GetJobs(): TPPreferences.TJobs;
-begin
-  Assert(AItems is TPPreferences.TJobs);
-
-  Result := TPPreferences.TJobs(AItems);
-end;
-
-function TPPreferences.TJob.GetLogFilename(): TFileName;
+function TAAccount.TJob.GetLogFilename(): TFileName;
 begin
   Result := Jobs.Account.DataPath + 'Jobs' + PathDelim + Name + '.err';
 end;
 
-function TPPreferences.TJob.Save(const Update: Boolean): Boolean;
+function TAAccount.TJob.Save(const Update: Boolean): Boolean;
 var
   Action: IAction;
   DailyTrigger: IDailyTrigger;
@@ -2926,7 +2989,7 @@ end;
 
 { TAAccount.TJobImport ********************************************************}
 
-procedure TAAccount.TJobImport.Assign(const Source: TPPreferences.TItem);
+procedure TAAccount.TJobImport.Assign(const Source: TJob);
 var
   I: Integer;
 begin
@@ -2947,9 +3010,9 @@ begin
   SourceObjects := TAAccount.TJobImport(Source).SourceObjects;
 end;
 
-constructor TAAccount.TJobImport.Create(const AAItems: TPPreferences.TItems = nil; const AName: string = '');
+constructor TAAccount.TJobImport.Create(const AJobs: TJobs = nil; const AName: string = '');
 begin
-  inherited;
+  inherited Create(AJobs, AName);
 
   CodePage := CP_ACP;
   SetLength(FieldMappings, 0);
@@ -2979,15 +3042,28 @@ end;
 procedure TAAccount.TJobImport.LoadFromXML(const XML: IXMLNode);
 var
   Child: IXMLNode;
-  ObjectType: TPPreferences.TJob.TObjectType;
+  ObjectType: TAAccount.TJob.TObjectType;
 begin
   inherited;
 
+  if (Assigned(XMLNode(XML, 'csv/headline'))) then TryStrToBool(XMLNode(XML, 'csv/headline').Attributes['enabled'], CSV.Headline);
+  if (Assigned(XMLNode(XML, 'csv/quote/string'))) then CSV.QuoteChar := XMLNode(XML, 'csv/quote/string').Text;
+  if (Assigned(XMLNode(XML, 'csv/quote/type'))) then TryStrToQuote(XMLNode(XML, 'csv/quote/type').Text, CSV.Quote);
+  if (Assigned(XMLNode(XML, 'csv/separator/character/string'))) then CSV.Delimiter := XMLNode(XML, 'csv/separator/character/string').Text;
+  if (Assigned(XMLNode(XML, 'csv/separator/character/type'))) then TryStrToSeparatorType(XMLNode(XML, 'csv/separator/character/type').Text, CSV.DelimiterType);
+  if (Assigned(XMLNode(XML, 'data')) and (XMLNode(XML, 'data').Attributes['enabled'] <> Null)) then TryStrToBool(XMLNode(XML, 'data').Attributes['enabled'], Data);
+  if (Assigned(XMLNode(XML, 'data/importtype'))) then TryStrToStmtType(XMLNode(XML, 'data/importtype').Text, StmtType);
   if (Assigned(XMLNode(XML, 'filename'))) then Filename := XMLNode(XML, 'filename').Text;
   if (Assigned(XMLNode(XML, 'filename')) and (XMLNode(XML, 'filename').Attributes['codepage'] <> Null)) then TryStrToInt(XMLNode(XML, 'filename').Attributes['codepage'], CodePage);
   if (Assigned(XMLNode(XML, 'odbc/datasource'))) then ODBC.DataSource := XMLNode(XML, 'odbc/datasource').Text;
   if (Assigned(XMLNode(XML, 'odbc/password'))) then ODBC.Password := XMLNode(XML, 'odbc/password').Text;
   if (Assigned(XMLNode(XML, 'odbc/username'))) then ODBC.Username := XMLNode(XML, 'odbc/username').Text;
+  if (Assigned(XMLNode(XML, 'rowtype'))) then TryStrToRowType(XMLNode(XML, 'rowtype').Text, RowType);
+  if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['charset'] <> Null)) then Charset := XMLNode(XML, 'structure').Attributes['charset'];
+  if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['collation'] <> Null)) then Collation := XMLNode(XML, 'structure').Attributes['collation'];
+  if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['enabled'] <> Null)) then TryStrToBool(XMLNode(XML, 'structure').Attributes['enabled'], Structure);
+  if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['engine'] <> Null)) then Engine := XMLNode(XML, 'structure').Attributes['engine'];
+  if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['rowtype'] <> Null)) then TryStrToRowType(XMLNode(XML, 'structure').Attributes['rowtype'], RowType);
   if (Assigned(XMLNode(XML, 'type'))) then TryStrToImportType(XMLNode(XML, 'type').Text, ImportType);
 
   if (Assigned(XMLNode(XML, 'object')) and TryStrToObjectType(XMLNode(XML, 'object').Attributes['type'], ObjectType)) then
@@ -3041,11 +3117,24 @@ begin
 
   XML.Attributes['type'] := 'import';
 
+  XMLNode(XML, 'csv/headline').Attributes['enabled'] := BoolToStr(CSV.Headline, True);
+  XMLNode(XML, 'csv/quote/string').Text := CSV.QuoteChar;
+  XMLNode(XML, 'csv/quote/type').Text := QuoteToStr(CSV.Quote);
+  XMLNode(XML, 'csv/separator/character/string').Text := CSV.Delimiter;
+  XMLNode(XML, 'csv/separator/character/type').Text := SeparatorTypeToStr(CSV.DelimiterType);
+  XMLNode(XML, 'data').Attributes['enabled'] := BoolToStr(Data);
+  XMLNode(XML, 'data/importtype').Text := StmtTypeToStr(StmtType);
   XMLNode(XML, 'filename').Text := Filename;
   if (CodePage = CP_ACP) then XMLNode(XML, 'filename').Attributes['codepage'] := Null else XMLNode(XML, 'filename').Attributes['codepage'] := IntToStr(CodePage);
   XMLNode(XML, 'odbc/datasource').Text := ODBC.DataSource;
   XMLNode(XML, 'odbc/password').Text := ODBC.Password;
   XMLNode(XML, 'odbc/username').Text := ODBC.Username;
+  XMLNode(XML, 'rowtype').Text := RowTypeToStr(RowType);
+  XMLNode(XML, 'structure').Attributes['charset'] := Charset;
+  XMLNode(XML, 'structure').Attributes['collation'] := Collation;
+  XMLNode(XML, 'structure').Attributes['enabled'] := Structure;
+  XMLNode(XML, 'structure').Attributes['engine'] := Engine;
+  XMLNode(XML, 'structure').Attributes['rowtype'] := RowTypeToStr(RowType);
   XMLNode(XML, 'type').Text := ImportTypeToStr(ImportType);
 
   XMLNode(XML, 'object').Attributes['name'] := JobObject.Name;
@@ -3083,9 +3172,9 @@ begin
   end;
 end;
 
-{ TAAccount.TJobExport. *****************************************************************}
+{ TAAccount.TJobExport ********************************************************}
 
-procedure TAAccount.TJobExport.Assign(const Source: TPPreferences.TItem);
+procedure TAAccount.TJobExport.Assign(const Source: TJob);
 var
   I: Integer;
 begin
@@ -3121,9 +3210,9 @@ begin
   SetLength(JobObjects, 0);
 end;
 
-constructor TAAccount.TJobExport.Create(const AAItems: TPPreferences.TItems = nil; const AName: string = '');
+constructor TAAccount.TJobExport.Create(const AJobs: TJobs = nil; const AName: string = '');
 begin
-  inherited;
+  inherited Create(AJobs, AName);
 
   CodePage := CP_ACP;
   Filename := '';
@@ -3140,16 +3229,42 @@ end;
 procedure TAAccount.TJobExport.LoadFromXML(const XML: IXMLNode);
 var
   Child: IXMLNode;
-  ObjectType: TPPreferences.TJob.TObjectType;
+  ObjectType: TAAccount.TJob.TObjectType;
 begin
   inherited;
 
+  if (Assigned(XMLNode(XML, 'csv/headline'))) then TryStrToBool(XMLNode(XML, 'csv/headline').Attributes['enabled'], CSV.Headline);
+  if (Assigned(XMLNode(XML, 'csv/quote/string')) and (XMLNode(XML, 'csv/quote/string').Text <> '')) then CSV.Quoter := XMLNode(XML, 'csv/quote/string').Text[1];
+  if (Assigned(XMLNode(XML, 'csv/quote/type'))) then TryStrToQuote(XMLNode(XML, 'csv/quote/type').Text, CSV.QuoteValues);
+  if (Assigned(XMLNode(XML, 'csv/separator/character/string'))) then CSV.Delimiter := XMLNode(XML, 'csv/separator/character/string').Text;
+  if (Assigned(XMLNode(XML, 'csv/separator/character/type'))) then TryStrToSeparatorType(XMLNode(XML, 'csv/separator/character/type').Text, CSV.DelimiterType);
+  if (Assigned(XMLNode(XML, 'excel/format')) and (XMLNode(XML, 'excel/format').Text = '2007')) then Excel.Excel2007 := True else Excel.Excel2007 := False;
   if (Assigned(XMLNode(XML, 'filename'))) then Filename := XMLNode(XML, 'filename').Text;
   if (Assigned(XMLNode(XML, 'filename')) and (XMLNode(XML, 'filename').Attributes['codepage'] <> Null)) then TryStrToInt(XMLNode(XML, 'filename').Attributes['codepage'], CodePage);
+  if (Assigned(XMLNode(XML, 'html/data'))) then TryStrToBool(XMLNode(XML, 'html/data').Attributes['enabled'], HTML.Data);
+  if (Assigned(XMLNode(XML, 'html/memo')) and (XMLNode(XML, 'html/memo').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/memo').Attributes['visible'], HTML.MemoContent);
+  if (Assigned(XMLNode(XML, 'html/null')) and (XMLNode(XML, 'html/null').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/null').Attributes['visible'], HTML.NULLText);
+  if (Assigned(XMLNode(XML, 'html/row/background')) and (XMLNode(XML, 'html/row/background').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/row/background').Attributes['visible'], HTML.RowBGColor);
+  if (Assigned(XMLNode(XML, 'html/structure'))) then TryStrToBool(XMLNode(XML, 'html/structure').Attributes['enabled'], HTML.Structure);
   if (Assigned(XMLNode(XML, 'odbc/datasource'))) then ODBC.DataSource := XMLNode(XML, 'odbc/datasource').Text;
   if (Assigned(XMLNode(XML, 'odbc/password'))) then ODBC.Password := XMLNode(XML, 'odbc/password').Text;
   if (Assigned(XMLNode(XML, 'odbc/username'))) then ODBC.Username := XMLNode(XML, 'odbc/username').Text;
+  if (Assigned(XMLNode(XML, 'sql/data'))) then TryStrToBool(XMLNode(XML, 'sql/data').Attributes['enabled'], SQL.Data);
+  if (Assigned(XMLNode(XML, 'sql/data'))) then TryStrToBool(XMLNode(XML, 'sql/data').Attributes['replace'], SQL.ReplaceData);
+  if (Assigned(XMLNode(XML, 'sql/structure'))) then TryStrToBool(XMLNode(XML, 'sql/structure').Attributes['enabled'], SQL.Structure);
+  if (Assigned(XMLNode(XML, 'sql/structure'))) then TryStrToBool(XMLNode(XML, 'sql/structure').Attributes['drop'], SQL.DropStmts);
   if (Assigned(XMLNode(XML, 'type'))) then TryStrToExportType(XMLNode(XML, 'type').Text, ExportType);
+  if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/database').Attributes['type'], Self.XML.Database.NodeType);
+  if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Text <> '')) then Self.XML.Database.NodeText := XMLNode(XML, 'xml/database').Text;
+  if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Attributes['attribute'] <> Null)) then Self.XML.Database.NodeAttribute := XMLNode(XML, 'xml/database').Attributes['attribute'];
+  if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/field').Attributes['type'], Self.XML.Field.NodeType);
+  if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Text <> '')) then Self.XML.Field.NodeText := XMLNode(XML, 'xml/field').Text;
+  if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Attributes['attribute'] <> Null)) then Self.XML.Field.NodeAttribute := XMLNode(XML, 'xml/field').Attributes['attribute'];
+  if (Assigned(XMLNode(XML, 'xml/record')) and (XMLNode(XML, 'xml/record').Text <> '')) then Self.XML.Root.NodeText := XMLNode(XML, 'xml/record').Text;
+  if (Assigned(XMLNode(XML, 'xml/root')) and (XMLNode(XML, 'xml/root').Text <> '')) then Self.XML.Root.NodeText := XMLNode(XML, 'xml/root').Text;
+  if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/table').Attributes['type'], Self.XML.Table.NodeType);
+  if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Text <> '')) then Self.XML.Table.NodeText := XMLNode(XML, 'xml/table').Text;
+  if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Attributes['attribute'] <> Null)) then Self.XML.Table.NodeAttribute := XMLNode(XML, 'xml/table').Attributes['attribute'];
 
   if (Assigned(XMLNode(XML, 'objects'))) then
   begin
@@ -3181,12 +3296,38 @@ begin
 
   XML.Attributes['type'] := 'export';
 
+  XMLNode(XML, 'csv/headline').Attributes['enabled'] := CSV.Headline;
+  XMLNode(XML, 'csv/quote/string').Text := CSV.Quoter;
+  XMLNode(XML, 'csv/quote/type').Text := QuoteToStr(CSV.QuoteValues);
+  XMLNode(XML, 'csv/separator/character/string').Text := CSV.Delimiter;
+  XMLNode(XML, 'csv/separator/character/type').Text := SeparatorTypeToStr(CSV.DelimiterType);
+  if (Excel.Excel2007) then XMLNode(XML, 'excel/format').Text := '2007' else XMLNode(XML, 'excel/format').Text := '';
   XMLNode(XML, 'filename').Text := Filename;
   if (CodePage = CP_ACP) then XMLNode(XML, 'filename').Attributes['codepage'] := Null else XMLNode(XML, 'filename').Attributes['codepage'] := IntToStr(CodePage);
+  XMLNode(XML, 'grid/row/background').Attributes['visible'] := HTML.RowBGColor;
+  XMLNode(XML, 'html/data').Attributes['enabled'] := HTML.Data;
+  XMLNode(XML, 'html/memo').Attributes['visible'] := HTML.MemoContent;
+  XMLNode(XML, 'html/null').Attributes['visible'] := HTML.NullText;
+  XMLNode(XML, 'html/structure').Attributes['enabled'] := HTML.Structure;
   XMLNode(XML, 'type').Text := ExportTypeToStr(ExportType);
   XMLNode(XML, 'odbc/datasource').Text := ODBC.DataSource;
   XMLNode(XML, 'odbc/password').Text := ODBC.Password;
   XMLNode(XML, 'odbc/username').Text := ODBC.Username;
+  XMLNode(XML, 'sql/data').Attributes['enabled'] := SQL.Data;
+  XMLNode(XML, 'sql/data').Attributes['replace'] := SQL.ReplaceData;
+  XMLNode(XML, 'sql/structure').Attributes['enabled'] := SQL.Structure;
+  XMLNode(XML, 'sql/structure').Attributes['drop'] := SQL.DropStmts;
+  XMLNode(XML, 'xml/database').Text := Self.XML.Database.NodeText;
+  XMLNode(XML, 'xml/database').Attributes['type'] := NodeTypeToStr(Self.XML.Database.NodeType);
+  XMLNode(XML, 'xml/database').Attributes['attribute'] := Self.XML.Database.NodeAttribute;
+  XMLNode(XML, 'xml/field').Text := Self.XML.Field.NodeText;
+  XMLNode(XML, 'xml/field').Attributes['type'] := NodeTypeToStr(Self.XML.Field.NodeType);
+  XMLNode(XML, 'xml/field').Attributes['attribute'] := Self.XML.Field.NodeAttribute;
+  XMLNode(XML, 'xml/record').Text := Self.XML.Row.NodeText;
+  XMLNode(XML, 'xml/root').Text := Self.XML.Root.NodeText;
+  XMLNode(XML, 'xml/table').Text := Self.XML.Table.NodeText;
+  XMLNode(XML, 'xml/table').Attributes['type'] := NodeTypeToStr(Self.XML.Table.NodeType);
+  XMLNode(XML, 'xml/table').Attributes['attribute'] := Self.XML.Table.NodeAttribute;
 
   if (Assigned(XMLNode(XML, 'objects'))) then
   begin
@@ -3215,9 +3356,9 @@ end;
 
 { TAAccount.TJobs *************************************************************}
 
-function TPPreferences.TJobs.AddJob(const NewJob: TPPreferences.TJob): Boolean;
+function TAAccount.TJobs.AddJob(const NewJob: TAAccount.TJob): Boolean;
 var
-  Job: TPPreferences.TJob;
+  Job: TAAccount.TJob;
 begin
   Result := IndexByName(NewJob.Name) < 0;
   if (Result) then
@@ -3240,14 +3381,14 @@ begin
   end;
 end;
 
-constructor TPPreferences.TJobs.Create(const AAccount: TAAccount);
+constructor TAAccount.TJobs.Create(const AAccount: TAAccount);
 begin
   inherited Create();
 
   FAccount := AAccount;
 end;
 
-procedure TPPreferences.TJobs.DeleteJob(const Job: TPPreferences.TJob);
+procedure TAAccount.TJobs.DeleteJob(const Job: TAAccount.TJob);
 var
   Index: Integer;
   TaskFolder: ITaskFolder;
@@ -3268,21 +3409,19 @@ begin
   Account.AccountEvent(ClassType);
 end;
 
-destructor TPPreferences.TJobs.Destroy();
+destructor TAAccount.TJobs.Destroy();
 begin
   Clear();
 
   inherited;
 end;
 
-function TPPreferences.TJobs.GetJob(Index: Integer): TPPreferences.TJob;
+function TAAccount.TJobs.GetJob(Index: Integer): TAAccount.TJob;
 begin
-  Assert(Item[Index] is TPPreferences.TJob);
-
-  Result := TPPreferences.TJob(Item[Index]);
+  Result := Job[Index];
 end;
 
-function TPPreferences.TJobs.GetTaskFolder(const AutoCreate: Boolean = False): ITaskFolder;
+function TAAccount.TJobs.GetTaskFolder(const AutoCreate: Boolean = False): ITaskFolder;
 var
   AppFolder: ITaskFolder;
   RootFolder: ITaskFolder;
@@ -3297,15 +3436,36 @@ begin
       Result := nil;
 end;
 
-function TPPreferences.TJobs.GetTaskService(): ITaskService;
+function TAAccount.TJobs.GetTaskService(): ITaskService;
 begin
   Result := Preferences.TaskService;
 end;
 
-procedure TPPreferences.TJobs.Load();
+function TAAccount.TJobs.IndexByName(const Name: string): Integer;
+var
+  Left: Integer;
+  Mid: Integer;
+  Right: Integer;
+begin
+  Result := -1;
+
+  Left := 0;
+  Right := Count - 1;
+  while (Left <= Right) do
+  begin
+    Mid := (Right - Left) div 2 + Left;
+    case (lstrcmpi(PChar(Job[Mid].Name), PChar(Name))) of
+      -1: Left := Mid + 1;
+      0: begin Result := Mid; break; end;
+      1: Right := Mid - 1;
+    end;
+  end;
+end;
+
+procedure TAAccount.TJobs.Load();
 var
   I: Integer;
-  Job: TPPreferences.TJob;
+  Job: TAAccount.TJob;
   S: string;
   RegisteredTask: IRegisteredTask;
   TaskFolder: ITaskFolder;
@@ -3355,7 +3515,7 @@ begin
   end;
 end;
 
-function TPPreferences.TJobs.UpdateJob(const Job, NewJob: TPPreferences.TJob): Boolean;
+function TAAccount.TJobs.UpdateJob(const Job, NewJob: TAAccount.TJob): Boolean;
 begin
   Result := (IndexOf(Job) >= 0) and ((IndexByName(NewJob.Name) = IndexOf(Job)) or (IndexByName(NewJob.Name) < 0));
   if (Result) then
@@ -3895,11 +4055,11 @@ begin
   Result := Accounts.IndexOf(Self);
 end;
 
-function TAAccount.GetJobs(): TPPreferences.TJobs;
+function TAAccount.GetJobs(): TAAccount.TJobs;
 begin
   if (not Assigned(FJobs) and CheckWin32Version(6)) then
   begin
-    FJobs := TPPreferences.TJobs.Create(Self);
+    FJobs := TAAccount.TJobs.Create(Self);
     FJobs.Load();
   end;
 
@@ -3933,7 +4093,7 @@ begin
   Result := FXML;
 end;
 
-function TAAccount.JobByName(const Name: string): TPPreferences.TJob;
+function TAAccount.JobByName(const Name: string): TAAccount.TJob;
 var
   Index: Integer;
 begin
@@ -4367,7 +4527,7 @@ end;
 procedure TAAccounts.UpdateAccount(const Account, NewAccount: TAAccount);
 var
   I: Integer;
-  NewJob: TPPreferences.TJob;
+  NewJob: TAAccount.TJob;
   TaskFolder: ITaskFolder;
 begin
   if (Assigned(Account) and Assigned(NewAccount) and (not Assigned(AccountByName(NewAccount.Name)) or (NewAccount.Name = Account.Name))) then
