@@ -4018,7 +4018,7 @@ begin
 end;
 
 initialization
-  LineWidth := Trunc(Screen.PixelsPerInch / USER_DEFAULT_SCREEN_DPI + 0.5);
+  LineWidth := Round(Screen.PixelsPerInch / USER_DEFAULT_SCREEN_DPI);
   BorderWidth := LineWidth;
   ConnectorLength := 7 * LineWidth;
   PointSize := 3 * LineWidth;

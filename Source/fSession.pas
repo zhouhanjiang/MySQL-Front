@@ -1400,7 +1400,7 @@ type
     TEventProc = procedure (const AEvent: TEvent) of object;
   private
     EventProcs: TList;
-    FAccount: TAAccount;
+    FAccount: TPAccount;
     FCharsets: TSCharsets;
     FSessions: TSSessions;
     FCollations: TSCollations;
@@ -1460,7 +1460,7 @@ type
     function CharsetByName(const CharsetName: string): TSCharset;
     function CharsetByCollation(const Collation: string): TSCharset;
     function CollationByName(const CollationName: string): TSCollation;
-    constructor Create(const ASessions: TSSessions; const AAccount: TAAccount = nil); reintroduce;
+    constructor Create(const ASessions: TSSessions; const AAccount: TPAccount = nil); reintroduce;
     function DatabaseByName(const DatabaseName: string): TSDatabase;
     procedure DecodeInterval(const Value: string; const IntervalType: TSEvent.TIntervalType; var Year, Month, Day, Quarter, Week, Hour, Minute, Second, MSec: Word);
     function DeleteDatabase(const Database: TSDatabase): Boolean;
@@ -1496,7 +1496,7 @@ type
     function UserByCaption(const Caption: string): TSUser;
     function UserByName(const UserName: string): TSUser;
     function VariableByName(const VariableName: string): TSVariable;
-    property Account: TAAccount read FAccount;
+    property Account: TPAccount read FAccount;
     property Caption: string read GetCaption;
     property Charsets: TSCharsets read FCharsets;
     property Collation: string read GetCollation;
@@ -1535,7 +1535,7 @@ type
     function GetSession(Index: Integer): TSSession; inline;
   public
     function Add(const Session: TSSession): Integer;
-    function SessionByAccount(const Account: TAAccount; const DatabaseName: string): TSSession;
+    function SessionByAccount(const Account: TPAccount; const DatabaseName: string): TSSession;
     property Session[Index: Integer]: TSSession read GetSession; default;
     property OnSQLError: TMySQLConnection.TErrorEvent read FOnSQLError write FOnSQLError;
   end;
@@ -10652,7 +10652,7 @@ begin
     Result := Collations[Index];
 end;
 
-constructor TSSession.Create(const ASessions: TSSessions; const AAccount: TAAccount = nil);
+constructor TSSession.Create(const ASessions: TSSessions; const AAccount: TPAccount = nil);
 begin
   inherited Create();
 
@@ -10787,7 +10787,9 @@ var
   FlushPrivileges: Boolean;
   I: Integer;
   Identifiers: string;
+  J: Integer;
   SQL: string;
+  Trigger: TSTrigger;
 begin
   List.Sort(Compare);
 
@@ -10811,6 +10813,14 @@ begin
       end;
       if (Identifiers <> '') then Identifiers := Identifiers + ',';
       Identifiers := Identifiers + Connection.EscapeIdentifier(Database.Name) + '.' + Connection.EscapeIdentifier(TSBaseTable(List[I]).Name);
+
+      for J := TSBaseTable(List[I]).Database.Triggers.Count - 1 downto 0 do
+        if (TSBaseTable(List[I]).Database.Triggers[J].Table = TSBaseTable(List[I])) then
+        begin
+          Trigger := TSBaseTable(List[I]).Database.Triggers[J];
+          TSBaseTable(List[I]).Database.Triggers.Delete(Trigger);
+          Trigger.Free();
+        end;
     end;
   if (Identifiers <> '') then
     SQL := SQL + 'DROP TABLE ' + Identifiers + ';' + #13#10;
@@ -12720,7 +12730,7 @@ begin
   Session.Connection.OnSQLError := OnSQLError;
 end;
 
-function TSSessions.SessionByAccount(const Account: TAAccount; const DatabaseName: string): TSSession;
+function TSSessions.SessionByAccount(const Account: TPAccount; const DatabaseName: string): TSSession;
 var
   I: Integer;
 begin

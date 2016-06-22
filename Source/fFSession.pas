@@ -31,7 +31,7 @@ const
 
 type
   TSynMemoBeforeDrag = record SelStart: Integer; SelLength: Integer; end;
-  TListViewSortRec = record Kind: TAAccount.TDesktop.TListViewKind; Index: Integer; Order: Integer; end;
+  TListViewSortRec = record Kind: TPAccount.TDesktop.TListViewKind; Index: Integer; Order: Integer; end;
   TListViewSortData = array [lkServer .. lkVariables] of TListViewSortRec;
 
 type
@@ -900,8 +900,8 @@ type
     procedure aERedoExecute(Sender: TObject);
     procedure aERenameExecute(Sender: TObject);
     procedure aESelectAllExecute(Sender: TObject);
-    procedure aFExportExecute(const Sender: TObject; const ExportType: TAAccount.TJobExport.TExportType);
-    procedure aFImportExecute(const Sender: TObject; const ImportType: TAAccount.TJobImport.TImportType);
+    procedure aFExportExecute(const Sender: TObject; const ExportType: TPAccount.TJobExport.TExportType);
+    procedure aFImportExecute(const Sender: TObject; const ImportType: TPAccount.TJobImport.TImportType);
     procedure aFOpenExecute(Sender: TObject);
     procedure aFSaveAsExecute(Sender: TObject);
     procedure aFSaveExecute(Sender: TObject);
@@ -919,7 +919,7 @@ type
     procedure BeforeExecuteSQL(Sender: TObject);
     procedure BeginEditLabel(Sender: TObject);
     procedure SessionUpdate(const SessionEvent: TSSession.TEvent);
-    function ColumnWidthKindFromImageIndex(const AImageIndex: Integer): TAAccount.TDesktop.TListViewKind;
+    function ColumnWidthKindFromImageIndex(const AImageIndex: Integer): TPAccount.TDesktop.TListViewKind;
     procedure CMSysFontChanged(var Message: TMessage); message CM_SYSFONTCHANGED;
     function CreateDesktop(const CObject: TSObject): TSObject.TDesktop;
     procedure CreateExplorer();
@@ -1483,12 +1483,7 @@ begin
     if (not Assigned(FXML)) then
     begin
       FXML := Node.AddChild('database');
-      try
-        FXML.Attributes['name'] := Database.Name;
-      except
-        Node.ChildNodes.Delete(Node.ChildNodes.IndexOf(FXML));
-        FXML := nil;
-      end;
+      FXML.Attributes['name'] := Database.Name;
     end;
   end;
 
@@ -3422,7 +3417,7 @@ begin
   aFExportExecute(Sender, etExcelFile);
 end;
 
-procedure TFSession.aFExportExecute(const Sender: TObject; const ExportType: TAAccount.TJobExport.TExportType);
+procedure TFSession.aFExportExecute(const Sender: TObject; const ExportType: TPAccount.TJobExport.TExportType);
 var
   Database: TSDatabase;
   I: Integer;
@@ -3553,7 +3548,7 @@ begin
   aFImportExecute(Sender, itExcelFile);
 end;
 
-procedure TFSession.aFImportExecute(const Sender: TObject; const ImportType: TAAccount.TJobImport.TImportType);
+procedure TFSession.aFImportExecute(const Sender: TObject; const ImportType: TPAccount.TJobImport.TImportType);
 var
   SItem: TSItem;
 begin
@@ -3808,26 +3803,26 @@ end;
 
 procedure TFSession.aJEditExecute(Sender: TObject);
 var
-  Job: TAAccount.TJob;
+  Job: TPAccount.TJob;
 begin
   Job := Session.Account.JobByName(FJobs.Selected.Caption);
 
-  if (Job is TAAccount.TJobImport) then
+  if (Job is TPAccount.TJobImport) then
   begin
     DImport.Session := Session;
     DImport.SObject := nil;
     DImport.DialogType := idtEditJob;
     DImport.Filename := '';
     DImport.Window := Window;
-    DImport.Job := TAAccount.TJobImport(Job);
+    DImport.Job := TPAccount.TJobImport(Job);
     DImport.Execute();
   end
-  else if (Job is TAAccount.TJobExport) then
+  else if (Job is TPAccount.TJobExport) then
   begin
     DExport.Session := Session;
     DExport.DBGrid := nil;
     DExport.DialogType := edtEditJob;
-    DExport.Job := TAAccount.TJobExport(Job);
+    DExport.Job := TPAccount.TJobExport(Job);
     DExport.SObjects.Clear();
     DExport.Window := Window;
     DExport.Execute();
@@ -4961,7 +4956,7 @@ begin
     Wanted.Synchronize();
 end;
 
-function TFSession.ColumnWidthKindFromImageIndex(const AImageIndex: Integer): TAAccount.TDesktop.TListViewKind;
+function TFSession.ColumnWidthKindFromImageIndex(const AImageIndex: Integer): TPAccount.TDesktop.TListViewKind;
 begin
   case (AImageIndex) of
     iiServer: Result := lkServer;
@@ -5005,7 +5000,7 @@ end;
 
 constructor TFSession.Create(const AOwner: TComponent; const AParent: TWinControl; const ASession: TSSession; const AParam: string);
 var
-  Kind: TAAccount.TDesktop.TListViewKind;
+  Kind: TPAccount.TDesktop.TListViewKind;
   NonClientMetrics: TNonClientMetrics;
 begin
   inherited Create(AOwner);
@@ -6623,7 +6618,7 @@ begin
 
   try
     FreeAndNil(JPEGImage);
-    FreeAndNil(PNGImage); // Sometimes, this forces a bug (XE2)
+    FreeAndNil(PNGImage);
     FreeAndNil(GIFImage);
     FreeAndNil(BMPImage);
   except
@@ -9221,7 +9216,7 @@ procedure TFSession.ListViewColumnClick(Sender: TObject; Column: TListColumn);
 var
   HDItem: THDItem;
   I: Integer;
-  Kind: TAAccount.TDesktop.TListViewKind;
+  Kind: TPAccount.TDesktop.TListViewKind;
 begin
   Kind := ColumnWidthKindFromImageIndex(SelectedImageIndex);
 
@@ -9486,7 +9481,7 @@ end;
 
 procedure TFSession.ListViewInitialize(const ListView: TListView);
 
-  procedure SetColumnWidths(const ListView: TListView; const Kind: TAAccount.TDesktop.TListViewKind);
+  procedure SetColumnWidths(const ListView: TListView; const Kind: TPAccount.TDesktop.TListViewKind);
   var
     I: Integer;
   begin
@@ -9867,7 +9862,7 @@ end;
 
 procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const ListView: TListView; const Data: TCustomData = nil);
 
-  function Compare(const Kind: TAAccount.TDesktop.TListViewKind; const Item1, Item2: TListItem): Integer;
+  function Compare(const Kind: TPAccount.TDesktop.TListViewKind; const Item1, Item2: TListItem): Integer;
   begin
     ListViewCompare(nil, Item1, Item2, LPARAM(@ListViewSortData[Kind]), Result);
   end;
@@ -10214,7 +10209,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
     Item.SubItems.EndUpdate();
   end;
 
-  function InsertOrUpdateItem(const Kind: TAAccount.TDesktop.TListViewKind; const Data: TObject): TListItem;
+  function InsertOrUpdateItem(const Kind: TPAccount.TDesktop.TListViewKind; const Data: TObject): TListItem;
   var
     GroupID: Integer;
     I: Integer;
@@ -10281,14 +10276,14 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
     end;
   end;
 
-  function AddItem(const Kind: TAAccount.TDesktop.TListViewKind; const Data: TObject): TListItem;
+  function AddItem(const Kind: TPAccount.TDesktop.TListViewKind; const Data: TObject): TListItem;
   begin
     Result := ListView.Items.Add();
     Result.Data := Data;
     UpdateItem(Result, Data);
   end;
 
-  procedure UpdateGroup(const Kind: TAAccount.TDesktop.TListViewKind; const GroupID: Integer; const SItems: TSItems);
+  procedure UpdateGroup(const Kind: TPAccount.TDesktop.TListViewKind; const GroupID: Integer; const SItems: TSItems);
   var
     Add: Boolean;
     ColumnWidths: array [0..7] of Integer;
@@ -10441,7 +10436,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
 var
   ChangingEvent: TLVChangingEvent;
   I: Integer;
-  Kind: TAAccount.TDesktop.TListViewKind;
+  Kind: TPAccount.TDesktop.TListViewKind;
   Table: TSTable;
 begin
   if (Assigned(ListView) and (Assigned(SessionEvent.SItems) or (SessionEvent.Sender is TSTable))) then
@@ -11246,11 +11241,11 @@ end;
 
 procedure TFSession.mjExecuteClick(Sender: TObject);
 var
-  Job: TAAccount.TJob;
+  Job: TPAccount.TJob;
 begin
   Job := Session.Account.JobByName(FJobs.Selected.Caption);
 
-  if (Job is TAAccount.TJobImport) then
+  if (Job is TPAccount.TJobImport) then
   begin
     DImport.Session := Session;
     DImport.SObject := nil;
@@ -11258,7 +11253,7 @@ begin
     DImport.Filename := '';
     DImport.Window := Window;
     DImport.ImportType := itUnknown;
-    DImport.Job := TAAccount.TJobImport(Job);
+    DImport.Job := TPAccount.TJobImport(Job);
     DImport.Execute();
   end
   else
@@ -11266,7 +11261,7 @@ begin
     DExport.Session := Session;
     DExport.DBGrid := nil;
     DExport.DialogType := edtExecuteJob;
-    DExport.Job := TAAccount.TJobExport(Job);
+    DExport.Job := TPAccount.TJobExport(Job);
     DExport.SObjects.Clear();
     DExport.Window := Window;
     DExport.ExportType := etUnknown;

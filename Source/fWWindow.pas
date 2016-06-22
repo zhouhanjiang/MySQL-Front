@@ -812,13 +812,13 @@ end;
 
 function TWWindow.DBLogin(const Account: Pointer): Boolean;
 begin
-  DLogin.Username := TAAccount(Account).Connection.Username;
-  DLogin.Password := TAAccount(Account).Connection.Password;
+  DLogin.Username := TPAccount(Account).Connection.Username;
+  DLogin.Password := TPAccount(Account).Connection.Password;
   Result := DLogin.Execute();
   if (Result) then
   begin
-    TAAccount(Account).Connection.Username := DLogin.Username;
-    TAAccount(Account).Connection.Password := DLogin.Password;
+    TPAccount(Account).Connection.Username := DLogin.Username;
+    TPAccount(Account).Connection.Password := DLogin.Password;
   end;
 end;
 
@@ -855,6 +855,8 @@ var
   Log: TStringList;
   Start: Integer;
 begin
+  DataFields.Add('Window Version=' + IntToStr(Win32MajorVersion) + '.' + IntToStr(Win32MinorVersion));
+
   for I := 0 to Sessions.Count - 1 do
     if (Sessions[I].Connection.Connected) then
       if (Assigned(ActiveTab) and (Sessions[I] = ActiveTab.Session)) then
@@ -887,7 +889,7 @@ begin
   for I := 0 to FSessions.Count - 1 do
     try TFSession(FSessions[I]).CrashRescue(); except end;
 
-  try Accounts.SaveToXML(); except end;
+  try Accounts.Save(); except end;
 
   if ((0 < AvailableUpdate) and (AvailableUpdate < Preferences.Version) or not IsConnectedToInternet()) then
     Handled := False
@@ -946,7 +948,7 @@ begin
     EurekaLog.OnCustomDataRequest := EurekaLogCustomDataRequest;
   {$ENDIF}
 
-  Accounts := TAAccounts.Create(DBLogin);
+  Accounts := TPAccounts.Create(DBLogin);
 
   Sessions.OnSQLError := SQLError;
 

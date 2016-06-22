@@ -27,7 +27,7 @@ type
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Password: string;
-    Account: TAAccount;
+    Account: TPAccount;
     Username: string;
     function Execute(): Boolean;
   end;

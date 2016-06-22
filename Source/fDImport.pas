@@ -228,8 +228,8 @@ type
     CodePage: Cardinal;
     DialogType: (idtNormal, idtCreateJob, idtEditJob, idtExecuteJob);
     Filename: TFileName;
-    ImportType: TAAccount.TJobImport.TImportType;
-    Job: TAAccount.TJobImport;
+    ImportType: TPAccount.TJobImport.TImportType;
+    Job: TPAccount.TJobImport;
     Session: TSSession;
     SObject: TSObject;
     Window: TForm;
@@ -716,7 +716,7 @@ var
   Year, Month, Day: Word;
   I: Integer;
   J: Integer;
-  NewJob: TAAccount.TJobImport;
+  NewJob: TPAccount.TJobImport;
 begin
   Session.UnRegisterEventProc(FormSessionEvent);
 
@@ -762,7 +762,7 @@ begin
     end
     else
     begin
-      NewJob := TAAccount.TJobImport.Create(Session.Account.Jobs, Trim(FName.Text));
+      NewJob := TPAccount.TJobImport.Create(Session.Account.Jobs, Trim(FName.Text));
 
       case (ImportType) of
         itTextFile:

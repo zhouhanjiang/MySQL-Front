@@ -9,14 +9,14 @@ uses
 type
   TJobExecution = class(TObject)
   private
-    Account: TAAccount;
-    Job: TAAccount.TJob;
+    Account: TPAccount;
+    Job: TPAccount.TJob;
     ErrorLogFile: THandle;
     Session: TSSession;
     StdErr: THandle;
     StdOut: THandle;
-    function ExecuteExport(const Job: TAAccount.TJobExport): Integer;
-    function ExecuteImport(const Job: TAAccount.TJobImport): Integer;
+    function ExecuteExport(const Job: TPAccount.TJobExport): Integer;
+    function ExecuteImport(const Job: TPAccount.TJobImport): Integer;
     procedure ExportError(const Sender: TObject; const Error: TTool.TError; const Item: TTool.TItem; const ShowRetry: Boolean; var Success: TDataAction);
   public
     constructor Create(const AccountName, JobName: string);
@@ -50,7 +50,7 @@ begin
 
   WriteLn(StdOut, SysUtils.LoadStr(1000) + ' ' + Preferences.VersionStr);
 
-  Accounts := TAAccounts.Create(nil);
+  Accounts := TPAccounts.Create(nil);
 
   Account := Accounts.AccountByName(AccountName);
   if (not Assigned(Account)) then
@@ -97,14 +97,14 @@ begin
   Session.Connection.Connect();
   if (not Session.Connection.Connected) then
     WriteLn(StdErr, Session.Connection.ErrorMessage)
-  else if (Job is TAAccount.TJobImport) then
-    ExecuteImport(TAAccount.TJobImport(Job))
-  else if (Job is TAAccount.TJobExport) then
-    ExecuteExport(TAAccount.TJobExport(Job));
+  else if (Job is TPAccount.TJobImport) then
+    ExecuteImport(TPAccount.TJobImport(Job))
+  else if (Job is TPAccount.TJobExport) then
+    ExecuteExport(TPAccount.TJobExport(Job));
   Session.Free();
 end;
 
-function TJobExecution.ExecuteExport(const Job: TAAccount.TJobExport): Integer;
+function TJobExecution.ExecuteExport(const Job: TPAccount.TJobExport): Integer;
 var
   Database: TSDatabase;
   DBObject: TSDBObject;
@@ -348,7 +348,7 @@ begin
   end;
 end;
 
-function TJobExecution.ExecuteImport(const Job: TAAccount.TJobImport): Integer;
+function TJobExecution.ExecuteImport(const Job: TPAccount.TJobImport): Integer;
 var
   Database: TSDatabase;
   Import: TTImport;

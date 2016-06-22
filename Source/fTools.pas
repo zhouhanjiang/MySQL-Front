@@ -2998,8 +2998,10 @@ begin
     begin
       Success := daSuccess;
 
+MessageBox(0, '3', 'Debug', MB_OK + MB_ICONINFORMATION);
       if (SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, Handle, @Stmt))) then
       begin
+MessageBox(0, '4', 'Debug', MB_OK + MB_ICONINFORMATION);
         SQL := 'SELECT COUNT(*) FROM "' + TTImport.TItem(Items[I]).SourceTableName + '"';
         if (SQL_SUCCEEDED(SQLExecDirect(Stmt, PSQLTCHAR(SQL), SQL_NTS))
           and SQL_SUCCEEDED(SQLFetch(Stmt))
@@ -3008,6 +3010,7 @@ begin
 
         SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
         Stmt := SQL_NULL_HANDLE;
+MessageBox(0, '4', 'Debug', MB_OK + MB_ICONINFORMATION);
       end;
     end;
 end;
@@ -3822,8 +3825,13 @@ begin
     begin
       if (odExcel2007 in ODBCDrivers) then
       begin
+try
         ConnStrIn := 'Driver={' + DriverExcel12 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
         Connected := SQL_SUCCEEDED(SQLDriverConnect(Handle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
+except
+  Connected := False;
+  MessageBox(0, '1', 'Debug', MB_OK + MB_ICONINFORMATION);
+end;
       end;
       if (not Connected) then
       begin
@@ -3833,6 +3841,7 @@ begin
       if (not Connected) then
         DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, True);
     end;
+MessageBox(0, '2', 'Debug', MB_OK + MB_ICONINFORMATION);
   end;
 end;
 
@@ -7861,8 +7870,6 @@ begin
 
   SourceDatabase := Item.DBObject.Database;
   SourceTable := TSBaseTable(Item.DBObject);
-  if (not Assigned(SourceDatabase)) then // Debug 18.02.2015
-    raise ERangeError.Create(SRangeError);
   if (Assigned(SourceDatabase.Triggers) and Assigned(DestinationDatabase.Triggers)) then
     for I := 0 to SourceDatabase.Triggers.Count - 1 do
       if ((Success = daSuccess) and (SourceDatabase.Triggers[I].Table = SourceTable) and not Assigned(DestinationDatabase.TriggerByName(SourceDatabase.Triggers[I].Name))) then

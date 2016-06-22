@@ -483,8 +483,7 @@ begin
     if (FUpdateCheckNever.Checked) then Preferences.UpdateCheck := utNever;
     if (FUpdateCheckDaily.Checked) then Preferences.UpdateCheck := utDaily;
 
-    Preferences.SaveToXML();
-    Preferences.LoadFromXML();
+    Preferences.Save();
   end;
 end;
 

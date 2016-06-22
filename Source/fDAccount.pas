@@ -62,7 +62,7 @@ type
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
   public
     Password: string;
-    Account: TAAccount;
+    Account: TPAccount;
     ShowType: TDAccountShowType;
     Username: string;
     function Execute(): Boolean;
@@ -234,7 +234,7 @@ end;
 
 procedure TDAccount.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 var
-  NewAccount: TAAccount;
+  NewAccount: TPAccount;
 begin
   if (ModalResult = mrOk) then
   begin
@@ -247,7 +247,7 @@ begin
 
     if (CanClose) then
     begin
-      NewAccount := TAAccount.Create(Accounts);
+      NewAccount := TPAccount.Create(Accounts);
       if (Assigned(Account)) then
         NewAccount.Assign(Account);
 
@@ -301,7 +301,7 @@ begin
   Preferences.Account.Height := Height;
 
   if (ModalResult = mrOk) then
-    Preferences.SaveToXML();
+    Preferences.Save();
 end;
 
 procedure TDAccount.FormResize(Sender: TObject);

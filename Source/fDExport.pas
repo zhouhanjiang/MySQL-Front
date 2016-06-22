@@ -242,8 +242,8 @@ type
   public
     DBGrid: TDBGrid;
     DialogType: (edtNormal, edtCreateJob, edtEditJob, edtExecuteJob);
-    ExportType: TAAccount.TJobExport.TExportType;
-    Job: TAAccount.TJobExport;
+    ExportType: TPAccount.TJobExport.TExportType;
+    Job: TPAccount.TJobExport;
     Session: TSSession;
     Window: TForm;
     function Execute(): Boolean;
@@ -762,7 +762,7 @@ end;
 procedure TDExport.FormHide(Sender: TObject);
 var
   I: Integer;
-  NewJob: TAAccount.TJobExport;
+  NewJob: TPAccount.TJobExport;
   Hour, Min, Sec, MSec: Word;
   Year, Month, Day: Word;
 begin
@@ -845,7 +845,7 @@ begin
     end
     else
     begin
-      NewJob := TAAccount.TJobExport.Create(Session.Account.Jobs, Trim(FName.Text));
+      NewJob := TPAccount.TJobExport.Create(Session.Account.Jobs, Trim(FName.Text));
 
       case (ExportType) of
         etSQLFile:

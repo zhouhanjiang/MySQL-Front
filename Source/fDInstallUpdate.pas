@@ -14,7 +14,7 @@ const
   UM_UPDATE_PROGRESSBAR = WM_USER + 203;
 
 type
-  THTTPThread = class (TThread)
+  THTTPThread = class(TThread)
   private
     Buffer: Pointer;
     FSize: Longint;
@@ -30,14 +30,14 @@ type
     property Size: Longint read FSize;
   end;
 
-  THTTPMessagedThread = class (THTTPThread)
+  THTTPMessagedThread = class(THTTPThread)
   public
     SuccessMessage: UINT;
     procedure AfterConstruction(); override;
     procedure Execute(); override;
   end;
 
-  TCheckUpdateThread = class (THTTPThread)
+  TCheckUpdateThread = class(THTTPThread)
   protected
     procedure DoTerminate(); override;
   public
@@ -48,7 +48,7 @@ type
   end;
 
 type
-  TDInstallUpdate = class (TForm_Ext)
+  TDInstallUpdate = class(TForm_Ext)
     FBCancel: TButton;
     FBOk: TButton;
     FProgram: TLabel;

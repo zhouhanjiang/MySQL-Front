@@ -10,9 +10,7 @@ uses
   MySQLDB;
 
 type
-  TPPreferences = class;
-  TAAccount = class;
-  TAAccounts = class;
+  TPAccounts = class;
 
   TPPreferences = class(TRegistry)
   type
@@ -365,12 +363,14 @@ type
     function GetVersion(var VerMajor, VerMinor, VerPatch, VerBuild: Integer): Boolean;
     function GetVersionInfo(): Integer;
     function GetVersionStr(): string;
-    function GetXML(): IXMLNode;
+    function GetXMLDocument(): IXMLDocument;
   protected
     KeyBase: string;
+    procedure SaveToRegistry(); virtual;
+    procedure SaveToXML(const XML: IXMLNode); virtual;
     property Filename: TFileName read GetFilename;
     property TaskService: ITaskService read GetTaskService;
-    property XML: IXMLNode read GetXML;
+    property XMLDocument: IXMLDocument read GetXMLDocument;
   public
     Account: TAccount;
     Accounts: TAccounts;
@@ -443,10 +443,9 @@ type
     UserPath: TFileName;
     constructor Create(); virtual;
     destructor Destroy(); override;
-    procedure LoadFromXML(); virtual;
+    procedure LoadFromXML(const XML: IXMLNode); virtual;
     function LoadStr(const Index: Integer; const Param1: string = ''; const Param2: string = ''; const Param3: string = ''): string; overload; virtual;
-    procedure SaveToRegistry(); virtual;
-    procedure SaveToXML(); virtual;
+    procedure Save(); virtual;
     property InternetAgent: string read FInternetAgent;
     property Language: TLanguage read GetLanguage;
     property LanguagePath: TFileName read GetLanguagePath;
@@ -460,7 +459,7 @@ type
     property VersionStr: string read GetVersionStr;
   end;
 
-  TAAccount = class
+  TPAccount = class
   type
     TJobs = class;
     TFiles = class;
@@ -505,17 +504,17 @@ type
 
     TJobs = class(TList)
     private
-      FAccount: TAAccount;
+      FAccount: TPAccount;
       function GetJob(Index: Integer): TJob; inline;
       function GetTaskFolder(const AutoCreate: Boolean = False): ITaskFolder;
       function GetTaskService(): ITaskService; inline;
     protected
       function IndexByName(const Name: string): Integer; virtual;
-      property Account: TAAccount read FAccount;
+      property Account: TPAccount read FAccount;
       property TaskService: ITaskService read GetTaskService;
     public
       function AddJob(const NewJob: TJob): Boolean; virtual;
-      constructor Create(const AAccount: TAAccount);
+      constructor Create(const AAccount: TPAccount);
       procedure DeleteJob(const Job: TJob); overload; virtual;
       destructor Destroy(); override;
       procedure Load(); virtual;
@@ -664,20 +663,21 @@ type
     type
       TListViewKind = (lkServer, lkDatabase, lkTable, lkProcesses, lkStati, lkUsers, lkVariables);
     private
-      FAccount: TAAccount;
+      FAccount: TPAccount;
       FFiles: TFiles;
       FPath: string;
       function GetAddress(): string;
-      procedure SetAddress(AAddress: string);
+      procedure SetAddress(AAddress: string); inline;
     protected
       procedure Assign(const Source: TDesktop); virtual;
       procedure LoadFromXML(const XML: IXMLNode); virtual;
       procedure SaveToXML(const XML: IXMLNode); virtual;
-      property Account: TAAccount read FAccount;
+      property Account: TPAccount read FAccount;
     public
       AddressMRU: TPPreferences.TMRUList;
+      BlobHeight: Integer;
       ColumnWidths: array [lkServer .. lkVariables] of array [0..7] of Integer;
-      DataHeight, BlobHeight: Integer;
+      DataHeight: Integer;
       EditorContent: array [ttEditor .. ttEditor3] of string;
       ExplorerVisible: Boolean;
       FilesFilter: string;
@@ -688,15 +688,13 @@ type
       NavigatorVisible: Boolean;
       SelectorWitdth: Integer;
       SQLHistoryVisible: Boolean;
-      constructor Create(const AAccount: TAAccount); overload; virtual;
+      constructor Create(const AAccount: TPAccount); overload; virtual;
       destructor Destroy(); override;
       property Address: string read GetAddress write SetAddress;
       property Files: TFiles read FFiles;
     end;
 
     TConnection = class
-    private
-      FAccount: TAAccount;
     protected
       Section: string;
       procedure LoadFromXML(const XML: IXMLNode); virtual;
@@ -711,15 +709,14 @@ type
       Port: Integer;
       Username: string;
       procedure Assign(const Source: TConnection); virtual;
-      constructor Create(const AAccount: TAAccount); virtual;
-      property Account: TAAccount read FAccount;
+      constructor Create(); virtual;
     end;
 
   private
-    FAccounts: TAAccounts;
+    DesktopXMLDocument: IXMLDocument;
+    FAccounts: TPAccounts;
     FDesktop: TDesktop;
     FDesktops: array of record Control: Pointer; AccountEventProc: TEventProc; end;
-    FDesktopXMLDocument: IXMLDocument;
     FHistoryXMLDocument: IXMLDocument;
     FJobs: TJobs;
     FLastLogin: TDateTime;
@@ -727,7 +724,6 @@ type
     FXML: IXMLNode;
     Modified: Boolean;
     function GetDataPath(): TFileName;
-    function GetDesktop(): TDesktop;
     function GetDesktopCount(): Integer;
     function GetDesktopFilename(): TFileName;
     function GetDesktopXML(): IXMLNode;
@@ -735,27 +731,24 @@ type
     function GetHistoryXML(): IXMLNode;
     function GetJobs(): TJobs;
     function GetName(): string;
-    function GetXML(): IXMLNode;
     procedure SetLastLogin(const ALastLogin: TDateTime);
-    procedure SetName(const AName: string);
   protected
     Section: string;
     function GetIndex(): Integer;
-    procedure LoadFromXML();
-    procedure SaveToXML(); virtual;
+    procedure Load(); virtual;
+    procedure Save(); virtual;
     procedure AccountEvent(const ClassType: TClass); virtual;
     function ValidDatabaseName(const ADatabaseName: string): Boolean;
     property DesktopFilename: TFileName read GetDesktopFilename;
-    property DesktopXMLDocument: IXMLDocument read FDesktopXMLDocument;
     property HistoryFilename: TFileName read GetHistoryFilename;
     property HistoryXMLDocument: IXMLDocument read FHistoryXMLDocument;
-    property XML: IXMLNode read GetXML;
+    property XML: IXMLNode read FXML;
   public
     Connection: TConnection;
     ManualURL: string;
     ManualURLFetched: Boolean;
-    procedure Assign(const Source: TAAccount); virtual;
-    constructor Create(const AAccounts: TAAccounts; const AXML: IXMLNode = nil); virtual;
+    procedure Assign(const Source: TPAccount); virtual;
+    constructor Create(const AAccounts: TPAccounts; const AXML: IXMLNode = nil); virtual;
     destructor Destroy(); override;
     function ExtractPath(const AAddress: string): string; virtual;
     function ExpandAddress(const APath: string): string; virtual;
@@ -764,19 +757,19 @@ type
     function JobByName(const Name: string): TJob; virtual;
     procedure RegisterDesktop(const AControl: Pointer; const AEventProc: TEventProc); virtual;
     procedure UnRegisterDesktop(const AControl: Pointer); virtual;
-    property Accounts: TAAccounts read FAccounts;
+    property Accounts: TPAccounts read FAccounts;
     property DataPath: TFileName read GetDataPath;
-    property Desktop: TDesktop read GetDesktop;
+    property Desktop: TDesktop read FDesktop;
     property DesktopCount: Integer read GetDesktopCount;
     property DesktopXML: IXMLNode read GetDesktopXML;
     property HistoryXML: IXMLNode read GetHistoryXML;
     property Index: Integer read GetIndex;
     property Jobs: TJobs read GetJobs;
     property LastLogin: TDateTime read FLastLogin write SetLastLogin;
-    property Name: string read GetName write SetName;
+    property Name: string read GetName write FName;
   end;
 
-  TAAccounts = class(TList)
+  TPAccounts = class(TList)
   type
     TDBLogin = function(const Account: Pointer): Boolean of object;
   private
@@ -784,29 +777,29 @@ type
     FDBLogin: TDBLogin;
     FXMLDocument: IXMLDocument;
     function GetDataPath(): TFileName;
-    function GetDefault(): TAAccount; inline;
+    function GetDefault(): TPAccount; inline;
     function GetFilename(): TFileName;
-    function GetXML(): IXMLNode;
-    function GetFAccounts(Index: Integer): TAAccount; inline;
-    procedure SetDefault(const AAccount: TAAccount);
+    function GetXMLDocument(): IXMLDocument;
+    function GetFAccounts(Index: Integer): TPAccount; inline;
+    procedure SetDefault(const AAccount: TPAccount);
   protected
     Section: string;
+    procedure Load(); virtual;
     property DataPath: TFileName read GetDataPath;
     property Filename: TFileName read GetFilename;
-    property XML: IXMLNode read GetXML;
+    property XMLDocument: IXMLDocument read GetXMLDocument;
   public
-    function AccountByName(const AccountName: string): TAAccount; virtual;
-    function AccountByURI(const AURI: string; const DefaultAccount: TAAccount = nil): TAAccount; virtual;
-    procedure AddAccount(const NewAccount: TAAccount); virtual;
+    function AccountByName(const AccountName: string): TPAccount; virtual;
+    function AccountByURI(const AURI: string; const DefaultAccount: TPAccount = nil): TPAccount; virtual;
+    procedure AddAccount(const NewAccount: TPAccount); virtual;
     procedure Clear(); override;
     constructor Create(const ADBLogin: TDBLogin);
-    function DeleteAccount(const AAccount: TAAccount): Boolean; virtual;
+    function DeleteAccount(const AAccount: TPAccount): Boolean; virtual;
     destructor Destroy(); override;
-    procedure LoadFromXML(); virtual;
-    procedure SaveToXML(); virtual;
-    procedure UpdateAccount(const Account, NewAccount: TAAccount); virtual;
-    property Account[Index: Integer]: TAAccount read GetFAccounts; default;
-    property Default: TAAccount read GetDefault write SetDefault;
+    procedure Save(); virtual;
+    procedure UpdateAccount(const Account, NewAccount: TPAccount); virtual;
+    property Account[Index: Integer]: TPAccount read GetFAccounts; default;
+    property Default: TPAccount read GetDefault write SetDefault;
     property DBLogin: TDBLogin read FDBLogin;
   end;
 
@@ -821,7 +814,7 @@ function ValidJobName(const Name: string): Boolean;
 function TrySplitParam(const Param: string; out Name, Value: string): Boolean;
 
 var
-  Accounts: TAAccounts;
+  Accounts: TPAccounts;
   FileFormatSettings: TFormatSettings;
   MainHighlighter: TSynSQLSyn;
   Preferences: TPPreferences;
@@ -1057,7 +1050,7 @@ begin
   if (roRegExpr in Options) then begin if (Result <> '') then Result := Result + ','; Result := Result + 'RegExpr'; end;
 end;
 
-function TryStrToObjectType(const Str: string; var ObjectType: TAAccount.TJob.TObjectType): Boolean;
+function TryStrToObjectType(const Str: string; var ObjectType: TPAccount.TJob.TObjectType): Boolean;
 begin
   Result := True;
   if (UpperCase(Str) = 'SERVER') then ObjectType := jotDatabase
@@ -1070,7 +1063,7 @@ begin
   else Result := False;
 end;
 
-function ObjectTypeToStr(const ObjectType: TAAccount.TJob.TObjectType): string;
+function ObjectTypeToStr(const ObjectType: TPAccount.TJob.TObjectType): string;
 begin
   case (ObjectType) of
     jotServer: Result := 'Server';
@@ -1084,7 +1077,7 @@ begin
   end;
 end;
 
-function TryStrToImportType(const Str: string; var ImportType: TAAccount.TJobImport.TImportType): Boolean;
+function TryStrToImportType(const Str: string; var ImportType: TPAccount.TJobImport.TImportType): Boolean;
 begin
   Result := True;
   if (UpperCase(Str) = 'SQLFILE') then ImportType := itSQLFile
@@ -1095,7 +1088,7 @@ begin
   else Result := False;
 end;
 
-function ImportTypeToStr(const ImportType: TAAccount.TJobImport.TImportType): string;
+function ImportTypeToStr(const ImportType: TPAccount.TJobImport.TImportType): string;
 begin
   case (ImportType) of
     itSQLFile: Result := 'SQLFile';
@@ -1107,7 +1100,7 @@ begin
   end;
 end;
 
-function TryStrToExportType(const Str: string; var ExportType: TAAccount.TJobExport.TExportType): Boolean;
+function TryStrToExportType(const Str: string; var ExportType: TPAccount.TJobExport.TExportType): Boolean;
 begin
   Result := True;
   if (UpperCase(Str) = 'SQLFILE') then ExportType := etSQLFile
@@ -1122,7 +1115,7 @@ begin
   else Result := False;
 end;
 
-function ExportTypeToStr(const ExportType: TAAccount.TJobExport.TExportType): string;
+function ExportTypeToStr(const ExportType: TPAccount.TJobExport.TExportType): string;
 begin
   case (ExportType) of
     etSQLFile: Result := 'SQLFile';
@@ -2088,7 +2081,7 @@ begin
   GridFontStyle := [];
   GridFontSize := FontSize;
   GridFontCharset := DEFAULT_CHARSET;
-  GridMaxColumnWidth := 100;
+  GridMaxColumnWidth := Round(100 * Screen.PixelsPerInch / USER_DEFAULT_SCREEN_DPI);
   GridRowBGColor := True;
   GridCurrRowBGColor := $C0FFFF;
   GridCurrRowBGColorEnabled := True;
@@ -2200,33 +2193,33 @@ begin
 
   Database := TDatabase.Create();
   Databases := TDatabases.Create();
-  Editor := TPPreferences.TEditor.Create();
+  Editor := TEditor.Create();
   Event := TEvent.Create();
-  Export := TPPreferences.TExport.Create();
+  Export := TExport.Create();
   Field := TField.Create();
-  Find := TPPreferences.TFind.Create();
+  Find := TFind.Create();
   ForeignKey := TForeignKey.Create();
   Host := THost.Create();
-  Import := TPPreferences.TImport.Create();
+  Import := TImport.Create();
   Key := TKey.Create();
   ODBC := TODBC.Create();
-  Paste := TPPreferences.TPaste.Create();
-  Replace := TPPreferences.TReplace.Create();
+  Paste := TPaste.Create();
+  Replace := TReplace.Create();
   Routine := TRoutine.Create();
   Server := TServer.Create();
   Account := TAccount.Create();
-  Accounts := TPPreferences.TAccounts.Create();
-  SQLHelp := TPPreferences.TSQLHelp.Create();
+  Accounts := TAccounts.Create();
+  SQLHelp := TSQLHelp.Create();
   Statement := TStatement.Create();
   Table := TTable.Create();
-  TableService := TPPreferences.TTableService.Create();
-  Transfer := TPPreferences.TTransfer.Create();
+  TableService := TTableService.Create();
+  Transfer := TTransfer.Create();
   Trigger := TTrigger.Create();
   User := TUser.Create();
   View := TPView.Create();
 
   LoadFromRegistry();
-  LoadFromXML();
+  LoadFromXML(XMLDocument.DocumentElement);
 end;
 
 destructor TPPreferences.Destroy();
@@ -2360,7 +2353,7 @@ begin
     Result := IntToStr(VerMajor) + '.' + IntToStr(VerMinor) + '  (Build ' + IntToStr(VerPatch) + '.' + IntToStr(VerBuild) + ')';
 end;
 
-function TPPreferences.GetXML(): IXMLNode;
+function TPPreferences.GetXMLDocument(): IXMLDocument;
 begin
   if (not Assigned(FXMLDocument)) then
   begin
@@ -2405,7 +2398,7 @@ begin
     FXMLDocument.Options := FXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
   end;
 
-  Result := FXMLDocument.DocumentElement;
+  Result := FXMLDocument;
 end;
 
 procedure TPPreferences.LoadFromRegistry();
@@ -2441,7 +2434,7 @@ begin
   end;
 end;
 
-procedure TPPreferences.LoadFromXML();
+procedure TPPreferences.LoadFromXML(const XML: IXMLNode);
 var
   Visible: Boolean;
 begin
@@ -2578,6 +2571,11 @@ begin
   Result := ReplaceStr(Result, '%3', Param3);
 end;
 
+procedure TPPreferences.Save();
+begin
+  SaveToXML(XMLDocument.DocumentElement);
+end;
+
 procedure TPPreferences.SaveToRegistry();
 var
   KeyName: string;
@@ -2640,15 +2638,11 @@ begin
 
   Access := KEY_READ;
 
-  SaveToXML();
+  SaveToXML(XMLDocument.DocumentElement);
 end;
 
-procedure TPPreferences.SaveToXML();
-var
-  XML: IXMLNode;
+procedure TPPreferences.SaveToXML(const XML: IXMLNode);
 begin
-  XML := GetXML();
-
   XML.OwnerDocument.Options := XML.OwnerDocument.Options + [doNodeAutoCreate];
 
   XMLNode(XML, 'grid/currentrow/background').Attributes['visible'] := GridCurrRowBGColorEnabled;
@@ -2760,16 +2754,16 @@ begin
     try XML.OwnerDocument.SaveToFile(Filename); except end; // We do not know about problems.
 end;
 
-{ TAAccount.TFile *************************************************************}
+{ TPAccount.TFile *************************************************************}
 
-constructor TAAccount.TFile.Create(const AFiles: TAAccount.TFiles);
+constructor TPAccount.TFile.Create(const AFiles: TPAccount.TFiles);
 begin
   inherited Create();
 
   FFiles := AFiles;
 end;
 
-procedure TAAccount.TFile.LoadFromXML(const XML: IXMLNode);
+procedure TPAccount.TFile.LoadFromXML(const XML: IXMLNode);
 var
   CodePage: Integer;
 begin
@@ -2780,7 +2774,7 @@ begin
   end;
 end;
 
-procedure TAAccount.TFile.SaveToXML(const XML: IXMLNode);
+procedure TPAccount.TFile.SaveToXML(const XML: IXMLNode);
 begin
   XML.OwnerDocument.Options := XML.OwnerDocument.Options + [doNodeAutoCreate];
 
@@ -2793,9 +2787,9 @@ begin
   XML.OwnerDocument.Options := XML.OwnerDocument.Options - [doNodeAutoCreate];
 end;
 
-{ TAAccount.TFiles ************************************************************}
+{ TPAccount.TFiles ************************************************************}
 
-procedure TAAccount.TFiles.Add(const AFilename: TFileName; const ACodePage: Cardinal);
+procedure TPAccount.TFiles.Add(const AFilename: TFileName; const ACodePage: Cardinal);
 var
   I: Integer;
   Index: Integer;
@@ -2812,7 +2806,7 @@ begin
   if (Index < 0) then
   begin
     Index := 0;
-    Insert(Index, TAAccount.TFile.Create(Self));
+    Insert(Index, TPAccount.TFile.Create(Self));
 
     while (Count > MaxCount) do
     begin
@@ -2827,7 +2821,7 @@ begin
   Files[0].FCodePage := ACodePage
 end;
 
-procedure TAAccount.TFiles.Clear();
+procedure TPAccount.TFiles.Clear();
 begin
   while (Count > 0) do
   begin
@@ -2838,7 +2832,7 @@ begin
   inherited;
 end;
 
-constructor TAAccount.TFiles.Create(const ADesktop: TDesktop; const AMaxCount: Integer);
+constructor TPAccount.TFiles.Create(const ADesktop: TDesktop; const AMaxCount: Integer);
 begin
   inherited Create();
 
@@ -2847,12 +2841,12 @@ begin
   FMaxCount := AMaxCount;
 end;
 
-function TAAccount.TFiles.GetFile(Index: Integer): TAAccount.TFile;
+function TPAccount.TFiles.GetFile(Index: Integer): TPAccount.TFile;
 begin
-  Result := TAAccount.TFile(Items[Index]);
+  Result := TPAccount.TFile(Items[Index]);
 end;
 
-procedure TAAccount.TFiles.LoadFromXML(const XML: IXMLNode);
+procedure TPAccount.TFiles.LoadFromXML(const XML: IXMLNode);
 var
   I: Integer;
 begin
@@ -2861,12 +2855,12 @@ begin
   for I := 0 to XML.ChildNodes.Count - 1 do
     if (XML.ChildNodes[I].NodeName = 'file') then
     begin
-      inherited Add(TAAccount.TFile.Create(Self));
+      inherited Add(TPAccount.TFile.Create(Self));
       Files[Count - 1].LoadFromXML(XML.ChildNodes[I]);
     end;
 end;
 
-procedure TAAccount.TFiles.SaveToXML(const XML: IXMLNode);
+procedure TPAccount.TFiles.SaveToXML(const XML: IXMLNode);
 var
   I: Integer;
   Node: IXMLNode;
@@ -2883,7 +2877,7 @@ end;
 
 { TPPreferences.TJob **********************************************************}
 
-procedure TAAccount.TJob.Assign(const Source: TJob);
+procedure TPAccount.TJob.Assign(const Source: TJob);
 begin
   Assert(Assigned(Source) and (Source.ClassType = ClassType));
 
@@ -2895,7 +2889,7 @@ begin
   TriggerType := TJob(Source).TriggerType;
 end;
 
-constructor TAAccount.TJob.Create(const AJobs: TJobs; const AName: string = '');
+constructor TPAccount.TJob.Create(const AJobs: TJobs; const AName: string = '');
 begin
   inherited Create();
 
@@ -2907,12 +2901,12 @@ begin
   TriggerType := ttSingle;
 end;
 
-function TAAccount.TJob.GetLogFilename(): TFileName;
+function TPAccount.TJob.GetLogFilename(): TFileName;
 begin
   Result := Jobs.Account.DataPath + 'Jobs' + PathDelim + Name + '.err';
 end;
 
-function TAAccount.TJob.Save(const Update: Boolean): Boolean;
+function TPAccount.TJob.Save(const Update: Boolean): Boolean;
 var
   Action: IAction;
   DailyTrigger: IDailyTrigger;
@@ -2987,30 +2981,30 @@ begin
   end;
 end;
 
-{ TAAccount.TJobImport ********************************************************}
+{ TPAccount.TJobImport ********************************************************}
 
-procedure TAAccount.TJobImport.Assign(const Source: TJob);
+procedure TPAccount.TJobImport.Assign(const Source: TJob);
 var
   I: Integer;
 begin
-  Assert(Source is TAAccount.TJobImport);
+  Assert(Source is TPAccount.TJobImport);
 
   inherited;
 
-  CodePage := TAAccount.TJobImport(Source).CodePage;
-  SetLength(FieldMappings, Length(TAAccount.TJobImport(Source).FieldMappings));
+  CodePage := TPAccount.TJobImport(Source).CodePage;
+  SetLength(FieldMappings, Length(TPAccount.TJobImport(Source).FieldMappings));
   for I := 0 to Length(FieldMappings) - 1 do
-    FieldMappings[I] := TAAccount.TJobImport(Source).FieldMappings[I];
-  Filename := TAAccount.TJobImport(Source).Filename;
-  ImportType := TAAccount.TJobImport(Source).ImportType;
-  JobObject := TAAccount.TJobImport(Source).JobObject;
-  ODBC.DataSource := TAAccount.TJobImport(Source).ODBC.DataSource;
-  ODBC.Username := TAAccount.TJobImport(Source).ODBC.Username;
-  ODBC.Password := TAAccount.TJobImport(Source).ODBC.Password;
-  SourceObjects := TAAccount.TJobImport(Source).SourceObjects;
+    FieldMappings[I] := TPAccount.TJobImport(Source).FieldMappings[I];
+  Filename := TPAccount.TJobImport(Source).Filename;
+  ImportType := TPAccount.TJobImport(Source).ImportType;
+  JobObject := TPAccount.TJobImport(Source).JobObject;
+  ODBC.DataSource := TPAccount.TJobImport(Source).ODBC.DataSource;
+  ODBC.Username := TPAccount.TJobImport(Source).ODBC.Username;
+  ODBC.Password := TPAccount.TJobImport(Source).ODBC.Password;
+  SourceObjects := TPAccount.TJobImport(Source).SourceObjects;
 end;
 
-constructor TAAccount.TJobImport.Create(const AJobs: TJobs = nil; const AName: string = '');
+constructor TPAccount.TJobImport.Create(const AJobs: TJobs = nil; const AName: string = '');
 begin
   inherited Create(AJobs, AName);
 
@@ -3022,7 +3016,7 @@ begin
   SetLength(SourceObjects, 0);
 end;
 
-destructor TAAccount.TJobImport.Destroy();
+destructor TPAccount.TJobImport.Destroy();
 var
   I: Integer;
 begin
@@ -3039,10 +3033,10 @@ begin
   inherited;
 end;
 
-procedure TAAccount.TJobImport.LoadFromXML(const XML: IXMLNode);
+procedure TPAccount.TJobImport.LoadFromXML(const XML: IXMLNode);
 var
   Child: IXMLNode;
-  ObjectType: TAAccount.TJob.TObjectType;
+  ObjectType: TPAccount.TJob.TObjectType;
 begin
   inherited;
 
@@ -3107,7 +3101,7 @@ begin
   end;
 end;
 
-procedure TAAccount.TJobImport.SaveToXML(const XML: IXMLNode);
+procedure TPAccount.TJobImport.SaveToXML(const XML: IXMLNode);
 var
   Child: IXMLNode;
   RemoveChild: IXMLNode;
@@ -3172,33 +3166,33 @@ begin
   end;
 end;
 
-{ TAAccount.TJobExport ********************************************************}
+{ TPAccount.TJobExport ********************************************************}
 
-procedure TAAccount.TJobExport.Assign(const Source: TJob);
+procedure TPAccount.TJobExport.Assign(const Source: TJob);
 var
   I: Integer;
 begin
-  Assert(Source is TAAccount.TJobExport);
+  Assert(Source is TPAccount.TJobExport);
 
   inherited Assign(Source);
 
-  CodePage := TAAccount.TJobExport(Source).CodePage;
-  ExportType := TAAccount.TJobExport(Source).ExportType;
-  Filename := TAAccount.TJobExport(Source).Filename;
-  ODBC.DataSource := TAAccount.TJobExport(Source).ODBC.DataSource;
-  ODBC.Password := TAAccount.TJobExport(Source).ODBC.Password;
-  ODBC.Username := TAAccount.TJobExport(Source).ODBC.Username;
+  CodePage := TPAccount.TJobExport(Source).CodePage;
+  ExportType := TPAccount.TJobExport(Source).ExportType;
+  Filename := TPAccount.TJobExport(Source).Filename;
+  ODBC.DataSource := TPAccount.TJobExport(Source).ODBC.DataSource;
+  ODBC.Password := TPAccount.TJobExport(Source).ODBC.Password;
+  ODBC.Username := TPAccount.TJobExport(Source).ODBC.Username;
   ClearObjects();
-  SetLength(JobObjects, Length(TAAccount.TJobExport(Source).JobObjects));
+  SetLength(JobObjects, Length(TPAccount.TJobExport(Source).JobObjects));
   for I := 0 to Length(JobObjects) - 1 do
   begin
-    JobObjects[I].ObjectType := TAAccount.TJobExport(Source).JobObjects[I].ObjectType;
-    JobObjects[I].Name := TAAccount.TJobExport(Source).JobObjects[I].Name;
-    JobObjects[I].DatabaseName := TAAccount.TJobExport(Source).JobObjects[I].DatabaseName;
+    JobObjects[I].ObjectType := TPAccount.TJobExport(Source).JobObjects[I].ObjectType;
+    JobObjects[I].Name := TPAccount.TJobExport(Source).JobObjects[I].Name;
+    JobObjects[I].DatabaseName := TPAccount.TJobExport(Source).JobObjects[I].DatabaseName;
   end;
 end;
 
-procedure TAAccount.TJobExport.ClearObjects();
+procedure TPAccount.TJobExport.ClearObjects();
 var
   I: Integer;
 begin
@@ -3210,7 +3204,7 @@ begin
   SetLength(JobObjects, 0);
 end;
 
-constructor TAAccount.TJobExport.Create(const AJobs: TJobs = nil; const AName: string = '');
+constructor TPAccount.TJobExport.Create(const AJobs: TJobs = nil; const AName: string = '');
 begin
   inherited Create(AJobs, AName);
 
@@ -3219,17 +3213,17 @@ begin
   SetLength(JobObjects, 0);
 end;
 
-destructor TAAccount.TJobExport.Destroy();
+destructor TPAccount.TJobExport.Destroy();
 begin
   ClearObjects();
 
   inherited;
 end;
 
-procedure TAAccount.TJobExport.LoadFromXML(const XML: IXMLNode);
+procedure TPAccount.TJobExport.LoadFromXML(const XML: IXMLNode);
 var
   Child: IXMLNode;
-  ObjectType: TAAccount.TJob.TObjectType;
+  ObjectType: TPAccount.TJob.TObjectType;
 begin
   inherited;
 
@@ -3286,7 +3280,7 @@ begin
   end;
 end;
 
-procedure TAAccount.TJobExport.SaveToXML(const XML: IXMLNode);
+procedure TPAccount.TJobExport.SaveToXML(const XML: IXMLNode);
 var
   Child: IXMLNode;
   RemoveChild: IXMLNode;
@@ -3354,19 +3348,19 @@ begin
   end;
 end;
 
-{ TAAccount.TJobs *************************************************************}
+{ TPAccount.TJobs *************************************************************}
 
-function TAAccount.TJobs.AddJob(const NewJob: TAAccount.TJob): Boolean;
+function TPAccount.TJobs.AddJob(const NewJob: TPAccount.TJob): Boolean;
 var
-  Job: TAAccount.TJob;
+  Job: TPAccount.TJob;
 begin
   Result := IndexByName(NewJob.Name) < 0;
   if (Result) then
   begin
-    if (NewJob is TAAccount.TJobImport) then
-      Job := TAAccount.TJobImport.Create(Self, NewJob.Name)
-    else if (NewJob is TAAccount.TJobExport) then
-      Job := TAAccount.TJobExport.Create(Self, NewJob.Name)
+    if (NewJob is TPAccount.TJobImport) then
+      Job := TPAccount.TJobImport.Create(Self, NewJob.Name)
+    else if (NewJob is TPAccount.TJobExport) then
+      Job := TPAccount.TJobExport.Create(Self, NewJob.Name)
     else
       raise ERangeError.Create(SRangeError);
     Job.Assign(NewJob);
@@ -3381,14 +3375,14 @@ begin
   end;
 end;
 
-constructor TAAccount.TJobs.Create(const AAccount: TAAccount);
+constructor TPAccount.TJobs.Create(const AAccount: TPAccount);
 begin
   inherited Create();
 
   FAccount := AAccount;
 end;
 
-procedure TAAccount.TJobs.DeleteJob(const Job: TAAccount.TJob);
+procedure TPAccount.TJobs.DeleteJob(const Job: TPAccount.TJob);
 var
   Index: Integer;
   TaskFolder: ITaskFolder;
@@ -3409,19 +3403,19 @@ begin
   Account.AccountEvent(ClassType);
 end;
 
-destructor TAAccount.TJobs.Destroy();
+destructor TPAccount.TJobs.Destroy();
 begin
   Clear();
 
   inherited;
 end;
 
-function TAAccount.TJobs.GetJob(Index: Integer): TAAccount.TJob;
+function TPAccount.TJobs.GetJob(Index: Integer): TPAccount.TJob;
 begin
   Result := Job[Index];
 end;
 
-function TAAccount.TJobs.GetTaskFolder(const AutoCreate: Boolean = False): ITaskFolder;
+function TPAccount.TJobs.GetTaskFolder(const AutoCreate: Boolean = False): ITaskFolder;
 var
   AppFolder: ITaskFolder;
   RootFolder: ITaskFolder;
@@ -3436,12 +3430,12 @@ begin
       Result := nil;
 end;
 
-function TAAccount.TJobs.GetTaskService(): ITaskService;
+function TPAccount.TJobs.GetTaskService(): ITaskService;
 begin
   Result := Preferences.TaskService;
 end;
 
-function TAAccount.TJobs.IndexByName(const Name: string): Integer;
+function TPAccount.TJobs.IndexByName(const Name: string): Integer;
 var
   Left: Integer;
   Mid: Integer;
@@ -3462,10 +3456,10 @@ begin
   end;
 end;
 
-procedure TAAccount.TJobs.Load();
+procedure TPAccount.TJobs.Load();
 var
   I: Integer;
-  Job: TAAccount.TJob;
+  Job: TPAccount.TJob;
   S: string;
   RegisteredTask: IRegisteredTask;
   TaskFolder: ITaskFolder;
@@ -3483,9 +3477,9 @@ begin
       RegisteredTask := Tasks.Item[1 + I];
       XMLDocument.LoadFromXML(StrPas(RegisteredTask.Definition.Data));
       if (XMLDocument.DocumentElement.Attributes['type'] = 'import') then
-        Job := TAAccount.TJobImport.Create(Self, StrPas(RegisteredTask.Name))
+        Job := TPAccount.TJobImport.Create(Self, StrPas(RegisteredTask.Name))
       else if (XMLDocument.DocumentElement.Attributes['type'] = 'export') then
-        Job := TAAccount.TJobExport.Create(Self, StrPas(RegisteredTask.Name))
+        Job := TPAccount.TJobExport.Create(Self, StrPas(RegisteredTask.Name))
       else
         Job := nil;
       if (Assigned(Job)) then
@@ -3515,7 +3509,7 @@ begin
   end;
 end;
 
-function TAAccount.TJobs.UpdateJob(const Job, NewJob: TAAccount.TJob): Boolean;
+function TPAccount.TJobs.UpdateJob(const Job, NewJob: TPAccount.TJob): Boolean;
 begin
   Result := (IndexOf(Job) >= 0) and ((IndexByName(NewJob.Name) = IndexOf(Job)) or (IndexByName(NewJob.Name) < 0));
   if (Result) then
@@ -3532,9 +3526,9 @@ begin
   end;
 end;
 
-{ TAAccount.TDesktop **********************************************************}
+{ TPAccount.TDesktop **********************************************************}
 
-procedure TAAccount.TDesktop.Assign(const Source: TDesktop);
+procedure TPAccount.TDesktop.Assign(const Source: TDesktop);
 var
   I: Integer;
   Kind: TListViewKind;
@@ -3557,7 +3551,7 @@ begin
   SQLHistoryVisible := Source.SQLHistoryVisible;
 end;
 
-constructor TAAccount.TDesktop.Create(const AAccount: TAAccount);
+constructor TPAccount.TDesktop.Create(const AAccount: TPAccount);
 var
   I: Integer;
   Kind: TListViewKind;
@@ -3567,29 +3561,29 @@ begin
   FAccount := AAccount;
 
   AddressMRU := TPPreferences.TMRUList.Create(10);
-  BlobHeight := 100;
+  BlobHeight := Round(100 * Screen.PixelsPerInch / USER_DEFAULT_SCREEN_DPI);
   for Kind := lkServer to lkVariables do
     for I := 0 to Length(ColumnWidths[Kind]) - 1 do
       ColumnWidths[Kind][I] := ColumnTextWidth;
-  DataHeight := 150;
+  DataHeight := Round(150 * Screen.PixelsPerInch / USER_DEFAULT_SCREEN_DPI);
   EditorContent[ttEditor] := '';
   EditorContent[ttEditor2] := '';
   EditorContent[ttEditor3] := '';
   ExplorerVisible := False;
   FilesFilter := '*.sql';
-  FoldersHeight := 100;
+  FoldersHeight := Round(100 * Screen.PixelsPerInch / USER_DEFAULT_SCREEN_DPI);
   JobsVisible := False;
   NavigatorVisible := True;
-  LogHeight := 80;
+  LogHeight := Round(80 * Screen.PixelsPerInch / USER_DEFAULT_SCREEN_DPI);
   LogVisible := False;
   FPath := '/';
-  SelectorWitdth := 150;
+  SelectorWitdth := Round(150 * Screen.PixelsPerInch / USER_DEFAULT_SCREEN_DPI);
   SQLHistoryVisible := False;
 
-  FFiles := TAAccount.TFiles.Create(Self, 10);
+  FFiles := TFiles.Create(Self, 10);
 end;
 
-destructor TAAccount.TDesktop.Destroy();
+destructor TPAccount.TDesktop.Destroy();
 begin
   AddressMRU.Free();
   FFiles.Free();
@@ -3597,72 +3591,69 @@ begin
   inherited;
 end;
 
-function TAAccount.TDesktop.GetAddress(): string;
+function TPAccount.TDesktop.GetAddress(): string;
 begin
   Result := Account.ExpandAddress(FPath);
 end;
 
-procedure TAAccount.TDesktop.LoadFromXML(const XML: IXMLNode);
+procedure TPAccount.TDesktop.LoadFromXML(const XML: IXMLNode);
 begin
-  if (Assigned(XML)) then
+  if (Assigned(XMLNode(XML, 'datagrid/height'))) then TryStrToInt(XMLNode(XML, 'datagrid/height').Text, DataHeight);
+  if (Assigned(XMLNode(XML, 'datagrid/blob/height'))) then TryStrToInt(XMLNode(XML, 'datagrid/blob/height').Text, BlobHeight);
+  if (Assigned(XMLNode(XML, 'editor/content'))) then EditorContent[ttEditor] := XMLNode(XML, 'editor/content').Text;
+  if (Assigned(XMLNode(XML, 'editor2/content'))) then EditorContent[ttEditor2] := XMLNode(XML, 'editor2/content').Text;
+  if (Assigned(XMLNode(XML, 'editor3/content'))) then EditorContent[ttEditor3] := XMLNode(XML, 'editor3/content').Text;
+  if (Assigned(XMLNode(XML, 'log/height'))) then TryStrToInt(XMLNode(XML, 'log/height').Text, LogHeight);
+  if (Assigned(XMLNode(XML, 'log/visible'))) then TryStrToBool(XMLNode(XML, 'log/visible').Text, LogVisible);
+  if (Assigned(XMLNode(XML, 'objects/server/widths/name'))) then TryStrToInt(XMLNode(XML, 'objects/server/widths/name').Text, ColumnWidths[lkServer][0]);
+  if (Assigned(XMLNode(XML, 'objects/server/widths/size'))) then TryStrToInt(XMLNode(XML, 'objects/server/widths/size').Text, ColumnWidths[lkServer][1]);
+  if (Assigned(XMLNode(XML, 'objects/server/widths/count'))) then TryStrToInt(XMLNode(XML, 'objects/server/widths/count').Text, ColumnWidths[lkServer][2]);
+  if (Assigned(XMLNode(XML, 'objects/server/widths/created'))) then TryStrToInt(XMLNode(XML, 'objects/server/widths/created').Text, ColumnWidths[lkServer][3]);
+  if (Assigned(XMLNode(XML, 'objects/server/widths/extras'))) then TryStrToInt(XMLNode(XML, 'objects/server/widths/extras').Text, ColumnWidths[lkServer][4]);
+  if (Assigned(XMLNode(XML, 'objects/database/widths/name'))) then TryStrToInt(XMLNode(XML, 'objects/database/widths/name').Text, ColumnWidths[lkDatabase][0]);
+  if (Assigned(XMLNode(XML, 'objects/database/widths/type'))) then TryStrToInt(XMLNode(XML, 'objects/database/widths/type').Text, ColumnWidths[lkDatabase][1]);
+  if (Assigned(XMLNode(XML, 'objects/database/widths/recordcount'))) then TryStrToInt(XMLNode(XML, 'objects/database/widths/recordcount').Text, ColumnWidths[lkDatabase][2]);
+  if (Assigned(XMLNode(XML, 'objects/database/widths/size'))) then TryStrToInt(XMLNode(XML, 'objects/database/widths/size').Text, ColumnWidths[lkDatabase][3]);
+  if (Assigned(XMLNode(XML, 'objects/database/widths/updated'))) then TryStrToInt(XMLNode(XML, 'objects/database/widths/updated').Text, ColumnWidths[lkDatabase][4]);
+  if (Assigned(XMLNode(XML, 'objects/database/widths/extras'))) then TryStrToInt(XMLNode(XML, 'objects/database/widths/extras').Text, ColumnWidths[lkDatabase][5]);
+  if (Assigned(XMLNode(XML, 'objects/database/widths/comment'))) then TryStrToInt(XMLNode(XML, 'objects/database/widths/comment').Text, ColumnWidths[lkDatabase][6]);
+  if (Assigned(XMLNode(XML, 'objects/table/widths/name'))) then TryStrToInt(XMLNode(XML, 'objects/table/widths/name').Text, ColumnWidths[lkTable][0]);
+  if (Assigned(XMLNode(XML, 'objects/table/widths/type'))) then TryStrToInt(XMLNode(XML, 'objects/table/widths/type').Text, ColumnWidths[lkTable][1]);
+  if (Assigned(XMLNode(XML, 'objects/table/widths/null'))) then TryStrToInt(XMLNode(XML, 'objects/table/widths/null').Text, ColumnWidths[lkTable][2]);
+  if (Assigned(XMLNode(XML, 'objects/table/widths/default'))) then TryStrToInt(XMLNode(XML, 'objects/table/widths/default').Text, ColumnWidths[lkTable][3]);
+  if (Assigned(XMLNode(XML, 'objects/table/widths/extras'))) then TryStrToInt(XMLNode(XML, 'objects/table/widths/extras').Text, ColumnWidths[lkTable][4]);
+  if (Assigned(XMLNode(XML, 'objects/table/widths/comment'))) then TryStrToInt(XMLNode(XML, 'objects/table/widths/comment').Text, ColumnWidths[lkTable][5]);
+  if (Assigned(XMLNode(XML, 'objects/processes/widths/id'))) then TryStrToInt(XMLNode(XML, 'objects/processes/widths/id').Text, ColumnWidths[lkProcesses][0]);
+  if (Assigned(XMLNode(XML, 'objects/processes/widths/user'))) then TryStrToInt(XMLNode(XML, 'objects/processes/widths/user').Text, ColumnWidths[lkProcesses][1]);
+  if (Assigned(XMLNode(XML, 'objects/processes/widths/host'))) then TryStrToInt(XMLNode(XML, 'objects/processes/widths/host').Text, ColumnWidths[lkProcesses][2]);
+  if (Assigned(XMLNode(XML, 'objects/processes/widths/database'))) then TryStrToInt(XMLNode(XML, 'objects/processes/widths/database').Text, ColumnWidths[lkProcesses][3]);
+  if (Assigned(XMLNode(XML, 'objects/processes/widths/command'))) then TryStrToInt(XMLNode(XML, 'objects/processes/widths/command').Text, ColumnWidths[lkProcesses][4]);
+  if (Assigned(XMLNode(XML, 'objects/processes/widths/statement'))) then TryStrToInt(XMLNode(XML, 'objects/processes/widths/statement').Text, ColumnWidths[lkProcesses][5]);
+  if (Assigned(XMLNode(XML, 'objects/processes/widths/time'))) then TryStrToInt(XMLNode(XML, 'objects/processes/widths/time').Text, ColumnWidths[lkProcesses][6]);
+  if (Assigned(XMLNode(XML, 'objects/processes/widths/state'))) then TryStrToInt(XMLNode(XML, 'objects/processes/widths/state').Text, ColumnWidths[lkProcesses][7]);
+  if (Assigned(XMLNode(XML, 'objects/stati/widths/name'))) then TryStrToInt(XMLNode(XML, 'objects/stati/widths/name').Text, ColumnWidths[lkStati][0]);
+  if (Assigned(XMLNode(XML, 'objects/stati/widths/value'))) then TryStrToInt(XMLNode(XML, 'objects/stati/widths/value').Text, ColumnWidths[lkStati][1]);
+  if (Assigned(XMLNode(XML, 'objects/users/widths/name'))) then TryStrToInt(XMLNode(XML, 'objects/users/widths/name').Text, ColumnWidths[lkUsers][0]);
+  if (Assigned(XMLNode(XML, 'objects/users/widths/fullname'))) then TryStrToInt(XMLNode(XML, 'objects/users/widths/fullname').Text, ColumnWidths[lkUsers][1]);
+  if (Assigned(XMLNode(XML, 'objects/users/widths/comment'))) then TryStrToInt(XMLNode(XML, 'objects/users/widths/comment').Text, ColumnWidths[lkUsers][2]);
+  if (Assigned(XMLNode(XML, 'objects/variables/widths/name'))) then TryStrToInt(XMLNode(XML, 'objects/variables/widths/name').Text, ColumnWidths[lkVariables][0]);
+  if (Assigned(XMLNode(XML, 'objects/variables/widths/value'))) then TryStrToInt(XMLNode(XML, 'objects/variables/widths/value').Text, ColumnWidths[lkVariables][1]);
+  if (Assigned(XMLNode(XML, 'path'))) then FPath := XMLNode(XML, 'path').Text;
+  if (Assigned(XMLNode(XML, 'sidebar/explorer/folders/height'))) then TryStrToInt(XMLNode(XML, 'sidebar/explorer/folders/height').Text, FoldersHeight);
+  if (Assigned(XMLNode(XML, 'sidebar/explorer/files/filter'))) then FilesFilter := XMLNode(XML, 'sidebar/explorer/files/filter').Text;
+  if (Assigned(XMLNode(XML, 'sidebar/width'))) then TryStrToInt(XMLNode(XML, 'sidebar/width').Text, SelectorWitdth);
+  if (Assigned(XMLNode(XML, 'sidebar/visible'))) then
   begin
-    if (Assigned(XMLNode(XML, 'datagrid/height'))) then TryStrToInt(XMLNode(XML, 'datagrid/height').Text, DataHeight);
-    if (Assigned(XMLNode(XML, 'datagrid/blob/height'))) then TryStrToInt(XMLNode(XML, 'datagrid/blob/height').Text, BlobHeight);
-    if (Assigned(XMLNode(XML, 'editor/content'))) then EditorContent[ttEditor] := XMLNode(XML, 'editor/content').Text;
-    if (Assigned(XMLNode(XML, 'editor2/content'))) then EditorContent[ttEditor2] := XMLNode(XML, 'editor2/content').Text;
-    if (Assigned(XMLNode(XML, 'editor3/content'))) then EditorContent[ttEditor3] := XMLNode(XML, 'editor3/content').Text;
-    if (Assigned(XMLNode(XML, 'log/height'))) then TryStrToInt(XMLNode(XML, 'log/height').Text, LogHeight);
-    if (Assigned(XMLNode(XML, 'log/visible'))) then TryStrToBool(XMLNode(XML, 'log/visible').Text, LogVisible);
-    if (Assigned(XMLNode(XML, 'objects/server/widths/name'))) then TryStrToInt(XMLNode(XML, 'objects/server/widths/name').Text, ColumnWidths[lkServer][0]);
-    if (Assigned(XMLNode(XML, 'objects/server/widths/size'))) then TryStrToInt(XMLNode(XML, 'objects/server/widths/size').Text, ColumnWidths[lkServer][1]);
-    if (Assigned(XMLNode(XML, 'objects/server/widths/count'))) then TryStrToInt(XMLNode(XML, 'objects/server/widths/count').Text, ColumnWidths[lkServer][2]);
-    if (Assigned(XMLNode(XML, 'objects/server/widths/created'))) then TryStrToInt(XMLNode(XML, 'objects/server/widths/created').Text, ColumnWidths[lkServer][3]);
-    if (Assigned(XMLNode(XML, 'objects/server/widths/extras'))) then TryStrToInt(XMLNode(XML, 'objects/server/widths/extras').Text, ColumnWidths[lkServer][4]);
-    if (Assigned(XMLNode(XML, 'objects/database/widths/name'))) then TryStrToInt(XMLNode(XML, 'objects/database/widths/name').Text, ColumnWidths[lkDatabase][0]);
-    if (Assigned(XMLNode(XML, 'objects/database/widths/type'))) then TryStrToInt(XMLNode(XML, 'objects/database/widths/type').Text, ColumnWidths[lkDatabase][1]);
-    if (Assigned(XMLNode(XML, 'objects/database/widths/recordcount'))) then TryStrToInt(XMLNode(XML, 'objects/database/widths/recordcount').Text, ColumnWidths[lkDatabase][2]);
-    if (Assigned(XMLNode(XML, 'objects/database/widths/size'))) then TryStrToInt(XMLNode(XML, 'objects/database/widths/size').Text, ColumnWidths[lkDatabase][3]);
-    if (Assigned(XMLNode(XML, 'objects/database/widths/updated'))) then TryStrToInt(XMLNode(XML, 'objects/database/widths/updated').Text, ColumnWidths[lkDatabase][4]);
-    if (Assigned(XMLNode(XML, 'objects/database/widths/extras'))) then TryStrToInt(XMLNode(XML, 'objects/database/widths/extras').Text, ColumnWidths[lkDatabase][5]);
-    if (Assigned(XMLNode(XML, 'objects/database/widths/comment'))) then TryStrToInt(XMLNode(XML, 'objects/database/widths/comment').Text, ColumnWidths[lkDatabase][6]);
-    if (Assigned(XMLNode(XML, 'objects/table/widths/name'))) then TryStrToInt(XMLNode(XML, 'objects/table/widths/name').Text, ColumnWidths[lkTable][0]);
-    if (Assigned(XMLNode(XML, 'objects/table/widths/type'))) then TryStrToInt(XMLNode(XML, 'objects/table/widths/type').Text, ColumnWidths[lkTable][1]);
-    if (Assigned(XMLNode(XML, 'objects/table/widths/null'))) then TryStrToInt(XMLNode(XML, 'objects/table/widths/null').Text, ColumnWidths[lkTable][2]);
-    if (Assigned(XMLNode(XML, 'objects/table/widths/default'))) then TryStrToInt(XMLNode(XML, 'objects/table/widths/default').Text, ColumnWidths[lkTable][3]);
-    if (Assigned(XMLNode(XML, 'objects/table/widths/extras'))) then TryStrToInt(XMLNode(XML, 'objects/table/widths/extras').Text, ColumnWidths[lkTable][4]);
-    if (Assigned(XMLNode(XML, 'objects/table/widths/comment'))) then TryStrToInt(XMLNode(XML, 'objects/table/widths/comment').Text, ColumnWidths[lkTable][5]);
-    if (Assigned(XMLNode(XML, 'objects/processes/widths/id'))) then TryStrToInt(XMLNode(XML, 'objects/processes/widths/id').Text, ColumnWidths[lkProcesses][0]);
-    if (Assigned(XMLNode(XML, 'objects/processes/widths/user'))) then TryStrToInt(XMLNode(XML, 'objects/processes/widths/user').Text, ColumnWidths[lkProcesses][1]);
-    if (Assigned(XMLNode(XML, 'objects/processes/widths/host'))) then TryStrToInt(XMLNode(XML, 'objects/processes/widths/host').Text, ColumnWidths[lkProcesses][2]);
-    if (Assigned(XMLNode(XML, 'objects/processes/widths/database'))) then TryStrToInt(XMLNode(XML, 'objects/processes/widths/database').Text, ColumnWidths[lkProcesses][3]);
-    if (Assigned(XMLNode(XML, 'objects/processes/widths/command'))) then TryStrToInt(XMLNode(XML, 'objects/processes/widths/command').Text, ColumnWidths[lkProcesses][4]);
-    if (Assigned(XMLNode(XML, 'objects/processes/widths/statement'))) then TryStrToInt(XMLNode(XML, 'objects/processes/widths/statement').Text, ColumnWidths[lkProcesses][5]);
-    if (Assigned(XMLNode(XML, 'objects/processes/widths/time'))) then TryStrToInt(XMLNode(XML, 'objects/processes/widths/time').Text, ColumnWidths[lkProcesses][6]);
-    if (Assigned(XMLNode(XML, 'objects/processes/widths/state'))) then TryStrToInt(XMLNode(XML, 'objects/processes/widths/state').Text, ColumnWidths[lkProcesses][7]);
-    if (Assigned(XMLNode(XML, 'objects/stati/widths/name'))) then TryStrToInt(XMLNode(XML, 'objects/stati/widths/name').Text, ColumnWidths[lkStati][0]);
-    if (Assigned(XMLNode(XML, 'objects/stati/widths/value'))) then TryStrToInt(XMLNode(XML, 'objects/stati/widths/value').Text, ColumnWidths[lkStati][1]);
-    if (Assigned(XMLNode(XML, 'objects/users/widths/name'))) then TryStrToInt(XMLNode(XML, 'objects/users/widths/name').Text, ColumnWidths[lkUsers][0]);
-    if (Assigned(XMLNode(XML, 'objects/users/widths/fullname'))) then TryStrToInt(XMLNode(XML, 'objects/users/widths/fullname').Text, ColumnWidths[lkUsers][1]);
-    if (Assigned(XMLNode(XML, 'objects/users/widths/comment'))) then TryStrToInt(XMLNode(XML, 'objects/users/widths/comment').Text, ColumnWidths[lkUsers][2]);
-    if (Assigned(XMLNode(XML, 'objects/variables/widths/name'))) then TryStrToInt(XMLNode(XML, 'objects/variables/widths/name').Text, ColumnWidths[lkVariables][0]);
-    if (Assigned(XMLNode(XML, 'objects/variables/widths/value'))) then TryStrToInt(XMLNode(XML, 'objects/variables/widths/value').Text, ColumnWidths[lkVariables][1]);
-    if (Assigned(XMLNode(XML, 'path'))) then FPath := XMLNode(XML, 'path').Text;
-    if (Assigned(XMLNode(XML, 'sidebar/explorer/folders/height'))) then TryStrToInt(XMLNode(XML, 'sidebar/explorer/folders/height').Text, FoldersHeight);
-    if (Assigned(XMLNode(XML, 'sidebar/explorer/files/filter'))) then FilesFilter := XMLNode(XML, 'sidebar/explorer/files/filter').Text;
-    if (Assigned(XMLNode(XML, 'sidebar/width'))) then TryStrToInt(XMLNode(XML, 'sidebar/width').Text, SelectorWitdth);
-    if (Assigned(XMLNode(XML, 'sidebar/visible'))) then
-    begin
-      NavigatorVisible := UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'NAVIGATOR';
-      ExplorerVisible := not NavigatorVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'EXPLORER');
-      JobsVisible := not NavigatorVisible and not ExplorerVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'JOBS');
-      SQLHistoryVisible := not NavigatorVisible and not ExplorerVisible and not JobsVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'SQL HISTORY');
-    end;
-
-    Files.LoadFromXML(XMLNode(XML, 'editor/files'));
+    NavigatorVisible := UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'NAVIGATOR';
+    ExplorerVisible := not NavigatorVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'EXPLORER');
+    JobsVisible := not NavigatorVisible and not ExplorerVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'JOBS');
+    SQLHistoryVisible := not NavigatorVisible and not ExplorerVisible and not JobsVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'SQL HISTORY');
   end;
+
+  Files.LoadFromXML(XMLNode(XML, 'editor/files'));
 end;
 
-procedure TAAccount.TDesktop.SaveToXML(const XML: IXMLNode);
+procedure TPAccount.TDesktop.SaveToXML(const XML: IXMLNode);
 begin
   XML.OwnerDocument.Options := XML.OwnerDocument.Options + [doNodeAutoCreate];
 
@@ -3706,8 +3697,6 @@ begin
   XMLNode(XML, 'objects/users/widths/comment').Text := IntToStr(ColumnWidths[lkUsers][2]);
   XMLNode(XML, 'objects/variables/widths/name').Text := IntToStr(ColumnWidths[lkVariables][0]);
   XMLNode(XML, 'objects/variables/widths/value').Text := IntToStr(ColumnWidths[lkVariables][1]);
-  if (FPath = '/.') then
-    raise ERangeError.Create(SRangeError);
   XMLNode(XML, 'path').Text := FPath;
   XMLNode(XML, 'sidebar/explorer/folders/height').Text := IntToStr(FoldersHeight);
   XMLNode(XML, 'sidebar/explorer/files/filter').Text := FilesFilter;
@@ -3728,14 +3717,14 @@ begin
   XML.OwnerDocument.Options := XML.OwnerDocument.Options - [doNodeAutoCreate];
 end;
 
-procedure TAAccount.TDesktop.SetAddress(AAddress: string);
+procedure TPAccount.TDesktop.SetAddress(AAddress: string);
 begin
   FPath := Account.ExtractPath(AAddress);
 end;
 
-{ TAAccount.TConnection *******************************************************}
+{ TPAccount.TConnection *******************************************************}
 
-procedure TAAccount.TConnection.Assign(const Source: TConnection);
+procedure TPAccount.TConnection.Assign(const Source: TConnection);
 begin
   Database := Source.Database;
   Host := Source.Host;
@@ -3747,11 +3736,9 @@ begin
   Username := Source.Username;
 end;
 
-constructor TAAccount.TConnection.Create(const AAccount: TAAccount);
+constructor TPAccount.TConnection.Create();
 begin
   inherited Create();
-
-  FAccount := AAccount;
 
   Database := '';
   Host := '';
@@ -3763,7 +3750,7 @@ begin
   Username := '';
 end;
 
-procedure TAAccount.TConnection.LoadFromXML(const XML: IXMLNode);
+procedure TPAccount.TConnection.LoadFromXML(const XML: IXMLNode);
 begin
   if (Assigned(XML)) then
   begin
@@ -3782,7 +3769,7 @@ begin
   end;
 end;
 
-procedure TAAccount.TConnection.SaveToXML(const XML: IXMLNode);
+procedure TPAccount.TConnection.SaveToXML(const XML: IXMLNode);
 begin
   XMLNode(XML, 'database').Text := Database;
   XMLNode(XML, 'host').Text := Host;
@@ -3799,9 +3786,9 @@ begin
   XMLNode(XML, 'user').Text := Username;
 end;
 
-{ TAAccount *******************************************************************}
+{ TPAccount *******************************************************************}
 
-procedure TAAccount.AccountEvent(const ClassType: TClass);
+procedure TPAccount.AccountEvent(const ClassType: TClass);
 var
   I: Integer;
 begin
@@ -3810,7 +3797,7 @@ begin
       FDesktops[I].AccountEventProc(ClassType);
 end;
 
-procedure TAAccount.Assign(const Source: TAAccount);
+procedure TPAccount.Assign(const Source: TPAccount);
 begin
   if (not Assigned(Accounts)) then FAccounts := Source.Accounts;
 
@@ -3822,28 +3809,70 @@ begin
   Modified := True;
 
   Connection.Assign(Source.Connection);
-  if (Assigned(Desktop) and Assigned(Source.Desktop)) then
-    Desktop.Assign(Source.Desktop);
+  if (Assigned(FDesktop) and Assigned(Source.FDesktop)) then
+    FDesktop.Assign(Source.FDesktop);
 end;
 
-constructor TAAccount.Create(const AAccounts: TAAccounts; const AXML: IXMLNode = nil);
+constructor TPAccount.Create(const AAccounts: TPAccounts; const AXML: IXMLNode = nil);
+var
+  Node: IXMLNode;
 begin
   FAccounts := AAccounts;
   FXML := AXML;
 
-  FDesktopXMLDocument := nil;
   FHistoryXMLDocument := nil;
   FLastLogin := 0;
   ManualURL := '';
   ManualURLFetched := False;
   Modified := False;
 
-  Connection := TAAccount.TConnection.Create(Self);
-  FDesktop := nil;
+  Connection := TConnection.Create();
   FJobs := nil;
+
+  FDesktop := TDesktop.Create(Self);
+
+  if (FileExists(DesktopFilename)) then
+    try
+      DesktopXMLDocument := LoadXMLDocument(DesktopFilename);
+    except
+      DesktopXMLDocument := nil;
+    end;
+
+  if (not Assigned(DesktopXMLDocument) or not Assigned(DesktopXMLDocument.DocumentElement)) then
+  begin
+    DesktopXMLDocument := NewXMLDocument();
+    DesktopXMLDocument.Encoding := 'utf-8';
+    DesktopXMLDocument.Node.AddChild('desktop').Attributes['version'] := '1.3.1';
+  end;
+
+  if (DesktopXMLDocument.DocumentElement.Attributes['version'] <> Null) then
+  begin
+    if (VersionStrToVersion(DesktopXMLDocument.DocumentElement.Attributes['version']) < 10300)  then
+    begin
+      Node := DesktopXMLDocument.DocumentElement;
+      if (Assigned(Node) and Assigned(XMLNode(Node, 'address'))) then
+        Node.ChildNodes.Remove(XMLNode(Node, 'address'));
+
+      DesktopXMLDocument.DocumentElement.Attributes['version'] := '1.3';
+    end;
+
+    if (VersionStrToVersion(DesktopXMLDocument.DocumentElement.Attributes['version']) < 10301)  then
+    begin
+      Node := DesktopXMLDocument.DocumentElement;
+      if (Assigned(XMLNode(Node, 'browser'))) then
+        Node.ChildNodes.Remove(XMLNode(Node, 'browser'));
+      Node := XMLNode(Node, 'editor');
+      if (Assigned(XMLNode(Node, 'filename'))) then
+        Node.ChildNodes.Remove(XMLNode(Node, 'filename'));
+
+      DesktopXMLDocument.DocumentElement.Attributes['version'] := '1.3.1';
+    end;
+  end;
+
+  DesktopXMLDocument.Options := DesktopXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
 end;
 
-destructor TAAccount.Destroy();
+destructor TPAccount.Destroy();
 begin
   if (Assigned(FDesktop)) then FDesktop.Free();
   if (Assigned(FJobs)) then FJobs.Free();
@@ -3852,7 +3881,7 @@ begin
   inherited;
 end;
 
-function TAAccount.ExtractPath(const AAddress: string): string;
+function TPAccount.ExtractPath(const AAddress: string): string;
 var
   URI: TUURI;
 begin
@@ -3861,7 +3890,7 @@ begin
   URI.Free();
 end;
 
-function TAAccount.ExpandAddress(const APath: string): string;
+function TPAccount.ExpandAddress(const APath: string): string;
 var
   Len: Cardinal;
   URL: array[0 .. INTERNET_MAX_URL_LENGTH] of Char;
@@ -3883,7 +3912,7 @@ begin
     SetString(Result, PChar(@URL), Len);
 end;
 
-function TAAccount.Frame(): Pointer;
+function TPAccount.Frame(): Pointer;
 begin
   if (Length(FDesktops) = 0) then
     Result := nil
@@ -3891,12 +3920,12 @@ begin
     Result := FDesktops[0].Control;
 end;
 
-function TAAccount.GetDataPath(): TFileName;
+function TPAccount.GetDataPath(): TFileName;
 begin
   Result := Accounts.DataPath + ReplaceStr(Name, '/', '_') + PathDelim;
 end;
 
-function TAAccount.GetDefaultDatabase(): string;
+function TPAccount.GetDefaultDatabase(): string;
 var
   DatabaseNames: TCSVStrings;
   Found: Boolean;
@@ -3905,9 +3934,9 @@ var
 begin
   Result := '';
 
-  if (Assigned(Desktop)) then
+  if (Assigned(FDesktop)) then
   begin
-    URI := TUURI.Create(Desktop.Address);
+    URI := TUURI.Create(FDesktop.Address);
 
     if (ValidDatabaseName(URI.Database)) then
     begin
@@ -3946,20 +3975,17 @@ begin
   end;
 end;
 
-function TAAccount.GetDesktop(): TDesktop;
-begin
-  if (not Assigned(FDesktop) and Assigned(DesktopXML)) then
-    FDesktop := TDesktop.Create(Self);
-
-  Result := FDesktop;
-end;
-
-function TAAccount.GetDesktopCount(): Integer;
+function TPAccount.GetDesktopCount(): Integer;
 begin
   Result := Length(FDesktops);
 end;
 
-function TAAccount.GetDesktopFilename(): TFileName;
+function TPAccount.GetDesktopXML(): IXMLNode;
+begin
+  Result := DesktopXMLDocument.DocumentElement;
+end;
+
+function TPAccount.GetDesktopFilename(): TFileName;
 begin
   if (not DirectoryExists(DataPath)) then
     Result := ''
@@ -3967,65 +3993,15 @@ begin
     Result := DataPath + 'Desktop.xml';
 end;
 
-function TAAccount.GetDesktopXML(): IXMLNode;
-var
-  Node: IXMLNode;
-begin
-  if (not Assigned(FDesktopXMLDocument)) then
-  begin
-    if (FileExists(DesktopFilename)) then
-      try
-        FDesktopXMLDocument := LoadXMLDocument(DesktopFilename);
-      except
-        FDesktopXMLDocument := nil;
-      end;
-
-    if (not Assigned(FDesktopXMLDocument) or not Assigned(FDesktopXMLDocument.DocumentElement)) then
-    begin
-      FDesktopXMLDocument := NewXMLDocument();
-      FDesktopXMLDocument.Encoding := 'utf-8';
-      FDesktopXMLDocument.Node.AddChild('desktop').Attributes['version'] := '1.3.1';
-    end;
-
-    if (FDesktopXMLDocument.DocumentElement.Attributes['version'] <> Null) then
-    begin
-      if (VersionStrToVersion(FDesktopXMLDocument.DocumentElement.Attributes['version']) < 10300)  then
-      begin
-        Node := FDesktopXMLDocument.DocumentElement;
-        if (Assigned(Node) and Assigned(XMLNode(Node, 'address'))) then
-          Node.ChildNodes.Remove(XMLNode(Node, 'address'));
-
-        FDesktopXMLDocument.DocumentElement.Attributes['version'] := '1.3';
-      end;
-
-      if (VersionStrToVersion(FDesktopXMLDocument.DocumentElement.Attributes['version']) < 10301)  then
-      begin
-        Node := FDesktopXMLDocument.DocumentElement;
-        if (Assigned(XMLNode(Node, 'browser'))) then
-          Node.ChildNodes.Remove(XMLNode(Node, 'browser'));
-        Node := XMLNode(Node, 'editor');
-        if (Assigned(XMLNode(Node, 'filename'))) then
-          Node.ChildNodes.Remove(XMLNode(Node, 'filename'));
-
-        FDesktopXMLDocument.DocumentElement.Attributes['version'] := '1.3.1';
-      end;
-    end;
-
-    FDesktopXMLDocument.Options := FDesktopXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
-  end;
-
-  Result := FDesktopXMLDocument.DocumentElement;
-end;
-
-function TAAccount.GetHistoryFilename(): TFileName;
+function TPAccount.GetHistoryFilename(): TFileName;
 begin
   if (not DirectoryExists(DataPath)) then
     Result := ''
   else
-    Result := DataPath + 'History.xml'
+    Result := DataPath + 'History.xml';
 end;
 
-function TAAccount.GetHistoryXML(): IXMLNode;
+function TPAccount.GetHistoryXML(): IXMLNode;
 begin
   if (not Assigned(FHistoryXMLDocument)) then
   begin
@@ -4050,23 +4026,23 @@ begin
   Result := FHistoryXMLDocument.DocumentElement;
 end;
 
-function TAAccount.GetIndex(): Integer;
+function TPAccount.GetIndex(): Integer;
 begin
   Result := Accounts.IndexOf(Self);
 end;
 
-function TAAccount.GetJobs(): TAAccount.TJobs;
+function TPAccount.GetJobs(): TPAccount.TJobs;
 begin
   if (not Assigned(FJobs) and CheckWin32Version(6)) then
   begin
-    FJobs := TAAccount.TJobs.Create(Self);
+    FJobs := TPAccount.TJobs.Create(Self);
     FJobs.Load();
   end;
 
   Result := FJobs;
 end;
 
-function TAAccount.GetName(): string;
+function TPAccount.GetName(): string;
 begin
   if ((FName = '') and Assigned(XML)) then
     FName := XML.Attributes['name'];
@@ -4074,26 +4050,7 @@ begin
   Result := FName;
 end;
 
-function TAAccount.GetXML(): IXMLNode;
-var
-  I: Integer;
-begin
-  if (not Assigned(FXML) and Assigned(Accounts) and Assigned(Accounts.XML) and (FName <> '')) then
-  begin
-    for I := 0 to Accounts.XML.ChildNodes.Count - 1 do
-      if ((Accounts.XML.ChildNodes[I].NodeName = 'account') and (lstrcmpi(PChar(string(Accounts.XML.ChildNodes[I].Attributes['name'])), PChar(FName)) = 0)) then
-        FXML := Accounts.XML.ChildNodes[I];
-    if (not Assigned(FXML) and (doNodeAutoCreate in Accounts.XML.OwnerDocument.Options)) then
-    begin
-      FXML := Accounts.XML.AddChild('account');
-      FXML.Attributes['name'] := FName;
-    end;
-  end;
-
-  Result := FXML;
-end;
-
-function TAAccount.JobByName(const Name: string): TAAccount.TJob;
+function TPAccount.JobByName(const Name: string): TPAccount.TJob;
 var
   Index: Integer;
 begin
@@ -4104,7 +4061,7 @@ begin
     Result := Jobs[Index];
 end;
 
-procedure TAAccount.LoadFromXML();
+procedure TPAccount.Load();
 begin
   if (Assigned(XML)) then
   begin
@@ -4116,35 +4073,37 @@ begin
     Modified := False;
 
     Connection.LoadFromXML(XMLNode(XML, 'connection'));
-    if (Assigned(Desktop)) then
-      Desktop.LoadFromXML(DesktopXML); // Session muss geladen sein, damit FullAddress funktioniert
+    if (Assigned(FDesktop)) then
+      FDesktop.LoadFromXML(DesktopXMLDocument.DocumentElement); // Session must be loaded to use FullAddress correctly
   end;
 end;
 
-procedure TAAccount.RegisterDesktop(const AControl: Pointer; const AEventProc: TEventProc);
+procedure TPAccount.RegisterDesktop(const AControl: Pointer; const AEventProc: TEventProc);
 begin
   SetLength(FDesktops, Length(FDesktops) + 1);
   FDesktops[Length(FDesktops) - 1].Control := AControl;
   FDesktops[Length(FDesktops) - 1].AccountEventProc := AEventProc;
 end;
 
-procedure TAAccount.SaveToXML();
+procedure TPAccount.Save();
 begin
   if (Assigned(XML)) then
   begin
+    XML.Attributes['name'] := Name;
+
     XMLNode(XML, 'lastlogin').Text := FloatToStr(LastLogin);
     XMLNode(XML, 'manualurl').Text := ManualURL;
     XMLNode(XML, 'manualurlfetched').Text := BoolToStr(ManualURLFetched, True);
 
     Connection.SaveToXML(XMLNode(XML, 'connection', True));
 
-    if (Assigned(Desktop)) then
-      Desktop.SaveToXML(DesktopXML);
+    if (Assigned(FDesktop)) then
+      FDesktop.SaveToXML(DesktopXMLDocument.DocumentElement);
 
     if (ForceDirectories(DataPath)) then
     begin
       try
-        if (Assigned(DesktopXMLDocument) and DesktopXMLDocument.Modified) then
+        if (DesktopXMLDocument.Modified) then
           if (ForceDirectories(ExtractFilePath(DesktopFilename))) then
             DesktopXMLDocument.SaveToFile(DesktopFilename);
         if (Assigned(HistoryXMLDocument) and HistoryXMLDocument.Modified) then
@@ -4156,25 +4115,17 @@ begin
     end;
 
     Modified := False;
- end;
+  end;
 end;
 
-procedure TAAccount.SetLastLogin(const ALastLogin: TDateTime);
+procedure TPAccount.SetLastLogin(const ALastLogin: TDateTime);
 begin
   FLastLogin := ALastLogin;
 
   Modified := True;
 end;
 
-procedure TAAccount.SetName(const AName: string);
-begin
-  Assert(not Assigned(FXML) or (AName = FXML.Attributes['name']));
-
-
-  FName := AName;
-end;
-
-procedure TAAccount.UnRegisterDesktop(const AControl: Pointer);
+procedure TPAccount.UnRegisterDesktop(const AControl: Pointer);
 var
   I: Integer;
   J: Integer;
@@ -4191,7 +4142,7 @@ begin
     end;
 end;
 
-function TAAccount.ValidDatabaseName(const ADatabaseName: string): Boolean;
+function TPAccount.ValidDatabaseName(const ADatabaseName: string): Boolean;
 var
   S: string;
   TempDatabaseName: string;
@@ -4217,16 +4168,24 @@ end;
 
 { TAAccounts ******************************************************************}
 
-procedure TAAccounts.AddAccount(const NewAccount: TAAccount);
+procedure TPAccounts.AddAccount(const NewAccount: TPAccount);
+var
+  XML: IXMLNode;
 begin
-  if (not Assigned(AccountByName(NewAccount.Name))) then
+  if (NewAccount.Name = '') then
+    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Name'])
+  else if (Assigned(AccountByName(NewAccount.Name))) then
+    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['Name'])
+  else
   begin
-    Add(TAAccount.Create(Self));
+    XML := Accounts.XMLDocument.DocumentElement.AddChild('account');
+    XML.Attributes['name'] := NewAccount.Name;
+    Add(TPAccount.Create(Self, XML));
     Account[Count - 1].Assign(NewAccount);
   end;
 end;
 
-procedure TAAccounts.Clear();
+procedure TPAccounts.Clear();
 begin
   while (Count > 0) do
   begin
@@ -4237,7 +4196,7 @@ begin
   inherited;
 end;
 
-constructor TAAccounts.Create(const ADBLogin: TDBLogin);
+constructor TPAccounts.Create(const ADBLogin: TDBLogin);
 var
   Msg: string;
   StringList: TStringList;
@@ -4275,10 +4234,10 @@ begin
       StringList.Free();
     end;
 
-  LoadFromXML();
+  Load();
 end;
 
-function TAAccounts.DeleteAccount(const AAccount: TAAccount): Boolean;
+function TPAccounts.DeleteAccount(const AAccount: TPAccount): Boolean;
 var
   I: Integer;
   Index: Integer;
@@ -4302,50 +4261,50 @@ begin
       TaskFolder.DeleteFolder(TBStr(AAccount.Name), 0);
   end;
 
-  for I := XML.ChildNodes.Count - 1 downto 0 do
-    if ((XML.ChildNodes[I].NodeName = 'account') and (lstrcmpi(PChar(string(XML.ChildNodes[I].Attributes['name'])), PChar(AAccount.Name)) = 0)) then
-      XML.ChildNodes.Remove(XML.ChildNodes[I]);
+  for I := XMLDocument.DocumentElement.ChildNodes.Count - 1 downto 0 do
+    if ((XMLDocument.DocumentElement.ChildNodes[I].NodeName = 'account') and (lstrcmpi(PChar(string(XMLDocument.DocumentElement.ChildNodes[I].Attributes['name'])), PChar(AAccount.Name)) = 0)) then
+      XMLDocument.DocumentElement.ChildNodes.Remove(XMLDocument.DocumentElement.ChildNodes[I]);
 
   Index := IndexOf(AAccount);
 
   Account[Index].Free();
   Delete(Index);
 
-  SaveToXML();
+  Save();
 
   Result := True;
 end;
 
-destructor TAAccounts.Destroy();
+destructor TPAccounts.Destroy();
 begin
-  SaveToXML();
+  Save();
 
   Clear();
 
   inherited;
 end;
 
-function TAAccounts.GetDataPath(): TFileName;
+function TPAccounts.GetDataPath(): TFileName;
 begin
   Result := Preferences.UserPath + 'Accounts' + PathDelim;
 end;
 
-function TAAccounts.GetDefault(): TAAccount;
+function TPAccounts.GetDefault(): TPAccount;
 begin
   Result := AccountByName(DefaultAccountName);
 end;
 
-function TAAccounts.GetFilename(): TFileName;
+function TPAccounts.GetFilename(): TFileName;
 begin
   Result := DataPath + 'Accounts.xml';
 end;
 
-function TAAccounts.GetFAccounts(Index: Integer): TAAccount;
+function TPAccounts.GetFAccounts(Index: Integer): TPAccount;
 begin
-  Result := TAAccount(Items[Index]);
+  Result := TPAccount(Items[Index]);
 end;
 
-function TAAccounts.GetXML(): IXMLNode;
+function TPAccounts.GetXMLDocument(): IXMLDocument;
 begin
   if (not Assigned(FXMLDocument)) then
   begin
@@ -4363,13 +4322,10 @@ begin
     FXMLDocument.Options := FXMLDocument.Options - [doAttrNull, doNodeAutoCreate];
   end;
 
-  if (not Assigned(FXMLDocument)) then // Debug 20.11.14
-    raise ERangeError.CreateFmt(SPropertyOutOfRange, ['FXMLDocument']);
-
-  Result := FXMLDocument.DocumentElement;
+  Result := FXMLDocument;
 end;
 
-procedure TAAccounts.LoadFromXML();
+procedure TPAccounts.Load();
 var
   I: Integer;
   Index: Integer;
@@ -4377,53 +4333,49 @@ var
 begin
   Clear();
 
-  if (Assigned(XML)) then
+  XMLDocument.Options := XMLDocument.Options - [doNodeAutoCreate];
+
+  for I := 0 to XMLDocument.DocumentElement.ChildNodes.Count - 1 do
   begin
-    FXMLDocument.Options := FXMLDocument.Options - [doNodeAutoCreate];
-
-    for I := 0 to XML.ChildNodes.Count - 1 do
+    if ((XMLDocument.DocumentElement.ChildNodes[I].NodeName = 'account') and (XMLDocument.DocumentElement.ChildNodes[I].Attributes['name'] <> '')) then
     begin
-      if ((XML.ChildNodes[I].NodeName = 'account') and (XML.ChildNodes[I].Attributes['name'] <> '')) then
-      begin
-        Index := TList(Self).Count;
-        for J := TList(Self).Count - 1 downto 0 do
-          if (lstrcmpi(PChar(string(XML.ChildNodes[I].Attributes['name'])), PChar(Account[J].Name)) <= 0) then
-            Index := J;
+      Index := TList(Self).Count;
+      for J := TList(Self).Count - 1 downto 0 do
+        if (lstrcmpi(PChar(string(XMLDocument.DocumentElement.ChildNodes[I].Attributes['name'])), PChar(Account[J].Name)) <= 0) then
+          Index := J;
 
-        Insert(Index, TAAccount.Create(Self, XML.ChildNodes[I]));
-        Account[Index].LoadFromXML();
-      end;
+      Insert(Index, TPAccount.Create(Self, XMLDocument.DocumentElement.ChildNodes[I]));
+      Account[Index].Load();
     end;
-
-    if (Assigned(XMLNode(XML, 'default'))) then
-      DefaultAccountName := XMLNode(XML, 'default').Text;
-
-    FXMLDocument.Options := FXMLDocument.Options + [doNodeAutoCreate];
   end;
+
+  if (Assigned(XMLNode(XMLDocument.DocumentElement, 'default'))) then
+    DefaultAccountName := XMLNode(XMLDocument.DocumentElement, 'default').Text;
+
+  XMLDocument.Options := XMLDocument.Options + [doNodeAutoCreate];
 end;
 
-procedure TAAccounts.SaveToXML();
+procedure TPAccounts.Save();
 var
   I: Integer;
 begin
-  XML.OwnerDocument.Options := XML.OwnerDocument.Options + [doNodeAutoCreate];
+  XMLDocument.Options := XMLDocument.Options + [doNodeAutoCreate];
 
   for I := 0 to Count - 1 do
     if (Account[I].Modified) then
-      Account[I].SaveToXML();
+      Account[I].Save();
 
-  if (Assigned(XML)) then
-    XMLNode(XML, 'default').Text := DefaultAccountName;
+  XMLNode(XMLDocument.DocumentElement, 'default').Text := DefaultAccountName;
 
-  XML.OwnerDocument.Options := XML.OwnerDocument.Options - [doNodeAutoCreate];
+  XMLDocument.Options := XMLDocument.Options - [doNodeAutoCreate];
 
 
-  if (Assigned(FXMLDocument) and FXMLDocument.Modified) then
+  if (XMLDocument.Modified) then
     if (ForceDirectories(ExtractFilePath(Filename))) then
-      FXMLDocument.SaveToFile(Filename);
+      XMLDocument.SaveToFile(Filename);
 end;
 
-function TAAccounts.AccountByName(const AccountName: string): TAAccount;
+function TPAccounts.AccountByName(const AccountName: string): TPAccount;
 var
   I: Integer;
 begin
@@ -4434,13 +4386,13 @@ begin
       Result := Account[I];
 end;
 
-function TAAccounts.AccountByURI(const AURI: string; const DefaultAccount: TAAccount = nil): TAAccount;
+function TPAccounts.AccountByURI(const AURI: string; const DefaultAccount: TPAccount = nil): TPAccount;
 var
   Found: Integer;
   Host: string;
   I: Integer;
   Name: string;
-  NewAccount: TAAccount;
+  NewAccount: TPAccount;
   NewAccountName: string;
   URI: TUURI;
   URLComponents: TURLComponents;
@@ -4497,7 +4449,7 @@ begin
         Name := NewAccountName + ' (' + IntToStr(I) + ')';
       end;
 
-      NewAccount := TAAccount.Create(Self);
+      NewAccount := TPAccount.Create(Self);
       NewAccount.Name := Name;
       NewAccount.Connection.Host := URI.Host;
       NewAccount.Connection.Port := URI.Port;
@@ -4509,14 +4461,14 @@ begin
 
       Result := AccountByName(NewAccountName);
 
-      SaveToXML();
+      Save();
     end;
 
     URI.Free();
   end;
 end;
 
-procedure TAAccounts.SetDefault(const AAccount: TAAccount);
+procedure TPAccounts.SetDefault(const AAccount: TPAccount);
 begin
   if (not Assigned(AAccount)) then
     DefaultAccountName := ''
@@ -4524,27 +4476,26 @@ begin
     DefaultAccountName := AAccount.Name;
 end;
 
-procedure TAAccounts.UpdateAccount(const Account, NewAccount: TAAccount);
+procedure TPAccounts.UpdateAccount(const Account, NewAccount: TPAccount);
 var
   I: Integer;
-  NewJob: TAAccount.TJob;
+  NewJob: TPAccount.TJob;
   TaskFolder: ITaskFolder;
 begin
   if (Assigned(Account) and Assigned(NewAccount) and (not Assigned(AccountByName(NewAccount.Name)) or (NewAccount.Name = Account.Name))) then
   begin
     if (NewAccount.Name <> Account.Name) then
     begin
-      if (Assigned(Account.XML)) then
-        Account.XML.Attributes['name'] := NewAccount.Name;
-
       if (DirectoryExists(Account.DataPath)) then
         RenameFile(Account.DataPath, NewAccount.DataPath);
 
       if (Assigned(Account.Jobs)) then
         for I := Account.Jobs.Count - 1 downto 0 do
         begin
-          if (Account.Jobs[I] is TAAccount.TJobExport) then
-            NewJob := TAAccount.TJobExport.Create(NewAccount.Jobs, Account.Jobs[I].Name)
+          if (Account.Jobs[I] is TPAccount.TJobExport) then
+            NewJob := TPAccount.TJobExport.Create(NewAccount.Jobs, Account.Jobs[I].Name)
+          else if (Account.Jobs[I] is TPAccount.TJobImport) then
+            NewJob := TPAccount.TJobImport.Create(NewAccount.Jobs, Account.Jobs[I].Name)
           else
             NewJob := nil;
           NewJob.Assign(Account.Jobs[I]);
@@ -4559,7 +4510,7 @@ begin
 
     Account.Assign(NewAccount);
 
-    SaveToXML();
+    Save();
   end;
 end;
 

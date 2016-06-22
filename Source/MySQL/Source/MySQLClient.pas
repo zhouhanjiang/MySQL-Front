@@ -42,7 +42,7 @@ type
     function error(): RawByteString; inline;
   end;
 
-  TMySQL_Packet = class (TMySQL_IO)
+  TMySQL_Packet = class(TMySQL_IO)
   type
     TBuffer = record
       Mem: my_char;
@@ -118,7 +118,7 @@ type
     function num_rows(): my_ulonglong; virtual;
   end;
 
-  MYSQL = class (TMySQL_Packet)
+  MYSQL = class(TMySQL_Packet)
   private const
     SQLSTATE_LENGTH = 5;
   private

@@ -49,11 +49,11 @@ type
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
   private
     procedure ListViewShowSortDirection(const ListView: TListView);
-    procedure SetFAccounts(const ASelected: TAAccount);
+    procedure SetFAccounts(const ASelected: TPAccount);
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
   public
-    Account: TAAccount;
+    Account: TPAccount;
     Session: TSSession;
     Open: Boolean;
     function Execute(): Boolean;
@@ -305,7 +305,7 @@ end;
 procedure TDAccounts.FAccountsSelectItem(Sender: TObject; Item: TListItem;
   Selected: Boolean);
 var
-  Account: TAAccount;
+  Account: TPAccount;
 begin
   if (not Assigned(Item)) then
     Account := nil
@@ -353,7 +353,7 @@ begin
   ShowEnabledItems(PopupMenu.Items);
 end;
 
-procedure TDAccounts.SetFAccounts(const ASelected: TAAccount);
+procedure TDAccounts.SetFAccounts(const ASelected: TPAccount);
 var
   I: Integer;
   Item: TListItem;

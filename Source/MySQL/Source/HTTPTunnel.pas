@@ -26,7 +26,7 @@ const
 type
   PPChar = ^PChar;
 
-  MYSQL = class (MySQLClient.MYSQL)
+  MYSQL = class(MySQLClient.MYSQL)
   private
     Agent: string;
     Connection: HInternet;
