@@ -481,6 +481,8 @@ type
     procedure FHexEditorChange(Sender: TObject);
     procedure FHexEditorEnter(Sender: TObject);
     procedure FHexEditorKeyPress(Sender: TObject; var Key: Char);
+    procedure FJobsChange(Sender: TObject; Item: TListItem;
+      Change: TItemChange);
     procedure FJobsEnter(Sender: TObject);
     procedure FJobsExit(Sender: TObject);
     procedure FLimitChange(Sender: TObject);
@@ -546,6 +548,8 @@ type
     procedure FSQLHistoryKeyDown(Sender: TObject; var Key: Word;
       Shift: TShiftState);
     procedure FSQLHistoryKeyPress(Sender: TObject; var Key: Char);
+    procedure FSQLHistoryMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
     procedure FTextChange(Sender: TObject);
     procedure FTextEnter(Sender: TObject);
     procedure FTextExit(Sender: TObject);
@@ -597,6 +601,8 @@ type
     procedure miHPropertiesClick(Sender: TObject);
     procedure miHSaveAsClick(Sender: TObject);
     procedure miHStatementIntoSQLEditorClick(Sender: TObject);
+    procedure mjExecuteClick(Sender: TObject);
+    procedure MJobsPopup(Sender: TObject);
     procedure MListPopup(Sender: TObject);
     procedure mlOpenClick(Sender: TObject);
     procedure MNavigatorPopup(Sender: TObject);
@@ -621,8 +627,11 @@ type
     procedure PanelResize(Sender: TObject);
     procedure PContentResize(Sender: TObject);
     procedure PGridResize(Sender: TObject);
+    procedure PJobsEnter(Sender: TObject);
+    procedure PJobsExit(Sender: TObject);
     procedure PLogResize(Sender: TObject);
     procedure PObjectIDEResize(Sender: TObject);
+    procedure PToolBarBlobResize(Sender: TObject);
     procedure PViewPaint(Sender: TObject);
     procedure SearchNotFound(Sender: TObject; FindText: string);
     procedure SLogCanResize(Sender: TObject; var NewSize: Integer;
@@ -641,7 +650,7 @@ type
     procedure SynMemoEnter(Sender: TObject);
     procedure SynMemoExit(Sender: TObject);
     procedure SynMemoStatusChange(Sender: TObject; Changes: TSynStatusChanges);
-    procedure PToolBarBlobResize(Sender: TObject);
+    procedure ToolBarResize(Sender: TObject);
     procedure ToolBarTabsClick(Sender: TObject);
     procedure ToolButtonStyleClick(Sender: TObject);
     procedure TreeViewCollapsed(Sender: TObject; Node: TTreeNode);
@@ -653,15 +662,6 @@ type
     procedure TreeViewMouseDown(Sender: TObject;
       Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure TreeViewMouseUp(Sender: TObject; Button: TMouseButton;
-      Shift: TShiftState; X, Y: Integer);
-    procedure ToolBarResize(Sender: TObject);
-    procedure FJobsChange(Sender: TObject; Item: TListItem;
-      Change: TItemChange);
-    procedure mjExecuteClick(Sender: TObject);
-    procedure MJobsPopup(Sender: TObject);
-    procedure PJobsEnter(Sender: TObject);
-    procedure PJobsExit(Sender: TObject);
-    procedure FSQLHistoryMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
   type
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
@@ -4867,7 +4867,7 @@ begin
   else if (PSQLHistory.Visible) then
     FSQLHistoryRefresh(nil);
 
-  PSideBar.Width := Session.Account.Desktop.SelectorWitdth;
+  PSideBar.Width := Session.Account.Desktop.SidebarWitdth;
   PFiles.Height := PSideBar.ClientHeight - Session.Account.Desktop.FoldersHeight - SExplorer.Height;
 
   FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options + [eoScrollPastEol];  // Speed up the performance
@@ -6576,7 +6576,7 @@ begin
   Session.Account.Desktop.ExplorerVisible := PExplorer.Visible;
   Session.Account.Desktop.JobsVisible := PJobs.Visible;
   Session.Account.Desktop.SQLHistoryVisible := PSQLHistory.Visible;
-  Session.Account.Desktop.SelectorWitdth := PSideBar.Width;
+  Session.Account.Desktop.SidebarWitdth := PSideBar.Width;
   Session.Account.Desktop.LogVisible := PLog.Visible;
   Session.Account.Desktop.LogHeight := PLog.Height;
   URI := TUURI.Create(Address);

@@ -1420,7 +1420,9 @@ type
     FSQLMonitor: TMySQLMonitor;
     FStartTime: TDateTime;
     FSyntaxProvider: TacMYSQLSyntaxProvider;
+Nils: Integer;
     FUser: TSUser;
+Nils2: Integer;
     FUsers: TSUsers;
     FVariables: TSVariables;
     StmtMonitor: TMySQLMonitor;
@@ -10126,7 +10128,7 @@ begin
 
   Result := inherited or (Session.Connection.ErrorCode = ER_DBACCESS_DENIED_ERROR) or (Session.Connection.ErrorCode = ER_TABLEACCESS_DENIED_ERROR);
 
-  if (Result and not Filtered) then
+  if (Result and (Session.Connection.ErrorCode = 0) and not Filtered) then
     while (DeleteList.Count > 0) do
     begin
       if (Items[0] = Session.User) then
@@ -10517,7 +10519,9 @@ begin
       Source := Source + DataSet.Fields[0].AsString + ';' + #13#10;
     until (not DataSet.FindNext());
 
+Nils := 123456;
   FUser := TSUser.Create(Users);
+Nils2 := 654321;
   if (Source <> '') then
     FUser.SetSource(Source);
 
@@ -10814,13 +10818,14 @@ begin
       if (Identifiers <> '') then Identifiers := Identifiers + ',';
       Identifiers := Identifiers + Connection.EscapeIdentifier(Database.Name) + '.' + Connection.EscapeIdentifier(TSBaseTable(List[I]).Name);
 
-      for J := TSBaseTable(List[I]).Database.Triggers.Count - 1 downto 0 do
-        if (TSBaseTable(List[I]).Database.Triggers[J].Table = TSBaseTable(List[I])) then
-        begin
-          Trigger := TSBaseTable(List[I]).Database.Triggers[J];
-          TSBaseTable(List[I]).Database.Triggers.Delete(Trigger);
-          Trigger.Free();
-        end;
+      if (Assigned(TSBaseTable(List[I]).Database.Triggers)) then
+        for J := TSBaseTable(List[I]).Database.Triggers.Count - 1 downto 0 do
+          if (TSBaseTable(List[I]).Database.Triggers[J].Table = TSBaseTable(List[I])) then
+          begin
+            Trigger := TSBaseTable(List[I]).Database.Triggers[J];
+            TSBaseTable(List[I]).Database.Triggers.Delete(Trigger);
+            Trigger.Free();
+          end;
     end;
   if (Identifiers <> '') then
     SQL := SQL + 'DROP TABLE ' + Identifiers + ';' + #13#10;

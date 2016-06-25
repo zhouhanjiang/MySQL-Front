@@ -366,6 +366,7 @@ type
     function GetXMLDocument(): IXMLDocument;
   protected
     KeyBase: string;
+    procedure LoadFromXML(const XML: IXMLNode); virtual;
     procedure SaveToRegistry(); virtual;
     procedure SaveToXML(const XML: IXMLNode); virtual;
     property Filename: TFileName read GetFilename;
@@ -443,7 +444,6 @@ type
     UserPath: TFileName;
     constructor Create(); virtual;
     destructor Destroy(); override;
-    procedure LoadFromXML(const XML: IXMLNode); virtual;
     function LoadStr(const Index: Integer; const Param1: string = ''; const Param2: string = ''; const Param3: string = ''): string; overload; virtual;
     procedure Save(); virtual;
     property InternetAgent: string read FInternetAgent;
@@ -664,6 +664,7 @@ type
       TListViewKind = (lkServer, lkDatabase, lkTable, lkProcesses, lkStati, lkUsers, lkVariables);
     private
       FAccount: TPAccount;
+      FAddressMRU: TPPreferences.TMRUList;
       FFiles: TFiles;
       FPath: string;
       function GetAddress(): string;
@@ -674,7 +675,6 @@ type
       procedure SaveToXML(const XML: IXMLNode); virtual;
       property Account: TPAccount read FAccount;
     public
-      AddressMRU: TPPreferences.TMRUList;
       BlobHeight: Integer;
       ColumnWidths: array [lkServer .. lkVariables] of array [0..7] of Integer;
       DataHeight: Integer;
@@ -686,11 +686,12 @@ type
       LogHeight: Integer;
       LogVisible: Boolean;
       NavigatorVisible: Boolean;
-      SelectorWitdth: Integer;
+      SidebarWitdth: Integer;
       SQLHistoryVisible: Boolean;
       constructor Create(const AAccount: TPAccount); overload; virtual;
       destructor Destroy(); override;
       property Address: string read GetAddress write SetAddress;
+      property AddressMRU: TPPreferences.TMRUList read FAddressMRU;
       property Files: TFiles read FFiles;
     end;
 
@@ -1480,11 +1481,15 @@ begin
 end;
 
 procedure TPPreferences.TWindow.LoadFromXML(const XML: IXMLNode);
+var
+  PixelsPerInch: Integer;
 begin
   inherited;
 
-  if (Assigned(XMLNode(XML, 'height'))) then TryStrToInt(XMLNode(XML, 'height').Text, Height);
-  if (Assigned(XMLNode(XML, 'width'))) then TryStrToInt(XMLNode(XML, 'width').Text, Width);
+  if (not TryStrToInt(XML.OwnerDocument.DocumentElement.Attributes['pixelsperinch'], PixelsPerInch)) then PixelsPerInch := Screen.PixelsPerInch;
+
+  if (Assigned(XMLNode(XML, 'height')) and TryStrToInt(XMLNode(XML, 'height').Text, Height)) then Height := Round(Height * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'width')) and TryStrToInt(XMLNode(XML, 'width').Text, Width)) then Width := Round(Width * Screen.PixelsPerInch / PixelsPerInch);
 end;
 
 procedure TPPreferences.TWindow.SaveToXML(const XML: IXMLNode);
@@ -1888,11 +1893,15 @@ begin
 end;
 
 procedure TPPreferences.TSQLHelp.LoadFromXML(const XML: IXMLNode);
+var
+  PixelsPerInch: Integer;
 begin
   inherited;
 
-  if (Assigned(XMLNode(XML, 'left'))) then TryStrToInt(XMLNode(XML, 'left').Text, Left);
-  if (Assigned(XMLNode(XML, 'top'))) then TryStrToInt(XMLNode(XML, 'top').Text, Top);
+  if (not TryStrToInt(XML.OwnerDocument.DocumentElement.Attributes['pixelsperinch'], PixelsPerInch)) then PixelsPerInch := Screen.PixelsPerInch;
+
+  if (Assigned(XMLNode(XML, 'left')) and TryStrToInt(XMLNode(XML, 'left').Text, Left)) then Left := Round(Left * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'top')) and TryStrToInt(XMLNode(XML, 'top').Text, Top)) then Top := Round(Top * Screen.PixelsPerInch / PixelsPerInch);
 end;
 
 procedure TPPreferences.TSQLHelp.SaveToXML(const XML: IXMLNode);
@@ -2384,6 +2393,13 @@ begin
 
           FXMLDocument.DocumentElement.Attributes['version'] := '1.1.1';
         end;
+
+        if (VersionStrToVersion(FXMLDocument.DocumentElement.Attributes['version']) < 10200)  then
+        begin
+          FXMLDocument.DocumentElement.Attributes['pixelsperinch'] := IntToStr(Screen.PixelsPerInch);
+
+          FXMLDocument.DocumentElement.Attributes['version'] := '1.2.0';
+        end;
       except
         FXMLDocument := nil;
       end;
@@ -2437,8 +2453,14 @@ end;
 procedure TPPreferences.LoadFromXML(const XML: IXMLNode);
 var
   Visible: Boolean;
+var
+  PixelsPerInch: Integer;
 begin
+  inherited;
+
   XML.OwnerDocument.Options := XML.OwnerDocument.Options - [doNodeAutoCreate];
+
+  if (not TryStrToInt(XML.OwnerDocument.DocumentElement.Attributes['pixelsperinch'], PixelsPerInch)) then PixelsPerInch := Screen.PixelsPerInch;
 
   if (Assigned(XMLNode(XML, 'grid/currentrow/background'))) then TryStrToBool(XMLNode(XML, 'grid/currentrow/background').Attributes['visible'], GridCurrRowBGColorEnabled);
   if (Assigned(XMLNode(XML, 'grid/currentrow/background/color'))) then GridCurrRowBGColor := StringToColor(XMLNode(XML, 'grid/currentrow/background/color').Text);
@@ -2451,9 +2473,9 @@ begin
   if (Assigned(XMLNode(XML, 'grid/null'))) then TryStrToBool(XMLNode(XML, 'grid/null').Attributes['visible'], GridNullText);
   if (Assigned(XMLNode(XML, 'grid/null/background'))) then TryStrToBool(XMLNode(XML, 'grid/null/background').Attributes['visible'], GridNullBGColorEnabled);
   if (Assigned(XMLNode(XML, 'grid/null/background/color'))) then GridNullBGColor := StringToColor(XMLNode(XML, 'grid/null/background/color').Text);
-  if (Assigned(XMLNode(XML, 'grid/maxcolumnwidth'))) then TryStrToInt(XMLNode(XML, 'grid/maxcolumnwidth').Text, GridMaxColumnWidth);
+  if (Assigned(XMLNode(XML, 'grid/maxcolumnwidth')) and TryStrToInt(XMLNode(XML, 'grid/maxcolumnwidth').Text, GridMaxColumnWidth)) then GridMaxColumnWidth := Round(GridMaxColumnWidth * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'grid/row/background'))) then TryStrToBool(XMLNode(XML, 'grid/row/background').Attributes['visible'], GridRowBGColor);
-  if (Assigned(XMLNode(XML, 'height'))) then TryStrToInt(XMLNode(XML, 'height').Text, Height);
+  if (Assigned(XMLNode(XML, 'height')) and TryStrToInt(XMLNode(XML, 'height').Text, Height)) then Height := Round(Height * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'language/file'))) then LanguageFilename := ExtractFileName(XMLNode(XML, 'language/file').Text);
   if (Assigned(XMLNode(XML, 'left'))) then TryStrToInt(XMLNode(XML, 'left').Text, Left);
   if (Assigned(XMLNode(XML, 'log/font/charset'))) then TryStrToInt(XMLNode(XML, 'log/font/charset').Text, LogFontCharset);
@@ -2462,7 +2484,7 @@ begin
   if (Assigned(XMLNode(XML, 'log/font/size'))) then TryStrToInt(XMLNode(XML, 'log/font/size').Text, LogFontSize);
   if (Assigned(XMLNode(XML, 'log/font/style'))) then LogFontStyle := StrToStyle(XMLNode(XML, 'log/font/style').Text);
   if (Assigned(XMLNode(XML, 'log/highlighting'))) then TryStrToBool(XMLNode(XML, 'log/highlighting').Attributes['visible'], LogHighlighting);
-  if (Assigned(XMLNode(XML, 'log/size'))) then TryStrToInt(XMLNode(XML, 'log/size').Text, LogSize);
+  if (Assigned(XMLNode(XML, 'log/size')) and TryStrToInt(XMLNode(XML, 'log/size').Text, LogSize)) then LogSize := Round(LogSize * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'log/dbresult'))) then TryStrToBool(XMLNode(XML, 'log/dbresult').Attributes['visible'], LogResult);
   if (Assigned(XMLNode(XML, 'log/time'))) then TryStrToBool(XMLNode(XML, 'log/time').Attributes['visible'], LogTime);
   if (Assigned(XMLNode(XML, 'toolbar/objects')) and TryStrToBool(XMLNode(XML, 'toolbar/objects').Attributes['visible'], Visible)) then
@@ -2520,10 +2542,10 @@ begin
   if (Assigned(XMLNode(XML, 'sql/highlighting/variable/background/color'))) then Editor.VariableBackground := StringToColor(XMLNode(XML, 'sql/highlighting/variable/background/color').Text);
   if (Assigned(XMLNode(XML, 'sql/highlighting/variable/style'))) then Editor.VariableStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/variable/style').Text);
   if (Assigned(XMLNode(XML, 'tabs'))) then TryStrToBool(XMLNode(XML, 'tabs').Attributes['visible'], TabsVisible);
-  if (Assigned(XMLNode(XML, 'top'))) then TryStrToInt(XMLNode(XML, 'top').Text, Top);
+  if (Assigned(XMLNode(XML, 'top')) and TryStrToInt(XMLNode(XML, 'top').Text, Top)) then Top := Round(Top * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'updates/check'))) then TryStrToUpdateCheck(XMLNode(XML, 'updates/check').Text, UpdateCheck);
   if (Assigned(XMLNode(XML, 'updates/lastcheck'))) then TryStrToDate(XMLNode(XML, 'updates/lastcheck').Text, UpdateChecked, FileFormatSettings);
-  if (Assigned(XMLNode(XML, 'width'))) then TryStrToInt(XMLNode(XML, 'width').Text, Width);
+  if (Assigned(XMLNode(XML, 'width')) and TryStrToInt(XMLNode(XML, 'width').Text, Width)) then Width := Round(Width * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'windowstate'))) then TryStrToWindowState(XMLNode(XML, 'windowstate').Text, WindowState);
 
   Database.LoadFromXML(XMLNode(XML, 'database'));
@@ -2552,7 +2574,6 @@ begin
   User.LoadFromXML(XMLNode(XML, 'user'));
   View.LoadFromXML(XMLNode(XML, 'view'));
 
-
   FreeAndNil(FLanguage);
 end;
 
@@ -2574,6 +2595,7 @@ end;
 procedure TPPreferences.Save();
 begin
   SaveToXML(XMLDocument.DocumentElement);
+  FreeAndNil(FLanguage);
 end;
 
 procedure TPPreferences.SaveToRegistry();
@@ -2644,6 +2666,8 @@ end;
 procedure TPPreferences.SaveToXML(const XML: IXMLNode);
 begin
   XML.OwnerDocument.Options := XML.OwnerDocument.Options + [doNodeAutoCreate];
+
+  XML.OwnerDocument.DocumentElement.Attributes['pixelsperinch'] := IntToStr(Screen.PixelsPerInch);
 
   XMLNode(XML, 'grid/currentrow/background').Attributes['visible'] := GridCurrRowBGColorEnabled;
   XMLNode(XML, 'grid/currentrow/background/color').Text := ColorToString(GridCurrRowBGColor);
@@ -3547,7 +3571,7 @@ begin
   LogHeight := Source.LogHeight;
   LogVisible := Source.LogVisible;
   NavigatorVisible := Source.NavigatorVisible;
-  SelectorWitdth := Source.SelectorWitdth;
+  SidebarWitdth := Source.SidebarWitdth;
   SQLHistoryVisible := Source.SQLHistoryVisible;
 end;
 
@@ -3560,7 +3584,7 @@ begin
 
   FAccount := AAccount;
 
-  AddressMRU := TPPreferences.TMRUList.Create(10);
+  FAddressMRU := TPPreferences.TMRUList.Create(10);
   BlobHeight := Round(100 * Screen.PixelsPerInch / USER_DEFAULT_SCREEN_DPI);
   for Kind := lkServer to lkVariables do
     for I := 0 to Length(ColumnWidths[Kind]) - 1 do
@@ -3577,7 +3601,7 @@ begin
   LogHeight := Round(80 * Screen.PixelsPerInch / USER_DEFAULT_SCREEN_DPI);
   LogVisible := False;
   FPath := '/';
-  SelectorWitdth := Round(150 * Screen.PixelsPerInch / USER_DEFAULT_SCREEN_DPI);
+  SidebarWitdth := Round(150 * Screen.PixelsPerInch / USER_DEFAULT_SCREEN_DPI);
   SQLHistoryVisible := False;
 
   FFiles := TFiles.Create(Self, 10);
@@ -3585,7 +3609,7 @@ end;
 
 destructor TPAccount.TDesktop.Destroy();
 begin
-  AddressMRU.Free();
+  FAddressMRU.Free();
   FFiles.Free();
 
   inherited;
@@ -3597,51 +3621,57 @@ begin
 end;
 
 procedure TPAccount.TDesktop.LoadFromXML(const XML: IXMLNode);
+var
+  PixelsPerInch: Integer;
 begin
-  if (Assigned(XMLNode(XML, 'datagrid/height'))) then TryStrToInt(XMLNode(XML, 'datagrid/height').Text, DataHeight);
-  if (Assigned(XMLNode(XML, 'datagrid/blob/height'))) then TryStrToInt(XMLNode(XML, 'datagrid/blob/height').Text, BlobHeight);
+  inherited;
+
+  if (not TryStrToInt(XML.OwnerDocument.DocumentElement.Attributes['pixelsperinch'], PixelsPerInch)) then PixelsPerInch := Screen.PixelsPerInch;
+
+  if (Assigned(XMLNode(XML, 'datagrid/height')) and TryStrToInt(XMLNode(XML, 'datagrid/height').Text, DataHeight)) then DataHeight := Round(DataHeight * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'datagrid/blob/height')) and TryStrToInt(XMLNode(XML, 'datagrid/blob/height').Text, BlobHeight)) then BlobHeight := Round(BlobHeight * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'editor/content'))) then EditorContent[ttEditor] := XMLNode(XML, 'editor/content').Text;
   if (Assigned(XMLNode(XML, 'editor2/content'))) then EditorContent[ttEditor2] := XMLNode(XML, 'editor2/content').Text;
   if (Assigned(XMLNode(XML, 'editor3/content'))) then EditorContent[ttEditor3] := XMLNode(XML, 'editor3/content').Text;
-  if (Assigned(XMLNode(XML, 'log/height'))) then TryStrToInt(XMLNode(XML, 'log/height').Text, LogHeight);
+  if (Assigned(XMLNode(XML, 'log/height')) and TryStrToInt(XMLNode(XML, 'log/height').Text, LogHeight)) then LogHeight := Round(LogHeight * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'log/visible'))) then TryStrToBool(XMLNode(XML, 'log/visible').Text, LogVisible);
-  if (Assigned(XMLNode(XML, 'objects/server/widths/name'))) then TryStrToInt(XMLNode(XML, 'objects/server/widths/name').Text, ColumnWidths[lkServer][0]);
-  if (Assigned(XMLNode(XML, 'objects/server/widths/size'))) then TryStrToInt(XMLNode(XML, 'objects/server/widths/size').Text, ColumnWidths[lkServer][1]);
-  if (Assigned(XMLNode(XML, 'objects/server/widths/count'))) then TryStrToInt(XMLNode(XML, 'objects/server/widths/count').Text, ColumnWidths[lkServer][2]);
-  if (Assigned(XMLNode(XML, 'objects/server/widths/created'))) then TryStrToInt(XMLNode(XML, 'objects/server/widths/created').Text, ColumnWidths[lkServer][3]);
-  if (Assigned(XMLNode(XML, 'objects/server/widths/extras'))) then TryStrToInt(XMLNode(XML, 'objects/server/widths/extras').Text, ColumnWidths[lkServer][4]);
-  if (Assigned(XMLNode(XML, 'objects/database/widths/name'))) then TryStrToInt(XMLNode(XML, 'objects/database/widths/name').Text, ColumnWidths[lkDatabase][0]);
-  if (Assigned(XMLNode(XML, 'objects/database/widths/type'))) then TryStrToInt(XMLNode(XML, 'objects/database/widths/type').Text, ColumnWidths[lkDatabase][1]);
-  if (Assigned(XMLNode(XML, 'objects/database/widths/recordcount'))) then TryStrToInt(XMLNode(XML, 'objects/database/widths/recordcount').Text, ColumnWidths[lkDatabase][2]);
-  if (Assigned(XMLNode(XML, 'objects/database/widths/size'))) then TryStrToInt(XMLNode(XML, 'objects/database/widths/size').Text, ColumnWidths[lkDatabase][3]);
-  if (Assigned(XMLNode(XML, 'objects/database/widths/updated'))) then TryStrToInt(XMLNode(XML, 'objects/database/widths/updated').Text, ColumnWidths[lkDatabase][4]);
-  if (Assigned(XMLNode(XML, 'objects/database/widths/extras'))) then TryStrToInt(XMLNode(XML, 'objects/database/widths/extras').Text, ColumnWidths[lkDatabase][5]);
-  if (Assigned(XMLNode(XML, 'objects/database/widths/comment'))) then TryStrToInt(XMLNode(XML, 'objects/database/widths/comment').Text, ColumnWidths[lkDatabase][6]);
-  if (Assigned(XMLNode(XML, 'objects/table/widths/name'))) then TryStrToInt(XMLNode(XML, 'objects/table/widths/name').Text, ColumnWidths[lkTable][0]);
-  if (Assigned(XMLNode(XML, 'objects/table/widths/type'))) then TryStrToInt(XMLNode(XML, 'objects/table/widths/type').Text, ColumnWidths[lkTable][1]);
-  if (Assigned(XMLNode(XML, 'objects/table/widths/null'))) then TryStrToInt(XMLNode(XML, 'objects/table/widths/null').Text, ColumnWidths[lkTable][2]);
-  if (Assigned(XMLNode(XML, 'objects/table/widths/default'))) then TryStrToInt(XMLNode(XML, 'objects/table/widths/default').Text, ColumnWidths[lkTable][3]);
-  if (Assigned(XMLNode(XML, 'objects/table/widths/extras'))) then TryStrToInt(XMLNode(XML, 'objects/table/widths/extras').Text, ColumnWidths[lkTable][4]);
-  if (Assigned(XMLNode(XML, 'objects/table/widths/comment'))) then TryStrToInt(XMLNode(XML, 'objects/table/widths/comment').Text, ColumnWidths[lkTable][5]);
-  if (Assigned(XMLNode(XML, 'objects/processes/widths/id'))) then TryStrToInt(XMLNode(XML, 'objects/processes/widths/id').Text, ColumnWidths[lkProcesses][0]);
-  if (Assigned(XMLNode(XML, 'objects/processes/widths/user'))) then TryStrToInt(XMLNode(XML, 'objects/processes/widths/user').Text, ColumnWidths[lkProcesses][1]);
-  if (Assigned(XMLNode(XML, 'objects/processes/widths/host'))) then TryStrToInt(XMLNode(XML, 'objects/processes/widths/host').Text, ColumnWidths[lkProcesses][2]);
-  if (Assigned(XMLNode(XML, 'objects/processes/widths/database'))) then TryStrToInt(XMLNode(XML, 'objects/processes/widths/database').Text, ColumnWidths[lkProcesses][3]);
-  if (Assigned(XMLNode(XML, 'objects/processes/widths/command'))) then TryStrToInt(XMLNode(XML, 'objects/processes/widths/command').Text, ColumnWidths[lkProcesses][4]);
-  if (Assigned(XMLNode(XML, 'objects/processes/widths/statement'))) then TryStrToInt(XMLNode(XML, 'objects/processes/widths/statement').Text, ColumnWidths[lkProcesses][5]);
-  if (Assigned(XMLNode(XML, 'objects/processes/widths/time'))) then TryStrToInt(XMLNode(XML, 'objects/processes/widths/time').Text, ColumnWidths[lkProcesses][6]);
-  if (Assigned(XMLNode(XML, 'objects/processes/widths/state'))) then TryStrToInt(XMLNode(XML, 'objects/processes/widths/state').Text, ColumnWidths[lkProcesses][7]);
-  if (Assigned(XMLNode(XML, 'objects/stati/widths/name'))) then TryStrToInt(XMLNode(XML, 'objects/stati/widths/name').Text, ColumnWidths[lkStati][0]);
-  if (Assigned(XMLNode(XML, 'objects/stati/widths/value'))) then TryStrToInt(XMLNode(XML, 'objects/stati/widths/value').Text, ColumnWidths[lkStati][1]);
-  if (Assigned(XMLNode(XML, 'objects/users/widths/name'))) then TryStrToInt(XMLNode(XML, 'objects/users/widths/name').Text, ColumnWidths[lkUsers][0]);
-  if (Assigned(XMLNode(XML, 'objects/users/widths/fullname'))) then TryStrToInt(XMLNode(XML, 'objects/users/widths/fullname').Text, ColumnWidths[lkUsers][1]);
-  if (Assigned(XMLNode(XML, 'objects/users/widths/comment'))) then TryStrToInt(XMLNode(XML, 'objects/users/widths/comment').Text, ColumnWidths[lkUsers][2]);
-  if (Assigned(XMLNode(XML, 'objects/variables/widths/name'))) then TryStrToInt(XMLNode(XML, 'objects/variables/widths/name').Text, ColumnWidths[lkVariables][0]);
-  if (Assigned(XMLNode(XML, 'objects/variables/widths/value'))) then TryStrToInt(XMLNode(XML, 'objects/variables/widths/value').Text, ColumnWidths[lkVariables][1]);
+  if (Assigned(XMLNode(XML, 'objects/server/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/server/widths/name').Text, ColumnWidths[lkServer][0])) then ColumnWidths[lkServer][0] := Round(ColumnWidths[lkServer][0] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/server/widths/size')) and TryStrToInt(XMLNode(XML, 'objects/server/widths/size').Text, ColumnWidths[lkServer][1])) then ColumnWidths[lkServer][1] := Round(ColumnWidths[lkServer][1] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/server/widths/count')) and TryStrToInt(XMLNode(XML, 'objects/server/widths/count').Text, ColumnWidths[lkServer][2])) then ColumnWidths[lkServer][2] := Round(ColumnWidths[lkServer][2] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/server/widths/created')) and TryStrToInt(XMLNode(XML, 'objects/server/widths/created').Text, ColumnWidths[lkServer][3])) then ColumnWidths[lkServer][3] := Round(ColumnWidths[lkServer][3] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/server/widths/extras')) and TryStrToInt(XMLNode(XML, 'objects/server/widths/extras').Text, ColumnWidths[lkServer][4])) then ColumnWidths[lkServer][4] := Round(ColumnWidths[lkServer][4] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/database/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/database/widths/name').Text, ColumnWidths[lkDatabase][0])) then ColumnWidths[lkDatabase][0] := Round(ColumnWidths[lkDatabase][0] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/database/widths/type')) and TryStrToInt(XMLNode(XML, 'objects/database/widths/type').Text, ColumnWidths[lkDatabase][1])) then ColumnWidths[lkDatabase][1] := Round(ColumnWidths[lkDatabase][1] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/database/widths/recordcount')) and TryStrToInt(XMLNode(XML, 'objects/database/widths/recordcount').Text, ColumnWidths[lkDatabase][2])) then ColumnWidths[lkDatabase][2] := Round(ColumnWidths[lkDatabase][2] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/database/widths/size')) and TryStrToInt(XMLNode(XML, 'objects/database/widths/size').Text, ColumnWidths[lkDatabase][3])) then ColumnWidths[lkDatabase][3] := Round(ColumnWidths[lkDatabase][3] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/database/widths/updated')) and TryStrToInt(XMLNode(XML, 'objects/database/widths/updated').Text, ColumnWidths[lkDatabase][4])) then ColumnWidths[lkDatabase][4] := Round(ColumnWidths[lkDatabase][4] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/database/widths/extras')) and TryStrToInt(XMLNode(XML, 'objects/database/widths/extras').Text, ColumnWidths[lkDatabase][5])) then ColumnWidths[lkDatabase][5] := Round(ColumnWidths[lkDatabase][5] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/database/widths/comment')) and TryStrToInt(XMLNode(XML, 'objects/database/widths/comment').Text, ColumnWidths[lkDatabase][6])) then ColumnWidths[lkDatabase][6] := Round(ColumnWidths[lkDatabase][6] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/table/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/table/widths/name').Text, ColumnWidths[lkTable][0])) then ColumnWidths[lkTable][0] := Round(ColumnWidths[lkTable][0] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/table/widths/type')) and TryStrToInt(XMLNode(XML, 'objects/table/widths/type').Text, ColumnWidths[lkTable][1])) then ColumnWidths[lkTable][1] := Round(ColumnWidths[lkTable][1] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/table/widths/null')) and TryStrToInt(XMLNode(XML, 'objects/table/widths/null').Text, ColumnWidths[lkTable][2])) then ColumnWidths[lkTable][2] := Round(ColumnWidths[lkTable][2] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/table/widths/default')) and TryStrToInt(XMLNode(XML, 'objects/table/widths/default').Text, ColumnWidths[lkTable][3])) then ColumnWidths[lkTable][3] := Round(ColumnWidths[lkTable][3] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/table/widths/extras')) and TryStrToInt(XMLNode(XML, 'objects/table/widths/extras').Text, ColumnWidths[lkTable][4])) then ColumnWidths[lkTable][4] := Round(ColumnWidths[lkTable][4] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/table/widths/comment')) and TryStrToInt(XMLNode(XML, 'objects/table/widths/comment').Text, ColumnWidths[lkTable][5])) then ColumnWidths[lkTable][5] := Round(ColumnWidths[lkTable][5] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/processes/widths/id')) and TryStrToInt(XMLNode(XML, 'objects/processes/widths/id').Text, ColumnWidths[lkProcesses][0])) then ColumnWidths[lkProcesses][0] := Round(ColumnWidths[lkProcesses][0] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/processes/widths/user')) and TryStrToInt(XMLNode(XML, 'objects/processes/widths/user').Text, ColumnWidths[lkProcesses][1])) then ColumnWidths[lkProcesses][1] := Round(ColumnWidths[lkProcesses][1] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/processes/widths/host')) and TryStrToInt(XMLNode(XML, 'objects/processes/widths/host').Text, ColumnWidths[lkProcesses][2])) then ColumnWidths[lkProcesses][2] := Round(ColumnWidths[lkProcesses][2] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/processes/widths/database')) and TryStrToInt(XMLNode(XML, 'objects/processes/widths/database').Text, ColumnWidths[lkProcesses][3])) then ColumnWidths[lkProcesses][3] := Round(ColumnWidths[lkProcesses][3] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/processes/widths/command')) and TryStrToInt(XMLNode(XML, 'objects/processes/widths/command').Text, ColumnWidths[lkProcesses][4])) then ColumnWidths[lkProcesses][4] := Round(ColumnWidths[lkProcesses][4] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/processes/widths/statement')) and TryStrToInt(XMLNode(XML, 'objects/processes/widths/statement').Text, ColumnWidths[lkProcesses][5])) then ColumnWidths[lkProcesses][5] := Round(ColumnWidths[lkProcesses][5] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/processes/widths/time')) and TryStrToInt(XMLNode(XML, 'objects/processes/widths/time').Text, ColumnWidths[lkProcesses][6])) then ColumnWidths[lkProcesses][6] := Round(ColumnWidths[lkProcesses][6] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/processes/widths/state')) and TryStrToInt(XMLNode(XML, 'objects/processes/widths/state').Text, ColumnWidths[lkProcesses][7])) then ColumnWidths[lkProcesses][7] := Round(ColumnWidths[lkProcesses][7] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/stati/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/stati/widths/name').Text, ColumnWidths[lkStati][0])) then ColumnWidths[lkStati][0] := Round(ColumnWidths[lkStati][0] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/stati/widths/value')) and TryStrToInt(XMLNode(XML, 'objects/stati/widths/value').Text, ColumnWidths[lkStati][1])) then ColumnWidths[lkStati][1] := Round(ColumnWidths[lkStati][1] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/users/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/users/widths/name').Text, ColumnWidths[lkUsers][0])) then ColumnWidths[lkUsers][0] := Round(ColumnWidths[lkUsers][0] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/users/widths/fullname')) and TryStrToInt(XMLNode(XML, 'objects/users/widths/fullname').Text, ColumnWidths[lkUsers][1])) then ColumnWidths[lkUsers][1] := Round(ColumnWidths[lkUsers][1] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/users/widths/comment')) and TryStrToInt(XMLNode(XML, 'objects/users/widths/comment').Text, ColumnWidths[lkUsers][2])) then ColumnWidths[lkUsers][2] := Round(ColumnWidths[lkUsers][2] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/variables/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/variables/widths/name').Text, ColumnWidths[lkVariables][0])) then ColumnWidths[lkVariables][0] := Round(ColumnWidths[lkVariables][0] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/variables/widths/value')) and TryStrToInt(XMLNode(XML, 'objects/variables/widths/value').Text, ColumnWidths[lkVariables][1])) then ColumnWidths[lkVariables][1] := Round(ColumnWidths[lkVariables][1] * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'path'))) then FPath := XMLNode(XML, 'path').Text;
-  if (Assigned(XMLNode(XML, 'sidebar/explorer/folders/height'))) then TryStrToInt(XMLNode(XML, 'sidebar/explorer/folders/height').Text, FoldersHeight);
+  if (Assigned(XMLNode(XML, 'sidebar/explorer/folders/height')) and TryStrToInt(XMLNode(XML, 'sidebar/explorer/folders/height').Text, FoldersHeight)) then FoldersHeight := Round(FoldersHeight * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'sidebar/explorer/files/filter'))) then FilesFilter := XMLNode(XML, 'sidebar/explorer/files/filter').Text;
-  if (Assigned(XMLNode(XML, 'sidebar/width'))) then TryStrToInt(XMLNode(XML, 'sidebar/width').Text, SelectorWitdth);
+  if (Assigned(XMLNode(XML, 'sidebar/width')) and TryStrToInt(XMLNode(XML, 'sidebar/width').Text, SidebarWitdth)) then SidebarWitdth := Round(SidebarWitdth * Screen.PixelsPerInch / PixelsPerInch);
   if (Assigned(XMLNode(XML, 'sidebar/visible'))) then
   begin
     NavigatorVisible := UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'NAVIGATOR';
@@ -3656,6 +3686,8 @@ end;
 procedure TPAccount.TDesktop.SaveToXML(const XML: IXMLNode);
 begin
   XML.OwnerDocument.Options := XML.OwnerDocument.Options + [doNodeAutoCreate];
+
+  XML.OwnerDocument.DocumentElement.Attributes['pixelsperinch'] := IntToStr(Screen.PixelsPerInch);
 
   XMLNode(XML, 'datagrid/height').Text := IntToStr(DataHeight);
   XMLNode(XML, 'datagrid/blob/height').Text := IntToStr(BlobHeight);
@@ -3700,7 +3732,7 @@ begin
   XMLNode(XML, 'path').Text := FPath;
   XMLNode(XML, 'sidebar/explorer/folders/height').Text := IntToStr(FoldersHeight);
   XMLNode(XML, 'sidebar/explorer/files/filter').Text := FilesFilter;
-  XMLNode(XML, 'sidebar/width').Text := IntToStr(SelectorWitdth);
+  XMLNode(XML, 'sidebar/width').Text := IntToStr(SidebarWitdth);
   if (NavigatorVisible) then
     XMLNode(XML, 'sidebar/visible').Text := 'Navigator'
   else if (ExplorerVisible) then
@@ -3866,6 +3898,13 @@ begin
         Node.ChildNodes.Remove(XMLNode(Node, 'filename'));
 
       DesktopXMLDocument.DocumentElement.Attributes['version'] := '1.3.1';
+    end;
+
+    if (VersionStrToVersion(DesktopXMLDocument.DocumentElement.Attributes['version']) < 10400)  then
+    begin
+      DesktopXMLDocument.DocumentElement.Attributes['pixelsperinch'] := IntToStr(Screen.PixelsPerInch);
+
+      DesktopXMLDocument.DocumentElement.Attributes['version'] := '1.4.0';
     end;
   end;
 

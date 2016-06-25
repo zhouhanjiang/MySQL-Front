@@ -540,11 +540,18 @@ begin
 end;
 
 procedure TWWindow.aHIndexExecute(Sender: TObject);
+var
+  Control: TWinControl;
 begin
-  if (not Assigned(ActiveControl) or (ActiveControl.HelpContext < 0)) then
+  Control := ActiveControl;
+  while (Assigned(Control) and (Control.HelpContext = 0)) do
+    // Needed for TacQueryBuilder
+    Control := Control.Parent;
+
+  if (not Assigned(ActiveControl) or (Control.HelpContext < 0)) then
     Application.HelpCommand(HELP_FINDER, 0)
   else
-    Application.HelpCommand(HELP_CONTEXT, ActiveControl.HelpContext);
+    Application.HelpCommand(HELP_CONTEXT, Control.HelpContext);
 end;
 
 procedure TWWindow.aHInfoExecute(Sender: TObject);

@@ -572,6 +572,7 @@ object FSession: TFSession
         Top = 0
         Width = 467
         Height = 96
+        HelpContext = 1120
         MetadataFilter = <>
         BorderStyle = qbbsFlat
         SplitterHeight = 4

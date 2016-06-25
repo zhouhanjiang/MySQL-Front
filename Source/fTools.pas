@@ -450,7 +450,6 @@ type
   TTExportText = class(TTExportFile)
   protected
     procedure ExecuteHeader(); override;
-    procedure ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     function FileCreate(const Filename: TFileName; out Error: TTool.TError): Boolean; override;
@@ -785,9 +784,9 @@ const
   STR_LEN = 128;
 
   DriverAccess = 'Microsoft Access Driver (*.mdb)';
-  DriverAccess12 = 'Microsoft Access Driver (*.mdb, *.accdb)';
+  DriverAccess2007 = 'Microsoft Access Driver (*.mdb, *.accdb)';
   DriverExcel = 'Microsoft Excel Driver (*.xls)';
-  DriverExcel12 = 'Microsoft Excel Driver (*.xls, *.xlsx, *.xlsm, *.xlsb)';
+  DriverExcel2007 = 'Microsoft Excel Driver (*.xls, *.xlsx, *.xlsm, *.xlsb)';
 
 function GetUTCDateTime(Date: TDateTime): string;
 const
@@ -2998,10 +2997,8 @@ begin
     begin
       Success := daSuccess;
 
-MessageBox(0, '3', 'Debug', MB_OK + MB_ICONINFORMATION);
       if (SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, Handle, @Stmt))) then
       begin
-MessageBox(0, '4', 'Debug', MB_OK + MB_ICONINFORMATION);
         SQL := 'SELECT COUNT(*) FROM "' + TTImport.TItem(Items[I]).SourceTableName + '"';
         if (SQL_SUCCEEDED(SQLExecDirect(Stmt, PSQLTCHAR(SQL), SQL_NTS))
           and SQL_SUCCEEDED(SQLFetch(Stmt))
@@ -3010,7 +3007,6 @@ MessageBox(0, '4', 'Debug', MB_OK + MB_ICONINFORMATION);
 
         SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
         Stmt := SQL_NULL_HANDLE;
-MessageBox(0, '4', 'Debug', MB_OK + MB_ICONINFORMATION);
       end;
     end;
 end;
@@ -3787,7 +3783,7 @@ begin
     begin
       if (odAccess2007 in ODBCDrivers) then
       begin
-        ConnStrIn := 'Driver={' + DriverAccess12 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
+        ConnStrIn := 'Driver={' + DriverAccess2007 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
         Connected := SQL_SUCCEEDED(SQLDriverConnect(Handle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
       end;
       if (not Connected) then
@@ -3825,13 +3821,8 @@ begin
     begin
       if (odExcel2007 in ODBCDrivers) then
       begin
-try
-        ConnStrIn := 'Driver={' + DriverExcel12 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
+        ConnStrIn := 'Driver={' + DriverExcel2007 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
         Connected := SQL_SUCCEEDED(SQLDriverConnect(Handle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, nil, 0, nil, SQL_DRIVER_COMPLETE));
-except
-  Connected := False;
-  MessageBox(0, '1', 'Debug', MB_OK + MB_ICONINFORMATION);
-end;
       end;
       if (not Connected) then
       begin
@@ -3841,7 +3832,6 @@ end;
       if (not Connected) then
         DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, True);
     end;
-MessageBox(0, '2', 'Debug', MB_OK + MB_ICONINFORMATION);
   end;
 end;
 
@@ -4837,13 +4827,6 @@ begin
   inherited;
 
   DoFileCreate(Filename);
-end;
-
-procedure TTExportText.ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
-begin
-  inherited;
-
-  WriteContent(#26); // EndOfFile
 end;
 
 procedure TTExportText.ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery);
@@ -6519,14 +6502,14 @@ begin
   end
   else
   begin
-    ConnStrIn := 'Driver={' + DriverAccess12 + '};DBQ=' + Filename + ';READONLY=FALSE';
+    ConnStrIn := 'Driver={' + DriverAccess2007 + '};DBQ=' + Filename + ';READONLY=FALSE';
     Attributes := 'CREATE_DBV12=' + Filename + ' General';
   end;
 
   if (Success = daSuccess) then
   begin
     if (not Access2007 and not SQLConfigDataSource(Application.Handle, ODBC_ADD_DSN, DriverAccess, PChar(Attributes))
-      or (Access2007 and not SQLConfigDataSource(Application.Handle, ODBC_ADD_DSN, DriverAccess12, PChar(Attributes)))) then
+      or (Access2007 and not SQLConfigDataSource(Application.Handle, ODBC_ADD_DSN, DriverAccess2007, PChar(Attributes)))) then
     begin
       Error.ErrorType := TE_ODBC;
       GetMem(ErrorMsg, SQL_MAX_MESSAGE_LENGTH * SizeOf(Char));
@@ -6587,7 +6570,7 @@ begin
     if (not Excel2007) then
       ConnStrIn := 'Driver={' + DriverExcel + '};DBQ=' + Filename + ';ReadOnly=False'
     else
-      ConnStrIn := 'Driver={' + DriverExcel12 + '};DBQ=' + Filename + ';ReadOnly=False';
+      ConnStrIn := 'Driver={' + DriverExcel2007 + '};DBQ=' + Filename + ';ReadOnly=False';
 
     if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @Handle))) then
       DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False)
@@ -8872,11 +8855,11 @@ initialization
     repeat
       if (lstrcmpi(PChar(@Driver), DriverAccess) = 0) then
         ODBCDrivers := ODBCDrivers + [odAccess]
-      else if (lstrcmpi(PChar(@Driver), DriverAccess12) = 0) then
+      else if (lstrcmpi(PChar(@Driver), DriverAccess2007) = 0) then
         ODBCDrivers := ODBCDrivers + [odAccess2007]
       else if (lstrcmpi(PChar(@Driver), DriverExcel) = 0) then
         ODBCDrivers := ODBCDrivers + [odExcel]
-      else if (lstrcmpi(PChar(@Driver), DriverExcel12) = 0) then
+      else if (lstrcmpi(PChar(@Driver), DriverExcel2007) = 0) then
         ODBCDrivers := ODBCDrivers + [odExcel2007];
     until (not SQL_SUCCEEDED(SQLDrivers(ODBCEnv, SQL_FETCH_NEXT, @Driver, Length(Driver), nil, nil, 0, nil)));
 finalization

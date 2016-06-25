@@ -41,7 +41,7 @@ object DExport: TDExport
     Top = 0
     Width = 341
     Height = 281
-    ActivePage = TSJob
+    ActivePage = TSCSVOptions
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     Style = tsFlatButtons
@@ -51,10 +51,6 @@ object DExport: TDExport
       Caption = 'TSSelect'
       TabVisible = False
       OnShow = TSSelectShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -105,10 +101,6 @@ object DExport: TDExport
       Caption = 'TSJob'
       TabVisible = False
       OnShow = TSJobShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -301,10 +293,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSSQLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -391,10 +379,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSCSVOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -462,6 +446,7 @@ object DExport: TDExport
             Caption = 'FQuoteNone'
             TabOrder = 2
             OnClick = FQuoteClick
+            OnKeyPress = FQuoteKeyPress
           end
           object FQuoteStrings: TRadioButton
             Left = 124
@@ -472,6 +457,7 @@ object DExport: TDExport
             Caption = 'FQuoteStrings'
             TabOrder = 1
             OnClick = FQuoteClick
+            OnKeyPress = FQuoteKeyPress
           end
           object FQuoteAll: TRadioButton
             Left = 124
@@ -551,10 +537,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSXMLOptionsHide
       OnShow = TSXMLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -870,10 +852,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSHTMLOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -985,10 +963,6 @@ object DExport: TDExport
       Caption = 'TSFields'
       TabVisible = False
       OnShow = TSFieldsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -1076,10 +1050,6 @@ object DExport: TDExport
       ImageIndex = 9
       TabVisible = False
       OnShow = TSTaskShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)
@@ -1179,10 +1149,6 @@ object DExport: TDExport
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)

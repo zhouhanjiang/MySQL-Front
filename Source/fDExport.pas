@@ -158,6 +158,7 @@ type
     TSXMLOptions: TTabSheet;
     procedure FBBackClick(Sender: TObject);
     procedure FBCancelClick(Sender: TObject);
+    procedure FBDataSourceClick(Sender: TObject);
     procedure FBFilenameClick(Sender: TObject);
     procedure FBForwardClick(Sender: TObject);
     procedure FBHelpClick(Sender: TObject);
@@ -170,6 +171,7 @@ type
     procedure FSourceField1Exit(Sender: TObject);
     procedure FFieldTagClick(Sender: TObject);
     procedure FFieldTagKeyPress(Sender: TObject; var Key: Char);
+    procedure FFilenameChange(Sender: TObject);
     procedure FHTMLDataClick(Sender: TObject);
     procedure FHTMLDataKeyPress(Sender: TObject; var Key: Char);
     procedure FHTMLStructureClick(Sender: TObject);
@@ -192,6 +194,7 @@ type
     procedure FSQLOptionKeyPress(Sender: TObject; var Key: Char);
     procedure FTableTagClick(Sender: TObject);
     procedure FTableTagKeyPress(Sender: TObject; var Key: Char);
+    procedure ScrollBoxResize(Sender: TObject);
     procedure TSCSVOptionsShow(Sender: TObject);
     procedure TSExecuteShow(Sender: TObject);
     procedure TSFieldsShow(Sender: TObject);
@@ -205,9 +208,6 @@ type
     procedure TSJobShow(Sender: TObject);
     procedure TSSelectShow(Sender: TObject);
     procedure TSTaskShow(Sender: TObject);
-    procedure FFilenameChange(Sender: TObject);
-    procedure FBDataSourceClick(Sender: TObject);
-    procedure ScrollBoxResize(Sender: TObject);
   private
     CodePage: Cardinal;
     Export: TTExport;
@@ -1800,7 +1800,8 @@ begin
           TTExportText(Export).QuoteValues := qtAll
         else
           TTExportText(Export).QuoteValues := qtStrings;
-        TTExportText(Export).Quoter := FQuoteChar.Text[1];
+        if (FQuoteChar.Text <> '') then
+          TTExportText(Export).Quoter := FQuoteChar.Text[1];
         TTExportText(Export).Structure := FCSVHeadline.Checked;
       end;
     etODBC:
