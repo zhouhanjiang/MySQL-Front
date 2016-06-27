@@ -1944,7 +1944,8 @@ begin
     Export.OnTerminate := OnTerminate;
     Export.OnUpdate := OnUpdate;
     Export.OnError := OnError;
-    Export.Start()
+    Export.Execute();
+//    Export.Start();
   end;
 end;
 
