@@ -2094,71 +2094,71 @@ function TSynSQLSyn.GetKeyWords(TokenKind: Integer): UnicodeString;
 begin
   Result := '';
 
-  case fDialect of
-    sqlPostgres:
-      begin
-        case TtkTokenKind(TokenKind) of
-          tkDatatype: Result := PostgresTypes;
-          tkKey: Result := PostgresKW;
-          tkFunction: Result := PostgresFunctions;
-          tkException: Result := PostgresExceptions;
-        end;
-      end;
-    sqlIngres:
-      case TtkTokenKind(TokenKind) of
-        tkDatatype: Result := IngresTypes;
-        tkKey: Result := IngresKW;
-        tkFunction: Result := IngresFunctions;
-      end;
-    sqlInterbase6:
-      case TtkTokenKind(TokenKind) of
-        tkDatatype: Result := Interbase6Types;
-        tkFunction: Result := Interbase6Functions;
-        tkKey: Result := Interbase6KW;
-      end;
-    sqlMSSQL7:
-      case TtkTokenKind(TokenKind) of
-        tkKey: Result := MSSQL7KW;
-        tkDatatype: Result := MSSQL7Types;
-        tkFunction: Result := MSSQL7Functions;
-      end;
-    sqlMSSQL2K:
-      case TtkTokenKind(TokenKind) of
-        tkKey: Result := MSSQL2000KW;
-        tkDataType: Result := MSSQL2000Types;
-        tkFunction: Result := MSSQL2000Functions;
-      end;
-    sqlMySql:
-      case TtkTokenKind(TokenKind) of
-        tkKey: Result := MySqlKW;
-        tkDatatype: Result := MySqlTypes;
-        tkFunction: Result := MySqlFunctions;
-        tkPLSQL: Result := MySQLPLSQLKW;
-      end;
-    sqlOracle:
-      case TtkTokenKind(TokenKind) of
-        tkKey: Result := OracleKW;
-        tkDatatype: Result := OracleTypes;
-        tkException: Result := OracleExceptions;
-        tkFunction: Result := OracleFunctions;
-        tkComment: Result := OracleCommentKW;
-        tkDefaultPackage: Result := OracleDefaultPackages;
-        tkPLSQL: Result := OraclePLSQLKW;
-        tkSQLPlus: Result := OracleSQLPlusCommands;
-      end;
-    sqlStandard:
-      if TtkTokenKind(TokenKind) = tkKey then
-        Result := StandardKW;
-    sqlSybase:
-      if TtkTokenKind(TokenKind) = tkKey then
-        Result := SybaseKW;
-    sqlNexus:
-      case TtkTokenKind(TokenKind) of
-        tkKey: Result := NexusKW;
-        tkDatatype: Result := NexusTypes;
-        tkFunction: Result := NexusFunctions;
-      end;
-  end;
+//  case fDialect of
+//    sqlPostgres:
+//      begin
+//        case TtkTokenKind(TokenKind) of
+//          tkDatatype: Result := PostgresTypes;
+//          tkKey: Result := PostgresKW;
+//          tkFunction: Result := PostgresFunctions;
+//          tkException: Result := PostgresExceptions;
+//        end;
+//      end;
+//    sqlIngres:
+//      case TtkTokenKind(TokenKind) of
+//        tkDatatype: Result := IngresTypes;
+//        tkKey: Result := IngresKW;
+//        tkFunction: Result := IngresFunctions;
+//      end;
+//    sqlInterbase6:
+//      case TtkTokenKind(TokenKind) of
+//        tkDatatype: Result := Interbase6Types;
+//        tkFunction: Result := Interbase6Functions;
+//        tkKey: Result := Interbase6KW;
+//      end;
+//    sqlMSSQL7:
+//      case TtkTokenKind(TokenKind) of
+//        tkKey: Result := MSSQL7KW;
+//        tkDatatype: Result := MSSQL7Types;
+//        tkFunction: Result := MSSQL7Functions;
+//      end;
+//    sqlMSSQL2K:
+//      case TtkTokenKind(TokenKind) of
+//        tkKey: Result := MSSQL2000KW;
+//        tkDataType: Result := MSSQL2000Types;
+//        tkFunction: Result := MSSQL2000Functions;
+//      end;
+//    sqlMySql:
+//      case TtkTokenKind(TokenKind) of
+//        tkKey: Result := MySqlKW;
+//        tkDatatype: Result := MySqlTypes;
+//        tkFunction: Result := MySqlFunctions;
+//        tkPLSQL: Result := MySQLPLSQLKW;
+//      end;
+//    sqlOracle:
+//      case TtkTokenKind(TokenKind) of
+//        tkKey: Result := OracleKW;
+//        tkDatatype: Result := OracleTypes;
+//        tkException: Result := OracleExceptions;
+//        tkFunction: Result := OracleFunctions;
+//        tkComment: Result := OracleCommentKW;
+//        tkDefaultPackage: Result := OracleDefaultPackages;
+//        tkPLSQL: Result := OraclePLSQLKW;
+//        tkSQLPlus: Result := OracleSQLPlusCommands;
+//      end;
+//    sqlStandard:
+//      if TtkTokenKind(TokenKind) = tkKey then
+//        Result := StandardKW;
+//    sqlSybase:
+//      if TtkTokenKind(TokenKind) = tkKey then
+//        Result := SybaseKW;
+//    sqlNexus:
+//      case TtkTokenKind(TokenKind) of
+//        tkKey: Result := NexusKW;
+//        tkDatatype: Result := NexusTypes;
+//        tkFunction: Result := NexusFunctions;
+//      end;
+//  end;
 end;
 
 initialization
