@@ -5356,7 +5356,7 @@ begin
     end;
 
     View.Fields.FValid := True;
-    View.PushBuildEvent(False);
+    View.PushBuildEvent(True);
   end;
 
   Session.ExecuteEvent(etItemsValid, Session, Session.Databases);
@@ -8312,6 +8312,7 @@ end;
 
 function TSDatabase.UpdateView(const View, NewView: TSView): Boolean;
 var
+  List: TList;
   SQL: string;
 begin
   SQL := '';
@@ -8350,6 +8351,11 @@ begin
   SQL := SQL + #13#10;
 
   SQL := SQL + NewView.SQLGetSource();
+
+  List := TList.Create();
+  List.Add(NewView);
+  SQL := SQL + Tables.SQLGetViewFields(List);
+  List.Free();
 
   if (Assigned(View) and (View.Name <> NewView.Name)) then
     SQL := 'RENAME TABLE '

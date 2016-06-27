@@ -1452,13 +1452,12 @@ var
 begin
   Clear();
 
-  if (Assigned(XML)) then
-    for I := 0 to XML.ChildNodes.Count - 1 do
-      if ((XML.ChildNodes[I].NodeName = NodeName) and (Length(FValues) < MaxCount)) then
-      begin
-        SetLength(FValues, Length(FValues) + 1);
-        FValues[Length(FValues) - 1] := XML.ChildNodes[I].Text;
-      end;
+  for I := 0 to XML.ChildNodes.Count - 1 do
+    if ((XML.ChildNodes[I].NodeName = NodeName) and (Length(FValues) < MaxCount)) then
+    begin
+      SetLength(FValues, Length(FValues) + 1);
+      FValues[Length(FValues) - 1] := XML.ChildNodes[I].Text;
+    end;
 end;
 
 procedure TPPreferences.TMRUList.SaveToXML(const XML: IXMLNode; const NodeName: string);
@@ -1488,13 +1487,10 @@ var
 begin
   inherited;
 
-  if (Assigned(XML)) then
-  begin
-    if (not TryStrToInt(XML.OwnerDocument.DocumentElement.Attributes['pixelsperinch'], PixelsPerInch)) then PixelsPerInch := Screen.PixelsPerInch;
+  if (not TryStrToInt(XML.OwnerDocument.DocumentElement.Attributes['pixelsperinch'], PixelsPerInch)) then PixelsPerInch := Screen.PixelsPerInch;
 
-    if (Assigned(XMLNode(XML, 'height')) and TryStrToInt(XMLNode(XML, 'height').Text, Height)) then Height := Round(Height * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'width')) and TryStrToInt(XMLNode(XML, 'width').Text, Width)) then Width := Round(Width * Screen.PixelsPerInch / PixelsPerInch);
-  end;
+  if (Assigned(XMLNode(XML, 'height')) and TryStrToInt(XMLNode(XML, 'height').Text, Height)) then Height := Round(Height * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'width')) and TryStrToInt(XMLNode(XML, 'width').Text, Width)) then Width := Round(Width * Screen.PixelsPerInch / PixelsPerInch);
 end;
 
 procedure TPPreferences.TWindow.SaveToXML(const XML: IXMLNode);
@@ -1536,18 +1532,15 @@ end;
 
 procedure TPPreferences.TEditor.LoadFromXML(const XML: IXMLNode);
 begin
-  if (Assigned(XML)) then
-  begin
-    if (Assigned(XMLNode(XML, 'autoindent'))) then TryStrToBool(XMLNode(XML, 'autoindent').Attributes['enabled'], AutoIndent);
-    if (Assigned(XMLNode(XML, 'currentrow/background'))) then TryStrToBool(XMLNode(XML, 'currentrow/background').Attributes['visible'], CurrRowBGColorEnabled);
-    if (Assigned(XMLNode(XML, 'currentrow/background/color'))) then CurrRowBGColor := StringToColor(XMLNode(XML, 'currentrow/background/color').Text);
-    if (Assigned(XMLNode(XML, 'linenumbers'))) then TryStrToBool(XMLNode(XML, 'linenumbers').Attributes['visible'], LineNumbers);
-    if (Assigned(XMLNode(XML, 'rightedge/position'))) then TryStrToInt(XMLNode(XML, 'rightedge/position').Text, RightEdge);
-    if (Assigned(XMLNode(XML, 'tabs'))) then TryStrToBool(XMLNode(XML, 'tabs').Attributes['accepted'], TabAccepted);
-    if (Assigned(XMLNode(XML, 'tabs'))) then TryStrToBool(XMLNode(XML, 'tabs').Attributes['tospace'], TabToSpaces);
-    if (Assigned(XMLNode(XML, 'tabs/size'))) then TryStrToInt(XMLNode(XML, 'tabs/size').Text, TabWidth);
-    if (Assigned(XMLNode(XML, 'wordwrap'))) then TryStrToBool(XMLNode(XML, 'wordwrap').Text, WordWrap);
-  end;
+  if (Assigned(XMLNode(XML, 'autoindent'))) then TryStrToBool(XMLNode(XML, 'autoindent').Attributes['enabled'], AutoIndent);
+  if (Assigned(XMLNode(XML, 'currentrow/background'))) then TryStrToBool(XMLNode(XML, 'currentrow/background').Attributes['visible'], CurrRowBGColorEnabled);
+  if (Assigned(XMLNode(XML, 'currentrow/background/color'))) then CurrRowBGColor := StringToColor(XMLNode(XML, 'currentrow/background/color').Text);
+  if (Assigned(XMLNode(XML, 'linenumbers'))) then TryStrToBool(XMLNode(XML, 'linenumbers').Attributes['visible'], LineNumbers);
+  if (Assigned(XMLNode(XML, 'rightedge/position'))) then TryStrToInt(XMLNode(XML, 'rightedge/position').Text, RightEdge);
+  if (Assigned(XMLNode(XML, 'tabs'))) then TryStrToBool(XMLNode(XML, 'tabs').Attributes['accepted'], TabAccepted);
+  if (Assigned(XMLNode(XML, 'tabs'))) then TryStrToBool(XMLNode(XML, 'tabs').Attributes['tospace'], TabToSpaces);
+  if (Assigned(XMLNode(XML, 'tabs/size'))) then TryStrToInt(XMLNode(XML, 'tabs/size').Text, TabWidth);
+  if (Assigned(XMLNode(XML, 'wordwrap'))) then TryStrToBool(XMLNode(XML, 'wordwrap').Text, WordWrap);
 end;
 
 procedure TPPreferences.TEditor.SaveToXML(const XML: IXMLNode);
@@ -1615,36 +1608,33 @@ procedure TPPreferences.TExport.LoadFromXML(const XML: IXMLNode);
 begin
   inherited;
 
-  if (Assigned(XML)) then
-  begin
-    if (Assigned(XMLNode(XML, 'csv/headline'))) then TryStrToBool(XMLNode(XML, 'csv/headline').Attributes['enabled'], CSV.Headline);
-    if (Assigned(XMLNode(XML, 'csv/quote/string')) and (XMLNode(XML, 'csv/quote/string').Text <> '')) then CSV.Quoter := XMLNode(XML, 'csv/quote/string').Text[1];
-    if (Assigned(XMLNode(XML, 'csv/quote/type'))) then TryStrToQuote(XMLNode(XML, 'csv/quote/type').Text, CSV.QuoteValues);
-    if (Assigned(XMLNode(XML, 'csv/separator/character/string'))) then CSV.Delimiter := XMLNode(XML, 'csv/separator/character/string').Text;
-    if (Assigned(XMLNode(XML, 'csv/separator/character/type'))) then TryStrToSeparatorType(XMLNode(XML, 'csv/separator/character/type').Text, CSV.DelimiterType);
-    if (Assigned(XMLNode(XML, 'excel/format')) and (XMLNode(XML, 'excel/format').Text = '2007')) then Excel.Excel2007 := True else Excel.Excel2007 := False;
-    if (Assigned(XMLNode(XML, 'html/data'))) then TryStrToBool(XMLNode(XML, 'html/data').Attributes['enabled'], HTML.Data);
-    if (Assigned(XMLNode(XML, 'html/memo')) and (XMLNode(XML, 'html/memo').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/memo').Attributes['visible'], HTML.MemoContent);
-    if (Assigned(XMLNode(XML, 'html/null')) and (XMLNode(XML, 'html/null').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/null').Attributes['visible'], HTML.NULLText);
-    if (Assigned(XMLNode(XML, 'html/row/background')) and (XMLNode(XML, 'html/row/background').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/row/background').Attributes['visible'], HTML.RowBGColor);
-    if (Assigned(XMLNode(XML, 'html/structure'))) then TryStrToBool(XMLNode(XML, 'html/structure').Attributes['enabled'], HTML.Structure);
-    if (Assigned(XMLNode(XML, 'odbc/datasource'))) then ODBC.DataSource := XMLNode(XML, 'odbc/datasource').Text;
-    if (Assigned(XMLNode(XML, 'sql/data'))) then TryStrToBool(XMLNode(XML, 'sql/data').Attributes['enabled'], SQL.Data);
-    if (Assigned(XMLNode(XML, 'sql/data'))) then TryStrToBool(XMLNode(XML, 'sql/data').Attributes['replace'], SQL.ReplaceData);
-    if (Assigned(XMLNode(XML, 'sql/structure'))) then TryStrToBool(XMLNode(XML, 'sql/structure').Attributes['enabled'], SQL.Structure);
-    if (Assigned(XMLNode(XML, 'sql/structure'))) then TryStrToBool(XMLNode(XML, 'sql/structure').Attributes['drop'], SQL.DropStmts);
-    if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/database').Attributes['type'], Self.XML.Database.NodeType);
-    if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Text <> '')) then Self.XML.Database.NodeText := XMLNode(XML, 'xml/database').Text;
-    if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Attributes['attribute'] <> Null)) then Self.XML.Database.NodeAttribute := XMLNode(XML, 'xml/database').Attributes['attribute'];
-    if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/field').Attributes['type'], Self.XML.Field.NodeType);
-    if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Text <> '')) then Self.XML.Field.NodeText := XMLNode(XML, 'xml/field').Text;
-    if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Attributes['attribute'] <> Null)) then Self.XML.Field.NodeAttribute := XMLNode(XML, 'xml/field').Attributes['attribute'];
-    if (Assigned(XMLNode(XML, 'xml/record')) and (XMLNode(XML, 'xml/record').Text <> '')) then Self.XML.Root.NodeText := XMLNode(XML, 'xml/record').Text;
-    if (Assigned(XMLNode(XML, 'xml/root')) and (XMLNode(XML, 'xml/root').Text <> '')) then Self.XML.Root.NodeText := XMLNode(XML, 'xml/root').Text;
-    if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/table').Attributes['type'], Self.XML.Table.NodeType);
-    if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Text <> '')) then Self.XML.Table.NodeText := XMLNode(XML, 'xml/table').Text;
-    if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Attributes['attribute'] <> Null)) then Self.XML.Table.NodeAttribute := XMLNode(XML, 'xml/table').Attributes['attribute'];
-  end;
+  if (Assigned(XMLNode(XML, 'csv/headline'))) then TryStrToBool(XMLNode(XML, 'csv/headline').Attributes['enabled'], CSV.Headline);
+  if (Assigned(XMLNode(XML, 'csv/quote/string')) and (XMLNode(XML, 'csv/quote/string').Text <> '')) then CSV.Quoter := XMLNode(XML, 'csv/quote/string').Text[1];
+  if (Assigned(XMLNode(XML, 'csv/quote/type'))) then TryStrToQuote(XMLNode(XML, 'csv/quote/type').Text, CSV.QuoteValues);
+  if (Assigned(XMLNode(XML, 'csv/separator/character/string'))) then CSV.Delimiter := XMLNode(XML, 'csv/separator/character/string').Text;
+  if (Assigned(XMLNode(XML, 'csv/separator/character/type'))) then TryStrToSeparatorType(XMLNode(XML, 'csv/separator/character/type').Text, CSV.DelimiterType);
+  if (Assigned(XMLNode(XML, 'excel/format')) and (XMLNode(XML, 'excel/format').Text = '2007')) then Excel.Excel2007 := True else Excel.Excel2007 := False;
+  if (Assigned(XMLNode(XML, 'html/data'))) then TryStrToBool(XMLNode(XML, 'html/data').Attributes['enabled'], HTML.Data);
+  if (Assigned(XMLNode(XML, 'html/memo')) and (XMLNode(XML, 'html/memo').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/memo').Attributes['visible'], HTML.MemoContent);
+  if (Assigned(XMLNode(XML, 'html/null')) and (XMLNode(XML, 'html/null').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/null').Attributes['visible'], HTML.NULLText);
+  if (Assigned(XMLNode(XML, 'html/row/background')) and (XMLNode(XML, 'html/row/background').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/row/background').Attributes['visible'], HTML.RowBGColor);
+  if (Assigned(XMLNode(XML, 'html/structure'))) then TryStrToBool(XMLNode(XML, 'html/structure').Attributes['enabled'], HTML.Structure);
+  if (Assigned(XMLNode(XML, 'odbc/datasource'))) then ODBC.DataSource := XMLNode(XML, 'odbc/datasource').Text;
+  if (Assigned(XMLNode(XML, 'sql/data'))) then TryStrToBool(XMLNode(XML, 'sql/data').Attributes['enabled'], SQL.Data);
+  if (Assigned(XMLNode(XML, 'sql/data'))) then TryStrToBool(XMLNode(XML, 'sql/data').Attributes['replace'], SQL.ReplaceData);
+  if (Assigned(XMLNode(XML, 'sql/structure'))) then TryStrToBool(XMLNode(XML, 'sql/structure').Attributes['enabled'], SQL.Structure);
+  if (Assigned(XMLNode(XML, 'sql/structure'))) then TryStrToBool(XMLNode(XML, 'sql/structure').Attributes['drop'], SQL.DropStmts);
+  if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/database').Attributes['type'], Self.XML.Database.NodeType);
+  if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Text <> '')) then Self.XML.Database.NodeText := XMLNode(XML, 'xml/database').Text;
+  if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Attributes['attribute'] <> Null)) then Self.XML.Database.NodeAttribute := XMLNode(XML, 'xml/database').Attributes['attribute'];
+  if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/field').Attributes['type'], Self.XML.Field.NodeType);
+  if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Text <> '')) then Self.XML.Field.NodeText := XMLNode(XML, 'xml/field').Text;
+  if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Attributes['attribute'] <> Null)) then Self.XML.Field.NodeAttribute := XMLNode(XML, 'xml/field').Attributes['attribute'];
+  if (Assigned(XMLNode(XML, 'xml/record')) and (XMLNode(XML, 'xml/record').Text <> '')) then Self.XML.Root.NodeText := XMLNode(XML, 'xml/record').Text;
+  if (Assigned(XMLNode(XML, 'xml/root')) and (XMLNode(XML, 'xml/root').Text <> '')) then Self.XML.Root.NodeText := XMLNode(XML, 'xml/root').Text;
+  if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/table').Attributes['type'], Self.XML.Table.NodeType);
+  if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Text <> '')) then Self.XML.Table.NodeText := XMLNode(XML, 'xml/table').Text;
+  if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Attributes['attribute'] <> Null)) then Self.XML.Table.NodeAttribute := XMLNode(XML, 'xml/table').Attributes['attribute'];
 end;
 
 procedure TPPreferences.TExport.SaveToXML(const XML: IXMLNode);
@@ -1706,14 +1696,11 @@ begin
   inherited;
 
   FindTextMRU.Clear();
-  if (Assigned(XML)) then
-  begin
-    if (Assigned(XMLNode(XML, 'findtext/mru'))) then
-      for I := XMLNode(XML, 'findtext/mru').ChildNodes.Count - 1 downto 0 do
-        if (XMLNode(XML, 'findtext/mru').ChildNodes[I].NodeName = 'text') then
-          FindTextMRU.Add(XMLNode(XML, 'findtext/mru').ChildNodes[I].Text);
-    if (Assigned(XMLNode(XML, 'options'))) then Options := StrToFindOptions(XMLNode(XML, 'options').Text);
-  end;
+  if (Assigned(XMLNode(XML, 'findtext/mru'))) then
+    for I := XMLNode(XML, 'findtext/mru').ChildNodes.Count - 1 downto 0 do
+      if (XMLNode(XML, 'findtext/mru').ChildNodes[I].NodeName = 'text') then
+        FindTextMRU.Add(XMLNode(XML, 'findtext/mru').ChildNodes[I].Text);
+  if (Assigned(XMLNode(XML, 'options'))) then Options := StrToFindOptions(XMLNode(XML, 'options').Text);
 end;
 
 procedure TPPreferences.TFind.SaveToXML(const XML: IXMLNode);
@@ -1773,22 +1760,19 @@ procedure TPPreferences.TImport.LoadFromXML(const XML: IXMLNode);
 begin
   inherited;
 
-  if (Assigned(XML)) then
-  begin
-    if (Assigned(XMLNode(XML, 'csv/headline'))) then TryStrToBool(XMLNode(XML, 'csv/headline').Attributes['enabled'], CSV.Headline);
-    if (Assigned(XMLNode(XML, 'csv/quote/string'))) then CSV.QuoteChar := XMLNode(XML, 'csv/quote/string').Text;
-    if (Assigned(XMLNode(XML, 'csv/quote/type'))) then TryStrToQuote(XMLNode(XML, 'csv/quote/type').Text, CSV.Quote);
-    if (Assigned(XMLNode(XML, 'csv/separator/character/string'))) then CSV.Delimiter := XMLNode(XML, 'csv/separator/character/string').Text;
-    if (Assigned(XMLNode(XML, 'csv/separator/character/type'))) then TryStrToSeparatorType(XMLNode(XML, 'csv/separator/character/type').Text, CSV.DelimiterType);
-    if (Assigned(XMLNode(XML, 'data')) and (XMLNode(XML, 'data').Attributes['enabled'] <> Null)) then TryStrToBool(XMLNode(XML, 'data').Attributes['enabled'], Data);
-    if (Assigned(XMLNode(XML, 'data/importtype'))) then TryStrToStmtType(XMLNode(XML, 'data/importtype').Text, StmtType);
-    if (Assigned(XMLNode(XML, 'rowtype'))) then TryStrToRowType(XMLNode(XML, 'rowtype').Text, RowType);
-    if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['charset'] <> Null)) then Charset := XMLNode(XML, 'structure').Attributes['charset'];
-    if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['collation'] <> Null)) then Collation := XMLNode(XML, 'structure').Attributes['collation'];
-    if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['enabled'] <> Null)) then TryStrToBool(XMLNode(XML, 'structure').Attributes['enabled'], Structure);
-    if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['engine'] <> Null)) then Engine := XMLNode(XML, 'structure').Attributes['engine'];
-    if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['rowtype'] <> Null)) then TryStrToRowType(XMLNode(XML, 'structure').Attributes['rowtype'], RowType);
-  end;
+  if (Assigned(XMLNode(XML, 'csv/headline'))) then TryStrToBool(XMLNode(XML, 'csv/headline').Attributes['enabled'], CSV.Headline);
+  if (Assigned(XMLNode(XML, 'csv/quote/string'))) then CSV.QuoteChar := XMLNode(XML, 'csv/quote/string').Text;
+  if (Assigned(XMLNode(XML, 'csv/quote/type'))) then TryStrToQuote(XMLNode(XML, 'csv/quote/type').Text, CSV.Quote);
+  if (Assigned(XMLNode(XML, 'csv/separator/character/string'))) then CSV.Delimiter := XMLNode(XML, 'csv/separator/character/string').Text;
+  if (Assigned(XMLNode(XML, 'csv/separator/character/type'))) then TryStrToSeparatorType(XMLNode(XML, 'csv/separator/character/type').Text, CSV.DelimiterType);
+  if (Assigned(XMLNode(XML, 'data')) and (XMLNode(XML, 'data').Attributes['enabled'] <> Null)) then TryStrToBool(XMLNode(XML, 'data').Attributes['enabled'], Data);
+  if (Assigned(XMLNode(XML, 'data/importtype'))) then TryStrToStmtType(XMLNode(XML, 'data/importtype').Text, StmtType);
+  if (Assigned(XMLNode(XML, 'rowtype'))) then TryStrToRowType(XMLNode(XML, 'rowtype').Text, RowType);
+  if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['charset'] <> Null)) then Charset := XMLNode(XML, 'structure').Attributes['charset'];
+  if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['collation'] <> Null)) then Collation := XMLNode(XML, 'structure').Attributes['collation'];
+  if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['enabled'] <> Null)) then TryStrToBool(XMLNode(XML, 'structure').Attributes['enabled'], Structure);
+  if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['engine'] <> Null)) then Engine := XMLNode(XML, 'structure').Attributes['engine'];
+  if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['rowtype'] <> Null)) then TryStrToRowType(XMLNode(XML, 'structure').Attributes['rowtype'], RowType);
 end;
 
 procedure TPPreferences.TImport.SaveToXML(const XML: IXMLNode);
@@ -1831,10 +1815,7 @@ end;
 
 procedure TPPreferences.TPaste.LoadFromXML(const XML: IXMLNode);
 begin
-  if (Assigned(XML)) then
-  begin
-    if (Assigned(XMLNode(XML, 'data'))) then TryStrToBool(XMLNode(XML, 'data').Text, Data);
-  end;
+  if (Assigned(XMLNode(XML, 'data'))) then TryStrToBool(XMLNode(XML, 'data').Text, Data);
 end;
 
 procedure TPPreferences.TPaste.SaveToXML(const XML: IXMLNode);
@@ -1870,21 +1851,18 @@ var
 begin
   inherited;
 
-  if (Assigned(XML)) then
-  begin
-    if (Assigned(XMLNode(XML, 'backup'))) then TryStrToBool(XMLNode(XML, 'backup').Attributes['enabled'], Backup);
-    FindTextMRU.Clear();
-    if (Assigned(XMLNode(XML, 'findtext/mru'))) then
-      for I := XMLNode(XML, 'findtext/mru').ChildNodes.Count - 1 downto 0 do
-        if (XMLNode(XML, 'findtext/mru').ChildNodes[I].NodeName = 'text') then
-          FindTextMRU.Add(XMLNode(XML, 'findtext/mru').ChildNodes[I].Text);
-    if (Assigned(XMLNode(XML, 'options'))) then Options := StrToReplaceOptions(XMLNode(XML, 'options').Text);
-    ReplaceTextMRU.Clear();
-    if (Assigned(XMLNode(XML, 'replacetext/mru'))) then
-      for I := XMLNode(XML, 'replacetext/mru').ChildNodes.Count - 1 downto 0 do
-        if (XMLNode(XML, 'replacetext/mru').ChildNodes[I].NodeName = 'text') then
-          ReplaceTextMRU.Add(XMLNode(XML, 'replacetext/mru').ChildNodes[I].Text);
-  end;
+  if (Assigned(XMLNode(XML, 'backup'))) then TryStrToBool(XMLNode(XML, 'backup').Attributes['enabled'], Backup);
+  FindTextMRU.Clear();
+  if (Assigned(XMLNode(XML, 'findtext/mru'))) then
+    for I := XMLNode(XML, 'findtext/mru').ChildNodes.Count - 1 downto 0 do
+      if (XMLNode(XML, 'findtext/mru').ChildNodes[I].NodeName = 'text') then
+        FindTextMRU.Add(XMLNode(XML, 'findtext/mru').ChildNodes[I].Text);
+  if (Assigned(XMLNode(XML, 'options'))) then Options := StrToReplaceOptions(XMLNode(XML, 'options').Text);
+  ReplaceTextMRU.Clear();
+  if (Assigned(XMLNode(XML, 'replacetext/mru'))) then
+    for I := XMLNode(XML, 'replacetext/mru').ChildNodes.Count - 1 downto 0 do
+      if (XMLNode(XML, 'replacetext/mru').ChildNodes[I].NodeName = 'text') then
+        ReplaceTextMRU.Add(XMLNode(XML, 'replacetext/mru').ChildNodes[I].Text);
 end;
 
 procedure TPPreferences.TReplace.SaveToXML(const XML: IXMLNode);
@@ -1921,13 +1899,10 @@ var
 begin
   inherited;
 
-  if (Assigned(XML)) then
-  begin
-    if (not TryStrToInt(XML.OwnerDocument.DocumentElement.Attributes['pixelsperinch'], PixelsPerInch)) then PixelsPerInch := Screen.PixelsPerInch;
+  if (not TryStrToInt(XML.OwnerDocument.DocumentElement.Attributes['pixelsperinch'], PixelsPerInch)) then PixelsPerInch := Screen.PixelsPerInch;
 
-    if (Assigned(XMLNode(XML, 'left')) and TryStrToInt(XMLNode(XML, 'left').Text, Left)) then Left := Round(Left * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'top')) and TryStrToInt(XMLNode(XML, 'top').Text, Top)) then Top := Round(Top * Screen.PixelsPerInch / PixelsPerInch);
-  end;
+  if (Assigned(XMLNode(XML, 'left')) and TryStrToInt(XMLNode(XML, 'left').Text, Left)) then Left := Round(Left * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'top')) and TryStrToInt(XMLNode(XML, 'top').Text, Top)) then Top := Round(Top * Screen.PixelsPerInch / PixelsPerInch);
 end;
 
 procedure TPPreferences.TSQLHelp.SaveToXML(const XML: IXMLNode);
@@ -1951,10 +1926,7 @@ procedure TPPreferences.TAccounts.LoadFromXML(const XML: IXMLNode);
 begin
   inherited;
 
-  if (Assigned(XML)) then
-  begin
-    if (Assigned(XMLNode(XML, 'selectorder'))) then TryStrToInt(XMLNode(XML, 'selectorder').Text, SelectOrder);
-  end;
+  if (Assigned(XMLNode(XML, 'selectorder'))) then TryStrToInt(XMLNode(XML, 'selectorder').Text, SelectOrder);
 end;
 
 procedure TPPreferences.TAccounts.SaveToXML(const XML: IXMLNode);
@@ -1981,14 +1953,11 @@ procedure TPPreferences.TTableService.LoadFromXML(const XML: IXMLNode);
 begin
   inherited;
 
-  if (Assigned(XML)) then
-  begin
-    if (Assigned(XMLNode(XML, 'analyze'))) then TryStrToBool(XMLNode(XML, 'analyze').Attributes['enabled'], Analyze);
-    if (Assigned(XMLNode(XML, 'check'))) then TryStrToBool(XMLNode(XML, 'check').Attributes['enabled'], Check);
-    if (Assigned(XMLNode(XML, 'flush'))) then TryStrToBool(XMLNode(XML, 'flush').Attributes['enabled'], Flush);
-    if (Assigned(XMLNode(XML, 'optimize'))) then TryStrToBool(XMLNode(XML, 'optimize').Attributes['enabled'], Optimize);
-    if (Assigned(XMLNode(XML, 'repair'))) then TryStrToBool(XMLNode(XML, 'repair').Attributes['enabled'], Repair);
-  end;
+  if (Assigned(XMLNode(XML, 'analyze'))) then TryStrToBool(XMLNode(XML, 'analyze').Attributes['enabled'], Analyze);
+  if (Assigned(XMLNode(XML, 'check'))) then TryStrToBool(XMLNode(XML, 'check').Attributes['enabled'], Check);
+  if (Assigned(XMLNode(XML, 'flush'))) then TryStrToBool(XMLNode(XML, 'flush').Attributes['enabled'], Flush);
+  if (Assigned(XMLNode(XML, 'optimize'))) then TryStrToBool(XMLNode(XML, 'optimize').Attributes['enabled'], Optimize);
+  if (Assigned(XMLNode(XML, 'repair'))) then TryStrToBool(XMLNode(XML, 'repair').Attributes['enabled'], Repair);
 end;
 
 procedure TPPreferences.TTableService.SaveToXML(const XML: IXMLNode);
@@ -2016,11 +1985,8 @@ procedure TPPreferences.TTransfer.LoadFromXML(const XML: IXMLNode);
 begin
   inherited;
 
-  if (Assigned(XML)) then
-  begin
-    if (Assigned(XMLNode(XML, 'data'))) then TryStrToBool(XMLNode(XML, 'data').Attributes['enabled'], Data);
-    if (Assigned(XMLNode(XML, 'structure'))) then TryStrToBool(XMLNode(XML, 'structure').Attributes['enabled'], Structure);
-  end;
+  if (Assigned(XMLNode(XML, 'data'))) then TryStrToBool(XMLNode(XML, 'data').Attributes['enabled'], Data);
+  if (Assigned(XMLNode(XML, 'structure'))) then TryStrToBool(XMLNode(XML, 'structure').Attributes['enabled'], Structure);
 end;
 
 procedure TPPreferences.TTransfer.SaveToXML(const XML: IXMLNode);
@@ -2263,7 +2229,7 @@ begin
   View := TPView.Create();
 
   LoadFromRegistry();
-  LoadFromXML(XMLDocument.DocumentElement);
+  if Assigned(XMLDocument.DocumentElement) then LoadFromXML(XMLDocument.DocumentElement);
 end;
 
 destructor TPPreferences.Destroy();
@@ -2493,124 +2459,121 @@ var
 begin
   inherited;
 
-  if (Assigned(XML)) then
-  begin
-    XML.OwnerDocument.Options := XML.OwnerDocument.Options - [doNodeAutoCreate];
+  XML.OwnerDocument.Options := XML.OwnerDocument.Options - [doNodeAutoCreate];
 
-    if (not TryStrToInt(XML.OwnerDocument.DocumentElement.Attributes['pixelsperinch'], PixelsPerInch)) then PixelsPerInch := Screen.PixelsPerInch;
+  if (not TryStrToInt(XML.OwnerDocument.DocumentElement.Attributes['pixelsperinch'], PixelsPerInch)) then PixelsPerInch := Screen.PixelsPerInch;
 
-    if (Assigned(XMLNode(XML, 'grid/currentrow/background'))) then TryStrToBool(XMLNode(XML, 'grid/currentrow/background').Attributes['visible'], GridCurrRowBGColorEnabled);
-    if (Assigned(XMLNode(XML, 'grid/currentrow/background/color'))) then GridCurrRowBGColor := StringToColor(XMLNode(XML, 'grid/currentrow/background/color').Text);
-    if (Assigned(XMLNode(XML, 'grid/font/charset'))) then TryStrToInt(XMLNode(XML, 'grid/font/charset').Text, GridFontCharset);
-    if (Assigned(XMLNode(XML, 'grid/font/color'))) then GridFontColor := StringToColor(XMLNode(XML, 'grid/font/color').Text);
-    if (Assigned(XMLNode(XML, 'grid/font/name'))) then GridFontName := XMLNode(XML, 'grid/font/name').Text;
-    if (Assigned(XMLNode(XML, 'grid/font/size'))) then TryStrToInt(XMLNode(XML, 'grid/font/size').Text, GridFontSize);
-    if (Assigned(XMLNode(XML, 'grid/font/style'))) then GridFontStyle := StrToStyle(XMLNode(XML, 'grid/font/style').Text);
-    if (Assigned(XMLNode(XML, 'grid/memo'))) then TryStrToBool(XMLNode(XML, 'grid/memo').Attributes['visible'], GridMemoContent);
-    if (Assigned(XMLNode(XML, 'grid/null'))) then TryStrToBool(XMLNode(XML, 'grid/null').Attributes['visible'], GridNullText);
-    if (Assigned(XMLNode(XML, 'grid/null/background'))) then TryStrToBool(XMLNode(XML, 'grid/null/background').Attributes['visible'], GridNullBGColorEnabled);
-    if (Assigned(XMLNode(XML, 'grid/null/background/color'))) then GridNullBGColor := StringToColor(XMLNode(XML, 'grid/null/background/color').Text);
-    if (Assigned(XMLNode(XML, 'grid/maxcolumnwidth')) and TryStrToInt(XMLNode(XML, 'grid/maxcolumnwidth').Text, GridMaxColumnWidth)) then GridMaxColumnWidth := Round(GridMaxColumnWidth * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'grid/row/background'))) then TryStrToBool(XMLNode(XML, 'grid/row/background').Attributes['visible'], GridRowBGColor);
-    if (Assigned(XMLNode(XML, 'height')) and TryStrToInt(XMLNode(XML, 'height').Text, Height)) then Height := Round(Height * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'language/file'))) then LanguageFilename := ExtractFileName(XMLNode(XML, 'language/file').Text);
-    if (Assigned(XMLNode(XML, 'left'))) then TryStrToInt(XMLNode(XML, 'left').Text, Left);
-    if (Assigned(XMLNode(XML, 'log/font/charset'))) then TryStrToInt(XMLNode(XML, 'log/font/charset').Text, LogFontCharset);
-    if (Assigned(XMLNode(XML, 'log/font/color'))) then LogFontColor := StringToColor(XMLNode(XML, 'log/font/color').Text);
-    if (Assigned(XMLNode(XML, 'log/font/name'))) then LogFontName := XMLNode(XML, 'log/font/name').Text;
-    if (Assigned(XMLNode(XML, 'log/font/size'))) then TryStrToInt(XMLNode(XML, 'log/font/size').Text, LogFontSize);
-    if (Assigned(XMLNode(XML, 'log/font/style'))) then LogFontStyle := StrToStyle(XMLNode(XML, 'log/font/style').Text);
-    if (Assigned(XMLNode(XML, 'log/highlighting'))) then TryStrToBool(XMLNode(XML, 'log/highlighting').Attributes['visible'], LogHighlighting);
-    if (Assigned(XMLNode(XML, 'log/size')) and TryStrToInt(XMLNode(XML, 'log/size').Text, LogSize)) then LogSize := Round(LogSize * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'log/dbresult'))) then TryStrToBool(XMLNode(XML, 'log/dbresult').Attributes['visible'], LogResult);
-    if (Assigned(XMLNode(XML, 'log/time'))) then TryStrToBool(XMLNode(XML, 'log/time').Attributes['visible'], LogTime);
-    if (Assigned(XMLNode(XML, 'toolbar/objects')) and TryStrToBool(XMLNode(XML, 'toolbar/objects').Attributes['visible'], Visible)) then
-      if (Visible) then ToolbarTabs := ToolbarTabs + [ttObjects] else ToolbarTabs := ToolbarTabs - [ttObjects];
-    if (Assigned(XMLNode(XML, 'toolbar/browser')) and TryStrToBool(XMLNode(XML, 'toolbar/browser').Attributes['visible'], Visible)) then
-      if (Visible) then ToolbarTabs := ToolbarTabs + [ttBrowser] else ToolbarTabs := ToolbarTabs - [ttBrowser];
-    if (Assigned(XMLNode(XML, 'toolbar/ide')) and TryStrToBool(XMLNode(XML, 'toolbar/ide').Attributes['visible'], Visible)) then
-      if (Visible) then ToolbarTabs := ToolbarTabs + [ttIDE] else ToolbarTabs := ToolbarTabs - [ttIDE];
-    if (Assigned(XMLNode(XML, 'toolbar/builder')) and TryStrToBool(XMLNode(XML, 'toolbar/builder').Attributes['visible'], Visible)) then
-      if (Visible) then ToolbarTabs := ToolbarTabs + [ttBuilder] else ToolbarTabs := ToolbarTabs - [ttBuilder];
-    if (Assigned(XMLNode(XML, 'toolbar/diagram')) and TryStrToBool(XMLNode(XML, 'toolbar/diagram').Attributes['visible'], Visible)) then
-      if (Visible) then ToolbarTabs := ToolbarTabs + [ttDiagram] else ToolbarTabs := ToolbarTabs - [ttDiagram];
-    if (Assigned(XMLNode(XML, 'toolbar/editor')) and TryStrToBool(XMLNode(XML, 'toolbar/editor').Attributes['visible'], Visible)) then
-      if (Visible) then ToolbarTabs := ToolbarTabs + [ttEditor] else ToolbarTabs := ToolbarTabs - [ttEditor];
-    if (Assigned(XMLNode(XML, 'toolbar/editor2')) and TryStrToBool(XMLNode(XML, 'toolbar/editor2').Attributes['visible'], Visible)) then
-      if (Visible) then ToolbarTabs := ToolbarTabs + [ttEditor2] else ToolbarTabs := ToolbarTabs - [ttEditor2];
-    if (Assigned(XMLNode(XML, 'toolbar/editor3')) and TryStrToBool(XMLNode(XML, 'toolbar/editor3').Attributes['visible'], Visible)) then
-      if (Visible) then ToolbarTabs := ToolbarTabs + [ttEditor3] else ToolbarTabs := ToolbarTabs - [ttEditor3];
-    if (Assigned(XMLNode(XML, 'sql/font/charset'))) then TryStrToInt(XMLNode(XML, 'sql/font/charset').Text, SQLFontCharset);
-    if (Assigned(XMLNode(XML, 'sql/font/color'))) then SQLFontColor := StringToColor(XMLNode(XML, 'sql/font/color').Text);
-    if (Assigned(XMLNode(XML, 'sql/font/name'))) then SQLFontName := XMLNode(XML, 'sql/font/name').Text;
-    if (Assigned(XMLNode(XML, 'sql/font/size'))) then TryStrToInt(XMLNode(XML, 'sql/font/size').Text, SQLFontSize);
-    if (Assigned(XMLNode(XML, 'sql/font/style'))) then SQLFontStyle := StrToStyle(XMLNode(XML, 'sql/font/style').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/comment/color'))) then Editor.CommentForeground := StringToColor(XMLNode(XML, 'sql/highlighting/comment/color').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/comment/background/color'))) then Editor.CommentBackground := StringToColor(XMLNode(XML, 'sql/highlighting/comment/background/color').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/comment/style'))) then Editor.CommentStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/comment/style').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/conditional/color'))) then Editor.ConditionalCommentForeground := StringToColor(XMLNode(XML, 'sql/highlighting/conditional/color').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/conditional/background/color'))) then Editor.ConditionalCommentBackground := StringToColor(XMLNode(XML, 'sql/highlighting/conditional/background/color').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/conditional/style'))) then Editor.ConditionalCommentStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/conditional/style').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/datatype/color'))) then Editor.DataTypeForeground := StringToColor(XMLNode(XML, 'sql/highlighting/datatype/color').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/datatype/background/color'))) then Editor.DataTypeBackground := StringToColor(XMLNode(XML, 'sql/highlighting/datatype/background/color').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/datatype/style'))) then Editor.DataTypeStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/datatype/style').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/function/color'))) then Editor.FunctionForeground := StringToColor(XMLNode(XML, 'sql/highlighting/function/color').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/function/background/color'))) then Editor.FunctionBackground := StringToColor(XMLNode(XML, 'sql/highlighting/function/background/color').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/function/style'))) then Editor.FunctionStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/function/style').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/identifier/color'))) then Editor.IdentifierForeground := StringToColor(XMLNode(XML, 'sql/highlighting/identifier/color').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/identifier/background/color'))) then Editor.IdentifierBackground := StringToColor(XMLNode(XML, 'sql/highlighting/identifier/background/color').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/identifier/style'))) then Editor.IdentifierStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/identifier/style').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/keyword/color'))) then Editor.KeywordForeground := StringToColor(XMLNode(XML, 'sql/highlighting/keyword/color').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/keyword/background/color'))) then Editor.KeywordBackground := StringToColor(XMLNode(XML, 'sql/highlighting/keyword/background/color').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/keyword/style'))) then Editor.KeywordStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/keyword/style').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/linenumbers/color'))) then Editor.LineNumbersForeground := StringToColor(XMLNode(XML, 'sql/highlighting/linenumbers/color').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/linenumbers/background/color'))) then Editor.LineNumbersBackground := StringToColor(XMLNode(XML, 'sql/highlighting/linenumbers/background/color').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/linenumbers/style'))) then Editor.LineNumbersStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/linenumbers/style').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/number/color'))) then Editor.NumberForeground := StringToColor(XMLNode(XML, 'sql/highlighting/number/color').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/number/background/color'))) then Editor.NumberBackground := StringToColor(XMLNode(XML, 'sql/highlighting/number/background/color').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/number/style'))) then Editor.NumberStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/number/style').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/string/color'))) then Editor.StringForeground := StringToColor(XMLNode(XML, 'sql/highlighting/string/color').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/string/background/color'))) then Editor.StringBackground := StringToColor(XMLNode(XML, 'sql/highlighting/string/background/color').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/string/style'))) then Editor.StringStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/string/style').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/symbol/color'))) then Editor.SymbolForeground := StringToColor(XMLNode(XML, 'sql/highlighting/symbol/color').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/symbol/background/color'))) then Editor.SymbolBackground := StringToColor(XMLNode(XML, 'sql/highlighting/symbol/background/color').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/symbol/style'))) then Editor.SymbolStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/symbol/style').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/variable/color'))) then Editor.VariableForeground := StringToColor(XMLNode(XML, 'sql/highlighting/variable/color').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/variable/background/color'))) then Editor.VariableBackground := StringToColor(XMLNode(XML, 'sql/highlighting/variable/background/color').Text);
-    if (Assigned(XMLNode(XML, 'sql/highlighting/variable/style'))) then Editor.VariableStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/variable/style').Text);
-    if (Assigned(XMLNode(XML, 'tabs'))) then TryStrToBool(XMLNode(XML, 'tabs').Attributes['visible'], TabsVisible);
-    if (Assigned(XMLNode(XML, 'top')) and TryStrToInt(XMLNode(XML, 'top').Text, Top)) then Top := Round(Top * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'updates/check'))) then TryStrToUpdateCheck(XMLNode(XML, 'updates/check').Text, UpdateCheck);
-    if (Assigned(XMLNode(XML, 'updates/lastcheck'))) then TryStrToDate(XMLNode(XML, 'updates/lastcheck').Text, UpdateChecked, FileFormatSettings);
-    if (Assigned(XMLNode(XML, 'width')) and TryStrToInt(XMLNode(XML, 'width').Text, Width)) then Width := Round(Width * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'windowstate'))) then TryStrToWindowState(XMLNode(XML, 'windowstate').Text, WindowState);
+  if (Assigned(XMLNode(XML, 'grid/currentrow/background'))) then TryStrToBool(XMLNode(XML, 'grid/currentrow/background').Attributes['visible'], GridCurrRowBGColorEnabled);
+  if (Assigned(XMLNode(XML, 'grid/currentrow/background/color'))) then GridCurrRowBGColor := StringToColor(XMLNode(XML, 'grid/currentrow/background/color').Text);
+  if (Assigned(XMLNode(XML, 'grid/font/charset'))) then TryStrToInt(XMLNode(XML, 'grid/font/charset').Text, GridFontCharset);
+  if (Assigned(XMLNode(XML, 'grid/font/color'))) then GridFontColor := StringToColor(XMLNode(XML, 'grid/font/color').Text);
+  if (Assigned(XMLNode(XML, 'grid/font/name'))) then GridFontName := XMLNode(XML, 'grid/font/name').Text;
+  if (Assigned(XMLNode(XML, 'grid/font/size'))) then TryStrToInt(XMLNode(XML, 'grid/font/size').Text, GridFontSize);
+  if (Assigned(XMLNode(XML, 'grid/font/style'))) then GridFontStyle := StrToStyle(XMLNode(XML, 'grid/font/style').Text);
+  if (Assigned(XMLNode(XML, 'grid/memo'))) then TryStrToBool(XMLNode(XML, 'grid/memo').Attributes['visible'], GridMemoContent);
+  if (Assigned(XMLNode(XML, 'grid/null'))) then TryStrToBool(XMLNode(XML, 'grid/null').Attributes['visible'], GridNullText);
+  if (Assigned(XMLNode(XML, 'grid/null/background'))) then TryStrToBool(XMLNode(XML, 'grid/null/background').Attributes['visible'], GridNullBGColorEnabled);
+  if (Assigned(XMLNode(XML, 'grid/null/background/color'))) then GridNullBGColor := StringToColor(XMLNode(XML, 'grid/null/background/color').Text);
+  if (Assigned(XMLNode(XML, 'grid/maxcolumnwidth')) and TryStrToInt(XMLNode(XML, 'grid/maxcolumnwidth').Text, GridMaxColumnWidth)) then GridMaxColumnWidth := Round(GridMaxColumnWidth * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'grid/row/background'))) then TryStrToBool(XMLNode(XML, 'grid/row/background').Attributes['visible'], GridRowBGColor);
+  if (Assigned(XMLNode(XML, 'height')) and TryStrToInt(XMLNode(XML, 'height').Text, Height)) then Height := Round(Height * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'language/file'))) then LanguageFilename := ExtractFileName(XMLNode(XML, 'language/file').Text);
+  if (Assigned(XMLNode(XML, 'left'))) then TryStrToInt(XMLNode(XML, 'left').Text, Left);
+  if (Assigned(XMLNode(XML, 'log/font/charset'))) then TryStrToInt(XMLNode(XML, 'log/font/charset').Text, LogFontCharset);
+  if (Assigned(XMLNode(XML, 'log/font/color'))) then LogFontColor := StringToColor(XMLNode(XML, 'log/font/color').Text);
+  if (Assigned(XMLNode(XML, 'log/font/name'))) then LogFontName := XMLNode(XML, 'log/font/name').Text;
+  if (Assigned(XMLNode(XML, 'log/font/size'))) then TryStrToInt(XMLNode(XML, 'log/font/size').Text, LogFontSize);
+  if (Assigned(XMLNode(XML, 'log/font/style'))) then LogFontStyle := StrToStyle(XMLNode(XML, 'log/font/style').Text);
+  if (Assigned(XMLNode(XML, 'log/highlighting'))) then TryStrToBool(XMLNode(XML, 'log/highlighting').Attributes['visible'], LogHighlighting);
+  if (Assigned(XMLNode(XML, 'log/size')) and TryStrToInt(XMLNode(XML, 'log/size').Text, LogSize)) then LogSize := Round(LogSize * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'log/dbresult'))) then TryStrToBool(XMLNode(XML, 'log/dbresult').Attributes['visible'], LogResult);
+  if (Assigned(XMLNode(XML, 'log/time'))) then TryStrToBool(XMLNode(XML, 'log/time').Attributes['visible'], LogTime);
+  if (Assigned(XMLNode(XML, 'toolbar/objects')) and TryStrToBool(XMLNode(XML, 'toolbar/objects').Attributes['visible'], Visible)) then
+    if (Visible) then ToolbarTabs := ToolbarTabs + [ttObjects] else ToolbarTabs := ToolbarTabs - [ttObjects];
+  if (Assigned(XMLNode(XML, 'toolbar/browser')) and TryStrToBool(XMLNode(XML, 'toolbar/browser').Attributes['visible'], Visible)) then
+    if (Visible) then ToolbarTabs := ToolbarTabs + [ttBrowser] else ToolbarTabs := ToolbarTabs - [ttBrowser];
+  if (Assigned(XMLNode(XML, 'toolbar/ide')) and TryStrToBool(XMLNode(XML, 'toolbar/ide').Attributes['visible'], Visible)) then
+    if (Visible) then ToolbarTabs := ToolbarTabs + [ttIDE] else ToolbarTabs := ToolbarTabs - [ttIDE];
+  if (Assigned(XMLNode(XML, 'toolbar/builder')) and TryStrToBool(XMLNode(XML, 'toolbar/builder').Attributes['visible'], Visible)) then
+    if (Visible) then ToolbarTabs := ToolbarTabs + [ttBuilder] else ToolbarTabs := ToolbarTabs - [ttBuilder];
+  if (Assigned(XMLNode(XML, 'toolbar/diagram')) and TryStrToBool(XMLNode(XML, 'toolbar/diagram').Attributes['visible'], Visible)) then
+    if (Visible) then ToolbarTabs := ToolbarTabs + [ttDiagram] else ToolbarTabs := ToolbarTabs - [ttDiagram];
+  if (Assigned(XMLNode(XML, 'toolbar/editor')) and TryStrToBool(XMLNode(XML, 'toolbar/editor').Attributes['visible'], Visible)) then
+    if (Visible) then ToolbarTabs := ToolbarTabs + [ttEditor] else ToolbarTabs := ToolbarTabs - [ttEditor];
+  if (Assigned(XMLNode(XML, 'toolbar/editor2')) and TryStrToBool(XMLNode(XML, 'toolbar/editor2').Attributes['visible'], Visible)) then
+    if (Visible) then ToolbarTabs := ToolbarTabs + [ttEditor2] else ToolbarTabs := ToolbarTabs - [ttEditor2];
+  if (Assigned(XMLNode(XML, 'toolbar/editor3')) and TryStrToBool(XMLNode(XML, 'toolbar/editor3').Attributes['visible'], Visible)) then
+    if (Visible) then ToolbarTabs := ToolbarTabs + [ttEditor3] else ToolbarTabs := ToolbarTabs - [ttEditor3];
+  if (Assigned(XMLNode(XML, 'sql/font/charset'))) then TryStrToInt(XMLNode(XML, 'sql/font/charset').Text, SQLFontCharset);
+  if (Assigned(XMLNode(XML, 'sql/font/color'))) then SQLFontColor := StringToColor(XMLNode(XML, 'sql/font/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/font/name'))) then SQLFontName := XMLNode(XML, 'sql/font/name').Text;
+  if (Assigned(XMLNode(XML, 'sql/font/size'))) then TryStrToInt(XMLNode(XML, 'sql/font/size').Text, SQLFontSize);
+  if (Assigned(XMLNode(XML, 'sql/font/style'))) then SQLFontStyle := StrToStyle(XMLNode(XML, 'sql/font/style').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/comment/color'))) then Editor.CommentForeground := StringToColor(XMLNode(XML, 'sql/highlighting/comment/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/comment/background/color'))) then Editor.CommentBackground := StringToColor(XMLNode(XML, 'sql/highlighting/comment/background/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/comment/style'))) then Editor.CommentStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/comment/style').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/conditional/color'))) then Editor.ConditionalCommentForeground := StringToColor(XMLNode(XML, 'sql/highlighting/conditional/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/conditional/background/color'))) then Editor.ConditionalCommentBackground := StringToColor(XMLNode(XML, 'sql/highlighting/conditional/background/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/conditional/style'))) then Editor.ConditionalCommentStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/conditional/style').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/datatype/color'))) then Editor.DataTypeForeground := StringToColor(XMLNode(XML, 'sql/highlighting/datatype/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/datatype/background/color'))) then Editor.DataTypeBackground := StringToColor(XMLNode(XML, 'sql/highlighting/datatype/background/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/datatype/style'))) then Editor.DataTypeStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/datatype/style').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/function/color'))) then Editor.FunctionForeground := StringToColor(XMLNode(XML, 'sql/highlighting/function/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/function/background/color'))) then Editor.FunctionBackground := StringToColor(XMLNode(XML, 'sql/highlighting/function/background/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/function/style'))) then Editor.FunctionStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/function/style').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/identifier/color'))) then Editor.IdentifierForeground := StringToColor(XMLNode(XML, 'sql/highlighting/identifier/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/identifier/background/color'))) then Editor.IdentifierBackground := StringToColor(XMLNode(XML, 'sql/highlighting/identifier/background/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/identifier/style'))) then Editor.IdentifierStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/identifier/style').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/keyword/color'))) then Editor.KeywordForeground := StringToColor(XMLNode(XML, 'sql/highlighting/keyword/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/keyword/background/color'))) then Editor.KeywordBackground := StringToColor(XMLNode(XML, 'sql/highlighting/keyword/background/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/keyword/style'))) then Editor.KeywordStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/keyword/style').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/linenumbers/color'))) then Editor.LineNumbersForeground := StringToColor(XMLNode(XML, 'sql/highlighting/linenumbers/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/linenumbers/background/color'))) then Editor.LineNumbersBackground := StringToColor(XMLNode(XML, 'sql/highlighting/linenumbers/background/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/linenumbers/style'))) then Editor.LineNumbersStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/linenumbers/style').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/number/color'))) then Editor.NumberForeground := StringToColor(XMLNode(XML, 'sql/highlighting/number/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/number/background/color'))) then Editor.NumberBackground := StringToColor(XMLNode(XML, 'sql/highlighting/number/background/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/number/style'))) then Editor.NumberStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/number/style').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/string/color'))) then Editor.StringForeground := StringToColor(XMLNode(XML, 'sql/highlighting/string/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/string/background/color'))) then Editor.StringBackground := StringToColor(XMLNode(XML, 'sql/highlighting/string/background/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/string/style'))) then Editor.StringStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/string/style').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/symbol/color'))) then Editor.SymbolForeground := StringToColor(XMLNode(XML, 'sql/highlighting/symbol/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/symbol/background/color'))) then Editor.SymbolBackground := StringToColor(XMLNode(XML, 'sql/highlighting/symbol/background/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/symbol/style'))) then Editor.SymbolStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/symbol/style').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/variable/color'))) then Editor.VariableForeground := StringToColor(XMLNode(XML, 'sql/highlighting/variable/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/variable/background/color'))) then Editor.VariableBackground := StringToColor(XMLNode(XML, 'sql/highlighting/variable/background/color').Text);
+  if (Assigned(XMLNode(XML, 'sql/highlighting/variable/style'))) then Editor.VariableStyle := StrToStyle(XMLNode(XML, 'sql/highlighting/variable/style').Text);
+  if (Assigned(XMLNode(XML, 'tabs'))) then TryStrToBool(XMLNode(XML, 'tabs').Attributes['visible'], TabsVisible);
+  if (Assigned(XMLNode(XML, 'top')) and TryStrToInt(XMLNode(XML, 'top').Text, Top)) then Top := Round(Top * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'updates/check'))) then TryStrToUpdateCheck(XMLNode(XML, 'updates/check').Text, UpdateCheck);
+  if (Assigned(XMLNode(XML, 'updates/lastcheck'))) then TryStrToDate(XMLNode(XML, 'updates/lastcheck').Text, UpdateChecked, FileFormatSettings);
+  if (Assigned(XMLNode(XML, 'width')) and TryStrToInt(XMLNode(XML, 'width').Text, Width)) then Width := Round(Width * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'windowstate'))) then TryStrToWindowState(XMLNode(XML, 'windowstate').Text, WindowState);
 
-    Database.LoadFromXML(XMLNode(XML, 'database'));
-    Editor.LoadFromXML(XMLNode(XML, 'editor'));
-    Event.LoadFromXML(XMLNode(XML, 'event'));
-    Export.LoadFromXML(XMLNode(XML, 'export'));
-    Field.LoadFromXML(XMLNode(XML, 'field'));
-    Find.LoadFromXML(XMLNode(XML, 'find'));
-    ForeignKey.LoadFromXML(XMLNode(XML, 'foreignkey'));
-    Host.LoadFromXML(XMLNode(XML, 'host'));
-    Import.LoadFromXML(XMLNode(XML, 'import'));
-    Key.LoadFromXML(XMLNode(XML, 'index'));
-    ODBC.LoadFromXML(XMLNode(XML, 'odbc'));
-    Paste.LoadFromXML(XMLNode(XML, 'paste'));
-    Replace.LoadFromXML(XMLNode(XML, 'replace'));
-    Routine.LoadFromXML(XMLNode(XML, 'routine'));
-    Server.LoadFromXML(XMLNode(XML, 'server'));
-    Account.LoadFromXML(XMLNode(XML, 'account'));
-    Accounts.LoadFromXML(XMLNode(XML, 'accounts'));
-    SQLHelp.LoadFromXML(XMLNode(XML, 'sqlhelp'));
-    Statement.LoadFromXML(XMLNode(XML, 'statement'));
-    Table.LoadFromXML(XMLNode(XML, 'table'));
-    TableService.LoadFromXML(XMLNode(XML, 'tableservice'));
-    Transfer.LoadFromXML(XMLNode(XML, 'transfer'));
-    Trigger.LoadFromXML(XMLNode(XML, 'trigger'));
-    User.LoadFromXML(XMLNode(XML, 'user'));
-    View.LoadFromXML(XMLNode(XML, 'view'));
-  end;
+  if (Assigned(XMLNode(XML, 'database'))) then Database.LoadFromXML(XMLNode(XML, 'database'));
+  if (Assigned(XMLNode(XML, 'editor'))) then Editor.LoadFromXML(XMLNode(XML, 'editor'));
+  if (Assigned(XMLNode(XML, 'event'))) then Event.LoadFromXML(XMLNode(XML, 'event'));
+  if (Assigned(XMLNode(XML, 'export'))) then Export.LoadFromXML(XMLNode(XML, 'export'));
+  if (Assigned(XMLNode(XML, 'field'))) then Field.LoadFromXML(XMLNode(XML, 'field'));
+  if (Assigned(XMLNode(XML, 'find'))) then Find.LoadFromXML(XMLNode(XML, 'find'));
+  if (Assigned(XMLNode(XML, 'foreignkey'))) then ForeignKey.LoadFromXML(XMLNode(XML, 'foreignkey'));
+  if (Assigned(XMLNode(XML, 'host'))) then Host.LoadFromXML(XMLNode(XML, 'host'));
+  if (Assigned(XMLNode(XML, 'import'))) then Import.LoadFromXML(XMLNode(XML, 'import'));
+  if (Assigned(XMLNode(XML, 'index'))) then Key.LoadFromXML(XMLNode(XML, 'index'));
+  if (Assigned(XMLNode(XML, 'odbc'))) then ODBC.LoadFromXML(XMLNode(XML, 'odbc'));
+  if (Assigned(XMLNode(XML, 'paste'))) then Paste.LoadFromXML(XMLNode(XML, 'paste'));
+  if (Assigned(XMLNode(XML, 'replace'))) then Replace.LoadFromXML(XMLNode(XML, 'replace'));
+  if (Assigned(XMLNode(XML, 'routine'))) then Routine.LoadFromXML(XMLNode(XML, 'routine'));
+  if (Assigned(XMLNode(XML, 'server'))) then Server.LoadFromXML(XMLNode(XML, 'server'));
+  if (Assigned(XMLNode(XML, 'account'))) then Account.LoadFromXML(XMLNode(XML, 'account'));
+  if (Assigned(XMLNode(XML, 'accounts'))) then Accounts.LoadFromXML(XMLNode(XML, 'accounts'));
+  if (Assigned(XMLNode(XML, 'sqlhelp'))) then SQLHelp.LoadFromXML(XMLNode(XML, 'sqlhelp'));
+  if (Assigned(XMLNode(XML, 'statement'))) then Statement.LoadFromXML(XMLNode(XML, 'statement'));
+  if (Assigned(XMLNode(XML, 'table'))) then Table.LoadFromXML(XMLNode(XML, 'table'));
+  if (Assigned(XMLNode(XML, 'tableservice'))) then TableService.LoadFromXML(XMLNode(XML, 'tableservice'));
+  if (Assigned(XMLNode(XML, 'transfer'))) then Transfer.LoadFromXML(XMLNode(XML, 'transfer'));
+  if (Assigned(XMLNode(XML, 'trigger'))) then Trigger.LoadFromXML(XMLNode(XML, 'trigger'));
+  if (Assigned(XMLNode(XML, 'user'))) then User.LoadFromXML(XMLNode(XML, 'user'));
+  if (Assigned(XMLNode(XML, 'view'))) then View.LoadFromXML(XMLNode(XML, 'view'));
 
   FreeAndNil(FLanguage);
 end;
@@ -2829,11 +2792,8 @@ procedure TPAccount.TFile.LoadFromXML(const XML: IXMLNode);
 var
   CodePage: Integer;
 begin
-  if (Assigned(XML)) then
-  begin
-    FFilename := XML.Text;
-    if ((XML.Attributes['codepage'] <> Null) and TryStrToInt(XML.Attributes['codepage'], CodePage)) then FCodePage := CodePage;
-  end;
+  FFilename := XML.Text;
+  if ((XML.Attributes['codepage'] <> Null) and TryStrToInt(XML.Attributes['codepage'], CodePage)) then FCodePage := CodePage;
 end;
 
 procedure TPAccount.TFile.SaveToXML(const XML: IXMLNode);
@@ -2914,13 +2874,12 @@ var
 begin
   Clear();
 
-  if (Assigned(XML)) then
-    for I := 0 to XML.ChildNodes.Count - 1 do
-      if (XML.ChildNodes[I].NodeName = 'file') then
-      begin
-        inherited Add(TPAccount.TFile.Create(Self));
-        Files[Count - 1].LoadFromXML(XML.ChildNodes[I]);
-      end;
+  for I := 0 to XML.ChildNodes.Count - 1 do
+    if (XML.ChildNodes[I].NodeName = 'file') then
+    begin
+      inherited Add(TPAccount.TFile.Create(Self));
+      Files[Count - 1].LoadFromXML(XML.ChildNodes[I]);
+    end;
 end;
 
 procedure TPAccount.TFiles.SaveToXML(const XML: IXMLNode);
@@ -3103,66 +3062,63 @@ var
 begin
   inherited;
 
-  if (Assigned(XML)) then
+  if (Assigned(XMLNode(XML, 'csv/headline'))) then TryStrToBool(XMLNode(XML, 'csv/headline').Attributes['enabled'], CSV.Headline);
+  if (Assigned(XMLNode(XML, 'csv/quote/string'))) then CSV.QuoteChar := XMLNode(XML, 'csv/quote/string').Text;
+  if (Assigned(XMLNode(XML, 'csv/quote/type'))) then TryStrToQuote(XMLNode(XML, 'csv/quote/type').Text, CSV.Quote);
+  if (Assigned(XMLNode(XML, 'csv/separator/character/string'))) then CSV.Delimiter := XMLNode(XML, 'csv/separator/character/string').Text;
+  if (Assigned(XMLNode(XML, 'csv/separator/character/type'))) then TryStrToSeparatorType(XMLNode(XML, 'csv/separator/character/type').Text, CSV.DelimiterType);
+  if (Assigned(XMLNode(XML, 'data')) and (XMLNode(XML, 'data').Attributes['enabled'] <> Null)) then TryStrToBool(XMLNode(XML, 'data').Attributes['enabled'], Data);
+  if (Assigned(XMLNode(XML, 'data/importtype'))) then TryStrToStmtType(XMLNode(XML, 'data/importtype').Text, StmtType);
+  if (Assigned(XMLNode(XML, 'filename'))) then Filename := XMLNode(XML, 'filename').Text;
+  if (Assigned(XMLNode(XML, 'filename')) and (XMLNode(XML, 'filename').Attributes['codepage'] <> Null)) then TryStrToInt(XMLNode(XML, 'filename').Attributes['codepage'], CodePage);
+  if (Assigned(XMLNode(XML, 'odbc/datasource'))) then ODBC.DataSource := XMLNode(XML, 'odbc/datasource').Text;
+  if (Assigned(XMLNode(XML, 'odbc/password'))) then ODBC.Password := XMLNode(XML, 'odbc/password').Text;
+  if (Assigned(XMLNode(XML, 'odbc/username'))) then ODBC.Username := XMLNode(XML, 'odbc/username').Text;
+  if (Assigned(XMLNode(XML, 'rowtype'))) then TryStrToRowType(XMLNode(XML, 'rowtype').Text, RowType);
+  if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['charset'] <> Null)) then Charset := XMLNode(XML, 'structure').Attributes['charset'];
+  if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['collation'] <> Null)) then Collation := XMLNode(XML, 'structure').Attributes['collation'];
+  if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['enabled'] <> Null)) then TryStrToBool(XMLNode(XML, 'structure').Attributes['enabled'], Structure);
+  if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['engine'] <> Null)) then Engine := XMLNode(XML, 'structure').Attributes['engine'];
+  if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['rowtype'] <> Null)) then TryStrToRowType(XMLNode(XML, 'structure').Attributes['rowtype'], RowType);
+  if (Assigned(XMLNode(XML, 'type'))) then TryStrToImportType(XMLNode(XML, 'type').Text, ImportType);
+
+  if (Assigned(XMLNode(XML, 'object')) and TryStrToObjectType(XMLNode(XML, 'object').Attributes['type'], ObjectType)) then
   begin
-    if (Assigned(XMLNode(XML, 'csv/headline'))) then TryStrToBool(XMLNode(XML, 'csv/headline').Attributes['enabled'], CSV.Headline);
-    if (Assigned(XMLNode(XML, 'csv/quote/string'))) then CSV.QuoteChar := XMLNode(XML, 'csv/quote/string').Text;
-    if (Assigned(XMLNode(XML, 'csv/quote/type'))) then TryStrToQuote(XMLNode(XML, 'csv/quote/type').Text, CSV.Quote);
-    if (Assigned(XMLNode(XML, 'csv/separator/character/string'))) then CSV.Delimiter := XMLNode(XML, 'csv/separator/character/string').Text;
-    if (Assigned(XMLNode(XML, 'csv/separator/character/type'))) then TryStrToSeparatorType(XMLNode(XML, 'csv/separator/character/type').Text, CSV.DelimiterType);
-    if (Assigned(XMLNode(XML, 'data')) and (XMLNode(XML, 'data').Attributes['enabled'] <> Null)) then TryStrToBool(XMLNode(XML, 'data').Attributes['enabled'], Data);
-    if (Assigned(XMLNode(XML, 'data/importtype'))) then TryStrToStmtType(XMLNode(XML, 'data/importtype').Text, StmtType);
-    if (Assigned(XMLNode(XML, 'filename'))) then Filename := XMLNode(XML, 'filename').Text;
-    if (Assigned(XMLNode(XML, 'filename')) and (XMLNode(XML, 'filename').Attributes['codepage'] <> Null)) then TryStrToInt(XMLNode(XML, 'filename').Attributes['codepage'], CodePage);
-    if (Assigned(XMLNode(XML, 'odbc/datasource'))) then ODBC.DataSource := XMLNode(XML, 'odbc/datasource').Text;
-    if (Assigned(XMLNode(XML, 'odbc/password'))) then ODBC.Password := XMLNode(XML, 'odbc/password').Text;
-    if (Assigned(XMLNode(XML, 'odbc/username'))) then ODBC.Username := XMLNode(XML, 'odbc/username').Text;
-    if (Assigned(XMLNode(XML, 'rowtype'))) then TryStrToRowType(XMLNode(XML, 'rowtype').Text, RowType);
-    if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['charset'] <> Null)) then Charset := XMLNode(XML, 'structure').Attributes['charset'];
-    if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['collation'] <> Null)) then Collation := XMLNode(XML, 'structure').Attributes['collation'];
-    if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['enabled'] <> Null)) then TryStrToBool(XMLNode(XML, 'structure').Attributes['enabled'], Structure);
-    if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['engine'] <> Null)) then Engine := XMLNode(XML, 'structure').Attributes['engine'];
-    if (Assigned(XMLNode(XML, 'structure')) and (XMLNode(XML, 'structure').Attributes['rowtype'] <> Null)) then TryStrToRowType(XMLNode(XML, 'structure').Attributes['rowtype'], RowType);
-    if (Assigned(XMLNode(XML, 'type'))) then TryStrToImportType(XMLNode(XML, 'type').Text, ImportType);
+    if (XMLNode(XML, 'object').Attributes['database'] = Null) then
+      JobObject.DatabaseName := ''
+    else
+      JobObject.DatabaseName := XMLNode(XML, 'object').Attributes['database'];
+    JobObject.Name := XMLNode(XML, 'object').Attributes['name'];
+    JobObject.ObjectType := ObjectType;
+  end;
 
-    if (Assigned(XMLNode(XML, 'object')) and TryStrToObjectType(XMLNode(XML, 'object').Attributes['type'], ObjectType)) then
+  if (Assigned(XMLNode(XML, 'sources'))) then
+  begin
+    Child := XMLNode(XML, 'sources').ChildNodes.First();
+    while (Assigned(Child)) do
     begin
-      if (XMLNode(XML, 'object').Attributes['database'] = Null) then
-        JobObject.DatabaseName := ''
-      else
-        JobObject.DatabaseName := XMLNode(XML, 'object').Attributes['database'];
-      JobObject.Name := XMLNode(XML, 'object').Attributes['name'];
-      JobObject.ObjectType := ObjectType;
-    end;
-
-    if (Assigned(XMLNode(XML, 'sources'))) then
-    begin
-      Child := XMLNode(XML, 'sources').ChildNodes.First();
-      while (Assigned(Child)) do
+      if (Child.NodeName = 'source') then
       begin
-        if (Child.NodeName = 'source') then
-        begin
-          SetLength(SourceObjects, Length(SourceObjects) + 1);
-          SourceObjects[Length(SourceObjects) - 1].Name := Child.Attributes['name'];
-        end;
-        Child := Child.NextSibling();
+        SetLength(SourceObjects, Length(SourceObjects) + 1);
+        SourceObjects[Length(SourceObjects) - 1].Name := Child.Attributes['name'];
       end;
+      Child := Child.NextSibling();
     end;
+  end;
 
-    if (Assigned(XMLNode(XML, 'fields'))) then
+  if (Assigned(XMLNode(XML, 'fields'))) then
+  begin
+    Child := XMLNode(XML, 'fields').ChildNodes.First();
+    while (Assigned(Child)) do
     begin
-      Child := XMLNode(XML, 'fields').ChildNodes.First();
-      while (Assigned(Child)) do
+      if (Child.NodeName = 'field') then
       begin
-        if (Child.NodeName = 'field') then
-        begin
-          SetLength(FieldMappings, Length(FieldMappings) + 1);
-          if (Assigned(XMLNode(Child, 'source'))) then FieldMappings[Length(FieldMappings) - 1].SourceFieldName := XMLNode(Child, 'source').Text;
-          if (Assigned(XMLNode(Child, 'destination'))) then FieldMappings[Length(FieldMappings) - 1].DestinationFieldName := XMLNode(Child, 'destination').Text;
-        end;
-
-        Child := Child.NextSibling();
+        SetLength(FieldMappings, Length(FieldMappings) + 1);
+        if (Assigned(XMLNode(Child, 'source'))) then FieldMappings[Length(FieldMappings) - 1].SourceFieldName := XMLNode(Child, 'source').Text;
+        if (Assigned(XMLNode(Child, 'destination'))) then FieldMappings[Length(FieldMappings) - 1].DestinationFieldName := XMLNode(Child, 'destination').Text;
       end;
+
+      Child := Child.NextSibling();
     end;
   end;
 end;
@@ -3293,58 +3249,55 @@ var
 begin
   inherited;
 
-  if (Assigned(XML)) then
-  begin
-    if (Assigned(XMLNode(XML, 'csv/headline'))) then TryStrToBool(XMLNode(XML, 'csv/headline').Attributes['enabled'], CSV.Headline);
-    if (Assigned(XMLNode(XML, 'csv/quote/string')) and (XMLNode(XML, 'csv/quote/string').Text <> '')) then CSV.Quoter := XMLNode(XML, 'csv/quote/string').Text[1];
-    if (Assigned(XMLNode(XML, 'csv/quote/type'))) then TryStrToQuote(XMLNode(XML, 'csv/quote/type').Text, CSV.QuoteValues);
-    if (Assigned(XMLNode(XML, 'csv/separator/character/string'))) then CSV.Delimiter := XMLNode(XML, 'csv/separator/character/string').Text;
-    if (Assigned(XMLNode(XML, 'csv/separator/character/type'))) then TryStrToSeparatorType(XMLNode(XML, 'csv/separator/character/type').Text, CSV.DelimiterType);
-    if (Assigned(XMLNode(XML, 'excel/format')) and (XMLNode(XML, 'excel/format').Text = '2007')) then Excel.Excel2007 := True else Excel.Excel2007 := False;
-    if (Assigned(XMLNode(XML, 'filename'))) then Filename := XMLNode(XML, 'filename').Text;
-    if (Assigned(XMLNode(XML, 'filename')) and (XMLNode(XML, 'filename').Attributes['codepage'] <> Null)) then TryStrToInt(XMLNode(XML, 'filename').Attributes['codepage'], CodePage);
-    if (Assigned(XMLNode(XML, 'html/data'))) then TryStrToBool(XMLNode(XML, 'html/data').Attributes['enabled'], HTML.Data);
-    if (Assigned(XMLNode(XML, 'html/memo')) and (XMLNode(XML, 'html/memo').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/memo').Attributes['visible'], HTML.MemoContent);
-    if (Assigned(XMLNode(XML, 'html/null')) and (XMLNode(XML, 'html/null').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/null').Attributes['visible'], HTML.NULLText);
-    if (Assigned(XMLNode(XML, 'html/row/background')) and (XMLNode(XML, 'html/row/background').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/row/background').Attributes['visible'], HTML.RowBGColor);
-    if (Assigned(XMLNode(XML, 'html/structure'))) then TryStrToBool(XMLNode(XML, 'html/structure').Attributes['enabled'], HTML.Structure);
-    if (Assigned(XMLNode(XML, 'odbc/datasource'))) then ODBC.DataSource := XMLNode(XML, 'odbc/datasource').Text;
-    if (Assigned(XMLNode(XML, 'odbc/password'))) then ODBC.Password := XMLNode(XML, 'odbc/password').Text;
-    if (Assigned(XMLNode(XML, 'odbc/username'))) then ODBC.Username := XMLNode(XML, 'odbc/username').Text;
-    if (Assigned(XMLNode(XML, 'sql/data'))) then TryStrToBool(XMLNode(XML, 'sql/data').Attributes['enabled'], SQL.Data);
-    if (Assigned(XMLNode(XML, 'sql/data'))) then TryStrToBool(XMLNode(XML, 'sql/data').Attributes['replace'], SQL.ReplaceData);
-    if (Assigned(XMLNode(XML, 'sql/structure'))) then TryStrToBool(XMLNode(XML, 'sql/structure').Attributes['enabled'], SQL.Structure);
-    if (Assigned(XMLNode(XML, 'sql/structure'))) then TryStrToBool(XMLNode(XML, 'sql/structure').Attributes['drop'], SQL.DropStmts);
-    if (Assigned(XMLNode(XML, 'type'))) then TryStrToExportType(XMLNode(XML, 'type').Text, ExportType);
-    if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/database').Attributes['type'], Self.XML.Database.NodeType);
-    if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Text <> '')) then Self.XML.Database.NodeText := XMLNode(XML, 'xml/database').Text;
-    if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Attributes['attribute'] <> Null)) then Self.XML.Database.NodeAttribute := XMLNode(XML, 'xml/database').Attributes['attribute'];
-    if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/field').Attributes['type'], Self.XML.Field.NodeType);
-    if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Text <> '')) then Self.XML.Field.NodeText := XMLNode(XML, 'xml/field').Text;
-    if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Attributes['attribute'] <> Null)) then Self.XML.Field.NodeAttribute := XMLNode(XML, 'xml/field').Attributes['attribute'];
-    if (Assigned(XMLNode(XML, 'xml/record')) and (XMLNode(XML, 'xml/record').Text <> '')) then Self.XML.Root.NodeText := XMLNode(XML, 'xml/record').Text;
-    if (Assigned(XMLNode(XML, 'xml/root')) and (XMLNode(XML, 'xml/root').Text <> '')) then Self.XML.Root.NodeText := XMLNode(XML, 'xml/root').Text;
-    if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/table').Attributes['type'], Self.XML.Table.NodeType);
-    if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Text <> '')) then Self.XML.Table.NodeText := XMLNode(XML, 'xml/table').Text;
-    if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Attributes['attribute'] <> Null)) then Self.XML.Table.NodeAttribute := XMLNode(XML, 'xml/table').Attributes['attribute'];
+  if (Assigned(XMLNode(XML, 'csv/headline'))) then TryStrToBool(XMLNode(XML, 'csv/headline').Attributes['enabled'], CSV.Headline);
+  if (Assigned(XMLNode(XML, 'csv/quote/string')) and (XMLNode(XML, 'csv/quote/string').Text <> '')) then CSV.Quoter := XMLNode(XML, 'csv/quote/string').Text[1];
+  if (Assigned(XMLNode(XML, 'csv/quote/type'))) then TryStrToQuote(XMLNode(XML, 'csv/quote/type').Text, CSV.QuoteValues);
+  if (Assigned(XMLNode(XML, 'csv/separator/character/string'))) then CSV.Delimiter := XMLNode(XML, 'csv/separator/character/string').Text;
+  if (Assigned(XMLNode(XML, 'csv/separator/character/type'))) then TryStrToSeparatorType(XMLNode(XML, 'csv/separator/character/type').Text, CSV.DelimiterType);
+  if (Assigned(XMLNode(XML, 'excel/format')) and (XMLNode(XML, 'excel/format').Text = '2007')) then Excel.Excel2007 := True else Excel.Excel2007 := False;
+  if (Assigned(XMLNode(XML, 'filename'))) then Filename := XMLNode(XML, 'filename').Text;
+  if (Assigned(XMLNode(XML, 'filename')) and (XMLNode(XML, 'filename').Attributes['codepage'] <> Null)) then TryStrToInt(XMLNode(XML, 'filename').Attributes['codepage'], CodePage);
+  if (Assigned(XMLNode(XML, 'html/data'))) then TryStrToBool(XMLNode(XML, 'html/data').Attributes['enabled'], HTML.Data);
+  if (Assigned(XMLNode(XML, 'html/memo')) and (XMLNode(XML, 'html/memo').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/memo').Attributes['visible'], HTML.MemoContent);
+  if (Assigned(XMLNode(XML, 'html/null')) and (XMLNode(XML, 'html/null').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/null').Attributes['visible'], HTML.NULLText);
+  if (Assigned(XMLNode(XML, 'html/row/background')) and (XMLNode(XML, 'html/row/background').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/row/background').Attributes['visible'], HTML.RowBGColor);
+  if (Assigned(XMLNode(XML, 'html/structure'))) then TryStrToBool(XMLNode(XML, 'html/structure').Attributes['enabled'], HTML.Structure);
+  if (Assigned(XMLNode(XML, 'odbc/datasource'))) then ODBC.DataSource := XMLNode(XML, 'odbc/datasource').Text;
+  if (Assigned(XMLNode(XML, 'odbc/password'))) then ODBC.Password := XMLNode(XML, 'odbc/password').Text;
+  if (Assigned(XMLNode(XML, 'odbc/username'))) then ODBC.Username := XMLNode(XML, 'odbc/username').Text;
+  if (Assigned(XMLNode(XML, 'sql/data'))) then TryStrToBool(XMLNode(XML, 'sql/data').Attributes['enabled'], SQL.Data);
+  if (Assigned(XMLNode(XML, 'sql/data'))) then TryStrToBool(XMLNode(XML, 'sql/data').Attributes['replace'], SQL.ReplaceData);
+  if (Assigned(XMLNode(XML, 'sql/structure'))) then TryStrToBool(XMLNode(XML, 'sql/structure').Attributes['enabled'], SQL.Structure);
+  if (Assigned(XMLNode(XML, 'sql/structure'))) then TryStrToBool(XMLNode(XML, 'sql/structure').Attributes['drop'], SQL.DropStmts);
+  if (Assigned(XMLNode(XML, 'type'))) then TryStrToExportType(XMLNode(XML, 'type').Text, ExportType);
+  if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/database').Attributes['type'], Self.XML.Database.NodeType);
+  if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Text <> '')) then Self.XML.Database.NodeText := XMLNode(XML, 'xml/database').Text;
+  if (Assigned(XMLNode(XML, 'xml/database')) and (XMLNode(XML, 'xml/database').Attributes['attribute'] <> Null)) then Self.XML.Database.NodeAttribute := XMLNode(XML, 'xml/database').Attributes['attribute'];
+  if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/field').Attributes['type'], Self.XML.Field.NodeType);
+  if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Text <> '')) then Self.XML.Field.NodeText := XMLNode(XML, 'xml/field').Text;
+  if (Assigned(XMLNode(XML, 'xml/field')) and (XMLNode(XML, 'xml/field').Attributes['attribute'] <> Null)) then Self.XML.Field.NodeAttribute := XMLNode(XML, 'xml/field').Attributes['attribute'];
+  if (Assigned(XMLNode(XML, 'xml/record')) and (XMLNode(XML, 'xml/record').Text <> '')) then Self.XML.Root.NodeText := XMLNode(XML, 'xml/record').Text;
+  if (Assigned(XMLNode(XML, 'xml/root')) and (XMLNode(XML, 'xml/root').Text <> '')) then Self.XML.Root.NodeText := XMLNode(XML, 'xml/root').Text;
+  if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Attributes['type'] <> Null)) then TryStrToNodeType(XMLNode(XML, 'xml/table').Attributes['type'], Self.XML.Table.NodeType);
+  if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Text <> '')) then Self.XML.Table.NodeText := XMLNode(XML, 'xml/table').Text;
+  if (Assigned(XMLNode(XML, 'xml/table')) and (XMLNode(XML, 'xml/table').Attributes['attribute'] <> Null)) then Self.XML.Table.NodeAttribute := XMLNode(XML, 'xml/table').Attributes['attribute'];
 
-    if (Assigned(XMLNode(XML, 'objects'))) then
+  if (Assigned(XMLNode(XML, 'objects'))) then
+  begin
+    Child := XMLNode(XML, 'objects').ChildNodes.First();
+    while (Assigned(Child)) do
     begin
-      Child := XMLNode(XML, 'objects').ChildNodes.First();
-      while (Assigned(Child)) do
+      if ((Child.NodeName = 'object') and TryStrToObjectType(Child.Attributes['type'], ObjectType)) then
       begin
-        if ((Child.NodeName = 'object') and TryStrToObjectType(Child.Attributes['type'], ObjectType)) then
-        begin
-          SetLength(JobObjects, Length(JobObjects) + 1);
-          if (Child.Attributes['database'] = Null) then
-            JobObjects[Length(JobObjects) - 1].DatabaseName := ''
-          else
-            JobObjects[Length(JobObjects) - 1].DatabaseName := Child.Attributes['database'];
-          JobObjects[Length(JobObjects) - 1].Name := Child.Attributes['name'];
-          JobObjects[Length(JobObjects) - 1].ObjectType := ObjectType;
-        end;
-        Child := Child.NextSibling();
+        SetLength(JobObjects, Length(JobObjects) + 1);
+        if (Child.Attributes['database'] = Null) then
+          JobObjects[Length(JobObjects) - 1].DatabaseName := ''
+        else
+          JobObjects[Length(JobObjects) - 1].DatabaseName := Child.Attributes['database'];
+        JobObjects[Length(JobObjects) - 1].Name := Child.Attributes['name'];
+        JobObjects[Length(JobObjects) - 1].ObjectType := ObjectType;
       end;
+      Child := Child.NextSibling();
     end;
   end;
 end;
@@ -3553,7 +3506,7 @@ begin
         Job := nil;
       if (Assigned(Job)) then
       begin
-        Job.LoadFromXML(XMLDocument.DocumentElement);
+        if (Assigned(XMLDocument.DocumentElement)) then Job.LoadFromXML(XMLDocument.DocumentElement);
         if (RegisteredTask.Definition.Triggers.Count >= 1) then
         begin
           Job.Enabled := RegisteredTask.Definition.Triggers.Item[1].Enabled;
@@ -3671,64 +3624,61 @@ var
 begin
   inherited;
 
-  if (Assigned(XML)) then
+  if (not TryStrToInt(XML.OwnerDocument.DocumentElement.Attributes['pixelsperinch'], PixelsPerInch)) then PixelsPerInch := Screen.PixelsPerInch;
+
+  if (Assigned(XMLNode(XML, 'datagrid/height')) and TryStrToInt(XMLNode(XML, 'datagrid/height').Text, DataHeight)) then DataHeight := Round(DataHeight * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'datagrid/blob/height')) and TryStrToInt(XMLNode(XML, 'datagrid/blob/height').Text, BlobHeight)) then BlobHeight := Round(BlobHeight * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'editor/content'))) then EditorContent[ttEditor] := XMLNode(XML, 'editor/content').Text;
+  if (Assigned(XMLNode(XML, 'editor2/content'))) then EditorContent[ttEditor2] := XMLNode(XML, 'editor2/content').Text;
+  if (Assigned(XMLNode(XML, 'editor3/content'))) then EditorContent[ttEditor3] := XMLNode(XML, 'editor3/content').Text;
+  if (Assigned(XMLNode(XML, 'log/height')) and TryStrToInt(XMLNode(XML, 'log/height').Text, LogHeight)) then LogHeight := Round(LogHeight * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'log/visible'))) then TryStrToBool(XMLNode(XML, 'log/visible').Text, LogVisible);
+  if (Assigned(XMLNode(XML, 'objects/server/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/server/widths/name').Text, ColumnWidths[lkServer][0])) then ColumnWidths[lkServer][0] := Round(ColumnWidths[lkServer][0] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/server/widths/size')) and TryStrToInt(XMLNode(XML, 'objects/server/widths/size').Text, ColumnWidths[lkServer][1])) then ColumnWidths[lkServer][1] := Round(ColumnWidths[lkServer][1] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/server/widths/count')) and TryStrToInt(XMLNode(XML, 'objects/server/widths/count').Text, ColumnWidths[lkServer][2])) then ColumnWidths[lkServer][2] := Round(ColumnWidths[lkServer][2] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/server/widths/created')) and TryStrToInt(XMLNode(XML, 'objects/server/widths/created').Text, ColumnWidths[lkServer][3])) then ColumnWidths[lkServer][3] := Round(ColumnWidths[lkServer][3] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/server/widths/extras')) and TryStrToInt(XMLNode(XML, 'objects/server/widths/extras').Text, ColumnWidths[lkServer][4])) then ColumnWidths[lkServer][4] := Round(ColumnWidths[lkServer][4] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/database/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/database/widths/name').Text, ColumnWidths[lkDatabase][0])) then ColumnWidths[lkDatabase][0] := Round(ColumnWidths[lkDatabase][0] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/database/widths/type')) and TryStrToInt(XMLNode(XML, 'objects/database/widths/type').Text, ColumnWidths[lkDatabase][1])) then ColumnWidths[lkDatabase][1] := Round(ColumnWidths[lkDatabase][1] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/database/widths/recordcount')) and TryStrToInt(XMLNode(XML, 'objects/database/widths/recordcount').Text, ColumnWidths[lkDatabase][2])) then ColumnWidths[lkDatabase][2] := Round(ColumnWidths[lkDatabase][2] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/database/widths/size')) and TryStrToInt(XMLNode(XML, 'objects/database/widths/size').Text, ColumnWidths[lkDatabase][3])) then ColumnWidths[lkDatabase][3] := Round(ColumnWidths[lkDatabase][3] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/database/widths/updated')) and TryStrToInt(XMLNode(XML, 'objects/database/widths/updated').Text, ColumnWidths[lkDatabase][4])) then ColumnWidths[lkDatabase][4] := Round(ColumnWidths[lkDatabase][4] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/database/widths/extras')) and TryStrToInt(XMLNode(XML, 'objects/database/widths/extras').Text, ColumnWidths[lkDatabase][5])) then ColumnWidths[lkDatabase][5] := Round(ColumnWidths[lkDatabase][5] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/database/widths/comment')) and TryStrToInt(XMLNode(XML, 'objects/database/widths/comment').Text, ColumnWidths[lkDatabase][6])) then ColumnWidths[lkDatabase][6] := Round(ColumnWidths[lkDatabase][6] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/table/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/table/widths/name').Text, ColumnWidths[lkTable][0])) then ColumnWidths[lkTable][0] := Round(ColumnWidths[lkTable][0] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/table/widths/type')) and TryStrToInt(XMLNode(XML, 'objects/table/widths/type').Text, ColumnWidths[lkTable][1])) then ColumnWidths[lkTable][1] := Round(ColumnWidths[lkTable][1] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/table/widths/null')) and TryStrToInt(XMLNode(XML, 'objects/table/widths/null').Text, ColumnWidths[lkTable][2])) then ColumnWidths[lkTable][2] := Round(ColumnWidths[lkTable][2] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/table/widths/default')) and TryStrToInt(XMLNode(XML, 'objects/table/widths/default').Text, ColumnWidths[lkTable][3])) then ColumnWidths[lkTable][3] := Round(ColumnWidths[lkTable][3] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/table/widths/extras')) and TryStrToInt(XMLNode(XML, 'objects/table/widths/extras').Text, ColumnWidths[lkTable][4])) then ColumnWidths[lkTable][4] := Round(ColumnWidths[lkTable][4] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/table/widths/comment')) and TryStrToInt(XMLNode(XML, 'objects/table/widths/comment').Text, ColumnWidths[lkTable][5])) then ColumnWidths[lkTable][5] := Round(ColumnWidths[lkTable][5] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/processes/widths/id')) and TryStrToInt(XMLNode(XML, 'objects/processes/widths/id').Text, ColumnWidths[lkProcesses][0])) then ColumnWidths[lkProcesses][0] := Round(ColumnWidths[lkProcesses][0] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/processes/widths/user')) and TryStrToInt(XMLNode(XML, 'objects/processes/widths/user').Text, ColumnWidths[lkProcesses][1])) then ColumnWidths[lkProcesses][1] := Round(ColumnWidths[lkProcesses][1] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/processes/widths/host')) and TryStrToInt(XMLNode(XML, 'objects/processes/widths/host').Text, ColumnWidths[lkProcesses][2])) then ColumnWidths[lkProcesses][2] := Round(ColumnWidths[lkProcesses][2] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/processes/widths/database')) and TryStrToInt(XMLNode(XML, 'objects/processes/widths/database').Text, ColumnWidths[lkProcesses][3])) then ColumnWidths[lkProcesses][3] := Round(ColumnWidths[lkProcesses][3] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/processes/widths/command')) and TryStrToInt(XMLNode(XML, 'objects/processes/widths/command').Text, ColumnWidths[lkProcesses][4])) then ColumnWidths[lkProcesses][4] := Round(ColumnWidths[lkProcesses][4] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/processes/widths/statement')) and TryStrToInt(XMLNode(XML, 'objects/processes/widths/statement').Text, ColumnWidths[lkProcesses][5])) then ColumnWidths[lkProcesses][5] := Round(ColumnWidths[lkProcesses][5] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/processes/widths/time')) and TryStrToInt(XMLNode(XML, 'objects/processes/widths/time').Text, ColumnWidths[lkProcesses][6])) then ColumnWidths[lkProcesses][6] := Round(ColumnWidths[lkProcesses][6] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/processes/widths/state')) and TryStrToInt(XMLNode(XML, 'objects/processes/widths/state').Text, ColumnWidths[lkProcesses][7])) then ColumnWidths[lkProcesses][7] := Round(ColumnWidths[lkProcesses][7] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/stati/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/stati/widths/name').Text, ColumnWidths[lkStati][0])) then ColumnWidths[lkStati][0] := Round(ColumnWidths[lkStati][0] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/stati/widths/value')) and TryStrToInt(XMLNode(XML, 'objects/stati/widths/value').Text, ColumnWidths[lkStati][1])) then ColumnWidths[lkStati][1] := Round(ColumnWidths[lkStati][1] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/users/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/users/widths/name').Text, ColumnWidths[lkUsers][0])) then ColumnWidths[lkUsers][0] := Round(ColumnWidths[lkUsers][0] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/users/widths/fullname')) and TryStrToInt(XMLNode(XML, 'objects/users/widths/fullname').Text, ColumnWidths[lkUsers][1])) then ColumnWidths[lkUsers][1] := Round(ColumnWidths[lkUsers][1] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/users/widths/comment')) and TryStrToInt(XMLNode(XML, 'objects/users/widths/comment').Text, ColumnWidths[lkUsers][2])) then ColumnWidths[lkUsers][2] := Round(ColumnWidths[lkUsers][2] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/variables/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/variables/widths/name').Text, ColumnWidths[lkVariables][0])) then ColumnWidths[lkVariables][0] := Round(ColumnWidths[lkVariables][0] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'objects/variables/widths/value')) and TryStrToInt(XMLNode(XML, 'objects/variables/widths/value').Text, ColumnWidths[lkVariables][1])) then ColumnWidths[lkVariables][1] := Round(ColumnWidths[lkVariables][1] * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'path'))) then FPath := XMLNode(XML, 'path').Text;
+  if (Assigned(XMLNode(XML, 'sidebar/explorer/folders/height')) and TryStrToInt(XMLNode(XML, 'sidebar/explorer/folders/height').Text, FoldersHeight)) then FoldersHeight := Round(FoldersHeight * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'sidebar/explorer/files/filter'))) then FilesFilter := XMLNode(XML, 'sidebar/explorer/files/filter').Text;
+  if (Assigned(XMLNode(XML, 'sidebar/width')) and TryStrToInt(XMLNode(XML, 'sidebar/width').Text, SidebarWitdth)) then SidebarWitdth := Round(SidebarWitdth * Screen.PixelsPerInch / PixelsPerInch);
+  if (Assigned(XMLNode(XML, 'sidebar/visible'))) then
   begin
-    if (not TryStrToInt(XML.OwnerDocument.DocumentElement.Attributes['pixelsperinch'], PixelsPerInch)) then PixelsPerInch := Screen.PixelsPerInch;
-
-    if (Assigned(XMLNode(XML, 'datagrid/height')) and TryStrToInt(XMLNode(XML, 'datagrid/height').Text, DataHeight)) then DataHeight := Round(DataHeight * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'datagrid/blob/height')) and TryStrToInt(XMLNode(XML, 'datagrid/blob/height').Text, BlobHeight)) then BlobHeight := Round(BlobHeight * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'editor/content'))) then EditorContent[ttEditor] := XMLNode(XML, 'editor/content').Text;
-    if (Assigned(XMLNode(XML, 'editor2/content'))) then EditorContent[ttEditor2] := XMLNode(XML, 'editor2/content').Text;
-    if (Assigned(XMLNode(XML, 'editor3/content'))) then EditorContent[ttEditor3] := XMLNode(XML, 'editor3/content').Text;
-    if (Assigned(XMLNode(XML, 'log/height')) and TryStrToInt(XMLNode(XML, 'log/height').Text, LogHeight)) then LogHeight := Round(LogHeight * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'log/visible'))) then TryStrToBool(XMLNode(XML, 'log/visible').Text, LogVisible);
-    if (Assigned(XMLNode(XML, 'objects/server/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/server/widths/name').Text, ColumnWidths[lkServer][0])) then ColumnWidths[lkServer][0] := Round(ColumnWidths[lkServer][0] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/server/widths/size')) and TryStrToInt(XMLNode(XML, 'objects/server/widths/size').Text, ColumnWidths[lkServer][1])) then ColumnWidths[lkServer][1] := Round(ColumnWidths[lkServer][1] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/server/widths/count')) and TryStrToInt(XMLNode(XML, 'objects/server/widths/count').Text, ColumnWidths[lkServer][2])) then ColumnWidths[lkServer][2] := Round(ColumnWidths[lkServer][2] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/server/widths/created')) and TryStrToInt(XMLNode(XML, 'objects/server/widths/created').Text, ColumnWidths[lkServer][3])) then ColumnWidths[lkServer][3] := Round(ColumnWidths[lkServer][3] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/server/widths/extras')) and TryStrToInt(XMLNode(XML, 'objects/server/widths/extras').Text, ColumnWidths[lkServer][4])) then ColumnWidths[lkServer][4] := Round(ColumnWidths[lkServer][4] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/database/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/database/widths/name').Text, ColumnWidths[lkDatabase][0])) then ColumnWidths[lkDatabase][0] := Round(ColumnWidths[lkDatabase][0] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/database/widths/type')) and TryStrToInt(XMLNode(XML, 'objects/database/widths/type').Text, ColumnWidths[lkDatabase][1])) then ColumnWidths[lkDatabase][1] := Round(ColumnWidths[lkDatabase][1] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/database/widths/recordcount')) and TryStrToInt(XMLNode(XML, 'objects/database/widths/recordcount').Text, ColumnWidths[lkDatabase][2])) then ColumnWidths[lkDatabase][2] := Round(ColumnWidths[lkDatabase][2] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/database/widths/size')) and TryStrToInt(XMLNode(XML, 'objects/database/widths/size').Text, ColumnWidths[lkDatabase][3])) then ColumnWidths[lkDatabase][3] := Round(ColumnWidths[lkDatabase][3] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/database/widths/updated')) and TryStrToInt(XMLNode(XML, 'objects/database/widths/updated').Text, ColumnWidths[lkDatabase][4])) then ColumnWidths[lkDatabase][4] := Round(ColumnWidths[lkDatabase][4] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/database/widths/extras')) and TryStrToInt(XMLNode(XML, 'objects/database/widths/extras').Text, ColumnWidths[lkDatabase][5])) then ColumnWidths[lkDatabase][5] := Round(ColumnWidths[lkDatabase][5] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/database/widths/comment')) and TryStrToInt(XMLNode(XML, 'objects/database/widths/comment').Text, ColumnWidths[lkDatabase][6])) then ColumnWidths[lkDatabase][6] := Round(ColumnWidths[lkDatabase][6] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/table/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/table/widths/name').Text, ColumnWidths[lkTable][0])) then ColumnWidths[lkTable][0] := Round(ColumnWidths[lkTable][0] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/table/widths/type')) and TryStrToInt(XMLNode(XML, 'objects/table/widths/type').Text, ColumnWidths[lkTable][1])) then ColumnWidths[lkTable][1] := Round(ColumnWidths[lkTable][1] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/table/widths/null')) and TryStrToInt(XMLNode(XML, 'objects/table/widths/null').Text, ColumnWidths[lkTable][2])) then ColumnWidths[lkTable][2] := Round(ColumnWidths[lkTable][2] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/table/widths/default')) and TryStrToInt(XMLNode(XML, 'objects/table/widths/default').Text, ColumnWidths[lkTable][3])) then ColumnWidths[lkTable][3] := Round(ColumnWidths[lkTable][3] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/table/widths/extras')) and TryStrToInt(XMLNode(XML, 'objects/table/widths/extras').Text, ColumnWidths[lkTable][4])) then ColumnWidths[lkTable][4] := Round(ColumnWidths[lkTable][4] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/table/widths/comment')) and TryStrToInt(XMLNode(XML, 'objects/table/widths/comment').Text, ColumnWidths[lkTable][5])) then ColumnWidths[lkTable][5] := Round(ColumnWidths[lkTable][5] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/processes/widths/id')) and TryStrToInt(XMLNode(XML, 'objects/processes/widths/id').Text, ColumnWidths[lkProcesses][0])) then ColumnWidths[lkProcesses][0] := Round(ColumnWidths[lkProcesses][0] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/processes/widths/user')) and TryStrToInt(XMLNode(XML, 'objects/processes/widths/user').Text, ColumnWidths[lkProcesses][1])) then ColumnWidths[lkProcesses][1] := Round(ColumnWidths[lkProcesses][1] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/processes/widths/host')) and TryStrToInt(XMLNode(XML, 'objects/processes/widths/host').Text, ColumnWidths[lkProcesses][2])) then ColumnWidths[lkProcesses][2] := Round(ColumnWidths[lkProcesses][2] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/processes/widths/database')) and TryStrToInt(XMLNode(XML, 'objects/processes/widths/database').Text, ColumnWidths[lkProcesses][3])) then ColumnWidths[lkProcesses][3] := Round(ColumnWidths[lkProcesses][3] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/processes/widths/command')) and TryStrToInt(XMLNode(XML, 'objects/processes/widths/command').Text, ColumnWidths[lkProcesses][4])) then ColumnWidths[lkProcesses][4] := Round(ColumnWidths[lkProcesses][4] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/processes/widths/statement')) and TryStrToInt(XMLNode(XML, 'objects/processes/widths/statement').Text, ColumnWidths[lkProcesses][5])) then ColumnWidths[lkProcesses][5] := Round(ColumnWidths[lkProcesses][5] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/processes/widths/time')) and TryStrToInt(XMLNode(XML, 'objects/processes/widths/time').Text, ColumnWidths[lkProcesses][6])) then ColumnWidths[lkProcesses][6] := Round(ColumnWidths[lkProcesses][6] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/processes/widths/state')) and TryStrToInt(XMLNode(XML, 'objects/processes/widths/state').Text, ColumnWidths[lkProcesses][7])) then ColumnWidths[lkProcesses][7] := Round(ColumnWidths[lkProcesses][7] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/stati/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/stati/widths/name').Text, ColumnWidths[lkStati][0])) then ColumnWidths[lkStati][0] := Round(ColumnWidths[lkStati][0] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/stati/widths/value')) and TryStrToInt(XMLNode(XML, 'objects/stati/widths/value').Text, ColumnWidths[lkStati][1])) then ColumnWidths[lkStati][1] := Round(ColumnWidths[lkStati][1] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/users/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/users/widths/name').Text, ColumnWidths[lkUsers][0])) then ColumnWidths[lkUsers][0] := Round(ColumnWidths[lkUsers][0] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/users/widths/fullname')) and TryStrToInt(XMLNode(XML, 'objects/users/widths/fullname').Text, ColumnWidths[lkUsers][1])) then ColumnWidths[lkUsers][1] := Round(ColumnWidths[lkUsers][1] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/users/widths/comment')) and TryStrToInt(XMLNode(XML, 'objects/users/widths/comment').Text, ColumnWidths[lkUsers][2])) then ColumnWidths[lkUsers][2] := Round(ColumnWidths[lkUsers][2] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/variables/widths/name')) and TryStrToInt(XMLNode(XML, 'objects/variables/widths/name').Text, ColumnWidths[lkVariables][0])) then ColumnWidths[lkVariables][0] := Round(ColumnWidths[lkVariables][0] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'objects/variables/widths/value')) and TryStrToInt(XMLNode(XML, 'objects/variables/widths/value').Text, ColumnWidths[lkVariables][1])) then ColumnWidths[lkVariables][1] := Round(ColumnWidths[lkVariables][1] * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'path'))) then FPath := XMLNode(XML, 'path').Text;
-    if (Assigned(XMLNode(XML, 'sidebar/explorer/folders/height')) and TryStrToInt(XMLNode(XML, 'sidebar/explorer/folders/height').Text, FoldersHeight)) then FoldersHeight := Round(FoldersHeight * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'sidebar/explorer/files/filter'))) then FilesFilter := XMLNode(XML, 'sidebar/explorer/files/filter').Text;
-    if (Assigned(XMLNode(XML, 'sidebar/width')) and TryStrToInt(XMLNode(XML, 'sidebar/width').Text, SidebarWitdth)) then SidebarWitdth := Round(SidebarWitdth * Screen.PixelsPerInch / PixelsPerInch);
-    if (Assigned(XMLNode(XML, 'sidebar/visible'))) then
-    begin
-      NavigatorVisible := UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'NAVIGATOR';
-      ExplorerVisible := not NavigatorVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'EXPLORER');
-      JobsVisible := not NavigatorVisible and not ExplorerVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'JOBS');
-      SQLHistoryVisible := not NavigatorVisible and not ExplorerVisible and not JobsVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'SQL HISTORY');
-    end;
-
-    Files.LoadFromXML(XMLNode(XML, 'editor/files'));
+    NavigatorVisible := UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'NAVIGATOR';
+    ExplorerVisible := not NavigatorVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'EXPLORER');
+    JobsVisible := not NavigatorVisible and not ExplorerVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'JOBS');
+    SQLHistoryVisible := not NavigatorVisible and not ExplorerVisible and not JobsVisible and (UpperCase(XMLNode(XML, 'sidebar/visible').Text) = 'SQL HISTORY');
   end;
+
+  if Assigned(XMLNode(XML, 'editor/files')) then Files.LoadFromXML(XMLNode(XML, 'editor/files'));
 end;
 
 procedure TPAccount.TDesktop.SaveToXML(const XML: IXMLNode);
@@ -3832,21 +3782,18 @@ end;
 
 procedure TPAccount.TConnection.LoadFromXML(const XML: IXMLNode);
 begin
-  if (Assigned(XML)) then
-  begin
-    if (Assigned(XMLNode(XML, 'database'))) then Database := XMLNode(XML, 'database').Text;
-    if (Assigned(XMLNode(XML, 'host'))) then Host := XMLNode(XML, 'host').Text;
-    if (Assigned(XMLNode(XML, 'library/type'))) then
-      if (UpperCase(XMLNode(XML, 'library/type').Text) = 'FILE') then LibraryType := ltDLL
-      else if (UpperCase(XMLNode(XML, 'library/type').Text) = 'TUNNEL') then LibraryType := ltHTTP
-      else if (UpperCase(XMLNode(XML, 'library/type').Text) = 'HTTPTUNNEL') then LibraryType := ltHTTP
-      else LibraryType := ltBuiltIn;
-    if (Assigned(XMLNode(XML, 'library/filename'))) then LibraryFilename := XMLNode(XML, 'library/filename').Text;
-    if (Assigned(XMLNode(XML, 'library/tunnel_url'))) then HTTPTunnelURI := XMLNode(XML, 'library/tunnel_url').Text;
-    if (Assigned(XMLNode(XML, 'password')) and (XMLNode(XML, 'password').Attributes['encode'] = 'none')) then Password := XMLNode(XML, 'password').Text;
-    if (Assigned(XMLNode(XML, 'port'))) then TryStrToInt(XMLNode(XML, 'port').Text, Port);
-    if (Assigned(XMLNode(XML, 'user'))) then Username := XMLNode(XML, 'user').Text;
-  end;
+  if (Assigned(XMLNode(XML, 'database'))) then Database := XMLNode(XML, 'database').Text;
+  if (Assigned(XMLNode(XML, 'host'))) then Host := XMLNode(XML, 'host').Text;
+  if (Assigned(XMLNode(XML, 'library/type'))) then
+    if (UpperCase(XMLNode(XML, 'library/type').Text) = 'FILE') then LibraryType := ltDLL
+    else if (UpperCase(XMLNode(XML, 'library/type').Text) = 'TUNNEL') then LibraryType := ltHTTP
+    else if (UpperCase(XMLNode(XML, 'library/type').Text) = 'HTTPTUNNEL') then LibraryType := ltHTTP
+    else LibraryType := ltBuiltIn;
+  if (Assigned(XMLNode(XML, 'library/filename'))) then LibraryFilename := XMLNode(XML, 'library/filename').Text;
+  if (Assigned(XMLNode(XML, 'library/tunnel_url'))) then HTTPTunnelURI := XMLNode(XML, 'library/tunnel_url').Text;
+  if (Assigned(XMLNode(XML, 'password')) and (XMLNode(XML, 'password').Attributes['encode'] = 'none')) then Password := XMLNode(XML, 'password').Text;
+  if (Assigned(XMLNode(XML, 'port'))) then TryStrToInt(XMLNode(XML, 'port').Text, Port);
+  if (Assigned(XMLNode(XML, 'user'))) then Username := XMLNode(XML, 'user').Text;
 end;
 
 procedure TPAccount.TConnection.SaveToXML(const XML: IXMLNode);
@@ -4159,8 +4106,8 @@ begin
 
     Modified := False;
 
-    Connection.LoadFromXML(XMLNode(XML, 'connection'));
-    if (Assigned(FDesktop)) then
+    if (Assigned(XMLNode(XML, 'connection'))) then Connection.LoadFromXML(XMLNode(XML, 'connection'));
+    if (Assigned(FDesktop) and Assigned(DesktopXMLDocument.DocumentElement)) then
       FDesktop.LoadFromXML(DesktopXMLDocument.DocumentElement); // Session must be loaded to use FullAddress correctly
   end;
 end;
