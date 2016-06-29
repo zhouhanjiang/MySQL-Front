@@ -1351,10 +1351,10 @@ begin
     etAccessFile:
       begin
         SaveDialog.Filter := '';
-        if (odAccess2007 in ODBCDrivers) then
+        if (odAccess2003 in ODBCDrivers) then
           SaveDialog.Filter := FilterDescription('accdb') + ' (*.accdb)|*.accdb|';
         SaveDialog.Filter := SaveDialog.Filter + FilterDescription('mdb') + ' (*.mdb)|*.mdb';
-        if (odAccess2007 in ODBCDrivers) then
+        if (odAccess2003 in ODBCDrivers) then
           SaveDialog.DefaultExt := '.accdb'
         else
           SaveDialog.DefaultExt := '.mdb';
@@ -1816,7 +1816,7 @@ begin
     etAccessFile:
       begin
         Export := TTExportAccess.Create(Session, Filename);
-        TTExportAccess(Export).Access2007 := (odAccess2007 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
+        TTExportAccess(Export).Access2007 := (odAccess2003 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
         TTExportAccess(Export).Data := True;
         TTExportAccess(Export).Structure := True;
       end;

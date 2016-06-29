@@ -761,7 +761,7 @@ const
 
 var
   ODBCEnv: SQLHENV;
-  ODBCDrivers: set of (odAccess, odAccess2007, odExcel, odExcel2007);
+  ODBCDrivers: set of (odAccess, odAccess2003, odExcel, odExcel2007);
 
 implementation {***************************************************************}
 
@@ -784,7 +784,7 @@ const
   STR_LEN = 128;
 
   DriverAccess = 'Microsoft Access Driver (*.mdb)';
-  DriverAccess2007 = 'Microsoft Access Driver (*.mdb, *.accdb)';
+  DriverAccess2003 = 'Microsoft Access Driver (*.mdb, *.accdb)';
   DriverExcel = 'Microsoft Excel Driver (*.xls)';
   DriverExcel2007 = 'Microsoft Excel Driver (*.xls, *.xlsx, *.xlsm, *.xlsb)';
 
@@ -3783,9 +3783,9 @@ begin
     Connected := False;
     while ((Success <> daAbort) and not Connected) do
     begin
-      if (odAccess2007 in ODBCDrivers) then
+      if (odAccess2003 in ODBCDrivers) then
       begin
-        ConnStrIn := 'Driver={' + DriverAccess2007 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
+        ConnStrIn := 'Driver={' + DriverAccess2003 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
         Connected := SQL_SUCCEEDED(SQLDriverConnect(Handle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE));
       end;
       if (not Connected) then
@@ -6508,14 +6508,14 @@ begin
   end
   else
   begin
-    ConnStrIn := 'Driver={' + DriverAccess2007 + '};DBQ=' + Filename + ';READONLY=FALSE';
+    ConnStrIn := 'Driver={' + DriverAccess2003 + '};DBQ=' + Filename + ';READONLY=FALSE';
     Attributes := 'CREATE_DBV12=' + Filename + ' General';
   end;
 
   if (Success = daSuccess) then
   begin
     if (not Access2007 and not SQLConfigDataSource(Application.Handle, ODBC_ADD_DSN, DriverAccess, PChar(Attributes))
-      or (Access2007 and not SQLConfigDataSource(Application.Handle, ODBC_ADD_DSN, DriverAccess2007, PChar(Attributes)))) then
+      or (Access2007 and not SQLConfigDataSource(Application.Handle, ODBC_ADD_DSN, DriverAccess2003, PChar(Attributes)))) then
     begin
       Error.ErrorType := TE_ODBC;
       GetMem(ErrorMsg, SQL_MAX_MESSAGE_LENGTH * SizeOf(Char));
@@ -6582,7 +6582,7 @@ begin
 
     if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @Handle))) then
       DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False)
-    else if (not SQL_SUCCEEDED(SQLDriverConnect(Handle, 0, PSQLTCHAR(ConnStrIn), Length(ConnStrIn), PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE))) then
+    else if (not SQL_SUCCEEDED(SQLDriverConnect(Handle, Application.Handle, PSQLTCHAR(ConnStrIn), Length(ConnStrIn), PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE))) then
       DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False)
     else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, Handle, @Stmt))) then
       DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False);
@@ -8863,8 +8863,8 @@ initialization
     repeat
       if (lstrcmpi(PChar(@Driver), DriverAccess) = 0) then
         ODBCDrivers := ODBCDrivers + [odAccess]
-      else if (lstrcmpi(PChar(@Driver), DriverAccess2007) = 0) then
-        ODBCDrivers := ODBCDrivers + [odAccess2007]
+      else if (lstrcmpi(PChar(@Driver), DriverAccess2003) = 0) then
+        ODBCDrivers := ODBCDrivers + [odAccess2003]
       else if (lstrcmpi(PChar(@Driver), DriverExcel) = 0) then
         ODBCDrivers := ODBCDrivers + [odExcel]
       else if (lstrcmpi(PChar(@Driver), DriverExcel2007) = 0) then

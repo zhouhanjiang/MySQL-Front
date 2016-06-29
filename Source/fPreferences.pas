@@ -4016,7 +4016,10 @@ end;
 
 function TPAccount.GetDesktopXML(): IXMLNode;
 begin
-  Result := DesktopXMLDocument.DocumentElement;
+  if (not Assigned(DesktopXMLDocument)) then
+    Result := nil
+  else
+    Result := DesktopXMLDocument.DocumentElement;
 end;
 
 function TPAccount.GetDesktopFilename(): TFileName;

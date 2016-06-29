@@ -862,8 +862,6 @@ var
   Log: TStringList;
   Start: Integer;
 begin
-  DataFields.Add('Window Version=' + IntToStr(Win32MajorVersion) + '.' + IntToStr(Win32MinorVersion));
-
   for I := 0 to Sessions.Count - 1 do
     if (Sessions[I].Connection.Connected) then
       if (Assigned(ActiveTab) and (Sessions[I] = ActiveTab.Session)) then
@@ -975,10 +973,10 @@ begin
   TBTabControl.Visible := Preferences.TabsVisible;
   TabControlRepaint := TList.Create();
 
-  aFImportAccess.Visible := (odAccess in ODBCDrivers) or (odAccess2007 in ODBCDrivers);
+  aFImportAccess.Visible := (odAccess in ODBCDrivers) or (odAccess2003 in ODBCDrivers);
   aFImportExcel.Visible := (odExcel in ODBCDrivers) or (odExcel2007 in ODBCDrivers);
   aFImportODBC.Visible := ODBCEnv <> SQL_NULL_HANDLE;
-  aFExportAccess.Visible := (odAccess in ODBCDrivers) or (odAccess2007 in ODBCDrivers);
+  aFExportAccess.Visible := (odAccess in ODBCDrivers) or (odAccess2003 in ODBCDrivers);
   aFExportExcel.Visible := (odExcel in ODBCDrivers) or (odExcel2007 in ODBCDrivers);
   aFExportODBC.Visible := ODBCEnv <> SQL_NULL_HANDLE;
   aVJobs.Visible := CheckWin32Version(6);

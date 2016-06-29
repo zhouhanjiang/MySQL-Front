@@ -1331,7 +1331,7 @@ begin
       end;
     itAccessFile:
       begin
-        if (odAccess2007 in ODBCDrivers) then
+        if (odAccess2003 in ODBCDrivers) then
           OpenDialog.Filter := FilterDescription('mdb') + ' (*.mdb;*.accdb)|*.mdb;*.accdb'
         else
           OpenDialog.Filter := FilterDescription('mdb') + ' (*.mdb)|*.mdb';
