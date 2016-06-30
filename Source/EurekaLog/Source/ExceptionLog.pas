@@ -2149,7 +2149,7 @@ begin
            else
              Result := Result + IntToStr(Win32MajorVersion) + '.' + IntToStr(Win32MinorVersion);
            end;
-        10: Result := Result + 'Windows 10';
+        10: Result := Result + '10';
       else
         Result := Result + IntToStr(Win32MajorVersion) + '.' + IntToStr(Win32MinorVersion);
       end;

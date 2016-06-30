@@ -5311,6 +5311,7 @@ end;
 procedure TFSession.CMSysFontChanged(var Message: TMessage);
 var
   Color: TColor;
+  I: Integer;
   LogFont: TLogFont;
   NonClientMetrics: TNonClientMetrics;
 begin

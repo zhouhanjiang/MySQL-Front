@@ -310,7 +310,7 @@ type
     ODBCMemSize: Integer;
     Stmt: SQLHANDLE;
   protected
-    Handle: SQLHDBC;
+    DBC: SQLHDBC;
     procedure AfterExecuteData(const Item: TTImport.TItem); override;
     procedure BeforeExecute(); override;
     procedure BeforeExecuteData(const Item: TTImport.TItem); override;
@@ -526,7 +526,7 @@ type
       Size: SQLINTEGER;
     end;
   protected
-    FHandle: SQLHDBC;
+    FDBC: SQLHDBC;
     TableName: string;
     procedure AfterExecute(); override;
     constructor Create(const ASession: TSSession; const AHandle: SQLHDBC = SQL_NULL_HANDLE); overload;
@@ -536,7 +536,7 @@ type
     procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     property Stmt: SQLHSTMT read FStmt;
   public
-    property Handle: SQLHDBC read FHandle;
+    property DBC: SQLHDBC read FDBC;
   end;
 
   TTExportODBC = class(TTExportBaseODBC)
@@ -2997,7 +2997,7 @@ begin
     begin
       Success := daSuccess;
 
-      if (SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, Handle, @Stmt))) then
+      if (SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, DBC, @Stmt))) then
       begin
         SQL := 'SELECT COUNT(*) FROM "' + TTImport.TItem(Items[I]).SourceTableName + '"';
         if (SQL_SUCCEEDED(SQLExecDirect(Stmt, PSQLTCHAR(SQL), SQL_NTS))
@@ -3021,9 +3021,9 @@ var
 begin
   inherited;
 
-  if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, Handle, @Stmt))) then
+  if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, DBC, @Stmt))) then
   begin
-    DoError(ODBCError(SQL_HANDLE_DBC, Handle), Item, False);
+    DoError(ODBCError(SQL_HANDLE_DBC, DBC), Item, False);
     Stmt := SQL_NULL_HANDLE;
     ODBCData := nil;
     SetLength(ColumnDesc, 0);
@@ -3088,10 +3088,10 @@ end;
 
 procedure TTImportBaseODBC.Close();
 begin
-  if (Handle <> SQL_NULL_HANDLE) then
+  if (DBC <> SQL_NULL_HANDLE) then
   begin
-    SQLDisconnect(Handle);
-    SQLFreeHandle(SQL_HANDLE_DBC, Handle); Handle := SQL_NULL_HANDLE;
+    SQLDisconnect(DBC);
+    SQLFreeHandle(SQL_HANDLE_DBC, DBC); DBC := SQL_NULL_HANDLE;
   end;
 end;
 
@@ -3165,14 +3165,14 @@ begin
   NewTable.Engine := Session.EngineByName(Engine);
   NewTable.RowType := RowType;
 
-  if (SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, Handle, @Stmt))) then
+  if (SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, DBC, @Stmt))) then
   begin
     if ((Success <> daAbort) and (SQLColumns(Stmt, nil, 0, nil, 0, PSQLTCHAR(Item.SourceTableName), SQL_NTS, nil, 0) <> SQL_SUCCESS)) then
       DoError(ODBCError(SQL_HANDLE_STMT, Stmt), Item, False);
 
-    if (not SQL_SUCCEEDED(SQLGetInfo(Handle, SQL_DRIVER_ODBC_VER, @DRIVER_ODBC_VER, SizeOf(DRIVER_ODBC_VER), @cbDRIVER_ODBC_VER))) then
+    if (not SQL_SUCCEEDED(SQLGetInfo(DBC, SQL_DRIVER_ODBC_VER, @DRIVER_ODBC_VER, SizeOf(DRIVER_ODBC_VER), @cbDRIVER_ODBC_VER))) then
     begin
-      DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False);
+      DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False);
       DriverVer := 0;
     end
     else
@@ -3258,7 +3258,7 @@ begin
     SQLFreeHandle(SQL_HANDLE_STMT, Stmt);
 
 
-    if ((Success = daSuccess) and SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, Handle, @Stmt))) then
+    if ((Success = daSuccess) and SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, DBC, @Stmt))) then
     begin
       if (SQL_SUCCEEDED(SQLExecDirect(Stmt, PSQLTCHAR(string('SELECT * FROM "' + Item.SourceTableName + '" WHERE 0<>0')), SQL_NTS))) then
       begin
@@ -3282,7 +3282,7 @@ begin
     end;
   end;
 
-  if ((Success = daSuccess) and SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, Handle, @Stmt))) then
+  if ((Success = daSuccess) and SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, DBC, @Stmt))) then
   begin
     ODBCException(Stmt, SQLStatistics(Stmt, nil, 0, nil, 0, PSQLTCHAR(Item.SourceTableName), SQL_NTS, SQL_INDEX_UNIQUE, SQL_QUICK));
 
@@ -3412,13 +3412,13 @@ begin
 
   Result := False;
   if (Success = daSuccess) then
-    if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, Handle, @Stmt))) then
+    if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, DBC, @Stmt))) then
       raise ERangeError.Create(SRangeError)
     else if (not SQL_SUCCEEDED(SQLColumns(Stmt, nil, 0, nil, 0, PSQLTCHAR(TableName), SQL_NTS, nil, 0))) then
       DoError(ODBCError(SQL_HANDLE_STMT, Stmt), nil, True)
     else
     begin
-      ODBCException(Handle, SQLBindCol(Stmt, 4, SQL_C_WCHAR, @COLUMN_NAME, SizeOf(COLUMN_NAME), @cbCOLUMN_NAME));
+      ODBCException(DBC, SQLBindCol(Stmt, 4, SQL_C_WCHAR, @COLUMN_NAME, SizeOf(COLUMN_NAME), @cbCOLUMN_NAME));
       while (SQL_SUCCEEDED(ODBCException(Stmt, SQLFetch(Stmt)))) do
       begin
         SetString(FieldName, PChar(@COLUMN_NAME), cbCOLUMN_NAME div SizeOf(SQLTCHAR));
@@ -3451,9 +3451,9 @@ begin
 
   Result := False;
   if (Success = daSuccess) then
-    if (not SQL_SUCCEEDED(SQLGetInfo(Handle, SQL_MAX_TABLE_NAME_LEN, @TABLE_NAME_LEN, SizeOf(TABLE_NAME_LEN), nil))) then
-      DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False)
-    else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, Handle, @Stmt))) then
+    if (not SQL_SUCCEEDED(SQLGetInfo(DBC, SQL_MAX_TABLE_NAME_LEN, @TABLE_NAME_LEN, SizeOf(TABLE_NAME_LEN), nil))) then
+      DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False)
+    else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, DBC, @Stmt))) then
       raise ERangeError.Create(SRangeError)
     else
     begin
@@ -3749,13 +3749,13 @@ end;
 
 procedure TTImportODBC.Open();
 begin
-  if (Handle = SQL_NULL_HANDLE) then
+  if (DBC = SQL_NULL_HANDLE) then
   begin
-    if ((Success = daSuccess) and not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @Handle))) then
+    if ((Success = daSuccess) and not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @DBC))) then
       DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False);
 
-    while ((Success <> daAbort) and not SQL_SUCCEEDED(SQLConnect(Handle, PSQLTCHAR(PChar(FDataSource)), SQL_NTS, PSQLTCHAR(PChar(FUsername)), SQL_NTS, PSQLTCHAR(PChar(FPassword)), SQL_NTS))) do
-      DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, True);
+    while ((Success <> daAbort) and not SQL_SUCCEEDED(SQLConnect(DBC, PSQLTCHAR(PChar(FDataSource)), SQL_NTS, PSQLTCHAR(PChar(FUsername)), SQL_NTS, PSQLTCHAR(PChar(FPassword)), SQL_NTS))) do
+      DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, True);
   end;
 end;
 
@@ -3775,9 +3775,9 @@ var
   ConnStrIn: string;
   ConnStrOut: array [0 .. 1024] of SQLTCHAR;
 begin
-  if (Handle = SQL_NULL_HANDLE) then
+  if (DBC = SQL_NULL_HANDLE) then
   begin
-    if ((Success = daSuccess) and not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @Handle))) then
+    if ((Success = daSuccess) and not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @DBC))) then
       DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False);
 
     Connected := False;
@@ -3786,15 +3786,15 @@ begin
       if (odAccess2003 in ODBCDrivers) then
       begin
         ConnStrIn := 'Driver={' + DriverAccess2003 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
-        Connected := SQL_SUCCEEDED(SQLDriverConnect(Handle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE));
+        Connected := SQL_SUCCEEDED(SQLDriverConnect(DBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE));
       end;
       if (not Connected) then
       begin
         ConnStrIn := 'Driver={' + DriverAccess + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
-        Connected := SQL_SUCCEEDED(SQLDriverConnect(Handle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE));
+        Connected := SQL_SUCCEEDED(SQLDriverConnect(DBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE));
       end;
       if (not Connected) then
-        DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, True);
+        DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, True);
     end;
   end;
 end;
@@ -3815,9 +3815,9 @@ var
   ConnStrIn: string;
   ConnStrOut: array [0 .. 1024] of SQLTCHAR;
 begin
-  if (Handle = SQL_NULL_HANDLE) then
+  if (DBC = SQL_NULL_HANDLE) then
   begin
-    if ((Success = daSuccess) and not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @Handle))) then
+    if ((Success = daSuccess) and not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @DBC))) then
       DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False);
 
     Connected := False;
@@ -3826,15 +3826,15 @@ begin
       if (odExcel2007 in ODBCDrivers) then
       begin
         ConnStrIn := 'Driver={' + DriverExcel2007 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
-        Connected := SQL_SUCCEEDED(SQLDriverConnect(Handle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE));
+        Connected := SQL_SUCCEEDED(SQLDriverConnect(DBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE));
       end;
       if (not Connected) then
       begin
         ConnStrIn := 'Driver={' + DriverExcel + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
-        Connected := SQL_SUCCEEDED(SQLDriverConnect(Handle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE));
+        Connected := SQL_SUCCEEDED(SQLDriverConnect(DBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE));
       end;
       if (not Connected) then
-        DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, True);
+        DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, True);
     end;
   end;
 end;
@@ -5981,10 +5981,10 @@ procedure TTExportBaseODBC.AfterExecute();
 begin
   inherited;
 
-  if (FHandle <> SQL_NULL_HANDLE) then
+  if (FDBC <> SQL_NULL_HANDLE) then
   begin
-    SQLDisconnect(FHandle);
-    SQLFreeHandle(SQL_HANDLE_DBC, FHandle); FHandle := SQL_NULL_HANDLE;
+    SQLDisconnect(FDBC);
+    SQLFreeHandle(SQL_HANDLE_DBC, FDBC); FDBC := SQL_NULL_HANDLE;
   end;
 end;
 
@@ -5992,7 +5992,7 @@ constructor TTExportBaseODBC.Create(const ASession: TSSession; const AHandle: SQ
 begin
   inherited Create(ASession);
 
-  FHandle := AHandle;
+  FDBC := AHandle;
 
   FStmt := SQL_NULL_HANDLE;
   TableName := '';
@@ -6123,7 +6123,7 @@ begin
     end;
     SQL := SQL + ')';
 
-    if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, Handle, @FStmt))) then
+    if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, DBC, @FStmt))) then
       DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False);
 
     while ((Success <> daAbort) and not SQL_SUCCEEDED(SQLExecDirect(Stmt, PSQLTCHAR(SQL), Length(SQL)))) do
@@ -6435,9 +6435,9 @@ end;
 
 procedure TTExportODBC.ExecuteFooter();
 begin
-  if (not SQL_SUCCEEDED(SQLEndTran(SQL_HANDLE_DBC, Handle, SQL_COMMIT))
+  if (not SQL_SUCCEEDED(SQLEndTran(SQL_HANDLE_DBC, DBC, SQL_COMMIT))
     and (Success = daSuccess)) then
-    DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False);
+    DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False);
 
   inherited;
 end;
@@ -6446,12 +6446,12 @@ procedure TTExportODBC.ExecuteHeader();
 begin
   inherited;
 
-  if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @FHandle))) then
+  if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @FDBC))) then
     DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False)
-  else if (not SQL_SUCCEEDED(SQLConnect(FHandle, PSQLTCHAR(PChar(FDataSource)), SQL_NTS, PSQLTCHAR(PChar(FUsername)), SQL_NTS, PSQLTCHAR(PChar(FPassword)), SQL_NTS))) then
-    DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False)
-  else if (not SQL_SUCCEEDED(SQLSetConnectAttr(Handle, SQL_ATTR_AUTOCOMMIT, SQLPOINTER(SQL_AUTOCOMMIT_OFF), 1))) then
-    DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False);
+  else if (not SQL_SUCCEEDED(SQLConnect(FDBC, PSQLTCHAR(PChar(FDataSource)), SQL_NTS, PSQLTCHAR(PChar(FUsername)), SQL_NTS, PSQLTCHAR(PChar(FPassword)), SQL_NTS))) then
+    DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False)
+  else if (not SQL_SUCCEEDED(SQLSetConnectAttr(DBC, SQL_ATTR_AUTOCOMMIT, SQLPOINTER(SQL_AUTOCOMMIT_OFF), 1))) then
+    DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False);
 end;
 
 { TTExportAccess **************************************************************}
@@ -6483,9 +6483,9 @@ end;
 
 procedure TTExportAccess.ExecuteFooter();
 begin
-  if (not SQL_SUCCEEDED(SQLEndTran(SQL_HANDLE_DBC, Handle, SQL_COMMIT))
+  if (not SQL_SUCCEEDED(SQLEndTran(SQL_HANDLE_DBC, DBC, SQL_COMMIT))
     and (Success = daSuccess)) then
-    DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False);
+    DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False);
 
   inherited;
 end;
@@ -6526,14 +6526,14 @@ begin
       FreeMem(ErrorMsg);
       DoError(Error, nil, False);
     end
-    else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @Handle))) then
+    else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @DBC))) then
       DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False)
-    else if (not SQL_SUCCEEDED(SQLDriverConnect(Handle, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE))) then
-      DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False)
-    else if (not SQL_SUCCEEDED(SQLSetConnectAttr(Handle, SQL_ATTR_AUTOCOMMIT, SQLPOINTER(SQL_AUTOCOMMIT_OFF), 1))) then
-      DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False)
-    else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, Handle, @Stmt))) then
-      DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False);
+    else if (not SQL_SUCCEEDED(SQLDriverConnect(DBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE))) then
+      DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False)
+    else if (not SQL_SUCCEEDED(SQLSetConnectAttr(DBC, SQL_ATTR_AUTOCOMMIT, SQLPOINTER(SQL_AUTOCOMMIT_OFF), 1))) then
+      DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False)
+    else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, DBC, @Stmt))) then
+      DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False);
   end;
 
   inherited;
@@ -6580,12 +6580,12 @@ begin
     else
       ConnStrIn := 'Driver={' + DriverExcel2007 + '};DBQ=' + Filename + ';ReadOnly=False';
 
-    if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @Handle))) then
+    if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @DBC))) then
       DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False)
-    else if (not SQL_SUCCEEDED(SQLDriverConnect(Handle, Application.Handle, PSQLTCHAR(ConnStrIn), Length(ConnStrIn), PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE))) then
-      DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False)
-    else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, Handle, @Stmt))) then
-      DoError(ODBCError(SQL_HANDLE_DBC, Handle), nil, False);
+    else if (not SQL_SUCCEEDED(SQLDriverConnect(DBC, Application.Handle, PSQLTCHAR(ConnStrIn), Length(ConnStrIn), PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE))) then
+      DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False)
+    else if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_STMT, DBC, @Stmt))) then
+      DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, False);
   end;
 
   inherited;

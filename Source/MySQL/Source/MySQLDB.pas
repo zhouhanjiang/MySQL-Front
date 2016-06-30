@@ -801,7 +801,6 @@ resourcestring
   SLibraryNotAvailable = 'Library can not be loaded ("%s")';
   SOutOfSync = 'Thread synchronization error';
   SWrongDataSet = 'Field doesn''t attached to a "%s" DataSet';
-  SEmpyUpdate = 'Empty update statement';
 
 const
   DATASET_ERRORS: array [0..2] of PChar = (
@@ -6379,7 +6378,7 @@ begin
   if (not Assigned(Buffer)) then
     Buffer := ActiveBuffer();
 
-  Result := 'UPDATE ' + SQLTableClause() + ' SET ';
+  Result := '';
   ValueHandled := False;
   for I := 0 to FieldCount - 1 do
     if ((PExternRecordBuffer(Buffer)^.InternRecordBuffer^.NewData^.LibLengths^[Fields[I].FieldNo - 1] <> PExternRecordBuffer(Buffer)^.InternRecordBuffer^.OldData^.LibLengths^[Fields[I].FieldNo - 1])
@@ -6390,21 +6389,22 @@ begin
       Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + '=' + SQLFieldValue(Fields[I], Buffer);
       ValueHandled := True;
     end;
-  if (not ValueHandled) then
-    raise Exception.Create(SEmpyUpdate);
-  Result := Result + ' WHERE ';
-  ValueHandled := False;
-  for I := 0 to FieldCount - 1 do
-    if (pfInWhere in Fields[I].ProviderFlags) then
-    begin
-      if (ValueHandled) then Result := Result + ' AND ';
-      if (not Assigned(PExternRecordBuffer(Buffer)^.InternRecordBuffer^.OldData^.LibRow^[Fields[I].FieldNo - 1])) then
-        Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + ' IS NULL'
-      else
-        Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + '=' + SQLFieldValue(Fields[I], PExternRecordBuffer(Buffer)^.InternRecordBuffer^.OldData);
-      ValueHandled := True;
-    end;
-  Result := Result + ';' + #13#10;
+  if (Result <> '') then
+  begin
+    Result := 'UPDATE ' + SQLTableClause() + ' SET ' + Result + ' WHERE ';
+    ValueHandled := False;
+    for I := 0 to FieldCount - 1 do
+      if (pfInWhere in Fields[I].ProviderFlags) then
+      begin
+        if (ValueHandled) then Result := Result + ' AND ';
+        if (not Assigned(PExternRecordBuffer(Buffer)^.InternRecordBuffer^.OldData^.LibRow^[Fields[I].FieldNo - 1])) then
+          Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + ' IS NULL'
+        else
+          Result := Result + Connection.EscapeIdentifier(Fields[I].FieldName) + '=' + SQLFieldValue(Fields[I], PExternRecordBuffer(Buffer)^.InternRecordBuffer^.OldData);
+        ValueHandled := True;
+      end;
+    Result := Result + ';' + #13#10;
+  end;
 end;
 
 procedure TMySQLDataSet.UpdateIndexDefs();
