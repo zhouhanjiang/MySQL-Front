@@ -143,6 +143,9 @@ type
       Excel: record
         Excel2007: Boolean;
       end;
+      Access: record
+        Access2003: Boolean;
+      end;
       HTML: record
         Data: Boolean;
         NULLText: Boolean;
@@ -608,6 +611,9 @@ type
       end;
       Excel: record
         Excel2007: Boolean;
+      end;
+      Access: record
+        Access2003: Boolean;
       end;
       ExportType: TExportType;
       HTML: record
@@ -1582,6 +1588,7 @@ begin
   CSV.Delimiter := ',';
   CSV.DelimiterType := dtChar;
   Excel.Excel2007 := False;
+  Access.Access2003 := False;
   HTML.Data := True;
   HTML.NULLText := False;
   HTML.MemoContent := False;
@@ -1614,6 +1621,7 @@ begin
   if (Assigned(XMLNode(XML, 'csv/separator/character/string'))) then CSV.Delimiter := XMLNode(XML, 'csv/separator/character/string').Text;
   if (Assigned(XMLNode(XML, 'csv/separator/character/type'))) then TryStrToSeparatorType(XMLNode(XML, 'csv/separator/character/type').Text, CSV.DelimiterType);
   if (Assigned(XMLNode(XML, 'excel/format')) and (XMLNode(XML, 'excel/format').Text = '2007')) then Excel.Excel2007 := True else Excel.Excel2007 := False;
+  if (Assigned(XMLNode(XML, 'access/format')) and (XMLNode(XML, 'access/format').Text = '2003')) then Access.Access2003 := True else Access.Access2003 := False;
   if (Assigned(XMLNode(XML, 'html/data'))) then TryStrToBool(XMLNode(XML, 'html/data').Attributes['enabled'], HTML.Data);
   if (Assigned(XMLNode(XML, 'html/memo')) and (XMLNode(XML, 'html/memo').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/memo').Attributes['visible'], HTML.MemoContent);
   if (Assigned(XMLNode(XML, 'html/null')) and (XMLNode(XML, 'html/null').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/null').Attributes['visible'], HTML.NULLText);
@@ -1647,6 +1655,7 @@ begin
   XMLNode(XML, 'csv/separator/character/string').Text := CSV.Delimiter;
   XMLNode(XML, 'csv/separator/character/type').Text := SeparatorTypeToStr(CSV.DelimiterType);
   if (Excel.Excel2007) then XMLNode(XML, 'excel/format').Text := '2007' else XMLNode(XML, 'excel/format').Text := '';
+  if (Access.Access2003) then XMLNode(XML, 'access/format').Text := '2003' else XMLNode(XML, 'access/format').Text := '';
   XMLNode(XML, 'html/data').Attributes['enabled'] := HTML.Data;
   XMLNode(XML, 'html/memo').Attributes['visible'] := HTML.MemoContent;
   XMLNode(XML, 'html/null').Attributes['visible'] := HTML.NullText;
@@ -3255,6 +3264,7 @@ begin
   if (Assigned(XMLNode(XML, 'csv/separator/character/string'))) then CSV.Delimiter := XMLNode(XML, 'csv/separator/character/string').Text;
   if (Assigned(XMLNode(XML, 'csv/separator/character/type'))) then TryStrToSeparatorType(XMLNode(XML, 'csv/separator/character/type').Text, CSV.DelimiterType);
   if (Assigned(XMLNode(XML, 'excel/format')) and (XMLNode(XML, 'excel/format').Text = '2007')) then Excel.Excel2007 := True else Excel.Excel2007 := False;
+  if (Assigned(XMLNode(XML, 'access/format')) and (XMLNode(XML, 'access/format').Text = '2003')) then Access.Access2003 := True else Access.Access2003 := False;
   if (Assigned(XMLNode(XML, 'filename'))) then Filename := XMLNode(XML, 'filename').Text;
   if (Assigned(XMLNode(XML, 'filename')) and (XMLNode(XML, 'filename').Attributes['codepage'] <> Null)) then TryStrToInt(XMLNode(XML, 'filename').Attributes['codepage'], CodePage);
   if (Assigned(XMLNode(XML, 'html/data'))) then TryStrToBool(XMLNode(XML, 'html/data').Attributes['enabled'], HTML.Data);
@@ -3318,6 +3328,7 @@ begin
   XMLNode(XML, 'csv/separator/character/string').Text := CSV.Delimiter;
   XMLNode(XML, 'csv/separator/character/type').Text := SeparatorTypeToStr(CSV.DelimiterType);
   if (Excel.Excel2007) then XMLNode(XML, 'excel/format').Text := '2007' else XMLNode(XML, 'excel/format').Text := '';
+  if (Access.Access2003) then XMLNode(XML, 'access/format').Text := '2003' else XMLNode(XML, 'access/format').Text := '';
   XMLNode(XML, 'filename').Text := Filename;
   if (CodePage = CP_ACP) then XMLNode(XML, 'filename').Attributes['codepage'] := Null else XMLNode(XML, 'filename').Attributes['codepage'] := IntToStr(CodePage);
   XMLNode(XML, 'grid/row/background').Attributes['visible'] := HTML.RowBGColor;

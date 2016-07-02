@@ -206,7 +206,7 @@ end;
 
 procedure TDSQLHelp.FBManualClick(Sender: TObject);
 begin
-  ShellExecute(Application.Handle, 'open', PChar(ManualURL), '', '', SW_SHOW);
+  ShellExecute(Handle, 'open', PChar(ManualURL), '', '', SW_SHOW);
 
   Close();
 end;

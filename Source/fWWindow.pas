@@ -108,6 +108,7 @@ type
     aFOpenAccount: TAction;
     aFSave: TAction;
     aFSaveAs: TAction;
+    aHDonate: TAction;
     aHIndex: TAction;
     aHInfo: TAction;
     aHManual: TAction;
@@ -226,6 +227,7 @@ type
     miFReopen: TMenuItem;
     miFSave: TMenuItem;
     miFSaveAs: TMenuItem;
+    miHDonate: TMenuItem;
     miHelp: TMenuItem;
     miHIndex: TMenuItem;
     miHInfo: TMenuItem;
@@ -379,6 +381,7 @@ type
       Shift: TShiftState; X, Y: Integer);
     procedure TabControlMouseMove(Sender: TObject; Shift: TShiftState; X,
       Y: Integer);
+    procedure aHDonateExecute(Sender: TObject);
   const
     tiDeactivate = 1;
   type
@@ -537,6 +540,11 @@ end;
 procedure TWWindow.aFOpenAccountExecute(Sender: TObject);
 begin
   Perform(UM_ADDTAB, 0, 0);
+end;
+
+procedure TWWindow.aHDonateExecute(Sender: TObject);
+begin
+  ShellExecute(Handle, 'open', PChar(LoadStr(1007)), '', '', SW_SHOW);
 end;
 
 procedure TWWindow.aHIndexExecute(Sender: TObject);
@@ -1614,6 +1622,7 @@ begin
   aHSQL.Caption := Preferences.LoadStr(883) + '...';
   aHManual.Caption := Preferences.LoadStr(573);
   aHUpdate.Caption := Preferences.LoadStr(666) + '...';
+  aHDonate.Caption := Preferences.LoadStr(920) + '...';
   aHInfo.Caption := Preferences.LoadStr(168) + '...';
 
   for I := 0 to ActionList.ActionCount - 1 do

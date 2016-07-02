@@ -129,4 +129,5 @@ BEGIN
   1004 "{BuildInternetHomepage}"
   1005 "{BuildInternetPadFile}"
   1006 "{BuildTaskschd}"
+  1007 "{BuildInternetDonate}"
 END

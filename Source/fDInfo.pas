@@ -95,7 +95,7 @@ end;
 
 procedure TDInfo.FURIClick(Sender: TObject);
 begin
-  ShellExecute(Application.Handle, 'open', PChar(FURI.Caption), '', '', SW_SHOW);
+  ShellExecute(Handle, 'open', PChar(FURI.Caption), '', '', SW_SHOW);
 end;
 
 procedure TDInfo.UMChangePreferences(var Message: TMessage);

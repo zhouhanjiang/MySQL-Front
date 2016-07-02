@@ -801,6 +801,8 @@ begin
           end;
         etExcelFile:
           Preferences.Export.Excel.Excel2007 := (odExcel2007 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
+        etAccessFile:
+          Preferences.Export.Access.Access2003 := (odAccess2003 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
         etODBC:
           begin
             Preferences.Export.ODBC.DataSource := DODBC.DataSource;
@@ -874,6 +876,8 @@ begin
           end;
         etExcelFile:
           NewJob.Excel.Excel2007 := (odExcel2007 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
+        etAccessFile:
+          NewJob.Access.Access2003 := (odAccess2003 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
         etODBC:
           begin
             NewJob.ODBC.DataSource := DODBC.DataSource;
@@ -1813,19 +1817,19 @@ begin
         TTExportBaseODBC(Export).Data := True;
         TTExportBaseODBC(Export).Structure := True;
       end;
-    etAccessFile:
-      begin
-        Export := TTExportAccess.Create(Session, Filename);
-        TTExportAccess(Export).Access2007 := (odAccess2003 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
-        TTExportAccess(Export).Data := True;
-        TTExportAccess(Export).Structure := True;
-      end;
     etExcelFile:
       begin
         Export := TTExportExcel.Create(Session, Filename);
         TTExportExcel(Export).Data := True;
         TTExportExcel(Export).Excel2007 := (odExcel2007 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
         TTExportExcel(Export).Structure := True;
+      end;
+    etAccessFile:
+      begin
+        Export := TTExportAccess.Create(Session, Filename);
+        TTExportAccess(Export).Access2003 := (odAccess2003 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
+        TTExportAccess(Export).Data := True;
+        TTExportAccess(Export).Structure := True;
       end;
     etHTMLFile:
       begin

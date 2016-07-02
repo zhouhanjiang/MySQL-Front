@@ -560,7 +560,7 @@ type
     procedure ExecuteFooter(); override;
     procedure ExecuteHeader(); override;
   public
-    Access2007: Boolean;
+    Access2003: Boolean;
     constructor Create(const ASession: TSSession; const AFilename: TFileName);
   end;
 
@@ -6478,7 +6478,7 @@ begin
 
   Filename := AFilename;
 
-  Access2007 := False;
+  Access2003 := False;
 end;
 
 procedure TTExportAccess.ExecuteFooter();
@@ -6501,7 +6501,7 @@ var
   ErrorMsg: PChar;
   Size: Word;
 begin
-  if (not Access2007) then
+  if (not Access2003) then
   begin
     ConnStrIn := 'Driver={' + DriverAccess + '};DBQ=' + Filename + ';READONLY=FALSE';
     Attributes := 'CREATE_DB=' + Filename + ' General';
@@ -6514,8 +6514,8 @@ begin
 
   if (Success = daSuccess) then
   begin
-    if (not Access2007 and not SQLConfigDataSource(Application.Handle, ODBC_ADD_DSN, DriverAccess, PChar(Attributes))
-      or (Access2007 and not SQLConfigDataSource(Application.Handle, ODBC_ADD_DSN, DriverAccess2003, PChar(Attributes)))) then
+    if (not Access2003 and not SQLConfigDataSource(Application.Handle, ODBC_ADD_DSN, DriverAccess, PChar(Attributes))
+      or (Access2003 and not SQLConfigDataSource(Application.Handle, ODBC_ADD_DSN, DriverAccess2003, PChar(Attributes)))) then
     begin
       Error.ErrorType := TE_ODBC;
       GetMem(ErrorMsg, SQL_MAX_MESSAGE_LENGTH * SizeOf(Char));

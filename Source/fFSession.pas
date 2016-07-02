@@ -3674,7 +3674,7 @@ end;
 
 procedure TFSession.aHManualExecute(Sender: TObject);
 begin
-  ShellExecute(Application.Handle, 'open', PChar(Session.Account.ManualURL), '', '', SW_SHOW);
+  ShellExecute(Window.Handle, 'open', PChar(Session.Account.ManualURL), '', '', SW_SHOW);
 end;
 
 procedure TFSession.aHRunClick(Sender: TObject);
@@ -5311,7 +5311,6 @@ end;
 procedure TFSession.CMSysFontChanged(var Message: TMessage);
 var
   Color: TColor;
-  I: Integer;
   LogFont: TLogFont;
   NonClientMetrics: TNonClientMetrics;
 begin
@@ -11704,7 +11703,7 @@ begin
   if (not OpenNewWindow) then
     Window.Perform(UM_ADDTAB, 0, LPARAM(PChar(string(URI.Address))))
   else
-    ShellExecute(Application.Handle, 'open', PChar(TFileName(Application.ExeName)), PChar(URI.Address), '', SW_SHOW);
+    ShellExecute(Window.Handle, 'open', PChar(TFileName(Application.ExeName)), PChar(URI.Address), '', SW_SHOW);
 
   URI.Free();
 end;
