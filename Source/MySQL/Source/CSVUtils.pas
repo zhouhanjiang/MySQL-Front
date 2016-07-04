@@ -347,23 +347,17 @@ begin
 
       // -------------------
 
+        MOV ValueText,ESI                // Start of value
       StartL:
         CMP ECX,0                        // On character in Text?
         JE Finish                        // No!
         MOV AX,[ESI]                     // Get character from Text
         CMP AX,10                        // Character = LineFeed?
-        JNE Start2                       // No!
-        ADD ESI,2                        // Step over LineFeed
-        LOOP StartL                      // Next character
-        JMP Finish
+        JE Finish                        // Yes!
       Start2:
         CMP AX,13                        // Character = CarrigeReturn?
-        JNE StartE                       // No!
-        ADD ESI,2                        // Step over LineFeed
-        LOOP StartL                      // Next character
-        JMP Finish
+        JE Finish                        // Yes!
       StartE:
-        MOV ValueText,ESI                // Start of value
         CMP AX,Quoter                    // Character = Quoter?
         JE Quoted                        // No!
         JMP Unquoted
