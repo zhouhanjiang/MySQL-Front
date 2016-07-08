@@ -217,23 +217,6 @@ begin
 
   TBQuickSearchEnabled.Images := Preferences.SmallImages;
 
-  if ((Preferences.SQLHelp.Width >= Width) and (Preferences.SQLHelp.Height >= Height)) then
-  begin
-    Width := Preferences.SQLHelp.Width;
-    Height := Preferences.SQLHelp.Height;
-  end;
-  if ((0 <= Preferences.SQLHelp.Left) and (Preferences.SQLHelp.Left + Width <= Screen.Width)
-    and (0 <= Preferences.SQLHelp.Top) and (Preferences.SQLHelp.Top + Height <= Screen.Height)) then
-  begin
-    Left := Max(0, Preferences.SQLHelp.Left);
-    Top := Max(0, Preferences.SQLHelp.Top);
-  end
-  else
-  begin
-    Left := Max(0, Application.MainForm.Left + Application.MainForm.Width div 2 - Width div 2);
-    Top := Max(0, Application.MainForm.Top + Application.MainForm.Height div 2 - Height div 2);
-  end;
-
   SendMessage(FDescription.Handle, EM_SETEVENTMASK, 0, SendMessage(FDescription.Handle, EM_GETEVENTMASK, 0, 0) or ENM_LINK);
   SendMessage(FDescription.Handle, EM_AUTOURLDETECT, Integer(True), 0);
 end;
@@ -257,6 +240,23 @@ end;
 
 procedure TDSQLHelp.FormShow(Sender: TObject);
 begin
+  if ((Preferences.SQLHelp.Width >= Width) and (Preferences.SQLHelp.Height >= Height)) then
+  begin
+    Width := Preferences.SQLHelp.Width;
+    Height := Preferences.SQLHelp.Height;
+  end;
+  if ((0 <= Preferences.SQLHelp.Left) and (Preferences.SQLHelp.Left + Width <= Screen.Width)
+    and (0 <= Preferences.SQLHelp.Top) and (Preferences.SQLHelp.Top + Height <= Screen.Height)) then
+  begin
+    Left := Max(0, Preferences.SQLHelp.Left);
+    Top := Max(0, Preferences.SQLHelp.Top);
+  end
+  else
+  begin
+    Left := Max(0, Application.MainForm.Left + Application.MainForm.Width div 2 - Width div 2);
+    Top := Max(0, Application.MainForm.Top + Application.MainForm.Height div 2 - Height div 2);
+  end;
+
   Caption := Preferences.LoadStr(883);
 
   FDescription.Lines.Clear();

@@ -175,12 +175,6 @@ begin
 
   BorderStyle := bsSizeable;
 
-  if ((Preferences.Accounts.Width >= Width) and (Preferences.Accounts.Height >= Height)) then
-  begin
-    Width := Preferences.Accounts.Width;
-    Height := Preferences.Accounts.Height;
-  end;
-
   SetWindowLong(ListView_GetHeader(FAccounts.Handle), GWL_STYLE, GetWindowLong(ListView_GetHeader(FAccounts.Handle), GWL_STYLE) or HDS_NOSIZING);
 end;
 
@@ -196,6 +190,12 @@ end;
 
 procedure TDAccounts.FormShow(Sender: TObject);
 begin
+  if ((Preferences.Accounts.Width >= Width) and (Preferences.Accounts.Height >= Height)) then
+  begin
+    Width := Preferences.Accounts.Width;
+    Height := Preferences.Accounts.Height;
+  end;
+
   if (not Open) then
     Caption := Preferences.LoadStr(25)
   else

@@ -106,12 +106,6 @@ begin
 
   BorderStyle := bsSizeable;
 
-  if ((Preferences.Statement.Width >= Width) and (Preferences.Statement.Height >= Height)) then
-  begin
-    Width := Preferences.Statement.Width;
-    Height := Preferences.Statement.Height;
-  end;
-
   msCopy.Action := MainAction('aECopy'); msCopy.ShortCut := 0;
   msSelectAll.Action := MainAction('aESelectAll');
 end;
@@ -124,6 +118,12 @@ end;
 
 procedure TDStatement.FormShow(Sender: TObject);
 begin
+  if ((Preferences.Statement.Width >= Width) and (Preferences.Statement.Height >= Height)) then
+  begin
+    Width := Preferences.Statement.Width;
+    Height := Preferences.Statement.Height;
+  end;
+
   case (ViewType) of
     vtQuery:
       begin

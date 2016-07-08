@@ -100,6 +100,8 @@ type
     ntSetStmt,
     ntSetStmtAssignment,
     ntSetTransactionStmt,
+    ntShowAuthorsStmt,
+    ntShowBinaryLogsStmt,
     ntSoundsLikeOp,
     ntStartTransactionStmt,
     ntSubArea,
@@ -173,6 +175,8 @@ type
     stSet,
     stSetPassword,
     stSetTransaction,
+    stShowAuthors,
+    stShowBinaryLogs,
     stStartTransaction,
     stTruncate,
     stUnlock,
@@ -227,7 +231,7 @@ type
     ttBackslash               // "\", DB2 use
   );
 const
-  ttIdents = [ttIdentifier, ttDQIdentifier, ttDBIdentifier, ttBRIdentifier, ttMySQLIdentifier];
+  ttIdentifiers = [ttIdentifier, ttDQIdentifier, ttDBIdentifier, ttBRIdentifier, ttMySQLIdentifier];
 
 type
   TOperatorType = (
@@ -301,7 +305,7 @@ type
     otParameter               // "?"
   );
 
-  TDbIdentType = (
+  TDbIdentifierType = (
     ditUnknown,
     ditCharacterSet,
     ditCollate,

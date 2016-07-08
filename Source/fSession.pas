@@ -10388,11 +10388,16 @@ function Compare(Item1, Item2: Pointer): Integer;
   end;
 
 begin
-  Result := Sign(ClassOrder(TObject(Item1)) - ClassOrder(TObject(Item2)));
-  if ((Result = 0) and (TObject(Item1) is TSDBObject)) then
-    Result := Sign(TSDBObject(Item1).Database.Index - TSDBObject(Item2).Database.Index);
-  if (Result = 0) then
-    Result := Sign(TSObject(Item1).Index - TSObject(Item2).Index);
+  if (Item1 = Item2) then
+    Result := 0
+  else
+  begin
+    Result := Sign(ClassOrder(TObject(Item1)) - ClassOrder(TObject(Item2)));
+    if ((Result = 0) and (TObject(Item1) is TSDBObject) and (TObject(Item2) is TSDBObject)) then
+      Result := Sign(TSDBObject(Item1).Database.Index - TSDBObject(Item2).Database.Index);
+    if (Result = 0) then
+      Result := Sign(TSObject(Item1).Index - TSObject(Item2).Index);
+  end;
 end;
 
 function TSSession.AddDatabase(const NewDatabase: TSDatabase): Boolean;
@@ -10796,15 +10801,76 @@ var
   Database: TSDatabase;
   FlushPrivileges: Boolean;
   I: Integer;
+  Index: Integer;
   Identifiers: string;
   J: Integer;
   SQL: string;
   Trigger: TSTrigger;
 begin
+  Connection.BeginSynchron();
+  Update(List); // We need the Source for the dependencies
+  Connection.EndSynchron();
+
   List.Sort(Compare);
+
+  I := 0;
+  while (I <= List.Count - 2) do
+  begin
+    if ((TObject(List[I]) is TSDBObject) and (Assigned(TSDBObject(List[I]).Dependencies))) then
+      for J := 0 to TSDBObject(List[I]).Dependencies.Count - 1 do
+      begin
+        Index := List.IndexOf(TSDBObject(List[I]).Dependencies[J].DBObject);
+        if (Index < I) then
+        begin
+          List.Move(Index, I);
+          Dec(I);
+        end;
+      end;
+    Inc(I);
+  end;
 
   Database := nil; FlushPrivileges := False;
   SQL := '';
+
+  for I := 0 to List.Count - 1 do
+    if ((TObject(List[I]) is TSRoutine) or (TObject(List[I]) is TSTrigger) or (TObject(List[I]) is TSEvent)) then
+    begin
+      if (not Assigned(Database) or (TSDBObject(List[I]).Database <> Database) or not Assigned(Database) and (Databases.NameCmp(TSDBObject(List[I]).Database.Name, Connection.DatabaseName) <> 0)) then
+      begin
+        if (Assigned(Database) or (TSBaseTable(List[I]).Database.Name <> Connection.DatabaseName)) then
+          SQL := SQL + TSBaseTable(List[I]).Database.SQLUse() + SQL;
+        Database := TSDBObject(List[I]).Database;
+      end;
+      if (TSObject(List[I]) is TSProcedure) then
+        SQL := SQL + 'DROP PROCEDURE ' + Connection.EscapeIdentifier(Database.Name) + '.' + Connection.EscapeIdentifier(TSObject(List[I]).Name) + ';' + #13#10
+      else if (TSObject(List[I]) is TSFunction) then
+        SQL := SQL + 'DROP FUNCTION ' + Connection.EscapeIdentifier(Database.Name) + '.' + Connection.EscapeIdentifier(TSObject(List[I]).Name) + ';' + #13#10
+      else if (TSObject(List[I]) is TSTrigger) then
+        SQL := SQL + 'DROP TRIGGER ' + Connection.EscapeIdentifier(Database.Name) + '.' + Connection.EscapeIdentifier(TSObject(List[I]).Name) + ';' + #13#10
+      else if (TSObject(List[I]) is TSEvent) then
+        SQL := SQL + 'DROP EVENT ' + Connection.EscapeIdentifier(Database.Name) + '.' + Connection.EscapeIdentifier(TSObject(List[I]).Name) + ';' + #13#10;
+    end;
+
+  Identifiers := '';
+  for I := 0 to List.Count - 1 do
+    if (TSObject(List[I]) is TSView) then
+    begin
+      if (not Assigned(Database) or (TSView(List[I]).Database <> Database) or not Assigned(Database) and (Databases.NameCmp(TSView(List[I]).Database.Name, Connection.DatabaseName) <> 0)) then
+      begin
+        if (Assigned(Database) or (TSBaseTable(List[I]).Database.Name <> Connection.DatabaseName)) then
+          SQL := SQL + TSBaseTable(List[I]).Database.SQLUse() + SQL;
+        Database := TSView(List[I]).Database;
+        if (Identifiers <> '') then
+        begin
+          SQL := SQL + 'DROP VIEW ' + Identifiers + ';' + #13#10;
+          Identifiers := '';
+        end;
+      end;
+      if (Identifiers <> '') then Identifiers := Identifiers + ',';
+      Identifiers := Identifiers + Connection.EscapeIdentifier(Database.Name) + '.' + Connection.EscapeIdentifier(TSView(List[I]).Name);
+    end;
+  if (Identifiers <> '') then
+    SQL := SQL + 'DROP VIEW ' + Identifiers + ';' + #13#10;
 
   Identifiers := '';
   for I := 0 to List.Count - 1 do
@@ -10835,46 +10901,6 @@ begin
     end;
   if (Identifiers <> '') then
     SQL := SQL + 'DROP TABLE ' + Identifiers + ';' + #13#10;
-
-  Identifiers := '';
-  for I := 0 to List.Count - 1 do
-    if (TSObject(List[I]) is TSView) then
-    begin
-      if (not Assigned(Database) or (TSView(List[I]).Database <> Database) or not Assigned(Database) and (Databases.NameCmp(TSView(List[I]).Database.Name, Connection.DatabaseName) <> 0)) then
-      begin
-        if (Assigned(Database) or (TSBaseTable(List[I]).Database.Name <> Connection.DatabaseName)) then
-          SQL := SQL + TSBaseTable(List[I]).Database.SQLUse() + SQL;
-        Database := TSView(List[I]).Database;
-        if (Identifiers <> '') then
-        begin
-          SQL := SQL + 'DROP VIEW ' + Identifiers + ';' + #13#10;
-          Identifiers := '';
-        end;
-      end;
-      if (Identifiers <> '') then Identifiers := Identifiers + ',';
-      Identifiers := Identifiers + Connection.EscapeIdentifier(Database.Name) + '.' + Connection.EscapeIdentifier(TSView(List[I]).Name);
-    end;
-  if (Identifiers <> '') then
-    SQL := SQL + 'DROP VIEW ' + Identifiers + ';' + #13#10;
-
-  for I := 0 to List.Count - 1 do
-    if ((TObject(List[I]) is TSRoutine) or (TObject(List[I]) is TSTrigger) or (TObject(List[I]) is TSEvent)) then
-    begin
-      if (not Assigned(Database) or (TSDBObject(List[I]).Database <> Database) or not Assigned(Database) and (Databases.NameCmp(TSDBObject(List[I]).Database.Name, Connection.DatabaseName) <> 0)) then
-      begin
-        if (Assigned(Database) or (TSBaseTable(List[I]).Database.Name <> Connection.DatabaseName)) then
-          SQL := SQL + TSBaseTable(List[I]).Database.SQLUse() + SQL;
-        Database := TSDBObject(List[I]).Database;
-      end;
-      if (TSObject(List[I]) is TSProcedure) then
-        SQL := SQL + 'DROP PROCEDURE ' + Connection.EscapeIdentifier(Database.Name) + '.' + Connection.EscapeIdentifier(TSObject(List[I]).Name) + ';' + #13#10
-      else if (TSObject(List[I]) is TSFunction) then
-        SQL := SQL + 'DROP FUNCTION ' + Connection.EscapeIdentifier(Database.Name) + '.' + Connection.EscapeIdentifier(TSObject(List[I]).Name) + ';' + #13#10
-      else if (TSObject(List[I]) is TSTrigger) then
-        SQL := SQL + 'DROP TRIGGER ' + Connection.EscapeIdentifier(Database.Name) + '.' + Connection.EscapeIdentifier(TSObject(List[I]).Name) + ';' + #13#10
-      else if (TSObject(List[I]) is TSEvent) then
-        SQL := SQL + 'DROP EVENT ' + Connection.EscapeIdentifier(Database.Name) + '.' + Connection.EscapeIdentifier(TSObject(List[I]).Name) + ';' + #13#10;
-    end;
 
   for I := 0 to List.Count - 1 do
     if (TObject(List[I]) is TSDatabase) then

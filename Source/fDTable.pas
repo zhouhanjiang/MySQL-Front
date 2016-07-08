@@ -963,13 +963,7 @@ begin
 
   BorderStyle := bsSizeable;
 
-  if ((Preferences.Table.Width >= Width) and (Preferences.Table.Height >= Height)) then
-  begin
-    Width := Preferences.Table.Width;
-    Height := Preferences.Table.Height;
-  end;
-
-  PageControl.ActivePage := nil; // TSInformationsShow soll nicht vorzeitig aufgerufen werden
+  PageControl.ActivePage := nil; // TSInformationsShow should not called too early
 
   SetWindowLong(FAutoIncrement.Handle, GWL_STYLE, GetWindowLong(FAutoIncrement.Handle, GWL_STYLE) or ES_NUMBER);
   FFields.RowSelect := CheckWin32Version(6);
@@ -1044,6 +1038,12 @@ var
   TableName: string;
 begin
   Database.Session.RegisterEventProc(FormSessionEvent);
+
+  if ((Preferences.Table.Width >= Width) and (Preferences.Table.Height >= Height)) then
+  begin
+    Width := Preferences.Table.Width;
+    Height := Preferences.Table.Height;
+  end;
 
   if (not Assigned(Table)) then
   begin
@@ -1512,6 +1512,7 @@ var
   I: Integer;
   J: Integer;
   K: Integer;
+  List: TList;
   ListItem: TListItem;
   S: string;
   S2: string;
@@ -1530,6 +1531,14 @@ begin
 
   mlDCreate.ShortCut := VK_INSERT;
   mlDDelete.ShortCut := VK_DELETE;
+
+  List := TList.Create();
+  for I := 0 to NewTable.Database.Tables.Count - 1 do
+    List.Add(NewTable.Database.Tables[I]);
+  Database.Session.Connection.BeginSynchron();
+  Database.Session.Update(List);
+  Database.Session.Connection.EndSynchron();
+  List.Free();
 
   if (Assigned(Table) and (FReferenced.Items.Count = 0)) then
     for I := 0 to NewTable.Database.Tables.Count - 1 do

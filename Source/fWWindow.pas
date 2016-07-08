@@ -108,7 +108,6 @@ type
     aFOpenAccount: TAction;
     aFSave: TAction;
     aFSaveAs: TAction;
-    aHDonate: TAction;
     aHIndex: TAction;
     aHInfo: TAction;
     aHManual: TAction;
@@ -227,7 +226,6 @@ type
     miFReopen: TMenuItem;
     miFSave: TMenuItem;
     miFSaveAs: TMenuItem;
-    miHDonate: TMenuItem;
     miHelp: TMenuItem;
     miHIndex: TMenuItem;
     miHInfo: TMenuItem;
@@ -381,7 +379,6 @@ type
       Shift: TShiftState; X, Y: Integer);
     procedure TabControlMouseMove(Sender: TObject; Shift: TShiftState; X,
       Y: Integer);
-    procedure aHDonateExecute(Sender: TObject);
   const
     tiDeactivate = 1;
   type
@@ -540,11 +537,6 @@ end;
 procedure TWWindow.aFOpenAccountExecute(Sender: TObject);
 begin
   Perform(UM_ADDTAB, 0, 0);
-end;
-
-procedure TWWindow.aHDonateExecute(Sender: TObject);
-begin
-  ShellExecute(Handle, 'open', PChar(LoadStr(1007)), '', '', SW_SHOW);
 end;
 
 procedure TWWindow.aHIndexExecute(Sender: TObject);
@@ -982,10 +974,10 @@ begin
   TabControlRepaint := TList.Create();
 
   aFImportAccess.Visible := (odAccess in ODBCDrivers) or (odAccess2003 in ODBCDrivers);
-  aFImportExcel.Visible := (odExcel in ODBCDrivers) or (odExcel2007 in ODBCDrivers);
+  aFImportExcel.Visible := (odExcel in ODBCDrivers) or (odExcel2003 in ODBCDrivers);
   aFImportODBC.Visible := ODBCEnv <> SQL_NULL_HANDLE;
   aFExportAccess.Visible := (odAccess in ODBCDrivers) or (odAccess2003 in ODBCDrivers);
-  aFExportExcel.Visible := (odExcel in ODBCDrivers) or (odExcel2007 in ODBCDrivers);
+  aFExportExcel.Visible := (odExcel in ODBCDrivers) or (odExcel2003 in ODBCDrivers);
   aFExportODBC.Visible := ODBCEnv <> SQL_NULL_HANDLE;
   aVJobs.Visible := CheckWin32Version(6);
   miJobs.Visible := CheckWin32Version(6);
@@ -1622,7 +1614,6 @@ begin
   aHSQL.Caption := Preferences.LoadStr(883) + '...';
   aHManual.Caption := Preferences.LoadStr(573);
   aHUpdate.Caption := Preferences.LoadStr(666) + '...';
-  aHDonate.Caption := Preferences.LoadStr(920) + '...';
   aHInfo.Caption := Preferences.LoadStr(168) + '...';
 
   for I := 0 to ActionList.ActionCount - 1 do
@@ -1852,8 +1843,6 @@ begin
   else if (Tab = ActiveTab) then
   begin
     S := Tab.Session.Caption;
-    if (Tab.Session.Account.Connection.Port <> MYSQL_PORT) then
-      S := S + ':' + IntToStr(Tab.Session.Account.Connection.Port);
     if (Tab.ToolBarData.Caption <> '') then
       S := S + ' - ' + Tab.ToolBarData.Caption;
     Caption := S + ' - ' + LoadStr(1000);

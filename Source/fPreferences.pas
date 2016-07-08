@@ -141,7 +141,7 @@ type
         DelimiterType: TDelimiterType;
       end;
       Excel: record
-        Excel2007: Boolean;
+        Excel2003: Boolean;
       end;
       Access: record
         Access2003: Boolean;
@@ -1587,7 +1587,7 @@ begin
   CSV.Quoter := '"';
   CSV.Delimiter := ',';
   CSV.DelimiterType := dtChar;
-  Excel.Excel2007 := False;
+  Excel.Excel2003 := False;
   Access.Access2003 := False;
   HTML.Data := True;
   HTML.NULLText := False;
@@ -1620,7 +1620,7 @@ begin
   if (Assigned(XMLNode(XML, 'csv/quote/type'))) then TryStrToQuote(XMLNode(XML, 'csv/quote/type').Text, CSV.QuoteValues);
   if (Assigned(XMLNode(XML, 'csv/separator/character/string'))) then CSV.Delimiter := XMLNode(XML, 'csv/separator/character/string').Text;
   if (Assigned(XMLNode(XML, 'csv/separator/character/type'))) then TryStrToSeparatorType(XMLNode(XML, 'csv/separator/character/type').Text, CSV.DelimiterType);
-  if (Assigned(XMLNode(XML, 'excel/format')) and (XMLNode(XML, 'excel/format').Text = '2007')) then Excel.Excel2007 := True else Excel.Excel2007 := False;
+  if (Assigned(XMLNode(XML, 'excel/format')) and (XMLNode(XML, 'excel/format').Text = '2007')) then Excel.Excel2003 := True else Excel.Excel2003 := False;
   if (Assigned(XMLNode(XML, 'access/format')) and (XMLNode(XML, 'access/format').Text = '2003')) then Access.Access2003 := True else Access.Access2003 := False;
   if (Assigned(XMLNode(XML, 'html/data'))) then TryStrToBool(XMLNode(XML, 'html/data').Attributes['enabled'], HTML.Data);
   if (Assigned(XMLNode(XML, 'html/memo')) and (XMLNode(XML, 'html/memo').Attributes['visible'] <> Null)) then TryStrToBool(XMLNode(XML, 'html/memo').Attributes['visible'], HTML.MemoContent);
@@ -1654,7 +1654,7 @@ begin
   XMLNode(XML, 'csv/quote/type').Text := QuoteToStr(CSV.QuoteValues);
   XMLNode(XML, 'csv/separator/character/string').Text := CSV.Delimiter;
   XMLNode(XML, 'csv/separator/character/type').Text := SeparatorTypeToStr(CSV.DelimiterType);
-  if (Excel.Excel2007) then XMLNode(XML, 'excel/format').Text := '2007' else XMLNode(XML, 'excel/format').Text := '';
+  if (Excel.Excel2003) then XMLNode(XML, 'excel/format').Text := '2007' else XMLNode(XML, 'excel/format').Text := '';
   if (Access.Access2003) then XMLNode(XML, 'access/format').Text := '2003' else XMLNode(XML, 'access/format').Text := '';
   XMLNode(XML, 'html/data').Attributes['enabled'] := HTML.Data;
   XMLNode(XML, 'html/memo').Attributes['visible'] := HTML.MemoContent;

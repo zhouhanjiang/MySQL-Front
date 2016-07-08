@@ -333,12 +333,6 @@ begin
 
   BorderStyle := bsSizeable;
 
-  if ((Preferences.View.Width >= Width) and (Preferences.View.Height >= Height)) then
-  begin
-    Width := Preferences.View.Width;
-    Height := Preferences.View.Height;
-  end;
-
   msUndo.Action := MainAction('aEUndo'); msCut.ShortCut := 0;
   msCut.Action := MainAction('aECut'); msCut.ShortCut := 0;
   msCopy.Action := MainAction('aECopy'); msCopy.ShortCut := 0;
@@ -371,6 +365,12 @@ var
   TableName: string;
 begin
   Database.Session.RegisterEventProc(FormSessionEvent);
+
+  if ((Preferences.View.Width >= Width) and (Preferences.View.Height >= Height)) then
+  begin
+    Width := Preferences.View.Width;
+    Height := Preferences.View.Height;
+  end;
 
   if (not Assigned(View)) then
   begin

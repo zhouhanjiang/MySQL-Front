@@ -384,12 +384,6 @@ begin
 
   BorderStyle := bsSizeable;
 
-  if ((Preferences.Key.Width >= Width) and (Preferences.Key.Height >= Height)) then
-  begin
-    Width := Preferences.Key.Width;
-    Height := Preferences.Key.Height;
-  end;
-
   ToolBar1.Images := Preferences.SmallImages;
   ToolBar2.Images := Preferences.SmallImages;
   ToolBar3.Images := Preferences.SmallImages;
@@ -437,6 +431,12 @@ var
   J: Integer;
 begin
   Table.Session.RegisterEventProc(FormSessionEvent);
+
+  if ((Preferences.Key.Width >= Width) and (Preferences.Key.Height >= Height)) then
+  begin
+    Width := Preferences.Key.Width;
+    Height := Preferences.Key.Height;
+  end;
 
   if (not Assigned(Key)) then
   begin

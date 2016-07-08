@@ -306,12 +306,6 @@ begin
 
   BorderStyle := bsSizeable;
 
-  if ((Preferences.Database.Width >= Width) and (Preferences.Database.Height >= Height)) then
-  begin
-    Width := Preferences.Database.Width;
-    Height := Preferences.Database.Height;
-  end;
-
   FSource.Highlighter := MainHighlighter;
 
   PageControl.ActivePage := TSBasics; // TSInformationsShow soll nicht vorzeitig aufgerufen werden
@@ -335,6 +329,12 @@ var
   I: Integer;
 begin
   Session.RegisterEventProc(FormSessionEvent);
+
+  if ((Preferences.Database.Width >= Width) and (Preferences.Database.Height >= Height)) then
+  begin
+    Width := Preferences.Database.Width;
+    Height := Preferences.Database.Height;
+  end;
 
   if (not Assigned(Database)) then
     Caption := Preferences.LoadStr(147)

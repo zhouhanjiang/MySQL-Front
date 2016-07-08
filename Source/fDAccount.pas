@@ -285,14 +285,6 @@ begin
   Constraints.MinHeight := Height;
 
   BorderStyle := bsSizeable;
-
-  if ((Preferences.Database.Width >= Width) and (Preferences.Database.Height >= Height)) then
-  begin
-    Width := Preferences.Account.Width;
-    Height := Preferences.Account.Height;
-  end;
-
-  FormResize(Sender);
 end;
 
 procedure TDAccount.FormHide(Sender: TObject);
@@ -312,6 +304,12 @@ end;
 
 procedure TDAccount.FormShow(Sender: TObject);
 begin
+  if ((Preferences.Database.Width >= Width) and (Preferences.Database.Height >= Height)) then
+  begin
+    Width := Preferences.Account.Width;
+    Height := Preferences.Account.Height;
+  end;
+
   if (not Assigned(Account)) then
     Caption := Preferences.LoadStr(204)
   else

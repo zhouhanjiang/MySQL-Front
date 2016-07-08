@@ -169,7 +169,6 @@ begin
       AwkFile.Add('  gsub("{BuildVerMonth}", "' + ReplaceStr(Format('%2d', [MakeVerMonth]), ' ', '0') + '", $0)');
       AwkFile.Add('  gsub("{BuildVerDay}", "' + ReplaceStr(Format('%2d', [MakeVerDay]), ' ', '0') + '", $0)');
       AwkFile.Add('  gsub("{BuildInternetHomepage}", "' + Ini.ReadString('Internet', 'Homepage', '') + '", $0)');
-      AwkFile.Add('  gsub("{BuildInternetDonate}", "' + Ini.ReadString('Internet', 'Donate', '') + '", $0)');
       AwkFile.Add('  gsub("{BuildInternetDownload}", "' + Ini.ReadString('Internet', 'Download', '') + '", $0)');
       AwkFile.Add('  gsub("{BuildInternetDownloadPage}", "' + Ini.ReadString('Internet', 'DownloadPage', '') + '", $0)');
       AwkFile.Add('  gsub("{BuildInternetPadFile}", "' + Ini.ReadString('Internet', 'PadFile', '') + '", $0)');

@@ -443,7 +443,6 @@ type
     procedure DataSetAfterOpen(DataSet: TDataSet);
     procedure DataSetAfterPost(DataSet: TDataSet);
     procedure DataSetAfterScroll(DataSet: TDataSet);
-    procedure DataSetAfterRefresh(DataSet: TDataSet);
     procedure DataSetBeforeCancel(DataSet: TDataSet);
     procedure DataSetBeforePost(DataSet: TDataSet);
     procedure DBGridCellEnter(Column: TColumn);
@@ -1308,7 +1307,6 @@ begin
     GetMem(Item, SizeOf(TResult));
     TResult(Item^).DataSet := TMySQLDataSet.Create(FSession.Owner);
     TResult(Item^).DataSet.AfterOpen := FSession.DataSetAfterOpen;
-    TResult(Item^).DataSet.AfterRefresh := FSession.DataSetAfterRefresh;
     TResult(Item^).DataSource := TDataSource.Create(FSession.Owner);
     TResult(Item^).DataSource.Enabled := False;
     TResult(Item^).DBGrid := FSession.CreateDBGrid(PDBGrid, TResult(Item^).DataSource);
@@ -1365,7 +1363,6 @@ begin
   begin
     DataSet := TMySQLDataSet.Create(FSession.Owner);
     DataSet.AfterOpen := FSession.DataSetAfterOpen;
-    DataSet.AfterRefresh := FSession.DataSetAfterRefresh;
 
     if (not Assigned(PDBGrid)) then
       PDBGrid := FSession.CreatePDBGrid();
@@ -1565,8 +1562,6 @@ procedure TFSession.TTableDesktop.DataSetAfterRefresh(DataSet: TDataSet);
 var
   I: Integer;
 begin
-  FSession.DataSetAfterRefresh(DataSet);
-
   if (Table.DataSet.FilterSQL <> '') then
     AddFilter(Table.DataSet.FilterSQL);
   if (((Table.DataSet.Limit > 0) <> Limited) or (Limit <> Table.DataSet.Limit)) then
@@ -1814,7 +1809,6 @@ begin
     GetMem(Item, SizeOf(TResult));
     TResult(Item^).DataSet := TMySQLDataSet.Create(FSession.Owner);
     TResult(Item^).DataSet.AfterOpen := FSession.DataSetAfterOpen;
-    TResult(Item^).DataSet.AfterRefresh := FSession.DataSetAfterRefresh;
     TResult(Item^).DataSource := TDataSource.Create(FSession.Owner);
     TResult(Item^).DataSource.Enabled := False;
     TResult(Item^).DBGrid := FSession.CreateDBGrid(PDBGrid, TResult(Item^).DataSource);
@@ -5870,11 +5864,6 @@ begin
 
     StatusBarRefresh();
   end;
-end;
-
-procedure TFSession.DataSetAfterRefresh(DataSet: TDataSet);
-begin
-  Write;
 end;
 
 procedure TFSession.DataSetBeforeCancel(DataSet: TDataSet);

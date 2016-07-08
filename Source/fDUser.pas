@@ -267,12 +267,6 @@ begin
 
   BorderStyle := bsSizeable;
 
-  if ((Preferences.User.Width >= Width) and (Preferences.User.Height >= Height)) then
-  begin
-    Width := Preferences.User.Width;
-    Height := Preferences.User.Height;
-  end;
-
   FRights.SmallImages := Preferences.SmallImages;
 
   FSQLLog.Highlighter := MainHighlighter;
@@ -308,6 +302,12 @@ var
   UserName: string;
 begin
   Session.RegisterEventProc(FormSessionEvent);
+
+  if ((Preferences.User.Width >= Width) and (Preferences.User.Height >= Height)) then
+  begin
+    Width := Preferences.User.Width;
+    Height := Preferences.User.Height;
+  end;
 
   NewUser := TSUser.Create(Session.Users);
 

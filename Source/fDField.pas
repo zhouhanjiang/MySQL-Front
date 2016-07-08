@@ -726,12 +726,6 @@ begin
   Constraints.MinHeight := Height;
 
   BorderStyle := bsSizeable;
-
-  if ((Preferences.Field.Width >= Width) and (Preferences.Field.Height >= Height)) then
-  begin
-    Width := Preferences.Field.Width;
-    Height := Preferences.Field.Height;
-  end;
 end;
 
 procedure TDField.FormHide(Sender: TObject);
@@ -749,6 +743,12 @@ var
   S: string;
 begin
   Table.Session.RegisterEventProc(FormSessionEvent);
+
+  if ((Preferences.Field.Width >= Width) and (Preferences.Field.Height >= Height)) then
+  begin
+    Width := Preferences.Field.Width;
+    Height := Preferences.Field.Height;
+  end;
 
   if (not Assigned(Field)) then
   begin

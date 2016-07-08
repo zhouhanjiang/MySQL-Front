@@ -339,12 +339,6 @@ begin
 
   BorderStyle := bsSizeable;
 
-  if ((Preferences.View.Width >= Width) and (Preferences.View.Height >= Height)) then
-  begin
-    Width := Preferences.Event.Width;
-    Height := Preferences.Event.Height;
-  end;
-
   msUndo.Action := MainAction('aEUndo'); msCut.ShortCut := 0;
   msCut.Action := MainAction('aECut'); msCut.ShortCut := 0;
   msCopy.Action := MainAction('aECopy'); msCopy.ShortCut := 0;
@@ -372,6 +366,12 @@ var
   I: Integer;
 begin
   Database.Session.RegisterEventProc(FormSessionEvent);
+
+  if ((Preferences.View.Width >= Width) and (Preferences.View.Height >= Height)) then
+  begin
+    Width := Preferences.Event.Width;
+    Height := Preferences.Event.Height;
+  end;
 
   if (not Assigned(Event)) then
     Caption := Preferences.LoadStr(820)

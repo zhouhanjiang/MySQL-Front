@@ -230,12 +230,6 @@ begin
 
   BorderStyle := bsSizeable;
 
-  if ((Preferences.Routine.Width >= Width) and (Preferences.Routine.Height >= Height)) then
-  begin
-    Width := Preferences.Routine.Width;
-    Height := Preferences.Routine.Height;
-  end;
-
   FSource.Highlighter := MainHighlighter;
 end;
 
@@ -253,6 +247,12 @@ var
   RoutineName: string;
 begin
   Database.Session.RegisterEventProc(FormSessionEvent);
+
+  if ((Preferences.Routine.Width >= Width) and (Preferences.Routine.Height >= Height)) then
+  begin
+    Width := Preferences.Routine.Width;
+    Height := Preferences.Routine.Height;
+  end;
 
   if (not Assigned(Routine)) then
   begin

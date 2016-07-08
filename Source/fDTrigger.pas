@@ -223,12 +223,6 @@ begin
 
   BorderStyle := bsSizeable;
 
-  if ((Preferences.Trigger.Width >= Width) and (Preferences.Trigger.Height >= Height)) then
-  begin
-    Width := Preferences.Trigger.Width;
-    Height := Preferences.Trigger.Height;
-  end;
-
   msUndo.Action := MainAction('aEUndo'); msCut.ShortCut := 0;
   msCut.Action := MainAction('aECut'); msCut.ShortCut := 0;
   msCopy.Action := MainAction('aECopy'); msCopy.ShortCut := 0;
@@ -254,6 +248,12 @@ var
   TriggerName: string;
 begin
   Table.Session.RegisterEventProc(FormSessionEvent);
+
+  if ((Preferences.Trigger.Width >= Width) and (Preferences.Trigger.Height >= Height)) then
+  begin
+    Width := Preferences.Trigger.Width;
+    Height := Preferences.Trigger.Height;
+  end;
 
   if (not Assigned(Trigger)) then
   begin

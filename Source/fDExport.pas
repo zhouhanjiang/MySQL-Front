@@ -372,6 +372,8 @@ procedure TDExport.CMSysFontChanged(var Message: TMessage);
 begin
   inherited;
 
+  FErrorMessages.Font := Font;
+
   FBFilename.Height := FFilename.Height;
 
   FDatabaseNodeText.Left := FL1DatabaseTagFree.Left + FL1DatabaseTagFree.Width;
@@ -678,12 +680,6 @@ begin
 
   BorderStyle := bsSizeable;
 
-  if ((Preferences.Export.Width >= Width) and (Preferences.Export.Height >= Height)) then
-  begin
-    Width := Preferences.Export.Width;
-    Height := Preferences.Export.Height;
-  end;
-
   Export := nil;
 
   FSelect.Images := Preferences.SmallImages;
@@ -800,7 +796,7 @@ begin
               Preferences.Export.CSV.Quoter := FQuoteChar.Text[1];
           end;
         etExcelFile:
-          Preferences.Export.Excel.Excel2007 := (odExcel2007 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
+          Preferences.Export.Excel.Excel2003 := (odExcel2003 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
         etAccessFile:
           Preferences.Export.Access.Access2003 := (odAccess2003 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
         etODBC:
@@ -875,7 +871,7 @@ begin
               NewJob.CSV.Quoter := FQuoteChar.Text[1];
           end;
         etExcelFile:
-          NewJob.Excel.Excel2007 := (odExcel2007 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
+          NewJob.Excel.Excel2007 := (odExcel2003 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
         etAccessFile:
           NewJob.Access.Access2003 := (odAccess2003 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
         etODBC:
@@ -996,6 +992,13 @@ begin
   Session.RegisterEventProc(FormSessionEvent);
 
   ModalResult := mrNone;
+
+  if ((Preferences.Export.Width >= Width) and (Preferences.Export.Height >= Height)) then
+  begin
+    Width := Preferences.Export.Width;
+    Height := Preferences.Export.Height;
+  end;
+
   if (DialogType = edtCreateJob) then
     Caption := Preferences.LoadStr(897)
   else if (DialogType = edtEditJob) then
@@ -1346,7 +1349,7 @@ begin
     etExcelFile:
       begin
         SaveDialog.Filter := '';
-        if (odExcel2007 in ODBCDrivers) then
+        if (odExcel2003 in ODBCDrivers) then
           SaveDialog.Filter := SaveDialog.Filter + FilterDescription('xlsx') + ' (*.xls;*.xlsx;*.xlsm;*.xlsb)|*.xls;*.xlsx;*.xlsm;*.xlsb|';
         SaveDialog.Filter := SaveDialog.Filter + FilterDescription('xls') + ' (*.xls)|*.xls';
         SaveDialog.DefaultExt := '.xls';
@@ -1821,7 +1824,7 @@ begin
       begin
         Export := TTExportExcel.Create(Session, Filename);
         TTExportExcel(Export).Data := True;
-        TTExportExcel(Export).Excel2007 := (odExcel2007 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
+        TTExportExcel(Export).Excel2007 := (odExcel2003 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
         TTExportExcel(Export).Structure := True;
       end;
     etAccessFile:

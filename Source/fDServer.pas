@@ -179,12 +179,6 @@ begin
 
   BorderStyle := bsSizeable;
 
-  if ((Preferences.Server.Width >= Width) and (Preferences.Server.Height >= Height)) then
-  begin
-    Width := Preferences.Server.Width;
-    Height := Preferences.Server.Height;
-  end;
-
   PageControl.ActivePage := TSBasics;
 end;
 
@@ -207,6 +201,12 @@ var
   List: TList;
 begin
   Session.RegisterEventProc(FormSessionEvent);
+
+  if ((Preferences.Server.Width >= Width) and (Preferences.Server.Height >= Height)) then
+  begin
+    Width := Preferences.Server.Width;
+    Height := Preferences.Server.Height;
+  end;
 
   Caption := Preferences.LoadStr(842, Session.Caption);
 

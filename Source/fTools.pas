@@ -761,7 +761,7 @@ const
 
 var
   ODBCEnv: SQLHENV;
-  ODBCDrivers: set of (odAccess, odAccess2003, odExcel, odExcel2007);
+  ODBCDrivers: set of (odAccess, odAccess2003, odExcel, odExcel2003);
 
 implementation {***************************************************************}
 
@@ -786,7 +786,7 @@ const
   DriverAccess = 'Microsoft Access Driver (*.mdb)';
   DriverAccess2003 = 'Microsoft Access Driver (*.mdb, *.accdb)';
   DriverExcel = 'Microsoft Excel Driver (*.xls)';
-  DriverExcel2007 = 'Microsoft Excel Driver (*.xls, *.xlsx, *.xlsm, *.xlsb)';
+  DriverExcel2003 = 'Microsoft Excel Driver (*.xls, *.xlsx, *.xlsm, *.xlsb)';
 
 function GetUTCDateTime(Date: TDateTime): string;
 const
@@ -1004,9 +1004,9 @@ var
   Index1: Integer;
   Index2: Integer;
 begin
-  Result := 0;
-
-  if (Item1 <> Item2) then
+  if (Item1 = Item2) then
+    Result := 0
+  else
   begin
     if (TTool.TItem(Item1) is TTExport.TDBGridItem) then
       Index1 := 0
@@ -1024,7 +1024,7 @@ begin
     if ((Result = 0) and (TTool.TItem(Item1) is TTExport.TDBObjectItem)) then
     begin
       if (TTExport.TDBObjectItem(Item1).DBObject is TSBaseTable) then
-        if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine) or not TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine.IsMerge) then
+        if (not TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine.IsMerge) then
           Index1 := 0
         else
           Index1 := 1
@@ -1040,8 +1040,9 @@ begin
         Index1 := 6
       else
         Index1 := 7;
+
       if (TTExport.TDBObjectItem(Item2).DBObject is TSBaseTable) then
-        if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Item2).DBObject).Engine) or not TSBaseTable(TTExport.TDBObjectItem(Item2).DBObject).Engine.IsMerge) then
+        if (not TSBaseTable(TTExport.TDBObjectItem(Item2).DBObject).Engine.IsMerge) then
           Index2 := 0
         else
           Index2 := 1
@@ -1057,6 +1058,7 @@ begin
         Index2 := 6
       else
         Index2 := 7;
+
       Result := Sign(Index1 - Index2);
     end;
 
@@ -3823,9 +3825,9 @@ begin
     Connected := False;
     while ((Success <> daAbort) and not Connected) do
     begin
-      if (odExcel2007 in ODBCDrivers) then
+      if (odExcel2003 in ODBCDrivers) then
       begin
-        ConnStrIn := 'Driver={' + DriverExcel2007 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
+        ConnStrIn := 'Driver={' + DriverExcel2003 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
         Connected := SQL_SUCCEEDED(SQLDriverConnect(DBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE));
       end;
       if (not Connected) then
@@ -4516,7 +4518,7 @@ begin
           for K := I to Items.Count - 1 do
             if ((K <> I) and (Items[K] is TDBObjectItem)
               and (TDBObjectItem(Items[K]).DBObject = DBObject)) then
-                NewIndex := Max(NewIndex, K);
+              NewIndex := Max(NewIndex, K);
         end;
     end;
 
@@ -4653,7 +4655,10 @@ begin
   begin
     Content := Content + #13#10;
     Content := Content + '#' + #13#10;
-    Content := Content + '# Structure for table "' + Table.Name + '"' + #13#10;
+    if (Table is TSView) then
+      Content := Content + '# View "' + Table.Name + '"' + #13#10
+    else
+      Content := Content + '# Structure for table "' + Table.Name + '"' + #13#10;
     Content := Content + '#' + #13#10;
     Content := Content + #13#10;
 
@@ -6352,11 +6357,8 @@ begin
         ftWideMemo:
           begin
             Size := AnsiCharToWideChar(Session.Connection.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], nil, 0) * SizeOf(Char);
-            if (Size < Parameter[I].MemSize div SizeOf(Char)) then
-            begin
-              Parameter[I].Size := AnsiCharToWideChar(Session.Connection.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], Parameter[I].Mem, Parameter[I].MemSize div SizeOf(Char)) * SizeOf(Char);
-              MoveMemory(Parameter[I].Mem, DataSet.LibRow^[I], Parameter[I].Size);
-            end
+            if (Size < Parameter[I].MemSize) then
+              Parameter[I].Size := AnsiCharToWideChar(Session.Connection.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], Parameter[I].Mem, Parameter[I].MemSize) * SizeOf(Char)
             else
               Parameter[I].Size := SQL_LEN_DATA_AT_EXEC(Size * SizeOf(Char));
           end;
@@ -6578,7 +6580,7 @@ begin
     if (not Excel2007) then
       ConnStrIn := 'Driver={' + DriverExcel + '};DBQ=' + Filename + ';ReadOnly=False'
     else
-      ConnStrIn := 'Driver={' + DriverExcel2007 + '};DBQ=' + Filename + ';ReadOnly=False';
+      ConnStrIn := 'Driver={' + DriverExcel2003 + '};DBQ=' + Filename + ';ReadOnly=False';
 
     if (not SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, ODBCEnv, @DBC))) then
       DoError(ODBCError(SQL_HANDLE_ENV, ODBCEnv), nil, False)
@@ -8867,8 +8869,8 @@ initialization
         ODBCDrivers := ODBCDrivers + [odAccess2003]
       else if (lstrcmpi(PChar(@Driver), DriverExcel) = 0) then
         ODBCDrivers := ODBCDrivers + [odExcel]
-      else if (lstrcmpi(PChar(@Driver), DriverExcel2007) = 0) then
-        ODBCDrivers := ODBCDrivers + [odExcel2007];
+      else if (lstrcmpi(PChar(@Driver), DriverExcel2003) = 0) then
+        ODBCDrivers := ODBCDrivers + [odExcel2003];
     until (not SQL_SUCCEEDED(SQLDrivers(ODBCEnv, SQL_FETCH_NEXT, @Driver, Length(Driver), nil, nil, 0, nil)));
 finalization
   if (ODBCEnv <> SQL_NULL_HANDLE) then

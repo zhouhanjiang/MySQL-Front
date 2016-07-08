@@ -379,6 +379,8 @@ procedure TDImport.CMSysFontChanged(var Message: TMessage);
 begin
   inherited;
 
+  FErrorMessages.Font := Font;
+
   FBFilename.Height := FFilename.Height;
   FBDataSource.Height := FFilename.Height;
 
@@ -685,12 +687,6 @@ begin
 
   BorderStyle := bsSizeable;
 
-  if ((Preferences.Import.Width >= Width) and (Preferences.Import.Height >= Height)) then
-  begin
-    Width := Preferences.Import.Width;
-    Height := Preferences.Import.Height;
-  end;
-
   FSelect.Images := Preferences.SmallImages;
   FTables.SmallImages := Preferences.SmallImages;
 
@@ -900,6 +896,13 @@ begin
   TableNames := TTableNames.Create();
 
   ModalResult := mrNone;
+
+  if ((Preferences.Import.Width >= Width) and (Preferences.Import.Height >= Height)) then
+  begin
+    Width := Preferences.Import.Width;
+    Height := Preferences.Import.Height;
+  end;
+
   if (DialogType = idtCreateJob) then
     Caption := Preferences.LoadStr(897)
   else if (DialogType = idtEditJob) then
@@ -1322,7 +1325,7 @@ begin
       end;
     itExcelFile:
       begin
-        if (odExcel2007 in ODBCDrivers) then
+        if (odExcel2003 in ODBCDrivers) then
           OpenDialog.Filter := FilterDescription('xls') + ' (*.xls;*.xlsm;*.xlsb;*.xlsx)|*.xls;*.xlsm;*.xlsb;*.xlsx'
         else
           OpenDialog.Filter := FilterDescription('xls') + ' (*.xls)|*.xls';

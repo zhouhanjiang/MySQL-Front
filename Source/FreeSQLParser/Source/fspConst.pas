@@ -211,6 +211,8 @@ const
     'ntSetStmt',
     'ntSetStmtAssignment',
     'ntSetTransactionStmt',
+    'ntShowAuthorsStmt',
+    'ntShowBinaryLogsStmt',
     'ntSoundsLikeOp',
     'ntStartTransactionStmt',
     'ntSubArea',
@@ -283,6 +285,8 @@ const
     'stSet',
     'stSetPassword',
     'stSetTransaction',
+    'stShowAuthors',
+    'stShowBinaryLogs',
     'stStartTransaction',
     'stTruncate',
     'stUnlock',
@@ -306,11 +310,11 @@ const
     'ttNumeric',
     'ttString',
     'ttCSString',
-    'ttIdent',
-    'ttDQIdent',
-    'ttDBIdent',
-    'ttBRIdent',
-    'ttMySQLIdent',
+    'ttIdentifier',
+    'ttDQIdentifier',
+    'ttDBIdentifier',
+    'ttBRIdentifier',
+    'ttMySQLIdentifier',
     'ttBeginLabel',
     'ttEndLabel',
     'ttBindVariable',
@@ -408,7 +412,7 @@ const
     'otParameter'
   );
 
-  DbIdentTypeToString: array[TDbIdentType] of PChar = (
+  DbIdentTypeToString: array[TDbIdentifierType] of PChar = (
     'ditUnknown',
     'ditCharacterSet',
     'ditCollate',
@@ -591,6 +595,8 @@ const
     ntSetStmt,
     ntSetPasswordStmt,
     ntSetTransactionStmt,
+    ntShowAuthorsStmt,
+    ntShowBinaryLogsStmt,
     ntStartTransactionStmt,
     ntTruncateStmt,
     ntUnlockStmt,

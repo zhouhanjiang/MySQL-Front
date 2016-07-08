@@ -240,12 +240,6 @@ begin
 
   BorderStyle := bsSizeable;
 
-  if ((Preferences.Transfer.Width >= Width) and (Preferences.Transfer.Height >= Height)) then
-  begin
-    Width := Preferences.Transfer.Width;
-    Height := Preferences.Transfer.Height;
-  end;
-
   Transfer := nil;
   BorderStyle := bsSizeable;
 
@@ -292,7 +286,7 @@ var
 begin
   HelpContext := 1094;
 
-  if ((Preferences.Transfer.Width > Width) and (Preferences.Transfer.Height > Height)) then
+  if ((Preferences.Transfer.Width >= Width) and (Preferences.Transfer.Height >= Height)) then
   begin
     Width := Preferences.Transfer.Width;
     Height := Preferences.Transfer.Height;

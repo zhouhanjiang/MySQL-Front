@@ -220,12 +220,6 @@ begin
   Constraints.MinHeight := Height;
 
   BorderStyle := bsSizeable;
-
-  if ((Preferences.ForeignKey.Width >= Width) and (Preferences.ForeignKey.Height >= Height)) then
-  begin
-    Width := Preferences.ForeignKey.Width;
-    Height := Preferences.ForeignKey.Height;
-  end;
 end;
 
 procedure TDForeignKey.FormHide(Sender: TObject);
@@ -257,6 +251,12 @@ var
   J: Integer;
 begin
   Table.Session.RegisterEventProc(FormSessionEvent);
+
+  if ((Preferences.ForeignKey.Width >= Width) and (Preferences.ForeignKey.Height >= Height)) then
+  begin
+    Width := Preferences.ForeignKey.Width;
+    Height := Preferences.ForeignKey.Height;
+  end;
 
   if (not Assigned(ForeignKey)) then
   begin
