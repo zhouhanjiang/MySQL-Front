@@ -102,6 +102,10 @@ type
     ntSetTransactionStmt,
     ntShowAuthorsStmt,
     ntShowBinaryLogsStmt,
+    ntShowBinlogEventsStmt,
+    ntShowCharacterSetStmt,
+    ntShowCollationStmt,
+    ntShowContributorsStmt,
     ntSoundsLikeOp,
     ntStartTransactionStmt,
     ntSubArea,
@@ -177,6 +181,10 @@ type
     stSetTransaction,
     stShowAuthors,
     stShowBinaryLogs,
+    stShowBinlogEvents,
+    stShowCharacterSet,
+    stShowCollation,
+    stShowContributors,
     stStartTransaction,
     stTruncate,
     stUnlock,
@@ -193,7 +201,6 @@ type
     utKeyword,
     utLabel,
     utOperator,
-    utSign,
     utConst,
     utFunction,
     utDbIdent,
@@ -216,13 +223,13 @@ type
     ttNumeric,                // Numeric (float) constant, like -123.456E15
     ttString,                 // String constant, enclosed in ''
     ttCSString,               // MySQL Character Set, like _utf8'Hello'
-    ttIdentifier,             // Identifier
-    ttDQIdentifier,           // Identifier, enclosed in ""
-    ttDBIdentifier,           // Identifier, enclosed in []
-    ttBRIdentifier,           // Identifier, enclosed in {}
-    ttMySQLIdentifier,        // Identifier, enclosed in ``
-    ttBeginLabel,             // Lable, like Label_Name:
-    ttEndLabel,               // Lable, like Label_Name:
+    ttIdent,                  // Ident
+    ttDQIdent,                // Ident, enclosed in ""
+    ttDBIdent,                // Ident, enclosed in []
+    ttBRIdent,                // Ident, enclosed in {}
+    ttMySQLIdent,             // Ident, enclosed in ``
+    ttBeginLabel,             // Label, like Label_Name:
+    ttEndLabel,               // Label, like Label_Name:
     ttBindVariable,           // Bind Variable, like :bindvarname
     ttMySQLCodeStart,         // MySQL specific code, like /*!50000 SELECT 1; */
     ttMySQLCodeEnd,
@@ -231,13 +238,13 @@ type
     ttBackslash               // "\", DB2 use
   );
 const
-  ttIdentifiers = [ttIdentifier, ttDQIdentifier, ttDBIdentifier, ttBRIdentifier, ttMySQLIdentifier];
+  ttIdents = [ttIdent, ttMySQLIdent];
 
 type
   TOperatorType = (
     otUnknown,
 
-    otFunction_,              // Something like Abs(1.2), will be defined in ParseExpr
+    otFunction,               // Something like Abs(1.2), will be defined in ParseExpr
     otInterval,               // "INTERVAL"
     otBinary,                 // "BINARY"
     otCollate,                // "COLLATE"
@@ -305,7 +312,7 @@ type
     otParameter               // "?"
   );
 
-  TDbIdentifierType = (
+  TDbIdentType = (
     ditUnknown,
     ditCharacterSet,
     ditCollate,

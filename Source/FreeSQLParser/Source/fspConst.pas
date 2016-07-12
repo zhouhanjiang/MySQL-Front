@@ -18,8 +18,8 @@ const
 
   // Bugs while parsing Stmts:
   PE_IncompleteStmt = 5; // Uncompleted Token
-  PE_UnexpectedToken = 6; // Token unexpected or not understood
-  PE_UnkownStmt = 7; // First Token is not a known keyword
+  PE_UnexpectedToken = 6; // Token unexpected
+  PE_UnkownStmt = 7; // Unknown Statement
   PE_InvalidEndLabel = 8; // Begin and End Token are different
 
   MySQLFunctions =
@@ -213,6 +213,10 @@ const
     'ntSetTransactionStmt',
     'ntShowAuthorsStmt',
     'ntShowBinaryLogsStmt',
+    'ntShowBinlogEventsStmt',
+    'ntShowCharacterSetStmt',
+    'ntShowCollationStmt',
+    'ntShowContributorsStmt',
     'ntSoundsLikeOp',
     'ntStartTransactionStmt',
     'ntSubArea',
@@ -287,6 +291,10 @@ const
     'stSetTransaction',
     'stShowAuthors',
     'stShowBinaryLogs',
+    'stShowBinlogEvents',
+    'stShowCharacterSet',
+    'stShowCollation',
+    'stShowContributors',
     'stStartTransaction',
     'stTruncate',
     'stUnlock',
@@ -310,11 +318,11 @@ const
     'ttNumeric',
     'ttString',
     'ttCSString',
-    'ttIdentifier',
-    'ttDQIdentifier',
-    'ttDBIdentifier',
-    'ttBRIdentifier',
-    'ttMySQLIdentifier',
+    'ttIdent',
+    'ttDQIdent',
+    'ttDBIdent',
+    'ttBRIdent',
+    'ttMySQLIdent',
     'ttBeginLabel',
     'ttEndLabel',
     'ttBindVariable',
@@ -333,7 +341,6 @@ const
     'utKeyword',
     'utLabel',
     'utOperator',
-    'utSign',
     'utConst',
     'utFunction',
     'utDbIdent',
@@ -344,7 +351,7 @@ const
   OperatorTypeToString: array[TOperatorType] of PChar = (
     'otUnknown',
 
-    'otFunction_',
+    'otFunction',
     'otInterval',
     'otBinary',
     'otCollate',
@@ -412,7 +419,7 @@ const
     'otParameter'
   );
 
-  DbIdentTypeToString: array[TDbIdentifierType] of PChar = (
+  DbIdentTypeToString: array[TDbIdentType] of PChar = (
     'ditUnknown',
     'ditCharacterSet',
     'ditCollate',
@@ -445,7 +452,7 @@ const
     1,   // otCollate
 
     2,   // otNot1
-         // otNot2, if Parser.HighNotPrecedence
+         // otNot2
 
     3,   // otUnaryMinus
     3,   // otUnaryPlus
@@ -492,13 +499,13 @@ const
     12,  // otELSE
     12,  // otELSEIF
 
-    13,  // otNot2, if not Parser.HighNotPrecedence
+    13,  // otNot2
 
     14,  // otAnd
 
     15,  // otXOr
 
-    16,  // otPipes, if not Parser.PipesAsConcat
+    16,  // otPipes
     16,  // otOr
 
 
@@ -597,6 +604,10 @@ const
     ntSetTransactionStmt,
     ntShowAuthorsStmt,
     ntShowBinaryLogsStmt,
+    ntShowBinlogEventsStmt,
+    ntShowCharacterSetStmt,
+    ntShowCollationStmt,
+    ntShowContributorsStmt,
     ntStartTransactionStmt,
     ntTruncateStmt,
     ntUnlockStmt,

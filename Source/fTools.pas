@@ -6305,6 +6305,7 @@ var
   I: Integer;
   Index: Integer;
   L: LargeInt;
+  P: SQLPOINTER;
   ReturnCode: SQLRETURN;
   S: string;
   Size: Integer;
@@ -6360,7 +6361,7 @@ begin
             if (Size < Parameter[I].MemSize) then
               Parameter[I].Size := AnsiCharToWideChar(Session.Connection.CodePage, DataSet.LibRow^[I], DataSet.LibLengths^[I], Parameter[I].Mem, Parameter[I].MemSize) * SizeOf(Char)
             else
-              Parameter[I].Size := SQL_LEN_DATA_AT_EXEC(Size * SizeOf(Char));
+              Parameter[I].Size := SQL_DATA_AT_EXEC;
           end;
         ftBlob:
           begin
@@ -6370,7 +6371,7 @@ begin
               MoveMemory(Parameter[I].Mem, DataSet.LibRow^[I], Parameter[I].Size);
             end
             else
-              Parameter[I].Size := SQL_LEN_DATA_AT_EXEC(DataSet.LibLengths^[I]);
+              Parameter[I].Size := SQL_DATA_AT_EXEC;
           end;
         else
           raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Fields[I].DisplayName, Ord(Fields[I].DataType)]);
@@ -6392,7 +6393,6 @@ begin
     if (ReturnCode = SQL_NEED_DATA) then
       for I := 0 to Length(Fields) - 1 do
         if (Buffer = Parameter[I].Mem) then
-        begin
           case (Fields[I].DataType) of
             ftWideString,
             ftWideMemo:
@@ -6419,8 +6419,6 @@ begin
             else
               raise EDatabaseError.CreateFMT(SUnknownFieldType + ' (%d)', [Fields[I].DisplayName, Ord(Fields[I].DataType)]);
           end;
-          break;
-        end;
   end;
 end;
 

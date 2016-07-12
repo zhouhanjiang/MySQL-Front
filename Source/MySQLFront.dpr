@@ -134,7 +134,7 @@ begin
       {$ENDIF}
       Application.CreateForm(TWWindow, WWindow);
       Application.CreateForm(TPDataBrowserDummy, PDataBrowserDummy);
-      Application.MainForm.Perform(CM_CHANGEPREFERENCES, 0, 0);
+      Application.MainForm.Perform(UM_CHANGEPREFERENCES, 0, 0);
       GetClassName(Application.MainForm.Handle, PChar(SetupProgram), 100);
       Application.Run();
       if (Application.Handle <> 0) then
