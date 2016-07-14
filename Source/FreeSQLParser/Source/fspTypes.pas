@@ -195,6 +195,7 @@ type
 
   TUsageType = (
     utUnknown,
+    utSyntaxError,
     utWhiteSpace,
     utComment,
     utSymbol,
@@ -204,12 +205,12 @@ type
     utConst,
     utFunction,
     utDbIdent,
-    utMySQLCondCode,
     utPLSQL
   );
 
   TTokenType = (
     ttUnknown,
+    ttSyntaxError,            // Error while parsing token
     ttSpace,                  // Tab and Space
     ttReturn,                 // New line
     ttComment,                // Comment, like # comment, -- comment or /* this is multi line comment */
@@ -314,9 +315,6 @@ type
 
   TDbIdentType = (
     ditUnknown,
-    ditCharacterSet,
-    ditCollate,
-    ditEngine,
     ditAlias,
     ditTable,
     ditIndex,

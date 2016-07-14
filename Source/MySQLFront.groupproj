@@ -48,109 +48,109 @@
 			<MSBuild Projects="FastMM\Package\FastMM_160.dproj"/>
 		</Target>
 		<Target Name="FastMM_160:Clean">
-			<MSBuild Targets="Clean" Projects="FastMM\Package\FastMM_160.dproj"/>
+			<MSBuild Projects="FastMM\Package\FastMM_160.dproj" Targets="Clean"/>
 		</Target>
 		<Target Name="FastMM_160:Make">
-			<MSBuild Targets="Make" Projects="FastMM\Package\FastMM_160.dproj"/>
+			<MSBuild Projects="FastMM\Package\FastMM_160.dproj" Targets="Make"/>
 		</Target>
 		<Target Name="TPerlRegEx_160">
 			<MSBuild Projects="TPerlRegEx\Packages\TPerlRegEx_160.dproj"/>
 		</Target>
 		<Target Name="TPerlRegEx_160:Clean">
-			<MSBuild Targets="Clean" Projects="TPerlRegEx\Packages\TPerlRegEx_160.dproj"/>
+			<MSBuild Projects="TPerlRegEx\Packages\TPerlRegEx_160.dproj" Targets="Clean"/>
 		</Target>
 		<Target Name="TPerlRegEx_160:Make">
-			<MSBuild Targets="Make" Projects="TPerlRegEx\Packages\TPerlRegEx_160.dproj"/>
+			<MSBuild Projects="TPerlRegEx\Packages\TPerlRegEx_160.dproj" Targets="Make"/>
 		</Target>
 		<Target Name="SynopsePDF_160">
 			<MSBuild Projects="SynopsePDF\Packages\SynopsePDF_160.dproj"/>
 		</Target>
 		<Target Name="SynopsePDF_160:Clean">
-			<MSBuild Targets="Clean" Projects="SynopsePDF\Packages\SynopsePDF_160.dproj"/>
+			<MSBuild Projects="SynopsePDF\Packages\SynopsePDF_160.dproj" Targets="Clean"/>
 		</Target>
 		<Target Name="SynopsePDF_160:Make">
-			<MSBuild Targets="Make" Projects="SynopsePDF\Packages\SynopsePDF_160.dproj"/>
+			<MSBuild Projects="SynopsePDF\Packages\SynopsePDF_160.dproj" Targets="Make"/>
 		</Target>
 		<Target Name="MPHexEditor_160">
 			<MSBuild Projects="MPHexEditor\Packages\MPHexEditor_160.dproj"/>
 		</Target>
 		<Target Name="MPHexEditor_160:Clean">
-			<MSBuild Targets="Clean" Projects="MPHexEditor\Packages\MPHexEditor_160.dproj"/>
+			<MSBuild Projects="MPHexEditor\Packages\MPHexEditor_160.dproj" Targets="Clean"/>
 		</Target>
 		<Target Name="MPHexEditor_160:Make">
-			<MSBuild Targets="Make" Projects="MPHexEditor\Packages\MPHexEditor_160.dproj"/>
+			<MSBuild Projects="MPHexEditor\Packages\MPHexEditor_160.dproj" Targets="Make"/>
 		</Target>
 		<Target Name="SynEdit_160">
 			<MSBuild Projects="SynEdit\Packages\SynEdit_160.dproj"/>
 		</Target>
 		<Target Name="SynEdit_160:Clean">
-			<MSBuild Targets="Clean" Projects="SynEdit\Packages\SynEdit_160.dproj"/>
+			<MSBuild Projects="SynEdit\Packages\SynEdit_160.dproj" Targets="Clean"/>
 		</Target>
 		<Target Name="SynEdit_160:Make">
-			<MSBuild Targets="Make" Projects="SynEdit\Packages\SynEdit_160.dproj"/>
+			<MSBuild Projects="SynEdit\Packages\SynEdit_160.dproj" Targets="Make"/>
 		</Target>
 		<Target Name="acQueryBuilderDsgn_160">
 			<MSBuild Projects="QueryBuilder\Packages\acQueryBuilderDsgn_160.dproj"/>
 		</Target>
 		<Target Name="acQueryBuilderDsgn_160:Clean">
-			<MSBuild Targets="Clean" Projects="QueryBuilder\Packages\acQueryBuilderDsgn_160.dproj"/>
+			<MSBuild Projects="QueryBuilder\Packages\acQueryBuilderDsgn_160.dproj" Targets="Clean"/>
 		</Target>
 		<Target Name="acQueryBuilderDsgn_160:Make">
-			<MSBuild Targets="Make" Projects="QueryBuilder\Packages\acQueryBuilderDsgn_160.dproj"/>
+			<MSBuild Projects="QueryBuilder\Packages\acQueryBuilderDsgn_160.dproj" Targets="Make"/>
 		</Target>
 		<Target Name="ShellBrowser_160">
 			<MSBuild Projects="ShellBrowser\Packages\ShellBrowser_160.dproj"/>
 		</Target>
 		<Target Name="ShellBrowser_160:Clean">
-			<MSBuild Targets="Clean" Projects="ShellBrowser\Packages\ShellBrowser_160.dproj"/>
+			<MSBuild Projects="ShellBrowser\Packages\ShellBrowser_160.dproj" Targets="Clean"/>
 		</Target>
 		<Target Name="ShellBrowser_160:Make">
-			<MSBuild Targets="Make" Projects="ShellBrowser\Packages\ShellBrowser_160.dproj"/>
+			<MSBuild Projects="ShellBrowser\Packages\ShellBrowser_160.dproj" Targets="Make"/>
 		</Target>
 		<Target Name="Win32_Ext_160">
 			<MSBuild Projects="Win32\Packages\Win32_Ext_160.dproj"/>
 		</Target>
 		<Target Name="Win32_Ext_160:Clean">
-			<MSBuild Targets="Clean" Projects="Win32\Packages\Win32_Ext_160.dproj"/>
+			<MSBuild Projects="Win32\Packages\Win32_Ext_160.dproj" Targets="Clean"/>
 		</Target>
 		<Target Name="Win32_Ext_160:Make">
-			<MSBuild Targets="Make" Projects="Win32\Packages\Win32_Ext_160.dproj"/>
+			<MSBuild Projects="Win32\Packages\Win32_Ext_160.dproj" Targets="Make"/>
 		</Target>
 		<Target Name="VCL_Ext_160">
 			<MSBuild Projects="VCL\Packages\VCL_Ext_160.dproj"/>
 		</Target>
 		<Target Name="VCL_Ext_160:Clean">
-			<MSBuild Targets="Clean" Projects="VCL\Packages\VCL_Ext_160.dproj"/>
+			<MSBuild Projects="VCL\Packages\VCL_Ext_160.dproj" Targets="Clean"/>
 		</Target>
 		<Target Name="VCL_Ext_160:Make">
-			<MSBuild Targets="Make" Projects="VCL\Packages\VCL_Ext_160.dproj"/>
+			<MSBuild Projects="VCL\Packages\VCL_Ext_160.dproj" Targets="Make"/>
 		</Target>
 		<Target Name="MySQL_160">
 			<MSBuild Projects="MySQL\Packages\MySQL_160.dproj"/>
 		</Target>
 		<Target Name="MySQL_160:Clean">
-			<MSBuild Targets="Clean" Projects="MySQL\Packages\MySQL_160.dproj"/>
+			<MSBuild Projects="MySQL\Packages\MySQL_160.dproj" Targets="Clean"/>
 		</Target>
 		<Target Name="MySQL_160:Make">
-			<MSBuild Targets="Make" Projects="MySQL\Packages\MySQL_160.dproj"/>
+			<MSBuild Projects="MySQL\Packages\MySQL_160.dproj" Targets="Make"/>
 		</Target>
 		<Target Name="MySQLFront">
 			<MSBuild Projects="MySQLFront.dproj"/>
 		</Target>
 		<Target Name="MySQLFront:Clean">
-			<MSBuild Targets="Clean" Projects="MySQLFront.dproj"/>
+			<MSBuild Projects="MySQLFront.dproj" Targets="Clean"/>
 		</Target>
 		<Target Name="MySQLFront:Make">
-			<MSBuild Targets="Make" Projects="MySQLFront.dproj"/>
+			<MSBuild Projects="MySQLFront.dproj" Targets="Make"/>
 		</Target>
 		<Target Name="Build">
-			<CallTarget Targets="FastMM_160;TPerlRegEx_160;SynopsePDF_160;MPHexEditor_160;SynEdit_160;acQueryBuilder_160;acQueryBuilderDsgn_160;ShellBrowser_160;Win32_Ext_160;VCL_Ext_160;MySQL_160;MySQLFront"/>
+			<CallTarget Targets="FastMM_160;TPerlRegEx_160;SynopsePDF_160;MPHexEditor_160;SynEdit_160;acQueryBuilderDsgn_160;ShellBrowser_160;Win32_Ext_160;VCL_Ext_160;MySQL_160;MySQLFront"/>
 		</Target>
 		<Target Name="Clean">
-			<CallTarget Targets="FastMM_160:Clean;TPerlRegEx_160:Clean;SynopsePDF_160:Clean;MPHexEditor_160:Clean;SynEdit_160:Clean;acQueryBuilder_160:Clean;acQueryBuilderDsgn_160:Clean;ShellBrowser_160:Clean;Win32_Ext_160:Clean;VCL_Ext_160:Clean;MySQL_160:Clean;MySQLFront:Clean"/>
+			<CallTarget Targets="FastMM_160:Clean;TPerlRegEx_160:Clean;SynopsePDF_160:Clean;MPHexEditor_160:Clean;SynEdit_160:Clean;acQueryBuilderDsgn_160:Clean;ShellBrowser_160:Clean;Win32_Ext_160:Clean;VCL_Ext_160:Clean;MySQL_160:Clean;MySQLFront:Clean"/>
 		</Target>
 		<Target Name="Make">
-			<CallTarget Targets="FastMM_160:Make;TPerlRegEx_160:Make;SynopsePDF_160:Make;MPHexEditor_160:Make;SynEdit_160:Make;acQueryBuilder_160:Make;acQueryBuilderDsgn_160:Make;ShellBrowser_160:Make;Win32_Ext_160:Make;VCL_Ext_160:Make;MySQL_160:Make;MySQLFront:Make"/>
+			<CallTarget Targets="FastMM_160:Make;TPerlRegEx_160:Make;SynopsePDF_160:Make;MPHexEditor_160:Make;SynEdit_160:Make;acQueryBuilderDsgn_160:Make;ShellBrowser_160:Make;Win32_Ext_160:Make;VCL_Ext_160:Make;MySQL_160:Make;MySQLFront:Make"/>
 		</Target>
 		<Import Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')" Project="$(BDS)\Bin\CodeGear.Group.Targets"/>
 	</Project>

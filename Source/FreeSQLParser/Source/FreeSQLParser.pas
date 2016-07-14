@@ -153,7 +153,6 @@ type
         FDbIdentType: TDbIdentType;
         FErrorCode: Integer;
         FKeywordIndex: TWordList.TIndex;
-        FMySQLVersion: Integer;
         FOperatorType: TOperatorType;
         FOrigin: TOrigin;
         FPriorToken: TOffset;
@@ -165,8 +164,9 @@ type
         FUsageType: TUsageType;
         class function Create(const AParser: TMySQLParser;
           const ASQL: PChar; const ALength: Integer; const AOrigin: TOrigin;
-          const AErrorCode: Integer; const AMySQLVersion: Integer; const ATokenType: TTokenType;
-          const AOperatorType: TOperatorType; const AKeywordIndex: TWordList.TIndex; const AUsageType: TUsageType): TOffset; static;
+          const AErrorCode: Integer; const ATokenType: TTokenType;
+          const AOperatorType: TOperatorType; const AKeywordIndex: TWordList.TIndex;
+          const AUsageType: TUsageType): TOffset; static;
         function GetAsString(): string;
         function GetErrorMessage(): string;
         function GetGeneration(): Integer;
@@ -187,7 +187,6 @@ type
         property ErrorMessage: string read GetErrorMessage;
         property IsUsed: Boolean read GetIsUsed;
         property KeywordIndex: TWordList.TIndex read FKeywordIndex;
-        property MySQLVersion: Integer read FMySQLVersion;
         property NextToken: PToken read GetNextToken;
         property NodeType: TNodeType read Heritage.Heritage.FNodeType;
         property OperatorType: TOperatorType read FOperatorType;
@@ -1064,8 +1063,7 @@ type
       TDropDatabaseStmt = packed record
       private type
         TNodes = packed record
-          DropTag: TOffset;
-          DatabaseTag: TOffset;
+          StmtTag: TOffset;
           IfExistsTag: TOffset;
           DatabaseIdent: TOffset;
         end;
@@ -1082,8 +1080,7 @@ type
       TDropEventStmt = packed record
       private type
         TNodes = packed record
-          DropTag: TOffset;
-          EventTag: TOffset;
+          StmtTag: TOffset;
           IfExistsTag: TOffset;
           EventIdent: TOffset;
         end;
@@ -1100,8 +1097,7 @@ type
       TDropIndexStmt = packed record
       private type
         TNodes = packed record
-          DropTag: TOffset;
-          IndexTag: TOffset;
+          StmtTag: TOffset;
           IndexIdent: TOffset;
           OnTag: TOffset;
           TableIdent: TOffset;
@@ -1121,8 +1117,7 @@ type
       TDropRoutineStmt = packed record
       private type
         TNodes = packed record
-          DropTag: TOffset;
-          RoutineTag: TOffset;
+          StmtTag: TOffset;
           IfExistsTag: TOffset;
           RoutineIdent: TOffset;
         end;
@@ -1139,8 +1134,7 @@ type
       TDropServerStmt = packed record
       private type
         TNodes = packed record
-          DropTag: TOffset;
-          ServerTag: TOffset;
+          StmtTag: TOffset;
           IfExistsTag: TOffset;
           ServerIdent: TOffset;
         end;
@@ -1157,9 +1151,7 @@ type
       TDropTableStmt = packed record
       private type
         TNodes = packed record
-          DropTag: TOffset;
-          TemporaryTag: TOffset;
-          TableTag: TOffset;
+          StmtTag: TOffset;
           IfExistsTag: TOffset;
           TableIdentList: TOffset;
           RestrictCascadeTag: TOffset;
@@ -1177,8 +1169,7 @@ type
       TDropTriggerStmt = packed record
       private type
         TNodes = packed record
-          DropTag: TOffset;
-          TriggerTag: TOffset;
+          StmtTag: TOffset;
           IfExistsTag: TOffset;
           TriggerIdent: TOffset;
         end;
@@ -1195,9 +1186,7 @@ type
       TDropViewStmt = packed record
       private type
         TNodes = packed record
-          DropTag: TOffset;
-          TemporaryTag: TOffset;
-          ViewTag: TOffset;
+          StmtTag: TOffset;
           IfExistsTag: TOffset;
           ViewIdentList: TOffset;
           RestrictCascadeTag: TOffset;
@@ -2457,12 +2446,13 @@ type
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
+  private
+    MySQLVersions: array of Integer;
   protected
     FAnsiQuotes: Boolean;
     FErrorCode: Integer;
     FErrorToken: TOffset;
     FFunctions: TWordList;
-    FHighNotPrecedence: Boolean;
     FKeywords: TWordList;
     FLowerCaseTableNames: Integer;
     FMySQLVersion: Integer;
@@ -2474,7 +2464,6 @@ type
     FParsedText: string;
     FParsedTokens: Classes.TList;
     FParsePos: packed record Text: PChar; Length: Integer; Origin: TOrigin; end;
-    FPipesAsConcat: Boolean;
     FRoot: TOffset;
     function GetCurrentToken(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function GetErrorMessage(): string; overload; {$IFNDEF Debug} inline; {$ENDIF}
@@ -2482,7 +2471,7 @@ type
     function GetFunctions(): string; {$IFNDEF Debug} inline; {$ENDIF}
     function GetKeywords(): string; {$IFNDEF Debug} inline; {$ENDIF}
     function GetNextToken(Index: Integer): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
-    function GetParsedToken(Index: Integer): TOffset;
+    function GetParsedToken(const Index: Integer): TOffset;
     function GetRoot(): PRoot; {$IFNDEF Debug} inline; {$ENDIF}
     procedure SetFunctions(AFunctions: string); {$IFNDEF Debug} inline; {$ENDIF}
     procedure SetKeywords(AKeywords: string);
@@ -2826,8 +2815,6 @@ type
     function ParseCaseOpBranch(): TOffset;
     function ParseCaseStmt(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseCaseStmtBranch(): TOffset;
-    function ParseCharacterSetIdent(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
-    function ParseCollateIdent(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseColumn(const Add: TCreateTableColumnAdd = caNone): TOffset;
     function ParseCloseStmt(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseCommitStmt(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
@@ -2856,11 +2843,9 @@ type
     function ParseDropIndexStmt(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseDropRoutineStmt(const ARoutineType: TRoutineType): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseDropServerStmt(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
-    function ParseDropStmt(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseDropTableStmt(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseDropTriggerStmt(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseDropViewStmt(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
-    function ParseEngineIdent(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseEventIdent(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseExpr(): TOffset;
     function ParseExprList(): TOffset;
@@ -2868,6 +2853,7 @@ type
     function ParseForeignKey(const Add: Boolean = False): TOffset;
     function ParseFunction(): TOffset;
     function ParseFunctionParam(): TOffset;
+    function ParseIdent(): TOffset;
     function ParseIfStmt(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseIfStmtBranch(): TOffset;
     function ParseIndex(const Add: Boolean = False): TOffset;
@@ -2927,7 +2913,7 @@ type
     function ParseTableIdent(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseTableReference(): TOffset;
     function ParseTag(const KeywordIndex1: TWordList.TIndex; const KeywordIndex2: TWordList.TIndex = -1; const KeywordIndex3: TWordList.TIndex = -1; const KeywordIndex4: TWordList.TIndex = -1): TOffset;
-    function ParseToken(): TOffset;
+    function ParseToken(out Token: TOffset): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseTransactionCharacteristic(): TOffset;
     function ParseTruncateTableStmt(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseUnknownStmt(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
@@ -2961,18 +2947,16 @@ type
     property NextToken[Index: Integer]: TOffset read GetNextToken;
 
   public
-    constructor Create(const MySQLVersion: Integer = 0; const LowerCaseTableNames: Integer = 0);
+    constructor Create(const AMySQLVersion: Integer; const ALowerCaseTableNames: Integer = 0);
     destructor Destroy(); override;
     function Parse(const Text: PChar; const Length: Integer): Boolean; overload;
     function Parse(const Text: string): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     procedure SaveToFile(const Filename: string; const FileType: TFileType = ftSQL);
     property AnsiQuotes: Boolean read FAnsiQuotes write FAnsiQuotes;
     property Functions: string read GetFunctions write SetFunctions;
-    property HighNotPrecedence: Boolean read FHighNotPrecedence write FHighNotPrecedence;
     property LowerCaseTableNames: Integer read FLowerCaseTableNames write FLowerCaseTableNames;
     property Keywords: string read GetKeywords write SetKeywords;
-    property MySQLVersion: Integer read FMySQLVersion write FMySQLVersion;
-    property PipesAsConcat: Boolean read FPipesAsConcat write FPipesAsConcat;
+    property MySQLVersion: Integer read FMySQLVersion;
     property Root: PRoot read GetRoot;
     property Text: string read FParsedText;
   end;
@@ -3179,8 +3163,11 @@ class function TMySQLParser.TNode.Create(const AParser: TMySQLParser; const ANod
 begin
   Result := AParser.NewNode(ANodeType);
 
-  AParser.NodePtr(Result)^.FParser := AParser;
-  AParser.NodePtr(Result)^.FNodeType := ANodeType;
+  with PNode(AParser.NodePtr(Result))^ do
+  begin
+    FParser := AParser;
+    FNodeType := ANodeType;
+  end;
 end;
 
 function TMySQLParser.TNode.GetOffset(): TOffset;
@@ -3273,8 +3260,9 @@ end;
 
 class function TMySQLParser.TToken.Create(const AParser: TMySQLParser;
   const ASQL: PChar; const ALength: Integer; const AOrigin: TOrigin;
-  const AErrorCode: Integer; const AMySQLVersion: Integer; const ATokenType: fspTypes.TTokenType;
-  const AOperatorType: TOperatorType; const AKeywordIndex: TWordList.TIndex; const AUsageType: TUsageType): TOffset;
+  const AErrorCode: Integer; const ATokenType: fspTypes.TTokenType;
+  const AOperatorType: TOperatorType; const AKeywordIndex: TWordList.TIndex;
+  const AUsageType: TUsageType): TOffset;
 begin
   Result := TNode.Create(AParser, ntToken);
 
@@ -3287,7 +3275,6 @@ begin
     FOrigin := AOrigin;
     FTokenType := ATokenType;
     FErrorCode := AErrorCode;
-    FMySQLVersion := AMySQLVersion;
     FOperatorType := AOperatorType;
     FKeywordIndex := AKeywordIndex;
     FUsageType := AUsageType;
@@ -3373,8 +3360,13 @@ begin
 end;
 
 function TMySQLParser.TToken.GetIsUsed(): Boolean;
+var
+  I: Integer;
 begin
-  Result := not (TokenType in [ttSpace, ttReturn, ttComment]) and ((MySQLVersion >= FMySQLVersion));
+  Result := not (TokenType in [ttSpace, ttReturn, ttComment, ttMySQLCodeStart, ttMySQLCodeEnd]);
+
+  for I := 0 to Length(Parser.MySQLVersions) - 1 do
+    Result := Result and (Parser.MySQLVersion >= Parser.MySQLVersions[I]);
 end;
 
 function TMySQLParser.TToken.GetNextToken(): PToken;
@@ -4331,8 +4323,7 @@ begin
   begin
     FNodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.DropTag);
-    Heritage.Heritage.AddChild(ANodes.DatabaseTag);
+    Heritage.Heritage.AddChild(ANodes.StmtTag);
     Heritage.Heritage.AddChild(ANodes.IfExistsTag);
     Heritage.Heritage.AddChild(ANodes.DatabaseIdent);
   end;
@@ -4348,8 +4339,7 @@ begin
   begin
     FNodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.DropTag);
-    Heritage.Heritage.AddChild(ANodes.EventTag);
+    Heritage.Heritage.AddChild(ANodes.StmtTag);
     Heritage.Heritage.AddChild(ANodes.IfExistsTag);
     Heritage.Heritage.AddChild(ANodes.EventIdent);
   end;
@@ -4365,8 +4355,7 @@ begin
   begin
     FNodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.DropTag);
-    Heritage.Heritage.AddChild(ANodes.IndexTag);
+    Heritage.Heritage.AddChild(ANodes.StmtTag);
     Heritage.Heritage.AddChild(ANodes.IndexIdent);
     Heritage.Heritage.AddChild(ANodes.OnTag);
     Heritage.Heritage.AddChild(ANodes.TableIdent);
@@ -4388,8 +4377,7 @@ begin
   begin
     FNodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.DropTag);
-    Heritage.Heritage.AddChild(ANodes.RoutineTag);
+    Heritage.Heritage.AddChild(ANodes.StmtTag);
     Heritage.Heritage.AddChild(ANodes.IfExistsTag);
     Heritage.Heritage.AddChild(ANodes.RoutineIdent);
   end;
@@ -4405,8 +4393,7 @@ begin
   begin
     FNodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.DropTag);
-    Heritage.Heritage.AddChild(ANodes.ServerTag);
+    Heritage.Heritage.AddChild(ANodes.StmtTag);
     Heritage.Heritage.AddChild(ANodes.IfExistsTag);
     Heritage.Heritage.AddChild(ANodes.ServerIdent);
   end;
@@ -4422,9 +4409,7 @@ begin
   begin
     FNodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.DropTag);
-    Heritage.Heritage.AddChild(ANodes.TemporaryTag);
-    Heritage.Heritage.AddChild(ANodes.TableTag);
+    Heritage.Heritage.AddChild(ANodes.StmtTag);
     Heritage.Heritage.AddChild(ANodes.IfExistsTag);
     Heritage.Heritage.AddChild(ANodes.TableIdentList);
     Heritage.Heritage.AddChild(ANodes.RestrictCascadeTag);
@@ -4441,8 +4426,7 @@ begin
   begin
     FNodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.DropTag);
-    Heritage.Heritage.AddChild(ANodes.TriggerTag);
+    Heritage.Heritage.AddChild(ANodes.StmtTag);
     Heritage.Heritage.AddChild(ANodes.IfExistsTag);
     Heritage.Heritage.AddChild(ANodes.TriggerIdent);
   end;
@@ -4458,9 +4442,7 @@ begin
   begin
     FNodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.DropTag);
-    Heritage.Heritage.AddChild(ANodes.TemporaryTag);
-    Heritage.Heritage.AddChild(ANodes.ViewTag);
+    Heritage.Heritage.AddChild(ANodes.StmtTag);
     Heritage.Heritage.AddChild(ANodes.IfExistsTag);
     Heritage.Heritage.AddChild(ANodes.ViewIdentList);
     Heritage.Heritage.AddChild(ANodes.RestrictCascadeTag);
@@ -5708,21 +5690,21 @@ begin
   end;
 end;
 
-constructor TMySQLParser.Create(const MySQLVersion: Integer = 0; const LowerCaseTableNames: Integer = 0);
+constructor TMySQLParser.Create(const AMySQLVersion: Integer; const ALowerCaseTableNames: Integer = 0);
 begin
   inherited Create();
 
+  SetLength(MySQLVersions, 0);
+
   FAnsiQuotes := False;
   FFunctions := TWordList.Create(Self);
-  FHighNotPrecedence := False;
   FKeywords := TWordList.Create(Self);
-  FLowerCaseTableNames := LowerCaseTableNames;
-  FMySQLVersion := MySQLVersion;
+  FLowerCaseTableNames := ALowerCaseTableNames;
+  FMySQLVersion := AMySQLVersion;
   FNodes.Mem := nil;
   FNodes.Offset := 0;
   FNodes.Size := 0;
   FParsedTokens := Classes.TList.Create();
-  FPipesAsConcat := False;
 
   Functions := MySQLFunctions;
   Keywords := MySQLKeywords;
@@ -5736,12 +5718,14 @@ begin
     FreeMem(FNodes.Mem);
   FParsedTokens.Free();
 
+  SetLength(MySQLVersions, 0);
+
   inherited;
 end;
 
 function TMySQLParser.EndOfStmt(const Token: TOffset): Boolean;
 begin
-  Result := (Token = 0) or (TokenPtr(Token)^.TokenType = ttDelimiter);
+  Result := not IsToken(Token) or (TokenPtr(Token)^.TokenType = ttDelimiter);
 end;
 
 function TMySQLParser.GetCurrentToken(): TOffset;
@@ -5764,13 +5748,12 @@ begin
   case (AErrorCode) of
     PE_Success: Result := '';
     PE_Unknown: Result := 'Unknown error';
-    PE_EmptyText: Result := 'Text is empty';
-    PE_Syntax: Result := 'Invalid or unexpected character';
-    PE_IncompleteToken: Result := 'Incompleted Token';
-    PE_UnexpectedToken: Result := 'Token unexpected';
-    PE_UnkownStmt: Result := 'Unknown Statement';
-    PE_IncompleteStmt: Result := 'Incompleted Statement';
-    PE_InvalidEndLabel: Result := 'Begin and End Token are different';
+    PE_IncompleteToken: Result := 'Incompleted token';
+    PE_UnexpectedChar: Result := 'Unexpected character';
+    PE_IncompleteStmt: Result := 'Incompleted statement';
+    PE_UnexpectedToken: Result := 'Unexpected token';
+    PE_UnkownStmt: Result := 'Unknown statement';
+    PE_InvalidEndLabel: Result := 'Begin and end tokens are different';
     else Result := '[Unknown Error Code]';
   end;
 end;
@@ -5792,16 +5775,45 @@ begin
   Result := GetParsedToken(Index);
 end;
 
-function TMySQLParser.GetParsedToken(Index: Integer): TOffset;
+function TMySQLParser.GetParsedToken(const Index: Integer): TOffset;
 var
+  S: string;
+  Success: Boolean;
   Token: TOffset;
+  Version: Integer;
 begin
   if (FParsedTokens.Count - 1 < Index) then
     repeat
-      Token := ParseToken();
-      if ((Token > 0) and TokenPtr(Token)^.IsUsed) then
-        FParsedTokens.Add(Pointer(Token));
-    until ((Token = 0) or (FParsedTokens.Count - 1 = Index));
+      Success := ParseToken(Token);
+
+      if (not Success) then
+        SetError(TokenPtr(Token)^.ErrorCode, Token);
+      if (Token > 0) then
+      begin
+        if (TokenPtr(Token)^.TokenType = ttMySQLCodeStart) then
+        begin
+          S := TokenPtr(Token)^.Text;
+          S := Copy(S, 4, Length(S) - 3);
+          if (not TryStrToInt(S, Version)) then
+            TokenPtr(Token)^.FErrorCode := PE_UnexpectedChar
+          else
+          begin
+            SetLength(MySQLVersions, Length(MySQLVersions) + 1);
+            MySQLVersions[Length(MySQLVersions) - 1] := Version;
+          end;
+        end
+        else if (TokenPtr(Token)^.TokenType = ttMySQLCodeEnd) then
+        begin
+          if (Length(MySQLVersions) = 0) then
+            SetError(PE_UnexpectedToken, Token)
+          else
+            SetLength(MySQLVersions, Length(MySQLVersions) - 1);
+        end;
+
+        if (TokenPtr(Token)^.IsUsed) then
+          FParsedTokens.Add(Pointer(Token));
+      end;
+    until (not Success or not IsToken(Token) or (FParsedTokens.Count - 1 = Index));
 
   if (FParsedTokens.Count - 1 < Index) then
     Result := 0
@@ -6005,29 +6017,25 @@ begin
   FillChar(FNodes.Mem[0], FNodes.Size, #0);
 
   FRoot := TRoot.Create(Self);
-  FMySQLVersion := -1;
 
-  Root^.FFirstToken := CurrentToken;
+  Root^.FFirstToken := 0;
   Root^.FFirstStmt := 0;
 
-  while (not Error and (CurrentToken <> 0)) do
+  Result := True;
+  while (CurrentToken > 0) do
   begin
-    FErrorCode := PE_Success;
-    FErrorToken := 0;
-
+    Root^.FLastStmt := ParseStmt();
     if (Root^.FFirstStmt = 0) then
     begin
-      Root^.FFirstStmt := ParseStmt();
-      Root^.FLastStmt := Root^.FFirstStmt;
-    end
-    else
-      Root^.FLastStmt := ParseStmt();
+      Root^.FFirstToken := 1;
+      Root^.FFirstStmt := Root^.FLastStmt;
+    end;
 
-    if (not Error and IsToken(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType = ttDelimiter)) then
+    Result := Result and (Root^.LastStmt^.ErrorCode = 0);
+
+    if (IsToken(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType = ttDelimiter)) then
       ApplyCurrentToken(); // ttDelimiter
   end;
-
-  Result := not Error;
 end;
 
 function TMySQLParser.Parse(const Text: string): Boolean;
@@ -6059,13 +6067,13 @@ begin
     Found := True;
     while (not Error and Found and not EndOfStmt(CurrentToken)) do
       if ((Nodes.CharacterSetValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCHARACTER)) then
-        Nodes.CharacterSetValue := ParseValue(WordIndices(kiCHARACTER, kiSET), vaAuto, ParseCharacterSetIdent)
+        Nodes.CharacterSetValue := ParseValue(WordIndices(kiCHARACTER, kiSET), vaAuto, ParseIdent)
       else if ((Nodes.CharacterSetValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCOLLATE)) then
-        Nodes.CharacterSetValue := ParseValue(kiCOLLATE, vaAuto, ParseCollateIdent)
+        Nodes.CharacterSetValue := ParseValue(kiCOLLATE, vaAuto, ParseIdent)
       else if ((Nodes.CollateValue = 0) and not EndOfStmt(NextToken[1]) and (TokenPtr(CurrentToken)^.KeywordIndex = kiDEFAULT) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCHARACTER)) then
-        Nodes.CollateValue := ParseValue(WordIndices(kiDEFAULT, kiCHARACTER, kiSET), vaAuto, ParseCharacterSetIdent)
+        Nodes.CollateValue := ParseValue(WordIndices(kiDEFAULT, kiCHARACTER, kiSET), vaAuto, ParseIdent)
       else if ((Nodes.CollateValue = 0) and not EndOfStmt(NextToken[1]) and (TokenPtr(CurrentToken)^.KeywordIndex = kiDEFAULT) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCOLLATE)) then
-        Nodes.CollateValue := ParseValue(WordIndices(kiDEFAULT, kiCOLLATE), vaAuto, ParseCollateIdent)
+        Nodes.CollateValue := ParseValue(WordIndices(kiDEFAULT, kiCOLLATE), vaAuto, ParseIdent)
       else
         Found := False;
   end;
@@ -6310,7 +6318,7 @@ begin
     end
     else if ((Nodes.TableOptionsNodes.CharacterSetValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCHARACTER)) then
     begin
-      Nodes.TableOptionsNodes.CharacterSetValue := ParseValue(WordIndices(kiCHARACTER, kiSET), vaAuto, ParseCharacterSetIdent);
+      Nodes.TableOptionsNodes.CharacterSetValue := ParseValue(WordIndices(kiCHARACTER, kiSET), vaAuto, ParseIdent);
       Specifications.Add(Pointer(Nodes.TableOptionsNodes.CharacterSetValue));
       DelimiterExpected := False;
     end
@@ -6322,19 +6330,19 @@ begin
     end
     else if ((Nodes.TableOptionsNodes.CollateValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCOLLATE)) then
     begin
-      Nodes.TableOptionsNodes.CollateValue := ParseValue(WordIndices(kiCOLLATE), vaAuto, ParseCharacterSetIdent);
+      Nodes.TableOptionsNodes.CollateValue := ParseValue(WordIndices(kiCOLLATE), vaAuto, ParseIdent);
       Specifications.Add(Pointer(Nodes.TableOptionsNodes.CollateValue));
       DelimiterExpected := False;
     end
     else if ((Nodes.TableOptionsNodes.CharacterSetValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiDEFAULT) and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiCHARACTER)) then
     begin
-      Nodes.TableOptionsNodes.CharacterSetValue := ParseValue(WordIndices(kiDEFAULT, kiCHARACTER, kiSET), vaAuto, ParseCharacterSetIdent);
+      Nodes.TableOptionsNodes.CharacterSetValue := ParseValue(WordIndices(kiDEFAULT, kiCHARACTER, kiSET), vaAuto, ParseIdent);
       Specifications.Add(Pointer(Nodes.TableOptionsNodes.CharacterSetValue));
       DelimiterExpected := False;
     end
     else if ((Nodes.TableOptionsNodes.CollateValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiDEFAULT) and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiCOLLATE)) then
     begin
-      Nodes.TableOptionsNodes.CollateValue := ParseValue(WordIndices(kiDEFAULT, kiCOLLATE), vaAuto, ParseCollateIdent);
+      Nodes.TableOptionsNodes.CollateValue := ParseValue(WordIndices(kiDEFAULT, kiCOLLATE), vaAuto, ParseIdent);
       Specifications.Add(Pointer(Nodes.TableOptionsNodes.CollateValue));
       DelimiterExpected := False;
     end
@@ -6364,7 +6372,7 @@ begin
     end
     else if ((Nodes.TableOptionsNodes.EngineValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiENGINE)) then
     begin
-      Nodes.TableOptionsNodes.EngineValue := ParseValue(kiENGINE, vaAuto, ParseEngineIdent);
+      Nodes.TableOptionsNodes.EngineValue := ParseValue(kiENGINE, vaAuto, ParseIdent);
       Specifications.Add(Pointer(Nodes.TableOptionsNodes.EngineValue));
       DelimiterExpected := False;
     end
@@ -6526,10 +6534,10 @@ begin
   Nodes.ConvertToTag := ParseTag(kiCONVERT, kiTO);
 
   if (not Error) then
-    Nodes.CharacterSetValue := ParseValue(WordIndices(kiCHARACTER, kiSET), vaNo, ParseCharacterSetIdent);
+    Nodes.CharacterSetValue := ParseValue(WordIndices(kiCHARACTER, kiSET), vaNo, ParseIdent);
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCOLLATE)) then
-    Nodes.CollateValue := ParseValue(kiCOLLATE, vaNo, ParseCollateIdent);
+    Nodes.CollateValue := ParseValue(kiCOLLATE, vaNo, ParseIdent);
 
   Result := TAlterTableStmt.TConvertTo.Create(Self, Nodes);
 end;
@@ -6952,16 +6960,6 @@ begin
   Result := TCaseStmt.TBranch.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCharacterSetIdent(): TOffset;
-begin
-  Result := ParseDbIdent(ditCharacterSet);
-end;
-
-function TMySQLParser.ParseCollateIdent(): TOffset;
-begin
-  Result := ParseDbIdent(ditCollate);
-end;
-
 function TMySQLParser.ParseColumn(const Add: TCreateTableColumnAdd = caNone): TOffset;
 var
   Nodes: TColumn.TNodes;
@@ -7102,17 +7100,19 @@ end;
 
 function TMySQLParser.ParseCreateDatabaseStmt(): TOffset;
 var
-  Found: Boolean;
   Nodes: TCreateDatabaseStmt.TNodes;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
   Nodes.CreateTag := ParseTag(kiCREATE);
 
-  if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiSCHEMA)) then
-    Nodes.DatabaseTag := ParseTag(kiSCHEMA)
-  else
-    Nodes.DatabaseTag := ParseTag(kiDATABASE);
+  if (not Error) then
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (TokenPtr(CurrentToken)^.KeywordIndex = kiSCHEMA) then
+      Nodes.DatabaseTag := ParseTag(kiSCHEMA)
+    else
+      Nodes.DatabaseTag := ParseTag(kiDATABASE);
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiIF)) then
     Nodes.IfNotExistsTag := ParseTag(kiIF, kiNOT, kiEXISTS);
@@ -7120,18 +7120,17 @@ begin
   if (not Error) then
     Nodes.DatabaseIdent := ParseDbIdent(ditDatabase);
 
-  Found := True;
-  while (not Error and Found and not EndOfStmt(CurrentToken)) do
+  while (not Error and not EndOfStmt(CurrentToken)) do
     if ((Nodes.CharacterSetValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCHARACTER)) then
-      Nodes.CharacterSetValue := ParseValue(WordIndices(kiCHARACTER, kiSET), vaAuto, ParseCharacterSetIdent)
+      Nodes.CharacterSetValue := ParseValue(WordIndices(kiCHARACTER, kiSET), vaNo, ParseIdent)
     else if ((Nodes.CharacterSetValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCOLLATE)) then
-      Nodes.CharacterSetValue := ParseValue(kiCOLLATE, vaAuto, ParseCollateIdent)
-    else if ((Nodes.CollateValue = 0) and not EndOfStmt(NextToken[1]) and (TokenPtr(CurrentToken)^.KeywordIndex = kiDEFAULT) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCHARACTER)) then
-      Nodes.CollateValue := ParseValue(WordIndices(kiDEFAULT, kiCHARACTER, kiSET), vaAuto, ParseCharacterSetIdent)
-    else if ((Nodes.CollateValue = 0) and not EndOfStmt(NextToken[1]) and (TokenPtr(CurrentToken)^.KeywordIndex = kiDEFAULT) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCOLLATE)) then
-      Nodes.CollateValue := ParseValue(WordIndices(kiDEFAULT, kiCOLLATE), vaAuto, ParseCollateIdent)
+      Nodes.CollateValue := ParseValue(kiCOLLATE, vaNo, ParseIdent)
+    else if ((Nodes.CollateValue = 0) and not EndOfStmt(NextToken[1]) and (TokenPtr(CurrentToken)^.KeywordIndex = kiDEFAULT) and (TokenPtr(NextToken[1])^.KeywordIndex = kiCHARACTER)) then
+      Nodes.CharacterSetValue := ParseValue(WordIndices(kiDEFAULT, kiCHARACTER, kiSET), vaNo, ParseIdent)
+    else if ((Nodes.CollateValue = 0) and not EndOfStmt(NextToken[1]) and (TokenPtr(CurrentToken)^.KeywordIndex = kiDEFAULT) and (TokenPtr(NextToken[1])^.KeywordIndex = kiCOLLATE)) then
+      Nodes.CollateValue := ParseValue(WordIndices(kiDEFAULT, kiCOLLATE), vaNo, ParseIdent)
     else
-      Found := False;
+      SetError(PE_UnexpectedToken);
 
   Result := TCreateDatabaseStmt.Create(Self, Nodes);
 end;
@@ -7353,7 +7352,7 @@ begin
   Result := 0;
   Index := 1;
 
-  if (not Error and not EndOfStmt(NextToken[Index]) and (TokenPtr(NextToken[Index])^.KeywordIndex = kiOR)) then
+  if (not EndOfStmt(NextToken[Index]) and (TokenPtr(NextToken[Index])^.KeywordIndex = kiOR)) then
   begin
     Inc(Index);
     if (EndOfStmt(NextToken[Index])) then
@@ -7536,7 +7535,7 @@ begin
           end
           else if ((Nodes.TableOptionsNodes.CharacterSetValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCHARACTER)) then
           begin
-            Nodes.TableOptionsNodes.CharacterSetValue := ParseValue(WordIndices(kiCHARACTER, kiSET), vaAuto, ParseCharacterSetIdent);
+            Nodes.TableOptionsNodes.CharacterSetValue := ParseValue(WordIndices(kiCHARACTER, kiSET), vaAuto, ParseIdent);
             TableOptions.Add(Pointer(Nodes.TableOptionsNodes.CharacterSetValue));
           end
           else if ((Nodes.TableOptionsNodes.ChecksumValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCHECKSUM)) then
@@ -7546,17 +7545,17 @@ begin
           end
           else if ((Nodes.TableOptionsNodes.CollateValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCOLLATE)) then
           begin
-            Nodes.TableOptionsNodes.CollateValue := ParseValue(WordIndices(kiCOLLATE), vaAuto, ParseCollateIdent);
+            Nodes.TableOptionsNodes.CollateValue := ParseValue(WordIndices(kiCOLLATE), vaAuto, ParseIdent);
             TableOptions.Add(Pointer(Nodes.TableOptionsNodes.CollateValue));
           end
           else if ((Nodes.TableOptionsNodes.CharacterSetValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiDEFAULT) and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiCHARACTER)) then
           begin
-            Nodes.TableOptionsNodes.CharacterSetValue := ParseValue(WordIndices(kiDEFAULT, kiCHARACTER, kiSET), vaAuto, ParseCharacterSetIdent);
+            Nodes.TableOptionsNodes.CharacterSetValue := ParseValue(WordIndices(kiDEFAULT, kiCHARACTER, kiSET), vaAuto, ParseIdent);
             TableOptions.Add(Pointer(Nodes.TableOptionsNodes.CharacterSetValue));
           end
           else if ((Nodes.TableOptionsNodes.CollateValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiDEFAULT) and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiCOLLATE)) then
           begin
-            Nodes.TableOptionsNodes.CollateValue := ParseValue(WordIndices(kiDEFAULT, kiCOLLATE), vaAuto, ParseCollateIdent);
+            Nodes.TableOptionsNodes.CollateValue := ParseValue(WordIndices(kiDEFAULT, kiCOLLATE), vaAuto, ParseIdent);
             TableOptions.Add(Pointer(Nodes.TableOptionsNodes.CollateValue));
           end
           else if ((Nodes.TableOptionsNodes.CommentValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCOMMENT)) then
@@ -7581,7 +7580,7 @@ begin
           end
           else if ((Nodes.TableOptionsNodes.EngineValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiENGINE)) then
           begin
-            Nodes.TableOptionsNodes.EngineValue := ParseValue(kiENGINE, vaAuto, ParseEngineIdent);
+            Nodes.TableOptionsNodes.EngineValue := ParseValue(kiENGINE, vaAuto, ParseIdent);
             TableOptions.Add(Pointer(Nodes.TableOptionsNodes.EngineValue));
           end
           else if ((Nodes.TableOptionsNodes.IndexDirectoryValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiINDEX)) then
@@ -8142,10 +8141,10 @@ begin
     or (IdentString = 'SET'))) then
     begin
       if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCHARACTER)) then
-        Nodes.CharacterSetValue := ParseValue(WordIndices(kiCHARACTER, kiSET), vaNo, ParseCharacterSetIdent);
+        Nodes.CharacterSetValue := ParseValue(WordIndices(kiCHARACTER, kiSET), vaNo, ParseIdent);
 
       if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCOLLATE)) then
-        Nodes.CollateValue := ParseValue(kiCOLLATE, vaNo, ParseCollateIdent);
+        Nodes.CollateValue := ParseValue(kiCOLLATE, vaNo, ParseIdent);
     end;
 
   Result := TDataType.Create(Self, Nodes);
@@ -8367,13 +8366,10 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.DropTag := ParseTag(kiDROP);
-
-  if (not Error) then
-    if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiSCHEMA)) then
-      Nodes.DatabaseTag := ParseTag(kiSCHEMA)
-    else
-      Nodes.DatabaseTag := ParseTag(kiDATABASE);
+  if (TokenPtr(NextToken[1])^.KeywordIndex = kiDATABASE) then
+    Nodes.StmtTag := ParseTag(kiDROP, kiDATABASE)
+  else
+    Nodes.StmtTag := ParseTag(kiDROP, kiSCHEMA);
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiIF)) then
     Nodes.IfExistsTag := ParseTag(kiIF, kiEXISTS);
@@ -8390,10 +8386,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.DropTag := ParseTag(kiDROP);
-
-  if (not Error) then
-    Nodes.EventTag := ParseTag(kiEVENT);
+  Nodes.StmtTag := ParseTag(kiDROP, kiEVENT);
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiIF)) then
     Nodes.IfExistsTag := ParseTag(kiIF, kiEXISTS);
@@ -8411,10 +8404,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.DropTag := ParseTag(kiDROP);
-
-  if (not Error) then
-    Nodes.IndexTag := ParseTag(kiINDEX);
+  Nodes.StmtTag := ParseTag(kiDROP, kiINDEX);
 
   if (not Error) then
     Nodes.IndexIdent := ParseDbIdent(ditIndex);
@@ -8437,13 +8427,10 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.DropTag := ParseTag(kiDROP);
-
-  if (not Error) then
-    if (ARoutineType = rtFunction) then
-      Nodes.RoutineTag := ParseTag(kiFUNCTION)
-    else
-      Nodes.RoutineTag := ParseTag(kiPROCEDURE);
+  if (ARoutineType = rtFunction) then
+    Nodes.StmtTag := ParseTag(kiDROP, kiFUNCTION)
+  else
+    Nodes.StmtTag := ParseTag(kiDROP, kiPROCEDURE);
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiIF)) then
     Nodes.IfExistsTag := ParseTag(kiIF, kiEXISTS);
@@ -8463,10 +8450,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.DropTag := ParseTag(kiDROP);
-
-  if (not Error) then
-    Nodes.ServerTag := ParseTag(kiSERVER);
+  Nodes.StmtTag := ParseTag(kiDROP, kiSERVER);
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiIF)) then
     Nodes.IfExistsTag := ParseTag(kiIF, kiEXISTS);
@@ -8477,51 +8461,16 @@ begin
   Result := TDropServerStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseDropStmt(): TOffset;
-var
-  Index: Integer;
-begin
-  Result := 0;
-  Index := 1;
-
-  if (not Error and not EndOfStmt(NextToken[Index]) and (TokenPtr(NextToken[Index])^.KeywordIndex = kiTEMPORARY)) then
-    Inc(Index);
-
-  if (not Error) then
-    if (EndOfStmt(NextToken[Index])) then
-      SetError(PE_IncompleteStmt)
-    else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiDATABASE) then
-      Result := ParseDropDatabaseStmt()
-    else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiEVENT) then
-      Result := ParseDropEventStmt()
-    else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiFUNCTION) then
-      Result := ParseDropRoutineStmt(rtFunction)
-    else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiINDEX) then
-      Result := ParseDropIndexStmt()
-    else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiPROCEDURE) then
-      Result := ParseDropRoutineStmt(rtProcedure)
-    else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiSERVER) then
-      Result := ParseDropServerStmt()
-    else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiTABLE) then
-      Result := ParseDropTableStmt()
-    else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiTRIGGER) then
-      Result := ParseDropTriggerStmt()
-    else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiVIEW) then
-      Result := ParseDropViewStmt()
-    else
-      SetError(PE_UnexpectedToken, NextToken[Index]);
-end;
-
 function TMySQLParser.ParseDropTableStmt(): TOffset;
 var
   Nodes: TDropTableStmt.TNodes;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.DropTag := ParseTag(kiDROP);
-
-  if (not Error) then
-    Nodes.TableTag := ParseTag(kiTABLE);
+  if (TokenPtr(NextToken[1])^.KeywordIndex <> kiTEMPORARY) then
+    Nodes.StmtTag := ParseTag(kiDROP, kiTABLE)
+  else
+    Nodes.StmtTag := ParseTag(kiDROP, kiTEMPORARY, kiTABLE);
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiIF)) then
     Nodes.IfExistsTag := ParseTag(kiIF, kiEXISTS);
@@ -8544,10 +8493,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.DropTag := ParseTag(kiDROP);
-
-  if (not Error) then
-    Nodes.TriggerTag := ParseTag(kiTrigger);
+  Nodes.StmtTag := ParseTag(kiDROP, kiTrigger);
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiIF)) then
     Nodes.IfExistsTag := ParseTag(kiIF, kiEXISTS);
@@ -8564,10 +8510,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.DropTag := ParseTag(kiDROP);
-
-  if (not Error) then
-    Nodes.ViewTag := ParseTag(kiVIEW);
+  Nodes.StmtTag := ParseTag(kiDROP, kiVIEW);
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiIF)) then
     Nodes.IfExistsTag := ParseTag(kiIF, kiEXISTS);
@@ -8582,11 +8525,6 @@ begin
       Nodes.RestrictCascadeTag := ParseTag(kiCASCADE);
 
   Result := TDropViewStmt.Create(Self, Nodes);
-end;
-
-function TMySQLParser.ParseEngineIdent(): TOffset;
-begin
-  Result := ParseDbIdent(ditEngine);
 end;
 
 function TMySQLParser.ParseEventIdent(): TOffset;
@@ -8666,11 +8604,11 @@ begin
     begin
       TokenPtr(CurrentToken)^.FOperatorType := otFunction;
       TokenPtr(CurrentToken)^.FUsageType := utOperator;
+      TokenPtr(CurrentToken)^.FKeywordIndex := 0; // "BINARY" is a keyword and a function
     end
     else if (TokenPtr(CurrentToken)^.KeywordIndex = kiCASE) then
       Node := ParseCaseOp()
-    else if ((TokenPtr(CurrentToken)^.KeywordIndex = kiNULL)
-      or (TokenPtr(CurrentToken)^.TokenType in [ttInteger, ttNumeric, ttString, ttCSString])) then
+    else if (TokenPtr(CurrentToken)^.KeywordIndex = kiNULL) then
       TokenPtr(CurrentToken)^.FUsageType := utConst
     else
     begin
@@ -8695,7 +8633,7 @@ begin
           TokenPtr(Nodes[I])^.FOperatorType := otUnaryPlus;
 
   until (Error
-    or (EndOfStmt(CurrentToken))
+    or EndOfStmt(CurrentToken)
     or (TokenPtr(CurrentToken)^.TokenType in [ttComma, ttCloseBracket, ttDelimiter])
     or ((not IsToken(Nodes[NodeCount - 1]) or (TokenPtr(Nodes[NodeCount - 1])^.OperatorType = otUnknown))
       and not ((TokenPtr(CurrentToken)^.OperatorType <> otUnknown)
@@ -8728,7 +8666,6 @@ begin
             begin
               TokenPtr(Nodes[I])^.FDbIdentType := ditFunction;
               Nodes[I] := TFunction.Create(Self, Nodes[I], Nodes[I + 1]);
-//              Nodes[I] := TDbIdent.Create(Self, ditFunction, Nodes[I], 0, 0, 0, 0);
               Dec(NodeCount);
               Move(Nodes[I + 2], Nodes[I + 1], (NodeCount - I - 1) * SizeOf(Nodes[0]));
             end;
@@ -8860,7 +8797,7 @@ begin
   end;
 
   if (not Error and (NodeCount > 1)) then
-    SetError(PE_Unknown);
+    raise ERangeError.Create(SArgumentOutOfRange);
   if (Error or (NodeCount <> 1)) then
     Result := 0
   else
@@ -8962,6 +8899,17 @@ begin
     Nodes.DataTypeNode := ParseDataType();
 
   Result := TRoutineParam.Create(Self, Nodes);
+end;
+
+function TMySQLParser.ParseIdent(): TOffset;
+begin
+  Result := 0;
+  if (EndOfStmt(CurrentToken)) then
+    SetError(PE_IncompleteStmt)
+  else if (TokenPtr(CurrentToken)^.TokenType <> ttIdent) then
+    SetError(PE_UnexpectedToken)
+  else
+    Result := ApplyCurrentToken();
 end;
 
 function TMySQLParser.ParseIfStmt(): TOffset;
@@ -9668,7 +9616,7 @@ begin
     Nodes.PartitionValue := ParseValue(kiPARTITION, vaNo, True, ParsePartitionIdent);
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCHARACTER)) then
-    Nodes.CharacterSetValue := ParseValue(WordIndices(kiCHARACTER, kiSET), vaNo, ParseCharacterSetIdent);
+    Nodes.CharacterSetValue := ParseValue(WordIndices(kiCHARACTER, kiSET), vaNo, ParseIdent);
 
   if (not Error and not EndOfStmt(CurrentToken) and ((TokenPtr(CurrentToken)^.KeywordIndex = kiFIELDS) or (TokenPtr(CurrentToken)^.KeywordIndex = kiCOLUMNS)))then
   begin
@@ -9776,7 +9724,7 @@ begin
     Nodes.PartitionValue := ParseValue(kiPARTITION, vaNo, True, ParsePartitionIdent);
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCHARACTER)) then
-    Nodes.CharacterSetValue := ParseValue(WordIndices(kiCHARACTER, kiSET), vaNo, ParseCharacterSetIdent);
+    Nodes.CharacterSetValue := ParseValue(WordIndices(kiCHARACTER, kiSET), vaNo, ParseIdent);
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiROWS)) then
     Nodes.RowsIdentifiedByValue := ParseValue(WordIndices(kiROWS, kiIDENTIFIED, kiBY), vaNo, ParseString);
@@ -9927,7 +9875,7 @@ begin
     else if ((Nodes.DataDirectoryValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiDATA)) then
       Nodes.DataDirectoryValue := ParseValue(WordIndices(kiDATA, kiDIRECTORY), vaAuto, ParseString)
     else if ((Nodes.EngineValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiENGINE)) then
-      Nodes.EngineValue := ParseValue(kiENGINE, vaAuto, ParseEngineIdent)
+      Nodes.EngineValue := ParseValue(kiENGINE, vaAuto, ParseIdent)
     else if ((Nodes.IndexDirectoryValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiINDEX)) then
       Nodes.IndexDirectoryValue := ParseValue(WordIndices(kiINDEX, kiDIRECTORY), vaAuto, ParseString)
     else if ((Nodes.MaxRowsValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiMAX_ROWS)) then
@@ -9935,7 +9883,7 @@ begin
     else if ((Nodes.MinRowsValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiMIN_ROWS)) then
       Nodes.MinRowsValue := ParseValue(kiMIN_ROWS, vaAuto, ParseInteger)
     else if ((Nodes.EngineValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiSTORAGE)) then
-      Nodes.EngineValue := ParseValue(WordIndices(kiSTORAGE, kiENGINE), vaAuto, ParseEngineIdent)
+      Nodes.EngineValue := ParseValue(WordIndices(kiSTORAGE, kiENGINE), vaAuto, ParseIdent)
     else if ((Nodes.SubPartitionList = 0) and (TokenPtr(CurrentToken)^.TokenType = ttOpenBracket)) then
       Nodes.SubPartitionList := ParseList(True, ParseSubPartition)
     else
@@ -10755,7 +10703,7 @@ begin
     else if ((Nodes.DataDirectoryValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiDATA)) then
       Nodes.DataDirectoryValue := ParseValue(WordIndices(kiDATA, kiDIRECTORY), vaAuto, ParseString)
     else if ((Nodes.EngineValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiENGINE)) then
-      Nodes.EngineValue := ParseValue(kiENGINE, vaAuto, ParseEngineIdent)
+      Nodes.EngineValue := ParseValue(kiENGINE, vaAuto, ParseIdent)
     else if ((Nodes.IndexDirectoryValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiINDEX)) then
       Nodes.IndexDirectoryValue := ParseValue(WordIndices(kiINDEX, kiDIRECTORY), vaAuto, ParseString)
     else if ((Nodes.MaxRowsValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiMAX_ROWS)) then
@@ -10763,7 +10711,7 @@ begin
     else if ((Nodes.MinRowsValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiMIN_ROWS)) then
       Nodes.MinRowsValue := ParseValue(kiMIN_ROWS, vaAuto, ParseInteger)
     else if ((Nodes.EngineValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiSTORAGE)) then
-      Nodes.EngineValue := ParseValue(WordIndices(kiSTORAGE, kiENGINE), vaAuto, ParseEngineIdent)
+      Nodes.EngineValue := ParseValue(WordIndices(kiSTORAGE, kiENGINE), vaAuto, ParseIdent)
     else
       Found := False;
 
@@ -10780,6 +10728,9 @@ var
   Stmt: PStmt;
   Token: PToken;
 begin
+  FErrorCode := PE_Success;
+  FErrorToken := 0;
+
   FirstToken := CurrentToken;
   KeywordToken := CurrentToken;
   if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType = ttBeginLabel)) then
@@ -10787,7 +10738,7 @@ begin
 
   Result := 0;
 
-  if (KeywordToken = 0) then
+  if (EndOfStmt(KeywordToken)) then
     SetError(PE_IncompleteStmt)
   else
   begin
@@ -10817,7 +10768,45 @@ begin
     else if (KeywordIndex = kiDO) then
       Result := ParseDoStmt()
     else if (KeywordIndex = kiDROP) then
-      Result := ParseDropStmt()
+    begin
+      if (EndOfStmt(NextToken[1])) then
+        SetError(PE_IncompleteStmt)
+      else
+      begin
+        KeywordIndex1 := TokenPtr(NextToken[1])^.KeywordIndex;
+        if ((KeywordIndex = kiDROP) and (KeywordIndex1 = kiDATABASE)) then
+          Result := ParseDropDatabaseStmt()
+        else if ((KeywordIndex = kiDROP) and (KeywordIndex1 = kiEVENT)) then
+          Result := ParseDropEventStmt()
+        else if ((KeywordIndex = kiDROP) and (KeywordIndex1 = kiFUNCTION)) then
+          Result := ParseDropRoutineStmt(rtFunction)
+        else if ((KeywordIndex = kiDROP) and (KeywordIndex1 = kiINDEX)) then
+          Result := ParseDropIndexStmt()
+        else if ((KeywordIndex = kiDROP) and (KeywordIndex1 = kiPROCEDURE)) then
+          Result := ParseDropRoutineStmt(rtProcedure)
+        else if ((KeywordIndex = kiDROP) and (KeywordIndex1 = kiSCHEMA)) then
+          Result := ParseDropDatabaseStmt()
+        else if ((KeywordIndex = kiDROP) and (KeywordIndex1 = kiSERVER)) then
+          Result := ParseDropServerStmt()
+        else if ((KeywordIndex = kiDROP) and (KeywordIndex1 = kiTEMPORARY)) then
+        begin
+          if (EndOfStmt(NextToken[2])) then
+            SetError(PE_IncompleteStmt)
+          else if (TokenPtr(NextToken[2])^.KeywordIndex = kiTABLE) then
+            Result := ParseDropTableStmt()
+          else
+            SetError(PE_UnexpectedToken, NextToken[2]);
+        end
+        else if ((KeywordIndex = kiDROP) and (KeywordIndex1 = kiTABLE)) then
+          Result := ParseDropTableStmt()
+        else if ((KeywordIndex = kiDROP) and (KeywordIndex1 = kiTRIGGER)) then
+          Result := ParseDropTriggerStmt()
+        else if ((KeywordIndex = kiDROP) and (KeywordIndex1 = kiVIEW)) then
+          Result := ParseDropViewStmt()
+        else
+          SetError(PE_UnexpectedToken, NextToken[1]);
+      end;
+    end
     else if (PL_SQL and (KeywordIndex = kiFETCH)) then
       Result := ParseFetchStmt()
     else if (PL_SQL and (KeywordIndex = kiIF)) then
@@ -10859,7 +10848,7 @@ begin
         if (not EndOfStmt(NextToken[2])) then
           KeywordIndex2 := TokenPtr(NextToken[2])^.KeywordIndex;
       end;
-      if (KeywordIndex1 = kiAUTHORS) then
+      if ((KeywordIndex = kiSHOW) and (KeywordIndex1 = kiAUTHORS)) then
         Result := ParseShowAuthorsStmt()
       else if ((KeywordIndex = kiSHOW) and (KeywordIndex1 = kiBINARY) and (KeywordIndex2 = kiLOGS)) then
         Result := ParseShowBinaryLogsStmt()
@@ -11195,10 +11184,10 @@ begin
   Result := TTag.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseToken(): TOffset;
+function TMySQLParser.ParseToken(out Token: TOffset): Boolean;
 label
   TwoChars,
-  Selection, SelSpace, SelQuotedIdent, SelNotLess, SelNotEqual1, SelNotGreater, SelNot1, SelDoubleQuote, SelComment, SelModulo, SelDolor, SelAmpersand2, SelBitAND, SelSingleQuote, SelOpenBracket, SelCloseBracket, SelMySQLCodeEnd, SelMulti, SelComma, SelDoubleDot, SelDot, SelMySQLCode, SelDiv, SelNumeric, SelSLComment, SelArrow, SelMinus, SelPlus, SelAssign, SelColon, SelDelimiter, SelNULLSaveEqual, SelLessEqual, SelShiftLeft, SelNotEqual2, SelLess, SelEqual, SelGreaterEqual, SelShiftRight, SelGreater, SelParameter, SelAt, SelUnquotedIdent, SelDBIdent, SelBackslash, SelCloseSquareBracket, SelHat, SelMySQLCharacterSet, SelMySQLIdent, SelUnquotedIdentLower, SelOpenCurlyBracket, SelOpenCurlyBracket2, SelOpenCurlyBracket3, SelPipe, SelBitOR, SelCloseCurlyBracket, SelTilde, SelE,
+  Selection, SelSpace, SelQuotedIdent, SelNotLess, SelNotEqual1, SelNotGreater, SelNot1, SelDoubleQuote, SelComment, SelModulo, SelDolor, SelAmpersand2, SelBitAND, SelSingleQuote, SelOpenBracket, SelCloseBracket, SelMySQLCodeEnd, SelMulti, SelComma, SelDoubleDot, SelDot, SelMySQLCode, SelDiv, SelInteger, SelSLComment, SelArrow, SelMinus, SelPlus, SelAssign, SelColon, SelDelimiter, SelNULLSaveEqual, SelLessEqual, SelShiftLeft, SelNotEqual2, SelLess, SelEqual, SelGreaterEqual, SelShiftRight, SelGreater, SelParameter, SelAt, SelUnquotedIdent, SelDBIdent, SelBackslash, SelCloseSquareBracket, SelHat, SelMySQLCharacterSet, SelMySQLIdent, SelUnquotedIdentLower, SelOpenCurlyBracket, SelOpenCurlyBracket2, SelOpenCurlyBracket3, SelPipe, SelBitOR, SelCloseCurlyBracket, SelTilde, SelE,
   BindVariable,
   Colon,
   Comment,
@@ -11212,7 +11201,7 @@ label
   Separator,
   UnquotedIdent, UnquotedIdentLE, UnquotedIdentLabel,
   WhiteSpace, WhiteSpaceL, WhiteSpaceLE,
-  Empty, Incomplete, Syntax, Error,
+  Incomplete, UnexpectedChar,
   TrippelChar,
   DoubleChar,
   SingleChar,
@@ -11226,713 +11215,666 @@ var
   ErrorCode: Integer;
   KeywordIndex: TWordList.TIndex;
   Length: Integer;
-  MySQLVersion: Integer;
   OperatorType: TOperatorType;
   SQL: PChar;
   TokenLength: Integer;
   TokenType: fspTypes.TTokenType;
   UsageType: TUsageType;
 begin
-  SQL := FParsePos.Text;
-  Length := FParsePos.Length;
-  asm
-      PUSH ES
-      PUSH ESI
-      PUSH EDI
-      PUSH EBX
-
-      PUSH DS                          // string operations uses ES
-      POP ES
-      CLD                              // string operations uses forward direction
-
-      MOV ESI,SQL
-      MOV ECX,Length
-
-      MOV TokenType,ttUnknown
-      MOV OperatorType,otUnknown
-      MOV MySQLVersion,0
-      MOV ErrorCode,PE_Success
-
-    // ------------------------------
-
-      CMP ECX,1                        // One character in SQL?
-      JB Empty                         // Less!
-      JA TwoChars                      // More!
-      MOV EAX,0                        // Hi Char in EAX
-      MOV AX,[ESI]                     // One character from SQL to AX
-    TwoChars:
-      MOV EAX,[ESI]                    // Two characters from SQL to AX
-
-    Selection:
-      CMP AX,9                         // Tab ?
-      JE WhiteSpace                    // Yes!
-      CMP AX,10                        // Line feed ?
-      JE Return                        // Yes!
-      CMP AX,13                        // Carriadge Return ?
-      JE Return                        // Yes!
-      CMP AX,31                        // Invalid char ?
-      JBE Syntax                       // Yes!
-    SelSpace:
-      CMP AX,' '                       // Space ?
-      JE WhiteSpace                    // Yes!
-    SelNotLess:
-      CMP AX,'!'                       // "!" ?
-      JNE SelDoubleQuote               // No!
-      CMP EAX,$003C0021                // "!<" ?
-      JNE SelNotEqual1                 // No!
-      MOV OperatorType,otGreaterEqual
-      JMP DoubleChar
-    SelNotEqual1:
-      CMP EAX,$003D0021                // "!=" ?
-      JNE SelNotGreater                // No!
-      MOV OperatorType,otNotEqual
-      JMP DoubleChar
-    SelNotGreater:
-      CMP EAX,$003E0021                // "!>" ?
-      JNE SelNot1                      // No!
-      MOV OperatorType,otLessEqual
-      JMP DoubleChar
-    SelNot1:
-      MOV OperatorType,otNot1
-      JMP SingleChar
-    SelDoubleQuote:
-      CMP AX,'"'                       // Double Quote  ?
-      JNE SelComment                   // No!
-      MOV TokenType,ttDQIdent
-      MOV DX,'"'                       // End Quoter
-      JMP QuotedIdent
-    SelComment:
-      CMP AX,'#'                       // "#" ?
-      JE Comment                       // Yes!
-    SelDolor:
-      CMP AX,'$'                       // "$" ?
-      JE Syntax                        // Yes!
-    SelModulo:
-      CMP AX,'%'                       // "%" ?
-      JNE SelAmpersand2                // No!
-      MOV OperatorType,otMOD
-      JMP SingleChar
-    SelAmpersand2:
-      CMP AX,'&'                       // "&" ?
-      JNE SelSingleQuote               // No!
-      CMP EAX,$00260026                // "&&" ?
-      JNE SelBitAND                    // No!
-      MOV OperatorType,otAND
-      JMP DoubleChar
-    SelBitAND:
-      MOV OperatorType,otBitAND
-      JMP SingleChar
-    SelSingleQuote:
-      CMP AX,''''                      // Single Quote ?
-      JNE SelOpenBracket               // No!
-      MOV TokenType,ttString
-      MOV DX,''''                      // End Quoter
-      JMP QuotedIdent
-    SelOpenBracket:
-      CMP AX,'('                       // "(" ?
-      JNE SelCloseBracket              // No!
-      MOV TokenType,ttOpenBracket
-      JMP SingleChar
-    SelCloseBracket:
-      CMP AX,')'                       // ")" ?
-      JNE SelMySQLCodeEnd              // No!
-      MOV TokenType,ttCloseBracket
-      JMP SingleChar
-    SelMySQLCodeEnd:
-      CMP AX,'*'                       // "*" ?
-      JNE SelPlus                      // No!
-      CMP EAX,$002F002A                // "*/" ?
-      JNE SelMulti                     // No!
-      MOV TokenType,ttMySQLCodeEnd
-      JMP DoubleChar
-    SelMulti:
-      MOV OperatorType,otMulti
-      JMP SingleChar
-    SelPlus:
-      CMP AX,'+'                       // "+" ?
-      JNE SelComma                     // No!
-      MOV OperatorType,otPlus
-      JMP SingleChar
-    SelComma:
-      CMP AX,','                       // "," ?
-      JNE SelSLComment                 // No!
-      MOV TokenType,ttComma
-      JMP SingleChar
-    SelSLComment:
-      CMP AX,'-'                       // "-" ?
-      JNE SelDoubleDot                 // No!
-      CMP EAX,$002D002D                // "--" ?
-      JNE SelArrow                     // No!
-      CMP ECX,3                        // Three characters in SQL?
-      JB DoubleChar                    // No!
-      CMP WORD PTR [ESI + 4],9         // "--<Tab>" ?
-      JE Comment                       // Yes!
-      CMP WORD PTR [ESI + 4],10        // "--<LF>" ?
-      JE Comment                       // Yes!
-      CMP WORD PTR [ESI + 4],13        // "--<CR>" ?
-      JE Comment                       // Yes!
-      CMP WORD PTR [ESI + 4],' '       // "-- " ?
-      JE Comment                       // Yes!
-      JE DoubleChar
-    SelArrow:
-      CMP EAX,$003E002D                // "->" ?
-      JNE SelMinus                     // No!
-      MOV OperatorType,otArrow
-      JMP DoubleChar
-    SelMinus:
-      MOV OperatorType,otMinus
-      JMP SingleChar
-    SelDoubleDot:
-      CMP AX,'.'                       // "." ?
-      JNE SelMySQLCode                 // No!
-      CMP EAX,$002E002E                // ".." ?
-      JNE SelDot                       // No!
-      MOV OperatorType,otDoubleDot
-      JMP DoubleChar
-    SelDot:
-      MOV OperatorType,otDot
-      JMP SingleChar
-    SelMySQLCode:
-      CMP AX,'/'                       // "/" ?
-      JNE SelNumeric                   // No!
-      CMP EAX,$002A002F                // "/*" ?
-      JNE SelDiv                       // No!
-      CMP ECX,3                        // Three characters in SQL?
-      JB MLComment                     // No!
-      CMP WORD PTR [ESI + 4],'!'       // "/*!" ?
-      JNE MLComment                    // No!
-      JMP MySQLCondCode                // MySQL Code!
-    SelDiv:
-      MOV OperatorType,otDivision
-      JMP SingleChar
-    SelNumeric:
-      CMP AX,'9'                       // Digit?
-      JBE Intger                       // Yes!
-    SelAssign:
-      CMP AX,':'                       // ":" ?
-      JNE SelDelimiter                 // No!
-      CMP EAX,$003D003A                // ":=" ?
-      JNE Colon                        // No!
-      MOV OperatorType,otAssign2
-      JMP SingleChar
-    SelDelimiter:
-      CMP AX,';'                       // ";" ?
-      JNE SelNULLSaveEqual             // No!
-      MOV TokenType,ttDelimiter
-      JMP SingleChar
-    SelNULLSaveEqual:
-      CMP AX,'<'                       // "<" ?
-      JNE SelShiftLeft                 // No!
-      CMP EAX,$003D003C                // "<=" ?
-      JNE SelShiftLeft                 // No!
-      CMP ECX,3                        // Three characters in SQL?
-      JB SelShiftLeft                  // No!
-      CMP WORD PTR [ESI + 4],'>'       // "<=>" ?
-      JNE SelLessEqual                 // No!
-      MOV OperatorType,otNULLSaveEqual
-      JMP TrippelChar
-    SelLessEqual:
-      MOV OperatorType,otLessEqual
-      JMP DoubleChar
-    SelShiftLeft:
-      CMP EAX,$003C003C                // "<<" ?
-      JNE SelNotEqual2                 // No!
-      MOV OperatorType,otShiftLeft
-      JMP DoubleChar
-    SelNotEqual2:
-      CMP EAX,$003E003C                // "<>" ?
-      JNE SelEqual                     // No!
-      MOV OperatorType,otNotEqual
-      JMP DoubleChar
-    SelLess:
-      MOV OperatorType,otLess
-      JMP SingleChar
-    SelEqual:
-      CMP AX,'='                       // "=" ?
-      JNE SelGreaterEqual              // No!
-      MOV OperatorType,otEqual
-      JMP SingleChar
-    SelGreaterEqual:
-      CMP AX,'>'                       // ">" ?
-      JNE SelParameter                 // No!
-      CMP EAX,$003D003E                // ">=" ?
-      JNE SelShiftRight                // No!
-      MOV OperatorType,otGreaterEqual
-      JMP DoubleChar
-    SelShiftRight:
-      CMP EAX,$003E003E                // ">>" ?
-      JNE SelGreater                   // No!
-      MOV OperatorType,otShiftRight
-      JMP DoubleChar
-    SelGreater:
-      MOV OperatorType,otGreater
-      JMP SingleChar
-    SelParameter:
-      CMP AX,'?'                       // "?" ?
-      JNE SelAt                        // No!
-      MOV OperatorType,otParameter
-      JMP SingleChar
-    SelAt:
-      CMP AX,'@'                       // "@" ?
-      JNE SelUnquotedIdent        // No!
-      MOV TokenType,ttAt
-      JMP SingleChar
-    SelUnquotedIdent:
-      CMP AX,'Z'                       // Up case character?
-      JA SelDBIdent               // No!
-      MOV TokenType,ttIdent
-      JMP UnquotedIdent           // Yes!
-    SelDBIdent:
-      CMP AX,'['                       // "[" ?
-      JNE SelBackslash                 // No!
-      MOV TokenType,ttDBIdent
-      MOV DX,']'                       // End Quoter
-      JMP QuotedIdent
-    SelBackslash:
-      CMP AX,'\'                       // "\" ?
-      JNE SelCloseSquareBracket        // No!
-      MOV TokenType,ttBackslash
-      JMP SingleChar
-    SelCloseSquareBracket:
-      CMP AX,']'                       // "]" ?
-      JNE SelHat                       // Yes!
-      JMP Incomplete
-    SelHat:
-      CMP AX,'^'                       // "^" ?
-      JNE SelMySQLCharacterSet         // No!
-      MOV OperatorType,otHat
-      JMP SingleChar
-    SelMySQLCharacterSet:
-      CMP AX,'_'                       // "_" ?
-      JE MySQLCharacterSet             // Yes!
-    SelMySQLIdent:
-      CMP AX,'`'                       // "`" ?
-      JNE SelUnquotedIdentLower   // No!
-      MOV TokenType,ttMySQLIdent
-      MOV DX,'`'                       // End Quoter
-      JMP QuotedIdent
-    SelUnquotedIdentLower:
-      CMP AX,'z'                       // Low case character?
-      JA SelOpenCurlyBracket           // No!
-      MOV TokenType,ttIdent
-      JMP UnquotedIdent           // Yes!
-    SelOpenCurlyBracket:
-      CMP AX,'{'                       // "{" ?
-      JNE SelPipe                      // No!
-      MOV TokenType,ttOpenCurlyBracket
-      CMP DWORD PTR [ESI + 2],$004A004F// "{OJ" ?
-      JE SelOpenCurlyBracket2          // Yes!
-      CMP DWORD PTR [ESI + 2],$006A004F// "{Oj" ?
-      JE SelOpenCurlyBracket2          // Yes!
-      CMP DWORD PTR [ESI + 2],$004A006F// "{oJ" ?
-      JE SelOpenCurlyBracket2          // Yes!
-      CMP DWORD PTR [ESI + 2],$006A006F// "{oj" ?
-      JE SelOpenCurlyBracket2          // Yes!
-      JMP SelOpenCurlyBracket3
-    SelOpenCurlyBracket2:
-      CMP ECX,4                        // Four characters in SQL?
-      JB SelOpenCurlyBracket3          // No!
-      PUSH EAX
-      MOV AX,WORD PTR [ESI + 6]        // "{OJ " ?
-      CALL Separator
-      POP EAX
-      JZ SingleChar                    // Yes!
-    SelOpenCurlyBracket3:
-      CMP WORD PTR [ESI + 2],' '       // "{ " ?
-      JBE SingleChar                   // Yes!
-      MOV TokenType,ttBRIdent
-      MOV DX,'}'                       // End Quoter
-      JMP QuotedIdent
-    SelPipe:
-      CMP AX,'|'                       // "|" ?
-      JNE SelCloseCurlyBracket         // No!
-      CMP EAX,$007C007C                // "||" ?
-      JNE SelBitOR                     // No!
-      MOV OperatorType,otPipes
-      JMP DoubleChar
-    SelBitOR:
-      MOV OperatorType,otBitOr
-      JMP SingleChar
-    SelCloseCurlyBracket:
-      CMP AX,'}'                       // "}" ?
-      JNE SelTilde                     // No!
-      MOV TokenType,ttCloseCurlyBracket
-      JMP SingleChar
-    SelTilde:
-      CMP AX,'~'                       // "~" ?
-      JNE SelE                         // No!
-      MOV OperatorType,otInvertBits
-      JMP SingleChar
-    SelE:
-      CMP AX,127                       // Chr(127) ?
-      JNE UnquotedIdent           // No!
-      JMP Syntax
-
-    // ------------------------------
-
-    BindVariable:
-      MOV TokenType,ttBindVariable
-      JMP UnquotedIdent
-
-    // ------------------------------
-
-    Colon:
-      MOV TokenType,ttBindVariable
-      ADD ESI,2                        // Next character in SQL
-      DEC ECX                          // One character handled
-      CMP ECX,0                        // End of SQL?
-      JE Finish                        // Yes!
-      MOV AX,[ESI]                     // One Character from SQL to AX
-      CMP AX,'A'
-      JB Finish
-      CMP AX,'Z'
-      JBE BindVariable
-      CMP AX,'a'
-      JB Finish
-      CMP AX,'z'
-      JBE BindVariable
-      JMP Syntax
-
-    // ------------------------------
-
-    Comment:
-      MOV TokenType,ttComment
-      CMP AX,10                        // End of line?
-      JE Finish                        // Yes!
-      CMP AX,13                        // End of line?
-      JE Finish                        // Yes!
-      ADD ESI,2                        // Next character in SQL
-      DEC ECX                          // One character handled
-      CMP ECX,0                        // End of SQL?
-      JE Finish                        // Yes!
-      MOV AX,[ESI]                     // One Character from SQL to AX
-      JMP Comment
-
-    // ------------------------------
-
-    Intger:
-      MOV TokenType,ttInteger
-    IntgerL:
-      CMP AX,'.'                       // Dot?
-      JE NumericDot                    // Yes!
-      CMP AX,'E'                       // "E"?
-      JE Numeric                       // Yes!
-      CMP AX,'e'                       // "e"?
-      JE Numeric                       // Yes!
-      CMP AX,'0'                       // Digit?
-      JB IntgerE                       // No!
-      CMP AX,'9'
-      JAE IntgerE                      // Yes!
-      ADD ESI,2                        // Next character in SQL
-      DEC ECX                          // One character handled
-      CMP ECX,0                        // End of SQL?
-      JE Finish                        // Yes!
-      MOV AX,[ESI]                     // One Character from SQL to AX
-      JMP IntgerL
-    IntgerE:
-      CALL Separator                   // SQL separator?
-      JNE Syntax                       // No!
-      MOV TokenType,ttInteger
-      JMP Finish
-
-    // ------------------------------
-
-    MLComment:
-      MOV TokenType,ttComment
-      ADD ESI,4                        // Step over "/*" in SQL
-      SUB ECX,2                        // Two characters handled
-    MLCommentL:
-      CMP ECX,2                        // Two characters left in SQL?
-      JAE MLComment2                   // Yes!
-      JMP Incomplete
-    MLComment2:
-      MOV EAX,[ESI]                    // Load two character from SQL
-      CMP EAX,$002F002A
-      JE DoubleChar
-      ADD ESI,2                        // Next character in SQL
-      DEC ECX                          // One character handled
-      JMP MLCommentL
-
-    // ------------------------------
-
-    MySQLCharacterSet:
-      MOV TokenType,ttCSString
-      ADD ESI,2                        // Next character in SQL
-      DEC ECX                          // One character handled
-      MOV EDX,ESI
-    MySQLCharacterSetL:
-      MOV AX,[ESI]                     // One Character from SQL to AX
-      CMP AX,'0'                       // Digit?
-      JB MySQLCharacterSetE            // No!
-      CMP AX,'9'
-      JBE MySQLCharacterSetLE          // Yes!
-      CMP AX,'A'                       // String character?
-      JB MySQLCharacterSetE            // No!
-      CMP AX,'Z'
-      JBE MySQLCharacterSetLE          // Yes!
-      CMP AX,'a'                       // String character?
-      JB MySQLCharacterSetE            // No!
-      CMP AX,'z'
-      JBE MySQLCharacterSetLE          // Yes!
-    MySQLCharacterSetLE:
-      ADD ESI,2                        // Next character in SQL
-      DEC ECX                          // One character handled
-      JZ Incomplete                    // End of SQL!
-      JMP MySQLCharacterSetL
-    MySQLCharacterSetE:
-      CMP ESI,EDX
-      JE Incomplete
-      MOV AX,[ESI]                     // One Character from SQL to AX
-      CMP AX,''''                      // "'"?
-      JNE Syntax
-      ADD ESI,2                        // Next character in SQL
-      DEC ECX                          // One character handled
-      JZ Incomplete                    // End of SQL!
-      MOV DX,''''                      // End Quoter
-      JMP QuotedIdent
-
-    // ------------------------------
-
-    MySQLCondCode:
-      MOV TokenType,ttMySQLCodeStart
-      ADD ESI,4                        // Step over "/*" in SQL
-      SUB ECX,2                        // Two characters handled
-      MOV EAX,0
-      MOV EDX,0
-    MySQLCondCodeL:
-      ADD ESI,2                        // Next character in SQL
-      DEC ECX                          // One character handled
-      CMP ECX,0                        // End of SQL?
-      JE MySQLCondCodeE                // Yes!
-      MOV AX,[ESI]                     // One Character from SQL to AX
-      CMP AX,'0'                       // Digit?
-      JB MySQLCondCodeE                // No!
-      CMP AX,'9'                       // Digit?
-      JA MySQLCondCodeE                // No!
-      SUB AX,'0'                       // Str to Int
-      PUSH EAX                         // EDX := EDX * 10
-      MOV EAX,EDX
-      MOV EDX,10
-      MUL EDX
-      MOV EDX,EAX
-      POP EAX
-      ADD EDX,EAX                      // EDX := EDX + Digit
-      JMP MySQLCondCodeL
-    MySQLCondCodeE:
-      MOV MySQLVersion,EDX
-      JMP Finish
-
-    // ------------------------------
-
-    Numeric:
-      MOV DotFound,False               // One dot in a numeric value allowed only
-      MOV EFound,False                 // One "E" in a numeric value allowed only
-    NumericL:
-      CMP AX,'.'                       // Dot?
-      JE NumericDot                    // Yes!
-      CMP AX,'E'                       // "E"?
-      JE NumericExp                    // Yes!
-      CMP AX,'e'                       // "e"?
-      JE NumericExp                    // Yes!
-      CMP AX,'0'                       // Digit?
-      JB NumericE                      // No!
-      CMP AX,'9'
-      JA NumericE                      // No!
-      JMP NumericLE
-    NumericDot:
-      CMP EFound,False                 // A 'e' before?
-      JNE Syntax                       // Yes!
-      CMP DotFound,False               // A dot before?
-      JNE Syntax                       // Yes!
-      MOV DotFound,True
-      JMP NumericLE
-    NumericExp:
-      CMP DotFound,False               // A dot before?
-      JE Syntax                        // No!
-      CMP EFound,False                 // A 'e' before?
-      JNE Syntax                       // Yes!
-      MOV EFound,True
-    NumericLE:
-      ADD ESI,2                        // Next character in SQL
-      DEC ECX                          // One character handled
-      CMP ECX,0                        // End of SQL?
-      JE Finish                        // Yes!
-      MOV AX,[ESI]                     // One Character from SQL to AX
-      JMP NumericL
-    NumericE:
-      CALL Separator                   // SQL separator?
-      JNE Syntax                       // No!
-      MOV TokenType,ttNumeric
-      JMP Finish
-
-    // ------------------------------
-
-    QuotedIdent:
-      // DX: End Quoter
-      ADD ESI,2                        // Next character in SQL
-      DEC ECX                          // One character handled
-      CMP ECX,0                        // End of SQL?
-      JE Incomplete                    // Yes!
-    QuotedIdent2:
-      MOV AX,[ESI]                     // One Character from SQL to AX
-      CMP AX,'\'                       // Escaper?
-      JE QuotedIdent
-      CMP AX,DX                        // End Quoter (unescaped)?
-      JNE QuotedIdent             // No!
-      ADD ESI,2                        // Next character in SQL
-      DEC ECX                          // One character handled
-      JMP Finish
-
-    // ------------------------------
-
-    Return:
-      MOV TokenType,ttReturn
-      MOV EDX,EAX                      // Remember first character
-      ADD ESI,2                        // Next character in SQL
-      DEC ECX                          // One character handled
-      JZ Finish                        // End of SQL!
-      MOV AX,[ESI]                     // One Character from SQL to AX
-      CMP AX,DX                        // Same character like before?
-      JE Finish                        // Yes!
-      CMP AX,10                        // Line feed?
-      JE ReturnE                       // Yes!
-      CMP AX,13                        // Carriadge Return?
-      JNE Finish                       // No!
-    ReturnE:
-      ADD ESI,2                        // Next character in SQL
-      DEC ECX                          // One character handled
-      JMP Finish
-
-    // ------------------------------
-
-    Separator:
-      // AX: Char
-      PUSH ECX
-      MOV EDI,[Terminators]
-      MOV ECX,TerminatorsL
-      REPNE SCASW                      // Character = SQL separator?
-      POP ECX
-      RET
-      // ZF, if Char is in Terminators
-
-    // ------------------------------
-
-    UnquotedIdent:
-      CALL Separator                   // SQL separator?
-      JE Finish
-      ADD ESI,2                        // Next character in SQL
-      DEC ECX                          // One character handled
-      CMP ECX,0                        // End of SQL?
-      JE Finish                        // Yes!
-      MOV AX,[ESI]                     // One Character from SQL to AX
-      CMP AX,'@'
-      JE UnquotedIdent
-      CMP AX,'0'
-      JB Finish
-      CMP AX,'9'
-      JBE UnquotedIdent
-      CMP AX,':'
-      JE UnquotedIdentLabel
-      CMP AX,'A'
-      JB Finish
-      CMP AX,'Z'
-      JBE UnquotedIdent
-      CMP AX,'_'
-      JE UnquotedIdent
-      CMP AX,'a'
-      JB Finish
-      CMP AX,'z'
-      JBE UnquotedIdent
-      CMP AX,128
-      JAE UnquotedIdent
-      JMP Finish
-    UnquotedIdentLabel:
-      MOV TokenType,ttBeginLabel
-      JMP SingleChar
-
-    // ------------------------------
-
-    WhiteSpace:
-      MOV TokenType,ttSpace
-    WhiteSpaceL:
-      CMP AX,9
-      JE WhiteSpaceLE
-      CMP AX,' '
-      JE WhiteSpaceLE
-      JMP Finish
-    WhiteSpaceLE:
-      ADD ESI,2                        // Next character in SQL
-      DEC ECX                          // One character handled
-      CMP ECX,0                        // End of SQL?
-      JE Finish                        // Yes!
-      MOV AX,[ESI]                     // One Character from SQL to AX
-      JMP WhiteSpaceL
-
-    // ------------------------------
-
-    Empty:
-      MOV ErrorCode,PE_EmptyText
-      JMP Error
-    Syntax:
-      MOV ErrorCode,PE_Syntax
-      MOV AX,[ESI]                     // One Character from SQL to AX
-      CALL Separator
-      JE Error
-      ADD ESI,2                        // Next character in SQL
-      DEC ECX                          // One character handled
-      CMP ECX,0                        // End of SQL?
-      JNE Syntax
-    Incomplete:
-      MOV ErrorCode,PE_IncompleteToken
-    Error:
-      JMP Finish
-
-    TrippelChar:
-      ADD ESI,2                        // Next character in SQL
-      DEC ECX                          // One character handled
-    DoubleChar:
-      ADD ESI,2                        // Next character in SQL
-      DEC ECX                          // One character handled
-    SingleChar:
-      ADD ESI,2                        // Next character in SQL
-      DEC ECX                          // One character handled
-
-    Finish:
-      MOV EAX,Length
-      SUB EAX,ECX
-      MOV TokenLength,EAX
-
-      POP EBX
-      POP EDI
-      POP ESI
-      POP ES
-  end;
-
-  if (ErrorCode = PE_EmptyText) then
-    Result := 0
+  if (FParsePos.Length = 0) then
+  begin
+    Result := True;
+    Token := 0;
+  end
   else
   begin
+    SQL := FParsePos.Text;
+    Length := FParsePos.Length;
+    asm
+        PUSH ES
+        PUSH ESI
+        PUSH EDI
+        PUSH EBX
+
+        PUSH DS                          // string operations uses ES
+        POP ES
+        CLD                              // string operations uses forward direction
+
+        MOV ESI,SQL
+        MOV ECX,Length
+
+        MOV TokenType,ttUnknown
+        MOV OperatorType,otUnknown
+        MOV ErrorCode,PE_Success
+
+      // ------------------------------
+
+        CMP ECX,0                        // One character in SQL?
+        JE Incomplete                    // No!
+        JA TwoChars                      // More!
+        MOV EAX,0                        // Hi Char in EAX
+        MOV AX,[ESI]                     // One character from SQL to AX
+      TwoChars:
+        MOV EAX,[ESI]                    // Two characters from SQL to AX
+
+      Selection:
+        CMP AX,9                         // Tab ?
+        JE WhiteSpace                    // Yes!
+        CMP AX,10                        // Line feed ?
+        JE Return                        // Yes!
+        CMP AX,13                        // Carriadge Return ?
+        JE Return                        // Yes!
+        CMP AX,31                        // Invalid char ?
+        JBE UnexpectedChar               // Yes!
+      SelSpace:
+        CMP AX,' '                       // Space ?
+        JE WhiteSpace                    // Yes!
+      SelNotLess:
+        CMP AX,'!'                       // "!" ?
+        JNE SelDoubleQuote               // No!
+        CMP EAX,$003C0021                // "!<" ?
+        JNE SelNotEqual1                 // No!
+        MOV OperatorType,otGreaterEqual
+        JMP DoubleChar
+      SelNotEqual1:
+        CMP EAX,$003D0021                // "!=" ?
+        JNE SelNotGreater                // No!
+        MOV OperatorType,otNotEqual
+        JMP DoubleChar
+      SelNotGreater:
+        CMP EAX,$003E0021                // "!>" ?
+        JNE SelNot1                      // No!
+        MOV OperatorType,otLessEqual
+        JMP DoubleChar
+      SelNot1:
+        MOV OperatorType,otNot1
+        JMP SingleChar
+      SelDoubleQuote:
+        CMP AX,'"'                       // Double Quote  ?
+        JNE SelComment                   // No!
+        MOV TokenType,ttDQIdent
+        MOV DX,'"'                       // End Quoter
+        JMP QuotedIdent
+      SelComment:
+        CMP AX,'#'                       // "#" ?
+        JE Comment                       // Yes!
+      SelDolor:
+        CMP AX,'$'                       // "$" ?
+        JE UnexpectedChar                // Yes!
+      SelModulo:
+        CMP AX,'%'                       // "%" ?
+        JNE SelAmpersand2                // No!
+        MOV OperatorType,otMOD
+        JMP SingleChar
+      SelAmpersand2:
+        CMP AX,'&'                       // "&" ?
+        JNE SelSingleQuote               // No!
+        CMP EAX,$00260026                // "&&" ?
+        JNE SelBitAND                    // No!
+        MOV OperatorType,otAND
+        JMP DoubleChar
+      SelBitAND:
+        MOV OperatorType,otBitAND
+        JMP SingleChar
+      SelSingleQuote:
+        CMP AX,''''                      // Single Quote ?
+        JNE SelOpenBracket               // No!
+        MOV TokenType,ttString
+        MOV DX,''''                      // End Quoter
+        JMP QuotedIdent
+      SelOpenBracket:
+        CMP AX,'('                       // "(" ?
+        JNE SelCloseBracket              // No!
+        MOV TokenType,ttOpenBracket
+        JMP SingleChar
+      SelCloseBracket:
+        CMP AX,')'                       // ")" ?
+        JNE SelMySQLCodeEnd              // No!
+        MOV TokenType,ttCloseBracket
+        JMP SingleChar
+      SelMySQLCodeEnd:
+        CMP AX,'*'                       // "*" ?
+        JNE SelPlus                      // No!
+        CMP EAX,$002F002A                // "*/" ?
+        JNE SelMulti                     // No!
+        MOV TokenType,ttMySQLCodeEnd
+        JMP DoubleChar
+      SelMulti:
+        MOV OperatorType,otMulti
+        JMP SingleChar
+      SelPlus:
+        CMP AX,'+'                       // "+" ?
+        JNE SelComma                     // No!
+        MOV OperatorType,otPlus
+        JMP SingleChar
+      SelComma:
+        CMP AX,','                       // "," ?
+        JNE SelSLComment                 // No!
+        MOV TokenType,ttComma
+        JMP SingleChar
+      SelSLComment:
+        CMP AX,'-'                       // "-" ?
+        JNE SelDoubleDot                 // No!
+        CMP EAX,$002D002D                // "--" ?
+        JNE SelArrow                     // No!
+        CMP ECX,3                        // Three characters in SQL?
+        JB DoubleChar                    // No!
+        CMP WORD PTR [ESI + 4],9         // "--<Tab>" ?
+        JE Comment                       // Yes!
+        CMP WORD PTR [ESI + 4],10        // "--<LF>" ?
+        JE Comment                       // Yes!
+        CMP WORD PTR [ESI + 4],13        // "--<CR>" ?
+        JE Comment                       // Yes!
+        CMP WORD PTR [ESI + 4],' '       // "-- " ?
+        JE Comment                       // Yes!
+        JE DoubleChar
+      SelArrow:
+        CMP EAX,$003E002D                // "->" ?
+        JNE SelMinus                     // No!
+        MOV OperatorType,otArrow
+        JMP DoubleChar
+      SelMinus:
+        MOV OperatorType,otMinus
+        JMP SingleChar
+      SelDoubleDot:
+        CMP AX,'.'                       // "." ?
+        JNE SelMySQLCode                 // No!
+        CMP EAX,$002E002E                // ".." ?
+        JNE SelDot                       // No!
+        MOV OperatorType,otDoubleDot
+        JMP DoubleChar
+      SelDot:
+        MOV OperatorType,otDot
+        JMP SingleChar
+      SelMySQLCode:
+        CMP AX,'/'                       // "/" ?
+        JNE SelInteger                   // No!
+        CMP EAX,$002A002F                // "/*" ?
+        JNE SelDiv                       // No!
+        CMP ECX,3                        // Three characters in SQL?
+        JB MLComment                     // No!
+        CMP WORD PTR [ESI + 4],'!'       // "/*!" ?
+        JNE MLComment                    // No!
+        JMP MySQLCondCode                // MySQL Code!
+      SelDiv:
+        MOV OperatorType,otDivision
+        JMP SingleChar
+      SelInteger:
+        CMP AX,'9'                       // Digit?
+        JBE Numeric                      // Yes!
+      SelAssign:
+        CMP AX,':'                       // ":" ?
+        JNE SelDelimiter                 // No!
+        CMP EAX,$003D003A                // ":=" ?
+        JNE Colon                        // No!
+        MOV OperatorType,otAssign2
+        JMP SingleChar
+      SelDelimiter:
+        CMP AX,';'                       // ";" ?
+        JNE SelNULLSaveEqual             // No!
+        MOV TokenType,ttDelimiter
+        JMP SingleChar
+      SelNULLSaveEqual:
+        CMP AX,'<'                       // "<" ?
+        JNE SelShiftLeft                 // No!
+        CMP EAX,$003D003C                // "<=" ?
+        JNE SelShiftLeft                 // No!
+        CMP ECX,3                        // Three characters in SQL?
+        JB SelShiftLeft                  // No!
+        CMP WORD PTR [ESI + 4],'>'       // "<=>" ?
+        JNE SelLessEqual                 // No!
+        MOV OperatorType,otNULLSaveEqual
+        JMP TrippelChar
+      SelLessEqual:
+        MOV OperatorType,otLessEqual
+        JMP DoubleChar
+      SelShiftLeft:
+        CMP EAX,$003C003C                // "<<" ?
+        JNE SelNotEqual2                 // No!
+        MOV OperatorType,otShiftLeft
+        JMP DoubleChar
+      SelNotEqual2:
+        CMP EAX,$003E003C                // "<>" ?
+        JNE SelEqual                     // No!
+        MOV OperatorType,otNotEqual
+        JMP DoubleChar
+      SelLess:
+        MOV OperatorType,otLess
+        JMP SingleChar
+      SelEqual:
+        CMP AX,'='                       // "=" ?
+        JNE SelGreaterEqual              // No!
+        MOV OperatorType,otEqual
+        JMP SingleChar
+      SelGreaterEqual:
+        CMP AX,'>'                       // ">" ?
+        JNE SelParameter                 // No!
+        CMP EAX,$003D003E                // ">=" ?
+        JNE SelShiftRight                // No!
+        MOV OperatorType,otGreaterEqual
+        JMP DoubleChar
+      SelShiftRight:
+        CMP EAX,$003E003E                // ">>" ?
+        JNE SelGreater                   // No!
+        MOV OperatorType,otShiftRight
+        JMP DoubleChar
+      SelGreater:
+        MOV OperatorType,otGreater
+        JMP SingleChar
+      SelParameter:
+        CMP AX,'?'                       // "?" ?
+        JNE SelAt                        // No!
+        MOV OperatorType,otParameter
+        JMP SingleChar
+      SelAt:
+        CMP AX,'@'                       // "@" ?
+        JNE SelUnquotedIdent        // No!
+        MOV TokenType,ttAt
+        JMP SingleChar
+      SelUnquotedIdent:
+        CMP AX,'Z'                       // Up case character?
+        JA SelDBIdent               // No!
+        MOV TokenType,ttIdent
+        JMP UnquotedIdent           // Yes!
+      SelDBIdent:
+        CMP AX,'['                       // "[" ?
+        JNE SelBackslash                 // No!
+        MOV TokenType,ttDBIdent
+        MOV DX,']'                       // End Quoter
+        JMP QuotedIdent
+      SelBackslash:
+        CMP AX,'\'                       // "\" ?
+        JNE SelCloseSquareBracket        // No!
+        MOV TokenType,ttBackslash
+        JMP SingleChar
+      SelCloseSquareBracket:
+        CMP AX,']'                       // "]" ?
+        JNE SelHat                       // Yes!
+        JMP Incomplete
+      SelHat:
+        CMP AX,'^'                       // "^" ?
+        JNE SelMySQLCharacterSet         // No!
+        MOV OperatorType,otHat
+        JMP SingleChar
+      SelMySQLCharacterSet:
+        CMP AX,'_'                       // "_" ?
+        JE MySQLCharacterSet             // Yes!
+      SelMySQLIdent:
+        CMP AX,'`'                       // "`" ?
+        JNE SelUnquotedIdentLower   // No!
+        MOV TokenType,ttMySQLIdent
+        MOV DX,'`'                       // End Quoter
+        JMP QuotedIdent
+      SelUnquotedIdentLower:
+        CMP AX,'z'                       // Low case character?
+        JA SelOpenCurlyBracket           // No!
+        MOV TokenType,ttIdent
+        JMP UnquotedIdent           // Yes!
+      SelOpenCurlyBracket:
+        CMP AX,'{'                       // "{" ?
+        JNE SelPipe                      // No!
+        MOV TokenType,ttOpenCurlyBracket
+        CMP DWORD PTR [ESI + 2],$004A004F// "{OJ" ?
+        JE SelOpenCurlyBracket2          // Yes!
+        CMP DWORD PTR [ESI + 2],$006A004F// "{Oj" ?
+        JE SelOpenCurlyBracket2          // Yes!
+        CMP DWORD PTR [ESI + 2],$004A006F// "{oJ" ?
+        JE SelOpenCurlyBracket2          // Yes!
+        CMP DWORD PTR [ESI + 2],$006A006F// "{oj" ?
+        JE SelOpenCurlyBracket2          // Yes!
+        JMP SelOpenCurlyBracket3
+      SelOpenCurlyBracket2:
+        CMP ECX,4                        // Four characters in SQL?
+        JB SelOpenCurlyBracket3          // No!
+        PUSH EAX
+        MOV AX,WORD PTR [ESI + 6]        // "{OJ " ?
+        CALL Separator
+        POP EAX
+        JZ SingleChar                    // Yes!
+      SelOpenCurlyBracket3:
+        CMP WORD PTR [ESI + 2],' '       // "{ " ?
+        JBE SingleChar                   // Yes!
+        MOV TokenType,ttBRIdent
+        MOV DX,'}'                       // End Quoter
+        JMP QuotedIdent
+      SelPipe:
+        CMP AX,'|'                       // "|" ?
+        JNE SelCloseCurlyBracket         // No!
+        CMP EAX,$007C007C                // "||" ?
+        JNE SelBitOR                     // No!
+        MOV OperatorType,otPipes
+        JMP DoubleChar
+      SelBitOR:
+        MOV OperatorType,otBitOr
+        JMP SingleChar
+      SelCloseCurlyBracket:
+        CMP AX,'}'                       // "}" ?
+        JNE SelTilde                     // No!
+        MOV TokenType,ttCloseCurlyBracket
+        JMP SingleChar
+      SelTilde:
+        CMP AX,'~'                       // "~" ?
+        JNE SelE                         // No!
+        MOV OperatorType,otInvertBits
+        JMP SingleChar
+      SelE:
+        CMP AX,127                       // Chr(127) ?
+        JNE UnquotedIdent                // No!
+        JMP UnexpectedChar
+
+      // ------------------------------
+
+      BindVariable:
+        MOV TokenType,ttBindVariable
+        JMP UnquotedIdent
+
+      // ------------------------------
+
+      Colon:
+        MOV TokenType,ttBindVariable
+        ADD ESI,2                        // Next character in SQL
+        DEC ECX                          // One character handled
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
+        MOV AX,[ESI]                     // One Character from SQL to AX
+        CMP AX,'A'
+        JB Finish
+        CMP AX,'Z'
+        JBE BindVariable
+        CMP AX,'a'
+        JB Finish
+        CMP AX,'z'
+        JBE BindVariable
+        JMP UnexpectedChar
+
+      // ------------------------------
+
+      Comment:
+        MOV TokenType,ttComment
+        CMP AX,10                        // End of line?
+        JE Finish                        // Yes!
+        CMP AX,13                        // End of line?
+        JE Finish                        // Yes!
+        ADD ESI,2                        // Next character in SQL
+        DEC ECX                          // One character handled
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
+        MOV AX,[ESI]                     // One Character from SQL to AX
+        JMP Comment
+
+      // ------------------------------
+
+      MLComment:
+        MOV TokenType,ttComment
+        ADD ESI,4                        // Step over "/*" in SQL
+        SUB ECX,2                        // Two characters handled
+      MLCommentL:
+        CMP ECX,2                        // Two characters left in SQL?
+        JAE MLComment2                   // Yes!
+        JMP Incomplete
+      MLComment2:
+        MOV EAX,[ESI]                    // Load two character from SQL
+        CMP EAX,$002F002A
+        JE DoubleChar
+        ADD ESI,2                        // Next character in SQL
+        DEC ECX                          // One character handled
+        JMP MLCommentL
+
+      // ------------------------------
+
+      MySQLCharacterSet:
+        MOV TokenType,ttCSString
+        ADD ESI,2                        // Next character in SQL
+        DEC ECX                          // One character handled
+        MOV EDX,ESI
+      MySQLCharacterSetL:
+        MOV AX,[ESI]                     // One Character from SQL to AX
+        CMP AX,'0'                       // Digit?
+        JB MySQLCharacterSetE            // No!
+        CMP AX,'9'
+        JBE MySQLCharacterSetLE          // Yes!
+        CMP AX,'A'                       // String character?
+        JB MySQLCharacterSetE            // No!
+        CMP AX,'Z'
+        JBE MySQLCharacterSetLE          // Yes!
+        CMP AX,'a'                       // String character?
+        JB MySQLCharacterSetE            // No!
+        CMP AX,'z'
+        JBE MySQLCharacterSetLE          // Yes!
+      MySQLCharacterSetLE:
+        ADD ESI,2                        // Next character in SQL
+        DEC ECX                          // One character handled
+        JZ Incomplete                    // End of SQL!
+        JMP MySQLCharacterSetL
+      MySQLCharacterSetE:
+        CMP ESI,EDX
+        JE Incomplete
+        MOV AX,[ESI]                     // One Character from SQL to AX
+        CMP AX,''''                      // "'"?
+        JNE UnexpectedChar
+        ADD ESI,2                        // Next character in SQL
+        DEC ECX                          // One character handled
+        JZ Incomplete                    // End of SQL!
+        MOV DX,''''                      // End Quoter
+        JMP QuotedIdent
+
+      // ------------------------------
+
+      MySQLCondCode:
+        MOV TokenType,ttMySQLCodeStart
+        ADD ESI,6                        // Step over "/*!" in SQL
+        SUB ECX,3                        // Two characters handled
+        MOV EAX,0
+        MOV EDX,0
+      MySQLCondCodeL:
+        CMP ECX,0                        // End of SQL?
+        JE MySQLCondCodeE                // Yes!
+        MOV AX,[ESI]                     // One Character from SQL to AX
+        CMP AX,'0'                       // Digit?
+        JB MySQLCondCodeE                // No!
+        CMP AX,'9'                       // Digit?
+        JA MySQLCondCodeE                // No!
+        SUB AX,'0'                       // Str to Int
+        PUSH EAX                         // EDX := EDX * 10
+        MOV EAX,EDX
+        MOV EDX,10
+        MUL EDX
+        MOV EDX,EAX
+        POP EAX
+        ADD EDX,EAX                      // EDX := EDX + Digit
+        ADD ESI,2                        // Next character in SQL
+        LOOP MySQLCondCodeL
+      MySQLCondCodeE:
+        JMP Finish
+
+      // ------------------------------
+
+      Numeric:
+        MOV DotFound,False               // One dot in a numeric value allowed only
+        MOV EFound,False                 // One "E" in a numeric value allowed only
+        MOV TokenType,ttInteger
+      NumericL:
+        CMP AX,'.'                       // Dot?
+        JE NumericDot                    // Yes!
+        CMP AX,'E'                       // "E"?
+        JE NumericExp                    // Yes!
+        CMP AX,'e'                       // "e"?
+        JE NumericExp                    // Yes!
+        CMP AX,'0'                       // Digit?
+        JB NumericE                      // No!
+        CMP AX,'9'
+        JA NumericE                      // No!
+        JMP NumericLE
+      NumericDot:
+        MOV TokenType,ttNumeric          // A dot means it's an Numeric token
+        CMP EFound,False                 // A 'e' before?
+        JNE UnexpectedChar               // Yes!
+        CMP DotFound,False               // A dot before?
+        JNE UnexpectedChar               // Yes!
+        MOV DotFound,True
+        JMP NumericLE
+      NumericExp:
+        MOV TokenType,ttNumeric          // A 'E' means it's an Numeric token
+        CMP EFound,False                 // A 'e' before?
+        JNE UnexpectedChar               // Yes!
+        MOV EFound,True
+      NumericLE:
+        ADD ESI,2                        // Next character in SQL
+        DEC ECX                          // One character handled
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
+        MOV AX,[ESI]                     // One Character from SQL to AX
+        JMP NumericL
+      NumericE:
+        CALL Separator                   // SQL separator?
+        JNE UnexpectedChar               // No!
+        JMP Finish
+
+      // ------------------------------
+
+      QuotedIdent:
+        // DX: End Quoter
+        ADD ESI,2                        // Next character in SQL
+        DEC ECX                          // One character handled
+        CMP ECX,0                        // End of SQL?
+        JE Incomplete                    // Yes!
+      QuotedIdent2:
+        MOV AX,[ESI]                     // One Character from SQL to AX
+        CMP AX,'\'                       // Escaper?
+        JE QuotedIdent
+        CMP AX,DX                        // End Quoter (unescaped)?
+        JNE QuotedIdent             // No!
+        ADD ESI,2                        // Next character in SQL
+        DEC ECX                          // One character handled
+        JMP Finish
+
+      // ------------------------------
+
+      Return:
+        MOV TokenType,ttReturn
+        MOV EDX,EAX                      // Remember first character
+        ADD ESI,2                        // Next character in SQL
+        DEC ECX                          // One character handled
+        JZ Finish                        // End of SQL!
+        MOV AX,[ESI]                     // One Character from SQL to AX
+        CMP AX,DX                        // Same character like before?
+        JE Finish                        // Yes!
+        CMP AX,10                        // Line feed?
+        JE ReturnE                       // Yes!
+        CMP AX,13                        // Carriadge Return?
+        JNE Finish                       // No!
+      ReturnE:
+        ADD ESI,2                        // Next character in SQL
+        DEC ECX                          // One character handled
+        JMP Finish
+
+      // ------------------------------
+
+      Separator:
+        // AX: Char
+        PUSH ECX
+        MOV EDI,[Terminators]
+        MOV ECX,TerminatorsL
+        REPNE SCASW                      // Character = SQL separator?
+        POP ECX
+        RET
+        // ZF, if Char is in Terminators
+
+      // ------------------------------
+
+      UnquotedIdent:
+        CALL Separator                   // SQL separator?
+        JE Finish
+        ADD ESI,2                        // Next character in SQL
+        DEC ECX                          // One character handled
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
+        MOV AX,[ESI]                     // One Character from SQL to AX
+        CMP AX,'@'
+        JE UnquotedIdent
+        CMP AX,'0'
+        JB Finish
+        CMP AX,'9'
+        JBE UnquotedIdent
+        CMP AX,':'
+        JE UnquotedIdentLabel
+        CMP AX,'A'
+        JB Finish
+        CMP AX,'Z'
+        JBE UnquotedIdent
+        CMP AX,'_'
+        JE UnquotedIdent
+        CMP AX,'a'
+        JB Finish
+        CMP AX,'z'
+        JBE UnquotedIdent
+        CMP AX,128
+        JAE UnquotedIdent
+        JMP Finish
+      UnquotedIdentLabel:
+        MOV TokenType,ttBeginLabel
+        JMP SingleChar
+
+      // ------------------------------
+
+      WhiteSpace:
+        MOV TokenType,ttSpace
+      WhiteSpaceL:
+        CMP AX,9
+        JE WhiteSpaceLE
+        CMP AX,' '
+        JE WhiteSpaceLE
+        JMP Finish
+      WhiteSpaceLE:
+        ADD ESI,2                        // Next character in SQL
+        DEC ECX                          // One character handled
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
+        MOV AX,[ESI]                     // One Character from SQL to AX
+        JMP WhiteSpaceL
+
+      // ------------------------------
+
+      Incomplete:
+        MOV TokenType,ttSyntaxError
+        MOV ErrorCode,PE_IncompleteToken
+        JMP Finish
+      UnexpectedChar:
+        MOV TokenType,ttSyntaxError
+        MOV ErrorCode,PE_UnexpectedChar
+        MOV AX,[ESI]                     // One Character from SQL to AX
+        CALL Separator                   // Separator in SQL?
+        JE Finish                        // Yes!
+        ADD ESI,2                        // Next character in SQL
+        LOOP UnexpectedChar
+        JMP Finish
+
+      TrippelChar:
+        ADD ESI,2                        // Next character in SQL
+        DEC ECX                          // One character handled
+      DoubleChar:
+        ADD ESI,2                        // Next character in SQL
+        DEC ECX                          // One character handled
+      SingleChar:
+        ADD ESI,2                        // Next character in SQL
+        DEC ECX                          // One character handled
+
+      Finish:
+        MOV EAX,Length
+        SUB EAX,ECX
+        MOV TokenLength,EAX
+
+        POP EBX
+        POP EDI
+        POP ESI
+        POP ES
+    end;
+
+    Result := ErrorCode = PE_Success;
+
     if (AnsiQuotes and (TokenType = ttMySQLIdent)
       or not AnsiQuotes and (TokenType = ttDQIdent)) then
       TokenType := ttUnknown;
-    case (TokenType) of
-      ttMySQLCodeStart:
-        if (FMySQLVersion >= 0) then
-        begin
-          TokenType := ttUnknown;
-          ErrorCode := PE_Syntax;
-        end
-        else
-          FMySQLVersion := MySQLVersion;
-      ttMySQLCodeEnd:
-        if (FMySQLVersion < 0) then
-        begin
-          TokenType := ttUnknown;
-          ErrorCode := PE_Syntax;
-        end
-        else
-          FMySQLVersion := -1;
-    end;
 
     if (OperatorType <> otUnknown) then
       TokenType := ttOperator;
@@ -11951,13 +11893,11 @@ begin
     else
       UsageType := UsageTypeByTokenType[TokenType];
 
-    Result := TToken.Create(Self, SQL, TokenLength, FParsePos.Origin, ErrorCode, FMySQLVersion, TokenType, OperatorType, KeywordIndex, UsageType);
+    Token := TToken.Create(Self, SQL, TokenLength, FParsePos.Origin, ErrorCode, TokenType, OperatorType, KeywordIndex, UsageType);
 
     if (Root^.FLastToken > 0) then
-    begin
-      TokenPtr(Result)^.FPriorToken := Root^.FLastToken;
-    end;
-    Root^.FLastToken := Result;
+      TokenPtr(Token)^.FPriorToken := Root^.FLastToken;
+    Root^.FLastToken := Token;
 
     FParsePos.Text := @SQL[TokenLength];
     Dec(FParsePos.Length, TokenLength);
@@ -12322,7 +12262,7 @@ begin
 
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  ParseTag(KeywordIndices[0], KeywordIndices[1], KeywordIndices[2], KeywordIndices[3]);
+  Nodes.IdentTag := ParseTag(KeywordIndices[0], KeywordIndices[1], KeywordIndices[2], KeywordIndices[3]);
 
   if (not Error and (Assign in [vaYes, vaAuto])) then
     if (EndOfStmt(CurrentToken)) then
@@ -12578,6 +12518,11 @@ begin
     '      background-color: #F0F0F0;' + #13#10 +
     '      text-align: center;' + #13#10 +
     '    }' + #13#10 +
+    '    .TokenError {' + #13#10 +
+    '      font-size: 12px;' + #13#10 +
+    '      background-color: #FFC0C0;' + #13#10 +
+    '      text-align: center;' + #13#10 +
+    '    }' + #13#10 +
     '    .StmtError {' + #13#10 +
     '      font-size: 12px;' + #13#10 +
     '      background-color: #FFC0C0;' + #13#10 +
@@ -12684,8 +12629,14 @@ begin
     Token := Stmt^.FirstToken;
     while (Assigned(Token)) do
     begin
+      if (Token^.ErrorCode = PE_Success) then
+        HTML := HTML
+          + '<td>'
+      else
+        HTML := HTML
+          + '<td class="TokenError">';
       HTML := HTML
-        + '<td><a href="">';
+        + '<a href="">';
       HTML := HTML
         + '<code>' + HTMLEscape(ReplaceStr(Token.Text, ' ', '&nbsp;')) + '</code>';
       HTML := HTML
@@ -13156,7 +13107,5 @@ begin
 end;
 
 end.
-// If / Case Operator
 // DbIdent column / function
-// Multiple Stmts in Debug
 

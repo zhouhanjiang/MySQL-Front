@@ -6,21 +6,19 @@ uses
   fspTypes;
 
 const
-  PE_Success = 0;
+  PE_Success = 0; // No error
 
-  // Bugs while parsing Tokens:
   PE_Unknown = 1; // Unknown error
-  PE_EmptyText = 2; // Text is empty
 
   // Bugs while parsing Tokens:
-  PE_Syntax = 3; // Invalid or unexpected character
-  PE_IncompleteToken = 4; // Uncompleted Token
+  PE_IncompleteToken = 2; // Incompleted token
+  PE_UnexpectedChar = 3; // Unexpected character
 
   // Bugs while parsing Stmts:
-  PE_IncompleteStmt = 5; // Uncompleted Token
-  PE_UnexpectedToken = 6; // Token unexpected
-  PE_UnkownStmt = 7; // Unknown Statement
-  PE_InvalidEndLabel = 8; // Begin and End Token are different
+  PE_IncompleteStmt = 4; // Incompleted statement
+  PE_UnexpectedToken = 5; // Unexpected token
+  PE_UnkownStmt = 6; // Unknown statement
+  PE_InvalidEndLabel = 7; // Begin and end tokens are different
 
   MySQLFunctions =
     'ABS,ACOS,ADD,ADDDATE,ADDTIME,AES_DECRYPT,AES_ENCRYPT,ANALYSE,ASCII,ASIN,' +
@@ -305,6 +303,7 @@ const
 
   TokenTypeToString: array[TTokenType] of PChar = (
     'ttUnknown',
+    'ttSyntaxError',
     'ttSpace',
     'ttReturn',
     'ttComment',
@@ -335,6 +334,7 @@ const
 
   UsageTypeToString: array[TUsageType] of PChar = (
     'utUnknown',
+    'utSyntaxError',
     'utWhiteSpace',
     'utComment',
     'utSymbol',
@@ -344,7 +344,6 @@ const
     'utConst',
     'utFunction',
     'utDbIdent',
-    'utMySQLCondCode',
     'utPLSQL'
   );
 
@@ -421,9 +420,6 @@ const
 
   DbIdentTypeToString: array[TDbIdentType] of PChar = (
     'ditUnknown',
-    'ditCharacterSet',
-    'ditCollate',
-    'ditEngine',
     'ditAlias',
     'ditTable',
     'ditIndex',
@@ -520,6 +516,7 @@ const
 
   UsageTypeByTokenType: array[TTokenType] of TUsageType = (
     utUnknown,
+    utSyntaxError,
     utWhiteSpace,
     utWhiteSpace,
     utComment,
@@ -541,8 +538,8 @@ const
     utLabel,
     utLabel,
     utDbIdent,
-    utMySQLCondCode,
-    utMySQLCondCode,
+    utUnknown,
+    utUnknown,
     utSymbol,
     utSymbol,
     utSymbol
