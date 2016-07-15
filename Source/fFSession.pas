@@ -12575,6 +12575,7 @@ var
   Database: TSDatabase;
   Event: TSEvent;
   NewEvent: TSEvent;
+  NewRoutine: TSRoutine;
   NewTrigger: TSTrigger;
   NewView: TSView;
   Routine: TSRoutine;
@@ -12603,7 +12604,13 @@ begin
       begin
         Routine := TSRoutine(FNavigator.Selected.Data);
 
-        Result := Database.UpdateRoutine(Routine, Trim(ActiveSynMemo.Text));
+        if (SelectedImageIndex = iiProcedure) then
+          NewRoutine := TSProcedure.Create(Routine.Database.Routines)
+        else
+          NewRoutine := TSFunction.Create(Routine.Database.Routines);
+        NewRoutine.Source := Trim(ActiveSynMemo.Text);
+
+        Result := Database.UpdateRoutine(Routine, NewRoutine);
       end;
     iiEvent:
       begin

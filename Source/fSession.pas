@@ -961,7 +961,7 @@ type
     property ValidSources: Boolean read GetValidSources;
   public
     function AddEvent(const NewEvent: TSEvent): Boolean; virtual;
-    function AddRoutine(const SQLCreateRoutine: string): Boolean; virtual;
+    function AddRoutine(const NewRoutine: TSRoutine): Boolean; virtual;
     function AddTable(const NewTable: TSBaseTable): Boolean; virtual;
     function AddTrigger(const NewTrigger: TSTrigger): Boolean; virtual;
     function AddView(const NewView: TSView): Boolean; virtual;
@@ -992,7 +992,6 @@ type
     function Update(const Status: Boolean = False): Boolean; reintroduce; virtual;
     function UpdateEvent(const Event, NewEvent: TSEvent): Boolean; virtual;
     function UpdateRoutine(const Routine: TSRoutine; const NewRoutine: TSRoutine): Boolean; overload; virtual;
-    function UpdateRoutine(const Routine: TSRoutine; const SQLCreateRoutine: string): Boolean; overload; virtual;
     function UpdateTable(const Table, NewTable: TSBaseTable): Boolean; virtual;
     function UpdateTables(const TableNames: TStringList; const ACharset, ACollation, AEngine: string; const ARowType: TSTableField.TRowType): Boolean; virtual;
     function UpdateTrigger(const Trigger, NewTrigger: TSTrigger): Boolean; virtual;
@@ -6786,9 +6785,9 @@ begin
   Result := UpdateEvent(nil, NewEvent);
 end;
 
-function TSDatabase.AddRoutine(const SQLCreateRoutine: string): Boolean;
+function TSDatabase.AddRoutine(const NewRoutine: TSRoutine): Boolean;
 begin
-  Result := UpdateRoutine(nil, SQLCreateRoutine);
+  Result := UpdateRoutine(nil, NewRoutine);
 end;
 
 function TSDatabase.AddTable(const NewTable: TSBaseTable): Boolean;
@@ -7034,7 +7033,7 @@ begin
   if (Session.Connection.DatabaseName <> Name) then
     SQL := SQLUse() + SQL;
 
-  Result := Session.Connection.SendSQL(SQL);
+  Result := Session.Connection.SendSQL(SQL, Session.SessionResult);
 end;
 
 constructor TSDatabase.Create(const ADatabases: TSDatabases; const AName: string = '');
@@ -7429,6 +7428,7 @@ end;
 function TSDatabase.RenameTable(const Table: TSTable; const NewTableName: string): Boolean;
 var
   NewView: TSView;
+  SQL: string;
 begin
   if (NewTableName = Table.Name) then
     Result := True
@@ -7446,7 +7446,10 @@ begin
       NewView.Free();
     end
     else
-      Result := Session.Connection.SendSQL('RENAME TABLE ' + Session.Connection.EscapeIdentifier(Table.Database.Name) + '.' + Session.Connection.EscapeIdentifier(Table.Name) + ' TO ' + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(NewTableName) + ';');
+    begin
+      SQL := 'RENAME TABLE ' + Session.Connection.EscapeIdentifier(Table.Database.Name) + '.' + Session.Connection.EscapeIdentifier(Table.Name) + ' TO ' + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(NewTableName) + ';' + #13#10;
+      Result := Session.Connection.SendSQL(SQL, Session.SessionResult);
+    end;
   end;
 end;
 
@@ -8129,7 +8132,7 @@ begin
     else
       SQL := 'ALTER EVENT ' + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(Event.Name) + #13#10 + TrimRight(SQL) + ';' + #13#10;
 
-    Result := Session.Connection.SendSQL(SQL);
+    Result := Session.Connection.SendSQL(SQL, Session.SessionResult);
   end;
 end;
 
@@ -8138,61 +8141,32 @@ var
   SQL: string;
 begin
   SQL := '';
-  if (NewRoutine.Security <> Routine.Security) then
-    case (NewRoutine.Security) of
-      seDefiner: SQL := SQL + ' SQL SECURITY DEFINER';
-      seInvoker: SQL := SQL + ' SQL SECURITY INVOKER';
-    end;
-  if (Routine.Comment <> NewRoutine.Comment) then
-    SQL := SQL + ' COMMENT ' + SQLEscape(NewRoutine.Comment);
-
-  if (SQL <> '') then
-    if (Routine.RoutineType = rtProcedure) then
-      SQL := 'ALTER PROCEDURE ' + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(NewRoutine.Name) + SQL +  ';' + #13#10
-    else
-      SQL := 'ALTER FUNCTION ' + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(NewRoutine.Name) + SQL +  ';' + #13#10;
-
-  if (SQL = '') then
-    Result := True
-  else
-  begin
-    if (Session.Connection.DatabaseName <> Name) then
-      SQL := SQLUse() + SQL;
-
-    Result := Session.Connection.ExecuteSQL(SQL);
-
-    // Warum verliert die MySQL Datenbank den Multi Stmt Status ??? (Fixed in 5.0.67 - auch schon vorher?)
-    if (not Result and Session.Connection.MultiStatements and Assigned(Session.Connection.Lib.mysql_set_server_option)) then
-      Session.Connection.Lib.mysql_set_server_option(Session.Connection.Handle, MYSQL_OPTION_MULTI_STATEMENTS_ON);
-
-    if (not Result and Assigned(Routine)) then
-      Session.Connection.ExecuteSQL(Routine.Source);
-    if (Result) then
-    begin
-      SQL := Routines.SQLGetItems();
-      Session.Connection.SendSQL(SQL, Session.SessionResult);
-    end;
-  end;
-end;
-
-function TSDatabase.UpdateRoutine(const Routine: TSRoutine; const SQLCreateRoutine: string): Boolean;
-var
-  SQL: string;
-begin
-  SQL := '';
-
   if (Assigned(Routine)) then
-    if (Routine.RoutineType = rtProcedure) then
-      SQL := 'DROP PROCEDURE IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(Routine.Name) + ';' + #13#10
-    else
-      SQL := 'DROP FUNCTION IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(Routine.Name) + ';' + #13#10;
+  begin
+    if (NewRoutine.Security <> Routine.Security) then
+      case (NewRoutine.Security) of
+        seDefiner: SQL := SQL + ' SQL SECURITY DEFINER';
+        seInvoker: SQL := SQL + ' SQL SECURITY INVOKER';
+      end;
+    if (Routine.Comment <> NewRoutine.Comment) then
+      SQL := SQL + ' COMMENT ' + SQLEscape(NewRoutine.Comment);
 
-  SQL := SQL + SQLCreateRoutine + #13#10;
+    if (SQL <> '') then
+      if (Routine.RoutineType = rtProcedure) then
+        SQL := 'ALTER PROCEDURE ' + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(NewRoutine.Name) + SQL +  ';' + #13#10
+      else
+        SQL := 'ALTER FUNCTION ' + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(NewRoutine.Name) + SQL +  ';' + #13#10;
+  end
+  else
+    SQL := NewRoutine.Source;
 
   if (Session.Connection.DatabaseName <> Name) then
     SQL := SQLUse() + SQL;
 
-  Result := Session.Connection.ExecuteSQL(SQL);
+  SQL := SQL + Routines.SQLGetItems();
+  SQL := SQL + NewRoutine.SQLGetSource();
+
+  Result := Session.Connection.ExecuteSQL(SQL, Session.SessionResult);
 
   // Warum verliert die MySQL Datenbank den Multi Stmt Status ??? (Fixed in 5.0.67 - auch schon vorher?)
   if (not Result and Session.Connection.MultiStatements and Assigned(Session.Connection.Lib.mysql_set_server_option)) then
@@ -8298,6 +8272,8 @@ begin
     SQL := SQL + 'DROP TRIGGER IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(Trigger.Name) + ';' + #13#10;
 
   SQL := SQL + NewTrigger.GetSourceEx();
+
+  SQL := SQL + Triggers.SQLGetItems();
   SQL := SQL + NewTrigger.SQLGetSource();
 
   Result := Session.Connection.ExecuteSQL(SQL, Session.SessionResult);

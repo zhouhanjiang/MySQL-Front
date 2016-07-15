@@ -8,7 +8,6 @@ type
     ntRoot,            // Root token, one usage by the parser to handle node tree
     ntToken,           // Token node
     ntRange,           // A node with a range of tokens, base for all further nodes
-    ntDeleted,         // Token was deleted, but is still in memory
 
     ntAlterDatabaseStmt,
     ntAlterEventStmt,
@@ -57,7 +56,7 @@ type
     ntDropViewStmt,
     ntFetchStmt,
     ntForeignKey,
-    ntFunction,
+    ntFunctionCall,
     ntIfStmt,
     ntIfStmtBranch,
     ntIgnoreLines,
@@ -106,6 +105,7 @@ type
     ntShowCharacterSetStmt,
     ntShowCollationStmt,
     ntShowContributorsStmt,
+    ntShowCreateDatabaseStmt,
     ntSoundsLikeOp,
     ntStartTransactionStmt,
     ntSubArea,
@@ -137,6 +137,7 @@ type
     stAlterView,
     stBegin,
     stCall,
+    stCase,
     stClose,
     stCommit,
     stCreateDatabase,
@@ -164,6 +165,8 @@ type
     stFetch,
     stIf,
     stInsert,
+    stIterate,
+    stLeave,
     stLoadData,
     stLoadXML,
     stLock,
@@ -185,6 +188,7 @@ type
     stShowCharacterSet,
     stShowCollation,
     stShowContributors,
+    stShowCreateDatabase,
     stStartTransaction,
     stTruncate,
     stUnlock,
@@ -245,7 +249,8 @@ type
   TOperatorType = (
     otUnknown,
 
-    otFunction,               // Something like Abs(1.2), will be defined in ParseExpr
+    otDot,                    // "."
+
     otInterval,               // "INTERVAL"
     otBinary,                 // "BINARY"
     otCollate,                // "COLLATE"
@@ -255,7 +260,6 @@ type
     otUnaryMinus,             // "-"
     otUnaryPlus,              // "+"
     otInvertBits,             // "~"
-    otDot,                    // "."
 
     otBitXOR,                 // "^"
 
@@ -329,7 +333,6 @@ type
     ditEvent,
     ditPartition,
     ditServer,
-    ditVariable,
     ditXA,
     ditCursor
   );

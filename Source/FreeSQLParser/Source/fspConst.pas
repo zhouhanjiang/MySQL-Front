@@ -117,7 +117,6 @@ const
     'ntRoot',
     'ntToken',
     'ntRange',
-    'ntDeleted',
 
     'ntAlterDatabaseStmt',
     'ntAlterEventStmt',
@@ -166,7 +165,7 @@ const
     'ntDropViewStmt',
     'ntFetchStmt',
     'ntForeignKey',
-    'ntFunction',
+    'ntFunctionCall',
     'ntIfStmt',
     'ntIfStmtBranch',
     'ntIgnoreLines',
@@ -215,6 +214,7 @@ const
     'ntShowCharacterSetStmt',
     'ntShowCollationStmt',
     'ntShowContributorsStmt',
+    'ntShowCreateDatabaseStmt',
     'ntSoundsLikeOp',
     'ntStartTransactionStmt',
     'ntSubArea',
@@ -245,6 +245,7 @@ const
     'stAlterView',
     'stBegin',
     'stCall',
+    'stCase',
     'stClose',
     'stCommit',
     'stCreateDatabase',
@@ -272,6 +273,8 @@ const
     'stFetch',
     'stIf',
     'stInsert',
+    'stIterate',
+    'stLeave',
     'stLoadData',
     'stLoadXML',
     'stLock',
@@ -293,6 +296,7 @@ const
     'stShowCharacterSet',
     'stShowCollation',
     'stShowContributors',
+    'stShowCreateDatabase',
     'stStartTransaction',
     'stTruncate',
     'stUnlock',
@@ -350,7 +354,8 @@ const
   OperatorTypeToString: array[TOperatorType] of PChar = (
     'otUnknown',
 
-    'otFunction',
+    'otDot',
+
     'otInterval',
     'otBinary',
     'otCollate',
@@ -360,7 +365,6 @@ const
     'otUnaryMinus',
     'otUnaryPlus',
     'otInvertBits',
-    'otDot',
 
     'otBitXOR',
 
@@ -434,7 +438,6 @@ const
     'ditEvent',
     'ditPartition',
     'ditServer',
-    'ditVariable',
     'ditXA',
     'ditCursor'
   );
@@ -442,18 +445,18 @@ const
   OperatorPrecedenceByOperatorType: array[TOperatorType] of Integer = (
     0,   // otUnknown
 
-    1,   // otFunction
-    1,   // otInterval
-    1,   // otBinary
-    1,   // otCollate
+    1,   // otDot
 
-    2,   // otNot1
+    2,   // otInterval
+    2,   // otBinary
+    2,   // otCollate
+
+    3,   // otNot1
          // otNot2
 
-    3,   // otUnaryMinus
-    3,   // otUnaryPlus
-    3,   // otInvertBits
-    3,   // otDot
+    4,   // otUnaryMinus
+    4,   // otUnaryPlus
+    4,   // otInvertBits
 
          // otPipes, if Parser.PipesAsConcat
 
@@ -557,6 +560,7 @@ const
     ntAlterViewStmt,
     ntBeginStmt,
     ntCallStmt,
+    ntCaseStmt,
     ntCloseStmt,
     ntCommitStmt,
     ntCreateDatabaseStmt,
@@ -584,6 +588,8 @@ const
     ntFetchStmt,
     ntIfStmt,
     ntInsertStmt,
+    ntIterateStmt,
+    ntLeaveStmt,
     ntLoadDataStmt,
     ntLoadXMLStmt,
     ntLockStmt,
@@ -605,6 +611,7 @@ const
     ntShowCharacterSetStmt,
     ntShowCollationStmt,
     ntShowContributorsStmt,
+    ntShowCreateDatabaseStmt,
     ntStartTransactionStmt,
     ntTruncateStmt,
     ntUnlockStmt,

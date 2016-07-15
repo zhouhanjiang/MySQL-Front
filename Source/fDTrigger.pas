@@ -202,12 +202,15 @@ begin
 
     NewTrigger.Free();
 
-    if (not CanClose) then
-    begin
-      ModalResult := mrNone;
-      PageControl.Visible := CanClose;
-      PSQLWait.Visible := not PageControl.Visible;
-    end;
+// UpdateRoutine uses ExecuteSQL (not SendSQL). Because of this,
+// FormSessionEvent will be called inside UpdateRoutine - and this code is
+// hided the PageControl permanentely
+//    if (not CanClose) then
+//    begin
+//      ModalResult := mrNone;
+//      PageControl.Visible := CanClose;
+//      PSQLWait.Visible := not PageControl.Visible;
+//    end;
 
     FBOk.Enabled := False;
   end;

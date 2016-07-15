@@ -190,9 +190,29 @@ begin
   if ((ModalResult = mrOk) and PageControl.Visible) then
   begin
     if (not Assigned(Routine)) then
-      CanClose := Database.AddRoutine(Trim(FSource.Text))
+    begin
+      if (RoutineType = rtProcedure) then
+        NewRoutine := TSProcedure.Create(Database.Routines)
+      else
+        NewRoutine := TSFunction.Create(Database.Routines);
+      NewRoutine.Source := Trim(FSource.Text);
+
+      CanClose := Database.AddRoutine(NewRoutine);
+
+      NewRoutine.Free();
+    end
     else if (TSSource.Visible) then
-      CanClose := Database.UpdateRoutine(Routine, Trim(FSource.Text))
+    begin
+      if (RoutineType = rtProcedure) then
+        NewRoutine := TSProcedure.Create(Database.Routines)
+      else
+        NewRoutine := TSFunction.Create(Database.Routines);
+      NewRoutine.Source := Trim(FSource.Text);
+
+      CanClose := Database.UpdateRoutine(Routine, NewRoutine);
+
+      NewRoutine.Free();
+    end
     else
     begin
       NewRoutine := TSRoutine.Create(Database.Routines);
@@ -212,12 +232,15 @@ begin
       NewRoutine.Free();
     end;
 
-    if (not CanClose) then
-    begin
-      ModalResult := mrNone;
-      PageControl.Visible := CanClose;
-      PSQLWait.Visible := not PageControl.Visible;
-    end;
+// UpdateRoutine uses ExecuteSQL (not SendSQL). Because of this,
+// FormSessionEvent will be called inside UpdateRoutine - and this code is
+// hided the PageControl permanentely
+//    if (not CanClose) then
+//    begin
+//      ModalResult := mrNone;
+//      PageControl.Visible := CanClose;
+//      PSQLWait.Visible := not PageControl.Visible;
+//    end;
 
     FBOk.Enabled := False;
   end;
