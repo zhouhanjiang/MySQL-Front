@@ -28,8 +28,8 @@ type
     ntCaseOpBranch,
     ntCaseStmt,
     ntCaseStmtBranch,
+    ntCastFunc,
     ntCloseStmt,
-    ntColumn,
     ntCommitStmt,
     ntCompoundStmt,
     ntCreateDatabaseStmt,
@@ -38,7 +38,12 @@ type
     ntCreateRoutineStmt,
     ntCreateServerStmt,
     ntCreateTableStmt,
-    ntCreateTableStmtReference,
+    ntCreateTableStmtColumn,
+    ntCreateTableStmtForeignKey,
+    ntCreateTableStmtKey,
+    ntCreateTableStmtKeyColumn,
+    ntCreateTableStmtPartition,
+    ntCreateTableStmtPartitionValues,
     ntCreateTriggerStmt,
     ntCreateViewStmt,
     ntDataType,
@@ -55,16 +60,15 @@ type
     ntDropTriggerStmt,
     ntDropViewStmt,
     ntFetchStmt,
-    ntForeignKey,
     ntFunctionCall,
+    ntFunctionReturns,
     ntIfStmt,
     ntIfStmtBranch,
     ntIgnoreLines,
-    ntIndex,
-    ntIndexColumn,
     ntInsertStmt,
     ntIterateStmt,
     ntLeaveStmt,
+    ntLikeOp,
     ntList,
     ntLoadDataStmt,
     ntLoadXMLStmt,
@@ -72,8 +76,6 @@ type
     ntLockStmtItem,
     ntLoopStmt,
     ntOpenStmt,
-    ntPartition,
-    ntPartitionValues,
     ntRenameStmt,
     ntRenameStmtPair,
     ntReleaseStmt,
@@ -95,6 +97,7 @@ type
     ntSelectStmtTableFactorOj,
     ntSelectStmtTableFactorReferences,
     ntSelectStmtTableFactorSelect,
+    ntSetNamesStmt,
     ntSetPasswordStmt,
     ntSetStmt,
     ntSetStmtAssignment,
@@ -105,7 +108,42 @@ type
     ntShowCharacterSetStmt,
     ntShowCollationStmt,
     ntShowContributorsStmt,
+    ntShowCountErrorsStmt,
+    ntShowCountWarningsStmt,
     ntShowCreateDatabaseStmt,
+    ntShowCreateEventStmt,
+    ntShowCreateFunctionStmt,
+    ntShowCreateProcedureStmt,
+    ntShowCreateTableStmt,
+    ntShowCreateTriggerStmt,
+    ntShowCreateViewStmt,
+    ntShowDatabasesStmt,
+    ntShowEngineStmt,
+    ntShowEnginesStmt,
+    ntShowErrorsStmt,
+    ntShowEventsStmt,
+    ntShowFunctionCodeStmt,
+    ntShowFunctionStatusStmt,
+    ntShowGrantsStmt,
+    ntShowIndexStmt,
+    ntShowMasterStatusStmt,
+    ntShowOpenTablesStmt,
+    ntShowPluginsStmt,
+    ntShowPrivilegesStmt,
+    ntShowProcedureCodeStmt,
+    ntShowProcedureStatusStmt,
+    ntShowProcessListStmt,
+    ntShowProfileStmt,
+    ntShowProfilesStmt,
+    ntShowRelaylogEventsStmt,
+    ntShowSlaveHostsStmt,
+    ntShowSlaveStatusStmt,
+    ntShowStatusStmt,
+    ntShowTableStatusStmt,
+    ntShowTablesStmt,
+    ntShowTriggersStmt,
+    ntShowVariablesStmt,
+    ntShowWarningsStmt,
     ntSoundsLikeOp,
     ntStartTransactionStmt,
     ntSubArea,
@@ -123,7 +161,6 @@ type
     ntWhileStmt,
     ntXAStmt
   );
-  TNodeTypes = set of TNodeType;
 
   TStmtType = (
     stUnknown,
@@ -180,6 +217,7 @@ type
     stSavepoint,
     stSelect,
     stSet,
+    stSetNames,
     stSetPassword,
     stSetTransaction,
     stShowAuthors,
@@ -188,7 +226,42 @@ type
     stShowCharacterSet,
     stShowCollation,
     stShowContributors,
+    stShowCountErrors,
+    stShowCountWarnings,
     stShowCreateDatabase,
+    stShowCreateEvent,
+    stShowCreateFunction,
+    stShowCreateProcedure,
+    stShowCreateTable,
+    stShowCreateTrigger,
+    stShowCreateView,
+    stShowDatabases,
+    stShowEngine,
+    stShowEngines,
+    stShowErrors,
+    stShowEvents,
+    stShowFunctionCode,
+    stShowFunctionStatus,
+    stShowGrants,
+    stShowIndex,
+    stShowMasterStatus,
+    stShowOpenTables,
+    stShowPlugins,
+    stShowPrivileges,
+    stShowProcedureCode,
+    stShowProcedureStatus,
+    stShowProcessList,
+    stShowProfile,
+    stShowProfiles,
+    stShowRelaylogEvents,
+    stShowSlaveHosts,
+    stShowSlaveStatus,
+    stShowStatus,
+    stShowTableStatus,
+    stShowTables,
+    stShowTriggers,
+    stShowVariables,
+    stShowWarnings,
     stStartTransaction,
     stTruncate,
     stUnlock,
@@ -244,6 +317,7 @@ type
   );
 const
   ttIdents = [ttIdent, ttMySQLIdent];
+  ttStrings = [ttString, ttCSString];
 
 type
   TOperatorType = (
@@ -294,10 +368,6 @@ type
     otBetween,                // "BETWEEN"
     otCASE,                   // "CASE"
     otWHEN,                   // "WHEN"
-    otIF,                     // "IF"
-    otTHEN,                   // "THEN"
-    otELSE,                   // "ELSE"
-    otELSEIF,                 // "ELSEIF"
 
     otNot2,                   // "NOT"
 
@@ -308,6 +378,7 @@ type
     otPipes,                  // "||"
     otOr,                     // "OR"
 
+    otEscape,                 // "ESCAPE"
 
     otAssign,                 // "="
     otAssign2,                // ":="
@@ -321,13 +392,13 @@ type
     ditUnknown,
     ditAlias,
     ditTable,
-    ditIndex,
+    ditKey,
     ditColumn,
     ditAllFields,
+    ditForeignKey,
     ditFunction,
     ditProcedure,
     ditTrigger,
-    ditView,
     ditDatabase,
     ditParameter,
     ditEvent,

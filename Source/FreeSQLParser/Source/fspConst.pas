@@ -21,6 +21,8 @@ const
   PE_InvalidEndLabel = 7; // Begin and end tokens are different
 
   MySQLFunctions =
+    'CONVERT,' +
+
     'ABS,ACOS,ADD,ADDDATE,ADDTIME,AES_DECRYPT,AES_ENCRYPT,ANALYSE,ASCII,ASIN,' +
     'ATAN,ATAN2,AVG,BIN,BIT_AND,BIT_COUNT,BIT_LENGTH,BIT_OR,BIT_XOR,' +
     'CAST,CEIL,CEILING,CHAR_LENGTH,CHARACTER_LENGTH,COALESCE,COERCIBILITY,' +
@@ -48,7 +50,7 @@ const
     'TIMESTAMPDIFF,TO_DAYS,TRIM,TRUNCATE,UCASE,UNCOMPRESS,' +
     'UNCOMPRESSED_LENGTH,UNHEX,UNIX_TIMESTAMP,UPDATEXML,UPPER,USER,UTC_DATE,' +
     'UTC_TIME,UTC_TIMESTAMP,UUID,VAR_POP,VAR_SAMP,VARIANCE,VERSION,WEEK,' +
-    'WEEKDAY,WEEKOFYEAR,YEAR_MONTH,YEARWEEK,';
+    'WEEKDAY,WEEKOFYEAR,YEAR_MONTH,YEARWEEK';
 
   MySQLKeywords =
     'BINARY,INTERVAL,LEFT,RIGHT,MERGE,CURRENT_USER,UNSIGNED,ZEROFILL,DAY,' +
@@ -57,7 +59,9 @@ const
     'SPATIAL,STATS_AUTO_CALC,STATS_AUTO_RECALC,STATS_PERSISTENT,USER,BTREE,' +
     'HASH,COALESCE,EXCHANGE,TRUNCATE,COMPACT,COMPRESSED,DYNAMIC,FIXED,' +
     'OPTIONAL,REDUNDANT,XML,ONLY,MIGRATE,RESUME,SUSPEND,XA,ONE,PHASE,' +
-    'RECOVER,' +
+    'RECOVER,BLOCK,CONTEXT,CPU,FAULTS,INDEXES,IO,IPC,MEMORY,PAGE,' +
+    'SOURCE,SWAPS,SWITCHES,CURRENT_TIMESTAMP,LOCALTIME,LOCALTIMESTAMP,' +
+    'CURRENT_DATE,CURRENT_TIME,' +
 
     'INPLACE,SHARED,EXCLUSIVE,ACTION,AFTER,AGAINST,AGGREGATE,ALGORITHM,ALL,ALTER,ANALYZE,AND,ANY,AS,' +
     'ASC,AT,AUTHORS,AUTO_INCREMENT,AUTOEXTEND_SIZE,AVG_ROW_LENGTH,BACKUP,' +
@@ -137,8 +141,8 @@ const
     'ntCaseOpBranch',
     'ntCaseStmt',
     'ntCaseStmtBranch',
+    'ntCastFunc',
     'ntCloseStmt',
-    'ntColumn',
     'ntCommitStmt',
     'ntCompoundStmt',
     'ntCreateDatabaseStmt',
@@ -147,7 +151,12 @@ const
     'ntCreateRoutineStmt',
     'ntCreateServerStmt',
     'ntCreateTableStmt',
-    'ntCreateTableStmtReference',
+    'ntCreateTableStmtColumn',
+    'ntCreateTableStmtForeignKey',
+    'ntCreateTableStmtKey',
+    'ntCreateTableStmtKeyColumn',
+    'ntCreateTableStmtPartition',
+    'ntCreateTableStmtPartitionValues',
     'ntCreateTriggerStmt',
     'ntCreateViewStmt',
     'ntDataType',
@@ -164,16 +173,15 @@ const
     'ntDropTriggerStmt',
     'ntDropViewStmt',
     'ntFetchStmt',
-    'ntForeignKey',
     'ntFunctionCall',
+    'ntFunctionReturns',
     'ntIfStmt',
     'ntIfStmtBranch',
     'ntIgnoreLines',
-    'ntIndex',
-    'ntIndexColumn',
     'ntInsertStmt',
     'ntIterateStmt',
     'ntLeaveStmt',
+    'ntLikeOp',
     'ntList',
     'ntLoadDataStmt',
     'ntLoadXMLStmt',
@@ -181,8 +189,6 @@ const
     'ntLockStmtItem',
     'ntLoopStmt',
     'ntOpenStmt',
-    'ntPartition',
-    'ntPartitionValues',
     'ntRenameStmt',
     'ntRenameStmtPair',
     'ntReleaseStmt',
@@ -204,6 +210,7 @@ const
     'ntSelectStmtTableFactorOj',
     'ntSelectStmtTableFactorReferences',
     'ntSelectStmtTableFactorSelect',
+    'ntSetNamesStmt',
     'ntSetPasswordStmt',
     'ntSetStmt',
     'ntSetStmtAssignment',
@@ -214,7 +221,42 @@ const
     'ntShowCharacterSetStmt',
     'ntShowCollationStmt',
     'ntShowContributorsStmt',
+    'ntShowCountErrorsStmt',
+    'ntShowCountWarningsStmt',
     'ntShowCreateDatabaseStmt',
+    'ntShowCreateEventStmt',
+    'ntShowCreateFunctionStmt',
+    'ntShowCreateProcedureStmt',
+    'ntShowCreateTableStmt',
+    'ntShowCreateTriggerStmt',
+    'ntShowCreateViewStmt',
+    'ntShowDatabasesStmt',
+    'ntShowEngineStmt',
+    'ntShowEnginesStmt',
+    'ntShowErrorsStmt',
+    'ntShowEventsStmt',
+    'ntShowFunctionCodeStmt',
+    'ntShowFunctionStatusStmt',
+    'ntShowGrantsStmt',
+    'ntShowIndexStmt',
+    'ntShowMasterStatusStmt',
+    'ntShowOpenTablesStmt',
+    'ntShowPluginsStmt',
+    'ntShowPrivilegesStmt',
+    'ntShowProcedureCodeStmt',
+    'ntShowProcedureStatusStmt',
+    'ntShowProcessListStmt',
+    'ntShowProfileStmt',
+    'ntShowProfilesStmt',
+    'ntShowRelaylogEventsStmt',
+    'ntShowSlaveHostsStmt',
+    'ntShowSlaveStatusStmt',
+    'ntShowStatusStmt',
+    'ntShowTableStatusStmt',
+    'ntShowTablesStmt',
+    'ntShowTriggersStmt',
+    'ntShowVariablesStmt',
+    'ntShowWarningsStmt',
     'ntSoundsLikeOp',
     'ntStartTransactionStmt',
     'ntSubArea',
@@ -288,6 +330,7 @@ const
     'stSavepoint',
     'stSelect',
     'stSet',
+    'stSetNames',
     'stSetPassword',
     'stSetTransaction',
     'stShowAuthors',
@@ -296,7 +339,42 @@ const
     'stShowCharacterSet',
     'stShowCollation',
     'stShowContributors',
+    'stShowCountErrors',
+    'stShowCountWarnings',
     'stShowCreateDatabase',
+    'stShowCreateEvent',
+    'stShowCreateFunction',
+    'stShowCreateProcedure',
+    'stShowCreateTable',
+    'stShowCreateTrigger',
+    'stShowCreateView',
+    'stShowDatabases',
+    'stShowEngine',
+    'stShowEngines',
+    'stShowErrors',
+    'stShowEvents',
+    'stShowFunctionCode',
+    'stShowFunctionStatus',
+    'stShowGrants',
+    'stShowIndex',
+    'stShowMasterStatus',
+    'stShowOpenTables',
+    'stShowPlugins',
+    'stShowPrivileges',
+    'stShowProcedureCode',
+    'stShowProcedureStatus',
+    'stShowProcessList',
+    'stShowProfile',
+    'stShowProfiles',
+    'stShowRelaylogEvents',
+    'stShowSlaveHosts',
+    'stShowSlaveStatus',
+    'stShowStatus',
+    'stShowTableStatus',
+    'stShowTables',
+    'stShowTriggers',
+    'stShowVariables',
+    'stShowWarnings',
     'stStartTransaction',
     'stTruncate',
     'stUnlock',
@@ -399,10 +477,6 @@ const
     'otBetween',
     'otCASE',
     'otWHEN',
-    'otIF',
-    'otTHEN',
-    'otELSE',
-    'otELSEIF',
 
     'otNot2',
 
@@ -413,6 +487,7 @@ const
     'otPipes',
     'otOr',
 
+    'otEscape',
 
     'otAssign',
     'otAssign2',
@@ -426,13 +501,13 @@ const
     'ditUnknown',
     'ditAlias',
     'ditTable',
-    'ditIndex',
+    'ditKey',
     'ditColumn',
     'ditAllFields',
+    'ditForeignKey',
     'ditFunction',
     'ditProcedure',
     'ditTrigger',
-    'ditView',
     'ditDatabase',
     'ditParameter',
     'ditEvent',
@@ -493,10 +568,6 @@ const
     12,  // otBetween
     12,  // otCASE
     12,  // otWHEN
-    12,  // otIF
-    12,  // otTHEN
-    12,  // otELSE
-    12,  // otELSEIF
 
     13,  // otNot2
 
@@ -507,13 +578,14 @@ const
     16,  // otPipes
     16,  // otOr
 
+    0,   // otEscape
 
-    0,  // otAssignment
-    0,  // otAssign
-    0,  // otHat
-    0,  // otDoubleDot
-    0,  // otArrow
-    0   // otParameter
+    0,   // otAssignment
+    0,   // otAssign
+    0,   // otHat
+    0,   // otDoubleDot
+    0,   // otArrow
+    0    // otParameter
   );
   MaxOperatorPrecedence = 16;
 
@@ -603,6 +675,7 @@ const
     ntSavepointStmt,
     ntSelectStmt,
     ntSetStmt,
+    ntSetNamesStmt,
     ntSetPasswordStmt,
     ntSetTransactionStmt,
     ntShowAuthorsStmt,
@@ -611,7 +684,42 @@ const
     ntShowCharacterSetStmt,
     ntShowCollationStmt,
     ntShowContributorsStmt,
+    ntShowCountErrorsStmt,
+    ntShowCountWarningsStmt,
     ntShowCreateDatabaseStmt,
+    ntShowCreateEventStmt,
+    ntShowCreateFunctionStmt,
+    ntShowCreateProcedureStmt,
+    ntShowCreateTableStmt,
+    ntShowCreateTriggerStmt,
+    ntShowCreateViewStmt,
+    ntShowDatabasesStmt,
+    ntShowEngineStmt,
+    ntShowEnginesStmt,
+    ntShowErrorsStmt,
+    ntShowEventsStmt,
+    ntShowFunctionCodeStmt,
+    ntShowFunctionStatusStmt,
+    ntShowGrantsStmt,
+    ntShowIndexStmt,
+    ntShowMasterStatusStmt,
+    ntShowOpenTablesStmt,
+    ntShowPluginsStmt,
+    ntShowPrivilegesStmt,
+    ntShowProcedureCodeStmt,
+    ntShowProcedureStatusStmt,
+    ntShowProcessListStmt,
+    ntShowProfileStmt,
+    ntShowProfilesStmt,
+    ntShowRelaylogEventsStmt,
+    ntShowSlaveHostsStmt,
+    ntShowSlaveStatusStmt,
+    ntShowStatusStmt,
+    ntShowTableStatusStmt,
+    ntShowTablesStmt,
+    ntShowTriggersStmt,
+    ntShowVariablesStmt,
+    ntShowWarningsStmt,
     ntStartTransactionStmt,
     ntTruncateStmt,
     ntUnlockStmt,
@@ -619,6 +727,111 @@ const
     ntWhileStmt,
     ntXAStmt
   );
+
+  StmtNodeTypes = [
+    ntAlterDatabaseStmt,
+    ntAlterEventStmt,
+    ntAlterRoutineStmt,
+    ntAlterServerStmt,
+    ntAlterTableStmt,
+    ntAlterViewStmt,
+    ntBeginStmt,
+    ntCallStmt,
+    ntCaseStmt,
+    ntCloseStmt,
+    ntCommitStmt,
+    ntCompoundStmt,
+    ntCreateDatabaseStmt,
+    ntCreateEventStmt,
+    ntCreateIndexStmt,
+    ntCreateRoutineStmt,
+    ntCreateServerStmt,
+    ntCreateTableStmt,
+    ntCreateTriggerStmt,
+    ntCreateViewStmt,
+    ntDeclareStmt,
+    ntDeleteStmt,
+    ntDoStmt,
+    ntDropDatabaseStmt,
+    ntDropEventStmt,
+    ntDropIndexStmt,
+    ntDropRoutineStmt,
+    ntDropServerStmt,
+    ntDropTableStmt,
+    ntDropTriggerStmt,
+    ntDropViewStmt,
+    ntFetchStmt,
+    ntIfStmt,
+    ntInsertStmt,
+    ntIterateStmt,
+    ntLeaveStmt,
+    ntLoadDataStmt,
+    ntLoadXMLStmt,
+    ntLockStmt,
+    ntLockStmtItem,
+    ntLoopStmt,
+    ntOpenStmt,
+    ntRenameStmt,
+    ntRenameStmtPair,
+    ntReleaseStmt,
+    ntRepeatStmt,
+    ntRollbackStmt,
+    ntSavepointStmt,
+    ntSelectStmt,
+    ntSetNamesStmt,
+    ntSetPasswordStmt,
+    ntSetStmt,
+    ntSetTransactionStmt,
+    ntShowAuthorsStmt,
+    ntShowBinaryLogsStmt,
+    ntShowBinlogEventsStmt,
+    ntShowCharacterSetStmt,
+    ntShowCollationStmt,
+    ntShowContributorsStmt,
+    ntShowCountErrorsStmt,
+    ntShowCountWarningsStmt,
+    ntShowCreateDatabaseStmt,
+    ntShowCreateEventStmt,
+    ntShowCreateFunctionStmt,
+    ntShowCreateProcedureStmt,
+    ntShowCreateTableStmt,
+    ntShowCreateTriggerStmt,
+    ntShowCreateViewStmt,
+    ntShowDatabasesStmt,
+    ntShowEngineStmt,
+    ntShowEnginesStmt,
+    ntShowErrorsStmt,
+    ntShowEventsStmt,
+    ntShowFunctionCodeStmt,
+    ntShowFunctionStatusStmt,
+    ntShowGrantsStmt,
+    ntShowIndexStmt,
+    ntShowMasterStatusStmt,
+    ntShowOpenTablesStmt,
+    ntShowPluginsStmt,
+    ntShowPrivilegesStmt,
+    ntShowProcedureCodeStmt,
+    ntShowProcedureStatusStmt,
+    ntShowProcessListStmt,
+    ntShowProfileStmt,
+    ntShowProfilesStmt,
+    ntShowRelaylogEventsStmt,
+    ntShowSlaveHostsStmt,
+    ntShowSlaveStatusStmt,
+    ntShowStatusStmt,
+    ntShowTableStatusStmt,
+    ntShowTablesStmt,
+    ntShowTriggersStmt,
+    ntShowVariablesStmt,
+    ntShowWarningsStmt,
+    ntStartTransactionStmt,
+    ntTruncateStmt,
+    ntUnknownStmt,
+    ntUnlockStmt,
+    ntUpdateStmt,
+    ntWhileStmt,
+    ntXAStmt
+  ];
 
 implementation {***************************************************************}
 
