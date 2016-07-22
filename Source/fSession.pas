@@ -3812,7 +3812,7 @@ begin
     FIndexSize := DataSet.FieldByName('Index_length').AsLargeInt;
     FMaxDataSize := DataSet.FieldByName('Max_data_length').AsLargeInt;
     FUnusedSize := DataSet.FieldByName('Data_free').AsLargeInt;
-    FAutoIncrement := DataSet.FieldByName('Auto_increment').AsLargeInt;
+    FAutoIncrement := StrToInt64(DataSet.FieldByName('Auto_increment').AsString);
     FCreated := DataSet.FieldByName('Create_time').AsDateTime;
     FUpdated := DataSet.FieldByName('Update_time').AsDateTime;
     FChecked := DataSet.FieldByName('Check_time').AsDateTime;
@@ -3831,7 +3831,7 @@ begin
     FMaxDataSize := DataSet.FieldByName('MAX_DATA_LENGTH').AsLargeInt;
     FIndexSize := DataSet.FieldByName('INDEX_LENGTH').AsLargeInt;
     FUnusedSize := DataSet.FieldByName('DATA_FREE').AsLargeInt;
-    FAutoIncrement := DataSet.FieldByName('AUTO_INCREMENT').AsLargeInt;
+    FAutoIncrement := StrToInt64(DataSet.FieldByName('AUTO_INCREMENT').AsString);
     FCreated := DataSet.FieldByName('CREATE_TIME').AsDateTime;
     FUpdated := DataSet.FieldByName('UPDATE_TIME').AsDateTime;
     FChecked := DataSet.FieldByName('CHECK_TIME').AsDateTime;
@@ -4649,7 +4649,8 @@ begin
         SQLParseChar(Parse, '=');
         FComment := SQLParseValue(Parse);
       end
-      else if (SQLParseKeyword(Parse, 'DEFAULT CHARSET') or SQLParseKeyword(Parse, 'CHARSET')) then
+      else if (SQLParseKeyword(Parse, 'DEFAULT CHARSET') or SQLParseKeyword(Parse, 'CHARSET')
+        or SQLParseKeyword(Parse, 'DEFAULT CHARACTER SET') or SQLParseKeyword(Parse, 'CHARACTER SET')) then
       begin
         SQLParseChar(Parse, '=');
         DefaultCharset := SQLParseValue(Parse);

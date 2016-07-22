@@ -145,6 +145,7 @@ const
     'ntCloseStmt',
     'ntCommitStmt',
     'ntCompoundStmt',
+    'ntConvertFunc',
     'ntCreateDatabaseStmt',
     'ntCreateEventStmt',
     'ntCreateIndexStmt',
@@ -200,11 +201,13 @@ const
     'ntScheduleInterval',
     'ntScheduleIntervalListItem',
     'ntSelectStmt',
-    'ntSelectStmtField',
+    'ntSelectStmtColumn',
+    'ntSelectStmtFrom',
     'ntSelectStmtGroup',
     'ntSelectStmtGroups',
     'ntSelectStmtJoin',
     'ntSelectStmtOrder',
+    'ntSelectStmtOrderItem',
     'ntSelectStmtTableFactor',
     'ntSelectStmtTableFactorIndexHint',
     'ntSelectStmtTableFactorOj',
@@ -741,6 +744,7 @@ const
     ntCloseStmt,
     ntCommitStmt,
     ntCompoundStmt,
+    ntConvertFunc,
     ntCreateDatabaseStmt,
     ntCreateEventStmt,
     ntCreateIndexStmt,
@@ -832,6 +836,18 @@ const
     ntWhileStmt,
     ntXAStmt
   ];
+
+  JoinTypeToString: array[TJoinType] of PChar = (
+    'jtUnknown',
+    'jtInner',
+    'jtCross',
+    'jtStraight',
+    'jtEqui',
+    'jtLeft',
+    'jtRight',
+    'jtNaturalLeft',
+    'jtNaturalRight'
+  );
 
 implementation {***************************************************************}
 
