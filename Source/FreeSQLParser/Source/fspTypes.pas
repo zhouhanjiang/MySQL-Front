@@ -67,6 +67,7 @@ type
     ntIfStmtBranch,
     ntIgnoreLines,
     ntInsertStmt,
+    ntInsertStmtValuesItem,
     ntIterateStmt,
     ntLeaveStmt,
     ntLikeOp,
@@ -94,7 +95,6 @@ type
     ntSelectStmtGroups,
     ntSelectStmtJoin,
     ntSelectStmtOrder,
-    ntSelectStmtOrderItem,
     ntSelectStmtTableFactor,
     ntSelectStmtTableFactorIndexHint,
     ntSelectStmtTableFactorOj,
@@ -166,12 +166,9 @@ type
   );
 
   TStmtType = (
-    stUnknown,
-
     stAlterDatabase,
     stAlterEvent,
-    stAlterFunction,
-    stAlterProcedure,
+    stAlterRoutine,
     stAlterServer,
     stAlterTable,
     stAlterView,
@@ -180,24 +177,22 @@ type
     stCase,
     stClose,
     stCommit,
+    stCompound,
     stCreateDatabase,
     stCreateEvent,
-    stCreateFunction,
     stCreateIndex,
-    stCreateProcedure,
+    stCreateRoutine,
     stCreateServer,
     stCreateTable,
     stCreateTrigger,
     stCreateView,
-    stCompound,
     stDeclare,
     stDelete,
     stDo,
     stDropDatabase,
     stDropEvent,
-    stDropFunction,
     stDropIndex,
-    stDropProcedure,
+    stDropRoutine,
     stDropServer,
     stDropTable,
     stDropTrigger,
@@ -212,16 +207,15 @@ type
     stLock,
     stLoop,
     stOpen,
-    stRenameTable,
-    stRepeat,
+    stRename,
     stRelease,
-    stReplace,
+    stRepeat,
     stRollback,
     stSavepoint,
     stSelect,
-    stSet,
     stSetNames,
     stSetPassword,
+    stSet,
     stSetTransaction,
     stShowAuthors,
     stShowBinaryLogs,
@@ -267,6 +261,7 @@ type
     stShowWarnings,
     stStartTransaction,
     stTruncate,
+    stUnknown,
     stUnlock,
     stUpdate,
     stWhile,
@@ -332,7 +327,7 @@ type
     otBinary,                 // "BINARY"
     otCollate,                // "COLLATE"
 
-    otNot1,                   // "!"
+    otUnaryNot,                   // "!"
 
     otUnaryMinus,             // "-"
     otUnaryPlus,              // "+"
@@ -372,7 +367,7 @@ type
     otCASE,                   // "CASE"
     otWHEN,                   // "WHEN"
 
-    otNot2,                   // "NOT"
+    otNot,                   // "NOT"
 
     otAnd,                    // "&&", "AND"
 
@@ -421,6 +416,12 @@ type
     jtRight,
     jtNaturalLeft,
     jtNaturalRight
+  );
+
+  TRoutineType = (
+    rtUnknown,
+    rtFunction,
+    rtProcedure
   );
 
 implementation {***************************************************************}

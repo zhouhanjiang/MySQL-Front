@@ -180,6 +180,7 @@ const
     'ntIfStmtBranch',
     'ntIgnoreLines',
     'ntInsertStmt',
+    'ntInsertStmtValuesItem',
     'ntIterateStmt',
     'ntLeaveStmt',
     'ntLikeOp',
@@ -207,7 +208,6 @@ const
     'ntSelectStmtGroups',
     'ntSelectStmtJoin',
     'ntSelectStmtOrder',
-    'ntSelectStmtOrderItem',
     'ntSelectStmtTableFactor',
     'ntSelectStmtTableFactorIndexHint',
     'ntSelectStmtTableFactorOj',
@@ -279,12 +279,9 @@ const
   );
 
   StmtTypeToString: array[TStmtType] of PChar = (
-    'stUnknown',
-
-    'stAlterEvent',
     'stAlterDatabase',
-    'stAlterFunction',
-    'stAlterProcedure',
+    'stAlterEvent',
+    'stAlterRoutine',
     'stAlterServer',
     'stAlterTable',
     'stAlterView',
@@ -293,27 +290,25 @@ const
     'stCase',
     'stClose',
     'stCommit',
+    'stCompound',
     'stCreateDatabase',
     'stCreateEvent',
-    'stCreateFunction',
     'stCreateIndex',
-    'stCreateProcedure',
+    'stCreateRoutine',
     'stCreateServer',
     'stCreateTable',
     'stCreateTrigger',
     'stCreateView',
-    'stCompound',
     'stDeclare',
     'stDelete',
     'stDo',
     'stDropDatabase',
     'stDropEvent',
-    'stDropFunction',
     'stDropIndex',
-    'stDropProcedure',
+    'stDropRoutine',
     'stDropServer',
     'stDropTable',
-    'stDropTrigge',
+    'stDropTrigger',
     'stDropView',
     'stFetch',
     'stIf',
@@ -325,16 +320,15 @@ const
     'stLock',
     'stLoop',
     'stOpen',
-    'stRepeat',
     'stRename',
-    'stReleaseStmt',
-    'stReplace',
+    'stRelease',
+    'stRepeat',
     'stRollback',
     'stSavepoint',
     'stSelect',
-    'stSet',
     'stSetNames',
     'stSetPassword',
+    'stSet',
     'stSetTransaction',
     'stShowAuthors',
     'stShowBinaryLogs',
@@ -380,6 +374,7 @@ const
     'stShowWarnings',
     'stStartTransaction',
     'stTruncate',
+    'stUnknown',
     'stUnlock',
     'stUpdate',
     'stWhile',
@@ -441,7 +436,7 @@ const
     'otBinary',
     'otCollate',
 
-    'otNot1',
+    'otUnaryNot',
 
     'otUnaryMinus',
     'otUnaryPlus',
@@ -481,7 +476,7 @@ const
     'otCASE',
     'otWHEN',
 
-    'otNot2',
+    'otNot',
 
     'otAnd',
 
@@ -529,8 +524,7 @@ const
     2,   // otBinary
     2,   // otCollate
 
-    3,   // otNot1
-         // otNot2
+    3,   // otUnaryNot
 
     4,   // otUnaryMinus
     4,   // otUnaryPlus
@@ -572,7 +566,7 @@ const
     12,  // otCASE
     12,  // otWHEN
 
-    13,  // otNot2
+    13,  // otNot
 
     14,  // otAnd
 
@@ -624,11 +618,8 @@ const
   );
 
   NodeTypeByStmtType: array[TStmtType] of TNodeType = (
-    ntUnknownStmt,
-
     ntAlterDatabaseStmt,
     ntAlterEventStmt,
-    ntAlterRoutineStmt,
     ntAlterRoutineStmt,
     ntAlterServerStmt,
     ntAlterTableStmt,
@@ -638,22 +629,20 @@ const
     ntCaseStmt,
     ntCloseStmt,
     ntCommitStmt,
+    ntCompoundStmt,
     ntCreateDatabaseStmt,
     ntCreateEventStmt,
-    ntCreateRoutineStmt,
     ntCreateIndexStmt,
     ntCreateRoutineStmt,
     ntCreateServerStmt,
     ntCreateTableStmt,
     ntCreateTriggerStmt,
     ntCreateViewStmt,
-    ntCompoundStmt,
     ntDeclareStmt,
     ntDeleteStmt,
     ntDoStmt,
     ntDropDatabaseStmt,
     ntDropEventStmt,
-    ntDropRoutineStmt,
     ntDropIndexStmt,
     ntDropRoutineStmt,
     ntDropServerStmt,
@@ -674,12 +663,11 @@ const
     ntReleaseStmt,
     ntRepeatStmt,
     ntRollbackStmt,
-    ntInsertStmt,
     ntSavepointStmt,
     ntSelectStmt,
-    ntSetStmt,
     ntSetNamesStmt,
     ntSetPasswordStmt,
+    ntSetStmt,
     ntSetTransactionStmt,
     ntShowAuthorsStmt,
     ntShowBinaryLogsStmt,
@@ -725,6 +713,7 @@ const
     ntShowWarningsStmt,
     ntStartTransactionStmt,
     ntTruncateStmt,
+    ntUnknownStmt,
     ntUnlockStmt,
     ntUpdateStmt,
     ntWhileStmt,
@@ -847,6 +836,12 @@ const
     'jtRight',
     'jtNaturalLeft',
     'jtNaturalRight'
+  );
+
+  RoutineTypeToString: array[TRoutineType] of PChar = (
+    'rtUnknown',
+    'rtFunction',
+    'rtProcedure'
   );
 
 implementation {***************************************************************}
