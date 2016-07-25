@@ -60,9 +60,11 @@ type
     ntDropTableStmt,
     ntDropTriggerStmt,
     ntDropViewStmt,
+    ntExplainStmt,
     ntFetchStmt,
     ntFunctionCall,
     ntFunctionReturns,
+    ntHelpStmt,
     ntIfStmt,
     ntIfStmtBranch,
     ntIgnoreLines,
@@ -159,6 +161,7 @@ type
     ntUnlockStmt,
     ntUpdateStmt,
     ntUser,
+    ntUseStmt,
     ntValue,
     ntVariable,
     ntWhileStmt,
@@ -197,7 +200,9 @@ type
     stDropTable,
     stDropTrigger,
     stDropView,
+    stExplain,
     stFetch,
+    stHelp,
     stIf,
     stInsert,
     stIterate,
@@ -264,6 +269,7 @@ type
     stUnknown,
     stUnlock,
     stUpdate,
+    stUseStmt,
     stWhile,
     stXA
   );
@@ -365,9 +371,8 @@ type
 
     otBetween,                // "BETWEEN"
     otCASE,                   // "CASE"
-    otWHEN,                   // "WHEN"
 
-    otNot,                   // "NOT"
+    otNot,                    // "NOT"
 
     otAnd,                    // "&&", "AND"
 

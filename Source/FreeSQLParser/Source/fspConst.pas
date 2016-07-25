@@ -61,7 +61,7 @@ const
     'OPTIONAL,REDUNDANT,XML,ONLY,MIGRATE,RESUME,SUSPEND,XA,ONE,PHASE,' +
     'RECOVER,BLOCK,CONTEXT,CPU,FAULTS,INDEXES,IO,IPC,MEMORY,PAGE,' +
     'SOURCE,SWAPS,SWITCHES,CURRENT_TIMESTAMP,LOCALTIME,LOCALTIMESTAMP,' +
-    'CURRENT_DATE,CURRENT_TIME,' +
+    'CURRENT_DATE,CURRENT_TIME,FORMAT,TRADITIONAL,' +
 
     'INPLACE,SHARED,EXCLUSIVE,ACTION,AFTER,AGAINST,AGGREGATE,ALGORITHM,ALL,ALTER,ANALYZE,AND,ANY,AS,' +
     'ASC,AT,AUTHORS,AUTO_INCREMENT,AUTOEXTEND_SIZE,AVG_ROW_LENGTH,BACKUP,' +
@@ -173,9 +173,11 @@ const
     'ntDropTableStmt',
     'ntDropTriggerStmt',
     'ntDropViewStmt',
+    'ntExplainStmt',
     'ntFetchStmt',
     'ntFunctionCall',
     'ntFunctionReturns',
+    'ntHelpStmt',
     'ntIfStmt',
     'ntIfStmtBranch',
     'ntIgnoreLines',
@@ -272,6 +274,7 @@ const
     'ntUnlockStmt',
     'ntUpdateStmt',
     'ntUser',
+    'ntUseStmt',
     'ntValue',
     'ntVariable',
     'ntWhileStmt',
@@ -310,7 +313,9 @@ const
     'stDropTable',
     'stDropTrigger',
     'stDropView',
+    'stExplain',
     'stFetch',
+    'stHelp',
     'stIf',
     'stInsert',
     'stIterate',
@@ -377,6 +382,7 @@ const
     'stUnknown',
     'stUnlock',
     'stUpdate',
+    'stUse',
     'stWhile',
     'stXA'
   );
@@ -474,7 +480,6 @@ const
 
     'otBetween',
     'otCASE',
-    'otWHEN',
 
     'otNot',
 
@@ -521,29 +526,30 @@ const
     1,   // otDot
 
     2,   // otInterval
-    2,   // otBinary
-    2,   // otCollate
 
-    3,   // otUnaryNot
+    3,   // otBinary
+    3,   // otCollate
 
-    4,   // otUnaryMinus
-    4,   // otUnaryPlus
-    4,   // otInvertBits
+    4,  // otUnaryNot
+
+    5,   // otUnaryMinus
+    5,   // otUnaryPlus
+    5,   // otInvertBits
 
          // otPipes, if Parser.PipesAsConcat
 
-    5,   // otBitXOR
+    6,   // otHat
 
-    6,   // otMulti
-    6,   // otDivision
-    6,   // otDiv
-    6,   // otMod
+    7,   // otMulti
+    7,   // otDivision
+    7,   // otDiv
+    7,   // otMod
 
-    7,   // otMinus
-    7,   // otPlus
+    8,   // otMinus
+    8,   // otPlus
 
-    8,   // otShiftLeft
-    8,   // otShiftRight
+    9,   // otShiftLeft
+    9,   // otShiftRight
 
     9,   // otBitAND
 
@@ -564,7 +570,6 @@ const
 
     12,  // otBetween
     12,  // otCASE
-    12,  // otWHEN
 
     13,  // otNot
 
@@ -579,7 +584,7 @@ const
 
     0,   // otAssignment
     0,   // otAssign
-    0,   // otHat
+    5,   // otBitXOR
     0,   // otDoubleDot
     0,   // otArrow
     0    // otParameter
@@ -649,7 +654,9 @@ const
     ntDropTableStmt,
     ntDropTriggerStmt,
     ntDropViewStmt,
+    ntExplainStmt,
     ntFetchStmt,
+    ntHelpStmt,
     ntIfStmt,
     ntInsertStmt,
     ntIterateStmt,
@@ -716,6 +723,7 @@ const
     ntUnknownStmt,
     ntUnlockStmt,
     ntUpdateStmt,
+    ntUseStmt,
     ntWhileStmt,
     ntXAStmt
   );
@@ -753,7 +761,9 @@ const
     ntDropTableStmt,
     ntDropTriggerStmt,
     ntDropViewStmt,
+    ntExplainStmt,
     ntFetchStmt,
+    ntHelpStmt,
     ntIfStmt,
     ntInsertStmt,
     ntIterateStmt,

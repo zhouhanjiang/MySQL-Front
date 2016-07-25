@@ -6,6 +6,7 @@ uses
   SysUtils, Classes, Windows,
   DB,
   acMYSQLSynProvider, acQBEventMetaProvider,
+  FreeSQLParser, fspTypes,
   SQLUtils, MySQLDB,
   fPreferences;
 
@@ -166,13 +167,15 @@ type
 
   TSDependency = class
   private
+    FSession: TSSession;
     function GetDBObject(): TSDBObject;
   protected
     DatabaseName: string;
-    ObjectClass: TClass;
-    ObjectName: string;
-    Session: TSSession;
+    DependedClass: TClass;
+    DependedName: string;
+    property Session: TSSession read FSession;
   public
+    constructor Create(const ASession: TSSession); reintroduce; virtual;
     property DBObject: TSDBObject read GetDBObject;
   end;
 
@@ -1419,9 +1422,7 @@ type
     FSQLMonitor: TMySQLMonitor;
     FStartTime: TDateTime;
     FSyntaxProvider: TacMYSQLSyntaxProvider;
-Nils: Integer;
     FUser: TSUser;
-Nils2: Integer;
     FUsers: TSUsers;
     FVariables: TSVariables;
     StmtMonitor: TMySQLMonitor;
@@ -1438,9 +1439,12 @@ Nils2: Integer;
     function GetSlowLogActive(): Boolean;
     function GetUserRights(): TSUserRight;
     function GetValid(): Boolean;
+    procedure SendSQLToDeveloper(const SQL: string);
     procedure SetCreateDesktop(ACreateDesktop: TCreateDesktop);
   protected
     FLowerCaseTableNames: Byte;
+    SQLParser: TMySQLParser;
+    UnparsableSQL: string;
     procedure BuildUser(const DataSet: TMySQLQuery);
     procedure ExecuteEvent(const EventType: TEvent.TEventType); overload;
     procedure ExecuteEvent(const EventType: TEvent.TEventType; const Sender: TObject; const SItems: TSItems = nil; const SItem: TSItem = nil); overload;
@@ -2045,6 +2049,11 @@ procedure TSObject.SetSource(const ASource: string);
 begin
   FValidSource := True;
   FSource := ASource;
+
+  if (not Session.SQLParser.ParseSQL(FSource)) then
+    Session.UnparsableSQL := Session.UnparsableSQL + FSource;
+
+  Session.SQLParser.Clear();
 end;
 
 function TSObject.Update(): Boolean;
@@ -2113,14 +2122,23 @@ begin
 
   Result := nil;
   if (Assigned(Database)) then
-    if ((ObjectClass = TSBaseTable) or (ObjectClass = TSSystemView) or (ObjectClass = TSView) or (ObjectClass = TSTable)) then
-      Result := Database.TableByName(ObjectName)
-    else if (ObjectClass = TSRoutine) then
-      Result := Database.ProcedureByName(ObjectName)
-    else if (ObjectClass = TSFunction) then
-      Result := Database.FunctionByName(ObjectName)
+    if (DependedClass = TSTable) then
+      Result := Database.TableByName(DependedName)
+    else if (DependedClass = TSRoutine) then
+      Result := Database.ProcedureByName(DependedName)
+    else if (DependedClass = TSFunction) then
+      Result := Database.FunctionByName(DependedName)
     else
       raise ERangeError.Create(SRangeError);
+end;
+
+{ TSDependency ****************************************************************}
+
+constructor TSDependency.Create(const ASession: TSSession);
+begin
+  inherited Create();
+
+  FSession := ASession;
 end;
 
 { TSDependencies **************************************************************}
@@ -2134,8 +2152,8 @@ begin
   for I := 0 to Count - 1 do
     if (Assigned(Item)
       and (TSDependency(Item).DatabaseName = TSDependency(Items[I]).DatabaseName)
-      and (TSDependency(Item).ObjectClass = TSDependency(Items[I]).ObjectClass)
-      and (TSDependency(Item).ObjectName = TSDependency(Items[I]).ObjectName)) then
+      and (TSDependency(Item).DependedClass = TSDependency(Items[I]).DependedClass)
+      and (TSDependency(Item).DependedName = TSDependency(Items[I]).DependedName)) then
       FreeAndNil(Item);
 
   if (not Assigned(Item)) then
@@ -4019,22 +4037,20 @@ begin
 
     for I := 0 to Length(FMergeSourceTables) - 1 do
     begin
-      Dependency := TSDependency.Create();
-      Dependency.Session := Session;
+      Dependency := TSDependency.Create(Session);
       Dependency.DatabaseName := FMergeSourceTables[I].DatabaseName;
-      Dependency.ObjectClass := TSBaseTable;
-      Dependency.ObjectName := FMergeSourceTables[I].TableName;
-      Dependencies.Add(Dependency);
+      Dependency.DependedClass := TSTable;
+      Dependency.DependedName := FMergeSourceTables[I].TableName;
+      FDependencies.Add(Dependency);
     end;
 
     for I := 0 to ForeignKeys.Count - 1 do
     begin
-      Dependency := TSDependency.Create();
-      Dependency.Session := Session;
+      Dependency := TSDependency.Create(Session);
       Dependency.DatabaseName := ForeignKeys[I].Parent.DatabaseName;
-      Dependency.ObjectClass := TSBaseTable;
-      Dependency.ObjectName := ForeignKeys[I].Parent.TableName;
-      Dependencies.Add(Dependency);
+      Dependency.DependedClass := TSTable;
+      Dependency.DependedName := ForeignKeys[I].Parent.TableName;
+      FDependencies.Add(Dependency);
     end;
   end;
 
@@ -4904,11 +4920,43 @@ begin
 end;
 
 function TSView.GetDependencies(): TSDependencies;
+var
+  DatabaseToken: TMySQLParser.PToken;
+  DbIdent: TMySQLParser.PDbIdent;
+  Dependency: TSDependency;
+  Stmt: TMySQLParser.PStmt;
+  Token: TMySQLParser.PToken;
 begin
   if (not Assigned(FDependencies)) then
   begin
-    FDependencies := TSDependencies.Create();
-    Database.ParseDependencies(Stmt, FDependencies);
+    if (not Session.SQLParser.ParseSQL(Source)) then
+      Session.UnparsableSQL := Session.UnparsableSQL + Source
+    else
+    begin
+      FDependencies := TSDependencies.Create();
+
+      Stmt := Session.SQLParser.Root^.FirstStmt;
+
+      Token := Stmt^.FirstToken;
+      repeat
+        if ((Token^.DbIdentType = ditTable) and (Token^.ParentNode^.NodeType = ntDbIdent)) then
+        begin
+          Dependency := TSDependency.Create(Session);
+          DbIdent := TMySQLParser.PDbIdent(Token^.ParentNode);
+          if (Assigned(DbIdent) and Assigned(DbIdent^.DatabaseIdent) and (DbIdent^.DatabaseIdent^.NodeType = ntToken)) then
+          begin
+            DatabaseToken := DbIdent^.DatabaseIdent;
+            Dependency.DatabaseName := DatabaseToken^.AsString;
+          end;
+          Dependency.DependedClass := TSTable;
+          Dependency.DependedName := Token.AsString;
+          FDependencies.Add(Dependency);
+        end;
+
+        Token := Token^.NextToken;
+      until (not Assigned(Token));
+    end;
+    Session.SQLParser.Clear();
   end;
 
   Result := FDependencies;
@@ -10507,9 +10555,7 @@ begin
       Source := Source + DataSet.Fields[0].AsString + ';' + #13#10;
     until (not DataSet.FindNext());
 
-Nils := 123456;
   FUser := TSUser.Create(Users);
-Nils2 := 654321;
   if (Source <> '') then
     FUser.SetSource(Source);
 
@@ -10662,6 +10708,8 @@ begin
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.ServerVersion;
   FUser := nil;
+  SQLParser := TMySQLParser.Create(Connection.ServerVersion);
+  UnparsableSQL := '';
 
   if (not Assigned(AAccount)) then
   begin
@@ -10973,6 +11021,9 @@ begin
 
   FMetadataProvider.Free();
   FSyntaxProvider.Free();
+  SQLParser.Free();
+  if (UnparsableSQL <> '') then
+    SendSQLToDeveloper(UnparsableSQL);
 
   FConnection.Free();
 
@@ -11858,6 +11909,44 @@ begin
     GetMem(ListEntry, SizeOf(TMethod));
     MoveMemory(ListEntry, @TMethod(AEventProc), SizeOf(TMethod));
     EventProcs.Add(ListEntry);
+  end;
+end;
+
+procedure TSSession.SendSQLToDeveloper(const SQL: string);
+var
+  Body: RawByteString;
+  Connection: HInternet;
+  Flags: Cardinal;
+  Handle: HInternet;
+  Headers: string;
+  Len: Integer;
+  Request: HInternet;
+begin
+  Handle := InternetOpen(PChar('SQL-Parser'), INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);
+  if (Assigned(Handle)) then
+  begin
+    Connection := InternetConnect(Handle, 'www.mysqlfront.de', 80, nil, nil, INTERNET_SERVICE_HTTP, 0, Cardinal(Self));
+    if (Assigned(Connection)) then
+    begin
+      Len := WideCharToAnsiChar(CP_UTF8, @SQL[1], Length(SQL), nil, 0);
+      SetLength(Body, Len);
+      WideCharToAnsiChar(CP_UTF8, @SQL[1], Length(SQL), @Body[1], Len);
+
+      Flags := INTERNET_FLAG_NO_AUTO_REDIRECT or INTERNET_FLAG_NO_CACHE_WRITE or INTERNET_FLAG_NO_UI or INTERNET_FLAG_KEEP_CONNECTION or INTERNET_FLAG_NO_COOKIES;
+      Request := HttpOpenRequest(Connection, 'POST', PChar('/SQL.php'), 'HTTP/1.1', nil, nil, Flags, Cardinal(Self));
+      if (Assigned(Request)) then
+      begin
+        Headers := 'Content-Transfer-Encoding: binary' + #10;
+        if (not HttpSendRequest(Request, PChar(Headers), Length(Headers), @Body[1], Length(Body))) then
+          Write;
+
+        InternetCloseHandle(Request);
+      end;
+      Body := '';
+
+      InternetCloseHandle(Connection);
+    end;
+    InternetCloseHandle(Handle);
   end;
 end;
 
