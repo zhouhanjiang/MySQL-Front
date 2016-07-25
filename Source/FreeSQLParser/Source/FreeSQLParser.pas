@@ -15693,7 +15693,10 @@ begin
     end;
 
   if (not Error) then
-    Nodes.ValueNode := ParseValueNode();
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else
+      Nodes.ValueNode := ParseValueNode();
 
   Result := TValue.Create(Self, Nodes);
 end;

@@ -684,7 +684,6 @@ type
     function ParseCreateView(const SQL: string): string;
   protected
     FComment: string;
-    function GetDependencies(): TSDependencies; override;
     function GetValid(): Boolean; override;
     procedure SetSource(const ADataSet: TMySQLQuery); overload; override;
     procedure SetSource(const ASource: string); override;
@@ -2203,11 +2202,67 @@ begin
 end;
 
 function TSDBObject.GetDependencies(): TSDependencies;
+var
+  DatabaseToken: TMySQLParser.PToken;
+  DbIdent: TMySQLParser.PDbIdent;
+  Dependency: TSDependency;
+  Stmt: TMySQLParser.PStmt;
+  Token: TMySQLParser.PToken;
 begin
   if (not Assigned(FDependencies)) then
   begin
-    FDependencies := TSDependencies.Create();
-    Database.ParseDependencies(GetSourceEx(False, False), FDependencies);
+    if (Session.SQLParser.ParseSQL(Source)) then
+    begin
+      FDependencies := TSDependencies.Create();
+
+      Stmt := Session.SQLParser.Root^.FirstStmt;
+
+      Token := Stmt^.FirstToken;
+      repeat
+        if ((Token^.DbIdentType = ditTable) and (Token^.ParentNode^.NodeType = ntDbIdent)) then
+        begin
+          Dependency := TSDependency.Create(Session);
+          DbIdent := TMySQLParser.PDbIdent(Token^.ParentNode);
+          if (Assigned(DbIdent) and Assigned(DbIdent^.DatabaseIdent) and (DbIdent^.DatabaseIdent^.NodeType = ntToken)) then
+          begin
+            DatabaseToken := DbIdent^.DatabaseIdent;
+            Dependency.DatabaseName := DatabaseToken^.AsString;
+          end;
+          Dependency.DependedClass := TSTable;
+          Dependency.DependedName := Token.AsString;
+          FDependencies.Add(Dependency);
+        end
+        else if ((Token^.DbIdentType = ditFunction) and (Token^.ParentNode^.NodeType = ntDbIdent)) then
+        begin
+          Dependency := TSDependency.Create(Session);
+          DbIdent := TMySQLParser.PDbIdent(Token^.ParentNode);
+          if (Assigned(DbIdent) and Assigned(DbIdent^.DatabaseIdent) and (DbIdent^.DatabaseIdent^.NodeType = ntToken)) then
+          begin
+            DatabaseToken := DbIdent^.DatabaseIdent;
+            Dependency.DatabaseName := DatabaseToken^.AsString;
+          end;
+          Dependency.DependedClass := TSFunction;
+          Dependency.DependedName := Token.AsString;
+          FDependencies.Add(Dependency);
+        end
+        else if ((Token^.DbIdentType = ditProcedure) and (Token^.ParentNode^.NodeType = ntDbIdent)) then
+        begin
+          Dependency := TSDependency.Create(Session);
+          DbIdent := TMySQLParser.PDbIdent(Token^.ParentNode);
+          if (Assigned(DbIdent) and Assigned(DbIdent^.DatabaseIdent) and (DbIdent^.DatabaseIdent^.NodeType = ntToken)) then
+          begin
+            DatabaseToken := DbIdent^.DatabaseIdent;
+            Dependency.DatabaseName := DatabaseToken^.AsString;
+          end;
+          Dependency.DependedClass := TSProcedure;
+          Dependency.DependedName := Token.AsString;
+          FDependencies.Add(Dependency);
+        end;
+
+        Token := Token^.NextToken;
+      until (not Assigned(Token));
+    end;
+    Session.SQLParser.Clear();
   end;
 
   Result := FDependencies;
@@ -4917,49 +4972,6 @@ begin
   FCheckOption := voNone;
   FSecurity := seDefiner;
   FStmt := '';
-end;
-
-function TSView.GetDependencies(): TSDependencies;
-var
-  DatabaseToken: TMySQLParser.PToken;
-  DbIdent: TMySQLParser.PDbIdent;
-  Dependency: TSDependency;
-  Stmt: TMySQLParser.PStmt;
-  Token: TMySQLParser.PToken;
-begin
-  if (not Assigned(FDependencies)) then
-  begin
-    if (not Session.SQLParser.ParseSQL(Source)) then
-      Session.UnparsableSQL := Session.UnparsableSQL + Source
-    else
-    begin
-      FDependencies := TSDependencies.Create();
-
-      Stmt := Session.SQLParser.Root^.FirstStmt;
-
-      Token := Stmt^.FirstToken;
-      repeat
-        if ((Token^.DbIdentType = ditTable) and (Token^.ParentNode^.NodeType = ntDbIdent)) then
-        begin
-          Dependency := TSDependency.Create(Session);
-          DbIdent := TMySQLParser.PDbIdent(Token^.ParentNode);
-          if (Assigned(DbIdent) and Assigned(DbIdent^.DatabaseIdent) and (DbIdent^.DatabaseIdent^.NodeType = ntToken)) then
-          begin
-            DatabaseToken := DbIdent^.DatabaseIdent;
-            Dependency.DatabaseName := DatabaseToken^.AsString;
-          end;
-          Dependency.DependedClass := TSTable;
-          Dependency.DependedName := Token.AsString;
-          FDependencies.Add(Dependency);
-        end;
-
-        Token := Token^.NextToken;
-      until (not Assigned(Token));
-    end;
-    Session.SQLParser.Clear();
-  end;
-
-  Result := FDependencies;
 end;
 
 function TSView.GetValid(): Boolean;
@@ -11922,31 +11934,34 @@ var
   Len: Integer;
   Request: HInternet;
 begin
-  Handle := InternetOpen(PChar('SQL-Parser'), INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);
-  if (Assigned(Handle)) then
+  if (Now() < EncodeDate(2016, 7, 28)) then
   begin
-    Connection := InternetConnect(Handle, 'www.mysqlfront.de', 80, nil, nil, INTERNET_SERVICE_HTTP, 0, Cardinal(Self));
-    if (Assigned(Connection)) then
+    Handle := InternetOpen(PChar('SQL-Parser'), INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);
+    if (Assigned(Handle)) then
     begin
-      Len := WideCharToAnsiChar(CP_UTF8, @SQL[1], Length(SQL), nil, 0);
-      SetLength(Body, Len);
-      WideCharToAnsiChar(CP_UTF8, @SQL[1], Length(SQL), @Body[1], Len);
-
-      Flags := INTERNET_FLAG_NO_AUTO_REDIRECT or INTERNET_FLAG_NO_CACHE_WRITE or INTERNET_FLAG_NO_UI or INTERNET_FLAG_KEEP_CONNECTION or INTERNET_FLAG_NO_COOKIES;
-      Request := HttpOpenRequest(Connection, 'POST', PChar('/SQL.php'), 'HTTP/1.1', nil, nil, Flags, Cardinal(Self));
-      if (Assigned(Request)) then
+      Connection := InternetConnect(Handle, 'www.mysqlfront.de', 80, nil, nil, INTERNET_SERVICE_HTTP, 0, Cardinal(Self));
+      if (Assigned(Connection)) then
       begin
-        Headers := 'Content-Transfer-Encoding: binary' + #10;
-        if (not HttpSendRequest(Request, PChar(Headers), Length(Headers), @Body[1], Length(Body))) then
-          Write;
+        Len := WideCharToAnsiChar(CP_UTF8, @SQL[1], Length(SQL), nil, 0);
+        SetLength(Body, Len);
+        WideCharToAnsiChar(CP_UTF8, @SQL[1], Length(SQL), @Body[1], Len);
 
-        InternetCloseHandle(Request);
+        Flags := INTERNET_FLAG_NO_AUTO_REDIRECT or INTERNET_FLAG_NO_CACHE_WRITE or INTERNET_FLAG_NO_UI or INTERNET_FLAG_KEEP_CONNECTION or INTERNET_FLAG_NO_COOKIES;
+        Request := HttpOpenRequest(Connection, 'POST', PChar('/SQL.php'), 'HTTP/1.1', nil, nil, Flags, Cardinal(Self));
+        if (Assigned(Request)) then
+        begin
+          Headers := 'Content-Transfer-Encoding: binary' + #10;
+          if (not HttpSendRequest(Request, PChar(Headers), Length(Headers), @Body[1], Length(Body))) then
+            Write;
+
+          InternetCloseHandle(Request);
+        end;
+        Body := '';
+
+        InternetCloseHandle(Connection);
       end;
-      Body := '';
-
-      InternetCloseHandle(Connection);
+      InternetCloseHandle(Handle);
     end;
-    InternetCloseHandle(Handle);
   end;
 end;
 
