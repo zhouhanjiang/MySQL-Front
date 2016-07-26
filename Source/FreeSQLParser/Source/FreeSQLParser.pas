@@ -11553,7 +11553,7 @@ begin
     Nodes.PrivilegTag := ParseTag(kiCREATE, kiTABLESPACE)
   else if ((TokenPtr(CurrentToken)^.KeywordIndex = kiCREATE)
     and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiTEMPORARY)
-    and not EndOfStmt(NextToken[2]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiTABLES)) then
+    and not EndOfStmt(NextToken[2]) and (TokenPtr(NextToken[2])^.KeywordIndex = kiTABLES)) then
     Nodes.PrivilegTag := ParseTag(kiCREATE, kiTEMPORARY, kiTABLES)
   else if ((TokenPtr(CurrentToken)^.KeywordIndex = kiCREATE)
     and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiUSER)) then
@@ -11561,6 +11561,8 @@ begin
   else if ((TokenPtr(CurrentToken)^.KeywordIndex = kiCREATE)
     and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiVIEW)) then
     Nodes.PrivilegTag := ParseTag(kiCREATE, kiVIEW)
+  else if (TokenPtr(CurrentToken)^.KeywordIndex = kiCREATE) then
+    Nodes.PrivilegTag := ParseTag(kiCREATE)
   else if (TokenPtr(CurrentToken)^.KeywordIndex = kiDELETE) then
     Nodes.PrivilegTag := ParseTag(kiDELETE)
   else if (TokenPtr(CurrentToken)^.KeywordIndex = kiDROP) then
