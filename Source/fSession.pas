@@ -11934,7 +11934,7 @@ var
   Len: Integer;
   Request: HInternet;
 begin
-  if (Now() < EncodeDate(2016, 7, 28)) then
+  if (Now() < EncodeDate(2016, 7, 29)) then
   begin
     Handle := InternetOpen(PChar('SQL-Parser'), INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);
     if (Assigned(Handle)) then
