@@ -50,6 +50,10 @@ type
     ntDataType,
     ntDbIdent,
     ntDeclareStmt,
+    ntDeclareConditionStmt,
+    ntDeclareCursorStmt,
+    ntDeclareHandlerStmt,
+    ntDeclareHandlerStmtCondition,
     ntDeleteStmt,
     ntDoStmt,
     ntDropDatabaseStmt,
@@ -100,6 +104,7 @@ type
     ntSelectStmtGroups,
     ntSelectStmtJoin,
     ntSelectStmtOrder,
+    ntSelectStmtInto,
     ntSelectStmtTableFactor,
     ntSelectStmtTableFactorIndexHint,
     ntSelectStmtTableFactorOj,
@@ -193,6 +198,9 @@ type
     stCreateTrigger,
     stCreateView,
     stDeclare,
+    stDeclareCondition,
+    stDeclareCursor,
+    stDeclareHandler,
     stDelete,
     stDo,
     stDropDatabase,
@@ -411,7 +419,8 @@ type
     ditPartition,
     ditServer,
     ditXA,
-    ditCursor
+    ditCursor,
+    ditVariable
   );
 
   TJoinType = (

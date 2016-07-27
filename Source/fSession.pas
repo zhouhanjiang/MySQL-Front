@@ -2049,8 +2049,12 @@ begin
   FValidSource := True;
   FSource := ASource;
 
-  if (not Session.SQLParser.ParseSQL(FSource)) then
-    Session.UnparsableSQL := Session.UnparsableSQL + FSource;
+  try
+    if (not Session.SQLParser.ParseSQL(FSource)) then
+      Session.UnparsableSQL := Session.UnparsableSQL + FSource + #13#10#13#10;
+  except
+    Session.UnparsableSQL := Session.UnparsableSQL + FSource + #13#10#13#10;
+  end;
 
   Session.SQLParser.Clear();
 end;
@@ -2206,7 +2210,6 @@ var
   DatabaseToken: TMySQLParser.PToken;
   DbIdent: TMySQLParser.PDbIdent;
   Dependency: TSDependency;
-  Stmt: TMySQLParser.PStmt;
   Token: TMySQLParser.PToken;
 begin
   if (not Assigned(FDependencies)) then
@@ -2215,9 +2218,7 @@ begin
     begin
       FDependencies := TSDependencies.Create();
 
-      Stmt := Session.SQLParser.Root^.FirstStmt;
-
-      Token := Stmt^.FirstToken;
+      Token := Session.SQLParser.Root^.FirstToken;
       repeat
         if ((Token^.DbIdentType = ditTable) and (Token^.ParentNode^.NodeType = ntDbIdent)) then
         begin
@@ -3881,10 +3882,10 @@ begin
     else
       FRows := DataSet.FieldByName('Rows').AsLargeInt;
     FAvgRowLength := DataSet.FieldByName('Avg_row_length').AsLargeInt;
-    FDataSize := DataSet.FieldByName('Data_length').AsLargeInt;
-    FIndexSize := DataSet.FieldByName('Index_length').AsLargeInt;
-    FMaxDataSize := DataSet.FieldByName('Max_data_length').AsLargeInt;
-    FUnusedSize := DataSet.FieldByName('Data_free').AsLargeInt;
+    FDataSize := StrToInt64(DataSet.FieldByName('Data_length').AsString);
+    FIndexSize := StrToInt64(DataSet.FieldByName('Index_length').AsString);
+    FMaxDataSize := StrToInt64(DataSet.FieldByName('Max_data_length').AsString);
+    FUnusedSize := StrToInt64(DataSet.FieldByName('Data_free').AsString);
     FAutoIncrement := StrToInt64(DataSet.FieldByName('Auto_increment').AsString);
     FCreated := DataSet.FieldByName('Create_time').AsDateTime;
     FUpdated := DataSet.FieldByName('Update_time').AsDateTime;
@@ -3900,10 +3901,10 @@ begin
     else
       FRows := DataSet.FieldByName('TABLE_ROWS').AsLargeInt;
     FAvgRowLength := DataSet.FieldByName('AVG_ROW_LENGTH').AsInteger;
-    FDataSize := DataSet.FieldByName('DATA_LENGTH').AsLargeInt;
-    FMaxDataSize := DataSet.FieldByName('MAX_DATA_LENGTH').AsLargeInt;
-    FIndexSize := DataSet.FieldByName('INDEX_LENGTH').AsLargeInt;
-    FUnusedSize := DataSet.FieldByName('DATA_FREE').AsLargeInt;
+    FDataSize := StrToInt64(DataSet.FieldByName('DATA_LENGTH').AsString);
+    FMaxDataSize := StrToInt64(DataSet.FieldByName('MAX_DATA_LENGTH').AsString);
+    FIndexSize := StrToInt64(DataSet.FieldByName('INDEX_LENGTH').AsString);
+    FUnusedSize := StrToInt64(DataSet.FieldByName('DATA_FREE').AsString);
     FAutoIncrement := StrToInt64(DataSet.FieldByName('AUTO_INCREMENT').AsString);
     FCreated := DataSet.FieldByName('CREATE_TIME').AsDateTime;
     FUpdated := DataSet.FieldByName('UPDATE_TIME').AsDateTime;
@@ -11034,8 +11035,8 @@ begin
   FMetadataProvider.Free();
   FSyntaxProvider.Free();
   SQLParser.Free();
-  if (UnparsableSQL <> '') then
-    SendSQLToDeveloper(UnparsableSQL);
+//  if (UnparsableSQL <> '') then
+//    SendSQLToDeveloper(UnparsableSQL);
 
   FConnection.Free();
 

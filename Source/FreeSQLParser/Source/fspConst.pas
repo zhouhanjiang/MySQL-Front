@@ -61,7 +61,7 @@ const
     'OPTIONAL,REDUNDANT,XML,ONLY,MIGRATE,RESUME,SUSPEND,XA,ONE,PHASE,' +
     'RECOVER,BLOCK,CONTEXT,CPU,FAULTS,INDEXES,IO,IPC,MEMORY,PAGE,' +
     'SOURCE,SWAPS,SWITCHES,CURRENT_TIMESTAMP,LOCALTIME,LOCALTIMESTAMP,' +
-    'CURRENT_DATE,CURRENT_TIME,FORMAT,TRADITIONAL,' +
+    'CURRENT_DATE,CURRENT_TIME,FORMAT,TRADITIONAL,SQLWARNINGS,' +
 
     'INPLACE,SHARED,EXCLUSIVE,ACTION,AFTER,AGAINST,AGGREGATE,ALGORITHM,ALL,ALTER,ANALYZE,AND,ANY,AS,' +
     'ASC,AT,AUTHORS,AUTO_INCREMENT,AUTOEXTEND_SIZE,AVG_ROW_LENGTH,BACKUP,' +
@@ -163,6 +163,10 @@ const
     'ntDataType',
     'ntDbIdent',
     'ntDeclareStmt',
+    'ntDeclareConditionStmt',
+    'ntDeclareCursorStmt',
+    'ntDeclareHandlerStmt',
+    'ntDeclareHandlerStmtCondition',
     'ntDeleteStmt',
     'ntDoStmt',
     'ntDropDatabaseStmt',
@@ -213,6 +217,7 @@ const
     'ntSelectStmtGroups',
     'ntSelectStmtJoin',
     'ntSelectStmtOrder',
+    'ntSelectStmtInto',
     'ntSelectStmtTableFactor',
     'ntSelectStmtTableFactorIndexHint',
     'ntSelectStmtTableFactorOj',
@@ -306,6 +311,9 @@ const
     'stCreateTrigger',
     'stCreateView',
     'stDeclare',
+    'stDeclareCondition',
+    'stDeclareCursor',
+    'stDeclareHandler',
     'stDelete',
     'stDo',
     'stDropDatabase',
@@ -520,7 +528,8 @@ const
     'ditPartition',
     'ditServer',
     'ditXA',
-    'ditCursor'
+    'ditCursor',
+    'ditVariable'
   );
 
   OperatorPrecedenceByOperatorType: array[TOperatorType] of Integer = (
@@ -647,6 +656,9 @@ const
     ntCreateTriggerStmt,
     ntCreateViewStmt,
     ntDeclareStmt,
+    ntDeclareConditionStmt,
+    ntDeclareCursorStmt,
+    ntDeclareHandlerStmt,
     ntDeleteStmt,
     ntDoStmt,
     ntDropDatabaseStmt,
@@ -754,6 +766,10 @@ const
     ntCreateTriggerStmt,
     ntCreateViewStmt,
     ntDeclareStmt,
+    ntDeclareConditionStmt,
+    ntDeclareCursorStmt,
+    ntDeclareHandlerStmt,
+    ntDeclareHandlerStmtCondition,
     ntDeleteStmt,
     ntDoStmt,
     ntDropDatabaseStmt,
