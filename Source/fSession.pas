@@ -11037,8 +11037,8 @@ begin
   FMetadataProvider.Free();
   FSyntaxProvider.Free();
   SQLParser.Free();
-//  if (UnparsableSQL <> '') then
-//    SendSQLToDeveloper(UnparsableSQL);
+  if (UnparsableSQL <> '') then
+    SendSQLToDeveloper(UnparsableSQL);
 
   FConnection.Free();
 
@@ -11937,7 +11937,7 @@ var
   Len: Integer;
   Request: HInternet;
 begin
-  if (Now() < EncodeDate(2016, 7, 29)) then
+  if (Now() < EncodeDate(2016, 7, 30)) then
   begin
     Handle := InternetOpen(PChar('SQL-Parser'), INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);
     if (Assigned(Handle)) then
