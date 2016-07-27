@@ -3882,11 +3882,12 @@ begin
     else
       FRows := DataSet.FieldByName('Rows').AsLargeInt;
     FAvgRowLength := DataSet.FieldByName('Avg_row_length').AsLargeInt;
-    FDataSize := StrToInt64(DataSet.FieldByName('Data_length').AsString);
-    FIndexSize := StrToInt64(DataSet.FieldByName('Index_length').AsString);
-    FMaxDataSize := StrToInt64(DataSet.FieldByName('Max_data_length').AsString);
-    FUnusedSize := StrToInt64(DataSet.FieldByName('Data_free').AsString);
-    FAutoIncrement := StrToInt64(DataSet.FieldByName('Auto_increment').AsString);
+    FDataSize := StrToUInt64(DataSet.FieldByName('Data_length').AsString);
+    FIndexSize := StrToUInt64(DataSet.FieldByName('Index_length').AsString);
+    FMaxDataSize := StrToUInt64(DataSet.FieldByName('Max_data_length').AsString);
+    FUnusedSize := StrToUInt64(DataSet.FieldByName('Data_free').AsString);
+    if (not DataSet.FieldByName('Auto_increment').IsNull) then
+      FAutoIncrement := StrToUInt64(DataSet.FieldByName('Auto_increment').AsString);
     FCreated := DataSet.FieldByName('Create_time').AsDateTime;
     FUpdated := DataSet.FieldByName('Update_time').AsDateTime;
     FChecked := DataSet.FieldByName('Check_time').AsDateTime;
@@ -3901,11 +3902,12 @@ begin
     else
       FRows := DataSet.FieldByName('TABLE_ROWS').AsLargeInt;
     FAvgRowLength := DataSet.FieldByName('AVG_ROW_LENGTH').AsInteger;
-    FDataSize := StrToInt64(DataSet.FieldByName('DATA_LENGTH').AsString);
-    FMaxDataSize := StrToInt64(DataSet.FieldByName('MAX_DATA_LENGTH').AsString);
-    FIndexSize := StrToInt64(DataSet.FieldByName('INDEX_LENGTH').AsString);
-    FUnusedSize := StrToInt64(DataSet.FieldByName('DATA_FREE').AsString);
-    FAutoIncrement := StrToInt64(DataSet.FieldByName('AUTO_INCREMENT').AsString);
+    FDataSize := StrToUInt64(DataSet.FieldByName('DATA_LENGTH').AsString);
+    FMaxDataSize := StrToUInt64(DataSet.FieldByName('MAX_DATA_LENGTH').AsString);
+    FIndexSize := StrToUInt64(DataSet.FieldByName('INDEX_LENGTH').AsString);
+    FUnusedSize := StrToUInt64(DataSet.FieldByName('DATA_FREE').AsString);
+    if (not DataSet.FieldByName('AUTO_INCREMENT').IsNull) then
+      FAutoIncrement := StrToUInt64(DataSet.FieldByName('AUTO_INCREMENT').AsString);
     FCreated := DataSet.FieldByName('CREATE_TIME').AsDateTime;
     FUpdated := DataSet.FieldByName('UPDATE_TIME').AsDateTime;
     FChecked := DataSet.FieldByName('CHECK_TIME').AsDateTime;
@@ -4751,12 +4753,12 @@ begin
       else if (SQLParseKeyword(Parse, 'MAX_ROWS')) then
       begin
         SQLParseChar(Parse, '=');
-        FMaxRows := StrToInt64(SQLParseValue(Parse));
+        FMaxRows := StrToUInt64(SQLParseValue(Parse));
       end
       else if (SQLParseKeyword(Parse, 'MIN_ROWS')) then
       begin
         SQLParseChar(Parse, '=');
-        FMinRows := StrToInt64(SQLParseValue(Parse));
+        FMinRows := StrToUInt64(SQLParseValue(Parse));
       end
       else if (SQLParseKeyword(Parse, 'PACK_KEYS')) then
       begin
@@ -10030,13 +10032,13 @@ begin
           if (SQLParseKeyword(Parse, 'GRANT OPTION')) then
             Grant := True
           else if (SQLParseKeyword(Parse, 'MAX_QUERIES_PER_HOUR')) then
-            QueriesPerHour := StrToInt64(SQLParseValue(Parse))
+            QueriesPerHour := StrToUInt64(SQLParseValue(Parse))
           else if (SQLParseKeyword(Parse, 'MAX_UPDATES_PER_HOUR')) then
-            UpdatesPerHour := StrToInt64(SQLParseValue(Parse))
+            UpdatesPerHour := StrToUInt64(SQLParseValue(Parse))
           else if (SQLParseKeyword(Parse, 'MAX_CONNECTIONS_PER_HOUR')) then
-            ConnectionsPerHour := StrToInt64(SQLParseValue(Parse))
+            ConnectionsPerHour := StrToUInt64(SQLParseValue(Parse))
           else if (SQLParseKeyword(Parse, 'MAX_USER_CONNECTIONS')) then
-            UserConnections := StrToInt64(SQLParseValue(Parse))
+            UserConnections := StrToUInt64(SQLParseValue(Parse))
           else
             SQLParseValue(Parse);
         until (SQLParseChar(Parse, ';', False) or SQLParseEnd(Parse));
