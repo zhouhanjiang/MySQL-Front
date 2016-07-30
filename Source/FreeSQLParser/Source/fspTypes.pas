@@ -80,9 +80,13 @@ type
     ntIfStmt,
     ntIfStmtBranch,
     ntIgnoreLines,
+    ntInOp,
     ntInsertStmt,
-    ntInsertStmtValuesItem,
+    ntInsertStmtSetItem,
+    ntInterval,
+    ntIntervalListItem,
     ntIterateStmt,
+    ntJoin,
     ntLeaveStmt,
     ntLikeOp,
     ntList,
@@ -97,18 +101,17 @@ type
     ntRenameStmtPair,
     ntReleaseStmt,
     ntRepeatStmt,
+    ntReturnStmt,
     ntRoutineParam,
     ntRollbackStmt,
     ntSavepointStmt,
     ntSchedule,
-    ntScheduleInterval,
-    ntScheduleIntervalListItem,
+    ntSecretIdent,
     ntSelectStmt,
     ntSelectStmtColumn,
     ntSelectStmtFrom,
     ntSelectStmtGroup,
     ntSelectStmtGroups,
-    ntSelectStmtJoin,
     ntSelectStmtOrder,
     ntSelectStmtInto,
     ntSelectStmtTableFactor,
@@ -169,6 +172,7 @@ type
     ntStartTransactionStmt,
     ntSubArea,
     ntSubPartition,
+    ntTableReference,
     ntTag,
     ntTransactionCharacteristic,
     ntTruncateStmt,
@@ -239,6 +243,7 @@ type
     stRename,
     stRelease,
     stRepeat,
+    stReturn,
     stRollback,
     stSavepoint,
     stSelect,
@@ -342,7 +347,9 @@ type
     ttMySQLCodeEnd,
     ttOperator,               // Symbol operator, like +, -, &&, *=
     ttAt,                     // "@"
-    ttBackslash               // "\", DB2 use
+    ttBackslash,              // "\", DB2 use
+    ttColon,                  // ":"
+    ttDot                     // "."
   );
 const
   ttIdents = [ttIdent, ttMySQLIdent];
@@ -355,16 +362,17 @@ type
     otDot,                    // "."
 
     otInterval,               // "INTERVAL"
+
     otBinary,                 // "BINARY"
     otCollate,                // "COLLATE"
 
-    otUnaryNot,                   // "!"
+    otUnaryNot,               // "!"
 
     otUnaryMinus,             // "-"
     otUnaryPlus,              // "+"
     otInvertBits,             // "~"
 
-    otBitXOR,                 // "^"
+    otHat,                    // "^"
 
     otMulti,                  // "*"
     otDivision,               // "/"
@@ -406,11 +414,11 @@ type
     otPipes,                  // "||"
     otOr,                     // "OR"
 
-    otEscape,                 // "ESCAPE"
-
     otAssign,                 // "="
     otAssign2,                // ":="
-    otHat,                    // "^"
+
+    otEscape,                 // "ESCAPE"
+    otBitXOR,                 // "^"
     otDoubleDot,              // ".."
     otArrow,                  // "->"
     otParameter               // "?"

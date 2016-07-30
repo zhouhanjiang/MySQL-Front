@@ -63,7 +63,7 @@ const
     'SOURCE,SWAPS,SWITCHES,CURRENT_TIMESTAMP,LOCALTIME,LOCALTIMESTAMP,' +
     'CURRENT_DATE,CURRENT_TIME,FORMAT,TRADITIONAL,SQLWARNINGS,' +
     'CONSTRAINT_SCHEMA,CURRENT,DIAGNOSTICS,GET,NUMBER,RESIGNAL,' +
-    'RETURNED_SQLSTATE,ROW_COUNT,STACKED,' +
+    'RETURNED_SQLSTATE,ROW_COUNT,STACKED,PAGE_CHECKSUM,' +
 
     'INPLACE,SHARED,EXCLUSIVE,ACTION,AFTER,AGAINST,AGGREGATE,ALGORITHM,ALL,ALTER,ANALYZE,AND,ANY,AS,' +
     'ASC,AT,AUTHORS,AUTO_INCREMENT,AUTOEXTEND_SIZE,AVG_ROW_LENGTH,BACKUP,' +
@@ -195,9 +195,13 @@ const
     'ntIfStmt',
     'ntIfStmtBranch',
     'ntIgnoreLines',
+    'ntInOp',
     'ntInsertStmt',
-    'ntInsertStmtValuesItem',
+    'ntInsertStmtSetItem',
+    'ntInterval',
+    'ntIntervalListItem',
     'ntIterateStmt',
+    'ntJoin',
     'ntLeaveStmt',
     'ntLikeOp',
     'ntList',
@@ -212,18 +216,17 @@ const
     'ntRenameStmtPair',
     'ntReleaseStmt',
     'ntRepeatStmt',
+    'ntReturnStmt',
     'ntRoutineParam',
     'ntRollbackStmt',
     'ntSavepointStmt',
     'ntSchedule',
-    'ntScheduleInterval',
-    'ntScheduleIntervalListItem',
+    'ntSecretIdent',
     'ntSelectStmt',
     'ntSelectStmtColumn',
     'ntSelectStmtFrom',
     'ntSelectStmtGroup',
     'ntSelectStmtGroups',
-    'ntSelectStmtJoin',
     'ntSelectStmtOrder',
     'ntSelectStmtInto',
     'ntSelectStmtTableFactor',
@@ -284,6 +287,7 @@ const
     'ntStartTransactionStmt',
     'ntSubArea',
     'ntSubPartition',
+    'ntTableReference',
     'ntTag',
     'ntTransactionCharacteristic',
     'ntTruncateStmt',
@@ -354,6 +358,7 @@ const
     'stRename',
     'stRelease',
     'stRepeat',
+    'stReturn',
     'stRollback',
     'stSavepoint',
     'stSelect',
@@ -442,7 +447,9 @@ const
     'ttMySQLCodeEnd',
     'ttOperator',
     'ttAt',
-    'ttBackslash'
+    'ttBackslash',
+    'ttColon',
+    'ttDot'
   );
 
   UsageTypeToString: array[TUsageType] of PChar = (
@@ -557,13 +564,11 @@ const
     3,   // otBinary
     3,   // otCollate
 
-    4,  // otUnaryNot
+    4,   // otUnaryNot
 
     5,   // otUnaryMinus
     5,   // otUnaryPlus
     5,   // otInvertBits
-
-         // otPipes, if Parser.PipesAsConcat
 
     6,   // otHat
 
@@ -607,16 +612,16 @@ const
     16,  // otPipes
     16,  // otOr
 
-    0,   // otEscape
+    17,   // otAssign
+    17,   // otAssign2
 
-    0,   // otAssignment
-    0,   // otAssign
-    5,   // otBitXOR
+    0,   // otEscape
+    0,   // otBitXOR
     0,   // otDoubleDot
     0,   // otArrow
     0    // otParameter
   );
-  MaxOperatorPrecedence = 16;
+  MaxOperatorPrecedence = 17;
 
   UsageTypeByTokenType: array[TTokenType] of TUsageType = (
     utUnknown,
@@ -644,6 +649,8 @@ const
     utDbIdent,
     utUnknown,
     utUnknown,
+    utSymbol,
+    utSymbol,
     utSymbol,
     utSymbol,
     utSymbol
@@ -704,6 +711,7 @@ const
     ntRenameStmt,
     ntReleaseStmt,
     ntRepeatStmt,
+    ntReturnStmt,
     ntRollbackStmt,
     ntSavepointStmt,
     ntSelectStmt,
@@ -819,6 +827,7 @@ const
     ntRenameStmt,
     ntReleaseStmt,
     ntRepeatStmt,
+    ntReturnStmt,
     ntRollbackStmt,
     ntSavepointStmt,
     ntSelectStmt,
