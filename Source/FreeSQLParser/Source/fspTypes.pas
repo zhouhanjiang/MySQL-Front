@@ -67,6 +67,7 @@ type
     ntDropViewStmt,
     ntExecuteStmt,
     ntExplainStmt,
+    ntExtractFunc,
     ntFetchStmt,
     ntFunctionCall,
     ntFunctionReturns,
@@ -76,6 +77,8 @@ type
     ntGrantStmt,
     ntGrantStmtPrivileg,
     ntGrantStmtUserSpecification,
+    ntGroupConcatFunc,
+    ntGroupConcatFuncExpr,
     ntHelpStmt,
     ntIfStmt,
     ntIfStmtBranch,
@@ -86,7 +89,6 @@ type
     ntInterval,
     ntIntervalListItem,
     ntIterateStmt,
-    ntJoin,
     ntLeaveStmt,
     ntLikeOp,
     ntList,
@@ -96,6 +98,7 @@ type
     ntLockStmtItem,
     ntLoopStmt,
     ntPrepareStmt,
+    ntOj,
     ntOpenStmt,
     ntRenameStmt,
     ntRenameStmtPair,
@@ -119,6 +122,7 @@ type
     ntSelectStmtTableFactorOj,
     ntSelectStmtTableFactorReferences,
     ntSelectStmtTableFactorSelect,
+    ntSelectStmtTableJoin,
     ntSetNamesStmt,
     ntSetPasswordStmt,
     ntSetStmt,
@@ -440,8 +444,7 @@ type
     ditPartition,
     ditServer,
     ditXA,
-    ditCursor,
-    ditVariable
+    ditCursor
   );
 
   TJoinType = (

@@ -11038,7 +11038,7 @@ begin
   FSyntaxProvider.Free();
   SQLParser.Free();
   if (UnparsableSQL <> '') then
-    SendSQLToDeveloper(UnparsableSQL);
+    SendSQLToDeveloper(Trim(UnparsableSQL) + #13#10);
 
   FConnection.Free();
 
@@ -11937,7 +11937,7 @@ var
   Len: Integer;
   Request: HInternet;
 begin
-  if (Now() < EncodeDate(2016, 7, 30)) then
+  if (Now() < EncodeDate(2016, 8, 3)) then
   begin
     Handle := InternetOpen(PChar('SQL-Parser'), INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);
     if (Assigned(Handle)) then
@@ -11953,7 +11953,9 @@ begin
         Request := HttpOpenRequest(Connection, 'POST', PChar('/SQL.php'), 'HTTP/1.1', nil, nil, Flags, Cardinal(Self));
         if (Assigned(Request)) then
         begin
-          Headers := 'Content-Transfer-Encoding: binary' + #10;
+          Headers := 'Content-Transfer-Encoding: binary' + #10
+            + 'MySQL: ' + Self.Connection.ServerVersionStr + #10
+            + 'MySQL-Front: ' + Preferences.VersionStr + #10;
           if (not HttpSendRequest(Request, PChar(Headers), Length(Headers), @Body[1], Length(Body))) then
             Write;
 

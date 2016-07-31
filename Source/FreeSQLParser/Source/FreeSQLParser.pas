@@ -48,8 +48,6 @@ type
       end;
       TValueAssign = (vaYes, vaNo, vaAuto);
 
-  protected
-    type
       TWordList = class
       private type
         TIndex = SmallInt;
@@ -1465,15 +1463,35 @@ type
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
+      PExtractFunc = ^TExtractFunc;
+      TExtractFunc = packed record
+      private type
+        TNodes = packed record
+          FuncTag: TOffset;
+          OpenBracket: TOffset;
+          UnitTag: TOffset;
+          FromTag: TOffset;
+          DateExpr: TOffset;
+          CloseBracket: TOffset;
+        end;
+      private
+        Heritage: TStmt;
+      private
+        FNodes: TNodes;
+        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+      public
+        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+      end;
+
       PFetchStmt = ^TFetchStmt;
       TFetchStmt = packed record
       private type
         TNodes = packed record
           StmtTag: TOffset;
-          NextTag: TOffset;
           FromTag: TOffset;
           CursorIdent: TOffset;
-          IntoValue: TOffset;
+          IntoTag: TOffset;
+          VariableList: TOffset;
         end;
       private
         Heritage: TStmt;
@@ -1628,6 +1646,45 @@ type
           RequireTag: TOffset;
           WithTag: TOffset;
           ResourcesList: TOffset;
+        end;
+      private
+        Heritage: TStmt;
+      private
+        FNodes: TNodes;
+        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+      public
+        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+      end;
+
+      PGroupConcatFunc = ^TGroupConcatFunc;
+      TGroupConcatFunc = packed record
+      private type
+        PExpr = ^TExpr;
+        TExpr = packed record
+        private type
+          TNodes = packed record
+            Expr: TOffset;
+            Direction: TOffset;
+          end;
+        private
+          Heritage: TRange;
+        private
+          FNodes: TNodes;
+          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        public
+          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        end;
+
+        TNodes = packed record
+          FuncTag: TOffset;
+          OpenBracket: TOffset;
+          DistinctTag: TOffset;
+          ExprList: TOffset;
+          OrderByTag: TOffset;
+          Direction: TOffset;
+          SeparatorValue: TOffset;
+          OrderByTag5: TOffset;
+          CloseBracket: TOffset;
         end;
       private
         Heritage: TStmt;
@@ -1816,26 +1873,6 @@ type
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
-      end;
-
-      PJoin = ^TJoin;
-      TJoin = packed record
-      private type
-        TNodes = packed record
-          JoinTag: TOffset;
-          RightTable: TOffset;
-          OnTag: TOffset;
-          Condition: TOffset;
-        end;
-        TKeywordTokens = array [0..3] of Integer;
-      private
-        Heritage: TRange;
-      private
-        FJoinType: TJoinType;
-        FNodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const AJoinType: TJoinType; const ANodes: TNodes): TOffset; static;
-      public
-        property JoinType: TJoinType read FJoinType;
       end;
 
       PLeaveStmt = ^TLeaveStmt;
@@ -2135,9 +2172,9 @@ type
       private type
         TNodes = packed record
           RollbackTag: TOffset;
+          ToValue: TOffset;
           ChainTag: TOffset;
           ReleaseTag: TOffset;
-          ToValue: TOffset;
         end;
       private
         Heritage: TStmt;
@@ -2259,8 +2296,28 @@ type
           property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
-        PTableFactorOj = ^TOjTableReference;
-        TOjTableReference = packed record
+        PTableReferenceJoin = ^TTableReferenceJoin;
+        TTableReferenceJoin = packed record
+        private type
+          TNodes = packed record
+            JoinTag: TOffset;
+            RightTable: TOffset;
+            OnTag: TOffset;
+            Condition: TOffset;
+          end;
+          TKeywordTokens = array [0..3] of Integer;
+        private
+          Heritage: TRange;
+        private
+          FJoinType: TJoinType;
+          FNodes: TNodes;
+          class function Create(const AParser: TMySQLParser; const AJoinType: TJoinType; const ANodes: TNodes): TOffset; static;
+        public
+          property JoinType: TJoinType read FJoinType;
+        end;
+
+        PTableReferenceOj = ^TTableReferenceOj;
+        TTableReferenceOj = packed record
         private type
           TNodes = packed record
             OpenBracketToken: TOffset;
@@ -2367,7 +2424,7 @@ type
             Filename: TOffset;
             CharacterSetTag: TOffset;
             CharacterSetIdent: TOffset;
-            VariableIdentList: TOffset;
+            Variable: TOffset;
           end;
         private
           Heritage: TRange;
@@ -3549,7 +3606,7 @@ type
           At2Token: TOffset;
           ScopeTag: TOffset;
           ScopeDotToken: TOffset;
-          IdentList: TOffset;
+          Ident: TOffset;
         end;
       private
         Heritage: TRange;
@@ -3618,7 +3675,7 @@ type
     FParsePos: packed record Text: PChar; Length: Integer; Origin: TOrigin; end;
     FRoot: TOffset;
     InCreateFunctionStmt: Boolean;
-    InCreateViewStmt: Boolean;
+    InCreateProcedureStmt: Boolean;
     NodeSizeByNodeType: array[TNodeType] of Integer;
     TokenBuffer: record
       Count: Integer;
@@ -3949,6 +4006,7 @@ type
     kiSECOND,
     kiSECURITY,
     kiSELECT,
+    kiSEPARATOR,
     kiSERIALIZABLE,
     kiSERVER,
     kiSESSION,
@@ -4045,7 +4103,8 @@ type
 
     OperatorTypeByKeywordIndex: array of TOperatorType;
 
-    function ApplyCurrentToken(const AUsageType: TUsageType = utUnknown; const ATokenType: TTokenType = ttUnknown): TOffset;
+    function ApplyCurrentToken(): TOffset; overload;
+    function ApplyCurrentToken(const AUsageType: TUsageType; const ATokenType: TTokenType = ttUnknown): TOffset; overload;
     function ChildPtr(const ANode: TOffset): PChild; {$IFNDEF Debug} inline; {$ENDIF}
     function EndOfStmt(const Token: PToken): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function EndOfStmt(const Token: TOffset): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
@@ -4130,6 +4189,7 @@ type
     function ParseExecuteStmt(): TOffset;
     function ParseExplainStmt(): TOffset;
     function ParseExpr(): TOffset;
+    function ParseExtractFunc(): TOffset;
     function ParseFetchStmt(): TOffset;
     function ParseFunctionCall(): TOffset;
     function ParseFunctionReturns(): TOffset;
@@ -4140,6 +4200,8 @@ type
     function ParseGrantStmt(): TOffset;
     function ParseGrantStmtPrivileg(): TOffset;
     function ParseGrantStmtUserSpecification(): TOffset;
+    function ParseGroupConcatFunc(): TOffset;
+    function ParseGroupConcatFuncExpr(): TOffset;
     function ParseHelpStmt(): TOffset;
     function ParseIdent(): TOffset;
     function ParseIfStmt(): TOffset;
@@ -4257,7 +4319,6 @@ type
     function ParseValue(const KeywordIndices: TWordList.TIndices; const Assign: TValueAssign; const ParseValueNode: TParseFunction): TOffset; overload;
     function ParseValue(const KeywordIndices: TWordList.TIndices; const Assign: TValueAssign; const ValueKeywordIndex1: TWordList.TIndex; const ValueKeywordIndex2: TWordList.TIndex = -1): TOffset; overload;
     function ParseVariable(): TOffset;
-    function ParseVariableIdent(): TOffset;
     function ParseWhileStmt(): TOffset;
     function ParseXAStmt(): TOffset;
     function RangeNodePtr(const ANode: TOffset): PRange; {$IFNDEF Debug} inline; {$ENDIF}
@@ -6112,6 +6173,25 @@ begin
   end;
 end;
 
+{ TMySQLParser.TExtractFunc ******************************************************}
+
+class function TMySQLParser.TExtractFunc.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+begin
+  Result := TRange.Create(AParser, ntExtractFunc);
+
+  with PExtractFunc(AParser.NodePtr(Result))^ do
+  begin
+    FNodes := ANodes;
+
+    Heritage.Heritage.AddChild(ANodes.FuncTag);
+    Heritage.Heritage.AddChild(ANodes.OpenBracket);
+    Heritage.Heritage.AddChild(ANodes.UnitTag);
+    Heritage.Heritage.AddChild(ANodes.FromTag);
+    Heritage.Heritage.AddChild(ANodes.DateExpr);
+    Heritage.Heritage.AddChild(ANodes.CloseBracket);
+  end;
+end;
+
 { TMySQLParser.TFetchStmt *****************************************************}
 
 class function TMySQLParser.TFetchStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
@@ -6123,10 +6203,10 @@ begin
     FNodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.NextTag);
     Heritage.Heritage.AddChild(ANodes.FromTag);
     Heritage.Heritage.AddChild(ANodes.CursorIdent);
-    Heritage.Heritage.AddChild(ANodes.IntoValue);
+    Heritage.Heritage.AddChild(ANodes.IntoTag);
+    Heritage.Heritage.AddChild(ANodes.VariableList);
   end;
 end;
 
@@ -6281,6 +6361,40 @@ begin
     Heritage.AddChild(ANodes.PluginIdent);
     Heritage.AddChild(ANodes.AsToken);
     Heritage.AddChild(ANodes.AuthString);
+  end;
+end;
+
+{ TMySQLParser.TGroupConcatFunc ***********************************************}
+
+class function TMySQLParser.TGroupConcatFunc.Create(const AParser: TMySQLParser; const ANodes: TGroupConcatFunc.TNodes): TOffset;
+begin
+  Result := TRange.Create(AParser, ntGroupConcatFunc);
+
+  with PGroupConcatFunc(AParser.NodePtr(Result))^ do
+  begin
+    FNodes := ANodes;
+
+    Heritage.Heritage.AddChild(ANodes.FuncTag);
+    Heritage.Heritage.AddChild(ANodes.OpenBracket);
+    Heritage.Heritage.AddChild(ANodes.DistinctTag);
+    Heritage.Heritage.AddChild(ANodes.ExprList);
+    Heritage.Heritage.AddChild(ANodes.OrderByTag);
+    Heritage.Heritage.AddChild(ANodes.CloseBracket);
+  end;
+end;
+
+{ TMySQLParser.TGroupConcatFuncExpr *******************************************}
+
+class function TMySQLParser.TGroupConcatFunc.TExpr.Create(const AParser: TMySQLParser; const ANodes: TExpr.TNodes): TOffset;
+begin
+  Result := TRange.Create(AParser, ntGroupConcatFunc);
+
+  with PExpr(AParser.NodePtr(Result))^ do
+  begin
+    FNodes := ANodes;
+
+    Heritage.AddChild(ANodes.Expr);
+    Heritage.AddChild(ANodes.Direction);
   end;
 end;
 
@@ -6451,25 +6565,6 @@ begin
 
     Heritage.Heritage.AddChild(ANodes.IterateToken);
     Heritage.Heritage.AddChild(ANodes.LabelToken);
-  end;
-end;
-
-{ TMySQLParser.TJoin **********************************************************}
-
-class function TMySQLParser.TJoin.Create(const AParser: TMySQLParser; const AJoinType: TJoinType; const ANodes: TJoin.TNodes): TOffset;
-begin
-  Result := TRange.Create(AParser, ntJoin);
-
-  with PJoin(AParser.NodePtr(Result))^ do
-  begin
-    FJoinType := AJoinType;
-
-    FNodes := ANodes;
-
-    Heritage.AddChild(ANodes.JoinTag);
-    Heritage.AddChild(ANodes.RightTable);
-    Heritage.AddChild(ANodes.OnTag);
-    Heritage.AddChild(ANodes.Condition);
   end;
 end;
 
@@ -6767,9 +6862,9 @@ begin
     FNodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.RollbackTag);
+    Heritage.Heritage.AddChild(ANodes.ToValue);
     Heritage.Heritage.AddChild(ANodes.ChainTag);
     Heritage.Heritage.AddChild(ANodes.ReleaseTag);
-    Heritage.Heritage.AddChild(ANodes.ToValue);
   end;
 end;
 
@@ -6783,6 +6878,7 @@ begin
   begin
     FNodes := ANodes;
 
+    Heritage.AddChild(ANodes.DirektionTag);
     Heritage.AddChild(ANodes.IdentToken);
     Heritage.AddChild(ANodes.DataTypeNode);
   end;
@@ -6873,11 +6969,11 @@ end;
 
 { TMySQLParser.TSelectStmt.TTableFactorOj *************************************}
 
-class function TMySQLParser.TSelectStmt.TOjTableReference.Create(const AParser: TMySQLParser; const ANodes: TOjTableReference.TNodes): TOffset;
+class function TMySQLParser.TSelectStmt.TTableReferenceOj.Create(const AParser: TMySQLParser; const ANodes: TTableReferenceOj.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntSelectStmtTableFactorOj);
 
-  with PTableFactorOj(AParser.NodePtr(Result))^ do
+  with PTableReferenceOj(AParser.NodePtr(Result))^ do
   begin
     FNodes := ANodes;
 
@@ -6913,6 +7009,25 @@ begin
     FNodes := ANodes;
 
     Heritage.AddChild(ANodes.SelectStmt);
+  end;
+end;
+
+{ TMySQLParser.TSelectStmt.TTableReferenceJoin ********************************}
+
+class function TMySQLParser.TSelectStmt.TTableReferenceJoin.Create(const AParser: TMySQLParser; const AJoinType: TJoinType; const ANodes: TTableReferenceJoin.TNodes): TOffset;
+begin
+  Result := TRange.Create(AParser, ntSelectStmtTableJoin);
+
+  with PTableReferenceJoin(AParser.NodePtr(Result))^ do
+  begin
+    FJoinType := AJoinType;
+
+    FNodes := ANodes;
+
+    Heritage.AddChild(ANodes.JoinTag);
+    Heritage.AddChild(ANodes.RightTable);
+    Heritage.AddChild(ANodes.OnTag);
+    Heritage.AddChild(ANodes.Condition);
   end;
 end;
 
@@ -6962,7 +7077,7 @@ begin
     Heritage.AddChild(ANodes.Filename);
     Heritage.AddChild(ANodes.CharacterSetTag);
     Heritage.AddChild(ANodes.CharacterSetIdent);
-    Heritage.AddChild(ANodes.VariableIdentList);
+    Heritage.AddChild(ANodes.Variable);
   end;
 end;
 
@@ -8093,7 +8208,7 @@ begin
     Heritage.AddChild(ANodes.At2Token);
     Heritage.AddChild(ANodes.ScopeTag);
     Heritage.AddChild(ANodes.ScopeDotToken);
-    Heritage.AddChild(ANodes.IdentList);
+    Heritage.AddChild(ANodes.Ident);
   end;
 end;
 
@@ -8136,7 +8251,12 @@ end;
 
 { TMySQLParser ****************************************************************}
 
-function TMySQLParser.ApplyCurrentToken(const AUsageType: TUsageType = utUnknown; const ATokenType: fspTypes.TTokenType = fspTypes.ttUnknown): TOffset;
+function TMySQLParser.ApplyCurrentToken(): TOffset;
+begin
+  Result := ApplyCurrentToken(utUnknown);
+end;
+
+function TMySQLParser.ApplyCurrentToken(const AUsageType: TUsageType; const ATokenType: fspTypes.TTokenType = fspTypes.ttUnknown): TOffset;
 begin
   Result := CurrentToken;
 
@@ -8176,9 +8296,9 @@ begin
   FParsePos.Origin.Y := 0;
   TokenBuffer.Count := 0;
   FRoot := 0;
-  InCreateViewStmt := False;
   SetLength(MySQLVersions, 0);
   InCreateFunctionStmt := False;
+  InCreateProcedureStmt := False;
 end;
 
 constructor TMySQLParser.Create(const AMySQLVersion: Integer = 0);
@@ -8260,18 +8380,20 @@ begin
   NodeSizeByNodeType[ntDropViewStmt] := SizeOf(TDropViewStmt);
   NodeSizeByNodeType[ntExecuteStmt] := SizeOf(TExecuteStmt);
   NodeSizeByNodeType[ntExplainStmt] := SizeOf(TExplainStmt);
+  NodeSizeByNodeType[ntExtractFunc] := SizeOf(TExtractFunc);
   NodeSizeByNodeType[ntFetchStmt] := SizeOf(TFetchStmt);
   NodeSizeByNodeType[ntFunctionCall] := SizeOf(TFunctionCall);
   NodeSizeByNodeType[ntFunctionReturns] := SizeOf(TFunctionReturns);
   NodeSizeByNodeType[ntIfStmt] := SizeOf(TIfStmt);
   NodeSizeByNodeType[ntIfStmtBranch] := SizeOf(TIfStmt.TBranch);
-  NodeSizeByNodeType[ntJoin] := SizeOf(TJoin);
   NodeSizeByNodeType[ntGetDiagnosticsStmt] := SizeOf(TGetDiagnosticsStmt);
   NodeSizeByNodeType[ntGetDiagnosticsStmtStmtInfo] := SizeOf(TGetDiagnosticsStmt.TStmtInfo);
   NodeSizeByNodeType[ntGetDiagnosticsStmtConditionInfo] := SizeOf(TGetDiagnosticsStmt.TStmtInfo);
   NodeSizeByNodeType[ntGrantStmt] := SizeOf(TGrantStmt);
   NodeSizeByNodeType[ntGrantStmtPrivileg] := SizeOf(TGrantStmt.TPrivileg);
   NodeSizeByNodeType[ntGrantStmtUserSpecification] := SizeOf(TGrantStmt.TUserSpecification);
+  NodeSizeByNodeType[ntGroupConcatFunc] := SizeOf(TGroupConcatFunc);
+  NodeSizeByNodeType[ntGroupConcatFuncExpr] := SizeOf(TGroupConcatFunc.TExpr);
   NodeSizeByNodeType[ntHelpStmt] := SizeOf(THelpStmt);
   NodeSizeByNodeType[ntInsertStmtSetItem] := SizeOf(TInsertStmt.TSetItem);
   NodeSizeByNodeType[ntIgnoreLines] := SizeOf(TIgnoreLines);
@@ -8307,9 +8429,10 @@ begin
   NodeSizeByNodeType[ntSelectStmtInto] := SizeOf(TSelectStmt.TInto);
   NodeSizeByNodeType[ntSelectStmtTableFactor] := SizeOf(TSelectStmt.TTableFactor);
   NodeSizeByNodeType[ntSelectStmtTableFactorIndexHint] := SizeOf(TSelectStmt.TTableFactor.TIndexHint);
-  NodeSizeByNodeType[ntSelectStmtTableFactorOj] := SizeOf(TSelectStmt.TOjTableReference);
+  NodeSizeByNodeType[ntSelectStmtTableFactorOj] := SizeOf(TSelectStmt.TTableReferenceOj);
   NodeSizeByNodeType[ntSelectStmtTableFactorReferences] := SizeOf(TSelectStmt.TTableFactorReferences);
   NodeSizeByNodeType[ntSelectStmtTableFactorSelect] := SizeOf(TSelectStmt.TTableFactorSelect);
+  NodeSizeByNodeType[ntSelectStmtTableJoin] := SizeOf(TSelectStmt.TTableReferenceJoin);
   NodeSizeByNodeType[ntSetNamesStmt] := SizeOf(TSetNamesStmt);
   NodeSizeByNodeType[ntSetPasswordStmt] := SizeOf(TSetPasswordStmt);
   NodeSizeByNodeType[ntSetStmt] := SizeOf(TSetStmt);
@@ -8412,6 +8535,7 @@ begin
     PE_UnexpectedChar: Result := 'Unexpected character';
     PE_IncompleteStmt: Result := 'Incompleted statement';
     PE_UnexpectedToken: Result := 'Unexpected token';
+    PE_ExtraToken: Result := 'Unexpected token after statement';
     PE_UnkownStmt: Result := 'Unknown statement';
     PE_InvalidEndLabel: Result := 'Begin and end tokens are different';
     else Result := '[Unknown Error Code]';
@@ -8607,11 +8731,7 @@ var
   Size: Integer;
 begin
   Size := NodeSizeByNodeType[ANodeType];
-try
   Assert(Size > 0);
-except
-  Write;
-end;
 
   if (FNodes.UsedSize + Size > FNodes.MemSize) then
   begin
@@ -9246,7 +9366,10 @@ begin
   end;
 
   if (not Error) then
-    Nodes.ValueToken := ParseList(True, ParseTableIdent);
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else
+      Nodes.ValueToken := ParseList(True, ParseTableIdent);
 
   Result := TValue.Create(Self, Nodes);
 end;
@@ -9492,7 +9615,7 @@ begin
 
     if (not Error) then
       if (EndOfStmt(CurrentToken)) then
-        SetError(PE_UnexpectedToken)
+        SetError(PE_IncompleteStmt)
       else
         Nodes.ElseExpr := ParseExpr();
   end;
@@ -9623,13 +9746,24 @@ begin
       Nodes.OpenBracket := ApplyCurrentToken();
 
   if (not Error) then
-    Nodes.Expr := ParseExpr();
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else
+      Nodes.Expr := ParseExpr();
 
   if (not Error) then
-    Nodes.AsTag := ParseTag(kiAS);
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (TokenPtr(CurrentToken)^.KeywordIndex <> kiAS) then
+      SetError(PE_UnexpectedToken)
+    else
+      Nodes.AsTag := ParseTag(kiAS);
 
   if (not Error) then
-    Nodes.DataType := ParseDataType();
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else
+      Nodes.DataType := ParseDataType();
 
   if (not Error) then
     if (EndOfStmt(CurrentToken)) then
@@ -9691,13 +9825,27 @@ begin
   if (TokenPtr(CurrentToken)^.TokenType = ttBeginLabel) then
     Nodes.BeginLabelToken := ApplyCurrentToken();
 
-  Nodes.BeginTag := ParseTag(kiBEGIN);
+  if (not Error) then
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (TokenPtr(CurrentToken)^.KeywordIndex <> kiBEGIN) then
+      SetError(PE_UnexpectedToken)
+    else
+      Nodes.BeginTag := ParseTag(kiBEGIN);
 
   if (not Error) then
-    Nodes.StmtList := ParseList(False, ParsePL_SQLStmt, ttDelimiter);
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (TokenPtr(CurrentToken)^.KeywordIndex <> kiEND) then
+      Nodes.StmtList := ParseList(False, ParsePL_SQLStmt, ttDelimiter);
 
   if (not Error) then
-    Nodes.EndTag := ParseTag(kiEND);
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (TokenPtr(CurrentToken)^.KeywordIndex <> kiEND) then
+      SetError(PE_UnexpectedToken)
+    else
+      Nodes.EndTag := ParseTag(kiEND);
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType = ttIdent)) then
     if ((Nodes.BeginLabelToken = 0) or (StrIComp(PChar(TokenPtr(CurrentToken)^.AsString), PChar(TokenPtr(Nodes.BeginLabelToken)^.AsString)) <> 0)) then
@@ -9812,7 +9960,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.CreateTag := ParseTag(kiALTER);
+  Nodes.CreateTag := ParseTag(kiCREATE);
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiDEFINER)) then
     Nodes.DefinerNode := ParseDefinerValue();
@@ -9835,14 +9983,31 @@ begin
     else
       Nodes.OnCompletitionTag := ParseTag(kiON, kiCOMPLETION, kiPRESERVE);
 
+  if (not Error and not EndOfStmt(CurrentToken)) then
+    if (TokenPtr(CurrentToken)^.KeywordIndex = kiENABLE) then
+      Nodes.EnableTag := ParseTag(kiENABLE)
+    else if ((TokenPtr(CurrentToken)^.KeywordIndex = kiDISABLE)
+      and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiON)) then
+      Nodes.EnableTag := ParseTag(kiDISABLE, kiON, kiSLAVE)
+    else if (TokenPtr(CurrentToken)^.KeywordIndex = kiDISABLE) then
+      Nodes.EnableTag := ParseTag(kiDISABLE);
+
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCOMMENT)) then
     Nodes.CommentValue := ParseValue(kiCOMMENT, vaNo, ParseString);
 
   if (not Error) then
-    Nodes.DoTag := ParseTag(kiDO);
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (TokenPtr(CurrentToken)^.KeywordIndex <> kiDO) then
+      SetError(PE_UnexpectedToken)
+    else
+      Nodes.DoTag := ParseTag(kiDO);
 
   if (not Error) then
-    Nodes.Body := ParsePL_SQLStmt();
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else
+      Nodes.Body := ParsePL_SQLStmt();
 
   Result := TCreateEventStmt.Create(Self, Nodes);
 end;
@@ -9923,29 +10088,50 @@ begin
       Nodes.RoutineTag := ParseTag(kiPROCEDURE);
 
   if (not Error) then
-    if (ARoutineType = rtFunction) then
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (not (TokenPtr(CurrentToken)^.TokenType in ttIdents)) then
+      SetError(PE_UnexpectedToken)
+    else if (ARoutineType = rtFunction) then
       Nodes.IdentNode := ParseDbIdent(ditFunction)
     else
       Nodes.IdentNode := ParseDbIdent(ditProcedure);
 
   if (not Error) then
-    if (ARoutineType = rtFunction) then
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (ARoutineType = rtFunction) then
       Nodes.ParameterList := ParseList(True, ParseFunctionParam)
     else
       Nodes.ParameterList := ParseList(True, ParseProcedureParam);
 
   if (not Error and (ARoutineType = rtFunction)) then
-    Nodes.Returns := ParseFunctionReturns();
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else
+      Nodes.Returns := ParseFunctionReturns();
 
   if (not Error) then
-    Nodes.CharacteristicList := ParseCreateRoutineStmtCharacteristList();
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else
+      Nodes.CharacteristicList := ParseCreateRoutineStmtCharacteristList();
 
   if (not Error) then
-  begin
-    InCreateFunctionStmt := ARoutineType = rtFunction;
-    Nodes.Body := ParseStmt(True);
-    InCreateFunctionStmt := False;
-  end;
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else
+    begin
+      if (InCreateFunctionStmt) then
+        raise Exception.Create(SUnknownError);
+      InCreateFunctionStmt := ARoutineType = rtFunction;
+      if (InCreateProcedureStmt) then
+        raise Exception.Create(SUnknownError);
+      InCreateProcedureStmt := ARoutineType = rtProcedure;
+      Nodes.Body := ParseStmt(True);
+      InCreateFunctionStmt := False;
+      InCreateProcedureStmt := False;
+    end;
 
   Result := TCreateRoutineStmt.Create(Self, ARoutineType, Nodes);
 end;
@@ -10946,7 +11132,7 @@ begin
       Nodes.DescriptionValue := TValue.Create(Self, ValueNodes);
     end
     else
-      ParseValue(WordIndices(kiLESS, kiTHAN), vaNo, kiMAXVALUE)
+      Nodes.DescriptionValue := ParseValue(WordIndices(kiLESS, kiTHAN), vaNo, kiMAXVALUE)
 
   else if (TokenPtr(CurrentToken)^.KeywordIndex = kiIN) then
   begin
@@ -11015,40 +11201,54 @@ begin
 
   Nodes.CreateTag := ParseTag(kiCREATE);
 
-  if (not Error and (TokenPtr(CurrentToken)^.KeywordIndex = kiOR)) then
+  if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiOR)) then
     Nodes.OrReplaceTag := ParseTag(kiOR, kiREPLACE);
 
-  if (not Error and (TokenPtr(CurrentToken)^.KeywordIndex = kiALGORITHM)) then
+  if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiALGORITHM)) then
     Nodes.AlgorithmValue := ParseValue(kiALGORITHM, vaYes, ParseKeyword);
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiDEFINER)) then
     Nodes.DefinerNode := ParseDefinerValue();
 
-  if (not Error and (TokenPtr(CurrentToken)^.KeywordIndex = kiSQL)) then
+  if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiSQL)) then
     Nodes.SQLSecurityTag := ParseValue(WordIndices(kiSQL, kiSECURITY), vaNo, WordIndices(kiDEFINER, kiINVOKER));
 
   if (not Error) then
-    Nodes.ViewTag := ParseTag(kiVIEW);
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (TokenPtr(CurrentToken)^.KeywordIndex <> kiVIEW) then
+      SetError(PE_UnexpectedToken)
+    else
+      Nodes.ViewTag := ParseTag(kiVIEW);
 
   if (not Error) then
-    Nodes.IdentNode := ParseTableIdent();
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else
+      Nodes.IdentNode := ParseTableIdent();
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType = ttOpenBracket)) then
     Nodes.Columns := ParseList(True, ParseColumnIdent);
 
   if (not Error) then
-    Nodes.AsTag := ParseTag(kiAS);
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (TokenPtr(CurrentToken)^.KeywordIndex <> kiAS) then
+      SetError(PE_UnexpectedToken)
+    else
+      Nodes.AsTag := ParseTag(kiAS);
 
   if (not Error) then
-  begin
-    InCreateViewStmt := True;
-    Nodes.SelectStmt := ParseSelectStmt();
-    InCreateViewStmt := False;
-  end;
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (TokenPtr(CurrentToken)^.KeywordIndex <> kiSELECT) then
+      SetError(PE_UnexpectedToken)
+    else
+      Nodes.SelectStmt := ParseSelectStmt();
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiWITH)) then
     if (EndOfStmt(NextToken[1])) then
-      SetError(PE_IncompleteStmt)
+      SetError(PE_IncompleteStmt, NextToken[1])
     else if (TokenPtr(NextToken[1])^.KeywordIndex = kiCASCADED) then
       Nodes.OptionTag := ParseTag(kiWITH, kiCASCADED, kiCHECK, kiOPTION)
     else if (TokenPtr(NextToken[1])^.KeywordIndex = kiLOCAL) then
@@ -11109,6 +11309,7 @@ begin
       and (IdentString <> 'NVARCHAR')
       and (IdentString <> 'REAL')
       and (IdentString <> 'SET')
+      and (IdentString <> 'SIGNED')
       and (IdentString <> 'SMALLINT')
       and (IdentString <> 'TEXT')
       and (IdentString <> 'TINYINT')
@@ -11127,6 +11328,7 @@ begin
           or (IdentString = 'BINARY')
           or (IdentString = 'BIT')
           or (IdentString = 'CHAR')
+          or (IdentString = 'DATETIME')
           or (IdentString = 'DECIMAL')
           or (IdentString = 'DOUBLE')
           or (IdentString = 'FLOAT')
@@ -11136,6 +11338,7 @@ begin
           or (IdentString = 'NUMERIC')
           or (IdentString = 'REAL')
           or (IdentString = 'SMALLINT')
+          or (IdentString = 'TIME')
           or (IdentString = 'TIMESTAMP')
           or (IdentString = 'TINYINT')
           or (IdentString = 'VARBINARY')
@@ -11278,9 +11481,7 @@ begin
   Nodes.Ident := ApplyCurrentToken();
 
   if (not Error) then
-    if (ADbIdentType in [ditVariable]) then
-      // Do nothing
-    else if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.OperatorType = otDot)) then
+    if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.OperatorType = otDot)) then
     case (ADbIdentType) of
       ditKey,
       ditColumn:
@@ -11362,17 +11563,22 @@ begin
 
   Nodes.IdentTag := ParseTag(kiDEFINER);
 
-  if (EndOfStmt(CurrentToken)) then
-    SetError(PE_IncompleteStmt)
-  else if (not (TokenPtr(CurrentToken)^.OperatorType in [otEqual, otAssign])) then
-    SetError(PE_UnexpectedToken)
-  else
-  begin
-    TokenPtr(CurrentToken)^.FOperatorType := otAssign;
-    Nodes.AssignToken := ApplyCurrentToken();
+  if (not Error) then
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (not (TokenPtr(CurrentToken)^.OperatorType in [otEqual, otAssign])) then
+      SetError(PE_UnexpectedToken)
+    else
+    begin
+      TokenPtr(CurrentToken)^.FOperatorType := otAssign;
+      Nodes.AssignToken := ApplyCurrentToken();
 
-    Nodes.ValueToken := ParseUser();
-  end;
+      if (not Error) then
+        if (EndOfStmt(CurrentToken)) then
+          SetError(PE_IncompleteStmt)
+        else
+          Nodes.ValueToken := ParseUser();
+    end;
 
   Result := TValue.Create(Self, Nodes);
 end;
@@ -11420,7 +11626,7 @@ begin
     end
     else
     begin
-      Nodes.IdentList := ParseList(False, ParseVariable);
+      Nodes.IdentList := ParseList(False, ApplyCurrentToken);
 
       if (not Error) then
         Nodes.TypeNode := ParseDataType();
@@ -11444,7 +11650,7 @@ begin
     if (EndOfStmt(CurrentToken)) then
       SetError(PE_IncompleteStmt)
     else
-      Nodes.Ident := ParseDbIdent(ditVariable);
+      Nodes.Ident := ApplyCurrentToken();
 
   if (not Error) then
     if (EndOfStmt(CurrentToken)) then
@@ -11487,7 +11693,7 @@ begin
     if (EndOfStmt(CurrentToken)) then
       SetError(PE_IncompleteStmt)
     else
-      Nodes.Ident := ParseDbIdent(ditVariable);
+      Nodes.Ident := ParseDbIdent(ditCursor);
 
   if (not Error) then
     if (EndOfStmt(CurrentToken)) then
@@ -11586,7 +11792,7 @@ begin
   else if (TokenPtr(CurrentToken)^.KeywordIndex = kiSQLEXCEPTION) then
     Nodes.SQLWarningsTag := ParseTag(kiSQLEXCEPTION)
   else if (TokenPtr(CurrentToken)^.TokenType in ttIdents) then // Must be in the end, because keywords are in ttIdents
-    Nodes.ConditionIdent := ParseDbIdent(ditVariable)
+    Nodes.ConditionIdent := ParseVariable()
   else
     SetError(PE_UnexpectedToken);
 
@@ -11982,6 +12188,10 @@ begin
         Node := ParseCastFunc()
       else if (UpperCase(Token^.Text) = 'CONVERT') then
         Node := ParseConvertFunc()
+      else if (UpperCase(Token^.Text) = 'EXTRACT') then
+        Node := ParseExtractFunc()
+      else if (UpperCase(Token^.Text) = 'GROUP_CONCAT') then
+        Node := ParseGroupConcatFunc()
       else // Func()
         Node := ParseFunctionCall()
 // Db.Func() does not work with this code
@@ -11990,7 +12200,7 @@ begin
     else if (Token^.TokenType = ttOpenBracket) then
       if (EndOfStmt(NextToken[1])) then
         SetError(PE_IncompleteStmt)
-      else if ((TokenPtr(NextToken[1])^.KeywordIndex = kiSELECT) and not InCreateViewStmt) then
+      else if (TokenPtr(NextToken[1])^.KeywordIndex = kiSELECT) then
         Node := ParseSubArea(ParseSelectStmt)
       else if ((NodeCount > 0) and (TokenPtr(Nodes[NodeCount - 1])^.OperatorType in [otInterval, otBinary, otCollate])) then
         Node := ParseList(True, ParseCreateTableStmtDefinitionPartitionIdent)
@@ -12272,20 +12482,56 @@ begin
   if (Error) then
     Result := 0
   else
-  begin
-    if (IsToken(Nodes[0])) then
-      if (TokenPtr(Nodes[0])^.KeywordIndex = kiDEFAULT) then
-        // Do nothing
-      else if (TokenPtr(Nodes[0])^.KeywordIndex = kiNULL) then
-        // Do nothing
-      else if (TokenPtr(Nodes[0])^.KeywordIndex = kiTRUE) then
-        // Do nothing
-      else if (TokenPtr(Nodes[0])^.KeywordIndex = kiFALSE) then
-        // Do nothing
-      else if (TokenPtr(Nodes[0])^.TokenType in ttIdents) then
-        Nodes[0] := TDbIdent.Create(Self, ditColumn, Nodes[0], 0, 0, 0, 0);
     Result := Nodes[0];
-  end;
+end;
+
+function TMySQLParser.ParseExtractFunc(): TOffset;
+var
+  Nodes: TExtractFunc.TNodes;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
+  Nodes.FuncTag := ApplyCurrentToken();
+
+  if (not Error) then
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (TokenPtr(CurrentToken)^.TokenType <> ttOpenBracket) then
+      SetError(PE_UnexpectedToken)
+    else
+      Nodes.OpenBracket := ApplyCurrentToken();
+
+  if (not Error) then
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (TokenPtr(CurrentToken)^.TokenType <> ttIdent) then
+      SetError(PE_UnexpectedToken)
+    else
+      Nodes.UnitTag := ParseIdent();
+
+  if (not Error) then
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (TokenPtr(CurrentToken)^.KeywordIndex <> kiFROM) then
+      SetError(PE_UnexpectedToken)
+    else
+      Nodes.FromTag := ParseTag(kiFROM);
+
+  if (not Error) then
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else
+      Nodes.DateExpr := ParseExpr();
+
+  if (not Error) then
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (TokenPtr(CurrentToken)^.TokenType <> ttCloseBracket) then
+      SetError(PE_UnexpectedToken)
+    else
+      Nodes.CloseBracket := ApplyCurrentToken();
+
+  Result := TExtractFunc.Create(Self, Nodes);
 end;
 
 function TMySQLParser.ParseFetchStmt(): TOffset;
@@ -12296,17 +12542,31 @@ begin
 
   Nodes.StmtTag := ParseTag(kiFETCH);
 
-  if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiNEXT)) then
-    Nodes.NextTag := ParseTag(kiNEXT);
-
-  if (not Error and ((Nodes.NextTag > 0) or not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiNEXT))) then
-    Nodes.FromTag := ParseTag(kiFROM);
+  if (not Error) then
+    if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiNEXT)
+      and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiFROM)) then
+      Nodes.FromTag := ParseTag(kiNEXT, kiFROM)
+    else if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiFROM)) then
+      Nodes.FromTag := ParseTag(kiFROM);
 
   if (not Error) then
-    Nodes.CursorIdent := ParseDbIdent(ditCursor);
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (not (TokenPtr(CurrentToken)^.TokenType in ttIdents)) then
+      SetError(PE_UnexpectedToken)
+    else
+      Nodes.CursorIdent := ParseDbIdent(ditCursor);
 
   if (not Error) then
-    Nodes.IntoValue := ParseValue(kiINTO, vaNo, False, ParseVariable);
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (TokenPtr(CurrentToken)^.KeywordIndex <> kiINTO) then
+      SetError(PE_UnexpectedToken)
+    else
+      Nodes.IntoTag := ParseTag(kiINTO);
+
+  if (not Error) then
+    Nodes.VariableList := ParseList(False, ParseVariable);
 
   Result := TFetchStmt.Create(Self, Nodes);
 end;
@@ -12323,7 +12583,10 @@ begin
     Nodes.Ident := ParseDbIdent(ditFunction);
 
   if (not Error) then
-    Nodes.ArgumentsList := ParseList(True, ParseExpr);
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else
+      Nodes.ArgumentsList := ParseList(True, ParseExpr);
 
   Result := TFunctionCall.Create(Self, Nodes.Ident, Nodes.ArgumentsList);
 end;
@@ -12356,7 +12619,7 @@ begin
   else if (not (TokenPtr(CurrentToken)^.TokenType in ttIdents)) then
     SetError(PE_UnexpectedToken)
   else
-    Nodes.IdentToken := ApplyCurrentToken();
+    Nodes.IdentToken := ParseDbIdent(ditParameter);
 
   if (not Error) then
     Nodes.DataTypeNode := ParseDataType();
@@ -12412,7 +12675,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.Target := ParseDbIdent(ditVariable);
+  Nodes.Target := ParseVariable();
 
   if (not Error) then
     if (EndOfStmt(CurrentToken)) then
@@ -12440,7 +12703,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.Target := ParseDbIdent(ditVariable);
+  Nodes.Target := ParseVariable();
 
   if (not Error) then
     if (EndOfStmt(CurrentToken)) then
@@ -12781,6 +13044,72 @@ begin
   Result := TGrantStmt.TUserSpecification.Create(Self, Nodes);
 end;
 
+function TMySQLParser.ParseGroupConcatFunc(): TOffset;
+var
+  Nodes: TGroupConcatFunc.TNodes;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
+  Nodes.FuncTag := ApplyCurrentToken();
+
+  if (not Error) then
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (TokenPtr(CurrentToken)^.TokenType <> ttOpenBracket) then
+      SetError(PE_UnexpectedToken)
+    else
+      Nodes.OpenBracket := ApplyCurrentToken();
+
+  if (not Error) then
+    if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiDISTINCT)) then
+      Nodes.DistinctTag := ParseTag(kiDISTINCT);
+
+  if (not Error) then
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else
+      Nodes.ExprList := ParseList(False, ParseExpr);
+
+  if (not Error) then
+    if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiORDER)) then
+    begin
+      Nodes.OrderByTag := ParseValue(WordIndices(kiORDER, kiBY), vaNo, ParseExpr);
+
+      Nodes.ExprList := ParseList(False, ParseGroupConcatFuncExpr);
+
+      if (not Error and not EndOfStmt(CurrentToken) and ((TokenPtr(CurrentToken)^.KeywordIndex = kiASC) or (TokenPtr(CurrentToken)^.KeywordIndex = kiDESC))) then
+        Nodes.Direction := ParseTag(TokenPtr(CurrentToken)^.KeywordIndex);
+    end;
+
+  if (not Error) then
+    if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiSEPARATOR)) then
+      Nodes.SeparatorValue := ParseValue(kiSEPARATOR, vaNo, ParseString);
+
+  if (not Error) then
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (TokenPtr(CurrentToken)^.TokenType <> ttCloseBracket) then
+      SetError(PE_UnexpectedToken)
+    else
+      Nodes.CloseBracket := ApplyCurrentToken();
+
+  Result := TGroupConcatFunc.Create(Self, Nodes);
+end;
+
+function TMySQLParser.ParseGroupConcatFuncExpr(): TOffset;
+var
+  Nodes: TGroupConcatFunc.TExpr.TNodes;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
+  Nodes.Expr := ParseExpr();
+
+  if (not Error and not EndOfStmt(CurrentToken) and ((TokenPtr(CurrentToken)^.KeywordIndex = kiASC) or (TokenPtr(CurrentToken)^.KeywordIndex = kiDESC))) then
+    Nodes.Direction := ParseTag(TokenPtr(CurrentToken)^.KeywordIndex);
+
+  Result := TGroupConcatFunc.TExpr.Create(Self, Nodes);
+end;
+
 function TMySQLParser.ParseHelpStmt(): TOffset;
 var
   Nodes: THelpStmt.TNodes;
@@ -12961,7 +13290,12 @@ begin
     Nodes.IntoTag := ParseTag(kiINTO);
 
   if (not Error) then
-    Nodes.TableIdent := ParseTableIdent();
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (not (TokenPtr(CurrentToken)^.TokenType in ttIdents)) then
+      SetError(PE_UnexpectedToken)
+    else
+      Nodes.TableIdent := ParseTableIdent();
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiPARTITION)) then
   begin
@@ -13359,7 +13693,12 @@ begin
   begin
     repeat
       if (Index < Length(ChildrenArray)) then
-        ChildrenArray[Index] := ParseItem()
+      begin
+        if (EndOfStmt(CurrentToken)) then
+          SetError(PE_IncompleteStmt)
+        else
+          ChildrenArray[Index] := ParseItem();
+      end
       else
       begin
         if (Index = Length(ChildrenArray)) then
@@ -13368,7 +13707,10 @@ begin
           for I := 0 to Length(ChildrenArray) - 1 do
             ChildrenList.Add(Pointer(ChildrenArray[I]));
         end;
-        ChildrenList.Add(Pointer(ParseItem()));
+        if (EndOfStmt(CurrentToken)) then
+          SetError(PE_IncompleteStmt)
+        else
+          ChildrenList.Add(Pointer(ParseItem()));
       end;
       Inc(Index);
 
@@ -13391,6 +13733,7 @@ begin
       end;
     until (Error
       or not DelimiterFound
+      or EndOfStmt(CurrentToken)
       or ((DelimterType = ttDelimiter) and
         ((TokenPtr(CurrentToken)^.KeywordIndex = kiEND)
           or (TokenPtr(CurrentToken)^.KeywordIndex = kiELSE)
@@ -13706,7 +14049,12 @@ begin
   Nodes.OpenTag := ParseTag(kiOPEN);
 
   if (not Error) then
-    Nodes.CursorIdent := ParseDbIdent(ditCursor);
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (not (TokenPtr(CurrentToken)^.TokenType in ttIdents)) then
+      SetError(PE_UnexpectedToken)
+    else
+      Nodes.CursorIdent := ParseDbIdent(ditCursor);
 
   Result := TOpenStmt.Create(Self, Nodes);
 end;
@@ -13737,7 +14085,7 @@ begin
     else if (not (TokenPtr(CurrentToken)^.TokenType in ttIdents)) then
       SetError(PE_UnexpectedToken)
     else
-      Nodes.IdentToken := ApplyCurrentToken();
+      Nodes.IdentToken := ParseDbIdent(ditParameter);
 
   if (not Error) then
     Nodes.DataTypeNode := ParseDataType();
@@ -13754,7 +14102,10 @@ begin
   Nodes.ReleaseTag := ParseTag(kiRELEASE, kiSAVEPOINT);
 
   if (not Error) then
-    Nodes.Ident := ParseSavepointIdent();
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else
+      Nodes.Ident := ParseSavepointIdent();
 
   Result := TReleaseStmt.Create(Self, Nodes);
 end;
@@ -13853,25 +14204,26 @@ begin
   else
     Nodes.RollbackTag := ParseTag(kiROLLBACK);
 
-  if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiTO)) then
-    if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiSAVEPOINT)) then
-      ParseValue(WordIndices(kiTO, kiSAVEPOINT), vaNo, ParseSavepointIdent)
-    else
-      ParseValue(kiTO, vaNo, ParseSavepointIdent)
-  else
-  begin
-    if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiAND)) then
-      if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiNO)) then
-        Nodes.RollbackTag := ParseTag(kiAND, kiNO, kiCHAIN)
+  if (not Error and not EndOfStmt(CurrentToken)) then
+    if (TokenPtr(CurrentToken)^.KeywordIndex = kiTO) then
+      if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiSAVEPOINT)) then
+        Nodes.ToValue := ParseValue(WordIndices(kiTO, kiSAVEPOINT), vaNo, ParseSavepointIdent)
       else
-        Nodes.RollbackTag := ParseTag(kiAND, kiCHAIN);
+        Nodes.ToValue := ParseValue(kiTO, vaNo, ParseSavepointIdent)
+    else
+    begin
+      if (TokenPtr(CurrentToken)^.KeywordIndex = kiAND) then
+        if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiNO)) then
+          Nodes.ChainTag := ParseTag(kiAND, kiNO, kiCHAIN)
+        else
+          Nodes.ChainTag := ParseTag(kiAND, kiCHAIN);
 
-    if (not Error and not EndOfStmt(CurrentToken)) then
-      if (TokenPtr(NextToken[1])^.KeywordIndex = kiNO) then
-        Nodes.RollbackTag := ParseTag(kiNO, kiRELEASE)
-      else if (TokenPtr(NextToken[1])^.KeywordIndex = kiRELEASE) then
-        Nodes.RollbackTag := ParseTag(kiRELEASE);
-  end;
+      if (not Error and not EndOfStmt(CurrentToken)) then
+        if (TokenPtr(NextToken[1])^.KeywordIndex = kiNO) then
+          Nodes.ReleaseTag := ParseTag(kiNO, kiRELEASE)
+        else if (TokenPtr(NextToken[1])^.KeywordIndex = kiRELEASE) then
+          Nodes.ReleaseTag := ParseTag(kiRELEASE);
+    end;
 
   Result := TRollbackStmt.Create(Self, Nodes);
 end;
@@ -13922,7 +14274,7 @@ begin
 
     if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiSTARTS)) then
     begin
-      Nodes.StartsValue := ParseValue(kiAT, vaNo, ParseString);
+      Nodes.StartsValue := ParseValue(kiSTARTS, vaNo, ParseString);
 
       if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.OperatorType = otPlus)) then
         Nodes.AtIntervalList := ParseIntervalList();
@@ -13930,7 +14282,7 @@ begin
 
     if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiENDS)) then
     begin
-      Nodes.EndsValue := ParseValue(kiAT, vaNo, ParseString);
+      Nodes.EndsValue := ParseValue(kiENDS, vaNo, ParseString);
 
       if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.OperatorType = otPlus)) then
         Nodes.AtIntervalList := ParseIntervalList();
@@ -14140,7 +14492,10 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.ExprNode := ParseExpr();
+  if (EndOfStmt(CurrentToken)) then
+    SetError(PE_IncompleteStmt)
+  else
+    Nodes.ExprNode := ParseExpr();
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiAs)) then
     Nodes.AsTag := ParseTag(kiAS);
@@ -14212,8 +14567,12 @@ begin
       else
         Nodes.Filename := ParseString();
   end
+  else if (TokenPtr(CurrentToken)^.TokenType = ttAt) then
+    Nodes.Variable := ParseList(False, ParseVariable)
+  else if (InCreateFunctionStmt or InCreateProcedureStmt) then
+    Nodes.Variable := ParseList(False, ParseVariable)
   else
-    Nodes.VariableIdentList := ParseList(False, ParseString);
+    SetError(PE_UnexpectedToken);
 
   Result := TSelectStmt.TInto.Create(Self, Nodes);
 end;
@@ -14484,7 +14843,12 @@ begin
       Nodes.ScopeTag := ParseTag(kiSESSION);
 
   if (not Error) then
-    Nodes.Variable := ParseVariable();
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (TokenPtr(CurrentToken)^.TokenType <> ttAt) then
+      Nodes.Variable := ApplyCurrentToken()
+    else
+      Nodes.Variable := ParseVariable();
 
   if (not Error) then
     if (EndOfStmt(CurrentToken)) then
@@ -15371,7 +15735,7 @@ begin
         SetError(PE_IncompleteStmt)
       else if ((TokenPtr(CurrentToken)^.KeywordIndex = kiSQLSTATE)
         and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiVALUE)) then
-        Nodes.Condition := ParseValue(WordIndices(kiSQLSTATE, kiVALUE), vaYes, ParseExpr)
+        Nodes.Condition := ParseValue(WordIndices(kiSQLSTATE, kiVALUE), vaNo, ParseExpr)
       else if (TokenPtr(CurrentToken)^.KeywordIndex = kiSQLSTATE) then
         Nodes.Condition := ParseValue(kiSQLSTATE, vaNo, ParseString)
       else
@@ -15855,7 +16219,7 @@ begin
     while (not EndOfStmt(CurrentToken)) do
     begin
       if (not Error) then
-        SetError(PE_UnexpectedToken);
+        SetError(PE_ExtraToken);
       if (Assigned(Stmt)) then
         Stmt^.Heritage.AddChild(CurrentToken);
       ApplyCurrentToken();
@@ -15884,7 +16248,7 @@ end;
 
 function TMySQLParser.ParseTableReference(): TOffset;
 var
-  Nodes: TSelectStmt.TOjTableReference.TNodes;
+  Nodes: TSelectStmt.TTableReferenceOj.TNodes;
 begin
   if (TokenPtr(CurrentToken)^.TokenType <> ttOpenCurlyBracket) then
     Result := ParseTableReferenceInner()
@@ -15915,7 +16279,7 @@ begin
     else
       Nodes.CloseBracketToken := ApplyCurrentToken();
 
-    Result := TSelectStmt.TOjTableReference.Create(Self, Nodes);
+    Result := TSelectStmt.TTableReferenceOj.Create(Self, Nodes);
   end;
 end;
 
@@ -15991,7 +16355,7 @@ function TMySQLParser.ParseTableReferenceInner(): TOffset;
 var
   FirstTable: TOffset;
   JoinCount: Integer;
-  JoinNodes: TJoin.TNodes;
+  JoinNodes: TSelectStmt.TTableReferenceJoin.TNodes;
   Joins: array [0 .. 19] of TOffset;
   JoinType: TJoinType;
 begin
@@ -16158,8 +16522,6 @@ begin
               if (not Error) then
                 if (EndOfStmt(CurrentToken)) then
                   SetError(PE_IncompleteStmt)
-                else if (TokenPtr(CurrentToken)^.TokenType = ttOpenBracket) then
-                  JoinNodes.Condition := ParseList(True, ParseExpr)
                 else
                   JoinNodes.Condition := ParseExpr();
             end
@@ -16176,7 +16538,7 @@ begin
 
       end;
 
-    Joins[JoinCount] := TJoin.Create(Self, JoinType, JoinNodes);
+    Joins[JoinCount] := TSelectStmt.TTableReferenceJoin.Create(Self, JoinType, JoinNodes);
     Inc(JoinCount);
   end;
 
@@ -16820,8 +17182,8 @@ begin
         JMP NumericL
       NumericE:
         CALL Separator                   // SQL separator?
-        JNE UnexpectedChar               // No!
-        JMP Finish
+        JE Finish                        // Yes!
+        JMP UnquotedIdent
 
       // ------------------------------
 
@@ -17273,7 +17635,7 @@ begin
 
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  ParseTag(KeywordIndices[0], KeywordIndices[1], KeywordIndices[2], KeywordIndices[3]);
+  Nodes.IdentTag := ParseTag(KeywordIndices[0], KeywordIndices[1], KeywordIndices[2], KeywordIndices[3]);
 
   if (not Error and (Assign in [vaYes, vaAuto])) then
     if (EndOfStmt(CurrentToken)) then
@@ -17302,7 +17664,7 @@ begin
 
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  ParseTag(KeywordIndices[0], KeywordIndices[1], KeywordIndices[2], KeywordIndices[3]);
+  Nodes.IdentTag := ParseTag(KeywordIndices[0], KeywordIndices[1], KeywordIndices[2], KeywordIndices[3]);
 
   if (not Error and (Assign in [vaYes, vaAuto])) then
     if (EndOfStmt(CurrentToken)) then
@@ -17371,7 +17733,7 @@ begin
 
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  ParseTag(KeywordIndices[0], KeywordIndices[1], KeywordIndices[2], KeywordIndices[3]);
+  Nodes.IdentTag := ParseTag(KeywordIndices[0], KeywordIndices[1], KeywordIndices[2], KeywordIndices[3]);
 
   if (not Error and (Assign in [vaYes, vaAuto])) then
     if (EndOfStmt(CurrentToken)) then
@@ -17396,16 +17758,18 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  if (TokenPtr(CurrentToken)^.TokenType = ttAt) then
+  if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType = ttAt)) then
     Nodes.At1Token := ApplyCurrentToken();
 
-  if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType = ttAt)) then
+  if (not Error and (Nodes.At1Token > 0)
+    and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType = ttAt)) then
   begin
     Nodes.At2Token := Nodes.At1Token;
     Nodes.At1Token := ApplyCurrentToken();
   end;
 
   if (not Error and not EndOfStmt(CurrentToken)
+    and (Nodes.At1Token > 0)
     and ((TokenPtr(CurrentToken)^.KeywordIndex = kiGLOBAL) or (TokenPtr(CurrentToken)^.KeywordIndex = kiSESSION) or (TokenPtr(CurrentToken)^.KeywordIndex = kiLOCAL))) then
   begin
     Nodes.ScopeTag := ParseTag(TokenPtr(CurrentToken)^.KeywordIndex);
@@ -17420,34 +17784,14 @@ begin
   end;
 
   if (not Error) then
-    Nodes.IdentList := ParseList(False, ParseVariableIdent, ttDot);
-
-//  if (not Error) then
-//    if (EndOfStmt(CurrentToken)) then
-//      SetError(PE_IncompleteStmt)
-//    else if (EndOfStmt(NextToken[1]) or (TokenPtr(NextToken[1])^.OperatorType <> otDot)) then
-//      Nodes.Ident1Tag := ParseDbIdent(ditVariable)
-//    else
-//    begin
-//      Nodes.Ident1Tag := ParseIdent();
-//      if (not Error) then
-//        if (EndOfStmt(CurrentToken)) then
-//          SetError(PE_IncompleteStmt)
-//        else
-//          Nodes.DotToken := ApplyCurrentToken();
-//      if (not Error) then
-//        if (EndOfStmt(CurrentToken)) then
-//          SetError(PE_IncompleteStmt)
-//        else
-//          Nodes.Ident2Tag := ParseDbIdent(ditVariable);
-//    end;
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.TokenType = ttDot)) then
+      Nodes.Ident := ParseList(False, ApplyCurrentToken, ttDot)
+    else
+      Nodes.Ident := ApplyCurrentToken();
 
   Result := TVariable.Create(Self, Nodes);
-end;
-
-function TMySQLParser.ParseVariableIdent(): TOffset;
-begin
-  Result := ParseDbIdent(ditVariable);
 end;
 
 function TMySQLParser.ParseWhileStmt(): TOffset;
@@ -17633,6 +17977,11 @@ begin
       '      background-color: #FFC0C0;' + #13#10 +
       '      text-align: center;' + #13#10 +
       '    }' + #13#10 +
+      '    .StmtOk {' + #13#10 +
+      '      font-size: 12px;' + #13#10 +
+      '      background-color: #D0FFD0;' + #13#10 +
+      '      text-align: center;' + #13#10 +
+      '    }' + #13#10 +
       '    .StmtError {' + #13#10 +
       '      font-size: 12px;' + #13#10 +
       '      background-color: #FFC0C0;' + #13#10 +
@@ -17719,9 +18068,9 @@ begin
                 ntDbIdent:
                   HTML := HTML
                     + '<tr><td>DbIdentType:</td><td>&nbsp;</td><td>' + DbIdentTypeToString[PDbIdent(Node)^.DbIdentType] + '</td></tr>';
-                ntJoin:
+                ntSelectStmtTableJoin:
                   HTML := HTML
-                    + '<tr><td>JoinType:</td><td>&nbsp;</td><td>' + JoinTypeToString[PJoin(Node)^.JoinType] + '</td></tr>';
+                    + '<tr><td>JoinType:</td><td>&nbsp;</td><td>' + JoinTypeToString[TSelectStmt.PTableReferenceJoin(Node)^.JoinType] + '</td></tr>';
               end;
             HTML := HTML
               + '</table></span>';
@@ -17751,8 +18100,12 @@ begin
       ParentNodes.Free();
 
 
-      HTML := HTML
-        + '<tr class="SQL">' + #13#10;
+      if (Stmt^.Error) then
+        HTML := HTML
+          + '<tr class="SQL">' + #13#10
+      else
+        HTML := HTML
+          + '<tr class="StmtOk">' + #13#10;
 
       Token := Stmt^.FirstToken;
       while (Assigned(Token)) do
@@ -17989,6 +18342,7 @@ begin
     kiELSE                     := IndexOf('ELSE');
     kiELSEIF                   := IndexOf('ELSEIF');
     kiENABLE                   := IndexOf('ENABLE');
+    kiENABLE                   := IndexOf('ENABLE');
     kiENCLOSED                 := IndexOf('ENCLOSED');
     kiEND                      := IndexOf('END');
     kiENDS                     := IndexOf('ENDS');
@@ -18197,6 +18551,7 @@ begin
     kiSECOND                   := IndexOf('SECOND');
     kiSECURITY                 := IndexOf('SECURITY');
     kiSELECT                   := IndexOf('SELECT');
+    kiSEPARATOR                := IndexOf('SEPARATOR');
     kiSERIALIZABLE             := IndexOf('SERIALIZABLE');
     kiSERVER                   := IndexOf('SERVER');
     kiSESSION                  := IndexOf('SESSION');

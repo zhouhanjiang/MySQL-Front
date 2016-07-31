@@ -869,6 +869,7 @@ type
     MovingToAddress: Boolean;
     NewLineFormat: TNewLineFormat;
     NMListView: PNMListView;
+    OldAddress: string;
     OldFListOrderIndex: Integer;
     PanelMouseDownPoint: TPoint;
     Param: string;
@@ -2287,7 +2288,9 @@ var
   Empty: Boolean;
   I: Integer;
   NewActiveControl: TWinControl;
+  NewAddressURI: TUURI;
   OldControl: TWinControl;
+  OldAddressURI: TUURI;
   Parse: TSQLParse;
   Sibling: TTreeNode;
   SQL: string;
@@ -2295,6 +2298,13 @@ var
 begin
   if (not (csDestroying in ComponentState)) then
   begin
+    OldAddressURI := TUURI.Create(OldAddress);
+    NewAddressURI := TUURI.Create(Address);
+    if (Session.Databases.NameCmp(NewAddressURI.Database, OldAddressURI.Database) <> 0) then
+      LastSelectedTable := '';
+    NewAddressURI.Free();
+    OldAddressURI.Free();
+
     tbObjects.Down := MainAction('aVObjectBrowser').Checked;
     tbBrowser.Down := MainAction('aVDataBrowser').Checked;
     tbIDE.Down := MainAction('aVObjectIDE').Checked;
@@ -2480,6 +2490,8 @@ begin
         end;
       Exclude(FrameState, tsLoading);
     end;
+
+    OldAddress := Address;
   end;
 end;
 

@@ -17,8 +17,9 @@ const
   // Bugs while parsing Stmts:
   PE_IncompleteStmt = 4; // Incompleted statement
   PE_UnexpectedToken = 5; // Unexpected token
-  PE_UnkownStmt = 6; // Unknown statement
-  PE_InvalidEndLabel = 7; // Begin and end tokens are different
+  PE_ExtraToken = 6; // Token after completed statement
+  PE_UnkownStmt = 7; // Unknown statement
+  PE_InvalidEndLabel = 8; // Begin and end tokens are different
 
   MySQLFunctions =
     'CONVERT,' +
@@ -182,6 +183,7 @@ const
     'ntDropViewStmt',
     'ntExecuteStmt',
     'ntExplainStmt',
+    'ntExtractFunc',
     'ntFetchStmt',
     'ntFunctionCall',
     'ntFunctionReturns',
@@ -191,6 +193,8 @@ const
     'ntGrantStmt',
     'ntGrantStmtPrivileg',
     'ntGrantStmtUserSpecification',
+    'ntGroupConcatFunc',
+    'ntGroupConcatFuncExpr',
     'ntHelpStmt',
     'ntIfStmt',
     'ntIfStmtBranch',
@@ -201,7 +205,6 @@ const
     'ntInterval',
     'ntIntervalListItem',
     'ntIterateStmt',
-    'ntJoin',
     'ntLeaveStmt',
     'ntLikeOp',
     'ntList',
@@ -211,6 +214,7 @@ const
     'ntLockStmtItem',
     'ntLoopStmt',
     'ntPrepareStmt',
+    'ntOj',
     'ntOpenStmt',
     'ntRenameStmt',
     'ntRenameStmtPair',
@@ -234,6 +238,7 @@ const
     'ntSelectStmtTableFactorOj',
     'ntSelectStmtTableFactorReferences',
     'ntSelectStmtTableFactorSelect',
+    'ntSelectStmtTableJoin',
     'ntSetNamesStmt',
     'ntSetPasswordStmt',
     'ntSetStmt',
@@ -550,8 +555,7 @@ const
     'ditPartition',
     'ditServer',
     'ditXA',
-    'ditCursor',
-    'ditVariable'
+    'ditCursor'
   );
 
   OperatorPrecedenceByOperatorType: array[TOperatorType] of Integer = (
