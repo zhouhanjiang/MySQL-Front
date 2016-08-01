@@ -150,6 +150,7 @@ type
         Heritage: TChild;
       private
         FErrorCode: Byte;
+        FIndex: Integer;
         FKeywordIndex: TWordList.TIndex;
         FOperatorType: TOperatorType;
         FPriorToken: TOffset;
@@ -168,7 +169,9 @@ type
         function GetDbIdentType(): TDbIdentType;
         function GetErrorMessage(): string;
         function GetGeneration(): Integer;
+        {$IFNDEF Debug}
         function GetIndex(): Integer;
+        {$ENDIF}
         function GetIsUsed(): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
         function GetNextToken(): PToken;
         function GetOffset(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
@@ -176,7 +179,11 @@ type
         function GetText(): string;
         procedure SetText(AText: string);
         property Generation: Integer read GetGeneration;
+        {$IFDEF Debug}
+        property Index: Integer read FIndex;
+        {$ELSE}
         property Index: Integer read GetIndex; // VERY slow. Should be used for debugging only.
+        {$ENDIF}
         property Offset: TOffset read GetOffset;
       public
         property AsString: string read GetAsString;
@@ -3664,6 +3671,7 @@ type
     FErrorCode: Integer;
     FErrorToken: TOffset;
     FFunctions: TWordList;
+    FIndex: Integer;
     FKeywords: TWordList;
     FMySQLVersion: Integer;
     FNodes: packed record
@@ -4789,6 +4797,7 @@ begin
   end;
 end;
 
+{$IFNDEF Debug}
 function TMySQLParser.TToken.GetIndex(): Integer;
 var
   Token: PToken;
@@ -4801,6 +4810,7 @@ begin
     Token := Token^.NextToken;
   end;
 end;
+{$ENDIF}
 
 function TMySQLParser.TToken.GetIsUsed(): Boolean;
 var
@@ -8309,6 +8319,7 @@ begin
 
   FAnsiQuotes := False;
   FFunctions := TWordList.Create(Self);
+  FIndex := 0;
   FKeywords := TWordList.Create(Self);
   FMySQLVersion := AMySQLVersion;
   FNodes.Mem := nil;
@@ -8574,6 +8585,7 @@ begin
 
       if (Token > 0) then
       begin
+        TokenPtr(Token)^.FIndex := FIndex; Inc(FIndex);
         if (TokenPtr(Token)^.TokenType = ttMySQLCodeStart) then
         begin
           S := TokenPtr(Token)^.Text;
@@ -13267,10 +13279,16 @@ begin
   Result := TSelectStmt.TTableFactor.TIndexHint.Create(Self, Nodes);
 end;
 
+var
+  Nils: Integer = 0;
+
 function TMySQLParser.ParseInsertStmt(const Replace: Boolean = False): TOffset;
 var
   Nodes: TInsertStmt.TNodes;
 begin
+Inc(Nils);
+if (Nils = 18) then
+  Write;
   FillChar(Nodes, SizeOf(Nodes), 0);
 
   Nodes.InsertTag := ParseTag(kiINSERT);
@@ -18207,6 +18225,7 @@ begin
   Assert(not Error and ((AErrorCode <> PE_IncompleteStmt) or (AErrorToken = 0) or IsToken(AErrorToken)));
 
   FErrorCode := AErrorCode;
+
   if (AErrorToken = 0) then
     FErrorToken := CurrentToken
   else

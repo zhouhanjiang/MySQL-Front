@@ -73,6 +73,7 @@ function SQLUnescape(const Value: string; const RemoveQuoter: Boolean = True): s
 function SQLWrapStmt(const SQL: string; const WrapStrs: array of string; const Indent: Integer): string;
 function SQLUnwrapStmt(const SQL: string; const Version: Integer): string;
 function StrToUInt64(const S: string): UInt64;
+function TryStrToUInt64(const S: string; out Value: UInt64): Boolean;
 function UInt64ToStr(const Value: UInt64): string;
 
 implementation {***************************************************************}
@@ -3170,6 +3171,16 @@ begin
 
   UInt64Rec(Result).Hi := Hi;
   UInt64Rec(Result).Lo := Lo;
+end;
+
+function TryStrToUInt64(const S: string; out Value: UInt64): Boolean;
+begin
+  try
+    Value := StrToUInt64(S);
+    Result := True;
+  except
+    Result := False;
+  end;
 end;
 
 function UInt64ToStr(const Value: UInt64): string;
