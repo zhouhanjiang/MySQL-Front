@@ -64,7 +64,8 @@ const
     'SOURCE,SWAPS,SWITCHES,CURRENT_TIMESTAMP,LOCALTIME,LOCALTIMESTAMP,' +
     'CURRENT_DATE,CURRENT_TIME,FORMAT,TRADITIONAL,SQLWARNINGS,' +
     'CONSTRAINT_SCHEMA,CURRENT,DIAGNOSTICS,GET,NUMBER,RESIGNAL,' +
-    'RETURNED_SQLSTATE,ROW_COUNT,STACKED,PAGE_CHECKSUM,' +
+    'RETURNED_SQLSTATE,ROW_COUNT,STACKED,PAGE_CHECKSUM,ASCII,UNICODE,XID,' +
+    'TRIM,' +
 
     'INPLACE,SHARED,EXCLUSIVE,ACTION,AFTER,AGAINST,AGGREGATE,ALGORITHM,ALL,ALTER,ANALYZE,AND,ANY,AS,' +
     'ASC,AT,AUTHORS,AUTO_INCREMENT,AUTOEXTEND_SIZE,AVG_ROW_LENGTH,BACKUP,' +
@@ -182,6 +183,7 @@ const
     'ntDropTriggerStmt',
     'ntDropViewStmt',
     'ntExecuteStmt',
+    'ntExistsFunc',
     'ntExplainStmt',
     'ntExtractFunc',
     'ntFetchStmt',
@@ -294,7 +296,8 @@ const
     'ntSubPartition',
     'ntTableReference',
     'ntTag',
-    'ntTransactionCharacteristic',
+    'ntTransactionStmtCharacteristic',
+    'ntTrimFunc',
     'ntTruncateStmt',
     'ntUnaryOp',
     'ntUnknownStmt',
@@ -305,7 +308,8 @@ const
     'ntValue',
     'ntVariable',
     'ntWhileStmt',
-    'ntXAStmt'
+    'ntXAStmt',
+    'ntXID'
   );
 
   StmtTypeToString: array[TStmtType] of PChar = (
@@ -554,7 +558,6 @@ const
     'ditEvent',
     'ditPartition',
     'ditServer',
-    'ditXA',
     'ditCursor'
   );
 

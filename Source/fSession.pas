@@ -1442,6 +1442,7 @@ type
     procedure SetCreateDesktop(ACreateDesktop: TCreateDesktop);
   protected
     FLowerCaseTableNames: Byte;
+    ParseEndDate: TDateTime;
     SQLParser: TMySQLParser;
     UnparsableSQL: string;
     procedure BuildUser(const DataSet: TMySQLQuery);
@@ -2049,14 +2050,17 @@ begin
   FValidSource := True;
   FSource := ASource;
 
-  try
-    if (not Session.SQLParser.ParseSQL(FSource)) then
-      Session.UnparsableSQL := Session.UnparsableSQL + FSource + #13#10#13#10;
-  except
-    Session.UnparsableSQL := Session.UnparsableSQL + FSource + #13#10#13#10;
+  if (Now() <= Session.ParseEndDate) then
+  begin
+    Session.SQLParser.AnsiQuotes := Session.Connection.AnsiQuotes;
+    try
+      if (not Session.SQLParser.ParseSQL(FSource)) then
+        Session.UnparsableSQL := Session.UnparsableSQL + Trim(FSource) + #13#10#13#10;
+    except
+      Session.UnparsableSQL := Session.UnparsableSQL + Trim(FSource) + #13#10#13#10;
+    end;
+    Session.SQLParser.Clear();
   end;
-
-  Session.SQLParser.Clear();
 end;
 
 function TSObject.Update(): Boolean;
@@ -2214,6 +2218,7 @@ var
 begin
   if (not Assigned(FDependencies)) then
   begin
+    Session.SQLParser.AnsiQuotes := Session.Connection.AnsiQuotes;
     if (Session.SQLParser.ParseSQL(Source)) then
     begin
       FDependencies := TSDependencies.Create();
@@ -10721,6 +10726,7 @@ begin
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.ServerVersion;
   FUser := nil;
+  ParseEndDate := EncodeDate(2016, 8, 2);
   SQLParser := TMySQLParser.Create(Connection.ServerVersion);
   UnparsableSQL := '';
 
@@ -11036,7 +11042,7 @@ begin
   FSyntaxProvider.Free();
   SQLParser.Free();
   if (UnparsableSQL <> '') then
-    SendSQLToDeveloper(Trim(UnparsableSQL) + #13#10);
+    SendSQLToDeveloper(UnparsableSQL);
 
   FConnection.Free();
 
@@ -11453,11 +11459,25 @@ var
   Parse: TSQLParse;
   Process: TSProcess;
   Routine: TSRoutine;
+  S: string;
   Table: TSTable;
   Trigger: TSTrigger;
   User: TSUser;
   Variable: TSVariable;
 begin
+  if (Now() <= ParseEndDate) then
+  begin
+    SQLParser.AnsiQuotes := Connection.AnsiQuotes;
+    SetString(S, Text, Len);
+    try
+      if (not SQLParser.ParseSQL(S)) then
+        UnparsableSQL := UnparsableSQL + Trim(S) + #13#10#13#10;
+    except
+      UnparsableSQL := UnparsableSQL + Trim(S) + #13#10#13#10;
+    end;
+    SQLParser.Clear();
+  end;
+
   if (SQLCreateParse(Parse, Text, Len, Connection.ServerVersion)) then
     if (SQLParseKeyword(Parse, 'SELECT') or SQLParseKeyword(Parse, 'SHOW')) then
       // Do nothing - but do not parse the Text further more
@@ -11951,7 +11971,7 @@ begin
         Request := HttpOpenRequest(Connection, 'POST', PChar('/SQL.php'), 'HTTP/1.1', nil, nil, Flags, Cardinal(Self));
         if (Assigned(Request)) then
         begin
-          Headers := 'Content-Transfer-Encoding: binary' + #10
+          Headers := 'Content-Type: text/plain; charset=UTF-8' + #10
             + 'MySQL: ' + Self.Connection.ServerVersionStr + #10
             + 'MySQL-Front: ' + Preferences.VersionStr + #10;
           if (not HttpSendRequest(Request, PChar(Headers), Length(Headers), @Body[1], Length(Body))) then

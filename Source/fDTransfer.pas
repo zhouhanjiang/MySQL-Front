@@ -902,6 +902,9 @@ begin
   FDestination.Items.Clear();
   FDestination.Items.EndUpdate();
 
+  TSWhat.Enabled := False;
+  TSExecute.Enabled := False;
+
   FBBack.Enabled := True;
   FBCancel.Enabled := True;
 

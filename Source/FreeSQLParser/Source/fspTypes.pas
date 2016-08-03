@@ -66,6 +66,7 @@ type
     ntDropTriggerStmt,
     ntDropViewStmt,
     ntExecuteStmt,
+    ntExistsFunc,
     ntExplainStmt,
     ntExtractFunc,
     ntFetchStmt,
@@ -178,7 +179,8 @@ type
     ntSubPartition,
     ntTableReference,
     ntTag,
-    ntTransactionCharacteristic,
+    ntTransactionStmtCharacteristic,
+    ntTrimFunc,
     ntTruncateStmt,
     ntUnaryOp,
     ntUnknownStmt,
@@ -189,7 +191,8 @@ type
     ntValue,
     ntVariable,
     ntWhileStmt,
-    ntXAStmt
+    ntXAStmt,
+    ntXID
   );
 
   TStmtType = (
@@ -356,7 +359,6 @@ type
     ttDot                     // "."
   );
 const
-  ttIdents = [ttIdent, ttMySQLIdent];
   ttStrings = [ttString, ttCSString];
 
 type
@@ -443,7 +445,6 @@ type
     ditEvent,
     ditPartition,
     ditServer,
-    ditXA,
     ditCursor
   );
 

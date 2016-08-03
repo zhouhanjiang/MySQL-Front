@@ -7728,10 +7728,44 @@ end;
 
 procedure TTTransfer.BeforeExecute();
 var
+  CycleProtection: Integer;
   DataSet: TMySQLQuery;
+  DBObject: TSDBObject;
+  I: Integer;
+  J: Integer;
+  K: Integer;
+  NewIndex: Integer;
   SQL: string;
 begin
   inherited;
+
+  I := 0; CycleProtection := Items.Count - 1;
+  while (I < Items.Count) do
+  begin
+    NewIndex := I;
+
+    if (Items[I] is TDBObjectItem) then
+      if (Assigned(TDBObjectItem(Items[I]).DBObject.Dependencies)) then
+        for J := 0 to TDBObjectItem(Items[I]).DBObject.Dependencies.Count - 1 do
+        begin
+          DBObject := TDBObjectItem(Items[I]).DBObject.Dependencies[J].DBObject;
+          for K := I to Items.Count - 1 do
+            if ((K <> I) and (Items[K] is TDBObjectItem)
+              and (TDBObjectItem(Items[K]).DBObject = DBObject)) then
+              NewIndex := Max(NewIndex, K);
+        end;
+
+    if ((NewIndex > I) and (CycleProtection > 0)) then
+    begin
+      Items.Move(I, NewIndex);
+      Dec(CycleProtection);
+    end
+    else
+    begin
+      Inc(I);
+      CycleProtection := Items.Count - I - 1;
+    end;
+  end;
 
   if (Data and (DestinationSession.Connection.ServerVersion >= 40014)) then
   begin
