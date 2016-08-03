@@ -63,9 +63,9 @@ const
     'RECOVER,BLOCK,CONTEXT,CPU,FAULTS,INDEXES,IO,IPC,MEMORY,PAGE,' +
     'SOURCE,SWAPS,SWITCHES,CURRENT_TIMESTAMP,LOCALTIME,LOCALTIMESTAMP,' +
     'CURRENT_DATE,CURRENT_TIME,FORMAT,TRADITIONAL,SQLWARNINGS,' +
-    'CONSTRAINT_SCHEMA,CURRENT,DIAGNOSTICS,GET,NUMBER,RESIGNAL,' +
+    'CONSTRAINT_SCHEMA,CURRENT,DIAGNOSTICS,GET,NUMBER,RESIGNAL,REVERSE,' +
     'RETURNED_SQLSTATE,ROW_COUNT,STACKED,PAGE_CHECKSUM,ASCII,UNICODE,XID,' +
-    'TRIM,' +
+    'UNKNOWN,' +
 
     'INPLACE,SHARED,EXCLUSIVE,ACTION,AFTER,AGAINST,AGGREGATE,ALGORITHM,ALL,ALTER,ANALYZE,AND,ANY,AS,' +
     'ASC,AT,AUTHORS,AUTO_INCREMENT,AUTOEXTEND_SIZE,AVG_ROW_LENGTH,BACKUP,' +
@@ -146,6 +146,7 @@ const
     'ntCaseStmt',
     'ntCaseStmtBranch',
     'ntCastFunc',
+    'ntCharFunc',
     'ntCloseStmt',
     'ntCommitStmt',
     'ntCompoundStmt',
@@ -215,9 +216,11 @@ const
     'ntLockStmt',
     'ntLockStmtItem',
     'ntLoopStmt',
+    'ntPositionFunc',
     'ntPrepareStmt',
     'ntOj',
     'ntOpenStmt',
+    'ntRegExpOp',
     'ntRenameStmt',
     'ntRenameStmtPair',
     'ntReleaseStmt',
@@ -294,6 +297,7 @@ const
     'ntStartTransactionStmt',
     'ntSubArea',
     'ntSubPartition',
+    'ntSubstringFunc',
     'ntTableReference',
     'ntTag',
     'ntTransactionStmtCharacteristic',
@@ -307,6 +311,8 @@ const
     'ntUseStmt',
     'ntValue',
     'ntVariable',
+    'ntWeightStringFunc',
+    'ntWeightStringFuncLevel',
     'ntWhileStmt',
     'ntXAStmt',
     'ntXID'
@@ -434,12 +440,14 @@ const
     'ttSpace',
     'ttReturn',
     'ttComment',
+    'ttDot',
+    'ttColon',
+    'ttDelimiter',
     'ttComma',
     'ttOpenBracket',
     'ttCloseBracket',
     'ttOpenCurlyBracket',
     'ttCloseCurlyBracket',
-    'ttDelimiter',
     'ttInteger',
     'ttNumeric',
     'ttString',
@@ -456,9 +464,7 @@ const
     'ttMySQLCodeEnd',
     'ttOperator',
     'ttAt',
-    'ttBackslash',
-    'ttColon',
-    'ttDot'
+    'ttBackslash'
   );
 
   UsageTypeToString: array[TUsageType] of PChar = (

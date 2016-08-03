@@ -29,6 +29,7 @@ type
     ntCaseStmt,
     ntCaseStmtBranch,
     ntCastFunc,
+    ntCharFunc,
     ntCloseStmt,
     ntCommitStmt,
     ntCompoundStmt,
@@ -98,9 +99,11 @@ type
     ntLockStmt,
     ntLockStmtItem,
     ntLoopStmt,
+    ntPositionFunc,
     ntPrepareStmt,
     ntOj,
     ntOpenStmt,
+    ntRegExpOp,
     ntRenameStmt,
     ntRenameStmtPair,
     ntReleaseStmt,
@@ -177,6 +180,7 @@ type
     ntStartTransactionStmt,
     ntSubArea,
     ntSubPartition,
+    ntSubstringFunc,
     ntTableReference,
     ntTag,
     ntTransactionStmtCharacteristic,
@@ -190,6 +194,8 @@ type
     ntUseStmt,
     ntValue,
     ntVariable,
+    ntWeightStringFunc,
+    ntWeightStringFuncLevel,
     ntWhileStmt,
     ntXAStmt,
     ntXID
@@ -332,12 +338,14 @@ type
     ttSpace,                  // Tab and Space
     ttReturn,                 // New line
     ttComment,                // Comment, like # comment, -- comment or /* this is multi line comment */
+    ttDot,                    // "."
+    ttColon,                  // ":"
+    ttDelimiter,              // ";"
     ttComma,                  // ","
     ttOpenBracket,            // "("
     ttCloseBracket,           // ")"
     ttOpenCurlyBracket,       // "{"
     ttCloseCurlyBracket,      // "}"
-    ttDelimiter,              // ";"
     ttInteger,                // Tnteger constant, like 123456
     ttNumeric,                // Numeric (float) constant, like -123.456E15
     ttString,                 // String constant, enclosed in ''
@@ -352,11 +360,9 @@ type
     ttBindVariable,           // Bind Variable, like :bindvarname
     ttMySQLCodeStart,         // MySQL specific code, like /*!50000 SELECT 1; */
     ttMySQLCodeEnd,
-    ttOperator,               // Symbol operator, like +, -, &&, *=
+    ttOperator,               // Symbol operator like +, -, &&, *=
     ttAt,                     // "@"
-    ttBackslash,              // "\", DB2 use
-    ttColon,                  // ":"
-    ttDot                     // "."
+    ttBackslash               // "\", DB2 use
   );
 const
   ttStrings = [ttString, ttCSString];
