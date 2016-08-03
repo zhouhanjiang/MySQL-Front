@@ -60,7 +60,7 @@ object DSearch: TDSearch
     Top = 0
     Width = 341
     Height = 289
-    ActivePage = TSExecute
+    ActivePage = TSROptions
     Anchors = [akLeft, akTop, akRight, akBottom]
     Style = tsButtons
     TabOrder = 0
@@ -174,42 +174,15 @@ object DSearch: TDSearch
           OnKeyPress = FRRegExprKeyPress
         end
       end
-      object GBackup: TGroupBox_Ext
-        Left = 5
-        Top = 187
-        Width = 325
-        Height = 45
-        Anchors = [akLeft, akTop, akRight]
-        Caption = 'GBackup'
-        TabOrder = 2
-        DesignSize = (
-          325
-          45)
-        object FLBackup: TLabel
-          Left = 8
-          Top = 17
-          Width = 49
-          Height = 13
-          Caption = 'FLBackup'
-          FocusControl = FBackup
-        end
-        object FBackup: TCheckBox
-          Left = 128
-          Top = 16
-          Width = 193
-          Height = 17
-          Anchors = [akLeft, akTop, akRight]
-          Caption = 'FBackup'
-          Checked = True
-          State = cbChecked
-          TabOrder = 0
-        end
-      end
     end
     object TSExecute: TTabSheet
       Caption = 'TSExecute'
       TabVisible = False
       OnShow = TSExecuteShow
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         333
         279)

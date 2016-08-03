@@ -970,8 +970,8 @@ type
     procedure Assign(const Source: TSObject); reintroduce; virtual;
     function BaseTableByName(const TableName: string): TSBaseTable; overload; virtual;
     function CheckTables(const Tables: TList): Boolean; virtual;
-    function CloneRoutine(const Routine: TSRoutine; const NewRoutineName: string): Boolean; overload; virtual;
-    function CloneTable(const Table: TSBaseTable; const NewTableName: string; const Data: Boolean): Boolean; overload; virtual;
+    function CloneRoutine(const Routine: TSRoutine; const NewRoutineName: string): Boolean; virtual;
+    function CloneTable(const Table: TSTable; const NewTableName: string; const Data: Boolean): Boolean; virtual;
     function CloneView(const View: TSView; const NewViewName: string): Boolean; virtual;
     constructor Create(const ADatabases: TSDatabases; const AName: string = ''); reintroduce; virtual;
     function DeleteObject(const DBObject: TSDBObject): Boolean; virtual;
@@ -1369,6 +1369,7 @@ type
     function GetAutoCommit(): Boolean; override;
     function GetDataFileAllowed(): Boolean; override;
     function GetMaxAllowedPacket(): Integer; override;
+    procedure SetAnsiQuotes(const AAnsiQuotes: Boolean); override;
     procedure SetAutoCommit(const AAutoCommit: Boolean); override;
     procedure SetCharset(const ACharset: string); override;
   public
@@ -2052,7 +2053,6 @@ begin
 
   if (Now() <= Session.ParseEndDate) then
   begin
-    Session.SQLParser.AnsiQuotes := Session.Connection.AnsiQuotes;
     try
       if (not Session.SQLParser.ParseSQL(FSource)) then
         Session.UnparsableSQL := Session.UnparsableSQL + Trim(FSource) + #13#10#13#10;
@@ -2218,7 +2218,6 @@ var
 begin
   if (not Assigned(FDependencies)) then
   begin
-    Session.SQLParser.AnsiQuotes := Session.Connection.AnsiQuotes;
     if (Session.SQLParser.ParseSQL(Source)) then
     begin
       FDependencies := TSDependencies.Create();
@@ -7016,34 +7015,32 @@ begin
   end;
 end;
 
-function TSDatabase.CloneTable(const Table: TSBaseTable; const NewTableName: string; const Data: Boolean): Boolean;
+function TSDatabase.CloneTable(const Table: TSTable; const NewTableName: string; const Data: Boolean): Boolean;
 var
   List: TList;
-  NewTable: TSBaseTable;
+  NewBaseTable: TSBaseTable;
+  NewView: TSView;
   SQL: string;
 begin
   if (not Assigned(Table)) then
     Result := False
-  else
+  else if (Table is TSBaseTable) then
   begin
     Session.Connection.BeginSynchron();
     Table.Update();
     Session.Connection.EndSynchron();
 
-    NewTable := TSBaseTable.Create(Tables);
-    NewTable.Assign(Table);
-    NewTable.Name := NewTableName;
+    NewBaseTable := TSBaseTable.Create(Tables);
+    NewBaseTable.Assign(Table);
+    NewBaseTable.Name := NewTableName;
     if (not Data) then
-      NewTable.AutoIncrement := 1;
+      NewBaseTable.AutoIncrement := 1;
 
     SQL := '';
     if (Assigned(TableByName(NewTableName))) then
-      if (TableByName(NewTableName) is TSBaseTable) then
-        SQL := 'DROP TABLE ' + Session.Connection.EscapeIdentifier(NewTableName) + ';' + #13#10
-      else if (TableByName(NewTableName) is TSView) then
-        SQL := 'DROP VIEW ' + Session.Connection.EscapeIdentifier(NewTableName) + ';' + #13#10;
+      SQL := 'DROP TABLE ' + Session.Connection.EscapeIdentifier(NewTableName) + ';' + #13#10;
 
-    SQL := SQL + SQLAlterTable(nil, NewTable, not Data or (Session.Connection.ServerVersion >= 40100));
+    SQL := SQL + SQLAlterTable(nil, NewBaseTable, not Data or (Session.Connection.ServerVersion >= 40100));
 
     if (Data) then
     begin
@@ -7054,37 +7051,66 @@ begin
     end;
 
     List := TList.Create();
-    List.Add(NewTable);
+    List.Add(NewBaseTable);
 
     SQL := SQL
-      + NewTable.SQLGetSource()
+      + NewBaseTable.SQLGetSource()
       + Tables.SQLGetStatus(List);
 
     if (Session.Connection.DatabaseName <> Name) then
       SQL := SQLUse() + SQL;
 
     List.Free();
-    NewTable.Free();
+    NewBaseTable.Free();
 
-    if ((Session.Connection.ServerVersion >= 40100) or not Assigned(Table.AutoIncrementField)) then
+    if ((Session.Connection.ServerVersion >= 40100) or not Assigned(TSBaseTable(Table).AutoIncrementField)) then
       Result := Session.Connection.SendSQL(SQL, Session.SessionResult)
     else
       Result := Session.Connection.ExecuteSQL(SQL, Session.SessionResult);
-  end;
+  end
+  else if (Table is TSView) then
+  begin
+    Session.Connection.BeginSynchron();
+    Table.Update();
+    Session.Connection.EndSynchron();
 
-  if (Result and (Session.Connection.ServerVersion < 40100) and Assigned(Table.AutoIncrementField)) then
+    SQL := '';
+    if (Assigned(TableByName(NewTableName))) then
+      SQL := 'DROP VIEW ' + Session.Connection.EscapeIdentifier(NewTableName) + ';' + #13#10;
+
+    SQL := SQL
+      + AnsiReplaceStr(TSView(Table).GetSourceEx(False, False), Session.Connection.EscapeIdentifier(Table.Database.Name) + '.', '');
+
+    NewView := TSView.Create(Tables);
+    NewView.Assign(Table);
+    NewView.Name := NewTableName;
+
+    SQL := SQL
+      + NewView.SQLGetSource();
+
+    NewView.Free();
+
+    if (Session.Connection.DatabaseName <> Name) then
+      SQL := SQLUse() + SQL;
+
+    Result := Session.Connection.SendSQL(SQL, Session.SessionResult)
+  end
+  else
+    Result := False;
+
+  if (Result and (Session.Connection.ServerVersion < 40100) and Assigned(TSBaseTable(Table).AutoIncrementField)) then
   begin
     Session.Connection.BeginSynchron();
     BaseTableByName(NewTableName).Update();
     Session.Connection.EndSynchron();
 
-    NewTable := TSBaseTable.Create(Tables);
-    NewTable.Assign(BaseTableByName(NewTableName));
-    NewTable.FieldByName(Table.AutoIncrementField.Name).AutoIncrement := True;
+    NewBaseTable := TSBaseTable.Create(Tables);
+    NewBaseTable.Assign(BaseTableByName(NewTableName));
+    NewBaseTable.FieldByName(TSBaseTable(Table).AutoIncrementField.Name).AutoIncrement := True;
     Session.Connection.BeginSynchron();
-    Result := UpdateTable(BaseTableByName(NewTableName), NewTable);
+    Result := UpdateTable(BaseTableByName(NewTableName), NewBaseTable);
     Session.Connection.EndSynchron();
-    NewTable.Free();
+    NewBaseTable.Free();
   end;
 end;
 
@@ -10325,6 +10351,13 @@ begin
   Session.Invalidate();
 end;
 
+procedure TSConnection.SetAnsiQuotes(const AAnsiQuotes: Boolean);
+begin
+  inherited;
+
+  Session.SQLParser.AnsiQuotes := AnsiQuotes;
+end;
+
 procedure TSConnection.SetAutoCommit(const AAutoCommit: Boolean);
 var
   DataSet: TMySQLQuery;
@@ -10864,7 +10897,7 @@ begin
       for J := 0 to TSDBObject(List[I]).Dependencies.Count - 1 do
       begin
         Index := List.IndexOf(TSDBObject(List[I]).Dependencies[J].DBObject);
-        if (Index < I) then
+        if ((0 <= Index) and (Index < I)) then
         begin
           List.Move(Index, I);
           Dec(I);
@@ -11467,7 +11500,6 @@ var
 begin
   if (Now() <= ParseEndDate) then
   begin
-    SQLParser.AnsiQuotes := Connection.AnsiQuotes;
     SetString(S, Text, Len);
     try
       if (not SQLParser.ParseSQL(S)) then
@@ -11955,36 +11987,33 @@ var
   Len: Integer;
   Request: HInternet;
 begin
-  if (Now() < EncodeDate(2016, 8, 3)) then
+  Handle := InternetOpen(PChar('SQL-Parser'), INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);
+  if (Assigned(Handle)) then
   begin
-    Handle := InternetOpen(PChar('SQL-Parser'), INTERNET_OPEN_TYPE_PRECONFIG, nil, nil, 0);
-    if (Assigned(Handle)) then
+    Connection := InternetConnect(Handle, 'www.mysqlfront.de', 80, nil, nil, INTERNET_SERVICE_HTTP, 0, Cardinal(Self));
+    if (Assigned(Connection)) then
     begin
-      Connection := InternetConnect(Handle, 'www.mysqlfront.de', 80, nil, nil, INTERNET_SERVICE_HTTP, 0, Cardinal(Self));
-      if (Assigned(Connection)) then
+      Len := WideCharToAnsiChar(CP_UTF8, @SQL[1], Length(SQL), nil, 0);
+      SetLength(Body, Len);
+      WideCharToAnsiChar(CP_UTF8, @SQL[1], Length(SQL), @Body[1], Len);
+
+      Flags := INTERNET_FLAG_NO_AUTO_REDIRECT or INTERNET_FLAG_NO_CACHE_WRITE or INTERNET_FLAG_NO_UI or INTERNET_FLAG_KEEP_CONNECTION or INTERNET_FLAG_NO_COOKIES;
+      Request := HttpOpenRequest(Connection, 'POST', PChar('/SQL.php'), 'HTTP/1.1', nil, nil, Flags, Cardinal(Self));
+      if (Assigned(Request)) then
       begin
-        Len := WideCharToAnsiChar(CP_UTF8, @SQL[1], Length(SQL), nil, 0);
-        SetLength(Body, Len);
-        WideCharToAnsiChar(CP_UTF8, @SQL[1], Length(SQL), @Body[1], Len);
+        Headers := 'Content-Type: text/plain; charset=UTF-8' + #10
+          + 'MySQL: ' + Self.Connection.ServerVersionStr + #10
+          + 'MySQL-Front: ' + Preferences.VersionStr + #10;
+        if (not HttpSendRequest(Request, PChar(Headers), Length(Headers), @Body[1], Length(Body))) then
+          Write;
 
-        Flags := INTERNET_FLAG_NO_AUTO_REDIRECT or INTERNET_FLAG_NO_CACHE_WRITE or INTERNET_FLAG_NO_UI or INTERNET_FLAG_KEEP_CONNECTION or INTERNET_FLAG_NO_COOKIES;
-        Request := HttpOpenRequest(Connection, 'POST', PChar('/SQL.php'), 'HTTP/1.1', nil, nil, Flags, Cardinal(Self));
-        if (Assigned(Request)) then
-        begin
-          Headers := 'Content-Type: text/plain; charset=UTF-8' + #10
-            + 'MySQL: ' + Self.Connection.ServerVersionStr + #10
-            + 'MySQL-Front: ' + Preferences.VersionStr + #10;
-          if (not HttpSendRequest(Request, PChar(Headers), Length(Headers), @Body[1], Length(Body))) then
-            Write;
-
-          InternetCloseHandle(Request);
-        end;
-        Body := '';
-
-        InternetCloseHandle(Connection);
+        InternetCloseHandle(Request);
       end;
-      InternetCloseHandle(Handle);
+      Body := '';
+
+      InternetCloseHandle(Connection);
     end;
+    InternetCloseHandle(Handle);
   end;
 end;
 

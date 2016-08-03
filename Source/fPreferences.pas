@@ -265,7 +265,6 @@ type
     public
       FindTextMRU: TMRUList;
       ReplaceTextMRU: TMRUList;
-      Backup: Boolean;
       Left: Integer;
       Options: TOptions;
       Top: Integer;
@@ -1840,7 +1839,6 @@ begin
 
   FindTextMRU := TPPreferences.TMRUList.Create(10);
   ReplaceTextMRU := TPPreferences.TMRUList.Create(10);
-  Backup := True;
   Left := -1;
   Options := [roMatchCase];
   Top := -1;
@@ -1860,7 +1858,6 @@ var
 begin
   inherited;
 
-  if (Assigned(XMLNode(XML, 'backup'))) then TryStrToBool(XMLNode(XML, 'backup').Attributes['enabled'], Backup);
   FindTextMRU.Clear();
   if (Assigned(XMLNode(XML, 'findtext/mru'))) then
     for I := XMLNode(XML, 'findtext/mru').ChildNodes.Count - 1 downto 0 do
@@ -1880,7 +1877,6 @@ var
 begin
   inherited;
 
-  XMLNode(XML, 'backup').Attributes['enabled'] := Backup;
   XMLNode(XML, 'findtext/mru').ChildNodes.Clear();
   for I := 0 to FindTextMRU.Count - 1 do
     XMLNode(XML, 'findtext/mru').AddChild('text').Text := FindTextMRU.Values[I];

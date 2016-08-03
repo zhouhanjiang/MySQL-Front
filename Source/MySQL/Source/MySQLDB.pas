@@ -265,7 +265,6 @@ type
     function GetServerDateTime(): TDateTime;
     function GetHandle(): MySQLConsts.MYSQL;
     function GetInfo(): string;
-    procedure SetAnsiQuotes(const AAnsiQuotes: Boolean);
     procedure SetDatabaseName(const ADatabaseName: string);
     procedure SetHost(const AHost: string);
     procedure SetLibraryName(const ALibraryName: string);
@@ -303,6 +302,7 @@ type
     function local_infile_init(out local_infile: Plocal_infile; const filename: my_char): my_int; virtual;
     function local_infile_read(const local_infile: Plocal_infile; buf: my_char; const buf_len: my_uint): my_int; virtual;
     procedure RegisterSQLMonitor(const AMySQLMonitor: TMySQLMonitor); virtual;
+    procedure SetAnsiQuotes(const AAnsiQuotes: Boolean); virtual;
     procedure SetAutoCommit(const AAutoCommit: Boolean); virtual;
     procedure SetCharset(const ACharset: string); virtual;
     procedure SetConnected(Value: Boolean); override;

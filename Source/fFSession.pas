@@ -2194,7 +2194,6 @@ begin
 
     Success := True;
 
-    List.Clear();
     for I := 0 to SItems.Count - 1 do
       if ((TSItem(SItems[I]) is TSDatabase) or (TSItem(SItems[I]) is TSDBObject) or (TSItem(SItems[I]) is TSProcess)) then
       begin
@@ -2242,7 +2241,6 @@ begin
       NewTable.Free();
     end;
 
-    List.Clear();
     for I := 0 to SItems.Count - 1 do
       if (TSItem(SItems[I]) is TSUser) then
       begin

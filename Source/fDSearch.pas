@@ -18,7 +18,6 @@ type
   end;
 
   TDSearch = class(TForm_Ext)
-    FBackup: TCheckBox;
     FBBack: TButton;
     FBCancel: TButton;
     FBForward: TButton;
@@ -35,7 +34,6 @@ type
     FFMatchCase: TCheckBox;
     FFRegExpr: TCheckBox;
     FFWholeValue: TCheckBox;
-    FLBackup: TLabel;
     FLDone: TLabel;
     FLEntiered: TLabel;
     FLErrors: TLabel;
@@ -55,7 +53,6 @@ type
     FRWholeValue: TCheckBox;
     FSelect: TTreeView_Ext;
     FTables: TListView_Ext;
-    GBackup: TGroupBox_Ext;
     GFOptions: TGroupBox_Ext;
     GFWhat: TGroupBox_Ext;
     GMessages: TGroupBox_Ext;
@@ -252,8 +249,6 @@ begin
   FRWholeValue.Checked := roWholeValue in Preferences.Replace.Options;
   FRRegExpr.Checked := roRegExpr in Preferences.Replace.Options;
   FRRegExprClick(Sender);
-
-  FBackup.Checked := Preferences.Replace.Backup;
 
   SendMessage(FErrorMessages.Handle, EM_SETTEXTMODE, TM_PLAINTEXT, 0);
   SendMessage(FErrorMessages.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
@@ -547,7 +542,7 @@ begin
             else
             begin
               for I := 0 to Database.Tables.Count - 1 do
-                if ((Database.Tables[I] is TSBaseTable) and Assigned(TSBaseTable(Database.Tables[I]).Engine) and not TSBaseTable(Database.Tables[I]).Engine.IsMerge and (RightStr(Database.Tables[I].Name, Length(BackupExtension)) <> BackupExtension)) then
+                if ((Database.Tables[I] is TSBaseTable) and Assigned(TSBaseTable(Database.Tables[I]).Engine) and not TSBaseTable(Database.Tables[I]).Engine.IsMerge) then
                 begin
                   NewNode := TreeView.Items.AddChild(Node, Database.Tables[I].Name);
                   NewNode.ImageIndex := iiBaseTable;
@@ -808,7 +803,6 @@ var
   K: Integer;
   List: TList;
   Node: TTreeNode;
-  ProgressInfos: TTool.TProgressInfos;
   Table: TSBaseTable;
 begin
   FTables.Items.BeginUpdate();
@@ -859,8 +853,6 @@ begin
     if (FRRegExpr.Checked) then
       Include(Preferences.Replace.Options, roRegExpr);
 
-    Preferences.Replace.Backup := FBackup.Checked;
-
     ExecuteSession := Session;
 
     if (SearchOnly) then
@@ -892,7 +884,6 @@ begin
         TTReplace(Search).MatchCase := FRMatchCase.Checked;
         TTReplace(Search).WholeValue := FRWholeValue.Checked;
         TTReplace(Search).RegExpr := FRRegExpr.Checked;
-        TTReplace(Search).Backup := FBackup.Checked;
       end;
     end;
     Search.OnSearched := OnSearched;
@@ -921,7 +912,7 @@ begin
         begin
           Database := ExecuteSession.DatabaseByName(FSelect.Items[I].Text);
           for J := 0 to Database.Tables.Count - 1 do
-            if ((Database.Tables[J] is TSBaseTable)  and (RightStr(Database.Tables[J].Name, Length(BackupExtension)) <> BackupExtension)) then
+            if (Database.Tables[J] is TSBaseTable) then
             begin
               Table := TSBaseTable(Database.Tables[J]);
               List.Add(Table);
@@ -935,7 +926,7 @@ begin
             Database := ExecuteSession.Databases[K];
             if (not (Database is TSSystemDatabase)) then
               for J := 0 to Database.Tables.Count - 1 do
-                if ((Database.Tables[J] is TSBaseTable)  and (RightStr(Database.Tables[J].Name, Length(BackupExtension)) <> BackupExtension)) then
+                if (Database.Tables[J] is TSBaseTable) then
                 begin
                   Table := TSBaseTable(Database.Tables[J]);
                   List.Add(Table);
@@ -1012,10 +1003,6 @@ begin
   FRMatchCase.Caption := Preferences.LoadStr(716);
   FRWholeValue.Caption := Preferences.LoadStr(717);
   FRRegExpr.Caption := Preferences.LoadStr(718);
-
-  GBackup.Caption := Preferences.LoadStr(713);
-  FLBackup.Caption := Preferences.LoadStr(713) + ':';
-  FBackup.Caption := Preferences.LoadStr(714);
 
   GProgress.Caption := Preferences.LoadStr(224);
   FLEntiered.Caption := Preferences.LoadStr(211);

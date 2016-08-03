@@ -715,7 +715,6 @@ type
   private
     FOnSearched: TOnSearched;
     FSession: TSSession;
-    procedure BackupTable(const Item: TItem; const Rename: Boolean = False);
   protected
     procedure AfterExecute(); override;
     procedure BeforeExecute(); override;
@@ -744,7 +743,6 @@ type
     property ReplaceSession: TSSession read FReplaceSession;
   public
     ReplaceText: string;
-    Backup: Boolean;
     constructor Create(const ASession, AReplaceSession: TSSession);
   end;
 
@@ -756,8 +754,6 @@ const
   CP_UNICODE = 1200;
   BOM_UTF8: PAnsiChar = Chr($EF) + Chr($BB) + Chr($BF);
   BOM_UNICODE_LE: PAnsiChar = Chr($FF) + Chr($FE);
-
-  BackupExtension = '_bak';
 
 var
   ODBCEnv: SQLHENV;
@@ -7822,17 +7818,19 @@ procedure TTTransfer.ExecuteTable(const Item: TTool.TDBObjectItem; const DataHan
 var
   I: Integer;
   DestinationDatabase: TSDatabase;
-  DestinationTable: TSBaseTable;
+  DestinationTable: TSTable;
   NewTrigger: TSTrigger;
   SourceDatabase: TSDatabase;
-  SourceTable: TSBaseTable;
+  SourceTable: TSTable;
 begin
   DestinationDatabase := DestinationSession.DatabaseByName(TItem(Item).DestinationDatabaseName);
 
   if (Session = DestinationSession) then
   begin
-    while ((Success <> daAbort) and not DestinationDatabase.CloneTable(TSBaseTable(Item.DBObject), Item.DBObject.Name, Data)) do
+    DestinationSession.Connection.BeginSynchron();
+    while ((Success <> daAbort) and not DestinationDatabase.CloneTable(TSTable(Item.DBObject), Item.DBObject.Name, Data)) do
       DoError(DatabaseError(Session), Item, True);
+    DestinationSession.Connection.EndSynchron();
 
     if ((Success = daSuccess) and Data) then
     begin
@@ -7868,9 +7866,10 @@ begin
 
         if (Success = daSuccess) then
         begin
-          DestinationTable := DestinationDatabase.BaseTableByName(SourceTable.Name);
+          DestinationTable := DestinationDatabase.TableByName(SourceTable.Name);
 
-          Item.RecordsDone := DestinationTable.Rows;
+          if (DestinationTable is TSBaseTable) then
+            Item.RecordsDone := TSBaseTable(DestinationTable).Rows;
         end;
       end
       else
@@ -7878,13 +7877,13 @@ begin
         if ((Success = daSuccess) and Structure) then
         begin
           ExecuteTableStructure(TItem(Item));
-          DestinationTable := DestinationDatabase.BaseTableByName(SourceTable.Name);
+          DestinationTable := DestinationDatabase.TableByName(SourceTable.Name);
 
           if (Terminated) then
             Success := daAbort;
         end;
 
-        if ((Success = daSuccess) and Data and Assigned(DestinationTable) and (DestinationTable.Source <> '')) then
+        if ((Success = daSuccess) and Data and (DestinationTable is TSBaseTable) and (DestinationTable.Source <> '')) then
           ExecuteTableData(TItem(Item), DataHandle);
       end;
 
@@ -7894,8 +7893,8 @@ begin
   end;
 
   SourceDatabase := Item.DBObject.Database;
-  SourceTable := TSBaseTable(Item.DBObject);
-  if (Assigned(SourceDatabase.Triggers) and Assigned(DestinationDatabase.Triggers)) then
+  SourceTable := TSTable(Item.DBObject);
+  if ((SourceTable is TSBaseTable) and Assigned(SourceDatabase.Triggers) and Assigned(DestinationDatabase.Triggers)) then
     for I := 0 to SourceDatabase.Triggers.Count - 1 do
       if ((Success = daSuccess) and (SourceDatabase.Triggers[I].Table = SourceTable) and not Assigned(DestinationDatabase.TriggerByName(SourceDatabase.Triggers[I].Name))) then
       begin
@@ -8336,43 +8335,6 @@ begin
   inherited;
 end;
 
-procedure TTSearch.BackupTable(const Item: TItem; const Rename: Boolean = False);
-var
-  Database: TSDatabase;
-  NewTableName: string;
-  Table: TSBaseTable;
-begin
-  Database := Session.DatabaseByName(Item.DatabaseName);
-
-  if (Assigned(Database)) then
-  begin
-    Table := Database.BaseTableByName(Item.TableName);
-    if (Assigned(Table)) then
-    begin
-      NewTableName := Item.TableName + BackupExtension;
-
-      if (Assigned(Database.BaseTableByName(NewTableName))) then
-      begin
-        Session.Connection.BeginSynchron();
-        while ((Success <> daAbort) and not Database.DeleteObject(Database.BaseTableByName(NewTableName))) do
-          DoError(DatabaseError(Session), Item, True);
-        Session.Connection.EndSynchron();
-      end;
-
-      if (Rename) then
-        while (Success <> daAbort) do
-        begin
-          Database.RenameTable(Table, NewTableName);
-          if (Session.Connection.ErrorCode <> 0) then
-            DoError(DatabaseError(Session), Item, True)
-        end
-      else
-        while ((Success <> daAbort) and not Database.CloneTable(Table, NewTableName, True)) do
-          DoError(DatabaseError(Session), Item, True);
-    end;
-  end;
-end;
-
 procedure TTSearch.BeforeExecute();
 begin
   inherited;
@@ -8434,12 +8396,6 @@ begin
   begin
     if (Success = daSuccess) then
     begin
-      if ((Self is TTReplace) and TTReplace(Self).Backup) then
-      begin
-        BackupTable(TItem(Items[I]));
-        if (Success = daFail) then Success := daSuccess;
-      end;
-
       if (Success = daSuccess) then
       begin
         Database := Session.DatabaseByName(TItem(Items[I]).DatabaseName);

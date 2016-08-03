@@ -506,12 +506,18 @@ begin
             else
             begin
               for I := 0 to Database.Tables.Count - 1 do
-                if ((Database.Tables[I] is TSBaseTable) and Assigned(TSBaseTable(Database.Tables[I]).Engine) and not TSBaseTable(Database.Tables[I]).Engine.IsMerge and (RightStr(Database.Tables[I].Name, Length(BackupExtension)) <> BackupExtension)) then
+                if (Database.Tables[I] is TSBaseTable) then
                 begin
                   NewNode := TreeView.Items.AddChild(Node, Database.Tables[I].Name);
                   NewNode.ImageIndex := iiBaseTable;
                   NewNode.Data := Database.Tables[I];
-                end;
+                end
+                else if (Database.Tables[I] is TSView) then
+                begin
+                  NewNode := TreeView.Items.AddChild(Node, Database.Tables[I].Name);
+                  NewNode.ImageIndex := iiView;
+                  NewNode.Data := Database.Tables[I];
+                end
             end;
           end;
       end;
@@ -599,7 +605,8 @@ var
             Result := not Session.Update(Objects);
           end;
         end;
-      iiBaseTable:
+      iiBaseTable,
+      iiView:
         begin
           for J := 0 to Node.Parent.Count - 1 do
             if (Node.Parent.Item[J].Selected) then
@@ -618,7 +625,6 @@ var
   Database: TSDatabase;
   SourceSession: TSSession;
   Node: TTreeNode;
-  ProgressInfos: TTool.TProgressInfos;
   DestinationSession: TSSession;
 begin
   FEntieredObjects.Caption := '';
@@ -672,10 +678,11 @@ begin
             begin
               Database := SourceSession.DatabaseByName(FSource.Selected.Parent[I].Text);
               for J := 0 to Database.Tables.Count - 1 do
-                if (Assigned(Transfer) and (Database.Tables[J] is TSBaseTable) and Assigned(TSBaseTable(Database.Tables[J]).Engine) and not TSBaseTable(Database.Tables[J]).Engine.IsMerge and (RightStr(Database.Tables[J].Name, Length(BackupExtension)) <> BackupExtension)) then
+                if (Assigned(Transfer) and (Database.Tables[J] is TSBaseTable)) then
                   AddTable(Database.Tables[J], DestinationSession, Database.Name);
             end;
-          iiBaseTable:
+          iiBaseTable,
+          iiView:
             AddTable(SourceSession.DatabaseByName(FSource.Selected.Parent.Text).TableByName(FSource.Selected.Parent[I].Text),
               DestinationSession, FDestination.Selected.Text);
         end;
