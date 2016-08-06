@@ -10759,7 +10759,7 @@ begin
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.ServerVersion;
   FUser := nil;
-  ParseEndDate := EncodeDate(2016, 8, 6);
+  ParseEndDate := EncodeDate(2016, 8, 8);
   SQLParser := TMySQLParser.Create(Connection.ServerVersion);
   UnparsableSQL := '';
 
@@ -11075,7 +11075,7 @@ begin
   FSyntaxProvider.Free();
   SQLParser.Free();
   if (UnparsableSQL <> '') then
-    SendSQLToDeveloper(UnparsableSQL);
+    SendSQLToDeveloper(Trim(UnparsableSQL) + #13#10);
 
   FConnection.Free();
 

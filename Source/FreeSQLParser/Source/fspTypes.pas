@@ -3,11 +3,29 @@ unit fspTypes;
 interface {********************************************************************}
 
 type
+
+  TErrorCode = (
+    PE_Success = 0, // No error
+
+    PE_Unknown = 1, // Unknown error
+
+    // Bugs while parsing Tokens:
+    PE_IncompleteToken = 2, // Incompleted token
+    PE_UnexpectedChar = 3, // Unexpected character
+
+    // Bugs while parsing Stmts:
+    PE_IncompleteStmt = 4, // Incompleted statement
+    PE_UnexpectedToken = 5, // Unexpected token
+    PE_ExtraToken = 6, // Token after completed statement
+    PE_UnkownStmt = 7, // Unknown statement
+    PE_InvalidEndLabel = 8 // Begin and end tokens are different
+  );
+
   TNodeType = (
     ntUnknown,         // Unused
-    ntRoot,            // Root token, one usage by the parser to handle node tree
-    ntToken,           // Token node
+    ntRoot,            // Root token, one usage by the parser to handle stmt list
     ntRange,           // A node with a range of tokens, base for all further nodes
+    ntToken,           // Token node
 
     ntAlterDatabaseStmt,
     ntAlterEventStmt,
@@ -47,6 +65,7 @@ type
     ntCreateTableStmtPartition,
     ntCreateTableStmtPartitionValues,
     ntCreateTriggerStmt,
+    ntCreateUserStmt,
     ntCreateViewStmt,
     ntDataType,
     ntDbIdent,
@@ -65,12 +84,15 @@ type
     ntDropServerStmt,
     ntDropTableStmt,
     ntDropTriggerStmt,
+    ntDropUserStmt,
     ntDropViewStmt,
     ntExecuteStmt,
     ntExistsFunc,
     ntExplainStmt,
     ntExtractFunc,
     ntFetchStmt,
+    ntFlushStmt,
+    ntFlushStmtOption,
     ntFunctionCall,
     ntFunctionReturns,
     ntGetDiagnosticsStmt,
@@ -91,6 +113,7 @@ type
     ntInterval,
     ntIntervalListItem,
     ntIterateStmt,
+    ntKillStmt,
     ntLeaveStmt,
     ntLikeOp,
     ntList,
@@ -174,6 +197,7 @@ type
     ntShowTriggersStmt,
     ntShowVariablesStmt,
     ntShowWarningsStmt,
+    ntShutdownStmt,
     ntSignalStmt,
     ntSignalStmtInformation,
     ntSoundsLikeOp,
@@ -221,6 +245,7 @@ type
     stCreateServer,
     stCreateTable,
     stCreateTrigger,
+    stCreateUser,
     stCreateView,
     stDeallocatePrepare,
     stDeclare,
@@ -236,16 +261,19 @@ type
     stDropServer,
     stDropTable,
     stDropTrigger,
+    stDropUser,
     stDropView,
     stExecute,
     stExplain,
     stFetch,
+    stFlush,
     stGetDiagnostics,
     stGrant,
     stHelp,
     stIf,
     stInsert,
     stIterate,
+    stKill,
     stLeave,
     stLoadData,
     stLoadXML,
@@ -306,6 +334,7 @@ type
     stShowTriggers,
     stShowVariables,
     stShowWarnings,
+    stShutdown,
     stSignal,
     stStartTransaction,
     stTruncate,
@@ -329,7 +358,7 @@ type
     utConst,
     utFunction,
     utDbIdent,
-    utPLSQL
+    utPL_SQL
   );
 
   TTokenType = (
@@ -353,7 +382,6 @@ type
     ttIdent,                  // Ident
     ttDQIdent,                // Ident, enclosed in ""
     ttDBIdent,                // Ident, enclosed in []
-    ttBRIdent,                // Ident, enclosed in {}
     ttMySQLIdent,             // Ident, enclosed in ``
     ttBeginLabel,             // Label, like Label_Name:
     ttEndLabel,               // Label, like Label_Name:
@@ -377,6 +405,7 @@ type
 
     otBinary,                 // "BINARY"
     otCollate,                // "COLLATE"
+    otDistinct,               // "DISTINCT"
 
     otUnaryNot,               // "!"
 
@@ -441,7 +470,7 @@ type
     ditAlias,
     ditTable,
     ditKey,
-    ditColumn,
+    ditField,
     ditForeignKey,
     ditFunction,
     ditProcedure,

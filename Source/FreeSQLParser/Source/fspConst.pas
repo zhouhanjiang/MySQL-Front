@@ -6,20 +6,6 @@ uses
   fspTypes;
 
 const
-  PE_Success = 0; // No error
-
-  PE_Unknown = 1; // Unknown error
-
-  // Bugs while parsing Tokens:
-  PE_IncompleteToken = 2; // Incompleted token
-  PE_UnexpectedChar = 3; // Unexpected character
-
-  // Bugs while parsing Stmts:
-  PE_IncompleteStmt = 4; // Incompleted statement
-  PE_UnexpectedToken = 5; // Unexpected token
-  PE_ExtraToken = 6; // Token after completed statement
-  PE_UnkownStmt = 7; // Unknown statement
-  PE_InvalidEndLabel = 8; // Begin and end tokens are different
 
   MySQLFunctions =
     'CONVERT,' +
@@ -59,13 +45,13 @@ const
     'MINUTE,MINUTE_SECOND,QUARTER,SECOND,WEEK,YEAR,YEAR_MONTH,ADD,PASSWORD,' +
     'SPATIAL,STATS_AUTO_CALC,STATS_AUTO_RECALC,STATS_PERSISTENT,USER,BTREE,' +
     'HASH,COALESCE,EXCHANGE,TRUNCATE,COMPACT,COMPRESSED,DYNAMIC,FIXED,' +
-    'OPTIONAL,REDUNDANT,XML,ONLY,MIGRATE,RESUME,SUSPEND,XA,ONE,PHASE,' +
+    'REDUNDANT,XML,ONLY,MIGRATE,RESUME,SUSPEND,XA,ONE,PHASE,' +
     'RECOVER,BLOCK,CONTEXT,CPU,FAULTS,INDEXES,IO,IPC,MEMORY,PAGE,' +
     'SOURCE,SWAPS,SWITCHES,CURRENT_TIMESTAMP,LOCALTIME,LOCALTIMESTAMP,' +
     'CURRENT_DATE,CURRENT_TIME,FORMAT,TRADITIONAL,SQLWARNINGS,' +
     'CONSTRAINT_SCHEMA,CURRENT,DIAGNOSTICS,GET,NUMBER,RESIGNAL,REVERSE,' +
     'RETURNED_SQLSTATE,ROW_COUNT,STACKED,PAGE_CHECKSUM,ASCII,UNICODE,XID,' +
-    'UNKNOWN,' +
+    'UNKNOWN,ACCOUNT,EXPIRE,NEVER,NATIONAL,' +
 
     'INPLACE,SHARED,EXCLUSIVE,ACTION,AFTER,AGAINST,AGGREGATE,ALGORITHM,ALL,ALTER,ANALYZE,AND,ANY,AS,' +
     'ASC,AT,AUTHORS,AUTO_INCREMENT,AUTOEXTEND_SIZE,AVG_ROW_LENGTH,BACKUP,' +
@@ -120,11 +106,23 @@ const
     'UPGRADE,USAGE,USE,USE_FRM,USING,VALUE,VALUES,VARIABLES,VARYING,VIEW,' +
     'WAIT,WARNINGS,WHEN,WHERE,WHILE,WITH,WORK,WRAPPER,WRITE,X509,XOR';
 
+  ErrorCodeToString: array[TErrorCode] of PChar = (
+    'PE_Success',
+    'PE_Unknown',
+    'PE_IncompleteToken',
+    'PE_UnexpectedChar',
+    'PE_IncompleteStmt',
+    'PE_UnexpectedToken',
+    'PE_ExtraToken',
+    'PE_UnkownStmt',
+    'PE_InvalidEndLabel'
+  );
+
   NodeTypeToString: array[TNodeType] of PChar = (
     'ntUnknown',
     'ntRoot',
-    'ntToken',
     'ntRange',
+    'ntToken',
 
     'ntAlterDatabaseStmt',
     'ntAlterEventStmt',
@@ -164,6 +162,7 @@ const
     'ntCreateTableStmtPartition',
     'ntCreateTableStmtPartitionValues',
     'ntCreateTriggerStmt',
+    'ntCreateUserStmt',
     'ntCreateViewStmt',
     'ntDataType',
     'ntDbIdent',
@@ -182,12 +181,15 @@ const
     'ntDropServerStmt',
     'ntDropTableStmt',
     'ntDropTriggerStmt',
+    'ntDropUserStmt',
     'ntDropViewStmt',
     'ntExecuteStmt',
     'ntExistsFunc',
     'ntExplainStmt',
     'ntExtractFunc',
     'ntFetchStmt',
+    'ntFlushStmt',
+    'ntFlushStmtOption',
     'ntFunctionCall',
     'ntFunctionReturns',
     'ntGetDiagnosticsStmt',
@@ -208,6 +210,7 @@ const
     'ntInterval',
     'ntIntervalListItem',
     'ntIterateStmt',
+    'ntKillStmt',
     'ntLeaveStmt',
     'ntLikeOp',
     'ntList',
@@ -291,6 +294,7 @@ const
     'ntShowTriggersStmt',
     'ntShowVariablesStmt',
     'ntShowWarningsStmt',
+    'ntShutdownStmt',
     'ntSignalStmt',
     'ntSignalStmtInformation',
     'ntSoundsLikeOp',
@@ -338,6 +342,7 @@ const
     'stCreateServer',
     'stCreateTable',
     'stCreateTrigger',
+    'stCreateUser',
     'stCreateView',
     'stDeallocatePrepare',
     'stDeclare',
@@ -353,16 +358,19 @@ const
     'stDropServer',
     'stDropTable',
     'stDropTrigger',
+    'stDropUser',
     'stDropView',
     'stExecute',
     'stExplain',
     'stFetch',
+    'stFlush',
     'stGetDiagnostics',
     'stGrant',
     'stHelp',
     'stIf',
     'stInsert',
     'stIterate',
+    'stKill',
     'stLeave',
     'stLoadData',
     'stLoadXML',
@@ -423,6 +431,7 @@ const
     'stShowTriggers',
     'stShowVariables',
     'stShowWarnings',
+    'stShutdown',
     'stSignal',
     'stStartTransaction',
     'stTruncate',
@@ -455,7 +464,6 @@ const
     'ttIdent',
     'ttDQIdent',
     'ttDBIdent',
-    'ttBRIdent',
     'ttMySQLIdent',
     'ttBeginLabel',
     'ttEndLabel',
@@ -479,7 +487,7 @@ const
     'utConst',
     'utFunction',
     'utDbIdent',
-    'utPLSQL'
+    'utPL_SQL'
   );
 
   OperatorTypeToString: array[TOperatorType] of PChar = (
@@ -488,8 +496,10 @@ const
     'otDot',
 
     'otInterval',
+
     'otBinary',
     'otCollate',
+    'otDistinct',
 
     'otUnaryNot',
 
@@ -554,7 +564,7 @@ const
     'ditAlias',
     'ditTable',
     'ditKey',
-    'ditColumn',
+    'ditField',
     'ditForeignKey',
     'ditFunction',
     'ditProcedure',
@@ -576,6 +586,7 @@ const
 
     3,   // otBinary
     3,   // otCollate
+    3,   // otDistinct
 
     4,   // otUnaryNot
 
@@ -652,15 +663,14 @@ const
     utConst,
     utConst,
     utConst,
-    utDbIdent,
+    utConst,
+    utConst,
     utDbIdent,
     utDbIdent,
     utDbIdent,
     utDbIdent,
     utLabel,
     utLabel,
-    utDbIdent,
-    utUnknown,
     utUnknown,
     utSymbol,
     utSymbol,
@@ -689,6 +699,7 @@ const
     ntCreateServerStmt,
     ntCreateTableStmt,
     ntCreateTriggerStmt,
+    ntCreateUserStmt,
     ntCreateViewStmt,
     ntDeallocatePrepareStmt,
     ntDeclareStmt,
@@ -704,16 +715,19 @@ const
     ntDropServerStmt,
     ntDropTableStmt,
     ntDropTriggerStmt,
+    ntDropUserStmt,
     ntDropViewStmt,
     ntExecuteStmt,
     ntExplainStmt,
     ntFetchStmt,
+    ntFlushStmt,
     ntGetDiagnosticsStmt,
     ntGrantStmt,
     ntHelpStmt,
     ntIfStmt,
     ntInsertStmt,
     ntIterateStmt,
+    ntKillStmt,
     ntLeaveStmt,
     ntLoadDataStmt,
     ntLoadXMLStmt,
@@ -774,6 +788,7 @@ const
     ntShowTriggersStmt,
     ntShowVariablesStmt,
     ntShowWarningsStmt,
+    ntShutdownStmt,
     ntSignalStmt,
     ntStartTransactionStmt,
     ntTruncateStmt,
@@ -805,6 +820,7 @@ const
     ntCreateServerStmt,
     ntCreateTableStmt,
     ntCreateTriggerStmt,
+    ntCreateUserStmt,
     ntCreateViewStmt,
     ntDeallocatePrepareStmt,
     ntDeclareStmt,
@@ -820,16 +836,19 @@ const
     ntDropServerStmt,
     ntDropTableStmt,
     ntDropTriggerStmt,
+    ntDropUserStmt,
     ntDropViewStmt,
     ntExecuteStmt,
     ntExplainStmt,
     ntFetchStmt,
+    ntFlushStmt,
     ntGetDiagnosticsStmt,
     ntGrantStmt,
     ntHelpStmt,
     ntIfStmt,
     ntInsertStmt,
     ntIterateStmt,
+    ntKillStmt,
     ntLeaveStmt,
     ntLoadDataStmt,
     ntLoadXMLStmt,
@@ -890,6 +909,7 @@ const
     ntShowTriggersStmt,
     ntShowVariablesStmt,
     ntShowWarningsStmt,
+    ntShutdownStmt,
     ntSignalStmt,
     ntStartTransactionStmt,
     ntTruncateStmt,
