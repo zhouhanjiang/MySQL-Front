@@ -17,8 +17,9 @@ type
     PE_IncompleteStmt = 4, // Incompleted statement
     PE_UnexpectedToken = 5, // Unexpected token
     PE_ExtraToken = 6, // Token after completed statement
-    PE_UnkownStmt = 7, // Unknown statement
-    PE_InvalidEndLabel = 8 // Begin and end tokens are different
+
+    // Bugs while parsing Root
+    PE_UnkownStmt = 7 // Unknown statement
   );
 
   TNodeType = (
@@ -132,8 +133,10 @@ type
     ntReleaseStmt,
     ntRepeatStmt,
     ntReturnStmt,
-    ntRoutineParam,
+    ntResetStmt,
+    ntRevokeStmt,
     ntRollbackStmt,
+    ntRoutineParam,
     ntSavepointStmt,
     ntSchedule,
     ntSecretIdent,
@@ -285,6 +288,8 @@ type
     stRelease,
     stRepeat,
     stReturn,
+    stReset,
+    stRevoke,
     stRollback,
     stSavepoint,
     stSelect,
@@ -470,7 +475,7 @@ type
     ditAlias,
     ditTable,
     ditKey,
-    ditField,
+    ditColumn,
     ditForeignKey,
     ditFunction,
     ditProcedure,

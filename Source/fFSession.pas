@@ -9997,7 +9997,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
       Item.GroupID := giEvents;
       Item.ImageIndex := iiEvent;
       Item.Caption := TSEvent(Data).Caption;
-      Item.SubItems.Add('TCEvent(Data)');
+      Item.SubItems.Add(Preferences.LoadStr(812));
       Item.SubItems.Add('');
       if (not TSEvent(Data).Valid) then
         Item.SubItems.Add('')

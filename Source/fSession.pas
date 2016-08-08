@@ -964,7 +964,7 @@ type
   public
     function AddEvent(const NewEvent: TSEvent): Boolean; virtual;
     function AddRoutine(const NewRoutine: TSRoutine): Boolean; virtual;
-    function AddTable(const NewTable: TSBaseTable): Boolean; virtual;
+    function AddBaseTable(const NewTable: TSBaseTable): Boolean; virtual;
     function AddTrigger(const NewTrigger: TSTrigger): Boolean; virtual;
     function AddView(const NewView: TSView): Boolean; virtual;
     procedure Assign(const Source: TSObject); reintroduce; virtual;
@@ -2055,9 +2055,9 @@ begin
   begin
     try
       if (not Session.SQLParser.ParseSQL(FSource)) then
-        Session.UnparsableSQL := Session.UnparsableSQL + Trim(FSource) + #13#10#13#10;
+        Session.UnparsableSQL := '# SetSource()' + #1310 + Session.UnparsableSQL + Trim(FSource) + #13#10#13#10;
     except
-      Session.UnparsableSQL := Session.UnparsableSQL + Trim(FSource) + #13#10#13#10;
+      Session.UnparsableSQL := '# SetSource()' + #1310 + Session.UnparsableSQL + Trim(FSource) + #13#10#13#10;
     end;
     Session.SQLParser.Clear();
   end;
@@ -6856,7 +6856,7 @@ begin
   Result := UpdateRoutine(nil, NewRoutine);
 end;
 
-function TSDatabase.AddTable(const NewTable: TSBaseTable): Boolean;
+function TSDatabase.AddBaseTable(const NewTable: TSBaseTable): Boolean;
 begin
   NewTable.FForeignKeys.FValid := True;
   NewTable.FSourceParsed := True;
@@ -10759,7 +10759,7 @@ begin
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.ServerVersion;
   FUser := nil;
-  ParseEndDate := EncodeDate(2016, 8, 8);
+  ParseEndDate := EncodeDate(2016, 8, 10);
   SQLParser := TMySQLParser.Create(Connection.ServerVersion);
   UnparsableSQL := '';
 
@@ -11503,9 +11503,9 @@ begin
     SetString(S, Text, Len);
     try
       if (not SQLParser.ParseSQL(S)) then
-        UnparsableSQL := UnparsableSQL + Trim(S) + #13#10#13#10;
+        UnparsableSQL := '# MonitorExecutedStmts()' + #1310 + UnparsableSQL + Trim(S) + #13#10#13#10;
     except
-      UnparsableSQL := UnparsableSQL + Trim(S) + #13#10#13#10;
+      UnparsableSQL := '# MonitorExecutedStmts()' + #1310 + UnparsableSQL + Trim(S) + #13#10#13#10;
     end;
     SQLParser.Clear();
   end;

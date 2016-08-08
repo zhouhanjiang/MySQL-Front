@@ -371,10 +371,10 @@ type
     procedure ExecuteDatabaseFooter(const Database: TSDatabase); virtual;
     procedure ExecuteDatabaseHeader(const Database: TSDatabase); virtual;
     procedure ExecuteDataDBGrid(const Item: TDBGridItem); virtual;
-    procedure ExecuteEvent(const Event: TSEvent); virtual;
+    procedure ExecuteEvent(const Item: TTool.TDBObjectItem); virtual;
     procedure ExecuteFooter(); virtual;
     procedure ExecuteHeader(); virtual;
-    procedure ExecuteRoutine(const Routine: TSRoutine); virtual;
+    procedure ExecuteRoutine(const Item: TTool.TDBObjectItem); virtual;
     procedure ExecuteTable(const Item: TTool.TDBObjectItem; const DataHandle: TMySQLConnection.TDataResult); virtual;
     procedure ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); virtual;
     procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); virtual;
@@ -433,9 +433,9 @@ type
   protected
     procedure BeforeExecute(); override;
     procedure ExecuteDatabaseHeader(const Database: TSDatabase); override;
-    procedure ExecuteEvent(const Event: TSEvent); override;
+    procedure ExecuteEvent(const Item: TTool.TDBObjectItem); override;
     procedure ExecuteHeader(); override;
-    procedure ExecuteRoutine(const Routine: TSRoutine); override;
+    procedure ExecuteRoutine(const Item: TTool.TDBObjectItem); override;
     procedure ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
@@ -476,10 +476,10 @@ type
     function EscapeSQL(const SQL: string): string;
   protected
     procedure ExecuteDatabaseHeader(const Database: TSDatabase); override;
-    procedure ExecuteEvent(const Event: TSEvent); override;
+    procedure ExecuteEvent(const Item: TTool.TDBObjectItem); override;
     procedure ExecuteFooter(); override;
     procedure ExecuteHeader(); override;
-    procedure ExecuteRoutine(const Routine: TSRoutine); override;
+    procedure ExecuteRoutine(const Item: TTool.TDBObjectItem); override;
     procedure ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
@@ -631,9 +631,9 @@ type
     procedure AddPage(const NewPageRow: Boolean); virtual; abstract;
     procedure BeforeExecute(); override;
     procedure ExecuteDatabaseHeader(const Database: TSDatabase); override;
-    procedure ExecuteEvent(const Event: TSEvent); override;
+    procedure ExecuteEvent(const Item: TTool.TDBObjectItem); override;
     procedure ExecuteFooter(); override;
-    procedure ExecuteRoutine(const Routine: TSRoutine); override;
+    procedure ExecuteRoutine(const Item: TTool.TDBObjectItem); override;
     procedure ExecuteTableFooter(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
     procedure ExecuteTableRecord(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
@@ -691,6 +691,8 @@ type
   protected
     procedure AfterExecute(); override;
     procedure BeforeExecute(); override;
+    procedure ExecuteEvent(const Item: TTool.TDBObjectItem); override;
+    procedure ExecuteRoutine(const Item: TTool.TDBObjectItem); override;
     procedure ExecuteTable(const Item: TTool.TDBObjectItem; const DataHandle: TMySQLConnection.TDataResult); override;
     procedure ExecuteTableData(const Item: TItem; const DataHandle: TMySQLConnection.TDataResult);
     procedure ExecuteTableStructure(const Item: TItem);
@@ -2699,7 +2701,7 @@ begin
   NewTable.Name := Session.ApplyIdentifierName(Item.DestinationTableName);
 
   Session.Connection.BeginSynchron();
-  while ((Success <> daAbort) and not Database.AddTable(NewTable)) do
+  while ((Success <> daAbort) and not Database.AddBaseTable(NewTable)) do
     DoError(DatabaseError(Session), Item, True);
   Session.Connection.EndSynchron();
 
@@ -3384,7 +3386,7 @@ begin
     NewTable.Name := Session.ApplyIdentifierName(Item.DestinationTableName);
 
     Session.Connection.BeginSynchron();
-    while ((Success <> daAbort) and not Database.AddTable(NewTable)) do
+    while ((Success <> daAbort) and not Database.AddBaseTable(NewTable)) do
       DoError(DatabaseError(Session), Item, True);
     Session.Connection.EndSynchron();
   end;
@@ -4114,9 +4116,9 @@ begin
                   ExecuteTable(TDBObjectItem(Items[I]), DataHandle)
               else if (Structure) then
                 if (TDBObjectItem(Items[I]).DBObject is TSRoutine) then
-                  ExecuteRoutine(TSRoutine(TDBObjectItem(Items[I]).DBObject))
+                  ExecuteRoutine(TDBObjectItem(Items[I]))
                 else if (TDBObjectItem(Items[I]).DBObject is TSEvent) then
-                  ExecuteEvent(TSEvent(TDBObjectItem(Items[I]).DBObject))
+                  ExecuteEvent(TDBObjectItem(Items[I]))
                 else if ((TDBObjectItem(Items[I]).DBObject is TSTrigger) and (Self is TTExportSQL)) then
                   ExecuteTrigger(TSTrigger(TDBObjectItem(Items[I]).DBObject));
             end;
@@ -4245,7 +4247,7 @@ begin
     TMySQLTable(DataSet).AutomaticLoadNextRecords := OldLoadNextRecords;
 end;
 
-procedure TTExport.ExecuteEvent(const Event: TSEvent);
+procedure TTExport.ExecuteEvent(const Item: TTool.TDBObjectItem);
 begin
 end;
 
@@ -4257,7 +4259,7 @@ procedure TTExport.ExecuteHeader();
 begin
 end;
 
-procedure TTExport.ExecuteRoutine(const Routine: TSRoutine);
+procedure TTExport.ExecuteRoutine(const Item: TTool.TDBObjectItem);
 begin
 end;
 
@@ -4561,10 +4563,13 @@ begin
   end;
 end;
 
-procedure TTExportSQL.ExecuteEvent(const Event: TSEvent);
+procedure TTExportSQL.ExecuteEvent(const Item: TTool.TDBObjectItem);
 var
   Content: string;
+  Event: TSEvent;
 begin
+  Event := TSEvent(TDBObjectItem(Item).DBObject);
+
   Content := #13#10;
   Content := Content + '#' + #13#10;
   Content := Content + '# Event "' + Event.Name + '"' + #13#10;
@@ -4593,10 +4598,13 @@ begin
   WriteContent(Content);
 end;
 
-procedure TTExportSQL.ExecuteRoutine(const Routine: TSRoutine);
+procedure TTExportSQL.ExecuteRoutine(const Item: TTool.TDBObjectItem);
 var
   Content: string;
+  Routine: TSRoutine;
 begin
+  Routine := TSRoutine(TDBObjectItem(Item).DBObject);
+
   Content := #13#10;
   if (Routine is TSProcedure) then
   begin
@@ -5154,10 +5162,13 @@ begin
     WriteContent('<h1 class="DatabaseTitle">' + Preferences.LoadStr(38) + ': ' + HTMLEscape(Database.Name) + '</h1>' + #13#10);
 end;
 
-procedure TTExportHTML.ExecuteEvent(const Event: TSEvent);
+procedure TTExportHTML.ExecuteEvent(const Item: TTool.TDBObjectItem);
 var
   Content: string;
+  Event: TSEvent;
 begin
+  Event := TSEvent(TDBObjectItem(Item).DBObject);
+
   Content := '<h2>' + Preferences.LoadStr(812) + ': ' + HTMLEscape(Event.Name) + '</h2>' + #13#10;
 
   Content := Content + EscapeSQL(Event.Source);
@@ -5276,10 +5287,13 @@ begin
   WriteContent(Content);
 end;
 
-procedure TTExportHTML.ExecuteRoutine(const Routine: TSRoutine);
+procedure TTExportHTML.ExecuteRoutine(const Item: TTool.TDBObjectItem);
 var
   Content: string;
+  Routine: TSRoutine;
 begin
+  Routine := TSRoutine(TDBObjectItem(Item).DBObject);
+
   if (Routine is TSProcedure) then
     Content := '<h2>' + Preferences.LoadStr(768) + ': ' + HTMLEscape(Routine.Name) + '</h2>' + #13#10
   else
@@ -6841,8 +6855,12 @@ begin
   end;
 end;
 
-procedure TTExportCanvas.ExecuteEvent(const Event: TSEvent);
+procedure TTExportCanvas.ExecuteEvent(const Item: TTool.TDBObjectItem);
+var
+  Event: TSEvent;
 begin
+  Event := TSEvent(TDBObjectItem(Item).DBObject);
+
   SetFont(ContentFont, ContentFont.Size + 4, ContentFont.Style + [fsBold]);
 
   ContentTextOut(Preferences.LoadStr(812) + ': ' + Event.Name, 2 * Padding);
@@ -6859,8 +6877,12 @@ begin
   inherited;
 end;
 
-procedure TTExportCanvas.ExecuteRoutine(const Routine: TSRoutine);
+procedure TTExportCanvas.ExecuteRoutine(const Item: TTool.TDBObjectItem);
+var
+  Routine: TSRoutine;
 begin
+  Routine := TSRoutine(TDBObjectItem(Item).DBObject);
+
   SetFont(ContentFont, ContentFont.Size + 4, ContentFont.Style + [fsBold]);
 
   if (Routine is TSProcedure) then
@@ -7814,6 +7836,74 @@ begin
   SQL := SysUtils.Trim(SQL);
 end;
 
+procedure TTTransfer.ExecuteEvent(const Item: TTool.TDBObjectItem);
+var
+  DestinationDatabase: TSDatabase;
+  DestinationEvent: TSEvent;
+  NewDestinationEvent: TSEvent;
+  SourceEvent: TSEvent;
+begin
+  SourceEvent := TSEvent(Item.DBObject);
+  DestinationDatabase := DestinationSession.DatabaseByName(TItem(Item).DestinationDatabaseName);
+  DestinationEvent := DestinationDatabase.EventByName(SourceEvent.Name);
+
+  if (Assigned(DestinationEvent)) then
+  begin
+    DestinationSession.Connection.BeginSynchron();
+    while ((Success <> daAbort) and not DestinationDatabase.DeleteObject(DestinationEvent)) do
+      DoError(DatabaseError(DestinationSession), Item, True);
+    DestinationSession.Connection.EndSynchron();
+  end;
+
+  NewDestinationEvent := TSEvent.Create(DestinationDatabase.Events);
+
+  NewDestinationEvent.Assign(SourceEvent);
+
+  DestinationSession.Connection.BeginSynchron();
+  while ((Success <> daAbort) and not DestinationDatabase.AddEvent(NewDestinationEvent)) do
+    DoError(DatabaseError(DestinationSession), Item, True);
+  DestinationSession.Connection.EndSynchron();
+
+  NewDestinationEvent.Free();
+end;
+
+procedure TTTransfer.ExecuteRoutine(const Item: TTool.TDBObjectItem);
+var
+  DestinationDatabase: TSDatabase;
+  DestinationRoutine: TSRoutine;
+  NewDestinationRoutine: TSRoutine;
+  SourceRoutine: TSRoutine;
+begin
+  SourceRoutine := TSRoutine(Item.DBObject);
+  DestinationDatabase := DestinationSession.DatabaseByName(TItem(Item).DestinationDatabaseName);
+  if (SourceRoutine.RoutineType = rtProcedure) then
+    DestinationRoutine := DestinationDatabase.ProcedureByName(SourceRoutine.Name)
+  else
+    DestinationRoutine := DestinationDatabase.FunctionByName(SourceRoutine.Name);
+
+  if (Assigned(DestinationRoutine)) then
+  begin
+    DestinationSession.Connection.BeginSynchron();
+    while ((Success <> daAbort) and not DestinationDatabase.DeleteObject(DestinationRoutine)) do
+      DoError(DatabaseError(DestinationSession), Item, True);
+    DestinationSession.Connection.EndSynchron();
+  end;
+
+  if (SourceRoutine.RoutineType = rtProcedure) then
+    NewDestinationRoutine := TSProcedure.Create(DestinationDatabase.Routines)
+  else
+    NewDestinationRoutine := TSFunction.Create(DestinationDatabase.Routines);
+
+  NewDestinationRoutine.Assign(SourceRoutine);
+
+  DestinationSession.Connection.BeginSynchron();
+  while ((Success <> daAbort) and not DestinationDatabase.AddRoutine(NewDestinationRoutine)) do
+    DoError(DatabaseError(DestinationSession), Item, True);
+  DestinationSession.Connection.EndSynchron();
+
+  NewDestinationRoutine.Free();
+end;
+
 procedure TTTransfer.ExecuteTable(const Item: TTool.TDBObjectItem; const DataHandle: TMySQLConnection.TDataResult);
 var
   I: Integer;
@@ -8237,19 +8327,20 @@ end;
 procedure TTTransfer.ExecuteTableStructure(const Item: TItem);
 var
   DestinationDatabase: TSDatabase;
-  DestinationTable: TSBaseTable;
+  DestinationTable: TSTable;
   I: Integer;
   J: Integer;
   Modified: Boolean;
-  NewDestinationTable: TSBaseTable;
+  NewDestinationBaseTable: TSBaseTable;
+  NewDestinationView: TSView;
   OldFieldBefore: TSTableField;
   SourceDatabase: TSDatabase;
-  SourceTable: TSBaseTable;
+  SourceTable: TSTable;
 begin
   SourceDatabase := Item.DBObject.Database;
-  SourceTable := TSBaseTable(Item.DBObject);
+  SourceTable := TSTable(Item.DBObject);
   DestinationDatabase := DestinationSession.DatabaseByName(TItem(Item).DestinationDatabaseName);
-  DestinationTable := DestinationDatabase.BaseTableByName(SourceTable.Name);
+  DestinationTable := DestinationDatabase.TableByName(SourceTable.Name);
 
   if (Assigned(DestinationTable)) then
   begin
@@ -8259,25 +8350,41 @@ begin
     DestinationSession.Connection.EndSynchron();
   end;
 
-  NewDestinationTable := TSBaseTable.Create(DestinationDatabase.Tables);
-  NewDestinationTable.Assign(SourceTable);
-  NewDestinationTable.Name := DestinationSession.ApplyIdentifierName(NewDestinationTable.Name);
+  if (SourceTable is TSBaseTable) then
+  begin
+    NewDestinationBaseTable := TSBaseTable.Create(DestinationDatabase.Tables);
+    NewDestinationBaseTable.Assign(SourceTable);
+    NewDestinationBaseTable.Name := DestinationSession.ApplyIdentifierName(NewDestinationBaseTable.Name);
 
-  for I := 0 to NewDestinationTable.Keys.Count - 1 do
-    NewDestinationTable.Keys[I].Name := DestinationSession.ApplyIdentifierName(NewDestinationTable.Keys[I].Name);
-  for I := 0 to NewDestinationTable.Fields.Count - 1 do
-    NewDestinationTable.Fields[I].Name := DestinationSession.ApplyIdentifierName(NewDestinationTable.Fields[I].Name);
-  for I := NewDestinationTable.ForeignKeys.Count - 1 downto 0 do
-    NewDestinationTable.ForeignKeys[I].Name := DestinationSession.ApplyIdentifierName(NewDestinationTable.ForeignKeys[I].Name);
+    for I := 0 to NewDestinationBaseTable.Keys.Count - 1 do
+      NewDestinationBaseTable.Keys[I].Name := DestinationSession.ApplyIdentifierName(NewDestinationBaseTable.Keys[I].Name);
+    for I := 0 to NewDestinationBaseTable.Fields.Count - 1 do
+      NewDestinationBaseTable.Fields[I].Name := DestinationSession.ApplyIdentifierName(NewDestinationBaseTable.Fields[I].Name);
+    for I := NewDestinationBaseTable.ForeignKeys.Count - 1 downto 0 do
+      NewDestinationBaseTable.ForeignKeys[I].Name := DestinationSession.ApplyIdentifierName(NewDestinationBaseTable.ForeignKeys[I].Name);
 
-  NewDestinationTable.AutoIncrement := 0;
+    NewDestinationBaseTable.AutoIncrement := 0;
 
-  DestinationSession.Connection.BeginSynchron();
-  while ((Success <> daAbort) and not DestinationDatabase.AddTable(NewDestinationTable)) do
-    DoError(DatabaseError(DestinationSession), Item, True);
-  DestinationSession.Connection.EndSynchron();
+    DestinationSession.Connection.BeginSynchron();
+    while ((Success <> daAbort) and not DestinationDatabase.AddBaseTable(NewDestinationBaseTable)) do
+      DoError(DatabaseError(DestinationSession), Item, True);
+    DestinationSession.Connection.EndSynchron();
 
-  NewDestinationTable.Free();
+    NewDestinationBaseTable.Free();
+  end
+  else
+  begin
+    NewDestinationView := TSView.Create(DestinationDatabase.Tables);
+    NewDestinationView.Assign(SourceTable);
+    NewDestinationView.Name := DestinationSession.ApplyIdentifierName(NewDestinationView.Name);
+
+    DestinationSession.Connection.BeginSynchron();
+    while ((Success <> daAbort) and not DestinationDatabase.AddView(NewDestinationView)) do
+      DoError(DatabaseError(DestinationSession), Item, True);
+    DestinationSession.Connection.EndSynchron();
+
+    NewDestinationView.Free();
+  end;
 end;
 
 { TTSearch.TItem **************************************************************}

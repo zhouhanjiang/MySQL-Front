@@ -461,6 +461,7 @@ var
   Session: TSSession;
   Database: TSDatabase;
   I: Integer;
+  List: TList;
   NewNode: TTreeNode;
   TreeView: TTreeView_Ext;
 begin
@@ -501,7 +502,13 @@ begin
           begin
             Session := GetSession(Node.Parent.Index);
             Database := Session.DatabaseByName(Node.Text);
-            if (not Database.Tables.Update() or not Session.Update(Database.Tables)) then
+            List := TList.Create();
+            List.Add(Database.Tables);
+            if (Assigned(Database.Routines)) then
+              List.Add(Database.Routines);
+            if (Assigned(Database.Events)) then
+              List.Add(Database.Events);
+            if (not Session.Update(List)) then
               WantedNodeExpand := Node
             else
             begin
@@ -517,8 +524,30 @@ begin
                   NewNode := TreeView.Items.AddChild(Node, Database.Tables[I].Name);
                   NewNode.ImageIndex := iiView;
                   NewNode.Data := Database.Tables[I];
-                end
+                end;
+              if (Assigned(Database.Routines)) then
+                for I := 0 to Database.Routines.Count - 1 do
+                  if (Database.Routines[I] is TSProcedure) then
+                  begin
+                    NewNode := TreeView.Items.AddChild(Node, Database.Routines[I].Name);
+                    NewNode.ImageIndex := iiProcedure;
+                    NewNode.Data := Database.Routines[I];
+                  end
+                  else if (Database.Routines[I] is TSFunction) then
+                  begin
+                    NewNode := TreeView.Items.AddChild(Node, Database.Routines[I].Name);
+                    NewNode.ImageIndex := iiFunction;
+                    NewNode.Data := Database.Routines[I];
+                  end;
+              if (Assigned(Database.Events)) then
+                for I := 0 to Database.Events.Count - 1 do
+                begin
+                  NewNode := TreeView.Items.AddChild(Node, Database.Events[I].Name);
+                  NewNode.ImageIndex := iiEvent;
+                  NewNode.Data := Database.Events[I];
+                end;
             end;
+            List.Free();
           end;
       end;
     end;
@@ -542,26 +571,36 @@ procedure TDTransfer.TSExecuteShow(Sender: TObject);
 var
   Answer: Integer;
 
-  procedure AddTable(const SourceTable: TSTable; const DestinationSession: TSSession; const DestinationDatabaseName: string);
+  procedure AddDBObject(const SourceDBObject: TSDBObject; const DestinationSession: TSSession; const DestinationDatabaseName: string);
   var
     DestinationDatabase: TSDatabase;
-    DestinationTableName: string;
+    DestinationDBObjectName: string;
   begin
     if (Answer <> IDYESALL) then
     begin
       DestinationDatabase := DestinationSession.DatabaseByName(DestinationDatabaseName);
-      DestinationTableName := DestinationSession.TableName(SourceTable.Name);
+      if (SourceDBObject is TSTable) then
+        DestinationDBObjectName := DestinationSession.TableName(SourceDBObject.Name)
+      else
+        DestinationDBObjectName := SourceDBObject.Name;
       if (Assigned(DestinationDatabase)) then
       begin
         DestinationSession.Connection.BeginSynchron();
-        if (DestinationDatabase.Update() and Assigned(DestinationDatabase.TableByName(DestinationTableName))) then
-          Answer := MsgBox(Preferences.LoadStr(700, DestinationDatabase.Name + '.' + DestinationTableName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);
+        if (DestinationDatabase.Update()) then
+          if ((SourceDBObject is TSTable) and Assigned(DestinationDatabase.TableByName(DestinationDBObjectName))) then
+            Answer := MsgBox(Preferences.LoadStr(700, DestinationDatabase.Name + '.' + DestinationDBObjectName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
+          else if ((SourceDBObject is TSProcedure) and Assigned(DestinationDatabase.ProcedureByName(DestinationDBObjectName))) then
+            Answer := MsgBox(Preferences.LoadStr(777, DestinationDatabase.Name + '.' + DestinationDBObjectName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
+          else if ((SourceDBObject is TSFunction) and Assigned(DestinationDatabase.FunctionByName(DestinationDBObjectName))) then
+            Answer := MsgBox(Preferences.LoadStr(778, DestinationDatabase.Name + '.' + DestinationDBObjectName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
+          else if ((SourceDBObject is TSEvent) and Assigned(DestinationDatabase.EventByName(DestinationDBObjectName))) then
+            Answer := MsgBox(Preferences.LoadStr(920, DestinationDatabase.Name + '.' + DestinationDBObjectName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);
         DestinationSession.Connection.EndSynchron();
       end;
     end;
 
     if (Answer in [IDYES, IDYESALL]) then
-      Transfer.Add(SourceTable, DestinationDatabaseName)
+      Transfer.Add(SourceDBObject, DestinationDatabaseName)
     else if (Answer = IDCANCEL) then
       FreeAndNil(Transfer);
   end;
@@ -571,9 +610,9 @@ var
     Database: TSDatabase;
     I: Integer;
     J: Integer;
-    Objects: TList;
+    List: TList;
   begin
-    Objects := TList.Create();
+    List := TList.Create();
     case (Node.ImageIndex) of
       iiServer:
         begin
@@ -588,8 +627,8 @@ var
                 begin
                   for J := 0 to Database.Tables.Count - 1 do
                     if (Database.Tables[J] is TSBaseTable) then
-                      Objects.Add(Database.Tables[J]);
-                  Result := not Session.Update(Objects);
+                      List.Add(Database.Tables[J]);
+                  Result := not Session.Update(List);
                 end;
               end;
         end;
@@ -601,22 +640,25 @@ var
           begin
             for J := 0 to Database.Tables.Count - 1 do
               if (Database.Tables[J] is TSBaseTable) then
-                Objects.Add(Database.Tables[J]);
-            Result := not Session.Update(Objects);
+                List.Add(Database.Tables[J]);
+            Result := not Session.Update(List);
           end;
         end;
       iiBaseTable,
-      iiView:
+      iiView,
+      iiProcedure,
+      iiFunction,
+      iiEvent:
         begin
           for J := 0 to Node.Parent.Count - 1 do
             if (Node.Parent.Item[J].Selected) then
-              Objects.Add(Node.Parent.Item[J].Data);
-          Result := not Session.Update(Objects);
+              List.Add(Node.Parent.Item[J].Data);
+          Result := not Session.Update(List);
         end;
       else
         Result := False;
     end;
-    Objects.Free();
+    List.Free();
   end;
 
 var
@@ -679,11 +721,20 @@ begin
               Database := SourceSession.DatabaseByName(FSource.Selected.Parent[I].Text);
               for J := 0 to Database.Tables.Count - 1 do
                 if (Assigned(Transfer) and (Database.Tables[J] is TSBaseTable)) then
-                  AddTable(Database.Tables[J], DestinationSession, Database.Name);
+                  AddDBObject(Database.Tables[J], DestinationSession, Database.Name);
             end;
           iiBaseTable,
           iiView:
-            AddTable(SourceSession.DatabaseByName(FSource.Selected.Parent.Text).TableByName(FSource.Selected.Parent[I].Text),
+            AddDBObject(SourceSession.DatabaseByName(FSource.Selected.Parent.Text).TableByName(FSource.Selected.Parent[I].Text),
+              DestinationSession, FDestination.Selected.Text);
+          iiProcedure:
+            AddDBObject(SourceSession.DatabaseByName(FSource.Selected.Parent.Text).ProcedureByName(FSource.Selected.Parent[I].Text),
+              DestinationSession, FDestination.Selected.Text);
+          iiFunction:
+            AddDBObject(SourceSession.DatabaseByName(FSource.Selected.Parent.Text).FunctionByName(FSource.Selected.Parent[I].Text),
+              DestinationSession, FDestination.Selected.Text);
+          iiEvent:
+            AddDBObject(SourceSession.DatabaseByName(FSource.Selected.Parent.Text).EventByName(FSource.Selected.Parent[I].Text),
               DestinationSession, FDestination.Selected.Text);
         end;
 

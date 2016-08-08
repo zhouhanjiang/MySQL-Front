@@ -923,7 +923,7 @@ begin
     end;
 
     if (not Assigned(Table)) then
-      CanClose := Database.AddTable(NewTable)
+      CanClose := Database.AddBaseTable(NewTable)
     else
       CanClose := Database.UpdateTable(Table, NewTable);
 
