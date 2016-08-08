@@ -2055,9 +2055,15 @@ begin
   begin
     try
       if (not Session.SQLParser.ParseSQL(FSource)) then
-        Session.UnparsableSQL := '# SetSource()' + #1310 + Session.UnparsableSQL + Trim(FSource) + #13#10#13#10;
+        Session.UnparsableSQL := Session.UnparsableSQL
+          + '# SetSource()' + #13#10
+          + '# Error: ' + Session.SQLParser.Root^.FirstStmt^.ErrorMessage + #13#10
+          + Trim(FSource) + #13#10 + #13#10 + #13#10;
     except
-      Session.UnparsableSQL := '# SetSource()' + #1310 + Session.UnparsableSQL + Trim(FSource) + #13#10#13#10;
+      Session.UnparsableSQL := Session.UnparsableSQL
+        + '# SetSource()' + #13#10
+        + '# Error: ' + Session.SQLParser.Root^.FirstStmt^.ErrorMessage + #13#10
+        + Trim(FSource) + #13#10 + #13#10 + #13#10;
     end;
     Session.SQLParser.Clear();
   end;
@@ -2228,7 +2234,7 @@ begin
         begin
           Dependency := TSDependency.Create(Session);
           DbIdent := TMySQLParser.PDbIdent(Token^.ParentNode);
-          if (Assigned(DbIdent) and Assigned(DbIdent^.DatabaseIdent) and (DbIdent^.DatabaseIdent^.NodeType = ntToken)) then
+          if (Assigned(DbIdent) and Assigned(DbIdent^.DatabaseIdent) and Assigned(DbIdent^.DatabaseIdent)) then
           begin
             DatabaseToken := DbIdent^.DatabaseIdent;
             Dependency.DatabaseName := DatabaseToken^.AsString;
@@ -2241,7 +2247,7 @@ begin
         begin
           Dependency := TSDependency.Create(Session);
           DbIdent := TMySQLParser.PDbIdent(Token^.ParentNode);
-          if (Assigned(DbIdent) and Assigned(DbIdent^.DatabaseIdent) and (DbIdent^.DatabaseIdent^.NodeType = ntToken)) then
+          if (Assigned(DbIdent) and Assigned(DbIdent^.DatabaseIdent) and Assigned(DbIdent^.DatabaseIdent)) then
           begin
             DatabaseToken := DbIdent^.DatabaseIdent;
             Dependency.DatabaseName := DatabaseToken^.AsString;
@@ -2254,7 +2260,7 @@ begin
         begin
           Dependency := TSDependency.Create(Session);
           DbIdent := TMySQLParser.PDbIdent(Token^.ParentNode);
-          if (Assigned(DbIdent) and Assigned(DbIdent^.DatabaseIdent) and (DbIdent^.DatabaseIdent^.NodeType = ntToken)) then
+          if (Assigned(DbIdent) and Assigned(DbIdent^.DatabaseIdent) and Assigned(DbIdent^.DatabaseIdent)) then
           begin
             DatabaseToken := DbIdent^.DatabaseIdent;
             Dependency.DatabaseName := DatabaseToken^.AsString;
@@ -10640,6 +10646,9 @@ var
 begin
   if (not Assigned(FEngines) and Connecting) then
   begin
+    if (not Assigned(SQLParser)) then
+      SQLParser := TMySQLParser.Create(Connection.ServerVersion);
+
     if (not Assigned(FCollations) and (Connection.ServerVersion >= 40100)) then FCollations := TSCollations.Create(Self);
     if (not Assigned(FFieldTypes)) then FFieldTypes := TSFieldTypes.Create(Self);
     if (not Assigned(FEngines)) then FEngines := TSEngines.Create(Self);
@@ -10760,7 +10769,7 @@ begin
   FSyntaxProvider.ServerVersionInt := Connection.ServerVersion;
   FUser := nil;
   ParseEndDate := EncodeDate(2016, 8, 10);
-  SQLParser := TMySQLParser.Create(Connection.ServerVersion);
+  SQLParser := nil;
   UnparsableSQL := '';
 
   if (not Assigned(AAccount)) then
@@ -11503,9 +11512,17 @@ begin
     SetString(S, Text, Len);
     try
       if (not SQLParser.ParseSQL(S)) then
-        UnparsableSQL := '# MonitorExecutedStmts()' + #1310 + UnparsableSQL + Trim(S) + #13#10#13#10;
+      begin
+        UnparsableSQL := UnparsableSQL
+          + '# MonitorExecutedStmts()' + #13#10
+          + '# Error: ' + SQLParser.Root^.FirstStmt^.ErrorMessage + #13#10
+          + Trim(S) + ';' + #13#10 + #13#10 + #13#10;
+      end;
     except
-      UnparsableSQL := '# MonitorExecutedStmts()' + #1310 + UnparsableSQL + Trim(S) + #13#10#13#10;
+      UnparsableSQL := UnparsableSQL
+        + '# MonitorExecutedStmts()' + #13#10
+        + '# Error: ' + SQLParser.Root^.FirstStmt^.ErrorMessage + #13#10
+        + Trim(S) + ';' + #13#10 + #13#10 + #13#10;
     end;
     SQLParser.Clear();
   end;
@@ -12002,6 +12019,7 @@ begin
       if (Assigned(Request)) then
       begin
         Headers := 'Content-Type: text/plain; charset=UTF-8' + #10
+          + 'Content-Transfer-Encoding: binary' + #10
           + 'MySQL: ' + Self.Connection.ServerVersionStr + #10
           + 'MySQL-Front: ' + Preferences.VersionStr + #10;
         if (not HttpSendRequest(Request, PChar(Headers), Length(Headers), @Body[1], Length(Body))) then

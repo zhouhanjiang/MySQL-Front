@@ -1599,7 +1599,7 @@ begin
     SQLEscape(Text, Length, WriteExternal(Len), Len);
 end;
 
-{ TTools **********************************************************************}
+{ TTool ***********************************************************************}
 
 procedure TTool.AfterExecute();
 begin

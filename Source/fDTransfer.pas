@@ -912,7 +912,14 @@ begin
 end;
 
 procedure TDTransfer.TSWhatShow(Sender: TObject);
+var
+  I: Integer;
 begin
+  FData.Enabled := False;
+  for I := 0 to FSource.SelectionCount - 1 do
+    FData.Enabled := FData.Enabled or (FSource.Selections[I].ImageIndex = iiBaseTable);
+  FData.Checked := FData.Checked and FData.Enabled;
+
   TSExecute.Enabled := FStructure.Checked or FData.Checked;
   CheckActivePageChange(TSWhat.PageIndex);
 end;

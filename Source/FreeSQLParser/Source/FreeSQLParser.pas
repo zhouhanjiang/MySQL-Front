@@ -47,6 +47,33 @@ type
       end;
       TValueAssign = (vaYes, vaNo, vaAuto);
 
+      TStringBuffer = class
+      private
+        Buffer: record
+          Mem: PChar;
+          MemSize: Integer;
+          Write: PChar;
+        end;
+        function GetData(): Pointer; inline;
+        function GetLength(): Integer; inline;
+        function GetSize(): Integer; inline;
+        function GetText(): PChar; inline;
+        procedure Reallocate(const NeededLength: Integer);
+      public
+        procedure Clear();
+        constructor Create(const InitialLength: Integer);
+        procedure Delete(const Start: Integer; const Length: Integer);
+        destructor Destroy(); override;
+        function Read(): string; inline;
+        procedure Write(const Text: PChar; const Length: Integer); overload; inline;
+        procedure Write(const Text: string); overload; inline;
+        procedure Write(const Char: Char); overload; inline;
+        property Data: Pointer read GetData;
+        property Length: Integer read GetLength;
+        property Size: Integer read GetSize;
+        property Text: PChar read GetText;
+      end;
+
       TWordList = class
       private type
         TIndex = SmallInt;
@@ -177,29 +204,31 @@ type
         {$ENDIF}
         function GetIsUsed(): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
         function GetNextToken(): PToken;
+        function GetNextTokenAll(): PToken;
         function GetOffset(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
         function GetParentNode(): PNode; {$IFNDEF Debug} inline; {$ENDIF}
         function GetText(): string;
+        procedure SetText(AText: string);
+        property ErrorCode: TErrorCode read FErrorCode;
+        property ErrorPos: PChar read FErrorPos;
         property Generation: Integer read GetGeneration;
         {$IFDEF Debug}
         property Index: Integer read FIndex;
         {$ELSE}
-        property Index: Integer read GetIndex; // VERY slow. Should be used for debugging only.
+        property Index: Integer read GetIndex; // VERY slow. Should be used for internal debugging only.
         {$ENDIF}
+        property IsUsed: Boolean read GetIsUsed;
+        property NextTokenAll: PToken read GetNextTokenAll;
         property Offset: TOffset read GetOffset;
         property Parser: TMySQLParser read Heritage.Heritage.FParser;
       public
         property AsString: string read GetAsString;
         property DbIdentType: TDbIdentType read GetDbIdentType;
-        property ErrorCode: TErrorCode read FErrorCode;
-        property ErrorPos: PChar read FErrorPos;
-        property IsUsed: Boolean read GetIsUsed;
         property KeywordIndex: TWordList.TIndex read FKeywordIndex;
         property NextToken: PToken read GetNextToken;
-        property NodeType: TNodeType read Heritage.Heritage.FNodeType;
         property OperatorType: TOperatorType read FOperatorType;
         property ParentNode: PNode read GetParentNode;
-        property Text: string read GetText;
+        property Text: string read GetText write SetText;
         property TokenType: fspTypes.TTokenType read FTokenType;
         property UsageType: TUsageType read FUsageType;
       end;
@@ -233,15 +262,18 @@ type
         property FFirstToken: TOffset read Heritage.FFirstToken write Heritage.FFirstToken;
         property FLastToken: TOffset read Heritage.FLastToken write Heritage.FLastToken;
       private
-        FStmtType: TStmtType; // Cache for speeding
         FErrorCode: TErrorCode;
         FErrorToken: TOffset;
+        FFirstTokenAll: TOffset;
+        FLastTokenAll: TOffset;
+        FStmtType: TStmtType; // Cache for speeding
         class function Create(const AParser: TMySQLParser; const AStmtType: TStmtType): TOffset; static;
         function GetErrorMessage(): string;
         function GetErrorToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
         function GetFirstToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
         function GetLastToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
         function GetNextStmt(): PStmt;
+        function GetText(): string;
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
       public
         property ErrorCode: TErrorCode read FErrorCode;
@@ -250,8 +282,8 @@ type
         property FirstToken: PToken read GetFirstToken;
         property LastToken: PToken read GetLastToken;
         property NextStmt: PStmt read GetNextStmt;
-        property NodeType: TNodeType read Heritage.Heritage.Heritage.FNodeType;
         property StmtType: TStmtType read FStmtType;
+        property Text: string read GetText;
       end;
 
       { Normal nodes ----------------------------------------------------------}
@@ -4444,6 +4476,7 @@ type
 
   private
     FCurrentToken: TOffset; // Cache for speeding
+    FPreviousToken: TOffset;
     FInPL_SQL: Integer;
     MySQLVersions: array of Integer;
     OperatorTypeByKeywordIndex: array of TOperatorType;
@@ -4462,6 +4495,7 @@ type
     property Error: Boolean read GetError;
     property InPL_SQL: Boolean read GetInPL_SQL;
     property NextToken[Index: Integer]: TOffset read GetNextToken;
+    property PreviousToken: TOffset read FPreviousToken;
 
   protected
     FAnsiQuotes: Boolean;
@@ -4478,8 +4512,16 @@ type
       MemSize: Integer;
     end;
     FParsedText: string;
-    FParsePos: packed record Text: PChar; Length: Integer; end;
+    FParsePos: record
+      Text: PChar;
+      Length: Integer;
+    end;
     FRoot: TOffset;
+    FText: record
+      Mem: PChar;
+      UsedSize: Integer;
+      MemSize: Integer;
+    end;
     InCreateFunctionStmt: Boolean;
     InCreateProcedureStmt: Boolean;
     TokenBuffer: record
@@ -4504,6 +4546,7 @@ type
     function IsToken(const ANode: PNode): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function IsToken(const ANode: TOffset): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function NewNode(const ANodeType: TNodeType): TOffset;
+    function NewText(const AText: string): TOffset;
     function NodePtr(const ANode: TOffset): PNode; {$IFNDEF Debug} inline; {$ENDIF}
     function NodeSize(const NodeType: TNodeType): Integer;
     function ParseRoot(): TOffset; overload;
@@ -4780,6 +4823,102 @@ begin
   Result[3] := Index3;
   Result[4] := Index4;
   Result[5] := Index5;
+end;
+
+{ TMySQLParser.TStringBuffer **************************************************}
+
+procedure TMySQLParser.TStringBuffer.Clear();
+begin
+  Buffer.Write := Buffer.Mem;
+end;
+
+constructor TMySQLParser.TStringBuffer.Create(const InitialLength: Integer);
+begin
+  Buffer.Mem := nil;
+  Buffer.MemSize := 0;
+  Buffer.Write := nil;
+
+  Reallocate(InitialLength);
+end;
+
+procedure TMySQLParser.TStringBuffer.Delete(const Start: Integer; const Length: Integer);
+begin
+  MoveMemory(@Buffer.Mem[Start], @Buffer.Mem[Start + Length], Size - Length);
+  Buffer.Write := Pointer(Integer(Buffer.Write) - Length);
+end;
+
+destructor TMySQLParser.TStringBuffer.Destroy();
+begin
+  FreeMem(Buffer.Mem);
+
+  inherited;
+end;
+
+function TMySQLParser.TStringBuffer.GetData(): Pointer;
+begin
+  Result := Pointer(Buffer.Mem);
+end;
+
+function TMySQLParser.TStringBuffer.GetLength(): Integer;
+begin
+  Result := (Integer(Buffer.Write) - Integer(Buffer.Mem)) div SizeOf(Buffer.Mem[0]);
+end;
+
+function TMySQLParser.TStringBuffer.GetSize(): Integer;
+begin
+  Result := Integer(Buffer.Write) - Integer(Buffer.Mem);
+end;
+
+function TMySQLParser.TStringBuffer.GetText(): PChar;
+begin
+  Result := Buffer.Mem;
+end;
+
+function TMySQLParser.TStringBuffer.Read(): string;
+begin
+  SetString(Result, PChar(Buffer.Mem), Size div SizeOf(Result[1]));
+end;
+
+procedure TMySQLParser.TStringBuffer.Reallocate(const NeededLength: Integer);
+var
+  Index: Integer;
+begin
+  if (Buffer.MemSize = 0) then
+  begin
+    Buffer.MemSize := NeededLength * SizeOf(Buffer.Write[0]);
+    GetMem(Buffer.Mem, Buffer.MemSize);
+    Buffer.Write := Buffer.Mem;
+  end
+  else if (Size + NeededLength * SizeOf(Buffer.Mem[0]) > Buffer.MemSize) then
+  begin
+    Index := Size div SizeOf(Buffer.Write[0]);
+    Inc(Buffer.MemSize, 2 * (Size + NeededLength * SizeOf(Buffer.Mem[0]) - Buffer.MemSize));
+    ReallocMem(Buffer.Mem, Buffer.MemSize);
+    Buffer.Write := @Buffer.Mem[Index];
+  end;
+end;
+
+procedure TMySQLParser.TStringBuffer.Write(const Text: PChar; const Length: Integer);
+begin
+  if (Length > 0) then
+  begin
+    Reallocate(Length);
+
+    Move(Text^, Buffer.Write^, Length * SizeOf(Buffer.Mem[0]));
+    Buffer.Write := @Buffer.Write[Length];
+  end;
+end;
+
+procedure TMySQLParser.TStringBuffer.Write(const Text: string);
+begin
+  Write(PChar(Text), System.Length(Text));
+end;
+
+procedure TMySQLParser.TStringBuffer.Write(const Char: Char);
+begin
+  Reallocate(1);
+  Move(Char, Buffer.Write^, SizeOf(Char));
+  Buffer.Write := @Buffer.Write[1];
 end;
 
 { TMySQLParser.TWordList ******************************************************}
@@ -5230,6 +5369,22 @@ begin
   until (not Assigned(Result) or Result^.IsUsed);
 end;
 
+function TMySQLParser.TToken.GetNextTokenAll(): PToken;
+var
+  Offset: TOffset;
+begin
+  Offset := PNode(@Self)^.Offset;
+  repeat
+    repeat
+      Inc(Offset, Parser.NodeSize(Parser.NodePtr(Offset)^.NodeType));
+    until ((Offset = Parser.FNodes.UsedSize) or (Parser.NodePtr(Offset)^.NodeType = ntToken));
+    if (Offset = Parser.FNodes.UsedSize) then
+      Result := nil
+    else
+      Result := PToken(Parser.NodePtr(Offset));
+  until (not Assigned(Result) or Parser.IsToken(Offset));
+end;
+
 function TMySQLParser.TToken.GetOffset(): TOffset;
 begin
   Result := Heritage.Heritage.GetOffset();
@@ -5243,6 +5398,11 @@ end;
 function TMySQLParser.TToken.GetText(): string;
 begin
   SetString(Result, FText.SQL, FText.Length)
+end;
+
+procedure TMySQLParser.TToken.SetText(AText: string);
+begin
+//  FText.SQL := Parser.NewText(AText);
 end;
 
 { TMySQLParser.TRange *********************************************************}
@@ -5385,10 +5545,10 @@ begin
   with PStmt(AParser.NodePtr(Result))^ do
   begin
     FStmtType := AStmtType;
-    {$IFDEF Debug}
     FErrorCode := PE_Success;
     FErrorToken := 0;
-    {$ENDIF}
+    FFirstTokenAll := 0;
+    FLastTokenAll := 0;
   end;
 end;
 
@@ -5426,7 +5586,7 @@ begin
     Result := nil
   else
   begin
-    Token := LastToken;
+    Token := Parser.TokenPtr(FLastTokenAll);
     while (Assigned(Token) and (Token^.TokenType <> ttDelimiter)) do
       Token := Token^.NextToken;
     while (Assigned(Token) and (Token^.TokenType = ttDelimiter)) do
@@ -5440,6 +5600,22 @@ begin
       Result := nil
     else
       Result := PStmt(Child);
+  end;
+end;
+
+function TMySQLParser.TStmt.GetText(): string;
+var
+  Token: PToken;
+begin
+  Result := '';
+  Token := Parser.TokenPtr(FFirstTokenAll);
+  while (Assigned(Token)) do
+  begin
+    Result := Result + Token^.Text;
+    if (Token = Parser.TokenPtr(FLastTokenAll)) then
+      Token := nil
+    else
+      Token := Token^.NextTokenAll;
   end;
 end;
 
@@ -9088,6 +9264,7 @@ begin
     Dec(TokenBuffer.Count);
     Move(TokenBuffer.Tokens[1], TokenBuffer.Tokens[0], TokenBuffer.Count * SizeOf(TokenBuffer.Tokens[0]));
 
+    FPreviousToken := FCurrentToken;
     FCurrentToken := GetParsedToken(0); // Cache for speeding
   end;
 end;
@@ -9117,6 +9294,7 @@ begin
   FParsedText := '';
   FParsePos.Text := nil;
   FParsePos.Length := 0;
+  if (Assigned(FText.Mem)) then begin FreeMem(FText.Mem); FText.Mem := nil; end;
   TokenBuffer.Count := 0;
   FRoot := 0;
   SetLength(MySQLVersions, 0);
@@ -9140,6 +9318,7 @@ begin
   FNodes.Mem := nil;
   FNodes.UsedSize := 0;
   FNodes.MemSize := 0;
+  FText.Mem := nil;
   TokenBuffer.Count := 0;
 
   Functions := MySQLFunctions;
@@ -9269,6 +9448,8 @@ end;
 
 function TMySQLParser.GetRoot(): PRoot;
 begin
+  Assert(FRoot < FNodes.UsedSize);
+
   if (FRoot = 0) then
     Result := nil
   else
@@ -9404,6 +9585,19 @@ begin
 
   Result := FNodes.UsedSize;
   Inc(FNodes.UsedSize, Size);
+end;
+
+function TMySQLParser.NewText(const AText: string): TOffset;
+begin
+  if (FText.UsedSize + Length(AText) >= FText.MemSize) then
+  begin
+    FText.MemSize := Min(2 * FText.MemSize, FText.UsedSize + Length(AText) + FText.MemSize);
+    ReallocMem(FText.Mem, FText.MemSize);
+  end;
+
+  Result := FText.UsedSize;
+  Move(Text[1], FText.Mem[FText.UsedSize], Length(AText));
+  Inc(FText.UsedSize, Length(AText));
 end;
 
 function TMySQLParser.NodePtr(const ANode: TOffset): PNode;
@@ -9623,6 +9817,7 @@ end;
 
 function TMySQLParser.ParseRoot(): TOffset;
 var
+  Stmt: TOffset;
   Stmts: Classes.TList;
 begin
   if (AnsiQuotes) then
@@ -9637,7 +9832,11 @@ begin
   FNodes.MemSize := 1024;
   ReallocMem(FNodes.Mem, FNodes.MemSize);
   FNodes.UsedSize := 1; // "0" means "not assigned", so we start with "1"
+  FText.MemSize := 1024;
+  ReallocMem(FText.Mem, FText.MemSize);
+  FText.UsedSize := 1; // "0" means "not assigned", so we start with "1"
 
+  FPreviousToken := 0;
   FCurrentToken := GetParsedToken(0); // Cache for speeding
 
   Stmts := Classes.TList.Create();
@@ -9647,7 +9846,9 @@ begin
     FErrorCode := PE_Success;
     FErrorToken := 0;
 
-    Stmts.Add(Pointer(ParseStmt()));
+    Stmt := ParseStmt();
+    if (Stmt > 0) then
+      Stmts.Add(Pointer(Stmt));
 
     while ((CurrentToken > 0) and (TokenPtr(CurrentToken)^.TokenType = ttDelimiter)) do
       ApplyCurrentToken();
@@ -15934,7 +16135,7 @@ begin
 
     if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiSTARTS)) then
     begin
-      Nodes.StartsValue := ParseValue(kiSTARTS, vaNo, ParseString);
+      Nodes.StartsValue := ParseValue(kiSTARTS, vaNo, ParseExpr);
 
       if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.OperatorType = otPlus)) then
         Nodes.AtIntervalList := ParseIntervalOpList();
@@ -15942,7 +16143,7 @@ begin
 
     if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiENDS)) then
     begin
-      Nodes.EndsValue := ParseValue(kiENDS, vaNo, ParseString);
+      Nodes.EndsValue := ParseValue(kiENDS, vaNo, ParseExpr);
 
       if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.OperatorType = otPlus)) then
         Nodes.AtIntervalList := ParseIntervalOpList();
@@ -17530,16 +17731,31 @@ function TMySQLParser.ParseStmt(): TOffset;
 var
   Continue: Boolean;
   Index: Integer;
+  FFirstTokenAll: TOffset;
+  FLastTokenAll: TOffset;
   KeywordIndex: TWordList.TIndex; // Cache for speeding
   KeywordIndex1: TWordList.TIndex; // Cache for speeding
   KeywordIndex2: TWordList.TIndex; // Cache for speeding
   KeywordToken: TOffset;
+  T: PToken;
   Token: TOffset;
 begin
   Result := 0;
   {$IFDEF Debug}
   Continue := False;
   {$ENDIF}
+
+  Token := PreviousToken;
+  if (Token = 0) then
+    FFirstTokenAll := 1
+  else
+  begin
+    Token := PreviousToken;
+    if (TokenPtr(PreviousToken)^.TokenType = ttDelimiter) then
+      FFirstTokenAll := TokenPtr(PreviousToken)^.NextTokenAll^.Offset
+    else
+      FFirstTokenAll := TokenPtr(PreviousToken)^.NextTokenAll^.NextTokenAll^.Offset;
+  end;
 
   KeywordToken := CurrentToken;
   if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType = ttBeginLabel)) then
@@ -17856,8 +18072,23 @@ begin
 
     if (IsStmt(Result)) then
     begin
+      Token := StmtPtr(Result)^.FLastToken;
+      FLastTokenAll := Token;
+      while ((Token > 0) and (TokenPtr(Token)^.TokenType <> ttDelimiter)) do
+      begin
+        T := TokenPtr(Token)^.NextTokenAll;
+        if (not Assigned(T)) then
+          Token := 0
+        else
+          Token := T^.Offset;
+        if ((Token > 0) and (TokenPtr(Token)^.TokenType <> ttDelimiter)) then
+          FLastTokenAll := Token;
+      end;
+
       StmtPtr(Result)^.FErrorCode := FErrorCode;
       StmtPtr(Result)^.FErrorToken := FErrorToken;
+      StmtPtr(Result)^.FFirstTokenAll := FFirstTokenAll;
+      StmtPtr(Result)^.FLastTokenAll := FLastTokenAll;
 
       if (not Error and not EndOfStmt(CurrentToken)) then
         SetError(PE_ExtraToken);
@@ -20019,10 +20250,10 @@ begin
                       + '<tr><td>OperatorType:</td><td>&nbsp;</td><td>' + OperatorTypeToString[PToken(PBinaryOp(Node)^.Operator)^.OperatorType] + '</td></tr>';
                 ntCreateRoutineStmt:
                   HTML := HTML
-                    + '<tr><td>CreateRoutineType:</td><td>&nbsp;</td><td>' + RoutineTypeToString[PCreateRoutineStmt(Node)^.RoutineType] + '</td></tr>';
+                    + '<tr><td>RoutineType:</td><td>&nbsp;</td><td>' + RoutineTypeToString[PCreateRoutineStmt(Node)^.RoutineType] + '</td></tr>';
                 ntDropRoutineStmt:
                   HTML := HTML
-                    + '<tr><td>DropRoutineType:</td><td>&nbsp;</td><td>' + RoutineTypeToString[PDropRoutineStmt(Node)^.RoutineType] + '</td></tr>';
+                    + '<tr><td>RoutineType:</td><td>&nbsp;</td><td>' + RoutineTypeToString[PDropRoutineStmt(Node)^.RoutineType] + '</td></tr>';
                 ntDbIdent:
                   HTML := HTML
                     + '<tr><td>DbIdentType:</td><td>&nbsp;</td><td>' + DbIdentTypeToString[PDbIdent(Node)^.DbIdentType] + '</td></tr>';
