@@ -2217,9 +2217,9 @@ end;
 
 function TSDBObject.GetDependencies(): TSDependencies;
 var
-  DatabaseToken: TMySQLParser.PToken;
-  DbIdent: TMySQLParser.PDbIdent;
   Dependency: TSDependency;
+  PreviousToken1: TMySQLParser.PToken;
+  PreviousToken2: TMySQLParser.PToken;
   Token: TMySQLParser.PToken;
 begin
   if (not Assigned(FDependencies)) then
@@ -2228,48 +2228,39 @@ begin
     begin
       FDependencies := TSDependencies.Create();
 
+      PreviousToken1 := nil; PreviousToken2 := nil;
       Token := Session.SQLParser.Root^.FirstToken;
       repeat
-        if ((Token^.DbIdentType = ditTable) and (Token^.ParentNode^.NodeType = ntDbIdent)) then
+        if (Token^.DbIdentType = ditTable) then
         begin
           Dependency := TSDependency.Create(Session);
-          DbIdent := TMySQLParser.PDbIdent(Token^.ParentNode);
-          if (Assigned(DbIdent) and Assigned(DbIdent^.DatabaseIdent) and Assigned(DbIdent^.DatabaseIdent)) then
-          begin
-            DatabaseToken := DbIdent^.DatabaseIdent;
-            Dependency.DatabaseName := DatabaseToken^.AsString;
-          end;
+          if ((PreviousToken1^.OperatorType = otDot) and (PreviousToken2^.TokenType in Session.SQLParser.ttIdents)) then
+            Dependency.DatabaseName := PreviousToken2^.AsString;
           Dependency.DependedClass := TSTable;
           Dependency.DependedName := Token.AsString;
           FDependencies.Add(Dependency);
         end
-        else if ((Token^.DbIdentType = ditFunction) and (Token^.ParentNode^.NodeType = ntDbIdent)) then
+        else if (Token^.DbIdentType = ditFunction) then
         begin
           Dependency := TSDependency.Create(Session);
-          DbIdent := TMySQLParser.PDbIdent(Token^.ParentNode);
-          if (Assigned(DbIdent) and Assigned(DbIdent^.DatabaseIdent) and Assigned(DbIdent^.DatabaseIdent)) then
-          begin
-            DatabaseToken := DbIdent^.DatabaseIdent;
-            Dependency.DatabaseName := DatabaseToken^.AsString;
-          end;
+          if ((PreviousToken1^.OperatorType = otDot) and (PreviousToken2^.TokenType in Session.SQLParser.ttIdents)) then
+            Dependency.DatabaseName := PreviousToken2^.AsString;
           Dependency.DependedClass := TSFunction;
           Dependency.DependedName := Token.AsString;
           FDependencies.Add(Dependency);
         end
-        else if ((Token^.DbIdentType = ditProcedure) and (Token^.ParentNode^.NodeType = ntDbIdent)) then
+        else if ((Token^.DbIdentType = ditProcedure)) then
         begin
           Dependency := TSDependency.Create(Session);
-          DbIdent := TMySQLParser.PDbIdent(Token^.ParentNode);
-          if (Assigned(DbIdent) and Assigned(DbIdent^.DatabaseIdent) and Assigned(DbIdent^.DatabaseIdent)) then
-          begin
-            DatabaseToken := DbIdent^.DatabaseIdent;
-            Dependency.DatabaseName := DatabaseToken^.AsString;
-          end;
+          if ((PreviousToken1^.OperatorType = otDot) and (PreviousToken2^.TokenType in Session.SQLParser.ttIdents)) then
+            Dependency.DatabaseName := PreviousToken2^.AsString;
           Dependency.DependedClass := TSProcedure;
           Dependency.DependedName := Token.AsString;
           FDependencies.Add(Dependency);
         end;
 
+        PreviousToken2 := PreviousToken1;
+        PreviousToken1 := Token;
         Token := Token^.NextToken;
       until (not Assigned(Token));
     end;
@@ -5111,7 +5102,9 @@ var
   EndingCommentLen: Integer;
   Len: Integer;
   Parse: TSQLParse;
+  PreviousToken: TMySQLParser.PToken;
   StartingCommentLen: Integer;
+  Token: TMySQLParser.PToken;
 begin
   if (not SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.ServerVersion)) then
     Result := ''
@@ -5186,6 +5179,54 @@ begin
       FCheckOption := voNone;
 
     FStmt := Copy(SQL, SQLParseGetIndex(Parse), Len) + ';';
+
+    if (Session.SQLParser.ParseSQL(FStmt)) then
+    begin
+      PreviousToken := nil;
+      Token := Session.SQLParser.Root^.FirstStmt^.FirstToken;
+      while (Assigned(Token)) do
+      begin
+        if ((Token^.TokenType = ttDot) and (PreviousToken^.DbIdentType = ditDatabase)
+          and (Database.Databases.NameCmp(PreviousToken^.AsString, Database.Name) = 0)) then
+        begin
+          PreviousToken^.Text := '';
+          Token^.Text := '';
+        end;
+
+        PreviousToken := Token;
+        if (Token = Session.SQLParser.Root^.FirstStmt^.LastToken) then
+          Token := nil
+        else
+          Token := Token^.NextToken;
+      end;
+
+      PreviousToken := nil;
+      Token := Session.SQLParser.Root^.FirstStmt^.FirstToken;
+      while (Assigned(Token)) do
+      begin
+        if ((Token^.NextToken^.DbIdentType = ditAlias)
+          and (lstrcmpi(PChar(Token^.Text), PChar('AS')) = 0)
+          and (lstrcmp(PChar(PreviousToken^.AsString), PChar(Token^.NextToken^.AsString)) = 0)) then
+        begin
+          if (PreviousToken^.NextTokenAll^.TokenType in [ttSpace, ttReturn]) then
+            PreviousToken^.NextTokenAll^.Text := '';
+          Token^.Text := '';
+          if (Token^.NextTokenAll^.TokenType in [ttSpace, ttReturn]) then
+            Token^.NextTokenAll^.Text := '';
+          Token^.NextToken^.Text := '';
+        end;
+
+        PreviousToken := Token;
+        if (Token = Session.SQLParser.Root^.FirstStmt^.LastToken) then
+          Token := nil
+        else
+          Token := Token^.NextToken;
+      end;
+
+      FStmt := Session.SQLParser.Root^.FirstStmt^.Text;
+    end;
+
+    Session.SQLParser.Clear();
 
     FSourceParsed := True;
   end;
@@ -10768,7 +10809,7 @@ begin
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.ServerVersion;
   FUser := nil;
-  ParseEndDate := EncodeDate(2016, 8, 10);
+  ParseEndDate := EncodeDate(2016, 8, 12);
   SQLParser := nil;
   UnparsableSQL := '';
 
@@ -11516,13 +11557,13 @@ begin
         UnparsableSQL := UnparsableSQL
           + '# MonitorExecutedStmts()' + #13#10
           + '# Error: ' + SQLParser.Root^.FirstStmt^.ErrorMessage + #13#10
-          + Trim(S) + ';' + #13#10 + #13#10 + #13#10;
+          + Trim(S) + #13#10 + #13#10 + #13#10;
       end;
     except
       UnparsableSQL := UnparsableSQL
         + '# MonitorExecutedStmts()' + #13#10
         + '# Error: ' + SQLParser.Root^.FirstStmt^.ErrorMessage + #13#10
-        + Trim(S) + ';' + #13#10 + #13#10 + #13#10;
+        + Trim(S) + #13#10 + #13#10 + #13#10;
     end;
     SQLParser.Clear();
   end;

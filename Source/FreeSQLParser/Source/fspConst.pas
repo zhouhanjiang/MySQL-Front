@@ -121,6 +121,7 @@ const
     'ntRange',
     'ntToken',
 
+    'ntAnalyzeStmt',
     'ntAlterDatabaseStmt',
     'ntAlterEventStmt',
     'ntAlterRoutineStmt',
@@ -142,6 +143,9 @@ const
     'ntCaseStmtBranch',
     'ntCastFunc',
     'ntCharFunc',
+    'ntCheckStmt',
+    'ntCheckStmtOption',
+    'ntChecksumStmt',
     'ntCloseStmt',
     'ntCommitStmt',
     'ntCompoundStmt',
@@ -220,13 +224,15 @@ const
     'ntPrepareStmt',
     'ntOj',
     'ntOpenStmt',
+    'ntOptimizeStmt',
     'ntRegExpOp',
     'ntRenameStmt',
     'ntRenameStmtPair',
     'ntReleaseStmt',
+    'ntRepairStmt',
     'ntRepeatStmt',
-    'ntReturnStmt',
     'ntResetStmt',
+    'ntReturnStmt',
     'ntRevokeStmt',
     'ntRollbackStmt',
     'ntRoutineParam',
@@ -322,6 +328,7 @@ const
   );
 
   StmtTypeToString: array[TStmtType] of PChar = (
+    'stAnalyze',
     'stAlterDatabase',
     'stAlterEvent',
     'stAlterRoutine',
@@ -331,6 +338,8 @@ const
     'stBegin',
     'stCall',
     'stCase',
+    'stCheck',
+    'stChecksum',
     'stClose',
     'stCommit',
     'stCompound',
@@ -377,11 +386,13 @@ const
     'stLoop',
     'stPrepare',
     'stOpen',
+    'stOptimize',
     'stRename',
     'stRelease',
+    'stRepair',
     'stRepeat',
-    'stReturn',
     'stReset',
+    'stReturn',
     'stRevoke',
     'stRollback',
     'stSavepoint',
@@ -650,6 +661,7 @@ const
   );
   MaxOperatorPrecedence = 17;
 
+var
   UsageTypeByTokenType: array[TTokenType] of TUsageType = (
     utUnknown,
     utSyntaxError,
@@ -683,6 +695,7 @@ const
   );
 
   NodeTypeByStmtType: array[TStmtType] of TNodeType = (
+    ntAnalyzeStmt,
     ntAlterDatabaseStmt,
     ntAlterEventStmt,
     ntAlterRoutineStmt,
@@ -692,6 +705,8 @@ const
     ntBeginStmt,
     ntCallStmt,
     ntCaseStmt,
+    ntCheckStmt,
+    ntChecksumStmt,
     ntCloseStmt,
     ntCommitStmt,
     ntCompoundStmt,
@@ -738,11 +753,13 @@ const
     ntLoopStmt,
     ntPrepareStmt,
     ntOpenStmt,
+    ntOptimizeStmt,
     ntRenameStmt,
     ntReleaseStmt,
+    ntRepairStmt,
     ntRepeatStmt,
-    ntReturnStmt,
     ntResetStmt,
+    ntReturnStmt,
     ntRevokeStmt,
     ntRollbackStmt,
     ntSavepointStmt,
@@ -805,7 +822,9 @@ const
     ntXAStmt
   );
 
+const
   StmtNodeTypes = [
+    ntAnalyzeStmt,
     ntAlterDatabaseStmt,
     ntAlterEventStmt,
     ntAlterRoutineStmt,
@@ -815,6 +834,8 @@ const
     ntBeginStmt,
     ntCallStmt,
     ntCaseStmt,
+    ntCheckStmt,
+    ntChecksumStmt,
     ntCloseStmt,
     ntCommitStmt,
     ntCompoundStmt,
@@ -861,11 +882,13 @@ const
     ntLoopStmt,
     ntPrepareStmt,
     ntOpenStmt,
+    ntOptimizeStmt,
     ntRenameStmt,
     ntReleaseStmt,
+    ntRepairStmt,
     ntRepeatStmt,
-    ntReturnStmt,
     ntResetStmt,
+    ntReturnStmt,
     ntRevokeStmt,
     ntRollbackStmt,
     ntSavepointStmt,
