@@ -7752,8 +7752,6 @@ begin
         end
         else
           raise ERangeError.Create(SRangeError);
-        if ((Session.Connection.ServerVersion >= 40100) and (NewField.Comment <> '')) then
-          SQLPart := SQLPart + ' COMMENT ' + SQLEscape(NewField.Comment);
         if (Assigned(Table) and (not Assigned(OldField) or (Session.Connection.ServerVersion >= 40001))) then
           if (not Assigned(NewField.FieldBefore) and (not Assigned(OldField) or Assigned(OldField.FieldBefore))) then
             SQLPart := SQLPart + ' FIRST'
@@ -10809,7 +10807,7 @@ begin
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.ServerVersion;
   FUser := nil;
-  ParseEndDate := EncodeDate(2016, 8, 12);
+  ParseEndDate := EncodeDate(2016, 8, 13);
   SQLParser := nil;
   UnparsableSQL := '';
 

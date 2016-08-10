@@ -23,7 +23,7 @@ const
     'LINESTRINGFROMTEXT,LINESTRINGFROMWKB,LN,LOAD_FILE,LOCALTIME,' +
     'LOCALTIMESTAMP,LOCATE,LOG,LOG10,LOG2,LOWER,LPAD,LTRIM,MAKE_SET,MAKEDATE,' +
     'MAKETIME,MASTER_POS_LOG,MASTER_POS_WAIT,MAX,MD5,MICROSECOND,MID,MIN,' +
-    'MINUTE,MINUTE_SECOND,MONTH,MONTHNAME,MULTILINESTRINGFROMTEXT,' +
+    'MINUTE,MINUTE_SECOND,MOD,MONTH,MONTHNAME,MULTILINESTRINGFROMTEXT,' +
     'MULTILINESTRINGFROMWKB,MULTIPOINTFROMTEXT,MULTIPOINTFROMWKB,' +
     'MULTIPOLYGONFROMTEXT,MULTIPOLYGONFROMWKB,NOW,NULLIF,OCT,OCTET_LENGTH,' +
     'ORD,PASSWORD,PERIOD_ADD,PERIOD_DIFF,PI,POLYGONFROMTEXT,POLYGONFROMWKB,' +
@@ -303,7 +303,9 @@ const
     'ntSignalStmt',
     'ntSignalStmtInformation',
     'ntSoundsLikeOp',
+    'ntStartSlaveStmt',
     'ntStartTransactionStmt',
+    'ntStopSlaveStmt',
     'ntSubArea',
     'ntSubPartition',
     'ntSubstringFunc',
@@ -445,7 +447,9 @@ const
     'stShowWarnings',
     'stShutdown',
     'stSignal',
+    'stStartSlave',
     'stStartTransaction',
+    'stStopSlave',
     'stTruncate',
     'stUnknown',
     'stUnlock',
@@ -484,7 +488,8 @@ const
     'ttMySQLCodeEnd',
     'ttOperator',
     'ttAt',
-    'ttBackslash'
+    'ttBackslash',
+    'ttIPAddress'
   );
 
   UsageTypeToString: array[TUsageType] of PChar = (
@@ -578,7 +583,7 @@ const
     'ditAlias',
     'ditTable',
     'ditKey',
-    'ditField',
+    'ditColumn',
     'ditForeignKey',
     'ditFunction',
     'ditProcedure',
@@ -691,7 +696,8 @@ var
     utSymbol,
     utSymbol,
     utSymbol,
-    utSymbol
+    utSymbol,
+    utConst
   );
 
   NodeTypeByStmtType: array[TStmtType] of TNodeType = (
@@ -812,7 +818,9 @@ var
     ntShowWarningsStmt,
     ntShutdownStmt,
     ntSignalStmt,
+    ntStartSlaveStmt,
     ntStartTransactionStmt,
+    ntStopSlaveStmt,
     ntTruncateStmt,
     ntUnknownStmt,
     ntUnlockStmt,
@@ -941,7 +949,9 @@ const
     ntShowWarningsStmt,
     ntShutdownStmt,
     ntSignalStmt,
+    ntStartSlaveStmt,
     ntStartTransactionStmt,
+    ntStopSlaveStmt,
     ntTruncateStmt,
     ntUnknownStmt,
     ntUnlockStmt,

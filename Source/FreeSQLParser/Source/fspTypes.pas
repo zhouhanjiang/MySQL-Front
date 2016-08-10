@@ -210,7 +210,9 @@ type
     ntSignalStmt,
     ntSignalStmtInformation,
     ntSoundsLikeOp,
+    ntStartSlaveStmt,
     ntStartTransactionStmt,
+    ntStopSlaveStmt,
     ntSubArea,
     ntSubPartition,
     ntSubstringFunc,
@@ -352,7 +354,9 @@ type
     stShowWarnings,
     stShutdown,
     stSignal,
+    stStartSlave,
     stStartTransaction,
+    stStopSlave,
     stTruncate,
     stUnknown,
     stUnlock,
@@ -391,7 +395,7 @@ type
     ttCloseBracket,           // ")"
     ttOpenCurlyBracket,       // "{"
     ttCloseCurlyBracket,      // "}"
-    ttInteger,                // Tnteger constant, like 123456
+    ttInteger,                // Integer constant, like 123456
     ttNumeric,                // Numeric (float) constant, like -123.456E15
     ttString,                 // String constant, enclosed in ''
     ttCSString,               // MySQL Character Set, like _utf8'Hello'
@@ -406,7 +410,8 @@ type
     ttMySQLCodeEnd,
     ttOperator,               // Symbol operator like +, -, &&, *=
     ttAt,                     // "@"
-    ttBackslash               // "\", DB2 use
+    ttBackslash,              // "\", DB2 use
+    ttIPAddress               // "123.123.123.123"
   );
 const
   ttStrings = [ttString, ttCSString];
