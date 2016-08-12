@@ -11,7 +11,7 @@ type
   TMySQLParser = class
   public
     type
-      TFileType = (ftSQL, ftDebugHTML);
+      TFileType = (ftSQL, ftFormatedSQL, ftDebugHTML);
 
   protected
     type
@@ -66,9 +66,9 @@ type
         procedure Delete(const Start: Integer; const Length: Integer);
         destructor Destroy(); override;
         function Read(): string; inline;
-        procedure Write(const Text: PChar; const Length: Integer); overload; inline;
-        procedure Write(const Text: string); overload; inline;
-        procedure Write(const Char: Char); overload; inline;
+        procedure Write(const Text: PChar; const Length: Integer); overload; {$IFNDEF Debug} inline; {$ENDIF}
+        procedure Write(const Text: string); overload; {$IFNDEF Debug} inline; {$ENDIF}
+        procedure Write(const Char: Char); overload; {$IFNDEF Debug} inline; {$ENDIF}
         property Data: Pointer read GetData;
         property Length: Integer read GetLength;
         property Size: Integer read GetSize;
@@ -100,6 +100,21 @@ type
         property Text: string read GetText write SetText;
         property Word[Index: TIndex]: string read GetWord; default;
       end;
+
+      TFormatHandle = class(TStringBuffer)
+      private
+        Indent: Integer;
+        IndentSpaces: array[0 .. 1024 - 1] of Char;
+      public
+        constructor Create();
+        procedure DecreaseIndent();
+        destructor Destroy(); override;
+        procedure IncreaseIndent();
+        procedure WriteIndent(); {$IFNDEF Debug} inline; {$ENDIF}
+      end;
+
+  private const
+    IndentSize = 2;
 
   public
     type
@@ -183,12 +198,10 @@ type
         FIndex: Integer;
         {$ENDIF}
         FKeywordIndex: TWordList.TIndex;
+        FLength: Integer;
+        FNewSQL: TOffset;
         FOperatorType: TOperatorType;
-        FText: packed record
-          Length: Integer;
-          New: TOffset;
-          SQL: PChar;
-        end;
+        FSQL: PChar;
         FTokenType: TTokenType;
         FUsageType: TUsageType;
         class function Create(const AParser: TMySQLParser;
@@ -196,6 +209,7 @@ type
           const AErrorCode: TErrorCode; const AErrorPos: PChar;
           const ATokenType: TTokenType; const AOperatorType: TOperatorType;
           const AKeywordIndex: TWordList.TIndex; const AUsageType: TUsageType): TOffset; static; {$IFNDEF Debug} inline; {$ENDIF}
+        procedure Format(const Commands: TFormatHandle);
         function GetAsString(): string;
         function GetDbIdentType(): TDbIdentType;
         function GetGeneration(): Integer;
@@ -207,6 +221,7 @@ type
         function GetNextTokenAll(): PToken;
         function GetOffset(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
         function GetParentNode(): PNode; {$IFNDEF Debug} inline; {$ENDIF}
+        function GetSQL(): PChar;
         function GetText(): string;
         procedure SetText(AText: string);
         property ErrorCode: TErrorCode read FErrorCode;
@@ -219,8 +234,10 @@ type
         {$ENDIF}
         property IsUsed: Boolean read GetIsUsed;
         property KeywordIndex: TWordList.TIndex read FKeywordIndex;
+        property Length: Integer read FLength;
         property Offset: TOffset read GetOffset;
         property Parser: TMySQLParser read Heritage.Heritage.FParser;
+        property SQL: PChar read GetSQL;
       public
         property AsString: string read GetAsString;
         property DbIdentType: TDbIdentType read GetDbIdentType;
@@ -271,8 +288,11 @@ type
         function GetErrorMessage(): string;
         function GetErrorToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
         function GetFirstToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
+        function GetFirstTokenAll(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
         function GetLastToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
+        function GetLastTokenAll(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
         function GetNextStmt(): PStmt;
+        function GetParentNode(): PNode; {$IFNDEF Debug} inline; {$ENDIF}
         function GetText(): string;
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
       public
@@ -280,8 +300,11 @@ type
         property ErrorMessage: string read GetErrorMessage;
         property ErrorToken: PToken read GetErrorToken;
         property FirstToken: PToken read GetFirstToken;
+        property FirstTokenAll: PToken read GetFirstTokenAll;
         property LastToken: PToken read GetLastToken;
+        property LastTokenAll: PToken read GetLastTokenAll;
         property NextStmt: PStmt read GetNextStmt;
+        property ParentNode: PNode read GetParentNode;
         property StmtType: TStmtType read FStmtType;
         property Text: string read GetText;
       end;
@@ -3713,6 +3736,7 @@ type
       private
         FNodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        procedure Format(const Commands: TFormatHandle);
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
@@ -3911,6 +3935,7 @@ type
       private
         FNodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        procedure Format(const Commands: TFormatHandle);
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
       end;
@@ -4632,6 +4657,9 @@ type
     function GetInPL_SQL(): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
     function GetRoot(): PRoot; {$IFNDEF Debug} inline; {$ENDIF}
     function GetText(const Offset: TOffset): PChar; {$IFNDEF Debug} inline; {$ENDIF}
+    procedure SaveToDebugHTMLFile(const Filename: string);
+    procedure SaveToFormatedSQLFile(const Filename: string);
+    procedure SaveToSQLFile(const Filename: string);
     procedure SetFunctions(AFunctions: string);
     procedure SetKeywords(AKeywords: string);
     property CurrentToken: TOffset read FCurrentToken;
@@ -4679,6 +4707,8 @@ type
     function EndOfStmt(const Token: PToken): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function EndOfStmt(const Token: TOffset): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     procedure EndPL_SQL(); {$IFNDEF Debug} inline; {$ENDIF}
+    procedure FormatNode(const Commands: TFormatHandle; const Node: PNode); overload;
+    procedure FormatNode(const Commands: TFormatHandle; const Node: TOffset); overload; {$IFNDEF Debug} inline; {$ENDIF}
     function IsChild(const ANode: PNode): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function IsChild(const ANode: TOffset): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function IsRange(const ANode: PNode): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
@@ -4692,6 +4722,7 @@ type
     function NodeSize(const NodeType: TNodeType): Integer;
     function ParseRoot(): TOffset; overload;
     function ParseAnalyzeStmt(): TOffset;
+    function ParseAlias(): TOffset;
     function ParseAlterDatabaseStmt(): TOffset;
     function ParseAlterEventStmt(): TOffset;
     function ParseAlterRoutineStmt(const ARoutineType: TRoutineType): TOffset;
@@ -4706,6 +4737,7 @@ type
     function ParseAlterStmt(): TOffset;
     function ParseAlterViewStmt(): TOffset;
     function ParseBeginStmt(): TOffset;
+    function ParseBracketSelectStmt(): TOffset;
     function ParseCallStmt(): TOffset;
     function ParseCaseOp(): TOffset;
     function ParseCaseOpBranch(): TOffset;
@@ -4797,7 +4829,7 @@ type
     function ParseInteger(): TOffset;
     function ParseInterval(): TOffset;
     function ParseIntervalOpList(): TIntervalList;
-    function ParseIntervalOpListItem(const KeywordIndex: TWordList.TIndex): TOffset;
+    function ParseIntervalOpListItem(): TOffset;
     function ParseIterateStmt(): TOffset;
     function ParseKeyIdent(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseKeyword(): TOffset;
@@ -4935,6 +4967,7 @@ type
     procedure Clear();
     constructor Create(const AMySQLVersion: Integer = 0);
     destructor Destroy(); override;
+    function FormatSQL(): string;
     function LoadFromFile(const Filename: string): Boolean;
     function ParseSQL(const Text: string): Boolean; overload;
     function ParseSQL(const Text: PChar; const Length: Integer): Boolean; overload;
@@ -4944,7 +4977,6 @@ type
     property Keywords: string read GetKeywords write SetKeywords;
     property MySQLVersion: Integer read FMySQLVersion;
     property Root: PRoot read GetRoot;
-    property Text: string read FParsedText;
   end;
 
 implementation {***************************************************************}
@@ -5272,6 +5304,42 @@ begin
   end;
 end;
 
+{ TMySQLParser.TFormatHandle **************************************************}
+
+constructor TMySQLParser.TFormatHandle.Create();
+var
+  S: string;
+begin
+  inherited Create(1024);
+
+  Indent := 0;
+  S := StringOfChar(' ', System.Length(IndentSpaces));
+  Move(S[1], IndentSpaces, SizeOf(IndentSpaces));
+end;
+
+procedure TMySQLParser.TFormatHandle.DecreaseIndent();
+begin
+  Assert(Indent >= IndentSize);
+
+  if (Indent >= IndentSize) then
+    Dec(Indent, IndentSize);
+end;
+
+destructor TMySQLParser.TFormatHandle.Destroy();
+begin
+  inherited;
+end;
+
+procedure TMySQLParser.TFormatHandle.IncreaseIndent();
+begin
+  Inc(Indent, IndentSize);
+end;
+
+procedure TMySQLParser.TFormatHandle.WriteIndent();
+begin
+  Write(@IndentSpaces[0], Indent);
+end;
+
 { TMySQLParser.TNode **********************************************************}
 
 class function TMySQLParser.TNode.Create(const AParser: TMySQLParser; const ANodeType: TNodeType): TOffset;
@@ -5404,34 +5472,61 @@ begin
     {$ENDIF}
     FKeywordIndex := AKeywordIndex;
     FOperatorType := AOperatorType;
-    FText.Length := ALength;
-    FText.New := 0;
-    FText.SQL := ASQL;
+    FLength := ALength;
+    FNewSQL := 0;
+    FSQL := ASQL;
     FTokenType := ATokenType;
     FUsageType := AUsageType;
+  end;
+end;
+
+procedure TMySQLParser.TToken.Format(const Commands: TFormatHandle);
+var
+  Token: PToken;
+begin
+  Commands.Write(SQL, Length);
+
+  Token := Heritage.LastToken^.NextTokenAll;
+  while (Assigned(Token)) do
+  begin
+    case (Token^.TokenType) of
+      ttLineComment:
+        begin
+          Commands.Write(' ');
+          Commands.Write(Token^.SQL, Token^.Length);
+        end;
+    end;
+
+    if (Token^.TokenType = ttDelimiter) then
+      Token := nil
+    else
+      Token := Token^.NextTokenAll;
   end;
 end;
 
 function TMySQLParser.TToken.GetAsString(): string;
 begin
   case (TokenType) of
-    ttComment:
+    ttLineComment:
       if (Copy(Text, 1, 1) = '#') then
-        Result := Trim(Copy(Text, Length(Text) - 1, 1))
+        Result := Trim(Copy(Text, Length - 1, 1))
       else if (Copy(Text, 1, 2) = '--') then
-        Result := Trim(Copy(Text, 3, Length(Text) - 2))
-      else if ((Copy(Text, 1, 2) = '/*') and (Copy(Text, Length(Text) - 1, 2) = '*/')) then
-        Result := Trim(Copy(Text, 3, Length(Text) - 4))
+        Result := Trim(Copy(Text, 3, Length - 2))
       else
-        Result := Text;
+        raise Exception.Create(SUnknownError);
+    ttMultiLineComment:
+      if ((Copy(Text, 1, 2) = '/*') and (Copy(Text, Length - 1, 2) = '*/')) then
+        Result := Trim(Copy(Text, 3, Length - 4))
+      else
+        raise Exception.Create(SUnknownError);
     ttBeginLabel:
-      if (Copy(Text, Length(Text), 1) = ':') then
-        Result := Trim(Copy(Text, 1, Length(Text) - 1))
+      if (Copy(Text, Length, 1) = ':') then
+        Result := Trim(Copy(Text, 1, Length - 1))
       else
         Result := Text;
     ttBindVariable:
       if (Copy(Text, 1, 1) = ':') then
-        Result := Trim(Copy(Text, 2, Length(Text) - 1))
+        Result := Trim(Copy(Text, 2, Length - 1))
       else
         Result := Text;
     ttString:
@@ -5439,16 +5534,16 @@ begin
     ttDQIdent:
       Result := SQLUnescape(Text);
     ttDBIdent:
-      if ((Copy(Text, 1, 1) = '[') and (Copy(Text, Length(Text), 1) = ']')) then
-        Result := Trim(Copy(Text, 1, Length(Text) - 2))
+      if ((Copy(Text, 1, 1) = '[') and (Copy(Text, Length, 1) = ']')) then
+        Result := Trim(Copy(Text, 1, Length - 2))
       else
         Result := Text;
     ttMySQLIdent:
       Result := SQLUnescape(Text);
     ttMySQLCodeStart:
-      Result := Copy(Text, 1, Length(Text) - 3);
+      Result := Copy(Text, 1, Length - 3);
     ttCSString:
-      Result := Copy(Text, 1, Length(Text) - 1);
+      Result := Copy(Text, 1, Length - 1);
     else
       Result := Text;
   end;
@@ -5500,9 +5595,9 @@ function TMySQLParser.TToken.GetIsUsed(): Boolean;
 var
   I: Integer;
 begin
-  Result := not (TokenType in [ttSpace, ttReturn, ttComment, ttMySQLCodeStart, ttMySQLCodeEnd]);
+  Result := not (TokenType in [ttSpace, ttReturn, ttLineComment, ttMultiLineComment, ttMySQLCodeStart, ttMySQLCodeEnd]);
 
-  for I := 0 to Length(Parser.MySQLVersions) - 1 do
+  for I := 0 to System.Length(Parser.MySQLVersions) - 1 do
     Result := Result and (Parser.MySQLVersion >= Parser.MySQLVersions[I]);
 end;
 
@@ -5548,18 +5643,26 @@ begin
   Result := Heritage.GetParentNode();
 end;
 
+function TMySQLParser.TToken.GetSQL(): PChar;
+begin
+  if (FNewSQL > 0) then
+    Result := Parser.GetText(FNewSQL)
+  else
+    Result := FSQL;
+end;
+
 function TMySQLParser.TToken.GetText(): string;
 begin
-  if (FText.New = 0) then
-    SetString(Result, FText.SQL, FText.Length)
+  if (FNewSQL = 0) then
+    SetString(Result, FSQL, FLength)
   else
-    SetString(Result, Parser.GetText(FText.New), FText.Length);
+    SetString(Result, Parser.GetText(FNewSQL), FLength);
 end;
 
 procedure TMySQLParser.TToken.SetText(AText: string);
 begin
-  FText.New := Parser.NewText(AText);
-  FText.Length := Length(AText);
+  FNewSQL := Parser.NewText(AText);
+  FLength := System.Length(AText);
 end;
 
 { TMySQLParser.TRange *********************************************************}
@@ -5729,9 +5832,19 @@ begin
   Result := PToken(Parser.NodePtr(FFirstToken));
 end;
 
+function TMySQLParser.TStmt.GetFirstTokenAll(): PToken;
+begin
+  Result := PToken(Parser.NodePtr(FFirstTokenAll));
+end;
+
 function TMySQLParser.TStmt.GetLastToken(): PToken;
 begin
   Result := PToken(Parser.NodePtr(FLastToken));
+end;
+
+function TMySQLParser.TStmt.GetLastTokenAll(): PToken;
+begin
+  Result := PToken(Parser.NodePtr(FLastTokenAll));
 end;
 
 function TMySQLParser.TStmt.GetNextStmt(): PStmt;
@@ -5770,10 +5883,7 @@ begin
   Token := Parser.TokenPtr(FFirstTokenAll);
   while (Assigned(Token)) do
   begin
-    if (Token^.FText.New = 0) then
-      StringBuffer.Write(Token^.FText.SQL, Token^.FText.Length)
-    else
-      StringBuffer.Write(Parser.GetText(Token^.FText.New), Token^.FText.Length);
+    StringBuffer.Write(Token^.SQL, Token^.Length);
 
     if (Token = Parser.TokenPtr(FLastTokenAll)) then
       Token := nil
@@ -5784,6 +5894,11 @@ begin
   Result := StringBuffer.Read();
 
   StringBuffer.Free();
+end;
+
+function TMySQLParser.TStmt.GetParentNode(): PNode;
+begin
+  Result := PNode(Heritage.ParentNode);
 end;
 
 { TMySQLParser.TAnalyzeStmt ***************************************************}
@@ -9069,6 +9184,11 @@ begin
   end;
 end;
 
+procedure TMySQLParser.TShutdownStmt.Format(const Commands: TFormatHandle);
+begin
+  Parser.FormatNode(Commands, FNodes.StmtTag);
+end;
+
 { TMySQLParser.TSignalStmt ****************************************************}
 
 class function TMySQLParser.TSignalStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
@@ -9274,6 +9394,29 @@ begin
     Heritage.AddChild(ANodes.KeywordToken2);
     Heritage.AddChild(ANodes.KeywordToken3);
     Heritage.AddChild(ANodes.KeywordToken4);
+  end;
+end;
+
+procedure TMySQLParser.TTag.Format(const Commands: TFormatHandle);
+begin
+  Parser.FormatNode(Commands, FNodes.KeywordToken1);
+
+  if (FNodes.KeywordToken2 > 0) then
+  begin
+    Commands.Write(#13#10);
+    Parser.FormatNode(Commands, FNodes.KeywordToken2);
+
+    if (FNodes.KeywordToken3 > 0) then
+    begin
+      Commands.Write(#13#10);
+      Parser.FormatNode(Commands, FNodes.KeywordToken3);
+
+      if (FNodes.KeywordToken4 > 0) then
+      begin
+        Commands.Write(#13#10);
+        Parser.FormatNode(Commands, FNodes.KeywordToken4);
+      end;
+    end;
   end;
 end;
 
@@ -9638,8 +9781,397 @@ end;
 
 procedure TMySQLParser.EndPL_SQL();
 begin
+  Assert(FInPL_SQL > 0);
+
   if (FInPL_SQL > 0) then
     Dec(FInPL_SQL);
+end;
+
+procedure TMySQLParser.FormatNode(const Commands: TFormatHandle; const Node: PNode);
+var
+  Comment: string;
+  I: Integer;
+  MultipleLineComments: Boolean;
+  Stmt: PStmt;
+  T: PToken;
+  Token: PToken;
+begin
+  if (IsStmt(Node)) then
+  begin
+    Stmt := PStmt(Node);
+    Token := Stmt^.FirstTokenAll;
+
+    while (Token <> Stmt^.FirstToken) do
+    begin
+      case (Token^.TokenType) of
+        ttLineComment:
+          begin
+            Commands.WriteIndent();
+            Commands.Write(Token^.SQL, Token^.Length);
+            Commands.Write(#13#10);
+          end;
+        ttMultiLineComment:
+          begin
+            Comment := Token^.AsString;
+            if (Pos(#13#10, Comment) = 0) then
+            begin
+              Commands.WriteIndent();
+              Commands.Write('/* ');
+              Commands.Write(Token^.AsString);
+              Commands.Write(' */');
+              Commands.Write(#13#10);
+            end
+            else
+            begin
+              Comment := Trim(Copy(Comment, 3, Length(Comment) - 4));
+
+              Commands.WriteIndent();
+              Commands.Write('/*' + #13#10);
+              Commands.IncreaseIndent();
+
+              I := Pos(#13#10, Comment);
+              while (I > 0) do
+              begin
+                Commands.WriteIndent();
+                Commands.Write(Copy(Comment, 1, I - 1));
+                Commands.Write(#13#10);
+                System.Delete(Comment, 1, I + 1);
+                I := Pos(#13#10, Comment);
+              end;
+
+              Commands.WriteIndent();
+              Commands.Write(Comment);
+              Commands.Write(#13#10);
+
+              Commands.DecreaseIndent();
+              Commands.WriteIndent();
+              Commands.Write('*/');
+              Commands.Write(#13#10);
+            end;
+          end;
+      end;
+
+      Token := Token^.NextTokenAll;
+    end;
+  end;
+
+  case (Node^.NodeType) of
+    ntToken: PToken(Node)^.Format(Commands);
+
+      ntAnalyzeStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntAlterDatabaseStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntAlterEventStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntAlterRoutineStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntAlterServerStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntAlterTableStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntAlterTableStmtAlterColumn: raise Exception.Create(SArgumentOutOfRange);
+      ntAlterTableStmtConvertTo: raise Exception.Create(SArgumentOutOfRange);
+      ntAlterTableStmtDropObject: raise Exception.Create(SArgumentOutOfRange);
+      ntAlterTableStmtExchangePartition: raise Exception.Create(SArgumentOutOfRange);
+      ntAlterTableStmtReorganizePartition: raise Exception.Create(SArgumentOutOfRange);
+      ntAlterViewStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntBeginStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntBetweenOp: raise Exception.Create(SArgumentOutOfRange);
+      ntBinaryOp: raise Exception.Create(SArgumentOutOfRange);
+      ntCallStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntCaseOp: raise Exception.Create(SArgumentOutOfRange);
+      ntCaseOpBranch: raise Exception.Create(SArgumentOutOfRange);
+      ntCaseStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntCaseStmtBranch: raise Exception.Create(SArgumentOutOfRange);
+      ntCastFunc: raise Exception.Create(SArgumentOutOfRange);
+      ntCharFunc: raise Exception.Create(SArgumentOutOfRange);
+      ntCheckStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntCheckStmtOption: raise Exception.Create(SArgumentOutOfRange);
+      ntChecksumStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntCloseStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntCommitStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntCompoundStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntConvertFunc: raise Exception.Create(SArgumentOutOfRange);
+      ntCreateDatabaseStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntCreateEventStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntCreateIndexStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntCreateRoutineStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntCreateServerStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntCreateTableStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntCreateTableStmtColumn: raise Exception.Create(SArgumentOutOfRange);
+      ntCreateTableStmtForeignKey: raise Exception.Create(SArgumentOutOfRange);
+      ntCreateTableStmtKey: raise Exception.Create(SArgumentOutOfRange);
+      ntCreateTableStmtKeyColumn: raise Exception.Create(SArgumentOutOfRange);
+      ntCreateTableStmtPartition: raise Exception.Create(SArgumentOutOfRange);
+      ntCreateTableStmtPartitionValues: raise Exception.Create(SArgumentOutOfRange);
+      ntCreateTriggerStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntCreateUserStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntCreateViewStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntDataType: raise Exception.Create(SArgumentOutOfRange);
+      ntDbIdent: raise Exception.Create(SArgumentOutOfRange);
+      ntDeallocatePrepareStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntDeclareStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntDeclareConditionStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntDeclareCursorStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntDeclareHandlerStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntDeclareHandlerStmtCondition: raise Exception.Create(SArgumentOutOfRange);
+      ntDeleteStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntDoStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntDropDatabaseStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntDropEventStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntDropIndexStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntDropRoutineStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntDropServerStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntDropTableStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntDropTriggerStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntDropUserStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntDropViewStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntExecuteStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntExistsFunc: raise Exception.Create(SArgumentOutOfRange);
+      ntExplainStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntExtractFunc: raise Exception.Create(SArgumentOutOfRange);
+      ntFetchStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntFlushStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntFlushStmtOption: raise Exception.Create(SArgumentOutOfRange);
+      ntFunctionCall: raise Exception.Create(SArgumentOutOfRange);
+      ntFunctionReturns: raise Exception.Create(SArgumentOutOfRange);
+      ntGetDiagnosticsStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntGetDiagnosticsStmtStmtInfo: raise Exception.Create(SArgumentOutOfRange);
+      ntGetDiagnosticsStmtConditionInfo: raise Exception.Create(SArgumentOutOfRange);
+      ntGrantStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntGrantStmtPrivileg: raise Exception.Create(SArgumentOutOfRange);
+      ntGrantStmtUserSpecification: raise Exception.Create(SArgumentOutOfRange);
+      ntGroupConcatFunc: raise Exception.Create(SArgumentOutOfRange);
+      ntGroupConcatFuncExpr: raise Exception.Create(SArgumentOutOfRange);
+      ntHelpStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntIfStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntIfStmtBranch: raise Exception.Create(SArgumentOutOfRange);
+      ntIgnoreLines: raise Exception.Create(SArgumentOutOfRange);
+      ntInOp: raise Exception.Create(SArgumentOutOfRange);
+      ntInsertStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntInsertStmtSetItem: raise Exception.Create(SArgumentOutOfRange);
+      ntInterval: raise Exception.Create(SArgumentOutOfRange);
+      ntIntervalListItem: raise Exception.Create(SArgumentOutOfRange);
+      ntIterateStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntKillStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntLeaveStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntLikeOp: raise Exception.Create(SArgumentOutOfRange);
+      ntList: raise Exception.Create(SArgumentOutOfRange);
+      ntLoadDataStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntLoadXMLStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntLockStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntLockStmtItem: raise Exception.Create(SArgumentOutOfRange);
+      ntLoopStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntPositionFunc: raise Exception.Create(SArgumentOutOfRange);
+      ntPrepareStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntOj: raise Exception.Create(SArgumentOutOfRange);
+      ntOpenStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntOptimizeStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntRegExpOp: raise Exception.Create(SArgumentOutOfRange);
+      ntRenameStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntRenameStmtPair: raise Exception.Create(SArgumentOutOfRange);
+      ntReleaseStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntRepairStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntRepeatStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntResetStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntReturnStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntRevokeStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntRollbackStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntRoutineParam: raise Exception.Create(SArgumentOutOfRange);
+      ntSavepointStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntSchedule: raise Exception.Create(SArgumentOutOfRange);
+      ntSecretIdent: raise Exception.Create(SArgumentOutOfRange);
+      ntSelectStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntSelectStmtColumn: raise Exception.Create(SArgumentOutOfRange);
+      ntSelectStmtFrom: raise Exception.Create(SArgumentOutOfRange);
+      ntSelectStmtGroup: raise Exception.Create(SArgumentOutOfRange);
+      ntSelectStmtGroups: raise Exception.Create(SArgumentOutOfRange);
+      ntSelectStmtOrder: raise Exception.Create(SArgumentOutOfRange);
+      ntSelectStmtInto: raise Exception.Create(SArgumentOutOfRange);
+      ntSelectStmtTableFactor: raise Exception.Create(SArgumentOutOfRange);
+      ntSelectStmtTableFactorIndexHint: raise Exception.Create(SArgumentOutOfRange);
+      ntSelectStmtTableFactorOj: raise Exception.Create(SArgumentOutOfRange);
+      ntSelectStmtTableFactorReferences: raise Exception.Create(SArgumentOutOfRange);
+      ntSelectStmtTableFactorSelect: raise Exception.Create(SArgumentOutOfRange);
+      ntSelectStmtTableJoin: raise Exception.Create(SArgumentOutOfRange);
+      ntSetNamesStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntSetPasswordStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntSetStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntSetStmtAssignment: raise Exception.Create(SArgumentOutOfRange);
+      ntSetTransactionStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowAuthorsStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowBinaryLogsStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowBinlogEventsStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowCharacterSetStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowCollationStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowContributorsStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowCountErrorsStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowCountWarningsStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowCreateDatabaseStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowCreateEventStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowCreateFunctionStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowCreateProcedureStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowCreateTableStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowCreateTriggerStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowCreateViewStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowDatabasesStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowEngineStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowEnginesStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowErrorsStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowEventsStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowFunctionCodeStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowFunctionStatusStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowGrantsStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowIndexStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowMasterStatusStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowOpenTablesStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowPluginsStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowPrivilegesStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowProcedureCodeStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowProcedureStatusStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowProcessListStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowProfileStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowProfilesStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowRelaylogEventsStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowSlaveHostsStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowSlaveStatusStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowStatusStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowTableStatusStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowTablesStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowTriggersStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowVariablesStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowWarningsStmt: raise Exception.Create(SArgumentOutOfRange);
+    ntShutdownStmt: PShutdownStmt(Node)^.Format(Commands);
+      ntSignalStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntSignalStmtInformation: raise Exception.Create(SArgumentOutOfRange);
+      ntSoundsLikeOp: raise Exception.Create(SArgumentOutOfRange);
+      ntStartSlaveStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntStartTransactionStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntStopSlaveStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntSubArea: raise Exception.Create(SArgumentOutOfRange);
+      ntSubPartition: raise Exception.Create(SArgumentOutOfRange);
+      ntSubstringFunc: raise Exception.Create(SArgumentOutOfRange);
+      ntTableReference: raise Exception.Create(SArgumentOutOfRange);
+    ntTag: PTag(Node)^.Format(Commands);
+      ntTransactionStmtCharacteristic: raise Exception.Create(SArgumentOutOfRange);
+      ntTrimFunc: raise Exception.Create(SArgumentOutOfRange);
+      ntTruncateStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntUnaryOp: raise Exception.Create(SArgumentOutOfRange);
+      ntUnknownStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntUnlockStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntUpdateStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntUser: raise Exception.Create(SArgumentOutOfRange);
+      ntUseStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntValue: raise Exception.Create(SArgumentOutOfRange);
+      ntVariable: raise Exception.Create(SArgumentOutOfRange);
+      ntWeightStringFunc: raise Exception.Create(SArgumentOutOfRange);
+      ntWeightStringFuncLevel: raise Exception.Create(SArgumentOutOfRange);
+      ntWhileStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntXAStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntXID: raise Exception.Create(SArgumentOutOfRange);
+    else raise Exception.Create(SArgumentOutOfRange);
+  end;
+
+  if (IsStmt(Node)) then
+  begin
+    Stmt := PStmt(Node);
+
+    Token := Stmt^.LastTokenAll^.NextTokenAll;
+    while (Assigned(Token) and (Token^.TokenType = ttDelimiter)) do
+    begin
+      Commands.Write(Token^.SQL, Token^.Length); // Delimiter
+      Commands.Write(#13#10);
+      Token := Token^.NextTokenAll;
+    end;
+
+    if (PStmt(Node)^.ParentNode <> PNode(Root)) then
+    begin
+      MultipleLineComments := False;
+      if (Assigned(Token)) then
+      begin
+        T := Token^.NextTokenAll;
+        while (Assigned(T)) do
+        begin
+          MultipleLineComments := MultipleLineComments or (T^.TokenType = ttLineComment);
+          T := T^.NextTokenAll;
+        end;
+      end;
+
+      while (Assigned(Token)) do
+      begin
+        case (Token^.TokenType) of
+          ttLineComment:
+            begin
+              if (MultipleLineComments) then
+                Commands.Write(#13#10, 2);
+              Commands.Write(Token^.SQL, Token^.Length);
+            end;
+          ttMultiLineComment:
+            begin
+              Comment := Trim(Token^.AsString);
+              if (Pos(#13#10, Comment) = 0) then
+              begin
+                Commands.WriteIndent();
+                Commands.Write('/* ');
+                Commands.Write(Token^.AsString);
+                Commands.Write(' */' + #13#10);
+              end
+              else
+              begin
+                Commands.Write(#13#10);
+                Commands.WriteIndent();
+                Commands.Write('/*' + #13#10);
+                Commands.IncreaseIndent();
+
+                I := Pos(#13#10, Comment);
+                while (I > 0) do
+                begin
+                  Commands.WriteIndent();
+                  Commands.Write(Copy(Comment, 1, I - 1));
+                  Commands.Write(#13#10);
+                  System.Delete(Comment, 1, I + 1);
+                  I := Pos(#13#10, Comment);
+                end;
+
+                Commands.WriteIndent();
+                Commands.Write(Comment);
+                Commands.Write(#13#10);
+
+                Commands.DecreaseIndent();
+                Commands.WriteIndent();
+                Commands.Write('*/' + #13#10);
+              end;
+            end;
+        end;
+
+        Token := Token^.NextTokenAll;
+      end;
+    end;
+  end;
+end;
+
+function TMySQLParser.FormatSQL(): string;
+var
+  Stmt: PStmt;
+  Commands: TFormatHandle;
+begin
+  Result := '';
+
+  if (Assigned(Root)) then
+  begin
+    Commands := TFormatHandle.Create();
+
+    Stmt := Root^.FirstStmt;
+    while (Assigned(Stmt)) do
+    begin
+      FormatNode(Commands, PNode(Stmt));
+
+      Stmt := Stmt^.NextStmt;
+    end;
+
+    Result := Commands.Read();
+    Commands.Free();
+  end;
+end;
+
+procedure TMySQLParser.FormatNode(const Commands: TFormatHandle; const Node: TOffset);
+begin
+  FormatNode(Commands, NodePtr(Node));
 end;
 
 function TMySQLParser.GetError(): Boolean;
@@ -10204,6 +10736,19 @@ begin
     else
       Nodes.TablesList := ParseList(False, ParseTableIdent);
   Result := TAnalyzeStmt.Create(Self, Nodes);
+end;
+
+function TMySQLParser.ParseAlias(): TOffset;
+begin
+  if (TokenPtr(CurrentToken)^.TokenType = ttString) then
+    Result := ParseString()
+  else if (TokenPtr(CurrentToken)^.TokenType in ttIdents) then
+    Result := ApplyCurrentToken(utConst)
+  else
+  begin
+    SetError(PE_UnexpectedToken);
+    Result := 0;
+  end;
 end;
 
 function TMySQLParser.ParseAlterDatabaseStmt(): TOffset;
@@ -10997,7 +11542,7 @@ begin
       SetError(PE_UnexpectedToken)
     else
     begin
-      Nodes.SelectStmt := ParseSelectStmt();
+      Nodes.SelectStmt := ParseBracketSelectStmt();
 
       if (not Error and (TokenPtr(CurrentToken)^.KeywordIndex = kiWITH)) then
         if (EndOfStmt(NextToken[1])) then
@@ -11025,6 +11570,14 @@ begin
     Nodes.BeginTag := ParseTag(kiBEGIN);
 
   Result := TBeginStmt.Create(Self, Nodes);
+end;
+
+function TMySQLParser.ParseBracketSelectStmt(): TOffset;
+begin
+  if (TokenPtr(CurrentToken)^.TokenType = ttOpenBracket) then
+    Result := ParseSubArea(ParseSelectStmt)
+  else
+    Result := ParseSelectStmt();
 end;
 
 function TMySQLParser.ParseCallStmt(): TOffset;
@@ -11283,7 +11836,7 @@ begin
     if (EndOfStmt(CurrentToken)) then
       SetError(PE_IncompleteStmt)
     else
-      Nodes.ValueList := ParseList(False, ParseInteger);
+      Nodes.ValueList := ParseList(False, ParseExpr);
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiUSING)) then
   begin
@@ -12405,7 +12958,7 @@ begin
         if (EndOfStmt(CurrentToken) and (Nodes.AsTag > 0)) then
           SetError(PE_IncompleteStmt)
         else if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiSELECT)) then
-          Nodes.SelectStmt := ParseSelectStmt();
+          Nodes.SelectStmt := ParseBracketSelectStmt();
     end;
 
   Result := TCreateTableStmt.Create(Self, Nodes);
@@ -12527,7 +13080,7 @@ begin
       and (EndOfStmt(NextToken[2]) or (TokenPtr(NextToken[2])^.TokenType <> ttOpenBracket))) then
       Nodes.DefaultValue := ParseValue(kiDEFAULT, vaNo, ParseKeyword)
     else
-      Nodes.DefaultValue := ParseValue(kiDEFAULT, vaNo, ParseExpr);
+      Nodes.DefaultValue := ParseValue(kiDEFAULT, vaNo, ParseString);
 
   if (not Error and not EndOfStmt(CurrentToken)) then
     if (TokenPtr(CurrentToken)^.KeywordIndex = kiNOT) then
@@ -13099,7 +13652,7 @@ begin
     else if (TokenPtr(CurrentToken)^.KeywordIndex <> kiSELECT) then
       SetError(PE_UnexpectedToken)
     else
-      Nodes.SelectStmt := ParseSelectStmt();
+      Nodes.SelectStmt := ParseBracketSelectStmt();
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiWITH)) then
     if (EndOfStmt(NextToken[1])) then
@@ -13357,7 +13910,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  if (not (TokenPtr(CurrentToken)^.TokenType in ttIdents) and (TokenPtr(CurrentToken)^.OperatorType <> otMulti)) then
+  if (not (TokenPtr(CurrentToken)^.TokenType in ttIdents + ttStrings) and (TokenPtr(CurrentToken)^.OperatorType <> otMulti)) then
     SetError(PE_UnexpectedToken);
 
   if (not Error) then
@@ -13511,7 +14064,7 @@ begin
       Nodes.CursorForTag := ParseTag(kiCURSOR, kiFOR);
 
       if (not Error) then
-        Nodes.SelectStmt := ParseSelectStmt();
+        Nodes.SelectStmt := ParseBracketSelectStmt();
     end
     else
     begin
@@ -13607,7 +14160,7 @@ begin
     else if (TokenPtr(CurrentToken)^.KeywordIndex <> kiSELECT) then
       SetError(PE_UnexpectedToken)
     else
-      Nodes.SelectStmt := ParseSelectStmt();
+      Nodes.SelectStmt := ParseBracketSelectStmt();
 
   Result := TDeclareCursorStmt.Create(Self, Nodes);
 end;
@@ -14650,7 +15203,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  if ((FFunctions.Count = 0) or (FFunctions.IndexOf(TokenPtr(CurrentToken)^.FText.SQL, TokenPtr(CurrentToken)^.FText.Length) >= 0)) then
+  if ((FFunctions.Count = 0) or (FFunctions.IndexOf(TokenPtr(CurrentToken)^.SQL, TokenPtr(CurrentToken)^.Length) >= 0)) then
     Nodes.Ident := ApplyCurrentToken(utFunction)
   else
     Nodes.Ident := ParseFunctionIdent();
@@ -15117,9 +15670,9 @@ begin
           SetError(PE_UnexpectedToken);
 
       if (not Error and not EndOfStmt(CurrentToken)) then
-        if (TokenPtr(CurrentToken)^.KeywordIndex = kiBY) then
+        if (TokenPtr(CurrentToken)^.KeywordIndex = kiAS) then
         begin
-          Nodes.AsToken := ParseTag(kiBY);
+          Nodes.AsToken := ParseTag(kiAS);
 
           if (not Error) then
             if (EndOfStmt(CurrentToken)) then
@@ -15443,7 +15996,7 @@ begin
               Nodes.ValuesList := ParseList(False, ParseInsertStmtValuesList);
         end
         else if (TokenPtr(CurrentToken)^.KeywordIndex = kiSELECT) then
-          Nodes.SelectStmt := ParseSelectStmt()
+          Nodes.SelectStmt := ParseBracketSelectStmt()
         else
           SetError(PE_UnexpectedToken);
     end;
@@ -15516,7 +16069,10 @@ begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
   if (not Error) then
-    Nodes.QuantityExp := ParseExpr();
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else
+      Nodes.QuantityExp := ParseExpr();
 
   if (not Error) then
     if (EndOfStmt(CurrentToken)) then
@@ -15589,109 +16145,109 @@ begin
       SetError(PE_IncompleteStmt)
     else if (TokenPtr(NextToken[1])^.KeywordIndex <> kiINTERVAL) then
       SetError(PE_UnexpectedToken, NextToken[1])
-    else if (EndOfStmt(NextToken[2])) then
+    else if (EndOfStmt(NextToken[3])) then
       SetError(PE_IncompleteStmt)
-    else if (not Year and (TokenPtr(NextToken[2])^.KeywordIndex = kiYEAR)) then
+    else if (not Year and (TokenPtr(NextToken[3])^.KeywordIndex = kiYEAR)) then
     begin
-      Result[Index] := ParseIntervalOpListItem(kiYEAR);
+      Result[Index] := ParseIntervalOpListItem();
       Inc(Index);
       Year := True;
       Found := True;
     end
-    else if (not Quarter and (TokenPtr(NextToken[2])^.KeywordIndex = kiQUARTER)) then
+    else if (not Quarter and (TokenPtr(NextToken[3])^.KeywordIndex = kiQUARTER)) then
     begin
-      Result[Index] := ParseIntervalOpListItem(kiQUARTER);
+      Result[Index] := ParseIntervalOpListItem();
       Inc(Index);
       Quarter := True;
       Found := True;
     end
-    else if (not MONTH and (TokenPtr(NextToken[2])^.KeywordIndex = kiMONTH)) then
+    else if (not MONTH and (TokenPtr(NextToken[3])^.KeywordIndex = kiMONTH)) then
     begin
-      Result[Index] := ParseIntervalOpListItem(kiMONTH);
+      Result[Index] := ParseIntervalOpListItem();
       Inc(Index);
       Month := True;
       Found := True;
     end
-    else if (not Day and (TokenPtr(NextToken[2])^.KeywordIndex = kiDAY)) then
+    else if (not Day and (TokenPtr(NextToken[3])^.KeywordIndex = kiDAY)) then
     begin
-      Result[Index] := ParseIntervalOpListItem(kiDAY);
+      Result[Index] := ParseIntervalOpListItem();
       Inc(Index);
       Day := True;
       Found := True;
     end
-    else if (not Hour and (TokenPtr(NextToken[2])^.KeywordIndex = kiHOUR)) then
+    else if (not Hour and (TokenPtr(NextToken[3])^.KeywordIndex = kiHOUR)) then
     begin
-      Result[Index] := ParseIntervalOpListItem(kiHOUR);
+      Result[Index] := ParseIntervalOpListItem();
       Inc(Index);
       Hour := True;
       Found := True;
     end
-    else if (not Minute and (TokenPtr(NextToken[2])^.KeywordIndex = kiMINUTE)) then
+    else if (not Minute and (TokenPtr(NextToken[3])^.KeywordIndex = kiMINUTE)) then
     begin
-      Result[Index] := ParseIntervalOpListItem(kiMINUTE);
+      Result[Index] := ParseIntervalOpListItem();
       Inc(Index);
       Minute := True;
       Found := True;
     end
-    else if (not Week and (TokenPtr(NextToken[2])^.KeywordIndex = kiWEEK)) then
+    else if (not Week and (TokenPtr(NextToken[3])^.KeywordIndex = kiWEEK)) then
     begin
-      Result[Index] := ParseIntervalOpListItem(kiWEEK);
+      Result[Index] := ParseIntervalOpListItem();
       Inc(Index);
       Week := True;
       Found := True;
     end
-    else if (not Second and (TokenPtr(NextToken[2])^.KeywordIndex = kiSECOND)) then
+    else if (not Second and (TokenPtr(NextToken[3])^.KeywordIndex = kiSECOND)) then
     begin
-      Result[Index] := ParseIntervalOpListItem(kiSECOND);
+      Result[Index] := ParseIntervalOpListItem();
       Inc(Index);
       Second := True;
       Found := True;
     end
-    else if (not YearMonth and (TokenPtr(NextToken[2])^.KeywordIndex = kiYEAR_MONTH)) then
+    else if (not YearMonth and (TokenPtr(NextToken[3])^.KeywordIndex = kiYEAR_MONTH)) then
     begin
-      Result[Index] := ParseIntervalOpListItem(kiYEAR_MONTH);
+      Result[Index] := ParseIntervalOpListItem();
       Inc(Index);
       YearMonth := True;
       Found := True;
     end
-    else if (not DayHour and (TokenPtr(NextToken[2])^.KeywordIndex = kiDAY_HOUR)) then
+    else if (not DayHour and (TokenPtr(NextToken[3])^.KeywordIndex = kiDAY_HOUR)) then
     begin
-      Result[Index] := ParseIntervalOpListItem(kiDAY_HOUR);
+      Result[Index] := ParseIntervalOpListItem();
       Inc(Index);
       DayHour := True;
       Found := True;
     end
-    else if (not DayMinute and (TokenPtr(NextToken[2])^.KeywordIndex = kiDAY_MINUTE)) then
+    else if (not DayMinute and (TokenPtr(NextToken[3])^.KeywordIndex = kiDAY_MINUTE)) then
     begin
-      Result[Index] := ParseIntervalOpListItem(kiDAY_MINUTE);
+      Result[Index] := ParseIntervalOpListItem();
       Inc(Index);
       DayMinute := True;
       Found := True;
     end
-    else if (not DaySecond and (TokenPtr(NextToken[2])^.KeywordIndex = kiDAY_SECOND)) then
+    else if (not DaySecond and (TokenPtr(NextToken[3])^.KeywordIndex = kiDAY_SECOND)) then
     begin
-      Result[Index] := ParseIntervalOpListItem(kiDAY_SECOND);
+      Result[Index] := ParseIntervalOpListItem();
       Inc(Index);
       DaySecond := True;
       Found := True;
     end
-    else if (not HourMinute and (TokenPtr(NextToken[2])^.KeywordIndex = kiHOUR_MINUTE)) then
+    else if (not HourMinute and (TokenPtr(NextToken[3])^.KeywordIndex = kiHOUR_MINUTE)) then
     begin
-      Result[Index] := ParseIntervalOpListItem(kiHOUR_MINUTE);
+      Result[Index] := ParseIntervalOpListItem();
       Inc(Index);
       HourMinute := True;
       Found := True;
     end
-    else if (not HourSecond and (TokenPtr(NextToken[2])^.KeywordIndex = kiHOUR_SECOND)) then
+    else if (not HourSecond and (TokenPtr(NextToken[3])^.KeywordIndex = kiHOUR_SECOND)) then
     begin
-      Result[Index] := ParseIntervalOpListItem(kiHOUR_SECOND);
+      Result[Index] := ParseIntervalOpListItem();
       Inc(Index);
       HourSecond := True;
       Found := True;
     end
-    else if (not MinuteSecond and (TokenPtr(NextToken[2])^.KeywordIndex = kiMINUTE_SECOND)) then
+    else if (not MinuteSecond and (TokenPtr(NextToken[3])^.KeywordIndex = kiMINUTE_SECOND)) then
     begin
-      Result[Index] := ParseIntervalOpListItem(kiMINUTE_SECOND);
+      Result[Index] := ParseIntervalOpListItem();
       Inc(Index);
       MinuteSecond := True;
       Found := True;
@@ -15700,7 +16256,7 @@ begin
       Found := False;
 end;
 
-function TMySQLParser.ParseIntervalOpListItem(const KeywordIndex: TWordList.TIndex): TOffset;
+function TMySQLParser.ParseIntervalOpListItem(): TOffset;
 var
   Nodes: TIntervalOp.TListItem.TNodes;
 begin
@@ -15711,13 +16267,21 @@ begin
   else if (TokenPtr(CurrentToken)^.OperatorType <> otPlus) then
     SetError(PE_UnexpectedToken)
   else
-    Nodes.PlusToken := CurrentToken;
+    Nodes.PlusToken := ApplyCurrentToken();
 
   if (not Error) then
-    Nodes.IntervalTag := ParseTag(kiINTERVAL);
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else if (TokenPtr(CurrentToken)^.KeywordIndex <> kiINTERVAL) then
+      SetError(PE_UnexpectedToken)
+    else
+      Nodes.IntervalTag := ParseTag(kiINTERVAL);
 
   if (not Error) then
-    Nodes.Interval := ParseInterval();
+    if (EndOfStmt(CurrentToken)) then
+      SetError(PE_IncompleteStmt)
+    else
+      Nodes.Interval := ParseInterval();
 
   Result := TIntervalOp.TListItem.Create(Self, Nodes);
 end;
@@ -16116,7 +16680,7 @@ begin
     Nodes.AsTag := ParseTag(kiAS);
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType in ttIdents) and (TokenPtr(CurrentToken)^.KeywordIndex < 0)) then
-    Nodes.AliasIdent := ParseDbIdent(ditAlias);
+    Nodes.AliasIdent := ParseAlias();
 
   if (not Error) then
     if (EndOfStmt(CurrentToken)) then
@@ -16892,7 +17456,7 @@ begin
         SetError(PE_IncompleteStmt)
       else
       begin
-        Nodes.Limit.RowCountToken := ParseInteger();
+        Nodes.Limit.RowCountToken := ParseExpr();
 
         if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType = ttComma)) then
         begin
@@ -16903,7 +17467,7 @@ begin
           else
           begin
             Nodes.Limit.OffsetToken := Nodes.Limit.RowCountToken;
-            Nodes.Limit.RowCountToken := ParseInteger();
+            Nodes.Limit.RowCountToken := ParseExpr();
           end;
         end
         else if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiOFFSET)) then
@@ -16958,7 +17522,7 @@ begin
       if (EndOfStmt(CurrentToken)) then
         SetError(PE_IncompleteStmt)
       else
-        Nodes.Union.SelectStmt := ParseSelectStmt();
+        Nodes.Union.SelectStmt := ParseBracketSelectStmt();
   end;
 
   Result := TSelectStmt.Create(Self, Nodes);
@@ -16982,11 +17546,22 @@ begin
     if (EndOfStmt(CurrentToken) and (Nodes.AsToken > 0)) then
       SetError(PE_IncompleteStmt)
     else if (not EndOfStmt(CurrentToken)
-      and (TokenPtr(CurrentToken)^.KeywordIndex <> kiFROM)
-      and (TokenPtr(CurrentToken)^.KeywordIndex <> kiINTO)
-      and (TokenPtr(CurrentToken)^.KeywordIndex <> kiUNION)
-      and (TokenPtr(CurrentToken)^.TokenType in ttIdents + ttStrings)) then
-      Nodes.AliasIdent := ParseDbIdent(ditAlias);
+      and ((Nodes.AsToken > 0)
+        or (TokenPtr(CurrentToken)^.TokenType = ttString)
+        or (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent) and not AnsiQuotes
+        or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and AnsiQuotes
+        or (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) and not AnsiQuotes
+        or ((TokenPtr(CurrentToken)^.TokenType = ttIdent)
+          and (TokenPtr(CurrentToken)^.KeywordIndex <> kiFROM)
+          and (TokenPtr(CurrentToken)^.KeywordIndex <> kiWHERE)
+          and (TokenPtr(CurrentToken)^.KeywordIndex <> kiGROUP)
+          and (TokenPtr(CurrentToken)^.KeywordIndex <> kiHAVING)
+          and (TokenPtr(CurrentToken)^.KeywordIndex <> kiORDER)
+          and (TokenPtr(CurrentToken)^.KeywordIndex <> kiLIMIT)
+          and (TokenPtr(CurrentToken)^.KeywordIndex <> kiPROCEDURE)
+          and (TokenPtr(CurrentToken)^.KeywordIndex <> kiINTO)
+          and (TokenPtr(CurrentToken)^.KeywordIndex <> kiFOR)))) then
+      Nodes.AliasIdent := ParseAlias();
 
   Result := TSelectStmt.TColumn.Create(Self, Nodes);
 end;
@@ -18976,7 +19551,7 @@ function TMySQLParser.ParseTableReferenceInner(): TOffset;
       if (not Error and not EndOfStmt(CurrentToken)
         and (TokenPtr(CurrentToken)^.KeywordIndex < 0)
         and (TokenPtr(CurrentToken)^.TokenType in ttIdents + ttStrings)) then
-        Nodes.AliasToken := ParseDbIdent(ditAlias);
+        Nodes.AliasToken := ParseAlias();
 
       if (not Error and not EndOfStmt(CurrentToken) and ((TokenPtr(CurrentToken)^.KeywordIndex = kiUSE) or (TokenPtr(CurrentToken)^.KeywordIndex = kiIGNORE) or (TokenPtr(CurrentToken)^.KeywordIndex = kiFORCE))) then
         Nodes.IndexHintList := ParseList(False, ParseIndexHint);
@@ -18991,7 +19566,7 @@ function TMySQLParser.ParseTableReferenceInner(): TOffset;
         SelectNodes.AsToken := ParseTag(kiAS);
 
       if (not Error) then
-        SelectNodes.AliasToken := ParseDbIdent(ditAlias);
+        SelectNodes.AliasToken := ParseAlias();
 
       Result := TSelectStmt.TTableFactorSelect.Create(Self, SelectNodes);
     end
@@ -19703,7 +20278,7 @@ begin
       // ------------------------------
 
       Comment:
-        MOV TokenType,ttComment
+        MOV TokenType,ttLineComment
         CMP AX,10                        // End of line?
         JE Finish                        // Yes!
         CMP AX,13                        // End of line?
@@ -19718,7 +20293,7 @@ begin
       // ------------------------------
 
       MLComment:
-        MOV TokenType,ttComment
+        MOV TokenType,ttMultiLineComment
         ADD ESI,4                        // Step over "/*" in SQL
         SUB ECX,2                        // Two characters handled
       MLCommentL:
@@ -20771,6 +21346,20 @@ begin
 end;
 
 procedure TMySQLParser.SaveToFile(const Filename: string; const FileType: TFileType = ftSQL);
+begin
+  if (not Assigned(Root)) then
+    raise Exception.Create('Empty Buffer');
+  case (FileType) of
+    ftSQL:
+      SaveToSQLFile(Filename);
+    ftFormatedSQL:
+      SaveToFormatedSQLFile(Filename);
+    ftDebugHTML:
+      SaveToDebugHTMLFile(Filename);
+  end;
+end;
+
+procedure TMySQLParser.SaveToDebugHTMLFile(const Filename: string);
 var
   G: Integer;
   GenerationCount: Integer;
@@ -20784,12 +21373,6 @@ var
   Token: PToken;
   Generation: Integer;
 begin
-  if (FileType <> ftDebugHTML) then
-    raise Exception.Create('Format not jet supported.');
-
-  if (not Assigned(Root)) then
-    raise Exception.Create('Empty Buffer');
-
   Handle := CreateFile(PChar(Filename),
                        GENERIC_WRITE,
                        FILE_SHARE_READ,
@@ -21085,6 +21668,62 @@ begin
     if (not CloseHandle(Handle)) then
       RaiseLastOSError();
   end;
+end;
+
+procedure TMySQLParser.SaveToFormatedSQLFile(const Filename: string);
+var
+  Handle: THandle;
+  Size: Cardinal;
+  SQL: string;
+begin
+  Handle := CreateFile(PChar(Filename),
+                       GENERIC_WRITE,
+                       FILE_SHARE_READ,
+                       nil,
+                       CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+
+  if (Handle = INVALID_HANDLE_VALUE) then
+    RaiseLastOSError();
+
+  SQL := FormatSQL();
+
+  if (not WriteFile(Handle, PChar(BOM_UNICODE_LE)^, StrLen(BOM_UNICODE_LE), Size, nil)
+    or not WriteFile(Handle, PChar(SQL)^, Length(SQL) * SizeOf(SQL[1]), Size, nil)
+    or not CloseHandle(Handle)) then
+    RaiseLastOSError();
+end;
+
+procedure TMySQLParser.SaveToSQLFile(const Filename: string);
+var
+  Handle: THandle;
+  Size: Cardinal;
+  StringBuffer: TStringBuffer;
+  Token: PToken;
+begin
+  StringBuffer := TStringBuffer.Create(1024);
+
+  Token := TokenPtr(1);
+  while (Assigned(Token)) do
+  begin
+    StringBuffer.Write(Token^.SQL, Token^.Length);
+    Token := Token^.NextTokenAll;
+  end;
+
+  Handle := CreateFile(PChar(Filename),
+                       GENERIC_WRITE,
+                       FILE_SHARE_READ,
+                       nil,
+                       CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+
+  if (Handle = INVALID_HANDLE_VALUE) then
+    RaiseLastOSError();
+
+  if (not WriteFile(Handle, PChar(BOM_UNICODE_LE)^, StrLen(BOM_UNICODE_LE), Size, nil)
+    or not WriteFile(Handle, StringBuffer.Data^, StringBuffer.Size, Size, nil)
+    or not CloseHandle(Handle)) then
+    RaiseLastOSError();
+
+  StringBuffer.Free();
 end;
 
 procedure TMySQLParser.SetError(const AErrorCode: TErrorCode; const AErrorToken: TOffset = 0);

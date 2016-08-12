@@ -5204,8 +5204,7 @@ begin
       Token := Session.SQLParser.Root^.FirstStmt^.FirstToken;
       while (Assigned(Token)) do
       begin
-        if ((Token^.NextToken^.DbIdentType = ditAlias)
-          and (lstrcmpi(PChar(Token^.Text), PChar('AS')) = 0)
+        if ((lstrcmpi(PChar(Token^.Text), PChar('AS')) = 0)
           and (lstrcmp(PChar(PreviousToken^.AsString), PChar(Token^.NextToken^.AsString)) = 0)) then
         begin
           if (PreviousToken^.NextTokenAll^.TokenType in [ttSpace, ttReturn]) then
@@ -10807,7 +10806,7 @@ begin
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.ServerVersion;
   FUser := nil;
-  ParseEndDate := EncodeDate(2016, 8, 13);
+  ParseEndDate := EncodeDate(2016, 8, 15);
   SQLParser := nil;
   UnparsableSQL := '';
 

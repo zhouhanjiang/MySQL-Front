@@ -464,7 +464,8 @@ const
     'ttSyntaxError',
     'ttSpace',
     'ttReturn',
-    'ttComment',
+    'ttLineComment',
+    'ttMultiLineComment',
     'ttDot',
     'ttColon',
     'ttDelimiter',
@@ -580,7 +581,6 @@ const
 
   DbIdentTypeToString: array[TDbIdentType] of PChar = (
     'ditUnknown',
-    'ditAlias',
     'ditTable',
     'ditKey',
     'ditColumn',
@@ -672,6 +672,7 @@ var
     utSyntaxError,
     utWhiteSpace,
     utWhiteSpace,
+    utComment,
     utComment,
     utSymbol,
     utSymbol,

@@ -386,7 +386,8 @@ type
     ttSyntaxError,            // Error while parsing token
     ttSpace,                  // Tab and Space
     ttReturn,                 // New line
-    ttComment,                // Comment, like # comment, -- comment or /* this is multi line comment */
+    ttLineComment,            // Comment, like # comment, -- comment
+    ttMultiLineComment,       // Comment, like /* this is multi line comment */
     ttDot,                    // "."
     ttColon,                  // ":"
     ttDelimiter,              // ";"
@@ -488,7 +489,6 @@ type
 
   TDbIdentType = (
     ditUnknown,
-    ditAlias,
     ditTable,
     ditKey,
     ditColumn,

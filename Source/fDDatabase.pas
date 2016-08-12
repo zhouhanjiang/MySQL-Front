@@ -116,7 +116,7 @@ begin
   FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf(Database.DefaultCharset); FDefaultCharsetChange(nil);
   FCollation.ItemIndex := FCollation.Items.IndexOf(Database.Collation); FCollationChange(nil);
 
-  FSource.Lines.Text := Database.Source;
+  FSource.Lines.Text := Database.Source + #13#10;
 
   TSSource.TabVisible := Database.Source <> '';
 
