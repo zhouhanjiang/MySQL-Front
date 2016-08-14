@@ -4923,10 +4923,14 @@ var
   RBS: RawByteString;
   S: string;
 begin
+  // ParseCreateTable must be execute before SetSource, since in SetSource
+  // the PushBuildEvent will be executed
+  ParseCreateTable(ADataSet.FieldByName('Create Table').AsString);
+
   try
     SetSource(ADataSet.FieldByName('Create Table'));
   except
-    // Sometimes, the MySQL server sends invalid field comments
+    // Sometimes, the MySQL server sends wrong encoded field comments
     // This code allow the user to handle this table - but the comments are wrong.
     SetLength(S, ADataSet.LibLengths[ADataSet.FieldByName('Create Table').FieldNo - 1]);
     try
@@ -4937,9 +4941,6 @@ begin
       SetSource(string(RBS));
     end;
   end;
-
-  if (Source <> '') then
-    ParseCreateTable(Source);
 end;
 
 function TSBaseTable.SQLGetSource(): string;
@@ -10806,7 +10807,7 @@ begin
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.ServerVersion;
   FUser := nil;
-  ParseEndDate := EncodeDate(2016, 8, 15);
+  ParseEndDate := EncodeDate(2016, 8, 17);
   SQLParser := nil;
   UnparsableSQL := '';
 
@@ -11290,7 +11291,9 @@ begin
     else if (UpperCase(Caption) = 'DEC') then
       Result := FieldTypeByMySQLFieldType(mfDecimal)
     else if (UpperCase(Caption) = 'NVARCHAR') then
-      Result := FieldTypeByMySQLFieldType(mfVarChar);
+      Result := FieldTypeByMySQLFieldType(mfVarChar)
+    else if (UpperCase(Caption) = 'SERIAL') then
+      Result := FieldTypeByMySQLFieldType(mfInt);
 
   if (not Assigned(Result)) then
     raise Exception.CreateFMT(SUnknownFieldType, [Caption]);

@@ -6,6 +6,24 @@ uses
   fspTypes;
 
 const
+  PE_Success = 0; // No error
+
+  PE_Unknown = 1; // Unknown error
+
+  // Bugs while parsing Tokens:
+  PE_IncompleteToken = 2; // Incompleted token
+  PE_UnexpectedChar = 3; // Unexpected character
+
+  // Bugs while parsing Stmts:
+  PE_IncompleteStmt = 4; // Incompleted statement
+  PE_UnexpectedToken = 5; // Unexpected token
+  PE_ExtraToken = 6; // Token after completed statement
+
+  // Bugs while parsing Root
+  PE_UnkownStmt = 7; // Unknown statement
+
+  // Bugs while formating
+  PE_InvalidNodeValue = 8; // Invalid node value
 
   MySQLFunctions =
     'ABS,ACOS,ADD,ADDDATE,ADDTIME,AES_DECRYPT,AES_ENCRYPT,ANALYSE,ASCII,ASIN,' +
@@ -38,6 +56,8 @@ const
     'VARIANCE,VERSION,WEEK,WEEKDAY,WEEKOFYEAR,YEAR_MONTH,YEARWEEK';
 
   MySQLKeywords =
+    'INNODB,INSTANCE,ROTATE,MICROSECOND,' +
+
     'ACCOUNT,ACTION,ADD,AFTER,AGAINST,AGGREGATE,ALGORITHM,ALL,ALTER,ANALYZE,' +
     'AND,ANY,AS,ASC,ASCII,AT,AUTHORS,AUTO_INCREMENT,AUTOEXTEND_SIZE,' +
     'AVG_ROW_LENGTH,BACKUP,BEFORE,BEGIN,BENCHMARK,BETWEEN,BINARY,BINLOG,BIT,' +
@@ -104,17 +124,6 @@ const
     'WHERE,WHILE,WITH,WORK,WRAPPER,WRITE,X509,XA,XID,XML,XOR,YEAR,' +
     'YEAR_MONTH,ZEROFILL';
 
-  ErrorCodeToString: array[TErrorCode] of PChar = (
-    'PE_Success',
-    'PE_Unknown',
-    'PE_IncompleteToken',
-    'PE_UnexpectedChar',
-    'PE_IncompleteStmt',
-    'PE_UnexpectedToken',
-    'PE_ExtraToken',
-    'PE_UnkownStmt'
-  );
-
   NodeTypeToString: array[TNodeType] of PChar = (
     'ntUnknown',
     'ntRoot',
@@ -124,6 +133,7 @@ const
     'ntAnalyzeStmt',
     'ntAlterDatabaseStmt',
     'ntAlterEventStmt',
+    'ntAlterInstanceStmt',
     'ntAlterRoutineStmt',
     'ntAlterServerStmt',
     'ntAlterTableStmt',
@@ -165,6 +175,7 @@ const
     'ntCreateTriggerStmt',
     'ntCreateUserStmt',
     'ntCreateViewStmt',
+    'ntCurrentTimestamp',
     'ntDataType',
     'ntDbIdent',
     'ntDeallocatePrepareStmt',
@@ -208,7 +219,7 @@ const
     'ntInOp',
     'ntInsertStmt',
     'ntInsertStmtSetItem',
-    'ntInterval',
+    'ntIntervalOp',
     'ntIntervalListItem',
     'ntIterateStmt',
     'ntKillStmt',
@@ -222,6 +233,7 @@ const
     'ntLoopStmt',
     'ntPositionFunc',
     'ntPrepareStmt',
+    'ntPurgeStmt',
     'ntOj',
     'ntOpenStmt',
     'ntOptimizeStmt',
@@ -333,6 +345,7 @@ const
     'stAnalyze',
     'stAlterDatabase',
     'stAlterEvent',
+    'stAlterInstance',
     'stAlterRoutine',
     'stAlterServer',
     'stAlterTable',
@@ -387,6 +400,7 @@ const
     'stLock',
     'stLoop',
     'stPrepare',
+    'stPurge',
     'stOpen',
     'stOptimize',
     'stRename',
@@ -705,6 +719,7 @@ var
     ntAnalyzeStmt,
     ntAlterDatabaseStmt,
     ntAlterEventStmt,
+    ntAlterInstanceStmt,
     ntAlterRoutineStmt,
     ntAlterServerStmt,
     ntAlterTableStmt,
@@ -759,6 +774,7 @@ var
     ntLockStmt,
     ntLoopStmt,
     ntPrepareStmt,
+    ntPurgeStmt,
     ntOpenStmt,
     ntOptimizeStmt,
     ntRenameStmt,
@@ -836,6 +852,7 @@ const
     ntAnalyzeStmt,
     ntAlterDatabaseStmt,
     ntAlterEventStmt,
+    ntAlterInstanceStmt,
     ntAlterRoutineStmt,
     ntAlterServerStmt,
     ntAlterTableStmt,
@@ -890,6 +907,7 @@ const
     ntLockStmt,
     ntLoopStmt,
     ntPrepareStmt,
+    ntPurgeStmt,
     ntOpenStmt,
     ntOptimizeStmt,
     ntRenameStmt,

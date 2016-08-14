@@ -4,24 +4,6 @@ interface {********************************************************************}
 
 type
 
-  TErrorCode = (
-    PE_Success = 0, // No error
-
-    PE_Unknown = 1, // Unknown error
-
-    // Bugs while parsing Tokens:
-    PE_IncompleteToken = 2, // Incompleted token
-    PE_UnexpectedChar = 3, // Unexpected character
-
-    // Bugs while parsing Stmts:
-    PE_IncompleteStmt = 4, // Incompleted statement
-    PE_UnexpectedToken = 5, // Unexpected token
-    PE_ExtraToken = 6, // Token after completed statement
-
-    // Bugs while parsing Root
-    PE_UnkownStmt = 7 // Unknown statement
-  );
-
   TNodeType = (
     ntUnknown,         // Unused
     ntRoot,            // Root token, one usage by the parser to handle stmt list
@@ -31,6 +13,7 @@ type
     ntAnalyzeStmt,
     ntAlterDatabaseStmt,
     ntAlterEventStmt,
+    ntAlterInstanceStmt,
     ntAlterRoutineStmt,
     ntAlterServerStmt,
     ntAlterTableStmt,
@@ -72,6 +55,7 @@ type
     ntCreateTriggerStmt,
     ntCreateUserStmt,
     ntCreateViewStmt,
+    ntCurrentTimestamp,
     ntDataType,
     ntDbIdent,
     ntDeallocatePrepareStmt,
@@ -115,7 +99,7 @@ type
     ntInOp,
     ntInsertStmt,
     ntInsertStmtSetItem,
-    ntInterval,
+    ntIntervalOp,
     ntIntervalListItem,
     ntIterateStmt,
     ntKillStmt,
@@ -129,6 +113,7 @@ type
     ntLoopStmt,
     ntPositionFunc,
     ntPrepareStmt,
+    ntPurgeStmt,
     ntOj,
     ntOpenStmt,
     ntOptimizeStmt,
@@ -240,6 +225,7 @@ type
     stAnalyze,
     stAlterDatabase,
     stAlterEvent,
+    stAlterInstance,
     stAlterRoutine,
     stAlterServer,
     stAlterTable,
@@ -294,6 +280,7 @@ type
     stLock,
     stLoop,
     stPrepare,
+    stPurge,
     stOpen,
     stOptimize,
     stRename,
