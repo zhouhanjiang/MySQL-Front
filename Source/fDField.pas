@@ -619,11 +619,11 @@ begin
         else if (FRDefaultNull.Checked) then
           NewField.Default := 'NULL'
         else
-          NewField.Default := SQLEscape(Trim(FDefault.Text))
+          NewField.Default := NewField.EscapeValue(Trim(FDefault.Text))
       else if (((GetType() = mfBit) or IsIntType() or IsFloatType() or IsCharType() or IsBinaryType() or IsDateType()) and (FDefault.Visible) and not FRDefaultNull.Checked) then
-        NewField.Default := SQLEscape(Trim(FDefault.Text))
+        NewField.Default := NewField.EscapeValue(Trim(FDefault.Text))
       else if ((NewField.FieldType = mfEnum) and (not FFlagNullAllowed.Checked or (FDefaultENum.ItemIndex > 0))) then
-        NewField.Default := SQLEscape(FDefaultENum.Text)
+        NewField.Default := NewField.EscapeValue(FDefaultENum.Text)
       else if (NewField.FieldType = mfSet) then
       begin
         for I := 0 to FDefaultSet.Count - 1 do
@@ -633,10 +633,10 @@ begin
               NewField.Default := NewField.Default + ',';
             NewField.Default := NewField.Default + FDefaultSet.Items.Strings[I];
           end;
-        NewField.Default := SQLEscape(NewField.Default);
+        NewField.Default := NewField.EscapeValue(NewField.Default);
       end
       else if (FFlagNullAllowed.Checked) then
-        NewField.Default := SQLEscape('NULL');
+        NewField.Default := 'NULL';
       if (FUpdateTime.Checked) then
         NewField.OnUpdate := 'CURRENT_TIMESTAMP'
       else

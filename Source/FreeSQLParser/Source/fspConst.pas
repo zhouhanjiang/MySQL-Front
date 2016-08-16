@@ -56,7 +56,7 @@ const
     'VARIANCE,VERSION,WEEK,WEEKDAY,WEEKOFYEAR,YEAR_MONTH,YEARWEEK';
 
   MySQLKeywords =
-    'INNODB,INSTANCE,ROTATE,MICROSECOND,' +
+    'INNODB,INSTANCE,ROTATE,MICROSECOND,FOLLOWS,PRECEDES,' +
 
     'ACCOUNT,ACTION,ADD,AFTER,AGAINST,AGGREGATE,ALGORITHM,ALL,ALTER,ANALYZE,' +
     'AND,ANY,AS,ASC,ASCII,AT,AUTHORS,AUTO_INCREMENT,AUTOEXTEND_SIZE,' +
@@ -319,6 +319,7 @@ const
     'ntStartTransactionStmt',
     'ntStopSlaveStmt',
     'ntSubArea',
+    'ntSubAreaSelect',
     'ntSubPartition',
     'ntSubstringFunc',
     'ntTableReference',
@@ -464,6 +465,7 @@ const
     'stStartSlave',
     'stStartTransaction',
     'stStopSlave',
+    'stSubAreaSelect',
     'stTruncate',
     'stUnknown',
     'stUnlock',
@@ -838,6 +840,7 @@ var
     ntStartSlaveStmt,
     ntStartTransactionStmt,
     ntStopSlaveStmt,
+    ntSubAreaSelectStmt,
     ntTruncateStmt,
     ntUnknownStmt,
     ntUnlockStmt,
@@ -971,6 +974,7 @@ const
     ntStartSlaveStmt,
     ntStartTransactionStmt,
     ntStopSlaveStmt,
+    ntSubAreaSelectStmt,
     ntTruncateStmt,
     ntUnknownStmt,
     ntUnlockStmt,
