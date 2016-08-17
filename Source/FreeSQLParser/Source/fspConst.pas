@@ -56,7 +56,8 @@ const
     'VARIANCE,VERSION,WEEK,WEEKDAY,WEEKOFYEAR,YEAR_MONTH,YEARWEEK';
 
   MySQLKeywords =
-    'INNODB,INSTANCE,ROTATE,MICROSECOND,FOLLOWS,PRECEDES,' +
+    'INNODB,INSTANCE,ROTATE,MICROSECOND,FOLLOWS,PRECEDES,SIGNED,' +
+    'MAX_STATEMENT_TIME,' +
 
     'ACCOUNT,ACTION,ADD,AFTER,AGAINST,AGGREGATE,ALGORITHM,ALL,ALTER,ANALYZE,' +
     'AND,ANY,AS,ASC,ASCII,AT,AUTHORS,AUTO_INCREMENT,AUTOEXTEND_SIZE,' +
@@ -206,7 +207,7 @@ const
     'ntFunctionReturns',
     'ntGetDiagnosticsStmt',
     'ntGetDiagnosticsStmtStmtInfo',
-    'ntGetDiagnosticsStmtConditionInfo',
+    'ntGetDiagnosticsStmtCondInfo',
     'ntGrantStmt',
     'ntGrantStmtPrivileg',
     'ntGrantStmtUserSpecification',
@@ -220,7 +221,7 @@ const
     'ntInsertStmt',
     'ntInsertStmtSetItem',
     'ntIntervalOp',
-    'ntIntervalListItem',
+    'ntIntervalOpListItem',
     'ntIterateStmt',
     'ntKillStmt',
     'ntLeaveStmt',
@@ -234,7 +235,6 @@ const
     'ntPositionFunc',
     'ntPrepareStmt',
     'ntPurgeStmt',
-    'ntOj',
     'ntOpenStmt',
     'ntOptimizeStmt',
     'ntRegExpOp',
@@ -253,7 +253,6 @@ const
     'ntSecretIdent',
     'ntSelectStmt',
     'ntSelectStmtColumn',
-    'ntSelectStmtFrom',
     'ntSelectStmtGroup',
     'ntSelectStmtGroups',
     'ntSelectStmtOrder',
