@@ -3113,7 +3113,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3128,7 +3128,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3141,15 +3141,17 @@ type
           StmtTag: TOffset;
           InValue: TOffset;
           FromValue: TOffset;
-          LimitTag: TOffset;
-          OffsetToken: TOffset;
-          CommaToken: TOffset;
-          RowCountToken: TOffset;
+          Limit: packed record
+            Tag: TOffset;
+            OffsetToken: TOffset;
+            CommaToken: TOffset;
+            RowCountToken: TOffset;
+          end;
         end;
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3166,7 +3168,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3183,7 +3185,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3198,7 +3200,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3214,7 +3216,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3230,7 +3232,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3247,7 +3249,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3263,7 +3265,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3279,7 +3281,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3295,7 +3297,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3311,7 +3313,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3327,7 +3329,23 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
+        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+      public
+        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+      end;
+
+      PShowCreateUserStmt = ^TShowCreateUserStmt;
+      TShowCreateUserStmt = packed record
+      private type
+        TNodes = packed record
+          StmtTag: TOffset;
+          User: TOffset;
+        end;
+      private
+        Heritage: TStmt;
+      private
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3343,7 +3361,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3360,7 +3378,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3377,7 +3395,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3392,7 +3410,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3413,7 +3431,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3431,7 +3449,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3446,7 +3464,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3461,7 +3479,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3477,7 +3495,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3495,7 +3513,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3510,7 +3528,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3528,7 +3546,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3543,7 +3561,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3558,7 +3576,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3573,7 +3591,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3590,7 +3608,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3605,7 +3623,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3624,7 +3642,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -3639,7 +3657,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -4871,6 +4889,8 @@ type
     procedure FormatSelectStmtColumn(const Nodes: TSelectStmt.TColumn.TNodes);
     procedure FormatSelectStmtInto(const Nodes: TSelectStmt.TInto.TNodes);
     procedure FormatSelectStmtTableFactorOj(const Nodes: TSelectStmt.TTableFactorOj.TNodes);
+    procedure FormatShowBinlogEventsStmt(const Nodes: TShowBinlogEventsStmt.TNodes);
+    procedure FormatShowErrorsStmt(const Nodes: TShowErrorsStmt.TNodes);
     procedure FormatToken(const Token: PToken);
     function IsChild(const ANode: PNode): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function IsChild(const ANode: TOffset): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
@@ -5061,6 +5081,7 @@ type
     function ParseShowCreateProcedureStmt(): TOffset;
     function ParseShowCreateTableStmt(): TOffset;
     function ParseShowCreateTriggerStmt(): TOffset;
+    function ParseShowCreateUserStmt(): TOffset;
     function ParseShowCreateViewStmt(): TOffset;
     function ParseShowDatabasesStmt(): TOffset;
     function ParseShowEngineStmt(): TOffset;
@@ -5621,11 +5642,11 @@ var
   Token: PToken;
 begin
   Result := nil;
-  if (PChild(@Self)^.ParentNode^.NodeType = ntList) then
+  if (ParentNode^.NodeType = ntList) then
   begin
-    Token := PChild(@Self)^.LastToken^.NextToken;
+    Token := LastToken^.NextToken;
 
-    if (Assigned(Token) and (Token^.TokenType = PList(PChild(@Self)^.ParentNode)^.DelimiterType)) then
+    if (Assigned(Token) and (Token^.TokenType = PList(ParentNode)^.DelimiterType)) then
     begin
       Token := Token^.NextToken;
 
@@ -5633,8 +5654,11 @@ begin
       begin
         Child := PChild(Token);
 
-        while (Assigned(Child) and (Child^.ParentNode <> PChild(@Self)^.ParentNode)) do
-          Child := PChild(Child^.ParentNode);
+        while (Assigned(Child) and (Child^.ParentNode <> ParentNode)) do
+          if (not Parser.IsChild(Child^.ParentNode)) then
+            Child := nil
+          else
+            Child := PChild(Child^.ParentNode);
 
         Result := Child;
       end;
@@ -8779,7 +8803,7 @@ begin
 
   with PShowAuthorsStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
   end;
@@ -8793,7 +8817,7 @@ begin
 
   with PShowBinaryLogsStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
   end;
@@ -8807,15 +8831,15 @@ begin
 
   with PShowBinlogEventsStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
     Heritage.Heritage.AddChild(ANodes.InValue);
     Heritage.Heritage.AddChild(ANodes.FromValue);
-    Heritage.Heritage.AddChild(ANodes.LimitTag);
-    Heritage.Heritage.AddChild(ANodes.OffsetToken);
-    Heritage.Heritage.AddChild(ANodes.CommaToken);
-    Heritage.Heritage.AddChild(ANodes.RowCountToken);
+    Heritage.Heritage.AddChild(ANodes.Limit.Tag);
+    Heritage.Heritage.AddChild(ANodes.Limit.OffsetToken);
+    Heritage.Heritage.AddChild(ANodes.Limit.CommaToken);
+    Heritage.Heritage.AddChild(ANodes.Limit.RowCountToken);
   end;
 end;
 
@@ -8827,7 +8851,7 @@ begin
 
   with PShowCharacterSetStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
     Heritage.Heritage.AddChild(ANodes.LikeValue);
@@ -8843,7 +8867,7 @@ begin
 
   with PShowCollationStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
     Heritage.Heritage.AddChild(ANodes.LikeValue);
@@ -8859,7 +8883,7 @@ begin
 
   with PShowContributorsStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
   end;
@@ -8873,7 +8897,7 @@ begin
 
   with PShowCountErrorsStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
     Heritage.Heritage.AddChild(ANodes.CountFunctionCall);
@@ -8888,7 +8912,7 @@ begin
 
   with PShowCountWarningsStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
     Heritage.Heritage.AddChild(ANodes.CountFunctionCall);
@@ -8903,7 +8927,7 @@ begin
 
   with PShowCreateDatabaseStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
   end;
@@ -8917,7 +8941,7 @@ begin
 
   with PShowCreateEventStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
   end;
@@ -8931,7 +8955,7 @@ begin
 
   with PShowCreateFunctionStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
   end;
@@ -8945,7 +8969,7 @@ begin
 
   with PShowCreateProcedureStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
     Heritage.Heritage.AddChild(ANodes.Ident);
@@ -8960,7 +8984,7 @@ begin
 
   with PShowCreateTableStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
   end;
@@ -8974,9 +8998,25 @@ begin
 
   with PShowCreateTriggerStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
+    Heritage.Heritage.AddChild(ANodes.Ident);
+  end;
+end;
+
+{ TMySQLParser.TShowCreateUserStmt ********************************************}
+
+class function TMySQLParser.TShowCreateUserStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+begin
+  Result := TStmt.Create(AParser, stShowCreateUser);
+
+  with PShowCreateUserStmt(AParser.NodePtr(Result))^ do
+  begin
+    Nodes := ANodes;
+
+    Heritage.Heritage.AddChild(ANodes.StmtTag);
+    Heritage.Heritage.AddChild(ANodes.User);
   end;
 end;
 
@@ -8988,7 +9028,7 @@ begin
 
   with PShowCreateViewStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
   end;
@@ -9002,7 +9042,7 @@ begin
 
   with PShowDatabasesStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
     Heritage.Heritage.AddChild(ANodes.LikeValue);
@@ -9018,7 +9058,7 @@ begin
 
   with PShowEngineStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
     Heritage.Heritage.AddChild(ANodes.Ident);
@@ -9034,7 +9074,7 @@ begin
 
   with PShowEnginesStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
   end;
@@ -9048,7 +9088,7 @@ begin
 
   with PShowErrorsStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
     Heritage.Heritage.AddChild(ANodes.Limit.LimitTag);
@@ -9066,7 +9106,7 @@ begin
 
   with PShowEventsStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
     Heritage.Heritage.AddChild(ANodes.FromValue);
@@ -9083,7 +9123,7 @@ begin
 
   with PShowFunctionCodeStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
   end;
@@ -9097,7 +9137,7 @@ begin
 
   with PShowFunctionStatusStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
   end;
@@ -9111,7 +9151,7 @@ begin
 
   with PShowGrantsStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
     Heritage.Heritage.AddChild(ANodes.ForValue);
@@ -9126,7 +9166,7 @@ begin
 
   with PShowIndexStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
     Heritage.Heritage.AddChild(ANodes.FromTableValue);
@@ -9143,7 +9183,7 @@ begin
 
   with PShowMasterStatusStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
   end;
@@ -9157,7 +9197,7 @@ begin
 
   with PShowOpenTablesStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
     Heritage.Heritage.AddChild(ANodes.FromDatabaseValue);
@@ -9174,7 +9214,7 @@ begin
 
   with PShowPluginsStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
   end;
@@ -9188,7 +9228,7 @@ begin
 
   with PShowPrivilegesStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
   end;
@@ -9202,7 +9242,7 @@ begin
 
   with PShowProcedureCodeStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
   end;
@@ -9216,7 +9256,7 @@ begin
 
   with PShowProcedureStatusStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
     Heritage.Heritage.AddChild(ANodes.LikeValue);
@@ -9232,7 +9272,7 @@ begin
 
   with PShowProcessListStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
   end;
@@ -9246,7 +9286,7 @@ begin
 
   with PShowProfileStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
     Heritage.Heritage.AddChild(ANodes.TypeList);
@@ -9264,7 +9304,7 @@ begin
 
   with PShowProfilesStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
   end;
@@ -11060,39 +11100,40 @@ begin
       ntSetStmt: FormatNodesDefault(@PSetStmt(Node)^.Nodes, SizeOf(TSetStmt.TNodes));
       ntSetStmtAssignment: FormatNodesDefault(@TSetStmt.PAssignment(Node)^.Nodes, SizeOf(TSetStmt.TAssignment.TNodes));
       ntSetTransactionStmt: FormatNodesDefault(@PSetTransactionStmt(Node)^.Nodes, SizeOf(TSetTransactionStmt.TNodes));
-        ntShowAuthorsStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowBinaryLogsStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowBinlogEventsStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowCharacterSetStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowCollationStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowContributorsStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowCountErrorsStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowCountWarningsStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowCreateDatabaseStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowCreateEventStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowCreateFunctionStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowCreateProcedureStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowCreateTableStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowCreateTriggerStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowCreateViewStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowDatabasesStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowEngineStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowEnginesStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowErrorsStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowEventsStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowFunctionCodeStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowFunctionStatusStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowGrantsStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowIndexStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowMasterStatusStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowOpenTablesStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowPluginsStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowPrivilegesStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowProcedureCodeStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowProcedureStatusStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowProcessListStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowProfileStmt: raise Exception.Create(SArgumentOutOfRange);
-        ntShowProfilesStmt: raise Exception.Create(SArgumentOutOfRange);
+      ntShowAuthorsStmt: FormatNodesDefault(@PShowAuthorsStmt(Node)^.Nodes, SizeOf(TShowAuthorsStmt.TNodes));
+      ntShowBinaryLogsStmt: FormatNodesDefault(@PShowBinaryLogsStmt(Node)^.Nodes, SizeOf(TShowBinaryLogsStmt.TNodes));
+      ntShowBinlogEventsStmt: FormatShowBinlogEventsStmt(PShowBinlogEventsStmt(Node)^.Nodes);
+      ntShowCharacterSetStmt: FormatNodesDefault(@PShowCharacterSetStmt(Node)^.Nodes, SizeOf(TShowCharacterSetStmt.TNodes));
+      ntShowCollationStmt: FormatNodesDefault(@PShowCollationStmt(Node)^.Nodes, SizeOf(TShowCollationStmt.TNodes));
+      ntShowContributorsStmt: FormatNodesDefault(@PShowContributorsStmt(Node)^.Nodes, SizeOf(TShowContributorsStmt.TNodes));
+      ntShowCountErrorsStmt: FormatNodesDefault(@PShowCountErrorsStmt(Node)^.Nodes, SizeOf(TShowCountErrorsStmt.TNodes));
+      ntShowCountWarningsStmt: FormatNodesDefault(@PShowCountWarningsStmt(Node)^.Nodes, SizeOf(TShowCountWarningsStmt.TNodes));
+      ntShowCreateDatabaseStmt: FormatNodesDefault(@PShowCreateDatabaseStmt(Node)^.Nodes, SizeOf(TShowCreateDatabaseStmt.TNodes));
+      ntShowCreateEventStmt: FormatNodesDefault(@PShowCreateEventStmt(Node)^.Nodes, SizeOf(TShowCreateEventStmt.TNodes));
+      ntShowCreateFunctionStmt: FormatNodesDefault(@PShowCreateFunctionStmt(Node)^.Nodes, SizeOf(TShowCreateFunctionStmt.TNodes));
+      ntShowCreateProcedureStmt: FormatNodesDefault(@PShowCreateProcedureStmt(Node)^.Nodes, SizeOf(TShowCreateProcedureStmt.TNodes));
+      ntShowCreateTableStmt: FormatNodesDefault(@PShowCreateTableStmt(Node)^.Nodes, SizeOf(TShowCreateTableStmt.TNodes));
+      ntShowCreateTriggerStmt: FormatNodesDefault(@PShowCreateTriggerStmt(Node)^.Nodes, SizeOf(TShowCreateTriggerStmt.TNodes));
+      ntShowCreateUserStmt: FormatNodesDefault(@PShowCreateUserStmt(Node)^.Nodes, SizeOf(TShowCreateUserStmt.TNodes));
+      ntShowCreateViewStmt: FormatNodesDefault(@PShowCreateViewStmt(Node)^.Nodes, SizeOf(TShowCreateViewStmt.TNodes));
+      ntShowDatabasesStmt: FormatNodesDefault(@PShowDatabasesStmt(Node)^.Nodes, SizeOf(TShowDatabasesStmt.TNodes));
+      ntShowEngineStmt: FormatNodesDefault(@PShowEngineStmt(Node)^.Nodes, SizeOf(TShowEngineStmt.TNodes));
+      ntShowEnginesStmt: FormatNodesDefault(@PShowEnginesStmt(Node)^.Nodes, SizeOf(TShowEnginesStmt.TNodes));
+      ntShowErrorsStmt: FormatShowErrorsStmt(PShowErrorsStmt(Node)^.Nodes);
+      ntShowEventsStmt: FormatNodesDefault(@PShowEventsStmt(Node)^.Nodes, SizeOf(TShowEventsStmt.TNodes));
+      ntShowFunctionCodeStmt: FormatNodesDefault(@PShowFunctionCodeStmt(Node)^.Nodes, SizeOf(TShowFunctionCodeStmt.TNodes));
+      ntShowFunctionStatusStmt: FormatNodesDefault(@PShowFunctionStatusStmt(Node)^.Nodes, SizeOf(TShowFunctionStatusStmt.TNodes));
+      ntShowGrantsStmt: FormatNodesDefault(@PShowGrantsStmt(Node)^.Nodes, SizeOf(TShowGrantsStmt.TNodes));
+      ntShowIndexStmt: FormatNodesDefault(@PShowIndexStmt(Node)^.Nodes, SizeOf(TShowIndexStmt.TNodes));
+      ntShowMasterStatusStmt: FormatNodesDefault(@PShowMasterStatusStmt(Node)^.Nodes, SizeOf(TShowMasterStatusStmt.TNodes));
+      ntShowOpenTablesStmt: FormatNodesDefault(@PShowOpenTablesStmt(Node)^.Nodes, SizeOf(TShowOpenTablesStmt.TNodes));
+      ntShowPluginsStmt: FormatNodesDefault(@PShowPluginsStmt(Node)^.Nodes, SizeOf(TShowPluginsStmt.TNodes));
+      ntShowPrivilegesStmt: FormatNodesDefault(@PShowPrivilegesStmt(Node)^.Nodes, SizeOf(TShowPrivilegesStmt.TNodes));
+      ntShowProcedureCodeStmt: FormatNodesDefault(@PShowProcedureCodeStmt(Node)^.Nodes, SizeOf(TShowProcedureCodeStmt.TNodes));
+      ntShowProcedureStatusStmt: FormatNodesDefault(@PShowProcedureStatusStmt(Node)^.Nodes, SizeOf(TShowProcedureStatusStmt.TNodes));
+      ntShowProcessListStmt: FormatNodesDefault(@PShowProcessListStmt(Node)^.Nodes, SizeOf(TShowProcessListStmt.TNodes));
+      ntShowProfileStmt: FormatNodesDefault(@PShowProfileStmt(Node)^.Nodes, SizeOf(TShowProfileStmt.TNodes));
+      ntShowProfilesStmt: FormatNodesDefault(@PShowProfilesStmt(Node)^.Nodes, SizeOf(TShowProfilesStmt.TNodes));
         ntShowRelaylogEventsStmt: raise Exception.Create(SArgumentOutOfRange);
         ntShowSlaveHostsStmt: raise Exception.Create(SArgumentOutOfRange);
         ntShowSlaveStatusStmt: raise Exception.Create(SArgumentOutOfRange);
@@ -11347,6 +11388,26 @@ begin
   FormatNode(Nodes.OjTag);
   FormatNode(Nodes.TableReference, stSpaceBefore);
   FormatNode(Nodes.CloseBracketToken);
+end;
+
+procedure TMySQLParser.FormatShowBinlogEventsStmt(const Nodes: TShowBinlogEventsStmt.TNodes);
+begin
+  FormatNode(Nodes.StmtTag);
+  FormatNode(Nodes.InValue, stSpaceBefore);
+  FormatNode(Nodes.FromValue, stSpaceBefore);
+  FormatNode(Nodes.Limit.Tag, stSpaceBefore);
+  FormatNode(Nodes.Limit.OffsetToken, stSpaceBefore);
+  FormatNode(Nodes.Limit.CommaToken);
+  FormatNode(Nodes.Limit.RowCountToken, stSpaceBefore);
+end;
+
+procedure TMySQLParser.FormatShowErrorsStmt(const Nodes: TShowErrorsStmt.TNodes);
+begin
+  FormatNode(Nodes.StmtTag);
+  FormatNode(Nodes.Limit.LimitTag, stSpaceBefore);
+  FormatNode(Nodes.Limit.OffsetToken, stSpaceBefore);
+  FormatNode(Nodes.Limit.CommaToken);
+  FormatNode(Nodes.Limit.LimitTag, stSpaceBefore);
 end;
 
 function TMySQLParser.FormatSQL(out SQL: string): Boolean;
@@ -11862,6 +11923,7 @@ begin
     ntShowCreateProcedureStmt: Result := SizeOf(TShowCreateProcedureStmt);
     ntShowCreateTableStmt: Result := SizeOf(TShowCreateTableStmt);
     ntShowCreateTriggerStmt: Result := SizeOf(TShowCreateTriggerStmt);
+    ntShowCreateUserStmt: Result := SizeOf(TShowCreateUserStmt);
     ntShowCreateViewStmt: Result := SizeOf(TShowCreateViewStmt);
     ntShowDatabasesStmt: Result := SizeOf(TShowDatabasesStmt);
     ntShowEngineStmt: Result := SizeOf(TShowEngineStmt);
@@ -15114,7 +15176,10 @@ begin
       and (IdentString <> 'VARBINARY')
       and (IdentString <> 'VARCHAR')
       and (IdentString <> 'YEAR')) then
-      SetError(PE_UnexpectedToken, PreviousToken);
+      if ((Nodes.SignedTag > 0) and (PTag(TokenPtr(Nodes.SignedTag))^.Nodes.KeywordToken1 = kiUNSIGNED)) then
+        IdentString := 'UNSIGNED'
+      else
+        SetError(PE_UnexpectedToken, PreviousToken);
 
       if (not Error) then
         if ((IdentString = 'BIGINT')
@@ -15199,6 +15264,11 @@ begin
             Nodes.ItemsList := ParseList(True, ParseString);
         end;
 
+    if (not Error and not EndOfStmt(CurrentToken)) then
+      if (TokenPtr(CurrentToken)^.KeywordIndex = kiSIGNED) then
+        Nodes.SignedTag := ParseTag(kiSIGNED)
+      else if (TokenPtr(CurrentToken)^.KeywordIndex = kiUNSIGNED) then
+        Nodes.SignedTag := ParseTag(kiUNSIGNED);
   end;
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiZEROFILL)
@@ -18652,7 +18722,7 @@ begin
     if (not Error) then
       Nodes.From.References := ParseList(False, ParseSelectStmtTableFactorOj);
 
-    if (not Error) then
+    if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiPARTITION)) then
       Nodes.PartitionValue := ParseValue(kiPARTITION, vaNo, ParsePartitionIdent);
 
     if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiWHERE)) then
@@ -19214,24 +19284,24 @@ begin
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiLIMIT)) then
   begin
-    Nodes.LimitTag := ParseTag(kiLIMIT);
+    Nodes.Limit.Tag := ParseTag(kiLIMIT);
 
     if (EndOfStmt(CurrentToken)) then
       SetError(PE_IncompleteStmt)
     else
     begin
-      Nodes.RowCountToken := ParseInteger();
+      Nodes.Limit.RowCountToken := ParseInteger();
 
       if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType = ttComma)) then
       begin
-        Nodes.CommaToken := ApplyCurrentToken();
+        Nodes.Limit.CommaToken := ApplyCurrentToken();
 
         if (EndOfStmt(CurrentToken)) then
           SetError(PE_IncompleteStmt)
         else
         begin
-          Nodes.OffsetToken := Nodes.RowCountToken;
-          Nodes.RowCountToken := ParseInteger();
+          Nodes.Limit.OffsetToken := Nodes.Limit.RowCountToken;
+          Nodes.Limit.RowCountToken := ParseInteger();
         end;
       end;
     end;
@@ -19426,6 +19496,20 @@ begin
     Nodes.Ident := ParseDbIdent(ditTrigger);
 
   Result := TShowCreateTriggerStmt.Create(Self, Nodes);
+end;
+
+function TMySQLParser.ParseShowCreateUserStmt(): TOffset;
+var
+  Nodes: TShowCreateUserStmt.TNodes;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
+  Nodes.StmtTag := ParseTag(kiSHOW, kiCREATE, kiUSER);
+
+  if (not Error) then
+    Nodes.User := ParseUserIdent();
+
+  Result := TShowCreateUserStmt.Create(Self, Nodes);
 end;
 
 function TMySQLParser.ParseShowCreateViewStmt(): TOffset;
@@ -20447,6 +20531,8 @@ begin
         Result := ParseShowCreateTableStmt()
       else if ((KeywordIndex1 = kiCREATE) and (KeywordIndex2 = kiTRIGGER)) then
         Result := ParseShowCreateTriggerStmt()
+      else if ((KeywordIndex1 = kiCREATE) and (KeywordIndex2 = kiUSER)) then
+        Result := ParseShowCreateUserStmt()
       else if ((KeywordIndex1 = kiCREATE) and (KeywordIndex2 = kiVIEW)) then
         Result := ParseShowCreateViewStmt()
       else if ((KeywordIndex1 = kiDATABASES)) then
@@ -21017,7 +21103,7 @@ end;
 function TMySQLParser.ParseToken(): TOffset;
 label
   TwoChars,
-  Selection, SelSpace, SelQuotedIdent, SelNotLess, SelNotEqual1, SelNotGreater, SelNot1, SelDoubleQuote, SelComment, SelModulo, SelDolor, SelAmpersand2, SelBitAND, SelSingleQuote, SelOpenBracket, SelCloseBracket, SelMySQLCodeEnd, SelMulti, SelComma, SelDoubleDot, SelDot, SelDotNumber, SelMySQLCode, SelDiv, SelInteger, SelSLComment, SelArrow, SelMinus, SelPlus, SelAssign, SelColon, SelDelimiter, SelNULLSaveEqual, SelLessEqual, SelShiftLeft, SelNotEqual2, SelLess, SelEqual, SelGreaterEqual, SelShiftRight, SelGreater, SelParameter, SelAt, SelUnquotedIdent, SelDBIdent, SelBackslash, SelCloseSquareBracket, SelHat, SelMySQLCharacterSet, SelMySQLIdent, SelBitValueHigh, SelBitValueLow, SelHexValueHigh, SelHexValueLow, SelUnquotedIdentLower, SelOpenCurlyBracket, SelOpenCurlyBracket2, SelPipe, SelBitOR, SelCloseCurlyBracket, SelTilde, SelE,
+  Selection, SelSpace, SelQuotedIdent, SelNotLess, SelNotEqual1, SelNotGreater, SelNot1, SelDoubleQuote, SelComment, SelModulo, SelDolor, SelAmpersand2, SelBitAND, SelSingleQuote, SelOpenBracket, SelCloseBracket, SelMySQLCodeEnd, SelMulti, SelComma, SelDoubleDot, SelDot, SelDotNumber, SelMySQLCode, SelDiv, SelInteger, SelSLComment, SelArrow, SelMinus, SelPlus, SelAssign, SelColon, SelDelimiter, SelNULLSaveEqual, SelLessEqual, SelShiftLeft, SelNotEqual2, SelLess, SelEqual, SelGreaterEqual, SelShiftRight, SelGreater, SelParameter, SelAt, SelHex, SelHex2, SelUnquotedIdent, SelDBIdent, SelBackslash, SelCloseSquareBracket, SelHat, SelMySQLCharacterSet, SelMySQLIdent, SelBitValueHigh, SelBitValueLow, SelHexValueHigh, SelHexValueLow, SelUnquotedIdentLower, SelOpenCurlyBracket, SelOpenCurlyBracket2, SelPipe, SelBitOR, SelCloseCurlyBracket, SelTilde, SelE,
   BindVariable,
   Colon,
   Comment,
@@ -21025,7 +21111,7 @@ label
   MySQLCharacterSet, MySQLCharacterSetL, MySQLCharacterSetL2, MySQLCharacterSetLE, MySQLCharacterSetE, MySQLCharacterSetE2,
   MySQLCondCode, MySQLCondCodeL, MySQLCondCodeE,
   Numeric, NumericL, NumericExp, NumericE, NumericDot, NumericLE,
-  Hex, HexL, HexLE,
+  Hex, HexL, HexL2, HexLE,
   IPAddress, IPAddressL, IPAddressLE,
   QuotedIdent, QuotedIdentL, QuotedIdentLE, QuotedIdentE,
   Return, ReturnE,
@@ -21306,9 +21392,19 @@ begin
         JMP SingleChar
       SelAt:
         CMP AX,'@'                       // "@" ?
-        JNE SelUnquotedIdent             // No!
+        JNE SelHex                       // No!
         MOV TokenType,ttAt
         JMP SingleChar
+      SelHex:
+        CMP EAX,$00270078                // "x'"?
+        JNE SelHex2                      // No!
+        MOV DX,''''                      // Hex ends with "'"
+        JMP Hex
+      SelHex2:
+        CMP EAX,$00270058                // "X'"?
+        JNE SelUnquotedIdent             // No!
+        MOV DX,''''                      // Hex ends with "'"
+        JMP Hex
       SelUnquotedIdent:
         CMP AX,'Z'                       // Up case character?
         JA SelDBIdent                    // No!
@@ -21561,6 +21657,7 @@ begin
         MOV DotFound,False               // One dot in a numeric value allowed only
         MOV EFound,False                 // One "E" in a numeric value allowed only
         MOV TokenType,ttInteger
+        MOV DX,0                         // No end-quoter in Hex
       NumericL:
         CMP AX,'.'                       // Dot?
         JE NumericDot                    // Yes!
@@ -21607,8 +21704,20 @@ begin
         ADD ESI,2                        // Step over "x"
         DEC ECX                          // One character handled
         JZ IncompleteToken               // All characters handled!
+        MOV AX,[ESI]                     // One Character from SQL to AX
+        CMP AX,''''                      // String?
+        JNE HexL
+        ADD ESI,2                        // Step over "'"
+        DEC ECX                          // One character handled
+        JZ IncompleteToken               // All characters handled!
       HexL:
         MOV AX,[ESI]                     // One Character from SQL to AX
+        CMP AX,DX                        // End quoter?
+        JNE HexL2
+        ADD ESI,2                        // Step over "'"
+        DEC ECX                          // One character handled
+        JMP Finish
+      HexL2:
         CALL Separator                   // SQL separator?
         JE Finish                        // Yes!
         CMP AX,'0'                       // Digit?
@@ -22732,9 +22841,10 @@ begin
                   HTML := HTML
                     + '<tr><td>DbIdentType:</td><td>&nbsp;</td><td>' + DbIdentTypeToString[PDbIdent(Node)^.DbIdentType] + '</td></tr>';
                 ntList:
-                  HTML := HTML
-                    + '<tr><td>FirstChild Offset:</td><td>&nbsp;</td><td>' + IntToStr(PNode(PList(Node)^.FirstChild)^.Offset) + '</td></tr>'
-                    + '<tr><td>Count:</td><td>&nbsp;</td><td>' + IntToStr(PList(Node)^.Count) + '</td></tr>';
+                  if (Assigned(PList(Node)^.FirstChild)) then
+                    HTML := HTML
+                      + '<tr><td>FirstChild Offset:</td><td>&nbsp;</td><td>' + IntToStr(PNode(PList(Node)^.FirstChild)^.Offset) + '</td></tr>'
+                      + '<tr><td>Count:</td><td>&nbsp;</td><td>' + IntToStr(PList(Node)^.Count) + '</td></tr>';
                 ntSelectStmtTableJoin:
                   HTML := HTML
                     + '<tr><td>JoinType:</td><td>&nbsp;</td><td>' + JoinTypeToString[TSelectStmt.PTableJoin(Node)^.JoinType] + '</td></tr>';
