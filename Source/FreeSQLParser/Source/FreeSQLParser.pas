@@ -21588,6 +21588,8 @@ begin
         MOV EDX,ESI
       MySQLCharacterSetL:
         MOV AX,[ESI]                     // One Character from SQL to AX
+        CMP AX,''''                      // "'"?
+        JE MySQLCharacterSetE2           // Yes!
         CALL Separator                   // SQL separator?
         JNE MySQLCharacterSetL2          // No!
         MOV TokenType,ttIdent
@@ -21659,6 +21661,8 @@ begin
         MOV TokenType,ttInteger
         MOV DX,0                         // No end-quoter in Hex
       NumericL:
+        CALL Separator                   // SQL separator?
+        JE NumericE                        // Yes!
         CMP AX,'.'                       // Dot?
         JE NumericDot                    // Yes!
         CMP AX,'E'                       // "E"?
@@ -21690,8 +21694,7 @@ begin
       NumericLE:
         ADD ESI,2                        // Next character in SQL
         DEC ECX                          // One character handled
-        CMP ECX,0                        // End of SQL?
-        JE Finish                        // Yes!
+        JZ Finish                        // End of SQL!
         MOV AX,[ESI]                     // One Character from SQL to AX
         JMP NumericL
       NumericE:
