@@ -2061,8 +2061,13 @@ begin
           + Trim(FSource) + #13#10 + #13#10 + #13#10;
     except
       Session.UnparsableSQL := Session.UnparsableSQL
-        + '# SetSource()' + #13#10
-        + '# Error: ' + Session.SQLParser.Root^.FirstStmt^.ErrorMessage + #13#10
+        + '# SetSource()' + #13#10;
+      try
+        Session.UnparsableSQL := Session.UnparsableSQL
+          + '# Error: ' + Session.SQLParser.Root^.FirstStmt^.ErrorMessage + #13#10;
+      except
+      end;
+      Session.UnparsableSQL := Session.UnparsableSQL
         + Trim(FSource) + #13#10 + #13#10 + #13#10;
     end;
     Session.SQLParser.Clear();
@@ -2229,7 +2234,7 @@ begin
       FDependencies := TSDependencies.Create();
 
       PreviousToken1 := nil; PreviousToken2 := nil;
-      Token := Session.SQLParser.Root^.FirstToken;
+      Token := Session.SQLParser.Root^.FirstTokenAll;
       repeat
         if (Token^.DbIdentType = ditTable) then
         begin
@@ -10807,7 +10812,7 @@ begin
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.ServerVersion;
   FUser := nil;
-  ParseEndDate := EncodeDate(2016, 8, 19);
+  ParseEndDate := EncodeDate(2016, 8, 22);
   SQLParser := nil;
   UnparsableSQL := '';
 
@@ -11561,8 +11566,13 @@ begin
       end;
     except
       UnparsableSQL := UnparsableSQL
-        + '# MonitorExecutedStmts()' + #13#10
-        + '# Error: ' + SQLParser.Root^.FirstStmt^.ErrorMessage + #13#10
+        + '# MonitorExecutedStmts()' + #13#10;
+      try
+        UnparsableSQL := UnparsableSQL
+          + '# Error: ' + SQLParser.Root^.FirstStmt^.ErrorMessage + #13#10;
+      except
+      end;
+      UnparsableSQL := UnparsableSQL
         + Trim(S) + #13#10 + #13#10 + #13#10;
     end;
     SQLParser.Clear();

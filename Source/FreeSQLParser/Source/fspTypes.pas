@@ -133,7 +133,6 @@ type
     ntSelectStmt,
     ntSelectStmtColumn,
     ntSelectStmtGroup,
-    ntSelectStmtGroups,
     ntSelectStmtOrder,
     ntSelectStmtInto,
     ntSelectStmtTableFactor,
@@ -147,6 +146,7 @@ type
     ntSetStmt,
     ntSetStmtAssignment,
     ntSetTransactionStmt,
+    ntSetTransactionStmtCharacteristic,
     ntShowAuthorsStmt,
     ntShowBinaryLogsStmt,
     ntShowBinlogEventsStmt,
@@ -203,7 +203,6 @@ type
     ntSubstringFunc,
     ntTableReference,
     ntTag,
-    ntTransactionStmtCharacteristic,
     ntTrimFunc,
     ntTruncateStmt,
     ntUnaryOp,
@@ -218,7 +217,7 @@ type
     ntWeightStringFuncLevel,
     ntWhileStmt,
     ntXAStmt,
-    ntXID
+    ntXAStmtID
   );
 
   TStmtType = (
@@ -357,13 +356,14 @@ type
 
   TUsageType = (
     utUnknown,
-    utSyntaxError,
+    utError,
     utWhiteSpace,
     utComment,
     utSymbol,
     utKeyword,
     utLabel,
     utOperator,
+    utDataType,
     utConst,
     utFunction,
     utDbIdent,
@@ -480,7 +480,7 @@ type
     ditUnknown,
     ditTable,
     ditKey,
-    ditColumn,
+    ditField,
     ditForeignKey,
     ditFunction,
     ditProcedure,

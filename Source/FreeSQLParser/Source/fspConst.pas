@@ -18,12 +18,10 @@ const
   PE_IncompleteStmt = 4; // Incompleted statement
   PE_UnexpectedToken = 5; // Unexpected token
   PE_ExtraToken = 6; // Token after completed statement
+  PE_NestedCondCode = 7; // Nested conditional MySQL option
 
   // Bugs while parsing Root
-  PE_UnkownStmt = 7; // Unknown statement
-
-  // Bugs while formating
-  PE_InvalidNodeValue = 8; // Invalid node value
+  PE_UnkownStmt = 8; // Unknown statement
 
   MySQLFunctions =
     'ABS,ACOS,ADD,ADDDATE,ADDTIME,AES_DECRYPT,AES_ENCRYPT,ANALYSE,ASCII,ASIN,' +
@@ -254,7 +252,6 @@ const
     'ntSelectStmt',
     'ntSelectStmtColumn',
     'ntSelectStmtGroup',
-    'ntSelectStmtGroups',
     'ntSelectStmtOrder',
     'ntSelectStmtInto',
     'ntSelectStmtTableFactor',
@@ -268,6 +265,7 @@ const
     'ntSetStmt',
     'ntSetStmtAssignment',
     'ntSetTransactionStmt',
+    'ntSetTransactionStmtCharacteristic',
     'ntShowAuthorsStmt',
     'ntShowBinaryLogsStmt',
     'ntShowBinlogEventsStmt',
@@ -324,7 +322,6 @@ const
     'ntSubstringFunc',
     'ntTableReference',
     'ntTag',
-    'ntTransactionStmtCharacteristic',
     'ntTrimFunc',
     'ntTruncateStmt',
     'ntUnaryOp',
@@ -339,7 +336,7 @@ const
     'ntWeightStringFuncLevel',
     'ntWhileStmt',
     'ntXAStmt',
-    'ntXID'
+    'ntXAStmtID'
   );
 
   StmtTypeToString: array[TStmtType] of PChar = (
@@ -512,13 +509,14 @@ const
 
   UsageTypeToString: array[TUsageType] of PChar = (
     'utUnknown',
-    'utSyntaxError',
+    'utError',
     'utWhiteSpace',
     'utComment',
     'utSymbol',
     'utKeyword',
     'utLabel',
     'utOperator',
+    'utDataType',
     'utConst',
     'utFunction',
     'utDbIdent',
@@ -600,7 +598,7 @@ const
     'ditUnknown',
     'ditTable',
     'ditKey',
-    'ditColumn',
+    'ditField',
     'ditForeignKey',
     'ditFunction',
     'ditProcedure',
@@ -686,7 +684,7 @@ const
 var
   UsageTypeByTokenType: array[TTokenType] of TUsageType = (
     utUnknown,
-    utSyntaxError,
+    utError,
     utWhiteSpace,
     utWhiteSpace,
     utComment,
