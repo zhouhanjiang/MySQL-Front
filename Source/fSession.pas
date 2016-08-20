@@ -5108,9 +5108,9 @@ var
   EndingCommentLen: Integer;
   Len: Integer;
   Parse: TSQLParse;
-  PreviousToken: TMySQLParser.PToken;
+//  PreviousToken: TMySQLParser.PToken;
   StartingCommentLen: Integer;
-  Token: TMySQLParser.PToken;
+//  Token: TMySQLParser.PToken;
 begin
   if (not SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.ServerVersion)) then
     Result := ''
@@ -5186,50 +5186,28 @@ begin
 
     FStmt := Copy(SQL, SQLParseGetIndex(Parse), Len) + ';';
 
-    if (Session.SQLParser.ParseSQL(FStmt)) then
-    begin
-      PreviousToken := nil;
-      Token := Session.SQLParser.Root^.FirstStmt^.FirstToken;
-      while (Assigned(Token)) do
-      begin
-        if ((Token^.TokenType = ttDot) and (PreviousToken^.DbIdentType = ditDatabase)
-          and (Database.Databases.NameCmp(PreviousToken^.AsString, Database.Name) = 0)) then
-        begin
-          PreviousToken^.Text := '';
-          Token^.Text := '';
-        end;
-
-        PreviousToken := Token;
-        if (Token = Session.SQLParser.Root^.FirstStmt^.LastToken) then
-          Token := nil
-        else
-          Token := Token^.NextToken;
-      end;
-
-      PreviousToken := nil;
-      Token := Session.SQLParser.Root^.FirstStmt^.FirstToken;
-      while (Assigned(Token)) do
-      begin
-        if ((lstrcmpi(PChar(Token^.Text), PChar('AS')) = 0)
-          and (lstrcmp(PChar(PreviousToken^.AsString), PChar(Token^.NextToken^.AsString)) = 0)) then
-        begin
-          if (PreviousToken^.NextTokenAll^.TokenType in [ttSpace, ttReturn]) then
-            PreviousToken^.NextTokenAll^.Text := '';
-          Token^.Text := '';
-          if (Token^.NextTokenAll^.TokenType in [ttSpace, ttReturn]) then
-            Token^.NextTokenAll^.Text := '';
-          Token^.NextToken^.Text := '';
-        end;
-
-        PreviousToken := Token;
-        if (Token = Session.SQLParser.Root^.FirstStmt^.LastToken) then
-          Token := nil
-        else
-          Token := Token^.NextToken;
-      end;
-
-      FStmt := Session.SQLParser.Root^.FirstStmt^.Text;
-    end;
+//    if (Session.SQLParser.ParseSQL(FStmt)) then
+//    begin
+//      PreviousToken := nil;
+//      Token := Session.SQLParser.Root^.FirstStmt^.FirstToken;
+//      while (Assigned(Token)) do
+//      begin
+//        if ((Token^.TokenType = ttDot) and (PreviousToken^.DbIdentType = ditDatabase)
+//          and (Database.Databases.NameCmp(PreviousToken^.AsString, Database.Name) = 0)) then
+//        begin
+//          PreviousToken^.Text := '';
+//          Token^.Text := '';
+//        end;
+//
+//        PreviousToken := Token;
+//        if (Token = Session.SQLParser.Root^.FirstStmt^.LastToken) then
+//          Token := nil
+//        else
+//          Token := Token^.NextToken;
+//      end;
+//
+//      Session.SQLParser.FormatSQL(FStmt);
+//    end;
 
     Session.SQLParser.Clear();
 

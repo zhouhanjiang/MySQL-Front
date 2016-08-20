@@ -475,7 +475,7 @@ const
 
   TokenTypeToString: array[TTokenType] of PChar = (
     'ttUnknown',
-    'ttSyntaxError',
+    'ttError',
     'ttSpace',
     'ttReturn',
     'ttLineComment',

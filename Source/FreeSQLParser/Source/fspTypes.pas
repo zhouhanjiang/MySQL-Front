@@ -372,7 +372,7 @@ type
 
   TTokenType = (
     ttUnknown,
-    ttSyntaxError,            // Error while parsing token
+    ttError,                  // Error while parsing token
     ttSpace,                  // Tab and Space
     ttReturn,                 // New line
     ttLineComment,            // Comment, like # comment, -- comment
