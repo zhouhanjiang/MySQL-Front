@@ -8262,8 +8262,10 @@ var
   SQL: string;
 begin
   SQL := '';
-  if (Assigned(Routine)) then
+  if (Assigned(Routine) and (NewRoutine.Source = Routine.Source)) then
   begin
+    if (Session.Connection.DatabaseName <> Name) then
+      SQL := SQL + SQLUse();
     if (NewRoutine.Security <> Routine.Security) then
       case (NewRoutine.Security) of
         seDefiner: SQL := SQL + ' SQL SECURITY DEFINER';
@@ -8279,10 +8281,25 @@ begin
         SQL := 'ALTER FUNCTION ' + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(NewRoutine.Name) + SQL +  ';' + #13#10;
   end
   else
-    SQL := NewRoutine.Source;
-
-  if (Session.Connection.DatabaseName <> Name) then
-    SQL := SQLUse() + SQL;
+  begin
+    if (not Assigned(Routine)) then
+    begin
+      if (Session.Connection.DatabaseName <> Name) then
+        SQL := SQLUse() + SQL;
+    end
+    else
+    begin
+      if (Routine.Database.Name <> Name) then
+        SQL := SQL + Session.Connection.SQLUse(Routine.Database.Name);
+      if (Routine.RoutineType = rtProcedure) then
+        SQL := SQL + 'DROP PROCEDURE ' + Session.Connection.EscapeIdentifier(Routine.Database.Name) + '.' + Session.Connection.EscapeIdentifier(Routine.Name) + ';' + #13#10
+      else
+        SQL := SQL + 'DROP FUNCTION ' + Session.Connection.EscapeIdentifier(Routine.Database.Name) + '.' + Session.Connection.EscapeIdentifier(Routine.Name) + ';' + #13#10;
+      if ((Session.Connection.DatabaseName <> Name) or (Routine.Database <> NewRoutine.Database)) then
+        SQL := SQLUse() + SQL;
+    end;
+    SQL := SQL + NewRoutine.Source;
+  end;
 
   SQL := SQL + Routines.SQLGetItems();
   SQL := SQL + NewRoutine.SQLGetSource();
@@ -10790,7 +10807,7 @@ begin
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.ServerVersion;
   FUser := nil;
-  ParseEndDate := EncodeDate(2016, 8, 22);
+  ParseEndDate := EncodeDate(2016, 8, 23);
   SQLParser := nil;
   UnparsableSQL := '';
 
