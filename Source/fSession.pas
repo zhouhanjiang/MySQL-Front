@@ -2316,7 +2316,8 @@ procedure TSDBObject.SetSource(const ASource: string);
 begin
   inherited;
 
-  PushBuildEvent(False);
+  if (not (Self is TSBaseTable)) then
+    PushBuildEvent(False);
 end;
 
 function TSDBObject.Update(): Boolean;
@@ -4889,8 +4890,6 @@ begin
         FKeys.Key[0].Columns.Column[J].Field.FInPrimaryKey := True;
 
     FSourceParsed := True;
-
-    PushBuildEvent();
   end;
 end;
 
@@ -4928,10 +4927,6 @@ var
   RBS: RawByteString;
   S: string;
 begin
-  // ParseCreateTable must be execute before SetSource, since in SetSource
-  // the PushBuildEvent will be executed
-  ParseCreateTable(ADataSet.FieldByName('Create Table').AsString);
-
   try
     SetSource(ADataSet.FieldByName('Create Table'));
   except
@@ -4946,6 +4941,9 @@ begin
       SetSource(string(RBS));
     end;
   end;
+
+  ParseCreateTable(ADataSet.FieldByName('Create Table').AsString);
+  PushBuildEvent();
 end;
 
 function TSBaseTable.SQLGetSource(): string;
@@ -8298,7 +8296,7 @@ begin
       if ((Session.Connection.DatabaseName <> Name) or (Routine.Database <> NewRoutine.Database)) then
         SQL := SQLUse() + SQL;
     end;
-    SQL := SQL + NewRoutine.Source;
+    SQL := SQL + NewRoutine.Source + #13#10;
   end;
 
   SQL := SQL + Routines.SQLGetItems();
@@ -8311,7 +8309,11 @@ begin
     Session.Connection.Lib.mysql_set_server_option(Session.Connection.Handle, MYSQL_OPTION_MULTI_STATEMENTS_ON);
 
   if (not Result and Assigned(Routine)) then
+  begin
+    Session.StmtMonitor.OnMonitor := nil;
     Session.Connection.ExecuteSQL(Routine.Source);
+    Session.StmtMonitor.OnMonitor := Session.MonitorExecutedStmts;
+  end;
 end;
 
 function TSDatabase.UpdateTable(const Table, NewTable: TSBaseTable): Boolean;
@@ -8421,7 +8423,11 @@ begin
     Session.Connection.Lib.mysql_set_server_option(Session.Connection.Handle, MYSQL_OPTION_MULTI_STATEMENTS_ON);
 
   if (not Result and Assigned(Trigger)) then
+  begin
+    Session.StmtMonitor.OnMonitor := nil;
     Session.Connection.ExecuteSQL(Trigger.Source);
+    Session.StmtMonitor.OnMonitor := Session.MonitorExecutedStmts;
+  end;
 end;
 
 function TSDatabase.UpdateView(const View, NewView: TSView): Boolean;
@@ -10807,7 +10813,7 @@ begin
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.ServerVersion;
   FUser := nil;
-  ParseEndDate := EncodeDate(2016, 8, 23);
+  ParseEndDate := EncodeDate(2016, 8, 24);
   SQLParser := nil;
   UnparsableSQL := '';
 
@@ -11542,7 +11548,7 @@ var
   Parse: TSQLParse;
   Process: TSProcess;
   Routine: TSRoutine;
-  S: string;
+  SQL: string;
   Table: TSTable;
   Trigger: TSTrigger;
   User: TSUser;
@@ -11550,14 +11556,14 @@ var
 begin
   if (Now() <= ParseEndDate) then
   begin
-    SetString(S, Text, Len);
+    SetString(SQL, Text, Len);
     try
-      if (not SQLParser.ParseSQL(S)) then
+      if (not SQLParser.ParseSQL(SQL)) then
       begin
         UnparsableSQL := UnparsableSQL
           + '# MonitorExecutedStmts()' + #13#10
           + '# Error: ' + SQLParser.Root^.FirstStmt^.ErrorMessage + #13#10
-          + Trim(S) + #13#10 + #13#10 + #13#10;
+          + Trim(SQL) + #13#10 + #13#10 + #13#10;
       end;
     except
       UnparsableSQL := UnparsableSQL
@@ -11568,7 +11574,7 @@ begin
       except
       end;
       UnparsableSQL := UnparsableSQL
-        + Trim(S) + #13#10 + #13#10 + #13#10;
+        + Trim(SQL) + #13#10 + #13#10 + #13#10;
     end;
     SQLParser.Clear();
   end;
@@ -11710,7 +11716,10 @@ begin
                     else
                       Routine := Database.FunctionByName(DDLStmt.ObjectName);
                     if (Assigned(Routine)) then
-                      Routine.SetSource(Text)
+                    begin
+                      SetString(SQL, Text, Len);
+                      Routine.SetSource(SQL);
+                    end
                     else
                       if (DDLStmt.ObjectType = otProcedure) then
                         Database.Routines.Add(TSProcedure.Create(Database.Routines, DDLStmt.ObjectName), True)
@@ -11753,7 +11762,10 @@ begin
               case (DDLStmt.DefinitionType) of
                 dtCreate:
                   if (Assigned(Database.TriggerByName(DDLStmt.ObjectName))) then
-                    Database.TriggerByName(DDLStmt.ObjectName).SetSource(Text)
+                  begin
+                    SetString(SQL, Text, Len);
+                    Database.TriggerByName(DDLStmt.ObjectName).SetSource(SQL);
+                  end
                   else
                   begin
                     Trigger := TSTrigger.Create(Database.Triggers, DDLStmt.ObjectName);
@@ -11796,7 +11808,10 @@ begin
               case (DDLStmt.DefinitionType) of
                 dtCreate:
                   if (Assigned(Database.EventByName(DDLStmt.ObjectName))) then
-                    Database.EventByName(DDLStmt.ObjectName).SetSource(Text)
+                  begin
+                    SetString(SQL, Text, Len);
+                    Database.EventByName(DDLStmt.ObjectName).SetSource(SQL);
+                  end
                   else
                     Database.Events.Add(TSEvent.Create(Database.Events, DDLStmt.ObjectName), True);
                 dtAlter,

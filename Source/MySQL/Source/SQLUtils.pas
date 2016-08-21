@@ -115,6 +115,7 @@ const
   KEndRepeat: PChar = 'END REPEAT';
   KEndWhile: PChar = 'END WHILE';
   KEvent: PChar = 'EVENT';
+  KExists: PChar = 'EXISTS';
   KFrom: PChar = 'FROM';
   KFunction: PChar = 'FUNCTION';
   KHighPriority: PChar = 'HIGH_PRIORITY';
@@ -124,6 +125,7 @@ const
   KInto: PChar = 'INTO';
   KLoop: PChar = 'LOOP';
   KLowPriority: PChar = 'LOW_PRIORITY';
+  KNot: PChar = 'NOT';
   KOrReplace: PChar = 'OR REPLACE';
   KProcedure: PChar = 'PROCEDURE';
   KQuick: PChar = 'QUICK';
@@ -2294,7 +2296,7 @@ function SQLStmtLength(const SQL: PChar; const Length: Integer; const Delimited:
 label
   Start, StartCase, StartIf, StartLoop, StartRepeat, StartWhile, StartCompound,
   SimpelStmtL, SimpelStmtLE,
-  Body, BodyL, BodyCase, BodyIf, BodyLoop, BodyRepeat, BodyWhile, BodyEnd,
+  Body, BodyL, BodyCase, BodyIf, BodyIf2, BodyIf3, BodyLoop, BodyRepeat, BodyWhile, BodyEnd,
   BodyChar, BodyCharTL, BodyCharE,
   BodyEndCase, BodyEndIf, BodyEndLoop, BodyEndRepeat, BodyEndWhile, BodyEndCompound, BodyLE,
   BodyBracket, BodyBracketL, BodyBracketLE,
@@ -2445,7 +2447,7 @@ begin
         JZ Finish                        // Yes!
         CMP WORD PTR [ESI],'('           // CASE as function?
         JE BodyLE                        // Yes!
-        INC IfDeep
+        INC CaseDeep
         JMP BodyLE
       BodyIf:
         MOV EAX,[KIf]
@@ -2456,6 +2458,24 @@ begin
         JZ Finish                        // Yes!
         CMP WORD PTR [ESI],'('           // IF as function?
         JE BodyLE                        // Yes!
+        PUSH ESI
+        PUSH ECX
+        MOV EAX,[KNot]
+        CALL CompareKeyword              // Step over possible 'NOT'
+        CMP ECX,0                        // All characters handled?
+        JZ BodyIf2                       // Yes!
+        CALL Trim                        // Step over spaces
+        CMP ECX,0                        // All characters handled?
+        JZ BodyIf2                       // Yes!
+        MOV EAX,[KExists]
+        CALL CompareKeyword              // Step over possible 'EXISTS'
+        JE BodyIf3
+      BodyIf2:
+        CMP EAX,0                        // Clear ZF
+      BodyIf3:
+        POP ECX
+        POP ESI
+        JE BodyLE
         INC IfDeep
         JMP BodyLE
       BodyLoop:

@@ -12621,6 +12621,8 @@ begin
         NewRoutine.Source := Trim(ActiveSynMemo.Text);
 
         Result := Database.UpdateRoutine(Routine, NewRoutine);
+
+        NewRoutine.Free();
       end;
     iiEvent:
       begin
