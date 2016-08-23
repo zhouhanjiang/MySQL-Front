@@ -22201,11 +22201,7 @@ begin
       KeywordIndex := -1
     else
     begin
-try
       KeywordIndex := KeywordList.IndexOf(Text, TokenLength);
-except
-  Write;
-end;
       if (KeywordIndex >= 0) then
         OperatorType := OperatorTypeByKeywordIndex[KeywordIndex];
     end;
