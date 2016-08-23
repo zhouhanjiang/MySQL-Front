@@ -119,6 +119,7 @@ MAINICON ICON "{BuildImagesPath}\\MySQLFront.ico"
 10104 ICON "{BuildImagesPath}\\export1.ico"
 10105 ICON "{BuildImagesPath}\\arrow_right_green.ico"
 10106 ICON "{BuildImagesPath}\\column.ico"
+10107 ICON "{BuildImagesPath}\\form_blue.ico"
 
 STRINGTABLE
 BEGIN

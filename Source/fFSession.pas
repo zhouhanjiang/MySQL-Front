@@ -402,6 +402,11 @@ type
     procedure aDPrevExecute(Sender: TObject);
     procedure aDPropertiesExecute(Sender: TObject);
     procedure aEClearAllExecute(Sender: TObject);
+    procedure aEFormatSQLExecute(Sender: TObject);
+    procedure aEJobAddExportExecute(Sender: TObject);
+    procedure aEJobAddImportExecute(Sender: TObject);
+    procedure aEJobDeleteExecute(Sender: TObject);
+    procedure aEJobEditExecute(Sender: TObject);
     procedure aEPasteFromFileExecute(Sender: TObject);
     procedure aFExportAccessExecute(Sender: TObject);
     procedure aFExportBitmapExecute(Sender: TObject);
@@ -419,10 +424,6 @@ type
     procedure aFImportTextExecute(Sender: TObject);
     procedure aHRunClick(Sender: TObject);
     procedure aHRunExecute(Sender: TObject);
-    procedure aJAddExportExecute(Sender: TObject);
-    procedure aJAddImportExecute(Sender: TObject);
-    procedure aJDeleteExecute(Sender: TObject);
-    procedure aJEditExecute(Sender: TObject);
     procedure aPCollapseExecute(Sender: TObject);
     procedure aPExpandExecute(Sender: TObject);
     procedure aPObjectBrowserTableExecute(Sender: TObject);
@@ -1074,6 +1075,7 @@ uses
   ShLwApi,
   acQBLocalizer, acQBStrings,
   CommCtrl_Ext, StdActns_Ext,
+  FreeSQLParser,
   MySQLConsts, SQLUtils,
   fDField, fDKey, fDTable, fDTables, fDVariable, fDDatabase, fDForeignKey,
   fDUser, fDQuickFilter, fDSQLHelp, fDTransfer, fDSearch, fDServer, fDGoto,
@@ -2726,12 +2728,14 @@ begin
     begin
       DRoutine.Database := TSRoutine(SItem).Database;
       DRoutine.Routine := TSRoutine(SItem);
+      DRoutine.RoutineType := rtProcedure;
       Execute := DRoutine.Execute;
     end
     else if (SItem is TSFunction) then
     begin
       DRoutine.Database := TSRoutine(SItem).Database;
       DRoutine.Routine := TSRoutine(SItem);
+      DRoutine.RoutineType := rtFunction;
       Execute := DRoutine.Execute;
     end
     else if (SItem is TSTrigger) then
@@ -3681,6 +3685,93 @@ begin
   ShellExecute(Window.Handle, 'open', PChar(Session.Account.ManualURL), '', '', SW_SHOW);
 end;
 
+procedure TFSession.aEFormatSQLExecute(Sender: TObject);
+var
+  SQL: string;
+begin
+  if (ActiveSynMemo.SelAvail) then
+    SQL := ActiveSynMemo.SelText
+  else
+    SQL := ActiveSynMemo.Text;
+
+  if (not Session.SQLParser.ParseSQL(SQL)) then
+    MsgBox(Session.SQLParser.ErrorMessage, Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
+  else
+  begin
+    Session.SQLParser.FormatSQL(SQL);
+    if (ActiveSynMemo.SelAvail) then
+      ActiveSynMemo.SelText := SQL
+    else
+      ActiveSynMemo.Text := SQL;
+  end;
+
+  Session.SQLParser.Clear();
+end;
+
+procedure TFSession.aEJobAddExportExecute(Sender: TObject);
+begin
+  DExport.Session := Session;
+  DExport.DBGrid := nil;
+  DExport.DialogType := edtCreateJob;
+  DExport.Job := nil;
+  DExport.SObjects.Clear();
+  DExport.Window := Window;
+  if (DExport.Execute() and not MainAction('aVJobs').Checked) then
+  begin
+    MainAction('aVJobs').Checked := True;
+    aVSideBarExecute(MainAction('aVJobs'));
+  end;
+end;
+
+procedure TFSession.aEJobAddImportExecute(Sender: TObject);
+begin
+  DImport.Session := Session;
+  DImport.SObject := nil;
+  DImport.DialogType := idtCreateJob;
+  DImport.Filename := '';
+  DImport.Window := Window;
+  DImport.ImportType := itSQLFile;
+  DImport.Job := nil;
+  if (DImport.Execute() and not MainAction('aVJobs').Checked) then
+  begin
+    MainAction('aVJobs').Checked := True;
+    aVSideBarExecute(MainAction('aVJobs'));
+  end;
+end;
+
+procedure TFSession.aEJobDeleteExecute(Sender: TObject);
+begin
+  Session.Account.Jobs.DeleteJob(Session.Account.JobByName(FJobs.Selected.Caption));
+end;
+
+procedure TFSession.aEJobEditExecute(Sender: TObject);
+var
+  Job: TPAccount.TJob;
+begin
+  Job := Session.Account.JobByName(FJobs.Selected.Caption);
+
+  if (Job is TPAccount.TJobImport) then
+  begin
+    DImport.Session := Session;
+    DImport.SObject := nil;
+    DImport.DialogType := idtEditJob;
+    DImport.Filename := '';
+    DImport.Window := Window;
+    DImport.Job := TPAccount.TJobImport(Job);
+    DImport.Execute();
+  end
+  else if (Job is TPAccount.TJobExport) then
+  begin
+    DExport.Session := Session;
+    DExport.DBGrid := nil;
+    DExport.DialogType := edtEditJob;
+    DExport.Job := TPAccount.TJobExport(Job);
+    DExport.SObjects.Clear();
+    DExport.Window := Window;
+    DExport.Execute();
+  end;
+end;
+
 procedure TFSession.aHRunClick(Sender: TObject);
 var
   SQL: string;
@@ -3767,70 +3858,6 @@ begin
 
   DSQLHelp.Session := Session;
   DSQLHelp.Execute();
-end;
-
-procedure TFSession.aJAddExportExecute(Sender: TObject);
-begin
-  DExport.Session := Session;
-  DExport.DBGrid := nil;
-  DExport.DialogType := edtCreateJob;
-  DExport.Job := nil;
-  DExport.SObjects.Clear();
-  DExport.Window := Window;
-  if (DExport.Execute() and not MainAction('aVJobs').Checked) then
-  begin
-    MainAction('aVJobs').Checked := True;
-    aVSideBarExecute(MainAction('aVJobs'));
-  end;
-end;
-
-procedure TFSession.aJAddImportExecute(Sender: TObject);
-begin
-  DImport.Session := Session;
-  DImport.SObject := nil;
-  DImport.DialogType := idtCreateJob;
-  DImport.Filename := '';
-  DImport.Window := Window;
-  DImport.ImportType := itSQLFile;
-  DImport.Job := nil;
-  if (DImport.Execute() and not MainAction('aVJobs').Checked) then
-  begin
-    MainAction('aVJobs').Checked := True;
-    aVSideBarExecute(MainAction('aVJobs'));
-  end;
-end;
-
-procedure TFSession.aJDeleteExecute(Sender: TObject);
-begin
-  Session.Account.Jobs.DeleteJob(Session.Account.JobByName(FJobs.Selected.Caption));
-end;
-
-procedure TFSession.aJEditExecute(Sender: TObject);
-var
-  Job: TPAccount.TJob;
-begin
-  Job := Session.Account.JobByName(FJobs.Selected.Caption);
-
-  if (Job is TPAccount.TJobImport) then
-  begin
-    DImport.Session := Session;
-    DImport.SObject := nil;
-    DImport.DialogType := idtEditJob;
-    DImport.Filename := '';
-    DImport.Window := Window;
-    DImport.Job := TPAccount.TJobImport(Job);
-    DImport.Execute();
-  end
-  else if (Job is TPAccount.TJobExport) then
-  begin
-    DExport.Session := Session;
-    DExport.DBGrid := nil;
-    DExport.DialogType := edtEditJob;
-    DExport.Job := TPAccount.TJobExport(Job);
-    DExport.SObjects.Clear();
-    DExport.Window := Window;
-    DExport.Execute();
-  end;
 end;
 
 procedure TFSession.aPCollapseExecute(Sender: TObject);
@@ -4738,10 +4765,11 @@ begin
     MainAction('aDRun').OnExecute := aDRunExecute;
     MainAction('aDRunSelection').OnExecute := aDRunSelectionExecute;
     MainAction('aDPostObject').OnExecute := aDPostObjectExecute;
-    MainAction('aJAddImport').OnExecute := aJAddImportExecute;
-    MainAction('aJAddExport').OnExecute := aJAddExportExecute;
-    MainAction('aJDelete').OnExecute := aJDeleteExecute;
-    MainAction('aJEdit').OnExecute := aJEditExecute;
+    MainAction('aEJobAddImport').OnExecute := aEJobAddImportExecute;
+    MainAction('aEJobAddExport').OnExecute := aEJobAddExportExecute;
+    MainAction('aEJobDelete').OnExecute := aEJobDeleteExecute;
+    MainAction('aEJobEdit').OnExecute := aEJobEditExecute;
+    MainAction('aEFormatSQL').OnExecute := aEFormatSQLExecute;
     MainAction('aHSQL').OnExecute := aHSQLExecute;
     MainAction('aHManual').OnExecute := aHManualExecute;
 
@@ -4762,8 +4790,8 @@ begin
     MainAction('aVRefresh').Enabled := True;
     MainAction('aVRefreshAll').Enabled := True;
     MainAction('aDCancel').Enabled := Session.Connection.InUse();
-    MainAction('aJAddImport').Enabled := CheckWin32Version(6);
-    MainAction('aJAddExport').Enabled := CheckWin32Version(6);
+    MainAction('aEJobAddImport').Enabled := CheckWin32Version(6);
+    MainAction('aEJobAddExport').Enabled := CheckWin32Version(6);
     MainAction('aHSQL').Enabled := Session.Connection.ServerVersion >= 40100;
     MainAction('aHManual').Enabled := Session.Account.ManualURL <> '';
 
@@ -4816,10 +4844,11 @@ begin
   MainAction('aDCancel').Enabled := False;
   MainAction('aHSQL').Enabled := False;
   MainAction('aHManual').Enabled := False;
-  MainAction('aJAddImport').Enabled := False;
-  MainAction('aJAddExport').Enabled := False;
-  MainAction('aJDelete').Enabled := False;
-  MainAction('aJEdit').Enabled := False;
+  MainAction('aEJobAddImport').Enabled := False;
+  MainAction('aEJobAddExport').Enabled := False;
+  MainAction('aEJobDelete').Enabled := False;
+  MainAction('aEJobEdit').Enabled := False;
+  MainAction('aEFormatSQL').Enabled := False;
 
   MainAction('aECopy').OnExecute := nil;
   MainAction('aEPaste').OnExecute := nil;
@@ -5106,10 +5135,10 @@ begin
   miNCreateUser.Action := MainAction('aDCreateUser');
   miNEmpty.Action := MainAction('aDEmpty');
 
-  mjAddImport.Action := MainAction('aJAddImport');
-  mjAddExport.Action := MainAction('aJAddExport');
-  mjDelete.Action := MainAction('aJDelete');
-  mjEdit.Action := MainAction('aJEdit');
+  mjAddImport.Action := MainAction('aEJobAddImport');
+  mjAddExport.Action := MainAction('aEJobAddExport');
+  mjDelete.Action := MainAction('aEJobDelete');
+  mjEdit.Action := MainAction('aEJobEdit');
 
   miHCopy.Action := MainAction('aECopy');
 
@@ -6918,10 +6947,10 @@ procedure TFSession.FJobsChange(Sender: TObject; Item: TListItem;
 begin
   mjExecute.Enabled := Assigned(Item) and Item.Selected;
   mjExecute.Default := True;
-  MainAction('aJAddImport').Enabled := CheckWin32Version(6) and (not Assigned(Item) or not Item.Selected);
-  MainAction('aJAddExport').Enabled := CheckWin32Version(6) and (not Assigned(Item) or not Item.Selected);
-  MainAction('aJDelete').Enabled := Assigned(Item) and Item.Selected;
-  MainAction('aJEdit').Enabled := Assigned(Item) and Item.Selected;
+  MainAction('aEJobAddImport').Enabled := CheckWin32Version(6) and (not Assigned(Item) or not Item.Selected);
+  MainAction('aEJobAddExport').Enabled := CheckWin32Version(6) and (not Assigned(Item) or not Item.Selected);
+  MainAction('aEJobDelete').Enabled := Assigned(Item) and Item.Selected;
+  MainAction('aEJobEdit').Enabled := Assigned(Item) and Item.Selected;
 end;
 
 procedure TFSession.FJobsEnter(Sender: TObject);
@@ -6931,8 +6960,8 @@ end;
 
 procedure TFSession.FJobsExit(Sender: TObject);
 begin
-  MainAction('aJAddImport').Enabled := CheckWin32Version(6);
-  MainAction('aJAddExport').Enabled := CheckWin32Version(6);
+  MainAction('aEJobAddImport').Enabled := CheckWin32Version(6);
+  MainAction('aEJobAddExport').Enabled := CheckWin32Version(6);
 end;
 
 procedure TFSession.FLimitChange(Sender: TObject);
@@ -12535,16 +12564,16 @@ end;
 
 procedure TFSession.PJobsEnter(Sender: TObject);
 begin
-  MainAction('aJDelete').ShortCut := VK_DELETE;
-  MainAction('aJEdit').ShortCut := ShortCut(VK_RETURN, [ssAlt]);
+  MainAction('aEJobDelete').ShortCut := VK_DELETE;
+  MainAction('aEJobEdit').ShortCut := ShortCut(VK_RETURN, [ssAlt]);
 
   FJobsChange(Sender, nil, ctState);
 end;
 
 procedure TFSession.PJobsExit(Sender: TObject);
 begin
-  MainAction('aJDelete').ShortCut := 0;
-  MainAction('aJEdit').ShortCut := 0;
+  MainAction('aEJobDelete').ShortCut := 0;
+  MainAction('aEJobEdit').ShortCut := 0;
 
   FJobsChange(Sender, nil, ctState);
 end;
@@ -13582,6 +13611,7 @@ begin
         and ((SelectedImageIndex in [iiView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.Connection.ServerVersion) and (SQLParseKeyword(Parse, 'SELECT'))
           or (SelectedImageIndex in [iiProcedure, iiFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.ServerVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
           or (SelectedImageIndex in [iiEvent, iiTrigger]));
+      MainAction('aEFormatSQL').Enabled := not Empty;
     end;
 
     StatusBarRefresh();

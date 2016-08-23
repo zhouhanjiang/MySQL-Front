@@ -8573,7 +8573,7 @@ begin
             if (Item.FieldNames[J] = Table.Fields[I].Name) then
             begin
               if (SQL <> '') then SQL := SQL + ',';
-              SQL := SQL + Session.Connection.EscapeIdentifier(Table.Fields[J].Name);
+              SQL := SQL + Session.Connection.EscapeIdentifier(Table.Fields[I].Name);
             end;
     end;
 
@@ -8642,7 +8642,7 @@ begin
           if (Item.DatabaseName <> TTReplace(Self).ReplaceSession.Connection.DatabaseName) then
             Buffer.Write(TTReplace(Self).ReplaceSession.Connection.SQLUse(Item.DatabaseName));
 
-          for I := 0 to DataSet.FieldCount - 1 do
+          for I := 0 to Length(Fields) - 1 do
             UseIndexFields := UseIndexFields or Fields[I].IsIndexField;
         end;
 

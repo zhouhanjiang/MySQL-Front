@@ -67,7 +67,7 @@ type
         procedure Delete(const Start: Integer; const Length: Integer);
         destructor Destroy(); override;
         function Read(): string; inline;
-        procedure Write(const Text: PChar; const Length: Integer); overload; {$IFNDEF Debug} inline; {$ENDIF}
+        procedure Write(const Text: PChar; const Length: Integer); overload; virtual;
         procedure Write(const Text: string); overload; {$IFNDEF Debug} inline; {$ENDIF}
         procedure Write(const Char: Char); overload; {$IFNDEF Debug} inline; {$ENDIF}
         property Data: Pointer read GetData;
@@ -102,8 +102,9 @@ type
         property Word[Index: TIndex]: string read GetWord; default;
       end;
 
-      TFormatHandle = class(TStringBuffer)
+      TFormatBuffer = class(TStringBuffer)
       private
+        FNewLine: Boolean;
         Indent: Integer;
         IndentSpaces: array[0 .. 1024 - 1] of Char;
       public
@@ -111,9 +112,11 @@ type
         procedure DecreaseIndent();
         destructor Destroy(); override;
         procedure IncreaseIndent();
+        procedure Write(const Text: PChar; const Length: Integer); override;
         procedure WriteIndent(); {$IFNDEF Debug} inline; {$ENDIF}
         procedure WriteReturn(); {$IFNDEF Debug} inline; {$ENDIF}
         procedure WriteSpace(); {$IFNDEF Debug} inline; {$ENDIF}
+        property NewLine: Boolean read FNewLine;
       end;
 
     const
@@ -145,11 +148,14 @@ type
       private
         Heritage: TNode;
       private
+        FErrorCode: Byte;
+        FErrorMessage: string;
         FFirstStmt: TOffset; // Cache for speeding
         FFirstTokenAll: TOffset;
         FLastStmt: TOffset; // Cache for speeding
         FLastTokenAll: TOffset;
         class function Create(const AParser: TMySQLParser;
+          const AErrorCode: Byte; const AErrorMessage: string;
           const AFirstTokenAll, ALastTokenAll: TOffset;
           const ChildCount: Integer; const Children: array of TOffset): TOffset; static;
         function GetFirstStmt(): PStmt; {$IFNDEF Debug} inline; {$ENDIF}
@@ -158,6 +164,8 @@ type
         function GetLastTokenAll(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
         property Parser: TMySQLParser read Heritage.FParser;
       public
+        property ErrorCode: Byte read FErrorCode;
+        property ErrorMessage: string read FErrorMessage;
         property FirstStmt: PStmt read GetFirstStmt;
         property FirstTokenAll: PToken read GetFirstTokenAll;
         property LastStmt: PStmt read GetLastStmt;
@@ -203,13 +211,13 @@ type
         {$ENDIF}
         FKeywordIndex: TWordList.TIndex;
         FLength: Integer;
-        FNewSQL: TOffset;
         FOperatorType: TOperatorType;
-        FSQL: PChar;
+        FText: PChar;
         FTokenType: TTokenType;
         FUsageType: TUsageType;
+        NewSQL: TOffset;
         class function Create(const AParser: TMySQLParser;
-          const ASQL: PChar; const ALength: Integer;
+          const AText: PChar; const ALength: Integer;
           const AErrorCode: Byte; const AErrorPos: PChar;
           const ATokenType: TTokenType; const AOperatorType: TOperatorType;
           const AKeywordIndex: TWordList.TIndex; const AUsageType: TUsageType): TOffset; static; {$IFNDEF Debug} inline; {$ENDIF}
@@ -224,9 +232,7 @@ type
         function GetNextTokenAll(): PToken;
         function GetOffset(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
         function GetParentNode(): PNode; {$IFNDEF Debug} inline; {$ENDIF}
-        function GetSQL(): PChar;
-        function GetText(): string;
-        procedure SetText(AText: string);
+        function GetText(): string; overload;
         property ErrorCode: Byte read FErrorCode;
         property ErrorPos: PChar read FErrorPos;
         property Generation: Integer read GetGeneration;
@@ -240,15 +246,16 @@ type
         property Length: Integer read FLength;
         property Offset: TOffset read GetOffset;
         property Parser: TMySQLParser read Heritage.Heritage.FParser;
-        property SQL: PChar read GetSQL;
       public
+        procedure GetText(out Text: PChar; out Length: Integer); overload;
+        procedure SetText(const Text: PChar; const Length: Integer); {$IFNDEF Debug} inline; {$ENDIF}
         property AsString: string read GetAsString;
         property DbIdentType: TDbIdentType read GetDbIdentType;
         property NextToken: PToken read GetNextToken;
         property NextTokenAll: PToken read GetNextTokenAll;
         property OperatorType: TOperatorType read FOperatorType;
         property ParentNode: PNode read GetParentNode;
-        property Text: string read GetText write SetText;
+        property Text: string read GetText;
         property TokenType: fspTypes.TTokenType read FTokenType;
         property UsageType: TUsageType read FUsageType;
       end;
@@ -285,7 +292,6 @@ type
       private
         FErrorCode: Byte;
         FErrorMessage: TOffset;
-        FErrorMessageLength: Integer;
         FErrorToken: TOffset;
         FFirstTokenAll: TOffset;
         FLastTokenAll: TOffset;
@@ -320,8 +326,6 @@ type
       { Normal nodes ----------------------------------------------------------}
 
     protected type
-      TOffsetArray = array of TOffset;
-
       PAnalyzeStmt = ^TAnalyzeStmt;
       TAnalyzeStmt = packed record
       private type
@@ -408,7 +412,7 @@ type
       private type
         TNodes = packed record
           AlterTag: TOffset;
-          IdentNode: TOffset;
+          Ident: TOffset;
           CharacteristicList: TOffset;
         end;
       private
@@ -427,7 +431,7 @@ type
       private type
         TNodes = packed record
           StmtTag: TOffset;
-          IdentNode: TOffset;
+          Ident: TOffset;
           Options: packed record
             Tag: TOffset;
             List: TOffset;
@@ -538,7 +542,7 @@ type
           AlterTag: TOffset;
           IgnoreTag: TOffset;
           TableTag: TOffset;
-          IdentNode: TOffset;
+          Ident: TOffset;
           SpecificationList: TOffset;
           AlgorithmValue: TOffset;
           ConvertToCharacterSetNode: TOffset;
@@ -976,7 +980,7 @@ type
           CreateTag: TOffset;
           DefinerNode: TOffset;
           RoutineTag: TOffset;
-          IdentNode: TOffset;
+          Ident: TOffset;
           OpenBracket: TOffset;
           ParameterList: TOffset;
           CloseBracket: TOffset;
@@ -1265,7 +1269,7 @@ type
           DefinerNode: TOffset;
           SQLSecurityTag: TOffset;
           ViewTag: TOffset;
-          IdentNode: TOffset;
+          Ident: TOffset;
           ColumnList: TOffset;
           AsTag: TOffset;
           SelectStmt: TOffset;
@@ -1499,7 +1503,7 @@ type
           WhereValue: TOffset;
           OrderBy: packed record
             Tag: TOffset;
-            Ident: TOffset;
+            Expr: TOffset;
           end;
           LimitValue: TOffset;
         end;
@@ -4748,12 +4752,16 @@ type
     TSpacer = (sNone, sSpace, sReturn);
   private
     AllowedMySQLVersion: Integer;
-    Commands: TFormatHandle;
+    Commands: TFormatBuffer;
     FCurrentToken: TOffset; // Cache for speeding
+    FErrorCode: Byte;
+    FErrorLine: Integer;
+    FErrorToken: TOffset;
     FPreviousToken: TOffset;
     FInPL_SQL: Integer;
     OperatorTypeByKeywordIndex: array of TOperatorType;
     function GetError(): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
+    function GetErrorCode(): Byte;
     function GetErrorMessage(): string; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function GetErrorMessage(const AErrorCode: Byte): string; overload;
     function GetFunctions(): string;
@@ -4762,7 +4770,7 @@ type
     function GetParsedToken(const Index: Integer): TOffset;
     function GetInPL_SQL(): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
     function GetRoot(): PRoot; {$IFNDEF Debug} inline; {$ENDIF}
-    function GetText(const Offset: TOffset): PChar; {$IFNDEF Debug} inline; {$ENDIF}
+    procedure GetText(const Offset: TOffset; out Text: PChar; out Length: Integer); {$IFNDEF Debug} inline; {$ENDIF}
     procedure SaveToDebugHTMLFile(const Filename: string);
     procedure SaveToFormatedSQLFile(const Filename: string);
     procedure SaveToSQLFile(const Filename: string);
@@ -4776,9 +4784,6 @@ type
 
   protected
     FAnsiQuotes: Boolean;
-    FErrorCode: Byte;
-    FErrorLine: Integer;
-    FErrorToken: TOffset;
     FunctionList: TWordList;
     TokenIndex: Integer;
     KeywordList: TWordList;
@@ -4794,9 +4799,9 @@ type
       Length: Integer;
     end;
     FRoot: TOffset;
-    ReplaceTexts: record
+    Texts: record
       Mem: PChar;
-      UsedLength: Integer;
+      UsedSize: Integer;
       MemSize: Integer;
     end;
     InCreateFunctionStmt: Boolean;
@@ -4859,7 +4864,6 @@ type
     procedure FormatPositionFunc(const Nodes: TPositionFunc.TNodes);
     procedure FormatNode(const Node: PNode; const Separator: TSeparatorType = stNone); overload;
     procedure FormatNode(const Node: TOffset; const Separator: TSeparatorType = stNone); overload; {$IFNDEF Debug} inline; {$ENDIF}
-    procedure FormatNodesDefault(const Nodes: TOffsetArray; const Size: Integer);
     procedure FormatRepeatStmt(const Nodes: TRepeatStmt.TNodes);
     procedure FormatRoot(const Node: PNode);
     procedure FormatSchedule(const Nodes: TSchedule.TNodes);
@@ -4896,7 +4900,7 @@ type
     function IsToken(const ANode: PNode): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function IsToken(const ANode: TOffset): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function NewNode(const ANodeType: TNodeType): TOffset;
-    function NewText(const AText: string): TOffset;
+    function NewText(const Text: PChar; const Length: Integer): TOffset;
     function NodePtr(const ANode: TOffset): PNode; {$IFNDEF Debug} inline; {$ENDIF}
     function NodeSize(const NodeType: TNodeType): Integer;
     function ParseRoot(): TOffset; overload;
@@ -5147,8 +5151,6 @@ type
     procedure SetError(const AErrorCode: Byte; const AErrorToken: TOffset = 0);
     function StmtPtr(const Node: TOffset): PStmt; {$IFNDEF Debug} inline; {$ENDIF}
     function TokenPtr(const Token: TOffset): PToken; {$IFNDEF Debug} inline; {$ENDIF}
-    property ErrorCode: Byte read FErrorCode;
-    property ErrorMessage: string read GetErrorMessage;
 
   public
     ttIdents: set of TTokenType;
@@ -5163,6 +5165,8 @@ type
     function ParseSQL(const Text: string): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     procedure SaveToFile(const Filename: string; const FileType: TFileType = ftSQL);
     property AnsiQuotes: Boolean read FAnsiQuotes write FAnsiQuotes;
+    property ErrorCode: Byte read GetErrorCode;
+    property ErrorMessage: string read GetErrorMessage;
     property Functions: string read GetFunctions write SetFunctions;
     property Keywords: string read GetKeywords write SetKeywords;
     property MySQLVersion: Integer read FMySQLVersion;
@@ -5290,9 +5294,7 @@ end;
 
 procedure TMySQLParser.TStringBuffer.Write(const Char: Char);
 begin
-  Reallocate(1);
-  Move(Char, Buffer.Write^, SizeOf(Char));
-  Buffer.Write := @Buffer.Write[1];
+  Write(@Char, 1);
 end;
 
 { TMySQLParser.TWordList ******************************************************}
@@ -5496,18 +5498,19 @@ end;
 
 { TMySQLParser.TFormatHandle **************************************************}
 
-constructor TMySQLParser.TFormatHandle.Create();
+constructor TMySQLParser.TFormatBuffer.Create();
 var
   S: string;
 begin
   inherited Create(1024);
 
+  FNewLine := False;
   Indent := 0;
   S := StringOfChar(' ', System.Length(IndentSpaces));
   Move(S[1], IndentSpaces, SizeOf(IndentSpaces));
 end;
 
-procedure TMySQLParser.TFormatHandle.DecreaseIndent();
+procedure TMySQLParser.TFormatBuffer.DecreaseIndent();
 begin
   Assert(Indent >= IndentSize);
 
@@ -5515,29 +5518,37 @@ begin
     Dec(Indent, IndentSize);
 end;
 
-destructor TMySQLParser.TFormatHandle.Destroy();
+destructor TMySQLParser.TFormatBuffer.Destroy();
 begin
   inherited;
 end;
 
-procedure TMySQLParser.TFormatHandle.IncreaseIndent();
+procedure TMySQLParser.TFormatBuffer.IncreaseIndent();
 begin
   Inc(Indent, IndentSize);
 end;
 
-procedure TMySQLParser.TFormatHandle.WriteIndent();
+procedure TMySQLParser.TFormatBuffer.Write(const Text: PChar; const Length: Integer);
+begin
+  inherited;
+
+  FNewLine := False;
+end;
+
+procedure TMySQLParser.TFormatBuffer.WriteIndent();
 begin
   Write(@IndentSpaces[0], Indent);
 end;
 
-procedure TMySQLParser.TFormatHandle.WriteReturn();
+procedure TMySQLParser.TFormatBuffer.WriteReturn();
 begin
   Write(#13#10);
   if (Indent > 0) then
     Write(@IndentSpaces[0], Indent);
+  FNewLine := True;
 end;
 
-procedure TMySQLParser.TFormatHandle.WriteSpace();
+procedure TMySQLParser.TFormatBuffer.WriteSpace();
 begin
   Write(' ');
 end;
@@ -5677,7 +5688,7 @@ end;
 { TMySQLParser.TToken *********************************************************}
 
 class function TMySQLParser.TToken.Create(const AParser: TMySQLParser;
-  const ASQL: PChar; const ALength: Integer;
+  const AText: PChar; const ALength: Integer;
   const AErrorCode: Byte; const AErrorPos: PChar;
   const ATokenType: fspTypes.TTokenType; const AOperatorType: TOperatorType;
   const AKeywordIndex: TWordList.TIndex; const AUsageType: TUsageType): TOffset;
@@ -5694,55 +5705,65 @@ begin
     FKeywordIndex := AKeywordIndex;
     FOperatorType := AOperatorType;
     FLength := ALength;
-    FNewSQL := 0;
-    FSQL := ASQL;
+    FText := AText;
     FTokenType := ATokenType;
     FUsageType := AUsageType;
+    NewSQL := 0;
+
+    {$IFDEF Debug}
+    GetText();
+    {$ENDIF}
   end;
 end;
 
 function TMySQLParser.TToken.GetAsString(): string;
+var
+  Length: Integer;
+  S: string;
+  Text: PChar;
 begin
+  GetText(Text, Length);
+  SetString(S, Text, Length);
   case (TokenType) of
     ttLineComment:
-      if (Copy(Text, 1, 1) = '#') then
-        Result := Trim(Copy(Text, Length - 1, 1))
-      else if (Copy(Text, 1, 2) = '--') then
-        Result := Trim(Copy(Text, 3, Length - 2))
+      if (Copy(S, 1, 1) = '#') then
+        Result := Trim(Copy(S, Length - 1, 1))
+      else if (Copy(S, 1, 2) = '--') then
+        Result := Trim(Copy(S, 3, Length - 2))
       else
         raise Exception.Create(SUnknownError);
     ttMultiLineComment:
-      if ((Copy(Text, 1, 2) = '/*') and (Copy(Text, Length - 1, 2) = '*/')) then
-        Result := Trim(Copy(Text, 3, Length - 4))
+      if ((Copy(S, 1, 2) = '/*') and (Copy(S, Length - 1, 2) = '*/')) then
+        Result := Trim(Copy(S, 3, Length - 4))
       else
         raise Exception.Create(SUnknownError);
     ttBeginLabel:
-      if (Copy(Text, Length, 1) = ':') then
-        Result := Copy(Text, 1, Length - 1)
+      if (Copy(S, Length, 1) = ':') then
+        Result := Copy(S, 1, Length - 1)
       else
-        Result := Text;
+        Result := S;
     ttBindVariable:
-      if (Copy(Text, 1, 1) = ':') then
-        Result := Trim(Copy(Text, 2, Length - 1))
+      if (Copy(S, 1, 1) = ':') then
+        Result := Trim(Copy(S, 2, Length - 1))
       else
-        Result := Text;
+        Result := S;
     ttString:
-      Result := SQLUnescape(Text);
+      Result := SQLUnescape(S);
     ttDQIdent:
-      Result := SQLUnescape(Text);
+      Result := SQLUnescape(S);
     ttDBIdent:
-      if ((Copy(Text, 1, 1) = '[') and (Copy(Text, Length, 1) = ']')) then
-        Result := Trim(Copy(Text, 1, Length - 2))
+      if ((Copy(S, 1, 1) = '[') and (Copy(S, Length, 1) = ']')) then
+        Result := Trim(Copy(S, 1, Length - 2))
       else
-        Result := Text;
+        Result := S;
     ttMySQLIdent:
-      Result := SQLUnescape(Text);
+      Result := SQLUnescape(S);
     ttMySQLCodeStart:
-      Result := Copy(Text, 1, Length - 3);
+      Result := Copy(S, 1, Length - 3);
     ttCSString:
-      Result := Copy(Text, 1, Length - 1);
+      Result := Copy(S, 1, Length - 1);
     else
-      Result := Text;
+      Result := S;
   end;
 end;
 
@@ -5836,26 +5857,29 @@ begin
   Result := Heritage.GetParentNode();
 end;
 
-function TMySQLParser.TToken.GetSQL(): PChar;
-begin
-  if (FNewSQL > 0) then
-    Result := Parser.GetText(FNewSQL)
-  else
-    Result := FSQL;
-end;
-
 function TMySQLParser.TToken.GetText(): string;
+var
+  Text: PChar;
+  Length: Integer;
 begin
-  if (FNewSQL = 0) then
-    SetString(Result, FSQL, FLength)
-  else
-    SetString(Result, Parser.GetText(FNewSQL), FLength);
+  GetText(Text, Length);
+  SetString(Result, Text, Length);
 end;
 
-procedure TMySQLParser.TToken.SetText(AText: string);
+procedure TMySQLParser.TToken.GetText(out Text: PChar; out Length: Integer);
 begin
-  FNewSQL := Parser.NewText(AText);
-  FLength := System.Length(AText);
+  if (NewSQL = 0) then
+  begin
+    Text := FText;
+    Length := FLength;
+  end
+  else
+    Parser.GetText(NewSQL, Text, Length);
+end;
+
+procedure TMySQLParser.TToken.SetText(const Text: PChar; const Length: Integer);
+begin
+  NewSQL := Parser.NewText(Text, Length);
 end;
 
 { TMySQLParser.TRange *********************************************************}
@@ -5912,6 +5936,7 @@ end;
 { TMySQLParser.TRoot **********************************************************}
 
 class function TMySQLParser.TRoot.Create(const AParser: TMySQLParser;
+  const AErrorCode: Byte; const AErrorMessage: string;
   const AFirstTokenAll, ALastTokenAll: TOffset;
   const ChildCount: Integer; const Children: array of TOffset): TOffset;
 var
@@ -5970,6 +5995,7 @@ begin
   begin
     FStmtType := AStmtType;
     FErrorCode := PE_Success;
+    FErrorMessage := 0;
     FErrorToken := 0;
     FFirstTokenAll := 0;
     FLastTokenAll := 0;
@@ -5991,8 +6017,17 @@ begin
 end;
 
 function TMySQLParser.TStmt.GetErrorMessage(): string;
+var
+  Length: Integer;
+  Text: PChar;
 begin
-  SetString(Result, Parser.GetText(FErrorMessage), FErrorMessageLength);
+  if (FErrorMessage = 0) then
+    Result := ''
+  else
+  begin
+    Parser.GetText(FErrorMessage, Text, Length);
+    SetString(Result, Text, Length);
+  end;
 end;
 
 function TMySQLParser.TStmt.GetErrorToken(): PToken;
@@ -6048,7 +6083,9 @@ end;
 
 function TMySQLParser.TStmt.GetText(): string;
 var
+  Length: Integer;
   StringBuffer: TStringBuffer;
+  Text: PChar;
   Token: PToken;
 begin
   StringBuffer := TStringBuffer.Create(1024);
@@ -6056,7 +6093,8 @@ begin
   Token := Parser.TokenPtr(FFirstTokenAll);
   while (Assigned(Token)) do
   begin
-    StringBuffer.Write(Token^.SQL, Token^.Length);
+    Token^.GetText(Text, Length);
+    StringBuffer.Write(Text, Length);
 
     if (Token = LastTokenAll) then
       Token := nil
@@ -6161,7 +6199,7 @@ begin
     FRoutineType := ARoutineType;
 
     Heritage.Heritage.AddChild(ANodes.AlterTag);
-    Heritage.Heritage.AddChild(ANodes.IdentNode);
+    Heritage.Heritage.AddChild(ANodes.Ident);
     Heritage.Heritage.AddChild(ANodes.CharacteristicList);
   end;
 end;
@@ -6177,7 +6215,7 @@ begin
     Nodes := ANodes;
 
     Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.IdentNode);
+    Heritage.Heritage.AddChild(ANodes.Ident);
     Heritage.Heritage.AddChild(ANodes.Options.Tag);
     Heritage.Heritage.AddChild(ANodes.Options.List);
   end;
@@ -6279,7 +6317,7 @@ begin
     Heritage.Heritage.AddChild(ANodes.AlterTag);
     Heritage.Heritage.AddChild(ANodes.IgnoreTag);
     Heritage.Heritage.AddChild(ANodes.TableTag);
-    Heritage.Heritage.AddChild(ANodes.IdentNode);
+    Heritage.Heritage.AddChild(ANodes.Ident);
     Heritage.Heritage.AddChild(ANodes.SpecificationList);
     Heritage.Heritage.AddChild(ANodes.AlgorithmValue);
     Heritage.Heritage.AddChild(ANodes.ConvertToCharacterSetNode);
@@ -6727,7 +6765,7 @@ begin
     Heritage.Heritage.AddChild(ANodes.CreateTag);
     Heritage.Heritage.AddChild(ANodes.DefinerNode);
     Heritage.Heritage.AddChild(ANodes.RoutineTag);
-    Heritage.Heritage.AddChild(ANodes.IdentNode);
+    Heritage.Heritage.AddChild(ANodes.Ident);
     Heritage.Heritage.AddChild(ANodes.ParameterList);
     Heritage.Heritage.AddChild(ANodes.Returns);
     Heritage.Heritage.AddChild(ANodes.CharacteristicList);
@@ -6975,7 +7013,7 @@ begin
     Heritage.Heritage.AddChild(ANodes.DefinerNode);
     Heritage.Heritage.AddChild(ANodes.SQLSecurityTag);
     Heritage.Heritage.AddChild(ANodes.ViewTag);
-    Heritage.Heritage.AddChild(ANodes.IdentNode);
+    Heritage.Heritage.AddChild(ANodes.Ident);
     Heritage.Heritage.AddChild(ANodes.ColumnList);
     Heritage.Heritage.AddChild(ANodes.AsTag);
     Heritage.Heritage.AddChild(ANodes.SelectStmt);
@@ -7216,7 +7254,7 @@ begin
     Heritage.Heritage.AddChild(ANodes.Using.List);
     Heritage.Heritage.AddChild(ANodes.WhereValue);
     Heritage.Heritage.AddChild(ANodes.OrderBy.Tag);
-    Heritage.Heritage.AddChild(ANodes.OrderBy.Ident);
+    Heritage.Heritage.AddChild(ANodes.OrderBy.Expr);
     Heritage.Heritage.AddChild(ANodes.LimitValue);
   end;
 end;
@@ -9843,6 +9881,10 @@ begin
 
     FPreviousToken := FCurrentToken;
     FCurrentToken := GetParsedToken(0); // Cache for speeding
+
+    {$IFDEF Debug}
+//      TokenPtr(Result)^.Text;
+    {$ENDIF}
   end;
 end;
 
@@ -9862,7 +9904,7 @@ end;
 procedure TMySQLParser.Clear();
 begin
   FErrorCode := PE_Success;
-  FErrorLine := 1;
+  FErrorLine := 0;
   FErrorToken := 0;
   {$IFDEF Debug} TokenIndex := 0; {$ENDIF}
   FInPL_SQL := 0;
@@ -9873,7 +9915,7 @@ begin
   ParsePosition.Text := nil;
   ParsePosition.Length := 0;
   FRoot := 0;
-  if (Assigned(ReplaceTexts.Mem)) then begin FreeMem(ReplaceTexts.Mem); ReplaceTexts.Mem := nil; end;
+  if (Assigned(Texts.Mem)) then begin FreeMem(Texts.Mem); Texts.Mem := nil; end;
   InCreateFunctionStmt := False;
   InCreateProcedureStmt := False;
   AllowedMySQLVersion := 0;
@@ -9894,11 +9936,13 @@ begin
   ParsedNodes.Mem := nil;
   ParsedNodes.UsedSize := 0;
   ParsedNodes.MemSize := 0;
-  ReplaceTexts.Mem := nil;
+  Texts.Mem := nil;
   TokenBuffer.Count := 0;
 
   Functions := MySQLFunctions;
   Keywords := MySQLKeywords;
+
+  Clear();
 end;
 
 destructor TMySQLParser.Destroy();
@@ -10005,40 +10049,21 @@ end;
 
 procedure TMySQLParser.FormatAlterRoutineStmt(const Nodes: TAlterRoutineStmt.TNodes);
 var
-  List: PList;
   Child: PChild;
-  Value: PValue;
-  Tag: PTag;
 begin
+  Assert(NodePtr(Nodes.CharacteristicList)^.NodeType = ntList);
+
   FormatNode(Nodes.AlterTag);
-  FormatNode(Nodes.IdentNode, stSpaceBefore);
+  FormatNode(Nodes.Ident, stSpaceBefore);
 
   if (Nodes.CharacteristicList > 0) then
   begin
     Commands.IncreaseIndent();
 
-    List := PList(NodePtr(Nodes.CharacteristicList));
-
-    Child := List^.FirstChild;
+    Child := PList(NodePtr(Nodes.CharacteristicList))^.FirstChild;
     while (Assigned(Child)) do
     begin
       FormatNode(PNode(Child), stReturnBefore);
-
-      Child := Child^.NextSibling;
-    end;
-
-    Child := List^.FirstChild;
-    while (Assigned(Child)) do
-    begin
-      if (Child^.NodeType = ntValue) then
-      begin
-        Value := PValue(Child);
-        if (NodePtr(Value^.Nodes.IdentTag)^.NodeType = ntTag) then
-        begin
-          Tag := PTag(NodePtr(Value^.Nodes.IdentTag));
-          FormatNode(PNode(Tag), stReturnBefore);
-        end;
-      end;
 
       Child := Child^.NextSibling;
     end;
@@ -10052,7 +10077,7 @@ begin
   FormatNode(Nodes.AlterTag);
   FormatNode(Nodes.IgnoreTag, stSpaceBefore);
   FormatNode(Nodes.TableTag, stSpaceBefore);
-  FormatNode(Nodes.IdentNode, stSpaceBefore);
+  FormatNode(Nodes.Ident, stSpaceBefore);
 
   Commands.IncreaseIndent();
 
@@ -10254,7 +10279,7 @@ begin
   FormatNode(Nodes.CreateTag);
   FormatNode(Nodes.DefinerNode, stSpaceBefore);
   FormatNode(Nodes.RoutineTag, stSpaceBefore);
-  FormatNode(Nodes.IdentNode, stSpaceBefore);
+  FormatNode(Nodes.Ident, stSpaceBefore);
   if ((Nodes.ParameterList = 0)
     or (NodePtr(Nodes.ParameterList)^.NodeType <> ntList)
     or (PList(NodePtr(Nodes.ParameterList))^.ElementCount <= 3)) then
@@ -10373,18 +10398,14 @@ end;
 
 procedure TMySQLParser.FormatCreateTableStmtKey(const Nodes: TCreateTableStmt.TKey.TNodes);
 begin
-  if (Nodes.AddTag > 0) then
-    FormatNode(Nodes.AddTag, stSpaceAfter);
-
+  FormatNode(Nodes.AddTag, stSpaceAfter);
   FormatNode(Nodes.ConstraintTag, stSpaceAfter);
   FormatNode(Nodes.SymbolIdent, stSpaceAfter);
   FormatNode(Nodes.KeyTag);
   FormatNode(Nodes.KeyIdent, stSpaceBefore);
   FormatNode(Nodes.IndexTypeTag, stSpaceBefore);
-
   Commands.WriteSpace();
   FormatList(Nodes.ColumnIdentList, sNone);
-
   FormatNode(Nodes.KeyBlockSizeValue, stSpaceBefore);
   FormatNode(Nodes.IndexTypeTag, stSpaceBefore);
   FormatNode(Nodes.ParserValue, stSpaceBefore);
@@ -10481,7 +10502,7 @@ begin
   FormatNode(Nodes.DefinerNode, stReturnBefore);
   FormatNode(Nodes.SQLSecurityTag, stReturnBefore);
   FormatNode(Nodes.ViewTag, stReturnBefore);
-  FormatNode(Nodes.IdentNode, stSpaceBefore);
+  FormatNode(Nodes.Ident, stSpaceBefore);
   FormatNode(Nodes.ColumnList, stSpaceBefore);
   Commands.IncreaseIndent();
   FormatNode(Nodes.AsTag, stReturnBefore);
@@ -10505,11 +10526,13 @@ procedure TMySQLParser.FormatComments(const Token: PToken; const BeforeStmt: Boo
 var
   Comment: string;
   Index: Integer;
+  Length: Integer;
   ReturnFound: Boolean;
-  ReturnNeeded: Boolean;
+  Spacer: TSpacer;
   T: PToken;
+  Text: PChar;
 begin
-  ReturnFound := False; ReturnNeeded := False;
+  ReturnFound := False; Spacer := sNone;
   T := Token;
   while (Assigned(T) and not T^.IsUsed) do
   begin
@@ -10521,15 +10544,15 @@ begin
           if (ReturnFound) then
             Commands.WriteReturn()
           else if (not BeforeStmt) then
-            if (not ReturnFound) then
-              Commands.WriteSpace()
+            if (ReturnFound) then
+              Commands.WriteReturn()
             else
-              Commands.WriteReturn();
-          Commands.Write(T^.SQL, T^.Length);
+              Commands.WriteSpace();
+          T^.GetText(Text, Length);
+          Commands.Write(Text, Length);
 
           ReturnFound := False;
-          if (BeforeStmt) then
-            ReturnNeeded := True;
+          Spacer := sReturn;
         end;
       ttMultiLineComment:
         begin
@@ -10544,6 +10567,13 @@ begin
             Commands.Write('/* ');
             Commands.Write(Comment);
             Commands.Write(' */');
+
+            ReturnFound := False;
+            if (not BeforeStmt) then
+              if (ReturnFound) then
+                Spacer := sReturn
+              else
+                Spacer := sSpace;
           end
           else
           begin
@@ -10566,19 +10596,20 @@ begin
             Commands.DecreaseIndent();
             Commands.WriteReturn();
             Commands.Write('*/');
-          end;
 
-          ReturnFound := False;
-          if (BeforeStmt) then
-            ReturnNeeded := True;
+            ReturnFound := False;
+            Spacer := sReturn;
+          end;
         end;
     end;
 
     T := T^.NextTokenAll;
   end;
 
-  if (ReturnNeeded) then
-    Commands.WriteReturn();
+  case (Spacer) of
+    sSpace: Commands.WriteSpace();
+    sReturn: Commands.WriteReturn();
+  end;
 end;
 
 procedure TMySQLParser.FormatDataType(const Nodes: TDataType.TNodes);
@@ -10607,52 +10638,24 @@ begin
 end;
 
 procedure TMySQLParser.FormatDbIdent(const Nodes: TDbIdent.TNodes);
-
-  procedure FormatQuotes(const Node: TOffset);
-  var
-    Token: PToken;
-  begin
-    Assert(IsToken(Node));
-
-    Token := TokenPtr(Node);
-
-    if (Token^.DbIdentType in [ditParameter, ditFunction, ditProcedure]) then
-    begin
-      Token^.FTokenType := ttIdent;
-      Token^.Text := Token^.AsString;
-    end
-    else if (AnsiQuotes) then
-    begin
-      Token^.FTokenType := ttDQIdent;
-      Token^.Text := SQLEscape(SQLUnescape(Token^.AsString), '"');
-    end
-    else
-    begin
-      Token^.FTokenType := ttMySQLIdent;
-      Token^.Text := SQLEscape(SQLUnescape(Token^.AsString), '`');
-    end;
-
-    FormatNode(Node);
-  end;
-
 begin
   if (Nodes.DatabaseIdent > 0) then
   begin
     Assert(Nodes.DatabaseDot > 0);
 
-    FormatQuotes(Nodes.DatabaseIdent);
+    FormatNode(Nodes.DatabaseIdent);
     FormatNode(Nodes.DatabaseDot);
   end;
 
   if (Nodes.TableIdent > 0) then
   begin
-    FormatQuotes(Nodes.TableIdent);
+    FormatNode(Nodes.TableIdent);
 
     if (Nodes.TableDot > 0) then
       FormatNode(Nodes.TableDot);
   end;
 
-  FormatQuotes(Nodes.Ident);
+  FormatNode(Nodes.Ident);
 end;
 
 procedure TMySQLParser.FormatDeclareHandlerStmt(const Nodes: TDeclareHandlerStmt.TNodes);
@@ -10695,7 +10698,7 @@ begin
     FormatNode(Nodes.Using.List, stSpaceBefore);
     FormatNode(Nodes.WhereValue, stReturnBefore);
     FormatNode(Nodes.OrderBy.Tag, stReturnBefore);
-    FormatNode(Nodes.OrderBy.Ident, stSpaceBefore);
+    FormatNode(Nodes.OrderBy.Expr, stSpaceBefore);
     FormatNode(Nodes.LimitValue, stReturnBefore);
     Commands.DecreaseIndent();
   end
@@ -10849,8 +10852,11 @@ begin
 
     if (Assigned(Child)) then
       case (Spacer) of
-        sSpace: Commands.WriteSpace();
-        sReturn: Commands.WriteReturn();
+        sSpace:
+          Commands.WriteSpace();
+        sReturn:
+          if (not Commands.NewLine)
+            then Commands.WriteReturn();
       end;
   end;
 
@@ -10940,56 +10946,79 @@ begin
 end;
 
 procedure TMySQLParser.FormatNode(const Node: PNode; const Separator: TSeparatorType = stNone);
+type
+  TTOffsetArray = array of TOffset;
+
+  procedure DefaultFormatNode(const Nodes: TTOffsetArray; const Size: Integer);
+  var
+    FirstNode: Boolean;
+    I: Integer;
+  begin
+    Assert(Size mod SizeOf(TOffset) = 0);
+
+    FirstNode := True;
+    for I := 0 to Size div SizeOf(TOffset) - 1 do
+      if (Nodes[I] > 0) then
+        if (FirstNode) then
+        begin
+          FormatNode(Nodes[I]);
+          FirstNode := False;
+        end
+        else
+          FormatNode(Nodes[I], stSpaceBefore);
+  end;
+
 begin
   if (Assigned(Node)) then
   begin
-    case (Separator) of
-      stReturnBefore: Commands.WriteReturn();
-      stSpaceBefore: Commands.WriteSpace();
-    end;
+    if (not Commands.NewLine) then
+      case (Separator) of
+        stReturnBefore: Commands.WriteReturn();
+        stSpaceBefore: Commands.WriteSpace();
+      end;
 
     case (Node^.NodeType) of
       ntToken: FormatToken(PToken(Node));
       ntUnknownStmt: FormatUnknownStmt(PUnknownStmt(Node));
 
-      ntAnalyzeStmt: FormatNodesDefault(@PAnalyzeStmt(Node)^.Nodes, SizeOf(TAnalyzeStmt.TNodes));
+      ntAnalyzeStmt: DefaultFormatNode(@PAnalyzeStmt(Node)^.Nodes, SizeOf(TAnalyzeStmt.TNodes));
       ntAlterDatabaseStmt: FormatAlterDatabaseStmt(PAlterDatabaseStmt(Node)^.Nodes);
       ntAlterEventStmt: FormatAlterEventStmt(PAlterEventStmt(Node)^.Nodes);
-      ntAlterInstanceStmt: FormatNodesDefault(@PAlterInstanceStmt(Node)^.Nodes, SizeOf(TAlterInstanceStmt.TNodes));
+      ntAlterInstanceStmt: DefaultFormatNode(@PAlterInstanceStmt(Node)^.Nodes, SizeOf(TAlterInstanceStmt.TNodes));
       ntAlterRoutineStmt: FormatAlterRoutineStmt(PAlterRoutineStmt(Node)^.Nodes);
-      ntAlterServerStmt: FormatNodesDefault(@PAlterServerStmt(Node)^.Nodes, SizeOf(TAlterServerStmt.TNodes));
+      ntAlterServerStmt: DefaultFormatNode(@PAlterServerStmt(Node)^.Nodes, SizeOf(TAlterServerStmt.TNodes));
       ntAlterTableStmt: FormatAlterTableStmt(PAlterTableStmt(Node)^.Nodes);
-      ntAlterTableStmtAlterColumn: FormatNodesDefault(@TAlterTableStmt.PAlterColumn(Node)^.Nodes, SizeOf(TAlterTableStmt.TAlterColumn.TNodes));
-      ntAlterTableStmtConvertTo: FormatNodesDefault(@TAlterTableStmt.PConvertTo(Node)^.Nodes, SizeOf(TAlterTableStmt.TConvertTo.TNodes));
-      ntAlterTableStmtDropObject: FormatNodesDefault(@TAlterTableStmt.PDropObject(Node)^.Nodes, SizeOf(TAlterTableStmt.TDropObject.TNodes));
-      ntAlterTableStmtExchangePartition: FormatNodesDefault(@TAlterTableStmt.PExchangePartition(Node)^.Nodes, SizeOf(TAlterTableStmt.TExchangePartition.TNodes));
-      ntAlterTableStmtReorganizePartition: FormatNodesDefault(@TAlterTableStmt.PReorganizePartition(Node)^.Nodes, SizeOf(TAlterTableStmt.TReorganizePartition.TNodes));
+      ntAlterTableStmtAlterColumn: DefaultFormatNode(@TAlterTableStmt.PAlterColumn(Node)^.Nodes, SizeOf(TAlterTableStmt.TAlterColumn.TNodes));
+      ntAlterTableStmtConvertTo: DefaultFormatNode(@TAlterTableStmt.PConvertTo(Node)^.Nodes, SizeOf(TAlterTableStmt.TConvertTo.TNodes));
+      ntAlterTableStmtDropObject: DefaultFormatNode(@TAlterTableStmt.PDropObject(Node)^.Nodes, SizeOf(TAlterTableStmt.TDropObject.TNodes));
+      ntAlterTableStmtExchangePartition: DefaultFormatNode(@TAlterTableStmt.PExchangePartition(Node)^.Nodes, SizeOf(TAlterTableStmt.TExchangePartition.TNodes));
+      ntAlterTableStmtReorganizePartition: DefaultFormatNode(@TAlterTableStmt.PReorganizePartition(Node)^.Nodes, SizeOf(TAlterTableStmt.TReorganizePartition.TNodes));
       ntAlterViewStmt: FormatAlterViewStmt(PAlterViewStmt(Node)^.Nodes);
-      ntBeginStmt: FormatNodesDefault(@PBeginStmt(Node)^.Nodes, SizeOf(TBeginStmt.TNodes));
-      ntBetweenOp: FormatNodesDefault(@PBetweenOp(Node)^.Nodes, SizeOf(TBetweenOp.TNodes));
-      ntBinaryOp: FormatNodesDefault(@PBinaryOp(Node)^.Nodes, SizeOf(TBinaryOp.TNodes));
-      ntCallStmt: FormatNodesDefault(@PCallStmt(Node)^.Nodes, SizeOf(TCallStmt.TNodes));
+      ntBeginStmt: DefaultFormatNode(@PBeginStmt(Node)^.Nodes, SizeOf(TBeginStmt.TNodes));
+      ntBetweenOp: DefaultFormatNode(@PBetweenOp(Node)^.Nodes, SizeOf(TBetweenOp.TNodes));
+      ntBinaryOp: DefaultFormatNode(@PBinaryOp(Node)^.Nodes, SizeOf(TBinaryOp.TNodes));
+      ntCallStmt: DefaultFormatNode(@PCallStmt(Node)^.Nodes, SizeOf(TCallStmt.TNodes));
       ntCaseOp: FormatCaseOp(PCaseOp(Node)^.Nodes);
-      ntCaseOpBranch: FormatNodesDefault(@TCaseOp.PBranch(Node)^.Nodes, SizeOf(TCaseOp.TBranch.TNodes));
+      ntCaseOpBranch: DefaultFormatNode(@TCaseOp.PBranch(Node)^.Nodes, SizeOf(TCaseOp.TBranch.TNodes));
       ntCaseStmt: FormatCaseStmt(PCaseStmt(Node)^.Nodes);
       ntCaseStmtBranch: FormatCaseStmtBranch(TCaseStmt.PBranch(Node)^.Nodes);
       ntCastFunc: FormatCastFunc(PCastFunc(Node)^.Nodes);
       ntCharFunc: FormatCharFunc(PCharFunc(Node)^.Nodes);
-      ntCheckStmt: FormatNodesDefault(@PCheckStmt(Node)^.Nodes, SizeOf(TCheckStmt.TNodes));
-      ntCheckStmtOption: FormatNodesDefault(@TCheckStmt.POption(Node)^.Nodes, SizeOf(TCheckStmt.TOption.TNodes));
-      ntChecksumStmt: FormatNodesDefault(@PChecksumStmt(Node)^.Nodes, SizeOf(TChecksumStmt.TNodes));
-      ntCloseStmt: FormatNodesDefault(@PCloseStmt(Node)^.Nodes, SizeOf(TCloseStmt.TNodes));
-      ntCommitStmt: FormatNodesDefault(@PCommitStmt(Node)^.Nodes, SizeOf(TCommitStmt.TNodes));
+      ntCheckStmt: DefaultFormatNode(@PCheckStmt(Node)^.Nodes, SizeOf(TCheckStmt.TNodes));
+      ntCheckStmtOption: DefaultFormatNode(@TCheckStmt.POption(Node)^.Nodes, SizeOf(TCheckStmt.TOption.TNodes));
+      ntChecksumStmt: DefaultFormatNode(@PChecksumStmt(Node)^.Nodes, SizeOf(TChecksumStmt.TNodes));
+      ntCloseStmt: DefaultFormatNode(@PCloseStmt(Node)^.Nodes, SizeOf(TCloseStmt.TNodes));
+      ntCommitStmt: DefaultFormatNode(@PCommitStmt(Node)^.Nodes, SizeOf(TCommitStmt.TNodes));
       ntCompoundStmt: FormatCompoundStmt(PCompoundStmt(Node)^.Nodes);
       ntConvertFunc: FormatConvertFunc(PConvertFunc(Node)^.Nodes);
-      ntCreateDatabaseStmt: FormatNodesDefault(@PCreateDatabaseStmt(Node)^.Nodes, SizeOf(TCreateDatabaseStmt.TNodes));
+      ntCreateDatabaseStmt: DefaultFormatNode(@PCreateDatabaseStmt(Node)^.Nodes, SizeOf(TCreateDatabaseStmt.TNodes));
       ntCreateEventStmt: FormatCreateEventStmt(PCreateEventStmt(Node)^.Nodes);
       ntCreateIndexStmt: FormatCreateIndexStmt(PCreateIndexStmt(Node)^.Nodes);
       ntCreateRoutineStmt: FormatCreateRoutineStmt(PCreateRoutineStmt(Node)^.Nodes);
       ntCreateServerStmt: FormatCreateServerStmt(PCreateServerStmt(Node)^.Nodes);
       ntCreateTableStmt: FormatCreateTableStmt(PCreateTableStmt(Node)^.Nodes);
-      ntCreateTableStmtColumn: FormatNodesDefault(@TCreateTableStmt.PField(Node)^.Nodes, SizeOf(TCreateTableStmt.TField.TNodes));
-      ntCreateTableStmtForeignKey: FormatNodesDefault(@TCreateTableStmt.PForeignKey(Node)^.Nodes, SizeOf(TCreateTableStmt.TForeignKey.TNodes));
+      ntCreateTableStmtColumn: DefaultFormatNode(@TCreateTableStmt.PField(Node)^.Nodes, SizeOf(TCreateTableStmt.TField.TNodes));
+      ntCreateTableStmtForeignKey: DefaultFormatNode(@TCreateTableStmt.PForeignKey(Node)^.Nodes, SizeOf(TCreateTableStmt.TForeignKey.TNodes));
       ntCreateTableStmtKey: FormatCreateTableStmtKey(TCreateTableStmt.PKey(Node)^.Nodes);
       ntCreateTableStmtKeyColumn: FormatCreateTableStmtKeyColumn(TCreateTableStmt.PKeyColumn(Node)^.Nodes);
       ntCreateTableStmtPartition: FormatCreateTableStmtPartition(TCreateTableStmt.PPartition(Node)^.Nodes);
@@ -11000,162 +11029,162 @@ begin
       ntCurrentTimestamp: FormatCurrentTimestamp(PCurrentTimestamp(Node)^.Nodes);
       ntDataType: FormatDataType(PDataType(Node)^.Nodes);
       ntDbIdent: FormatDbIdent(PDbIdent(Node)^.Nodes);
-      ntDeallocatePrepareStmt: FormatNodesDefault(@PDeallocatePrepareStmt(Node)^.Nodes, SizeOf(TDeallocatePrepareStmt.TNodes));
-      ntDeclareStmt: FormatNodesDefault(@PDeclareStmt(Node)^.Nodes, SizeOf(TDeclareStmt.TNodes));
-      ntDeclareConditionStmt: FormatNodesDefault(@PDeclareConditionStmt(Node)^.Nodes, SizeOf(TDeclareConditionStmt.TNodes));
-      ntDeclareCursorStmt: FormatNodesDefault(@PDeclareCursorStmt(Node)^.Nodes, SizeOf(TDeclareCursorStmt.TNodes));
+      ntDeallocatePrepareStmt: DefaultFormatNode(@PDeallocatePrepareStmt(Node)^.Nodes, SizeOf(TDeallocatePrepareStmt.TNodes));
+      ntDeclareStmt: DefaultFormatNode(@PDeclareStmt(Node)^.Nodes, SizeOf(TDeclareStmt.TNodes));
+      ntDeclareConditionStmt: DefaultFormatNode(@PDeclareConditionStmt(Node)^.Nodes, SizeOf(TDeclareConditionStmt.TNodes));
+      ntDeclareCursorStmt: DefaultFormatNode(@PDeclareCursorStmt(Node)^.Nodes, SizeOf(TDeclareCursorStmt.TNodes));
       ntDeclareHandlerStmt: FormatDeclareHandlerStmt(PDeclareHandlerStmt(Node)^.Nodes);
-      ntDeclareHandlerStmtCondition: FormatNodesDefault(@TDeclareHandlerStmt.PCondition(Node)^.Nodes, SizeOf(TDeclareHandlerStmt.TCondition.TNodes));
+      ntDeclareHandlerStmtCondition: DefaultFormatNode(@TDeclareHandlerStmt.PCondition(Node)^.Nodes, SizeOf(TDeclareHandlerStmt.TCondition.TNodes));
       ntDeleteStmt: FormatDeleteStmt(PDeleteStmt(Node)^.Nodes);
-      ntDoStmt: FormatNodesDefault(@PDoStmt(Node)^.Nodes, SizeOf(TDoStmt.TNodes));
-      ntDropDatabaseStmt: FormatNodesDefault(@PDropDatabaseStmt(Node)^.Nodes, SizeOf(TDropDatabaseStmt.TNodes));
-      ntDropEventStmt: FormatNodesDefault(@PDropEventStmt(Node)^.Nodes, SizeOf(TDropEventStmt.TNodes));
-      ntDropIndexStmt: FormatNodesDefault(@PDropIndexStmt(Node)^.Nodes, SizeOf(TDropIndexStmt.TNodes));
-      ntDropRoutineStmt: FormatNodesDefault(@PDropRoutineStmt(Node)^.Nodes, SizeOf(TDropRoutineStmt.TNodes));
-      ntDropServerStmt: FormatNodesDefault(@PDropServerStmt(Node)^.Nodes, SizeOf(TDropServerStmt.TNodes));
-      ntDropTableStmt: FormatNodesDefault(@PDropTableStmt(Node)^.Nodes, SizeOf(TDropTableStmt.TNodes));
-      ntDropTriggerStmt: FormatNodesDefault(@PDropTriggerStmt(Node)^.Nodes, SizeOf(TDropTriggerStmt.TNodes));
-      ntDropUserStmt: FormatNodesDefault(@PDropUserStmt(Node)^.Nodes, SizeOf(TDropUserStmt.TNodes));
-      ntDropViewStmt: FormatNodesDefault(@PDropViewStmt(Node)^.Nodes, SizeOf(TDropViewStmt.TNodes));
-      ntExecuteStmt: FormatNodesDefault(@PExecuteStmt(Node)^.Nodes, SizeOf(TExecuteStmt.TNodes));
+      ntDoStmt: DefaultFormatNode(@PDoStmt(Node)^.Nodes, SizeOf(TDoStmt.TNodes));
+      ntDropDatabaseStmt: DefaultFormatNode(@PDropDatabaseStmt(Node)^.Nodes, SizeOf(TDropDatabaseStmt.TNodes));
+      ntDropEventStmt: DefaultFormatNode(@PDropEventStmt(Node)^.Nodes, SizeOf(TDropEventStmt.TNodes));
+      ntDropIndexStmt: DefaultFormatNode(@PDropIndexStmt(Node)^.Nodes, SizeOf(TDropIndexStmt.TNodes));
+      ntDropRoutineStmt: DefaultFormatNode(@PDropRoutineStmt(Node)^.Nodes, SizeOf(TDropRoutineStmt.TNodes));
+      ntDropServerStmt: DefaultFormatNode(@PDropServerStmt(Node)^.Nodes, SizeOf(TDropServerStmt.TNodes));
+      ntDropTableStmt: DefaultFormatNode(@PDropTableStmt(Node)^.Nodes, SizeOf(TDropTableStmt.TNodes));
+      ntDropTriggerStmt: DefaultFormatNode(@PDropTriggerStmt(Node)^.Nodes, SizeOf(TDropTriggerStmt.TNodes));
+      ntDropUserStmt: DefaultFormatNode(@PDropUserStmt(Node)^.Nodes, SizeOf(TDropUserStmt.TNodes));
+      ntDropViewStmt: DefaultFormatNode(@PDropViewStmt(Node)^.Nodes, SizeOf(TDropViewStmt.TNodes));
+      ntExecuteStmt: DefaultFormatNode(@PExecuteStmt(Node)^.Nodes, SizeOf(TExecuteStmt.TNodes));
       ntExistsFunc: FormatExistsFunc(PExistsFunc(Node)^.Nodes);
-      ntExplainStmt: FormatNodesDefault(@PExplainStmt(Node)^.Nodes, SizeOf(TExplainStmt.TNodes));
+      ntExplainStmt: DefaultFormatNode(@PExplainStmt(Node)^.Nodes, SizeOf(TExplainStmt.TNodes));
       ntExtractFunc: FormatExtractFunc(PExtractFunc(Node)^.Nodes);
-      ntFetchStmt: FormatNodesDefault(@PFetchStmt(Node)^.Nodes, SizeOf(TFetchStmt.TNodes));
-      ntFlushStmt: FormatNodesDefault(@PFlushStmt(Node)^.Nodes, SizeOf(TFlushStmt.TNodes));
-      ntFlushStmtOption: FormatNodesDefault(@TFlushStmt.POption(Node)^.Nodes, SizeOf(TFlushStmt.TOption.TNodes));
+      ntFetchStmt: DefaultFormatNode(@PFetchStmt(Node)^.Nodes, SizeOf(TFetchStmt.TNodes));
+      ntFlushStmt: DefaultFormatNode(@PFlushStmt(Node)^.Nodes, SizeOf(TFlushStmt.TNodes));
+      ntFlushStmtOption: DefaultFormatNode(@TFlushStmt.POption(Node)^.Nodes, SizeOf(TFlushStmt.TOption.TNodes));
       ntFunctionCall: FormatFunctionCall(PFunctionCall(Node)^.Nodes);
-      ntFunctionReturns: FormatNodesDefault(@PFunctionReturns(Node)^.Nodes, SizeOf(TFunctionReturns.TNodes));
-      ntGetDiagnosticsStmt: FormatNodesDefault(@PGetDiagnosticsStmt(Node)^.Nodes, SizeOf(TGetDiagnosticsStmt.TNodes));
-      ntGetDiagnosticsStmtStmtInfo: FormatNodesDefault(@TGetDiagnosticsStmt.PStmtInfo(Node)^.Nodes, SizeOf(TGetDiagnosticsStmt.TStmtInfo.TNodes));
-      ntGetDiagnosticsStmtCondInfo: FormatNodesDefault(@TGetDiagnosticsStmt.PCondInfo(Node)^.Nodes, SizeOf(TGetDiagnosticsStmt.TCondInfo.TNodes));
-      ntGrantStmt: FormatNodesDefault(@PGrantStmt(Node)^.Nodes, SizeOf(TGrantStmt.TNodes));
-      ntGrantStmtPrivileg: FormatNodesDefault(@TGrantStmt.PPrivileg(Node)^.Nodes, SizeOf(TGrantStmt.TPrivileg.TNodes));
-      ntGrantStmtUserSpecification: FormatNodesDefault(@TGrantStmt.PUserSpecification(Node)^.Nodes, SizeOf(TGrantStmt.TUserSpecification.TNodes));
+      ntFunctionReturns: DefaultFormatNode(@PFunctionReturns(Node)^.Nodes, SizeOf(TFunctionReturns.TNodes));
+      ntGetDiagnosticsStmt: DefaultFormatNode(@PGetDiagnosticsStmt(Node)^.Nodes, SizeOf(TGetDiagnosticsStmt.TNodes));
+      ntGetDiagnosticsStmtStmtInfo: DefaultFormatNode(@TGetDiagnosticsStmt.PStmtInfo(Node)^.Nodes, SizeOf(TGetDiagnosticsStmt.TStmtInfo.TNodes));
+      ntGetDiagnosticsStmtCondInfo: DefaultFormatNode(@TGetDiagnosticsStmt.PCondInfo(Node)^.Nodes, SizeOf(TGetDiagnosticsStmt.TCondInfo.TNodes));
+      ntGrantStmt: DefaultFormatNode(@PGrantStmt(Node)^.Nodes, SizeOf(TGrantStmt.TNodes));
+      ntGrantStmtPrivileg: DefaultFormatNode(@TGrantStmt.PPrivileg(Node)^.Nodes, SizeOf(TGrantStmt.TPrivileg.TNodes));
+      ntGrantStmtUserSpecification: DefaultFormatNode(@TGrantStmt.PUserSpecification(Node)^.Nodes, SizeOf(TGrantStmt.TUserSpecification.TNodes));
       ntGroupConcatFunc: FormatGroupConcatFunc(PGroupConcatFunc(Node)^.Nodes);
-      ntGroupConcatFuncExpr: FormatNodesDefault(@TGroupConcatFunc.PExpr(Node)^.Nodes, SizeOf(TGroupConcatFunc.TExpr.TNodes));
-      ntHelpStmt: FormatNodesDefault(@PHelpStmt(Node)^.Nodes, SizeOf(THelpStmt.TNodes));
+      ntGroupConcatFuncExpr: DefaultFormatNode(@TGroupConcatFunc.PExpr(Node)^.Nodes, SizeOf(TGroupConcatFunc.TExpr.TNodes));
+      ntHelpStmt: DefaultFormatNode(@PHelpStmt(Node)^.Nodes, SizeOf(THelpStmt.TNodes));
       ntIfStmt: FormatIfStmt(PIfStmt(Node)^.Nodes);
       ntIfStmtBranch: FormatIfStmtBranch(TIfStmt.PBranch(Node)^.Nodes);
-      ntIgnoreLines: FormatNodesDefault(@PIgnoreLines(Node)^.Nodes, SizeOf(TIgnoreLines.TNodes));
-      ntInOp: FormatNodesDefault(@PInOp(Node)^.Nodes, SizeOf(TInOp.TNodes));
+      ntIgnoreLines: DefaultFormatNode(@PIgnoreLines(Node)^.Nodes, SizeOf(TIgnoreLines.TNodes));
+      ntInOp: DefaultFormatNode(@PInOp(Node)^.Nodes, SizeOf(TInOp.TNodes));
       ntInsertStmt: FormatInsertStmt(PInsertStmt(Node)^.Nodes);
-      ntInsertStmtSetItem: FormatNodesDefault(@TInsertStmt.PSetItem(Node)^.Nodes, SizeOf(TInsertStmt.TSetItem.TNodes));
-      ntIntervalOp: FormatNodesDefault(@PIntervalOp(Node)^.Nodes, SizeOf(TIntervalOp.TNodes));
-      ntIntervalOpListItem: FormatNodesDefault(@TIntervalOp.PListItem(Node)^.Nodes, SizeOf(TIntervalOp.TListItem.TNodes));
-      ntIterateStmt: FormatNodesDefault(@PIterateStmt(Node)^.Nodes, SizeOf(TIterateStmt.TNodes));
-      ntKillStmt: FormatNodesDefault(@PKillStmt(Node)^.Nodes, SizeOf(TKillStmt.TNodes));
-      ntLeaveStmt: FormatNodesDefault(@PLeaveStmt(Node)^.Nodes, SizeOf(TLeaveStmt.TNodes));
-      ntLikeOp: FormatNodesDefault(@PLikeOp(Node)^.Nodes, SizeOf(TLikeOp.TNodes));
+      ntInsertStmtSetItem: DefaultFormatNode(@TInsertStmt.PSetItem(Node)^.Nodes, SizeOf(TInsertStmt.TSetItem.TNodes));
+      ntIntervalOp: DefaultFormatNode(@PIntervalOp(Node)^.Nodes, SizeOf(TIntervalOp.TNodes));
+      ntIntervalOpListItem: DefaultFormatNode(@TIntervalOp.PListItem(Node)^.Nodes, SizeOf(TIntervalOp.TListItem.TNodes));
+      ntIterateStmt: DefaultFormatNode(@PIterateStmt(Node)^.Nodes, SizeOf(TIterateStmt.TNodes));
+      ntKillStmt: DefaultFormatNode(@PKillStmt(Node)^.Nodes, SizeOf(TKillStmt.TNodes));
+      ntLeaveStmt: DefaultFormatNode(@PLeaveStmt(Node)^.Nodes, SizeOf(TLeaveStmt.TNodes));
+      ntLikeOp: DefaultFormatNode(@PLikeOp(Node)^.Nodes, SizeOf(TLikeOp.TNodes));
       ntList: FormatList(PList(Node)^.Nodes, PList(Node)^.DelimiterType);
       ntLoadDataStmt: FormatLoadDataStmt(PLoadDataStmt(Node)^.Nodes);
       ntLoadXMLStmt: FormatLoadXMLStmt(PLoadXMLStmt(Node)^.Nodes);
-      ntLockStmt: FormatNodesDefault(@PLockStmt(Node)^.Nodes, SizeOf(TLockStmt.TNodes));
-      ntLockStmtItem: FormatNodesDefault(@TLockStmt.PItem(Node)^.Nodes, SizeOf(TLockStmt.TItem.TNodes));
+      ntLockStmt: DefaultFormatNode(@PLockStmt(Node)^.Nodes, SizeOf(TLockStmt.TNodes));
+      ntLockStmtItem: DefaultFormatNode(@TLockStmt.PItem(Node)^.Nodes, SizeOf(TLockStmt.TItem.TNodes));
       ntLoopStmt: FormatLoopStmt(PLoopStmt(Node)^.Nodes);
       ntPositionFunc: FormatPositionFunc(PPositionFunc(Node)^.Nodes);
-      ntPrepareStmt: FormatNodesDefault(@PPrepareStmt(Node)^.Nodes, SizeOf(TPrepareStmt.TNodes));
-      ntPurgeStmt: FormatNodesDefault(@PPurgeStmt(Node)^.Nodes, SizeOf(TPurgeStmt.TNodes));
-      ntOpenStmt: FormatNodesDefault(@POpenStmt(Node)^.Nodes, SizeOf(TOpenStmt.TNodes));
-      ntOptimizeStmt: FormatNodesDefault(@POptimizeStmt(Node)^.Nodes, SizeOf(TOptimizeStmt.TNodes));
-      ntRegExpOp: FormatNodesDefault(@PRegExpOp(Node)^.Nodes, SizeOf(TRegExpOp.TNodes));
-      ntRenameStmt: FormatNodesDefault(@PRenameStmt(Node)^.Nodes, SizeOf(TRenameStmt.TNodes));
-      ntRenameStmtPair: FormatNodesDefault(@TRenameStmt.PPair(Node)^.Nodes, SizeOf(TRenameStmt.TPair.TNodes));
-      ntReleaseStmt: FormatNodesDefault(@PReleaseStmt(Node)^.Nodes, SizeOf(TReleaseStmt.TNodes));
-      ntRepairStmt: FormatNodesDefault(@PRepairStmt(Node)^.Nodes, SizeOf(TRepairStmt.TNodes));
+      ntPrepareStmt: DefaultFormatNode(@PPrepareStmt(Node)^.Nodes, SizeOf(TPrepareStmt.TNodes));
+      ntPurgeStmt: DefaultFormatNode(@PPurgeStmt(Node)^.Nodes, SizeOf(TPurgeStmt.TNodes));
+      ntOpenStmt: DefaultFormatNode(@POpenStmt(Node)^.Nodes, SizeOf(TOpenStmt.TNodes));
+      ntOptimizeStmt: DefaultFormatNode(@POptimizeStmt(Node)^.Nodes, SizeOf(TOptimizeStmt.TNodes));
+      ntRegExpOp: DefaultFormatNode(@PRegExpOp(Node)^.Nodes, SizeOf(TRegExpOp.TNodes));
+      ntRenameStmt: DefaultFormatNode(@PRenameStmt(Node)^.Nodes, SizeOf(TRenameStmt.TNodes));
+      ntRenameStmtPair: DefaultFormatNode(@TRenameStmt.PPair(Node)^.Nodes, SizeOf(TRenameStmt.TPair.TNodes));
+      ntReleaseStmt: DefaultFormatNode(@PReleaseStmt(Node)^.Nodes, SizeOf(TReleaseStmt.TNodes));
+      ntRepairStmt: DefaultFormatNode(@PRepairStmt(Node)^.Nodes, SizeOf(TRepairStmt.TNodes));
       ntRepeatStmt: FormatRepeatStmt(PRepeatStmt(Node)^.Nodes);
-      ntResetStmt: FormatNodesDefault(@PResetStmt(Node)^.Nodes, SizeOf(TResetStmt.TNodes));
-      ntReturnStmt: FormatNodesDefault(@PReturnStmt(Node)^.Nodes, SizeOf(TReturnStmt.TNodes));
-      ntRevokeStmt: FormatNodesDefault(@PRevokeStmt(Node)^.Nodes, SizeOf(TRevokeStmt.TNodes));
-      ntRollbackStmt: FormatNodesDefault(@PRollbackStmt(Node)^.Nodes, SizeOf(TRollbackStmt.TNodes));
-      ntRoutineParam: FormatNodesDefault(@PRoutineParam(Node)^.Nodes, SizeOf(TRoutineParam.TNodes));
-      ntSavepointStmt: FormatNodesDefault(@PSavepointStmt(Node)^.Nodes, SizeOf(TSavepointStmt.TNodes));
+      ntResetStmt: DefaultFormatNode(@PResetStmt(Node)^.Nodes, SizeOf(TResetStmt.TNodes));
+      ntReturnStmt: DefaultFormatNode(@PReturnStmt(Node)^.Nodes, SizeOf(TReturnStmt.TNodes));
+      ntRevokeStmt: DefaultFormatNode(@PRevokeStmt(Node)^.Nodes, SizeOf(TRevokeStmt.TNodes));
+      ntRollbackStmt: DefaultFormatNode(@PRollbackStmt(Node)^.Nodes, SizeOf(TRollbackStmt.TNodes));
+      ntRoutineParam: DefaultFormatNode(@PRoutineParam(Node)^.Nodes, SizeOf(TRoutineParam.TNodes));
+      ntSavepointStmt: DefaultFormatNode(@PSavepointStmt(Node)^.Nodes, SizeOf(TSavepointStmt.TNodes));
       ntSchedule: FormatSchedule(PSchedule(Node)^.Nodes);
       ntSecretIdent: FormatSecretIdent(PSecretIdent(Node)^.Nodes);
       ntSelectStmt: FormatSelectStmt(PSelectStmt(Node)^.Nodes);
       ntSelectStmtColumn: FormatSelectStmtColumn(TSelectStmt.PColumn(Node)^.Nodes);
-      ntSelectStmtGroup: FormatNodesDefault(@TSelectStmt.PGroup(Node)^.Nodes, SizeOf(TSelectStmt.TGroup.TNodes));
-      ntSelectStmtOrder: FormatNodesDefault(@TSelectStmt.POrder(Node)^.Nodes, SizeOf(TSelectStmt.TOrder.TNodes));
+      ntSelectStmtGroup: DefaultFormatNode(@TSelectStmt.PGroup(Node)^.Nodes, SizeOf(TSelectStmt.TGroup.TNodes));
+      ntSelectStmtOrder: DefaultFormatNode(@TSelectStmt.POrder(Node)^.Nodes, SizeOf(TSelectStmt.TOrder.TNodes));
       ntSelectStmtInto: FormatSelectStmtInto(TSelectStmt.PInto(Node)^.Nodes);
       ntSelectStmtTableFactor: FormatSelectStmtTableFactor(TSelectStmt.PTableFactor(Node)^.Nodes);
-      ntSelectStmtTableFactorIndexHint: FormatNodesDefault(@TSelectStmt.TTableFactor.PIndexHint(Node)^.Nodes, SizeOf(TSelectStmt.TTableFactor.TIndexHint.TNodes));
+      ntSelectStmtTableFactorIndexHint: DefaultFormatNode(@TSelectStmt.TTableFactor.PIndexHint(Node)^.Nodes, SizeOf(TSelectStmt.TTableFactor.TIndexHint.TNodes));
       ntSelectStmtTableFactorOj: FormatSelectStmtTableFactorOj(TSelectStmt.PTableFactorOj(Node)^.Nodes);
-      ntSelectStmtTableFactorSelect: FormatNodesDefault(@TSelectStmt.PTableFactorSelect(Node)^.Nodes, SizeOf(TSelectStmt.TTableFactorSelect.TNodes));
-      ntSelectStmtTableJoin: FormatNodesDefault(@TSelectStmt.PTableJoin(Node)^.Nodes, SizeOf(TSelectStmt.TTableJoin.TNodes));
-      ntSetNamesStmt: FormatNodesDefault(@PSetNamesStmt(Node)^.Nodes, SizeOf(TSetNamesStmt.TNodes));
-      ntSetPasswordStmt: FormatNodesDefault(@PSetPasswordStmt(Node)^.Nodes, SizeOf(TSetPasswordStmt.TNodes));
-      ntSetStmt: FormatNodesDefault(@PSetStmt(Node)^.Nodes, SizeOf(TSetStmt.TNodes));
-      ntSetStmtAssignment: FormatNodesDefault(@TSetStmt.PAssignment(Node)^.Nodes, SizeOf(TSetStmt.TAssignment.TNodes));
-      ntSetTransactionStmt: FormatNodesDefault(@PSetTransactionStmt(Node)^.Nodes, SizeOf(TSetTransactionStmt.TNodes));
-      ntSetTransactionStmtCharacteristic: FormatNodesDefault(@TSetTransactionStmt.PCharacteristic(Node)^.Nodes, SizeOf(TSetTransactionStmt.TCharacteristic.TNodes));
-      ntShowAuthorsStmt: FormatNodesDefault(@PShowAuthorsStmt(Node)^.Nodes, SizeOf(TShowAuthorsStmt.TNodes));
-      ntShowBinaryLogsStmt: FormatNodesDefault(@PShowBinaryLogsStmt(Node)^.Nodes, SizeOf(TShowBinaryLogsStmt.TNodes));
+      ntSelectStmtTableFactorSelect: DefaultFormatNode(@TSelectStmt.PTableFactorSelect(Node)^.Nodes, SizeOf(TSelectStmt.TTableFactorSelect.TNodes));
+      ntSelectStmtTableJoin: DefaultFormatNode(@TSelectStmt.PTableJoin(Node)^.Nodes, SizeOf(TSelectStmt.TTableJoin.TNodes));
+      ntSetNamesStmt: DefaultFormatNode(@PSetNamesStmt(Node)^.Nodes, SizeOf(TSetNamesStmt.TNodes));
+      ntSetPasswordStmt: DefaultFormatNode(@PSetPasswordStmt(Node)^.Nodes, SizeOf(TSetPasswordStmt.TNodes));
+      ntSetStmt: DefaultFormatNode(@PSetStmt(Node)^.Nodes, SizeOf(TSetStmt.TNodes));
+      ntSetStmtAssignment: DefaultFormatNode(@TSetStmt.PAssignment(Node)^.Nodes, SizeOf(TSetStmt.TAssignment.TNodes));
+      ntSetTransactionStmt: DefaultFormatNode(@PSetTransactionStmt(Node)^.Nodes, SizeOf(TSetTransactionStmt.TNodes));
+      ntSetTransactionStmtCharacteristic: DefaultFormatNode(@TSetTransactionStmt.PCharacteristic(Node)^.Nodes, SizeOf(TSetTransactionStmt.TCharacteristic.TNodes));
+      ntShowAuthorsStmt: DefaultFormatNode(@PShowAuthorsStmt(Node)^.Nodes, SizeOf(TShowAuthorsStmt.TNodes));
+      ntShowBinaryLogsStmt: DefaultFormatNode(@PShowBinaryLogsStmt(Node)^.Nodes, SizeOf(TShowBinaryLogsStmt.TNodes));
       ntShowBinlogEventsStmt: FormatShowBinlogEventsStmt(PShowBinlogEventsStmt(Node)^.Nodes);
-      ntShowCharacterSetStmt: FormatNodesDefault(@PShowCharacterSetStmt(Node)^.Nodes, SizeOf(TShowCharacterSetStmt.TNodes));
-      ntShowCollationStmt: FormatNodesDefault(@PShowCollationStmt(Node)^.Nodes, SizeOf(TShowCollationStmt.TNodes));
-      ntShowContributorsStmt: FormatNodesDefault(@PShowContributorsStmt(Node)^.Nodes, SizeOf(TShowContributorsStmt.TNodes));
-      ntShowCountErrorsStmt: FormatNodesDefault(@PShowCountErrorsStmt(Node)^.Nodes, SizeOf(TShowCountErrorsStmt.TNodes));
-      ntShowCountWarningsStmt: FormatNodesDefault(@PShowCountWarningsStmt(Node)^.Nodes, SizeOf(TShowCountWarningsStmt.TNodes));
-      ntShowCreateDatabaseStmt: FormatNodesDefault(@PShowCreateDatabaseStmt(Node)^.Nodes, SizeOf(TShowCreateDatabaseStmt.TNodes));
-      ntShowCreateEventStmt: FormatNodesDefault(@PShowCreateEventStmt(Node)^.Nodes, SizeOf(TShowCreateEventStmt.TNodes));
-      ntShowCreateFunctionStmt: FormatNodesDefault(@PShowCreateFunctionStmt(Node)^.Nodes, SizeOf(TShowCreateFunctionStmt.TNodes));
-      ntShowCreateProcedureStmt: FormatNodesDefault(@PShowCreateProcedureStmt(Node)^.Nodes, SizeOf(TShowCreateProcedureStmt.TNodes));
-      ntShowCreateTableStmt: FormatNodesDefault(@PShowCreateTableStmt(Node)^.Nodes, SizeOf(TShowCreateTableStmt.TNodes));
-      ntShowCreateTriggerStmt: FormatNodesDefault(@PShowCreateTriggerStmt(Node)^.Nodes, SizeOf(TShowCreateTriggerStmt.TNodes));
-      ntShowCreateUserStmt: FormatNodesDefault(@PShowCreateUserStmt(Node)^.Nodes, SizeOf(TShowCreateUserStmt.TNodes));
-      ntShowCreateViewStmt: FormatNodesDefault(@PShowCreateViewStmt(Node)^.Nodes, SizeOf(TShowCreateViewStmt.TNodes));
-      ntShowDatabasesStmt: FormatNodesDefault(@PShowDatabasesStmt(Node)^.Nodes, SizeOf(TShowDatabasesStmt.TNodes));
-      ntShowEngineStmt: FormatNodesDefault(@PShowEngineStmt(Node)^.Nodes, SizeOf(TShowEngineStmt.TNodes));
-      ntShowEnginesStmt: FormatNodesDefault(@PShowEnginesStmt(Node)^.Nodes, SizeOf(TShowEnginesStmt.TNodes));
+      ntShowCharacterSetStmt: DefaultFormatNode(@PShowCharacterSetStmt(Node)^.Nodes, SizeOf(TShowCharacterSetStmt.TNodes));
+      ntShowCollationStmt: DefaultFormatNode(@PShowCollationStmt(Node)^.Nodes, SizeOf(TShowCollationStmt.TNodes));
+      ntShowContributorsStmt: DefaultFormatNode(@PShowContributorsStmt(Node)^.Nodes, SizeOf(TShowContributorsStmt.TNodes));
+      ntShowCountErrorsStmt: DefaultFormatNode(@PShowCountErrorsStmt(Node)^.Nodes, SizeOf(TShowCountErrorsStmt.TNodes));
+      ntShowCountWarningsStmt: DefaultFormatNode(@PShowCountWarningsStmt(Node)^.Nodes, SizeOf(TShowCountWarningsStmt.TNodes));
+      ntShowCreateDatabaseStmt: DefaultFormatNode(@PShowCreateDatabaseStmt(Node)^.Nodes, SizeOf(TShowCreateDatabaseStmt.TNodes));
+      ntShowCreateEventStmt: DefaultFormatNode(@PShowCreateEventStmt(Node)^.Nodes, SizeOf(TShowCreateEventStmt.TNodes));
+      ntShowCreateFunctionStmt: DefaultFormatNode(@PShowCreateFunctionStmt(Node)^.Nodes, SizeOf(TShowCreateFunctionStmt.TNodes));
+      ntShowCreateProcedureStmt: DefaultFormatNode(@PShowCreateProcedureStmt(Node)^.Nodes, SizeOf(TShowCreateProcedureStmt.TNodes));
+      ntShowCreateTableStmt: DefaultFormatNode(@PShowCreateTableStmt(Node)^.Nodes, SizeOf(TShowCreateTableStmt.TNodes));
+      ntShowCreateTriggerStmt: DefaultFormatNode(@PShowCreateTriggerStmt(Node)^.Nodes, SizeOf(TShowCreateTriggerStmt.TNodes));
+      ntShowCreateUserStmt: DefaultFormatNode(@PShowCreateUserStmt(Node)^.Nodes, SizeOf(TShowCreateUserStmt.TNodes));
+      ntShowCreateViewStmt: DefaultFormatNode(@PShowCreateViewStmt(Node)^.Nodes, SizeOf(TShowCreateViewStmt.TNodes));
+      ntShowDatabasesStmt: DefaultFormatNode(@PShowDatabasesStmt(Node)^.Nodes, SizeOf(TShowDatabasesStmt.TNodes));
+      ntShowEngineStmt: DefaultFormatNode(@PShowEngineStmt(Node)^.Nodes, SizeOf(TShowEngineStmt.TNodes));
+      ntShowEnginesStmt: DefaultFormatNode(@PShowEnginesStmt(Node)^.Nodes, SizeOf(TShowEnginesStmt.TNodes));
       ntShowErrorsStmt: FormatShowErrorsStmt(PShowErrorsStmt(Node)^.Nodes);
-      ntShowEventsStmt: FormatNodesDefault(@PShowEventsStmt(Node)^.Nodes, SizeOf(TShowEventsStmt.TNodes));
-      ntShowFunctionCodeStmt: FormatNodesDefault(@PShowFunctionCodeStmt(Node)^.Nodes, SizeOf(TShowFunctionCodeStmt.TNodes));
-      ntShowFunctionStatusStmt: FormatNodesDefault(@PShowFunctionStatusStmt(Node)^.Nodes, SizeOf(TShowFunctionStatusStmt.TNodes));
-      ntShowGrantsStmt: FormatNodesDefault(@PShowGrantsStmt(Node)^.Nodes, SizeOf(TShowGrantsStmt.TNodes));
-      ntShowIndexStmt: FormatNodesDefault(@PShowIndexStmt(Node)^.Nodes, SizeOf(TShowIndexStmt.TNodes));
-      ntShowMasterStatusStmt: FormatNodesDefault(@PShowMasterStatusStmt(Node)^.Nodes, SizeOf(TShowMasterStatusStmt.TNodes));
-      ntShowOpenTablesStmt: FormatNodesDefault(@PShowOpenTablesStmt(Node)^.Nodes, SizeOf(TShowOpenTablesStmt.TNodes));
-      ntShowPluginsStmt: FormatNodesDefault(@PShowPluginsStmt(Node)^.Nodes, SizeOf(TShowPluginsStmt.TNodes));
-      ntShowPrivilegesStmt: FormatNodesDefault(@PShowPrivilegesStmt(Node)^.Nodes, SizeOf(TShowPrivilegesStmt.TNodes));
-      ntShowProcedureCodeStmt: FormatNodesDefault(@PShowProcedureCodeStmt(Node)^.Nodes, SizeOf(TShowProcedureCodeStmt.TNodes));
-      ntShowProcedureStatusStmt: FormatNodesDefault(@PShowProcedureStatusStmt(Node)^.Nodes, SizeOf(TShowProcedureStatusStmt.TNodes));
-      ntShowProcessListStmt: FormatNodesDefault(@PShowProcessListStmt(Node)^.Nodes, SizeOf(TShowProcessListStmt.TNodes));
-      ntShowProfileStmt: FormatNodesDefault(@PShowProfileStmt(Node)^.Nodes, SizeOf(TShowProfileStmt.TNodes));
-      ntShowProfilesStmt: FormatNodesDefault(@PShowProfilesStmt(Node)^.Nodes, SizeOf(TShowProfilesStmt.TNodes));
+      ntShowEventsStmt: DefaultFormatNode(@PShowEventsStmt(Node)^.Nodes, SizeOf(TShowEventsStmt.TNodes));
+      ntShowFunctionCodeStmt: DefaultFormatNode(@PShowFunctionCodeStmt(Node)^.Nodes, SizeOf(TShowFunctionCodeStmt.TNodes));
+      ntShowFunctionStatusStmt: DefaultFormatNode(@PShowFunctionStatusStmt(Node)^.Nodes, SizeOf(TShowFunctionStatusStmt.TNodes));
+      ntShowGrantsStmt: DefaultFormatNode(@PShowGrantsStmt(Node)^.Nodes, SizeOf(TShowGrantsStmt.TNodes));
+      ntShowIndexStmt: DefaultFormatNode(@PShowIndexStmt(Node)^.Nodes, SizeOf(TShowIndexStmt.TNodes));
+      ntShowMasterStatusStmt: DefaultFormatNode(@PShowMasterStatusStmt(Node)^.Nodes, SizeOf(TShowMasterStatusStmt.TNodes));
+      ntShowOpenTablesStmt: DefaultFormatNode(@PShowOpenTablesStmt(Node)^.Nodes, SizeOf(TShowOpenTablesStmt.TNodes));
+      ntShowPluginsStmt: DefaultFormatNode(@PShowPluginsStmt(Node)^.Nodes, SizeOf(TShowPluginsStmt.TNodes));
+      ntShowPrivilegesStmt: DefaultFormatNode(@PShowPrivilegesStmt(Node)^.Nodes, SizeOf(TShowPrivilegesStmt.TNodes));
+      ntShowProcedureCodeStmt: DefaultFormatNode(@PShowProcedureCodeStmt(Node)^.Nodes, SizeOf(TShowProcedureCodeStmt.TNodes));
+      ntShowProcedureStatusStmt: DefaultFormatNode(@PShowProcedureStatusStmt(Node)^.Nodes, SizeOf(TShowProcedureStatusStmt.TNodes));
+      ntShowProcessListStmt: DefaultFormatNode(@PShowProcessListStmt(Node)^.Nodes, SizeOf(TShowProcessListStmt.TNodes));
+      ntShowProfileStmt: DefaultFormatNode(@PShowProfileStmt(Node)^.Nodes, SizeOf(TShowProfileStmt.TNodes));
+      ntShowProfilesStmt: DefaultFormatNode(@PShowProfilesStmt(Node)^.Nodes, SizeOf(TShowProfilesStmt.TNodes));
       ntShowRelaylogEventsStmt: FormatShowRelaylogEventsStmt(PShowBinlogEventsStmt(Node)^.Nodes);
-      ntShowSlaveHostsStmt: FormatNodesDefault(@PShowSlaveHostsStmt(Node)^.Nodes, SizeOf(TShowSlaveHostsStmt.TNodes));
-      ntShowSlaveStatusStmt: FormatNodesDefault(@PShowSlaveStatusStmt(Node)^.Nodes, SizeOf(TShowSlaveStatusStmt.TNodes));
-      ntShowStatusStmt: FormatNodesDefault(@PShowStatusStmt(Node)^.Nodes, SizeOf(TShowStatusStmt.TNodes));
-      ntShowTableStatusStmt: FormatNodesDefault(@PShowTableStatusStmt(Node)^.Nodes, SizeOf(TShowTableStatusStmt.TNodes));
-      ntShowTablesStmt: FormatNodesDefault(@PShowTablesStmt(Node)^.Nodes, SizeOf(TShowTablesStmt.TNodes));
-      ntShowTriggersStmt: FormatNodesDefault(@PShowTriggersStmt(Node)^.Nodes, SizeOf(TShowTriggersStmt.TNodes));
-      ntShowVariablesStmt: FormatNodesDefault(@PShowVariablesStmt(Node)^.Nodes, SizeOf(TShowVariablesStmt.TNodes));
+      ntShowSlaveHostsStmt: DefaultFormatNode(@PShowSlaveHostsStmt(Node)^.Nodes, SizeOf(TShowSlaveHostsStmt.TNodes));
+      ntShowSlaveStatusStmt: DefaultFormatNode(@PShowSlaveStatusStmt(Node)^.Nodes, SizeOf(TShowSlaveStatusStmt.TNodes));
+      ntShowStatusStmt: DefaultFormatNode(@PShowStatusStmt(Node)^.Nodes, SizeOf(TShowStatusStmt.TNodes));
+      ntShowTableStatusStmt: DefaultFormatNode(@PShowTableStatusStmt(Node)^.Nodes, SizeOf(TShowTableStatusStmt.TNodes));
+      ntShowTablesStmt: DefaultFormatNode(@PShowTablesStmt(Node)^.Nodes, SizeOf(TShowTablesStmt.TNodes));
+      ntShowTriggersStmt: DefaultFormatNode(@PShowTriggersStmt(Node)^.Nodes, SizeOf(TShowTriggersStmt.TNodes));
+      ntShowVariablesStmt: DefaultFormatNode(@PShowVariablesStmt(Node)^.Nodes, SizeOf(TShowVariablesStmt.TNodes));
       ntShowWarningsStmt: FormatShowWarningsStmt(PShowWarningsStmt(Node)^.Nodes);
-      ntShutdownStmt: FormatNodesDefault(@PShutdownStmt(Node)^.Nodes, SizeOf(TShutdownStmt.TNodes));
-      ntSignalStmt: FormatNodesDefault(@PSignalStmt(Node)^.Nodes, SizeOf(TSignalStmt.TNodes));
-      ntSignalStmtInformation: FormatNodesDefault(@TSignalStmt.PInformation(Node)^.Nodes, SizeOf(TSignalStmt.TInformation.TNodes));
-      ntSoundsLikeOp: FormatNodesDefault(@PSoundsLikeOp(Node)^.Nodes, SizeOf(TSoundsLikeOp.TNodes));
-      ntStartSlaveStmt: FormatNodesDefault(@PStartSlaveStmt(Node)^.Nodes, SizeOf(TSignalStmt.TNodes));
-      ntStartTransactionStmt: FormatNodesDefault(@PStartTransactionStmt(Node)^.Nodes, SizeOf(TStartTransactionStmt.TNodes));
-      ntStopSlaveStmt: FormatNodesDefault(@PStopSlaveStmt(Node)^.Nodes, SizeOf(TSignalStmt.TNodes));
+      ntShutdownStmt: DefaultFormatNode(@PShutdownStmt(Node)^.Nodes, SizeOf(TShutdownStmt.TNodes));
+      ntSignalStmt: DefaultFormatNode(@PSignalStmt(Node)^.Nodes, SizeOf(TSignalStmt.TNodes));
+      ntSignalStmtInformation: DefaultFormatNode(@TSignalStmt.PInformation(Node)^.Nodes, SizeOf(TSignalStmt.TInformation.TNodes));
+      ntSoundsLikeOp: DefaultFormatNode(@PSoundsLikeOp(Node)^.Nodes, SizeOf(TSoundsLikeOp.TNodes));
+      ntStartSlaveStmt: DefaultFormatNode(@PStartSlaveStmt(Node)^.Nodes, SizeOf(TSignalStmt.TNodes));
+      ntStartTransactionStmt: DefaultFormatNode(@PStartTransactionStmt(Node)^.Nodes, SizeOf(TStartTransactionStmt.TNodes));
+      ntStopSlaveStmt: DefaultFormatNode(@PStopSlaveStmt(Node)^.Nodes, SizeOf(TSignalStmt.TNodes));
       ntSubArea: FormatSubArea(PSubArea(Node)^.Nodes);
       ntSubAreaSelectStmt: FormatSubAreaSelectStmt(PSubAreaSelectStmt(Node)^.Nodes);
       ntSubPartition: FormatSubPartition(PSubPartition(Node)^.Nodes);
       ntSubstringFunc: FormatSubstringFunc(PSubstringFunc(Node)^.Nodes);
-      ntTag: FormatNodesDefault(@PTag(Node)^.Nodes, SizeOf(TTag.TNodes));
+      ntTag: DefaultFormatNode(@PTag(Node)^.Nodes, SizeOf(TTag.TNodes));
       ntTrimFunc: FormatTrimFunc(PTrimFunc(Node)^.Nodes);
-      ntTruncateStmt: FormatNodesDefault(@PTruncateStmt(Node)^.Nodes, SizeOf(TTruncateStmt.TNodes));
+      ntTruncateStmt: DefaultFormatNode(@PTruncateStmt(Node)^.Nodes, SizeOf(TTruncateStmt.TNodes));
       ntUnaryOp: FormatUnaryOp(PUnaryOp(Node)^.Nodes);
-      ntUnlockStmt: FormatNodesDefault(@PUnlockStmt(Node)^.Nodes, SizeOf(TUnlockStmt.TNodes));
-      ntUpdateStmt: FormatNodesDefault(@PUpdateStmt(Node)^.Nodes, SizeOf(TUpdateStmt.TNodes));
+      ntUnlockStmt: DefaultFormatNode(@PUnlockStmt(Node)^.Nodes, SizeOf(TUnlockStmt.TNodes));
+      ntUpdateStmt: DefaultFormatNode(@PUpdateStmt(Node)^.Nodes, SizeOf(TUpdateStmt.TNodes));
       ntUser: FormatUser(PUser(Node)^.Nodes);
-      ntUseStmt: FormatNodesDefault(@PUseStmt(Node)^.Nodes, SizeOf(TUseStmt.TNodes));
+      ntUseStmt: DefaultFormatNode(@PUseStmt(Node)^.Nodes, SizeOf(TUseStmt.TNodes));
       ntValue: FormatValue(PValue(Node)^.Nodes);
       ntVariable: FormatVariable(PVariable(Node)^.Nodes);
       ntWeightStringFunc: FormatWeightStringFunc(PWeightStringFunc(Node)^.Nodes);
-      ntWeightStringFuncLevel: FormatNodesDefault(@TWeightStringFunc.PLevel(Node)^.Nodes, SizeOf(TWeightStringFunc.TLevel.TNodes));
+      ntWeightStringFuncLevel: DefaultFormatNode(@TWeightStringFunc.PLevel(Node)^.Nodes, SizeOf(TWeightStringFunc.TLevel.TNodes));
       ntWhileStmt: FormatWhileStmt(PWhileStmt(Node)^.Nodes);
-      ntXAStmt: FormatNodesDefault(@PXAStmt(Node)^.Nodes, SizeOf(TXAStmt.TNodes));
+      ntXAStmt: DefaultFormatNode(@PXAStmt(Node)^.Nodes, SizeOf(TXAStmt.TNodes));
       ntXAStmtID: FormatXID(TXAStmt.PID(Node)^.Nodes);
       else raise Exception.Create(SArgumentOutOfRange);
     end;
@@ -11170,25 +11199,6 @@ end;
 procedure TMySQLParser.FormatNode(const Node: TOffset; const Separator: TSeparatorType = stNone);
 begin
   FormatNode(NodePtr(Node), Separator);
-end;
-
-procedure TMySQLParser.FormatNodesDefault(const Nodes: TOffsetArray; const Size: Integer);
-var
-  FirstNode: Boolean;
-  I: Integer;
-begin
-  Assert(Size mod SizeOf(TOffset) = 0);
-
-  FirstNode := True;
-  for I := 0 to Size div SizeOf(TOffset) - 1 do
-    if (Nodes[I] > 0) then
-      if (FirstNode) then
-      begin
-        FormatNode(Nodes[I]);
-        FirstNode := False;
-      end
-      else
-        FormatNode(Nodes[I], stSpaceBefore);
 end;
 
 procedure TMySQLParser.FormatRepeatStmt(const Nodes: TRepeatStmt.TNodes);
@@ -11273,27 +11283,32 @@ end;
 procedure TMySQLParser.FormatSelectStmt(const Nodes: TSelectStmt.TNodes);
 var
   Separator: TSeparatorType;
+  Spacer: TSpacer;
 begin
   if ((Nodes.ColumnsList > 0)
     and (NodePtr(Nodes.ColumnsList)^.NodeType = ntList)
     and (PList(NodePtr(Nodes.ColumnsList))^.ElementCount = 1)) then
-    Separator := stSpaceBefore
+  begin
+    Separator := stSpaceBefore;
+    Spacer := sSpace;
+  end
   else
+  begin
     Separator := stReturnBefore;
+    Spacer := sReturn;
+  end;
 
   FormatNode(Nodes.SelectTag);
   Commands.IncreaseIndent();
-  FormatNode(Nodes.DistinctTag, Separator);
-  Commands.IncreaseIndent();
-  FormatNode(Nodes.HighPriorityTag, Separator);
-  FormatNode(Nodes.MaxStatementTime, Separator);
-  FormatNode(Nodes.StraightJoinTag, Separator);
-  FormatNode(Nodes.SQLSmallResultTag, Separator);
-  FormatNode(Nodes.SQLBigResultTag, Separator);
-  FormatNode(Nodes.SQLBufferResultTag, Separator);
-  FormatNode(Nodes.SQLNoCacheTag, Separator);
-  FormatNode(Nodes.SQLCalcFoundRowsTag, Separator);
-  Commands.DecreaseIndent();
+  FormatNode(Nodes.DistinctTag, stSpaceBefore);
+  FormatNode(Nodes.HighPriorityTag, stSpaceBefore);
+  FormatNode(Nodes.MaxStatementTime, stSpaceBefore);
+  FormatNode(Nodes.StraightJoinTag, stSpaceBefore);
+  FormatNode(Nodes.SQLSmallResultTag, stSpaceBefore);
+  FormatNode(Nodes.SQLBigResultTag, stSpaceBefore);
+  FormatNode(Nodes.SQLBufferResultTag, stSpaceBefore);
+  FormatNode(Nodes.SQLNoCacheTag, stSpaceBefore);
+  FormatNode(Nodes.SQLCalcFoundRowsTag, stSpaceBefore);
   if ((Nodes.ColumnsList = 0)
     or (NodePtr(Nodes.ColumnsList)^.NodeType <> ntList)
     or (PList(NodePtr(Nodes.ColumnsList))^.ElementCount < 5)) then
@@ -11302,7 +11317,7 @@ begin
   begin
     if (Separator = stReturnBefore) then
       Commands.WriteReturn();
-    FormatList(Nodes.ColumnsList, sReturn);
+    FormatList(Nodes.ColumnsList, Spacer);
   end;
   Commands.DecreaseIndent();
   FormatNode(Nodes.Into1, Separator);
@@ -11314,7 +11329,7 @@ begin
       Commands.WriteReturn()
     else
       Commands.WriteSpace();
-    FormatList(Nodes.From.ReferenceList, sReturn);
+    FormatList(Nodes.From.ReferenceList, Spacer);
     Commands.DecreaseIndent();
   end;
   if (Nodes.Partition.Tag > 0) then
@@ -11395,11 +11410,6 @@ begin
     or (TokenPtr(Expr)^.AsString <> TokenPtr(Nodes.AliasIdent)^.AsString)) then
   begin
     FormatNode(Nodes.AsToken, stSpaceBefore);
-    if (IsToken(Nodes.AliasIdent)) then
-    begin
-      TokenPtr(Nodes.AliasIdent)^.FTokenType := ttString;
-      TokenPtr(Nodes.AliasIdent)^.Text := SQLEscape(SQLUnescape(TokenPtr(Nodes.AliasIdent)^.AsString), '''');
-    end;
     FormatNode(Nodes.AliasIdent, stSpaceBefore);
   end;
 end;
@@ -11495,7 +11505,7 @@ begin
 
   if (Assigned(Root)) then
   begin
-    Commands := TFormatHandle.Create();
+    Commands := TFormatBuffer.Create();
 
     FormatRoot(PNode(Root));
 
@@ -11558,14 +11568,13 @@ var
   Dest: PChar;
   Keyword: array [0 .. 30] of Char;
   Length: Integer;
-  Source: PChar;
+  Text: PChar;
 begin
   if ((Token^.UsageType = utKeyword)
     or (Token^.OperatorType <> otUnknown)
     or (Token^.KeywordIndex = kiNULL)) then
   begin
-    Source := Token^.SQL;
-    Length := Token^.Length;
+    Token^.GetText(Text, Length);
     Dest := @Keyword[0];
     asm // Convert SQL to upper case
         PUSH ES
@@ -11576,7 +11585,7 @@ begin
         POP ES
         CLD                              // string operations uses forward direction
 
-        MOV ESI,Source
+        MOV ESI,Text
         MOV ECX,Length
         MOV EDI,Dest
 
@@ -11599,7 +11608,10 @@ begin
     Commands.Write(@Keyword[0], Token^.Length);
   end
   else
-    Commands.Write(Token^.SQL, Token^.Length);
+  begin
+    Token^.GetText(Text, Length);
+    Commands.Write(Text, Length);
+  end;
 
   FormatComments(Token^.NextTokenAll, False);
 end;
@@ -11706,9 +11718,20 @@ begin
   Result := FErrorCode <> PE_Success;
 end;
 
+function TMySQLParser.GetErrorCode(): Byte;
+begin
+  if (FRoot = 0) then
+    Result := PE_Success
+  else
+    Result := Root^.ErrorCode;
+end;
+
 function TMySQLParser.GetErrorMessage(): string;
 begin
-  Result := GetErrorMessage(FErrorCode);
+  if (FRoot = 0) then
+    Result := ''
+  else
+    Result := Root^.ErrorMessage;
 end;
 
 function TMySQLParser.GetErrorMessage(const AErrorCode: Byte): string;
@@ -11751,7 +11774,9 @@ end;
 
 function TMySQLParser.GetParsedToken(const Index: Integer): TOffset;
 var
+  Length: Integer;
   S: string;
+  Text: PChar;
   Token: TOffset;
   Version: Integer;
 begin
@@ -11766,8 +11791,8 @@ begin
             SetError(PE_NestedCondCode)
           else
           begin
-            S := TokenPtr(Token)^.Text;
-            S := Copy(S, 4, Length(S) - 3);
+            TokenPtr(Token)^.GetText(Text, Length);
+            SetString(S, PChar(@Text[3]), Length - 3);
             if (not TryStrToInt(S, Version)) then
               TokenPtr(Token)^.FErrorCode := PE_UnexpectedChar
             else
@@ -11782,7 +11807,7 @@ begin
           TokenPtr(Token)^.FIndex := TokenIndex; Inc(TokenIndex);
           {$ENDIF}
 
-          if (TokenBuffer.Count = Length(TokenBuffer.Tokens)) then
+          if (TokenBuffer.Count = System.Length(TokenBuffer.Tokens)) then
             raise Exception.Create(SUnknownError);
           TokenBuffer.Tokens[TokenBuffer.Count] := Token;
           Inc(TokenBuffer.Count);
@@ -11806,9 +11831,12 @@ begin
     Result := PRoot(NodePtr(FRoot));
 end;
 
-function TMySQLParser.GetText(const Offset: TOffset): PChar;
+procedure TMySQLParser.GetText(const Offset: TOffset; out Text: PChar; out Length: Integer);
 begin
-  Result := @ReplaceTexts.Mem[Offset];
+  Assert((0 < Offset) and (Offset < Texts.UsedSize));
+
+  Text := @Texts.Mem[Offset + SizeOf(Integer)];
+  Length := Integer(Texts.Mem[Offset]);
 end;
 
 function TMySQLParser.IsChild(const ANode: PNode): Boolean;
@@ -11947,22 +11975,19 @@ begin
   Inc(ParsedNodes.UsedSize, Size);
 end;
 
-function TMySQLParser.NewText(const AText: string): TOffset;
+function TMySQLParser.NewText(const Text: PChar; const Length: Integer): TOffset;
 begin
-  if (Length(AText) = 0) then
-    Result := ReplaceTexts.UsedLength
-  else
+  if ((Texts.UsedSize + SizeOf(Integer)) >= Texts.MemSize) then
   begin
-    if ((ReplaceTexts.UsedLength + Length(AText)) * SizeOf(ReplaceTexts.Mem[0]) >= ReplaceTexts.MemSize) then
-    begin
-      ReplaceTexts.MemSize := Min(2 * ReplaceTexts.MemSize, (ReplaceTexts.UsedLength + Length(AText)) * SizeOf(ReplaceTexts.Mem[0]) + ReplaceTexts.MemSize);
-      ReallocMem(ReplaceTexts.Mem, ReplaceTexts.MemSize);
-    end;
-
-    Result := ReplaceTexts.UsedLength;
-    Move(AText[1], ReplaceTexts.Mem[ReplaceTexts.UsedLength], Length(AText) * SizeOf(ReplaceTexts.Mem[0]));
-    Inc(ReplaceTexts.UsedLength, Length(AText));
+    Texts.MemSize := Max(2 * Texts.MemSize, Texts.UsedSize + SizeOf(Integer));
+    ReallocMem(Texts.Mem, Texts.MemSize);
   end;
+
+  Move(Length, Texts.Mem[Texts.UsedSize], SizeOf(Integer));
+  Move(Text[0], Texts.Mem[Texts.UsedSize + SizeOf(Integer)], Length * SizeOf(Text[0]));
+
+  Result := Texts.UsedSize;
+  Inc(Texts.UsedSize, SizeOf(Integer) + Length * SizeOf(Text[0]));
 end;
 
 function TMySQLParser.NodePtr(const ANode: TOffset): PNode;
@@ -12193,6 +12218,8 @@ end;
 
 function TMySQLParser.ParseRoot(): TOffset;
 var
+  ErrorCode: Byte;
+  ErrorMessage: string;
   FirstTokenAll: TOffset;
   Stmt: TOffset;
   Children: Classes.TList;
@@ -12214,9 +12241,9 @@ begin
   ParsedNodes.MemSize := 1024;
   ReallocMem(ParsedNodes.Mem, ParsedNodes.MemSize);
   ParsedNodes.UsedSize := 1; // "0" means "not assigned", so we start with "1"
-  ReplaceTexts.MemSize := 1024 * SizeOf(ReplaceTexts.Mem[0]);
-  ReallocMem(ReplaceTexts.Mem, ReplaceTexts.MemSize);
-  ReplaceTexts.UsedLength := 1; // "0" means "not assigned", so we start with "1"
+  Texts.MemSize := 1024;
+  ReallocMem(Texts.Mem, Texts.MemSize);
+  Texts.UsedSize := 1; // "0" means "not assigned", so we start with "1"
 
   FirstTokenAll := ParsedNodes.UsedSize;
   FPreviousToken := 0;
@@ -12225,8 +12252,8 @@ begin
 
   Children := Classes.TList.Create();
 
+  ErrorCode := PE_Success;
   while (CurrentToken > 0) do
-  begin
     if (not TokenPtr(CurrentToken)^.IsUsed or (TokenPtr(CurrentToken)^.TokenType = ttDelimiter)) then
       Children.Add(Pointer(ApplyCurrentToken()))
     else
@@ -12236,10 +12263,15 @@ begin
 
       Stmt := ParseStmt();
       Children.Add(Pointer(Stmt));
-    end;
-  end;
 
-  Result := TRoot.Create(Self, FirstTokenAll, ParsedNodes.UsedSize, Children.Count, TIntegerArray(Children.List));
+      if (ErrorCode = PE_Success) then
+      begin
+        ErrorCode := StmtPtr(Stmt)^.ErrorCode;
+        ErrorMessage := StmtPtr(Stmt).ErrorMessage;
+      end;
+    end;
+
+  Result := TRoot.Create(Self, ErrorCode, ErrorMessage, FirstTokenAll, FPreviousToken, Children.Count, TIntegerArray(Children.List));
 
   Children.Free();
 end;
@@ -12440,9 +12472,9 @@ begin
 
   if (not Error) then
     if (ARoutineType = rtFunction) then
-      Nodes.IdentNode := ParseDbIdent(ditFunction)
+      Nodes.Ident := ParseDbIdent(ditFunction)
     else
-      Nodes.IdentNode := ParseDbIdent(ditProcedure);
+      Nodes.Ident := ParseDbIdent(ditProcedure);
 
   if (not Error) then
     Nodes.CharacteristicList := ParseCreateRoutineStmtCharacteristList();
@@ -12464,7 +12496,7 @@ begin
     else if (not (TokenPtr(CurrentToken)^.TokenType in ttIdents)) then
       SetError(PE_UnexpectedToken)
     else
-      Nodes.IdentNode := ParseDbIdent(ditServer);
+      Nodes.Ident := ParseDbIdent(ditServer);
 
   if (not Error) then
     Nodes.Options.Tag := ParseTag(kiOPTIONS);
@@ -12499,7 +12531,7 @@ begin
     Nodes.TableTag := ParseTag(kiTABLE);
 
   if (not Error) then
-    Nodes.IdentNode := ParseTableIdent();
+    Nodes.Ident := ParseTableIdent();
 
 
   DelimiterFound := False; DelimiterExpected := False;
@@ -12880,7 +12912,7 @@ begin
           if (EndOfStmt(CurrentToken)) then
             SetError(PE_IncompleteStmt)
           else
-            Nodes.Ident := ParseDbIdent(ditKey);
+            Nodes.Ident := ParseKeyIdent();
       end
       else if (TokenPtr(CurrentToken)^.KeywordIndex = kiFOREIGN) then
       begin
@@ -13627,9 +13659,14 @@ begin
       Nodes.CharacterSetValue := ParseValue(WordIndices(kiCHARACTER, kiSET), vaNo, ParseIdent)
     else if ((Nodes.CollateValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCOLLATE)) then
       Nodes.CollateValue := ParseValue(kiCOLLATE, vaNo, ParseIdent)
-    else if ((Nodes.CollateValue = 0) and not EndOfStmt(NextToken[1]) and (TokenPtr(CurrentToken)^.KeywordIndex = kiDEFAULT) and (TokenPtr(NextToken[1])^.KeywordIndex = kiCHARACTER)) then
+    else if ((Nodes.CollateValue = 0)
+      and not EndOfStmt(NextToken[1]) and (TokenPtr(CurrentToken)^.KeywordIndex = kiDEFAULT) and (TokenPtr(NextToken[1])^.KeywordIndex = kiCHARACTER)) then
       Nodes.CharacterSetValue := ParseValue(WordIndices(kiDEFAULT, kiCHARACTER, kiSET), vaNo, ParseIdent)
-    else if ((Nodes.CollateValue = 0) and not EndOfStmt(NextToken[1]) and (TokenPtr(CurrentToken)^.KeywordIndex = kiDEFAULT) and (TokenPtr(NextToken[1])^.KeywordIndex = kiCOLLATE)) then
+    else if ((Nodes.CollateValue = 0)
+      and not EndOfStmt(NextToken[1]) and (TokenPtr(CurrentToken)^.KeywordIndex = kiDEFAULT) and (TokenPtr(NextToken[1])^.KeywordIndex = kiCHARSET)) then
+      Nodes.CharacterSetValue := ParseValue(WordIndices(kiDEFAULT, kiCHARSET), vaNo, ParseIdent)
+    else if ((Nodes.CollateValue = 0)
+      and not EndOfStmt(NextToken[1]) and (TokenPtr(CurrentToken)^.KeywordIndex = kiDEFAULT) and (TokenPtr(NextToken[1])^.KeywordIndex = kiCOLLATE)) then
       Nodes.CollateValue := ParseValue(WordIndices(kiDEFAULT, kiCOLLATE), vaNo, ParseIdent)
     else
       SetError(PE_UnexpectedToken);
@@ -13712,7 +13749,7 @@ begin
       SetError(PE_UnexpectedToken);
 
   if (not Error) then
-    Nodes.IndexIdent := ParseDbIdent(ditKey);
+    Nodes.IndexIdent := ParseKeyIdent();
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiUSING)) then
     Nodes.IndexTypeValue := ParseValue(kiUSING, vaNo, WordIndices(kiBTREE, kiHASH));
@@ -13771,9 +13808,9 @@ begin
     else if (not (TokenPtr(CurrentToken)^.TokenType in ttIdents)) then
       SetError(PE_UnexpectedToken)
     else if (ARoutineType = rtFunction) then
-      Nodes.IdentNode := ParseDbIdent(ditFunction)
+      Nodes.Ident := ParseDbIdent(ditFunction)
     else
-      Nodes.IdentNode := ParseDbIdent(ditProcedure);
+      Nodes.Ident := ParseDbIdent(ditProcedure);
 
   if (not Error) then
     if (EndOfStmt(CurrentToken)) then
@@ -14895,7 +14932,7 @@ begin
     if (EndOfStmt(CurrentToken)) then
       SetError(PE_IncompleteStmt)
     else if ((TokenPtr(CurrentToken)^.KeywordIndex <> kiUSING) and (TokenPtr(CurrentToken)^.TokenType <> ttOpenBracket)) then
-      Nodes.KeyIdent := ParseDbIdent(ditKey);
+      Nodes.KeyIdent := ParseKeyIdent();
 
   if (not Error and KeyType and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiUSING)) then
     if (EndOfStmt(NextToken[1])) then
@@ -14919,7 +14956,7 @@ begin
     else if ((Nodes.IndexTypeTag = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiUSING)) then
       Nodes.IndexTypeTag := ParseValue(kiUSING, vaNo, WordIndices(kiBTREE, kiHASH))
     else if ((Nodes.ParserValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiWITH)) then
-      Nodes.ParserValue := ParseValue(WordIndices(kiWITH, kiPARSER), vaNo, ParseString)
+      Nodes.ParserValue := ParseValue(WordIndices(kiWITH, kiPARSER), vaNo, ParseIdent)
     else
       Found := False;
 
@@ -15256,7 +15293,7 @@ begin
     Nodes.ViewTag := ParseTag(kiVIEW);
 
   if (not Error) then
-    Nodes.IdentNode := ParseTableIdent();
+    Nodes.Ident := ParseTableIdent();
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType = ttOpenBracket)) then
     Nodes.ColumnList:= ParseList(True, ParseFieldIdent);
@@ -15267,7 +15304,7 @@ begin
   if (not Error) then
     if (EndOfStmt(CurrentToken)) then
       SetError(PE_IncompleteStmt)
-    else 
+    else
       Nodes.SelectStmt := ParseSubAreaSelectStmt();
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiWITH)) then
@@ -15945,7 +15982,7 @@ begin
     if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiORDER)) then
     begin
       Nodes.OrderBy.Tag := ParseTag(kiORDER, kiBY);
-      Nodes.OrderBy.Ident := ParseFieldIdent();
+      Nodes.OrderBy.Expr := ParseList(False, ParseSelectStmtOrder);
     end;
 
     if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiLIMIT)) then
@@ -16016,7 +16053,7 @@ begin
   Nodes.StmtTag := ParseTag(kiDROP, kiINDEX);
 
   if (not Error) then
-    Nodes.IndexIdent := ParseDbIdent(ditKey);
+    Nodes.IndexIdent := ParseKeyIdent();
 
   Found := True;
   while (not Error and Found and not EndOfStmt(CurrentToken)) do
@@ -16298,6 +16335,7 @@ var
   I: Integer;
   DbIdent: TOffset;
   InNodes: TInOp.TNodes;
+  Length: Integer;
   LikeNodes: TLikeOp.TNodes;
   Node: TOffset;
   NodeCount: Integer;
@@ -16307,6 +16345,7 @@ var
   PreviousOperatorType: TOperatorType;
   RegExpNodes: TRegExpOp.TNodes;
   RemoveNodes: Integer;
+  Text: PChar;
 begin
   NodeCount := 0;
 
@@ -16353,30 +16392,34 @@ begin
         Node := TFunctionCall.Create(Self, DbIdent, ArgumentsList);
         Dec(NodeCount, 2);
       end
-      else if (UpperCase(TokenPtr(Node)^.Text) = 'CAST') then
-        Node := ParseCastFunc()
-      else if (UpperCase(TokenPtr(Node)^.Text) = 'CHAR') then
-        Node := ParseCharFunc()
-      else if (UpperCase(TokenPtr(Node)^.Text) = 'CONVERT') then
-        Node := ParseConvertFunc()
-      else if (UpperCase(TokenPtr(Node)^.Text) = 'EXISTS') then
-        Node := ParseExistsFunc()
-      else if (UpperCase(TokenPtr(Node)^.Text) = 'EXTRACT') then
-        Node := ParseExtractFunc()
-      else if (UpperCase(TokenPtr(Node)^.Text) = 'GROUP_CONCAT') then
-        Node := ParseGroupConcatFunc()
-      else if (UpperCase(TokenPtr(Node)^.Text) = 'POSITION') then
-        Node := ParsePositionFunc()
-      else if (UpperCase(TokenPtr(Node)^.Text) = 'SUBSTR') then
-        Node := ParseSubstringFunc()
-      else if (UpperCase(TokenPtr(Node)^.Text) = 'SUBSTRING') then
-        Node := ParseSubstringFunc()
-      else if (UpperCase(TokenPtr(Node)^.Text) = 'TRIM') then
-        Node := ParseTrimFunc()
-      else if (UpperCase(TokenPtr(Node)^.Text) = 'WEIGHT_STRING') then
-        Node := ParseWeightStringFunc()
-      else // Func()
-        Node := ParseFunctionCall()
+      else
+      begin
+        TokenPtr(Node)^.GetText(Text, Length);
+        if (StrLIComp(Text, 'CAST', Length) = 0) then
+          Node := ParseCastFunc()
+        else if (StrLIComp(Text, 'CHAR', Length) = 0) then
+          Node := ParseCharFunc()
+        else if (StrLIComp(Text, 'CONVERT', Length) = 0) then
+          Node := ParseConvertFunc()
+        else if (StrLIComp(Text, 'EXISTS', Length) = 0) then
+          Node := ParseExistsFunc()
+        else if (StrLIComp(Text, 'EXTRACT', Length) = 0) then
+          Node := ParseExtractFunc()
+        else if (StrLIComp(Text, 'GROUP_CONCAT', Length) = 0) then
+          Node := ParseGroupConcatFunc()
+        else if (StrLIComp(Text, 'POSITION', Length) = 0) then
+          Node := ParsePositionFunc()
+        else if (StrLIComp(Text, 'SUBSTR', Length) = 0) then
+          Node := ParseSubstringFunc()
+        else if (StrLIComp(Text, 'SUBSTRING', Length) = 0) then
+          Node := ParseSubstringFunc()
+        else if (StrLIComp(Text, 'TRIM', Length) = 0) then
+          Node := ParseTrimFunc()
+        else if (StrLIComp(Text, 'WEIGHT_STRING', Length) = 0) then
+          Node := ParseWeightStringFunc()
+        else // Func()
+          Node := ParseFunctionCall()
+      end
     else if (TokenPtr(Node)^.TokenType = ttAt) then
       Node := ParseVariable()
     else if ((TokenPtr(Node)^.OperatorType = otMulti)
@@ -16813,11 +16856,14 @@ end;
 
 function TMySQLParser.ParseFunctionCall(): TOffset;
 var
+  Length: Integer;
   Nodes: TFunctionCall.TNodes;
+  Text: PChar;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  if ((FunctionList.Count = 0) or (FunctionList.IndexOf(TokenPtr(CurrentToken)^.SQL, TokenPtr(CurrentToken)^.Length) >= 0)) then
+  TokenPtr(CurrentToken)^.GetText(Text, Length);
+  if ((FunctionList.Count = 0) or (FunctionList.IndexOf(Text, Length) >= 0)) then
     Nodes.Ident := ApplyCurrentToken(utFunction)
   else
     Nodes.Ident := ParseFunctionIdent();
@@ -17222,7 +17268,7 @@ begin
       if (not Error) then
         if (EndOfStmt(CurrentToken)) then
           SetError(PE_IncompleteStmt)
-        else if (TokenPtr(CurrentToken)^.TokenType = ttString) then
+        else if (TokenPtr(CurrentToken)^.TokenType in ttStrings) then
           Nodes.AuthString := ParseString()
         else if ((TokenPtr(CurrentToken)^.OperatorType = otLess)
           and not EndOfStmt(NextToken[2])
@@ -17359,7 +17405,7 @@ begin
   Result := 0;
   if (EndOfStmt(CurrentToken)) then
     SetError(PE_IncompleteStmt)
-  else if (TokenPtr(CurrentToken)^.TokenType <> ttIdent) then
+  else if (not (TokenPtr(CurrentToken)^.TokenType in ttIdents)) then
     SetError(PE_UnexpectedToken)
   else
     Result := ApplyCurrentToken();
@@ -17540,6 +17586,9 @@ begin
               Nodes.Values.List := ParseList(False, ParseInsertStmtValuesList);
           end
           else if ((Nodes.SelectStmt = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiSELECT)) then
+            Nodes.SelectStmt := ParseSelectStmt()
+          else if ((Nodes.SelectStmt = 0) and (TokenPtr(CurrentToken)^.TokenType = ttOpenBracket)
+            and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiSELECT)) then
             Nodes.SelectStmt := ParseSubAreaSelectStmt()
           else
             SetError(PE_UnexpectedToken);
@@ -20677,8 +20726,10 @@ var
   KeywordIndex1: TWordList.TIndex; // Cache for speeding
   KeywordIndex2: TWordList.TIndex; // Cache for speeding
   KeywordToken: TOffset;
+  Length: Integer;
   S: string;
   T: PToken;
+  Text: PChar;
   Token: TOffset;
 begin
   Result := 0;
@@ -21077,18 +21128,23 @@ begin
       begin
         case (FErrorCode) of
           PE_UnexpectedChar:
-            S := 'Unexpected character near ''' + LeftStr(TokenPtr(FErrorToken)^.ErrorPos, 8) + ''''
+            S := 'Unexpected character near ''' + LeftStr(StrPas(TokenPtr(FErrorToken)^.ErrorPos), 8) + ''''
               + ' in line ' + IntToStr(FErrorLine);
           PE_UnexpectedToken:
-            S := 'Unexpected character near ''' + LeftStr(TokenPtr(FErrorToken)^.Text, 8) + ''''
-              + ' in line ' + IntToStr(FErrorLine);
+            begin
+              TokenPtr(FErrorToken)^.GetText(Text, Length);
+              S := 'Unexpected character near ''' + LeftStr(StrPas(Text), 8) + ''''
+                + ' in line ' + IntToStr(FErrorLine);
+            end;
           PE_ExtraToken:
-            S := 'Unexpected character near ''' + LeftStr(TokenPtr(FErrorToken)^.Text, 8) + ''''
-              + ' in line ' + IntToStr(FErrorLine);
+            begin
+              TokenPtr(FErrorToken)^.GetText(Text, Length);
+              S := 'Unexpected character near ''' + LeftStr(StrPas(Text), 8) + ''''
+                + ' in line ' + IntToStr(FErrorLine);
+            end;
           else S := GetErrorMessage(FErrorCode);
         end;
-        StmtPtr(Result)^.FErrorMessage := NewText(S);
-        StmtPtr(Result)^.FErrorMessageLength := Length(S);
+        StmtPtr(Result)^.FErrorMessage := NewText(PChar(S), System.Length(S));
       end;
       StmtPtr(Result)^.FErrorToken := FErrorToken;
       StmtPtr(Result)^.FFirstTokenAll := FFirstTokenAll;
@@ -21353,7 +21409,7 @@ var
   KeywordIndex: TWordList.TIndex;
   Length: Integer;
   OperatorType: TOperatorType;
-  SQL: PChar;
+  Text: PChar;
   TokenLength: Integer;
   TokenType: fspTypes.TTokenType;
   UsageType: TUsageType;
@@ -21365,7 +21421,7 @@ begin
     TokenType := ttUnknown;
     OperatorType := otUnknown;
     ErrorCode := PE_Success;
-    SQL := ParsePosition.Text;
+    Text := ParsePosition.Text;
     Length := ParsePosition.Length;
 
     asm
@@ -21378,13 +21434,13 @@ begin
         POP ES
         CLD                              // string operations uses forward direction
 
-        MOV ESI,SQL
+        MOV ESI,Text
         MOV ECX,Length
 
       // ------------------------------
 
         CMP ECX,1                        // One character in SQL?
-        JB IncompleteToken               // No!
+        JB IncompleteToken               // Less!
         JA TwoChars                      // More!
         MOV EAX,0                        // Hi Char in EAX
         MOV AX,[ESI]                     // One character from SQL to AX
@@ -21502,7 +21558,9 @@ begin
         JE Comment                       // Yes!
         CMP WORD PTR [ESI + 4],' '       // "-- " ?
         JE Comment                       // Yes!
-        JE DoubleChar
+        ADD ESI,4                        // Step over "--"
+        SUB ECX,2                        // Two characters handled
+        JMP UnexpectedChar
       SelArrow:
         CMP EAX,$003E002D                // "->" ?
         JNE SelMinus                     // No!
@@ -21809,6 +21867,10 @@ begin
         MOV AX,[ESI]                     // One Character from SQL to AX
         CMP AX,''''                      // "'"?
         JE MySQLCharacterSetE2           // Yes!
+        CMP AX,10                        // New Line?
+        JE IncompleteToken               // Yes!
+        CMP AX,13                        // Carriage Return?
+        JE IncompleteToken               // Yes!
         CALL Separator                   // SQL separator?
         JNE MySQLCharacterSetL2          // No!
         MOV TokenType,ttIdent
@@ -21934,6 +21996,10 @@ begin
         JZ IncompleteToken               // All characters handled!
       HexL:
         MOV AX,[ESI]                     // One Character from SQL to AX
+        CMP AX,10                        // New Line?
+        JE IncompleteToken               // Yes!
+        CMP AX,13                        // Carriage Return?
+        JE IncompleteToken               // Yes!
         CMP AX,DX                        // End quoter?
         JNE HexL2
         ADD ESI,2                        // Step over "'"
@@ -21986,6 +22052,10 @@ begin
         JZ IncompleteToken               // End of SQL!
       QuotedIdentL:
         MOV AX,[ESI]                     // One Character from SQL to AX
+        CMP AX,10                        // New Line?
+        JE IncompleteToken               // Yes!
+        CMP AX,13                        // Carriage Return?
+        JE IncompleteToken               // Yes!
         CMP AX,'\'                       // Escaper?
         JNE QuotedIdentLE                // No!
         CMP ECX,0                        // End of SQL?
@@ -22131,7 +22201,11 @@ begin
       KeywordIndex := -1
     else
     begin
-      KeywordIndex := KeywordList.IndexOf(SQL, TokenLength);
+try
+      KeywordIndex := KeywordList.IndexOf(Text, TokenLength);
+except
+  Write;
+end;
       if (KeywordIndex >= 0) then
         OperatorType := OperatorTypeByKeywordIndex[KeywordIndex];
     end;
@@ -22146,9 +22220,9 @@ begin
     if ((TokenType = ttUnknown) and (OperatorType <> otUnknown)) then
       TokenType := ttOperator;
 
-    Result := TToken.Create(Self, SQL, TokenLength, ErrorCode, ErrorPos, TokenType, OperatorType, KeywordIndex, UsageType);
+    Result := TToken.Create(Self, Text, TokenLength, ErrorCode, ErrorPos, TokenType, OperatorType, KeywordIndex, UsageType);
 
-    ParsePosition.Text := @SQL[TokenLength];
+    ParsePosition.Text := @Text[TokenLength];
     Dec(ParsePosition.Length, TokenLength);
     if (not Error and (TokenType = ttReturn)) then
       Inc(FErrorLine);
@@ -22909,11 +22983,14 @@ var
   Handle: THandle;
   HTML: string;
   LastTokenIndex: Integer;
+  Length: Integer;
   Node: PNode;
   ParentNodes: Classes.TList;
+  S: string;
   Size: Cardinal;
   SQL: string;
   Stmt: PStmt;
+  Text: PChar;
   Token: PToken;
 begin
   Handle := CreateFile(PChar(Filename),
@@ -22991,7 +23068,7 @@ begin
       '  </head>' + #13#10 +
       '  <body>' + #13#10;
 
-    if (not WriteFile(Handle, PChar(HTML)^, Length(HTML) * SizeOf(HTML[1]), Size, nil)) then
+    if (not WriteFile(Handle, PChar(HTML)^, System.Length(HTML) * SizeOf(HTML[1]), Size, nil)) then
       RaiseLastOSError()
     else
       HTML := '';
@@ -23115,6 +23192,8 @@ begin
       Token := Stmt^.FirstToken;
       while (Assigned(Token)) do
       begin
+        Token^.GetText(Text, Length);
+        SetString(S, Text, Length);
         if (Token^.ErrorCode = PE_Success) then
           HTML := HTML
             + '<td>'
@@ -23124,7 +23203,7 @@ begin
         HTML := HTML
           + '<a href="">';
         HTML := HTML
-          + '<code>' + HTMLEscape(ReplaceStr(Token^.Text, ' ', '&nbsp;')) + '</code>';
+          + '<code>' + HTMLEscape(ReplaceStr(S, ' ', '&nbsp;')) + '</code>';
         HTML := HTML
           + '<span><table cellspacing="2" cellpadding="0">';
         if (Assigned(PChild(Token)^.ParentNode)) then
@@ -23190,7 +23269,7 @@ begin
         HTML := HTML
           + '<br><br>' + #13#10;
 
-      if (not WriteFile(Handle, PChar(HTML)^, Length(HTML) * SizeOf(HTML[1]), Size, nil)) then
+      if (not WriteFile(Handle, PChar(HTML)^, System.Length(HTML) * SizeOf(HTML[1]), Size, nil)) then
         RaiseLastOSError()
       else
         HTML := '';
@@ -23207,7 +23286,7 @@ begin
       + '  </body>' + #13#10
       + '</html>';
 
-    if (not WriteFile(Handle, PChar(HTML)^, Length(HTML) * SizeOf(HTML[1]), Size, nil)) then
+    if (not WriteFile(Handle, PChar(HTML)^, System.Length(HTML) * SizeOf(HTML[1]), Size, nil)) then
       RaiseLastOSError();
 
     if (not CloseHandle(Handle)) then
@@ -23241,8 +23320,10 @@ end;
 procedure TMySQLParser.SaveToSQLFile(const Filename: string);
 var
   Handle: THandle;
+  Length: Integer;
   Size: Cardinal;
   StringBuffer: TStringBuffer;
+  Text: PChar;
   Token: PToken;
 begin
   StringBuffer := TStringBuffer.Create(1024);
@@ -23250,7 +23331,8 @@ begin
   Token := TokenPtr(1);
   while (Assigned(Token)) do
   begin
-    StringBuffer.Write(Token^.SQL, Token^.Length);
+    Token^.GetText(Text, Length);
+    StringBuffer.Write(Text, Length);
     Token := Token^.NextTokenAll;
   end;
 

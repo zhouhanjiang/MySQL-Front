@@ -118,7 +118,7 @@ begin
 
   TSSource.TabVisible := Routine.Source <> '';
 
-  FName.Enabled := True; FLName.Enabled := FName.Enabled;
+  FName.Enabled := False; FLName.Enabled := FName.Enabled;
 
   PageControl.Visible := True;
   PSQLWait.Visible := not PageControl.Visible;
@@ -127,7 +127,7 @@ begin
   if (PageControl.Visible) then
   begin
     PageControl.ActivePage := TSBasics;
-    ActiveControl := FName;
+    ActiveControl := FComment;
   end;
 end;
 
@@ -296,7 +296,7 @@ begin
     HelpContext := 1099;
   end;
 
-  FName.Enabled := True; FLName.Enabled := FName.Enabled;
+  FName.Enabled := False; FLName.Enabled := FName.Enabled;
   FComment.Enabled := True; FLComment.Enabled := FComment.Enabled;
 
   if (not Assigned(Routine)) then

@@ -393,6 +393,18 @@ object WWindow: TWWindow
         Top = 30
         Enabled = False
       end
+      object ToolButton1: TToolButton
+        Left = 431
+        Top = 30
+        Width = 8
+        Caption = 'ToolButton1'
+        Style = tbsSeparator
+      end
+      object tbFormatSQL: TToolButton
+        Left = 439
+        Top = 30
+        Action = aEFormatSQL
+      end
     end
   end
   object TBTabControl: TToolBar
@@ -414,8 +426,26 @@ object WWindow: TWWindow
   object ActionList: TActionList
     Left = 80
     Top = 240
-    object aJAddExport: TAction
-      Category = 'Jobs'
+    object aEFind: TAction
+      Category = 'Extras'
+      Caption = 'aEFind'
+      OnExecute = aEFindExecute
+    end
+    object aEReplace: TAction
+      Category = 'Extras'
+      Caption = 'aEReplace'
+      HelpContext = 1090
+      HelpType = htContext
+      OnExecute = aEReplaceExecute
+    end
+    object aETransfer: TAction
+      Category = 'Extras'
+      Caption = 'aETransfer'
+      HelpType = htContext
+      OnExecute = aETransferExecute
+    end
+    object aEJobAddExport: TAction
+      Category = 'Extras'
       Caption = 'aJAddExport'
       Enabled = False
       HelpContext = 1138
@@ -430,8 +460,8 @@ object WWindow: TWWindow
       ImageIndex = 1
       ShortCut = 117
     end
-    object aJAddImport: TAction
-      Category = 'Jobs'
+    object aEJobAddImport: TAction
+      Category = 'Extras'
       Caption = 'aJAddImport'
       Enabled = False
       HelpContext = 1148
@@ -1109,18 +1139,6 @@ object WWindow: TWWindow
       HelpType = htContext
       OnExecute = aOGlobalsExecute
     end
-    object aEFind: TAction
-      Category = 'Extras'
-      Caption = 'aEFind'
-      OnExecute = aEFindExecute
-    end
-    object aEReplace: TAction
-      Category = 'Extras'
-      Caption = 'aEReplace'
-      HelpContext = 1090
-      HelpType = htContext
-      OnExecute = aEReplaceExecute
-    end
     object aEUndo: TEditUndo
       Category = 'Edit'
       Caption = 'aEUndo'
@@ -1228,29 +1246,33 @@ object WWindow: TWWindow
       HelpType = htContext
       ShortCut = 113
     end
-    object aETransfer: TAction
+    object aEJobDelete: TAction
       Category = 'Extras'
-      Caption = 'aETransfer'
-      HelpType = htContext
-      OnExecute = aETransferExecute
-    end
-    object aJDelete: TAction
-      Category = 'Jobs'
       Caption = 'aJDelete'
       Enabled = False
-      HelpKeyword = '1139'
+      HelpContext = 1139
       HelpType = htContext
     end
-    object aJEdit: TAction
-      Category = 'Jobs'
+    object aEJobEdit: TAction
+      Category = 'Extras'
       Caption = 'aJEdit'
       Enabled = False
       HelpContext = 1140
       HelpType = htContext
     end
-    object aJExecute: TAction
-      Category = 'Jobs'
-      Caption = 'aJExecute'
+    object aEJobExecute: TAction
+      Category = 'Extras'
+      Caption = 'aEJobExecute'
+      Enabled = False
+      HelpType = htContext
+    end
+    object aEFormatSQL: TAction
+      Category = 'Extras'
+      Caption = 'aEFormatSQL'
+      Enabled = False
+      HelpContext = 1153
+      HelpType = htContext
+      ImageIndex = 107
     end
   end
   object MainMenu: TMainMenu
@@ -1654,27 +1676,32 @@ object WWindow: TWWindow
       object N4: TMenuItem
         Caption = '-'
       end
-      object miJobs: TMenuItem
+      object miEJobs: TMenuItem
         Caption = 'miJobs'
-        GroupIndex = 3
-        object miJAdd: TMenuItem
+        object miEJobAdd: TMenuItem
           Caption = 'miJAdd'
-          object miJAddImport: TMenuItem
-            Action = aJAddImport
+          object miEJobAddImport: TMenuItem
+            Action = aEJobAddImport
           end
-          object miJAddExport: TMenuItem
-            Action = aJAddExport
+          object miEJobAddExport: TMenuItem
+            Action = aEJobAddExport
           end
         end
-        object miJDelete: TMenuItem
-          Action = aJDelete
+        object miEJobDelete: TMenuItem
+          Action = aEJobDelete
         end
-        object miJEdit: TMenuItem
-          Action = aJEdit
+        object miEJobEdit: TMenuItem
+          Action = aEJobEdit
         end
         object N3: TMenuItem
           Caption = '-'
         end
+      end
+      object N11: TMenuItem
+        Caption = '-'
+      end
+      object miEFormatSQL: TMenuItem
+        Action = aEFormatSQL
       end
     end
     object miOptions: TMenuItem

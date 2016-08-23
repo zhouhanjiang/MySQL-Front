@@ -1443,8 +1443,8 @@ type
     procedure SetCreateDesktop(ACreateDesktop: TCreateDesktop);
   protected
     FLowerCaseTableNames: Byte;
+    FSQLParser: TMySQLParser;
     ParseEndDate: TDateTime;
-    SQLParser: TMySQLParser;
     UnparsableSQL: string;
     procedure BuildUser(const DataSet: TMySQLQuery);
     procedure ExecuteEvent(const EventType: TEvent.TEventType); overload;
@@ -1527,6 +1527,7 @@ type
     property StartTime: TDateTime read FStartTime;
     property Stati: TSStati read FStati;
     property SQLMonitor: TMySQLMonitor read FSQLMonitor;
+    property SQLParser: TMySQLParser read FSQLParser;
     property SyntaxProvider: TacMYSQLSyntaxProvider read FSyntaxProvider;
     property User: TSUser read FUser;
     property UserRights: TSUserRight read GetUserRights;
@@ -8260,10 +8261,8 @@ var
   SQL: string;
 begin
   SQL := '';
-  if (Assigned(Routine) and (NewRoutine.Source = Routine.Source)) then
+  if (Assigned(Routine) and (NewRoutine.Source = '')) then
   begin
-    if (Session.Connection.DatabaseName <> Name) then
-      SQL := SQL + SQLUse();
     if (NewRoutine.Security <> Routine.Security) then
       case (NewRoutine.Security) of
         seDefiner: SQL := SQL + ' SQL SECURITY DEFINER';
@@ -8277,6 +8276,8 @@ begin
         SQL := 'ALTER PROCEDURE ' + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(NewRoutine.Name) + SQL +  ';' + #13#10
       else
         SQL := 'ALTER FUNCTION ' + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(NewRoutine.Name) + SQL +  ';' + #13#10;
+    if (Session.Connection.DatabaseName <> Name) then
+      SQL := SQLUse() + SQL;
   end
   else
   begin
@@ -10692,7 +10693,7 @@ begin
   if (not Assigned(FEngines) and Connecting) then
   begin
     if (not Assigned(SQLParser)) then
-      SQLParser := TMySQLParser.Create(Connection.ServerVersion);
+      FSQLParser := TMySQLParser.Create(Connection.ServerVersion);
 
     if (not Assigned(FCollations) and (Connection.ServerVersion >= 40100)) then FCollations := TSCollations.Create(Self);
     if (not Assigned(FFieldTypes)) then FFieldTypes := TSFieldTypes.Create(Self);
@@ -10813,8 +10814,8 @@ begin
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.ServerVersion;
   FUser := nil;
-  ParseEndDate := EncodeDate(2016, 8, 24);
-  SQLParser := nil;
+  ParseEndDate := EncodeDate(2016, 8, 27);
+  FSQLParser := nil;
   UnparsableSQL := '';
 
   if (not Assigned(AAccount)) then

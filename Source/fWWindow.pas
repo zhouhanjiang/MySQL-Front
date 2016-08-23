@@ -77,6 +77,12 @@ type
     aECut: TEditCut;
     aEDelete: TEditDelete;
     aEFind: TAction;
+    aEFormatSQL: TAction;
+    aEJobAddExport: TAction;
+    aEJobAddImport: TAction;
+    aEJobDelete: TAction;
+    aEJobEdit: TAction;
+    aEJobExecute: TAction;
     aEPaste: TEditPaste;
     aEPasteFrom1: TMenuItem;
     aEPasteFromFile: TAction;
@@ -113,11 +119,6 @@ type
     aHManual: TAction;
     aHSQL: TAction;
     aHUpdate: TAction;
-    aJAddExport: TAction;
-    aJAddImport: TAction;
-    aJDelete: TAction;
-    aJEdit: TAction;
-    aJExecute: TAction;
     aOAccounts: TAction;
     aOGlobals: TAction;
     aSGoto: TAction;
@@ -195,6 +196,7 @@ type
     miEDelete: TMenuItem;
     miEdit: TMenuItem;
     miEFind: TMenuItem;
+    miEFormatSQL: TMenuItem;
     miEPaste: TMenuItem;
     miERedo: TMenuItem;
     miERename: TMenuItem;
@@ -232,12 +234,12 @@ type
     miHManual: TMenuItem;
     miHSQL: TMenuItem;
     miHUpdate: TMenuItem;
-    miJAdd: TMenuItem;
-    miJAddExport: TMenuItem;
-    miJAddImport: TMenuItem;
-    miJDelete: TMenuItem;
-    miJEdit: TMenuItem;
-    miJobs: TMenuItem;
+    miEJobAdd: TMenuItem;
+    miEJobAddExport: TMenuItem;
+    miEJobAddImport: TMenuItem;
+    miEJobDelete: TMenuItem;
+    miEJobEdit: TMenuItem;
+    miEJobs: TMenuItem;
     miOAccounts: TMenuItem;
     miOGlobals: TMenuItem;
     miOptions: TMenuItem;
@@ -266,6 +268,7 @@ type
     mtFOpenAccount: TMenuItem;
     mtTabs: TMenuItem;
     N10: TMenuItem;
+    N11: TMenuItem;
     N12: TMenuItem;
     N15: TMenuItem;
     N16: TMenuItem;
@@ -309,6 +312,7 @@ type
     tbECut: TToolButton;
     tbEDelete: TToolButton;
     tbEPaste: TToolButton;
+    tbFormatSQL: TToolButton;
     tbOpen: TToolButton;
     tbPostObject: TToolButton;
     tbPostRecord: TToolButton;
@@ -337,6 +341,7 @@ type
     ToolButton4: TToolButton;
     ToolButton5: TToolButton;
     ToolButton7: TToolButton;
+    ToolButton1: TToolButton;
     procedure aDCreateParentExecute(Sender: TObject);
     procedure aEFindExecute(Sender: TObject);
     procedure aEReplaceExecute(Sender: TObject);
@@ -980,9 +985,11 @@ begin
   aFExportExcel.Visible := (odExcel in ODBCDrivers) or (odExcel2003 in ODBCDrivers);
   aFExportODBC.Visible := ODBCEnv <> SQL_NULL_HANDLE;
   aVJobs.Visible := CheckWin32Version(6);
-  miJobs.Visible := CheckWin32Version(6);
+  miEJobs.Visible := CheckWin32Version(6);
   aHIndex.Enabled := FileExists(Application.HelpFile);
   aHUpdate.Enabled := IsConnectedToInternet() and (Preferences.SetupProgram = '');
+  {$IFNDEF Debug} aEFormatSQL.Visible := False; {$ENDIF}
+  {$IFNDEF Debug} tbFormatSQL.Visible := False; {$ENDIF}
 
   Perform(UM_UPDATETOOLBAR, 0, 0);
 
@@ -1601,13 +1608,13 @@ begin
   aEFind.Caption := Preferences.LoadStr(187) + '...';
   aEReplace.Caption := Preferences.LoadStr(416) + '...';
   aETransfer.Caption := Preferences.LoadStr(753) + '...';
-
-  miJobs.Caption := Preferences.LoadStr(896);
-  miJAdd.Caption := Preferences.LoadStr(26);
-  aJAddImport.Caption := Preferences.LoadStr(371) + '...';
-  aJAddExport.Caption := Preferences.LoadStr(200) + '...';
-  aJDelete.Caption := Preferences.LoadStr(28);
-  aJEdit.Caption := Preferences.LoadStr(97) + '...';
+  miEJobs.Caption := Preferences.LoadStr(896);
+  miEJobAdd.Caption := Preferences.LoadStr(26);
+  aEJobAddImport.Caption := Preferences.LoadStr(371) + '...';
+  aEJobAddExport.Caption := Preferences.LoadStr(200) + '...';
+  aEJobDelete.Caption := Preferences.LoadStr(28);
+  aEJobEdit.Caption := Preferences.LoadStr(97) + '...';
+  aEFormatSQL.Caption := Preferences.LoadStr(921);
 
   miHelp.Caption := Preferences.LoadStr(167);
   aHIndex.Caption := Preferences.LoadStr(653) + '...';
@@ -1874,6 +1881,11 @@ begin
   tbRun.Visible              := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor, vEditor2, vEditor3]);
   tbRunSelection.Visible     := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vEditor, vEditor2, vEditor3]);
   tbPostObject.Visible       := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE]);
+{$IFNDEF Debug}
+  tbFormatSQL.Visible := False;
+{$ELSE}
+  tbFormatSQL.Visible        := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vEditor, vEditor2, vEditor3]);
+{$ENDIF}
 
   tbDBFirst.Visible          := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser, vBuilder, vEditor, vEditor2, vEditor3]);
   tbDBPrev.Visible           := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser]);

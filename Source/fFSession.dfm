@@ -2111,17 +2111,17 @@ object FSession: TFSession
     object mjAdd: TMenuItem
       Caption = 'mjAdd'
       object mjAddImport: TMenuItem
-        Caption = 'aJAddImport'
+        Caption = 'aEJobAddImport'
       end
       object mjAddExport: TMenuItem
-        Caption = 'aJAddExport'
+        Caption = 'aEJobAddExport'
       end
     end
     object mjDelete: TMenuItem
-      Caption = 'aJDelete'
+      Caption = 'aEJobDelete'
     end
     object mjEdit: TMenuItem
-      Caption = 'aJEdit'
+      Caption = 'aEJobEdit'
     end
   end
   object MSQLHistory: TPopupMenu
