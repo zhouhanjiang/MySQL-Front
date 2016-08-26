@@ -755,11 +755,11 @@ begin
   end;
 
   TabControl.Canvas.Font.Style := [fsBold];
-//  TabControl.TabHeight := TabControl.Canvas.TextHeight('I') + 10;
-//  if (not StyleServices.Enabled) then
-//    TabControl.Height := TabControl.TabHeight + 1
-//  else
-//    TabControl.Height := TabControl.TabHeight + 2;
+  TabControl.TabHeight := TabControl.Canvas.TextHeight('I') + 10;
+  if (not StyleServices.Enabled) then
+    TabControl.Height := TabControl.TabHeight + 1
+  else
+    TabControl.Height := TabControl.TabHeight + 2;
 
   StatusBar.ClientHeight := StatusBar.Canvas.TextHeight('I') + 5;
 end;

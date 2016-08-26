@@ -23,6 +23,7 @@ type
     ntAlterTableStmtExchangePartition,
     ntAlterTableStmtReorganizePartition,
     ntAlterViewStmt,
+    ntBeginLabel,
     ntBeginStmt,
     ntBetweenOp,
     ntBinaryOp,
@@ -46,7 +47,7 @@ type
     ntCreateRoutineStmt,
     ntCreateServerStmt,
     ntCreateTableStmt,
-    ntCreateTableStmtColumn,
+    ntCreateTableStmtField,
     ntCreateTableStmtForeignKey,
     ntCreateTableStmtKey,
     ntCreateTableStmtKeyColumn,
@@ -75,6 +76,7 @@ type
     ntDropTriggerStmt,
     ntDropUserStmt,
     ntDropViewStmt,
+    ntEndLabel,
     ntExecuteStmt,
     ntExistsFunc,
     ntExplainStmt,
@@ -391,8 +393,6 @@ type
     ttDQIdent,                // Ident, enclosed in ""
     ttDBIdent,                // Ident, enclosed in []
     ttMySQLIdent,             // Ident, enclosed in ``
-    ttBeginLabel,             // Label, like Label_Name:
-    ttEndLabel,               // Label, like Label_Name:
     ttBindVariable,           // Bind Variable, like :bindvarname
     ttMySQLCodeStart,         // MySQL specific code, like /*!50000 SELECT 1; */
     ttMySQLCodeEnd,

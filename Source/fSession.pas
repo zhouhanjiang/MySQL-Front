@@ -2143,7 +2143,7 @@ begin
   if (Assigned(Database)) then
     if (DependedClass = TSTable) then
       Result := Database.TableByName(DependedName)
-    else if (DependedClass = TSRoutine) then
+    else if (DependedClass = TSProcedure) then
       Result := Database.ProcedureByName(DependedName)
     else if (DependedClass = TSFunction) then
       Result := Database.FunctionByName(DependedName)
@@ -10814,7 +10814,7 @@ begin
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.ServerVersion;
   FUser := nil;
-  ParseEndDate := EncodeDate(2016, 8, 27);
+  ParseEndDate := EncodeDate(2016, 8, 30);
   FSQLParser := nil;
   UnparsableSQL := '';
 

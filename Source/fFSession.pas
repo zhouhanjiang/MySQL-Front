@@ -389,7 +389,7 @@ type
     procedure aDCreateExecute(Sender: TObject);
     procedure aDCreateFieldExecute(Sender: TObject);
     procedure aDCreateForeignKeyExecute(Sender: TObject);
-    procedure aDCreateIndexExecute(Sender: TObject);
+    procedure aDCreateKeyExecute(Sender: TObject);
     procedure aDCreateRoutineExecute(Sender: TObject);
     procedure aDCreateTableExecute(Sender: TObject);
     procedure aDCreateTriggerExecute(Sender: TObject);
@@ -2027,12 +2027,20 @@ begin
 end;
 
 procedure TFSession.aDCreateFieldExecute(Sender: TObject);
+var
+  Table: TSBaseTable;
 begin
   Wanted.Clear();
 
   if (FocusedSItem is TSBaseTable) then
   begin
-    DField.Table := TSBaseTable(FocusedSItem);
+    Table := TSBaseTable(FocusedSItem);
+
+    Session.Connection.BeginSynchron();
+    Table.Update();
+    Session.Connection.BeginSynchron();
+
+    DField.Table := Table;
     DField.Database := DField.Table.Database;
     DField.Field := nil;
     if (DField.Execute()) then
@@ -2041,12 +2049,20 @@ begin
 end;
 
 procedure TFSession.aDCreateForeignKeyExecute(Sender: TObject);
+var
+  Table: TSBaseTable;
 begin
   Wanted.Clear();
 
   if (FocusedSItem is TSBaseTable) then
   begin
-    DForeignKey.Table := TSBaseTable(FocusedSItem);
+    Table := TSBaseTable(FocusedSItem);
+
+    Session.Connection.BeginSynchron();
+    Table.Update();
+    Session.Connection.BeginSynchron();
+
+    DForeignKey.Table := Table;
     DForeignKey.Database := DForeignKey.Table.Database;
     DForeignKey.ParentTable := nil;
     DForeignKey.ForeignKey := nil;
@@ -2055,13 +2071,21 @@ begin
   end;
 end;
 
-procedure TFSession.aDCreateIndexExecute(Sender: TObject);
+procedure TFSession.aDCreateKeyExecute(Sender: TObject);
+var
+  Table: TSBaseTable;
 begin
   Wanted.Clear();
 
   if (FocusedSItem is TSBaseTable) then
   begin
-    DKey.Table := TSBaseTable(FocusedSItem);
+    Table := TSBaseTable(FocusedSItem);
+
+    Session.Connection.BeginSynchron();
+    Table.Update();
+    Session.Connection.EndSynchron();
+
+    DKey.Table := Table;
     DKey.Database := DKey.Table.Database;
     DKey.Key := nil;
     if (DKey.Execute()) then
@@ -3689,6 +3713,7 @@ procedure TFSession.aEFormatSQLExecute(Sender: TObject);
 var
   SQL: string;
 begin
+  Window.ActiveControl := ActiveSynMemo;
   if (ActiveSynMemo.SelAvail) then
     SQL := ActiveSynMemo.SelText
   else
@@ -3702,7 +3727,10 @@ begin
     if (ActiveSynMemo.SelAvail) then
       ActiveSynMemo.SelText := SQL
     else
-      ActiveSynMemo.Text := SQL;
+    begin
+      ActiveSynMemo.SelectAll();
+      ActiveSynMemo.SelText := SQL;
+    end;
   end;
 
   Session.SQLParser.Clear();
@@ -4730,7 +4758,7 @@ begin
     MainAction('aDCreateView').OnExecute := aDCreateViewExecute;
     MainAction('aDCreateProcedure').OnExecute := aDCreateRoutineExecute;
     MainAction('aDCreateFunction').OnExecute := aDCreateRoutineExecute;
-    MainAction('aDCreateKey').OnExecute := aDCreateIndexExecute;
+    MainAction('aDCreateKey').OnExecute := aDCreateKeyExecute;
     MainAction('aDCreateField').OnExecute := aDCreateFieldExecute;
     MainAction('aDCreateForeignKey').OnExecute := aDCreateForeignKeyExecute;
     MainAction('aDCreateTrigger').OnExecute := aDCreateTriggerExecute;
