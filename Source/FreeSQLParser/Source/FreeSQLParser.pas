@@ -231,7 +231,6 @@ type
         function GetNextTokenAll(): PToken;
         function GetOffset(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
         function GetParentNode(): PNode; {$IFNDEF Debug} inline; {$ENDIF}
-        function GetText(): string; overload;
         property ErrorCode: Byte read FErrorCode;
         property ErrorPos: PChar read FErrorPos;
         property Generation: Integer read GetGeneration;
@@ -246,15 +245,17 @@ type
         property Offset: TOffset read GetOffset;
         property Parser: TMySQLParser read Heritage.Heritage.FParser;
       public
+        function GetText(): string; overload;
         procedure GetText(out Text: PChar; out Length: Integer); overload;
-        procedure SetText(const Text: PChar; const Length: Integer); {$IFNDEF Debug} inline; {$ENDIF}
+        procedure SetText(Text: string); overload; {$IFNDEF Debug} inline; {$ENDIF}
+        procedure SetText(const Text: PChar; const Length: Integer); overload; {$IFNDEF Debug} inline; {$ENDIF}
         property AsString: string read GetAsString;
         property DbIdentType: TDbIdentType read GetDbIdentType;
         property NextToken: PToken read GetNextToken;
         property NextTokenAll: PToken read GetNextTokenAll;
         property OperatorType: TOperatorType read FOperatorType;
         property ParentNode: PNode read GetParentNode;
-        property Text: string read GetText;
+        property Text: string read GetText write SetText;
         property TokenType: fspTypes.TTokenType read FTokenType;
         property UsageType: TUsageType read FUsageType;
       end;
@@ -5743,10 +5744,6 @@ begin
     FTokenType := ATokenType;
     FUsageType := AUsageType;
     NewSQL := 0;
-
-    {$IFDEF Debug}
-    GetText();
-    {$ENDIF}
   end;
 end;
 
@@ -5909,6 +5906,11 @@ end;
 procedure TMySQLParser.TToken.SetText(const Text: PChar; const Length: Integer);
 begin
   NewSQL := Parser.NewText(Text, Length);
+end;
+
+procedure TMySQLParser.TToken.SetText(Text: string);
+begin
+  SetText(PChar(Text), System.Length(Text));
 end;
 
 { TMySQLParser.TRange *********************************************************}
@@ -11661,37 +11663,42 @@ begin
     or (Token^.KeywordIndex = kiNULL)) then
   begin
     Token^.GetText(Text, Length);
-    Dest := @Keyword[0];
-    asm // Convert SQL to upper case
-        PUSH ES
-        PUSH ESI
-        PUSH EDI
 
-        PUSH DS                          // string operations uses ES
-        POP ES
-        CLD                              // string operations uses forward direction
+    if (Length > 0) then
+    begin
+      Dest := @Keyword[0];
 
-        MOV ESI,Text
-        MOV ECX,Length
-        MOV EDI,Dest
+      asm // Convert SQL to upper case
+          PUSH ES
+          PUSH ESI
+          PUSH EDI
 
-      StringL:
-        LODSW                            // Get character
-        CMP AX,'a'                       // Small character?
-        JB StringLE                      // No!
-        CMP AX,'z'                       // Small character?
-        JA StringLE                      // No!
-        AND AX,$FF - $20                 // Upcase character
-      StringLE:
-        STOSW                            // Put character
-        LOOP StringL                     // Further characters!
+          PUSH DS                          // string operations uses ES
+          POP ES
+          CLD                              // string operations uses forward direction
 
-        POP EDI
-        POP ESI
-        POP ES
+          MOV ESI,Text
+          MOV ECX,Length
+          MOV EDI,Dest
+
+        StringL:
+          LODSW                            // Get character to AX
+          CMP AX,'a'                       // Small character?
+          JB StringLE                      // No!
+          CMP AX,'z'                       // Small character?
+          JA StringLE                      // No!
+          AND AX,$FF - $20                 // Upcase character
+        StringLE:
+          STOSW                            // Put character from AX
+          LOOP StringL                     // Further characters!
+
+          POP EDI
+          POP ESI
+          POP ES
+      end;
+
+      Commands.Write(@Keyword[0], Token^.Length);
     end;
-
-    Commands.Write(@Keyword[0], Token^.Length);
   end
   else
   begin
@@ -11909,8 +11916,6 @@ end;
 
 function TMySQLParser.GetRoot(): PRoot;
 begin
-  Assert(FRoot < ParsedNodes.UsedSize);
-
   if (FRoot = 0) then
     Result := nil
   else
