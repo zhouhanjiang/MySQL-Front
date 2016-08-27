@@ -988,8 +988,8 @@ begin
   miEJobs.Visible := CheckWin32Version(6);
   aHIndex.Enabled := FileExists(Application.HelpFile);
   aHUpdate.Enabled := IsConnectedToInternet() and (Preferences.SetupProgram = '');
-  {$IFNDEF Debug} aEFormatSQL.Visible := False; {$ENDIF}
-  {$IFNDEF Debug} tbFormatSQL.Visible := False; {$ENDIF}
+  aEFormatSQL.Visible := False;
+  tbFormatSQL.Visible := False;
 
   Perform(UM_UPDATETOOLBAR, 0, 0);
 
@@ -1881,11 +1881,7 @@ begin
   tbRun.Visible              := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vBuilder, vEditor, vEditor2, vEditor3]);
   tbRunSelection.Visible     := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vEditor, vEditor2, vEditor3]);
   tbPostObject.Visible       := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE]);
-{$IFNDEF Debug}
-  tbFormatSQL.Visible := False;
-{$ELSE}
   tbFormatSQL.Visible        := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vIDE, vEditor, vEditor2, vEditor3]);
-{$ENDIF}
 
   tbDBFirst.Visible          := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser, vBuilder, vEditor, vEditor2, vEditor3]);
   tbDBPrev.Visible           := Assigned(Tab) and Tab.Visible and (Tab.ToolBarData.View in [vBrowser]);

@@ -4,7 +4,6 @@ interface {********************************************************************}
 
 uses
   Classes,
-  SQLUtils,
   fspTypes, fspConst;
 
 type
@@ -1323,7 +1322,7 @@ type
         TNodes = packed record
           NationalToken: TOffset;
           SignedToken: TOffset;
-          IdentToken: TOffset;
+          TypeToken: TOffset;
           OpenBracket: TOffset;
           LengthToken: TOffset;
           CommaToken: TOffset;
@@ -5212,6 +5211,7 @@ implementation {***************************************************************}
 uses
   Windows,
   SysUtils, StrUtils, RTLConsts, Math,
+  SQLUtils,
   fspUtils;
 
 resourcestring
@@ -7116,7 +7116,7 @@ begin
 
     Heritage.AddChild(ANodes.NationalToken);
     Heritage.AddChild(ANodes.SignedToken);
-    Heritage.AddChild(ANodes.IdentToken);
+    Heritage.AddChild(ANodes.TypeToken);
     Heritage.AddChild(ANodes.OpenBracket);
     Heritage.AddChild(ANodes.LengthToken);
     Heritage.AddChild(ANodes.CommaToken);
@@ -8637,7 +8637,7 @@ end;
 
 class function TMySQLParser.TSelectStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
 begin
-  Result := TStmt.Create(AParser, stSelect);
+  Result := TStmt.Create(AParser, fspTypes.stSelect);
 
   with PSelectStmt(AParser.NodePtr(Result))^ do
   begin
@@ -10292,7 +10292,7 @@ begin
   FormatList(Nodes.StmtList, sReturn);
   Commands.DecreaseIndent();
   FormatNode(Nodes.EndTag, stReturnBefore);
-  FormatNode(Nodes.EndLabel, stNone);
+  FormatNode(Nodes.EndLabel, stSpaceBefore);
 end;
 
 procedure TMySQLParser.FormatConvertFunc(const Nodes: TConvertFunc.TNodes);
@@ -10700,7 +10700,7 @@ procedure TMySQLParser.FormatDataType(const Nodes: TDataType.TNodes);
 begin
   FormatNode(Nodes.NationalToken, stSpaceAfter);
 
-  FormatNode(Nodes.IdentToken);
+  FormatNode(Nodes.TypeToken);
   if (Nodes.OpenBracket > 0) then
   begin
     FormatNode(Nodes.OpenBracket);
@@ -14776,6 +14776,7 @@ end;
 
 function TMySQLParser.ParseCreateTableStmtField(const Add: TCreateTableStmt.TFieldAdd = caNone): TOffset;
 var
+  Found: Boolean;
   Nodes: TCreateTableStmt.TField.TNodes;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
@@ -14807,58 +14808,79 @@ begin
     else
       Nodes.DataTypeNode := ParseDataType();
 
-  if (not Error and not EndOfStmt(CurrentToken)) then
+  Found := True;
+  while (not Error and not EndOfStmt(CurrentToken)
+    and Found and not (TokenPtr(CurrentToken)^.TokenType in [ttComma, ttCloseBracket])) do
+  begin
+    Found := False;
+
     if (TokenPtr(CurrentToken)^.KeywordIndex = kiNOT) then
-      Nodes.NullTag := ParseTag(kiNOT, kiNULL)
+    begin
+      Nodes.NullTag := ParseTag(kiNOT, kiNULL);
+      Found := True;
+    end
     else if (TokenPtr(CurrentToken)^.KeywordIndex = kiNULL) then
+    begin
       Nodes.NullTag := ParseTag(kiNULL);
+      Found := True;
+    end
+    else if (TokenPtr(CurrentToken)^.KeywordIndex = kiDEFAULT) then
+    begin
+      if (not EndOfStmt(NextToken[1]) and ((TokenPtr(NextToken[1])^.KeywordIndex = kiCURRENT_TIMESTAMP) or (TokenPtr(NextToken[1])^.KeywordIndex = kiLOCALTIME) or (TokenPtr(NextToken[1])^.KeywordIndex = kiLOCALTIMESTAMP))
+        and (EndOfStmt(NextToken[2]) or (TokenPtr(NextToken[2])^.TokenType = ttOpenBracket))) then
+        Nodes.DefaultValue := ParseValue(kiDEFAULT, vaNo, ParseCurrentTimestamp)
+      else if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.TokenType in ttStrings)) then
+        Nodes.DefaultValue := ParseValue(kiDEFAULT, vaNo, ParseString)
+      else if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.TokenType = ttInteger)) then
+        Nodes.DefaultValue := ParseValue(kiDEFAULT, vaNo, ParseInteger)
+      else
+        Nodes.DefaultValue := ParseValue(kiDEFAULT, vaNo, ParseExpr);
+      Found := True;
 
-  if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiDEFAULT)) then
-    if (not EndOfStmt(NextToken[1]) and ((TokenPtr(NextToken[1])^.KeywordIndex = kiCURRENT_TIMESTAMP) or (TokenPtr(NextToken[1])^.KeywordIndex = kiLOCALTIME) or (TokenPtr(NextToken[1])^.KeywordIndex = kiLOCALTIMESTAMP))
-      and (EndOfStmt(NextToken[2]) or (TokenPtr(NextToken[2])^.TokenType = ttOpenBracket))) then
-      Nodes.DefaultValue := ParseValue(kiDEFAULT, vaNo, ParseCurrentTimestamp)
-    else if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.TokenType in ttStrings)) then
-      Nodes.DefaultValue := ParseValue(kiDEFAULT, vaNo, ParseString)
-    else if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.TokenType = ttInteger)) then
-      Nodes.DefaultValue := ParseValue(kiDEFAULT, vaNo, ParseInteger)
-    else
-      Nodes.DefaultValue := ParseValue(kiDEFAULT, vaNo, ParseExpr);
-
-  if (not Error and not EndOfStmt(CurrentToken)) then
-    if (TokenPtr(CurrentToken)^.KeywordIndex = kiNOT) then
-      Nodes.NullTag := ParseTag(kiNOT, kiNULL)
-    else if (TokenPtr(CurrentToken)^.KeywordIndex = kiNULL) then
-      Nodes.NullTag := ParseTag(kiNULL);
-
-  if (not Error and not EndOfStmt(NextToken[1])
-    and (TokenPtr(CurrentToken)^.KeywordIndex = kiON) and (TokenPtr(NextToken[1])^.KeywordIndex = kiUPDATE)
-    and (not EndOfStmt(NextToken[2]) and ((TokenPtr(NextToken[2])^.KeywordIndex = kiCURRENT_TIMESTAMP) or (TokenPtr(NextToken[2])^.KeywordIndex = kiCURRENT_TIME) or (TokenPtr(NextToken[2])^.KeywordIndex = kiCURRENT_DATE)))) then
-    if (EndOfStmt(NextToken[3]) or (TokenPtr(NextToken[3])^.TokenType <> ttOpenBracket)) then
-      Nodes.OnUpdateTag := ParseTag(kiON, kiUPDATE, TokenPtr(NextToken[2])^.KeywordIndex)
-    else
-      Nodes.OnUpdateTag := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, ParseFunctionCall);
-
-  if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiAUTO_INCREMENT)) then
-    Nodes.AutoIncrementTag := ParseTag(kiAUTO_INCREMENT);
-
-  if (not Error and not EndOfStmt(CurrentToken)) then
-    if ((TokenPtr(CurrentToken)^.KeywordIndex = kiUNIQUE) and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiKEY)) then
-      Nodes.KeyTag := ParseTag(kiUNIQUE, kiKEY)
+      if (not Error and not EndOfStmt(NextToken[1])
+        and (TokenPtr(CurrentToken)^.KeywordIndex = kiON) and (TokenPtr(NextToken[1])^.KeywordIndex = kiUPDATE)
+        and (not EndOfStmt(NextToken[2]) and ((TokenPtr(NextToken[2])^.KeywordIndex = kiCURRENT_TIMESTAMP) or (TokenPtr(NextToken[2])^.KeywordIndex = kiCURRENT_TIME) or (TokenPtr(NextToken[2])^.KeywordIndex = kiCURRENT_DATE)))) then
+        if (EndOfStmt(NextToken[3]) or (TokenPtr(NextToken[3])^.TokenType <> ttOpenBracket)) then
+          Nodes.OnUpdateTag := ParseTag(kiON, kiUPDATE, TokenPtr(NextToken[2])^.KeywordIndex)
+        else
+          Nodes.OnUpdateTag := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, ParseFunctionCall);
+    end
+    else if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiAUTO_INCREMENT)) then
+    begin
+      Nodes.AutoIncrementTag := ParseTag(kiAUTO_INCREMENT);
+      Found := True;
+    end
+    else if ((TokenPtr(CurrentToken)^.KeywordIndex = kiUNIQUE) and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiKEY)) then
+    begin
+      Nodes.KeyTag := ParseTag(kiUNIQUE, kiKEY);
+      Found := True;
+    end
     else if (TokenPtr(CurrentToken)^.KeywordIndex = kiUNIQUE)  then
-      Nodes.KeyTag := ParseTag(kiUNIQUE)
+    begin
+      Nodes.KeyTag := ParseTag(kiUNIQUE);
+      Found := True;
+    end
     else if ((TokenPtr(CurrentToken)^.KeywordIndex = kiPRIMARY) and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiKEY)) then
-      Nodes.KeyTag := ParseTag(kiPRIMARY, kiKEY)
+    begin
+      Nodes.KeyTag := ParseTag(kiPRIMARY, kiKEY);
+      Found := True;
+    end
     else if (TokenPtr(CurrentToken)^.KeywordIndex = kiKEY)  then
+    begin
       Nodes.KeyTag := ParseTag(kiKEY);
-
-  if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiAUTO_INCREMENT)) then
-    Nodes.AutoIncrementTag := ParseTag(kiAUTO_INCREMENT);
-
-  if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCOMMENT)) then
-    Nodes.CommentValue := ParseValue(kiCOMMENT, vaNo, ParseString);
-
-  if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCOLUMN_FORMAT)) then
-    Nodes.ColumnFormat := ParseValue(kiCOLUMN_FORMAT, vaNo, WordIndices(kiFIXED, kiDYNAMIC, kiDEFAULT));
+      Found := True;
+    end
+    else if (TokenPtr(CurrentToken)^.KeywordIndex = kiCOMMENT) then
+    begin
+      Nodes.CommentValue := ParseValue(kiCOMMENT, vaNo, ParseString);
+      Found := True;
+    end
+    else if (TokenPtr(CurrentToken)^.KeywordIndex = kiCOLUMN_FORMAT) then
+    begin
+      Nodes.ColumnFormat := ParseValue(kiCOLUMN_FORMAT, vaNo, WordIndices(kiFIXED, kiDYNAMIC, kiDEFAULT));
+      Found := True;
+    end;
+  end;
 
   if (not Error and (Add <> caNone) and not EndOfStmt(CurrentToken)) then
     if (TokenPtr(CurrentToken)^.KeywordIndex = kiFIRST) then
@@ -14934,6 +14956,7 @@ end;
 
 function TMySQLParser.ParseCreateTableStmtForeignKey(const Add: Boolean = False): TOffset;
 var
+  Found: Boolean;
   Nodes: TCreateTableStmt.TForeignKey.TNodes;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
@@ -14971,35 +14994,47 @@ begin
     if (not EndOfStmt(NextToken[1]) and ((TokenPtr(NextToken[1])^.KeywordIndex = kiFULL) or (TokenPtr(NextToken[1])^.KeywordIndex = kiPARTIAL) or (TokenPtr(NextToken[1])^.KeywordIndex = kiSIMPLE))) then
       Nodes.MatchValue := ParseValue(kiMATCH, vaNo, WordIndices(kiFULL, kiPARTIAL, kiSIMPLE));
 
-  if (not Error and not EndOfStmt(CurrentToken)
-    and (TokenPtr(CurrentToken)^.KeywordIndex = kiON) and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiDELETE)) then
-    if (EndOfStmt(NextToken[2])) then
-      SetError(PE_IncompleteStmt)
-    else if (TokenPtr(NextToken[2])^.KeywordIndex = kiRESTRICT) then
-      Nodes.OnDeleteValue := ParseValue(WordIndices(kiON, kiDELETE), vaNo, kiRESTRICT)
-    else if (TokenPtr(NextToken[2])^.KeywordIndex = kiCASCADE) then
-      Nodes.OnDeleteValue := ParseValue(WordIndices(kiON, kiDELETE), vaNo, kiCASCADE)
-    else if (TokenPtr(NextToken[2])^.KeywordIndex = kiSET) then
-      Nodes.OnDeleteValue := ParseValue(WordIndices(kiON, kiDELETE), vaNo, kiSET, kiNULL)
-    else if (TokenPtr(NextToken[2])^.KeywordIndex = kiNO) then
-      Nodes.OnDeleteValue := ParseValue(WordIndices(kiON, kiDELETE), vaNo, kiNO, kiACTION)
-    else
-      SetError(PE_UnexpectedToken);
 
-  if (not Error and not EndOfStmt(CurrentToken)
-    and (TokenPtr(CurrentToken)^.KeywordIndex = kiON) and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiUPDATE)) then
-    if (EndOfStmt(NextToken[2])) then
-      SetError(PE_IncompleteStmt)
-    else if (TokenPtr(NextToken[2])^.KeywordIndex = kiRESTRICT) then
-      Nodes.OnUpdateValue := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, kiRESTRICT)
-    else if (TokenPtr(NextToken[2])^.KeywordIndex = kiCASCADE) then
-      Nodes.OnUpdateValue := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, kiCASCADE)
-    else if (TokenPtr(NextToken[2])^.KeywordIndex = kiSET) then
-      Nodes.OnUpdateValue := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, kiSET, kiNULL)
-    else if (TokenPtr(NextToken[2])^.KeywordIndex = kiNO) then
-      Nodes.OnUpdateValue := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, kiNO, kiACTION)
-    else
-      SetError(PE_UnexpectedToken);
+  Found := True;
+  while (not Error and Found
+    and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiON)) do
+  begin
+    Found := False;
+
+    if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiDELETE)) then
+    begin
+      if (EndOfStmt(NextToken[2])) then
+        SetError(PE_IncompleteStmt)
+      else if (TokenPtr(NextToken[2])^.KeywordIndex = kiRESTRICT) then
+        Nodes.OnDeleteValue := ParseValue(WordIndices(kiON, kiDELETE), vaNo, kiRESTRICT)
+      else if (TokenPtr(NextToken[2])^.KeywordIndex = kiCASCADE) then
+        Nodes.OnDeleteValue := ParseValue(WordIndices(kiON, kiDELETE), vaNo, kiCASCADE)
+      else if (TokenPtr(NextToken[2])^.KeywordIndex = kiSET) then
+        Nodes.OnDeleteValue := ParseValue(WordIndices(kiON, kiDELETE), vaNo, kiSET, kiNULL)
+      else if (TokenPtr(NextToken[2])^.KeywordIndex = kiNO) then
+        Nodes.OnDeleteValue := ParseValue(WordIndices(kiON, kiDELETE), vaNo, kiNO, kiACTION)
+      else
+        SetError(PE_UnexpectedToken);
+      Found := True;
+    end;
+
+    if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiUPDATE)) then
+    begin
+      if (EndOfStmt(NextToken[2])) then
+        SetError(PE_IncompleteStmt)
+      else if (TokenPtr(NextToken[2])^.KeywordIndex = kiRESTRICT) then
+        Nodes.OnUpdateValue := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, kiRESTRICT)
+      else if (TokenPtr(NextToken[2])^.KeywordIndex = kiCASCADE) then
+        Nodes.OnUpdateValue := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, kiCASCADE)
+      else if (TokenPtr(NextToken[2])^.KeywordIndex = kiSET) then
+        Nodes.OnUpdateValue := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, kiSET, kiNULL)
+      else if (TokenPtr(NextToken[2])^.KeywordIndex = kiNO) then
+        Nodes.OnUpdateValue := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, kiNO, kiACTION)
+      else
+        SetError(PE_UnexpectedToken);
+      Found := True;
+    end;
+  end;
 
   Result := TCreateTableStmt.TForeignKey.Create(Self, Nodes);
 end;
@@ -15499,11 +15534,30 @@ begin
     else if (TokenPtr(CurrentToken)^.TokenType <> ttIdent) then
       SetError(PE_UnexpectedToken)
     else
-      Nodes.IdentToken := ApplyCurrentToken(utDataType);
+      Nodes.TypeToken := ApplyCurrentToken(utDataType);
+
+  if (((UpperCase(TokenPtr(Nodes.TypeToken)^.AsString) = 'SIGNED') or (UpperCase(TokenPtr(Nodes.TypeToken)^.AsString) = 'UNSIGNED'))
+    and not EndOfStmt(CurrentToken)) then
+  begin
+    IdentString := UpperCase(TokenPtr(CurrentToken)^.AsString);
+    if ((IdentString = 'BIGINT')
+      or (IdentString = 'INT')
+      or (IdentString = 'INT4')
+      or (IdentString = 'INTEGER')
+      or (IdentString = 'LARGEINT')
+      or (IdentString = 'LONG')
+      or (IdentString = 'MEDIUMINT')
+      or (IdentString = 'SMALLINT')
+      or (IdentString = 'TINYINT')) then
+    begin
+      Nodes.SignedToken := Nodes.TypeToken;
+      Nodes.TypeToken := ApplyCurrentToken(utDataType);
+    end;
+  end;
 
   if (not Error) then
   begin
-    IdentString := UpperCase(TokenPtr(Nodes.IdentToken)^.AsString);
+    IdentString := UpperCase(TokenPtr(Nodes.TypeToken)^.AsString);
 
     if (not Error
       and (IdentString <> 'BIGINT')
@@ -15545,7 +15599,6 @@ begin
       and (IdentString <> 'REAL')
       and (IdentString <> 'SERIAL')
       and (IdentString <> 'SET')
-      and (IdentString <> 'SIGNED')
       and (IdentString <> 'SMALLINT')
       and (IdentString <> 'TEXT')
       and (IdentString <> 'TIME')
@@ -15553,7 +15606,6 @@ begin
       and (IdentString <> 'TINYBLOB')
       and (IdentString <> 'TINYINT')
       and (IdentString <> 'TINYTEXT')
-      and (IdentString <> 'UNSIGNED')
       and (IdentString <> 'VARBINARY')
       and (IdentString <> 'VARCHAR')
       and (IdentString <> 'YEAR')) then

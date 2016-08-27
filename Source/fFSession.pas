@@ -3714,6 +3714,7 @@ var
   SQL: string;
 begin
   Window.ActiveControl := ActiveSynMemo;
+
   if (ActiveSynMemo.SelAvail) then
     SQL := ActiveSynMemo.SelText
   else
@@ -4556,7 +4557,12 @@ begin
 
   for I := 0 to PListView.ControlCount - 1 do
     if (PListView.Controls[I] is TListView) then
+    begin
       ListViewInitialize(TListView(PListView.Controls[I]));
+      if (Assigned(TObject(TListView(PListView.Controls[I]).Tag))
+        and (TObject(PListView.Controls[I].Tag) is TSDatabase)) then
+        TSDatabase(PListView.Controls[I].Tag).PushBuildEvents();
+    end;
 
   SQLBuilder.RightMargin := Preferences.Editor.RightEdge;
 
