@@ -10820,7 +10820,7 @@ begin
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.ServerVersion;
   FUser := nil;
-  ParseEndDate := EncodeDate(2016, 9, 1);
+  ParseEndDate := EncodeDate(2016, 9, 6);
   FSQLParser := nil;
   UnparsableSQL := '';
 
