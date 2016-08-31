@@ -988,8 +988,6 @@ begin
   miEJobs.Visible := CheckWin32Version(6);
   aHIndex.Enabled := FileExists(Application.HelpFile);
   aHUpdate.Enabled := IsConnectedToInternet() and (Preferences.SetupProgram = '');
-  aEFormatSQL.Visible := False;
-  tbFormatSQL.Visible := False;
 
   Perform(UM_UPDATETOOLBAR, 0, 0);
 

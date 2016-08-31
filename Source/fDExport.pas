@@ -2207,6 +2207,10 @@ begin
             for J := 0 to Database.Routines.Count - 1 do
               if (SObjects.IndexOf(Database.Routines[J]) < 0) then
                 SObjects.Add(Database.Routines[J]);
+          if (Assigned(Database.Events)) then
+            for J := 0 to Database.Events.Count - 1 do
+              if (SObjects.IndexOf(Database.Events[J]) < 0) then
+                SObjects.Add(Database.Events[J]);
           SObjects.Delete(I);
         end;
       end

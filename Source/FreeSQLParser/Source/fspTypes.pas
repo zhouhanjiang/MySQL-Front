@@ -113,6 +113,7 @@ type
     ntLockStmt,
     ntLockStmtItem,
     ntLoopStmt,
+    ntMatchFunc,
     ntPositionFunc,
     ntPrepareStmt,
     ntPurgeStmt,
@@ -373,10 +374,10 @@ type
   TTokenType = (
     ttUnknown,
     ttError,                  // Error while parsing token
-    ttSpace,                  // Tab and Space
-    ttReturn,                 // New line
-    ttLineComment,            // Comment, like # comment, -- comment
-    ttMultiLineComment,       // Comment, like /* this is multi line comment */
+    ttSpace,                  // <Tab> and <Space>
+    ttReturn,                 // <CarriageReturn>
+    ttSLComment,              // Comment, like # comment, -- comment
+    ttMLComment,              // Comment, like /* this is a multi line comment */
     ttDot,                    // "."
     ttColon,                  // ":"
     ttDelimiter,              // ";"
@@ -385,8 +386,8 @@ type
     ttCloseBracket,           // ")"
     ttOpenCurlyBracket,       // "{"
     ttCloseCurlyBracket,      // "}"
-    ttInteger,                // Integer constant, like 123456
-    ttNumeric,                // Numeric (float) constant, like -123.456E15
+    ttInteger,                // Integer constant, like -123456
+    ttNumeric,                // Numeric (float) constant, like -123.456E78
     ttString,                 // String constant, enclosed in ''
     ttCSString,               // MySQL Character Set, like _utf8'Hello'
     ttIdent,                  // Ident

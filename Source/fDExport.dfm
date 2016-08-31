@@ -391,10 +391,6 @@ object DExport: TDExport
       TabVisible = False
       OnHide = TSOptionsHide
       OnShow = TSCSVOptionsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         333
         271)

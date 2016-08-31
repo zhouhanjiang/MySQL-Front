@@ -85,12 +85,12 @@ object DField: TDField
       Caption = 'FLName'
       FocusControl = FName
     end
-    object FLType: TLabel
+    object FLFieldType: TLabel
       Left = 8
       Top = 114
-      Width = 36
+      Width = 58
       Height = 13
-      Caption = 'FLType'
+      Caption = 'FLFieldType'
       FocusControl = FFieldType
     end
     object FLDefault: TLabel

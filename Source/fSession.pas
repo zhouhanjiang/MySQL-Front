@@ -2052,7 +2052,7 @@ begin
   FValidSource := True;
   FSource := ASource;
 
-  if (Now() <= Session.ParseEndDate) then
+  if ((Now() <= Session.ParseEndDate) and (Name <> 'ps_trace_thread')) then
   begin
     try
       if (not Session.SQLParser.ParseSQL(FSource)) then
@@ -5004,6 +5004,7 @@ var
   Index: Integer;
   Parse: TSQLParse;
   RemovedLength: Integer;
+  S: string;
   SQL: string;
   StartingCommentLen: Integer;
   StringList: TStringList;
@@ -5077,8 +5078,12 @@ begin
 
       SQL := LeftStr(SQL, SQLParseGetIndex(Parse) - RemovedLength - 1);
 
+      S := Trim(Stmt);
+      if (RightStr(S, 1) = ';') then
+        S := Copy(S, 1, Length(S) - 1);
+
       StringList := TStringList.Create();
-      StringList.Text := LeftStr(Stmt, Length(Stmt) - 1);
+      StringList.Text := S;
       for I := 0 to StringList.Count - 1 do
         StringList[I] := '  ' + StringList[I];
       SQL := SQL + #13#10 + '  ' + Trim(StringList.Text);
@@ -5184,6 +5189,7 @@ begin
       FCheckOption := voNone;
 
     FStmt := Copy(SQL, SQLParseGetIndex(Parse), Len) + ';';
+
 
     if (Session.SQLParser.ParseSQL(FStmt)) then
     begin
@@ -9334,7 +9340,7 @@ begin
     mfMultiLineString,
     mfMultiPolygon,
     mfGeometryCollection: Result := Assigned(Engine) and (Assigned(Session.VariableByName('have_geometry')) and Session.VariableByName('have_geometry').AsBoolean and ((Engine.Name = 'MyISAM') or (Session.Connection.ServerVersion >= 50016) and (Engine.IsInnoDB or (Engine.Name = 'NDB') or (Engine.Name = 'BDB') or (Engine.Name = 'ARCHIVE'))));
-    mfJSON: Result := Pos('JSON', UpperCase(Session.Connection.ServerVersionStr)) > 0;
+    mfJSON: Result := Session.Connection.ServerVersion >= 50708;
     else Result := True;
   end;
 end;

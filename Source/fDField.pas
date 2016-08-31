@@ -44,7 +44,7 @@ type
     FLFormatSize: TLabel;
     FLName: TLabel;
     FLPosition: TLabel;
-    FLType: TLabel;
+    FLFieldType: TLabel;
     FLUpdateTime: TLabel;
     FName: TEdit;
     FPosition: TComboBox_Ext;
@@ -1085,7 +1085,7 @@ begin
   FLKind.Caption := Preferences.LoadStr(913) + ':';
   FKindReal.Caption := Preferences.LoadStr(914);
   FKindVirtual.Caption := Preferences.LoadStr(915);
-  FLType.Caption := Preferences.LoadStr(91) + ':';
+  FLFieldType.Caption := Preferences.LoadStr(91) + ':';
   FLFormatSize.Caption := Preferences.LoadStr(104) + ':';
   FLFormatFSP.Caption := Preferences.LoadStr(911) + ':';
   FLFormatDecimals.Caption := Preferences.LoadStr(78) + ':';

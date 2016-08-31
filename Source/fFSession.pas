@@ -13609,6 +13609,7 @@ begin
   MainAction('aERedo').Enabled := False;
   MainAction('aECopyToFile').Enabled := False;
   MainAction('aEPasteFromFile').Enabled := False;
+  MainAction('aEFormatSQL').Enabled := False;
 
   MainAction('aHIndex').ShortCut := ShortCut(VK_F1, []);
   MainAction('aHSQL').ShortCut := 0;
