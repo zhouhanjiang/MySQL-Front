@@ -328,7 +328,7 @@ end;
 
 procedure TDTransfer.FStructureClick(Sender: TObject);
 begin
-  FData.Checked := FStructure.Checked;
+  FData.Checked := FData.Checked and FStructure.Checked;
 
   TSExecute.Enabled := FStructure.Checked;
   CheckActivePageChange(TSWhat.PageIndex);

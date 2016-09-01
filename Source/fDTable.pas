@@ -304,7 +304,7 @@ begin
   if (MsgBox(Msg, Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES) then
   begin
     for I := FFields.Items.Count - 1 downto 0 do
-      if (FFields.Items.Item[I].Selected) then
+      if (FFields.Items[I].Selected) then
         NewTable.Fields.DeleteField(NewTable.Fields[I]);
 
     FFieldsRefresh(Sender);
@@ -323,7 +323,7 @@ begin
   if (MsgBox(Msg, Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES) then
   begin
     for I := FForeignKeys.Items.Count - 1 downto 0 do
-      if (FForeignKeys.Items.Item[I].Selected) then
+      if (FForeignKeys.Items[I].Selected) then
         NewTable.ForeignKeys.DeleteForeignKey(NewTable.ForeignKeys[I]);
 
     FForeignKeysRefresh(Sender);
@@ -344,7 +344,7 @@ begin
   if (MsgBox(Msg, Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES) then
   begin
     for I := FKeys.Items.Count - 1 downto 0 do
-      if (FKeys.Items.Item[I].Selected) then
+      if (FKeys.Items[I].Selected) then
         NewTable.Keys.DeleteKey(NewTable.Keys[I]);
 
     FIndicesRefresh(Sender);
@@ -364,7 +364,7 @@ begin
     Msg := Preferences.LoadStr(413);
   if (MsgBox(Msg, Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES) then
     for I := FPartitions.Items.Count - 1 downto 0 do
-      if (FPartitions.Items.Item[I].Selected) then
+      if (FPartitions.Items[I].Selected) then
         NewTable.Partitions.DeletePartition(NewTable.Partitions.Partition[I]);
 
   FPartitionsRefresh(Sender);
@@ -756,9 +756,9 @@ begin
   FFields.Items.Clear();
   TSFieldsShow(Sender);
   for I := 0 to FFields.Items.Count - 1 do
-    if (FFields.Items.Item[I].Caption = SelectedField) then
+    if (FFields.Items[I].Caption = SelectedField) then
     begin
-      FFields.Selected := FFields.Items.Item[I];
+      FFields.Selected := FFields.Items[I];
       FFields.ItemFocused := FFields.Selected;
 
       if (Assigned(FFields.ItemFocused) and (FFields.ItemFocused.Position.Y > FFields.ClientHeight)) then
@@ -793,9 +793,9 @@ begin
   FForeignKeys.Items.Clear();
   TSForeignKeysShow(Sender);
   for I := 0 to FForeignKeys.Items.Count - 1 do
-    if (FForeignKeys.Items.Item[I].Caption = SelectedField) then
+    if (FForeignKeys.Items[I].Caption = SelectedField) then
     begin
-      FForeignKeys.Selected := FForeignKeys.Items.Item[I];
+      FForeignKeys.Selected := FForeignKeys.Items[I];
       FForeignKeys.ItemFocused := FForeignKeys.Selected;
 
       if (Assigned(FForeignKeys.ItemFocused) and (FForeignKeys.ItemFocused.Position.Y > FForeignKeys.ClientHeight)) then
@@ -828,9 +828,9 @@ begin
   FKeys.Items.Clear();
   TSKeysShow(Sender);
   for I := 0 to FKeys.Items.Count - 1 do
-    if (FKeys.Items.Item[I].Caption = SelectedField) then
+    if (FKeys.Items[I].Caption = SelectedField) then
     begin
-      FKeys.Selected := FKeys.Items.Item[I];
+      FKeys.Selected := FKeys.Items[I];
       FKeys.ItemFocused := FKeys.Selected;
 
       if (Assigned(FKeys.ItemFocused) and (FKeys.ItemFocused.Position.Y > FKeys.ClientHeight)) then
@@ -1238,9 +1238,9 @@ begin
     end;
 
   for I := 0 to FPartitions.Items.Count - 1 do
-    if (FPartitions.Items.Item[I].Caption = SelectedPartition) then
+    if (FPartitions.Items[I].Caption = SelectedPartition) then
     begin
-      FPartitions.Selected := FPartitions.Items.Item[I];
+      FPartitions.Selected := FPartitions.Items[I];
       FPartitions.ItemFocused := FPartitions.Selected;
 
       if (Assigned(FPartitions.ItemFocused) and (FPartitions.ItemFocused.Position.Y > FPartitions.ClientHeight)) then

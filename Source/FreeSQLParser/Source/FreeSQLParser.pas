@@ -20,6 +20,8 @@ type
     type
       TCreateTableIndexAdd = (iaAdd, iaCreate, iaNone);
       TIntegerArray = array of Integer;
+      POffsetArray = ^TOffsetArray;
+      TOffsetArray = array [0..$FFFF] of TOffset;
       TParseFunction = function(): TOffset of object;
       TTableOptionNodes = packed record
         AutoIncrementValue: TOffset;
@@ -275,7 +277,7 @@ type
         function GetLastToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
         function GetOffset(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
         function GetParentNode(): PNode; {$IFNDEF Debug} inline; {$ENDIF}
-        procedure AddChild(const AChild: TOffset);
+        procedure AddChildren(const Children: POffsetArray; const Count: Integer);
         property Offset: TOffset read GetOffset;
         property Parser: TMySQLParser read Heritage.Heritage.FParser;
       public
@@ -1115,9 +1117,9 @@ type
             SymbolIdent: TOffset;
             KeyTag: TOffset;
             KeyIdent: TOffset;
+            IndexTypeTag: TOffset;
             ColumnIdentList: TOffset;
             KeyBlockSizeValue: TOffset;
-            IndexTypeTag: TOffset;
             ParserValue: TOffset;
             CommentValue: TOffset;
           end;
@@ -2662,7 +2664,7 @@ type
         private
           Heritage: TRange;
         private
-          FNodes: TNodes;
+          Nodes: TNodes;
           class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
         public
           property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
@@ -3736,7 +3738,7 @@ type
       private
         Heritage: TStmt;
       private
-        FNodes: TNodes;
+        Nodes: TNodes;
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
@@ -4091,7 +4093,6 @@ type
           KeywordToken4: TOffset;
           KeywordToken5: TOffset;
           KeywordToken6: TOffset;
-          KeywordToken7: TOffset;
         end;
       private
         Heritage: TRange;
@@ -5112,7 +5113,7 @@ type
     function ParseKeyword(): TOffset;
     function ParseKillStmt(): TOffset;
     function ParseLeaveStmt(): TOffset;
-    function ParseList(const Brackets: Boolean; const ParseElement: TParseFunction = nil; const DelimterType: TTokenType = ttComma): TOffset; overload;
+    function ParseList(const Brackets: Boolean; const ParseElement: TParseFunction; const DelimterType: TTokenType = ttComma): TOffset; overload;
     function ParseLoadDataStmt(): TOffset;
     function ParseLoadStmt(): TOffset;
     function ParseLoadXMLStmt(): TOffset;
@@ -5221,7 +5222,7 @@ type
     function ParseTag(const KeywordIndex1: TWordList.TIndex;
       const KeywordIndex2: TWordList.TIndex = -1; const KeywordIndex3: TWordList.TIndex = -1;
       const KeywordIndex4: TWordList.TIndex = -1; const KeywordIndex5: TWordList.TIndex = -1;
-      const KeywordIndex6: TWordList.TIndex = -1; const KeywordIndex7: TWordList.TIndex = -1): TOffset;
+      const KeywordIndex6: TWordList.TIndex = -1): TOffset;
     function ParseToken(): TOffset;
     function ParseTriggerIdent(): TOffset;
     function ParseSetTransactionStmtCharacterisic(): TOffset;
@@ -6022,22 +6023,22 @@ begin
   Result := PNode(Parser.NodePtr(FParentNode));
 end;
 
-procedure TMySQLParser.TRange.AddChild(const AChild: TOffset);
+procedure TMySQLParser.TRange.AddChildren(const Children: POffsetArray; const Count: Integer);
 var
   Child: PChild;
+  I: Integer;
 begin
-  Assert(AChild < Parser.ParsedNodes.UsedSize);
+  for I := 0 to Count - 1 do
+    if (Children^[I] > 0) then
+    begin
+      Child := Parser.ChildPtr(Children^[I]);
+      Child^.FParentNode := Offset;
 
-  if (AChild > 0) then
-  begin
-    Child := Parser.ChildPtr(AChild);
-    Child^.FParentNode := Offset;
-
-    if ((FFirstToken = 0) or (0 < Child^.FFirstToken) and (Child^.FFirstToken < FFirstToken)) then
-      FFirstToken := Child^.FFirstToken;
-    if ((FLastToken = 0) or (Child^.FLastToken > FLastToken)) then
-      FLastToken := Child^.FLastToken;
-  end;
+      if ((FFirstToken = 0) or (0 < Child^.FFirstToken) and (Child^.FFirstToken < FFirstToken)) then
+        FFirstToken := Child^.FFirstToken;
+      if ((FLastToken = 0) or (Child^.FLastToken > FLastToken)) then
+        FLastToken := Child^.FLastToken;
+    end;
 end;
 
 { TMySQLParser.TRoot **********************************************************}
@@ -6049,9 +6050,6 @@ class function TMySQLParser.TRoot.Create(const AParser: TMySQLParser;
 var
   I: Integer;
 begin
-  Assert(AFirstTokenAll > 0);
-  Assert(ALastTokenAll > 0);
-
   Result := TNode.Create(AParser, ntRoot);
 
   with PRoot(AParser.NodePtr(Result))^ do
@@ -6247,10 +6245,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.NoWriteToBinlogTag);
-    Heritage.Heritage.AddChild(ANodes.TableTag);
-    Heritage.Heritage.AddChild(ANodes.TablesList);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6264,11 +6259,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.IdentTag);
-    Heritage.Heritage.AddChild(ANodes.CharacterSetValue);
-    Heritage.Heritage.AddChild(ANodes.CollateValue);
-    Heritage.Heritage.AddChild(ANodes.UpgradeDataDirectoryNameTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6282,18 +6273,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.AlterTag);
-    Heritage.Heritage.AddChild(ANodes.DefinerNode);
-    Heritage.Heritage.AddChild(ANodes.EventTag);
-    Heritage.Heritage.AddChild(ANodes.EventIdent);
-    Heritage.Heritage.AddChild(ANodes.OnSchedule.Tag);
-    Heritage.Heritage.AddChild(ANodes.OnSchedule.Value);
-    Heritage.Heritage.AddChild(ANodes.OnCompletitionTag);
-    Heritage.Heritage.AddChild(ANodes.RenameValue);
-    Heritage.Heritage.AddChild(ANodes.EnableTag);
-    Heritage.Heritage.AddChild(ANodes.CommentValue);
-    Heritage.Heritage.AddChild(ANodes.DoTag);
-    Heritage.Heritage.AddChild(ANodes.Body);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6307,8 +6287,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.RotateTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6323,9 +6302,7 @@ begin
     Nodes := ANodes;
     FRoutineType := ARoutineType;
 
-    Heritage.Heritage.AddChild(ANodes.AlterTag);
-    Heritage.Heritage.AddChild(ANodes.Ident);
-    Heritage.Heritage.AddChild(ANodes.CharacteristicList);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6339,10 +6316,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.Ident);
-    Heritage.Heritage.AddChild(ANodes.Options.Tag);
-    Heritage.Heritage.AddChild(ANodes.Options.List);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6356,10 +6330,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.AlterTag);
-    Heritage.AddChild(ANodes.ColumnIdent);
-    Heritage.AddChild(ANodes.SetDefaultValue);
-    Heritage.AddChild(ANodes.DropDefaultTag);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6373,9 +6344,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.ConvertToTag);
-    Heritage.AddChild(ANodes.CharacterSetValue);
-    Heritage.AddChild(ANodes.CollateValue);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6389,9 +6358,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.DropTag);
-    Heritage.AddChild(ANodes.ItemTypeTag);
-    Heritage.AddChild(ANodes.Ident);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6405,10 +6372,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.ExchangePartitionTag);
-    Heritage.AddChild(ANodes.PartitionIdent);
-    Heritage.AddChild(ANodes.WithTableTag);
-    Heritage.AddChild(ANodes.TableIdent);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6422,10 +6386,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.ReorganizePartitionTag);
-    Heritage.AddChild(ANodes.PartitionIdentList);
-    Heritage.AddChild(ANodes.IntoTag);
-    Heritage.AddChild(ANodes.PartitionList);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6439,20 +6400,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.AlterTag);
-    Heritage.Heritage.AddChild(ANodes.IgnoreTag);
-    Heritage.Heritage.AddChild(ANodes.TableTag);
-    Heritage.Heritage.AddChild(ANodes.Ident);
-    Heritage.Heritage.AddChild(ANodes.SpecificationList);
-    Heritage.Heritage.AddChild(ANodes.AlgorithmValue);
-    Heritage.Heritage.AddChild(ANodes.ConvertToCharacterSetNode);
-    Heritage.Heritage.AddChild(ANodes.DiscardTablespaceTag);
-    Heritage.Heritage.AddChild(ANodes.EnableKeys);
-    Heritage.Heritage.AddChild(ANodes.ForceTag);
-    Heritage.Heritage.AddChild(ANodes.ImportTablespaceTag);
-    Heritage.Heritage.AddChild(ANodes.LockValue);
-    Heritage.Heritage.AddChild(ANodes.OrderByValue);
-    Heritage.Heritage.AddChild(ANodes.RenameNode);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6466,16 +6414,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.AlterTag);
-    Heritage.Heritage.AddChild(ANodes.AlgorithmValue);
-    Heritage.Heritage.AddChild(ANodes.DefinerNode);
-    Heritage.Heritage.AddChild(ANodes.SQLSecurityTag);
-    Heritage.Heritage.AddChild(ANodes.ViewTag);
-    Heritage.Heritage.AddChild(ANodes.Ident);
-    Heritage.Heritage.AddChild(ANodes.Columns);
-    Heritage.Heritage.AddChild(ANodes.AsTag);
-    Heritage.Heritage.AddChild(ANodes.SelectStmt);
-    Heritage.Heritage.AddChild(ANodes.OptionTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6489,8 +6428,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.BeginToken);
-    Heritage.AddChild(ANodes.ColonToken);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6504,7 +6442,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.BeginTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6520,9 +6458,7 @@ begin
     Nodes.Operand1 := AOperand1;
     Nodes.Operand2 := AOperand2;
 
-    Heritage.AddChild(AOperator);
-    Heritage.AddChild(AOperand1);
-    Heritage.AddChild(AOperand2);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6556,12 +6492,7 @@ begin
     Nodes.AndToken := AAndToken;
     Nodes.Max := AMax;
 
-    Heritage.AddChild(AExpr);
-    Heritage.AddChild(ANotToken);
-    Heritage.AddChild(ABetweenToken);
-    Heritage.AddChild(AMin);
-    Heritage.AddChild(AAndToken);
-    Heritage.AddChild(AMax);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6575,9 +6506,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.CallTag);
-    Heritage.Heritage.AddChild(ANodes.ProcedureIdent);
-    Heritage.Heritage.AddChild(ANodes.ParamList);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6591,10 +6520,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.WhenTag);
-    Heritage.AddChild(ANodes.CondExpr);
-    Heritage.AddChild(ANodes.ThenTag);
-    Heritage.AddChild(ANodes.ResultExpr);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6608,12 +6534,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.CaseTag);
-    Heritage.AddChild(ANodes.CompareExpr);
-    Heritage.AddChild(ANodes.BranchList);
-    Heritage.AddChild(ANodes.ElseTag);
-    Heritage.AddChild(ANodes.ElseExpr);
-    Heritage.AddChild(ANodes.EndTag);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6627,10 +6548,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.CaseTag);
-    Heritage.Heritage.AddChild(ANodes.CompareExpr);
-    Heritage.Heritage.AddChild(ANodes.BranchList);
-    Heritage.Heritage.AddChild(ANodes.EndTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6644,10 +6562,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.Tag);
-    Heritage.AddChild(ANodes.ConditionExpr);
-    Heritage.AddChild(ANodes.ThenTag);
-    Heritage.AddChild(ANodes.StmtList);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6661,12 +6576,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.FuncToken);
-    Heritage.AddChild(ANodes.OpenBracket);
-    Heritage.AddChild(ANodes.Expr);
-    Heritage.AddChild(ANodes.AsTag);
-    Heritage.AddChild(ANodes.DataType);
-    Heritage.AddChild(ANodes.CloseBracket);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6680,12 +6590,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.FuncToken);
-    Heritage.AddChild(ANodes.OpenBracket);
-    Heritage.AddChild(ANodes.ValueExpr);
-    Heritage.AddChild(ANodes.UsingTag);
-    Heritage.AddChild(ANodes.CharsetIdent);
-    Heritage.AddChild(ANodes.CloseBracket);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6699,9 +6604,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.TablesList);
-    Heritage.Heritage.AddChild(ANodes.OptionList);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6715,7 +6618,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.OptionTag);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6729,9 +6632,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.TablesList);
-    Heritage.Heritage.AddChild(ANodes.OptionTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6745,8 +6646,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.CloseTag);
-    Heritage.Heritage.AddChild(ANodes.CursorIdent);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6760,9 +6660,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.ChainTag);
-    Heritage.Heritage.AddChild(ANodes.ReleaseTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6776,11 +6674,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.BeginLabel);
-    Heritage.Heritage.AddChild(ANodes.BeginTag);
-    Heritage.Heritage.AddChild(ANodes.StmtList);
-    Heritage.Heritage.AddChild(ANodes.EndTag);
-    Heritage.Heritage.AddChild(ANodes.EndLabel);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6794,14 +6688,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.FuncToken);
-    Heritage.AddChild(ANodes.OpenBracket);
-    Heritage.AddChild(ANodes.Expr);
-    Heritage.AddChild(ANodes.Comma);
-    Heritage.AddChild(ANodes.DataType);
-    Heritage.AddChild(ANodes.UsingTag);
-    Heritage.AddChild(ANodes.CharsetIdent);
-    Heritage.AddChild(ANodes.CloseBracket);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6815,12 +6702,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.CreateTag);
-    Heritage.Heritage.AddChild(ANodes.DatabaseTag);
-    Heritage.Heritage.AddChild(ANodes.IfNotExistsTag);
-    Heritage.Heritage.AddChild(ANodes.DatabaseIdent);
-    Heritage.Heritage.AddChild(ANodes.CharacterSetValue);
-    Heritage.Heritage.AddChild(ANodes.CollateValue);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6834,17 +6716,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.CreateTag);
-    Heritage.Heritage.AddChild(ANodes.DefinerNode);
-    Heritage.Heritage.AddChild(ANodes.EventTag);
-    Heritage.Heritage.AddChild(ANodes.IfNotExistsTag);
-    Heritage.Heritage.AddChild(ANodes.EventIdent);
-    Heritage.Heritage.AddChild(ANodes.OnScheduleValue);
-    Heritage.Heritage.AddChild(ANodes.OnCompletitionTag);
-    Heritage.Heritage.AddChild(ANodes.EnableTag);
-    Heritage.Heritage.AddChild(ANodes.CommentValue);
-    Heritage.Heritage.AddChild(ANodes.DoTag);
-    Heritage.Heritage.AddChild(ANodes.Body);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6858,18 +6730,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.CreateTag);
-    Heritage.Heritage.AddChild(ANodes.IndexTag);
-    Heritage.Heritage.AddChild(ANodes.IndexIdent);
-    Heritage.Heritage.AddChild(ANodes.OnTag);
-    Heritage.Heritage.AddChild(ANodes.TableIdent);
-    Heritage.Heritage.AddChild(ANodes.IndexTypeValue);
-    Heritage.Heritage.AddChild(ANodes.KeyColumnList);
-    Heritage.Heritage.AddChild(ANodes.AlgorithmValue);
-    Heritage.Heritage.AddChild(ANodes.CommentValue);
-    Heritage.Heritage.AddChild(ANodes.KeyBlockSizeValue);
-    Heritage.Heritage.AddChild(ANodes.LockValue);
-    Heritage.Heritage.AddChild(ANodes.ParserValue);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6884,16 +6745,7 @@ begin
     Nodes := ANodes;
     FRoutineType := ARoutineType;
 
-    Heritage.Heritage.AddChild(ANodes.CreateTag);
-    Heritage.Heritage.AddChild(ANodes.DefinerNode);
-    Heritage.Heritage.AddChild(ANodes.RoutineTag);
-    Heritage.Heritage.AddChild(ANodes.Ident);
-    Heritage.Heritage.AddChild(ANodes.OpenBracket);
-    Heritage.Heritage.AddChild(ANodes.ParameterList);
-    Heritage.Heritage.AddChild(ANodes.CloseBracket);
-    Heritage.Heritage.AddChild(ANodes.Returns);
-    Heritage.Heritage.AddChild(ANodes.CharacteristicList);
-    Heritage.Heritage.AddChild(ANodes.Body);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6907,12 +6759,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.CreateTag);
-    Heritage.Heritage.AddChild(ANodes.ServerTag);
-    Heritage.Heritage.AddChild(ANodes.Ident);
-    Heritage.Heritage.AddChild(ANodes.ForeignDataWrapperValue);
-    Heritage.Heritage.AddChild(ANodes.Options.Tag);
-    Heritage.Heritage.AddChild(ANodes.Options.List);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6926,57 +6773,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.CreateTag);
-    Heritage.Heritage.AddChild(ANodes.TemporaryTag);
-    Heritage.Heritage.AddChild(ANodes.TableTag);
-    Heritage.Heritage.AddChild(ANodes.IfNotExistsTag);
-    Heritage.Heritage.AddChild(ANodes.TableIdent);
-    Heritage.Heritage.AddChild(ANodes.OpenBracket);
-    Heritage.Heritage.AddChild(ANodes.DefinitionList);
-    Heritage.Heritage.AddChild(ANodes.TableOptionsNodes.AutoIncrementValue);
-    Heritage.Heritage.AddChild(ANodes.TableOptionsNodes.AvgRowLengthValue);
-    Heritage.Heritage.AddChild(ANodes.TableOptionsNodes.CharacterSetValue);
-    Heritage.Heritage.AddChild(ANodes.TableOptionsNodes.CollateValue);
-    Heritage.Heritage.AddChild(ANodes.TableOptionsNodes.ChecksumValue);
-    Heritage.Heritage.AddChild(ANodes.TableOptionsNodes.CommentValue);
-    Heritage.Heritage.AddChild(ANodes.TableOptionsNodes.CompressValue);
-    Heritage.Heritage.AddChild(ANodes.TableOptionsNodes.ConnectionValue);
-    Heritage.Heritage.AddChild(ANodes.TableOptionsNodes.DataDirectoryValue);
-    Heritage.Heritage.AddChild(ANodes.TableOptionsNodes.DelayKeyWriteValue);
-    Heritage.Heritage.AddChild(ANodes.TableOptionsNodes.EngineValue);
-    Heritage.Heritage.AddChild(ANodes.TableOptionsNodes.IndexDirectoryValue);
-    Heritage.Heritage.AddChild(ANodes.TableOptionsNodes.InsertMethodValue);
-    Heritage.Heritage.AddChild(ANodes.TableOptionsNodes.KeyBlockSizeValue);
-    Heritage.Heritage.AddChild(ANodes.TableOptionsNodes.MaxRowsValue);
-    Heritage.Heritage.AddChild(ANodes.TableOptionsNodes.MinRowsValue);
-    Heritage.Heritage.AddChild(ANodes.TableOptionsNodes.PackKeysValue);
-    Heritage.Heritage.AddChild(ANodes.TableOptionsNodes.PageChecksum);
-    Heritage.Heritage.AddChild(ANodes.TableOptionsNodes.PasswordValue);
-    Heritage.Heritage.AddChild(ANodes.TableOptionsNodes.RowFormatValue);
-    Heritage.Heritage.AddChild(ANodes.TableOptionsNodes.StatsAutoRecalcValue);
-    Heritage.Heritage.AddChild(ANodes.TableOptionsNodes.StatsPersistentValue);
-    Heritage.Heritage.AddChild(ANodes.TableOptionsNodes.UnionList);
-    Heritage.Heritage.AddChild(ANodes.PartitionOption.Tag);
-    Heritage.Heritage.AddChild(ANodes.PartitionOption.KindTag);
-    Heritage.Heritage.AddChild(ANodes.PartitionOption.AlgorithmValue);
-    Heritage.Heritage.AddChild(ANodes.PartitionOption.Expr);
-    Heritage.Heritage.AddChild(ANodes.PartitionOption.Columns.Tag);
-    Heritage.Heritage.AddChild(ANodes.PartitionOption.Columns.List);
-    Heritage.Heritage.AddChild(ANodes.PartitionOption.Value);
-    Heritage.Heritage.AddChild(ANodes.PartitionOption.SubPartition.Tag);
-    Heritage.Heritage.AddChild(ANodes.PartitionOption.SubPartition.KindTag);
-    Heritage.Heritage.AddChild(ANodes.PartitionOption.SubPartition.Expr);
-    Heritage.Heritage.AddChild(ANodes.PartitionOption.SubPartition.AlgorithmValue);
-    Heritage.Heritage.AddChild(ANodes.PartitionOption.SubPartition.ColumnList);
-    Heritage.Heritage.AddChild(ANodes.PartitionOption.SubPartition.Value);
-    Heritage.Heritage.AddChild(ANodes.PartitionDefinitionList);
-    Heritage.Heritage.AddChild(ANodes.LikeTag);
-    Heritage.Heritage.AddChild(ANodes.LikeTableIdent);
-    Heritage.Heritage.AddChild(ANodes.SelectStmt1);
-    Heritage.Heritage.AddChild(ANodes.CloseBracket);
-    Heritage.Heritage.AddChild(ANodes.IgnoreReplaceTag);
-    Heritage.Heritage.AddChild(ANodes.AsTag);
-    Heritage.Heritage.AddChild(ANodes.SelectStmt2);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -6990,24 +6787,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.AddTag);
-    Heritage.AddChild(ANodes.ColumnTag);
-    Heritage.AddChild(ANodes.OldNameIdent);
-    Heritage.AddChild(ANodes.NameIdent);
-    Heritage.AddChild(ANodes.DataTypeNode);
-    Heritage.AddChild(ANodes.Real.DefaultValue);
-    Heritage.AddChild(ANodes.Real.OnUpdateTag);
-    Heritage.AddChild(ANodes.Real.AutoIncrementTag);
-    Heritage.AddChild(ANodes.Real.ColumnFormat);
-    Heritage.AddChild(ANodes.Real.StorageTag);
-    Heritage.AddChild(ANodes.Virtual.GernatedAlwaysTag);
-    Heritage.AddChild(ANodes.Virtual.AsTag);
-    Heritage.AddChild(ANodes.Virtual.Expr);
-    Heritage.AddChild(ANodes.Virtual.Virtual);
-    Heritage.AddChild(ANodes.NullTag);
-    Heritage.AddChild(ANodes.KeyTag);
-    Heritage.AddChild(ANodes.CommentValue);
-    Heritage.AddChild(ANodes.Position);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7021,18 +6801,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.AddTag);
-    Heritage.AddChild(ANodes.ConstraintTag);
-    Heritage.AddChild(ANodes.SymbolIdent);
-    Heritage.AddChild(ANodes.ForeignKeyTag);
-    Heritage.AddChild(ANodes.NameIdent);
-    Heritage.AddChild(ANodes.ColumnNameList);
-    Heritage.AddChild(ANodes.ReferencesTag);
-    Heritage.AddChild(ANodes.ParentTableIdent);
-    Heritage.AddChild(ANodes.IndicesList);
-    Heritage.AddChild(ANodes.MatchValue);
-    Heritage.AddChild(ANodes.OnDeleteValue);
-    Heritage.AddChild(ANodes.OnUpdateValue);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7046,16 +6815,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.AddTag);
-    Heritage.AddChild(ANodes.ConstraintTag);
-    Heritage.AddChild(ANodes.SymbolIdent);
-    Heritage.AddChild(ANodes.KeyTag);
-    Heritage.AddChild(ANodes.KeyIdent);
-    Heritage.AddChild(ANodes.ColumnIdentList);
-    Heritage.AddChild(ANodes.KeyBlockSizeValue);
-    Heritage.AddChild(ANodes.IndexTypeTag);
-    Heritage.AddChild(ANodes.ParserValue);
-    Heritage.AddChild(ANodes.CommentValue);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7069,11 +6829,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.IdentTag);
-    Heritage.AddChild(ANodes.OpenBracket);
-    Heritage.AddChild(ANodes.LengthToken);
-    Heritage.AddChild(ANodes.CloseBracket);
-    Heritage.AddChild(ANodes.SortTag);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7087,17 +6843,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.AddTag);
-    Heritage.AddChild(ANodes.PartitionTag);
-    Heritage.AddChild(ANodes.NameIdent);
-    Heritage.AddChild(ANodes.ValuesNode);
-    Heritage.AddChild(ANodes.EngineValue);
-    Heritage.AddChild(ANodes.CommentValue);
-    Heritage.AddChild(ANodes.DataDirectoryValue);
-    Heritage.AddChild(ANodes.IndexDirectoryValue);
-    Heritage.AddChild(ANodes.MaxRowsValue);
-    Heritage.AddChild(ANodes.MinRowsValue);
-    Heritage.AddChild(ANodes.SubPartitionList);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7111,8 +6857,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.ValuesTag);
-    Heritage.AddChild(ANodes.Value);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7126,16 +6871,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.CreateTag);
-    Heritage.Heritage.AddChild(ANodes.DefinerNode);
-    Heritage.Heritage.AddChild(ANodes.TriggerTag);
-    Heritage.Heritage.AddChild(ANodes.TriggerIdent);
-    Heritage.Heritage.AddChild(ANodes.ActionValue);
-    Heritage.Heritage.AddChild(ANodes.OnTag);
-    Heritage.Heritage.AddChild(ANodes.TableIdentNode);
-    Heritage.Heritage.AddChild(ANodes.ForEachRowTag);
-    Heritage.Heritage.AddChild(ANodes.OrderValue);
-    Heritage.Heritage.AddChild(ANodes.Body);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7149,15 +6885,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.CreateTag);
-    Heritage.Heritage.AddChild(ANodes.IfTag);
-    Heritage.Heritage.AddChild(ANodes.UserSpecifications);
-    Heritage.Heritage.AddChild(ANodes.WithTag);
-    Heritage.Heritage.AddChild(ANodes.ResourcesList);
-    Heritage.Heritage.AddChild(ANodes.PasswordOption);
-    Heritage.Heritage.AddChild(ANodes.PasswordDays);
-    Heritage.Heritage.AddChild(ANodes.DayTag);
-    Heritage.Heritage.AddChild(ANodes.AccountTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7171,17 +6899,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.CreateTag);
-    Heritage.Heritage.AddChild(ANodes.OrReplaceTag);
-    Heritage.Heritage.AddChild(ANodes.AlgorithmValue);
-    Heritage.Heritage.AddChild(ANodes.DefinerNode);
-    Heritage.Heritage.AddChild(ANodes.SQLSecurityTag);
-    Heritage.Heritage.AddChild(ANodes.ViewTag);
-    Heritage.Heritage.AddChild(ANodes.Ident);
-    Heritage.Heritage.AddChild(ANodes.ColumnList);
-    Heritage.Heritage.AddChild(ANodes.AsTag);
-    Heritage.Heritage.AddChild(ANodes.SelectStmt);
-    Heritage.Heritage.AddChild(ANodes.OptionTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7195,10 +6913,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.CurrentTimestampTag);
-    Heritage.AddChild(ANodes.OpenBracket);
-    Heritage.AddChild(ANodes.LengthInteger);
-    Heritage.AddChild(ANodes.CloseBracket);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7212,21 +6927,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.NationalToken);
-    Heritage.AddChild(ANodes.SignedToken);
-    Heritage.AddChild(ANodes.TypeToken);
-    Heritage.AddChild(ANodes.OpenBracket);
-    Heritage.AddChild(ANodes.LengthToken);
-    Heritage.AddChild(ANodes.CommaToken);
-    Heritage.AddChild(ANodes.DecimalsToken);
-    Heritage.AddChild(ANodes.CloseBracket);
-    Heritage.AddChild(ANodes.ItemsList);
-    Heritage.AddChild(ANodes.ZerofillTag);
-    Heritage.AddChild(ANodes.CharacterSetValue);
-    Heritage.AddChild(ANodes.CollateValue);
-    Heritage.AddChild(ANodes.BinaryToken);
-    Heritage.AddChild(ANodes.ASCIIToken);
-    Heritage.AddChild(ANodes.UnicodeTag);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7243,11 +6944,7 @@ begin
 
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.Ident);
-    Heritage.AddChild(ANodes.DatabaseDot);
-    Heritage.AddChild(ANodes.DatabaseIdent);
-    Heritage.AddChild(ANodes.TableDot);
-    Heritage.AddChild(ANodes.TableIdent);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7295,8 +6992,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.StmtIdent);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7310,12 +7006,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.IdentList);
-    Heritage.Heritage.AddChild(ANodes.TypeNode);
-    Heritage.Heritage.AddChild(ANodes.DefaultValue);
-    Heritage.Heritage.AddChild(ANodes.CursorForTag);
-    Heritage.Heritage.AddChild(ANodes.SelectStmt);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7329,13 +7020,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.Ident);
-    Heritage.Heritage.AddChild(ANodes.ConditionTag);
-    Heritage.Heritage.AddChild(ANodes.ForTag);
-    Heritage.Heritage.AddChild(ANodes.ErrorCode);
-    Heritage.Heritage.AddChild(ANodes.SQLStateTag);
-    Heritage.Heritage.AddChild(ANodes.ErrorString);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7349,11 +7034,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.Ident);
-    Heritage.Heritage.AddChild(ANodes.CursorTag);
-    Heritage.Heritage.AddChild(ANodes.ForTag);
-    Heritage.Heritage.AddChild(ANodes.SelectStmt);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7367,12 +7048,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.ActionTag);
-    Heritage.Heritage.AddChild(ANodes.HandlerTag);
-    Heritage.Heritage.AddChild(ANodes.ForTag);
-    Heritage.Heritage.AddChild(ANodes.ConditionsList);
-    Heritage.Heritage.AddChild(ANodes.Stmt);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7386,12 +7062,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.ErrorCode);
-    Heritage.AddChild(ANodes.SQLStateTag);
-    Heritage.AddChild(ANodes.ConditionIdent);
-    Heritage.AddChild(ANodes.SQLWarningsTag);
-    Heritage.AddChild(ANodes.NotFoundTag);
-    Heritage.AddChild(ANodes.SQLExceptionTag);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7405,21 +7076,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.DeleteTag);
-    Heritage.Heritage.AddChild(ANodes.LowPriorityTag);
-    Heritage.Heritage.AddChild(ANodes.QuickTag);
-    Heritage.Heritage.AddChild(ANodes.IgnoreTag);
-    Heritage.Heritage.AddChild(ANodes.From.Tag);
-    Heritage.Heritage.AddChild(ANodes.From.List);
-    Heritage.Heritage.AddChild(ANodes.TableReferenceList);
-    Heritage.Heritage.AddChild(ANodes.Partition.Tag);
-    Heritage.Heritage.AddChild(ANodes.Partition.List);
-    Heritage.Heritage.AddChild(ANodes.Using.Tag);
-    Heritage.Heritage.AddChild(ANodes.Using.List);
-    Heritage.Heritage.AddChild(ANodes.WhereValue);
-    Heritage.Heritage.AddChild(ANodes.OrderBy.Tag);
-    Heritage.Heritage.AddChild(ANodes.OrderBy.Expr);
-    Heritage.Heritage.AddChild(ANodes.LimitValue);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7433,8 +7090,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.DoTag);
-    Heritage.Heritage.AddChild(ANodes.ExprList);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7448,9 +7104,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.IfExistsTag);
-    Heritage.Heritage.AddChild(ANodes.DatabaseIdent);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7464,9 +7118,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.IfExistsTag);
-    Heritage.Heritage.AddChild(ANodes.EventIdent);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7480,12 +7132,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.IndexIdent);
-    Heritage.Heritage.AddChild(ANodes.OnTag);
-    Heritage.Heritage.AddChild(ANodes.TableIdent);
-    Heritage.Heritage.AddChild(ANodes.AlgorithmValue);
-    Heritage.Heritage.AddChild(ANodes.LockValue);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7500,9 +7147,7 @@ begin
     Nodes := ANodes;
     FRoutineType := ARoutineType;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.IfExistsTag);
-    Heritage.Heritage.AddChild(ANodes.RoutineIdent);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7516,9 +7161,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.IfExistsTag);
-    Heritage.Heritage.AddChild(ANodes.ServerIdent);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7532,10 +7175,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.IfExistsTag);
-    Heritage.Heritage.AddChild(ANodes.TableIdentList);
-    Heritage.Heritage.AddChild(ANodes.RestrictCascadeTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7549,9 +7189,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.IfExistsTag);
-    Heritage.Heritage.AddChild(ANodes.TriggerIdent);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7565,9 +7203,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.IfExistsTag);
-    Heritage.Heritage.AddChild(ANodes.UserList);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7581,10 +7217,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.IfExistsTag);
-    Heritage.Heritage.AddChild(ANodes.ViewIdentList);
-    Heritage.Heritage.AddChild(ANodes.RestrictCascadeTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7598,7 +7231,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.LabelToken);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7612,10 +7245,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.StmtVariable);
-    Heritage.Heritage.AddChild(ANodes.UsingTag);
-    Heritage.Heritage.AddChild(ANodes.VariableIdents);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7629,10 +7259,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.FuncToken);
-    Heritage.AddChild(ANodes.OpenBracket);
-    Heritage.AddChild(ANodes.SubQuery);
-    Heritage.AddChild(ANodes.CloseBracket);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7646,13 +7273,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.TableIdent);
-    Heritage.Heritage.AddChild(ANodes.ColumnIdent);
-    Heritage.Heritage.AddChild(ANodes.ExplainType);
-    Heritage.Heritage.AddChild(ANodes.AssignToken);
-    Heritage.Heritage.AddChild(ANodes.FormatKeyword);
-    Heritage.Heritage.AddChild(ANodes.ExplainStmt);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7666,12 +7287,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.FuncToken);
-    Heritage.AddChild(ANodes.OpenBracket);
-    Heritage.AddChild(ANodes.UnitTag);
-    Heritage.AddChild(ANodes.FromTag);
-    Heritage.AddChild(ANodes.DateExpr);
-    Heritage.AddChild(ANodes.CloseBracket);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7685,11 +7301,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.FromTag);
-    Heritage.Heritage.AddChild(ANodes.CursorIdent);
-    Heritage.Heritage.AddChild(ANodes.IntoTag);
-    Heritage.Heritage.AddChild(ANodes.VariableList);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7703,9 +7315,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.NoWriteToBinLogTag);
-    Heritage.Heritage.AddChild(ANodes.OptionList);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7719,8 +7329,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.OptionTag);
-    Heritage.AddChild(ANodes.TablesList);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7744,8 +7353,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.Ident);
-    Heritage.AddChild(ANodes.ArgumentsList);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7769,9 +7377,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.ReturnsTag);
-    Heritage.AddChild(ANodes.DataTypeNode);
-    Heritage.AddChild(ANodes.CharsetValue);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7785,12 +7391,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.ScopeTag);
-    Heritage.Heritage.AddChild(ANodes.DiagnosticsTag);
-    Heritage.Heritage.AddChild(ANodes.ConditionTag);
-    Heritage.Heritage.AddChild(ANodes.ConditionNumber);
-    Heritage.Heritage.AddChild(ANodes.InfoList);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7804,9 +7405,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.Target);
-    Heritage.AddChild(ANodes.EqualOp);
-    Heritage.AddChild(ANodes.ItemTag);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7820,9 +7419,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.Target);
-    Heritage.AddChild(ANodes.EqualOp);
-    Heritage.AddChild(ANodes.ItemTag);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7836,16 +7433,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.PrivilegesList);
-    Heritage.Heritage.AddChild(ANodes.OnTag);
-    Heritage.Heritage.AddChild(ANodes.OnUser);
-    Heritage.Heritage.AddChild(ANodes.ObjectValue);
-    Heritage.Heritage.AddChild(ANodes.ToTag);
-    Heritage.Heritage.AddChild(ANodes.UserSpecifications);
-    Heritage.Heritage.AddChild(ANodes.RequireTag);
-    Heritage.Heritage.AddChild(ANodes.WithTag);
-    Heritage.Heritage.AddChild(ANodes.ResourcesList);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7859,8 +7447,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.PrivilegTag);
-    Heritage.AddChild(ANodes.ColumnList);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7874,11 +7461,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.UserIdent);
-    Heritage.AddChild(ANodes.IdentifiedToken);
-    Heritage.AddChild(ANodes.PluginIdent);
-    Heritage.AddChild(ANodes.AsToken);
-    Heritage.AddChild(ANodes.AuthString);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7892,14 +7475,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.FuncToken);
-    Heritage.AddChild(ANodes.OpenBracket);
-    Heritage.AddChild(ANodes.DistinctTag);
-    Heritage.AddChild(ANodes.ExprList);
-    Heritage.AddChild(ANodes.OrderByTag);
-    Heritage.AddChild(ANodes.OrderByExprList);
-    Heritage.AddChild(ANodes.SeparatorValue);
-    Heritage.AddChild(ANodes.CloseBracket);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7913,8 +7489,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.Expr);
-    Heritage.AddChild(ANodes.Direction);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7928,8 +7503,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.HelpString);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7943,10 +7517,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.Tag);
-    Heritage.AddChild(ANodes.ConditionExpr);
-    Heritage.AddChild(ANodes.ThenTag);
-    Heritage.AddChild(ANodes.StmtList);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7960,8 +7531,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.BranchList);
-    Heritage.Heritage.AddChild(ANodes.EndTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7975,9 +7545,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.IgnoreTag);
-    Heritage.AddChild(ANodes.NumberToken);
-    Heritage.AddChild(ANodes.LinesTag);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -7991,10 +7559,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.Operand);
-    Heritage.AddChild(ANodes.NotToken);
-    Heritage.AddChild(ANodes.InToken);
-    Heritage.AddChild(ANodes.List);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8008,21 +7573,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.InsertTag);
-    Heritage.Heritage.AddChild(ANodes.PriorityTag);
-    Heritage.Heritage.AddChild(ANodes.IgnoreTag);
-    Heritage.Heritage.AddChild(ANodes.IntoTag);
-    Heritage.Heritage.AddChild(ANodes.TableIdent);
-    Heritage.Heritage.AddChild(ANodes.Partition.Tag);
-    Heritage.Heritage.AddChild(ANodes.Partition.List);
-    Heritage.Heritage.AddChild(ANodes.ColumnList);
-    Heritage.Heritage.AddChild(ANodes.Values.Tag);
-    Heritage.Heritage.AddChild(ANodes.Values.List);
-    Heritage.Heritage.AddChild(ANodes.Set_.Tag);
-    Heritage.Heritage.AddChild(ANodes.Set_.List);
-    Heritage.Heritage.AddChild(ANodes.SelectStmt);
-    Heritage.Heritage.AddChild(ANodes.OnDuplicateKeyUpdateTag);
-    Heritage.Heritage.AddChild(ANodes.UpdateList);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8036,9 +7587,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.FieldToken);
-    Heritage.AddChild(ANodes.AssignToken);
-    Heritage.AddChild(ANodes.ValueNode);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8052,8 +7601,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.QuantityExp);
-    Heritage.AddChild(ANodes.UnitTag);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8067,9 +7615,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.PlusToken);
-    Heritage.AddChild(ANodes.IntervalTag);
-    Heritage.AddChild(ANodes.Interval);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8083,8 +7629,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.IterateToken);
-    Heritage.Heritage.AddChild(ANodes.LabelToken);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8098,8 +7643,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.ProcessIdToken);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8113,8 +7657,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.LabelToken);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8128,12 +7671,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.Operand1);
-    Heritage.AddChild(ANodes.NotToken);
-    Heritage.AddChild(ANodes.LikeToken);
-    Heritage.AddChild(ANodes.Operand2);
-    Heritage.AddChild(ANodes.EscapeToken);
-    Heritage.AddChild(ANodes.EscapeCharToken);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8162,10 +7700,9 @@ begin
     else
       FElementCount := (AChildrenCount - 1) div 2;
 
-    Heritage.AddChild(ANodes.OpenBracket);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
     for I := 0 to AChildrenCount - 1 do
-      Heritage.AddChild(AChildren[I]);
-    Heritage.AddChild(ANodes.CloseBracket);
+      Heritage.AddChildren(@AChildren[I], 1);
   end;
 end;
 
@@ -8184,24 +7721,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.LoadDataTag);
-    Heritage.Heritage.AddChild(ANodes.PriorityTag);
-    Heritage.Heritage.AddChild(ANodes.InfileTag);
-    Heritage.Heritage.AddChild(ANodes.FilenameString);
-    Heritage.Heritage.AddChild(ANodes.ReplaceIgnoreTag);
-    Heritage.Heritage.AddChild(ANodes.IntoTableValue);
-    Heritage.Heritage.AddChild(ANodes.PartitionValue);
-    Heritage.Heritage.AddChild(ANodes.CharacterSetValue);
-    Heritage.Heritage.AddChild(ANodes.ColumnsTag);
-    Heritage.Heritage.AddChild(ANodes.ColumnsTerminatedByValue);
-    Heritage.Heritage.AddChild(ANodes.EnclosedByValue);
-    Heritage.Heritage.AddChild(ANodes.EscapedByValue);
-    Heritage.Heritage.AddChild(ANodes.LinesTag);
-    Heritage.Heritage.AddChild(ANodes.StartingByValue);
-    Heritage.Heritage.AddChild(ANodes.LinesTerminatedByValue);
-    Heritage.Heritage.AddChild(ANodes.IgnoreLines);
-    Heritage.Heritage.AddChild(ANodes.ColumnList);
-    Heritage.Heritage.AddChild(ANodes.SetList);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8228,10 +7748,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.TableIdent);
-    Heritage.AddChild(ANodes.AsTag);
-    Heritage.AddChild(ANodes.AliasIdent);
-    Heritage.AddChild(ANodes.TypeTag);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8245,8 +7762,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.LockTablesTag);
-    Heritage.Heritage.AddChild(ANodes.ItemList);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8260,11 +7776,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.BeginLabel);
-    Heritage.Heritage.AddChild(ANodes.BeginTag);
-    Heritage.Heritage.AddChild(ANodes.StmtList);
-    Heritage.Heritage.AddChild(ANodes.EndTag);
-    Heritage.Heritage.AddChild(ANodes.EndLabel);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8278,13 +7790,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.FuncToken);
-    Heritage.AddChild(ANodes.MatchList);
-    Heritage.AddChild(ANodes.AgainstToken);
-    Heritage.AddChild(ANodes.OpenBracket);
-    Heritage.AddChild(ANodes.Expr);
-    Heritage.AddChild(ANodes.SearchModifierTag);
-    Heritage.AddChild(ANodes.CloseBracket);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8298,12 +7804,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.FuncToken);
-    Heritage.AddChild(ANodes.OpenBracket);
-    Heritage.AddChild(ANodes.SubStr);
-    Heritage.AddChild(ANodes.InTag);
-    Heritage.AddChild(ANodes.Str);
-    Heritage.AddChild(ANodes.CloseBracket);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8317,10 +7818,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.StmtIdent);
-    Heritage.Heritage.AddChild(ANodes.FromTag);
-    Heritage.Heritage.AddChild(ANodes.StmtVariable);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8334,10 +7832,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.TypeTag);
-    Heritage.Heritage.AddChild(ANodes.LogsTag);
-    Heritage.Heritage.AddChild(ANodes.Value);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8351,8 +7846,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.CursorIdent);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8366,10 +7860,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.OptionTag);
-    Heritage.Heritage.AddChild(ANodes.TableTag);
-    Heritage.Heritage.AddChild(ANodes.TablesList);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8383,8 +7874,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.RenameTag);
-    Heritage.Heritage.AddChild(ANodes.RenameList);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8398,9 +7888,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.OrgNode);
-    Heritage.AddChild(ANodes.ToTag);
-    Heritage.AddChild(ANodes.NewNode);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8414,10 +7902,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.Operand1);
-    Heritage.AddChild(ANodes.NotToken);
-    Heritage.AddChild(ANodes.RegExpToken);
-    Heritage.AddChild(ANodes.Operand2);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8431,8 +7916,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.ReleaseTag);
-    Heritage.Heritage.AddChild(ANodes.Ident);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8446,10 +7930,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.OptionTag);
-    Heritage.Heritage.AddChild(ANodes.TableTag);
-    Heritage.Heritage.AddChild(ANodes.TablesList);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8463,13 +7944,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.BeginLabel);
-    Heritage.Heritage.AddChild(ANodes.RepeatTag);
-    Heritage.Heritage.AddChild(ANodes.StmtList);
-    Heritage.Heritage.AddChild(ANodes.UntilTag);
-    Heritage.Heritage.AddChild(ANodes.SearchConditionExpr);
-    Heritage.Heritage.AddChild(ANodes.EndTag);
-    Heritage.Heritage.AddChild(ANodes.EndLabel);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8483,15 +7958,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.PrivilegesList);
-    Heritage.Heritage.AddChild(ANodes.CommaToken);
-    Heritage.Heritage.AddChild(ANodes.GrantOptionTag);
-    Heritage.Heritage.AddChild(ANodes.OnTag);
-    Heritage.Heritage.AddChild(ANodes.OnUser);
-    Heritage.Heritage.AddChild(ANodes.ObjectValue);
-    Heritage.Heritage.AddChild(ANodes.FromTag);
-    Heritage.Heritage.AddChild(ANodes.UserIdentList);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8505,8 +7972,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.OptionList);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8518,9 +7984,9 @@ begin
 
   with POption(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.OptionTag);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8534,8 +8000,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.Expr);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8549,10 +8014,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.RollbackTag);
-    Heritage.Heritage.AddChild(ANodes.ToValue);
-    Heritage.Heritage.AddChild(ANodes.ChainTag);
-    Heritage.Heritage.AddChild(ANodes.ReleaseTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8566,9 +8028,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.DirektionTag);
-    Heritage.AddChild(ANodes.IdentToken);
-    Heritage.AddChild(ANodes.DataTypeNode);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8582,8 +8042,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.SavepointTag);
-    Heritage.Heritage.AddChild(ANodes.Ident);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8597,9 +8056,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.OpenAngleBracket);
-    Heritage.AddChild(ANodes.ItemToken);
-    Heritage.AddChild(ANodes.CloseAngleBracket);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8613,9 +8070,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.Expr);
-    Heritage.AddChild(ANodes.AsToken);
-    Heritage.AddChild(ANodes.AliasIdent);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8629,9 +8084,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.KindTag);
-    Heritage.AddChild(ANodes.ForValue);
-    Heritage.AddChild(ANodes.IndexList);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8645,13 +8098,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.TableIdent);
-    Heritage.AddChild(ANodes.PartitionTag);
-    Heritage.AddChild(ANodes.Partitions);
-    Heritage.AddChild(ANodes.AsToken);
-    Heritage.AddChild(ANodes.AliasIdent);
-    Heritage.AddChild(ANodes.IndexHintList);
-    Heritage.AddChild(ANodes.SelectStmt);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8665,10 +8112,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.OpenBracket);
-    Heritage.AddChild(ANodes.OjTag);
-    Heritage.AddChild(ANodes.TableReference);
-    Heritage.AddChild(ANodes.CloseBracket);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8682,9 +8126,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.SelectStmt);
-    Heritage.AddChild(ANodes.AsToken);
-    Heritage.AddChild(ANodes.AliasIdent);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8700,10 +8142,7 @@ begin
 
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.JoinTag);
-    Heritage.AddChild(ANodes.RightTable);
-    Heritage.AddChild(ANodes.OnTag);
-    Heritage.AddChild(ANodes.Condition);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8717,8 +8156,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.Expr);
-    Heritage.AddChild(ANodes.Direction);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8732,13 +8170,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.IntoTag);
-    Heritage.AddChild(ANodes.Filename);
-    Heritage.AddChild(ANodes.CharacterSetValue);
-    Heritage.AddChild(ANodes.VariableList);
-    Heritage.AddChild(ANodes.FieldsTerminatedByValue);
-    Heritage.AddChild(ANodes.OptionallyEnclosedByValue);
-    Heritage.AddChild(ANodes.LinesTerminatedByValue);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8752,8 +8184,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.Expr);
-    Heritage.AddChild(ANodes.DirectionTag);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8767,53 +8198,13 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.SelectTag);
-    Heritage.Heritage.AddChild(ANodes.DistinctTag);
-    Heritage.Heritage.AddChild(ANodes.HighPriorityTag);
-    Heritage.Heritage.AddChild(ANodes.MaxStatementTime);
-    Heritage.Heritage.AddChild(ANodes.StraightJoinTag);
-    Heritage.Heritage.AddChild(ANodes.SQLSmallResultTag);
-    Heritage.Heritage.AddChild(ANodes.SQLBigResultTag);
-    Heritage.Heritage.AddChild(ANodes.SQLBufferResultTag);
-    Heritage.Heritage.AddChild(ANodes.SQLNoCacheTag);
-    Heritage.Heritage.AddChild(ANodes.SQLCalcFoundRowsTag);
-    Heritage.Heritage.AddChild(ANodes.ColumnsList);
-    Heritage.Heritage.AddChild(ANodes.Into1);
-    Heritage.Heritage.AddChild(ANodes.From.Tag);
-    Heritage.Heritage.AddChild(ANodes.Partition.Tag);
-    Heritage.Heritage.AddChild(ANodes.Partition.Ident);
-    Heritage.Heritage.AddChild(ANodes.From.Tag);
-    Heritage.Heritage.AddChild(ANodes.From.TableReferenceList);
-    Heritage.Heritage.AddChild(ANodes.Where.Tag);
-    Heritage.Heritage.AddChild(ANodes.Where.Expr);
-    Heritage.Heritage.AddChild(ANodes.GroupBy.Tag);
-    Heritage.Heritage.AddChild(ANodes.GroupBy.List);
-    Heritage.Heritage.AddChild(ANodes.GroupBy.WithRollupTag);
-    Heritage.Heritage.AddChild(ANodes.Having.Tag);
-    Heritage.Heritage.AddChild(ANodes.Having.Expr);
-    Heritage.Heritage.AddChild(ANodes.OrderBy.Tag);
-    Heritage.Heritage.AddChild(ANodes.OrderBy.Expr);
-    Heritage.Heritage.AddChild(ANodes.Limit.Tag);
-    Heritage.Heritage.AddChild(ANodes.Limit.OffsetTag);
-    Heritage.Heritage.AddChild(ANodes.Limit.OffsetToken);
-    Heritage.Heritage.AddChild(ANodes.Limit.CommaToken);
-    Heritage.Heritage.AddChild(ANodes.Limit.RowCountToken);
-    Heritage.Heritage.AddChild(ANodes.Proc.Tag);
-    Heritage.Heritage.AddChild(ANodes.Proc.Ident);
-    Heritage.Heritage.AddChild(ANodes.Proc.ParamList);
-    Heritage.Heritage.AddChild(ANodes.Into2);
-    Heritage.Heritage.AddChild(ANodes.ForUpdatesTag);
-    Heritage.Heritage.AddChild(ANodes.LockInShareMode);
-    Heritage.Heritage.AddChild(ANodes.Union.Tag);
-    Heritage.Heritage.AddChild(ANodes.Union.SelectStmt);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
 { TMySQLParser.TSchedule ******************************************************}
 
 class function TMySQLParser.TSchedule.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
-var
-  I: Integer;
 begin
   Result := TRange.Create(AParser, ntSchedule);
 
@@ -8821,20 +8212,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.At.Tag);
-    Heritage.AddChild(ANodes.At.Timestamp);
-    for I := 0 to Length(ANodes.At.IntervalList) - 1 do
-      Heritage.AddChild(ANodes.At.IntervalList[I]);
-    Heritage.AddChild(ANodes.Every.Tag);
-    Heritage.AddChild(ANodes.Every.Interval);
-    Heritage.AddChild(ANodes.Starts.Tag);
-    Heritage.AddChild(ANodes.Starts.Timestamp);
-    for I := 0 to Length(ANodes.Starts.IntervalList) - 1 do
-      Heritage.AddChild(ANodes.Starts.IntervalList[I]);
-    Heritage.AddChild(ANodes.Ends.Tag);
-    Heritage.AddChild(ANodes.Ends.Timestamp);
-    for I := 0 to Length(ANodes.Ends.IntervalList) - 1 do
-      Heritage.AddChild(ANodes.Ends.IntervalList[I]);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8848,10 +8226,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.ScopeTag);
-    Heritage.AddChild(ANodes.Variable);
-    Heritage.AddChild(ANodes.AssignToken);
-    Heritage.AddChild(ANodes.ValueExpr);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8865,9 +8240,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.SetTag);
-    Heritage.Heritage.AddChild(ANodes.ScopeTag);
-    Heritage.Heritage.AddChild(ANodes.AssignmentList);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8881,8 +8254,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.ConstValue);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8896,10 +8268,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.ForValue);
-    Heritage.Heritage.AddChild(ANodes.AssignToken);
-    Heritage.Heritage.AddChild(ANodes.PasswordExpr);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8913,8 +8282,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.KindTag);
-    Heritage.AddChild(ANodes.Value);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8928,10 +8296,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.SetTag);
-    Heritage.Heritage.AddChild(ANodes.ScopeTag);
-    Heritage.Heritage.AddChild(ANodes.TransactionTag);
-    Heritage.Heritage.AddChild(ANodes.CharacteristicList);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8945,7 +8310,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8959,7 +8324,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8973,13 +8338,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.InValue);
-    Heritage.Heritage.AddChild(ANodes.FromValue);
-    Heritage.Heritage.AddChild(ANodes.Limit.Tag);
-    Heritage.Heritage.AddChild(ANodes.Limit.OffsetToken);
-    Heritage.Heritage.AddChild(ANodes.Limit.CommaToken);
-    Heritage.Heritage.AddChild(ANodes.Limit.RowCountToken);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -8993,9 +8352,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.LikeValue);
-    Heritage.Heritage.AddChild(ANodes.WhereValue);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9009,9 +8366,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.LikeValue);
-    Heritage.Heritage.AddChild(ANodes.WhereValue);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9025,7 +8380,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9039,8 +8394,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.CountFunctionCall);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9054,8 +8408,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.CountFunctionCall);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9069,9 +8422,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.IfNotExistsTag);
-    Heritage.Heritage.AddChild(ANodes.Ident);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9085,8 +8436,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.Ident);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9100,8 +8450,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.Ident);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9115,8 +8464,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.Ident);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9130,7 +8478,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9144,8 +8492,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.Ident);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9159,8 +8506,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.User);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9174,8 +8520,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.Ident);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9189,9 +8534,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.LikeValue);
-    Heritage.Heritage.AddChild(ANodes.WhereValue);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9205,9 +8548,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.Ident);
-    Heritage.Heritage.AddChild(ANodes.KindTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9221,7 +8562,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9235,11 +8576,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.Limit.LimitTag);
-    Heritage.Heritage.AddChild(ANodes.Limit.OffsetToken);
-    Heritage.Heritage.AddChild(ANodes.Limit.CommaToken);
-    Heritage.Heritage.AddChild(ANodes.Limit.RowCountToken);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9253,10 +8590,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.FromValue);
-    Heritage.Heritage.AddChild(ANodes.LikeValue);
-    Heritage.Heritage.AddChild(ANodes.WhereValue);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9270,7 +8604,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9284,7 +8618,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9298,8 +8632,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.ForValue);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9313,10 +8646,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.FromTableValue);
-    Heritage.Heritage.AddChild(ANodes.FromDatabaseValue);
-    Heritage.Heritage.AddChild(ANodes.WhereValue);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9330,7 +8660,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9344,10 +8674,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.FromDatabaseValue);
-    Heritage.Heritage.AddChild(ANodes.LikeValue);
-    Heritage.Heritage.AddChild(ANodes.WhereValue);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9361,7 +8688,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9375,7 +8702,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9389,7 +8716,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9403,9 +8730,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.LikeValue);
-    Heritage.Heritage.AddChild(ANodes.WhereValue);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9419,7 +8744,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9433,11 +8758,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.TypeList);
-    Heritage.Heritage.AddChild(ANodes.ForQueryValue);
-    Heritage.Heritage.AddChild(ANodes.LimitValue);
-    Heritage.Heritage.AddChild(ANodes.OffsetValue);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9451,7 +8772,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9463,15 +8784,9 @@ begin
 
   with PShowRelaylogEventsStmt(AParser.NodePtr(Result))^ do
   begin
-    FNodes := ANodes;
+    Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.InValue);
-    Heritage.Heritage.AddChild(ANodes.FromValue);
-    Heritage.Heritage.AddChild(ANodes.LimitTag);
-    Heritage.Heritage.AddChild(ANodes.OffsetToken);
-    Heritage.Heritage.AddChild(ANodes.CommaToken);
-    Heritage.Heritage.AddChild(ANodes.RowCountToken);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9485,7 +8800,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9499,7 +8814,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9513,11 +8828,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.ShowTag);
-    Heritage.Heritage.AddChild(ANodes.ScopeTag);
-    Heritage.Heritage.AddChild(ANodes.StatusTag);
-    Heritage.Heritage.AddChild(ANodes.LikeValue);
-    Heritage.Heritage.AddChild(ANodes.WhereValue);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9531,10 +8842,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.ShowTag);
-    Heritage.Heritage.AddChild(ANodes.FromValue);
-    Heritage.Heritage.AddChild(ANodes.LikeValue);
-    Heritage.Heritage.AddChild(ANodes.WhereValue);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9548,12 +8856,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.ShowTag);
-    Heritage.Heritage.AddChild(ANodes.FullTag);
-    Heritage.Heritage.AddChild(ANodes.TablesTag);
-    Heritage.Heritage.AddChild(ANodes.FromValue);
-    Heritage.Heritage.AddChild(ANodes.LikeValue);
-    Heritage.Heritage.AddChild(ANodes.WhereValue);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9567,10 +8870,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.FromValue);
-    Heritage.Heritage.AddChild(ANodes.LikeValue);
-    Heritage.Heritage.AddChild(ANodes.WhereValue);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9584,11 +8884,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.ShowTag);
-    Heritage.Heritage.AddChild(ANodes.ScopeTag);
-    Heritage.Heritage.AddChild(ANodes.VariablesTag);
-    Heritage.Heritage.AddChild(ANodes.LikeValue);
-    Heritage.Heritage.AddChild(ANodes.WhereValue);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9602,11 +8898,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.Limit.LimitTag);
-    Heritage.Heritage.AddChild(ANodes.Limit.OffsetToken);
-    Heritage.Heritage.AddChild(ANodes.Limit.CommaToken);
-    Heritage.Heritage.AddChild(ANodes.Limit.RowCountToken);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9620,7 +8912,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9634,10 +8926,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
-    Heritage.Heritage.AddChild(ANodes.Condition);
-    Heritage.Heritage.AddChild(ANodes.SetTag);
-    Heritage.Heritage.AddChild(ANodes.InformationList);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9651,7 +8940,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.Value);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9665,14 +8954,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.FuncToken);
-    Heritage.AddChild(ANodes.OpenBracket);
-    Heritage.AddChild(ANodes.Str);
-    Heritage.AddChild(ANodes.FromTag);
-    Heritage.AddChild(ANodes.Pos);
-    Heritage.AddChild(ANodes.ForTag);
-    Heritage.AddChild(ANodes.Len);
-    Heritage.AddChild(ANodes.CloseBracket);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9689,10 +8971,7 @@ begin
     Nodes.Like := ALike;
     Nodes.Operand2 := AOperand2;
 
-    Heritage.AddChild(AOperand1);
-    Heritage.AddChild(ASounds);
-    Heritage.AddChild(ALike);
-    Heritage.AddChild(AOperand2);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9706,7 +8985,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9720,10 +8999,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StartTransactionTag);
-    Heritage.Heritage.AddChild(ANodes.RealOnlyTag);
-    Heritage.Heritage.AddChild(ANodes.ReadWriteTag);
-    Heritage.Heritage.AddChild(ANodes.WithConsistentSnapshotTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9737,7 +9013,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9751,9 +9027,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.OpenBracket);
-    Heritage.AddChild(ANodes.AreaNode);
-    Heritage.AddChild(ANodes.CloseBracket);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9767,9 +9041,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.SelectStmt1);
-    Heritage.Heritage.AddChild(ANodes.UnionTag);
-    Heritage.Heritage.AddChild(ANodes.SelectStmt2);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9783,15 +9055,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.SubPartitionTag);
-    Heritage.AddChild(ANodes.NameIdent);
-    Heritage.AddChild(ANodes.EngineValue);
-    Heritage.AddChild(ANodes.CommentValue);
-    Heritage.AddChild(ANodes.DataDirectoryValue);
-    Heritage.AddChild(ANodes.IndexDirectoryValue);
-    Heritage.AddChild(ANodes.MaxRowsValue);
-    Heritage.AddChild(ANodes.MinRowsValue);
-    Heritage.AddChild(ANodes.TablespaceValue);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9805,13 +9069,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.KeywordToken1);
-    Heritage.AddChild(ANodes.KeywordToken2);
-    Heritage.AddChild(ANodes.KeywordToken3);
-    Heritage.AddChild(ANodes.KeywordToken4);
-    Heritage.AddChild(ANodes.KeywordToken5);
-    Heritage.AddChild(ANodes.KeywordToken6);
-    Heritage.AddChild(ANodes.KeywordToken7);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9825,9 +9083,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.TruncateTag);
-    Heritage.Heritage.AddChild(ANodes.TableTag);
-    Heritage.Heritage.AddChild(ANodes.TableIdent);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9841,13 +9097,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.FuncToken);
-    Heritage.AddChild(ANodes.OpenBracket);
-    Heritage.AddChild(ANodes.DirectionTag);
-    Heritage.AddChild(ANodes.RemoveStr);
-    Heritage.AddChild(ANodes.FromTag);
-    Heritage.AddChild(ANodes.Str);
-    Heritage.AddChild(ANodes.CloseBracket);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9862,8 +9112,7 @@ begin
     Nodes.Operator := AOperator;
     Nodes.Operand := AOperand;
 
-    Heritage.AddChild(AOperator);
-    Heritage.AddChild(AOperand);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9878,7 +9127,7 @@ begin
   with PUnknownStmt(AParser.NodePtr(Result))^ do
   begin
     for I := 0 to ATokenCount - 1 do
-      Heritage.Heritage.AddChild(TOffset(ATokens[I]));
+      Heritage.Heritage.AddChildren(@ATokens[I], 1);
   end;
 end;
 
@@ -9892,7 +9141,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.UnlockTablesTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9906,17 +9155,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.UpdateTag);
-    Heritage.Heritage.AddChild(ANodes.PriorityTag);
-    Heritage.Heritage.AddChild(ANodes.TableReferenceList);
-    Heritage.Heritage.AddChild(ANodes.Set_.Tag);
-    Heritage.Heritage.AddChild(ANodes.Set_.Pairs);
-    Heritage.Heritage.AddChild(ANodes.Where.Tag);
-    Heritage.Heritage.AddChild(ANodes.Where.Expr);
-    Heritage.Heritage.AddChild(ANodes.OrderBy.Tag);
-    Heritage.Heritage.AddChild(ANodes.OrderBy.Expr);
-    Heritage.Heritage.AddChild(ANodes.Limit.Tag);
-    Heritage.Heritage.AddChild(ANodes.Limit.Expr);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9930,9 +9169,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.NameToken);
-    Heritage.AddChild(ANodes.AtToken);
-    Heritage.AddChild(ANodes.HostToken);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9946,8 +9183,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.StmtToken);
-    Heritage.Heritage.AddChild(ANodes.DbNameNode);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9961,9 +9197,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.IdentTag);
-    Heritage.AddChild(ANodes.AssignToken);
-    Heritage.AddChild(ANodes.Expr);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9977,11 +9211,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.At1Token);
-    Heritage.AddChild(ANodes.At2Token);
-    Heritage.AddChild(ANodes.ScopeTag);
-    Heritage.AddChild(ANodes.ScopeDotToken);
-    Heritage.AddChild(ANodes.Ident);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -9995,14 +9225,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.FuncToken);
-    Heritage.AddChild(ANodes.OpenBracket);
-    Heritage.AddChild(ANodes.Str);
-    Heritage.AddChild(ANodes.AsTag);
-    Heritage.AddChild(ANodes.DataType);
-    Heritage.AddChild(ANodes.LevelTag);
-    Heritage.AddChild(ANodes.LevelList);
-    Heritage.AddChild(ANodes.CloseBracket);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -10016,8 +9239,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.CountInt);
-    Heritage.AddChild(ANodes.DirectionTag);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -10031,13 +9253,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.BeginLabel);
-    Heritage.Heritage.AddChild(ANodes.WhileTag);
-    Heritage.Heritage.AddChild(ANodes.SearchConditionExpr);
-    Heritage.Heritage.AddChild(ANodes.DoTag);
-    Heritage.Heritage.AddChild(ANodes.StmtList);
-    Heritage.Heritage.AddChild(ANodes.EndTag);
-    Heritage.Heritage.AddChild(ANodes.EndLabel);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -10051,10 +9267,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.Heritage.AddChild(ANodes.XATag);
-    Heritage.Heritage.AddChild(ANodes.ActionTag);
-    Heritage.Heritage.AddChild(ANodes.Ident);
-    Heritage.Heritage.AddChild(ANodes.RestTag);
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -10068,11 +9281,7 @@ begin
   begin
     Nodes := ANodes;
 
-    Heritage.AddChild(ANodes.GTrId);
-    Heritage.AddChild(ANodes.Comma1);
-    Heritage.AddChild(ANodes.BQual);
-    Heritage.AddChild(ANodes.Comma2);
-    Heritage.AddChild(ANodes.FormatId);
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -10343,7 +9552,10 @@ procedure TMySQLParser.FormatCaseOp(const Nodes: TCaseOp.TNodes);
 begin
   FormatNode(Nodes.CaseTag);
   FormatNode(Nodes.CompareExpr, stSpaceBefore);
-  FormatNode(Nodes.BranchList, stSpaceBefore);
+  Commands.IncreaseIndent();
+  Commands.WriteReturn();
+  FormatList(Nodes.BranchList, sReturn);
+  Commands.DecreaseIndent();
 
   if (Nodes.ElseTag > 0) then
   begin
@@ -10351,7 +9563,7 @@ begin
     FormatNode(Nodes.ElseExpr, stSpaceBefore);
   end;
 
-  FormatNode(Nodes.EndTag, stSpaceBefore);
+  FormatNode(Nodes.EndTag, stReturnBefore);
 end;
 
 procedure TMySQLParser.FormatCaseStmt(const Nodes: TCaseStmt.TNodes);
@@ -10575,8 +9787,11 @@ begin
       Commands.DecreaseIndent();
       FormatNode(Nodes.PartitionOption.SubPartition.Value, stReturnBefore);
     end;
+    Commands.IncreaseIndent();
+    Commands.WriteReturn();
+    FormatList(Nodes.PartitionDefinitionList, sReturn);
     Commands.DecreaseIndent();
-    FormatNode(Nodes.PartitionDefinitionList, stReturnBefore);
+    Commands.DecreaseIndent();
   end;
   FormatNode(Nodes.IgnoreReplaceTag, stReturnBefore);
   if (Nodes.SelectStmt2 > 0) then
@@ -10629,7 +9844,6 @@ begin
   Commands.WriteSpace();
   FormatList(Nodes.ColumnIdentList, sNone);
   FormatNode(Nodes.KeyBlockSizeValue, stSpaceBefore);
-  FormatNode(Nodes.IndexTypeTag, stSpaceBefore);
   FormatNode(Nodes.ParserValue, stSpaceBefore);
   FormatNode(Nodes.CommentValue, stSpaceBefore);
 end;
@@ -10654,23 +9868,21 @@ begin
   FormatNode(Nodes.PartitionTag);
   FormatNode(Nodes.NameIdent, stSpaceBefore);
   Commands.IncreaseIndent();
-  FormatNode(Nodes.ValuesNode, stReturnBefore);
-  FormatNode(Nodes.EngineValue, stReturnBefore);
-  FormatNode(Nodes.CommentValue, stReturnBefore);
-  FormatNode(Nodes.DataDirectoryValue, stReturnBefore);
-  FormatNode(Nodes.IndexDirectoryValue, stReturnBefore);
-  FormatNode(Nodes.MaxRowsValue, stReturnBefore);
-  FormatNode(Nodes.MinRowsValue, stReturnBefore);
-  FormatNode(Nodes.SubPartitionList, stReturnBefore);
+  FormatNode(Nodes.ValuesNode, stSpaceBefore);
+  FormatNode(Nodes.EngineValue, stSpaceBefore);
+  FormatNode(Nodes.CommentValue, stSpaceBefore);
+  FormatNode(Nodes.DataDirectoryValue, stSpaceBefore);
+  FormatNode(Nodes.IndexDirectoryValue, stSpaceBefore);
+  FormatNode(Nodes.MaxRowsValue, stSpaceBefore);
+  FormatNode(Nodes.MinRowsValue, stSpaceBefore);
+  FormatNode(Nodes.SubPartitionList, stSpaceBefore);
   Commands.DecreaseIndent();
 end;
 
 procedure TMySQLParser.FormatCreateTableStmtPartitionValues(const Nodes: TCreateTableStmt.TPartitionValues.TNodes);
 begin
   FormatNode(Nodes.ValuesTag);
-  Commands.IncreaseIndent();
-  FormatNode(Nodes.Value, stReturnBefore);
-  Commands.DecreaseIndent();
+  FormatNode(Nodes.Value, stSpaceBefore);
 end;
 
 procedure TMySQLParser.FormatCreateTriggerStmt(const Nodes: TCreateTriggerStmt.TNodes);
@@ -11200,9 +10412,6 @@ begin
 end;
 
 procedure TMySQLParser.FormatNode(const Node: PNode; const Separator: TSeparatorType = stNone);
-type
-  POffsetArray = ^TOffsetArray;
-  TOffsetArray = array [0..$FFFF] of TOffset;
 
   procedure FormatDefaultNode(const Nodes: POffsetArray; const Size: Integer);
   var
@@ -12539,7 +11748,10 @@ begin
   ReallocMem(Texts.Mem, Texts.MemSize);
   Texts.UsedSize := 1; // "0" means "not assigned", so we start with "1"
 
-  FirstTokenAll := ParsedNodes.UsedSize;
+  if (ParsePosition.Length = 0) then
+    FirstTokenAll := 0
+  else
+    FirstTokenAll := ParsedNodes.UsedSize;
   FPreviousToken := 0;
   FCurrentToken := GetParsedToken(0); // Cache for speeding
 
@@ -13379,31 +12591,28 @@ begin
     end;
   end;
 
-  if (Error) then
-    Result := 0
-  else if (EndOfStmt(NextToken[Index])) then
-    SetError(PE_IncompleteStmt)
-  else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiDATABASE) then
-    Result := ParseAlterDatabaseStmt()
-  else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiEVENT) then
-    Result := ParseAlterEventStmt()
-  else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiFUNCTION) then
-    Result := ParseAlterRoutineStmt(rtFunction)
-  else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiPROCEDURE) then
-    Result := ParseAlterRoutineStmt(rtProcedure)
-  else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiSERVER) then
-    Result := ParseAlterServerStmt()
-  else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiTABLE) then
-    Result := ParseAlterTableStmt()
-  else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiUSER) then
-    Result := ParseCreateUserStmt(True)
-  else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiVIEW) then
-    Result := ParseAlterViewStmt()
-  else
-  begin
-    SetError(PE_UnexpectedToken, NextToken[Index]);
-    Result := 0;
-  end;
+  Result := 0;
+  if (not Error) then
+    if (EndOfStmt(NextToken[Index])) then
+      SetError(PE_IncompleteStmt)
+    else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiDATABASE) then
+      Result := ParseAlterDatabaseStmt()
+    else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiEVENT) then
+      Result := ParseAlterEventStmt()
+    else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiFUNCTION) then
+      Result := ParseAlterRoutineStmt(rtFunction)
+    else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiPROCEDURE) then
+      Result := ParseAlterRoutineStmt(rtProcedure)
+    else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiSERVER) then
+      Result := ParseAlterServerStmt()
+    else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiTABLE) then
+      Result := ParseAlterTableStmt()
+    else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiUSER) then
+      Result := ParseCreateUserStmt(True)
+    else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiVIEW) then
+      Result := ParseAlterViewStmt()
+    else
+      SetError(PE_UnexpectedToken, NextToken[Index]);
 end;
 
 function TMySQLParser.ParseAlterViewStmt(): TOffset;
@@ -14919,17 +14128,17 @@ begin
       begin
         Found := False;
 
-        if (TokenPtr(CurrentToken)^.KeywordIndex = kiNOT) then
+        if ((Nodes.NullTag = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiNOT)) then
         begin
           Nodes.NullTag := ParseTag(kiNOT, kiNULL);
           Found := True;
         end
-        else if (TokenPtr(CurrentToken)^.KeywordIndex = kiNULL) then
+        else if (Nodes.NullTag = 0) and ((TokenPtr(CurrentToken)^.KeywordIndex = kiNULL)) then
         begin
           Nodes.NullTag := ParseTag(kiNULL);
           Found := True;
         end
-        else if (TokenPtr(CurrentToken)^.KeywordIndex = kiDEFAULT) then
+        else if ((Nodes.Real.DefaultValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiDEFAULT)) then
         begin
           if (not EndOfStmt(NextToken[1]) and ((TokenPtr(NextToken[1])^.KeywordIndex = kiCURRENT_TIMESTAMP) or (TokenPtr(NextToken[1])^.KeywordIndex = kiLOCALTIME) or (TokenPtr(NextToken[1])^.KeywordIndex = kiLOCALTIMESTAMP))
             and (EndOfStmt(NextToken[2]) or (TokenPtr(NextToken[2])^.TokenType = ttOpenBracket))) then
@@ -14942,50 +14151,56 @@ begin
             Nodes.Real.DefaultValue := ParseValue(kiDEFAULT, vaNo, ParseExpr);
           Found := True;
         end
-        else if ((TokenPtr(CurrentToken)^.KeywordIndex = kiON) and (TokenPtr(NextToken[1])^.KeywordIndex = kiUPDATE)
+        else if ((Nodes.Real.OnUpdateTag = 0)
+          and (TokenPtr(CurrentToken)^.KeywordIndex = kiON) and (TokenPtr(NextToken[1])^.KeywordIndex = kiUPDATE)
           and (not EndOfStmt(NextToken[2]) and ((TokenPtr(NextToken[2])^.KeywordIndex = kiCURRENT_TIMESTAMP) or (TokenPtr(NextToken[2])^.KeywordIndex = kiCURRENT_TIME) or (TokenPtr(NextToken[2])^.KeywordIndex = kiCURRENT_DATE)))) then
         begin
           if (EndOfStmt(NextToken[3]) or (TokenPtr(NextToken[3])^.TokenType <> ttOpenBracket)) then
             Nodes.Real.OnUpdateTag := ParseTag(kiON, kiUPDATE, TokenPtr(NextToken[2])^.KeywordIndex)
           else
             Nodes.Real.OnUpdateTag := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, ParseFunctionCall);
+          Found := True;
         end
-        else if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiAUTO_INCREMENT)) then
+        else if ((Nodes.Real.AutoIncrementTag = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiAUTO_INCREMENT)) then
         begin
           Nodes.Real.AutoIncrementTag := ParseTag(kiAUTO_INCREMENT);
           Found := True;
         end
-        else if ((TokenPtr(CurrentToken)^.KeywordIndex = kiUNIQUE) and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiKEY)) then
+        else if ((Nodes.KeyTag = 0)
+          and (TokenPtr(CurrentToken)^.KeywordIndex = kiUNIQUE) and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiKEY)) then
         begin
           Nodes.KeyTag := ParseTag(kiUNIQUE, kiKEY);
           Found := True;
         end
-        else if (TokenPtr(CurrentToken)^.KeywordIndex = kiUNIQUE)  then
+        else if ((Nodes.KeyTag = 0)
+          and (TokenPtr(CurrentToken)^.KeywordIndex = kiUNIQUE))  then
         begin
           Nodes.KeyTag := ParseTag(kiUNIQUE);
           Found := True;
         end
-        else if ((TokenPtr(CurrentToken)^.KeywordIndex = kiPRIMARY) and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiKEY)) then
+        else if ((Nodes.KeyTag = 0)
+          and (TokenPtr(CurrentToken)^.KeywordIndex = kiPRIMARY) and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiKEY)) then
         begin
           Nodes.KeyTag := ParseTag(kiPRIMARY, kiKEY);
           Found := True;
         end
-        else if (TokenPtr(CurrentToken)^.KeywordIndex = kiKEY)  then
+        else if ((Nodes.KeyTag = 0)
+          and (TokenPtr(CurrentToken)^.KeywordIndex = kiKEY))  then
         begin
           Nodes.KeyTag := ParseTag(kiKEY);
           Found := True;
         end
-        else if (TokenPtr(CurrentToken)^.KeywordIndex = kiCOMMENT) then
+        else if ((Nodes.CommentValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCOMMENT)) then
         begin
           Nodes.CommentValue := ParseValue(kiCOMMENT, vaNo, ParseString);
           Found := True;
         end
-        else if (TokenPtr(CurrentToken)^.KeywordIndex = kiCOLUMN_FORMAT) then
+        else if ((Nodes.Real.ColumnFormat = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCOLUMN_FORMAT)) then
         begin
           Nodes.Real.ColumnFormat := ParseValue(kiCOLUMN_FORMAT, vaNo, WordIndices(kiFIXED, kiDYNAMIC, kiDEFAULT));
           Found := True;
         end
-        else if (TokenPtr(CurrentToken)^.KeywordIndex = kiSTORAGE) then
+        else if ((Nodes.Real.StorageTag = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiSTORAGE)) then
         begin
           if (EndOfStmt(NextToken[1])) then
             SetError(PE_IncompleteStmt)
@@ -15030,37 +14245,39 @@ begin
       begin
         Found := False;
 
-        if (TokenPtr(CurrentToken)^.KeywordIndex = kiNOT) then
+        if ((Nodes.NullTag = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiNOT)) then
         begin
           Nodes.NullTag := ParseTag(kiNOT, kiNULL);
           Found := True;
         end
-        else if (TokenPtr(CurrentToken)^.KeywordIndex = kiNULL) then
+        else if ((Nodes.NullTag = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiNULL)) then
         begin
           Nodes.NullTag := ParseTag(kiNULL);
           Found := True;
         end
-        else if ((TokenPtr(CurrentToken)^.KeywordIndex = kiUNIQUE) and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiKEY)) then
+        else if ((Nodes.KeyTag = 0)
+          and (TokenPtr(CurrentToken)^.KeywordIndex = kiUNIQUE) and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiKEY)) then
         begin
           Nodes.KeyTag := ParseTag(kiUNIQUE, kiKEY);
           Found := True;
         end
-        else if (TokenPtr(CurrentToken)^.KeywordIndex = kiUNIQUE)  then
+        else if ((Nodes.KeyTag = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiUNIQUE)) then
         begin
           Nodes.KeyTag := ParseTag(kiUNIQUE);
           Found := True;
         end
-        else if ((TokenPtr(CurrentToken)^.KeywordIndex = kiPRIMARY) and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiKEY)) then
+        else if ((Nodes.KeyTag = 0)
+          and (TokenPtr(CurrentToken)^.KeywordIndex = kiPRIMARY) and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiKEY)) then
         begin
           Nodes.KeyTag := ParseTag(kiPRIMARY, kiKEY);
           Found := True;
         end
-        else if (TokenPtr(CurrentToken)^.KeywordIndex = kiKEY)  then
+        else if ((Nodes.KeyTag = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiKEY)) then
         begin
           Nodes.KeyTag := ParseTag(kiKEY);
           Found := True;
         end
-        else if (TokenPtr(CurrentToken)^.KeywordIndex = kiCOMMENT) then
+        else if ((Nodes.CommentValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCOMMENT)) then
         begin
           Nodes.CommentValue := ParseValue(kiCOMMENT, vaNo, ParseString);
           Found := True;
@@ -15443,7 +14660,8 @@ begin
   begin
     FillChar(ValueNodes, SizeOf(ValueNodes), 0);
     ValueNodes.IdentTag := ParseTag(kiIN);
-    ValueNodes.Expr := ParseList(True);
+    if (not Error) then
+      ValueNodes.Expr := ParseList(True, ParseExpr);
     Nodes.Value := TValue.Create(Self, ValueNodes);
   end
   else
@@ -18347,7 +17565,7 @@ begin
   Result := TLeaveStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseList(const Brackets: Boolean; const ParseElement: TParseFunction = nil; const DelimterType: fspTypes.TTokenType = ttComma): TOffset;
+function TMySQLParser.ParseList(const Brackets: Boolean; const ParseElement: TParseFunction; const DelimterType: fspTypes.TTokenType = ttComma): TOffset;
 var
   ChildrenArray: array [0 .. 100 - 1] of TOffset;
   ChildrenList: Classes.TList;
@@ -18356,8 +17574,6 @@ var
   Index: Integer;
   Nodes: TList.TNodes;
 begin
-  Assert(Assigned(ParseElement));
-
   FillChar(Nodes, SizeOf(Nodes), 0);
 
   ChildrenList := nil;
@@ -18730,11 +17946,9 @@ begin
       Nodes.Expr := ParseNumeric()
     else if (TokenPtr(CurrentToken)^.TokenType = ttInteger) then
       Nodes.Expr := ParseInteger()
-    else if (TokenPtr(CurrentToken)^.TokenType = ttString) then
+    else if (TokenPtr(CurrentToken)^.TokenType in ttStrings) then
       Nodes.Expr := ParseString()
-    else if (TokenPtr(CurrentToken)^.TokenType = ttIdent) then
-      Nodes.Expr := ParseIdent()
-    else if (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent) then
+    else if (TokenPtr(CurrentToken)^.TokenType in ttIdents) then
       Nodes.Expr := ParseIdent()
     else
       SetError(PE_Unknown);
@@ -19759,11 +18973,8 @@ function TMySQLParser.ParseSelectStmtTableFactorIndexHint(): TOffset;
 var
   Nodes: TSelectStmt.TTableFactor.TIndexHint.TNodes;
   ValueNodes: TValue.TNodes;
-  Use: Boolean;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
-
-  Use := not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiUSE);
 
   if (EndOfStmt(NextToken[1])) then
     SetError(PE_IncompleteStmt)
@@ -19797,8 +19008,6 @@ begin
   if (not Error) then
     if (EndOfStmt(CurrentToken)) then
       SetError(PE_IncompleteStmt)
-    else if (Use and (TokenPtr(CurrentToken)^.TokenType = ttOpenBracket) and (TokenPtr(NextToken[1])^.TokenType = ttCloseBracket)) then
-      Nodes.IndexList := ParseList(True)
     else
       Nodes.IndexList := ParseList(True, ParseKeyIdent);
 
@@ -21628,7 +20837,7 @@ begin
       while (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex <> kiEND)) do
       begin
         Token := ApplyCurrentToken();
-        StmtPtr(Result)^.Heritage.AddChild(Token);
+        StmtPtr(Result)^.Heritage.AddChildren(@Token, 1);
       end;
 
       Token := StmtPtr(Result)^.FLastToken;
@@ -21849,7 +21058,7 @@ end;
 function TMySQLParser.ParseTag(const KeywordIndex1: TWordList.TIndex;
   const KeywordIndex2: TWordList.TIndex = -1; const KeywordIndex3: TWordList.TIndex = -1;
   const KeywordIndex4: TWordList.TIndex = -1; const KeywordIndex5: TWordList.TIndex = -1;
-  const KeywordIndex6: TWordList.TIndex = -1; const KeywordIndex7: TWordList.TIndex = -1): TOffset;
+  const KeywordIndex6: TWordList.TIndex = -1): TOffset;
 var
   Nodes: TTag.TNodes;
 begin
@@ -21919,19 +21128,6 @@ begin
                     begin
                       TokenPtr(CurrentToken)^.FOperatorType := otUnknown;
                       Nodes.KeywordToken6 := ApplyCurrentToken();
-
-                      if (KeywordIndex7 >= 0) then
-                      begin
-                        if (EndOfStmt(CurrentToken)) then
-                          SetError(PE_IncompleteStmt)
-                        else if (TokenPtr(CurrentToken)^.KeywordIndex <> KeywordIndex4) then
-                          SetError(PE_UnexpectedToken)
-                        else
-                        begin
-                          TokenPtr(CurrentToken)^.FOperatorType := otUnknown;
-                          Nodes.KeywordToken7 := ApplyCurrentToken();
-                        end;
-                      end;
                     end;
                   end;
                 end;
@@ -21970,8 +21166,8 @@ label
   SingleChar,
   Finish;
 const
-  Terminators: PChar = #9#10#13#32'#%&''()*+,-./:;<=>@`'; // Characters, terminating a token
-  TerminatorsL = 23; // Count of Terminators
+  Terminators: PChar = #9#10#13#32'#%&''()*+,-./:;<=>@`{|}'; // Characters, terminating a token
+  TerminatorsL = 26; // Count of Terminators
 var
   DotFound: Boolean;
   EFound: Boolean;
@@ -24449,20 +23645,20 @@ begin
     SetLength(OperatorTypeByKeywordIndex, KeywordList.Count);
     for Index := 0 to KeywordList.Count - 1 do
       OperatorTypeByKeywordIndex[Index] := otUnknown;
-    OperatorTypeByKeywordIndex[kiAND]      := otAND;
+    OperatorTypeByKeywordIndex[kiAND]      := otAnd;
     OperatorTypeByKeywordIndex[kiCASE]     := otCase;
     OperatorTypeByKeywordIndex[kiBETWEEN]  := otBetween;
     OperatorTypeByKeywordIndex[kiBINARY]   := otBinary;
     OperatorTypeByKeywordIndex[kiCOLLATE]  := otCollate;
-    OperatorTypeByKeywordIndex[kiDISTINCT] := otDISTINCT;
-    OperatorTypeByKeywordIndex[kiDIV]      := otDIV;
+    OperatorTypeByKeywordIndex[kiDISTINCT] := otDistinct;
+    OperatorTypeByKeywordIndex[kiDIV]      := otDiv;
     OperatorTypeByKeywordIndex[kiESCAPE]   := otEscape;
-    OperatorTypeByKeywordIndex[kiIS]       := otIS;
-    OperatorTypeByKeywordIndex[kiIN]       := otIN;
+    OperatorTypeByKeywordIndex[kiIS]       := otIs;
+    OperatorTypeByKeywordIndex[kiIN]       := otIn;
     OperatorTypeByKeywordIndex[kiLIKE]     := otLike;
     OperatorTypeByKeywordIndex[kiMOD]      := otMOD;
     OperatorTypeByKeywordIndex[kiNOT]      := otNot;
-    OperatorTypeByKeywordIndex[kiOR]       := otOR;
+    OperatorTypeByKeywordIndex[kiOR]       := otOr;
     OperatorTypeByKeywordIndex[kiREGEXP]   := otRegExp;
     OperatorTypeByKeywordIndex[kiRLIKE]    := otRegExp;
     OperatorTypeByKeywordIndex[kiSOUNDS]   := otSounds;

@@ -2483,6 +2483,7 @@ begin
       and ((SelectedImageIndex in [iiView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.Connection.ServerVersion) and (SQLParseKeyword(Parse, 'SELECT'))
         or (SelectedImageIndex in [iiProcedure, iiFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.ServerVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
         or (SelectedImageIndex in [iiEvent, iiTrigger]));
+    MainAction('aEFormatSQL').Enabled := not Empty;
 
     StatusBarRefresh();
 
@@ -4882,7 +4883,6 @@ begin
   MainAction('aEJobAddExport').Enabled := False;
   MainAction('aEJobDelete').Enabled := False;
   MainAction('aEJobEdit').Enabled := False;
-  MainAction('aEFormatSQL').Enabled := False;
 
   MainAction('aECopy').OnExecute := nil;
   MainAction('aEPaste').OnExecute := nil;
@@ -13609,7 +13609,6 @@ begin
   MainAction('aERedo').Enabled := False;
   MainAction('aECopyToFile').Enabled := False;
   MainAction('aEPasteFromFile').Enabled := False;
-  MainAction('aEFormatSQL').Enabled := False;
 
   MainAction('aHIndex').ShortCut := ShortCut(VK_F1, []);
   MainAction('aHSQL').ShortCut := 0;

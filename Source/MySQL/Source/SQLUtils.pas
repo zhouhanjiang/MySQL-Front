@@ -2158,11 +2158,11 @@ begin
   begin
     Value := 0;
     SQL := PChar(Text);
+    Len := Length(Text);
     repeat
       if (Value >= Length(Values)) then
         SetLength(Values, 2 * Value + 1);
 
-      Len := Length(Text);
       asm
         PUSH ES
         PUSH ESI
@@ -2276,6 +2276,7 @@ begin
 
       FinishE:
         MOV SQL,ESI
+        MOV Len,ECX
 
         POP EBX
         POP EDI
