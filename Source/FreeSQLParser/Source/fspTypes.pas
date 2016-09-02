@@ -137,7 +137,6 @@ type
     ntSelectStmtColumn,
     ntSelectStmtGroup,
     ntSelectStmtOrder,
-    ntSelectStmtInto,
     ntSelectStmtTableFactor,
     ntSelectStmtTableFactorIndexHint,
     ntSelectStmtTableFactorOj,

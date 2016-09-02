@@ -5506,7 +5506,7 @@ begin
   begin
     if (Assigned(List)) then
     begin
-      for I  := 0 to List.Count - 1 do
+      for I := 0 to List.Count - 1 do
         if (TSDBObject(List[I]) is TSBaseTable) then
           Result := Result + 'SHOW TABLE STATUS FROM ' + Session.Connection.EscapeIdentifier(Database.Name) + ' LIKE ' + SQLEscape(TSTable(List[I]).Name) + ';' + #13#10;
     end
@@ -7623,12 +7623,19 @@ end;
 
 procedure TSDatabase.SetSource(const ADataSet: TMySQLQuery);
 begin
-  SetSource(ADataSet.FieldByName('Create Database'));
+  // On ONE 4.1.10 server, on the first execution of SHOW CREATE DATABASE,
+  // only one field ("Database") will be given back - not "Create Database" field.
+  // On the second execution, the "Create Database" field is given.
+  // This is a bug of the MySQL 4.1.10 server, I think.
+  if (Assigned(ADataSet.FindField('Create Database'))) then
+  begin
+    SetSource(ADataSet.FieldByName('Create Database'));
 
-  ParseCreateDatabase(Source);
+    ParseCreateDatabase(Source);
 
-  if (Valid) then
-    Session.ExecuteEvent(etItemValid, Session, Databases, Self);
+    if (Valid) then
+      Session.ExecuteEvent(etItemValid, Session, Databases, Self);
+  end;
 end;
 
 function TSDatabase.SQLAlterTable(const Table, NewTable: TSBaseTable; const EncloseFields: Boolean): string;
