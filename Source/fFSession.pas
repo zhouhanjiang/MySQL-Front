@@ -1075,8 +1075,7 @@ uses
   ShLwApi,
   acQBLocalizer, acQBStrings,
   CommCtrl_Ext, StdActns_Ext,
-  FreeSQLParser,
-  MySQLConsts, SQLUtils,
+  SQLParser, MySQLConsts, SQLUtils,
   fDField, fDKey, fDTable, fDTables, fDVariable, fDDatabase, fDForeignKey,
   fDUser, fDQuickFilter, fDSQLHelp, fDTransfer, fDSearch, fDServer, fDGoto,
   fURI, fDView, fDRoutine, fDTrigger, fDStatement, fDEvent, fDPaste, fDSegment,
@@ -2101,11 +2100,11 @@ begin
   begin
     DRoutine.Database := TSDatabase(FocusedSItem);
     if (Sender = MainAction('aDCreateProcedure')) then
-      DRoutine.RoutineType := rtProcedure
+      DRoutine.RoutineType := TSRoutine.TRoutineType.rtProcedure
     else if (Sender = MainAction('aDCreateFunction')) then
-      DRoutine.RoutineType := rtFunction
+      DRoutine.RoutineType := TSRoutine.TRoutineType.rtFunction
     else
-      DRoutine.RoutineType := rtUnknown;
+      DRoutine.RoutineType := TSRoutine.TRoutineType.rtUnknown;
     DRoutine.Routine := nil;
     if (DRoutine.Execute()) then
       Wanted.Update := Session.Update;
@@ -2753,14 +2752,14 @@ begin
     begin
       DRoutine.Database := TSRoutine(SItem).Database;
       DRoutine.Routine := TSRoutine(SItem);
-      DRoutine.RoutineType := rtProcedure;
+      DRoutine.RoutineType := TSRoutine.TRoutineType.rtProcedure;
       Execute := DRoutine.Execute;
     end
     else if (SItem is TSFunction) then
     begin
       DRoutine.Database := TSRoutine(SItem).Database;
       DRoutine.Routine := TSRoutine(SItem);
-      DRoutine.RoutineType := rtFunction;
+      DRoutine.RoutineType := TSRoutine.TRoutineType.rtFunction;
       Execute := DRoutine.Execute;
     end
     else if (SItem is TSTrigger) then
@@ -3712,7 +3711,9 @@ end;
 
 procedure TFSession.aEFormatSQLExecute(Sender: TObject);
 var
+  I: Integer;
   SQL: string;
+  StringList: TStringList;
 begin
   Window.ActiveControl := ActiveSynMemo;
 
@@ -3721,11 +3722,34 @@ begin
   else
     SQL := ActiveSynMemo.Text;
 
+  case (SelectedImageIndex) of
+    iiTrigger:
+      SQL := 'CREATE TRIGGER `Parser` BEFORE INSERT ON `Table` FOR EACH ROW ' + SQL;
+    iiEvent:
+      SQL := 'CREATE EVENT `Parser` ON SCHEDULE AT ''2016-01-01 00:00:00'' DO ' + SQL;
+  end;
+
   if (not Session.SQLParser.ParseSQL(SQL)) then
     MsgBox(Session.SQLParser.ErrorMessage, Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
   else
   begin
     Session.SQLParser.FormatSQL(SQL);
+
+    case (SelectedImageIndex) of
+      iiTrigger:
+        Delete(SQL, 1, 74);
+      iiEvent:
+        begin
+          Delete(SQL, 1, 69);
+          StringList := TStringList.Create();
+          StringList.Text := SQL;
+          for I := 0 to StringList.Count - 1 do
+            StringList[I] := Copy(StringList[I], 5, Length(StringList[I]) - 4);
+          SQL := StringList.Text;
+          StringList.Free();
+        end;
+    end;
+
     if (ActiveSynMemo.SelAvail) then
       ActiveSynMemo.SelText := SQL
     else
@@ -10037,8 +10061,8 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         Item.ImageIndex := iiFunction;
       Item.Caption := TSRoutine(Data).Caption;
       case (TSRoutine(Data).RoutineType) of
-        rtProcedure: Item.SubItems.Add('Procedure');
-        rtFunction: Item.SubItems.Add('Function');
+        TSRoutine.TRoutineType.rtProcedure: Item.SubItems.Add('Procedure');
+        TSRoutine.TRoutineType.rtFunction: Item.SubItems.Add('Function');
       end;
       Item.SubItems.Add('');
       if (not TSRoutine(Data).Valid) then

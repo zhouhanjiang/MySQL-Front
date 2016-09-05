@@ -6,8 +6,7 @@ uses
   SysUtils, Classes, Windows,
   DB,
   acMYSQLSynProvider, acQBEventMetaProvider,
-  FreeSQLParser, fspTypes,
-  SQLUtils, MySQLDB,
+  SQLParser, SQLUtils, MySQLDB,
   fPreferences;
 
 type
@@ -203,7 +202,7 @@ type
   public
     constructor Create(const ACDBObjects: TSDBObjects; const AName: string = ''); reintroduce; virtual;
     destructor Destroy(); override;
-    function GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string; virtual; abstract;
+    function GetSourceEx(const DropBeforeCreate: Boolean = False): string; virtual; abstract;
     procedure Invalidate(); override;
     procedure PushBuildEvent(const SItemsEvents: Boolean = True); virtual;
     function Update(): Boolean; override;
@@ -509,7 +508,7 @@ type
     function DeleteRecords(const Field: TSTableField; const Values: TStringList): Boolean; virtual;
     destructor Destroy(); override;
     function FieldByName(const FieldName: string): TSTableField; virtual;
-    function GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string; override;
+    function GetSourceEx(const DropBeforeCreate: Boolean = False): string; override;
     procedure Invalidate(); override;
     procedure InvalidateData(); virtual;
     procedure Open(const FilterSQL, QuickSearch: string; const ASortDef: TIndexDef; const Offset: Integer; const Limit: Integer); virtual;
@@ -621,7 +620,7 @@ type
     function DBRowTypeStr(): string; virtual;
     procedure Empty(); virtual;
     function EmptyFields(const Fields: TList): Boolean; virtual;
-    function GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string; override;
+    function GetSourceEx(const DropBeforeCreate: Boolean = False): string; override;
     function KeyByCaption(const Caption: string): TSKey; virtual;
     function IndexByName(const Name: string): TSKey; virtual;
     function KeyByDataSet(const DataSet: TSTable.TDataSet): TSKey; virtual;
@@ -692,7 +691,7 @@ type
   public
     procedure Assign(const Source: TSTable); override;
     constructor Create(const ACDBObjects: TSDBObjects; const AName: string = ''); override;
-    function GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string; overload; override;
+    function GetSourceEx(const DropBeforeCreate: Boolean = False): string; overload; override;
     procedure Invalidate(); override;
     property Algorithm: TAlgorithm read FAlgorithm write FAlgorithm;
     property CheckOption: TCheckOption read FCheckOption write FCheckOption;
@@ -762,7 +761,7 @@ type
     procedure Assign(const Source: TSRoutine); reintroduce; virtual;
     constructor Create(const ACDBObjects: TSDBObjects; const AName: string = ''); override;
     destructor Destroy(); override;
-    function GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string; override;
+    function GetSourceEx(const DropBeforeCreate: Boolean = False): string; override;
     procedure Invalidate(); override;
     function SQLRun(): string; virtual;
     property Stmt: string read GetStmt;
@@ -835,7 +834,7 @@ type
     procedure Assign(const Source: TSTrigger); reintroduce; virtual;
     constructor Create(const ACDBObjects: TSDBObjects; const AName: string = ''); override;
     destructor Destroy(); override;
-    function GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string; override;
+    function GetSourceEx(const DropBeforeCreate: Boolean = False): string; override;
     procedure Invalidate(); override;
     function SQLDelete(): string; virtual;
     function SQLInsert(): string; virtual;
@@ -896,7 +895,7 @@ type
   public
     procedure Assign(const Source: TSEvent); reintroduce; virtual;
     constructor Create(const ACDBObjects: TSDBObjects; const AName: string = ''); override;
-    function GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string; override;
+    function GetSourceEx(const DropBeforeCreate: Boolean = False): string; override;
     function SQLRun(): string; virtual;
     property Created: TDateTime read FCreated write FCreated;
     property Comment: string read FComment write FComment;
@@ -3601,7 +3600,7 @@ begin
   end;
 end;
 
-function TSTable.GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string;
+function TSTable.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
 begin
   raise EAbstractError.Create(SAbstractError);
 end;
@@ -4126,7 +4125,7 @@ begin
   Result := IndexByName('');
 end;
 
-function TSBaseTable.GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string;
+function TSBaseTable.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
 var
   SQL: string;
 begin
@@ -4996,101 +4995,80 @@ begin
   Result := TSViewFields(GetFields());
 end;
 
-function TSView.GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string;
+function TSView.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
 var
   CheckOptionSQL: string;
   EndingCommentLen: Integer;
-  I: Integer;
   Index: Integer;
   Parse: TSQLParse;
   RemovedLength: Integer;
   S: string;
   SQL: string;
   StartingCommentLen: Integer;
-  StringList: TStringList;
 begin
   SQL := FSource; RemovedLength := 0;
 
   if (SQLCreateParse(Parse, PChar(FSource), Length(FSource), Session.Connection.ServerVersion)) then
   begin
-    if (not EncloseDefiner) then
-    begin
-      if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
-      Index := SQLParseGetIndex(Parse);
-      if (SQLParseKeyword(Parse, 'ALGORITHM')) then
-      begin
-        if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
-        SQLParseValue(Parse);
-        Delete(SQL, Index - RemovedLength, SQLParseGetIndex(Parse) - Index);
-        Inc(RemovedLength, SQLParseGetIndex(Parse) - Index);
-      end;
-
-      Index := SQLParseGetIndex(Parse);
-      if (SQLParseKeyword(Parse, 'DEFINER')) then
-      begin
-        if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
-        SQLParseValue(Parse);
-        Delete(SQL, Index - RemovedLength, SQLParseGetIndex(Parse) - Index);
-        Inc(RemovedLength, SQLParseGetIndex(Parse) - Index);
-      end;
-
-      Index := SQLParseGetIndex(Parse);
-      if (SQLParseKeyword(Parse, 'SQL SECURITY')) then
-      begin
-        SQLParseValue(Parse);
-        Delete(SQL, Index - RemovedLength, SQLParseGetIndex(Parse) - Index);
-        Inc(RemovedLength, SQLParseGetIndex(Parse) - Index);
-      end;
-
-      if (not SQLParseKeyword(Parse, 'VIEW')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
-
-      Index := SQLParseGetIndex(Parse);
-      FName := SQLParseValue(Parse);
-      if (SQLParseChar(Parse, '.')) then
-      begin
-        Delete(SQL, Index - RemovedLength, SQLParseGetIndex(Parse) - Index);
-        Inc(RemovedLength, SQLParseGetIndex(Parse) - Index);
-        FName := SQLParseValue(Parse);
-      end;
-
-      if (SQLParseChar(Parse, '(')) then
-        while (not SQLParseEnd(Parse) and not SQLParseChar(Parse, ')')) do
-        begin
-          SQLParseValue(Parse);
-          SQLParseChar(Parse, ',');
-        end;
-
-      if (not SQLParseKeyword(Parse, 'AS')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
-
-      SQLTrimStmt(FSource, SQLParseGetIndex(Parse), Length(FSource) - (SQLParseGetIndex(Parse) - 1), Session.Connection.ServerVersion, StartingCommentLen, EndingCommentLen);
-      if (Copy(SQL, Length(SQL) - EndingCommentLen, 1) = ';') then
-        Inc(EndingCommentLen);
-
-      if (UpperCase(RightStr(SQL, 18)) = ' WITH CHECK OPTION') then
-        CheckOptionSQL := RightStr(SQL, 17)
-      else if (UpperCase(RightStr(SQL, 27)) = ' WITH CASCADED CHECK OPTION') then
-        CheckOptionSQL := RightStr(SQL, 26)
-      else if (UpperCase(RightStr(SQL, 24)) = ' WITH LOCAL CHECK OPTION') then
-        CheckOptionSQL := RightStr(SQL, 23)
+    if (SQLParseKeyword(Parse, 'ALGORITHM')) then
+      if (not SQLParseChar(Parse, '=')) then
+        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL])
       else
-        CheckOptionSQL := '';
+        SQLParseValue(Parse);
 
-      SQL := LeftStr(SQL, SQLParseGetIndex(Parse) - RemovedLength - 1);
+    if (SQLParseKeyword(Parse, 'DEFINER')) then
+    begin
+      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+      SQLParseValue(Parse);
+    end;
 
-      S := Trim(Stmt);
-      if (RightStr(S, 1) = ';') then
-        S := Copy(S, 1, Length(S) - 1);
+    if (SQLParseKeyword(Parse, 'SQL SECURITY')) then
+      SQLParseValue(Parse);
 
-      StringList := TStringList.Create();
-      StringList.Text := S;
-      for I := 0 to StringList.Count - 1 do
-        StringList[I] := '  ' + StringList[I];
-      SQL := SQL + #13#10 + '  ' + Trim(StringList.Text);
-      if (CheckOptionSQL <> '') then
-        SQL := SQL + #13#10 + CheckOptionSQL;
+    if (not SQLParseKeyword(Parse, 'VIEW')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+
+    SQLParseValue(Parse);
+    if (SQLParseChar(Parse, '.')) then
+      SQLParseValue(Parse);
+
+    if (SQLParseChar(Parse, '(')) then
+      while (not SQLParseEnd(Parse) and not SQLParseChar(Parse, ')')) do
+      begin
+        SQLParseValue(Parse);
+        SQLParseChar(Parse, ',');
+      end;
+
+    if (not SQLParseKeyword(Parse, 'AS')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+
+    SQLTrimStmt(FSource, SQLParseGetIndex(Parse), Length(FSource) - (SQLParseGetIndex(Parse) - 1), Session.Connection.ServerVersion, StartingCommentLen, EndingCommentLen);
+    if (Copy(SQL, Length(SQL) - EndingCommentLen, 1) = ';') then
+      Inc(EndingCommentLen);
+
+    if (UpperCase(RightStr(SQL, 18)) = ' WITH CHECK OPTION') then
+      CheckOptionSQL := RightStr(SQL, 17)
+    else if (UpperCase(RightStr(SQL, 27)) = ' WITH CASCADED CHECK OPTION') then
+      CheckOptionSQL := RightStr(SQL, 26)
+    else if (UpperCase(RightStr(SQL, 24)) = ' WITH LOCAL CHECK OPTION') then
+      CheckOptionSQL := RightStr(SQL, 23)
+    else
+      CheckOptionSQL := '';
+
+    SQL := LeftStr(SQL, SQLParseGetIndex(Parse) - RemovedLength - 1);
+
+    S := Trim(Stmt);
+    if (RightStr(S, 1) = ';') then
+      S := Copy(S, 1, Length(S) - 1);
+
+    SQL := SQL + S;
+    if (CheckOptionSQL <> '') then
+      SQL := SQL + #13#10 + CheckOptionSQL;
+
+    if (Session.SQLParser.ParseSQL(SQL)) then
+    begin
+      Session.SQLParser.FormatSQL(SQL);
       SQL := SQL + ';' + #13#10;
-      StringList.Free();
     end;
   end;
 
@@ -5811,7 +5789,7 @@ begin
   Result := TSRoutines(SItems);
 end;
 
-function TSRoutine.GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string;
+function TSRoutine.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
 var
   Index: Integer;
   Parse: TSQLParse;
@@ -5821,17 +5799,12 @@ begin
 
   if (SQLCreateParse(Parse, PChar(Source), Length(Source), Session.Connection.ServerVersion)) then
   begin
-    if (not EncloseDefiner) then
-    begin
-      if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
-      Index := SQLParseGetIndex(Parse);
-      if (SQLParseKeyword(Parse, 'DEFINER')) then
-      begin
-        if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
-        SQLParseValue(Parse);
-        Delete(SQL, Index, SQLParseGetIndex(Parse) - Index);
-      end;
+    if (SQLParseKeyword(Parse, 'DEFINER')) then
+    begin
+      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+      SQLParseValue(Parse);
     end;
   end;
 
@@ -6256,12 +6229,12 @@ begin
   Result := FInputDataSet;
 end;
 
-function TSTrigger.GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string;
+function TSTrigger.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
 var
   SQL: string;
 begin
   SQL := 'CREATE';
-  if ((Definer <> '') and not EncloseDefiner) then
+  if (Definer <> '') then
     SQL := SQL + ' DEFINER=' + Session.EscapeUser(Definer, True);
   SQL := SQL + ' TRIGGER ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name) + ' ';
   case (Timing) of
@@ -6648,7 +6621,7 @@ begin
   Result := TSEvents(SItems);
 end;
 
-function TSEvent.GetSourceEx(const DropBeforeCreate: Boolean = False; const EncloseDefiner: Boolean = True): string;
+function TSEvent.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
 var
   Index: Integer;
   Parse: TSQLParse;
@@ -6658,17 +6631,12 @@ begin
 
   if (SQLCreateParse(Parse, PChar(Source), Length(Source), Session.Connection.ServerVersion)) then
   begin
-    if (not EncloseDefiner) then
-    begin
-      if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
-      Index := SQLParseGetIndex(Parse);
-      if (SQLParseKeyword(Parse, 'DEFINER')) then
-      begin
-        if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
-        SQLParseValue(Parse);
-        Delete(SQL, Index, SQLParseGetIndex(Parse) - Index);
-      end;
+    if (SQLParseKeyword(Parse, 'DEFINER')) then
+    begin
+      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+      SQLParseValue(Parse);
     end;
   end;
 
@@ -7114,7 +7082,7 @@ begin
       SQL := 'DROP VIEW ' + Session.Connection.EscapeIdentifier(NewTableName) + ';' + #13#10;
 
     SQL := SQL
-      + AnsiReplaceStr(TSView(Table).GetSourceEx(False, False), Session.Connection.EscapeIdentifier(Table.Database.Name) + '.', '');
+      + AnsiReplaceStr(TSView(Table).GetSourceEx(False), Session.Connection.EscapeIdentifier(Table.Database.Name) + '.', '');
 
     NewView := TSView.Create(Tables);
     NewView.Assign(Table);
@@ -10827,7 +10795,7 @@ begin
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.ServerVersion;
   FUser := nil;
-  ParseEndDate := EncodeDate(2016, 9, 6);
+  ParseEndDate := EncodeDate(2016, 9, 12);
   FSQLParser := nil;
   UnparsableSQL := '';
 

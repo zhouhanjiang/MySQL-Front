@@ -1,16 +1,1518 @@
-unit FreeSQLParser;
+unit SQLParser;
 
 interface {********************************************************************}
 
 uses
-  Classes,
-  fspTypes, fspConst;
+  Classes;
 
 type
   TMySQLParser = class
   public
     type
       TFileType = (ftSQL, ftFormatedSQL, ftDebugHTML);
+
+      TNodeType = (
+        ntRoot,            // Root token, one usage by the parser to handle stmt list
+        ntToken,           // Token node (smalles logical part of the SQL text)
+
+        ntAnalyzeStmt,
+        ntAlterDatabaseStmt,
+        ntAlterEventStmt,
+        ntAlterInstanceStmt,
+        ntAlterRoutineStmt,
+        ntAlterServerStmt,
+        ntAlterTableStmt,
+        ntAlterTableStmtAlterColumn,
+        ntAlterTableStmtConvertTo,
+        ntAlterTableStmtDropObject,
+        ntAlterTableStmtExchangePartition,
+        ntAlterTableStmtReorganizePartition,
+        ntAlterViewStmt,
+        ntBeginLabel,
+        ntBeginStmt,
+        ntBetweenOp,
+        ntBinaryOp,
+        ntCallStmt,
+        ntCaseOp,
+        ntCaseOpBranch,
+        ntCaseStmt,
+        ntCaseStmtBranch,
+        ntCastFunc,
+        ntCharFunc,
+        ntCheckStmt,
+        ntCheckStmtOption,
+        ntChecksumStmt,
+        ntCloseStmt,
+        ntCommitStmt,
+        ntCompoundStmt,
+        ntConvertFunc,
+        ntCreateDatabaseStmt,
+        ntCreateEventStmt,
+        ntCreateIndexStmt,
+        ntCreateRoutineStmt,
+        ntCreateServerStmt,
+        ntCreateTableStmt,
+        ntCreateTableStmtField,
+        ntCreateTableStmtForeignKey,
+        ntCreateTableStmtKey,
+        ntCreateTableStmtKeyColumn,
+        ntCreateTableStmtPartition,
+        ntCreateTableStmtPartitionValues,
+        ntCreateTableStmtReference,
+        ntCreateTriggerStmt,
+        ntCreateUserStmt,
+        ntCreateViewStmt,
+        ntCurrentTimestamp,
+        ntDataType,
+        ntDbIdent,
+        ntDeallocatePrepareStmt,
+        ntDeclareStmt,
+        ntDeclareConditionStmt,
+        ntDeclareCursorStmt,
+        ntDeclareHandlerStmt,
+        ntDeclareHandlerStmtCondition,
+        ntDeleteStmt,
+        ntDoStmt,
+        ntDropDatabaseStmt,
+        ntDropEventStmt,
+        ntDropIndexStmt,
+        ntDropRoutineStmt,
+        ntDropServerStmt,
+        ntDropTableStmt,
+        ntDropTriggerStmt,
+        ntDropUserStmt,
+        ntDropViewStmt,
+        ntEndLabel,
+        ntExecuteStmt,
+        ntExistsFunc,
+        ntExplainStmt,
+        ntExtractFunc,
+        ntFetchStmt,
+        ntFlushStmt,
+        ntFlushStmtOption,
+        ntFunctionCall,
+        ntFunctionReturns,
+        ntGetDiagnosticsStmt,
+        ntGetDiagnosticsStmtStmtInfo,
+        ntGetDiagnosticsStmtCondInfo,
+        ntGrantStmt,
+        ntGrantStmtPrivileg,
+        ntGrantStmtUserSpecification,
+        ntGroupConcatFunc,
+        ntGroupConcatFuncExpr,
+        ntHelpStmt,
+        ntIfStmt,
+        ntIfStmtBranch,
+        ntIgnoreLines,
+        ntInOp,
+        ntInsertStmt,
+        ntInsertStmtSetItem,
+        ntIntervalOp,
+        ntIntervalOpListItem,
+        ntIterateStmt,
+        ntKillStmt,
+        ntLeaveStmt,
+        ntLikeOp,
+        ntList,
+        ntLoadDataStmt,
+        ntLoadXMLStmt,
+        ntLockStmt,
+        ntLockStmtItem,
+        ntLoopStmt,
+        ntMatchFunc,
+        ntPositionFunc,
+        ntPrepareStmt,
+        ntPurgeStmt,
+        ntOpenStmt,
+        ntOptimizeStmt,
+        ntRegExpOp,
+        ntRenameStmt,
+        ntRenameStmtPair,
+        ntReleaseStmt,
+        ntRepairStmt,
+        ntRepeatStmt,
+        ntResetStmt,
+        ntReturnStmt,
+        ntRevokeStmt,
+        ntRollbackStmt,
+        ntRoutineParam,
+        ntSavepointStmt,
+        ntSchedule,
+        ntSecretIdent,
+        ntSelectStmt,
+        ntSelectStmtColumn,
+        ntSelectStmtGroup,
+        ntSelectStmtOrder,
+        ntSelectStmtTableFactor,
+        ntSelectStmtTableFactorIndexHint,
+        ntSelectStmtTableFactorOj,
+        ntSelectStmtTableFactorSelect,
+        ntSelectStmtTableJoin,
+        ntSetNamesStmt,
+        ntSetPasswordStmt,
+        ntSetStmt,
+        ntSetStmtAssignment,
+        ntSetTransactionStmt,
+        ntSetTransactionStmtCharacteristic,
+        ntShowAuthorsStmt,
+        ntShowBinaryLogsStmt,
+        ntShowBinlogEventsStmt,
+        ntShowCharacterSetStmt,
+        ntShowCollationStmt,
+        ntShowContributorsStmt,
+        ntShowCountErrorsStmt,
+        ntShowCountWarningsStmt,
+        ntShowCreateDatabaseStmt,
+        ntShowCreateEventStmt,
+        ntShowCreateFunctionStmt,
+        ntShowCreateProcedureStmt,
+        ntShowCreateTableStmt,
+        ntShowCreateTriggerStmt,
+        ntShowCreateUserStmt,
+        ntShowCreateViewStmt,
+        ntShowDatabasesStmt,
+        ntShowEngineStmt,
+        ntShowEnginesStmt,
+        ntShowErrorsStmt,
+        ntShowEventsStmt,
+        ntShowFunctionCodeStmt,
+        ntShowFunctionStatusStmt,
+        ntShowGrantsStmt,
+        ntShowIndexStmt,
+        ntShowMasterStatusStmt,
+        ntShowOpenTablesStmt,
+        ntShowPluginsStmt,
+        ntShowPrivilegesStmt,
+        ntShowProcedureCodeStmt,
+        ntShowProcedureStatusStmt,
+        ntShowProcessListStmt,
+        ntShowProfileStmt,
+        ntShowProfilesStmt,
+        ntShowRelaylogEventsStmt,
+        ntShowSlaveHostsStmt,
+        ntShowSlaveStatusStmt,
+        ntShowStatusStmt,
+        ntShowTableStatusStmt,
+        ntShowTablesStmt,
+        ntShowTriggersStmt,
+        ntShowVariablesStmt,
+        ntShowWarningsStmt,
+        ntShutdownStmt,
+        ntSignalStmt,
+        ntSignalStmtInformation,
+        ntSoundsLikeOp,
+        ntStartSlaveStmt,
+        ntStartTransactionStmt,
+        ntStopSlaveStmt,
+        ntSubArea,
+        ntSubAreaSelectStmt,
+        ntSubPartition,
+        ntSubstringFunc,
+        ntTag,
+        ntTrimFunc,
+        ntTruncateStmt,
+        ntUnaryOp,
+        ntUnknownStmt,
+        ntUnlockStmt,
+        ntUpdateStmt,
+        ntUser,
+        ntUseStmt,
+        ntValue,
+        ntVariable,
+        ntWeightStringFunc,
+        ntWeightStringFuncLevel,
+        ntWhileStmt,
+        ntXAStmt,
+        ntXAStmtID
+      );
+
+      TStmtType = (
+        stAnalyze,
+        stAlterDatabase,
+        stAlterEvent,
+        stAlterInstance,
+        stAlterRoutine,
+        stAlterServer,
+        stAlterTable,
+        stAlterView,
+        stBegin,
+        stCall,
+        stCase,
+        stCheck,
+        stChecksum,
+        stClose,
+        stCommit,
+        stCompound,
+        stCreateDatabase,
+        stCreateEvent,
+        stCreateIndex,
+        stCreateRoutine,
+        stCreateServer,
+        stCreateTable,
+        stCreateTrigger,
+        stCreateUser,
+        stCreateView,
+        stDeallocatePrepare,
+        stDeclare,
+        stDeclareCondition,
+        stDeclareCursor,
+        stDeclareHandler,
+        stDelete,
+        stDo,
+        stDropDatabase,
+        stDropEvent,
+        stDropIndex,
+        stDropRoutine,
+        stDropServer,
+        stDropTable,
+        stDropTrigger,
+        stDropUser,
+        stDropView,
+        stExecute,
+        stExplain,
+        stFetch,
+        stFlush,
+        stGetDiagnostics,
+        stGrant,
+        stHelp,
+        stIf,
+        stInsert,
+        stIterate,
+        stKill,
+        stLeave,
+        stLoadData,
+        stLoadXML,
+        stLock,
+        stLoop,
+        stPrepare,
+        stPurge,
+        stOpen,
+        stOptimize,
+        stRename,
+        stRelease,
+        stRepair,
+        stRepeat,
+        stReset,
+        stReturn,
+        stRevoke,
+        stRollback,
+        stSavepoint,
+        stSelect,
+        stSetNames,
+        stSetPassword,
+        stSet,
+        stSetTransaction,
+        stShowAuthors,
+        stShowBinaryLogs,
+        stShowBinlogEvents,
+        stShowCharacterSet,
+        stShowCollation,
+        stShowContributors,
+        stShowCountErrors,
+        stShowCountWarnings,
+        stShowCreateDatabase,
+        stShowCreateEvent,
+        stShowCreateFunction,
+        stShowCreateProcedure,
+        stShowCreateTable,
+        stShowCreateTrigger,
+        stShowCreateUser,
+        stShowCreateView,
+        stShowDatabases,
+        stShowEngine,
+        stShowEngines,
+        stShowErrors,
+        stShowEvents,
+        stShowFunctionCode,
+        stShowFunctionStatus,
+        stShowGrants,
+        stShowIndex,
+        stShowMasterStatus,
+        stShowOpenTables,
+        stShowPlugins,
+        stShowPrivileges,
+        stShowProcedureCode,
+        stShowProcedureStatus,
+        stShowProcessList,
+        stShowProfile,
+        stShowProfiles,
+        stShowRelaylogEvents,
+        stShowSlaveHosts,
+        stShowSlaveStatus,
+        stShowStatus,
+        stShowTableStatus,
+        stShowTables,
+        stShowTriggers,
+        stShowVariables,
+        stShowWarnings,
+        stShutdown,
+        stSignal,
+        stStartSlave,
+        stStartTransaction,
+        stStopSlave,
+        stSubAreaSelect,
+        stTruncate,
+        stUnknown,
+        stUnlock,
+        stUpdate,
+        stUse,
+        stWhile,
+        stXA
+      );
+
+      TUsageType = (
+        utUnknown,
+        utError,
+        utWhiteSpace,
+        utComment,
+        utSymbol,
+        utKeyword,
+        utLabel,
+        utOperator,
+        utDataType,
+        utConst,
+        utFunction,
+        utDbIdent,
+        utPL_SQL
+      );
+
+      TTokenType = (
+        ttUnknown,
+        ttError,                  // Error while parsing token
+        ttSpace,                  // <Tab> and <Space>
+        ttReturn,                 // <CarriageReturn>
+        ttSLComment,              // Comment, like # comment, -- comment
+        ttMLComment,              // Comment, like /* this is a multi line comment */
+        ttDot,                    // "."
+        ttColon,                  // ":"
+        ttDelimiter,              // ";"
+        ttComma,                  // ","
+        ttOpenBracket,            // "("
+        ttCloseBracket,           // ")"
+        ttOpenCurlyBracket,       // "{"
+        ttCloseCurlyBracket,      // "}"
+        ttInteger,                // Integer constant, like -123456
+        ttNumeric,                // Numeric (float) constant, like -123.456E78
+        ttString,                 // String constant, enclosed in ''
+        ttCSString,               // MySQL Character Set, like _utf8'Hello'
+        ttIdent,                  // Ident
+        ttDQIdent,                // Ident, enclosed in ""
+        ttDBIdent,                // Ident, enclosed in []
+        ttMySQLIdent,             // Ident, enclosed in ``
+        ttMySQLCodeStart,         // MySQL specific code, like /*!50000 SELECT 1; */
+        ttMySQLCodeEnd,
+        ttOperator,               // Symbol operator like +, -, &&, *=
+        ttAt,                     // "@"
+        ttIPAddress               // "123.123.123.123"
+      );
+
+      TOperatorType = (
+        otUnknown,
+
+        otDot,                    // "."
+
+        otInterval,               // "INTERVAL"
+
+        otBinary,                 // "BINARY"
+        otCollate,                // "COLLATE"
+        otDistinct,               // "DISTINCT"
+
+        otUnaryNot,               // "!"
+
+        otUnaryMinus,             // "-"
+        otUnaryPlus,              // "+"
+        otInvertBits,             // "~"
+
+        otHat,                    // "^"
+
+        otMulti,                  // "*"
+        otDivision,               // "/"
+        otDiv,                    // "DIV"
+        otMod,                    // "%", "MOD"
+
+        otMinus,                  // "-"
+        otPlus,                   // "+"
+
+        otShiftLeft,              // "<<
+        otShiftRight,             // ">>"
+
+        otBitAND,                 // "&"
+
+        otBitOR,                  // "|"
+
+        otEqual,                  // "="
+        otNullSaveEqual,          // "<=>"
+        otGreaterEqual,           // ">=", "!<"
+        otGreater,                // ">"
+        otLessEqual,              // "<=", "!>"
+        otLess,                   // "<"
+        otNotEqual,               // "!=", "<>"
+        otIS,                     // "IS"
+        otSounds,                 // "SOUNDS"
+        otLike,                   // "LIKE"
+        otRegExp,                 // "REGEXP", "RLIKE"
+        otIn,                     // "IN"
+
+        otBetween,                // "BETWEEN"
+        otCASE,                   // "CASE"
+
+        otNot,                    // "NOT"
+
+        otAnd,                    // "&&", "AND"
+
+        otXOr,                    // "XOR"
+
+        otPipes,                  // "||"
+        otOr,                     // "OR"
+
+        otAssign,                 // "="
+        otAssign2,                // ":="
+
+        otEscape,                 // "ESCAPE"
+        otBitXOR,                 // "^"
+        otDoubleDot,              // ".."
+        otArrow,                  // "->"
+        otParameter               // "?"
+      );
+
+      TDbIdentType = (
+        ditUnknown,
+        ditTable,
+        ditKey,
+        ditField,
+        ditForeignKey,
+        ditFunction,
+        ditProcedure,
+        ditTrigger,
+        ditDatabase,
+        ditParameter,
+        ditEvent,
+        ditPartition,
+        ditServer,
+        ditCursor
+      );
+
+      TJoinType = (
+        jtUnknown,
+        jtInner,
+        jtCross,
+        jtStraight,
+        jtEqui,
+        jtLeft,
+        jtRight,
+        jtNaturalLeft,
+        jtNaturalRight
+      );
+
+      TRoutineType = (
+        rtUnknown,
+        rtFunction,
+        rtProcedure
+      );
+
+    const
+      PE_Success = 0; // No error
+
+      PE_Unknown = 1; // Unknown error
+
+      // Bugs while parsing Tokens:
+      PE_IncompleteToken = 2; // Incompleted token
+      PE_UnexpectedChar = 3; // Unexpected character
+
+      // Bugs while parsing Stmts:
+      PE_IncompleteStmt = 4; // Incompleted statement
+      PE_UnexpectedToken = 5; // Unexpected token
+      PE_ExtraToken = 6; // Token after completed statement
+      PE_NestedCondCode = 7; // Nested conditional MySQL option
+
+      // Bugs while parsing Root
+      PE_UnkownStmt = 8; // Unknown statement
+
+      MySQLFunctions =
+        'ABS,ACOS,ADDDATE,ADDTIME,AES_DECRYPT,AES_ENCRYPT,ANY_VALUE,AREA,' +
+        'ASBINARY,ASCII,ASIN,ASTEXT,ASWKBASWKT,ASYMMETRIC_DECRYPT,' +
+        'ASYMMETRIC_DERIVE,ASYMMETRIC_ENCRYPT,ASYMMETRIC_SIGN,ASYMMETRIC_VERIFY,' +
+        'ATAN,ATAN,ATAN2,AVG,BENCHMARK,BIN,BIT_AND,BIT_COUNT,BIT_LENGTH,BIT_OR,' +
+        'BIT_XOR,BUFFER,CAST,CEIL,CEILING,CENTROID,CHAR,CHAR_LENGTH,' +
+        'CHARACTER_LENGTH,CHARSET,COALESCE,COERCIBILITY,COLLATION,COMPRESS,' +
+        'CONCAT,CONCAT_WS,CONNECTION_ID,CONTAINS,CONV,CONVERT,CONVERT_TZ,' +
+        'CONVEXHULL,COS,COT,COUNT,CRC32,CREATE_ASYMMETRIC_PRIV_KEY,' +
+        'CREATE_ASYMMETRIC_PUB_KEY,CREATE_DH_PARAMETERS,CREATE_DIGEST,CROSSES,' +
+        'CURDATE,CURRENT_DATE,CURRENT_TIME,CURRENT_TIMESTAMP,CURRENT_USER,' +
+        'CURTIME,DATABASE,DATE,DATE_ADD,DATE_FORMAT,DATE_SUB,DATEDIFF,DAY,' +
+        'DAYNAME,DAYOFMONTH,DAYOFWEEK,DAYOFYEAR,DECODE,DEFAULT,DEGREES,' +
+        'DES_DECRYPT,DES_ENCRYPT,DIMENSION,DISJOINT,DISTANCE,ELT,ENCODE,ENCRYPT,' +
+        'ENDPOINT,ENVELOPE,EQUALS,EXP,EXPORT_SET,EXTERIORRING,EXTRACT,' +
+        'EXTRACTVALUE,FIELD,FIND_IN_SET,FLOOR,FORMAT,FOUND_ROWS,FROM_BASE64,' +
+        'FROM_DAYS,FROM_UNIXTIME,GEOMCOLLFROMTEXT,GEOMCOLLFROMWKB,' +
+        'GEOMETRYCOLLECTION,GEOMETRYCOLLECTIONFROMTEXT,GEOMETRYCOLLECTIONFROMWKB,' +
+        'GEOMETRYFROMTEXT,GEOMETRYFROMWKB,GEOMETRYN,GEOMETRYTYPE,GEOMFROMTEXT,' +
+        'GEOMFROMWKB,GET_FORMAT,GET_LOCK,GLENGTH,GREATEST,GROUP_CONCAT,' +
+        'GTID_SUBSET,GTID_SUBTRACT,HEX,HOUR,IF,IFNULL,IN,INET_ATON,INET_NTOA,' +
+        'INET6_ATON,INET6_NTOA,INSERT,INSTR,INTERIORRINGN,INTERSECTS,INTERVAL,' +
+        'IS_FREE_LOCK,IS_IPV4,IS_IPV4_COMPAT,IS_IPV4_MAPPED,IS_IPV6,IS_USED_LOCK,' +
+        'ISCLOSED,ISEMPTY,ISNULL,ISSIMPLE,JSON_APPEND,JSON_ARRAY,' +
+        'JSON_ARRAY_APPEND,JSON_ARRAY_INSERT,JSON_CONTAINS,JSON_CONTAINS_PATH,' +
+        'JSON_DEPTH,JSON_EXTRACT,JSON_INSERT,JSON_KEYS,JSON_LENGTH,JSON_MERGE,' +
+        'JSON_OBJECT,JSON_QUOTE,JSON_REMOVE,JSON_REPLACE,JSON_SEARCH,JSON_SET,' +
+        'JSON_TYPE,JSON_UNQUOTE,JSON_VALID,LAST_DAY,LAST_INSERT_ID,LCASE,LEAST,' +
+        'LEFT,LENGTH,LINEFROMTEXT,LINEFROMWKB,LINESTRING,LINESTRINGFROMTEXT,' +
+        'LINESTRINGFROMWKB,LN,LOAD_FILE,LOCALTI,LOCALTIME,LOCALTIMESTAMP,LOCATE,' +
+        'LOG,LOG10,LOG2,LOWER,LPAD,LTRIM,MAKE_SET,MAKEDATE,MAKETIME,' +
+        'MASTER_POS_WAIT,MAX,MBRCONTAINS,MBRCOVEREDBY,MBRCOVERS,MBRDISJOINT,' +
+        'MBREQUAL,MBREQUALS,MBRINTERSECTS,MBROVERLAPS,MBRTOUCHES,MBRWITHIN,MD5,' +
+        'MICROSECOND,MID,MIN,MINUTE,MLINEFROMTEXT,MLINEFROMWKB,MOD,MONTH,' +
+        'MONTHNAME,MPOINTFROMTEXT,MPOINTFROMWKB,MPOLYFROMTEXT,MPOLYFROMWKB,' +
+        'MULTILINESTRING,MULTILINESTRINGFROMTEXT,MULTILINESTRINGFROMWKB,' +
+        'MULTIPOINT,MULTIPOINTFROMTEXT,MULTIPOINTFROMWKB,MULTIPOLYGON,' +
+        'MULTIPOLYGONFROMTEXT,MULTIPOLYGONFROMWKB,NAME_CONST,NOW,NULLIF,' +
+        'NUMGEOMETRIES,NUMINTERIORRINGS,NUMPOINTS,OCT,OCTET_LENGTH,OLD_PASSWORD,' +
+        'ORD,OVERLAPS,PASSWORD,PERIOD_ADD,PERIOD_DIFF,PI,POINT,POINTFROMTEXT,' +
+        'POINTFROMWKB,POINTN,POLYFROMTEXT,POLYFROMWKB,POLYGON,POLYGONFROMTEXT,' +
+        'POLYGONFROMWKB,POSITION,POW,POWER,QUARTER,QUOTE,RADIANS,RAND,' +
+        'RANDOM_BYTES,RELEASE_ALL_LOCKS,RELEASE_LOCK,REPEAT,REPLACE,REVERSE,' +
+        'RIGHT,ROUND,ROW_COUNT,RPAD,RTRIM,SCHEMA,SEC_TO_TIME,SECOND,SESSION_USER,' +
+        'SHA,SHA1,SHA2,SIGN,SIN,SLEEP,SOUNDEX,SPACE,SQRT,SRID,ST_AREA,' +
+        'ST_ASBINARY,ST_ASGEOJSON,ST_ASTEXT,ST_ASWKB,ST_ASWKT,ST_BUFFER,' +
+        'ST_BUFFER_STRATEGY,ST_CENTROID,ST_CONTAINS,ST_CONVEXHULL,ST_CROSSES,' +
+        'ST_DIFFERENCE,ST_DIMENSION,ST_DISJOINT,ST_DISTANCE,ST_DISTANCE_SPHERE,' +
+        'ST_ENDPOINT,ST_ENVELOPE,ST_EQUALS,ST_EXTERIORRING,ST_GEOHASH,' +
+        'ST_GEOMCOLLFROMTEXT,ST_GEOMCOLLFROMTXT,ST_GEOMCOLLFROMWKB,' +
+        'ST_GEOMETRYCOLLECTIONFROMTEXT,ST_GEOMETRYCOLLECTIONFROMWKB,' +
+        'ST_GEOMETRYFROMTEXT,ST_GEOMETRYFROMWKB,ST_GEOMETRYN,ST_GEOMETRYTYPE,' +
+        'ST_GEOMFROMGEOJSON,ST_GEOMFROMTEXT,ST_GEOMFROMWKB,ST_INTERIORRINGN,' +
+        'ST_INTERSECTION,ST_INTERSECTS,ST_ISCLOSED,ST_ISEMPTY,ST_ISSIMPLE,' +
+        'ST_ISVALID,ST_LATFROMGEOHASH,ST_LENGTH,ST_LINEFROMTEXT,ST_LINEFROMWKB,' +
+        'ST_LINESTRINGFROMTEXT,ST_LINESTRINGFROMWKB,ST_LONGFROMGEOHASH,' +
+        'ST_MAKEENVELOPE,ST_MLINEFROMTEXT,ST_MLINEFROMWKB,ST_MPOINTFROMTEXT,' +
+        'ST_MPOINTFROMWKB,ST_MPOLYFROMTEXT,ST_MPOLYFROMWKB,' +
+        'ST_MULTILINESTRINGFROMTEXT,ST_MULTILINESTRINGFROMWKB,' +
+        'ST_MULTIPOINTFROMTEXT,ST_MULTIPOINTFROMWKB,ST_MULTIPOLYGONFROMTEXT,' +
+        'ST_MULTIPOLYGONFROMWKB,ST_NUMGEOMETRIES,ST_NUMINTERIORRING,' +
+        'ST_NUMINTERIORRINGS,ST_NUMPOINTS,ST_OVERLAPS,ST_POINTFROMGEOHASH,' +
+        'ST_POINTFROMTEXT,ST_POINTFROMWKB,ST_POINTN,ST_POLYFROMTEXT,' +
+        'ST_POLYFROMWKB,ST_POLYGONFROMTEXT,ST_POLYGONFROMWKB,ST_SIMPLIFY,ST_SRID,' +
+        'ST_STARTPOINT,ST_SYMDIFFERENCE,ST_TOUCHES,ST_UNION,ST_VALIDATE,' +
+        'ST_WITHIN,ST_X,ST_Y,STARTPOINT,STD,STDDEV,STDDEV_POP,STDDEV_SAMP,' +
+        'STR_TO_DATE,STRCMP,SUBDATE,SUBSTR,SUBSTRING,SUBSTRING_INDEX,SUBTIME,SUM,' +
+        'SYSDATE,SYSTEM_USER,TAN,TIME,TIME_FORMAT,TIME_TO_SEC,TIMEDIFF,TIMESTAMP,' +
+        'TIMESTAMPADD,TIMESTAMPDIFF,TO_BASE64,TO_DAYS,TO_SECONDS,TOUCHES,TRIM,' +
+        'TRUNCATE,UCASE,UNCOMPRESS,UNCOMPRESSED_LENGTH,UNHEX,UNIX_TIMESTAMP,' +
+        'UPDATEXML,UPPER,USER,UTC_DATE,UTC_TIME,UTC_TIMESTAMP,UUID,UUID_SHORT,' +
+        'VALIDATE_PASSWORD_STRENGTH,VALUES,VAR_POP,VAR_SAMP,VARIANCE,VERSION,' +
+        'WAIT_FOR_EXECUTED_GTID_SET,WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS,WEEK,' +
+        'WEEKDAY,WEEKOFYEAR,WEIGHT_STRING,WITHIN,X,Y,YEAR,YEARWEEK';
+
+      MySQLKeywords =
+        'INNODB,INSTANCE,ROTATE,MICROSECOND,FOLLOWS,PRECEDES,SIGNED,' +
+        'MAX_STATEMENT_TIME,SOME,ALWAYS,GENERATED,STORED,VIRTUAL,PERSISTENT,DISK,' +
+        'COMPRESS,BOOLEAN,TRANSACTIONAL,' +
+
+        'ACCOUNT,ACTION,ADD,AFTER,AGAINST,AGGREGATE,ALGORITHM,ALL,ALTER,ANALYZE,' +
+        'AND,ANY,AS,ASC,ASCII,AT,AUTHORS,AUTO_INCREMENT,AUTOEXTEND_SIZE,' +
+        'AVG_ROW_LENGTH,BACKUP,BEFORE,BEGIN,BENCHMARK,BETWEEN,BINARY,BINLOG,BIT,' +
+        'BLOCK,BOTH,BTREE,BY,CACHE,CALL,CASCADE,CASCADED,CASE,CATALOG_NAME,CHAIN,' +
+        'CHANGE,CHANGED,CHARACTER,CHARSET,CHECK,CHECKSUM,CLASS_ORIGIN,CLIENT,' +
+        'CLOSE,COALESCE,CODE,COLLATE,COLLATION,COLUMN,COLUMN_FORMAT,COLUMN_NAME,' +
+        'COLUMNS,COMMENT,COMMIT,COMMITTED,COMPACT,COMPLETION,COMPRESSED,' +
+        'CONCURRENT,CONDITION,CONNECTION,CONSISTENT,CONSTRAINT,' +
+        'CONSTRAINT_CATALOG,CONSTRAINT_NAME,CONSTRAINT_SCHEMA,' +
+        'CONSTRAINT_SCHEMA,CONTAINS,CONTENTS,CONTEXT,CONTINUE,CONTRIBUTORS,' +
+        'CONVERT,COPY,CPU,CREATE,CROSS,CURRENT,CURRENT_DATE,CURRENT_TIME,' +
+        'CURRENT_TIMESTAMP,CURRENT_USER,CURSOR,CURSOR_NAME,DATA,DATABASE,' +
+        'DATABASES,DATAFILE,DAY,DAY_HOUR,DAY_MINUTE,DAY_SECOND,DEALLOCATE,DEC,' +
+        'DECLARE,DEFAULT,DEFINER,DELAY_KEY_WRITE,DELAYED,DELETE,DESC,DESCRIBE,' +
+        'DETERMINISTIC,DIAGNOSTICS,DIRECTORY,DISABLE,DISCARD,DISTINCT,' +
+        'DISTINCTROW,DIV,DO,DROP,DUAL,DUMPFILE,DUPLICATE,DYNAMIC,EACH,ELSE,' +
+        'ELSEIF,ENABLE,ENCLOSED,END,ENDIF,ENDS,ENGINE,ENGINES,ERRORS,ESCAPE,' +
+        'ESCAPED,EVENT,EVENTS,EVERY,EXCHANGE,EXCLUSIVE,EXECUTE,EXISTS,EXIT,' +
+        'EXPANSION,EXPIRE,EXPLAIN,EXTENDED,EXTENT_SIZE,FALSE,FAST,FAULTS,FETCH,' +
+        'FIELDS,FILE,FIRST,FIXED,FLUSH,FOR,FORCE,FOREIGN,FORMAT,FOUND,FROM,FULL,' +
+        'FULLTEXT,FUNCTION,FUNCTIONS,GET,GLOBAL,GOTO,GRANT,GRANTS,GROUP,HANDLER,' +
+        'HASH,HAVING,HELP,HIGH_PRIORITY,HOST,HOSTS,HOUR,HOUR_MINUTE,HOUR_SECOND,' +
+        'IDENTIFIED,IF,IGNORE,IGNORE_SERVER_IDS,IMPORT,IN,INDEX,INDEXES,INFILE,' +
+        'INITIAL_SIZE,INNER,INOUT,INPLACE,INSERT,INSERT_METHOD,INSTALL,INT1,' +
+        'INT2,INT3,INT4,INT8,INTERVAL,INTO,INVOKER,IO,IO_THREAD,IPC,IS,' +
+        'ISOLATION,ISSUER,ITERATE,JOIN,JSON,KEY,KEY_BLOCK_SIZE,KEYS,KILL,' +
+        'LANGUAGE,LAST,LEADING,LEAVE,LEAVES,LEFT,LESS,LEVEL,LIKE,LIMIT,LINEAR,' +
+        'LINES,LIST,LOAD,LOCAL,LOCALTIME,LOCALTIMESTAMP,LOCK,LOGFILE,LOGS,LONG,' +
+        'LOOP,LOW_PRIORITY,MASTER,MASTER_BIND,MASTER_CONNECT_RETRY,' +
+        'MASTER_HEARTBEAT_PERIOD,MASTER_HOST,MASTER_LOG_FILE,MASTER_LOG_POS,' +
+        'MASTER_PASSWORD,MASTER_PORT,MASTER_SSL,MASTER_SSL_CA,MASTER_SSL_CAPATH,' +
+        'MASTER_SSL_CERT,MASTER_SSL_CIPHER,MASTER_SSL_KEY,' +
+        'MASTER_SSL_VERIFY_SERVER_CERT,MASTER_USER,MATCH,' +
+        'MAX_CONNECTIONS_PER_HOUR,MAX_QUERIES_PER_HOUR,MAX_ROWS,MAX_SIZE,' +
+        'MAX_UPDATES_PER_HOUR,MAX_USER_CONNECTIONS,MAXVALUE,MEDIUM,MEMORY,MERGE,' +
+        'MESSAGE_TEXT,MIDDLEINT,MIGRATE,MIN_ROWS,MINUTE,MINUTE_SECOND,MOD,MODE,' +
+        'MODIFIES,MODIFY,MONTH,MUTEX,MYSQL_ERRNO,NAME,NAMES,NATIONAL,NATURAL,' +
+        'NEVER,NEW,NEXT,NO,NO_WRITE_TO_BINLOG,NODEGROUP,NONE,NOT,NULL,NUMBER,' +
+        'OFFLINE,OFFSET,OJ,OLD,ON,ONE,ONLINE,ONLY,OPEN,OPTIMIZE,OPTION,' +
+        'OPTIONALLY,OPTIONS,OR,ORDER,OUT,OUTER,OUTFILE,OWNER,PACK_KEYS,PAGE,' +
+        'PAGE_CHECKSUM,PARSER,PARTIAL,PARTITION,PARTITIONING,PARTITIONS,' +
+        'PASSWORD,PHASE,PLUGIN,PLUGINS,PORT,PREPARE,PRESERVE,PREV,PRIMARY,' +
+        'PRIVILEGES,PROCEDURE,PROCESS,PROCESSLIST,PROFILE,PROFILES,PROXY,PURGE,' +
+        'QUARTER,QUERY,QUICK,RAID_CHUNKS,RAID_CHUNKSIZE,RAID_TYPE,RANGE,READ,' +
+        'READS,REBUILD,RECOVER,REDO_BUFFER_SIZE,REDUNDANT,REFERENCES,REGEXP,' +
+        'RELAY_LOG_FILE,RELAY_LOG_POS,RELAYLOG,RELEASE,RELOAD,REMOVE,RENAME,' +
+        'REORGANIZE,REPAIR,REPEAT,REPEATABLE,REPLACE,REPLICATION,REQUIRE,RESET,' +
+        'RESIGNAL,RESTORE,RESTRICT,RESUME,RETURN,RETURNED_SQLSTATE,RETURNS,' +
+        'REVERSE,REVOKE,RIGHT,RLIKE,ROLLBACK,ROLLUP,ROUTINE,ROW,ROW_COUNT,' +
+        'ROW_FORMAT,ROWS,SAVEPOINT,SCHEDULE,SCHEMA,SCHEMA_NAME,SCHEMAS,SECOND,' +
+        'SECURITY,SELECT,SEPARATOR,SERIALIZABLE,SERVER,SESSION,SET,SHARE,SHARED,' +
+        'SHOW,SHUTDOWN,SIGNAL,SIMPLE,SLAVE,SNAPSHOT,SOCKET,SONAME,SOUNDS,SOURCE,' +
+        'SPATIAL,SQL,SQL_BIG_RESULT,SQL_BUFFER_RESULT,SQL_CACHE,' +
+        'SQL_CALC_FOUND_ROWS,SQL_NO_CACHE,SQL_SMALL_RESULT,SQL_THREAD,' +
+        'SQLEXCEPTION,SQLSTATE,SQLWARNING,SQLWARNINGS,SSL,STACKED,START,' +
+        'STARTING,STARTS,STATS_AUTO_CALC,STATS_AUTO_RECALC,STATS_PERSISTENT,' +
+        'STATUS,STOP,STORAGE,STRAIGHT_JOIN,SUBCLASS_ORIGIN,SUBJECT,SUBPARTITION,' +
+        'SUBPARTITIONS,SUPER,SUSPEND,SWAPS,SWITCHES,TABLE,TABLE_NAME,TABLES,' +
+        'TABLESPACE,TEMPORARY,TEMPTABLE,TERMINATED,THAN,THEN,TO,TRADITIONAL,' +
+        'TRAILING,TRANSACTION,TRIGGER,TRIGGERS,TRUE,TRUNCATE,TYPE,UNCOMMITTED,' +
+        'UNDEFINED,UNDO,UNDO_BUFFER_SIZE,UNDOFILE,UNICODE,UNINSTALL,UNION,' +
+        'UNIQUE,UNKNOWN,UNLOCK,UNSIGNED,UNTIL,UPDATE,UPGRADE,USAGE,USE,USE_FRM,' +
+        'USER,USING,VALUE,VALUES,VARIABLES,VARYING,VIEW,WAIT,WARNINGS,WEEK,WHEN,' +
+        'WHERE,WHILE,WITH,WORK,WRAPPER,WRITE,X509,XA,XID,XML,XOR,YEAR,' +
+        'YEAR_MONTH,ZEROFILL';
+
+      NodeTypeToString: array[TNodeType] of PChar = (
+        'ntRoot',
+        'ntToken',
+
+        'ntAnalyzeStmt',
+        'ntAlterDatabaseStmt',
+        'ntAlterEventStmt',
+        'ntAlterInstanceStmt',
+        'ntAlterRoutineStmt',
+        'ntAlterServerStmt',
+        'ntAlterTableStmt',
+        'ntAlterTableStmtAlterColumn',
+        'ntAlterTableStmtConvertTo',
+        'ntAlterTableStmtDropObject',
+        'ntAlterTableStmtExchangePartition',
+        'ntAlterTableStmtReorganizePartition',
+        'ntAlterViewStmt',
+        'ntBeginLabel',
+        'ntBeginStmt',
+        'ntBetweenOp',
+        'ntBinaryOp',
+        'ntCallStmt',
+        'ntCaseOp',
+        'ntCaseOpBranch',
+        'ntCaseStmt',
+        'ntCaseStmtBranch',
+        'ntCastFunc',
+        'ntCharFunc',
+        'ntCheckStmt',
+        'ntCheckStmtOption',
+        'ntChecksumStmt',
+        'ntCloseStmt',
+        'ntCommitStmt',
+        'ntCompoundStmt',
+        'ntConvertFunc',
+        'ntCreateDatabaseStmt',
+        'ntCreateEventStmt',
+        'ntCreateIndexStmt',
+        'ntCreateRoutineStmt',
+        'ntCreateServerStmt',
+        'ntCreateTableStmt',
+        'ntCreateTableStmtField',
+        'ntCreateTableStmtForeignKey',
+        'ntCreateTableStmtKey',
+        'ntCreateTableStmtKeyColumn',
+        'ntCreateTableStmtPartition',
+        'ntCreateTableStmtPartitionValues',
+        'ntCreateTableStmtReference',
+        'ntCreateTriggerStmt',
+        'ntCreateUserStmt',
+        'ntCreateViewStmt',
+        'ntCurrentTimestamp',
+        'ntDataType',
+        'ntDbIdent',
+        'ntDeallocatePrepareStmt',
+        'ntDeclareStmt',
+        'ntDeclareConditionStmt',
+        'ntDeclareCursorStmt',
+        'ntDeclareHandlerStmt',
+        'ntDeclareHandlerStmtCondition',
+        'ntDeleteStmt',
+        'ntDoStmt',
+        'ntDropDatabaseStmt',
+        'ntDropEventStmt',
+        'ntDropIndexStmt',
+        'ntDropRoutineStmt',
+        'ntDropServerStmt',
+        'ntDropTableStmt',
+        'ntDropTriggerStmt',
+        'ntDropUserStmt',
+        'ntDropViewStmt',
+        'ntEndLabel',
+        'ntExecuteStmt',
+        'ntExistsFunc',
+        'ntExplainStmt',
+        'ntExtractFunc',
+        'ntFetchStmt',
+        'ntFlushStmt',
+        'ntFlushStmtOption',
+        'ntFunctionCall',
+        'ntFunctionReturns',
+        'ntGetDiagnosticsStmt',
+        'ntGetDiagnosticsStmtStmtInfo',
+        'ntGetDiagnosticsStmtCondInfo',
+        'ntGrantStmt',
+        'ntGrantStmtPrivileg',
+        'ntGrantStmtUserSpecification',
+        'ntGroupConcatFunc',
+        'ntGroupConcatFuncExpr',
+        'ntHelpStmt',
+        'ntIfStmt',
+        'ntIfStmtBranch',
+        'ntIgnoreLines',
+        'ntInOp',
+        'ntInsertStmt',
+        'ntInsertStmtSetItem',
+        'ntIntervalOp',
+        'ntIntervalOpListItem',
+        'ntIterateStmt',
+        'ntKillStmt',
+        'ntLeaveStmt',
+        'ntLikeOp',
+        'ntList',
+        'ntLoadDataStmt',
+        'ntLoadXMLStmt',
+        'ntLockStmt',
+        'ntLockStmtItem',
+        'ntLoopStmt',
+        'ntMatchFunc',
+        'ntPositionFunc',
+        'ntPrepareStmt',
+        'ntPurgeStmt',
+        'ntOpenStmt',
+        'ntOptimizeStmt',
+        'ntRegExpOp',
+        'ntRenameStmt',
+        'ntRenameStmtPair',
+        'ntReleaseStmt',
+        'ntRepairStmt',
+        'ntRepeatStmt',
+        'ntResetStmt',
+        'ntReturnStmt',
+        'ntRevokeStmt',
+        'ntRollbackStmt',
+        'ntRoutineParam',
+        'ntSavepointStmt',
+        'ntSchedule',
+        'ntSecretIdent',
+        'ntSelectStmt',
+        'ntSelectStmtColumn',
+        'ntSelectStmtGroup',
+        'ntSelectStmtOrder',
+        'ntSelectStmtTableFactor',
+        'ntSelectStmtTableFactorIndexHint',
+        'ntSelectStmtTableFactorOj',
+        'ntSelectStmtTableFactorSelect',
+        'ntSelectStmtTableJoin',
+        'ntSetNamesStmt',
+        'ntSetPasswordStmt',
+        'ntSetStmt',
+        'ntSetStmtAssignment',
+        'ntSetTransactionStmt',
+        'ntSetTransactionStmtCharacteristic',
+        'ntShowAuthorsStmt',
+        'ntShowBinaryLogsStmt',
+        'ntShowBinlogEventsStmt',
+        'ntShowCharacterSetStmt',
+        'ntShowCollationStmt',
+        'ntShowContributorsStmt',
+        'ntShowCountErrorsStmt',
+        'ntShowCountWarningsStmt',
+        'ntShowCreateDatabaseStmt',
+        'ntShowCreateEventStmt',
+        'ntShowCreateFunctionStmt',
+        'ntShowCreateProcedureStmt',
+        'ntShowCreateTableStmt',
+        'ntShowCreateTriggerStmt',
+        'ntShowCreateUserStmt',
+        'ntShowCreateViewStmt',
+        'ntShowDatabasesStmt',
+        'ntShowEngineStmt',
+        'ntShowEnginesStmt',
+        'ntShowErrorsStmt',
+        'ntShowEventsStmt',
+        'ntShowFunctionCodeStmt',
+        'ntShowFunctionStatusStmt',
+        'ntShowGrantsStmt',
+        'ntShowIndexStmt',
+        'ntShowMasterStatusStmt',
+        'ntShowOpenTablesStmt',
+        'ntShowPluginsStmt',
+        'ntShowPrivilegesStmt',
+        'ntShowProcedureCodeStmt',
+        'ntShowProcedureStatusStmt',
+        'ntShowProcessListStmt',
+        'ntShowProfileStmt',
+        'ntShowProfilesStmt',
+        'ntShowRelaylogEventsStmt',
+        'ntShowSlaveHostsStmt',
+        'ntShowSlaveStatusStmt',
+        'ntShowStatusStmt',
+        'ntShowTableStatusStmt',
+        'ntShowTablesStmt',
+        'ntShowTriggersStmt',
+        'ntShowVariablesStmt',
+        'ntShowWarningsStmt',
+        'ntShutdownStmt',
+        'ntSignalStmt',
+        'ntSignalStmtInformation',
+        'ntSoundsLikeOp',
+        'ntStartSlaveStmt',
+        'ntStartTransactionStmt',
+        'ntStopSlaveStmt',
+        'ntSubArea',
+        'ntSubAreaSelect',
+        'ntSubPartition',
+        'ntSubstringFunc',
+        'ntTag',
+        'ntTrimFunc',
+        'ntTruncateStmt',
+        'ntUnaryOp',
+        'ntUnknownStmt',
+        'ntUnlockStmt',
+        'ntUpdateStmt',
+        'ntUser',
+        'ntUseStmt',
+        'ntValue',
+        'ntVariable',
+        'ntWeightStringFunc',
+        'ntWeightStringFuncLevel',
+        'ntWhileStmt',
+        'ntXAStmt',
+        'ntXAStmtID'
+      );
+
+      StmtTypeToString: array[TStmtType] of PChar = (
+        'stAnalyze',
+        'stAlterDatabase',
+        'stAlterEvent',
+        'stAlterInstance',
+        'stAlterRoutine',
+        'stAlterServer',
+        'stAlterTable',
+        'stAlterView',
+        'stBegin',
+        'stCall',
+        'stCase',
+        'stCheck',
+        'stChecksum',
+        'stClose',
+        'stCommit',
+        'stCompound',
+        'stCreateDatabase',
+        'stCreateEvent',
+        'stCreateIndex',
+        'stCreateRoutine',
+        'stCreateServer',
+        'stCreateTable',
+        'stCreateTrigger',
+        'stCreateUser',
+        'stCreateView',
+        'stDeallocatePrepare',
+        'stDeclare',
+        'stDeclareCondition',
+        'stDeclareCursor',
+        'stDeclareHandler',
+        'stDelete',
+        'stDo',
+        'stDropDatabase',
+        'stDropEvent',
+        'stDropIndex',
+        'stDropRoutine',
+        'stDropServer',
+        'stDropTable',
+        'stDropTrigger',
+        'stDropUser',
+        'stDropView',
+        'stExecute',
+        'stExplain',
+        'stFetch',
+        'stFlush',
+        'stGetDiagnostics',
+        'stGrant',
+        'stHelp',
+        'stIf',
+        'stInsert',
+        'stIterate',
+        'stKill',
+        'stLeave',
+        'stLoadData',
+        'stLoadXML',
+        'stLock',
+        'stLoop',
+        'stPrepare',
+        'stPurge',
+        'stOpen',
+        'stOptimize',
+        'stRename',
+        'stRelease',
+        'stRepair',
+        'stRepeat',
+        'stReset',
+        'stReturn',
+        'stRevoke',
+        'stRollback',
+        'stSavepoint',
+        'stSelect',
+        'stSetNames',
+        'stSetPassword',
+        'stSet',
+        'stSetTransaction',
+        'stShowAuthors',
+        'stShowBinaryLogs',
+        'stShowBinlogEvents',
+        'stShowCharacterSet',
+        'stShowCollation',
+        'stShowContributors',
+        'stShowCountErrors',
+        'stShowCountWarnings',
+        'stShowCreateDatabase',
+        'stShowCreateEvent',
+        'stShowCreateFunction',
+        'stShowCreateProcedure',
+        'stShowCreateTable',
+        'stShowCreateTrigger',
+        'stShowCreateUser',
+        'stShowCreateView',
+        'stShowDatabases',
+        'stShowEngine',
+        'stShowEngines',
+        'stShowErrors',
+        'stShowEvents',
+        'stShowFunctionCode',
+        'stShowFunctionStatus',
+        'stShowGrants',
+        'stShowIndex',
+        'stShowMasterStatus',
+        'stShowOpenTables',
+        'stShowPlugins',
+        'stShowPrivileges',
+        'stShowProcedureCode',
+        'stShowProcedureStatus',
+        'stShowProcessList',
+        'stShowProfile',
+        'stShowProfiles',
+        'stShowRelaylogEvents',
+        'stShowSlaveHosts',
+        'stShowSlaveStatus',
+        'stShowStatus',
+        'stShowTableStatus',
+        'stShowTables',
+        'stShowTriggers',
+        'stShowVariables',
+        'stShowWarnings',
+        'stShutdown',
+        'stSignal',
+        'stStartSlave',
+        'stStartTransaction',
+        'stStopSlave',
+        'stSubAreaSelect',
+        'stTruncate',
+        'stUnknown',
+        'stUnlock',
+        'stUpdate',
+        'stUse',
+        'stWhile',
+        'stXA'
+      );
+
+      TokenTypeToString: array[TTokenType] of PChar = (
+        'ttUnknown',
+        'ttError',
+        'ttSpace',
+        'ttReturn',
+        'ttLineComment',
+        'ttMultiLineComment',
+        'ttDot',
+        'ttColon',
+        'ttDelimiter',
+        'ttComma',
+        'ttOpenBracket',
+        'ttCloseBracket',
+        'ttOpenCurlyBracket',
+        'ttCloseCurlyBracket',
+        'ttInteger',
+        'ttNumeric',
+        'ttString',
+        'ttCSString',
+        'ttIdent',
+        'ttDQIdent',
+        'ttDBIdent',
+        'ttMySQLIdent',
+        'ttMySQLCodeStart',
+        'ttMySQLCodeEnd',
+        'ttOperator',
+        'ttAt',
+        'ttIPAddress'
+      );
+
+      UsageTypeToString: array[TUsageType] of PChar = (
+        'utUnknown',
+        'utError',
+        'utWhiteSpace',
+        'utComment',
+        'utSymbol',
+        'utKeyword',
+        'utLabel',
+        'utOperator',
+        'utDataType',
+        'utConst',
+        'utFunction',
+        'utDbIdent',
+        'utPL_SQL'
+      );
+
+      UnaryOperators = [otBinary, otDistinct, otUnaryNot, otUnaryMinus, otUnaryPlus, otInvertBits];
+
+      OperatorTypeToString: array[TOperatorType] of PChar = (
+        'otUnknown',
+
+        'otDot',
+
+        'otInterval',
+
+        'otBinary',
+        'otCollate',
+        'otDistinct',
+
+        'otUnaryNot',
+
+        'otUnaryMinus',
+        'otUnaryPlus',
+        'otInvertBits',
+
+        'otBitXOR',
+
+        'otMulti',
+        'otDivision',
+        'otDiv',
+        'otMod',
+
+        'otMinus',
+        'otPlus',
+
+        'otShiftLeft',
+        'otShiftRight',
+
+        'otBitAND',
+
+        'otBitOR',
+
+        'otEqual',
+        'otNullSaveEqual',
+        'otGreaterEqual',
+        'otGreater',
+        'otLessEqual',
+        'otLess',
+        'otNotEqual',
+        'otIS',
+        'otSounds',
+        'otLike',
+        'otRegExp',
+        'otIn',
+
+        'otBetween',
+        'otCASE',
+
+        'otNot',
+
+        'otAnd',
+
+        'otXOr',
+
+        'otPipes',
+        'otOr',
+
+        'otAssign',
+        'otAssign2',
+
+        'otEscape',
+
+        'otHat',
+        'otDoubleDot',
+        'otArrow',
+        'otParameter'
+      );
+
+      DbIdentTypeToString: array[TDbIdentType] of PChar = (
+        'ditUnknown',
+        'ditTable',
+        'ditKey',
+        'ditField',
+        'ditForeignKey',
+        'ditFunction',
+        'ditProcedure',
+        'ditTrigger',
+        'ditDatabase',
+        'ditParameter',
+        'ditEvent',
+        'ditPartition',
+        'ditServer',
+        'ditCursor'
+      );
+
+      OperatorPrecedenceByOperatorType: array[TOperatorType] of Integer = (
+        0,   // otUnknown
+
+        1,   // otDot
+
+        2,   // otInterval
+
+        3,   // otBinary
+        3,   // otCollate
+        3,   // otDistinct
+
+        4,   // otUnaryNot
+
+        5,   // otUnaryMinus
+        5,   // otUnaryPlus
+        5,   // otInvertBits
+
+        6,   // otHat
+
+        7,   // otMulti
+        7,   // otDivision
+        7,   // otDiv
+        7,   // otMod
+
+        8,   // otMinus
+        8,   // otPlus
+
+        9,   // otShiftLeft
+        9,   // otShiftRight
+
+        9,   // otBitAND
+
+        10,  // otBitOR
+
+        11,  // otEqual
+        11,  // otNullSaveEqual
+        11,  // otGreaterEqual
+        11,  // otGreater
+        11,  // otLessEqual
+        11,  // otLess
+        11,  // otNotEqual
+        11,  // otIS
+        11,  // otSounds
+        11,  // otLike
+        11,  // otRegExp
+        11,  // otIn
+
+        12,  // otBetween
+        12,  // otCASE
+
+        13,  // otNot
+
+        14,  // otAnd
+
+        15,  // otXOr
+
+        16,  // otPipes
+        16,  // otOr
+
+        17,   // otAssign
+        17,   // otAssign2
+
+        0,   // otEscape
+        0,   // otBitXOR
+        0,   // otDoubleDot
+        0,   // otArrow
+        0    // otParameter
+      );
+      MaxOperatorPrecedence = 17;
+
+      StmtNodeTypes = [
+        ntAnalyzeStmt,
+        ntAlterDatabaseStmt,
+        ntAlterEventStmt,
+        ntAlterInstanceStmt,
+        ntAlterRoutineStmt,
+        ntAlterServerStmt,
+        ntAlterTableStmt,
+        ntAlterViewStmt,
+        ntBeginStmt,
+        ntCallStmt,
+        ntCaseStmt,
+        ntCheckStmt,
+        ntChecksumStmt,
+        ntCloseStmt,
+        ntCommitStmt,
+        ntCompoundStmt,
+        ntCreateDatabaseStmt,
+        ntCreateEventStmt,
+        ntCreateIndexStmt,
+        ntCreateRoutineStmt,
+        ntCreateServerStmt,
+        ntCreateTableStmt,
+        ntCreateTriggerStmt,
+        ntCreateUserStmt,
+        ntCreateViewStmt,
+        ntDeallocatePrepareStmt,
+        ntDeclareStmt,
+        ntDeclareConditionStmt,
+        ntDeclareCursorStmt,
+        ntDeclareHandlerStmt,
+        ntDeleteStmt,
+        ntDoStmt,
+        ntDropDatabaseStmt,
+        ntDropEventStmt,
+        ntDropIndexStmt,
+        ntDropRoutineStmt,
+        ntDropServerStmt,
+        ntDropTableStmt,
+        ntDropTriggerStmt,
+        ntDropUserStmt,
+        ntDropViewStmt,
+        ntExecuteStmt,
+        ntExplainStmt,
+        ntFetchStmt,
+        ntFlushStmt,
+        ntGetDiagnosticsStmt,
+        ntGrantStmt,
+        ntHelpStmt,
+        ntIfStmt,
+        ntInsertStmt,
+        ntIterateStmt,
+        ntKillStmt,
+        ntLeaveStmt,
+        ntLoadDataStmt,
+        ntLoadXMLStmt,
+        ntLockStmt,
+        ntLoopStmt,
+        ntPrepareStmt,
+        ntPurgeStmt,
+        ntOpenStmt,
+        ntOptimizeStmt,
+        ntRenameStmt,
+        ntReleaseStmt,
+        ntRepairStmt,
+        ntRepeatStmt,
+        ntResetStmt,
+        ntReturnStmt,
+        ntRevokeStmt,
+        ntRollbackStmt,
+        ntSavepointStmt,
+        ntSelectStmt,
+        ntSetNamesStmt,
+        ntSetPasswordStmt,
+        ntSetStmt,
+        ntSetTransactionStmt,
+        ntShowAuthorsStmt,
+        ntShowBinaryLogsStmt,
+        ntShowBinlogEventsStmt,
+        ntShowCharacterSetStmt,
+        ntShowCollationStmt,
+        ntShowContributorsStmt,
+        ntShowCountErrorsStmt,
+        ntShowCountWarningsStmt,
+        ntShowCreateDatabaseStmt,
+        ntShowCreateEventStmt,
+        ntShowCreateFunctionStmt,
+        ntShowCreateProcedureStmt,
+        ntShowCreateTableStmt,
+        ntShowCreateTriggerStmt,
+        ntShowCreateUserStmt,
+        ntShowCreateViewStmt,
+        ntShowDatabasesStmt,
+        ntShowEngineStmt,
+        ntShowEnginesStmt,
+        ntShowErrorsStmt,
+        ntShowEventsStmt,
+        ntShowFunctionCodeStmt,
+        ntShowFunctionStatusStmt,
+        ntShowGrantsStmt,
+        ntShowIndexStmt,
+        ntShowMasterStatusStmt,
+        ntShowOpenTablesStmt,
+        ntShowPluginsStmt,
+        ntShowPrivilegesStmt,
+        ntShowProcedureCodeStmt,
+        ntShowProcedureStatusStmt,
+        ntShowProcessListStmt,
+        ntShowProfileStmt,
+        ntShowProfilesStmt,
+        ntShowRelaylogEventsStmt,
+        ntShowSlaveHostsStmt,
+        ntShowSlaveStatusStmt,
+        ntShowStatusStmt,
+        ntShowTableStatusStmt,
+        ntShowTablesStmt,
+        ntShowTriggersStmt,
+        ntShowVariablesStmt,
+        ntShowWarningsStmt,
+        ntShutdownStmt,
+        ntSignalStmt,
+        ntStartSlaveStmt,
+        ntStartTransactionStmt,
+        ntStopSlaveStmt,
+        ntSubAreaSelectStmt,
+        ntTruncateStmt,
+        ntUnknownStmt,
+        ntUnlockStmt,
+        ntUpdateStmt,
+        ntUseStmt,
+        ntWhileStmt,
+        ntXAStmt
+      ];
+
+      JoinTypeToString: array[TJoinType] of PChar = (
+        'jtUnknown',
+        'jtInner',
+        'jtCross',
+        'jtStraight',
+        'jtEqui',
+        'jtLeft',
+        'jtRight',
+        'jtNaturalLeft',
+        'jtNaturalRight'
+      );
+
+      RoutineTypeToString: array[TRoutineType] of PChar = (
+        'rtUnknown',
+        'rtFunction',
+        'rtProcedure'
+      );
+
+      NodeTypeByStmtType: array[TStmtType] of TNodeType = (
+        ntAnalyzeStmt,
+        ntAlterDatabaseStmt,
+        ntAlterEventStmt,
+        ntAlterInstanceStmt,
+        ntAlterRoutineStmt,
+        ntAlterServerStmt,
+        ntAlterTableStmt,
+        ntAlterViewStmt,
+        ntBeginStmt,
+        ntCallStmt,
+        ntCaseStmt,
+        ntCheckStmt,
+        ntChecksumStmt,
+        ntCloseStmt,
+        ntCommitStmt,
+        ntCompoundStmt,
+        ntCreateDatabaseStmt,
+        ntCreateEventStmt,
+        ntCreateIndexStmt,
+        ntCreateRoutineStmt,
+        ntCreateServerStmt,
+        ntCreateTableStmt,
+        ntCreateTriggerStmt,
+        ntCreateUserStmt,
+        ntCreateViewStmt,
+        ntDeallocatePrepareStmt,
+        ntDeclareStmt,
+        ntDeclareConditionStmt,
+        ntDeclareCursorStmt,
+        ntDeclareHandlerStmt,
+        ntDeleteStmt,
+        ntDoStmt,
+        ntDropDatabaseStmt,
+        ntDropEventStmt,
+        ntDropIndexStmt,
+        ntDropRoutineStmt,
+        ntDropServerStmt,
+        ntDropTableStmt,
+        ntDropTriggerStmt,
+        ntDropUserStmt,
+        ntDropViewStmt,
+        ntExecuteStmt,
+        ntExplainStmt,
+        ntFetchStmt,
+        ntFlushStmt,
+        ntGetDiagnosticsStmt,
+        ntGrantStmt,
+        ntHelpStmt,
+        ntIfStmt,
+        ntInsertStmt,
+        ntIterateStmt,
+        ntKillStmt,
+        ntLeaveStmt,
+        ntLoadDataStmt,
+        ntLoadXMLStmt,
+        ntLockStmt,
+        ntLoopStmt,
+        ntPrepareStmt,
+        ntPurgeStmt,
+        ntOpenStmt,
+        ntOptimizeStmt,
+        ntRenameStmt,
+        ntReleaseStmt,
+        ntRepairStmt,
+        ntRepeatStmt,
+        ntResetStmt,
+        ntReturnStmt,
+        ntRevokeStmt,
+        ntRollbackStmt,
+        ntSavepointStmt,
+        ntSelectStmt,
+        ntSetNamesStmt,
+        ntSetPasswordStmt,
+        ntSetStmt,
+        ntSetTransactionStmt,
+        ntShowAuthorsStmt,
+        ntShowBinaryLogsStmt,
+        ntShowBinlogEventsStmt,
+        ntShowCharacterSetStmt,
+        ntShowCollationStmt,
+        ntShowContributorsStmt,
+        ntShowCountErrorsStmt,
+        ntShowCountWarningsStmt,
+        ntShowCreateDatabaseStmt,
+        ntShowCreateEventStmt,
+        ntShowCreateFunctionStmt,
+        ntShowCreateProcedureStmt,
+        ntShowCreateTableStmt,
+        ntShowCreateTriggerStmt,
+        ntShowCreateUserStmt,
+        ntShowCreateViewStmt,
+        ntShowDatabasesStmt,
+        ntShowEngineStmt,
+        ntShowEnginesStmt,
+        ntShowErrorsStmt,
+        ntShowEventsStmt,
+        ntShowFunctionCodeStmt,
+        ntShowFunctionStatusStmt,
+        ntShowGrantsStmt,
+        ntShowIndexStmt,
+        ntShowMasterStatusStmt,
+        ntShowOpenTablesStmt,
+        ntShowPluginsStmt,
+        ntShowPrivilegesStmt,
+        ntShowProcedureCodeStmt,
+        ntShowProcedureStatusStmt,
+        ntShowProcessListStmt,
+        ntShowProfileStmt,
+        ntShowProfilesStmt,
+        ntShowRelaylogEventsStmt,
+        ntShowSlaveHostsStmt,
+        ntShowSlaveStatusStmt,
+        ntShowStatusStmt,
+        ntShowTableStatusStmt,
+        ntShowTablesStmt,
+        ntShowTriggersStmt,
+        ntShowVariablesStmt,
+        ntShowWarningsStmt,
+        ntShutdownStmt,
+        ntSignalStmt,
+        ntStartSlaveStmt,
+        ntStartTransactionStmt,
+        ntStopSlaveStmt,
+        ntSubAreaSelectStmt,
+        ntTruncateStmt,
+        ntUnknownStmt,
+        ntUnlockStmt,
+        ntUpdateStmt,
+        ntUseStmt,
+        ntWhileStmt,
+        ntXAStmt
+      );
 
   protected
     type
@@ -46,6 +1548,7 @@ type
         RowFormatValue: TOffset;
         StatsAutoRecalcValue: TOffset;
         StatsPersistentValue: TOffset;
+        TransactionalValue: TOffset;
         UnionList: TOffset;
       end;
       TValueAssign = (vaYes, vaNo, vaAuto);
@@ -115,7 +1618,6 @@ type
         destructor Destroy(); override;
         procedure IncreaseIndent();
         procedure Write(const Text: PChar; const Length: Integer); override;
-        procedure WriteIndent(); {$IFNDEF Debug} inline; {$ENDIF}
         procedure WriteReturn(); {$IFNDEF Debug} inline; {$ENDIF}
         procedure WriteSpace(); {$IFNDEF Debug} inline; {$ENDIF}
         property NewLine: Boolean read FNewLine;
@@ -235,7 +1737,8 @@ type
         function GetNextTokenAll(): PToken;
         function GetOffset(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
         function GetParentNode(): PNode; {$IFNDEF Debug} inline; {$ENDIF}
-        function GetTokenType(): fspTypes.TTokenType;
+        function GetTokenType(): TTokenType;
+        procedure SetTokenType(ATokenType: TTokenType);
         property ErrorCode: Byte read FErrorCode;
         property ErrorPos: PChar read FErrorPos;
         property Generation: Integer read GetGeneration;
@@ -261,7 +1764,7 @@ type
         property OperatorType: TOperatorType read FOperatorType;
         property ParentNode: PNode read GetParentNode;
         property Text: string read GetText write SetText;
-        property TokenType: fspTypes.TTokenType read GetTokenType write NewTokenType;
+        property TokenType: TTokenType read GetTokenType write SetTokenType;
         property UsageType: TUsageType read FUsageType;
       end;
 
@@ -1062,6 +2565,7 @@ type
               AutoIncrementTag: TOffset;
               ColumnFormat: TOffset;
               StorageTag: TOffset;
+              Reference: TOffset;
             end;
             Virtual: packed record
               GernatedAlwaysTag: TOffset;
@@ -1093,12 +2597,7 @@ type
             ForeignKeyTag: TOffset;
             NameIdent: TOffset;
             ColumnNameList: TOffset;
-            ReferencesTag: TOffset;
-            ParentTableIdent: TOffset;
-            IndicesList: TOffset;
-            MatchValue: TOffset;
-            OnDeleteValue: TOffset;
-            OnUpdateValue: TOffset;
+            Reference: TOffset;
           end;
         private
           Heritage: TRange;
@@ -1183,6 +2682,26 @@ type
           TNodes = packed record
             ValuesTag: TOffset;
             Value: TOffset;
+          end;
+        private
+          Heritage: TRange;
+        private
+          Nodes: TNodes;
+          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        public
+          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        end;
+
+        PReference = ^TReference;
+        TReference = packed record
+        private type
+          TNodes = packed record
+            Tag: TOffset;
+            ParentTableIdent: TOffset;
+            IndicesList: TOffset;
+            MatchValue: TOffset;
+            OnDeleteValue: TOffset;
+            OnUpdateValue: TOffset;
           end;
         private
           Heritage: TRange;
@@ -2307,11 +3826,11 @@ type
       private
         Heritage: TRange;
       private
-        FDelimiterType: fspTypes.TTokenType;
+        FDelimiterType: TTokenType;
         FElementCount: Word;
         Nodes: TNodes;
         class function Create(const AParser: TMySQLParser;
-          const ANodes: TNodes; const ADelimiterType: fspTypes.TTokenType;
+          const ANodes: TNodes; const ADelimiterType: TTokenType;
           const AChildrenCount: Integer; const AChildren: array of TOffset): TOffset; static;
         function GetFirstChild(): PChild; {$IFNDEF Debug} inline; {$ENDIF}
       public
@@ -2972,6 +4491,16 @@ type
           property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
+        TIntoNodes = packed record
+          Tag: TOffset;
+          Filename: TOffset;
+          CharacterSetValue: TOffset;
+          VariableList: TOffset;
+          FieldsTerminatedByValue: TOffset;
+          OptionallyEnclosedByValue: TOffset;
+          LinesTerminatedByValue: TOffset;
+        end;
+
         TNodes = packed record
           SelectTag: TOffset;
           DistinctTag: TOffset;
@@ -2984,6 +4513,7 @@ type
           SQLNoCacheTag: TOffset;
           SQLCalcFoundRowsTag: TOffset;
           ColumnsList: TOffset;
+          Into1: TIntoNodes;
           From: packed record
             Tag: TOffset;
             TableReferenceList: TOffset;
@@ -3021,15 +4551,7 @@ type
             Ident: TOffset;
             ParamList: TOffset;
           end;
-          Into: packed record
-            Tag: TOffset;
-            Filename: TOffset;
-            CharacterSetValue: TOffset;
-            VariableList: TOffset;
-            FieldsTerminatedByValue: TOffset;
-            OptionallyEnclosedByValue: TOffset;
-            LinesTerminatedByValue: TOffset;
-          end;
+          Into2: TIntoNodes;
           ForUpdatesTag: TOffset;
           LockInShareMode: TOffset;
           Union: packed record
@@ -4778,6 +6300,7 @@ type
     kiTRADITIONAL,
     kiTRAILING,
     kiTRANSACTION,
+    kiTRANSACTIONAL,
     kiTRIGGER,
     kiTRIGGERS,
     kiTRUE,
@@ -4917,6 +6440,7 @@ type
     procedure FormatCreateTableStmtKeyColumn(const Nodes: TCreateTableStmt.TKeyColumn.TNodes);
     procedure FormatCreateTableStmtPartition(const Nodes: TCreateTableStmt.TPartition.TNodes);
     procedure FormatCreateTableStmtPartitionValues(const Nodes: TCreateTableStmt.TPartitionValues.TNodes);
+    procedure FormatCreateTableStmtReference(const Nodes: TCreateTableStmt.TReference.TNodes);
     procedure FormatCreateTriggerStmt(const Nodes: TCreateTriggerStmt.TNodes);
     procedure FormatCreateUserStmt(const Nodes: TCreateUserStmt.TNodes);
     procedure FormatCreateViewStmt(const Nodes: TCreateViewStmt.TNodes);
@@ -4924,6 +6448,7 @@ type
     procedure FormatComments(const Token: PToken; Start: Boolean = False);
     procedure FormatDataType(const Nodes: TDataType.TNodes);
     procedure FormatDbIdent(const Nodes: TDbIdent.TNodes);
+    procedure FormatDeclareCursorStmt(const Nodes: TDeclareCursorStmt.TNodes);
     procedure FormatDeclareHandlerStmt(const Nodes: TDeclareHandlerStmt.TNodes);
     procedure FormatDeleteStmt(const Nodes: TDeleteStmt.TNodes);
     procedure FormatExistsFunc(const Nodes: TExistsFunc.TNodes);
@@ -4933,7 +6458,7 @@ type
     procedure FormatIfStmt(const Nodes: TIfStmt.TNodes);
     procedure FormatIfStmtBranch(const Nodes: TIfStmt.TBranch.TNodes);
     procedure FormatInsertStmt(const Nodes: TInsertStmt.TNodes);
-    procedure FormatList(const Nodes: TList.TNodes; const DelimiterType: fspTypes.TTokenType); overload; {$IFNDEF Debug} inline; {$ENDIF}
+    procedure FormatList(const Nodes: TList.TNodes; const DelimiterType: TTokenType); overload; {$IFNDEF Debug} inline; {$ENDIF}
     procedure FormatList(const Nodes: TList.TNodes; const Spacer: TSpacer); overload;
     procedure FormatList(const Node: TOffset; const Spacer: TSpacer); overload; {$IFNDEF Debug} inline; {$ENDIF}
     procedure FormatLoadDataStmt(const Nodes: TLoadDataStmt.TNodes);
@@ -4951,6 +6476,8 @@ type
     procedure FormatSelectStmtColumn(const Nodes: TSelectStmt.TColumn.TNodes);
     procedure FormatSelectStmtTableFactor(const Nodes: TSelectStmt.TTableFactor.TNodes);
     procedure FormatSelectStmtTableFactorOj(const Nodes: TSelectStmt.TTableFactorOj.TNodes);
+    procedure FormatSelectStmtTableJoin(const Nodes: TSelectStmt.TTableJoin.TNodes);
+    procedure FormatSetStmt(const Nodes: TSetStmt.TNodes);
     procedure FormatShowBinlogEventsStmt(const Nodes: TShowBinlogEventsStmt.TNodes);
     procedure FormatShowErrorsStmt(const Nodes: TShowErrorsStmt.TNodes);
     procedure FormatShowRelaylogEventsStmt(const Nodes: TShowBinlogEventsStmt.TNodes);
@@ -5027,13 +6554,14 @@ type
     function ParseCreateTableStmtField(const Add: TCreateTableStmt.TFieldAdd = caNone): TOffset;
     function ParseCreateTableStmtDefinition(): TOffset; overload;
     function ParseCreateTableStmtDefinition(const AlterTableStmt: Boolean): TOffset; overload;
+    function ParseCreateTableStmtDefinitionPartitionNames(): TOffset;
     function ParseCreateTableStmtForeignKey(const Add: Boolean = False): TOffset;
     function ParseCreateTableStmtKey(const AlterTableStmt: Boolean): TOffset;
     function ParseCreateTableStmtKeyColumn(): TOffset;
     function ParseCreateTableStmtPartition(): TOffset; overload;
     function ParseCreateTableStmtPartition(const Add: Boolean): TOffset; overload;
-    function ParseCreateTableStmtDefinitionPartitionNames(): TOffset;
     function ParseCreateTableStmtPartitionValues(): TOffset;
+    function ParseCreateTableStmtReference(): TOffset;
     function ParseCreateTableStmtUnion(): TOffset;
     function ParseCreateTriggerStmt(): TOffset;
     function ParseCreateUserStmt(const Alter: Boolean): TOffset;
@@ -5263,8 +6791,7 @@ implementation {***************************************************************}
 uses
   Windows,
   SysUtils, StrUtils, RTLConsts, Math,
-  SQLUtils,
-  fspUtils;
+  SQLUtils;
 
 resourcestring
   SUnknownError = 'Unknown Error';
@@ -5273,6 +6800,197 @@ resourcestring
   STooManyTokensInExpr = 'Too many tokens (%d) in Expr';
   SUnknownNodeType = 'Unknown node type';
   SOutOfMemory = 'Out of memory (%d)';
+
+const
+  CP_UNICODE = 1200;
+  BOM_UTF8: PAnsiChar = Chr($EF) + Chr($BB) + Chr($BF);
+  BOM_UNICODE_LE: PAnsiChar = Chr($FF) + Chr($FE);
+
+  DefaultParsedNodesMemSize = 100 * 1024;
+  DefaultTextsMemSize = 10 * 1024;
+
+var
+  UsageTypeByTokenType: array[TMySQLParser.TTokenType] of TMySQLParser.TUsageType = (
+    utUnknown,
+    utError,
+    utWhiteSpace,
+    utWhiteSpace,
+    utComment,
+    utComment,
+    utSymbol,
+    utSymbol,
+    utSymbol,
+    utSymbol,
+    utSymbol,
+    utSymbol,
+    utConst,
+    utConst,
+    utConst,
+    utConst,
+    utConst,
+    utConst,
+    utDbIdent,
+    utDbIdent,
+    utDbIdent,
+    utDbIdent,
+    utSymbol,
+    utSymbol,
+    utSymbol,
+    utSymbol,
+    utConst
+  );
+
+function HTMLEscape(const Value: PChar; const ValueLen: Integer; const Escaped: PChar; const EscapedLen: Integer): Integer; overload;
+label
+  StartL,
+  StringL, String2, String3, String4,
+  MoveReplace, MoveReplaceL, MoveReplaceE,
+  PosL, PosE,
+  FindPos, FindPos2,
+  Error,
+  Finish;
+const
+  SearchLen = 6;
+  Search: array [0 .. SearchLen - 1] of Char = (#0, #10, #13, '"', '<', '>');
+  Replace: array [0 .. SearchLen - 1] of PChar = ('', '<br>' + #13#10, '', '&quot;', '&lt;', '&gt;');
+var
+  Len: Integer;
+  Poss: packed array [0 .. SearchLen - 1] of Cardinal;
+begin
+  Result := 0;
+  Len := EscapedLen;
+
+  asm
+        PUSH ES
+        PUSH ESI
+        PUSH EDI
+        PUSH EBX
+
+        PUSH DS                          // string operations uses ES
+        POP ES
+        CLD                              // string operations uses forward direction
+
+        MOV ESI,PChar(Value)             // Copy characters from Value
+        MOV EDI,Escaped                  //   to Escaped
+        MOV ECX,ValueLen                 // Length of Value string
+
+      // -------------------
+
+        MOV EBX,0                        // Numbers of characters in Search
+      StartL:
+        CALL FindPos                     // Find Search character Pos
+        INC EBX                          // Next character in Search
+        CMP EBX,SearchLen                // All Search characters handled?
+        JNE StartL                       // No!
+
+      // -------------------
+
+        CMP ECX,0                        // Empty string?
+        JE Finish                        // Yes!
+      StringL:
+        PUSH ECX
+
+        MOV ECX,0                        // Numbers of characters in Search
+        MOV EBX,-1                       // Index of first Pos
+        MOV EAX,0                        // Last character
+        LEA EDX,Poss
+      PosL:
+        CMP [EDX + ECX * 4],EAX          // Pos before other Poss?
+        JB PosE                          // No!
+        MOV EBX,ECX                      // Index of first Pos
+        MOV EAX,[EDX + EBX * 4]          // Value of first Pos
+      PosE:
+        INC ECX                          // Next Pos
+        CMP ECX,SearchLen                // All Poss compared?
+        JNE PosL                         // No!
+
+        POP ECX
+
+        SUB ECX,EAX                      // Copy normal characters from Value
+        JZ String3                       // End of Value!
+        ADD @Result,ECX                  // Characters to copy
+        CMP Escaped,0                    // Calculate length only?
+        JE String2                       // Yes!
+        CMP Len,ECX                      // Enough character left in Escaped?
+        JB Error                         // No!
+        SUB Len,ECX                      // Calc new len space in Escaped
+        REPNE MOVSW                      // Copy normal characters to Result
+        JMP String3
+      String2:
+        SHL ECX,1
+        ADD ESI,ECX
+
+      String3:
+        MOV ECX,EAX
+        JECXZ Finish                     // End of Value!
+
+        ADD ESI,2                        // Step of Search character
+
+
+      MoveReplace:
+        PUSH ESI
+        LEA EDX,Replace                  // Insert Replace string
+        MOV ESI,[EDX + EBX * 4]
+      MoveReplaceL:
+        LODSW                            // Get Replace character
+        CMP AX,0                         // End of Replace?
+        JE MoveReplaceE                  // Yes!
+        INC @Result                      // One characters in replace
+        CMP Escaped,0                    // Calculate length only?
+        JE MoveReplaceL                  // Yes!
+        CMP Len,ECX                      // Enough character left in Escaped?
+        JB Error                         // No!
+        STOSW                            // Put character in Result
+        JMP MoveReplaceL
+      MoveReplaceE:
+        POP ESI
+
+
+      String4:
+        DEC ECX                          // Ignore Search character
+        JZ Finish                        // All character in Value handled!
+        CALL FindPos                     // Find Search character
+        JMP StringL
+
+      // -------------------
+
+      FindPos:
+        PUSH ECX
+        PUSH EDI
+        LEA EDI,Search                   // Character to Search
+        MOV AX,[EDI + EBX * 2]
+        MOV EDI,ESI                      // Search in Value
+        REPNE SCASW                      // Find Search character
+        JNE FindPos2                     // Search character not found!
+        INC ECX
+      FindPos2:
+        LEA EDI,Poss
+        MOV [EDI + EBX * 4],ECX          // Store found Position
+        POP EDI
+        POP ECX
+        RET
+
+      // -------------------
+
+      Error:
+        MOV @Result,0                    // Too few space in Escaped
+
+      Finish:
+        POP EBX
+        POP EDI
+        POP ESI
+        POP ES
+  end;
+end;
+
+function HTMLEscape(const Value: string): string; overload;
+var
+  Len: Integer;
+begin
+  Len := HTMLEscape(PChar(Value), Length(Value), nil, 0);
+  SetLength(Result, Len);
+  HTMLEscape(PChar(Value), Length(Value), PChar(Result), Len);
+end;
 
 function WordIndices(const Index0: TMySQLParser.TWordList.TIndex;
   const Index1: TMySQLParser.TWordList.TIndex = -1;
@@ -5307,7 +7025,7 @@ end;
 
 procedure TMySQLParser.TStringBuffer.Delete(const Start: Integer; const Length: Integer);
 begin
-  MoveMemory(@Buffer.Mem[Start], @Buffer.Mem[Start + Length], Size - Length);
+  Move(Buffer.Mem[Start + Length], Buffer.Mem[Start], Size - Length);
   Buffer.Write := Pointer(Integer(Buffer.Write) - Length);
 end;
 
@@ -5621,11 +7339,6 @@ begin
   FNewLine := False;
 end;
 
-procedure TMySQLParser.TFormatBuffer.WriteIndent();
-begin
-  Write(@IndentSpaces[0], Indent);
-end;
-
 procedure TMySQLParser.TFormatBuffer.WriteReturn();
 begin
   Write(#13#10);
@@ -5776,7 +7489,7 @@ end;
 class function TMySQLParser.TToken.Create(const AParser: TMySQLParser;
   const AText: PChar; const ALength: Integer;
   const AErrorCode: Byte; const AErrorPos: PChar;
-  const ATokenType: fspTypes.TTokenType; const AOperatorType: TOperatorType;
+  const ATokenType: TTokenType; const AOperatorType: TOperatorType;
   const AKeywordIndex: TWordList.TIndex; const AUsageType: TUsageType): TOffset;
 begin
   Result := TChild.Create(AParser, ntToken);
@@ -5821,11 +7534,6 @@ begin
         Result := Trim(Copy(S, 3, Length - 4))
       else
         raise Exception.Create(SUnknownError);
-    ttBindVariable:
-      if (Copy(S, 1, 1) = ':') then
-        Result := Trim(Copy(S, 2, Length - 1))
-      else
-        Result := S;
     ttString:
       Result := SQLUnescape(S);
     ttDQIdent:
@@ -5972,12 +7680,18 @@ begin
   SetText(PChar(Text), System.Length(Text));
 end;
 
-function TMySQLParser.TToken.GetTokenType(): fspTypes.TTokenType;
+function TMySQLParser.TToken.GetTokenType(): TTokenType;
 begin
   if (NewTokenType = ttUnknown) then
     Result := FTokenType
   else
     Result := NewTokenType;
+end;
+
+procedure TMySQLParser.TToken.SetTokenType(ATokenType: TTokenType);
+begin
+  if (ATokenType <> FTokenType) then
+    NewTokenType := ATokenType;
 end;
 
 { TMySQLParser.TRange *********************************************************}
@@ -6672,7 +8386,7 @@ begin
   end;
 end;
 
-{ TMySQLParser.TConvertFunc ******************************************************}
+{ TMySQLParser.TConvertFunc ***************************************************}
 
 class function TMySQLParser.TConvertFunc.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
 begin
@@ -6848,6 +8562,20 @@ begin
   Result := TRange.Create(AParser, ntCreateTableStmtPartitionValues);
 
   with PPartitionValues(AParser.NodePtr(Result))^ do
+  begin
+    Nodes := ANodes;
+
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+  end;
+end;
+
+{ TMySQLParser.TCreateTableStmt.TReferences ******************************}
+
+class function TMySQLParser.TCreateTableStmt.TReference.Create(const AParser: TMySQLParser; const ANodes: TReference.TNodes): TOffset;
+begin
+  Result := TRange.Create(AParser, ntCreateTableStmtReference);
+
+  with PReference(AParser.NodePtr(Result))^ do
   begin
     Nodes := ANodes;
 
@@ -7032,7 +8760,7 @@ begin
   end;
 end;
 
-{ TMySQLParser.TDeclareHandlerStmt *********************************************}
+{ TMySQLParser.TDeclareHandlerStmt ********************************************}
 
 class function TMySQLParser.TDeclareHandlerStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
 begin
@@ -7046,7 +8774,7 @@ begin
   end;
 end;
 
-{ TMySQLParser.TDeclareHandlerStmtCondition *********************************************}
+{ TMySQLParser.TDeclareHandlerStmtCondition ***********************************}
 
 class function TMySQLParser.TDeclareHandlerStmt.TCondition.Create(const AParser: TMySQLParser; const ANodes: TCondition.TNodes): TOffset;
 begin
@@ -7215,7 +8943,7 @@ begin
   end;
 end;
 
-{ TMySQLParser.TEndLabel ***************************************************}
+{ TMySQLParser.TEndLabel ******************************************************}
 
 class function TMySQLParser.TEndLabel.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
 begin
@@ -7257,7 +8985,7 @@ begin
   end;
 end;
 
-{ TMySQLParser.TExplainStmt *****************************************************}
+{ TMySQLParser.TExplainStmt ***************************************************}
 
 class function TMySQLParser.TExplainStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
 begin
@@ -7271,7 +8999,7 @@ begin
   end;
 end;
 
-{ TMySQLParser.TExtractFunc ******************************************************}
+{ TMySQLParser.TExtractFunc ***************************************************}
 
 class function TMySQLParser.TExtractFunc.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
 begin
@@ -7627,7 +9355,7 @@ begin
   end;
 end;
 
-{ TMySQLParser.TKillStmt *****************************************************}
+{ TMySQLParser.TKillStmt ******************************************************}
 
 class function TMySQLParser.TKillStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
 begin
@@ -7672,7 +9400,7 @@ end;
 { TMySQLParser.TList **********************************************************}
 
 class function TMySQLParser.TList.Create(const AParser: TMySQLParser;
-  const ANodes: TNodes; const ADelimiterType: fspTypes.TTokenType;
+  const ANodes: TNodes; const ADelimiterType: TTokenType;
   const AChildrenCount: Integer; const AChildren: array of TOffset): TOffset;
 var
   I: Integer;
@@ -7774,7 +9502,7 @@ begin
   end;
 end;
 
-{ TMySQLParser.TMatchFunc ******************************************************}
+{ TMySQLParser.TMatchFunc *****************************************************}
 
 class function TMySQLParser.TMatchFunc.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
 begin
@@ -7788,7 +9516,7 @@ begin
   end;
 end;
 
-{ TMySQLParser.TPositionFunc ******************************************************}
+{ TMySQLParser.TPositionFunc **************************************************}
 
 class function TMySQLParser.TPositionFunc.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
 begin
@@ -7816,7 +9544,7 @@ begin
   end;
 end;
 
-{ TMySQLParser.TPurgeStmt ***************************************************}
+{ TMySQLParser.TPurgeStmt *****************************************************}
 
 class function TMySQLParser.TPurgeStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
 begin
@@ -8172,7 +9900,7 @@ end;
 
 class function TMySQLParser.TSelectStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
 begin
-  Result := TStmt.Create(AParser, fspTypes.stSelect);
+  Result := TStmt.Create(AParser, stSelect);
 
   with PSelectStmt(AParser.NodePtr(Result))^ do
   begin
@@ -8224,7 +9952,7 @@ begin
   end;
 end;
 
-{ TMySQLParser.TSetNamesStmt ***********************************************}
+{ TMySQLParser.TSetNamesStmt **************************************************}
 
 class function TMySQLParser.TSetNamesStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
 begin
@@ -8854,7 +10582,7 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowVariablesStmt **********************************************}
+{ TMySQLParser.TShowVariablesStmt *********************************************}
 
 class function TMySQLParser.TShowVariablesStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
 begin
@@ -8924,7 +10652,7 @@ begin
   end;
 end;
 
-{ TMySQLParser.TSubstringFunc ******************************************************}
+{ TMySQLParser.TSubstringFunc *************************************************}
 
 class function TMySQLParser.TSubstringFunc.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
 begin
@@ -8955,7 +10683,7 @@ begin
   end;
 end;
 
-{ TMySQLParser.TStartSlaveStmt ******************************************}
+{ TMySQLParser.TStartSlaveStmt ************************************************}
 
 class function TMySQLParser.TStartSlaveStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
 begin
@@ -9067,7 +10795,7 @@ begin
   end;
 end;
 
-{ TMySQLParser.TTrimFunc ****************************************************}
+{ TMySQLParser.TTrimFunc ******************************************************}
 
 class function TMySQLParser.TTrimFunc.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
 begin
@@ -9309,14 +11037,20 @@ begin
   FErrorToken := 0;
   {$IFDEF Debug} TokenIndex := 0; {$ENDIF}
   FInPL_SQL := 0;
-  if (Assigned(ParsedNodes.Mem)) then begin FreeMem(ParsedNodes.Mem); ParsedNodes.Mem := nil; end;
-  ParsedNodes.UsedSize := 0;
-  ParsedNodes.MemSize := 0;
+  if (ParsedNodes.MemSize <> DefaultParsedNodesMemSize) then
+  begin
+    ParsedNodes.MemSize := DefaultParsedNodesMemSize;
+    ReallocMem(ParsedNodes.Mem, ParsedNodes.MemSize);
+  end;
+  ParsedNodes.UsedSize := 1; // "0" means "not assigned", so we start with "1"
+  if (Texts.MemSize <> DefaultTextsMemSize) then
+  begin
+    Texts.MemSize := DefaultTextsMemSize;
+    ReallocMem(Texts.Mem, Texts.MemSize);
+  end;
+  Texts.UsedSize := 1; // "0" means "not assigned", so we start with "1"
   ParseText := '';
-  ParsePosition.Text := nil;
-  ParsePosition.Length := 0;
   FRoot := 0;
-  if (Assigned(Texts.Mem)) then begin FreeMem(Texts.Mem); Texts.Mem := nil; end;
   InCreateFunctionStmt := False;
   InCreateProcedureStmt := False;
   AllowedMySQLVersion := 0;
@@ -9338,6 +11072,8 @@ begin
   ParsedNodes.UsedSize := 0;
   ParsedNodes.MemSize := 0;
   Texts.Mem := nil;
+  Texts.UsedSize := 0;
+  Texts.MemSize := 0;
   TokenBuffer.Count := 0;
 
   Functions := MySQLFunctions;
@@ -9349,6 +11085,11 @@ end;
 destructor TMySQLParser.Destroy();
 begin
   Clear();
+
+  if (ParsedNodes.MemSize <> 0) then
+    FreeMem(ParsedNodes.Mem);
+  if (Texts.MemSize <> 0) then
+    FreeMem(Texts.Mem, 0);
 
   FunctionList.Free();
   KeywordList.Free();
@@ -9602,8 +11343,11 @@ begin
   FormatNode(Nodes.BeginLabel, stSpaceAfter);
   Commands.IncreaseIndent();
   FormatNode(Nodes.BeginTag);
-  Commands.WriteReturn();
-  FormatList(Nodes.StmtList, sReturn);
+  if (Nodes.StmtList > 0) then
+  begin
+    Commands.WriteReturn();
+    FormatList(Nodes.StmtList, sReturn);
+  end;
   Commands.DecreaseIndent();
   FormatNode(Nodes.EndTag, stReturnBefore);
   FormatNode(Nodes.EndLabel, stSpaceBefore);
@@ -9767,6 +11511,7 @@ begin
   FormatNode(Nodes.TableOptionsNodes.RowFormatValue, stSpaceBefore);
   FormatNode(Nodes.TableOptionsNodes.StatsAutoRecalcValue, stSpaceBefore);
   FormatNode(Nodes.TableOptionsNodes.StatsPersistentValue, stSpaceBefore);
+  FormatNode(Nodes.TableOptionsNodes.TransactionalValue, stSpaceBefore);
   FormatNode(Nodes.TableOptionsNodes.UnionList, stSpaceBefore);
   if (Nodes.PartitionOption.Tag > 0) then
   begin
@@ -9823,6 +11568,7 @@ begin
     FormatNode(Nodes.CommentValue, stSpaceBefore);
     FormatNode(Nodes.Real.ColumnFormat, stSpaceBefore);
     FormatNode(Nodes.Real.StorageTag, stSpaceBefore);
+    FormatNode(Nodes.Real.Reference, stSpaceBefore);
   end
   else
   begin // Virtual field
@@ -9889,6 +11635,16 @@ begin
   FormatNode(Nodes.Value, stSpaceBefore);
 end;
 
+procedure TMySQLParser.FormatCreateTableStmtReference(const Nodes: TCreateTableStmt.TReference.TNodes);
+begin
+  FormatNode(Nodes.Tag);
+  FormatNode(Nodes.ParentTableIdent, stSpaceBefore);
+  FormatNode(Nodes.IndicesList, stSpaceBefore);
+  FormatNode(Nodes.MatchValue, stSpaceBefore);
+  FormatNode(Nodes.OnDeleteValue, stSpaceBefore);
+  FormatNode(Nodes.OnUpdateValue, stSpaceBefore);
+end;
+
 procedure TMySQLParser.FormatCreateTriggerStmt(const Nodes: TCreateTriggerStmt.TNodes);
 begin
   FormatNode(Nodes.CreateTag);
@@ -9901,8 +11657,8 @@ begin
   FormatNode(Nodes.TableIdentNode, stSpaceBefore);
   FormatNode(Nodes.ForEachRowTag, stSpaceBefore);
   FormatNode(Nodes.OrderValue, stReturnBefore);
-  FormatNode(Nodes.Body, stReturnBefore);
   Commands.DecreaseIndent();
+  FormatNode(Nodes.Body, stReturnBefore);
 end;
 
 procedure TMySQLParser.FormatCreateUserStmt(const Nodes: TCreateUserStmt.TNodes);
@@ -9932,24 +11688,49 @@ begin
 end;
 
 procedure TMySQLParser.FormatCreateViewStmt(const Nodes: TCreateViewStmt.TNodes);
+var
+  MultiLines: Boolean;
 begin
-  FormatNode(Nodes.CreateTag);
-  Commands.IncreaseIndent();
-  FormatNode(Nodes.OrReplaceTag, stReturnBefore);
-  FormatNode(Nodes.AlgorithmValue, stReturnBefore);
-  FormatNode(Nodes.DefinerNode, stReturnBefore);
-  FormatNode(Nodes.SQLSecurityTag, stReturnBefore);
-  FormatNode(Nodes.ViewTag, stReturnBefore);
-  FormatNode(Nodes.Ident, stSpaceBefore);
-  FormatNode(Nodes.ColumnList, stSpaceBefore);
-  Commands.IncreaseIndent();
-  FormatNode(Nodes.AsTag, stReturnBefore);
-  Commands.IncreaseIndent();
-  FormatNode(Nodes.SelectStmt, stReturnBefore);
-  Commands.DecreaseIndent();
-  FormatNode(Nodes.OptionTag, stReturnBefore);
-  Commands.DecreaseIndent();
-  Commands.DecreaseIndent();
+  MultiLines :=
+    (Nodes.OrReplaceTag <> 0)
+    or (Nodes.AlgorithmValue <> 0)
+    or (Nodes.DefinerNode <> 0)
+    or (Nodes.SQLSecurityTag <> 0);
+
+  if (not MultiLines) then
+  begin
+    FormatNode(Nodes.CreateTag);
+    FormatNode(Nodes.ViewTag, stSpaceBefore);
+    FormatNode(Nodes.Ident, stSpaceBefore);
+    FormatNode(Nodes.ColumnList, stSpaceBefore);
+    Commands.IncreaseIndent();
+    FormatNode(Nodes.AsTag, stReturnBefore);
+    Commands.IncreaseIndent();
+    FormatNode(Nodes.SelectStmt, stReturnBefore);
+    Commands.DecreaseIndent();
+    FormatNode(Nodes.OptionTag, stReturnBefore);
+    Commands.DecreaseIndent();
+  end
+  else
+  begin
+    FormatNode(Nodes.CreateTag);
+    Commands.IncreaseIndent();
+    FormatNode(Nodes.OrReplaceTag, stReturnBefore);
+    FormatNode(Nodes.AlgorithmValue, stReturnBefore);
+    FormatNode(Nodes.DefinerNode, stReturnBefore);
+    FormatNode(Nodes.SQLSecurityTag, stReturnBefore);
+    FormatNode(Nodes.ViewTag, stReturnBefore);
+    FormatNode(Nodes.Ident, stSpaceBefore);
+    FormatNode(Nodes.ColumnList, stSpaceBefore);
+    Commands.IncreaseIndent();
+    FormatNode(Nodes.AsTag, stReturnBefore);
+    Commands.IncreaseIndent();
+    FormatNode(Nodes.SelectStmt, stReturnBefore);
+    Commands.DecreaseIndent();
+    FormatNode(Nodes.OptionTag, stReturnBefore);
+    Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
+  end;
 end;
 
 procedure TMySQLParser.FormatCurrentTimestamp(const Nodes: TCurrentTimestamp.TNodes);
@@ -10118,13 +11899,24 @@ begin
   FormatNode(Nodes.Ident);
 end;
 
+procedure TMySQLParser.FormatDeclareCursorStmt(const Nodes: TDeclareCursorStmt.TNodes);
+begin
+  FormatNode(Nodes.StmtTag);
+  FormatNode(Nodes.Ident, stSpaceBefore);
+  FormatNode(Nodes.CursorTag, stSpaceBefore);
+  Commands.IncreaseIndent();
+  FormatNode(Nodes.ForTag, stSpaceBefore);
+  FormatNode(Nodes.SelectStmt, stReturnBefore);
+  Commands.DecreaseIndent();
+end;
+
 procedure TMySQLParser.FormatDeclareHandlerStmt(const Nodes: TDeclareHandlerStmt.TNodes);
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.ActionTag, stSpaceBefore);
   FormatNode(Nodes.HandlerTag, stSpaceBefore);
   Commands.IncreaseIndent();
-  FormatNode(Nodes.ForTag, stReturnBefore);
+  FormatNode(Nodes.ForTag, stSpaceBefore);
   FormatNode(Nodes.ConditionsList, stSpaceBefore);
   FormatNode(Nodes.Stmt, stReturnBefore);
   Commands.DecreaseIndent();
@@ -10258,31 +12050,77 @@ end;
 
 procedure TMySQLParser.FormatInsertStmt(const Nodes: TInsertStmt.TNodes);
 begin
-  FormatNode(Nodes.InsertTag);
-  FormatNode(Nodes.PriorityTag, stSpaceBefore);
-  FormatNode(Nodes.IgnoreTag, stSpaceBefore);
-  FormatNode(Nodes.IntoTag, stSpaceBefore);
-  FormatNode(Nodes.TableIdent, stSpaceBefore);
-  FormatNode(Nodes.Partition.Tag, stSpaceBefore);
-  FormatNode(Nodes.Partition.List, stSpaceBefore);
-  FormatNode(Nodes.ColumnList, stSpaceBefore);
-  FormatNode(Nodes.Values.Tag, stSpaceBefore);
-  FormatNode(Nodes.Values.List, stSpaceBefore);
-  FormatNode(Nodes.Set_.Tag, stSpaceBefore);
-  FormatNode(Nodes.Set_.List, stSpaceBefore);
-  if (Nodes.SelectStmt > 0) then
+  if ((Nodes.ColumnList = 0)
+    and (Nodes.Values.List > 0)
+    and (NodePtr(Nodes.Values.List)^.NodeType = ntList)
+    and (PList(NodePtr(Nodes.Values.List))^.ElementCount <= 1)) then
   begin
-    Commands.IncreaseIndent();
-    FormatNode(Nodes.SelectStmt, stReturnBefore);
-    Commands.DecreaseIndent();
-    FormatNode(Nodes.OnDuplicateKeyUpdateTag, stReturnBefore);
+    FormatNode(Nodes.InsertTag);
+    FormatNode(Nodes.PriorityTag, stSpaceBefore);
+    FormatNode(Nodes.IgnoreTag, stSpaceBefore);
+    FormatNode(Nodes.IntoTag, stSpaceBefore);
+    FormatNode(Nodes.TableIdent, stSpaceBefore);
+    FormatNode(Nodes.Partition.Tag, stSpaceBefore);
+    FormatNode(Nodes.Partition.List, stSpaceBefore);
+    FormatNode(Nodes.ColumnList, stSpaceBefore);
+    FormatNode(Nodes.Values.Tag, stSpaceBefore);
+    FormatNode(Nodes.Values.List, stSpaceBefore);
+    FormatNode(Nodes.Set_.Tag, stSpaceBefore);
+    FormatNode(Nodes.Set_.List, stSpaceBefore);
+    if (Nodes.SelectStmt > 0) then
+    begin
+      Commands.IncreaseIndent();
+      FormatNode(Nodes.SelectStmt, stReturnBefore);
+      Commands.DecreaseIndent();
+      FormatNode(Nodes.OnDuplicateKeyUpdateTag, stReturnBefore);
+    end
+    else
+      FormatNode(Nodes.OnDuplicateKeyUpdateTag, stSpaceBefore);
+    FormatNode(Nodes.UpdateList, stSpaceBefore);
   end
   else
-    FormatNode(Nodes.OnDuplicateKeyUpdateTag, stSpaceBefore);
-  FormatNode(Nodes.UpdateList, stSpaceBefore);
+  begin
+    FormatNode(Nodes.InsertTag);
+    FormatNode(Nodes.PriorityTag, stSpaceBefore);
+    FormatNode(Nodes.IgnoreTag, stSpaceBefore);
+    FormatNode(Nodes.IntoTag, stReturnBefore);
+    Commands.IncreaseIndent();
+    Commands.WriteReturn();
+    FormatNode(Nodes.TableIdent, stSpaceBefore);
+    Commands.DecreaseIndent();
+    FormatNode(Nodes.Partition.Tag, stSpaceBefore);
+    FormatNode(Nodes.Partition.List, stSpaceBefore);
+    FormatNode(Nodes.ColumnList, stSpaceBefore);
+    if (Nodes.Values.Tag > 0) then
+    begin
+      FormatNode(Nodes.Values.Tag, stReturnBefore);
+      Commands.IncreaseIndent();
+      Commands.WriteReturn();
+      FormatList(Nodes.Values.List, sReturn);
+      Commands.DecreaseIndent();
+    end;
+    if (Nodes.Set_.Tag > 0) then
+    begin
+      FormatNode(Nodes.Set_.Tag, stReturnBefore);
+      Commands.IncreaseIndent();
+      Commands.WriteReturn();
+      FormatList(Nodes.Set_.List, sReturn);
+      Commands.DecreaseIndent();
+    end;
+    if (Nodes.SelectStmt > 0) then
+    begin
+      Commands.IncreaseIndent();
+      FormatNode(Nodes.SelectStmt, stReturnBefore);
+      Commands.DecreaseIndent();
+      FormatNode(Nodes.OnDuplicateKeyUpdateTag, stReturnBefore);
+    end
+    else
+      FormatNode(Nodes.OnDuplicateKeyUpdateTag, stSpaceBefore);
+    FormatNode(Nodes.UpdateList, stSpaceBefore);
+  end;
 end;
 
-procedure TMySQLParser.FormatList(const Nodes: TList.TNodes; const DelimiterType: fspTypes.TTokenType);
+procedure TMySQLParser.FormatList(const Nodes: TList.TNodes; const DelimiterType: TTokenType);
 begin
   case (DelimiterType) of
     ttComma: FormatList(Nodes, sSpace);
@@ -10494,6 +12332,7 @@ begin
       ntCreateTableStmtKeyColumn: FormatCreateTableStmtKeyColumn(TCreateTableStmt.PKeyColumn(Node)^.Nodes);
       ntCreateTableStmtPartition: FormatCreateTableStmtPartition(TCreateTableStmt.PPartition(Node)^.Nodes);
       ntCreateTableStmtPartitionValues: FormatCreateTableStmtPartitionValues(TCreateTableStmt.PPartitionValues(Node)^.Nodes);
+      ntCreateTableStmtReference: FormatCreateTableStmtReference(TCreateTableStmt.PReference(Node)^.Nodes);
       ntCreateTriggerStmt: FormatCreateTriggerStmt(PCreateTriggerStmt(Node)^.Nodes);
       ntCreateUserStmt: FormatCreateUserStmt(PCreateUserStmt(Node)^.Nodes);
       ntCreateViewStmt: FormatCreateViewStmt(PCreateViewStmt(Node)^.Nodes);
@@ -10503,7 +12342,7 @@ begin
       ntDeallocatePrepareStmt: FormatDefaultNode(@PDeallocatePrepareStmt(Node)^.Nodes, SizeOf(TDeallocatePrepareStmt.TNodes));
       ntDeclareStmt: FormatDefaultNode(@PDeclareStmt(Node)^.Nodes, SizeOf(TDeclareStmt.TNodes));
       ntDeclareConditionStmt: FormatDefaultNode(@PDeclareConditionStmt(Node)^.Nodes, SizeOf(TDeclareConditionStmt.TNodes));
-      ntDeclareCursorStmt: FormatDefaultNode(@PDeclareCursorStmt(Node)^.Nodes, SizeOf(TDeclareCursorStmt.TNodes));
+      ntDeclareCursorStmt: FormatDeclareCursorStmt(PDeclareCursorStmt(Node)^.Nodes);
       ntDeclareHandlerStmt: FormatDeclareHandlerStmt(PDeclareHandlerStmt(Node)^.Nodes);
       ntDeclareHandlerStmtCondition: FormatDefaultNode(@TDeclareHandlerStmt.PCondition(Node)^.Nodes, SizeOf(TDeclareHandlerStmt.TCondition.TNodes));
       ntDeleteStmt: FormatDeleteStmt(PDeleteStmt(Node)^.Nodes);
@@ -10582,10 +12421,10 @@ begin
       ntSelectStmtTableFactorIndexHint: FormatDefaultNode(@TSelectStmt.TTableFactor.PIndexHint(Node)^.Nodes, SizeOf(TSelectStmt.TTableFactor.TIndexHint.TNodes));
       ntSelectStmtTableFactorOj: FormatSelectStmtTableFactorOj(TSelectStmt.PTableFactorOj(Node)^.Nodes);
       ntSelectStmtTableFactorSelect: FormatDefaultNode(@TSelectStmt.PTableFactorSelect(Node)^.Nodes, SizeOf(TSelectStmt.TTableFactorSelect.TNodes));
-      ntSelectStmtTableJoin: FormatDefaultNode(@TSelectStmt.PTableJoin(Node)^.Nodes, SizeOf(TSelectStmt.TTableJoin.TNodes));
+      ntSelectStmtTableJoin: FormatSelectStmtTableJoin(TSelectStmt.PTableJoin(Node)^.Nodes);
       ntSetNamesStmt: FormatDefaultNode(@PSetNamesStmt(Node)^.Nodes, SizeOf(TSetNamesStmt.TNodes));
       ntSetPasswordStmt: FormatDefaultNode(@PSetPasswordStmt(Node)^.Nodes, SizeOf(TSetPasswordStmt.TNodes));
-      ntSetStmt: FormatDefaultNode(@PSetStmt(Node)^.Nodes, SizeOf(TSetStmt.TNodes));
+      ntSetStmt: FormatSetStmt(PSetStmt(Node)^.Nodes);
       ntSetStmtAssignment: FormatDefaultNode(@TSetStmt.PAssignment(Node)^.Nodes, SizeOf(TSetStmt.TAssignment.TNodes));
       ntSetTransactionStmt: FormatDefaultNode(@PSetTransactionStmt(Node)^.Nodes, SizeOf(TSetTransactionStmt.TNodes));
       ntSetTransactionStmtCharacteristic: FormatDefaultNode(@TSetTransactionStmt.PCharacteristic(Node)^.Nodes, SizeOf(TSetTransactionStmt.TCharacteristic.TNodes));
@@ -10683,7 +12522,7 @@ begin
   Commands.DecreaseIndent();
   FormatNode(Nodes.UntilTag, stReturnBefore);
   FormatNode(Nodes.SearchConditionExpr, stSpaceBefore);
-  FormatNode(Nodes.EndTag, stReturnBefore);
+  FormatNode(Nodes.EndTag, stSpaceBefore);
   FormatNode(Nodes.EndLabel, stSpaceBefore);
 end;
 
@@ -10755,9 +12594,55 @@ end;
 
 procedure TMySQLParser.FormatSelectStmt(const Nodes: TSelectStmt.TNodes);
 var
+  ItemPerLine: Boolean;
   Separator: TSeparatorType;
   Spacer: TSpacer;
+
+  procedure FormatInto(const Nodes: TSelectStmt.TIntoNodes);
+  begin
+    if (Nodes.Tag > 0) then
+      if (PTag(NodePtr(Nodes.Tag))^.Nodes.KeywordToken2 = kiOUTFILE) then
+      begin
+        FormatNode(Nodes.Tag, Separator);
+        Commands.IncreaseIndent();
+        if (Separator = stReturnBefore) then
+          Commands.WriteReturn();
+        FormatNode(Nodes.CharacterSetValue, stSpaceBefore);
+        FormatNode(Nodes.FieldsTerminatedByValue, stSpaceBefore);
+        FormatNode(Nodes.OptionallyEnclosedByValue, stSpaceBefore);
+        FormatNode(Nodes.LinesTerminatedByValue, stSpaceBefore);
+        Commands.DecreaseIndent();
+      end
+      else if (PTag(NodePtr(Nodes.Tag))^.Nodes.KeywordToken2 = kiDUMPFILE) then
+      begin
+        FormatNode(Nodes.Tag, Separator);
+        Commands.IncreaseIndent();
+        if (Separator = stReturnBefore) then
+          Commands.WriteReturn();
+        FormatNode(Nodes.Filename, stSpaceBefore);
+        Commands.DecreaseIndent();
+      end
+      else
+      begin
+        FormatNode(Nodes.Tag, Separator);
+        Commands.IncreaseIndent();
+        if (not ItemPerLine) then
+          FormatNode(Nodes.VariableList, Separator)
+        else
+        begin
+          if (Separator = stReturnBefore) then
+            Commands.WriteReturn();
+          FormatList(Nodes.VariableList, Spacer);
+        end;
+        Commands.DecreaseIndent();
+      end;
+  end;
+
 begin
+  ItemPerLine := (Nodes.ColumnsList > 0)
+    and (NodePtr(Nodes.ColumnsList)^.NodeType = ntList)
+    and (PList(NodePtr(Nodes.ColumnsList))^.ElementCount >= 5);
+
   if ((Nodes.ColumnsList > 0)
     and (NodePtr(Nodes.ColumnsList)^.NodeType = ntList)
     and (PList(NodePtr(Nodes.ColumnsList))^.ElementCount = 1)) then
@@ -10782,9 +12667,7 @@ begin
   FormatNode(Nodes.SQLBufferResultTag, stSpaceBefore);
   FormatNode(Nodes.SQLNoCacheTag, stSpaceBefore);
   FormatNode(Nodes.SQLCalcFoundRowsTag, stSpaceBefore);
-  if ((Nodes.ColumnsList = 0)
-    or (NodePtr(Nodes.ColumnsList)^.NodeType <> ntList)
-    or (PList(NodePtr(Nodes.ColumnsList))^.ElementCount < 5)) then
+  if (not ItemPerLine) then
     FormatNode(Nodes.ColumnsList, Separator)
   else
   begin
@@ -10793,6 +12676,7 @@ begin
     FormatList(Nodes.ColumnsList, Spacer);
   end;
   Commands.DecreaseIndent();
+  FormatInto(Nodes.Into1);
   if (Nodes.From.Tag > 0) then
   begin
     FormatNode(Nodes.From.Tag, Separator);
@@ -10862,46 +12746,7 @@ begin
     FormatNode(Nodes.Proc.ParamList, stSpaceBefore);
     Commands.DecreaseIndent();
   end;
-  if (Nodes.Into.Tag > 0) then
-  begin
-    if (PTag(NodePtr(Nodes.Into.Tag))^.Nodes.KeywordToken2 = kiOUTFILE) then
-    begin
-      FormatNode(Nodes.Into.Tag, Separator);
-      Commands.IncreaseIndent();
-      if (Separator = stReturnBefore) then
-        Commands.WriteReturn();
-      FormatNode(Nodes.Into.CharacterSetValue, stSpaceBefore);
-      FormatNode(Nodes.Into.FieldsTerminatedByValue, stSpaceBefore);
-      FormatNode(Nodes.Into.OptionallyEnclosedByValue, stSpaceBefore);
-      FormatNode(Nodes.Into.LinesTerminatedByValue, stSpaceBefore);
-      Commands.DecreaseIndent();
-    end
-    else if (PTag(NodePtr(Nodes.Into.Tag))^.Nodes.KeywordToken2 = kiDUMPFILE) then
-    begin
-      FormatNode(Nodes.Into.Tag, Separator);
-      Commands.IncreaseIndent();
-      if (Separator = stReturnBefore) then
-        Commands.WriteReturn();
-      FormatNode(Nodes.Into.Filename, stSpaceBefore);
-      Commands.DecreaseIndent();
-    end
-    else
-    begin
-      FormatNode(Nodes.Into.Tag, Separator);
-      Commands.IncreaseIndent();
-      if ((Nodes.ColumnsList = 0)
-        or (NodePtr(Nodes.ColumnsList)^.NodeType <> ntList)
-        or (PList(NodePtr(Nodes.ColumnsList))^.ElementCount < 5)) then
-        FormatNode(Nodes.Into.VariableList, Separator)
-      else
-      begin
-        if (Separator = stReturnBefore) then
-          Commands.WriteReturn();
-        FormatList(Nodes.Into.VariableList, Spacer);
-      end;
-      Commands.DecreaseIndent();
-    end;
-  end;
+  FormatInto(Nodes.Into2);
   FormatNode(Nodes.ForUpdatesTag, Separator);
   FormatNode(Nodes.LockInShareMode, Separator);
   FormatNode(Nodes.Union.Tag, stReturnBefore);
@@ -10951,6 +12796,40 @@ begin
   FormatNode(Nodes.OjTag);
   FormatNode(Nodes.TableReference, stSpaceBefore);
   FormatNode(Nodes.CloseBracket);
+end;
+
+procedure TMySQLParser.FormatSelectStmtTableJoin(const Nodes: TSelectStmt.TTableJoin.TNodes);
+begin
+  Commands.IncreaseIndent();
+  FormatNode(Nodes.JoinTag, stReturnBefore);
+  FormatNode(Nodes.RightTable, stSpaceBefore);
+  FormatNode(Nodes.OnTag, stSpaceBefore);
+  FormatNode(Nodes.Condition, stSpaceBefore);
+  Commands.DecreaseIndent();
+end;
+
+procedure TMySQLParser.FormatSetStmt(const Nodes: TSetStmt.TNodes);
+var
+  ItemPerLine: Boolean;
+begin
+  ItemPerLine := (Nodes.AssignmentList > 0)
+    and (NodePtr(Nodes.AssignmentList)^.NodeType = ntList)
+    and (PList(NodePtr(Nodes.AssignmentList))^.ElementCount > 1);
+
+  FormatNode(Nodes.SetTag);
+  FormatNode(Nodes.ScopeTag, stSpaceBefore);
+
+  if (not ItemPerLine) then
+  begin
+    FormatNode(Nodes.AssignmentList, stSpaceBefore);
+  end
+  else
+  begin
+    Commands.IncreaseIndent();
+    Commands.WriteReturn();
+    FormatList(Nodes.AssignmentList, sReturn);
+    Commands.DecreaseIndent();
+  end;
 end;
 
 procedure TMySQLParser.FormatShowBinlogEventsStmt(const Nodes: TShowBinlogEventsStmt.TNodes);
@@ -11107,7 +12986,7 @@ begin
       Commands.Write(@Keyword[0], Token^.Length);
     end;
   end
-  else if (not (Token^.NewTokenType in [ttUnknown, Token^.TokenType])) then
+  else if (not (Token^.NewTokenType in [ttUnknown, Token^.FTokenType])) then
   begin
     case (Token^.NewTokenType) of
       ttIdent: Commands.Write(SQLUnescape(Token^.AsString));
@@ -11354,7 +13233,7 @@ end;
 
 function TMySQLParser.IsChild(const ANode: PNode): Boolean;
 begin
-  Result := Assigned(ANode) and not (ANode^.NodeType in [ntUnknown, ntRoot]);
+  Result := Assigned(ANode) and (ANode^.NodeType <> ntRoot);
 end;
 
 function TMySQLParser.IsChild(const ANode: TOffset): Boolean;
@@ -11364,7 +13243,7 @@ end;
 
 function TMySQLParser.IsRange(const ANode: PNode): Boolean;
 begin
-  Result := Assigned(ANode) and not (ANode^.NodeType in [ntUnknown, ntRoot, ntToken]);
+  Result := Assigned(ANode) and not (ANode^.NodeType in [ntRoot, ntToken]);
 end;
 
 function TMySQLParser.IsRange(const ANode: TOffset): Boolean;
@@ -11525,7 +13404,6 @@ function TMySQLParser.NodeSize(const NodeType: TNodeType): Integer;
 begin
   case (NodeType) of
     ntRoot: Result := SizeOf(TRoot);
-    ntRange: Result := SizeOf(TRange);
     ntToken: Result := SizeOf(TToken);
 
     ntAnalyzeStmt: Result := SizeOf(TAnalyzeStmt);
@@ -11570,6 +13448,7 @@ begin
     ntCreateTableStmtKeyColumn: Result := SizeOf(TCreateTableStmt.TKeyColumn);
     ntCreateTableStmtPartition: Result := SizeOf(TCreateTableStmt.TPartition);
     ntCreateTableStmtPartitionValues: Result := SizeOf(TCreateTableStmt.TPartitionValues);
+    ntCreateTableStmtReference: Result := SizeOf(TCreateTableStmt.TReference);
     ntCreateTriggerStmt: Result := SizeOf(TCreateTriggerStmt);
     ntCreateUserStmt: Result := SizeOf(TCreateUserStmt);
     ntCreateViewStmt: Result := SizeOf(TCreateViewStmt);
@@ -11761,12 +13640,6 @@ begin
     ttStrings := [ttIdent, ttString, ttDQIdent, ttCSString];
     UsageTypeByTokenType[ttDQIdent] := utConst;
   end;
-  ParsedNodes.MemSize := 1024;
-  ReallocMem(ParsedNodes.Mem, ParsedNodes.MemSize);
-  ParsedNodes.UsedSize := 1; // "0" means "not assigned", so we start with "1"
-  Texts.MemSize := 1024;
-  ReallocMem(Texts.Mem, Texts.MemSize);
-  Texts.UsedSize := 1; // "0" means "not assigned", so we start with "1"
 
   if (ParsePosition.Length = 0) then
     FirstTokenAll := 0
@@ -11868,7 +13741,7 @@ begin
         and (TokenPtr(CurrentToken)^.KeywordIndex <> kiCOLLATE)) then
         Nodes.IdentTag := ParseDatabaseIdent();
 
-      Found := True;
+      Found := True;                                                      
       while (not Error and Found and not EndOfStmt(CurrentToken)) do
         if ((Nodes.CharacterSetValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCHARACTER)) then
           Nodes.CharacterSetValue := ParseValue(WordIndices(kiCHARACTER, kiSET), vaAuto, ParseIdent)
@@ -12298,6 +14171,12 @@ begin
       else
         TableOptionNodes.StatsPersistentValue := ParseValue(kiSTATS_PERSISTENT, vaAuto, WordIndices(kiDEFAULT));
       Specifications.Add(Pointer(TableOptionNodes.StatsPersistentValue));
+      DelimiterExpected := False;
+    end
+    else if ((TableOptionNodes.TransactionalValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiTRANSACTIONAL)) then
+    begin
+      TableOptionNodes.TransactionalValue := ParseValue(kiTRANSACTIONAL, vaAuto, ParseInteger);
+      Specifications.Add(Pointer(TableOptionNodes.TransactionalValue));
       DelimiterExpected := False;
     end
     else if ((TableOptionNodes.EngineValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiTYPE)) then
@@ -12884,7 +14763,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.FuncToken := ApplyCurrentToken();
+  Nodes.FuncToken := ApplyCurrentToken(utFunction);
 
   if (not Error) then
     if (EndOfStmt(CurrentToken)) then
@@ -12925,7 +14804,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.FuncToken := ApplyCurrentToken();
+  Nodes.FuncToken := ApplyCurrentToken(utFunction);
 
   if (not Error) then
     if (EndOfStmt(CurrentToken)) then
@@ -13106,7 +14985,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.FuncToken := ApplyCurrentToken();
+  Nodes.FuncToken := ApplyCurrentToken(utFunction);
 
   if (not Error) then
     if (EndOfStmt(CurrentToken)) then
@@ -13950,6 +15829,8 @@ begin
         else
           Nodes.TableOptionsNodes.StatsPersistentValue := ParseValue(kiSTATS_PERSISTENT, vaAuto, WordIndices(kiDEFAULT));
       end
+      else if ((Nodes.TableOptionsNodes.TransactionalValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiTRANSACTIONAL)) then
+        Nodes.TableOptionsNodes.TransactionalValue := ParseValue(kiTRANSACTIONAL, vaAuto, ParseInteger)
       else if ((Nodes.TableOptionsNodes.EngineValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiTYPE)) then
         Nodes.TableOptionsNodes.EngineValue := ParseValue(kiTYPE, vaAuto, ParseIdent)
       else if ((Nodes.TableOptionsNodes.UnionList = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiUNION)) then
@@ -14233,7 +16114,9 @@ begin
           else
             SetError(PE_UnexpectedToken, NextToken[1]);
           Found := True;
-        end;
+        end
+        else if ((Nodes.Real.Reference = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiREFERENCES)) then
+          Nodes.Real.Reference := ParseCreateTableStmtReference();
       end;
     end
     else
@@ -14377,9 +16260,21 @@ begin
     end;
 end;
 
+function TMySQLParser.ParseCreateTableStmtDefinitionPartitionNames(): TOffset;
+begin
+  if (EndOfStmt(CurrentToken)) then
+  begin
+    SetError(PE_IncompleteStmt);
+    Result := 0;
+  end
+  else if (TokenPtr(CurrentToken)^.KeywordIndex = kiALL) then
+    Result := ParseTag(kiALL)
+  else
+    Result := ParseList(False, ParsePartitionIdent);
+end;
+
 function TMySQLParser.ParseCreateTableStmtForeignKey(const Add: Boolean = False): TOffset;
 var
-  Found: Boolean;
   Nodes: TCreateTableStmt.TForeignKey.TNodes;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
@@ -14402,62 +16297,10 @@ begin
     Nodes.NameIdent := ParseDbIdent(ditForeignKey);
 
   if (not Error) then
-    Nodes.ColumnNameList := ParseList(True, ParseCreateTableStmtKeyColumn);
+    Nodes.ColumnNameList := ParseList(True, ParseFieldIdent);
 
   if (not Error) then
-    Nodes.ReferencesTag := ParseTag(kiREFERENCES);
-
-  if (not Error) then
-    Nodes.ParentTableIdent := ParseTableIdent();
-
-  if (not Error) then
-    Nodes.IndicesList := ParseList(True, ParseCreateTableStmtKeyColumn);
-
-  if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiMATCH)) then
-    if (not EndOfStmt(NextToken[1]) and ((TokenPtr(NextToken[1])^.KeywordIndex = kiFULL) or (TokenPtr(NextToken[1])^.KeywordIndex = kiPARTIAL) or (TokenPtr(NextToken[1])^.KeywordIndex = kiSIMPLE))) then
-      Nodes.MatchValue := ParseValue(kiMATCH, vaNo, WordIndices(kiFULL, kiPARTIAL, kiSIMPLE));
-
-
-  Found := True;
-  while (not Error and Found
-    and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiON)) do
-  begin
-    Found := False;
-
-    if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiDELETE)) then
-    begin
-      if (EndOfStmt(NextToken[2])) then
-        SetError(PE_IncompleteStmt)
-      else if (TokenPtr(NextToken[2])^.KeywordIndex = kiRESTRICT) then
-        Nodes.OnDeleteValue := ParseValue(WordIndices(kiON, kiDELETE), vaNo, kiRESTRICT)
-      else if (TokenPtr(NextToken[2])^.KeywordIndex = kiCASCADE) then
-        Nodes.OnDeleteValue := ParseValue(WordIndices(kiON, kiDELETE), vaNo, kiCASCADE)
-      else if (TokenPtr(NextToken[2])^.KeywordIndex = kiSET) then
-        Nodes.OnDeleteValue := ParseValue(WordIndices(kiON, kiDELETE), vaNo, kiSET, kiNULL)
-      else if (TokenPtr(NextToken[2])^.KeywordIndex = kiNO) then
-        Nodes.OnDeleteValue := ParseValue(WordIndices(kiON, kiDELETE), vaNo, kiNO, kiACTION)
-      else
-        SetError(PE_UnexpectedToken);
-      Found := True;
-    end;
-
-    if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiUPDATE)) then
-    begin
-      if (EndOfStmt(NextToken[2])) then
-        SetError(PE_IncompleteStmt)
-      else if (TokenPtr(NextToken[2])^.KeywordIndex = kiRESTRICT) then
-        Nodes.OnUpdateValue := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, kiRESTRICT)
-      else if (TokenPtr(NextToken[2])^.KeywordIndex = kiCASCADE) then
-        Nodes.OnUpdateValue := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, kiCASCADE)
-      else if (TokenPtr(NextToken[2])^.KeywordIndex = kiSET) then
-        Nodes.OnUpdateValue := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, kiSET, kiNULL)
-      else if (TokenPtr(NextToken[2])^.KeywordIndex = kiNO) then
-        Nodes.OnUpdateValue := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, kiNO, kiACTION)
-      else
-        SetError(PE_UnexpectedToken);
-      Found := True;
-    end;
-  end;
+    Nodes.Reference := ParseCreateTableStmtReference();
 
   Result := TCreateTableStmt.TForeignKey.Create(Self, Nodes);
 end;
@@ -14635,19 +16478,6 @@ begin
   Result := TCreateTableStmt.TPartition.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCreateTableStmtDefinitionPartitionNames(): TOffset;
-begin
-  if (EndOfStmt(CurrentToken)) then
-  begin
-    SetError(PE_IncompleteStmt);
-    Result := 0;
-  end
-  else if (TokenPtr(CurrentToken)^.KeywordIndex = kiALL) then
-    Result := ParseTag(kiALL)
-  else
-    Result := ParseList(False, ParsePartitionIdent);
-end;
-
 function TMySQLParser.ParseCreateTableStmtPartitionValues(): TOffset;
 var
   Nodes: TCreateTableStmt.TPartitionValues.TNodes;
@@ -14688,6 +16518,79 @@ begin
     SetError(PE_UnexpectedToken);
 
   Result := TCreateTableStmt.TPartitionValues.Create(Self, Nodes);
+end;
+
+function TMySQLParser.ParseCreateTableStmtReference(): TOffset;
+var
+  Found: Boolean;
+  Nodes: TCreateTableStmt.TReference.TNodes;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
+  if (not Error) then
+    Nodes.Tag := ParseTag(kiREFERENCES);
+
+  if (not Error) then
+    Nodes.ParentTableIdent := ParseTableIdent();
+
+  if (not Error) then
+    Nodes.IndicesList := ParseList(True, ParseFieldIdent);
+
+  if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiMATCH)) then
+    if (not EndOfStmt(NextToken[1]) and ((TokenPtr(NextToken[1])^.KeywordIndex = kiFULL) or (TokenPtr(NextToken[1])^.KeywordIndex = kiPARTIAL) or (TokenPtr(NextToken[1])^.KeywordIndex = kiSIMPLE))) then
+      Nodes.MatchValue := ParseValue(kiMATCH, vaNo, WordIndices(kiFULL, kiPARTIAL, kiSIMPLE));
+
+
+  Found := True;
+  while (not Error and Found
+    and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiON)) do
+  begin
+    Found := False;
+
+    if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiDELETE)) then
+    begin
+      if (EndOfStmt(NextToken[2])) then
+        SetError(PE_IncompleteStmt)
+      else if (TokenPtr(NextToken[2])^.KeywordIndex = kiRESTRICT) then
+        Nodes.OnDeleteValue := ParseValue(WordIndices(kiON, kiDELETE), vaNo, kiRESTRICT)
+      else if (TokenPtr(NextToken[2])^.KeywordIndex = kiCASCADE) then
+        Nodes.OnDeleteValue := ParseValue(WordIndices(kiON, kiDELETE), vaNo, kiCASCADE)
+      else if ((TokenPtr(NextToken[2])^.KeywordIndex = kiSET)
+        and not EndOfStmt(NextToken[3]) and (TokenPtr(NextToken[3])^.KeywordIndex = kiDEFAULT)) then
+        Nodes.OnDeleteValue := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, kiSET, kiDEFAULT)
+      else if ((TokenPtr(NextToken[2])^.KeywordIndex = kiSET)
+        and not EndOfStmt(NextToken[3]) and (TokenPtr(NextToken[3])^.KeywordIndex = kiNULL)) then
+        Nodes.OnDeleteValue := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, kiSET, kiNULL)
+      else if (TokenPtr(NextToken[2])^.KeywordIndex = kiNO) then
+        Nodes.OnDeleteValue := ParseValue(WordIndices(kiON, kiDELETE), vaNo, kiNO, kiACTION)
+      else
+        SetError(PE_UnexpectedToken);
+      Found := True;
+    end;
+
+    if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiUPDATE)) then
+    begin
+      if (EndOfStmt(NextToken[2])) then
+        SetError(PE_IncompleteStmt)
+      else if (TokenPtr(NextToken[2])^.KeywordIndex = kiRESTRICT) then
+        Nodes.OnUpdateValue := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, kiRESTRICT)
+      else if (TokenPtr(NextToken[2])^.KeywordIndex = kiCASCADE) then
+        Nodes.OnUpdateValue := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, kiCASCADE)
+      else if ((TokenPtr(NextToken[2])^.KeywordIndex = kiSET)
+        and not EndOfStmt(NextToken[3]) and (TokenPtr(NextToken[3])^.KeywordIndex = kiDEFAULT)) then
+        Nodes.OnUpdateValue := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, kiSET, kiDEFAULT)
+      else if ((TokenPtr(NextToken[2])^.KeywordIndex = kiSET)
+        and not EndOfStmt(NextToken[3]) and (TokenPtr(NextToken[3])^.KeywordIndex = kiNULL)) then
+        Nodes.OnUpdateValue := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, kiSET, kiNULL)
+      else if (TokenPtr(NextToken[2])^.KeywordIndex = kiNO) then
+        Nodes.OnUpdateValue := ParseValue(WordIndices(kiON, kiUPDATE), vaNo, kiNO, kiACTION)
+      else
+        SetError(PE_UnexpectedToken);
+      Found := True;
+    end;
+  end;
+
+  Result := TCreateTableStmt.TReference.Create(Self, Nodes);
 end;
 
 function TMySQLParser.ParseCreateTableStmtUnion(): TOffset;
@@ -15681,6 +17584,12 @@ begin
   if (not Error) then
     Nodes.IndexIdent := ParseKeyIdent();
 
+  if (not Error) then
+    Nodes.OnTag := ParseTag(kiON);
+
+  if (not Error) then
+    Nodes.TableIdent := ParseTableIdent();
+
   Found := True;
   while (not Error and Found and not EndOfStmt(CurrentToken)) do
     if ((Nodes.AlgorithmValue = 0) and (TokenPtr(CurrentToken)^.KeywordIndex = kiALGORITHM)) then
@@ -15863,7 +17772,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.FuncToken := ApplyCurrentToken();
+  Nodes.FuncToken := ApplyCurrentToken(utFunction);
 
   if (not Error) then
     if (EndOfStmt(CurrentToken)) then
@@ -15995,6 +17904,8 @@ begin
       SetError(PE_IncompleteStmt)
     else if (TokenPtr(Node)^.TokenType in [ttColon, ttComma, ttCloseBracket]) then
       SetError(PE_UnexpectedToken)
+    else if (TokenPtr(Node)^.KeywordIndex = kiSELECT) then
+      Node := ParseSelectStmt()
     else if (TokenPtr(Node)^.KeywordIndex = kiINTERVAL) then
       Node := ParseValue(kiINTERVAL, vaNo, ParseIntervalOp)
     else if ((TokenPtr(Node)^.OperatorType = otMinus) and ((NodeCount = 0) or IsToken(Nodes[NodeCount - 1]) and (TokenPtr(Nodes[NodeCount - 1])^.OperatorType <> otUnknown))) then
@@ -16014,6 +17925,7 @@ begin
       else
         Node := ParseList(True, ParseExpr)
     else if ((TokenPtr(Node)^.TokenType in ttIdents)
+      and (TokenPtr(Node)^.OperatorType <> otIn)
       and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.TokenType = ttOpenBracket)
       and ((TokenPtr(Node)^.KeywordIndex < 0) or (TokenPtr(Node)^.OperatorType = otUnknown) or (FunctionList.IndexOf(TokenPtr(Node)^.Text) >= 0))) then
       if ((NodeCount >= 2)
@@ -16344,7 +18256,6 @@ begin
             else
               case (NodePtr(Nodes[I])^.FNodeType) of
                 ntToken: SetError(PE_UnexpectedToken, Nodes[I]);
-                ntRange: SetError(PE_UnexpectedToken, RangePtr(Nodes[I])^.FFirstToken);
                 else raise ERangeError.Create(SArgumentOutOfRange);
               end;
         end;
@@ -16365,7 +18276,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.FuncToken := ApplyCurrentToken();
+  Nodes.FuncToken := ApplyCurrentToken(utFunction);
 
   if (not Error) then
     if (EndOfStmt(CurrentToken)) then
@@ -16904,7 +18815,7 @@ begin
       if (not Error) then
         if (EndOfStmt(CurrentToken)) then
           SetError(PE_IncompleteStmt)
-        else if (TokenPtr(CurrentToken)^.TokenType in ttStrings) then
+        else if (TokenPtr(CurrentToken)^.TokenType in ttStrings - [ttIdent]) then
           Nodes.AuthString := ParseString()
         else if ((TokenPtr(CurrentToken)^.OperatorType = otLess)
           and not EndOfStmt(NextToken[2])
@@ -16965,7 +18876,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.FuncToken := ApplyCurrentToken();
+  Nodes.FuncToken := ApplyCurrentToken(utFunction);
 
   if (not Error) then
     if (EndOfStmt(CurrentToken)) then
@@ -17585,7 +19496,7 @@ begin
   Result := TLeaveStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseList(const Brackets: Boolean; const ParseElement: TParseFunction; const DelimterType: fspTypes.TTokenType = ttComma): TOffset;
+function TMySQLParser.ParseList(const Brackets: Boolean; const ParseElement: TParseFunction; const DelimterType: TTokenType = ttComma): TOffset;
 var
   ChildrenArray: array [0 .. 100 - 1] of TOffset;
   ChildrenList: Classes.TList;
@@ -17937,7 +19848,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.FuncToken := ApplyCurrentToken();
+  Nodes.FuncToken := ApplyCurrentToken(utFunction);
 
   if (not Error) then
     Nodes.MatchList := ParseList(True, ParseFieldIdent);
@@ -18063,7 +19974,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.FuncToken := ApplyCurrentToken();
+  Nodes.FuncToken := ApplyCurrentToken(utFunction);
 
   if (not Error) then
     if (EndOfStmt(CurrentToken)) then
@@ -18651,6 +20562,46 @@ begin
 end;
 
 function TMySQLParser.ParseSelectStmt(): TOffset;
+
+  function ParseInto(): TSelectStmt.TIntoNodes;
+  begin
+    FillChar(Result, SizeOf(Result), 0);
+
+    if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiOUTFILE)) then
+    begin
+      Result.Tag := ParseTag(kiINTO, kiOUTFILE);
+
+      if (not Error) then
+        Result.Filename := ParseString();
+
+      if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCHARACTER)) then
+        Result.CharacterSetValue := ParseValue(WordIndices(kiCHARACTER, kiSET), vaNo, ParseIdent);
+
+      if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiFIELDS)) then
+        Result.FieldsTerminatedByValue := ParseValue(WordIndices(kiFIELDS, kiTERMINATED, kiBY), vaNo, ParseString);
+
+      if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiOPTIONALLY)) then
+        Result.OptionallyEnclosedByValue := ParseValue(WordIndices(kiOPTIONALLY, kiENCLOSED, kiBY), vaNo, ParseString);
+
+      if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiLINES)) then
+        Result.LinesTerminatedByValue := ParseValue(WordIndices(kiLINES, kiTERMINATED, kiBY), vaNo, ParseString);
+    end
+    else if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiDUMPFILE)) then
+    begin
+      Result.Tag := ParseTag(kiINTO, kiDUMPFILE);
+
+      if (not Error) then
+        Result.Filename := ParseString();
+    end
+    else
+    begin
+      Result.Tag := ParseTag(kiINTO);
+
+      if (not Error) then
+        Result.VariableList := ParseList(False, ParseVariable);
+    end;
+  end;
+
 var
   Found: Boolean;
   Nodes: TSelectStmt.TNodes;
@@ -18690,6 +20641,9 @@ begin
 
   if (not Error) then
     Nodes.ColumnsList := ParseList(False, ParseSelectStmtColumn);
+
+  if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiINTO)) then
+    Nodes.Into1 := ParseInto();
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiFROM)) then
   begin
@@ -18780,48 +20734,19 @@ begin
       if (not Error) then
         Nodes.Proc.ParamList := ParseList(True, ParseExpr);
     end;
+
+    if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiINTO)) then
+      if (Nodes.Into1.Tag > 0) then
+        SetError(PE_UnexpectedToken)
+      else
+        Nodes.Into2 := ParseInto();
+
+    if (not Error and not EndOfStmt(CurrentToken) and (Nodes.From.Tag > 0)) then
+      if (TokenPtr(CurrentToken)^.KeywordIndex = kiFOR) then
+        Nodes.ForUpdatesTag := ParseTag(kiFOR, kiUPDATE)
+      else if (TokenPtr(CurrentToken)^.KeywordIndex = kiLOCK) then
+        Nodes.LockInShareMode := ParseTag(kiLOCK, kiIN, kiSHARE, kiMODE);
   end;
-
-  if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiINTO)) then
-    if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiOUTFILE)) then
-    begin
-      Nodes.Into.Tag := ParseTag(kiINTO, kiOUTFILE);
-
-      if (not Error) then
-        Nodes.Into.Filename := ParseString();
-
-      if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCHARACTER)) then
-        Nodes.Into.CharacterSetValue := ParseValue(WordIndices(kiCHARACTER, kiSET), vaNo, ParseIdent);
-
-      if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiFIELDS)) then
-        Nodes.Into.FieldsTerminatedByValue := ParseValue(WordIndices(kiFIELDS, kiTERMINATED, kiBY), vaNo, ParseString);
-
-      if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiOPTIONALLY)) then
-        Nodes.Into.OptionallyEnclosedByValue := ParseValue(WordIndices(kiOPTIONALLY, kiENCLOSED, kiBY), vaNo, ParseString);
-
-      if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiLINES)) then
-        Nodes.Into.LinesTerminatedByValue := ParseValue(WordIndices(kiLINES, kiTERMINATED, kiBY), vaNo, ParseString);
-    end
-    else if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiDUMPFILE)) then
-    begin
-      Nodes.Into.Tag := ParseTag(kiINTO, kiDUMPFILE);
-
-      if (not Error) then
-        Nodes.Into.Filename := ParseString();
-    end
-    else
-    begin
-      Nodes.Into.Tag := ParseTag(kiINTO);
-
-      if (not Error) then
-        Nodes.Into.VariableList := ParseList(False, ParseVariable);
-    end;
-
-  if (not Error and not EndOfStmt(CurrentToken) and (Nodes.From.Tag > 0)) then
-    if (TokenPtr(CurrentToken)^.KeywordIndex = kiFOR) then
-      Nodes.ForUpdatesTag := ParseTag(kiFOR, kiUPDATE)
-    else if (TokenPtr(CurrentToken)^.KeywordIndex = kiLOCK) then
-      Nodes.LockInShareMode := ParseTag(kiLOCK, kiIN, kiSHARE, kiMODE);
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiUNION)) then
   begin
@@ -21001,7 +22926,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.FuncToken := ApplyCurrentToken();
+  Nodes.FuncToken := ApplyCurrentToken(utFunction);
 
   if (not Error) then
     if (EndOfStmt(CurrentToken)) then
@@ -21142,9 +23067,7 @@ end;
 function TMySQLParser.ParseToken(): TOffset;
 label
   TwoChars,
-  Selection, SelSpace, SelQuotedIdent, SelNotLess, SelNotEqual1, SelNotGreater, SelNot1, SelDoubleQuote, SelComment, SelModulo, SelDolor, SelAmpersand2, SelBitAND, SelSingleQuote, SelOpenBracket, SelCloseBracket, SelMySQLCodeEnd, SelMulti, SelComma, SelDoubleDot, SelDot, SelDotNumber, SelMySQLCode, SelDiv, SelInteger, SelSLComment, SelArrow, SelMinus, SelPlus, SelAssign, SelColon, SelDelimiter, SelNULLSaveEqual, SelLessEqual, SelShiftLeft, SelNotEqual2, SelLess, SelEqual, SelGreaterEqual, SelShiftRight, SelGreater, SelParameter, SelAt, SelHex, SelHex2, SelUnquotedIdent, SelDBIdent, SelBackslash, SelCloseSquareBracket, SelHat, SelMySQLCharacterSet, SelMySQLIdent, SelBitValueHigh, SelBitValueLow, SelHexValueHigh, SelHexValueLow, SelUnquotedIdentLower, SelOpenCurlyBracket, SelOpenCurlyBracket2, SelPipe, SelBitOR, SelCloseCurlyBracket, SelTilde, SelE,
-  BindVariable,
-  Colon,
+  Selection, SelSpace, SelQuotedIdent, SelNotLess, SelNotEqual1, SelNotGreater, SelNot1, SelDoubleQuote, SelComment, SelModulo, SelDolor, SelAmpersand2, SelBitAND, SelSingleQuote, SelOpenBracket, SelCloseBracket, SelMySQLCodeEnd, SelMulti, SelComma, SelDoubleDot, SelDot, SelDotNumber, SelMySQLCode, SelDiv, SelInteger, SelSLComment, SelArrow, SelMinus, SelPlus, SelAssign, SelColon, SelDelimiter, SelNULLSaveEqual, SelLessEqual, SelShiftLeft, SelNotEqual2, SelLess, SelEqual, SelGreaterEqual, SelShiftRight, SelGreater, SelParameter, SelAt, SelHex, SelHex2, SelUnquotedIdent, SelDBIdent, SelCloseSquareBracket, SelHat, SelMySQLCharacterSet, SelMySQLIdent, SelBitValueHigh, SelBitValueLow, SelHexValueHigh, SelHexValueLow, SelUnquotedIdentLower, SelOpenCurlyBracket, SelOpenCurlyBracket2, SelPipe, SelBitOR, SelCloseCurlyBracket, SelTilde, SelE,
   SLComment, SLCommentL,
   MLComment, MLCommentL, MLCommentL2, MLCommentL3,
   MySQLCharacterSet, MySQLCharacterSetL, MySQLCharacterSetL2, MySQLCharacterSetLE, MySQLCharacterSetE, MySQLCharacterSetE2,
@@ -21176,7 +23099,7 @@ var
   OperatorType: TOperatorType;
   Text: PChar;
   TokenLength: Integer;
-  TokenType: fspTypes.TTokenType;
+  TokenType: TTokenType;
   UsageType: TUsageType;
 begin
   if (ParsePosition.Length = 0) then
@@ -21458,15 +23381,11 @@ begin
         JMP UnquotedIdent                // Yes!
       SelDBIdent:
         CMP AX,'['                       // "[" ?
-        JNE SelBackslash                 // No!
+        JNE SelCloseSquareBracket        // No!
         MOV TokenType,ttDBIdent
         MOV DX,']'                       // End Quoter
         JMP QuotedIdent
-      SelBackslash:
-        CMP AX,'\'                       // "\" ?
-        JNE SelCloseSquareBracket        // No!
-        MOV TokenType,ttBackslash
-        JMP SingleChar
+
       SelCloseSquareBracket:
         CMP AX,']'                       // "]" ?
         JE UnexpectedChar                // Yes!
@@ -21533,7 +23452,7 @@ begin
         JE SelOpenCurlyBracket2          // Yes!
         CMP DWORD PTR [ESI + 2],$006A006F// "{oj" ?
         JE SelOpenCurlyBracket2          // Yes!
-        JMP SelPipe
+        JMP SingleChar
       SelOpenCurlyBracket2:
         CMP ECX,4                        // Four characters in SQL?
         JB SelPipe                       // No!
@@ -21566,31 +23485,6 @@ begin
         CMP AX,127                       // #127 ?
         JE UnexpectedChar                // No!
         JMP UnquotedIdent
-
-      // ------------------------------
-
-      BindVariable:
-        MOV TokenType,ttBindVariable
-        JMP UnquotedIdent
-
-      // ------------------------------
-
-      Colon:
-        MOV TokenType,ttBindVariable
-        ADD ESI,2                        // Next character in SQL
-        DEC ECX                          // One character handled
-        CMP ECX,0                        // End of SQL?
-        JE Finish                        // Yes!
-        MOV AX,[ESI]                     // One Character from SQL to AX
-        CMP AX,'A'
-        JB Finish
-        CMP AX,'Z'
-        JBE BindVariable
-        CMP AX,'a'
-        JB Finish
-        CMP AX,'z'
-        JBE BindVariable
-        JMP UnexpectedChar
 
       // ------------------------------
 
@@ -22001,7 +23895,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.FuncToken := ApplyCurrentToken();
+  Nodes.FuncToken := ApplyCurrentToken(utFunction);
 
   if (not Error) then
     if (EndOfStmt(CurrentToken)) then
@@ -22200,7 +24094,7 @@ begin
       Result := ApplyCurrentToken()
     else
       Result := ParseFunctionCall()
-  else if (not (TokenPtr(CurrentToken)^.TokenType in ttIdents) and (TokenPtr(CurrentToken)^.TokenType <> ttString)) then
+  else if (not (TokenPtr(CurrentToken)^.TokenType in ttIdents) and not (TokenPtr(CurrentToken)^.TokenType in ttStrings)) then
     SetError(PE_UnexpectedToken)
   else
   begin
@@ -22513,7 +24407,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.FuncToken := ApplyCurrentToken();
+  Nodes.FuncToken := ApplyCurrentToken(utFunction);
 
   if (not Error) then
     if (EndOfStmt(CurrentToken)) then
@@ -22810,7 +24704,7 @@ begin
       '<html>' + #13#10 +
       '  <head>' + #13#10 +
       '  <meta http-equiv="content-type" content="text/html">' + #13#10 +
-      '  <title>Debug - Free SQL Parser</title>' + #13#10 +
+      '  <title>Debug - SQL Parser</title>' + #13#10 +
       '  <style type="text/css">' + #13#10 +
       '    body {' + #13#10 +
       '      font: 12px Verdana,Arial,Sans-Serif;' + #13#10 +
@@ -23077,7 +24971,7 @@ begin
     FormatSQL(SQL);
     HTML := HTML
       + '<br><br>'
-      + '<code>' + HTMLEscape(AnsiReplaceStr(SQL, ' ', '&nbsp;')) + '</code>';
+      + '<code>' + HTMLEscape(ReplaceStr(SQL, ' ', '&nbsp;')) + '</code>';
 
     HTML := HTML
       + '    <br>' + #13#10
@@ -23595,6 +25489,7 @@ begin
     kiTRAILING                 := IndexOf('TRAILING');
     kiTRADITIONAL              := IndexOf('TRADITIONAL');
     kiTRANSACTION              := IndexOf('TRANSACTION');
+    kiTRANSACTIONAL            := IndexOf('TRANSACTIONAL');
     kiTRIGGER                  := IndexOf('TRIGGER');
     kiTRIGGERS                 := IndexOf('TRIGGERS');
     kiTRUNCATE                 := IndexOf('TRUNCATE');
@@ -23683,5 +25578,18 @@ begin
     Result := PToken(@ParsedNodes.Mem[Token]);
 end;
 
+{$IFDEF Debug}
+var
+  Max: Integer;
+  OperatorType: TMySQLParser.TOperatorType;
+{$ENDIF}
+initialization
+  {$IFDEF Debug}
+    Max := 0;
+    for OperatorType := Low(TMySQLParser.TOperatorType) to High(TMySQLParser.TOperatorType) do
+      if (TMySQLParser.OperatorPrecedenceByOperatorType[OperatorType] > Max) then
+        Max := TMySQLParser.OperatorPrecedenceByOperatorType[OperatorType];
+    Assert(Max = TMySQLParser.MaxOperatorPrecedence);
+  {$ENDIF}
 end.
 

@@ -4575,7 +4575,7 @@ begin
   Content := Content + '# Event "' + Event.Name + '"' + #13#10;
   Content := Content + '#' + #13#10;
   Content := Content + #13#10;
-  Content := Content + Event.GetSourceEx(DropStmts, False);
+  Content := Content + Event.GetSourceEx(DropStmts);
 
   WriteContent(Content);
 end;
@@ -4619,7 +4619,7 @@ begin
     Content := Content + '#' + #13#10;
   end;
   Content := Content + #13#10;
-  Content := Content + Routine.GetSourceEx(DropStmts, False);
+  Content := Content + Routine.GetSourceEx(DropStmts);
 
   WriteContent(Content);
 end;
@@ -4667,9 +4667,9 @@ begin
     Content := Content + #13#10;
 
     if (Table is TSBaseTable) then
-      Content := Content + TSBaseTable(Table).GetSourceEx(DropStmts, False)
+      Content := Content + TSBaseTable(Table).GetSourceEx(DropStmts)
     else if (Table is TSView) then
-      Content := Content + AnsiReplaceStr(TSView(Table).GetSourceEx(DropStmts, False), Session.Connection.EscapeIdentifier(Table.Database.Name) + '.', '');
+      Content := Content + AnsiReplaceStr(TSView(Table).GetSourceEx(DropStmts), Session.Connection.EscapeIdentifier(Table.Database.Name) + '.', '');
   end;
 
   if ((Table is TSBaseTable) and Assigned(DataSet)) then
@@ -4792,7 +4792,7 @@ begin
   Content := Content + '# Trigger "' + Trigger.Name + '"' + #13#10;
   Content := Content + '#' + #13#10;
   Content := Content + #13#10;
-  Content := Content + AnsiReplaceStr(Trigger.GetSourceEx(DropStmts, False), Trigger.Session.Connection.EscapeIdentifier(Trigger.Database.Name) + '.', '');
+  Content := Content + AnsiReplaceStr(Trigger.GetSourceEx(DropStmts), Trigger.Session.Connection.EscapeIdentifier(Trigger.Database.Name) + '.', '');
 
   WriteContent(Content);
 end;

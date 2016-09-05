@@ -312,7 +312,7 @@ begin
       end;
 
       FSource.Lines.Clear();
-      FSource.Lines.Add('CREATE PROCEDURE ' + Database.Session.Connection.EscapeIdentifier(RoutineName) + '(' + Database.Session.Connection.EscapeIdentifier('Param') + ' int(11))');
+      FSource.Lines.Add('CREATE PROCEDURE ' + Database.Session.Connection.EscapeIdentifier(RoutineName) + '(Param int(11))');
       FSource.Lines.Add('BEGIN');
       FSource.Lines.Add('END;');
     end
@@ -327,7 +327,7 @@ begin
       end;
 
       FSource.Lines.Clear();
-      FSource.Lines.Add('CREATE FUNCTION ' + Database.Session.Connection.EscapeIdentifier(RoutineName) + '(' + Database.Session.Connection.EscapeIdentifier('Param') + ' int(11)) RETURNS int(11)');
+      FSource.Lines.Add('CREATE FUNCTION ' + Database.Session.Connection.EscapeIdentifier(RoutineName) + '(Param int(11)) RETURNS int(11)');
       FSource.Lines.Add('BEGIN');
       FSource.Lines.Add('  RETURN Param;');
       FSource.Lines.Add('END;');
