@@ -3441,7 +3441,7 @@ end;
 
 function TPAccount.TJobs.GetJob(Index: Integer): TPAccount.TJob;
 begin
-  Result := Job[Index];
+  Result := Items[Index];
 end;
 
 function TPAccount.TJobs.GetTaskFolder(const AutoCreate: Boolean = False): ITaskFolder;

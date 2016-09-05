@@ -13413,6 +13413,7 @@ begin
     ntAlterRoutineStmt: Result := SizeOf(TAlterRoutineStmt);
     ntAlterServerStmt: Result := SizeOf(TAlterServerStmt);
     ntAlterTableStmt: Result := SizeOf(TAlterTableStmt);
+    ntAlterTableStmtAlterColumn: Result := SizeOf(TAlterTableStmt.TAlterColumn);
     ntAlterTableStmtConvertTo: Result := SizeOf(TAlterTableStmt.TConvertTo);
     ntAlterTableStmtDropObject: Result := SizeOf(TAlterTableStmt.TDropObject);
     ntAlterTableStmtExchangePartition: Result := SizeOf(TAlterTableStmt.TExchangePartition);

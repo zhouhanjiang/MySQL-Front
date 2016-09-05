@@ -967,6 +967,8 @@ begin
       else if (DialogType = edtEditJob) then
         Session.Account.Jobs.UpdateJob(Job, NewJob);
       Export.Free();
+
+      NewJob.Free();
     end;
 
   FSelect.Selected := nil; // Make sure, not to call FSelectedChange with a selected node
