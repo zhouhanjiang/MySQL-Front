@@ -4999,7 +4999,6 @@ function TSView.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
 var
   CheckOptionSQL: string;
   EndingCommentLen: Integer;
-  Index: Integer;
   Parse: TSQLParse;
   RemovedLength: Integer;
   S: string;
@@ -5791,7 +5790,6 @@ end;
 
 function TSRoutine.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
 var
-  Index: Integer;
   Parse: TSQLParse;
   SQL: string;
 begin
@@ -6214,7 +6212,9 @@ begin
     FInputDataSet := TMySQLDataSet.Create(nil);
     FInputDataSet.Connection := Session.Connection;
     FInputDataSet.CommandText := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(FTableName) + ' LIMIT 0';
+    Session.Connection.BeginSynchron();
     FInputDataSet.Open();
+    Session.Connection.EndSynchron();
     if (not FInputDataSet.Active) then
       FreeAndNil(FInputDataSet)
     else
@@ -6623,7 +6623,6 @@ end;
 
 function TSEvent.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
 var
-  Index: Integer;
   Parse: TSQLParse;
   SQL: string;
 begin
@@ -10795,7 +10794,7 @@ begin
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.ServerVersion;
   FUser := nil;
-  ParseEndDate := EncodeDate(2016, 9, 12);
+  ParseEndDate := EncodeDate(2016, 9, 19);
   FSQLParser := nil;
   UnparsableSQL := '';
 

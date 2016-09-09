@@ -83,6 +83,8 @@ function EditWordBreakProc(lpch: LPTSTR; ichCurrent: Integer; cch: Integer;
 function FilterDescription(const Ext: string): string;
 function FindMenuItemByName(const Item: TMenuItem; const Name: string): TMenuItem;
 function MainAction(const Name: string): TAction;
+function MessageBoxCheck(hWnd: HWND; lpText, lpCaption: PWideChar; uType: UINT;
+  Default: Integer; RegVal: PChar): Integer;
 function MsgBox(const Text: string; const Caption: string; const Flags: Longint; const Wnd: HWND = 0): Integer;
 procedure SetToolBarHints(const ToolBar: TToolBar);
 function ShowEnabledItems(const Item: TMenuItem): Boolean;
@@ -763,6 +765,29 @@ begin
   end;
 
   Result := CallNextHookEx(CBTHook, Code, wParam, lParam);
+end;
+
+function MessageBoxCheck(hWnd: HWND; lpText, lpCaption: PWideChar; uType: UINT;
+  Default: Integer; RegVal: LPCTSTR): Integer;
+type
+  TSHMessageBoxCheck = function(hWnd: THandle; pszText, pszCaption: LPCTSTR;
+    uType: UINT; iDefault: Integer; RegVal: LPCTSTR): Integer; stdcall;
+var
+  Handle: THandle;
+  SHMessageBoxCheck: TSHMessageBoxCheck;
+begin
+  Handle := LoadLibrary('shlwapi.dll');
+  if (Handle = 0) then
+    SHMessageBoxCheck := nil
+  else
+    SHMessageBoxCheck := GetProcAddress(Handle, PChar(191));
+  if (not Assigned(SHMessageBoxCheck)) then
+    Result := MessageBox(hWnd, lpText, lpCaption, uType)
+  else
+    Result := SHMessageBoxCheck(hWnd, lpText, lpCaption, uType, Default, RegVal);
+
+  if (Handle > 0) then
+    FreeLibrary(Handle);
 end;
 
 function MsgBox(const Text: string; const Caption: string; const Flags: Longint; const Wnd: HWND = 0): Integer;

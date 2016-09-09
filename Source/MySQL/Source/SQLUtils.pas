@@ -528,7 +528,7 @@ asm
         JNE String1                      // No!
         CMP ECX,1                        // Last character?
         JE StringE                       // Yes!
-        CMP WORD PTR [ESI],DX            // Two quoters?
+        CMP [ESI],DX                     // Two quoters?
         JNE StringE                      // No!
         ADD ESI,2                        // Step over quoter
         DEC ECX                          // One character handled
@@ -552,7 +552,7 @@ asm
       String3:
         CMP AX,'n'                       // '\n'?
         JNE String4                      // No!
-        MOV AX,10                        // replace with LineFeed
+        MOV AX,10                        // replace with NewLine
         JMP StringLE
       String4:
         CMP AX,'r'                       // '\r'?

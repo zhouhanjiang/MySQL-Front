@@ -125,7 +125,8 @@ object DTable: TDTable
             'Dynamic'
             'Compressed'
             'Redundant'
-            'Compact')
+            'Compact'
+            'Page')
         end
         object FAutoIncrement: TEdit
           Left = 120

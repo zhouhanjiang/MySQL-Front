@@ -1239,6 +1239,7 @@ var
   EndingCommentLength: Integer;
   Item: ^TResult;
   Len: Integer;
+  Msg: string;
   SQL: string;
   StartingCommentLength: Integer;
   URI: TUURI;
@@ -1329,8 +1330,15 @@ begin
     FSession.SBResultRefresh(TResult(Item^).DataSet);
   end;
 
+  Msg := Preferences.LoadStr(922, IntToStr(DataHandle.Connection.WarningCount) + ' Warning(s)');
+  Msg := Msg
+    + #10#10
+    + 'Statement:' + #10
+    + DataHandle.Connection.CommandText;
+
   if (DataHandle.Connection.WarningCount > 0) then
-    MsgBox(IntToStr(DataHandle.Connection.WarningCount) + ' Unknown Warning(s)', Preferences.LoadStr(47), MB_OK + MB_ICONWARNING);
+    MessageBoxCheck(FSession.Window.Handle, PChar(Msg), PChar(Preferences.LoadStr(47)), MB_OK + MB_ICONWARNING,
+    ID_OK, '{46aa8b98-74ae-4c10-9b64-ceded860b3d4}');
 
   Result := False;
 end;
@@ -1938,7 +1946,7 @@ end;
 procedure TFSession.TWanted.SetUpdate(const AUpdate: TSSession.TUpdate);
 begin
   Clear();
-  if (not FSession.Session.Connection.InUse) then
+  if (not FSession.Session.Connection.InUse()) then
     AUpdate()
   else
     FUpdate := AUpdate;
@@ -4371,7 +4379,9 @@ begin
 
     if (SessionEvent.EventType in [etItemsValid, etItemValid, etItemCreated, etItemAltered, etItemDropped]) then
     begin
-      if (SessionEvent.SItems is TSProcesses) then
+      if (SessionEvent.SItems is TSDatabases) then
+        ListViewUpdate(SessionEvent, FServerListView)
+      else if (SessionEvent.SItems is TSProcesses) then
         ListViewUpdate(SessionEvent, ProcessesListView)
       else if (SessionEvent.SItems is TSStati) then
         ListViewUpdate(SessionEvent, StatiListView)
@@ -4584,9 +4594,21 @@ begin
     if (PListView.Controls[I] is TListView) then
     begin
       ListViewInitialize(TListView(PListView.Controls[I]));
-      if (Assigned(TObject(TListView(PListView.Controls[I]).Tag))
-        and (TObject(PListView.Controls[I].Tag) is TSDatabase)) then
-        TSDatabase(PListView.Controls[I].Tag).PushBuildEvents();
+
+      if (PListView.Controls[I].Tag = 0) then
+        Session.Databases.PushBuildEvent(nil)
+      else if (TObject(PListView.Controls[I].Tag) is TSProcesses) then
+        Session.Processes.PushBuildEvent(nil)
+      else if (TObject(PListView.Controls[I].Tag) is TSStati) then
+        Session.Stati.PushBuildEvent(nil)
+      else if (TObject(PListView.Controls[I].Tag) is TSUsers) then
+        Session.Users.PushBuildEvent(nil)
+      else if (TObject(PListView.Controls[I].Tag) is TSVariables) then
+        Session.Variables.PushBuildEvent(nil)
+      else if (TObject(PListView.Controls[I].Tag) is TSDatabase) then
+        TSDatabase(PListView.Controls[I].Tag).PushBuildEvents()
+      else if (TObject(PListView.Controls[I].Tag) is TSTable) then
+        TSTable(PListView.Controls[I].Tag).PushBuildEvent();
     end;
 
   SQLBuilder.RightMargin := Preferences.Editor.RightEdge;
@@ -8849,24 +8871,29 @@ var
   J: Integer;
   Routine: TSRoutine;
 begin
-  case (SelectedImageIndex) of
-    iiProcedure,
-    iiFunction:
-      begin
-        Routine := TSRoutine(FNavigator.Selected.Data);
+  if (Session.Connection.InUse()) then
+    // Getting the InputDataSet forces an opening of it, combined with a
+    // database request.
+    FObjectIDEGrid.DataSource.DataSet := nil
+  else
+    case (SelectedImageIndex) of
+      iiProcedure,
+      iiFunction:
+        begin
+          Routine := TSRoutine(FNavigator.Selected.Data);
 
-        FObjectIDEGrid.DataSource.DataSet := Routine.InputDataSet;
+          FObjectIDEGrid.DataSource.DataSet := Routine.InputDataSet;
 
-        for I := 0 to Routine.ParameterCount - 1 do
-          if (Routine.Parameter[I].FieldType = mfEnum) then
-            for J := 0 to Length(Routine.Parameter[I].Items) - 1 do
-              FObjectIDEGrid.Columns[I].PickList.Add(Routine.Parameter[I].Items[J]);
-      end;
-    iiTrigger:
-      FObjectIDEGrid.DataSource.DataSet := TSTrigger(FNavigator.Selected.Data).InputDataSet;
-    else
-      FObjectIDEGrid.DataSource.DataSet := nil;
-  end;
+          for I := 0 to Routine.ParameterCount - 1 do
+            if (Routine.Parameter[I].FieldType = mfEnum) then
+              for J := 0 to Length(Routine.Parameter[I].Items) - 1 do
+                FObjectIDEGrid.Columns[I].PickList.Add(Routine.Parameter[I].Items[J]);
+        end;
+      iiTrigger:
+        FObjectIDEGrid.DataSource.DataSet := TSTrigger(FNavigator.Selected.Data).InputDataSet;
+      else
+        FObjectIDEGrid.DataSource.DataSet := nil;
+    end;
 
   if (Assigned(FObjectIDEGrid.DataSource.DataSet) and not FObjectIDEGrid.DataSource.Enabled) then
     FObjectIDEGrid.DataSource.Enabled := True;
@@ -13919,6 +13946,8 @@ begin
     vBrowser:
       if (TObject(FNavigator.Selected.Data) is TSTable) then
         TableOpen(nil);
+    vIDE:
+      PContentChange(nil);
     vDiagram:
       if (not Assigned(ActiveWorkbench) and Assigned(FNavigator.Selected)) then
       begin

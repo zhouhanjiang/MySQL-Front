@@ -3941,7 +3941,10 @@ begin
   URLComponents.dwStructSize := SizeOf(URLComponents);
 
   URLComponents.lpszScheme := PChar('mysql');
-  URLComponents.lpszHostName := PChar(Connection.Host);
+  if (Connection.Host = LOCAL_HOST_NAMEDPIPE) then
+    URLComponents.lpszHostName := LOCAL_HOST
+  else
+    URLComponents.lpszHostName := PChar(Connection.Host);
   if (Connection.Port <> MYSQL_PORT) then
     URLComponents.nPort := Connection.Port;
   URLComponents.lpszUrlPath := PChar(APath);
