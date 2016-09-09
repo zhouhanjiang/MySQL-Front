@@ -5942,10 +5942,10 @@ type
     diGEOMETRYCOLLECTION,
     diINT,
     diINT4,
+    diJSON,
     diINTEGER,
     diLARGEINT,
     diLINESTRING,
-    diJSON,
     diLONG,
     diLONGBLOB,
     diLONGTEXT,
@@ -17043,6 +17043,7 @@ var
   Text: PChar;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
+  DatatypeIndex := -1;
 
   if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiNATIONAL)) then
     Nodes.NationalToken := ApplyCurrentToken(utDatatype);
@@ -17053,12 +17054,14 @@ begin
     else if (TokenPtr(CurrentToken)^.TokenType <> ttIdent) then
       SetError(PE_UnexpectedToken)
     else
-      Nodes.DatatypeToken := ApplyCurrentToken(utDatatype);
-
-  TokenPtr(Nodes.DatatypeToken)^.GetText(Text, Length);
-  DatatypeIndex := DatatypeList.IndexOf(Text, Length);
-  if (not Error and (DatatypeIndex < 0)) then
-    SetError(PE_UnexpectedToken);
+    begin
+      TokenPtr(CurrentToken)^.GetText(Text, Length);
+      DatatypeIndex := DatatypeList.IndexOf(Text, Length);
+      if (not Error and (DatatypeIndex < 0)) then
+        SetError(PE_UnexpectedToken)
+      else
+        Nodes.DatatypeToken := ApplyCurrentToken(utDatatype);
+    end;
   
   if (not Error and not EndOfStmt(CurrentToken) and not (TokenPtr(CurrentToken)^.TokenType in [ttComma, ttCloseBracket])
     and (DatatypeIndex = diSIGNED) or (DatatypeIndex = diUNSIGNED)) then
@@ -17081,7 +17084,7 @@ begin
   end;
 
   if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType = ttOpenBracket)
-    and (DatatypeIndex = diBIGINT)
+    and ((DatatypeIndex = diBIGINT)
       or (DatatypeIndex = diBINARY)
       or (DatatypeIndex = diBIT)
       or (DatatypeIndex = diCHAR)
@@ -17108,7 +17111,7 @@ begin
       or (DatatypeIndex = diUNSIGNED)
       or (DatatypeIndex = diVARBINARY)
       or (DatatypeIndex = diVARCHAR)
-      or (DatatypeIndex = diYEAR)) then
+      or (DatatypeIndex = diYEAR))) then
   begin
     Nodes.OpenBracket := ApplyCurrentToken();
 
@@ -22938,24 +22941,24 @@ begin
           PE_IncompleteToken:
             S := 'Incomplete token in line ' + IntToStr(FErrorLine);
           PE_UnexpectedChar:
-            S := 'Unexpected character near ''' + LeftStr(StrPas(TokenPtr(FErrorToken)^.ErrorPos), 8) + ''''
+            S := 'Unexpected character near ''' + ReplaceStr(LeftStr(StrPas(TokenPtr(FErrorToken)^.ErrorPos), 8), #10, '_') + ''''
               + ' in line ' + IntToStr(FErrorLine);
           PE_UnexpectedToken:
             begin
               TokenPtr(FErrorToken)^.GetText(Text, Length);
-              S := 'Unexpected character near ''' + LeftStr(StrPas(Text), 8) + ''''
+              S := 'Unexpected character near ''' + ReplaceStr(LeftStr(StrPas(Text), 8), #10, '_') + ''''
                 + ' in line ' + IntToStr(FErrorLine);
             end;
           PE_ExtraToken:
             begin
               TokenPtr(FErrorToken)^.GetText(Text, Length);
-              S := 'Unexpected character near ''' + LeftStr(StrPas(Text), 8) + ''''
+              S := 'Unexpected character near ''' + ReplaceStr(LeftStr(StrPas(Text), 8), #10, '_') + ''''
                 + ' in line ' + IntToStr(FErrorLine);
             end;
           PE_UnknownStmt:
             begin
               TokenPtr(FErrorToken)^.GetText(Text, Length);
-              S := 'Unknown statement ''' + LeftStr(StrPas(Text), 8) + ''''
+              S := 'Unknown statement ''' + ReplaceStr(LeftStr(StrPas(Text), 8), #10, '_') + ''''
                 + ' in line ' + IntToStr(FErrorLine);
             end;
           else S := GetErrorMessage(FErrorCode);
@@ -25209,9 +25212,9 @@ begin
     diINT                  := IndexOf('INT');
     diINT4                 := IndexOf('INT4');
     diINTEGER              := IndexOf('INTEGER');
+    diJSON                 := IndexOf('JSON');
     diLARGEINT             := IndexOf('LARGEINT');
     diLINESTRING           := IndexOf('LINESTRING');
-    diJSON                 := IndexOf('JSON');
     diLONG                 := IndexOf('LONG');
     diLONGBLOB             := IndexOf('LONGBLOB');
     diLONGTEXT             := IndexOf('LONGTEXT');
