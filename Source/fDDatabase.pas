@@ -58,6 +58,8 @@ type
     procedure FDefaultCharsetChange(Sender: TObject);
     procedure FDefaultCharsetExit(Sender: TObject);
     procedure FNameChange(Sender: TObject);
+    procedure FormCanResize(Sender: TObject; var NewWidth, NewHeight: Integer;
+      var Resize: Boolean);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormCreate(Sender: TObject);
     procedure FormHide(Sender: TObject);
@@ -69,8 +71,6 @@ type
     procedure TSExtrasShow(Sender: TObject);
     procedure FBCheckClick(Sender: TObject);
     procedure FBFlushClick(Sender: TObject);
-    procedure FormCanResize(Sender: TObject; var NewWidth, NewHeight: Integer;
-      var Resize: Boolean);
   private
     procedure Built();
     procedure FormSessionEvent(const Event: TSSession.TEvent);
@@ -238,22 +238,6 @@ begin
   TSSource.TabVisible := False;
 end;
 
-procedure TDDatabase.FormSessionEvent(const Event: TSSession.TEvent);
-begin
-  if ((Event.EventType = etItemValid) and (Event.SItem = Database)) then
-    if (not PageControl.Visible) then
-      Built()
-    else
-      TSExtrasShow(nil)
-  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is TSDatabase)) then
-    Close()
-  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.Connection.ErrorCode <> 0)) then
-  begin
-    PageControl.Visible := True;
-    PSQLWait.Visible := not PageControl.Visible;
-  end;
-end;
-
 procedure TDDatabase.FormCanResize(Sender: TObject; var NewWidth,
   NewHeight: Integer; var Resize: Boolean);
 begin
@@ -321,6 +305,22 @@ begin
   FSource.Lines.Clear();
 
   PageControl.ActivePage := TSBasics; // TSInformationsShow soll nicht vorzeitig aufgerufen werden
+end;
+
+procedure TDDatabase.FormSessionEvent(const Event: TSSession.TEvent);
+begin
+  if ((Event.EventType = etItemValid) and (Event.SItem = Database)) then
+    if (not PageControl.Visible) then
+      Built()
+    else
+      TSExtrasShow(nil)
+  else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is TSDatabase)) then
+    Close()
+  else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.Connection.ErrorCode <> 0)) then
+  begin
+    PageControl.Visible := True;
+    PSQLWait.Visible := not PageControl.Visible;
+  end;
 end;
 
 procedure TDDatabase.FormShow(Sender: TObject);
@@ -469,7 +469,7 @@ procedure TDDatabase.UMChangePreferences(var Message: TMessage);
 begin
   Preferences.SmallImages.GetIcon(iiDatabase, Icon);
 
-  PSQLWait.Caption := Preferences.LoadStr(882);
+  PSQLWait.Caption := Preferences.LoadStr(882) + '...';
 
   TSBasics.Caption := Preferences.LoadStr(108);
   GBasics.Caption := Preferences.LoadStr(85);

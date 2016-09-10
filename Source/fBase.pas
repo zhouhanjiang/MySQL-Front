@@ -83,7 +83,7 @@ function EditWordBreakProc(lpch: LPTSTR; ichCurrent: Integer; cch: Integer;
 function FilterDescription(const Ext: string): string;
 function FindMenuItemByName(const Item: TMenuItem; const Name: string): TMenuItem;
 function MainAction(const Name: string): TAction;
-function MessageBoxCheck(hWnd: HWND; lpText, lpCaption: PWideChar; uType: UINT;
+function MsgBoxCheck(const Text: string; const Caption: string; uType: UINT; hWnd: HWND;
   Default: Integer; RegVal: PChar): Integer;
 function MsgBox(const Text: string; const Caption: string; const Flags: Longint; const Wnd: HWND = 0): Integer;
 procedure SetToolBarHints(const ToolBar: TToolBar);
@@ -767,8 +767,8 @@ begin
   Result := CallNextHookEx(CBTHook, Code, wParam, lParam);
 end;
 
-function MessageBoxCheck(hWnd: HWND; lpText, lpCaption: PWideChar; uType: UINT;
-  Default: Integer; RegVal: LPCTSTR): Integer;
+function MsgBoxCheck(const Text: string; const Caption: string; uType: UINT; hWnd: HWND;
+  Default: Integer; RegVal: PChar): Integer;
 type
   TSHMessageBoxCheck = function(hWnd: THandle; pszText, pszCaption: LPCTSTR;
     uType: UINT; iDefault: Integer; RegVal: LPCTSTR): Integer; stdcall;
@@ -782,9 +782,9 @@ begin
   else
     SHMessageBoxCheck := GetProcAddress(Handle, PChar(191));
   if (not Assigned(SHMessageBoxCheck)) then
-    Result := MessageBox(hWnd, lpText, lpCaption, uType)
+    Result := MessageBox(hWnd, PChar(Text), PChar(Caption), uType)
   else
-    Result := SHMessageBoxCheck(hWnd, lpText, lpCaption, uType, Default, RegVal);
+    Result := SHMessageBoxCheck(hWnd, PChar(Text), PChar(Caption), uType, Default, RegVal);
 
   if (Handle > 0) then
     FreeLibrary(Handle);

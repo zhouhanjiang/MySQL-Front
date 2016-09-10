@@ -109,6 +109,7 @@ type
     function GetValid(): Boolean; virtual;
     function SQLGetItems(const Name: string = ''): string; virtual; abstract;
   public
+    procedure Clear(); override;
     constructor Create(const ASession: TSSession); reintroduce; virtual;
     procedure Invalidate(); virtual;
     procedure PushBuildEvent(const Sender: TObject); virtual;
@@ -121,10 +122,9 @@ type
     TDesktop = class
     private
       FSObject: TSObject;
-    protected
-      property SObject: TSObject read FSObject;
     public
       constructor Create(const ASObject: TSObject);
+      property SObject: TSObject read FSObject;
     end;
   private
     function GetObjects(): TSObjects; inline;
@@ -1887,6 +1887,13 @@ begin
   FValid := True;
 
   Result := False;
+end;
+
+procedure TSEntities.Clear();
+begin
+  inherited;
+
+  FValid := False;
 end;
 
 constructor TSEntities.Create(const ASession: TSSession);

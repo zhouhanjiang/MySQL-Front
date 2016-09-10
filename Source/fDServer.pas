@@ -413,7 +413,7 @@ end;
 
 procedure TDServer.UMChangePreferences(var Message: TMessage);
 begin
-  PSQLWait.Caption := Preferences.LoadStr(882);
+  PSQLWait.Caption := Preferences.LoadStr(882) + '...';
 
   TSBasics.Caption := Preferences.LoadStr(108);
   GServer.Caption := Preferences.LoadStr(906);

@@ -9,7 +9,7 @@ uses
   ShDocVw, CommCtrl, PNGImage, GIFImg, Jpeg, ToolWin,
   MPHexEditor, MPHexEditorEx,
   SynEdit, SynEditHighlighter, SynHighlighterSQL, SynMemo, SynEditMiscClasses,
-  SynEditSearch, SynEditPrint,
+  SynEditSearch, SynEditPrint, SynCompletionProposal,
   acQBBase, acAST, acQBEventMetaProvider, acMYSQLSynProvider, acSQLBuilderPlainText,
   ShellControls, JAMControls, ShellLink,
   ComCtrls_Ext, StdCtrls_Ext, Dialogs_Ext, Forms_Ext, ExtCtrls_Ext,
@@ -20,9 +20,10 @@ uses
 const
   UM_ACTIVATE_DBGRID = WM_USER + 500;
   UM_ACTIVATEFTEXT = WM_USER + 501;
-  UM_POST_BUILDER_QUERY_CHANGE = WM_USER + 502;
-  UM_POST_MONITOR = WM_USER + 503;
-  UM_WANTED_SYNCHRONIZE = WM_USER + 504;
+  UM_EXECUTE_SYN_COMPLETION = WM_USER + 502;
+  UM_POST_BUILDER_QUERY_CHANGE = WM_USER + 503;
+  UM_POST_MONITOR = WM_USER + 504;
+  UM_WANTED_SYNCHRONIZE = WM_USER + 505;
 
 const
   sbMessage = 0;
@@ -355,6 +356,7 @@ type
     SQLBuilder: TacSQLBuilderPlainText;
     SResult: TSplitter_Ext;
     SSideBar: TSplitter_Ext;
+    SynCompletion: TSynCompletionProposal;
     TBBlob: TToolBar;
     tbBlobHexEditor: TToolButton;
     tbBlobHTML: TToolButton;
@@ -663,6 +665,11 @@ type
       Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure TreeViewMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
+    procedure SynCompletionExecute(Kind: SynCompletionType; Sender: TObject;
+      var CurrentInput: string; var x, y: Integer; var CanExecute: Boolean);
+    procedure SynCompletionCancelled(Sender: TObject);
+    procedure SynCompletionAfterCodeCompletion(Sender: TObject;
+      const Value: string; Shift: TShiftState; Index: Integer; EndToken: Char);
   type
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
     TTabState = set of (tsLoading, tsActive);
@@ -706,7 +713,7 @@ type
     protected
       property FSession: TFSession read FFSession;
     public
-      constructor Create(const AFClient: TFSession; const ACObject: TSObject);
+      constructor Create(const AFClient: TFSession; const ASObject: TSObject);
     end;
 
     TDatabaseDesktop = class(TSObjectDesktop)
@@ -927,7 +934,7 @@ type
     function CreateDBGrid(const PDBGrid: TPanel_Ext; const DataSource: TDataSource): TMySQLDBGrid;
     function CreateListView(const Data: TCustomData): TListView;
     function CreatePDBGrid(): TPanel_Ext;
-    function CreateSynMemo(): TSynMemo;
+    function CreateSynMemo(SObject: TSObject): TSynMemo;
     function CreateTCResult(const PDBGrid: TPanel_Ext): TTabControl;
     function CreateWorkbench(const ADatabase: TSDatabase): TWWorkbench;
     procedure DBGridInitialize(const DBGrid: TMySQLDBGrid);
@@ -993,7 +1000,6 @@ type
     procedure PContentChange(Sender: TObject);
     function PostObject(Sender: TObject): Boolean;
     procedure PropertiesServerExecute(Sender: TObject);
-    procedure PSQLEditorUpdate();
     function RenameSItem(const SItem: TSItem; const NewName: string): Boolean;
     procedure SaveDiagram(Sender: TObject);
     procedure SaveSQLFile(Sender: TObject);
@@ -1025,6 +1031,7 @@ type
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMCloseTabQuery(var Message: TMessage); message UM_CLOSE_TAB_QUERY;
     procedure UMExecute(var Message: TMessage); message UM_EXECUTE;
+    procedure UMExecuteSynCompletion(var Message: TMessage); message UM_EXECUTE_SYN_COMPLETION;
     procedure UMFrameActivate(var Message: TMessage); message UM_ACTIVATEFRAME;
     procedure UMFrameDeactivate(var Message: TMessage); message UM_DEACTIVATEFRAME;
     procedure UMPostBuilderQueryChange(var Message: TMessage); message UM_POST_BUILDER_QUERY_CHANGE;
@@ -1079,7 +1086,7 @@ uses
   fDField, fDKey, fDTable, fDTables, fDVariable, fDDatabase, fDForeignKey,
   fDUser, fDQuickFilter, fDSQLHelp, fDTransfer, fDSearch, fDServer, fDGoto,
   fURI, fDView, fDRoutine, fDTrigger, fDStatement, fDEvent, fDPaste, fDSegment,
-  fDConnecting, fPDataBrowserDummy;
+  fDConnecting, fPDataBrowserDummy, fDExecutingSQL;
 
 const
   nlHost = 0;
@@ -1337,7 +1344,7 @@ begin
     + DataHandle.Connection.CommandText;
 
   if (DataHandle.Connection.WarningCount > 0) then
-    MessageBoxCheck(FSession.Window.Handle, PChar(Msg), PChar(Preferences.LoadStr(47)), MB_OK + MB_ICONWARNING,
+    MsgBoxCheck(Msg, Preferences.LoadStr(47), MB_OK + MB_ICONWARNING, FSession.Window.Handle,
     ID_OK, '{46aa8b98-74ae-4c10-9b64-ceded860b3d4}');
 
   Result := False;
@@ -1358,11 +1365,11 @@ end;
 
 { TFSession.TCObjectDesktop ***************************************************}
 
-constructor TFSession.TSObjectDesktop.Create(const AFClient: TFSession; const ACObject: TSObject);
+constructor TFSession.TSObjectDesktop.Create(const AFClient: TFSession; const ASObject: TSObject);
 begin
   FFSession := AFClient;
 
-  inherited Create(ACObject);
+  inherited Create(ASObject);
 end;
 
 { TFSession.TDatabaseDesktop **************************************************}
@@ -1719,11 +1726,10 @@ end;
 
 function TFSession.TViewDesktop.CreateSynMemo(): TSynMemo;
 begin
-  if (not Assigned(SynMemo)) then
+  if (not Assigned(SynMemo) and TSView(SObject).Valid) then
   begin
-    SynMemo := FSession.CreateSynMemo();
-    if (Table.Valid) then
-      Table.PushBuildEvent();
+    SynMemo := FSession.CreateSynMemo(SObject);
+    SynMemo.Text := TSView(SObject).Source;
   end;
 
   Result := SynMemo;
@@ -1769,8 +1775,11 @@ end;
 
 function TFSession.TRoutineDesktop.CreateSynMemo(): TSynMemo;
 begin
-  if (not Assigned(SynMemo)) then
-    SynMemo := FSession.CreateSynMemo();
+  if (not Assigned(SynMemo) and TSRoutine(SObject).Valid) then
+  begin
+    SynMemo := FSession.CreateSynMemo(SObject);
+    SynMemo.Text := TSRoutine(SObject).Source;
+  end;
 
   Result := SynMemo;
 end;
@@ -1860,8 +1869,11 @@ end;
 
 function TFSession.TEventDesktop.CreateSynMemo(): TSynMemo;
 begin
-  if (not Assigned(SynMemo)) then
-    SynMemo := FSession.CreateSynMemo();
+  if (not Assigned(SynMemo) and TSEvent(SObject).Valid) then
+  begin
+    SynMemo := FSession.CreateSynMemo(SObject);
+    SynMemo.Text := TSEvent(SObject).Source;
+  end;
 
   Result := SynMemo;
 end;
@@ -1885,8 +1897,11 @@ end;
 
 function TFSession.TTriggerDesktop.CreateSynMemo(): TSynMemo;
 begin
-  if (not Assigned(SynMemo)) then
-    SynMemo := FSession.CreateSynMemo();
+  if (not Assigned(SynMemo) and TSTrigger(SObject).Valid) then
+  begin
+    SynMemo := FSession.CreateSynMemo(SObject);
+    SynMemo.Text := TSTrigger(SObject).Source;
+  end;
 
   Result := SynMemo;
 end;
@@ -4697,13 +4712,40 @@ end;
 procedure TFSession.UMCloseTabQuery(var Message: TMessage);
 var
   CanClose: Boolean;
+  SObject: TSObject;
+  I: Integer;
+  J: Integer;
   Node: TTreeNode;
+  SynMemo: TSynMemo;
   View: TView;
 begin
   CanClose := True;
 
   if (CanClose and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then
     ActiveDBGrid.DataSource.DataSet.CheckBrowseMode();
+
+  for I := 0 to PSynMemo.ControlCount - 1 do
+    if (CanClose) then
+      if (PSynMemo.Controls[I] is TSynMemo) then
+      begin
+        SynMemo := TSynMemo(PSynMemo.Controls[I]);
+        if (SynMemo.Modified) then
+        begin
+          SObject := TSObject(SynMemo.Tag);
+          if (Assigned(SObject)) then
+            for J := 0 to FNavigator.Items.Count - 1 do
+              if (FNavigator.Items[J].Data = SObject) then
+              begin
+                FNavigator.Selected := FNavigator.Items[I];
+                Self.View := vIDE;
+                Window.ActiveControl := SynMemo;
+                case (MsgBox(Preferences.LoadStr(584, SObject.Name), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
+                  IDYES: MainAction('aDPostObject').Execute();
+                  IDCANCEL: CanClose := False;
+                end;
+              end;
+        end;
+      end;
 
   if (CanClose) then
     for View in [vEditor, vEditor2, vEditor3] do
@@ -4740,6 +4782,11 @@ begin
   MainAction('aDRun').Execute();
 
   Window.Close();
+end;
+
+procedure TFSession.UMExecuteSynCompletion(var Message: TMessage);
+begin
+  SynCompletion.ActivateCompletion();
 end;
 
 procedure TFSession.UMFrameActivate(var Message: TMessage);
@@ -5475,6 +5522,12 @@ begin
   PDataBrowserSpacer.Top := FFilter.Height;
   PDataBrowser.ClientHeight := FFilter.Height + PDataBrowserSpacer.Height;
 
+  SynCompletion.Font.Name := Preferences.SQLFontName;
+  SynCompletion.Font.Style := Preferences.SQLFontStyle;
+  SynCompletion.Font.Color := Preferences.SQLFontColor;
+  SynCompletion.Font.Size := Preferences.SQLFontSize;
+  SynCompletion.Font.Charset := Preferences.SQLFontCharset;
+
   FSQLEditorSynMemo.Font.Name := Preferences.SQLFontName;
   FSQLEditorSynMemo.Font.Style := Preferences.SQLFontStyle;
   FSQLEditorSynMemo.Font.Color := Preferences.SQLFontColor;
@@ -5765,7 +5818,7 @@ begin
     Window.ApplyWinAPIUpdates(Result, NonClientMetrics.lfStatusFont);
 end;
 
-function TFSession.CreateSynMemo(): TSynMemo;
+function TFSession.CreateSynMemo(SObject: TSObject): TSynMemo;
 var
   NonClientMetrics: TNonClientMetrics;
 begin
@@ -5797,10 +5850,12 @@ begin
   Result.RightEdge := FSQLEditorSynMemo.RightEdge;
   Result.ScrollHintFormat := FSQLEditorSynMemo.ScrollHintFormat;
   Result.SearchEngine := FSQLEditorSynMemo.SearchEngine;
+  Result.Tag := NativeInt(SObject);
 
   Result.Parent := PSynMemo;
 
   SynMemoApplyPreferences(Result);
+  SynCompletion.AddEditor(Result);
 
   Result.Perform(CM_PARENTCOLORCHANGED, 0, 0);
   Result.Perform(CM_PARENTFONTCHANGED, 0, 0);
@@ -8871,11 +8926,7 @@ var
   J: Integer;
   Routine: TSRoutine;
 begin
-  if (Session.Connection.InUse()) then
-    // Getting the InputDataSet forces an opening of it, combined with a
-    // database request.
-    FObjectIDEGrid.DataSource.DataSet := nil
-  else
+  if (not Session.Connection.InUse()) then
     case (SelectedImageIndex) of
       iiProcedure,
       iiFunction:
@@ -9002,7 +9053,7 @@ begin
       begin
         if (not Assigned(FSQLEditorSynMemo2)) then
         begin
-          FSQLEditorSynMemo2 := CreateSynMemo();
+          FSQLEditorSynMemo2 := CreateSynMemo(nil);
           FSQLEditorSynMemo2.Options := FSQLEditorSynMemo2.Options + [eoScrollPastEol];  // Speed up the performance
           FSQLEditorSynMemo2.Text := Session.Account.Desktop.EditorContent[ttEditor2];
           if (Length(FSQLEditorSynMemo2.Lines.Text) < LargeSQLScriptSize) then
@@ -9015,7 +9066,7 @@ begin
       begin
         if (not Assigned(FSQLEditorSynMemo3)) then
         begin
-          FSQLEditorSynMemo3 := CreateSynMemo();
+          FSQLEditorSynMemo3 := CreateSynMemo(nil);
           FSQLEditorSynMemo3.Options := FSQLEditorSynMemo3.Options + [eoScrollPastEol];  // Speed up the performance
           FSQLEditorSynMemo3.Text := Session.Account.Desktop.EditorContent[ttEditor3];
           if (Length(FSQLEditorSynMemo3.Lines.Text) < LargeSQLScriptSize) then
@@ -12566,9 +12617,10 @@ begin
     else
       PBuilder.Visible := False;
 
-    if ((View in [vEditor, vEditor2, vEditor3]) and (SelectedImageIndex in [iiServer, iiDatabase, iiSystemDatabase]) or (View = vIDE) and (SelectedImageIndex in [iiView, iiFunction, iiProcedure, iiEvent, iiTrigger])) then
+    if ((View in [vEditor, vEditor2, vEditor3]) and (SelectedImageIndex in [iiServer, iiDatabase, iiSystemDatabase])
+      or (View = vIDE) and (SelectedImageIndex in [iiView, iiFunction, iiProcedure, iiEvent, iiTrigger])) then
     begin
-      PSQLEditorUpdate();
+//      PSynMemoUpdate();
       if (Assigned(ActiveSynMemo)) then ActiveSynMemo.BringToFront();
       PSynMemo.Align := alClient;
       PSynMemo.Visible := True;
@@ -12783,22 +12835,6 @@ begin
   DServer.Session := Session;
   DServer.Tab := Self;
   DServer.Execute();
-end;
-
-procedure TFSession.PSQLEditorUpdate();
-begin
-  if (Self.View = vIDE) then
-    case (SelectedImageIndex) of
-      iiProcedure,
-      iiFunction:
-        ActiveSynMemo.Text := TSRoutine(FNavigator.Selected.Data).Source + #13#10;
-      iiEvent:
-        ActiveSynMemo.Text := TSEvent(FNavigator.Selected.Data).Stmt + #13#10;
-      iiTrigger:
-        ActiveSynMemo.Text := TSTrigger(FNavigator.Selected.Data).Stmt + #13#10;
-    end;
-
-  if (Assigned(ActiveSynMemo) and Assigned(ActiveSynMemo.OnStatusChange)) then ActiveSynMemo.OnStatusChange(ActiveSynMemo, [scModified]);
 end;
 
 procedure TFSession.PToolBarBlobResize(Sender: TObject);
@@ -13530,6 +13566,122 @@ begin
       StatusBar.Panels[sbSummarize].Text := Preferences.LoadStr(687, IntToStr(Count))
     else
       StatusBar.Panels[sbSummarize].Text := '';
+  end;
+end;
+
+procedure TFSession.SynCompletionAfterCodeCompletion(Sender: TObject;
+  const Value: string; Shift: TShiftState; Index: Integer; EndToken: Char);
+begin
+  SynCompletion.ItemList.Clear();
+end;
+
+procedure TFSession.SynCompletionCancelled(Sender: TObject);
+begin
+  SynCompletion.ItemList.Clear();
+end;
+
+procedure TFSession.SynCompletionExecute(Kind: SynCompletionType;
+  Sender: TObject; var CurrentInput: string; var x, y: Integer;
+  var CanExecute: Boolean);
+var
+  Database: TSDatabase;
+  I: Integer;
+  Index: Integer;
+  Item: TMySQLParser.TCompletionList.PItem;
+  J: Integer;
+  Len: Integer;
+  List: TList;
+  SQL: string;
+  SynMemo: TSynMemo;
+  SynCompletion: TSynCompletionProposal;
+  Table: TSTable;
+begin
+  {$IFNDEF Debug}
+  CanExecute := False;
+  {$ELSE}
+  CanExecute := (Sender is TSynCompletionProposal)
+    and (TSynCompletionProposal(Sender).Editor is TSynMemo);
+  {$ENDIF}
+
+  if (CanExecute) then
+  begin
+    SynCompletion := TSynCompletionProposal(Sender);
+    SynMemo := TSynMemo(SynCompletion.Editor);
+
+    CanExecute := SynMemo.SelText = '';
+    if (CanExecute) then
+    begin
+      SQL := SynMemo.Text;
+      Index := 1; I := Index; Len := 1;
+      while ((I <= SynMemo.SelStart + 1) and (Index < Length(SQL)) and (Len > 0)) do
+      begin
+        Len := SQLStmtLength(PChar(@SQL[Index]), Length(SQL) - (Index - 1));
+        Inc(Index, Len);
+        I := Index; while ((I > 1) and (CharInSet(SQL[I - 1], [#10,#13]))) do Dec(I);
+      end;
+      Dec(Index, Len);
+      SQL := Copy(SQL, Index, SynMemo.SelStart + 1 - Index - Length(CurrentInput));
+
+      Session.SQLParser.ParseSQL(SQL);
+
+      List := TList.Create();
+
+      SynCompletion.ItemList.Clear();
+      for I := 0 to Session.SQLParser.CompletionList.Count - 1 do
+      begin
+        Item := Session.SQLParser.CompletionList[I];
+        case (Item^.ItemType) of
+          itKeyword:
+            SynCompletion.ItemList.Add(StrPas(PChar(@Item^.Keyword[0])));
+          itList:
+            begin
+              if (Item^.DatabaseName <> '') then
+                Database := Session.DatabaseByName(Item^.DatabaseName)
+              else if (TObject(FNavigator.Selected.Data) is TSDatabase) then
+                Database := TSDatabase(FNavigator.Selected.Data)
+              else
+                Database := nil;
+              if (Assigned(Database) and (Item^.TableName = '')) then
+                Table := Database.TableByName(Item^.TableName)
+              else
+                Table := nil;
+              case (Item^.DbIdentType) of
+                ditDatabase:
+                  List.Add(Session.Databases);
+                ditTable:
+                  if (Assigned(Database)) then
+                    List.Add(Database.Tables);
+                else
+                  raise ERangeError.Create(SRangeError)
+              end;
+            end
+          else
+            raise ERangeError.Create(SRangeError)
+        end;
+      end;
+
+      CanExecute := True;
+      for I := 0 to List.Count - 1 do
+        CanExecute := CanExecute
+          and (TObject(List[I]) is TSEntities)
+          and (TSEntities(List[I]).Valid);
+
+      if (not CanExecute) then
+      begin
+        DExecutingSQL.Session := Session;
+        DExecutingSQL.List := List;
+        if (DExecutingSQL.Execute()) then
+          PostMessage(Handle, UM_EXECUTE_SYN_COMPLETION, 0, 0);
+      end;
+
+      if (CanExecute) then
+        for I := 0 to List.Count - 1 do
+          if (TObject(List[I]) is TSEntities) then
+            for J := 0 to TSEntities(List[I]).Count - 1 do
+              SynCompletion.ItemList.Add(TSEntities(List[I])[J].Name);
+
+      List.Free();
+    end;
   end;
 end;
 

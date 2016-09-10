@@ -177,7 +177,7 @@ procedure TDVariable.UMChangePreferences(var Message: TMessage);
 begin
   Preferences.SmallImages.GetIcon(iiVariable, Icon);
 
-  PSQLWait.Caption := Preferences.LoadStr(882);
+  PSQLWait.Caption := Preferences.LoadStr(882) + '...';
 
   GroupBox.Caption := Preferences.LoadStr(342);
   FLValue.Caption := Preferences.LoadStr(343) + ':';

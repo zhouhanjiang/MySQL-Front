@@ -1637,6 +1637,34 @@ type
 
   public
     type
+      TCompletionList = class(Classes.TList)
+      public const
+        NameLength = 64;
+      public type
+        PItem = ^TItem;
+        TItem = record
+          DatabaseName: array[0 .. NameLength] of Char;
+          DbIdentType: TDbIdentType;
+          ItemType: (itKeyword, itList);
+          Keyword: array[0 .. NameLength] of Char;
+          TableName: array[0 .. NameLength] of Char;
+        end;
+      private
+        FParser: TMySQLParser;
+      protected
+        procedure AddKeyword(const KeywordIndex: Integer;
+          const KeywordIndex2: Integer = -1; const KeywordIndex3: Integer = -1;
+          const KeywordIndex4: Integer = -1; const KeywordIndex5: Integer = -1;
+          const KeywordIndex6: Integer = -1);
+        procedure AddList(DbIdentType: TDbIdentType;
+          const DatabaseName: string = ''; TableName: string = '');
+      public
+        procedure Clear(); override;
+        constructor Create(const AParser: TMySQLParser);
+        destructor Destroy(); override;
+        property Parser: TMySQLParser read FParser;
+      end;
+
       PNode = ^TNode;
       PToken = ^TToken;
       PStmt = ^TStmt;
@@ -6435,6 +6463,7 @@ type
     AllowedMySQLVersion: Integer;
     Commands: TFormatBuffer;
     CommentsWritten: Boolean;
+    FCompletionList: TCompletionList;
     FCurrentToken: TOffset; // Cache for speeding
     FErrorCode: Byte;
     FErrorLine: Integer;
@@ -6867,6 +6896,7 @@ type
     function ParseSQL(const Text: string): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     procedure SaveToFile(const Filename: string; const FileType: TFileType = ftSQL);
     property AnsiQuotes: Boolean read FAnsiQuotes write FAnsiQuotes;
+    property CompletionList: TCompletionList read FCompletionList;
     property Datatypes: string read GetDatatypes write SetDatatypes;
     property ErrorCode: Byte read GetErrorCode;
     property ErrorMessage: string read GetErrorMessage;
@@ -7442,6 +7472,73 @@ end;
 procedure TMySQLParser.TFormatBuffer.WriteSpace();
 begin
   Write(' ');
+end;
+
+{ TMySQLParser.TCompletionList ************************************************}
+
+procedure TMySQLParser.TCompletionList.AddKeyword(const KeywordIndex: Integer;
+  const KeywordIndex2: Integer = -1; const KeywordIndex3: Integer = -1;
+  const KeywordIndex4: Integer = -1; const KeywordIndex5: Integer = -1;
+  const KeywordIndex6: Integer = -1);
+var
+  Item: PItem;
+  Keyword: string;
+begin
+  Keyword := Parser.KeywordList.Word[KeywordIndex];
+
+  if (KeywordIndex2 >= 0) then
+    Keyword := Keyword + ' ' + Parser.KeywordList.Word[KeywordIndex2];
+  if (KeywordIndex3 >= 0) then
+    Keyword := Keyword + ' ' + Parser.KeywordList.Word[KeywordIndex3];
+  if (KeywordIndex4 >= 0) then
+    Keyword := Keyword + ' ' + Parser.KeywordList.Word[KeywordIndex4];
+  if (KeywordIndex5 >= 0) then
+    Keyword := Keyword + ' ' + Parser.KeywordList.Word[KeywordIndex5];
+  if (KeywordIndex6 >= 0) then
+    Keyword := Keyword + ' ' + Parser.KeywordList.Word[KeywordIndex6];
+
+  GetMem(Item, SizeOf(Item^));
+  FillChar(Item^, SizeOf(Item^), 0);
+  Item^.ItemType := itKeyword;
+  StrPCopy(Item^.Keyword, Keyword);
+  Add(Item);
+end;
+
+procedure TMySQLParser.TCompletionList.AddList(DbIdentType: TDbIdentType;
+  const DatabaseName: string = ''; TableName: string = '');
+var
+  Item: PItem;
+begin
+  GetMem(Item, SizeOf(Item^));
+  Item^.ItemType := itList;
+  Item^.DbIdentType := DbIdentType;
+  StrPCopy(Item^.DatabaseName, DatabaseName);
+  StrPCopy(Item^.TableName, TableName);
+  Add(Item);
+end;
+
+procedure TMySQLParser.TCompletionList.Clear();
+var
+  I: Integer;
+begin
+  for I := 0 to Count - 1 do
+    FreeMem(Items[I]);
+
+  inherited;
+end;
+
+constructor TMySQLParser.TCompletionList.Create(const AParser: TMySQLParser);
+begin
+  inherited Create();
+
+  FParser := AParser;
+end;
+
+destructor TMySQLParser.TCompletionList.Destroy();
+begin
+  Clear();
+
+  inherited;
 end;
 
 { TMySQLParser.TNode **********************************************************}
@@ -11138,6 +11235,7 @@ end;
 
 procedure TMySQLParser.Clear();
 begin
+  FCompletionList.Clear();
   FErrorCode := PE_Success;
   FErrorLine := 1;
   FErrorToken := 0;
@@ -11169,6 +11267,7 @@ begin
 
   AllowedMySQLVersion := 0;
   Commands := nil;
+  FCompletionList := TCompletionList.Create(Self);
   DatatypeList := TWordList.Create(Self);
   FAnsiQuotes := False;
   FunctionList := TWordList.Create(Self);
@@ -11199,6 +11298,7 @@ begin
   if (Texts.MemSize <> 0) then
     FreeMem(Texts.Mem, 0);
 
+  FCompletionList.Free();
   DatatypeList.Free();
   FunctionList.Free();
   KeywordList.Free();
@@ -17229,7 +17329,18 @@ begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
   if (EndOfStmt(CurrentToken)) then
-    SetError(PE_IncompleteStmt)
+  begin
+    case (ADbIdentType) of
+      ditTable:
+        begin
+          CompletionList.AddList(ditDatabase);
+          CompletionList.AddList(ditTable);
+        end;
+      else
+        raise ERangeError.Create(SArgumentOutOfRange);
+    end;
+    SetError(PE_IncompleteStmt);
+  end
   else if (not (TokenPtr(CurrentToken)^.TokenType in ttIdents + ttStrings) and (TokenPtr(CurrentToken)^.OperatorType <> otMulti)) then
     SetError(PE_UnexpectedToken);
 
@@ -17778,14 +17889,22 @@ begin
   else
     Nodes.StmtTag := ParseTag(kiDROP, kiTEMPORARY, kiTABLE);
 
-  if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiIF)) then
-    Nodes.IfExistsTag := ParseTag(kiIF, kiEXISTS);
+  if (not Error) then
+    if (EndOfStmt(CurrentToken)) then
+      CompletionList.AddKeyword(kiIF, kiEXISTS)
+    else if (TokenPtr(CurrentToken)^.KeywordIndex = kiIF) then
+      Nodes.IfExistsTag := ParseTag(kiIF, kiEXISTS);
 
   if (not Error) then
     Nodes.TableIdentList := ParseList(False, ParseTableIdent);
 
-  if (not Error and not EndOfStmt(CurrentToken)) then
-    if (TokenPtr(CurrentToken)^.KeywordIndex = kiRESTRICT) then
+  if (not Error) then
+    if (EndOfStmt(CurrentToken)) then
+    begin
+      CompletionList.AddKeyword(kiRESTRICT);
+      CompletionList.AddKeyword(kiCASCADE);
+    end
+    else if (TokenPtr(CurrentToken)^.KeywordIndex = kiRESTRICT) then
       Nodes.RestrictCascadeTag := ParseTag(kiRESTRICT)
     else if (TokenPtr(CurrentToken)^.KeywordIndex = kiCASCADE) then
       Nodes.RestrictCascadeTag := ParseTag(kiCASCADE);
@@ -19652,9 +19771,7 @@ begin
   if (not Error and (not Brackets or not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType <> ttCloseBracket))) then
   begin
     repeat
-      if (EndOfStmt(CurrentToken)) then
-        SetError(PE_IncompleteStmt)
-      else if (Index < Length(ChildrenArray)) then
+      if (Index < Length(ChildrenArray)) then
         ChildrenArray[Index] := ParseElement()
       else
       begin
@@ -19685,7 +19802,7 @@ begin
         end;
         Inc(Index);
       end;
-    until (Error or EndOfStmt(CurrentToken) or not DelimiterFound
+    until (Error or not DelimiterFound
       or ((DelimterType = ttDelimiter) and
         ((TokenPtr(CurrentToken)^.KeywordIndex = kiELSE)
           or (TokenPtr(CurrentToken)^.KeywordIndex = kiELSEIF)

@@ -2362,4 +2362,27 @@ object FSession: TFSession
     Left = 64
     Top = 72
   end
+  object SynCompletion: TSynCompletionProposal
+    Options = [scoLimitToMatchedText, scoUseBuiltInTimer, scoEndCharCompletion, scoCompleteWithTab, scoCompleteWithEnter]
+    EndOfTokenChr = '()[]. '
+    TriggerChars = '.'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -12
+    Font.Name = 'MS Sans Serif'
+    Font.Style = []
+    TitleFont.Charset = DEFAULT_CHARSET
+    TitleFont.Color = clBtnText
+    TitleFont.Height = -12
+    TitleFont.Name = 'MS Sans Serif'
+    TitleFont.Style = [fsBold]
+    Columns = <>
+    OnExecute = SynCompletionExecute
+    ShortCut = 16416
+    Editor = FSQLEditorSynMemo
+    OnAfterCodeCompletion = SynCompletionAfterCodeCompletion
+    OnCancelled = SynCompletionCancelled
+    Left = 280
+    Top = 208
+  end
 end

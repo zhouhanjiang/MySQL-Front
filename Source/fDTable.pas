@@ -1649,7 +1649,7 @@ procedure TDTable.UMChangePreferences(var Message: TMessage);
 begin
   Preferences.SmallImages.GetIcon(iiBaseTable, Icon);
 
-  PSQLWait.Caption := Preferences.LoadStr(882);
+  PSQLWait.Caption := Preferences.LoadStr(882) + '...';
 
   aPUp.Caption := Preferences.LoadStr(563);
   aPDown.Caption := Preferences.LoadStr(564);

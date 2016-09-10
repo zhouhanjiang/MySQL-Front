@@ -253,7 +253,7 @@ begin
 
   Caption := Preferences.LoadStr(264);
 
-  PSQLWait.Caption := Preferences.LoadStr(882);
+  PSQLWait.Caption := Preferences.LoadStr(882) + '...';
 
   GroupBox.Caption := Preferences.LoadStr(265) + ':';
 

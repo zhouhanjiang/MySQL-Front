@@ -2094,7 +2094,7 @@ begin
 
   SaveDialog.EncodingLabel := Preferences.LoadStr(682) + ':';
 
-  PSQLWait.Caption := Preferences.LoadStr(882);
+  PSQLWait.Caption := Preferences.LoadStr(882) + '...';
 
   GSelect.Caption := Preferences.LoadStr(721);
 

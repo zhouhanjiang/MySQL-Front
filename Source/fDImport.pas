@@ -1948,7 +1948,7 @@ begin
 
   OpenDialog.EncodingLabel := Preferences.LoadStr(682) + ':';
 
-  PSQLWait.Caption := Preferences.LoadStr(882);
+  PSQLWait.Caption := Preferences.LoadStr(882) + '...';
 
   GBasics.Caption := Preferences.LoadStr(85);
   FLName.Caption := Preferences.LoadStr(35) + ':';
