@@ -38,6 +38,7 @@ uses
   fDDatabase in 'fDDatabase.pas' {DDatabase},
   fDDatabases in 'fDDatabases.pas' {DDatabases},
   fDEvent in 'fDEvent.pas' {DEvent},
+  fDExecutingSQL in 'fDExecutingSQL.pas' {DExecutingSQL},
   fDExport in 'fDExport.pas' {DExport},
   fDField in 'fDField.pas' {DField},
   fDForeignKey in 'fDForeignKey.pas' {DForeignKey},
