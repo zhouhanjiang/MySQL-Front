@@ -1317,20 +1317,7 @@ begin
 end;
 
 function TDExport.GetFilename(): Boolean;
-var
-  Database: TSDatabase;
 begin
-  Database := BuildTitle();
-
-  if (SingleTable and (TObject(DExport.SObjects[0]) is TSBaseTable)) then
-    CodePage := Session.Connection.CharsetToCodePage(TSBaseTable(DExport.SObjects[0]).DefaultCharset)
-  else if (Assigned(Database)) then
-    CodePage := Session.Connection.CharsetToCodePage(Database.DefaultCharset)
-  else if (Assigned(Session) and (Session.Connection.Charset <> '')) then
-    CodePage := Session.Connection.CharsetToCodePage(Session.Connection.Charset)
-  else
-    CodePage := Session.Connection.CodePage;
-
   SaveDialog.Title := Preferences.LoadStr(582);
   SaveDialog.InitialDir := Preferences.Path;
   SaveDialog.Filter := '';
@@ -1395,6 +1382,7 @@ begin
   else
     SaveDialog.FileName := Title + SaveDialog.DefaultExt;
 
+  CodePage := CP_UTF8;
   if (SaveDialog.Encodings.Count = 0) then
     SaveDialog.EncodingIndex := -1
   else

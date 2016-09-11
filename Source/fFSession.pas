@@ -13,7 +13,7 @@ uses
   acQBBase, acAST, acQBEventMetaProvider, acMYSQLSynProvider, acSQLBuilderPlainText,
   ShellControls, JAMControls, ShellLink,
   ComCtrls_Ext, StdCtrls_Ext, Dialogs_Ext, Forms_Ext, ExtCtrls_Ext,
-  MySQLDB, MySQLDBGrid,
+  MySQLDB, MySQLDBGrid, SQLParser,
   fSession, fPreferences, fTools, fBase,
   fDExport, fDImport, fCWorkbench;
 
@@ -646,6 +646,11 @@ type
     procedure SSideBarCanResize(Sender: TObject; var NewSize: Integer;
       var Accept: Boolean);
     procedure SSideBarMoved(Sender: TObject);
+    procedure SynCompletionExecute(Kind: SynCompletionType; Sender: TObject;
+      var CurrentInput: string; var x, y: Integer; var CanExecute: Boolean);
+    procedure SynCompletionCancelled(Sender: TObject);
+    procedure SynCompletionAfterCodeCompletion(Sender: TObject;
+      const Value: string; Shift: TShiftState; Index: Integer; EndToken: Char);
     procedure SynMemoDragDrop(Sender, Source: TObject; X, Y: Integer);
     procedure SynMemoDragOver(Sender, Source: TObject; X, Y: Integer;
       State: TDragState; var Accept: Boolean);
@@ -665,11 +670,6 @@ type
       Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure TreeViewMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
-    procedure SynCompletionExecute(Kind: SynCompletionType; Sender: TObject;
-      var CurrentInput: string; var x, y: Integer; var CanExecute: Boolean);
-    procedure SynCompletionCancelled(Sender: TObject);
-    procedure SynCompletionAfterCodeCompletion(Sender: TObject;
-      const Value: string; Shift: TShiftState; Index: Integer; EndToken: Char);
   type
     TNewLineFormat = (nlWindows, nlUnix, nlMacintosh);
     TTabState = set of (tsLoading, tsActive);
@@ -681,6 +681,22 @@ type
     end;
 
   type
+    TCompletionList = class (TList)
+    type
+      PItem = ^TItem;
+      TItem = record
+        View: TMySQLParser.TCharArray;
+        Insert: TMySQLParser.TCharArray;
+      end;
+    private
+      FSession: TFSession;
+      function Get(Index: Integer): PItem;
+    public
+      procedure Add(const AView: PChar; const AInsert: PChar); reintroduce;
+      constructor Create(const AFSession: TFSession); reintroduce;
+      property Items[Index: Integer]: PItem read Get; default;
+    end;
+
     TSQLEditor = class(TObject)
     type
       TResult = record
@@ -1013,6 +1029,18 @@ type
     procedure SynMemoApplyPreferences(const SynMemo: TSynMemo);
     procedure TableOpen(Sender: TObject);
     procedure TCResultMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
+    procedure UMActivateDBGrid(var Message: TMessage); message UM_ACTIVATE_DBGRID;
+    procedure UMActivateFText(var Message: TMessage); message UM_ACTIVATEFTEXT;
+    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
+    procedure UMCloseTabQuery(var Message: TMessage); message UM_CLOSE_TAB_QUERY;
+    procedure UMExecute(var Message: TMessage); message UM_EXECUTE;
+    procedure UMExecuteSynCompletion(var Message: TMessage); message UM_EXECUTE_SYN_COMPLETION;
+    procedure UMFrameActivate(var Message: TMessage); message UM_ACTIVATEFRAME;
+    procedure UMFrameDeactivate(var Message: TMessage); message UM_DEACTIVATEFRAME;
+    procedure UMPostBuilderQueryChange(var Message: TMessage); message UM_POST_BUILDER_QUERY_CHANGE;
+    procedure UMPostMonitor(var Message: TMessage); message UM_POST_MONITOR;
+    procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
+    procedure UMWantedSynchronize(var Message: TMessage); message UM_WANTED_SYNCHRONIZE;
     function UpdateAfterAddressChanged(): Boolean;
     function ViewToParam(const AView: TView): Variant;
     procedure WorkbenchAddTable(Sender: TObject);
@@ -1026,18 +1054,6 @@ type
     procedure WorkbenchExit(Sender: TObject);
     procedure WorkbenchPasteExecute(Sender: TObject);
     function WorkbenchValidateControl(Sender: TObject; Control: TWControl): Boolean;
-    procedure UMActivateDBGrid(var Message: TMessage); message UM_ACTIVATE_DBGRID;
-    procedure UMActivateFText(var Message: TMessage); message UM_ACTIVATEFTEXT;
-    procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
-    procedure UMCloseTabQuery(var Message: TMessage); message UM_CLOSE_TAB_QUERY;
-    procedure UMExecute(var Message: TMessage); message UM_EXECUTE;
-    procedure UMExecuteSynCompletion(var Message: TMessage); message UM_EXECUTE_SYN_COMPLETION;
-    procedure UMFrameActivate(var Message: TMessage); message UM_ACTIVATEFRAME;
-    procedure UMFrameDeactivate(var Message: TMessage); message UM_DEACTIVATEFRAME;
-    procedure UMPostBuilderQueryChange(var Message: TMessage); message UM_POST_BUILDER_QUERY_CHANGE;
-    procedure UMPostMonitor(var Message: TMessage); message UM_POST_MONITOR;
-    procedure UMPostShow(var Message: TMessage); message UM_POST_SHOW;
-    procedure UMWantedSynchronize(var Message: TMessage); message UM_WANTED_SYNCHRONIZE;
     procedure WMNotify(var Message: TWMNotify); message WM_NOTIFY;
     procedure WMParentNotify(var Message: TWMParentNotify); message WM_PARENTNOTIFY;
     procedure WMTimer(var Message: TWMTimer); message WM_TIMER;
@@ -1082,7 +1098,7 @@ uses
   ShLwApi,
   acQBLocalizer, acQBStrings,
   CommCtrl_Ext, StdActns_Ext,
-  SQLParser, MySQLConsts, SQLUtils,
+  MySQLConsts, SQLUtils,
   fDField, fDKey, fDTable, fDTables, fDVariable, fDDatabase, fDForeignKey,
   fDUser, fDQuickFilter, fDSQLHelp, fDTransfer, fDSearch, fDServer, fDGoto,
   fURI, fDView, fDRoutine, fDTrigger, fDStatement, fDEvent, fDPaste, fDSegment,
@@ -1132,6 +1148,10 @@ const
   ToolbarTabByView: array[vObjects .. vEditor3] of TPPreferences.TToolbarTab =
     (ttObjects, ttBrowser, ttIDE, ttBuilder, ttDiagram, ttEditor, ttEditor2, ttEditor3);
 
+function CompletionListCompare(Item1, Item2: Pointer): Integer;
+begin
+  Result := lstrcmpi(@TFSession.TCompletionList.PItem(Item1).View, @TFSession.TCompletionList.PItem(Item2).View);
+end;
 
 function IsRTF(const Value: string): Boolean;
 var
@@ -1182,6 +1202,54 @@ begin
     Result := ReplaceStr(Result, ' ', '_');
     Inc(I);
   end;
+end;
+
+{ TFSession.TCompletionList ***************************************************}
+
+procedure TFSession.TCompletionList.Add(const AView: PChar; const AInsert: PChar);
+type
+  Tstrcmp = function (lpString1, lpString2: PWideChar): Integer; stdcall;
+var
+  Found: Boolean;
+  I: Integer;
+  Item: PItem;
+  strcmp: Tstrcmp;
+begin
+  Assert((StrLen(AView) < Cardinal(Length(Item^.View))) and (StrLen(AInsert) < Cardinal(Length(Item^.Insert))));
+
+  if (FSession.Session.LowerCaseTableNames = 0) then
+    strcmp := lstrcmp
+  else
+    strcmp := lstrcmpi;
+
+  Found := False;
+  for I := 0 to Count - 1 do
+    if (strcmp(AView, @Items[I]^.View) = 0) then
+    begin
+      Found := True;
+      break;
+    end;
+
+  if (not Found) then
+  begin
+    GetMem(Item, SizeOf(Item^));
+    StrPCopy(@Item^.View, AView);
+    StrPCopy(@Item^.Insert, AInsert);
+
+    inherited Add(Item);
+  end;
+end;
+
+constructor TFSession.TCompletionList.Create(const AFSession: TFSession);
+begin
+  inherited Create();
+
+  FSession := AFSession;
+end;
+
+function TFSession.TCompletionList.Get(Index: Integer): PItem;
+begin
+  Result := PItem(inherited Items[Index]);
 end;
 
 { TFSession.TSQLEditorDesktop *************************************************}
@@ -1729,7 +1797,7 @@ begin
   if (not Assigned(SynMemo) and TSView(SObject).Valid) then
   begin
     SynMemo := FSession.CreateSynMemo(SObject);
-    SynMemo.Text := TSView(SObject).Source;
+    SynMemo.Text := TSView(SObject).Stmt;
   end;
 
   Result := SynMemo;
@@ -1872,7 +1940,7 @@ begin
   if (not Assigned(SynMemo) and TSEvent(SObject).Valid) then
   begin
     SynMemo := FSession.CreateSynMemo(SObject);
-    SynMemo.Text := TSEvent(SObject).Source;
+    SynMemo.Text := TSEvent(SObject).Stmt;
   end;
 
   Result := SynMemo;
@@ -4375,745 +4443,6 @@ begin
 
     Session.Connection.ExecuteSQL(SQL);
   end;
-end;
-
-procedure TFSession.SessionUpdate(const SessionEvent: TSSession.TEvent);
-var
-  Control: TWinControl;
-  I: Integer;
-  TempActiveControl: TWinControl;
-begin
-  LeftMousePressed := False;
-
-  TempActiveControl := Window.ActiveControl;
-
-  if (Assigned(SessionEvent)) then
-  begin
-    if (SessionEvent.EventType in [etItemsValid, etItemValid, etItemCreated, etItemAltered, etItemDropped]) then
-      FNavigatorUpdate(SessionEvent);
-
-    if (SessionEvent.EventType in [etItemsValid, etItemValid, etItemCreated, etItemAltered, etItemDropped]) then
-    begin
-      if (SessionEvent.SItems is TSDatabases) then
-        ListViewUpdate(SessionEvent, FServerListView)
-      else if (SessionEvent.SItems is TSProcesses) then
-        ListViewUpdate(SessionEvent, ProcessesListView)
-      else if (SessionEvent.SItems is TSStati) then
-        ListViewUpdate(SessionEvent, StatiListView)
-      else if (SessionEvent.SItems is TSUsers) then
-        ListViewUpdate(SessionEvent, UsersListView)
-      else if (SessionEvent.SItems is TSVariables) then
-        ListViewUpdate(SessionEvent, VariablesListView)
-      else if (SessionEvent.Sender is TSSession) then
-        ListViewUpdate(SessionEvent, FServerListView)
-      else if (SessionEvent.Sender is TSDatabase) then
-      begin
-        ListViewUpdate(SessionEvent, FServerListView);
-        if (not (SessionEvent.SItems is TSTriggers)) then
-          ListViewUpdate(SessionEvent, Desktop(TSDatabase(SessionEvent.Sender)).ListView)
-        else if (SessionEvent.EventType = etItemDropped) then
-          ListViewUpdate(SessionEvent, Desktop(TSTrigger(SessionEvent.SItem).Table).ListView)
-        else
-          for I := 0 to TSTriggers(SessionEvent.SItems).Count - 1 do
-            if (Assigned(TSTriggers(SessionEvent.SItems)[I].Table)) then
-              ListViewUpdate(SessionEvent, Desktop(TSTriggers(SessionEvent.SItems)[I].Table).ListView);
-      end
-      else if (SessionEvent.Sender is TSTable) then
-      begin
-        ListViewUpdate(SessionEvent, Desktop(TSTable(SessionEvent.Sender).Database).ListView);
-        ListViewUpdate(SessionEvent, Desktop(TSTable(SessionEvent.Sender)).ListView);
-      end;
-    end;
-
-    if (SessionEvent.EventType in [etItemValid]) then
-      if ((SessionEvent.SItem is TSView) and Assigned(Desktop(TSView(SessionEvent.SItem)).SynMemo)) then
-        Desktop(TSView(SessionEvent.SItem)).SynMemo.Text := Trim(SQLWrapStmt(TSView(SessionEvent.SItem).Stmt, ['from', 'where', 'group by', 'having', 'order by', 'limit'], 0)) + #13#10
-      else if ((SessionEvent.SItem is TSRoutine) and Assigned(Desktop(TSRoutine(SessionEvent.SItem)).SynMemo)) then
-      begin
-        Desktop(TSRoutine(SessionEvent.SItem)).SynMemo.Text := TSRoutine(SessionEvent.SItem).Source + #13#10;
-        PContentChange(nil);
-      end;
-
-    if ((SessionEvent.EventType = etItemAltered) and (SessionEvent.SItem is TSTable)
-      and Assigned(Desktop(TSTable(SessionEvent.SItem)).DBGrid)) then
-    begin
-      Wanted.Update := TSTable(SessionEvent.SItem).Update;
-      FFilter.Text := '';
-      FFilterEnabled.Down := False;
-    end;
-  end;
-
-  if (PContent.Visible and Assigned(TempActiveControl) and TempActiveControl.Visible) then
-  begin
-    Control := TempActiveControl;
-    while (Control.Visible and Control.Enabled and Assigned(Control.Parent)) do Control := Control.Parent;
-    if (Control.Visible and Control.Enabled) then
-      Window.ActiveControl := TempActiveControl;
-  end;
-
-  StatusBarRefresh();
-
-  if (Assigned(SessionEvent) and ((SessionEvent.EventType in [etItemCreated, etItemAltered]) or ((SessionEvent.EventType in [etItemValid]) and (SessionEvent.SItem is TSObject) and not TSObject(SessionEvent.SItem).Valid)) and (Screen.ActiveForm = Window) and Wanted.Nothing) then
-    Wanted.Update := Session.Update;
-end;
-
-procedure TFSession.UMActivateDBGrid(var Message: TMessage);
-begin
-  Window.ActiveControl := TWinControl(Message.LParam);
-  ActiveDBGrid.EditorMode := False;
-end;
-
-procedure TFSession.UMActivateFText(var Message: TMessage);
-const
-  KEYEVENTF_UNICODE = 4;
-var
-  Input: TInput;
-begin
-  Window.ActiveControl := FText;
-  if (Message.WParam <> 0) then
-  begin
-    ZeroMemory(@Input, SizeOf(Input));
-    Input.Itype := INPUT_KEYBOARD;
-    Input.ki.wVk := Message.WParam;
-    Input.ki.dwFlags := KEYEVENTF_UNICODE;
-    SendInput(1, Input, SizeOf(Input));
-  end;
-  FText.SelStart := Length(FText.Text);
-end;
-
-procedure TFSession.UMChangePreferences(var Message: TMessage);
-var
-  I: Integer;
-begin
-  if (not CheckWin32Version(6) or TStyleManager.Enabled and (TStyleManager.ActiveStyle <> TStyleManager.SystemStyle)) then
-  begin
-    TBSideBar.BorderWidth := 0;
-    ToolBar.BorderWidth := 0;
-  end
-  else
-  begin
-    TBSideBar.BorderWidth := 2;
-    ToolBar.BorderWidth := 2;
-  end;
-
-  Session.SQLMonitor.CacheSize := Preferences.LogSize;
-  if (Preferences.LogResult) then
-    Session.SQLMonitor.TraceTypes := Session.SQLMonitor.TraceTypes + [ttInfo]
-  else
-    Session.SQLMonitor.TraceTypes := Session.SQLMonitor.TraceTypes - [ttInfo];
-  if (Preferences.LogTime) then
-    Session.SQLMonitor.TraceTypes := Session.SQLMonitor.TraceTypes + [ttTime]
-  else
-    Session.SQLMonitor.TraceTypes := Session.SQLMonitor.TraceTypes - [ttTime];
-
-  aPExpand.Caption := Preferences.LoadStr(150);
-  aPCollapse.Caption := Preferences.LoadStr(151);
-  aPOpenInNewWindow.Caption := Preferences.LoadStr(760);
-  aPOpenInNewTab.Caption := Preferences.LoadStr(850);
-  aDDelete.Caption := Preferences.LoadStr(28);
-  aDPrev.Caption := Preferences.LoadStr(512);
-  aDNext.Caption := Preferences.LoadStr(513);
-  DataSetFirst.Caption := Preferences.LoadStr(514);
-  DataSetLast.Caption := Preferences.LoadStr(515);
-  DataSetPost.Caption := Preferences.LoadStr(516);
-  DataSetCancel.Caption := Preferences.LoadStr(517);
-  aVBlobText.Caption := Preferences.LoadStr(379);
-  aVBlobRTF.Caption := 'RTF';
-  aVBlobImage.Caption := Preferences.LoadStr(380);
-  aVBlobHexEditor.Caption := Preferences.LoadStr(381);
-  mwDCreateTable.Caption := MainAction('aDCreateTable').Caption;
-  mwCreateSection.Caption := Preferences.LoadStr(877) + ' ...';
-  mwCreateLink.Caption := Preferences.LoadStr(251) + ' ...';
-
-  for I := 0 to ActionList.ActionCount - 1 do
-    if (ActionList.Actions[I] is TCustomAction) and (TCustomAction(ActionList.Actions[I]).Hint = '') then
-      TCustomAction(ActionList.Actions[I]).Hint := TCustomAction(ActionList.Actions[I]).Caption;
-
-  tbObjects.Caption := Preferences.LoadStr(4);
-  tbBrowser.Caption := Preferences.LoadStr(5);
-  tbIDE.Caption := Preferences.LoadStr(865);
-  tbBuilder.Caption := tbBuilder.Caption;
-  tbDiagram.Caption := Preferences.LoadStr(800);
-  tbEditor.Caption := Preferences.LoadStr(6);
-  tbEditor2.Caption := Preferences.LoadStr(6) + ' #2';
-  tbEditor3.Caption := Preferences.LoadStr(6) + ' #3';
-
-  mfOpen.Caption := Preferences.LoadStr(581);
-  mfOpenInNewWindow.Caption := Preferences.LoadStr(760);
-  mfOpenInNewTab.Caption := Preferences.LoadStr(850);
-  mfFilter.Caption := Preferences.LoadStr(209);
-  mfFilterClear.Caption := FilterDescription('*') + ' (*.*)';
-  mfFilterSQL.Caption := FilterDescription('sql') + ' (*.sql)';
-  mfFilterText.Caption := FilterDescription('txt') + ' (*.txt,*.csv)';
-  mfFilterHTML.Caption := FilterDescription('html') + ' (*.html,*.hmt)';
-  mfFilterXML.Caption := FilterDescription('xml') + ' (*.xml)';
-  mfFilterAccess.Caption := FilterDescription('mdb') + ' (*.mdb;*.accdb)';
-  mfFilterExcel.Caption := FilterDescription('xls') + ' (*.xls;*.xlsx)';
-  mfDelete.Caption := Preferences.LoadStr(28);
-  mfRename.Caption := Preferences.LoadStr(98);
-  mfProperties.Caption := Preferences.LoadStr(97) + '...';
-
-  miNImport.Caption := Preferences.LoadStr(371);
-  miNExport.Caption := Preferences.LoadStr(200);
-  miNCreate.Caption := Preferences.LoadStr(26);
-  miNDelete.Caption := Preferences.LoadStr(28);
-
-  mjExecute.Caption := Preferences.LoadStr(174);
-  mjAdd.Caption := Preferences.LoadStr(26);
-
-  miHOpen.Caption := Preferences.LoadStr(581);
-  miHSaveAs.Caption := MainAction('aFSaveAs').Caption;
-  miHStatementIntoSQLEditor.Caption := Preferences.LoadStr(198) + ' -> ' + Preferences.LoadStr(20);
-  miHRun.Caption := MainAction('aDRun').Caption;
-  miHProperties.Caption := Preferences.LoadStr(684) + '...';
-
-  mlOpen.Caption := Preferences.LoadStr(581);
-  mlFImport.Caption := Preferences.LoadStr(371);
-  mlFExport.Caption := Preferences.LoadStr(200);
-  mlDCreate.Caption := Preferences.LoadStr(26);
-  mlDDelete.Caption := Preferences.LoadStr(28);
-
-  mwFImport.Caption := Preferences.LoadStr(371);
-  mwFExport.Caption := Preferences.LoadStr(200);
-  mwAddTable.Caption := Preferences.LoadStr(383);
-  mwEPaste.Caption := MainAction('aEPaste').Caption;
-  mwDCreate.Caption := Preferences.LoadStr(26);
-  mwDProperties.Caption := Preferences.LoadStr(97) + '...';
-
-  gmFExport.Caption := Preferences.LoadStr(200);
-  gmFilter.Caption := Preferences.LoadStr(209);
-
-  mtObjects.Caption := tbObjects.Caption;
-  mtBrowser.Caption := tbBrowser.Caption;
-  mtIDE.Caption := tbIDE.Caption;
-  mtBuilder.Caption := tbBuilder.Caption;
-  mtDiagram.Caption := tbDiagram.Caption;
-  mtEditor.Caption := tbEditor.Caption;
-  mtEditor2.Caption := tbEditor2.Caption;
-  mtEditor3.Caption := tbEditor3.Caption;
-
-  tbObjects.Visible := ttObjects in Preferences.ToolbarTabs;
-  tbBrowser.Visible := ttBrowser in Preferences.ToolbarTabs;
-  tbIDE.Visible := ttIDE in Preferences.ToolbarTabs;
-  tbBuilder.Visible := ttBuilder in Preferences.ToolbarTabs;
-  tbEditor.Visible := ttEditor in Preferences.ToolbarTabs;
-  tbEditor2.Visible := ttEditor2 in Preferences.ToolbarTabs;
-  tbEditor3.Visible := ttEditor3 in Preferences.ToolbarTabs;
-  tbDiagram.Visible := ttDiagram in Preferences.ToolbarTabs;
-
-
-  if (not (tsLoading in FrameState)) then
-    SessionUpdate(nil);
-
-  for I := 0 to PListView.ControlCount - 1 do
-    if (PListView.Controls[I] is TListView) then
-    begin
-      ListViewInitialize(TListView(PListView.Controls[I]));
-
-      if (PListView.Controls[I].Tag = 0) then
-        Session.Databases.PushBuildEvent(nil)
-      else if (TObject(PListView.Controls[I].Tag) is TSProcesses) then
-        Session.Processes.PushBuildEvent(nil)
-      else if (TObject(PListView.Controls[I].Tag) is TSStati) then
-        Session.Stati.PushBuildEvent(nil)
-      else if (TObject(PListView.Controls[I].Tag) is TSUsers) then
-        Session.Users.PushBuildEvent(nil)
-      else if (TObject(PListView.Controls[I].Tag) is TSVariables) then
-        Session.Variables.PushBuildEvent(nil)
-      else if (TObject(PListView.Controls[I].Tag) is TSDatabase) then
-        TSDatabase(PListView.Controls[I].Tag).PushBuildEvents()
-      else if (TObject(PListView.Controls[I].Tag) is TSTable) then
-        TSTable(PListView.Controls[I].Tag).PushBuildEvent();
-    end;
-
-  SQLBuilder.RightMargin := Preferences.Editor.RightEdge;
-
-  FOffset.Hint := Preferences.LoadStr(846) + ' (' + ShortCutToText(aTBOffset.ShortCut) + ')';
-  FUDOffset.Hint := Preferences.LoadStr(846);
-  FLimit.Hint := Preferences.LoadStr(197) + ' (' + ShortCutToText(aTBLimit.ShortCut) + ')';
-  FUDLimit.Hint := Preferences.LoadStr(846);
-  FLimitEnabled.Hint := Preferences.LoadStr(197);
-  FFilter.Hint := Preferences.LoadStr(209) + ' (' + ShortCutToText(aTBFilter.ShortCut) + ')';
-  FFilterEnabled.Hint := Preferences.LoadStr(209);
-  FQuickSearch.Hint := Preferences.LoadStr(424) + ' (' + ShortCutToText(aTBQuickSearch.ShortCut) + ')';
-  FQuickSearchEnabled.Hint := Preferences.LoadStr(424);
-  if (CheckWin32Version(6)) then
-  begin
-    SendMessage(FFilter.Handle, CB_SETCUEBANNER, 0, LParam(PChar(Preferences.LoadStr(209))));
-    SendMessage(FQuickSearch.Handle, EM_SETCUEBANNER, 0, LParam(PChar(Preferences.LoadStr(424))));
-    SendMessage(FBlobSearch.Handle, EM_SETCUEBANNER, 0, LParam(PChar(Preferences.LoadStr(424))));
-  end;
-
-  FBlobSearch.Hint := Preferences.LoadStr(424);
-
-  if (not Preferences.Editor.CurrRowBGColorEnabled) then
-    FSQLEditorSynMemo.ActiveLineColor := clNone
-  else
-    FSQLEditorSynMemo.ActiveLineColor := Preferences.Editor.CurrRowBGColor;
-  if (Preferences.Editor.LineNumbersBackground = clNone) then
-    FSQLEditorSynMemo.Gutter.Color := clBtnFace
-  else
-    FSQLEditorSynMemo.Gutter.Color := Preferences.Editor.LineNumbersBackground;
-  FSQLEditorSynMemo.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
-  FSQLEditorSynMemo.Gutter.Font.Size := FSQLEditorSynMemo.Font.Size;
-  FSQLEditorSynMemo.Gutter.Font.Charset := FSQLEditorSynMemo.Font.Charset;
-  FSQLEditorSynMemo.Gutter.Visible := Preferences.Editor.LineNumbers;
-  FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options + [eoScrollHintFollows];  // Slow down the performance on large content
-  if (Preferences.Editor.AutoIndent) then
-    FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options + [eoAutoIndent, eoSmartTabs]
-  else
-    FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options - [eoAutoIndent, eoSmartTabs];
-  if (Preferences.Editor.TabToSpaces) then
-    FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options + [eoTabsToSpaces]
-  else
-    FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options - [eoTabsToSpaces];
-  FSQLEditorSynMemo.TabWidth := Preferences.Editor.TabWidth;
-  FSQLEditorSynMemo.RightEdge := Preferences.Editor.RightEdge;
-  FSQLEditorSynMemo.WantTabs := Preferences.Editor.TabAccepted;
-  FSQLEditorSynMemo.WordWrap := Preferences.Editor.WordWrap;
-
-  for I := 0 to PSynMemo.ControlCount - 1 do
-    if (PSynMemo.Controls[I] is TSynMemo) then
-      SynMemoApplyPreferences(TSynMemo(PSynMemo.Controls[I]));
-
-  SynMemoApplyPreferences(FQueryBuilderSynMemo);
-
-  FSQLEditorPrint.Font := FSQLEditorSynMemo.Font;
-
-  smEEmpty.Caption := Preferences.LoadStr(181);
-
-  BINSERT.Font := FSQLEditorSynMemo.Font;
-  BINSERT.Font.Style := [fsBold];
-  BREPLACE.Font := BINSERT.Font;
-  BUPDATE.Font := BINSERT.Font;
-  BDELETE.Font := BINSERT.Font;
-
-  OpenDialog.EncodingLabel := Preferences.LoadStr(682) + ':';
-  SaveDialog.EncodingLabel := Preferences.LoadStr(682) + ':';
-
-  Perform(CM_PARENTCOLORCHANGED, 0, 0);
-  Perform(CM_PARENTFONTCHANGED, 0, 0);
-  Perform(CM_PARENTSHOWHINTCHANGED, 0, 0);
-  Perform(CM_PARENTBIDIMODECHANGED, 0, 0);
-  Perform(CM_PARENTDOUBLEBUFFEREDCHANGED, 0, 0);
-  Perform(CM_PARENTTABLETOPTIONSCHANGED, 0, 0);
-
-  FQueryBuilderSQLUpdated(nil);
-
-  FLog.Font.Name := Preferences.LogFontName;
-  FLog.Font.Style := Preferences.LogFontStyle;
-  FLog.Font.Color := Preferences.LogFontColor;
-  FLog.Font.Size := Preferences.LogFontSize;
-  FLog.Font.Charset := Preferences.LogFontCharset;
-
-  PasteMode := False;
-end;
-
-procedure TFSession.UMCloseTabQuery(var Message: TMessage);
-var
-  CanClose: Boolean;
-  SObject: TSObject;
-  I: Integer;
-  J: Integer;
-  Node: TTreeNode;
-  SynMemo: TSynMemo;
-  View: TView;
-begin
-  CanClose := True;
-
-  if (CanClose and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then
-    ActiveDBGrid.DataSource.DataSet.CheckBrowseMode();
-
-  for I := 0 to PSynMemo.ControlCount - 1 do
-    if (CanClose) then
-      if (PSynMemo.Controls[I] is TSynMemo) then
-      begin
-        SynMemo := TSynMemo(PSynMemo.Controls[I]);
-        if (SynMemo.Modified) then
-        begin
-          SObject := TSObject(SynMemo.Tag);
-          if (Assigned(SObject)) then
-            for J := 0 to FNavigator.Items.Count - 1 do
-              if (FNavigator.Items[J].Data = SObject) then
-              begin
-                FNavigator.Selected := FNavigator.Items[I];
-                Self.View := vIDE;
-                Window.ActiveControl := SynMemo;
-                case (MsgBox(Preferences.LoadStr(584, SObject.Name), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
-                  IDYES: MainAction('aDPostObject').Execute();
-                  IDCANCEL: CanClose := False;
-                end;
-              end;
-        end;
-      end;
-
-  if (CanClose) then
-    for View in [vEditor, vEditor2, vEditor3] do
-      if (Assigned(SQLEditors[View]) and SQLEditors[View].SynMemo.Modified and (SQLEditors[View].Filename <> '')) then
-      begin
-        Self.View := View;
-        Window.ActiveControl := ActiveSynMemo;
-        case (MsgBox(Preferences.LoadStr(584, ExtractFileName(SQLEditors[View].Filename)), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
-          IDYES: SaveSQLFile(MainAction('aFSave'));
-          IDCANCEL: CanClose := False;
-        end;
-      end;
-
-  Node := FNavigator.Items.getFirstNode();
-  if (Assigned(Node)) then
-  begin
-    Node := Node.getFirstChild();
-    while (Assigned(Node)) do
-    begin
-      if (CanClose and (Node.ImageIndex = iiDatabase)) then
-        Desktop(TSDatabase(Node.Data)).CloseQuery(nil, CanClose);
-      Node := Node.getNextSibling();
-    end;
-  end;
-
-  if (not CanClose) then
-    Message.Result := 0
-  else
-    Message.Result := 1;
-end;
-
-procedure TFSession.UMExecute(var Message: TMessage);
-begin
-  MainAction('aDRun').Execute();
-
-  Window.Close();
-end;
-
-procedure TFSession.UMExecuteSynCompletion(var Message: TMessage);
-begin
-  SynCompletion.ActivateCompletion();
-end;
-
-procedure TFSession.UMFrameActivate(var Message: TMessage);
-begin
-  Include(FrameState, tsActive);
-
-  FormatSettings.ThousandSeparator := Session.Connection.FormatSettings.ThousandSeparator;
-  FormatSettings.DecimalSeparator := Session.Connection.FormatSettings.DecimalSeparator;
-  FormatSettings.ShortDateFormat := Session.Connection.FormatSettings.ShortDateFormat;
-  FormatSettings.LongTimeFormat := Session.Connection.FormatSettings.LongTimeFormat;
-  FormatSettings.DateSeparator := Session.Connection.FormatSettings.DateSeparator;
-  FormatSettings.TimeSeparator := Session.Connection.FormatSettings.TimeSeparator;
-
-  Session.Connection.BeforeConnect := BeforeConnect;
-  Session.Connection.AfterConnect := AfterConnect;
-  Session.Connection.OnConvertError := OnConvertError;
-
-  if (Window.ActiveControl is TWinControl) then
-    Perform(CM_ENTER, 0, 0);
-
-  if (Assigned(MainActionList)) then
-  begin
-    MainAction('aVNavigator').Checked := PNavigator.Visible;
-    MainAction('aVExplorer').Checked := PExplorer.Visible;
-    MainAction('aVJobs').Checked := PJobs.Visible;
-    MainAction('aVSQLHistory').Checked := PSQLHistory.Visible;
-    MainAction('aVSQLLog').Checked := PLog.Visible;
-
-    MainAction('aFOpen').OnExecute := aFOpenExecute;
-    MainAction('aFSave').OnExecute := aFSaveExecute;
-    MainAction('aFSaveAs').OnExecute := aFSaveAsExecute;
-    MainAction('aFImportSQL').OnExecute := aFImportSQLExecute;
-    MainAction('aFImportText').OnExecute := aFImportTextExecute;
-    MainAction('aFImportExcel').OnExecute := aFImportExcelExecute;
-    MainAction('aFImportAccess').OnExecute := aFImportAccessExecute;
-    MainAction('aFImportODBC').OnExecute := aFImportODBCExecute;
-    MainAction('aFExportSQL').OnExecute := aFExportSQLExecute;
-    MainAction('aFExportText').OnExecute := aFExportTextExecute;
-    MainAction('aFExportExcel').OnExecute := aFExportExcelExecute;
-    MainAction('aFExportAccess').OnExecute := aFExportAccessExecute;
-    MainAction('aFExportODBC').OnExecute := aFExportODBCExecute;
-    MainAction('aFExportXML').OnExecute := aFExportXMLExecute;
-    MainAction('aFExportHTML').OnExecute := aFExportHTMLExecute;
-    MainAction('aFExportPDF').OnExecute := aFExportPDFExecute;
-    MainAction('aFExportBitmap').OnExecute := aFExportBitmapExecute;
-    MainAction('aERedo').OnExecute := aERedoExecute;
-    MainAction('aECopy').OnExecute := aECopyExecute;
-    MainAction('aEPaste').OnExecute := aEPasteExecute;
-    MainAction('aERename').OnExecute := aERenameExecute;
-    MainAction('aSGoto').OnExecute := aSGotoExecute;
-    MainAction('aVObjectBrowser').OnExecute := aViewExecute;
-    MainAction('aVDataBrowser').OnExecute := aViewExecute;
-    MainAction('aVObjectIDE').OnExecute := aViewExecute;
-    MainAction('aVQueryBuilder').OnExecute := aViewExecute;
-    MainAction('aVSQLEditor').OnExecute := aViewExecute;
-    MainAction('aVSQLEditor2').OnExecute := aViewExecute;
-    MainAction('aVSQLEditor3').OnExecute := aViewExecute;
-    MainAction('aVDiagram').OnExecute := aViewExecute;
-    MainAction('aVNavigator').OnExecute := aVSideBarExecute;
-    MainAction('aVExplorer').OnExecute := aVSideBarExecute;
-    MainAction('aVJobs').OnExecute := aVSideBarExecute;
-    MainAction('aVSQLHistory').OnExecute := aVSideBarExecute;
-    MainAction('aVSQLLog').OnExecute := aVSQLLogExecute;
-    MainAction('aVRefresh').OnExecute := aVRefreshExecute;
-    MainAction('aVRefreshAll').OnExecute := aVRefreshAllExecute;
-    MainAction('aDCancel').OnExecute := aDCancelExecute;
-    MainAction('aDCreateDatabase').OnExecute := aDCreateDatabaseExecute;
-    MainAction('aDCreateTable').OnExecute := aDCreateTableExecute;
-    MainAction('aDCreateView').OnExecute := aDCreateViewExecute;
-    MainAction('aDCreateProcedure').OnExecute := aDCreateRoutineExecute;
-    MainAction('aDCreateFunction').OnExecute := aDCreateRoutineExecute;
-    MainAction('aDCreateKey').OnExecute := aDCreateKeyExecute;
-    MainAction('aDCreateField').OnExecute := aDCreateFieldExecute;
-    MainAction('aDCreateForeignKey').OnExecute := aDCreateForeignKeyExecute;
-    MainAction('aDCreateTrigger').OnExecute := aDCreateTriggerExecute;
-    MainAction('aDCreateEvent').OnExecute := aDCreateEventExecute;
-    MainAction('aDCreateUser').OnExecute := aDCreateUserExecute;
-    MainAction('aDEditServer').OnExecute := PropertiesServerExecute;
-    MainAction('aDEditDatabase').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditTable').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditView').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditRoutine').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditEvent').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditTrigger').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditKey').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditField').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditForeignKey').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditProcess').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditUser').OnExecute := aDPropertiesExecute;
-    MainAction('aDEditVariable').OnExecute := aDPropertiesExecute;
-    MainAction('aDDeleteDatabase').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteTable').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteView').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteRoutine').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteKey').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteField').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteForeignKey').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteTrigger').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteEvent').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteUser').OnExecute := aDDeleteExecute;
-    MainAction('aDDeleteProcess').OnExecute := aDDeleteExecute;
-    MainAction('aDInsertRecord').OnExecute := aDInsertRecordExecute;
-    MainAction('aDDeleteRecord').OnExecute := aDDeleteRecordExecute;
-    MainAction('aDRun').OnExecute := aDRunExecute;
-    MainAction('aDRunSelection').OnExecute := aDRunSelectionExecute;
-    MainAction('aDPostObject').OnExecute := aDPostObjectExecute;
-    MainAction('aEJobAddImport').OnExecute := aEJobAddImportExecute;
-    MainAction('aEJobAddExport').OnExecute := aEJobAddExportExecute;
-    MainAction('aEJobDelete').OnExecute := aEJobDeleteExecute;
-    MainAction('aEJobEdit').OnExecute := aEJobEditExecute;
-    MainAction('aEFormatSQL').OnExecute := aEFormatSQLExecute;
-    MainAction('aHSQL').OnExecute := aHSQLExecute;
-    MainAction('aHManual').OnExecute := aHManualExecute;
-
-
-    MainAction('aVObjectBrowser').Enabled := True;
-    MainAction('aVDataBrowser').Enabled := (SelectedImageIndex in [iiBaseTable, iiSystemView, iiView, iiTrigger]) or ((LastSelectedDatabase <> '') and (LastSelectedDatabase = SelectedDatabase) and (LastSelectedTable <> ''));
-    MainAction('aVObjectIDE').Enabled := (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]) or (LastObjectIDEAddress <> '');
-    MainAction('aVQueryBuilder').Enabled := (LastSelectedDatabase <> '');
-    MainAction('aVSQLEditor').Enabled := True;
-    MainAction('aVSQLEditor2').Enabled := True;
-    MainAction('aVSQLEditor3').Enabled := True;
-    MainAction('aVDiagram').Enabled := (LastSelectedDatabase <> '');
-    MainAction('aVNavigator').Enabled := True;
-    MainAction('aVExplorer').Enabled := True;
-    MainAction('aVJobs').Enabled := True;
-    MainAction('aVSQLHistory').Enabled := True;
-    MainAction('aVSQLLog').Enabled := True;
-    MainAction('aVRefresh').Enabled := True;
-    MainAction('aVRefreshAll').Enabled := True;
-    MainAction('aDCancel').Enabled := Session.Connection.InUse();
-    MainAction('aEJobAddImport').Enabled := CheckWin32Version(6);
-    MainAction('aEJobAddExport').Enabled := CheckWin32Version(6);
-    MainAction('aHSQL').Enabled := Session.Connection.ServerVersion >= 40100;
-    MainAction('aHManual').Enabled := Session.Account.ManualURL <> '';
-
-    aPResult.ShortCut := ShortCut(VK_F8, [ssAlt]);
-
-    if (Assigned(ActiveControlOnDeactivate) and ActiveControlOnDeactivate.Visible) then
-      try Window.FocusControl(ActiveControlOnDeactivate); except end;
-
-    if (Assigned(Window.ActiveControl)) then
-      if (Window.ActiveControl = FNavigator) then FNavigatorEnter(FNavigator)
-      else if (Window.ActiveControl = ActiveListView) then ListViewEnter(ActiveListView)
-      else if (Window.ActiveControl = FLog) then FLogEnter(FLog)
-      else if (Window.ActiveControl is TSynMemo) then SynMemoEnter(Window.ActiveControl)
-      else if (Window.ActiveControl = ActiveDBGrid) then DBGridEnter(ActiveDBGrid)
-      else if (Window.ActiveControl = FJobs) then FJobsEnter(FJobs);
-
-    if (Assigned(FNavigatorNodeAfterActivate)) then
-      FNavigatorChange2(FNavigator, FNavigatorNodeAfterActivate);
-
-    if (Assigned(FFolders) and (Path <> FFolders.SelectedFolder)) then
-      FFolders.SelectedFolder := Path;
-  end;
-
-  if (Assigned(StatusBar)) then
-    StatusBarRefresh(True);
-end;
-
-procedure TFSession.UMFrameDeactivate(var Message: TMessage);
-begin
-  KillTimer(Handle, tiNavigator);
-  KillTimer(Handle, tiStatusBar);
-
-  ActiveControlOnDeactivate := Window.ActiveControl;
-
-  MainAction('aVObjectBrowser').Enabled := False;
-  MainAction('aVDataBrowser').Enabled := False;
-  MainAction('aVObjectIDE').Enabled := False;
-  MainAction('aVQueryBuilder').Enabled := False;
-  MainAction('aVSQLEditor').Enabled := False;
-  MainAction('aVSQLEditor2').Enabled := False;
-  MainAction('aVSQLEditor3').Enabled := False;
-  MainAction('aVDiagram').Enabled := False;
-  MainAction('aVNavigator').Enabled := False;
-  MainAction('aVExplorer').Enabled := False;
-  MainAction('aVJobs').Enabled := False;
-  MainAction('aVSQLHistory').Enabled := False;
-  MainAction('aVSQLLog').Enabled := False;
-  MainAction('aVRefresh').Enabled := False;
-  MainAction('aVRefreshAll').Enabled := False;
-  MainAction('aDCancel').Enabled := False;
-  MainAction('aHSQL').Enabled := False;
-  MainAction('aHManual').Enabled := False;
-  MainAction('aEJobAddImport').Enabled := False;
-  MainAction('aEJobAddExport').Enabled := False;
-  MainAction('aEJobDelete').Enabled := False;
-  MainAction('aEJobEdit').Enabled := False;
-
-  MainAction('aECopy').OnExecute := nil;
-  MainAction('aEPaste').OnExecute := nil;
-
-  aPResult.ShortCut := 0;
-
-  if (Window.ActiveControl = FNavigator) then FNavigatorExit(Window.ActiveControl)
-  else if (Window.ActiveControl = ActiveListView) then ListViewExit(Window.ActiveControl)
-  else if (Window.ActiveControl = FLog) then FLogExit(Window.ActiveControl)
-  else if (Window.ActiveControl is TSynMemo) then SynMemoExit(Window.ActiveControl)
-  else if (Window.ActiveControl = ActiveDBGrid) then DBGridExit(Window.ActiveControl);
-
-  Include(FrameState, tsActive);
-end;
-
-procedure TFSession.UMPostBuilderQueryChange(var Message: TMessage);
-begin
-  FQueryBuilderEditorPageControlCheckStyle();
-end;
-
-procedure TFSession.UMPostMonitor(var Message: TMessage);
-var
-  Text: string;
-begin
-  if (MainAction('aVSQLLog').Checked) then
-  begin
-    Text := Session.SQLMonitor.CacheText;
-    SendMessage(FLog.Handle, WM_SETTEXT, 0, LPARAM(PChar(Text)));
-
-    PLogResize(nil);
-  end;
-end;
-
-procedure TFSession.UMPostShow(var Message: TMessage);
-var
-  Node: TTreeNode;
-  URI: TUURI;
-begin
-  PNavigator.Visible := Session.Account.Desktop.NavigatorVisible;
-  PExplorer.Visible := Session.Account.Desktop.ExplorerVisible;
-  PJobs.Visible := Session.Account.Desktop.JobsVisible;
-  PSQLHistory.Visible := Session.Account.Desktop.SQLHistoryVisible;
-  PSideBar.Visible := PNavigator.Visible or PExplorer.Visible or PJobs.Visible or PSQLHistory.Visible; SSideBar.Visible := PSideBar.Visible;
-
-  if (PExplorer.Visible) then
-    CreateExplorer()
-  else if (PJobs.Visible and (FJobs.Items.Count = 0)) then
-    FormAccountEvent(Session.Account.Jobs.ClassType)
-  else if (PSQLHistory.Visible) then
-    FSQLHistoryRefresh(nil);
-
-  PSideBar.Width := Session.Account.Desktop.SidebarWitdth;
-  PFiles.Height := PSideBar.ClientHeight - Session.Account.Desktop.FoldersHeight - SExplorer.Height;
-
-  FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options + [eoScrollPastEol];  // Speed up the performance
-  FSQLEditorSynMemo.Text := Session.Account.Desktop.EditorContent[ttEditor];
-  if (Length(FSQLEditorSynMemo.Lines.Text) < LargeSQLScriptSize) then
-    FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options - [eoScrollPastEol];  // Slow down the performance on large content
-  PResult.Height := Session.Account.Desktop.DataHeight;
-  PResultHeight := PResult.Height;
-  PBlob.Height := Session.Account.Desktop.BlobHeight;
-
-  PLog.Height := Session.Account.Desktop.LogHeight;
-  PLog.Visible := Session.Account.Desktop.LogVisible; SLog.Visible := PLog.Visible;
-
-  aVBlobText.Checked := True;
-
-  FQueryBuilderEditorPageControlCheckStyle();
-
-  FormResize(nil);
-
-  Perform(UM_ACTIVATEFRAME, 0, 0);
-
-
-  Node := FNavigator.Items.Add(nil, Session.Caption);
-  Node.Data := Session;
-  Node.ImageIndex := iiServer;
-
-  if (Assigned(Session.Processes)) then
-  begin
-    Node := FNavigator.Items.AddChild(FNavigator.Items.GetFirstNode(), Preferences.LoadStr(24));
-    Node.Data := Session.Processes;
-    Node.ImageIndex := iiProcesses;
-  end;
-  if (Assigned(Session.Stati)) then
-  begin
-    Node := FNavigator.Items.AddChild(FNavigator.Items.GetFirstNode(), Preferences.LoadStr(23));
-    Node.Data := Session.Stati;
-    Node.ImageIndex := iiStati;
-  end;
-  if (Assigned(Session.Users)) then
-  begin
-    Node := FNavigator.Items.AddChild(FNavigator.Items.GetFirstNode(), Preferences.LoadStr(561));
-    Node.Data := Session.Users;
-    Node.ImageIndex := iiUsers;
-  end;
-  if (Assigned(Session.Variables)) then
-  begin
-    Node := FNavigator.Items.AddChild(FNavigator.Items.GetFirstNode(), Preferences.LoadStr(22));
-    Node.Data := Session.Variables;
-    Node.ImageIndex := iiVariables;
-  end;
-
-  FNavigator.Items.GetFirstNode().Expand(False);
-
-  FNavigatorInitialize(nil);
-
-
-  if (Copy(Param, 1, 8) = 'mysql://') then
-    try
-      Address := Param;
-    except
-      Address := Session.Account.Desktop.Address;
-    end
-  else if (Param <> '') then
-  begin
-    URI := TUURI.Create(Session.Account.Desktop.Address);
-    URI.Param['view'] := 'editor';
-    URI.Table := '';
-    URI.Param['system'] := Null;
-    URI.Param['filter'] := Null;
-    URI.Param['offset'] := Null;
-    URI.Param['objecttype'] := Null;
-    URI.Param['object'] := Null;
-    URI.Param['offset'] := Null;
-    URI.Param['file'] := EscapeURL(Param);
-    URI.Param['cp'] := Null;
-    Address := URI.Address;
-    URI.Free();
-  end
-  else
-    Address := Session.Account.Desktop.Address;
-end;
-
-procedure TFSession.UMWantedSynchronize(var Message: TMessage);
-begin
-  if (not (csDestroying in ComponentState)) then
-    Wanted.Synchronize();
 end;
 
 function TFSession.ColumnWidthKindFromImageIndex(const AImageIndex: Integer): TPAccount.TDesktop.TListViewKind;
@@ -7932,6 +7261,10 @@ begin
 
     Node := FNavigator.Items.getFirstNode().getFirstChild();
     while (Assigned(Node) and (Node.Data <> Database)) do Node := Node.getNextSibling();
+
+    Node.HasChildren := not Database.Tables.Valid or (Database.Tables.Count > 0)
+      or Assigned(Database.Routines) and (not Database.Routines.Valid or (Database.Routines.Count > 0))
+      or Assigned(Database.Events) and (not Database.Events.Valid or (Database.Events.Count > 0));
 
     if (Assigned(Node) and (not Node.HasChildren or Assigned(Node.getFirstChild()) or (Node = FNavigatorNodeToExpand))) then
     begin
@@ -13163,6 +12496,86 @@ begin
     end;
 end;
 
+procedure TFSession.SessionUpdate(const SessionEvent: TSSession.TEvent);
+var
+  Control: TWinControl;
+  I: Integer;
+  TempActiveControl: TWinControl;
+begin
+  LeftMousePressed := False;
+
+  TempActiveControl := Window.ActiveControl;
+
+  if (Assigned(SessionEvent)) then
+  begin
+    if (SessionEvent.EventType in [etItemsValid, etItemValid, etItemCreated, etItemAltered, etItemDropped]) then
+      FNavigatorUpdate(SessionEvent);
+
+    if (SessionEvent.EventType in [etItemsValid, etItemValid, etItemCreated, etItemAltered, etItemDropped]) then
+    begin
+      if (SessionEvent.SItems is TSDatabases) then
+        ListViewUpdate(SessionEvent, FServerListView)
+      else if (SessionEvent.SItems is TSProcesses) then
+        ListViewUpdate(SessionEvent, ProcessesListView)
+      else if (SessionEvent.SItems is TSStati) then
+        ListViewUpdate(SessionEvent, StatiListView)
+      else if (SessionEvent.SItems is TSUsers) then
+        ListViewUpdate(SessionEvent, UsersListView)
+      else if (SessionEvent.SItems is TSVariables) then
+        ListViewUpdate(SessionEvent, VariablesListView)
+      else if (SessionEvent.Sender is TSSession) then
+        ListViewUpdate(SessionEvent, FServerListView)
+      else if (SessionEvent.Sender is TSDatabase) then
+      begin
+        ListViewUpdate(SessionEvent, FServerListView);
+        if (not (SessionEvent.SItems is TSTriggers)) then
+          ListViewUpdate(SessionEvent, Desktop(TSDatabase(SessionEvent.Sender)).ListView)
+        else if (SessionEvent.EventType = etItemDropped) then
+          ListViewUpdate(SessionEvent, Desktop(TSTrigger(SessionEvent.SItem).Table).ListView)
+        else
+          for I := 0 to TSTriggers(SessionEvent.SItems).Count - 1 do
+            if (Assigned(TSTriggers(SessionEvent.SItems)[I].Table)) then
+              ListViewUpdate(SessionEvent, Desktop(TSTriggers(SessionEvent.SItems)[I].Table).ListView);
+      end
+      else if (SessionEvent.Sender is TSTable) then
+      begin
+        ListViewUpdate(SessionEvent, Desktop(TSTable(SessionEvent.Sender).Database).ListView);
+        ListViewUpdate(SessionEvent, Desktop(TSTable(SessionEvent.Sender)).ListView);
+      end;
+    end;
+
+    if (SessionEvent.EventType in [etItemValid]) then
+      if ((SessionEvent.SItem is TSView) and Assigned(Desktop(TSView(SessionEvent.SItem)).SynMemo)) then
+        Desktop(TSView(SessionEvent.SItem)).SynMemo.Text := Trim(SQLWrapStmt(TSView(SessionEvent.SItem).Stmt, ['from', 'where', 'group by', 'having', 'order by', 'limit'], 0)) + #13#10
+      else if ((SessionEvent.SItem is TSRoutine) and Assigned(Desktop(TSRoutine(SessionEvent.SItem)).SynMemo)) then
+      begin
+        Desktop(TSRoutine(SessionEvent.SItem)).SynMemo.Text := TSRoutine(SessionEvent.SItem).Source + #13#10;
+        PContentChange(nil);
+      end;
+
+    if ((SessionEvent.EventType = etItemAltered) and (SessionEvent.SItem is TSTable)
+      and Assigned(Desktop(TSTable(SessionEvent.SItem)).DBGrid)) then
+    begin
+      Wanted.Update := TSTable(SessionEvent.SItem).Update;
+      FFilter.Text := '';
+      FFilterEnabled.Down := False;
+    end;
+  end;
+
+  if (PContent.Visible and Assigned(TempActiveControl) and TempActiveControl.Visible) then
+  begin
+    Control := TempActiveControl;
+    while (Control.Visible and Control.Enabled and Assigned(Control.Parent)) do Control := Control.Parent;
+    if (Control.Visible and Control.Enabled) then
+      Window.ActiveControl := TempActiveControl;
+  end;
+
+  StatusBarRefresh();
+
+  if (Assigned(SessionEvent) and ((SessionEvent.EventType in [etItemCreated, etItemAltered]) or ((SessionEvent.EventType in [etItemValid]) and (SessionEvent.SItem is TSObject) and not TSObject(SessionEvent.SItem).Valid)) and (Screen.ActiveForm = Window) and Wanted.Nothing) then
+    Wanted.Update := Session.Update;
+end;
+
 procedure TFSession.SetView(const AView: TView);
 var
   URI: TUURI;
@@ -13573,84 +12986,106 @@ procedure TFSession.SynCompletionAfterCodeCompletion(Sender: TObject;
   const Value: string; Shift: TShiftState; Index: Integer; EndToken: Char);
 begin
   SynCompletion.ItemList.Clear();
+  SynCompletion.InsertList.Clear();
 end;
 
 procedure TFSession.SynCompletionCancelled(Sender: TObject);
 begin
   SynCompletion.ItemList.Clear();
+  SynCompletion.InsertList.Clear();
 end;
 
 procedure TFSession.SynCompletionExecute(Kind: SynCompletionType;
   Sender: TObject; var CurrentInput: string; var x, y: Integer;
   var CanExecute: Boolean);
+
+  type
+    TEntitiesDbIdentType = record
+      DbIdentType: TMySQLParser.TDbIdentType;
+      DbObject: TObject;
+    end;
+
 var
+  CompletionList: TCompletionList;
   Database: TSDatabase;
+  DbIdentType: TMySQLParser.TDbIdentType;
+  EntitiesDbIdentTypes: array of TEntitiesDbIdentType;
   I: Integer;
   Index: Integer;
   Item: TMySQLParser.TCompletionList.PItem;
   J: Integer;
   Len: Integer;
-  List: TList;
+  SessionList: TList;
   SQL: string;
-  SynMemo: TSynMemo;
-  SynCompletion: TSynCompletionProposal;
   Table: TSTable;
 begin
   {$IFNDEF Debug}
   CanExecute := False;
   {$ELSE}
-  CanExecute := (Sender is TSynCompletionProposal)
-    and (TSynCompletionProposal(Sender).Editor is TSynMemo);
+  CanExecute := ActiveSynMemo.SelText = '';
   {$ENDIF}
 
   if (CanExecute) then
   begin
-    SynCompletion := TSynCompletionProposal(Sender);
-    SynMemo := TSynMemo(SynCompletion.Editor);
+    SQL := ActiveSynMemo.Text;
 
-    CanExecute := SynMemo.SelText = '';
-    if (CanExecute) then
+    Index := 1;
+    while (Index < ActiveSynMemo.SelStart + 1) do
     begin
-      SQL := SynMemo.Text;
-      Index := 1; I := Index; Len := 1;
-      while ((I <= SynMemo.SelStart + 1) and (Index < Length(SQL)) and (Len > 0)) do
-      begin
-        Len := SQLStmtLength(PChar(@SQL[Index]), Length(SQL) - (Index - 1));
+      Len := SQLStmtLength(PChar(@SQL[Index]), Length(SQL) - (Index - 1));
+      if ((Len = 0) or (Index + Len >= ActiveSynMemo.SelStart + 1)) then
+        break
+      else
         Inc(Index, Len);
-        I := Index; while ((I > 1) and (CharInSet(SQL[I - 1], [#10,#13]))) do Dec(I);
-      end;
-      Dec(Index, Len);
-      SQL := Copy(SQL, Index, SynMemo.SelStart + 1 - Index - Length(CurrentInput));
+    end;
+    SQL := Copy(SQL, Index, ActiveSynMemo.SelStart + 1 - Index);
 
-      Session.SQLParser.ParseSQL(SQL);
+    Session.SQLParser.ParseSQL(SQL);
 
-      List := TList.Create();
+    if (not (Session.SQLParser.ErrorCode in [TMySQLParser.PE_Success, TMySQLParser.PE_IncompleteStmt])) then
+      MsgBox(Session.SQLParser.ErrorMessage, Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
+    else
+    begin
+      CompletionList := TCompletionList.Create(Self);
+      SessionList := TList.Create();
 
       SynCompletion.ItemList.Clear();
+      SynCompletion.InsertList.Clear();
       for I := 0 to Session.SQLParser.CompletionList.Count - 1 do
       begin
         Item := Session.SQLParser.CompletionList[I];
         case (Item^.ItemType) of
           itKeyword:
-            SynCompletion.ItemList.Add(StrPas(PChar(@Item^.Keyword[0])));
+            CompletionList.Add(Item^.Keyword, Item^.Keyword);
           itList:
             begin
-              if (Item^.DatabaseName <> '') then
-                Database := Session.DatabaseByName(Item^.DatabaseName)
-              else if (TObject(FNavigator.Selected.Data) is TSDatabase) then
-                Database := TSDatabase(FNavigator.Selected.Data)
+              if (Item^.DatabaseName = '') then
+                Database := Session.DatabaseByName(SelectedDatabase)
               else
-                Database := nil;
-              if (Assigned(Database) and (Item^.TableName = '')) then
-                Table := Database.TableByName(Item^.TableName)
+                Database := Session.DatabaseByName(Item^.DatabaseName);
+              if (not Assigned(Database) or (Item^.TableName = '')) then
+                Table := nil
               else
-                Table := nil;
+                Table := Database.TableByName(Item^.TableName);
               case (Item^.DbIdentType) of
                 ditDatabase:
-                  List.Add(Session.Databases);
+                  SessionList.Add(Session.Databases);
                 ditTable:
                   if (Assigned(Database)) then
-                    List.Add(Database.Tables);
+                    SessionList.Add(Database.Tables);
+                ditProcedure,
+                ditFunction:
+                  if (Assigned(Database)) then
+                  begin
+                    SessionList.Add(Database.Routines);
+                    SetLength(EntitiesDbIdentTypes, Length(EntitiesDbIdentTypes) + 1);
+                    EntitiesDbIdentTypes[Length(EntitiesDbIdentTypes) - 1].DbIdentType := Item^.DbIdentType;
+                    EntitiesDbIdentTypes[Length(EntitiesDbIdentTypes) - 1].DbObject := Database.Routines;
+                  end;
+//                  ditKey,
+//                  ditField,
+//                  ditForeignKey:
+                  // TableName is not given!
                 else
                   raise ERangeError.Create(SRangeError)
               end;
@@ -13661,26 +13096,67 @@ begin
       end;
 
       CanExecute := True;
-      for I := 0 to List.Count - 1 do
-        CanExecute := CanExecute
-          and (TObject(List[I]) is TSEntities)
-          and (TSEntities(List[I]).Valid);
+      for I := 0 to SessionList.Count - 1 do
+        CanExecute := CanExecute and (TObject(SessionList[I]) is TSEntities) and TSEntities(SessionList[I]).Valid;
 
       if (not CanExecute) then
       begin
         DExecutingSQL.Session := Session;
-        DExecutingSQL.List := List;
+        DExecutingSQL.List := SessionList;
         if (DExecutingSQL.Execute()) then
           PostMessage(Handle, UM_EXECUTE_SYN_COMPLETION, 0, 0);
+        // CanExecute := DExecutingSQL.Execute();
+        // Without this PostMessage, the completion form will be opened
+        // correctly, but closed immediately. Why?
+        // This happens also, if the SynCompletion.ItemList is already filled.
       end;
 
       if (CanExecute) then
-        for I := 0 to List.Count - 1 do
-          if (TObject(List[I]) is TSEntities) then
-            for J := 0 to TSEntities(List[I]).Count - 1 do
-              SynCompletion.ItemList.Add(TSEntities(List[I])[J].Name);
+        if ((CompletionList.Count = 0) and (SessionList.Count = 0)) then
+          MessageBeep(MB_ICONERROR)
+        else
+        begin
+          for I := 0 to SessionList.Count - 1 do
+            if (TObject(SessionList[I]) is TSEntities) then
+            begin
+              DbIdentType := ditUnknown;
+              for J := 0 to Length(EntitiesDbIdentTypes) - 1 do
+                if (EntitiesDbIdentTypes[J].DbObject = SessionList[I]) then
+                  DbIdentType := EntitiesDbIdentTypes[J].DbIdentType;
+              for J := 0 to TSEntities(SessionList[I]).Count - 1 do
+                case (DbIdentType) of
+                  ditProcedure:
+                    if ((TSEntities(SessionList[I])[J] is TSRoutine)
+                      and (TSRoutine(TSEntities(SessionList[I])[J]).RoutineType = rtProcedure)) then
+                      CompletionList.Add(
+                        PChar(TSEntities(SessionList[I])[J].Name),
+                        PChar(Session.Connection.EscapeIdentifier(TSEntities(SessionList[I])[J].Name)));
+                  ditFunction:
+                    if ((TSEntities(SessionList[I])[J] is TSRoutine)
+                      and (TSRoutine(TSEntities(SessionList[I])[J]).RoutineType = rtFunction)) then
+                      CompletionList.Add(
+                        PChar(TSEntities(SessionList[I])[J].Name),
+                        PChar(Session.Connection.EscapeIdentifier(TSEntities(SessionList[I])[J].Name)));
+                  else
+                    CompletionList.Add(
+                      PChar(TSEntities(SessionList[I])[J].Name),
+                      PChar(Session.Connection.EscapeIdentifier(TSEntities(SessionList[I])[J].Name)));
+                end;
 
-      List.Free();
+            end;
+
+          CompletionList.Sort(CompletionListCompare);
+          for I := 0 to CompletionList.Count - 1 do
+          begin
+            SynCompletion.ItemList.Add(StrPas(PChar(@CompletionList[I]^.View)));
+            SynCompletion.InsertList.Add(StrPas(PChar(@CompletionList[I]^.Insert[0])));
+          end;
+        end;
+
+      SessionList.Free();
+      for I := 0 to CompletionList.Count - 1 do
+        FreeMem(CompletionList[I]);
+      CompletionList.Free();
     end;
   end;
 end;
@@ -14051,6 +13527,665 @@ procedure TFSession.TreeViewMouseUp(Sender: TObject;
   Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
   LeftMousePressed := False;
+end;
+
+procedure TFSession.UMActivateDBGrid(var Message: TMessage);
+begin
+  Window.ActiveControl := TWinControl(Message.LParam);
+  ActiveDBGrid.EditorMode := False;
+end;
+
+procedure TFSession.UMActivateFText(var Message: TMessage);
+const
+  KEYEVENTF_UNICODE = 4;
+var
+  Input: TInput;
+begin
+  Window.ActiveControl := FText;
+  if (Message.WParam <> 0) then
+  begin
+    ZeroMemory(@Input, SizeOf(Input));
+    Input.Itype := INPUT_KEYBOARD;
+    Input.ki.wVk := Message.WParam;
+    Input.ki.dwFlags := KEYEVENTF_UNICODE;
+    SendInput(1, Input, SizeOf(Input));
+  end;
+  FText.SelStart := Length(FText.Text);
+end;
+
+procedure TFSession.UMChangePreferences(var Message: TMessage);
+var
+  I: Integer;
+begin
+  if (not CheckWin32Version(6) or TStyleManager.Enabled and (TStyleManager.ActiveStyle <> TStyleManager.SystemStyle)) then
+  begin
+    TBSideBar.BorderWidth := 0;
+    ToolBar.BorderWidth := 0;
+  end
+  else
+  begin
+    TBSideBar.BorderWidth := 2;
+    ToolBar.BorderWidth := 2;
+  end;
+
+  Session.SQLMonitor.CacheSize := Preferences.LogSize;
+  if (Preferences.LogResult) then
+    Session.SQLMonitor.TraceTypes := Session.SQLMonitor.TraceTypes + [ttInfo]
+  else
+    Session.SQLMonitor.TraceTypes := Session.SQLMonitor.TraceTypes - [ttInfo];
+  if (Preferences.LogTime) then
+    Session.SQLMonitor.TraceTypes := Session.SQLMonitor.TraceTypes + [ttTime]
+  else
+    Session.SQLMonitor.TraceTypes := Session.SQLMonitor.TraceTypes - [ttTime];
+
+  aPExpand.Caption := Preferences.LoadStr(150);
+  aPCollapse.Caption := Preferences.LoadStr(151);
+  aPOpenInNewWindow.Caption := Preferences.LoadStr(760);
+  aPOpenInNewTab.Caption := Preferences.LoadStr(850);
+  aDDelete.Caption := Preferences.LoadStr(28);
+  aDPrev.Caption := Preferences.LoadStr(512);
+  aDNext.Caption := Preferences.LoadStr(513);
+  DataSetFirst.Caption := Preferences.LoadStr(514);
+  DataSetLast.Caption := Preferences.LoadStr(515);
+  DataSetPost.Caption := Preferences.LoadStr(516);
+  DataSetCancel.Caption := Preferences.LoadStr(517);
+  aVBlobText.Caption := Preferences.LoadStr(379);
+  aVBlobRTF.Caption := 'RTF';
+  aVBlobImage.Caption := Preferences.LoadStr(380);
+  aVBlobHexEditor.Caption := Preferences.LoadStr(381);
+  mwDCreateTable.Caption := MainAction('aDCreateTable').Caption;
+  mwCreateSection.Caption := Preferences.LoadStr(877) + ' ...';
+  mwCreateLink.Caption := Preferences.LoadStr(251) + ' ...';
+
+  for I := 0 to ActionList.ActionCount - 1 do
+    if (ActionList.Actions[I] is TCustomAction) and (TCustomAction(ActionList.Actions[I]).Hint = '') then
+      TCustomAction(ActionList.Actions[I]).Hint := TCustomAction(ActionList.Actions[I]).Caption;
+
+  tbObjects.Caption := Preferences.LoadStr(4);
+  tbBrowser.Caption := Preferences.LoadStr(5);
+  tbIDE.Caption := Preferences.LoadStr(865);
+  tbBuilder.Caption := tbBuilder.Caption;
+  tbDiagram.Caption := Preferences.LoadStr(800);
+  tbEditor.Caption := Preferences.LoadStr(6);
+  tbEditor2.Caption := Preferences.LoadStr(6) + ' #2';
+  tbEditor3.Caption := Preferences.LoadStr(6) + ' #3';
+
+  mfOpen.Caption := Preferences.LoadStr(581);
+  mfOpenInNewWindow.Caption := Preferences.LoadStr(760);
+  mfOpenInNewTab.Caption := Preferences.LoadStr(850);
+  mfFilter.Caption := Preferences.LoadStr(209);
+  mfFilterClear.Caption := FilterDescription('*') + ' (*.*)';
+  mfFilterSQL.Caption := FilterDescription('sql') + ' (*.sql)';
+  mfFilterText.Caption := FilterDescription('txt') + ' (*.txt,*.csv)';
+  mfFilterHTML.Caption := FilterDescription('html') + ' (*.html,*.hmt)';
+  mfFilterXML.Caption := FilterDescription('xml') + ' (*.xml)';
+  mfFilterAccess.Caption := FilterDescription('mdb') + ' (*.mdb;*.accdb)';
+  mfFilterExcel.Caption := FilterDescription('xls') + ' (*.xls;*.xlsx)';
+  mfDelete.Caption := Preferences.LoadStr(28);
+  mfRename.Caption := Preferences.LoadStr(98);
+  mfProperties.Caption := Preferences.LoadStr(97) + '...';
+
+  miNImport.Caption := Preferences.LoadStr(371);
+  miNExport.Caption := Preferences.LoadStr(200);
+  miNCreate.Caption := Preferences.LoadStr(26);
+  miNDelete.Caption := Preferences.LoadStr(28);
+
+  mjExecute.Caption := Preferences.LoadStr(174);
+  mjAdd.Caption := Preferences.LoadStr(26);
+
+  miHOpen.Caption := Preferences.LoadStr(581);
+  miHSaveAs.Caption := MainAction('aFSaveAs').Caption;
+  miHStatementIntoSQLEditor.Caption := Preferences.LoadStr(198) + ' -> ' + Preferences.LoadStr(20);
+  miHRun.Caption := MainAction('aDRun').Caption;
+  miHProperties.Caption := Preferences.LoadStr(684) + '...';
+
+  mlOpen.Caption := Preferences.LoadStr(581);
+  mlFImport.Caption := Preferences.LoadStr(371);
+  mlFExport.Caption := Preferences.LoadStr(200);
+  mlDCreate.Caption := Preferences.LoadStr(26);
+  mlDDelete.Caption := Preferences.LoadStr(28);
+
+  mwFImport.Caption := Preferences.LoadStr(371);
+  mwFExport.Caption := Preferences.LoadStr(200);
+  mwAddTable.Caption := Preferences.LoadStr(383);
+  mwEPaste.Caption := MainAction('aEPaste').Caption;
+  mwDCreate.Caption := Preferences.LoadStr(26);
+  mwDProperties.Caption := Preferences.LoadStr(97) + '...';
+
+  gmFExport.Caption := Preferences.LoadStr(200);
+  gmFilter.Caption := Preferences.LoadStr(209);
+
+  mtObjects.Caption := tbObjects.Caption;
+  mtBrowser.Caption := tbBrowser.Caption;
+  mtIDE.Caption := tbIDE.Caption;
+  mtBuilder.Caption := tbBuilder.Caption;
+  mtDiagram.Caption := tbDiagram.Caption;
+  mtEditor.Caption := tbEditor.Caption;
+  mtEditor2.Caption := tbEditor2.Caption;
+  mtEditor3.Caption := tbEditor3.Caption;
+
+  tbObjects.Visible := ttObjects in Preferences.ToolbarTabs;
+  tbBrowser.Visible := ttBrowser in Preferences.ToolbarTabs;
+  tbIDE.Visible := ttIDE in Preferences.ToolbarTabs;
+  tbBuilder.Visible := ttBuilder in Preferences.ToolbarTabs;
+  tbEditor.Visible := ttEditor in Preferences.ToolbarTabs;
+  tbEditor2.Visible := ttEditor2 in Preferences.ToolbarTabs;
+  tbEditor3.Visible := ttEditor3 in Preferences.ToolbarTabs;
+  tbDiagram.Visible := ttDiagram in Preferences.ToolbarTabs;
+
+
+  if (not (tsLoading in FrameState)) then
+    SessionUpdate(nil);
+
+  for I := 0 to PListView.ControlCount - 1 do
+    if (PListView.Controls[I] is TListView) then
+    begin
+      ListViewInitialize(TListView(PListView.Controls[I]));
+
+      if (PListView.Controls[I].Tag = 0) then
+        Session.Databases.PushBuildEvent(nil)
+      else if (TObject(PListView.Controls[I].Tag) is TSProcesses) then
+        Session.Processes.PushBuildEvent(nil)
+      else if (TObject(PListView.Controls[I].Tag) is TSStati) then
+        Session.Stati.PushBuildEvent(nil)
+      else if (TObject(PListView.Controls[I].Tag) is TSUsers) then
+        Session.Users.PushBuildEvent(nil)
+      else if (TObject(PListView.Controls[I].Tag) is TSVariables) then
+        Session.Variables.PushBuildEvent(nil)
+      else if (TObject(PListView.Controls[I].Tag) is TSDatabase) then
+        TSDatabase(PListView.Controls[I].Tag).PushBuildEvents()
+      else if (TObject(PListView.Controls[I].Tag) is TSTable) then
+        TSTable(PListView.Controls[I].Tag).PushBuildEvent();
+    end;
+
+  SQLBuilder.RightMargin := Preferences.Editor.RightEdge;
+
+  FOffset.Hint := Preferences.LoadStr(846) + ' (' + ShortCutToText(aTBOffset.ShortCut) + ')';
+  FUDOffset.Hint := Preferences.LoadStr(846);
+  FLimit.Hint := Preferences.LoadStr(197) + ' (' + ShortCutToText(aTBLimit.ShortCut) + ')';
+  FUDLimit.Hint := Preferences.LoadStr(846);
+  FLimitEnabled.Hint := Preferences.LoadStr(197);
+  FFilter.Hint := Preferences.LoadStr(209) + ' (' + ShortCutToText(aTBFilter.ShortCut) + ')';
+  FFilterEnabled.Hint := Preferences.LoadStr(209);
+  FQuickSearch.Hint := Preferences.LoadStr(424) + ' (' + ShortCutToText(aTBQuickSearch.ShortCut) + ')';
+  FQuickSearchEnabled.Hint := Preferences.LoadStr(424);
+  if (CheckWin32Version(6)) then
+  begin
+    SendMessage(FFilter.Handle, CB_SETCUEBANNER, 0, LParam(PChar(Preferences.LoadStr(209))));
+    SendMessage(FQuickSearch.Handle, EM_SETCUEBANNER, 0, LParam(PChar(Preferences.LoadStr(424))));
+    SendMessage(FBlobSearch.Handle, EM_SETCUEBANNER, 0, LParam(PChar(Preferences.LoadStr(424))));
+  end;
+
+  FBlobSearch.Hint := Preferences.LoadStr(424);
+
+  if (not Preferences.Editor.CurrRowBGColorEnabled) then
+    FSQLEditorSynMemo.ActiveLineColor := clNone
+  else
+    FSQLEditorSynMemo.ActiveLineColor := Preferences.Editor.CurrRowBGColor;
+  if (Preferences.Editor.LineNumbersBackground = clNone) then
+    FSQLEditorSynMemo.Gutter.Color := clBtnFace
+  else
+    FSQLEditorSynMemo.Gutter.Color := Preferences.Editor.LineNumbersBackground;
+  FSQLEditorSynMemo.Gutter.Font.Style := Preferences.Editor.LineNumbersStyle;
+  FSQLEditorSynMemo.Gutter.Font.Size := FSQLEditorSynMemo.Font.Size;
+  FSQLEditorSynMemo.Gutter.Font.Charset := FSQLEditorSynMemo.Font.Charset;
+  FSQLEditorSynMemo.Gutter.Visible := Preferences.Editor.LineNumbers;
+  FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options + [eoScrollHintFollows];  // Slow down the performance on large content
+  if (Preferences.Editor.AutoIndent) then
+    FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options + [eoAutoIndent, eoSmartTabs]
+  else
+    FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options - [eoAutoIndent, eoSmartTabs];
+  if (Preferences.Editor.TabToSpaces) then
+    FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options + [eoTabsToSpaces]
+  else
+    FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options - [eoTabsToSpaces];
+  FSQLEditorSynMemo.TabWidth := Preferences.Editor.TabWidth;
+  FSQLEditorSynMemo.RightEdge := Preferences.Editor.RightEdge;
+  FSQLEditorSynMemo.WantTabs := Preferences.Editor.TabAccepted;
+  FSQLEditorSynMemo.WordWrap := Preferences.Editor.WordWrap;
+
+  for I := 0 to PSynMemo.ControlCount - 1 do
+    if (PSynMemo.Controls[I] is TSynMemo) then
+      SynMemoApplyPreferences(TSynMemo(PSynMemo.Controls[I]));
+
+  SynMemoApplyPreferences(FQueryBuilderSynMemo);
+
+  FSQLEditorPrint.Font := FSQLEditorSynMemo.Font;
+
+  smEEmpty.Caption := Preferences.LoadStr(181);
+
+  BINSERT.Font := FSQLEditorSynMemo.Font;
+  BINSERT.Font.Style := [fsBold];
+  BREPLACE.Font := BINSERT.Font;
+  BUPDATE.Font := BINSERT.Font;
+  BDELETE.Font := BINSERT.Font;
+
+  OpenDialog.EncodingLabel := Preferences.LoadStr(682) + ':';
+  SaveDialog.EncodingLabel := Preferences.LoadStr(682) + ':';
+
+  Perform(CM_PARENTCOLORCHANGED, 0, 0);
+  Perform(CM_PARENTFONTCHANGED, 0, 0);
+  Perform(CM_PARENTSHOWHINTCHANGED, 0, 0);
+  Perform(CM_PARENTBIDIMODECHANGED, 0, 0);
+  Perform(CM_PARENTDOUBLEBUFFEREDCHANGED, 0, 0);
+  Perform(CM_PARENTTABLETOPTIONSCHANGED, 0, 0);
+
+  FQueryBuilderSQLUpdated(nil);
+
+  FLog.Font.Name := Preferences.LogFontName;
+  FLog.Font.Style := Preferences.LogFontStyle;
+  FLog.Font.Color := Preferences.LogFontColor;
+  FLog.Font.Size := Preferences.LogFontSize;
+  FLog.Font.Charset := Preferences.LogFontCharset;
+
+  PasteMode := False;
+end;
+
+procedure TFSession.UMCloseTabQuery(var Message: TMessage);
+var
+  CanClose: Boolean;
+  SObject: TSObject;
+  I: Integer;
+  J: Integer;
+  Node: TTreeNode;
+  SynMemo: TSynMemo;
+  View: TView;
+begin
+  CanClose := True;
+
+  if (CanClose and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then
+    ActiveDBGrid.DataSource.DataSet.CheckBrowseMode();
+
+  for I := 0 to PSynMemo.ControlCount - 1 do
+    if (CanClose) then
+      if (PSynMemo.Controls[I] is TSynMemo) then
+      begin
+        SynMemo := TSynMemo(PSynMemo.Controls[I]);
+        if (SynMemo.Modified) then
+        begin
+          SObject := TSObject(SynMemo.Tag);
+          if (Assigned(SObject)) then
+            for J := 0 to FNavigator.Items.Count - 1 do
+              if (FNavigator.Items[J].Data = SObject) then
+              begin
+                FNavigator.Selected := FNavigator.Items[I];
+                Self.View := vIDE;
+                Window.ActiveControl := SynMemo;
+                case (MsgBox(Preferences.LoadStr(584, SObject.Name), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
+                  IDYES: MainAction('aDPostObject').Execute();
+                  IDCANCEL: CanClose := False;
+                end;
+              end;
+        end;
+      end;
+
+  if (CanClose) then
+    for View in [vEditor, vEditor2, vEditor3] do
+      if (Assigned(SQLEditors[View]) and SQLEditors[View].SynMemo.Modified and (SQLEditors[View].Filename <> '')) then
+      begin
+        Self.View := View;
+        Window.ActiveControl := ActiveSynMemo;
+        case (MsgBox(Preferences.LoadStr(584, ExtractFileName(SQLEditors[View].Filename)), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION)) of
+          IDYES: SaveSQLFile(MainAction('aFSave'));
+          IDCANCEL: CanClose := False;
+        end;
+      end;
+
+  Node := FNavigator.Items.getFirstNode();
+  if (Assigned(Node)) then
+  begin
+    Node := Node.getFirstChild();
+    while (Assigned(Node)) do
+    begin
+      if (CanClose and (Node.ImageIndex = iiDatabase)) then
+        Desktop(TSDatabase(Node.Data)).CloseQuery(nil, CanClose);
+      Node := Node.getNextSibling();
+    end;
+  end;
+
+  if (not CanClose) then
+    Message.Result := 0
+  else
+    Message.Result := 1;
+end;
+
+procedure TFSession.UMExecute(var Message: TMessage);
+begin
+  MainAction('aDRun').Execute();
+
+  Window.Close();
+end;
+
+procedure TFSession.UMExecuteSynCompletion(var Message: TMessage);
+begin
+  SynCompletion.ActivateCompletion();
+end;
+
+procedure TFSession.UMFrameActivate(var Message: TMessage);
+begin
+  Include(FrameState, tsActive);
+
+  FormatSettings.ThousandSeparator := Session.Connection.FormatSettings.ThousandSeparator;
+  FormatSettings.DecimalSeparator := Session.Connection.FormatSettings.DecimalSeparator;
+  FormatSettings.ShortDateFormat := Session.Connection.FormatSettings.ShortDateFormat;
+  FormatSettings.LongTimeFormat := Session.Connection.FormatSettings.LongTimeFormat;
+  FormatSettings.DateSeparator := Session.Connection.FormatSettings.DateSeparator;
+  FormatSettings.TimeSeparator := Session.Connection.FormatSettings.TimeSeparator;
+
+  Session.Connection.BeforeConnect := BeforeConnect;
+  Session.Connection.AfterConnect := AfterConnect;
+  Session.Connection.OnConvertError := OnConvertError;
+
+  if (Window.ActiveControl is TWinControl) then
+    Perform(CM_ENTER, 0, 0);
+
+  if (Assigned(MainActionList)) then
+  begin
+    MainAction('aVNavigator').Checked := PNavigator.Visible;
+    MainAction('aVExplorer').Checked := PExplorer.Visible;
+    MainAction('aVJobs').Checked := PJobs.Visible;
+    MainAction('aVSQLHistory').Checked := PSQLHistory.Visible;
+    MainAction('aVSQLLog').Checked := PLog.Visible;
+
+    MainAction('aFOpen').OnExecute := aFOpenExecute;
+    MainAction('aFSave').OnExecute := aFSaveExecute;
+    MainAction('aFSaveAs').OnExecute := aFSaveAsExecute;
+    MainAction('aFImportSQL').OnExecute := aFImportSQLExecute;
+    MainAction('aFImportText').OnExecute := aFImportTextExecute;
+    MainAction('aFImportExcel').OnExecute := aFImportExcelExecute;
+    MainAction('aFImportAccess').OnExecute := aFImportAccessExecute;
+    MainAction('aFImportODBC').OnExecute := aFImportODBCExecute;
+    MainAction('aFExportSQL').OnExecute := aFExportSQLExecute;
+    MainAction('aFExportText').OnExecute := aFExportTextExecute;
+    MainAction('aFExportExcel').OnExecute := aFExportExcelExecute;
+    MainAction('aFExportAccess').OnExecute := aFExportAccessExecute;
+    MainAction('aFExportODBC').OnExecute := aFExportODBCExecute;
+    MainAction('aFExportXML').OnExecute := aFExportXMLExecute;
+    MainAction('aFExportHTML').OnExecute := aFExportHTMLExecute;
+    MainAction('aFExportPDF').OnExecute := aFExportPDFExecute;
+    MainAction('aFExportBitmap').OnExecute := aFExportBitmapExecute;
+    MainAction('aERedo').OnExecute := aERedoExecute;
+    MainAction('aECopy').OnExecute := aECopyExecute;
+    MainAction('aEPaste').OnExecute := aEPasteExecute;
+    MainAction('aERename').OnExecute := aERenameExecute;
+    MainAction('aSGoto').OnExecute := aSGotoExecute;
+    MainAction('aVObjectBrowser').OnExecute := aViewExecute;
+    MainAction('aVDataBrowser').OnExecute := aViewExecute;
+    MainAction('aVObjectIDE').OnExecute := aViewExecute;
+    MainAction('aVQueryBuilder').OnExecute := aViewExecute;
+    MainAction('aVSQLEditor').OnExecute := aViewExecute;
+    MainAction('aVSQLEditor2').OnExecute := aViewExecute;
+    MainAction('aVSQLEditor3').OnExecute := aViewExecute;
+    MainAction('aVDiagram').OnExecute := aViewExecute;
+    MainAction('aVNavigator').OnExecute := aVSideBarExecute;
+    MainAction('aVExplorer').OnExecute := aVSideBarExecute;
+    MainAction('aVJobs').OnExecute := aVSideBarExecute;
+    MainAction('aVSQLHistory').OnExecute := aVSideBarExecute;
+    MainAction('aVSQLLog').OnExecute := aVSQLLogExecute;
+    MainAction('aVRefresh').OnExecute := aVRefreshExecute;
+    MainAction('aVRefreshAll').OnExecute := aVRefreshAllExecute;
+    MainAction('aDCancel').OnExecute := aDCancelExecute;
+    MainAction('aDCreateDatabase').OnExecute := aDCreateDatabaseExecute;
+    MainAction('aDCreateTable').OnExecute := aDCreateTableExecute;
+    MainAction('aDCreateView').OnExecute := aDCreateViewExecute;
+    MainAction('aDCreateProcedure').OnExecute := aDCreateRoutineExecute;
+    MainAction('aDCreateFunction').OnExecute := aDCreateRoutineExecute;
+    MainAction('aDCreateKey').OnExecute := aDCreateKeyExecute;
+    MainAction('aDCreateField').OnExecute := aDCreateFieldExecute;
+    MainAction('aDCreateForeignKey').OnExecute := aDCreateForeignKeyExecute;
+    MainAction('aDCreateTrigger').OnExecute := aDCreateTriggerExecute;
+    MainAction('aDCreateEvent').OnExecute := aDCreateEventExecute;
+    MainAction('aDCreateUser').OnExecute := aDCreateUserExecute;
+    MainAction('aDEditServer').OnExecute := PropertiesServerExecute;
+    MainAction('aDEditDatabase').OnExecute := aDPropertiesExecute;
+    MainAction('aDEditTable').OnExecute := aDPropertiesExecute;
+    MainAction('aDEditView').OnExecute := aDPropertiesExecute;
+    MainAction('aDEditRoutine').OnExecute := aDPropertiesExecute;
+    MainAction('aDEditEvent').OnExecute := aDPropertiesExecute;
+    MainAction('aDEditTrigger').OnExecute := aDPropertiesExecute;
+    MainAction('aDEditKey').OnExecute := aDPropertiesExecute;
+    MainAction('aDEditField').OnExecute := aDPropertiesExecute;
+    MainAction('aDEditForeignKey').OnExecute := aDPropertiesExecute;
+    MainAction('aDEditProcess').OnExecute := aDPropertiesExecute;
+    MainAction('aDEditUser').OnExecute := aDPropertiesExecute;
+    MainAction('aDEditVariable').OnExecute := aDPropertiesExecute;
+    MainAction('aDDeleteDatabase').OnExecute := aDDeleteExecute;
+    MainAction('aDDeleteTable').OnExecute := aDDeleteExecute;
+    MainAction('aDDeleteView').OnExecute := aDDeleteExecute;
+    MainAction('aDDeleteRoutine').OnExecute := aDDeleteExecute;
+    MainAction('aDDeleteKey').OnExecute := aDDeleteExecute;
+    MainAction('aDDeleteField').OnExecute := aDDeleteExecute;
+    MainAction('aDDeleteForeignKey').OnExecute := aDDeleteExecute;
+    MainAction('aDDeleteTrigger').OnExecute := aDDeleteExecute;
+    MainAction('aDDeleteEvent').OnExecute := aDDeleteExecute;
+    MainAction('aDDeleteUser').OnExecute := aDDeleteExecute;
+    MainAction('aDDeleteProcess').OnExecute := aDDeleteExecute;
+    MainAction('aDInsertRecord').OnExecute := aDInsertRecordExecute;
+    MainAction('aDDeleteRecord').OnExecute := aDDeleteRecordExecute;
+    MainAction('aDRun').OnExecute := aDRunExecute;
+    MainAction('aDRunSelection').OnExecute := aDRunSelectionExecute;
+    MainAction('aDPostObject').OnExecute := aDPostObjectExecute;
+    MainAction('aEJobAddImport').OnExecute := aEJobAddImportExecute;
+    MainAction('aEJobAddExport').OnExecute := aEJobAddExportExecute;
+    MainAction('aEJobDelete').OnExecute := aEJobDeleteExecute;
+    MainAction('aEJobEdit').OnExecute := aEJobEditExecute;
+    MainAction('aEFormatSQL').OnExecute := aEFormatSQLExecute;
+    MainAction('aHSQL').OnExecute := aHSQLExecute;
+    MainAction('aHManual').OnExecute := aHManualExecute;
+
+
+    MainAction('aVObjectBrowser').Enabled := True;
+    MainAction('aVDataBrowser').Enabled := (SelectedImageIndex in [iiBaseTable, iiSystemView, iiView, iiTrigger]) or ((LastSelectedDatabase <> '') and (LastSelectedDatabase = SelectedDatabase) and (LastSelectedTable <> ''));
+    MainAction('aVObjectIDE').Enabled := (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent, iiTrigger]) or (LastObjectIDEAddress <> '');
+    MainAction('aVQueryBuilder').Enabled := (LastSelectedDatabase <> '');
+    MainAction('aVSQLEditor').Enabled := True;
+    MainAction('aVSQLEditor2').Enabled := True;
+    MainAction('aVSQLEditor3').Enabled := True;
+    MainAction('aVDiagram').Enabled := (LastSelectedDatabase <> '');
+    MainAction('aVNavigator').Enabled := True;
+    MainAction('aVExplorer').Enabled := True;
+    MainAction('aVJobs').Enabled := True;
+    MainAction('aVSQLHistory').Enabled := True;
+    MainAction('aVSQLLog').Enabled := True;
+    MainAction('aVRefresh').Enabled := True;
+    MainAction('aVRefreshAll').Enabled := True;
+    MainAction('aDCancel').Enabled := Session.Connection.InUse();
+    MainAction('aEJobAddImport').Enabled := CheckWin32Version(6);
+    MainAction('aEJobAddExport').Enabled := CheckWin32Version(6);
+    MainAction('aHSQL').Enabled := Session.Connection.ServerVersion >= 40100;
+    MainAction('aHManual').Enabled := Session.Account.ManualURL <> '';
+
+    aPResult.ShortCut := ShortCut(VK_F8, [ssAlt]);
+
+    if (Assigned(ActiveControlOnDeactivate) and ActiveControlOnDeactivate.Visible) then
+      try Window.FocusControl(ActiveControlOnDeactivate); except end;
+
+    if (Assigned(Window.ActiveControl)) then
+      if (Window.ActiveControl = FNavigator) then FNavigatorEnter(FNavigator)
+      else if (Window.ActiveControl = ActiveListView) then ListViewEnter(ActiveListView)
+      else if (Window.ActiveControl = FLog) then FLogEnter(FLog)
+      else if (Window.ActiveControl is TSynMemo) then SynMemoEnter(Window.ActiveControl)
+      else if (Window.ActiveControl = ActiveDBGrid) then DBGridEnter(ActiveDBGrid)
+      else if (Window.ActiveControl = FJobs) then FJobsEnter(FJobs);
+
+    if (Assigned(FNavigatorNodeAfterActivate)) then
+      FNavigatorChange2(FNavigator, FNavigatorNodeAfterActivate);
+
+    if (Assigned(FFolders) and (Path <> FFolders.SelectedFolder)) then
+      FFolders.SelectedFolder := Path;
+  end;
+
+  if (Assigned(StatusBar)) then
+    StatusBarRefresh(True);
+end;
+
+procedure TFSession.UMFrameDeactivate(var Message: TMessage);
+begin
+  KillTimer(Handle, tiNavigator);
+  KillTimer(Handle, tiStatusBar);
+
+  ActiveControlOnDeactivate := Window.ActiveControl;
+
+  MainAction('aVObjectBrowser').Enabled := False;
+  MainAction('aVDataBrowser').Enabled := False;
+  MainAction('aVObjectIDE').Enabled := False;
+  MainAction('aVQueryBuilder').Enabled := False;
+  MainAction('aVSQLEditor').Enabled := False;
+  MainAction('aVSQLEditor2').Enabled := False;
+  MainAction('aVSQLEditor3').Enabled := False;
+  MainAction('aVDiagram').Enabled := False;
+  MainAction('aVNavigator').Enabled := False;
+  MainAction('aVExplorer').Enabled := False;
+  MainAction('aVJobs').Enabled := False;
+  MainAction('aVSQLHistory').Enabled := False;
+  MainAction('aVSQLLog').Enabled := False;
+  MainAction('aVRefresh').Enabled := False;
+  MainAction('aVRefreshAll').Enabled := False;
+  MainAction('aDCancel').Enabled := False;
+  MainAction('aHSQL').Enabled := False;
+  MainAction('aHManual').Enabled := False;
+  MainAction('aEJobAddImport').Enabled := False;
+  MainAction('aEJobAddExport').Enabled := False;
+  MainAction('aEJobDelete').Enabled := False;
+  MainAction('aEJobEdit').Enabled := False;
+
+  MainAction('aECopy').OnExecute := nil;
+  MainAction('aEPaste').OnExecute := nil;
+
+  aPResult.ShortCut := 0;
+
+  if (Window.ActiveControl = FNavigator) then FNavigatorExit(Window.ActiveControl)
+  else if (Window.ActiveControl = ActiveListView) then ListViewExit(Window.ActiveControl)
+  else if (Window.ActiveControl = FLog) then FLogExit(Window.ActiveControl)
+  else if (Window.ActiveControl is TSynMemo) then SynMemoExit(Window.ActiveControl)
+  else if (Window.ActiveControl = ActiveDBGrid) then DBGridExit(Window.ActiveControl);
+
+  Include(FrameState, tsActive);
+end;
+
+procedure TFSession.UMPostBuilderQueryChange(var Message: TMessage);
+begin
+  FQueryBuilderEditorPageControlCheckStyle();
+end;
+
+procedure TFSession.UMPostMonitor(var Message: TMessage);
+var
+  Text: string;
+begin
+  if (MainAction('aVSQLLog').Checked) then
+  begin
+    Text := Session.SQLMonitor.CacheText;
+    SendMessage(FLog.Handle, WM_SETTEXT, 0, LPARAM(PChar(Text)));
+
+    PLogResize(nil);
+  end;
+end;
+
+procedure TFSession.UMPostShow(var Message: TMessage);
+var
+  Node: TTreeNode;
+  URI: TUURI;
+begin
+  PNavigator.Visible := Session.Account.Desktop.NavigatorVisible;
+  PExplorer.Visible := Session.Account.Desktop.ExplorerVisible;
+  PJobs.Visible := Session.Account.Desktop.JobsVisible;
+  PSQLHistory.Visible := Session.Account.Desktop.SQLHistoryVisible;
+  PSideBar.Visible := PNavigator.Visible or PExplorer.Visible or PJobs.Visible or PSQLHistory.Visible; SSideBar.Visible := PSideBar.Visible;
+
+  if (PExplorer.Visible) then
+    CreateExplorer()
+  else if (PJobs.Visible and (FJobs.Items.Count = 0)) then
+    FormAccountEvent(Session.Account.Jobs.ClassType)
+  else if (PSQLHistory.Visible) then
+    FSQLHistoryRefresh(nil);
+
+  PSideBar.Width := Session.Account.Desktop.SidebarWitdth;
+  PFiles.Height := PSideBar.ClientHeight - Session.Account.Desktop.FoldersHeight - SExplorer.Height;
+
+  FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options + [eoScrollPastEol];  // Speed up the performance
+  FSQLEditorSynMemo.Text := Session.Account.Desktop.EditorContent[ttEditor];
+  if (Length(FSQLEditorSynMemo.Lines.Text) < LargeSQLScriptSize) then
+    FSQLEditorSynMemo.Options := FSQLEditorSynMemo.Options - [eoScrollPastEol];  // Slow down the performance on large content
+  PResult.Height := Session.Account.Desktop.DataHeight;
+  PResultHeight := PResult.Height;
+  PBlob.Height := Session.Account.Desktop.BlobHeight;
+
+  PLog.Height := Session.Account.Desktop.LogHeight;
+  PLog.Visible := Session.Account.Desktop.LogVisible; SLog.Visible := PLog.Visible;
+
+  aVBlobText.Checked := True;
+
+  FQueryBuilderEditorPageControlCheckStyle();
+
+  FormResize(nil);
+
+  Perform(UM_ACTIVATEFRAME, 0, 0);
+
+
+  Node := FNavigator.Items.Add(nil, Session.Caption);
+  Node.Data := Session;
+  Node.ImageIndex := iiServer;
+
+  if (Assigned(Session.Processes)) then
+  begin
+    Node := FNavigator.Items.AddChild(FNavigator.Items.GetFirstNode(), Preferences.LoadStr(24));
+    Node.Data := Session.Processes;
+    Node.ImageIndex := iiProcesses;
+  end;
+  if (Assigned(Session.Stati)) then
+  begin
+    Node := FNavigator.Items.AddChild(FNavigator.Items.GetFirstNode(), Preferences.LoadStr(23));
+    Node.Data := Session.Stati;
+    Node.ImageIndex := iiStati;
+  end;
+  if (Assigned(Session.Users)) then
+  begin
+    Node := FNavigator.Items.AddChild(FNavigator.Items.GetFirstNode(), Preferences.LoadStr(561));
+    Node.Data := Session.Users;
+    Node.ImageIndex := iiUsers;
+  end;
+  if (Assigned(Session.Variables)) then
+  begin
+    Node := FNavigator.Items.AddChild(FNavigator.Items.GetFirstNode(), Preferences.LoadStr(22));
+    Node.Data := Session.Variables;
+    Node.ImageIndex := iiVariables;
+  end;
+
+  FNavigator.Items.GetFirstNode().Expand(False);
+
+  FNavigatorInitialize(nil);
+
+
+  if (Copy(Param, 1, 8) = 'mysql://') then
+    try
+      Address := Param;
+    except
+      Address := Session.Account.Desktop.Address;
+    end
+  else if (Param <> '') then
+  begin
+    URI := TUURI.Create(Session.Account.Desktop.Address);
+    URI.Param['view'] := 'editor';
+    URI.Table := '';
+    URI.Param['system'] := Null;
+    URI.Param['filter'] := Null;
+    URI.Param['offset'] := Null;
+    URI.Param['objecttype'] := Null;
+    URI.Param['object'] := Null;
+    URI.Param['offset'] := Null;
+    URI.Param['file'] := EscapeURL(Param);
+    URI.Param['cp'] := Null;
+    Address := URI.Address;
+    URI.Free();
+  end
+  else
+    Address := Session.Account.Desktop.Address;
+end;
+
+procedure TFSession.UMWantedSynchronize(var Message: TMessage);
+begin
+  if (not (csDestroying in ComponentState)) then
+    Wanted.Synchronize();
 end;
 
 function TFSession.UpdateAfterAddressChanged(): Boolean;

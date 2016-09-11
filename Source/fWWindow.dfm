@@ -1,7 +1,7 @@
 object WWindow: TWWindow
   Left = 387
   Top = 161
-  Caption = '11'
+  Caption = 'WWindow'
   ClientHeight = 449
   ClientWidth = 683
   Color = clBtnFace

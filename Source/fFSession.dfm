@@ -2363,7 +2363,7 @@ object FSession: TFSession
     Top = 72
   end
   object SynCompletion: TSynCompletionProposal
-    Options = [scoLimitToMatchedText, scoUseBuiltInTimer, scoEndCharCompletion, scoCompleteWithTab, scoCompleteWithEnter]
+    Options = [scoLimitToMatchedText, scoUseInsertList, scoEndCharCompletion, scoCompleteWithEnter]
     EndOfTokenChr = '()[]. '
     TriggerChars = '.'
     Font.Charset = DEFAULT_CHARSET

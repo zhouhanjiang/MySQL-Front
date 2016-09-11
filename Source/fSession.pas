@@ -5098,6 +5098,8 @@ var
   Parse: TSQLParse;
   PreviousToken: TMySQLParser.PToken;
   StartingCommentLen: Integer;
+  TableCount: Integer;
+  TableName: string;
   Token: TMySQLParser.PToken;
 begin
   if (not SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.ServerVersion)) then
@@ -5177,6 +5179,7 @@ begin
 
     if (Session.SQLParser.ParseSQL(FStmt)) then
     begin
+      TableCount := 0; TableName := '';
       PreviousToken := nil;
       Token := Session.SQLParser.Root^.FirstStmt^.FirstToken;
       while (Assigned(Token)) do
@@ -5188,11 +5191,43 @@ begin
           Token^.Text := '';
         end;
 
+        if (Token^.DbIdentType = ditTable) then
+        begin
+          if (TableName = '') then
+          begin
+            TableName := Token^.AsString;
+            Inc(TableCount);
+          end
+          else if (Database.Tables.NameCmp(Token^.AsString, TableName) <> 0) then
+            Inc(TableCount);
+        end;
+
         PreviousToken := Token;
         if (Token = Session.SQLParser.Root^.FirstStmt^.LastToken) then
           Token := nil
         else
           Token := Token^.NextToken;
+      end;
+
+      if (TableCount = 1) then
+      begin
+        PreviousToken := nil;
+        Token := Session.SQLParser.Root^.FirstStmt^.FirstToken;
+        while (Assigned(Token)) do
+        begin
+          if (Assigned(PreviousToken) and (PreviousToken^.DbIdentType = ditTable) and (Token^.TokenType = ttDot)
+            and (Database.Tables.NameCmp(PreviousToken^.AsString, TableName) = 0)) then
+          begin
+            PreviousToken^.Text := '';
+            Token^.Text := '';
+          end;
+
+          PreviousToken := Token;
+          if (Token = Session.SQLParser.Root^.FirstStmt^.LastToken) then
+            Token := nil
+          else
+            Token := Token^.NextToken;
+        end;
       end;
 
       Session.SQLParser.FormatSQL(FStmt);
@@ -7489,9 +7524,9 @@ begin
     FName := SQLParseValue(Parse);
 
     if (SQLParseKeyword(Parse, 'DEFAULT CHARACTER SET') or SQLParseKeyword(Parse, 'CHARACTER SET')) then
-      FDefaultCharset := LowerCase(SQLParseValue(Parse))
+      DefaultCharset := LowerCase(SQLParseValue(Parse))
     else
-      FDefaultCharset := '';
+      DefaultCharset := '';
 
     if (SQLParseKeyword(Parse, 'DEFAULT COLLATE') or SQLParseKeyword(Parse, 'COLLATE')) then
       FCollation := LowerCase(SQLParseValue(Parse))
@@ -12571,6 +12606,9 @@ begin
     end
     else
       SQL := 'ALTER DATABASE ' + Connection.EscapeIdentifier(Database.Name) + SQL + ';' + #13#10;
+
+  SQL := SQL
+    + NewDatabase.SQLGetSource();
 
   Result := (SQL = '') or Connection.SendSQL(SQL, SessionResult);
 end;

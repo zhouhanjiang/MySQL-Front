@@ -8,7 +8,183 @@ uses
 type
   TMySQLParser = class
   public
+    const
+      PE_Success = 0; // No error
+
+      PE_Unknown = 1; // Unknown error
+
+      // Bugs while parsing Tokens:
+      PE_IncompleteToken = 2; // Incompleted token
+      PE_UnexpectedChar = 3; // Unexpected character
+
+      // Bugs while parsing Stmts:
+      PE_IncompleteStmt = 4; // Incompleted statement
+      PE_UnexpectedToken = 5; // Unexpected token
+      PE_ExtraToken = 6; // Token after completed statement
+      PE_NestedCondCode = 7; // Nested conditional MySQL option
+
+      // Bugs while parsing Root
+      PE_UnknownStmt = 8; // Unknown statement
+
+      CharArrayLength = 64;
+
+      MySQLDatatypes =
+        'BIGINT,BINARY,BIT,BLOB,BOOL,BOOLEAN,CHAR,DEC,DECIMAL,DATE,DATETIME,' +
+        'DOUBLE,ENUM,FLOAT,GEOMETRY,GEOMETRYCOLLECTION,INT,INT4,INTEGER,' +
+        'LARGEINT,LINESTRING,JSON,LONG,LONGBLOB,LONGTEXT,MEDIUMBLOB,' +
+        'MEDIUMINT,MEDIUMTEXT,MULTILINESTRING,MULTIPOINT,MULTIPOLYGON,' +
+        'NUMERIC,NCHAR,NVARCHAR,POINT,POLYGON,REAL,SERIAL,SET,SIGNED,' +
+        'SMALLINT,TEXT,TIME,TIMESTAMP,TINYBLOB,TINYINT,TINYTEXT,UNSIGNED,' +
+        'VARBINARY,VARCHAR,YEAR';
+
+      MySQLFunctions =
+        'ABS,ACOS,ADDDATE,ADdiME,AES_DECRYPT,AES_ENCRYPT,ANY_VALUE,AREA,' +
+        'ASBINARY,ASCII,ASIN,ASTEXT,ASWKBASWKT,ASYMMETRIC_DECRYPT,' +
+        'ASYMMETRIC_DERIVE,ASYMMETRIC_ENCRYPT,ASYMMETRIC_SIGN,ASYMMETRIC_VERIFY,' +
+        'ATAN,ATAN,ATAN2,AVG,BENCHMARK,BIN,BIT_AND,BIT_COUNT,BIT_LENGTH,BIT_OR,' +
+        'BIT_XOR,BUFFER,CAST,CEIL,CEILING,CENTROID,CHAR,CHAR_LENGTH,' +
+        'CHARACTER_LENGTH,CHARSET,COALESCE,COERCIBILITY,COLLATION,COMPRESS,' +
+        'CONCAT,CONCAT_WS,CONNECTION_ID,CONTAINS,CONV,CONVERT,CONVERT_TZ,' +
+        'CONVEXHULL,COS,COT,COUNT,CRC32,CREATE_ASYMMETRIC_PRIV_KEY,' +
+        'CREATE_ASYMMETRIC_PUB_KEY,CREATE_DH_PARAMETERS,CREATE_DIGEST,CROSSES,' +
+        'CURDATE,CURRENT_DATE,CURRENT_TIME,CURRENT_TIMESTAMP,CURRENT_USER,' +
+        'CURTIME,DATABASE,DATE,DATE_ADD,DATE_FORMAT,DATE_SUB,DATEDIFF,DAY,' +
+        'DAYNAME,DAYOFMONTH,DAYOFWEEK,DAYOFYEAR,DECODE,DEFAULT,DEGREES,' +
+        'DES_DECRYPT,DES_ENCRYPT,DIMENSION,DISJOINT,DISTANCE,ELT,ENCODE,ENCRYPT,' +
+        'ENDPOINT,ENVELOPE,EQUALS,EXP,EXPORT_SET,EXTERIORRING,EXTRACT,' +
+        'EXTRACTVALUE,FIELD,FIND_IN_SET,FLOOR,FORMAT,FOUND_ROWS,FROM_BASE64,' +
+        'FROM_DAYS,FROM_UNIXTIME,GEOMCOLLFROMTEXT,GEOMCOLLFROMWKB,' +
+        'GEOMETRYCOLLECTION,GEOMETRYCOLLECTIONFROMTEXT,GEOMETRYCOLLECTIONFROMWKB,' +
+        'GEOMETRYFROMTEXT,GEOMETRYFROMWKB,GEOMETRYN,GEOMETRYTYPE,GEOMFROMTEXT,' +
+        'GEOMFROMWKB,GET_FORMAT,GET_LOCK,GLENGTH,GREATEST,GROUP_CONCAT,' +
+        'GTID_SUBSET,GTID_SUBTRACT,HEX,HOUR,IF,IFNULL,IN,INET_ATON,INET_NTOA,' +
+        'INET6_ATON,INET6_NTOA,INSERT,INSTR,INTERIORRINGN,INTERSECTS,INTERVAL,' +
+        'IS_FREE_LOCK,IS_IPV4,IS_IPV4_COMPAT,IS_IPV4_MAPPED,IS_IPV6,IS_USED_LOCK,' +
+        'ISCLOSED,ISEMPTY,ISNULL,ISSIMPLE,JSON_APPEND,JSON_ARRAY,' +
+        'JSON_ARRAY_APPEND,JSON_ARRAY_INSERT,JSON_CONTAINS,JSON_CONTAINS_PATH,' +
+        'JSON_DEPTH,JSON_EXTRACT,JSON_INSERT,JSON_KEYS,JSON_LENGTH,JSON_MERGE,' +
+        'JSON_OBJECT,JSON_QUOTE,JSON_REMOVE,JSON_REPLACE,JSON_SEARCH,JSON_SET,' +
+        'JSON_TYPE,JSON_UNQUOTE,JSON_VALID,LAST_DAY,LAST_INSERT_ID,LCASE,LEAST,' +
+        'LEFT,LENGTH,LINEFROMTEXT,LINEFROMWKB,LINESTRING,LINESTRINGFROMTEXT,' +
+        'LINESTRINGFROMWKB,LN,LOAD_FILE,LOCALTI,LOCALTIME,LOCALTIMESTAMP,LOCATE,' +
+        'LOG,LOG10,LOG2,LOWER,LPAD,LTRIM,MAKE_SET,MAKEDATE,MAKETIME,' +
+        'MASTER_POS_WAIT,MAX,MBRCONTAINS,MBRCOVEREDBY,MBRCOVERS,MBRDISJOINT,' +
+        'MBREQUAL,MBREQUALS,MBRINTERSECTS,MBROVERLAPS,MBRTOUCHES,MBRWITHIN,MD5,' +
+        'MICROSECOND,MID,MIN,MINUTE,MLINEFROMTEXT,MLINEFROMWKB,MOD,MONTH,' +
+        'MONTHNAME,MPOINTFROMTEXT,MPOINTFROMWKB,MPOLYFROMTEXT,MPOLYFROMWKB,' +
+        'MULTILINESTRING,MULTILINESTRINGFROMTEXT,MULTILINESTRINGFROMWKB,' +
+        'MULTIPOINT,MULTIPOINTFROMTEXT,MULTIPOINTFROMWKB,MULTIPOLYGON,' +
+        'MULTIPOLYGONFROMTEXT,MULTIPOLYGONFROMWKB,NAME_CONST,NOW,NULLIF,' +
+        'NUMGEOMETRIES,NUMINTERIORRINGS,NUMPOINTS,OCT,OCTET_LENGTH,OLD_PASSWORD,' +
+        'ORD,OVERLAPS,PASSWORD,PERIOD_ADD,PERIOD_DIFF,PI,POINT,POINTFROMTEXT,' +
+        'POINTFROMWKB,POINTN,POLYFROMTEXT,POLYFROMWKB,POLYGON,POLYGONFROMTEXT,' +
+        'POLYGONFROMWKB,POSITION,POW,POWER,QUARTER,QUOTE,RADIANS,RAND,' +
+        'RANDOM_BYTES,RELEASE_ALL_LOCKS,RELEASE_LOCK,REPEAT,REPLACE,REVERSE,' +
+        'RIGHT,ROUND,ROW_COUNT,RPAD,RTRIM,SCHEMA,SEC_TO_TIME,SECOND,SESSION_USER,' +
+        'SHA,SHA1,SHA2,SIGN,SIN,SLEEP,SOUNDEX,SPACE,SQRT,SRID,ST_AREA,' +
+        'ST_ASBINARY,ST_ASGEOJSON,ST_ASTEXT,ST_ASWKB,ST_ASWKT,ST_BUFFER,' +
+        'ST_BUFFER_STRATEGY,ST_CENTROID,ST_CONTAINS,ST_CONVEXHULL,ST_CROSSES,' +
+        'ST_DIFFERENCE,ST_DIMENSION,ST_DISJOINT,ST_DISTANCE,ST_DISTANCE_SPHERE,' +
+        'ST_ENDPOINT,ST_ENVELOPE,ST_EQUALS,ST_EXTERIORRING,ST_GEOHASH,' +
+        'ST_GEOMCOLLFROMTEXT,ST_GEOMCOLLFROMTXT,ST_GEOMCOLLFROMWKB,' +
+        'ST_GEOMETRYCOLLECTIONFROMTEXT,ST_GEOMETRYCOLLECTIONFROMWKB,' +
+        'ST_GEOMETRYFROMTEXT,ST_GEOMETRYFROMWKB,ST_GEOMETRYN,ST_GEOMETRYTYPE,' +
+        'ST_GEOMFROMGEOJSON,ST_GEOMFROMTEXT,ST_GEOMFROMWKB,ST_INTERIORRINGN,' +
+        'ST_INTERSECTION,ST_INTERSECTS,ST_ISCLOSED,ST_ISEMPTY,ST_ISSIMPLE,' +
+        'ST_ISVALID,ST_LATFROMGEOHASH,ST_LENGTH,ST_LINEFROMTEXT,ST_LINEFROMWKB,' +
+        'ST_LINESTRINGFROMTEXT,ST_LINESTRINGFROMWKB,ST_LONGFROMGEOHASH,' +
+        'ST_MAKEENVELOPE,ST_MLINEFROMTEXT,ST_MLINEFROMWKB,ST_MPOINTFROMTEXT,' +
+        'ST_MPOINTFROMWKB,ST_MPOLYFROMTEXT,ST_MPOLYFROMWKB,' +
+        'ST_MULTILINESTRINGFROMTEXT,ST_MULTILINESTRINGFROMWKB,' +
+        'ST_MULTIPOINTFROMTEXT,ST_MULTIPOINTFROMWKB,ST_MULTIPOLYGONFROMTEXT,' +
+        'ST_MULTIPOLYGONFROMWKB,ST_NUMGEOMETRIES,ST_NUMINTERIORRING,' +
+        'ST_NUMINTERIORRINGS,ST_NUMPOINTS,ST_OVERLAPS,ST_POINTFROMGEOHASH,' +
+        'ST_POINTFROMTEXT,ST_POINTFROMWKB,ST_POINTN,ST_POLYFROMTEXT,' +
+        'ST_POLYFROMWKB,ST_POLYGONFROMTEXT,ST_POLYGONFROMWKB,ST_SIMPLIFY,ST_SRID,' +
+        'ST_STARTPOINT,ST_SYMDIFFERENCE,ST_TOUCHES,ST_UNION,ST_VALIDATE,' +
+        'ST_WITHIN,ST_X,ST_Y,STARTPOINT,STD,STDDEV,STDDEV_POP,STDDEV_SAMP,' +
+        'STR_TO_DATE,STRCMP,SUBDATE,SUBSTR,SUBSTRING,SUBSTRING_INDEX,SUBTIME,SUM,' +
+        'SYSDATE,SYSTEM_USER,TAN,TIME,TIME_FORMAT,TIME_TO_SEC,TIMEDIFF,TIMESTAMP,' +
+        'TIMESTAMPADD,TIMESTAMPDIFF,TO_BASE64,TO_DAYS,TO_SECONDS,TOUCHES,TRIM,' +
+        'TRUNCATE,UCASE,UNCOMPRESS,UNCOMPRESSED_LENGTH,UNHEX,UNIX_TIMESTAMP,' +
+        'UPDATEXML,UPPER,USER,UTC_DATE,UTC_TIME,UTC_TIMESTAMP,UUID,UUID_SHORT,' +
+        'VALIDATE_PASSWORD_STRENGTH,VALUES,VAR_POP,VAR_SAMP,VARIANCE,VERSION,' +
+        'WAIT_FOR_EXECUTED_GTID_SET,WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS,WEEK,' +
+        'WEEKDAY,WEEKOFYEAR,WEIGHT_STRING,WITHIN,X,Y,YEAR,YEARWEEK';
+
+      MySQLKeywords =
+        'INNODB,INSTANCE,ROTATE,MICROSECOND,FOLLOWS,PRECEDES,SIGNED,' +
+        'MAX_STATEMENT_TIME,SOME,ALWAYS,GENERATED,STORED,VIRTUAL,PERSISTENT,DISK,' +
+        'COMPRESS,BOOLEAN,TRANSACTIONAL,' +
+
+        'ACCOUNT,ACTION,ADD,AFTER,AGAINST,AGGREGATE,ALGORITHM,ALL,ALTER,ANALYZE,' +
+        'AND,ANY,AS,ASC,ASCII,AT,AUTHORS,AUTO_INCREMENT,AUTOEXTEND_SIZE,' +
+        'AVG_ROW_LENGTH,BACKUP,BEFORE,BEGIN,BENCHMARK,BETWEEN,BINARY,BINLOG,BIT,' +
+        'BLOCK,BOTH,BTREE,BY,CACHE,CALL,CASCADE,CASCADED,CASE,CATALOG_NAME,CHAIN,' +
+        'CHANGE,CHANGED,CHARACTER,CHARSET,CHECK,CHECKSUM,CLASS_ORIGIN,CLIENT,' +
+        'CLOSE,COALESCE,CODE,COLLATE,COLLATION,COLUMN,COLUMN_FORMAT,COLUMN_NAME,' +
+        'COLUMNS,COMMENT,COMMIT,COMMITTED,COMPACT,COMPLETION,COMPRESSED,' +
+        'CONCURRENT,CONDITION,CONNECTION,CONSISTENT,CONSTRAINT,' +
+        'CONSTRAINT_CATALOG,CONSTRAINT_NAME,CONSTRAINT_SCHEMA,' +
+        'CONSTRAINT_SCHEMA,CONTAINS,CONTENTS,CONTEXT,CONTINUE,CONTRIBUTORS,' +
+        'CONVERT,COPY,CPU,CREATE,CROSS,CURRENT,CURRENT_DATE,CURRENT_TIME,' +
+        'CURRENT_TIMESTAMP,CURRENT_USER,CURSOR,CURSOR_NAME,DATA,DATABASE,' +
+        'DATABASES,DATAFILE,DAY,DAY_HOUR,DAY_MINUTE,DAY_SECOND,DEALLOCATE,DEC,' +
+        'DECLARE,DEFAULT,DEFINER,DELAY_KEY_WRITE,DELAYED,DELETE,DESC,DESCRIBE,' +
+        'DETERMINISTIC,DIAGNOSTICS,DIRECTORY,DISABLE,DISCARD,DISTINCT,' +
+        'DISTINCTROW,DIV,DO,DROP,DUAL,DUMPFILE,DUPLICATE,DYNAMIC,EACH,ELSE,' +
+        'ELSEIF,ENABLE,ENCLOSED,END,ENDIF,ENDS,ENGINE,ENGINES,ERRORS,ESCAPE,' +
+        'ESCAPED,EVENT,EVENTS,EVERY,EXCHANGE,EXCLUSIVE,EXECUTE,EXISTS,EXIT,' +
+        'EXPANSION,EXPIRE,EXPLAIN,EXTENDED,EXTENT_SIZE,FALSE,FAST,FAULTS,FETCH,' +
+        'FIELDS,FILE,FIRST,FIXED,FLUSH,FOR,FORCE,FOREIGN,FORMAT,FOUND,FROM,FULL,' +
+        'FULLTEXT,FUNCTION,FUNCTIONS,GET,GLOBAL,GOTO,GRANT,GRANTS,GROUP,HANDLER,' +
+        'HASH,HAVING,HELP,HIGH_PRIORITY,HOST,HOSTS,HOUR,HOUR_MINUTE,HOUR_SECOND,' +
+        'IDENTIFIED,IF,IGNORE,IGNORE_SERVER_IDS,IMPORT,IN,INDEX,INDEXES,INFILE,' +
+        'INITIAL_SIZE,INNER,INOUT,INPLACE,INSERT,INSERT_METHOD,INSTALL,INT1,' +
+        'INT2,INT3,INT4,INT8,INTERVAL,INTO,INVOKER,IO,IO_THREAD,IPC,IS,' +
+        'ISOLATION,ISSUER,ITERATE,JOIN,JSON,KEY,KEY_BLOCK_SIZE,KEYS,KILL,' +
+        'LANGUAGE,LAST,LEADING,LEAVE,LEAVES,LEFT,LESS,LEVEL,LIKE,LIMIT,LINEAR,' +
+        'LINES,LIST,LOAD,LOCAL,LOCALTIME,LOCALTIMESTAMP,LOCK,LOGFILE,LOGS,LONG,' +
+        'LOOP,LOW_PRIORITY,MASTER,MASTER_BIND,MASTER_CONNECT_RETRY,' +
+        'MASTER_HEARTBEAT_PERIOD,MASTER_HOST,MASTER_LOG_FILE,MASTER_LOG_POS,' +
+        'MASTER_PASSWORD,MASTER_PORT,MASTER_SSL,MASTER_SSL_CA,MASTER_SSL_CAPATH,' +
+        'MASTER_SSL_CERT,MASTER_SSL_CIPHER,MASTER_SSL_KEY,' +
+        'MASTER_SSL_VERIFY_SERVER_CERT,MASTER_USER,MATCH,' +
+        'MAX_CONNECTIONS_PER_HOUR,MAX_QUERIES_PER_HOUR,MAX_ROWS,MAX_SIZE,' +
+        'MAX_UPDATES_PER_HOUR,MAX_USER_CONNECTIONS,MAXVALUE,MEDIUM,MEMORY,MERGE,' +
+        'MESSAGE_TEXT,MIDDLEINT,MIGRATE,MIN_ROWS,MINUTE,MINUTE_SECOND,MOD,MODE,' +
+        'MODIFIES,MODIFY,MONTH,MUTEX,MYSQL_ERRNO,NAME,NAMES,NATIONAL,NATURAL,' +
+        'NEVER,NEW,NEXT,NO,NO_WRITE_TO_BINLOG,NODEGROUP,NONE,NOT,NULL,NUMBER,' +
+        'OFFLINE,OFFSET,OJ,OLD,ON,ONE,ONLINE,ONLY,OPEN,OPTIMIZE,OPTION,' +
+        'OPTIONALLY,OPTIONS,OR,ORDER,OUT,OUTER,OUTFILE,OWNER,PACK_KEYS,PAGE,' +
+        'PAGE_CHECKSUM,PARSER,PARTIAL,PARTITION,PARTITIONING,PARTITIONS,' +
+        'PASSWORD,PHASE,PLUGIN,PLUGINS,PORT,PREPARE,PRESERVE,PREV,PRIMARY,' +
+        'PRIVILEGES,PROCEDURE,PROCESS,PROCESSLIST,PROFILE,PROFILES,PROXY,PURGE,' +
+        'QUARTER,QUERY,QUICK,RAID_CHUNKS,RAID_CHUNKSIZE,RAID_TYPE,RANGE,READ,' +
+        'READS,REBUILD,RECOVER,REDO_BUFFER_SIZE,REDUNDANT,REFERENCES,REGEXP,' +
+        'RELAY_LOG_FILE,RELAY_LOG_POS,RELAYLOG,RELEASE,RELOAD,REMOVE,RENAME,' +
+        'REORGANIZE,REPAIR,REPEAT,REPEATABLE,REPLACE,REPLICATION,REQUIRE,RESET,' +
+        'RESIGNAL,RESTORE,RESTRICT,RESUME,RETURN,RETURNED_SQLSTATE,RETURNS,' +
+        'REVERSE,REVOKE,RIGHT,RLIKE,ROLLBACK,ROLLUP,ROUTINE,ROW,ROW_COUNT,' +
+        'ROW_FORMAT,ROWS,SAVEPOINT,SCHEDULE,SCHEMA,SCHEMA_NAME,SCHEMAS,SECOND,' +
+        'SECURITY,SELECT,SEPARATOR,SERIALIZABLE,SERVER,SESSION,SET,SHARE,SHARED,' +
+        'SHOW,SHUTDOWN,SIGNAL,SIMPLE,SLAVE,SNAPSHOT,SOCKET,SONAME,SOUNDS,SOURCE,' +
+        'SPATIAL,SQL,SQL_BIG_RESULT,SQL_BUFFER_RESULT,SQL_CACHE,' +
+        'SQL_CALC_FOUND_ROWS,SQL_NO_CACHE,SQL_SMALL_RESULT,SQL_THREAD,' +
+        'SQLEXCEPTION,SQLSTATE,SQLWARNING,SQLWARNINGS,SSL,STACKED,START,' +
+        'STARTING,STARTS,STATS_AUTO_CALC,STATS_AUTO_RECALC,STATS_PERSISTENT,' +
+        'STATUS,STOP,STORAGE,STRAIGHT_JOIN,SUBCLASS_ORIGIN,SUBJECT,SUBPARTITION,' +
+        'SUBPARTITIONS,SUPER,SUSPEND,SWAPS,SWITCHES,TABLE,TABLE_NAME,TABLES,' +
+        'TABLESPACE,TEMPORARY,TEMPTABLE,TERMINATED,THAN,THEN,TO,TRADITIONAL,' +
+        'TRAILING,TRANSACTION,TRIGGER,TRIGGERS,TRUE,TRUNCATE,TYPE,UNCOMMITTED,' +
+        'UNDEFINED,UNDO,UNDO_BUFFER_SIZE,UNDOFILE,UNICODE,UNINSTALL,UNION,' +
+        'UNIQUE,UNKNOWN,UNLOCK,UNSIGNED,UNTIL,UPDATE,UPGRADE,USAGE,USE,USE_FRM,' +
+        'USER,USING,VALUE,VALUES,VARIABLES,VARYING,VIEW,WAIT,WARNINGS,WEEK,WHEN,' +
+        'WHERE,WHILE,WITH,WORK,WRAPPER,WRITE,X509,XA,XID,XML,XOR,YEAR,' +
+        'YEAR_MONTH,ZEROFILL';
+
     type
+      TCharArray = array [0 .. CharArrayLength] of Char;
       TFileType = (ftSQL, ftFormatedSQL, ftDebugHTML);
 
       TNodeType = (
@@ -478,19 +654,22 @@ type
 
       TDbIdentType = (
         ditUnknown,
+        ditDatabase,
         ditTable,
+        ditProcedure,
+        ditFunction,
+        ditTrigger,
+        ditEvent,
         ditKey,
         ditField,
         ditForeignKey,
-        ditFunction,
-        ditProcedure,
-        ditTrigger,
-        ditDatabase,
-        ditParameter,
-        ditEvent,
         ditPartition,
+        ditParameter,
+        ditVariable,
         ditServer,
-        ditCursor
+        ditCursor,
+        ditCharset,
+        ditCollation
       );
 
       TJoinType = (
@@ -511,178 +690,6 @@ type
       );
 
     const
-      PE_Success = 0; // No error
-
-      PE_Unknown = 1; // Unknown error
-
-      // Bugs while parsing Tokens:
-      PE_IncompleteToken = 2; // Incompleted token
-      PE_UnexpectedChar = 3; // Unexpected character
-
-      // Bugs while parsing Stmts:
-      PE_IncompleteStmt = 4; // Incompleted statement
-      PE_UnexpectedToken = 5; // Unexpected token
-      PE_ExtraToken = 6; // Token after completed statement
-      PE_NestedCondCode = 7; // Nested conditional MySQL option
-
-      // Bugs while parsing Root
-      PE_UnknownStmt = 8; // Unknown statement
-
-      MySQLDatatypes = 
-        'BIGINT,BINARY,BIT,BLOB,BOOL,BOOLEAN,CHAR,DEC,DECIMAL,DATE,DATETIME,' +
-        'DOUBLE,ENUM,FLOAT,GEOMETRY,GEOMETRYCOLLECTION,INT,INT4,INTEGER,' +
-        'LARGEINT,LINESTRING,JSON,LONG,LONGBLOB,LONGTEXT,MEDIUMBLOB,' +
-        'MEDIUMINT,MEDIUMTEXT,MULTILINESTRING,MULTIPOINT,MULTIPOLYGON,' +
-        'NUMERIC,NCHAR,NVARCHAR,POINT,POLYGON,REAL,SERIAL,SET,SIGNED,' +
-        'SMALLINT,TEXT,TIME,TIMESTAMP,TINYBLOB,TINYINT,TINYTEXT,UNSIGNED,' +
-        'VARBINARY,VARCHAR,YEAR';
-      
-      MySQLFunctions =
-        'ABS,ACOS,ADDDATE,ADdiME,AES_DECRYPT,AES_ENCRYPT,ANY_VALUE,AREA,' +
-        'ASBINARY,ASCII,ASIN,ASTEXT,ASWKBASWKT,ASYMMETRIC_DECRYPT,' +
-        'ASYMMETRIC_DERIVE,ASYMMETRIC_ENCRYPT,ASYMMETRIC_SIGN,ASYMMETRIC_VERIFY,' +
-        'ATAN,ATAN,ATAN2,AVG,BENCHMARK,BIN,BIT_AND,BIT_COUNT,BIT_LENGTH,BIT_OR,' +
-        'BIT_XOR,BUFFER,CAST,CEIL,CEILING,CENTROID,CHAR,CHAR_LENGTH,' +
-        'CHARACTER_LENGTH,CHARSET,COALESCE,COERCIBILITY,COLLATION,COMPRESS,' +
-        'CONCAT,CONCAT_WS,CONNECTION_ID,CONTAINS,CONV,CONVERT,CONVERT_TZ,' +
-        'CONVEXHULL,COS,COT,COUNT,CRC32,CREATE_ASYMMETRIC_PRIV_KEY,' +
-        'CREATE_ASYMMETRIC_PUB_KEY,CREATE_DH_PARAMETERS,CREATE_DIGEST,CROSSES,' +
-        'CURDATE,CURRENT_DATE,CURRENT_TIME,CURRENT_TIMESTAMP,CURRENT_USER,' +
-        'CURTIME,DATABASE,DATE,DATE_ADD,DATE_FORMAT,DATE_SUB,DATEDIFF,DAY,' +
-        'DAYNAME,DAYOFMONTH,DAYOFWEEK,DAYOFYEAR,DECODE,DEFAULT,DEGREES,' +
-        'DES_DECRYPT,DES_ENCRYPT,DIMENSION,DISJOINT,DISTANCE,ELT,ENCODE,ENCRYPT,' +
-        'ENDPOINT,ENVELOPE,EQUALS,EXP,EXPORT_SET,EXTERIORRING,EXTRACT,' +
-        'EXTRACTVALUE,FIELD,FIND_IN_SET,FLOOR,FORMAT,FOUND_ROWS,FROM_BASE64,' +
-        'FROM_DAYS,FROM_UNIXTIME,GEOMCOLLFROMTEXT,GEOMCOLLFROMWKB,' +
-        'GEOMETRYCOLLECTION,GEOMETRYCOLLECTIONFROMTEXT,GEOMETRYCOLLECTIONFROMWKB,' +
-        'GEOMETRYFROMTEXT,GEOMETRYFROMWKB,GEOMETRYN,GEOMETRYTYPE,GEOMFROMTEXT,' +
-        'GEOMFROMWKB,GET_FORMAT,GET_LOCK,GLENGTH,GREATEST,GROUP_CONCAT,' +
-        'GTID_SUBSET,GTID_SUBTRACT,HEX,HOUR,IF,IFNULL,IN,INET_ATON,INET_NTOA,' +
-        'INET6_ATON,INET6_NTOA,INSERT,INSTR,INTERIORRINGN,INTERSECTS,INTERVAL,' +
-        'IS_FREE_LOCK,IS_IPV4,IS_IPV4_COMPAT,IS_IPV4_MAPPED,IS_IPV6,IS_USED_LOCK,' +
-        'ISCLOSED,ISEMPTY,ISNULL,ISSIMPLE,JSON_APPEND,JSON_ARRAY,' +
-        'JSON_ARRAY_APPEND,JSON_ARRAY_INSERT,JSON_CONTAINS,JSON_CONTAINS_PATH,' +
-        'JSON_DEPTH,JSON_EXTRACT,JSON_INSERT,JSON_KEYS,JSON_LENGTH,JSON_MERGE,' +
-        'JSON_OBJECT,JSON_QUOTE,JSON_REMOVE,JSON_REPLACE,JSON_SEARCH,JSON_SET,' +
-        'JSON_TYPE,JSON_UNQUOTE,JSON_VALID,LAST_DAY,LAST_INSERT_ID,LCASE,LEAST,' +
-        'LEFT,LENGTH,LINEFROMTEXT,LINEFROMWKB,LINESTRING,LINESTRINGFROMTEXT,' +
-        'LINESTRINGFROMWKB,LN,LOAD_FILE,LOCALTI,LOCALTIME,LOCALTIMESTAMP,LOCATE,' +
-        'LOG,LOG10,LOG2,LOWER,LPAD,LTRIM,MAKE_SET,MAKEDATE,MAKETIME,' +
-        'MASTER_POS_WAIT,MAX,MBRCONTAINS,MBRCOVEREDBY,MBRCOVERS,MBRDISJOINT,' +
-        'MBREQUAL,MBREQUALS,MBRINTERSECTS,MBROVERLAPS,MBRTOUCHES,MBRWITHIN,MD5,' +
-        'MICROSECOND,MID,MIN,MINUTE,MLINEFROMTEXT,MLINEFROMWKB,MOD,MONTH,' +
-        'MONTHNAME,MPOINTFROMTEXT,MPOINTFROMWKB,MPOLYFROMTEXT,MPOLYFROMWKB,' +
-        'MULTILINESTRING,MULTILINESTRINGFROMTEXT,MULTILINESTRINGFROMWKB,' +
-        'MULTIPOINT,MULTIPOINTFROMTEXT,MULTIPOINTFROMWKB,MULTIPOLYGON,' +
-        'MULTIPOLYGONFROMTEXT,MULTIPOLYGONFROMWKB,NAME_CONST,NOW,NULLIF,' +
-        'NUMGEOMETRIES,NUMINTERIORRINGS,NUMPOINTS,OCT,OCTET_LENGTH,OLD_PASSWORD,' +
-        'ORD,OVERLAPS,PASSWORD,PERIOD_ADD,PERIOD_DIFF,PI,POINT,POINTFROMTEXT,' +
-        'POINTFROMWKB,POINTN,POLYFROMTEXT,POLYFROMWKB,POLYGON,POLYGONFROMTEXT,' +
-        'POLYGONFROMWKB,POSITION,POW,POWER,QUARTER,QUOTE,RADIANS,RAND,' +
-        'RANDOM_BYTES,RELEASE_ALL_LOCKS,RELEASE_LOCK,REPEAT,REPLACE,REVERSE,' +
-        'RIGHT,ROUND,ROW_COUNT,RPAD,RTRIM,SCHEMA,SEC_TO_TIME,SECOND,SESSION_USER,' +
-        'SHA,SHA1,SHA2,SIGN,SIN,SLEEP,SOUNDEX,SPACE,SQRT,SRID,ST_AREA,' +
-        'ST_ASBINARY,ST_ASGEOJSON,ST_ASTEXT,ST_ASWKB,ST_ASWKT,ST_BUFFER,' +
-        'ST_BUFFER_STRATEGY,ST_CENTROID,ST_CONTAINS,ST_CONVEXHULL,ST_CROSSES,' +
-        'ST_DIFFERENCE,ST_DIMENSION,ST_DISJOINT,ST_DISTANCE,ST_DISTANCE_SPHERE,' +
-        'ST_ENDPOINT,ST_ENVELOPE,ST_EQUALS,ST_EXTERIORRING,ST_GEOHASH,' +
-        'ST_GEOMCOLLFROMTEXT,ST_GEOMCOLLFROMTXT,ST_GEOMCOLLFROMWKB,' +
-        'ST_GEOMETRYCOLLECTIONFROMTEXT,ST_GEOMETRYCOLLECTIONFROMWKB,' +
-        'ST_GEOMETRYFROMTEXT,ST_GEOMETRYFROMWKB,ST_GEOMETRYN,ST_GEOMETRYTYPE,' +
-        'ST_GEOMFROMGEOJSON,ST_GEOMFROMTEXT,ST_GEOMFROMWKB,ST_INTERIORRINGN,' +
-        'ST_INTERSECTION,ST_INTERSECTS,ST_ISCLOSED,ST_ISEMPTY,ST_ISSIMPLE,' +
-        'ST_ISVALID,ST_LATFROMGEOHASH,ST_LENGTH,ST_LINEFROMTEXT,ST_LINEFROMWKB,' +
-        'ST_LINESTRINGFROMTEXT,ST_LINESTRINGFROMWKB,ST_LONGFROMGEOHASH,' +
-        'ST_MAKEENVELOPE,ST_MLINEFROMTEXT,ST_MLINEFROMWKB,ST_MPOINTFROMTEXT,' +
-        'ST_MPOINTFROMWKB,ST_MPOLYFROMTEXT,ST_MPOLYFROMWKB,' +
-        'ST_MULTILINESTRINGFROMTEXT,ST_MULTILINESTRINGFROMWKB,' +
-        'ST_MULTIPOINTFROMTEXT,ST_MULTIPOINTFROMWKB,ST_MULTIPOLYGONFROMTEXT,' +
-        'ST_MULTIPOLYGONFROMWKB,ST_NUMGEOMETRIES,ST_NUMINTERIORRING,' +
-        'ST_NUMINTERIORRINGS,ST_NUMPOINTS,ST_OVERLAPS,ST_POINTFROMGEOHASH,' +
-        'ST_POINTFROMTEXT,ST_POINTFROMWKB,ST_POINTN,ST_POLYFROMTEXT,' +
-        'ST_POLYFROMWKB,ST_POLYGONFROMTEXT,ST_POLYGONFROMWKB,ST_SIMPLIFY,ST_SRID,' +
-        'ST_STARTPOINT,ST_SYMDIFFERENCE,ST_TOUCHES,ST_UNION,ST_VALIDATE,' +
-        'ST_WITHIN,ST_X,ST_Y,STARTPOINT,STD,STDDEV,STDDEV_POP,STDDEV_SAMP,' +
-        'STR_TO_DATE,STRCMP,SUBDATE,SUBSTR,SUBSTRING,SUBSTRING_INDEX,SUBTIME,SUM,' +
-        'SYSDATE,SYSTEM_USER,TAN,TIME,TIME_FORMAT,TIME_TO_SEC,TIMEDIFF,TIMESTAMP,' +
-        'TIMESTAMPADD,TIMESTAMPDIFF,TO_BASE64,TO_DAYS,TO_SECONDS,TOUCHES,TRIM,' +
-        'TRUNCATE,UCASE,UNCOMPRESS,UNCOMPRESSED_LENGTH,UNHEX,UNIX_TIMESTAMP,' +
-        'UPDATEXML,UPPER,USER,UTC_DATE,UTC_TIME,UTC_TIMESTAMP,UUID,UUID_SHORT,' +
-        'VALIDATE_PASSWORD_STRENGTH,VALUES,VAR_POP,VAR_SAMP,VARIANCE,VERSION,' +
-        'WAIT_FOR_EXECUTED_GTID_SET,WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS,WEEK,' +
-        'WEEKDAY,WEEKOFYEAR,WEIGHT_STRING,WITHIN,X,Y,YEAR,YEARWEEK';
-
-      MySQLKeywords =
-        'INNODB,INSTANCE,ROTATE,MICROSECOND,FOLLOWS,PRECEDES,SIGNED,' +
-        'MAX_STATEMENT_TIME,SOME,ALWAYS,GENERATED,STORED,VIRTUAL,PERSISTENT,DISK,' +
-        'COMPRESS,BOOLEAN,TRANSACTIONAL,' +
-
-        'ACCOUNT,ACTION,ADD,AFTER,AGAINST,AGGREGATE,ALGORITHM,ALL,ALTER,ANALYZE,' +
-        'AND,ANY,AS,ASC,ASCII,AT,AUTHORS,AUTO_INCREMENT,AUTOEXTEND_SIZE,' +
-        'AVG_ROW_LENGTH,BACKUP,BEFORE,BEGIN,BENCHMARK,BETWEEN,BINARY,BINLOG,BIT,' +
-        'BLOCK,BOTH,BTREE,BY,CACHE,CALL,CASCADE,CASCADED,CASE,CATALOG_NAME,CHAIN,' +
-        'CHANGE,CHANGED,CHARACTER,CHARSET,CHECK,CHECKSUM,CLASS_ORIGIN,CLIENT,' +
-        'CLOSE,COALESCE,CODE,COLLATE,COLLATION,COLUMN,COLUMN_FORMAT,COLUMN_NAME,' +
-        'COLUMNS,COMMENT,COMMIT,COMMITTED,COMPACT,COMPLETION,COMPRESSED,' +
-        'CONCURRENT,CONDITION,CONNECTION,CONSISTENT,CONSTRAINT,' +
-        'CONSTRAINT_CATALOG,CONSTRAINT_NAME,CONSTRAINT_SCHEMA,' +
-        'CONSTRAINT_SCHEMA,CONTAINS,CONTENTS,CONTEXT,CONTINUE,CONTRIBUTORS,' +
-        'CONVERT,COPY,CPU,CREATE,CROSS,CURRENT,CURRENT_DATE,CURRENT_TIME,' +
-        'CURRENT_TIMESTAMP,CURRENT_USER,CURSOR,CURSOR_NAME,DATA,DATABASE,' +
-        'DATABASES,DATAFILE,DAY,DAY_HOUR,DAY_MINUTE,DAY_SECOND,DEALLOCATE,DEC,' +
-        'DECLARE,DEFAULT,DEFINER,DELAY_KEY_WRITE,DELAYED,DELETE,DESC,DESCRIBE,' +
-        'DETERMINISTIC,DIAGNOSTICS,DIRECTORY,DISABLE,DISCARD,DISTINCT,' +
-        'DISTINCTROW,DIV,DO,DROP,DUAL,DUMPFILE,DUPLICATE,DYNAMIC,EACH,ELSE,' +
-        'ELSEIF,ENABLE,ENCLOSED,END,ENDIF,ENDS,ENGINE,ENGINES,ERRORS,ESCAPE,' +
-        'ESCAPED,EVENT,EVENTS,EVERY,EXCHANGE,EXCLUSIVE,EXECUTE,EXISTS,EXIT,' +
-        'EXPANSION,EXPIRE,EXPLAIN,EXTENDED,EXTENT_SIZE,FALSE,FAST,FAULTS,FETCH,' +
-        'FIELDS,FILE,FIRST,FIXED,FLUSH,FOR,FORCE,FOREIGN,FORMAT,FOUND,FROM,FULL,' +
-        'FULLTEXT,FUNCTION,FUNCTIONS,GET,GLOBAL,GOTO,GRANT,GRANTS,GROUP,HANDLER,' +
-        'HASH,HAVING,HELP,HIGH_PRIORITY,HOST,HOSTS,HOUR,HOUR_MINUTE,HOUR_SECOND,' +
-        'IDENTIFIED,IF,IGNORE,IGNORE_SERVER_IDS,IMPORT,IN,INDEX,INDEXES,INFILE,' +
-        'INITIAL_SIZE,INNER,INOUT,INPLACE,INSERT,INSERT_METHOD,INSTALL,INT1,' +
-        'INT2,INT3,INT4,INT8,INTERVAL,INTO,INVOKER,IO,IO_THREAD,IPC,IS,' +
-        'ISOLATION,ISSUER,ITERATE,JOIN,JSON,KEY,KEY_BLOCK_SIZE,KEYS,KILL,' +
-        'LANGUAGE,LAST,LEADING,LEAVE,LEAVES,LEFT,LESS,LEVEL,LIKE,LIMIT,LINEAR,' +
-        'LINES,LIST,LOAD,LOCAL,LOCALTIME,LOCALTIMESTAMP,LOCK,LOGFILE,LOGS,LONG,' +
-        'LOOP,LOW_PRIORITY,MASTER,MASTER_BIND,MASTER_CONNECT_RETRY,' +
-        'MASTER_HEARTBEAT_PERIOD,MASTER_HOST,MASTER_LOG_FILE,MASTER_LOG_POS,' +
-        'MASTER_PASSWORD,MASTER_PORT,MASTER_SSL,MASTER_SSL_CA,MASTER_SSL_CAPATH,' +
-        'MASTER_SSL_CERT,MASTER_SSL_CIPHER,MASTER_SSL_KEY,' +
-        'MASTER_SSL_VERIFY_SERVER_CERT,MASTER_USER,MATCH,' +
-        'MAX_CONNECTIONS_PER_HOUR,MAX_QUERIES_PER_HOUR,MAX_ROWS,MAX_SIZE,' +
-        'MAX_UPDATES_PER_HOUR,MAX_USER_CONNECTIONS,MAXVALUE,MEDIUM,MEMORY,MERGE,' +
-        'MESSAGE_TEXT,MIDDLEINT,MIGRATE,MIN_ROWS,MINUTE,MINUTE_SECOND,MOD,MODE,' +
-        'MODIFIES,MODIFY,MONTH,MUTEX,MYSQL_ERRNO,NAME,NAMES,NATIONAL,NATURAL,' +
-        'NEVER,NEW,NEXT,NO,NO_WRITE_TO_BINLOG,NODEGROUP,NONE,NOT,NULL,NUMBER,' +
-        'OFFLINE,OFFSET,OJ,OLD,ON,ONE,ONLINE,ONLY,OPEN,OPTIMIZE,OPTION,' +
-        'OPTIONALLY,OPTIONS,OR,ORDER,OUT,OUTER,OUTFILE,OWNER,PACK_KEYS,PAGE,' +
-        'PAGE_CHECKSUM,PARSER,PARTIAL,PARTITION,PARTITIONING,PARTITIONS,' +
-        'PASSWORD,PHASE,PLUGIN,PLUGINS,PORT,PREPARE,PRESERVE,PREV,PRIMARY,' +
-        'PRIVILEGES,PROCEDURE,PROCESS,PROCESSLIST,PROFILE,PROFILES,PROXY,PURGE,' +
-        'QUARTER,QUERY,QUICK,RAID_CHUNKS,RAID_CHUNKSIZE,RAID_TYPE,RANGE,READ,' +
-        'READS,REBUILD,RECOVER,REDO_BUFFER_SIZE,REDUNDANT,REFERENCES,REGEXP,' +
-        'RELAY_LOG_FILE,RELAY_LOG_POS,RELAYLOG,RELEASE,RELOAD,REMOVE,RENAME,' +
-        'REORGANIZE,REPAIR,REPEAT,REPEATABLE,REPLACE,REPLICATION,REQUIRE,RESET,' +
-        'RESIGNAL,RESTORE,RESTRICT,RESUME,RETURN,RETURNED_SQLSTATE,RETURNS,' +
-        'REVERSE,REVOKE,RIGHT,RLIKE,ROLLBACK,ROLLUP,ROUTINE,ROW,ROW_COUNT,' +
-        'ROW_FORMAT,ROWS,SAVEPOINT,SCHEDULE,SCHEMA,SCHEMA_NAME,SCHEMAS,SECOND,' +
-        'SECURITY,SELECT,SEPARATOR,SERIALIZABLE,SERVER,SESSION,SET,SHARE,SHARED,' +
-        'SHOW,SHUTDOWN,SIGNAL,SIMPLE,SLAVE,SNAPSHOT,SOCKET,SONAME,SOUNDS,SOURCE,' +
-        'SPATIAL,SQL,SQL_BIG_RESULT,SQL_BUFFER_RESULT,SQL_CACHE,' +
-        'SQL_CALC_FOUND_ROWS,SQL_NO_CACHE,SQL_SMALL_RESULT,SQL_THREAD,' +
-        'SQLEXCEPTION,SQLSTATE,SQLWARNING,SQLWARNINGS,SSL,STACKED,START,' +
-        'STARTING,STARTS,STATS_AUTO_CALC,STATS_AUTO_RECALC,STATS_PERSISTENT,' +
-        'STATUS,STOP,STORAGE,STRAIGHT_JOIN,SUBCLASS_ORIGIN,SUBJECT,SUBPARTITION,' +
-        'SUBPARTITIONS,SUPER,SUSPEND,SWAPS,SWITCHES,TABLE,TABLE_NAME,TABLES,' +
-        'TABLESPACE,TEMPORARY,TEMPTABLE,TERMINATED,THAN,THEN,TO,TRADITIONAL,' +
-        'TRAILING,TRANSACTION,TRIGGER,TRIGGERS,TRUE,TRUNCATE,TYPE,UNCOMMITTED,' +
-        'UNDEFINED,UNDO,UNDO_BUFFER_SIZE,UNDOFILE,UNICODE,UNINSTALL,UNION,' +
-        'UNIQUE,UNKNOWN,UNLOCK,UNSIGNED,UNTIL,UPDATE,UPGRADE,USAGE,USE,USE_FRM,' +
-        'USER,USING,VALUE,VALUES,VARIABLES,VARYING,VIEW,WAIT,WARNINGS,WEEK,WHEN,' +
-        'WHERE,WHILE,WITH,WORK,WRAPPER,WRITE,X509,XA,XID,XML,XOR,YEAR,' +
-        'YEAR_MONTH,ZEROFILL';
-
       NodeTypeToString: array[TNodeType] of PChar = (
         'ntRoot',
         'ntToken',
@@ -1153,19 +1160,22 @@ type
 
       DbIdentTypeToString: array[TDbIdentType] of PChar = (
         'ditUnknown',
+        'ditDatabase',
         'ditTable',
+        'ditProcedure',
+        'ditFunction',
+        'ditTrigger',
+        'ditEvent',
         'ditKey',
         'ditField',
         'ditForeignKey',
-        'ditFunction',
-        'ditProcedure',
-        'ditTrigger',
-        'ditDatabase',
-        'ditParameter',
-        'ditEvent',
         'ditPartition',
+        'ditParameter',
+        'ditVariable',
         'ditServer',
-        'ditCursor'
+        'ditCursor',
+        'ditCharset',
+        'ditCollation'
       );
 
       OperatorPrecedenceByOperatorType: array[TOperatorType] of Integer = (
@@ -1638,16 +1648,18 @@ type
   public
     type
       TCompletionList = class(Classes.TList)
-      public const
-        NameLength = 64;
       public type
         PItem = ^TItem;
         TItem = record
-          DatabaseName: array[0 .. NameLength] of Char;
-          DbIdentType: TDbIdentType;
-          ItemType: (itKeyword, itList);
-          Keyword: array[0 .. NameLength] of Char;
-          TableName: array[0 .. NameLength] of Char;
+          case ItemType: (itKeyword, itList) of
+            itKeyword: (
+              Keyword: TCharArray;
+            );
+            itList: (
+              DatabaseName: TCharArray;
+              DbIdentType: TDbIdentType;
+              TableName: TCharArray;
+            );
         end;
       private
         FParser: TMySQLParser;
@@ -2597,6 +2609,7 @@ type
             TNodes = packed record
               FuncToken: TOffset;
               OpenBracket: TOffset;
+              FSP: TOffset;
               CloseBracket: TOffset;
             end;
           private
@@ -7497,10 +7510,12 @@ begin
   if (KeywordIndex6 >= 0) then
     Keyword := Keyword + ' ' + Parser.KeywordList.Word[KeywordIndex6];
 
+  Assert(Length(Keyword) < Length(Item^.Keyword));
+
   GetMem(Item, SizeOf(Item^));
   FillChar(Item^, SizeOf(Item^), 0);
   Item^.ItemType := itKeyword;
-  StrPCopy(Item^.Keyword, Keyword);
+  StrPLCopy(Item^.Keyword, Keyword, Length(Item^.Keyword) - 1);
   Add(Item);
 end;
 
@@ -7509,11 +7524,14 @@ procedure TMySQLParser.TCompletionList.AddList(DbIdentType: TDbIdentType;
 var
   Item: PItem;
 begin
+  Assert(Length(DatabaseName) < Length(Item^.DatabaseName));
+  Assert(Length(TableName) < Length(Item^.TableName));
+
   GetMem(Item, SizeOf(Item^));
   Item^.ItemType := itList;
   Item^.DbIdentType := DbIdentType;
-  StrPCopy(Item^.DatabaseName, DatabaseName);
-  StrPCopy(Item^.TableName, TableName);
+  StrPLCopy(Item^.DatabaseName, DatabaseName, Length(Item^.DatabaseName) - 1);
+  StrPLCopy(Item^.TableName, TableName, Length(Item^.TableName) - 1);
   Add(Item);
 end;
 
@@ -7977,8 +7995,13 @@ var
   Length: Integer;
   Text: PChar;
 begin
-  Parser.GetText(FErrorMessage, Text, Length);
-  SetString(Result, Text, Length);
+  if (FErrorMessage = 0) then
+    Result := ''
+  else
+  begin
+    Parser.GetText(FErrorMessage, Text, Length);
+    SetString(Result, Text, Length);
+  end;
 end;
 
 function TMySQLParser.TRoot.GetFirstStmt(): PStmt;
@@ -14574,12 +14597,7 @@ begin
           Nodes.ItemTypeTag := ParseTag(kiCOLUMN);
 
         if (not Error) then
-          if (EndOfStmt(CurrentToken)) then
-            SetError(PE_IncompleteStmt)
-          else if (not (TokenPtr(CurrentToken)^.TokenType in ttIdents)) then
-            SetError(PE_UnexpectedToken)
-          else
-            Nodes.Ident := ParseFieldIdent();
+          Nodes.Ident := ParseFieldIdent();
       end;
     end;
   end;
@@ -16455,6 +16473,9 @@ begin
     else
       Nodes.OpenBracket := ApplyCurrentToken();
 
+  if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType <> ttCloseBracket)) then
+    Nodes.FSP := ParseInteger();
+
   if (not Error) then
     if (EndOfStmt(CurrentToken)) then
       SetError(PE_IncompleteStmt)
@@ -17166,6 +17187,7 @@ begin
   if (not Error and not EndOfStmt(CurrentToken) and not (TokenPtr(CurrentToken)^.TokenType in [ttComma, ttCloseBracket])
     and (DatatypeIndex = diSIGNED) or (DatatypeIndex = diUNSIGNED)) then
   begin
+    TokenPtr(CurrentToken)^.GetText(Text, Length);
     DatatypeIndex2 := DatatypeList.IndexOf(Text, Length);
     if ((DatatypeIndex2 = diBIGINT)
       or (DatatypeIndex2 = diINT)
@@ -17331,20 +17353,34 @@ begin
   if (EndOfStmt(CurrentToken)) then
   begin
     case (ADbIdentType) of
-      ditTable:
+      ditDatabase:
+        CompletionList.AddList(ditDatabase);
+      ditTable,
+      ditProcedure,
+      ditFunction,
+      ditTrigger,
+      ditEvent:
+        begin
+          CompletionList.AddList(ditDatabase);
+          CompletionList.AddList(ADbIdentType);
+        end;
+      ditKey,
+      ditField,
+      ditForeignKey:
         begin
           CompletionList.AddList(ditDatabase);
           CompletionList.AddList(ditTable);
+          CompletionList.AddList(ADbIdentType);
         end;
       else
         raise ERangeError.Create(SArgumentOutOfRange);
     end;
     SetError(PE_IncompleteStmt);
   end
-  else if (not (TokenPtr(CurrentToken)^.TokenType in ttIdents + ttStrings) and (TokenPtr(CurrentToken)^.OperatorType <> otMulti)) then
-    SetError(PE_UnexpectedToken);
-
-  if (not Error) then
+  else if (not (TokenPtr(CurrentToken)^.TokenType in ttIdents + ttStrings)
+    and (TokenPtr(CurrentToken)^.OperatorType <> otMulti)) then
+    SetError(PE_UnexpectedToken)
+  else
   begin
     if (TokenPtr(CurrentToken)^.OperatorType = otMulti) then
       TokenPtr(CurrentToken)^.FTokenType := ttIdent;
@@ -17353,18 +17389,23 @@ begin
     Nodes.Ident := ApplyCurrentToken();
   end;
 
-  if (not Error) then
-    if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.OperatorType = otDot)) then
+  if (not Error
+    and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.OperatorType = otDot)) then
     case (ADbIdentType) of
-      ditKey,
-      ditField:
+      ditTable,
+      ditFunction,
+      ditProcedure,
+      ditTrigger,
+      ditEvent:
         begin
-          Nodes.TableIdent := Nodes.Ident;
-
-          Nodes.TableDot := ApplyCurrentToken();
+          Nodes.DatabaseIdent := Nodes.Ident;
+          Nodes.DatabaseDot := ApplyCurrentToken();
 
           if (EndOfStmt(CurrentToken)) then
-            SetError(PE_IncompleteStmt)
+          begin
+            CompletionList.AddList(ADbIdentType, SQLUnescape(TokenPtr(Nodes.DatabaseIdent)^.Text));
+            SetError(PE_IncompleteStmt);
+          end
           else if (TokenPtr(CurrentToken)^.OperatorType = otMulti) then
           begin
             if (TokenPtr(CurrentToken)^.OperatorType = otMulti) then
@@ -17373,22 +17414,53 @@ begin
             TokenPtr(CurrentToken)^.FUsageType := utDbIdent;
             Nodes.Ident := ApplyCurrentToken();
           end
-          else if (((TokenPtr(CurrentToken)^.TokenType = ttIdent) or AnsiQuotes and (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) or not AnsiQuotes and (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent))) then
-            Nodes.Ident := ApplyCurrentToken()
+          else if ((TokenPtr(CurrentToken)^.TokenType <> ttIdent)
+            and (not AnsiQuotes or (TokenPtr(CurrentToken)^.TokenType <> ttDQIdent))
+            and (AnsiQuotes or (TokenPtr(CurrentToken)^.TokenType <> ttMySQLIdent))) then
+            SetError(PE_UnexpectedToken)
           else
-            SetError(PE_UnexpectedToken);
+            Nodes.Ident := ApplyCurrentToken();
+        end;
+      ditKey,
+      ditField,
+      ditForeignKey:
+        begin
+          Nodes.TableIdent := Nodes.Ident;
+          Nodes.TableDot := ApplyCurrentToken();
 
-          if (not Error and not EndOfStmt(CurrentToken)
-            and (TokenPtr(CurrentToken)^.OperatorType = otDot)) then
+          if (EndOfStmt(CurrentToken)) then
+          begin
+            CompletionList.AddList(ADbIdentType, '', SQLUnescape(TokenPtr(Nodes.TableIdent)^.Text));
+            SetError(PE_IncompleteStmt);
+          end
+          else if (TokenPtr(CurrentToken)^.OperatorType = otMulti) then
+          begin
+            if (TokenPtr(CurrentToken)^.OperatorType = otMulti) then
+              TokenPtr(CurrentToken)^.FTokenType := ttIdent;
+            TokenPtr(CurrentToken)^.FOperatorType := otUnknown;
+            TokenPtr(CurrentToken)^.FUsageType := utDbIdent;
+            Nodes.Ident := ApplyCurrentToken();
+          end
+          else if ((TokenPtr(CurrentToken)^.TokenType <> ttIdent)
+            and (not AnsiQuotes or (TokenPtr(CurrentToken)^.TokenType <> ttDQIdent))
+            and (AnsiQuotes or (TokenPtr(CurrentToken)^.TokenType <> ttMySQLIdent))) then
+            SetError(PE_UnexpectedToken)
+          else
+            Nodes.Ident := ApplyCurrentToken();
+
+          if (not Error
+            and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.OperatorType = otDot)) then
           begin
             Nodes.DatabaseIdent := Nodes.TableIdent;
             Nodes.DatabaseDot := Nodes.TableDot;
             Nodes.TableIdent := Nodes.Ident;
-
             Nodes.TableDot := ApplyCurrentToken();
 
             if (EndOfStmt(CurrentToken)) then
-              SetError(PE_IncompleteStmt)
+            begin
+              CompletionList.AddList(ADbIdentType, SQLUnescape(TokenPtr(Nodes.DatabaseIdent)^.Text), SQLUnescape(TokenPtr(Nodes.TableIdent)^.Text));
+              SetError(PE_IncompleteStmt);
+            end
             else if (TokenPtr(CurrentToken)^.OperatorType = otMulti) then
             begin
               if (TokenPtr(CurrentToken)^.OperatorType = otMulti) then
@@ -17397,32 +17469,16 @@ begin
               TokenPtr(CurrentToken)^.FUsageType := utDbIdent;
               Nodes.Ident := ApplyCurrentToken();
             end
-            else if (((TokenPtr(CurrentToken)^.TokenType = ttIdent) or AnsiQuotes and (TokenPtr(CurrentToken)^.TokenType = ttDQIdent) or not AnsiQuotes and (TokenPtr(CurrentToken)^.TokenType = ttMySQLIdent))) then
-              Nodes.Ident := ApplyCurrentToken()
+            else if ((TokenPtr(CurrentToken)^.TokenType <> ttIdent)
+              and (not AnsiQuotes or (TokenPtr(CurrentToken)^.TokenType <> ttDQIdent))
+              and (AnsiQuotes or (TokenPtr(CurrentToken)^.TokenType <> ttMySQLIdent))) then
+              SetError(PE_UnexpectedToken)
             else
-              SetError(PE_UnexpectedToken);
+              Nodes.Ident := ApplyCurrentToken();
           end;
         end;
-      ditTable,
-      ditFunction,
-      ditProcedure,
-      ditTrigger,
-      ditEvent:
-        begin
-          Nodes.DatabaseIdent := Nodes.Ident;
-
-          Nodes.DatabaseDot := ApplyCurrentToken();
-          if (EndOfStmt(CurrentToken)) then
-            SetError(PE_IncompleteStmt)
-          else
-          begin
-            if (TokenPtr(CurrentToken)^.OperatorType = otMulti) then
-              TokenPtr(CurrentToken)^.FTokenType := ttIdent;
-            TokenPtr(CurrentToken)^.FOperatorType := otUnknown;
-            TokenPtr(CurrentToken)^.FUsageType := utDbIdent;
-            Nodes.Ident := ApplyCurrentToken();
-          end;
-        end;
+      else
+        raise ERangeError.Create(SArgumentOutOfRange);
     end;
 
   Result := TDbIdent.Create(Self, ADbIdentType, Nodes);
@@ -17879,6 +17935,7 @@ begin
 end;
 
 function TMySQLParser.ParseDropTableStmt(): TOffset;
+// Completion implemented
 var
   Nodes: TDropTableStmt.TNodes;
 begin
@@ -18155,7 +18212,8 @@ begin
       SetError(PE_UnexpectedToken)
     else if (TokenPtr(Node)^.KeywordIndex = kiSELECT) then
       Node := ParseSelectStmt()
-    else if (TokenPtr(Node)^.KeywordIndex = kiINTERVAL) then
+    else if ((TokenPtr(Node)^.KeywordIndex = kiINTERVAL)
+      and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.TokenType <> ttOpenBracket)) then
       Node := ParseValue(kiINTERVAL, vaNo, ParseIntervalOp)
     else if ((TokenPtr(Node)^.OperatorType = otMinus) and ((NodeCount = 0) or IsToken(Nodes[NodeCount - 1]) and (TokenPtr(Nodes[NodeCount - 1])^.OperatorType <> otUnknown))) then
       TokenPtr(Node)^.FOperatorType := otUnaryMinus
@@ -20030,7 +20088,7 @@ begin
     if (not Error) then
       if (EndOfStmt(CurrentToken)) then
         SetError(PE_IncompleteStmt)
-      else if (not (TokenPtr(CurrentToken)^.TokenType in ttIdents + ttStrings) or (TokenPtr(CurrentToken)^.KeywordIndex >= 0)) then
+      else if (not (TokenPtr(CurrentToken)^.TokenType in ttIdents + ttStrings)) then
         SetError(PE_UnexpectedToken)
       else
         Nodes.AliasIdent := ParseAliasIdent();
@@ -21038,7 +21096,7 @@ begin
     if (not Error) then
       if (EndOfStmt(CurrentToken)) then
         SetError(PE_IncompleteStmt)
-      else if (not (TokenPtr(CurrentToken)^.TokenType in ttIdents + ttStrings) or (TokenPtr(CurrentToken)^.KeywordIndex >= 0)) then
+      else if (not (TokenPtr(CurrentToken)^.TokenType in ttIdents + ttStrings)) then
         SetError(PE_UnexpectedToken)
       else
         Nodes.AliasIdent := ParseAliasIdent();
@@ -21110,7 +21168,7 @@ begin
     if (not Error) then
       if (EndOfStmt(CurrentToken)) then
         SetError(PE_IncompleteStmt)
-      else if (not (TokenPtr(CurrentToken)^.TokenType in ttIdents + ttStrings) or (TokenPtr(CurrentToken)^.KeywordIndex >= 0)) then
+      else if (not (TokenPtr(CurrentToken)^.TokenType in ttIdents + ttStrings)) then
         SetError(PE_UnexpectedToken)
       else
         Nodes.AliasIdent := ParseAliasIdent();
@@ -21128,8 +21186,9 @@ begin
 end;
 
 function TMySQLParser.ParseSelectStmtTableEscapedReference(): TOffset;
+// Completion implemented
 begin
-  if (TokenPtr(CurrentToken)^.TokenType <> ttOpenCurlyBracket) then
+  if (EndOfStmt(CurrentToken) or (TokenPtr(CurrentToken)^.TokenType <> ttOpenCurlyBracket)) then
     Result := ParseSelectStmtTableReference()
   else
     Result := ParseSelectStmtTableFactorOj();
@@ -21153,7 +21212,7 @@ begin
     if (not Error) then
       if (EndOfStmt(CurrentToken)) then
         SetError(PE_IncompleteStmt)
-      else if (not (TokenPtr(CurrentToken)^.TokenType in ttIdents + ttStrings) or (TokenPtr(CurrentToken)^.KeywordIndex >= 0)) then
+      else if (not (TokenPtr(CurrentToken)^.TokenType in ttIdents + ttStrings)) then
         SetError(PE_UnexpectedToken)
       else
         Nodes.AliasIdent := ParseAliasIdent();
@@ -21243,8 +21302,9 @@ end;
 function TMySQLParser.ParseSelectStmtTableReference(): TOffset;
 
   function ParseTableFactor(): TOffset;
+  // Completion implemented
   begin
-    if (TokenPtr(CurrentToken)^.TokenType in ttIdents) then
+    if (EndOfStmt(CurrentToken) or (TokenPtr(CurrentToken)^.TokenType in ttIdents)) then
       Result := ParseSelectStmtTableFactor()
     else if ((TokenPtr(CurrentToken)^.TokenType = ttOpenBracket)
       and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiSELECT)) then
@@ -23058,24 +23118,24 @@ begin
           PE_IncompleteToken:
             S := 'Incomplete token in line ' + IntToStr(FErrorLine);
           PE_UnexpectedChar:
-            S := 'Unexpected character near ''' + ReplaceStr(LeftStr(StrPas(TokenPtr(FErrorToken)^.ErrorPos), 8), #10, '_') + ''''
+            S := 'Unexpected character near ''' + ReplaceStr(ReplaceStr(LeftStr(StrPas(TokenPtr(FErrorToken)^.ErrorPos), 8), #10, ''), #13, '') + ''''
               + ' in line ' + IntToStr(FErrorLine);
           PE_UnexpectedToken:
             begin
               TokenPtr(FErrorToken)^.GetText(Text, Length);
-              S := 'Unexpected character near ''' + ReplaceStr(LeftStr(StrPas(Text), 8), #10, '_') + ''''
+              S := 'Unexpected character near ''' + ReplaceStr(ReplaceStr(LeftStr(StrPas(Text), 8), #10, ''), #13, '') + ''''
                 + ' in line ' + IntToStr(FErrorLine);
             end;
           PE_ExtraToken:
             begin
               TokenPtr(FErrorToken)^.GetText(Text, Length);
-              S := 'Unexpected character near ''' + ReplaceStr(LeftStr(StrPas(Text), 8), #10, '_') + ''''
+              S := 'Unexpected character near ''' + ReplaceStr(ReplaceStr(LeftStr(StrPas(Text), 8), #10, ''), #13, '') + ''''
                 + ' in line ' + IntToStr(FErrorLine);
             end;
           PE_UnknownStmt:
             begin
               TokenPtr(FErrorToken)^.GetText(Text, Length);
-              S := 'Unknown statement ''' + ReplaceStr(LeftStr(StrPas(Text), 8), #10, '_') + ''''
+              S := 'Unknown statement ''' + ReplaceStr(ReplaceStr(LeftStr(StrPas(Text), 8), #10, ''), #13, '') + ''''
                 + ' in line ' + IntToStr(FErrorLine);
             end;
           else S := GetErrorMessage(FErrorCode);
@@ -23808,7 +23868,7 @@ begin
       MySQLCharacterSetL:
         MOV AX,[ESI]                     // One Character from SQL to AX
         CMP AX,' '                       // <Space>?
-        JE MySQLCharacterSetE2           // Yes!
+        JE MySQLCharacterSetE            // Yes!
         CMP AX,''''                      // "'"?
         JE MySQLCharacterSetE3           // Yes!
         CALL Separator                   // SQL separator?
