@@ -16,6 +16,7 @@ uses
   MySQLConsts in 'MySQL\Source\MySQLConsts.pas',
   MySQLDB in 'MySQL\Source\MySQLDB.pas',
   HTTPTunnel in 'MySQL\Source\HTTPTunnel.pas',
+  SQLParser in 'MySQL\Source\SQLParser.pas',
   SQLUtils in 'MySQL\Source\SQLUtils.pas',
   CSVUtils in 'MySQL\Source\CSVUtils.pas',
   MySQLDBGrid in 'MySQL\Source\MySQLDBGrid.pas',

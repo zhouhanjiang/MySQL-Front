@@ -40,6 +40,7 @@
 			<DCCReference Include="MySQL\Source\MySQLConsts.pas"/>
 			<DCCReference Include="MySQL\Source\MySQLDB.pas"/>
 			<DCCReference Include="MySQL\Source\HTTPTunnel.pas"/>
+			<DCCReference Include="MySQL\Source\SQLParser.pas"/>
 			<DCCReference Include="MySQL\Source\SQLUtils.pas"/>
 			<DCCReference Include="MySQL\Source\CSVUtils.pas"/>
 			<DCCReference Include="MySQL\Source\MySQLDBGrid.pas"/>
@@ -73,6 +74,9 @@
 			</DCCReference>
 			<DCCReference Include="fDEvent.pas">
 				<Form>DEvent</Form>
+			</DCCReference>
+			<DCCReference Include="fDExecutingSQL.pas">
+				<Form>DExecutingSQL</Form>
 			</DCCReference>
 			<DCCReference Include="fDExport.pas">
 				<Form>DExport</Form>
