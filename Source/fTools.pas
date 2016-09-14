@@ -1023,7 +1023,7 @@ begin
     begin
       if (TTExport.TDBObjectItem(Item1).DBObject is TSBaseTable) then
         if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine)) then
-          // Should never used, but on some older MySQL server, the enginge is
+          // Should never used, but on some older MySQL server, the Engine is
           // not given with the SHOW TABLE STATUS query
           Index1 := 0
         else if (not TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine.IsMerge) then
@@ -1045,7 +1045,7 @@ begin
 
       if (TTExport.TDBObjectItem(Item2).DBObject is TSBaseTable) then
         if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine)) then
-          // Should never used, but on some older MySQL server, the enginge is
+          // Should never used, but on some older MySQL server, the Engine is
           // not given with the SHOW TABLE STATUS query
           Index2 := 0
         else if (not TSBaseTable(TTExport.TDBObjectItem(Item2).DBObject).Engine.IsMerge) then

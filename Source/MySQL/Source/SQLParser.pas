@@ -21370,7 +21370,7 @@ begin
         if (EndOfStmt(CurrentToken)) then
           SetError(PE_IncompleteStmt)
         else
-          Nodes.Limit.OffsetToken := ParseInteger();
+          Nodes.Limit.OffsetToken := ParseExpr();
       end;
     end;
 
@@ -26428,3 +26428,5 @@ end.
 // SQLUnescape
 // IsTag(kiSQL, kiSECURITY, kiDEFINER)
 //  Parser.ParseSQL('_binary 0xFFD8');
+// Remove DEFINER in Create View, procedure, function, event, trigger / alter view
+

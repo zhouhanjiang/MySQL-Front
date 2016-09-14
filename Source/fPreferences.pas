@@ -3205,11 +3205,20 @@ begin
   inherited Assign(Source);
 
   CodePage := TPAccount.TJobExport(Source).CodePage;
+  CSV.Headline := TPAccount.TJobExport(Source).CSV.Headline;
+  CSV.QuoteValues := TPAccount.TJobExport(Source).CSV.QuoteValues;
+  CSV.Quoter := TPAccount.TJobExport(Source).CSV.Quoter;
+  CSV.Delimiter := TPAccount.TJobExport(Source).CSV.Delimiter;
+  CSV.DelimiterType := TPAccount.TJobExport(Source).CSV.DelimiterType;
+  Excel.Excel2007 := TPAccount.TJobExport(Source).Excel.Excel2007;
+  Access.Access2003 := TPAccount.TJobExport(Source).Access.Access2003;
   ExportType := TPAccount.TJobExport(Source).ExportType;
+  HTML.Data := TPAccount.TJobExport(Source).HTML.Data;
+  HTML.NULLText := TPAccount.TJobExport(Source).HTML.NULLText;
+  HTML.MemoContent := TPAccount.TJobExport(Source).HTML.MemoContent;
+  HTML.RowBGColor := TPAccount.TJobExport(Source).HTML.RowBGColor;
+  HTML.Structure := TPAccount.TJobExport(Source).HTML.Structure;
   Filename := TPAccount.TJobExport(Source).Filename;
-  ODBC.DataSource := TPAccount.TJobExport(Source).ODBC.DataSource;
-  ODBC.Password := TPAccount.TJobExport(Source).ODBC.Password;
-  ODBC.Username := TPAccount.TJobExport(Source).ODBC.Username;
   ClearObjects();
   SetLength(JobObjects, Length(TPAccount.TJobExport(Source).JobObjects));
   for I := 0 to Length(JobObjects) - 1 do
@@ -3218,6 +3227,24 @@ begin
     JobObjects[I].Name := TPAccount.TJobExport(Source).JobObjects[I].Name;
     JobObjects[I].DatabaseName := TPAccount.TJobExport(Source).JobObjects[I].DatabaseName;
   end;
+  ODBC.DataSource := TPAccount.TJobExport(Source).ODBC.DataSource;
+  ODBC.Password := TPAccount.TJobExport(Source).ODBC.Password;
+  ODBC.Username := TPAccount.TJobExport(Source).ODBC.Username;
+  SQL.Data := TPAccount.TJobExport(Source).SQL.Data;
+  SQL.DropStmts := TPAccount.TJobExport(Source).SQL.DropStmts;
+  SQL.ReplaceData := TPAccount.TJobExport(Source).SQL.ReplaceData;
+  SQL.Structure := TPAccount.TJobExport(Source).SQL.Structure;
+  XML.Database.NodeType := TPAccount.TJobExport(Source).XML.Database.NodeType;
+  XML.Database.NodeText := TPAccount.TJobExport(Source).XML.Database.NodeText;
+  XML.Database.NodeAttribute := TPAccount.TJobExport(Source).XML.Database.NodeAttribute;
+  XML.Field.NodeType := TPAccount.TJobExport(Source).XML.Field.NodeType;
+  XML.Field.NodeText := TPAccount.TJobExport(Source).XML.Field.NodeText;
+  XML.Field.NodeAttribute := TPAccount.TJobExport(Source).XML.Field.NodeAttribute;
+  XML.Row.NodeText := TPAccount.TJobExport(Source).XML.Row.NodeText;
+  XML.Root.NodeText := TPAccount.TJobExport(Source).XML.Root.NodeText;
+  XML.Table.NodeType := TPAccount.TJobExport(Source).XML.Table.NodeType;
+  XML.Table.NodeText := TPAccount.TJobExport(Source).XML.Table.NodeText;
+  XML.Table.NodeAttribute := TPAccount.TJobExport(Source).XML.Table.NodeAttribute;
 end;
 
 procedure TPAccount.TJobExport.ClearObjects();

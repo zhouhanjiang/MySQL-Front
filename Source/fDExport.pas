@@ -841,7 +841,7 @@ begin
           end;
       end;
     end
-    else
+    else if (DialogType in [edtCreateJob, edtEditJob]) then
     begin
       NewJob := TPAccount.TJobExport.Create(Session.Account.Jobs, Trim(FName.Text));
 
@@ -1076,6 +1076,58 @@ begin
     DODBC.Username := Job.ODBC.Username;
     DODBC.Password := Job.ODBC.Password;
     FDataSource.Text := DODBC.DataSource;
+
+    FCSVHeadline.Checked := Job.CSV.Headline;
+    FSeparatorTab.Checked := Job.CSV.DelimiterType = dtTab;
+    FSeparatorChar.Checked := Job.CSV.DelimiterType = dtChar;
+    FSeparator.Text := Job.CSV.Delimiter;
+    FQuoteNone.Checked := Job.CSV.QuoteValues = qtNone;
+    FQuoteStrings.Checked := Job.CSV.QuoteValues = qtStrings;
+    FQuoteAll.Checked := Job.CSV.QuoteValues = qtAll;
+    FQuoteChar.Text := Job.CSV.Quoter;
+
+    FSQLStructure.Checked := Job.SQL.Structure;
+    FSQLData.Checked := Job.SQL.Data;
+    FDropStmts.Checked := Job.SQL.DropStmts;
+    FReplaceData.Checked := Job.SQL.ReplaceData;
+
+    FHTMLStructure.Checked := Job.HTML.Structure;
+    FHTMLData.Checked := Job.HTML.Data;
+    FHTMLNullText.Checked := Job.HTML.NULLText;
+    FHTMLMemoContent.Checked := Job.HTML.MemoContent;
+    FHTMLRowBGColor.Checked := Job.HTML.RowBGColor;
+
+    FRootNodeText.Text := Job.XML.Root.NodeText;
+    case (Job.XML.Database.NodeType) of
+      ntDisabled: FDatabaseNodeDisabled.Checked := True;
+      ntName: FDatabaseNodeName.Checked := True;
+      ntCustom: FDatabaseNodeCustom.Checked := True;
+    end;
+    FDatabaseNodeText.Text := Job.XML.Database.NodeText;
+    FDatabaseNodeAttribute.Text := Job.XML.Database.NodeAttribute;
+    case (Job.XML.Table.NodeType) of
+      ntDisabled: FTableNodeDisabled.Checked := True;
+      ntName: FTableNodeName.Checked := True;
+      ntCustom: FTableNodeCustom.Checked := True;
+    end;
+    FTableNodeText.Text := Job.XML.Table.NodeText;
+    FTableNodeAttribute.Text := Job.XML.Table.NodeAttribute;
+    FRecordNodeText.Text := Job.XML.Row.NodeText;
+    case (Job.XML.Field.NodeType) of
+      ntName: FFieldNodeName.Checked := True;
+      ntCustom: FFieldNodeCustom.Checked := True;
+    end;
+    FFieldNodeText.Text := Job.XML.Field.NodeText;
+    FFieldNodeAttribute.Text := Job.XML.Field.NodeAttribute;
+
+    FRootNodeText.Text := Job.XML.Root.NodeText;
+    case (Job.XML.Database.NodeType) of
+      ntDisabled: FDatabaseNodeDisabled.Checked := True;
+      ntName: FDatabaseNodeName.Checked := True;
+      ntCustom: FDatabaseNodeCustom.Checked := True;
+    end;
+    FDatabaseNodeText.Text := Job.XML.Database.NodeText;
+    FDatabaseNodeAttribute.Text := Job.XML.Database.NodeAttribute;
 
     FStartDate.Date := Job.Start; FStartTime.Time := Job.Start;
     case (Job.TriggerType) of
