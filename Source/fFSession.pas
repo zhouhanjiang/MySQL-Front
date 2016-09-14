@@ -20,10 +20,9 @@ uses
 const
   UM_ACTIVATE_DBGRID = WM_USER + 500;
   UM_ACTIVATEFTEXT = WM_USER + 501;
-  UM_EXECUTE_SYN_COMPLETION = WM_USER + 502;
-  UM_POST_BUILDER_QUERY_CHANGE = WM_USER + 503;
-  UM_POST_MONITOR = WM_USER + 504;
-  UM_WANTED_SYNCHRONIZE = WM_USER + 505;
+  UM_POST_BUILDER_QUERY_CHANGE = WM_USER + 502;
+  UM_POST_MONITOR = WM_USER + 503;
+  UM_WANTED_SYNCHRONIZE = WM_USER + 504;
 
 const
   sbMessage = 0;
@@ -1034,7 +1033,6 @@ type
     procedure UMChangePreferences(var Message: TMessage); message UM_CHANGEPREFERENCES;
     procedure UMCloseTabQuery(var Message: TMessage); message UM_CLOSE_TAB_QUERY;
     procedure UMExecute(var Message: TMessage); message UM_EXECUTE;
-    procedure UMExecuteSynCompletion(var Message: TMessage); message UM_EXECUTE_SYN_COMPLETION;
     procedure UMFrameActivate(var Message: TMessage); message UM_ACTIVATEFRAME;
     procedure UMFrameDeactivate(var Message: TMessage); message UM_DEACTIVATEFRAME;
     procedure UMPostBuilderQueryChange(var Message: TMessage); message UM_POST_BUILDER_QUERY_CHANGE;
@@ -2586,11 +2584,11 @@ begin
     begin
       if (PSideBar.Visible) then
       begin
-        if (PNavigator.Visible) then Window.ActiveControl := FNavigator
-        else if (PListView.Visible) then Window.ActiveControl := ActiveListView
+        if (PListView.Visible) then Window.ActiveControl := ActiveListView
         else if (PBuilder.Visible) then Window.ActiveControl := FQueryBuilder
         else if (PSynMemo.Visible) then Window.ActiveControl := ActiveSynMemo
-        else if (PResult.Visible) then Window.ActiveControl := ActiveDBGrid;
+        else if (PResult.Visible) then Window.ActiveControl := ActiveDBGrid
+        else if (PNavigator.Visible) then Window.ActiveControl := FNavigator;
       end
       else
         case (View) of
@@ -3821,7 +3819,7 @@ begin
   end;
 
   if (not Session.SQLParser.ParseSQL(SQL)) then
-    MsgBox(Session.SQLParser.ErrorMessage, Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
+    MsgBox(Session.SQLParser.Root^.ErrorMessage, Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
   else
   begin
     Session.SQLParser.FormatSQL(SQL);
@@ -13038,12 +13036,12 @@ begin
       else
         Inc(Index, Len);
     end;
-    SQL := Copy(SQL, Index, ActiveSynMemo.SelStart + 1 - Index);
+    SQL := Copy(SQL, Index, ActiveSynMemo.SelStart + 1 - Index - Length(CurrentInput));
 
     Session.SQLParser.ParseSQL(SQL);
 
-    if (not (Session.SQLParser.ErrorCode in [TMySQLParser.PE_Success, TMySQLParser.PE_IncompleteStmt])) then
-      MsgBox(Session.SQLParser.ErrorMessage, Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
+    if (not (Session.SQLParser.Root^.ErrorCode in [TMySQLParser.PE_Success, TMySQLParser.PE_IncompleteStmt])) then
+      MsgBox(Session.SQLParser.Root^.ErrorMessage, Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
     else
     begin
       CompletionList := TCompletionList.Create(Self);
@@ -13051,112 +13049,155 @@ begin
 
       SynCompletion.ItemList.Clear();
       SynCompletion.InsertList.Clear();
-      for I := 0 to Session.SQLParser.CompletionList.Count - 1 do
-      begin
-        Item := Session.SQLParser.CompletionList[I];
-        case (Item^.ItemType) of
-          itKeyword:
-            CompletionList.Add(Item^.Keyword, Item^.Keyword);
-          itList:
-            begin
-              if (Item^.DatabaseName = '') then
-                Database := Session.DatabaseByName(SelectedDatabase)
-              else
-                Database := Session.DatabaseByName(Item^.DatabaseName);
-              if (not Assigned(Database) or (Item^.TableName = '')) then
-                Table := nil
-              else
-                Table := Database.TableByName(Item^.TableName);
-              case (Item^.DbIdentType) of
-                ditDatabase:
-                  SessionList.Add(Session.Databases);
-                ditTable:
-                  if (Assigned(Database)) then
-                    SessionList.Add(Database.Tables);
-                ditProcedure,
-                ditFunction:
-                  if (Assigned(Database)) then
-                  begin
-                    SessionList.Add(Database.Routines);
-                    SetLength(EntitiesDbIdentTypes, Length(EntitiesDbIdentTypes) + 1);
-                    EntitiesDbIdentTypes[Length(EntitiesDbIdentTypes) - 1].DbIdentType := Item^.DbIdentType;
-                    EntitiesDbIdentTypes[Length(EntitiesDbIdentTypes) - 1].DbObject := Database.Routines;
-                  end;
-//                  ditKey,
-//                  ditField,
-//                  ditForeignKey:
-                  // TableName is not given!
-                else
-                  raise ERangeError.Create(SRangeError)
-              end;
-            end
-          else
-            raise ERangeError.Create(SRangeError)
-        end;
-      end;
 
-      CanExecute := True;
-      for I := 0 to SessionList.Count - 1 do
-        CanExecute := CanExecute and (TObject(SessionList[I]) is TSEntities) and TSEntities(SessionList[I]).Valid;
-
-      if (not CanExecute) then
-      begin
-        DExecutingSQL.Session := Session;
-        DExecutingSQL.List := SessionList;
-        if (DExecutingSQL.Execute()) then
-          PostMessage(Handle, UM_EXECUTE_SYN_COMPLETION, 0, 0);
-        // CanExecute := DExecutingSQL.Execute();
-        // Without this PostMessage, the completion form will be opened
-        // correctly, but closed immediately. Why?
-        // This happens also, if the SynCompletion.ItemList is already filled.
-      end;
-
-      if (CanExecute) then
-        if ((CompletionList.Count = 0) and (SessionList.Count = 0)) then
-          MessageBeep(MB_ICONERROR)
-        else
+      try
+        for I := 0 to Session.SQLParser.CompletionList.Count - 1 do
         begin
-          for I := 0 to SessionList.Count - 1 do
-            if (TObject(SessionList[I]) is TSEntities) then
-            begin
-              DbIdentType := ditUnknown;
-              for J := 0 to Length(EntitiesDbIdentTypes) - 1 do
-                if (EntitiesDbIdentTypes[J].DbObject = SessionList[I]) then
-                  DbIdentType := EntitiesDbIdentTypes[J].DbIdentType;
-              for J := 0 to TSEntities(SessionList[I]).Count - 1 do
-                case (DbIdentType) of
-                  ditProcedure:
-                    if ((TSEntities(SessionList[I])[J] is TSRoutine)
-                      and (TSRoutine(TSEntities(SessionList[I])[J]).RoutineType = rtProcedure)) then
-                      CompletionList.Add(
-                        PChar(TSEntities(SessionList[I])[J].Name),
-                        PChar(Session.Connection.EscapeIdentifier(TSEntities(SessionList[I])[J].Name)));
+          Item := Session.SQLParser.CompletionList[I];
+          case (Item^.ItemType) of
+            itTag:
+              CompletionList.Add(
+                Item^.Tag,
+                Item^.Tag);
+            itList:
+              begin
+                if (Item^.DatabaseName = '') then
+                  Database := Session.DatabaseByName(SelectedDatabase)
+                else
+                  Database := Session.DatabaseByName(Item^.DatabaseName);
+                if (not Assigned(Database) or (Item^.TableName = '')) then
+                  Table := nil
+                else
+                  Table := Database.TableByName(Item^.TableName);
+                case (Item^.DbIdentType) of
+                  ditDatabase:
+                    SessionList.Add(Session.Databases);
+                  ditTable:
+                    if (Assigned(Database)) then
+                      SessionList.Add(Database.Tables);
+                  ditProcedure,
                   ditFunction:
-                    if ((TSEntities(SessionList[I])[J] is TSRoutine)
-                      and (TSRoutine(TSEntities(SessionList[I])[J]).RoutineType = rtFunction)) then
-                      CompletionList.Add(
-                        PChar(TSEntities(SessionList[I])[J].Name),
-                        PChar(Session.Connection.EscapeIdentifier(TSEntities(SessionList[I])[J].Name)));
+                    if (Assigned(Database)) then
+                    begin
+                      SessionList.Add(Database.Routines);
+                      SetLength(EntitiesDbIdentTypes, Length(EntitiesDbIdentTypes) + 1);
+                      EntitiesDbIdentTypes[Length(EntitiesDbIdentTypes) - 1].DbIdentType := Item^.DbIdentType;
+                      EntitiesDbIdentTypes[Length(EntitiesDbIdentTypes) - 1].DbObject := Database.Routines;
+                    end;
+  //                  ditKey,
+  //                  ditField,
+  //                  ditForeignKey:
+                    // TableName is not given!
+                  ditEvent:
+                    if (Assigned(Database)) then
+                      SessionList.Add(Database.Events);
+                  ditUser:
+                    begin
+                      SessionList.Add(Session.Users);
+                      SetLength(EntitiesDbIdentTypes, Length(EntitiesDbIdentTypes) + 1);
+                      EntitiesDbIdentTypes[Length(EntitiesDbIdentTypes) - 1].DbIdentType := Item^.DbIdentType;
+                      EntitiesDbIdentTypes[Length(EntitiesDbIdentTypes) - 1].DbObject := Session.Users;
+                    end;
+                  ditEngine:
+                    begin
+                      SessionList.Add(Session.Engines);
+                      SetLength(EntitiesDbIdentTypes, Length(EntitiesDbIdentTypes) + 1);
+                      EntitiesDbIdentTypes[Length(EntitiesDbIdentTypes) - 1].DbIdentType := Item^.DbIdentType;
+                      EntitiesDbIdentTypes[Length(EntitiesDbIdentTypes) - 1].DbObject := Session.Engines;
+                    end;
+                  ditCharset:
+                    begin
+                      SessionList.Add(Session.Charsets);
+                      SetLength(EntitiesDbIdentTypes, Length(EntitiesDbIdentTypes) + 1);
+                      EntitiesDbIdentTypes[Length(EntitiesDbIdentTypes) - 1].DbIdentType := Item^.DbIdentType;
+                      EntitiesDbIdentTypes[Length(EntitiesDbIdentTypes) - 1].DbObject := Session.Charsets;
+                    end;
+                  ditCollation:
+                    begin
+                      SessionList.Add(Session.Collations);
+                      SetLength(EntitiesDbIdentTypes, Length(EntitiesDbIdentTypes) + 1);
+                      EntitiesDbIdentTypes[Length(EntitiesDbIdentTypes) - 1].DbIdentType := Item^.DbIdentType;
+                      EntitiesDbIdentTypes[Length(EntitiesDbIdentTypes) - 1].DbObject := Session.Collations;
+                    end;
                   else
-                    CompletionList.Add(
-                      PChar(TSEntities(SessionList[I])[J].Name),
-                      PChar(Session.Connection.EscapeIdentifier(TSEntities(SessionList[I])[J].Name)));
+                    raise ERangeError.Create(SRangeError)
                 end;
-
-            end;
-
-          CompletionList.Sort(CompletionListCompare);
-          for I := 0 to CompletionList.Count - 1 do
-          begin
-            SynCompletion.ItemList.Add(StrPas(PChar(@CompletionList[I]^.View)));
-            SynCompletion.InsertList.Add(StrPas(PChar(@CompletionList[I]^.Insert[0])));
+              end;
+            itValue:
+              CompletionList.Add(
+                Item^.ValueKeyword,
+                PChar(Item^.ValueKeyword + ' ='));
+            else
+              raise ERangeError.Create(SRangeError)
           end;
         end;
 
-      SessionList.Free();
-      for I := 0 to CompletionList.Count - 1 do
-        FreeMem(CompletionList[I]);
-      CompletionList.Free();
+        CanExecute := True;
+        for I := 0 to SessionList.Count - 1 do
+          CanExecute := CanExecute and (TObject(SessionList[I]) is TSEntities) and TSEntities(SessionList[I]).Valid;
+
+        if (not CanExecute) then
+        begin
+          DExecutingSQL.Session := Session;
+          DExecutingSQL.List := SessionList;
+          CanExecute := DExecutingSQL.Execute();
+        end;
+
+        if (CanExecute) then
+          if ((CompletionList.Count = 0) and (SessionList.Count = 0)) then
+            MessageBeep(MB_ICONERROR)
+          else
+          begin
+            for I := 0 to SessionList.Count - 1 do
+              if (TObject(SessionList[I]) is TSEntities) then
+              begin
+                DbIdentType := ditUnknown;
+                for J := 0 to Length(EntitiesDbIdentTypes) - 1 do
+                  if (EntitiesDbIdentTypes[J].DbObject = SessionList[I]) then
+                    DbIdentType := EntitiesDbIdentTypes[J].DbIdentType;
+                for J := 0 to TSEntities(SessionList[I]).Count - 1 do
+                  case (DbIdentType) of
+                    ditProcedure:
+                      if (TSEntities(SessionList[I])[J] is TSRoutine) then
+                        CompletionList.Add(
+                          PChar(TSEntities(SessionList[I])[J].Name),
+                          PChar(Session.Connection.EscapeIdentifier(TSEntities(SessionList[I])[J].Name)));
+                    ditFunction:
+                      if (TSEntities(SessionList[I])[J] is TSFunction) then
+                        CompletionList.Add(
+                          PChar(TSEntities(SessionList[I])[J].Name),
+                          PChar(Session.Connection.EscapeIdentifier(TSEntities(SessionList[I])[J].Name)));
+                    ditUser:
+                      CompletionList.Add(
+                        PChar(TSEntities(SessionList[I])[J].Name),
+                        PChar(Session.EscapeUser(TSEntities(SessionList[I])[J].Name, False)));
+                    ditEngine,
+                    ditCharset,
+                    ditCollation:
+                      CompletionList.Add(
+                        PChar(TSEntities(SessionList[I])[J].Name),
+                        PChar(TSEntities(SessionList[I])[J].Name));
+                    else
+                      CompletionList.Add(
+                        PChar(TSEntities(SessionList[I])[J].Name),
+                        PChar(Session.Connection.EscapeIdentifier(TSEntities(SessionList[I])[J].Name)));
+                  end;
+              end;
+
+              CompletionList.Sort(CompletionListCompare);
+              for I := 0 to CompletionList.Count - 1 do
+              begin
+                SynCompletion.ItemList.Add(StrPas(PChar(@CompletionList[I]^.View)));
+                SynCompletion.InsertList.Add(StrPas(PChar(@CompletionList[I]^.Insert[0])));
+              end;
+            end;
+
+      finally
+        SessionList.Free();
+        for I := 0 to CompletionList.Count - 1 do
+          FreeMem(CompletionList[I]);
+        CompletionList.Free();
+      end;
     end;
   end;
 end;
@@ -13854,11 +13895,6 @@ begin
   MainAction('aDRun').Execute();
 
   Window.Close();
-end;
-
-procedure TFSession.UMExecuteSynCompletion(var Message: TMessage);
-begin
-  SynCompletion.ActivateCompletion();
 end;
 
 procedure TFSession.UMFrameActivate(var Message: TMessage);

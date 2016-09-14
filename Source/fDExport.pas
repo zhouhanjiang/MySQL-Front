@@ -1317,7 +1317,20 @@ begin
 end;
 
 function TDExport.GetFilename(): Boolean;
+var
+  Database: TSDatabase;
 begin
+  Database := BuildTitle();
+
+  if (SingleTable and (TObject(DExport.SObjects[0]) is TSBaseTable)) then
+    Filename := TSBaseTable(DExport.SObjects[0]).Name
+  else if (Assigned(Database)) then
+    Filename := Database.Name
+  else if (Assigned(Session)) then
+    Filename := Session.Caption
+  else
+    Filename := '';
+
   SaveDialog.Title := Preferences.LoadStr(582);
   SaveDialog.InitialDir := Preferences.Path;
   SaveDialog.Filter := '';

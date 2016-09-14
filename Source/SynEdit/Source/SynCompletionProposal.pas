@@ -3347,10 +3347,10 @@ begin
         Form.CurrentEditor := AEditor;
 
         FPreviousToken := GetPreviousToken(Form.CurrentEditor as TCustomSynEdit);
-        ExecuteEx(GetCurrentInput(AEditor), p.x, p.y, DefaultType);
         FNoNextKey := True;
+        ExecuteEx(GetCurrentInput(AEditor), p.x, p.y, DefaultType);
       end;
-    end;  
+    end;
 end;
 
 procedure TSynCompletionProposal.InternalCancelCompletion;

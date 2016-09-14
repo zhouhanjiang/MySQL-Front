@@ -710,7 +710,7 @@ type
     procedure BuildViewFields(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean);
     function SQLGetItems(const Name: string = ''): string; override;
     function SQLGetStatus(const List: TList = nil): string;
-    function SQLGetViewFields(const List: TList = nil): string;
+    function SQLGetViewFields(): string;
   public
     procedure AddTable(const NewTable: TSTable); virtual;
     function NameCmp(const Name1, Name2: string): Integer; override;
@@ -5007,10 +5007,12 @@ var
   CheckOptionSQL: string;
   EndingCommentLen: Integer;
   Parse: TSQLParse;
+  PreviousToken: TMySQLParser.PToken;
   RemovedLength: Integer;
   S: string;
   SQL: string;
   StartingCommentLen: Integer;
+  Token: TMySQLParser.PToken;
 begin
   SQL := FSource; RemovedLength := 0;
 
@@ -5073,6 +5075,24 @@ begin
 
     if (Session.SQLParser.ParseSQL(SQL)) then
     begin
+      PreviousToken := nil;
+      Token := Session.SQLParser.Root^.FirstStmt^.FirstToken;
+      while (Assigned(Token)) do
+      begin
+        if (Assigned(PreviousToken) and (PreviousToken^.DbIdentType = ditDatabase) and (Token^.TokenType = ttDot)
+          and (Database.Databases.NameCmp(PreviousToken^.AsString, Database.Name) = 0)) then
+        begin
+          PreviousToken^.Text := '';
+          Token^.Text := '';
+        end;
+
+        PreviousToken := Token;
+        if (Token = Session.SQLParser.Root^.FirstStmt^.LastToken) then
+          Token := nil
+        else
+          Token := Token^.NextToken;
+      end;
+
       Session.SQLParser.FormatSQL(SQL);
       SQL := SQL + ';' + #13#10;
     end;
@@ -5407,7 +5427,35 @@ var
 begin
   View := nil; Index := 0;
 
-  if (not DataSet.IsEmpty()) then
+  if (DataSet.IsEmpty()) then
+  begin
+    if (SQLCreateParse(Parse, PChar(DataSet.CommandText), Length(DataSet.CommandText), Session.Connection.ServerVersion)) then
+    begin
+      if (SQLParseKeyword(Parse, 'SELECT')) then
+      begin
+        if (SQLParseChar(Parse, '*')
+        and SQLParseKeyword(Parse, 'FROM')
+        and (SQLParseValue(Parse) = information_schema)
+        and SQLParseChar(Parse, '.')
+        and (SQLParseValue(Parse) = 'COLUMNS')
+        and SQLParseKeyword(Parse, 'WHERE')
+        and (SQLParseValue(Parse) = 'TABLE_SCHEMA')
+        and SQLParseChar(Parse, '=')
+        and (SQLParseValue(Parse) = Database.Name)
+        and SQLParseKeyword(Parse, 'AND')
+        and (SQLParseValue(Parse) = 'TABLE_NAME')
+        and SQLParseKeyword(Parse, 'IN')
+        and SQLParseChar(Parse, '(')) then
+        repeat
+          Name := SQLParseValue(Parse);
+          View := Database.ViewByName(Name);
+          View.Fields.FValid := True;
+        until (not SQLParseChar(Parse, ','));
+        SQLParseChar(Parse, ')');
+      end;
+    end;
+  end
+  else
     repeat
       if ((Database.ViewByName(DataSet.FieldByName('TABLE_NAME').AsString) <> View) and Assigned(View)) then
       begin
@@ -5553,27 +5601,20 @@ begin
   end;
 end;
 
-function TSTables.SQLGetViewFields(const List: TList = nil): string;
+function TSTables.SQLGetViewFields(): string;
 var
   I: Integer;
   SQL: string;
 begin
-  if ((List.Count = 0) or (Session.Connection.ServerVersion < 50001)) then
-    SQL := ''
-  else if (List.Count < Count) then
-  begin
-    SQL := '';
-    for I := 0 to List.Count - 1 do
-      if (TSTable(List[I]) is TSView) then
-      begin
-        if (SQL <> '') then SQL := SQL + ',';
-        SQL := SQL + SQLEscape(TSView(List[I]).Name);
-      end;
-    if (SQL <> '') then
-      SQL := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('COLUMNS') + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ' AND ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ' IN (' + SQL + ') ORDER BY ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ',' + Session.Connection.EscapeIdentifier('ORDINAL_POSITION') + ';' + #13#10;
-  end
-  else
-    SQL := SQL + 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('COLUMNS') + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ' ORDER BY ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ',' + Session.Connection.EscapeIdentifier('ORDINAL_POSITION') + ';' + #13#10;
+  SQL := '';
+  for I := 0 to Count - 1 do
+    if ((Table[I] is TSView) and not TSView(Table[I]).ValidFields) then
+    begin
+      if (SQL <> '') then SQL := SQL + ',';
+      SQL := SQL + SQLEscape(Table[I].Name);
+    end;
+  if (SQL <> '') then
+    SQL := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('COLUMNS') + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ' AND ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ' IN (' + SQL + ') ORDER BY ' + Session.Connection.EscapeIdentifier('TABLE_NAME') + ',' + Session.Connection.EscapeIdentifier('ORDINAL_POSITION') + ';' + #13#10;
 
   Result := SQL;
 end;
@@ -8497,7 +8538,7 @@ begin
 
   List := TList.Create();
   List.Add(NewView);
-  SQL := SQL + Tables.SQLGetViewFields(List);
+  SQL := SQL + Tables.SQLGetViewFields();
   List.Free();
 
   if (Assigned(View) and (View.Name <> NewView.Name)) then
@@ -10836,7 +10877,7 @@ begin
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.ServerVersion;
   FUser := nil;
-  ParseEndDate := EncodeDate(2016, 9, 19);
+  ParseEndDate := EncodeDate(2016, 9, 21);
   FSQLParser := nil;
   UnparsableSQL := '';
 
@@ -12527,7 +12568,7 @@ begin
         begin
           SQL := SQL + Database.Tables.SQLGetStatus(Tables);
           if (ViewInTables) then
-            SQL := SQL + Database.Tables.SQLGetViewFields(Tables);
+            SQL := SQL + Database.Tables.SQLGetViewFields();
           Tables.Clear();
           ViewInTables := False;
         end;
@@ -12548,7 +12589,7 @@ begin
   begin
     SQL := SQL + Database.Tables.SQLGetStatus(Tables);
     if (ViewInTables) then
-      SQL := SQL + Database.Tables.SQLGetViewFields(Tables);
+      SQL := SQL + Database.Tables.SQLGetViewFields();
     Tables.Clear();
   end;
 

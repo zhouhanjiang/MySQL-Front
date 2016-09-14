@@ -4666,10 +4666,7 @@ begin
     Content := Content + '#' + #13#10;
     Content := Content + #13#10;
 
-    if (Table is TSBaseTable) then
-      Content := Content + TSBaseTable(Table).GetSourceEx(DropStmts)
-    else if (Table is TSView) then
-      Content := Content + AnsiReplaceStr(TSView(Table).GetSourceEx(DropStmts), Session.Connection.EscapeIdentifier(Table.Database.Name) + '.', '');
+    Content := Content + Table.GetSourceEx(DropStmts);
   end;
 
   if ((Table is TSBaseTable) and Assigned(DataSet)) then

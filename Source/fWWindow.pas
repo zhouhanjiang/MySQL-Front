@@ -689,9 +689,6 @@ procedure TWWindow.ApplicationModalBegin(Sender: TObject);
 begin
   if (Assigned(Screen.ActiveForm) and Screen.ActiveForm.Active and (Screen.ActiveForm is TForm_Ext)) then
   begin
-    TForm_Ext(Screen.ActiveForm).Deactivate();
-    PreviousForm := Screen.ActiveForm;
-
     if ((Screen.ActiveForm = Self) and Assigned(ActiveTab)) then
       SendMessage(ActiveTab.Handle, UM_DEACTIVATEFRAME, 0, 0);
   end
@@ -703,9 +700,6 @@ procedure TWWindow.ApplicationModalEnd(Sender: TObject);
 begin
   if (Assigned(PreviousForm) and (PreviousForm is TForm_Ext)) then
   begin
-    TForm_Ext(PreviousForm).Activate();
-    PreviousForm := nil;
-
     if (Screen.ActiveForm = Self) then
     begin
       if (UpdateAvailable) then

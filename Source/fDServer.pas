@@ -135,13 +135,8 @@ begin
 end;
 
 procedure TDServer.FBShutdownClick(Sender: TObject);
-var
-  Host: string;
 begin
-  Host := Session.Connection.Host;
-  if (Session.Connection.Port <> MYSQL_PORT) then
-    Host := Host + ':' + IntToStr(Session.Connection.Port);
-  if (MsgBox(Preferences.LoadStr(679, Host), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES) then
+  if (MsgBox(Preferences.LoadStr(679, Session.Caption), Preferences.LoadStr(101), MB_YESNOCANCEL + MB_ICONQUESTION) = IDYES) then
     if (Boolean(SendMessage(Tab.Handle, UM_CLOSE_TAB_QUERY, 0, 0))) then
       if (Session.Connection.Shutdown()) then
       begin
