@@ -1021,6 +1021,12 @@ begin
 
     if ((Result = 0) and (TTool.TItem(Item1) is TTExport.TDBObjectItem)) then
     begin
+      // Debug 14.09.16
+      if (not Assigned(Item1)) then
+        raise ERangeError.Create(SRangeError)
+      else if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine)) then
+        raise ERangeError.CreateFmt('Engine for %s.%s unknown.', [TTExport.TDBObjectItem(Item1).DBObject.Database.Name, TTExport.TDBObjectItem(Item1).DBObject.Name]);
+
       if (TTExport.TDBObjectItem(Item1).DBObject is TSBaseTable) then
         if (not TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine.IsMerge) then
           Index1 := 0

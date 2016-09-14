@@ -119,7 +119,7 @@ type
       MySQLKeywords =
         'INNODB,INSTANCE,ROTATE,MICROSECOND,FOLLOWS,PRECEDES,SIGNED,' +
         'MAX_STATEMENT_TIME,SOME,ALWAYS,GENERATED,STORED,VIRTUAL,PERSISTENT,DISK,' +
-        'COMPRESS,BOOLEAN,TRANSACTIONAL,FILE_BLOCK_SIZE,' +
+        'COMPRESS,BOOLEAN,TRANSACTIONAL,FILE_BLOCK_SIZE,CHANNEL,' +
 
         'ACCOUNT,ACTION,ADD,AFTER,AGAINST,AGGREGATE,ALGORITHM,ALL,ALTER,ANALYZE,' +
         'AND,ANY,AS,ASC,ASCII,AT,AUTHORS,AUTO_INCREMENT,AUTOEXTEND_SIZE,' +
@@ -219,6 +219,7 @@ type
         ntCaseStmt,
         ntCaseStmtBranch,
         ntCastFunc,
+        ntChangeMasterStmt,
         ntCharFunc,
         ntCheckStmt,
         ntCheckStmtOption,
@@ -421,6 +422,7 @@ type
         stBegin,
         stCall,
         stCase,
+        stChangeMaster,
         stCheck,
         stChecksum,
         stClose,
@@ -727,6 +729,7 @@ type
         'ntCaseStmt',
         'ntCaseStmtBranch',
         'ntCastFunc',
+        'ntChangeMasterStmt',
         'ntCharFunc',
         'ntCheckStmt',
         'ntCheckStmtOption',
@@ -929,6 +932,7 @@ type
         'stBegin',
         'stCall',
         'stCase',
+        'stChangeMaster',
         'stCheck',
         'stChecksum',
         'stClose',
@@ -1428,6 +1432,7 @@ type
         ntBeginStmt,
         ntCallStmt,
         ntCaseStmt,
+        ntChangeMasterStmt,
         ntCheckStmt,
         ntChecksumStmt,
         ntCloseStmt,
@@ -2374,6 +2379,24 @@ type
         class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+      end;
+
+      PChangeMasterStmt = ^TChangeMasterStmt;
+      TChangeMasterStmt = packed record
+      private type
+        TNodes = packed record
+          StmtTag: TOffset;
+          ToTag: TOffset;
+          OptionList: TOffset;
+          ChannelOptionValue: TOffset;
+        end;
+      private
+        Heritage: TStmt;
+      private
+        Nodes: TNodes;
+        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+      public
+        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PCharFunc = ^TCharFunc;
@@ -6095,6 +6118,7 @@ type
     kiCATALOG_NAME,
     kiCHANGE,
     kiCHANGED,
+    kiCHANNEL,
     kiCHAIN,
     kiCHARACTER,
     kiCHARSET,
@@ -6711,7 +6735,9 @@ type
     function ParseCaseStmtBranch(): TOffset;
     function ParseCastFunc(): TOffset;
     function ParseCharFunc(): TOffset;
+    function ParseChangeMasterStmt(): TOffset;
     function ParseCharsetIdent(): TOffset;
+    function ParseChangeMasterStmtChannel(): TOffset;
     function ParseCheckStmt(): TOffset;
     function ParseCheckStmtOption(): TOffset;
     function ParseChecksumStmt(): TOffset;
@@ -8601,6 +8627,20 @@ begin
     Nodes := ANodes;
 
     Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+  end;
+end;
+
+{ TMySQLParser.TChangeMasterStmt ******************************************************}
+
+class function TMySQLParser.TChangeMasterStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+begin
+  Result := TStmt.Create(AParser, stChangeMaster);
+
+  with PChangeMasterStmt(AParser.NodePtr(Result))^ do
+  begin
+    Nodes := ANodes;
+
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -12667,6 +12707,7 @@ begin
       ntCaseStmt: FormatCaseStmt(PCaseStmt(Node)^.Nodes);
       ntCaseStmtBranch: FormatCaseStmtBranch(TCaseStmt.PBranch(Node)^.Nodes);
       ntCastFunc: FormatCastFunc(PCastFunc(Node)^.Nodes);
+      ntChangeMasterStmt: FormatDefaultNode(@PChangeMasterStmt(Node)^.Nodes, SizeOf(TChangeMasterStmt.TNodes));
       ntCharFunc: FormatCharFunc(PCharFunc(Node)^.Nodes);
       ntCheckStmt: FormatDefaultNode(@PCheckStmt(Node)^.Nodes, SizeOf(TCheckStmt.TNodes));
       ntCheckStmtOption: FormatDefaultNode(@TCheckStmt.POption(Node)^.Nodes, SizeOf(TCheckStmt.TOption.TNodes));
@@ -13777,6 +13818,7 @@ begin
     ntCaseStmt: Result := SizeOf(TCaseStmt);
     ntCaseStmtBranch: Result := SizeOf(TCaseStmt.TBranch);
     ntCastFunc: Result := SizeOf(TCastFunc);
+    ntChangeMasterStmt: Result := SizeOf(TChangeMasterStmt);
     ntCharFunc: Result := SizeOf(TCharFunc);
     ntCheckStmt: Result := SizeOf(TCheckStmt);
     ntCheckStmtOption: Result := SizeOf(TCheckStmt.TOption);
@@ -15284,6 +15326,30 @@ begin
       Nodes.CloseBracket := ApplyCurrentToken();
 
   Result := TCharFunc.Create(Self, Nodes);
+end;
+
+function TMySQLParser.ParseChangeMasterStmt(): TOffset;
+var
+  Nodes: TChangeMasterStmt.TNodes;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
+raise Exception.Create(SUnknownError);
+
+  Nodes.StmtTag := ParseTag(kiCHANGE, kiMASTER);
+
+  if (not Error) then
+    Nodes.ToTag := ParseTag(kiTO);
+
+  if (not Error and IsTag(kiFOR, kiCHANNEL)) then
+    Nodes.ChannelOptionValue := ParseValue(WordIndices(kiFOR, kiCHANNEL), vaNo, ParseChangeMasterStmtChannel);
+
+  Result := TChangeMasterStmt.Create(Self, Nodes);
+end;
+
+function TMySQLParser.ParseChangeMasterStmtChannel(): TOffset;
+begin
+
 end;
 
 function TMySQLParser.ParseCharsetIdent(): TOffset;
@@ -22887,6 +22953,8 @@ begin
       Result := ParseCallStmt()
     else if (InPL_SQL and (KeywordIndex = kiCASE)) then
       Result := ParseCaseStmt()
+    else if (KeywordIndex = kiCHANGE) then
+      Result := ParseChangeMasterStmt()
     else if (KeywordIndex = kiCHECK) then
       Result := ParseCheckStmt()
     else if (KeywordIndex = kiCHECKSUM) then
@@ -25653,6 +25721,7 @@ begin
     kiCATALOG_NAME             := IndexOf('CATALOG_NAME');
     kiCHANGE                   := IndexOf('CHANGE');
     kiCHANGED                  := IndexOf('CHANGED');
+    kiCHANNEL                  := IndexOf('CHANNEL');
     kiCHAIN                    := IndexOf('CHAIN');
     kiCHARACTER                := IndexOf('CHARACTER');
     kiCHARSET                  := IndexOf('CHARSET');
@@ -26135,3 +26204,4 @@ end.
 // ditTable / ditView für CREATE TABLE / CREATE VIEW
 // SQLUnescape
 // IsTag(kiSQL, kiSECURITY, kiDEFINER)
+//  Parser.ParseSQL('_binary 0xFFD8');
