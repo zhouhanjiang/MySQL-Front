@@ -1021,47 +1021,49 @@ begin
 
     if ((Result = 0) and (TTool.TItem(Item1) is TTExport.TDBObjectItem)) then
     begin
-      // Debug 14.09.16
-      if (not Assigned(Item1)) then
-        raise ERangeError.Create(SRangeError)
-      else if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine)) then
-        raise ERangeError.CreateFmt('Engine for %s.%s unknown.', [TTExport.TDBObjectItem(Item1).DBObject.Database.Name, TTExport.TDBObjectItem(Item1).DBObject.Name]);
-
       if (TTExport.TDBObjectItem(Item1).DBObject is TSBaseTable) then
-        if (not TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine.IsMerge) then
+        if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine)) then
+          // Should never used, but on some older MySQL server, the enginge is
+          // not given with the SHOW TABLE STATUS query
           Index1 := 0
-        else
+        else if (not TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine.IsMerge) then
           Index1 := 1
+        else
+          Index1 := 2
       else if (TTExport.TDBObjectItem(Item1).DBObject is TSFunction) then
-        Index1 := 2
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSView) then
         Index1 := 3
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSProcedure) then
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSView) then
         Index1 := 4
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSTrigger) then
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSProcedure) then
         Index1 := 5
-      else if (TTExport.TDBObjectItem(Item1).DBObject is TSEvent) then
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSTrigger) then
         Index1 := 6
+      else if (TTExport.TDBObjectItem(Item1).DBObject is TSEvent) then
+        Index1 := 7
       else
-        Index1 := 7;
+        Index1 := 8;
 
       if (TTExport.TDBObjectItem(Item2).DBObject is TSBaseTable) then
-        if (not TSBaseTable(TTExport.TDBObjectItem(Item2).DBObject).Engine.IsMerge) then
+        if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine)) then
+          // Should never used, but on some older MySQL server, the enginge is
+          // not given with the SHOW TABLE STATUS query
           Index2 := 0
-        else
+        else if (not TSBaseTable(TTExport.TDBObjectItem(Item2).DBObject).Engine.IsMerge) then
           Index2 := 1
+        else
+          Index2 := 2
       else if (TTExport.TDBObjectItem(Item2).DBObject is TSFunction) then
-        Index2 := 2
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSView) then
         Index2 := 3
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSProcedure) then
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSView) then
         Index2 := 4
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSTrigger) then
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSProcedure) then
         Index2 := 5
-      else if (TTExport.TDBObjectItem(Item2).DBObject is TSEvent) then
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSTrigger) then
         Index2 := 6
+      else if (TTExport.TDBObjectItem(Item2).DBObject is TSEvent) then
+        Index2 := 7
       else
-        Index2 := 7;
+        Index2 := 8;
 
       Result := Sign(Index1 - Index2);
     end;

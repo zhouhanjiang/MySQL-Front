@@ -516,6 +516,7 @@ type
       property TaskService: ITaskService read GetTaskService;
     public
       function AddJob(const NewJob: TJob): Boolean; virtual;
+      procedure Clear(); override;
       constructor Create(const AAccount: TPAccount);
       procedure DeleteJob(const Job: TJob); overload; virtual;
       destructor Destroy(); override;
@@ -3402,6 +3403,16 @@ begin
       Account.AccountEvent(ClassType);
     end;
   end;
+end;
+
+procedure TPAccount.TJobs.Clear();
+var
+  I: Integer;
+begin
+  for I := 0 to Count - 1 do
+    Job[I].Free();
+
+  inherited;
 end;
 
 constructor TPAccount.TJobs.Create(const AAccount: TPAccount);

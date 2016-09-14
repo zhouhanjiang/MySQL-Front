@@ -120,6 +120,10 @@ type
         'INNODB,INSTANCE,ROTATE,MICROSECOND,FOLLOWS,PRECEDES,SIGNED,' +
         'MAX_STATEMENT_TIME,SOME,ALWAYS,GENERATED,STORED,VIRTUAL,PERSISTENT,DISK,' +
         'COMPRESS,BOOLEAN,TRANSACTIONAL,FILE_BLOCK_SIZE,CHANNEL,' +
+        'MASTER_AUTO_POSITION,MASTER_DELAY,MASTER_RETRY_COUNT,MASTER_SSL_CERT,' +
+        'MASTER_SSL_CRL,MASTER_SSL_CRLPATH,MASTER_TLS_VERSION,' +
+        '' +
+        '' +
 
         'ACCOUNT,ACTION,ADD,AFTER,AGAINST,AGGREGATE,ALGORITHM,ALL,ALTER,ANALYZE,' +
         'AND,ANY,AS,ASC,ASCII,AT,AUTHORS,AUTO_INCREMENT,AUTOEXTEND_SIZE,' +
@@ -1279,6 +1283,7 @@ type
         ntBeginStmt,
         ntCallStmt,
         ntCaseStmt,
+        ntChangeMasterStmt,
         ntCheckStmt,
         ntChecksumStmt,
         ntCloseStmt,
@@ -2384,6 +2389,33 @@ type
       PChangeMasterStmt = ^TChangeMasterStmt;
       TChangeMasterStmt = packed record
       private type
+        TOptionNodes = packed record
+          MasterBindValue: TOffset;
+          MasterHostValue: TOffset;
+          MasterUserValue: TOffset;
+          MasterPasswordValue: TOffset;
+          MasterPortValue: TOffset;
+          MasterConnectRetryValue: TOffset;
+          MaysterRetryCountValue: TOffset;
+          MasterDelayValue: TOffset;
+          MasterHeartbeatPeriodValue: TOffset;
+          MasterLogFileValue: TOffset;
+          MasterLogPosValue: TOffset;
+          MasterAutoPositionValue: TOffset;
+          RelayLogFileValue: TOffset;
+          RelayLogPosValue: TOffset;
+          MasterSSLValue: TOffset;
+          MasterSSLCAValue: TOffset;
+          MasterSSLCapathValue: TOffset;
+          MasterSSLCertValue: TOffset;
+          MasterSSLCRLValue: TOffset;
+          MasterSSLCRLPathValue: TOffset;
+          MasterSSLKeyValue: TOffset;
+          MasterSSLCipherValue: TOffset;
+          MasterSSLVerifyServerCertValue: TOffset;
+          MasterTLSVersionValue: TOffset;
+          IgnoreServerIDsValue: TOffset;
+        end;
         TNodes = packed record
           StmtTag: TOffset;
           ToTag: TOffset;
@@ -6260,6 +6292,7 @@ type
     kiIDENTIFIED,
     kiIF,
     kiIGNORE,
+    kiIGNORE_SERVER_IDS,
     kiIMPORT,
     kiIN,
     kiINDEX,
@@ -6307,6 +6340,28 @@ type
     kiLOOP,
     kiLOW_PRIORITY,
     kiMASTER,
+    kiMASTER_AUTO_POSITION,
+    kiMASTER_BIND,
+    kiMASTER_CONNECT_RETRY,
+    kiMASTER_DELAY,
+    kiMASTER_HEARTBEAT_PERIOD,
+    kiMASTER_HOST,
+    kiMASTER_LOG_FILE,
+    kiMASTER_LOG_POS,
+    kiMASTER_PASSWORD,
+    kiMASTER_PORT,
+    kiMASTER_RETRY_COUNT,
+    kiMASTER_SSL,
+    kiMASTER_SSL_CA,
+    kiMASTER_SSL_CAPATH,
+    kiMASTER_SSL_CERT,
+    kiMASTER_SSL_CIPHER,
+    kiMASTER_SSL_CRL,
+    kiMASTER_SSL_CRLPATH,
+    kiMASTER_SSL_KEY,
+    kiMASTER_SSL_VERIFY_SERVER_CERT,
+    kiMASTER_TLS_VERSION,
+    kiMASTER_USER,
     kiMATCH,
     kiMAX_QUERIES_PER_HOUR,
     kiMAX_ROWS,
@@ -6397,6 +6452,8 @@ type
     kiREGEXP,
     kiRELAYLOG,
     kiRELEASE,
+    kiRELAY_LOG_FILE,
+    kiRELAY_LOG_POS,
     kiRELOAD,
     kiREMOVE,
     kiRENAME,
@@ -6624,6 +6681,7 @@ type
     procedure FormatCaseStmtBranch(const Nodes: TCaseStmt.TBranch.TNodes);
     procedure FormatCastFunc(const Nodes: TCastFunc.TNodes);
     procedure FormatCharFunc(const Nodes: TCharFunc.TNodes);
+    procedure FormatChangeMasterStmt(const Nodes: TChangeMasterStmt.TNodes);
     procedure FormatCompoundStmt(const Nodes: TCompoundStmt.TNodes);
     procedure FormatConvertFunc(const Nodes: TConvertFunc.TNodes);
     procedure FormatCreateEventStmt(const Nodes: TCreateEventStmt.TNodes);
@@ -6737,7 +6795,6 @@ type
     function ParseCharFunc(): TOffset;
     function ParseChangeMasterStmt(): TOffset;
     function ParseCharsetIdent(): TOffset;
-    function ParseChangeMasterStmtChannel(): TOffset;
     function ParseCheckStmt(): TOffset;
     function ParseCheckStmtOption(): TOffset;
     function ParseChecksumStmt(): TOffset;
@@ -11725,6 +11782,17 @@ begin
   FormatNode(Nodes.CloseBracket, stSpaceBefore);
 end;
 
+procedure TMySQLParser.FormatChangeMasterStmt(const Nodes: TChangeMasterStmt.TNodes);
+begin
+  FormatNode(Nodes.StmtTag);
+  FormatNode(Nodes.ToTag, stSpaceBefore);
+  Commands.IncreaseIndent();
+  Commands.WriteReturn();
+  FormatList(Nodes.OptionList, sReturn);
+  FormatNode(Nodes.ChannelOptionValue, stReturnBefore);
+  Commands.DecreaseIndent();
+end;
+
 procedure TMySQLParser.FormatCompoundStmt(const Nodes: TCompoundStmt.TNodes);
 begin
   FormatNode(Nodes.BeginLabel, stSpaceAfter);
@@ -12707,7 +12775,7 @@ begin
       ntCaseStmt: FormatCaseStmt(PCaseStmt(Node)^.Nodes);
       ntCaseStmtBranch: FormatCaseStmtBranch(TCaseStmt.PBranch(Node)^.Nodes);
       ntCastFunc: FormatCastFunc(PCastFunc(Node)^.Nodes);
-      ntChangeMasterStmt: FormatDefaultNode(@PChangeMasterStmt(Node)^.Nodes, SizeOf(TChangeMasterStmt.TNodes));
+      ntChangeMasterStmt: FormatChangeMasterStmt(PChangeMasterStmt(Node)^.Nodes);
       ntCharFunc: FormatCharFunc(PCharFunc(Node)^.Nodes);
       ntCheckStmt: FormatDefaultNode(@PCheckStmt(Node)^.Nodes, SizeOf(TCheckStmt.TNodes));
       ntCheckStmtOption: FormatDefaultNode(@TCheckStmt.POption(Node)^.Nodes, SizeOf(TCheckStmt.TOption.TNodes));
@@ -15330,26 +15398,156 @@ end;
 
 function TMySQLParser.ParseChangeMasterStmt(): TOffset;
 var
+  Comma: TOffset;
+  Found: Boolean;
+  ListNodes: TList.TNodes;
   Nodes: TChangeMasterStmt.TNodes;
+  OptionNodes: TChangeMasterStmt.TOptionNodes;
+  Options: Classes.TList;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
-
-raise Exception.Create(SUnknownError);
+  FillChar(OptionNodes, SizeOf(OptionNodes), 0);
 
   Nodes.StmtTag := ParseTag(kiCHANGE, kiMASTER);
 
   if (not Error) then
     Nodes.ToTag := ParseTag(kiTO);
 
+  Options := Classes.TList.Create();
+  Found := True;
+  while (not Error and Found and not EndOfStmt(CurrentToken)) do
+  begin
+    if ((OptionNodes.MasterBindValue = 0) and IsTag(kiMASTER_BIND)) then
+    begin
+      OptionNodes.MasterBindValue := ParseValue(kiMASTER_BIND, vaYes, ParseString);
+      Options.Add(Pointer(OptionNodes.MasterBindValue));
+    end
+    else if ((OptionNodes.MasterHostValue = 0) and IsTag(kiMASTER_HOST)) then
+    begin
+      OptionNodes.MasterHostValue := ParseValue(kiMASTER_HOST, vaYes, ParseString);
+      Options.Add(Pointer(OptionNodes.MasterHostValue));
+    end
+    else if ((OptionNodes.MasterUserValue = 0) and IsTag(kiMASTER_USER)) then
+    begin
+      OptionNodes.MasterUserValue := ParseValue(kiMASTER_USER, vaYes, ParseString);
+      Options.Add(Pointer(OptionNodes.MasterUserValue));
+    end
+    else if ((OptionNodes.MasterPasswordValue = 0) and IsTag(kiMASTER_PASSWORD)) then
+    begin
+      OptionNodes.MasterPasswordValue := ParseValue(kiMASTER_PASSWORD, vaYes, ParseString);
+      Options.Add(Pointer(OptionNodes.MasterPasswordValue));
+    end
+    else if ((OptionNodes.MasterPortValue = 0) and IsTag(kiMASTER_PORT)) then
+    begin
+      OptionNodes.MasterPortValue := ParseValue(kiMASTER_PORT, vaYes, ParseInteger);
+      Options.Add(Pointer(OptionNodes.MasterPortValue));
+    end
+    else if ((OptionNodes.MasterConnectRetryValue = 0) and IsTag(kiMASTER_CONNECT_RETRY)) then
+    begin
+      OptionNodes.MasterConnectRetryValue := ParseValue(kiMASTER_CONNECT_RETRY, vaYes, ParseInteger);
+      Options.Add(Pointer(OptionNodes.MasterConnectRetryValue));
+    end
+    else if ((OptionNodes.MasterLogFileValue = 0) and IsTag(kiMASTER_LOG_FILE)) then
+    begin
+      OptionNodes.MasterLogFileValue := ParseValue(kiMASTER_LOG_FILE, vaYes, ParseString);
+      Options.Add(Pointer(OptionNodes.MasterLogFileValue));
+    end
+    else if ((OptionNodes.MasterLogPosValue = 0) and IsTag(kiMASTER_LOG_POS)) then
+    begin
+      OptionNodes.MasterLogPosValue := ParseValue(kiMASTER_LOG_POS, vaYes, ParseInteger);
+      Options.Add(Pointer(OptionNodes.MasterLogPosValue));
+    end
+    else if ((OptionNodes.MasterAutoPositionValue = 0) and IsTag(kiMASTER_AUTO_POSITION)) then
+    begin
+      OptionNodes.MasterAutoPositionValue := ParseValue(kiMASTER_AUTO_POSITION, vaYes, ParseInteger);
+      Options.Add(Pointer(OptionNodes.MasterAutoPositionValue));
+    end
+    else if ((OptionNodes.RelayLogFileValue = 0) and IsTag(kiRELAY_LOG_FILE)) then
+    begin
+      OptionNodes.RelayLogFileValue := ParseValue(kiRELAY_LOG_FILE, vaYes, ParseString);
+      Options.Add(Pointer(OptionNodes.RelayLogFileValue));
+    end
+    else if ((OptionNodes.RelayLogPosValue = 0) and IsTag(kiRELAY_LOG_POS)) then
+    begin
+      OptionNodes.RelayLogPosValue := ParseValue(kiRELAY_LOG_POS, vaYes, ParseInteger);
+      Options.Add(Pointer(OptionNodes.RelayLogPosValue));
+    end
+    else if ((OptionNodes.MasterSSLValue = 0) and IsTag(kiMASTER_SSL)) then
+    begin
+      OptionNodes.MasterSSLValue := ParseValue(kiMASTER_SSL, vaYes, ParseInteger);
+      Options.Add(Pointer(OptionNodes.MasterSSLValue));
+    end
+    else if ((OptionNodes.MasterSSLCAValue = 0) and IsTag(kiMASTER_SSL_CA)) then
+    begin
+      OptionNodes.MasterSSLCAValue := ParseValue(kiMASTER_SSL_CA, vaYes, ParseString);
+      Options.Add(Pointer(OptionNodes.MasterSSLCAValue));
+    end
+    else if ((OptionNodes.MasterSSLCapathValue = 0) and IsTag(kiMASTER_SSL_CAPATH)) then
+    begin
+      OptionNodes.MasterSSLCapathValue := ParseValue(kiMASTER_SSL_CAPATH, vaYes, ParseString);
+      Options.Add(Pointer(OptionNodes.MasterSSLCapathValue));
+    end
+    else if ((OptionNodes.MasterSSLCertValue = 0) and IsTag(kiMASTER_SSL_CERT)) then
+    begin
+      OptionNodes.MasterSSLCertValue := ParseValue(kiMASTER_SSL_CERT, vaYes, ParseString);
+      Options.Add(Pointer(OptionNodes.MasterSSLCertValue));
+    end
+    else if ((OptionNodes.MasterSSLCRLValue = 0) and IsTag(kiMASTER_SSL_CRL)) then
+    begin
+      OptionNodes.MasterSSLCRLValue := ParseValue(kiMASTER_SSL_CRL, vaYes, ParseString);
+      Options.Add(Pointer(OptionNodes.MasterSSLCRLValue));
+    end
+    else if ((OptionNodes.MasterSSLCRLPathValue = 0) and IsTag(kiMASTER_SSL_CRLPATH)) then
+    begin
+      OptionNodes.MasterSSLCRLPathValue := ParseValue(kiMASTER_SSL_CRLPATH, vaYes, ParseString);
+      Options.Add(Pointer(OptionNodes.MasterSSLCRLPathValue));
+    end
+    else if ((OptionNodes.MasterSSLKeyValue = 0) and IsTag(kiMASTER_SSL_KEY)) then
+    begin
+      OptionNodes.MasterSSLKeyValue := ParseValue(kiMASTER_SSL_KEY, vaYes, ParseString);
+      Options.Add(Pointer(OptionNodes.MasterSSLKeyValue));
+    end
+    else if ((OptionNodes.MasterSSLCipherValue = 0) and IsTag(kiMASTER_SSL_CIPHER)) then
+    begin
+      OptionNodes.MasterSSLCipherValue := ParseValue(kiMASTER_SSL_CIPHER, vaYes, ParseString);
+      Options.Add(Pointer(OptionNodes.MasterSSLCipherValue));
+    end
+    else if ((OptionNodes.MasterSSLVerifyServerCertValue = 0) and IsTag(kiMASTER_SSL_VERIFY_SERVER_CERT)) then
+    begin
+      OptionNodes.MasterSSLVerifyServerCertValue := ParseValue(kiMASTER_SSL_VERIFY_SERVER_CERT, vaYes, ParseInteger);
+      Options.Add(Pointer(OptionNodes.MasterSSLVerifyServerCertValue));
+    end
+    else if ((OptionNodes.MasterTLSVersionValue = 0) and IsTag(kiMASTER_TLS_VERSION)) then
+    begin
+      OptionNodes.MasterTLSVersionValue := ParseValue(kiMASTER_TLS_VERSION, vaYes, ParseString);
+      Options.Add(Pointer(OptionNodes.MasterTLSVersionValue));
+    end
+    else if ((OptionNodes.IgnoreServerIDsValue = 0) and IsTag(kiIGNORE_SERVER_IDS)) then
+    begin
+      OptionNodes.IgnoreServerIDsValue := ParseValue(kiIGNORE_SERVER_IDS, vaYes, ParseString);
+      Options.Add(Pointer(OptionNodes.IgnoreServerIDsValue));
+    end
+    else
+      Found := False;
+
+    if (Found and not EndOfStmt(CurrentToken)) then
+    begin
+      Found := TokenPtr(CurrentToken)^.TokenType = ttComma;
+      if (Found) then
+      begin
+        Comma := ApplyCurrentToken();
+        Options.Add(Pointer(Comma));
+      end;
+    end;
+  end;
+  FillChar(ListNodes, SizeOf(ListNodes), 0);
+  Nodes.OptionList := TList.Create(Self, ListNodes, ttComma, Options.Count, TIntegerArray(Options.List));
+  Options.Free();
+
   if (not Error and IsTag(kiFOR, kiCHANNEL)) then
-    Nodes.ChannelOptionValue := ParseValue(WordIndices(kiFOR, kiCHANNEL), vaNo, ParseChangeMasterStmtChannel);
+    Nodes.ChannelOptionValue := ParseValue(WordIndices(kiFOR, kiCHANNEL), vaNo, ParseIdent);
 
   Result := TChangeMasterStmt.Create(Self, Nodes);
-end;
-
-function TMySQLParser.ParseChangeMasterStmtChannel(): TOffset;
-begin
-
 end;
 
 function TMySQLParser.ParseCharsetIdent(): TOffset;
@@ -20911,7 +21109,7 @@ begin
       Stmt := ParseStmt();
       Children.Add(Pointer(Stmt));
 
-      if ((ErrorCode = PE_Success) and (Stmt <> 0)) then
+      if ((ErrorCode = PE_Success) and (Stmt > 0)) then
       begin
         ErrorCode := StmtPtr(Stmt)^.FErrorCode;
         ErrorMessage := StmtPtr(Stmt).FErrorMessage;
@@ -25864,6 +26062,7 @@ begin
     kiIDENTIFIED               := IndexOf('IDENTIFIED');
     kiIF                       := IndexOf('IF');
     kiIGNORE                   := IndexOf('IGNORE');
+    kiIGNORE_SERVER_IDS        := IndexOf('IGNORE_SERVER_IDS');
     kiIMPORT                   := IndexOf('IMPORT');
     kiIN                       := IndexOf('IN');
     kiINDEX                    := IndexOf('INDEX');
@@ -25911,6 +26110,28 @@ begin
     kiLOOP                     := IndexOf('LOOP');
     kiLOW_PRIORITY             := IndexOf('LOW_PRIORITY');
     kiMASTER                   := IndexOf('MASTER');
+    kiMASTER_AUTO_POSITION     := IndexOf('MASTER_AUTO_POSITION');
+    kiMASTER_BIND              := IndexOf('MASTER_BIND');
+    kiMASTER_CONNECT_RETRY     := IndexOf('MASTER_CONNECT_RETRY');
+    kiMASTER_DELAY             := IndexOf('MASTER_DELAY');
+    kiMASTER_HEARTBEAT_PERIOD  := IndexOf('MASTER_HEARTBEAT_PERIOD');
+    kiMASTER_HOST              := IndexOf('MASTER_HOST');
+    kiMASTER_LOG_FILE          := IndexOf('MASTER_LOG_FILE');
+    kiMASTER_LOG_POS           := IndexOf('MASTER_LOG_POS');
+    kiMASTER_PASSWORD          := IndexOf('MASTER_PASSWORD');
+    kiMASTER_PORT              := IndexOf('MASTER_PORT');
+    kiMASTER_RETRY_COUNT       := IndexOf('MASTER_RETRY_COUNT');
+    kiMASTER_SSL               := IndexOf('MASTER_SSL');
+    kiMASTER_SSL_CA            := IndexOf('MASTER_SSL_CA');
+    kiMASTER_SSL_CAPATH        := IndexOf('MASTER_SSL_CAPATH');
+    kiMASTER_SSL_CERT          := IndexOf('MASTER_SSL_CERT');
+    kiMASTER_SSL_CIPHER        := IndexOf('MASTER_SSL_CIPHER');
+    kiMASTER_SSL_CRL           := IndexOf('MASTER_SSL_CRL');
+    kiMASTER_SSL_CRLPATH       := IndexOf('MASTER_SSL_CRLPATH');
+    kiMASTER_SSL_KEY           := IndexOf('MASTER_SSL_KEY');
+    kiMASTER_SSL_VERIFY_SERVER_CERT := IndexOf('MASTER_SSL_VERIFY_SERVER_CERT');
+    kiMASTER_TLS_VERSION       := IndexOf('MASTER_TLS_VERSION');
+    kiMASTER_USER              := IndexOf('MASTER_USER');
     kiMATCH                    := IndexOf('MATCH');
     kiMAX_CONNECTIONS_PER_HOUR := IndexOf('MAX_CONNECTIONS_PER_HOUR');
     kiMAX_QUERIES_PER_HOUR     := IndexOf('MAX_QUERIES_PER_HOUR');
@@ -25999,6 +26220,8 @@ begin
     kiREBUILD                  := IndexOf('REBUILD');
     kiREFERENCES               := IndexOf('REFERENCES');
     kiREGEXP                   := IndexOf('REGEXP');
+    kiRELAY_LOG_FILE           := IndexOf('RELAY_LOG_FILE');
+    kiRELAY_LOG_POS            := IndexOf('RELAY_LOG_POS');
     kiRELAYLOG                 := IndexOf('RELAYLOG');
     kiRELEASE                  := IndexOf('RELEASE');
     kiRELOAD                   := IndexOf('RELOAD');

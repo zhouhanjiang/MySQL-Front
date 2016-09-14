@@ -5006,6 +5006,7 @@ function TSView.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
 var
   CheckOptionSQL: string;
   EndingCommentLen: Integer;
+  Index: Integer;
   Parse: TSQLParse;
   PreviousToken: TMySQLParser.PToken;
   RemovedLength: Integer;
@@ -5026,14 +5027,22 @@ begin
       else
         SQLParseValue(Parse);
 
+    Index := SQLParseGetIndex(Parse);
     if (SQLParseKeyword(Parse, 'DEFINER')) then
     begin
       if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
       SQLParseValue(Parse);
+      Delete(SQL, Index - RemovedLength, SQLParseGetIndex(Parse) - Index);
+      Inc(RemovedLength, SQLParseGetIndex(Parse) - Index);
     end;
 
+    Index := SQLParseGetIndex(Parse);
     if (SQLParseKeyword(Parse, 'SQL SECURITY')) then
+    begin
       SQLParseValue(Parse);
+      Delete(SQL, Index - RemovedLength, SQLParseGetIndex(Parse) - Index);
+      Inc(RemovedLength, SQLParseGetIndex(Parse) - Index);
+    end;
 
     if (not SQLParseKeyword(Parse, 'VIEW')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
 
@@ -5569,7 +5578,7 @@ var
 begin
   Result := '';
 
-  if (Session.Connection.ServerVersion < 50003) then // 5.0.2 supports INFORMATION_SCHEMA, but WHERE clause is supported up from 5.0.3
+  if (Session.Connection.ServerVersion < 50003) then // 5.0.2 supports INFORMATION_SCHEMA, but the WHERE clause is supported up from 5.0.3
   begin
     if (Assigned(List)) then
     begin
@@ -6706,23 +6715,9 @@ end;
 
 function TSEvent.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
 var
-  Parse: TSQLParse;
   SQL: string;
 begin
-  SQL := FSource;
-
-  if (SQLCreateParse(Parse, PChar(Source), Length(Source), Session.Connection.ServerVersion)) then
-  begin
-    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
-
-    if (SQLParseKeyword(Parse, 'DEFINER')) then
-    begin
-      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
-      SQLParseValue(Parse);
-    end;
-  end;
-
-  SQL := Trim(SQL) + #13#10;
+  SQL := Trim(FSource) + #13#10;
 
   if (DropBeforeCreate) then
     SQL := 'DROP EVENT IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
