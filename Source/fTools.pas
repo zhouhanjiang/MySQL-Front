@@ -574,7 +574,7 @@ type
     procedure ExecuteHeader(); override;
     procedure ExecuteTableHeader(const Table: TSTable; const Fields: array of TField; const DataSet: TMySQLQuery); override;
   public
-    Excel2007: Boolean;
+    Excel2003: Boolean;
     constructor Create(const ASession: TSSession; const AFilename: TFileName);
   end;
 
@@ -843,7 +843,6 @@ function ODBCError(const HandleType: SQLSMALLINT; const Handle: SQLHANDLE): TToo
 var
   cbMessageText: SQLSMALLINT;
   MessageText: PSQLTCHAR;
-  S: string;
   SQLState: array [0 .. SQL_SQLSTATE_SIZE] of SQLTCHAR;
 begin
   Result.ErrorType := TE_ODBC;
@@ -862,10 +861,7 @@ begin
     SQL_INVALID_HANDLE:
       Result.ErrorMessage := 'Invalid ODBC Handle.';
     SQL_NO_DATA:
-      begin
-        SetString(S, PChar(@SQLState[0]), SQL_SQLSTATE_SIZE);
-        raise Exception.CreateFMT('Unknown ODBC Error (No Data, SQLState: %s)', [S]);
-      end;
+      raise Exception.Create('Unknown ODBC Error (No Data)');
   end;
 end;
 
@@ -3552,6 +3548,10 @@ begin
           Values.WriteChar(#0)
         else
           Values.WriteChar(#1)
+      else if ((ColumnDesc[Index].SQLDataType = SQL_DOUBLE) and (Self is TTImportExcel) and (cbData div SizeOf(SQLACHAR) > 2) and (PAnsiChar(ODBCData)[cbData div SizeOf(SQLACHAR) - 2] = '.') and (PAnsiChar(ODBCData)[cbData div SizeOf(SQLACHAR) - 1] = '0')) then
+        // The the Excel ODBC driver converts SQL_NUMERIC values to SQL_C_CHAR with an ending ".0".
+        // This is bad, if the import is for a Text field in MySQL.
+        Values.WriteData(PAnsiChar(ODBCData), cbData div SizeOf(SQLACHAR) - 2, not (FieldMappings[Index].DestinationField.FieldType in NotQuotedFieldTypes))
       else
         Values.WriteData(PAnsiChar(ODBCData), cbData div SizeOf(SQLACHAR), not (FieldMappings[Index].DestinationField.FieldType in NotQuotedFieldTypes));
     SQL_UNKNOWN_TYPE,
@@ -3659,6 +3659,10 @@ begin
             Values.WriteChar(#0)
           else
             Values.WriteChar(#1)
+        else if ((ColumnDesc[I].SQLDataType = SQL_DOUBLE) and (Self is TTImportExcel) and (cbData div SizeOf(SQLACHAR) > 2) and (PAnsiChar(ODBCData)[cbData div SizeOf(SQLACHAR) - 2] = '.') and (PAnsiChar(ODBCData)[cbData div SizeOf(SQLACHAR) - 1] = '0')) then
+        // The the Excel ODBC driver converts SQL_NUMERIC values to SQL_C_CHAR with an ending ".0".
+        // This is bad, if the import is for a Text field in MySQL.
+          Values.Write(PAnsiChar(ODBCData), cbData div SizeOf(SQLACHAR) - 2, ColumnDesc[I].SQLDataType in [SQL_TYPE_DATE, SQL_TYPE_TIMESTAMP, SQL_TYPE_TIME])
         else
           Values.Write(PAnsiChar(ODBCData), cbData div SizeOf(SQLACHAR), ColumnDesc[I].SQLDataType in [SQL_TYPE_DATE, SQL_TYPE_TIMESTAMP, SQL_TYPE_TIME]);
       SQL_UNKNOWN_TYPE,
@@ -3792,15 +3796,10 @@ begin
     while ((Success <> daAbort) and not Connected) do
     begin
       if (odAccess2003 in ODBCDrivers) then
-      begin
-        ConnStrIn := 'Driver={' + DriverAccess2003 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
-        Connected := SQL_SUCCEEDED(SQLDriverConnect(DBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE));
-      end;
-      if (not Connected) then
-      begin
+        ConnStrIn := 'Driver={' + DriverAccess2003 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True'
+      else
         ConnStrIn := 'Driver={' + DriverAccess + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
-        Connected := SQL_SUCCEEDED(SQLDriverConnect(DBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE));
-      end;
+      Connected := SQL_SUCCEEDED(SQLDriverConnect(DBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE));
       if (not Connected) then
         DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, True);
     end;
@@ -3832,15 +3831,10 @@ begin
     while ((Success <> daAbort) and not Connected) do
     begin
       if (odExcel2003 in ODBCDrivers) then
-      begin
-        ConnStrIn := 'Driver={' + DriverExcel2003 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
-        Connected := SQL_SUCCEEDED(SQLDriverConnect(DBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE));
-      end;
-      if (not Connected) then
-      begin
+        ConnStrIn := 'Driver={' + DriverExcel2003 + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True'
+      else
         ConnStrIn := 'Driver={' + DriverExcel + '};' + 'DBQ=' + FFilename + ';' + 'ReadOnly=True';
-        Connected := SQL_SUCCEEDED(SQLDriverConnect(DBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE));
-      end;
+      Connected := SQL_SUCCEEDED(SQLDriverConnect(DBC, Application.Handle, PSQLTCHAR(ConnStrIn), SQL_NTS, PSQLTCHAR(@ConnStrOut[0]), Length(ConnStrOut) - 1, @cbConnStrOut, SQL_DRIVER_COMPLETE));
       if (not Connected) then
         DoError(ODBCError(SQL_HANDLE_DBC, DBC), nil, True);
     end;
@@ -6578,7 +6572,7 @@ begin
 
   Filename := AFilename;
 
-  Excel2007 := False;
+  Excel2003 := False;
   Sheet := 0;
 end;
 
@@ -6590,7 +6584,7 @@ var
 begin
   if (Success = daSuccess) then
   begin
-    if (not Excel2007) then
+    if (not Excel2003) then
       ConnStrIn := 'Driver={' + DriverExcel + '};DBQ=' + Filename + ';ReadOnly=False'
     else
       ConnStrIn := 'Driver={' + DriverExcel2003 + '};DBQ=' + Filename + ';ReadOnly=False';

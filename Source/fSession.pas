@@ -2058,7 +2058,7 @@ begin
   FValidSource := True;
   FSource := ASource;
 
-  if ((Now() <= Session.ParseEndDate) and (Name <> 'ps_trace_thread')) then
+  if ((Now() <= Session.ParseEndDate) and (LeftStr(Name, 3) <> 'ps_')) then
   begin
     try
       if (not Session.SQLParser.ParseSQL(FSource)) then

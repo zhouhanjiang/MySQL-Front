@@ -151,7 +151,7 @@ begin
           Export := TTExportExcel.Create(Session, Job.Filename);
           TTExportExcel(Export).Data := True;
           TTExportExcel(Export).Structure := True;
-          TTExportExcel(Export).Excel2007 := Job.Excel.Excel2007;
+          TTExportExcel(Export).Excel2003 := Job.Excel.Excel2007;
         end;
       etODBC:
         begin

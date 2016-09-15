@@ -1879,7 +1879,7 @@ begin
       begin
         Export := TTExportExcel.Create(Session, Filename);
         TTExportExcel(Export).Data := True;
-        TTExportExcel(Export).Excel2007 := (odExcel2003 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
+        TTExportExcel(Export).Excel2003 := (odExcel2003 in ODBCDrivers) and (SaveDialog.FilterIndex = 1);
         TTExportExcel(Export).Structure := True;
       end;
     etAccessFile:

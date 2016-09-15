@@ -3818,6 +3818,7 @@ begin
       SQL := 'CREATE EVENT `Parser` ON SCHEDULE AT ''2016-01-01 00:00:00'' DO ' + SQL;
   end;
 
+  Session.SQLParser.CompletionList.Active := True;
   if (not Session.SQLParser.ParseSQL(SQL)) then
     MsgBox(Session.SQLParser.Root^.ErrorMessage, Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
   else
