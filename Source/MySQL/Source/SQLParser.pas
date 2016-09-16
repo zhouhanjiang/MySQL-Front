@@ -3011,10 +3011,11 @@ type
           IfNotExistsTag: TOffset;
           UserSpecifications: TOffset;
           WithTag: TOffset;
-          ResourcesList: TOffset;
+          MaxQueriesPerHour: TOffset;
+          MaxUpdatesPerHour: TOffset;
+          MaxConnectionsPerHour: TOffset;
+          MaxUserConnections: TOffset;
           PasswordOption: TOffset;
-          PasswordDays: TOffset;
-          DayTag: TOffset;
           AccountTag: TOffset;
         end;
       private
@@ -12338,23 +12339,16 @@ begin
   FormatNode(Nodes.IfNotExistsTag, stSpaceBefore);
   Commands.IncreaseIndent();
   FormatNode(Nodes.UserSpecifications, stReturnBefore);
-
   if (Nodes.WithTag > 0) then
   begin
     FormatNode(Nodes.WithTag, stReturnBefore);
-    Commands.WriteSpace();
-    FormatList(Nodes.ResourcesList, sSpace);
+    FormatList(Nodes.MaxQueriesPerHour, sSpace);
+    FormatList(Nodes.MaxUpdatesPerHour, sSpace);
+    FormatList(Nodes.MaxConnectionsPerHour, sSpace);
+    FormatList(Nodes.MaxUserConnections, sSpace);
   end;
-
-  if (Nodes.PasswordOption > 0) then
-  begin
-    FormatNode(Nodes.PasswordOption, stReturnBefore);
-    FormatNode(Nodes.PasswordDays, stSpaceBefore);
-    FormatNode(Nodes.DayTag, stSpaceBefore);
-  end
-  else if (Nodes.AccountTag > 0) then
-    FormatNode(Nodes.AccountTag, stReturnBefore);
-
+  FormatNode(Nodes.PasswordOption, stReturnBefore);
+  FormatNode(Nodes.AccountTag, stReturnBefore);
   Commands.DecreaseIndent();
 end;
 
@@ -17391,12 +17385,10 @@ begin
   Result := TCreateTriggerStmt.Create(Self, Nodes);
 end;
 
-// Nils
 function TMySQLParser.ParseCreateUserStmt(const Alter: Boolean): TOffset;
 var
-  ListNodes: TList.TNodes;
+  Found: Boolean;
   Nodes: TCreateUserStmt.TNodes;
-  Resources: array of TOffset;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
@@ -17409,87 +17401,55 @@ begin
   if (not Error) then
     Nodes.UserSpecifications := ParseList(False, ParseGrantStmtUserSpecification);
 
-  if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiWITH)) then
-  begin
-    SetLength(Resources, 0);
-
-    Nodes.WithTag := ParseTag(kiWITH);
-
-    repeat
-      if (EndOfStmt(CurrentToken)) then
-        SetError(PE_IncompleteStmt)
-      else if (TokenPtr(CurrentToken)^.KeywordIndex = kiMAX_QUERIES_PER_HOUR) then
-      begin
-        SetLength(Resources, Length(Resources) + 1);
-        Resources[Length(Resources) - 1] := ParseValue(kiMAX_QUERIES_PER_HOUR, vaNo, ParseInteger);
-      end
-      else if (TokenPtr(CurrentToken)^.KeywordIndex = kiMAX_UPDATES_PER_HOUR) then
-      begin
-        SetLength(Resources, Length(Resources) + 1);
-        Resources[Length(Resources) - 1] := ParseValue(kiMAX_UPDATES_PER_HOUR, vaNo, ParseInteger);
-      end
-      else if (TokenPtr(CurrentToken)^.KeywordIndex = kiMAX_CONNECTIONS_PER_HOUR) then
-      begin
-        SetLength(Resources, Length(Resources) + 1);
-        Resources[Length(Resources) - 1] := ParseValue(kiMAX_CONNECTIONS_PER_HOUR, vaNo, ParseInteger);
-      end
-      else if (TokenPtr(CurrentToken)^.KeywordIndex = kiMAX_USER_CONNECTIONS) then
-      begin
-        SetLength(Resources, Length(Resources) + 1);
-        Resources[Length(Resources) - 1] := ParseValue(kiMAX_USER_CONNECTIONS, vaNo, ParseInteger);
-      end
-      else
-        SetError(PE_UnexpectedToken);
-    until (Error or EndOfStmt(CurrentToken));
-
-    FillChar(ListNodes, SizeOf(ListNodes), 0);
-    Nodes.ResourcesList := TList.Create(Self, ListNodes, ttUnknown, Length(Resources), Resources);
-  end;
-
   if (not Error) then
-    if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiPASSWORD)
-      and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiEXPIRE)) then
+    if (IsTag(kiWITH)) then
     begin
-      if (EndOfStmt(NextToken[2]) and (TokenPtr(NextToken[2])^.KeywordIndex = kiDEFAULT)) then
-        Nodes.PasswordOption := ParseTag(kiPASSWORD, kiEXPIRE, kiDEFAULT)
-      else if (EndOfStmt(NextToken[2]) and (TokenPtr(NextToken[2])^.KeywordIndex = kiNEVER)) then
-        Nodes.PasswordOption := ParseTag(kiPASSWORD, kiEXPIRE, kiNEVER)
-      else if (EndOfStmt(NextToken[2]) and (TokenPtr(NextToken[2])^.KeywordIndex = kiINTERVAL)) then
-      begin
-        Nodes.PasswordOption := ParseTag(kiPASSWORD, kiEXPIRE, kiINTERVAL);
-        if (not Error) then
-          if (EndOfStmt(CurrentToken)) then
-            SetError(PE_IncompleteStmt)
-          else if (TokenPtr(CurrentToken)^.TokenType <> ttInteger) then
-            SetError(PE_UnexpectedToken)
-          else
-            Nodes.PasswordDays := ParseInteger();
-        if (not Error) then
-          if (EndOfStmt(CurrentToken)) then
-            SetError(PE_IncompleteStmt)
-          else if (TokenPtr(CurrentToken)^.KeywordIndex <> kiDAY) then
-            SetError(PE_UnexpectedToken)
-          else
-            Nodes.DayTag := ParseTag(kiDAY);
-      end
-      else
-        Nodes.PasswordOption := ParseTag(kiPASSWORD, kiEXPIRE);
-    end
-    else if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiACCOUNT)) then
-    begin
-      if (EndOfStmt(NextToken[1])) then
-        SetError(PE_IncompleteStmt)
-      else if (TokenPtr(CurrentToken)^.KeywordIndex = kiLOCK) then
-        Nodes.AccountTag := ParseTag(kiACCOUNT, kiLOCK)
-      else if (TokenPtr(CurrentToken)^.KeywordIndex = kiUNLOCK) then
-        Nodes.AccountTag := ParseTag(kiACCOUNT, kiUNLOCK)
-      else
-        SetError(PE_UnexpectedToken);
+      Nodes.WithTag := ParseTag(kiWITH);
+
+      Found := True;
+      while (not Error and Found) do
+        if ((Nodes.MaxQueriesPerHour = 0) and IsTag(kiMAX_QUERIES_PER_HOUR)) then
+          Nodes.MaxQueriesPerHour := ParseValue(kiMAX_QUERIES_PER_HOUR, vaNo, ParseInteger)
+        else if ((Nodes.MaxUpdatesPerHour = 0) and IsTag(kiMAX_UPDATES_PER_HOUR)) then
+          Nodes.MaxUpdatesPerHour := ParseValue(kiMAX_UPDATES_PER_HOUR, vaNo, ParseInteger)
+        else if ((Nodes.MaxConnectionsPerHour = 0) and IsTag(kiMAX_CONNECTIONS_PER_HOUR)) then
+          Nodes.MaxConnectionsPerHour := ParseValue(kiMAX_CONNECTIONS_PER_HOUR, vaNo, ParseInteger)
+        else if ((Nodes.MaxUserConnections = 0) and IsTag(kiMAX_USER_CONNECTIONS)) then
+          Nodes.MaxUserConnections := ParseValue(kiMAX_USER_CONNECTIONS, vaNo, ParseInteger)
+        else
+          Found := False;
+
+      if ((Nodes.MaxQueriesPerHour = 0)
+        and (Nodes.MaxUpdatesPerHour = 0)
+        and (Nodes.MaxConnectionsPerHour = 0)
+        and (Nodes.MaxUserConnections = 0)) then
+        if (EndOfStmt(CurrentToken)) then
+          SetError(PE_IncompleteStmt)
+        else
+          SetError(PE_UnexpectedToken);
     end;
+
+  Found := True;
+  while (not Error and Found) do
+    if ((Nodes.PasswordOption = 0) and IsTag(kiPASSWORD, kiEXPIRE, kiDEFAULT)) then
+      Nodes.PasswordOption := ParseTag(kiPASSWORD, kiEXPIRE, kiDEFAULT)
+    else if ((Nodes.PasswordOption = 0) and IsTag(kiPASSWORD, kiEXPIRE, kiNEVER)) then
+      Nodes.PasswordOption := ParseTag(kiPASSWORD, kiEXPIRE, kiNEVER)
+    else if ((Nodes.PasswordOption = 0) and IsTag(kiPASSWORD, kiEXPIRE, kiINTERVAL)) then
+      Nodes.PasswordOption := ParseValue(ParseTag(kiPASSWORD, kiEXPIRE, kiINTERVAL), vaNo, ParseIntervalOp)
+    else if ((Nodes.PasswordOption = 0) and IsTag(kiPASSWORD, kiEXPIRE)) then
+      Nodes.PasswordOption := ParseTag(kiPASSWORD, kiEXPIRE)
+    else if ((Nodes.AccountTag = 0) and IsTag(kiACCOUNT, kiLOCK)) then
+      Nodes.AccountTag := ParseTag(kiACCOUNT, kiLOCK)
+    else if ((Nodes.AccountTag = 0) and IsTag(kiACCOUNT, kiUNLOCK)) then
+      Nodes.AccountTag := ParseTag(kiACCOUNT, kiUNLOCK)
+    else
+      Found := False;
 
   Result := TCreateUserStmt.Create(Self, Nodes);
 end;
 
+// Nils
 function TMySQLParser.ParseCreateViewStmt(): TOffset;
 var
   Nodes: TCreateViewStmt.TNodes;

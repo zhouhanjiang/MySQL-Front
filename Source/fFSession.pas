@@ -3605,8 +3605,10 @@ begin
   end
   else
   begin
-    for I := 0 to DExport.Session.Databases.Count - 1 do
-      if (((Session.Databases.NameCmp(Session.Databases[I].Name, 'mysql') <> 0) and (Session.Databases.NameCmp(Session.Databases[I].Name, 'sys') <> 0) and (Session.Connection.ServerVersion >= 50707)) and not (Session.Databases[I] is TSSystemDatabase)) then
+    for I := 0 to Session.Databases.Count - 1 do
+      if (((Session.Databases.NameCmp(Session.Databases[I].Name, 'mysql') <> 0)
+        and ((Session.Databases.NameCmp(Session.Databases[I].Name, 'sys') <> 0) or (Session.Connection.ServerVersion < 50707)))
+        and not (Session.Databases[I] is TSSystemDatabase)) then
         DExport.SObjects.Add(Session.Databases[I]);
   end;
 
