@@ -3818,7 +3818,6 @@ begin
       SQL := 'CREATE EVENT `Parser` ON SCHEDULE AT ''2016-01-01 00:00:00'' DO ' + SQL;
   end;
 
-  Session.SQLParser.CompletionList.Active := True;
   if (not Session.SQLParser.ParseSQL(SQL)) then
     MsgBox(Session.SQLParser.Root^.ErrorMessage, Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
   else
@@ -13039,10 +13038,16 @@ begin
     end;
     SQL := Copy(SQL, Index, ActiveSynMemo.SelStart + 1 - Index - Length(CurrentInput));
 
-    Session.SQLParser.ParseSQL(SQL);
+    Session.SQLParser.ParseSQL(SQL, True);
 
     if (not (Session.SQLParser.Root^.ErrorCode in [TMySQLParser.PE_Success, TMySQLParser.PE_IncompleteStmt])) then
       MsgBox(Session.SQLParser.Root^.ErrorMessage, Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
+    else if ((Session.SQLParser.CompletionList.Count = 1)
+      and (Session.SQLParser.CompletionList[0]^.ItemType = itSymbol)) then
+    begin
+      CanExecute := False;
+      ActiveSynMemo.SelText := Session.SQLParser.CompletionList[0]^.SymbolChar;
+    end
     else
     begin
       CompletionList := TCompletionList.Create(Self);
@@ -13124,6 +13129,7 @@ begin
                     raise ERangeError.Create(SRangeError)
                 end;
               end;
+            itSymbol: ;
             itValue:
               CompletionList.Add(
                 Item^.ValueKeyword,

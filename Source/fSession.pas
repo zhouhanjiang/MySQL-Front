@@ -11901,7 +11901,11 @@ begin
                     end;
                   end;
                 dtDrop:
-                  Database.Events.Delete(Database.EventByName(DDLStmt.ObjectName));
+                  begin
+                    Event := Database.EventByName(DDLStmt.ObjectName);
+                    if (Assigned(Event)) then
+                      Database.Events.Delete(Event);
+                  end;
               end;
         end;
       end;

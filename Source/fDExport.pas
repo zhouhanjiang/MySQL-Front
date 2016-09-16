@@ -398,6 +398,7 @@ begin
   Title := '';
   SingleTable := (SObjects.Count = 1) and (TSObject(SObjects[0]) is TSTable);
 
+MessageBox(0, '1', 'Debug', MB_OK);
   if ((Assigned(DBGrid) or (SObjects.Count > 0)) and (DialogType = edtNormal)) then
     case (ExportType) of
       etODBC:
@@ -407,8 +408,11 @@ begin
         if (not GetPrinter()) then
           ModalResult := mrCancel;
       else
+      begin
+MessageBox(0, '2', 'Debug', MB_OK);
         if (not GetFilename()) then
           ModalResult := mrCancel;
+      end;
     end;
 
   Result := (ModalResult = mrNone) and (ShowModal() = mrOk);
@@ -1372,6 +1376,7 @@ function TDExport.GetFilename(): Boolean;
 var
   Database: TSDatabase;
 begin
+MessageBox(0, '3', 'Debug', MB_OK);
   Database := BuildTitle();
 
   if (SingleTable and (TObject(DExport.SObjects[0]) is TSBaseTable)) then
@@ -1383,6 +1388,7 @@ begin
   else
     Filename := '';
 
+MessageBox(0, '4', 'Debug', MB_OK);
   SaveDialog.Title := Preferences.LoadStr(582);
   SaveDialog.InitialDir := Preferences.Path;
   SaveDialog.Filter := '';
@@ -1442,6 +1448,7 @@ begin
   end;
   SaveDialog.Filter := SaveDialog.Filter + '|' + FilterDescription('*') + ' (*.*)|*.*';
 
+MessageBox(0, '5', 'Debug', MB_OK);
   if (Filename <> '') then
     SaveDialog.FileName := Filename
   else
@@ -1453,9 +1460,11 @@ begin
   else
     SaveDialog.EncodingIndex := SaveDialog.Encodings.IndexOf(CodePageToEncoding(CodePage));
 
+MessageBox(0, '6', 'Debug', MB_OK);
   Result := SaveDialog.Execute();
   if (Result) then
   begin
+MessageBox(0, '7', 'Debug', MB_OK);
     Preferences.Path := ExtractFilePath(SaveDialog.FileName);
 
     if ((SaveDialog.EncodingIndex < 0) or (SaveDialog.Encodings.Count = 0)) then
@@ -1463,6 +1472,8 @@ begin
     else
       CodePage := EncodingToCodePage(SaveDialog.Encodings[SaveDialog.EncodingIndex]);
     Filename := SaveDialog.FileName;
+MessageBox(0, '8', 'Debug', MB_OK);
+MessageBox(0, PChar('Filename: ' + Filename), 'Debug', MB_OK);
   end;
 end;
 
