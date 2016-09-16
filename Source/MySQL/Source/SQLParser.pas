@@ -1660,6 +1660,7 @@ type
         procedure SetText(AText: string);
       protected
         procedure Clear();
+        procedure GetWordText(const Index: TIndex; out Text: PChar; out Length: Integer);
         property Parser: TMySQLParser read FParser;
       public
         constructor Create(const ASQLParser: TMySQLParser; const AText: string = '');
@@ -7539,6 +7540,12 @@ begin
   Result := StrPas(FIndex[Index]);
 end;
 
+procedure TMySQLParser.TWordList.GetWordText(const Index: TIndex; out Text: PChar; out Length: Integer);
+begin
+  Text := FIndex[Index];
+  Length := StrLen(Text);
+end;
+
 function TMySQLParser.TWordList.IndexOf(const Word: PChar; const Length: Integer): Integer;
 var
   Comp: Integer;
@@ -7753,31 +7760,51 @@ procedure TMySQLParser.TCompletionList.AddTag(const KeywordIndex: Integer;
   const KeywordIndex6: Integer = -1; const KeywordIndex7: Integer = -1);
 var
   Item: PItem;
-  Keyword: string;
+  Length: Integer;
+  Tag: PChar;
+  Text: PChar;
 begin
   if (Parser.UseCompletionList) then
   begin
-    Keyword := Parser.KeywordList.Word[KeywordIndex];
-
-    if (KeywordIndex2 >= 0) then
-      Keyword := Keyword + ' ' + Parser.KeywordList.Word[KeywordIndex2];
-    if (KeywordIndex3 >= 0) then
-      Keyword := Keyword + ' ' + Parser.KeywordList.Word[KeywordIndex3];
-    if (KeywordIndex4 >= 0) then
-      Keyword := Keyword + ' ' + Parser.KeywordList.Word[KeywordIndex4];
-    if (KeywordIndex5 >= 0) then
-      Keyword := Keyword + ' ' + Parser.KeywordList.Word[KeywordIndex5];
-    if (KeywordIndex6 >= 0) then
-      Keyword := Keyword + ' ' + Parser.KeywordList.Word[KeywordIndex6];
-    if (KeywordIndex7 >= 0) then
-      Keyword := Keyword + ' ' + Parser.KeywordList.Word[KeywordIndex7];
-
-    Assert(Length(Keyword) < Length(Item^.Tag));
-
     GetMem(Item, SizeOf(Item^));
     FillChar(Item^, SizeOf(Item^), 0);
     Item^.ItemType := itTag;
-    StrPLCopy(Item^.Tag, Keyword, Length(Item^.Tag) - 1);
+    Tag := @Item^.Tag[0];
+
+    Parser.KeywordList.GetWordText(KeywordIndex, Text, Length);
+    StrLCopy(Tag, Text, Length); Tag := @Tag[Length];
+
+    if (KeywordIndex2 >= 0) then
+    begin
+      Tag[0] := ' '; Tag := @Tag[1];
+      Parser.KeywordList.GetWordText(KeywordIndex2, Text, Length);
+      StrLCopy(Tag, Text, Length); Tag := @Tag[Length];
+    end;
+    if (KeywordIndex3 >= 0) then
+    begin
+      Tag[0] := ' '; Tag := @Tag[1];
+      Parser.KeywordList.GetWordText(KeywordIndex3, Text, Length);
+      StrLCopy(Tag, Text, Length); Tag := @Tag[Length];
+    end;
+    if (KeywordIndex4 >= 0) then
+    begin
+      Tag[0] := ' '; Tag := @Tag[1];
+      Parser.KeywordList.GetWordText(KeywordIndex4, Text, Length);
+      StrLCopy(Tag, Text, Length); Tag := @Tag[Length];
+    end;
+    if (KeywordIndex5 >= 0) then
+    begin
+      Tag[0] := ' '; Tag := @Tag[1];
+      Parser.KeywordList.GetWordText(KeywordIndex5, Text, Length);
+      StrLCopy(Tag, Text, Length); Tag := @Tag[Length];
+    end;
+    if (KeywordIndex6 >= 0) then
+    begin
+      Tag[0] := ' '; Tag := @Tag[1];
+      Parser.KeywordList.GetWordText(KeywordIndex6, Text, Length);
+      StrLCopy(Tag, Text, Length); Tag := @Tag[Length];
+    end;
+
     Add(Item);
   end;
 end;
@@ -7833,31 +7860,51 @@ procedure TMySQLParser.TCompletionList.AddValue(const KeywordIndex: Integer;
   const KeywordIndex6: Integer = -1; const KeywordIndex7: Integer = -1);
 var
   Item: PItem;
-  ValueKeyword: string;
+  Length: Integer;
+  Tag: PChar;
+  Text: PChar;
 begin
   if (Parser.UseCompletionList) then
   begin
-    ValueKeyword := Parser.KeywordList.Word[KeywordIndex];
-
-    if (KeywordIndex2 >= 0) then
-      ValueKeyword := ValueKeyword + ' ' + Parser.KeywordList.Word[KeywordIndex2];
-    if (KeywordIndex3 >= 0) then
-      ValueKeyword := ValueKeyword + ' ' + Parser.KeywordList.Word[KeywordIndex3];
-    if (KeywordIndex4 >= 0) then
-      ValueKeyword := ValueKeyword + ' ' + Parser.KeywordList.Word[KeywordIndex4];
-    if (KeywordIndex5 >= 0) then
-      ValueKeyword := ValueKeyword + ' ' + Parser.KeywordList.Word[KeywordIndex5];
-    if (KeywordIndex6 >= 0) then
-      ValueKeyword := ValueKeyword + ' ' + Parser.KeywordList.Word[KeywordIndex6];
-    if (KeywordIndex7 >= 0) then
-      ValueKeyword := ValueKeyword + ' ' + Parser.KeywordList.Word[KeywordIndex7];
-
-    Assert(Length(ValueKeyword) < Length(Item^.Tag));
-
     GetMem(Item, SizeOf(Item^));
     FillChar(Item^, SizeOf(Item^), 0);
-    Item^.ItemType := itValue;
-    StrPLCopy(Item^.ValueKeyword, ValueKeyword, Length(Item^.Tag) - 1);
+    Item^.ItemType := itTag;
+    Tag := @Item^.ValueKeyword[0];
+
+    Parser.KeywordList.GetWordText(KeywordIndex, Text, Length);
+    StrLCopy(Tag, Text, Length); Tag := @Tag[Length];
+
+    if (KeywordIndex2 >= 0) then
+    begin
+      Tag[0] := ' '; Tag := @Tag[1];
+      Parser.KeywordList.GetWordText(KeywordIndex2, Text, Length);
+      StrLCopy(Tag, Text, Length); Tag := @Tag[Length];
+    end;
+    if (KeywordIndex3 >= 0) then
+    begin
+      Tag[0] := ' '; Tag := @Tag[1];
+      Parser.KeywordList.GetWordText(KeywordIndex3, Text, Length);
+      StrLCopy(Tag, Text, Length); Tag := @Tag[Length];
+    end;
+    if (KeywordIndex4 >= 0) then
+    begin
+      Tag[0] := ' '; Tag := @Tag[1];
+      Parser.KeywordList.GetWordText(KeywordIndex4, Text, Length);
+      StrLCopy(Tag, Text, Length); Tag := @Tag[Length];
+    end;
+    if (KeywordIndex5 >= 0) then
+    begin
+      Tag[0] := ' '; Tag := @Tag[1];
+      Parser.KeywordList.GetWordText(KeywordIndex5, Text, Length);
+      StrLCopy(Tag, Text, Length); Tag := @Tag[Length];
+    end;
+    if (KeywordIndex6 >= 0) then
+    begin
+      Tag[0] := ' '; Tag := @Tag[1];
+      Parser.KeywordList.GetWordText(KeywordIndex6, Text, Length);
+      StrLCopy(Tag, Text, Length); Tag := @Tag[Length];
+    end;
+
     Add(Item);
   end;
 end;
@@ -14086,7 +14133,7 @@ begin
     end;
   end;
 
-  Result := not Error;
+  Result := Root^.ErrorCode = PE_Success;
 end;
 
 function TMySQLParser.NewNode(const ANodeType: TNodeType): TOffset;
@@ -16968,35 +17015,37 @@ begin
     Index := 1; // "ADD"
 
   SpecificationType := stField;
-  if (not EndOfStmt(NextToken[Index])) then
-    if ((TokenPtr(NextToken[Index])^.KeywordIndex = kiFULLTEXT)
-      or (TokenPtr(NextToken[Index])^.KeywordIndex = kiINDEX)
-      or (TokenPtr(NextToken[Index])^.KeywordIndex = kiPRIMARY)
-      or (TokenPtr(NextToken[Index])^.KeywordIndex = kiUNIQUE)
-      or (TokenPtr(NextToken[Index])^.KeywordIndex = kiSPATIAL)) then
+  if (EndOfStmt(NextToken[Index])) then
+    SetError(PE_IncompleteStmt)
+  else if ((TokenPtr(NextToken[Index])^.KeywordIndex = kiFULLTEXT)
+    or (TokenPtr(NextToken[Index])^.KeywordIndex = kiINDEX)
+    or (TokenPtr(NextToken[Index])^.KeywordIndex = kiKEY)
+    or (TokenPtr(NextToken[Index])^.KeywordIndex = kiPRIMARY)
+    or (TokenPtr(NextToken[Index])^.KeywordIndex = kiUNIQUE)
+    or (TokenPtr(NextToken[Index])^.KeywordIndex = kiSPATIAL)) then
+    SpecificationType := stKey
+  else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiFOREIGN) then
+    SpecificationType := stForeignKey
+  else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiCONSTRAINT) then
+  begin
+    if (not EndOfStmt(NextToken[Index + 1])
+      and (TokenPtr(NextToken[Index + 1])^.KeywordIndex <> kiFOREIGN)
+      and (TokenPtr(NextToken[Index + 1])^.KeywordIndex <> kiPRIMARY)
+      and (TokenPtr(NextToken[Index + 1])^.KeywordIndex <> kiUNIQUE)) then
+      Inc(Index); // Symbol identifier
+    if (EndOfStmt(NextToken[Index + 1])) then
+      SetError(PE_IncompleteStmt)
+    else if ((TokenPtr(NextToken[Index + 1])^.KeywordIndex = kiPRIMARY) or (TokenPtr(NextToken[Index + 1])^.KeywordIndex = kiUNIQUE)) then
       SpecificationType := stKey
-    else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiFOREIGN) then
+    else if (TokenPtr(NextToken[Index + 1])^.KeywordIndex = kiFOREIGN) then
       SpecificationType := stForeignKey
-    else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiCONSTRAINT) then
-    begin
-      if (not EndOfStmt(NextToken[Index + 1])
-        and (TokenPtr(NextToken[Index + 1])^.KeywordIndex <> kiFOREIGN)
-        and (TokenPtr(NextToken[Index + 1])^.KeywordIndex <> kiPRIMARY)
-        and (TokenPtr(NextToken[Index + 1])^.KeywordIndex <> kiUNIQUE)) then
-        Inc(Index); // Symbol identifier
-      if (EndOfStmt(NextToken[Index + 1])) then
-        SetError(PE_IncompleteStmt)
-      else if ((TokenPtr(NextToken[Index + 1])^.KeywordIndex = kiPRIMARY) or (TokenPtr(NextToken[Index + 1])^.KeywordIndex = kiUNIQUE)) then
-        SpecificationType := stKey
-      else if (TokenPtr(NextToken[Index + 1])^.KeywordIndex = kiFOREIGN) then
-        SpecificationType := stForeignKey
-      else
-        SetError(PE_UnexpectedToken, NextToken[Index + 1]);
-    end
-    else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiCHECK) then
-      SpecificationType := stCheck
-    else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiPARTITION) then
-      SpecificationType := stPartition;
+    else
+      SetError(PE_UnexpectedToken, NextToken[Index + 1]);
+  end
+  else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiCHECK) then
+    SpecificationType := stCheck
+  else if (TokenPtr(NextToken[Index])^.KeywordIndex = kiPARTITION) then
+    SpecificationType := stPartition;
 
   Result := 0;
   if (not Error) then
@@ -22906,7 +22955,7 @@ begin
 
   FRoot := ParseRoot();
 
-  Result := not Error;
+  Result := Root^.ErrorCode = PE_Success;
 end;
 
 function TMySQLParser.ParseSQL(const Text: string; const AUseCompletionList: Boolean = False): Boolean;
@@ -24715,7 +24764,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  Nodes.IdentTag := ParseTableIdent();
+  Nodes.IdentTag := ParseFieldIdentFullQualified();
 
   if (not Error) then
     if (EndOfStmt(CurrentToken)) then
