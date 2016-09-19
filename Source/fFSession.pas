@@ -907,6 +907,12 @@ type
     SQLEditor3: TSQLEditor;
     StatiListView: TListView;
     SynMemoBeforeDrag: TSynMemoBeforeDrag;
+    SynCompletionPending: record
+      Active: Boolean;
+      CurrentInput: string;
+      X: Integer;
+      Y: Integer;
+    end;
     NavigatorElapse: Integer;
     UsersListView: TListView;
     VariablesListView: TListView;
@@ -1026,6 +1032,7 @@ type
     procedure SetPath(const APath: TFileName);
     procedure SQLError(DataSet: TDataSet; E: EDatabaseError; var Action: TDataAction);
     procedure SynMemoApplyPreferences(const SynMemo: TSynMemo);
+    procedure SynMemoCompletionEvent(const Event: TSSession.TEvent);
     procedure TableOpen(Sender: TObject);
     procedure TCResultMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
     procedure UMActivateDBGrid(var Message: TMessage); message UM_ACTIVATE_DBGRID;
@@ -4527,6 +4534,7 @@ begin
   FNavigatorNodeAfterActivate := nil;
   FNavigatorNodeToExpand := nil;
   PanelMouseDownPoint := Point(-1, -1);
+  SynCompletionPending.Active := False;
 
 
   TBSideBar.Images := Preferences.SmallImages;
@@ -13015,7 +13023,7 @@ var
   Item: TMySQLParser.TCompletionList.PItem;
   J: Integer;
   Len: Integer;
-  SessionList: TList;
+  List: TList;
   SQL: string;
   Table: TSTable;
 begin
@@ -13041,19 +13049,12 @@ begin
     SQL := Copy(SQL, Index, ActiveSynMemo.SelStart + 1 - Index - Length(CurrentInput));
 
     Session.SQLParser.ParseSQL(SQL, True);
+    CanExecute := Session.SQLParser.Root^.ErrorCode in [TMySQLParser.PE_Success, TMySQLParser.PE_IncompleteStmt];
 
-    if (not (Session.SQLParser.Root^.ErrorCode in [TMySQLParser.PE_Success, TMySQLParser.PE_IncompleteStmt])) then
-      MsgBox(Session.SQLParser.Root^.ErrorMessage, Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
-    else if ((Session.SQLParser.CompletionList.Count = 1)
-      and (Session.SQLParser.CompletionList[0]^.ItemType = itSymbol)) then
-    begin
-      CanExecute := False;
-      ActiveSynMemo.SelText := Session.SQLParser.CompletionList[0]^.SymbolChar;
-    end
-    else
+    if (CanExecute) then
     begin
       CompletionList := TCompletionList.Create(Self);
-      SessionList := TList.Create();
+      List := TList.Create();
 
       SynCompletion.ItemList.Clear();
       SynCompletion.InsertList.Clear();
@@ -13079,50 +13080,50 @@ begin
                   Table := Database.TableByName(Item^.TableName);
                 case (Item^.DbIdentType) of
                   ditDatabase:
-                    SessionList.Add(Session.Databases);
+                    List.Add(Session.Databases);
                   ditTable:
                     if (Assigned(Database)) then
-                      SessionList.Add(Database.Tables);
+                      List.Add(Database.Tables);
                   ditProcedure,
                   ditFunction:
                     if (Assigned(Database)) then
                     begin
-                      SessionList.Add(Database.Routines);
+                      List.Add(Database.Routines);
                       SetLength(EntitiesDbIdentTypes, Length(EntitiesDbIdentTypes) + 1);
                       EntitiesDbIdentTypes[Length(EntitiesDbIdentTypes) - 1].DbIdentType := Item^.DbIdentType;
                       EntitiesDbIdentTypes[Length(EntitiesDbIdentTypes) - 1].DbObject := Database.Routines;
                     end;
-  //                  ditKey,
-  //                  ditField,
-  //                  ditForeignKey:
-                    // TableName is not given!
+                  ditKey,
+                  ditField,
+                  ditForeignKey:
+                    ; // TableName is not given!
                   ditEvent:
                     if (Assigned(Database)) then
-                      SessionList.Add(Database.Events);
+                      List.Add(Database.Events);
                   ditUser:
                     begin
-                      SessionList.Add(Session.Users);
+                      List.Add(Session.Users);
                       SetLength(EntitiesDbIdentTypes, Length(EntitiesDbIdentTypes) + 1);
                       EntitiesDbIdentTypes[Length(EntitiesDbIdentTypes) - 1].DbIdentType := Item^.DbIdentType;
                       EntitiesDbIdentTypes[Length(EntitiesDbIdentTypes) - 1].DbObject := Session.Users;
                     end;
                   ditEngine:
                     begin
-                      SessionList.Add(Session.Engines);
+                      List.Add(Session.Engines);
                       SetLength(EntitiesDbIdentTypes, Length(EntitiesDbIdentTypes) + 1);
                       EntitiesDbIdentTypes[Length(EntitiesDbIdentTypes) - 1].DbIdentType := Item^.DbIdentType;
                       EntitiesDbIdentTypes[Length(EntitiesDbIdentTypes) - 1].DbObject := Session.Engines;
                     end;
                   ditCharset:
                     begin
-                      SessionList.Add(Session.Charsets);
+                      List.Add(Session.Charsets);
                       SetLength(EntitiesDbIdentTypes, Length(EntitiesDbIdentTypes) + 1);
                       EntitiesDbIdentTypes[Length(EntitiesDbIdentTypes) - 1].DbIdentType := Item^.DbIdentType;
                       EntitiesDbIdentTypes[Length(EntitiesDbIdentTypes) - 1].DbObject := Session.Charsets;
                     end;
                   ditCollation:
                     begin
-                      SessionList.Add(Session.Collations);
+                      List.Add(Session.Collations);
                       SetLength(EntitiesDbIdentTypes, Length(EntitiesDbIdentTypes) + 1);
                       EntitiesDbIdentTypes[Length(EntitiesDbIdentTypes) - 1].DbIdentType := Item^.DbIdentType;
                       EntitiesDbIdentTypes[Length(EntitiesDbIdentTypes) - 1].DbObject := Session.Collations;
@@ -13131,78 +13132,79 @@ begin
                     raise ERangeError.Create(SRangeError)
                 end;
               end;
-            itSymbol: ;
-            itValue:
-              CompletionList.Add(
-                Item^.ValueKeyword,
-                PChar(Item^.ValueKeyword + ' ='));
             else
               raise ERangeError.Create(SRangeError)
           end;
         end;
 
         CanExecute := True;
-        for I := 0 to SessionList.Count - 1 do
-          CanExecute := CanExecute and (TObject(SessionList[I]) is TSEntities) and TSEntities(SessionList[I]).Valid;
+        for I := 0 to List.Count - 1 do
+          CanExecute := CanExecute and (TObject(List[I]) is TSEntities) and TSEntities(List[I]).Valid;
 
         if (not CanExecute) then
         begin
-          DExecutingSQL.Session := Session;
-          DExecutingSQL.List := SessionList;
-          CanExecute := DExecutingSQL.Execute();
+          CanExecute := Session.Update(List);
+          if (not CanExecute) then
+          begin
+            SynCompletionPending.Active := True;
+            SynCompletionPending.CurrentInput := CurrentInput;
+            SynCompletionPending.X := X;
+            SynCompletionPending.Y := Y;
+            Session.RegisterEventProc(SynMemoCompletionEvent);
+          end;
         end;
 
-        if (CanExecute) then
-          if ((CompletionList.Count = 0) and (SessionList.Count = 0)) then
-            MessageBeep(MB_ICONERROR)
-          else
-          begin
-            for I := 0 to SessionList.Count - 1 do
-              if (TObject(SessionList[I]) is TSEntities) then
-              begin
-                DbIdentType := ditUnknown;
-                for J := 0 to Length(EntitiesDbIdentTypes) - 1 do
-                  if (EntitiesDbIdentTypes[J].DbObject = SessionList[I]) then
-                    DbIdentType := EntitiesDbIdentTypes[J].DbIdentType;
-                for J := 0 to TSEntities(SessionList[I]).Count - 1 do
-                  case (DbIdentType) of
-                    ditProcedure:
-                      if (TSEntities(SessionList[I])[J] is TSRoutine) then
-                        CompletionList.Add(
-                          PChar(TSEntities(SessionList[I])[J].Name),
-                          PChar(Session.Connection.EscapeIdentifier(TSEntities(SessionList[I])[J].Name)));
-                    ditFunction:
-                      if (TSEntities(SessionList[I])[J] is TSFunction) then
-                        CompletionList.Add(
-                          PChar(TSEntities(SessionList[I])[J].Name),
-                          PChar(Session.Connection.EscapeIdentifier(TSEntities(SessionList[I])[J].Name)));
-                    ditUser:
-                      CompletionList.Add(
-                        PChar(TSEntities(SessionList[I])[J].Name),
-                        PChar(Session.EscapeUser(TSEntities(SessionList[I])[J].Name, False)));
-                    ditEngine,
-                    ditCharset,
-                    ditCollation:
-                      CompletionList.Add(
-                        PChar(TSEntities(SessionList[I])[J].Name),
-                        PChar(TSEntities(SessionList[I])[J].Name));
-                    else
-                      CompletionList.Add(
-                        PChar(TSEntities(SessionList[I])[J].Name),
-                        PChar(Session.Connection.EscapeIdentifier(TSEntities(SessionList[I])[J].Name)));
-                  end;
-              end;
+        CanExecute := CanExecute and
+          (CompletionList.Count > 0) or (List.Count > 0);
 
-              CompletionList.Sort(CompletionListCompare);
-              for I := 0 to CompletionList.Count - 1 do
-              begin
-                SynCompletion.ItemList.Add(StrPas(PChar(@CompletionList[I]^.View)));
-                SynCompletion.InsertList.Add(StrPas(PChar(@CompletionList[I]^.Insert[0])));
-              end;
+        if (CanExecute) then
+        begin
+          for I := 0 to List.Count - 1 do
+            if (TObject(List[I]) is TSEntities) then
+            begin
+              DbIdentType := ditUnknown;
+              for J := 0 to Length(EntitiesDbIdentTypes) - 1 do
+                if (EntitiesDbIdentTypes[J].DbObject = List[I]) then
+                  DbIdentType := EntitiesDbIdentTypes[J].DbIdentType;
+              for J := 0 to TSEntities(List[I]).Count - 1 do
+                case (DbIdentType) of
+                  ditProcedure:
+                    if (TSEntities(List[I])[J] is TSProcedure) then
+                      CompletionList.Add(
+                        PChar(TSEntities(List[I])[J].Name),
+                        PChar(Session.Connection.EscapeIdentifier(TSEntities(List[I])[J].Name)));
+                  ditFunction:
+                    if (TSEntities(List[I])[J] is TSFunction) then
+                      CompletionList.Add(
+                        PChar(TSEntities(List[I])[J].Name),
+                        PChar(Session.Connection.EscapeIdentifier(TSEntities(List[I])[J].Name)));
+                  ditUser:
+                    CompletionList.Add(
+                      PChar(TSEntities(List[I])[J].Name),
+                      PChar(Session.EscapeUser(TSEntities(List[I])[J].Name, False)));
+                  ditEngine,
+                  ditCharset,
+                  ditCollation:
+                    CompletionList.Add(
+                      PChar(TSEntities(List[I])[J].Name),
+                      PChar(TSEntities(List[I])[J].Name));
+                  else
+                    CompletionList.Add(
+                      PChar(TSEntities(List[I])[J].Name),
+                      PChar(Session.Connection.EscapeIdentifier(TSEntities(List[I])[J].Name)));
+                end;
             end;
 
+            CompletionList.Sort(CompletionListCompare);
+            for I := 0 to CompletionList.Count - 1 do
+            begin
+              SynCompletion.ItemList.Add(StrPas(PChar(@CompletionList[I]^.View)));
+              SynCompletion.InsertList.Add(StrPas(PChar(@CompletionList[I]^.Insert[0])));
+            end;
+          end;
+
       finally
-        SessionList.Free();
+        List.Free();
         for I := 0 to CompletionList.Count - 1 do
           FreeMem(CompletionList[I]);
         CompletionList.Free();
@@ -13233,6 +13235,17 @@ begin
     SynMemo.TabWidth := FSQLEditorSynMemo.TabWidth;
     SynMemo.WantTabs := FSQLEditorSynMemo.WantTabs;
     SynMemo.WordWrap := FSQLEditorSynMemo.WordWrap;
+  end;
+end;
+
+procedure TFSession.SynMemoCompletionEvent(const Event: TSSession.TEvent);
+begin
+  if (Event.EventType = etAfterExecuteSQL) then
+  begin
+    with SynCompletionPending do
+      SynCompletion.Execute(CurrentInput, X, Y);
+    Session.UnRegisterEventProc(SynMemoCompletionEvent);
+    SynCompletionPending.Active := False;
   end;
 end;
 
@@ -13341,6 +13354,12 @@ begin
 
   MainAction('aHIndex').ShortCut := ShortCut(VK_F1, []);
   MainAction('aHSQL').ShortCut := 0;
+
+  if (SynCompletionPending.Active) then
+  begin
+    Session.UnRegisterEventProc(SynMemoCompletionEvent);
+    SynCompletionPending.Active := False;
+  end;
 end;
 
 procedure TFSession.SynMemoStatusChange(Sender: TObject; Changes: TSynStatusChanges);
@@ -13355,6 +13374,12 @@ begin
   begin
     if (((scCaretX in Changes) or (scModified in Changes) or (scAll in Changes)) and Assigned(ActiveSynMemo)) then
     begin
+      if (SynCompletionPending.Active) then
+      begin
+        Session.UnRegisterEventProc(SynMemoCompletionEvent);
+        SynCompletionPending.Active := False;
+      end;
+
       SelSQL := ActiveSynMemo.SelText; // Cache, da Abfrage bei vielen Zeilen Zeit benötigt
       if (View = vIDE) then SQL := ActiveSynMemo.Text;
 
