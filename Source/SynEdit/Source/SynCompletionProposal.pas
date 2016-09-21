@@ -1586,7 +1586,7 @@ begin
 
       if FEffectiveItemHeight <> 0 then
       begin
-        NewLinesInWindow := (NewHeight-FHeightBuffer) div FEffectiveItemHeight;
+        NewLinesInWindow := (NewHeight-FHeightBuffer) div FEffectiveItemHeight - 1;
         if NewLinesInWindow < 1 then
           NewLinesInWindow := 1;
       end else
@@ -1611,7 +1611,7 @@ begin
   inherited;
 
   if FEffectiveItemHeight <> 0 then
-    FLinesInWindow := (Height - FHeightBuffer) div FEffectiveItemHeight;
+    FLinesInWindow := (Height - FHeightBuffer) div FEffectiveItemHeight - 1;
 
   if not(csCreating in ControlState) then
     AdjustMetrics;

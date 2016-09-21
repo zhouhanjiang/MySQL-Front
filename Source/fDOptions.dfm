@@ -51,10 +51,6 @@ object DOptions: TDOptions
     TabOrder = 0
     object TSView: TTabSheet
       Caption = 'TSView'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object GProgram: TGroupBox_Ext
         Left = 4
         Top = 4
@@ -668,7 +664,7 @@ object DOptions: TDOptions
               '# Create new table here'
               'CREATE TABLE `NewTable` ('
               '  `name` char(64) binary NULL'
-              ') TYPE=MyISAM COMMENT='#39'Test'#39';'
+              ') ENGINE=MyISAM COMMENT='#39'Test'#39';'
               '/*!40100 SET NAMES latin1;*/'
               'SELECT Upper(@TestVar);')
             Options = [eoAutoIndent, eoDragDropEditing, eoGroupUndo, eoHideShowScrollbars, eoSmartTabDelete, eoSmartTabs, eoTabsToSpaces, eoTrimTrailingSpaces]

@@ -6019,8 +6019,17 @@ begin
   for I := 0 to DBGrid.Columns.Count - 1 do
     if (Assigned(DBGrid.Columns[I].Field)) then
     begin
-      if ((DBGrid.Columns[I].Width > Preferences.GridMaxColumnWidth) and not (DBGrid.Columns[I].Field.DataType in [ftSmallint, ftInteger, ftLargeint, ftWord, ftLongWord, ftFloat, ftDate, ftDateTime, ftTime, ftCurrency])) then
+      if (DBGrid.Columns[I].Field.IsIndexField) then
+        DBGrid.Canvas.Font.Style := DBGrid.Font.Style + [fsBold];
+
+      if (DBGrid.Columns[I].Width < DBGrid.Canvas.TextWidth('ee' + DBGrid.Columns[I].Title.Caption)) then
+        DBGrid.Columns[I].Width := DBGrid.Canvas.TextWidth('ee' + DBGrid.Columns[I].Title.Caption)
+      else if ((DBGrid.Columns[I].Width > Preferences.GridMaxColumnWidth) and not (DBGrid.Columns[I].Field.DataType in [ftSmallint, ftInteger, ftLargeint, ftWord, ftLongWord, ftFloat, ftDate, ftDateTime, ftTime, ftCurrency])) then
         DBGrid.Columns[I].Width := Preferences.GridMaxColumnWidth;
+
+      if (DBGrid.Columns[I].Field.IsIndexField) then
+        DBGrid.Canvas.Font.Style := DBGrid.Font.Style - [fsBold];
+
       DBGrid.Columns[I].Field.OnSetText := FieldSetText;
     end;
   DBGrid.Columns.EndUpdate();

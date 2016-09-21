@@ -535,6 +535,7 @@ type
         stStartSlave,
         stStartTransaction,
         stStopSlave,
+        stSubAreaSelect,
         stTruncate,
         stUnknown,
         stUnlockTables,
@@ -1050,6 +1051,7 @@ type
         'stStartSlave',
         'stStartTransaction',
         'stStopSlave',
+        'stSubAreaSelect',
         'stTruncate',
         'stUnknown',
         'stUnlockTables',
@@ -1556,6 +1558,7 @@ type
         ntStartSlaveStmt,
         ntStartTransactionStmt,
         ntStopSlaveStmt,
+        ntSubAreaSelectStmt,
         ntTruncateStmt,
         ntUnknownStmt,
         ntUnlockTablesStmt,
@@ -3070,6 +3073,7 @@ type
         TNodes = packed record
           NationalToken: TOffset;
           SignedToken: TOffset;
+          PreDatatypeToken: TOffset;
           DatatypeToken: TOffset;
           OpenBracket: TOffset;
           LengthToken: TOffset;
@@ -3741,6 +3745,7 @@ type
             PluginIdent: TOffset;
             AsTag: TOffset;
             AuthString: TOffset;
+            WithGrantOptionTag: TOffset;
           end;
         private
           Heritage: TRange;
@@ -4717,7 +4722,7 @@ type
           CharacterSetValue: TOffset;
           VariableList: TOffset;
           FieldsTerminatedByValue: TOffset;
-          OptionallyEnclosedByValue: TOffset;
+          EnclosedByValue: TOffset;
           LinesTerminatedByValue: TOffset;
         end;
 
@@ -5796,6 +5801,24 @@ type
         property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
+      PSubAreaSelectStmt = ^TSubAreaSelectStmt;
+      TSubAreaSelectStmt = packed record
+      private type
+        TNodes = packed record
+          SelectStmt1: TOffset;
+          UnionTag: TOffset;
+          HowTag: TOffset;
+          SelectStmt2: TOffset;
+        end;
+      private
+        Heritage: TStmt;
+      private
+        Nodes: TNodes;
+        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+      public
+        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+      end;
+
       PSubPartition = ^TSubPartition;
       TSubPartition = packed record
       private type
@@ -6810,6 +6833,7 @@ type
     procedure FormatShowRelaylogEventsStmt(const Nodes: TShowBinlogEventsStmt.TNodes);
     procedure FormatShowWarningsStmt(const Nodes: TShowWarningsStmt.TNodes);
     procedure FormatSubArea(const Nodes: TSubArea.TNodes);
+    procedure FormatSubAreaSelectStmt(const Nodes: TSubAreaSelectStmt.TNodes);
     procedure FormatSubPartition(const Nodes: TSubPartition.TNodes);
     procedure FormatSubstringFunc(const Nodes: TSubstringFunc.TNodes);
     procedure FormatToken(const Token: PToken);
@@ -11296,6 +11320,20 @@ begin
   end;
 end;
 
+{ TMySQLParser.TSubAreaSelectStmt *********************************************}
+
+class function TMySQLParser.TSubAreaSelectStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+begin
+  Result := TStmt.Create(AParser, stSubAreaSelect);
+
+  with PSubAreaSelectStmt(AParser.NodePtr(Result))^ do
+  begin
+    Nodes := ANodes;
+
+    Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+  end;
+end;
+
 { TMySQLParser.TSubPartition **************************************************}
 
 class function TMySQLParser.TSubPartition.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
@@ -13059,6 +13097,7 @@ begin
       ntStartTransactionStmt: DefaultFormatNode(@PStartTransactionStmt(Node)^.Nodes, SizeOf(TStartTransactionStmt.TNodes));
       ntStopSlaveStmt: DefaultFormatNode(@PStopSlaveStmt(Node)^.Nodes, SizeOf(TSignalStmt.TNodes));
       ntSubArea: FormatSubArea(PSubArea(Node)^.Nodes);
+      ntSubAreaSelectStmt: FormatSubAreaSelectStmt(PSubAreaSelectStmt(Node)^.Nodes);
       ntSubPartition: FormatSubPartition(PSubPartition(Node)^.Nodes);
       ntSubstringFunc: FormatSubstringFunc(PSubstringFunc(Node)^.Nodes);
       ntTag: DefaultFormatNode(@PTag(Node)^.Nodes, SizeOf(TTag.TNodes));
@@ -13171,7 +13210,7 @@ var
           Commands.WriteReturn();
         FormatNode(Nodes.CharacterSetValue, stSpaceBefore);
         FormatNode(Nodes.FieldsTerminatedByValue, stSpaceBefore);
-        FormatNode(Nodes.OptionallyEnclosedByValue, stSpaceBefore);
+        FormatNode(Nodes.EnclosedByValue, stSpaceBefore);
         FormatNode(Nodes.LinesTerminatedByValue, stSpaceBefore);
         Commands.DecreaseIndent();
       end
@@ -13463,6 +13502,13 @@ begin
   FormatNode(Nodes.OpenBracket);
   FormatNode(Nodes.AreaNode);
   FormatNode(Nodes.CloseBracket);
+end;
+
+procedure TMySQLParser.FormatSubAreaSelectStmt(const Nodes: TSubAreaSelectStmt.TNodes);
+begin
+  FormatNode(Nodes.SelectStmt1);
+  FormatNode(Nodes.UnionTag, stReturnBefore);
+  FormatNode(Nodes.SelectStmt2, stReturnBefore);
 end;
 
 procedure TMySQLParser.FormatSubPartition(const Nodes: TSubPartition.TNodes);
@@ -14192,6 +14238,7 @@ begin
     ntStartTransactionStmt: Result := SizeOf(TStartTransactionStmt);
     ntStopSlaveStmt: Result := SizeOf(TStopSlaveStmt);
     ntSubArea: Result := SizeOf(TSubArea);
+    ntSubAreaSelectStmt: Result := SizeOf(TSubAreaSelectStmt);
     ntSubPartition: Result := SizeOf(TSubPartition);
     ntSubstringFunc: Result := SizeOf(TSubstringFunc);
     ntTag: Result := SizeOf(TTag);
@@ -17376,7 +17423,7 @@ begin
     end;
 
   if (not Error
-    and (DatatypeIndex = diSIGNED) or (DatatypeIndex = diUNSIGNED)
+    and ((DatatypeIndex = diSIGNED) or (DatatypeIndex = diUNSIGNED))
     and (TokenPtr(CurrentToken)^.TokenType = ttIdent)) then
   begin
     TokenPtr(CurrentToken)^.GetText(Text, Length);
@@ -17397,11 +17444,27 @@ begin
     end;
   end;
 
+  if (not Error
+    and (DatatypeIndex = diLONG)
+    and (TokenPtr(CurrentToken)^.TokenType = ttIdent)) then
+  begin
+    TokenPtr(CurrentToken)^.GetText(Text, Length);
+    DatatypeIndex2 := DatatypeList.IndexOf(Text, Length);
+    if ((DatatypeIndex2 = diVARBINARY)
+      or (DatatypeIndex2 = diVARCHAR)) then
+    begin
+      Nodes.PreDatatypeToken := Nodes.DatatypeToken;
+      Nodes.DatatypeToken := ApplyCurrentToken(utDatatype);
+      DatatypeIndex := DatatypeIndex2;
+    end;
+  end;
+
   if (not Error) then
     if (IsSymbol(ttOpenBracket)
       and ((DatatypeIndex = diBIGINT)
         or (DatatypeIndex = diBINARY)
         or (DatatypeIndex = diBIT)
+        or (DatatypeIndex = diBLOB)
         or (DatatypeIndex = diCHAR)
         or (DatatypeIndex = diCHARACTER)
         or (DatatypeIndex = diDATETIME)
@@ -17454,17 +17517,8 @@ begin
     end;
 
   if (not Error
-    and (Nodes.LengthToken = 0)
-    and ((DatatypeIndex = diVARCHAR)
-      or (DatatypeIndex = diVARBINARY))) then
-    if (EndOfStmt(CurrentToken)) then
-      SetError(PE_IncompleteStmt)
-    else
-      SetError(PE_UnexpectedToken);
-
-  if (not Error
-    and (DatatypeIndex = diENUM)
-      or (DatatypeIndex = diSET)) then
+    and ((DatatypeIndex = diENUM)
+      or (DatatypeIndex = diSET))) then
     Nodes.ItemsList := ParseList(True, ParseString);
 
   if (not Error) then
@@ -18055,7 +18109,7 @@ var
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
-  if (IsTag(kiDATABASE)) then
+  if (IsTag(kiDROP, kiDATABASE)) then
     Nodes.StmtTag := ParseTag(kiDROP, kiDATABASE)
   else
     Nodes.StmtTag := ParseTag(kiDROP, kiSCHEMA);
@@ -19115,13 +19169,13 @@ begin
             if ((Nodes.GrantOptionTag = 0) and IsTag(kiGRANT, kiOPTION)) then
               Nodes.GrantOptionTag := ParseTag(kiGRANT, kiOPTION)
             else if ((Nodes.MaxQueriesPerHourTag = 0) and IsTag(kiMAX_QUERIES_PER_HOUR)) then
-              Nodes.MaxQueriesPerHourTag := ParseTag(kiMAX_QUERIES_PER_HOUR)
+              Nodes.MaxQueriesPerHourTag := ParseValue(kiMAX_QUERIES_PER_HOUR, vaNo, ParseInteger)
             else if ((Nodes.MaxUpdatesPerHourTag = 0) and IsTag(kiMAX_UPDATES_PER_HOUR)) then
-              Nodes.MaxUpdatesPerHourTag := ParseTag(kiMAX_UPDATES_PER_HOUR)
+              Nodes.MaxUpdatesPerHourTag := ParseValue(kiMAX_UPDATES_PER_HOUR, vaNo, ParseInteger)
             else if ((Nodes.MaxConnectionsPerHourTag = 0) and IsTag(kiMAX_CONNECTIONS_PER_HOUR)) then
-              Nodes.MaxConnectionsPerHourTag := ParseTag(kiMAX_CONNECTIONS_PER_HOUR)
+              Nodes.MaxConnectionsPerHourTag := ParseValue(kiMAX_CONNECTIONS_PER_HOUR, vaNo, ParseInteger)
             else if ((Nodes.MaxUserConnectionsTag = 0) and IsTag(kiMAX_USER_CONNECTIONS)) then
-              Nodes.MaxUserConnectionsTag := ParseTag(kiMAX_USER_CONNECTIONS)
+              Nodes.MaxUserConnectionsTag := ParseValue(kiMAX_USER_CONNECTIONS, vaNo, ParseInteger)
             else
               Found := False;
         end;
@@ -19254,13 +19308,11 @@ begin
           and not EndOfStmt(NextToken[2])
           and (TokenPtr(NextToken[1])^.TokenType = ttIdent)
           and (TokenPtr(NextToken[2])^.OperatorType = otGreater)) then
-          Nodes.AuthString := ParseSecretIdent()
-        else
-          SetError(PE_UnexpectedToken);
+          Nodes.AuthString := ParseSecretIdent();
     end
     else if (IsTag(kiIDENTIFIED, kiBY)) then
     begin
-      Nodes.IdentifiedToken := ParseTag(kiIDENTIFIED, kiBY, kiPASSWORD);
+      Nodes.IdentifiedToken := ParseTag(kiIDENTIFIED, kiBY);
 
       if (not Error) then
         Nodes.AuthString := ParseString();
@@ -20676,17 +20728,23 @@ function TMySQLParser.ParseSelectStmt(const SubSelect: Boolean): TOffset;
       if (not Error) then
         Result.Filename := ParseString();
 
-      if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiCHARACTER)) then
-        Result.CharacterSetValue := ParseValue(WordIndices(kiCHARACTER, kiSET), vaNo, ParseCharsetIdent);
+      if (not Error) then
+        if (IsTag(kiCHARACTER, kiSET)) then
+          Result.CharacterSetValue := ParseValue(WordIndices(kiCHARACTER, kiSET), vaNo, ParseCharsetIdent);
 
-      if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiFIELDS)) then
-        Result.FieldsTerminatedByValue := ParseValue(WordIndices(kiFIELDS, kiTERMINATED, kiBY), vaNo, ParseString);
+      if (not Error) then
+        if (IsTag(kiFIELDS, kiTERMINATED, kiBY)) then
+          Result.FieldsTerminatedByValue := ParseValue(WordIndices(kiFIELDS, kiTERMINATED, kiBY), vaNo, ParseString);
 
-      if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiOPTIONALLY)) then
-        Result.OptionallyEnclosedByValue := ParseValue(WordIndices(kiOPTIONALLY, kiENCLOSED, kiBY), vaNo, ParseString);
+      if (not Error) then
+        if (IsTag(kiOPTIONALLY, kiENCLOSED, kiBY)) then
+          Result.EnclosedByValue := ParseValue(WordIndices(kiOPTIONALLY, kiENCLOSED, kiBY), vaNo, ParseString)
+        else if (IsTag(kiENCLOSED, kiBY)) then
+          Result.EnclosedByValue := ParseValue(WordIndices(kiENCLOSED, kiBY), vaNo, ParseString);
 
-      if (not Error and not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.KeywordIndex = kiLINES)) then
-        Result.LinesTerminatedByValue := ParseValue(WordIndices(kiLINES, kiTERMINATED, kiBY), vaNo, ParseString);
+      if (not Error) then
+        if (IsTag(kiLINES, kiTERMINATED, kiBY)) then
+          Result.LinesTerminatedByValue := ParseValue(WordIndices(kiLINES, kiTERMINATED, kiBY), vaNo, ParseString);
     end
     else if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiDUMPFILE)) then
     begin
@@ -20708,20 +20766,42 @@ var
   Found: Boolean;
   Nodes: TSelectStmt.TNodes;
   SubAreaNodes: TSubArea.TNodes;
+  SubAreaSelectNodes: TSubAreaSelectStmt.TNodes;
 begin
   if (SubSelect and IsSymbol(ttOpenBracket)) then
   begin
     FillChar(SubAreaNodes, SizeOf(SubAreaNodes), 0);
 
-    SubAreaNodes.OpenBracket := ApplyCurrentToken();
+    SubAreaNodes.OpenBracket := ParseSymbol(ttOpenBracket);
 
     if (not Error) then
       SubAreaNodes.AreaNode := ParseSelectStmt(SubSelect);
 
-    if (not Error and IsSymbol(ttCloseBracket)) then
-      SubAreaNodes.CloseBracket := ApplyCurrentToken();
+    if (not Error) then
+      SubAreaNodes.CloseBracket := ParseSymbol(ttCloseBracket);
 
     Result := TSubArea.Create(Self, SubAreaNodes);
+
+
+    if (IsTag(kiUNION)) then
+    begin
+      FillChar(SubAreaSelectNodes, SizeOf(SubAreaSelectNodes), 0);
+
+      SubAreaSelectNodes.SelectStmt1 := Result;
+
+      SubAreaSelectNodes.UnionTag := ParseTag(kiUNION);
+
+      if (not Error) then
+        if (IsTag(kiALL)) then
+          SubAreaSelectNodes.HowTag := ParseTag(kiALL)
+        else if (IsTag(kiDISTINCT)) then
+          SubAreaSelectNodes.HowTag := ParseTag(kiDISTINCT);
+
+      if (not Error) then
+        SubAreaSelectNodes.SelectStmt2 := ParseSelectStmt(True);
+
+      Result := TSubAreaSelectStmt.Create(Self, SubAreaSelectNodes);
+    end;
   end
   else
   begin
@@ -20953,6 +21033,9 @@ end;
 
 function TMySQLParser.ParseSelectStmtTableFactor(): TOffset;
 var
+  Found: Boolean;
+  IndexHintList: Classes.TList;
+  ListNodes: TList.TNodes;
   Nodes: TSelectStmt.TTableFactor.TNodes;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
@@ -20986,7 +21069,35 @@ begin
     if (IsTag(kiUSE)
       or IsTag(kiIGNORE)
       or IsTag(kiFORCE)) then
-    Nodes.IndexHintList := ParseList(False, ParseSelectStmtTableFactorIndexHint);
+    begin
+      IndexHintList := Classes.TList.Create();
+
+      Found := True;
+      while (not Error and Found) do
+      begin
+        Found := IsTag(kiUSE)
+          or IsTag(kiIGNORE)
+          or IsTag(kiFORCE);
+        if (Found) then
+        begin
+          IndexHintList.Add(Pointer(ParseSelectStmtTableFactorIndexHint));
+          if (not Error) then
+          begin
+            Found := IsSymbol(ttComma)
+              and not EndOfStmt(NextToken[1])
+              and ((TokenPtr(NextToken[1])^.KeywordIndex = kiUSE)
+                or (TokenPtr(NextToken[1])^.KeywordIndex = kiIGNORE)
+                or (TokenPtr(NextToken[1])^.KeywordIndex = kiFORCE));
+            if (Found) then
+              IndexHintList.Add(Pointer(ParseSymbol(ttComma)));
+          end;
+        end;
+      end;
+
+      FillChar(ListNodes, SizeOf(ListNodes), 0);
+      Nodes.IndexHintList := TList.Create(Self, ListNodes, ttComma, IndexHintList.Count, TIntegerArray(IndexHintList.List));
+      IndexHintList.Free();
+    end;
 
   Result := TSelectStmt.TTableFactor.Create(Self, Nodes);
 end;
@@ -25908,4 +26019,4 @@ end.
 // Remove DEFINER in Create View, procedure, function, event, trigger / alter view
 // utDatatype in AutoComplete aufnehmen
 // GetMem in CompletionList.AddKeyword entfernen
-// Spaltenbreite im Grid
+
