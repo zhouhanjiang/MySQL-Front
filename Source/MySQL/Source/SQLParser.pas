@@ -17924,7 +17924,7 @@ begin
   Nodes.StmtTag := ParseTag(kiDECLARE);
 
   if (not Error) then
-    Nodes.IdentList := ParseList(False, ParseIdent);
+    Nodes.IdentList := ParseList(False, ParseVariableIdent);
 
   if (not Error) then
     Nodes.TypeNode := ParseDatatype();
@@ -23525,7 +23525,7 @@ label
   Numeric, NumericL, NumericExp, NumericE, NumericDot, NumericLE,
   Hex, HexL, HexL2, HexLE,
   IPAddress, IPAddressL, IPAddressLE,
-  QuotedIdent, QuotedIdentL, QuotedIdentL2, QuotedIdentLE, QuotedIdentE,
+  QuotedIdent, QuotedIdentL, QuotedIdentL2, QuotedIdentLE, QuotedIdentE, QuotedIdentE2, QuotedIdentE3,
     QuotedIdentSecondQuoter, QuotedIdentSecondQuoterL, QuotedIdentSecondQuoterLE,
   Return, Return2, ReturnE,
   Separator,
@@ -23540,6 +23540,7 @@ const
   Terminators: PChar = #9#10#13#32'#%&''()*+,-./:;<=>@`{|}'; // Characters, terminating a token
   TerminatorsL = 26; // Count of Terminators
 var
+  AnsiQuotes: Boolean;
   DotFound: Boolean;
   EFound: Boolean;
   ErrorCode: Byte;
@@ -23557,6 +23558,7 @@ begin
     Result := 0
   else
   begin
+    AnsiQuotes := Self.AnsiQuotes;
     TokenType := ttUnknown;
     OperatorType := otUnknown;
     ErrorCode := PE_Success;
@@ -24193,14 +24195,22 @@ begin
         DEC ECX                          // One character handled
         JZ Finish                        // All characters handled!
         MOV AX,[ESI]                     // One Character from SQL to AX
+        CMP DX,''''                      // Quoter = "'"?
+        JE QuotedIdentE2                 // Yes!
+        CMP AnsiQuotes,True              // AnsiQuotes?
+        JE QuotedIdentE3                 // Yes!
+        CMP DX,'"'                       // Quoter = '"'?
+        JNE QuotedIdentE3                // No!
+      QuotedIdentE2:
         CMP AX,9                         // <Tabulator> ?
-        JE QuotedIdentSecondQuoter                 // Yes!
+        JE QuotedIdentSecondQuoter       // Yes!
         CMP AX,10                        // <NewLine> ?
-        JE QuotedIdentSecondQuoter                 // Yes!
+        JE QuotedIdentSecondQuoter       // Yes!
         CMP AX,13                        // <CarriadgeReturn> ?
-        JE QuotedIdentSecondQuoter                 // Yes!
+        JE QuotedIdentSecondQuoter       // Yes!
         CMP AX,' '                       // <Space> ?
-        JE QuotedIdentSecondQuoter                 // Yes!
+        JE QuotedIdentSecondQuoter       // Yes!
+      QuotedIdentE3:
         CMP AX,DX                        // A seconed End Quoter (unescaped)?
         JNE Finish                       // No!
         ADD ESI,2                        // Step over second End Quoter in SQL
@@ -24211,22 +24221,28 @@ begin
         PUSH ESI
         PUSH ECX
       QuotedIdentSecondQuoterL:
-        CMP ECX,0                        // End of SQL?
-        JE QuotedIdentSecondQuoterLE               // Yes!
-        LODSW                            // One Character from SQL to AX
+        ADD ESI,2                        // One character handled
+        DEC ECX
+        JZ QuotedIdentSecondQuoterLE     // Yes!
+        MOV AX,[ESI]                     // One Character from SQL to AX
         CMP AX,9                         // <Tabulator> ?
-        JE QuotedIdentSecondQuoterL                // Yes!
+        JE QuotedIdentSecondQuoterL      // Yes!
         CMP AX,10                        // <NewLine> ?
-        JE QuotedIdentSecondQuoterL                // Yes!
+        JE QuotedIdentSecondQuoterL      // Yes!
         CMP AX,13                        // <CarriadgeReturn> ?
-        JE QuotedIdentSecondQuoterL                // Yes!
+        JE QuotedIdentSecondQuoterL      // Yes!
         CMP AX,' '                       // <Space> ?
-        JE QuotedIdentSecondQuoterL                // Yes!
+        JE QuotedIdentSecondQuoterL      // Yes!
         CMP AX,DX                        // New Quoter?
+        JNE QuotedIdentSecondQuoterLE    // No!
+        POP EAX                          // Restore Stack
+        POP EAX                          // Restore Stack
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
+        JMP QuotedIdent
       QuotedIdentSecondQuoterLE:
         POP ECX
         POP ESI
-        JE QuotedIdent                   // New Quoter!
         JMP Finish
 
       // ------------------------------

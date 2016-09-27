@@ -5027,6 +5027,10 @@ begin
   end;
   SQL := SQL + ';' + #13#10;
 
+  if (Session.SQLParser.ParseSQL(SQL)) then
+    Session.SQLParser.FormatSQL(SQL);
+  Session.SQLParser.Clear();
+
   if (DropBeforeCreate) then
     SQL := 'DROP VIEW IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
 
@@ -6244,7 +6248,6 @@ end;
 function TSTrigger.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
 var
   SQL: string;
-  SQLParser: TSQLParser;
 begin
   if (FSourceEx = '') then
   begin
@@ -6271,12 +6274,11 @@ begin
   else
     SQL := FSourceEx;
 
-  SQLParser := TSQLParser.Create(Session.Connection.ServerVersion);
-  if (not SQLParser.ParseSQL(SQL)) then
+  if (not Session.SQLParser.ParseSQL(SQL)) then
     SQL := FSourceEx
   else
-    SQLParser.FormatSQL(SQL);
-  SQLParser.Free();
+    Session.SQLParser.FormatSQL(SQL);
+  Session.SQLParser.Clear();
 
   if (DropBeforeCreate) then
     SQL := 'DROP TRIGGER IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
@@ -6663,14 +6665,12 @@ end;
 function TSEvent.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
 var
   SQL: string;
-  SQLParser: TSQLParser;
 begin
-  SQLParser := TSQLParser.Create(Session.Connection.ServerVersion);
-  if (not SQLParser.ParseSQL(FSourceEx)) then
+  if (not Session.SQLParser.ParseSQL(FSourceEx)) then
     SQL := FSourceEx
   else
-    SQLParser.FormatSQL(SQL);
-  SQLParser.Free();
+    Session.SQLParser.FormatSQL(SQL);
+  Session.SQLParser.Clear();
 
   if (DropBeforeCreate) then
     SQL := 'DROP EVENT IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;

@@ -1376,8 +1376,10 @@ var
 begin
   Database := BuildTitle();
 
-  if (SingleTable and (TObject(DExport.SObjects[0]) is TSBaseTable)) then
-    Filename := TSBaseTable(DExport.SObjects[0]).Name
+  if (SingleTable and (TObject(SObjects[0]) is TSBaseTable)) then
+    Filename := TSBaseTable(SObjects[0]).Name
+  else if (SObjects.Count = 1) then
+    Filename := TSObject(SObjects[0]).Name
   else if (Assigned(Database)) then
     Filename := Database.Name
   else if (Assigned(Session)) then
