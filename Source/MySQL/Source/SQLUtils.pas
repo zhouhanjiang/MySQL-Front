@@ -9,7 +9,7 @@ type
   TSQLStrings = array of string;
 
   TSQLCLStmt = packed record // must be "packed", since asm code address it as packed
-    CommandType: (ctDropDatabase, ctSetNames, ctSetCharacterSet, ctUse);
+    CommandType: (ctDropDatabase, ctSetNames, ctSetCharacterSet, ctSetCharset, ctUse);
     ObjectName: string;
   end;
 
@@ -134,6 +134,7 @@ const
   KSelect: PChar = 'SELECT';
   KSetNames: PChar = 'SET NAMES';
   KSetCharacterSet: PChar = 'SET CHARACTER SET';
+  KSetCharset: PChar = 'SET CHARSET';
   KShow: PChar = 'SHOW';
   KSQLSecurityDefiner: PChar = 'SQL SECURITY DEFINER';
   KSQLSecurityInvoker: PChar = 'SQL SECURITY INVOKER';
@@ -1380,7 +1381,7 @@ end;
 
 function SQLParseCLStmt(out CLStmt: TSQLCLStmt; const SQL: PChar; const Len: Integer; const Version: Integer): Boolean;
 label
-  Commands, DropDatabase, DropSchema, SetNames, SetCharacterSet, Use,
+  Commands, DropDatabase, DropSchema, SetNames, SetCharacterSet, SetCharset, Use,
   Found, FoundL, FoundE,
   Finish, FinishE;
 var
@@ -1404,7 +1405,8 @@ begin
         MOV EDX,Version                  // Version of MySQL conditional Code
 
         MOV ECX,Len                      // Length
-        JECXZ Finish                     // Empty SQL!
+        CMP ECX,0                        // Empty SQL?
+        JE Finish                        // Yes!
 
       // -------------------
 
@@ -1437,8 +1439,15 @@ begin
       SetCharacterSet:
         MOV EAX,[KSetCharacterSet]
         CALL CompareKeyword              // 'SET CHARACTER SET'?
-        JNE Use                          // No!
+        JNE SetCharset                   // No!
         MOV BYTE PTR [EBX + 0],ctSetCharacterSet
+        JMP Found
+
+      SetCharset:
+        MOV EAX,[KSetCharset]
+        CALL CompareKeyword              // 'SET CHARSET'?
+        JNE Use                          // No!
+        MOV BYTE PTR [EBX + 0],ctSetCharset
         JMP Found
 
       Use:
@@ -1571,6 +1580,7 @@ begin
 
         ADD ESI,2                        // Next character
         DEC ECX                          // '=' handled
+        CALL Trim                        // step over empty character
       AlgorithmL:
         CALL Trim                        // Empty character?
         JZ Definer                       // Yes!
@@ -1598,8 +1608,7 @@ begin
         JNE Finish                       // No!
         ADD ESI,2                        // Next character
         DEC ECX                          // One character ('=') handled
-        CMP ECX,0                        // End of SQL?
-        JE Finish                        // Yes!
+        JZ Finish                        // End of SQL!
         CALL Trim                        // Step over empty characters
         CMP ECX,0                        // End of SQL?
         JE Finish                        // Yes!
@@ -2793,7 +2802,7 @@ begin
       // -------------------
 
       StringL:
-        MOV AX,[ESI]                     // Get character from Data
+        MOV AX,[ESI]                     // Get character from Value
         CMP AX,''''                      // Start quotation in SQL?
         JE Quoted                        // Yes!
         CMP AX,'"'                       // Start quotation in SQL?

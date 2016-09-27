@@ -52,7 +52,7 @@ type
     SearchFindDialogOnShowBeforeSearch: TNotifyEvent;
     TitleBoldFont: TFont;
     procedure ActivateHint();
-    function CanvasTextWidth(const Text: string): Integer;
+    function CanvasTextWidth(const Text: string): Integer; inline;
     function EditCopyExecute(): Boolean;
     function EditCutExecute(): Boolean;
     function EditDeleteExecute(): Boolean;
@@ -280,8 +280,8 @@ end;
 function TMySQLDBGrid.CanGridAcceptKey(Key: Word; Shift: TShiftState): Boolean;
 begin
   Result := not ((Key in [VK_INSERT]))
-      and not ((SelectedField = Columns[0].Field) and (Key in [VK_TAB]) and (ssShift in Shift))
-      and not ((SelectedField = Columns[Columns.Count - 1].Field) and (Key in [VK_TAB]) and not (ssShift in Shift));
+    and not ((SelectedField = Columns[0].Field) and (Key in [VK_TAB]) and (ssShift in Shift))
+    and not ((SelectedField = Columns[Columns.Count - 1].Field) and (Key in [VK_TAB]) and not (ssShift in Shift));
 end;
 
 function TMySQLDBGrid.CanvasTextWidth(const Text: string): Integer;
@@ -465,6 +465,7 @@ procedure TMySQLDBGrid.DblClick();
 var
   Coord: TGridCoord;
   DataCol: Integer;
+  NewWidth: Integer;
 begin
   Coord := MouseCoord(FMouseDownPoint.X - 3, FMouseDownPoint.Y);
   if (dgIndicator in Options) then
@@ -480,7 +481,10 @@ begin
     if ((DataLink.DataSet is TMySQLDataSet) and (DataCol >= 0) and not (Columns[DataCol].Field.DataType in [ftWideMemo, ftBlob])) then
     begin
       Canvas.Font := Columns[DataCol].Font;
-      Columns[DataCol].Width := TMySQLDataSet(DataLink.DataSet).GetMaxTextWidth(Columns[DataCol].Field, CanvasTextWidth) + 5;
+      NewWidth := TMySQLDataSet(DataLink.DataSet).GetMaxTextWidth(Columns[DataCol].Field, CanvasTextWidth) + 4 + GridLineWidth;
+      if (NewWidth > Width - RowHeights[0]) then
+        NewWidth := Width - RowHeights[0];
+      Columns[DataCol].Width := NewWidth;
     end;
   end;
 end;
@@ -1269,6 +1273,7 @@ var
   HDNotify: PHDNotify;
   HDCustomDraw: PNMCustomDraw;
   LogFont: TLogFont;
+  NewWidth: Integer;
 begin
   HDNotify := PHDNotify(Message.NMHdr);
   if (HDNotify^.Hdr.hwndFrom <> FHeader) then
@@ -1288,7 +1293,11 @@ begin
               IgnoreTitleChange := True;
 
               Canvas.Font := Column.Font;
-              HDItem.cxy := TMySQLDataSet(DataLink.DataSet).GetMaxTextWidth(Column.Field, CanvasTextWidth) + 5;
+              NewWidth := TMySQLDataSet(DataLink.DataSet).GetMaxTextWidth(Column.Field, CanvasTextWidth) + 4 + GridLineWidth;
+              if (NewWidth > Width - RowHeights[0]) then
+                NewWidth := Width - RowHeights[0];
+
+              HDItem.cxy := NewWidth;
               if (dgColLines in Options) then
                 Inc(HDItem.cxy, GridLineWidth);
               while (not BOOL(SendMessage(FHeader, HDM_SETITEM, HDNotify^.Item, LPARAM(@HDItem)))) do

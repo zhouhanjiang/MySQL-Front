@@ -121,7 +121,12 @@ begin
   PageControl.Visible := True;
   PSQLWait.Visible := not PageControl.Visible;
 
-  ActiveControl := FName;
+  ActiveControl := FBCancel;
+  if (PageControl.Visible and (ModalResult = mrNone)) then
+  begin
+    PageControl.ActivePage := TSBasics;
+    ActiveControl := FName;
+  end;
 end;
 
 function TDTrigger.Execute(): Boolean;
@@ -283,7 +288,7 @@ begin
 
     FBefore.Checked := True;
     FInsert.Checked := True;
-    FStatement.Text := 'SET @A = 1;';
+    FStatement.Text := 'BEGIN' + #13#10 + '  SET @A = 1;' + #13#10 + 'END;';
 
     TSSource.TabVisible := False;
 

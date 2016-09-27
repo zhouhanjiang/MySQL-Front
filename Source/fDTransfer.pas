@@ -109,7 +109,7 @@ uses
   StrUtils, CommCtrl, RichEdit, Consts,
   SQLUtils,
   fPreferences,
-  FDConnecting;
+  fDConnecting, fDExecutingSQL;
 
 var
   FTransfer: TDTransfer;
@@ -585,8 +585,9 @@ var
         DestinationDBObjectName := SourceDBObject.Name;
       if (Assigned(DestinationDatabase)) then
       begin
-        DestinationSession.Connection.BeginSynchron();
-        if (DestinationDatabase.Update()) then
+        DExecutingSQL.Session := DestinationSession;
+        DExecutingSQL.Update := DestinationDatabase.Update;
+        if (DestinationDatabase.Valid or DExecutingSQL.Execute()) then
           if ((SourceDBObject is TSTable) and Assigned(DestinationDatabase.TableByName(DestinationDBObjectName))) then
             Answer := MsgBox(Preferences.LoadStr(700, DestinationDatabase.Name + '.' + DestinationDBObjectName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
           else if ((SourceDBObject is TSProcedure) and Assigned(DestinationDatabase.ProcedureByName(DestinationDBObjectName))) then
@@ -595,7 +596,6 @@ var
             Answer := MsgBox(Preferences.LoadStr(778, DestinationDatabase.Name + '.' + DestinationDBObjectName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION)
           else if ((SourceDBObject is TSEvent) and Assigned(DestinationDatabase.EventByName(DestinationDBObjectName))) then
             Answer := MsgBox(Preferences.LoadStr(920, DestinationDatabase.Name + '.' + DestinationDBObjectName), Preferences.LoadStr(101), MB_YESYESTOALLNOCANCEL + MB_ICONQUESTION);
-        DestinationSession.Connection.EndSynchron();
       end;
     end;
 

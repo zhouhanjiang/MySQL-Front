@@ -769,7 +769,6 @@ object WWindow: TWWindow
       HelpContext = 1026
       HelpType = htContext
       ImageIndex = 9
-      ShortCut = 16470
       SecondaryShortCuts.Strings = (
         'Shift+Ins')
     end
@@ -1161,7 +1160,6 @@ object WWindow: TWWindow
       HelpContext = 1024
       HelpType = htContext
       ImageIndex = 7
-      ShortCut = 16472
     end
     object aOAccounts: TAction
       Category = 'Options'
@@ -1177,7 +1175,6 @@ object WWindow: TWWindow
       HelpContext = 1027
       HelpType = htContext
       ImageIndex = 10
-      ShortCut = 16430
       SecondaryShortCuts.Strings = (
         'Ctrl+X')
     end
@@ -1188,7 +1185,6 @@ object WWindow: TWWindow
       HelpContext = 1025
       HelpType = htContext
       ImageIndex = 8
-      ShortCut = 16451
       SecondaryShortCuts.Strings = (
         'Ctrl+Ins')
     end

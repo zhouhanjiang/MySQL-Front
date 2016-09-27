@@ -552,7 +552,9 @@ var
   FieldName: string;
   I: Integer;
   Index: Integer;
+  NewColumn: TSKeyColumn;
   NewField: TSBaseTableField;
+  NewKey: TSKey;
   NewTable: TSBaseTable;
 begin
   if ((ModalResult = mrOk) and GBasics.Visible) then
@@ -678,6 +680,18 @@ begin
         NewField.Collation := '';
       if (not Assigned(Field) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewField.Comment, Table.Session.Connection.ServerVersion))) then
         NewField.Comment := Trim(FComment.Text);
+
+      if (NewField.AutoIncrement and Assigned(Table) and not Assigned(Table.PrimaryKey)) then
+      begin
+        NewKey := TSKey.Create(NewTable.Keys);
+        NewKey.PrimaryKey := True;
+        NewColumn := TSKeyColumn.Create(NewKey.Columns);
+        NewColumn.Field := NewField;
+        NewKey.Columns.AddColumn(NewColumn);
+        NewTable.Keys.AddKey(NewKey);
+        NewKey.Free();
+        NewColumn.Free();
+      end;
 
       if (not Assigned(Database)) then
       begin

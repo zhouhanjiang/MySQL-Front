@@ -181,7 +181,12 @@ begin
   PageControl.Visible := True;
   PSQLWait.Visible := not PageControl.Visible;
 
-  ActiveControl := FName;
+  ActiveControl := FBCancel;
+  if (PageControl.Visible and (ModalResult = mrNone)) then
+  begin
+    PageControl.ActivePage := TSBasics;
+    ActiveControl := FName;
+  end;
 end;
 
 function TDEvent.Execute(): Boolean;

@@ -356,7 +356,12 @@ begin
       if (not Assigned(Key)) then
         NewTable.Keys.AddKey(NewKey)
       else
+      begin
         NewTable.Keys[Key.Index].Assign(NewKey);
+        if (Key.PrimaryKey and not NewKey.PrimaryKey) then
+          for I := 0 to NewTable.Fields.Count - 1 do
+            NewTable.Fields[I].AutoIncrement := False;
+      end;
 
       CanClose := Database.UpdateTable(Table, NewTable);
 

@@ -746,8 +746,8 @@ type
     FParameters: array of TSRoutineParameter;
     FRoutineType: TRoutineType;
     FSecurity: TSDBObject.TSecurity;
+    FSourceEx: string;
     FSourceParsed: Boolean;
-    function GetStmt(): string;
     function GetInputDataSet(): TMySQLDataSet;
     function GetParameter(Index: Integer): TSRoutineParameter;
     function GetParameterCount(): Integer;
@@ -764,7 +764,7 @@ type
     function GetSourceEx(const DropBeforeCreate: Boolean = False): string; override;
     procedure Invalidate(); override;
     function SQLRun(): string; virtual;
-    property Stmt: string read GetStmt;
+    property Stmt: string read FStmt;
     property Comment: string read FComment write FComment;
     property Created: TDateTime read FCreated;
     property Definer: string read FDefiner;
@@ -813,8 +813,8 @@ type
   private
     FInputDataSet: TMySQLDataSet;
     FSourceParsed: Boolean;
+    FSourceEx: string;
     function GetInputDataSet(): TMySQLDataSet;
-    function GetStmt(): string;
     function GetTable(): TSBaseTable; inline;
     function GetTriggers(): TSTriggers; inline;
     procedure ParseCreateTrigger(const SQL: string);
@@ -827,6 +827,7 @@ type
     FTiming: TTiming;
     FValid: Boolean;
     procedure SetSource(const ADataSet: TMySQLQuery); overload; override;
+    procedure SetSource(const ASource: string); overload; override;
     function SQLGetSource(): string; override;
     property SourceParsed: Boolean read FSourceParsed;
     property Valid: Boolean read FValid;
@@ -845,7 +846,7 @@ type
     property Event: TEvent read FEvent write FEvent;
     property InputDataSet: TMySQLDataSet read GetInputDataSet;
     property Source: string read GetSource;
-    property Stmt: string read GetStmt write FStmt;
+    property Stmt: string read FStmt write FStmt;
     property Table: TSBaseTable read GetTable;
     property TableName: string read FTableName write FTableName;
     property Timing: TTiming read FTiming write FTiming;
@@ -883,6 +884,7 @@ type
     FIntervalType: TIntervalType;
     FIntervalValue: string;
     FPreserve: Boolean;
+    FSourceEx: string;
     FStartDateTime: TDateTime;
     FStmt: string;
     FUpdated: TDateTime;
@@ -971,7 +973,6 @@ type
     function CheckTables(const Tables: TList): Boolean; virtual;
     function CloneRoutine(const Routine: TSRoutine; const NewRoutineName: string): Boolean; virtual;
     function CloneTable(const Table: TSTable; const NewTableName: string; const Data: Boolean): Boolean; virtual;
-    function CloneView(const View: TSView; const NewViewName: string): Boolean; virtual;
     constructor Create(const ADatabases: TSDatabases; const AName: string = ''); reintroduce; virtual;
     function DeleteObject(const DBObject: TSDBObject): Boolean; virtual;
     destructor Destroy(); override;
@@ -990,7 +991,8 @@ type
     function TableByName(const TableName: string): TSTable; overload; virtual;
     function TriggerByName(const TriggerName: string): TSTrigger; virtual;
     function Unlock(): Boolean; virtual;
-    function Update(const Status: Boolean = False): Boolean; reintroduce; virtual;
+    function Update(): Boolean; overload; override;
+    function Update(const Status: Boolean): Boolean; reintroduce; overload; virtual;
     function UpdateEvent(const Event, NewEvent: TSEvent): Boolean; virtual;
     function UpdateRoutine(const Routine: TSRoutine; const NewRoutine: TSRoutine): Boolean; overload; virtual;
     function UpdateTable(const Table, NewTable: TSBaseTable): Boolean; virtual;
@@ -1442,7 +1444,7 @@ type
     procedure SetCreateDesktop(ACreateDesktop: TCreateDesktop);
   protected
     FLowerCaseTableNames: Byte;
-    FSQLParser: TMySQLParser;
+    FSQLParser: TSQLParser;
     ParseEndDate: TDateTime;
     UnparsableSQL: string;
     procedure BuildUser(const DataSet: TMySQLQuery);
@@ -1526,7 +1528,7 @@ type
     property StartTime: TDateTime read FStartTime;
     property Stati: TSStati read FStati;
     property SQLMonitor: TMySQLMonitor read FSQLMonitor;
-    property SQLParser: TMySQLParser read FSQLParser;
+    property SQLParser: TSQLParser read FSQLParser;
     property SyntaxProvider: TacMYSQLSyntaxProvider read FSyntaxProvider;
     property User: TSUser read FUser;
     property UserRights: TSUserRight read GetUserRights;
@@ -2230,9 +2232,9 @@ end;
 function TSDBObject.GetDependencies(): TSDependencies;
 var
   Dependency: TSDependency;
-  PreviousToken1: TMySQLParser.PToken;
-  PreviousToken2: TMySQLParser.PToken;
-  Token: TMySQLParser.PToken;
+  PreviousToken1: TSQLParser.PToken;
+  PreviousToken2: TSQLParser.PToken;
+  Token: TSQLParser.PToken;
 begin
   if (not Assigned(FDependencies)) then
   begin
@@ -4294,7 +4296,9 @@ var
   TempParse: TSQLParse;
   Unique: Boolean;
 begin
-  if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.ServerVersion)) then
+  if (not SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.ServerVersion)) then
+    raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL])
+  else
   begin
     for I := 0 to Length(FMergeSourceTables) - 1 do
     begin
@@ -5004,108 +5008,24 @@ end;
 
 function TSView.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
 var
-  CheckOptionSQL: string;
-  EndingCommentLen: Integer;
-  Index: Integer;
-  Parse: TSQLParse;
-  PreviousToken: TMySQLParser.PToken;
-  RemovedLength: Integer;
-  S: string;
   SQL: string;
-  StartingCommentLen: Integer;
-  Token: TMySQLParser.PToken;
 begin
-  SQL := FSource; RemovedLength := 0;
-
-  if (SQLCreateParse(Parse, PChar(FSource), Length(FSource), Session.Connection.ServerVersion)) then
-  begin
-    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
-
-    if (SQLParseKeyword(Parse, 'ALGORITHM')) then
-      if (not SQLParseChar(Parse, '=')) then
-        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL])
-      else
-        SQLParseValue(Parse);
-
-    Index := SQLParseGetIndex(Parse);
-    if (SQLParseKeyword(Parse, 'DEFINER')) then
-    begin
-      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
-      SQLParseValue(Parse);
-      Delete(SQL, Index - RemovedLength, SQLParseGetIndex(Parse) - Index);
-      Inc(RemovedLength, SQLParseGetIndex(Parse) - Index);
-    end;
-
-    Index := SQLParseGetIndex(Parse);
-    if (SQLParseKeyword(Parse, 'SQL SECURITY')) then
-    begin
-      SQLParseValue(Parse);
-      Delete(SQL, Index - RemovedLength, SQLParseGetIndex(Parse) - Index);
-      Inc(RemovedLength, SQLParseGetIndex(Parse) - Index);
-    end;
-
-    if (not SQLParseKeyword(Parse, 'VIEW')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
-
-    SQLParseValue(Parse);
-    if (SQLParseChar(Parse, '.')) then
-      SQLParseValue(Parse);
-
-    if (SQLParseChar(Parse, '(')) then
-      while (not SQLParseEnd(Parse) and not SQLParseChar(Parse, ')')) do
-      begin
-        SQLParseValue(Parse);
-        SQLParseChar(Parse, ',');
-      end;
-
-    if (not SQLParseKeyword(Parse, 'AS')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
-
-    SQLTrimStmt(FSource, SQLParseGetIndex(Parse), Length(FSource) - (SQLParseGetIndex(Parse) - 1), Session.Connection.ServerVersion, StartingCommentLen, EndingCommentLen);
-    if (Copy(SQL, Length(SQL) - EndingCommentLen, 1) = ';') then
-      Inc(EndingCommentLen);
-
-    if (UpperCase(RightStr(SQL, 18)) = ' WITH CHECK OPTION') then
-      CheckOptionSQL := RightStr(SQL, 17)
-    else if (UpperCase(RightStr(SQL, 27)) = ' WITH CASCADED CHECK OPTION') then
-      CheckOptionSQL := RightStr(SQL, 26)
-    else if (UpperCase(RightStr(SQL, 24)) = ' WITH LOCAL CHECK OPTION') then
-      CheckOptionSQL := RightStr(SQL, 23)
-    else
-      CheckOptionSQL := '';
-
-    SQL := LeftStr(SQL, SQLParseGetIndex(Parse) - RemovedLength - 1);
-
-    S := Trim(Stmt);
-    if (RightStr(S, 1) = ';') then
-      S := Copy(S, 1, Length(S) - 1);
-
-    SQL := SQL + S;
-    if (CheckOptionSQL <> '') then
-      SQL := SQL + #13#10 + CheckOptionSQL;
-
-    if (Session.SQLParser.ParseSQL(SQL)) then
-    begin
-      PreviousToken := nil;
-      Token := Session.SQLParser.Root^.FirstStmt^.FirstToken;
-      while (Assigned(Token)) do
-      begin
-        if (Assigned(PreviousToken) and (PreviousToken^.DbIdentType = ditDatabase) and (Token^.TokenType = ttDot)
-          and (Database.Databases.NameCmp(PreviousToken^.AsString, Database.Name) = 0)) then
-        begin
-          PreviousToken^.Text := '';
-          Token^.Text := '';
-        end;
-
-        PreviousToken := Token;
-        if (Token = Session.SQLParser.Root^.FirstStmt^.LastToken) then
-          Token := nil
-        else
-          Token := Token^.NextToken;
-      end;
-
-      Session.SQLParser.FormatSQL(SQL);
-      SQL := SQL + ';' + #13#10;
-    end;
+  SQL := 'CREATE ';
+  case (Algorithm) of
+    vaUndefined: SQL := SQL + 'ALGORITHM=UNDEFINED ';
+    vaMerge: SQL := SQL + 'ALGORITHM=MERGE ';
+    vaTemptable: SQL := SQL + 'ALGORITHM=TEMPTABLE ';
   end;
+  SQL := SQL + 'VIEW ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name);
+  SQL := SQL + ' AS ' + SQLTrimStmt(Stmt, Session.Connection.ServerVersion);
+  if (SQL[Length(SQL)] = ';') then
+    Delete(SQL, Length(SQL), 1);
+  case (CheckOption) of
+    voDefault: SQL := SQL + ' WITH CHECK OPTION';
+    voCascaded: SQL := SQL + ' WITH CASCADED CHECK OPTION';
+    voLocal: SQL := SQL + ' WITH LOCAL CHECK OPTION';
+  end;
+  SQL := SQL + ';' + #13#10;
 
   if (DropBeforeCreate) then
     SQL := 'DROP VIEW IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
@@ -5125,14 +5045,14 @@ var
   EndingCommentLen: Integer;
   Len: Integer;
   Parse: TSQLParse;
-  PreviousToken: TMySQLParser.PToken;
+  PreviousToken: TSQLParser.PToken;
   StartingCommentLen: Integer;
   TableCount: Integer;
   TableName: string;
-  Token: TMySQLParser.PToken;
+  Token: TSQLParser.PToken;
 begin
   if (not SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.ServerVersion)) then
-    Result := ''
+    raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL])
   else
   begin
     Result := SQL;
@@ -5574,6 +5494,8 @@ end;
 
 function TSTables.SQLGetStatus(const List: TList = nil): string;
 var
+  BaseTables: Integer;
+  BaseTablesInList: Integer;
   I: Integer;
 begin
   Result := '';
@@ -5591,7 +5513,17 @@ begin
   end
   else
   begin
+    BaseTables := 0;
+    for I := 0 to Count - 1 do
+      if (Table[I] is TSBaseTable) then
+        Inc(BaseTables);
+    BaseTablesInList := 0;
     if (Assigned(List)) then
+      for I := 0 to List.Count - 1 do
+        if (TSDBObject(List[I]) is TSBaseTable) then
+          Inc(BaseTablesInList);
+
+    if (Assigned(List) and (BaseTablesInList <> BaseTables)) then
     begin
       for I := 0 to List.Count - 1 do
         if (TSDBObject(List[I]) is TSBaseTable) then
@@ -5606,7 +5538,7 @@ begin
     end
     else
       Result := 'SELECT * FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('TABLES')
-        + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ';' + #13#10;
+        + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name) + ' AND ' + Session.Connection.EscapeIdentifier('TABLE_TYPE') + ' = ''BASE TABLE'';' + #13#10;
   end;
 end;
 
@@ -5713,14 +5645,6 @@ begin
     FFunctionResult.Free();
 
   inherited;
-end;
-
-function TSRoutine.GetStmt(): string;
-begin
-  if (not SourceParsed and (Source <> '')) then
-    ParseCreateRoutine(Source);
-
-  Result := FStmt;
 end;
 
 function TSRoutine.GetInputDataSet(): TMySQLDataSet;
@@ -5859,17 +5783,11 @@ end;
 
 function TSRoutine.GetParameter(Index: Integer): TSRoutineParameter;
 begin
-  if (not SourceParsed and (Source <> '')) then
-    ParseCreateRoutine(Source);
-
   Result := FParameters[Index];
 end;
 
 function TSRoutine.GetParameterCount(): Integer;
 begin
-  if (not SourceParsed and (Source <> '')) then
-    ParseCreateRoutine(Source);
-
   Result := Length(FParameters);
 end;
 
@@ -5882,23 +5800,9 @@ end;
 
 function TSRoutine.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
 var
-  Parse: TSQLParse;
   SQL: string;
 begin
-  SQL := FSource;
-
-  if (SQLCreateParse(Parse, PChar(Source), Length(Source), Session.Connection.ServerVersion)) then
-  begin
-    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
-
-    if (SQLParseKeyword(Parse, 'DEFINER')) then
-    begin
-      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
-      SQLParseValue(Parse);
-    end;
-  end;
-
-  SQL := Trim(SQL) + #13#10;
+  SQL := Trim(FSourceEx) + #13#10;
 
   if (DropBeforeCreate) then
     if (RoutineType = rtProcedure) then
@@ -5921,8 +5825,14 @@ var
   Index: Integer;
   Parameter: TSRoutineParameter;
   Parse: TSQLParse;
+  RemovedLength: Integer;
+  S: string;
 begin
-  if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.ServerVersion)) then
+  S := SQL; RemovedLength := 0;
+
+  if (not SQLCreateParse(Parse, PChar(S), Length(S), Session.Connection.ServerVersion)) then
+    raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S])
+  else
   begin
     while (Length(FParameters) > 0) do
     begin
@@ -5933,12 +5843,15 @@ begin
       FreeAndNil(FFunctionResult);
 
     if (not SQLParseKeyword(Parse, 'CREATE')) then
-      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
 
+    Index := SQLParseGetIndex(Parse);
     if (SQLParseKeyword(Parse, 'DEFINER')) then
     begin
-      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
-      FDefiner := SQLParseValue(Parse);
+      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
+      SQLParseValue(Parse);
+      Delete(S, Index - RemovedLength, SQLParseGetIndex(Parse) - Index);
+      Inc(RemovedLength, SQLParseGetIndex(Parse) - Index);
     end;
 
     if (SQLParseKeyword(Parse, 'PROCEDURE')) then
@@ -5946,13 +5859,13 @@ begin
     else if (SQLParseKeyword(Parse, 'FUNCTION')) then
       FRoutineType := rtFunction
     else
-      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
 
     FName := SQLParseValue(Parse);
     if (SQLParseChar(Parse, '.')) then
     begin
       if (Session.Databases.NameCmp(Database.Name, FName) <> 0) then
-        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + FName, SQL]);
+        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + FName, S]);
       FName := SQLParseValue(Parse);
     end;
 
@@ -5999,13 +5912,20 @@ begin
       else if (SQLParseKeyword(Parse, 'LANGUAGE SQL')) then
       else if (SQLParseKeyword(Parse, 'NOT DETERMINISTIC') or SQLParseKeyword(Parse, 'DETERMINISTIC')) then
       else if (SQLParseKeyword(Parse, 'CONTAINS SQL') or SQLParseKeyword(Parse, 'NO SQL') or SQLParseKeyword(Parse, 'READS SQL DATA') or SQLParseKeyword(Parse, 'MODIFIES SQL DATA')) then
-      else if (SQLParseKeyword(Parse, 'SQL SECURITY DEFINER')) then
-        FSecurity := seDefiner
-      else if (SQLParseKeyword(Parse, 'SQL SECURITY INVOKER')) then
-        FSecurity := seInvoker;
+      else if (SQLParseKeyword(Parse, 'SQL SECURITY')) then
+      begin
+        if (UpperCase(SQLParseValue(Parse)) = 'DEFINER') then
+          FSecurity := seDefiner
+        else
+          FSecurity := seInvoker;
+        Delete(S, Index - RemovedLength, SQLParseGetIndex(Parse) - Index);
+        Inc(RemovedLength, SQLParseGetIndex(Parse) - Index);
+      end;
     until (Index = SQLParseGetIndex(Parse));
 
     FStmt := SQLParseRest(Parse);
+
+    FSourceEx := LeftStr(S, SQLParseGetIndex(Parse) - RemovedLength - 1);
 
     FSourceParsed := True;
   end;
@@ -6324,39 +6244,44 @@ end;
 function TSTrigger.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
 var
   SQL: string;
+  SQLParser: TSQLParser;
 begin
-  SQL := 'CREATE';
-  if (Definer <> '') then
-    SQL := SQL + ' DEFINER=' + Session.EscapeUser(Definer, True);
-  SQL := SQL + ' TRIGGER ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name) + ' ';
-  case (Timing) of
-    ttBefore: SQL := SQL + 'BEFORE';
-    ttAfter: SQL := SQL + 'AFTER';
-  end;
-  SQL := SQL + ' ';
-  case (Event) of
-    teInsert: SQL := SQL + 'INSERT';
-    teUpdate: SQL := SQL + 'UPDATE';
-    teDelete: SQL := SQL + 'DELETE';
-  end;
-  SQL := SQL + ' ON ';
-  SQL := SQL + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(FTableName) + #13#10;
-  SQL := SQL + '  FOR EACH ROW ' + Stmt;
-  if (RightStr(SQL, 1) <> ';') then SQL := SQL + ';';
-  SQL := Trim(SQL) + #13#10;
+  if (FSourceEx = '') then
+  begin
+    SQL := 'CREATE';
+    if (Definer <> '') then
+      SQL := SQL + ' DEFINER=' + Session.EscapeUser(Definer, True);
+    SQL := SQL + ' TRIGGER ' + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(Name) + ' ';
+    case (Timing) of
+      ttBefore: SQL := SQL + 'BEFORE';
+      ttAfter: SQL := SQL + 'AFTER';
+    end;
+    SQL := SQL + ' ';
+    case (Event) of
+      teInsert: SQL := SQL + 'INSERT';
+      teUpdate: SQL := SQL + 'UPDATE';
+      teDelete: SQL := SQL + 'DELETE';
+    end;
+    SQL := SQL + ' ON ';
+    SQL := SQL + Session.Connection.EscapeIdentifier(Database.Name) + '.' + Session.Connection.EscapeIdentifier(FTableName) + #13#10;
+    SQL := SQL + '  FOR EACH ROW ' + #13#10 + Stmt;
+    if (RightStr(SQL, 1) <> ';') then SQL := SQL + ';';
+    SQL := Trim(SQL) + #13#10;
+  end
+  else
+    SQL := FSourceEx;
+
+  SQLParser := TSQLParser.Create(Session.Connection.ServerVersion);
+  if (not SQLParser.ParseSQL(SQL)) then
+    SQL := FSourceEx
+  else
+    SQLParser.FormatSQL(SQL);
+  SQLParser.Free();
 
   if (DropBeforeCreate) then
     SQL := 'DROP TRIGGER IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
 
   Result := SQL;
-end;
-
-function TSTrigger.GetStmt(): string;
-begin
-  if (not SourceParsed and (Source <> '')) then
-    ParseCreateTrigger(Source);
-
-  Result := FStmt;
 end;
 
 function TSTrigger.GetTable(): TSBaseTable;
@@ -6382,29 +6307,42 @@ end;
 procedure TSTrigger.ParseCreateTrigger(const SQL: string);
 var
   DatabaseName: string;
+  Index: Integer;
   Parse: TSQLParse;
+  RemovedLength: Integer;
+  S: string;
 begin
-  if (SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.ServerVersion)) then
+  S := SQL; RemovedLength := 0;
+
+  if (not SQLCreateParse(Parse, PChar(S), Length(S), Session.Connection.ServerVersion)) then
+    raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S])
+  else
   begin
     if (not SQLParseKeyword(Parse, 'CREATE')) then
-      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
 
-    if (SQLParseKeyword(Parse, 'DEFINER') and SQLParseChar(Parse, '=')) then
-      FDefiner := SQLParseValue(Parse);
+    Index := SQLParseGetIndex(Parse);
+    if (SQLParseKeyword(Parse, 'DEFINER')) then
+    begin
+      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
+      SQLParseValue(Parse);
+      Delete(S, Index - RemovedLength, SQLParseGetIndex(Parse) - Index);
+      Inc(RemovedLength, SQLParseGetIndex(Parse) - Index);
+    end;
 
     if (not SQLParseKeyword(Parse, 'TRIGGER')) then
-      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
 
     DatabaseName := Database.Name;
     if (not SQLParseObjectName(Parse, DatabaseName, FName)) then
-      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
 
     if (SQLParseKeyword(Parse, 'BEFORE')) then
       FTiming := ttBefore
     else if (SQLParseKeyword(Parse, 'AFTER')) then
       FTiming := ttAfter
     else
-      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
 
     if (SQLParseKeyword(Parse, 'INSERT')) then
       FEvent := teInsert
@@ -6413,18 +6351,20 @@ begin
     else if (SQLParseKeyword(Parse, 'DELETE')) then
       FEvent := teDelete
     else
-      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
 
     if (not SQLParseKeyword(Parse, 'ON')) then
-      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
 
     if (not SQLParseObjectName(Parse, DatabaseName, FTableName)) then
-      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
 
     if (not SQLParseKeyword(Parse, 'FOR EACH ROW')) then
-      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
 
     FStmt := SQLParseRest(Parse);
+
+    FSourceEx := LeftStr(S, SQLParseGetIndex(Parse) - RemovedLength - 1);
 
     FSourceParsed := True;
   end;
@@ -6436,6 +6376,13 @@ begin
 
   if (Valid) then
     Session.ExecuteEvent(etItemsValid, Session.Databases);
+end;
+
+procedure TSTrigger.SetSource(const ASource: string);
+begin
+  inherited;
+
+  ParseCreateTrigger(FSource);
 end;
 
 function TSTrigger.SQLDelete(): string;
@@ -6716,8 +6663,14 @@ end;
 function TSEvent.GetSourceEx(const DropBeforeCreate: Boolean = False): string;
 var
   SQL: string;
+  SQLParser: TSQLParser;
 begin
-  SQL := Trim(FSource) + #13#10;
+  SQLParser := TSQLParser.Create(Session.Connection.ServerVersion);
+  if (not SQLParser.ParseSQL(FSourceEx)) then
+    SQL := FSourceEx
+  else
+    SQLParser.FormatSQL(SQL);
+  SQLParser.Free();
 
   if (DropBeforeCreate) then
     SQL := 'DROP EVENT IF EXISTS ' + Session.Connection.EscapeIdentifier(Name) + ';' + #13#10 + SQL;
@@ -6727,31 +6680,39 @@ end;
 
 procedure TSEvent.ParseCreateEvent(const SQL: string);
 var
+  Index: Integer;
   Parse: TSQLParse;
+  RemovedLength: Integer;
+  S: string;
 begin
-  if (not SQLCreateParse(Parse, PChar(SQL), Length(SQL), Session.Connection.ServerVersion)) then
-    raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL])
+  S := SQL; RemovedLength := 0;
+
+  if (not SQLCreateParse(Parse, PChar(S), Length(S), Session.Connection.ServerVersion)) then
+    raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S])
   else
   begin
-    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+    if (not SQLParseKeyword(Parse, 'CREATE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
 
+    Index := SQLParseGetIndex(Parse);
     if (SQLParseKeyword(Parse, 'DEFINER')) then
     begin
-      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
-      FDefiner := SQLParseValue(Parse);
+      if (not SQLParseChar(Parse, '=')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
+      SQLParseValue(Parse);
+      Delete(S, Index - RemovedLength, SQLParseGetIndex(Parse) - Index);
+      Inc(RemovedLength, SQLParseGetIndex(Parse) - Index);
     end;
 
-    if (not SQLParseKeyword(Parse, 'EVENT')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+    if (not SQLParseKeyword(Parse, 'EVENT')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
 
     FName := SQLParseValue(Parse);
     if (SQLParseChar(Parse, '.')) then
     begin
       if (Session.Databases.NameCmp(Database.Name, FName) = 0) then
-        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + FName, SQL]);
+        raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + FName, S]);
       FName := SQLParseValue(Parse);
     end;
 
-    if (not SQLParseKeyword(Parse, 'ON SCHEDULE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+    if (not SQLParseKeyword(Parse, 'ON SCHEDULE')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
 
     if (SQLParseKeyword(Parse, 'AT')) then
     begin
@@ -6772,7 +6733,7 @@ begin
         FEndDateTime := MySQLDB.StrToDateTime(SQLParseValue(Parse), Session.Connection.FormatSettings);
     end
     else
-      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+      raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
 
     FPreserve := SQLParseKeyword(Parse, 'ON COMPLETION PRESERVE') or not SQLParseKeyword(Parse, 'ON COMPLETION NOT PRESERVE');
 
@@ -6783,9 +6744,11 @@ begin
     if (SQLParseKeyword(Parse, 'COMMENT')) then
       FComment := SQLParseValue(Parse);
 
-    if (not SQLParseKeyword(Parse, 'DO')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, SQL]);
+    if (not SQLParseKeyword(Parse, 'DO')) then raise EConvertError.CreateFmt(SSourceParseError, [Database.Name + '.' + Name, S]);
 
     FStmt := SQLParseRest(Parse);
+
+    FSourceEx := LeftStr(S, SQLParseGetIndex(Parse) - RemovedLength - 1);
   end;
 end;
 
@@ -7158,14 +7121,12 @@ begin
     if (Assigned(TableByName(NewTableName))) then
       SQL := 'DROP VIEW ' + Session.Connection.EscapeIdentifier(NewTableName) + ';' + #13#10;
 
-    SQL := SQL
-      + AnsiReplaceStr(TSView(Table).GetSourceEx(False), Session.Connection.EscapeIdentifier(Table.Database.Name) + '.', '');
-
     NewView := TSView.Create(Tables);
     NewView.Assign(Table);
     NewView.Name := NewTableName;
 
     SQL := SQL
+      + NewView.GetSourceEx(False)
       + NewView.SQLGetSource();
 
     NewView.Free();
@@ -7192,21 +7153,6 @@ begin
     Session.Connection.EndSynchron();
     NewBaseTable.Free();
   end;
-end;
-
-function TSDatabase.CloneView(const View: TSView; const NewViewName: string): Boolean;
-var
-  SQL: string;
-begin
-  SQL := ReplaceStr(View.GetSourceEx(), 'VIEW ' + Session.Connection.EscapeIdentifier(View.Name), 'VIEW ' + Session.Connection.EscapeIdentifier(Name) + '.' + Session.Connection.EscapeIdentifier(NewViewName));
-
-  if (Assigned(TableByName(NewViewName))) then
-    SQL := 'DROP VIEW ' + Session.Connection.EscapeIdentifier(NewViewName) + ';' + #13#10 + SQL;
-
-  if (Session.Connection.DatabaseName <> Name) then
-    SQL := SQLUse() + SQL;
-
-  Result := Session.Connection.SendSQL(SQL, Session.SessionResult);
 end;
 
 constructor TSDatabase.Create(const ADatabases: TSDatabases; const AName: string = '');
@@ -7685,7 +7631,6 @@ end;
 
 function TSDatabase.SQLAlterTable(const Table, NewTable: TSBaseTable; const EncloseFields: Boolean): string;
 var
-  AutoIncrementField: TSBaseTableField;
   FieldNames: string;
   ForeignKeyAdded: Boolean;
   ForeignKeyDropClausel: string;
@@ -7705,31 +7650,6 @@ var
   SQL: string;
   SQLPart: string;
 begin
-  AutoIncrementField := nil;
-  for I := 0 to NewTable.Fields.Count - 1 do
-    if (NewTable.Fields[I].AutoIncrement) then
-      AutoIncrementField := TSBaseTableField(NewTable.Fields[I]);
-  Found := False;
-  for I := 0 to NewTable.Keys.Count - 1 do
-    if (NewTable.Keys[I].PrimaryKey) then
-      for J := 0 to NewTable.Keys[I].Columns.Count - 1 do
-        if (NewTable.Keys[I].Columns[J].Field = AutoIncrementField) then
-          Found := True;
-  if (not Found and Assigned(AutoIncrementField)) then
-    if (not Assigned(NewTable.PrimaryKey)) then
-    begin
-      NewKey := TSKey.Create(NewTable.Keys);
-      NewKey.PrimaryKey := True;
-      NewKeyColumn := TSKeyColumn.Create(NewKey.Columns);
-      NewKeyColumn.Field := AutoIncrementField;
-      NewKey.Columns.AddColumn(NewKeyColumn);
-      NewTable.Keys.AddKey(NewKey);
-      FreeAndNil(NewKeyColumn);
-      FreeAndNil(NewKey);
-    end
-    else
-      AutoIncrementField.AutoIncrement := False;
-
   if (EncloseFields) then
     for I := 0 to NewTable.Fields.Count - 1 do
     begin
@@ -7825,7 +7745,8 @@ begin
         SQLPart := SQLPart + 'FULLTEXT INDEX'
       else
         SQLPart := SQLPart + 'INDEX';
-      if (NewKey.Name <> '') then SQLPart := SQLPart + ' ' + Session.Connection.EscapeIdentifier(NewKey.Name);
+      if (not NewKey.PrimaryKey and (NewKey.Name <> '')) then
+        SQLPart := SQLPart + ' ' + Session.Connection.EscapeIdentifier(NewKey.Name);
 
       if ((((40100 <= Session.Connection.ServerVersion) and (Session.Connection.ServerVersion < 50060)) or ((50100 <= Session.Connection.ServerVersion) and (Session.Connection.ServerVersion < 50110))) and (NewKey.IndexType <> '')) then
         SQLPart := SQLPart + ' USING=' + NewKey.IndexType;
@@ -8244,7 +8165,12 @@ begin
   Result := Session.Connection.ExecuteSQL(SQL);
 end;
 
-function TSDatabase.Update(const Status: Boolean = False): Boolean;
+function TSDatabase.Update(): Boolean;
+begin
+  Result := Update(False);
+end;
+
+function TSDatabase.Update(const Status: Boolean): Boolean;
 var
   List: TList;
 begin
@@ -10751,7 +10677,7 @@ begin
   if (not Assigned(FEngines) and Connecting) then
   begin
     if (not Assigned(SQLParser)) then
-      FSQLParser := TMySQLParser.Create(Connection.ServerVersion);
+      FSQLParser := TSQLParser.Create(Connection.ServerVersion);
 
     if (not Assigned(FCollations) and (Connection.ServerVersion >= 40100)) then FCollations := TSCollations.Create(Self);
     if (not Assigned(FFieldTypes)) then FFieldTypes := TSFieldTypes.Create(Self);
@@ -10872,7 +10798,7 @@ begin
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.ServerVersion;
   FUser := nil;
-  ParseEndDate := EncodeDate(2016, 9, 30);
+  ParseEndDate := EncodeDate(2016, 10, 5);
   FSQLParser := nil;
   UnparsableSQL := '';
 
@@ -10995,7 +10921,6 @@ var
   Identifiers: string;
   J: Integer;
   SQL: string;
-  Trigger: TSTrigger;
 begin
   Connection.BeginSynchron();
   Update(List); // We need the Source for the dependencies
@@ -11079,15 +11004,6 @@ begin
       end;
       if (Identifiers <> '') then Identifiers := Identifiers + ',';
       Identifiers := Identifiers + Connection.EscapeIdentifier(Database.Name) + '.' + Connection.EscapeIdentifier(TSBaseTable(List[I]).Name);
-
-      if (Assigned(TSBaseTable(List[I]).Database.Triggers)) then
-        for J := TSBaseTable(List[I]).Database.Triggers.Count - 1 downto 0 do
-          if (TSBaseTable(List[I]).Database.Triggers[J].Table = TSBaseTable(List[I])) then
-          begin
-            Trigger := TSBaseTable(List[I]).Database.Triggers[J];
-            TSBaseTable(List[I]).Database.Triggers.Delete(Trigger);
-            Trigger.Free();
-          end;
     end;
   if (Identifiers <> '') then
     SQL := SQL + 'DROP TABLE ' + Identifiers + ';' + #13#10;

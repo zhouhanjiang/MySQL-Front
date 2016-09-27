@@ -112,6 +112,7 @@ var
   I: Integer;
   J: Integer;
   K: Integer;
+  List: TList;
 begin
   Result := 1;
   if (not Session.Update()) then
@@ -337,6 +338,18 @@ begin
             end;
           end;
       end;
+
+      List := TList.Create();
+      for I := 0 to Export.Items.Count - 1 do
+        if (Export.Items[I] is TTool.TDBObjectItem) then
+        begin
+          List.Add(TTool.TDBObjectItem(Export.Items[I]).DBObject);
+          if (TTool.TDBObjectItem(Export.Items[I]).DBObject is TSBaseTable) then
+            for J := 0 to TSBaseTable(TTool.TDBObjectItem(Export.Items[I]).DBObject).TriggerCount - 1 do
+              List.Add(TSBaseTable(TTool.TDBObjectItem(Export.Items[I]).DBObject).Triggers[I]);
+        end;
+      Session.Update(List);
+      List.Free();
 
       Export.OnError := ExportError;
       Export.Execute();

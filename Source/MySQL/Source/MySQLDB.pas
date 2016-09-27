@@ -804,12 +804,12 @@ resourcestring
 
 const
   DATASET_ERRORS: array [0..2] of PChar = (
-    'SET NAMES / SET CHARACTER SET statements are not supported',            {0}
-    'Require MySQL Server 3.23.20 or higher',                                {1}
-    'DataSet run out of memory');                                            {2}
+    'SET NAMES / SET CHARACTER SET / SET CHARSET statements are not supported', {0}
+    'Require MySQL Server 3.23.20 or higher',                                   {1}
+    'DataSet run out of memory');                                               {2}
 
 const
-  // Field mappings needed for filtering. (What field type should be compared with what internal type).
+  // Field mappings needed for filtering. (What field type should be compared with what internal type?)
   FldTypeMap: TFieldMap = (
     { ftUnknown          }  Ord(ftUnknown),
     { ftString           }  Ord(ftString),
@@ -2435,7 +2435,8 @@ begin
         ctUse:
           LibraryThread.SQLCLStmts.Add(Pointer(LibraryThread.SQLStmt));
         ctSetNames,
-        ctSetCharacterSet:
+        ctSetCharacterSet,
+        ctSetCharset:
           SetNames := CLStmt.ObjectName <> Charset;
       end;
     if (AlterTableAfterCreateTableFix) then
@@ -4150,6 +4151,7 @@ end;
 procedure TMySQLQuery.DataConvert(Field: TField; Source, Dest: Pointer; ToNative: Boolean);
 var
   Len: Integer;
+  S: string;
 begin
   case (Field.DataType) of
     ftWideMemo:
@@ -4174,7 +4176,10 @@ begin
           Len := AnsiCharToWideChar(Connection.CodePage, PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], nil, 0);
         except
           on E: Exception do
-            raise Exception.CreateFmt(E.Message + '  (Query: %s, FieldName: %s)', [TMySQLQuery(Field.DataSet).CommandText, Field.FieldName])
+            begin
+              S := SQLEscapeBin(PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], True);
+              raise Exception.CreateFmt(E.Message + '  (DatabaseName: %s, CommandText: %s, DisplayName: %s, LibRow: %s, CodePage: %d)', [DatabaseName, CommandText, Field.DisplayName, S, Connection.CodePage])
+            end;
         end;
         AnsiCharToWideChar(Connection.CodePage, PRecordBufferData(Source^)^.LibRow^[Field.FieldNo - 1], PRecordBufferData(Source^)^.LibLengths^[Field.FieldNo - 1], PChar(Dest), Field.DataSize);
         PChar(Dest)[Len] := #0;

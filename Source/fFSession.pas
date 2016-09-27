@@ -684,8 +684,8 @@ type
     type
       PItem = ^TItem;
       TItem = record
-        View: TMySQLParser.TCharArray;
-        Insert: TMySQLParser.TCharArray;
+        View: TSQLParser.TCharArray;
+        Insert: TSQLParser.TCharArray;
       end;
     private
       FSession: TFSession;
@@ -1099,7 +1099,7 @@ implementation {***************************************************************}
 
 uses
   MMSystem, Math, DBConsts, Clipbrd, DBCommon, ShellAPI, Variants, Types,
-  XMLDoc, Themes, StrUtils, UxTheme, FileCtrl, SysConst, RichEdit,
+  XMLDoc, Themes, StrUtils, UxTheme, FileCtrl, SysConst, RichEdit, UITypes,
   ShLwApi,
   acQBLocalizer, acQBStrings,
   CommCtrl_Ext, StdActns_Ext,
@@ -1973,7 +1973,7 @@ begin
   if (not Assigned(SynMemo) and TSTrigger(SObject).Valid) then
   begin
     SynMemo := FSession.CreateSynMemo(SObject);
-    SynMemo.Text := TSTrigger(SObject).Source;
+    SynMemo.Text := TSTrigger(SObject).Stmt;
   end;
 
   Result := SynMemo;
@@ -2131,15 +2131,16 @@ begin
   begin
     Table := TSBaseTable(FocusedSItem);
 
-    Session.Connection.BeginSynchron();
-    Table.Update();
-    Session.Connection.BeginSynchron();
-
-    DField.Table := Table;
-    DField.Database := DField.Table.Database;
-    DField.Field := nil;
-    if (DField.Execute()) then
-      Wanted.Update := Session.Update;
+    DExecutingSQL.Session := Session;
+    DExecutingSQL.Update := Table.Update;
+    if (Table.Valid or DExecutingSQL.Execute()) then
+    begin
+      DField.Table := Table;
+      DField.Database := DField.Table.Database;
+      DField.Field := nil;
+      if (DField.Execute()) then
+        Wanted.Update := Session.Update;
+    end;
   end;
 end;
 
@@ -2153,16 +2154,17 @@ begin
   begin
     Table := TSBaseTable(FocusedSItem);
 
-    Session.Connection.BeginSynchron();
-    Table.Update();
-    Session.Connection.BeginSynchron();
-
-    DForeignKey.Table := Table;
-    DForeignKey.Database := DForeignKey.Table.Database;
-    DForeignKey.ParentTable := nil;
-    DForeignKey.ForeignKey := nil;
-    if (DForeignKey.Execute()) then
-      Wanted.Update := Session.Update;
+    DExecutingSQL.Session := Session;
+    DExecutingSQL.Update := Table.Update;
+    if (Table.Valid or DExecutingSQL.Execute()) then
+    begin
+      DForeignKey.Table := Table;
+      DForeignKey.Database := DForeignKey.Table.Database;
+      DForeignKey.ParentTable := nil;
+      DForeignKey.ForeignKey := nil;
+      if (DForeignKey.Execute()) then
+        Wanted.Update := Session.Update;
+    end;
   end;
 end;
 
@@ -2176,15 +2178,16 @@ begin
   begin
     Table := TSBaseTable(FocusedSItem);
 
-    Session.Connection.BeginSynchron();
-    Table.Update();
-    Session.Connection.EndSynchron();
-
-    DKey.Table := Table;
-    DKey.Database := DKey.Table.Database;
-    DKey.Key := nil;
-    if (DKey.Execute()) then
-      Wanted.Update := Session.Update;
+    DExecutingSQL.Session := Session;
+    DExecutingSQL.Update := Table.Update;
+    if (Table.Valid or DExecutingSQL.Execute()) then
+    begin
+      DKey.Table := Table;
+      DKey.Database := DKey.Table.Database;
+      DKey.Key := nil;
+      if (DKey.Execute()) then
+        Wanted.Update := Session.Update;
+    end;
   end;
 end;
 
@@ -2262,6 +2265,7 @@ procedure TFSession.aDDeleteExecute(Sender: TObject);
 var
   SItems: TList;
   I: Integer;
+  J: Integer;
   List: TList;
   Msg: string;
   NewTable: TSBaseTable;
@@ -2319,6 +2323,9 @@ begin
       if ((TSItem(SItems[I]) is TSDatabase) or (TSItem(SItems[I]) is TSDBObject) or (TSItem(SItems[I]) is TSProcess)) then
       begin
         List.Add(TSEntity(SItems[I]));
+        if (TSItem(SItems[I]) is TSBaseTable) then
+          for J := 0 to TSBaseTable(SItems[I]).TriggerCount - 1 do
+            List.Add(TSBaseTable(SItems[I]).Triggers[J]);
         SItems[I] := nil;
       end;
     if (Success and (List.Count > 0)) then
@@ -2704,8 +2711,15 @@ begin
           NotFound := True
         else if (DBObject.Invalid or not DBObject.Update()) then
           AllowChange := False
-        else if ((URI.Param['objecttype'] = 'trigger') and (URI.Param['object'] <> Null) and not Assigned(Database.TriggerByName(URI.Param['object']))) then
-          NotFound := True
+        else if (URI.Param['objecttype'] = 'trigger') then
+          if (URI.Param['object'] = Null) or not Assigned(Database.TriggerByName(URI.Param['object'])) then
+            NotFound := True
+          else
+          begin
+            DBObject := Database.TriggerByName(URI.Param['object']);
+            if (DBObject.Invalid or not DBObject.Update()) then
+              AllowChange := False;
+          end;
       end;
     end;
 
@@ -3795,6 +3809,7 @@ begin
   else if (Session.Connection.ExecutionTime >= 0) then
     Msg := Msg + '  (' + Preferences.LoadStr(520) + ': ' + Format('%2.2f', [Second + MSec / 1000]) + ')';
 
+  StatusBarRefresh();
   StatusBar.Panels[sbMessage].Text := Msg;
   SetTimer(Handle, tiStatusBar, 5000, nil);
 
@@ -3809,22 +3824,21 @@ end;
 
 procedure TFSession.aEFormatSQLExecute(Sender: TObject);
 var
-  I: Integer;
   SQL: string;
-  StringList: TStringList;
 begin
   Window.ActiveControl := ActiveSynMemo;
 
   if (ActiveSynMemo.SelAvail) then
     SQL := ActiveSynMemo.SelText
   else
+  begin
     SQL := ActiveSynMemo.Text;
-
-  case (SelectedImageIndex) of
-    iiTrigger:
-      SQL := 'CREATE TRIGGER `Parser` BEFORE INSERT ON `Table` FOR EACH ROW ' + SQL;
-    iiEvent:
-      SQL := 'CREATE EVENT `Parser` ON SCHEDULE AT ''2016-01-01 00:00:00'' DO ' + SQL;
+    case (SelectedImageIndex) of
+      iiTrigger:
+        SQL := 'CREATE TRIGGER `Parser` BEFORE INSERT ON `Table` FOR EACH ROW ' + SQL;
+      iiEvent:
+        SQL := 'CREATE EVENT `Parser` ON SCHEDULE AT ''2016-01-01 00:00:00'' DO ' + SQL;
+    end;
   end;
 
   if (not Session.SQLParser.ParseSQL(SQL)) then
@@ -3833,25 +3847,17 @@ begin
   begin
     Session.SQLParser.FormatSQL(SQL);
 
-    case (SelectedImageIndex) of
-      iiTrigger:
-        Delete(SQL, 1, 74);
-      iiEvent:
-        begin
-          Delete(SQL, 1, 69);
-          StringList := TStringList.Create();
-          StringList.Text := SQL;
-          for I := 0 to StringList.Count - 1 do
-            StringList[I] := Copy(StringList[I], 5, Length(StringList[I]) - 4);
-          SQL := StringList.Text;
-          StringList.Free();
-        end;
-    end;
-
     if (ActiveSynMemo.SelAvail) then
       ActiveSynMemo.SelText := SQL
     else
     begin
+      case (SelectedImageIndex) of
+        iiTrigger:
+          Delete(SQL, 1, 74); // Remove before added CREATE TRIGGER ...
+        iiEvent:
+          Delete(SQL, 1, 69); // Remove before added CREATE EVENT ...
+      end;
+      // Using SelectAll / SelText to have the option using the Undo feature of SynMemo
       ActiveSynMemo.SelectAll();
       ActiveSynMemo.SelText := SQL;
     end;
@@ -6022,8 +6028,8 @@ begin
       if (DBGrid.Columns[I].Field.IsIndexField) then
         DBGrid.Canvas.Font.Style := DBGrid.Font.Style + [fsBold];
 
-      if (DBGrid.Columns[I].Width < DBGrid.Canvas.TextWidth('ee' + DBGrid.Columns[I].Title.Caption)) then
-        DBGrid.Columns[I].Width := DBGrid.Canvas.TextWidth('ee' + DBGrid.Columns[I].Title.Caption)
+      if (DBGrid.Columns[I].Width < DBGrid.Canvas.TextWidth('W' + DBGrid.Columns[I].Title.Caption)) then
+        DBGrid.Columns[I].Width := DBGrid.Canvas.TextWidth('W' + DBGrid.Columns[I].Title.Caption)
       else if ((DBGrid.Columns[I].Width > Preferences.GridMaxColumnWidth) and not (DBGrid.Columns[I].Field.DataType in [ftSmallint, ftInteger, ftLargeint, ftWord, ftLongWord, ftFloat, ftDate, ftDateTime, ftTime, ftCurrency])) then
         DBGrid.Columns[I].Width := Preferences.GridMaxColumnWidth;
 
@@ -7195,7 +7201,8 @@ procedure TFSession.FNavigatorUpdate(const SessionEvent: TSSession.TEvent);
                 AddChild(Node, SItems[I]);
         end;
       etItemCreated:
-        InsertChild(Node, SessionEvent.SItem);
+        if (not (SessionEvent.SItem is TSTrigger) or (Node.Count > 0)) then
+          InsertChild(Node, SessionEvent.SItem);
       etItemAltered:
         begin
           Child := Node.getFirstChild();
@@ -10166,7 +10173,7 @@ begin
             MainAction('aFImportAccess').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
             MainAction('aFImportODBC').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
             MainAction('aFExportSQL').Enabled := ((ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiView, iiProcedure, iiFunction, iiEvent, iiTrigger])) and (SelectedImageIndex = iiDatabase);
-            MainAction('aFExportText').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiView])) and (SelectedImageIndex = iiDatabase);
+            MainAction('aFExportText').Enabled := ((ListView.SelCount = 0) and (SelectedImageIndex in [iiBaseTable]) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiView])) and (SelectedImageIndex = iiDatabase);
             MainAction('aFExportExcel').Enabled := ((ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiView])) and (SelectedImageIndex = iiDatabase);
             MainAction('aFExportAccess').Enabled := ((ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable])) and (SelectedImageIndex = iiDatabase);
             MainAction('aFExportODBC').Enabled := ((ListView.SelCount = 0) or Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable])) and (SelectedImageIndex = iiDatabase);
@@ -10382,18 +10389,22 @@ begin
       if (SQLParseObjectName(Parse, DatabaseName, TableName)) then
       begin
         Database := Session.DatabaseByName(DatabaseName);
-        Session.Connection.BeginSynchron();
-        if (Assigned(Database) and Database.Update()) then
+        if (Assigned(Database)) then
         begin
-          Table := Database.TableByName(TableName);
-          if (Assigned(Table)) then
+          DExecutingSQL.Session := Session;
+          DExecutingSQL.Update := Database.Update;
+          if (Database.Valid or DExecutingSQL.Execute()) then
           begin
-            if (Table.Update()) then
-              for I := 0 to Table.Fields.Count - 1 do
-                AFields.AddField(Table.Fields[I].Name, Session.LowerCaseTableNames = 0);
+            Table := Database.TableByName(TableName);
+            if (Assigned(Table)) then
+            begin
+              DExecutingSQL.Update := Table.Update;
+              if (Table.Valid or DExecutingSQL.Execute()) then
+                for I := 0 to Table.Fields.Count - 1 do
+                  AFields.AddField(Table.Fields[I].Name, Session.LowerCaseTableNames = 0);
+            end;
           end;
         end;
-        Session.Connection.EndSynchron();
       end;
     end;
   end;
@@ -11515,8 +11526,6 @@ begin
 
     if (Assigned(SourceSession)) then
     begin
-      Session.Connection.BeginSynchron();
-
       Success := True;
 
       case (Node.ImageIndex) of
@@ -11545,200 +11554,225 @@ begin
           end;
         iiDatabase:
           begin
-            SourceSession.Databases.Update();
-            SourceDatabase := SourceSession.DatabaseByName(SourceURI.Database);
+            DExecutingSQL.Session := SourceSession;
+            DExecutingSQL.Update := SourceSession.Databases.Update;
 
-            if (not Assigned(SourceDatabase)) then
-              MessageBeep(MB_ICONERROR)
-            else
+            if (SourceSession.Databases.Valid or DExecutingSQL.Execute()) then
             begin
-              Database := TSDatabase(Node.Data);
+              SourceDatabase := SourceSession.DatabaseByName(SourceURI.Database);
 
-              Found := False;
-              for I := 1 to StringList.Count - 1 do
-                Found := Found or (StringList.Names[I] = 'Table');
-
-              if (not Assigned(Database) or not SourceDatabase.Tables.Update()) then
+              if (not Assigned(SourceDatabase)) then
                 MessageBeep(MB_ICONERROR)
-              else if (not Found or DPaste.Execute()) then
+              else
               begin
-                if (Found and (SourceSession <> Session)) then
+                Database := TSDatabase(Node.Data);
+
+                Found := False;
+                for I := 1 to StringList.Count - 1 do
+                  Found := Found or (StringList.Names[I] = 'Table');
+
+                DExecutingSQL.Update := SourceDatabase.Tables.Update;
+                if (not Assigned(Database) or not SourceDatabase.Tables.Valid and not DExecutingSQL.Execute()) then
+                  MessageBeep(MB_ICONERROR)
+                else if (not Found or DPaste.Execute()) then
                 begin
-                  DTransfer.SourceSession := SourceSession;
-                  DTransfer.SourceDatabaseName := SourceURI.Database;
-                  DTransfer.SourceTableName := '';
-                  for I := 1 to StringList.Count - 1 do
-                    if (Assigned(SourceSession.DatabaseByName(SourceURI.Database).TableByName(StringList.ValueFromIndex[I]))) then
-                    begin
-                      if (DTransfer.SourceTableName <> '') then
-                        DTransfer.SourceTableName := DTransfer.SourceTableName + ',';
-                      DTransfer.SourceTableName := DTransfer.SourceTableName + StringList.ValueFromIndex[I];
-                    end;
-                  DTransfer.DestinationSession := Session;
-                  DTransfer.DestinationDatabaseName := SelectedDatabase;
-                  DTransfer.DestinationTableName := '';
-                  DTransfer.Execute();
-                end
-                else
+                  if (Found and (SourceSession <> Session)) then
+                  begin
+                    DTransfer.SourceSession := SourceSession;
+                    DTransfer.SourceDatabaseName := SourceURI.Database;
+                    DTransfer.SourceTableName := '';
+                    for I := 1 to StringList.Count - 1 do
+                      if (Assigned(SourceSession.DatabaseByName(SourceURI.Database).TableByName(StringList.ValueFromIndex[I]))) then
+                      begin
+                        if (DTransfer.SourceTableName <> '') then
+                          DTransfer.SourceTableName := DTransfer.SourceTableName + ',';
+                        DTransfer.SourceTableName := DTransfer.SourceTableName + StringList.ValueFromIndex[I];
+                      end;
+                    DTransfer.DestinationSession := Session;
+                    DTransfer.DestinationDatabaseName := SelectedDatabase;
+                    DTransfer.DestinationTableName := '';
+                    DTransfer.Execute();
+                  end
+                  else
+                    for I := 1 to StringList.Count - 1 do
+                      if (Success) then
+                        if (StringList.Names[I] = 'Table') then
+                        begin
+                          SourceTable := SourceDatabase.BaseTableByName(StringList.ValueFromIndex[I]);
+
+                          if (not Assigned(SourceTable)) then
+                            MessageBeep(MB_ICONERROR)
+                          else
+                          begin
+                            Name := Session.TableName(CopyName(SourceTable.Name, Database.Tables));
+
+                            Session.Connection.BeginSynchron();
+                            Success := Database.CloneTable(SourceTable, Name, DPaste.Data);
+                            Session.Connection.EndSynchron();
+                          end;
+                        end;
                   for I := 1 to StringList.Count - 1 do
                     if (Success) then
-                      if (StringList.Names[I] = 'Table') then
+                      if (StringList.Names[I] = 'View') then
                       begin
-                        SourceTable := SourceDatabase.BaseTableByName(StringList.ValueFromIndex[I]);
+                        SourceView := SourceDatabase.ViewByName(StringList.ValueFromIndex[I]);
 
-                        if (not Assigned(SourceTable)) then
+                        if (not Assigned(SourceView)) then
                           MessageBeep(MB_ICONERROR)
                         else
                         begin
-                          Name := Session.TableName(CopyName(SourceTable.Name, Database.Tables));
+                          Name := CopyName(SourceView.Name, Database.Tables);
+                          if (Session.LowerCaseTableNames = 1) then
+                            Name := LowerCase(Name);
 
-                          Success := Database.CloneTable(SourceTable, Name, DPaste.Data);
+                          Session.Connection.BeginSynchron();
+                          Success := Database.CloneTable(SourceView, Name, False);
+                          Session.Connection.EndSynchron();
                         end;
                       end;
-                for I := 1 to StringList.Count - 1 do
-                  if (Success) then
-                    if (StringList.Names[I] = 'View') then
-                    begin
-                      SourceView := SourceDatabase.ViewByName(StringList.ValueFromIndex[I]);
-
-                      if (not Assigned(SourceView)) then
-                        MessageBeep(MB_ICONERROR)
-                      else
+                  for I := 1 to StringList.Count - 1 do
+                    if (Success) then
+                      if (StringList.Names[I] = 'Procedure') then
                       begin
-                        Name := CopyName(SourceView.Name, Database.Tables);
-                        if (Session.LowerCaseTableNames = 1) then
-                          Name := LowerCase(Name);
+                        SourceRoutine := SourceDatabase.ProcedureByName(StringList.ValueFromIndex[I]);
 
-                        Success := Database.CloneView(SourceView, Name);
-                      end;
-                    end;
-                for I := 1 to StringList.Count - 1 do
-                  if (Success) then
-                    if (StringList.Names[I] = 'Procedure') then
-                    begin
-                      SourceRoutine := SourceDatabase.ProcedureByName(StringList.ValueFromIndex[I]);
-
-                      if (not Assigned(SourceRoutine)) then
-                        MessageBeep(MB_ICONERROR)
-                      else
-                      begin
-                        Name := SourceRoutine.Name;
-                        J := 1;
-                        while (Assigned(Database.ProcedureByName(Name))) do
+                        if (not Assigned(SourceRoutine)) then
+                          MessageBeep(MB_ICONERROR)
+                        else
                         begin
-                          if (J = 1) then
-                            Name := Preferences.LoadStr(680, SourceRoutine.Name)
-                          else
-                            Name := Preferences.LoadStr(681, SourceRoutine.Name, IntToStr(J));
-                          Name := ReplaceStr(Name, ' ', '_');
-                          Inc(J);
+                          Name := SourceRoutine.Name;
+                          J := 1;
+                          while (Assigned(Database.ProcedureByName(Name))) do
+                          begin
+                            if (J = 1) then
+                              Name := Preferences.LoadStr(680, SourceRoutine.Name)
+                            else
+                              Name := Preferences.LoadStr(681, SourceRoutine.Name, IntToStr(J));
+                            Name := ReplaceStr(Name, ' ', '_');
+                            Inc(J);
+                          end;
+
+                          Session.Connection.BeginSynchron();
+                          Success := Database.CloneRoutine(SourceRoutine, Name);
+                          Session.Connection.EndSynchron();
                         end;
-
-                        Success := Database.CloneRoutine(SourceRoutine, Name);
-                      end;
-                    end
-                    else if (StringList.Names[I] = 'Function') then
-                    begin
-                      SourceRoutine := SourceDatabase.FunctionByName(StringList.ValueFromIndex[I]);
-
-                      if (not Assigned(SourceRoutine)) then
-                        MessageBeep(MB_ICONERROR)
-                      else
+                      end
+                      else if (StringList.Names[I] = 'Function') then
                       begin
-                        Name := SourceRoutine.Name;
-                        J := 1;
-                        while (Assigned(Database.FunctionByName(Name))) do
-                        begin
-                          if (J = 1) then
-                            Name := Preferences.LoadStr(680, SourceRoutine.Name)
-                          else
-                            Name := Preferences.LoadStr(681, SourceRoutine.Name, IntToStr(J));
-                          Name := ReplaceStr(Name, ' ', '_');
-                          Inc(J);
-                        end;
+                        SourceRoutine := SourceDatabase.FunctionByName(StringList.ValueFromIndex[I]);
 
-                        Success := Database.CloneRoutine(SourceRoutine, Name);
+                        if (not Assigned(SourceRoutine)) then
+                          MessageBeep(MB_ICONERROR)
+                        else
+                        begin
+                          Name := SourceRoutine.Name;
+                          J := 1;
+                          while (Assigned(Database.FunctionByName(Name))) do
+                          begin
+                            if (J = 1) then
+                              Name := Preferences.LoadStr(680, SourceRoutine.Name)
+                            else
+                              Name := Preferences.LoadStr(681, SourceRoutine.Name, IntToStr(J));
+                            Name := ReplaceStr(Name, ' ', '_');
+                            Inc(J);
+                          end;
+
+                          Session.Connection.BeginSynchron();
+                          Success := Database.CloneRoutine(SourceRoutine, Name);
+                          Session.Connection.EndSynchron();
+                        end;
                       end;
-                    end;
+                end;
               end;
             end;
           end;
         iiBaseTable:
           begin
             SourceDatabase := SourceSession.DatabaseByName(SourceURI.Database);
-            if (not Assigned(SourceDatabase) or not SourceDatabase.Tables.Update()) then
+
+            DExecutingSQL.Session := SourceSession;
+            DExecutingSQL.Update := SourceDatabase.Tables.Update;
+            if (not Assigned(SourceDatabase) or not SourceDatabase.Tables.Valid and not DExecutingSQL.Execute()) then
               SourceTable := nil
             else
               SourceTable := SourceDatabase.BaseTableByName(SourceURI.Table);
 
-            if (not Assigned(SourceTable) or not SourceTable.Update()) then
+            DExecutingSQL.Update := SourceTable.Update;
+            if (not Assigned(SourceTable) or not SourceTable.Valid and not DExecutingSQL.Execute()) then
               MessageBeep(MB_ICONERROR)
             else
             begin
               Database := Session.DatabaseByName(Node.Parent.Text);
               Table := Database.BaseTableByName(Node.Text);
-              Table.Update();
 
-              NewTable := TSBaseTable.Create(Database.Tables);
-              NewTable.Assign(Table);
+              DExecutingSQL.Update := Table.Update;
+              if (Table.Valid or DExecutingSQL.Execute()) then
+              begin
+                NewTable := TSBaseTable.Create(Database.Tables);
+                NewTable.Assign(Table);
 
-              for I := 1 to StringList.Count - 1 do
-                if (StringList.Names[I] = 'Field') then
-                begin
-                  Name := CopyName(StringList.ValueFromIndex[I], NewTable.Fields);
+                for I := 1 to StringList.Count - 1 do
+                  if (StringList.Names[I] = 'Field') then
+                  begin
+                    Name := CopyName(StringList.ValueFromIndex[I], NewTable.Fields);
 
-                  NewField := TSBaseTableField.Create(NewTable.Fields);
-                  NewField.Assign(SourceTable.FieldByName(StringList.ValueFromIndex[I]));
-                  TSBaseTableField(NewField).OriginalName := '';
-                  NewField.Name := Name;
-                  NewField.FieldBefore := NewTable.Fields[NewTable.Fields.Count - 1];
-                  NewTable.Fields.AddField(NewField);
-                  NewField.Free();
-                end;
+                    NewField := TSBaseTableField.Create(NewTable.Fields);
+                    NewField.Assign(SourceTable.FieldByName(StringList.ValueFromIndex[I]));
+                    TSBaseTableField(NewField).OriginalName := '';
+                    NewField.Name := Name;
+                    NewField.FieldBefore := NewTable.Fields[NewTable.Fields.Count - 1];
+                    NewTable.Fields.AddField(NewField);
+                    NewField.Free();
+                  end;
 
-              for I := 1 to StringList.Count - 1 do
-                if (StringList.Names[I] = 'Key') then
-                begin
-                  Name := CopyName(StringList.ValueFromIndex[I], NewTable.Keys);
+                for I := 1 to StringList.Count - 1 do
+                  if (StringList.Names[I] = 'Key') then
+                  begin
+                    Name := CopyName(StringList.ValueFromIndex[I], NewTable.Keys);
 
-                  NewKey := TSKey.Create(NewTable.Keys);
-                  NewKey.Assign(SourceTable.IndexByName(StringList.ValueFromIndex[I]));
-                  NewKey.Name := Name;
-                  NewTable.Keys.AddKey(NewKey);
-                  NewKey.Free();
-                end
-                else if (StringList.Names[I] = 'ForeignKey') then
-                begin
-                  Name := CopyName(StringList.ValueFromIndex[I], NewTable.ForeignKeys);
+                    NewKey := TSKey.Create(NewTable.Keys);
+                    NewKey.Assign(SourceTable.IndexByName(StringList.ValueFromIndex[I]));
+                    NewKey.Name := Name;
+                    NewTable.Keys.AddKey(NewKey);
+                    NewKey.Free();
+                  end
+                  else if (StringList.Names[I] = 'ForeignKey') then
+                  begin
+                    Name := CopyName(StringList.ValueFromIndex[I], NewTable.ForeignKeys);
 
-                  NewForeignKey := TSForeignKey.Create(NewTable.ForeignKeys);
-                  NewForeignKey.Assign(SourceTable.ForeignKeyByName(StringList.ValueFromIndex[I]));
-                  NewForeignKey.Name := Name;
-                  NewTable.ForeignKeys.AddForeignKey(NewForeignKey);
-                  NewForeignKey.Free();
-                end;
+                    NewForeignKey := TSForeignKey.Create(NewTable.ForeignKeys);
+                    NewForeignKey.Assign(SourceTable.ForeignKeyByName(StringList.ValueFromIndex[I]));
+                    NewForeignKey.Name := Name;
+                    NewTable.ForeignKeys.AddForeignKey(NewForeignKey);
+                    NewForeignKey.Free();
+                  end;
 
-              for I := 1 to StringList.Count - 1 do
-                if (StringList.Names[I] = 'Trigger') then
-                begin
-                  Name := CopyName(StringList.ValueFromIndex[I], Database.Triggers);
+                for I := 1 to StringList.Count - 1 do
+                  if (StringList.Names[I] = 'Trigger') then
+                  begin
+                    Name := CopyName(StringList.ValueFromIndex[I], Database.Triggers);
 
-                  NewTrigger := TSTrigger.Create(Database.Triggers);
-                  NewTrigger.Assign(SourceDatabase.TriggerByName(StringList.ValueFromIndex[I]));
-                  NewTrigger.Name := Name;
-                  NewTrigger.TableName := NewTable.Name;
-                  Database.AddTrigger(NewTrigger);
-                  NewTrigger.Free();
-                end;
+                    NewTrigger := TSTrigger.Create(Database.Triggers);
+                    NewTrigger.Assign(SourceDatabase.TriggerByName(StringList.ValueFromIndex[I]));
+                    NewTrigger.Name := Name;
+                    NewTrigger.TableName := NewTable.Name;
+                    Session.Connection.BeginSynchron();
+                    Database.AddTrigger(NewTrigger);
+                    Session.Connection.EndSynchron();
+                    NewTrigger.Free();
+                  end;
 
-              Database.UpdateTable(Table, NewTable);
-              NewTable.Free();
+                Session.Connection.BeginSynchron();
+                Database.UpdateTable(Table, NewTable);
+                Session.Connection.EndSynchron();
+
+                NewTable.Free();
+              end;
             end;
           end;
       end;
 
       SourceURI.Free();
-      Session.Connection.EndSynchron();
     end;
   end;
   StringList.Free();
@@ -13018,18 +13052,18 @@ procedure TFSession.SynCompletionExecute(Kind: SynCompletionType;
 
   type
     TEntitiesDbIdentType = record
-      DbIdentType: TMySQLParser.TDbIdentType;
+      DbIdentType: TSQLParser.TDbIdentType;
       DbObject: TObject;
     end;
 
 var
   CompletionList: TCompletionList;
   Database: TSDatabase;
-  DbIdentType: TMySQLParser.TDbIdentType;
+  DbIdentType: TSQLParser.TDbIdentType;
   EntitiesDbIdentTypes: array of TEntitiesDbIdentType;
   I: Integer;
   Index: Integer;
-  Item: TMySQLParser.TCompletionList.PItem;
+  Item: TSQLParser.TCompletionList.PItem;
   J: Integer;
   Len: Integer;
   List: TList;
@@ -13058,7 +13092,7 @@ begin
     SQL := Copy(SQL, Index, ActiveSynMemo.SelStart + 1 - Index - Length(CurrentInput));
 
     Session.SQLParser.ParseSQL(SQL, True);
-    CanExecute := Session.SQLParser.Root^.ErrorCode in [TMySQLParser.PE_Success, TMySQLParser.PE_IncompleteStmt];
+    CanExecute := Session.SQLParser.Root^.ErrorCode in [TSQLParser.PE_Success, TSQLParser.PE_IncompleteStmt];
 
     if (CanExecute) then
     begin
@@ -13381,7 +13415,7 @@ var
 begin
   if (not (csDestroying in ComponentState)) then
   begin
-    if (((scCaretX in Changes) or (scModified in Changes) or (scAll in Changes)) and Assigned(ActiveSynMemo)) then
+    if (((scCaretX in Changes) or (scSelection in Changes) or (scModified in Changes) or (scAll in Changes)) and Assigned(ActiveSynMemo)) then
     begin
       if (SynCompletionPending.Active) then
       begin

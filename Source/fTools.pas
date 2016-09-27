@@ -188,8 +188,8 @@ type
     procedure Close(); virtual;
     function DoExecuteSQL(const Item: TItem; var SQL: string): Boolean; virtual;
     procedure DoUpdateGUI(); override;
-    procedure ExecuteData(const Item: TItem; const Table: TSTable); virtual;
     procedure ExecuteStructure(const Item: TItem); virtual;
+    procedure ExecuteTableData(const Item: TItem; const Table: TSTable); virtual;
     procedure GetValue(const Item: TItem; const Index: Integer; const Values: TTool.TStringBuffer); virtual;
     procedure GetValues(const Item: TItem; const Values: TTool.TDataFileBuffer); virtual;
     function NextRecord(const Item: TItem): Boolean; virtual;
@@ -1018,11 +1018,7 @@ begin
     if ((Result = 0) and (TTool.TItem(Item1) is TTExport.TDBObjectItem)) then
     begin
       if (TTExport.TDBObjectItem(Item1).DBObject is TSBaseTable) then
-        if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine)) then
-          // Should never used, but on some older MySQL server, the Engine is
-          // not given with the SHOW TABLE STATUS query
-          Index1 := 0
-        else if (not TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine.IsMerge) then
+        if (not TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine.IsMerge) then
           Index1 := 1
         else
           Index1 := 2
@@ -1040,11 +1036,7 @@ begin
         Index1 := 8;
 
       if (TTExport.TDBObjectItem(Item2).DBObject is TSBaseTable) then
-        if (not Assigned(TSBaseTable(TTExport.TDBObjectItem(Item1).DBObject).Engine)) then
-          // Should never used, but on some older MySQL server, the Engine is
-          // not given with the SHOW TABLE STATUS query
-          Index2 := 0
-        else if (not TSBaseTable(TTExport.TDBObjectItem(Item2).DBObject).Engine.IsMerge) then
+        if (not TSBaseTable(TTExport.TDBObjectItem(Item2).DBObject).Engine.IsMerge) then
           Index2 := 1
         else
           Index2 := 2
@@ -1723,6 +1715,7 @@ begin
   end;
 
   Session.Connection.EndSilent();
+  Session.Connection.EndSynchron();
 
   inherited;
 
@@ -1742,6 +1735,7 @@ begin
   inherited;
 
   Session.Connection.BeginSilent();
+  Session.Connection.BeginSynchron(); // We're still in a thread
 
   if (Data and (Session.Connection.ServerVersion >= 40014)) then
   begin
@@ -1896,10 +1890,8 @@ begin
 
         if (Assigned(Table)) then
         begin
-          Session.Connection.BeginSynchron();
           while ((Success <> daAbort) and not Database.DeleteObject(Table)) do
             DoError(DatabaseError(Session), Items[I], True);
-          Session.Connection.EndSynchron();
         end;
         if (Success = daSuccess) then
         begin
@@ -1915,7 +1907,7 @@ begin
         if (not Assigned(Table)) then
           raise Exception.Create('Table "' + TTImport.TItem(Items[I]).DestinationTableName + '" does not exists.');
 
-        ExecuteData(TTImport.TItem(Items[I]), Database.TableByName(TTImport.TItem(Items[I]).DestinationTableName));
+        ExecuteTableData(TTImport.TItem(Items[I]), Database.TableByName(TTImport.TItem(Items[I]).DestinationTableName));
       end;
 
       Items[I].Done := True;
@@ -1930,7 +1922,11 @@ begin
   {$ENDIF}
 end;
 
-procedure TTImport.ExecuteData(const Item: TItem; const Table: TSTable);
+procedure TTImport.ExecuteStructure(const Item: TItem);
+begin
+end;
+
+procedure TTImport.ExecuteTableData(const Item: TItem; const Table: TSTable);
 var
   BytesWritten: DWord;
   DataSet: TMySQLQuery;
@@ -2217,10 +2213,6 @@ begin
     TSBaseTable(Table).InvalidateStatus();
 
   AfterExecuteData(Item);
-end;
-
-procedure TTImport.ExecuteStructure(const Item: TItem);
-begin
 end;
 
 procedure TTImport.GetValue(const Item: TItem; const Index: Integer; const Values: TTool.TStringBuffer);
@@ -2545,7 +2537,7 @@ begin
 
     SetNames := not EOF
       and SQLParseCLStmt(CLStmt, @FileContent.Str[Index], Length(FileContent.Str), Session.Connection.ServerVersion)
-      and (CLStmt.CommandType in [ctSetNames, ctSetCharacterSet]);
+      and (CLStmt.CommandType in [ctSetNames, ctSetCharacterSet, ctSetCharset]);
 
     if ((Index > 1) and (SetNames or (Index - 1 + Len >= SQLPacketSize))) then
     begin
@@ -2704,20 +2696,16 @@ begin
 
   NewTable.Name := Session.ApplyIdentifierName(Item.DestinationTableName);
 
-  Session.Connection.BeginSynchron();
   while ((Success <> daAbort) and not Database.AddBaseTable(NewTable)) do
     DoError(DatabaseError(Session), Item, True);
-  Session.Connection.EndSynchron();
 
   NewTable.Free();
 
   if (Success = daSuccess) then
   begin
     NewTable := Database.BaseTableByName(Item.DestinationTableName);
-    Session.Connection.BeginSynchron();
     while ((Success <> daAbort) and not NewTable.Update()) do
       DoError(DatabaseError(Session), Item, True);
-    Session.Connection.EndSynchron();
 
     for I := 0 to HeadlineNameCount - 1 do
       AddField(NewTable.Fields[I], HeadlineNames[I]);
@@ -3389,10 +3377,8 @@ begin
 
     NewTable.Name := Session.ApplyIdentifierName(Item.DestinationTableName);
 
-    Session.Connection.BeginSynchron();
     while ((Success <> daAbort) and not Database.AddBaseTable(NewTable)) do
       DoError(DatabaseError(Session), Item, True);
-    Session.Connection.EndSynchron();
   end;
 
   NewTable.Free();
@@ -3983,27 +3969,6 @@ begin
   {$ENDIF}
 
   BeforeExecute();
-
-  if (Success <> daAbort) then
-  begin
-    Objects := TList.Create();
-    for I := 0 to Items.Count - 1 do
-      if (Items[I] is TDBObjectItem) then
-      begin
-        Objects.Add(TDBObjectItem(Items[I]).DBObject);
-        if ((TDBObjectItem(Items[I]).DBObject is TSBaseTable) and Assigned(TDBObjectItem(Items[I]).DBObject.Database.Triggers) and (Objects.IndexOf(TDBObjectItem(Items[I]).DBObject.Database.Triggers) < 0)) then
-          Objects.Add(TDBObjectItem(Items[I]).DBObject.Database.Triggers);
-      end;
-    if (Objects.Count > 0) then
-    begin
-      Success := daSuccess;
-      Session.Connection.BeginSynchron();
-      while ((Success = daSuccess) and not Session.Update(Objects)) do
-        DoError(DatabaseError(Session), nil, True, SQL);
-      Session.Connection.EndSynchron();
-    end;
-    Objects.Free();
-  end;
 
   DataTables := TList.Create();
 
@@ -4791,7 +4756,7 @@ begin
   Content := Content + '# Trigger "' + Trigger.Name + '"' + #13#10;
   Content := Content + '#' + #13#10;
   Content := Content + #13#10;
-  Content := Content + AnsiReplaceStr(Trigger.GetSourceEx(DropStmts), Trigger.Session.Connection.EscapeIdentifier(Trigger.Database.Name) + '.', '');
+  Content := Content + ReplaceStr(Trigger.GetSourceEx(DropStmts), Trigger.Session.Connection.EscapeIdentifier(Trigger.Database.Name) + '.', '');
 
   WriteContent(Content);
 end;
@@ -7989,7 +7954,7 @@ begin
       begin
         NewTrigger := TSTrigger.Create(DestinationDatabase.Tables);
         NewTrigger.Assign(SourceDatabase.Triggers[I]);
-        NewTrigger.Stmt := AnsiReplaceStr(NewTrigger.Stmt, SourceDatabase.Session.Connection.EscapeIdentifier(SourceDatabase.Name) + '.', '');
+        NewTrigger.Stmt := ReplaceStr(NewTrigger.Stmt, SourceDatabase.Session.Connection.EscapeIdentifier(SourceDatabase.Name) + '.', '');
         DestinationSession.Connection.BeginSynchron();
         while ((Success <> daAbort) and not DestinationDatabase.AddTrigger(NewTrigger)) do
           DoError(DatabaseError(DestinationSession), Item, True);

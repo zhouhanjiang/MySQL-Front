@@ -1726,7 +1726,7 @@ var
     'MySQL client ran out of memory',
     'Wrong host info',
     'Localhost via UNIX socket',
-    's via TCP/IP',
+    '%s via TCP/IP',
     'Error in server handshake',
     'Lost connection to MySQL server during query',
     'Commands out of sync; you can''t run this command now',

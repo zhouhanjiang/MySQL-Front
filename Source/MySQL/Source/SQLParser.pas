@@ -2,11 +2,13 @@
 
 interface {********************************************************************}
 
+// SQL Syntax updated with MySQL 5.7.14
+
 uses
   Classes;
 
 type
-  TMySQLParser = class
+  TSQLParser = class
   public
     const
       PE_Success = 0; // No error
@@ -21,7 +23,7 @@ type
       PE_IncompleteStmt = 4; // Incompleted statement
       PE_UnexpectedToken = 5; // Unexpected token
       PE_ExtraToken = 6; // Token after completed statement
-      PE_NestedCondCode = 7; // Nested conditional MySQL option
+      PE_NestedCondCode = 7; // Nested conditional MySQL options
 
       // Bugs while parsing Root
       PE_UnknownStmt = 8; // Unknown statement
@@ -117,6 +119,8 @@ type
         'WEEKDAY,WEEKOFYEAR,WEIGHT_STRING,WITHIN,X,Y,YEAR,YEARWEEK';
 
       MySQLKeywords =
+        'ANY,SOME,' +
+
         'ACCOUNT,ACTION,ADD,AFTER,AGAINST,ALGORITHM,ALL,ALTER,ALWAYS,ANALYZE,AND,' +
         'AS,ASC,ASCII,AT,AUTO_INCREMENT,AUTHORS,AVG_ROW_LENGTH,BEFORE,BEGIN,' +
         'BETWEEN,BINARY,BINLOG,BLOCK,BOOLEAN,BOTH,BTREE,BY,CACHE,CALL,CASCADE,' +
@@ -386,6 +390,7 @@ type
         ntSubArea,
         ntSubAreaSelectStmt,
         ntSubPartition,
+        ntSubquery,
         ntSubstringFunc,
         ntTag,
         ntTrimFunc,
@@ -582,7 +587,6 @@ type
         ttCSString,               // MySQL Character Set, like _utf8'Hello'
         ttIdent,                  // Ident
         ttDQIdent,                // Ident, enclosed in ""
-        ttDBIdent,                // Ident, enclosed in []
         ttMySQLIdent,             // Ident, enclosed in ``
         ttMySQLCodeStart,         // MySQL specific code, like /*!50000 SELECT 1; */
         ttMySQLCodeEnd,
@@ -902,6 +906,7 @@ type
         'ntSubArea',
         'ntSubAreaSelect',
         'ntSubPartition',
+        'ntSubquery',
         'ntSubstringFunc',
         'ntTag',
         'ntTrimFunc',
@@ -1082,7 +1087,6 @@ type
         'ttCSString',
         'ttIdent',
         'ttDQIdent',
-        'ttDBIdent',
         'ttMySQLIdent',
         'ttMySQLCodeStart',
         'ttMySQLCodeEnd',
@@ -1643,7 +1647,7 @@ type
         FCount: TIndex;
         FIndex: array of PChar;
         FFirst: array of Integer;
-        FParser: TMySQLParser;
+        FParser: TSQLParser;
         FText: string;
         function GetText(): string;
         function GetWord(Index: TIndex): string;
@@ -1651,9 +1655,9 @@ type
       protected
         procedure Clear();
         procedure GetWordText(const Index: TIndex; out Text: PChar; out Length: Integer);
-        property Parser: TMySQLParser read FParser;
+        property Parser: TSQLParser read FParser;
       public
-        constructor Create(const ASQLParser: TMySQLParser; const AText: string = '');
+        constructor Create(const ASQLParser: TSQLParser; const AText: string = '');
         destructor Destroy(); override;
         function IndexOf(const Word: PChar; const Length: Integer): Integer; overload;
         function IndexOf(const Word: string): Integer; overload; {$IFNDEF Debug} inline; {$ENDIF}
@@ -1698,7 +1702,7 @@ type
             );
         end;
       private
-        FParser: TMySQLParser;
+        FParser: TSQLParser;
         function GetItem(Index: Integer): PItem;
       protected
         procedure AddKeyword(const KeywordIndex: TWordList.TIndex;
@@ -1709,10 +1713,10 @@ type
           const DatabaseName: string = ''; TableName: string = '');
       public
         procedure Clear(); override;
-        constructor Create(const AParser: TMySQLParser);
+        constructor Create(const AParser: TSQLParser);
         destructor Destroy(); override;
         property Item[Index: Integer]: PItem read GetItem; default;
-        property Parser: TMySQLParser read FParser;
+        property Parser: TSQLParser read FParser;
       end;
 
       PNode = ^TNode;
@@ -1724,14 +1728,14 @@ type
       TNode = packed record
       private
         FNodeType: TNodeType;
-        FParser: TMySQLParser;
+        FParser: TSQLParser;
       private
-        class function Create(const AParser: TMySQLParser; const ANodeType: TNodeType): TOffset; static; {$IFNDEF Debug} inline; {$ENDIF}
+        class function Create(const AParser: TSQLParser; const ANodeType: TNodeType): TOffset; static; {$IFNDEF Debug} inline; {$ENDIF}
         function GetOffset(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
         property Offset: TOffset read GetOffset;
       public
         property NodeType: TNodeType read FNodeType;
-        property Parser: TMySQLParser read FParser;
+        property Parser: TSQLParser read FParser;
       end;
 
       PRoot = ^TRoot;
@@ -1745,7 +1749,7 @@ type
         FFirstTokenAll: TOffset;
         FLastStmt: TOffset; // Cache for speeding
         FLastTokenAll: TOffset;
-        class function Create(const AParser: TMySQLParser;
+        class function Create(const AParser: TSQLParser;
           const AErrorCode: Byte; const AErrorMessage: TOffset;
           const AFirstTokenAll, ALastTokenAll: TOffset;
           const ChildCount: Integer; const Children: array of TOffset): TOffset; static;
@@ -1754,7 +1758,7 @@ type
         function GetFirstTokenAll(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
         function GetLastStmt(): PStmt; {$IFNDEF Debug} inline; {$ENDIF}
         function GetLastTokenAll(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
-        property Parser: TMySQLParser read Heritage.FParser;
+        property Parser: TSQLParser read Heritage.FParser;
       public
         property ErrorCode: Byte read FErrorCode;
         property ErrorMessage: string read GetErrorMessage;
@@ -1771,7 +1775,7 @@ type
         Heritage: TNode;
       private
         FParentNode: TOffset;
-        class function Create(const AParser: TMySQLParser; const ANodeType: TNodeType): TOffset; static; {$IFNDEF Debug} inline; {$ENDIF}
+        class function Create(const AParser: TSQLParser; const ANodeType: TNodeType): TOffset; static; {$IFNDEF Debug} inline; {$ENDIF}
         function GetDelimiter(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
         function GetFFirstToken(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
         function GetFirstToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
@@ -1781,7 +1785,7 @@ type
         function GetParentNode(): PNode; {$IFNDEF Debug} inline; {$ENDIF}
         property FFirstToken: TOffset read GetFFirstToken;
         property FLastToken: TOffset read GetFLastToken;
-        property Parser: TMySQLParser read Heritage.FParser;
+        property Parser: TSQLParser read Heritage.FParser;
       public
         property Delimiter: PToken read GetDelimiter;
         property FirstToken: PToken read GetFirstToken;
@@ -1808,7 +1812,7 @@ type
         FUsageType: TUsageType;
         NewText: TOffset;
         NewTokenType: TTokenType;
-        class function Create(const AParser: TMySQLParser;
+        class function Create(const AParser: TSQLParser;
           const AText: PChar; const ALength: Integer;
           const AErrorCode: Byte; const AErrorPos: PChar;
           const ATokenType: TTokenType; const AOperatorType: TOperatorType;
@@ -1838,7 +1842,7 @@ type
         property KeywordIndex: TWordList.TIndex read FKeywordIndex;
         property Length: Integer read FLength;
         property Offset: TOffset read GetOffset;
-        property Parser: TMySQLParser read Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.FParser;
       public
         function GetText(): string; overload;
         procedure GetText(out Text: PChar; out Length: Integer); overload;
@@ -1863,14 +1867,14 @@ type
       private
         FFirstToken: TOffset; // Cache for speeding
         FLastToken: TOffset; // Cache for speeding
-        class function Create(const AParser: TMySQLParser; const ANodeType: TNodeType): TOffset; static; {$IFNDEF Debug} inline; {$ENDIF}
+        class function Create(const AParser: TSQLParser; const ANodeType: TNodeType): TOffset; static; {$IFNDEF Debug} inline; {$ENDIF}
         function GetFirstToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
         function GetLastToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
         function GetOffset(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
         function GetParentNode(): PNode; {$IFNDEF Debug} inline; {$ENDIF}
         procedure AddChildren(const Children: POffsetArray; const Count: Integer);
         property Offset: TOffset read GetOffset;
-        property Parser: TMySQLParser read Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.FParser;
       public
         property FirstToken: PToken read GetFirstToken;
         property LastToken: PToken read GetLastToken;
@@ -1890,7 +1894,7 @@ type
         FFirstTokenAll: TOffset;
         FLastTokenAll: TOffset;
         FStmtType: TStmtType; // Cache for speeding
-        class function Create(const AParser: TMySQLParser; const AStmtType: TStmtType): TOffset; static;
+        class function Create(const AParser: TSQLParser; const AStmtType: TStmtType): TOffset; static;
         function GetDelimiter(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
         function GetErrorMessage(): string;
         function GetErrorToken(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
@@ -1901,7 +1905,7 @@ type
         function GetNextStmt(): PStmt;
         function GetParentNode(): PNode; {$IFNDEF Debug} inline; {$ENDIF}
         function GetText(): string;
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       public
         property Delimiter: PToken read GetDelimiter;
         property ErrorCode: Byte read FErrorCode;
@@ -1933,9 +1937,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PAlterDatabaseStmt = ^TAlterDatabaseStmt;
@@ -1952,9 +1956,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PAlterEventStmt = ^TAlterEventStmt;
@@ -1980,9 +1984,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PAlterInstanceStmt = ^TAlterInstanceStmt;
@@ -1996,9 +2000,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PAlterRoutineStmt = ^TAlterRoutineStmt;
@@ -2018,9 +2022,9 @@ type
       private
         Nodes: TNodes;
         FRoutineType: TRoutineType;
-        class function Create(const AParser: TMySQLParser; const ARoutineType: TRoutineType; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ARoutineType: TRoutineType; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
         property RoutineType: TRoutineType read FRoutineType;
       end;
 
@@ -2039,9 +2043,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PAlterTablespaceStmt = ^TAlterTablespaceStmt;
@@ -2058,9 +2062,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PAlterTableStmt = ^TAlterTableStmt;
@@ -2080,9 +2084,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         PConvertTo = ^TConvertTo;
@@ -2097,9 +2101,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         PDropObject = ^TDropObject;
@@ -2114,9 +2118,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         PExchangePartition = ^TExchangePartition;
@@ -2133,9 +2137,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         POrderBy = ^TOrderBy;
@@ -2149,9 +2153,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         PReorganizePartition = ^TReorganizePartition;
@@ -2167,9 +2171,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         TNodes = packed record
@@ -2192,9 +2196,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PAlterViewStmt = ^TAlterViewStmt;
@@ -2216,9 +2220,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PBeginLabel = ^TBeginLabel;
@@ -2232,11 +2236,11 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         function GetLabelName(): string;
       public
         property LabelName: string read GetLabelName;
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PBeginStmt = ^TBeginStmt;
@@ -2249,9 +2253,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PBetweenOp = ^TBetweenOp;
@@ -2269,9 +2273,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const AExpr, ANotToken, ABetweenToken, AMin, AAndToken, AMax: TOffset): TOffset; static;
+        class function Create(const AParser: TSQLParser; const AExpr, ANotToken, ABetweenToken, AMin, AAndToken, AMax: TOffset): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PBinaryOp = ^TBinaryOp;
@@ -2286,7 +2290,7 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const AOperator, AOperand1, AOperand2: TOffset): TOffset; static;
+        class function Create(const AParser: TSQLParser; const AOperator, AOperand1, AOperand2: TOffset): TOffset; static;
         function GetOperand1(): PChild; {$IFNDEF Debug} inline; {$ENDIF}
         function GetOperand2(): PChild; {$IFNDEF Debug} inline; {$ENDIF}
         function GetOperator(): PChild; {$IFNDEF Debug} inline; {$ENDIF}
@@ -2294,7 +2298,7 @@ type
         property Operand1: PChild read GetOperand1;
         property Operand2: PChild read GetOperand2;
         property Operator: PChild read GetOperator;
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PCallStmt = ^TCallStmt;
@@ -2309,9 +2313,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PCaseOp = ^TCaseOp;
@@ -2331,9 +2335,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         TNodes = packed record
@@ -2348,9 +2352,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PCaseStmt = ^TCaseStmt;
@@ -2370,9 +2374,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         TNodes = packed record
@@ -2385,9 +2389,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PCastFunc = ^TCastFunc;
@@ -2405,9 +2409,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PChangeMasterStmt = ^TChangeMasterStmt;
@@ -2450,9 +2454,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PCharFunc = ^TCharFunc;
@@ -2470,9 +2474,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PChecksumTableStmt = ^TChecksumTableStmt;
@@ -2487,9 +2491,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PCheckTableStmt = ^TCheckTableStmt;
@@ -2506,9 +2510,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; overload; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; overload; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         TNodes = packed record
@@ -2520,9 +2524,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PCloseStmt = ^TCloseStmt;
@@ -2536,9 +2540,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PCommitStmt = ^TCommitStmt;
@@ -2553,9 +2557,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PCompoundStmt = ^TCompoundStmt;
@@ -2572,9 +2576,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PConvertFunc = ^TConvertFunc;
@@ -2594,9 +2598,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PCreateDatabaseStmt = ^TCreateDatabaseStmt;
@@ -2613,9 +2617,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PCreateEventStmt = ^TCreateEventStmt;
@@ -2638,9 +2642,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PCreateIndexStmt = ^TCreateIndexStmt;
@@ -2663,9 +2667,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PCreateRoutineStmt = ^TCreateRoutineStmt;
@@ -2692,9 +2696,9 @@ type
       private
         Nodes: TNodes;
         FRoutineType: TRoutineType;
-        class function Create(const AParser: TMySQLParser; const ARoutineType: TRoutineType; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ARoutineType: TRoutineType; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
         property RoutineType: TRoutineType read FRoutineType;
       end;
 
@@ -2714,9 +2718,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PCreateTablespaceStmt = ^TCreateTablespaceStmt;
@@ -2733,9 +2737,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PCreateTableStmt = ^TCreateTableStmt;
@@ -2755,9 +2759,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         PField = ^TField;
@@ -2777,9 +2781,9 @@ type
             Heritage: TRange;
           private
             Nodes: TNodes;
-            class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+            class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
           public
-            property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+            property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
           end;
 
           TNodes = packed record
@@ -2811,9 +2815,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         PForeignKey = ^TForeignKey;
@@ -2832,9 +2836,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         PKey = ^TKey;
@@ -2856,9 +2860,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         PKeyColumn = ^TKeyColumn;
@@ -2875,9 +2879,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         PPartition = ^TPartition;
@@ -2903,9 +2907,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         PReference = ^TReference;
@@ -2923,9 +2927,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         TNodes = packed record
@@ -2970,9 +2974,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PCreateTriggerStmt = ^TCreateTriggerStmt;
@@ -2995,9 +2999,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PCreateUserStmt = ^TCreateUserStmt;
@@ -3019,9 +3023,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PCreateViewStmt = ^TCreateViewStmt;
@@ -3044,9 +3048,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PCurrentTimestamp = ^TCurrentTimestamp;
@@ -3062,9 +3066,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PDatatype = ^TDatatype;
@@ -3092,9 +3096,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PDateAddFunc = ^TDateAddFunc;
@@ -3113,9 +3117,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PDbIdent = ^TDbIdent;
@@ -3133,8 +3137,8 @@ type
       private
         FDbIdentType: TDbIdentType;
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ADbIdentType: TDbIdentType; const ANodes: TNodes): TOffset; overload; static;
-        class function Create(const AParser: TMySQLParser; const ADbIdentType: TDbIdentType;
+        class function Create(const AParser: TSQLParser; const ADbIdentType: TDbIdentType; const ANodes: TNodes): TOffset; overload; static;
+        class function Create(const AParser: TSQLParser; const ADbIdentType: TDbIdentType;
           const AIdent, ADatabaseDot, ADatabaseIdent, ATableDot, ATableIdent: TOffset): TOffset; overload; static;
         function GetDatabaseIdent(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
         function GetIdent(): PToken; {$IFNDEF Debug} inline; {$ENDIF}
@@ -3145,7 +3149,7 @@ type
         property DbIdentType: TDbIdentType read FDbIdentType;
         property Ident: PToken read GetIdent;
         property ParentNode: PNode read GetParentNode;
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         property TableIdent: PToken read GetTableIdent;
       end;
 
@@ -3160,9 +3164,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PDeclareStmt = ^TDeclareStmt;
@@ -3180,9 +3184,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PDeclareConditionStmt = ^TDeclareConditionStmt;
@@ -3201,9 +3205,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PDeclareCursorStmt = ^TDeclareCursorStmt;
@@ -3219,9 +3223,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PDeclareHandlerStmt = ^TDeclareHandlerStmt;
@@ -3239,9 +3243,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PDeleteStmt = ^TDeleteStmt;
@@ -3279,9 +3283,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PDoStmt = ^TDoStmt;
@@ -3295,9 +3299,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PDropDatabaseStmt = ^TDropDatabaseStmt;
@@ -3312,9 +3316,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PDropEventStmt = ^TDropEventStmt;
@@ -3329,9 +3333,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PDropIndexStmt = ^TDropIndexStmt;
@@ -3349,9 +3353,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PDropRoutineStmt = ^TDropRoutineStmt;
@@ -3367,9 +3371,9 @@ type
       private
         Nodes: TNodes;
         FRoutineType: TRoutineType;
-        class function Create(const AParser: TMySQLParser; const ARoutineType: TRoutineType; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ARoutineType: TRoutineType; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
         property RoutineType: TRoutineType read FRoutineType;
       end;
 
@@ -3385,9 +3389,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PDropTablespaceStmt = ^TDropTablespaceStmt;
@@ -3402,9 +3406,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PDropTableStmt = ^TDropTableStmt;
@@ -3420,9 +3424,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PDropTriggerStmt = ^TDropTriggerStmt;
@@ -3437,9 +3441,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PDropUserStmt = ^TDropUserStmt;
@@ -3454,9 +3458,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PDropViewStmt = ^TDropViewStmt;
@@ -3472,9 +3476,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PEndLabel = ^TEndLabel;
@@ -3487,9 +3491,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PExecuteStmt = ^TExecuteStmt;
@@ -3505,9 +3509,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PExistsFunc = ^TExistsFunc;
@@ -3523,9 +3527,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PExplainStmt = ^TExplainStmt;
@@ -3545,9 +3549,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PExtractFunc = ^TExtractFunc;
@@ -3565,9 +3569,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PFetchStmt = ^TFetchStmt;
@@ -3584,9 +3588,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PFlushStmt = ^TFlushStmt;
@@ -3604,9 +3608,9 @@ type
             Heritage: TRange;
           private
             Nodes: TNodes;
-            class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+            class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
           public
-            property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+            property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
           end;
 
         TNodes = packed record
@@ -3618,9 +3622,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PFunctionCall = ^TFunctionCall;
@@ -3634,14 +3638,14 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const AIdent, AArgumentsList: TOffset): TOffset; overload; static;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; overload; static;
+        class function Create(const AParser: TSQLParser; const AIdent, AArgumentsList: TOffset): TOffset; overload; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; overload; static;
         function GetArguments(): PChild; {$IFNDEF Debug} inline; {$ENDIF}
         function GetIdent(): PChild; {$IFNDEF Debug} inline; {$ENDIF}
       public
         property Arguments: PChild read GetArguments;
         property Ident: PChild read GetIdent;
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PFunctionReturns = ^TFunctionReturns;
@@ -3656,9 +3660,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PGetDiagnosticsStmt = ^TGetDiagnosticsStmt;
@@ -3677,9 +3681,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         PCondInfo = ^TCondInfo;
@@ -3694,9 +3698,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         TNodes = packed record
@@ -3711,9 +3715,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PGrantStmt = ^TGrantStmt;
@@ -3731,9 +3735,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         PUserSpecification = ^TUserSpecification;
@@ -3751,9 +3755,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         TNodes = packed record
@@ -3776,9 +3780,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PGroupConcatFunc = ^TGroupConcatFunc;
@@ -3796,9 +3800,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         TNodes = packed record
@@ -3815,9 +3819,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PHelpStmt = ^THelpStmt;
@@ -3831,9 +3835,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PIfStmt = ^TIfStmt;
@@ -3853,9 +3857,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         TNodes = packed record
@@ -3866,9 +3870,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PInOp = ^TInOp;
@@ -3884,9 +3888,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PInsertStmt = ^TInsertStmt;
@@ -3905,9 +3909,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         TNodes = packed record
@@ -3937,9 +3941,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PIntervalOp = ^TIntervalOp;
@@ -3954,7 +3958,7 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       end;
 
       TIntervalList = array [0..15 - 1] of TOffset;
@@ -3970,9 +3974,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PKillStmt = ^TKillStmt;
@@ -3986,9 +3990,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PLeaveStmt = ^TLeaveStmt;
@@ -4002,9 +4006,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PLikeOp = ^TLikeOp;
@@ -4022,9 +4026,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       // PList = ^TList; defined after TList definition, otherwise its assigns Classes.TList
@@ -4041,7 +4045,7 @@ type
         FDelimiterType: TTokenType;
         FElementCount: Word;
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser;
+        class function Create(const AParser: TSQLParser;
           const ANodes: TNodes; const ADelimiterType: TTokenType;
           const AChildrenCount: Integer; const AChildren: array of TOffset): TOffset; static;
         function GetFirstChild(): PChild; {$IFNDEF Debug} inline; {$ENDIF}
@@ -4049,7 +4053,7 @@ type
         property DelimiterType: TTokenType read FDelimiterType;
         property ElementCount: Word read FElementCount;
         property FirstChild: PChild read GetFirstChild;
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
       PList = ^TList;
 
@@ -4086,9 +4090,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PLoadXMLStmt = ^TLoadXMLStmt;
@@ -4115,9 +4119,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PLockTableStmt = ^TLockTableStmt;
@@ -4137,9 +4141,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         TNodes = packed record
@@ -4150,9 +4154,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PLoopStmt = ^TLoopStmt;
@@ -4169,9 +4173,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PMatchFunc = ^TMatchFunc;
@@ -4190,9 +4194,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PPositionFunc = ^TPositionFunc;
@@ -4210,9 +4214,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PPrepareStmt = ^TPrepareStmt;
@@ -4228,9 +4232,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PPurgeStmt = ^TPurgeStmt;
@@ -4246,9 +4250,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       POpenStmt = ^TOpenStmt;
@@ -4262,9 +4266,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       POptimizeTableStmt = ^TOptimizeTableStmt;
@@ -4280,9 +4284,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PRegExpOp = ^TRegExpOp;
@@ -4298,9 +4302,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PReleaseStmt = ^TReleaseStmt;
@@ -4314,9 +4318,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PRenameStmt = ^TRenameStmt;
@@ -4335,9 +4339,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         TNodes = packed record
@@ -4348,9 +4352,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PRepairTableStmt = ^TRepairTableStmt;
@@ -4369,9 +4373,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PRepeatStmt = ^TRepeatStmt;
@@ -4390,9 +4394,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PResetStmt = ^TResetStmt;
@@ -4410,9 +4414,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         TNodes = packed record
@@ -4423,9 +4427,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PResignalStmt = ^TResignalStmt;
@@ -4438,9 +4442,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PReturnStmt = ^TReturnStmt;
@@ -4454,9 +4458,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PRevokeStmt = ^TRevokeStmt;
@@ -4477,9 +4481,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PRollbackStmt = ^TRollbackStmt;
@@ -4495,9 +4499,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PRoutineParam = ^TRoutineParam;
@@ -4512,9 +4516,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PSavepointStmt = ^TSavepointStmt;
@@ -4528,9 +4532,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PSchedule = ^TSchedule;
@@ -4546,9 +4550,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PSecretIdent = ^TSecretIdent;
@@ -4563,9 +4567,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PSelectStmt = ^TSelectStmt;
@@ -4584,9 +4588,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         PTableFactor = ^TTableFactor;
@@ -4605,9 +4609,9 @@ type
             Heritage: TRange;
           private
             Nodes: TNodes;
-            class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+            class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
           public
-            property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+            property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
           end;
 
           TNodes = packed record
@@ -4624,9 +4628,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         PTableJoin = ^TTableJoin;
@@ -4644,7 +4648,7 @@ type
         private
           FJoinType: TJoinType;
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const AJoinType: TJoinType; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const AJoinType: TJoinType; const ANodes: TNodes): TOffset; static;
         public
           property JoinType: TJoinType read FJoinType;
         end;
@@ -4662,9 +4666,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         PTableFactorSelect = ^TTableFactorSelect;
@@ -4679,9 +4683,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         PGroup = ^TGroup;
@@ -4695,9 +4699,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         POrder = ^TOrder;
@@ -4711,9 +4715,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         TIntoNodes = packed record
@@ -4788,9 +4792,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PSetStmt = ^TSetStmt;
@@ -4810,9 +4814,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         TNodes = packed record
@@ -4824,9 +4828,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PSetNamesStmt = ^TSetNamesStmt;
@@ -4840,9 +4844,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PSetPasswordStmt = ^TSetPasswordStmt;
@@ -4858,9 +4862,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PSetTransactionStmt = ^TSetTransactionStmt;
@@ -4878,9 +4882,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         TNodes = packed record
@@ -4893,9 +4897,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowAuthorsStmt = ^TShowAuthorsStmt;
@@ -4908,9 +4912,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowBinaryLogsStmt = ^TShowBinaryLogsStmt;
@@ -4923,9 +4927,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowBinlogEventsStmt = ^TShowBinlogEventsStmt;
@@ -4946,9 +4950,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowCharacterSetStmt = ^TShowCharacterSetStmt;
@@ -4963,9 +4967,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowCollationStmt = ^TShowCollationStmt;
@@ -4980,9 +4984,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowColumnsStmt = ^TShowColumnsStmt;
@@ -5002,9 +5006,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowContributorsStmt = ^TShowContributorsStmt;
@@ -5017,9 +5021,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowCountErrorsStmt = ^TShowCountErrorsStmt;
@@ -5033,9 +5037,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowCountWarningsStmt = ^TShowCountWarningsStmt;
@@ -5049,9 +5053,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowCreateDatabaseStmt = ^TShowCreateDatabaseStmt;
@@ -5066,9 +5070,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowCreateEventStmt = ^TShowCreateEventStmt;
@@ -5082,9 +5086,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowCreateFunctionStmt = ^TShowCreateFunctionStmt;
@@ -5098,9 +5102,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowCreateProcedureStmt = ^TShowCreateProcedureStmt;
@@ -5114,9 +5118,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowCreateTableStmt = ^TShowCreateTableStmt;
@@ -5130,9 +5134,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowCreateTriggerStmt = ^TShowCreateTriggerStmt;
@@ -5146,9 +5150,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowCreateUserStmt = ^TShowCreateUserStmt;
@@ -5162,9 +5166,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowCreateViewStmt = ^TShowCreateViewStmt;
@@ -5178,9 +5182,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowDatabasesStmt = ^TShowDatabasesStmt;
@@ -5195,9 +5199,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowEngineStmt = ^TShowEngineStmt;
@@ -5212,9 +5216,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowEnginesStmt = ^TShowEnginesStmt;
@@ -5227,9 +5231,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowErrorsStmt = ^TShowErrorsStmt;
@@ -5248,9 +5252,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowEventsStmt = ^TShowEventsStmt;
@@ -5266,9 +5270,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowFunctionCodeStmt = ^TShowFunctionCodeStmt;
@@ -5281,9 +5285,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowFunctionStatusStmt = ^TShowFunctionStatusStmt;
@@ -5296,9 +5300,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowGrantsStmt = ^TShowGrantsStmt;
@@ -5312,9 +5316,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowIndexStmt = ^TShowIndexStmt;
@@ -5330,9 +5334,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowMasterStatusStmt = ^TShowMasterStatusStmt;
@@ -5345,9 +5349,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowOpenTablesStmt = ^TShowOpenTablesStmt;
@@ -5363,9 +5367,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowPluginsStmt = ^TShowPluginsStmt;
@@ -5378,9 +5382,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowPrivilegesStmt = ^TShowPrivilegesStmt;
@@ -5393,9 +5397,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowProcedureCodeStmt = ^TShowProcedureCodeStmt;
@@ -5408,9 +5412,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowProcedureStatusStmt = ^TShowProcedureStatusStmt;
@@ -5425,9 +5429,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowProcessListStmt = ^TShowProcessListStmt;
@@ -5440,9 +5444,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowProfileStmt = ^TShowProfileStmt;
@@ -5459,9 +5463,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowProfilesStmt = ^TShowProfilesStmt;
@@ -5474,9 +5478,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowRelaylogEventsStmt = ^TShowRelaylogEventsStmt;
@@ -5497,9 +5501,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowSlaveHostsStmt = ^TShowSlaveHostsStmt;
@@ -5512,9 +5516,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowSlaveStatusStmt = ^TShowSlaveStatusStmt;
@@ -5527,9 +5531,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowStatusStmt = ^TShowStatusStmt;
@@ -5546,9 +5550,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowTableStatusStmt = ^TShowTableStatusStmt;
@@ -5564,9 +5568,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowTablesStmt = ^TShowTablesStmt;
@@ -5584,9 +5588,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowTriggersStmt = ^TShowTriggersStmt;
@@ -5602,9 +5606,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowVariablesStmt = ^TShowVariablesStmt;
@@ -5621,9 +5625,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShowWarningsStmt = ^TShowWarningsStmt;
@@ -5642,9 +5646,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PShutdownStmt = ^TShutdownStmt;
@@ -5657,9 +5661,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PSignalStmt = ^TSignalStmt;
@@ -5676,9 +5680,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         TNodes = packed record
@@ -5691,9 +5695,28 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+      end;
+
+      PSubquery = ^TSubquery;
+      TSubquery = packed record
+      private type
+        TNodes = packed record
+          IdentTag: TOffset;
+          OpenToken: TOffset;
+          Subquery: TOffset;
+          CloseToken: TOffset;
+        end;
+      private
+        Heritage: TRange;
+      private
+        Nodes: TNodes;
+        class function Create(const AParser: TSQLParser; const AIdentTag, ASubquery: TOffset): TOffset; overload; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; overload; static;
+      public
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PSubstringFunc = ^TSubstringFunc;
@@ -5713,9 +5736,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PSoundsLikeOp = ^TSoundsLikeOp;
@@ -5731,9 +5754,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const AOperand1, ASounds, ALike, AOperand2: TOffset): TOffset; static;
+        class function Create(const AParser: TSQLParser; const AOperand1, ASounds, ALike, AOperand2: TOffset): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PStartSlaveStmt = ^TStartSlaveStmt;
@@ -5746,9 +5769,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PStartTransactionStmt = ^TStartTransactionStmt;
@@ -5764,9 +5787,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PStopSlaveStmt = ^TStopSlaveStmt;
@@ -5779,9 +5802,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PSubArea = ^TSubArea;
@@ -5796,9 +5819,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PSubAreaSelectStmt = ^TSubAreaSelectStmt;
@@ -5814,9 +5837,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PSubPartition = ^TSubPartition;
@@ -5837,9 +5860,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PTag = ^TTag;
@@ -5858,9 +5881,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PTruncateStmt = ^TTruncateStmt;
@@ -5875,9 +5898,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PTrimFunc = ^TTrimFunc;
@@ -5896,9 +5919,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PUnaryOp = ^TUnaryOp;
@@ -5912,9 +5935,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const AOperator, AOperand: TOffset): TOffset; static;
+        class function Create(const AParser: TSQLParser; const AOperator, AOperand: TOffset): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PUnknownStmt = ^TUnknownStmt;
@@ -5922,9 +5945,9 @@ type
       private
         Heritage: TStmt;
       private
-        class function Create(const AParser: TMySQLParser; const ATokenCount: Integer; const ATokens: array of TOffset): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ATokenCount: Integer; const ATokens: array of TOffset): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PUnlockTablesStmt = ^TUnlockTablesStmt;
@@ -5937,9 +5960,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PUpdateStmt = ^TUpdateStmt;
@@ -5970,9 +5993,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PUser = ^TUser;
@@ -5987,9 +6010,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PUseStmt = ^TUseStmt;
@@ -6003,9 +6026,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PValue = ^TValue;
@@ -6020,9 +6043,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PVariable = ^TVariable;
@@ -6039,9 +6062,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PWeightStringFunc = ^TWeightStringFunc;
@@ -6060,9 +6083,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         TNodes = packed record
@@ -6079,9 +6102,9 @@ type
         Heritage: TRange;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PWhileStmt = ^TWhileStmt;
@@ -6100,9 +6123,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
       PXAStmt = ^TXAStmt;
@@ -6123,9 +6146,9 @@ type
           Heritage: TRange;
         private
           Nodes: TNodes;
-          class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+          class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
         public
-          property Parser: TMySQLParser read Heritage.Heritage.Heritage.FParser;
+          property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
         end;
 
         TNodes = packed record
@@ -6138,9 +6161,9 @@ type
         Heritage: TStmt;
       private
         Nodes: TNodes;
-        class function Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset; static;
+        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
-        property Parser: TMySQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
+        property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
   protected
@@ -6209,6 +6232,7 @@ type
     kiALWAYS,
     kiANALYZE,
     kiAND,
+    kiANY,
     kiAS,
     kiASC,
     kiASCII,
@@ -6594,6 +6618,7 @@ type
     kiSLAVE,
     kiSNAPSHOT,
     kiSOCKET,
+    kiSOME,
     kiSONAME,
     kiSOUNDS,
     kiSOURCE,
@@ -6835,6 +6860,7 @@ type
     procedure FormatSubArea(const Nodes: TSubArea.TNodes);
     procedure FormatSubAreaSelectStmt(const Nodes: TSubAreaSelectStmt.TNodes);
     procedure FormatSubPartition(const Nodes: TSubPartition.TNodes);
+    procedure FormatSubquery(const Nodes: TSubquery.TNodes);
     procedure FormatSubstringFunc(const Nodes: TSubstringFunc.TNodes);
     procedure FormatToken(const Token: PToken);
     procedure FormatTrimFunc(const Nodes: TTrimFunc.TNodes);
@@ -7095,6 +7121,7 @@ type
     function ParseString(): TOffset;
     function ParseSubArea(const ParseArea: TParseFunction): TOffset;
     function ParseSubPartition(): TOffset;
+    function ParseSubquery(): TOffset;
     function ParseSubstringFunc(): TOffset;
     function ParseStmt(): TOffset;
     function ParseSymbol(const TokenType: TTokenType): TOffset;
@@ -7125,7 +7152,6 @@ type
     function ParseWeightStringFuncLevel(): TOffset;
     function ParseWhileStmt(): TOffset;
     function ParseXAStmt(): TOffset;
-    function RangePtr(const ANode: TOffset): PRange; {$IFNDEF Debug} inline; {$ENDIF}
     procedure SetError(const AErrorCode: Byte; const AErrorToken: TOffset = 0);
     function StmtPtr(const Node: TOffset): PStmt; {$IFNDEF Debug} inline; {$ENDIF}
     function TokenPtr(const Token: TOffset): PToken; {$IFNDEF Debug} inline; {$ENDIF}
@@ -7177,7 +7203,7 @@ const
   DefaultTextsMemSize = 10 * 1024;
 
 var
-  UsageTypeByTokenType: array[TMySQLParser.TTokenType] of TMySQLParser.TUsageType = (
+  UsageTypeByTokenType: array[TSQLParser.TTokenType] of TSQLParser.TUsageType = (
     utUnknown,
     utError,
     utWhiteSpace,
@@ -7196,7 +7222,6 @@ var
     utConst,
     utConst,
     utConst,
-    utDbIdent,
     utDbIdent,
     utDbIdent,
     utDbIdent,
@@ -7359,13 +7384,13 @@ begin
   HTMLEscape(PChar(Value), Length(Value), PChar(Result), Len);
 end;
 
-function WordIndices(const Index0: TMySQLParser.TWordList.TIndex;
-  const Index1: TMySQLParser.TWordList.TIndex = -1;
-  const Index2: TMySQLParser.TWordList.TIndex = -1;
-  const Index3: TMySQLParser.TWordList.TIndex = -1;
-  const Index4: TMySQLParser.TWordList.TIndex = -1;
-  const Index5: TMySQLParser.TWordList.TIndex = -1;
-  const Index6: TMySQLParser.TWordList.TIndex = -1): TMySQLParser.TWordList.TIndices;
+function WordIndices(const Index0: TSQLParser.TWordList.TIndex;
+  const Index1: TSQLParser.TWordList.TIndex = -1;
+  const Index2: TSQLParser.TWordList.TIndex = -1;
+  const Index3: TSQLParser.TWordList.TIndex = -1;
+  const Index4: TSQLParser.TWordList.TIndex = -1;
+  const Index5: TSQLParser.TWordList.TIndex = -1;
+  const Index6: TSQLParser.TWordList.TIndex = -1): TSQLParser.TWordList.TIndices;
 begin
   Result[0] := Index0;
   Result[1] := Index1;
@@ -7376,14 +7401,14 @@ begin
   Result[6] := Index6;
 end;
 
-{ TMySQLParser.TStringBuffer **************************************************}
+{ TSQLParser.TStringBuffer ****************************************************}
 
-procedure TMySQLParser.TStringBuffer.Clear();
+procedure TSQLParser.TStringBuffer.Clear();
 begin
   Buffer.Write := Buffer.Mem;
 end;
 
-constructor TMySQLParser.TStringBuffer.Create(const InitialLength: Integer);
+constructor TSQLParser.TStringBuffer.Create(const InitialLength: Integer);
 begin
   Buffer.Mem := nil;
   Buffer.MemSize := 0;
@@ -7392,45 +7417,45 @@ begin
   Reallocate(InitialLength);
 end;
 
-procedure TMySQLParser.TStringBuffer.Delete(const Start: Integer; const Length: Integer);
+procedure TSQLParser.TStringBuffer.Delete(const Start: Integer; const Length: Integer);
 begin
   Move(Buffer.Mem[Start + Length], Buffer.Mem[Start], Size - Length);
   Buffer.Write := Pointer(Integer(Buffer.Write) - Length);
 end;
 
-destructor TMySQLParser.TStringBuffer.Destroy();
+destructor TSQLParser.TStringBuffer.Destroy();
 begin
   FreeMem(Buffer.Mem);
 
   inherited;
 end;
 
-function TMySQLParser.TStringBuffer.GetData(): Pointer;
+function TSQLParser.TStringBuffer.GetData(): Pointer;
 begin
   Result := Pointer(Buffer.Mem);
 end;
 
-function TMySQLParser.TStringBuffer.GetLength(): Integer;
+function TSQLParser.TStringBuffer.GetLength(): Integer;
 begin
   Result := (Integer(Buffer.Write) - Integer(Buffer.Mem)) div SizeOf(Buffer.Mem[0]);
 end;
 
-function TMySQLParser.TStringBuffer.GetSize(): Integer;
+function TSQLParser.TStringBuffer.GetSize(): Integer;
 begin
   Result := Integer(Buffer.Write) - Integer(Buffer.Mem);
 end;
 
-function TMySQLParser.TStringBuffer.GetText(): PChar;
+function TSQLParser.TStringBuffer.GetText(): PChar;
 begin
   Result := Buffer.Mem;
 end;
 
-function TMySQLParser.TStringBuffer.Read(): string;
+function TSQLParser.TStringBuffer.Read(): string;
 begin
   SetString(Result, PChar(Buffer.Mem), Size div SizeOf(Result[1]));
 end;
 
-procedure TMySQLParser.TStringBuffer.Reallocate(const NeededLength: Integer);
+procedure TSQLParser.TStringBuffer.Reallocate(const NeededLength: Integer);
 var
   Index: Integer;
 begin
@@ -7449,7 +7474,7 @@ begin
   end;
 end;
 
-procedure TMySQLParser.TStringBuffer.Write(const Text: PChar; const Length: Integer);
+procedure TSQLParser.TStringBuffer.Write(const Text: PChar; const Length: Integer);
 begin
   if (Length > 0) then
   begin
@@ -7460,19 +7485,19 @@ begin
   end;
 end;
 
-procedure TMySQLParser.TStringBuffer.Write(const Text: string);
+procedure TSQLParser.TStringBuffer.Write(const Text: string);
 begin
   Write(PChar(Text), System.Length(Text));
 end;
 
-procedure TMySQLParser.TStringBuffer.Write(const Char: Char);
+procedure TSQLParser.TStringBuffer.Write(const Char: Char);
 begin
   Write(@Char, 1);
 end;
 
-{ TMySQLParser.TWordList ******************************************************}
+{ TSQLParser.TWordList ********************************************************}
 
-procedure TMySQLParser.TWordList.Clear();
+procedure TSQLParser.TWordList.Clear();
 begin
   FText := '';
 
@@ -7482,7 +7507,7 @@ begin
   SetLength(Parser.OperatorTypeByKeywordIndex, 0);
 end;
 
-constructor TMySQLParser.TWordList.Create(const ASQLParser: TMySQLParser; const AText: string = '');
+constructor TSQLParser.TWordList.Create(const ASQLParser: TSQLParser; const AText: string = '');
 begin
   FParser := ASQLParser;
 
@@ -7492,14 +7517,14 @@ begin
   Text := AText;
 end;
 
-destructor TMySQLParser.TWordList.Destroy();
+destructor TSQLParser.TWordList.Destroy();
 begin
   Clear();
 
   inherited;
 end;
 
-function TMySQLParser.TWordList.GetText(): string;
+function TSQLParser.TWordList.GetText(): string;
 var
   I: Integer;
 begin
@@ -7511,18 +7536,18 @@ begin
       Result := Result + StrPas(FIndex[I]);
 end;
 
-function TMySQLParser.TWordList.GetWord(Index: TWordList.TIndex): string;
+function TSQLParser.TWordList.GetWord(Index: TWordList.TIndex): string;
 begin
   Result := StrPas(FIndex[Index]);
 end;
 
-procedure TMySQLParser.TWordList.GetWordText(const Index: TIndex; out Text: PChar; out Length: Integer);
+procedure TSQLParser.TWordList.GetWordText(const Index: TIndex; out Text: PChar; out Length: Integer);
 begin
   Text := FIndex[Index];
   Length := StrLen(Text);
 end;
 
-function TMySQLParser.TWordList.IndexOf(const Word: PChar; const Length: Integer): Integer;
+function TSQLParser.TWordList.IndexOf(const Word: PChar; const Length: Integer): Integer;
 var
   Comp: Integer;
   Left: Integer;
@@ -7554,12 +7579,12 @@ begin
   end;
 end;
 
-function TMySQLParser.TWordList.IndexOf(const Word: string): Integer;
+function TSQLParser.TWordList.IndexOf(const Word: string): Integer;
 begin
   Result := IndexOf(PChar(Word), Length(Word));
 end;
 
-procedure TMySQLParser.TWordList.SetText(AText: string);
+procedure TSQLParser.TWordList.SetText(AText: string);
 var
   Counts: array of Integer;
   Words: array of array of PChar;
@@ -7676,9 +7701,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TFormatHandle **************************************************}
+{ TSQLParser.TFormatHandle ****************************************************}
 
-constructor TMySQLParser.TFormatBuffer.Create();
+constructor TSQLParser.TFormatBuffer.Create();
 var
   S: string;
 begin
@@ -7690,7 +7715,7 @@ begin
   Move(S[1], IndentSpaces, SizeOf(IndentSpaces));
 end;
 
-procedure TMySQLParser.TFormatBuffer.DecreaseIndent();
+procedure TSQLParser.TFormatBuffer.DecreaseIndent();
 begin
   Assert(Indent >= IndentSize);
 
@@ -7698,24 +7723,24 @@ begin
     Dec(Indent, IndentSize);
 end;
 
-destructor TMySQLParser.TFormatBuffer.Destroy();
+destructor TSQLParser.TFormatBuffer.Destroy();
 begin
   inherited;
 end;
 
-procedure TMySQLParser.TFormatBuffer.IncreaseIndent();
+procedure TSQLParser.TFormatBuffer.IncreaseIndent();
 begin
   Inc(Indent, IndentSize);
 end;
 
-procedure TMySQLParser.TFormatBuffer.Write(const Text: PChar; const Length: Integer);
+procedure TSQLParser.TFormatBuffer.Write(const Text: PChar; const Length: Integer);
 begin
   inherited;
 
   FNewLine := False;
 end;
 
-procedure TMySQLParser.TFormatBuffer.WriteReturn();
+procedure TSQLParser.TFormatBuffer.WriteReturn();
 begin
   Write(#13#10);
   if (Indent > 0) then
@@ -7723,14 +7748,14 @@ begin
   FNewLine := True;
 end;
 
-procedure TMySQLParser.TFormatBuffer.WriteSpace();
+procedure TSQLParser.TFormatBuffer.WriteSpace();
 begin
   Write(' ');
 end;
 
-{ TMySQLParser.TCompletionList ************************************************}
+{ TSQLParser.TCompletionList **************************************************}
 
-procedure TMySQLParser.TCompletionList.AddKeyword(const KeywordIndex: TWordList.TIndex;
+procedure TSQLParser.TCompletionList.AddKeyword(const KeywordIndex: TWordList.TIndex;
   const KeywordIndex2: TWordList.TIndex = -1; const KeywordIndex3: TWordList.TIndex = -1;
   const KeywordIndex4: TWordList.TIndex = -1; const KeywordIndex5: TWordList.TIndex = -1;
   const KeywordIndex6: TWordList.TIndex = -1; const KeywordIndex7: TWordList.TIndex = -1);
@@ -7785,7 +7810,7 @@ begin
   end;
 end;
 
-procedure TMySQLParser.TCompletionList.AddList(DbIdentType: TDbIdentType;
+procedure TSQLParser.TCompletionList.AddList(DbIdentType: TDbIdentType;
   const DatabaseName: string = ''; TableName: string = '');
 var
   Item: PItem;
@@ -7804,7 +7829,7 @@ begin
   end;
 end;
 
-procedure TMySQLParser.TCompletionList.Clear();
+procedure TSQLParser.TCompletionList.Clear();
 var
   I: Integer;
 begin
@@ -7814,28 +7839,28 @@ begin
   inherited;
 end;
 
-constructor TMySQLParser.TCompletionList.Create(const AParser: TMySQLParser);
+constructor TSQLParser.TCompletionList.Create(const AParser: TSQLParser);
 begin
   inherited Create();
 
   FParser := AParser;
 end;
 
-destructor TMySQLParser.TCompletionList.Destroy();
+destructor TSQLParser.TCompletionList.Destroy();
 begin
   Clear();
 
   inherited;
 end;
 
-function TMySQLParser.TCompletionList.GetItem(Index: Integer): PItem;
+function TSQLParser.TCompletionList.GetItem(Index: Integer): PItem;
 begin
   Result := PItem(inherited Items[Index]);
 end;
 
-{ TMySQLParser.TNode **********************************************************}
+{ TSQLParser.TNode ************************************************************}
 
-class function TMySQLParser.TNode.Create(const AParser: TMySQLParser; const ANodeType: TNodeType): TOffset;
+class function TSQLParser.TNode.Create(const AParser: TSQLParser; const ANodeType: TNodeType): TOffset;
 begin
   Result := AParser.NewNode(ANodeType);
 
@@ -7846,14 +7871,14 @@ begin
   end;
 end;
 
-function TMySQLParser.TNode.GetOffset(): TOffset;
+function TSQLParser.TNode.GetOffset(): TOffset;
 begin
   Result := @Self - Parser.Nodes.Mem;
 end;
 
-{ TMySQLParser.TChild *********************************************************}
+{ TSQLParser.TChild ***********************************************************}
 
-class function TMySQLParser.TChild.Create(const AParser: TMySQLParser; const ANodeType: TNodeType): TOffset;
+class function TSQLParser.TChild.Create(const AParser: TSQLParser; const ANodeType: TNodeType): TOffset;
 begin
   Result := TNode.Create(AParser, ANodeType);
 
@@ -7863,7 +7888,7 @@ begin
   end;
 end;
 
-function TMySQLParser.TChild.GetDelimiter(): PToken;
+function TSQLParser.TChild.GetDelimiter(): PToken;
 var
   Token: PToken;
 begin
@@ -7878,15 +7903,15 @@ begin
   end;
 end;
 
-function TMySQLParser.TChild.GetFFirstToken(): TOffset;
+function TSQLParser.TChild.GetFFirstToken(): TOffset;
 begin
   if (NodeType = ntToken) then
     Result := @Self - Parser.Nodes.Mem
   else
-    Result := TMySQLParser.PRange(@Self)^.FFirstToken;
+    Result := TSQLParser.PRange(@Self)^.FFirstToken;
 end;
 
-function TMySQLParser.TChild.GetFirstToken(): PToken;
+function TSQLParser.TChild.GetFirstToken(): PToken;
 begin
   if (NodeType = ntToken) then
     Result := @Self
@@ -7894,7 +7919,7 @@ begin
     Result := PRange(@Self)^.FirstToken;
 end;
 
-function TMySQLParser.TChild.GetFLastToken(): TOffset;
+function TSQLParser.TChild.GetFLastToken(): TOffset;
 begin
   if (NodeType = ntToken) then
     Result := PNode(@Self)^.Offset
@@ -7902,7 +7927,7 @@ begin
     Result := PRange(@Self)^.FLastToken;
 end;
 
-function TMySQLParser.TChild.GetLastToken(): PToken;
+function TSQLParser.TChild.GetLastToken(): PToken;
 begin
   if (NodeType = ntToken) then
     Result := @Self
@@ -7910,7 +7935,7 @@ begin
     Result := PRange(@Self)^.LastToken;
 end;
 
-function TMySQLParser.TChild.GetNextSibling(): PChild;
+function TSQLParser.TChild.GetNextSibling(): PChild;
 var
   Child: PChild;
   Token: PToken;
@@ -7959,16 +7984,16 @@ begin
   end;
 end;
 
-function TMySQLParser.TChild.GetParentNode(): PNode;
+function TSQLParser.TChild.GetParentNode(): PNode;
 begin
   Assert(FParentNode < Parser.Nodes.UsedSize);
 
   Result := Parser.NodePtr(FParentNode);
 end;
 
-{ TMySQLParser.TToken *********************************************************}
+{ TSQLParser.TToken ***********************************************************}
 
-class function TMySQLParser.TToken.Create(const AParser: TMySQLParser;
+class function TSQLParser.TToken.Create(const AParser: TSQLParser;
   const AText: PChar; const ALength: Integer;
   const AErrorCode: Byte; const AErrorPos: PChar;
   const ATokenType: TTokenType; const AOperatorType: TOperatorType;
@@ -7994,7 +8019,7 @@ begin
   end;
 end;
 
-function TMySQLParser.TToken.GetAsString(): string;
+function TSQLParser.TToken.GetAsString(): string;
 var
   Length: Integer;
   I: Integer;
@@ -8020,11 +8045,6 @@ begin
       Result := SQLUnescape(S);
     ttDQIdent:
       Result := SQLUnescape(S);
-    ttDBIdent:
-      if ((Copy(S, 1, 1) = '[') and (Copy(S, Length, 1) = ']')) then
-        Result := Trim(Copy(S, 1, Length - 2))
-      else
-        Result := S;
     ttMySQLIdent:
       Result := SQLUnescape(S);
     ttMySQLCodeStart:
@@ -8042,7 +8062,7 @@ begin
   end;
 end;
 
-function TMySQLParser.TToken.GetDbIdentType(): TDbIdentType;
+function TSQLParser.TToken.GetDbIdentType(): TDbIdentType;
 begin
   if ((OperatorType = otDot)
     or not Assigned(Heritage.ParentNode)
@@ -8056,7 +8076,7 @@ begin
     Result := PDbIdent(Heritage.ParentNode)^.DbIdentType;
 end;
 
-function TMySQLParser.TToken.GetGeneration(): Integer;
+function TSQLParser.TToken.GetGeneration(): Integer;
 var
   Node: PNode;
 begin
@@ -8070,7 +8090,7 @@ begin
 end;
 
 {$IFNDEF Debug}
-function TMySQLParser.TToken.GetIndex(): Integer;
+function TSQLParser.TToken.GetIndex(): Integer;
 var
   Token: PToken;
 begin
@@ -8084,13 +8104,13 @@ begin
 end;
 {$ENDIF}
 
-function TMySQLParser.TToken.GetIsUsed(): Boolean;
+function TSQLParser.TToken.GetIsUsed(): Boolean;
 begin
   Result := not (TokenType in [ttSpace, ttReturn, ttSLComment, ttMLComment, ttMySQLCodeStart, ttMySQLCodeEnd])
     and ((Parser.AllowedMySQLVersion = 0) or (Parser.MySQLVersion >= Parser.AllowedMySQLVersion));
 end;
 
-function TMySQLParser.TToken.GetNextToken(): PToken;
+function TSQLParser.TToken.GetNextToken(): PToken;
 var
   Offset: TOffset;
 begin
@@ -8106,7 +8126,7 @@ begin
   until (not Assigned(Result) or Result^.IsUsed);
 end;
 
-function TMySQLParser.TToken.GetNextTokenAll(): PToken;
+function TSQLParser.TToken.GetNextTokenAll(): PToken;
 var
   Offset: TOffset;
 begin
@@ -8122,17 +8142,17 @@ begin
   until (not Assigned(Result) or Parser.IsToken(Offset));
 end;
 
-function TMySQLParser.TToken.GetOffset(): TOffset;
+function TSQLParser.TToken.GetOffset(): TOffset;
 begin
   Result := Heritage.Heritage.GetOffset();
 end;
 
-function TMySQLParser.TToken.GetParentNode(): PNode;
+function TSQLParser.TToken.GetParentNode(): PNode;
 begin
   Result := Heritage.GetParentNode();
 end;
 
-function TMySQLParser.TToken.GetText(): string;
+function TSQLParser.TToken.GetText(): string;
 var
   Text: PChar;
   Length: Integer;
@@ -8141,7 +8161,7 @@ begin
   SetString(Result, Text, Length);
 end;
 
-procedure TMySQLParser.TToken.GetText(out Text: PChar; out Length: Integer);
+procedure TSQLParser.TToken.GetText(out Text: PChar; out Length: Integer);
 begin
   if (NewText = 0) then
   begin
@@ -8152,17 +8172,17 @@ begin
     Parser.GetText(NewText, Text, Length);
 end;
 
-procedure TMySQLParser.TToken.SetText(const Text: PChar; const Length: Integer);
+procedure TSQLParser.TToken.SetText(const Text: PChar; const Length: Integer);
 begin
   NewText := Parser.NewText(Text, Length);
 end;
 
-procedure TMySQLParser.TToken.SetText(Text: string);
+procedure TSQLParser.TToken.SetText(Text: string);
 begin
   SetText(PChar(Text), System.Length(Text));
 end;
 
-function TMySQLParser.TToken.GetTokenType(): TTokenType;
+function TSQLParser.TToken.GetTokenType(): TTokenType;
 begin
   if (NewTokenType = ttUnknown) then
     Result := FTokenType
@@ -8170,15 +8190,15 @@ begin
     Result := NewTokenType;
 end;
 
-procedure TMySQLParser.TToken.SetTokenType(ATokenType: TTokenType);
+procedure TSQLParser.TToken.SetTokenType(ATokenType: TTokenType);
 begin
   if (ATokenType <> FTokenType) then
     NewTokenType := ATokenType;
 end;
 
-{ TMySQLParser.TRange *********************************************************}
+{ TSQLParser.TRange ***********************************************************}
 
-class function TMySQLParser.TRange.Create(const AParser: TMySQLParser; const ANodeType: TNodeType): TOffset;
+class function TSQLParser.TRange.Create(const AParser: TSQLParser; const ANodeType: TNodeType): TOffset;
 begin
   Result := TChild.Create(AParser, ANodeType);
 
@@ -8189,7 +8209,7 @@ begin
   end;
 end;
 
-function TMySQLParser.TRange.GetFirstToken(): PToken;
+function TSQLParser.TRange.GetFirstToken(): PToken;
 begin
   if (FFirstToken = 0) then
     Result := nil
@@ -8197,7 +8217,7 @@ begin
     Result := PToken(Parser.NodePtr(FFirstToken));
 end;
 
-function TMySQLParser.TRange.GetLastToken(): PToken;
+function TSQLParser.TRange.GetLastToken(): PToken;
 begin
   if (FLastToken = 0) then
     Result := nil
@@ -8205,17 +8225,17 @@ begin
     Result := PToken(Parser.NodePtr(FLastToken));
 end;
 
-function TMySQLParser.TRange.GetOffset(): TOffset;
+function TSQLParser.TRange.GetOffset(): TOffset;
 begin
   Result := Heritage.Heritage.Offset;
 end;
 
-function TMySQLParser.TRange.GetParentNode(): PNode;
+function TSQLParser.TRange.GetParentNode(): PNode;
 begin
   Result := PNode(Parser.NodePtr(FParentNode));
 end;
 
-procedure TMySQLParser.TRange.AddChildren(const Children: POffsetArray; const Count: Integer);
+procedure TSQLParser.TRange.AddChildren(const Children: POffsetArray; const Count: Integer);
 var
   Child: PChild;
   I: Integer;
@@ -8233,9 +8253,9 @@ begin
     end;
 end;
 
-{ TMySQLParser.TRoot **********************************************************}
+{ TSQLParser.TRoot ************************************************************}
 
-class function TMySQLParser.TRoot.Create(const AParser: TMySQLParser;
+class function TSQLParser.TRoot.Create(const AParser: TSQLParser;
   const AErrorCode: Byte; const AErrorMessage: TOffset;
   const AFirstTokenAll, ALastTokenAll: TOffset;
   const ChildCount: Integer; const Children: array of TOffset): TOffset;
@@ -8267,7 +8287,7 @@ begin
   end;
 end;
 
-function TMySQLParser.TRoot.GetErrorMessage(): string;
+function TSQLParser.TRoot.GetErrorMessage(): string;
 var
   Length: Integer;
   Text: PChar;
@@ -8281,29 +8301,29 @@ begin
   end;
 end;
 
-function TMySQLParser.TRoot.GetFirstStmt(): PStmt;
+function TSQLParser.TRoot.GetFirstStmt(): PStmt;
 begin
   Result := PStmt(Parser.NodePtr(FFirstStmt));
 end;
 
-function TMySQLParser.TRoot.GetFirstTokenAll(): PToken;
+function TSQLParser.TRoot.GetFirstTokenAll(): PToken;
 begin
   Result := PToken(Parser.NodePtr(FFirstTokenAll));
 end;
 
-function TMySQLParser.TRoot.GetLastStmt(): PStmt;
+function TSQLParser.TRoot.GetLastStmt(): PStmt;
 begin
   Result := PStmt(Parser.NodePtr(FLastStmt));
 end;
 
-function TMySQLParser.TRoot.GetLastTokenAll(): PToken;
+function TSQLParser.TRoot.GetLastTokenAll(): PToken;
 begin
   Result := PToken(Parser.NodePtr(FLastTokenAll));
 end;
 
-{ TMySQLParser.TStmt **********************************************************}
+{ TSQLParser.TStmt ************************************************************}
 
-class function TMySQLParser.TStmt.Create(const AParser: TMySQLParser; const AStmtType: TStmtType): TOffset;
+class function TSQLParser.TStmt.Create(const AParser: TSQLParser; const AStmtType: TStmtType): TOffset;
 begin
   Result := TRange.Create(AParser, NodeTypeByStmtType[AStmtType]);
 
@@ -8318,7 +8338,7 @@ begin
   end;
 end;
 
-function TMySQLParser.TStmt.GetDelimiter(): PToken;
+function TSQLParser.TStmt.GetDelimiter(): PToken;
 var
   Token: PToken;
 begin
@@ -8332,7 +8352,7 @@ begin
   end;
 end;
 
-function TMySQLParser.TStmt.GetErrorMessage(): string;
+function TSQLParser.TStmt.GetErrorMessage(): string;
 var
   Length: Integer;
   Text: PChar;
@@ -8346,36 +8366,36 @@ begin
   end;
 end;
 
-function TMySQLParser.TStmt.GetErrorToken(): PToken;
+function TSQLParser.TStmt.GetErrorToken(): PToken;
 begin
   Result := PToken(Parser.NodePtr(FErrorToken));
 end;
 
-function TMySQLParser.TStmt.GetFirstToken(): PToken;
+function TSQLParser.TStmt.GetFirstToken(): PToken;
 begin
   Result := PToken(Parser.NodePtr(FFirstToken));
 end;
 
-function TMySQLParser.TStmt.GetFirstTokenAll(): PToken;
+function TSQLParser.TStmt.GetFirstTokenAll(): PToken;
 begin
   Assert(FFirstTokenAll > 0);
 
   Result := PToken(Parser.NodePtr(FFirstTokenAll));
 end;
 
-function TMySQLParser.TStmt.GetLastToken(): PToken;
+function TSQLParser.TStmt.GetLastToken(): PToken;
 begin
   Result := PRange(@Self)^.LastToken;
 end;
 
-function TMySQLParser.TStmt.GetLastTokenAll(): PToken;
+function TSQLParser.TStmt.GetLastTokenAll(): PToken;
 begin
   Assert(FLastTokenAll > 0);
 
   Result := PToken(Parser.NodePtr(FLastTokenAll));
 end;
 
-function TMySQLParser.TStmt.GetNextStmt(): PStmt;
+function TSQLParser.TStmt.GetNextStmt(): PStmt;
 var
   Token: PToken;
   Child: PChild;
@@ -8401,7 +8421,7 @@ begin
   end;
 end;
 
-function TMySQLParser.TStmt.GetText(): string;
+function TSQLParser.TStmt.GetText(): string;
 var
   Length: Integer;
   StringBuffer: TStringBuffer;
@@ -8427,14 +8447,14 @@ begin
   StringBuffer.Free();
 end;
 
-function TMySQLParser.TStmt.GetParentNode(): PNode;
+function TSQLParser.TStmt.GetParentNode(): PNode;
 begin
   Result := PNode(Heritage.ParentNode);
 end;
 
-{ TMySQLParser.TAnalyzeTableStmt **********************************************}
+{ TSQLParser.TAnalyzeTableStmt ************************************************}
 
-class function TMySQLParser.TAnalyzeTableStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TAnalyzeTableStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stAnalyzeTable);
 
@@ -8446,9 +8466,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TAlterDatabase *************************************************}
+{ TSQLParser.TAlterDatabase ***************************************************}
 
-class function TMySQLParser.TAlterDatabaseStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TAlterDatabaseStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stAlterDatabase);
 
@@ -8460,9 +8480,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TAlterEvent ****************************************************}
+{ TSQLParser.TAlterEvent ******************************************************}
 
-class function TMySQLParser.TAlterEventStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TAlterEventStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stAlterEvent);
 
@@ -8474,9 +8494,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TAlterRoutine **************************************************}
+{ TSQLParser.TAlterRoutine ****************************************************}
 
-class function TMySQLParser.TAlterInstanceStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TAlterInstanceStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stAlterInstance);
 
@@ -8488,9 +8508,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TAlterRoutine **************************************************}
+{ TSQLParser.TAlterRoutine ****************************************************}
 
-class function TMySQLParser.TAlterRoutineStmt.Create(const AParser: TMySQLParser; const ARoutineType: TRoutineType; const ANodes: TNodes): TOffset;
+class function TSQLParser.TAlterRoutineStmt.Create(const AParser: TSQLParser; const ARoutineType: TRoutineType; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stAlterRoutine);
 
@@ -8503,9 +8523,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TAlterServerStmt ***********************************************}
+{ TSQLParser.TAlterServerStmt *************************************************}
 
-class function TMySQLParser.TAlterServerStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TAlterServerStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stAlterServer);
 
@@ -8517,9 +8537,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TAlterTablespaceStmt *******************************************}
+{ TSQLParser.TAlterTablespaceStmt *********************************************}
 
-class function TMySQLParser.TAlterTablespaceStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TAlterTablespaceStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stAlterTablespace);
 
@@ -8531,9 +8551,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TAlterTableStmt.TAlterColumn ***********************************}
+{ TSQLParser.TAlterTableStmt.TAlterColumn *************************************}
 
-class function TMySQLParser.TAlterTableStmt.TAlterColumn.Create(const AParser: TMySQLParser; const ANodes: TAlterColumn.TNodes): TOffset;
+class function TSQLParser.TAlterTableStmt.TAlterColumn.Create(const AParser: TSQLParser; const ANodes: TAlterColumn.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntAlterTableStmtAlterColumn);
 
@@ -8545,9 +8565,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TAlterTableStmt.TConvertTo *************************************}
+{ TSQLParser.TAlterTableStmt.TConvertTo ***************************************}
 
-class function TMySQLParser.TAlterTableStmt.TConvertTo.Create(const AParser: TMySQLParser; const ANodes: TConvertTo.TNodes): TOffset;
+class function TSQLParser.TAlterTableStmt.TConvertTo.Create(const AParser: TSQLParser; const ANodes: TConvertTo.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntAlterTableStmtConvertTo);
 
@@ -8559,9 +8579,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TAlterTableStmt.TDropObject ************************************}
+{ TSQLParser.TAlterTableStmt.TDropObject **************************************}
 
-class function TMySQLParser.TAlterTableStmt.TDropObject.Create(const AParser: TMySQLParser; const ANodes: TDropObject.TNodes): TOffset;
+class function TSQLParser.TAlterTableStmt.TDropObject.Create(const AParser: TSQLParser; const ANodes: TDropObject.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntAlterTableStmtDropObject);
 
@@ -8573,9 +8593,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TAlterTableStmt.TExchangePartition *****************************}
+{ TSQLParser.TAlterTableStmt.TExchangePartition *******************************}
 
-class function TMySQLParser.TAlterTableStmt.TExchangePartition.Create(const AParser: TMySQLParser; const ANodes: TExchangePartition.TNodes): TOffset;
+class function TSQLParser.TAlterTableStmt.TExchangePartition.Create(const AParser: TSQLParser; const ANodes: TExchangePartition.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntAlterTableStmtExchangePartition);
 
@@ -8587,9 +8607,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TAlterTableStmt.TOrderBy ***************************}
+{ TSQLParser.TAlterTableStmt.TOrderBy ***************************}
 
-class function TMySQLParser.TAlterTableStmt.TOrderBy.Create(const AParser: TMySQLParser; const ANodes: TOrderBy.TNodes): TOffset;
+class function TSQLParser.TAlterTableStmt.TOrderBy.Create(const AParser: TSQLParser; const ANodes: TOrderBy.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntAlterTableStmtOrderBy);
 
@@ -8601,9 +8621,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TAlterTableStmt.TReorganizePartition ***************************}
+{ TSQLParser.TAlterTableStmt.TReorganizePartition ***************************}
 
-class function TMySQLParser.TAlterTableStmt.TReorganizePartition.Create(const AParser: TMySQLParser; const ANodes: TReorganizePartition.TNodes): TOffset;
+class function TSQLParser.TAlterTableStmt.TReorganizePartition.Create(const AParser: TSQLParser; const ANodes: TReorganizePartition.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntAlterTableStmtReorganizePartition);
 
@@ -8615,9 +8635,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TAlterTableStmt ************************************************}
+{ TSQLParser.TAlterTableStmt **************************************************}
 
-class function TMySQLParser.TAlterTableStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TAlterTableStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stAlterTable);
 
@@ -8629,9 +8649,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TAlterViewStmt *************************************************}
+{ TSQLParser.TAlterViewStmt ***************************************************}
 
-class function TMySQLParser.TAlterViewStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TAlterViewStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stAlterView);
 
@@ -8643,9 +8663,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TBeginLabel ****************************************************}
+{ TSQLParser.TBeginLabel ******************************************************}
 
-class function TMySQLParser.TBeginLabel.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TBeginLabel.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntBeginLabel);
 
@@ -8657,7 +8677,7 @@ begin
   end;
 end;
 
-function TMySQLParser.TBeginLabel.GetLabelName(): string;
+function TSQLParser.TBeginLabel.GetLabelName(): string;
 begin
   if ((Nodes.BeginToken = 0) or (Parser.NodePtr(Nodes.BeginToken)^.NodeType <> ntToken)) then
     Result := ''
@@ -8665,9 +8685,9 @@ begin
     Result := Parser.TokenPtr(Nodes.BeginToken)^.AsString;
 end;
 
-{ TMySQLParser.TBeginStmt *****************************************************}
+{ TSQLParser.TBeginStmt *******************************************************}
 
-class function TMySQLParser.TBeginStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TBeginStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stBegin);
 
@@ -8679,9 +8699,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TBinaryOp ******************************************************}
+{ TSQLParser.TBinaryOp ********************************************************}
 
-class function TMySQLParser.TBinaryOp.Create(const AParser: TMySQLParser; const AOperator, AOperand1, AOperand2: TOffset): TOffset;
+class function TSQLParser.TBinaryOp.Create(const AParser: TSQLParser; const AOperator, AOperand1, AOperand2: TOffset): TOffset;
 begin
   Result := TRange.Create(AParser, ntBinaryOp);
 
@@ -8695,24 +8715,24 @@ begin
   end;
 end;
 
-function TMySQLParser.TBinaryOp.GetOperand1(): PChild;
+function TSQLParser.TBinaryOp.GetOperand1(): PChild;
 begin
   Result := Parser.ChildPtr(Nodes.Operand1);
 end;
 
-function TMySQLParser.TBinaryOp.GetOperand2(): PChild;
+function TSQLParser.TBinaryOp.GetOperand2(): PChild;
 begin
   Result := Parser.ChildPtr(Nodes.Operand2);
 end;
 
-function TMySQLParser.TBinaryOp.GetOperator(): PChild;
+function TSQLParser.TBinaryOp.GetOperator(): PChild;
 begin
   Result := Parser.ChildPtr(Nodes.OperatorToken);
 end;
 
-{ TMySQLParser.TBetweenOp *****************************************************}
+{ TSQLParser.TBetweenOp *******************************************************}
 
-class function TMySQLParser.TBetweenOp.Create(const AParser: TMySQLParser; const AExpr, ANotToken, ABetweenToken, AMin, AAndToken, AMax: TOffset): TOffset;
+class function TSQLParser.TBetweenOp.Create(const AParser: TSQLParser; const AExpr, ANotToken, ABetweenToken, AMin, AAndToken, AMax: TOffset): TOffset;
 begin
   Result := TRange.Create(AParser, ntBetweenOp);
 
@@ -8729,9 +8749,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCallStmt ******************************************************}
+{ TSQLParser.TCallStmt ********************************************************}
 
-class function TMySQLParser.TCallStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TCallStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stCall);
 
@@ -8743,9 +8763,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCaseOp.TBranch ************************************************}
+{ TSQLParser.TCaseOp.TBranch **************************************************}
 
-class function TMySQLParser.TCaseOp.TBranch.Create(const AParser: TMySQLParser; const ANodes: TBranch.TNodes): TOffset;
+class function TSQLParser.TCaseOp.TBranch.Create(const AParser: TSQLParser; const ANodes: TBranch.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntCaseOpBranch);
 
@@ -8757,9 +8777,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCaseOp ********************************************************}
+{ TSQLParser.TCaseOp **********************************************************}
 
-class function TMySQLParser.TCaseOp.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TCaseOp.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntCaseOp);
 
@@ -8771,9 +8791,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCaseStmt ******************************************************}
+{ TSQLParser.TCaseStmt ********************************************************}
 
-class function TMySQLParser.TCaseStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TCaseStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stCase);
 
@@ -8785,9 +8805,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCaseStmt.TBranch **********************************************}
+{ TSQLParser.TCaseStmt.TBranch ************************************************}
 
-class function TMySQLParser.TCaseStmt.TBranch.Create(const AParser: TMySQLParser; const ANodes: TBranch.TNodes): TOffset;
+class function TSQLParser.TCaseStmt.TBranch.Create(const AParser: TSQLParser; const ANodes: TBranch.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntCaseStmtBranch);
 
@@ -8799,9 +8819,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCastFunc ******************************************************}
+{ TSQLParser.TCastFunc ********************************************************}
 
-class function TMySQLParser.TCastFunc.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TCastFunc.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntCastFunc);
 
@@ -8813,9 +8833,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TChangeMasterStmt ******************************************************}
+{ TSQLParser.TChangeMasterStmt ************************************************}
 
-class function TMySQLParser.TChangeMasterStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TChangeMasterStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stChangeMaster);
 
@@ -8827,9 +8847,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCharFunc ******************************************************}
+{ TSQLParser.TCharFunc ********************************************************}
 
-class function TMySQLParser.TCharFunc.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TCharFunc.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntCharFunc);
 
@@ -8841,9 +8861,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCheckTableStmt ************************************************}
+{ TSQLParser.TCheckTableStmt **************************************************}
 
-class function TMySQLParser.TCheckTableStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TCheckTableStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stCheckTable);
 
@@ -8855,9 +8875,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCheckStmt.TOption *********************************************}
+{ TSQLParser.TCheckStmt.TOption ***********************************************}
 
-class function TMySQLParser.TCheckTableStmt.TOption.Create(const AParser: TMySQLParser; const ANodes: TOption.TNodes): TOffset;
+class function TSQLParser.TCheckTableStmt.TOption.Create(const AParser: TSQLParser; const ANodes: TOption.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntCheckTableStmtOption);
 
@@ -8869,9 +8889,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TChecksumTableStmt *********************************************}
+{ TSQLParser.TChecksumTableStmt ***********************************************}
 
-class function TMySQLParser.TChecksumTableStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TChecksumTableStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stChecksumTable);
 
@@ -8883,9 +8903,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCloseStmt *****************************************************}
+{ TSQLParser.TCloseStmt *******************************************************}
 
-class function TMySQLParser.TCloseStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TCloseStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stClose);
 
@@ -8897,9 +8917,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCommitStmt ****************************************************}
+{ TSQLParser.TCommitStmt ******************************************************}
 
-class function TMySQLParser.TCommitStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TCommitStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stCommit);
 
@@ -8911,9 +8931,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCompoundStmt **************************************************}
+{ TSQLParser.TCompoundStmt ****************************************************}
 
-class function TMySQLParser.TCompoundStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TCompoundStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stCompound);
 
@@ -8925,9 +8945,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TConvertFunc ***************************************************}
+{ TSQLParser.TConvertFunc *****************************************************}
 
-class function TMySQLParser.TConvertFunc.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TConvertFunc.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntConvertFunc);
 
@@ -8939,9 +8959,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCreateDatabaseStmt ********************************************}
+{ TSQLParser.TCreateDatabaseStmt **********************************************}
 
-class function TMySQLParser.TCreateDatabaseStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TCreateDatabaseStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stCreateDatabase);
 
@@ -8953,9 +8973,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCreateEventStmt ***********************************************}
+{ TSQLParser.TCreateEventStmt *************************************************}
 
-class function TMySQLParser.TCreateEventStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TCreateEventStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stCreateEvent);
 
@@ -8967,9 +8987,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCreateIndexStmt ***********************************************}
+{ TSQLParser.TCreateIndexStmt *************************************************}
 
-class function TMySQLParser.TCreateIndexStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TCreateIndexStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stCreateIndex);
 
@@ -8981,9 +9001,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCreateRoutineStmt *********************************************}
+{ TSQLParser.TCreateRoutineStmt ***********************************************}
 
-class function TMySQLParser.TCreateRoutineStmt.Create(const AParser: TMySQLParser; const ARoutineType: TRoutineType; const ANodes: TNodes): TOffset;
+class function TSQLParser.TCreateRoutineStmt.Create(const AParser: TSQLParser; const ARoutineType: TRoutineType; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stCreateRoutine);
 
@@ -8996,9 +9016,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCreateServerStmt **********************************************}
+{ TSQLParser.TCreateServerStmt ************************************************}
 
-class function TMySQLParser.TCreateServerStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TCreateServerStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stCreateServer);
 
@@ -9010,9 +9030,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCreateTablespaceStmt ******************************************}
+{ TSQLParser.TCreateTablespaceStmt ********************************************}
 
-class function TMySQLParser.TCreateTablespaceStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TCreateTablespaceStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stCreateTablespace);
 
@@ -9024,9 +9044,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCreateTableStmt ***********************************************}
+{ TSQLParser.TCreateTableStmt *************************************************}
 
-class function TMySQLParser.TCreateTableStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TCreateTableStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stCreateTable);
 
@@ -9038,9 +9058,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCreateTableStmt.TCheck ****************************************}
+{ TSQLParser.TCreateTableStmt.TCheck ******************************************}
 
-class function TMySQLParser.TCreateTableStmt.TCheck.Create(const AParser: TMySQLParser; const ANodes: TCheck.TNodes): TOffset;
+class function TSQLParser.TCreateTableStmt.TCheck.Create(const AParser: TSQLParser; const ANodes: TCheck.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntCreateTableStmtFieldDefaultFunc);
 
@@ -9052,9 +9072,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCreateTableStmt.TField.TDefaultFunc ***************************}
+{ TSQLParser.TCreateTableStmt.TField.TDefaultFunc ***************************}
 
-class function TMySQLParser.TCreateTableStmt.TField.TDefaultFunc.Create(const AParser: TMySQLParser; const ANodes: TDefaultFunc.TNodes): TOffset;
+class function TSQLParser.TCreateTableStmt.TField.TDefaultFunc.Create(const AParser: TSQLParser; const ANodes: TDefaultFunc.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntCreateTableStmtFieldDefaultFunc);
 
@@ -9066,9 +9086,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCreateTableStmt.TField ****************************************}
+{ TSQLParser.TCreateTableStmt.TField ******************************************}
 
-class function TMySQLParser.TCreateTableStmt.TField.Create(const AParser: TMySQLParser; const ANodes: TField.TNodes): TOffset;
+class function TSQLParser.TCreateTableStmt.TField.Create(const AParser: TSQLParser; const ANodes: TField.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntCreateTableStmtField);
 
@@ -9080,9 +9100,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCreateTableStmt.TForeignKey ***********************************}
+{ TSQLParser.TCreateTableStmt.TForeignKey *************************************}
 
-class function TMySQLParser.TCreateTableStmt.TForeignKey.Create(const AParser: TMySQLParser; const ANodes: TForeignKey.TNodes): TOffset;
+class function TSQLParser.TCreateTableStmt.TForeignKey.Create(const AParser: TSQLParser; const ANodes: TForeignKey.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntCreateTableStmtForeignKey);
 
@@ -9094,9 +9114,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCreateTableStmt.TKey ******************************************}
+{ TSQLParser.TCreateTableStmt.TKey ********************************************}
 
-class function TMySQLParser.TCreateTableStmt.TKey.Create(const AParser: TMySQLParser; const ANodes: TKey.TNodes): TOffset;
+class function TSQLParser.TCreateTableStmt.TKey.Create(const AParser: TSQLParser; const ANodes: TKey.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntCreateTableStmtKey);
 
@@ -9108,9 +9128,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCreateTableStmt.TKeyColumn ************************************}
+{ TSQLParser.TCreateTableStmt.TKeyColumn **************************************}
 
-class function TMySQLParser.TCreateTableStmt.TKeyColumn.Create(const AParser: TMySQLParser; const ANodes: TKeyColumn.TNodes): TOffset;
+class function TSQLParser.TCreateTableStmt.TKeyColumn.Create(const AParser: TSQLParser; const ANodes: TKeyColumn.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntCreateTableStmtKeyColumn);
 
@@ -9122,9 +9142,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCreateTableStmt.TPartition ************************************}
+{ TSQLParser.TCreateTableStmt.TPartition **************************************}
 
-class function TMySQLParser.TCreateTableStmt.TPartition.Create(const AParser: TMySQLParser; const ANodes: TPartition.TNodes): TOffset;
+class function TSQLParser.TCreateTableStmt.TPartition.Create(const AParser: TSQLParser; const ANodes: TPartition.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntCreateTableStmtPartition);
 
@@ -9136,9 +9156,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCreateTableStmt.TReferences ******************************}
+{ TSQLParser.TCreateTableStmt.TReferences *************************************}
 
-class function TMySQLParser.TCreateTableStmt.TReference.Create(const AParser: TMySQLParser; const ANodes: TReference.TNodes): TOffset;
+class function TSQLParser.TCreateTableStmt.TReference.Create(const AParser: TSQLParser; const ANodes: TReference.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntCreateTableStmtReference);
 
@@ -9150,9 +9170,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCreateTriggerStmt *********************************************}
+{ TSQLParser.TCreateTriggerStmt *********************************************}
 
-class function TMySQLParser.TCreateTriggerStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TCreateTriggerStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stCreateTrigger);
 
@@ -9164,9 +9184,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCreateUserStmt ************************************************}
+{ TSQLParser.TCreateUserStmt **************************************************}
 
-class function TMySQLParser.TCreateUserStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TCreateUserStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stCreateUser);
 
@@ -9178,9 +9198,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCreateViewStmt ************************************************}
+{ TSQLParser.TCreateViewStmt **************************************************}
 
-class function TMySQLParser.TCreateViewStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TCreateViewStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stCreateView);
 
@@ -9192,9 +9212,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TCurrentTimestamp **********************************************}
+{ TSQLParser.TCurrentTimestamp ************************************************}
 
-class function TMySQLParser.TCurrentTimestamp.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TCurrentTimestamp.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntCurrentTimestamp);
 
@@ -9206,9 +9226,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TDatatype ******************************************************}
+{ TSQLParser.TDatatype ********************************************************}
 
-class function TMySQLParser.TDatatype.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TDatatype.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntDatatype);
 
@@ -9220,9 +9240,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TDateAddFunc ***************************************************}
+{ TSQLParser.TDateAddFunc *****************************************************}
 
-class function TMySQLParser.TDateAddFunc.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TDateAddFunc.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntDateAddFunc);
 
@@ -9234,9 +9254,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TDbIdent *******************************************************}
+{ TSQLParser.TDbIdent *********************************************************}
 
-class function TMySQLParser.TDbIdent.Create(const AParser: TMySQLParser;
+class function TSQLParser.TDbIdent.Create(const AParser: TSQLParser;
   const ADbIdentType: TDbIdentType; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntDbIdent);
@@ -9251,7 +9271,7 @@ begin
   end;
 end;
 
-class function TMySQLParser.TDbIdent.Create(const AParser: TMySQLParser; const ADbIdentType: TDbIdentType;
+class function TSQLParser.TDbIdent.Create(const AParser: TSQLParser; const ADbIdentType: TDbIdentType;
   const AIdent, ADatabaseDot, ADatabaseIdent, ATableDot, ATableIdent: TOffset): TOffset;
 var
   Nodes: TNodes;
@@ -9265,29 +9285,29 @@ begin
   Result := Create(AParser, ADbIdentType, Nodes);
 end;
 
-function TMySQLParser.TDbIdent.GetDatabaseIdent(): PToken;
+function TSQLParser.TDbIdent.GetDatabaseIdent(): PToken;
 begin
   Result := Parser.TokenPtr(Nodes.DatabaseIdent);
 end;
 
-function TMySQLParser.TDbIdent.GetIdent(): PToken;
+function TSQLParser.TDbIdent.GetIdent(): PToken;
 begin
   Result := Parser.TokenPtr(Nodes.Ident);
 end;
 
-function TMySQLParser.TDbIdent.GetParentNode(): PNode;
+function TSQLParser.TDbIdent.GetParentNode(): PNode;
 begin
   Result := Heritage.GetParentNode();
 end;
 
-function TMySQLParser.TDbIdent.GetTableIdent(): PToken;
+function TSQLParser.TDbIdent.GetTableIdent(): PToken;
 begin
   Result := Parser.TokenPtr(Nodes.TableIdent);
 end;
 
-{ TMySQLParser.TDeallocatePrepareStmt *****************************************}
+{ TSQLParser.TDeallocatePrepareStmt *******************************************}
 
-class function TMySQLParser.TDeallocatePrepareStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TDeallocatePrepareStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stDeallocatePrepare);
 
@@ -9299,9 +9319,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TDeclareStmt ***************************************************}
+{ TSQLParser.TDeclareStmt *****************************************************}
 
-class function TMySQLParser.TDeclareStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TDeclareStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stDeclare);
 
@@ -9313,9 +9333,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TDeclareConditionStmt ******************************************}
+{ TSQLParser.TDeclareConditionStmt ********************************************}
 
-class function TMySQLParser.TDeclareConditionStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TDeclareConditionStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stDeclareCondition);
 
@@ -9327,9 +9347,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TDeclareCursorStmt *********************************************}
+{ TSQLParser.TDeclareCursorStmt ***********************************************}
 
-class function TMySQLParser.TDeclareCursorStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TDeclareCursorStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stDeclareCursor);
 
@@ -9341,9 +9361,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TDeclareHandlerStmt ********************************************}
+{ TSQLParser.TDeclareHandlerStmt **********************************************}
 
-class function TMySQLParser.TDeclareHandlerStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TDeclareHandlerStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stDeclareHandler);
 
@@ -9355,9 +9375,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TDeleteStmt ****************************************************}
+{ TSQLParser.TDeleteStmt ******************************************************}
 
-class function TMySQLParser.TDeleteStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TDeleteStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stDelete);
 
@@ -9369,9 +9389,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TDoStmt ********************************************************}
+{ TSQLParser.TDoStmt **********************************************************}
 
-class function TMySQLParser.TDoStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TDoStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stDo);
 
@@ -9383,9 +9403,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TDropDatabaseStmt **********************************************}
+{ TSQLParser.TDropDatabaseStmt ************************************************}
 
-class function TMySQLParser.TDropDatabaseStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TDropDatabaseStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stDropDatabase);
 
@@ -9397,9 +9417,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TDropEventStmt *************************************************}
+{ TSQLParser.TDropEventStmt ***************************************************}
 
-class function TMySQLParser.TDropEventStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TDropEventStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stDropEvent);
 
@@ -9411,9 +9431,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TDropIndexStmt *************************************************}
+{ TSQLParser.TDropIndexStmt ***************************************************}
 
-class function TMySQLParser.TDropIndexStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TDropIndexStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stDropIndex);
 
@@ -9425,9 +9445,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TDropRoutineStmt ***********************************************}
+{ TSQLParser.TDropRoutineStmt *************************************************}
 
-class function TMySQLParser.TDropRoutineStmt.Create(const AParser: TMySQLParser; const ARoutineType: TRoutineType; const ANodes: TNodes): TOffset;
+class function TSQLParser.TDropRoutineStmt.Create(const AParser: TSQLParser; const ARoutineType: TRoutineType; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stDropRoutine);
 
@@ -9440,9 +9460,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TDropServerStmt ************************************************}
+{ TSQLParser.TDropServerStmt **************************************************}
 
-class function TMySQLParser.TDropServerStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TDropServerStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stDropServer);
 
@@ -9454,9 +9474,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TDropTablespaceStmt ********************************************}
+{ TSQLParser.TDropTablespaceStmt **********************************************}
 
-class function TMySQLParser.TDropTablespaceStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TDropTablespaceStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stDropTable);
 
@@ -9468,9 +9488,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TDropTableStmt *************************************************}
+{ TSQLParser.TDropTableStmt ***************************************************}
 
-class function TMySQLParser.TDropTableStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TDropTableStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stDropTable);
 
@@ -9482,9 +9502,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TDropTriggerStmt ***********************************************}
+{ TSQLParser.TDropTriggerStmt *************************************************}
 
-class function TMySQLParser.TDropTriggerStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TDropTriggerStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stDropTrigger);
 
@@ -9496,9 +9516,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TDropUserStmt **************************************************}
+{ TSQLParser.TDropUserStmt ****************************************************}
 
-class function TMySQLParser.TDropUserStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TDropUserStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stDropUser);
 
@@ -9510,9 +9530,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TDropViewStmt **************************************************}
+{ TSQLParser.TDropViewStmt ****************************************************}
 
-class function TMySQLParser.TDropViewStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TDropViewStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stDropView);
 
@@ -9524,9 +9544,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TEndLabel ******************************************************}
+{ TSQLParser.TEndLabel ********************************************************}
 
-class function TMySQLParser.TEndLabel.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TEndLabel.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntEndLabel);
 
@@ -9538,9 +9558,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TExecuteStmt ***************************************************}
+{ TSQLParser.TExecuteStmt *****************************************************}
 
-class function TMySQLParser.TExecuteStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TExecuteStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stExecute);
 
@@ -9552,9 +9572,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TExistsFunc ****************************************************}
+{ TSQLParser.TExistsFunc ******************************************************}
 
-class function TMySQLParser.TExistsFunc.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TExistsFunc.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntExistsFunc);
 
@@ -9566,9 +9586,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TExplainStmt ***************************************************}
+{ TSQLParser.TExplainStmt *****************************************************}
 
-class function TMySQLParser.TExplainStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TExplainStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stExplain);
 
@@ -9580,9 +9600,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TExtractFunc ***************************************************}
+{ TSQLParser.TExtractFunc *****************************************************}
 
-class function TMySQLParser.TExtractFunc.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TExtractFunc.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntExtractFunc);
 
@@ -9594,9 +9614,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TFetchStmt *****************************************************}
+{ TSQLParser.TFetchStmt *******************************************************}
 
-class function TMySQLParser.TFetchStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TFetchStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stFetch);
 
@@ -9608,9 +9628,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TFlushStmt *****************************************************}
+{ TSQLParser.TFlushStmt *******************************************************}
 
-class function TMySQLParser.TFlushStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TFlushStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stFlush);
 
@@ -9622,9 +9642,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TFlushStmtOption ***********************************************}
+{ TSQLParser.TFlushStmtOption *************************************************}
 
-class function TMySQLParser.TFlushStmt.TOption.Create(const AParser: TMySQLParser; const ANodes: TOption.TNodes): TOffset;
+class function TSQLParser.TFlushStmt.TOption.Create(const AParser: TSQLParser; const ANodes: TOption.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntFlushStmtOption);
 
@@ -9636,9 +9656,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TFunctionCall **************************************************}
+{ TSQLParser.TFunctionCall ****************************************************}
 
-class function TMySQLParser.TFunctionCall.Create(const AParser: TMySQLParser; const AIdent, AArgumentsList: TOffset): TOffset;
+class function TSQLParser.TFunctionCall.Create(const AParser: TSQLParser; const AIdent, AArgumentsList: TOffset): TOffset;
 var
   Nodes: TNodes;
 begin
@@ -9648,7 +9668,7 @@ begin
   Result := Create(AParser, Nodes);
 end;
 
-class function TMySQLParser.TFunctionCall.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TFunctionCall.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntFunctionCall);
 
@@ -9660,19 +9680,19 @@ begin
   end;
 end;
 
-function TMySQLParser.TFunctionCall.GetArguments(): PChild;
+function TSQLParser.TFunctionCall.GetArguments(): PChild;
 begin
   Result := Parser.ChildPtr(Nodes.ArgumentsList);
 end;
 
-function TMySQLParser.TFunctionCall.GetIdent(): PChild;
+function TSQLParser.TFunctionCall.GetIdent(): PChild;
 begin
   Result := Parser.ChildPtr(Nodes.Ident);
 end;
 
-{ TMySQLParser.TFunctionReturns ***********************************************}
+{ TSQLParser.TFunctionReturns *************************************************}
 
-class function TMySQLParser.TFunctionReturns.Create(const AParser: TMySQLParser; const ANodes: TFunctionReturns.TNodes): TOffset;
+class function TSQLParser.TFunctionReturns.Create(const AParser: TSQLParser; const ANodes: TFunctionReturns.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntFunctionReturns);
 
@@ -9684,9 +9704,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TGetDiagnosticsStmt ********************************************}
+{ TSQLParser.TGetDiagnosticsStmt **********************************************}
 
-class function TMySQLParser.TGetDiagnosticsStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TGetDiagnosticsStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stGetDiagnostics);
 
@@ -9698,9 +9718,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TGetDiagnosticsStmt.TStmtInfo **********************************}
+{ TSQLParser.TGetDiagnosticsStmt.TStmtInfo ************************************}
 
-class function TMySQLParser.TGetDiagnosticsStmt.TStmtInfo.Create(const AParser: TMySQLParser; const ANodes: TStmtInfo.TNodes): TOffset;
+class function TSQLParser.TGetDiagnosticsStmt.TStmtInfo.Create(const AParser: TSQLParser; const ANodes: TStmtInfo.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntGetDiagnosticsStmtStmtInfo);
 
@@ -9712,9 +9732,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TGetDiagnosticsStmt.TConditionalInfo ***************************}
+{ TSQLParser.TGetDiagnosticsStmt.TConditionalInfo ***************************}
 
-class function TMySQLParser.TGetDiagnosticsStmt.TCondInfo.Create(const AParser: TMySQLParser; const ANodes: TCondInfo.TNodes): TOffset;
+class function TSQLParser.TGetDiagnosticsStmt.TCondInfo.Create(const AParser: TSQLParser; const ANodes: TCondInfo.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntGetDiagnosticsStmtStmtInfo);
 
@@ -9726,9 +9746,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TGrantStmt *****************************************************}
+{ TSQLParser.TGrantStmt *******************************************************}
 
-class function TMySQLParser.TGrantStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TGrantStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stGrant);
 
@@ -9740,9 +9760,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TGrantStmt.TPrivileg *******************************************}
+{ TSQLParser.TGrantStmt.TPrivileg *********************************************}
 
-class function TMySQLParser.TGrantStmt.TPrivileg.Create(const AParser: TMySQLParser; const ANodes: TPrivileg.TNodes): TOffset;
+class function TSQLParser.TGrantStmt.TPrivileg.Create(const AParser: TSQLParser; const ANodes: TPrivileg.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntGrantStmtPrivileg);
 
@@ -9754,9 +9774,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TGrantStmt.TUserSpecification **********************************}
+{ TSQLParser.TGrantStmt.TUserSpecification ************************************}
 
-class function TMySQLParser.TGrantStmt.TUserSpecification.Create(const AParser: TMySQLParser; const ANodes: TUserSpecification.TNodes): TOffset;
+class function TSQLParser.TGrantStmt.TUserSpecification.Create(const AParser: TSQLParser; const ANodes: TUserSpecification.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntGrantStmtUserSpecification);
 
@@ -9768,9 +9788,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TGroupConcatFunc ***********************************************}
+{ TSQLParser.TGroupConcatFunc *************************************************}
 
-class function TMySQLParser.TGroupConcatFunc.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TGroupConcatFunc.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntGroupConcatFunc);
 
@@ -9782,9 +9802,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TGroupConcatFunc.TExpr *****************************************}
+{ TSQLParser.TGroupConcatFunc.TExpr *******************************************}
 
-class function TMySQLParser.TGroupConcatFunc.TExpr.Create(const AParser: TMySQLParser; const ANodes: TExpr.TNodes): TOffset;
+class function TSQLParser.TGroupConcatFunc.TExpr.Create(const AParser: TSQLParser; const ANodes: TExpr.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntGroupConcatFuncExpr);
 
@@ -9796,9 +9816,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.THelpStmt ******************************************************}
+{ TSQLParser.THelpStmt ********************************************************}
 
-class function TMySQLParser.THelpStmt.Create(const AParser: TMySQLParser; const ANodes: THelpStmt.TNodes): TOffset;
+class function TSQLParser.THelpStmt.Create(const AParser: TSQLParser; const ANodes: THelpStmt.TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stHelp);
 
@@ -9810,9 +9830,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TIfStmt.TBranch ************************************************}
+{ TSQLParser.TIfStmt.TBranch **************************************************}
 
-class function TMySQLParser.TIfStmt.TBranch.Create(const AParser: TMySQLParser; const ANodes: TBranch.TNodes): TOffset;
+class function TSQLParser.TIfStmt.TBranch.Create(const AParser: TSQLParser; const ANodes: TBranch.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntIfStmtBranch);
 
@@ -9824,9 +9844,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TIfStmt ********************************************************}
+{ TSQLParser.TIfStmt **********************************************************}
 
-class function TMySQLParser.TIfStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TIfStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stIf);
 
@@ -9838,9 +9858,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TInOp **********************************************************}
+{ TSQLParser.TInOp ************************************************************}
 
-class function TMySQLParser.TInOp.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TInOp.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntInOp);
 
@@ -9852,9 +9872,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TInsertStmt ****************************************************}
+{ TSQLParser.TInsertStmt ******************************************************}
 
-class function TMySQLParser.TInsertStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TInsertStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stInsert);
 
@@ -9866,9 +9886,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TInsertStmt ****************************************************}
+{ TSQLParser.TInsertStmt ******************************************************}
 
-class function TMySQLParser.TInsertStmt.TSetItem.Create(const AParser: TMySQLParser; const ANodes: TSetItem.TNodes): TOffset;
+class function TSQLParser.TInsertStmt.TSetItem.Create(const AParser: TSQLParser; const ANodes: TSetItem.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntInsertStmtSetItem);
 
@@ -9880,9 +9900,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TInterval ******************************************************}
+{ TSQLParser.TInterval ********************************************************}
 
-class function TMySQLParser.TIntervalOp.Create(const AParser: TMySQLParser; const ANodes: TIntervalOp.TNodes): TOffset;
+class function TSQLParser.TIntervalOp.Create(const AParser: TSQLParser; const ANodes: TIntervalOp.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntIntervalOp);
 
@@ -9894,9 +9914,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TIterateStmt ***************************************************}
+{ TSQLParser.TIterateStmt *****************************************************}
 
-class function TMySQLParser.TIterateStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TIterateStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stIterate);
 
@@ -9908,9 +9928,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TKillStmt ******************************************************}
+{ TSQLParser.TKillStmt ********************************************************}
 
-class function TMySQLParser.TKillStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TKillStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stKill);
 
@@ -9922,9 +9942,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TLeaveStmt *****************************************************}
+{ TSQLParser.TLeaveStmt *******************************************************}
 
-class function TMySQLParser.TLeaveStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TLeaveStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stLeave);
 
@@ -9936,9 +9956,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TLikeOp ********************************************************}
+{ TSQLParser.TLikeOp **********************************************************}
 
-class function TMySQLParser.TLikeOp.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TLikeOp.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntLikeOp);
 
@@ -9950,9 +9970,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TList **********************************************************}
+{ TSQLParser.TList ************************************************************}
 
-class function TMySQLParser.TList.Create(const AParser: TMySQLParser;
+class function TSQLParser.TList.Create(const AParser: TSQLParser;
   const ANodes: TNodes; const ADelimiterType: TTokenType;
   const AChildrenCount: Integer; const AChildren: array of TOffset): TOffset;
 var
@@ -9981,14 +10001,14 @@ begin
   end;
 end;
 
-function TMySQLParser.TList.GetFirstChild(): PChild;
+function TSQLParser.TList.GetFirstChild(): PChild;
 begin
   Result := PChild(Parser.NodePtr(Nodes.FirstChild));
 end;
 
-{ TMySQLParser.TLoadDataStmt **************************************************}
+{ TSQLParser.TLoadDataStmt ****************************************************}
 
-class function TMySQLParser.TLoadDataStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TLoadDataStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stLoadData);
 
@@ -10000,9 +10020,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TLoadXMLStmt ***************************************************}
+{ TSQLParser.TLoadXMLStmt *****************************************************}
 
-class function TMySQLParser.TLoadXMLStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TLoadXMLStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stLoadXML);
 
@@ -10013,9 +10033,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TLockTableStmt.TItem *******************************************}
+{ TSQLParser.TLockTableStmt.TItem *********************************************}
 
-class function TMySQLParser.TLockTableStmt.TItem.Create(const AParser: TMySQLParser; const ANodes: TItem.TNodes): TOffset;
+class function TSQLParser.TLockTableStmt.TItem.Create(const AParser: TSQLParser; const ANodes: TItem.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntLockTableStmtItem);
 
@@ -10027,9 +10047,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TLockTableStmt *************************************************}
+{ TSQLParser.TLockTableStmt ***************************************************}
 
-class function TMySQLParser.TLockTableStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TLockTableStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stLockTable);
 
@@ -10041,9 +10061,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TLoopStmt ******************************************************}
+{ TSQLParser.TLoopStmt ********************************************************}
 
-class function TMySQLParser.TLoopStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TLoopStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stLoop);
 
@@ -10055,9 +10075,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TMatchFunc *****************************************************}
+{ TSQLParser.TMatchFunc *******************************************************}
 
-class function TMySQLParser.TMatchFunc.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TMatchFunc.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntMatchFunc);
 
@@ -10069,9 +10089,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TPositionFunc **************************************************}
+{ TSQLParser.TPositionFunc ****************************************************}
 
-class function TMySQLParser.TPositionFunc.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TPositionFunc.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntPositionFunc);
 
@@ -10083,9 +10103,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TPrepareStmt ***************************************************}
+{ TSQLParser.TPrepareStmt *****************************************************}
 
-class function TMySQLParser.TPrepareStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TPrepareStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stPrepare);
 
@@ -10097,9 +10117,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TPurgeStmt *****************************************************}
+{ TSQLParser.TPurgeStmt *******************************************************}
 
-class function TMySQLParser.TPurgeStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TPurgeStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stPurge);
 
@@ -10111,9 +10131,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TOpenStmt ******************************************************}
+{ TSQLParser.TOpenStmt ********************************************************}
 
-class function TMySQLParser.TOpenStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TOpenStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stOpen);
 
@@ -10125,9 +10145,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TOptimizeTableStmt *********************************************}
+{ TSQLParser.TOptimizeTableStmt ***********************************************}
 
-class function TMySQLParser.TOptimizeTableStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TOptimizeTableStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stOptimizeTable);
 
@@ -10139,9 +10159,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TRenameTableStmt ***********************************************}
+{ TSQLParser.TRenameTableStmt *************************************************}
 
-class function TMySQLParser.TRenameStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TRenameStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stRename);
 
@@ -10153,9 +10173,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TRenameStmt.TPair **********************************************}
+{ TSQLParser.TRenameStmt.TPair ************************************************}
 
-class function TMySQLParser.TRenameStmt.TPair.Create(const AParser: TMySQLParser; const ANodes: TPair.TNodes): TOffset;
+class function TSQLParser.TRenameStmt.TPair.Create(const AParser: TSQLParser; const ANodes: TPair.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntRenameStmtPair);
 
@@ -10167,9 +10187,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TRegExpOp ******************************************************}
+{ TSQLParser.TRegExpOp ********************************************************}
 
-class function TMySQLParser.TRegExpOp.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TRegExpOp.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntRegExpOp);
 
@@ -10181,9 +10201,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TReleaseStmt ***************************************************}
+{ TSQLParser.TReleaseStmt *****************************************************}
 
-class function TMySQLParser.TReleaseStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TReleaseStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stRelease);
 
@@ -10195,9 +10215,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TRepairTableStmt ***********************************************}
+{ TSQLParser.TRepairTableStmt *************************************************}
 
-class function TMySQLParser.TRepairTableStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TRepairTableStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stRepairTable);
 
@@ -10209,9 +10229,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TRepeatStmt ****************************************************}
+{ TSQLParser.TRepeatStmt ******************************************************}
 
-class function TMySQLParser.TRepeatStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TRepeatStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stRepeat);
 
@@ -10223,9 +10243,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TRevokeStmt ****************************************************}
+{ TSQLParser.TRevokeStmt ******************************************************}
 
-class function TMySQLParser.TRevokeStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TRevokeStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stRevoke);
 
@@ -10237,9 +10257,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TResetStmt *****************************************************}
+{ TSQLParser.TResetStmt *******************************************************}
 
-class function TMySQLParser.TResetStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TResetStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stReset);
 
@@ -10251,9 +10271,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TResetStmt.TOption *********************************************}
+{ TSQLParser.TResetStmt.TOption ***********************************************}
 
-class function TMySQLParser.TResetStmt.TOption.Create(const AParser: TMySQLParser; const ANodes: TOption.TNodes): TOffset;
+class function TSQLParser.TResetStmt.TOption.Create(const AParser: TSQLParser; const ANodes: TOption.TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stReset);
 
@@ -10265,9 +10285,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TResignalStmt **************************************************}
+{ TSQLParser.TResignalStmt ****************************************************}
 
-class function TMySQLParser.TResignalStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TResignalStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stResignal);
 
@@ -10279,9 +10299,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TReturnStmt ****************************************************}
+{ TSQLParser.TReturnStmt ******************************************************}
 
-class function TMySQLParser.TReturnStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TReturnStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stReturn);
 
@@ -10293,9 +10313,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TRollbackStmt **************************************************}
+{ TSQLParser.TRollbackStmt ****************************************************}
 
-class function TMySQLParser.TRollbackStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TRollbackStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stRollback);
 
@@ -10307,9 +10327,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TRoutineParam **************************************************}
+{ TSQLParser.TRoutineParam ****************************************************}
 
-class function TMySQLParser.TRoutineParam.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TRoutineParam.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntRoutineParam);
 
@@ -10321,9 +10341,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TSavepointStmt *************************************************}
+{ TSQLParser.TSavepointStmt ***************************************************}
 
-class function TMySQLParser.TSavepointStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TSavepointStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stSavepoint);
 
@@ -10335,9 +10355,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TSecretIdent ***************************************************}
+{ TSQLParser.TSecretIdent *****************************************************}
 
-class function TMySQLParser.TSecretIdent.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TSecretIdent.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntSecretIdent);
 
@@ -10349,9 +10369,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TSelectStmt.TColumn ********************************************}
+{ TSQLParser.TSelectStmt.TColumn **********************************************}
 
-class function TMySQLParser.TSelectStmt.TColumn.Create(const AParser: TMySQLParser; const ANodes: TColumn.TNodes): TOffset;
+class function TSQLParser.TSelectStmt.TColumn.Create(const AParser: TSQLParser; const ANodes: TColumn.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntSelectStmtColumn);
 
@@ -10363,9 +10383,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TSelectStmt.TTableFactor.TIndexHint ****************************}
+{ TSQLParser.TSelectStmt.TTableFactor.TIndexHint ****************************}
 
-class function TMySQLParser.TSelectStmt.TTableFactor.TIndexHint.Create(const AParser: TMySQLParser; const ANodes: TIndexHint.TNodes): TOffset;
+class function TSQLParser.TSelectStmt.TTableFactor.TIndexHint.Create(const AParser: TSQLParser; const ANodes: TIndexHint.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntSelectStmtTableFactorIndexHint);
 
@@ -10377,9 +10397,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TSelectStmt.TTableFactor ***************************************}
+{ TSQLParser.TSelectStmt.TTableFactor *****************************************}
 
-class function TMySQLParser.TSelectStmt.TTableFactor.Create(const AParser: TMySQLParser; const ANodes: TTableFactor.TNodes): TOffset;
+class function TSQLParser.TSelectStmt.TTableFactor.Create(const AParser: TSQLParser; const ANodes: TTableFactor.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntSelectStmtTableFactor);
 
@@ -10391,9 +10411,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TSelectStmt.TTableFactorOj *************************************}
+{ TSQLParser.TSelectStmt.TTableFactorOj ***************************************}
 
-class function TMySQLParser.TSelectStmt.TTableFactorOj.Create(const AParser: TMySQLParser; const ANodes: TTableFactorOj.TNodes): TOffset;
+class function TSQLParser.TSelectStmt.TTableFactorOj.Create(const AParser: TSQLParser; const ANodes: TTableFactorOj.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntSelectStmtTableFactorOj);
 
@@ -10405,9 +10425,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TSelectStmt.TTableFactorSelect *********************************}
+{ TSQLParser.TSelectStmt.TTableFactorSelect ***********************************}
 
-class function TMySQLParser.TSelectStmt.TTableFactorSelect.Create(const AParser: TMySQLParser; const ANodes: TTableFactorSelect.TNodes): TOffset;
+class function TSQLParser.TSelectStmt.TTableFactorSelect.Create(const AParser: TSQLParser; const ANodes: TTableFactorSelect.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntSelectStmtTableFactorSelect);
 
@@ -10419,9 +10439,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TSelectStmt.TTableJoin *****************************************}
+{ TSQLParser.TSelectStmt.TTableJoin *******************************************}
 
-class function TMySQLParser.TSelectStmt.TTableJoin.Create(const AParser: TMySQLParser; const AJoinType: TJoinType; const ANodes: TTableJoin.TNodes): TOffset;
+class function TSQLParser.TSelectStmt.TTableJoin.Create(const AParser: TSQLParser; const AJoinType: TJoinType; const ANodes: TTableJoin.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntSelectStmtTableJoin);
 
@@ -10435,9 +10455,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TSelectStmt.TGroup *********************************************}
+{ TSQLParser.TSelectStmt.TGroup ***********************************************}
 
-class function TMySQLParser.TSelectStmt.TGroup.Create(const AParser: TMySQLParser; const ANodes: TGroup.TNodes): TOffset;
+class function TSQLParser.TSelectStmt.TGroup.Create(const AParser: TSQLParser; const ANodes: TGroup.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntSelectStmtGroup);
 
@@ -10449,9 +10469,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TSelectStmt.TOrder *********************************************}
+{ TSQLParser.TSelectStmt.TOrder ***********************************************}
 
-class function TMySQLParser.TSelectStmt.TOrder.Create(const AParser: TMySQLParser; const ANodes: TOrder.TNodes): TOffset;
+class function TSQLParser.TSelectStmt.TOrder.Create(const AParser: TSQLParser; const ANodes: TOrder.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntSelectStmtOrder);
 
@@ -10463,9 +10483,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TSelectStmt ****************************************************}
+{ TSQLParser.TSelectStmt ******************************************************}
 
-class function TMySQLParser.TSelectStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TSelectStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stSelect);
 
@@ -10477,9 +10497,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TSchedule ******************************************************}
+{ TSQLParser.TSchedule ********************************************************}
 
-class function TMySQLParser.TSchedule.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TSchedule.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntSchedule);
 
@@ -10491,9 +10511,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TSetStmt.TAssignment *******************************************}
+{ TSQLParser.TSetStmt.TAssignment *********************************************}
 
-class function TMySQLParser.TSetStmt.TAssignment.Create(const AParser: TMySQLParser; const ANodes: TAssignment.TNodes): TOffset;
+class function TSQLParser.TSetStmt.TAssignment.Create(const AParser: TSQLParser; const ANodes: TAssignment.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntSetStmtAssignment);
 
@@ -10505,9 +10525,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TSetStmt *******************************************************}
+{ TSQLParser.TSetStmt *********************************************************}
 
-class function TMySQLParser.TSetStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TSetStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stSet);
 
@@ -10519,9 +10539,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TSetNamesStmt **************************************************}
+{ TSQLParser.TSetNamesStmt ****************************************************}
 
-class function TMySQLParser.TSetNamesStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TSetNamesStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stSetNames);
 
@@ -10533,9 +10553,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TSetPasswordStmt ***********************************************}
+{ TSQLParser.TSetPasswordStmt *************************************************}
 
-class function TMySQLParser.TSetPasswordStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TSetPasswordStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stSetPassword);
 
@@ -10547,9 +10567,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TSetTransactionStmt.TCharacteristic ****************************}
+{ TSQLParser.TSetTransactionStmt.TCharacteristic ****************************}
 
-class function TMySQLParser.TSetTransactionStmt.TCharacteristic.Create(const AParser: TMySQLParser; const ANodes: TCharacteristic.TNodes): TOffset;
+class function TSQLParser.TSetTransactionStmt.TCharacteristic.Create(const AParser: TSQLParser; const ANodes: TCharacteristic.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntSetTransactionStmtCharacteristic);
 
@@ -10561,9 +10581,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TSetTransactionStmt ********************************************}
+{ TSQLParser.TSetTransactionStmt **********************************************}
 
-class function TMySQLParser.TSetTransactionStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TSetTransactionStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stSetTransaction);
 
@@ -10575,9 +10595,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowAuthorsStmt ***********************************************}
+{ TSQLParser.TShowAuthorsStmt *************************************************}
 
-class function TMySQLParser.TShowAuthorsStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowAuthorsStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowAuthors);
 
@@ -10589,9 +10609,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowBinaryLogsStmt ********************************************}
+{ TSQLParser.TShowBinaryLogsStmt **********************************************}
 
-class function TMySQLParser.TShowBinaryLogsStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowBinaryLogsStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowBinaryLogs);
 
@@ -10603,9 +10623,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowBinlogEventsStmt ******************************************}
+{ TSQLParser.TShowBinlogEventsStmt ********************************************}
 
-class function TMySQLParser.TShowBinlogEventsStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowBinlogEventsStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowBinlogEvents);
 
@@ -10617,9 +10637,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowCharacterSetStmt ******************************************}
+{ TSQLParser.TShowCharacterSetStmt ********************************************}
 
-class function TMySQLParser.TShowCharacterSetStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowCharacterSetStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowCharacterSet);
 
@@ -10631,9 +10651,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowCollationStmt *********************************************}
+{ TSQLParser.TShowCollationStmt ***********************************************}
 
-class function TMySQLParser.TShowCollationStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowCollationStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowCollation);
 
@@ -10645,9 +10665,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowColumnsStmt ***********************************************}
+{ TSQLParser.TShowColumnsStmt *************************************************}
 
-class function TMySQLParser.TShowColumnsStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowColumnsStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowColumns);
 
@@ -10659,9 +10679,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowContributorsStmt ******************************************}
+{ TSQLParser.TShowContributorsStmt ********************************************}
 
-class function TMySQLParser.TShowContributorsStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowContributorsStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowContributors);
 
@@ -10673,9 +10693,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowCountErrorsStmt *******************************************}
+{ TSQLParser.TShowCountErrorsStmt *********************************************}
 
-class function TMySQLParser.TShowCountErrorsStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowCountErrorsStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowCountErrors);
 
@@ -10687,9 +10707,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowCountWarningsStmt *****************************************}
+{ TSQLParser.TShowCountWarningsStmt *******************************************}
 
-class function TMySQLParser.TShowCountWarningsStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowCountWarningsStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowCountWarnings);
 
@@ -10701,9 +10721,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowCreateDatabaseStmt ****************************************}
+{ TSQLParser.TShowCreateDatabaseStmt ******************************************}
 
-class function TMySQLParser.TShowCreateDatabaseStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowCreateDatabaseStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowCreateDatabase);
 
@@ -10715,9 +10735,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowCreateEventStmt *******************************************}
+{ TSQLParser.TShowCreateEventStmt *********************************************}
 
-class function TMySQLParser.TShowCreateEventStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowCreateEventStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowCreateEvent);
 
@@ -10729,9 +10749,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowCreateFunctionStmt ****************************************}
+{ TSQLParser.TShowCreateFunctionStmt ******************************************}
 
-class function TMySQLParser.TShowCreateFunctionStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowCreateFunctionStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowCreateFunction);
 
@@ -10743,9 +10763,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowCreateProcedureStmt ***************************************}
+{ TSQLParser.TShowCreateProcedureStmt *****************************************}
 
-class function TMySQLParser.TShowCreateProcedureStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowCreateProcedureStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowCreateProcedure);
 
@@ -10757,9 +10777,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowCreateTableStmt *******************************************}
+{ TSQLParser.TShowCreateTableStmt *********************************************}
 
-class function TMySQLParser.TShowCreateTableStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowCreateTableStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowCreateTable);
 
@@ -10771,9 +10791,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowCreateTriggerStmt *****************************************}
+{ TSQLParser.TShowCreateTriggerStmt *******************************************}
 
-class function TMySQLParser.TShowCreateTriggerStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowCreateTriggerStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowCreateTrigger);
 
@@ -10785,9 +10805,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowCreateUserStmt ********************************************}
+{ TSQLParser.TShowCreateUserStmt **********************************************}
 
-class function TMySQLParser.TShowCreateUserStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowCreateUserStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowCreateUser);
 
@@ -10799,9 +10819,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowCreateViewStmt ********************************************}
+{ TSQLParser.TShowCreateViewStmt **********************************************}
 
-class function TMySQLParser.TShowCreateViewStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowCreateViewStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowCreateView);
 
@@ -10813,9 +10833,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowDatabasesStmt *********************************************}
+{ TSQLParser.TShowDatabasesStmt ***********************************************}
 
-class function TMySQLParser.TShowDatabasesStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowDatabasesStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowDatabases);
 
@@ -10827,9 +10847,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowEngineStmt ************************************************}
+{ TSQLParser.TShowEngineStmt **************************************************}
 
-class function TMySQLParser.TShowEngineStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowEngineStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowEngine);
 
@@ -10841,9 +10861,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowEnginesStmt ***********************************************}
+{ TSQLParser.TShowEnginesStmt *************************************************}
 
-class function TMySQLParser.TShowEnginesStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowEnginesStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowEngines);
 
@@ -10855,9 +10875,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowErrorsStmt ************************************************}
+{ TSQLParser.TShowErrorsStmt **************************************************}
 
-class function TMySQLParser.TShowErrorsStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowErrorsStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowErrors);
 
@@ -10869,9 +10889,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowEventsStmt ************************************************}
+{ TSQLParser.TShowEventsStmt **************************************************}
 
-class function TMySQLParser.TShowEventsStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowEventsStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowEvents);
 
@@ -10883,9 +10903,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowFunctionCodeStmt ******************************************}
+{ TSQLParser.TShowFunctionCodeStmt ********************************************}
 
-class function TMySQLParser.TShowFunctionCodeStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowFunctionCodeStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowFunctionCode);
 
@@ -10897,9 +10917,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowFunctionStatusStmt ****************************************}
+{ TSQLParser.TShowFunctionStatusStmt ******************************************}
 
-class function TMySQLParser.TShowFunctionStatusStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowFunctionStatusStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowFunctionStatus);
 
@@ -10911,9 +10931,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowGrantsStmt ************************************************}
+{ TSQLParser.TShowGrantsStmt **************************************************}
 
-class function TMySQLParser.TShowGrantsStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowGrantsStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowGrants);
 
@@ -10925,9 +10945,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowIndexStmt *************************************************}
+{ TSQLParser.TShowIndexStmt ***************************************************}
 
-class function TMySQLParser.TShowIndexStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowIndexStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowIndex);
 
@@ -10939,9 +10959,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowMasterStatusStmt ******************************************}
+{ TSQLParser.TShowMasterStatusStmt ********************************************}
 
-class function TMySQLParser.TShowMasterStatusStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowMasterStatusStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowMasterStatus);
 
@@ -10953,9 +10973,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowOpenTablesStmt ********************************************}
+{ TSQLParser.TShowOpenTablesStmt **********************************************}
 
-class function TMySQLParser.TShowOpenTablesStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowOpenTablesStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowOpenTables);
 
@@ -10967,9 +10987,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowPluginsStmt ***********************************************}
+{ TSQLParser.TShowPluginsStmt *************************************************}
 
-class function TMySQLParser.TShowPluginsStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowPluginsStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowPlugins);
 
@@ -10981,9 +11001,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowPrivilegesStmt ********************************************}
+{ TSQLParser.TShowPrivilegesStmt **********************************************}
 
-class function TMySQLParser.TShowPrivilegesStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowPrivilegesStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowPrivileges);
 
@@ -10995,9 +11015,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowProcedureCodeStmt *****************************************}
+{ TSQLParser.TShowProcedureCodeStmt *******************************************}
 
-class function TMySQLParser.TShowProcedureCodeStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowProcedureCodeStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowProcedureCode);
 
@@ -11009,9 +11029,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowProcedureStatusStmt ***************************************}
+{ TSQLParser.TShowProcedureStatusStmt *****************************************}
 
-class function TMySQLParser.TShowProcedureStatusStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowProcedureStatusStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowProcedureStatus);
 
@@ -11023,9 +11043,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowProcessListStmt *******************************************}
+{ TSQLParser.TShowProcessListStmt *********************************************}
 
-class function TMySQLParser.TShowProcessListStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowProcessListStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowProcessList);
 
@@ -11037,9 +11057,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowProfileStmt ***********************************************}
+{ TSQLParser.TShowProfileStmt *************************************************}
 
-class function TMySQLParser.TShowProfileStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowProfileStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowProfile);
 
@@ -11051,9 +11071,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowProfilesStmt **********************************************}
+{ TSQLParser.TShowProfilesStmt ************************************************}
 
-class function TMySQLParser.TShowProfilesStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowProfilesStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowProfiles);
 
@@ -11065,9 +11085,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowRelaylogEventsStmt ****************************************}
+{ TSQLParser.TShowRelaylogEventsStmt ******************************************}
 
-class function TMySQLParser.TShowRelaylogEventsStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowRelaylogEventsStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowRelaylogEvents);
 
@@ -11079,9 +11099,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowSlaveHostsStmt ********************************************}
+{ TSQLParser.TShowSlaveHostsStmt **********************************************}
 
-class function TMySQLParser.TShowSlaveHostsStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowSlaveHostsStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowSlaveHosts);
 
@@ -11093,9 +11113,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowSlaveStatusStmt *******************************************}
+{ TSQLParser.TShowSlaveStatusStmt *********************************************}
 
-class function TMySQLParser.TShowSlaveStatusStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowSlaveStatusStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowSlaveStatus);
 
@@ -11107,9 +11127,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowStatusStmt ************************************************}
+{ TSQLParser.TShowStatusStmt **************************************************}
 
-class function TMySQLParser.TShowStatusStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowStatusStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowStatus);
 
@@ -11121,9 +11141,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowTableStatusStmt *******************************************}
+{ TSQLParser.TShowTableStatusStmt *********************************************}
 
-class function TMySQLParser.TShowTableStatusStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowTableStatusStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowTableStatus);
 
@@ -11135,9 +11155,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowTablesStmt ************************************************}
+{ TSQLParser.TShowTablesStmt **************************************************}
 
-class function TMySQLParser.TShowTablesStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowTablesStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowTables);
 
@@ -11149,9 +11169,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowTriggersStmt **********************************************}
+{ TSQLParser.TShowTriggersStmt ************************************************}
 
-class function TMySQLParser.TShowTriggersStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowTriggersStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowTriggers);
 
@@ -11163,9 +11183,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowVariablesStmt *********************************************}
+{ TSQLParser.TShowVariablesStmt ***********************************************}
 
-class function TMySQLParser.TShowVariablesStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowVariablesStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowVariables);
 
@@ -11177,9 +11197,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShowWarningsStmt **********************************************}
+{ TSQLParser.TShowWarningsStmt ************************************************}
 
-class function TMySQLParser.TShowWarningsStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShowWarningsStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShowWarnings);
 
@@ -11191,9 +11211,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TShutdownStmt **************************************************}
+{ TSQLParser.TShutdownStmt ****************************************************}
 
-class function TMySQLParser.TShutdownStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TShutdownStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stShutdown);
 
@@ -11205,9 +11225,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TSignalStmt ****************************************************}
+{ TSQLParser.TSignalStmt ******************************************************}
 
-class function TMySQLParser.TSignalStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TSignalStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stSignal);
 
@@ -11219,9 +11239,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TSignalStmt.TInformation ***************************************}
+{ TSQLParser.TSignalStmt.TInformation *****************************************}
 
-class function TMySQLParser.TSignalStmt.TInformation.Create(const AParser: TMySQLParser; const ANodes: TInformation.TNodes): TOffset;
+class function TSQLParser.TSignalStmt.TInformation.Create(const AParser: TSQLParser; const ANodes: TInformation.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntSignalStmtInformation);
 
@@ -11233,9 +11253,33 @@ begin
   end;
 end;
 
-{ TMySQLParser.TSubstringFunc *************************************************}
+{ TSQLParser.TSubquery ********************************************************}
 
-class function TMySQLParser.TSubstringFunc.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TSubquery.Create(const AParser: TSQLParser; const AIdentTag, ASubquery: TOffset): TOffset;
+var
+  Nodes: TNodes;
+begin
+  Nodes.IdentTag := AIdentTag;
+  Nodes.Subquery := ASubquery;
+
+  Result := Create(AParser, Nodes);
+end;
+
+class function TSQLParser.TSubquery.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
+begin
+  Result := TRange.Create(AParser, ntSubquery);
+
+  with PSubquery(AParser.NodePtr(Result))^ do
+  begin
+    Nodes := ANodes;
+
+    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
+  end;
+end;
+
+{ TSQLParser.TSubstringFunc ***************************************************}
+
+class function TSQLParser.TSubstringFunc.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntSubstringFunc);
 
@@ -11247,9 +11291,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TSoundsLikeOp **************************************************}
+{ TSQLParser.TSoundsLikeOp ****************************************************}
 
-class function TMySQLParser.TSoundsLikeOp.Create(const AParser: TMySQLParser; const AOperand1, ASounds, ALike, AOperand2: TOffset): TOffset;
+class function TSQLParser.TSoundsLikeOp.Create(const AParser: TSQLParser; const AOperand1, ASounds, ALike, AOperand2: TOffset): TOffset;
 begin
   Result := TRange.Create(AParser, ntSoundsLikeOp);
 
@@ -11264,9 +11308,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TStartSlaveStmt ************************************************}
+{ TSQLParser.TStartSlaveStmt **************************************************}
 
-class function TMySQLParser.TStartSlaveStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TStartSlaveStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stStartSlave);
 
@@ -11278,9 +11322,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TStartTransactionStmt ******************************************}
+{ TSQLParser.TStartTransactionStmt ********************************************}
 
-class function TMySQLParser.TStartTransactionStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TStartTransactionStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stStartTransaction);
 
@@ -11292,9 +11336,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TStopSlaveStmt *************************************************}
+{ TSQLParser.TStopSlaveStmt ***************************************************}
 
-class function TMySQLParser.TStopSlaveStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TStopSlaveStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stStopSlave);
 
@@ -11306,9 +11350,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TSubArea *******************************************************}
+{ TSQLParser.TSubArea *********************************************************}
 
-class function TMySQLParser.TSubArea.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TSubArea.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntSubArea);
 
@@ -11320,9 +11364,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TSubAreaSelectStmt *********************************************}
+{ TSQLParser.TSubAreaSelectStmt ***********************************************}
 
-class function TMySQLParser.TSubAreaSelectStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TSubAreaSelectStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stSubAreaSelect);
 
@@ -11334,9 +11378,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TSubPartition **************************************************}
+{ TSQLParser.TSubPartition ****************************************************}
 
-class function TMySQLParser.TSubPartition.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TSubPartition.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntSubPartition);
 
@@ -11348,9 +11392,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TTag ***********************************************************}
+{ TSQLParser.TTag *************************************************************}
 
-class function TMySQLParser.TTag.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TTag.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntTag);
 
@@ -11362,9 +11406,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TTruncateStmt **************************************************}
+{ TSQLParser.TTruncateStmt ****************************************************}
 
-class function TMySQLParser.TTruncateStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TTruncateStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stTruncate);
 
@@ -11376,9 +11420,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TTrimFunc ******************************************************}
+{ TSQLParser.TTrimFunc ********************************************************}
 
-class function TMySQLParser.TTrimFunc.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TTrimFunc.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntTrimFunc);
 
@@ -11390,9 +11434,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TUnaryOp *******************************************************}
+{ TSQLParser.TUnaryOp *********************************************************}
 
-class function TMySQLParser.TUnaryOp.Create(const AParser: TMySQLParser; const AOperator, AOperand: TOffset): TOffset;
+class function TSQLParser.TUnaryOp.Create(const AParser: TSQLParser; const AOperator, AOperand: TOffset): TOffset;
 begin
   Result := TRange.Create(AParser, ntUnaryOp);
 
@@ -11405,9 +11449,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TUnknownStmt ***************************************************}
+{ TSQLParser.TUnknownStmt *****************************************************}
 
-class function TMySQLParser.TUnknownStmt.Create(const AParser: TMySQLParser; const ATokenCount: Integer; const ATokens: array of TOffset): TOffset;
+class function TSQLParser.TUnknownStmt.Create(const AParser: TSQLParser; const ATokenCount: Integer; const ATokens: array of TOffset): TOffset;
 var
   I: Integer;
 begin
@@ -11420,9 +11464,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TUnlockStmt ****************************************************}
+{ TSQLParser.TUnlockStmt ******************************************************}
 
-class function TMySQLParser.TUnlockTablesStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TUnlockTablesStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stUnlockTables);
 
@@ -11434,9 +11478,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TUpdateStmt ****************************************************}
+{ TSQLParser.TUpdateStmt ******************************************************}
 
-class function TMySQLParser.TUpdateStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TUpdateStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stUpdate);
 
@@ -11448,9 +11492,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TUser **********************************************************}
+{ TSQLParser.TUser ************************************************************}
 
-class function TMySQLParser.TUser.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TUser.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntUser);
 
@@ -11462,9 +11506,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TUseStmt *******************************************************}
+{ TSQLParser.TUseStmt *********************************************************}
 
-class function TMySQLParser.TUseStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TUseStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stUse);
 
@@ -11476,9 +11520,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TValue *********************************************************}
+{ TSQLParser.TValue ***********************************************************}
 
-class function TMySQLParser.TValue.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TValue.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntValue);
 
@@ -11490,9 +11534,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TVariable ******************************************************}
+{ TSQLParser.TVariable ********************************************************}
 
-class function TMySQLParser.TVariable.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TVariable.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntVariableIdent);
 
@@ -11504,9 +11548,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TWeightStringFunc **********************************************}
+{ TSQLParser.TWeightStringFunc ************************************************}
 
-class function TMySQLParser.TWeightStringFunc.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TWeightStringFunc.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntWeightStringFunc);
 
@@ -11518,9 +11562,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TWeightStringFunc.TLevel ***************************************}
+{ TSQLParser.TWeightStringFunc.TLevel *****************************************}
 
-class function TMySQLParser.TWeightStringFunc.TLevel.Create(const AParser: TMySQLParser; const ANodes: TLevel.TNodes): TOffset;
+class function TSQLParser.TWeightStringFunc.TLevel.Create(const AParser: TSQLParser; const ANodes: TLevel.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntWeightStringFuncLevel);
 
@@ -11532,9 +11576,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TWhileStmt *****************************************************}
+{ TSQLParser.TWhileStmt *******************************************************}
 
-class function TMySQLParser.TWhileStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TWhileStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stWhile);
 
@@ -11546,9 +11590,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TXAStmt ********************************************************}
+{ TSQLParser.TXAStmt **********************************************************}
 
-class function TMySQLParser.TXAStmt.Create(const AParser: TMySQLParser; const ANodes: TNodes): TOffset;
+class function TSQLParser.TXAStmt.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
 begin
   Result := TStmt.Create(AParser, stXA);
 
@@ -11560,9 +11604,9 @@ begin
   end;
 end;
 
-{ TMySQLParser.TXAStmt.TID ****************************************************}
+{ TSQLParser.TXAStmt.TID ******************************************************}
 
-class function TMySQLParser.TXAStmt.TID.Create(const AParser: TMySQLParser; const ANodes: TID.TNodes): TOffset;
+class function TSQLParser.TXAStmt.TID.Create(const AParser: TSQLParser; const ANodes: TID.TNodes): TOffset;
 begin
   Result := TRange.Create(AParser, ntXAStmtID);
 
@@ -11574,14 +11618,14 @@ begin
   end;
 end;
 
-{ TMySQLParser ****************************************************************}
+{ TSQLParser ******************************************************************}
 
-function TMySQLParser.ApplyCurrentToken(): TOffset;
+function TSQLParser.ApplyCurrentToken(): TOffset;
 begin
   Result := ApplyCurrentToken(utUnknown);
 end;
 
-function TMySQLParser.ApplyCurrentToken(const AUsageType: TUsageType): TOffset;
+function TSQLParser.ApplyCurrentToken(const AUsageType: TUsageType): TOffset;
 begin
   Result := CurrentToken;
 
@@ -11600,12 +11644,12 @@ begin
   end;
 end;
 
-procedure TMySQLParser.BeginPL_SQL();
+procedure TSQLParser.BeginPL_SQL();
 begin
   Inc(FInPL_SQL);
 end;
 
-function TMySQLParser.ChildPtr(const ANode: TOffset): PChild;
+function TSQLParser.ChildPtr(const ANode: TOffset): PChild;
 begin
   if (not IsChild(NodePtr(ANode))) then
     Result := nil
@@ -11613,7 +11657,7 @@ begin
     Result := @Nodes.Mem[ANode];
 end;
 
-procedure TMySQLParser.Clear();
+procedure TSQLParser.Clear();
 begin
   FCompletionList.Clear();
   FErrorCode := PE_Success;
@@ -11641,7 +11685,7 @@ begin
   TokenBuffer.Count := 0;
 end;
 
-constructor TMySQLParser.Create(const AMySQLVersion: Integer = 0);
+constructor TSQLParser.Create(const AMySQLVersion: Integer = 0);
 begin
   inherited Create();
 
@@ -11669,7 +11713,7 @@ begin
   Clear();
 end;
 
-destructor TMySQLParser.Destroy();
+destructor TSQLParser.Destroy();
 begin
   Clear();
 
@@ -11686,17 +11730,17 @@ begin
   inherited;
 end;
 
-function TMySQLParser.EndOfStmt(const Token: PToken): Boolean;
+function TSQLParser.EndOfStmt(const Token: PToken): Boolean;
 begin
   Result := Token^.TokenType = ttSemicolon;
 end;
 
-function TMySQLParser.EndOfStmt(const Token: TOffset): Boolean;
+function TSQLParser.EndOfStmt(const Token: TOffset): Boolean;
 begin
   Result := (Token = 0) or (TokenPtr(Token)^.TokenType = ttSemicolon);
 end;
 
-procedure TMySQLParser.EndPL_SQL();
+procedure TSQLParser.EndPL_SQL();
 begin
   Assert(FInPL_SQL > 0);
 
@@ -11704,7 +11748,7 @@ begin
     Dec(FInPL_SQL);
 end;
 
-procedure TMySQLParser.FormatAlterDatabaseStmt(const Nodes: TAlterDatabaseStmt.TNodes);
+procedure TSQLParser.FormatAlterDatabaseStmt(const Nodes: TAlterDatabaseStmt.TNodes);
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.Ident, stSpaceBefore);
@@ -11718,7 +11762,7 @@ begin
     FormatNode(Nodes.UpgradeDataDirectoryNameTag, stSpaceBefore);
 end;
 
-procedure TMySQLParser.FormatAlterEventStmt(const Nodes: TAlterEventStmt.TNodes);
+procedure TSQLParser.FormatAlterEventStmt(const Nodes: TAlterEventStmt.TNodes);
 begin
   FormatNode(Nodes.AlterTag);
   FormatNode(Nodes.DefinerValue, stSpaceBefore);
@@ -11778,7 +11822,7 @@ begin
   end;
 end;
 
-procedure TMySQLParser.FormatAlterRoutineStmt(const Nodes: TAlterRoutineStmt.TNodes);
+procedure TSQLParser.FormatAlterRoutineStmt(const Nodes: TAlterRoutineStmt.TNodes);
 begin
   FormatNode(Nodes.AlterTag);
   FormatNode(Nodes.Ident, stSpaceBefore);
@@ -11791,7 +11835,7 @@ begin
   Commands.DecreaseIndent();
 end;
 
-procedure TMySQLParser.FormatAlterTablespaceStmt(const Nodes: TAlterTablespaceStmt.TNodes);
+procedure TSQLParser.FormatAlterTablespaceStmt(const Nodes: TAlterTablespaceStmt.TNodes);
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.Ident, stSpaceBefore);
@@ -11802,7 +11846,7 @@ begin
   Commands.DecreaseIndent();
 end;
 
-procedure TMySQLParser.FormatAlterTableStmt(const Nodes: TAlterTableStmt.TNodes);
+procedure TSQLParser.FormatAlterTableStmt(const Nodes: TAlterTableStmt.TNodes);
 begin
   FormatNode(Nodes.AlterTag);
   FormatNode(Nodes.IgnoreTag, stSpaceBefore);
@@ -11817,7 +11861,7 @@ begin
   end;
 end;
 
-procedure TMySQLParser.FormatAlterViewStmt(const Nodes: TAlterViewStmt.TNodes);
+procedure TSQLParser.FormatAlterViewStmt(const Nodes: TAlterViewStmt.TNodes);
 begin
   FormatNode(Nodes.AlterTag);
   Commands.IncreaseIndent();
@@ -11837,20 +11881,20 @@ begin
   Commands.DecreaseIndent();
 end;
 
-procedure TMySQLParser.FormatBeginLabel(const Nodes: TBeginLabel.TNodes);
+procedure TSQLParser.FormatBeginLabel(const Nodes: TBeginLabel.TNodes);
 begin
   FormatNode(Nodes.BeginToken);
   FormatNode(Nodes.ColonToken);
 end;
 
-procedure TMySQLParser.FormatCallStmt(const Nodes: TCallStmt.TNodes);
+procedure TSQLParser.FormatCallStmt(const Nodes: TCallStmt.TNodes);
 begin
   FormatNode(Nodes.CallTag);
   FormatNode(Nodes.Ident, stSpaceBefore);
   FormatNode(Nodes.ParamList);
 end;
 
-procedure TMySQLParser.FormatCaseOp(const Nodes: TCaseOp.TNodes);
+procedure TSQLParser.FormatCaseOp(const Nodes: TCaseOp.TNodes);
 begin
   FormatNode(Nodes.CaseTag);
   FormatNode(Nodes.CompareExpr, stSpaceBefore);
@@ -11863,7 +11907,7 @@ begin
   FormatNode(Nodes.EndTag, stReturnBefore);
 end;
 
-procedure TMySQLParser.FormatCaseStmt(const Nodes: TCaseStmt.TNodes);
+procedure TSQLParser.FormatCaseStmt(const Nodes: TCaseStmt.TNodes);
 begin
   FormatNode(Nodes.CaseTag);
   FormatNode(Nodes.CompareExpr, stSpaceBefore);
@@ -11874,7 +11918,7 @@ begin
   FormatNode(Nodes.EndTag, stReturnBefore);
 end;
 
-procedure TMySQLParser.FormatCaseStmtBranch(const Nodes: TCaseStmt.TBranch.TNodes);
+procedure TSQLParser.FormatCaseStmtBranch(const Nodes: TCaseStmt.TBranch.TNodes);
 begin
   Assert(NodePtr(Nodes.Tag)^.NodeType = ntTag);
 
@@ -11890,7 +11934,7 @@ begin
   Commands.DecreaseIndent();
 end;
 
-procedure TMySQLParser.FormatCastFunc(const Nodes: TCastFunc.TNodes);
+procedure TSQLParser.FormatCastFunc(const Nodes: TCastFunc.TNodes);
 begin
   FormatNode(Nodes.IdentToken);
   FormatNode(Nodes.OpenBracket);
@@ -11900,7 +11944,7 @@ begin
   FormatNode(Nodes.CloseBracket);
 end;
 
-procedure TMySQLParser.FormatCharFunc(const Nodes: TCharFunc.TNodes);
+procedure TSQLParser.FormatCharFunc(const Nodes: TCharFunc.TNodes);
 begin
   FormatNode(Nodes.IdentToken);
   FormatNode(Nodes.OpenBracket, stSpaceBefore);
@@ -11913,7 +11957,7 @@ begin
   FormatNode(Nodes.CloseBracket, stSpaceBefore);
 end;
 
-procedure TMySQLParser.FormatChangeMasterStmt(const Nodes: TChangeMasterStmt.TNodes);
+procedure TSQLParser.FormatChangeMasterStmt(const Nodes: TChangeMasterStmt.TNodes);
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.ToTag, stSpaceBefore);
@@ -11924,22 +11968,18 @@ begin
   Commands.DecreaseIndent();
 end;
 
-procedure TMySQLParser.FormatCompoundStmt(const Nodes: TCompoundStmt.TNodes);
+procedure TSQLParser.FormatCompoundStmt(const Nodes: TCompoundStmt.TNodes);
 begin
   FormatNode(Nodes.BeginLabel, stSpaceAfter);
   Commands.IncreaseIndent();
-  FormatNode(Nodes.BeginTag);
-  if (Nodes.StmtList > 0) then
-  begin
-    Commands.WriteReturn();
-    FormatList(Nodes.StmtList, sReturn);
-  end;
+  FormatNode(Nodes.BeginTag, stReturnAfter);
+  FormatList(Nodes.StmtList, sReturn);
   Commands.DecreaseIndent();
   FormatNode(Nodes.EndTag, stReturnBefore);
   FormatNode(Nodes.EndLabel, stSpaceBefore);
 end;
 
-procedure TMySQLParser.FormatConvertFunc(const Nodes: TConvertFunc.TNodes);
+procedure TSQLParser.FormatConvertFunc(const Nodes: TConvertFunc.TNodes);
 begin
   FormatNode(Nodes.IdentToken);
   FormatNode(Nodes.OpenBracket);
@@ -11957,7 +11997,7 @@ begin
   FormatNode(Nodes.CloseBracket);
 end;
 
-procedure TMySQLParser.FormatCreateEventStmt(const Nodes: TCreateEventStmt.TNodes);
+procedure TSQLParser.FormatCreateEventStmt(const Nodes: TCreateEventStmt.TNodes);
 begin
   FormatNode(Nodes.CreateTag);
   FormatNode(Nodes.DefinerNode, stSpaceBefore);
@@ -11970,13 +12010,11 @@ begin
   FormatNode(Nodes.EnableTag, stReturnBefore);
   FormatNode(Nodes.CommentValue, stReturnBefore);
   FormatNode(Nodes.DoTag, stReturnBefore);
-  Commands.IncreaseIndent();
+  Commands.DecreaseIndent();
   FormatNode(Nodes.Body, stReturnBefore);
-  Commands.DecreaseIndent();
-  Commands.DecreaseIndent();
 end;
 
-procedure TMySQLParser.FormatCreateIndexStmt(const Nodes: TCreateIndexStmt.TNodes);
+procedure TSQLParser.FormatCreateIndexStmt(const Nodes: TCreateIndexStmt.TNodes);
 begin
   FormatNode(Nodes.CreateTag);
   FormatNode(Nodes.IndexTag, stSpaceBefore);
@@ -11993,7 +12031,7 @@ begin
   Commands.DecreaseIndent();
 end;
 
-procedure TMySQLParser.FormatCreateRoutineStmt(const Nodes: TCreateRoutineStmt.TNodes);
+procedure TSQLParser.FormatCreateRoutineStmt(const Nodes: TCreateRoutineStmt.TNodes);
 begin
   FormatNode(Nodes.CreateTag);
   FormatNode(Nodes.DefinerNode, stSpaceBefore);
@@ -12027,7 +12065,7 @@ begin
   FormatNode(Nodes.Body, stReturnBefore);
 end;
 
-procedure TMySQLParser.FormatCreateServerStmt(const Nodes: TCreateServerStmt.TNodes);
+procedure TSQLParser.FormatCreateServerStmt(const Nodes: TCreateServerStmt.TNodes);
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.Ident, stSpaceBefore);
@@ -12038,7 +12076,7 @@ begin
   Commands.DecreaseIndent();
 end;
 
-procedure TMySQLParser.FormatCreateTablespaceStmt(const Nodes: TCreateTablespaceStmt.TNodes);
+procedure TSQLParser.FormatCreateTablespaceStmt(const Nodes: TCreateTablespaceStmt.TNodes);
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.Ident, stSpaceBefore);
@@ -12049,7 +12087,7 @@ begin
   Commands.DecreaseIndent();
 end;
 
-procedure TMySQLParser.FormatCreateTableStmt(const Nodes: TCreateTableStmt.TNodes);
+procedure TSQLParser.FormatCreateTableStmt(const Nodes: TCreateTableStmt.TNodes);
 begin
   FormatNode(Nodes.CreateTag);
   FormatNode(Nodes.TemporaryTag, stSpaceBefore);
@@ -12144,7 +12182,7 @@ begin
   end;
 end;
 
-procedure TMySQLParser.FormatCreateTableStmtField(const Nodes: TCreateTableStmt.TField.TNodes);
+procedure TSQLParser.FormatCreateTableStmtField(const Nodes: TCreateTableStmt.TField.TNodes);
 begin
   FormatNode(Nodes.AddTag, stSpaceAfter);
   FormatNode(Nodes.ColumnTag);
@@ -12175,14 +12213,14 @@ begin
   FormatNode(Nodes.Position, stSpaceBefore);
 end;
 
-procedure TMySQLParser.FormatCreateTableStmtFieldDefaultFunc(const Nodes: TCreateTableStmt.TField.TDefaultFunc.TNodes);
+procedure TSQLParser.FormatCreateTableStmtFieldDefaultFunc(const Nodes: TCreateTableStmt.TField.TDefaultFunc.TNodes);
 begin
   FormatNode(Nodes.IdentToken);
   FormatNode(Nodes.OpenBracket);
   FormatNode(Nodes.CloseBracket);
 end;
 
-procedure TMySQLParser.FormatCreateTableStmtKey(const Nodes: TCreateTableStmt.TKey.TNodes);
+procedure TSQLParser.FormatCreateTableStmtKey(const Nodes: TCreateTableStmt.TKey.TNodes);
 begin
   FormatNode(Nodes.AddTag, stSpaceAfter);
   FormatNode(Nodes.ConstraintTag, stSpaceAfter);
@@ -12197,7 +12235,7 @@ begin
   FormatNode(Nodes.CommentValue, stSpaceBefore);
 end;
 
-procedure TMySQLParser.FormatCreateTableStmtKeyColumn(const Nodes: TCreateTableStmt.TKeyColumn.TNodes);
+procedure TSQLParser.FormatCreateTableStmtKeyColumn(const Nodes: TCreateTableStmt.TKeyColumn.TNodes);
 begin
   FormatNode(Nodes.IdentTag);
 
@@ -12211,7 +12249,7 @@ begin
   FormatNode(Nodes.SortTag, stSpaceBefore);
 end;
 
-procedure TMySQLParser.FormatCreateTableStmtPartition(const Nodes: TCreateTableStmt.TPartition.TNodes);
+procedure TSQLParser.FormatCreateTableStmtPartition(const Nodes: TCreateTableStmt.TPartition.TNodes);
 begin
   FormatNode(Nodes.AddTag, stSpaceAfter);
   FormatNode(Nodes.PartitionTag);
@@ -12229,7 +12267,7 @@ begin
   Commands.DecreaseIndent();
 end;
 
-procedure TMySQLParser.FormatCreateTableStmtReference(const Nodes: TCreateTableStmt.TReference.TNodes);
+procedure TSQLParser.FormatCreateTableStmtReference(const Nodes: TCreateTableStmt.TReference.TNodes);
 begin
   FormatNode(Nodes.Tag);
   FormatNode(Nodes.ParentTableIdent, stSpaceBefore);
@@ -12239,24 +12277,24 @@ begin
   FormatNode(Nodes.OnUpdateTag, stSpaceBefore);
 end;
 
-procedure TMySQLParser.FormatCreateTriggerStmt(const Nodes: TCreateTriggerStmt.TNodes);
+procedure TSQLParser.FormatCreateTriggerStmt(const Nodes: TCreateTriggerStmt.TNodes);
 begin
   FormatNode(Nodes.CreateTag);
   Commands.IncreaseIndent();
-  FormatNode(Nodes.DefinerNode, stReturnBefore);
-  FormatNode(Nodes.TriggerTag, stReturnBefore);
+  FormatNode(Nodes.DefinerNode, stSpaceBefore);
+  FormatNode(Nodes.TriggerTag, stSpaceBefore);
   FormatNode(Nodes.TriggerIdent, stSpaceBefore);
   FormatNode(Nodes.TimeTag, stReturnBefore);
   FormatNode(Nodes.EventTag, stSpaceBefore);
   FormatNode(Nodes.OnTag, stReturnBefore);
   FormatNode(Nodes.TableIdentNode, stSpaceBefore);
-  FormatNode(Nodes.ForEachRowTag, stSpaceBefore);
+  FormatNode(Nodes.ForEachRowTag, stReturnBefore);
   FormatNode(Nodes.OrderValue, stReturnBefore);
   Commands.DecreaseIndent();
   FormatNode(Nodes.Body, stReturnBefore);
 end;
 
-procedure TMySQLParser.FormatCreateUserStmt(const Nodes: TCreateUserStmt.TNodes);
+procedure TSQLParser.FormatCreateUserStmt(const Nodes: TCreateUserStmt.TNodes);
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.IfNotExistsTag, stSpaceBefore);
@@ -12275,7 +12313,7 @@ begin
   Commands.DecreaseIndent();
 end;
 
-procedure TMySQLParser.FormatCreateViewStmt(const Nodes: TCreateViewStmt.TNodes);
+procedure TSQLParser.FormatCreateViewStmt(const Nodes: TCreateViewStmt.TNodes);
 var
   MultiLines: Boolean;
 begin
@@ -12310,18 +12348,16 @@ begin
     FormatNode(Nodes.ViewTag, stReturnBefore);
     FormatNode(Nodes.Ident, stSpaceBefore);
     FormatNode(Nodes.FieldList, stSpaceBefore);
-    Commands.IncreaseIndent();
     FormatNode(Nodes.AsTag, stReturnBefore);
-    Commands.IncreaseIndent();
+    Commands.DecreaseIndent();
     FormatNode(Nodes.SelectStmt, stReturnBefore);
-    Commands.DecreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.OptionTag, stReturnBefore);
-    Commands.DecreaseIndent();
     Commands.DecreaseIndent();
   end;
 end;
 
-procedure TMySQLParser.FormatCurrentTimestamp(const Nodes: TCurrentTimestamp.TNodes);
+procedure TSQLParser.FormatCurrentTimestamp(const Nodes: TCurrentTimestamp.TNodes);
 begin
   FormatNode(Nodes.CurrentTimestampTag);
   FormatNode(Nodes.OpenBracket);
@@ -12329,7 +12365,7 @@ begin
   FormatNode(Nodes.CloseBracket);
 end;
 
-procedure TMySQLParser.FormatComments(const Token: PToken; Start: Boolean = False);
+procedure TSQLParser.FormatComments(const Token: PToken; Start: Boolean = False);
 var
   Comment: string;
   Index: Integer;
@@ -12426,7 +12462,7 @@ begin
   end;
 end;
 
-procedure TMySQLParser.FormatDatatype(const Nodes: TDatatype.TNodes);
+procedure TSQLParser.FormatDatatype(const Nodes: TDatatype.TNodes);
 begin
   FormatNode(Nodes.NationalToken, stSpaceAfter);
 
@@ -12451,7 +12487,7 @@ begin
   FormatNode(Nodes.UnicodeToken, stSpaceBefore);
 end;
 
-procedure TMySQLParser.FormatDateAddFunc(const Nodes: TDateAddFunc.TNodes);
+procedure TSQLParser.FormatDateAddFunc(const Nodes: TDateAddFunc.TNodes);
 begin
   FormatNode(Nodes.IdentToken);
   FormatNode(Nodes.OpenBracket);
@@ -12464,7 +12500,7 @@ begin
   FormatNode(Nodes.CloseBracket);
 end;
 
-procedure TMySQLParser.FormatDbIdent(const Nodes: TDbIdent.TNodes);
+procedure TSQLParser.FormatDbIdent(const Nodes: TDbIdent.TNodes);
 begin
   if (Nodes.DatabaseIdent > 0) then
   begin
@@ -12498,7 +12534,7 @@ begin
   FormatNode(Nodes.Ident);
 end;
 
-procedure TMySQLParser.FormatDeclareCursorStmt(const Nodes: TDeclareCursorStmt.TNodes);
+procedure TSQLParser.FormatDeclareCursorStmt(const Nodes: TDeclareCursorStmt.TNodes);
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.Ident, stSpaceBefore);
@@ -12508,7 +12544,7 @@ begin
   Commands.DecreaseIndent();
 end;
 
-procedure TMySQLParser.FormatDeclareHandlerStmt(const Nodes: TDeclareHandlerStmt.TNodes);
+procedure TSQLParser.FormatDeclareHandlerStmt(const Nodes: TDeclareHandlerStmt.TNodes);
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.ActionTag, stSpaceBefore);
@@ -12520,7 +12556,7 @@ begin
   Commands.DecreaseIndent();
 end;
 
-procedure TMySQLParser.FormatDeleteStmt(const Nodes: TDeleteStmt.TNodes);
+procedure TSQLParser.FormatDeleteStmt(const Nodes: TDeleteStmt.TNodes);
 begin
   FormatNode(Nodes.DeleteTag);
   FormatNode(Nodes.LowPriorityTag, stSpaceBefore);
@@ -12567,7 +12603,7 @@ begin
   end;
 end;
 
-procedure TMySQLParser.FormatDropTablespaceStmt(const Nodes: TDropTablespaceStmt.TNodes);
+procedure TSQLParser.FormatDropTablespaceStmt(const Nodes: TDropTablespaceStmt.TNodes);
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.Ident, stSpaceBefore);
@@ -12576,7 +12612,7 @@ begin
   Commands.DecreaseIndent();
 end;
 
-procedure TMySQLParser.FormatExistsFunc(const Nodes: TExistsFunc.TNodes);
+procedure TSQLParser.FormatExistsFunc(const Nodes: TExistsFunc.TNodes);
 begin
   FormatNode(Nodes.IdentToken);
   FormatNode(Nodes.OpenBracket);
@@ -12584,7 +12620,7 @@ begin
   FormatNode(Nodes.CloseBracket);
 end;
 
-procedure TMySQLParser.FormatExtractFunc(const Nodes: TExtractFunc.TNodes);
+procedure TSQLParser.FormatExtractFunc(const Nodes: TExtractFunc.TNodes);
 begin
   FormatNode(Nodes.IdentToken);
   FormatNode(Nodes.OpenBracket);
@@ -12594,13 +12630,13 @@ begin
   FormatNode(Nodes.CloseBracket);
 end;
 
-procedure TMySQLParser.FormatFunctionCall(const Nodes: TFunctionCall.TNodes);
+procedure TSQLParser.FormatFunctionCall(const Nodes: TFunctionCall.TNodes);
 begin
   FormatNode(Nodes.Ident);
   FormatNode(Nodes.ArgumentsList);
 end;
 
-procedure TMySQLParser.FormatGroupConcatFunc(const Nodes: TGroupConcatFunc.TNodes);
+procedure TSQLParser.FormatGroupConcatFunc(const Nodes: TGroupConcatFunc.TNodes);
 begin
   FormatNode(Nodes.IdentToken);
   FormatNode(Nodes.OpenBracket);
@@ -12617,13 +12653,13 @@ begin
   FormatNode(Nodes.CloseBracket);
 end;
 
-procedure TMySQLParser.FormatIfStmt(const Nodes: TIfStmt.TNodes);
+procedure TSQLParser.FormatIfStmt(const Nodes: TIfStmt.TNodes);
 begin
   FormatNode(Nodes.BranchList);
   FormatNode(Nodes.EndTag, stReturnBefore);
 end;
 
-procedure TMySQLParser.FormatIfStmtBranch(const Nodes: TIfStmt.TBranch.TNodes);
+procedure TSQLParser.FormatIfStmtBranch(const Nodes: TIfStmt.TBranch.TNodes);
 begin
   Assert(NodePtr(Nodes.Tag)^.NodeType = ntTag);
 
@@ -12656,7 +12692,7 @@ begin
   end;
 end;
 
-procedure TMySQLParser.FormatInsertStmt(const Nodes: TInsertStmt.TNodes);
+procedure TSQLParser.FormatInsertStmt(const Nodes: TInsertStmt.TNodes);
 begin
   if ((Nodes.ColumnList = 0)
     and (Nodes.Values.List > 0)
@@ -12727,7 +12763,7 @@ begin
   end;
 end;
 
-procedure TMySQLParser.FormatList(const Nodes: TList.TNodes; const DelimiterType: TTokenType);
+procedure TSQLParser.FormatList(const Nodes: TList.TNodes; const DelimiterType: TTokenType);
 begin
   case (DelimiterType) of
     ttComma: FormatList(Nodes, sSpace);
@@ -12737,7 +12773,7 @@ begin
   end;
 end;
 
-procedure TMySQLParser.FormatList(const Nodes: TList.TNodes; const Spacer: TSpacer);
+procedure TSQLParser.FormatList(const Nodes: TList.TNodes; const Spacer: TSpacer);
 var
   Child: PChild;
   Delimiter: PToken;
@@ -12768,7 +12804,7 @@ begin
   FormatNode(Nodes.CloseBracket);
 end;
 
-procedure TMySQLParser.FormatList(const Node: TOffset; const Spacer: TSpacer);
+procedure TSQLParser.FormatList(const Node: TOffset; const Spacer: TSpacer);
 begin
   if (Node > 0) then
   begin
@@ -12778,7 +12814,7 @@ begin
   end;
 end;
 
-procedure TMySQLParser.FormatLoadDataStmt(const Nodes: TLoadDataStmt.TNodes);
+procedure TSQLParser.FormatLoadDataStmt(const Nodes: TLoadDataStmt.TNodes);
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.PriorityTag, stSpaceBefore);
@@ -12816,7 +12852,7 @@ begin
   Commands.DecreaseIndent();
 end;
 
-procedure TMySQLParser.FormatLoadXMLStmt(const Nodes: TLoadXMLStmt.TNodes);
+procedure TSQLParser.FormatLoadXMLStmt(const Nodes: TLoadXMLStmt.TNodes);
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.PriorityTag, stSpaceBefore);
@@ -12835,7 +12871,7 @@ begin
   Commands.DecreaseIndent();
 end;
 
-procedure TMySQLParser.FormatLoopStmt(const Nodes: TLoopStmt.TNodes);
+procedure TSQLParser.FormatLoopStmt(const Nodes: TLoopStmt.TNodes);
 begin
   FormatNode(Nodes.BeginLabel, stSpaceAfter);
   Commands.IncreaseIndent();
@@ -12846,7 +12882,7 @@ begin
   FormatNode(Nodes.EndLabel, stSpaceBefore);
 end;
 
-procedure TMySQLParser.FormatMatchFunc(const Nodes: TMatchFunc.TNodes);
+procedure TSQLParser.FormatMatchFunc(const Nodes: TMatchFunc.TNodes);
 begin
   FormatNode(Nodes.IdentToken);
   FormatNode(Nodes.MatchList, stSpaceBefore);
@@ -12857,7 +12893,7 @@ begin
   FormatNode(Nodes.CloseBracket);
 end;
 
-procedure TMySQLParser.FormatPositionFunc(const Nodes: TPositionFunc.TNodes);
+procedure TSQLParser.FormatPositionFunc(const Nodes: TPositionFunc.TNodes);
 begin
   FormatNode(Nodes.IdentToken);
   FormatNode(Nodes.OpenBracket);
@@ -12867,7 +12903,7 @@ begin
   FormatNode(Nodes.CloseBracket);
 end;
 
-procedure TMySQLParser.FormatNode(const Node: PNode; const Separator: TSeparatorType = stNone);
+procedure TSQLParser.FormatNode(const Node: PNode; const Separator: TSeparatorType = stNone);
 
   procedure DefaultFormatNode(const Nodes: POffsetArray; const Size: Integer);
   var
@@ -13099,6 +13135,7 @@ begin
       ntSubArea: FormatSubArea(PSubArea(Node)^.Nodes);
       ntSubAreaSelectStmt: FormatSubAreaSelectStmt(PSubAreaSelectStmt(Node)^.Nodes);
       ntSubPartition: FormatSubPartition(PSubPartition(Node)^.Nodes);
+      ntSubquery: FormatSubquery(PSubquery(Node)^.Nodes);
       ntSubstringFunc: FormatSubstringFunc(PSubstringFunc(Node)^.Nodes);
       ntTag: DefaultFormatNode(@PTag(Node)^.Nodes, SizeOf(TTag.TNodes));
       ntTrimFunc: FormatTrimFunc(PTrimFunc(Node)^.Nodes);
@@ -13126,12 +13163,12 @@ begin
   end;
 end;
 
-procedure TMySQLParser.FormatNode(const Node: TOffset; const Separator: TSeparatorType = stNone);
+procedure TSQLParser.FormatNode(const Node: TOffset; const Separator: TSeparatorType = stNone);
 begin
   FormatNode(NodePtr(Node), Separator);
 end;
 
-procedure TMySQLParser.FormatRepeatStmt(const Nodes: TRepeatStmt.TNodes);
+procedure TSQLParser.FormatRepeatStmt(const Nodes: TRepeatStmt.TNodes);
 begin
   FormatNode(Nodes.BeginLabel, stSpaceAfter);
   FormatNode(Nodes.RepeatTag);
@@ -13144,7 +13181,7 @@ begin
   FormatNode(Nodes.EndLabel, stSpaceBefore);
 end;
 
-procedure TMySQLParser.FormatRoot(const Node: PNode);
+procedure TSQLParser.FormatRoot(const Node: PNode);
 var
   Stmt: PStmt;
 begin
@@ -13160,7 +13197,7 @@ begin
   end;
 end;
 
-procedure TMySQLParser.FormatSchedule(const Nodes: TSchedule.TNodes);
+procedure TSQLParser.FormatSchedule(const Nodes: TSchedule.TNodes);
 begin
   if (Nodes.AtValue > 0) then
     FormatNode(Nodes.AtValue)
@@ -13186,14 +13223,14 @@ begin
     raise Exception.Create(SArgumentOutOfRange);
 end;
 
-procedure TMySQLParser.FormatSecretIdent(const Nodes: TSecretIdent.TNodes);
+procedure TSQLParser.FormatSecretIdent(const Nodes: TSecretIdent.TNodes);
 begin
   FormatNode(Nodes.OpenAngleBracket);
   FormatNode(Nodes.ItemToken);
   FormatNode(Nodes.CloseAngleBracket);
 end;
 
-procedure TMySQLParser.FormatSelectStmt(const Nodes: TSelectStmt.TNodes);
+procedure TSQLParser.FormatSelectStmt(const Nodes: TSelectStmt.TNodes);
 var
   ItemPerLine: Boolean;
   Separator: TSeparatorType;
@@ -13359,7 +13396,7 @@ begin
   FormatNode(Nodes.Union.SelectStmt, stReturnBefore);
 end;
 
-procedure TMySQLParser.FormatSelectStmtColumn(const Nodes: TSelectStmt.TColumn.TNodes);
+procedure TSQLParser.FormatSelectStmtColumn(const Nodes: TSelectStmt.TColumn.TNodes);
 var
   Expr: TOffset;
 begin
@@ -13379,7 +13416,7 @@ begin
   end;
 end;
 
-procedure TMySQLParser.FormatSelectStmtTableFactor(const Nodes: TSelectStmt.TTableFactor.TNodes);
+procedure TSQLParser.FormatSelectStmtTableFactor(const Nodes: TSelectStmt.TTableFactor.TNodes);
 begin
   FormatNode(Nodes.TableIdent);
   FormatNode(Nodes.PartitionTag, stSpaceBefore);
@@ -13396,7 +13433,7 @@ begin
   FormatNode(Nodes.SelectStmt, stSpaceBefore);
 end;
 
-procedure TMySQLParser.FormatSelectStmtTableFactorOj(const Nodes: TSelectStmt.TTableFactorOj.TNodes);
+procedure TSQLParser.FormatSelectStmtTableFactorOj(const Nodes: TSelectStmt.TTableFactorOj.TNodes);
 begin
   FormatNode(Nodes.OpenBracket);
   FormatNode(Nodes.OjTag);
@@ -13404,7 +13441,7 @@ begin
   FormatNode(Nodes.CloseBracket);
 end;
 
-procedure TMySQLParser.FormatSelectStmtTableJoin(const Nodes: TSelectStmt.TTableJoin.TNodes);
+procedure TSQLParser.FormatSelectStmtTableJoin(const Nodes: TSelectStmt.TTableJoin.TNodes);
 begin
   Commands.IncreaseIndent();
   FormatNode(Nodes.JoinTag, stReturnBefore);
@@ -13414,7 +13451,7 @@ begin
   Commands.DecreaseIndent();
 end;
 
-procedure TMySQLParser.FormatSetStmt(const Nodes: TSetStmt.TNodes);
+procedure TSQLParser.FormatSetStmt(const Nodes: TSetStmt.TNodes);
 var
   ItemPerLine: Boolean;
 begin
@@ -13438,7 +13475,7 @@ begin
   end;
 end;
 
-procedure TMySQLParser.FormatShowBinlogEventsStmt(const Nodes: TShowBinlogEventsStmt.TNodes);
+procedure TSQLParser.FormatShowBinlogEventsStmt(const Nodes: TShowBinlogEventsStmt.TNodes);
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.InValue, stSpaceBefore);
@@ -13450,7 +13487,7 @@ begin
   FormatNode(Nodes.Limit.RowCountToken);
 end;
 
-procedure TMySQLParser.FormatShowErrorsStmt(const Nodes: TShowErrorsStmt.TNodes);
+procedure TSQLParser.FormatShowErrorsStmt(const Nodes: TShowErrorsStmt.TNodes);
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.Limit.Tag, stSpaceBefore);
@@ -13460,7 +13497,7 @@ begin
   FormatNode(Nodes.Limit.RowCountToken);
 end;
 
-procedure TMySQLParser.FormatShowRelaylogEventsStmt(const Nodes: TShowBinlogEventsStmt.TNodes);
+procedure TSQLParser.FormatShowRelaylogEventsStmt(const Nodes: TShowBinlogEventsStmt.TNodes);
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.InValue, stSpaceBefore);
@@ -13472,7 +13509,7 @@ begin
   FormatNode(Nodes.Limit.RowCountToken);
 end;
 
-procedure TMySQLParser.FormatShowWarningsStmt(const Nodes: TShowWarningsStmt.TNodes);
+procedure TSQLParser.FormatShowWarningsStmt(const Nodes: TShowWarningsStmt.TNodes);
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.Limit.Tag, stSpaceBefore);
@@ -13482,7 +13519,7 @@ begin
   FormatNode(Nodes.Limit.RowCountToken);
 end;
 
-procedure TMySQLParser.FormatSQL(out SQL: string);
+procedure TSQLParser.FormatSQL(out SQL: string);
 begin
   SQL := '';
 
@@ -13497,21 +13534,21 @@ begin
   end;
 end;
 
-procedure TMySQLParser.FormatSubArea(const Nodes: TSubArea.TNodes);
+procedure TSQLParser.FormatSubArea(const Nodes: TSubArea.TNodes);
 begin
   FormatNode(Nodes.OpenBracket);
   FormatNode(Nodes.AreaNode);
   FormatNode(Nodes.CloseBracket);
 end;
 
-procedure TMySQLParser.FormatSubAreaSelectStmt(const Nodes: TSubAreaSelectStmt.TNodes);
+procedure TSQLParser.FormatSubAreaSelectStmt(const Nodes: TSubAreaSelectStmt.TNodes);
 begin
   FormatNode(Nodes.SelectStmt1);
   FormatNode(Nodes.UnionTag, stReturnBefore);
   FormatNode(Nodes.SelectStmt2, stReturnBefore);
 end;
 
-procedure TMySQLParser.FormatSubPartition(const Nodes: TSubPartition.TNodes);
+procedure TSQLParser.FormatSubPartition(const Nodes: TSubPartition.TNodes);
 begin
   FormatNode(Nodes.SubPartitionTag);
   FormatNode(Nodes.NameIdent, stSpaceBefore);
@@ -13526,7 +13563,15 @@ begin
   Commands.DecreaseIndent();
 end;
 
-procedure TMySQLParser.FormatSubstringFunc(const Nodes: TSubstringFunc.TNodes);
+procedure TSQLParser.FormatSubquery(const Nodes: TSubquery.TNodes);
+begin
+  FormatNode(Nodes.IdentTag);
+  FormatNode(Nodes.OpenToken, stSpaceBefore);
+  FormatNode(Nodes.Subquery);
+  FormatNode(Nodes.CloseToken);
+end;
+
+procedure TSQLParser.FormatSubstringFunc(const Nodes: TSubstringFunc.TNodes);
 begin
   FormatNode(Nodes.IdentToken);
   FormatNode(Nodes.OpenBracket);
@@ -13544,7 +13589,7 @@ begin
   FormatNode(Nodes.CloseBracket);
 end;
 
-procedure TMySQLParser.FormatToken(const Token: PToken);
+procedure TSQLParser.FormatToken(const Token: PToken);
 label
   StringL, StringLE;
 var
@@ -13622,7 +13667,7 @@ begin
   FormatComments(Token^.NextTokenAll, False);
 end;
 
-procedure TMySQLParser.FormatTrimFunc(const Nodes: TTrimFunc.TNodes);
+procedure TSQLParser.FormatTrimFunc(const Nodes: TTrimFunc.TNodes);
 begin
   FormatNode(Nodes.IdentToken);
   FormatNode(Nodes.OpenBracket);
@@ -13633,7 +13678,7 @@ begin
   FormatNode(Nodes.CloseBracket);
 end;
 
-procedure TMySQLParser.FormatUnaryOp(const Nodes: TUnaryOp.TNodes);
+procedure TSQLParser.FormatUnaryOp(const Nodes: TUnaryOp.TNodes);
 begin
   FormatNode(Nodes.Operator);
   if (IsToken(Nodes.Operator) and (TokenPtr(Nodes.Operator)^.KeywordIndex >= 0)) then
@@ -13641,7 +13686,7 @@ begin
   FormatNode(Nodes.Operand);
 end;
 
-procedure TMySQLParser.FormatUnknownStmt(const Node: PUnknownStmt);
+procedure TSQLParser.FormatUnknownStmt(const Node: PUnknownStmt);
 var
   Token: PToken;
 begin
@@ -13659,14 +13704,14 @@ begin
   end;
 end;
 
-procedure TMySQLParser.FormatUser(const Nodes: TUser.TNodes);
+procedure TSQLParser.FormatUser(const Nodes: TUser.TNodes);
 begin
   FormatNode(Nodes.NameToken);
   FormatNode(Nodes.AtToken);
   FormatNode(Nodes.HostToken);
 end;
 
-procedure TMySQLParser.FormatValue(const Nodes: TValue.TNodes);
+procedure TSQLParser.FormatValue(const Nodes: TValue.TNodes);
 begin
   FormatNode(Nodes.IdentTag);
   if (Nodes.AssignToken = 0) then
@@ -13679,7 +13724,7 @@ begin
   FormatNode(Nodes.Expr);
 end;
 
-procedure TMySQLParser.FormatVariableIdent(const Nodes: TVariable.TNodes);
+procedure TSQLParser.FormatVariableIdent(const Nodes: TVariable.TNodes);
 begin
   FormatNode(Nodes.At1Token);
   FormatNode(Nodes.At2Token);
@@ -13688,7 +13733,7 @@ begin
   FormatNode(Nodes.Ident);
 end;
 
-procedure TMySQLParser.FormatWeightStringFunc(const Nodes: TWeightStringFunc.TNodes);
+procedure TSQLParser.FormatWeightStringFunc(const Nodes: TWeightStringFunc.TNodes);
 begin
   FormatNode(Nodes.IdentToken);
   FormatNode(Nodes.OpenBracket);
@@ -13700,7 +13745,7 @@ begin
   FormatNode(Nodes.CloseBracket);
 end;
 
-procedure TMySQLParser.FormatWhileStmt(const Nodes: TWhileStmt.TNodes);
+procedure TSQLParser.FormatWhileStmt(const Nodes: TWhileStmt.TNodes);
 begin
   FormatNode(Nodes.BeginLabel, stSpaceAfter);
   FormatNode(Nodes.WhileTag);
@@ -13713,7 +13758,7 @@ begin
   FormatNode(Nodes.EndLabel, stSpaceBefore);
 end;
 
-procedure TMySQLParser.FormatXID(const Nodes: TXAStmt.TID.TNodes);
+procedure TSQLParser.FormatXID(const Nodes: TXAStmt.TID.TNodes);
 begin
   FormatNode(Nodes.GTrId);
   FormatNode(Nodes.Comma1, stSpaceAfter);
@@ -13722,39 +13767,39 @@ begin
   FormatNode(Nodes.FormatId);
 end;
 
-function TMySQLParser.GetDatatypes(): string;
+function TSQLParser.GetDatatypes(): string;
 begin
   Result := DatatypeList.Text;
 end;
 
-function TMySQLParser.GetError(): Boolean;
+function TSQLParser.GetError(): Boolean;
 begin
   Result := FErrorCode <> PE_Success;
 end;
 
-function TMySQLParser.GetFunctions(): string;
+function TSQLParser.GetFunctions(): string;
 begin
   Result := FunctionList.Text;
 end;
 
-function TMySQLParser.GetInPL_SQL(): Boolean;
+function TSQLParser.GetInPL_SQL(): Boolean;
 begin
   Result := FInPL_SQL > 0;
 end;
 
-function TMySQLParser.GetKeywords(): string;
+function TSQLParser.GetKeywords(): string;
 begin
   Result := KeywordList.Text;
 end;
 
-function TMySQLParser.GetNextToken(Index: Integer): TOffset;
+function TSQLParser.GetNextToken(Index: Integer): TOffset;
 begin
   Assert(Index >= 0);
 
   Result := GetParsedToken(Index);
 end;
 
-function TMySQLParser.GetParsedToken(const Index: Integer): TOffset;
+function TSQLParser.GetParsedToken(const Index: Integer): TOffset;
 var
   Length: Integer;
   S: string;
@@ -13805,7 +13850,7 @@ begin
     Result := TokenBuffer.Tokens[Index];
 end;
 
-function TMySQLParser.GetRoot(): PRoot;
+function TSQLParser.GetRoot(): PRoot;
 begin
   if (FRoot = 0) then
     Result := nil
@@ -13813,7 +13858,7 @@ begin
     Result := PRoot(NodePtr(FRoot));
 end;
 
-procedure TMySQLParser.GetText(const Offset: TOffset; out Text: PChar; out Length: Integer);
+procedure TSQLParser.GetText(const Offset: TOffset; out Text: PChar; out Length: Integer);
 begin
   Assert((0 < Offset) and (Offset < Texts.UsedSize));
 
@@ -13821,47 +13866,47 @@ begin
   Length := Integer(Texts.Mem[Offset]);
 end;
 
-function TMySQLParser.IsChild(const ANode: PNode): Boolean;
+function TSQLParser.IsChild(const ANode: PNode): Boolean;
 begin
   Result := Assigned(ANode) and (ANode^.NodeType <> ntRoot);
 end;
 
-function TMySQLParser.IsChild(const ANode: TOffset): Boolean;
+function TSQLParser.IsChild(const ANode: TOffset): Boolean;
 begin
   Result := IsChild(NodePtr(ANode));
 end;
 
-function TMySQLParser.IsRange(const ANode: PNode): Boolean;
+function TSQLParser.IsRange(const ANode: PNode): Boolean;
 begin
   Result := Assigned(ANode) and not (ANode^.NodeType in [ntRoot, ntToken]);
 end;
 
-function TMySQLParser.IsRange(const ANode: TOffset): Boolean;
+function TSQLParser.IsRange(const ANode: TOffset): Boolean;
 begin
   Result := IsRange(NodePtr(ANode));
 end;
 
-function TMySQLParser.IsRoot(const ANode: PNode): Boolean;
+function TSQLParser.IsRoot(const ANode: PNode): Boolean;
 begin
   Result := Assigned(ANode) and (ANode^.NodeType = ntRoot);
 end;
 
-function TMySQLParser.IsStmt(const ANode: PNode): Boolean;
+function TSQLParser.IsStmt(const ANode: PNode): Boolean;
 begin
   Result := Assigned(ANode) and (ANode^.NodeType in StmtNodeTypes);
 end;
 
-function TMySQLParser.IsStmt(const ANode: TOffset): Boolean;
+function TSQLParser.IsStmt(const ANode: TOffset): Boolean;
 begin
   Result := IsStmt(NodePtr(ANode));
 end;
 
-function TMySQLParser.IsSymbol(const TokenType: TTokenType): Boolean;
+function TSQLParser.IsSymbol(const TokenType: TTokenType): Boolean;
 begin
   Result := (CurrentToken > 0) and (TokenPtr(CurrentToken)^.TokenType = TokenType);
 end;
 
-function TMySQLParser.IsTag(const KeywordIndex1: TWordList.TIndex;
+function TSQLParser.IsTag(const KeywordIndex1: TWordList.TIndex;
   const KeywordIndex2: TWordList.TIndex = -1; const KeywordIndex3: TWordList.TIndex = -1;
   const KeywordIndex4: TWordList.TIndex = -1; const KeywordIndex5: TWordList.TIndex = -1;
   const KeywordIndex6: TWordList.TIndex = -1; const KeywordIndex7: TWordList.TIndex = -1): Boolean;
@@ -13897,17 +13942,17 @@ begin
     Result := True;
 end;
 
-function TMySQLParser.IsToken(const ANode: PNode): Boolean;
+function TSQLParser.IsToken(const ANode: PNode): Boolean;
 begin
   Result := Assigned(ANode) and (ANode^.NodeType = ntToken);
 end;
 
-function TMySQLParser.IsToken(const ANode: TOffset): Boolean;
+function TSQLParser.IsToken(const ANode: TOffset): Boolean;
 begin
   Result := IsToken(NodePtr(ANode));
 end;
 
-function TMySQLParser.LoadFromFile(const Filename: string): Boolean;
+function TSQLParser.LoadFromFile(const Filename: string): Boolean;
 var
   BytesPerSector: DWord;
   BytesRead: DWord;
@@ -13992,7 +14037,7 @@ begin
   Result := Root^.ErrorCode = PE_Success;
 end;
 
-function TMySQLParser.NewNode(const ANodeType: TNodeType): TOffset;
+function TSQLParser.NewNode(const ANodeType: TNodeType): TOffset;
 var
   Size: Integer;
 begin
@@ -14008,7 +14053,7 @@ begin
   Inc(Nodes.UsedSize, Size);
 end;
 
-function TMySQLParser.NewText(const Text: PChar; const Length: Integer): TOffset;
+function TSQLParser.NewText(const Text: PChar; const Length: Integer): TOffset;
 var
   Size: Integer;
 begin
@@ -14026,7 +14071,7 @@ begin
   Inc(Texts.UsedSize, Size);
 end;
 
-function TMySQLParser.NodePtr(const ANode: TOffset): PNode;
+function TSQLParser.NodePtr(const ANode: TOffset): PNode;
 begin
   Assert(ANode < Nodes.UsedSize);
 
@@ -14036,7 +14081,7 @@ begin
     Result := @Nodes.Mem[ANode];
 end;
 
-function TMySQLParser.NodeSize(const NodeType: TNodeType): Integer;
+function TSQLParser.NodeSize(const NodeType: TNodeType): Integer;
 begin
   case (NodeType) of
     ntRoot: Result := SizeOf(TRoot);
@@ -14240,6 +14285,7 @@ begin
     ntSubArea: Result := SizeOf(TSubArea);
     ntSubAreaSelectStmt: Result := SizeOf(TSubAreaSelectStmt);
     ntSubPartition: Result := SizeOf(TSubPartition);
+    ntSubquery: Result := SizeOf(TSubquery);
     ntSubstringFunc: Result := SizeOf(TSubstringFunc);
     ntTag: Result := SizeOf(TTag);
     ntTruncateStmt: Result := SizeOf(TTruncateStmt);
@@ -14260,7 +14306,7 @@ begin
   end;
 end;
 
-function TMySQLParser.ParseAnalyzeTableStmt(): TOffset;
+function TSQLParser.ParseAnalyzeTableStmt(): TOffset;
 var
   Nodes: TAnalyzeTableStmt.TNodes;
 begin
@@ -14283,7 +14329,7 @@ begin
   Result := TAnalyzeTableStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseAliasIdent(): TOffset;
+function TSQLParser.ParseAliasIdent(): TOffset;
 begin
   Result := 0;
   if (EndOfStmt(CurrentToken)) then
@@ -14294,7 +14340,7 @@ begin
     Result := ApplyCurrentToken(utConst);
 end;
 
-function TMySQLParser.ParseAlterDatabaseStmt(): TOffset;
+function TSQLParser.ParseAlterDatabaseStmt(): TOffset;
 var
   Found: Boolean;
   Nodes: TAlterDatabaseStmt.TNodes;
@@ -14337,7 +14383,7 @@ begin
   Result := TAlterDatabaseStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseAlterEventStmt(): TOffset;
+function TSQLParser.ParseAlterEventStmt(): TOffset;
 var
   Nodes: TAlterEventStmt.TNodes;
 begin
@@ -14398,7 +14444,7 @@ begin
   Result := TAlterEventStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseAlterInstanceStmt(): TOffset;
+function TSQLParser.ParseAlterInstanceStmt(): TOffset;
 var
   Nodes: TAlterInstanceStmt.TNodes;
 begin
@@ -14409,7 +14455,7 @@ begin
   Result := TAlterInstanceStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseAlterRoutineStmt(const ARoutineType: TRoutineType): TOffset;
+function TSQLParser.ParseAlterRoutineStmt(const ARoutineType: TRoutineType): TOffset;
 var
   Found: Boolean;
   Nodes: TAlterRoutineStmt.TNodes;
@@ -14452,7 +14498,7 @@ begin
   Result := TAlterRoutineStmt.Create(Self, ARoutineType, Nodes);
 end;
 
-function TMySQLParser.ParseAlterServerStmt(): TOffset;
+function TSQLParser.ParseAlterServerStmt(): TOffset;
 var
   Nodes: TAlterServerStmt.TNodes;
 begin
@@ -14472,7 +14518,7 @@ begin
   Result := TAlterServerStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseAlterStmt(): TOffset;
+function TSQLParser.ParseAlterStmt(): TOffset;
 var
   AlgorithmFound: Boolean;
   DefinerFound: Boolean;
@@ -14676,7 +14722,7 @@ begin
       SetError(PE_UnexpectedToken, NextToken[Index]);
 end;
 
-function TMySQLParser.ParseAlterTablespaceStmt(): TOffset;
+function TSQLParser.ParseAlterTablespaceStmt(): TOffset;
 var
   Nodes: TAlterTablespaceStmt.TNodes;
 begin
@@ -14700,7 +14746,7 @@ begin
   Result := TAlterTablespaceStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseAlterTableStmt(): TOffset;
+function TSQLParser.ParseAlterTableStmt(): TOffset;
 var
   Found: Boolean;
   Found2: Boolean;
@@ -14967,6 +15013,11 @@ begin
       Nodes.RenameNode := ParseValue(WordIndices(kiRENAME, kiAS), vaNo, ParseTableIdent);
       Specifications.Add(Pointer(Nodes.RenameNode));
     end
+    else if ((Nodes.RenameNode = 0) and IsTag(kiRENAME)) then
+    begin
+      Nodes.RenameNode := ParseValue(kiRENAME, vaNo, ParseTableIdent);
+      Specifications.Add(Pointer(Nodes.RenameNode));
+    end
 
 
     else if (IsTag(kiANALYZE, kiPARTITION)
@@ -14998,7 +15049,7 @@ begin
   Specifications.Free();
 end;
 
-function TMySQLParser.ParseAlterTableStmtAlterColumn(): TOffset;
+function TSQLParser.ParseAlterTableStmtAlterColumn(): TOffset;
 var
   Nodes: TAlterTableStmt.TAlterColumn.TNodes;
 begin
@@ -15021,7 +15072,7 @@ begin
   Result := TAlterTableStmt.TAlterColumn.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseAlterTableStmtConvertTo(): TOffset;
+function TSQLParser.ParseAlterTableStmtConvertTo(): TOffset;
 var
   Nodes: TAlterTableStmt.TConvertTo.TNodes;
 begin
@@ -15042,7 +15093,7 @@ begin
   Result := TAlterTableStmt.TConvertTo.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseAlterTableStmtDropItem(): TOffset;
+function TSQLParser.ParseAlterTableStmtDropItem(): TOffset;
 var
   Nodes: TAlterTableStmt.TDropObject.TNodes;
 begin
@@ -15087,7 +15138,7 @@ begin
   Result := TAlterTableStmt.TDropObject.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseAlterTableStmtExchangePartition(): TOffset;
+function TSQLParser.ParseAlterTableStmtExchangePartition(): TOffset;
 var
   Nodes: TAlterTableStmt.TExchangePartition.TNodes;
 begin
@@ -15113,7 +15164,7 @@ begin
   Result := TAlterTableStmt.TExchangePartition.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseAlterTableStmtOrderBy(): TOffset;
+function TSQLParser.ParseAlterTableStmtOrderBy(): TOffset;
 var
   Nodes: TAlterTableStmt.TOrderBy.TNodes;
 begin
@@ -15127,7 +15178,7 @@ begin
   Result := TAlterTableStmt.TOrderBy.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseAlterTableStmtReorganizePartition(): TOffset;
+function TSQLParser.ParseAlterTableStmtReorganizePartition(): TOffset;
 var
   Nodes: TAlterTableStmt.TReorganizePartition.TNodes;
 begin
@@ -15147,7 +15198,7 @@ begin
   Result := TAlterTableStmt.TReorganizePartition.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseAlterViewStmt(): TOffset;
+function TSQLParser.ParseAlterViewStmt(): TOffset;
 var
   Nodes: TAlterViewStmt.TNodes;
 begin
@@ -15196,7 +15247,7 @@ begin
   Result := TAlterViewStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseBeginLabel(): TOffset;
+function TSQLParser.ParseBeginLabel(): TOffset;
 var
   Nodes: TBeginLabel.TNodes;
 begin
@@ -15208,7 +15259,7 @@ begin
   Result := TBeginLabel.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseBeginStmt(): TOffset;
+function TSQLParser.ParseBeginStmt(): TOffset;
 var
   Nodes: TBeginStmt.TNodes;
 begin
@@ -15222,7 +15273,7 @@ begin
   Result := TBeginStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCallStmt(): TOffset;
+function TSQLParser.ParseCallStmt(): TOffset;
 var
   Nodes: TCallStmt.TNodes;
 begin
@@ -15239,7 +15290,7 @@ begin
   Result := TCallStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCaseOp(): TOffset;
+function TSQLParser.ParseCaseOp(): TOffset;
 var
   Branches: array of TOffset;
   ListNodes: TList.TNodes;
@@ -15280,7 +15331,7 @@ begin
   Result := TCaseOp.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCaseOpBranch(): TOffset;
+function TSQLParser.ParseCaseOpBranch(): TOffset;
 var
   Nodes: TCaseOp.TBranch.TNodes;
 begin
@@ -15300,7 +15351,7 @@ begin
   Result := TCaseOp.TBranch.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCaseStmt(): TOffset;
+function TSQLParser.ParseCaseStmt(): TOffset;
 var
   Branches: array of TOffset;
   ListNodes: TList.TNodes;
@@ -15338,7 +15389,7 @@ begin
   Result := TCaseStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCaseStmtBranch(): TOffset;
+function TSQLParser.ParseCaseStmtBranch(): TOffset;
 var
   Nodes: TCaseStmt.TBranch.TNodes;
 begin
@@ -15365,7 +15416,7 @@ begin
   Result := TCaseStmt.TBranch.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCastFunc(): TOffset;
+function TSQLParser.ParseCastFunc(): TOffset;
 var
   Nodes: TCastFunc.TNodes;
 begin
@@ -15391,7 +15442,7 @@ begin
   Result := TCastFunc.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCharFunc(): TOffset;
+function TSQLParser.ParseCharFunc(): TOffset;
 var
   Nodes: TCharFunc.TNodes;
 begin
@@ -15419,7 +15470,7 @@ begin
   Result := TCharFunc.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseChangeMasterStmt(): TOffset;
+function TSQLParser.ParseChangeMasterStmt(): TOffset;
 var
   Comma: TOffset;
   Found: Boolean;
@@ -15573,12 +15624,12 @@ begin
   Result := TChangeMasterStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCharsetIdent(): TOffset;
+function TSQLParser.ParseCharsetIdent(): TOffset;
 begin
   Result := ParseDbIdent(ditCharset);
 end;
 
-function TMySQLParser.ParseCheckTableStmt(): TOffset;
+function TSQLParser.ParseCheckTableStmt(): TOffset;
 var
   Nodes: TCheckTableStmt.TNodes;
 begin
@@ -15595,7 +15646,7 @@ begin
   Result := TCheckTableStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCheckTableStmtOption(): TOffset;
+function TSQLParser.ParseCheckTableStmtOption(): TOffset;
 var
   Nodes: TCheckTableStmt.TOption.TNodes;
 begin
@@ -15619,7 +15670,7 @@ begin
   Result := TCheckTableStmt.TOption.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseChecksumTableStmt(): TOffset;
+function TSQLParser.ParseChecksumTableStmt(): TOffset;
 var
   Nodes: TChecksumTableStmt.TNodes;
 begin
@@ -15639,7 +15690,7 @@ begin
   Result := TChecksumTableStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCloseStmt(): TOffset;
+function TSQLParser.ParseCloseStmt(): TOffset;
 var
   Nodes: TCloseStmt.TNodes;
 begin
@@ -15653,12 +15704,12 @@ begin
   Result := TCloseStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCollateIdent(): TOffset;
+function TSQLParser.ParseCollateIdent(): TOffset;
 begin
   Result := ParseDbIdent(ditCollation);
 end;
 
-function TMySQLParser.ParseCommitStmt(): TOffset;
+function TSQLParser.ParseCommitStmt(): TOffset;
 var
   Nodes: TCommitStmt.TNodes;
 begin
@@ -15684,7 +15735,7 @@ begin
   Result := TCommitStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCompoundStmt(): TOffset;
+function TSQLParser.ParseCompoundStmt(): TOffset;
 var
   Nodes: TCompoundStmt.TNodes;
 begin
@@ -15715,7 +15766,7 @@ begin
   Result := TCompoundStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseConvertFunc(): TOffset;
+function TSQLParser.ParseConvertFunc(): TOffset;
 var
   Nodes: TConvertFunc.TNodes;
 begin
@@ -15753,7 +15804,7 @@ begin
   Result := TConvertFunc.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCreateDatabaseStmt(): TOffset;
+function TSQLParser.ParseCreateDatabaseStmt(): TOffset;
 var
   Found: Boolean;
   Nodes: TCreateDatabaseStmt.TNodes;
@@ -15792,7 +15843,7 @@ begin
   Result := TCreateDatabaseStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCreateEventStmt(): TOffset;
+function TSQLParser.ParseCreateEventStmt(): TOffset;
 var
   Nodes: TCreateEventStmt.TNodes;
 begin
@@ -15844,7 +15895,7 @@ begin
   Result := TCreateEventStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCreateIndexStmt(): TOffset;
+function TSQLParser.ParseCreateIndexStmt(): TOffset;
 var
   Found: Boolean;
   Nodes: TCreateIndexStmt.TNodes;
@@ -15903,7 +15954,7 @@ begin
   Result := TCreateIndexStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCreateRoutineStmt(const ARoutineType: TRoutineType): TOffset;
+function TSQLParser.ParseCreateRoutineStmt(const ARoutineType: TRoutineType): TOffset;
 var
   Found: Boolean;
   Nodes: TCreateRoutineStmt.TNodes;
@@ -15985,7 +16036,7 @@ begin
   Result := TCreateRoutineStmt.Create(Self, ARoutineType, Nodes);
 end;
 
-function TMySQLParser.ParseCreateServerStmt(): TOffset;
+function TSQLParser.ParseCreateServerStmt(): TOffset;
 var
   Nodes: TCreateServerStmt.TNodes;
 begin
@@ -16008,7 +16059,7 @@ begin
   Result := TCreateServerStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCreateServerStmtOptionList(): TOffset;
+function TSQLParser.ParseCreateServerStmtOptionList(): TOffset;
 var
   Children: array [0 .. 13 - 1] of TOffset;
   ChildrenIndex: Integer;
@@ -16095,7 +16146,7 @@ begin
   Result := TList.Create(Self, ListNodes, ttComma, ChildrenIndex, Children);
 end;
 
-function TMySQLParser.ParseCreateStmt(): TOffset;
+function TSQLParser.ParseCreateStmt(): TOffset;
 var
   AlgorithmFound: Boolean;
   DefinerFound: Boolean;
@@ -16319,7 +16370,7 @@ begin
     end;
 end;
 
-function TMySQLParser.ParseCreateTablespaceStmt(): TOffset;
+function TSQLParser.ParseCreateTablespaceStmt(): TOffset;
 var
   Nodes: TCreateTablespaceStmt.TNodes;
 begin
@@ -16344,7 +16395,7 @@ begin
   Result := TCreateTablespaceStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCreateTableStmt(): TOffset;
+function TSQLParser.ParseCreateTableStmt(): TOffset;
 type
   TPartitionType = (ptUnknown, ptHash, ptKey, ptRANGE, ptList);
 var
@@ -16628,7 +16679,7 @@ begin
   Result := TCreateTableStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCreateTableStmtCheck(): TOffset;
+function TSQLParser.ParseCreateTableStmtCheck(): TOffset;
 var
   Nodes: TCreateTableStmt.TCheck.TNodes;
 begin
@@ -16642,7 +16693,7 @@ begin
   Result := TCreateTableStmt.TCheck.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCreateTableStmtField(const Add: TCreateTableStmt.TFieldAdd = caNone): TOffset;
+function TSQLParser.ParseCreateTableStmtField(const Add: TCreateTableStmt.TFieldAdd = caNone): TOffset;
 var
   Found: Boolean;
   Length: Integer;
@@ -16790,9 +16841,9 @@ begin
   Result := TCreateTableStmt.TField.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCreateTableStmtFieldDefaultFunc(): TOffset;
+function TSQLParser.ParseCreateTableStmtFieldDefaultFunc(): TOffset;
 var
-  Nodes: TMySQLParser.TCreateTableStmt.TField.TDefaultFunc.TNodes;
+  Nodes: TSQLParser.TCreateTableStmt.TField.TDefaultFunc.TNodes;
 begin
   FillChar(Nodes, SizeOf(Nodes), 0);
 
@@ -16808,15 +16859,15 @@ begin
   if (not Error) then
     Nodes.CloseBracket := ParseSymbol(ttCloseBracket);
 
-  Result := TMySQLParser.TCreateTableStmt.TField.TDefaultFunc.Create(Self, Nodes);
+  Result := TSQLParser.TCreateTableStmt.TField.TDefaultFunc.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCreateTableStmtDefinition(): TOffset;
+function TSQLParser.ParseCreateTableStmtDefinition(): TOffset;
 begin
   Result := ParseCreateTableStmtDefinition(False);
 end;
 
-function TMySQLParser.ParseCreateTableStmtDefinition(const AlterTableStmt: Boolean): TOffset;
+function TSQLParser.ParseCreateTableStmtDefinition(const AlterTableStmt: Boolean): TOffset;
 var
   Index: Integer;
   SpecificationType: (stField, stKey, stForeignKey, stCheck, stPartition);
@@ -16878,7 +16929,7 @@ begin
     end;
 end;
 
-function TMySQLParser.ParseCreateTableStmtDefinitionPartitionNames(): TOffset;
+function TSQLParser.ParseCreateTableStmtDefinitionPartitionNames(): TOffset;
 begin
   if (IsTag(kiALL)) then
     Result := ParseTag(kiALL)
@@ -16886,7 +16937,7 @@ begin
     Result := ParseList(False, ParsePartitionIdent);
 end;
 
-function TMySQLParser.ParseCreateTableStmtForeignKey(const Add: Boolean = False): TOffset;
+function TSQLParser.ParseCreateTableStmtForeignKey(const Add: Boolean = False): TOffset;
 var
   Nodes: TCreateTableStmt.TForeignKey.TNodes;
 begin
@@ -16920,7 +16971,7 @@ begin
   Result := TCreateTableStmt.TForeignKey.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCreateTableStmtKey(const AlterTableStmt: Boolean): TOffset;
+function TSQLParser.ParseCreateTableStmtKey(const AlterTableStmt: Boolean): TOffset;
 var
   Found: Boolean;
   KeyName: Boolean;
@@ -17005,7 +17056,7 @@ begin
   Result := TCreateTableStmt.TKey.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCreateTableStmtKeyColumn(): TOffset;
+function TSQLParser.ParseCreateTableStmtKeyColumn(): TOffset;
 var
   Nodes: TCreateTableStmt.TKeyColumn.TNodes;
 begin
@@ -17034,12 +17085,12 @@ begin
   Result := TCreateTableStmt.TKeyColumn.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCreateTableStmtPartition(): TOffset;
+function TSQLParser.ParseCreateTableStmtPartition(): TOffset;
 begin
   Result := ParseCreateTableStmtPartition(False);
 end;
 
-function TMySQLParser.ParseCreateTableStmtPartition(const AlterTableStmt: Boolean): TOffset;
+function TSQLParser.ParseCreateTableStmtPartition(const AlterTableStmt: Boolean): TOffset;
 var
   Found: Boolean;
   Nodes: TCreateTableStmt.TPartition.TNodes;
@@ -17114,7 +17165,7 @@ begin
   Result := TCreateTableStmt.TPartition.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCreateTableStmtReference(): TOffset;
+function TSQLParser.ParseCreateTableStmtReference(): TOffset;
 var
   Found: Boolean;
   Nodes: TCreateTableStmt.TReference.TNodes;
@@ -17166,7 +17217,7 @@ begin
   Result := TCreateTableStmt.TReference.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCreateTableStmtUnion(): TOffset;
+function TSQLParser.ParseCreateTableStmtUnion(): TOffset;
 var
   Nodes: TValue.TNodes;
 begin
@@ -17187,7 +17238,7 @@ begin
   Result := TValue.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCreateTriggerStmt(): TOffset;
+function TSQLParser.ParseCreateTriggerStmt(): TOffset;
 var
   Nodes: TCreateTriggerStmt.TNodes;
 begin
@@ -17248,7 +17299,7 @@ begin
   Result := TCreateTriggerStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCreateUserStmt(const Alter: Boolean): TOffset;
+function TSQLParser.ParseCreateUserStmt(const Alter: Boolean): TOffset;
 var
   Found: Boolean;
   Nodes: TCreateUserStmt.TNodes;
@@ -17312,7 +17363,7 @@ begin
   Result := TCreateUserStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCreateViewStmt(): TOffset;
+function TSQLParser.ParseCreateViewStmt(): TOffset;
 var
   Nodes: TCreateViewStmt.TNodes;
 begin
@@ -17365,7 +17416,7 @@ begin
   Result := TCreateViewStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseCurrentTimestamp(): TOffset;
+function TSQLParser.ParseCurrentTimestamp(): TOffset;
 var
   Nodes: TCurrentTimestamp.TNodes;
 begin
@@ -17388,12 +17439,12 @@ begin
   Result := TCurrentTimestamp.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseDatabaseIdent(): TOffset;
+function TSQLParser.ParseDatabaseIdent(): TOffset;
 begin
   Result := ParseDbIdent(ditDatabase);
 end;
 
-function TMySQLParser.ParseDatatype(): TOffset;
+function TSQLParser.ParseDatatype(): TOffset;
 var
   DatatypeIndex: Integer;
   DatatypeIndex2: Integer;
@@ -17416,10 +17467,10 @@ begin
     begin
       TokenPtr(CurrentToken)^.GetText(Text, Length);
       DatatypeIndex := DatatypeList.IndexOf(Text, Length);
-      if (DatatypeIndex < 0) then
-        SetError(PE_UnexpectedToken)
+      if (DatatypeIndex >= 0) then
+        Nodes.DatatypeToken := ApplyCurrentToken(utDatatype)
       else
-        Nodes.DatatypeToken := ApplyCurrentToken(utDatatype);
+        SetError(PE_UnexpectedToken);
     end;
 
   if (not Error
@@ -17588,7 +17639,7 @@ begin
   Result := TDatatype.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseDateAddFunc(): TOffset;
+function TSQLParser.ParseDateAddFunc(): TOffset;
 var
   Nodes: TDateAddFunc.TNodes;
 begin
@@ -17622,7 +17673,7 @@ begin
   Result := TDateAddFunc.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseDateUnit(): TOffset;
+function TSQLParser.ParseDateUnit(): TOffset;
 begin
   if (EndOfStmt(CurrentToken)) then
   begin
@@ -17676,7 +17727,7 @@ begin
   end;
 end;
 
-function TMySQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType; const FullQualified: Boolean = True): TOffset;
+function TSQLParser.ParseDbIdent(const ADbIdentType: TDbIdentType; const FullQualified: Boolean = True): TOffset;
 var
   Nodes: TDbIdent.TNodes;
 begin
@@ -17822,7 +17873,7 @@ begin
   Result := TDbIdent.Create(Self, ADbIdentType, Nodes);
 end;
 
-function TMySQLParser.ParseDefinerValue(): TOffset;
+function TSQLParser.ParseDefinerValue(): TOffset;
 var
   Nodes: TValue.TNodes;
 begin
@@ -17847,7 +17898,7 @@ begin
   Result := TValue.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseDeallocatePrepareStmt(): TOffset;
+function TSQLParser.ParseDeallocatePrepareStmt(): TOffset;
 var
   Nodes: TDeallocatePrepareStmt.TNodes;
 begin
@@ -17864,7 +17915,7 @@ begin
   Result := TDeallocatePrepareStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseDeclareStmt(): TOffset;
+function TSQLParser.ParseDeclareStmt(): TOffset;
 var
   Nodes: TDeclareStmt.TNodes;
 begin
@@ -17885,7 +17936,7 @@ begin
   Result := TDeclareStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseDeclareConditionStmt(): TOffset;
+function TSQLParser.ParseDeclareConditionStmt(): TOffset;
 var
   Nodes: TDeclareConditionStmt.TNodes;
 begin
@@ -17920,7 +17971,7 @@ begin
   Result := TDeclareConditionStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseDeclareCursorStmt(): TOffset;
+function TSQLParser.ParseDeclareCursorStmt(): TOffset;
 var
   Nodes: TDeclareCursorStmt.TNodes;
 begin
@@ -17940,7 +17991,7 @@ begin
   Result := TDeclareCursorStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseDeclareHandlerStmt(): TOffset;
+function TSQLParser.ParseDeclareHandlerStmt(): TOffset;
 var
   Nodes: TDeclareHandlerStmt.TNodes;
 begin
@@ -17975,7 +18026,7 @@ begin
   Result := TDeclareHandlerStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseDeclareHandlerStmtCondition(): TOffset;
+function TSQLParser.ParseDeclareHandlerStmtCondition(): TOffset;
 begin
   Result := 0;
   if (TokenPtr(CurrentToken)^.TokenType = ttInteger) then
@@ -17998,7 +18049,7 @@ begin
     SetError(PE_UnexpectedToken);
 end;
 
-function TMySQLParser.ParseDeleteStmt(): TOffset;
+function TSQLParser.ParseDeleteStmt(): TOffset;
 var
   Nodes: TDeleteStmt.TNodes;
   TableCount: Integer;
@@ -18089,7 +18140,7 @@ begin
   Result := TDeleteStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseDoStmt(): TOffset;
+function TSQLParser.ParseDoStmt(): TOffset;
 var
   Nodes: TDoStmt.TNodes;
 begin
@@ -18103,7 +18154,7 @@ begin
   Result := TDoStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseDropDatabaseStmt(): TOffset;
+function TSQLParser.ParseDropDatabaseStmt(): TOffset;
 var
   Nodes: TDropDatabaseStmt.TNodes;
 begin
@@ -18124,7 +18175,7 @@ begin
   Result := TDropDatabaseStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseDropEventStmt(): TOffset;
+function TSQLParser.ParseDropEventStmt(): TOffset;
 var
   Nodes: TDropEventStmt.TNodes;
 begin
@@ -18141,7 +18192,7 @@ begin
   Result := TDropEventStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseDropIndexStmt(): TOffset;
+function TSQLParser.ParseDropIndexStmt(): TOffset;
 var
   Found: Boolean;
   Nodes: TDropIndexStmt.TNodes;
@@ -18171,7 +18222,7 @@ begin
   Result := TDropIndexStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseDropRoutineStmt(const ARoutineType: TRoutineType): TOffset;
+function TSQLParser.ParseDropRoutineStmt(const ARoutineType: TRoutineType): TOffset;
 var
   Nodes: TDropRoutineStmt.TNodes;
 begin
@@ -18195,7 +18246,7 @@ begin
   Result := TDropRoutineStmt.Create(Self, ARoutineType, Nodes);
 end;
 
-function TMySQLParser.ParseDropServerStmt(): TOffset;
+function TSQLParser.ParseDropServerStmt(): TOffset;
 var
   Nodes: TDropServerStmt.TNodes;
 begin
@@ -18213,7 +18264,7 @@ begin
   Result := TDropServerStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseDropTablespaceStmt(): TOffset;
+function TSQLParser.ParseDropTablespaceStmt(): TOffset;
 var
   Nodes: TDropTablespaceStmt.TNodes;
 begin
@@ -18231,7 +18282,7 @@ begin
   Result := TDropTablespaceStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseDropTableStmt(): TOffset;
+function TSQLParser.ParseDropTableStmt(): TOffset;
 var
   Nodes: TDropTableStmt.TNodes;
 begin
@@ -18258,7 +18309,7 @@ begin
   Result := TDropTableStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseDropTriggerStmt(): TOffset;
+function TSQLParser.ParseDropTriggerStmt(): TOffset;
 var
   Nodes: TDropTriggerStmt.TNodes;
 begin
@@ -18276,7 +18327,7 @@ begin
   Result := TDropTriggerStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseDropUserStmt(): TOffset;
+function TSQLParser.ParseDropUserStmt(): TOffset;
 var
   Nodes: TDropUserStmt.TNodes;
 begin
@@ -18294,7 +18345,7 @@ begin
   Result := TDropUserStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseDropViewStmt(): TOffset;
+function TSQLParser.ParseDropViewStmt(): TOffset;
 var
   Nodes: TDropViewStmt.TNodes;
 begin
@@ -18318,12 +18369,12 @@ begin
   Result := TDropViewStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseEventIdent(): TOffset;
+function TSQLParser.ParseEventIdent(): TOffset;
 begin
   Result := ParseDbIdent(ditEvent);
 end;
 
-function TMySQLParser.ParseEndLabel(): TOffset;
+function TSQLParser.ParseEndLabel(): TOffset;
 var
   Nodes: TEndLabel.TNodes;
 begin
@@ -18334,12 +18385,12 @@ begin
   Result := TEndLabel.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseEngineIdent(): TOffset;
+function TSQLParser.ParseEngineIdent(): TOffset;
 begin
   Result := ParseDbIdent(ditEngine);
 end;
 
-function TMySQLParser.ParseExecuteStmt(): TOffset;
+function TSQLParser.ParseExecuteStmt(): TOffset;
 var
   Nodes: TExecuteStmt.TNodes;
 begin
@@ -18362,7 +18413,7 @@ begin
   Result := TExecuteStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseExistsFunc(): TOffset;
+function TSQLParser.ParseExistsFunc(): TOffset;
 var
   Nodes: TExistsFunc.TNodes;
 begin
@@ -18382,7 +18433,7 @@ begin
   Result := TExistsFunc.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseExplainStmt(): TOffset;
+function TSQLParser.ParseExplainStmt(): TOffset;
 var
   Nodes: TExplainStmt.TNodes;
 begin
@@ -18438,12 +18489,12 @@ begin
   Result := TExplainStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseExpr(): TOffset;
+function TSQLParser.ParseExpr(): TOffset;
 begin
   Result := ParseExpr(True);
 end;
 
-function TMySQLParser.ParseExpr(const InAllowed: Boolean): TOffset;
+function TSQLParser.ParseExpr(const InAllowed: Boolean): TOffset;
 const
   MaxNodeCount = 1000;
 var
@@ -18464,7 +18515,7 @@ var
   RemoveNodes: Integer;
   Text: PChar;
 begin
-  NodeCount := 0;
+  NodeCount := 0; PreviousOperatorType := otUnknown;
 
   repeat
     Node := CurrentToken;
@@ -18489,6 +18540,10 @@ begin
       TokenPtr(Node)^.FOperatorType := otUnaryNot;
       TokenPtr(Node)^.FUsageType := utOperator;
     end
+    else if ((NodeCount > 0)
+      and (PreviousOperatorType in [otEqual, otGreater, otLess, otGreaterEqual, otLessEqual, otNotEqual])
+      and ((TokenPtr(Node)^.KeywordIndex = kiANY) or (TokenPtr(Node)^.KeywordIndex = kiSOME) or (TokenPtr(Node)^.KeywordIndex = kiALL))) then
+      Node := ParseSubquery()
     else if (TokenPtr(Node)^.TokenType = ttOpenBracket) then
       if (EndOfStmt(NextToken[1])) then
         SetError(PE_IncompleteStmt)
@@ -18547,7 +18602,7 @@ begin
         else if ((Length = 13) and (StrLIComp(Text, 'WEIGHT_STRING', Length) = 0)) then
           Node := ParseWeightStringFunc()
         else // Func()
-          Node := ParseFunctionCall()
+          Node := ParseFunctionCall();
       end
     else if (TokenPtr(Node)^.TokenType = ttAt) then
       Node := ParseVariableIdent()
@@ -18852,7 +18907,7 @@ begin
     Result := Nodes[0];
 end;
 
-function TMySQLParser.ParseExtractFunc(): TOffset;
+function TSQLParser.ParseExtractFunc(): TOffset;
 var
   Nodes: TExtractFunc.TNodes;
 begin
@@ -18878,7 +18933,7 @@ begin
   Result := TExtractFunc.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseFetchStmt(): TOffset;
+function TSQLParser.ParseFetchStmt(): TOffset;
 var
   Nodes: TFetchStmt.TNodes;
 begin
@@ -18904,17 +18959,17 @@ begin
   Result := TFetchStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseFieldIdent(): TOffset;
+function TSQLParser.ParseFieldIdent(): TOffset;
 begin
   Result := ParseDbIdent(ditField, False);
 end;
 
-function TMySQLParser.ParseFieldIdentFullQualified(): TOffset;
+function TSQLParser.ParseFieldIdentFullQualified(): TOffset;
 begin
   Result := ParseDbIdent(ditField, True);
 end;
 
-function TMySQLParser.ParseFieldOrVariableIdent(): TOffset;
+function TSQLParser.ParseFieldOrVariableIdent(): TOffset;
 begin
   if (not IsSymbol(ttAT)) then
     Result := ParseFieldIdent()
@@ -18922,7 +18977,7 @@ begin
     Result := ParseVariableIdent();
 end;
 
-function TMySQLParser.ParseFlushStmt(): TOffset;
+function TSQLParser.ParseFlushStmt(): TOffset;
 var
   Nodes: TFlushStmt.TNodes;
 begin
@@ -18942,7 +18997,7 @@ begin
   Result := TFlushStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseFlushStmtOption(): TOffset;
+function TSQLParser.ParseFlushStmtOption(): TOffset;
 var
   Nodes: TFlushStmt.TOption.TNodes;
 begin
@@ -18970,12 +19025,12 @@ begin
   Result := TFlushStmt.TOption.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseForeignKeyIdent(): TOffset;
+function TSQLParser.ParseForeignKeyIdent(): TOffset;
 begin
   Result := ParseDbIdent(ditForeignKey);
 end;
 
-function TMySQLParser.ParseFunctionCall(): TOffset;
+function TSQLParser.ParseFunctionCall(): TOffset;
 var
   Length: Integer;
   Nodes: TFunctionCall.TNodes;
@@ -18995,12 +19050,12 @@ begin
   Result := TFunctionCall.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseFunctionIdent(): TOffset;
+function TSQLParser.ParseFunctionIdent(): TOffset;
 begin
   Result := ParseDbIdent(ditFunction);
 end;
 
-function TMySQLParser.ParseFunctionParam(): TOffset;
+function TSQLParser.ParseFunctionParam(): TOffset;
 var
   Nodes: TRoutineParam.TNodes;
 begin
@@ -19014,7 +19069,7 @@ begin
   Result := TRoutineParam.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseFunctionReturns(): TOffset;
+function TSQLParser.ParseFunctionReturns(): TOffset;
 var
   Nodes: TFunctionReturns.TNodes;
 begin
@@ -19028,7 +19083,7 @@ begin
   Result := TFunctionReturns.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseGetDiagnosticsStmt(): TOffset;
+function TSQLParser.ParseGetDiagnosticsStmt(): TOffset;
 var
   Nodes: TGetDiagnosticsStmt.TNodes;
 begin
@@ -19062,7 +19117,7 @@ begin
   Result := TGetDiagnosticsStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseGetDiagnosticsStmtStmtInfo(): TOffset;
+function TSQLParser.ParseGetDiagnosticsStmtStmtInfo(): TOffset;
 var
   Nodes: TGetDiagnosticsStmt.TStmtInfo.TNodes;
 begin
@@ -19087,7 +19142,7 @@ begin
   Result := TGetDiagnosticsStmt.TStmtInfo.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseGetDiagnosticsStmtConditionInfo(): TOffset;
+function TSQLParser.ParseGetDiagnosticsStmtConditionInfo(): TOffset;
 var
   Nodes: TGetDiagnosticsStmt.TCondInfo.TNodes;
 begin
@@ -19126,7 +19181,7 @@ begin
   Result := TGetDiagnosticsStmt.TCondInfo.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseGrantStmt(): TOffset;
+function TSQLParser.ParseGrantStmt(): TOffset;
 var
   Found: Boolean;
   Nodes: TGrantStmt.TNodes;
@@ -19204,7 +19259,7 @@ begin
   Result := TGrantStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseGrantStmtPrivileg(): TOffset;
+function TSQLParser.ParseGrantStmtPrivileg(): TOffset;
 var
   Nodes: TGrantStmt.TPrivileg.TNodes;
 begin
@@ -19288,7 +19343,7 @@ begin
   Result := TGrantStmt.TPrivileg.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseGrantStmtUserSpecification(): TOffset;
+function TSQLParser.ParseGrantStmtUserSpecification(): TOffset;
 var
   Nodes: TGrantStmt.TUserSpecification.TNodes;
 begin
@@ -19351,7 +19406,7 @@ begin
   Result := TGrantStmt.TUserSpecification.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseGroupConcatFunc(): TOffset;
+function TSQLParser.ParseGroupConcatFunc(): TOffset;
 var
   Nodes: TGroupConcatFunc.TNodes;
 begin
@@ -19388,7 +19443,7 @@ begin
   Result := TGroupConcatFunc.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseGroupConcatFuncExpr(): TOffset;
+function TSQLParser.ParseGroupConcatFuncExpr(): TOffset;
 var
   Nodes: TGroupConcatFunc.TExpr.TNodes;
 begin
@@ -19405,7 +19460,7 @@ begin
   Result := TGroupConcatFunc.TExpr.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseHelpStmt(): TOffset;
+function TSQLParser.ParseHelpStmt(): TOffset;
 var
   Nodes: THelpStmt.TNodes;
 begin
@@ -19419,7 +19474,7 @@ begin
   Result := THelpStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseIdent(): TOffset;
+function TSQLParser.ParseIdent(): TOffset;
 begin
   Result := 0;
   if (EndOfStmt(CurrentToken)) then
@@ -19430,7 +19485,7 @@ begin
     Result := ApplyCurrentToken();
 end;
 
-function TMySQLParser.ParseIfStmt(): TOffset;
+function TSQLParser.ParseIfStmt(): TOffset;
 
   function ParseBranch(): TOffset;
   var
@@ -19510,7 +19565,7 @@ begin
   Result := TIfStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseInsertStmt(const Replace: Boolean = False): TOffset;
+function TSQLParser.ParseInsertStmt(const Replace: Boolean = False): TOffset;
 var
   Nodes: TInsertStmt.TNodes;
 begin
@@ -19599,7 +19654,7 @@ begin
   Result := TInsertStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseInsertStmtSetItemsList(): TOffset;
+function TSQLParser.ParseInsertStmtSetItemsList(): TOffset;
 var
   Nodes: TInsertStmt.TSetItem.TNodes;
 begin
@@ -19624,12 +19679,12 @@ begin
   Result := TInsertStmt.TSetItem.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseInsertStmtValuesList(): TOffset;
+function TSQLParser.ParseInsertStmtValuesList(): TOffset;
 begin
   Result := ParseList(True, ParseExpr);
 end;
 
-function TMySQLParser.ParseInteger(): TOffset;
+function TSQLParser.ParseInteger(): TOffset;
 begin
   Result := 0;
   if (EndOfStmt(CurrentToken)) then
@@ -19640,7 +19695,7 @@ begin
     Result := ApplyCurrentToken(utConst);
 end;
 
-function TMySQLParser.ParseIntervalOp(): TOffset;
+function TSQLParser.ParseIntervalOp(): TOffset;
 var
   Nodes: TIntervalOp.TNodes;
 begin
@@ -19654,7 +19709,7 @@ begin
   Result := TIntervalOp.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseIterateStmt(): TOffset;
+function TSQLParser.ParseIterateStmt(): TOffset;
 var
   Nodes: TIterateStmt.TNodes;
 begin
@@ -19673,12 +19728,12 @@ begin
   Result := TIterateStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseKeyIdent(): TOffset;
+function TSQLParser.ParseKeyIdent(): TOffset;
 begin
   Result := ParseDbIdent(ditKey);
 end;
 
-function TMySQLParser.ParseKillStmt(): TOffset;
+function TSQLParser.ParseKillStmt(): TOffset;
 var
   Nodes: TKillStmt.TNodes;
 begin
@@ -19697,7 +19752,7 @@ begin
   Result := TKillStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseLeaveStmt(): TOffset;
+function TSQLParser.ParseLeaveStmt(): TOffset;
 var
   Nodes: TLeaveStmt.TNodes;
 begin
@@ -19716,7 +19771,7 @@ begin
   Result := TLeaveStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseList(const Brackets: Boolean; const ParseElement: TParseFunction; const DelimiterType: TTokenType = ttComma): TOffset;
+function TSQLParser.ParseList(const Brackets: Boolean; const ParseElement: TParseFunction; const DelimiterType: TTokenType = ttComma): TOffset;
 var
   ChildrenArray: array [0 .. 100 - 1] of TOffset;
   ChildrenList: Classes.TList;
@@ -19791,7 +19846,7 @@ begin
   end;
 end;
 
-function TMySQLParser.ParseLoadDataStmt(): TOffset;
+function TSQLParser.ParseLoadDataStmt(): TOffset;
 var
   Nodes: TLoadDataStmt.TNodes;
 begin
@@ -19900,7 +19955,7 @@ begin
   Result := TLoadDataStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseLoadStmt(): TOffset;
+function TSQLParser.ParseLoadStmt(): TOffset;
 begin
   if (IsTag(kiLOAD, kiDATA)) then
     Result := ParseLoadDataStmt()
@@ -19908,7 +19963,7 @@ begin
     Result := ParseLoadXMLStmt();
 end;
 
-function TMySQLParser.ParseLoadXMLStmt(): TOffset;
+function TSQLParser.ParseLoadXMLStmt(): TOffset;
 var
   Nodes: TLoadXMLStmt.TNodes;
 begin
@@ -19972,7 +20027,7 @@ begin
   Result := TLoadXMLStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseLockTableStmt(): TOffset;
+function TSQLParser.ParseLockTableStmt(): TOffset;
 var
   Nodes: TLockTableStmt.TNodes;
 begin
@@ -19986,7 +20041,7 @@ begin
   Result := TLockTableStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseLockStmtItem(): TOffset;
+function TSQLParser.ParseLockStmtItem(): TOffset;
 var
   Nodes: TLockTableStmt.TItem.TNodes;
 begin
@@ -20021,7 +20076,7 @@ begin
   Result := TLockTableStmt.TItem.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseLoopStmt(): TOffset;
+function TSQLParser.ParseLoopStmt(): TOffset;
 var
   Nodes: TLoopStmt.TNodes;
 begin
@@ -20050,7 +20105,7 @@ begin
   Result := TLoopStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseNumeric(): TOffset;
+function TSQLParser.ParseNumeric(): TOffset;
 begin
   Result := 0;
   if (EndOfStmt(CurrentToken)) then
@@ -20061,7 +20116,7 @@ begin
     Result := ApplyCurrentToken(utConst);
 end;
 
-function TMySQLParser.ParseMatchFunc(): TOffset;
+function TSQLParser.ParseMatchFunc(): TOffset;
 var
   Nodes: TMatchFunc.TNodes;
 begin
@@ -20097,12 +20152,12 @@ begin
   Result := TMatchFunc.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseProcedureIdent(): TOffset;
+function TSQLParser.ParseProcedureIdent(): TOffset;
 begin
   Result := ParseDbIdent(ditProcedure);
 end;
 
-function TMySQLParser.ParseOpenStmt(): TOffset;
+function TSQLParser.ParseOpenStmt(): TOffset;
 var
   Nodes: TOpenStmt.TNodes;
 begin
@@ -20116,7 +20171,7 @@ begin
   Result := TOpenStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseOptimizeTableStmt(): TOffset;
+function TSQLParser.ParseOptimizeTableStmt(): TOffset;
 var
   Nodes: TOptimizeTableStmt.TNodes;
 begin
@@ -20139,12 +20194,12 @@ begin
   Result := TOptimizeTableStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParsePartitionIdent(): TOffset;
+function TSQLParser.ParsePartitionIdent(): TOffset;
 begin
   Result := ParseDbIdent(ditPartition);
 end;
 
-function TMySQLParser.ParsePositionFunc(): TOffset;
+function TSQLParser.ParsePositionFunc(): TOffset;
 var
   Nodes: TPositionFunc.TNodes;
 begin
@@ -20170,14 +20225,14 @@ begin
   Result := TPositionFunc.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParsePL_SQLStmt(): TOffset;
+function TSQLParser.ParsePL_SQLStmt(): TOffset;
 begin
   BeginPL_SQL();
   Result := ParseStmt();
   EndPL_SQL();
 end;
 
-function TMySQLParser.ParsePrepareStmt(): TOffset;
+function TSQLParser.ParsePrepareStmt(): TOffset;
 var
   Nodes: TPrepareStmt.TNodes;
 begin
@@ -20197,7 +20252,7 @@ begin
   Result := TPrepareStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParsePurgeStmt(): TOffset;
+function TSQLParser.ParsePurgeStmt(): TOffset;
 var
   Nodes: TPurgeStmt.TNodes;
 begin
@@ -20231,7 +20286,7 @@ begin
   Result := TPurgeStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseProcedureParam(): TOffset;
+function TSQLParser.ParseProcedureParam(): TOffset;
 var
   Nodes: TRoutineParam.TNodes;
 begin
@@ -20253,7 +20308,7 @@ begin
   Result := TRoutineParam.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseReleaseStmt(): TOffset;
+function TSQLParser.ParseReleaseStmt(): TOffset;
 var
   Nodes: TReleaseStmt.TNodes;
 begin
@@ -20267,7 +20322,7 @@ begin
   Result := TReleaseStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseRenameStmt(): TOffset;
+function TSQLParser.ParseRenameStmt(): TOffset;
 var
   Nodes: TRenameStmt.TNodes;
 begin
@@ -20293,7 +20348,7 @@ begin
   Result := TRenameStmt.Create(Self, Nodes)
 end;
 
-function TMySQLParser.ParseRenameStmtTablePair(): TOffset;
+function TSQLParser.ParseRenameStmtTablePair(): TOffset;
 var
   Nodes: TRenameStmt.TPair.TNodes;
 begin
@@ -20310,7 +20365,7 @@ begin
   Result := TRenameStmt.TPair.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseRenameStmtUserPair(): TOffset;
+function TSQLParser.ParseRenameStmtUserPair(): TOffset;
 var
   Nodes: TRenameStmt.TPair.TNodes;
 begin
@@ -20327,7 +20382,7 @@ begin
   Result := TRenameStmt.TPair.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseRepairTableStmt(): TOffset;
+function TSQLParser.ParseRepairTableStmt(): TOffset;
 var
   Nodes: TRepairTableStmt.TNodes;
 begin
@@ -20362,7 +20417,7 @@ begin
   Result := TRepairTableStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseRepeatStmt(): TOffset;
+function TSQLParser.ParseRepeatStmt(): TOffset;
 var
   Nodes: TRepeatStmt.TNodes;
 begin
@@ -20397,7 +20452,7 @@ begin
   Result := TRepeatStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseRevokeStmt(): TOffset;
+function TSQLParser.ParseRevokeStmt(): TOffset;
 var
   Nodes: TRevokeStmt.TNodes;
 begin
@@ -20467,7 +20522,7 @@ begin
   Result := TRevokeStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseResetStmt(): TOffset;
+function TSQLParser.ParseResetStmt(): TOffset;
 var
   Nodes: TResetStmt.TNodes;
 begin
@@ -20481,7 +20536,7 @@ begin
   Result := TResetStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseResetStmtOption(): TOffset;
+function TSQLParser.ParseResetStmtOption(): TOffset;
 var
   Nodes: TResetStmt.TOption.TNodes;
 begin
@@ -20513,7 +20568,7 @@ begin
   Result := TResetStmt.TOption.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseResignalStmt(): TOffset;
+function TSQLParser.ParseResignalStmt(): TOffset;
 var
   Nodes: TResignalStmt.TNodes;
 begin
@@ -20524,7 +20579,7 @@ begin
   Result := TResignalStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseReturnStmt(): TOffset;
+function TSQLParser.ParseReturnStmt(): TOffset;
 var
   Nodes: TReturnStmt.TNodes;
 begin
@@ -20540,7 +20595,7 @@ begin
   Result := TReturnStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseRollbackStmt(): TOffset;
+function TSQLParser.ParseRollbackStmt(): TOffset;
 var
   Nodes: TRollbackStmt.TNodes;
 begin
@@ -20573,7 +20628,7 @@ begin
   Result := TRollbackStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseRoot(): TOffset;
+function TSQLParser.ParseRoot(): TOffset;
 var
   Children: Classes.TList;
   ErrorCode: Byte;
@@ -20635,7 +20690,7 @@ begin
   Children.Free();
 end;
 
-function TMySQLParser.ParseSavepointIdent(): TOffset;
+function TSQLParser.ParseSavepointIdent(): TOffset;
 begin
   Result := 0;
   if (EndOfStmt(CurrentToken)) then
@@ -20646,7 +20701,7 @@ begin
     Result := ApplyCurrentToken();
 end;
 
-function TMySQLParser.ParseSavepointStmt(): TOffset;
+function TSQLParser.ParseSavepointStmt(): TOffset;
 var
   Nodes: TSavepointStmt.TNodes;
 begin
@@ -20660,7 +20715,7 @@ begin
   Result := TSavepointStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseSchedule(): TOffset;
+function TSQLParser.ParseSchedule(): TOffset;
 var
   Nodes: TSchedule.TNodes;
 begin
@@ -20688,7 +20743,7 @@ begin
   Result := TSchedule.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseSecretIdent(): TOffset;
+function TSQLParser.ParseSecretIdent(): TOffset;
 var
   Nodes: TSecretIdent.TNodes;
 begin
@@ -20715,7 +20770,7 @@ begin
   Result := TSecretIdent.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseSelectStmt(const SubSelect: Boolean): TOffset;
+function TSQLParser.ParseSelectStmt(const SubSelect: Boolean): TOffset;
 
   function ParseInto(): TSelectStmt.TIntoNodes;
   begin
@@ -20972,7 +21027,7 @@ begin
   end;
 end;
 
-function TMySQLParser.ParseSelectStmtColumn(): TOffset;
+function TSQLParser.ParseSelectStmtColumn(): TOffset;
 var
   Nodes: TSelectStmt.TColumn.TNodes;
 begin
@@ -20997,7 +21052,7 @@ begin
   Result := TSelectStmt.TColumn.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseSelectStmtGroup(): TOffset;
+function TSQLParser.ParseSelectStmtGroup(): TOffset;
 var
   Nodes: TSelectStmt.TGroup.TNodes;
 begin
@@ -21014,7 +21069,7 @@ begin
   Result := TSelectStmt.TGroup.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseSelectStmtOrderBy(): TOffset;
+function TSQLParser.ParseSelectStmtOrderBy(): TOffset;
 var
   Nodes: TSelectStmt.TOrder.TNodes;
 begin
@@ -21031,7 +21086,7 @@ begin
   Result := TSelectStmt.TOrder.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseSelectStmtTableFactor(): TOffset;
+function TSQLParser.ParseSelectStmtTableFactor(): TOffset;
 var
   Found: Boolean;
   IndexHintList: Classes.TList;
@@ -21102,7 +21157,7 @@ begin
   Result := TSelectStmt.TTableFactor.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseSelectStmtTableEscapedReference(): TOffset;
+function TSQLParser.ParseSelectStmtTableEscapedReference(): TOffset;
 begin
   if (EndOfStmt(CurrentToken) or (TokenPtr(CurrentToken)^.TokenType <> ttOpenCurlyBracket)) then
     Result := ParseSelectStmtTableReference()
@@ -21110,7 +21165,7 @@ begin
     Result := ParseSelectStmtTableFactorOj();
 end;
 
-function TMySQLParser.ParseSelectStmtTableFactorSelect(): TOffset;
+function TSQLParser.ParseSelectStmtTableFactorSelect(): TOffset;
 var
   Nodes: TSelectStmt.TTableFactorSelect.TNodes;
 begin
@@ -21135,7 +21190,7 @@ begin
   Result := TSelectStmt.TTableFactorSelect.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseSelectStmtTableFactorIndexHint(): TOffset;
+function TSQLParser.ParseSelectStmtTableFactorIndexHint(): TOffset;
 var
   Nodes: TSelectStmt.TTableFactor.TIndexHint.TNodes;
 begin
@@ -21172,7 +21227,7 @@ begin
   Result := TSelectStmt.TTableFactor.TIndexHint.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseSelectStmtTableFactorOj(): TOffset;
+function TSQLParser.ParseSelectStmtTableFactorOj(): TOffset;
 var
   Nodes: TSelectStmt.TTableFactorOj.TNodes;
 begin
@@ -21192,7 +21247,7 @@ begin
   Result := TSelectStmt.TTableFactorOj.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseSelectStmtTableReference(): TOffset;
+function TSQLParser.ParseSelectStmtTableReference(): TOffset;
 
   function ParseTableFactor(): TOffset;
   begin
@@ -21370,7 +21425,7 @@ begin
     Result := TList.Create(Self, Nodes, ttUnknown, ChildrenCount, Children);
 end;
 
-function TMySQLParser.ParseSetNamesStmt(): TOffset;
+function TSQLParser.ParseSetNamesStmt(): TOffset;
 var
   Nodes: TSetNamesStmt.TNodes;
 begin
@@ -21380,6 +21435,8 @@ begin
     Nodes.StmtTag := ParseTag(kiSET, kiNAMES)
   else if (IsTag(kiSET, kiCHARACTER, kiSET)) then
     Nodes.StmtTag := ParseTag(kiSET, kiCHARACTER, kiSET)
+  else if (IsTag(kiSET, kiCHARSET)) then
+    Nodes.StmtTag := ParseTag(kiSET, kiCHARSET)
   else
     SetError(PE_Unknown);
 
@@ -21389,7 +21446,7 @@ begin
   Result := TSetNamesStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseSetPasswordStmt(): TOffset;
+function TSQLParser.ParseSetPasswordStmt(): TOffset;
 var
   Nodes: TSetPasswordStmt.TNodes;
 begin
@@ -21418,7 +21475,7 @@ begin
   Result := TSetPasswordStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseSetStmt(): TOffset;
+function TSQLParser.ParseSetStmt(): TOffset;
 var
   Nodes: TSetStmt.TNodes;
 begin
@@ -21438,7 +21495,7 @@ begin
   Result := TSetStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseSetStmtAssignment(): TOffset;
+function TSQLParser.ParseSetStmtAssignment(): TOffset;
 var
   Nodes: TSetStmt.TAssignment.TNodes;
 begin
@@ -21472,7 +21529,7 @@ begin
   Result := TSetStmt.TAssignment.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseSetTransactionStmt(): TOffset;
+function TSQLParser.ParseSetTransactionStmt(): TOffset;
 var
   Nodes: TSetTransactionStmt.TNodes;
 begin
@@ -21495,7 +21552,7 @@ begin
   Result := TSetTransactionStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseSetTransactionStmtCharacterisic(): TOffset;
+function TSQLParser.ParseSetTransactionStmtCharacterisic(): TOffset;
 var
   Nodes: TSetTransactionStmt.TCharacteristic.TNodes;
 begin
@@ -21531,7 +21588,7 @@ begin
   Result := TSetTransactionStmt.TCharacteristic.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowAuthorsStmt(): TOffset;
+function TSQLParser.ParseShowAuthorsStmt(): TOffset;
 var
   Nodes: TShowAuthorsStmt.TNodes;
 begin
@@ -21542,7 +21599,7 @@ begin
   Result := TShowAuthorsStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowBinaryLogsStmt(): TOffset;
+function TSQLParser.ParseShowBinaryLogsStmt(): TOffset;
 var
   Nodes: TShowBinaryLogsStmt.TNodes;
 begin
@@ -21553,7 +21610,7 @@ begin
   Result := TShowBinaryLogsStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowBinlogEventsStmt(): TOffset;
+function TSQLParser.ParseShowBinlogEventsStmt(): TOffset;
 var
   Nodes: TShowBinlogEventsStmt.TNodes;
 begin
@@ -21595,7 +21652,7 @@ begin
   Result := TShowBinlogEventsStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowCharacterSetStmt(): TOffset;
+function TSQLParser.ParseShowCharacterSetStmt(): TOffset;
 var
   Nodes: TShowCharacterSetStmt.TNodes;
 begin
@@ -21612,7 +21669,7 @@ begin
   Result := TShowCharacterSetStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowCollationStmt(): TOffset;
+function TSQLParser.ParseShowCollationStmt(): TOffset;
 var
   Nodes: TShowCollationStmt.TNodes;
 begin
@@ -21629,7 +21686,7 @@ begin
   Result := TShowCollationStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowColumnsStmt(): TOffset;
+function TSQLParser.ParseShowColumnsStmt(): TOffset;
 var
   Nodes: TShowColumnsStmt.TNodes;
 begin
@@ -21668,7 +21725,7 @@ begin
   Result := TShowColumnsStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowContributorsStmt(): TOffset;
+function TSQLParser.ParseShowContributorsStmt(): TOffset;
 var
   Nodes: TShowContributorsStmt.TNodes;
 begin
@@ -21679,7 +21736,7 @@ begin
   Result := TShowContributorsStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowCountErrorsStmt(): TOffset;
+function TSQLParser.ParseShowCountErrorsStmt(): TOffset;
 var
   Nodes: TShowCountErrorsStmt.TNodes;
 begin
@@ -21704,7 +21761,7 @@ begin
   Result := TShowCountErrorsStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowCountWarningsStmt(): TOffset;
+function TSQLParser.ParseShowCountWarningsStmt(): TOffset;
 var
   Nodes: TShowCountWarningsStmt.TNodes;
 begin
@@ -21729,7 +21786,7 @@ begin
   Result := TShowCountWarningsStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowCreateDatabaseStmt(): TOffset;
+function TSQLParser.ParseShowCreateDatabaseStmt(): TOffset;
 var
   Nodes: TShowCreateDatabaseStmt.TNodes;
 begin
@@ -21750,7 +21807,7 @@ begin
   Result := TShowCreateDatabaseStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowCreateEventStmt(): TOffset;
+function TSQLParser.ParseShowCreateEventStmt(): TOffset;
 var
   Nodes: TShowCreateEventStmt.TNodes;
 begin
@@ -21764,7 +21821,7 @@ begin
   Result := TShowCreateEventStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowCreateFunctionStmt(): TOffset;
+function TSQLParser.ParseShowCreateFunctionStmt(): TOffset;
 var
   Nodes: TShowCreateFunctionStmt.TNodes;
 begin
@@ -21778,7 +21835,7 @@ begin
   Result := TShowCreateFunctionStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowCreateProcedureStmt(): TOffset;
+function TSQLParser.ParseShowCreateProcedureStmt(): TOffset;
 var
   Nodes: TShowCreateProcedureStmt.TNodes;
 begin
@@ -21792,7 +21849,7 @@ begin
   Result := TShowCreateProcedureStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowCreateTableStmt(): TOffset;
+function TSQLParser.ParseShowCreateTableStmt(): TOffset;
 var
   Nodes: TShowCreateTableStmt.TNodes;
 begin
@@ -21806,7 +21863,7 @@ begin
   Result := TShowCreateTableStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowCreateTriggerStmt(): TOffset;
+function TSQLParser.ParseShowCreateTriggerStmt(): TOffset;
 var
   Nodes: TShowCreateTriggerStmt.TNodes;
 begin
@@ -21820,7 +21877,7 @@ begin
   Result := TShowCreateTriggerStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowCreateUserStmt(): TOffset;
+function TSQLParser.ParseShowCreateUserStmt(): TOffset;
 var
   Nodes: TShowCreateUserStmt.TNodes;
 begin
@@ -21834,7 +21891,7 @@ begin
   Result := TShowCreateUserStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowCreateViewStmt(): TOffset;
+function TSQLParser.ParseShowCreateViewStmt(): TOffset;
 var
   Nodes: TShowCreateViewStmt.TNodes;
 begin
@@ -21848,7 +21905,7 @@ begin
   Result := TShowCreateViewStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowDatabasesStmt(): TOffset;
+function TSQLParser.ParseShowDatabasesStmt(): TOffset;
 var
   Nodes: TShowDatabasesStmt.TNodes;
 begin
@@ -21865,7 +21922,7 @@ begin
   Result := TShowDatabasesStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowEngineStmt(): TOffset;
+function TSQLParser.ParseShowEngineStmt(): TOffset;
 var
   Nodes: TShowEngineStmt.TNodes;
 begin
@@ -21889,7 +21946,7 @@ begin
   Result := TShowEngineStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowEnginesStmt(): TOffset;
+function TSQLParser.ParseShowEnginesStmt(): TOffset;
 var
   Nodes: TShowEnginesStmt.TNodes;
 begin
@@ -21903,7 +21960,7 @@ begin
   Result := TShowEnginesStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowErrorsStmt(): TOffset;
+function TSQLParser.ParseShowErrorsStmt(): TOffset;
 var
   Nodes: TShowErrorsStmt.TNodes;
 begin
@@ -21937,7 +21994,7 @@ begin
   Result := TShowErrorsStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowEventsStmt(): TOffset;
+function TSQLParser.ParseShowEventsStmt(): TOffset;
 var
   Nodes: TShowEventsStmt.TNodes;
 begin
@@ -21960,7 +22017,7 @@ begin
   Result := TShowEventsStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowFunctionCodeStmt(): TOffset;
+function TSQLParser.ParseShowFunctionCodeStmt(): TOffset;
 var
   Nodes: TShowFunctionCodeStmt.TNodes;
 begin
@@ -21971,7 +22028,7 @@ begin
   Result := TShowFunctionCodeStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowFunctionStatusStmt(): TOffset;
+function TSQLParser.ParseShowFunctionStatusStmt(): TOffset;
 var
   Nodes: TShowFunctionStatusStmt.TNodes;
 begin
@@ -21982,7 +22039,7 @@ begin
   Result := TShowFunctionStatusStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowGrantsStmt(): TOffset;
+function TSQLParser.ParseShowGrantsStmt(): TOffset;
 var
   Nodes: TShowGrantsStmt.TNodes;
 begin
@@ -21997,7 +22054,7 @@ begin
   Result := TShowGrantsStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowIndexStmt(): TOffset;
+function TSQLParser.ParseShowIndexStmt(): TOffset;
 var
   Nodes: TShowIndexStmt.TNodes;
 begin
@@ -22029,7 +22086,7 @@ begin
   Result := TShowIndexStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowMasterStatusStmt(): TOffset;
+function TSQLParser.ParseShowMasterStatusStmt(): TOffset;
 var
   Nodes: TShowMasterStatusStmt.TNodes;
 begin
@@ -22040,7 +22097,7 @@ begin
   Result := TShowMasterStatusStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowOpenTablesStmt(): TOffset;
+function TSQLParser.ParseShowOpenTablesStmt(): TOffset;
 var
   Nodes: TShowOpenTablesStmt.TNodes;
 begin
@@ -22063,7 +22120,7 @@ begin
   Result := TShowOpenTablesStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowPluginsStmt(): TOffset;
+function TSQLParser.ParseShowPluginsStmt(): TOffset;
 var
   Nodes: TShowPluginsStmt.TNodes;
 begin
@@ -22074,7 +22131,7 @@ begin
   Result := TShowPluginsStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowPrivilegesStmt(): TOffset;
+function TSQLParser.ParseShowPrivilegesStmt(): TOffset;
 var
   Nodes: TShowPrivilegesStmt.TNodes;
 begin
@@ -22085,7 +22142,7 @@ begin
   Result := TShowPrivilegesStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowProcedureCodeStmt(): TOffset;
+function TSQLParser.ParseShowProcedureCodeStmt(): TOffset;
 var
   Nodes: TShowProcedureCodeStmt.TNodes;
 begin
@@ -22096,7 +22153,7 @@ begin
   Result := TShowProcedureCodeStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowProcedureStatusStmt(): TOffset;
+function TSQLParser.ParseShowProcedureStatusStmt(): TOffset;
 var
   Nodes: TShowProcedureStatusStmt.TNodes;
 begin
@@ -22113,7 +22170,7 @@ begin
   Result := TShowProcedureStatusStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowProcessListStmt(): TOffset;
+function TSQLParser.ParseShowProcessListStmt(): TOffset;
 var
   Nodes: TShowProcessListStmt.TNodes;
 begin
@@ -22127,7 +22184,7 @@ begin
   Result := TShowProcessListStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowProfileStmt(): TOffset;
+function TSQLParser.ParseShowProfileStmt(): TOffset;
 var
   Nodes: TShowProfileStmt.TNodes;
 begin
@@ -22155,7 +22212,7 @@ begin
   Result := TShowProfileStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowProfilesStmt(): TOffset;
+function TSQLParser.ParseShowProfilesStmt(): TOffset;
 var
   Nodes: TShowProfilesStmt.TNodes;
 begin
@@ -22166,7 +22223,7 @@ begin
   Result := TShowProfilesStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowProfileStmtType(): TOffset;
+function TSQLParser.ParseShowProfileStmtType(): TOffset;
 begin
   Result := 0;
 
@@ -22194,7 +22251,7 @@ begin
     SetError(PE_UnexpectedToken);
 end;
 
-function TMySQLParser.ParseShowRelaylogEventsStmt(): TOffset;
+function TSQLParser.ParseShowRelaylogEventsStmt(): TOffset;
 var
   Nodes: TShowRelaylogEventsStmt.TNodes;
 begin
@@ -22236,7 +22293,7 @@ begin
   Result := TShowRelaylogEventsStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowSlaveHostsStmt(): TOffset;
+function TSQLParser.ParseShowSlaveHostsStmt(): TOffset;
 var
   Nodes: TShowSlaveHostsStmt.TNodes;
 begin
@@ -22247,7 +22304,7 @@ begin
   Result := TShowSlaveHostsStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowSlaveStatusStmt(): TOffset;
+function TSQLParser.ParseShowSlaveStatusStmt(): TOffset;
 var
   Nodes: TShowSlaveStatusStmt.TNodes;
 begin
@@ -22258,7 +22315,7 @@ begin
   Result := TShowSlaveStatusStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowStatusStmt(): TOffset;
+function TSQLParser.ParseShowStatusStmt(): TOffset;
 var
   Nodes: TShowStatusStmt.TNodes;
 begin
@@ -22284,7 +22341,7 @@ begin
   Result := TShowStatusStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowTableStatusStmt(): TOffset;
+function TSQLParser.ParseShowTableStatusStmt(): TOffset;
 var
   Nodes: TShowTableStatusStmt.TNodes;
 begin
@@ -22307,7 +22364,7 @@ begin
   Result := TShowTableStatusStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowTablesStmt(): TOffset;
+function TSQLParser.ParseShowTablesStmt(): TOffset;
 var
   Nodes: TShowTablesStmt.TNodes;
 begin
@@ -22337,7 +22394,7 @@ begin
   Result := TShowTablesStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowTriggersStmt(): TOffset;
+function TSQLParser.ParseShowTriggersStmt(): TOffset;
 var
   Nodes: TShowTriggersStmt.TNodes;
 begin
@@ -22360,7 +22417,7 @@ begin
   Result := TShowTriggersStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowVariablesStmt(): TOffset;
+function TSQLParser.ParseShowVariablesStmt(): TOffset;
 var
   Nodes: TShowVariablesStmt.TNodes;
 begin
@@ -22386,7 +22443,7 @@ begin
   Result := TShowVariablesStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShowWarningsStmt(): TOffset;
+function TSQLParser.ParseShowWarningsStmt(): TOffset;
 var
   Nodes: TShowWarningsStmt.TNodes;
 begin
@@ -22420,7 +22477,7 @@ begin
   Result := TShowWarningsStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseShutdownStmt(): TOffset;
+function TSQLParser.ParseShutdownStmt(): TOffset;
 var
   Nodes: TShutdownStmt.TNodes;
 begin
@@ -22431,7 +22488,7 @@ begin
   Result := TShutdownStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseSignalStmt(): TOffset;
+function TSQLParser.ParseSignalStmt(): TOffset;
 var
   Nodes: TSignalStmt.TNodes;
 begin
@@ -22476,7 +22533,7 @@ begin
   Result := TSignalStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseSignalStmtInformation(): TOffset;
+function TSQLParser.ParseSignalStmtInformation(): TOffset;
 var
   Nodes: TSignalStmt.TInformation.TNodes;
 begin
@@ -22503,7 +22560,7 @@ begin
   Result := TSignalStmt.TInformation.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseSQL(const Text: PChar; const Length: Integer; const AUseCompletionList: Boolean = False): Boolean;
+function TSQLParser.ParseSQL(const Text: PChar; const Length: Integer; const AUseCompletionList: Boolean = False): Boolean;
 begin
   Clear();
 
@@ -22517,12 +22574,12 @@ begin
   Result := Root^.ErrorCode = PE_Success;
 end;
 
-function TMySQLParser.ParseSQL(const Text: string; const AUseCompletionList: Boolean = False): Boolean;
+function TSQLParser.ParseSQL(const Text: string; const AUseCompletionList: Boolean = False): Boolean;
 begin
   Result := ParseSQL(PChar(Text), Length(Text), AUseCompletionList);
 end;
 
-function TMySQLParser.ParseStartSlaveStmt(): TOffset;
+function TSQLParser.ParseStartSlaveStmt(): TOffset;
 var
   Nodes: TStartSlaveStmt.TNodes;
 begin
@@ -22533,7 +22590,7 @@ begin
   Result := TStartSlaveStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseStartTransactionStmt(): TOffset;
+function TSQLParser.ParseStartTransactionStmt(): TOffset;
 var
   Found: Boolean;
   Nodes: TStartTransactionStmt.TNodes;
@@ -22556,7 +22613,7 @@ begin
   Result := TStartTransactionStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseStopSlaveStmt(): TOffset;
+function TSQLParser.ParseStopSlaveStmt(): TOffset;
 var
   Nodes: TStopSlaveStmt.TNodes;
 begin
@@ -22567,7 +22624,7 @@ begin
   Result := TStopSlaveStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseStmt(): TOffset;
+function TSQLParser.ParseStmt(): TOffset;
 var
   Continue: Boolean;
   Index: Integer;
@@ -22935,6 +22992,8 @@ begin
         Result := ParseSetNamesStmt()
       else if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiCHARACTER)) then
         Result := ParseSetNamesStmt()
+      else if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiCHARSET)) then
+        Result := ParseSetNamesStmt()
       else if (not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiPASSWORD)) then
         Result := ParseSetPasswordStmt()
       else
@@ -23147,28 +23206,28 @@ begin
           PE_IncompleteToken:
             Msg := 'Incomplete token in line ' + IntToStr(FErrorLine);
           PE_UnexpectedChar:
-            Msg := 'Unexpected character near ''' + ReplaceStr(ReplaceStr(LeftStr(StrPas(TokenPtr(FErrorToken)^.ErrorPos), 8), #10, ''), #13, '') + ''''
+            Msg := 'Unexpected character near ''' + LeftStr(StrPas(TokenPtr(FErrorToken)^.ErrorPos), 8) + ''''
               + ' in line ' + IntToStr(FErrorLine);
           PE_IncompleteStmt:
             Msg := 'Incompleted statement';
           PE_UnexpectedToken:
             begin
               TokenPtr(FErrorToken)^.GetText(Text, Length);
-              Msg := 'Unexpected character near ''' + ReplaceStr(ReplaceStr(LeftStr(StrPas(Text), 8), #10, ''), #13, '') + ''''
+              Msg := 'Unexpected character near ''' + LeftStr(StrPas(Text), 8) + ''''
                 + ' in line ' + IntToStr(FErrorLine);
             end;
           PE_ExtraToken:
             begin
               TokenPtr(FErrorToken)^.GetText(Text, Length);
-              Msg := 'Unexpected character near ''' + ReplaceStr(ReplaceStr(LeftStr(StrPas(Text), 8), #10, ''), #13, '') + ''''
+              Msg := 'Unexpected character near ''' + LeftStr(StrPas(Text), 8) + ''''
                 + ' in line ' + IntToStr(FErrorLine);
             end;
           PE_NestedCondCode:
-            Msg := 'Nested conditional MySQL option';
+            Msg := 'Nested conditional MySQL options';
           PE_UnknownStmt:
             begin
               TokenPtr(FErrorToken)^.GetText(Text, Length);
-              Msg := 'Unknown statement ''' + ReplaceStr(ReplaceStr(LeftStr(StrPas(Text), 8), #10, ''), #13, '') + ''''
+              Msg := 'Unknown statement ''' + LeftStr(StrPas(Text), 8) + ''''
                 + ' in line ' + IntToStr(FErrorLine);
             end;
           else
@@ -23184,7 +23243,7 @@ begin
   end;
 end;
 
-function TMySQLParser.ParseString(): TOffset;
+function TSQLParser.ParseString(): TOffset;
 begin
   Result := 0;
   if (EndOfStmt(CurrentToken)) then
@@ -23195,7 +23254,7 @@ begin
     Result := ApplyCurrentToken(utConst);
 end;
 
-function TMySQLParser.ParseSubArea(const ParseArea: TParseFunction): TOffset;
+function TSQLParser.ParseSubArea(const ParseArea: TParseFunction): TOffset;
 var
   Nodes: TSubArea.TNodes;
 begin
@@ -23212,7 +23271,7 @@ begin
   Result := TSubArea.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseSubPartition(): TOffset;
+function TSQLParser.ParseSubPartition(): TOffset;
 var
   Found: Boolean;
   Nodes: TSubPartition.TNodes;
@@ -23247,7 +23306,27 @@ begin
   Result := TSubPartition.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseSubstringFunc(): TOffset;
+function TSQLParser.ParseSubquery(): TOffset;
+var
+  Nodes: TSubquery.TNodes;
+begin
+  FillChar(Nodes, SizeOf(Nodes), 0);
+
+  Nodes.IdentTag := ParseTag(TokenPtr(CurrentToken)^.KeywordIndex);
+
+  if (not Error) then
+    Nodes.OpenToken := ParseSymbol(ttOpenBracket);
+
+  if (not Error) then
+    Nodes.Subquery := ParseSelectStmt(True);
+
+  if (not Error) then
+    Nodes.CloseToken := ParseSymbol(ttCloseBracket);
+
+  Result := TSubquery.Create(Self, Nodes);
+end;
+
+function TSQLParser.ParseSubstringFunc(): TOffset;
 var
   Nodes: TSubstringFunc.TNodes;
   Symbol: Boolean;
@@ -23297,12 +23376,12 @@ begin
   Result := TSubstringFunc.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseTableIdent(): TOffset;
+function TSQLParser.ParseTableIdent(): TOffset;
 begin
   Result := ParseDbIdent(ditTable);
 end;
 
-function TMySQLParser.ParseSymbol(const TokenType: TTokenType): TOffset;
+function TSQLParser.ParseSymbol(const TokenType: TTokenType): TOffset;
 begin
   Result := 0;
 
@@ -23314,7 +23393,7 @@ begin
     Result := ApplyCurrentToken(utSymbol);
 end;
 
-function TMySQLParser.ParseTag(const KeywordIndex1: TWordList.TIndex;
+function TSQLParser.ParseTag(const KeywordIndex1: TWordList.TIndex;
   const KeywordIndex2: TWordList.TIndex = -1; const KeywordIndex3: TWordList.TIndex = -1;
   const KeywordIndex4: TWordList.TIndex = -1; const KeywordIndex5: TWordList.TIndex = -1;
   const KeywordIndex6: TWordList.TIndex = -1; const KeywordIndex7: TWordList.TIndex = -1): TOffset;
@@ -23435,10 +23514,10 @@ begin
   Result := TTag.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseToken(): TOffset;
+function TSQLParser.ParseToken(): TOffset;
 label
   TwoChars,
-  Selection, SelSpace, SelQuotedIdent, SelNotLess, SelNotEqual1, SelNotGreater, SelNot1, SelDoubleQuote, SelComment, SelModulo, SelDolor, SelAmpersand2, SelBitAND, SelSingleQuote, SelOpenBracket, SelCloseBracket, SelMySQLCodeEnd, SelMulti, SelComma, SelDoubleDot, SelDot, SelDotNumber, SelMySQLCode, SelDiv, SelInteger, SelSLComment, SelArrow, SelMinus, SelPlus, SelAssign, SelColon, SelDelimiter, SelNULLSaveEqual, SelLessEqual, SelShiftLeft, SelNotEqual2, SelLess, SelEqual, SelGreaterEqual, SelShiftRight, SelGreater, SelParameter, SelAt, SelHex, SelHex2, SelUnquotedIdent, SelDBIdent, SelCloseSquareBracket, SelHat, SelMySQLCharacterSet, SelMySQLIdent, SelBitValueHigh, SelBitValueLow, SelHexValueHigh, SelHexValueLow, SelUnquotedIdentLower, SelOpenCurlyBracket, SelOpenCurlyBracket2, SelPipe, SelBitOR, SelCloseCurlyBracket, SelTilde, SelE,
+  Selection, SelSpace, SelQuotedIdent, SelNotLess, SelNotEqual1, SelNotGreater, SelNot1, SelDoubleQuote, SelComment, SelModulo, SelDolor, SelAmpersand2, SelBitAND, SelSingleQuote, SelOpenBracket, SelCloseBracket, SelMySQLCodeEnd, SelMulti, SelComma, SelDoubleDot, SelDot, SelDotNumber, SelMySQLCode, SelDiv, SelInteger, SelSLComment, SelArrow, SelMinus, SelPlus, SelAssign, SelColon, SelDelimiter, SelNULLSaveEqual, SelLessEqual, SelShiftLeft, SelNotEqual2, SelLess, SelEqual, SelGreaterEqual, SelShiftRight, SelGreater, SelParameter, SelAt, SelHex, SelHex2, SelUnquotedIdent, SelOpenSquareBracket, SelCloseSquareBracket, SelHat, SelMySQLCharacterSet, SelMySQLIdent, SelBitValueHigh, SelBitValueLow, SelHexValueHigh, SelHexValueLow, SelUnquotedIdentLower, SelOpenCurlyBracket, SelOpenCurlyBracket2, SelPipe, SelBitOR, SelCloseCurlyBracket, SelTilde, SelE,
   SLComment, SLCommentL,
   MLComment, MLCommentL, MLCommentL2, MLCommentL3,
   MySQLCharacterSet, MySQLCharacterSetL, MySQLCharacterSetL2, MySQLCharacterSetLE, MySQLCharacterSetE, MySQLCharacterSetE2, MySQLCharacterSetE3,
@@ -23447,6 +23526,7 @@ label
   Hex, HexL, HexL2, HexLE,
   IPAddress, IPAddressL, IPAddressLE,
   QuotedIdent, QuotedIdentL, QuotedIdentL2, QuotedIdentLE, QuotedIdentE,
+    QuotedIdentSecondQuoter, QuotedIdentSecondQuoterL, QuotedIdentSecondQuoterLE,
   Return, Return2, ReturnE,
   Separator,
   UnquotedIdent, UnquotedIdentL, UnquotedIdentLE,
@@ -23510,7 +23590,7 @@ begin
         MOV EAX,[ESI]                    // Two characters from SQL to AX
 
       Selection:
-        CMP AX,9                         // Tab ?
+        CMP AX,9                         // <Tabublator> ?
         JE WhiteSpace                    // Yes!
         CMP AX,10                        // <NewLine> ?
         JE Return                        // Yes!
@@ -23519,7 +23599,7 @@ begin
         CMP AX,31                        // Invalid char ?
         JBE UnexpectedChar               // Yes!
       SelSpace:
-        CMP AX,' '                       // Space ?
+        CMP AX,' '                       // <Space> ?
         JE WhiteSpace                    // Yes!
       SelNotLess:
         CMP AX,'!'                       // "!" ?
@@ -23545,7 +23625,6 @@ begin
         CMP AX,'"'                       // Double Quote  ?
         JNE SelComment                   // No!
         MOV TokenType,ttDQIdent
-        MOV DX,'"'                       // End Quoter
         JMP QuotedIdent
       SelComment:
         CMP AX,'#'                       // "#" ?
@@ -23572,7 +23651,6 @@ begin
         CMP AX,''''                      // Single Quote ?
         JNE SelOpenBracket               // No!
         MOV TokenType,ttString
-        MOV DX,''''                      // End Quoter
         JMP QuotedIdent
       SelOpenBracket:
         CMP AX,'('                       // "(" ?
@@ -23747,16 +23825,12 @@ begin
         JMP Hex
       SelUnquotedIdent:
         CMP AX,'Z'                       // Up case character?
-        JA SelDBIdent                    // No!
+        JA SelOpenSquareBracket          // No!
         MOV TokenType,ttIdent
         JMP UnquotedIdent                // Yes!
-      SelDBIdent:
+      SelOpenSquareBracket:
         CMP AX,'['                       // "[" ?
-        JNE SelCloseSquareBracket        // No!
-        MOV TokenType,ttDBIdent
-        MOV DX,']'                       // End Quoter
-        JMP QuotedIdent
-
+        JE UnexpectedChar                // Yes!
       SelCloseSquareBracket:
         CMP AX,']'                       // "]" ?
         JE UnexpectedChar                // Yes!
@@ -23772,7 +23846,6 @@ begin
         CMP AX,'`'                       // "`" ?
         JNE SelBitValueHigh              // No!
         MOV TokenType,ttMySQLIdent
-        MOV DX,'`'                       // End Quoter
         JMP QuotedIdent
       SelBitValueHigh:
         CMP EAX,$00270042                // "B'" ?
@@ -23780,7 +23853,6 @@ begin
         ADD ESI,2                        // Step over "B"
         DEC ECX                          // One character handled
         MOV TokenType,ttString
-        MOV DX,''''                      // End Quoter
         JMP QuotedIdent
       SelBitValueLow:
         CMP EAX,$00270062                // "b'" ?
@@ -23788,7 +23860,6 @@ begin
         ADD ESI,2                        // Step over "b"
         DEC ECX                          // One character handled
         MOV TokenType,ttString
-        MOV DX,''''                      // End Quoter
         JMP QuotedIdent
       SelHexValueHigh:
         CMP EAX,$00270048                // "H'" ?
@@ -23796,7 +23867,6 @@ begin
         ADD ESI,2                        // Step over "H"
         DEC ECX                          // One character handled
         MOV TokenType,ttString
-        MOV DX,''''                      // End Quoter
         JMP QuotedIdent
       SelHexValueLow:
         CMP EAX,$00270068                // "h'" ?
@@ -23804,7 +23874,6 @@ begin
         ADD ESI,2                        // Step over "h"
         DEC ECX                          // One character handled
         MOV TokenType,ttString
-        MOV DX,''''                      // End Quoter
         JMP QuotedIdent
       SelUnquotedIdentLower:
         CMP AX,'z'                       // Low case character?
@@ -23951,7 +24020,6 @@ begin
         DEC ECX                          // One character handled
         JMP Hex
       MySQLCharacterSetE3:
-        MOV DX,''''                      // End Quoter
         JMP QuotedIdent
 
       // ------------------------------
@@ -24095,7 +24163,7 @@ begin
       // ------------------------------
 
       QuotedIdent:
-        // DX: End Quoter
+        MOV DX,[ESI]                     // End Quoter
         ADD ESI,2                        // Step over Start Quoter in SQL
         DEC ECX                          // One character handled
         JZ IncompleteToken               // End of SQL!
@@ -24125,10 +24193,40 @@ begin
         DEC ECX                          // One character handled
         JZ Finish                        // All characters handled!
         MOV AX,[ESI]                     // One Character from SQL to AX
+        CMP AX,9                         // <Tabulator> ?
+        JE QuotedIdentSecondQuoter                 // Yes!
+        CMP AX,10                        // <NewLine> ?
+        JE QuotedIdentSecondQuoter                 // Yes!
+        CMP AX,13                        // <CarriadgeReturn> ?
+        JE QuotedIdentSecondQuoter                 // Yes!
+        CMP AX,' '                       // <Space> ?
+        JE QuotedIdentSecondQuoter                 // Yes!
         CMP AX,DX                        // A seconed End Quoter (unescaped)?
-        JNZ Finish                       // No!
+        JNE Finish                       // No!
         ADD ESI,2                        // Step over second End Quoter in SQL
         LOOP QuotedIdentL                // Handle further characters
+        JMP Finish
+
+      QuotedIdentSecondQuoter:
+        PUSH ESI
+        PUSH ECX
+      QuotedIdentSecondQuoterL:
+        CMP ECX,0                        // End of SQL?
+        JE QuotedIdentSecondQuoterLE               // Yes!
+        LODSW                            // One Character from SQL to AX
+        CMP AX,9                         // <Tabulator> ?
+        JE QuotedIdentSecondQuoterL                // Yes!
+        CMP AX,10                        // <NewLine> ?
+        JE QuotedIdentSecondQuoterL                // Yes!
+        CMP AX,13                        // <CarriadgeReturn> ?
+        JE QuotedIdentSecondQuoterL                // Yes!
+        CMP AX,' '                       // <Space> ?
+        JE QuotedIdentSecondQuoterL                // Yes!
+        CMP AX,DX                        // New Quoter?
+      QuotedIdentSecondQuoterLE:
+        POP ECX
+        POP ESI
+        JE QuotedIdent                   // New Quoter!
         JMP Finish
 
       // ------------------------------
@@ -24208,8 +24306,11 @@ begin
         MOV TokenType,ttError
         MOV ErrorCode,PE_UnexpectedChar
         MOV ErrorPos,ESI
+        ADD ESI,2                        // Step over unexpected character
+        DEC ECX                          // One character handled
+        JZ Finish                        // End of SQL!
       UnexpectedCharL:
-        MOV AX,[ESI]                     // One Character from SQL to AX
+        MOV AX,[ESI]                     // One character from SQL to AX
         CALL Separator                   // Separator in SQL?
         JE Finish                        // Yes!
         ADD ESI,2                        // Next character in SQL
@@ -24237,7 +24338,7 @@ begin
         POP ES
     end;
 
-    Assert((ErrorCode = PE_Success) or (TokenLength > 0));
+    Assert((TokenLength > 0) or (ErrorCode <> PE_Success));
 
     if (TokenLength = 0) then
       raise Exception.Create(SUnknownError);
@@ -24274,12 +24375,12 @@ begin
   end;
 end;
 
-function TMySQLParser.ParseTriggerIdent(): TOffset;
+function TSQLParser.ParseTriggerIdent(): TOffset;
 begin
   Result := ParseDbIdent(ditTrigger);
 end;
 
-function TMySQLParser.ParseTrimFunc(): TOffset;
+function TSQLParser.ParseTrimFunc(): TOffset;
 var
   Nodes: TTrimFunc.TNodes;
 begin
@@ -24298,7 +24399,7 @@ begin
     else if (IsTag(kiTRAILING)) then
       Nodes.DirectionTag := ParseTag(kiTRAILING);
 
-  if (not Error and (Nodes.DirectionTag > 0)) then
+  if (not Error and (Nodes.DirectionTag > 0) and not IsTag(kiFROM)) then
     if (not EndOfStmt(CurrentToken) and (TokenPtr(CurrentToken)^.TokenType in ttStrings)) then
       Nodes.RemoveStr := ParseExpr();
 
@@ -24319,7 +24420,7 @@ begin
   Result := TTrimFunc.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseTruncateTableStmt(): TOffset;
+function TSQLParser.ParseTruncateTableStmt(): TOffset;
 var
   Nodes: TTruncateStmt.TNodes;
 begin
@@ -24337,7 +24438,7 @@ begin
   Result := TTruncateStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseUnknownStmt(): TOffset;
+function TSQLParser.ParseUnknownStmt(): TOffset;
 var
   Tokens: Classes.TList;
 begin
@@ -24351,7 +24452,7 @@ begin
   Tokens.Free();
 end;
 
-function TMySQLParser.ParseUnlockTablesStmt(): TOffset;
+function TSQLParser.ParseUnlockTablesStmt(): TOffset;
 var
   Nodes: TUnlockTablesStmt.TNodes;
 begin
@@ -24362,7 +24463,7 @@ begin
   Result := TUnlockTablesStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseUpdateStmt(): TOffset;
+function TSQLParser.ParseUpdateStmt(): TOffset;
 var
   Nodes: TUpdateStmt.TNodes;
   TableCount: Integer;
@@ -24422,7 +24523,7 @@ begin
   Result := TUpdateStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseUpdateStmtValue(): TOffset;
+function TSQLParser.ParseUpdateStmtValue(): TOffset;
 var
   Nodes: TValue.TNodes;
 begin
@@ -24450,7 +24551,7 @@ begin
   Result := TValue.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseUserIdent(): TOffset;
+function TSQLParser.ParseUserIdent(): TOffset;
 var
   Nodes: TUser.TNodes;
 begin
@@ -24493,7 +24594,7 @@ begin
     SetError(PE_UnexpectedToken);
 end;
 
-function TMySQLParser.ParseUseStmt(): TOffset;
+function TSQLParser.ParseUseStmt(): TOffset;
 var
   Nodes: TUseStmt.TNodes;
 begin
@@ -24507,7 +24608,7 @@ begin
   Result := TUseStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseValue(const KeywordIndex: TWordList.TIndex;
+function TSQLParser.ParseValue(const KeywordIndex: TWordList.TIndex;
   const Assign: TValueAssign; const Brackets: Boolean;
   const ParseItem: TParseFunction): TOffset;
 var
@@ -24534,7 +24635,7 @@ begin
   Result := TValue.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseValue(const KeywordIndex: TWordList.TIndex;
+function TSQLParser.ParseValue(const KeywordIndex: TWordList.TIndex;
   const Assign: TValueAssign; const OptionIndices: TWordList.TIndices): TOffset;
 var
   I: Integer;
@@ -24572,7 +24673,7 @@ begin
   Result := TValue.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseValue(const KeywordIndex: TWordList.TIndex;
+function TSQLParser.ParseValue(const KeywordIndex: TWordList.TIndex;
   const Assign: TValueAssign; const ParseValueNode: TParseFunction): TOffset;
 var
   Nodes: TValue.TNodes;
@@ -24598,7 +24699,7 @@ begin
   Result := TValue.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseValue(const KeywordIndices: TWordList.TIndices;
+function TSQLParser.ParseValue(const KeywordIndices: TWordList.TIndices;
   const Assign: TValueAssign; const Brackets: Boolean;
   const ParseItem: TParseFunction): TOffset;
 var
@@ -24627,7 +24728,7 @@ begin
   Result := TValue.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseValue(const KeywordIndices: TWordList.TIndices;
+function TSQLParser.ParseValue(const KeywordIndices: TWordList.TIndices;
   const Assign: TValueAssign; const OptionIndices: TWordList.TIndices): TOffset;
 var
   I: Integer;
@@ -24665,7 +24766,7 @@ begin
   Result := TValue.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseValue(const KeywordIndices: TWordList.TIndices; const Assign: TValueAssign; const ParseValueNode: TParseFunction): TOffset;
+function TSQLParser.ParseValue(const KeywordIndices: TWordList.TIndices; const Assign: TValueAssign; const ParseValueNode: TParseFunction): TOffset;
 var
   Nodes: TValue.TNodes;
 begin
@@ -24692,7 +24793,7 @@ begin
   Result := TValue.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseValue(const KeywordIndices: TWordList.TIndices; const Assign: TValueAssign; const ValueKeywordIndex1: TWordList.TIndex; const ValueKeywordIndex2: TWordList.TIndex = -1): TOffset;
+function TSQLParser.ParseValue(const KeywordIndices: TWordList.TIndices; const Assign: TValueAssign; const ValueKeywordIndex1: TWordList.TIndex; const ValueKeywordIndex2: TWordList.TIndex = -1): TOffset;
 var
   Nodes: TValue.TNodes;
 begin
@@ -24719,7 +24820,7 @@ begin
   Result := TValue.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseVariableIdent(): TOffset;
+function TSQLParser.ParseVariableIdent(): TOffset;
 var
   Nodes: TVariable.TNodes;
 begin
@@ -24761,7 +24862,7 @@ begin
   Result := TVariable.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseWeightStringFunc(): TOffset;
+function TSQLParser.ParseWeightStringFunc(): TOffset;
 var
   Nodes: TWeightStringFunc.TNodes;
 begin
@@ -24799,7 +24900,7 @@ begin
   Result := TWeightStringFunc.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseWeightStringFuncLevel(): TOffset;
+function TSQLParser.ParseWeightStringFuncLevel(): TOffset;
 var
   Nodes: TWeightStringFunc.TLevel.TNodes;
 begin
@@ -24820,7 +24921,7 @@ begin
   Result := TWeightStringFunc.TLevel.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseWhileStmt(): TOffset;
+function TSQLParser.ParseWhileStmt(): TOffset;
 var
   Nodes: TWhileStmt.TNodes;
 begin
@@ -24856,7 +24957,7 @@ begin
   Result := TWhileStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.ParseXAStmt(): TOffset;
+function TSQLParser.ParseXAStmt(): TOffset;
 
   function ParseXID(): TOffset;
   var
@@ -24963,14 +25064,7 @@ begin
   Result := TXAStmt.Create(Self, Nodes);
 end;
 
-function TMySQLParser.RangePtr(const ANode: TOffset): PRange;
-begin
-  Assert(IsRange(NodePtr(ANode)));
-
-  Result := PRange(NodePtr(ANode));
-end;
-
-procedure TMySQLParser.SaveToFile(const Filename: string; const FileType: TFileType = ftSQL);
+procedure TSQLParser.SaveToFile(const Filename: string; const FileType: TFileType = ftSQL);
 begin
   if (not Assigned(Root)) then
     raise Exception.Create('Empty Buffer');
@@ -24984,7 +25078,7 @@ begin
   end;
 end;
 
-procedure TMySQLParser.SaveToDebugHTMLFile(const Filename: string);
+procedure TSQLParser.SaveToDebugHTMLFile(const Filename: string);
 var
   G: Integer;
   Generation: Integer;
@@ -25270,7 +25364,7 @@ begin
 
       if (Stmt^.ErrorCode <> PE_Success) then
         HTML := HTML
-          + '<div class="ErrorMessage">' + HTMLEscape('Error: ' + Stmt^.ErrorMessage) + '</div>';
+          + '<div class="ErrorMessage">' + HTMLEscape('Error: ' + ReplaceStr(ReplaceStr(Stmt^.ErrorMessage, #10, ''), #13, '')) + '</div>';
 
       Stmt := Stmt^.NextStmt;
 
@@ -25303,7 +25397,7 @@ begin
   end;
 end;
 
-procedure TMySQLParser.SaveToFormatedSQLFile(const Filename: string);
+procedure TSQLParser.SaveToFormatedSQLFile(const Filename: string);
 var
   Handle: THandle;
   Size: Cardinal;
@@ -25326,7 +25420,7 @@ begin
     RaiseLastOSError();
 end;
 
-procedure TMySQLParser.SaveToSQLFile(const Filename: string);
+procedure TSQLParser.SaveToSQLFile(const Filename: string);
 var
   Handle: THandle;
   Length: Integer;
@@ -25362,7 +25456,7 @@ begin
   StringBuffer.Free();
 end;
 
-procedure TMySQLParser.SetDatatypes(ADatatypes: string);
+procedure TSQLParser.SetDatatypes(ADatatypes: string);
 
   function IndexOf(const Word: PChar): Integer;
   begin
@@ -25433,7 +25527,7 @@ begin
   end;
 end;
 
-procedure TMySQLParser.SetError(const AErrorCode: Byte; const AErrorToken: TOffset = 0);
+procedure TSQLParser.SetError(const AErrorCode: Byte; const AErrorToken: TOffset = 0);
 begin
   Assert(not Error and ((AErrorCode <> PE_IncompleteStmt) or (AErrorToken = 0) or IsToken(AErrorToken)));
 
@@ -25445,12 +25539,12 @@ begin
     FErrorToken := ChildPtr(AErrorToken)^.FFirstToken;
 end;
 
-procedure TMySQLParser.SetFunctions(AFunctions: string);
+procedure TSQLParser.SetFunctions(AFunctions: string);
 begin
   FunctionList.Text := AFunctions;
 end;
 
-procedure TMySQLParser.SetKeywords(AKeywords: string);
+procedure TSQLParser.SetKeywords(AKeywords: string);
 
   function IndexOf(const Word: PChar): Integer;
   begin
@@ -25478,6 +25572,7 @@ begin
     kiALWAYS                   := IndexOf('ALWAYS');
     kiANALYZE                  := IndexOf('ANALYZE');
     kiAND                      := IndexOf('AND');
+    kiANY                      := IndexOf('ANY');
     kiAS                       := IndexOf('AS');
     kiASC                      := IndexOf('ASC');
     kiASCII                    := IndexOf('ASCII');
@@ -25864,6 +25959,7 @@ begin
     kiSLAVE                    := IndexOf('SLAVE');
     kiSNAPSHOT                 := IndexOf('SNAPSHOT');
     kiSOCKET                   := IndexOf('SOCKET');
+    kiSOME                     := IndexOf('SOME');
     kiSONAME                   := IndexOf('SONAME');
     kiSOUNDS                   := IndexOf('SOUNDS');
     kiSOURCE                   := IndexOf('SOURCE');
@@ -25981,7 +26077,7 @@ begin
   end;
 end;
 
-function TMySQLParser.StmtPtr(const Node: TOffset): PStmt;
+function TSQLParser.StmtPtr(const Node: TOffset): PStmt;
 begin
   Assert((Node = 0) or IsStmt(Node));
 
@@ -25991,7 +26087,7 @@ begin
     Result := @Nodes.Mem[Node];
 end;
 
-function TMySQLParser.TokenPtr(const Token: TOffset): PToken;
+function TSQLParser.TokenPtr(const Token: TOffset): PToken;
 begin
   Assert((Token = 0) or IsToken(Token));
 
@@ -26004,19 +26100,19 @@ end;
 {$IFDEF Debug}
 var
   Max: Integer;
-  OperatorType: TMySQLParser.TOperatorType;
+  OperatorType: TSQLParser.TOperatorType;
 {$ENDIF}
 initialization
   {$IFDEF Debug}
     Max := 0;
-    for OperatorType := Low(TMySQLParser.TOperatorType) to High(TMySQLParser.TOperatorType) do
-      if (TMySQLParser.OperatorPrecedenceByOperatorType[OperatorType] > Max) then
-        Max := TMySQLParser.OperatorPrecedenceByOperatorType[OperatorType];
-    Assert(Max = TMySQLParser.MaxOperatorPrecedence);
+    for OperatorType := Low(TSQLParser.TOperatorType) to High(TSQLParser.TOperatorType) do
+      if (TSQLParser.OperatorPrecedenceByOperatorType[OperatorType] > Max) then
+        Max := TSQLParser.OperatorPrecedenceByOperatorType[OperatorType];
+    Assert(Max = TSQLParser.MaxOperatorPrecedence);
   {$ENDIF}
 end.
 // SQLUnescape
-// Remove DEFINER in Create View, procedure, function, event, trigger / alter view
 // utDatatype in AutoComplete aufnehmen
 // GetMem in CompletionList.AddKeyword entfernen
+// GetAsString with 'Test'  'Text'
 

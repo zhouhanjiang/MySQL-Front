@@ -124,7 +124,7 @@ begin
   PSQLWait.Visible := not PageControl.Visible;
 
   ActiveControl := FBCancel;
-  if (PageControl.Visible) then
+  if (PageControl.Visible and (ModalResult = mrNone)) then
   begin
     PageControl.ActivePage := TSBasics;
     ActiveControl := FComment;
