@@ -526,21 +526,6 @@ begin
   FBOkCheckEnabled(Sender);
 end;
 
-procedure TDField.FormSessionEvent(const Event: TSSession.TEvent);
-begin
-  if ((Event.EventType = etItemAltered) and (Event.SItem = Table)) then
-  begin
-    ModalResult := mrOk;
-    Close();
-  end
-  else if ((Event.EventType = etAfterExecuteSQL) or (Event.EventType = etError) and (Event.Session.Connection.ErrorCode <> 0)) then
-  begin
-    GBasics.Visible := True;
-    GAttributes.Visible := GBasics.Visible;
-    PSQLWait.Visible := not GBasics.Visible;
-  end;
-end;
-
 procedure TDField.FormCanResize(Sender: TObject; var NewWidth,
   NewHeight: Integer; var Resize: Boolean);
 begin
@@ -748,6 +733,18 @@ begin
 
   Preferences.Field.Width := Width;
   Preferences.Field.Height := Height;
+end;
+
+procedure TDField.FormSessionEvent(const Event: TSSession.TEvent);
+begin
+  if ((Event.EventType = etItemAltered) and (Event.SItem = Table)) then
+    ModalResult := mrOk
+  else if ((Event.EventType = etAfterExecuteSQL) or (Event.EventType = etError) and (Event.Session.Connection.ErrorCode <> 0)) then
+  begin
+    GBasics.Visible := True;
+    GAttributes.Visible := GBasics.Visible;
+    PSQLWait.Visible := not GBasics.Visible;
+  end;
 end;
 
 procedure TDField.FormShow(Sender: TObject);

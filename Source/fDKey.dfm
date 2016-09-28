@@ -119,7 +119,6 @@ object DKey: TDKey
           AutoSize = True
           Caption = 'FieldName'
         end>
-      HideSelection = False
       ReadOnly = True
       RowSelect = True
       ShowColumnHeaders = False
@@ -285,7 +284,6 @@ object DKey: TDKey
           AutoSize = True
           Caption = 'FieldName'
         end>
-      HideSelection = False
       ReadOnly = True
       RowSelect = True
       ShowColumnHeaders = False

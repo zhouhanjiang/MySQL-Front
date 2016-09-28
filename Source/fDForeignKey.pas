@@ -43,7 +43,6 @@ type
     procedure FormShow(Sender: TObject);
     procedure FParentDatabaseChange(Sender: TObject);
     procedure FParentTableChange(Sender: TObject);
-    procedure FTableChange(Sender: TObject);
   private
     procedure FormSessionEvent(const Event: TSSession.TEvent);
     function GetParentDatabase(): TSDatabase;
@@ -104,19 +103,12 @@ end;
 
 procedure TDForeignKey.FormSessionEvent(const Event: TSSession.TEvent);
 begin
-  if ((Event.EventType = etItemsValid) and Assigned(Database) and (Event.Sender = Database.Tables)) then
-    FTableChange(Event.Sender)
-  else if ((Event.EventType = etItemsValid) and (Event.Sender = Table.Session.Databases)) then
+  if ((Event.EventType = etItemsValid) and (Event.Sender = Table.Session.Databases)) then
     FParentDatabaseChange(Event.Sender)
   else if ((Event.EventType = etItemValid) and (Event.SItem = SelectedParentTable)) then
     FParentTableChange(Event.Sender)
-  else if ((Event.EventType = etItemValid) and (Event.SItem = Table)) then
-    FTableChange(Event.Sender)
   else if ((Event.EventType = etItemAltered) and (Event.SItem = Table)) then
-  begin
-    ModalResult := mrOk;
-    Close();
-  end
+    ModalResult := mrOk
   else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.Connection.ErrorCode <> 0)) then
   begin
     GBasics.Visible := True;
@@ -228,6 +220,22 @@ begin
 
   Preferences.ForeignKey.Width := Width;
   Preferences.ForeignKey.Height := Height;
+
+  FFields.Items.BeginUpdate();
+  FFields.Items.Clear();
+  FFields.Items.EndUpdate();
+
+  FParentDatabase.Items.BeginUpdate();
+  FParentDatabase.Items.Clear();
+  FParentDatabase.Items.EndUpdate();
+
+  FParentTable.Items.BeginUpdate();
+  FParentTable.Items.Clear();
+  FParentTable.Items.EndUpdate();
+
+  FParentFields.Items.BeginUpdate();
+  FParentFields.Items.Clear();
+  FParentFields.Items.EndUpdate();
 end;
 
 procedure TDForeignKey.FormResize(Sender: TObject);
@@ -325,6 +333,11 @@ begin
     end;
   end;
 
+  FFields.Items.BeginUpdate();
+  for I := 0 to Table.Fields.Count - 1 do
+    FFields.Items.Add(Table.Fields.Field[I].Name);
+  FFields.Items.EndUpdate();
+
   FName.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013);
   FLName.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013);
   FLTable.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013);
@@ -396,32 +409,11 @@ begin
     if (Assigned(ForeignKey)) then
       for I := 0 to FParentFields.Items.Count - 1 do
         for J := 0 to Length(ForeignKey.Parent.FieldNames) - 1 do
-          if (lstrcmpi(PChar(FParentFields.Items.Strings[I]), PChar(ForeignKey.Parent.FieldNames[J])) = 0) then
+          if (Table.ForeignKeys.NameCmp(FParentFields.Items.Strings[I], ForeignKey.Parent.FieldNames[J]) = 0) then
             FParentFields.Selected[I] := True;
 
     FParentFields.Enabled := not Assigned(ForeignKey) or (Table.Database.Session.Connection.ServerVersion >= 40013);
     FBOkCheckEnabled(Sender);
-  end;
-end;
-
-procedure TDForeignKey.FTableChange(Sender: TObject);
-var
-  I: Integer;
-begin
-  FFields.Clear();
-
-  if (not Assigned(Table)) then
-    FFields.Cursor := crDefault
-  else if (not Table.Update()) then
-    FFields.Cursor := crSQLWait
-  else
-  begin
-    FFields.Cursor := crDefault;
-
-    FFields.Items.BeginUpdate();
-    for I := 0 to Table.Fields.Count - 1 do
-      FFields.Items.Add(Table.Fields.Field[I].Name);
-    FFields.Items.EndUpdate();
   end;
 end;
 

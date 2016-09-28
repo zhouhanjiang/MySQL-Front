@@ -153,7 +153,6 @@ object DForeignKey: TDForeignKey
       Enabled = False
       TabOrder = 2
       Text = 'FTable'
-      OnChange = FTableChange
     end
     object FName: TEdit
       Left = 129

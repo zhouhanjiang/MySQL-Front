@@ -6028,8 +6028,8 @@ begin
       if (DBGrid.Columns[I].Field.IsIndexField) then
         DBGrid.Canvas.Font.Style := DBGrid.Font.Style + [fsBold];
 
-      if (DBGrid.Columns[I].Width < DBGrid.Canvas.TextWidth('W' + DBGrid.Columns[I].Title.Caption)) then
-        DBGrid.Columns[I].Width := DBGrid.Canvas.TextWidth('W' + DBGrid.Columns[I].Title.Caption)
+      if (DBGrid.Columns[I].Width < DBGrid.Canvas.TextWidth('ee' + DBGrid.Columns[I].Title.Caption)) then
+        DBGrid.Columns[I].Width := DBGrid.Canvas.TextWidth('ee' + DBGrid.Columns[I].Title.Caption)
       else if ((DBGrid.Columns[I].Width > Preferences.GridMaxColumnWidth) and not (DBGrid.Columns[I].Field.DataType in [ftSmallint, ftInteger, ftLargeint, ftWord, ftLongWord, ftFloat, ftDate, ftDateTime, ftTime, ftCurrency])) then
         DBGrid.Columns[I].Width := Preferences.GridMaxColumnWidth;
 
