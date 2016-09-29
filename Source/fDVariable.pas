@@ -83,7 +83,7 @@ end;
 procedure TDVariable.FormSessionEvent(const Event: TSSession.TEvent);
 begin
   if ((Event.EventType in [etItemAltered]) and (Event.SItem is TSVariable)) then
-    Close()
+    ModalResult := mrOk
   else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.Connection.ErrorCode <> 0)) then
   begin
     GroupBox.Visible := True;
@@ -121,7 +121,6 @@ begin
 
     if (not CanClose) then
     begin
-      ModalResult := mrNone;
       GroupBox.Visible := CanClose;
       PSQLWait.Visible := not GroupBox.Visible;
     end;

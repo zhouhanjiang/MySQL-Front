@@ -175,7 +175,7 @@ begin
   if ((Event.EventType = etItemValid) and (Event.SItem = Routine)) then
     Built()
   else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is TSRoutine)) then
-    Close()
+    ModalResult := mrOk
   else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.Connection.ErrorCode <> 0)) then
   begin
     PageControl.Visible := True;
@@ -237,7 +237,6 @@ begin
 // hided the PageControl permanentely
 //    if (not CanClose) then
 //    begin
-//      ModalResult := mrNone;
 //      PageControl.Visible := CanClose;
 //      PSQLWait.Visible := not PageControl.Visible;
 //    end;

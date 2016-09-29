@@ -274,7 +274,6 @@ begin
 
     if (not CanClose) then
     begin
-      ModalResult := mrNone;
       PageControl.Visible := CanClose;
       PSQLWait.Visible := not PageControl.Visible;
     end;
@@ -315,7 +314,7 @@ begin
     else
       TSExtrasShow(nil)
   else if ((Event.EventType in [etItemCreated, etItemAltered]) and (Event.SItem is TSDatabase)) then
-    Close()
+    ModalResult := mrOk
   else if ((Event.EventType = etAfterExecuteSQL) and (Event.Session.Connection.ErrorCode <> 0)) then
   begin
     PageControl.Visible := True;

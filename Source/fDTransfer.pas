@@ -410,7 +410,7 @@ begin
     Flags := MB_OK + MB_ICONERROR
   else
     Flags := MB_CANCELTRYCONTINUE + MB_ICONERROR;
-  case (MsgBox(Msg, Preferences.LoadStr(45), Flags, Handle)) of
+  case (MsgBox(Msg, Preferences.LoadStr(45), Flags)) of
     IDOK,
     IDCANCEL,
     IDABORT: Success := daAbort;

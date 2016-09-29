@@ -1577,7 +1577,7 @@ begin
     if (MsgBoxHelpContext <> 0) then
       Flags := Flags or MB_HELP;
     DisableApplicationActivate := True;
-    case (MsgBox(Msg, Preferences.LoadStr(45), Flags, Handle)) of
+    case (MsgBox(Msg, Preferences.LoadStr(45), Flags)) of
       IDOK,
       IDCANCEL,
       IDABORT: Success := daAbort;

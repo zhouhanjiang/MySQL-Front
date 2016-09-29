@@ -1,4 +1,4 @@
-﻿unit SQLParser;
+﻿unit fSQLParser;
 
 interface {********************************************************************}
 
@@ -7188,7 +7188,6 @@ resourcestring
   SDatatypeNotFound = 'Datatype "%s" not found';
   SKeywordNotFound = 'Keyword "%s" not found';
   SUnknownOperatorPrecedence = 'Unknown operator precedence for operator "%s"';
-  STooManyTokensInExpr = 'Too many tokens (%d) in expression';
   SUnknownNodeType = 'Unknown node type';
   SOutOfMemory = 'Out of memory (%d)';
 
@@ -15928,7 +15927,7 @@ begin
     else if ((Nodes.AlgorithmLockValue = 0) and IsTag(kiLOCK)) then
       Nodes.AlgorithmLockValue := ParseValue(kiLOCK, vaAuto, WordIndices(kiDEFAULT, kiNONE, kiSHARED, kiEXCLUSIVE))
     else if ((Nodes.IndexTypeValue = 0) and IsTag(kiUSING, kiBTREE)) then
-      Nodes.IndexTypeValue := ParseTag(kiUSING, kiHASH)
+      Nodes.IndexTypeValue := ParseTag(kiUSING, kiBTREE)
     else if ((Nodes.IndexTypeValue = 0) and IsTag(kiUSING, kiHASH)) then
       Nodes.IndexTypeValue := ParseTag(kiUSING, kiHASH)
     else if ((Nodes.ParserValue = 0) and IsTag(kiWITH, kiPARSER)) then
@@ -18481,7 +18480,7 @@ end;
 
 function TSQLParser.ParseExpr(const InAllowed: Boolean): TOffset;
 const
-  MaxNodeCount = 1000;
+  StackNodeCount = 100;
 var
   ArgumentsList: TOffset;
   CurrentOperatorType: TOperatorType;
@@ -18492,7 +18491,10 @@ var
   LikeNodes: TLikeOp.TNodes;
   Node: TOffset;
   NodeCount: Integer;
-  Nodes: array [0 .. MaxNodeCount - 1] of TOffset;
+  Nodes: POffsetArray;
+  Nodes1: array [0 .. StackNodeCount - 1] of TOffset;
+  Nodes2: array of TOffset;
+  NodesLength: Integer;
   OperatorPrecedence: Integer;
   OperatorType: TOperatorType;
   PreviousOperatorType: TOperatorType;
@@ -18500,15 +18502,39 @@ var
   RemoveNodes: Integer;
   Text: PChar;
 begin
-  NodeCount := 0; PreviousOperatorType := otUnknown;
+  NodeCount := 0; Nodes := @Nodes1[0]; NodesLength := System.Length(Nodes1);
+  PreviousOperatorType := otUnknown; CurrentOperatorType := otUnknown;
 
   repeat
     Node := CurrentToken;
 
-    if (NodeCount = MaxNodeCount) then
-      raise Exception.CreateFmt(STooManyTokensInExpr, [NodeCount])
+    if (NodeCount = NodesLength) then
+    begin
+      NodesLength := 10 * NodesLength;
+      SetLength(Nodes2, NodesLength);
+      if (NodeCount = StackNodeCount) then
+        Move(Nodes1[0], Nodes2[0], SizeOf(Nodes1));
+      Nodes := @Nodes2[0];
+    end
     else if (EndOfStmt(Node)) then
-      SetError(PE_IncompleteStmt)
+    begin
+      if ((NodeCount > 1)
+        and IsToken(Nodes^[NodeCount - 2]) and (TokenPtr(Nodes[NodeCount - 2])^.TokenType in ttIdents)
+        and IsToken(Nodes^[NodeCount - 1]) and (TokenPtr(Nodes[NodeCount - 1])^.OperatorType = otDot)) then
+      begin
+        CompletionList.AddList(ditTable, TokenPtr(Nodes^[NodeCount - 2])^.AsString);
+        CompletionList.AddList(ditField, '', TokenPtr(Nodes^[NodeCount - 2])^.AsString);
+      end
+      else if ((NodeCount = 0)
+        or IsToken(Nodes^[NodeCount - 1]) and (TokenPtr(Nodes[NodeCount - 1])^.OperatorType <> otUnknown)) then
+      begin
+        CompletionList.AddList(ditFunction);
+        CompletionList.AddList(ditDatabase);
+        CompletionList.AddList(ditTable);
+        CompletionList.AddList(ditField);
+      end;
+      SetError(PE_IncompleteStmt);
+    end
     else if (TokenPtr(Node)^.TokenType in [ttColon, ttComma, ttCloseBracket]) then
       SetError(PE_UnexpectedToken)
     else if (TokenPtr(Node)^.KeywordIndex = kiSELECT) then
@@ -18516,11 +18542,11 @@ begin
     else if ((TokenPtr(Node)^.KeywordIndex = kiINTERVAL)
       and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.TokenType <> ttOpenBracket)) then
       Node := ParseValue(kiINTERVAL, vaNo, ParseIntervalOp)
-    else if ((TokenPtr(Node)^.OperatorType = otMinus) and ((NodeCount = 0) or IsToken(Nodes[NodeCount - 1]) and (TokenPtr(Nodes[NodeCount - 1])^.OperatorType <> otUnknown))) then
+    else if ((TokenPtr(Node)^.OperatorType = otMinus) and ((NodeCount = 0) or IsToken(Nodes^[NodeCount - 1]) and (TokenPtr(Nodes^[NodeCount - 1])^.OperatorType <> otUnknown))) then
       TokenPtr(Node)^.FOperatorType := otUnaryMinus
-    else if ((TokenPtr(Node)^.OperatorType = otPlus) and ((NodeCount = 0) or IsToken(Nodes[NodeCount - 1]) and (TokenPtr(Nodes[NodeCount - 1])^.OperatorType <> otUnknown))) then
+    else if ((TokenPtr(Node)^.OperatorType = otPlus) and ((NodeCount = 0) or IsToken(Nodes^[NodeCount - 1]) and (TokenPtr(Nodes^[NodeCount - 1])^.OperatorType <> otUnknown))) then
       TokenPtr(Node)^.FOperatorType := otUnaryPlus
-    else if ((TokenPtr(Node)^.OperatorType = otNot) and ((NodeCount = 0) or IsToken(Nodes[NodeCount - 1]) and (TokenPtr(Nodes[NodeCount - 1])^.OperatorType <> otUnknown))) then
+    else if ((TokenPtr(Node)^.OperatorType = otNot) and ((NodeCount = 0) or IsToken(Nodes^[NodeCount - 1]) and (TokenPtr(Nodes^[NodeCount - 1])^.OperatorType <> otUnknown))) then
     begin
       TokenPtr(Node)^.FOperatorType := otUnaryNot;
       TokenPtr(Node)^.FUsageType := utOperator;
@@ -18541,12 +18567,12 @@ begin
       and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.TokenType = ttOpenBracket)
       and ((TokenPtr(Node)^.KeywordIndex < 0) or (TokenPtr(Node)^.OperatorType = otUnknown) or (FunctionList.IndexOf(TokenPtr(Node)^.Text) >= 0))) then
       if ((NodeCount >= 2)
-        and IsToken(Nodes[NodeCount - 1]) and (TokenPtr(Nodes[NodeCount - 1])^.OperatorType = otDot)
-        and IsToken(Nodes[NodeCount - 2]) and (TokenPtr(Nodes[NodeCount - 2])^.TokenType in ttIdents)) then
+        and IsToken(Nodes^[NodeCount - 1]) and (TokenPtr(Nodes^[NodeCount - 1])^.OperatorType = otDot)
+        and IsToken(Nodes^[NodeCount - 2]) and (TokenPtr(Nodes^[NodeCount - 2])^.TokenType in ttIdents)) then
       begin // Db.Func()
-        TokenPtr(Nodes[NodeCount - 2])^.FUsageType := utDbIdent;
+        TokenPtr(Nodes^[NodeCount - 2])^.FUsageType := utDbIdent;
         TokenPtr(Node)^.FUsageType := utDbIdent;
-        DbIdent := TDbIdent.Create(Self, ditFunction, ApplyCurrentToken(), Nodes[NodeCount - 1], Nodes[NodeCount - 2], 0, 0);
+        DbIdent := TDbIdent.Create(Self, ditFunction, ApplyCurrentToken(), Nodes^[NodeCount - 1], Nodes^[NodeCount - 2], 0, 0);
         ArgumentsList := ParseList(True, ParseExpr);
         Node := TFunctionCall.Create(Self, DbIdent, ArgumentsList);
         Dec(NodeCount, 2);
@@ -18592,7 +18618,7 @@ begin
     else if (TokenPtr(Node)^.TokenType = ttAt) then
       Node := ParseVariableIdent()
     else if ((TokenPtr(Node)^.OperatorType = otMulti)
-      and ((NodeCount = 0) or IsToken(Nodes[NodeCount - 1]) and (TokenPtr(Nodes[NodeCount - 1])^.OperatorType = otDot))) then
+      and ((NodeCount = 0) or IsToken(Nodes^[NodeCount - 1]) and (TokenPtr(Nodes^[NodeCount - 1])^.OperatorType = otDot))) then
     begin
       TokenPtr(CurrentToken)^.FTokenType := ttIdent;
       TokenPtr(CurrentToken)^.FOperatorType := otUnknown;
@@ -18624,22 +18650,31 @@ begin
     if ((NodeCount = 0) and IsToken(Node) and (TokenPtr(Node)^.OperatorType <> otUnknown) and not (TokenPtr(Node)^.OperatorType in UnaryOperators)) then
       SetError(PE_UnexpectedToken);
 
-    if (Node = CurrentToken) then
-      Nodes[NodeCount] := ApplyCurrentToken()
-    else
-      Nodes[NodeCount] := Node;
-    Inc(NodeCount);
+    if (not Error) then
+    begin
+      if (Node <> CurrentToken) then
+        Nodes^[NodeCount] := Node
+      else if ((PreviousOperatorType <> otUnknown)
+        and (TokenPtr(CurrentToken)^.OperatorType <> otUnknown)
+        and not (TokenPtr(CurrentToken)^.OperatorType in UnaryOperators)
+        and ((PreviousOperatorType <> otNot) or (TokenPtr(CurrentToken)^.KeywordIndex <> kiBETWEEN))
+        and ((PreviousOperatorType <> otNot) or (TokenPtr(CurrentToken)^.KeywordIndex <> kiIN))
+        and ((PreviousOperatorType <> otNot) or (TokenPtr(CurrentToken)^.KeywordIndex <> kiLIKE))) then
+        SetError(PE_UnexpectedToken)
+      else
+        Nodes^[NodeCount] := ApplyCurrentToken();
+      Inc(NodeCount);
 
-    if (not IsToken(Nodes[NodeCount - 1])) then
-      PreviousOperatorType := otUnknown
-    else
-      PreviousOperatorType := TokenPtr(Nodes[NodeCount - 1])^.OperatorType;
-    if (Error or EndOfStmt(CurrentToken)) then
-      CurrentOperatorType := otUnknown
-    else
-      CurrentOperatorType := TokenPtr(CurrentToken)^.OperatorType;
+      if (Error or not IsToken(Nodes^[NodeCount - 1])) then
+        PreviousOperatorType := otUnknown
+      else
+        PreviousOperatorType := TokenPtr(Nodes^[NodeCount - 1])^.OperatorType;
+      if (Error or EndOfStmt(CurrentToken)) then
+        CurrentOperatorType := otUnknown
+      else
+        CurrentOperatorType := TokenPtr(CurrentToken)^.OperatorType;
+    end;
   until (Error
-    or EndOfStmt(CurrentToken)
     or (PreviousOperatorType = otUnknown) and ((CurrentOperatorType = otUnknown) or (CurrentOperatorType in UnaryOperators)))
     or (CurrentOperatorType = otIn) and not InAllowed;
 
@@ -18648,10 +18683,10 @@ begin
     begin
       I := 0;
       while (not Error and (I < NodeCount)) do
-        if (not IsToken(Nodes[I]) or (OperatorPrecedenceByOperatorType[TokenPtr(Nodes[I])^.OperatorType] <> OperatorPrecedence)) then
+        if (not IsToken(Nodes^[I]) or (OperatorPrecedenceByOperatorType[TokenPtr(Nodes^[I])^.OperatorType] <> OperatorPrecedence)) then
           Inc(I)
         else
-          case (TokenPtr(Nodes[I])^.OperatorType) of
+          case (TokenPtr(Nodes^[I])^.OperatorType) of
             otBinary,
             otInterval,
             otInvertBits,
@@ -18663,9 +18698,9 @@ begin
                 SetError(PE_IncompleteStmt)
               else
               begin
-                Nodes[I] := TUnaryOp.Create(Self, Nodes[I], Nodes[I + 1]);
+                Nodes^[I] := TUnaryOp.Create(Self, Nodes^[I], Nodes^[I + 1]);
                 Dec(NodeCount);
-                Move(Nodes[I + 2], Nodes[I + 1], (NodeCount - I - 1) * SizeOf(Nodes[0]));
+                Move(Nodes^[I + 2], Nodes^[I + 1], (NodeCount - I - 1) * SizeOf(Nodes^[0]));
               end;
             otAnd,
             otAssign,
@@ -18695,84 +18730,84 @@ begin
             otShiftRight,
             otXOr:
               if (I = 0) then
-                SetError(PE_UnexpectedToken, Nodes[I])
+                SetError(PE_UnexpectedToken, Nodes^[I])
               else if (I >= NodeCount - 1) then
                 SetError(PE_IncompleteStmt)
-              else if (IsToken(Nodes[I - 1]) and (TokenPtr(Nodes[I - 1])^.TokenType = ttOperator)) then
-                SetError(PE_UnexpectedToken, Nodes[I])
-              else if (IsToken(Nodes[I + 1]) and (TokenPtr(Nodes[I + 1])^.TokenType = ttOperator)) then
-                SetError(PE_UnexpectedToken, Nodes[I + 1])
+              else if (IsToken(Nodes^[I - 1]) and (TokenPtr(Nodes^[I - 1])^.TokenType = ttOperator)) then
+                SetError(PE_UnexpectedToken, Nodes^[I])
+              else if (IsToken(Nodes^[I + 1]) and (TokenPtr(Nodes^[I + 1])^.TokenType = ttOperator)) then
+                SetError(PE_UnexpectedToken, Nodes^[I + 1])
               else
               begin
-                Nodes[I - 1] := TBinaryOp.Create(Self, Nodes[I], Nodes[I - 1], Nodes[I + 1]);
+                Nodes^[I - 1] := TBinaryOp.Create(Self, Nodes^[I], Nodes^[I - 1], Nodes^[I + 1]);
                 Dec(NodeCount, 2);
-                Move(Nodes[I + 2], Nodes[I], (NodeCount - I) * SizeOf(Nodes[0]));
+                Move(Nodes^[I + 2], Nodes^[I], (NodeCount - I) * SizeOf(Nodes^[0]));
                 Dec(I);
               end;
             otBetween:
               if (I + 3 >= NodeCount) then
-                SetError(PE_IncompleteStmt, Nodes[I])
-              else if ((NodePtr(Nodes[I + 2])^.NodeType <> ntToken) or (TokenPtr(Nodes[I + 2])^.OperatorType <> otAnd)) then
-                SetError(PE_UnexpectedToken, Nodes[I + 2])
-              else if (IsToken(Nodes[I - 1]) and (TokenPtr(Nodes[I - 1])^.KeywordIndex = kiNOT)) then
+                SetError(PE_IncompleteStmt, Nodes^[I])
+              else if ((NodePtr(Nodes^[I + 2])^.NodeType <> ntToken) or (TokenPtr(Nodes^[I + 2])^.OperatorType <> otAnd)) then
+                SetError(PE_UnexpectedToken, Nodes^[I + 2])
+              else if (IsToken(Nodes^[I - 1]) and (TokenPtr(Nodes^[I - 1])^.KeywordIndex = kiNOT)) then
               begin // NOT BETWEEN
-                Nodes[I - 2] := TBetweenOp.Create(Self, Nodes[I - 2], Nodes[I - 1], Nodes[I], Nodes[I + 1], Nodes[I + 2], Nodes[I + 3]);
+                Nodes^[I - 2] := TBetweenOp.Create(Self, Nodes^[I - 2], Nodes^[I - 1], Nodes^[I], Nodes^[I + 1], Nodes^[I + 2], Nodes^[I + 3]);
                 Dec(NodeCount, 5);
-                Move(Nodes[I + 4], Nodes[I - 1], (NodeCount - (I - 1)) * SizeOf(Nodes[0]));
+                Move(Nodes^[I + 4], Nodes^[I - 1], (NodeCount - (I - 1)) * SizeOf(Nodes^[0]));
                 Dec(I, 2);
               end
               else
               begin // BETWEEN
-                Nodes[I - 1] := TBetweenOp.Create(Self, Nodes[I - 1], 0, Nodes[I], Nodes[I + 1], Nodes[I + 2], Nodes[I + 3]);
+                Nodes^[I - 1] := TBetweenOp.Create(Self, Nodes^[I - 1], 0, Nodes^[I], Nodes^[I + 1], Nodes^[I + 2], Nodes^[I + 3]);
                 Dec(NodeCount, 4);
-                Move(Nodes[I + 4], Nodes[I], (NodeCount - I) * SizeOf(Nodes[0]));
+                Move(Nodes^[I + 4], Nodes^[I], (NodeCount - I) * SizeOf(Nodes^[0]));
                 Dec(I);
               end;
             otDot:
               if (I = 0) then
-                SetError(PE_UnexpectedToken, Nodes[I])
+                SetError(PE_UnexpectedToken, Nodes^[I])
               else if (I >= NodeCount - 1) then
                 SetError(PE_IncompleteStmt)
-              else if ((NodeCount <= I + 2) or not IsToken(Nodes[I + 2]) or (TokenPtr(Nodes[I + 2])^.OperatorType <> otDot)) then
+              else if ((NodeCount <= I + 2) or not IsToken(Nodes^[I + 2]) or (TokenPtr(Nodes^[I + 2])^.OperatorType <> otDot)) then
               begin // Db.Tbl or Tbl.Clmn
-                TokenPtr(Nodes[I + 1])^.FUsageType := utDbIdent;
-                Nodes[I - 1] := TDbIdent.Create(Self, ditField, Nodes[I + 1], 0, 0, Nodes[I], Nodes[I - 1]);
+                TokenPtr(Nodes^[I + 1])^.FUsageType := utDbIdent;
+                Nodes^[I - 1] := TDbIdent.Create(Self, ditField, Nodes^[I + 1], 0, 0, Nodes^[I], Nodes^[I - 1]);
                 Dec(NodeCount, 2);
-                Move(Nodes[I + 2], Nodes[I], (NodeCount - I) * SizeOf(Nodes[0]));
+                Move(Nodes^[I + 2], Nodes^[I], (NodeCount - I) * SizeOf(Nodes^[0]));
                 Dec(I);
               end
               else
               begin // Db.Tbl.Clmn
-                TokenPtr(Nodes[I - 1])^.FUsageType := utDbIdent;
-                TokenPtr(Nodes[I + 1])^.FUsageType := utDbIdent;
-                TokenPtr(Nodes[I + 3])^.FUsageType := utDbIdent;
-                Nodes[I - 1] := TDbIdent.Create(Self, ditField, Nodes[I + 3], Nodes[I], Nodes[I - 1], Nodes[I + 2], Nodes[I + 1]);
+                TokenPtr(Nodes^[I - 1])^.FUsageType := utDbIdent;
+                TokenPtr(Nodes^[I + 1])^.FUsageType := utDbIdent;
+                TokenPtr(Nodes^[I + 3])^.FUsageType := utDbIdent;
+                Nodes^[I - 1] := TDbIdent.Create(Self, ditField, Nodes^[I + 3], Nodes^[I], Nodes^[I - 1], Nodes^[I + 2], Nodes^[I + 1]);
                 Dec(NodeCount, 4);
-                Move(Nodes[I + 4], Nodes[I], (NodeCount - I) * SizeOf(Nodes[0]));
+                Move(Nodes^[I + 4], Nodes^[I], (NodeCount - I) * SizeOf(Nodes^[0]));
                 Dec(I);
               end;
             otEscape:
-              SetError(PE_UnexpectedToken, Nodes[I]);
+              SetError(PE_UnexpectedToken, Nodes^[I]);
             otIn:
               if (NodeCount = I + 1) then
                 SetError(PE_IncompleteStmt)
               else if (I = 0) then
-                SetError(PE_UnexpectedToken, Nodes[0])
+                SetError(PE_UnexpectedToken, Nodes^[0])
               else
               begin
                 FillChar(InNodes, SizeOf(InNodes), 0);
-                if (IsToken(Nodes[I - 1]) and (TokenPtr(Nodes[I - 1])^.OperatorType = otNot)) then
+                if (IsToken(Nodes^[I - 1]) and (TokenPtr(Nodes^[I - 1])^.OperatorType = otNot)) then
                 begin
-                  InNodes.NotToken := Nodes[I - 1];
+                  InNodes.NotToken := Nodes^[I - 1];
                   if (I = 1) then
-                    SetError(PE_UnexpectedToken, Nodes[0])
+                    SetError(PE_UnexpectedToken, Nodes^[0])
                   else
-                    InNodes.Operand := Nodes[I - 2];
+                    InNodes.Operand := Nodes^[I - 2];
                 end
                 else
-                  InNodes.Operand := Nodes[I - 1];
-                InNodes.InToken := Nodes[I];
-                InNodes.List := Nodes[I + 1];
+                  InNodes.Operand := Nodes^[I - 1];
+                InNodes.InToken := Nodes^[I];
+                InNodes.List := Nodes^[I + 1];
 
                 RemoveNodes := 2;
                 if (InNodes.NotToken = 0) then
@@ -18783,36 +18818,36 @@ begin
                   Inc(RemoveNodes);
                 end;
 
-                Nodes[I] := TInOp.Create(Self, InNodes);
+                Nodes^[I] := TInOp.Create(Self, InNodes);
                 Dec(NodeCount, RemoveNodes);
-                Move(Nodes[I + RemoveNodes + 1], Nodes[I + 1], (NodeCount - 1) * SizeOf(Nodes[0]));
+                Move(Nodes^[I + RemoveNodes + 1], Nodes^[I + 1], (NodeCount - 1) * SizeOf(Nodes^[0]));
               end;
             otLike:
               if (NodeCount = I + 1) then
                 SetError(PE_IncompleteStmt)
               else if (I = 0) then
-                SetError(PE_UnexpectedToken, Nodes[0])
+                SetError(PE_UnexpectedToken, Nodes^[0])
               else
               begin
                 FillChar(LikeNodes, SizeOf(LikeNodes), 0);
-                if (IsToken(Nodes[I - 1]) and (TokenPtr(Nodes[I - 1])^.OperatorType = otNot)) then
+                if (IsToken(Nodes^[I - 1]) and (TokenPtr(Nodes^[I - 1])^.OperatorType = otNot)) then
                 begin
-                  LikeNodes.NotToken := Nodes[I - 1];
+                  LikeNodes.NotToken := Nodes^[I - 1];
                   if (I = 1) then
-                    SetError(PE_UnexpectedToken, Nodes[0])
+                    SetError(PE_UnexpectedToken, Nodes^[0])
                   else
-                    LikeNodes.Operand1 := Nodes[I - 2];
+                    LikeNodes.Operand1 := Nodes^[I - 2];
                 end
                 else
-                  LikeNodes.Operand1 := Nodes[I - 1];
-                LikeNodes.LikeToken := Nodes[I];
-                LikeNodes.Operand2 := Nodes[I + 1];
-                if ((NodeCount >= I + 3) and IsToken(Nodes[I + 2]) and (TokenPtr(Nodes[I + 2])^.OperatorType = otEscape)) then
+                  LikeNodes.Operand1 := Nodes^[I - 1];
+                LikeNodes.LikeToken := Nodes^[I];
+                LikeNodes.Operand2 := Nodes^[I + 1];
+                if ((NodeCount >= I + 3) and IsToken(Nodes^[I + 2]) and (TokenPtr(Nodes^[I + 2])^.OperatorType = otEscape)) then
                 begin
                   if (NodeCount = I + 3) then
                     SetError(PE_IncompleteStmt);
-                  LikeNodes.EscapeToken := Nodes[I + 1];
-                  LikeNodes.EscapeCharToken := Nodes[I + 2];
+                  LikeNodes.EscapeToken := Nodes^[I + 1];
+                  LikeNodes.EscapeCharToken := Nodes^[I + 2];
                 end;
 
                 RemoveNodes := 2;
@@ -18825,30 +18860,30 @@ begin
                 end;
                 if (LikeNodes.EscapeCharToken > 0) then Inc(RemoveNodes, 2);
 
-                Nodes[I] := TLikeOp.Create(Self, LikeNodes);
+                Nodes^[I] := TLikeOp.Create(Self, LikeNodes);
                 Dec(NodeCount, RemoveNodes);
-                Move(Nodes[I + RemoveNodes + 1], Nodes[I + 1], (NodeCount - 1) * SizeOf(Nodes[0]));
+                Move(Nodes^[I + RemoveNodes + 1], Nodes^[I + 1], (NodeCount - 1) * SizeOf(Nodes^[0]));
               end;
             otRegExp:
               if (NodeCount = I + 1) then
                 SetError(PE_IncompleteStmt)
               else if (I = 0) then
-                SetError(PE_UnexpectedToken, Nodes[0])
+                SetError(PE_UnexpectedToken, Nodes^[0])
               else
               begin
                 FillChar(RegExpNodes, SizeOf(RegExpNodes), 0);
-                if (IsToken(Nodes[I - 1]) and (TokenPtr(Nodes[I - 1])^.OperatorType = otNot)) then
+                if (IsToken(Nodes^[I - 1]) and (TokenPtr(Nodes^[I - 1])^.OperatorType = otNot)) then
                 begin
-                  RegExpNodes.NotToken := Nodes[I - 1];
+                  RegExpNodes.NotToken := Nodes^[I - 1];
                   if (I = 1) then
-                    SetError(PE_UnexpectedToken, Nodes[0])
+                    SetError(PE_UnexpectedToken, Nodes^[0])
                   else
-                    RegExpNodes.Operand1 := Nodes[I - 2];
+                    RegExpNodes.Operand1 := Nodes^[I - 2];
                 end
                 else
-                  RegExpNodes.Operand1 := Nodes[I - 1];
-                RegExpNodes.RegExpToken := Nodes[I];
-                RegExpNodes.Operand2 := Nodes[I + 1];
+                  RegExpNodes.Operand1 := Nodes^[I - 1];
+                RegExpNodes.RegExpToken := Nodes^[I];
+                RegExpNodes.Operand2 := Nodes^[I + 1];
 
                 RemoveNodes := 2;
                 if (RegExpNodes.NotToken = 0) then
@@ -18859,25 +18894,25 @@ begin
                   Inc(RemoveNodes);
                 end;
 
-                Nodes[I] := TRegExpOp.Create(Self, RegExpNodes);
+                Nodes^[I] := TRegExpOp.Create(Self, RegExpNodes);
                 Dec(NodeCount, RemoveNodes);
-                Move(Nodes[I + RemoveNodes + 1], Nodes[I + 1], (NodeCount - 1) * SizeOf(Nodes[0]));
+                Move(Nodes^[I + RemoveNodes + 1], Nodes^[I + 1], (NodeCount - 1) * SizeOf(Nodes^[0]));
               end;
             otSounds:
               if (NodeCount < I + 3) then
-                SetError(PE_IncompleteStmt, Nodes[I])
-              else if ((NodePtr(Nodes[I + 1])^.NodeType <> ntToken) or (TokenPtr(Nodes[I + 1])^.OperatorType <> otLike)) then
-                SetError(PE_UnexpectedToken, Nodes[I + 1])
+                SetError(PE_IncompleteStmt, Nodes^[I])
+              else if ((NodePtr(Nodes^[I + 1])^.NodeType <> ntToken) or (TokenPtr(Nodes^[I + 1])^.OperatorType <> otLike)) then
+                SetError(PE_UnexpectedToken, Nodes^[I + 1])
               else
               begin
-                Nodes[I - 1] := TSoundsLikeOp.Create(Self, Nodes[I - 1], Nodes[I], Nodes[I + 1], Nodes[I + 2]);
+                Nodes^[I - 1] := TSoundsLikeOp.Create(Self, Nodes^[I - 1], Nodes^[I], Nodes^[I + 1], Nodes^[I + 2]);
                 Dec(NodeCount, 3);
-                Move(Nodes[I + 3], Nodes[I], (NodeCount - I) * SizeOf(Nodes[0]));
+                Move(Nodes^[I + 3], Nodes^[I], (NodeCount - I) * SizeOf(Nodes^[0]));
                 Dec(I);
               end;
             else
-              case (NodePtr(Nodes[I])^.FNodeType) of
-                ntToken: SetError(PE_UnexpectedToken, Nodes[I]);
+              case (NodePtr(Nodes^[I])^.FNodeType) of
+                ntToken: SetError(PE_UnexpectedToken, Nodes^[I]);
                 else raise ERangeError.Create(SArgumentOutOfRange);
               end;
         end;
@@ -18889,7 +18924,10 @@ begin
   if (NodeCount <> 1) then
     Result := 0
   else
-    Result := Nodes[0];
+    Result := Nodes^[0];
+
+  if (NodesLength > StackNodeCount) then
+    SetLength(Nodes2, 0);
 end;
 
 function TSQLParser.ParseExtractFunc(): TOffset;
@@ -23955,9 +23993,10 @@ begin
       Ident:
         MOV TokenType,ttIdent
         MOV PrefixPresent,True
-        ADD ESI,2                        // Next character in SQL
-        DEC ECX                          // One character handled
         MOV EDX,ESI
+        ADD ESI,2                        // Step over first character
+        DEC ECX                          // One character handled
+        JZ Finish
       IdentL:
         MOV AX,[ESI]                     // One Character from SQL to AX
         CMP AX,' '                       // <Space>?

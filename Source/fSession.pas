@@ -6,8 +6,8 @@ uses
   SysUtils, Classes, Windows,
   DB,
   acMYSQLSynProvider, acQBEventMetaProvider,
-  SQLParser, SQLUtils, MySQLDB,
-  fPreferences;
+  SQLUtils, MySQLDB,
+  fSQLParser, fPreferences;
 
 type
   TSItems = class;
@@ -8422,19 +8422,21 @@ var
 begin
   SQL := '';
 
-  case (NewView.Algorithm) of
-    vaUndefined: SQL := SQL + 'ALGORITHM=UNDEFINED ';
-    vaMerge: SQL := SQL + 'ALGORITHM=MERGE ';
-    vaTemptable: SQL := SQL + 'ALGORITHM=TEMPTABLE ';
-  end;
+  if (not Assigned(View) or Assigned(View) and (View.Algorithm <> NewView.Algorithm)) then
+    case (NewView.Algorithm) of
+      vaUndefined: SQL := SQL + 'ALGORITHM=UNDEFINED ';
+      vaMerge: SQL := SQL + 'ALGORITHM=MERGE ';
+      vaTemptable: SQL := SQL + 'ALGORITHM=TEMPTABLE ';
+    end;
   if (Session.Connection.ServerVersion >= 50016) then
   begin
     if (not Assigned(View) and (NewView.Definer <> '') or Assigned(View) and (View.Definer <> NewView.Definer)) then
       SQL := SQL + 'DEFINER=' + Session.EscapeUser(NewView.Definer, True) + ' ';
-    case (NewView.Security) of
-      seDefiner: SQL := SQL + 'SQL SECURITY DEFINER ';
-      seInvoker: SQL := SQL + 'SQL SECURITY INVOKER ';
-    end;
+    if (not Assigned(View) or Assigned(View) and (View.Security <> NewView.Security)) then
+      case (NewView.Security) of
+        seDefiner: SQL := SQL + 'SQL SECURITY DEFINER ';
+        seInvoker: SQL := SQL + 'SQL SECURITY INVOKER ';
+      end;
   end;
   SQL := SQL + 'VIEW ' + Session.Connection.EscapeIdentifier(NewView.Database.Name) + '.' + Session.Connection.EscapeIdentifier(NewView.Name);
   SQL := SQL + ' AS ' + SQLTrimStmt(NewView.Stmt, Session.Connection.ServerVersion);
@@ -11257,7 +11259,7 @@ begin
   Result := nil;
 
   for I := 0 to FieldTypes.Count - 1 do
-    if (lstrcmpi(PChar(FieldTypes[I].Caption), PChar(Caption)) = 0) then
+    if (FieldTypes.NameCmp(FieldTypes[I].Caption, Caption) = 0) then
       Result := FieldTypes[I];
 
   if (not Assigned(Result)) then
@@ -12417,6 +12419,7 @@ end;
 
 function TSSession.Update(const Objects: TList; const Status: Boolean = False): Boolean;
 var
+  BaseTableInTables: Boolean;
   Database: TSDatabase;
   I: Integer;
   List: TList;
@@ -12456,6 +12459,7 @@ begin
   List.Sort(Compare);
 
   Tables := TList.Create();
+  BaseTableInTables := False;
   ViewInTables := False;
 
   Database := nil;
@@ -12481,10 +12485,12 @@ begin
       begin
         if (Tables.Count > 0) then
         begin
-          SQL := SQL + Database.Tables.SQLGetStatus(Tables);
+          if (BaseTableInTables) then
+            SQL := SQL + Database.Tables.SQLGetStatus(Tables);
           if (ViewInTables) then
             SQL := SQL + Database.Tables.SQLGetViewFields();
           Tables.Clear();
+          BaseTableInTables := False;
           ViewInTables := False;
         end;
       end;
@@ -12496,22 +12502,24 @@ begin
         Tables.Add(List[I])
       else if ((TSObject(List[I]) is TSView) and not TSView(List[I]).ValidFields) then
         Tables.Add(List[I]);
+      BaseTableInTables := BaseTableInTables or (TSObject(List[I]) is TSBaseTable);
       ViewInTables := ViewInTables or (TSObject(List[I]) is TSView);
     end
     else if ((TObject(List[I]) is TSUser) and not TSUser(List[I]).Valid) then
       SQL := SQL + TSUser(List[I]).SQLGetSource();
   if (Tables.Count > 0) then
   begin
-    SQL := SQL + Database.Tables.SQLGetStatus(Tables);
+    if (BaseTableInTables) then
+      SQL := SQL + Database.Tables.SQLGetStatus(Tables);
     if (ViewInTables) then
       SQL := SQL + Database.Tables.SQLGetViewFields();
     Tables.Clear();
   end;
 
   for I := 0 to List.Count - 1 do
-    if ((TObject(List[I]) is TSBaseTable) and Assigned(TSBaseTable(List[I]).FDataSet) and not TSBaseTable(List[I]).FDataSet.Active
-      and (TSBaseTable(List[I]).Database <> InformationSchema) and (Databases.NameCmp(TSBaseTable(List[I]).Database.Name, 'mysql') <> 0)) then
-      SQL := SQL + TSBaseTable(List[I]).FDataSet.SQLSelect();
+    if ((TObject(List[I]) is TSTable) and Assigned(TSTable(List[I]).FDataSet) and not TSTable(List[I]).FDataSet.Active
+      and (TSTable(List[I]).Database <> InformationSchema) and (Databases.NameCmp(TSTable(List[I]).Database.Name, 'mysql') <> 0)) then
+      SQL := SQL + TSTable(List[I]).FDataSet.SQLSelect();
 
   for I := 0 to List.Count - 1 do
     if (TObject(List[I]) is TSDatabase) then

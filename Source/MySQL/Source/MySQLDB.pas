@@ -2302,7 +2302,7 @@ begin
 
   SendConnectEvent(False);
 
-  if (Assigned(LibraryThread) and (LibraryThread.State <> ssReady)) then
+  if (Assigned(LibraryThread) and not (LibraryThread.State in [ssReady, ssError])) then
     Terminate();
 
   FErrorCode := DS_ASYNCHRON; FErrorMessage := '';

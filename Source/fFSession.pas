@@ -13,8 +13,8 @@ uses
   acQBBase, acAST, acQBEventMetaProvider, acMYSQLSynProvider, acSQLBuilderPlainText,
   ShellControls, JAMControls, ShellLink,
   ComCtrls_Ext, StdCtrls_Ext, Dialogs_Ext, Forms_Ext, ExtCtrls_Ext,
-  MySQLDB, MySQLDBGrid, SQLParser,
-  fSession, fPreferences, fTools, fBase,
+  MySQLDB, MySQLDBGrid,
+  fSession, fSQLParser, fPreferences, fTools, fBase,
   fDExport, fDImport, fCWorkbench;
 
 const
@@ -1103,7 +1103,7 @@ uses
   ShLwApi,
   acQBLocalizer, acQBStrings,
   CommCtrl_Ext, StdActns_Ext,
-  MySQLConsts, SQLUtils,
+  MySQLConsts, SQLUtils, CSVUtils,
   fDField, fDKey, fDTable, fDTables, fDVariable, fDDatabase, fDForeignKey,
   fDUser, fDQuickFilter, fDSQLHelp, fDTransfer, fDSearch, fDServer, fDGoto,
   fURI, fDView, fDRoutine, fDTrigger, fDStatement, fDEvent, fDPaste, fDSegment,
@@ -12914,7 +12914,7 @@ begin
     Msg := E.Message;
 
   Flags := MB_CANCELTRYCONTINUE + MB_ICONERROR;
-  case (MsgBox(Msg, Preferences.LoadStr(45), Flags, Handle)) of
+  case (MsgBox(Msg, Preferences.LoadStr(45), Flags)) of
     IDCANCEL,
     IDABORT: begin Action := daAbort; PostMessage(Handle, UM_ACTIVATE_DBGRID, 0, LPARAM(ActiveDBGrid)); end;
     IDRETRY,
@@ -13061,6 +13061,7 @@ var
   Database: TSDatabase;
   DbIdentType: TSQLParser.TDbIdentType;
   EntitiesDbIdentTypes: array of TEntitiesDbIdentType;
+  FunctionNames: TCSVStrings;
   I: Integer;
   Index: Integer;
   Item: TSQLParser.TCompletionList.PItem;
@@ -13135,11 +13136,17 @@ begin
                       SetLength(EntitiesDbIdentTypes, Length(EntitiesDbIdentTypes) + 1);
                       EntitiesDbIdentTypes[Length(EntitiesDbIdentTypes) - 1].DbIdentType := Item^.DbIdentType;
                       EntitiesDbIdentTypes[Length(EntitiesDbIdentTypes) - 1].DbObject := Database.Routines;
+
+                      // Database intern functions:
+                      CSVSplitValues(Session.SQLParser.Functions, ',', '"', FunctionNames);
+                      for J := 0 to Length(FunctionNames) - 1 do
+                        CompletionList.Add(
+                          PChar(FunctionNames[J]),
+                          PChar(FunctionNames[J]));
                     end;
-                  ditKey,
-                  ditField,
-                  ditForeignKey:
-                    ; // TableName is not given!
+                  ditField:
+                    if (Assigned(Table)) then
+                      List.Add(Table.Fields);
                   ditEvent:
                     if (Assigned(Database)) then
                       List.Add(Database.Events);
@@ -14344,7 +14351,7 @@ begin
           end;
       end;
     vBrowser:
-      if (TObject(FNavigator.Selected.Data) is TSTable) then
+      if ((TObject(FNavigator.Selected.Data) is TSTable) and not TSTable(FNavigator.Selected.Data).ValidData) then
         TableOpen(nil);
     vIDE:
       PContentChange(nil);

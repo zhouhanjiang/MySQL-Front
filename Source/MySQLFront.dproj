@@ -14,6 +14,11 @@
 		<PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
 			<Base>true</Base>
 		</PropertyGroup>
+		<PropertyGroup Condition="('$(Platform)'=='Win32' and '$(Base)'=='true') or '$(Base_Win32)'!=''">
+			<Base_Win32>true</Base_Win32>
+			<CfgParent>Base</CfgParent>
+			<Base>true</Base>
+		</PropertyGroup>
 		<PropertyGroup Condition="'$(Base)'!=''">
 			<VerInfo_IncludeVerInfo>false</VerInfo_IncludeVerInfo>
 			<Manifest_File>None</Manifest_File>
@@ -31,6 +36,9 @@
 			<DCC_DependencyCheckOutputName>..\Temp\MySQLFront.exe</DCC_DependencyCheckOutputName>
 			<DCC_Platform>x86</DCC_Platform>
 			<DCC_MapFile>3</DCC_MapFile>
+		</PropertyGroup>
+		<PropertyGroup Condition="'$(Base_Win32)'!=''">
+			<Debugger_DebugSourcePath>C:\Users\Nils\Documents\MySQL-Front\Source\SynEdit\Source\;$(Debugger_DebugSourcePath)</Debugger_DebugSourcePath>
 		</PropertyGroup>
 		<ItemGroup>
 			<DelphiCompile Include="$(MainSource)">
@@ -54,6 +62,7 @@
 			<DCCReference Include="fJob.pas"/>
 			<DCCReference Include="fPreferences.pas"/>
 			<DCCReference Include="fSession.pas"/>
+			<DCCReference Include="fSQLParser.pas"/>
 			<DCCReference Include="fTools.pas"/>
 			<DCCReference Include="fURI.pas"/>
 			<DCCReference Include="fBase.pas"/>

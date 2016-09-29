@@ -85,7 +85,7 @@ function FindMenuItemByName(const Item: TMenuItem; const Name: string): TMenuIte
 function MainAction(const Name: string): TAction;
 function MsgBoxCheck(const Text: string; const Caption: string; uType: UINT; hWnd: HWND;
   Default: Integer; RegVal: PChar): Integer;
-function MsgBox(const Text: string; const Caption: string; const Flags: Longint; const Wnd: HWND = 0): Integer;
+function MsgBox(const Text: string; const Caption: string; const Flags: Longint): Integer;
 procedure SetToolBarHints(const ToolBar: TToolBar);
 function ShowEnabledItems(const Item: TMenuItem): Boolean;
 function SizeToStr(const Size: LongLong): string;
@@ -790,7 +790,7 @@ begin
     FreeLibrary(Handle);
 end;
 
-function MsgBox(const Text: string; const Caption: string; const Flags: Longint; const Wnd: HWND = 0): Integer;
+function MsgBox(const Text: string; const Caption: string; const Flags: Longint): Integer;
 var
   TopWindow: HWND;
   MsgBoxParams: TMsgBoxParams;
@@ -803,13 +803,12 @@ begin
   begin
     ZeroMemory(@MsgBoxParams, SizeOf(MsgBoxParams));
     MsgBoxParams.cbSize := SizeOf(MsgBoxParams);
-    MsgBoxParams.hwndOwner := Wnd;
-    if (MsgBoxParams.hwndOwner = 0) then
+    if (Assigned(Screen.ActiveForm)) then
+      MsgBoxParams.hwndOwner := Screen.ActiveForm.Handle
+    else if (Assigned(Application.MainForm)) then
+      MsgBoxParams.hwndOwner := Application.MainForm.Handle
+    else
       MsgBoxParams.hwndOwner := GetFocus();
-    if ((MsgBoxParams.hwndOwner = 0) and Assigned(Screen.ActiveForm)) then
-      MsgBoxParams.hwndOwner := Screen.ActiveForm.Handle;
-    if ((MsgBoxParams.hwndOwner = 0) and Assigned(Application.MainForm)) then
-      MsgBoxParams.hwndOwner := Application.MainForm.Handle;
     MsgBoxParams.hInstance := HInstance;
     MsgBoxParams.lpszText := PChar(Text);
     MsgBoxParams.lpszCaption := PChar(Caption);

@@ -1198,7 +1198,7 @@ begin
       Flags := Flags or MB_HELP;
 
     DisableApplicationActivate := True;
-    MsgBox(Msg, Preferences.LoadStr(45), Flags, Handle);
+    MsgBox(Msg, Preferences.LoadStr(45), Flags);
     DisableApplicationActivate := False;
   end;
 

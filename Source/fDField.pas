@@ -702,7 +702,6 @@ begin
 
         if (not CanClose) then
         begin
-          ModalResult := mrNone;
           GBasics.Visible := CanClose;
           GAttributes.Visible := GBasics.Visible;
           PSQLWait.Visible := not GBasics.Visible;
