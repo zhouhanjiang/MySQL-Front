@@ -83,7 +83,7 @@ function EditWordBreakProc(lpch: LPTSTR; ichCurrent: Integer; cch: Integer;
 function FilterDescription(const Ext: string): string;
 function FindMenuItemByName(const Item: TMenuItem; const Name: string): TMenuItem;
 function MainAction(const Name: string): TAction;
-function MsgBoxCheck(const Text: string; const Caption: string; uType: UINT; hWnd: HWND;
+function MsgBoxCheck(const Text: string; const Caption: string; uType: UINT;
   Default: Integer; RegVal: PChar): Integer;
 function MsgBox(const Text: string; const Caption: string; const Flags: Longint): Integer;
 procedure SetToolBarHints(const ToolBar: TToolBar);
@@ -767,7 +767,7 @@ begin
   Result := CallNextHookEx(CBTHook, Code, wParam, lParam);
 end;
 
-function MsgBoxCheck(const Text: string; const Caption: string; uType: UINT; hWnd: HWND;
+function MsgBoxCheck(const Text: string; const Caption: string; uType: UINT;
   Default: Integer; RegVal: PChar): Integer;
 type
   TSHMessageBoxCheck = function(hWnd: THandle; pszText, pszCaption: LPCTSTR;
@@ -775,16 +775,23 @@ type
 var
   Handle: THandle;
   SHMessageBoxCheck: TSHMessageBoxCheck;
+  Wnd: HWND;
 begin
   Handle := LoadLibrary('shlwapi.dll');
   if (Handle = 0) then
     SHMessageBoxCheck := nil
   else
     SHMessageBoxCheck := GetProcAddress(Handle, PChar(191));
-  if (not Assigned(SHMessageBoxCheck)) then
-    Result := MessageBox(hWnd, PChar(Text), PChar(Caption), uType)
+  if (Assigned(Screen.ActiveForm)) then
+    Wnd := Screen.ActiveForm.Handle
+  else if (Assigned(Application.MainForm)) then
+    Wnd := Application.MainForm.Handle
   else
-    Result := SHMessageBoxCheck(hWnd, PChar(Text), PChar(Caption), uType, Default, RegVal);
+    Wnd := GetFocus();
+  if (not Assigned(SHMessageBoxCheck)) then
+    Result := MessageBox(Wnd, PChar(Text), PChar(Caption), uType)
+  else
+    Result := SHMessageBoxCheck(Wnd, PChar(Text), PChar(Caption), uType, Default, RegVal);
 
   if (Handle > 0) then
     FreeLibrary(Handle);

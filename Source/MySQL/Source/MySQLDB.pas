@@ -190,6 +190,7 @@ type
       SQLStmtsInPackets: TList;
       State: TState;
       Success: Boolean;
+      WarningCount: Integer;
       procedure BindDataSet(const ADataSet: TMySQLQuery); virtual;
       procedure Execute(); override;
       procedure ReleaseDataSet(); virtual;
@@ -426,7 +427,6 @@ type
     FInformConvertError: Boolean;
     FRecNo: Integer;
     FRowsAffected: Integer;
-    FWarningCount: Integer;
     function GetHandle(): MySQLConsts.MYSQL_RES;
   protected
     FCommandText: string;
@@ -474,7 +474,6 @@ type
     property RowsAffected: Integer read FRowsAffected;
     property TableName: string read FTableName;
     property UniDirectional: Boolean read GetUniDirectional;
-    property Warnings: Integer read FWarningCount;
   published
     property CommandText: string read FCommandText write SetCommandText;
     property CommandType: TCommandType read FCommandType;
@@ -1041,6 +1040,7 @@ begin
   begin
     SynchronizingThreadsCS.Enter();
     SynchronizingThreads.Add(LibraryThread);
+
     MySQLConnectionOnSynchronize(LibraryThread);
     SynchronizingThreadsCS.Leave();
   end;
@@ -1836,8 +1836,6 @@ end;
 
 constructor TMySQLConnection.TLibraryThread.Create(const AConnection: TMySQLConnection);
 begin
-  Assert(Assigned(AConnection));
-
   inherited Create(False);
 
   FConnection := AConnection;
@@ -2409,9 +2407,9 @@ begin
   LibraryThread.SQLStmtsInPackets.Clear();
   LibraryThread.Time := 0;
 
-  FErrorCode := DS_ASYNCHRON; FErrorMessage := '';
+  FErrorCode := DS_ASYNCHRON; FErrorMessage := ''; FWarningCount := 0;
   FExecutedSQLLength := 0; FExecutedStmts := 0; FResultCount := 0;
-  FRowsAffected := -1; FWarningCount := -1; FExecutionTime := 0;
+  FRowsAffected := -1; FExecutionTime := 0;
 
   LibraryThread.SQLStmtIndex := 1;
   while (LibraryThread.SQLStmtIndex < Length(LibraryThread.SQL)) do
@@ -2521,6 +2519,7 @@ begin
       SyncExecutingSQL(LibraryThread);
       FErrorCode := LibraryThread.ErrorCode;
       FErrorMessage := LibraryThread.ErrorMessage;
+      FWarningCount := LibraryThread.WarningCount;
       Result := ErrorCode = 0;
       if (Result) then
         SyncHandleResult(LibraryThread);
@@ -3031,6 +3030,7 @@ begin
       FErrorMessage := ''
     else
       FErrorMessage := ErrorMsg(LibraryThread.LibHandle);
+    FWarningCount := 0;
     DoError(FErrorCode, FErrorMessage);
     Result := False;
   end
@@ -3137,6 +3137,7 @@ begin
     LibraryThread.ErrorMessage := ''
   else
     LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
+  LibraryThread.WarningCount := 0;
 
   if ((LibraryThread.ErrorCode = 0) and Assigned(Lib.mysql_set_character_set) and (Lib.mysql_get_server_version(LibraryThread.LibHandle) >= 50503)) then
     Lib.mysql_set_character_set(LibraryThread.LibHandle, 'utf8mb4');
@@ -3160,6 +3161,7 @@ begin
   FConnected := LibraryThread.Success;
   FErrorCode := LibraryThread.ErrorCode;
   FErrorMessage := LibraryThread.ErrorMessage;
+  FWarningCount := LibraryThread.WarningCount;
   FThreadId := LibraryThread.LibThreadId;
 
   if (Assigned(LibraryThread.LibHandle)) then
@@ -3228,6 +3230,7 @@ begin
   begin
     LibraryThread.ErrorCode := 0;
     LibraryThread.ErrorMessage := '';
+    LibraryThread.WarningCount := 0;
   end
   else
   begin
@@ -3236,6 +3239,7 @@ begin
       LibraryThread.ErrorMessage := ''
     else
       LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
+    LibraryThread.WarningCount := 0;
 
     Lib.mysql_close(LibraryThread.LibHandle);
     LibraryThread.LibHandle := nil;
@@ -3251,12 +3255,14 @@ begin
   begin
     FErrorCode := LibraryThread.ErrorCode;
     FErrorMessage := LibraryThread.ErrorMessage;
+    FWarningCount := LibraryThread.WarningCount;
     LibraryThread.State := ssClose;
   end
   else
   begin
     FErrorCode := 0;
     FErrorMessage := '';
+    FWarningCount := 0;
   end;
 
   if Assigned(AfterDisconnect) then AfterDisconnect(Self);
@@ -3266,6 +3272,7 @@ procedure TMySQLConnection.SyncExecutedSQL(const LibraryThread: TLibraryThread);
 begin
   FErrorCode := LibraryThread.ErrorCode;
   FErrorMessage := LibraryThread.ErrorMessage;
+  FWarningCount := LibraryThread.WarningCount;
   FExecutionTime := LibraryThread.Time;
 
   if (Assigned(Lib.mysql_get_server_status) and Assigned(LibraryThread.LibHandle)) then
@@ -3360,6 +3367,10 @@ begin
       LibraryThread.ErrorMessage := ''
     else
       LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
+    if ((ServerVersion > 40100) and not Assigned(Lib.mysql_warning_count)) then
+      LibraryThread.WarningCount := 0
+    else
+      LibraryThread.WarningCount := Lib.mysql_warning_count(LibraryThread.LibHandle);
   end;
 end;
 
@@ -3372,6 +3383,7 @@ var
 begin
   FErrorCode := LibraryThread.ErrorCode;
   FErrorMessage := LibraryThread.ErrorMessage;
+  FWarningCount := LibraryThread.WarningCount;
   FThreadId := LibraryThread.LibThreadId;
 
   if (FErrorCode > 0) then
@@ -3432,17 +3444,12 @@ begin
         S := '--> Ok';
         WriteMonitor(PChar(S), Length(S), ttInfo);
       end;
+    end;
 
-      if ((ServerVersion > 40100) and Assigned(Lib.mysql_warning_count)) then
-      begin
-        FWarningCount := Lib.mysql_warning_count(LibraryThread.LibHandle);
-
-        if (Lib.mysql_warning_count(LibraryThread.LibHandle) > 0) then
-        begin
-          S := '--> ' + IntToStr(Lib.mysql_warning_count(LibraryThread.LibHandle)) + ' Warning(s) available';
-          WriteMonitor(PChar(S), Length(S), ttInfo);
-        end;
-      end;
+    if (FWarningCount > 0) then
+    begin
+      S := '--> ' + IntToStr(FWarningCount) + ' Warning(s) available';
+      WriteMonitor(PChar(S), Length(S), ttInfo);
     end;
   end;
 
@@ -3459,6 +3466,7 @@ var
 begin
   FErrorCode := LibraryThread.ErrorCode;
   FErrorMessage := LibraryThread.ErrorMessage;
+  FWarningCount := LibraryThread.WarningCount;
 
   if (not LibraryThread.Terminated and (LibraryThread.State = ssResult)) then
   begin
@@ -3573,6 +3581,10 @@ begin
     LibraryThread.Success := False;
     LibraryThread.ErrorMessage := ErrorMsg(LibraryThread.LibHandle);
   end;
+  if ((ServerVersion > 40100) and not Assigned(Lib.mysql_warning_count)) then
+    LibraryThread.WarningCount := 0
+  else
+    LibraryThread.WarningCount := Lib.mysql_warning_count(LibraryThread.LibHandle);
 end;
 
 procedure TMySQLConnection.SyncPing(const LibraryThread: TLibraryThread);

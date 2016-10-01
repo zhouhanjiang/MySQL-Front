@@ -399,7 +399,7 @@ type
     {$ENDIF}
     FSessions: TList;
     MouseDownPoint: TPoint;
-    Param: string; // erforderlich für PostMessage
+    Param: string; // needed for PostMessage
     PreviousForm: TForm;
     QuitAfterShow: Boolean;
     TabControlDragMarkedTabIndex: Integer;

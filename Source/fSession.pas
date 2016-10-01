@@ -1142,14 +1142,14 @@ type
 
   TSFieldType = class(TSItem)
   private
-    FCaption: string;
+    FName: string;
     FHighlighted: Boolean;
     FMySQLFieldType: TSField.TFieldType;
     function GetFieldTypes(): TSFieldTypes;
   public
     function DBTypeStr(): string; virtual;
     constructor Create(const AFieldTypes: TSFieldTypes; const AMySQLFieldType: TSField.TFieldType; const ACaption: string; const AHighlighted: Boolean); reintroduce; virtual;
-    property Caption: string read FCaption;
+    property Name: string read FName;
     property FieldTypes: TSFieldTypes read GetFieldTypes;
     property Highlighted: Boolean read FHighlighted;
     property MySQLFieldType: TSField.TFieldType read FMySQLFieldType;
@@ -5757,7 +5757,7 @@ begin
               if (Parameter[I].Size > 0) then Field.Size := Parameter[I].Size;
               Field.Tag := Database.DefaultCodePage;
             end;
-          else raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%s)', [Parameter[I].Name, Session.FieldTypeByMySQLFieldType(Parameter[I].FieldType).Caption]);
+          else raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%s)', [Parameter[I].Name, Session.FieldTypeByMySQLFieldType(Parameter[I].FieldType).Name]);
         end;
       Field.FieldName := Parameter[I].Name;
       Field.Name := ReplaceStr(ReplaceStr(Field.FieldName, ' ', '_'), '.', '_');
@@ -9215,14 +9215,14 @@ constructor TSFieldType.Create(const AFieldTypes: TSFieldTypes; const AMySQLFiel
 begin
   inherited Create(AFieldTypes);
 
-  FCaption := ACaption;
+  FName := ACaption;
   FHighlighted := AHighlighted;
   FMySQLFieldType := AMySQLFieldType;
 end;
 
 function TSFieldType.DBTypeStr(): string;
 begin
-  Result := LowerCase(Caption);
+  Result := LowerCase(Name);
 end;
 
 function TSFieldType.GetFieldTypes(): TSFieldTypes;
@@ -10800,7 +10800,7 @@ begin
   FSyntaxProvider := TacMYSQLSyntaxProvider.Create(nil);
   FSyntaxProvider.ServerVersionInt := Connection.ServerVersion;
   FUser := nil;
-  ParseEndDate := EncodeDate(2016, 10, 5);
+  ParseEndDate := EncodeDate(2016, 10, 10);
   FSQLParser := nil;
   UnparsableSQL := '';
 
@@ -11259,7 +11259,7 @@ begin
   Result := nil;
 
   for I := 0 to FieldTypes.Count - 1 do
-    if (FieldTypes.NameCmp(FieldTypes[I].Caption, Caption) = 0) then
+    if (FieldTypes.NameCmp(FieldTypes[I].Name, Caption) = 0) then
       Result := FieldTypes[I];
 
   if (not Assigned(Result)) then

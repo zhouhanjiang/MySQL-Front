@@ -114,7 +114,7 @@ begin
 
   FSize.Caption := FormatFloat('#,##0', Length(Routine.Source), LocaleFormatSettings);
 
-  FSource.Text := Trim(Routine.Source) + #13#10;
+  FSource.Text := Trim(Routine.Source) + #13#10 + #13#10;
 
   TSSource.TabVisible := Routine.Source <> '';
 
@@ -267,6 +267,7 @@ procedure TDRoutine.FormShow(Sender: TObject);
 var
   I: Integer;
   RoutineName: string;
+  SQL: string;
 begin
   Database.Session.RegisterEventProc(FormSessionEvent);
 
@@ -310,10 +311,10 @@ begin
         Inc(I);
       end;
 
-      FSource.Lines.Clear();
-      FSource.Lines.Add('CREATE PROCEDURE ' + Database.Session.Connection.EscapeIdentifier(RoutineName) + '(Param int(11))');
-      FSource.Lines.Add('BEGIN');
-      FSource.Lines.Add('END;');
+      SQL := 'CREATE PROCEDURE ' + Database.Session.Connection.EscapeIdentifier(RoutineName) + '(Param int(11))' + #13#10
+        + 'BEGIN' + #13#10
+        + 'END;' + #13#10;
+      FSource.Text := SQL;
     end
     else if (RoutineType = rtFunction) then
     begin
@@ -325,11 +326,11 @@ begin
         Inc(I);
       end;
 
-      FSource.Lines.Clear();
-      FSource.Lines.Add('CREATE FUNCTION ' + Database.Session.Connection.EscapeIdentifier(RoutineName) + '(Param int(11)) RETURNS int(11)');
-      FSource.Lines.Add('BEGIN');
-      FSource.Lines.Add('  RETURN Param;');
-      FSource.Lines.Add('END;');
+      SQL := 'CREATE FUNCTION ' + Database.Session.Connection.EscapeIdentifier(RoutineName) + '(Param int(11)) RETURNS int(11)' + #13#10
+        + 'BEGIN' + #13#10
+        + '  RETURN Param;' + #13#10
+        + 'END;' + #13#10;
+      FSource.Text := SQL;
     end
     else
       FSource.Lines.Clear();

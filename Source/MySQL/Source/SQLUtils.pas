@@ -69,6 +69,7 @@ function SQLTrimStmt(const SQL: string; const Version: Integer): string; overloa
 function SQLTrimStmt(const SQL: string; const Index, Length: Integer; const Version: Integer; var StartingCommentLength, EndingCommentLength: Integer): Integer; overload; inline;
 function SQLTrimStmt(const SQL: PChar; const Length: Integer; const Version: Integer; out StartingCommentLength, EndingCommentLength: Integer): Integer; overload;
 function SQLUnescape(const Value: PAnsiChar; const RemoveQuoter: Boolean = True): RawByteString; overload;
+function SQLUnescape(const Value: PChar; const Len: Integer; const Unescaped: PChar; const UnescapedLen: Integer; const RemoveQuoter: Boolean = True): Integer; overload;
 function SQLUnescape(const Value: string; const RemoveQuoter: Boolean = True): string; overload;
 function SQLWrapStmt(const SQL: string; const WrapStrs: array of string; const Indent: Integer): string;
 function SQLUnwrapStmt(const SQL: string; const Version: Integer): string;
@@ -2768,22 +2769,13 @@ begin
   end;
 end;
 
-function SQLUnescape(const Value: string; const RemoveQuoter: Boolean = True): string;
+function SQLUnescape(const Value: PChar; const Len: Integer; const Unescaped: PChar; const UnescapedLen: Integer; const RemoveQuoter: Boolean = True): Integer;
 label
-  StringL, Quoted, StringLE,
+  Start, StartL,
+  Quoted, QuotedL, QuotedLE,
   Finish;
-var
-  Len: Integer;
 begin
-  Len := Length(Value);
-
-  if (Len = 0) then
-    Result := ''
-  else
-  begin
-    SetLength(Result, Len); // reserve space
-
-    asm
+  asm
         PUSH ES
         PUSH ESI
         PUSH EDI
@@ -2793,15 +2785,17 @@ begin
         POP ES
         CLD                              // string operations uses forward direction
 
-        MOV ESI,PChar(Value)             // Copy characters from Value
-        MOV EAX,Result                   //   to Result
-        MOV EDI,[EAX]
+        MOV ESI,Value                    // Copy characters from Value
+        MOV EDI,Unescaped                //   to Unescaped
 
         MOV ECX,Len
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
 
       // -------------------
 
-      StringL:
+
+      Start:
         MOV AX,[ESI]                     // Get character from Value
         CMP AX,''''                      // Start quotation in SQL?
         JE Quoted                        // Yes!
@@ -2809,30 +2803,60 @@ begin
         JE Quoted                        // Yes!
         CMP AX,'`'                       // Start quotation in SQL?
         JE Quoted                        // Yes!
+      StartL:
         MOVSW                            // Copy character
-        LOOP StringL
+        LOOP StartL
         JMP Finish
 
       Quoted:
         MOV BL,RemoveQuoter
-        CALL UnescapeString              // Copy and unescape quoted string?
-        JECXZ Finish                     // End of SQL!
-        JMP StringL
+        CALL UnescapeString              // Copy and unescape quoted string
+
+      QuotedL:
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
+        MOV AX,[ESI]
+        CMP AX,9                         // Tabulator?
+        JE QuotedLE                      // Yes!
+        CMP AX,10                        // NewLine?
+        JE QuotedLE                      // Yes!
+        CMP AX,13                        // CarriadgeReturn?
+        JE QuotedLE                      // Yes!
+        CMP AX,' '                       // Space?
+        JE QuotedLE                      // Yes!
+        JMP Start
+      QuotedLE:
+        ADD ESI,2                        // One character handled
+        LOOP QuotedL
+        JMP Finish
 
       // -------------------
 
       Finish:
-        MOV EAX,Result                   // Calculate new length of Result
-        MOV EAX,[EAX]
-        SUB EDI,EAX
+        SUB EDI,Unescaped                // Calculate length of Unescaped
         SHR EDI,1                        // 2 Bytes = 1 character
-        MOV Len,EDI
+        MOV @Result,EDI
 
         POP EBX
         POP EDI
         POP ESI
         POP ES
-    end;
+  end;
+end;
+
+function SQLUnescape(const Value: string; const RemoveQuoter: Boolean = True): string;
+var
+  Len: Integer;
+begin
+  Len := Length(Value);
+
+  if (Len = 0) then
+    Result := ''
+  else
+  begin
+    SetLength(Result, Len); // Reserve space
+
+    Len := SQLUnescape(PChar(Value), Length(Value), PChar(Result), Len, RemoveQuoter);
 
     if (Len <> Length(Result)) then
       SetLength(Result, Len);
@@ -2841,10 +2865,15 @@ end;
 
 function SQLUnescape(const Value: PAnsiChar; const RemoveQuoter: Boolean = True): RawByteString;
 label
-  StringL, StringL2;
+  AnsiToWideL,
+  StringL, StringE,
+  Quoted,
+  WideToAnsiL;
 var
+  Buffer: PChar;
   Len: Integer;
-  S: string;
+  DynamicBuffer: array of Char;
+  StaticBuffer: array[0 .. 255] of Char;
 begin
   Len := StrLen(Value);
 
@@ -2852,7 +2881,14 @@ begin
     Result := ''
   else
   begin
-    SetLength(S, Len);
+    if (Len <= Length(StaticBuffer)) then
+      Buffer := @StaticBuffer[0]
+    else
+    begin
+      SetLength(DynamicBuffer, Len);
+      Buffer := @DynamicBuffer[0];
+    end;
+
     asm
         PUSH ES
         PUSH ESI
@@ -2862,24 +2898,26 @@ begin
         POP ES
         CLD                              // string operations uses forward direction
 
-        MOV ESI,Value                    // Copy characters from Value
-        MOV EDI,S                        //   to Result
+      // -------------------
 
+        MOV ESI,Value                    // Copy characters from Value
+        MOV EDI,Buffer                   //   to Buffer
         MOV ECX,Len
+
         MOV AH,0                         // Clear AH, since AL will be loaded, but AX stored
-      StringL:
+      AnsiToWideL:
         LODSB                            // Load AnsiChar from Value
-        STOSW                            // Store WideChar into S
-        LOOP StringL                     // Repeat for all characters
+        STOSW                            // Store WideChar into Buffer
+        LOOP AnsiToWideL                 // Repeat for all characters
+
+      // -------------------
 
         POP EDI
         POP ESI
         POP ES
     end;
 
-    S := SQLUnescape(S, RemoveQuoter);
-
-    Len := Length(S);
+    Len := SQLUnescape(Buffer, Len, Buffer, Len);
     SetLength(Result, Len);
 
     asm
@@ -2891,15 +2929,19 @@ begin
         POP ES
         CLD                              // string operations uses forward direction
 
-        MOV ESI,Pointer(S)               // Copy characters from S
+      // -------------------
+
+        MOV ESI,Buffer                   // Copy characters from Buffer
         MOV EAX,Result                   //   to Result
         MOV EDI,[EAX]
-
         MOV ECX,Len
-      StringL2:
-        LODSW                            // Load WideChar form S
+
+      WideToAnsiL:
+        LODSW                            // Load WideChar form Buffer
         STOSB                            // Store AnsiChar into Result
-        LOOP StringL2                    // Repeat for all characters
+        LOOP WideToAnsiL                 // Repeat for all characters
+
+      // -------------------
 
         POP EDI
         POP ESI
@@ -3272,5 +3314,7 @@ begin
   Result := StrPas(P);
 end;
 
+begin
+  SQLUnescape(PAnsiChar('''Hal\tlo'''), True);
 end.
 
