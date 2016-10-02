@@ -1715,7 +1715,6 @@ begin
   end;
 
   Session.Connection.EndSilent();
-  Session.Connection.EndSynchron();
 
   inherited;
 
@@ -1735,7 +1734,6 @@ begin
   inherited;
 
   Session.Connection.BeginSilent();
-  Session.Connection.BeginSynchron(); // We're still in a thread
 
   if (Data and (Session.Connection.ServerVersion >= 40014)) then
   begin
@@ -1890,8 +1888,10 @@ begin
 
         if (Assigned(Table)) then
         begin
+          Session.Connection.BeginSynchron();
           while ((Success <> daAbort) and not Database.DeleteObject(Table)) do
             DoError(DatabaseError(Session), Items[I], True);
+          Session.Connection.EndSynchron();
         end;
         if (Success = daSuccess) then
         begin
@@ -2397,8 +2397,7 @@ begin
         else
           BOMLength := 0;
 
-        FilePos := BOMLength;
-        Inc(FileBuffer.Index, FilePos);
+        Inc(FileBuffer.Index, BOMLength);
       end;
       Inc(FilePos, ReadSize);
 
@@ -2696,16 +2695,20 @@ begin
 
   NewTable.Name := Session.ApplyIdentifierName(Item.DestinationTableName);
 
+  Session.Connection.BeginSynchron();
   while ((Success <> daAbort) and not Database.AddBaseTable(NewTable)) do
     DoError(DatabaseError(Session), Item, True);
+  Session.Connection.EndSynchron();
 
   NewTable.Free();
 
   if (Success = daSuccess) then
   begin
     NewTable := Database.BaseTableByName(Item.DestinationTableName);
+    Session.Connection.BeginSynchron();
     while ((Success <> daAbort) and not NewTable.Update()) do
       DoError(DatabaseError(Session), Item, True);
+    Session.Connection.EndSynchron();
 
     for I := 0 to HeadlineNameCount - 1 do
       AddField(NewTable.Fields[I], HeadlineNames[I]);
@@ -3377,8 +3380,10 @@ begin
 
     NewTable.Name := Session.ApplyIdentifierName(Item.DestinationTableName);
 
+    Session.Connection.BeginSynchron();
     while ((Success <> daAbort) and not Database.AddBaseTable(NewTable)) do
       DoError(DatabaseError(Session), Item, True);
+    Session.Connection.EndSynchron();
   end;
 
   NewTable.Free();

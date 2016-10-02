@@ -14,6 +14,7 @@ uses
   ShellControls, JAMControls, ShellLink,
   ComCtrls_Ext, StdCtrls_Ext, Dialogs_Ext, Forms_Ext, ExtCtrls_Ext,
   MySQLDB, MySQLDBGrid,
+fProfiling,
   fSession, fSQLParser, fPreferences, fTools, fBase,
   fDExport, fDImport, fCWorkbench;
 
@@ -894,7 +895,6 @@ type
     SynCompletionPending: record
       Active: Boolean;
       CurrentInput: string;
-      DataHandle: TMySQLConnection.TDataResult;
       X: Integer;
       Y: Integer;
     end;
@@ -1018,7 +1018,6 @@ type
     procedure SQLError(DataSet: TDataSet; E: EDatabaseError; var Action: TDataAction);
     procedure SynMemoApplyPreferences(const SynMemo: TSynMemo);
     procedure SynCompletionEvent(const Event: TSSession.TEvent);
-    function SynCompletionEventDataHandle(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
     procedure TableOpen(Sender: TObject);
     procedure TCResultMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
     procedure UMActivateDBGrid(var Message: TMessage); message UM_ACTIVATE_DBGRID;
@@ -7314,7 +7313,7 @@ begin
   aPOpenInNewTab.Enabled := aPOpenInNewWindow.Enabled;
 
   MainAction('aFImportSQL').Enabled := Assigned(Node) and (((Node.ImageIndex = iiServer) and (not Assigned(Session.UserRights) or Session.UserRights.RInsert)) or (Node.ImageIndex = iiDatabase));
-  MainAction('aFImportText').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
+  MainAction('aFImportText').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseTable]);
   MainAction('aFImportExcel').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
   MainAction('aFImportAccess').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
   MainAction('aFImportODBC').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
@@ -10106,7 +10105,7 @@ begin
             aPOpenInNewWindow.Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiSystemView, iiView, iiProcedure, iiFunction]);
             aPOpenInNewTab.Enabled := aPOpenInNewWindow.Enabled;
             MainAction('aFImportSQL').Enabled := (ListView.SelCount = 0) and (SelectedImageIndex = iiDatabase);
-            MainAction('aFImportText').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
+            MainAction('aFImportText').Enabled := ((ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
             MainAction('aFImportExcel').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
             MainAction('aFImportAccess').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
             MainAction('aFImportODBC').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
@@ -13080,7 +13079,6 @@ begin
 
       SynCompletion.ItemList.Clear();
       SynCompletion.InsertList.Clear();
-      SQL := '';
 
       for I := 0 to Session.SQLParser.CompletionList.Count - 1 do
       begin
@@ -13117,25 +13115,8 @@ begin
                 ditForeignKey:
                   if (Assigned(Table)) then
                     List.Add(Table)
-                  else if ((Item^.DbIdentType = ditField) and Assigned(Session.InformationSchema) and (Item^.TableName = '')) then
-                  begin
-                    if (Assigned(Database)) then
-                      SQL := SQL
-                        + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + ' = ' + SQLEscape(Database.Name);
-                    if (CurrentInput <> '') then
-                    begin
-                      if (SQL <> '') then
-                        SQL := SQL + ' AND ';
-                      SQL := SQL
-                        + Session.Connection.EscapeIdentifier('COLUMN_NAME') + ' LIKE ' + SQLEscape(CurrentInput + '%');
-                    end;
-                    if (SQL <> '') then
-                      SQL := ' WHERE ' + SQL;
-                    SQL := 'SELECT DISTINCT ' + Session.Connection.EscapeIdentifier('COLUMN_NAME') + ' '
-                      + 'FROM ' + Session.Connection.EscapeIdentifier(Session.InformationSchema.Name) + '.' + Session.Connection.EscapeIdentifier('COLUMNS')
-                      + SQL
-                      + ' ORDER BY ' + Session.Connection.EscapeIdentifier('COLUMN_NAME');
-                  end;
+                  else if (Assigned(Database) and Assigned(Database.Columns)) then
+                    List.Add(Database.Columns);
                 ditUser:
                   List.Add(Session.Users);
                 ditEngine:
@@ -13164,18 +13145,6 @@ begin
           SynCompletionPending.X := X;
           SynCompletionPending.Y := Y;
           Session.RegisterEventProc(SynCompletionEvent);
-        end;
-      end;
-
-      if (CanExecute and (SQL <> '') and not SynCompletionPending.Active) then
-      begin
-        CanExecute := Session.Connection.SendSQL(SQL, SynCompletionEventDataHandle);
-        if (not CanExecute) then
-        begin
-          SynCompletionPending.Active := True;
-          SynCompletionPending.CurrentInput := CurrentInput;
-          SynCompletionPending.X := X;
-          SynCompletionPending.Y := Y;
         end;
       end;
 
@@ -13258,8 +13227,14 @@ begin
                         SynCompletionListAdd(
                           Table.Fields[J].Name,
                           Session.Connection.EscapeIdentifier(Table.Fields[J].Name))
-                    else
-                      Write;
+                    else if (Assigned(Database) and Assigned(Database.Columns)) then
+                      for J := 0 to Database.Columns.Count - 1 do
+                      begin
+                        ColumnName := Database.Columns[J]; // Buffer for speeding
+                        SynCompletionListAdd(
+                          ColumnName,
+                          Session.Connection.EscapeIdentifier(ColumnName));
+                      end;
                   ditForeignKey:
                     if (Table is TSBaseTable) then
                       for J := 0 to TSBaseTable(Table).ForeignKeys.Count - 1 do
@@ -13298,23 +13273,6 @@ begin
             else
               raise ERangeError.Create(SRangeError)
           end;
-        end;
-
-        if (SynCompletionPending.Active and Assigned(SynCompletionPending.DataHandle)) then
-        begin
-          DataSet := TMySQLQuery.Create(Self);
-          DataSet.Open(SynCompletionPending.DataHandle);
-          if (DataSet.Active and not DataSet.IsEmpty()) then
-          begin
-            repeat
-              SetLength(ColumnName, NAME_LEN);
-              SetLength(ColumnName, AnsiCharToWideChar(Session.Connection.CodePage, DataSet.LibRow[0], DataSet.LibLengths[0], PChar(ColumnName), Length(ColumnName)));
-              SynCompletionListAdd(
-                ColumnName,
-                Session.Connection.EscapeIdentifier(ColumnName));
-            until (not DataSet.FindNext());
-          end;
-          DataSet.Free();
         end;
 
         CanExecute := SynCompletion.ItemList.Count > 0;
@@ -13356,22 +13314,11 @@ procedure TFSession.SynCompletionEvent(const Event: TSSession.TEvent);
 begin
   if (Event.EventType = etAfterExecuteSQL) then
   begin
-    SynCompletionPending.DataHandle := nil;
     with SynCompletionPending do
       SynCompletion.Execute(CurrentInput, X, Y);
     Session.UnRegisterEventProc(SynCompletionEvent);
     SynCompletionPending.Active := False;
   end;
-end;
-
-function TFSession.SynCompletionEventDataHandle(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
-begin
-  SynCompletionPending.DataHandle := DataHandle;
-  with SynCompletionPending do
-    SynCompletion.Execute(CurrentInput, X, Y);
-  SynCompletionPending.Active := False;
-
-  Result := True;
 end;
 
 procedure TFSession.SynMemoDragDrop(Sender, Source: TObject; X, Y: Integer);

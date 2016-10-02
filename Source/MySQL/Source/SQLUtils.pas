@@ -60,7 +60,8 @@ function SQLParseGetIndex(const Handle: TSQLParse): Integer;
 function SQLParseKeyword(var Handle: TSQLParse; const Keyword: PChar; const IncrementIndex: Boolean = True): Boolean;
 function SQLParseObjectName(var Handle: TSQLParse; var DatabaseName: string; out ObjectName: string): Boolean;
 function SQLParseRest(var Handle: TSQLParse): string;
-function SQLParseValue(var Handle: TSQLParse; const TrimAfterValue: Boolean = True): string;
+function SQLParseValue(var Handle: TSQLParse; const TrimAfterValue: Boolean = True): string; overload;
+function SQLParseValue(var Handle: TSQLParse; const Value: PChar; const TrimAfterValue: Boolean = True): Boolean; overload;
 function SQLSingleStmt(const SQL: string): Boolean;
 procedure SQLSplitValues(const Text: string; out Values: TSQLStrings);
 function SQLStmtLength(const SQL: PChar; const Length: Integer; const Delimited: PBoolean = nil): Integer;
@@ -68,9 +69,9 @@ function SQLStmtToCaption(const SQL: string; const Len: Integer = 50): string;
 function SQLTrimStmt(const SQL: string; const Version: Integer): string; overload;
 function SQLTrimStmt(const SQL: string; const Index, Length: Integer; const Version: Integer; var StartingCommentLength, EndingCommentLength: Integer): Integer; overload; inline;
 function SQLTrimStmt(const SQL: PChar; const Length: Integer; const Version: Integer; out StartingCommentLength, EndingCommentLength: Integer): Integer; overload;
-function SQLUnescape(const Value: PAnsiChar; const RemoveQuoter: Boolean = True): RawByteString; overload;
-function SQLUnescape(const Value: PChar; const Len: Integer; const Unescaped: PChar; const UnescapedLen: Integer; const RemoveQuoter: Boolean = True): Integer; overload;
-function SQLUnescape(const Value: string; const RemoveQuoter: Boolean = True): string; overload;
+function SQLUnescape(const Value: PAnsiChar): RawByteString; overload;
+function SQLUnescape(const Value: PChar; const ValueLen: Integer; const Unescaped: PChar; const UnescapedLen: Integer): Integer; overload;
+function SQLUnescape(const Value: string): string; overload;
 function SQLWrapStmt(const SQL: string; const WrapStrs: array of string; const Indent: Integer): string;
 function SQLUnwrapStmt(const SQL: string; const Version: Integer): string;
 function StrToUInt64(const S: string): UInt64;
@@ -466,7 +467,7 @@ asm
         JZ KeywordNotFound               // No!
         CMP ECX,2                        // End of SQL?
         JB KeywordNotFound               // Yes!
-        CMP LONGWORD PTR [ESI],$002F002A    // End of "*/" comment in SQL?
+        CMP LONGWORD PTR [ESI],$002F002A // End of "*/" comment in SQL?
         JE KeywordFound                  // Yes!
 
       // -------------------
@@ -495,48 +496,46 @@ asm
 end;
 
 procedure UnescapeString();
-// BL: Remove Quoter
+// EBX: Needed length of text buffer
 // ECX: Length of quoted SQL
+// EDX: Unused length of text buffer
 // ESI: Pointer to quoted SQL
-// EDI: Pointer to unquoted Result
+// EDI: Pointer to unquoted text buffer
+// EBX will be incresed of the needed length in text buffer
 // ESI will be moved to the next usable character inside SQL
-// ECX will be decremened of the quoted string length
+// EAX new quoted string length
+// EDX will be decremented by the filled characters into text buffer
+// ZF if no text buffer too small or unterminated string
 label
-  StringL, String1, String2, String3, String4, String5, StringLE, StringE,
+  StringL, String1, String2, String3, String4, String5, StringLE, StringLE2, StringE,
   Hex, Hex1S, Hex1E, Hex2, Hex2C, Hex2S, HexE,
   Finish;
 const
   HexDigits: PChar = 'FEDCBA9876543210';
+var
+  Quoter: Char;
 asm
-        PUSH EAX
-        PUSH EBX
-        PUSH EDX
-
-        MOV DX,[ESI]                     // Quoter
-
-      // -------------------
-
         LODSW                            // Load Quoter from ESI
+        MOV Quoter,AX
         DEC ECX                          // Starting Quoter handled
         JZ Finish                        // End of SQL!
-        PUSH EBX
-        CMP BL,True                      // Remove Quoter?
-        JE StringL                       // Yes!
-        STOSW                            // Store quoter in EDI
 
       StringL:
-        LODSW                            // Load character from ESI
-        CMP AX,DX                        // End of quoted string?
+        LODSW                            // One character from SQL
+        CMP AX,Quoter                    // Quoter?
         JNE String1                      // No!
         CMP ECX,1                        // Last character?
         JE StringE                       // Yes!
-        CMP [ESI],DX                     // Two quoters?
+        PUSH EAX
+        MOV AX,[ESI]
+        CMP AX,Quoter                    // Two quoters?
+        POP EAX
         JNE StringE                      // No!
         ADD ESI,2                        // Step over quoter
         DEC ECX                          // One character handled
         JMP StringLE                     // Next character
       String1:
-        CMP AX,'\'                       // Escaped character?
+        CMP AX,'\'                       // Escape character?
         JNE StringLE                     // No!
         CMP ECX,1                        // Last character?
         JE StringE                       // Yes!
@@ -566,18 +565,22 @@ asm
         JNE StringLE                     // No!
         CMP ECX,3                        // Are there three character left in SQL?
         JB StringLE                      // No!
-        JMP Hex
+        CALL Hex
       StringLE:
+        INC EBX                          // One character needed in text buffer
+        CMP EDI,0                        // Store the string somewhere?
+        JE StringLE2                     // No!
+        CMP EDX,0                        // One character left in text buffer?
+        JZ Finish                        // No!
         STOSW                            // Store character in EDI
+        DEC EDX                          // One character filled to text buffer
+      StringLE2:
         LOOP StringL                     // Loop for every character in SQL
       StringE:
-        POP EBX
         CMP ECX,0                        // All characters handled?
         JE Finish                        // Yes!
         DEC ECX                          // Ending Quoter handled
-        CMP BL,True                      // Remove Quoter?
-        JE Finish                        // No!
-        STOSW                            // Store character in EDI
+        CMP ESI,0                        // Success: Clear ZF!
         JMP Finish
 
       // -------------------
@@ -621,14 +624,12 @@ asm
         ADD AX,BX
         ADD ESI,4                        // Step over hex digits
         SUB ECX,2                        // Ignore hex digits
-        JMP StringLE
+        RET
 
       // -------------------
 
       Finish:
-        POP EDX
-        POP EBX
-        POP EAX
+        MOV EAX,ECX
 end;
 
 {******************************************************************************}
@@ -1298,7 +1299,7 @@ begin
 
       // -------------------
 
-        MOV BYTE PTR [Result],False
+        MOV @Result,False
         MOV EDI,0                        // Don't copy inside MoveString
 
         CALL Trim                        // Step over empty characters
@@ -1314,7 +1315,7 @@ begin
       // -------------------
 
       Found:
-        MOV BYTE PTR [Result],True       // SQL is CALL!
+        MOV @Result,True                 // SQL is CALL!
 
       // -------------------
 
@@ -1353,7 +1354,7 @@ begin
         MOV ECX,[EBX + 4]                // Characters left in SQL
         MOV EDX,[EBX + 8]                // MySQL version
 
-        MOV BYTE PTR [Result],False      // Character not found!
+        MOV @Result,False                // Character not found!
 
         JECXZ Finish                     // End of SQL!
 
@@ -1361,7 +1362,7 @@ begin
         CMP AX,Character                 // Character in SQL?
         JNE Finish                       // No!
 
-        MOV BYTE PTR [Result],True       // Character found!
+        MOV @Result,True                 // Character found!
 
         CMP IncrementIndex,False         // Increment Index?
         JE Finish                        // No!
@@ -1820,7 +1821,7 @@ begin
 
       // -------------------
 
-        MOV BYTE PTR [Result],False
+        MOV @Result,False
         MOV EDI,0                        // Don't copy inside MoveString
 
         CALL Trim                        // Step over empty characters
@@ -1881,7 +1882,7 @@ begin
         MOV EAX,[KInto]
         CALL CompareKeyword              // 'INTO'?
         JNE Finish                       // No!
-        MOV BYTE PTR [Result],True       // SQL is DML!
+        MOV @Result,True                 // SQL is DML!
         CALL Trim                        // Step over empty characters
         JMP Finish
 
@@ -1889,7 +1890,7 @@ begin
         MOV EAX,[KFrom]
         CALL CompareKeyword              // 'FROM'?
         JNE Finish                       // No!
-        MOV BYTE PTR [Result],True       // SQL is DML!
+        MOV @Result,True                 // SQL is DML!
         CALL Trim                        // Step over empty characters
 
       // -------------------
@@ -1955,13 +1956,13 @@ begin
         MOV ECX,[EBX + 4]                // Characters left in SQL
         MOV EDX,[EBX + 8]                // MySQL version
 
-        MOV BYTE PTR [Result],False      // Keyword not found!
+        MOV @Result,False                // Keyword not found!
 
         MOV EAX,PChar(Keyword)
         CALL CompareKeyword              // Keyword?
         JNE Finish                       // No!
 
-        MOV BYTE PTR [Result],True       // Keyword found!
+        MOV @Result,True                 // Keyword found!
 
         CMP IncrementIndex,False         // Increment Index?
         JE Finish                        // No!
@@ -2013,9 +2014,10 @@ var
   BracketDeep: Integer;
   Len: Integer;
 begin
-  SetLength(Result, Handle.Len);
+  Len := Handle.Len;
+  SetLength(Result, Len);
 
-  if (Handle.Len > 0) then
+  if (Len > 0) then
   begin
     asm
         PUSH ES
@@ -2033,6 +2035,7 @@ begin
         MOV EDX,[EBX + 8]                // MySQL Version
         MOV EAX,Result                   // Copy characters to Result
         MOV EDI,[EAX]
+        MOV EDX,Len
 
       // -------------------
 
@@ -2097,8 +2100,9 @@ begin
       // -------------------
 
       Quoted:
-        MOV BL,True
+        MOV EBX,0
         CALL UnescapeString              // Unquote and unescape string
+        MOV ECX,EAX
         JECXZ Finish                     // End of SQL!
         CMP WORD PTR [ESI],'@'           // '@' in SQL?
         JNE Finish                       // No!
@@ -2133,6 +2137,168 @@ begin
 
     if (Len <> Length(Result)) then
       SetLength(Result, Len);
+  end;
+end;
+
+function SQLParseValue(var Handle: TSQLParse; const Value: PChar; const TrimAfterValue: Boolean = True): Boolean;
+label
+  StringL,
+  Quoted,
+  Unquoted, UnquotedL, Unquoted1, Unquoted2, UnquotedTerminatorsL, UnquotedC, UnquotedLE,
+  Compare,
+  Found, FoundE,
+  Finish;
+const
+  Terminators: PChar = #9#10#13#32'",.:;=`'; // Characters, terminating the value
+var
+  BracketDeep: Integer;
+  Buffer: PChar;
+  DynamicBuffer: array of Char;
+  Len: Integer;
+  StackBuffer: array[0 .. 255] of Char;
+begin
+  if (Handle.Len > 0) then
+  begin
+    Len := StrLen(Value);
+
+    if (Len <= Length(StackBuffer)) then
+      Buffer := @StackBuffer[0]
+    else
+    begin
+      SetLength(DynamicBuffer, Len);
+      Buffer := @DynamicBuffer[0];
+    end;
+
+    asm
+        PUSH ES
+        PUSH ESI
+        PUSH EDI
+        PUSH EBX
+
+        PUSH DS                          // string operations uses ES
+        POP ES
+        CLD                              // string operations uses forward direction
+
+        MOV EBX,Handle
+        MOV ESI,[EBX + 0]                // Position in SQL
+        MOV ECX,[EBX + 4]                // Characters left in SQL
+        MOV EDX,[EBX + 8]                // MySQL Version
+
+        MOV EDI,Buffer
+        MOV EDX,Len
+
+        MOV @Result,False
+
+      // -------------------
+
+        MOV BracketDeep,0                // Bracket deep
+      StringL:
+        MOV AX,[ESI]                     // First character
+        CMP AX,''''                      // Start quotation in SQL?
+        JE Quoted                        // Yes!
+        CMP AX,'"'                       // Start quotation in SQL?
+        JE Quoted                        // Yes!
+        CMP AX,'`'                       // Start quotation in SQL?
+        JE Quoted                        // Yes!
+
+      Unquoted:
+      UnquotedL:
+        MOV AX,[ESI]                     // Character in SQL
+        CMP AX,';'                       // End of SQL statement?
+        JE Compare                       // Yes!
+
+        CALL MoveString                  // If quoted string: Copy it
+        JE UnquotedLE                    // Quoted string!
+
+        CMP AX,'('                       // Start brackets?
+        JNE Unquoted1                    // No!
+        INC BracketDeep                  // Open bracket
+        CMP ECX,[EBX + 4]                // First character?
+        JE UnquotedC                     // Yes!
+        CMP BracketDeep,1                // First bracket?
+        JE Compare                       // Yes!
+        JMP UnquotedC
+
+      Unquoted1:
+        CMP AX,')'                       // End brackets?
+        JNE Unquoted2                    // No!
+        CMP BracketDeep,0                // Are we inside an open brackt?
+        JE Compare                       // No!
+        DEC BracketDeep                  // Close bracket
+        JNZ UnquotedC                    // We're still in open brackets!
+        MOVSW                            // Copy closing bracket to Result
+        JMP Compare
+
+      Unquoted2:
+        MOV EBX,Handle
+        CMP ECX,[EBX + 4]                // First character?
+        JE UnquotedC                     // Yes!
+
+        MOV EBX,[Terminators]            // Terminating characters
+      UnquotedTerminatorsL:
+        CMP WORD PTR [EBX],0             // All terminators checked?
+        JE UnquotedC                     // Yes!
+        CMP AX,[EBX]                     // Charcter in SQL = Terminator?
+        JE Compare                       // Yes!
+        ADD EBX,2                        // Next character in Terminators
+        JMP UnquotedTerminatorsL
+
+      UnquotedC:
+        MOVSW                            // Copy character from SQL to Result
+      UnquotedLE:
+        LOOP UnquotedL
+        JMP Compare
+
+      // -------------------
+
+      Quoted:
+        MOV EBX,0
+        CALL UnescapeString              // Unquote and unescape string
+        MOV ECX,EAX
+        JECXZ Compare                    // End of SQL!
+        CMP WORD PTR [ESI],'@'           // '@' in SQL?
+        JNE Compare                      // No!
+        MOVSW                            // Copy '@' from SQL to Result
+        DEC ECX                          // '@' handled
+        JMP StringL
+
+      // -------------------
+
+      Compare:
+        SUB EDI,Buffer                   // Calculate length of found value
+        SHR EDI,1                        // 2 Bytes = 1 character
+        CMP EDI,Len                      // found length = length of value?
+        JNE Finish                       // No!
+
+        PUSH ESI
+        PUSH ECX
+        MOV ESI,Value
+        MOV EDI,Buffer
+        MOV ECX,Len
+        REPE CMPSW                       // Found value = searched value?
+        POP ECX
+        POP ESI
+        JNE Finish                       // No!
+
+      Found:
+        MOV @Result,TRUE                 // Value found!
+
+        CMP TrimAfterValue,False
+        JE FoundE
+        CALL Trim                        // Step over emtpy characters
+
+      FoundE:
+        MOV EBX,Handle
+        MOV [EBX + 0],ESI                // Position in SQL
+        MOV [EBX + 4],ECX                // Characters left in SQL
+        MOV [EBX + 8],EDX                // MySQL Version
+
+      Finish:
+        POP EBX
+        POP EDI
+        POP ESI
+        POP ES
+    end;
   end;
 end;
 
@@ -2769,11 +2935,11 @@ begin
   end;
 end;
 
-function SQLUnescape(const Value: PChar; const Len: Integer; const Unescaped: PChar; const UnescapedLen: Integer; const RemoveQuoter: Boolean = True): Integer;
+function SQLUnescape(const Value: PChar; const ValueLen: Integer; const Unescaped: PChar; const UnescapedLen: Integer): Integer;
 label
-  Start, StartL,
+  Start, StartL, StartLE,
   Quoted, QuotedL, QuotedLE,
-  Finish;
+  Error, Success, Finish;
 begin
   asm
         PUSH ES
@@ -2787,13 +2953,15 @@ begin
 
         MOV ESI,Value                    // Copy characters from Value
         MOV EDI,Unescaped                //   to Unescaped
+        MOV ECX,ValueLen
+        MOV EDX,UnescapedLen
 
-        MOV ECX,Len
+        MOV EBX,0                        // Needed length in Unescaped
+
         CMP ECX,0                        // End of SQL?
-        JE Finish                        // Yes!
+        JE Success                       // Yes!
 
       // -------------------
-
 
       Start:
         MOV AX,[ESI]                     // Get character from Value
@@ -2804,17 +2972,25 @@ begin
         CMP AX,'`'                       // Start quotation in SQL?
         JE Quoted                        // Yes!
       StartL:
+        INC EBX                          // One character needed in Unescape
+        CMP EDI,0                        // Store the string somewhere?
+        JE StartLE                       // No!
+        CMP EDX,0                        // One charcacter left in Unescaped?
+        JE Error                         // No!
         MOVSW                            // Copy character
+        DEC EDX                          // One character filled to Unescaped
+      StartLE:
         LOOP StartL
-        JMP Finish
+        JMP Success
 
       Quoted:
-        MOV BL,RemoveQuoter
         CALL UnescapeString              // Copy and unescape quoted string
+        MOV ECX,EAX
+        JZ Error                         // Unescaped too small
 
       QuotedL:
         CMP ECX,0                        // End of SQL?
-        JE Finish                        // Yes!
+        JE Success                       // Yes!
         MOV AX,[ESI]
         CMP AX,9                         // Tabulator?
         JE QuotedLE                      // Yes!
@@ -2828,15 +3004,19 @@ begin
       QuotedLE:
         ADD ESI,2                        // One character handled
         LOOP QuotedL
-        JMP Finish
+        JMP Success
 
       // -------------------
 
-      Finish:
-        SUB EDI,Unescaped                // Calculate length of Unescaped
-        SHR EDI,1                        // 2 Bytes = 1 character
-        MOV @Result,EDI
+      Error:
+        MOV @Result,0                    // UnescapedLen too small
+        JMP Finish
 
+      Success:
+        MOV @Result,EBX                  // Needed / used size in Unescape
+        JMP Finish
+
+      Finish:
         POP EBX
         POP EDI
         POP ESI
@@ -2844,26 +3024,21 @@ begin
   end;
 end;
 
-function SQLUnescape(const Value: string; const RemoveQuoter: Boolean = True): string;
+function SQLUnescape(const Value: string): string;
 var
   Len: Integer;
 begin
-  Len := Length(Value);
-
-  if (Len = 0) then
+  if (Value = '') then
     Result := ''
   else
   begin
-    SetLength(Result, Len); // Reserve space
-
-    Len := SQLUnescape(PChar(Value), Length(Value), PChar(Result), Len, RemoveQuoter);
-
-    if (Len <> Length(Result)) then
-      SetLength(Result, Len);
+    Len := SQLUnescape(PChar(Value), Length(Value), nil, 0);
+    SetLength(Result, Len);
+    SQLUnescape(PChar(Value), Length(Value), PChar(Result), Length(Result));
   end;
 end;
 
-function SQLUnescape(const Value: PAnsiChar; const RemoveQuoter: Boolean = True): RawByteString;
+function SQLUnescape(const Value: PAnsiChar): RawByteString;
 label
   AnsiToWideL,
   StringL, StringE,
@@ -2871,9 +3046,9 @@ label
   WideToAnsiL;
 var
   Buffer: PChar;
-  Len: Integer;
   DynamicBuffer: array of Char;
-  StaticBuffer: array[0 .. 255] of Char;
+  Len: Integer;
+  StackBuffer: array[0 .. 255] of Char;
 begin
   Len := StrLen(Value);
 
@@ -2881,8 +3056,8 @@ begin
     Result := ''
   else
   begin
-    if (Len <= Length(StaticBuffer)) then
-      Buffer := @StaticBuffer[0]
+    if (Len <= Length(StackBuffer)) then
+      Buffer := @StackBuffer[0]
     else
     begin
       SetLength(DynamicBuffer, Len);
@@ -3314,7 +3489,5 @@ begin
   Result := StrPas(P);
 end;
 
-begin
-  SQLUnescape(PAnsiChar('''Hal\tlo'''), True);
 end.
 

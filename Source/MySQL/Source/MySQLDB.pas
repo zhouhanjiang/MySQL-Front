@@ -2348,7 +2348,7 @@ function TMySQLConnection.ErrorMsg(const AHandle: MySQLConsts.MYSQL): string;
 var
   RBS: RawByteString;
 begin
-  RBS := SQLUnescape(Lib.mysql_error(AHandle), False);
+  RBS := '''' + SQLUnescape(Lib.mysql_error(AHandle)) + '''';
   try
     Result := LibDecode(my_char(RBS));
   except

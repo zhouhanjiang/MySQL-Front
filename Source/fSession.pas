@@ -6,7 +6,7 @@ uses
   SysUtils, Classes, Windows,
   DB,
   acMYSQLSynProvider, acQBEventMetaProvider,
-  SQLUtils, MySQLDB,
+  SQLUtils, MySQLDB, MySQLConsts,
   fSQLParser, fPreferences;
 
 type
@@ -35,6 +35,7 @@ type
   TSTriggers = class;
   TSEvent = class;
   TSEvents = class;
+  TSColumns = class;
   TSDatabase = class;
   TSDatabases = class;
   TSVariable = class;
@@ -706,13 +707,16 @@ type
     function GetTable(Index: Integer): TSTable; inline;
     function GetValidStatus(): Boolean;
   protected
+    function Add(const AEntity: TSEntity; const ExecuteEvent: Boolean = False): Integer; override;
     function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; overload; override;
     procedure BuildViewFields(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean);
+    procedure Delete(const AEntity: TSEntity); override;
     function SQLGetItems(const Name: string = ''): string; override;
     function SQLGetStatus(const List: TList = nil): string;
     function SQLGetViewFields(): string;
   public
     procedure AddTable(const NewTable: TSTable); virtual;
+    procedure Invalidate(); override;
     function NameCmp(const Name1, Name2: string): Integer; override;
     property Table[Index: Integer]: TSTable read GetTable; default;
     property ValidStatus: Boolean read GetValidStatus;
@@ -926,11 +930,26 @@ type
     property Event[Index: Integer]: TSEvent read GetEvent; default;
   end;
 
+  TSColumns = class(TSDBObjects)
+  private
+    Names: array of array [0 .. NAME_LEN] of Char;
+    function GetColumn(Index: Integer): PChar;
+  protected
+    function Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean; override;
+    function GetCount(): Integer; override;
+    function SQLGetItems(const Name: string = ''): string; override;
+  public
+    procedure Invalidate(); override;
+    property Count: Integer read GetCount;
+    property Column[Index: Integer]: PChar read GetColumn; default;
+  end;
+
   TSDatabase = class(TSObject)
   private
     FDefaultCharset: string;
     FDefaultCodePage: Cardinal;
     FCollation: string;
+    FColumns: TSColumns;
     FEvents: TSEvents;
     FRoutines: TSRoutines;
     FTables: TSTables;
@@ -1001,6 +1020,7 @@ type
     function UpdateView(const View, NewView: TSView): Boolean; virtual;
     function ViewByName(const TableName: string): TSView; overload; virtual;
     property Collation: string read GetCollation write FCollation;
+    property Columns: TSColumns read FColumns;
     property Count: Integer read GetCount;
     property Created: TDateTime read GetCreated;
     property DataSize: Int64 read GetDataSize;
@@ -1407,6 +1427,7 @@ type
     FCharsets: TSCharsets;
     FSessions: TSSessions;
     FCollations: TSCollations;
+    FColumns: TSColumns;
     FConnection: TSConnection;
     FCreateDesktop: TCreateDesktop;
     FCurrentUser: string;
@@ -1508,6 +1529,7 @@ type
     property Charsets: TSCharsets read FCharsets;
     property Collation: string read GetCollation;
     property Collations: TSCollations read FCollations;
+    property Columns: TSColumns read FColumns;
     property Connection: TSConnection read FConnection;
     property CreateDesktop: TCreateDesktop read FCreateDesktop write SetCreateDesktop;
     property CurrentUser: string read FCurrentUser;
@@ -1567,7 +1589,7 @@ uses
   Variants, SysConst, WinInet, DBConsts, RTLConsts, Math,
   Consts, DBCommon, StrUtils,
   DBGrids,
-  MySQLConsts, CSVUtils, HTTPTunnel, MySQLDBGrid,
+  CSVUtils, HTTPTunnel, MySQLDBGrid,
   fURI;
 
 const
@@ -3597,6 +3619,8 @@ begin
   FSourceParsed := False;
 
   InvalidateData();
+
+  if (Assigned(Database.Columns)) then Database.Columns.Invalidate();
 end;
 
 procedure TSTable.InvalidateData();
@@ -5214,6 +5238,13 @@ end;
 
 { TSTables ********************************************************************}
 
+function TSTables.Add(const AEntity: TSEntity; const ExecuteEvent: Boolean = False): Integer;
+begin
+  if (Assigned(Database.Columns)) then Database.Columns.Invalidate();
+
+  Result := inherited;
+end;
+
 procedure TSTables.AddTable(const NewTable: TSTable);
 var
   I: Integer;
@@ -5465,6 +5496,13 @@ begin
     Session.ExecuteEvent(etItemValid, Session, Session.Databases, Database);
 end;
 
+procedure TSTables.Delete(const AEntity: TSEntity);
+begin
+  if (Assigned(Database.Columns)) then Database.Columns.Invalidate();
+
+  inherited;
+end;
+
 function TSTables.GetTable(Index: Integer): TSTable;
 begin
   Result := TSTable(Items[Index]);
@@ -5478,6 +5516,13 @@ begin
 
   for I := 0 to Count - 1 do
     Result := Result and (not (Table[I] is TSBaseTable) or TSBaseTable(Table[I]).ValidStatus);
+end;
+
+procedure TSTables.Invalidate();
+begin
+  if (Assigned(Database.Columns)) then Database.Columns.Invalidate();
+
+  inherited;
 end;
 
 function TSTables.NameCmp(const Name1, Name2: string): Integer;
@@ -6887,6 +6932,48 @@ begin
     + ' WHERE ' + Session.Connection.EscapeIdentifier('EVENT_SCHEMA') + '=' + SQLEscape(Database.Name) + ';' + #13#10;
 end;
 
+{ TSColumns *******************************************************************}
+
+function TSColumns.Build(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean; Filtered: Boolean = False; const SessionEvents: Boolean = True): Boolean;
+begin
+  if (not DataSet.IsEmpty()) then
+  begin
+    SetLength(Names, 1000);
+    repeat
+      if (DataSet.RecNo = Length(Names)) then
+        SetLength(Names, Length(Names) + Length(Names) div 4);
+      AnsiCharToWideChar(Session.Connection.CodePage, DataSet.LibRow[0], DataSet.LibLengths[0], @Names[DataSet.RecNo][0], NAME_LEN);
+    until (not DataSet.FindNext());
+    SetLength(Names, DataSet.RecordCount);
+  end;
+
+  Result := inherited;
+end;
+
+function TSColumns.GetColumn(Index: Integer): PChar;
+begin
+  Result := PChar(@Names[Index][0]);
+end;
+
+function TSColumns.GetCount(): Integer;
+begin
+  Result := Length(Names);
+end;
+
+procedure TSColumns.Invalidate();
+begin
+  SetLength(Names, 0);
+  FValid := False;
+end;
+
+function TSColumns.SQLGetItems(const Name: string = ''): string;
+begin
+  Result := 'SELECT DISTINCT ' + Session.Connection.EscapeIdentifier('COLUMN_NAME')
+    + ' FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('COLUMNS')
+    + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + ' = ' + SQLEscape(Database.Name)
+    + ' ORDER BY ' + Session.Connection.EscapeIdentifier('COLUMN_NAME') + ';' + #13#10;
+end;
+
 { TSDatabase ******************************************************************}
 
 function TSDatabase.AddEvent(const NewEvent: TSEvent): Boolean;
@@ -7163,6 +7250,7 @@ begin
   FDefaultCharset := '';
   FDefaultCodePage := CP_ACP;
 
+  if ((Session.Connection.ServerVersion < 50000) or (Self is TSSystemDatabase)) then FColumns := nil else FColumns := TSColumns.Create(Self);
   if ((Session.Connection.ServerVersion < 50004) or (Self is TSSystemDatabase)) then FRoutines := nil else FRoutines := TSRoutines.Create(Self);
   FTables := TSTables.Create(Self);
   if ((Session.Connection.ServerVersion < 50010) or (Self is TSSystemDatabase)) then FTriggers := nil else FTriggers := TSTriggers.Create(Self);
@@ -7183,6 +7271,7 @@ destructor TSDatabase.Destroy();
 begin
   FreeDesktop();
 
+  if (Assigned(FColumns)) then FColumns.Free();
   FTables.Free();
   if (Assigned(FRoutines)) then FRoutines.Free();
   if (Assigned(FTriggers)) then FTriggers.Free();
@@ -7462,6 +7551,7 @@ procedure TSDatabase.Invalidate();
 begin
   inherited;
 
+  if (Assigned(Columns)) then Columns.Invalidate();
   Tables.Invalidate();
   if (Assigned(Routines)) then Routines.Invalidate();
   if (Assigned(Triggers)) then Triggers.Invalidate();
@@ -9213,7 +9303,7 @@ end;
 
 constructor TSFieldType.Create(const AFieldTypes: TSFieldTypes; const AMySQLFieldType: TSField.TFieldType; const ACaption: string; const AHighlighted: Boolean);
 begin
-  inherited Create(AFieldTypes);
+  inherited Create(AFieldTypes, ACaption);
 
   FName := ACaption;
   FHighlighted := AHighlighted;
@@ -12099,7 +12189,7 @@ begin
     if (SQLParseKeyword(Parse, 'SELECT')) then
     begin
       DatabaseName := Connection.DatabaseName;
-      if ((SQLParseChar(Parse, '*') or (SQLParseValue(Parse) = 'GRANTEE')) and SQLParseKeyword(Parse, 'FROM') and SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
+      if ((SQLParseChar(Parse, '*') or SQLParseValue(Parse, 'GRANTEE')) and SQLParseKeyword(Parse, 'FROM') and SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
       begin
         if (Databases.NameCmp(DatabaseName, INFORMATION_SCHEMA) = 0) then
         begin
@@ -12184,6 +12274,19 @@ begin
           end;
         end;
       end
+      else if (SQLParseKeyword(Parse, 'DISTINCT') and SQLParseValue(Parse, 'COLUMN_NAME') and SQLParseKeyword(Parse, 'FROM') and SQLParseObjectName(Parse, DatabaseName, ObjectName)) then
+      begin
+        if ((Databases.NameCmp(DatabaseName, INFORMATION_SCHEMA) = 0)
+          and (TableNameCmp(ObjectName, 'COLUMNS') = 0)
+          and SQLParseKeyword(Parse, 'WHERE')
+          and (UpperCase(SQLParseValue(Parse)) = 'TABLE_SCHEMA')
+          and SQLParseChar(Parse, '=')) then
+        begin
+          DataSet.Open(DataHandle);
+          Database := DatabaseByName(SQLParseValue(Parse));
+          Result := Database.Columns.Build(DataSet, True, not SQLParseEnd(Parse) and not SQLParseChar(Parse, ';'));
+        end;
+      end
       else if ((FCurrentUser = '') and (DataHandle.Connection.ErrorCode = 0)) then
       begin
         DataSet.Open(DataHandle);
@@ -12197,7 +12300,7 @@ begin
               FCurrentUser := DataSet.Fields[Field].AsString
             else if (lstrcmpi(PChar(FunctionName), 'SYSDATE()') = 0) then
             begin
-              if (TryStrToDateTime(DataSet.Fields[0].AsString, Connection.TimeDiff, FormatSettings)) then
+              if (TryStrToDateTime(DataSet.Fields[Field].AsString, Connection.TimeDiff, FormatSettings)) then
                 Connection.TimeDiff := Connection.TimeDiff - Now();
             end
             else if (lstrcmpi(PChar(FunctionName), 'USER()') = 0) then

@@ -8,7 +8,7 @@
 
 	/****************************************************************************/
 
-	$MF_VERSION = 22;
+	$MF_VERSION = 23;
 
 	$Charsets = array(
 		'big5' => 1,
@@ -147,10 +147,10 @@
 	function SetCharsetNr($mysql) {
 		$_SESSION['MBCLen'] = 1;
 
-		if (version_compare(ereg_replace("-.*$", "", mysql_get_server_info($mysql)), '4.1.1') < 0) {
+		if (version_compare(preg_replace("-.*$", "", mysql_get_server_info($mysql)), '4.1.1') < 0) {
 			$_SESSION['charsetnr'] = $Charsets[$_SESSION['charset']];
 			$_SESSION['MBCLen'] = 1;
-		} else if (version_compare(ereg_replace("-.*$", "", mysql_get_server_info($mysql)), '5.0.0') < 0) {
+		} else if (version_compare(preg_replace("-.*$", "", mysql_get_server_info($mysql)), '5.0.0') < 0) {
 			$CharacterSets = mysql_query('SHOW CHARACTER SET;', $mysql);
 			$Collations = mysql_query('SHOW COLLATION;', $mysql);
 			while ($Collation = mysql_fetch_array($Collations))
@@ -193,7 +193,7 @@
 
 
 	if ($HTTP_RAW_POST_DATA)
-		$RawPostData = $HTTP_RAW_POST_DATA; 
+		$RawPostData = $HTTP_RAW_POST_DATA;
 	else
 		$RawPostData .= file_get_contents("php://input");
 
@@ -278,8 +278,8 @@
 			SendPacket($Packet);
 		}
 
-		if (! mysqli_connect_errno($mysqli) && $_SESSION['charset'] && version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '4.1.1') >= 0)
-			if ((version_compare(phpversion(), '5.2.3') < 0) || (version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '5.0.7') < 0))
+		if (! mysqli_connect_errno($mysqli) && $_SESSION['charset'] && version_compare(preg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '4.1.1') >= 0)
+			if ((version_compare(phpversion(), '5.2.3') < 0) || (version_compare(preg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '5.0.7') < 0))
 				mysqli_query($mysqli, 'SET NAMES ' . $_SESSION['charset'] . ';', MYSQLI_USE_RESULT);
 			else
 				mysqli_set_charset($mysqli, $_SESSION['charset']);
@@ -290,12 +290,12 @@
 			$Packet .= mysqli_error($mysqli) . "\x00";
 			SendPacket($Packet);
 		} else if ($Connect) {
-			if (version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '4.1.1') < 0) {
+			if (version_compare(preg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '4.1.1') < 0) {
 				$result = mysqli_query($mysqli, "SHOW VARIABLES LIKE 'character_set';", MYSQLI_USE_RESULT);
 				if ($Row = mysqli_fetch_array($result))
 					$_SESSION['charset'] = $Row['Value'];
 				mysqli_free_result($result);
-			} else if ((version_compare(phpversion(), '5.2.3') < 0) || version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '5.0.7')) {
+			} else if ((version_compare(phpversion(), '5.2.3') < 0) || version_compare(preg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '5.0.7')) {
 				$result = mysqli_query($mysqli, "SHOW VARIABLES LIKE 'character_set_client';", MYSQLI_USE_RESULT);
 				if ($Row = mysqli_fetch_array($result))
 					$_SESSION['charset'] = $Row['Value'];
@@ -303,9 +303,9 @@
 			} else
 				$_SESSION['charset'] = mysqli_character_set_name($mysqli);
 
-			if (version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '4.1.1') < 0) {
+			if (version_compare(preg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '4.1.1') < 0) {
 				$CharsetNr = $Charsets[$_SESSION['charset']];
-			} else if (version_compare(ereg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '5.0.0') < 0) {
+			} else if (version_compare(preg_replace("-.*$", "", mysqli_get_server_info($mysqli)), '5.0.0') < 0) {
 				$result = mysqli_query($mysqli, 'SHOW COLLATION;', MYSQLI_USE_RESULT);
 				while ($Row = mysqli_fetch_array($result))
 					if ($Row['Charset'] == $_SESSION['charset'] && $Row['Default'] == 'Yes')
@@ -358,7 +358,7 @@
 						SendPacket($Packet);
 						FlushPackets();
 						break;
-					} else if (eregi("^USE[| |\t|\n|\r][| |\t|\n|\r]*", $Query) || eregi("^SET[| |\t|\n|\r][| |\t|\n|\r]*NAMES[| |\t|\n|\r]", $Query)) {
+					} else if (preg_match("^USE[| |\t|\n|\r][| |\t|\n|\r]*", $Query) || preg_match("^SET[| |\t|\n|\r][| |\t|\n|\r]*NAMES[| |\t|\n|\r]", $Query)) {
 						// on some PHP versions mysqli_use_result just ignores "USE Database;"
 						// statements. So it has to be handled separately:
 						$Packet = '';
@@ -375,9 +375,9 @@
 						SendPacket($Packet);
 						FlushPackets();
 
-						if (eregi("^USE[| |\t|\n|\r]*", $Query))
+						if (preg_match("^USE[| |\t|\n|\r]*", $Query))
 							$_SESSION['database'] = eregi_replace("[|`|\"| *;|;|\t|\n|\r]", "", eregi_replace("^USE[| |\t|\n|\r]*", "", $Query));
-						else if (eregi("^SET[| |\t|\n|\r]*NAMES[| |\t|\n|\r]", $Query)) {
+						else if (preg_match("^SET[| |\t|\n|\r]*NAMES[| |\t|\n|\r]", $Query)) {
 							$_SESSION['charset'] = eregi_replace("[|`|\"| *;|;|\t|\n|\r]", "", eregi_replace("^NAMES[| |\t|\n|\r]*", "", eregi_replace("^SET[| |\t|\n|\r]*", "", $Query)));
 						}
 					} else {
@@ -497,8 +497,8 @@
 		if ($mysql && ! mysql_errno($mysql) && $_SESSION['database'])
 			mysql_select_db($_SESSION['database'], $mysql);
 
-		if ($mysql && ! mysql_errno($mysql) && $_SESSION['charset'] && version_compare(ereg_replace("-.*$", "", mysql_get_server_info($mysql)), '4.1.1') >= 0)
-			if ((version_compare(phpversion(), '5.2.3') < 0) || version_compare(ereg_replace("-.*$", "", mysql_get_server_info($mysql)), '5.0.7'))
+		if ($mysql && ! mysql_errno($mysql) && $_SESSION['charset'] && version_compare(preg_replace("-.*$", "", mysql_get_server_info($mysql)), '4.1.1') >= 0)
+			if ((version_compare(phpversion(), '5.2.3') < 0) || version_compare(preg_replace("-.*$", "", mysql_get_server_info($mysql)), '5.0.7'))
 				mysql_query('SET NAMES ' . $_SESSION['charset'] . ';', $mysql);
 			else
 				mysql_set_charset($_SESSION['charset'], $mysql);
@@ -519,12 +519,12 @@
 			$Packet .= mysql_error($mysql) . "\x00";
 			SendPacket($Packet);
 		} else if ($Connect) {
-			if (version_compare(ereg_replace("-.*$", "", mysql_get_server_info($mysql)), '4.1.1') < 0) {
+			if (version_compare(preg_replace("-.*$", "", mysql_get_server_info($mysql)), '4.1.1') < 0) {
 				$result = mysql_query("SHOW VARIABLES LIKE 'character_set';", $mysql);
 				if ($Row = mysql_fetch_array($result))
 					$_SESSION['charset'] = $Row['Value'];
 				mysql_free_result($result);
-			} else if ((version_compare(phpversion(), '5.2.3') < 0) || version_compare(ereg_replace("-.*$", "", mysql_get_server_info($mysql)), '5.0.7')) {
+			} else if ((version_compare(phpversion(), '5.2.3') < 0) || version_compare(preg_replace("-.*$", "", mysql_get_server_info($mysql)), '5.0.7')) {
 				$result = mysql_query("SHOW VARIABLES LIKE 'character_set_client';", $mysql);
 				if ($Row = mysql_fetch_array($result))
 					$_SESSION['charset'] = $Row['Value'];
@@ -587,9 +587,9 @@
 						SendPacket($Packet);
 						FlushPackets();
 
-						if (eregi("^USE[| |\t|\n|\r]", $Query))
+						if (preg_match("^USE[| |\t|\n|\r]", $Query))
 							$_SESSION['database'] = eregi_replace("[|`|\"| *;|;|\t|\n|\r]", "", eregi_replace("^USE[| |\t|\n|\r]*", "", $Query));
-						else if (eregi("^SET[| |\t|\n|\r][| |\t|\n|\r]*NAMES[| |\t|\n|\r]", $Query)) {
+						else if (preg_match("^SET[| |\t|\n|\r][| |\t|\n|\r]*NAMES[| |\t|\n|\r]", $Query)) {
 							$_SESSION['charset'] = eregi_replace("[|`|\"| *;|;|\t|\n|\r]", "", eregi_replace("^NAMES[| |\t|\n|\r]*", "", eregi_replace("^SET[| |\t|\n|\r]*", "", $Query)));
 							SetCharsetNr($mysql);
 						}
