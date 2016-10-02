@@ -245,7 +245,6 @@ type
     FOnUpdateIndexDefs: TOnUpdateIndexDefsEvent;
     FPassword: string;
     FPort: Word;
-    FResultCount: Integer;
     FServerTimeout: Word;
     FServerVersion: Integer;
     FServerVersionStr: string;
@@ -378,7 +377,6 @@ type
     property NextCommandText: string read GetNextCommandText;
     property MaxAllowedPacket: Integer read GetMaxAllowedPacket;
     property MultiStatements: Boolean read FMultiStatements;
-    property ResultCount: Integer read FResultCount;
     property RowsAffected: Int64 read FRowsAffected;
     property ServerDateTime: TDateTime read GetServerDateTime;
     property ServerVersion: Integer read FServerVersion;
@@ -2408,7 +2406,7 @@ begin
   LibraryThread.Time := 0;
 
   FErrorCode := DS_ASYNCHRON; FErrorMessage := ''; FWarningCount := 0;
-  FExecutedSQLLength := 0; FExecutedStmts := 0; FResultCount := 0;
+  FExecutedSQLLength := 0; FExecutedStmts := 0;
   FRowsAffected := -1; FExecutionTime := 0;
 
   LibraryThread.SQLStmtIndex := 1;
@@ -3393,7 +3391,7 @@ begin
   end
   else
   begin
-    Inc(FResultCount);
+    Inc(FExecutedStmts);
 
     StmtLength := Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]);
 
@@ -3498,7 +3496,6 @@ begin
         if (LibraryThread.SQLStmtInPacket + 1 < Integer(LibraryThread.SQLStmtsInPackets[LibraryThread.SQLPacket])) then
         begin
           Inc(FExecutedSQLLength, Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]));
-          Inc(FExecutedStmts);
 
           Inc(LibraryThread.SQLStmtIndex, Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]));
           Inc(LibraryThread.SQLStmt);
@@ -3513,7 +3510,6 @@ begin
       else
       begin
         Inc(FExecutedSQLLength, Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]));
-        Inc(FExecutedStmts);
 
         Inc(LibraryThread.SQLStmtIndex, Integer(LibraryThread.SQLStmtLengths[LibraryThread.SQLStmt]));
         Inc(LibraryThread.SQLStmt);

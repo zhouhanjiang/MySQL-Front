@@ -310,7 +310,7 @@ object FSession: TFSession
     OnResize = PContentResize
     object SResult: TSplitter_Ext
       Left = 0
-      Top = 18
+      Top = 37
       Width = 467
       Height = 4
       Cursor = crVSplit
@@ -322,7 +322,6 @@ object FSession: TFSession
       ResizeStyle = rsUpdate
       Visible = False
       OnCanResize = SplitterCanResize
-      OnMoved = SResultMoved
       ActiveBorder = alBottom
       ActiveBorderColor = clWindow
       ExplicitTop = 36
@@ -1192,34 +1191,6 @@ object FSession: TFSession
       Constraints.MinHeight = 20
       ParentBackground = False
       TabOrder = 7
-      Visible = False
-    end
-    object SBResult: TStatusBar
-      Left = 0
-      Top = 22
-      Width = 467
-      Height = 19
-      Panels = <
-        item
-          Width = 50
-        end
-        item
-          Width = 50
-        end
-        item
-          Width = 50
-        end
-        item
-          Width = 50
-        end
-        item
-          Width = 50
-        end
-        item
-          Width = 50
-        end>
-      ParentFont = True
-      UseSystemFont = False
       Visible = False
     end
   end

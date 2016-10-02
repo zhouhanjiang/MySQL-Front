@@ -1806,6 +1806,7 @@ type
       private
         Heritage: TChild;
       private
+        FHidden: Boolean;
         {$IFDEF Debug}
         FIndex: Integer;
         {$ENDIF}
@@ -1815,7 +1816,6 @@ type
         FText: PChar;
         FTokenType: TTokenType;
         FUsageType: TUsageType;
-        NewText: TOffset;
         class function Create(const AParser: TSQLParser;
           const AText: PChar; const ALength: Integer;
           const ATokenType: TTokenType; const AOperatorType: TOperatorType;
@@ -1833,8 +1833,6 @@ type
         function GetParentNode(): PNode; {$IFNDEF Debug} inline; {$ENDIF}
         function GetText(): string; overload;
         procedure GetText(out Text: PChar; out Length: Integer); overload;
-        procedure SetText(Text: string); overload; {$IFNDEF Debug} inline; {$ENDIF}
-        procedure SetText(const Text: PChar; const Length: Integer); overload; {$IFNDEF Debug} inline; {$ENDIF}
         property Generation: Integer read GetGeneration;
         {$IFDEF Debug}
         property Index: Integer read FIndex;
@@ -1849,11 +1847,12 @@ type
       public
         property AsString: string read GetAsString;
         property DbIdentType: TDbIdentType read GetDbIdentType;
+        property Hidden: Boolean read FHidden write FHidden;
         property NextToken: PToken read GetNextToken;
         property NextTokenAll: PToken read GetNextTokenAll;
         property OperatorType: TOperatorType read FOperatorType;
         property ParentNode: PNode read GetParentNode;
-        property Text: string read GetText write SetText;
+        property Text: string read GetText;
         property TokenType: TTokenType read FTokenType write FTokenType;
         property UsageType: TUsageType read FUsageType;
       end;
@@ -1875,6 +1874,7 @@ type
         property Offset: TOffset read GetOffset;
         property Parser: TSQLParser read Heritage.Heritage.FParser;
       public
+        procedure Hide();
         property FirstToken: PToken read GetFirstToken;
         property LastToken: PToken read GetLastToken;
         property NodeType: TNodeType read Heritage.Heritage.FNodeType;
@@ -2988,11 +2988,11 @@ type
           CreateTag: TOffset;
           DefinerNode: TOffset;
           TriggerTag: TOffset;
-          TriggerIdent: TOffset;
+          Ident: TOffset;
           TimeTag: TOffset;
           EventTag: TOffset;
           OnTag: TOffset;
-          TableIdentNode: TOffset;
+          TableIdent: TOffset;
           ForEachRowTag: TOffset;
           OrderValue: TOffset;
           Body: TOffset;
@@ -6717,11 +6717,7 @@ type
     kiYEAR_MONTH,
     kiZEROFILL: Integer;
 
-  private type
-    TSpacer = (sNone, sSpace, sReturn);
   private
-    AllowedMySQLVersion: Integer;
-    Commands: TFormatBuffer;
     CommentsWritten: Boolean;
     Error: record
       Code: Byte;
@@ -6742,28 +6738,31 @@ type
     FMySQLVersion: Integer;
     FPreviousToken: TOffset;
     FRoot: TOffset;
-    LastTokenAll: TOffset;
-    function CreateErrorMessage(const ErrorCode: Byte; const ErrorLine: Integer; const ErrorPos: PChar): string;
     function GetDatatypes(): string;
     function GetErrorFound(): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
     function GetErrorMessage(): string;
+    function GetErrorPos(): Integer;
     function GetFunctions(): string;
     function GetKeywords(): string;
     function GetNextToken(Index: Integer): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function GetParsedToken(const Index: Integer): TOffset;
     function GetInPL_SQL(): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
     function GetRoot(): PRoot; {$IFNDEF Debug} inline; {$ENDIF}
-    procedure GetText(const Offset: TOffset; out Text: PChar; out Length: Integer); {$IFNDEF Debug} inline; {$ENDIF}
     procedure SetDatatypes(ADatatypes: string);
     procedure SetFunctions(AFunctions: string);
     procedure SetKeywords(AKeywords: string);
 
+  protected type
+    TSpacer = (sNone, sSpace, sReturn);
   protected
+    AllowedMySQLVersion: Integer;
+    Commands: TFormatBuffer;
     DatatypeList: TWordList;
     FunctionList: TWordList;
     InCreateFunctionStmt: Boolean;
     InCreateProcedureStmt: Boolean;
     KeywordList: TWordList;
+    LastTokenAll: TOffset;
     Nodes: record
       Mem: PAnsiChar;
       UsedSize: Integer;
@@ -6774,23 +6773,21 @@ type
       Length: Integer;
       Line: Integer;
       Pos: PChar;
-      Text: string;
     end;
-    Texts: record
-      Mem: PAnsiChar;
-      UsedSize: Integer;
-      MemSize: Integer;
-    end;
+    Text: string;
     TokenBuffer: record
       Count: Integer;
       Items: array [0 .. 50 - 1] of TTokenBufferItem;
     end;
+    {$IFDEF Debug}
     TokenIndex: Integer;
+    {$ENDIF}
 
     function ApplyCurrentToken(): TOffset; overload;
     function ApplyCurrentToken(const AUsageType: TUsageType): TOffset; overload;
     procedure BeginPL_SQL(); {$IFNDEF Debug} inline; {$ENDIF}
     function ChildPtr(const ANode: TOffset): PChild; {$IFNDEF Debug} inline; {$ENDIF}
+    function CreateErrorMessage(const ErrorCode: Byte; const ErrorLine: Integer; const ErrorPos: PChar): string;
     function EndOfStmt(const Token: PToken): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function EndOfStmt(const Token: TOffset): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     procedure EndPL_SQL(); {$IFNDEF Debug} inline; {$ENDIF}
@@ -6853,7 +6850,7 @@ type
     procedure FormatNode(const Node: PNode; const Separator: TSeparatorType = stNone); overload;
     procedure FormatNode(const Node: TOffset; const Separator: TSeparatorType = stNone); overload; {$IFNDEF Debug} inline; {$ENDIF}
     procedure FormatRepeatStmt(const Nodes: TRepeatStmt.TNodes);
-    procedure FormatRoot(const Node: PNode);
+    procedure FormatRoot(const Node: PRoot);
     procedure FormatSchedule(const Nodes: TSchedule.TNodes);
     procedure FormatSecretIdent(const Nodes: TSecretIdent.TNodes);
     procedure FormatSelectStmt(const Nodes: TSelectStmt.TNodes);
@@ -6900,7 +6897,6 @@ type
     function IsToken(const ANode: PNode): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function IsToken(const ANode: TOffset): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function NewNode(const ANodeType: TNodeType): TOffset;
-    function NewText(const Text: PChar; const Length: Integer): TOffset;
     function NodePtr(const ANode: TOffset): PNode; {$IFNDEF Debug} inline; {$ENDIF}
     function NodeSize(const NodeType: TNodeType): Integer;
     function ParseAnalyzeTableStmt(): TOffset;
@@ -7195,6 +7191,7 @@ type
     property ErrorCode: Byte read FirstError.Code;
     property ErrorLine: Integer read FirstError.Line;
     property ErrorMessage: string read GetErrorMessage;
+    property ErrorPos: Integer read GetErrorPos;
     property Functions: string read GetFunctions write SetFunctions;
     property Keywords: string read GetKeywords write SetKeywords;
     property MySQLVersion: Integer read FMySQLVersion;
@@ -8061,6 +8058,7 @@ begin
 
   with PToken(AParser.NodePtr(Result))^ do
   begin
+    FHidden := False;
     {$IFDEF Debug}
     FIndex := 0;
     {$ENDIF}
@@ -8070,7 +8068,6 @@ begin
     FText := AText;
     FTokenType := ATokenType;
     FUsageType := AUsageType;
-    NewText := 0;
   end;
 end;
 
@@ -8244,26 +8241,29 @@ end;
 
 procedure TSQLParser.TToken.GetText(out Text: PChar; out Length: Integer);
 begin
-  if (NewText = 0) then
-  begin
-    Text := FText;
-    Length := FLength;
-  end
-  else
-    Parser.GetText(NewText, Text, Length);
-end;
-
-procedure TSQLParser.TToken.SetText(const Text: PChar; const Length: Integer);
-begin
-  NewText := Parser.NewText(Text, Length);
-end;
-
-procedure TSQLParser.TToken.SetText(Text: string);
-begin
-  SetText(PChar(Text), System.Length(Text));
+  Text := FText;
+  Length := FLength;
 end;
 
 { TSQLParser.TRange ***********************************************************}
+
+procedure TSQLParser.TRange.AddChildren(const Children: POffsetArray; const Count: Integer);
+var
+  Child: PChild;
+  I: Integer;
+begin
+  for I := 0 to Count - 1 do
+    if (Children^[I] > 0) then
+    begin
+      Child := Parser.ChildPtr(Children^[I]);
+      Child^.FParentNode := Offset;
+
+      if ((FFirstToken = 0) or (0 < Child^.FFirstToken) and (Child^.FFirstToken < FFirstToken)) then
+        FFirstToken := Child^.FFirstToken;
+      if ((FLastToken = 0) or (Child^.FLastToken > FLastToken)) then
+        FLastToken := Child^.FLastToken;
+    end;
+end;
 
 class function TSQLParser.TRange.Create(const AParser: TSQLParser; const ANodeType: TNodeType): TOffset;
 begin
@@ -8302,22 +8302,21 @@ begin
   Result := PNode(Parser.NodePtr(FParentNode));
 end;
 
-procedure TSQLParser.TRange.AddChildren(const Children: POffsetArray; const Count: Integer);
+procedure TSQLParser.TRange.Hide();
 var
-  Child: PChild;
-  I: Integer;
+  Token: PToken;
 begin
-  for I := 0 to Count - 1 do
-    if (Children^[I] > 0) then
-    begin
-      Child := Parser.ChildPtr(Children^[I]);
-      Child^.FParentNode := Offset;
+  Token := FirstToken;
 
-      if ((FFirstToken = 0) or (0 < Child^.FFirstToken) and (Child^.FFirstToken < FFirstToken)) then
-        FFirstToken := Child^.FFirstToken;
-      if ((FLastToken = 0) or (Child^.FLastToken > FLastToken)) then
-        FLastToken := Child^.FLastToken;
-    end;
+  while (Assigned(Token)) do
+  begin
+    Token^.Hidden := True;
+
+    if (Token = LastToken) then
+      Token := nil
+    else
+      Token := Token^.NextToken;
+  end;
 end;
 
 { TSQLParser.TRoot ************************************************************}
@@ -11726,16 +11725,12 @@ begin
   ParseHandle.Length := 0;
   ParseHandle.Line := 0;
   ParseHandle.Pos := nil;
-  ParseHandle.Text := '';
-  if (Texts.MemSize <> DefaultTextsMemSize) then
-  begin
-    Texts.MemSize := DefaultTextsMemSize;
-    ReallocMem(Texts.Mem, Texts.MemSize);
-  end;
-  Texts.UsedSize := 1; // "0" means "not assigned", so we start with "1"
+  Text := '';
   FRoot := 0;
   TokenBuffer.Count := 0;
+  {$IFDEF Debug}
   TokenIndex := 0;
+  {$ENDIF}
 end;
 
 constructor TSQLParser.Create(const AMySQLVersion: Integer = 0);
@@ -11752,9 +11747,6 @@ begin
   Nodes.Mem := nil;
   Nodes.UsedSize := 0;
   Nodes.MemSize := 0;
-  Texts.Mem := nil;
-  Texts.UsedSize := 0;
-  Texts.MemSize := 0;
   TokenBuffer.Count := 0;
 
   Datatypes := MySQLDatatypes;
@@ -11814,8 +11806,6 @@ destructor TSQLParser.Destroy();
 begin
   if (Nodes.MemSize <> 0) then
     FreeMem(Nodes.Mem);
-  if (Texts.MemSize <> 0) then
-    FreeMem(Texts.Mem, 0);
 
   FCompletionList.Free();
   DatatypeList.Free();
@@ -12355,11 +12345,11 @@ begin
   Commands.IncreaseIndent();
   FormatNode(Nodes.DefinerNode, stSpaceBefore);
   FormatNode(Nodes.TriggerTag, stSpaceBefore);
-  FormatNode(Nodes.TriggerIdent, stSpaceBefore);
+  FormatNode(Nodes.Ident, stSpaceBefore);
   FormatNode(Nodes.TimeTag, stReturnBefore);
   FormatNode(Nodes.EventTag, stSpaceBefore);
-  FormatNode(Nodes.OnTag, stReturnBefore);
-  FormatNode(Nodes.TableIdentNode, stSpaceBefore);
+  FormatNode(Nodes.OnTag, stSpaceBefore);
+  FormatNode(Nodes.TableIdent, stSpaceBefore);
   FormatNode(Nodes.ForEachRowTag, stReturnBefore);
   FormatNode(Nodes.OrderValue, stReturnBefore);
   Commands.DecreaseIndent();
@@ -12942,7 +12932,10 @@ begin
     and (not IsToken(Ident) or not IsToken(AliasIdent) or (TokenPtr(Ident)^.AsString <> TokenPtr(AliasIdent)^.AsString))) then
   begin
     if (Nodes.AsTag = 0) then
-      Commands.Write(' AS')
+    begin
+      Commands.Write(' ');
+      Commands.Write(KeywordList.Word[kiAS]);
+    end
     else
       FormatNode(Nodes.AsTag, stSpaceBefore);
     FormatNode(Nodes.AliasIdent, stSpaceBefore);
@@ -13004,7 +12997,7 @@ procedure TSQLParser.FormatNode(const Node: PNode; const Separator: TSeparatorTy
   end;
 
 begin
-  if (Assigned(Node)) then
+  if (Assigned(Node) and ((Node^.NodeType <> ntToken) or not PToken(Node)^.Hidden)) then
   begin
     if (not Commands.NewLine) then
       case (Separator) of
@@ -13260,13 +13253,13 @@ begin
   FormatNode(Nodes.EndLabel, stSpaceBefore);
 end;
 
-procedure TSQLParser.FormatRoot(const Node: PNode);
+procedure TSQLParser.FormatRoot(const Node: PRoot);
 var
   Stmt: PStmt;
 begin
-  FormatComments(Root^.FirstTokenAll, True);
+  FormatComments(Node^.FirstTokenAll, True);
 
-  Stmt := Root^.FirstStmt;
+  Stmt := Node^.FirstStmt;
   while (Assigned(Stmt)) do
   begin
     FormatNode(PNode(Stmt));
@@ -13500,7 +13493,10 @@ begin
     and (not IsToken(Expr) or not IsToken(AliasIdent) or (TokenPtr(Expr)^.AsString <> TokenPtr(AliasIdent)^.AsString))) then
   begin
     if (Nodes.AsTag = 0) then
-      Commands.Write(' AS')
+    begin
+      Commands.Write(' ');
+      Commands.Write(KeywordList.Word[kiAS]);
+    end
     else
       FormatNode(Nodes.AsTag, stSpaceBefore);
     FormatNode(Nodes.AliasIdent, stSpaceBefore);
@@ -13526,7 +13522,10 @@ begin
     and (not IsToken(Ident) or not IsToken(AliasIdent) or (TokenPtr(Ident)^.AsString <> TokenPtr(AliasIdent)^.AsString))) then
   begin
     if (Nodes.AsTag = 0) then
-      Commands.Write(' AS')
+    begin
+      Commands.Write(' ');
+      Commands.Write(KeywordList.Word[kiAS]);
+    end
     else
       FormatNode(Nodes.AsTag, stSpaceBefore);
     FormatNode(Nodes.AliasIdent, stSpaceBefore);
@@ -13623,13 +13622,13 @@ end;
 
 procedure TSQLParser.FormatSQL(out SQL: string);
 begin
-  SQL := '';
-
-  if (Assigned(Root)) then
+  if (not Assigned(Root)) then
+    SQL := ''
+  else
   begin
     Commands := TFormatBuffer.Create();
 
-    FormatRoot(PNode(Root));
+    FormatRoot(Root);
 
     SQL := Commands.Read();
     Commands.Free(); Commands := nil;
@@ -13922,6 +13921,11 @@ begin
   Result := CreateErrorMessage(FirstError.Code, FirstError.Line, FirstError.Pos);
 end;
 
+function TSQLParser.GetErrorPos(): Integer;
+begin
+  Result := FirstError.Pos - @Text[1];
+end;
+
 function TSQLParser.GetFunctions(): string;
 begin
   Result := FunctionList.Text;
@@ -13997,14 +14001,6 @@ begin
     Result := nil
   else
     Result := PRoot(NodePtr(FRoot));
-end;
-
-procedure TSQLParser.GetText(const Offset: TOffset; out Text: PChar; out Length: Integer);
-begin
-  Assert((0 < Offset) and (Offset < Texts.UsedSize));
-
-  Text := @Texts.Mem[Offset + SizeOf(Integer)];
-  Length := Integer(Texts.Mem[Offset]);
 end;
 
 function TSQLParser.IsChild(const ANode: PNode): Boolean;
@@ -14177,20 +14173,20 @@ begin
         else if ((BytesRead >= DWord(Length(BOM_UTF8))) and (CompareMem(Mem, BOM_UTF8, StrLen(BOM_UTF8)))) then
         begin
           Len := MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, @Mem[Length(BOM_UTF8)], BytesRead - DWord(Length(BOM_UTF8)), nil, 0);
-          SetLength(ParseHandle.Text, Len);
-          MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, @Mem[Length(BOM_UTF8)], BytesRead - DWord(Length(BOM_UTF8)), @ParseHandle.Text[1], Len);
+          SetLength(Text, Len);
+          MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, @Mem[Length(BOM_UTF8)], BytesRead - DWord(Length(BOM_UTF8)), @Text[1], Len);
         end
         else if ((BytesRead >= DWord(Length(BOM_UNICODE_LE))) and (CompareMem(Mem, BOM_UNICODE_LE, StrLen(BOM_UNICODE_LE)))) then
         begin
           Len := (BytesRead - DWord(Length(BOM_UNICODE_LE))) div SizeOf(WideChar);
-          SetLength(ParseHandle.Text, Len);
-          MoveMemory(@ParseHandle.Text[1], @Mem[Length(BOM_UNICODE_LE)], Len * SizeOf(WideChar));
+          SetLength(Text, Len);
+          MoveMemory(@Text[1], @Mem[Length(BOM_UNICODE_LE)], Len * SizeOf(WideChar));
         end
         else
         begin
           Len := MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS, Mem, BytesRead, nil, 0);
-          SetLength(ParseHandle.Text, Len);
-          MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS, Mem, BytesRead, @ParseHandle.Text[1], Len);
+          SetLength(Text, Len);
+          MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS, Mem, BytesRead, @Text[1], Len);
         end;
 
         FreeMem(Mem);
@@ -14218,24 +14214,6 @@ begin
 
   Result := Nodes.UsedSize;
   Inc(Nodes.UsedSize, Size);
-end;
-
-function TSQLParser.NewText(const Text: PChar; const Length: Integer): TOffset;
-var
-  Size: Integer;
-begin
-  Size := SizeOf(Integer) + Length * SizeOf(Text[0]);
-  if (Texts.UsedSize + Size >= Texts.MemSize) then
-  begin
-    Texts.MemSize := Max(2 * Texts.MemSize, Texts.UsedSize + Size);
-    ReallocMem(Texts.Mem, Texts.MemSize);
-  end;
-
-  Move(Length, Texts.Mem[Texts.UsedSize], SizeOf(Integer));
-  Move(Text[0], Texts.Mem[Texts.UsedSize + SizeOf(Integer)], Length * SizeOf(Text[0]));
-
-  Result := Texts.UsedSize;
-  Inc(Texts.UsedSize, Size);
 end;
 
 function TSQLParser.NodePtr(const ANode: TOffset): PNode;
@@ -17544,7 +17522,7 @@ begin
     Nodes.TriggerTag := ParseTag(kiTRIGGER);
 
   if (not ErrorFound) then
-    Nodes.TriggerIdent := ParseTriggerIdent();
+    Nodes.Ident := ParseTriggerIdent();
 
   if (not ErrorFound) then
     if (IsTag(kiBEFORE)) then
@@ -17572,7 +17550,7 @@ begin
     Nodes.OnTag := ParseTag(kiON);
 
   if (not ErrorFound) then
-    Nodes.TableIdentNode := ParseTableIdent();
+    Nodes.TableIdent := ParseTableIdent();
 
   if (not ErrorFound) then
     Nodes.ForEachRowTag := ParseTag(kiFOR, kiEACH, kiROW);
@@ -21001,8 +20979,8 @@ begin
     UsageTypeByTokenType[ttDQIdent] := utDbIdent;
   end;
 
-  ParseHandle.Pos := PChar(ParseHandle.Text);
-  ParseHandle.Length := Length(ParseHandle.Text);
+  ParseHandle.Pos := PChar(Text);
+  ParseHandle.Length := Length(Text);
   ParseHandle.Line := 1;
 
   if (ParseHandle.Length = 0) then
@@ -22911,7 +22889,7 @@ function TSQLParser.ParseSQL(const Text: PChar; const Length: Integer; const Use
 begin
   Clear();
 
-  SetString(ParseHandle.Text, Text, Length);
+  SetString(Self.Text, Text, Length);
   CompletionList.SetActive(UseCompletionList);
 
   FRoot := ParseRoot();

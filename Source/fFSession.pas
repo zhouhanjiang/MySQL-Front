@@ -345,7 +345,6 @@ type
     PWorkbench: TPanel_Ext;
     SaveDialog: TSaveDialog_Ext;
     SBlob: TSplitter_Ext;
-    SBResult: TStatusBar;
     SBuilderQuery: TSplitter_Ext;
     SExplorer: TSplitter_Ext;
     SLog: TSplitter_Ext;
@@ -642,7 +641,6 @@ type
     procedure smEEmptyClick(Sender: TObject);
     procedure SplitterCanResize(Sender: TObject; var NewSize: Integer;
       var Accept: Boolean);
-    procedure SResultMoved(Sender: TObject);
     procedure SSideBarCanResize(Sender: TObject; var NewSize: Integer;
       var Accept: Boolean);
     procedure SSideBarMoved(Sender: TObject);
@@ -1009,7 +1007,6 @@ type
     function RenameSItem(const SItem: TSItem; const NewName: string): Boolean;
     procedure SaveDiagram(Sender: TObject);
     procedure SaveSQLFile(Sender: TObject);
-    procedure SBResultRefresh(const DataSet: TMySQLDataSet);
     procedure SendQuery(Sender: TObject; const SQL: string);
     procedure SetView(const AView: TView);
     procedure SetAddress(const AAddress: string);
@@ -1352,8 +1349,6 @@ begin
 
       FSession.ActiveDBGrid := TResult(Item^).DBGrid;
       TResult(Item^).DataSet.Open(DataHandle);
-
-      FSession.SBResultRefresh(TResult(Item^).DataSet);
     end;
   end;
 
@@ -4794,9 +4789,6 @@ begin
   PResultHeader.Width := CloseButton.Bitmap.Width + 2 * GetSystemMetrics(SM_CXEDGE);
   PLogHeader.Width := CloseButton.Bitmap.Width + 2 * GetSystemMetrics(SM_CXEDGE);
 
-  if (Assigned(ActiveDBGrid) and (ActiveDBGrid.DataSource.DataSet is TMySQLDataSet)) then
-    SBResultRefresh(TMySQLDataSet(ActiveDBGrid.DataSource.DataSet));
-
   FormResize(nil);
 
   PDataBrowserSpacer.Top := FFilter.Height;
@@ -4844,8 +4836,6 @@ begin
     FHexEditor.Colors.OffsetBackground := clBtnFace
   else
     FHexEditor.Colors.OffsetBackground := Preferences.Editor.LineNumbersBackground;
-
-  SBResult.ClientHeight := SBResult.Canvas.TextHeight('I') + 5;
 
   SendMessage(FLog.Handle, EM_SETTEXTMODE, TM_PLAINTEXT, 0);
   SendMessage(FLog.Handle, EM_SETWORDBREAKPROC, 0, LPARAM(@EditWordBreakProc));
@@ -11395,7 +11385,7 @@ begin
       ReduceControl := nil;
       for I := 0 to Control.ControlCount - 1 do
         if (Control.Controls[I].Visible and (Control.Controls[I].Align = alBottom) and (Control.Controls[I].Height > Control.Controls[I].Constraints.MinHeight)) then
-          if (not Assigned(ReduceControl) or (Control.Controls[I].Top > ReduceControl.Top) and (Control.Controls[I] <> SBResult) and (Control.Controls[I] <> SResult)) then
+          if (not Assigned(ReduceControl) or (Control.Controls[I].Top > ReduceControl.Top) and (Control.Controls[I] <> SResult)) then
             ReduceControl := TWinControl(Control.Controls[I]);
       if (Assigned(ReduceControl)) then
         ReduceControl.Height := ReduceControl.Height - ToReduceHeight;
@@ -11869,18 +11859,6 @@ begin
         SBlob.Visible := False;
         SBlob.Parent := nil;
       end;
-
-    if ((Sender is TMySQLDataSet) and Assigned(ActiveDBGrid) and (ActiveDBGrid = SQLEditors[View].ActiveDBGrid)) then
-    begin
-      SBResult.Top := PContent.ClientHeight - SBResult.Height;
-      SBResult.Align := alBottom;
-      SBResult.Visible := True;
-    end
-    else
-    begin
-      SBResult.Align := alNone;
-      SBResult.Visible := False;
-    end;
 
     if (PResultVisible and Assigned(ActiveDBGrid) and Assigned(ActiveDBGrid.DataSource.DataSet) and ActiveDBGrid.DataSource.DataSet.Active) then
     begin
@@ -12409,35 +12387,6 @@ begin
   end;
 end;
 
-procedure TFSession.SBResultRefresh(const DataSet: TMySQLDataSet);
-var
-  I: Integer;
-begin
-  SBResult.Panels[0].Text := Preferences.LoadStr(703, IntToStr(DataSet.Connection.ExecutedStmts));
-  SBResult.Panels[1].Text := ExecutionTimeToStr(DataSet.Connection.ExecutionTime);
-  if (DataSet.Connection.RowsAffected < 0) then
-    SBResult.Panels[2].Text := Preferences.LoadStr(658, IntToStr(0))
-  else
-    SBResult.Panels[2].Text := Preferences.LoadStr(658, IntToStr(DataSet.Connection.RowsAffected));
-  if (DataSet.Connection.WarningCount < 0) then
-    SBResult.Panels[3].Text := Preferences.LoadStr(704) + ': ???'
-  else
-    SBResult.Panels[3].Text := Preferences.LoadStr(704) + ': ' + IntToStr(DataSet.Connection.WarningCount);
-  if (DataSet.Connection.ExecutedStmts <> 1) then
-  begin
-    SBResult.Panels[4].Text := '';
-    SBResult.Panels[5].Text := '';
-  end
-  else
-  begin
-    SBResult.Panels[4].Text := Preferences.LoadStr(124) + ': ' + IntToStr(DataSet.RecordCount);
-    SBResult.Panels[5].Text := Preferences.LoadStr(253) + ': ' + IntToStr(DataSet.FieldCount);
-  end;
-
-  for I := 0 to SBResult.Panels.Count - 2 do
-    SBResult.Panels[I].Width := SBResult.Canvas.TextWidth(SBResult.Panels[I].Text) + 15;
-end;
-
 procedure TFSession.SearchNotFound(Sender: TObject; FindText: string);
 begin
   MsgBox(Preferences.LoadStr(533, FindText), Preferences.LoadStr(43), MB_OK + MB_ICONINFORMATION);
@@ -12859,12 +12808,6 @@ begin
     IDCONTINUE,
     IDIGNORE: begin Action := daAbort; DataSet.Cancel(); end;
   end;
-end;
-
-procedure TFSession.SResultMoved(Sender: TObject);
-begin
-  if (SBResult.Visible and (SBResult.Align = alBottom)) then
-    SBResult.Top := PContent.Height - SBResult.Height;
 end;
 
 procedure TFSession.SSideBarCanResize(Sender: TObject; var NewSize: Integer;

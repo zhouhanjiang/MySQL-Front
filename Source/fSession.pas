@@ -5164,8 +5164,8 @@ begin
         if (Assigned(PreviousToken) and (PreviousToken^.DbIdentType = ditDatabase) and (Token^.TokenType = ttDot)
           and (Database.Databases.NameCmp(PreviousToken^.AsString, Database.Name) = 0)) then
         begin
-          PreviousToken^.Text := '';
-          Token^.Text := '';
+          PreviousToken^.Hidden := True;
+          Token^.Hidden := True;
         end;
 
         if (Token^.DbIdentType = ditTable) then
@@ -5195,8 +5195,8 @@ begin
           if (Assigned(PreviousToken) and (PreviousToken^.DbIdentType = ditTable) and (Token^.TokenType = ttDot)
             and (Database.Tables.NameCmp(PreviousToken^.AsString, TableName) = 0)) then
           begin
-            PreviousToken^.Text := '';
-            Token^.Text := '';
+            PreviousToken^.Hidden := True;
+            Token^.Hidden := True;
           end;
 
           PreviousToken := Token;
@@ -6942,7 +6942,10 @@ begin
     repeat
       if (DataSet.RecNo = Length(Names)) then
         SetLength(Names, Length(Names) + Length(Names) div 4);
-      AnsiCharToWideChar(Session.Connection.CodePage, DataSet.LibRow[0], DataSet.LibLengths[0], @Names[DataSet.RecNo][0], NAME_LEN);
+      if (DataSet.Fields[0].DataType = ftString) then
+        StrPCopy(@Names[DataSet.RecNo][0], DataSet.Fields[0].AsString)
+      else
+        AnsiCharToWideChar(Session.Connection.CodePage, DataSet.LibRow[0], DataSet.LibLengths[0], @Names[DataSet.RecNo][0], NAME_LEN);
     until (not DataSet.FindNext());
     SetLength(Names, DataSet.RecordCount);
   end;
