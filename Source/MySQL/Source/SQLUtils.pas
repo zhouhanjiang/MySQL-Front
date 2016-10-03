@@ -141,6 +141,7 @@ const
   KSQLSecurityDefiner: PChar = 'SQL SECURITY DEFINER';
   KSQLSecurityInvoker: PChar = 'SQL SECURITY INVOKER';
   KTable: PChar = 'TABLE';
+  KTemporary: PChar = 'TEMPORARY';
   KTrigger: PChar = 'TRIGGER';
   KUpdate: PChar = 'UPDATE';
   KUse: PChar = 'USE';
@@ -1496,7 +1497,8 @@ end;
 
 function SQLParseDDLStmt(out DDLStmt: TSQLDDLStmt; const SQL: PChar; const Len: Integer; const Version: Integer): Boolean;
 label
-  Alter, Create, Drop, RenameTable,
+  Create, Drop, RenameTable,
+  Temporary,
   Algorithm, AlgorithmL,
   Definer,
   ObjType,
@@ -1546,11 +1548,14 @@ begin
         CALL CompareKeyword              // 'CREATE'?
         JNE Drop                         // No!
         MOV BYTE PTR [EBX + 0],dtCreate
+        CALL Trim                        // Step over empty characters
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
         MOV EAX,[KOrReplace]
         CALL CompareKeyword              // Set over 'OR REPLACE'?
-        JNE Algorithm
+        JNE Temporary
         MOV BYTE PTR [EBX + 0],dtAlter
-        JMP Algorithm
+        JMP Temporary
       Drop:
         MOV EAX,[KDrop]
         CALL CompareKeyword              // 'DROP'?
@@ -1563,6 +1568,15 @@ begin
         JNE Finish                       // No!
         MOV BYTE PTR [EBX + 0],dtRename
         JMP ObjType
+
+      // -------------------
+
+      Temporary:
+        CALL Trim                        // Step over empty characters
+        CMP ECX,0                        // End of SQL?
+        JE Finish                        // Yes!
+        MOV EAX,[KTemporary]
+        CALL CompareKeyword              // 'TEMPORARY'?
 
       // -------------------
 

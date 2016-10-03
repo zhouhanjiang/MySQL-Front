@@ -5373,15 +5373,15 @@ begin
       begin
         if (SQLParseChar(Parse, '*')
         and SQLParseKeyword(Parse, 'FROM')
-        and (SQLParseValue(Parse) = information_schema)
+        and SQLParseValue(Parse, information_schema)
         and SQLParseChar(Parse, '.')
-        and (SQLParseValue(Parse) = 'COLUMNS')
+        and SQLParseValue(Parse, 'COLUMNS')
         and SQLParseKeyword(Parse, 'WHERE')
-        and (SQLParseValue(Parse) = 'TABLE_SCHEMA')
+        and SQLParseValue(Parse, 'TABLE_SCHEMA')
         and SQLParseChar(Parse, '=')
-        and (SQLParseValue(Parse) = Database.Name)
+        and SQLParseValue(Parse, PChar(Database.Name))
         and SQLParseKeyword(Parse, 'AND')
-        and (SQLParseValue(Parse) = 'TABLE_NAME')
+        and SQLParseValue(Parse, 'TABLE_NAME')
         and SQLParseKeyword(Parse, 'IN')
         and SQLParseChar(Parse, '(')) then
         repeat
@@ -5436,7 +5436,7 @@ begin
           NewField.FieldBefore := View.Fields[Index - 1];
 
         NewField.AutoIncrement := Pos('AUTO_INCREMENT', UpperCase(DataSet.FieldByName('EXTRA').AsString)) > 0;
-        NewField.FCollation := Session.CollationByName(DataSet.FieldByName('COLLATION_NAME').AsString);
+        NewField.Collation := Session.CollationByName(DataSet.FieldByName('COLLATION_NAME').AsString);
         NewField.Comment := DataSet.FieldByName('COLUMN_COMMENT').AsString;
         NewField.Default := DataSet.FieldByName('COLUMN_DEFAULT').AsString;
         NewField.Charset := Session.CharsetByName(DataSet.FieldByName('CHARACTER_SET_NAME').AsString);

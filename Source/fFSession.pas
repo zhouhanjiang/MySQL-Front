@@ -2511,7 +2511,7 @@ begin
       ((View in [vEditor, vEditor2, vEditor3])
       or ((View  = vBuilder) and FQueryBuilder.Visible)
       or ((View = vIDE) and SQLSingleStmt(SQL) and (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent]))) and not Empty;
-    MainAction('aDRunSelection').Enabled := (((View in [vEditor, vEditor2, vEditor3]) and not Empty) or Assigned(ActiveSynMemo) and (ActiveSynMemo.SelText <> ''));
+    MainAction('aDRunSelection').Enabled := (((View in [vEditor, vEditor2, vEditor3]) and not Empty) or Assigned(ActiveSynMemo) and (Trim(ActiveSynMemo.SelText) <> ''));
     MainAction('aDPostObject').Enabled := (View = vIDE) and Assigned(ActiveSynMemo) and ActiveSynMemo.Modified and SQLSingleStmt(SQL)
       and ((SelectedImageIndex in [iiView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.Connection.ServerVersion) and (SQLParseKeyword(Parse, 'SELECT'))
         or (SelectedImageIndex in [iiProcedure, iiFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.ServerVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])
@@ -2950,7 +2950,7 @@ begin
     aDRunExecuteSelStart := Index - 1;
   end
   else
-    SQL := ActiveSynMemo.SelText;
+    SQL := Trim(ActiveSynMemo.SelText);
 
   if ((SQL <> '') and ((SelectedDatabase = '') or (SelectedDatabase = Session.Connection.DatabaseName) or Session.Connection.ExecuteSQL(Session.Connection.SQLUse(SelectedDatabase)))) then
     SendQuery(Sender, SQL);
@@ -13420,7 +13420,7 @@ begin
         ((View in [vEditor, vEditor2, vEditor3])
         or ((View  = vBuilder) and FQueryBuilder.Visible)
         or ((View = vIDE) and SQLSingleStmt(SQL) and (SelectedImageIndex in [iiView, iiProcedure, iiFunction, iiEvent]))) and not Empty;
-      MainAction('aDRunSelection').Enabled := (((View in [vEditor, vEditor2, vEditor3]) and not Empty) or Assigned(ActiveSynMemo) and (ActiveSynMemo.SelText <> ''));
+      MainAction('aDRunSelection').Enabled := (((View in [vEditor, vEditor2, vEditor3]) and not Empty) or Assigned(ActiveSynMemo) and (Trim(ActiveSynMemo.SelText) <> ''));
       MainAction('aDPostObject').Enabled := (View = vIDE) and ActiveSynMemo.Modified and SQLSingleStmt(SQL)
         and ((SelectedImageIndex in [iiView]) and SQLCreateParse(Parse, PChar(SQL), Length(SQL),Session.Connection.ServerVersion) and (SQLParseKeyword(Parse, 'SELECT'))
           or (SelectedImageIndex in [iiProcedure, iiFunction]) and SQLParseDDLStmt(DDLStmt, PChar(SQL), Length(SQL), Session.Connection.ServerVersion) and (DDLStmt.DefinitionType = dtCreate) and (DDLStmt.ObjectType in [otProcedure, otFunction])

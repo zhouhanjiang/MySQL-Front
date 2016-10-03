@@ -6496,13 +6496,15 @@ type
     kiZEROFILL: Integer;
 
     AllowedMySQLVersion: Integer;
+    Commands: TFormatBuffer;
+    CommentsWritten: Boolean;
+    DatatypeList: TWordList;
     Error: record
       Code: Byte;
       Line: Integer;
       Pos: PChar;
       Token: TOffset;
     end;
-    DatatypeList: TWordList;
     FAnsiQuotes: Boolean;
     FCompletionList: TCompletionList;
     FCurrentToken: TOffset; // Cache for speeding
@@ -6516,8 +6518,6 @@ type
     FLowerCaseTableNames: Integer;
     FMySQLVersion: Integer;
     FormatHandle: record
-      Commands: TFormatBuffer;
-      CommentsWritten: Boolean;
       DatabaseName: string;
     end;
     FPreviousToken: TOffset;
@@ -7894,8 +7894,7 @@ var
   Token: PToken;
 begin
   Result := nil;
-  if ((ParentNode^.NodeType = ntList) and (PList(ParentNode)^.DelimiterType <> ttUnknown)
-    and Assigned(LastToken)) then
+  if ((ParentNode^.NodeType = ntList) and (PList(ParentNode)^.DelimiterType <> ttUnknown)) then
   begin
     Token := LastToken^.NextToken;
 
@@ -7951,20 +7950,15 @@ begin
     if (Assigned(Token)) then
       if (PList(ParentNode)^.DelimiterType = ttUnknown) then
       begin
-        Token := Token^.NextToken;
+        Child := PChild(Token);
 
-        if (Assigned(Token)) then
-        begin
-          Child := PChild(Token);
+        while (Assigned(Child) and (Child^.ParentNode <> ParentNode)) do
+          if (not Parser.IsChild(Child^.ParentNode)) then
+            Child := nil
+          else
+            Child := PChild(Child^.ParentNode);
 
-          while (Assigned(Child) and (Child^.ParentNode <> ParentNode)) do
-            if (not Parser.IsChild(Child^.ParentNode)) then
-              Child := nil
-            else
-              Child := PChild(Child^.ParentNode);
-
-          Result := Child;
-        end;
+        Result := Child;
       end
       else if ((PList(ParentNode)^.DelimiterType = ttUnknown) or (Token^.TokenType = PList(ParentNode)^.DelimiterType)) then
       begin
@@ -11610,7 +11604,8 @@ begin
 
     FPreviousToken := FCurrentToken;
 
-    CompletionList.Clear();
+    if (not (Error.Code in [PE_IncompleteStmt])) then
+      CompletionList.Clear();
 
     Dec(TokenBuffer.Count);
     Move(TokenBuffer.Items[1], TokenBuffer.Items[0], TokenBuffer.Count * SizeOf(TokenBuffer.Items[0]));
@@ -11672,7 +11667,7 @@ begin
   inherited Create();
 
   FAnsiQuotes := False;
-  FormatHandle.Commands := nil;
+  Commands := nil;
   FCompletionList := TCompletionList.Create(Self);
   DatatypeList := TWordList.Create(Self);
   FunctionList := TWordList.Create(Self);
@@ -11794,52 +11789,52 @@ begin
   begin
     Assert(Nodes.OnSchedule.Value > 0);
 
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.OnSchedule.Tag, stReturnBefore);
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.OnSchedule.Value, stReturnBefore);
-    FormatHandle.Commands.DecreaseIndent();
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end;
 
   if (Nodes.OnCompletionTag > 0) then
   begin
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.OnCompletionTag, stReturnBefore);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end;
 
   if (Nodes.RenameValue > 0) then
   begin
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.RenameValue, stReturnBefore);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end;
 
   if (Nodes.EnableTag > 0) then
   begin
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.EnableTag, stReturnBefore);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end;
 
   if (Nodes.CommentValue > 0) then
   begin
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.CommentValue, stReturnBefore);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end;
 
   if (Nodes.DoTag > 0) then
   begin
     Assert(Nodes.Body > 0);
 
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.DoTag, stReturnBefore);
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.Body, stReturnBefore);
-    FormatHandle.Commands.DecreaseIndent();
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end;
 end;
 
@@ -11847,24 +11842,24 @@ procedure TSQLParser.FormatAlterRoutineStmt(const Nodes: TAlterRoutineStmt.TNode
 begin
   FormatNode(Nodes.AlterTag);
   FormatNode(Nodes.Ident, stSpaceBefore);
-  FormatHandle.Commands.IncreaseIndent();
+  Commands.IncreaseIndent();
   FormatNode(Nodes.CommentValue, stReturnBefore);
   FormatNode(Nodes.LanguageTag, stReturnBefore);
   FormatNode(Nodes.DeterministicTag, stReturnBefore);
   FormatNode(Nodes.NatureOfDataTag, stReturnBefore);
   FormatNode(Nodes.SQLSecurityTag, stReturnBefore);
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatAlterTablespaceStmt(const Nodes: TAlterTablespaceStmt.TNodes);
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.Ident, stSpaceBefore);
-  FormatHandle.Commands.IncreaseIndent();
+  Commands.IncreaseIndent();
   FormatNode(Nodes.AddDatafileValue, stReturnBefore);
   FormatNode(Nodes.InitialSizeValue, stReturnBefore);
   FormatNode(Nodes.EngineValue, stReturnBefore);
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatAlterTableStmt(const Nodes: TAlterTableStmt.TNodes);
@@ -11875,31 +11870,31 @@ begin
   FormatNode(Nodes.Ident, stSpaceBefore);
   if (Nodes.SpecificationList > 0) then
   begin
-    FormatHandle.Commands.IncreaseIndent();
-    FormatHandle.Commands.WriteReturn();
+    Commands.IncreaseIndent();
+    Commands.WriteReturn();
     FormatList(Nodes.SpecificationList, sReturn);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end;
 end;
 
 procedure TSQLParser.FormatAlterViewStmt(const Nodes: TAlterViewStmt.TNodes);
 begin
   FormatNode(Nodes.AlterTag);
-  FormatHandle.Commands.IncreaseIndent();
+  Commands.IncreaseIndent();
   FormatNode(Nodes.AlgorithmValue, stReturnBefore);
   FormatNode(Nodes.DefinerValue, stReturnBefore);
   FormatNode(Nodes.SQLSecurityTag, stReturnBefore);
   FormatNode(Nodes.ViewTag, stReturnBefore);
   FormatNode(Nodes.Ident, stSpaceBefore);
   FormatNode(Nodes.Columns, stSpaceBefore);
-  FormatHandle.Commands.IncreaseIndent();
+  Commands.IncreaseIndent();
   FormatNode(Nodes.AsTag, stReturnBefore);
-  FormatHandle.Commands.IncreaseIndent();
+  Commands.IncreaseIndent();
   FormatNode(Nodes.SelectStmt, stReturnBefore);
-  FormatHandle.Commands.DecreaseIndent();
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
   FormatNode(Nodes.OptionTag, stReturnBefore);
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatBeginLabel(const Nodes: TBeginLabel.TNodes);
@@ -11919,12 +11914,12 @@ procedure TSQLParser.FormatCaseOp(const Nodes: TCaseOp.TNodes);
 begin
   FormatNode(Nodes.CaseTag);
   FormatNode(Nodes.CompareExpr, stSpaceBefore);
-  FormatHandle.Commands.IncreaseIndent();
-  FormatHandle.Commands.WriteReturn();
+  Commands.IncreaseIndent();
+  Commands.WriteReturn();
   FormatList(Nodes.BranchList, sReturn);
   FormatNode(Nodes.ElseTag, stReturnBefore);
   FormatNode(Nodes.ElseExpr, stSpaceBefore);
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
   FormatNode(Nodes.EndTag, stReturnBefore);
 end;
 
@@ -11932,10 +11927,10 @@ procedure TSQLParser.FormatCaseStmt(const Nodes: TCaseStmt.TNodes);
 begin
   FormatNode(Nodes.CaseTag);
   FormatNode(Nodes.CompareExpr, stSpaceBefore);
-  FormatHandle.Commands.IncreaseIndent();
-  FormatHandle.Commands.WriteReturn();
+  Commands.IncreaseIndent();
+  Commands.WriteReturn();
   FormatList(Nodes.BranchList, sReturn);
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
   FormatNode(Nodes.EndTag, stReturnBefore);
 end;
 
@@ -11943,16 +11938,16 @@ procedure TSQLParser.FormatCaseStmtBranch(const Nodes: TCaseStmt.TBranch.TNodes)
 begin
   Assert(NodePtr(Nodes.Tag)^.NodeType = ntTag);
 
-  FormatHandle.Commands.IncreaseIndent();
+  Commands.IncreaseIndent();
   FormatNode(Nodes.Tag);
   if ((TokenPtr(PTag(NodePtr(Nodes.Tag))^.Nodes.KeywordToken1).KeywordIndex = kiWHEN)) then
   begin
     FormatNode(Nodes.ConditionExpr, stSpaceBefore);
     FormatNode(Nodes.ThenTag, stSpaceBefore);
   end;
-  FormatHandle.Commands.WriteReturn();
+  Commands.WriteReturn();
   FormatList(Nodes.StmtList, sReturn);
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatCastFunc(const Nodes: TCastFunc.TNodes);
@@ -11982,20 +11977,20 @@ procedure TSQLParser.FormatChangeMasterStmt(const Nodes: TChangeMasterStmt.TNode
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.ToTag, stSpaceBefore);
-  FormatHandle.Commands.IncreaseIndent();
-  FormatHandle.Commands.WriteReturn();
+  Commands.IncreaseIndent();
+  Commands.WriteReturn();
   FormatList(Nodes.OptionList, sReturn);
   FormatNode(Nodes.ChannelOptionValue, stReturnBefore);
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatCompoundStmt(const Nodes: TCompoundStmt.TNodes);
 begin
   FormatNode(Nodes.BeginLabel, stSpaceAfter);
-  FormatHandle.Commands.IncreaseIndent();
+  Commands.IncreaseIndent();
   FormatNode(Nodes.BeginTag, stReturnAfter);
   FormatList(Nodes.StmtList, sReturn);
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
   FormatNode(Nodes.EndTag, stReturnBefore);
   FormatNode(Nodes.EndLabel, stSpaceBefore);
 end;
@@ -12025,13 +12020,13 @@ begin
   FormatNode(Nodes.EventTag, stSpaceBefore);
   FormatNode(Nodes.IfNotExistsTag, stSpaceBefore);
   FormatNode(Nodes.EventIdent, stSpaceBefore);
-  FormatHandle.Commands.IncreaseIndent();
+  Commands.IncreaseIndent();
   FormatNode(Nodes.OnScheduleValue, stReturnBefore);
   FormatNode(Nodes.OnCompletitionTag, stReturnBefore);
   FormatNode(Nodes.EnableTag, stReturnBefore);
   FormatNode(Nodes.CommentValue, stReturnBefore);
   FormatNode(Nodes.DoTag, stReturnBefore);
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
   FormatNode(Nodes.Body, stReturnBefore);
 end;
 
@@ -12040,7 +12035,7 @@ begin
   FormatNode(Nodes.CreateTag);
   FormatNode(Nodes.IndexTag, stSpaceBefore);
   FormatNode(Nodes.Ident, stSpaceBefore);
-  FormatHandle.Commands.IncreaseIndent();
+  Commands.IncreaseIndent();
   FormatNode(Nodes.IndexTypeValue, stReturnBefore);
   FormatNode(Nodes.OnTag, stReturnBefore);
   FormatNode(Nodes.TableIdent, stSpaceBefore);
@@ -12049,7 +12044,7 @@ begin
   FormatNode(Nodes.CommentValue, stReturnBefore);
   FormatNode(Nodes.KeyBlockSizeValue, stReturnBefore);
   FormatNode(Nodes.ParserValue, stReturnBefore);
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatCreateRoutineStmt(const Nodes: TCreateRoutineStmt.TNodes);
@@ -12069,20 +12064,20 @@ begin
   else
   begin
     FormatNode(Nodes.OpenBracket);
-    FormatHandle.Commands.IncreaseIndent();
-    FormatHandle.Commands.WriteReturn();
+    Commands.IncreaseIndent();
+    Commands.WriteReturn();
     FormatList(Nodes.ParameterList, sReturn);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
     FormatNode(Nodes.CloseBracket, stReturnBefore);
   end;
   FormatNode(Nodes.Returns, stSpaceBefore);
-  FormatHandle.Commands.IncreaseIndent();
+  Commands.IncreaseIndent();
   FormatNode(Nodes.CommentValue, stReturnBefore);
   FormatNode(Nodes.LanguageTag, stReturnBefore);
   FormatNode(Nodes.DeterministicTag, stReturnBefore);
   FormatNode(Nodes.NatureOfDataTag, stReturnBefore);
   FormatNode(Nodes.SQLSecurityTag, stReturnBefore);
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
   FormatNode(Nodes.Body, stReturnBefore);
 end;
 
@@ -12090,22 +12085,22 @@ procedure TSQLParser.FormatCreateServerStmt(const Nodes: TCreateServerStmt.TNode
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.Ident, stSpaceBefore);
-  FormatHandle.Commands.IncreaseIndent();
+  Commands.IncreaseIndent();
   FormatNode(Nodes.ForeignDataWrapperValue, stReturnBefore);
   FormatNode(Nodes.Options.Tag, stReturnBefore);
   FormatNode(Nodes.Options.List, stSpaceBefore);
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatCreateTablespaceStmt(const Nodes: TCreateTablespaceStmt.TNodes);
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.Ident, stSpaceBefore);
-  FormatHandle.Commands.IncreaseIndent();
+  Commands.IncreaseIndent();
   FormatNode(Nodes.AddDatafileValue, stReturnBefore);
   FormatNode(Nodes.FileBlockSizeValue, stReturnBefore);
   FormatNode(Nodes.EngineValue, stReturnBefore);
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatCreateTableStmt(const Nodes: TCreateTableStmt.TNodes);
@@ -12118,65 +12113,65 @@ begin
   FormatNode(Nodes.OpenBracket, stSpaceBefore);
   if (Nodes.DefinitionList > 0) then
   begin
-    FormatHandle.Commands.IncreaseIndent();
-    FormatHandle.Commands.WriteReturn();
+    Commands.IncreaseIndent();
+    Commands.WriteReturn();
     FormatList(Nodes.DefinitionList, sReturn);
-    FormatHandle.Commands.DecreaseIndent();
-    FormatHandle.Commands.WriteReturn();
+    Commands.DecreaseIndent();
+    Commands.WriteReturn();
   end
   else if (Nodes.LikeTag > 0) then
   begin
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.LikeTag, stReturnBefore);
     FormatNode(Nodes.LikeTableIdent, stSpaceBefore);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end
   else if (Nodes.SelectStmt1 > 0) then
   begin
-    FormatHandle.Commands.IncreaseIndent();
-    FormatHandle.Commands.WriteReturn();
+    Commands.IncreaseIndent();
+    Commands.WriteReturn();
     FormatNode(Nodes.SelectStmt1);
-    FormatHandle.Commands.DecreaseIndent();
-    FormatHandle.Commands.WriteReturn();
+    Commands.DecreaseIndent();
+    Commands.WriteReturn();
   end;
   FormatNode(Nodes.CloseBracket);
   FormatNode(Nodes.TableOptionList, stSpaceBefore);
   if (Nodes.PartitionOption.Tag > 0) then
   begin
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.PartitionOption.Tag, stReturnBefore);
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.PartitionOption.KindTag, stReturnBefore);
     FormatNode(Nodes.PartitionOption.Expr, stSpaceBefore);
     FormatNode(Nodes.PartitionOption.AlgorithmValue, stSpaceBefore);
     FormatNode(Nodes.PartitionOption.Columns.Tag, stSpaceBefore);
     FormatNode(Nodes.PartitionOption.Columns.List, stSpaceBefore);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
     FormatNode(Nodes.PartitionOption.Value);
     if (Nodes.PartitionOption.SubPartition.Tag > 0) then
     begin
       FormatNode(Nodes.PartitionOption.SubPartition.Tag, stReturnBefore);
-      FormatHandle.Commands.IncreaseIndent();
+      Commands.IncreaseIndent();
       FormatNode(Nodes.PartitionOption.SubPartition.KindTag, stReturnBefore);
       FormatNode(Nodes.PartitionOption.SubPartition.Expr, stSpaceBefore);
       FormatNode(Nodes.PartitionOption.SubPartition.AlgorithmValue, stSpaceBefore);
       FormatNode(Nodes.PartitionOption.SubPartition.ColumnList, stSpaceBefore);
-      FormatHandle.Commands.DecreaseIndent();
+      Commands.DecreaseIndent();
       FormatNode(Nodes.PartitionOption.SubPartition.Value, stReturnBefore);
     end;
-    FormatHandle.Commands.IncreaseIndent();
-    FormatHandle.Commands.WriteReturn();
+    Commands.IncreaseIndent();
+    Commands.WriteReturn();
     FormatList(Nodes.PartitionDefinitionList, sReturn);
-    FormatHandle.Commands.DecreaseIndent();
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end;
   FormatNode(Nodes.IgnoreReplaceTag, stReturnBefore);
   if (Nodes.SelectStmt2 > 0) then
   begin
     FormatNode(Nodes.AsTag);
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.SelectStmt2, stReturnBefore);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end;
 end;
 
@@ -12226,7 +12221,7 @@ begin
   FormatNode(Nodes.KeyTag);
   FormatNode(Nodes.KeyIdent, stSpaceBefore);
   FormatNode(Nodes.IndexTypeTag, stSpaceBefore);
-  FormatHandle.Commands.WriteSpace();
+  Commands.WriteSpace();
   FormatList(Nodes.KeyColumnList, sNone);
   FormatNode(Nodes.KeyBlockSizeValue, stSpaceBefore);
   FormatNode(Nodes.WithParserValue, stSpaceBefore);
@@ -12252,7 +12247,7 @@ begin
   FormatNode(Nodes.AddTag, stSpaceAfter);
   FormatNode(Nodes.PartitionTag);
   FormatNode(Nodes.NameIdent, stSpaceBefore);
-  FormatHandle.Commands.IncreaseIndent();
+  Commands.IncreaseIndent();
   FormatNode(Nodes.Values.Tag, stReturnBefore);
   FormatNode(Nodes.Values.Value, stSpaceBefore);
   FormatNode(Nodes.EngineValue, stReturnBefore);
@@ -12262,7 +12257,7 @@ begin
   FormatNode(Nodes.MaxRowsValue, stReturnBefore);
   FormatNode(Nodes.MinRowsValue, stReturnBefore);
   FormatNode(Nodes.SubPartitionList, stReturnBefore);
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatCreateTableStmtReference(const Nodes: TCreateTableStmt.TReference.TNodes);
@@ -12278,7 +12273,7 @@ end;
 procedure TSQLParser.FormatCreateTriggerStmt(const Nodes: TCreateTriggerStmt.TNodes);
 begin
   FormatNode(Nodes.CreateTag);
-  FormatHandle.Commands.IncreaseIndent();
+  Commands.IncreaseIndent();
   FormatNode(Nodes.DefinerNode, stSpaceBefore);
   FormatNode(Nodes.TriggerTag, stSpaceBefore);
   FormatNode(Nodes.Ident, stSpaceBefore);
@@ -12288,7 +12283,7 @@ begin
   FormatNode(Nodes.TableIdent, stSpaceBefore);
   FormatNode(Nodes.ForEachRowTag, stReturnBefore);
   FormatNode(Nodes.OrderValue, stReturnBefore);
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
   FormatNode(Nodes.Body, stReturnBefore);
 end;
 
@@ -12296,7 +12291,7 @@ procedure TSQLParser.FormatCreateUserStmt(const Nodes: TCreateUserStmt.TNodes);
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.IfNotExistsTag, stSpaceBefore);
-  FormatHandle.Commands.IncreaseIndent();
+  Commands.IncreaseIndent();
   FormatNode(Nodes.UserSpecifications, stReturnBefore);
   if (Nodes.WithTag > 0) then
   begin
@@ -12308,7 +12303,7 @@ begin
   end;
   FormatNode(Nodes.PasswordOption, stReturnBefore);
   FormatNode(Nodes.AccountTag, stReturnBefore);
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatCreateViewStmt(const Nodes: TCreateViewStmt.TNodes);
@@ -12327,18 +12322,18 @@ begin
     FormatNode(Nodes.ViewTag, stSpaceBefore);
     FormatNode(Nodes.Ident, stSpaceBefore);
     FormatNode(Nodes.FieldList, stSpaceBefore);
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.AsTag, stReturnBefore);
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.SelectStmt, stReturnBefore);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
     FormatNode(Nodes.OptionTag, stReturnBefore);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end
   else
   begin
     FormatNode(Nodes.CreateTag);
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.OrReplaceTag, stReturnBefore);
     FormatNode(Nodes.AlgorithmValue, stReturnBefore);
     FormatNode(Nodes.DefinerNode, stReturnBefore);
@@ -12347,11 +12342,11 @@ begin
     FormatNode(Nodes.Ident, stSpaceBefore);
     FormatNode(Nodes.FieldList, stSpaceBefore);
     FormatNode(Nodes.AsTag, stReturnBefore);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
     FormatNode(Nodes.SelectStmt, stReturnBefore);
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.OptionTag, stReturnBefore);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end;
 end;
 
@@ -12376,15 +12371,15 @@ begin
         begin
           if (not Start) then
             if (not ReturnFound) then
-              FormatHandle.Commands.WriteSpace()
+              Commands.WriteSpace()
             else
-              FormatHandle.Commands.WriteReturn();
+              Commands.WriteReturn();
           T^.GetText(Text, Length);
           if (Text[0] = '#') then
-            FormatHandle.Commands.Write('# ')
+            Commands.Write('# ')
           else
-            FormatHandle.Commands.Write('-- ');
-          FormatHandle.Commands.Write(T^.AsString);
+            Commands.Write('-- ');
+          Commands.Write(T^.AsString);
           ReturnFound := False;
           Spacer := sReturn;
           Start := False;
@@ -12396,12 +12391,12 @@ begin
           begin
             if (not Start) then
               if (not ReturnFound) then
-                FormatHandle.Commands.WriteSpace()
+                Commands.WriteSpace()
               else
-                FormatHandle.Commands.WriteReturn();
-            FormatHandle.Commands.Write('/* ');
-            FormatHandle.Commands.Write(Comment);
-            FormatHandle.Commands.Write(' */');
+                Commands.WriteReturn();
+            Commands.Write('/* ');
+            Commands.Write(Comment);
+            Commands.Write(' */');
 
 //            if (not Start) then
 //              if (ReturnFound) then
@@ -12413,24 +12408,24 @@ begin
           else
           begin
             if (not Start) then
-              FormatHandle.Commands.WriteReturn();
-            FormatHandle.Commands.Write('/*');
-            FormatHandle.Commands.IncreaseIndent();
-            FormatHandle.Commands.WriteReturn();
+              Commands.WriteReturn();
+            Commands.Write('/*');
+            Commands.IncreaseIndent();
+            Commands.WriteReturn();
 
             Index := Pos(#13#10, Comment);
             while (Index > 0) do
             begin
-              FormatHandle.Commands.Write(Copy(Comment, 1, Index - 1));
-              FormatHandle.Commands.WriteReturn();
+              Commands.Write(Copy(Comment, 1, Index - 1));
+              Commands.WriteReturn();
               System.Delete(Comment, 1, Index + 1);
               Index := Pos(#13#10, Comment);
             end;
-            FormatHandle.Commands.Write(Trim(Comment));
+            Commands.Write(Trim(Comment));
 
-            FormatHandle.Commands.DecreaseIndent();
-            FormatHandle.Commands.WriteReturn();
-            FormatHandle.Commands.Write('*/');
+            Commands.DecreaseIndent();
+            Commands.WriteReturn();
+            Commands.Write('*/');
 
             ReturnFound := False;
             Spacer := sReturn;
@@ -12445,13 +12440,13 @@ begin
   case (Spacer) of
     sSpace:
       begin
-        FormatHandle.Commands.WriteSpace();
-        FormatHandle.CommentsWritten := True;
+        Commands.WriteSpace();
+        CommentsWritten := True;
       end;
     sReturn:
       begin
-        FormatHandle.Commands.WriteReturn();
-        FormatHandle.CommentsWritten := True;
+        Commands.WriteReturn();
+        CommentsWritten := True;
       end;
   end;
 end;
@@ -12515,9 +12510,9 @@ begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.Ident, stSpaceBefore);
   FormatNode(Nodes.CursorTag, stSpaceBefore);
-  FormatHandle.Commands.IncreaseIndent();
+  Commands.IncreaseIndent();
   FormatNode(Nodes.SelectStmt, stReturnBefore);
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatDeclareHandlerStmt(const Nodes: TDeclareHandlerStmt.TNodes);
@@ -12525,11 +12520,11 @@ begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.ActionTag, stSpaceBefore);
   FormatNode(Nodes.HandlerTag, stSpaceBefore);
-  FormatHandle.Commands.IncreaseIndent();
+  Commands.IncreaseIndent();
   FormatNode(Nodes.ForTag, stSpaceBefore);
   FormatNode(Nodes.ConditionsList, stSpaceBefore);
   FormatNode(Nodes.Stmt, stReturnBefore);
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatDeleteStmt(const Nodes: TDeleteStmt.TNodes);
@@ -12551,7 +12546,7 @@ begin
   end
   else if (Nodes.From.Tag < Nodes.From.List) then
   begin
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.From.Tag, stReturnBefore);
     FormatNode(Nodes.From.List, stSpaceBefore);
     FormatNode(Nodes.Partition.Tag, stReturnBefore);
@@ -12563,19 +12558,19 @@ begin
     FormatNode(Nodes.OrderBy.Expr, stSpaceBefore);
     FormatNode(Nodes.Limit.Tag, stReturnBefore);
     FormatNode(Nodes.Limit.Expr, stSpaceBefore);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end
   else
   begin
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.From.List, stReturnBefore);
-    FormatHandle.Commands.IncreaseIndent();
-    FormatHandle.Commands.WriteReturn();
+    Commands.IncreaseIndent();
+    Commands.WriteReturn();
     FormatNode(Nodes.From.Tag);
     FormatNode(Nodes.TableReferenceList, stReturnBefore);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
     FormatNode(Nodes.WhereValue, stReturnBefore);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end;
 end;
 
@@ -12583,9 +12578,9 @@ procedure TSQLParser.FormatDropTablespaceStmt(const Nodes: TDropTablespaceStmt.T
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.Ident, stSpaceBefore);
-  FormatHandle.Commands.IncreaseIndent();
+  Commands.IncreaseIndent();
   FormatNode(Nodes.EngineValue, stReturnBefore);
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatExistsFunc(const Nodes: TExistsFunc.TNodes);
@@ -12618,14 +12613,14 @@ begin
   FormatNode(Nodes.OpenBracket);
   FormatNode(Nodes.DistinctTag, stSpaceAfter);
   FormatNode(Nodes.ExprList);
-  FormatHandle.Commands.IncreaseIndent();
+  Commands.IncreaseIndent();
   if (Nodes.OrderByTag > 0) then
   begin
     FormatNode(Nodes.OrderByTag, stSpaceBefore);
     FormatNode(Nodes.OrderByExprList, stSpaceBefore);
   end;
   FormatNode(Nodes.SeparatorValue, stSpaceBefore);
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
   FormatNode(Nodes.CloseBracket);
 end;
 
@@ -12643,28 +12638,28 @@ begin
   begin
     FormatNode(Nodes.Tag);
     FormatNode(Nodes.ConditionExpr, stSpaceBefore);
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.ThenTag, stSpaceBefore);
     FormatNode(Nodes.StmtList, stReturnBefore);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end
   else if (TokenPtr(PTag(NodePtr(Nodes.Tag))^.Nodes.KeywordToken1)^.KeywordIndex = kiELSEIF) then
   begin
-    FormatHandle.Commands.WriteReturn();
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.WriteReturn();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.Tag);
     FormatNode(Nodes.ConditionExpr, stSpaceBefore);
     FormatNode(Nodes.ThenTag, stSpaceBefore);
     FormatNode(Nodes.StmtList, stReturnBefore);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end
   else if (TokenPtr(PTag(NodePtr(Nodes.Tag))^.Nodes.KeywordToken1)^.KeywordIndex = kiELSE) then
   begin
-    FormatHandle.Commands.WriteReturn();
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.WriteReturn();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.Tag);
     FormatNode(Nodes.StmtList, stReturnBefore);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end;
 end;
 
@@ -12689,9 +12684,9 @@ begin
     FormatNode(Nodes.Set_.List, stSpaceBefore);
     if (Nodes.SelectStmt > 0) then
     begin
-      FormatHandle.Commands.IncreaseIndent();
+      Commands.IncreaseIndent();
       FormatNode(Nodes.SelectStmt, stReturnBefore);
-      FormatHandle.Commands.DecreaseIndent();
+      Commands.DecreaseIndent();
       FormatNode(Nodes.OnDuplicateKeyUpdateTag, stReturnBefore);
     end
     else
@@ -12703,34 +12698,34 @@ begin
     FormatNode(Nodes.InsertTag);
     FormatNode(Nodes.PriorityTag, stSpaceBefore);
     FormatNode(Nodes.IgnoreTag, stSpaceBefore);
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.IntoTag, stReturnBefore);
     FormatNode(Nodes.TableIdent, stSpaceBefore);
     FormatNode(Nodes.Partition.Tag, stSpaceBefore);
     FormatNode(Nodes.Partition.List, stSpaceBefore);
     FormatNode(Nodes.ColumnList, stReturnBefore);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
     if (Nodes.Values.Tag > 0) then
     begin
       FormatNode(Nodes.Values.Tag, stReturnBefore);
-      FormatHandle.Commands.IncreaseIndent();
-      FormatHandle.Commands.WriteReturn();
+      Commands.IncreaseIndent();
+      Commands.WriteReturn();
       FormatList(Nodes.Values.List, sReturn);
-      FormatHandle.Commands.DecreaseIndent();
+      Commands.DecreaseIndent();
     end;
     if (Nodes.Set_.Tag > 0) then
     begin
       FormatNode(Nodes.Set_.Tag, stReturnBefore);
-      FormatHandle.Commands.IncreaseIndent();
-      FormatHandle.Commands.WriteReturn();
+      Commands.IncreaseIndent();
+      Commands.WriteReturn();
       FormatList(Nodes.Set_.List, sReturn);
-      FormatHandle.Commands.DecreaseIndent();
+      Commands.DecreaseIndent();
     end;
     if (Nodes.SelectStmt > 0) then
     begin
-      FormatHandle.Commands.IncreaseIndent();
+      Commands.IncreaseIndent();
       FormatNode(Nodes.SelectStmt, stReturnBefore);
-      FormatHandle.Commands.DecreaseIndent();
+      Commands.DecreaseIndent();
       FormatNode(Nodes.OnDuplicateKeyUpdateTag, stReturnBefore);
     end
     else
@@ -12767,10 +12762,10 @@ begin
     if (Assigned(Child)) then
       case (Spacer) of
         sSpace:
-          FormatHandle.Commands.WriteSpace();
+          Commands.WriteSpace();
         sReturn:
-          if (not FormatHandle.Commands.NewLine) then
-            FormatHandle.Commands.WriteReturn();
+          if (not Commands.NewLine) then
+            Commands.WriteReturn();
       end;
   end;
 
@@ -12793,7 +12788,7 @@ begin
   FormatNode(Nodes.PriorityTag, stSpaceBefore);
   FormatNode(Nodes.InfileTag, stSpaceBefore);
   FormatNode(Nodes.FilenameString, stSpaceBefore);
-  FormatHandle.Commands.IncreaseIndent();
+  Commands.IncreaseIndent();
   FormatNode(Nodes.ReplaceIgnoreTag, stReturnBefore);
   FormatNode(Nodes.IntoTableTag, stReturnBefore);
   FormatNode(Nodes.Ident, stSpaceBefore);
@@ -12803,26 +12798,26 @@ begin
   if (Nodes.ColumnsTag > 0) then
   begin
     FormatNode(Nodes.ColumnsTag, stReturnBefore);
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.ColumnsTerminatedByValue, stReturnBefore);
     FormatNode(Nodes.EnclosedByValue, stReturnBefore);
     FormatNode(Nodes.EscapedByValue, stReturnBefore);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end;
   if (Nodes.LinesTag > 0) then
   begin
     FormatNode(Nodes.LinesTag, stReturnBefore);
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.StartingByValue, stReturnBefore);
     FormatNode(Nodes.LinesTerminatedByValue, stReturnBefore);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end;
   FormatNode(Nodes.Ignore.Tag, stReturnBefore);
   FormatNode(Nodes.Ignore.NumberToken, stSpaceBefore);
   FormatNode(Nodes.Ignore.LinesTag, stSpaceBefore);
   FormatNode(Nodes.ColumnList, stReturnBefore);
   FormatNode(Nodes.SetList, stReturnBefore);
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatLoadXMLStmt(const Nodes: TLoadXMLStmt.TNodes);
@@ -12831,7 +12826,7 @@ begin
   FormatNode(Nodes.PriorityTag, stSpaceBefore);
   FormatNode(Nodes.InfileTag, stSpaceBefore);
   FormatNode(Nodes.FilenameString, stSpaceBefore);
-  FormatHandle.Commands.IncreaseIndent();
+  Commands.IncreaseIndent();
   FormatNode(Nodes.ReplaceIgnoreTag, stReturnBefore);
   FormatNode(Nodes.IntoTableValue, stReturnBefore);
   FormatNode(Nodes.CharacterSetValue, stReturnBefore);
@@ -12841,7 +12836,7 @@ begin
   FormatNode(Nodes.Ignore.LinesTag, stSpaceBefore);
   FormatNode(Nodes.FieldList, stReturnBefore);
   FormatNode(Nodes.SetList, stReturnBefore);
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatLockTablesStmtItem(const Nodes: TLockTablesStmt.TItem.TNodes);
@@ -12862,8 +12857,8 @@ begin
   begin
     if (Nodes.AsTag = 0) then
     begin
-      FormatHandle.Commands.Write(' ');
-      FormatHandle.Commands.Write(KeywordList.Word[kiAS]);
+      Commands.Write(' ');
+      Commands.Write(KeywordList.Word[kiAS]);
     end
     else
       FormatNode(Nodes.AsTag, stSpaceBefore);
@@ -12875,10 +12870,10 @@ end;
 procedure TSQLParser.FormatLoopStmt(const Nodes: TLoopStmt.TNodes);
 begin
   FormatNode(Nodes.BeginLabel, stSpaceAfter);
-  FormatHandle.Commands.IncreaseIndent();
+  Commands.IncreaseIndent();
   FormatNode(Nodes.BeginTag);
   FormatNode(Nodes.StmtList, stReturnBefore);
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
   FormatNode(Nodes.EndTag, stReturnBefore);
   FormatNode(Nodes.EndLabel, stSpaceBefore);
 end;
@@ -12928,13 +12923,13 @@ procedure TSQLParser.FormatNode(const Node: PNode; const Separator: TSeparatorTy
 begin
   if (Assigned(Node) and ((Node^.NodeType <> ntToken) or not PToken(Node)^.Hidden)) then
   begin
-    if (not FormatHandle.Commands.NewLine) then
+    if (not Commands.NewLine) then
       case (Separator) of
-        stReturnBefore: FormatHandle.Commands.WriteReturn();
-        stSpaceBefore: FormatHandle.Commands.WriteSpace();
+        stReturnBefore: Commands.WriteReturn();
+        stSpaceBefore: Commands.WriteSpace();
       end;
 
-    FormatHandle.CommentsWritten := False;
+    CommentsWritten := False;
     case (Node^.NodeType) of
       ntToken: FormatToken(PToken(Node));
       ntUnknownStmt: FormatUnknownStmt(PUnknownStmt(Node));
@@ -13155,10 +13150,10 @@ begin
       else raise Exception.Create(SArgumentOutOfRange);
     end;
 
-    if (not FormatHandle.CommentsWritten) then
+    if (not CommentsWritten) then
       case (Separator) of
-        stReturnAfter: FormatHandle.Commands.WriteReturn();
-        stSpaceAfter: FormatHandle.Commands.WriteSpace();
+        stReturnAfter: Commands.WriteReturn();
+        stSpaceAfter: Commands.WriteSpace();
       end;
   end;
 end;
@@ -13172,9 +13167,9 @@ procedure TSQLParser.FormatRepeatStmt(const Nodes: TRepeatStmt.TNodes);
 begin
   FormatNode(Nodes.BeginLabel, stSpaceAfter);
   FormatNode(Nodes.RepeatTag);
-  FormatHandle.Commands.IncreaseIndent();
+  Commands.IncreaseIndent();
   FormatNode(Nodes.StmtList, stReturnBefore);
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
   FormatNode(Nodes.UntilTag, stReturnBefore);
   FormatNode(Nodes.SearchConditionExpr, stSpaceBefore);
   FormatNode(Nodes.EndTag, stSpaceBefore);
@@ -13207,16 +13202,16 @@ begin
 
     if (Nodes.StartsValue > 0) then
     begin
-      FormatHandle.Commands.IncreaseIndent();
+      Commands.IncreaseIndent();
       FormatNode(Nodes.StartsValue, stReturnBefore);
-      FormatHandle.Commands.DecreaseIndent();
+      Commands.DecreaseIndent();
     end;
 
     if (Nodes.EndsValue > 0) then
     begin
-      FormatHandle.Commands.IncreaseIndent();
+      Commands.IncreaseIndent();
       FormatNode(Nodes.EndsValue, stReturnBefore);
-      FormatHandle.Commands.DecreaseIndent();
+      Commands.DecreaseIndent();
     end;
   end
   else
@@ -13242,37 +13237,37 @@ var
       if (PTag(NodePtr(Nodes.Tag))^.Nodes.KeywordToken2 = kiOUTFILE) then
       begin
         FormatNode(Nodes.Tag, Separator);
-        FormatHandle.Commands.IncreaseIndent();
+        Commands.IncreaseIndent();
         if (Separator = stReturnBefore) then
-          FormatHandle.Commands.WriteReturn();
+          Commands.WriteReturn();
         FormatNode(Nodes.CharacterSetValue, stSpaceBefore);
         FormatNode(Nodes.FieldsTerminatedByValue, stSpaceBefore);
         FormatNode(Nodes.EnclosedByValue, stSpaceBefore);
         FormatNode(Nodes.LinesTerminatedByValue, stSpaceBefore);
-        FormatHandle.Commands.DecreaseIndent();
+        Commands.DecreaseIndent();
       end
       else if (PTag(NodePtr(Nodes.Tag))^.Nodes.KeywordToken2 = kiDUMPFILE) then
       begin
         FormatNode(Nodes.Tag, Separator);
-        FormatHandle.Commands.IncreaseIndent();
+        Commands.IncreaseIndent();
         if (Separator = stReturnBefore) then
-          FormatHandle.Commands.WriteReturn();
+          Commands.WriteReturn();
         FormatNode(Nodes.Filename, stSpaceBefore);
-        FormatHandle.Commands.DecreaseIndent();
+        Commands.DecreaseIndent();
       end
       else
       begin
         FormatNode(Nodes.Tag, Separator);
-        FormatHandle.Commands.IncreaseIndent();
+        Commands.IncreaseIndent();
         if (not ItemPerLine) then
           FormatNode(Nodes.VariableList, Separator)
         else
         begin
           if (Separator = stReturnBefore) then
-            FormatHandle.Commands.WriteReturn();
+            Commands.WriteReturn();
           FormatList(Nodes.VariableList, Spacer);
         end;
-        FormatHandle.Commands.DecreaseIndent();
+        Commands.DecreaseIndent();
       end;
   end;
 
@@ -13304,7 +13299,7 @@ begin
 
 
   FormatNode(Nodes.SelectTag);
-  FormatHandle.Commands.IncreaseIndent();
+  Commands.IncreaseIndent();
   FormatNode(Nodes.DistinctTag, stSpaceBefore);
   FormatNode(Nodes.HighPriorityTag, stSpaceBefore);
   FormatNode(Nodes.MaxStatementTime, stSpaceBefore);
@@ -13319,83 +13314,83 @@ begin
   else
   begin
     if (Separator = stSpaceBefore) then
-      FormatHandle.Commands.WriteSpace()
+      Commands.WriteSpace()
     else
-      FormatHandle.Commands.WriteReturn();
+      Commands.WriteReturn();
     FormatList(Nodes.ColumnsList, Spacer);
   end;
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
   FormatInto(Nodes.Into1);
   if (Nodes.From.Tag > 0) then
   begin
     FormatNode(Nodes.From.Tag, Separator);
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     if (Separator = stSpaceBefore) then
-      FormatHandle.Commands.WriteSpace()
+      Commands.WriteSpace()
     else
-      FormatHandle.Commands.WriteReturn();
+      Commands.WriteReturn();
     FormatList(Nodes.From.TableReferenceList, Spacer);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end;
   if (Nodes.Partition.Tag > 0) then
   begin
     FormatNode(Nodes.Partition.Tag, Separator);
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.Partition.Tag, Separator);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end;
   if (Nodes.Where.Tag > 0) then
   begin
     FormatNode(Nodes.Where.Tag, Separator);
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.Where.Expr, Separator);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end;
   if (Nodes.GroupBy.Tag > 0) then
   begin
     FormatNode(Nodes.GroupBy.Tag, Separator);
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.GroupBy.List, Separator);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
     FormatNode(Nodes.GroupBy.WithRollupTag, stSpaceBefore);
   end;
   if (Nodes.Having.Tag > 0) then
   begin
     FormatNode(Nodes.Having.Tag, Separator);
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.Having.Expr, Separator);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end;
   if (Nodes.OrderBy.Tag > 0) then
   begin
     FormatNode(Nodes.OrderBy.Tag, Separator);
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.OrderBy.Expr, Separator);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end;
   if (Nodes.Limit.Tag > 0) then
   begin
     FormatNode(Nodes.Limit.Tag, Separator);
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     if (Separator = stSpaceBefore) then
-      FormatHandle.Commands.WriteSpace()
+      Commands.WriteSpace()
     else
-      FormatHandle.Commands.WriteReturn();
+      Commands.WriteReturn();
     if (Nodes.Limit.CommaToken > 0) then
     begin
       FormatNode(Nodes.Limit.OffsetToken);
       FormatNode(Nodes.Limit.CommaToken);
     end;
     FormatNode(Nodes.Limit.RowCountToken);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end;
   if (Nodes.Proc.Tag > 0) then
   begin
     FormatNode(Nodes.Proc.Tag, Separator);
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     FormatNode(Nodes.Proc.Ident, Separator);
     FormatNode(Nodes.Proc.ParamList, stSpaceBefore);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end;
   FormatInto(Nodes.Into2);
   FormatNode(Nodes.ForUpdatesTag, Separator);
@@ -13422,8 +13417,8 @@ begin
   begin
     if (Nodes.AsTag = 0) then
     begin
-      FormatHandle.Commands.Write(' ');
-      FormatHandle.Commands.Write(KeywordList.Word[kiAS]);
+      Commands.Write(' ');
+      Commands.Write(KeywordList.Word[kiAS]);
     end
     else
       FormatNode(Nodes.AsTag, stSpaceBefore);
@@ -13451,8 +13446,8 @@ begin
   begin
     if (Nodes.AsTag = 0) then
     begin
-      FormatHandle.Commands.Write(' ');
-      FormatHandle.Commands.Write(KeywordList.Word[kiAS]);
+      Commands.Write(' ');
+      Commands.Write(KeywordList.Word[kiAS]);
     end
     else
       FormatNode(Nodes.AsTag, stSpaceBefore);
@@ -13472,12 +13467,12 @@ end;
 
 procedure TSQLParser.FormatSelectStmtTableJoin(const Nodes: TSelectStmt.TTableJoin.TNodes);
 begin
-  FormatHandle.Commands.IncreaseIndent();
+  Commands.IncreaseIndent();
   FormatNode(Nodes.JoinTag, stReturnBefore);
   FormatNode(Nodes.RightTable, stSpaceBefore);
   FormatNode(Nodes.OnTag, stSpaceBefore);
   FormatNode(Nodes.Condition, stSpaceBefore);
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatSetStmt(const Nodes: TSetStmt.TNodes);
@@ -13497,10 +13492,10 @@ begin
   end
   else
   begin
-    FormatHandle.Commands.IncreaseIndent();
-    FormatHandle.Commands.WriteReturn();
+    Commands.IncreaseIndent();
+    Commands.WriteReturn();
     FormatList(Nodes.AssignmentList, sReturn);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end;
 end;
 
@@ -13510,7 +13505,7 @@ begin
   FormatNode(Nodes.InValue, stSpaceBefore);
   FormatNode(Nodes.FromValue, stSpaceBefore);
   FormatNode(Nodes.Limit.Tag, stSpaceBefore);
-  FormatHandle.Commands.WriteSpace();
+  Commands.WriteSpace();
   FormatNode(Nodes.Limit.OffsetToken);
   FormatNode(Nodes.Limit.CommaToken);
   FormatNode(Nodes.Limit.RowCountToken);
@@ -13520,7 +13515,7 @@ procedure TSQLParser.FormatShowErrorsStmt(const Nodes: TShowErrorsStmt.TNodes);
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.Limit.Tag, stSpaceBefore);
-  FormatHandle.Commands.WriteSpace();
+  Commands.WriteSpace();
   FormatNode(Nodes.Limit.OffsetToken);
   FormatNode(Nodes.Limit.CommaToken);
   FormatNode(Nodes.Limit.RowCountToken);
@@ -13532,7 +13527,7 @@ begin
   FormatNode(Nodes.InValue, stSpaceBefore);
   FormatNode(Nodes.FromValue, stSpaceBefore);
   FormatNode(Nodes.Limit.Tag, stSpaceBefore);
-  FormatHandle.Commands.WriteSpace();
+  Commands.WriteSpace();
   FormatNode(Nodes.Limit.OffsetToken);
   FormatNode(Nodes.Limit.CommaToken);
   FormatNode(Nodes.Limit.RowCountToken);
@@ -13542,7 +13537,7 @@ procedure TSQLParser.FormatShowWarningsStmt(const Nodes: TShowWarningsStmt.TNode
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.Limit.Tag, stSpaceBefore);
-  FormatHandle.Commands.WriteSpace();
+  Commands.WriteSpace();
   FormatNode(Nodes.Limit.OffsetToken);
   FormatNode(Nodes.Limit.CommaToken);
   FormatNode(Nodes.Limit.RowCountToken);
@@ -13554,14 +13549,14 @@ begin
     Result := ''
   else
   begin
-    FormatHandle.Commands := TFormatBuffer.Create();
+    Commands := TFormatBuffer.Create();
 
     FormatHandle.DatabaseName := DatabaseName;
     FormatRoot(Root);
 
-    Result := FormatHandle.Commands.Read();
+    Result := Commands.Read();
 
-    FormatHandle.Commands.Free(); FormatHandle.Commands := nil;
+    Commands.Free(); Commands := nil;
   end;
 end;
 
@@ -13583,7 +13578,7 @@ procedure TSQLParser.FormatSubPartition(const Nodes: TSubPartition.TNodes);
 begin
   FormatNode(Nodes.SubPartitionTag);
   FormatNode(Nodes.NameIdent, stSpaceBefore);
-  FormatHandle.Commands.IncreaseIndent();
+  Commands.IncreaseIndent();
   FormatNode(Nodes.EngineValue, stReturnBefore);
   FormatNode(Nodes.CommentValue, stReturnBefore);
   FormatNode(Nodes.DataDirectoryValue, stReturnBefore);
@@ -13591,7 +13586,7 @@ begin
   FormatNode(Nodes.MaxRowsValue, stReturnBefore);
   FormatNode(Nodes.MinRowsValue, stReturnBefore);
   FormatNode(Nodes.TablespaceValue, stReturnBefore);
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatSubquery(const Nodes: TSubquery.TNodes);
@@ -13676,7 +13671,7 @@ begin
           POP ES
       end;
 
-      FormatHandle.Commands.Write(@Keyword[0], Token^.Length);
+      Commands.Write(@Keyword[0], Token^.Length);
     end;
   end
   else if (Token^.UsageType = utDatatype) then
@@ -13716,21 +13711,21 @@ begin
           POP ES
       end;
 
-      FormatHandle.Commands.Write(@Keyword[0], Token^.Length);
+      Commands.Write(@Keyword[0], Token^.Length);
     end;
   end
   else if ((Token^.UsageType = utDbIdent) and ((Token^.TokenType = ttMySQLIdent) or (Token^.TokenType = ttDQIdent) and AnsiQuotes)
     or (Token^.DbIdentType in [ditDatabase, ditTable, ditProcedure, ditFunction, ditTrigger, ditEvent, ditKey, ditField, ditForeignKey, ditPartition, ditServer, ditAlias])) then
     if (AnsiQuotes) then
-      FormatHandle.Commands.Write(SQLEscape(Token^.AsString, '"'))
+      Commands.Write(SQLEscape(Token^.AsString, '"'))
     else
-      FormatHandle.Commands.Write(SQLEscape(Token^.AsString, '`'))
+      Commands.Write(SQLEscape(Token^.AsString, '`'))
   else if ((Token^.UsageType = utConst) and (Token^.TokenType in ttStrings)) then
-    FormatHandle.Commands.Write(SQLEscape(Token^.AsString, ''''))
+    Commands.Write(SQLEscape(Token^.AsString, ''''))
   else
   begin
     Token^.GetText(Text, Length);
-    FormatHandle.Commands.Write(Text, Length);
+    Commands.Write(Text, Length);
   end;
 
   FormatComments(Token^.NextTokenAll, False);
@@ -13751,7 +13746,7 @@ procedure TSQLParser.FormatUnaryOp(const Nodes: TUnaryOp.TNodes);
 begin
   FormatNode(Nodes.Operator);
   if (IsToken(Nodes.Operator) and (TokenPtr(Nodes.Operator)^.KeywordIndex >= 0)) then
-    FormatHandle.Commands.WriteSpace();
+    Commands.WriteSpace();
   FormatNode(Nodes.Operand);
 end;
 
@@ -13806,39 +13801,39 @@ begin
     FormatNode(Nodes.TableReferenceList, Separator)
   else
   begin
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     if (Separator = stSpaceBefore) then
-      FormatHandle.Commands.WriteSpace()
+      Commands.WriteSpace()
     else
-      FormatHandle.Commands.WriteReturn();
+      Commands.WriteReturn();
     FormatList(Nodes.TableReferenceList, Spacer);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end;
   FormatNode(Nodes.Set_.Tag, Separator);
   if (not ItemPerLine) then
     FormatNode(Nodes.Set_.PairList, Separator)
   else
   begin
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     if (Separator = stSpaceBefore) then
-      FormatHandle.Commands.WriteSpace()
+      Commands.WriteSpace()
     else
-      FormatHandle.Commands.WriteReturn();
+      Commands.WriteReturn();
     FormatList(Nodes.Set_.PairList, Spacer);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end;
   FormatNode(Nodes.Where.Tag, Separator);
   if (not ItemPerLine) then
     FormatNode(Nodes.Where.Expr, stSpaceBefore)
   else
   begin
-    FormatHandle.Commands.IncreaseIndent();
+    Commands.IncreaseIndent();
     if (Separator = stSpaceBefore) then
-      FormatHandle.Commands.WriteSpace()
+      Commands.WriteSpace()
     else
-      FormatHandle.Commands.WriteReturn();
+      Commands.WriteReturn();
     FormatNode(Nodes.Where.Expr);
-    FormatHandle.Commands.DecreaseIndent();
+    Commands.DecreaseIndent();
   end;
   FormatNode(Nodes.Limit.Tag, Separator);
   FormatNode(Nodes.Limit.Expr, stSpaceBefore);
@@ -13855,12 +13850,9 @@ procedure TSQLParser.FormatValue(const Nodes: TValue.TNodes);
 begin
   FormatNode(Nodes.IdentTag);
   if (Nodes.AssignToken = 0) then
-    FormatHandle.Commands.WriteSpace()
+    Commands.WriteSpace()
   else
-  begin
-    FormatNode(Nodes.AssignToken, stSpaceBefore);
-    FormatHandle.Commands.WriteSpace();
-  end;
+    FormatNode(Nodes.AssignToken);
   FormatNode(Nodes.Expr);
 end;
 
@@ -13890,10 +13882,10 @@ begin
   FormatNode(Nodes.BeginLabel, stSpaceAfter);
   FormatNode(Nodes.WhileTag);
   FormatNode(Nodes.SearchConditionExpr, stSpaceBefore);
-  FormatHandle.Commands.IncreaseIndent();
+  Commands.IncreaseIndent();
   FormatNode(Nodes.DoTag, stSpaceBefore);
   FormatNode(Nodes.StmtList, stReturnBefore);
-  FormatHandle.Commands.DecreaseIndent();
+  Commands.DecreaseIndent();
   FormatNode(Nodes.EndTag, stReturnBefore);
   FormatNode(Nodes.EndLabel, stSpaceBefore);
 end;
@@ -16466,6 +16458,7 @@ begin
         CompletionList.AddTag(kiVIEW);
 
       SetError(PE_IncompleteStmt);
+      Result := ParseUnknownStmt();
     end
     else if (not AlgorithmFound and not DefinerFound and not IndexFound and not OrReplaceFound and not SQLSecurityFound and not TemporaryFound
       and (TokenPtr(NextToken[Index])^.KeywordIndex = kiDATABASE)) then
@@ -16576,19 +16569,22 @@ begin
     else if (IsSymbol(ttOpenBracket)
       and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiLIKE)) then
     begin
+      // Where is this format definied in the manual???
+
       Nodes.OpenBracket := ParseSymbol(ttOpenBracket);
 
-      if (not ErrorFound) then
-        Nodes.LikeTag := ParseTag(kiLIKE);
-
-      if (not ErrorFound) then
-        Nodes.LikeTableIdent := ParseTableIdent();
-
-      if (not ErrorFound) then
-        Nodes.CloseBracket := ParseSymbol(ttCloseBracket);
+      SetError(PE_UnexpectedToken);
     end
     else if (IsSymbol(ttOpenBracket)
-      and (EndOfStmt(NextToken[1]) or (TokenPtr(NextToken[1])^.KeywordIndex <> kiSELECT))) then
+      and not EndOfStmt(NextToken[1]) and (TokenPtr(NextToken[1])^.KeywordIndex = kiSELECT)) then
+    begin
+      // Where is this format definied in the manual???
+
+      Nodes.OpenBracket := ParseSymbol(ttOpenBracket);
+
+      SetError(PE_UnexpectedToken);
+    end
+    else if (IsSymbol(ttOpenBracket)) then
     begin
       Nodes.OpenBracket := ParseSymbol(ttOpenBracket);
 
@@ -16770,7 +16766,7 @@ begin
     end;
 
     FillChar(ListNodes, SizeOf(ListNodes), 0);
-    Nodes.TableOptionList := TList.Create(Self, ListNodes, ttComma, Options.Count, TIntegerArray(Options.List));
+    Nodes.TableOptionList := TList.Create(Self, ListNodes, ttUnknown, Options.Count, TIntegerArray(Options.List));
 
     Options.Free();
   end;
@@ -23265,7 +23261,7 @@ begin
   else if (EndOfStmt(CurrentToken)) then
   begin
     SetError(PE_IncompleteStmt);
-    Result := 0;
+    Result := ParseUnknownStmt();
   end
   else
   begin
