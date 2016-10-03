@@ -2119,17 +2119,18 @@ begin
         SHR EDI,1                        // 2 Bytes = 1 character
         MOV Len,EDI
 
-        MOV EBX,Handle
-        MOV [EBX + 0],ESI                // Position in SQL
-        MOV [EBX + 4],ECX                // Characters left in SQL
-
         CMP TrimAfterValue,False
         JE FinishE
 
+        MOV EBX,Handle
         MOV EDX,[EBX + 8]                // MySQL Version
         CALL Trim                        // Step over emtpy characters
 
       FinishE:
+        MOV EBX,Handle
+        MOV [EBX + 0],ESI                // Position in SQL
+        MOV [EBX + 4],ECX                // Characters left in SQL
+
         POP EBX
         POP EDI
         POP ESI
@@ -2282,19 +2283,20 @@ begin
         JNE Finish                       // No!
 
       Found:
-        MOV EBX,Handle
-        MOV [EBX + 0],ESI                // Position in SQL
-        MOV [EBX + 4],ECX                // Characters left in SQL
-
         MOV @Result,TRUE                 // Value found!
 
         CMP TrimAfterValue,False
         JE Finish
 
+        MOV EBX,Handle
         MOV EDX,[EBX + 8]                // MySQL Version
         CALL Trim                        // Step over emtpy characters
 
       Finish:
+        MOV EBX,Handle
+        MOV [EBX + 0],ESI                // Position in SQL
+        MOV [EBX + 4],ECX                // Characters left in SQL
+
         POP EBX
         POP EDI
         POP ESI

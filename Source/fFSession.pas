@@ -9358,10 +9358,10 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         Item.SubItems.Add('')
       else
         Item.SubItems.Add(SysUtils.DateToStr(TSDatabase(Data).Created, LocaleFormatSettings));
-      if (TSDatabase(Data).DefaultCharset = Session.DefaultCharset) then
+      if (TSDatabase(Data).DefaultCharset = Session.CharsetByName(Session.DefaultCharset)) then
         S := ''
       else
-        S := TSDatabase(Data).DefaultCharset;
+        S := TSDatabase(Data).DefaultCharset.Name;
       if ((TSDatabase(Data).Collation <> '') and (TSDatabase(Data).Collation <> Session.Collation)) then
       begin
         if (S <> '') then S := S + ', ';
@@ -9412,7 +9412,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
       else
         Item.SubItems.Add(SysUtils.DateTimeToStr(TSBaseTable(Data).Updated, LocaleFormatSettings));
       S := '';
-      if ((TSTable(Data) is TSBaseTable) and (TSBaseTable(Data).DefaultCharset <> '') and (TSBaseTable(Data).DefaultCharset <> TSBaseTable(Data).Database.DefaultCharset)) then
+      if ((TSTable(Data) is TSBaseTable) and (TSBaseTable(Data).DefaultCharset <> '') and (TSBaseTable(Data).DefaultCharset <> TSBaseTable(Data).Database.DefaultCharset.Name)) then
         S := S + TSBaseTable(Data).DefaultCharset;
       if ((TSTable(Data) is TSBaseTable) and (TSBaseTable(Data).Collation <> '') and (TSBaseTable(Data).Collation <> TSBaseTable(Data).Database.Collation)) then
       begin
@@ -9444,7 +9444,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         Item.SubItems.Add('')
       else
         Item.SubItems.Add(SysUtils.DateTimeToStr(TSRoutine(Data).Modified, LocaleFormatSettings));
-      if (not Assigned(TSRoutine(Data).FunctionResult) or (TSRoutine(Data).FunctionResult.Charset = '') or (TSRoutine(Data).FunctionResult.Charset = TSRoutine(Data).Database.DefaultCharset)) then
+      if (not Assigned(TSRoutine(Data).FunctionResult) or (TSRoutine(Data).FunctionResult.Charset = '') or (TSRoutine(Data).FunctionResult.Charset = TSRoutine(Data).Database.DefaultCharset.Name)) then
         Item.SubItems.Add('')
       else
         Item.SubItems.Add(TSRoutine(Data).FunctionResult.Charset);
@@ -9594,7 +9594,7 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
           Item.SubItems.Add('<auto_increment>')
         else
           Item.SubItems.Add(TSViewField(Data).Default);
-        if (TSViewField(Data).Charset <> TSViewField(Data).Table.Database.DefaultCharset) then
+        if (TSViewField(Data).Charset <> TSViewField(Data).Table.Database.DefaultCharset.Name) then
           Item.SubItems.Add(TSViewField(Data).Charset);
       end;
     end

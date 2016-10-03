@@ -113,7 +113,7 @@ procedure TDDatabase.Built();
 begin
   FName.Text := Database.Name;
 
-  FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf(Database.DefaultCharset); FDefaultCharsetChange(nil);
+  FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf(Database.DefaultCharset.Name); FDefaultCharsetChange(nil);
   FCollation.ItemIndex := FCollation.Items.IndexOf(Database.Collation); FCollationChange(nil);
 
   FSource.Lines.Text := Database.Source + #13#10;
@@ -229,7 +229,7 @@ end;
 procedure TDDatabase.FDefaultCharsetExit(Sender: TObject);
 begin
   if ((FDefaultCharset.Text = '') and Assigned(Database)) then
-    FDefaultCharset.Text := Database.DefaultCharset;
+    FDefaultCharset.Text := Database.DefaultCharset.Name;
 end;
 
 procedure TDDatabase.FNameChange(Sender: TObject);
@@ -257,9 +257,9 @@ begin
 
     NewDatabase.Name := Trim(FName.Text);
     if (not FDefaultCharset.Visible) then
-      NewDatabase.DefaultCharset := ''
+      NewDatabase.DefaultCharset := nil
     else
-      NewDatabase.DefaultCharset := Trim(FDefaultCharset.Text);
+      NewDatabase.DefaultCharset := Session.CharsetByName(FDefaultCharset.Text);
     if (not FCollation.Visible) then
       NewDatabase.Collation := ''
     else

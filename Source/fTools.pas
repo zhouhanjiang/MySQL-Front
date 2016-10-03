@@ -4526,8 +4526,8 @@ begin
     Content := Content + '#' + #13#10;
     Content := Content + #13#10;
     Content := Content + 'CREATE DATABASE IF NOT EXISTS ' + Session.Connection.EscapeIdentifier(Database.Name);
-    if ((Database.DefaultCharset <> '') and (Database.Collation <> '')) then
-      Content := Content + ' /*!40100 DEFAULT CHARACTER SET ' + Database.DefaultCharset + ' COLLATE ' + Database.Collation + ' */';
+    if (Assigned(Database.DefaultCharset) and (Database.Collation <> '')) then
+      Content := Content + ' /*!40100 DEFAULT CHARACTER SET ' + Database.DefaultCharset.Name + ' COLLATE ' + Database.Collation + ' */';
     Content := Content + ';' + #13#10;
     Content := Content + Database.SQLUse();
 

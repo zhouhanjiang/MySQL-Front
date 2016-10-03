@@ -1115,9 +1115,9 @@ begin
 
   if (FCharset.ItemIndex < 0) then
     if (SObject is TSDatabase) then
-      FCharset.ItemIndex := FCharset.Items.IndexOf(TSDatabase(SObject).DefaultCharset)
+      FCharset.ItemIndex := FCharset.Items.IndexOf(TSDatabase(SObject).DefaultCharset.Name)
     else if (SObject is TSDBObject) then
-      FCharset.ItemIndex := FCharset.Items.IndexOf(TSDBObject(SObject).Database.DefaultCharset)
+      FCharset.ItemIndex := FCharset.Items.IndexOf(TSDBObject(SObject).Database.DefaultCharset.Name)
     else if (Session.Connection.ServerVersion < 40101) then
       FCharset.ItemIndex := FCharset.Items.IndexOf(Session.DefaultCharset)
     else

@@ -1087,7 +1087,7 @@ begin
 
   if (not Assigned(Table)) then
   begin
-    NewTable.DefaultCharset := Database.DefaultCharset;
+    NewTable.DefaultCharset := Database.DefaultCharset.Name;
     NewTable.Collation := Database.Collation;
     NewTable.Engine := Database.Session.Engines.DefaultEngine;
 
@@ -1126,7 +1126,7 @@ begin
       FName.Text := TableName;
     end;
 
-    FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf(Database.DefaultCharset); FDefaultCharsetChange(Sender);
+    FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf(Database.DefaultCharset.Name); FDefaultCharsetChange(Sender);
     FCollation.ItemIndex := FCollation.Items.IndexOf(Database.Collation);
 
     FComment.Text := '';
