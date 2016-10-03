@@ -370,6 +370,7 @@ procedure TDEvent.FormShow(Sender: TObject);
 var
   EventName: string;
   I: Integer;
+  SQL: string;
 begin
   Database.Session.RegisterEventProc(FormSessionEvent);
 
@@ -419,7 +420,10 @@ begin
     FEnabled.Checked := True;
     FPreserve.Checked := False;
     FComment.Text := '';
-    FStatement.Lines.Text := 'SET @A = 1;';
+    SQL := 'BEGIN' + #13#10
+      + '  SET @A = 1;' + #13#10
+      + 'END;' + #13#10;
+    FStatement.Text := SQL;
 
     PageControl.Visible := True;
     PSQLWait.Visible := not PageControl.Visible;

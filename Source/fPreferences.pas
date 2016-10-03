@@ -1524,7 +1524,7 @@ begin
   IdentifierForeground := clNone; IdentifierBackground := clNone; IdentifierStyle := [];
   KeywordForeground := clNavy; KeywordBackground := clNone; KeywordStyle := [fsBold];
   LineNumbers := True;
-  LineNumbersForeground := clNavy; LineNumbersBackground := clNone; LineNumbersStyle := [];
+  LineNumbersForeground := $808080; LineNumbersBackground := $F0F0F0; LineNumbersStyle := [];
   NumberForeground := clBlue; NumberBackground := clNone; NumberStyle := [];
   RightEdge := 80;
   StringForeground := clBlue; StringBackground := clNone; StringStyle := [];

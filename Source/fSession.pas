@@ -2068,7 +2068,7 @@ procedure TSObject.SetSource(const AField: TField);
 var
   SQL: string;
 begin
-  if (AField.DataType = ftBlob) then
+  if (AField.DataType in TextDataTypes) then
     SQL := Trim(Session.Connection.LibDecode(my_char(AField.AsAnsiString)))
   else
     SQL := Trim(AField.AsString);
@@ -2266,39 +2266,40 @@ begin
 
       PreviousToken1 := nil; PreviousToken2 := nil;
       Token := Session.SQLParser.Root^.FirstTokenAll;
-      repeat
+      while (Assigned(Token)) do
+      begin
         if (Token^.DbIdentType = ditTable) then
         begin
           Dependency := TSDependency.Create(Session);
-          if ((PreviousToken1^.OperatorType = otDot) and (PreviousToken2^.TokenType in Session.SQLParser.ttIdents)) then
+          if ((PreviousToken1^.OperatorType = otDot) and (PreviousToken2^.DbIdentType = ditDatabase)) then
             Dependency.DatabaseName := PreviousToken2^.AsString;
           Dependency.DependedClass := TSTable;
-          Dependency.DependedName := Token.AsString;
+          Dependency.DependedName := Token^.AsString;
           FDependencies.Add(Dependency);
         end
         else if (Token^.DbIdentType = ditFunction) then
         begin
           Dependency := TSDependency.Create(Session);
-          if ((PreviousToken1^.OperatorType = otDot) and (PreviousToken2^.TokenType in Session.SQLParser.ttIdents)) then
+          if ((PreviousToken1^.OperatorType = otDot) and (PreviousToken2^.DbIdentType = ditDatabase)) then
             Dependency.DatabaseName := PreviousToken2^.AsString;
           Dependency.DependedClass := TSFunction;
-          Dependency.DependedName := Token.AsString;
+          Dependency.DependedName := Token^.AsString;
           FDependencies.Add(Dependency);
         end
         else if ((Token^.DbIdentType = ditProcedure)) then
         begin
           Dependency := TSDependency.Create(Session);
-          if ((PreviousToken1^.OperatorType = otDot) and (PreviousToken2^.TokenType in Session.SQLParser.ttIdents)) then
+          if ((PreviousToken1^.OperatorType = otDot) and (PreviousToken2^.DbIdentType = ditDatabase)) then
             Dependency.DatabaseName := PreviousToken2^.AsString;
           Dependency.DependedClass := TSProcedure;
-          Dependency.DependedName := Token.AsString;
+          Dependency.DependedName := Token^.AsString;
           FDependencies.Add(Dependency);
         end;
 
         PreviousToken2 := PreviousToken1;
         PreviousToken1 := Token;
         Token := Token^.NextToken;
-      until (not Assigned(Token));
+      end;
     end;
     Session.SQLParser.Clear();
   end;
@@ -5052,7 +5053,7 @@ begin
   SQL := SQL + ';' + #13#10;
 
   if (Session.SQLParser.ParseSQL(SQL)) then
-    Session.SQLParser.FormatSQL(SQL);
+    SQL := Session.SQLParser.FormatSQL();
   Session.SQLParser.Clear();
 
   if (DropBeforeCreate) then
@@ -5207,7 +5208,7 @@ begin
         end;
       end;
 
-      Session.SQLParser.FormatSQL(FStmt);
+      FStmt := Session.SQLParser.FormatSQL();
     end;
 
     Session.SQLParser.Clear();
@@ -6322,7 +6323,7 @@ begin
   if (not Session.SQLParser.ParseSQL(SQL)) then
     SQL := FSourceEx
   else
-    Session.SQLParser.FormatSQL(SQL);
+    SQL := Session.SQLParser.FormatSQL();
   Session.SQLParser.Clear();
 
   if (DropBeforeCreate) then
@@ -6714,7 +6715,7 @@ begin
   if (not Session.SQLParser.ParseSQL(FSourceEx)) then
     SQL := FSourceEx
   else
-    Session.SQLParser.FormatSQL(SQL);
+    SQL := Session.SQLParser.FormatSQL();
   Session.SQLParser.Clear();
 
   if (DropBeforeCreate) then
@@ -6973,7 +6974,7 @@ function TSColumns.SQLGetItems(const Name: string = ''): string;
 begin
   Result := 'SELECT DISTINCT ' + Session.Connection.EscapeIdentifier('COLUMN_NAME')
     + ' FROM ' + Session.Connection.EscapeIdentifier(INFORMATION_SCHEMA) + '.' + Session.Connection.EscapeIdentifier('COLUMNS')
-    + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + ' = ' + SQLEscape(Database.Name)
+    + ' WHERE ' + Session.Connection.EscapeIdentifier('TABLE_SCHEMA') + '=' + SQLEscape(Database.Name)
     + ' ORDER BY ' + Session.Connection.EscapeIdentifier('COLUMN_NAME') + ';' + #13#10;
 end;
 
@@ -7028,20 +7029,9 @@ begin
 end;
 
 function TSDatabase.Build(const DataSet: TMySQLQuery): Boolean;
-var
-  Field: TField;
 begin
   if (not DataSet.IsEmpty()) then
-  begin
-    Field := DataSet.FieldByName('Create Database');
-    if (Field.DataType <> ftBlob) then
-      FSource := Field.AsString
-    else
-      FSource := Session.Connection.LibDecode(my_char(Field.AsAnsiString));
-    FSource := Trim(ReplaceStr(ReplaceStr(FSource, #10, #13#10), #13#13#10, #13#10));
-    if (FSource <> '') then
-      FSource := FSource + ';';
-  end;
+    SetSource(DataSet);
 
   Result := False;
 end;
@@ -7253,7 +7243,7 @@ begin
   FDefaultCharset := '';
   FDefaultCodePage := CP_ACP;
 
-  if ((Session.Connection.ServerVersion < 50000) or (Self is TSSystemDatabase)) then FColumns := nil else FColumns := TSColumns.Create(Self);
+  if ((Session.Connection.ServerVersion < 50000)                              ) then FColumns := nil else FColumns := TSColumns.Create(Self);
   if ((Session.Connection.ServerVersion < 50004) or (Self is TSSystemDatabase)) then FRoutines := nil else FRoutines := TSRoutines.Create(Self);
   FTables := TSTables.Create(Self);
   if ((Session.Connection.ServerVersion < 50010) or (Self is TSSystemDatabase)) then FTriggers := nil else FTriggers := TSTriggers.Create(Self);
@@ -10772,7 +10762,7 @@ begin
   if (not Assigned(FEngines) and Connecting) then
   begin
     if (not Assigned(SQLParser)) then
-      FSQLParser := TSQLParser.Create(Connection.ServerVersion);
+      FSQLParser := TSQLParser.Create(Connection.ServerVersion, LowerCaseTableNames);
 
     if (not Assigned(FCollations) and (Connection.ServerVersion >= 40100)) then FCollations := TSCollations.Create(Self);
     if (not Assigned(FFieldTypes)) then FFieldTypes := TSFieldTypes.Create(Self);
@@ -12464,7 +12454,7 @@ end;
 
 function TSSession.TableName(const Name: string): string;
 begin
-  if (LowerCaseTableNames in [0]) then
+  if (LowerCaseTableNames = 0) then
     Result := Name
   else
     Result := LowerCase(Name);
@@ -12472,7 +12462,7 @@ end;
 
 function TSSession.TableNameCmp(const Name1, Name2: string): Integer;
 begin
-  if (LowerCaseTableNames in [0]) then
+  if (LowerCaseTableNames = 0) then
     Result := lstrcmp(PChar(Name1), PChar(Name2))
   else
     Result := lstrcmpi(PChar(Name1), PChar(Name2));

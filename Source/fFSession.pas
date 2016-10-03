@@ -14,7 +14,6 @@ uses
   ShellControls, JAMControls, ShellLink,
   ComCtrls_Ext, StdCtrls_Ext, Dialogs_Ext, Forms_Ext, ExtCtrls_Ext,
   MySQLDB, MySQLDBGrid,
-fProfiling,
   fSession, fSQLParser, fPreferences, fTools, fBase,
   fDExport, fDImport, fCWorkbench;
 
@@ -3755,6 +3754,9 @@ begin
 end;
 
 procedure TFSession.aEFormatSQLExecute(Sender: TObject);
+const
+  EventPrefix = 'CREATE EVENT `Parser` ON SCHEDULE AT ''2016-01-01 00:00:00'' DO ';
+  TriggerPrefix = 'CREATE TRIGGER `Parser` BEFORE INSERT ON `Table` FOR EACH ROW ';
 var
   SQL: string;
 begin
@@ -3767,9 +3769,9 @@ begin
     SQL := ActiveSynMemo.Text;
     case (SelectedImageIndex) of
       iiTrigger:
-        SQL := 'CREATE TRIGGER `Parser` BEFORE INSERT ON `Table` FOR EACH ROW ' + SQL;
+        SQL := TriggerPrefix + SQL;
       iiEvent:
-        SQL := 'CREATE EVENT `Parser` ON SCHEDULE AT ''2016-01-01 00:00:00'' DO ' + SQL;
+        SQL := EventPrefix + SQL;
     end;
   end;
 
@@ -3777,7 +3779,7 @@ begin
     MsgBox(Session.SQLParser.ErrorMessage, Preferences.LoadStr(45), MB_OK + MB_ICONERROR)
   else
   begin
-    Session.SQLParser.FormatSQL(SQL);
+    SQL := Session.SQLParser.FormatSQL(SelectedDatabase);
 
     if (ActiveSynMemo.SelAvail) then
       ActiveSynMemo.SelText := SQL
@@ -3785,9 +3787,15 @@ begin
     begin
       case (SelectedImageIndex) of
         iiTrigger:
-          Delete(SQL, 1, 74); // Remove before added CREATE TRIGGER ...
+          begin
+            Delete(SQL, 1, Pos('FOR EACH ROW', SQL) + Length('FOR EACH ROW'));
+            SQL := Trim(SQL);
+          end;
         iiEvent:
-          Delete(SQL, 1, 69); // Remove before added CREATE EVENT ...
+          begin
+            Delete(SQL, 1, Pos('DO', SQL) + Length('DO'));
+            SQL := Trim(SQL);
+          end;
       end;
       // Using SelectAll / SelText to have the option using the Undo feature of SynMemo
       ActiveSynMemo.SelectAll();
@@ -5104,6 +5112,7 @@ begin
   Result.HelpContext := FSQLEditorSynMemo.HelpContext;
   Result.Highlighter := FSQLEditorSynMemo.Highlighter;
   Result.Gutter.AutoSize := FSQLEditorSynMemo.Gutter.AutoSize;
+  Result.Gutter.Color := FSQLEditorSynMemo.Gutter.Color;
   Result.Gutter.DigitCount := FSQLEditorSynMemo.Gutter.DigitCount;
   Result.Gutter.LeftOffset := FSQLEditorSynMemo.Gutter.LeftOffset;
   Result.Gutter.ShowLineNumbers := FSQLEditorSynMemo.Gutter.ShowLineNumbers;
@@ -13014,7 +13023,8 @@ begin
     SQL := Copy(SQL, Index, ActiveSynMemo.SelStart + 1 - Index - Length(CurrentInput));
 
     Session.SQLParser.ParseSQL(SQL, True);
-    CanExecute := Session.SQLParser.ErrorCode in [TSQLParser.PE_Success, TSQLParser.PE_IncompleteStmt];
+
+    CanExecute := Session.SQLParser.ErrorCode in [PE_Success, PE_IncompleteStmt];
 
     if (CanExecute) then
     begin
@@ -13134,7 +13144,7 @@ begin
                     begin
                       if (Assigned(Database) and Assigned(Database.Routines)) then
                         for J := 0 to Database.Routines.Count - 1 do
-                          if (Database.Routines[I] is TSFunction) then
+                          if (Database.Routines[J] is TSFunction) then
                             SynCompletionListAdd(
                               Database.Routines[J].Name,
                               Session.Connection.EscapeIdentifier(Database.Routines[J].Name));

@@ -1899,8 +1899,10 @@ begin
       Result := True;
     '-':
       Result := fDialect = sqlStandard;
-    '#', '$':                          // TODO: check this case, ANSI code wasn't clear here if this is exclusively Oracle
+    '#':                          // TODO: check this case, ANSI code wasn't clear here if this is exclusively Oracle
       Result := fDialect in [sqlOracle, sqlNexus];
+    '$':                          // TODO: check this case, ANSI code wasn't clear here if this is exclusively Oracle
+      Result := fDialect in [sqlMySQL, sqlOracle, sqlNexus];
     '@':
       Result := fDialect in [sqlMSSQL7, sqlMSSQL2K];
      '!', '^', '{', '}','~':

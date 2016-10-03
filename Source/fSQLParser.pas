@@ -2,196 +2,132 @@
 
 interface {********************************************************************}
 
-// SQL Syntax updated with MySQL 5.7.14
+// SQL Syntax updated with MySQL 5.7.15
 
 uses
-  Classes,
-  MySQLConsts;
+  Classes;
 
 type
   TSQLParser = class
-  public
-    const
-      PE_Success = 0; // No error
-
-      PE_Unknown = 1; // Unknown error
-
-      // Bugs while parsing Tokens:
-      PE_IncompleteToken = 2; // Incomplete string or identifier near
-      PE_UnexpectedChar = 3; // Unexpected character
-
-      // Bugs while parsing Stmts:
-      PE_IncompleteStmt = 4; // Incompleted statement
-      PE_UnexpectedToken = 5; // Unexpected character
-      PE_ExtraToken = 6; // Unexpected character
-
-      // Bugs with MySQL conditional options
-      PE_InvalidMySQLCond = 7; // Invalid version number in MySQL conditional option
-      PE_NestedMySQLCond = 8; // Nested conditional MySQL conditional options
-
-      // Bugs while parsing Root
-      PE_UnknownStmt = 9; // Unknown statement
-
-      MaxIdentLength = NAME_LEN;
-
-      MySQLDatatypes =
-        'BIGINT,BINARY,BIT,BLOB,BOOL,BOOLEAN,BYTE,CHAR,CHARACTER,DEC,DECIMAL,' +
-        'DATE,DATETIME,DOUBLE,ENUM,FLOAT,GEOMETRY,GEOMETRYCOLLECTION,INT,INT4,' +
-        'INTEGER,LARGEINT,LINESTRING,JSON,LONG,LONGBLOB,LONGTEXT,MEDIUMBLOB,' +
-        'MEDIUMINT,MEDIUMTEXT,MULTILINESTRING,MULTIPOINT,MULTIPOLYGON,' +
-        'NUMBER,NUMERIC,NCHAR,NVARCHAR,POINT,POLYGON,REAL,SERIAL,SET,SIGNED,' +
-        'SMALLINT,TEXT,TIME,TIMESTAMP,TINYBLOB,TINYINT,TINYTEXT,UNSIGNED,' +
-        'VARBINARY,VARCHAR,YEAR';
-
-      MySQLEngineTypes =
-        'ARCHIVE,BDB,BERKELEYDB,BLACKHOLE,CSV,EXAMPLE,FEDERATED,HEAP,INNOBASE,' +
-        'InnoDB,ISAM,MEMORY,MERGE,MRG_ISAM,MRG_MYISAM,MyISAM,NDB,NDBCLUSTER';
-
-      MySQLFunctions =
-        'ABS,ACOS,ADDDATE,ADdiME,AES_DECRYPT,AES_ENCRYPT,ANY_VALUE,AREA,' +
-        'ASBINARY,ASCII,ASIN,ASTEXT,ASWKBASWKT,ASYMMETRIC_DECRYPT,' +
-        'ASYMMETRIC_DERIVE,ASYMMETRIC_ENCRYPT,ASYMMETRIC_SIGN,ASYMMETRIC_VERIFY,' +
-        'ATAN,ATAN,ATAN2,AVG,BENCHMARK,BIN,BIT_AND,BIT_COUNT,BIT_LENGTH,BIT_OR,' +
-        'BIT_XOR,BUFFER,CAST,CEIL,CEILING,CENTROID,CHAR,CHAR_LENGTH,' +
-        'CHARACTER_LENGTH,CHARSET,COALESCE,COERCIBILITY,COLLATION,COMPRESS,' +
-        'CONCAT,CONCAT_WS,CONNECTION_ID,CONTAINS,CONV,CONVERT,CONVERT_TZ,' +
-        'CONVEXHULL,COS,COT,COUNT,CRC32,CREATE_ASYMMETRIC_PRIV_KEY,' +
-        'CREATE_ASYMMETRIC_PUB_KEY,CREATE_DH_PARAMETERS,CREATE_DIGEST,CROSSES,' +
-        'CURDATE,CURRENT_DATE,CURRENT_TIME,CURRENT_TIMESTAMP,CURRENT_USER,' +
-        'CURTIME,DATABASE,DATE,DATE_ADD,DATE_FORMAT,DATE_SUB,DATEDIFF,DAY,' +
-        'DAYNAME,DAYOFMONTH,DAYOFWEEK,DAYOFYEAR,DECODE,DEFAULT,DEGREES,' +
-        'DES_DECRYPT,DES_ENCRYPT,DIMENSION,DISJOINT,DISTANCE,ELT,ENCODE,ENCRYPT,' +
-        'ENDPOINT,ENVELOPE,EQUALS,EXP,EXPORT_SET,EXTERIORRING,EXTRACT,' +
-        'EXTRACTVALUE,FIELD,FIND_IN_SET,FLOOR,FORMAT,FOUND_ROWS,FROM_BASE64,' +
-        'FROM_DAYS,FROM_UNIXTIME,GEOMCOLLFROMTEXT,GEOMCOLLFROMWKB,' +
-        'GEOMETRYCOLLECTION,GEOMETRYCOLLECTIONFROMTEXT,GEOMETRYCOLLECTIONFROMWKB,' +
-        'GEOMETRYFROMTEXT,GEOMETRYFROMWKB,GEOMETRYN,GEOMETRYTYPE,GEOMFROMTEXT,' +
-        'GEOMFROMWKB,GET_FORMAT,GET_LOCK,GLENGTH,GREATEST,GROUP_CONCAT,' +
-        'GTID_SUBSET,GTID_SUBTRACT,HEX,HOUR,IF,IFNULL,IN,INET_ATON,INET_NTOA,' +
-        'INET6_ATON,INET6_NTOA,INSERT,INSTR,INTERIORRINGN,INTERSECTS,INTERVAL,' +
-        'IS_FREE_LOCK,IS_IPV4,IS_IPV4_COMPAT,IS_IPV4_MAPPED,IS_IPV6,IS_USED_LOCK,' +
-        'ISCLOSED,ISEMPTY,ISNULL,ISSIMPLE,JSON_APPEND,JSON_ARRAY,' +
-        'JSON_ARRAY_APPEND,JSON_ARRAY_INSERT,JSON_CONTAINS,JSON_CONTAINS_PATH,' +
-        'JSON_DEPTH,JSON_EXTRACT,JSON_INSERT,JSON_KEYS,JSON_LENGTH,JSON_MERGE,' +
-        'JSON_OBJECT,JSON_QUOTE,JSON_REMOVE,JSON_REPLACE,JSON_SEARCH,JSON_SET,' +
-        'JSON_TYPE,JSON_UNQUOTE,JSON_VALID,LAST_DAY,LAST_INSERT_ID,LCASE,LEAST,' +
-        'LEFT,LENGTH,LINEFROMTEXT,LINEFROMWKB,LINESTRING,LINESTRINGFROMTEXT,' +
-        'LINESTRINGFROMWKB,LN,LOAD_FILE,LOCALTI,LOCALTIME,LOCALTIMESTAMP,LOCATE,' +
-        'LOG,LOG10,LOG2,LOWER,LPAD,LTRIM,MAKE_SET,MAKEDATE,MAKETIME,' +
-        'MASTER_POS_WAIT,MAX,MBRCONTAINS,MBRCOVEREDBY,MBRCOVERS,MBRDISJOINT,' +
-        'MBREQUAL,MBREQUALS,MBRINTERSECTS,MBROVERLAPS,MBRTOUCHES,MBRWITHIN,MD5,' +
-        'MICROSECOND,MID,MIN,MINUTE,MLINEFROMTEXT,MLINEFROMWKB,MOD,MONTH,' +
-        'MONTHNAME,MPOINTFROMTEXT,MPOINTFROMWKB,MPOLYFROMTEXT,MPOLYFROMWKB,' +
-        'MULTILINESTRING,MULTILINESTRINGFROMTEXT,MULTILINESTRINGFROMWKB,' +
-        'MULTIPOINT,MULTIPOINTFROMTEXT,MULTIPOINTFROMWKB,MULTIPOLYGON,' +
-        'MULTIPOLYGONFROMTEXT,MULTIPOLYGONFROMWKB,NAME_CONST,NOW,NULLIF,' +
-        'NUMGEOMETRIES,NUMINTERIORRINGS,NUMPOINTS,OCT,OCTET_LENGTH,OLD_PASSWORD,' +
-        'ORD,OVERLAPS,PASSWORD,PERIOD_ADD,PERIOD_DIFF,PI,POINT,POINTFROMTEXT,' +
-        'POINTFROMWKB,POINTN,POLYFROMTEXT,POLYFROMWKB,POLYGON,POLYGONFROMTEXT,' +
-        'POLYGONFROMWKB,POSITION,POW,POWER,QUARTER,QUOTE,RADIANS,RAND,' +
-        'RANDOM_BYTES,RELEASE_ALL_LOCKS,RELEASE_LOCK,REPEAT,REPLACE,REVERSE,' +
-        'RIGHT,ROUND,ROW_COUNT,RPAD,RTRIM,SCHEMA,SEC_TO_TIME,SECOND,SESSION_USER,' +
-        'SHA,SHA1,SHA2,SIGN,SIN,SLEEP,SOUNDEX,SPACE,SQRT,SRID,ST_AREA,' +
-        'ST_ASBINARY,ST_ASGEOJSON,ST_ASTEXT,ST_ASWKB,ST_ASWKT,ST_BUFFER,' +
-        'ST_BUFFER_STRATEGY,ST_CENTROID,ST_CONTAINS,ST_CONVEXHULL,ST_CROSSES,' +
-        'ST_DIFFERENCE,ST_DIMENSION,ST_DISJOINT,ST_DISTANCE,ST_DISTANCE_SPHERE,' +
-        'ST_ENDPOINT,ST_ENVELOPE,ST_EQUALS,ST_EXTERIORRING,ST_GEOHASH,' +
-        'ST_GEOMCOLLFROMTEXT,ST_GEOMCOLLFROMTXT,ST_GEOMCOLLFROMWKB,' +
-        'ST_GEOMETRYCOLLECTIONFROMTEXT,ST_GEOMETRYCOLLECTIONFROMWKB,' +
-        'ST_GEOMETRYFROMTEXT,ST_GEOMETRYFROMWKB,ST_GEOMETRYN,ST_GEOMETRYTYPE,' +
-        'ST_GEOMFROMGEOJSON,ST_GEOMFROMTEXT,ST_GEOMFROMWKB,ST_INTERIORRINGN,' +
-        'ST_INTERSECTION,ST_INTERSECTS,ST_ISCLOSED,ST_ISEMPTY,ST_ISSIMPLE,' +
-        'ST_ISVALID,ST_LATFROMGEOHASH,ST_LENGTH,ST_LINEFROMTEXT,ST_LINEFROMWKB,' +
-        'ST_LINESTRINGFROMTEXT,ST_LINESTRINGFROMWKB,ST_LONGFROMGEOHASH,' +
-        'ST_MAKEENVELOPE,ST_MLINEFROMTEXT,ST_MLINEFROMWKB,ST_MPOINTFROMTEXT,' +
-        'ST_MPOINTFROMWKB,ST_MPOLYFROMTEXT,ST_MPOLYFROMWKB,' +
-        'ST_MULTILINESTRINGFROMTEXT,ST_MULTILINESTRINGFROMWKB,' +
-        'ST_MULTIPOINTFROMTEXT,ST_MULTIPOINTFROMWKB,ST_MULTIPOLYGONFROMTEXT,' +
-        'ST_MULTIPOLYGONFROMWKB,ST_NUMGEOMETRIES,ST_NUMINTERIORRING,' +
-        'ST_NUMINTERIORRINGS,ST_NUMPOINTS,ST_OVERLAPS,ST_POINTFROMGEOHASH,' +
-        'ST_POINTFROMTEXT,ST_POINTFROMWKB,ST_POINTN,ST_POLYFROMTEXT,' +
-        'ST_POLYFROMWKB,ST_POLYGONFROMTEXT,ST_POLYGONFROMWKB,ST_SIMPLIFY,ST_SRID,' +
-        'ST_STARTPOINT,ST_SYMDIFFERENCE,ST_TOUCHES,ST_UNION,ST_VALIDATE,' +
-        'ST_WITHIN,ST_X,ST_Y,STARTPOINT,STD,STDDEV,STDDEV_POP,STDDEV_SAMP,' +
-        'STR_TO_DATE,STRCMP,SUBDATE,SUBSTR,SUBSTRING,SUBSTRING_INDEX,SUBTIME,SUM,' +
-        'SYSDATE,SYSTEM_USER,TAN,TIME,TIME_FORMAT,TIME_TO_SEC,TIMEDIFF,TIMESTAMP,' +
-        'TIMESTAMPADD,TIMESTAMPDIFF,TO_BASE64,TO_DAYS,TO_SECONDS,TOUCHES,TRIM,' +
-        'TRUNCATE,UCASE,UNCOMPRESS,UNCOMPRESSED_LENGTH,UNHEX,UNIX_TIMESTAMP,' +
-        'UPDATEXML,UPPER,USER,UTC_DATE,UTC_TIME,UTC_TIMESTAMP,UUID,UUID_SHORT,' +
-        'VALIDATE_PASSWORD_STRENGTH,VALUES,VAR_POP,VAR_SAMP,VARIANCE,VERSION,' +
-        'WAIT_FOR_EXECUTED_GTID_SET,WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS,WEEK,' +
-        'WEEKDAY,WEEKOFYEAR,WEIGHT_STRING,WITHIN,X,Y,YEAR,YEARWEEK';
-
-      MySQLKeywords =
-        'ANY,SOME,OFF,' +
-
-        'ACCOUNT,ACTION,ADD,AFTER,AGAINST,ALGORITHM,ALL,ALTER,ALWAYS,ANALYZE,AND,' +
-        'AS,ASC,ASCII,AT,AUTO_INCREMENT,AUTHORS,AVG_ROW_LENGTH,BEFORE,BEGIN,' +
-        'BETWEEN,BINARY,BINLOG,BLOCK,BOOLEAN,BOTH,BTREE,BY,CACHE,CALL,CASCADE,' +
-        'CASCADED,CASE,CATALOG_NAME,CHANGE,CHANGED,CHANNEL,CHAIN,CHARACTER,' +
-        'CHARSET,CHECK,CHECKSUM,CLASS_ORIGIN,CLIENT,CLOSE,COALESCE,CODE,COLLATE,' +
-        'COLLATION,COLUMN,COLUMN_FORMAT,COLUMN_NAME,COLUMNS,COMMENT,COMMIT,' +
-        'COMMITTED,COMPACT,COMPLETION,COMPRESS,COMPRESSED,CONCURRENT,CONDITION,' +
-        'CONNECTION,CONSISTENT,CONSTRAINT,CONSTRAINT_CATALOG,CONSTRAINT_NAME,' +
-        'CONSTRAINT_SCHEMA,CONTAINS,CONTEXT,CONTINUE,CONTRIBUTORS,CONVERT,COPY,' +
-        'CPU,CREATE,CROSS,CURRENT,CURRENT_DATE,CURRENT_TIME,CURRENT_TIMESTAMP,' +
-        'CURRENT_USER,CURSOR,CURSOR_NAME,DATA,DATABASE,DATABASES,DATAFILE,DAY,' +
-        'DAY_HOUR,DAY_MICROSECOND,DAY_MINUTE,DAY_SECOND,DEALLOCATE,DECLARE,' +
-        'DEFAULT,DEFINER,DELAY_KEY_WRITE,DELAYED,DELETE,DESC,DESCRIBE,' +
-        'DETERMINISTIC,DIAGNOSTICS,DIRECTORY,DISABLE,DISCARD,DISK,DISTINCT,' +
-        'DISTINCTROW,DIV,DO,DROP,DUMPFILE,DUPLICATE,DYNAMIC,EACH,ELSE,ELSEIF,' +
-        'ENABLE,ENCLOSED,END,ENDS,ENGINE,ENGINES,ERRORS,ESCAPE,ESCAPED,EVENT,' +
-        'EVENTS,EVERY,EXCHANGE,EXCLUSIVE,EXECUTE,EXISTS,EXPANSION,EXPIRE,EXPLAIN,' +
-        'EXIT,EXTENDED,FALSE,FAST,FAULTS,FETCH,FILE_BLOCK_SIZE,FLUSH,FIELDS,FILE,' +
-        'FIRST,FIXED,FOLLOWS,FOR,FORCE,FORMAT,FOREIGN,FOUND,FROM,FULL,FULLTEXT,' +
-        'FUNCTION,GENERATED,GET,GLOBAL,GRANT,GRANTS,GROUP,HANDLER,HASH,HAVING,' +
-        'HELP,HIGH_PRIORITY,HOST,HOSTS,HOUR,HOUR_MICROSECOND,HOUR_MINUTE,' +
-        'HOUR_SECOND,IDENTIFIED,IF,IGNORE,IGNORE_SERVER_IDS,IMPORT,IN,INDEX,' +
-        'INDEXES,INFILE,INITIAL_SIZE,INNER,INNODB,INOUT,INPLACE,INSTANCE,INSERT,' +
-        'INSERT_METHOD,INTERVAL,INTO,INVOKER,IO,IPC,IS,ISOLATION,ITERATE,JOIN,' +
-        'JSON,KEY,KEY_BLOCK_SIZE,KEYS,KILL,LANGUAGE,LAST,LEADING,LEAVE,LEFT,LESS,' +
-        'LEVEL,LIKE,LIMIT,LINEAR,LINES,LIST,LOAD,LOCAL,LOCALTIME,LOCALTIMESTAMP,' +
-        'LOCK,LOGS,LOOP,LOW_PRIORITY,MASTER,MASTER_AUTO_POSITION,MASTER_BIND,' +
-        'MASTER_CONNECT_RETRY,MASTER_DELAY,MASTER_HEARTBEAT_PERIOD,MASTER_HOST,' +
-        'MASTER_LOG_FILE,MASTER_LOG_POS,MASTER_PASSWORD,MASTER_PORT,' +
-        'MASTER_RETRY_COUNT,MASTER_SSL,MASTER_SSL_CA,MASTER_SSL_CAPATH,' +
-        'MASTER_SSL_CERT,MASTER_SSL_CIPHER,MASTER_SSL_CRL,MASTER_SSL_CRLPATH,' +
-        'MASTER_SSL_KEY,MASTER_SSL_VERIFY_SERVER_CERT,MASTER_TLS_VERSION,' +
-        'MASTER_USER,MATCH,MAX_QUERIES_PER_HOUR,MAX_ROWS,' +
-        'MAX_CONNECTIONS_PER_HOUR,MAX_STATEMENT_TIME,MAX_UPDATES_PER_HOUR,' +
-        'MAX_USER_CONNECTIONS,MAXVALUE,MEDIUM,MEMORY,MERGE,MESSAGE_TEXT,' +
-        'MICROSECOND,MIGRATE,MIN_ROWS,MINUTE,MINUTE_MICROSECOND,MINUTE_SECOND,' +
-        'MOD,MODE,MODIFIES,MODIFY,MONTH,MUTEX,MYSQL_ERRNO,NAME,NAMES,NATIONAL,' +
-        'NATURAL,NEVER,NEXT,NO,NONE,NOT,NULL,NO_WRITE_TO_BINLOG,NUMBER,OFFSET,' +
-        'OJ,ON,ONE,ONLY,OPEN,OPTIMIZE,OPTION,OPTIONALLY,OPTIONS,OR,ORDER,OUT,' +
-        'OUTER,OUTFILE,OWNER,PACK_KEYS,PAGE,PAGE_CHECKSUM,PARSER,PARTIAL,' +
-        'PARTITION,PARTITIONING,PARTITIONS,PASSWORD,PERSISTENT,PHASE,PLUGINS,' +
-        'PORT,PRECEDES,PREPARE,PRESERVE,PRIMARY,PRIVILEGES,PROCEDURE,PROCESS,' +
-        'PROCESSLIST,PROFILE,PROFILES,PROXY,PURGE,QUARTER,QUERY,QUICK,RANGE,READ,' +
-        'READS,REBUILD,RECOVER,REDUNDANT,REFERENCES,REGEXP,RELAYLOG,RELEASE,' +
-        'RELAY_LOG_FILE,RELAY_LOG_POS,RELOAD,REMOVE,RENAME,REORGANIZE,REPAIR,' +
-        'REPEAT,REPEATABLE,REPLACE,REPLICATION,REQUIRE,RESET,RESIGNAL,RESTRICT,' +
-        'RESUME,RETURN,RETURNED_SQLSTATE,RETURNS,REVERSE,REVOKE,RIGHT,RLIKE,' +
-        'ROLLBACK,ROLLUP,ROTATE,ROUTINE,ROW,ROW_COUNT,ROW_FORMAT,ROWS,SAVEPOINT,' +
-        'SCHEDULE,SCHEMA,SCHEMA_NAME,SECOND,SECOND_MICROSECOND,SECURITY,SELECT,' +
-        'SEPARATOR,SERIALIZABLE,SERVER,SESSION,SET,SHARE,SHARED,SHOW,SHUTDOWN,' +
-        'SIGNAL,SIGNED,SIMPLE,SLAVE,SNAPSHOT,SOCKET,SONAME,SOUNDS,SOURCE,SPATIAL,' +
-        'SQL,SQL_BIG_RESULT,SQL_BUFFER_RESULT,SQL_CACHE,SQL_CALC_FOUND_ROWS,' +
-        'SQL_NO_CACHE,SQL_SMALL_RESULT,SQLEXCEPTION,SQLSTATE,SQLWARNINGS,STACKED,' +
-        'STARTING,START,STARTS,STATS_AUTO_RECALC,STATS_PERSISTENT,STATUS,STOP,' +
-        'STORAGE,STORED,STRAIGHT_JOIN,SUBCLASS_ORIGIN,SUBPARTITION,SUBPARTITIONS,' +
-        'SUPER,SUSPEND,SWAPS,SWITCHES,TABLE,TABLE_NAME,TABLES,TABLESPACE,' +
-        'TEMPORARY,TEMPTABLE,TERMINATED,THAN,THEN,TO,TRADITIONAL,TRAILING,' +
-        'TRANSACTION,TRANSACTIONAL,TRIGGER,TRIGGERS,TRUE,TRUNCATE,TYPE,' +
-        'UNCOMMITTED,UNDEFINED,UNDO,UNICODE,UNION,UNIQUE,UNKNOWN,UNLOCK,UNSIGNED,' +
-        'UNTIL,UPDATE,UPGRADE,USAGE,USE,USE_FRM,USER,USING,VALIDATION,VALUE,' +
-        'VALUES,VARIABLES,VIEW,VIRTUAL,WAIT,WARNINGS,WEEK,WHEN,WHERE,WHILE,' +
-        'WRAPPER,WRITE,WITH,WITHOUT,WORK,XA,XID,XML,XOR,YEAR,YEAR_MONTH,ZEROFILL';
-
+  protected
     type
-      TCharArray = array [0 .. MaxIdentLength] of Char;
-      TFileType = (ftSQL, ftFormatedSQL, ftDebugHTML);
+      TOffset = Integer;
+      POffsetArray = ^TOffsetArray;
+      TOffsetArray = array [0..$FFFF] of TOffset;
+      TIntegerArray = array of Integer;
 
+  private
+    type
+      TParseFunction = function(): TOffset of object;
+      TTableOptionNodes = packed record
+        AutoIncrementValue: TOffset;
+        AvgRowLengthValue: TOffset;
+        CharacterSetValue: TOffset;
+        ChecksumValue: TOffset;
+        CollateValue: TOffset;
+        CommentValue: TOffset;
+        CompressValue: TOffset;
+        ConnectionValue: TOffset;
+        DataDirectoryValue: TOffset;
+        DelayKeyWriteValue: TOffset;
+        EngineValue: TOffset;
+        IndexDirectoryValue: TOffset;
+        InsertMethodValue: TOffset;
+        KeyBlockSizeValue: TOffset;
+        MaxRowsValue: TOffset;
+        MinRowsValue: TOffset;
+        PackKeysValue: TOffset;
+        PageChecksumValue: TOffset;
+        PasswordValue: TOffset;
+        RowFormatValue: TOffset;
+        StatsAutoRecalcValue: TOffset;
+        StatsPersistentValue: TOffset;
+        TransactionalValue: TOffset;
+        UnionList: TOffset;
+      end;
+      TTokenBufferItem = record
+        Error: record
+          Code: Byte;
+          Line: Integer;
+          Pos: PChar;
+        end;
+        Token: TOffset;
+      end;
+      TSeparatorType = (stNone, stReturnBefore, stSpaceBefore, stSpaceAfter, stReturnAfter);
+      TValueAssign = (vaYes, vaNo, vaAuto);
+
+      TStringBuffer = class
+      private
+        Buffer: record
+          Mem: PChar;
+          MemSize: Integer;
+          Write: PChar;
+        end;
+        function GetData(): Pointer; inline;
+        function GetLength(): Integer; inline;
+        function GetSize(): Integer; inline;
+        function GetText(): PChar; inline;
+        procedure Reallocate(const NeededLength: Integer);
+      public
+        procedure Clear();
+        constructor Create(const InitialLength: Integer);
+        procedure Delete(const Start: Integer; const Length: Integer);
+        destructor Destroy(); override;
+        function Read(): string; inline;
+        procedure Write(const Text: PChar; const Length: Integer); overload; virtual;
+        procedure Write(const Text: string); overload; {$IFNDEF Debug} inline; {$ENDIF}
+        procedure Write(const Char: Char); overload; {$IFNDEF Debug} inline; {$ENDIF}
+        property Data: Pointer read GetData;
+        property Length: Integer read GetLength;
+        property Size: Integer read GetSize;
+        property Text: PChar read GetText;
+      end;
+
+      TWordList = class
+      private type
+        TIndex = SmallInt;
+        TIndices = array [0..6] of TIndex;
+      private
+        FCount: TIndex;
+        FIndex: array of PChar;
+        FFirst: array of Integer;
+        FParser: TSQLParser;
+        FText: string;
+        function GetText(): string;
+        function GetWord(Index: TIndex): string;
+        procedure SetText(AText: string);
+      protected
+        procedure Clear();
+        procedure GetWordText(const Index: TIndex; out Text: PChar; out Length: Integer);
+        property Parser: TSQLParser read FParser;
+      public
+        constructor Create(const ASQLParser: TSQLParser; const AText: string = '');
+        destructor Destroy(); override;
+        function IndexOf(const Word: PChar; const Length: Integer): Integer; overload;
+        function IndexOf(const Word: string): Integer; overload; {$IFNDEF Debug} inline; {$ENDIF}
+        property Count: TIndex read FCount;
+        property Text: string read GetText write SetText;
+        property Word[Index: TIndex]: string read GetWord; default;
+      end;
+
+      TFormatBuffer = class(TStringBuffer)
+      private
+        FNewLine: Boolean;
+        Indent: Integer;
+        IndentSpaces: array [0 .. 1024 - 1] of Char;
+      public
+        constructor Create();
+        procedure DecreaseIndent();
+        destructor Destroy(); override;
+        procedure IncreaseIndent();
+        procedure Write(const Text: PChar; const Length: Integer); override;
+        procedure WriteReturn(); {$IFNDEF Debug} inline; {$ENDIF}
+        procedure WriteSpace(); {$IFNDEF Debug} inline; {$ENDIF}
+        property NewLine: Boolean read FNewLine;
+      end;
+
+  protected
+    type
       TNodeType = (
         ntRoot,            // Root token, one usage by the parser to handle stmt list
         ntToken,           // Token node (smalles logical part of the SQL text)
@@ -247,7 +183,6 @@ type
         ntCreateTriggerStmt,
         ntCreateUserStmt,
         ntCreateViewStmt,
-        ntCurrentTimestamp,
         ntDatatype,
         ntDateAddFunc,
         ntDbIdent,
@@ -643,25 +578,18 @@ type
         otIn,                     // "IN"
 
         otBetween,                // "BETWEEN"
-        otCASE,                   // "CASE"
+        otCase,                   // "CASE"
+        otEscape,                 // "ESCAPE"
 
         otNot,                    // "NOT"
 
         otAnd,                    // "&&", "AND"
 
-        otXOr,                    // "XOR"
+        otXOr,                    // "^", "XOR"
 
-        otPipes,                  // "||"
-        otOr,                     // "OR"
+        otOr,                     // "||", "OR"
 
-        otAssign,                 // "="
-        otAssign2,                // ":="
-
-        otEscape,                 // "ESCAPE"
-        otBitXOR,                 // "^"
-        otDoubleDot,              // ".."
-        otArrow,                  // "->"
-        otParameter               // "?"
+        otAssign                  // "=", ":="
       );
 
       TDbIdentType = (
@@ -706,7 +634,7 @@ type
       );
 
     const
-      NodeTypeToString: array[TNodeType] of PChar = (
+      NodeTypeToString: array [TNodeType] of PChar = (
         'ntRoot',
         'ntToken',
 
@@ -761,7 +689,6 @@ type
         'ntCreateTriggerStmt',
         'ntCreateUserStmt',
         'ntCreateViewStmt',
-        'ntCurrentTimestamp',
         'ntDatatype',
         'ntDateAddFunc',
         'ntDbIdent',
@@ -928,7 +855,7 @@ type
         'ntXAStmtID'
       );
 
-      StmtTypeToString: array[TStmtType] of PChar = (
+      StmtTypeToString: array [TStmtType] of PChar = (
         'stAnalyzeTable',
         'stAlterDatabase',
         'stAlterEvent',
@@ -1068,7 +995,7 @@ type
         'stXA'
       );
 
-      TokenTypeToString: array[TTokenType] of PChar = (
+      TokenTypeToString: array [TTokenType] of PChar = (
         'ttUnknown',
         'ttSpace',
         'ttReturn',
@@ -1095,7 +1022,7 @@ type
         'ttIPAddress'
       );
 
-      UsageTypeToString: array[TUsageType] of PChar = (
+      UsageTypeToString: array [TUsageType] of PChar = (
         'utUnknown',
         'utWhiteSpace',
         'utComment',
@@ -1111,7 +1038,7 @@ type
 
       UnaryOperators = [otBinary, otDistinct, otUnaryNot, otUnaryMinus, otUnaryPlus, otInvertBits];
 
-      OperatorTypeToString: array[TOperatorType] of PChar = (
+      OperatorTypeToString: array [TOperatorType] of PChar = (
         'otUnknown',
 
         'otDot',
@@ -1159,7 +1086,8 @@ type
         'otIn',
 
         'otBetween',
-        'otCASE',
+        'otCase',
+        'otEscape',
 
         'otNot',
 
@@ -1167,21 +1095,12 @@ type
 
         'otXOr',
 
-        'otPipes',
         'otOr',
 
-        'otAssign',
-        'otAssign2',
-
-        'otEscape',
-
-        'otHat',
-        'otDoubleDot',
-        'otArrow',
-        'otParameter'
+        'otAssign'
       );
 
-      DbIdentTypeToString: array[TDbIdentType] of PChar = (
+      DbIdentTypeToString: array [TDbIdentType] of PChar = (
         'ditUnknown',
         'ditDatabase',
         'ditTable',
@@ -1205,7 +1124,7 @@ type
         'ditDatatype'
       );
 
-      OperatorPrecedenceByOperatorType: array[TOperatorType] of Integer = (
+      OperatorPrecedenceByOperatorType: array [TOperatorType] of Integer = (
         0,   // otUnknown
 
         1,   // otDot
@@ -1253,7 +1172,8 @@ type
         11,  // otIn
 
         12,  // otBetween
-        12,  // otCASE
+        12,  // otCase
+        12,  // otEscape
 
         13,  // otNot
 
@@ -1261,17 +1181,9 @@ type
 
         15,  // otXOr
 
-        16,  // otPipes
         16,  // otOr
 
-        17,   // otAssign
-        17,   // otAssign2
-
-        0,   // otEscape
-        0,   // otBitXOR
-        0,   // otDoubleDot
-        0,   // otArrow
-        0    // otParameter
+        17   // otAssign
       );
       MaxOperatorPrecedence = 17;
 
@@ -1415,7 +1327,7 @@ type
         ntXAStmt
       ];
 
-      JoinTypeToString: array[TJoinType] of PChar = (
+      JoinTypeToString: array [TJoinType] of PChar = (
         'jtUnknown',
         'jtInner',
         'jtCross',
@@ -1427,12 +1339,12 @@ type
         'jtNaturalRight'
       );
 
-      RoutineTypeToString: array[TRoutineType] of PChar = (
+      RoutineTypeToString: array [TRoutineType] of PChar = (
         'rtFunction',
         'rtProcedure'
       );
 
-      NodeTypeByStmtType: array[TStmtType] of TNodeType = (
+      NodeTypeByStmtType: array [TStmtType] of TNodeType = (
         ntAnalyzeTableStmt,
         ntAlterDatabaseStmt,
         ntAlterEventStmt,
@@ -1572,127 +1484,6 @@ type
         ntXAStmt
       );
 
-  protected
-    type
-      TOffset = Integer;
-      TTokenBufferItem = record
-        Error: record
-          Code: Byte;
-          Line: Integer;
-          Pos: PChar;
-        end;
-        Token: TOffset;
-      end;
-
-  private
-    type
-      TCreateTableIndexAdd = (iaAdd, iaCreate, iaNone);
-      TIntegerArray = array of Integer;
-      POffsetArray = ^TOffsetArray;
-      TOffsetArray = array [0..$FFFF] of TOffset;
-      TParseFunction = function(): TOffset of object;
-      TTableOptionNodes = packed record
-        AutoIncrementValue: TOffset;
-        AvgRowLengthValue: TOffset;
-        CharacterSetValue: TOffset;
-        ChecksumValue: TOffset;
-        CollateValue: TOffset;
-        CommentValue: TOffset;
-        CompressValue: TOffset;
-        ConnectionValue: TOffset;
-        DataDirectoryValue: TOffset;
-        DelayKeyWriteValue: TOffset;
-        EngineValue: TOffset;
-        IndexDirectoryValue: TOffset;
-        InsertMethodValue: TOffset;
-        KeyBlockSizeValue: TOffset;
-        MaxRowsValue: TOffset;
-        MinRowsValue: TOffset;
-        PackKeysValue: TOffset;
-        PageChecksumValue: TOffset;
-        PasswordValue: TOffset;
-        RowFormatValue: TOffset;
-        StatsAutoRecalcValue: TOffset;
-        StatsPersistentValue: TOffset;
-        TransactionalValue: TOffset;
-        UnionList: TOffset;
-      end;
-      TValueAssign = (vaYes, vaNo, vaAuto);
-      TSeparatorType = (stNone, stReturnBefore, stSpaceBefore, stSpaceAfter, stReturnAfter);
-
-      TStringBuffer = class
-      private
-        Buffer: record
-          Mem: PChar;
-          MemSize: Integer;
-          Write: PChar;
-        end;
-        function GetData(): Pointer; inline;
-        function GetLength(): Integer; inline;
-        function GetSize(): Integer; inline;
-        function GetText(): PChar; inline;
-        procedure Reallocate(const NeededLength: Integer);
-      public
-        procedure Clear();
-        constructor Create(const InitialLength: Integer);
-        procedure Delete(const Start: Integer; const Length: Integer);
-        destructor Destroy(); override;
-        function Read(): string; inline;
-        procedure Write(const Text: PChar; const Length: Integer); overload; virtual;
-        procedure Write(const Text: string); overload; {$IFNDEF Debug} inline; {$ENDIF}
-        procedure Write(const Char: Char); overload; {$IFNDEF Debug} inline; {$ENDIF}
-        property Data: Pointer read GetData;
-        property Length: Integer read GetLength;
-        property Size: Integer read GetSize;
-        property Text: PChar read GetText;
-      end;
-
-      TWordList = class
-      private type
-        TIndex = SmallInt;
-        TIndices = array [0..6] of TIndex;
-      private
-        FCount: TIndex;
-        FIndex: array of PChar;
-        FFirst: array of Integer;
-        FParser: TSQLParser;
-        FText: string;
-        function GetText(): string;
-        function GetWord(Index: TIndex): string;
-        procedure SetText(AText: string);
-      protected
-        procedure Clear();
-        procedure GetWordText(const Index: TIndex; out Text: PChar; out Length: Integer);
-        property Parser: TSQLParser read FParser;
-      public
-        constructor Create(const ASQLParser: TSQLParser; const AText: string = '');
-        destructor Destroy(); override;
-        function IndexOf(const Word: PChar; const Length: Integer): Integer; overload;
-        function IndexOf(const Word: string): Integer; overload; {$IFNDEF Debug} inline; {$ENDIF}
-        property Count: TIndex read FCount;
-        property Text: string read GetText write SetText;
-        property Word[Index: TIndex]: string read GetWord; default;
-      end;
-
-      TFormatBuffer = class(TStringBuffer)
-      private
-        FNewLine: Boolean;
-        Indent: Integer;
-        IndentSpaces: array[0 .. 1024 - 1] of Char;
-      public
-        constructor Create();
-        procedure DecreaseIndent();
-        destructor Destroy(); override;
-        procedure IncreaseIndent();
-        procedure Write(const Text: PChar; const Length: Integer); override;
-        procedure WriteReturn(); {$IFNDEF Debug} inline; {$ENDIF}
-        procedure WriteSpace(); {$IFNDEF Debug} inline; {$ENDIF}
-        property NewLine: Boolean read FNewLine;
-      end;
-
-    const
-      IndentSize = 2;
-
   public
     type
       TCompletionList = class
@@ -1701,12 +1492,12 @@ type
         TItem = record
           case ItemType: (itText, itList) of
             itText: (
-              Text: TCharArray;
+              Text: array [0 .. 255] of Char;
             );
             itList: (
-              DatabaseName: TCharArray;
+              DatabaseName: array [0 .. 64] of Char;
               DbIdentType: TDbIdentType;
-              TableName: TCharArray;
+              TableName: array [0 .. 64] of Char;
             );
         end;
       private
@@ -1806,7 +1597,6 @@ type
       private
         Heritage: TChild;
       private
-        FHidden: Boolean;
         {$IFDEF Debug}
         FIndex: Integer;
         {$ENDIF}
@@ -1816,13 +1606,17 @@ type
         FText: PChar;
         FTokenType: TTokenType;
         FUsageType: TUsageType;
+        Options: set of (oHidden, oUsed);
         class function Create(const AParser: TSQLParser;
           const AText: PChar; const ALength: Integer;
           const ATokenType: TTokenType; const AOperatorType: TOperatorType;
-          const AKeywordIndex: TWordList.TIndex; const AUsageType: TUsageType): TOffset; static; {$IFNDEF Debug} inline; {$ENDIF}
+          const AKeywordIndex: TWordList.TIndex; const AUsageType: TUsageType;
+          const AIsUsed: Boolean
+          {$IFDEF Debug}; const AIndex: Integer {$ENDIF}): TOffset; static; {$IFNDEF Debug} inline; {$ENDIF}
         function GetAsString(): string;
         function GetDbIdentType(): TDbIdentType;
         function GetGeneration(): Integer;
+        function GetHidden(): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
         {$IFNDEF Debug}
         function GetIndex(): Integer;
         {$ENDIF}
@@ -1832,6 +1626,7 @@ type
         function GetOffset(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
         function GetParentNode(): PNode; {$IFNDEF Debug} inline; {$ENDIF}
         function GetText(): string; overload;
+        procedure SetHidden(AHidden: Boolean); {$IFNDEF Debug} inline; {$ENDIF}
         procedure GetText(out Text: PChar; out Length: Integer); overload;
         property Generation: Integer read GetGeneration;
         {$IFDEF Debug}
@@ -1847,7 +1642,7 @@ type
       public
         property AsString: string read GetAsString;
         property DbIdentType: TDbIdentType read GetDbIdentType;
-        property Hidden: Boolean read FHidden write FHidden;
+        property Hidden: Boolean read GetHidden write SetHidden;
         property NextToken: PToken read GetNextToken;
         property NextTokenAll: PToken read GetNextTokenAll;
         property OperatorType: TOperatorType read FOperatorType;
@@ -1874,7 +1669,6 @@ type
         property Offset: TOffset read GetOffset;
         property Parser: TSQLParser read Heritage.Heritage.FParser;
       public
-        procedure Hide();
         property FirstToken: PToken read GetFirstToken;
         property LastToken: PToken read GetLastToken;
         property NodeType: TNodeType read Heritage.Heritage.FNodeType;
@@ -3053,24 +2847,6 @@ type
         class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
       public
         property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
-      end;
-
-      PCurrentTimestamp = ^TCurrentTimestamp;
-      TCurrentTimestamp = packed record
-      private type
-        TNodes = packed record
-          CurrentTimestampTag: TOffset;
-          OpenBracket: TOffset;
-          LengthInteger: TOffset;
-          CloseBracket: TOffset;
-        end;
-      private
-        Heritage: TRange;
-      private
-        Nodes: TNodes;
-        class function Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset; static;
-      public
-        property Parser: TSQLParser read Heritage.Heritage.Heritage.FParser;
       end;
 
       PDatatype = ^TDatatype;
@@ -5977,7 +5753,7 @@ type
           TableReferenceList: TOffset;
           Set_: packed record
             Tag: TOffset;
-            Pairs: TOffset;
+            PairList: TOffset;
           end;
           Where: packed record
             Tag: TOffset;
@@ -6169,7 +5945,9 @@ type
         property Parser: TSQLParser read Heritage.Heritage.Heritage.Heritage.FParser;
       end;
 
-  protected
+  private type
+    TSpacer = (sNone, sSpace, sReturn);
+  private
     diBIGINT,
     diBINARY,
     diBIT,
@@ -6717,14 +6495,14 @@ type
     kiYEAR_MONTH,
     kiZEROFILL: Integer;
 
-  private
-    CommentsWritten: Boolean;
+    AllowedMySQLVersion: Integer;
     Error: record
       Code: Byte;
       Line: Integer;
       Pos: PChar;
       Token: TOffset;
     end;
+    DatatypeList: TWordList;
     FAnsiQuotes: Boolean;
     FCompletionList: TCompletionList;
     FCurrentToken: TOffset; // Cache for speeding
@@ -6735,29 +6513,15 @@ type
       Pos: PChar;
       Token: TOffset;
     end;
+    FLowerCaseTableNames: Integer;
     FMySQLVersion: Integer;
+    FormatHandle: record
+      Commands: TFormatBuffer;
+      CommentsWritten: Boolean;
+      DatabaseName: string;
+    end;
     FPreviousToken: TOffset;
     FRoot: TOffset;
-    function GetDatatypes(): string;
-    function GetErrorFound(): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
-    function GetErrorMessage(): string;
-    function GetErrorPos(): Integer;
-    function GetFunctions(): string;
-    function GetKeywords(): string;
-    function GetNextToken(Index: Integer): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
-    function GetParsedToken(const Index: Integer): TOffset;
-    function GetInPL_SQL(): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
-    function GetRoot(): PRoot; {$IFNDEF Debug} inline; {$ENDIF}
-    procedure SetDatatypes(ADatatypes: string);
-    procedure SetFunctions(AFunctions: string);
-    procedure SetKeywords(AKeywords: string);
-
-  protected type
-    TSpacer = (sNone, sSpace, sReturn);
-  protected
-    AllowedMySQLVersion: Integer;
-    Commands: TFormatBuffer;
-    DatatypeList: TWordList;
     FunctionList: TWordList;
     InCreateFunctionStmt: Boolean;
     InCreateProcedureStmt: Boolean;
@@ -6782,12 +6546,11 @@ type
     {$IFDEF Debug}
     TokenIndex: Integer;
     {$ENDIF}
-
+    ttIdents: set of TTokenType;
+    ttStrings: set of TTokenType;
     function ApplyCurrentToken(): TOffset; overload;
     function ApplyCurrentToken(const AUsageType: TUsageType): TOffset; overload;
     procedure BeginPL_SQL(); {$IFNDEF Debug} inline; {$ENDIF}
-    function ChildPtr(const ANode: TOffset): PChild; {$IFNDEF Debug} inline; {$ENDIF}
-    function CreateErrorMessage(const ErrorCode: Byte; const ErrorLine: Integer; const ErrorPos: PChar): string;
     function EndOfStmt(const Token: PToken): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function EndOfStmt(const Token: TOffset): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     procedure EndPL_SQL(); {$IFNDEF Debug} inline; {$ENDIF}
@@ -6822,7 +6585,6 @@ type
     procedure FormatCreateTriggerStmt(const Nodes: TCreateTriggerStmt.TNodes);
     procedure FormatCreateUserStmt(const Nodes: TCreateUserStmt.TNodes);
     procedure FormatCreateViewStmt(const Nodes: TCreateViewStmt.TNodes);
-    procedure FormatCurrentTimestamp(const Nodes: TCurrentTimestamp.TNodes);
     procedure FormatComments(const Token: PToken; Start: Boolean = False);
     procedure FormatDatatype(const Nodes: TDatatype.TNodes);
     procedure FormatDateAddFunc(const Nodes: TDateAddFunc.TNodes);
@@ -6872,33 +6634,32 @@ type
     procedure FormatTrimFunc(const Nodes: TTrimFunc.TNodes);
     procedure FormatUnaryOp(const Nodes: TUnaryOp.TNodes);
     procedure FormatUnknownStmt(const Node: PUnknownStmt);
+    procedure FormatUpdateStmt(const Nodes: TUpdateStmt.TNodes);
     procedure FormatUser(const Nodes: TUser.TNodes);
     procedure FormatValue(const Nodes: TValue.TNodes);
     procedure FormatVariableIdent(const Nodes: TVariable.TNodes);
     procedure FormatWeightStringFunc(const Nodes: TWeightStringFunc.TNodes);
     procedure FormatWhileStmt(const Nodes: TWhileStmt.TNodes);
     procedure FormatXID(const Nodes: TXAStmt.TID.TNodes);
-    function IsChild(const ANode: PNode): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
-    function IsChild(const ANode: TOffset): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
+    function GetDatatypes(): string;
+    function GetErrorFound(): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
+    function GetErrorMessage(): string;
+    function GetErrorPos(): Integer;
+    function GetFunctions(): string;
+    function GetKeywords(): string;
+    function GetNextToken(Index: Integer): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
+    function GetParsedToken(const Index: Integer): TOffset;
+    function GetInPL_SQL(): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
+    function GetRoot(): PRoot; {$IFNDEF Debug} inline; {$ENDIF}
     function IsNextTag(const Index: Integer; const KeywordIndex1: TWordList.TIndex;
       const KeywordIndex2: TWordList.TIndex = -1; const KeywordIndex3: TWordList.TIndex = -1;
       const KeywordIndex4: TWordList.TIndex = -1; const KeywordIndex5: TWordList.TIndex = -1;
       const KeywordIndex6: TWordList.TIndex = -1; const KeywordIndex7: TWordList.TIndex = -1): Boolean;
-    function IsRange(const ANode: PNode): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
-    function IsRange(const ANode: TOffset): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
-    function IsRoot(const ANode: PNode): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
-    function IsStmt(const ANode: PNode): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
-    function IsStmt(const ANode: TOffset): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
     function IsSymbol(const TokenType: TTokenType): Boolean;
     function IsTag(const KeywordIndex1: TWordList.TIndex;
       const KeywordIndex2: TWordList.TIndex = -1; const KeywordIndex3: TWordList.TIndex = -1;
       const KeywordIndex4: TWordList.TIndex = -1; const KeywordIndex5: TWordList.TIndex = -1;
       const KeywordIndex6: TWordList.TIndex = -1; const KeywordIndex7: TWordList.TIndex = -1): Boolean; {$IFNDEF Debug} inline; {$ENDIF}
-    function IsToken(const ANode: PNode): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
-    function IsToken(const ANode: TOffset): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
-    function NewNode(const ANodeType: TNodeType): TOffset;
-    function NodePtr(const ANode: TOffset): PNode; {$IFNDEF Debug} inline; {$ENDIF}
-    function NodeSize(const NodeType: TNodeType): Integer;
     function ParseAnalyzeTableStmt(): TOffset;
     function ParseAliasIdent(): TOffset;
     function ParseAlterDatabaseStmt(): TOffset;
@@ -6960,7 +6721,6 @@ type
     function ParseCreateTriggerStmt(): TOffset;
     function ParseCreateUserStmt(const Alter: Boolean): TOffset;
     function ParseCreateViewStmt(): TOffset;
-    function ParseCurrentTimestamp(): TOffset;
     function ParseDatabaseIdent(): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
     function ParseDatatype(): TOffset;
     function ParseDateAddFunc(): TOffset;
@@ -7032,7 +6792,6 @@ type
     function ParseLockTableStmt(): TOffset;
     function ParseLockStmtItem(): TOffset;
     function ParseLoopStmt(): TOffset;
-    function ParseNumeric(): TOffset;
     function ParseMatchFunc(): TOffset;
     function ParseOpenStmt(): TOffset;
     function ParseOptimizeTableStmt(): TOffset;
@@ -7152,7 +6911,6 @@ type
     function ParseValue(const KeywordIndex: TWordList.TIndex; const Assign: TValueAssign; const Brackets: Boolean; const ParseItem: TParseFunction): TOffset; overload;
     function ParseValue(const KeywordIndex: TWordList.TIndex; const Assign: TValueAssign; const OptionIndices: TWordList.TIndices): TOffset; overload;
     function ParseValue(const KeywordIndex: TWordList.TIndex; const Assign: TValueAssign; const ParseValueNode: TParseFunction): TOffset; overload;
-    function ParseValue(const KeywordIndices: TWordList.TIndices; const Assign: TValueAssign; const Brackets: Boolean; const ParseItem: TParseFunction): TOffset; overload;
     function ParseValue(const KeywordIndices: TWordList.TIndices; const Assign: TValueAssign; const OptionIndices: TWordList.TIndices): TOffset; overload;
     function ParseValue(const KeywordIndices: TWordList.TIndices; const Assign: TValueAssign; const ParseValueNode: TParseFunction): TOffset; overload;
     function ParseValue(const KeywordIndices: TWordList.TIndices; const Assign: TValueAssign; const ValueKeywordIndex1: TWordList.TIndex; const ValueKeywordIndex2: TWordList.TIndex = -1): TOffset; overload;
@@ -7164,23 +6922,42 @@ type
     procedure SaveToDebugHTMLFile(const Filename: string);
     procedure SaveToFormatedSQLFile(const Filename: string);
     procedure SaveToSQLFile(const Filename: string);
+    procedure SetDatatypes(ADatatypes: string);
     procedure SetError(const AErrorCode: Byte; const AErrorToken: TOffset = 0);
-    function StmtPtr(const Node: TOffset): PStmt; {$IFNDEF Debug} inline; {$ENDIF}
-    function TokenPtr(const Token: TOffset): PToken; {$IFNDEF Debug} inline; {$ENDIF}
+    procedure SetFunctions(AFunctions: string);
+    procedure SetKeywords(AKeywords: string);
+    function TableNameCmp(const Name1, Name2: string): Integer;
     property CurrentToken: TOffset read FCurrentToken;
     property ErrorFound: Boolean read GetErrorFound;
     property InPL_SQL: Boolean read GetInPL_SQL;
     property NextToken[Index: Integer]: TOffset read GetNextToken;
     property PreviousToken: TOffset read FPreviousToken;
 
+  protected
+    function ChildPtr(const ANode: TOffset): PChild; {$IFNDEF Debug} inline; {$ENDIF}
+    function CreateErrorMessage(const ErrorCode: Byte; const ErrorLine: Integer; const ErrorPos: PChar): string;
+    function IsChild(const ANode: PNode): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
+    function IsChild(const ANode: TOffset): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
+    function IsRange(const ANode: PNode): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
+    function IsRange(const ANode: TOffset): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
+    function IsStmt(const ANode: PNode): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
+    function IsStmt(const ANode: TOffset): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
+    function IsToken(const ANode: PNode): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
+    function IsToken(const ANode: TOffset): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
+    function NewNode(const ANodeType: TNodeType): TOffset; {$IFNDEF Debug} inline; {$ENDIF}
+    function NodePtr(const ANode: TOffset): PNode; {$IFNDEF Debug} inline; {$ENDIF}
+    function NodeSize(const NodeType: TNodeType): Integer;
+    function StmtPtr(const Node: TOffset): PStmt; {$IFNDEF Debug} inline; {$ENDIF}
+    function TokenPtr(const Token: TOffset): PToken; {$IFNDEF Debug} inline; {$ENDIF}
+
   public
-    ttIdents: set of TTokenType;
-    ttStrings: set of TTokenType;
+    type
+      TFileType = (ftSQL, ftFormatedSQL, ftDebugHTML);
 
     procedure Clear();
-    constructor Create(const AMySQLVersion: Integer = 0);
+    constructor Create(const AMySQLVersion: Integer = 0; const ALowerCaseTableNames: Integer = 0);
     destructor Destroy(); override;
-    procedure FormatSQL(out SQL: string);
+    function FormatSQL(const DatabaseName: string = ''): string;
     function LoadFromFile(const Filename: string): Boolean;
     function ParseSQL(const Text: PChar; const Length: Integer; const UseCompletionList: Boolean = False): Boolean; overload;
     function ParseSQL(const Text: string; const AUseCompletionList: Boolean = False): Boolean; overload; {$IFNDEF Debug} inline; {$ENDIF}
@@ -7194,9 +6971,31 @@ type
     property ErrorPos: Integer read GetErrorPos;
     property Functions: string read GetFunctions write SetFunctions;
     property Keywords: string read GetKeywords write SetKeywords;
+    property LowerCaseTableNames: Integer read FLowerCaseTableNames;
     property MySQLVersion: Integer read FMySQLVersion;
     property Root: PRoot read GetRoot;
   end;
+
+const
+  PE_Success = 0; // No error
+
+  PE_Unknown = 1; // Unknown error
+
+  // Bugs while parsing Tokens:
+  PE_IncompleteToken = 2; // Incomplete string or identifier near
+  PE_UnexpectedChar = 3; // Unexpected character
+
+  // Bugs while parsing Stmts:
+  PE_IncompleteStmt = 4; // Incompleted statement
+  PE_UnexpectedToken = 5; // Unexpected character
+  PE_ExtraToken = 6; // Unexpected character
+
+  // Bugs with MySQL conditional options
+  PE_InvalidMySQLCond = 7; // Invalid version number in MySQL conditional option
+  PE_NestedMySQLCond = 8; // Nested conditional MySQL conditional options
+
+  // Bugs while parsing Root
+  PE_UnknownStmt = 9; // Unknown statement
 
 implementation {***************************************************************}
 
@@ -7218,11 +7017,166 @@ const
   BOM_UTF8: PAnsiChar = Chr($EF) + Chr($BB) + Chr($BF);
   BOM_UNICODE_LE: PAnsiChar = Chr($FF) + Chr($FE);
 
-  DefaultParsedNodesMemSize = 100 * 1024;
-  DefaultTextsMemSize = 10 * 1024;
+  DefaultNodesMemSize = 100 * 1024;
+
+  IndentSize = 2;
+
+  MySQLDatatypes =
+    'BIGINT,BINARY,BIT,BLOB,BOOL,BOOLEAN,BYTE,CHAR,CHARACTER,DEC,DECIMAL,' +
+    'DATE,DATETIME,DOUBLE,ENUM,FLOAT,GEOMETRY,GEOMETRYCOLLECTION,INT,INT4,' +
+    'INTEGER,LARGEINT,LINESTRING,JSON,LONG,LONGBLOB,LONGTEXT,MEDIUMBLOB,' +
+    'MEDIUMINT,MEDIUMTEXT,MULTILINESTRING,MULTIPOINT,MULTIPOLYGON,' +
+    'NUMBER,NUMERIC,NCHAR,NVARCHAR,POINT,POLYGON,REAL,SERIAL,SET,SIGNED,' +
+    'SMALLINT,TEXT,TIME,TIMESTAMP,TINYBLOB,TINYINT,TINYTEXT,UNSIGNED,' +
+    'VARBINARY,VARCHAR,YEAR';
+
+  MySQLEngineTypes =
+    'ARCHIVE,BDB,BERKELEYDB,BLACKHOLE,CSV,EXAMPLE,FEDERATED,HEAP,INNOBASE,' +
+    'InnoDB,ISAM,MEMORY,MERGE,MRG_ISAM,MRG_MYISAM,MyISAM,NDB,NDBCLUSTER';
+
+  MySQLFunctions =
+    'ABS,ACOS,ADDDATE,ADdiME,AES_DECRYPT,AES_ENCRYPT,ANY_VALUE,AREA,' +
+    'ASBINARY,ASCII,ASIN,ASTEXT,ASWKBASWKT,ASYMMETRIC_DECRYPT,' +
+    'ASYMMETRIC_DERIVE,ASYMMETRIC_ENCRYPT,ASYMMETRIC_SIGN,ASYMMETRIC_VERIFY,' +
+    'ATAN,ATAN,ATAN2,AVG,BENCHMARK,BIN,BIT_AND,BIT_COUNT,BIT_LENGTH,BIT_OR,' +
+    'BIT_XOR,BUFFER,CAST,CEIL,CEILING,CENTROID,CHAR,CHAR_LENGTH,' +
+    'CHARACTER_LENGTH,CHARSET,COALESCE,COERCIBILITY,COLLATION,COMPRESS,' +
+    'CONCAT,CONCAT_WS,CONNECTION_ID,CONTAINS,CONV,CONVERT,CONVERT_TZ,' +
+    'CONVEXHULL,COS,COT,COUNT,CRC32,CREATE_ASYMMETRIC_PRIV_KEY,' +
+    'CREATE_ASYMMETRIC_PUB_KEY,CREATE_DH_PARAMETERS,CREATE_DIGEST,CROSSES,' +
+    'CURDATE,CURRENT_DATE,CURRENT_TIME,CURRENT_TIMESTAMP,CURRENT_USER,' +
+    'CURTIME,DATABASE,DATE,DATE_ADD,DATE_FORMAT,DATE_SUB,DATEDIFF,DAY,' +
+    'DAYNAME,DAYOFMONTH,DAYOFWEEK,DAYOFYEAR,DECODE,DEFAULT,DEGREES,' +
+    'DES_DECRYPT,DES_ENCRYPT,DIMENSION,DISJOINT,DISTANCE,ELT,ENCODE,ENCRYPT,' +
+    'ENDPOINT,ENVELOPE,EQUALS,EXP,EXPORT_SET,EXTERIORRING,EXTRACT,' +
+    'EXTRACTVALUE,FIELD,FIND_IN_SET,FLOOR,FORMAT,FOUND_ROWS,FROM_BASE64,' +
+    'FROM_DAYS,FROM_UNIXTIME,GEOMCOLLFROMTEXT,GEOMCOLLFROMWKB,' +
+    'GEOMETRYCOLLECTION,GEOMETRYCOLLECTIONFROMTEXT,GEOMETRYCOLLECTIONFROMWKB,' +
+    'GEOMETRYFROMTEXT,GEOMETRYFROMWKB,GEOMETRYN,GEOMETRYTYPE,GEOMFROMTEXT,' +
+    'GEOMFROMWKB,GET_FORMAT,GET_LOCK,GLENGTH,GREATEST,GROUP_CONCAT,' +
+    'GTID_SUBSET,GTID_SUBTRACT,HEX,HOUR,IF,IFNULL,IN,INET_ATON,INET_NTOA,' +
+    'INET6_ATON,INET6_NTOA,INSERT,INSTR,INTERIORRINGN,INTERSECTS,INTERVAL,' +
+    'IS_FREE_LOCK,IS_IPV4,IS_IPV4_COMPAT,IS_IPV4_MAPPED,IS_IPV6,IS_USED_LOCK,' +
+    'ISCLOSED,ISEMPTY,ISNULL,ISSIMPLE,JSON_APPEND,JSON_ARRAY,' +
+    'JSON_ARRAY_APPEND,JSON_ARRAY_INSERT,JSON_CONTAINS,JSON_CONTAINS_PATH,' +
+    'JSON_DEPTH,JSON_EXTRACT,JSON_INSERT,JSON_KEYS,JSON_LENGTH,JSON_MERGE,' +
+    'JSON_OBJECT,JSON_QUOTE,JSON_REMOVE,JSON_REPLACE,JSON_SEARCH,JSON_SET,' +
+    'JSON_TYPE,JSON_UNQUOTE,JSON_VALID,LAST_DAY,LAST_INSERT_ID,LCASE,LEAST,' +
+    'LEFT,LENGTH,LINEFROMTEXT,LINEFROMWKB,LINESTRING,LINESTRINGFROMTEXT,' +
+    'LINESTRINGFROMWKB,LN,LOAD_FILE,LOCALTI,LOCALTIME,LOCALTIMESTAMP,LOCATE,' +
+    'LOG,LOG10,LOG2,LOWER,LPAD,LTRIM,MAKE_SET,MAKEDATE,MAKETIME,' +
+    'MASTER_POS_WAIT,MAX,MBRCONTAINS,MBRCOVEREDBY,MBRCOVERS,MBRDISJOINT,' +
+    'MBREQUAL,MBREQUALS,MBRINTERSECTS,MBROVERLAPS,MBRTOUCHES,MBRWITHIN,MD5,' +
+    'MICROSECOND,MID,MIN,MINUTE,MLINEFROMTEXT,MLINEFROMWKB,MOD,MONTH,' +
+    'MONTHNAME,MPOINTFROMTEXT,MPOINTFROMWKB,MPOLYFROMTEXT,MPOLYFROMWKB,' +
+    'MULTILINESTRING,MULTILINESTRINGFROMTEXT,MULTILINESTRINGFROMWKB,' +
+    'MULTIPOINT,MULTIPOINTFROMTEXT,MULTIPOINTFROMWKB,MULTIPOLYGON,' +
+    'MULTIPOLYGONFROMTEXT,MULTIPOLYGONFROMWKB,NAME_CONST,NOW,NULLIF,' +
+    'NUMGEOMETRIES,NUMINTERIORRINGS,NUMPOINTS,OCT,OCTET_LENGTH,OLD_PASSWORD,' +
+    'ORD,OVERLAPS,PASSWORD,PERIOD_ADD,PERIOD_DIFF,PI,POINT,POINTFROMTEXT,' +
+    'POINTFROMWKB,POINTN,POLYFROMTEXT,POLYFROMWKB,POLYGON,POLYGONFROMTEXT,' +
+    'POLYGONFROMWKB,POSITION,POW,POWER,QUARTER,QUOTE,RADIANS,RAND,' +
+    'RANDOM_BYTES,RELEASE_ALL_LOCKS,RELEASE_LOCK,REPEAT,REPLACE,REVERSE,' +
+    'RIGHT,ROUND,ROW_COUNT,RPAD,RTRIM,SCHEMA,SEC_TO_TIME,SECOND,SESSION_USER,' +
+    'SHA,SHA1,SHA2,SIGN,SIN,SLEEP,SOUNDEX,SPACE,SQRT,SRID,ST_AREA,' +
+    'ST_ASBINARY,ST_ASGEOJSON,ST_ASTEXT,ST_ASWKB,ST_ASWKT,ST_BUFFER,' +
+    'ST_BUFFER_STRATEGY,ST_CENTROID,ST_CONTAINS,ST_CONVEXHULL,ST_CROSSES,' +
+    'ST_DIFFERENCE,ST_DIMENSION,ST_DISJOINT,ST_DISTANCE,ST_DISTANCE_SPHERE,' +
+    'ST_ENDPOINT,ST_ENVELOPE,ST_EQUALS,ST_EXTERIORRING,ST_GEOHASH,' +
+    'ST_GEOMCOLLFROMTEXT,ST_GEOMCOLLFROMTXT,ST_GEOMCOLLFROMWKB,' +
+    'ST_GEOMETRYCOLLECTIONFROMTEXT,ST_GEOMETRYCOLLECTIONFROMWKB,' +
+    'ST_GEOMETRYFROMTEXT,ST_GEOMETRYFROMWKB,ST_GEOMETRYN,ST_GEOMETRYTYPE,' +
+    'ST_GEOMFROMGEOJSON,ST_GEOMFROMTEXT,ST_GEOMFROMWKB,ST_INTERIORRINGN,' +
+    'ST_INTERSECTION,ST_INTERSECTS,ST_ISCLOSED,ST_ISEMPTY,ST_ISSIMPLE,' +
+    'ST_ISVALID,ST_LATFROMGEOHASH,ST_LENGTH,ST_LINEFROMTEXT,ST_LINEFROMWKB,' +
+    'ST_LINESTRINGFROMTEXT,ST_LINESTRINGFROMWKB,ST_LONGFROMGEOHASH,' +
+    'ST_MAKEENVELOPE,ST_MLINEFROMTEXT,ST_MLINEFROMWKB,ST_MPOINTFROMTEXT,' +
+    'ST_MPOINTFROMWKB,ST_MPOLYFROMTEXT,ST_MPOLYFROMWKB,' +
+    'ST_MULTILINESTRINGFROMTEXT,ST_MULTILINESTRINGFROMWKB,' +
+    'ST_MULTIPOINTFROMTEXT,ST_MULTIPOINTFROMWKB,ST_MULTIPOLYGONFROMTEXT,' +
+    'ST_MULTIPOLYGONFROMWKB,ST_NUMGEOMETRIES,ST_NUMINTERIORRING,' +
+    'ST_NUMINTERIORRINGS,ST_NUMPOINTS,ST_OVERLAPS,ST_POINTFROMGEOHASH,' +
+    'ST_POINTFROMTEXT,ST_POINTFROMWKB,ST_POINTN,ST_POLYFROMTEXT,' +
+    'ST_POLYFROMWKB,ST_POLYGONFROMTEXT,ST_POLYGONFROMWKB,ST_SIMPLIFY,ST_SRID,' +
+    'ST_STARTPOINT,ST_SYMDIFFERENCE,ST_TOUCHES,ST_UNION,ST_VALIDATE,' +
+    'ST_WITHIN,ST_X,ST_Y,STARTPOINT,STD,STDDEV,STDDEV_POP,STDDEV_SAMP,' +
+    'STR_TO_DATE,STRCMP,SUBDATE,SUBSTR,SUBSTRING,SUBSTRING_INDEX,SUBTIME,SUM,' +
+    'SYSDATE,SYSTEM_USER,TAN,TIME,TIME_FORMAT,TIME_TO_SEC,TIMEDIFF,TIMESTAMP,' +
+    'TIMESTAMPADD,TIMESTAMPDIFF,TO_BASE64,TO_DAYS,TO_SECONDS,TOUCHES,TRIM,' +
+    'TRUNCATE,UCASE,UNCOMPRESS,UNCOMPRESSED_LENGTH,UNHEX,UNIX_TIMESTAMP,' +
+    'UPDATEXML,UPPER,USER,UTC_DATE,UTC_TIME,UTC_TIMESTAMP,UUID,UUID_SHORT,' +
+    'VALIDATE_PASSWORD_STRENGTH,VALUES,VAR_POP,VAR_SAMP,VARIANCE,VERSION,' +
+    'WAIT_FOR_EXECUTED_GTID_SET,WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS,WEEK,' +
+    'WEEKDAY,WEEKOFYEAR,WEIGHT_STRING,WITHIN,X,Y,YEAR,YEARWEEK';
+
+  MySQLKeywords =
+    'ANY,SOME,OFF,' +
+
+    'ACCOUNT,ACTION,ADD,AFTER,AGAINST,ALGORITHM,ALL,ALTER,ALWAYS,ANALYZE,AND,' +
+    'AS,ASC,ASCII,AT,AUTO_INCREMENT,AUTHORS,AVG_ROW_LENGTH,BEFORE,BEGIN,' +
+    'BETWEEN,BINARY,BINLOG,BLOCK,BOOLEAN,BOTH,BTREE,BY,CACHE,CALL,CASCADE,' +
+    'CASCADED,CASE,CATALOG_NAME,CHANGE,CHANGED,CHANNEL,CHAIN,CHARACTER,' +
+    'CHARSET,CHECK,CHECKSUM,CLASS_ORIGIN,CLIENT,CLOSE,COALESCE,CODE,COLLATE,' +
+    'COLLATION,COLUMN,COLUMN_FORMAT,COLUMN_NAME,COLUMNS,COMMENT,COMMIT,' +
+    'COMMITTED,COMPACT,COMPLETION,COMPRESS,COMPRESSED,CONCURRENT,CONDITION,' +
+    'CONNECTION,CONSISTENT,CONSTRAINT,CONSTRAINT_CATALOG,CONSTRAINT_NAME,' +
+    'CONSTRAINT_SCHEMA,CONTAINS,CONTEXT,CONTINUE,CONTRIBUTORS,CONVERT,COPY,' +
+    'CPU,CREATE,CROSS,CURRENT,CURRENT_DATE,CURRENT_TIME,CURRENT_TIMESTAMP,' +
+    'CURRENT_USER,CURSOR,CURSOR_NAME,DATA,DATABASE,DATABASES,DATAFILE,DAY,' +
+    'DAY_HOUR,DAY_MICROSECOND,DAY_MINUTE,DAY_SECOND,DEALLOCATE,DECLARE,' +
+    'DEFAULT,DEFINER,DELAY_KEY_WRITE,DELAYED,DELETE,DESC,DESCRIBE,' +
+    'DETERMINISTIC,DIAGNOSTICS,DIRECTORY,DISABLE,DISCARD,DISK,DISTINCT,' +
+    'DISTINCTROW,DIV,DO,DROP,DUMPFILE,DUPLICATE,DYNAMIC,EACH,ELSE,ELSEIF,' +
+    'ENABLE,ENCLOSED,END,ENDS,ENGINE,ENGINES,ERRORS,ESCAPE,ESCAPED,EVENT,' +
+    'EVENTS,EVERY,EXCHANGE,EXCLUSIVE,EXECUTE,EXISTS,EXPANSION,EXPIRE,EXPLAIN,' +
+    'EXIT,EXTENDED,FALSE,FAST,FAULTS,FETCH,FILE_BLOCK_SIZE,FLUSH,FIELDS,FILE,' +
+    'FIRST,FIXED,FOLLOWS,FOR,FORCE,FORMAT,FOREIGN,FOUND,FROM,FULL,FULLTEXT,' +
+    'FUNCTION,GENERATED,GET,GLOBAL,GRANT,GRANTS,GROUP,HANDLER,HASH,HAVING,' +
+    'HELP,HIGH_PRIORITY,HOST,HOSTS,HOUR,HOUR_MICROSECOND,HOUR_MINUTE,' +
+    'HOUR_SECOND,IDENTIFIED,IF,IGNORE,IGNORE_SERVER_IDS,IMPORT,IN,INDEX,' +
+    'INDEXES,INFILE,INITIAL_SIZE,INNER,INNODB,INOUT,INPLACE,INSTANCE,INSERT,' +
+    'INSERT_METHOD,INTERVAL,INTO,INVOKER,IO,IPC,IS,ISOLATION,ITERATE,JOIN,' +
+    'JSON,KEY,KEY_BLOCK_SIZE,KEYS,KILL,LANGUAGE,LAST,LEADING,LEAVE,LEFT,LESS,' +
+    'LEVEL,LIKE,LIMIT,LINEAR,LINES,LIST,LOAD,LOCAL,LOCALTIME,LOCALTIMESTAMP,' +
+    'LOCK,LOGS,LOOP,LOW_PRIORITY,MASTER,MASTER_AUTO_POSITION,MASTER_BIND,' +
+    'MASTER_CONNECT_RETRY,MASTER_DELAY,MASTER_HEARTBEAT_PERIOD,MASTER_HOST,' +
+    'MASTER_LOG_FILE,MASTER_LOG_POS,MASTER_PASSWORD,MASTER_PORT,' +
+    'MASTER_RETRY_COUNT,MASTER_SSL,MASTER_SSL_CA,MASTER_SSL_CAPATH,' +
+    'MASTER_SSL_CERT,MASTER_SSL_CIPHER,MASTER_SSL_CRL,MASTER_SSL_CRLPATH,' +
+    'MASTER_SSL_KEY,MASTER_SSL_VERIFY_SERVER_CERT,MASTER_TLS_VERSION,' +
+    'MASTER_USER,MATCH,MAX_QUERIES_PER_HOUR,MAX_ROWS,' +
+    'MAX_CONNECTIONS_PER_HOUR,MAX_STATEMENT_TIME,MAX_UPDATES_PER_HOUR,' +
+    'MAX_USER_CONNECTIONS,MAXVALUE,MEDIUM,MEMORY,MERGE,MESSAGE_TEXT,' +
+    'MICROSECOND,MIGRATE,MIN_ROWS,MINUTE,MINUTE_MICROSECOND,MINUTE_SECOND,' +
+    'MOD,MODE,MODIFIES,MODIFY,MONTH,MUTEX,MYSQL_ERRNO,NAME,NAMES,NATIONAL,' +
+    'NATURAL,NEVER,NEXT,NO,NONE,NOT,NULL,NO_WRITE_TO_BINLOG,NUMBER,OFFSET,' +
+    'OJ,ON,ONE,ONLY,OPEN,OPTIMIZE,OPTION,OPTIONALLY,OPTIONS,OR,ORDER,OUT,' +
+    'OUTER,OUTFILE,OWNER,PACK_KEYS,PAGE,PAGE_CHECKSUM,PARSER,PARTIAL,' +
+    'PARTITION,PARTITIONING,PARTITIONS,PASSWORD,PERSISTENT,PHASE,PLUGINS,' +
+    'PORT,PRECEDES,PREPARE,PRESERVE,PRIMARY,PRIVILEGES,PROCEDURE,PROCESS,' +
+    'PROCESSLIST,PROFILE,PROFILES,PROXY,PURGE,QUARTER,QUERY,QUICK,RANGE,READ,' +
+    'READS,REBUILD,RECOVER,REDUNDANT,REFERENCES,REGEXP,RELAYLOG,RELEASE,' +
+    'RELAY_LOG_FILE,RELAY_LOG_POS,RELOAD,REMOVE,RENAME,REORGANIZE,REPAIR,' +
+    'REPEAT,REPEATABLE,REPLACE,REPLICATION,REQUIRE,RESET,RESIGNAL,RESTRICT,' +
+    'RESUME,RETURN,RETURNED_SQLSTATE,RETURNS,REVERSE,REVOKE,RIGHT,RLIKE,' +
+    'ROLLBACK,ROLLUP,ROTATE,ROUTINE,ROW,ROW_COUNT,ROW_FORMAT,ROWS,SAVEPOINT,' +
+    'SCHEDULE,SCHEMA,SCHEMA_NAME,SECOND,SECOND_MICROSECOND,SECURITY,SELECT,' +
+    'SEPARATOR,SERIALIZABLE,SERVER,SESSION,SET,SHARE,SHARED,SHOW,SHUTDOWN,' +
+    'SIGNAL,SIGNED,SIMPLE,SLAVE,SNAPSHOT,SOCKET,SONAME,SOUNDS,SOURCE,SPATIAL,' +
+    'SQL,SQL_BIG_RESULT,SQL_BUFFER_RESULT,SQL_CACHE,SQL_CALC_FOUND_ROWS,' +
+    'SQL_NO_CACHE,SQL_SMALL_RESULT,SQLEXCEPTION,SQLSTATE,SQLWARNINGS,STACKED,' +
+    'STARTING,START,STARTS,STATS_AUTO_RECALC,STATS_PERSISTENT,STATUS,STOP,' +
+    'STORAGE,STORED,STRAIGHT_JOIN,SUBCLASS_ORIGIN,SUBPARTITION,SUBPARTITIONS,' +
+    'SUPER,SUSPEND,SWAPS,SWITCHES,TABLE,TABLE_NAME,TABLES,TABLESPACE,' +
+    'TEMPORARY,TEMPTABLE,TERMINATED,THAN,THEN,TO,TRADITIONAL,TRAILING,' +
+    'TRANSACTION,TRANSACTIONAL,TRIGGER,TRIGGERS,TRUE,TRUNCATE,TYPE,' +
+    'UNCOMMITTED,UNDEFINED,UNDO,UNICODE,UNION,UNIQUE,UNKNOWN,UNLOCK,UNSIGNED,' +
+    'UNTIL,UPDATE,UPGRADE,USAGE,USE,USE_FRM,USER,USING,VALIDATION,VALUE,' +
+    'VALUES,VARIABLES,VIEW,VIRTUAL,WAIT,WARNINGS,WEEK,WHEN,WHERE,WHILE,' +
+    'WRAPPER,WRITE,WITH,WITHOUT,WORK,XA,XID,XML,XOR,YEAR,YEAR_MONTH,ZEROFILL';
 
 var
-  UsageTypeByTokenType: array[TSQLParser.TTokenType] of TSQLParser.TUsageType = (
+  UsageTypeByTokenType: array [TSQLParser.TTokenType] of TSQLParser.TUsageType = (
     utUnknown,
     utWhiteSpace,
     utWhiteSpace,
@@ -7520,8 +7474,6 @@ begin
 
   FCount := 0;
   SetLength(FIndex, 0);
-
-  SetLength(Parser.OperatorTypeByKeywordIndex, 0);
 end;
 
 constructor TSQLParser.TWordList.Create(const ASQLParser: TSQLParser; const AText: string = '');
@@ -7571,7 +7523,7 @@ var
   I: Integer;
   Mid: Integer;
   Right: Integer;
-  UpcaseWord: array [0..100] of Char;
+  UpcaseWord: array [0 .. 255] of Char;
 begin
   Result := -1;
 
@@ -8052,15 +8004,16 @@ end;
 class function TSQLParser.TToken.Create(const AParser: TSQLParser;
   const AText: PChar; const ALength: Integer;
   const ATokenType: TTokenType; const AOperatorType: TOperatorType;
-  const AKeywordIndex: TWordList.TIndex; const AUsageType: TUsageType): TOffset;
+  const AKeywordIndex: TWordList.TIndex; const AUsageType: TUsageType;
+  const AIsUsed: Boolean
+  {$IFDEF Debug}; const AIndex: Integer {$ENDIF}): TOffset;
 begin
   Result := TChild.Create(AParser, ntToken);
 
   with PToken(AParser.NodePtr(Result))^ do
   begin
-    FHidden := False;
     {$IFDEF Debug}
-    FIndex := 0;
+    FIndex := AIndex;
     {$ENDIF}
     FKeywordIndex := AKeywordIndex;
     FOperatorType := AOperatorType;
@@ -8068,6 +8021,9 @@ begin
     FText := AText;
     FTokenType := ATokenType;
     FUsageType := AUsageType;
+    Options := [];
+    if (AIsUsed) then
+      Include(Options, oUsed);
   end;
 end;
 
@@ -8167,6 +8123,11 @@ begin
   end;
 end;
 
+function TSQLParser.TToken.GetHidden(): Boolean;
+begin
+  Result := oHidden in Options;
+end;
+
 {$IFNDEF Debug}
 function TSQLParser.TToken.GetIndex(): Integer;
 var
@@ -8184,8 +8145,7 @@ end;
 
 function TSQLParser.TToken.GetIsUsed(): Boolean;
 begin
-  Result := not (TokenType in [ttSpace, ttReturn, ttSLComment, ttMLComment, ttMySQLCondStart, ttMySQLCondEnd])
-    and ((Parser.AllowedMySQLVersion = 0) or (Parser.MySQLVersion >= Parser.AllowedMySQLVersion));
+  Result := oUsed in Options;
 end;
 
 function TSQLParser.TToken.GetNextToken(): PToken;
@@ -8245,6 +8205,11 @@ begin
   Length := FLength;
 end;
 
+procedure TSQLParser.TToken.SetHidden(AHidden: Boolean);
+begin
+  Include(Options, oHidden);
+end;
+
 { TSQLParser.TRange ***********************************************************}
 
 procedure TSQLParser.TRange.AddChildren(const Children: POffsetArray; const Count: Integer);
@@ -8300,23 +8265,6 @@ end;
 function TSQLParser.TRange.GetParentNode(): PNode;
 begin
   Result := PNode(Parser.NodePtr(FParentNode));
-end;
-
-procedure TSQLParser.TRange.Hide();
-var
-  Token: PToken;
-begin
-  Token := FirstToken;
-
-  while (Assigned(Token)) do
-  begin
-    Token^.Hidden := True;
-
-    if (Token = LastToken) then
-      Token := nil
-    else
-      Token := Token^.NextToken;
-  end;
 end;
 
 { TSQLParser.TRoot ************************************************************}
@@ -9249,20 +9197,6 @@ begin
     Nodes := ANodes;
 
     Heritage.Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
-  end;
-end;
-
-{ TSQLParser.TCurrentTimestamp ************************************************}
-
-class function TSQLParser.TCurrentTimestamp.Create(const AParser: TSQLParser; const ANodes: TNodes): TOffset;
-begin
-  Result := TRange.Create(AParser, ntCurrentTimestamp);
-
-  with PCurrentTimestamp(AParser.NodePtr(Result))^ do
-  begin
-    Nodes := ANodes;
-
-    Heritage.AddChildren(@Nodes, SizeOf(Nodes) div SizeOf(TOffset));
   end;
 end;
 
@@ -11716,9 +11650,9 @@ begin
   InCreateFunctionStmt := False;
   FInPL_SQL := 0;
   InCreateProcedureStmt := False;
-  if (Nodes.MemSize <> DefaultParsedNodesMemSize) then
+  if (Nodes.MemSize <> DefaultNodesMemSize) then
   begin
-    Nodes.MemSize := DefaultParsedNodesMemSize;
+    Nodes.MemSize := DefaultNodesMemSize;
     ReallocMem(Nodes.Mem, Nodes.MemSize);
   end;
   Nodes.UsedSize := 1; // "0" means "not assigned", so we start with "1"
@@ -11733,20 +11667,22 @@ begin
   {$ENDIF}
 end;
 
-constructor TSQLParser.Create(const AMySQLVersion: Integer = 0);
+constructor TSQLParser.Create(const AMySQLVersion: Integer = 0; const ALowerCaseTableNames: Integer = 0);
 begin
   inherited Create();
 
-  Commands := nil;
+  FAnsiQuotes := False;
+  FormatHandle.Commands := nil;
   FCompletionList := TCompletionList.Create(Self);
   DatatypeList := TWordList.Create(Self);
-  FAnsiQuotes := False;
   FunctionList := TWordList.Create(Self);
   KeywordList := TWordList.Create(Self);
   FMySQLVersion := AMySQLVersion;
+  FLowerCaseTableNames := ALowerCaseTableNames;
   Nodes.Mem := nil;
   Nodes.UsedSize := 0;
   Nodes.MemSize := 0;
+  SetLength(OperatorTypeByKeywordIndex, 0);
   TokenBuffer.Count := 0;
 
   Datatypes := MySQLDatatypes;
@@ -11858,52 +11794,52 @@ begin
   begin
     Assert(Nodes.OnSchedule.Value > 0);
 
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.OnSchedule.Tag, stReturnBefore);
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.OnSchedule.Value, stReturnBefore);
-    Commands.DecreaseIndent();
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
   end;
 
   if (Nodes.OnCompletionTag > 0) then
   begin
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.OnCompletionTag, stReturnBefore);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
   end;
 
   if (Nodes.RenameValue > 0) then
   begin
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.RenameValue, stReturnBefore);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
   end;
 
   if (Nodes.EnableTag > 0) then
   begin
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.EnableTag, stReturnBefore);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
   end;
 
   if (Nodes.CommentValue > 0) then
   begin
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.CommentValue, stReturnBefore);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
   end;
 
   if (Nodes.DoTag > 0) then
   begin
     Assert(Nodes.Body > 0);
 
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.DoTag, stReturnBefore);
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.Body, stReturnBefore);
-    Commands.DecreaseIndent();
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
   end;
 end;
 
@@ -11911,24 +11847,24 @@ procedure TSQLParser.FormatAlterRoutineStmt(const Nodes: TAlterRoutineStmt.TNode
 begin
   FormatNode(Nodes.AlterTag);
   FormatNode(Nodes.Ident, stSpaceBefore);
-  Commands.IncreaseIndent();
+  FormatHandle.Commands.IncreaseIndent();
   FormatNode(Nodes.CommentValue, stReturnBefore);
   FormatNode(Nodes.LanguageTag, stReturnBefore);
   FormatNode(Nodes.DeterministicTag, stReturnBefore);
   FormatNode(Nodes.NatureOfDataTag, stReturnBefore);
   FormatNode(Nodes.SQLSecurityTag, stReturnBefore);
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatAlterTablespaceStmt(const Nodes: TAlterTablespaceStmt.TNodes);
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.Ident, stSpaceBefore);
-  Commands.IncreaseIndent();
+  FormatHandle.Commands.IncreaseIndent();
   FormatNode(Nodes.AddDatafileValue, stReturnBefore);
   FormatNode(Nodes.InitialSizeValue, stReturnBefore);
   FormatNode(Nodes.EngineValue, stReturnBefore);
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatAlterTableStmt(const Nodes: TAlterTableStmt.TNodes);
@@ -11939,31 +11875,31 @@ begin
   FormatNode(Nodes.Ident, stSpaceBefore);
   if (Nodes.SpecificationList > 0) then
   begin
-    Commands.IncreaseIndent();
-    Commands.WriteReturn();
+    FormatHandle.Commands.IncreaseIndent();
+    FormatHandle.Commands.WriteReturn();
     FormatList(Nodes.SpecificationList, sReturn);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
   end;
 end;
 
 procedure TSQLParser.FormatAlterViewStmt(const Nodes: TAlterViewStmt.TNodes);
 begin
   FormatNode(Nodes.AlterTag);
-  Commands.IncreaseIndent();
+  FormatHandle.Commands.IncreaseIndent();
   FormatNode(Nodes.AlgorithmValue, stReturnBefore);
   FormatNode(Nodes.DefinerValue, stReturnBefore);
   FormatNode(Nodes.SQLSecurityTag, stReturnBefore);
   FormatNode(Nodes.ViewTag, stReturnBefore);
   FormatNode(Nodes.Ident, stSpaceBefore);
   FormatNode(Nodes.Columns, stSpaceBefore);
-  Commands.IncreaseIndent();
+  FormatHandle.Commands.IncreaseIndent();
   FormatNode(Nodes.AsTag, stReturnBefore);
-  Commands.IncreaseIndent();
+  FormatHandle.Commands.IncreaseIndent();
   FormatNode(Nodes.SelectStmt, stReturnBefore);
-  Commands.DecreaseIndent();
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
   FormatNode(Nodes.OptionTag, stReturnBefore);
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatBeginLabel(const Nodes: TBeginLabel.TNodes);
@@ -11983,12 +11919,12 @@ procedure TSQLParser.FormatCaseOp(const Nodes: TCaseOp.TNodes);
 begin
   FormatNode(Nodes.CaseTag);
   FormatNode(Nodes.CompareExpr, stSpaceBefore);
-  Commands.IncreaseIndent();
-  Commands.WriteReturn();
+  FormatHandle.Commands.IncreaseIndent();
+  FormatHandle.Commands.WriteReturn();
   FormatList(Nodes.BranchList, sReturn);
   FormatNode(Nodes.ElseTag, stReturnBefore);
   FormatNode(Nodes.ElseExpr, stSpaceBefore);
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
   FormatNode(Nodes.EndTag, stReturnBefore);
 end;
 
@@ -11996,10 +11932,10 @@ procedure TSQLParser.FormatCaseStmt(const Nodes: TCaseStmt.TNodes);
 begin
   FormatNode(Nodes.CaseTag);
   FormatNode(Nodes.CompareExpr, stSpaceBefore);
-  Commands.IncreaseIndent();
-  Commands.WriteReturn();
+  FormatHandle.Commands.IncreaseIndent();
+  FormatHandle.Commands.WriteReturn();
   FormatList(Nodes.BranchList, sReturn);
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
   FormatNode(Nodes.EndTag, stReturnBefore);
 end;
 
@@ -12007,16 +11943,16 @@ procedure TSQLParser.FormatCaseStmtBranch(const Nodes: TCaseStmt.TBranch.TNodes)
 begin
   Assert(NodePtr(Nodes.Tag)^.NodeType = ntTag);
 
-  Commands.IncreaseIndent();
+  FormatHandle.Commands.IncreaseIndent();
   FormatNode(Nodes.Tag);
   if ((TokenPtr(PTag(NodePtr(Nodes.Tag))^.Nodes.KeywordToken1).KeywordIndex = kiWHEN)) then
   begin
     FormatNode(Nodes.ConditionExpr, stSpaceBefore);
     FormatNode(Nodes.ThenTag, stSpaceBefore);
   end;
-  Commands.WriteReturn();
+  FormatHandle.Commands.WriteReturn();
   FormatList(Nodes.StmtList, sReturn);
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatCastFunc(const Nodes: TCastFunc.TNodes);
@@ -12046,20 +11982,20 @@ procedure TSQLParser.FormatChangeMasterStmt(const Nodes: TChangeMasterStmt.TNode
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.ToTag, stSpaceBefore);
-  Commands.IncreaseIndent();
-  Commands.WriteReturn();
+  FormatHandle.Commands.IncreaseIndent();
+  FormatHandle.Commands.WriteReturn();
   FormatList(Nodes.OptionList, sReturn);
   FormatNode(Nodes.ChannelOptionValue, stReturnBefore);
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatCompoundStmt(const Nodes: TCompoundStmt.TNodes);
 begin
   FormatNode(Nodes.BeginLabel, stSpaceAfter);
-  Commands.IncreaseIndent();
+  FormatHandle.Commands.IncreaseIndent();
   FormatNode(Nodes.BeginTag, stReturnAfter);
   FormatList(Nodes.StmtList, sReturn);
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
   FormatNode(Nodes.EndTag, stReturnBefore);
   FormatNode(Nodes.EndLabel, stSpaceBefore);
 end;
@@ -12089,13 +12025,13 @@ begin
   FormatNode(Nodes.EventTag, stSpaceBefore);
   FormatNode(Nodes.IfNotExistsTag, stSpaceBefore);
   FormatNode(Nodes.EventIdent, stSpaceBefore);
-  Commands.IncreaseIndent();
+  FormatHandle.Commands.IncreaseIndent();
   FormatNode(Nodes.OnScheduleValue, stReturnBefore);
   FormatNode(Nodes.OnCompletitionTag, stReturnBefore);
   FormatNode(Nodes.EnableTag, stReturnBefore);
   FormatNode(Nodes.CommentValue, stReturnBefore);
   FormatNode(Nodes.DoTag, stReturnBefore);
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
   FormatNode(Nodes.Body, stReturnBefore);
 end;
 
@@ -12104,7 +12040,7 @@ begin
   FormatNode(Nodes.CreateTag);
   FormatNode(Nodes.IndexTag, stSpaceBefore);
   FormatNode(Nodes.Ident, stSpaceBefore);
-  Commands.IncreaseIndent();
+  FormatHandle.Commands.IncreaseIndent();
   FormatNode(Nodes.IndexTypeValue, stReturnBefore);
   FormatNode(Nodes.OnTag, stReturnBefore);
   FormatNode(Nodes.TableIdent, stSpaceBefore);
@@ -12113,7 +12049,7 @@ begin
   FormatNode(Nodes.CommentValue, stReturnBefore);
   FormatNode(Nodes.KeyBlockSizeValue, stReturnBefore);
   FormatNode(Nodes.ParserValue, stReturnBefore);
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatCreateRoutineStmt(const Nodes: TCreateRoutineStmt.TNodes);
@@ -12133,20 +12069,20 @@ begin
   else
   begin
     FormatNode(Nodes.OpenBracket);
-    Commands.IncreaseIndent();
-    Commands.WriteReturn();
+    FormatHandle.Commands.IncreaseIndent();
+    FormatHandle.Commands.WriteReturn();
     FormatList(Nodes.ParameterList, sReturn);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
     FormatNode(Nodes.CloseBracket, stReturnBefore);
   end;
   FormatNode(Nodes.Returns, stSpaceBefore);
-  Commands.IncreaseIndent();
+  FormatHandle.Commands.IncreaseIndent();
   FormatNode(Nodes.CommentValue, stReturnBefore);
   FormatNode(Nodes.LanguageTag, stReturnBefore);
   FormatNode(Nodes.DeterministicTag, stReturnBefore);
   FormatNode(Nodes.NatureOfDataTag, stReturnBefore);
   FormatNode(Nodes.SQLSecurityTag, stReturnBefore);
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
   FormatNode(Nodes.Body, stReturnBefore);
 end;
 
@@ -12154,22 +12090,22 @@ procedure TSQLParser.FormatCreateServerStmt(const Nodes: TCreateServerStmt.TNode
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.Ident, stSpaceBefore);
-  Commands.IncreaseIndent();
+  FormatHandle.Commands.IncreaseIndent();
   FormatNode(Nodes.ForeignDataWrapperValue, stReturnBefore);
   FormatNode(Nodes.Options.Tag, stReturnBefore);
   FormatNode(Nodes.Options.List, stSpaceBefore);
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatCreateTablespaceStmt(const Nodes: TCreateTablespaceStmt.TNodes);
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.Ident, stSpaceBefore);
-  Commands.IncreaseIndent();
+  FormatHandle.Commands.IncreaseIndent();
   FormatNode(Nodes.AddDatafileValue, stReturnBefore);
   FormatNode(Nodes.FileBlockSizeValue, stReturnBefore);
   FormatNode(Nodes.EngineValue, stReturnBefore);
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatCreateTableStmt(const Nodes: TCreateTableStmt.TNodes);
@@ -12182,65 +12118,65 @@ begin
   FormatNode(Nodes.OpenBracket, stSpaceBefore);
   if (Nodes.DefinitionList > 0) then
   begin
-    Commands.IncreaseIndent();
-    Commands.WriteReturn();
+    FormatHandle.Commands.IncreaseIndent();
+    FormatHandle.Commands.WriteReturn();
     FormatList(Nodes.DefinitionList, sReturn);
-    Commands.DecreaseIndent();
-    Commands.WriteReturn();
+    FormatHandle.Commands.DecreaseIndent();
+    FormatHandle.Commands.WriteReturn();
   end
   else if (Nodes.LikeTag > 0) then
   begin
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.LikeTag, stReturnBefore);
     FormatNode(Nodes.LikeTableIdent, stSpaceBefore);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
   end
   else if (Nodes.SelectStmt1 > 0) then
   begin
-    Commands.IncreaseIndent();
-    Commands.WriteReturn();
+    FormatHandle.Commands.IncreaseIndent();
+    FormatHandle.Commands.WriteReturn();
     FormatNode(Nodes.SelectStmt1);
-    Commands.DecreaseIndent();
-    Commands.WriteReturn();
+    FormatHandle.Commands.DecreaseIndent();
+    FormatHandle.Commands.WriteReturn();
   end;
   FormatNode(Nodes.CloseBracket);
   FormatNode(Nodes.TableOptionList, stSpaceBefore);
   if (Nodes.PartitionOption.Tag > 0) then
   begin
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.PartitionOption.Tag, stReturnBefore);
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.PartitionOption.KindTag, stReturnBefore);
     FormatNode(Nodes.PartitionOption.Expr, stSpaceBefore);
     FormatNode(Nodes.PartitionOption.AlgorithmValue, stSpaceBefore);
     FormatNode(Nodes.PartitionOption.Columns.Tag, stSpaceBefore);
     FormatNode(Nodes.PartitionOption.Columns.List, stSpaceBefore);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
     FormatNode(Nodes.PartitionOption.Value);
     if (Nodes.PartitionOption.SubPartition.Tag > 0) then
     begin
       FormatNode(Nodes.PartitionOption.SubPartition.Tag, stReturnBefore);
-      Commands.IncreaseIndent();
+      FormatHandle.Commands.IncreaseIndent();
       FormatNode(Nodes.PartitionOption.SubPartition.KindTag, stReturnBefore);
       FormatNode(Nodes.PartitionOption.SubPartition.Expr, stSpaceBefore);
       FormatNode(Nodes.PartitionOption.SubPartition.AlgorithmValue, stSpaceBefore);
       FormatNode(Nodes.PartitionOption.SubPartition.ColumnList, stSpaceBefore);
-      Commands.DecreaseIndent();
+      FormatHandle.Commands.DecreaseIndent();
       FormatNode(Nodes.PartitionOption.SubPartition.Value, stReturnBefore);
     end;
-    Commands.IncreaseIndent();
-    Commands.WriteReturn();
+    FormatHandle.Commands.IncreaseIndent();
+    FormatHandle.Commands.WriteReturn();
     FormatList(Nodes.PartitionDefinitionList, sReturn);
-    Commands.DecreaseIndent();
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
   end;
   FormatNode(Nodes.IgnoreReplaceTag, stReturnBefore);
   if (Nodes.SelectStmt2 > 0) then
   begin
     FormatNode(Nodes.AsTag);
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.SelectStmt2, stReturnBefore);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
   end;
 end;
 
@@ -12290,7 +12226,7 @@ begin
   FormatNode(Nodes.KeyTag);
   FormatNode(Nodes.KeyIdent, stSpaceBefore);
   FormatNode(Nodes.IndexTypeTag, stSpaceBefore);
-  Commands.WriteSpace();
+  FormatHandle.Commands.WriteSpace();
   FormatList(Nodes.KeyColumnList, sNone);
   FormatNode(Nodes.KeyBlockSizeValue, stSpaceBefore);
   FormatNode(Nodes.WithParserValue, stSpaceBefore);
@@ -12316,7 +12252,7 @@ begin
   FormatNode(Nodes.AddTag, stSpaceAfter);
   FormatNode(Nodes.PartitionTag);
   FormatNode(Nodes.NameIdent, stSpaceBefore);
-  Commands.IncreaseIndent();
+  FormatHandle.Commands.IncreaseIndent();
   FormatNode(Nodes.Values.Tag, stReturnBefore);
   FormatNode(Nodes.Values.Value, stSpaceBefore);
   FormatNode(Nodes.EngineValue, stReturnBefore);
@@ -12326,7 +12262,7 @@ begin
   FormatNode(Nodes.MaxRowsValue, stReturnBefore);
   FormatNode(Nodes.MinRowsValue, stReturnBefore);
   FormatNode(Nodes.SubPartitionList, stReturnBefore);
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatCreateTableStmtReference(const Nodes: TCreateTableStmt.TReference.TNodes);
@@ -12342,7 +12278,7 @@ end;
 procedure TSQLParser.FormatCreateTriggerStmt(const Nodes: TCreateTriggerStmt.TNodes);
 begin
   FormatNode(Nodes.CreateTag);
-  Commands.IncreaseIndent();
+  FormatHandle.Commands.IncreaseIndent();
   FormatNode(Nodes.DefinerNode, stSpaceBefore);
   FormatNode(Nodes.TriggerTag, stSpaceBefore);
   FormatNode(Nodes.Ident, stSpaceBefore);
@@ -12352,7 +12288,7 @@ begin
   FormatNode(Nodes.TableIdent, stSpaceBefore);
   FormatNode(Nodes.ForEachRowTag, stReturnBefore);
   FormatNode(Nodes.OrderValue, stReturnBefore);
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
   FormatNode(Nodes.Body, stReturnBefore);
 end;
 
@@ -12360,7 +12296,7 @@ procedure TSQLParser.FormatCreateUserStmt(const Nodes: TCreateUserStmt.TNodes);
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.IfNotExistsTag, stSpaceBefore);
-  Commands.IncreaseIndent();
+  FormatHandle.Commands.IncreaseIndent();
   FormatNode(Nodes.UserSpecifications, stReturnBefore);
   if (Nodes.WithTag > 0) then
   begin
@@ -12372,7 +12308,7 @@ begin
   end;
   FormatNode(Nodes.PasswordOption, stReturnBefore);
   FormatNode(Nodes.AccountTag, stReturnBefore);
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatCreateViewStmt(const Nodes: TCreateViewStmt.TNodes);
@@ -12391,18 +12327,18 @@ begin
     FormatNode(Nodes.ViewTag, stSpaceBefore);
     FormatNode(Nodes.Ident, stSpaceBefore);
     FormatNode(Nodes.FieldList, stSpaceBefore);
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.AsTag, stReturnBefore);
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.SelectStmt, stReturnBefore);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
     FormatNode(Nodes.OptionTag, stReturnBefore);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
   end
   else
   begin
     FormatNode(Nodes.CreateTag);
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.OrReplaceTag, stReturnBefore);
     FormatNode(Nodes.AlgorithmValue, stReturnBefore);
     FormatNode(Nodes.DefinerNode, stReturnBefore);
@@ -12411,20 +12347,12 @@ begin
     FormatNode(Nodes.Ident, stSpaceBefore);
     FormatNode(Nodes.FieldList, stSpaceBefore);
     FormatNode(Nodes.AsTag, stReturnBefore);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
     FormatNode(Nodes.SelectStmt, stReturnBefore);
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.OptionTag, stReturnBefore);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
   end;
-end;
-
-procedure TSQLParser.FormatCurrentTimestamp(const Nodes: TCurrentTimestamp.TNodes);
-begin
-  FormatNode(Nodes.CurrentTimestampTag);
-  FormatNode(Nodes.OpenBracket);
-  FormatNode(Nodes.LengthInteger);
-  FormatNode(Nodes.CloseBracket);
 end;
 
 procedure TSQLParser.FormatComments(const Token: PToken; Start: Boolean = False);
@@ -12448,15 +12376,15 @@ begin
         begin
           if (not Start) then
             if (not ReturnFound) then
-              Commands.WriteSpace()
+              FormatHandle.Commands.WriteSpace()
             else
-              Commands.WriteReturn();
+              FormatHandle.Commands.WriteReturn();
           T^.GetText(Text, Length);
           if (Text[0] = '#') then
-            Commands.Write('# ')
+            FormatHandle.Commands.Write('# ')
           else
-            Commands.Write('-- ');
-          Commands.Write(T^.AsString);
+            FormatHandle.Commands.Write('-- ');
+          FormatHandle.Commands.Write(T^.AsString);
           ReturnFound := False;
           Spacer := sReturn;
           Start := False;
@@ -12467,13 +12395,13 @@ begin
           if (Pos(#13#10, Comment) = 0) then
           begin
             if (not Start) then
-              if (ReturnFound) then
-                Commands.WriteReturn()
+              if (not ReturnFound) then
+                FormatHandle.Commands.WriteSpace()
               else
-                Commands.WriteSpace();
-            Commands.Write('/* ');
-            Commands.Write(Comment);
-            Commands.Write(' */');
+                FormatHandle.Commands.WriteReturn();
+            FormatHandle.Commands.Write('/* ');
+            FormatHandle.Commands.Write(Comment);
+            FormatHandle.Commands.Write(' */');
 
 //            if (not Start) then
 //              if (ReturnFound) then
@@ -12485,24 +12413,24 @@ begin
           else
           begin
             if (not Start) then
-              Commands.WriteReturn();
-            Commands.Write('/*');
-            Commands.IncreaseIndent();
-            Commands.WriteReturn();
+              FormatHandle.Commands.WriteReturn();
+            FormatHandle.Commands.Write('/*');
+            FormatHandle.Commands.IncreaseIndent();
+            FormatHandle.Commands.WriteReturn();
 
             Index := Pos(#13#10, Comment);
             while (Index > 0) do
             begin
-              Commands.Write(Copy(Comment, 1, Index - 1));
-              Commands.WriteReturn();
+              FormatHandle.Commands.Write(Copy(Comment, 1, Index - 1));
+              FormatHandle.Commands.WriteReturn();
               System.Delete(Comment, 1, Index + 1);
               Index := Pos(#13#10, Comment);
             end;
-            Commands.Write(Trim(Comment));
+            FormatHandle.Commands.Write(Trim(Comment));
 
-            Commands.DecreaseIndent();
-            Commands.WriteReturn();
-            Commands.Write('*/');
+            FormatHandle.Commands.DecreaseIndent();
+            FormatHandle.Commands.WriteReturn();
+            FormatHandle.Commands.Write('*/');
 
             ReturnFound := False;
             Spacer := sReturn;
@@ -12517,13 +12445,13 @@ begin
   case (Spacer) of
     sSpace:
       begin
-        Commands.WriteSpace();
-        CommentsWritten := True;
+        FormatHandle.Commands.WriteSpace();
+        FormatHandle.CommentsWritten := True;
       end;
     sReturn:
       begin
-        Commands.WriteReturn();
-        CommentsWritten := True;
+        FormatHandle.Commands.WriteReturn();
+        FormatHandle.CommentsWritten := True;
       end;
   end;
 end;
@@ -12568,7 +12496,8 @@ end;
 
 procedure TSQLParser.FormatDbIdent(const Nodes: TDbIdent.TNodes);
 begin
-  if (Nodes.DatabaseIdent > 0) then
+  if ((Nodes.DatabaseIdent > 0)
+    and (not IsToken(Nodes.DatabaseIdent) or (TableNameCmp(TokenPtr(Nodes.DatabaseIdent)^.AsString, FormatHandle.DatabaseName) <> 0))) then
   begin
     FormatNode(Nodes.DatabaseIdent);
     FormatNode(Nodes.DatabaseDot);
@@ -12586,9 +12515,9 @@ begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.Ident, stSpaceBefore);
   FormatNode(Nodes.CursorTag, stSpaceBefore);
-  Commands.IncreaseIndent();
+  FormatHandle.Commands.IncreaseIndent();
   FormatNode(Nodes.SelectStmt, stReturnBefore);
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatDeclareHandlerStmt(const Nodes: TDeclareHandlerStmt.TNodes);
@@ -12596,11 +12525,11 @@ begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.ActionTag, stSpaceBefore);
   FormatNode(Nodes.HandlerTag, stSpaceBefore);
-  Commands.IncreaseIndent();
+  FormatHandle.Commands.IncreaseIndent();
   FormatNode(Nodes.ForTag, stSpaceBefore);
   FormatNode(Nodes.ConditionsList, stSpaceBefore);
   FormatNode(Nodes.Stmt, stReturnBefore);
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatDeleteStmt(const Nodes: TDeleteStmt.TNodes);
@@ -12622,7 +12551,7 @@ begin
   end
   else if (Nodes.From.Tag < Nodes.From.List) then
   begin
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.From.Tag, stReturnBefore);
     FormatNode(Nodes.From.List, stSpaceBefore);
     FormatNode(Nodes.Partition.Tag, stReturnBefore);
@@ -12634,19 +12563,19 @@ begin
     FormatNode(Nodes.OrderBy.Expr, stSpaceBefore);
     FormatNode(Nodes.Limit.Tag, stReturnBefore);
     FormatNode(Nodes.Limit.Expr, stSpaceBefore);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
   end
   else
   begin
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.From.List, stReturnBefore);
-    Commands.IncreaseIndent();
-    Commands.WriteReturn();
+    FormatHandle.Commands.IncreaseIndent();
+    FormatHandle.Commands.WriteReturn();
     FormatNode(Nodes.From.Tag);
     FormatNode(Nodes.TableReferenceList, stReturnBefore);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
     FormatNode(Nodes.WhereValue, stReturnBefore);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
   end;
 end;
 
@@ -12654,9 +12583,9 @@ procedure TSQLParser.FormatDropTablespaceStmt(const Nodes: TDropTablespaceStmt.T
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.Ident, stSpaceBefore);
-  Commands.IncreaseIndent();
+  FormatHandle.Commands.IncreaseIndent();
   FormatNode(Nodes.EngineValue, stReturnBefore);
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatExistsFunc(const Nodes: TExistsFunc.TNodes);
@@ -12689,14 +12618,14 @@ begin
   FormatNode(Nodes.OpenBracket);
   FormatNode(Nodes.DistinctTag, stSpaceAfter);
   FormatNode(Nodes.ExprList);
-  Commands.IncreaseIndent();
+  FormatHandle.Commands.IncreaseIndent();
   if (Nodes.OrderByTag > 0) then
   begin
     FormatNode(Nodes.OrderByTag, stSpaceBefore);
     FormatNode(Nodes.OrderByExprList, stSpaceBefore);
   end;
   FormatNode(Nodes.SeparatorValue, stSpaceBefore);
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
   FormatNode(Nodes.CloseBracket);
 end;
 
@@ -12714,28 +12643,28 @@ begin
   begin
     FormatNode(Nodes.Tag);
     FormatNode(Nodes.ConditionExpr, stSpaceBefore);
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.ThenTag, stSpaceBefore);
     FormatNode(Nodes.StmtList, stReturnBefore);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
   end
   else if (TokenPtr(PTag(NodePtr(Nodes.Tag))^.Nodes.KeywordToken1)^.KeywordIndex = kiELSEIF) then
   begin
-    Commands.WriteReturn();
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.WriteReturn();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.Tag);
     FormatNode(Nodes.ConditionExpr, stSpaceBefore);
     FormatNode(Nodes.ThenTag, stSpaceBefore);
     FormatNode(Nodes.StmtList, stReturnBefore);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
   end
   else if (TokenPtr(PTag(NodePtr(Nodes.Tag))^.Nodes.KeywordToken1)^.KeywordIndex = kiELSE) then
   begin
-    Commands.WriteReturn();
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.WriteReturn();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.Tag);
     FormatNode(Nodes.StmtList, stReturnBefore);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
   end;
 end;
 
@@ -12760,9 +12689,9 @@ begin
     FormatNode(Nodes.Set_.List, stSpaceBefore);
     if (Nodes.SelectStmt > 0) then
     begin
-      Commands.IncreaseIndent();
+      FormatHandle.Commands.IncreaseIndent();
       FormatNode(Nodes.SelectStmt, stReturnBefore);
-      Commands.DecreaseIndent();
+      FormatHandle.Commands.DecreaseIndent();
       FormatNode(Nodes.OnDuplicateKeyUpdateTag, stReturnBefore);
     end
     else
@@ -12774,34 +12703,34 @@ begin
     FormatNode(Nodes.InsertTag);
     FormatNode(Nodes.PriorityTag, stSpaceBefore);
     FormatNode(Nodes.IgnoreTag, stSpaceBefore);
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.IntoTag, stReturnBefore);
     FormatNode(Nodes.TableIdent, stSpaceBefore);
     FormatNode(Nodes.Partition.Tag, stSpaceBefore);
     FormatNode(Nodes.Partition.List, stSpaceBefore);
     FormatNode(Nodes.ColumnList, stReturnBefore);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
     if (Nodes.Values.Tag > 0) then
     begin
       FormatNode(Nodes.Values.Tag, stReturnBefore);
-      Commands.IncreaseIndent();
-      Commands.WriteReturn();
+      FormatHandle.Commands.IncreaseIndent();
+      FormatHandle.Commands.WriteReturn();
       FormatList(Nodes.Values.List, sReturn);
-      Commands.DecreaseIndent();
+      FormatHandle.Commands.DecreaseIndent();
     end;
     if (Nodes.Set_.Tag > 0) then
     begin
       FormatNode(Nodes.Set_.Tag, stReturnBefore);
-      Commands.IncreaseIndent();
-      Commands.WriteReturn();
+      FormatHandle.Commands.IncreaseIndent();
+      FormatHandle.Commands.WriteReturn();
       FormatList(Nodes.Set_.List, sReturn);
-      Commands.DecreaseIndent();
+      FormatHandle.Commands.DecreaseIndent();
     end;
     if (Nodes.SelectStmt > 0) then
     begin
-      Commands.IncreaseIndent();
+      FormatHandle.Commands.IncreaseIndent();
       FormatNode(Nodes.SelectStmt, stReturnBefore);
-      Commands.DecreaseIndent();
+      FormatHandle.Commands.DecreaseIndent();
       FormatNode(Nodes.OnDuplicateKeyUpdateTag, stReturnBefore);
     end
     else
@@ -12838,10 +12767,10 @@ begin
     if (Assigned(Child)) then
       case (Spacer) of
         sSpace:
-          Commands.WriteSpace();
+          FormatHandle.Commands.WriteSpace();
         sReturn:
-          if (not Commands.NewLine) then
-            Commands.WriteReturn();
+          if (not FormatHandle.Commands.NewLine) then
+            FormatHandle.Commands.WriteReturn();
       end;
   end;
 
@@ -12864,7 +12793,7 @@ begin
   FormatNode(Nodes.PriorityTag, stSpaceBefore);
   FormatNode(Nodes.InfileTag, stSpaceBefore);
   FormatNode(Nodes.FilenameString, stSpaceBefore);
-  Commands.IncreaseIndent();
+  FormatHandle.Commands.IncreaseIndent();
   FormatNode(Nodes.ReplaceIgnoreTag, stReturnBefore);
   FormatNode(Nodes.IntoTableTag, stReturnBefore);
   FormatNode(Nodes.Ident, stSpaceBefore);
@@ -12874,26 +12803,26 @@ begin
   if (Nodes.ColumnsTag > 0) then
   begin
     FormatNode(Nodes.ColumnsTag, stReturnBefore);
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.ColumnsTerminatedByValue, stReturnBefore);
     FormatNode(Nodes.EnclosedByValue, stReturnBefore);
     FormatNode(Nodes.EscapedByValue, stReturnBefore);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
   end;
   if (Nodes.LinesTag > 0) then
   begin
     FormatNode(Nodes.LinesTag, stReturnBefore);
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.StartingByValue, stReturnBefore);
     FormatNode(Nodes.LinesTerminatedByValue, stReturnBefore);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
   end;
   FormatNode(Nodes.Ignore.Tag, stReturnBefore);
   FormatNode(Nodes.Ignore.NumberToken, stSpaceBefore);
   FormatNode(Nodes.Ignore.LinesTag, stSpaceBefore);
   FormatNode(Nodes.ColumnList, stReturnBefore);
   FormatNode(Nodes.SetList, stReturnBefore);
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatLoadXMLStmt(const Nodes: TLoadXMLStmt.TNodes);
@@ -12902,7 +12831,7 @@ begin
   FormatNode(Nodes.PriorityTag, stSpaceBefore);
   FormatNode(Nodes.InfileTag, stSpaceBefore);
   FormatNode(Nodes.FilenameString, stSpaceBefore);
-  Commands.IncreaseIndent();
+  FormatHandle.Commands.IncreaseIndent();
   FormatNode(Nodes.ReplaceIgnoreTag, stReturnBefore);
   FormatNode(Nodes.IntoTableValue, stReturnBefore);
   FormatNode(Nodes.CharacterSetValue, stReturnBefore);
@@ -12912,7 +12841,7 @@ begin
   FormatNode(Nodes.Ignore.LinesTag, stSpaceBefore);
   FormatNode(Nodes.FieldList, stReturnBefore);
   FormatNode(Nodes.SetList, stReturnBefore);
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatLockTablesStmtItem(const Nodes: TLockTablesStmt.TItem.TNodes);
@@ -12933,8 +12862,8 @@ begin
   begin
     if (Nodes.AsTag = 0) then
     begin
-      Commands.Write(' ');
-      Commands.Write(KeywordList.Word[kiAS]);
+      FormatHandle.Commands.Write(' ');
+      FormatHandle.Commands.Write(KeywordList.Word[kiAS]);
     end
     else
       FormatNode(Nodes.AsTag, stSpaceBefore);
@@ -12946,10 +12875,10 @@ end;
 procedure TSQLParser.FormatLoopStmt(const Nodes: TLoopStmt.TNodes);
 begin
   FormatNode(Nodes.BeginLabel, stSpaceAfter);
-  Commands.IncreaseIndent();
+  FormatHandle.Commands.IncreaseIndent();
   FormatNode(Nodes.BeginTag);
   FormatNode(Nodes.StmtList, stReturnBefore);
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
   FormatNode(Nodes.EndTag, stReturnBefore);
   FormatNode(Nodes.EndLabel, stSpaceBefore);
 end;
@@ -12999,13 +12928,13 @@ procedure TSQLParser.FormatNode(const Node: PNode; const Separator: TSeparatorTy
 begin
   if (Assigned(Node) and ((Node^.NodeType <> ntToken) or not PToken(Node)^.Hidden)) then
   begin
-    if (not Commands.NewLine) then
+    if (not FormatHandle.Commands.NewLine) then
       case (Separator) of
-        stReturnBefore: Commands.WriteReturn();
-        stSpaceBefore: Commands.WriteSpace();
+        stReturnBefore: FormatHandle.Commands.WriteReturn();
+        stSpaceBefore: FormatHandle.Commands.WriteSpace();
       end;
 
-    CommentsWritten := False;
+    FormatHandle.CommentsWritten := False;
     case (Node^.NodeType) of
       ntToken: FormatToken(PToken(Node));
       ntUnknownStmt: FormatUnknownStmt(PUnknownStmt(Node));
@@ -13061,7 +12990,6 @@ begin
       ntCreateTriggerStmt: FormatCreateTriggerStmt(PCreateTriggerStmt(Node)^.Nodes);
       ntCreateUserStmt: FormatCreateUserStmt(PCreateUserStmt(Node)^.Nodes);
       ntCreateViewStmt: FormatCreateViewStmt(PCreateViewStmt(Node)^.Nodes);
-      ntCurrentTimestamp: FormatCurrentTimestamp(PCurrentTimestamp(Node)^.Nodes);
       ntDatatype: FormatDatatype(PDatatype(Node)^.Nodes);
       ntDateAddFunc: FormatDateAddFunc(PDateAddFunc(Node)^.Nodes);
       ntDbIdent: FormatDbIdent(PDbIdent(Node)^.Nodes);
@@ -13214,7 +13142,7 @@ begin
       ntTruncateStmt: DefaultFormatNode(@PTruncateStmt(Node)^.Nodes, SizeOf(TTruncateStmt.TNodes));
       ntUnaryOp: FormatUnaryOp(PUnaryOp(Node)^.Nodes);
       ntUnlockTablesStmt: DefaultFormatNode(@PUnlockTablesStmt(Node)^.Nodes, SizeOf(TUnlockTablesStmt.TNodes));
-      ntUpdateStmt: DefaultFormatNode(@PUpdateStmt(Node)^.Nodes, SizeOf(TUpdateStmt.TNodes));
+      ntUpdateStmt: FormatUpdateStmt(PUpdateStmt(Node)^.Nodes);
       ntUser: FormatUser(PUser(Node)^.Nodes);
       ntUseStmt: DefaultFormatNode(@PUseStmt(Node)^.Nodes, SizeOf(TUseStmt.TNodes));
       ntValue: FormatValue(PValue(Node)^.Nodes);
@@ -13227,10 +13155,10 @@ begin
       else raise Exception.Create(SArgumentOutOfRange);
     end;
 
-    if (not CommentsWritten) then
+    if (not FormatHandle.CommentsWritten) then
       case (Separator) of
-        stReturnAfter: Commands.WriteReturn();
-        stSpaceAfter: Commands.WriteSpace();
+        stReturnAfter: FormatHandle.Commands.WriteReturn();
+        stSpaceAfter: FormatHandle.Commands.WriteSpace();
       end;
   end;
 end;
@@ -13244,9 +13172,9 @@ procedure TSQLParser.FormatRepeatStmt(const Nodes: TRepeatStmt.TNodes);
 begin
   FormatNode(Nodes.BeginLabel, stSpaceAfter);
   FormatNode(Nodes.RepeatTag);
-  Commands.IncreaseIndent();
+  FormatHandle.Commands.IncreaseIndent();
   FormatNode(Nodes.StmtList, stReturnBefore);
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
   FormatNode(Nodes.UntilTag, stReturnBefore);
   FormatNode(Nodes.SearchConditionExpr, stSpaceBefore);
   FormatNode(Nodes.EndTag, stSpaceBefore);
@@ -13279,16 +13207,16 @@ begin
 
     if (Nodes.StartsValue > 0) then
     begin
-      Commands.IncreaseIndent();
+      FormatHandle.Commands.IncreaseIndent();
       FormatNode(Nodes.StartsValue, stReturnBefore);
-      Commands.DecreaseIndent();
+      FormatHandle.Commands.DecreaseIndent();
     end;
 
     if (Nodes.EndsValue > 0) then
     begin
-      Commands.IncreaseIndent();
+      FormatHandle.Commands.IncreaseIndent();
       FormatNode(Nodes.EndsValue, stReturnBefore);
-      Commands.DecreaseIndent();
+      FormatHandle.Commands.DecreaseIndent();
     end;
   end
   else
@@ -13314,37 +13242,37 @@ var
       if (PTag(NodePtr(Nodes.Tag))^.Nodes.KeywordToken2 = kiOUTFILE) then
       begin
         FormatNode(Nodes.Tag, Separator);
-        Commands.IncreaseIndent();
+        FormatHandle.Commands.IncreaseIndent();
         if (Separator = stReturnBefore) then
-          Commands.WriteReturn();
+          FormatHandle.Commands.WriteReturn();
         FormatNode(Nodes.CharacterSetValue, stSpaceBefore);
         FormatNode(Nodes.FieldsTerminatedByValue, stSpaceBefore);
         FormatNode(Nodes.EnclosedByValue, stSpaceBefore);
         FormatNode(Nodes.LinesTerminatedByValue, stSpaceBefore);
-        Commands.DecreaseIndent();
+        FormatHandle.Commands.DecreaseIndent();
       end
       else if (PTag(NodePtr(Nodes.Tag))^.Nodes.KeywordToken2 = kiDUMPFILE) then
       begin
         FormatNode(Nodes.Tag, Separator);
-        Commands.IncreaseIndent();
+        FormatHandle.Commands.IncreaseIndent();
         if (Separator = stReturnBefore) then
-          Commands.WriteReturn();
+          FormatHandle.Commands.WriteReturn();
         FormatNode(Nodes.Filename, stSpaceBefore);
-        Commands.DecreaseIndent();
+        FormatHandle.Commands.DecreaseIndent();
       end
       else
       begin
         FormatNode(Nodes.Tag, Separator);
-        Commands.IncreaseIndent();
+        FormatHandle.Commands.IncreaseIndent();
         if (not ItemPerLine) then
           FormatNode(Nodes.VariableList, Separator)
         else
         begin
           if (Separator = stReturnBefore) then
-            Commands.WriteReturn();
+            FormatHandle.Commands.WriteReturn();
           FormatList(Nodes.VariableList, Spacer);
         end;
-        Commands.DecreaseIndent();
+        FormatHandle.Commands.DecreaseIndent();
       end;
   end;
 
@@ -13376,7 +13304,7 @@ begin
 
 
   FormatNode(Nodes.SelectTag);
-  Commands.IncreaseIndent();
+  FormatHandle.Commands.IncreaseIndent();
   FormatNode(Nodes.DistinctTag, stSpaceBefore);
   FormatNode(Nodes.HighPriorityTag, stSpaceBefore);
   FormatNode(Nodes.MaxStatementTime, stSpaceBefore);
@@ -13391,83 +13319,83 @@ begin
   else
   begin
     if (Separator = stSpaceBefore) then
-      Commands.WriteSpace()
+      FormatHandle.Commands.WriteSpace()
     else
-      Commands.WriteReturn();
+      FormatHandle.Commands.WriteReturn();
     FormatList(Nodes.ColumnsList, Spacer);
   end;
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
   FormatInto(Nodes.Into1);
   if (Nodes.From.Tag > 0) then
   begin
     FormatNode(Nodes.From.Tag, Separator);
-    Commands.IncreaseIndent();
-    if (Separator = stReturnBefore) then
-      Commands.WriteReturn()
+    FormatHandle.Commands.IncreaseIndent();
+    if (Separator = stSpaceBefore) then
+      FormatHandle.Commands.WriteSpace()
     else
-      Commands.WriteSpace();
+      FormatHandle.Commands.WriteReturn();
     FormatList(Nodes.From.TableReferenceList, Spacer);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
   end;
   if (Nodes.Partition.Tag > 0) then
   begin
     FormatNode(Nodes.Partition.Tag, Separator);
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.Partition.Tag, Separator);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
   end;
   if (Nodes.Where.Tag > 0) then
   begin
     FormatNode(Nodes.Where.Tag, Separator);
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.Where.Expr, Separator);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
   end;
   if (Nodes.GroupBy.Tag > 0) then
   begin
     FormatNode(Nodes.GroupBy.Tag, Separator);
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.GroupBy.List, Separator);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
     FormatNode(Nodes.GroupBy.WithRollupTag, stSpaceBefore);
   end;
   if (Nodes.Having.Tag > 0) then
   begin
     FormatNode(Nodes.Having.Tag, Separator);
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.Having.Expr, Separator);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
   end;
   if (Nodes.OrderBy.Tag > 0) then
   begin
     FormatNode(Nodes.OrderBy.Tag, Separator);
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.OrderBy.Expr, Separator);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
   end;
   if (Nodes.Limit.Tag > 0) then
   begin
     FormatNode(Nodes.Limit.Tag, Separator);
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     if (Separator = stSpaceBefore) then
-      Commands.WriteSpace()
+      FormatHandle.Commands.WriteSpace()
     else
-      Commands.WriteReturn();
+      FormatHandle.Commands.WriteReturn();
     if (Nodes.Limit.CommaToken > 0) then
     begin
       FormatNode(Nodes.Limit.OffsetToken);
       FormatNode(Nodes.Limit.CommaToken);
     end;
     FormatNode(Nodes.Limit.RowCountToken);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
   end;
   if (Nodes.Proc.Tag > 0) then
   begin
     FormatNode(Nodes.Proc.Tag, Separator);
-    Commands.IncreaseIndent();
+    FormatHandle.Commands.IncreaseIndent();
     FormatNode(Nodes.Proc.Ident, Separator);
     FormatNode(Nodes.Proc.ParamList, stSpaceBefore);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
   end;
   FormatInto(Nodes.Into2);
   FormatNode(Nodes.ForUpdatesTag, Separator);
@@ -13494,8 +13422,8 @@ begin
   begin
     if (Nodes.AsTag = 0) then
     begin
-      Commands.Write(' ');
-      Commands.Write(KeywordList.Word[kiAS]);
+      FormatHandle.Commands.Write(' ');
+      FormatHandle.Commands.Write(KeywordList.Word[kiAS]);
     end
     else
       FormatNode(Nodes.AsTag, stSpaceBefore);
@@ -13523,8 +13451,8 @@ begin
   begin
     if (Nodes.AsTag = 0) then
     begin
-      Commands.Write(' ');
-      Commands.Write(KeywordList.Word[kiAS]);
+      FormatHandle.Commands.Write(' ');
+      FormatHandle.Commands.Write(KeywordList.Word[kiAS]);
     end
     else
       FormatNode(Nodes.AsTag, stSpaceBefore);
@@ -13544,12 +13472,12 @@ end;
 
 procedure TSQLParser.FormatSelectStmtTableJoin(const Nodes: TSelectStmt.TTableJoin.TNodes);
 begin
-  Commands.IncreaseIndent();
+  FormatHandle.Commands.IncreaseIndent();
   FormatNode(Nodes.JoinTag, stReturnBefore);
   FormatNode(Nodes.RightTable, stSpaceBefore);
   FormatNode(Nodes.OnTag, stSpaceBefore);
   FormatNode(Nodes.Condition, stSpaceBefore);
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatSetStmt(const Nodes: TSetStmt.TNodes);
@@ -13569,10 +13497,10 @@ begin
   end
   else
   begin
-    Commands.IncreaseIndent();
-    Commands.WriteReturn();
+    FormatHandle.Commands.IncreaseIndent();
+    FormatHandle.Commands.WriteReturn();
     FormatList(Nodes.AssignmentList, sReturn);
-    Commands.DecreaseIndent();
+    FormatHandle.Commands.DecreaseIndent();
   end;
 end;
 
@@ -13582,7 +13510,7 @@ begin
   FormatNode(Nodes.InValue, stSpaceBefore);
   FormatNode(Nodes.FromValue, stSpaceBefore);
   FormatNode(Nodes.Limit.Tag, stSpaceBefore);
-  Commands.WriteSpace();
+  FormatHandle.Commands.WriteSpace();
   FormatNode(Nodes.Limit.OffsetToken);
   FormatNode(Nodes.Limit.CommaToken);
   FormatNode(Nodes.Limit.RowCountToken);
@@ -13592,7 +13520,7 @@ procedure TSQLParser.FormatShowErrorsStmt(const Nodes: TShowErrorsStmt.TNodes);
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.Limit.Tag, stSpaceBefore);
-  Commands.WriteSpace();
+  FormatHandle.Commands.WriteSpace();
   FormatNode(Nodes.Limit.OffsetToken);
   FormatNode(Nodes.Limit.CommaToken);
   FormatNode(Nodes.Limit.RowCountToken);
@@ -13604,7 +13532,7 @@ begin
   FormatNode(Nodes.InValue, stSpaceBefore);
   FormatNode(Nodes.FromValue, stSpaceBefore);
   FormatNode(Nodes.Limit.Tag, stSpaceBefore);
-  Commands.WriteSpace();
+  FormatHandle.Commands.WriteSpace();
   FormatNode(Nodes.Limit.OffsetToken);
   FormatNode(Nodes.Limit.CommaToken);
   FormatNode(Nodes.Limit.RowCountToken);
@@ -13614,24 +13542,26 @@ procedure TSQLParser.FormatShowWarningsStmt(const Nodes: TShowWarningsStmt.TNode
 begin
   FormatNode(Nodes.StmtTag);
   FormatNode(Nodes.Limit.Tag, stSpaceBefore);
-  Commands.WriteSpace();
+  FormatHandle.Commands.WriteSpace();
   FormatNode(Nodes.Limit.OffsetToken);
   FormatNode(Nodes.Limit.CommaToken);
   FormatNode(Nodes.Limit.RowCountToken);
 end;
 
-procedure TSQLParser.FormatSQL(out SQL: string);
+function TSQLParser.FormatSQL(const DatabaseName: string = ''): string;
 begin
   if (not Assigned(Root)) then
-    SQL := ''
+    Result := ''
   else
   begin
-    Commands := TFormatBuffer.Create();
+    FormatHandle.Commands := TFormatBuffer.Create();
 
+    FormatHandle.DatabaseName := DatabaseName;
     FormatRoot(Root);
 
-    SQL := Commands.Read();
-    Commands.Free(); Commands := nil;
+    Result := FormatHandle.Commands.Read();
+
+    FormatHandle.Commands.Free(); FormatHandle.Commands := nil;
   end;
 end;
 
@@ -13653,7 +13583,7 @@ procedure TSQLParser.FormatSubPartition(const Nodes: TSubPartition.TNodes);
 begin
   FormatNode(Nodes.SubPartitionTag);
   FormatNode(Nodes.NameIdent, stSpaceBefore);
-  Commands.IncreaseIndent();
+  FormatHandle.Commands.IncreaseIndent();
   FormatNode(Nodes.EngineValue, stReturnBefore);
   FormatNode(Nodes.CommentValue, stReturnBefore);
   FormatNode(Nodes.DataDirectoryValue, stReturnBefore);
@@ -13661,7 +13591,7 @@ begin
   FormatNode(Nodes.MaxRowsValue, stReturnBefore);
   FormatNode(Nodes.MinRowsValue, stReturnBefore);
   FormatNode(Nodes.TablespaceValue, stReturnBefore);
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
 end;
 
 procedure TSQLParser.FormatSubquery(const Nodes: TSubquery.TNodes);
@@ -13746,7 +13676,7 @@ begin
           POP ES
       end;
 
-      Commands.Write(@Keyword[0], Token^.Length);
+      FormatHandle.Commands.Write(@Keyword[0], Token^.Length);
     end;
   end
   else if (Token^.UsageType = utDatatype) then
@@ -13786,21 +13716,21 @@ begin
           POP ES
       end;
 
-      Commands.Write(@Keyword[0], Token^.Length);
+      FormatHandle.Commands.Write(@Keyword[0], Token^.Length);
     end;
   end
   else if ((Token^.UsageType = utDbIdent) and ((Token^.TokenType = ttMySQLIdent) or (Token^.TokenType = ttDQIdent) and AnsiQuotes)
     or (Token^.DbIdentType in [ditDatabase, ditTable, ditProcedure, ditFunction, ditTrigger, ditEvent, ditKey, ditField, ditForeignKey, ditPartition, ditServer, ditAlias])) then
     if (AnsiQuotes) then
-      Commands.Write(SQLEscape(Token^.AsString, '"'))
+      FormatHandle.Commands.Write(SQLEscape(Token^.AsString, '"'))
     else
-      Commands.Write(SQLEscape(Token^.AsString, '`'))
+      FormatHandle.Commands.Write(SQLEscape(Token^.AsString, '`'))
   else if ((Token^.UsageType = utConst) and (Token^.TokenType in ttStrings)) then
-    Commands.Write(SQLEscape(Token^.AsString, ''''))
+    FormatHandle.Commands.Write(SQLEscape(Token^.AsString, ''''))
   else
   begin
     Token^.GetText(Text, Length);
-    Commands.Write(Text, Length);
+    FormatHandle.Commands.Write(Text, Length);
   end;
 
   FormatComments(Token^.NextTokenAll, False);
@@ -13821,7 +13751,7 @@ procedure TSQLParser.FormatUnaryOp(const Nodes: TUnaryOp.TNodes);
 begin
   FormatNode(Nodes.Operator);
   if (IsToken(Nodes.Operator) and (TokenPtr(Nodes.Operator)^.KeywordIndex >= 0)) then
-    Commands.WriteSpace();
+    FormatHandle.Commands.WriteSpace();
   FormatNode(Nodes.Operand);
 end;
 
@@ -13843,6 +13773,77 @@ begin
   end;
 end;
 
+procedure TSQLParser.FormatUpdateStmt(const Nodes: TUpdateStmt.TNodes);
+var
+  ItemPerLine: Boolean;
+  Separator: TSeparatorType;
+  Spacer: TSpacer;
+begin
+  if (((Nodes.TableReferenceList = 0)
+      or (NodePtr(Nodes.TableReferenceList)^.NodeType <> ntList)
+      or (PList(NodePtr(Nodes.TableReferenceList))^.ElementCount = 1))
+    and ((Nodes.TableReferenceList = 0)
+      or (NodePtr(Nodes.TableReferenceList)^.NodeType <> ntList)
+      or (PList(NodePtr(Nodes.TableReferenceList))^.Nodes.FirstChild = 0)
+      or (NodePtr(PList(NodePtr(Nodes.TableReferenceList))^.Nodes.FirstChild)^.NodeType <> ntList)
+      or (PList(NodePtr(PList(NodePtr(Nodes.TableReferenceList))^.Nodes.FirstChild))^.ElementCount = 1))) then
+  begin
+    ItemPerLine := False;
+    Separator := stSpaceBefore;
+    Spacer := sSpace;
+  end
+  else
+  begin
+    ItemPerLine := True;
+    Separator := stReturnBefore;
+    Spacer := sReturn;
+  end;
+
+  FormatNode(Nodes.UpdateTag);
+  FormatNode(Nodes.PriorityTag, stSpaceBefore);
+
+  if (not ItemPerLine) then
+    FormatNode(Nodes.TableReferenceList, Separator)
+  else
+  begin
+    FormatHandle.Commands.IncreaseIndent();
+    if (Separator = stSpaceBefore) then
+      FormatHandle.Commands.WriteSpace()
+    else
+      FormatHandle.Commands.WriteReturn();
+    FormatList(Nodes.TableReferenceList, Spacer);
+    FormatHandle.Commands.DecreaseIndent();
+  end;
+  FormatNode(Nodes.Set_.Tag, Separator);
+  if (not ItemPerLine) then
+    FormatNode(Nodes.Set_.PairList, Separator)
+  else
+  begin
+    FormatHandle.Commands.IncreaseIndent();
+    if (Separator = stSpaceBefore) then
+      FormatHandle.Commands.WriteSpace()
+    else
+      FormatHandle.Commands.WriteReturn();
+    FormatList(Nodes.Set_.PairList, Spacer);
+    FormatHandle.Commands.DecreaseIndent();
+  end;
+  FormatNode(Nodes.Where.Tag, Separator);
+  if (not ItemPerLine) then
+    FormatNode(Nodes.Where.Expr, stSpaceBefore)
+  else
+  begin
+    FormatHandle.Commands.IncreaseIndent();
+    if (Separator = stSpaceBefore) then
+      FormatHandle.Commands.WriteSpace()
+    else
+      FormatHandle.Commands.WriteReturn();
+    FormatNode(Nodes.Where.Expr);
+    FormatHandle.Commands.DecreaseIndent();
+  end;
+  FormatNode(Nodes.Limit.Tag, Separator);
+  FormatNode(Nodes.Limit.Expr, stSpaceBefore);
+end;
+
 procedure TSQLParser.FormatUser(const Nodes: TUser.TNodes);
 begin
   FormatNode(Nodes.NameToken);
@@ -13854,11 +13855,11 @@ procedure TSQLParser.FormatValue(const Nodes: TValue.TNodes);
 begin
   FormatNode(Nodes.IdentTag);
   if (Nodes.AssignToken = 0) then
-    Commands.WriteSpace()
+    FormatHandle.Commands.WriteSpace()
   else
   begin
     FormatNode(Nodes.AssignToken, stSpaceBefore);
-    Commands.WriteSpace();
+    FormatHandle.Commands.WriteSpace();
   end;
   FormatNode(Nodes.Expr);
 end;
@@ -13889,10 +13890,10 @@ begin
   FormatNode(Nodes.BeginLabel, stSpaceAfter);
   FormatNode(Nodes.WhileTag);
   FormatNode(Nodes.SearchConditionExpr, stSpaceBefore);
-  Commands.IncreaseIndent();
+  FormatHandle.Commands.IncreaseIndent();
   FormatNode(Nodes.DoTag, stSpaceBefore);
   FormatNode(Nodes.StmtList, stReturnBefore);
-  Commands.DecreaseIndent();
+  FormatHandle.Commands.DecreaseIndent();
   FormatNode(Nodes.EndTag, stReturnBefore);
   FormatNode(Nodes.EndLabel, stSpaceBefore);
 end;
@@ -13974,7 +13975,7 @@ begin
         if (TokenPtr(Token)^.IsUsed) then
         begin
           {$IFDEF Debug}
-          TokenPtr(Token)^.FIndex := TokenIndex; Inc(TokenIndex);
+          Inc(TokenIndex);
           {$ENDIF}
 
           Assert(TokenBuffer.Count < System.Length(TokenBuffer.Items));
@@ -14050,11 +14051,6 @@ end;
 function TSQLParser.IsRange(const ANode: TOffset): Boolean;
 begin
   Result := IsRange(NodePtr(ANode));
-end;
-
-function TSQLParser.IsRoot(const ANode: PNode): Boolean;
-begin
-  Result := Assigned(ANode) and (ANode^.NodeType = ntRoot);
 end;
 
 function TSQLParser.IsStmt(const ANode: PNode): Boolean;
@@ -14283,7 +14279,6 @@ begin
     ntCreateTriggerStmt: Result := SizeOf(TCreateTriggerStmt);
     ntCreateUserStmt: Result := SizeOf(TCreateUserStmt);
     ntCreateViewStmt: Result := SizeOf(TCreateViewStmt);
-    ntCurrentTimestamp: Result := SizeOf(TCurrentTimestamp);
     ntDatatype: Result := SizeOf(TDatatype);
     ntDateAddFunc: Result := SizeOf(TDateAddFunc);
     ntDbIdent: Result := SizeOf(TDbIdent);
@@ -17684,29 +17679,6 @@ begin
   Result := TCreateViewStmt.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseCurrentTimestamp(): TOffset;
-var
-  Nodes: TCurrentTimestamp.TNodes;
-begin
-  FillChar(Nodes, SizeOf(Nodes), 0);
-
-  Nodes.CurrentTimestampTag := ParseTag(kiCURRENT_TIMESTAMP);
-
-  if (not ErrorFound) then
-    if (IsSymbol(ttOpenBracket)) then
-    begin
-      Nodes.OpenBracket := ParseSymbol(ttOpenBracket);
-
-      if (not ErrorFound) then
-        Nodes.LengthInteger := ParseInteger();
-
-      if (not ErrorFound) then
-        Nodes.CloseBracket := ParseSymbol(ttCloseBracket);
-    end;
-
-  Result := TCurrentTimestamp.Create(Self, Nodes);
-end;
-
 function TSQLParser.ParseDatabaseIdent(): TOffset;
 begin
   Result := ParseDbIdent(ditDatabase);
@@ -19008,10 +18980,8 @@ begin
               end;
             otAnd,
             otAssign,
-            otAssign2,
             otBitAND,
             otBitOR,
-            otBitXOR,
             otCollate,
             otDiv,
             otDivision,
@@ -19028,7 +18998,6 @@ begin
             otNotEqual,
             otNullSaveEqual,
             otOr,
-            otPipes,
             otPlus,
             otShiftLeft,
             otShiftRight,
@@ -20436,17 +20405,6 @@ begin
   Result := TLoopStmt.Create(Self, Nodes);
 end;
 
-function TSQLParser.ParseNumeric(): TOffset;
-begin
-  Result := 0;
-  if (EndOfStmt(CurrentToken)) then
-    SetError(PE_IncompleteStmt)
-  else if (TokenPtr(CurrentToken)^.TokenType <> ttNumeric) then
-    SetError(PE_UnexpectedToken)
-  else
-    Result := ApplyCurrentToken(utConst);
-end;
-
 function TSQLParser.ParseMatchFunc(): TOffset;
 var
   Nodes: TMatchFunc.TNodes;
@@ -21600,7 +21558,7 @@ function TSQLParser.ParseSelectStmtTableReference(): TOffset;
 
 var
   ChildrenCount: Integer;
-  Children: array[0 .. 99] of TOffset;
+  Children: array [0 .. 99] of TOffset;
   JoinNodes: TSelectStmt.TTableJoin.TNodes;
   JoinType: TJoinType;
   Nodes: TList.TNodes;
@@ -21847,7 +21805,7 @@ begin
       TokenPtr(CurrentToken)^.FOperatorType := otAssign;
       Nodes.AssignToken := ApplyCurrentToken();
     end
-    else if (TokenPtr(CurrentToken)^.OperatorType = otAssign2) then
+    else if (TokenPtr(CurrentToken)^.OperatorType = otAssign) then
       Nodes.AssignToken := ApplyCurrentToken()
     else
       SetError(PE_UnexpectedToken);
@@ -23077,6 +23035,8 @@ begin
   else if (IsTag(kiDROP, kiTEMPORARY, kiTABLE)
     or IsTag(kiDROP, kiTABLE)) then
     Result := ParseDropTableStmt()
+  else if (IsTag(kiDROP, kiTABLESPACE)) then
+    Result := ParseDropTablespaceStmt()
   else if (IsTag(kiDROP, kiTRIGGER)) then
     Result := ParseDropTriggerStmt()
   else if (IsTag(kiDROP, kiUSER)) then
@@ -23121,6 +23081,10 @@ begin
     Result := ParsePurgeStmt()
   else if (InPL_SQL and IsTag(kiOPEN)) then
     Result := ParseOpenStmt()
+  else if (IsTag(kiOPTIMIZE, kiNO_WRITE_TO_BINLOG, kiTABLE)
+    or IsTag(kiOPTIMIZE, kiLOCAL, kiTABLE)
+    or IsTag(kiOPTIMIZE, kiTABLE)) then
+    Result := ParseOptimizeTableStmt()
   else if (IsTag(kiRENAME)) then
     Result := ParseRenameStmt()
   else if (IsTag(kiREPAIR, kiTABLE)) then
@@ -23624,13 +23588,13 @@ function TSQLParser.ParseToken(out ErrorCode: Byte; out ErrorLine: Integer; out 
 label
   TwoChars,
   Selection, SelSpace, SelQuotedIdent, SelNotLess, SelNotEqual1, SelNotGreater,
-    SelNot1, SelDoubleQuote, SelComment, SelModulo, SelDolor, SelAmpersand2,
+    SelNot1, SelDoubleQuote, SelComment, SelModulo, SelDollar, SelAmpersand2,
     SelBitAND, SelSingleQuote, SelOpenBracket, SelCloseBracket, SelMySQLCondEnd,
     SelMulti, SelComma, SelDoubleDot, SelDot, SelDotNumber, SelMySQLCode,
-    SelDiv, SelInteger, SelSLComment, SelArrow, SelMinus, SelPlus, SelAssign,
+    SelDiv, SelInteger, SelSLComment, SelMinus, SelPlus, SelAssign,
     SelColon, SelDelimiter, SelNULLSaveEqual, SelLessEqual, SelShiftLeft,
     SelNotEqual2, SelLess, SelEqual, SelGreaterEqual, SelShiftRight, SelGreater,
-    SelParameter, SelAt, SelHex, SelHex2, SelUnquotedIdent, SelOpenSquareBracket,
+    SelAt, SelHex, SelHex2, SelUnquotedIdent, SelOpenSquareBracket,
     SelCloseSquareBracket, SelHat, SelIdent, SelMySQLIdent, SelBitValueHigh,
     SelBitValueLow, SelHexValueHigh, SelHexValueLow, SelNatValueHigh,
     SelNatValueLow, SelUnquotedIdentLower, SelOpenCurlyBracket,
@@ -23638,7 +23602,7 @@ label
   SLComment, SLCommentL,
   MLComment, MLCommentL, MLCommentL2, MLCommentL3,
   Ident, IdentL, IdentL2, IdentL3, IdentLE, IdentE, IdentE2, IdentE3,
-  Quoted, QuotedL, QuotedL2, QuotedLE, QuotedE, QuotedE2, QuotedE3,
+  Quoted, QuotedL, QuotedL2, QuotedLE, QuotedE, QuotedE2, QuotedE3, QuotedE4, QuotedE5,
     QuotedSecondQuoter, QuotedSecondQuoterL, QuotedSecondQuoterLE,
   Numeric, NumericL, NumericExp, NumericE, NumericDot, NumericLE,
   Hex, HexL, HexL2, HexLE,
@@ -23668,6 +23632,7 @@ var
   TokenLength: Integer;
   TokenType: TTokenType;
   UsageType: TUsageType;
+  IsUsed: Boolean;
 begin
   if (ParseHandle.Length = 0) then
     Result := 0
@@ -23747,7 +23712,7 @@ begin
       SelComment:
         CMP AX,'#'                       // "#" ?
         JE SLComment                     // Yes!
-      SelDolor:
+      SelDollar:
         CMP AX,'$'                       // "$" ?
         JE Ident                         // Yes!
       SelModulo:
@@ -23804,7 +23769,7 @@ begin
         CMP AX,'-'                       // "-" ?
         JNE SelDoubleDot                 // No!
         CMP EAX,$002D002D                // "--" ?
-        JNE SelArrow                     // No!
+        JNE SelMinus                     // No!
         CMP ECX,3                        // Three characters in SQL?
         JB DoubleChar                    // No!
         CMP WORD PTR [ESI + 4],9         // "--<Tab>" ?
@@ -23818,21 +23783,12 @@ begin
         ADD ESI,4                        // Step over "--"
         SUB ECX,2                        // Two characters handled
         JMP UnexpectedChar
-      SelArrow:
-        CMP EAX,$003E002D                // "->" ?
-        JNE SelMinus                     // No!
-        MOV OperatorType,otArrow
-        JMP DoubleChar
       SelMinus:
         MOV OperatorType,otMinus
         JMP SingleChar
       SelDoubleDot:
         CMP AX,'.'                       // "." ?
         JNE SelMySQLCode                 // No!
-        CMP EAX,$002E002E                // ".." ?
-        JNE SelDotNumber                 // No!
-        MOV OperatorType,otDoubleDot
-        JMP DoubleChar
       SelDotNumber:
         CMP EAX,$0030002E                // ".0" ?
         JB SelDot                        // Less!
@@ -23862,7 +23818,7 @@ begin
       SelAssign:
         CMP EAX,$003D003A                // ":=" ?
         JNE SelColon                     // No!
-        MOV OperatorType,otAssign2
+        MOV OperatorType,otAssign
         JMP DoubleChar
       SelColon:
         CMP AX,':'                       // ":" ?
@@ -23908,7 +23864,7 @@ begin
         JMP SingleChar
       SelGreaterEqual:
         CMP AX,'>'                       // ">" ?
-        JNE SelParameter                 // No!
+        JNE SelAt                        // No!
         CMP EAX,$003D003E                // ">=" ?
         JNE SelShiftRight                // No!
         MOV OperatorType,otGreaterEqual
@@ -23920,11 +23876,6 @@ begin
         JMP DoubleChar
       SelGreater:
         MOV OperatorType,otGreater
-        JMP SingleChar
-      SelParameter:
-        CMP AX,'?'                       // "?" ?
-        JNE SelAt                        // No!
-        MOV OperatorType,otParameter
         JMP SingleChar
       SelAt:
         CMP AX,'@'                       // "@" ?
@@ -24038,7 +23989,7 @@ begin
         JNE SelCloseCurlyBracket         // No!
         CMP EAX,$007C007C                // "||" ?
         JNE SelBitOR                     // No!
-        MOV OperatorType,otPipes
+        MOV OperatorType,otOr
         JMP DoubleChar
       SelBitOR:
         MOV OperatorType,otBitOr
@@ -24161,6 +24112,7 @@ begin
         ADD ESI,2                        // Step over Start Quoter in SQL
         DEC ECX                          // One character handled
         JZ IncompleteToken               // End of SQL!
+        MOV EDI,ESI
       QuotedL:
         MOV AX,[ESI]                     // One Character from SQL to AX
         CMP AX,10                        // <NewLine> ?
@@ -24183,17 +24135,27 @@ begin
         LOOP QuotedL
         JMP IncompleteToken
       QuotedE:
-        ADD ESI,2                        // Step over End Quoter in SQL
-        DEC ECX                          // One character handled
-        JZ Finish                        // All characters handled!
-        MOV AX,[ESI]                     // One Character from SQL to AX
-        CMP DX,''''                      // Quoter = "'"?
+        CMP DX,'`'                       // Quoter = "`"?
         JE QuotedE2                      // Yes!
-        CMP AnsiQuotes,True              // AnsiQuotes?
-        JE QuotedE3                      // Yes!
         CMP DX,'"'                       // Quoter = '"'?
         JNE QuotedE3                     // No!
+        CMP AnsiQuotes,True              // AnsiQuotes?
+        JNE QuotedE3                     // No!
       QuotedE2:
+        CMP ESI,EDI                      // Empty Identifier?
+        JE UnexpectedChar                // Yes!
+      QuotedE3:
+        ADD ESI,2                        // Step over End Quoter in SQL
+        DEC ECX                          // One character handled
+        JZ Finish                        // End of SQL!
+        MOV AX,[ESI]                     // One Character from SQL to AX
+        CMP DX,''''                      // Quoter = "'"?
+        JE QuotedE4                      // Yes!
+        CMP AnsiQuotes,True              // AnsiQuotes?
+        JE QuotedE5                      // Yes!
+        CMP DX,'"'                       // Quoter = '"'?
+        JNE QuotedE5                     // No!
+      QuotedE4:
         CMP AX,9                         // <Tabulator> ?
         JE QuotedSecondQuoter            // Yes!
         CMP AX,10                        // <NewLine> ?
@@ -24202,7 +24164,7 @@ begin
         JE QuotedSecondQuoter            // Yes!
         CMP AX,' '                       // <Space> ?
         JE QuotedSecondQuoter            // Yes!
-      QuotedE3:
+      QuotedE5:
         CMP AX,DX                        // A seconed End Quoter (unescaped)?
         JNE Finish                       // No!
         ADD ESI,2                        // Step over second End Quoter in SQL
@@ -24513,7 +24475,10 @@ begin
     if ((TokenType = ttUnknown) and (OperatorType <> otUnknown)) then
       TokenType := ttOperator;
 
-    Result := TToken.Create(Self, SQL, TokenLength, TokenType, OperatorType, KeywordIndex, UsageType);
+    IsUsed := not (TokenType in [ttSpace, ttReturn, ttSLComment, ttMLComment, ttMySQLCondStart, ttMySQLCondEnd])
+      and ((AllowedMySQLVersion = 0) or (MySQLVersion >= AllowedMySQLVersion));
+
+    Result := TToken.Create(Self, SQL, TokenLength, TokenType, OperatorType, KeywordIndex, UsageType, IsUsed {$IFDEF Debug}, TokenIndex {$ENDIF});
 
     ParseHandle.Pos := @ParseHandle.Pos[TokenLength];
     Dec(ParseHandle.Length, TokenLength);
@@ -24635,7 +24600,7 @@ begin
     Nodes.Set_.Tag := ParseTag(kiSET);
 
   if (not ErrorFound) then
-    Nodes.Set_.Pairs := ParseList(False, ParseUpdateStmtValue);
+    Nodes.Set_.PairList := ParseList(False, ParseUpdateStmtValue);
 
   if (not ErrorFound) then
     if (IsTag(kiWHERE)) then
@@ -24841,35 +24806,6 @@ begin
 
   if (not ErrorFound) then
     Nodes.Expr := ParseValueNode();
-
-  Result := TValue.Create(Self, Nodes);
-end;
-
-function TSQLParser.ParseValue(const KeywordIndices: TWordList.TIndices;
-  const Assign: TValueAssign; const Brackets: Boolean;
-  const ParseItem: TParseFunction): TOffset;
-var
-  Nodes: TValue.TNodes;
-begin
-  Assert(KeywordIndices[4] = -1);
-
-  FillChar(Nodes, SizeOf(Nodes), 0);
-
-  Nodes.IdentTag := ParseTag(KeywordIndices[0], KeywordIndices[1], KeywordIndices[2], KeywordIndices[3], KeywordIndices[4], KeywordIndices[5], KeywordIndices[6]);
-
-  if (not ErrorFound and (Assign in [vaYes, vaAuto])) then
-    if (EndOfStmt(CurrentToken)) then
-      SetError(PE_IncompleteStmt)
-    else if (TokenPtr(CurrentToken)^.OperatorType = otEqual) then
-    begin
-      TokenPtr(CurrentToken)^.FOperatorType := otAssign;
-      Nodes.AssignToken := ApplyCurrentToken();
-    end
-    else if (Assign = vaYes) then
-      SetError(PE_UnexpectedToken);
-
-  if (not ErrorFound) then
-    Nodes.Expr := ParseList(Brackets, ParseItem);
 
   Result := TValue.Create(Self, Nodes);
 end;
@@ -25513,7 +25449,7 @@ begin
         HTML := '';
     end;
 
-    FormatSQL(SQL);
+    SQL := FormatSQL();
     HTML := HTML
       + '<br><br>'
       + '<code>' + HTMLEscape(ReplaceStr(SQL, ' ', '&nbsp;')) + '</code>';
@@ -25547,7 +25483,7 @@ begin
   if (Handle = INVALID_HANDLE_VALUE) then
     RaiseLastOSError();
 
-  FormatSQL(SQL);
+  SQL := FormatSQL();
 
   if (not WriteFile(Handle, PChar(BOM_UNICODE_LE)^, StrLen(BOM_UNICODE_LE), Size, nil)
     or not WriteFile(Handle, PChar(SQL)^, Length(SQL) * SizeOf(SQL[1]), Size, nil)
@@ -26245,6 +26181,14 @@ begin
     Result := @Nodes.Mem[Node];
 end;
 
+function TSQLParser.TableNameCmp(const Name1, Name2: string): Integer;
+begin
+  if (LowerCaseTableNames = 0) then
+    Result := lstrcmp(PChar(Name1), PChar(Name2))
+  else
+    Result := lstrcmpi(PChar(Name1), PChar(Name2));
+end;
+
 function TSQLParser.TokenPtr(const Token: TOffset): PToken;
 begin
   Assert((Token = 0) or IsToken(Token));
@@ -26272,4 +26216,5 @@ end.
 // Add second keyword into CompletionList
 // Lange Expressions umbrechen
 // INSERT ... CompletionList for Column names
+// UPDATE `pronostico` AS `p` SET `p`.`corregido` = 1;  ... remove AliasIdent
 

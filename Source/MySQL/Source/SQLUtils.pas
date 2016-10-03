@@ -2119,16 +2119,17 @@ begin
         SHR EDI,1                        // 2 Bytes = 1 character
         MOV Len,EDI
 
-        CMP TrimAfterValue,False
-        JE FinishE
-        CALL Trim                        // Step over emtpy characters
-
-      FinishE:
         MOV EBX,Handle
         MOV [EBX + 0],ESI                // Position in SQL
         MOV [EBX + 4],ECX                // Characters left in SQL
-        MOV [EBX + 8],EDX                // MySQL Version
 
+        CMP TrimAfterValue,False
+        JE FinishE
+
+        MOV EDX,[EBX + 8]                // MySQL Version
+        CALL Trim                        // Step over emtpy characters
+
+      FinishE:
         POP EBX
         POP EDI
         POP ESI
@@ -2146,7 +2147,7 @@ label
   Quoted,
   Unquoted, UnquotedL, Unquoted1, Unquoted2, UnquotedTerminatorsL, UnquotedC, UnquotedLE,
   Compare,
-  Found, FoundE,
+  Found,
   Finish;
 const
   Terminators: PChar = #9#10#13#32'",.:;=`'; // Characters, terminating the value
@@ -2281,17 +2282,17 @@ begin
         JNE Finish                       // No!
 
       Found:
-        MOV @Result,TRUE                 // Value found!
-
-        CMP TrimAfterValue,False
-        JE FoundE
-        CALL Trim                        // Step over emtpy characters
-
-      FoundE:
         MOV EBX,Handle
         MOV [EBX + 0],ESI                // Position in SQL
         MOV [EBX + 4],ECX                // Characters left in SQL
-        MOV [EBX + 8],EDX                // MySQL Version
+
+        MOV @Result,TRUE                 // Value found!
+
+        CMP TrimAfterValue,False
+        JE Finish
+
+        MOV EDX,[EBX + 8]                // MySQL Version
+        CALL Trim                        // Step over emtpy characters
 
       Finish:
         POP EBX
