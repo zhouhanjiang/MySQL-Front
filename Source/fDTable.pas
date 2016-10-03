@@ -57,12 +57,12 @@ type
     FLName: TLabel;
     FLEngine: TLabel;
     FLComment: TLabel;
-    FLDefaultCharset: TLabel;
+    FLCharset: TLabel;
     FLCollation: TLabel;
     FName: TEdit;
     FEngine: TComboBox_Ext;
+    FCharset: TComboBox_Ext;
     FComment: TEdit;
-    FDefaultCharset: TComboBox_Ext;
     FCollation: TComboBox_Ext;
     TSInformation: TTabSheet;
     GDates: TGroupBox_Ext;
@@ -149,8 +149,8 @@ type
     procedure FBHelpClick(Sender: TObject);
     procedure FBOkCheckEnabled(Sender: TObject);
     procedure FBOptimizeClick(Sender: TObject);
-    procedure FDefaultCharsetChange(Sender: TObject);
-    procedure FDefaultCharsetExit(Sender: TObject);
+    procedure FCharsetChange(Sender: TObject);
+    procedure FCharsetExit(Sender: TObject);
     procedure FEngineChange(Sender: TObject);
     procedure FFieldsChange(Sender: TObject; Item: TListItem;
       Change: TItemChange);
@@ -563,8 +563,16 @@ begin
 
   FName.Text := NewTable.Name;
 
-  FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf(NewTable.DefaultCharset); FDefaultCharsetChange(Self);
-  FCollation.ItemIndex := FCollation.Items.IndexOf(NewTable.Collation); FCollationChange(Self);
+  if (Assigned(NewTable.Charset)) then
+    FCharset.ItemIndex := FCharset.Items.IndexOf(NewTable.Charset.Name)
+  else
+    FCharset.ItemIndex := -1;
+  FCharsetChange(Self);
+  if (Assigned(NewTable.Collation)) then
+    FCollation.ItemIndex := FCollation.Items.IndexOf(NewTable.Collation.Name)
+  else
+    FCollation.ItemIndex := -1;
+  FCollationChange(Self);
 
   FComment.Text := SQLUnwrapStmt(NewTable.Comment, Database.Session.Connection.ServerVersion);
 
@@ -686,42 +694,42 @@ begin
   FBCancel.Caption := Preferences.LoadStr(231);
 end;
 
+procedure TDTable.FCharsetChange(Sender: TObject);
+var
+  Charset: TSCharset;
+  I: Integer;
+begin
+  Charset := Database.Session.CharsetByName(FCharset.Text);
+
+  FCollation.Items.Clear();
+  if (Assigned(Database.Session.Collations)) then
+  begin
+    for I := 0 to Database.Session.Collations.Count - 1 do
+      if (Assigned(Charset) and (Database.Session.Collations[I].Charset = Charset)) then
+        FCollation.Items.Add(Database.Session.Collations[I].Name);
+    if (Assigned(Charset)) then
+      FCollation.ItemIndex := FCollation.Items.IndexOf(Charset.DefaultCollation.Caption);
+  end;
+  FCollation.Enabled := Assigned(Charset); FLCollation.Enabled := FCollation.Enabled;
+
+  FBOkCheckEnabled(Sender);
+end;
+
 procedure TDTable.FCollationChange(Sender: TObject);
 var
   Collation: TSCollation;
 begin
   Collation := Database.Session.CollationByName(FCollation.Text);
   if (Assigned(Collation)) then
-    NewTable.Collation := Collation.Name;
+    NewTable.Collation := Database.Session.CollationByName(Collation.Name);
 
   FBOkCheckEnabled(Sender);
 end;
 
-procedure TDTable.FDefaultCharsetChange(Sender: TObject);
-var
-  DefaultCharset: TSCharset;
-  I: Integer;
+procedure TDTable.FCharsetExit(Sender: TObject);
 begin
-  DefaultCharset := Database.Session.CharsetByName(FDefaultCharset.Text);
-
-  FCollation.Items.Clear();
-  if (Assigned(Database.Session.Collations)) then
-  begin
-    for I := 0 to Database.Session.Collations.Count - 1 do
-      if (Assigned(DefaultCharset) and (Database.Session.Collations[I].Charset = DefaultCharset)) then
-        FCollation.Items.Add(Database.Session.Collations[I].Name);
-    if (Assigned(DefaultCharset)) then
-      FCollation.ItemIndex := FCollation.Items.IndexOf(DefaultCharset.DefaultCollation.Caption);
-  end;
-  FCollation.Enabled := Assigned(DefaultCharset); FLCollation.Enabled := FCollation.Enabled;
-
-  FBOkCheckEnabled(Sender);
-end;
-
-procedure TDTable.FDefaultCharsetExit(Sender: TObject);
-begin
-  if (FDefaultCharset.Text = '') then
-    FDefaultCharset.Text := NewTable.DefaultCharset;
+  if (FCharset.Text = '') then
+    FCharset.Text := NewTable.Charset.Name;
 end;
 
 procedure TDTable.FEngineChange(Sender: TObject);
@@ -906,8 +914,8 @@ begin
   if ((ModalResult = mrOk) and PageControl.Visible) then
   begin
     NewTable.Name := Trim(FName.Text);
-    NewTable.DefaultCharset := Trim(FDefaultCharset.Text);
-    NewTable.Collation := Trim(FCollation.Text);
+    NewTable.Charset := Database.Session.CharsetByName(Trim(FCharset.Text));
+    NewTable.Collation := Database.Session.CollationByName(Trim(FCollation.Text));
     if (not Assigned(Table) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewTable.Comment, Database.Session.Connection.ServerVersion))) then
       NewTable.Comment := Trim(FComment.Text);
 
@@ -1067,10 +1075,10 @@ begin
     if (not (Database.Session.Engines[I] is TSSystemEngine)) then
       FEngine.Items.Add(Database.Session.Engines[I].Name);
 
-  FDefaultCharset.Items.Clear();
+  FCharset.Items.Clear();
   for I := 0 to Database.Session.Charsets.Count - 1 do
-    FDefaultCharset.Items.Add(Database.Session.Charsets[I].Name);
-  FDefaultCharset.ItemIndex := -1; FDefaultCharsetChange(Sender);
+    FCharset.Items.Add(Database.Session.Charsets[I].Name);
+  FCharset.ItemIndex := -1; FCharsetChange(Sender);
 
   FCollation.Text := '';
 
@@ -1087,7 +1095,7 @@ begin
 
   if (not Assigned(Table)) then
   begin
-    NewTable.DefaultCharset := Database.DefaultCharset.Name;
+    NewTable.Charset := Database.Charset;
     NewTable.Collation := Database.Collation;
     NewTable.Engine := Database.Session.Engines.DefaultEngine;
 
@@ -1126,8 +1134,8 @@ begin
       FName.Text := TableName;
     end;
 
-    FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf(Database.DefaultCharset.Name); FDefaultCharsetChange(Sender);
-    FCollation.ItemIndex := FCollation.Items.IndexOf(Database.Collation);
+    FCharset.ItemIndex := FCharset.Items.IndexOf(Database.Charset.Name); FCharsetChange(Sender);
+    FCollation.ItemIndex := FCollation.Items.IndexOf(Database.Collation.Name); FCollationChange(Sender);
 
     FComment.Text := '';
 
@@ -1154,7 +1162,7 @@ begin
   end;
 
 
-  FDefaultCharset.Visible := Database.Session.Connection.ServerVersion >= 40101; FLDefaultCharset.Visible := FDefaultCharset.Visible;
+  FCharset.Visible := Database.Session.Connection.ServerVersion >= 40101; FLCharset.Visible := FCharset.Visible;
   FCollation.Visible := Database.Session.Connection.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
   GRecords.Visible := Assigned(Table);
 
@@ -1347,14 +1355,14 @@ begin
           S := ''
         else
         begin
-          if (NewTable.Fields[I].Charset = NewTable.DefaultCharset) then
+          if (NewTable.Fields[I].Charset = NewTable.Charset) then
             S := ''
           else
-            S := NewTable.Fields[I].Charset;
+            S := NewTable.Fields[I].Charset.Name;
           if (NewTable.Fields[I].Collation <> NewTable.Collation) then
           begin
             if (S <> '') then S := S + ', ';
-            S := S + NewTable.Fields[I].Collation;
+            S := S + NewTable.Fields[I].Collation.Name;
           end;
         end;
         ListItem.SubItems.Add(S);
@@ -1657,7 +1665,7 @@ begin
   GBasics.Caption := Preferences.LoadStr(85);
   FLName.Caption := Preferences.LoadStr(35) + ':';
   FLEngine.Caption := Preferences.LoadStr(110) + ':';
-  FLDefaultCharset.Caption := Preferences.LoadStr(682) + ':';
+  FLCharset.Caption := Preferences.LoadStr(682) + ':';
   FLCollation.Caption := Preferences.LoadStr(702) + ':';
   FLComment.Caption := Preferences.LoadStr(111) + ':';
   GRecords.Caption := Preferences.LoadStr(124);

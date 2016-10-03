@@ -172,12 +172,12 @@ object DTable: TDTable
           Height = 13
           Caption = 'FLComment'
         end
-        object FLDefaultCharset: TLabel
+        object FLCharset: TLabel
           Left = 8
           Top = 79
-          Width = 82
+          Width = 48
           Height = 13
-          Caption = 'FLDefaultCharset'
+          Caption = 'FLCharset'
         end
         object FLCollation: TLabel
           Left = 8
@@ -218,15 +218,15 @@ object DTable: TDTable
           Text = 'FComment'
           OnChange = FBOkCheckEnabled
         end
-        object FDefaultCharset: TComboBox_Ext
+        object FCharset: TComboBox_Ext
           Left = 120
           Top = 76
           Width = 113
           Height = 21
           Style = csDropDownList
           TabOrder = 2
-          OnChange = FDefaultCharsetChange
-          OnExit = FDefaultCharsetExit
+          OnChange = FCharsetChange
+          OnExit = FCharsetExit
         end
         object FCollation: TComboBox_Ext
           Left = 120
@@ -439,10 +439,6 @@ object DTable: TDTable
     object TSFields: TTabSheet
       Caption = 'TSFields'
       OnShow = TSFieldsShow
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         261)

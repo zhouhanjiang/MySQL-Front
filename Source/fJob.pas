@@ -487,8 +487,8 @@ begin
         if (Assigned(Import)) then
         begin
           Import.Data := Job.Data;
-          Import.DefaultCharset := Job.Charset;
-          Import.DefaultCollation := Job.Collation;
+          Import.Charset := Job.Charset;
+          Import.Collation := Job.Collation;
           Import.Engine := Job.Engine;
           Import.RowType := mrUnknown;
           Import.Structure := Job.Structure;

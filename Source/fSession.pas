@@ -313,7 +313,7 @@ type
   protected
     procedure ParseFieldType(var Parse: TSQLParse); virtual;
   public
-    Charset: string;
+    Charset: TSCharset;
     Decimals: Integer;
     Expression: string;
     FieldKind: TFieldKind;
@@ -336,7 +336,7 @@ type
   type
     TRowType = (mrUnknown, mrFixed, mrDynamic, mrCompressed, mrRedundant, mrCompact);
   private
-    FCollation: string;
+    FCollation: TSCollation;
     FFields: TSTableFields;
     FInPrimaryKey: Boolean;
     FInUniqueKey: Boolean;
@@ -362,7 +362,7 @@ type
     destructor Destroy(); override;
     function Equal(const Second: TSTableField): Boolean; reintroduce; virtual;
     function UnescapeValue(const Value: string): string; virtual;
-    property Collation: string read FCollation write FCollation;
+    property Collation: TSCollation read FCollation write FCollation;
     property Fields: TSTableFields read FFields;
     property InPrimaryKey: Boolean read FInPrimaryKey;
     property InUniqueKey: Boolean read FInUniqueKey;
@@ -575,12 +575,11 @@ type
     FBlockSize: Integer;
     FChecked: TDateTime;
     FChecksum: Boolean;
-    FCollation: string;
+    FCollation: TSCollation;
     FComment: string;
     FCreated: TDateTime;
     FDataSize: Int64;
-    FDefaultCharset: string;
-    FDefaultCodePage: Cardinal;
+    FCharset: TSCharset;
     FDelayKeyWrite: Boolean;
     FEngine: TSEngine;
     FForeignKeys: TSForeignKeys;
@@ -603,7 +602,6 @@ type
     function GetPrimaryKey(): TSKey;
     function GetTriggers(Index: Integer): TSTrigger;
     function GetTriggerCount(): Integer;
-    procedure SetDefaultCharset(const ADefaultCharset: string);
   protected
     FValidStatus: Boolean;
     procedure BuildStatus(const DataSet: TMySQLQuery; const UseInformationSchema: Boolean); virtual;
@@ -637,12 +635,11 @@ type
     property BlockSize: Integer read FBlockSize write FBlockSize;
     property Checked: TDateTime read FChecked write FChecked;
     property Checksum: Boolean read FChecksum write FChecksum;
-    property Collation: string read FCollation write FCollation;
+    property Collation: TSCollation read FCollation write FCollation;
     property Comment: string read FComment write FComment;
     property Created: TDateTime read FCreated;
     property DataSize: Int64 read FDataSize;
-    property DefaultCharset: string read FDefaultCharset write SetDefaultCharset;
-    property DefaultCodePage: Cardinal read FDefaultCodePage;
+    property Charset: TSCharset read FCharset write FCharset;
     property DelayKeyWrite: Boolean read FDelayKeyWrite write FDelayKeyWrite;
     property Engine: TSEngine read FEngine write FEngine;
     property Fields: TSBaseTableFields read GetBaseTableFields;
@@ -947,9 +944,8 @@ type
 
   TSDatabase = class(TSObject)
   private
-    FDefaultCharset: TSCharset;
-    FDefaultCodePage: Cardinal;
-    FCollation: string;
+    FCharset: TSCharset;
+    FCollation: TSCollation;
     FColumns: TSColumns;
     FEvents: TSEvents;
     FRoutines: TSRoutines;
@@ -957,7 +953,6 @@ type
     FTriggers: TSTriggers;
     RepairTableList: TList;
     function CheckTableEvent(const DataHandle: TMySQLConnection.TDataResult; const Data: Boolean): Boolean;
-    function GetCollation(): string;
     function GetCount(): Integer;
     function GetDatabases(): TSDatabases; inline;
     function GetDataSize(): Int64;
@@ -966,7 +961,6 @@ type
     function GetUpdated(): TDateTime;
     function GetValidSources(): Boolean;
     procedure ParseCreateDatabase(const SQL: string);
-    procedure SetDefaultCharset(const ADefaultCharset: TSCharset);
   protected
     function Build(const DataSet: TMySQLQuery): Boolean; virtual;
     procedure FreeDesktop(); override;
@@ -1019,13 +1013,12 @@ type
     function UpdateTrigger(const Trigger, NewTrigger: TSTrigger): Boolean; virtual;
     function UpdateView(const View, NewView: TSView): Boolean; virtual;
     function ViewByName(const TableName: string): TSView; overload; virtual;
-    property Collation: string read GetCollation write FCollation;
+    property Collation: TSCollation read FCollation write FCollation;
     property Columns: TSColumns read FColumns;
     property Count: Integer read GetCount;
     property Created: TDateTime read GetCreated;
     property DataSize: Int64 read GetDataSize;
-    property DefaultCharset: TSCharset read FDefaultCharset write SetDefaultCharset;
-    property DefaultCodePage: Cardinal read FDefaultCodePage;
+    property Charset: TSCharset read FCharset write FCharset;
     property Databases: TSDatabases read GetDatabases;
     property Events: TSEvents read FEvents;
     property IndexSize: Int64 read GetIndexSize;
@@ -1193,9 +1186,11 @@ type
     FCollation: string;
     FMaxLength: Integer;
     function GetCharsets(): TSCharsets; inline;
+    function GetCodePage(): Cardinal;
     function GetDefaultCollation(): TSCollation;
   public
     property Charsets: TSCharsets read GetCharsets;
+    property CodePage: Cardinal read GetCodePage;
     property Collation: string read FCollation;
     property DefaultCollation: TSCollation read GetDefaultCollation;
     property Hint: string read FHint;
@@ -1455,8 +1450,8 @@ type
     procedure ConnectChange(Sender: TObject; Connecting: Boolean);
     procedure DoExecuteEvent(const AEvent: TEvent);
     function GetCaption(): string;
-    function GetCollation(): string;
-    function GetDefaultCharset(): string;
+    function GetCharset(): TSCharset;
+    function GetCollation(): TSCollation;
     function GetLogActive(): Boolean;
     function GetSlowLogActive(): Boolean;
     function GetUserRights(): TSUserRight;
@@ -1526,15 +1521,15 @@ type
     function VariableByName(const VariableName: string): TSVariable;
     property Account: TPAccount read FAccount;
     property Caption: string read GetCaption;
+    property Charset: TSCharset read GetCharset;
     property Charsets: TSCharsets read FCharsets;
-    property Collation: string read GetCollation;
+    property Collation: TSCollation read GetCollation;
     property Collations: TSCollations read FCollations;
     property Columns: TSColumns read FColumns;
     property Connection: TSConnection read FConnection;
     property CreateDesktop: TCreateDesktop read FCreateDesktop write SetCreateDesktop;
     property CurrentUser: string read FCurrentUser;
     property Databases: TSDatabases read FDatabases;
-    property DefaultCharset: string read GetDefaultCharset;
     property Engines: TSEngines read FEngines;
     property FieldTypes: TSFieldTypes read FFieldTypes;
     property InformationSchema: TSDatabase read FInformationSchema;
@@ -2703,7 +2698,7 @@ end;
 
 procedure TSField.Clear();
 begin
-  Charset := '';
+  Charset := nil;
   Decimals := 0;
   Expression := '';
   FieldKind := mkUnknown;
@@ -2844,7 +2839,7 @@ begin
   if (SQLParseKeyword(Parse, 'CHARACTER') or SQLParseKeyword(Parse, 'CHAR')) then
   begin
     SQLParseKeyword(Parse, 'SET');
-    Charset := SQLParseValue(Parse);
+    Charset := Session.CharsetByName(SQLParseValue(Parse));
   end;
 
   Unsigned := SQLParseKeyword(Parse, 'UNSIGNED');
@@ -2881,7 +2876,7 @@ begin
   AutoIncrement := False;
   Binary := False;
   if (Table is TSBaseTable) then
-    Collation := TSBaseTable(Table).FCollation;
+    Collation := TSBaseTable(Table).Collation;
   Comment := '';
   Default := '';
   DefaultSize := 0;
@@ -3025,8 +3020,7 @@ procedure TSBaseTableField.Clear();
 begin
   inherited;
 
-  Charset := '';
-  FCollation := '';
+  FCollation := nil;
 
   OnUpdate := '';
   OnUpdateSize := 0;
@@ -3848,8 +3842,7 @@ begin
   FComment := TSBaseTable(Source).Comment;
   FCreated := TSBaseTable(Source).Created;
   FDataSize := TSBaseTable(Source).DataSize;
-  FDefaultCharset := TSBaseTable(Source).FDefaultCharset;
-  FDefaultCodePage := TSBaseTable(Source).DefaultCodePage;
+  FCharset := TSBaseTable(Source).FCharset;
   FDelayKeyWrite := TSBaseTable(Source).DelayKeyWrite;
   FEngine := TSBaseTable(Source).Engine;
   FIndexSize := TSBaseTable(Source).IndexSize;
@@ -3881,31 +3874,31 @@ begin
   if (Assigned(Source.Database) and Assigned(Database)) then
     if ((Session.Connection.ServerVersion < 40101) and (Session.Connection.ServerVersion < 40101) or (Source.Session.Connection.ServerVersion >= 40101) and (Session.Connection.ServerVersion >= 40101)) then
     begin
-      DefaultCharset := TSBaseTable(Source).DefaultCharset;
+      Charset := TSBaseTable(Source).Charset;
       Collation := TSBaseTable(Source).Collation;
     end
     else if ((Source.Session.Connection.ServerVersion < 40101) and (Session.Connection.ServerVersion >= 40101)) then
     begin
       for I := 0 to Length(CharsetTranslations) - 1 do
-        if (TSBaseTable(Source).DefaultCharset = CharsetTranslations[I].OldCharset) then
+        if (TSBaseTable(Source).Charset.Name = CharsetTranslations[I].OldCharset) then
         begin
-          DefaultCharset := string(CharsetTranslations[I].NewCharset);
-          Collation := string(CharsetTranslations[I].NewCollation);
+          Charset := Session.CharsetByName(StrPas(CharsetTranslations[I].NewCharset));
+          Collation := Session.CollationByName(StrPas(CharsetTranslations[I].NewCollation));
         end;
     end
     else if ((Session.Connection.ServerVersion > 40101) and (Session.Connection.ServerVersion < 40101)) then
     begin
       for I := 0 to Length(CharsetTranslations) - 1 do
-        if ((TSBaseTable(Source).DefaultCharset = CharsetTranslations[I].NewCharset) and (TSBaseTable(Source).Collation = string(CharsetTranslations[I].NewCollation))) then
-          DefaultCharset := CharsetTranslations[I].OldCharset;
-      if (DefaultCharset = '') then
+        if ((TSBaseTable(Source).Charset = Session.CharsetByName(StrPas(CharsetTranslations[I].NewCharset))) and (TSBaseTable(Source).Collation = Session.CollationByName(StrPas(CharsetTranslations[I].NewCollation)))) then
+          Charset := Session.CharsetByName(StrPas(CharsetTranslations[I].OldCharset));
+      if (not Assigned(Charset)) then
         for I := 0 to Length(CharsetTranslations) - 1 do
-          if (TSBaseTable(Source).DefaultCharset = CharsetTranslations[I].OldCharset) then
-            DefaultCharset := CharsetTranslations[I].OldCharset;
-      if (DefaultCharset = '') then
+          if (TSBaseTable(Source).Charset = Session.CharsetByName(StrPas(CharsetTranslations[I].OldCharset))) then
+            Charset := Session.CharsetByName(StrPas(CharsetTranslations[I].OldCharset));
+      if (not Assigned(Charset)) then
         for I := 0 to Length(CharsetTranslations) - 1 do
-          if (TSBaseTable(Source).DefaultCharset = CharsetTranslations[I].NewCharset) then
-            DefaultCharset := CharsetTranslations[I].NewCharset;
+          if (TSBaseTable(Source).Charset = Session.CharsetByName(StrPas(CharsetTranslations[I].NewCharset))) then
+            Charset := Session.CharsetByName(StrPas(CharsetTranslations[I].NewCharset));
     end;
 end;
 
@@ -3951,17 +3944,14 @@ begin
     FUpdated := DataSet.FieldByName('UPDATE_TIME').AsDateTime;
     FChecked := DataSet.FieldByName('CHECK_TIME').AsDateTime;
     if (Assigned(DataSet.FindField('TABLE_COLLATION'))) then
-      Collation := LowerCase(DataSet.FieldByName('TABLE_COLLATION').AsString);
+      Collation := Session.CollationByName(DataSet.FieldByName('TABLE_COLLATION').AsString);
     try
       FComment := DataSet.FieldByName('TABLE_COMMENT').AsString;
     except
       FComment := string(DataSet.FieldByName('TABLE_COMMENT').AsAnsiString);
     end;
 
-    if (not Assigned(Session.CharsetByCollation(FCollation))) then
-      DefaultCharset := ''
-    else
-      DefaultCharset := Session.CharsetByCollation(FCollation).Name;
+    Charset := Session.CharsetByCollation(Collation.Name);
   end;
 
   if (Pos('InnoDB free: ', FComment) > 0) then
@@ -3997,15 +3987,14 @@ begin
   FAvgRowLength := -1;
   FChecked := -1;
   FChecksum := False;
-  FCollation := '';
+  FCollation := nil;
   FComment := '';
   FCreated := -1;
   FDataSize := -1;
   if (Assigned(Database)) then
-    FDefaultCharset := Database.DefaultCharset.Name
+    FCharset := Database.Charset
   else
-    FDefaultCharset := '';
-  FDefaultCodePage := CP_ACP;
+    FCharset := nil;
   FDelayKeyWrite := False;
   FEngine := nil;
   FIndexSize := -1;
@@ -4449,9 +4438,9 @@ begin
             NewField.FieldKind := mkReal;
 
             if (SQLParseKeyword(Parse, 'CHARACTER SET')) then
-              NewField.Charset := SQLParseValue(Parse)
+              NewField.Charset := Session.CharsetByName(SQLParseValue(Parse))
             else if (SQLParseKeyword(Parse, 'COLLATE')) then
-              NewField.Collation := LowerCase(SQLParseValue(Parse))
+              NewField.Collation := Session.CollationByName(SQLParseValue(Parse))
             else if (SQLParseKeyword(Parse, 'NOT NULL')) then
               NewField.NullAllowed := False
             else if (SQLParseKeyword(Parse, 'NULL')) then
@@ -4757,7 +4746,7 @@ begin
       else if (SQLParseKeyword(Parse, 'COLLATE')) then
       begin
         SQLParseChar(Parse, '=');
-        FCollation := LowerCase(SQLParseValue(Parse));
+        FCollation := Session.CollationByName(SQLParseValue(Parse));
       end
       else if (SQLParseKeyword(Parse, 'COMMENT')) then
       begin
@@ -4768,7 +4757,7 @@ begin
         or SQLParseKeyword(Parse, 'DEFAULT CHARACTER SET') or SQLParseKeyword(Parse, 'CHARACTER SET')) then
       begin
         SQLParseChar(Parse, '=');
-        DefaultCharset := SQLParseValue(Parse);
+        Charset := Session.CharsetByName(SQLParseValue(Parse));
       end
       else if (SQLParseKeyword(Parse, 'DELAY_KEY_WRITE')) then
       begin
@@ -4940,22 +4929,6 @@ begin
     Session.ExecuteEvent(etItemsValid, Self);
   if (Valid or ValidStatus) then
     Session.ExecuteEvent(etItemValid, Database, Tables, Self);
-end;
-
-procedure TSBaseTable.SetDefaultCharset(const ADefaultCharset: string);
-begin
-  FDefaultCharset := LowerCase(ADefaultCharset);
-
-  if (lstrcmpi(PChar(ADefaultCharset), 'binary') = 0) then
-    FDefaultCodePage := 0
-  else if (not Assigned(Database) or not Assigned(Session)) then
-    FDefaultCodePage := CP_ACP
-  else if (FDefaultCharset <> '') then
-    FDefaultCodePage := Session.Connection.CharsetToCodePage(FDefaultCharset)
-  else if (Database.DefaultCharset.Name <> '') then
-    FDefaultCodePage := Database.DefaultCodePage
-  else
-    FDefaultCodePage := Session.Connection.CharsetToCodePage(Session.DefaultCharset)
 end;
 
 procedure TSBaseTable.SetSource(const ADataSet: TMySQLQuery);
@@ -5463,10 +5436,10 @@ begin
           NewField.FieldBefore := View.Fields[Index - 1];
 
         NewField.AutoIncrement := Pos('AUTO_INCREMENT', UpperCase(DataSet.FieldByName('EXTRA').AsString)) > 0;
-        NewField.FCollation := LowerCase(DataSet.FieldByName('COLLATION_NAME').AsString);
+        NewField.FCollation := Session.CollationByName(DataSet.FieldByName('COLLATION_NAME').AsString);
         NewField.Comment := DataSet.FieldByName('COLUMN_COMMENT').AsString;
         NewField.Default := DataSet.FieldByName('COLUMN_DEFAULT').AsString;
-        NewField.Charset := DataSet.FieldByName('CHARACTER_SET_NAME').AsString;
+        NewField.Charset := Session.CharsetByName(DataSet.FieldByName('CHARACTER_SET_NAME').AsString);
         if (DataSet.FieldByName('COLUMN_TYPE').IsNull or (DataSet.FieldByName('COLUMN_TYPE').AsString = 'null') or not SQLCreateParse(Parse, PChar(DataSet.FieldByName('COLUMN_TYPE').AsString), Length(DataSet.FieldByName('COLUMN_TYPE').AsString), Session.Connection.ServerVersion)) then
           NewField.FieldType := mfUnknown
         else
@@ -5752,7 +5725,7 @@ begin
               else
                 Field := TMySQLWideMemoField.Create(nil);
               if (Parameter[I].Size > 0) then Field.Size := Parameter[I].Size;
-              Field.Tag := Database.DefaultCodePage;
+              Field.Tag := Database.Charset.CodePage;
             end;
           mfBinary,
           mfVarBinary:
@@ -5767,7 +5740,7 @@ begin
             begin
                 Field := TMySQLWideMemoField.Create(nil);
               if (Parameter[I].Size > 0) then Field.Size := Parameter[I].Size;
-              Field.Tag := Database.DefaultCodePage;
+              Field.Tag := Database.Charset.CodePage;
             end;
           mfTinyBlob,
           mfBlob,
@@ -5782,7 +5755,7 @@ begin
             begin
               Field := TMySQLWideStringField.Create(nil);
               if (Parameter[I].Size > 0) then Field.Size := Parameter[I].Size;
-              Field.Tag := Database.DefaultCodePage;
+              Field.Tag := Database.Charset.CodePage;
             end;
           mfGeometry,
           mfPoint,
@@ -5801,7 +5774,7 @@ begin
             begin
               Field := TMySQLWideStringField.Create(nil);
               if (Parameter[I].Size > 0) then Field.Size := Parameter[I].Size;
-              Field.Tag := Database.DefaultCodePage;
+              Field.Tag := Database.Charset.CodePage;
             end;
           else raise EDatabaseError.CreateFMT(SUnknownFieldType + '(%s)', [Parameter[I].Name, Session.FieldTypeByMySQLFieldType(Parameter[I].FieldType).Name]);
         end;
@@ -5938,9 +5911,9 @@ begin
         Parameter.ParseFieldType(Parse);
 
         if (SQLParseKeyword(Parse, 'CHARSET')) then
-          Parameter.Charset := SQLParseValue(Parse)
+          Parameter.Charset := Session.CharsetByName(SQLParseValue(Parse))
         else if (SQLParseKeyword(Parse, 'BINARY')) then
-          Parameter.Charset := 'BINARY';
+          Parameter.Charset := Session.CharsetByName('BINARY');
 
         SQLParseChar(Parse, ',');
       end;
@@ -5951,7 +5924,7 @@ begin
       FFunctionResult.ParseFieldType(Parse);
 
       if (SQLParseKeyword(Parse, 'CHARSET')) then
-        FFunctionResult.Charset := SQLParseValue(Parse);
+        FFunctionResult.Charset := Session.CharsetByName(SQLParseValue(Parse));
     end;
 
     repeat
@@ -7012,8 +6985,7 @@ procedure TSDatabase.Assign(const Source: TSObject);
 begin
   inherited Assign(Source);
 
-  FDefaultCharset := TSDatabase(Source).DefaultCharset;
-  FDefaultCodePage := TSDatabase(Source).DefaultCodePage;
+  FCharset := TSDatabase(Source).Charset;
   FCollation := TSDatabase(Source).Collation;
 end;
 
@@ -7239,9 +7211,8 @@ constructor TSDatabase.Create(const ADatabases: TSDatabases; const AName: string
 begin
   inherited Create(ADatabases, AName);
 
-  FCollation := '';
-  FDefaultCharset := nil;
-  FDefaultCodePage := CP_ACP;
+  FCollation := nil;
+  FCharset := nil;
 
   if ((Session.Connection.ServerVersion < 50000)                              ) then FColumns := nil else FColumns := TSColumns.Create(Self);
   if ((Session.Connection.ServerVersion < 50004) or (Self is TSSystemDatabase)) then FRoutines := nil else FRoutines := TSRoutines.Create(Self);
@@ -7360,14 +7331,6 @@ begin
   for I := 0 to Routines.Count - 1 do
     if ((lstrcmpi(PChar(Routines[I].Name), PChar(FunctionName)) = 0) and (Routines[I] is TSFunction)) then
       Result := TSFunction(Routines[I]);
-end;
-
-function TSDatabase.GetCollation(): string;
-begin
-  if ((FCollation = '') and (Source <> '')) then
-    ParseCreateDatabase(Source);
-
-  Result := FCollation;
 end;
 
 function TSDatabase.GetCount(): Integer;
@@ -7581,16 +7544,16 @@ begin
     FName := SQLParseValue(Parse);
 
     if (SQLParseKeyword(Parse, 'DEFAULT CHARACTER SET') or SQLParseKeyword(Parse, 'CHARACTER SET')) then
-      DefaultCharset := Session.CharsetByName(SQLParseValue(Parse))
+      Charset := Session.CharsetByName(SQLParseValue(Parse))
     else
-      DefaultCharset := nil;
+      Charset := nil;
 
     if (SQLParseKeyword(Parse, 'DEFAULT COLLATE') or SQLParseKeyword(Parse, 'COLLATE')) then
-      FCollation := LowerCase(SQLParseValue(Parse))
-    else if (Assigned(DefaultCharset)) then
-      FCollation := DefaultCharset.DefaultCollation.Caption
+      FCollation := Session.CollationByName(SQLParseValue(Parse))
+    else if (Assigned(Charset)) then
+      FCollation := Session.CollationByName(Charset.DefaultCollation.Caption)
     else
-      FCollation := '';
+      FCollation := nil;
   end;
 end;
 
@@ -7669,16 +7632,6 @@ begin
   Result := Session.Connection.ExecuteSQL(SQL);
 end;
 
-procedure TSDatabase.SetDefaultCharset(const ADefaultCharset: TSCharset);
-begin
-  FDefaultCharset := ADefaultCharset;
-
-  if (not Assigned(Session)) then
-    FDefaultCodePage := CP_ACP
-  else
-    FDefaultCodePage := Session.Connection.CharsetToCodePage(DefaultCharset.Name);
-end;
-
 procedure TSDatabase.SetName(const AName: string);
 begin
   if (Session.LowerCaseTableNames = 1) then
@@ -7749,11 +7702,10 @@ begin
         begin
           if ((NewField.FieldType in TextFieldTypes) and (Session.Connection.ServerVersion >= 40101)) then
           begin
-            if ((NewField.Charset <> '')
-              and ((NewField.Charset <> '') and (NewField.Charset <> NewTable.DefaultCharset))) then
-              SQLPart := SQLPart + ' CHARACTER SET ' + NewField.Charset;
-            if ((NewField.Collation <> '') and (NewField.Collation <> NewTable.FCollation)) then
-              SQLPart := SQLPart + ' COLLATE ' + NewField.Collation;
+            if (Assigned(NewField.Charset) and (NewField.Charset <> NewTable.Charset)) then
+              SQLPart := SQLPart + ' CHARACTER SET ' + NewField.Charset.Name;
+            if (Assigned(NewField.Collation) and (NewField.Collation <> NewTable.Collation)) then
+              SQLPart := SQLPart + ' COLLATE ' + NewField.Collation.Name;
           end;
           if (not NewField.NullAllowed) then SQLPart := SQLPart + ' NOT'; SQLPart := SQLPart + ' NULL';
           if (NewField.AutoIncrement) then
@@ -8000,15 +7952,15 @@ begin
   end;
   if (Session.Connection.ServerVersion >= 40100) then
   begin
-    if ((NewTable.FDefaultCharset <> '') and (not Assigned(Table) or (NewTable.FDefaultCharset <> Table.DefaultCharset))) then
+    if (Assigned(NewTable.Charset) and (not Assigned(Table) or (NewTable.FCharset <> Table.Charset))) then
     begin
       if (Assigned(Table) and (SQL <> '')) then SQL := SQL + ',' + #13#10;
-      SQL := SQL + ' DEFAULT CHARSET=' + NewTable.FDefaultCharset;
+      SQL := SQL + ' DEFAULT CHARSET=' + NewTable.Charset.Name;
     end;
-    if ((NewTable.FCollation <> '') and (not Assigned(Table) or (NewTable.FCollation <> Table.Collation))) then
+    if (Assigned(NewTable.Collation) and (not Assigned(Table) or (NewTable.Collation <> Table.Collation))) then
     begin
       if (Assigned(Table) and (SQL <> '')) then SQL := SQL + ',' + #13#10;
-      SQL := SQL + ' COLLATE=' + NewTable.FCollation;
+      SQL := SQL + ' COLLATE=' + NewTable.Collation.Name;
     end;
   end;
   if ((not Assigned(Table) and NewTable.DelayKeyWrite or Assigned(Table) and (NewTable.DelayKeyWrite <> Table.DelayKeyWrite))) then
@@ -8386,9 +8338,9 @@ begin
     for I := 0 to NewTable.Fields.Count - 1 do
       if (NewTable.Fields[I].FieldType in TextFieldTypes) then
       begin
-        if ((NewTable.Fields[I].Charset = Table.DefaultCharset) or (NewTable.Fields[I].Charset = '') and (NewTable.DefaultCharset <> Table.DefaultCharset)) then
-          NewTable.Fields[I].Charset := NewTable.DefaultCharset;
-        if ((NewTable.Fields[I].Collation = Table.Collation) or (NewTable.Fields[I].Collation = '') and (NewTable.Collation <> Table.Collation)) then
+        if ((NewTable.Fields[I].Charset = Table.Charset) or not Assigned(NewTable.Fields[I].Charset) and (NewTable.Charset <> Table.Charset)) then
+          NewTable.Fields[I].Charset := NewTable.Charset;
+        if ((NewTable.Fields[I].Collation = Table.Collation) or not Assigned(NewTable.Fields[I].Collation) and (NewTable.Collation <> Table.Collation)) then
           NewTable.Fields[I].Collation := NewTable.Collation;
       end;
 
@@ -8426,23 +8378,23 @@ begin
     begin
       Table := BaseTableByName(TableNames.Strings[I]);
 
-      if (Assigned(Table) and ((lstrcmpi(PChar(ACharset), PChar(Table.DefaultCharset)) = 0) or (lstrcmpi(PChar(ACollation), PChar(Table.Collation)) <> 0) or (Session.EngineByName(AEngine) <> Table.Engine) or (ARowType <> Table.RowType))) then
+      if (Assigned(Table) and ((lstrcmpi(PChar(ACharset), PChar(Table.Charset)) = 0) or (lstrcmpi(PChar(ACollation), PChar(Table.Collation)) <> 0) or (Session.EngineByName(AEngine) <> Table.Engine) or (ARowType <> Table.RowType))) then
       begin
         NewTable.Assign(Table);
         if (ACharset <> '') then
         begin
-          NewTable.DefaultCharset := ACharset;
+          NewTable.Charset := Session.CharsetByName(ACharset);
 
           for J := 0 to NewTable.Fields.Count - 1 do
             if (NewTable.Fields[J].FieldType in TextFieldTypes) then
             begin
-              if ((NewTable.DefaultCharset <> Table.DefaultCharset) and ((NewTable.Fields[J].Charset = Table.DefaultCharset) or (NewTable.Fields[J].Charset = ''))) then
-                NewTable.Fields[J].Charset := NewTable.DefaultCharset;
-              if ((NewTable.Collation <> Table.Collation) and ((NewTable.Fields[J].Collation = Table.Collation) or (NewTable.Fields[J].Collation = ''))) then
+              if ((NewTable.Charset <> Table.Charset) and ((NewTable.Fields[J].Charset = Table.Charset) or not Assigned(NewTable.Fields[J].Charset))) then
+                NewTable.Fields[J].Charset := NewTable.Charset;
+              if ((NewTable.Collation <> Table.Collation) and ((NewTable.Fields[J].Collation = Table.Collation) or not Assigned(NewTable.Fields[J].Collation))) then
                 NewTable.Fields[J].Collation := NewTable.Collation;
             end;
         end;
-        if (ACollation <> '') then NewTable.Collation := LowerCase(ACollation);
+        if (ACollation <> '') then NewTable.Collation := Session.CollationByName(ACollation);
         if (AEngine <> '') then NewTable.Engine := Session.EngineByName(AEngine);
         if (ARowType <> mrUnknown) then NewTable.RowType := ARowType;
 
@@ -8630,8 +8582,8 @@ begin
 
         if (UseInformationSchema) then
         begin
-          Database[Index].DefaultCharset := Session.CharsetByName(DataSet.FieldByName('DEFAULT_CHARACTER_SET_NAME').AsString);
-          Database[Index].Collation := LowerCase(DataSet.FieldByName('DEFAULT_COLLATION_NAME').AsString);
+          Database[Index].Charset := Session.CharsetByName(DataSet.FieldByName('DEFAULT_CHARACTER_SET_NAME').AsString);
+          Database[Index].Collation := Session.CollationByName(DataSet.FieldByName('DEFAULT_COLLATION_NAME').AsString);
         end;
 
         if (Filtered and SessionEvents) then
@@ -9412,6 +9364,11 @@ begin
   Assert(SItems is TSCharsets);
 
   Result := TSCharsets(SItems);
+end;
+
+function TSCharset.GetCodePage(): Cardinal;
+begin
+  Result := Session.Connection.CharsetToCodePage(Name);
 end;
 
 function TSCharset.GetDefaultCollation(): TSCollation;
@@ -11391,22 +11348,22 @@ begin
     Result := Result + ':' + IntToStr(Connection.Port);
 end;
 
-function TSSession.GetCollation(): string;
-begin
-  if (Assigned(VariableByName('collation_server'))) then
-    Result := VariableByName('collation_server').Value
-  else
-    Result := '';
-end;
-
-function TSSession.GetDefaultCharset(): string;
+function TSSession.GetCharset(): TSCharset;
 begin
   if (Assigned(VariableByName('character_set'))) then
-    Result := VariableByName('character_set').Value
+    Result := CharsetByName(VariableByName('character_set').Value)
   else if (Assigned(VariableByName('character_set_server'))) then
-    Result := VariableByName('character_set_server').Value
+    Result := CharsetByName(VariableByName('character_set_server').Value)
   else
-    Result := 'latin1';
+    Result := CharsetByName('latin1');
+end;
+
+function TSSession.GetCollation(): TSCollation;
+begin
+  if (Assigned(VariableByName('collation_server'))) then
+    Result := CollationByName(VariableByName('collation_server').Value)
+  else
+    Result := nil;
 end;
 
 function TSSession.GetLogActive(): Boolean;
@@ -12640,10 +12597,10 @@ begin
   SQL := '';
   if (Connection.ServerVersion >= 40101) then
   begin
-    if (Assigned(NewDatabase.DefaultCharset)) then
-      SQL := SQL + ' DEFAULT CHARACTER SET ' + NewDatabase.DefaultCharset.Name;
-    if (NewDatabase.FCollation <> '') then
-      SQL := SQL + ' COLLATE ' + NewDatabase.FCollation;
+    if (Assigned(NewDatabase.Charset)) then
+      SQL := SQL + ' DEFAULT CHARACTER SET ' + NewDatabase.Charset.Name;
+    if (Assigned(NewDatabase.Collation)) then
+      SQL := SQL + ' COLLATE ' + NewDatabase.Collation.Name;
   end;
 
   if (not Assigned(Database)) then

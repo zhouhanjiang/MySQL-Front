@@ -18,16 +18,16 @@ type
     FBOk: TButton;
     FBOptimize: TButton;
     FCollation: TComboBox_Ext;
+    FCharset: TComboBox_Ext;
     FChecked: TLabel;
     FCreated: TLabel;
     FDataSize: TLabel;
-    FDefaultCharset: TComboBox_Ext;
     FIndexSize: TLabel;
     FLChecked: TLabel;
     FLCollation: TLabel;
     FLCreated: TLabel;
+    FLCharset: TLabel;
     FLDataSize: TLabel;
-    FLDefaultCharset: TLabel;
     FLIndexSize: TLabel;
     FLName: TLabel;
     FLUnusedSize: TLabel;
@@ -54,9 +54,9 @@ type
     TSSource: TTabSheet;
     procedure FBHelpClick(Sender: TObject);
     procedure FBOkCheckEnabled(Sender: TObject);
+    procedure FCharsetChange(Sender: TObject);
+    procedure FCharsetExit(Sender: TObject);
     procedure FCollationChange(Sender: TObject);
-    procedure FDefaultCharsetChange(Sender: TObject);
-    procedure FDefaultCharsetExit(Sender: TObject);
     procedure FNameChange(Sender: TObject);
     procedure FormCanResize(Sender: TObject; var NewWidth, NewHeight: Integer;
       var Resize: Boolean);
@@ -113,8 +113,8 @@ procedure TDDatabase.Built();
 begin
   FName.Text := Database.Name;
 
-  FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf(Database.DefaultCharset.Name); FDefaultCharsetChange(nil);
-  FCollation.ItemIndex := FCollation.Items.IndexOf(Database.Collation); FCollationChange(nil);
+  FCharset.ItemIndex := FCharset.Items.IndexOf(Database.Charset.Name); FCharsetChange(nil);
+  FCollation.ItemIndex := FCollation.Items.IndexOf(Database.Collation.Name); FCollationChange(nil);
 
   FSource.Lines.Text := Database.Source + #13#10;
 
@@ -123,8 +123,8 @@ begin
   PageControl.Visible := True;
   PSQLWait.Visible := not PageControl.Visible;
 
-  if (FDefaultCharset.Visible) then
-    ActiveControl := FDefaultCharset;
+  if (FCharset.Visible) then
+    ActiveControl := FCharset;
 end;
 
 function TDDatabase.Execute(): Boolean;
@@ -198,38 +198,38 @@ begin
   FBCancel.Caption := Preferences.LoadStr(231);
 end;
 
-procedure TDDatabase.FCollationChange(Sender: TObject);
-begin
-  FBOkCheckEnabled(Sender);
-  TSSource.TabVisible := False;
-end;
-
-procedure TDDatabase.FDefaultCharsetChange(Sender: TObject);
+procedure TDDatabase.FCharsetChange(Sender: TObject);
 var
-  DefaultCharset: TSCharset;
+  Charset: TSCharset;
   I: Integer;
 begin
-  DefaultCharset := Session.CharsetByName(FDefaultCharset.Text);
+  Charset := Session.CharsetByName(FCharset.Text);
 
   FCollation.Items.Clear();
   if (Assigned(Session.Collations)) then
   begin
     for I := 0 to Session.Collations.Count - 1 do
-      if (Assigned(DefaultCharset) and (Session.Collations[I].Charset = DefaultCharset)) then
+      if (Assigned(Charset) and (Session.Collations[I].Charset = Charset)) then
         FCollation.Items.Add(Session.Collations[I].Name);
-    if (Assigned(DefaultCharset)) then
-      FCollation.ItemIndex := FCollation.Items.IndexOf(DefaultCharset.DefaultCollation.Caption);
+    if (Assigned(Charset)) then
+      FCollation.ItemIndex := FCollation.Items.IndexOf(Charset.DefaultCollation.Caption);
   end;
-  FCollation.Enabled := FDefaultCharset.Text <> ''; FLCollation.Enabled := FCollation.Enabled;
+  FCollation.Enabled := FCharset.Text <> ''; FLCollation.Enabled := FCollation.Enabled;
 
   FBOkCheckEnabled(Sender);
   TSSource.TabVisible := False;
 end;
 
-procedure TDDatabase.FDefaultCharsetExit(Sender: TObject);
+procedure TDDatabase.FCharsetExit(Sender: TObject);
 begin
-  if ((FDefaultCharset.Text = '') and Assigned(Database)) then
-    FDefaultCharset.Text := Database.DefaultCharset.Name;
+  if ((FCharset.Text = '') and Assigned(Database)) then
+    FCharset.Text := Database.Charset.Name;
+end;
+
+procedure TDDatabase.FCollationChange(Sender: TObject);
+begin
+  FBOkCheckEnabled(Sender);
+  TSSource.TabVisible := False;
 end;
 
 procedure TDDatabase.FNameChange(Sender: TObject);
@@ -256,14 +256,14 @@ begin
       NewDatabase.Assign(Database);
 
     NewDatabase.Name := Trim(FName.Text);
-    if (not FDefaultCharset.Visible) then
-      NewDatabase.DefaultCharset := nil
+    if (not FCharset.Visible) then
+      NewDatabase.Charset := nil
     else
-      NewDatabase.DefaultCharset := Session.CharsetByName(FDefaultCharset.Text);
+      NewDatabase.Charset := Session.CharsetByName(FCharset.Text);
     if (not FCollation.Visible) then
-      NewDatabase.Collation := ''
+      NewDatabase.Collation := nil
     else
-      NewDatabase.Collation := Trim(FCollation.Text);
+      NewDatabase.Collation := Session.CollationByName(Trim(FCollation.Text));
 
     if (not Assigned(Database) or not Assigned(Session.DatabaseByName(Database.Name))) then
       CanClose := Session.AddDatabase(NewDatabase)
@@ -350,9 +350,9 @@ begin
   else
     FName.CharCase := ecNormal;
 
-  FDefaultCharset.Items.Clear();
+  FCharset.Items.Clear();
   for I := 0 to Session.Charsets.Count - 1 do
-    FDefaultCharset.Items.Add(Session.Charsets[I].Name);
+    FCharset.Items.Add(Session.Charsets[I].Name);
 
   if (not Assigned(Database)) then
   begin
@@ -366,7 +366,7 @@ begin
       FName.Text := DatabaseName;
     end;
 
-    FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf(Session.DefaultCharset); FDefaultCharsetChange(Sender);
+    FCharset.ItemIndex := FCharset.Items.IndexOf(Session.Charset.Name); FCharsetChange(Sender);
 
     TSSource.TabVisible := False;
 
@@ -383,7 +383,7 @@ begin
   end;
 
   FName.Enabled := not Assigned(Database) or not Assigned(Session.DatabaseByName(Database.Name));
-  FDefaultCharset.Visible := Session.Connection.ServerVersion >= 40101; FLDefaultCharset.Visible := FDefaultCharset.Visible;
+  FCharset.Visible := Session.Connection.ServerVersion >= 40101; FLCharset.Visible := FCharset.Visible;
   FCollation.Visible := Session.Connection.ServerVersion >= 40101; FLCollation.Visible := FCollation.Visible;
 
   FBOptimize.Enabled := True;
@@ -401,8 +401,8 @@ begin
   if (PageControl.Visible) then
     if (FName.Enabled) then
       ActiveControl := FName
-    else if (FDefaultCharset.Visible) then
-      ActiveControl := FDefaultCharset
+    else if (FCharset.Visible) then
+      ActiveControl := FCharset
     else
       ActiveControl := FBCancel;
 end;
@@ -473,7 +473,7 @@ begin
   TSBasics.Caption := Preferences.LoadStr(108);
   GBasics.Caption := Preferences.LoadStr(85);
   FLName.Caption := Preferences.LoadStr(35) + ':';
-  FLDefaultCharset.Caption := Preferences.LoadStr(682) + ':';
+  FLCharset.Caption := Preferences.LoadStr(682) + ':';
   FLCollation.Caption := Preferences.LoadStr(702) + ':';
 
   TSInformations.Caption := Preferences.LoadStr(121);

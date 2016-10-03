@@ -198,8 +198,8 @@ type
     property Session: TSSession read FSession;
     property WarningCount: Integer read FWarningCount;
   public
-    DefaultCharset: string;
-    DefaultCollation: string;
+    Charset: string;
+    Collation: string;
     Data: Boolean;
     Engine: string;
     Error: Boolean;
@@ -3155,8 +3155,8 @@ var
   Unsigned: SQLINTEGER;
 begin
   NewTable := TSBaseTable.Create(Database.Tables);
-  NewTable.DefaultCharset := DefaultCharset;
-  NewTable.Collation := DefaultCollation;
+  NewTable.Charset := Session.CharsetByName(Charset);
+  NewTable.Collation := Session.CollationByName(Collation);
   NewTable.Engine := Session.EngineByName(Engine);
   NewTable.RowType := RowType;
 
@@ -4526,8 +4526,13 @@ begin
     Content := Content + '#' + #13#10;
     Content := Content + #13#10;
     Content := Content + 'CREATE DATABASE IF NOT EXISTS ' + Session.Connection.EscapeIdentifier(Database.Name);
-    if (Assigned(Database.DefaultCharset) and (Database.Collation <> '')) then
-      Content := Content + ' /*!40100 DEFAULT CHARACTER SET ' + Database.DefaultCharset.Name + ' COLLATE ' + Database.Collation + ' */';
+    if (Assigned(Database.Charset)) then
+    begin
+      Content := Content + ' /*!40100 DEFAULT CHARACTER SET ' + Database.Charset.Name;
+      if (Assigned(Database.Collation)) then
+        Content := Content + ' COLLATE ' + Database.Collation.Name;
+      Content := Content + ' */';
+    end;
     Content := Content + ';' + #13#10;
     Content := Content + Database.SQLUse();
 
@@ -5391,12 +5396,12 @@ begin
         S := '';
         if ((Table is TSBaseTable) and (Table.Fields[I].FieldType in TextFieldTypes)) then
         begin
-          if ((Table.Fields[I].Charset <> '') and (Table.Fields[I].Charset <> TSBaseTable(Table).DefaultCharset)) then
-            S := S + Table.Fields[I].Charset;
-          if ((Table.Fields[I].Collation <> '') and (Table.Fields[I].Collation <> TSBaseTable(Table).Collation)) then
+          if (Assigned(Table.Fields[I].Charset) and (Table.Fields[I].Charset <> TSBaseTable(Table).Charset)) then
+            S := S + Table.Fields[I].Charset.Name;
+          if (Assigned(Table.Fields[I].Collation) and (Table.Fields[I].Collation <> TSBaseTable(Table).Collation)) then
           begin
             if (S <> '') then S := S + ', ';
-            S := S + Table.Fields[I].Collation;
+            S := S + Table.Fields[I].Collation.Name;
           end;
         end;
         if (S <> '') then
@@ -7015,12 +7020,12 @@ begin
         S := '';
         if ((Table is TSBaseTable) and (Table.Fields[I].FieldType in TextFieldTypes)) then
         begin
-          if ((Table.Fields[I].Charset <> '') and (Table.Fields[I].Charset <> TSBaseTable(Table).DefaultCharset)) then
-            S := S + Table.Fields[I].Charset;
-          if ((Table.Fields[I].Collation <> '') and (Table.Fields[I].Collation <> TSBaseTable(Table).Collation)) then
+          if (Assigned(Table.Fields[I].Charset) and (Table.Fields[I].Charset <> TSBaseTable(Table).Charset)) then
+            S := S + Table.Fields[I].Charset.Name;
+          if (Assigned(Table.Fields[I].Collation) and (Table.Fields[I].Collation <> TSBaseTable(Table).Collation)) then
           begin
             if (S <> '') then S := S + ', ';
-            S := S + Table.Fields[I].Collation;
+            S := S + Table.Fields[I].Collation.Name;
           end;
         end;
         GridData[I][4].Text := S;

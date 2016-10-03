@@ -1114,14 +1114,14 @@ begin
     FEngine.ItemIndex := FEngine.Items.IndexOf(Session.Engines.DefaultEngine.Name);
 
   if (FCharset.ItemIndex < 0) then
-    if (SObject is TSDatabase) then
-      FCharset.ItemIndex := FCharset.Items.IndexOf(TSDatabase(SObject).DefaultCharset.Name)
-    else if (SObject is TSDBObject) then
-      FCharset.ItemIndex := FCharset.Items.IndexOf(TSDBObject(SObject).Database.DefaultCharset.Name)
-    else if (Session.Connection.ServerVersion < 40101) then
-      FCharset.ItemIndex := FCharset.Items.IndexOf(Session.DefaultCharset)
+    if ((SObject is TSDatabase) and Assigned(TSDatabase(SObject).Charset)) then
+      FCharset.ItemIndex := FCharset.Items.IndexOf(TSDatabase(SObject).Charset.Name)
+    else if ((SObject is TSDBObject) and Assigned(TSDBObject(SObject).Database.Charset)) then
+      FCharset.ItemIndex := FCharset.Items.IndexOf(TSDBObject(SObject).Database.Charset.Name)
+    else if (Assigned(Session.Charset)) then
+      FCharset.ItemIndex := FCharset.Items.IndexOf(Session.Charset.Name)
     else
-      FCharset.ItemIndex := FCharset.Items.IndexOf('utf8');
+      FCharset.ItemIndex := -1;
   FCharsetChange(Sender);
 
   TSJob.Enabled := DialogType in [idtCreateJob, idtEditJob];
@@ -1756,8 +1756,8 @@ begin
   else
   begin
     Import.Data := (SObject is TSTable) or not (SObject is TSTable) and FData.Checked;
-    Import.DefaultCharset := FCharset.Text;
-    Import.DefaultCollation := FCollation.Text;
+    Import.Charset := FCharset.Text;
+    Import.Collation := FCollation.Text;
     Import.Engine := FEngine.Text;
     if (Import.Structure) then
       Import.StmtType := stInsert

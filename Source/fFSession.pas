@@ -7312,7 +7312,7 @@ begin
   aPOpenInNewTab.Enabled := aPOpenInNewWindow.Enabled;
 
   MainAction('aFImportSQL').Enabled := Assigned(Node) and (((Node.ImageIndex = iiServer) and (not Assigned(Session.UserRights) or Session.UserRights.RInsert)) or (Node.ImageIndex = iiDatabase));
-  MainAction('aFImportText').Enabled := Assigned(Node) and (Node.ImageIndex in [iiBaseTable]);
+  MainAction('aFImportText').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
   MainAction('aFImportExcel').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
   MainAction('aFImportAccess').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
   MainAction('aFImportODBC').Enabled := Assigned(Node) and (Node.ImageIndex in [iiDatabase, iiBaseTable]);
@@ -9358,14 +9358,14 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         Item.SubItems.Add('')
       else
         Item.SubItems.Add(SysUtils.DateToStr(TSDatabase(Data).Created, LocaleFormatSettings));
-      if (TSDatabase(Data).DefaultCharset = Session.CharsetByName(Session.DefaultCharset)) then
+      if (not Assigned(TSDatabase(Data).Charset) or (TSDatabase(Data).Charset = Session.Charset)) then
         S := ''
       else
-        S := TSDatabase(Data).DefaultCharset.Name;
-      if ((TSDatabase(Data).Collation <> '') and (TSDatabase(Data).Collation <> Session.Collation)) then
+        S := TSDatabase(Data).Charset.Name;
+      if (Assigned(TSDatabase(Data).Collation) and (TSDatabase(Data).Collation <> Session.Collation)) then
       begin
         if (S <> '') then S := S + ', ';
-        S := S + TSDatabase(Data).Collation;
+        S := S + TSDatabase(Data).Collation.Name;
       end;
       if (TSDatabase(Data) is TSSystemDatabase) then
         Item.SubItems.Add('')
@@ -9412,12 +9412,12 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
       else
         Item.SubItems.Add(SysUtils.DateTimeToStr(TSBaseTable(Data).Updated, LocaleFormatSettings));
       S := '';
-      if ((TSTable(Data) is TSBaseTable) and (TSBaseTable(Data).DefaultCharset <> '') and (TSBaseTable(Data).DefaultCharset <> TSBaseTable(Data).Database.DefaultCharset.Name)) then
-        S := S + TSBaseTable(Data).DefaultCharset;
-      if ((TSTable(Data) is TSBaseTable) and (TSBaseTable(Data).Collation <> '') and (TSBaseTable(Data).Collation <> TSBaseTable(Data).Database.Collation)) then
+      if ((TSTable(Data) is TSBaseTable) and Assigned(TSBaseTable(Data).Charset) and (TSBaseTable(Data).Charset <> TSBaseTable(Data).Database.Charset)) then
+        S := S + TSBaseTable(Data).Charset.Name;
+      if ((TSTable(Data) is TSBaseTable) and Assigned(TSBaseTable(Data).Collation) and (TSBaseTable(Data).Collation <> TSBaseTable(Data).Database.Collation)) then
       begin
         if (S <> '') then S := S + ', ';
-        S := S + TSBaseTable(Data).Collation;
+        S := S + TSBaseTable(Data).Collation.Name;
       end;
       Item.SubItems.Add(S);
       if (Data is TSBaseTable) then
@@ -9444,10 +9444,10 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         Item.SubItems.Add('')
       else
         Item.SubItems.Add(SysUtils.DateTimeToStr(TSRoutine(Data).Modified, LocaleFormatSettings));
-      if (not Assigned(TSRoutine(Data).FunctionResult) or (TSRoutine(Data).FunctionResult.Charset = '') or (TSRoutine(Data).FunctionResult.Charset = TSRoutine(Data).Database.DefaultCharset.Name)) then
+      if (not Assigned(TSRoutine(Data).FunctionResult) or not Assigned(TSRoutine(Data).FunctionResult.Charset) or (TSRoutine(Data).FunctionResult.Charset = TSRoutine(Data).Database.Charset)) then
         Item.SubItems.Add('')
       else
-        Item.SubItems.Add(TSRoutine(Data).FunctionResult.Charset);
+        Item.SubItems.Add(TSRoutine(Data).FunctionResult.Charset.Name);
       Item.SubItems.Add(TSRoutine(Data).Comment);
     end
     else if (Data is TSEvent) then
@@ -9515,12 +9515,12 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
         S := '';
         if (TSBaseTableField(Data).FieldType in TextFieldTypes) then
         begin
-          if ((TSBaseTableField(Data).Charset <> '') and (TSBaseTableField(Data).Charset <> TSBaseTableField(Data).Table.DefaultCharset)) then
-            S := S + TSBaseTableField(Data).Charset;
-          if ((TSBaseTableField(Data).Collation <> '') and (TSBaseTableField(Data).Collation <> TSBaseTableField(Data).Table.Collation)) then
+          if (not Assigned(TSBaseTableField(Data).Charset) and (TSBaseTableField(Data).Charset <> TSBaseTableField(Data).Table.Charset)) then
+            S := S + TSBaseTableField(Data).Charset.Name;
+          if (not Assigned(TSBaseTableField(Data).Collation) and (TSBaseTableField(Data).Collation <> TSBaseTableField(Data).Table.Collation)) then
           begin
             if (S <> '') then S := S + ', ';
-            S := S + TSBaseTableField(Data).Collation;
+            S := S + TSBaseTableField(Data).Collation.Name;
           end;
         end;
         Item.SubItems.Add(S);
@@ -9594,8 +9594,8 @@ procedure TFSession.ListViewUpdate(const SessionEvent: TSSession.TEvent; const L
           Item.SubItems.Add('<auto_increment>')
         else
           Item.SubItems.Add(TSViewField(Data).Default);
-        if (TSViewField(Data).Charset <> TSViewField(Data).Table.Database.DefaultCharset.Name) then
-          Item.SubItems.Add(TSViewField(Data).Charset);
+        if (TSViewField(Data).Charset <> TSViewField(Data).Table.Database.Charset) then
+          Item.SubItems.Add(TSViewField(Data).Charset.Name);
       end;
     end
     else if (Data is TSProcesses) then
@@ -10048,6 +10048,7 @@ begin
             aPOpenInNewWindow.Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex in [iiDatabase, iiSystemDatabase]);
             aPOpenInNewTab.Enabled := aPOpenInNewWindow.Enabled;
             MainAction('aFImportSQL').Enabled := (ListView.SelCount <= 1) and ((not Assigned(Session.UserRights) or Session.UserRights.RInsert) or Assigned(Item) and (Item.ImageIndex = iiDatabase));
+            MainAction('aFImportText').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFImportExcel').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFImportAccess').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
             MainAction('aFImportODBC').Enabled := (ListView.SelCount = 1) and Assigned(Item) and (Item.ImageIndex = iiDatabase);
@@ -10104,7 +10105,7 @@ begin
             aPOpenInNewWindow.Enabled := (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex in [iiBaseTable, iiSystemView, iiView, iiProcedure, iiFunction]);
             aPOpenInNewTab.Enabled := aPOpenInNewWindow.Enabled;
             MainAction('aFImportSQL').Enabled := (ListView.SelCount = 0) and (SelectedImageIndex = iiDatabase);
-            MainAction('aFImportText').Enabled := ((ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
+            MainAction('aFImportText').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
             MainAction('aFImportExcel').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
             MainAction('aFImportAccess').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));
             MainAction('aFImportODBC').Enabled := ((ListView.SelCount = 0) or (ListView.SelCount = 1) and Selected and Assigned(Item) and (Item.ImageIndex = iiBaseTable));

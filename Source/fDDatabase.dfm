@@ -74,16 +74,12 @@ object DDatabase: TDDatabase
     Top = 8
     Width = 321
     Height = 325
-    ActivePage = TSExtras
+    ActivePage = TSBasics
     Anchors = [akLeft, akTop, akRight, akBottom]
     HotTrack = True
     TabOrder = 3
     object TSBasics: TTabSheet
       Caption = 'TSBasics'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         313
         297)
@@ -106,13 +102,13 @@ object DDatabase: TDDatabase
           Caption = 'FLName'
           FocusControl = FName
         end
-        object FLDefaultCharset: TLabel
+        object FLCharset: TLabel
           Left = 8
           Top = 59
-          Width = 82
+          Width = 48
           Height = 13
-          Caption = 'FLDefaultCharset'
-          FocusControl = FDefaultCharset
+          Caption = 'FLCharset'
+          FocusControl = FCharset
         end
         object FLCollation: TLabel
           Left = 8
@@ -133,15 +129,15 @@ object DDatabase: TDDatabase
           Text = 'FName'
           OnChange = FNameChange
         end
-        object FDefaultCharset: TComboBox_Ext
+        object FCharset: TComboBox_Ext
           Left = 120
           Top = 56
           Width = 113
           Height = 21
           Style = csDropDownList
           TabOrder = 1
-          OnChange = FDefaultCharsetChange
-          OnExit = FDefaultCharsetExit
+          OnChange = FCharsetChange
+          OnExit = FCharsetExit
         end
         object FCollation: TComboBox_Ext
           Left = 120

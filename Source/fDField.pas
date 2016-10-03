@@ -656,13 +656,13 @@ begin
       end;
 
       if (FCharset.Visible and FCharset.Enabled) then
-        NewField.Charset := Trim(FCharset.Text)
+        NewField.Charset := Table.Session.CharsetByName(Trim(FCharset.Text))
       else
-        NewField.Charset := '';
+        NewField.Charset := nil;
       if (FCollation.Visible) then
-        NewField.Collation := Trim(FCollation.Text)
+        NewField.Collation := Table.Session.CollationByName(Trim(FCollation.Text))
       else
-        NewField.Collation := '';
+        NewField.Collation := nil;
       if (not Assigned(Field) or (Trim(FComment.Text) <> SQLUnwrapStmt(NewField.Comment, Table.Session.Connection.ServerVersion))) then
         NewField.Comment := Trim(FComment.Text);
 
@@ -818,8 +818,8 @@ begin
     FRDefaultNull.Checked := True;
     FDefault.Text := ''; FRDefaultClick(Sender);
 
-    FCharset.ItemIndex := FCharset.Items.IndexOf(Table.DefaultCharset); FCharsetChange(Sender);
-    FCollation.ItemIndex := FCollation.Items.IndexOf(Table.Collation);
+    FCharset.ItemIndex := FCharset.Items.IndexOf(Table.Charset.Name); FCharsetChange(Sender);
+    FCollation.ItemIndex := FCollation.Items.IndexOf(Table.Collation.Name);
 
     FExpression.Text := '1';
     FStoredStored.Checked := False;
@@ -859,20 +859,19 @@ begin
       if (FUDFormatSize.Position = Length(FFormatYear.Items.Strings[I])) then
         FFormatYear.ItemIndex := I;
 
-    if (Field.Charset = '') then
-    begin
-      FCharset.ItemIndex := FCharset.Items.IndexOf(Table.DefaultCharset);
-      FCharsetChange(Sender);
-    end
+    if (Assigned(Field.Charset)) then
+      FCharset.ItemIndex := FCharset.Items.IndexOf(Field.Charset.Name)
+    else if (Assigned(Table.Charset)) then
+      FCharset.ItemIndex := FCharset.Items.IndexOf(Table.Charset.Name)
     else
-    begin
-      FCharset.ItemIndex := FCharset.Items.IndexOf(Field.Charset);
-      FCharsetChange(Sender);
-    end;
-    if (Field.Collation = '') then
-      FCollation.ItemIndex := FCollation.Items.IndexOf(Table.Collation)
+      FCharset.ItemIndex := -1;
+    FCharsetChange(Sender);
+    if (Assigned(Field.Collation)) then
+      FCollation.ItemIndex := FCollation.Items.IndexOf(Field.Collation.Name)
+    else if (Assigned(Table.Collation)) then
+      FCollation.ItemIndex := FCollation.Items.IndexOf(Table.Collation.Name)
     else
-      FCollation.ItemIndex := FCollation.Items.IndexOf(Field.Collation);
+      FCollation.ItemIndex := -1;
 
     FExpression.Text := Field.Expression;
     FStoredStored.Checked := Field.Stored <> msVirtual;

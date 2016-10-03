@@ -129,15 +129,15 @@ begin
     if (FEngine.Items.IndexOf(TSBaseTable(Tables[I]).Engine.Name) <> FEngine.ItemIndex) then
       FEngine.ItemIndex := 0;
 
-  FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf(TSBaseTable(Tables[0]).DefaultCharset);
+  FDefaultCharset.ItemIndex := FDefaultCharset.Items.IndexOf(TSBaseTable(Tables[0]).Charset.Name);
   for I := 1 to Tables.Count - 1 do
-    if (FDefaultCharset.Items.IndexOf(TSBaseTable(Tables[I]).DefaultCharset) <> FDefaultCharset.ItemIndex) then
+    if (FDefaultCharset.Items.IndexOf(TSBaseTable(Tables[I]).Charset.Name) <> FDefaultCharset.ItemIndex) then
       FDefaultCharset.ItemIndex := 0;
   FDefaultCharsetChange(nil);
 
-  FCollation.ItemIndex := FCollation.Items.IndexOf(TSBaseTable(Tables[0]).Collation);
+  FCollation.ItemIndex := FCollation.Items.IndexOf(TSBaseTable(Tables[0]).Collation.Name);
   for I := 1 to Tables.Count - 1 do
-    if (FCollation.Items.IndexOf(TSBaseTable(Tables[I]).Collation) <> FCollation.ItemIndex) then
+    if (FCollation.Items.IndexOf(TSBaseTable(Tables[I]).Collation.Name) <> FCollation.ItemIndex) then
       FCollation.ItemIndex := 0;
 
   FRowType.ItemIndex := FRowType.Items.IndexOf(TSBaseTable(Tables[0]).DBRowTypeStr());
